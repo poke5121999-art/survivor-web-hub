@@ -1,14 +1,18 @@
-// Season Mode: bản đồ ngoài trời, va chạm, vật cản, quái khỉ, thùng, điểm rút lui (SK.SEASON.world).
-// Dữ liệu sinh bởi tools/season/build_season.py (data/season-data.js); art thật trong art/season/world/world0.png.
+// Season Mode: bản đồ thật (tilemap escape_terrain_init/scene1 8.6), va chạm, quái khỉ theo điểm sinh thật, rương,
+// cổng rút lui, ụ chắn, cầu, điều tra, giải cứu, kho báu (SK.SEASON.world).
+// Dữ liệu: data/season-data.js (tools/season/build_season.py); bảng luật: data/season-items.js (SK.SEASON.T).
 (function () {
   'use strict';
-  const SK = window.SK, D = SK.D, DS = SK.DS, T = SK.TILE, W = SK.world;
+  const SK = window.SK, D = SK.D, DS = SK.DS, T16 = SK.TILE, W = SK.world;
   const DATA = window.SK_SEASON && window.SK_SEASON.world;
   const SEASON = SK.SEASON = SK.SEASON || {};
   const SW = SEASON.world = {};
   if (!DATA) { SK.warnOnce('seasonData', 'season-data.js not loaded'); return; }
-  const M = 32, PFX = 'sw:';
-  const U = SK.PPU;
+  const TB = () => SEASON.T || {};
+  const inv = () => SEASON.inv;
+  const L = (k, d) => (SEASON.L ? SEASON.L(k, d) : d || k);
+  const PFX = 'sw:';
+  const U = 16;                        // [ĐO] 1 đơn vị Unity = 16 px
 
   // ---------------------------------------------------------------- art: trang atlas riêng gắn vào SK.pages
   let artImg = null, artReady = false;
@@ -27,7 +31,6 @@
     x.globalAlpha = alpha; x.fillStyle = color; x.fillRect(0, 0, c.width, c.height);
     return c;
   }
-  // SK.pages chỉ có sau SK.loadArt(); gọi lại mỗi khung cho tới khi gắn xong.
   SW.ensureArt = function () {
     if (artReady) return true;
     if (!artImg || !SK.pages || !SK.pages.length) return false;
@@ -36,539 +39,794 @@
     SK.pagesWhite.push(tint(artImg, '#ffffff', 1));
     SK.pagesElite.push(tint(artImg, '#ff2a1a', 0.32));
     for (const [n, f] of Object.entries(DATA.atlas.f)) SK.A.f[PFX + n] = [pi, f[0], f[1], f[2], f[3], f[4], f[5]];
-    for (const [en, a] of Object.entries(DATA.anims)) {
-      for (const [k, fr] of Object.entries(a)) {
-        if (!fr.length) continue;
-        // [ƯỚC LƯỢNG] 10 khung/giây như quái SK thường
-        D.anims['sw/' + en + '/' + k] = { f: fr.map(n => PFX + n), d: fr.map(() => k === 'dodge' ? 0.08 : 0.1), loop: k !== 'dead' && k !== 'dodge' };
-      }
-    }
     artReady = true;
     return true;
   };
   const fr = n => PFX + n;
-  const anim = (en, k) => 'sw/' + en + '/' + k;
+  const EX = () => (D.extra || {});
+  const clipKey = n => (EX().clips || {})[n] || null;
+  const pngKey = n => (EX().png || {})[n] || null;
 
   // ---------------------------------------------------------------- bản đồ tương thích SK.world
   const decode = s => s.replace(/(\D)(\d*)/g, (m, c, n) => c.repeat(n ? +n : 1));
   const hash = (x, y, k) => { let h = (x * 374761393 + y * 668265263 + (k || 0) * 2246822519) >>> 0; h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0; return (h ^ (h >>> 16)) >>> 0; };
+  const h01 = (x, y, k) => hash(x, y, k) / 4294967296;
 
   SW.buildMap = function (key) {
     const md = DATA.maps[key], N = md.W * md.H;
-    const solid = decode(md.solid), ground = decode(md.ground);
+    const solid = decode(md.solid);
+    const lay = {};
+    for (const k in md.layers) lay[k] = decode(md.layers[k]);
     const map = {
-      season: key, md, W: md.W, H: md.H, MW: md.MW, MH: md.MH, tiles: new Uint8Array(N), door: new Int16Array(N),
-      deco: new Uint8Array(N), rooms: [], obs: new Map(), doorCells: [], art: null, bg: '#33452f',
-      ground, solid, pxW: md.W * T, pxH: md.H * T, buildings: []
+      season: key, md, W: md.W, H: md.H, tiles: new Uint8Array(N), door: new Int16Array(N),
+      rooms: [], obs: new Map(), doorCells: [], art: null, bg: '#8e9e3b', lay, solid,
+      pxW: md.W * T16, pxH: md.H * T16, buildings: [], bunkers: []
     };
     for (let i = 0; i < N; i++) map.tiles[i] = solid[i] === '.' ? W.FLOOR : W.WALL;
+    const built = (inv() && inv().state.bridges) || {};
+    for (const b of md.bridges) if (built[b.id]) setBridge(map, b);
     return map;
   };
-  // Chân nhà chắn đi lại: dải đáy rộng 80% sprite, cao 40% [ƯỚC LƯỢNG theo ảnh e: đi sát chân quầy được].
-  function addBuilding(map, b) {
-    const f = DATA.atlas.f[b.sprite];
-    const w = f ? f[2] : 48, h = f ? f[3] : 48;
-    const x0 = b.x - w * 0.4, x1 = b.x + w * 0.4, y0 = b.y - Math.min(40, h * 0.4), y1 = b.y - 2;
-    for (let ty = Math.floor(y0 / T); ty <= Math.floor(y1 / T); ty++)
-      for (let tx = Math.floor(x0 / T); tx <= Math.floor(x1 / T); tx++)
-        if (tx >= 0 && ty >= 0 && tx < map.W && ty < map.H) map.tiles[ty * map.W + tx] = W.WALL;
-    map.buildings.push(b);
+  function setBridge(map, b) {
+    for (const [i, j] of b.walk) if (i >= 0 && j >= 0 && i < map.W && j < map.H) map.tiles[j * map.W + i] = W.FLOOR;
+    b.built = true;
   }
-  const gAt = (map, x, y) => {
-    x = SK.clamp(x, 0, map.MW - 1); y = SK.clamp(y, 0, map.MH - 1);
-    return map.ground[y * map.MW + x];
+  // tile 2x2 đơn vị: (cx, cy) chỉ số ô tilemap Unity; lớp lưu theo hàng từ trên xuống
+  const layAt = (map, k, cx, cy) => {
+    const md = map.md, i = cx - md.cx0, j = md.cy1 - 1 - cy;
+    if (i < 0 || j < 0 || i >= md.CW || j >= md.CH) return false;
+    return map.lay[k][j * md.CW + i] === '#';
   };
+  const tilePx = (md, cx, cy) => [(2 * cx - md.x0) * U, (md.y1 - 2 * cy - 2) * U];
   const walkable = (map, x, y) => !W.solidAt(map, x, y) && !W.solidAt(map, x - 6, y) && !W.solidAt(map, x + 6, y) && !W.solidAt(map, x, y - 6);
   function freeNear(map, x, y) {
-    for (let r = 0; r < 12; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+    for (let r = 0; r < 16; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
       if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
-      const px = x + dx * T, py = y + dy * T;
+      const px = x + dx * T16, py = y + dy * T16;
       if (walkable(map, px, py)) return [px, py];
     }
     return [x, y];
   }
   SW.freeNear = freeNear;
 
-  // ---------------------------------------------------------------- vẽ nền (tile blob thật của bộ escape)
-  const ROLES = DATA.roles;
-  const EDGE_FALLBACK = ['NE', 'ES', 'SW', 'NW', 'N', 'E', 'S', 'W'];
-  function roleFor(set, is, x, y) {
-    const R = ROLES[set];
-    const n = !is(x, y - 1), e = !is(x + 1, y), s = !is(x, y + 1), w = !is(x - 1, y);
-    const key = (n ? 'N' : '') + (e ? 'E' : '') + (s ? 'S' : '') + (w ? 'W' : '');
-    if (key) {
-      if (R[key]) return R[key];
-      for (const k of EDGE_FALLBACK) if (R[k] && [...k].every(c => key.indexOf(c) >= 0)) return R[k];
-      return R.full;
-    }
-    const nk = 'x' + (!is(x - 1, y - 1) ? 'a' : '') + (!is(x + 1, y - 1) ? 'b' : '') + (!is(x - 1, y + 1) ? 'c' : '') + (!is(x + 1, y + 1) ? 'd' : '');
-    if (nk === 'x') return R.full;
-    if (R[nk]) return R[nk];
-    for (const c of nk.slice(1)) if (R['x' + c]) return R['x' + c];
-    return R.full;
-  }
-  const pickVar = (list, x, y) => list[hash(x, y, 7) % list.length];
-  const isWater = c => c === 'w' || c === 'b';
-
-  function drawTilePart(ctx, name, dx, dy, sx, sy) {
-    const f = SK.A.f[PFX + name]; if (!f) return;
-    const img = SK.pages[f[0]]; if (!img) return;
-    ctx.drawImage(img, f[1] + sx, f[2] + sy, M, M, dx, dy, M, M);
-  }
-
+  // ---------------------------------------------------------------- vẽ nền
+  // Cỏ phủ nền: bể 7 sprite grass_6 + grass_rand_0..5 không trọng số [ĐO EscapeBottomGroundTileFillArea.spritePool] -> chọn đều [SUY]
+  // Đất / nước nông / nước sâu: dual grid, ô hiển thị nằm ở góc ô dữ liệu, chọn 1 trong 16 theo 4 ô quanh góc [ĐO DualGridTilemap]
   function drawGround(ctx, map, cam, vw, vh) {
-    const x0 = Math.max(0, Math.floor(cam.x / M) - 1), y0 = Math.max(0, Math.floor(cam.y / M) - 1);
-    const x1 = Math.min(map.MW - 1, Math.floor((cam.x + vw) / M) + 1), y1 = Math.min(map.MH - 1, Math.floor((cam.y + vh) / M) + 1);
-    const grassFull = ROLES.grass.full || [];
-    const isDirt = (x, y) => gAt(map, x, y) === 'd';
-    const isW = (x, y) => isWater(gAt(map, x, y));
-    // lõi sâu = ô nước có đủ 4 ô kề là nước; viền nông còn một ô như dải xanh nhạt mảnh trên Scene1.png
-    const isDeep = (x, y) => isW(x, y) && isW(x - 1, y) && isW(x + 1, y) && isW(x, y - 1) && isW(x, y + 1);
-    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
-      const px = x * M, py = y * M, c = gAt(map, x, y), h = hash(x, y, 1);
-      // cỏ nền: grass_* cùng màu (141,158,59) với cỏ trên Init.png; sg_* tối hơn nên không dùng làm nền [ĐO]
-      SK.draw(ctx, fr(grassFull[h % grassFull.length]), px, py);
-      if (c === 'd') SK.draw(ctx, fr(pickVar(roleFor('dirt', isDirt, x, y), x, y)), px, py);
-      else if (isWater(c)) {
-        SK.draw(ctx, fr(pickVar(roleFor('water_shallow', isW, x, y), x, y)), px, py);
-        if (isDeep(x, y)) SK.draw(ctx, fr(pickVar(roleFor('water_deep', isDeep, x, y), x, y)), px, py);
-      }
-      if (c === 'b' || c === 'k') drawTilePart(ctx, 'WoodBridgeDark_2', px, py, (x & 1) * M, (y & 1) * M);
+    const md = map.md;
+    const cxA = Math.floor((cam.x / U + md.x0) / 2) - 1, cxB = Math.floor(((cam.x + vw) / U + md.x0) / 2) + 1;
+    const cyA = Math.floor((md.y1 - (cam.y + vh) / U) / 2) - 1, cyB = Math.floor((md.y1 - cam.y / U) / 2) + 1;
+    const g = DATA.ground;
+    for (let cy = cyA; cy <= cyB; cy++) for (let cx = cxA; cx <= cxB; cx++) {
+      const [x, y] = tilePx(md, cx, cy);
+      SK.draw(ctx, fr(g[hash(cx, cy, 2) % g.length]), x + 16, y + 16);
     }
-    // nền rừng tối giữa các gốc cây, như khe giữa tán trong Init.png
-    const tx0 = Math.max(0, Math.floor(cam.x / T)), ty0 = Math.max(0, Math.floor(cam.y / T));
-    const tx1 = Math.min(map.W - 1, Math.floor((cam.x + vw) / T)), ty1 = Math.min(map.H - 1, Math.floor((cam.y + vh) / T));
-    ctx.fillStyle = '#30473a';   // [ĐO] màu khe tối giữa tán trên Init.png (48,71,58)
-    for (let y = ty0; y <= ty1; y++) for (let x = tx0; x <= tx1; x++) {
-      // chỉ lấp trong lòng rừng: ô gốc ở bìa nam để cỏ lộ ra dưới chân cây
-      let deep = true;
-      for (let k = -1; k <= 2 && deep; k++) {
-        const c = map.solid[SK.clamp(y + k, 0, map.H - 1) * map.W + x];
-        if (!TREE[c]) deep = false;
+    for (const [k, set] of [['dirt', 'dirt'], ['shallow', 'water_shallow'], ['deep', 'water_deep']]) {
+      const subs = DATA.dual[set], rnd = DATA.dualRand[set];
+      for (let cy = cyA; cy <= cyB + 1; cy++) for (let cx = cxA; cx <= cxB + 1; cx++) {
+        const tl = layAt(map, k, cx - 1, cy), tr = layAt(map, k, cx, cy), bl = layAt(map, k, cx - 1, cy - 1), br = layAt(map, k, cx, cy - 1);
+        if (!(tl || tr || bl || br)) continue;
+        const idx = DATA.dualTable['' + (+tl) + (+tr) + (+bl) + (+br)];
+        let f = subs[idx];
+        if (idx === 6 && rnd && h01(cx, cy, 7) < 0.25) f = rnd[hash(cx, cy, 3) % rnd.length];   // [ĐOÁN 25%]
+        SK.draw(ctx, fr(f), (2 * cx - md.x0) * U, (md.y1 - 2 * cy) * U);
       }
-      if (deep && TREE[map.solid[y * map.W + Math.max(0, x - 1)]] && TREE[map.solid[y * map.W + Math.min(map.W - 1, x + 1)]]) ctx.fillRect(x * T, y * T, T, T);
     }
+    // cầu + sàn (không sắp theo y)
+    for (const pr of md.props) if (!pr[4] && onScreen(pr[0], pr[1], cam, vw, vh)) SK.draw(ctx, fr(pr[2]), pr[0], pr[1], { flip: !!pr[3] });
+    for (const b of md.bridges) if (b.built) for (const t of b.tiles) SK.draw(ctx, fr(t[2]), t[0], t[1], { flip: !!t[3] });
   }
+  const onScreen = (x, y, cam, vw, vh) => x > cam.x - 90 && x < cam.x + vw + 90 && y > cam.y - 30 && y < cam.y + vh + 110;
 
-  // Cây: lưới so le 24x18 px, lệch ngẫu nhiên cố định; có cây khi gốc rơi vào ô rừng. Màu tán lấy theo ảnh map.
-  const TREE = { t: 'Tree_2', g: 'Tree_1', y: 'Tree_Y' };
-  const SX = 24, SY = 18;
+  // Cây: mỗi ô TreeMap rải 1 cây ở 1 trong 16 ô lưới 0.5 đơn vị; ô ven rừng luôn có cây, ô trong rừng 80%
+  // [ĐO EscapeTilemapRandomTileScatter: pool Tree_0 x1, Tree_1 x2, Tree_2 x3, nonEdgeCellSpriteProbability 0.8; vị trí ngẫu nhiên là ĐOÁN]
   function collectTrees(list, map, cam, vw, vh) {
-    const r0 = Math.floor((cam.y - 8) / SY), r1 = Math.floor((cam.y + vh + 70) / SY);
-    for (let r = r0; r <= r1; r++) {
-      const off = (r & 1) ? SX / 2 : 0;
-      const c0 = Math.floor((cam.x - 30 - off) / SX), c1 = Math.floor((cam.x + vw + 30 - off) / SX);
-      for (let c = c0; c <= c1; c++) {
-        const h = hash(c, r, 3);
-        const x = c * SX + off + ((h & 15) - 7.5) * 0.7, y = r * SY + (((h >> 4) & 15) - 7.5) * 0.5;
-        const tx = Math.floor(x / T), ty = Math.floor(y / T);
-        if (tx < 0 || ty < 0 || tx >= map.W || ty >= map.H) continue;
-        const ch = map.solid[ty * map.W + tx], sp = TREE[ch];
-        if (!sp) continue;
-        list.push({ y, fn: drawTree, a: sp, b: [x, y, (h >> 9) & 1] });
-      }
+    const md = map.md;
+    const cxA = Math.floor((cam.x / U + md.x0) / 2) - 2, cxB = Math.floor(((cam.x + vw) / U + md.x0) / 2) + 2;
+    const cyA = Math.floor((md.y1 - (cam.y + vh) / U) / 2) - 1, cyB = Math.floor((md.y1 - cam.y / U) / 2) + 4;
+    for (let cy = cyA; cy <= cyB; cy++) for (let cx = cxA; cx <= cxB; cx++) {
+      if (!layAt(map, 'tree', cx, cy)) continue;
+      const edge = !layAt(map, 'tree', cx - 1, cy) || !layAt(map, 'tree', cx + 1, cy) || !layAt(map, 'tree', cx, cy - 1) || !layAt(map, 'tree', cx, cy + 1);
+      if (!edge && h01(cx, cy, 11) >= DATA.treeP) continue;
+      const h = hash(cx, cy, 12), sub = h & 15;
+      const ux = 2 * cx + ((sub & 3) + 0.5) * 0.5, uy = 2 * cy + ((sub >> 2) + 0.5) * 0.5;
+      const x = (ux - md.x0) * U, y = (md.y1 - uy) * U;
+      list.push({ y, fn: drawTree, a: DATA.trees[DATA.treePool[(h >> 4) % DATA.treePool.length]], b: [x, y] });
+    }
+    // Bụi cỏ: mỗi ô GrassTilemap có grassP cơ hội mọc 1 bụi 'grass' ở 1 ô lưới 0.5 đơn vị [ĐO GrassTilemap scatter; vị trí ĐOÁN]
+    for (let cy = cyA; cy <= cyB; cy++) for (let cx = cxA; cx <= cxB; cx++) {
+      if (!layAt(map, 'grass', cx, cy) || h01(cx, cy, 21) >= (md.grassP || 0.5)) continue;
+      const sub = hash(cx, cy, 22) & 15;
+      const x = (2 * cx + ((sub & 3) + 0.5) * 0.5 - md.x0) * U, y = (md.y1 - 2 * cy - ((sub >> 2) + 0.5) * 0.5) * U;
+      list.push({ y, fn: drawTree, a: DATA.grassDecor, b: [x, y] });
     }
   }
-  function drawTree(ctx, sp, p) { SK.draw(ctx, fr(sp), p[0], p[1], { flip: !!p[2] }); }
+  function drawTree(ctx, sp, p) { SK.draw(ctx, fr(sp), p[0], p[1]); }
 
-  // ---------------------------------------------------------------- khỉ (quái Base Outskirt) [WIKI Escape from Monkia/Enemies]
-  const KINDS = {
-    gunner: { spr: 'macaque_1', name: 'Khỉ Xạ Thủ', hp: 40, weapons: ['desert_eagle', 'desert_eagle_gold', 'revolver', 'bow'], ai: 'SeasonGunner', speed: 3.6 },
-    wizard: { spr: 'macaque_2', name: 'Khỉ Pháp Sư', hp: 40, weapons: ['tidal_staff'], ai: 'EnemyAI01', speed: 3.2 },   // HP [ƯỚC LƯỢNG]
-    researcher: { spr: 'macaque_3', name: 'Khỉ Nghiên Cứu', hp: 40, weapons: ['dormant_bubble_machine'], ai: 'EnemyAI01', speed: 3.2 },
-    brawler: { spr: 'ape_1', name: 'Vượn Đấu Sĩ', hp: 50, weapons: ['wooden_hammer', 'broadsword', 'nunchaku'], ai: 'EnemyAI02', speed: 4 },
-    cannoneer: { spr: 'ape_2', name: 'Vượn Pháo Thủ', hp: 40, weapons: ['bazooka', 'ion_coilgun', 'coilgun', 'rocket_fireworks'], ai: 'EnemyAI03', speed: 3 },
-    guardian: { spr: 'ape_3', name: 'Vượn Hộ Vệ', hp: 60, weapons: ['mercenary_intern_s_shotgun'], ai: 'EnemyAI01', speed: 3 },   // HP [ƯỚC LƯỢNG]
-    gunner_elite: { spr: 'macaque_elite', name: 'Khỉ Xạ Thủ tinh anh', hp: 80, weapons: ['desert_eagle_gold', 'revolver'], ai: 'SeasonGunner', speed: 3.8, elite: true },
-    brawler_elite: { spr: 'ape_elite', name: 'Vượn Đấu Sĩ tinh anh', hp: 80, weapons: ['broadsword', 'wooden_hammer'], ai: 'EnemyAI02', speed: 4.2, elite: true }   // [WIKI] Brawler 50/80
+  // ---------------------------------------------------------------- khỉ: điểm sinh + chỉ số thật
+  // [ĐO game_tbaiattribute] Hp/MoveSpeed/PhysicalAttack; [ĐO escape_tbescapeenemyspawnconfig] HpMultiplier, bể vũ khí,
+  // FireDuration, AttackCd; [ĐO game_tbskill 6001-6006] SkillStartUp 0.75, SkillCd, SkillGcd, né cd 3, đổi vũ khí 4 s.
+  const pickW = (list, ws) => {
+    let tot = 0;
+    for (let i = 0; i < list.length; i++) tot += ws && ws[i] != null ? ws[i] : 1;
+    let r = SK.rand() * tot;
+    for (let i = 0; i < list.length; i++) { r -= ws && ws[i] != null ? ws[i] : 1; if (r <= 0) return list[i]; }
+    return list[list.length - 1];
   };
-  SW.KINDS = KINDS;
-
-  // Súng thật của người chơi cầm trên tay quái: đổi số wiki sang tham số EGun của actors.js.
-  function enemyWeapon(id) {
-    const d = DS.weapons[id] || DS.weapons.bad_pistol;
+  function enemyWeapon(itemId, wp) {
+    const it = SEASON.itemDef(itemId), wid = it && it.weaponId;
+    const d = DS.weapons[wid] || DS.weapons.bad_pistol;
     const melee = d.kind === 'melee';
     const f = SK.frame(d.sprite);
     return {
-      id, cls: melee ? 'ESword01' : (d.pellets || 1) > 1 ? 'EGun002' : 'EGun001', sprite: d.sprite, at: [4, 8],
-      gunPoint: [f ? f[3] - f[5] : 10, 0],
-      // [ƯỚC LƯỢNG] wiki nói "cùng sát thương như khi người chơi cầm", nhưng búa/kiếm 12 thì 2 nhát hết máu 16: chặn ở 4 (actors.js nhân 0.5 → tối đa 2/đòn)
-      p: { atk: SK.clamp(d.dmg || 2, 1, 4), bullet_speed: Math.min(14, (d.bulletSpeed || 14) * 0.55), deviation: (d.spread || 4) / 2,
+      item: itemId, id: wid, def: d, melee, cls: melee ? 'ESword01' : (d.pellets || 1) > 1 ? 'EGun002' : 'EGun001', sprite: d.sprite, at: [2, 6],
+      gunPoint: [f ? f[3] - f[5] : 10, 0], fireMin: wp ? wp[1] : 1, fireMax: wp ? wp[2] : 1, atkCd: wp ? wp[3] : -1,
+      period: Math.max(0.12, 1 / Math.max(0.3, d.rps || 2)),
+      // [ĐO PhysicalAttack 1 x SkillDamageFactor 1.0] mọi viên đạn khỉ gây 1 sát thương (EscapeEnemyPlayerWeaponAdapter.ApplyBulletDamage ghi đè sát thương)
+      p: { atk: 1, bullet_speed: Math.min(14, (d.bulletSpeed || 14) * 0.55), deviation: (d.spread || 4) / 2,
         count: d.pellets || 1, angle: d.pellets > 1 ? Math.max(6, (d.fan || 30) / d.pellets) : 0, bulletSize: 1, need_lock: 1 }
     };
   }
-
-  function makeMonkey(G, kind, x, y, camp) {
-    const k = KINDS[kind], wid = SK.pick(k.weapons);
+  const SPRITE_OF = pid => pid.replace('e_escape_', '');
+  function makeMonkey(G, pt, x, y, cfgId) {
+    const T = TB(), sc = T.spawns[cfgId];
+    if (!sc) return null;
+    const pid = sc.prefab, at = T.enemies[pid] || { hp: 40, speed: 4, skills: [[6001, 10]] }, k = SPRITE_OF(pid);
+    let pool = pt && pt.weapons && pt.weapons.length ? pt.weapons : sc.weapons, ws = pt && pt.weapons && pt.weapons.length ? pt.weaponsW : sc.weaponsW;
+    const ok = pool.map((w, i) => [w, ws[i]]).filter(([w]) => SEASON.itemDef(w[0]));
+    const wpA = ok.length ? pickW(ok.map(q => q[0]), ok.map(q => q[1])) : ['weapon_010', 0.5, 0.5, 2];
+    const skills = at.skills.map(s => s[0]);
+    const elite = /elite|boss/.test(pid);
+    let w2 = null;
+    if (skills.indexOf(6006) >= 0 && ok.length > 1) { const rest = ok.filter(q => q[0] !== wpA); w2 = enemyWeapon(rest[SK.randi(0, rest.length - 1)][0][0], rest[0][0]); }
+    const hp = Math.round(at.hp * (sc.hpx || 1));
     const e = {
-      id: 'season_' + kind, season: true, kind, d: { speed: k.speed, shadow: 'shadow2', hands: [[4, 8]] },
-      p: { shoot_cd: kind.startsWith('brawler') ? 1.1 : 1.8, attackProbability: 8, findTargetRange: 22, atk_range: 2.2, atkDelay: 1, damage: 2, reward_rate: 0 },
-      cls: k.ai, rawCls: k.ai, x, y, kx: 0, ky: 0, hp: k.hp, hpMax: k.hp, face: SK.chance(0.5) ? 1 : -1, aim: 0,
-      st: 'idle', stT: SK.randf(0.2, 1), t: SK.rand() * 2, cd: SK.randf(0.8, 2), room: camp, elite: !!k.elite, flash: 0,
-      w: enemyWeapon(wid), weaponId: wid,
-      anims: { idle: anim(k.spr, 'idle'), run: anim(k.spr, 'run'), dead: anim(k.spr, 'dead') },
-      r: 5, hb: { size: [14, 18], off: [0, 9] }, scale: 1, burst: 0
+      id: 'season_' + k, pid, cfg: cfgId, season: true, kind: k, d: { speed: at.speed, shadow: 'shadow3', hands: [[2, 6]] },
+      p: { findTargetRange: at.find || 20, reward_rate: 0, kinematic: 0 },
+      cls: 'SeasonMonkey', rawCls: 'SeasonMonkey', x, y, kx: 0, ky: 0, hp, hpMax: hp, face: SK.chance(0.5) ? 1 : -1, aim: 0,
+      st: 'idle', stT: SK.randf(0.2, 1), t: SK.rand() * 2, cd: 0, room: {}, elite: false, flash: 0, big: elite,
+      w: enemyWeapon(wpA[0], wpA), w2, weaponItem: wpA[0],
+      anims: { idle: clipKey(k + '_idle'), run: clipKey(k + '_run'), dead: pngKey('season_dead_' + k) },
+      dodgeAnim: clipKey(k + '_dodge'),
+      r: 5, hb: { size: [14, 18], off: [0, 9] }, scale: 1, burst: 0,
+      skills, ai: { mode: 'home', gcd: SK.randf(0.5, 1.5), scan: 0, dodgeCd: 1, sw: 4, home: [x, y] },
+      alert: (pt ? pt.alert : 25) * U, vision: (pt ? pt.vision : 15) * U, group: pt ? pt.group : null,
+      drop: pt ? pt.drop : 'enemy_minion'
     };
-    if (k.spr === 'macaque_1' || k.spr === 'macaque_elite') e.draw = drawGunner;
+    if (e.dodgeAnim) e.draw = drawDodger;
+    if (/elite/.test(pid)) e.drop = 'enemy_elite';
     return e;
   }
-  // Khung né (e_escape_macaque_1_dodge_0..3) khi Khỉ Xạ Thủ lăn tránh đạn [WIKI: "The Macaque Gunner can dodge"].
-  function drawGunner(ctx, G, e) {
+  SW.makeMonkey = makeMonkey;
+  function drawDodger(ctx, G, e) {
     if (e.st === 'dodge') {
-      const f = SK.animFrame(anim('macaque_1', 'dodge'), 0.32 - e.dodgeT);
-      SK.draw(ctx, f, e.x, e.y, { flip: e.face < 0, pages: e.elite ? SK.pagesElite : null });
+      const f = SK.animFrame(e.dodgeAnim, 0.25 - e.ai.dodgeT);
+      SK.draw(ctx, f, e.x, e.y, { flip: e.face < 0 });
       return;
     }
     const d = e.draw; e.draw = null; SK.drawEnemy(ctx, G, e); e.draw = d;
   }
-  SK.AI.SeasonGunner = function (G, e, dt) {
-    if (e.st === 'dodge') {
-      e.dodgeT -= dt;
-      SK.moveBox(G.map, e, Math.cos(e.dodgeA) * 150 * dt, Math.sin(e.dodgeA) * 150 * dt, e.r);
-      if (e.dodgeT <= 0) { e.st = 'idle'; e.stT = 0.2; }
+  const seesP = (G, e, range) => {
+    const p = G.player;
+    if (p.st === 'dead' || p.hidden) return false;
+    return Math.hypot(p.x - e.x, p.y - e.y) < range && W.los(G.map, e.x, e.y - 6, p.x, p.y - 6);
+  };
+  function steer(G, e, tx, ty, spd, dt) {
+    const dx = tx - e.x, dy = ty - e.y, d = Math.hypot(dx, dy);
+    if (d < 2) return true;
+    const s = Math.min(d, spd * dt);
+    if (Math.abs(dx) > 1) e.face = dx > 0 ? 1 : -1;
+    if (SK.moveBox(G.map, e, dx / d * s, dy / d * s, e.r)) {
+      // vướng cây: đi vòng sang một bên [ĐOÁN — game gốc có tìm đường EscapeSharedPathWindow]
+      const sgn = e.ai.side || (e.ai.side = SK.chance(0.5) ? 1 : -1);
+      if (SK.moveBox(G.map, e, -dy / d * s * sgn, dx / d * s * sgn, e.r)) e.ai.side = -sgn;
+    }
+    return false;
+  }
+  function alertGroup(G, e) {
+    for (const o of G.enemies) {
+      if (o === e || o.st === 'dead' || !o.ai || o.ai.mode !== 'home') continue;
+      if ((o.group && o.group === e.group && Math.hypot(o.x - e.x, o.y - e.y) < e.alert) || Math.hypot(o.x - e.x, o.y - e.y) < 5 * U) o.ai.mode = 'fight';
+    }
+  }
+  function fireOnce(G, e) {
+    const w = e.w, fn = SK.EGUN[w.cls] || SK.EGUN.EGun001;
+    fn(G, e);
+    e.kick = 2;
+    SK.emit('enemyFire', G, e);
+  }
+  SK.AI.SeasonMonkey = function (G, e, dt) {
+    const a = e.ai, p = G.player, dist = Math.hypot(p.x - e.x, p.y - e.y), spd = (e.d.speed || 4) * U;
+    a.gcd -= dt; a.dodgeCd -= dt; a.scan -= dt;
+    if (e.hp < e.hpMax && a.mode === 'home') { a.mode = 'fight'; alertGroup(G, e); }
+    if (a.mode === 'home') {
+      if (a.scan <= 0) { a.scan = 0.3; if (seesP(G, e, e.vision)) { a.mode = 'fight'; alertGroup(G, e); SK.emit('seasonAlert', G, e); } }
+      e.stT -= dt;
+      if (e.st === 'move') { if (steer(G, e, a.wx, a.wy, spd * 0.5, dt) || e.stT <= 0) { e.st = 'idle'; e.stT = SK.randf(1, 3); } }
+      else if (e.stT <= 0) {
+        const ang = SK.rand() * Math.PI * 2, r = SK.randf(8, 40);
+        a.wx = a.home[0] + Math.cos(ang) * r; a.wy = a.home[1] + Math.sin(ang) * r;
+        e.st = 'move'; e.stT = 3;
+      }
       return;
     }
-    e.dodgeCd = (e.dodgeCd == null ? 1 : e.dodgeCd) - dt;
-    if (e.dodgeCd <= 0 && e.st !== 'aim' && e.st !== 'attack') {
+    if (a.mode === 'return') {
+      e.st = 'move';
+      if (steer(G, e, a.home[0], a.home[1], spd, dt)) { a.mode = 'home'; e.st = 'idle'; e.stT = 1; }
+      if (a.scan <= 0) { a.scan = 0.3; if (seesP(G, e, e.vision)) a.mode = 'fight'; }
+      return;
+    }
+    // chiến đấu
+    if (p.st === 'dead' || dist > e.alert * 1.2 || Math.hypot(e.x - a.home[0], e.y - a.home[1]) > e.alert * 1.6) { a.mode = 'return'; a.act = null; return; }
+    if (e.w2 && (a.sw -= dt) <= 0) { a.sw = 4; const t = e.w; e.w = e.w2; e.w2 = t; }
+    if (e.st === 'dodge') {
+      a.dodgeT -= dt;
+      SK.moveBox(G.map, e, Math.cos(a.dodgeA) * 150 * dt, Math.sin(a.dodgeA) * 150 * dt, e.r);
+      if (a.dodgeT <= 0) { e.st = 'idle'; }
+      return;
+    }
+    if (e.skills.indexOf(6005) >= 0 && a.dodgeCd <= 0 && !a.act) {
       const b = G.bullets.find(q => q.side === 'p' && !q.dead && !q.vis && Math.hypot(q.x - e.x, q.y - e.y + 8) < 44);
       if (b) {
-        e.st = 'dodge'; e.dodgeT = 0.32; e.dodgeCd = SK.randf(2.5, 4);   // [ƯỚC LƯỢNG] 4 khung né ~0.32 s
-        e.dodgeA = Math.atan2(b.vy, b.vx) + (SK.chance(0.5) ? 1 : -1) * Math.PI / 2;
-        e.face = Math.cos(e.dodgeA) >= 0 ? 1 : -1;
+        a.dodgeCd = 3;                                               // [ĐO skill 6005 SkillCd 3]
+        e.st = 'dodge'; a.dodgeT = 0.25;
+        a.dodgeA = Math.atan2(b.vy, b.vx) + (SK.chance(0.5) ? 1 : -1) * Math.PI / 2;
+        e.face = Math.cos(a.dodgeA) >= 0 ? 1 : -1;
         return;
       }
     }
-    SK.AI.EnemyAI01(G, e, dt);
+    const act = a.act;
+    const sees = seesP(G, e, 22 * U);
+    const aimAt = () => { const [hx, hy] = [e.x + e.w.at[0] * e.face, e.y - e.w.at[1]]; e.aim = Math.atan2(p.y - 7 - hy, p.x - hx); if (Math.abs(p.x - e.x) > 1) e.face = p.x > e.x ? 1 : -1; };
+    if (!act) {
+      if (e.w.melee) { a.act = { k: 'melee', t: 0 }; return; }
+      if (a.gcd > 0) {
+        // giữa hai đòn: tiến lại nếu không thấy người chơi
+        if (!sees || dist > 14 * U) { e.st = 'move'; steer(G, e, p.x, p.y, spd, dt); } else { e.st = 'idle'; aimAt(); }
+        return;
+      }
+      const opts = e.skills.filter(s => s === 6001 || s === 6002 || s === 6003);
+      const ws = opts.map(s => (TB().enemies[e.pid].skills.find(q => q[0] === s) || [0, 10])[1]);
+      const sid = opts.length ? pickW(opts, ws) : 6001;
+      const sk = TB().skills[sid] || { startup: 0.75, gcd: 3, cd: 1 };
+      a.act = { k: sid, t: 0, startup: sk.startup, gcd: sk.gcd, fire: SK.randf(e.w.fireMin, e.w.fireMax), shotT: 0, side: SK.chance(0.5) ? 1 : -1 };
+      return;
+    }
+    act.t += dt;
+    if (act.k === 'melee') {
+      aimAt();
+      if (dist > 22) { e.st = 'move'; steer(G, e, p.x, p.y, spd, dt); }
+      else if (!act.cool || act.t >= act.cool) {
+        e.st = 'attack'; SK.EGUN.ESword01(G, e); SK.emit('enemyFire', G, e);
+        act.cool = act.t + Math.max(0.5, e.w.atkCd > 0 ? e.w.atkCd * 0.5 : e.w.period);
+      }
+      if (act.t > 6) a.act = null;
+      return;
+    }
+    // đòn tầm xa: 6001 đứng bắn, 6002 vừa lùi vừa bắn (thả diều), 6003 vòng qua vật cản áp sát rồi bắn
+    if (act.k === 6003 && (!sees || dist > 9 * U) && act.t < 3) { e.st = 'move'; steer(G, e, p.x, p.y, spd, dt); act.t = Math.min(act.t, 0.01); return; }
+    if (act.t < act.startup) { e.st = 'aim'; aimAt(); return; }
+    const ft = act.t - act.startup;
+    if (ft < act.fire) {
+      e.st = 'attack'; aimAt();
+      if (act.k === 6002) {
+        const ang = Math.atan2(e.y - p.y, e.x - p.x) + act.side * 1.2;
+        SK.moveBox(G.map, e, Math.cos(ang) * spd * 0.6 * dt, Math.sin(ang) * spd * 0.6 * dt, e.r);
+      }
+      act.shotT -= dt;
+      if (act.shotT <= 0 && sees) { act.shotT = e.w.period; fireOnce(G, e); }
+      return;
+    }
+    // [ĐO] AttackCd của vũ khí (-1 = dùng SkillCd) rồi SkillGcd
+    const cd = e.w.atkCd > 0 ? e.w.atkCd : (TB().skills[act.k] || { cd: 1 }).cd;
+    a.gcd = Math.max(cd, act.gcd * 0.5);
+    a.act = null;
+    e.st = 'idle';
   };
 
-  // ---------------------------------------------------------------- thùng
-  // [ĐO sheet Chest_10..27] mỗi loại một cặp đóng/mở; loại → sprite là [ĐOÁN] theo hình (bao tải = đồ ăn, hộp trắng = thuốc...).
-  const CRATE_SPR = {
-    resource: ['Chest_26', 'Chest_27'], food: ['Chest_18', 'Chest_19'], medical: ['Chest_20', 'Chest_21'],
-    supply: ['Chest_22', 'Chest_23'], misc: ['Chest_24', 'Chest_25'], monster: ['Chest_16', 'Chest_17'], monster_elite: ['Chest_14', 'Chest_15']
+  // ---------------------------------------------------------------- rương / hộp chứa
+  const CHEST_LOC = {
+    chest_resource: 'esc_box_chest_resource', chest_resource_s: 'esc_box_chest_resource', chest_food: 'esc_box_chest_food',
+    chest_food_s: 'esc_box_chest_food', chest_medical: 'esc_box_chest_medical', chest_medical_s: 'esc_box_chest_medical',
+    chest_misc: 'esc_box_chest_misc', chest_misc_s: 'esc_box_chest_misc', chest_munitions: 'esc_box_chest_munitions',
+    chest_tool: 'esc_box_tool', chest_tool_s: 'esc_box_tool', chest_treasure: 'esc_box_treasure',
+    enemy_drop_minion: 'esc_box_enemy_drop', enemy_drop_elite: 'esc_box_chest_elite', enemy_drop_boss: 'esc_box_enemy_drop_boss',
+    chest_temp: 'esc_interaction_temp_box'
   };
-  const CRATE_NAME = { resource: 'thùng tài nguyên', food: 'thùng thức ăn', medical: 'thùng y tế', supply: 'thùng tiếp tế', misc: 'thùng linh tinh', monster: 'thùng quái', monster_elite: 'thùng quái tinh anh' };
-  SW.CRATE_SPR = CRATE_SPR;
-
-  function itemDef(id) { return typeof SEASON.itemDef === 'function' ? SEASON.itemDef(id) : SEASON.items && SEASON.items[id]; }
-  function itemName(id) { const d = itemDef(id); return d ? d.name : id === 'iron_coin' ? 'Xu sắt' : id; }
-
-  function openCrate(G, c) {
-    const S = G.season;
-    if (c.open) return;
-    c.open = true; c.openT = 0;
-    let drops = [];
-    const lvl = 1;
-    const type = c.type === 'monster_elite' ? 'monster' : c.type;
-    const hasLoot = typeof SEASON.loot === 'function';
-    if (hasLoot) {
-      try { drops = SEASON.loot(type, lvl, { weapon: c.weapon, elite: c.type === 'monster_elite', crate: c }) || []; }
-      catch (err) { SK.warnOnce('loot', 'SK.SEASON.loot failed: ' + err); }
-    } else drops = [{ id: 'iron_coin', n: SK.randi(20, 80) }];   // chưa có mô-đun đồ: thả xu để vòng lặp vẫn chạy
-    drops.forEach((d, i) => {
-      const a = (i / Math.max(1, drops.length)) * Math.PI * 2 + SK.rand();
-      const [x, y] = freeNear(G.map, c.x + Math.cos(a) * 16, c.y + 10 + Math.sin(a) * 8);
-      S.loot.push({ id: d.id, n: d.n || 1, x, y, t: 0 });
-    });
-    if (c.weapon && !drops.some(d => d.id === 'w_' + c.weapon)) {
-      const [x, y] = freeNear(G.map, c.x, c.y + 14);
-      S.weapons.push({ id: c.weapon, x, y, t: 0 });
+  function makeChest(G, chestId, x, y, o) {
+    const prefab = (TB().chestPrefab || {})[chestId] || (o && o.prefab) || 'chest_resource_s';
+    const pf = DATA.chests[prefab] || DATA.chests.chest_resource_s || {};
+    return Object.assign({ chestId, prefab, x, y, open: false, t: SK.rand() * 3, openT: 0, box: null, spr: pf, slots: pf.slots || 8,
+      name: L(CHEST_LOC[prefab], 'Rương') }, o || {});
+  }
+  SW.makeChest = makeChest;
+  function openChest(G, c) {
+    const S = G.season, I = inv();
+    if (!c.box) {
+      const stacks = c.kind === 'temp' || c.kind === 'death' ? c.stacks : SEASON.loot(c.chestId, { weapon: c.weapon });
+      const slots = new Array(Math.max(c.slots, stacks.length)).fill(null);
+      stacks.forEach((s, i) => { slots[i] = s; });
+      c.box = { name: c.name, kind: c.kind || 'chest', slots, chest: c };
+      if (c.kind === 'death' && I.state.deathBox) I.state.deathBox.slots = slots;
     }
-    SK.fx(G, 'ring', c.x, c.y - 4, { dur: 0.35, color: '#ffe38a' });
-    SK.emit('seasonLoot', G, c);
-  }
-
-  function pickLoot(G, it) {
-    const S = G.season;
-    let left = 0;
-    if (SEASON.inv && typeof SEASON.inv.add === 'function') left = SEASON.inv.add(it.id, it.n) || 0;
-    else { S.bag[it.id] = (S.bag[it.id] || 0) + it.n; }
-    if (left >= it.n) { G.toast('Balô đầy!'); return; }
-    G.toast('+' + (it.n - left) + ' ' + itemName(it.id));
-    if (left > 0) it.n = left; else it.gone = true;
-    S.loot = S.loot.filter(x => !x.gone);
-  }
-  function pickWeapon(G, it) {
-    const p = G.player, S = G.season;
-    S.weapons = S.weapons.filter(x => x !== it);
-    if (SEASON.inv && typeof SEASON.inv.pickWeapon === 'function' && SEASON.inv.pickWeapon(it.id) !== false) { G.toast(DS.weapons[it.id].name); return; }
-    if (!p.weapons[1]) { p.weapons[1] = SK.makeWeapon(it.id); p.cur = 1; }
-    else {
-      const old = p.weapons[p.cur];
-      p.weapons[p.cur] = SK.makeWeapon(it.id);
-      S.weapons.push({ id: old.id, x: p.x, y: p.y + 4, t: 0 });
+    if (!c.open) {
+      c.open = true; c.openT = 0;
+      if (SK.vfx && SK.vfx.has && SK.vfx.has('effect_open_chest')) SK.vfx.spawn(G, 'effect_open_chest', c.x, c.y - 6);
+      SK.emit('seasonLoot', G, c);
     }
-    if (p.skillT > 0 && p.dual) SK.endSkill(G, p);
-    G.toast(DS.weapons[it.id].name);
+    I.openBox(c.box);
+    const ui = SEASON.ui;
+    if (ui && ui.open) ui.open('bag', 'box');
+    S.lastBox = c;
   }
+  SW.openChest = openChest;
+  const boxEmpty = c => c.box && c.box.slots.every(s => !s);
 
   // ---------------------------------------------------------------- vào bản đồ
   function resetWorld(G, key) {
     G.map = SW.buildMap(key);
     G.enemies = []; G.bullets = []; G.pickups = []; G.fx = []; G.nums = []; G.items = []; G.chests = []; G.interactables = []; G.props = [];
+    if (G.vfx && SK.vfx) SK.vfx.clear(G);
     G.room = null; G.portal = null; G.banner = null;
     const S = G.season;
-    S.map = key; S.crates = []; S.loot = []; S.weapons = []; S.exits = []; S.npcs = []; S.extract = null;
+    S.map = key; S.crates = []; S.gates = []; S.npcs = []; S.extract = null; S.rescue = []; S.investigate = []; S.treasure = null;
+    S.followers = S.followers || [];
+    const md = DATA.maps[key];
+    for (const b of md.bunkers) addBunker(G.map, b);
+    for (const g of md.gates) S.gates.push(Object.assign({ t: 0, hold: 0 }, g));
+    if (inv()) inv().closeBox();
   }
+  function addBunker(map, b) {
+    const o = { kind: 'box', bunker: true, hp: b.hp, hpMax: b.hp, x: b.x, y: b.y, parts: b.parts, cells: [], flash: 0, name: 'bunker' };
+    const [bx, by, bw, bh] = b.box;
+    for (let j = Math.floor(by / T16); j < Math.ceil((by + bh) / T16); j++)
+      for (let i = Math.floor(bx / T16); i < Math.ceil((bx + bw) / T16); i++) {
+        if (i < 0 || j < 0 || i >= map.W || j >= map.H) continue;
+        const k = j * map.W + i;
+        if (map.tiles[k] !== W.FLOOR) continue;
+        map.tiles[k] = W.WALL; map.obs.set(k, o); o.cells.push(k);
+      }
+    if (o.cells.length) { o.tx = o.cells[0] % map.W; o.ty = Math.floor(o.cells[0] / map.W); }
+    map.bunkers.push(o);
+  }
+  SK.on('obstacleBreak', (G, o) => {
+    if (!o || !o.bunker || !G.map) return;
+    for (const k of o.cells) { G.map.obs.delete(k); G.map.tiles[k] = W.FLOOR; }
+    o.dead = true;
+  });
+
+  const HERO_FOLDER = { 1: 'ranger', 2: 'mage', 3: 'assassin', 4: 'alchemist', 5: 'engineer', 6: 'vampire', 10: 'priest' };
+  const FOLDER_NPC = { ranger: 'esc_npc_ranger', mage: 'esc_npc_mage', assassin: 'esc_npc_assassin', alchemist: 'esc_npc_alchemist',
+    engineer: 'esc_npc_engineer', vampire: 'esc_npc_vampire', priest: 'esc_npc_priest' };
+  const nodeOfNpc = id => { const n = (TB().npcs || {})[id]; return id === 'esc_npc_explorer' ? 'rescued_esc_npc_explorer' : 'rescued_' + (n ? n.prefab : id); };
+  SW.nodeOfNpc = nodeOfNpc;
 
   SW.enterBase = function (G, at) {
     resetWorld(G, 'base');
-    const md = DATA.maps.base, S = G.season;
-    for (const b of md.buildings) addBuilding(G.map, b);
-    const [px, py] = md.points.portal;
-    G.portal = { x: px, y: py, t: 0 };
-    const [nx, ny] = md.points.npc;
-    S.npcs.push({ id: 'drillmaster', name: 'Huấn luyện viên', x: nx, y: ny, t: 0, face: -1 });
+    const md = DATA.maps.base, S = G.season, I = inv();
     for (const b of md.buildings) {
-      G.interactables.push({ x: b.x, y: b.y + 6, r: 34, label: b.name, labelY: 40, kind: b.kind, use: (G2) => useBuilding(G2, b) });
+      const lv = buildingLevel(b.id);
+      if (lv <= 0) continue;
+      G.map.buildings.push(b);
+      for (const [i, j] of b.solidCells || []) if (i >= 0 && j >= 0 && i < G.map.W && j < G.map.H) G.map.tiles[j * G.map.W + i] = W.WALL;
     }
-    G.interactables.push({ x: nx, y: ny + 2, r: 26, label: 'Nói chuyện', labelY: 34, kind: 'npc', use: (G2) => openUi(G2, 'quest', 'Huấn luyện viên: nhận nhiệm vụ ở bảng Nhiệm vụ.') });
-    const spot = at === 'portal' ? [px, py + 40] : md.points.spawn;
+    for (const n of md.npcs) {
+      if (n.need.length && !n.need.every(k => I.node(k))) continue;
+      S.npcs.push({ id: n.id, x: n.x, y: n.y, prefab: n.prefab, t: SK.rand() * 2, face: -1, name: npcName(n.id) });
+    }
+    const spot = at === 'portal' ? [md.gates[0].x, md.gates[0].y + 40] : md.spawn;
     const [sx, sy] = freeNear(G.map, spot[0], spot[1]);
     G.player.x = sx; G.player.y = sy;
+    S.followers = [];
   };
-
-  function openUi(G, panel, fallback) {
-    const ui = SEASON.ui;
-    if (ui && typeof ui.open === 'function') { ui.open(panel, G); return; }
-    G.toast(fallback, 2.2);
+  function buildingLevel(id) {
+    if (id === 'DesignTable' || id === 'Researcher') return 1;
+    const I = inv();
+    return I ? I.buildLevel(id) : 1;
   }
-  function useBuilding(G, b) {
-    if (b.kind === 'warehouse') openUi(G, 'warehouse', 'Nhà kho: cất đồ sau mỗi chuyến.');
-    else if (b.kind === 'store') openUi(G, 'store', 'Cửa hàng: bán đồ lấy xu sắt.');
-    else if (b.kind === 'training') openUi(G, 'training', 'Khu huấn luyện: nâng cấp bằng năng lượng tím.');
-    else openUi(G, 'design', 'Bàn thiết kế: xây công trình mới.');
-  }
+  SW.buildingLevel = buildingLevel;
+  const npcName = id => ((TB().npcs || {})[id] || {}).name || id;
 
   SW.enterExpedition = function (G) {
     resetWorld(G, 's1');
-    const md = DATA.maps.s1, S = G.season;
-    for (const cp of md.camps) addBuilding(G.map, { sprite: cp.sprite, x: cp.x, y: cp.y, kind: 'camp' });
-    const [ex, ey] = freeNear(G.map, md.points.entry[0], md.points.entry[1]);
+    const md = DATA.maps.s1, S = G.season, I = inv();
+    const entry = md.entry || [md.gates[0].x, md.gates[0].y + 40];
+    const [ex, ey] = freeNear(G.map, entry[0], entry[1]);
     G.player.x = ex; G.player.y = ey;
-    for (const [x, y] of md.points.exits) S.exits.push({ x, y, r: 26, t: 0 });
-    for (const [x, y, type] of md.crates) {
-      const [cx, cy] = freeNear(G.map, x, y);
-      S.crates.push({ type, x: cx, y: cy, open: false, t: 0, openT: 0 });
+    // [ĐO] 27 điểm rương, spawnOnStart = 1: rương có sẵn khi vào
+    for (const c of md.chests) {
+      const [cx, cy] = freeNear(G.map, c.x, c.y);
+      S.crates.push(makeChest(G, c.id, cx, cy));
     }
-    // Quái: 3 con mỗi trại, trại có tinh anh [ƯỚC LƯỢNG mật độ; wiki không ghi số lượng]
-    const ROSTER = { ape: ['brawler', 'brawler', 'cannoneer'], macaque: ['gunner', 'gunner', 'researcher'], mixed: ['gunner', 'brawler', 'guardian'] };
-    md.camps.forEach((cp, i) => {
-      const camp = { x0: Math.floor((cp.x - 150) / T), x1: Math.floor((cp.x + 150) / T), y0: Math.floor((cp.y - 110) / T), y1: Math.floor((cp.y + 130) / T), camp: i };
-      const list = ROSTER[cp.kind].slice();
-      if (i === 3) list.push('brawler_elite');
-      if (i === 6) list.push('gunner_elite');
-      if (i === 1) list.push('wizard');
-      list.forEach((kind, j) => {
-        const a = j / list.length * Math.PI * 2 + SK.rand();
-        const [x, y] = freeNear(G.map, cp.x + Math.cos(a) * 60, cp.y + 30 + Math.sin(a) * 36);
-        G.enemies.push(makeMonkey(G, kind, x, y, camp));
-      });
-    });
-    // tuần tra dọc đường: vài con quanh các thùng lẻ xa trại
-    const lone = md.crates.slice(md.camps.length * 4).filter((c, i) => i % 5 === 0).slice(0, 7);
-    for (const [x, y] of lone) {
-      const camp = { x0: Math.floor((x - 120) / T), x1: Math.floor((x + 120) / T), y0: Math.floor((y - 90) / T), y1: Math.floor((y + 90) / T) };
-      const [ex2, ey2] = freeNear(G.map, x + 40, y + 10);
-      G.enemies.push(makeMonkey(G, SK.pick(['gunner', 'brawler', 'cannoneer']), ex2, ey2, camp));
+    // [ĐO] 49 điểm sinh quái, mỗi điểm một con theo bể cấu hình của điểm
+    for (const pt of md.enemies) {
+      const cfg = pickW(pt.cfg, pt.cfgW);
+      const [x, y] = freeNear(G.map, pt.x, pt.y);
+      const e = makeMonkey(G, pt, x, y, cfg);
+      if (e) G.enemies.push(e);
     }
+    // Rương Tử Vong của lần chết trước (còn 1 cơ hội)
+    const db = I.state.deathBox;
+    if (db && db.map === 's1' && db.slots.some(Boolean)) {
+      const [x, y] = freeNear(G.map, db.x, db.y);
+      S.crates.push(makeChest(G, 'death', x, y, { kind: 'death', prefab: 'chest_temp', stacks: db.slots, name: L('esc_map_icon_lost_item', 'Vật Thất Lạc'),
+        spr: { closed: DATA.misc.Box_1, open: DATA.misc.Box_1 } }));
+    }
+    for (const r of md.rescue) {
+      const npc = r.npc || FOLDER_NPC[HERO_FOLDER[r.hero]];
+      if (!npc || I.node(nodeOfNpc(npc))) continue;
+      if (npc === 'esc_npc_explorer' && !(SEASON.quests && SEASON.quests.isAccepted && SEASON.quests.isAccepted(10005))) continue;
+      S.rescue.push({ x: r.x, y: r.y, npc, folder: HERO_FOLDER[r.hero] || null, t: SK.rand() * 2, face: -1, name: npcName(npc), freed: false });
+    }
+    S.followers = [];
+    for (const a of md.investigate) S.investigate.push(Object.assign({ hold: 0, done: false, t: 0 }, a));
+    S.bridgesMd = md.bridges;
   };
 
-  // ---------------------------------------------------------------- mỗi bước
-  const EXTRACT_T = 5;   // [ĐOÁN, brief] đứng trong vòng 5 s
+  // ---------------------------------------------------------------- tương tác
+  // Trigger của Unity chạm collider người chơi chứ không phải tâm; nới 16 px để đứng sát tường nhà vẫn mở được
+  const TRIG_PAD = 16;
+  const inRect = (p, r) => r && p.x >= r[0] - TRIG_PAD && p.x <= r[0] + r[2] + TRIG_PAD && p.y >= r[1] - TRIG_PAD && p.y <= r[1] + r[3] + TRIG_PAD;
   SW.nearestInteract = function (G) {
     const p = G.player, S = G.season;
     let best = null, bd = 1e9;
     const consider = (d, reach, o) => { if (d < reach && d - reach < bd) { bd = d - reach; best = o; } };
-    for (const o of G.interactables) {
-      if (o.gone) continue;
-      consider(Math.hypot(o.x - p.x, o.y - p.y), o.r || 26, { x: o.x, y: o.y - (o.labelY || 24), label: o.label, kind: o.kind, use: () => o.use(G, o) });
+    for (const b of G.map.buildings) {
+      if (inRect(p, b.trig) || Math.hypot(b.x - p.x, b.y - p.y) < 30) consider(Math.hypot(b.x - p.x, b.y - p.y) - 60, 1, { x: b.x, y: b.y - 58, label: b.name, kind: b.id, use: () => useBuilding(G, b) });
     }
+    for (const n of S.npcs) consider(Math.hypot(n.x - p.x, n.y - p.y), 26, { x: n.x, y: n.y - 34, label: n.name, kind: 'npc', use: () => talkNpc(G, n) });
     for (const c of S.crates) {
-      if (c.open) continue;
-      consider(Math.hypot(c.x - p.x, c.y - p.y), 24, { x: c.x, y: c.y - 30, label: 'Mở ' + CRATE_NAME[c.type], kind: 'crate', use: () => openCrate(G, c) });
+      if (c.gone || (c.open && boxEmpty(c) && c.kind !== 'chest')) continue;
+      consider(Math.hypot(c.x - p.x, c.y - p.y), 24, { x: c.x, y: c.y - 30, label: (c.open ? 'Xem ' : 'Mở ') + c.name, kind: 'crate', use: () => openChest(G, c) });
     }
-    for (const it of S.loot) consider(Math.hypot(it.x - p.x, it.y - p.y), 18, { x: it.x, y: it.y - 16, label: 'Nhặt ' + itemName(it.id) + (it.n > 1 ? ' x' + it.n : ''), kind: 'loot', use: () => pickLoot(G, it) });
-    for (const it of S.weapons) consider(Math.hypot(it.x - p.x, it.y - p.y), 18, { x: it.x, y: it.y - 14, label: 'Nhặt ' + DS.weapons[it.id].name, kind: 'weapon', use: () => pickWeapon(G, it) });
+    for (const r of S.rescue) if (!r.freed) consider(Math.hypot(r.x - p.x, r.y - p.y), 26, { x: r.x, y: r.y - 34, label: 'Giải cứu ' + r.name, kind: 'rescue', use: () => freeHero(G, r) });
+    for (const b of G.map.md.bridges) {
+      if (b.built) continue;
+      consider(Math.hypot(b.x - p.x, b.y - p.y), 36, { x: b.x, y: b.y - 20, label: 'Xây cầu', kind: 'bridge', use: () => { const ui = SEASON.ui; if (ui && ui.openBridge) ui.openBridge(b); } });
+    }
+    if (S.treasure && !S.treasure.dug) consider(Math.hypot(S.treasure.x - p.x, S.treasure.y - p.y), 24, { x: S.treasure.x, y: S.treasure.y - 26, label: 'Đào kho báu', kind: 'dig', use: () => { S.treasure.digging = true; } });
     return best;
   };
+  function useBuilding(G, b) {
+    const ui = SEASON.ui;
+    if (!ui || !ui.open) return;
+    const I = inv();
+    I.atWorkshop = b.id === 'Workshop';
+    if (b.id === 'Warehouse') ui.open('bag', 'warehouse');
+    else if (b.id === 'Shop') ui.open('bag', 'store');
+    else if (b.id === 'DesignTable') ui.open('bag', 'design');
+    else if (b.id === 'Researcher') ui.open('bag', 'training');
+    else if (b.id === 'Workshop' || b.id === 'Kitchen' || b.id === 'Medical') ui.open('bag', 'craft:' + b.id);
+    else if (b.id === 'Tent') G.toast(L('esc_building_tent_effect', 'Đổi nhân vật') + ' — bản web: chọn nhân vật ở sảnh', 2.5);
+    else G.toast(L('esc_building_teleporter_desc', 'Dịch chuyển đến Đèn Hiệu') + ' — chưa có Đèn Hiệu nào ở Vành Đai Căn Cứ', 2.5);
+  }
+  function talkNpc(G, n) {
+    const ui = SEASON.ui;
+    if (ui && ui.openQuest) ui.openQuest(n.id);
+  }
+  function freeHero(G, r) {
+    r.freed = true;
+    G.season.followers.push(r);
+    G.toast(L('esc_rescue_talk_0', 'Mau đưa tôi rời khỏi đây...'), 2.5);
+    SK.emit('seasonFree', G, r.npc);
+  }
 
-  // Chạy sau SK.updatePlayer. Trả 'extract' khi đứng đủ giờ trong vòng rút lui, 'portal' khi bước vào cổng xoáy.
+  // ---------------------------------------------------------------- kho báu [ĐO EscapeTreasureMapConfig: vị trí + sự kiện đào theo trọng số]
+  SW.revealTreasure = function (G, itemId) {
+    const S = G.season;
+    if (!S || S.map !== 's1') return 'Chỉ dùng được ngoài bản đồ';
+    if (S.treasure && !S.treasure.dug) return 'Đang có một điểm kho báu chưa đào';
+    const list = DATA.maps.s1.treasure;
+    const [x, y] = list[SK.randi(0, list.length - 1)];
+    S.treasure = { x, y, item: itemId, hold: 0, dug: false, t: 0 };
+    G.toast('Đã đánh dấu điểm kho báu trên bản đồ', 2.5);
+    return null;
+  };
+  function digTreasure(G) {
+    const S = G.season, tr = S.treasure;
+    tr.dug = true;
+    const ent = (TB().treasure || []).find(e => e.item === tr.item) || (TB().treasure || [])[0];
+    const ev = pickW(ent.events, ent.events.map(e => e[2]));
+    G.toast(L(ev[1], 'Đào xong'), 3);
+    const m = /^Chest_(rare_)?(\d+)$/.exec(ev[0]);
+    if (m) {
+      const cid = 'treasure_map_' + (m[1] ? 'rare_' : '') + m[2];
+      if ((TB().chests || {})[cid]) { const [x, y] = freeNear(G.map, tr.x, tr.y + 8); const c = makeChest(G, cid, x, y); S.crates.push(c); }
+    } else if (ev[0] === 'Enemy10') {
+      for (let i = 0; i < 2; i++) { const [x, y] = freeNear(G.map, tr.x + SK.randf(-40, 40), tr.y + SK.randf(-30, 30)); const e = makeMonkey(G, null, x, y, 'scene1_macaque_1'); if (e) { e.ai.mode = 'fight'; G.enemies.push(e); } }
+    } else if (ev[0] === 'sting') inv().selfDamage(G, 2);          // [ĐOÁN sát thương bẫy]
+    else if (ev[0] === 'Gas') inv().selfDamage(G, 1);
+    else if (/explode/.test(ev[0])) { SK.hurtPlayer(G, 4, tr.x, tr.y); G.shake = 6; }
+  }
+
+  // ---------------------------------------------------------------- mỗi bước
+  // Trả 'extract' khi đứng đủ giờ ở điểm rút lui / cổng về căn cứ, 'portal' khi đứng đủ giờ ở cổng ra bản đồ.
   SW.update = function (G, dt) {
     const p = G.player, S = G.season;
     for (const c of S.crates) { c.t += dt; if (c.open) c.openT += dt; }
-    for (const it of S.loot) it.t += dt;
-    for (const it of S.weapons) it.t += dt;
-    for (const n of S.npcs) {
-      n.t += dt;
-      if (Math.abs(p.x - n.x) > 2) n.face = p.x > n.x ? 1 : -1;
-    }
-    // Quái xa người chơi thì đứng yên cho nhẹ; con đang đánh vẫn chạy tiếp.
+    for (const n of S.npcs) { n.t += dt; if (Math.abs(p.x - n.x) > 2) n.face = p.x > n.x ? 1 : -1; }
+    for (const r of S.rescue) r.t += dt;
+    for (const b of G.map.bunkers) b.flash = Math.max(0, b.flash - dt);
+    // người được giải cứu đi theo
+    S.followers.forEach((f, i) => {
+      const tx = p.x - p.face * (16 + i * 12), ty = p.y + 4;
+      const d = Math.hypot(tx - f.x, ty - f.y);
+      f.moving = d > 6;
+      if (d > 220) { f.x = tx; f.y = ty; }
+      else if (f.moving) { const s = Math.min(d, 80 * dt * (d > 60 ? 2 : 1)); f.x += (tx - f.x) / d * s; f.y += (ty - f.y) / d * s; f.face = tx > f.x ? 1 : -1; }
+    });
     for (const e of G.enemies) {
-      const far = Math.abs(e.x - p.x) > 460 || Math.abs(e.y - p.y) > 340;
-      if (!far || e.st === 'dead') SK.updateEnemy(G, e, dt);
+      const far = Math.abs(e.x - p.x) > 520 || Math.abs(e.y - p.y) > 380;
+      if (!far || e.st === 'dead' || (e.ai && e.ai.mode !== 'home')) SK.updateEnemy(G, e, dt);
     }
-    let out = null;
-    if (G.portal) {
-      G.portal.t += dt;
-      if (p.st !== 'dead' && Math.hypot(p.x - G.portal.x, p.y - G.portal.y) < 16) out = 'portal';
+    let out = null, inGate = null;
+    for (const g of S.gates) {
+      g.t += dt;
+      const inside = p.st !== 'dead' && Math.abs(p.x - g.x) < 24 && p.y > g.y - 40 && p.y < g.y + 8;   // [ĐO] hộp kích hoạt 3x3 đơn vị lệch (0,1)
+      if (inside && g.kind !== 'zone') inGate = g;
+      g.inside = inside;
     }
-    let inExit = null;
-    for (const x of S.exits) {
-      x.t += dt;
-      if (p.st !== 'dead' && Math.hypot(p.x - x.x, p.y - x.y) < x.r) inExit = x;
-    }
-    if (inExit) {
-      if (!S.extract || S.extract.at !== inExit) S.extract = { at: inExit, t: 0 };
+    if (inGate) {
+      if (!S.extract || S.extract.at !== inGate) S.extract = { at: inGate, t: 0, dur: inGate.dur };
       S.extract.t += dt;
-      if (S.extract.t >= EXTRACT_T) out = 'extract';
+      if (S.extract.t >= inGate.dur) out = inGate.kind === 'deploy' ? 'portal' : 'extract';
     } else S.extract = null;
+    // điều tra khu vực: đứng trong vòng 2 giây [ĐO InvestigationArea.interactionTime 2.0]
+    const Q = SEASON.quests;
+    for (const a of S.investigate) {
+      a.t += dt;
+      a.active = !a.done && Q && Q.wantsArea && Q.wantsArea(a.id);
+      if (!a.active) continue;
+      if (Math.hypot(p.x - a.x, p.y - a.y) < 32 && p.st !== 'dead') {
+        a.hold += dt;
+        if (a.hold >= 2) { a.done = true; G.toast(L('esc_investigation_complete', 'Đã điều tra xong'), 2.5); SK.emit('seasonInvestigate', G, a.id); }
+      } else a.hold = Math.max(0, a.hold - dt);
+    }
+    // đào kho báu 1.5 giây [ĐO EscapeTreasureDigSite.interactDuration]
+    const tr = S.treasure;
+    if (tr && !tr.dug) {
+      tr.t += dt;
+      if (tr.digging && Math.hypot(p.x - tr.x, p.y - tr.y) < 28) { tr.hold += dt; if (tr.hold >= 1.5) digTreasure(G); }
+      else { tr.digging = false; tr.hold = 0; }
+    }
+    // rương hộp đã lấy sạch: rương tạm/rương tử vong biến mất
+    const I = inv();
+    for (const c of S.crates) if ((c.kind === 'temp' || c.kind === 'death') && c.box && boxEmpty(c) && I.box !== c.box) {
+      c.gone = true;
+      if (c.kind === 'death') I.state.deathBox = null;
+    }
+    S.crates = S.crates.filter(c => !c.gone);
+    // đi xa khỏi rương đang mở thì đóng
+    if (I.box && I.box.chest && Math.hypot(I.box.chest.x - p.x, I.box.chest.y - p.y) > 48) { I.closeBox(); if (SEASON.ui && SEASON.ui.mode === 'box') SEASON.ui.close(); }
     return out;
   };
 
   SK.on('enemyKill', (G, e) => {
     if (!e.season || G.state !== 'season') return;
-    // [WIKI Monster crate] mọi quái rớt thùng chứa đúng vũ khí nó cầm + Violet Energy
+    // [ĐO EscapeEnemySpawnAttribute.deathDropChestId] rương quái + vũ khí nó cầm
     const [x, y] = freeNear(G.map, e.x, e.y + 4);
-    G.season.crates.push({ type: e.elite ? 'monster_elite' : 'monster', x, y, open: false, t: 0, openT: 0, weapon: e.weaponId, from: e.kind });
+    G.season.crates.push(makeChest(G, e.drop || 'enemy_minion', x, y, { weapon: e.weaponItem, from: e.kind }));
     SK.emit('seasonKill', G, e);
+  });
+  // Vứt đồ: Rương Tạm Thời dưới chân (gộp vào rương tạm gần đó)
+  SK.on('seasonDrop', (G, st) => {
+    if (!G || G.state !== 'season' || !G.season || !st || !G.player) return;
+    const p = G.player, S = G.season;
+    let c = S.crates.find(q => q.kind === 'temp' && Math.hypot(q.x - p.x, q.y - p.y) < 24 && q.box && q.box.slots.indexOf(null) >= 0);
+    if (!c) {
+      const [x, y] = freeNear(G.map, p.x + p.face * 12, p.y + 6);
+      c = makeChest(G, 'temp', x, y, { kind: 'temp', prefab: 'chest_temp', stacks: [], slots: 20, spr: { closed: DATA.misc.Box_1, open: DATA.misc.Box_1 } });
+      c.open = true;
+      c.box = { name: c.name, kind: 'temp', slots: new Array(20).fill(null), chest: c, seen: [] };
+      S.crates.push(c);
+    }
+    c.box.slots[c.box.slots.indexOf(null)] = st;
   });
 
   // ---------------------------------------------------------------- vẽ
   SW.render = function (ctx, G, cam, vw, vh) {
     SW.ensureArt();
-    const map = G.map, S = G.season;
+    const map = G.map, S = G.season, md = map.md;
     drawGround(ctx, map, cam, vw, vh);
-    for (const x of S.exits) drawExitGround(ctx, G, x);
-    if (G.portal) drawPortalGlow(ctx, G.portal);
+    for (const g of S.gates) drawGateGround(ctx, G, g);
+    for (const a of S.investigate) if (a.active) drawInvestigate(ctx, a);
+    if (S.treasure && !S.treasure.dug) drawDig(ctx, S.treasure);
     SK.drawFx(ctx, G, true);
     const p = G.player;
     if (p.st !== 'dead') SK.drawShadow(ctx, p.h.shadow, p.x, p.y, null);
-    const on = (x, y) => x > cam.x - 80 && x < cam.x + vw + 80 && y > cam.y - 20 && y < cam.y + vh + 90;
-    for (const e of G.enemies) if (e.st !== 'dead' && on(e.x, e.y)) SK.drawShadow(ctx, e.d.shadow, e.x, e.y, null, e.scale);
+    const on = (x, y) => onScreen(x, y, cam, vw, vh);
+    for (const e of G.enemies) if (e.st !== 'dead' && on(e.x, e.y)) SK.drawShadow(ctx, e.d.shadow, e.x, e.y - 3, null, e.scale);
 
     const list = [];
     collectTrees(list, map, cam, vw, vh);
-    for (const b of map.buildings) if (on(b.x, b.y - 40)) list.push({ y: b.y, fn: drawSprite, a: b.sprite, b });
+    for (const pr of md.props) if (pr[4] && on(pr[0], pr[1])) list.push({ y: pr[1], fn: drawProp, a: null, b: pr });
+    for (const d of md.decor) if (on(d[0], d[1])) list.push({ y: d[1] + (d[2] === DATA.misc.weapons3_102 ? 0 : -4), fn: drawProp, a: null, b: d });
+    for (const b of map.buildings) if (b.sprite && on(b.x, b.y - 40)) list.push({ y: b.sprite[1], fn: drawProp, a: null, b: b.sprite });
+    for (const b of map.bunkers) if (!b.dead && on(b.x, b.y)) list.push({ y: b.y, fn: drawBunker, a: G, b });
     for (const n of S.npcs) if (on(n.x, n.y)) list.push({ y: n.y, fn: drawNpc, a: G, b: n });
+    for (const r of S.rescue) if (on(r.x, r.y)) list.push({ y: r.y, fn: drawNpc, a: G, b: r });
     for (const e of G.enemies) if (on(e.x, e.y)) list.push({ y: e.st === 'dead' ? e.y - 1000 : e.y, fn: (c, a, b) => SK.drawEnemy(c, a, b), a: G, b: e });
     for (const c of S.crates) if (on(c.x, c.y)) list.push({ y: c.y, fn: drawCrate, a: G, b: c });
-    for (const it of S.loot) if (on(it.x, it.y)) list.push({ y: it.y, fn: drawLoot, a: G, b: it });
-    for (const it of S.weapons) if (on(it.x, it.y)) list.push({ y: it.y, fn: drawWeaponItem, a: G, b: it });
     for (const k of G.pickups) list.push({ y: k.y - 0.2, fn: (c, a, b) => SK.drawPickup(c, a, b), a: G, b: k });
     for (const pr of G.props) list.push({ y: pr.y, fn: (c, a, b) => b.draw(c, a, b), a: G, b: pr });
-    for (const x of S.exits) if (on(x.x, x.y)) list.push({ y: x.y - 30, fn: drawExitSign, a: G, b: x });
-    if (G.portal) list.push({ y: G.portal.y - 30, fn: drawPortal, a: G, b: G.portal });
+    for (const g of S.gates) if (on(g.x, g.y)) list.push({ y: g.y - 20, fn: drawGate, a: G, b: g });
+    for (const b of md.bridges) if (!b.built && on(b.x, b.y)) list.push({ y: b.y, fn: drawBridgeSign, a: G, b });
     list.push({ y: p.y, fn: (c, a) => SK.drawPlayer(c, a), a: G, b: null });
     list.sort((a, b) => a.y - b.y);
     for (const it of list) it.fn(ctx, it.a, it.b);
     SK.drawBullets(ctx, G);
     SK.drawFx(ctx, G, false);
+    drawUseRing(ctx, G);
   };
-
-  function drawSprite(ctx, name, b) {
-    if (!SK.draw(ctx, fr(name), b.x, b.y, { flip: !!b.flip })) { ctx.fillStyle = '#6b4a2a'; ctx.fillRect(b.x - 20, b.y - 30, 40, 30); }
+  function drawProp(ctx, _, d) { SK.draw(ctx, fr(d[2]), d[0], d[1], { flip: !!d[3] }); }
+  function drawBunker(ctx, G, b) {
+    const pages = b.flash > 0 ? SK.pagesWhite : null;
+    for (const [x, y, f] of b.parts) SK.draw(ctx, fr(f), x, y, { pages });
+  }
+  function npcAnim(n) {
+    if (n.prefab === 'Trainer') return pngKey('season_npc_trainer');
+    if (n.prefab === 'Explorer' || n.npc === 'esc_npc_explorer') return pngKey('season_npc_explorer');
+    const folder = n.folder || (n.prefab || '').toLowerCase();
+    const h = D.heroes && D.heroes[folder] && D.heroes[folder].s0;
+    return h ? (n.moving ? h.run : h.idle) : null;
   }
   function drawNpc(ctx, G, n) {
-    ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(n.x, n.y, 7, 2.5, 0, 0, Math.PI * 2); ctx.fill();
-    SK.draw(ctx, SK.animFrame(anim('npc_trainer', 'idle'), n.t), n.x, n.y, { flip: n.face < 0 });
+    SK.drawShadow(ctx, 'shadow3', n.x, n.y, null);
+    const k = npcAnim(n);
+    if (!k || !SK.draw(ctx, SK.animFrame(k, n.t), n.x, n.y, { flip: n.face < 0 })) { ctx.fillStyle = '#c9a'; ctx.fillRect(n.x - 5, n.y - 16, 10, 16); }
+    if (n.freed === false) {
+      // lồng tre nhốt người cần cứu [ĐOÁN hình: TalkEscapeCage không có sprite rời]
+      ctx.strokeStyle = '#6b4a24'; ctx.lineWidth = 1.5;
+      for (let i = -2; i <= 2; i++) { ctx.beginPath(); ctx.moveTo(n.x + i * 5, n.y + 1); ctx.lineTo(n.x + i * 5, n.y - 24); ctx.stroke(); }
+      ctx.beginPath(); ctx.moveTo(n.x - 12, n.y - 24); ctx.lineTo(n.x + 12, n.y - 24); ctx.moveTo(n.x - 12, n.y + 1); ctx.lineTo(n.x + 12, n.y + 1); ctx.stroke();
+    }
+    const hint = S_hint(G, n);
+    if (hint) SK.text(ctx, hint, n.x, n.y - 30 + Math.sin(n.t * 4) * 1.5, 10, '#ffe04a', 'center', '#000');
+  }
+  function S_hint(G, n) {
+    const Q = SEASON.quests;
+    if (!Q || !Q.npcHint || n.freed === false) return n.freed === false ? '!' : '';
+    return Q.npcHint(n.id);
   }
   function drawCrate(ctx, G, c) {
-    const s = CRATE_SPR[c.type] || CRATE_SPR.resource;
-    ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(c.x, c.y, 11, 3, 0, 0, Math.PI * 2); ctx.fill();
+    const s = c.spr || {};
+    const f = c.open ? (s.open || s.closed) : s.closed;
     const pop = c.open && c.openT < 0.15 ? 1 + (0.15 - c.openT) * 1.2 : 1;
-    if (!SK.draw(ctx, fr(s[c.open ? 1 : 0]), c.x, c.y, { sx: pop, sy: pop })) { ctx.fillStyle = c.open ? '#6a5a3a' : '#b08a4a'; ctx.fillRect(c.x - 10, c.y - 16, 20, 16); }
-    if (!c.open && (c.type === 'monster' || c.type === 'monster_elite')) {
-      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.18 + 0.1 * Math.sin(c.t * 5);
-      ctx.fillStyle = '#b060ff'; ctx.beginPath(); ctx.ellipse(c.x, c.y - 10, 14, 12, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    if (!c.open && c.kind !== 'temp') {
+      // ChestLight: quầng sickle06 cộng màu của prefab rương — vẽ tay một quầng nhạt (hạt 'points' để VFX gắn sau)
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.16 + 0.08 * Math.sin(c.t * 4);
+      ctx.fillStyle = /enemy_drop/.test(c.prefab) ? '#c070ff' : '#ffd070';
+      ctx.beginPath(); ctx.ellipse(c.x, c.y - 7, 13, 11, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    }
+    if (!f || !SK.draw(ctx, fr(f), c.x, c.y, { sx: pop, sy: pop })) { ctx.fillStyle = c.open ? '#6a5a3a' : '#b08a4a'; ctx.fillRect(c.x - 8, c.y - 12, 16, 12); }
+  }
+  // Cổng: điểm rút lui = cột pháo khói (weapons3_102 trong prefab GateEvacuation) + vòng; cổng xoáy = prefab cổng SK
+  function drawGateGround(ctx, G, g) {
+    const S = G.season, act = S.extract && S.extract.at === g;
+    if (g.kind === 'evac' || g.kind === 'home' || g.kind === 'deploy') {
+      ctx.save();
+      ctx.fillStyle = act ? 'rgba(90,230,120,0.28)' : 'rgba(90,230,120,0.12)';
+      ctx.strokeStyle = 'rgba(120,255,150,' + (0.5 + 0.25 * Math.sin(g.t * 4)) + ')';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.ellipse(g.x, g.y - 12, 24, 14, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      if (act) {
+        const k = Math.min(1, S.extract.t / S.extract.dur);
+        ctx.strokeStyle = '#d8ffb0'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.ellipse(g.x, g.y - 12, 27, 17, 0, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * k); ctx.stroke();
+      }
+      ctx.restore();
     }
   }
-  function drawLoot(ctx, G, it) {
-    const d = itemDef(it.id), bob = Math.round(Math.sin(it.t * 3 + it.x) * 1.5);
-    ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(it.x, it.y, 6, 2, 0, 0, Math.PI * 2); ctx.fill();
-    const icon = d && d.icon;
-    const f = icon && SK.frame(icon);
-    if (f) {
-      // biểu tượng vật phẩm 16-32 px: canh giữa đáy lên điểm rơi
-      const k = Math.min(1, 16 / Math.max(f[3], f[4]));
-      SK.draw(ctx, icon, it.x - (f[3] / 2 - f[5]) * k, it.y - 3 + bob - (f[4] - f[6]) * k, { sx: k, sy: k });
-    } else {
-      ctx.fillStyle = it.id === 'iron_coin' ? '#c9ced6' : '#f0c040';
-      ctx.beginPath(); ctx.arc(it.x, it.y - 6 + bob, 4, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#6b7280'; ctx.fillRect(it.x - 1, it.y - 8 + bob, 2, 4);
+  function drawGate(ctx, G, g) {
+    if (g.kind === 'evac') {
+      // khói tín hiệu: vài cụm tròn xám bay lên (particle 'smoke' của GateEvacuation chờ VFX gắn)
+      ctx.save();
+      for (let i = 0; i < 6; i++) {
+        const k = ((g.t * 0.35 + i / 6) % 1);
+        ctx.globalAlpha = 0.45 * (1 - k);
+        ctx.fillStyle = i % 2 ? '#d9e8d0' : '#bfd6b8';
+        ctx.beginPath(); ctx.arc(g.x + Math.sin(k * 6 + i) * 4 + k * 6, g.y - 18 - k * 60, 4 + k * 9, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
+      return;
     }
-  }
-  function drawWeaponItem(ctx, G, it) {
-    const bob = Math.round(Math.sin(it.t * 3) * 1.5);
-    ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(it.x, it.y, 8, 2, 0, 0, Math.PI * 2); ctx.fill();
-    SK.drawGun(ctx, DS.weapons[it.id].sprite, it.x - 6, it.y - 6 + bob, 0, null, {});
-  }
-  // Điểm rút lui: vòng xanh lá trên mặt đất + người chạy point_escape; vòng đếm ngược 5 s khi đứng trong.
-  function drawExitGround(ctx, G, x) {
-    const S = G.season, act = S.extract && S.extract.at === x;
-    ctx.save();
-    ctx.fillStyle = act ? 'rgba(90,230,120,0.28)' : 'rgba(90,230,120,0.14)';
-    ctx.strokeStyle = 'rgba(120,255,150,' + (0.55 + 0.25 * Math.sin(x.t * 4)) + ')';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.ellipse(x.x, x.y, x.r, x.r * 0.55, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    if (act) {
-      const k = Math.min(1, S.extract.t / EXTRACT_T);
-      ctx.strokeStyle = '#d8ffb0'; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.ellipse(x.x, x.y, x.r + 3, x.r * 0.55 + 3, 0, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * k); ctx.stroke();
-    }
-    ctx.restore();
-  }
-  function drawExitSign(ctx, G, x) {
-    const bob = Math.sin(x.t * 3) * 2;
-    SK.draw(ctx, fr('point_escape'), x.x, x.y - 34 + bob, { sx: 2, sy: 2 });
-  }
-  function drawPortalGlow(ctx, pt) {
-    const g = ctx.createRadialGradient(pt.x, pt.y - 20, 2, pt.x, pt.y - 20, 40);
-    g.addColorStop(0, 'rgba(90,170,255,0.5)'); g.addColorStop(1, 'rgba(40,90,255,0)');
-    ctx.fillStyle = g; ctx.fillRect(pt.x - 46, pt.y - 66, 92, 92);
-  }
-  // Cổng xoáy xanh phía bắc căn cứ: dùng prefab transfer_gate thật của SK (cùng bộ với cổng qua màn).
-  function drawPortal(ctx, G, pt) {
+    if (g.name && /hide|Institude/.test(g.name)) return;       // cửa hầm / cổng Viện Nghiên Cứu: sprite nằm trong decor
     const pf = SK.art.object('portal');
     ctx.save(); ctx.imageSmoothingEnabled = true;
-    const ok = SK.drawPrefab(ctx, pf, pt.x, pt.y, { t: pt.t, state: 'transfer_gate', scale: 0.7 });
+    const g0 = ctx.createRadialGradient(g.x, g.y - 20, 2, g.x, g.y - 20, 40);
+    g0.addColorStop(0, g.kind === 'zone' ? 'rgba(180,120,255,0.45)' : 'rgba(90,170,255,0.5)'); g0.addColorStop(1, 'rgba(40,90,255,0)');
+    ctx.fillStyle = g0; ctx.fillRect(g.x - 46, g.y - 66, 92, 92);
+    const ok = SK.drawPrefab(ctx, pf, g.x, g.y, { t: g.t, state: 'transfer_gate', scale: 0.7 });
     ctx.restore();
-    if (!ok) { ctx.strokeStyle = '#6ab8ff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(pt.x, pt.y - 20, 12, 18, 0, 0, Math.PI * 2); ctx.stroke(); }
+    if (!ok) { ctx.strokeStyle = '#6ab8ff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(g.x, g.y - 20, 12, 18, 0, 0, Math.PI * 2); ctx.stroke(); }
+    if (g.kind === 'zone' && g.inside) SK.text(ctx, 'Khu vực này chưa mở ở bản web', g.x, g.y - 52, 8, '#e0c8ff', 'center', '#000');
+  }
+  function drawInvestigate(ctx, a) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,220,90,' + (0.5 + 0.3 * Math.sin(a.t * 3)) + ')'; ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath(); ctx.ellipse(a.x, a.y, 32, 18, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]);
+    if (a.hold > 0) { ctx.strokeStyle = '#fff3a0'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(a.x, a.y, 35, 21, 0, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, a.hold / 2)); ctx.stroke(); }
+    ctx.restore();
+    SK.text(ctx, L('esc_task_target_area', 'Khu vực') + ' ' + L('esc_task_target_investigate', 'Điều Tra {0}').replace('{0}', ''), a.x, a.y - 22, 8, '#ffe06a', 'center', '#000');
+  }
+  function drawDig(ctx, tr) {
+    SK.draw(ctx, fr(DATA.misc[tr.digging ? 'shovel_0' : 'shovel_1']), tr.x, tr.y + (tr.digging ? Math.sin(tr.t * 18) * 2 : 0));
+    ctx.save(); ctx.strokeStyle = 'rgba(255,200,80,0.7)'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.ellipse(tr.x, tr.y, 14, 7, 0, 0, Math.PI * 2); ctx.stroke();
+    if (tr.hold > 0) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(tr.x, tr.y, 16, 9, 0, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * tr.hold / 1.5); ctx.stroke(); }
+    ctx.restore();
+  }
+  function drawBridgeSign(ctx, G, b) {
+    ctx.save(); ctx.fillStyle = 'rgba(255,230,120,0.18)'; ctx.strokeStyle = 'rgba(255,230,120,0.6)';
+    ctx.beginPath(); ctx.ellipse(b.x, b.y, 22, 12, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.restore();
+    SK.draw(ctx, fr(DATA.misc.shovel_1), b.x, b.y);
+  }
+  // Vòng tiến độ khi đang dùng đồ tiêu hao [ĐO thời gian dùng = Params[1] của vật phẩm]
+  function drawUseRing(ctx, G) {
+    const u = inv() && inv().using, p = G.player;
+    if (!u || !u.need) return;
+    ctx.save(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.arc(p.x, p.y - 30, 7, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, u.t / u.need)); ctx.stroke(); ctx.restore();
   }
 
-  // ---------------------------------------------------------------- điểm đánh dấu cho bảng Bản đồ
-  // x,y = px thế giới; u,v = 0..1 trên ảnh tổng quan (Init / Scene1) để vẽ lên ảnh map.
+  // ---------------------------------------------------------------- điểm đánh dấu cho bảng Bản đồ (toạ độ px thế giới)
   SW.markers = function () {
     const G = SK.G, S = G.season;
     if (!S || !G.map) return [];
-    const md = DATA.maps[S.map], pw = md.imgW * md.scale, ph = md.imgH * md.scale;
     const out = [];
-    const add = (kind, x, y, extra) => out.push(Object.assign({ kind, map: S.map, x, y, u: x / pw, v: y / ph, frame: null }, extra));
-    if (G.player) add('self', G.player.x, G.player.y, { frame: fr('point_self'), label: 'Bạn' });
-    if (G.portal) add('portal', G.portal.x, G.portal.y, { frame: fr('point_gate'), label: 'Cổng ra bản đồ' });
-    for (const x of S.exits) add('exit', x.x, x.y, { frame: fr('point_escape'), label: 'Điểm rút lui' });
-    for (const c of S.crates) add(c.open ? 'crate_open' : 'crate', c.x, c.y, { frame: c.open ? null : fr('point_chestbox'), type: c.type });
-    for (const n of S.npcs) add('npc', n.x, n.y, { frame: fr('point_task'), label: n.name });
-    for (const b of G.map.buildings) if (b.name) add('building', b.x, b.y, { label: b.name, sub: b.kind });
-    if (S.map === 's1') DATA.maps.s1.camps.forEach((cp, i) => add('camp', cp.x, cp.y, { label: 'Trại khỉ ' + (i + 1), camp: i }));
-    for (const q of S.questTargets || []) add('task', q.x, q.y, { frame: fr('point_task'), label: q.label });
+    const add = (kind, x, y, extra) => out.push(Object.assign({ kind, map: S.map, x, y }, extra));
+    if (G.player) add('self', G.player.x, G.player.y, { label: L('esc_map_legend_player', 'Bạn') });
+    for (const g of S.gates) {
+      if (g.kind === 'evac' || g.kind === 'home') add('exit', g.x, g.y, { label: L('esc_map_legend_extraction', 'Điểm Rút Lui') });
+      else if (g.kind === 'deploy') add('portal', g.x, g.y, { label: L('esc_map_base_outskirts', 'Vành Đai Căn Cứ') });
+      else add('gate', g.x, g.y, { label: 'Khu khác (khoá)', locked: true });
+    }
+    for (const c of S.crates) {
+      if (c.kind === 'death') add('death', c.x, c.y, { label: L('esc_map_icon_lost_item', 'Vật Thất Lạc') });
+      else add(c.open ? 'crate_open' : 'crate', c.x, c.y, { type: c.chestId });
+    }
+    // Bản đồ căn cứ gốc chỉ có cổng + "Bạn" (ảnh g_0929_101301): không ghi tên nhà / NPC
+    for (const a of S.investigate) if (a.active) add('task', a.x, a.y, { label: L('esc_map_icon_task', 'Mục Tiêu Nhiệm Vụ') });
+    for (const r of S.rescue) if (!r.freed && SEASON.quests && SEASON.quests.wantsRescue && SEASON.quests.wantsRescue(r.npc)) add('task', r.x, r.y, { label: r.name });
+    if (S.treasure && !S.treasure.dug) add('treasure', S.treasure.x, S.treasure.y, { label: 'Kho báu' });
     return out;
   };
+  // Ảnh tổng quan phủ hình chữ nhật (px thế giới) nào [ĐO: Scene1 1024 px = 350 đơn vị từ (0,350); Init 16 px/đơn vị từ (-22.75, 30.5)]
   SW.mapInfo = key => {
-    const md = DATA.maps[key || (SK.G.season && SK.G.season.map) || 'base'];
-    return md && { key: key, img: md.img, imgW: md.imgW, imgH: md.imgH, scale: md.scale, pxW: md.W * T, pxH: md.H * T };
+    const k = key || (SK.G.season && SK.G.season.map) || 'base';
+    const md = DATA.maps[k], IM = (window.SK_SEASON_ITEMS || {}).maps || {};
+    const im = IM[k === 'base' ? 'Init' : 'Scene1'];
+    if (!md || !im) return null;
+    return { key: k, img: im.src, imgW: im.w, imgH: im.h, pxW: md.W * U, pxH: md.H * U,
+      rect: [(im.ux0 - md.x0) * U, (md.y1 - im.uy1) * U, im.w / im.ppu * U, im.h / im.ppu * U] };
   };
   SW.inBase = () => { const S = SK.G.season; return SK.G.state === 'season' && !!S && S.map === 'base'; };
-  // Bảng đồ vứt một chồng ra đất: rơi dưới chân, nhặt lại bằng E.
-  SK.on('seasonDrop', (G, st) => {
-    if (!G || G.state !== 'season' || !G.season || !st || !G.player) return;
-    const [x, y] = freeNear(G.map, G.player.x + SK.randf(-10, 10), G.player.y + 8);
-    G.season.loot.push({ id: st.id, n: st.n || 1, x, y, t: 0, st });
-  });
-  // Người chơi đang đứng gần công trình nào (nhà kho, cửa hàng...) — bảng UI dùng để mở ô kho.
   SW.near = function (kind, reach) {
     const G = SK.G, p = G.player;
     if (!p || !G.map || !G.map.buildings) return false;
-    return G.map.buildings.some(b => b.kind === kind && Math.hypot(b.x - p.x, b.y + 6 - p.y) < (reach || 44));
+    return G.map.buildings.some(b => b.id === kind && (inRect(p, b.trig) || Math.hypot(b.x - p.x, b.y - p.y) < (reach || 44)));
   };
+  // Xây cầu [ĐO BridgeBuilder: vật liệu; unlockDirectly 0 = cần mở khoá, điều kiện mở không có trong bundle -> khoá ĐOÁN]
+  SW.buildBridge = function (b) {
+    const I = inv();
+    if (!b.unlockDirectly) return 'Chưa mở khoá cây cầu này';
+    for (const [id, n] of b.cost) if (!I.has(id, n, 'bag')) return 'Thiếu ' + SEASON.itemDef(id).name + ' x' + (n - I.count(id));
+    for (const [id, n] of b.cost) I.remove(id, n);
+    I.state.bridges[b.id] = true;
+    setBridge(SK.G.map, b);
+    I.changed(); I.save();
+    SK.emit('seasonBuild', SK.G, b.id);
+    return null;
+  };
+  // Bàn Thiết Kế vừa xây xong: dựng lại căn cứ để nhà mới hiện ra, giữ chỗ đứng
+  SW.refreshBase = function (G) {
+    if (!G.season || G.season.map !== 'base') return;
+    const x = G.player.x, y = G.player.y;
+    SW.enterBase(G, 'spawn');
+    const [fx, fy] = freeNear(G.map, x, y);
+    G.player.x = fx; G.player.y = fy;
+  };
+  SW.DATA = DATA;
 })();

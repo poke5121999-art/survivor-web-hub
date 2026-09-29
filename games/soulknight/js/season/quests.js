@@ -1,108 +1,146 @@
-// Season Mode: nhiệm vụ Drillmaster (SK.SEASON.quests). Chữ và phần thưởng theo wiki, dịch tiếng Việt.
+// Season Mode: 38 nhiệm vụ thật (task_tbescapetaskconfig 8.6.0) — chữ tiếng Việt chính thức, điều kiện, phần thưởng.
+// Nhiệm vụ làm được trong Căn Cứ + Vành Đai Căn Cứ thì chạy thật; còn lại hiện "chưa có ở bản web" kèm lý do.
 (function () {
   'use strict';
   const SK = window.SK;
   const SS = SK.SEASON = SK.SEASON || {};
-  const inv = SS.inv;
+  const inv = SS.inv, T = SS.T || {};
+  const L = (k, d) => SS.L(k, d);
+  const DEFS = (T.tasks || []).map(t => Object.assign({}, t));
+  const WORLD = (window.SK_SEASON && window.SK_SEASON.world) || { maps: {} };
+  const S1 = WORLD.maps.s1 || {};
+  const AREAS = new Set((S1.investigate || []).map(a => a.id));
+  // [ĐO EscapeHeroRescueConfig + điểm HeroRescue của Scene1] người cứu được ở Vành Đai Căn Cứ
+  const RESCUABLE = new Set(['rescued_esc_npc_explorer', 'rescued_Ranger', 'rescued_Mage', 'rescued_Assassin', 'rescued_Alchemist',
+    'rescued_Engineer', 'rescued_Vampire', 'rescued_Priest']);
+  const NPC_PREFAB = {};
+  for (const k in T.npcs || {}) NPC_PREFAB[k] = T.npcs[k].prefab;
 
-  // obj.kind: kill | extract | use(id) | upgrade(what, lv) | locked (hệ thống chưa có ở bản web)
-  const DEFS = [
-    { id: 'first_foray', title: 'Chuyến đi đầu tiên', titleEn: 'First Foray', from: 'Drillmaster',
-      text: 'Cậu vừa tỉnh dậy và còn lạ lẫm với nơi này. Ra ngoài giãn gân cốt, hạ vài kẻ địch rồi an toàn trở về căn cứ để quen với môi trường và nhịp sống ở đây.',
-      obj: [{ kind: 'kill', n: 2, label: 'Hạ kẻ địch bất kỳ' }, { kind: 'extract', n: 1, label: 'Sơ tán thành công 1 lần' }],
-      rewards: [['healing_potion_m', 1], ['iron_coin', 500]] },
-    { id: 'learn_to_heal', title: 'Học cách hồi phục', titleEn: 'Learn to Heal', from: 'Drillmaster',
-      text: 'Không biết tự chữa thương thì cậu chẳng trụ được lâu ở đây đâu. Thử dùng một bình máu hoặc bình năng lượng xem. Hết đồ thì cứ mua ở máy bán hàng.',
-      obj: [{ kind: 'use', id: 'healing_potion_s', n: 1, label: 'Dùng Thuốc hồi máu (S)' },
-        { kind: 'use', id: 'energy_potion_s', n: 1, label: 'Dùng Thuốc năng lượng (S)' }],
-      rewards: [['energy_potion_m', 1], ['iron_coin', 800]] },
-    { id: 'build_workbench', title: 'Dựng bàn chế tạo', titleEn: 'Build Workbench', from: 'Drillmaster', after: 'first_foray',
-      text: 'Trốn mãi thì không đứng chân được ở đây. Trước hết hãy làm vài món đồ hữu ích. Ta nên dựng một bàn chế tạo để biến nguyên liệu thô thành trang bị.',
-      obj: [{ kind: 'locked', n: 1, label: 'Mở Bàn chế tạo cấp 1', why: 'Bàn chế tạo chưa có ở bản web' }],
-      rewards: [['wooden_crate_s', 1], ['iron_coin', 1000]] },
-    { id: 'craft_armor', title: 'Chế áo giáp', titleEn: 'Craft Armor', from: 'Drillmaster', after: 'build_workbench',
-      text: 'Chắc cậu cũng nhận ra sức mạnh vốn có của chúng ta bị suy yếu ở đây, giáp cũng mất sạch. May là ta có thể tự chế trang bị bù vào.',
-      obj: [{ kind: 'locked', n: 1, label: 'Chế Áo vải thô', why: 'Cần Bàn chế tạo' }],
-      rewards: [['canvas_bag', 1], ['iron_coin', 1000]] },
-    { id: 'warehouse_expansion', title: 'Mở rộng kho', titleEn: 'Warehouse Expansion', from: 'Drillmaster', after: 'learn_to_heal',
-      text: 'Kho sắp hết chỗ rồi. Đến lúc mở rộng thôi. (Bản web: nâng cấp ngay ở Kho, cần 1000 xu sắt + 1 Thùng gỗ (S).)',
-      obj: [{ kind: 'upgrade', what: 'warehouse', lv: 2, n: 1, label: 'Nâng Kho lên cấp 2' }],
-      rewards: [['weightlifting_potion', 1], ['iron_coin', 1000]] },
-    { id: 'rescue_archaeologist', title: 'Giải cứu Nhà khảo cổ', titleEn: 'Rescue Archaeologist', from: 'Drillmaster', after: 'craft_armor',
-      text: 'Theo ta biết, Nhà khảo cổ đang ở đâu đó trên hòn đảo này. Gặp ông ấy thì nhớ đưa về. Có ông ấy, ta sẽ khám phá bí mật hòn đảo nhanh hơn nhiều.',
-      obj: [{ kind: 'locked', n: 1, label: 'Giải cứu Nhà khảo cổ', why: 'Chưa có ở bản web' }],
-      rewards: [['treasure_map', 1], ['iron_coin', 2000]] },
-    { id: 'build_kitchen', title: 'Dựng bếp', titleEn: 'Build Kitchen', from: 'Drillmaster', after: 'rescue_archaeologist',
-      text: 'Thức ăn là sống còn. Đừng ra ngoài với cái bụng rỗng! Dựng một cái bếp, gom đủ nguyên liệu là không lo đói.',
-      obj: [{ kind: 'locked', n: 1, label: 'Mở Bếp cấp 1', why: 'Bếp chưa có ở bản web' }],
-      rewards: [['energy_jelly', 2], ['wooden_crate_s', 1], ['iron_coin', 1000]] },
-    { id: 'build_medical_station', title: 'Dựng trạm y tế', titleEn: 'Build Medical Station', from: 'Drillmaster', after: 'build_kitchen',
-      text: 'Đi thám hiểm thì thế nào cũng bị thương, nên trạm y tế phải được ưu tiên.',
-      obj: [{ kind: 'locked', n: 1, label: 'Mở Trạm y tế cấp 1', why: 'Trạm y tế chưa có ở bản web' }],
-      rewards: [['wooden_crate_s', 1], ['iron_coin', 1000]] },
-    { id: 'teleportation', title: 'Dịch chuyển', titleEn: 'Teleportation', from: 'Drillmaster', after: 'build_medical_station',
-      text: 'Ta có thể làm thiết bị dịch chuyển nhờ sức bẻ cong không gian của Ma cà rồng. Các chuyến đi sau sẽ dễ hơn nhiều.',
-      obj: [{ kind: 'locked', n: 1, label: 'Mở Máy dịch chuyển cấp 1', why: 'Chưa có ở bản web' }],
-      rewards: [['wooden_crate_s', 1], ['iron_coin', 2400]] },
-    { id: 'tide_zone_beacon', title: 'Đèn hiệu Vùng Thuỷ Triều', titleEn: 'Tide Zone Beacon', from: 'Drillmaster', after: 'teleportation',
-      text: 'Máy dịch chuyển này sẽ giúp ích nhiều. Hãy đi mở đèn hiệu dịch chuyển ở Vùng Thuỷ Triều.',
-      obj: [{ kind: 'locked', n: 1, label: 'Mở đèn hiệu Vùng Thuỷ Triều', why: 'Vùng Thuỷ Triều chưa mở' }],
-      rewards: [['omni_potion', 1], ['iron_coin', 3000]] }
-  ];
+  // lý do không làm được ở bản web (null = làm được)
+  function webBlock(d, seen) {
+    seen = seen || {};
+    if (seen[d.id]) return null;
+    seen[d.id] = 1;
+    for (const u of d.unlock) if (!RESCUABLE.has(u)) return 'Cần giải cứu nhân vật ở khu vực chưa mở';
+    for (const [kind, key] of d.checks) {
+      if (kind === 'KillEnemy' && key !== 'Any') return 'Trùm ở khu vực chưa mở';
+      if (kind === 'InvestigateArea' && !AREAS.has(key)) return 'Khu vực chưa mở ở bản web';
+      if (kind === 'PlaceBeacon') return 'Đèn hiệu ở khu vực chưa mở';
+      if (kind === 'RescueHero' && !RESCUABLE.has('rescued_' + (key === 'esc_npc_explorer' ? key : NPC_PREFAB[key] || key))) return 'Nhân vật ở khu vực chưa mở';
+    }
+    for (const p of d.pre) { const q = DEFS.find(x => x.id === p); const w = q && webBlock(q, seen); if (w) return w; }
+    return null;
+  }
+  for (const d of DEFS) d.web = webBlock(d);
 
   const Q = SS.quests = { defs: DEFS };
   function st() {
     const S = inv.state;
-    if (!S.quests) S.quests = { prog: {}, done: [] };
+    if (!S.quests || !S.quests.acc) S.quests = { acc: [], done: [], prog: {} };
     return S.quests;
   }
   const byId = id => DEFS.find(d => d.id === id);
+  Q.byId = byId;
   Q.isDone = id => st().done.indexOf(id) >= 0;
-  Q.available = d => !Q.isDone(d.id) && (!d.after || Q.isDone(d.after));
-  Q.accepted = () => DEFS.filter(Q.available);
+  Q.isAccepted = id => st().acc.indexOf(id) >= 0;
+  const npcHere = npc => npc === 'esc_npc_trainer' || inv.node(npc === 'esc_npc_explorer' ? 'rescued_esc_npc_explorer' : 'rescued_' + NPC_PREFAB[npc]);
+  // Mở được khi xong nhiệm vụ trước + có điều kiện mở + NPC giao việc đang ở căn cứ [ĐO PreTaskID, ExtraUnlockConditions, NpcId]
+  Q.unlocked = d => !Q.isDone(d.id) && d.pre.every(Q.isDone) && d.unlock.every(k => inv.node(k)) && npcHere(d.npc);
+  // Nhận tự động khi mở (bảng Nhiệm vụ của ảnh h chỉ có mục "Đã nhận")
+  function refresh() {
+    let any = false;
+    for (const d of DEFS) if (Q.unlocked(d) && !Q.isAccepted(d.id)) { st().acc.push(d.id); any = true; }
+    if (any) inv.save();
+  }
+  Q.refresh = refresh;
+  Q.accepted = () => { refresh(); return DEFS.filter(d => Q.isAccepted(d.id) && !Q.isDone(d.id)); };
   Q.finished = () => st().done.map(byId).filter(Boolean);
-  Q.progress = function (id, i) { const p = st().prog[id]; return (p && p[i]) || 0; };
-  Q.objDone = (d, i) => Q.progress(d.id, i) >= d.obj[i].n;
-  Q.complete = d => d.obj.every((o, i) => Q.objDone(d, i));
-  Q.locked = d => d.obj.some(o => o.kind === 'locked');
+  Q.locked = d => !!d.web;
+  Q.all = () => DEFS;
 
-  function bump(match, k) {
+  // tiến độ từng điều kiện
+  Q.progress = function (d, i) {
+    const [kind, key, n] = d.checks[i];
+    if (Q.isDone(d.id)) return n;
+    if (kind === 'BuildingLevel') return Math.min(n, inv.buildLevel(key));
+    if (kind === 'RescueHero') return inv.node(key === 'esc_npc_explorer' ? 'rescued_esc_npc_explorer' : 'rescued_' + (NPC_PREFAB[key] || key)) ? n : 0;
+    if (kind === 'SubmitItem') return Math.min(n, inv.count(key, 'all'));
+    const p = st().prog[d.id];
+    return Math.min(n, (p && p[i]) || 0);
+  };
+  Q.objDone = (d, i) => Q.progress(d, i) >= d.checks[i][2];
+  Q.complete = d => d.checks.every((c, i) => Q.objDone(d, i));
+  Q.needsSubmit = d => d.checks.some(c => c[0] === 'SubmitItem');
+  Q.label = function (c) {
+    const [kind, key] = c;
+    const item = id => (SS.itemDef(id) || {}).name || id;
+    if (kind === 'KillEnemy') return L('esc_task_target_kill', 'Tiêu Diệt {0}').replace('{0}', key === 'Any' ? L('esc_task_target_any_enemy', 'Kẻ địch bất kỳ') : key === 'e_escape_macaque_boss' ? 'Tộc Trưởng Khỉ Đuôi Dài' : 'Tù Trưởng Vượn');
+    if (kind === 'SuccessTimes') return L('esc_task_target_extraction_count', 'Rút lui thành công {0} lần').replace('{0}', c[2]);
+    if (kind === 'UseConsumable') return L('esc_task_target_use', 'Sử dụng {0}').replace('{0}', item(key));
+    if (kind === 'BuildingLevel') return L('esc_task_target_build', 'Xây Dựng {0}').replace('{0}', (T.buildings.find(b => b.id === key) || {}).name || key) + (c[2] > 1 ? ' cấp ' + c[2] : '');
+    if (kind === 'CraftItem') return 'Chế tạo ' + item(key);
+    if (kind === 'RescueHero') return L('esc_task_target_rescue', 'Giải Cứu {0}').replace('{0}', (T.npcs[key] || {}).name || key);
+    if (kind === 'InvestigateArea') return L('esc_task_target_investigate', 'Điều Tra {0}').replace('{0}', L('esc_task_target_area', 'Khu vực') + ' ' + key.split('_')[1]);
+    if (kind === 'SubmitItem') return L('esc_task_target_submit_item', 'Nộp Vật Phẩm {0}').replace('{0}', item(key));
+    if (kind === 'PlaceBeacon') return L('esc_task_target_unlock', 'Mở Khóa {0}').replace('{0}', 'Đèn hiệu');
+    return kind;
+  };
+
+  function bump(kind, match, k) {
     let any = false;
     for (const d of Q.accepted()) {
-      d.obj.forEach((o, i) => {
-        if (!match(o) || Q.objDone(d, i)) return;
+      d.checks.forEach((c, i) => {
+        if (c[0] !== kind || !match(c[1]) || Q.objDone(d, i)) return;
         const p = st().prog[d.id] = st().prog[d.id] || [];
-        p[i] = Math.min(o.n, (p[i] || 0) + (k || 1));
+        p[i] = Math.min(c[2], (p[i] || 0) + (k || 1));
         any = true;
-        if (Q.objDone(d, i) && Q.complete(d)) Q.notify(d);
+        if (Q.complete(d)) Q.notify(d);
       });
     }
     if (any) inv.save();
   }
+  const notified = {};
   Q.notify = function (d) {
+    if (notified[d.id]) return;
+    notified[d.id] = 1;
     const G = SK.G;
-    if (G && G.toast) G.toast('Nhiệm vụ xong: ' + d.title + ' — mở bảng Nhiệm vụ để nhận thưởng', 3);
+    if (G && G.toast) G.toast('Nhiệm vụ xong: ' + d.title + ' — gặp ' + ((T.npcs[d.npc] || {}).name || '') + ' để nhận thưởng', 3);
     SK.emit('seasonQuestDone', G, d.id);
   };
-
-  // Trả thưởng: xu vào ví, đồ vào balô, balô đầy thì vào kho.
+  // Nộp vật phẩm (esc_task_submit_button) rồi nhận thưởng
   Q.claim = function (id) {
     const d = byId(id);
-    if (!d || !Q.available(d) || !Q.complete(d)) return 'Chưa hoàn thành';
+    if (!d || !Q.isAccepted(id) || Q.isDone(id)) return 'Chưa nhận nhiệm vụ';
+    if (d.web) return d.web;
+    if (!Q.complete(d)) return 'Chưa hoàn thành';
+    for (const [kind, key, n] of d.checks) if (kind === 'SubmitItem') inv.remove(key, n, 'all');
     for (const [rid, n] of d.rewards) {
       let left = inv.add(rid, n);
       if (left) left = inv.addTo('warehouse', rid, left);
     }
+    if (d.coins) inv.state.coins += d.coins;
     st().done.push(id);
     delete st().prog[id];
-    inv.save();
+    inv.changed(); inv.save();
+    refresh();
     SK.emit('seasonQuestClaim', SK.G, id);
     return null;
   };
-  Q.claimAll = () => Q.accepted().filter(Q.complete).map(d => (Q.claim(d.id), d.id));
+  Q.claimAll = () => Q.accepted().filter(d => !d.web && Q.complete(d)).map(d => (Q.claim(d.id), d.id));
+  Q.wantsArea = id => Q.accepted().some(d => d.checks.some((c, i) => c[0] === 'InvestigateArea' && c[1] === id && !Q.objDone(d, i)));
+  Q.wantsRescue = npc => Q.accepted().some(d => d.checks.some(c => c[0] === 'RescueHero' && c[1] === npc));
+  // Dấu trên đầu NPC: '?' xong việc chờ nhận thưởng, '!' có việc [ĐO NpcHint_0/1 của EscapeNpcInteraction]
+  Q.npcHint = function (npc) {
+    const acc = Q.accepted().filter(d => d.npc === npc && !d.web);
+    if (acc.some(Q.complete)) return '?';
+    return acc.length ? '!' : '';
+  };
 
-  SK.on('seasonKill', () => bump(o => o.kind === 'kill'));
-  SK.on('seasonExtract', () => bump(o => o.kind === 'extract'));
-  SK.on('seasonUse', (G, id) => bump(o => o.kind === 'use' && o.id === id));
-  SK.on('seasonUpgrade', (G, what, lv) => bump(o => o.kind === 'upgrade' && o.what === what && lv >= o.lv, 1));
+  SK.on('seasonKill', (G, e) => bump('KillEnemy', k => k === 'Any' || k === e.pid));
+  SK.on('seasonExtract', () => bump('SuccessTimes', () => true));
+  SK.on('seasonUse', (G, id) => bump('UseConsumable', k => k === id));
+  SK.on('seasonCraft', (G, id, n) => bump('CraftItem', k => k === id, n || 1));
+  SK.on('seasonInvestigate', (G, id) => bump('InvestigateArea', k => k === id));
+  SK.on('seasonUpgrade', () => { for (const d of Q.accepted()) if (!d.web && Q.complete(d)) Q.notify(d); });
+  SK.on('seasonRescue', () => { refresh(); for (const d of Q.accepted()) if (!d.web && Q.complete(d)) Q.notify(d); });
 })();

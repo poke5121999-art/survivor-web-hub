@@ -148,9 +148,8 @@
     rarityMark(st.id, cx - size / 2, cy - size / 2);
     itemIcon(st.id, cx, cy, size - 7);
     if (st.n > 1) text(String(st.n), cx + size / 2 - 3, cy + size / 2 - 5, 8, C.white, 'right', '#000', 800);
-    const dd = SS.itemDef(st.id);
-    if (dd && dd.type === 'armor') {
-      const k = st.dur / (st.max || dd.durability);
+    if (st.max) {
+      const k = Math.max(0, st.dur / st.max);
       ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(cx - size / 2 + 4, cy + size / 2 - 4, size - 8, 2);
       ctx.fillStyle = k > 0.5 ? '#6fd46a' : k > 0.2 ? '#f2c14e' : '#ff5a4a';
       ctx.fillRect(cx - size / 2 + 4, cy + size / 2 - 4, (size - 8) * k, 2);
@@ -210,9 +209,10 @@
     bar(36, 40.5, 79, 10, p.energy, p.energyMax, C.en, C.enDk, Math.floor(p.energy) + '/' + p.energyMax);
     statFrame(12, 59, 109, 17.5);
     spr('sui/icon_food', 24, 67.5, 1.1);
-    bar(36, 62, 79, 10, S.hunger, SS.RULES.hungerMax, C.hu, C.huDk, Math.ceil(S.hunger) + '/100');
+    const hmax = SS.RULES.hungerMax + inv.grow('hunger');
+    bar(36, 62, 79, 10, S.hunger, hmax, C.hu, C.huDk, Math.ceil(S.hunger) + '/' + hmax);
     const t = inv.tier();
-    if (t.i >= 2) text(t.i >= 4 ? 'Quá tải!' : 'Nặng', 124, 67.5, 8, t.i >= 3 ? C.red : C.yellow, 'left', '#000');
+    if (t.i >= 2) text(t.i >= 4 ? 'Quá tải! Không đi được' : t.i >= 3 ? 'Quá nặng' : 'Nặng', 124, 67.5, 8, t.i >= 3 ? C.red : C.yellow, 'left', '#000');
     if (S.hunger <= 0) text('Đói!', 124, 58, 8, C.red, 'left', '#000');
   }
   function leftButtons() {
@@ -255,7 +255,15 @@
     }
     text('Tiêu hao', cx, UH - 21.5, 12, C.white, 'center', '#1a1a1a', 800);
   }
-  const sprint = SS.sprint = { cd: 0, max: 5, t: 0, inv: 0.2, dist: 44 };   // [WIKI] 0,2 s bất tử, hồi 5 s; quãng lướt [ƯỚC LƯỢNG]
+  // [ĐO EscapePlayerCombatConfig] lướt: hồi 5 s, bất tử 0.2 s; nâng cấp ở Cơ sở huấn luyện; quãng lướt 44 px [ƯỚC LƯỢNG, lực 50 chưa quy đổi]
+  const sprint = SS.sprint = { cd: 0, max: 5, t: 0, inv: 0.2, dist: 44, ch: 1 };
+  function sprintStats() {
+    const R = SS.RULES;
+    sprint.max = Math.max(1, R.dodgeCd - inv.grow('sprint_cooldown'));
+    sprint.inv = R.dodgeInv + inv.grow('sprint_invincibility');
+    sprint.dist = 44 * (1 + inv.grow('sprint_distance') / 100);    // [ĐOÁN] +10/+15/+15 hiểu là phần trăm
+    sprint.chMax = 1 + inv.grow('sprint_charge');
+  }
   function sprintBtn() {
     const cx = UW - 33, cy = 134, r = 20;
     circle(cx, cy, r, 'rgba(60,70,90,0.35)', 'rgba(255,255,255,0.92)', 2.2);
@@ -360,7 +368,7 @@
     ['sui/icon_types_2', 'Giáp', d => d.type === 'armor'],
     ['sui/icon_types_3', 'Thuốc, đồ ăn', d => d.type === 'potion' || d.type === 'food'],
     ['sui/icon_types_4', 'Vũ khí', d => d.type === 'weapon'],
-    ['sui/icon_types_5', 'Vật liệu, đồ quý', d => d.type === 'material' || d.type === 'valuable' || d.type === 'quest']
+    ['sui/icon_types_5', 'Vật liệu, đồ quý', d => d.type === 'material' || d.type === 'valuable' || d.type === 'affix' || d.type === 'treasure_map']
   ];
   const scroll = { bag: 0, wh: 0, vend: 0 };
   const same = (a, b) => a && b && a.c === b.c && a.i === b.i && a.k === b.k;
@@ -447,25 +455,25 @@
     // Cột phải: Kho / Máy bán hàng / chi tiết
     if (ui.mode === 'warehouse') drawWarehouse(ox);
     else if (ui.mode === 'store') drawVending(ox);
+    else if (ui.mode === 'box') drawBox(ox);
+    else if (ui.mode === 'design') drawDesign(ox);
+    else if (ui.mode === 'training') drawTraining(ox);
+    else if (ui.mode === 'bridge') drawBridge(ox);
+    else if (ui.mode && ui.mode.startsWith('craft:')) drawCraft(ox, ui.mode.slice(6));
     drawDetail(ox);
   }
   function drawWarehouse(ox) {
     const S = inv.state, used = S.warehouse.filter(Boolean).length;
-    titleBar(ox + 456, 44, 180, 17, 'Kho(' + used + '/' + S.warehouse.length + ')', 'sui/title_text');
+    titleBar(ox + 456, 44, 180, 17, SS.L('esc_building_warehouse', 'Kho') + '(' + used + '/' + S.warehouse.length + ')', 'sui/title_text');
     smallBtn(ox + 571, 45.5, 38, 13, 'Sắp xếp'); hit(ox + 571, 44, 38, 17, 'sort', { where: 'wh' });
     closeBtn(ox + 622, 52.5); hit(ox + 612, 44, 22, 17, 'close');
     body(ox + 459, 63, 175, 240);
     gridCells(S.warehouse, 'wh', ox + 482.5, 83.5, 4, 42.5, 38.8, 5, 'wh', 66, 280);
-    const up = inv.warehouseUpgrade();
-    if (up) {
-      const need = 'Nâng cấp kho: ' + fmt(up[0]) + ' xu + ' + up[1].map(([id, n]) => n + ' ' + SS.itemDef(id).name).join(', ');
-      smallBtn(ox + 466, 287, 162, 12, 'Nâng kho lên cấp ' + (S.warehouseLv + 1));
-      hit(ox + 466, 286, 162, 14, 'upgradeWh', { tip: need });
-    }
+    text('Nâng cấp kho ở ' + SS.L('esc_building_design_table', 'Bàn Thiết Kế'), ox + 546, 292, 7, C.label, 'center');
   }
   function drawVending(ox) {
-    titleBar(ox + 456, 44, 180, 17, 'Máy bán hàng', 'sui/icon_coin');
-    text('giá 200%', ox + 606, 52.5, 7, '#dfe7f3', 'right', null, 700);
+    titleBar(ox + 456, 44, 180, 17, SS.L('esc_building_shop', 'Tiệm'), 'sui/icon_coin');
+    text('giá mua = 2 x giá trị', ox + 606, 52.5, 6.5, '#dfe7f3', 'right', null, 700);
     closeBtn(ox + 622, 52.5); hit(ox + 612, 44, 22, 17, 'close');
     body(ox + 459, 63, 175, 240);
     SS.VENDING.forEach((id, i) => {
@@ -473,45 +481,69 @@
       rrect(ox + 463, y, 167, 21, 3, 'rgba(255,255,255,0.05)');
       stackCell({ id, n: 1 }, ox + 476, y + 10.5, 19);
       text(dd.name, ox + 489, y + 7, 8, RAR_COL[dd.rarityIdx], 'left', null, 800);
-      text(dd.desc.length > 34 ? dd.desc.slice(0, 33) + '…' : dd.desc, ox + 489, y + 15.5, 6.5, C.label, 'left', null, 700);
+      const ds = dd.desc || '';
+      text(ds.length > 29 ? ds.slice(0, 28) + '…' : ds, ox + 489, y + 15.5, 6.5, C.label, 'left', null, 700);
       spr('sui/icon_coin', ox + 590, y + 10.5, 0.8);
       text(fmt(pr), ox + 598, y + 10.5, 8, inv.state.coins >= pr ? C.white : C.red, 'left', null, 800);
       hit(ox + 463, y, 167, 21, 'buy', { id });
     });
-    text('Nhấp món trong balô rồi bấm Bán / Sửa.', ox + 546, 298, 7, C.label, 'center');
+    text('Nhấp món trong balô rồi bấm Bán.', ox + 546, 298, 7, C.label, 'center');
   }
   // Thẻ chi tiết món đang chọn + nút hành động.
   function drawDetail(ox) {
     const ref = ui.sel, st = ref && inv.get(ref);
     if (!st) { ui.sel = null; return; }
     const dd = SS.itemDef(st.id);
-    const right = ui.mode === 'warehouse' || ui.mode === 'store';
+    const right = !!ui.mode;
     const x = right ? ox + 272 : ox + 459, y = right ? 118 : 63, w = right ? 150 : 175;
     const acts = [];
     const S = inv.state;
-    if (ui.mode === 'store') {
+    if (ui.mode === 'store' && ref.c !== 'box') {
       const pr = inv.sellPrice(st);
       if (pr > 0) acts.push(['sell', 'Bán +' + fmt(pr)]);
-      if (dd.type === 'armor' && st.dur < (st.max || dd.durability)) acts.push(['repair', 'Sửa -' + fmt(inv.repairCost(st))]);
     }
+    if (ui.mode === 'craft:Workshop' && st.max && st.dur < st.max && ref.c !== 'box') acts.push(['repair', 'Sửa -' + fmt(inv.repairCost(st))]);
     if (inv.usable(st.id) && ref.c === 'bag') acts.push(['use', 'Dùng']);
     if (ref.c === 'bag' && (dd.type === 'potion' || dd.type === 'food') && S.quick.indexOf(st.id) < 0) acts.push(['toQuick', 'Gắn ô nhanh']);
-    if (ref.c === 'bag') {
+    if (ref.c === 'box') acts.push(['quick', 'Lấy']);
+    else if (ref.c === 'bag') {
       if (inv.atWarehouse) acts.push(['quick', 'Cất vào kho']);
       else if (['weapon', 'armor', 'backpack', 'amulet'].includes(dd.type)) acts.push(['quick', 'Trang bị']);
+      if (!S.secure && !dd.starter) acts.push(['secure', 'Vào rương an toàn']);
     } else acts.push(['quick', ref.c === 'equip' ? 'Tháo ra' : 'Lấy ra balô']);
-    if (ref.c !== 'wh') acts.push(['drop', 'Vứt bỏ']);
-    const lines = wrap(dd.desc || '', w - 12, 7.5);
-    const h = 44 + lines.length * 9 + Math.ceil(acts.length / 2) * 16;
+    if (ref.c !== 'wh' && ref.c !== 'box' && !dd.starter) acts.push(['drop', 'Vứt bỏ']);
+    const lines = wrap(dd.desc || '', w - 12, 7.5).slice(0, 6);
+    const extra = [];
+    if (st.max) extra.push(SS.L('esc_item_detail_durability', 'Độ bền: {0}/{1}').replace('{0}', st.dur).replace('{1}', st.max));
+    if (dd.armor) extra.push('Giáp +' + dd.armor);
+    if (dd.slots) extra.push('+' + dd.slots + ' ô, ' + SS.L('esc_bag_weight_bonus', 'Tải trọng: +{0}').replace('{0}', dd.kg + ' kg'));
+    const ef = dd.effect;
+    if (ef) {
+      const parts = [];
+      if (ef.hp) parts.push((ef.hp > 0 ? 'Hồi ' : 'Mất ') + Math.abs(ef.hp) + ' HP');
+      if (ef.energy) parts.push('+' + ef.energy + ' năng lượng');
+      if (ef.satiety) parts.push('+' + ef.satiety + ' độ no');
+      if (ef.kg) parts.push('+' + ef.kg + ' kg tải trọng ' + ef.time + ' s');
+      if (ef.speed) parts.push('+' + ef.speed + '% tốc độ ' + ef.time + ' s');
+      if (ef.poison || ef.fire || ef.ice) parts.push('miễn ' + (ef.poison ? 'độc' : ef.fire ? 'lửa' : 'băng') + ' ' + ef.time + ' s');
+      if (dd.useTime) parts.push('dùng mất ' + dd.useTime + ' s');
+      extra.push(parts.join(', '));
+    }
+    if (dd.type === 'weapon' && DS.weapons[dd.weaponId]) { const wd = DS.weapons[dd.weaponId]; extra.push('Sát thương ' + wd.dmg + (wd.cost ? ' · năng lượng ' + wd.cost : '')); }
+    if (dd.type === 'affix') extra.push('Phụ kiện vũ khí: chưa gắn được ở bản web');
+    const exl = [];
+    for (const e of extra) exl.push(...wrap(e, w - 12, 7.5));
+    const h = 38 + (lines.length + exl.length) * 9 + Math.ceil(acts.length / 2) * 16;
     rrect(x, y, w, h, 4, 'rgba(18,24,30,0.94)', RAR_COL[dd.rarityIdx] || C.slotLine, 1.2);
     stackCell(st, x + 17, y + 17, 25);
-    text(dd.name, x + 34, y + 10, 9.5, RAR_COL[dd.rarityIdx], 'left', null, 900);
+    text(dd.name.length > 22 ? dd.name.slice(0, 21) + '…' : dd.name, x + 34, y + 10, 9.5, RAR_COL[dd.rarityIdx], 'left', null, 900);
     const kg = dd.weight * st.n;
-    text((dd.weight ? kg.toFixed(kg % 1 ? 1 : 0) + ' kg' : '') + (dd.value ? '  ·  giá ' + fmt(dd.value * (dd.type === 'armor' ? 1 : st.n)) : ''), x + 34, y + 21, 7.5, C.label, 'left', null, 700);
-    if (dd.type === 'armor') text('Độ bền ' + st.dur + '/' + (st.max || dd.durability), x + 34, y + 30, 7.5, '#9fd6ff', 'left', null, 700);
-    lines.forEach((l, i) => text(l, x + 6, y + 40 + i * 9, 7.5, '#dfe6ee', 'left', null, 700));
+    text((dd.weight ? SS.L('esc_item_detail_weight', 'Trọng lượng: {0}').replace('{0}', +kg.toFixed(2) + ' kg') : '') + (dd.value ? '  ·  giá ' + fmt(dd.value * st.n) : ''), x + 34, y + 22, 7, C.label, 'left', null, 700);
+    let yy = y + 36;
+    exl.forEach(l => { text(l, x + 6, yy, 7.5, '#9fd6ff', 'left', null, 700); yy += 9; });
+    lines.forEach(l => { text(l, x + 6, yy, 7.5, '#dfe6ee', 'left', null, 700); yy += 9; });
     acts.forEach(([a, lab], i) => {
-      const bx = x + 6 + (i % 2) * ((w - 12) / 2 + 1), by = y + 44 + lines.length * 9 + Math.floor(i / 2) * 16, bw = (w - 14) / 2;
+      const bx = x + 6 + (i % 2) * ((w - 12) / 2 + 1), by = yy + 2 + Math.floor(i / 2) * 16, bw = (w - 14) / 2;
       smallBtn(bx, by, bw, 13, lab);
       hit(bx, by, bw, 13, 'act', { a });
     });
@@ -526,34 +558,148 @@
     else if (a === 'drop') inv.drop(ref);
     else if (a === 'sell') why = inv.sell(ref);
     else if (a === 'repair') why = inv.repair(ref);
+    else if (a === 'secure') why = inv.move(ref, { c: 'secure' });
     else if (a === 'toQuick') { const S = inv.state, q = S.quick.indexOf(null); S.quick[q >= 0 ? q : 2] = st.id; }
     if (why) say(why);
     if (!inv.get(ref)) ui.sel = null;
   }
 
+  // ---------------------------------------------------------------- cột phải: rương / xây dựng / huấn luyện / chế tạo / cầu
+  function panelHead(ox, title, icon) {
+    titleBar(ox + 456, 44, 180, 17, title, icon || 'sui/title_text');
+    closeBtn(ox + 622, 52.5); hit(ox + 612, 44, 22, 17, 'close');
+    body(ox + 459, 63, 175, 240);
+  }
+  // Rương: ô chưa lục hiện dấu hỏi + vạch tiến độ [ĐO itemRevealDurationsByRarity]
+  function drawBox(ox) {
+    const b = inv.box;
+    if (!b) { ui.mode = null; return; }
+    panelHead(ox, b.name, 'sui/Package_title_icon');
+    const cols = 4, x0 = ox + 482.5, y0 = 83.5;
+    b.slots.forEach((s, i) => {
+      const cx = x0 + (i % cols) * 42.5, cy = y0 + Math.floor(i / cols) * 38.8;
+      if (cy > 270) return;
+      const ref = { c: 'box', i }, vis = inv.boxVisible(i);
+      if (s && !vis) {
+        slotBox(cx, cy, 29);
+        const k = Math.min(1, (b.seen[i] || 0) / Math.max(0.01, inv.revealTime(s)));
+        text('?', cx, cy, 13, 'rgba(255,255,255,0.55)', 'center', null, 900);
+        ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(cx - 11, cy + 9, 22, 2.5);
+        ctx.fillStyle = '#f2df6b'; ctx.fillRect(cx - 11, cy + 9, 22 * k, 2.5);
+      } else stackCell(drag && same(drag.from, ref) ? null : s, cx, cy, 29, hiOf(ref));
+      hit(cx - 14.5, cy - 14.5, 29, 29, 'slot', { ref });
+    });
+    smallBtn(ox + 466, 287, 162, 12, 'Lấy hết');
+    hit(ox + 466, 286, 162, 14, 'takeAll');
+  }
+  // danh sách dòng chung: {item|icon, name, sub, need:[[id,n]], coins, btn, ok, act, arg, tip, dim, done}
+  function rowList(ox, rows, key) {
+    const y0 = 67, rh = 30, vis = 7;
+    scroll[key] = Math.max(0, Math.min(Math.max(0, rows.length - vis), scroll[key] || 0));
+    const off = scroll[key];
+    ctx.save(); ctx.beginPath(); ctx.rect(ox + 459, 64, 175, 238); ctx.clip();
+    rows.slice(off, off + vis + 1).forEach((r, j) => {
+      const y = y0 + j * (rh + 3);
+      rrect(ox + 463, y, 167, rh, 3, r.dim ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.07)', r.done ? '#5ee05a' : null, 1);
+      if (r.item) stackCell({ id: r.item, n: r.n || 1 }, ox + 476, y + 11, 19);
+      else if (r.icon) fitSpr(r.icon, ox + 476, y + 11, 18);
+      text(r.name, ox + 489, y + 7, 8, r.col || C.white, 'left', null, 800);
+      if (r.sub) text(r.sub.length > 34 ? r.sub.slice(0, 33) + '…' : r.sub, ox + 489, y + 15, 6.3, C.label, 'left', null, 700);
+      let nx = ox + 466;
+      if (r.coins) {
+        spr('sui/icon_coin', nx + 4, y + 24.5, 0.6);
+        text(fmt(r.coins), nx + 9, y + 24.5, 6.5, inv.state.coins >= r.coins ? C.white : C.red, 'left', null, 800);
+        nx += 14 + textW(fmt(r.coins), 6.5);
+      }
+      for (const [id, n] of r.need || []) {
+        const have = inv.count(id, 'all');
+        itemIcon(id, nx + 5, y + 24.5, 9);
+        text(have + '/' + n, nx + 11, y + 24.5, 6.3, have >= n ? C.green : C.red, 'left', null, 800);
+        nx += 16 + textW(have + '/' + n, 6.3);
+      }
+      if (r.btn) {
+        const bx = ox + 593, by = y + 8;
+        if (r.ok) greenBtn(bx, by, 34, 14, r.btn); else smallBtn(bx, by + 1, 34, 12, r.btn, false);
+        hit(bx, by, 34, 14, r.act, { arg: r.arg, tip: r.tip });
+      }
+    });
+    ctx.restore();
+    if (rows.length > vis) {
+      const h = 236, x = ox + 632;
+      ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(x, 65, 2, h);
+      ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fillRect(x, 65 + h * off / rows.length, 2, h * vis / rows.length);
+    }
+    hit(ox + 459, 63, 175, 240, 'scrollArea', { key, under: true, rowH: 33 });
+  }
+  // Bàn Thiết Kế [ĐO escape_tbescapedesigntableupgradeconfig]
+  function drawDesign(ox) {
+    panelHead(ox, SS.L('esc_building_design_table', 'Bàn Thiết Kế'), 'sui/design');
+    const T = SS.T, rows = [];
+    const WB = ((window.SK_SEASON || {}).world || { maps: { base: { buildings: [] } } }).maps.base.buildings;
+    for (const b of T.buildings) {
+      const wb = WB.find(q => q.id === b.id);
+      const lv = inv.buildLevel(b.id), u = inv.nextUpgrade(b.id), why = u ? inv.upgradeBlock(u) : 'Đã tối đa';
+      rows.push({ icon: wb && wb.sprite ? 'sw:' + wb.sprite[2] : null, name: b.name + (lv ? ' · cấp ' + lv : ' · chưa xây'), sub: lv ? (b.effect || b.desc) : b.desc,
+        coins: u ? u.coins : 0, need: u ? u.items : [], btn: u ? (lv ? 'Nâng' : 'Xây') : 'Tối đa', ok: !why, act: 'upgradeB', arg: b.id, tip: why, done: !u, dim: !u });
+    }
+    rowList(ox, rows, 'design');
+  }
+  // Cơ sở huấn luyện [ĐO escape_tbescapeupgradeblueprintconfig]
+  function drawTraining(ox) {
+    panelHead(ox, SS.L('esc_training_facility', 'Cơ sở huấn luyện'), 'sui/upgrade_talent');
+    const rows = SS.T.training.map(u => {
+      const why = inv.trainBlock(u), done = inv.state.training.indexOf(u.id) >= 0;
+      return { icon: u.icon, name: u.name + ' ' + u.id.slice(-1), sub: (u.effect || '').replace('{0}', u.value), coins: done ? 0 : u.coins,
+        need: done ? [] : u.items, btn: done ? 'Xong' : 'Nâng', ok: !why, act: 'train', arg: u.id, tip: why, done, dim: done };
+    });
+    rows.sort((a, b) => (a.done - b.done) || (b.ok - a.ok));
+    rowList(ox, rows, 'train');
+  }
+  // Bàn Chế Tạo / Nhà Bếp / Trạm Y Tế [ĐO escape_tbescapecraftblueprintconfig]
+  function drawCraft(ox, at) {
+    const nm = { Workshop: 'esc_building_workshop', Kitchen: 'esc_building_kitchen', Medical: 'esc_building_medical_station' }[at];
+    panelHead(ox, SS.L(nm, at) + ' · cấp ' + inv.buildLevel(at), 'sui/design');
+    const rows = inv.recipes(at).map(r => {
+      const why = inv.craftBlock(r), d = SS.itemDef(r.out[0]);
+      return { item: r.out[0], n: r.out[1], name: d.name, col: RAR_COL[d.rarityIdx], sub: inv.buildLevel(at) < r.lv ? 'Cần cấp ' + r.lv : '',
+        coins: r.coins, need: r.in, btn: SS.L('esc_workshop_craft_button', 'Chế tạo'), ok: !why, act: 'craft', arg: r.id, tip: why, dim: inv.buildLevel(at) < r.lv };
+    });
+    rows.sort((a, b) => a.dim - b.dim);
+    rowList(ox, rows, 'craft');
+    if (at === 'Workshop') text('Chọn trang bị trong balô rồi bấm Sửa (giảm độ bền tối đa).', ox + 546, 298, 6.5, C.label, 'center');
+  }
+  // Xây cầu [ĐO BridgeBuilder.requiredMaterials] — vật liệu lấy từ balô
+  function drawBridge(ox) {
+    const b = ui.bridge; if (!b) { ui.mode = null; return; }
+    panelHead(ox, 'Xây cầu', 'sui/design');
+    text(SS.L('esc_bridge_build_materials', 'Vật phẩm cần để xây dựng'), ox + 546, 78, 8.5, C.white, 'center');
+    b.cost.forEach(([id, n], i) => {
+      const y = 98 + i * 34, have = inv.count(id);
+      stackCell({ id, n: 1 }, ox + 480, y, 25);
+      text(SS.itemDef(id).name, ox + 498, y - 4, 8, C.white, 'left');
+      text(have + '/' + n, ox + 498, y + 7, 8, have >= n ? C.green : C.red, 'left', null, 900);
+    });
+    if (!b.unlockDirectly) text('Cây cầu này chưa mở khoá', ox + 546, 220, 8.5, C.red, 'center');
+    greenBtn(ox + 500, 240, 92, 20, 'Xây dựng');
+    hit(ox + 500, 240, 92, 20, 'buildBridge');
+  }
+
   // ---------------------------------------------------------------- bảng Bản đồ
   const maps = {};
-  function mapImg(key) {
-    const m = DATA.maps && DATA.maps[key]; if (!m) return null;
-    if (!maps[key]) { const im = new Image(); im.src = m.src; maps[key] = im; }
-    return maps[key].complete && maps[key].naturalWidth ? maps[key] : null;
+  function mapImg(src) {
+    if (!src) return null;
+    if (!maps[src]) { const im = new Image(); im.src = src; maps[src] = im; }
+    return maps[src].complete && maps[src].naturalWidth ? maps[src] : null;
   }
   const mapView = { zoom: 1, cx: null, cy: null, key: null };
-  // world.mapInfo(): {imgW, imgH, scale} — ảnh tổng quan phủ imgW*scale x imgH*scale px thế giới.
-  const MAP_IMG = { base: 'Init', s1: 'Scene1' }, MAP_NAME = { base: 'Căn cứ', s1: 'Ngoại ô căn cứ' };
+  const MAP_NAME = { base: SS.L('esc_map_base', 'Căn Cứ'), s1: SS.L('esc_map_base_outskirts', 'Vành Đai Căn Cứ') };
   function mapInfo(G) {
-    const w = SS.world, zone = (G && G.season && G.season.map) || (inv.inBase() ? 'base' : 's1');
-    const info = w && typeof w.mapInfo === 'function' ? w.mapInfo(zone) : null;
-    const key = MAP_IMG[zone] || 'Scene1', m = DATA.maps[key] || { w: 512, h: 512, scale: 0.5 };
-    return {
-      key, name: MAP_NAME[zone] || zone,
-      w: info && info.imgW ? info.imgW * info.scale : m.w / m.scale,
-      h: info && info.imgH ? info.imgH * info.scale : m.h / m.scale
-    };
+    const w = SS.world, zone = (G && G.season && G.season.map) || 'base';
+    const info = w && w.mapInfo ? w.mapInfo(zone) : null;
+    return info ? Object.assign({ name: MAP_NAME[zone] || zone }, info) : { key: zone, name: zone, rect: [0, 0, 512, 512] };
   }
-  const MARK = { portal: 'sui/point_gate', gate: 'sui/point_gate', exit: 'sui/point_escape', escape: 'sui/point_escape',
-    task: 'sui/point_task', npc: 'sui/point_task', treasure: 'sui/point_treasure', crate: 'sui/point_chestbox',
-    chest: 'sui/point_chestbox', building: 'sui/point_white', camp: 'sui/point_white', white: 'sui/point_white' };
+  const MARK = { portal: 'sui/point_gate', gate: 'sui/point_gate', exit: 'sui/point_escape', task: 'sui/point_task', npc: 'sui/point_task',
+    treasure: 'sui/point_treasure', crate: 'sui/point_chestbox', death: 'sui/point_white', building: 'sui/point_white' };
   function drawMap(G) {
     const cx = UW / 2, X0 = cx - 250.5, Y0 = 36, W = 501.5;
     const info = mapInfo(G);
@@ -561,119 +707,124 @@
     closeBtn(X0 + 479, Y0 + 11); hit(X0 + 468, Y0, 24, 22, 'close');
     const bx = X0 + 4, by = 62, bw = W - 8, bh = 244;
     fog(bx, by, bw, bh, '#b7c6db', 1.2);
-    const img = mapImg(info.key), m = DATA.maps[info.key] || { scale: 0.5 };
+    const img = mapImg(info.img);
+    const R = info.rect;
     if (mapView.key !== info.key || mapView.cx == null || ui.mapFresh) {
       ui.mapFresh = false;
-      mapView.key = info.key; mapView.zoom = Math.min((bw - 40) / info.w, (bh - 10) / info.h);
-      mapView.cx = G.player ? G.player.x : info.w / 2; mapView.cy = G.player ? G.player.y : info.h / 2;
+      mapView.key = info.key; mapView.zoom = Math.min((bw - 40) / R[2], (bh - 10) / R[3]);
+      mapView.cx = G.player ? G.player.x : R[0] + R[2] / 2; mapView.cy = G.player ? G.player.y : R[1] + R[3] / 2;
     }
     const z = mapView.zoom, vw = bw - 30, vx = bx + vw / 2, vy = by + bh / 2;
-    // không cho kéo ảnh ra khỏi khung: ảnh to hơn khung thì kẹp mép, nhỏ hơn thì đặt giữa
-    const clampC = (c, size, span) => size * z <= span ? size / 2 : Math.max(span / 2 / z, Math.min(size - span / 2 / z, c));
-    mapView.cx = clampC(mapView.cx, info.w, vw); mapView.cy = clampC(mapView.cy, info.h, bh);
+    const clampC = (c, a, size, span) => size * z <= span ? a + size / 2 : Math.max(a + span / 2 / z, Math.min(a + size - span / 2 / z, c));
+    mapView.cx = clampC(mapView.cx, R[0], R[2], vw); mapView.cy = clampC(mapView.cy, R[1], R[3], bh);
     const toS = (x, y) => [vx + (x - mapView.cx) * z, vy + (y - mapView.cy) * z];
     ctx.save(); ctx.beginPath(); ctx.rect(bx + 1, by + 1, bw - 2, bh - 2); ctx.clip();
     if (img) {
-      const [sx, sy] = toS(0, 0);
-      ctx.imageSmoothingEnabled = z * (1 / m.scale) < 1.5;
-      ctx.drawImage(img, sx, sy, info.w * z, info.h * z);
+      const [sx, sy] = toS(R[0], R[1]), sw = R[2] * z, sh = R[3] * z;
+      ctx.imageSmoothingEnabled = sw < img.width * 1.5;
+      ctx.drawImage(img, sx, sy, sw, sh);
       ctx.imageSmoothingEnabled = false;
-      // viền mờ dần như ảnh g
       const e = 26;
-      for (const [gx, gy, gw, gh, x0, y0, x1, y1] of [[sx, sy, info.w * z, e, 0, sy, 0, sy + e], [sx, sy + info.h * z - e, info.w * z, e, 0, sy + info.h * z, 0, sy + info.h * z - e],
-        [sx, sy, e, info.h * z, sx, 0, sx + e, 0], [sx + info.w * z - e, sy, e, info.h * z, sx + info.w * z, 0, sx + info.w * z - e, 0]]) {
+      for (const [gx, gy, gw, gh, x0, y0, x1, y1] of [[sx, sy, sw, e, 0, sy, 0, sy + e], [sx, sy + sh - e, sw, e, 0, sy + sh, 0, sy + sh - e],
+        [sx, sy, e, sh, sx, 0, sx + e, 0], [sx + sw - e, sy, e, sh, sx + sw, 0, sx + sw - e, 0]]) {
         const g = ctx.createLinearGradient(x0, y0, x1, y1);
         g.addColorStop(0, 'rgba(20,30,45,1)'); g.addColorStop(1, 'rgba(20,30,45,0)');
         ctx.fillStyle = g; ctx.fillRect(gx, gy, gw, gh);
       }
     } else text('Đang tải bản đồ…', vx, vy, 10, C.white, 'center');
-    const marks = SS.world && typeof SS.world.markers === 'function' ? (SS.world.markers() || []) : [];
+    const marks = SS.world && SS.world.markers ? (SS.world.markers() || []) : [];
     for (const mk of marks) {
       if (mk.kind === 'self' || mk.kind === 'crate_open') continue;
-      // thùng chỉ hiện khi đã ở gần (coi như đã thấy), tránh rắc kín bản đồ
-      if (mk.kind === 'crate' && (!G.player || Math.hypot(mk.x - G.player.x, mk.y - G.player.y) > 200)) continue;
+      if (mk.kind === 'crate' && (!G.player || Math.hypot(mk.x - G.player.x, mk.y - G.player.y) > 240)) continue;
       const [x, y] = toS(mk.x, mk.y);
-      spr(MARK[mk.kind] || MARK.white, x, y, 1);
-      if (mk.label) text(mk.label, x, y + 11, mk.kind === 'building' || mk.kind === 'camp' ? 7 : 8, mk.locked ? '#aab1b3' : C.white, 'center', '#000');
+      spr(MARK[mk.kind] || 'sui/point_white', x, y, 1);
+      if (mk.label && mk.kind !== 'crate') text(mk.label, x, y + 11, mk.kind === 'building' ? 7 : 8, mk.locked ? '#aab1b3' : C.white, 'center', '#000');
     }
     if (G.player) {
       const [x, y] = toS(G.player.x, G.player.y);
       spr('sui/point_self', x, y - 3, 1);
-      text('Bạn', x, y + 10, 9, C.white, 'center', '#000', 800);
+      text(SS.L('esc_map_legend_player', 'Bạn'), x, y + 10, 9, C.white, 'center', '#000', 800);
     }
     ctx.restore();
-    // thanh phóng
     const zx = X0 + W - 20;
     spr('sui/icon_scales_0', zx, by + 24, 1); hit(zx - 10, by + 14, 20, 20, 'zoom', { k: 1 / 1.25 });
     spr('sui/icon_scales_1', zx, by + bh - 20, 1); hit(zx - 10, by + bh - 30, 20, 20, 'zoom', { k: 1.25 });
     const t0 = by + 40, t1 = by + bh - 38;
     rrect(zx - 1.5, t0, 3, t1 - t0, 1.5, 'rgba(200,210,225,0.6)');
-    const zmin = zoomMin(info), zmax = zmin * 6, kz = Math.log(z / zmin) / Math.log(zmax / zmin);
+    const zmin = zoomMin(info), zmax = zmin * 12, kz = Math.log(z / zmin) / Math.log(zmax / zmin);
     spr('sui/icon_scales_2', zx, t0 + (t1 - t0) * (1 - Math.max(0, Math.min(1, kz))), 1);
     hit(zx - 10, t0 - 5, 20, t1 - t0 + 10, 'zoomBar', { t0, t1, info });
     hit(bx, by, bw - 30, bh, 'mapPan', { under: true });
   }
-  function zoomMin(info) { return Math.min(460 / info.w, 240 / info.h) * 0.6; }
-  function setZoom(z, info) { const a = zoomMin(info); mapView.zoom = Math.max(a, Math.min(a * 6, z)); }
+  function zoomMin(info) { return Math.min(460 / info.rect[2], 240 / info.rect[3]) * 0.9; }
+  function setZoom(z, info) { const a = zoomMin(info); mapView.zoom = Math.max(a, Math.min(a * 12, z)); }
 
   // ---------------------------------------------------------------- bảng Nhiệm vụ
-  const questView = { tab: 'acc', sel: null };
+  const questView = { tab: 'acc', sel: null, npc: null };
+  ui.openQuest = function (npc) { questView.npc = npc || null; questView.tab = 'acc'; questView.sel = null; ui.open('quest', null); };
   function drawQuest(G) {
     const qs = Q(); if (!qs) return;
-    const cx = UW / 2, X0 = cx - 272.5;
-    titleBar(X0, 36, 546, 22, 'Nhiệm vụ', 'sui/title_text');
+    const cx = UW / 2, X0 = cx - 272.5, T = SS.T;
+    titleBar(X0, 36, 546, 22, questView.npc ? 'Nhiệm vụ - ' + ((T.npcs[questView.npc] || {}).name || '') : 'Nhiệm vụ', 'sui/title_text');
     closeBtn(X0 + 532, 47); hit(X0 + 520, 36, 24, 22, 'close');
-    // cột trái
     fog(X0 + 3.5, 62, 209, 245, '#9aa9bf', 1);
-    const tabs = [['acc', 'Đã nhận'], ['fin', 'Đã xong']];
+    const tabs = [['acc', SS.L('esc_task_accepted', 'Đã nhận')], ['fin', 'Đã xong'], ['all', 'Tất cả (' + qs.all().length + ')']];
     tabs.forEach(([id, lab], i) => {
-      const x = X0 + 7 + i * 102, on = questView.tab === id;
-      rrect(x, 68, 99, 21, 3, on ? '#4f86d6' : '#3b5f96');
-      text(lab, x + 49.5, 78.5, 9.5, on ? C.white : '#dfe7f3', 'center', null, 800);
-      hit(x, 68, 99, 21, 'qtab', { tab: id });
+      const x = X0 + 7 + i * 68, on = questView.tab === id;
+      rrect(x, 68, 65, 21, 3, on ? '#4f86d6' : '#3b5f96');
+      text(lab, x + 32.5, 78.5, 8.5, on ? C.white : '#dfe7f3', 'center', null, 800);
+      hit(x, 68, 65, 21, 'qtab', { tab: id });
     });
-    const list = questView.tab === 'acc' ? qs.accepted() : qs.finished();
+    let list = questView.tab === 'acc' ? qs.accepted() : questView.tab === 'fin' ? qs.finished() : qs.all();
+    if (questView.npc && questView.tab === 'acc') list = list.filter(d => d.npc === questView.npc);
     if (!list.some(q => q.id === questView.sel)) questView.sel = list[0] ? list[0].id : null;
-    list.slice(0, 9).forEach((q, i) => {
-      const y = 96 + i * 26, on = q.id === questView.sel, lk = questView.tab === 'acc' && qs.locked(q);
+    scroll.quest = Math.max(0, Math.min(Math.max(0, list.length - 8), scroll.quest || 0));
+    list.slice(scroll.quest, scroll.quest + 8).forEach((q, i) => {
+      const y = 96 + i * 26, on = q.id === questView.sel, lk = !!q.web, dn = qs.isDone(q.id);
       rrect(X0 + 7, y, 202, 19, 3, on ? '#4c86d6' : lk ? 'rgba(138,160,179,0.45)' : '#8aa0b3', on ? '#f2df6b' : null, 1.3);
-      text(q.title, X0 + 18, y + 10, 9, lk && !on ? '#dfe6ee' : C.white, 'left', null, 800);
-      if (questView.tab === 'acc' && qs.complete(q)) spr('sui/finished', X0 + 196, y + 9.5, 0.8);
+      text(q.title.length > 30 ? q.title.slice(0, 29) + '…' : q.title, X0 + 14, y + 10, 8.5, lk && !on ? '#dfe6ee' : C.white, 'left', null, 800);
+      if (dn || (!lk && qs.isAccepted(q.id) && qs.complete(q))) spr('sui/finished', X0 + 196, y + 9.5, 0.8);
+      else if (lk) text('khoá', X0 + 204, y + 10, 6.5, '#e8eef4', 'right');
       hit(X0 + 7, y, 202, 19, 'qsel', { id: q.id });
     });
-    if (!list.length) text(questView.tab === 'acc' ? 'Không còn nhiệm vụ.' : 'Chưa xong nhiệm vụ nào.', X0 + 108, 110, 9, C.label, 'center');
-    // cột phải
+    if (list.length > 8) text('cuộn ↕ ' + (scroll.quest + 1) + '-' + Math.min(list.length, scroll.quest + 8) + '/' + list.length, X0 + 108, 302, 7, C.label, 'center');
+    hit(X0 + 3.5, 92, 209, 212, 'scrollArea', { key: 'quest', under: true, rowH: 26 });
+    if (!list.length) text(questView.tab === 'acc' ? 'Không có nhiệm vụ đang nhận.' : 'Chưa có.', X0 + 108, 110, 9, C.label, 'center');
     const RX = X0 + 218.5, RW = 324;
     fog(RX, 62, RW, 245, '#e8d86a', 1.4);
-    const q = qs.defs.find(x => x.id === questView.sel);
+    const q = qs.byId(questView.sel);
     if (!q) return;
     text(q.title, RX + 8, 76, 10.5, C.white, 'left', null, 800);
-    const lines = wrap(q.text, RW - 20, 9.3);
-    lines.forEach((l, i) => text(l, RX + 8, 92 + i * 11.8, 9.3, '#f4f6f8', 'left', null, 700));
-    const sy = 92 + lines.length * 11.8 + 5;
-    text('---- ' + q.from, RX + RW - 9, sy, 9.5, C.white, 'right', null, 800);
-    const l1 = sy + 16;
+    const lines = wrap(q.desc, RW - 20, 8.6).slice(0, 7);
+    lines.forEach((l, i) => text(l, RX + 8, 91 + i * 11, 8.6, '#f4f6f8', 'left', null, 700));
+    const sy = 91 + lines.length * 11 + 3;
+    text('---- ' + ((T.npcs[q.npc] || {}).name || ''), RX + RW - 9, sy, 9, C.white, 'right', null, 800);
+    const l1 = sy + 12;
     ctx.fillStyle = '#7d98ad'; ctx.fillRect(RX + 5, l1, RW - 10, 1.2);
     const done = qs.isDone(q.id);
-    q.obj.forEach((o, i) => {
-      const y = l1 + 11 + i * 13.5, pr = done ? o.n : qs.progress(q.id, i);
-      text(o.label + (o.kind === 'locked' && !done ? ' (' + o.why + ')' : ''), RX + 5, y, 9.3, o.kind === 'locked' && !done ? '#aab1b3' : C.white, 'left', null, 700);
-      const tot = '/' + o.n, tw = textW(tot, 9.3);
-      text(tot, RX + RW - 9, y, 9.3, C.white, 'right', null, 800);
-      text(String(pr), RX + RW - 9 - tw, y, 9.3, pr >= o.n ? C.green : C.red, 'right', null, 800);
+    q.checks.forEach((c, i) => {
+      const y = l1 + 10 + i * 12.5, pr = done ? c[2] : qs.progress(q, i);
+      text(qs.label(c), RX + 6, y, 8.6, q.web && !done ? '#c6ced6' : C.white, 'left', null, 700);
+      const tot = '/' + c[2], tw = textW(tot, 8.6);
+      text(tot, RX + RW - 9, y, 8.6, C.white, 'right', null, 800);
+      text(String(pr), RX + RW - 9 - tw, y, 8.6, pr >= c[2] ? C.green : C.red, 'right', null, 800);
     });
-    const l2 = l1 + 11 + q.obj.length * 13.5;
-    ctx.fillStyle = '#7d98ad'; ctx.fillRect(RX + 5, l2, RW - 10, 1.2);
-    text('Phần thưởng:', RX + 8, l2 + 19, 9.5, C.white, 'left', null, 800);
-    q.rewards.forEach(([id, n], i) => {
-      const x = RX + 24 + i * 43, y = l2 + 51;
-      stackCell({ id, n: 1 }, x, y, 29);
+    const l2 = l1 + 10 + q.checks.length * 12.5;
+    ctx.fillStyle = '#7d98ad'; ctx.fillRect(RX + 5, l2 - 4, RW - 10, 1.2);
+    text(SS.L('esc_task_reward_title', 'Phần thưởng:'), RX + 8, l2 + 8, 9, C.white, 'left', null, 800);
+    const rw = q.rewards.concat(q.coins ? [['iron_coin', q.coins]] : []);
+    rw.forEach(([id, n], i) => {
+      const x = RX + 24 + i * 40, y = l2 + 32;
+      stackCell({ id, n: 1 }, x, y, 27);
       text(fmt(n), x + 12, y + 9, 8, C.white, 'right', '#000', 900);
     });
-    if (questView.tab === 'acc' && qs.complete(q)) {
-      greenBtn(RX + RW - 88, 280, 80, 20, 'Nhận thưởng');
-      hit(RX + RW - 88, 280, 80, 20, 'claim', { id: q.id });
-    }
+    if (q.web && !done) {
+      text('Chưa có ở bản web: ' + q.web, RX + RW / 2, 296, 8.5, '#ffd08a', 'center', '#000');
+    } else if (!done && qs.isAccepted(q.id) && qs.complete(q)) {
+      const lab = qs.needsSubmit(q) ? SS.L('esc_task_submit_button', 'Nộp') + ' + nhận thưởng' : 'Nhận thưởng';
+      greenBtn(RX + RW - 100, 282, 92, 20, lab);
+      hit(RX + RW - 100, 282, 92, 20, 'claim', { id: q.id });
+    } else if (!done && !qs.isAccepted(q.id)) text('Chưa mở: cần xong nhiệm vụ trước / cứu đúng NPC', RX + RW / 2, 296, 8, '#dfe6ee', 'center', '#000');
   }
 
   // ---------------------------------------------------------------- bảng tạm dừng + Cửa hàng mùa (thanh toán giả)
@@ -688,9 +839,10 @@
     const B = [['resume', 'Tiếp tục'], ['shop', 'Cửa hàng mùa'], ['help', 'Luật chết / sơ tán'], ['exit', 'Về sảnh (lưu)']];
     B.forEach(([a, lab], i) => { smallBtn(cx - 80, cy - 24 + i * 22, 160, 17, lab); hit(cx - 80, cy - 24 + i * 22, 160, 17, 'pauseAct', { a }); });
     if (ui.help) {
-      rrect(cx - 170, cy + 76, 340, 34, 4, 'rgba(0,0,0,0.8)');
-      text('Chết: mất balô + đồ đang đeo, giữ Hộp an toàn và Kho (luật đoán, wiki không ghi).', cx, cy + 86, 7.5, C.white, 'center');
-      text('Sơ tán: đứng trong vòng xanh ở điểm sơ tán đủ 5 giây (đoán).', cx, cy + 99, 7.5, C.white, 'center');
+      rrect(cx - 190, cy + 76, 380, 46, 4, 'rgba(0,0,0,0.85)');
+      text(SS.L('esc_tips_4', ''), cx, cy + 86, 7, C.white, 'center');
+      text('Rương An Toàn và Kho luôn được giữ. ' + SS.L('esc_tips_5', ''), cx, cy + 98, 7, C.white, 'center');
+      text(SS.L('esc_tutorial_drillmaster_20', '') + ' Đứng trong vòng 4 giây để rút lui.', cx, cy + 110, 7, C.white, 'center');
     }
   }
   // Cửa hàng mùa: thứ duy nhất bán bằng tiền thật trong game gốc -> hộp thanh toán GIẢ, bấm là nhận.
@@ -725,23 +877,26 @@
   ui.openSeasonShop = () => { ui.paused = true; ui.shop = { step: 'list' }; setWorldPause(true); };
 
   // ---------------------------------------------------------------- mở / đóng
-  // world.js gọi ui.open('warehouse'|'store'|'quest'|'training'|'design', G) khi bấm E ở công trình.
-  const NOT_YET = { training: 'Khu huấn luyện chưa có ở bản web', design: 'Bàn thiết kế chưa có ở bản web' };
+  // world.js gọi ui.open('bag', 'warehouse'|'store'|'box'|'design'|'training'|'craft:<nhà>') khi bấm E ở công trình / rương.
   ui.open = function (tab, mode) {
-    if (NOT_YET[tab]) { say(NOT_YET[tab]); return false; }
     if (tab === 'warehouse' || tab === 'store') { mode = tab; tab = 'bag'; }
     else if (typeof mode !== 'string') mode = ui.panel ? ui.mode : null;
     ui.panel = true; ui.tab = tab || 'bag'; ui.mode = mode;
     if (ui.tab === 'map') ui.mapFresh = true;
     inv.atWarehouse = ui.mode === 'warehouse';
+    if (ui.mode !== 'box') inv.closeBox();
+    if (!ui.mode || !ui.mode.startsWith('craft:')) inv.atWorkshop = false;
     I.held = {}; I.btn = {}; I.stick.active = false;
     return true;
   };
+  ui.openBridge = b => { ui.bridge = b; ui.open('bag', 'bridge'); };
   ui.openWarehouse = () => ui.open('bag', 'warehouse');
   ui.openStore = () => ui.open('bag', 'store');
   function setWorldPause(on) { const S = SK.G && SK.G.season; if (S) S.paused = !!on; }
   ui.close = function () {
-    if (ui.paused) setWorldPause(false); ui.panel = null; ui.mode = null; ui.sel = null; inv.atWarehouse = false; drag = null; ui.paused = false; ui.help = false; ui.shop = null; };
+    if (ui.paused) setWorldPause(false); ui.panel = null; ui.mode = null; ui.sel = null; inv.atWarehouse = false; inv.atWorkshop = false;
+    inv.closeBox(); drag = null; ui.paused = false; ui.help = false; ui.shop = null; ui.bridge = null;
+  };
   ui.isOpen = () => !!(ui.panel || ui.paused);
   ui.openPause = () => { ui.paused = true; setWorldPause(true); };
 
@@ -826,7 +981,7 @@
     if (h.act === 'btn') { I.btn[h.btn] = true; I.edge[h.btn] = true; return; }
     if (h.act === 'slot') { drag = { from: h.ref, x, y, sx: x, sy: y, moved: false, pid: e.pointerId }; return; }
     if (h.act === 'mapPan') { pan = { x, y, cx: mapView.cx, cy: mapView.cy }; return; }
-    if (h.act === 'scrollArea') { pan = { x, y, key: h.key, s0: scroll[h.key] }; return; }
+    if (h.act === 'scrollArea') { pan = { x, y, key: h.key, s0: scroll[h.key] || 0, rowH: h.rowH || 39 }; return; }
     if (h.act === 'zoomBar') { zoomBarAt(h, y); pan = { zoomBar: h }; return; }
     click(h);
   }
@@ -847,7 +1002,7 @@
       e.stopImmediatePropagation();
     } else if (pan && ptrs[e.pointerId]) {
       if (pan.zoomBar) zoomBarAt(pan.zoomBar, y);
-      else if (pan.key) scroll[pan.key] = Math.round(pan.s0 - (y - pan.y) / 39);
+      else if (pan.key) scroll[pan.key] = Math.round(pan.s0 - (y - pan.y) / pan.rowH);
       else { mapView.cx = pan.cx - (x - pan.x) / mapView.zoom; mapView.cy = pan.cy - (y - pan.y) / mapView.zoom; }
       e.stopImmediatePropagation();
     }
@@ -870,7 +1025,7 @@
     if (!ui.panel) return;
     const [x, y] = toUI(e), h = hitAt(x, y);
     if (ui.tab === 'map') { const info = mapInfo(SK.G); setZoom(mapView.zoom * (e.deltaY < 0 ? 1.15 : 1 / 1.15), info); }
-    else if (h && (h.key || h.act === 'slot')) { const key = h.key || (h.ref.c === 'wh' ? 'wh' : 'bag'); scroll[key] += e.deltaY > 0 ? 1 : -1; }
+    else if (h && (h.key || h.act === 'slot')) { const key = h.key || (h.ref.c === 'wh' ? 'wh' : 'bag'); scroll[key] = (scroll[key] || 0) + (e.deltaY > 0 ? 1 : -1); }
     e.preventDefault();
   }
   addEventListener('pointerdown', onDown, true);
@@ -903,7 +1058,11 @@
       case 'sort': inv.sort(h.where); ui.sel = null; break;
       case 'storeAll': { const why = inv.storeAll(); if (why) say(why); break; }
       case 'buy': { const why = inv.buy(h.id); say(why || 'Đã mua ' + SS.itemDef(h.id).name); break; }
-      case 'upgradeWh': { const why = inv.upgradeWarehouse(); say(why ? why + ' — ' + h.tip : 'Kho đã lên cấp ' + inv.state.warehouseLv); break; }
+      case 'takeAll': { const why = inv.takeAll(); if (why) say(why); break; }
+      case 'upgradeB': { const why = inv.upgradeBuilding(h.arg); say(why || SS.L('esc_facility_upgrade_button', 'Nâng lên cấp {0}').replace('{0}', inv.buildLevel(h.arg)) + ' ✓'); if (!why && SS.world && SS.world.refreshBase) SS.world.refreshBase(G); break; }
+      case 'train': { const u = SS.T.training.find(q => q.id === h.arg); const why = inv.train(u); say(why || SS.L('esc_research_completed', 'Đã nâng cấp')); break; }
+      case 'craft': { const r = SS.T.craft.find(q => q.id === h.arg); const why = inv.craft(r); say(why || SS.L('esc_craft_result_inventory', 'Đã đưa vào túi')); break; }
+      case 'buildBridge': { const why = SS.world.buildBridge(ui.bridge); if (why) say(why); else { say('Đã xây cầu'); ui.close(); } break; }
       case 'zoom': setZoom(mapView.zoom * h.k, mapInfo(G)); break;
       case 'qtab': questView.tab = h.tab; questView.sel = null; break;
       case 'qsel': questView.sel = h.id; break;
@@ -931,12 +1090,13 @@
   function doSprint(G) {
     const p = G && G.player;
     if (!p || p.st === 'dead' || ui.isOpen()) return false;
-    if (sprint.cd > 0) return false;
+    sprintStats();
+    if (sprint.ch <= 0) return false;
     const mv = I.moveVec();
     let dx = mv.x, dy = mv.y;
     if (Math.hypot(dx, dy) < 0.1) { dx = p.face || 1; dy = 0; }
     const m = Math.hypot(dx, dy); dx /= m; dy /= m;
-    sprint.t = sprint.inv; sprint.cd = sprint.max; sprint.dx = dx; sprint.dy = dy;
+    sprint.t = sprint.inv; sprint.ch--; if (sprint.cd <= 0) sprint.cd = sprint.max; sprint.dx = dx; sprint.dy = dy;
     if (!p._sprintHook) {
       const prev = p.onHurt;
       p.onHurt = (G2, p2, dmg) => (sprint.t > 0 ? 0 : prev ? prev(G2, p2, dmg) : dmg);
@@ -954,7 +1114,7 @@
     ui.msgT = Math.max(0, ui.msgT - dt);
     if (G && G.player) inv.tick(G, dt);
     const p = G && G.player;
-    sprint.cd = Math.max(0, sprint.cd - dt);
+    if (sprint.cd > 0) { sprint.cd -= dt; if (sprint.cd <= 0) { sprintStats(); sprint.ch = Math.min(sprint.chMax, sprint.ch + 1); if (sprint.ch < sprint.chMax) sprint.cd = sprint.max; else sprint.cd = 0; } }
     if (sprint.t > 0 && p) {
       const step = Math.min(dt, sprint.t), v = sprint.dist / sprint.inv;
       if (G.map && SK.moveBox) SK.moveBox(G.map, p, sprint.dx * v * step, sprint.dy * v * step, (p.h.body && p.h.body.r) || 4);

@@ -1,10 +1,10 @@
 /*
- * Kiểm thử kho đồ + HUD + bảng của Season Mode (games/soulknight/js/season/inventory.js, ui.js, quests.js).
+ * Kiểm thử kho đồ + HUD + bảng của Season Mode (games/soulknight/js/season/inventory.js, ui.js, quests.js), số liệu thật 8.6.
  * Chạy: python -m http.server 8811 (ở gốc repo) rồi  node test/soulknight-season-ui.js
  * Ảnh chụp: $SK_SHOTS hoặc <tmp>/soulknight-season-ui/  (khung 1386x640 = đúng cỡ ảnh chụp của chủ dự án).
  *
- * Chạy mode thật (SK.SEASON.start), dùng phím/chuột thật cho HUD và bảng; dùng móc SK.SEASON.debug của world để
- * dịch chuyển / giết quái / tua bước cho nhanh.
+ * Chạy mode thật (SK.SEASON.start), bấm phím/chuột thật cho HUD và bảng (toạ độ nút lấy từ ui.hits());
+ * dùng móc SK.SEASON.debug để dịch chuyển / giết quái / tua bước cho nhanh.
  */
 const PW = process.env.PLAYWRIGHT_PATH ||
   'C:/Users/tamph/AppData/Roaming/npm/node_modules/@playwright/cli/node_modules/playwright';
@@ -32,15 +32,24 @@ async function until(p, fn, arg, ms) {
   }
   return false;
 }
-// Toạ độ đơn vị UI -> px CSS (khung 640 cao, dpr 1 -> d = 2).
-const U = (x, y) => [x * 2, y * 2];
-// Dịch tới cổng xoáy rồi giữ W bước vào (cổng bắt khi cách < 16 px).
+async function press(p, key) { await p.keyboard.down(key); await sleep(50); await p.keyboard.up(key); await sleep(80); }
+// Tâm vùng bấm của ui (đơn vị UI) -> px CSS.
+async function hitXY(p, act, match) {
+  return p.evaluate(([act, match]) => {
+    const { d, dpr } = SK.SEASON.ui.metrics();
+    const h = SK.SEASON.ui.hits().find(q => q.act === act && Object.keys(match || {}).every(k => JSON.stringify(q[k]) === JSON.stringify(match[k])));
+    return h ? [(h.x + h.w / 2) * d / dpr, (h.y + h.h / 2) * d / dpr] : null;
+  }, [act, match]);
+}
+async function clickHit(p, act, match) {
+  const xy = await hitXY(p, act, match);
+  if (!xy) return false;
+  await p.mouse.click(xy[0], xy[1]); await sleep(150);
+  return true;
+}
 async function deploy(p) {
-  await p.evaluate(() => SK.SEASON.debug.tpTo('portal'));
-  await p.keyboard.down('KeyW');
-  const ok = await until(p, () => SK.G.season.mode !== 'base', null, 3000);
-  await p.keyboard.up('KeyW');
-  return ok && until(p, () => SK.G.season.mode === 'expedition', null, 8000);
+  await p.evaluate(() => { const g = SK.G.season.gates.find(q => q.kind === 'deploy'); SK.SEASON.debug.tp(g.x, g.y - 12); });
+  return until(p, () => SK.G.season.mode === 'expedition', null, 8000);
 }
 
 (async () => {
@@ -52,264 +61,326 @@ async function deploy(p) {
   p.on('console', m => { if (m.type() === 'error') errs.push('console: ' + m.text()); });
   p.on('response', r => { if (r.status() >= 400 && !/fonts\.(googleapis|gstatic)/.test(r.url())) errs.push('http ' + r.status() + ' ' + r.url()); });
   await p.goto(URL);
-  await p.evaluate(() => { try { localStorage.removeItem('sk.season.v1'); } catch (_) { /* */ } });
+  await p.evaluate(() => { try { localStorage.removeItem('sk.season.v2'); } catch (_) { /* */ } });
   await p.reload();
   await p.waitForSelector('#sk-start', { state: 'visible', timeout: 8000 });
   await p.evaluate(async () => { await document.fonts.ready; try { await document.fonts.load('800 16px Nunito', 'Balô'); } catch (_) { /* offline */ } });
 
-  // ---- dữ liệu
+  // ---- dữ liệu thật
   const data = await p.evaluate(() => {
-    const S = SK.SEASON, it = S.items;
-    const data = {
-      n: Object.keys(it).length,
-      noIcon: Object.values(it).filter(x => !SK.frame(x.icon)).map(x => x.id),
-      pot: it.healing_potion_s && [it.healing_potion_s.icon, it.healing_potion_s.effect.hp, it.healing_potion_s.stack],
-      byPixel: Object.values(it).filter(x => /^pixel/.test(x.iconBy)).length,
-      weapon: S.itemDef('w_bad_pistol') && S.itemDef('w_bad_pistol').type,
-      loot: ['resource', 'food', 'medical', 'supply', 'misc', 'monster'].map(t => [t, S.loot(t, 1, { weapon: 'ak_47' })])
+    const S = SK.SEASON, it = S.items, T = S.T;
+    const all = Object.values(it);
+    const loot = ['enemy_minion', 'enemy_elite', 'food', 'start_supply'].map(c => [c, S.loot(c)]);
+    return {
+      n: all.length, types: [...new Set(all.map(x => x.type))].sort().join(','),
+      noIcon: all.filter(x => !SK.frame(x.icon)).map(x => x.id),
+      pot: it.hp_pot_0 && [it.hp_pot_0.name, it.hp_pot_0.icon, it.hp_pot_0.effect.hp, it.hp_pot_0.stack, it.hp_pot_0.useTime],
+      loot: loot.map(([c, l]) => c + ':' + l.map(x => x.id + 'x' + x.n).join('+')),
+      valid: loot.every(([, l]) => l.every(x => !!S.itemDef(x.id))),
+      tasks: T.tasks.length, craft: T.craft.length, shop: T.shop.length
     };
-    data.valid = data.loot.every(([t, l]) => l.every(x => !!S.itemDef(x.id)));
-    return data;
   });
-  check('bảng vật phẩm đủ + mọi món có icon trong atlas', data.n >= 108 && !data.noIcon.length, data.n + ' món, ' + data.byPixel + ' ghép bằng điểm ảnh, thiếu icon: ' + data.noIcon.join(','));
-  check('Healing Potion (S) = Item_20, hồi 3, chồng 5', data.pot && data.pot[0] === 'sitem/Item_20' && data.pot[1] === 3 && data.pot[2] === 5, JSON.stringify(data.pot));
-  check('loot() trả đồ có thật cho 6 loại thùng', data.valid &&
-    data.loot.find(x => x[0] === 'monster')[1].some(x => x.id === 'w_ak_47'), data.loot.map(([t, l]) => t + ':' + l.map(x => x.id + 'x' + x.n).join('+')).join(' | '));
+  check('bảng vật phẩm thật (escape_tbescapeitemdatabase) + mọi món có icon', data.n >= 700 && !data.noIcon.length, data.n + ' món: ' + data.types + '; thiếu icon: ' + data.noIcon.slice(0, 5).join(','));
+  check('Bình Máu Nhỏ = Item_20, hồi 3, chồng 5, dùng 2 s [ĐO Params]', data.pot && data.pot.join('|') === 'Bình Máu Nhỏ|sitem/Item_20|3|5|2', JSON.stringify(data.pot));
+  check('loot() rút từ bảng rơi thật', data.valid, data.loot.join(' | '));
+  check('38 nhiệm vụ, 59 công thức, cửa hàng có hàng', data.tasks === 38 && data.craft === 59 && data.shop > 5, data.tasks + '/' + data.craft + '/' + data.shop);
 
   // ---- vào mode thật
   const started = await p.evaluate(() => SK.SEASON.start('knight'));
   await until(p, () => SK.G.state === 'season' && SK.G.player && SK.SEASON.ui, null, 5000);
-  await sleep(700);
-  const st0 = await p.evaluate(() => { const pl = SK.G.player, h = SK.DS.heroes.knight; return { want: h.hp + 2 * h.armor, hp: pl.hp, hpMax: pl.hpMax, armorMax: pl.armorMax, w: SK.SEASON.inv.state.equip.weapon1 && SK.SEASON.inv.state.equip.weapon1.id, hunger: SK.SEASON.inv.state.hunger }; });
-  check('vào Season: máu = máu gốc + 2 x giáp gốc, giáp 0, vũ khí khởi đầu, no 100', started && st0.hpMax === st0.want && st0.hp === st0.want && st0.armorMax === 0 && st0.w === 'w_bad_pistol' && st0.hunger === 100, JSON.stringify(st0));
+  await sleep(900);
+  const st0 = await p.evaluate(() => {
+    const pl = SK.G.player, h = SK.DS.heroes.knight, I = SK.SEASON.inv;
+    return { want: h.hp + 2 * h.armor, hp: pl.hp, hpMax: pl.hpMax, armorMax: pl.armorMax, w: I.state.equip.weapon1 && I.state.equip.weapon1.id,
+      wdur: I.state.equip.weapon1 && I.state.equip.weapon1.dur, bag: I.state.backpack.filter(Boolean).map(s => s.id), hunger: I.state.hunger, slots: I.slots(), kg: I.capacity() };
+  });
+  check('vào Season: máu = gốc + 2×giáp, giáp 0, balô 15 ô / 40 kg, no 100',
+    started && st0.hpMax === st0.want && st0.armorMax === 0 && st0.hunger === 100 && st0.slots === 15 && st0.kg === 40, JSON.stringify(st0));
+  check('bộ khởi đầu thật: Chim Ưng Sa Mạc + Bình Máu Nhỏ + Bình Năng Lượng Nhỏ + đồ ăn',
+    !!st0.w && st0.bag.includes('hp_pot_0') && st0.bag.includes('energy_pot_0') && st0.bag.some(id => /^food_/.test(id)), st0.w + ' bền ' + st0.wdur + ' · ' + st0.bag.join(','));
   await p.screenshot({ path: path.join(SHOTS, 'hud_base.png') });
 
-  // ---- thêm đồ, chồng
-  const add = await p.evaluate(() => {
-    const I = SK.SEASON.inv;
-    const l1 = I.add('healing_potion_s', 3), l2 = I.add('healing_potion_s', 4), l3 = I.add('energy_potion_s', 2);
-    return { l1, l2, l3, cnt: I.count('healing_potion_s'), stacks: I.state.backpack.filter(s => s && s.id === 'healing_potion_s').map(s => s.n), quick: I.state.quick.slice() };
-  });
-  check('add() gộp chồng 5 + tự gắn ô tiêu hao', add.l1 === 0 && add.l2 === 0 && add.cnt === 7 && add.stacks.join() === '5,2' && add.quick[0] === 'healing_potion_s', JSON.stringify(add));
-
-  // ---- quá tải -> chậm (đo bằng đi thật)
+  // ---- quá tải -> chậm (đi thật)
   async function walk(ms) {
     const a = await p.evaluate(() => [SK.G.player.x, SK.G.player.y]);
     await p.keyboard.down('KeyD'); await sleep(ms); await p.keyboard.up('KeyD');
     const c = await p.evaluate(() => [SK.G.player.x, SK.G.player.y]);
     return Math.hypot(c[0] - a[0], c[1] - a[1]);
   }
-  await p.evaluate(() => SK.SEASON.debug.tpTo('building', 'store'));
+  await p.evaluate(() => SK.SEASON.debug.tpTo('building', 'Shop'));
   const light = await walk(600);
-  await p.evaluate(() => SK.SEASON.debug.tpTo('building', 'store'));
-  await p.evaluate(() => { for (let i = 0; i < 6; i++) SK.SEASON.inv.add('gold_brick', 1); });
+  const heavyAdd = await p.evaluate(() => {
+    const I = SK.SEASON.inv; let n = 0;
+    while (I.weight() / I.capacity() < 1.02 && n < 60) { I.add('material_wood_1', 1); n++; }
+    return n;
+  });
+  await p.evaluate(() => SK.SEASON.debug.tpTo('building', 'Shop'));
   await sleep(100);
   const heavy = await walk(600);
-  const tier = await p.evaluate(() => { const t = SK.SEASON.inv.tier(); return { w: SK.SEASON.inv.weight(), cap: SK.SEASON.inv.capacity(), speed: t.speed, period: t.period, mm: SK.G.player.moveMul }; });
-  check('quá tải (>100%) -> tốc độ x0.5, đói mỗi 5 s; đi thật chậm hẳn', tier.speed === 0.5 && tier.period === 5 && heavy < light * 0.7,
-    'tải ' + tier.w + '/' + tier.cap + ', moveMul ' + tier.mm + ', đi 0.6s: nhẹ ' + light.toFixed(1) + 'px / nặng ' + heavy.toFixed(1) + 'px');
+  const tier = await p.evaluate(() => { const t = SK.SEASON.inv.tier(); return { i: t.i, w: SK.SEASON.inv.weight(), cap: SK.SEASON.inv.capacity(), speed: t.speed, hunger: t.hunger, mm: SK.G.player.moveMul }; });
+  check('quá tải 100-120% -> cấp 3, tốc ×0.5, đói ×1.5 [ĐO GetCarryWeightLevel]; đi thật chậm hẳn',
+    tier.i === 3 && tier.speed === 0.5 && tier.hunger === 1.5 && heavy < light * 0.7,
+    '+' + heavyAdd + ' Gỗ Cũ, tải ' + tier.w + '/' + tier.cap + ', moveMul ' + tier.mm + ', đi 0.6 s: nhẹ ' + light.toFixed(1) + ' / nặng ' + heavy.toFixed(1) + ' px');
+  await p.evaluate(() => SK.SEASON.inv.remove('material_wood_1', 30));
 
-  // ---- balô + giáp đổi sức chứa
+  // ---- balô + giáp
   const eq = await p.evaluate(() => {
-    const I = SK.SEASON.inv;
-    I.add('canvas_bag', 1); I.add('roughspun_garb', 1);
+    const I = SK.SEASON.inv, B = I.state.backpack;
+    I.add('bag_cloth_satchel', 1); I.add('armor_sackcloth_bag', 1);
+    const bi = B.findIndex(s => s && s.id === 'bag_cloth_satchel');
+    I.move({ c: 'bag', i: bi }, { c: 'equip', k: 'backpack' });
+    const ai = B.findIndex(s => s && s.id === 'armor_sackcloth_bag');
+    I.move({ c: 'bag', i: ai }, { c: 'equip', k: 'armor' });
     SK.SEASON.debug.step(3);
-    return { slots: I.state.backpack.length, cap: I.capacity(), bag: I.state.equip.backpack && I.state.equip.backpack.id, armor: SK.G.player.armorMax, dur: I.state.equip.armor.dur };
+    return { slots: I.state.backpack.length, cap: I.capacity(), bag: I.state.equip.backpack && I.state.equip.backpack.id, armor: SK.G.player.armorMax, max: I.state.equip.armor && I.state.equip.armor.max };
   });
-  check('đeo Túi vải bố: 30 ô / 50 kg; mặc Áo vải thô: giáp 2', eq.slots === 30 && eq.cap === 50 && eq.armor === 2, JSON.stringify(eq));
+  check('đeo Túi Vải Đeo Chéo: 30 ô / 50 kg; mặc Áo Vải Thô: giáp 2, bền tối đa 25', eq.slots === 30 && eq.cap === 50 && eq.armor === 2 && eq.max === 25, JSON.stringify(eq));
 
-  // ---- bảng Balô ở Kho (phím thật + chuột thật)
+  // ---- Kho (E thật + kéo-thả chuột thật)
   await p.evaluate(() => {
     const I = SK.SEASON.inv;
-    ['scrap_wood', 'rusty_metal', 'tattered_fabric', 'violet_energy_trace', 'smoked_ham', 'cola', 'treasure_map'].forEach((id, i) => I.add(id, 1 + (i % 3)));
-    I.state.secure = { id: 'moonwhite_pearl', n: 1 };
-    I.addTo('warehouse', 'wooden_crate_s', 1); I.addTo('warehouse', 'copper_bar', 1); I.addTo('warehouse', 'iron_coin', 0);
-    SK.SEASON.debug.tpTo('building', 'warehouse');
+    ['material_metal_1', 'material_cloth_1', 'misc_purple_energy_trace', 'food_stale_bread'].forEach((id, i) => I.add(id, 1 + (i % 3)));
+    I.state.secure = I.makeStack('misc_gold_coin', 1);
+    I.addTo('warehouse', 'material_wood_1', 3);
+    SK.SEASON.debug.tpTo('building', 'Warehouse');
   });
   await sleep(300);
-  await p.keyboard.press('KeyE');
+  const whLabel = (await p.evaluate(() => SK.SEASON.debug.info.interact));
+  await press(p, 'KeyE');
   const whOpen = await until(p, () => SK.SEASON.ui.isOpen() && SK.SEASON.ui.mode === 'warehouse', null, 2000);
   await sleep(400);
-  await p.screenshot({ path: path.join(SHOTS, 'panel_backpack_warehouse.png') });
-  // kéo ô balô đầu tiên sang ô kho trống đầu tiên
-  const before = await p.evaluate(() => { const I = SK.SEASON.inv; return { b0: I.state.backpack[0] && I.state.backpack[0].id, whUsed: I.state.warehouse.filter(Boolean).length }; });
-  const ox = 1386 / 4 - 346.5;   // UW/2 - 346.5
-  const [bx, by] = U(ox + 81, 195), [wx, wy] = U(ox + 482.5 + 42.5 * 2, 83.5);
-  await p.mouse.move(bx, by); await p.mouse.down(); await p.mouse.move(bx + 30, by + 5, { steps: 4 }); await p.mouse.move(wx, wy, { steps: 8 }); await p.mouse.up();
+  await p.screenshot({ path: path.join(SHOTS, 'panel_warehouse.png') });
+  const before = await p.evaluate(() => { const I = SK.SEASON.inv; return { b0: I.state.backpack[0] && I.state.backpack[0].id, whUsed: I.state.warehouse.filter(Boolean).length, whFree: I.state.warehouse.indexOf(null), whN: I.state.warehouse.length }; });
+  const from = await hitXY(p, 'slot', { ref: { c: 'bag', i: 0 } });
+  const to = await hitXY(p, 'slot', { ref: { c: 'wh', i: before.whFree } });
+  if (from && to) {
+    await p.mouse.move(from[0], from[1]); await p.mouse.down(); await p.mouse.move(from[0] + 30, from[1] + 5, { steps: 4 });
+    await p.mouse.move(to[0], to[1], { steps: 8 }); await p.mouse.up();
+  }
   await sleep(150);
-  const after = await p.evaluate(() => { const I = SK.SEASON.inv; return { b0: I.state.backpack[0] && I.state.backpack[0].id, whUsed: I.state.warehouse.filter(Boolean).length, wh2: I.state.warehouse[2] && I.state.warehouse[2].id }; });
-  check('E ở Nhà kho mở bảng kho; kéo-thả chuột balô -> kho', whOpen && !after.b0 && after.whUsed === before.whUsed + 1 && after.wh2 === before.b0, JSON.stringify({ before, after }));
-  // nhấp chọn -> thẻ chi tiết
-  await p.mouse.click(...U(ox + 121, 195));
+  const after = await p.evaluate(i => { const I = SK.SEASON.inv; return { b0: I.state.backpack[0] && I.state.backpack[0].id, whUsed: I.state.warehouse.filter(Boolean).length, wh: I.state.warehouse[i] && I.state.warehouse[i].id }; }, before.whFree);
+  check('E ở Nhà Kho mở kho 64 ô [ĐO warehousecapacity]; kéo-thả balô -> kho', whOpen && before.whN === 64 && !after.b0 && after.whUsed === before.whUsed + 1 && after.wh === before.b0,
+    'nhãn "' + whLabel + '" ' + JSON.stringify({ before, after }));
+  await clickHit(p, 'slot', { ref: { c: 'bag', i: 1 } });
   await sleep(200);
-  await p.screenshot({ path: path.join(SHOTS, 'panel_backpack_detail.png') });
+  await p.screenshot({ path: path.join(SHOTS, 'panel_bag_detail.png') });
   const sel = await p.evaluate(() => SK.SEASON.ui.sel);
-  check('nhấp ô balô -> chọn món', sel && sel.c === 'bag' && sel.i === 1, JSON.stringify(sel));
-  await p.keyboard.press('Escape');
-  await sleep(150);
+  check('nhấp ô balô -> thẻ chi tiết', sel && sel.c === 'bag' && sel.i === 1, JSON.stringify(sel));
+  await press(p, 'Escape');
 
-  // ---- bảng Bản đồ + Nhiệm vụ trong căn cứ
-  await p.keyboard.press('KeyN'); await sleep(500);
+  // ---- Bản đồ + Nhiệm vụ trong căn cứ
+  await press(p, 'KeyN'); await sleep(500);
   await p.screenshot({ path: path.join(SHOTS, 'panel_map_base.png') });
   const mapTab = await p.evaluate(() => SK.SEASON.ui.tab);
-  await p.keyboard.press('KeyU'); await sleep(300);
-  await p.screenshot({ path: path.join(SHOTS, 'panel_quest.png') });
+  await press(p, 'KeyU'); await sleep(300);
   const qTab = await p.evaluate(() => SK.SEASON.ui.tab);
-  check('phím N mở Bản đồ, U mở Nhiệm vụ', mapTab === 'map' && qTab === 'quest', mapTab + ' / ' + qTab);
-  await p.keyboard.press('Escape'); await sleep(150);
-  // nút HUD bằng chuột: Balô
-  await p.mouse.click(...U(68, 210)); await sleep(200);
+  await p.screenshot({ path: path.join(SHOTS, 'panel_quest.png') });
+  await clickHit(p, 'qtab', { tab: 'all' });
+  await sleep(200);
+  await p.screenshot({ path: path.join(SHOTS, 'panel_quest_all.png') });
+  const qs = await p.evaluate(() => {
+    const Q = SK.SEASON.quests;
+    return { all: Q.all().length, web: Q.all().filter(d => d.web).length, acc: Q.accepted().map(d => d.titleEn) };
+  });
+  check('N mở Bản đồ, U mở Nhiệm vụ', mapTab === 'map' && qTab === 'quest', mapTab + ' / ' + qTab);
+  check('bảng Nhiệm vụ đủ 38 việc; việc ngoài Vành Đai ghi "chưa có ở bản web"', qs.all === 38 && qs.web > 0 && qs.web < 38 && qs.acc.includes('First Foray'),
+    'khoá ' + qs.web + '/38 · đang nhận: ' + qs.acc.join(', '));
+  await press(p, 'Escape');
+  await p.mouse.click(...(await p.evaluate(() => { const { d, dpr } = SK.SEASON.ui.metrics(); return [68 * d / dpr, 210 * d / dpr]; })));
+  await sleep(200);
   const bagBtn = await p.evaluate(() => SK.SEASON.ui.isOpen() && SK.SEASON.ui.tab === 'bag' && !SK.SEASON.ui.mode);
-  await p.mouse.click(...U(1386 / 4 - 346.5 + 250, 52.5)); await sleep(150);
+  await p.screenshot({ path: path.join(SHOTS, 'panel_bag.png') });
+  await clickHit(p, 'close');
   const closed = await p.evaluate(() => !SK.SEASON.ui.isOpen());
   check('bấm chuột nút Balô trên HUD mở bảng, X đóng', bagBtn && closed, bagBtn + '/' + closed);
-
-  // ---- dùng thuốc trong căn cứ bị chặn
-  const baseUse = await p.evaluate(() => SK.SEASON.inv.use(SK.G, 'healing_potion_s'));
+  const baseUse = await p.evaluate(() => SK.SEASON.inv.use(SK.G, 'hp_pot_0'));
   check('không dùng được đồ tiêu hao trong căn cứ', typeof baseUse === 'string', baseUse);
 
-  // ---- ra bản đồ
+  // ---- ra Vành Đai Căn Cứ
   const dep = await deploy(p);
-  check('đi vào cổng -> ra bản đồ Ngoại ô', dep, await p.evaluate(() => JSON.stringify(SK.SEASON.debug.info && { mode: SK.G.season.mode, map: SK.G.season.map })));
-  await p.evaluate(() => { SK.SEASON.debug.god(true); });
+  check('đứng trong cổng -> ra Vành Đai Căn Cứ', dep, await p.evaluate(() => SK.G.season.mode + '/' + SK.G.season.map));
+  await p.evaluate(() => SK.SEASON.debug.god(true));
   await sleep(600);
   await p.screenshot({ path: path.join(SHOTS, 'hud_expedition.png') });
-  // bỏ bớt vàng để tải về mức nhẹ
-  await p.evaluate(() => { SK.SEASON.inv.remove('gold_brick', 6); });
-  // Lướt (Shift): dời người, hồi 5 s
-  const sp0 = await p.evaluate(() => [SK.G.player.x, SK.G.player.y, SK.SEASON.sprint.cd]);
-  await p.keyboard.down('KeyA'); await sleep(60); await p.keyboard.press('ShiftLeft'); await sleep(260); await p.keyboard.up('KeyA');
+  const sp0 = await p.evaluate(() => [SK.G.player.x, SK.G.player.y]);
+  await p.keyboard.down('KeyA'); await sleep(60); await press(p, 'ShiftLeft'); await sleep(200); await p.keyboard.up('KeyA');
   const sp1 = await p.evaluate(() => [SK.G.player.x, SK.G.player.y, SK.SEASON.sprint.cd]);
-  check('Shift lướt: dời xa hơn đi bộ, hồi chiêu ~5 s', Math.hypot(sp1[0] - sp0[0], sp1[1] - sp0[1]) > 40 && sp1[2] > 4 && sp1[2] <= 5, JSON.stringify({ sp0, sp1 }));
-  // Học cách hồi phục: phím 1 (ô tiêu hao thật) + dùng Energy S
-  const n0 = await p.evaluate(() => { SK.G.player.hp = 5; return SK.SEASON.inv.count('healing_potion_s'); });
-  await p.keyboard.press('Digit1'); await sleep(120);
-  const heal = await p.evaluate(() => ({ hp: SK.G.player.hp, n: SK.SEASON.inv.count('healing_potion_s') }));
-  await p.evaluate(() => SK.SEASON.inv.use(SK.G, 'energy_potion_s'));
-  const lth = await p.evaluate(() => SK.SEASON.quests.complete(SK.SEASON.quests.defs[1]));
-  check('phím 1 dùng Thuốc hồi máu (S) ngoài bản đồ (+3 máu); Learn to Heal xong', heal.hp === 8 && heal.n === n0 - 1 && lth, JSON.stringify(heal) + ' quest ' + lth);
+  check('Shift lướt: dời xa hơn đi bộ, hồi 5 s [ĐO EscapePlayerCombatConfig]', Math.hypot(sp1[0] - sp0[0], sp1[1] - sp0[1]) > 40 && sp1[2] > 4 && sp1[2] <= 5, JSON.stringify({ sp0, sp1 }));
+  // phím 1 = ô tiêu hao; Bình Máu Nhỏ cần 2 s mới có tác dụng
+  const n0 = await p.evaluate(() => { SK.G.player.hp = 5; const I = SK.SEASON.inv; if (!I.count('hp_pot_0')) I.add('hp_pot_0', 1); if (!I.count('energy_pot_0')) I.add('energy_pot_0', 1); I.state.quick[0] = 'hp_pot_0'; return I.count('hp_pot_0'); });
+  await press(p, 'Digit1');
+  const mid = await p.evaluate(() => ({ hp: SK.G.player.hp, using: SK.SEASON.inv.using && SK.SEASON.inv.using.id }));
+  await p.evaluate(() => SK.SEASON.debug.step(130));
+  const heal = await p.evaluate(() => ({ hp: SK.G.player.hp, n: SK.SEASON.inv.count('hp_pot_0') }));
+  await p.evaluate(() => { SK.SEASON.inv.use(SK.G, 'energy_pot_0'); SK.SEASON.debug.step(130); });
+  const lth = await p.evaluate(() => { const Q = SK.SEASON.quests, d = Q.byId(10002); return Q.complete(d); });
+  check('phím 1: dùng Bình Máu Nhỏ, 2 s sau +3 máu; Học Cách Hồi Phục xong', mid.using === 'hp_pot_0' && mid.hp === 5 && heal.hp === 8 && heal.n === n0 - 1 && lth, JSON.stringify({ mid, heal, lth }));
 
   // ---- đói + chết đói (tua bước)
   const hunger = await p.evaluate(() => {
     const I = SK.SEASON.inv, D = SK.SEASON.debug, pl = SK.G.player;
-    pl.god = false; pl.hp = pl.hpMax; pl.invulT = 1e9;   // chặn đòn quái, đói vẫn trừ thẳng vào máu
-    I.state.hunger = 2;
-    const t = I.tier();
-    D.step(Math.round(t.period * 60) + 2);
-    const h1 = I.state.hunger;
-    D.step(Math.round(t.period * 60) + 2);
-    const h2 = I.state.hunger, hp0 = pl.hp;
-    D.step(2 * 60 + 2);
+    pl.god = false; pl.hp = pl.hpMax; pl.invulT = 1e9;
+    I.state.hunger = 50;
+    const f = I.tier().hunger;
+    D.step(600);
+    const drop = 50 - I.state.hunger;
+    I.state.hunger = 0.001;
+    D.step(5);
+    const hp0 = pl.hp;
+    D.step(125);
     const hp1 = pl.hp;
-    D.step(2 * 60 + 2);
-    pl.god = true; pl.invulT = 0;
-    return { period: t.period, h1, h2, hp0, hp1, hp2: pl.hp };
+    pl.god = true; pl.invulT = 0; I.state.hunger = 100;
+    return { f, drop: Math.round(drop * 1000) / 1000, want: Math.round(0.14 * f * 10 * 1000) / 1000, hp0, hp1 };
   });
-  check('độ no giảm 1 mỗi chu kỳ theo tải; về 0 thì mất 1 máu / 2 s', hunger.h1 === 1 && hunger.h2 === 0 && hunger.hp1 === hunger.hp0 - 1 && hunger.hp2 === hunger.hp0 - 2, JSON.stringify(hunger));
-  await p.evaluate(() => { SK.SEASON.inv.state.hunger = 100; });
+  check('độ no -0.14/s × hệ số tải; hết no mất 0.5 máu/s [ĐO TickHunger]', Math.abs(hunger.drop - hunger.want) < 0.05 && hunger.hp1 === hunger.hp0 - 1, JSON.stringify(hunger));
 
-  // ---- độ bền giáp tụt khi giáp hồi
+  // ---- độ bền giáp
   const dur = await p.evaluate(() => {
     const I = SK.SEASON.inv, pl = SK.G.player, D = SK.SEASON.debug;
-    pl.god = false; pl.invulT = 0;
-    const d0 = I.state.equip.armor.dur, a0 = pl.armor;
+    pl.god = false; pl.invulT = 0; pl.hp = pl.hpMax;
+    const d0 = I.state.equip.armor.dur;
     SK.hurtPlayer(SK.G, 2);
     const a1 = pl.armor;
     D.step(60 * 6);
     pl.god = true;
-    return { d0, a0, a1, a2: pl.armor, d1: I.state.equip.armor.dur };
+    return { d0, a1, a2: pl.armor, d1: I.state.equip.armor.dur };
   });
-  check('giáp hồi 2 điểm -> độ bền áo giảm 2', dur.a1 === 0 && dur.a2 === 2 && dur.d1 === dur.d0 - 2, JSON.stringify(dur));
+  check('giáp hồi 2 điểm -> độ bền áo -2', dur.a1 === 0 && dur.a2 === 2 && dur.d1 === dur.d0 - 2, JSON.stringify(dur));
 
-  // ---- First Foray: giết 2 quái thật + sơ tán
+  // ---- độ bền vũ khí: bắn 2 s = -1 [ĐO EscapeWeaponDurabilityTracker]
+  const wd0 = await p.evaluate(() => SK.SEASON.inv.curWeaponStack().dur);
+  await p.keyboard.down('KeyJ'); await sleep(4600); await p.keyboard.up('KeyJ');
+  const wd1 = await p.evaluate(() => SK.SEASON.inv.curWeaponStack().dur);
+  check('giữ nút bắn ~4.6 s -> 0.35 s miễn phí, còn lại cứ 2 s -1 bền => -2 [ĐO BillUntil]', wd0 - wd1 === 2, wd0 + ' → ' + wd1);
+
+  // ---- rương: bảng hộp chứa
+  await p.evaluate(() => SK.SEASON.debug.tpTo('crate', 0));
+  await sleep(250);
+  await press(p, 'KeyE');
+  const boxOpen = await until(p, () => SK.SEASON.ui.mode === 'box' && SK.SEASON.inv.box, null, 2000);
+  await sleep(900);
+  await p.screenshot({ path: path.join(SHOTS, 'panel_box.png') });
+  await until(p, () => { const B = SK.SEASON.inv.box; return B && B.slots.every((s, i) => !s || SK.SEASON.inv.boxVisible(i)); }, null, 15000);
+  const tk = await clickHit(p, 'takeAll');
+  const boxLeft = await p.evaluate(() => SK.SEASON.inv.box ? SK.SEASON.inv.box.slots.filter(Boolean).length : -1);
+  check('E mở bảng rương; nút Lấy hết chuyển đồ vào balô', boxOpen && tk && boxLeft === 0, 'còn ' + boxLeft);
+  await clickHit(p, 'close');
+
+  // ---- Đứng Vững Chân: 2 quái + rút lui
   const kills = await p.evaluate(() => {
     const D = SK.SEASON.debug;
-    D.tpTo('camp', 0);
-    D.step(30);
+    D.tpTo('enemy', 0); D.step(10);
     const a = D.killNearest(); D.step(5); const b = D.killNearest(); D.step(5);
-    return [a, b, SK.SEASON.quests.progress('first_foray', 0)];
+    return [a, b, SK.SEASON.quests.progress(SK.SEASON.quests.byId(10001), 0)];
   });
-  await sleep(300);
-  await p.keyboard.press('KeyN'); await sleep(500);
+  await press(p, 'KeyN'); await sleep(500);
   await p.screenshot({ path: path.join(SHOTS, 'panel_map_expedition.png') });
-  await p.keyboard.press('KeyN'); await sleep(100);
-  await p.evaluate(() => { SK.SEASON.inv.add('silver_bar', 1); SK.SEASON.inv.add('large_stone', 2); });
-  await p.evaluate(() => SK.SEASON.debug.tpTo('exit', 0));
+  await press(p, 'KeyN');
+  await p.evaluate(() => { SK.SEASON.inv.add('material_metal_1', 2); SK.SEASON.inv.add('material_wood_1', 4); SK.SEASON.debug.tpTo('exit', 0); });
   const back = await until(p, () => SK.G.season.mode === 'base', null, 12000);
   await sleep(400);
   const ex = await p.evaluate(() => {
-    const I = SK.SEASON.inv, Q = SK.SEASON.quests;
-    return { silver: I.count('silver_bar'), stone: I.count('large_stone'), prog: [Q.progress('first_foray', 0), Q.progress('first_foray', 1)],
-      done: Q.complete(Q.defs[0]), coins: I.state.coins, extracts: I.state.stats.extracts };
+    const I = SK.SEASON.inv, Q = SK.SEASON.quests, d = Q.byId(10001);
+    return { metal: I.count('material_metal_1', 'all'), prog: [Q.progress(d, 0), Q.progress(d, 1)], done: Q.complete(d), coins: I.state.coins, pot: I.count('hp_pot_1', 'all') };
   });
-  check('sơ tán giữ nguyên chiến lợi phẩm', back && ex.silver === 1 && ex.stone === 2 && ex.extracts === 1, JSON.stringify(ex));
-  check('First Foray: 2/2 quái + 1/1 sơ tán -> hoàn thành', ex.done && ex.prog[0] === 2 && ex.prog[1] === 1, 'kills ' + JSON.stringify(kills) + ' prog ' + ex.prog);
-  // nhận thưởng bằng chuột trong bảng Nhiệm vụ
-  await p.keyboard.press('KeyU'); await sleep(300);
+  check('rút lui giữ chiến lợi phẩm; Đứng Vững Chân 2/2 + 1/1', back && ex.metal >= 2 && ex.done && ex.prog.join() === '2,1', JSON.stringify({ kills, ex }));
+  await press(p, 'KeyU'); await sleep(300);
+  await p.evaluate(() => { SK.SEASON.ui.open('quest'); });
+  await clickHit(p, 'qsel', { id: 10001 });
   await p.screenshot({ path: path.join(SHOTS, 'panel_quest_done.png') });
-  const RX = 1386 / 4 - 272.5 + 218.5, RW = 324;
-  await p.mouse.click(...U(RX + RW - 48, 290)); await sleep(200);
-  const paid = await p.evaluate(() => ({ coins: SK.SEASON.inv.state.coins, pot: SK.SEASON.inv.count('healing_potion_m', 'all'), done: SK.SEASON.quests.isDone('first_foray') }));
-  check('bấm "Nhận thưởng": +500 xu sắt + 1 Thuốc hồi máu (M)', paid.done && paid.coins === ex.coins + 500 && paid.pot === 1, JSON.stringify(paid));
-  await p.keyboard.press('Escape'); await sleep(100);
+  await clickHit(p, 'claim', { id: 10001 });
+  const paid = await p.evaluate(() => ({ coins: SK.SEASON.inv.state.coins, pot: SK.SEASON.inv.count('hp_pot_1', 'all'), done: SK.SEASON.quests.isDone(10001), acc: SK.SEASON.quests.accepted().map(d => d.id) }));
+  check('bấm "Nhận thưởng": +500 Xu Sắt + 1 Bình Máu Vừa; mở việc tiếp theo', paid.done && paid.coins === ex.coins + 500 && paid.pot === ex.pot + 1 && paid.acc.includes(10003), JSON.stringify(paid));
+  await press(p, 'Escape');
 
-  // ---- chết: mất balô + trang bị, giữ Hộp an toàn + Kho
+  // ---- Bàn Thiết Kế: xây Bàn Chế Tạo (1 Gỗ Cũ)
+  await p.evaluate(() => SK.SEASON.debug.tpTo('building', 'DesignTable'));
+  await sleep(250);
+  const dLabel = await p.evaluate(() => SK.SEASON.debug.info.interact);
+  await press(p, 'KeyE');
+  const dOpen = await until(p, () => SK.SEASON.ui.mode === 'design', null, 2000);
+  await sleep(300);
+  await p.screenshot({ path: path.join(SHOTS, 'panel_design.png') });
+  await clickHit(p, 'upgradeB', { arg: 'Workshop' });
+  const built = await p.evaluate(() => ({ lv: SK.SEASON.inv.buildLevel('Workshop'), inMap: SK.G.map.buildings.some(q => q.id === 'Workshop'), q: SK.SEASON.quests.complete(SK.SEASON.quests.byId(10003)) }));
+  check('Bàn Thiết Kế: bấm Xây Bàn Chế Tạo -> cấp 1, nhà hiện ở căn cứ, nhiệm vụ xong', dOpen && built.lv === 1 && built.inMap && built.q, 'nhãn "' + dLabel + '" ' + JSON.stringify(built));
+  await press(p, 'Escape');
+
+  // ---- Bàn Chế Tạo: chế tạo vũ khí
+  await p.evaluate(() => SK.SEASON.debug.tpTo('building', 'Workshop'));
+  await sleep(250);
+  await press(p, 'KeyE');
+  const cOpen = await until(p, () => /^craft:/.test(SK.SEASON.ui.mode || ''), null, 2000);
+  await sleep(300);
+  await p.screenshot({ path: path.join(SHOTS, 'panel_craft.png') });
+  const c0 = await p.evaluate(() => SK.SEASON.inv.count('weapon_002', 'all'));
+  await clickHit(p, 'craft', { arg: 'bp_weapon_002' });
+  const c1 = await p.evaluate(() => SK.SEASON.inv.count('weapon_002', 'all'));
+  check('Bàn Chế Tạo: 2 Sắt + 2 Gỗ -> vũ khí [ĐO craftblueprint]', cOpen && c1 === c0 + 1, c0 + ' → ' + c1);
+  await press(p, 'Escape');
+
+  // ---- Cơ sở huấn luyện: Mở rộng túi 1
+  await p.evaluate(() => { SK.SEASON.inv.state.coins += 1000; SK.SEASON.inv.add('misc_purple_energy_trace', 3); SK.SEASON.debug.tpTo('building', 'Researcher'); });
+  await sleep(250);
+  await press(p, 'KeyE');
+  const tOpen = await until(p, () => SK.SEASON.ui.mode === 'training', null, 2000);
+  await sleep(300);
+  await p.screenshot({ path: path.join(SHOTS, 'panel_training.png') });
+  const s0 = await p.evaluate(() => SK.SEASON.inv.slots());
+  await clickHit(p, 'train', { arg: 'bag_ug_bp_1' });
+  const s1 = await p.evaluate(() => SK.SEASON.inv.slots());
+  check('Cơ sở huấn luyện: Mở rộng túi +5 ô (1000 xu + 3 Vết Năng Lượng Tím)', tOpen && s1 === s0 + 5, s0 + ' → ' + s1);
+  await press(p, 'Escape');
+
+  // ---- cửa hàng: mua ×2 giá trị, bán theo độ bền
+  await p.evaluate(() => { SK.SEASON.inv.state.coins = 5000; SK.SEASON.inv.add('material_wood_1', 1); SK.SEASON.debug.tpTo('building', 'Shop'); });
+  await sleep(250);
+  await press(p, 'KeyE');
+  const sOpen = await until(p, () => SK.SEASON.ui.mode === 'store', null, 2000);
+  await sleep(300);
+  await p.screenshot({ path: path.join(SHOTS, 'panel_store.png') });
+  const shop = await p.evaluate(() => {
+    const I = SK.SEASON.inv, c0 = I.state.coins;
+    const i = I.state.backpack.findIndex(s => s && s.id === 'material_wood_1');
+    const n = I.state.backpack[i].n;
+    I.sell({ c: 'bag', i });
+    const c1 = I.state.coins;
+    I.buy('hp_pot_0');
+    return { c0, n, c1, c2: I.state.coins };
+  });
+  check('bán chồng Gỗ Cũ +100/cái; mua Bình Máu Nhỏ -1000 (giá trị 500 × 2)', sOpen && shop.c1 === shop.c0 + 100 * shop.n && shop.c2 === shop.c1 - 1000, JSON.stringify(shop));
+  await press(p, 'Escape');
+
+  // ---- chết: Rương Tử Vong, giữ Rương An Toàn + Kho
   await deploy(p);
-  const pre = await p.evaluate(() => { const I = SK.SEASON.inv; I.add('gold_bar', 1); return { bag: I.state.backpack.filter(Boolean).length, wh: I.state.warehouse.filter(Boolean).length, secure: I.state.secure && I.state.secure.id }; });
+  const pre = await p.evaluate(() => { const I = SK.SEASON.inv; return { bag: I.state.backpack.filter(Boolean).length, wh: I.state.warehouse.filter(Boolean).length, secure: I.state.secure && I.state.secure.id }; });
   await p.evaluate(() => SK.SEASON.debug.kill());
   const respawn = await until(p, () => SK.G.season.mode === 'base' && SK.G.player.st === 'alive', null, 10000);
   await sleep(300);
   const dead = await p.evaluate(() => {
     const I = SK.SEASON.inv, e = I.state.equip;
     return { bag: I.state.backpack.filter(Boolean).length, slots: I.state.backpack.length, wh: I.state.warehouse.filter(Boolean).length, secure: I.state.secure && I.state.secure.id,
-      armor: e.armor, pack: e.backpack, w1: e.weapon1 && e.weapon1.id, w2: e.weapon2, pw: SK.G.player.weapons.map(w => w && w.id), hp: SK.G.player.hp };
+      armor: !!e.armor, pack: !!e.backpack, box: I.state.deathBox && I.state.deathBox.slots.filter(Boolean).length, pw: SK.G.player.weapons.filter(Boolean).length };
   });
-  check('chết: balô + đồ đeo mất, còn Hộp an toàn + Kho, hồi sinh với súng đầu', respawn && pre.bag > 0 && dead.bag === 0 && dead.slots === 15 && !dead.armor && !dead.pack &&
-    dead.secure === pre.secure && dead.wh === pre.wh && dead.w1 === 'w_bad_pistol' && dead.pw[0] === 'bad_pistol', JSON.stringify({ pre, dead }));
+  check('chết: balô + đồ đeo vào Rương Tử Vong, còn Rương An Toàn + Kho, vẫn có súng', respawn && pre.bag > 0 && dead.bag === 0 && dead.slots === 20 && !dead.armor && !dead.pack &&
+    dead.box > pre.bag && dead.secure === pre.secure && dead.wh === pre.wh && dead.pw > 0, JSON.stringify({ pre, dead }));
 
-  // ---- lưu / nạp localStorage
-  const saved = await p.evaluate(() => { SK.SEASON.inv.save(); const raw = JSON.parse(localStorage.getItem('sk.season.v1')); return { wh: raw.warehouse.filter(Boolean).length, secure: raw.secure && raw.secure.id, done: raw.quests.done }; });
-  check('lưu vào localStorage sk.season.v1', saved.wh === dead.wh && saved.secure === dead.secure && saved.done.includes('first_foray'), JSON.stringify(saved));
+  const saved = await p.evaluate(() => { SK.SEASON.inv.save(); const raw = JSON.parse(localStorage.getItem('sk.season.v2')); return { wh: raw.warehouse.filter(Boolean).length, secure: raw.secure && raw.secure.id, done: raw.quests.done, ws: raw.build.Workshop, tr: raw.training }; });
+  check('lưu localStorage sk.season.v2 (kho, nhiệm vụ, nhà, huấn luyện)', saved.wh === dead.wh && saved.secure === dead.secure && saved.done.includes(10001) && saved.ws === 1 && saved.tr.includes('bag_ug_bp_1'), JSON.stringify(saved));
 
-  // ---- cửa hàng: bán + mua 200%
-  await p.evaluate(() => { SK.SEASON.inv.state.coins = 5000; SK.SEASON.inv.add('copper_nugget', 1); SK.SEASON.debug.tpTo('building', 'store'); });
+  // ---- tạm dừng + cửa hàng mùa (thanh toán giả)
+  await press(p, 'Escape');
+  const pz1 = await p.evaluate(() => ({ ui: SK.SEASON.ui.paused, world: SK.G.season.paused }));
   await sleep(200);
-  await p.keyboard.press('KeyE');
-  await until(p, () => SK.SEASON.ui.mode === 'store', null, 2000);
-  await sleep(300);
-  await p.screenshot({ path: path.join(SHOTS, 'panel_store.png') });
-  const shop = await p.evaluate(() => {
-    const I = SK.SEASON.inv, c0 = I.state.coins;
-    const i = I.state.backpack.findIndex(s => s && s.id === 'copper_nugget');
-    I.sell({ c: 'bag', i });
-    const c1 = I.state.coins;
-    I.buy('healing_potion_s');
-    return { c0, c1, c2: I.state.coins };
-  });
-  check('bán Cục đồng +800, mua Thuốc hồi máu (S) -1000 (200%)', shop.c1 === shop.c0 + 800 && shop.c2 === shop.c1 - 1000, JSON.stringify(shop));
-  await p.keyboard.press('Escape');
-  await until(p, () => !SK.SEASON.ui.isOpen(), null, 2000);
-
-  // ---- cửa hàng mùa (thanh toán giả)
-  await p.mouse.click(...U(1386 / 2 - 27, 22.5)); await sleep(200);
-  await p.evaluate(() => { SK.SEASON.ui.shop = { step: 'list' }; });
-  await sleep(150);
+  await p.screenshot({ path: path.join(SHOTS, 'panel_pause.png') });
+  await press(p, 'Escape');
+  const pz2 = await p.evaluate(() => ({ ui: SK.SEASON.ui.paused, world: SK.G.season.paused }));
+  check('Esc mở bảng tạm dừng, Esc nữa thì đóng', pz1.ui && pz1.world && !pz2.ui && !pz2.world, JSON.stringify([pz1, pz2]));
+  await p.evaluate(() => { SK.SEASON.ui.openSeasonShop(); });
+  await sleep(200);
   await p.screenshot({ path: path.join(SHOTS, 'season_shop.png') });
-  await p.evaluate(() => { SK.SEASON.ui.shop = { step: 'pay', pack: 0 }; });
-  await sleep(150);
-  await p.mouse.click(...U(1386 / 4 - 60, 320 / 2 + 51)); await sleep(150);
-  const sc = await p.evaluate(() => SK.SEASON.inv.state.seasonCoins || 0);
-  check('Cửa hàng mùa: xác nhận thanh toán giả -> +500 xu mùa', sc === 500, 'xu mùa ' + sc);
-  await p.keyboard.press('Escape');
-  await p.evaluate(() => SK.SEASON.ui.close()); await sleep(100);
+  await p.evaluate(() => SK.SEASON.ui.close());
 
-  await p.keyboard.press('Escape'); await sleep(150);
-  const pz1 = await p.evaluate(() => ({ ui: SK.SEASON.ui.paused, world: SK.G.season.paused, dom: !!document.getElementById('sk-season-pause') }));
-  await p.keyboard.press('Escape'); await sleep(150);
-  const pz2 = await p.evaluate(() => ({ ui: SK.SEASON.ui.paused, world: SK.G.season.paused, dom: !!document.getElementById('sk-season-pause') }));
-  check('Esc mở một bảng tạm dừng (canvas), Esc nữa thì đóng', pz1.ui && pz1.world && !pz1.dom && !pz2.ui && !pz2.world && !pz2.dom, JSON.stringify([pz1, pz2]));
-
-  // Cỡ màn khác: 1920x1080 và điện thoại ngang 844x390 (chạm)
   for (const [w, h, name, touch] of [[1920, 1080, 'hud_1080p.png', false], [844, 390, 'hud_phone_touch.png', true], [844, 390, 'panel_phone_bag.png', true]]) {
     await p.setViewportSize({ width: w, height: h }); await sleep(300);
     await p.evaluate(([t, bag]) => { SK.input.touchMode = t; if (bag) SK.SEASON.ui.open('warehouse'); else SK.SEASON.ui.close(); }, [touch, name.includes('bag')]);

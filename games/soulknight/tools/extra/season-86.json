@@ -1,0 +1,179 @@
+{
+ "bundles": [
+  "escape"
+ ],
+ "prefabs": [
+  "e_escape_macaque_1",
+  "e_escape_macaque_2",
+  "e_escape_macaque_3",
+  "e_escape_macaque_4",
+  "e_escape_macaque_elite",
+  "e_escape_macaque_boss",
+  "e_escape_ape_1",
+  "e_escape_ape_2",
+  "e_escape_ape_3",
+  "e_escape_ape_elite",
+  "e_escape_ape_boss"
+ ],
+ "clips": [
+  "^(ape|macaque)_(1|2|3|4|elite|boss)_(idle|run|dead|dodge)$",
+  "^(create_gate|close_gate|dig)$"
+ ],
+ "png_anims": {
+  "season_npc_trainer": {
+   "dir": "escape",
+   "bundle": "escape",
+   "frames": [
+    "npc_trainer_0",
+    "npc_trainer_1",
+    "npc_trainer_2",
+    "npc_trainer_3",
+    "npc_trainer_4",
+    "npc_trainer_5",
+    "npc_trainer_6",
+    "npc_trainer_7"
+   ],
+   "fps": 16,
+   "loop": true,
+   "anchor": "bottom",
+   "register": true
+  },
+  "season_npc_explorer": {
+   "dir": "escape",
+   "bundle": "escape",
+   "frames": [
+    "npc_explorer_0",
+    "npc_explorer_1",
+    "npc_explorer_2",
+    "npc_explorer_3",
+    "npc_explorer_4",
+    "npc_explorer_5"
+   ],
+   "fps": 14,
+   "loop": true,
+   "anchor": "bottom",
+   "register": true
+  },
+  "season_dead_macaque_1": {
+   "dir": "escape",
+   "bundle": "escape",
+   "frames": [
+    "e_escape_macaque_1_16"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "bottom",
+   "register": false
+  },
+  "season_dead_macaque_2": {
+   "dir": "escape",
+   "bundle": "escape",
+   "frames": [
+    "e_escape_macaque_2_16"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "bottom",
+   "register": false
+  },
+  "season_dead_macaque_3": {
+   "dir": "escape",
+   "bundle": "escape",
+   "frames": [
+    "e_escape_macaque_3_16"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "bottom",
+   "register": false
+  },
+  "season_dead_macaque_4": {
+   "dir": "escape",
+   "bundle": "escape",
+   "frames": [
+    "e_escape_macaque_4_16"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "bottom",
+   "register": false
+  },
+  "season_dead_macaque_elite": {
+   "dir": "escape",
+   "bundle": "escape",
+   "frames": [
+    "e_escape_macaque_elite_16"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "bottom",
+   "register": false
+  },
+  "season_dead_macaque_boss": {
+   "dir": "escape",
+   "bundle": "escape",
+   "frames": [
+    "e_escape_macaque_boss_16"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "bottom",
+   "register": false
+  },
+  "season_dead_ape_1": {
+   "dir": "escape",
+   "bundle": "escape",
+   "frames": [
+    "e_escape_ape_1_16"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "bottom",
+   "register": false
+  },
+  "season_dead_ape_2": {
+   "dir": "escape",
+   "bundle": "escape",
+   "frames": [
+    "e_escape_ape_2_16"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "bottom",
+   "register": false
+  },
+  "season_dead_ape_3": {
+   "dir": "escape",
+   "bundle": "escape",
+   "frames": [
+    "e_escape_ape_3_16"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "bottom",
+   "register": false
+  },
+  "season_dead_ape_elite": {
+   "dir": "escape",
+   "bundle": "escape",
+   "frames": [
+    "e_escape_ape_elite_16"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "bottom",
+   "register": false
+  },
+  "season_dead_ape_boss": {
+   "dir": "escape",
+   "bundle": "escape",
+   "frames": [
+    "e_escape_ape_boss_16"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "bottom",
+   "register": false
+  }
+ }
+}

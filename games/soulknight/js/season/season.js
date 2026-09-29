@@ -8,12 +8,13 @@
   const SW = () => SEASON.world;
   const inv = () => SEASON.inv;
   const FADE = 0.8;
-  const ZONE = { base: 'Căn cứ', s1: 'Ngoại ô căn cứ' };
+  const L = (k, d) => (SEASON.L ? SEASON.L(k, d) : d);
+  const ZONE = { base: L('esc_map_base', 'Căn Cứ'), s1: L('esc_map_base_outskirts', 'Vành Đai Căn Cứ') };
 
-  // Chỉ số mode mùa [WIKI Characters]: máu = máu gốc + 2 x giáp gốc, giáp 0 (chỉ đến từ áo giáp), năng lượng như thường.
+  // [ĐO EscapeGameModeProcess.OnCharacterAttrSetup] máu = máu gốc + 2 x giáp gốc (+ nâng cấp), giáp chỉ từ áo giáp.
   function makeSeasonPlayer(heroId) {
     const p = SK.makePlayer(heroId, 0, 0), h = DS.heroes[heroId];
-    p.hpMax = p.hp = h.hp + 2 * (h.armor || 0);
+    p.hpMax = p.hp = h.hp + 2 * (h.armor || 0) + (inv() ? inv().grow('health') : 0);
     p.armor = p.armorMax = 0;
     return p;
   }
@@ -58,7 +59,13 @@
     snapCam();
   }
   function backToBase(how) {
-    const p = G.player;
+    const p = G.player, S = G.season, I = inv();
+    // người được giải cứu về tới căn cứ thì ở lại (esc_result_rescue_character); chết thì mất liên lạc
+    if (how !== 'dead' && S.followers && I) {
+      for (const f of S.followers) { I.addNode(SW().nodeOfNpc(f.npc)); SK.emit('seasonRescue', G, f.npc); }
+      if (S.followers.length) S.rescued = S.followers.map(f => f.name);
+    }
+    S.followers = [];
     if (how === 'dead') {
       G.player = makeSeasonPlayer(p.hero);
     } else {
@@ -68,7 +75,10 @@
     }
     SW().enterBase(G, how === 'dead' ? 'spawn' : 'portal');
     G.stage = { label: ZONE.base, theme: '' };
-    G.season.banner = how === 'dead' ? 'Bạn đã gục — mất đồ trong balô' : 'Rút lui thành công!';
+    G.season.banner = how === 'dead' ? L('esc_result_failure', 'Rút lui thất bại...') : L('esc_result_success', 'Rút lui thành công!!') +
+      (S.rescued && S.rescued.length ? '  Đã cứu ' + S.rescued.join(', ') : '');
+    S.rescued = null;
+    if (SEASON.quests) SEASON.quests.refresh();
     G.season.bannerT = 0;
     G.phase = 'play';
     setMode('base');
@@ -82,6 +92,7 @@
     SW().ensureArt();
     if (S.paused) return;
     S.t += dt; S.modeT += dt; S.bannerT += dt;
+    if (p.god) p.invulT = Math.max(p.invulT || 0, 0.1);   // debug.god(): máy không có cờ bất tử riêng
     G.phaseT += dt;
     G.toastT -= dt; G.hurtT = Math.max(0, G.hurtT - dt); G.shake = Math.max(0, G.shake - dt * 12);
     const ui = SEASON.ui, I = inv();
@@ -110,7 +121,7 @@
     else if ((S.mode === 'base' || S.mode === 'expedition') && p.st === 'dead' && p.stT > 1.3) {
       setMode('dead');
       SK.emit('seasonDeath', G);
-      if (I && I.onDeath) I.onDeath();
+      if (I && I.onDeath) I.onDeath(G);
     } else if (S.mode === 'dead' && S.modeT > 2.2) backToBase('dead');
   }
 
@@ -179,10 +190,10 @@
   function extras(ctx) {
     const S = G.season, v = SK.view, ui = SEASON.ui;
     if (!S || (ui && ui.isOpen && ui.isOpen())) return;
-    if (S.extract && S.mode === 'expedition') {
-      const left = Math.max(0, 5 - S.extract.t);
+    if (S.extract && (S.mode === 'expedition' || S.mode === 'base')) {
+      const left = Math.max(0, S.extract.dur - S.extract.t);
       ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(v.w / 2 - 80, 42, 160, 20);
-      SK.text(ctx, 'Rút lui sau ' + left.toFixed(1) + ' giây', v.w / 2, 52, 14, '#9dff9a', 'center', '#000');
+      SK.text(ctx, (S.mode === 'base' ? 'Xuất phát sau ' : 'Rút lui sau ') + left.toFixed(1) + ' giây', v.w / 2, 52, 14, '#9dff9a', 'center', '#000');
     }
     if (S.bannerT < 2.4 && S.banner) {
       const a = S.bannerT < 0.3 ? S.bannerT / 0.3 : S.bannerT > 1.9 ? (2.4 - S.bannerT) / 0.5 : 1;
@@ -191,7 +202,10 @@
       SK.text(ctx, S.banner, v.w / 2, v.h * 0.3 + 13, 14, '#ffffff', 'center', '#000');
       ctx.restore();
     }
-    if (S.mode === 'dead') SK.text(ctx, 'Gục ngã... về căn cứ', v.w / 2, v.h / 2, 16, '#ff6a5a', 'center', '#000');
+    if (S.mode === 'dead') {
+      SK.text(ctx, L('esc_result_failure', 'Rút lui thất bại...'), v.w / 2, v.h / 2 - 8, 16, '#ff6a5a', 'center', '#000');
+      SK.text(ctx, 'Balô + trang bị nằm lại trong Rương Tử Vong — còn 1 lần để quay lại lấy', v.w / 2, v.h / 2 + 10, 9, '#ffd0c8', 'center', '#000');
+    }
   }
 
   SK.MODES = SK.MODES || {};
@@ -207,19 +221,23 @@
       if (!S || !p) return null;
       return { mode: S.mode, map: S.map, x: p.x, y: p.y, hp: p.hp, hpMax: p.hpMax, armor: p.armor, st: p.st,
         weapons: p.weapons.map(w => w && w.id), enemies: G.enemies.filter(e => e.st !== 'dead').length, kills: G.kills,
-        crates: S.crates.length, opened: S.crates.filter(c => c.open).length, loot: S.loot.length, extract: S.extract ? S.extract.t : 0,
-        interact: G.interactTarget ? G.interactTarget.label : null, bag: Object.assign({}, S.bag) };
+        crates: S.crates.length, opened: S.crates.filter(c => c.open).length, extract: S.extract ? S.extract.t : 0,
+        gates: S.gates.map(g => g.kind), followers: (S.followers || []).length,
+        interact: G.interactTarget ? G.interactTarget.label : null };
     },
     god(on) { if (G.player) G.player.god = on !== false; },
     tp(x, y) { const [fx, fy] = SW().freeNear(G.map, x, y); G.player.x = fx; G.player.y = fy; snapCam(); return [fx, fy]; },
     tpTo(kind, i) {
       const S = G.season, md = window.SK_SEASON.world.maps[S.map];
       let pt = null;
-      if (kind === 'portal' && G.portal) pt = [G.portal.x, G.portal.y + 30];
-      if (kind === 'camp' && md.camps) pt = [md.camps[i || 0].x, md.camps[i || 0].y + 50];
-      if (kind === 'exit') pt = [S.exits[i || 0].x, S.exits[i || 0].y];
+      if (kind === 'portal') { const g = S.gates.find(q => q.kind === 'deploy'); if (g) pt = [g.x, g.y + 30]; }
+      if (kind === 'enemy') { const e = G.enemies.filter(q => q.st !== 'dead')[i || 0]; if (e) pt = [e.x + 60, e.y]; }
+      if (kind === 'exit') { const g = S.gates.filter(q => q.kind === 'evac' || q.kind === 'home')[i || 0]; if (g) pt = [g.x, g.y - 10]; }
       if (kind === 'crate') { const c = S.crates.filter(q => !q.open)[i || 0]; if (c) pt = [c.x, c.y + 14]; }
-      if (kind === 'building') { const b = G.map.buildings.find(q => q.kind === i); if (b) pt = [b.x, b.y + 16]; }
+      if (kind === 'building') { const b = G.map.buildings.find(q => q.id === i); if (b) pt = [b.x, b.y + 20]; }
+      if (kind === 'npc') { const n = S.npcs.find(q => q.id === i) || S.npcs[0]; if (n) pt = [n.x, n.y + 14]; }
+      if (kind === 'rescue') { const r = S.rescue[i || 0]; if (r) pt = [r.x, r.y + 14]; }
+      if (kind === 'area') { const a = S.investigate[i || 0]; if (a) pt = [a.x, a.y]; }
       if (!pt) return null;
       return this.tp(pt[0], pt[1]);
     },
