@@ -1,0 +1,40 @@
+{
+  "prefabs": [
+    "effect_c1_skill", "effect_c3_skill", "lightning_0", "lightning_1", "lightning_chain_fx", "proj_thunder",
+    "effect_ranger_roll", "roll_effect", "skill_assassin_night", "hit_assassin", "sword_dash",
+    "Gas_Alchemist_0", "explode_poison", "battery", "bullet_bat", "shield", "shield_wave",
+    "effect_priest_1", "effect_priest_1_cast", "effect_health_skill", "effect_c10_skill", "c10_skill_atk",
+    "sword_werewolf", "explode_poly_werewolf", "skill0_mark_s0", "c03_show_effect_s0", "fx_buff_dizzy"
+  ],
+  "sprites": [
+    "^bat_[0-9]$", "^engineer_0_skill_0_effect_0_[0-9]$", "^effect_ranger_skill_3_[0-9]$", "^sword_dash_[0-9]$",
+    "^dark_sword$", "^assassin_night$", "^x_[0-9]$", "^effect_explode_green_[0-9]+$", "^thunder 1_[0-9]$",
+    "^shield_wave_[0-9]$", "^druid_0_skill_0_effect_0_[0-9]+$", "^necromancer_0_skill_0_effect_0_0$",
+    "^werewolf_0_skill_0_effect_1_[0-9]$", "^c03_show_effect01_s0_[0-9]+$", "^texture_c[24]$",
+    "^skill_effect_priest(_cast)?_[0-9]+$", "^effect_08_[0-9]+$", "^effect04_[0-9]+$", "^effect02_[0-9]+$",
+    "^change_effect_0$", "^poison_[0-9]$", "^elves_0_skill_0_effect_1_0$", "^biaoqing_1[0-9]$"
+  ],
+  "clips": [],
+  "png_anims": {
+    "rogue_roll": {"dir": "skin/character/ranger/skin_0", "frames": ["ranger_0_skill_0_effect_0_0", "ranger_0_skill_0_effect_0_1", "ranger_0_skill_0_effect_0_2", "ranger_0_skill_0_effect_0_3"], "fps": 12, "loop": true, "anchor": "bottom", "register": false},
+    "werewolf_form": {"dir": "skin/character/werewolf/skin_0", "frames": ["werewolf_0_skill_0_effect_0_0", "werewolf_0_skill_0_effect_0_1", "werewolf_0_skill_0_effect_0_2", "werewolf_0_skill_0_effect_0_3", "werewolf_0_skill_0_effect_0_4", "werewolf_0_skill_0_effect_0_5", "werewolf_0_skill_0_effect_0_6", "werewolf_0_skill_0_effect_0_7", "werewolf_0_skill_0_effect_0_8", "werewolf_0_skill_0_effect_0_9", "werewolf_0_skill_0_effect_0_10", "werewolf_0_skill_0_effect_0_11", "werewolf_0_skill_0_effect_0_12", "werewolf_0_skill_0_effect_0_13", "werewolf_0_skill_0_effect_0_14", "werewolf_0_skill_0_effect_0_15"], "fps": 16, "loop": true, "anchor": "bottom", "register": true},
+    "robot_coil": {"dir": "hero", "frames": ["robot_0_skill_0_effect_0_0"], "fps": 1, "loop": true, "anchor": "bottom", "register": false},
+    "elf_bow": {"dir": "skin/character/elves/skin_0", "frames": ["elves_0_skill_0_effect_0_0"], "fps": 1, "loop": true, "anchor": "center", "register": false},
+    "icon_skill01": {"dir": "ui", "frames": ["ui_skill01"], "fps": 1, "anchor": "center", "register": false},
+    "icon_skill02": {"dir": "ui", "frames": ["ui_skill02"], "fps": 1, "anchor": "center", "register": false},
+    "icon_skill03": {"dir": "ui", "frames": ["ui_skill03"], "fps": 1, "anchor": "center", "register": false},
+    "icon_skill04": {"dir": "ui", "frames": ["ui_skill04"], "fps": 1, "anchor": "center", "register": false},
+    "icon_skill05": {"dir": "ui", "frames": ["ui_skill05"], "fps": 1, "anchor": "center", "register": false},
+    "icon_skill06": {"dir": "ui", "frames": ["ui_skill06"], "fps": 1, "anchor": "center", "register": false},
+    "icon_skill07": {"dir": "ui", "frames": ["ui_skill07"], "fps": 1, "anchor": "center", "register": false},
+    "icon_skill08": {"dir": "ui", "frames": ["ui_skill08"], "fps": 1, "anchor": "center", "register": false},
+    "icon_skill09": {"dir": "ui", "frames": ["ui_skill09"], "fps": 1, "anchor": "center", "register": false},
+    "icon_skill10": {"dir": "ui", "frames": ["ui_skill10"], "fps": 1, "anchor": "center", "register": false},
+    "icon_skill11": {"dir": "ui", "frames": ["ui_skill11"], "fps": 1, "anchor": "center", "register": false},
+    "icon_skill12": {"dir": "ui", "frames": ["ui_skill12"], "fps": 1, "anchor": "center", "register": false},
+    "icon_skill13": {"dir": "ui", "frames": ["ui_skill13"], "fps": 1, "anchor": "center", "register": false},
+    "icon_skill14": {"dir": "ui", "frames": ["ui_skill14"], "fps": 1, "anchor": "center", "register": false},
+    "icon_skill15": {"dir": "ui", "frames": ["ui_skill15"], "fps": 1, "anchor": "center", "register": false},
+    "icon_skill16": {"dir": "ui", "frames": ["ui_skill16"], "fps": 1, "anchor": "center", "register": false}
+  }
+}

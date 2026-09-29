@@ -1,0 +1,5 @@
+{
+  "prefabs": ["normalized_sword_slash_white", "sword_sweep", "explode_hit_enemy", "missile", "bullet_beam_red"],
+  "sprites": ["^sword_slash_white_\\d+$", "^sword_sweep_\\d+$", "^missile$"],
+  "clips": ["^sword_sweep$"]
+}

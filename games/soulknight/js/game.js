@@ -20,14 +20,7 @@
   G.buildWaves = function (r) {
     const th = G.map.th;
     const roster = th.enemies.filter(id => D.enemies[id]);
-    if (r.type === 'boss' && SK.bossWaves) return SK.bossWaves(G, r);
-    if (r.type === 'boss') {
-      // TODO(boss): thay bằng mô-đun trùm thật; tạm thời một đợt quái mạnh nhất theme + bản tinh anh.
-      const strong = roster.slice().sort((a, b) => D.enemies[b].hp - D.enemies[a].hp);
-      const top = strong[0], ex = th.elites && th.elites[top];
-      G.banner = { text: 'TRÙM (tạm)', t: 0 };
-      return [[top, strong[1] || top, ex && D.enemies[ex] ? ex : top, strong[2] || top]];
-    }
+    if (r.type === 'boss') return SK.bossWaves(G, r);
     const pat = r.pattern;
     const pts = pat ? pat.pts : DS.waves.pts, n = Math.max(1, pat ? pat.waves : DS.waves.count), exRate = (pat ? pat.ex : DS.waves.ex) / 100;
     const per = Math.max(1, Math.floor(pts / n));
@@ -115,8 +108,9 @@
     c.open = true; c.openT = 0;
     if (c.kind === 'weapon') {
       const own = G.player.weapons.filter(Boolean).map(w => w.id);
-      const pool = DS.chestPool.filter(id => own.indexOf(id) < 0);
-      G.items.push({ id: SK.pick(pool.length ? pool : DS.chestPool), x: c.x, y: c.y + 18, t: 0 });
+      const all = SK.weaponPool(G.stage.level, 'chest');
+      const pool = all.filter(id => own.indexOf(id) < 0);
+      G.items.push({ id: SK.pick(pool.length ? pool : all), x: c.x, y: c.y + 18, t: 0 });
     } else {
       const m = SK.prefabMbs(SK.art.object('chest_reward'), 'RGChestRoomReward') || { award_count: 2, has_coin: 1 };
       if (m.has_coin) for (let i = 0, n = SK.randi(4, 8); i < n; i++) SK.dropPickup(G, 'coin', c.x, c.y - 6);
@@ -213,9 +207,13 @@
     if (G.phase === 'enter' && G.phaseT > 1.8) { G.phase = 'play'; G.phaseT = 0; }
     if (G.portal) {
       G.portal.t += dt;
-      if (G.phase !== 'portal' && p.st !== 'dead' && Math.hypot(p.x - G.portal.x, p.y - G.portal.y) < 14) { G.phase = 'portal'; G.phaseT = 0; }
+      if (G.phase !== 'portal' && p.st !== 'dead' && Math.hypot(p.x - G.portal.x, p.y - G.portal.y) < 14) {
+        G.phase = 'portal'; G.phaseT = 0;
+        SK.emit('portalEnter', G, G.stage);
+      }
     }
-    if (G.phase === 'portal' && G.phaseT > 0.8) {
+    // G.hold: một mô-đun (chọn buff...) giữ người chơi ở cổng tới khi xong việc của nó.
+    if (G.phase === 'portal' && G.phaseT > 0.8 && !G.hold) {
       if (G.stageIdx + 1 >= STAGES.length) { G.state = 'victory'; setOverlay('sk-win'); fillEnd('sk-win-info'); }
       else enterStage(G.stageIdx + 1);
     }

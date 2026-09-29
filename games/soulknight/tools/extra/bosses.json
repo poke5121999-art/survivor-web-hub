@@ -1,0 +1,37 @@
+{
+  "png_anims": {
+    "boss_gp_idle": {"dir": "boss/boss08", "frames": ["boss08_0", "boss08_1", "boss08_2", "boss08_3"], "fps": 8, "loop": true, "anchor": "bottom", "register": true},
+    "boss_gp_run": {"dir": "boss/boss08", "frames": ["boss08_4", "boss08_5", "boss08_6", "boss08_7"], "fps": 10, "loop": true, "anchor": "bottom", "register": true},
+    "boss_gp_dead": {"dir": "boss/boss08", "frames": ["boss08_8"], "fps": 1, "loop": false, "anchor": "bottom", "register": false},
+    "boss_gp_face": {"dir": "boss/boss08", "frames": ["boss_08"], "fps": 1, "loop": false, "anchor": "bottom", "register": false},
+
+    "boss_ds_body": {"dir": "boss/boss07", "frames": ["boss07_0", "boss07_1", "boss07_2", "boss07_3"], "fps": 6, "loop": true, "anchor": "bottom", "register": true},
+    "boss_ds_dead": {"dir": "boss/boss07", "frames": ["boss07_11"], "fps": 1, "loop": false, "anchor": "bottom", "register": false},
+    "boss_ds_leaves": {"dir": "boss/boss07", "frames": ["boss07_4"], "fps": 1, "loop": false, "anchor": "center", "register": false},
+    "boss_ds_bud": {"dir": "boss/boss07", "frames": ["boss07_12"], "fps": 1, "loop": false, "anchor": "bottom", "register": false},
+    "boss_ds_bloom": {"dir": "boss/boss07", "frames": ["boss07_13"], "fps": 1, "loop": false, "anchor": "bottom", "register": false},
+    "boss_ds_tentacle": {"dir": "boss/boss07", "frames": ["boss07_5", "boss07_6", "boss07_7", "boss07_8"], "fps": 8, "loop": true, "anchor": "bottom", "register": true},
+    "boss_ds_sprout": {"dir": "boss/boss07", "frames": ["boss07_10", "boss07_9"], "fps": 8, "loop": false, "anchor": "bottom", "register": false},
+    "boss_ds_face": {"dir": "boss/boss07", "frames": ["boss_07"], "fps": 1, "loop": false, "anchor": "bottom", "register": false},
+
+    "boss_gk_idle": {"dir": "boss/boss01", "frames": ["boss01_0", "boss01_1", "boss01_2", "boss01_3"], "fps": 8, "loop": true, "anchor": "bottom", "register": true},
+    "boss_gk_run": {"dir": "boss/boss01", "frames": ["boss01_4", "boss01_5", "boss01_6", "boss01_7"], "fps": 10, "loop": true, "anchor": "bottom", "register": true},
+    "boss_gk_dead": {"dir": "boss/boss01", "frames": ["boss01_8"], "fps": 1, "loop": false, "anchor": "bottom", "register": false},
+    "boss_gk_shield": {"dir": "boss/boss01", "frames": ["boss01_9"], "fps": 1, "loop": false, "anchor": "center", "register": false},
+    "boss_gk_sword": {"dir": "boss/boss01", "frames": ["boss01_10"], "fps": 1, "loop": false, "anchor": "center", "register": false},
+    "boss_gk_face": {"dir": "boss/boss01", "frames": ["boss_01"], "fps": 1, "loop": false, "anchor": "bottom", "register": false},
+
+    "boss_gw_idle": {"dir": "boss/boss02", "frames": ["boss02_0", "boss02_1", "boss02_2", "boss02_3"], "fps": 8, "loop": true, "anchor": "bottom", "register": true},
+    "boss_gw_run": {"dir": "boss/boss02", "frames": ["boss02_4", "boss02_5", "boss02_6", "boss02_7"], "fps": 10, "loop": true, "anchor": "bottom", "register": true},
+    "boss_gw_dead": {"dir": "boss/boss02", "frames": ["boss02_8"], "fps": 1, "loop": false, "anchor": "bottom", "register": false},
+    "boss_gw_face": {"dir": "boss/boss02", "frames": ["boss_02"], "fps": 1, "loop": false, "anchor": "bottom", "register": false},
+
+    "boss_sw_head": {"dir": "boss/boss11", "frames": ["boss11_0", "boss11_1", "boss11_2", "boss11_3"], "fps": 8, "loop": true, "anchor": "bottom", "register": true},
+    "boss_sw_tilt": {"dir": "boss/boss11", "frames": ["boss11_4"], "fps": 1, "loop": false, "anchor": "bottom", "register": false},
+    "boss_sw_dead": {"dir": "boss/boss11", "frames": ["boss11_5"], "fps": 1, "loop": false, "anchor": "bottom", "register": false},
+    "boss_sw_shot": {"dir": "boss/boss11", "frames": ["boss11_6"], "fps": 1, "loop": false, "anchor": "center", "register": false},
+    "boss_sw_trail": {"dir": "boss/boss11", "frames": ["boss11_7", "boss11_8", "boss11_9"], "fps": 8, "loop": true, "anchor": "bottom", "register": true},
+    "boss_sw_mound": {"dir": "boss/boss11", "frames": ["boss11_10", "boss11_11", "boss11_12", "boss11_13", "boss11_14"], "fps": 10, "loop": false, "anchor": "bottom", "register": true},
+    "boss_sw_face": {"dir": "boss/boss11", "frames": ["boss_11"], "fps": 1, "loop": false, "anchor": "bottom", "register": false}
+  }
+}

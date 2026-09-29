@@ -1,0 +1,14 @@
+{
+  "prefabs": ["sell1-2", "sell2-1", "merchant_honest",
+              "statue_01", "statue_02", "statue_03", "statue_04", "statue_05", "statue_06", "statue_07", "statue_08",
+              "buff_statue_1", "buff_statue_2", "buff_statue_3", "buff_statue_4", "buff_statue_5",
+              "buff_statue_6", "buff_statue_7", "buff_statue_8", "buff_statue_9", "buff_statue_10",
+              "health_pot", "energy_pot", "restore_pot", "wishing_well"],
+  "sprites": ["^bullet_tnt_immediately$", "^effect_08_30$"],
+  "png_anims": {
+    "buff_icons": {"dir": "ui", "fps": 1, "loop": false, "anchor": "center", "register": false,
+      "frames": ["ui_buff_03", "ui_buff_06", "ui_buff_10", "ui_buff_11", "ui_buff_13", "ui_buff_14",
+                 "ui_buff_16", "ui_buff_19", "ui_buff_20", "ui_buff_21", "ui_buff_26", "ui_buff_29", "ui_buff_30",
+                 "ui_buff_32", "ui_buff_33", "ui_buff_34", "ui_buff_38", "ui_buff_1020", "ui_buff_12"]}
+  }
+}

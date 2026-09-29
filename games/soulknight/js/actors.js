@@ -30,6 +30,7 @@
     ctx.translate(Math.round(hx), Math.round(hy));
     ctx.rotate(ang);
     if (left) ctx.scale(1, -1);
+    if (o && o.rot) ctx.rotate(o.rot);
     if (o && o.scale && o.scale !== 1) ctx.scale(o.scale, o.scale);
     const ox = (off ? off[0] : 0) - ((o && o.kick) || 0), oy = off ? -off[1] : 0;
     if (!sprite || !SK.draw(ctx, sprite, ox, oy, { pages: o && o.pages })) {
@@ -55,56 +56,190 @@
   }
 
   // ---------------------------------------------------------------- vũ khí người chơi
-  SK.makeWeapon = id => ({ id, def: DS.weapons[id], cd: 0, kick: 0 });
+  // w.charging/w.hold: vũ khí nạp (cung, gậy/railgun có charge) giữ nút để nạp, nhả mới bắn.
+  SK.makeWeapon = id => ({ id, def: DS.weapons[id], cd: 0, kick: 0, hold: 0, charging: false, heldAt: -1 });
+  // Ứng viên rương/lái buôn theo bậc (design.js); nơi gọi SK.pick() trong danh sách trả về.
+  SK.weaponPool = (level, source) => (DS.weaponPool ? DS.weaponPool(level, source, SK.rand) : DS.chestPool.slice());
 
-  function pShoot(G, p, x, y, ang, d, kind) {
+  // o: {dmg, spdMul, extra} ghi đè số của def cho phát này (nạp, sóng chém...).
+  function pShoot(G, p, x, y, ang, d, kind, o) {
     const crit = SK.rand() * 100 < (p.crit + (d.crit || 0));
-    const spd = (d.bulletSpeed || 16) * U;
-    G.bullets.push({ side: 'p', kind, x, y, h: Math.max(2, p.y - y), vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd, ang,
-      dmg: d.dmg * (p.dmgMul || 1) * (crit ? R.critMult : 1), crit, repel: d.repel || 1, r: d.radius || 2, life: 1.6, color: d.bullet });
+    const spd = (d.bulletSpeed || 16) * U * ((o && o.spdMul) || 1);
+    const base = o && o.dmg != null ? o.dmg : d.dmg;
+    const b = { side: 'p', kind, x, y, h: Math.max(2, p.y - y), vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd, ang,
+      dmg: Math.round(base * (p.dmgMul || 1)) * (crit ? R.critMult : 1), crit, repel: d.repel || 1, r: d.r || d.radius || 2,
+      life: 1.6, sprite: d.bullet, hit: d.hit, pierce: d.pierce || 0, boom: d.boom || 0, boomDmg: d.boomDmg, boomState: d.boomState };
+    if (o && o.extra) Object.assign(b, o.extra);
+    G.bullets.push(b);
+    return b;
   }
+  function critRoll(p, d) { return SK.rand() * 100 < (p.crit + (d.crit || 0)); }
+  function hitsEnemy(e, x, y, r) {
+    const s = e.scale, hw = e.hb.size[0] * s / 2 + r, hh = e.hb.size[1] * s / 2 + r;
+    const cx = e.x + e.hb.off[0] * e.face * s, cy = e.y - e.hb.off[1] * s;
+    return Math.abs(x - cx) < hw && Math.abs(y - cy) < hh;
+  }
+  // Tia lửa trúng đích = prefab hit_* thật theo màu vũ khí.
+  function pHitFx(G, x, y, name, scale) {
+    const pf = (name && SK.prefab(name)) || SK.art.vfx('bullet_hit');
+    const key = pf && pf[0] && pf[0].a && pf[0].a.sample_hit;
+    SK.fx(G, 'prefab', x, y, { parts: pf, state: 'sample_hit', dur: key ? SK.animLen(key) : 0.25, scale: scale || 0.6 });
+  }
+  // Nổ vùng: prefab explode_s / enemy_dead_explode thật (hai prefab cùng bộ clip explode_small/explode_big).
+  function pBoom(G, b) {
+    const rad = b.boom, x = b.x, y = b.y, big = b.boomState === 'explode_big';
+    b.boom = 0;
+    const pf = SK.prefab(big ? 'enemy_dead_explode' : 'explode_s') || SK.art.vfx('explode');
+    const key = pf && pf[0] && pf[0].a && pf[0].a[b.boomState || 'explode_small'];
+    // [ĐO] khung explode_big rộng 92 px (bán kính ~46), explode_small 36 px (~18): co giãn cho khớp vùng sát thương.
+    SK.fx(G, 'prefab', x, y, { parts: pf, state: b.boomState || 'explode_small', dur: key ? SK.animLen(key) : 0.5, scale: Math.max(0.6, Math.min(1.5, rad / (big ? 46 : 18))) });
+    G.shake = Math.max(G.shake, big ? 5 : 3);
+    const dmg = Math.round((b.boomDmg || b.dmg) * (G.player.dmgMul || 1));
+    for (const e of G.enemies) {
+      if (!targetable(e)) continue;
+      const ey = e.y - e.hb.off[1] * e.scale;
+      if (Math.hypot(e.x - x, ey - y) < rad + e.r) SK.hurtEnemy(G, e, dmg, false, Math.atan2(ey - y, e.x - x), 4);
+    }
+    const map = G.map, seen = new Set();
+    for (let yy = y + b.h - rad; yy <= y + b.h + rad; yy += T / 2) {
+      for (let xx = x - rad; xx <= x + rad; xx += T / 2) {
+        if (Math.hypot(xx - x, yy - y - b.h) > rad) continue;
+        const o = W.obstacleAt(map, xx, yy);
+        if (o && o.kind === 'box' && !seen.has(o)) { seen.add(o); SK.hitObstacle(G, o, dmg); }
+      }
+    }
+  }
+  // Tia laser tức thì: dò từng 2 px tới tường; xuyên quái/thùng nếu mô tả wiki nói vậy (d.pierce).
+  function pBeam(G, p, w, x, y, ang, dmg) {
+    const d = w.def, h = Math.max(2, p.y - y), map = G.map, c = Math.cos(ang), s = Math.sin(ang);
+    const hit = [], boxes = new Set();
+    let len = 0, stop = false;
+    while (len < 420 && !stop) {
+      len += 2;
+      const bx = x + c * len, by = y + s * len;
+      if (W.solidAt(map, bx, by + h)) {
+        const o = W.obstacleAt(map, bx, by + h);
+        if (o && o.kind === 'box') {
+          if (!boxes.has(o)) { boxes.add(o); SK.hitObstacle(G, o, dmg); pHitFx(G, bx, by, d.hit); }
+          if (d.pierce) continue;
+        }
+        break;
+      }
+      for (const e of G.enemies) {
+        if (!targetable(e) || hit.indexOf(e) >= 0 || !hitsEnemy(e, bx, by, 1)) continue;
+        hit.push(e);
+        const crit = critRoll(p, d);
+        SK.hurtEnemy(G, e, Math.round(dmg * (p.dmgMul || 1)) * (crit ? R.critMult : 1), crit, ang, d.repel || 1);
+        pHitFx(G, bx, by, d.hit);
+        if (!d.pierce) { stop = true; break; }
+      }
+    }
+    G.bullets.push({ side: 'p', vis: true, kind: 'beam', x, y, ang, len, life: 0.14, dur: 0.14, sprite: d.bullet, cap: d.cap });
+  }
+  // Góc viên thứ i trong n: xoè đều trên d.fan°, cộng độ lệch ngẫu nhiên (spread = inaccuracy wiki).
+  function shotAng(d, ang, i, n) {
+    const jit = SK.deg(SK.randf(-(d.spread || 0) / 2, (d.spread || 0) / 2));
+    if (n <= 1) return ang + jit;
+    const fan = d.fan || Math.max(10, d.spread || 0);
+    return ang + SK.deg(-fan / 2 + fan * (i + 0.5) / n) + jit * 0.4;
+  }
+  // Số của phát đã nạp: k = 0..1 (vũ khí không nạp luôn 1). dmg nội suy tới dmgMax [WIKI "a~b"].
+  const chargedDmg = (d, k) => d.dmgMax ? d.dmg + (d.dmgMax - d.dmg) * k : d.dmg;
 
   // Hành vi theo kind; thêm kind mới = thêm một dòng ở đây, không sửa chỗ gọi.
+  // o = {x, y (nòng), ang, side, charge 0..1}
   SK.WEAPON_KINDS = {
     gun: {
       fire(G, p, w, o) {
         const d = w.def, n = d.pellets || 1;
+        // Đạn chùm bay lệch tốc một chút cho đám đạn có chiều sâu, như súng săn SK. [ƯỚC LƯỢNG]
         for (let i = 0; i < n; i++) {
-          const a = n > 1
-            ? o.ang + SK.deg(-d.spread / 2 + d.spread * (i + 0.5) / n + SK.randf(-3, 3))
-            : o.ang + SK.deg(SK.randf(-d.spread / 2, d.spread / 2));
-          pShoot(G, p, o.x, o.y, a, d, 'pb');
+          pShoot(G, p, o.x, o.y, shotAng(d, o.ang, i, n), d, 'pb', { spdMul: n > 1 ? SK.randf(0.8, 1.05) : 1, extra: d.boom ? { life: 1.2 } : null });
         }
         SK.fx(G, 'muzzle', o.x, o.y, { ang: o.ang, dur: 0.06 });
       }
     },
     staff: {
       fire(G, p, w, o) {
-        pShoot(G, p, o.x, o.y, o.ang + SK.deg(SK.randf(-w.def.spread / 2, w.def.spread / 2)), w.def, 'staff');
+        const d = w.def, n = d.pellets || 1, k = o.charge == null ? 1 : o.charge;
+        const sc = d.charge ? 0.7 + 0.8 * k : 1;
+        for (let i = 0; i < n; i++) {
+          pShoot(G, p, o.x, o.y, shotAng(d, o.ang, i, n), d, 'staff', { dmg: chargedDmg(d, k), extra: { scale: sc, r: (d.r || 4) * sc, life: 2 } });
+        }
+      }
+    },
+    bow: {
+      // SK: giữ nút kéo dây, nhả thì bắn; tên nạp đầy bay nhanh hơn, đau hơn (dmg → dmgMax).
+      fire(G, p, w, o) {
+        const d = w.def, n = d.pellets || 1, k = d.charge ? (o.charge || 0) : 1;
+        const full = d.charge && k >= 1;
+        for (let i = 0; i < n; i++) {
+          pShoot(G, p, o.x, o.y, shotAng(d, o.ang, i, n), d, 'arrow', {
+            dmg: chargedDmg(d, k), spdMul: 0.55 + 0.45 * k, extra: { life: 1.8, full, pierce: full ? Math.max(1, d.pierce) : d.pierce || 0 }
+          });
+        }
+        if (full) pHitFx(G, o.x, o.y, 'hit_white_large', 0.3);
+      }
+    },
+    laser: {
+      fire(G, p, w, o) {
+        const d = w.def, n = d.pellets || 1, k = d.charge ? (o.charge || 0) : 1;
+        const dmg = chargedDmg(d, k);
+        if (d.mode === 'orb') {
+          const sc = d.charge ? 0.7 + 0.7 * k : 1;
+          for (let i = 0; i < n; i++) pShoot(G, p, o.x, o.y, shotAng(d, o.ang, i, n), d, 'staff', { dmg, extra: { scale: sc, r: (d.r || 4) * sc, life: 2 } });
+        } else {
+          for (let i = 0; i < n; i++) pBeam(G, p, w, o.x, o.y, shotAng(d, o.ang, i, n), dmg);
+        }
+        SK.fx(G, 'muzzle', o.x, o.y, { ang: o.ang, dur: 0.05 });
+      }
+    },
+    launcher: {
+      fire(G, p, w, o) {
+        const d = w.def, n = d.pellets || 1;
+        for (let i = 0; i < n; i++) pShoot(G, p, o.x, o.y, shotAng(d, o.ang, i, n), d, 'rocket', { extra: { life: 2.6 } });
+        SK.fx(G, 'muzzle', o.x, o.y, { ang: o.ang, dur: 0.08 });
+        G.shake = Math.max(G.shake, 1.5);
       }
     },
     melee: {
       fire(G, p, w, o) {
-        const d = w.def, reach = d.range || 24, half = SK.deg((d.arc || 120) / 2);
-        const cx = p.x, cy = p.y - 7;
+        const d = w.def, k = d.charge ? (o.charge || 0) : 1;
+        const reach = (d.range || 24) * (d.charge ? 0.85 + 0.4 * k : 1), half = SK.deg((d.arc || 150) / 2);
+        const cx = p.x, cy = p.y - 7, dmg = chargedDmg(d, k);
+        const inArc = (x, y, pad) => {
+          const dd = Math.hypot(x - cx, y - cy);
+          if (dd > reach + pad) return false;
+          const a = Math.atan2(y - cy, x - cx) - o.ang;
+          return Math.abs(Math.atan2(Math.sin(a), Math.cos(a))) <= half || dd < 8;
+        };
         for (const e of G.enemies) {
-          if (!targetable(e)) continue;
-          const ey = e.y - e.hb.off[1] * e.scale, dd = Math.hypot(e.x - cx, ey - cy);
-          if (dd > reach + e.r) continue;
-          const da = Math.abs(Math.atan2(Math.sin(Math.atan2(ey - cy, e.x - cx) - o.ang), Math.cos(Math.atan2(ey - cy, e.x - cx) - o.ang)));
-          if (da > half && dd > 8) continue;
-          const crit = SK.rand() * 100 < (p.crit + (d.crit || 0));
-          SK.hurtEnemy(G, e, d.dmg * (p.dmgMul || 1) * (crit ? R.critMult : 1), crit, o.ang, d.repel || 3);
+          if (!targetable(e) || !inArc(e.x, e.y - e.hb.off[1] * e.scale, e.r)) continue;
+          const crit = critRoll(p, d);
+          SK.hurtEnemy(G, e, Math.round(dmg * (p.dmgMul || 1)) * (crit ? R.critMult : 1), crit, o.ang, d.repel || 3);
+          pHitFx(G, e.x, e.y - e.hb.off[1] * e.scale, d.hit, 0.5);
         }
         // Chém trúng đạn địch thì xoá đạn, như SK.
         for (const b of G.bullets) {
-          if (b.side !== 'e' || b.dead) continue;
-          const dd = Math.hypot(b.x - cx, b.y - cy);
-          if (dd > reach + 4) continue;
-          const da = Math.abs(Math.atan2(Math.sin(Math.atan2(b.y - cy, b.x - cx) - o.ang), Math.cos(Math.atan2(b.y - cy, b.x - cx) - o.ang)));
-          if (da <= half) { b.dead = true; hitFx(G, b.x, b.y, 'bullet_hit'); }
+          if (b.side !== 'e' || b.dead || !inArc(b.x, b.y, 4)) continue;
+          b.dead = true; hitFx(G, b.x, b.y, 'bullet_hit');
         }
-        SK.fx(G, 'slash', cx, cy, { ang: o.ang, reach, arc: half * 2, dur: 0.16 });
+        // Thùng gỗ trong tầm chém vỡ như bị bắn.
+        const seen = new Set();
+        for (let a = -half; a <= half + 1e-6; a += half / 3) {
+          for (const rr of [reach * 0.5, reach]) {
+            const ob = W.obstacleAt(G.map, cx + Math.cos(o.ang + a) * rr, p.y + Math.sin(o.ang + a) * rr);
+            if (ob && ob.kind === 'box' && !seen.has(ob)) { seen.add(ob); SK.hitObstacle(G, ob, dmg); }
+          }
+        }
+        // Vệt chém trắng: bám theo người chơi, lật theo hướng quay mặt.
+        G.bullets.push({ side: 'p', vis: true, kind: 'slash', x: cx, y: cy, ang: o.ang, reach, life: 0.25, dur: 0.25,
+          flip: Math.cos(o.ang) < 0, follow: p });
+        // Kiếm tốn năng lượng (Breath of Hades, Flame Sword...) phóng thêm sóng chém xuyên.
+        if (d.wave) {
+          pShoot(G, p, cx + Math.cos(o.ang) * 6, cy + Math.sin(o.ang) * 6, o.ang, d, 'wave',
+            { dmg, spdMul: 0.8, extra: { sprite: d.wave, r: 6, life: 0.9, pierce: 99, eatBullets: true, h: 7 } });
+        }
         w.swing = 0.16;
       }
     }
@@ -145,22 +280,74 @@
     return [p.x + hd[0] * f, p.y - hd[1]];
   }
 
+  // Gọi mỗi bước khi đang giữ nút bắn. Vũ khí có charge chỉ bắt đầu nạp ở đây; wctl (bên dưới) bắn lúc nhả.
   function tryFire(G, p, w, side) {
-    if (!w || w.cd > 0) return;
+    if (!w) return;
     const d = w.def;
+    w.heldAt = G.t;
+    holdMove(G, p, d);
+    wctlEnsure(G);
+    if (w.cd > 0 || w.charging) return;
     if (p.energy < (d.cost || 0)) {
       w.cd = 0.35;
       if (!(G.toastT > 0)) G.toast('Hết năng lượng!');
       return;
     }
+    if (d.charge > 0) { w.charging = true; w.hold = 0; w.side = side; return; }
+    shootNow(G, p, w, side, 1);
+  }
+  function shootNow(G, p, w, side, charge) {
+    const d = w.def;
     p.energy -= d.cost || 0;
     w.cd = 1 / (d.rps * (p.rateMul || 1));
-    w.kick = d.kind === 'melee' ? 0 : 2;
+    w.kick = d.kind === 'melee' ? 0 : d.kind === 'launcher' ? 4 : 2;
     const [hx, hy] = handPos(p, side);
     const f = SK.frame(d.sprite);
     const tip = d.kind === 'melee' ? [hx, hy] : gunTip(hx, hy, p.aim, [f ? f[3] - f[5] : 10, 0]);
-    SK.WEAPON_KINDS[d.kind].fire(G, p, w, { x: tip[0], y: tip[1], ang: p.aim, side });
+    (SK.WEAPON_KINDS[d.kind] || SK.WEAPON_KINDS.gun).fire(G, p, w, { x: tip[0], y: tip[1], ang: p.aim, side, charge });
     SK.emit('fire', G, p, w);
+  }
+  // moveMod [WIKI speed]: chậm/nhanh hơn khi giữ nút. Nhân vào p.moveMul và chỉ gỡ phần mình đã nhân,
+  // để kỹ năng khác đang đặt p.moveMul không bị đè.
+  function holdMove(G, p, d) {
+    const cur = p.moveMul == null ? 1 : p.moveMul;
+    const base = p._wMoveSet != null && cur === p._wMoveSet ? cur / (p._wMove || 1) : cur;
+    const f = 1 + (d.moveMod || 0);
+    p._wMove = f; p.moveMul = base * f; p._wMoveSet = p.moveMul; p._wHeldAt = G.t;
+  }
+  function releaseMove(p) {
+    if (p._wMoveSet == null) return;
+    if (p.moveMul === p._wMoveSet) p.moveMul = Math.round(p.moveMul / (p._wMove || 1) * 1e6) / 1e6;
+    p._wMove = 1; p._wMoveSet = null;
+  }
+  // Bộ điều khiển vũ khí: một prop vô hình (G.props chạy sau updatePlayer mỗi bước) — nhả nút thì bắn phát đã nạp,
+  // thôi giữ thì gỡ moveMod, và vẽ vạch nạp trên đầu. game.js xoá G.props khi sang màn nên tự gắn lại.
+  function wctlEnsure(G) {
+    if (G._wctl && G.props.indexOf(G._wctl) >= 0) return;
+    G._wctl = { x: 0, y: 0, update: wctlUpdate, draw: wctlDraw };
+    G.props.push(G._wctl);
+  }
+  function wctlUpdate(G, pr, dt) {
+    const p = G.player; if (!p) return;
+    pr.x = p.x; pr.y = p.y + 0.5;
+    const cur = p.weapons[p.cur];
+    for (const w of p.weapons.concat([p.dual])) {
+      if (!w || !w.charging) continue;
+      if (p.st === 'dead' || (w !== cur && w !== p.dual)) { w.charging = false; w.hold = 0; continue; }
+      if (w.heldAt === G.t) { w.hold += dt; continue; }
+      w.charging = false;
+      if (p.energy >= (w.def.cost || 0)) shootNow(G, p, w, w.side || 1, Math.min(1, w.hold / w.def.charge));
+      w.hold = 0;
+    }
+    if (p._wHeldAt !== G.t) releaseMove(p);
+  }
+  function wctlDraw(ctx, G) {
+    const p = G.player, w = p && p.weapons[p.cur];
+    if (!w || !w.charging || p.st === 'dead') return;
+    const k = Math.min(1, w.hold / w.def.charge), x = Math.round(p.x) - 8, y = Math.round(p.y) - 25;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(x - 1, y - 1, 18, 4);
+    ctx.fillStyle = k >= 1 ? (Math.floor(G.t * 16) % 2 ? '#ffffff' : '#ffe65a') : '#ffd24a';
+    ctx.fillRect(x, y, Math.round(16 * k), 2);
   }
 
   SK.updatePlayer = function (G, dt) {
@@ -281,7 +468,8 @@
     const [hx, hy] = handPos(p, side);
     let ang = p.aim;
     if (w.def.kind === 'melee') ang += (w.swing > 0 ? (1 - w.swing / 0.16) * 2.2 - 1.1 : -0.6) * (Math.cos(p.aim) < 0 ? -1 : 1);
-    SK.drawGun(ctx, w.def.sprite, hx, hy, ang, null, { kick: w.kick });
+    // [ĐO] clip w_bow1: cung xoay +45° khi kéo dây, dựng đứng như game gốc.
+    SK.drawGun(ctx, w.def.sprite, hx, hy, ang, null, { kick: w.kick, rot: w.def.kind === 'bow' && w.charging ? -Math.PI / 4 : 0 });
   }
 
   // ---------------------------------------------------------------- quái
@@ -332,7 +520,7 @@
   };
 
   function enemyDmg(atk) { return Math.max(1, Math.round((atk || 1) * R.enemyAtkScale)); }
-  function walkSpeed(e) { return (e.d.speed || 3) * U * R.enemyMoveScale; }
+  function walkSpeed(e) { return (e.d.speed || 3) * U * R.enemyMoveScale * (e.moveMul || 1); }
   function seesPlayer(G, e, range) {
     const p = G.player; if (p.st === 'dead' || p.hidden) return false;
     const rng = range || ((e.p.findTargetRange || 20) * U * 0.6);
@@ -437,7 +625,7 @@
       if (seesPlayer(G, e)) {
         const reach = (e.p.atk_range || 2.5) * U;
         if (d < reach && e.cd <= 0) { e.cd = e.p.shoot_cd || 1; startAim(G, e, (e.p.atkDelay || 1) * 0.35); return; }
-        if (d > reach * 0.6) { e.st = 'move'; moveTo(G, e, p.x, p.y, (e.d.speed || 4) * U * 0.9, dt); }
+        if (d > reach * 0.6) { e.st = 'move'; moveTo(G, e, p.x, p.y, (e.d.speed || 4) * U * 0.9 * (e.moveMul || 1), dt); }
         else e.st = 'idle';
         return;
       }
@@ -674,28 +862,41 @@
     for (const b of G.bullets) {
       if (b.dead) continue;
       b.life -= dt;
-      if (b.life <= 0) { b.dead = true; continue; }
+      if (b.life <= 0) { b.dead = true; if (b.side === 'p' && b.boom) pBoom(G, b); continue; }
+      // Đạn chỉ để vẽ (tia laser, vệt chém) không bay, không va chạm.
+      if (b.vis) { if (b.follow) { b.x = b.follow.x; b.y = b.follow.y - 7; } continue; }
       const sp = Math.hypot(b.vx, b.vy), n = Math.max(1, Math.ceil(sp * dt / 4));
       for (let k = 0; k < n && !b.dead; k++) {
         b.x += b.vx * dt / n; b.y += b.vy * dt / n;
         const gy = b.y + b.h;
         if (W.solidAt(map, b.x, gy)) {
-          b.dead = true;
           const o = W.obstacleAt(map, b.x, gy);
-          if (o && o.kind === 'box') SK.hitObstacle(G, o, b.side === 'p' ? b.dmg : 1);
-          hitFx(G, b.x - b.vx * dt / n, b.y - b.vy * dt / n, b.side === 'p' ? 'bullet_hit' : 'enemy_bullet_hit');
+          if (b.side === 'p') {
+            const box = o && o.kind === 'box';
+            if (box && !(b.boxes && b.boxes.has(o))) { SK.hitObstacle(G, o, b.dmg); (b.boxes = b.boxes || new Set()).add(o); }
+            // Sóng chém xuyên thùng; còn lại chạm tường là tắt.
+            if (b.kind === 'wave' && box) continue;
+            b.x -= b.vx * dt / n; b.y -= b.vy * dt / n;
+            b.dead = true;
+            if (b.boom) pBoom(G, b); else pHitFx(G, b.x, b.y, b.hit);
+            break;
+          }
+          b.dead = true;
+          if (o && o.kind === 'box') SK.hitObstacle(G, o, 1);
+          hitFx(G, b.x - b.vx * dt / n, b.y - b.vy * dt / n, 'enemy_bullet_hit');
           break;
         }
         if (b.side === 'p') {
           for (const e of G.enemies) {
-            if (!targetable(e)) continue;
-            const s = e.scale, hw = e.hb.size[0] * s / 2 + b.r, hh = e.hb.size[1] * s / 2 + b.r;
-            const cx = e.x + e.hb.off[0] * e.face * s, cy = e.y - e.hb.off[1] * s;
-            if (Math.abs(b.x - cx) < hw && Math.abs(b.y - cy) < hh) {
-              SK.hurtEnemy(G, e, b.dmg, b.crit, Math.atan2(b.vy, b.vx), b.repel);
-              hitFx(G, b.x, b.y, 'bullet_hit');
-              b.dead = true; break;
-            }
+            if (!targetable(e) || (b.hits && b.hits.indexOf(e) >= 0) || !hitsEnemy(e, b.x, b.y, b.r)) continue;
+            SK.hurtEnemy(G, e, b.dmg, b.crit, Math.atan2(b.vy, b.vx), b.repel);
+            if (b.boom) { pBoom(G, b); b.dead = true; break; }
+            pHitFx(G, b.x, b.y, b.hit);
+            if (b.pierce > 0) { b.pierce--; (b.hits = b.hits || []).push(e); continue; }
+            b.dead = true; break;
+          }
+          if (b.eatBullets && !b.dead) {
+            for (const q of G.bullets) if (q.side === 'e' && !q.dead && Math.abs(q.x - b.x) < b.r + 5 && Math.abs(q.y - b.y) < b.r + 5) q.dead = true;
           }
         } else if (p.st !== 'dead') {
           const hb = p.h.hurt, cx = p.x, cy = p.y - hb.off[1];
@@ -712,18 +913,75 @@
   };
 
   const BULLET_DRAW = {
+    // Đạn người chơi: sprite bullet_N thật (design.js chọn theo loại + màu), xoay theo hướng bay.
     pb(ctx, b) {
       const a = Math.atan2(b.vy, b.vx);
+      if (b.sprite && SK.draw(ctx, b.sprite, b.x, b.y, { rot: a })) return;
       ctx.save(); ctx.translate(Math.round(b.x), Math.round(b.y)); ctx.rotate(a);
       ctx.fillStyle = b.crit ? '#fff6a0' : '#ffd84a'; ctx.fillRect(-4, -1.5, 7, 3);
       ctx.fillStyle = '#fffbe0'; ctx.fillRect(-1, -0.5, 4, 1);
       ctx.restore();
     },
+    // Cầu năng lượng của gậy phép / railgun: quầng sáng cộng màu + sprite cầu thật.
     staff(ctx, b) {
-      ctx.fillStyle = 'rgba(190,120,255,0.35)';
-      ctx.beginPath(); ctx.arc(b.x, b.y, b.r + 3, 0, Math.PI * 2); ctx.fill();
+      const s = b.scale || 1, pulse = 1 + 0.12 * Math.sin(performance.now() / 40 + b.x);
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = 0.35;
+      ctx.fillStyle = GLOW[b.hit] || '#9fd8ff';
+      ctx.beginPath(); ctx.arc(b.x, b.y, (b.r + 4) * pulse, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+      if (b.sprite && SK.draw(ctx, b.sprite, b.x, b.y, { sx: s, sy: s })) return;
       ctx.fillStyle = '#c58cff'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#f3e6ff'; ctx.beginPath(); ctx.arc(b.x - 1, b.y - 1, b.r * 0.45, 0, Math.PI * 2); ctx.fill();
+    },
+    rocket(ctx, b) {
+      const a = Math.atan2(b.vy, b.vx);
+      // khói đuôi: ba chấm mờ dần phía sau
+      ctx.fillStyle = 'rgba(230,230,230,0.35)';
+      for (let i = 1; i <= 3; i++) ctx.fillRect(Math.round(b.x - Math.cos(a) * (5 + i * 4)) - 1, Math.round(b.y - Math.sin(a) * (5 + i * 4) + Math.sin(performance.now() / 33 + i) * 1) - 1, 2, 2);
+      if (b.sprite && SK.draw(ctx, b.sprite, b.x, b.y, { rot: a, sy: Math.cos(a) < 0 ? -1 : 1 })) return;
+      ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(a); ctx.fillStyle = '#6b7a3a'; ctx.fillRect(-5, -2, 10, 4); ctx.restore();
+    },
+    wave(ctx, b) {
+      const a = Math.atan2(b.vy, b.vx);
+      ctx.save(); ctx.globalAlpha = Math.min(1, b.life / 0.25);
+      SK.draw(ctx, b.sprite, b.x, b.y, { rot: a, sx: 1.2, sy: 1.2 });
+      ctx.restore();
+    },
+    // Tia laser: thân tia (bullet_0/17/18/41) kéo dài từ nòng tới điểm chạm, hai đầu là cầu sáng (như prefab bullet_beam_red).
+    beam(ctx, b) {
+      const f = SK.frame(b.sprite), k = Math.max(0, b.life / b.dur);
+      const img = f && SK.pages[f[0]];
+      ctx.save();
+      ctx.translate(Math.round(b.x), Math.round(b.y)); ctx.rotate(b.ang);
+      const hh = (f ? f[4] : 4) * (0.35 + 0.65 * k);
+      if (img) ctx.drawImage(img, f[1], f[2], f[3], f[4], 0, -hh / 2, b.len, hh);
+      else { ctx.fillStyle = 'rgba(120,220,255,' + k + ')'; ctx.fillRect(0, -hh / 2, b.len, hh); }
+      ctx.restore();
+      if (b.cap) {
+        const s = 0.35 + 0.35 * k;
+        SK.draw(ctx, b.cap, b.x, b.y, { sx: s, sy: s, alpha: k });
+        SK.draw(ctx, b.cap, b.x + Math.cos(b.ang) * b.len, b.y + Math.sin(b.ang) * b.len, { sx: s, sy: s, alpha: k });
+      }
+    },
+    // Vệt chém trắng của SK: sprite sword_slash_white_0..3 (prefab normalized_sword_slash_white, 16 khung/giây),
+    // cỡ theo tầm chém. Thiếu sprite thì vẽ trăng khuyết bằng canvas.
+    slash(ctx, b) {
+      const t = b.dur - b.life, fr = slashFrames();
+      if (fr.length) {
+        const f = SK.frame(fr[Math.min(fr.length - 1, Math.floor(t * 16))]);
+        const s = f ? (b.reach * 1.25) / Math.max(f[3], f[4]) : 1;
+        ctx.save(); ctx.globalAlpha = Math.min(1, b.life / 0.08);
+        SK.draw(ctx, fr[Math.min(fr.length - 1, Math.floor(t * 16))], b.x + Math.cos(b.ang) * 3.2, b.y + Math.sin(b.ang) * 3.2,
+          { rot: b.ang, sx: s, sy: b.flip ? -s : s });
+        ctx.restore();
+        return;
+      }
+      const k = t / b.dur, R0 = b.reach * (0.75 + 0.25 * k);
+      ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.ang);
+      ctx.fillStyle = 'rgba(255,255,255,' + (0.9 * (1 - k)) + ')';
+      ctx.beginPath(); ctx.arc(0, 0, R0, -1.2, 1.2); ctx.arc(-R0 * 0.25, 0, R0 * 0.85, 1.05, -1.05, true); ctx.fill();
+      ctx.restore();
     },
     orb(ctx, b) {
       const vfx = SK.art.vfx('enemy_bullet');
@@ -735,7 +993,11 @@
       ctx.fillStyle = '#ffd9a0'; ctx.beginPath(); ctx.arc(b.x, b.y, 1.6, 0, Math.PI * 2); ctx.fill();
     },
     arrow(ctx, b) {
-      if (b.sprite && SK.draw(ctx, b.sprite, b.x, b.y, { rot: b.ang })) return;
+      if (b.full && b.side === 'p') {
+        ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.4; ctx.fillStyle = '#fff6c0';
+        ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+      }
+      if (b.sprite && SK.draw(ctx, b.sprite, b.x, b.y, { rot: b.side === 'p' ? Math.atan2(b.vy, b.vx) : b.ang })) return;
       ctx.save(); ctx.translate(Math.round(b.x), Math.round(b.y)); ctx.rotate(b.ang);
       ctx.fillStyle = '#d8c7a0'; ctx.fillRect(-7, -0.5, 9, 1);
       ctx.fillStyle = '#e8e8f0'; ctx.fillRect(2, -1, 3, 2);
@@ -743,6 +1005,15 @@
       ctx.restore();
     }
   };
+  const GLOW = { hit_yellow: '#ffe066', hit_red: '#ff5a3a', hit_blue: '#5ac8ff', hit_green: '#6bff7a', hit_white_large: '#d890ff' };
+  let slashFr = null;
+  function slashFrames() {
+    if (slashFr) return slashFr;
+    const ex = (D.extra && D.extra.sprites) || {};
+    const key = Object.keys(ex).find(k => /sword_slash_white/.test(k));
+    slashFr = key ? ex[key].filter(n => n.indexOf('~') < 0).sort((a, b) => parseInt(a.split('_').pop(), 10) - parseInt(b.split('_').pop(), 10)) : [];
+    return slashFr;
+  }
   SK.drawBullets = function (ctx, G) { for (const b of G.bullets) (BULLET_DRAW[b.kind] || BULLET_DRAW.orb)(ctx, b); };
 
   // ---------------------------------------------------------------- vật cản phá được

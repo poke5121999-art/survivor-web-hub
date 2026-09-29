@@ -121,10 +121,16 @@
     const k = L.skill, sk = p.h.skill;
     ctx.fillStyle = 'rgba(20,40,80,0.75)'; ctx.beginPath(); ctx.arc(k.cx, k.cy, k.r, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = p.skillT > 0 ? '#ffe06a' : '#7fd3ff'; ctx.lineWidth = 1; ctx.stroke();
-    ctx.fillStyle = p.skillCd > 0 ? '#6b7c95' : '#ffe04a';
-    ctx.beginPath();
-    ctx.moveTo(k.cx + 1.5, k.cy - 7); ctx.lineTo(k.cx - 4, k.cy + 1); ctx.lineTo(k.cx - 0.5, k.cy + 1);
-    ctx.lineTo(k.cx - 1.5, k.cy + 7); ctx.lineTo(k.cx + 4, k.cy - 1); ctx.lineTo(k.cx + 0.5, k.cy - 1); ctx.closePath(); ctx.fill();
+    const sdef = SK.SKILLS && SK.SKILLS[sk.id], ico = sdef && sdef.icon && SK.frame(sdef.icon) ? sdef.icon : null;
+    if (ico) {
+      const f = SK.frame(ico), sc = (k.r * 1.5) / Math.max(f[3], f[4]);
+      SK.draw(ctx, ico, k.cx - (f[3] / 2 - f[5]) * sc, k.cy - (f[4] / 2 - f[6]) * sc, { sx: sc, sy: sc });
+    } else {
+      ctx.fillStyle = p.skillCd > 0 ? '#6b7c95' : '#ffe04a';
+      ctx.beginPath();
+      ctx.moveTo(k.cx + 1.5, k.cy - 7); ctx.lineTo(k.cx - 4, k.cy + 1); ctx.lineTo(k.cx - 0.5, k.cy + 1);
+      ctx.lineTo(k.cx - 1.5, k.cy + 7); ctx.lineTo(k.cx + 4, k.cy - 1); ctx.lineTo(k.cx + 0.5, k.cy - 1); ctx.closePath(); ctx.fill();
+    }
     if (p.skillCd > 0) {
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
       ctx.beginPath(); ctx.moveTo(k.cx, k.cy);
@@ -181,7 +187,7 @@
       SK.text(ctx, DS.themeNames[G.stage.theme] || G.stage.theme, v.w / 2, v.h * 0.32 + 32, 10, '#bfe3ff', 'center', '#000');
       ctx.restore();
     }
-    if (G.phase === 'portal') { ctx.fillStyle = 'rgba(0,0,0,' + Math.min(1, G.phaseT / 0.8) + ')'; ctx.fillRect(0, 0, v.w, v.h); }
+    if (G.phase === 'portal') { ctx.fillStyle = 'rgba(0,0,0,' + Math.min(G.hold ? 0.6 : 1, G.phaseT / 0.8) + ')'; ctx.fillRect(0, 0, v.w, v.h); }
     if (G.banner) SK.text(ctx, G.banner.text, v.w / 2, 22, 14, '#ff5a4a', 'center', '#000');
     if (G.toastT > 0) {
       ctx.save(); ctx.globalAlpha = Math.min(1, G.toastT * 3);
@@ -202,7 +208,7 @@
     goldAndMap(ctx, G);
     weaponAndSkill(ctx, G);
     joystick(ctx);
-    SK.emit('hud', ctx, G);
     overlays(ctx, G);
+    SK.emit('hud', ctx, G);
   };
 })();

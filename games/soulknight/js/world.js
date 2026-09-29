@@ -105,9 +105,9 @@
     const path = cells.map((c, i) => addRoom(types[i], c[0], c[1]));
     for (let i = 1; i < path.length; i++) { path[i - 1].links.push(path[i].id); path[i].links.push(path[i - 1].id); }
 
-    // nhánh phụ: phòng rương vũ khí luôn có, phòng đặc biệt thỉnh thoảng
+    // nhánh phụ [WIKI Levels]: mỗi ải một phòng hộp vàng (chest) và một phòng dấu chấm than (special)
     const occupied = new Set(cells.map(c => c + ''));
-    const sides = ['chest'].concat(SK.chance(0.5) ? ['special'] : []);
+    const sides = ['chest', 'special'];
     for (const type of sides) {
       const hosts = SK.shuffle(path.filter(r => r.type === 'battle' || r.type === 'start'));
       let placed = false;

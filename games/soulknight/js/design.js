@@ -18,21 +18,15 @@ window.SK_DESIGN = {
   },
 
   // kind quyết định hành vi (bảng WEAPON_KINDS trong actors.js); còn lại là số.
+  // Phần còn lại dựng từ SK_WIKI.weapons ở khối ngay dưới (id = khoá wiki).
   weapons: {
-    bad_pistol: { name: 'Súng Lục Cùi', kind: 'gun', dmg: 3, cost: 0, crit: 0, spread: 5, rps: 3.28,
-      bulletSpeed: 18, pellets: 1, repel: 1, sprite: 'weapons_156', bullet: 'yellow' },   // [WIKI] + tốc đạn [ƯỚC LƯỢNG]
-    old_shotgun: { name: 'Súng Săn Cũ', kind: 'gun', dmg: 3, cost: 1, crit: 0, spread: 22, rps: 1.6,
-      bulletSpeed: 16, pellets: 4, repel: 2, sprite: 'weapons3_31', bullet: 'yellow' },   // [ƯỚC LƯỢNG]
-    smg: { name: 'Súng Tiểu Liên', kind: 'gun', dmg: 2, cost: 1, crit: 0, spread: 9, rps: 8,
-      bulletSpeed: 20, pellets: 1, repel: 0.5, sprite: 'weapons_21', bullet: 'yellow' },   // [ƯỚC LƯỢNG]
-    short_sword: { name: 'Kiếm Ngắn', kind: 'melee', dmg: 5, cost: 0, crit: 5, rps: 2.4,
-      range: 26, arc: 120, repel: 4, sprite: 'weapons_s_01' },                           // [ƯỚC LƯỢNG]
-    apprentice_staff: { name: 'Gậy Phép Tập Sự', kind: 'staff', dmg: 5, cost: 2, crit: 0, spread: 3, rps: 2.2,
-      bulletSpeed: 11, pellets: 1, repel: 2, radius: 5, sprite: 'weapons_139', bullet: 'violet' } // [ƯỚC LƯỢNG]
+    bad_pistol: { name: 'Súng Lục Cùi', kind: 'gun', type: 'Handgun', grade: 1, rarity: 'White', dmg: 3, cost: 0, crit: 0,
+      spread: 5, rps: 3.28, moveMod: -0.1, bulletSpeed: 18, pellets: 1, repel: 1, r: 2, sprite: 'weapons_156',
+      bullet: 'bullet_38', hit: 'hit_yellow', starter: true }   // [WIKI] + tốc đạn [ƯỚC LƯỢNG]
   },
 
-  // Rương vũ khí bốc ngẫu nhiên từ đây.
-  chestPool: ['old_shotgun', 'smg', 'short_sword', 'apprentice_staff'],
+  // Rương dùng SK.weaponPool(level, 'chest'); danh sách này là dự phòng cấp 1 cho code cũ (khối dưới lấp).
+  chestPool: [],
 
   rules: {
     hurtInvuln: 0.8,       // giây bất tử sau khi trúng đòn [ƯỚC LƯỢNG]
@@ -69,6 +63,135 @@ window.SK_DESIGN = {
   // Chuỗi màn: tầng 1 rừng, tầng 2 lâu đài, tầng 3 núi lửa.
   run: [['forest', 1], ['castle', 2], ['volcano', 3]]
 };
+
+// Vũ khí lấy từ số wiki (data/sk-wiki.js). Trường runtime: dmg (dmgMax khi có nạp), cost = năng lượng/phát,
+// crit %, spread = độ lệch °, rps, pellets, moveMod (phần: -0.1 = chậm 10% khi giữ bắn), charge (giây).
+(function () {
+  const WK = window.SK_WIKI, DS = window.SK_DESIGN;
+  if (!WK) return;
+  // [WIKI] sát thương nạp đầy, đọc từ chuỗi "a~b" của tools/wiki/weapons.json (sk-wiki.js chỉ giữ a).
+  const DMG_MAX = { advanced_banishing_staff: 16, ancient_bow: 8, banishing_staff: 12, bow: 8, bow_plus: 25, caliburn: 30,
+    composite_bow: 14, crystal_bow: 16, em_railgun: 12, fist_of_heaven: 7, flame_bow: 16, frost_bow: 16, guardian_railgun: 12,
+    hero_bow: 16, jade_bow: 16, laser_rain: 19, laser_sword_purple: 18, laser_tempest: 21, magic_bow: 8, prototype_railgun: 18,
+    pulse: 12, sacred_flail: 10, shuddering_thunder: 9, slingshot: 5, snow_ape_s_longbow: 20, splash_railgun: 10, star_bow: 16,
+    strong_bow: 10, sword_of_king_hero: 16, warhammer_of_sealed_souls: 32, windforce: 9 };
+  // Màu theo tên/mô tả → sprite đạn thật (bullet_N trong common.ab; xem bảng ở tools/extra/weapons.json).
+  const COLORS = [
+    ['red', /flame|fire|burn|hell|dragon|blood|crimson|scarlet|red|lava|volcan|magma|furnace|imp\b/i],
+    ['blue', /frost|ice|snow|freez|glacier|water|aqua|tidal|sea|blue|h2o|bubble/i],
+    ['yellow', /thunder|electr|lightning|light\b|gold|sun|star|holy|sacred/i],
+    ['green', /nature|poison|plague|toxic|green|jade|venom|leaf|momiji|seed|plant|forest|wind/i],
+    ['purple', /void|dark|shadow|purple|illusion|arcane|banish|soul|ghost|night|curse|faint/i]
+  ];
+  const SPR = {
+    // [ĐO] soát bằng mắt trên atlas: 38 = viên vàng kinh điển, 36/31/37/39/bullet0 = cầu năng lượng,
+    // 0/17/18/41 = thân tia laser, 121/136 = mũi tên / tên nỏ, 106 = trăng khuyết trắng.
+    gun: { yellow: 'bullet_38', red: 'bullet_26', blue: 'bullet_33', green: 'bullet_27', purple: 'bullet_2' },
+    staff: { yellow: 'bullet_36', red: 'bullet_37', blue: 'bullet_31', green: 'bullet_39', purple: 'bullet0' },
+    laser: { yellow: 'bullet_41', red: 'bullet_18', blue: 'bullet_0', green: 'bullet_17', purple: 'bullet_20' },
+    orb: { yellow: 'bullet_36', red: 'bullet_30', blue: 'bullet_6', green: 'bullet_39', purple: 'bullet_126' },
+    wave: { yellow: 'bullet_106', red: 'bullet_97', blue: 'bullet_54', green: 'bullet_98', purple: 'bullet_2' }
+  };
+  const HIT = { yellow: 'hit_yellow', red: 'hit_red', blue: 'hit_blue', green: 'hit_green', purple: 'hit_white_large' };
+  const WORDS = { two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+  const firstPart = u => String(u || '').split(/\n(?:Evolution|Special|Trivia)/)[0];
+
+  function colorOf(id, w, dflt) {
+    const s = id + ' ' + w.name;
+    for (const [c, rx] of COLORS) if (rx.test(s)) return c;
+    return dflt;
+  }
+  // [WIKI] cột speed: số lớn là %, số nhỏ (-0.5, -1, -2) là đơn vị/giây so với tốc chạy ~6.5 [ƯỚC LƯỢNG].
+  const moveFrac = v => v == null ? 0 : Math.abs(v) > 3 ? v / 100 : v / 6.5;
+  const tilesRadius = u => { const m = u.match(/([\d.]+)[- ]tiles? radius/i); return m ? parseFloat(m[1]) * 16 : 0; };
+
+  function build(id, w) {
+    const u = firstPart(w.usage);
+    const col = colorOf(id, w, w.kind === 'staff' ? 'blue' : w.kind === 'laser' ? 'blue' : 'yellow');
+    const d = {
+      name: w.name, kind: w.kind, type: w.type, grade: w.grade || 1, rarity: w.rarity, starter: !!w.starter,
+      dmg: w.dmg || 0, cost: w.cost || 0, crit: w.crit || 0, spread: w.spread || 0, rps: w.rps || 2,
+      pellets: w.pellets || 1, moveMod: moveFrac(w.moveMod), sprite: w.sprite, color: col, hit: HIT[col],
+      repel: 1, r: 2, bulletSpeed: 18
+    };
+    let n = u.match(/(\d+|two|three|four|five|six|seven|eight|nine|ten)\s+(?:small |tiny |large |big |yellow |laser |penetrating )*(?:bullets|pellets|projectiles|arrows|lasers|laser beams|beams|bolts)\b/i);
+    n = n ? (WORDS[n[1].toLowerCase()] || parseInt(n[1], 10)) : 0;
+    if (d.pellets === 1 && n > 1 && n <= 12 && /Shotgun|Laser Gun|Handgun|Bow|Crossbow/.test(w.type)) d.pellets = n;
+    if (/pierc|penetrat/i.test(u)) d.pierce = 99;
+    if (DMG_MAX[id]) d.dmgMax = DMG_MAX[id];
+    // Nạp = giữ rồi nhả, sát thương dmg → dmgMax. Chỉ cung, hoặc món wiki ghi dải "a~b"; "charge" của món khác
+    // là thời gian hâm nóng / đòn phụ nên bỏ, để giữ nút là bắn liên tục.
+    if (w.charge > 0 && (w.kind === 'bow' || d.dmgMax) && w.kind !== 'gun' && w.kind !== 'launcher') d.charge = Math.min(2, w.charge);
+    const boom = /explo|blast/i.test(u);
+    switch (w.kind) {
+      case 'gun':
+        // [ƯỚC LƯỢNG] tốc đạn theo loại (đơn vị/giây).
+        d.bulletSpeed = { Handgun: 18, Rifle: 20, 'Sniper Rifle': 32, Shotgun: 16 }[w.type] || 15;
+        d.repel = w.type === 'Shotgun' || w.type === 'Sniper Rifle' ? 2 : 1;
+        d.bullet = w.type === 'Sniper Rifle' && col === 'yellow' ? 'bullet403' : SPR.gun[col];
+        if (w.type === 'Shotgun' && d.pellets > 1) d.fan = Math.min(70, Math.max(18, d.pellets * 6, d.spread));
+        // Súng bắn đạn nổ (Grenade Pistol/SMG...): tên lửa nhỏ (sprite missile thật), nổ nhỏ nửa sát thương.
+        if (boom) { d.boom = tilesRadius(u) || 18; d.boomDmg = Math.max(1, Math.ceil(d.dmg / 2)); d.boomState = 'explode_small'; d.bullet = 'missile'; }
+        break;
+      case 'staff':
+        d.bulletSpeed = 11; d.r = 4; d.repel = 2; d.bullet = SPR.staff[col];
+        if (d.pellets > 1) d.fan = Math.min(80, Math.max(20, d.pellets * 8));
+        break;
+      case 'bow':
+        if (w.type === 'Crossbow') { d.bulletSpeed = 26; d.bullet = 'bullet_136'; d.repel = 2; }
+        else { d.bulletSpeed = 24; d.bullet = 'bullet_121'; d.charge = d.charge || 1; d.dmgMax = d.dmgMax || d.dmg * 2; } // [ƯỚC LƯỢNG] cung nạp ~1s
+        if (d.pellets > 1) d.fan = Math.min(40, d.pellets * 10);
+        break;
+      case 'laser':
+        // "Fires an energy orb/ball/sphere" (railgun, coilgun) bắn cầu năng lượng; còn lại là tia tức thì.
+        if (/energy (orb|ball|sphere)|orb projectile|energy ball|green energy/i.test(u)) {
+          d.mode = 'orb'; d.bulletSpeed = 14; d.r = 4; d.bullet = SPR.orb[col];
+          if (boom) { d.boom = 20; d.boomDmg = Math.max(1, Math.ceil(d.dmg / 2)); d.boomState = 'explode_small'; }
+        } else { d.mode = 'beam'; d.bullet = SPR.laser[col]; d.cap = SPR.orb[col]; }
+        if (d.pellets > 1) d.fan = /30°/.test(u) ? 30 : Math.min(45, d.pellets * 10);
+        break;
+      case 'launcher':
+        d.bulletSpeed = 10; d.r = 3; d.repel = 3; d.bullet = 'missile'; // [ĐO] prefab missile: speed 10, sprite missile
+        d.boom = tilesRadius(u) || 40; d.boomDmg = d.dmg; d.boomState = 'explode_big'; // [ƯỚC LƯỢNG] 2.5 ô khi wiki không ghi
+        break;
+      case 'melee': {
+        d.repel = 4; d.arc = 150; d.hit = 'hit_white_large';
+        // Tầm chém = phần lưỡi tính từ chỗ cầm (pivot) + nửa vệt chém. [ƯỚC LƯỢNG]
+        const f = window.SK_ATLAS && window.SK_ATLAS.f[w.sprite];
+        d.range = f ? Math.max(20, Math.min(44, f[3] - f[5] + 12)) : 26;
+        if (d.cost > 0 && /projectile|crescent|wave|sword qi|beam/i.test(u)) { d.wave = SPR.wave[col]; d.pierce = 99; }
+        break;
+      }
+    }
+    return d;
+  }
+  for (const [id, w] of Object.entries(WK.weapons)) if (id !== 'bad_pistol' && w.sprite) DS.weapons[id] = build(id, w);
+
+  // Rương: bậc 1 trắng, 2 lục, 3 lam, 4 tím, 5 cam; bậc 6 (đỏ) là vũ khí trùm, không ra rương.
+  // [ƯỚC LƯỢNG] tỉ lệ theo tầng: 1-x bậc 1-2 (chủ yếu trắng), 2-x bậc 2-3, 3-x bậc 3-4 hiếm khi 5.
+  const POOL_W = { 1: { 1: 0.7, 2: 0.3 }, 2: { 2: 0.6, 3: 0.4 }, 3: { 3: 0.5, 4: 0.44, 5: 0.06 } };
+  const chestOk = (id, d) => !d.starter && d.grade >= 1 && d.grade <= 5 && d.dmg > 0 && !/Misc|Throwing/.test(d.type);
+  const byGrade = {};
+  for (const [id, d] of Object.entries(DS.weapons)) if (chestOk(id, d)) (byGrade[d.grade] = byGrade[d.grade] || []).push(id);
+  DS.weaponGrades = byGrade;
+  // Trả danh sách ứng viên của MỘT bậc đã bốc theo trọng số; nơi gọi SK.pick() trong đó. source 'shop' nhích lên nửa bậc.
+  DS.weaponPool = function (level, source, rand) {
+    const r = rand || Math.random;
+    const lv = Math.max(1, Math.min(3, (level | 0) || 1));
+    const wts = Object.assign({}, POOL_W[lv]);
+    if (source === 'shop' || source === 'merchant') { const top = Math.max(...Object.keys(wts).map(Number)); wts[top] = (wts[top] || 0) + 0.3; }
+    let tot = 0;
+    for (const g in wts) if (byGrade[g]) tot += wts[g];
+    let x = r() * tot;
+    for (const g in wts) {
+      if (!byGrade[g]) continue;
+      x -= wts[g];
+      if (x <= 0) return byGrade[g].slice();
+    }
+    return (byGrade[1] || []).slice();
+  };
+  DS.chestPool = (byGrade[1] || []).concat(byGrade[2] || []);
+})();
 
 // Nhân vật lấy từ số wiki (data/sk-wiki.js, sinh bởi tools/build_design.py). Hình dạng thân (tay, hộp
 // trúng đòn, bóng) dùng chung của Hiệp Sĩ vì mọi nhân vật SK cùng khổ 16 px.

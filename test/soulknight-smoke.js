@@ -126,14 +126,22 @@ async function mainRun(b) {
   const pre = await p.evaluate(() => SK_GAME.player);
   await p.screenshot({ path: path.join(SHOTS, 'portal.png') });
   await p.keyboard.down('KeyW');
-  const next = await until(p, () => SK_GAME.stage === '1-2', null, 6000);
+  // Sau 1-1 game dừng ở cổng cho chọn buff (như SK); bấm phím 1 khi ba thẻ hiện ra.
+  const t0 = Date.now(); let next = false, buffShown = false;
+  while (Date.now() - t0 < 8000) {
+    const st = await p.evaluate(() => ({ stage: SK_GAME.stage, buffs: !!(document.getElementById('sk-buffs') && !document.getElementById('sk-buffs').hidden) }));
+    if (st.stage === '1-2') { next = true; break; }
+    if (st.buffs) { buffShown = true; await p.keyboard.up('KeyW'); await p.keyboard.press('Digit1'); }
+    await sleep(150);
+  }
   await p.keyboard.up('KeyW');
   await sleep(700);
   await p.screenshot({ path: path.join(SHOTS, 'stage12.png') });
   const s2 = await p.evaluate(() => ({ stage: SK_GAME.stage, phase: SK_GAME.phase, pl: SK_GAME.player }));
-  check('bước vào cổng → màn 1-2', next, 'nhãn ' + s2.stage + ' · pha ' + s2.phase);
+  check('bước vào cổng → chọn buff → màn 1-2', next && buffShown, 'nhãn ' + s2.stage + ' · pha ' + s2.phase + ' · thẻ buff ' + buffShown);
+  // Buff vừa chọn có thể cộng máu/năng lượng tối đa nên chỉ đòi không bị mất.
   check('máu / năng lượng / vàng / súng mang sang màn sau',
-    s2.pl.hp === pre.hp && s2.pl.energy === pre.energy && s2.pl.gold === pre.gold && s2.pl.weapons.join() === pre.weapons.join(),
+    s2.pl.hp >= pre.hp && s2.pl.energy >= pre.energy && s2.pl.gold === pre.gold && s2.pl.weapons.join() === pre.weapons.join(),
     'máu ' + s2.pl.hp + ' · nl ' + s2.pl.energy + ' · vàng ' + s2.pl.gold + ' · ' + s2.pl.weapons.join('/'));
 
   // ---- gục ngã → màn hình "Chơi lại" → về sảnh

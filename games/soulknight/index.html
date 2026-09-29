@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Hiệp Sĩ Linh Hồn</title>
-<!-- rev: 20260929a -->
+<!-- rev: 20260929b -->
 <!-- WHY: thiếu favicon thì trình duyệt gọi /favicon.ico và ghi lỗi 404 vào console. -->
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ctext y=%2726%27 font-size=%2726%27%3E%E2%9A%94%EF%B8%8F%3C/text%3E%3C/svg%3E">
 <!-- VT323 có dải chữ Việt (Pixelify Sans, Silkscreen thiếu U+1EA0); tải hỏng thì rơi về phông hệ thống. -->
@@ -31,7 +31,168 @@
   .sk-ov h1{font-size:clamp(40px,8vw,72px);color:var(--gold)}
   .sk-ov h2{font-size:clamp(34px,6vw,56px)}
   .sk-ov p{margin:0;font-size:clamp(18px,2.6vw,24px);text-shadow:0 2px 0 #000}
-  #sk-lobby{justify-content:space-between;padding:6vh 16px}
+  /* ---- sảnh chọn nhân vật (js/lobby.js). Đơn vị --u theo khung 1386x640 của ảnh chụp SK 8.6. */
+  #sk-lobby{--u:min(1vh,.462vw);--line:#3b4556;--pane:#1c222c;--pane2:#12171f;--blue:#3d8bff;
+    display:block;padding:0;text-align:left;font-size:calc(var(--u)*3.2)}
+  #sk-lobby[hidden]{display:none}
+  #sk-lobby button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
+  #sk-lobby img,#sk-lobby canvas{image-rendering:pixelated}
+  .hs-sr{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .hs-top{position:absolute;left:0;right:0;top:0;height:12.5%;display:flex;align-items:center;justify-content:space-between;
+    padding:0 calc(var(--u)*2);background:linear-gradient(#000 30%,rgba(0,0,0,.55) 75%,rgba(0,0,0,0))}
+  .hs-back{width:calc(var(--u)*15);height:calc(var(--u)*10);padding:0;border:0;background:none}
+  .hs-back img{width:100%;height:100%}
+  .hs-title{position:absolute;left:50%;top:calc(var(--u)*1.5);transform:translateX(-50%);text-align:center;white-space:nowrap}
+  #sk-lobby .hs-title h1{font-size:calc(var(--u)*6.6);color:#fff;line-height:1;letter-spacing:.06em}
+  .hs-skin{display:inline-block;margin-top:calc(var(--u)*1.6);padding:calc(var(--u)*.4) calc(var(--u)*2);
+    background:rgba(0,0,0,.75);font-size:calc(var(--u)*2.6);letter-spacing:.05em}
+  .hs-cur{display:flex;align-items:center;gap:calc(var(--u)*1.2);font-size:calc(var(--u)*6);text-shadow:0 2px 0 #000}
+  .hs-cur img{width:calc(var(--u)*6);height:calc(var(--u)*6)}
+  .hs-cur b{font-weight:400;min-width:2ch;text-align:right}
+  .hs-plus{width:calc(var(--u)*6);height:calc(var(--u)*6);padding:0;line-height:1;font-size:calc(var(--u)*5)!important;
+    background:#3a9a3e;border:calc(var(--u)*.5) solid #173d18;box-shadow:inset 0 calc(var(--u)*-.6) 0 #256c28}
+  .hs-panel{background:var(--pane);border:calc(var(--u)*.5) solid var(--line);border-left:0;box-shadow:0 0 0 2px #000}
+  .hs-left{position:absolute;left:0;top:16.3%;width:28.5%;height:67.5%;display:flex;flex-direction:column;
+    align-items:center;justify-content:space-between;gap:calc(var(--u)*1.2);padding:calc(var(--u)*1.5) calc(var(--u)*2.4)}
+  .hs-avatar{display:flex;flex-direction:column;align-items:center}
+  #hs-avatar{width:calc(var(--u)*11);height:calc(var(--u)*9.2)}
+  .hs-ribbon{display:flex;gap:calc(var(--u)*.5);padding:calc(var(--u)*.5) calc(var(--u)*2.6);margin-top:calc(var(--u)*-1.2);
+    background:#8b1d20;border:2px solid #4a0c0e;clip-path:polygon(0 0,100% 0,96% 50%,100% 100%,0 100%,4% 50%)}
+  .hs-ribbon img{width:calc(var(--u)*3.2);height:calc(var(--u)*3)}
+  .hs-stats{width:100%;background:var(--pane2);padding:calc(var(--u)*.8) calc(var(--u)*1.2);display:flex;flex-direction:column;gap:calc(var(--u)*.7)}
+  .hs-stat{display:grid;grid-template-columns:calc(var(--u)*4) 1fr calc(var(--u)*7);align-items:center;gap:calc(var(--u)*.8);height:calc(var(--u)*4)}
+  .hs-stat img,.hs-stat canvas{width:calc(var(--u)*3.2);height:calc(var(--u)*3.2)}
+  .hs-bar{position:relative;height:calc(var(--u)*3.4);background:#0a0d12;border:1px solid #2c3441}
+  .hs-bar i{position:absolute;left:0;top:0;bottom:0;box-shadow:inset 0 calc(var(--u)*-.6) 0 rgba(0,0,0,.25)}
+  .hs-bar span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:calc(var(--u)*2.7);text-shadow:1px 1px 0 #000}
+  .hs-stat b{font-weight:400;font-size:calc(var(--u)*3.4);text-align:right}
+  .hs-boxes{display:flex;justify-content:space-between;width:100%}
+  .hs-box{display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*.4);width:31%;padding:0;background:none;border:0;
+    font-size:calc(var(--u)*2.7)!important;line-height:1}
+  .hs-ico{display:flex;align-items:center;justify-content:center;width:calc(var(--u)*11);height:calc(var(--u)*11);
+    background:var(--pane2);border:calc(var(--u)*.5) solid #394252}
+  .hs-ico img,.hs-ico canvas{width:80%;height:80%;object-fit:contain}
+  .hs-ring{width:45%;height:40%;border:calc(var(--u)*.8) solid #e8e8e8;border-radius:50%}
+  .hs-path{width:100%;padding:calc(var(--u)*1.6) 0;background:#252c38;border:calc(var(--u)*.4) solid #3c4658;
+    font-size:calc(var(--u)*3.2)!important;letter-spacing:.04em}
+  .hs-center{position:absolute;left:28.5%;right:23.5%;top:12.5%;bottom:14%;display:flex;align-items:flex-end;justify-content:center;pointer-events:none}
+  .hs-portrait{max-width:100%;max-height:100%;object-fit:contain;image-rendering:auto!important;filter:drop-shadow(0 0 calc(var(--u)*3) rgba(80,160,255,.25))}
+  .hs-portrait.pix{display:none}
+  .hs-portrait.locked{filter:brightness(.8) saturate(.75)}
+  .hs-tools{position:absolute;right:calc(var(--u)*2);top:calc(var(--u)*6);pointer-events:auto}
+  .hs-tool{width:calc(var(--u)*7);height:calc(var(--u)*7);padding:calc(var(--u)*1.2);background:rgba(160,170,185,.35);border:0;border-radius:calc(var(--u)*1)}
+  .hs-tool img{width:100%;height:100%}
+  .hs-lockbar{position:absolute;bottom:calc(var(--u)*5);left:50%;transform:translateX(-50%);padding:calc(var(--u)*1) calc(var(--u)*5);
+    background:rgba(0,0,0,.78);font-size:calc(var(--u)*3.6);white-space:nowrap;pointer-events:auto}
+  .hs-lockbar[hidden]{display:none}
+  .hs-right{position:absolute;right:0;top:16%;width:23.5%;height:67%;display:flex;flex-direction:column;gap:calc(var(--u)*1.2)}
+  .hs-sk{position:relative;display:flex;align-items:center;gap:calc(var(--u)*1.4);width:94%;margin-left:auto;padding:calc(var(--u)*1) calc(var(--u)*1.4);
+    background:var(--pane);border:calc(var(--u)*.45) solid var(--line);border-right:0;border-left:calc(var(--u)*1) solid #2f3848;text-align:left}
+  .hs-sk.on{width:100%;flex-direction:column;align-items:stretch;flex:0 1 auto;min-height:calc(var(--u)*30);border-left-color:var(--blue)}
+  .hs-sk .hs-si{flex:none;--s:calc(var(--u)*8.4);width:var(--s);height:var(--s);background:#0c1016 url(art/lobby/skills.png) no-repeat;
+    background-size:calc(var(--s)*16) auto;image-rendering:pixelated;border:1px solid #000}
+  .hs-sk.on .hs-si{--s:calc(var(--u)*5.2)}
+  .hs-sk .hs-sn{display:flex;flex-direction:column;gap:calc(var(--u)*.3);min-width:0}
+  .hs-sk .hs-sn b{font-weight:400;font-size:calc(var(--u)*3.7);line-height:1;letter-spacing:.03em}
+  .hs-sk .hs-sn small{font-size:calc(var(--u)*3);color:#c9cfd8;line-height:1}
+  .hs-sk.on .hs-sn b{font-size:calc(var(--u)*3.2)}
+  .hs-sk.on .hs-sn small{color:#5aa2ff}
+  .hs-sk.locked{color:#8a919c}
+  .hs-sk.locked .hs-si{filter:grayscale(1) brightness(.6)}
+  .hs-sk.locked .hs-si::after{content:"";position:absolute}
+  .hs-sk .hs-lk{position:absolute;left:calc(var(--u)*6.4);bottom:calc(var(--u)*.8);width:calc(var(--u)*2.4);height:calc(var(--u)*2.2);
+    background:#c9cdd3;border-radius:2px;box-shadow:0 0 0 1px #000}
+  .hs-sk .hs-lk::before{content:"";position:absolute;left:18%;right:18%;top:-60%;height:70%;border:2px solid #c9cdd3;border-bottom:0;border-radius:40% 40% 0 0}
+  .hs-sk-top{display:flex;align-items:center;gap:calc(var(--u)*1.2)}
+  .hs-desc{flex:1;min-height:0;overflow:auto;margin-top:calc(var(--u)*1);padding-right:calc(var(--u)*1);font-size:calc(var(--u)*3.05);line-height:1.18;
+    color:#e8ecf2;white-space:normal}
+  .hs-desc em{font-style:normal;color:#7df06a}
+  .hs-bottom{position:absolute;left:0;right:0;bottom:0;height:17%;display:flex;align-items:center;justify-content:space-between;
+    padding:0 calc(var(--u)*1.5) calc(var(--u)*1.5) calc(var(--u)*5)}
+  .hs-demo{display:flex;align-items:center;gap:calc(var(--u)*1.2);padding:calc(var(--u)*1.4) calc(var(--u)*2.2);background:rgba(25,30,38,.92);
+    font-size:calc(var(--u)*3);cursor:pointer;pointer-events:auto}
+  .hs-demo input{position:absolute;opacity:0;width:1px;height:1px}
+  .hs-demo i{width:calc(var(--u)*3.6);height:calc(var(--u)*3.6);background:#1f2e4b;border:2px solid #6b7890}
+  .hs-demo input:checked+i{background:#1f2e4b url(art/lobby/ui/demo_on.png) center/90% no-repeat}
+  .hs-car{position:absolute;left:27%;right:27%;bottom:calc(var(--u)*2.6);display:flex;align-items:center;gap:calc(var(--u)*2);pointer-events:auto}
+  .hs-arrow{flex:none;width:calc(var(--u)*6);height:calc(var(--u)*8);padding:0;border:0;background:#fff}
+  .hs-l{clip-path:polygon(100% 0,100% 100%,0 50%)}
+  .hs-r{clip-path:polygon(0 0,0 100%,100% 50%)}
+  .hs-list{flex:1;-webkit-mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent);mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent);display:flex;gap:calc(var(--u)*1.3);overflow:hidden;scroll-behavior:smooth;padding:calc(var(--u)*1) 0 calc(var(--u)*2.4)}
+  .hs-hero{position:relative;flex:none;width:calc(var(--u)*12.4);height:calc(var(--u)*12.4);padding:0;background:#11151c;border:calc(var(--u)*.45) solid #242b36}
+  .hs-hero canvas{width:100%;height:100%}
+  .hs-hero.locked canvas{filter:grayscale(1) brightness(.62)}
+  .hs-hero.locked::after{content:"";position:absolute;right:calc(var(--u)*.8);bottom:calc(var(--u)*.8);width:calc(var(--u)*2.6);height:calc(var(--u)*2.2);
+    background:#b8bcc2;box-shadow:0 0 0 1px #000;border-radius:2px}
+  .hs-hero.sel{border-color:#caa14a;background:#1b2130}
+  .hs-hero.sel::before{content:"★";position:absolute;left:50%;bottom:calc(var(--u)*-3.6);transform:translateX(-50%);color:#ffd452;
+    font-size:calc(var(--u)*4.4);line-height:1;text-shadow:0 1px 0 #7a4d00}
+  .hs-start{display:flex;align-items:center;gap:calc(var(--u)*3);height:calc(var(--u)*12);min-width:calc(var(--u)*33);justify-content:center;
+    padding:0 calc(var(--u)*3);font-size:calc(var(--u)*5.2)!important;letter-spacing:.08em;background:#7a5836;
+    border:calc(var(--u)*.7) solid #2a1b10;box-shadow:inset 0 calc(var(--u)*-1) 0 #553a22,inset 0 calc(var(--u)*.6) 0 #a07a50,0 calc(var(--u)*.6) 0 #000;
+    clip-path:polygon(0 0,92% 0,100% 50%,92% 100%,0 100%);pointer-events:auto}
+  .hs-start i{width:calc(var(--u)*3);height:calc(var(--u)*4.2);background:#c8b39a;clip-path:polygon(0 0,100% 50%,0 100%)}
+  .hs-start.buy{background:#2f7f3a;box-shadow:inset 0 calc(var(--u)*-1) 0 #1d5626,inset 0 calc(var(--u)*.6) 0 #4aa757,0 calc(var(--u)*.6) 0 #000}
+  .hs-start:active{transform:translateY(2px)}
+  .hs-keys{position:absolute;left:0;right:0;bottom:0;margin:0;text-align:center;font-size:calc(var(--u)*2.2)!important;opacity:.45;pointer-events:none}
+  /* chọn chế độ (ảnh i) */
+  .hs-modes{position:absolute;inset:0;background:#0b0f14 url(art/lobby/mode_bg.jpg) center/cover;pointer-events:auto}
+  .hs-modes::before{content:"";position:absolute;inset:0;backdrop-filter:blur(6px);background:rgba(0,0,0,.35)}
+  .hs-modes[hidden]{display:none}
+  .hs-modes>*{position:absolute}
+  #sk-lobby .hs-modes h2{left:calc(var(--u)*25);top:calc(var(--u)*2);font-size:calc(var(--u)*5.5);text-shadow:0 2px 0 #000}
+  .hs-x{right:calc(var(--u)*3);top:calc(var(--u)*2);width:calc(var(--u)*7);height:calc(var(--u)*7);padding:0;background:#d8262b;border:2px solid #6d0f12;
+    font-size:calc(var(--u)*5)!important;line-height:1}
+  .hs-mode-list{left:calc(var(--u)*11);top:calc(var(--u)*13);display:flex;flex-direction:column;gap:calc(var(--u)*2)}
+  .hs-mode{position:relative;width:calc(var(--u)*28);height:calc(var(--u)*12);padding:0;background:#1a3a5a center/cover no-repeat;
+    border:calc(var(--u)*.5) solid #0d0f12;image-rendering:pixelated;display:flex;align-items:flex-end;justify-content:center}
+  .hs-mode span{font-size:calc(var(--u)*3.2);text-shadow:0 0 3px #000,0 2px 0 #000;padding-bottom:calc(var(--u)*.4)}
+  .hs-mode.sel{border-color:#ff9a2e}
+  .hs-mode .hs-new{position:absolute;right:calc(var(--u)*-1);top:calc(var(--u)*-1.6);color:#ff3a3a;font-size:calc(var(--u)*2.8);text-shadow:0 0 2px #fff}
+  .hs-mode .hs-soon{position:absolute;left:0;right:0;top:0;padding:calc(var(--u)*.3);background:rgba(0,0,0,.7);font-size:calc(var(--u)*2.4);text-align:center}
+  .hs-mode-card{left:50%;top:calc(var(--u)*13);transform:translateX(-50%);width:calc(var(--u)*55);padding:calc(var(--u)*2.2);background:#1f242d;
+    border:calc(var(--u)*.6) solid #0c0e11;box-shadow:inset 0 0 0 2px #3b4250;display:flex;flex-direction:column;gap:calc(var(--u)*1.6)}
+  .hs-mode-head{display:flex;align-items:center;gap:calc(var(--u)*2);padding-bottom:calc(var(--u)*1.2);border-bottom:2px solid #333b48}
+  .hs-mode-head canvas{width:calc(var(--u)*8);height:calc(var(--u)*7)}
+  .hs-mode-head b{font-weight:400;font-size:calc(var(--u)*5)}
+  .hs-mode-pic{height:calc(var(--u)*26);display:flex;align-items:center;justify-content:center}
+  .hs-mode-pic img{height:100%;max-width:100%;object-fit:contain}
+  .hs-mode-desc{margin:0;font-size:calc(var(--u)*3)!important;color:#c7ced8;text-shadow:none!important;min-height:calc(var(--u)*7)}
+  .hs-go{position:absolute;left:0;right:0;bottom:calc(var(--u)*-11.5);height:calc(var(--u)*9);font-size:calc(var(--u)*5)!important;background:#4cb843;
+    border:calc(var(--u)*.6) solid #133d10;box-shadow:inset 0 calc(var(--u)*-.9) 0 #2f8a28,inset 0 calc(var(--u)*.6) 0 #7fe06f}
+  .hs-go:disabled{background:#59606b;box-shadow:inset 0 calc(var(--u)*-.9) 0 #3d434b;color:#c9ced6;cursor:default}
+  .hs-mode-side{right:calc(var(--u)*17);top:calc(var(--u)*48);display:flex;flex-direction:column;gap:calc(var(--u)*2)}
+  .hs-side{display:flex;flex-direction:column;align-items:center;width:calc(var(--u)*22);padding:calc(var(--u)*2);background:rgba(40,46,58,.9);
+    border:2px solid #0c0e11;font-size:calc(var(--u)*3.2)!important;opacity:.75}
+  .hs-side small{font-size:calc(var(--u)*2.4);color:#9aa3b0}
+  /* hộp thoại: mua bằng đá quý, thanh toán giả, cửa hàng, kết quả lượt chơi */
+  .hs-modal{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.6);pointer-events:auto;z-index:5}
+  .hs-modal[hidden]{display:none}
+  .hs-dlg{width:min(92vw,calc(var(--u)*80));max-height:92vh;overflow:auto;padding:calc(var(--u)*2.6) calc(var(--u)*3);background:#1f242d;
+    border:calc(var(--u)*.6) solid #0c0e11;box-shadow:inset 0 0 0 2px #3b4250,0 calc(var(--u)*1) 0 #000;text-align:center;font-size:calc(var(--u)*3.4)}
+  .hs-dlg h3{margin:0 0 calc(var(--u)*1.4);font-weight:400;font-size:calc(var(--u)*4.6);color:#ffd452}
+  .hs-dlg p{margin:calc(var(--u)*.8) 0;font-size:calc(var(--u)*3.3)!important}
+  .hs-dlg .hs-fake{color:#ff9a4a}
+  .hs-dlg .hs-price{font-size:calc(var(--u)*7.5)!important;color:#fff;margin:calc(var(--u)*1.2) 0}
+  .hs-dlg .hs-price img{width:calc(var(--u)*6);height:calc(var(--u)*6);vertical-align:-.12em}
+  .hs-dlg .hs-note{color:#9aa3b0;font-size:calc(var(--u)*2.7)!important}
+  .hs-dlg .hs-bad{color:#ff5a5a}
+  .hs-btns{display:flex;justify-content:center;gap:calc(var(--u)*2.4);margin-top:calc(var(--u)*2)}
+  .hs-btn{min-width:calc(var(--u)*22);padding:calc(var(--u)*1.4) calc(var(--u)*3);font-size:calc(var(--u)*3.8)!important;background:#4a5363;
+    border:calc(var(--u)*.5) solid #0c0e11;box-shadow:inset 0 calc(var(--u)*-.7) 0 #333a46}
+  .hs-btn.ok{background:#4cb843;box-shadow:inset 0 calc(var(--u)*-.7) 0 #2f8a28}
+  .hs-btn:disabled{opacity:.45;cursor:default}
+  .hs-packs{display:grid;grid-template-columns:repeat(3,1fr);gap:calc(var(--u)*1.6);margin-top:calc(var(--u)*1.6)}
+  .hs-pack{display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*.6);padding:calc(var(--u)*1.4);background:#141920;border:2px solid #3b4250;font-size:calc(var(--u)*3.4)!important}
+  .hs-pack img{width:calc(var(--u)*7);height:calc(var(--u)*7)}
+  .hs-pack b{font-weight:400;color:#8fd0ff}
+  .hs-pack span{padding:calc(var(--u)*.4) calc(var(--u)*2);background:#4cb843}
+  .hs-ups{list-style:none;margin:calc(var(--u)*1) 0 0;padding:0;text-align:left}
+  .hs-ups li{display:flex;justify-content:space-between;gap:calc(var(--u)*2);padding:calc(var(--u)*.8) calc(var(--u)*1);border-bottom:1px solid #2c333f;font-size:calc(var(--u)*3.1)}
+  .hs-ups li.done{color:#7df06a}
+  .hs-ups li small{color:#9aa3b0}
+  @media (max-aspect-ratio:3/2){ #sk-lobby{--u:min(.8vh,.55vw)} }
+  @media (max-height:500px),(pointer:coarse){ .hs-keys{display:none} }
   #sk-over,#sk-win{background:rgba(0,0,0,.6)}
   .sk-btn{font:inherit;font-size:clamp(24px,3.6vw,32px);color:#fff;cursor:pointer;padding:8px 28px 10px;
     background:var(--wood);border:3px solid #2a1b10;box-shadow:inset 0 -4px 0 var(--wood2),inset 0 2px 0 #9a7048,0 4px 0 #000;
@@ -48,11 +209,57 @@
 <canvas id="sk-hud"></canvas>
 <div id="sk-loading">Đang tải…</div>
 <div id="sk-lobby" class="sk-ov" hidden>
-  <div><h1>Hiệp Sĩ Linh Hồn</h1><p id="sk-hero-line"></p></div>
-  <div style="display:flex;flex-direction:column;align-items:center;gap:10px">
-    <button id="sk-start" class="sk-btn">Vào hầm ngục</button>
-    <p class="keys">WASD di chuyển · J / chuột bắn (tự ngắm) · K / Space kỹ năng · Q đổi súng · E nhặt</p>
+  <p id="sk-hero-line" class="hs-sr"></p>
+  <header class="hs-top">
+    <button id="hs-back" class="hs-back" title="Chọn chế độ chơi"><img src="art/lobby/ui/back.png" alt="Chế độ"></button>
+    <div class="hs-title"><h1 id="hs-name">Hiệp Sĩ</h1><div id="hs-skin" class="hs-skin">Trang phục gốc</div></div>
+    <div class="hs-cur">
+      <img src="art/lobby/ui/gem.png" alt="Đá quý"><b id="hs-gems">0</b>
+      <button id="hs-shop" class="hs-plus" title="Cửa hàng đá quý">+</button>
+    </div>
+  </header>
+  <aside class="hs-left hs-panel">
+    <div class="hs-avatar"><canvas id="hs-avatar" width="34" height="30"></canvas><div id="hs-stars" class="hs-ribbon"></div></div>
+    <div id="hs-stats" class="hs-stats"></div>
+    <div class="hs-boxes">
+      <button class="hs-box" id="hs-passive"><span class="hs-ico"><img src="art/lobby/ui/passive.png" alt=""></span><span>Nội tại</span></button>
+      <button class="hs-box" id="hs-weapon"><span class="hs-ico"><canvas id="hs-weapon-cv" width="22" height="22"></canvas></span><span>Vũ khí đầu</span></button>
+      <button class="hs-box" id="hs-jewel"><span class="hs-ico"><i class="hs-ring"></i></span><span>Trang sức</span></button>
+    </div>
+    <button id="hs-path" class="hs-path">★ Lộ trình nâng cấp</button>
+  </aside>
+  <section class="hs-center">
+    <img id="hs-portrait" class="hs-portrait" alt="">
+    <div class="hs-tools"><button id="hs-view" class="hs-tool" title="Đổi tranh / hình pixel"><img src="art/lobby/ui/swap.png" alt="Đổi"></button></div>
+    <div id="hs-lockbar" class="hs-lockbar" hidden></div>
+  </section>
+  <aside id="hs-skills" class="hs-right"></aside>
+  <footer class="hs-bottom">
+    <label class="hs-demo"><span>Xem kỹ năng</span><input type="checkbox" id="hs-demo" checked><i></i></label>
+    <div class="hs-car">
+      <button id="hs-prev" class="hs-arrow hs-l" title="Nhân vật trước"></button>
+      <div id="hs-list" class="hs-list"></div>
+      <button id="hs-next" class="hs-arrow hs-r" title="Nhân vật sau"></button>
+    </div>
+    <button id="sk-start" class="hs-start"><span id="hs-start-label">Bắt đầu</span><i></i></button>
+  </footer>
+  <p class="hs-keys">WASD đi · J / chuột bắn · K / Space kỹ năng · Q đổi súng · E nhặt · ← → đổi nhân vật · Enter bắt đầu</p>
+  <div id="hs-modes" class="hs-modes" hidden>
+    <h2 id="hs-mode-title">Chế độ màn chơi</h2>
+    <button id="hs-mode-close" class="hs-x" title="Đóng">✕</button>
+    <div id="hs-mode-list" class="hs-mode-list"></div>
+    <div class="hs-mode-card">
+      <div class="hs-mode-head"><canvas id="hs-mode-face" width="32" height="28"></canvas><b id="hs-mode-name"></b></div>
+      <div class="hs-mode-pic"><img id="hs-mode-img" alt=""></div>
+      <p id="hs-mode-desc" class="hs-mode-desc"></p>
+      <button id="hs-mode-go" class="hs-go">Bắt đầu</button>
+    </div>
+    <div class="hs-mode-side">
+      <button class="hs-side" disabled>Nhiệm vụ mùa<small>Sắp ra mắt</small></button>
+      <button class="hs-side" disabled>Cửa hàng mùa<small>Sắp ra mắt</small></button>
+    </div>
   </div>
+  <div id="hs-modal" class="hs-modal" hidden><div id="hs-dlg" class="hs-dlg" role="dialog"></div></div>
 </div>
 <div id="sk-over" class="sk-ov" hidden>
   <h2>Bạn đã gục ngã</h2><p id="sk-over-info"></p>
@@ -62,14 +269,14 @@
   <h2 style="color:var(--gold)">Chiến thắng!</h2><p id="sk-win-info"></p>
   <button id="sk-win-retry" class="sk-btn">Chơi lại</button>
 </div>
-<script src="data/sk-data.js?v=20260929a"></script>
+<script src="data/sk-data.js?v=20260929b"></script>
 <script src="data/sk-wiki.js?v=20260929b"></script>
-<script src="js/design.js?v=20260929a"></script>
-<script src="js/engine.js?v=20260929a"></script>
-<script src="js/world.js?v=20260929a"></script>
-<script src="js/actors.js?v=20260929a"></script>
-<script src="js/hud.js?v=20260929a"></script>
-<script src="js/game.js?v=20260929a"></script>
+<script src="js/design.js?v=20260929b"></script>
+<script src="js/engine.js?v=20260929b"></script>
+<script src="js/world.js?v=20260929b"></script>
+<script src="js/actors.js?v=20260929b"></script>
+<script src="js/hud.js?v=20260929b"></script>
+<script src="js/game.js?v=20260929b"></script>
 <script src="js/skills.js?v=20260929b"></script>
 <script src="js/bosses.js?v=20260929b"></script>
 <script src="js/rooms.js?v=20260929b"></script>
