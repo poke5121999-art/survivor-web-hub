@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><title>SK viewer</title>
+<style>
+body{margin:0;background:#1b1d22;color:#cfd6e4;font:12px monospace}
+canvas{display:block;image-rendering:pixelated}
+#bar{padding:6px}
+</style></head><body>
+<div id="bar">Soát hoạt ảnh + điểm neo. Dấu chữ thập đỏ = điểm neo (chân). <select id="sel"></select></div>
+<canvas id="c"></canvas>
+<script src="../data/sk-data.js"></script>
+<script>
+const A = window.SK_ATLAS, D = window.SK_DATA, S = 3;
+const pages = A.pages.map(p => { const i = new Image(); i.src = '../' + p; return i; });
+const sel = document.getElementById('sel');
+const groups = ['heroes', 'prefabs'].concat(Object.keys(D.themes));
+for (const g of groups) { const o = document.createElement('option'); o.textContent = g; sel.appendChild(o); }
+const q = new URLSearchParams(location.search).get('g');
+if (q) sel.value = q;
+const cv = document.getElementById('c'), cx = cv.getContext('2d');
+function frameAt(key, t) {
+  const a = D.anims[key]; if (!a) return null;
+  const tot = a.d.reduce((s, x) => s + x, 0) || 1;
+  let u = a.loop ? t % tot : Math.min(t, tot - 1e-6), i = 0;
+  while (i < a.d.length - 1 && u >= a.d[i]) { u -= a.d[i]; i++; }
+  return a.f[i];
+}
+function draw(name, x, y) {
+  const f = A.f[name]; if (!f) return;
+  const [p, sx, sy, w, h, ax, ay] = f;
+  cx.drawImage(pages[p], sx, sy, w, h, Math.round(x - ax * S), Math.round(y - ay * S), w * S, h * S);
+}
+function cross(x, y) { cx.fillStyle = '#f33'; cx.fillRect(x - 4, y, 9, 1); cx.fillRect(x, y - 4, 1, 9); }
+function rows() {
+  const g = sel.value, out = [];
+  if (g === 'prefabs') {
+    const ks = Object.keys(D.prefabs).filter(k => !k.startsWith('npc_char'));
+    for (let i = 0; i < ks.length; i += 6) out.push({ label: ks.slice(i, i + 6).join('  |  '), prefabs: ks.slice(i, i + 6) });
+  } else if (g === 'heroes') {
+    for (const [k, h] of Object.entries(D.heroes)) { const s = h.s0; out.push({ label: k, cells: [s.idle, s.run, s.dead].map(a => ({ a })) }); }
+  } else {
+    const th = D.themes[g];
+    for (const id of th.enemies) {
+      const e = D.enemies[id]; const w = (e.weapons || [])[0];
+      const cells = Object.entries(e.anims).filter(([s]) => !s.startsWith('L')).map(([s, a]) => ({ a, w, e, s }));
+      out.push({ label: id + ' hp' + e.hp + ' sp' + e.speed + ' ' + (e.ai[0] || {}).cls + ' ' + (w ? w.cls + ' atk' + w.p.atk : ''), cells });
+    }
+    out.push({ label: 'tiles', tiles: th.floors.concat(th.walls, th.obstacles) });
+  }
+  return out;
+}
+let R = rows(); sel.onchange = () => { R = rows(); history.replaceState(0, '', '?g=' + sel.value); };
+function loop(ts) {
+  const t = ts / 1000, CW = 150, RH = 150;
+  cv.width = Math.max(900, 260 + CW * 6); cv.height = RH * R.length + 20;
+  cx.imageSmoothingEnabled = false;
+  R.forEach((r, i) => {
+    const y0 = i * RH;
+    cx.fillStyle = '#cfd6e4'; cx.fillText(r.label, 6, y0 + 14);
+    if (r.prefabs) {
+      r.prefabs.forEach((k, j) => {
+        const x = 90 + j * 170, y = y0 + 110;
+        const parts = D.prefabs[k].slice().sort((a, b) => (a.o || 0) - (b.o || 0));
+        for (const p of parts) {
+          let f = p.f;
+          if (p.a) { const st = Object.values(p.a)[0]; f = frameAt(st, t) || f; }
+          if (!f || /^(UISprite|texiao_01|light_01|portal_center|shadow\d)$/.test(f)) continue;
+          cx.globalAlpha = p.c ? p.c[3] : 1;
+          draw(f, x + p.at[0] * S, y - p.at[1] * S);
+          cx.globalAlpha = 1;
+        }
+        cross(x, y);
+      });
+      return;
+    }
+    if (r.tiles) { r.tiles.forEach((tp, j) => tp.layers.forEach(l => draw(l.f, 60 + j * 60 + l.at[0] * S, y0 + 120 - l.at[1] * S))); return; }
+    r.cells.forEach((c, j) => {
+      const x = 260 + j * CW, y = y0 + 120;
+      const f = frameAt(c.a, t); if (f) draw(f, x, y);
+      if (c.w && c.w.sprite && c.s !== 'dead') { const h = (c.e.hands || [[0, 0]])[0]; draw(c.w.sprite, x + (h[0] + c.w.at[0] - h[0]) * S, y - c.w.at[1] * S); }
+      cross(x, y); cx.fillStyle = '#8a93a6'; cx.fillText(c.s || c.a.split('/')[1], x - 20, y0 + 138);
+    });
+  });
+  requestAnimationFrame(loop);
+}
+Promise.all(pages.map(i => i.decode())).then(() => requestAnimationFrame(loop));
+</script></body></html>

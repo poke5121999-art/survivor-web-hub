@@ -681,5 +681,22 @@ window.HUB_GAMES = [
     // Kiểm: node test/pokeone-engine.js, pokeone-battle.js, pokeone-world.js, pokeone-shell.js, pokeone-social.js
     status: "available",
     tags: ["Pokémon", "Nhập vai", "Bắt Pokémon", "Đấu theo lượt", "2D", "Đi theo ô", "Chat", "Đánh boss", "Chợ trời"]
+  },
+  {
+    id: "soulknight",
+    title: "Hiệp Sĩ Linh Hồn",
+    tagline: "Soul Knight dựng lại trên web: bắn tự ngắm, phòng khoá cửa, quái ra theo đợt, rương vũ khí, cổng qua ải. Chế độ thường từ 1-1 tới 3-5 qua Rừng, Lâu Đài, Núi Lửa. Quái, hoạt ảnh, mẫu phòng và vật phẩm lấy thẳng từ dữ liệu Soul Knight 8.5.1.",
+    thumbnail: "assets/thumbnails/soulknight.png",
+    path: "games/soulknight/index.html",
+    rev: "20260929a",
+    // Plain canvas/JS, không engine. ART + CẤU HÌNH: bóc từ Soul Knight 8.5.1 (ChillyRoom) theo yêu cầu
+    // của chủ dự án ngày 2026-09-29, bằng games/soulknight/tools/build_sk.py (máu/tốc độ/AI/súng của quái,
+    // 711 hoạt ảnh gốc, 282 mẫu phòng kèm cấu hình đợt quái, rương/cửa/cổng/vật phẩm). Chỉ số vũ khí,
+    // nhân vật, trùm lấy từ wiki cộng đồng vì các bundle ấy không còn trên máy.
+    // Đây không phải tài sản của repo: muốn gỡ thì xoá games/soulknight/art và games/soulknight/data.
+    //
+    // Kiểm: node test/soulknight-smoke.js (cần server tĩnh ở cổng 8811 tại gốc repo)
+    status: "available",
+    tags: ["Roguelike", "Bắn súng", "Hầm ngục", "Pixel art", "Tự ngắm", "Soul Knight"]
   }
 ];
