@@ -92,7 +92,10 @@
 
   I.reset = function (opts) {
     opts = opts || {};
-    const n = C('CharacterInventorySlotCount', 23);
+    // opts.pack (sảnh): đặt nguyên từng món hồ sơ vào từng ô — qua I.add thì chồng vượt InventoryCountMax bị cắt mất khi ghi lại.
+    const n = Math.max(opts.slots || C('CharacterInventorySlotCount', 23), (opts.pack || []).length);
+    I.lounge = !!opts.lounge;
+    I.onClose = opts.onClose || null;
     I.slots = [];
     for (let i = 0; i < n; i++) I.slots.push({ bag: null, g: null });
     I.safe = new Array(C('SafeInventorySlotBaseCount', 1)).fill(null).map(() => ({ bag: 'Safe', g: null }));
@@ -105,6 +108,7 @@
     // opts.bags (Bag.Id) cũ: thành món Bag trong túi.
     for (const id of opts.bags || []) I.add({ type: 'Bag', id: +id, count: 1 }, { silent: true });
     for (const g of opts.goods || []) I.add(G.parse(g), { silent: true });
+    (opts.pack || []).forEach((g, i) => { I.slots[i].g = mkBag(G.parse(g)); });
     for (const g of opts.safe || []) { const s = I.safe.find(x => !x.g); if (s) s.g = mkBag(G.parse(g)); }
     changed();
   };
@@ -246,6 +250,7 @@
     const r = index().Item.get(+id);
     const p = VD.stage && VD.stage.player;
     if (!r || !p || p.dead) return false;
+    if (I.lounge) { toast(TX('CannotUseInLounge')); return false; }
     if (from === 'quick' && !r.CanUseFromQuickSlot) return false;
     if (from === 'inventory' && !r.CanUseFromInventory) { toast(TX('CannotUseInInventory')); return false; }
     if (!I.has('Item', id)) return false;
@@ -310,7 +315,7 @@
     const of = t => ids.filter(g => (G.row(g) || {}).GoodsType === t);
     const acc = of('Accessory'), art = of('Artifact');
     const pad = (a, n) => { const o = []; for (let i = 0; i < n; i++) o.push(a[i] || null); return o; };
-    return { weapon: [eqGoods(wid), null], active: 0, acc: pad(acc, C('CharacterAccessorySlotCount', 3)), art: pad(art, C('CharacterArtifactSlotCount', 2)) };
+    return { weapon: [eqGoods(wid), eqGoods(eq.subWeaponId)], active: 0, acc: pad(acc, C('CharacterAccessorySlotCount', 3)), art: pad(art, C('CharacterArtifactSlotCount', 2)) };
   }
   // Ô trang bị k của bảng: 0 = vũ khí đang cầm, 1–3 phụ kiện, 4–5 cổ vật, 6 = vũ khí phụ (SubWeapon_).
   function gearSlot(k) {
@@ -468,19 +473,21 @@
   // ================================================================ lục rương (LootingInventory)
   // Rương giữ kho 30 ô trên thực thể (source.lootInv) nên đóng/mở lại vẫn còn trạng thái hé lộ.
   // Mỗi ô: { g, rev: 0 chưa hé lộ | 1 đang hé lộ | 2 đã hé lộ, t, dur }.
-  function mkLoot(items) {
+  function mkLoot(items, n, shown) {
     const slots = [];
-    for (let i = 0; i < Math.max(LOOT_SLOTS, (items || []).length); i++) {
+    for (let i = 0; i < Math.max(n || LOOT_SLOTS, (items || []).length); i++) {
       const g = items && items[i] ? mkBag(G.parse(items[i])) : null;
-      slots.push({ g, rev: g ? 0 : 2, t: 0, dur: 0 });
+      slots.push({ g, rev: g && !shown ? 0 : 2, t: 0, dur: 0 });
     }
     return { slots };
   }
   // loot = { title, items:[goods], source } → mở trang Túi đồ kèm cột "Kết quả Tìm kiếm".
+  // loot.stash (sảnh): cột phải là kho — bố cục InventoryStash gốc (MenuPopup IsInLounge), loot.slots ô, hiện sẵn, không lục.
   I.openLoot = function (loot) {
     const src = loot.source;
-    const inv = src ? (src.lootInv || (src.lootInv = mkLoot(loot.items))) : mkLoot(loot.items);
-    inv.title = loot.title; inv.source = src || null; inv.onTake = loot.onTake || null; inv.search = loot.search !== false;
+    const inv = src ? (src.lootInv || (src.lootInv = mkLoot(loot.items))) : mkLoot(loot.items, loot.slots, loot.stash);
+    inv.title = loot.title; inv.source = src || null; inv.onTake = loot.onTake || null; inv.search = !loot.stash && loot.search !== false;
+    inv.stash = !!loot.stash;
     // items: hàng còn trong rương (đọc được từ bài kiểm và mã cũ).
     if (!Object.getOwnPropertyDescriptor(inv, 'items')) Object.defineProperty(inv, 'items', { get() { return inv.slots.filter(s => s.g).map(s => s.g); } });
     I.loot = inv;
@@ -609,9 +616,12 @@
   };
   // Vứt xuống đất (RMB). Chữ gốc: phải = "Vứt bỏ tất cả", Ctrl + phải = 1, Shift + phải = nửa. Rương: CannotDropInLootInventory.
   I.discard = function (a, k, mod) {
-    if (a === 'loot') { toast(TX('CannotDropInLootInventory')); return; }
+    // OnDropGoods gốc theo SlotCategory: Looting → CannotDropInLootInventory, Warehouse (kho) → CannotDropWarehouseItem.
+    if (a === 'loot') { toast(TX(I.loot && I.loot.stash ? 'CannotDropWarehouseItem' : 'CannotDropInLootInventory')); return; }
     const s = slotAt(a, k);
     if (!s || !s.g) return;
+    // Sảnh web không có hàng rơi dưới sàn (DropInventoryGoods gốc) nên vứt ở đây sẽ mất đồ: không cho vứt. [CHƯA RÕ]
+    if (I.lounge) { sfx('Fail'); return; }
     const n = amount(s.g, mod);
     const g = Object.assign({}, s.g, { count: n });
     if (s.g === I.bagOpen) I.bagOpen = null;
@@ -762,7 +772,7 @@
       root, page: q('.vd-inv-page'), tabs: q('.vd-inv-tabs'), invPage: q('.mp-inventory'), my: q('.vd-inv-my'), inv: q('.grid.inv'), safe: q('.grid.safe'), equip: q('.equip'),
       cnt: q('.vd-inv-my .head .cnt'), dots: q('.pager .dots'), pager: q('.pager'), corr: q('.corr'), cur: q('.vd-inv-cur'),
       quickBox: q('.vd-inv-center .quick'), quick: q('.quick .row'), bag: q('.vd-inv-bag'), bagRow: q('.vd-inv-bag .row'),
-      lootSec: q('.vd-inv-loot'), loot: q('.grid.loot'), lootCnt: q('.vd-inv-loot .cnt'),
+      lootSec: q('.vd-inv-loot'), loot: q('.grid.loot'), lootCnt: q('.vd-inv-loot .cnt'), lootTitle: q('.vd-inv-loot .head b'),
       tip: q('.vd-inv-tip'), drag: q('.vd-inv-drag'), guide: q('.guide'),
     };
     const pageSize = () => C('InventoryPageSlotCount', 24);
@@ -1077,8 +1087,12 @@
     u.cur.querySelector('.gold b').textContent = fmt(w.gold || 0);
     u.lootSec.style.display = I.loot ? '' : 'none';
     u.root.classList.toggle('looting', !!I.loot);
+    u.lootSec.classList.toggle('stash', !!(I.loot && I.loot.stash));
     if (I.loot) {
       const L = I.loot.slots;
+      u.lootTitle.textContent = I.loot.stash ? I.loot.title : TX('LootingInventory');
+      while (u.loot.children.length < L.length) slotEl(u.loot, 'loot', u.loot.children.length);
+      while (u.loot.children.length > L.length) u.loot.lastChild.remove();
       [...u.loot.children].forEach((el, i) => paintSlot(el, L[i] || null));
       u.lootCnt.innerHTML = `${L.filter(s => s.g).length}<em>/${L.length}</em>`;
     }
@@ -1111,6 +1125,7 @@
     if (!I.open) {
       endLooting();
       endDrag(null); D.down = null;
+      if (was && I.onClose) I.onClose();
       I.loot = null; I.hover = null; I.sel = null; I.bagOpen = null; I.hold = null; I.hideTip();
       if (VD.menu && was) VD.menu.onClose();
       // battle/search chỉ giữ khi đang lục rương (PlayAnimationByActionState gốc).

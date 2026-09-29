@@ -121,6 +121,43 @@
   }
   L.combatHud = combatHud;
 
+  // Tab ở sảnh: sảnh gốc cũng là InGameScene nên OnInventoryClick mở MenuPopup trang Túi đồ, bố cục
+  // IsInLounge ? InventoryStash : InventoryOnly — túi, khe an toàn, trang bị bên trái, kho bên phải. [ĐO — tools/ui_inventory_il2cpp.py]
+  // inventory.js nạp bản sao hồ sơ khi mở, đóng bảng thì ghi ngược pack/safe/quick/stash/equip của nhân vật đang chọn.
+  function openInventory() {
+    const I = VD.inventory, p = P().get(), id = p.character;
+    const copy = a => (a || []).map(g => JSON.parse(JSON.stringify(g)));
+    const eq = VD.app.equipOf(id), sub = ((p.equip || {})[id] || {}).sub || 0;
+    I.reset({
+      pack: copy(p.pack), safe: copy(p.safe), quick: p.quick, lounge: true,
+      slots: C('CharacterInventorySlotCount', 23) + P().talentSum('InventorySlotCount'),
+      equip: { weaponId: eq.weaponId, equipmentIds: eq.equipmentIds, subWeaponId: sub },
+      onClose: () => {
+        const goods = slots => slots.filter(s => s.g).map(s => s.g);
+        p.pack = goods(I.slots); p.safe = goods(I.safe); p.quick = I.quick.slice();
+        if (I.loot && I.loot.stash) p.stash = goods(I.loot.slots);
+        const gi = I.gearIds();
+        p.equip = p.equip || {};
+        p.equip[id] = Object.assign({}, p.equip[id], { weapon: gi.weapon, sub: gi.sub, acc: gi.acc, art: gi.art });
+        P().save();
+        paintQuick();
+        L.markDirty();
+      },
+    });
+    I.openLoot({ stash: true, title: TX('Stash') || 'Kho chứa', items: copy(p.stash), slots: P().stashSlots() });
+  }
+  const panelOpen = () => (VD.dialog && VD.dialog.open) || (VD.npc && VD.npc.isOpen()) || (VD.ui && VD.ui.isOpen()) || (VD.inventory && VD.inventory.open);
+  addEventListener('keydown', e => {
+    if (L.state !== 'play') return;
+    const I = VD.inventory;
+    if (e.code === 'Tab') {
+      e.preventDefault();
+      if (e.repeat) return;
+      if (I.open) I.toggle(false);
+      else if (!panelOpen() && VD.input.enabled !== false) openInventory();
+    } else if (I.open && e.code === 'Escape') { e.preventDefault(); if (!I.escape()) I.toggle(false); }
+  });
+
   // ================================================================ vào / rời sảnh
   L.enter = async function (opts) {
     opts = opts || {};
@@ -188,6 +225,7 @@
     L.state = 'idle';
     if (VD.npc && VD.npc.close) VD.npc.close();
     if (VD.ui && VD.ui.closeAll) VD.ui.closeAll();
+    if (VD.inventory.open) VD.inventory.toggle(false);
     for (const n of L.npcs.values()) removeNpc(n);
     L.npcs.clear();
     for (const a of L.arrows.values()) a.el.remove();
@@ -479,7 +517,7 @@
     S.update(dt);
     flushLua();
     if (VD.lua.state) VD.lua.tick();
-    const busy = (VD.dialog && VD.dialog.open) || (VD.npc && VD.npc.isOpen()) || (VD.ui && VD.ui.isOpen());
+    const busy = panelOpen();
     // Gần nhất trong tầm: NPC hoặc bốt.
     const pl = S.player;
     let best = null, bd = REACH;
@@ -561,7 +599,7 @@
     // Dải dẫn đường dưới sàn (GroundNavigation gốc, js/groundnav.js) tới đích "việc kế tiếp"; tắt khi đã đứng cạnh hoặc đang mở bảng.
     if (VD.groundNav) {
       const tgt = nx.npc === 'booth' ? L.boothPos : (L.npcs.get(nx.npc) || {}).pos;
-      const busy = (VD.dialog && VD.dialog.open) || (VD.npc && VD.npc.isOpen()) || (VD.ui && VD.ui.isOpen());
+      const busy = panelOpen();
       const show = pl && tgt && !busy && Math.hypot(tgt.x - pl.pos.x, tgt.z - pl.pos.z) > REACH + 0.4;
       VD.groundNav.update(VD.render.scene, show ? pl.pos : null, show ? tgt : null, dt);
     }

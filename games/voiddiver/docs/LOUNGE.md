@@ -264,6 +264,19 @@ Mã: `js/ui/character.js`, kiểu ở `css/lounge.css`. Cây prefab đo bằng `
 - [ĐO] `EquipmentActiveSkillId` = skill Active trong `EquipmentEffect.SkillIds` của trang bị đang mặc (vd phụ kiện 26011 → 30010000 "Chữa lành I"). `VD.app.equipSkillId` tính giá trị này. Bản web chưa dùng được skill ô C khi đánh (`Skill.slotSkill` chưa có ô này).
 - [CHƯA RÕ] Loadout mặc định của nhân vật mới do server gốc cấp. Bản web lấy `stage.defaultLoadout`: RMB = ActiveSkillIds[0], Q = [1]. Hai ô này khớp ảnh sảnh (Noah: khiên, đá nổ) và ảnh bảng nhân vật (Gayoung: Xung Phong, Bùa Trấn Áp). Ô E/R ẩn giữ skill mặc định cho tới khi mở ô.
 
+### 6.3. Túi đồ ở sảnh (Tab) (2026-09-29)
+
+- [ĐO] Sảnh gốc cũng là `InGameScene`. `OnInventoryClick` (Tab / Start) mở MenuPopup ở trang Túi đồ với bố cục `IsInLounge ? InventoryStash : InventoryOnly` (`python tools/ui_inventory_il2cpp.py`, mục [3]).
+- Bản web dùng lại trang Túi đồ của `inventory.js`. `lounge.js openInventory`:
+  - `inventory.reset({ pack, safe, quick, equip, lounge: true })` nạp **bản sao** hồ sơ. Túi có `CharacterInventorySlotCount` + Talent `InventorySlotCount` ô.
+  - Cột phải là kho: `openLoot({ stash: true })`, `StashSlotCount` + Talent ô, hiện sẵn, không lục. Khung 5 hàng cuộn dọc. [ĐỀ XUẤT — prefab kho chưa đo]
+  - Đóng bảng (Tab / Esc / X / rời sảnh) gọi `inventory.onClose`, ghi ngược `pack`, `safe`, `quick`, `stash` và `equip[nhân vật]`. Đổi trang bị thì `refreshLoungePlayer` sinh lại người chơi.
+- [ĐO] `InventoryManagementPagePresenter.OnDropGoods` rẽ theo `SlotCategory`: túi → `DropInventoryGoods`, khe an toàn → `DropSafeGoods`, rương → `CannotDropInLootInventory`, kho → `CannotDropWarehouseItem`.
+- Ở sảnh bản web chặn vứt đồ từ túi (chỉ phát `Fail`), vì sảnh chưa có hàng rơi dưới sàn nên vứt là mất. [CHƯA RÕ bản gốc có rơi xuống sàn sảnh không]
+- Dùng đồ trong túi ở sảnh báo `CannotUseInLounge` ("Vật phẩm này không thể sử dụng trong sảnh."). Chữ này có trong bảng gốc. [SUY LUẬN là chỗ dùng]
+- Tay cầm (Start) ở sảnh chưa mở túi: `inventory.step` chỉ chạy trong lượt lặn.
+- Kiểm: `node test/voiddiver-lounge.js --only=lobbybag` (Tab thật, bấm ô kho thật, đếm tổng món trước và sau).
+
 ## 7. Chưa làm và dữ liệu thiếu
 
 - **Tycoon / TycoonSalesSlot / Employee:** chưa làm. `VD.T` không có các bảng Employee, EmployeeLevel, EmployeeSkill, TycoonSalesSlot, AreaDecoration và FeatureUnlock. Menu hiện các chức năng này dạng mờ.
@@ -274,7 +287,6 @@ Mã: `js/ui/character.js`, kiểu ở `css/lounge.css`. Cây prefab đo bằng `
   - dive.js chưa gán tiền tố cổ vật, nên deal.js tự gán.
   - `SetLoungeQuestState` trong dive.js gửi id thay cho trạng thái.
   - `D.start` bị ghi đè; app.js đã né lỗi này.
-- **Trang bị:** chưa có giao diện mặc trang bị ở sảnh. Trang gốc là MenuPopup → InventoryManagementPage (kho + túi + ô trang bị), do `inventory.js` lo. Nhân vật ở sảnh đã tự nhận đồ khi `profile.equip` đổi (§1.1).
 - **CharacterSettingPopup:** chưa có khu đổi skin (tên skin, xem trước Spine, chấm phân trang, `CharacterSkin` / `CharacterSkinPreset`).
 - **Tiếng giao diện:** `select` / `select2` / `TalentOpen` của SkillSelectPopup chưa bóc.
 
@@ -284,6 +296,11 @@ Mã: `js/ui/character.js`, kiểu ở `css/lounge.css`. Cây prefab đo bằng `
 - **Chữ `\n` trong văn bản gốc:** nhiều chuỗi chứa `\n` dạng hai ký tự. `L.text` đổi chúng thành xuống dòng.
 - **Xuống dòng CRLF:** `js/dialog.js` dùng CRLF, nên thay chuỗi kiểu LF sẽ không khớp.
 - **Viết regex qua heredoc:** dấu `\` bị mất. Hãy sửa bằng công cụ Edit.
+- **Tab ở sảnh không làm gì (tới 2026-09-29):** phím Tab chỉ được nghe trong `dive.js` (điều kiện `D.state === 'play'`), nên sảnh không có ai mở túi.
+- **Nạp túi hồ sơ qua `inventory.add` là mất đồ:** `add` cắt tổng một loại Item theo `InventoryCountMax` và từ chối túi phụ cùng loại. `pack` của hồ sơ (do `goods.js` xếp) được phép vượt trần. Sảnh dùng `reset({ pack })`, đặt nguyên từng món vào từng ô.
+- **Chạy bài kiểm trên mã cũ để thấy nó hỏng:** dựng worktree sparse ngoài repo, rồi chép bài kiểm mới vào đó.
+  - Lệnh: `git worktree add --no-checkout <dir> HEAD`, rồi `MSYS_NO_PATHCONV=1 git sparse-checkout set --no-cone '/games/voiddiver/' '/test/'`.
+  - Thiếu `MSYS_NO_PATHCONV` thì Git Bash đổi `/games/...` thành `C:/Program Files/Git/games/...`, và worktree rỗng.
 - **Test sau `PingToNpc`:** script đổi step sau một khoảng trễ. Bài kiểm phải chờ `step == 2`, không kiểm ngay.
 - **Hàng trăm món đồ rải khắp sàn sảnh (2026-09-28):** đó là tấm thảm (`Mtl_2DBG_BaseCamp01_Prop_1_Decal`) vẽ nhầm vùng atlas.
   - gltfpack lượng tử UV theo từng material và ghi `KHR_texture_transform` riêng. `Prop_1`, `Prop_1_Decal`, `Plant_Potted`, `Plant_InBox` dùng chung ảnh `Img_25D_BG_Basecamp01_Prop_1` nhưng khác offset/scale.

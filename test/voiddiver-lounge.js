@@ -11,6 +11,7 @@
  *   2. 844×390: tiêu đề, sảnh, menu NPC, bảng Campaign/Talent/Kho đọc được, không tràn.
  *   3. (--only=lobbyplay) HUD người chơi ở sảnh; Felix → SkillSelectPopup bằng chuột thật (ô khoá, tháo skill trùng, lưu khi đóng);
  *      RMB/Q thật ở sảnh (không tốn thể lực/căng thẳng); phòng tập 9003: bù nhìn nhận sát thương; đổi trang bị áp ngay, ô C.
+ *   4. (--only=lobbybag) Tab thật ở sảnh mở trang Túi đồ + cột Kho; bấm ô kho sang túi; Tab/Esc đóng, hồ sơ ghi lại đủ món.
  *   Hỏng nếu: pageerror, console error, response ≥ 400. Ảnh ở %TEMP%/voiddiver-lounge-shots/ — mở ra xem.
  */
 'use strict';
@@ -548,6 +549,67 @@ async function lobbyplay(browser, port, errors) {
 }
 const VD_TX_SKILL = 'Chọn kỹ năng';
 
+async function lobbybag(browser, port, errors) {
+  console.log('\n== sảnh: Tab mở túi đồ + kho');
+  const page = await newPage(browser, 1280, 720, errors);
+  const url = `${process.env.VD_BASE || ('http://127.0.0.1:' + port)}/games/voiddiver/index.html`;
+  await page.goto(url);
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  await waitFor(page, () => document.body.dataset.ready === 'title', null, 60000);
+  const seed = await page.evaluate(() => {
+    const P = VD.profile; P.reset(); const p = P.get(); p.clears = { 1100: 1, 1101: 1 }; p.isTutorial = false; p.userLevel = 2;
+    for (const q of VD.T.LoungeQuest) p.loungeQuest[q.Id] = 4;
+    const it = VD.T.Item.find(r => r.InventoryCountMax >= 2 && r.InventoryCountMax <= 20);
+    const acc = VD.T.Equipment.find(r => r.GoodsType === 'Accessory');
+    p.pack = [{ type: 'Item', id: it.Id, count: it.InventoryCountMax }, { type: 'Item', id: it.Id, count: 1 }];
+    p.stash = [{ type: 'Equipment', id: acc.Id, count: 1 }, { type: 'Item', id: 10001, count: 5 }];
+    P.save();
+    return { item: it.Id, max: it.InventoryCountMax, acc: acc.Id };
+  });
+  const total = () => page.evaluate(() => { const p = VD.profile.get(); return p.pack.concat(p.stash).reduce((a, g) => a + (g.count || 1), 0); });
+  const before = await total();
+  await page.goto(url + '?lounge=1');
+  check('sảnh ?lounge=1', await waitFor(page, () => document.body.dataset.lounge === 'play' && VD.stage.pending === 0, null, 240000));
+  await sleep(1200);
+  await page.keyboard.press('Tab');
+  await sleep(400);
+  const open = await page.evaluate(() => {
+    const sec = document.querySelector('.vd-inv-loot');
+    if (!sec) return { open: !!VD.inventory.open, built: false };
+    return { open: !!VD.inventory.open, on: document.querySelector('.vd-inv').classList.contains('on'), stash: sec.classList.contains('stash'),
+      vis: getComputedStyle(sec).display !== 'none', title: sec.querySelector('.head b').textContent, cells: sec.querySelectorAll('.grid.loot .vs').length,
+      inv: VD.inventory.slots.filter(s => s.g).map(s => s.g.count).join('+') };
+  });
+  check('Tab thật ở sảnh mở trang Túi đồ', open.open && open.on, JSON.stringify(open));
+  check('cột phải là Kho chứa, đủ StashSlotCount ô', open.stash && open.vis && open.title === 'Kho chứa' && open.cells === 60, JSON.stringify(open));
+  check('túi nạp nguyên chồng vượt InventoryCountMax (không cắt)', open.inv === seed.max + '+1', open.inv);
+  await shot(page, 'b01-lobby-bag');
+  if (!open.open) return page;
+  const box = await page.evaluate(() => { const r = document.querySelector('.grid.loot .vs').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
+  await page.mouse.click(box.x, box.y);
+  await sleep(300);
+  const moved = await page.evaluate(acc => VD.inventory.slots.some(s => s.g && s.g.type === 'Equipment' && +s.g.id === acc), seed.acc);
+  check('bấm ô kho chuyển món sang túi', moved);
+  for (const k of ['KeyE', 'KeyE', 'KeyQ', 'KeyQ']) { await page.keyboard.press(k); await sleep(150); }
+  await page.keyboard.press('KeyF');
+  await sleep(200);
+  check('F trong túi không mở hội thoại NPC', await page.evaluate(() => !(VD.dialog && VD.dialog.open) && !VD.npc.isOpen() && VD.inventory.open));
+  await page.keyboard.press('Tab');
+  await sleep(300);
+  const shut = await page.evaluate(acc => { const p = VD.profile.get(); return { open: !!VD.inventory.open, input: VD.input.enabled,
+    packAcc: p.pack.some(g => g.type === 'Equipment' && +g.id === acc), stashAcc: p.stash.some(g => g.type === 'Equipment' && +g.id === acc) }; }, seed.acc);
+  check('Tab lần nữa đóng, nhận lại điều khiển', !shut.open && shut.input === true, JSON.stringify(shut));
+  check('đóng bảng ghi hồ sơ: món đã sang túi, rời kho', shut.packAcc && !shut.stashAcc, JSON.stringify(shut));
+  check('tổng số món không đổi', (await total()) === before, before + ' → ' + (await total()));
+  await page.keyboard.press('Tab');
+  await sleep(300);
+  await page.keyboard.press('Escape');
+  await sleep(300);
+  check('Esc đóng túi ở sảnh', await page.evaluate(() => !VD.inventory.open));
+  return page;
+}
+
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
   const srv = await serve();
@@ -560,6 +622,7 @@ const VD_TX_SKILL = 'Chọn kỹ năng';
     if (!OPT.only || OPT.only === 'flow') await run(flow);
     if (!OPT.only || OPT.only === 'mobile') await run(mobile);
     if (!OPT.only || OPT.only === 'lobbyplay') await run(lobbyplay);
+    if (!OPT.only || OPT.only === 'lobbybag') await run(lobbybag);
   } catch (e) { check('không ném lỗi', false, e.stack); }
   const uniq = [...new Set(errors)];
   check('không pageerror / console error / HTTP ≥ 400', uniq.length === 0, uniq.slice(0, 12).join('\n      '));

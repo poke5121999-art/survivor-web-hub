@@ -186,6 +186,8 @@
 .vd-inv-loot .head { top: 0; }
 .vd-inv-loot .line { position: absolute; left: 0; top: 86px; width: 530px; height: 2px; background: #535353; }
 .vd-inv-loot .grid.loot { top: 104px; }
+/* Kho ở sảnh (StashSlotCount 60): khung 5 hàng như rương, cuộn dọc [ĐỀ XUẤT — prefab kho chưa đo] */
+.vd-inv-loot.stash .grid.loot { max-height: 440px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
 
 /* ô hàng (InventoryGoodsSlot 80×80; ô thưởng 60, ô trang bị trang Nhân vật 90) */
 .vs { position: relative; width: 80px; height: 80px; box-sizing: border-box; background: rgba(39,39,39,.3); box-shadow: inset 0 0 0 2px #434343; cursor: pointer; touch-action: none; }
