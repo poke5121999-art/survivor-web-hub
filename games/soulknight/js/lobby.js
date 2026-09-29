@@ -306,7 +306,9 @@
   const MODES = [
     { id: 'level', name: 'Chế độ màn chơi', img: 'mode_level.png', ok: true,
       desc: 'Ba tầng Rừng Rậm → Lâu Đài → Núi Lửa, mỗi tầng 5 màn, trùm ở màn cuối. Chơi một mình.' },
-    { id: 'season', name: 'Chế độ mùa giải', img: 'mode_season.png', isNew: true, desc: 'Sắp ra mắt — giai đoạn sau sẽ làm chế độ này.' },
+    { id: 'season', name: 'Chế độ mùa giải', img: 'mode_season.png', isNew: true, ok: true,
+      desc: 'Thoát khỏi Monkia: căn cứ giữa rừng thông, qua cổng xoáy ra Ngoại ô căn cứ, đánh khỉ, mở thùng, về điểm rút lui mang đồ về.',
+      start: () => SK.SEASON && SK.SEASON.start && SK.SEASON.start(SK.profile.selected || 'knight') },
     { id: 'warfront', name: 'Tiền tuyến cổ đại', img: 'mode_warfront.png', desc: 'Sắp ra mắt.' }
   ];
   let modeSel = 'level';
@@ -323,7 +325,7 @@
     const go = $('hs-mode-go');
     go.disabled = !m.ok;
     go.textContent = m.ok ? 'Bắt đầu' : 'Sắp ra mắt';
-    go.onclick = () => { if (m.ok) $('hs-modes').hidden = true; };
+    go.onclick = () => { if (m.ok) { $('hs-modes').hidden = true; if (m.start) m.start(); } };
     const f = heroFrame0(P.selected);
     if (f) drawFit($('hs-mode-face'), f, { feet: true });
     $('hs-modes').hidden = false;

@@ -181,8 +181,12 @@
   G.onPlayerDead = function () { G.shake = 5; };
 
   // ---------------------------------------------------------------- cập nhật
+  // Chế độ chơi khác (Season Mode...) đăng ký SK.MODES[tên] = {step(dt), render(ctx)} và đặt G.state = tên.
+  SK.MODES = SK.MODES || {};
+
   function step(dt) {
     G.t += dt;
+    if (SK.MODES[G.state]) { SK.MODES[G.state].step(dt); return; }
     if (G.state === 'lobby') { SK.lobby.update(dt); return; }
     if (G.state !== 'stage' && G.state !== 'dead') return;
     G.phaseT += dt;
@@ -243,6 +247,7 @@
     const ctx = SK.ctx, v = SK.view;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.imageSmoothingEnabled = false;
+    if (SK.MODES[G.state]) { SK.MODES[G.state].render(ctx); return; }
     if (G.state === 'lobby') { SK.lobby.render(ctx); SK.hud.render(G); return; }
     if (!G.map) return;
     const [tx, ty] = camTarget();

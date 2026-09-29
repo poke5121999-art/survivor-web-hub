@@ -49,7 +49,17 @@ nút kỹ năng có hồi chiêu.
 2. [x] Wiki: `tools/wiki_pull.py` → `tools/wiki/*.json`; `tools/build_design.py` → `data/sk-wiki.js`.
 3. [x] Runtime (rev 20260929b): lõi, sảnh + mua giả, 13 kỹ năng, 268 vũ khí, 5 trùm, lái buôn/tượng/buff, tiếng.
 4. [x] Lên hub, đẩy, bộ kiểm chạy trên Pages: smoke 16, lobby 19, bosses 46 (2026-09-29).
-5. [ ] Season Mode ("Escape from Monkia"): nghiên cứu ở `games/soulknight/tools/season/RESEARCH.md`.
+5. [x] Season Mode ("Escape from Monkia"), rev 20260929c: căn cứ + Ngoại ô căn cứ (Scene1), vòng
+   căn cứ → cổng → đánh khỉ, mở thùng → sơ tán 5 giây → về kho. Nghiên cứu ở `tools/season/RESEARCH.md`,
+   thế giới ở `tools/season/README.md` (lever `build_season.py`), đồ ở `build_items.py` (108 món).
+   Mã ở `js/season/` (world, inventory, ui, quests, season). Tạm dừng chỉ có một bảng, trên canvas (ui.js).
+
+## Còn hở (mùa giải)
+
+- Chỉ có vùng Ngoại ô căn cứ; Tide Zone, Volcanic, Volcano Core, Research Lab còn khoá.
+- Khu huấn luyện và Bàn thiết kế chưa làm; nâng kho làm tạm ở Nhà kho.
+- Chỉ 3 nhiệm vụ chạy (First Foray, Learn to Heal, Warehouse Expansion).
+- Luật chết, vị trí/thời gian sơ tán và trọng số rơi đồ là [ĐOÁN]/[ƯỚC LƯỢNG], wiki không ghi.
 
 ## Còn hở (chế độ thường)
 
@@ -61,5 +71,5 @@ nút kỹ năng có hồi chiêu.
 
 ## Bộ kiểm
 
-`node test/soulknight-<smoke|weapons|skills|bosses|rooms|lobby|sfx>.js`, cần `python -m http.server 8811`
+`node test/soulknight-<smoke|weapons|skills|bosses|rooms|lobby|sfx|season-world|season-ui>.js`, cần `python -m http.server 8811`
 ở gốc repo; đặt `SK_URL=<url Pages>` để chạy trên bản thật.

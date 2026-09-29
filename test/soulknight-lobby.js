@@ -142,7 +142,7 @@ async function desktop(b) {
   await p.click('.hs-mode[data-mode="level"]');
   await p.click('#hs-mode-go');
   const back = await p.evaluate(() => document.getElementById('hs-modes').hidden);
-  check('chọn chế độ: Màn chơi → về chọn nhân vật; Mùa giải "Sắp ra mắt"', md.open && md.n >= 2 && season.dis && /Sắp ra mắt/.test(season.txt) && back,
+  check('chọn chế độ: Màn chơi → về chọn nhân vật; Mùa giải bấm được "Bắt đầu"', md.open && md.n >= 2 && !season.dis && season.txt === 'Bắt đầu' && back,
     JSON.stringify({ md, season }));
 
   // ---- nạp lại trang → hồ sơ còn nguyên
