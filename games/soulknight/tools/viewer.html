@@ -12,7 +12,7 @@ canvas{display:block;image-rendering:pixelated}
 const A = window.SK_ATLAS, D = window.SK_DATA, S = 3;
 const pages = A.pages.map(p => { const i = new Image(); i.src = '../' + p; return i; });
 const sel = document.getElementById('sel');
-const groups = ['heroes', 'prefabs'].concat(Object.keys(D.themes));
+const groups = ['heroes', 'prefabs', 'png', 'clips'].concat(Object.keys(D.themes));
 for (const g of groups) { const o = document.createElement('option'); o.textContent = g; sel.appendChild(o); }
 const q = new URLSearchParams(location.search).get('g');
 if (q) sel.value = q;
@@ -35,6 +35,13 @@ function rows() {
   if (g === 'prefabs') {
     const ks = Object.keys(D.prefabs).filter(k => !k.startsWith('npc_char'));
     for (let i = 0; i < ks.length; i += 6) out.push({ label: ks.slice(i, i + 6).join('  |  '), prefabs: ks.slice(i, i + 6) });
+  } else if (g === 'png' || g === 'clips') {
+    // extra.png / extra.clips của tools/extra/*.json: 6 hoạt ảnh một hàng
+    const ks = Object.entries((D.extra || {})[g] || {});
+    for (let i = 0; i < ks.length; i += 6) {
+      const row = ks.slice(i, i + 6);
+      out.push({ label: row.map(([k]) => k).join('  |  '), cells: row.map(([k, a]) => ({ a, s: k.slice(0, 18) })) });
+    }
   } else if (g === 'heroes') {
     for (const [k, h] of Object.entries(D.heroes)) { const s = h.s0; out.push({ label: k, cells: [s.idle, s.run, s.dead].map(a => ({ a })) }); }
   } else {

@@ -3,14 +3,16 @@
 
     PYTHONIOENCODING=utf-8 python games/soulknight/tools/build_sk.py
 
-Đọc 25 bundle ở ~/Downloads/sk-ref/_ab (ngoài git) và kho PNG đã bóc ở ~/Downloads/sk-ref/all
-(cho nhân vật, vì bundle skin không còn). Không sửa tay tệp sinh ra.
+Đọc bản cài đủ 8.6.0 ở D:\\sk86-ref\\UnityDataAssetPack\\assets\\AssetBundles (ngoài git, 2375 bundle,
+nạp lười qua chỉ mục CAB của skrip.Rip). Kho PNG cũ 8.5.1 ở ~/Downloads/sk-ref/all chỉ còn là đường lùi
+cho `png_anims` mà bundle 8.6 không có. Không sửa tay tệp sinh ra.
 """
 import io
 import json
 import os
 import re
 import sys
+import time
 
 from PIL import Image
 
@@ -20,25 +22,31 @@ from skrip import Rip  # noqa: E402
 from pack import Packer  # noqa: E402
 
 GAME = os.path.dirname(HERE)
-ART = os.path.join(GAME, 'art', 'sk')
-DATA = os.path.join(GAME, 'data')
+# --out DIR: ghi DIR/art/sk + DIR/data thay vì vào game (thử lever mà không đè bản các agent khác đang chạy)
+OUT = sys.argv[sys.argv.index('--out') + 1] if '--out' in sys.argv else GAME
+ART = os.path.join(OUT, 'art', 'sk')
+DATA = os.path.join(OUT, 'data')
 ALL = os.path.expanduser('~/Downloads/sk-ref/all')
 PPU = 16.0
 
 THEMES = {
-    'level__1__a.ab': ('forest', 1), 'level__1__b.ab': ('glacier', 1), 'level__1__c.ab': ('ruins', 1),
-    'level__2__a.ab': ('castle', 2), 'level__2__b.ab': ('graveyard', 2), 'level__2__c.ab': ('halloween', 2),
-    'level__2__d.ab': ('icecave', 2), 'level__2__e.ab': ('swamp', 2), 'level__2__f.ab': ('relic', 2),
-    'level__2__g.ab': ('machinery', 2),
-    'level__3__a.ab': ('aliens', 3), 'level__3__b.ab': ('volcano', 3), 'level__3__c.ab': ('island', 3),
+    'level/1/a.ab': ('forest', 1), 'level/1/b.ab': ('glacier', 1), 'level/1/c.ab': ('ruins', 1),
+    'level/2/a.ab': ('castle', 2), 'level/2/b.ab': ('graveyard', 2), 'level/2/c.ab': ('halloween', 2),
+    'level/2/d.ab': ('icecave', 2), 'level/2/e.ab': ('swamp', 2), 'level/2/f.ab': ('relic', 2),
+    'level/2/g.ab': ('machinery', 2),
+    'level/3/a.ab': ('aliens', 3), 'level/3/b.ab': ('volcano', 3), 'level/3/c.ab': ('island', 3),
 }
+# Họ bundle nạp sẵn. Bundle khác (weapon, bullet, boss/*, ui, sound_effect...) nạp khi một con trỏ chỉ tới
+# hoặc khi tools/extra/*.json ghi tên trong "bundles".
+BASE_BUNDLES = ('common', 'levelcommon', 'levelobjects', 'level/*', 'multi_room', 'patternroom', 'scene_game',
+                'sprite_atlas')
 
 AI_PREFIX = ('EnemyAI', 'Enemy', 'EliteArcher', 'AIBrain', 'AIController', 'Boss')
 WEAPON_PREFIX = ('EGun', 'ESword', 'EWeapon', 'EBow', 'EStaff', 'EThrow', 'ELaser', 'EMelee', 'EHammer')
 SKIP_KEYS = {'m_GameObject', 'm_Script', 'm_Enabled', 'm_Name', 'serializationData', 'm_ObjectHideFlags',
              'm_CorrespondingSourceObject', 'm_PrefabInstance', 'm_PrefabAsset'}
 
-rip = Rip()
+rip = Rip(bundles=BASE_BUNDLES)
 packer = Packer()
 anims = {}
 log = []
@@ -76,22 +84,22 @@ def plain(v, cab=None, depth=0):
     return v
 
 
-def frame_of(cab, obj):
-    """Sprite obj -> tên khung trong atlas."""
+def frame_of(cab, obj, native=False):
+    """Sprite obj -> tên khung trong atlas. native: giữ điểm ảnh gốc, không quy về PPU 16 (sprite UI)."""
     s = rip.sprite(cab, obj)
     if not s:
         return None
     name, img, ax, ay, ppu = s
-    if abs(ppu - PPU) > 0.5 and ppu > 0:
+    if not native and abs(ppu - PPU) > 0.5 and ppu > 0:
         k = PPU / ppu
         img = img.resize((max(1, round(img.width * k)), max(1, round(img.height * k))), Image.NEAREST)
         ax, ay = ax * k, ay * k
     return packer.add(name, img, ax, ay)
 
 
-def sprite_ref(ptr, cab):
+def sprite_ref(ptr, cab, native=False):
     r = rip.resolve(ptr, cab)
-    return frame_of(*r) if r else None
+    return frame_of(*r, native=native) if r else None
 
 
 def anim_of(cab, clip_obj, key):
@@ -293,7 +301,7 @@ def extract_theme(cab, theme, level, roots):
                         if nd is None:
                             continue
                         th[dst].append(tile_prefab(nd))
-    for o in rip.files[cab].objects.values():
+    for o in list(rip.files[cab].objects.values()):
         if o.type.name == 'MonoBehaviour':
             t = rip.tree(cab, o)
             if rip.script_name(cab, t) == 'RoomElementLibrary' and t.get('m_Name') == th.get('libraryKey'):
@@ -398,9 +406,7 @@ HUD_KEEP = ('Canvas/control', 'Canvas/info_bar', 'Canvas/player_info', 'Canvas/m
 def extract_hud():
     """Cây RectTransform của Canvas trong màn chơi -> [{p, amin, amax, pos, size, piv, f?, c?, txt?}]"""
     out = []
-    for cab in rip.files:
-        if not rip.bundle_of[cab].startswith('scene_game'):
-            continue
+    for cab in rip.cabs('scene_game'):
         for r in rip.roots(cab):
             if r.name != 'Canvas':
                 continue
@@ -420,7 +426,7 @@ def extract_hud():
                     e['sc'] = [round(sc[0], 3), round(sc[1], 3)]
                 for cls, mcab, mt in nd.mbs():
                     if cls in ('Image', 'RawImage') and mt.get('m_Sprite'):
-                        f = sprite_ref(mt['m_Sprite'], mcab)
+                        f = sprite_ref(mt['m_Sprite'], mcab, native=True)
                         if f:
                             e['f'] = f
                             e['it'] = mt.get('m_Type', 0)
@@ -447,14 +453,28 @@ def extract_hud():
 PATTERN_DIR = os.path.expanduser('~/Downloads/sk-ref/tilemap/pattern')
 
 
+def pattern_sources():
+    """-> [(tên, dict JSON)]: TextAsset trong patternroom.ab (8.6); không có thì thư mục JSON cũ 8.5.1."""
+    out = []
+    for cab, o in rip.objects(['patternroom'], ('TextAsset',)):
+        d = o.read()
+        txt = d.m_Script
+        if isinstance(txt, bytes):
+            txt = txt.decode('utf-8', 'surrogateescape')
+        out.append((d.m_Name, json.loads(txt)))
+    if out:
+        return sorted(out, key=lambda x: x[0])
+    for fn in sorted(os.listdir(PATTERN_DIR)):
+        if fn.endswith('.json'):
+            out.append((fn[:-5], json.load(io.open(os.path.join(PATTERN_DIR, fn), encoding='utf-8'))))
+    return out
+
+
 def load_patterns():
     out = {}
-    for fn in sorted(os.listdir(PATTERN_DIR)):
-        if not fn.endswith('.json'):
-            continue
-        d = json.load(io.open(os.path.join(PATTERN_DIR, fn), encoding='utf-8'))
+    for name, d in pattern_sources():
         ec = d['enemyGenerateConfig'] or {}
-        out[fn[:-5]] = {
+        out[name] = {
             'w': d['patternSize']['x'], 'h': d['patternSize']['y'],
             'it': [[i['Id'], i['Position']['x'], i['Position']['y']] for i in (d['itemInfos'] or [])],
             'ep': [[p['Position']['x'], p['Position']['y']] for p in (d['enemyPoints'] or [])],
@@ -466,12 +486,84 @@ def load_patterns():
     return out
 
 
+# ---------------------------------------------------------------- sprite theo tên trong bundle
+_by_name = {}
+
+
+class SpriteNames(dict):
+    """{tên đúng: (cab, obj)}; get() thử tên đúng trước rồi mới tới tên viết thường (8.6 đổi hoa/thường vài tệp)."""
+
+    def __init__(self):
+        super().__init__()
+        self.low = {}
+
+    def get(self, nm, default=None):
+        hit = dict.get(self, nm)
+        return hit if hit is not None else self.low.get(nm.lower(), default)
+
+    def __contains__(self, nm):
+        return self.get(nm) is not None
+
+
+def bundle_sprites(rel):
+    """rel bundle -> SpriteNames của mọi Sprite trong bundle đó (nạp nếu chưa)."""
+    if rel not in _by_name:
+        m = SpriteNames()
+        for cab, o in rip.objects([rel], ('Sprite',)):
+            try:
+                nm = o.peek_name()
+            except Exception:
+                nm = rip.tree(cab, o)['m_Name']
+            m.setdefault(nm, (cab, o))
+            m.low.setdefault(nm.lower(), (cab, o))
+        _by_name[rel] = m
+    return _by_name[rel]
+
+
+def scaled_sprite(cab, o, native=False):
+    """rip.sprite() quy về PPU 16 -> (tên, ảnh, ax, ay) hoặc None. native: giữ điểm ảnh gốc (icon UI có PPU 32,
+    100...: thu về PPU 16 thì icon 32 px chỉ còn 16 px, mất nét)."""
+    s = rip.sprite(cab, o)
+    if not s:
+        return None
+    name, img, ax, ay, ppu = s
+    if not native and abs(ppu - PPU) > 0.5 and ppu > 0:
+        k = PPU / ppu
+        img = img.resize((max(1, round(img.width * k)), max(1, round(img.height * k))), Image.NEAREST)
+        ax, ay = ax * k, ay * k
+    return name, img, ax, ay
+
+
+def add_registered(items, anchor='bottom', register=True):
+    """items = [(tên, ảnh, pivot_x, pivot_y)] của một hoạt ảnh -> ([tên khung], (dx, dy)).
+
+    Giữ quy ước điểm neo cũ (khung 0: giữa-đáy hoặc tâm của ảnh đã cắt), còn các khung sau xếp theo pivot
+    Unity thật nên không phải dò độ lệch bằng mặt nạ nữa. (dx, dy) = vị trí pivot Unity so với điểm neo,
+    tính bằng px màn hình (y xuống)."""
+    if not items:
+        return [], (0.0, 0.0)
+    _, im0, px0, py0 = items[0]
+    ay0 = im0.height if anchor == 'bottom' else im0.height / 2.0
+    dx, dy = im0.width / 2.0 - px0, ay0 - py0
+    fr = []
+    for nm, im, px, py in items:
+        if register:
+            ax, ay = px + dx, py + dy
+        else:
+            ax, ay = im0.width / 2.0, (im.height if anchor == 'bottom' else im.height / 2.0)
+        fr.append(packer.add(nm, im, ax, ay))
+    return fr, (round(-dx, 2), round(-dy, 2))
+
+
+def png_path_bundle(dirpath):
+    """Thư mục kho PNG cũ ('boss/boss08', 'Skin/Character/Ranger/Skin_0'...) -> bundle 8.6 cùng tên, hoặc None."""
+    rel = dirpath.strip('/').lower() + '.ab'
+    return rel if rel in rip.index['bundles'] else None
+
+
 # ---------------------------------------------------------------- nhân vật
-HERO_DIRS = {}
-
-
 def hero_png(path, sprite_name):
-    """'Skin/Character/Knight/Skin_0/knight_0.png' + 'knight_0_3' -> ảnh trong kho all/"""
+    """'Skin/Character/Knight/Skin_0/knight_0.png' + 'knight_0_3' -> ảnh trong kho all/ (8.5.1, đường lùi)"""
     parts = path.split('/')
     d = os.path.join(ALL, *[p.lower() for p in parts[:-1]])
     f = os.path.join(d, sprite_name + '.png')
@@ -486,7 +578,7 @@ def hero_png(path, sprite_name):
 
 
 def register(ref, img):
-    """Dò độ lệch x của img so với khung chuẩn ref (IoU mặt nạ, giữ đáy). -> dx"""
+    """Dò độ lệch x của img so với khung chuẩn ref (IoU mặt nạ, giữ đáy). -> dx. Chỉ dùng cho PNG 8.5.1."""
     import numpy as np
     a = (np.array(ref)[:, :, 3] > 0)
     b = (np.array(img)[:, :, 3] > 0)
@@ -509,51 +601,142 @@ def register(ref, img):
     return bdx
 
 
+def add_png_frames(pngs, anchor='bottom', reg=True):
+    """Đường lùi 8.5.1: [(tên, ảnh PNG đã cắt)] -> [tên khung], neo dò bằng register()."""
+    ref = pngs[0][1]
+    fr = []
+    for nm, im in pngs:
+        dx = register(ref, im) if reg and len(pngs) > 1 else 0
+        ax = ref.width / 2.0 - dx
+        ay = im.height if anchor == 'bottom' else im.height / 2.0
+        fr.append(packer.add(nm, im, ax, ay))
+    return fr
+
+
 heroes = {}
+hero_src = {'bundle': 0, 'png': 0}
+
+
+def hero_clip_durations(rel, skin, kind, names):
+    """Thời lượng từng khung, đọc từ clip skin_<n>_<kind> của bundle skin nếu clip đúng dãy sprite đó."""
+    for cab, o in rip.objects([rel], ('AnimationClip',)):
+        if rip.tree(cab, o)['m_Name'] != 'skin_%d_%s' % (skin, kind):
+            continue
+        c = rip.clip(cab, o)
+        ks = [(t, rip.tree(*r)['m_Name'].lower() if r else None) for t, r in c['keys']]
+        if [k for _, k in ks[:len(names)]] != [n.lower() for n in names]:
+            return None
+        out = []
+        for i in range(len(names)):
+            nxt = ks[i + 1][0] if i + 1 < len(ks) else c['len']
+            out.append(round(max(nxt - ks[i][0], 0.0), 4))
+        return out if all(out) else None
+    return None
 
 
 def extract_heroes(want_skins=(0,)):
     cs = None
-    for cab, sf in rip.files.items():
-        for o in sf.objects.values():
-            if o.type.name == 'MonoBehaviour':
-                t = rip.tree(cab, o)
-                if t.get('m_Name') == 'CharacterSprites':
-                    cs = t
-                    break
+    for cab in rip.cabs('common'):
+        for o in list(rip.files[cab].objects.values()):
+            if o.type.name == 'MonoBehaviour' and o.peek_name() == 'CharacterSprites':
+                cs = rip.tree(cab, o)
+                break
         if cs:
             break
     for m in cs['characterSpriteModels']:
         if m['skinIndex'] not in want_skins:
             continue
         seqs = {'idle': m['idleSprites'], 'run': m['runSprites'], 'dead': m['deadSprites']}
-        imgs = {k: [hero_png(s['path'], s['spriteName']) for s in v] for k, v in seqs.items()}
-        if not imgs['idle'] or imgs['idle'][0] is None:
-            log.append('hero %s skin %s: thiếu ảnh' % (m['characterIndex'], m['skinIndex']))
-            continue
         folder = seqs['idle'][0]['path'].split('/')[2].lower()
-        ref = imgs['idle'][0]
-        rw = ref.width
         entry = {'index': m['characterIndex'], 'folder': folder}
-        for k, lst in imgs.items():
-            fr = []
-            for s, im in zip(seqs[k], lst):
-                if im is None:
+        rel = png_path_bundle('/'.join(seqs['idle'][0]['path'].split('/')[:-1]))
+        sp = bundle_sprites(rel) if rel else {}
+        ok = bool(sp) and all(s['spriteName'] in sp for v in seqs.values() for s in v)
+        pivot = None
+        for k, seq in seqs.items():
+            names = [s['spriteName'] for s in seq]
+            d = None
+            if ok:
+                items = []
+                for s in seq:
+                    r = scaled_sprite(*sp.get(s['spriteName']))
+                    if r:
+                        items.append((s['spriteName'], r[1], r[2], r[3]))
+                fr, dv = add_registered(items, 'bottom', True)
+                if k == 'idle':
+                    pivot = dv
+                d = hero_clip_durations(rel, m['skinIndex'], k, names) if k != 'dead' else None
+            else:
+                pngs = [(n, hero_png(s['path'], n)) for n, s in zip(names, seq)]
+                pngs = [(n, im) for n, im in pngs if im is not None]
+                if not pngs:
+                    log.append('hero %s skin %s %s: thiếu ảnh' % (m['characterIndex'], m['skinIndex'], k))
                     continue
-                dx = register(ref, im) if k != 'dead' else 0
-                ax = rw / 2.0 - dx
-                fr.append(packer.add(s['spriteName'], im, ax if k != 'dead' else im.width / 2.0, im.height))
+                fr = add_png_frames(pngs, 'bottom', k != 'dead')
             key = 'hero_%s_s%d/%s' % (folder, m['skinIndex'], k)
-            # Hoạt ảnh nhân vật chuẩn của SK: 8 khung đứng / 8 khung chạy, 16 khung/giây
-            # (đo từ clip npc_knight_ide: 8 khung, 0,0625 s/khung).
-            anims[key] = {'f': fr, 'd': [0.0625] * len(fr), 'loop': k != 'dead'}
+            # Mặc định 16 khung/giây [ĐO clip skin_0_idle/skin_0_run: 8 khung, 0,0625 s/khung].
+            anims[key] = {'f': fr, 'd': d or [0.0625] * len(fr), 'loop': k != 'dead'}
             entry[k] = key
+        hero_src['bundle' if ok else 'png'] += 1
+        if pivot:
+            entry['pivot'] = list(pivot)
         heroes.setdefault(folder, {})['s%d' % m['skinIndex']] = entry
 
 
 # ---------------------------------------------------------------- danh sách thêm của từng mô-đun
 EXTRA_DIR = os.path.join(HERE, 'extra')
-SPRITE_BUNDLES = ('common.ab', 'sprite_atlas.ab', 'levelcommon.ab', 'levelobjects.ab', 'level__difficulty.ab')
+# Nơi dò sprite/clip khi tệp extra không ghi "bundles"; giữ đúng họ và thứ tự của bản 8.5.1 để tên khung
+# (đuôi ~2 khi trùng tên) không đổi.
+EXTRA_SCAN = ('common', 'level/1/a', 'level/1/b', 'level/1/c', 'level/2/*', 'level/3/*', 'level/difficulty',
+              'levelcommon', 'levelobjects', 'sprite_atlas')
+# png_anims: ngoài bundle trùng tên thư mục, dò thêm ở đây trước khi lùi về PNG 8.5.1.
+PNG_FALLBACK_BUNDLES = ('sprite_atlas', 'common', 'ui', 'hero')
+png_src = {'bundle': 0, 'png': 0}
+_roots = {}
+
+
+def roots_by_name(rel):
+    if rel not in _roots:
+        m = {}
+        for cab in rip.load(rel):
+            for r in rip.roots(cab):
+                m.setdefault(r.name, r)
+        _roots[rel] = m
+    return _roots[rel]
+
+
+def extra_bundles(fn, sp):
+    """Mẫu trong "bundles" -> [rel]; mẫu không khớp bundle nào thì ghi log."""
+    out = []
+    for pat in sp.get('bundles', []):
+        hit = rip.bundles(pat)
+        if not hit:
+            log.append('%s: bundle không có: %s' % (fn, pat))
+        out.extend(r for r in hit if r not in out)
+    return out
+
+
+def png_anim_sprites(a):
+    """Tìm các khung của một png_anims trong bundle 8.6 -> [(tên, ảnh, pivot_x, pivot_y)] hoặc None nếu thiếu."""
+    rels = [a['bundle']] if a.get('bundle') else []
+    own = png_path_bundle(a['dir'])
+    if own:
+        rels.append(own)
+    rels += [r for r in rip.bundles(*PNG_FALLBACK_BUNDLES) if r not in rels]
+    items = []
+    for nm in a['frames']:
+        hit = None
+        for rel in rels:
+            if rel.endswith('.ab') and rel not in rip.index['bundles']:
+                continue
+            hit = bundle_sprites(rel).get(nm)
+            if hit:
+                break
+        r = scaled_sprite(*hit, native=True) if hit else None
+        if not r:
+            return None
+        items.append((nm, r[1], r[2], r[3]))
+    return items
 
 
 def extract_extras(by_name):
@@ -565,19 +748,29 @@ def extract_extras(by_name):
     for fn in sorted(os.listdir(EXTRA_DIR)):
         if fn.endswith('.json'):
             specs.append((fn, json.load(io.open(os.path.join(EXTRA_DIR, fn), encoding='utf-8'))))
+    base = rip.bundles(*EXTRA_SCAN)
+    scan = {rel: ([], []) for rel in base}   # rel -> ([(khoá, regex sprite)], [regex clip])
     for fn, sp in specs:
+        more = extra_bundles(fn, sp)
         for nm in sp.get('prefabs', []):
-            if nm in by_name:
-                extract_prefab(by_name[nm])
+            node = by_name.get(nm)
+            for rel in more:
+                if node is None:
+                    node = roots_by_name(rel).get(nm)
+            if node is not None:
+                extract_prefab(node)
             else:
                 log.append('%s: prefab thiếu %s' % (fn, nm))
-    rx_sprites = [(r, re.compile(r)) for fn, sp in specs for r in sp.get('sprites', [])]
-    rx_clips = [re.compile(r) for fn, sp in specs for r in sp.get('clips', [])]
-    for cab in rip.files:
-        bn = rip.bundle_of[cab]
-        if not (bn in SPRITE_BUNDLES or bn in THEMES):
+        rs = [(r, re.compile(r)) for r in sp.get('sprites', [])]
+        rc = [re.compile(r) for r in sp.get('clips', [])]
+        for rel in base + [r for r in more if r not in base]:
+            e = scan.setdefault(rel, ([], []))
+            e[0].extend(x for x in rs if x[0] not in [y[0] for y in e[0]])
+            e[1].extend(rc)
+    for rel, (rx_sprites, rx_clips) in scan.items():
+        if not rx_sprites and not rx_clips:
             continue
-        for o in rip.files[cab].objects.values():
+        for cab, o in rip.objects([rel], ('Sprite', 'AnimationClip')):
             tn = o.type.name
             if tn == 'Sprite' and rx_sprites:
                 nm = rip.tree(cab, o)['m_Name']
@@ -596,22 +789,25 @@ def extract_extras(by_name):
         out['sprites'][key].sort()
     for fn, sp in specs:
         for key, a in (sp.get('png_anims') or {}).items():
-            imgs = []
-            for nm in a['frames']:
-                pth = os.path.join(ALL, *a['dir'].split('/'), nm + '.png')
-                if os.path.exists(pth):
-                    imgs.append((nm, Image.open(pth).convert('RGBA')))
-                else:
-                    log.append('%s: thiếu %s/%s.png' % (fn, a['dir'], nm))
-            if not imgs:
-                continue
-            ref = imgs[0][1]
-            fr = []
-            for nm, im in imgs:
-                dx = register(ref, im) if a.get('register', True) and len(imgs) > 1 else 0
-                ax = ref.width / 2.0 - dx
-                ay = im.height if a.get('anchor', 'bottom') == 'bottom' else im.height / 2.0
-                fr.append(packer.add(nm, im, ax, ay))
+            anchor = a.get('anchor', 'bottom')
+            reg = a.get('register', True)
+            items = png_anim_sprites(a)
+            if items:
+                fr, _ = add_registered(items, anchor, reg and len(items) > 1)
+                png_src['bundle'] += 1
+            else:
+                imgs = []
+                for nm in a['frames']:
+                    pth = os.path.join(ALL, *a['dir'].split('/'), nm + '.png')
+                    if os.path.exists(pth):
+                        imgs.append((nm, Image.open(pth).convert('RGBA')))
+                    else:
+                        log.append('%s: thiếu %s/%s (cả bundle 8.6 lẫn PNG 8.5.1)' % (fn, a['dir'], nm))
+                if not imgs:
+                    continue
+                fr = add_png_frames(imgs, anchor, reg)
+                png_src['png'] += 1
+                log.append('%s: png_anims %s đọc PNG 8.5.1 (bundle 8.6 không có đủ khung)' % (fn, key))
             k = 'png/' + key
             fps = float(a.get('fps', 10))
             anims[k] = {'f': fr, 'd': [round(1.0 / fps, 4)] * len(fr), 'loop': a.get('loop', True)}
@@ -634,17 +830,17 @@ def build_lock():
 
 # ---------------------------------------------------------------- chạy
 def main():
-    for cab, bname in sorted(rip.bundle_of.items(), key=lambda kv: kv[1]):
-        if bname in THEMES:
-            theme, level = THEMES[bname]
-            roots = rip.roots(cab)
-            extract_theme(cab, theme, level, roots)
-            print('theme', theme, 'enemies', len(themes[theme]['enemies']), 'frames', len(packer.frames), flush=True)
+    t0 = time.time()
+    for rel in sorted(THEMES):
+        theme, level = THEMES[rel]
+        for cab in rip.load(rel):
+            extract_theme(cab, theme, level, rip.roots(cab))
+        print('theme', theme, 'enemies', len(themes[theme]['enemies']), 'frames', len(packer.frames),
+              '%.0fs' % (time.time() - t0), flush=True)
     by_name = {}
-    for cab in rip.files:
-        if rip.bundle_of[cab] in ('levelcommon.ab', 'levelobjects.ab', 'common.ab') or rip.bundle_of[cab] in THEMES:
-            for r in rip.roots(cab):
-                by_name.setdefault(r.name, r)
+    for cab in rip.cabs('common', *sorted(THEMES), 'levelcommon', 'levelobjects'):
+        for r in rip.roots(cab):
+            by_name.setdefault(r.name, r)
     want = set(PREFAB_NAMES)
     for th in themes.values():
         want.update(th.get('lib', {}).values())
@@ -653,40 +849,39 @@ def main():
             extract_prefab(by_name[nm])
         else:
             log.append('prefab thiếu: ' + nm)
-    print('prefabs', len(prefabs), 'frames', len(packer.frames), flush=True)
+    print('prefabs', len(prefabs), 'frames', len(packer.frames), '%.0fs' % (time.time() - t0), flush=True)
     hud = extract_hud()
     print('hud nodes', len(hud), 'frames', len(packer.frames), flush=True)
     extras = {}
-    for cab in rip.files:
-        if rip.bundle_of[cab] not in ('common.ab', 'sprite_atlas.ab'):
-            continue
-        for o in rip.files[cab].objects.values():
-            if o.type.name != 'Sprite':
-                continue
-            nm = rip.tree(cab, o)['m_Name']
-            if re.match(r'^bullet_?\d+$', nm) and nm not in extras:
-                extras[nm] = frame_of(cab, o)
+    for cab, o in rip.objects(['common', 'sprite_atlas'], ('Sprite',)):
+        nm = rip.tree(cab, o)['m_Name']
+        if re.match(r'^bullet_?\d+$', nm) and nm not in extras:
+            extras[nm] = frame_of(cab, o)
+    # Sprite vũ khí mà wiki khớp được: sprite_atlas trước (như 8.5.1), rồi weapon/skin/boss... có trong 8.6.
     wiki_w = os.path.join(HERE, 'wiki', 'weapons.json')
-    want_w = set()
+    want_w = {}
     if os.path.exists(wiki_w):
         for w in json.load(io.open(wiki_w, encoding='utf-8')):
             sp = w.get('sprite') or {}
-            if sp.get('bundle') == 'sprite_atlas':
-                want_w.add(sp['name'])
-    got_w = 0
-    for cab in rip.files:
-        if rip.bundle_of[cab] != 'sprite_atlas.ab':
+            if sp.get('bundle') and sp.get('name'):
+                want_w.setdefault(sp['bundle'] + '.ab', set()).add(sp['name'])
+    got_w = n_w = 0
+    for rel in sorted(want_w, key=lambda r: (r != 'sprite_atlas.ab', r)):
+        n_w += len(want_w[rel])
+        if rel not in rip.index['bundles']:
+            log.append('sprite vũ khí wiki: không có bundle %s (%d sprite)' % (rel, len(want_w[rel])))
             continue
-        for o in rip.files[cab].objects.values():
-            if o.type.name == 'Sprite' and rip.tree(cab, o)['m_Name'] in want_w:
-                if frame_of(cab, o):
-                    got_w += 1
-    print('weapon sprites', got_w, 'of', len(want_w), flush=True)
+        sp = bundle_sprites(rel)
+        for nm in sorted(want_w[rel]):
+            if nm in sp and frame_of(*sp.get(nm)):
+                got_w += 1
+    print('weapon sprites', got_w, 'of', n_w, flush=True)
     extra = extract_extras(by_name)
     print('extra sprites', sum(len(v) for v in extra['sprites'].values()), 'clips', len(extra['clips']),
-          'png', len(extra['png']), 'frames', len(packer.frames), flush=True)
+          'png', len(extra['png']), png_src, 'frames', len(packer.frames), '%.0fs' % (time.time() - t0), flush=True)
     extract_heroes()
-    print('heroes', len(heroes), 'frames', len(packer.frames), flush=True)
+    print('heroes', len(heroes), hero_src, 'frames', len(packer.frames), flush=True)
+    print('bundles loaded', len(rip.loaded), 'CAB ngoài chỉ mục', rip.missing, flush=True)
 
     os.makedirs(ART, exist_ok=True)
     os.makedirs(DATA, exist_ok=True)
