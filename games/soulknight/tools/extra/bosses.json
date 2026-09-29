@@ -1,37 +1,168 @@
 {
-  "png_anims": {
-    "boss_gp_idle": {"dir": "boss/boss08", "frames": ["boss08_0", "boss08_1", "boss08_2", "boss08_3"], "fps": 8, "loop": true, "anchor": "bottom", "register": true},
-    "boss_gp_run": {"dir": "boss/boss08", "frames": ["boss08_4", "boss08_5", "boss08_6", "boss08_7"], "fps": 10, "loop": true, "anchor": "bottom", "register": true},
-    "boss_gp_dead": {"dir": "boss/boss08", "frames": ["boss08_8"], "fps": 1, "loop": false, "anchor": "bottom", "register": false},
-    "boss_gp_face": {"dir": "boss/boss08", "frames": ["boss_08"], "fps": 1, "loop": false, "anchor": "bottom", "register": false},
-
-    "boss_ds_body": {"dir": "boss/boss07", "frames": ["boss07_0", "boss07_1", "boss07_2", "boss07_3"], "fps": 6, "loop": true, "anchor": "bottom", "register": true},
-    "boss_ds_dead": {"dir": "boss/boss07", "frames": ["boss07_11"], "fps": 1, "loop": false, "anchor": "bottom", "register": false},
-    "boss_ds_leaves": {"dir": "boss/boss07", "frames": ["boss07_4"], "fps": 1, "loop": false, "anchor": "center", "register": false},
-    "boss_ds_bud": {"dir": "boss/boss07", "frames": ["boss07_12"], "fps": 1, "loop": false, "anchor": "bottom", "register": false},
-    "boss_ds_bloom": {"dir": "boss/boss07", "frames": ["boss07_13"], "fps": 1, "loop": false, "anchor": "bottom", "register": false},
-    "boss_ds_tentacle": {"dir": "boss/boss07", "frames": ["boss07_5", "boss07_6", "boss07_7", "boss07_8"], "fps": 8, "loop": true, "anchor": "bottom", "register": true},
-    "boss_ds_sprout": {"dir": "boss/boss07", "frames": ["boss07_10", "boss07_9"], "fps": 8, "loop": false, "anchor": "bottom", "register": false},
-    "boss_ds_face": {"dir": "boss/boss07", "frames": ["boss_07"], "fps": 1, "loop": false, "anchor": "bottom", "register": false},
-
-    "boss_gk_idle": {"dir": "boss/boss01", "frames": ["boss01_0", "boss01_1", "boss01_2", "boss01_3"], "fps": 8, "loop": true, "anchor": "bottom", "register": true},
-    "boss_gk_run": {"dir": "boss/boss01", "frames": ["boss01_4", "boss01_5", "boss01_6", "boss01_7"], "fps": 10, "loop": true, "anchor": "bottom", "register": true},
-    "boss_gk_dead": {"dir": "boss/boss01", "frames": ["boss01_8"], "fps": 1, "loop": false, "anchor": "bottom", "register": false},
-    "boss_gk_shield": {"dir": "boss/boss01", "frames": ["boss01_9"], "fps": 1, "loop": false, "anchor": "center", "register": false},
-    "boss_gk_sword": {"dir": "boss/boss01", "frames": ["boss01_10"], "fps": 1, "loop": false, "anchor": "center", "register": false},
-    "boss_gk_face": {"dir": "boss/boss01", "frames": ["boss_01"], "fps": 1, "loop": false, "anchor": "bottom", "register": false},
-
-    "boss_gw_idle": {"dir": "boss/boss02", "frames": ["boss02_0", "boss02_1", "boss02_2", "boss02_3"], "fps": 8, "loop": true, "anchor": "bottom", "register": true},
-    "boss_gw_run": {"dir": "boss/boss02", "frames": ["boss02_4", "boss02_5", "boss02_6", "boss02_7"], "fps": 10, "loop": true, "anchor": "bottom", "register": true},
-    "boss_gw_dead": {"dir": "boss/boss02", "frames": ["boss02_8"], "fps": 1, "loop": false, "anchor": "bottom", "register": false},
-    "boss_gw_face": {"dir": "boss/boss02", "frames": ["boss_02"], "fps": 1, "loop": false, "anchor": "bottom", "register": false},
-
-    "boss_sw_head": {"dir": "boss/boss11", "frames": ["boss11_0", "boss11_1", "boss11_2", "boss11_3"], "fps": 8, "loop": true, "anchor": "bottom", "register": true},
-    "boss_sw_tilt": {"dir": "boss/boss11", "frames": ["boss11_4"], "fps": 1, "loop": false, "anchor": "bottom", "register": false},
-    "boss_sw_dead": {"dir": "boss/boss11", "frames": ["boss11_5"], "fps": 1, "loop": false, "anchor": "bottom", "register": false},
-    "boss_sw_shot": {"dir": "boss/boss11", "frames": ["boss11_6"], "fps": 1, "loop": false, "anchor": "center", "register": false},
-    "boss_sw_trail": {"dir": "boss/boss11", "frames": ["boss11_7", "boss11_8", "boss11_9"], "fps": 8, "loop": true, "anchor": "bottom", "register": true},
-    "boss_sw_mound": {"dir": "boss/boss11", "frames": ["boss11_10", "boss11_11", "boss11_12", "boss11_13", "boss11_14"], "fps": 10, "loop": false, "anchor": "bottom", "register": true},
-    "boss_sw_face": {"dir": "boss/boss11", "frames": ["boss_11"], "fps": 1, "loop": false, "anchor": "bottom", "register": false}
+ "bundles": [
+  "boss/boss01",
+  "boss/boss02",
+  "boss/boss07",
+  "boss/boss08",
+  "boss/boss11",
+  "boss/boss12",
+  "boss/boss14",
+  "boss/boss18",
+  "boss/boss19",
+  "boss/boss20",
+  "boss/boss25",
+  "bullet",
+  "common",
+  "levelobjects",
+  "sprite_atlas"
+ ],
+ "sprites": [
+  "^(boss01_0|boss01_1|boss01_10|boss01_2|boss01_2_0|boss01_2_1|boss01_2_10|boss01_2_11|boss01_2_2|boss01_2_3|boss01_2_4|boss01_2_5|boss01_2_6|boss01_2_7|boss01_2_8|boss01_3|boss01_4|boss01_5|boss01_6|boss01_7|boss01_8|boss01_9)$",
+  "^(boss02_0|boss02_1|boss02_2|boss02_3|boss02_4|boss02_5|boss02_6|boss02_7|boss02_8)$",
+  "^(boss07_0|boss07_1|boss07_10|boss07_11|boss07_12|boss07_13|boss07_2|boss07_3|boss07_4|boss07_5|boss07_6|boss07_7|boss07_8|boss07_9)$",
+  "^(boss08_0|boss08_1|boss08_2|boss08_3|boss08_4|boss08_5|boss08_6|boss08_7|boss08_8)$",
+  "^(boss11_0|boss11_1|boss11_10|boss11_11|boss11_12|boss11_13|boss11_14|boss11_2|boss11_3|boss11_4|boss11_5|boss11_6|boss11_7|boss11_8|boss11_9)$",
+  "^(boss12_1_0|boss12_1_1|boss12_1_12|boss12_1_2|boss12_1_3|boss12_1_4|boss12_1_5|boss12_1_6|boss12_1_7|boss12_1_8|boss12_1_9|boss12_2_0|boss12_2_1|boss12_2_10|boss12_2_12|boss12_2_2|boss12_2_3|boss12_2_4|boss12_2_5|boss12_2_6|boss12_2_7|boss12_2_8|boss12_2_9)$",
+  "^(boss14_new_0|boss14_new_1|boss14_new_10|boss14_new_11|boss14_new_12|boss14_new_13|boss14_new_14|boss14_new_15|boss14_new_16|boss14_new_17|boss14_new_18|boss14_new_19|boss14_new_2|boss14_new_20|boss14_new_21|boss14_new_22|boss14_new_23|boss14_new_3|boss14_new_4|boss14_new_5|boss14_new_6|boss14_new_7|boss14_new_8|boss14_new_9|dash_triangle_0|dash_triangle_1|dash_triangle_2|dash_triangle_3)$",
+  "^(boss18_0|boss18_1|boss18_2|boss18_3|boss18_4|boss18_5|boss18_6|boss18_7|boss18_8|bullet3_5|bullet3_6|enemy40_0|enemy40_1|enemy40_2|enemy40_3|enemy40_4|enemy40_5|enemy40_6|enemy42_0|enemy42_1|enemy42_2|enemy42_3|enemy42_4|enemy42_5|enemy42_6)$",
+  "^(boss19_attack_0|boss19_attack_1|boss19_attack_2|boss19_attack_3|boss19_attack_4|boss19_attack_5|boss19_dead_0|boss19_dead_2|boss19_dead_3|boss19_dead_4|boss19_dead_5|boss19_dead_6|boss19_dead_7|boss19_dead_8|boss19_dead_9|boss19_idle_0|boss19_idle_1|boss19_idle_2|boss19_idle_3|boss19_run_0|boss19_run_1|boss19_run_2|boss19_run_3|boss19_run_4|boss19_run_5|boss19_weapon_0|boss19_weapon_1|boss19_weapon_2|boss19_weapon_3|boss19_weapon_4|boss19_weapon_5|boss19_weapon_6|boss19_weapon_8|effect_08_31|effect_08_32|effect_08_33|effect_08_34|enemy_egg01_0|enemy_egg01_1|enemy_egg01_2|enemy_egg01_3|enemy_egg01_4|enemy_egg01_5|enemy_egg01_6|enemy_egg01_7|enemy_egg01_8|enemy_egg02_0|enemy_egg02_1|enemy_egg02_2|enemy_egg02_3|enemy_egg02_4|enemy_egg02_5|enemy_egg02_6|enemy_egg02_7|enemy_egg02_8)$",
+  "^(boss20_0|boss20_1|boss20_10|boss20_11|boss20_2|boss20_3|boss20_4|boss20_5|boss20_6|boss20_7|boss20_8|boss20_9)$",
+  "^(boss25_8|boss25_9|boss25_body_0|boss25_body_1|boss25_body_2|boss25_body_3|boss25_body_4|boss25_dead|boss25_hand_1|boss25_head|boss25_tentacle_0|boss25_tentacle_1|boss25_tentacle_2|boss25_tentacle_3|boss25_tentacle_4)$",
+  "^(biaoqing_19)$",
+  "^(biaoqing_12|biaoqing_14|bullet_107|bullet_108|bullet_109|bullet_111|bullet_18|bullet_26|bullet_29|bullet_30|bullet_35|bullet_37|bullet_4|bullet_85|bullet_87|bullet_89|bullet_9|bullet_90|bullet_91|bullet_92|bullet_93|bullet_94|bullet_95|bullet_96|bullet_97|effect04_0|effect04_13|effect04_14|effect04_15|effect04_16|effect04_17|effect04_18|effect04_20|effect_08_29|effect_explode_0|effect_explode_1|effect_explode_2|effect_explode_3|effect_explode_4|effect_explode_5|effect_explode_6|effect_explode_7|effect_explode_8|effect_explode_9|effect_fireball_0|effect_nuclear_explode_0|effect_nuclear_explode_1|effect_nuclear_explode_10|effect_nuclear_explode_2|effect_nuclear_explode_3|effect_nuclear_explode_4|effect_nuclear_explode_5|effect_nuclear_explode_6|effect_nuclear_explode_7|effect_nuclear_explode_8|effect_nuclear_explode_9|effect_shock1_0|effect_shock1_2|effect_shock1_4|effect_shock1_6|effect_shock2_0|effect_shock2_1|effect_shock2_2|effect_shock2_5|shadow3|skill_effect_9|texiao_01|texture_c2|texture_c4|texture_c5|warlock_0_skill_0_effect_3)$",
+  "^(enemy01_0|enemy01_1|enemy01_2|enemy01_3|enemy01_4|enemy01_5|enemy01_6)$",
+  "^(bullet2_10|bullet2_13|weapons2_0|weapons2_48|weapons2_50|weapons3_132|weapons3_24|weapons_28|weapons_s_04)$"
+ ],
+ "png_anims": {
+  "bossui_boss14_new_outline": {
+   "dir": "boss/boss14",
+   "frames": [
+    "boss14_new_outline"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
+  },
+  "bossui_boss_01": {
+   "dir": "boss/boss01",
+   "frames": [
+    "boss_01"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
+  },
+  "bossui_boss_01_2": {
+   "dir": "boss/boss01",
+   "frames": [
+    "boss_01_2"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
+  },
+  "bossui_boss_02": {
+   "dir": "boss/boss02",
+   "frames": [
+    "boss_02"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
+  },
+  "bossui_boss_07": {
+   "dir": "boss/boss07",
+   "frames": [
+    "boss_07"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
+  },
+  "bossui_boss_08": {
+   "dir": "boss/boss08",
+   "frames": [
+    "boss_08"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
+  },
+  "bossui_boss_11": {
+   "dir": "boss/boss11",
+   "frames": [
+    "boss_11"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
+  },
+  "bossui_boss_12": {
+   "dir": "boss/boss12",
+   "frames": [
+    "boss_12"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
+  },
+  "bossui_boss_18": {
+   "dir": "boss/boss18",
+   "frames": [
+    "boss_18"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
+  },
+  "bossui_boss_19": {
+   "dir": "boss/boss19",
+   "frames": [
+    "boss_19"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
+  },
+  "bossui_boss_20": {
+   "dir": "boss/boss20",
+   "frames": [
+    "boss_20"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
+  },
+  "bossui_boss_25": {
+   "dir": "boss/boss25",
+   "frames": [
+    "boss_25"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
+  },
+  "bossui_ui_12": {
+   "dir": "ui",
+   "frames": [
+    "ui_12"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
   }
+ }
 }
