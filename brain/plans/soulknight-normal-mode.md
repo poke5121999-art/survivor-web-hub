@@ -45,7 +45,21 @@ nút kỹ năng có hồi chiêu.
 
 ## Việc
 
-1. [ ] Lever bóc: `tools/build_sk.py` → atlas + `sk-data.js` + trang xem anim để soát bằng mắt.
-2. [ ] Wiki: `tools/wiki_pull.py` → `tools/wiki/*.json` (vũ khí, nhân vật, trùm, cấu trúc ải).
-3. [ ] Runtime: engine, ải, quái, vũ khí, kỹ năng, VFX, HUD, sảnh, cửa hàng giả.
-4. [ ] Lên hub (`data/games.js`, `rev`), đẩy, chơi thử trên Pages.
+1. [x] Lever bóc: `tools/build_sk.py` → atlas + `sk-data.js` + `tools/viewer.html`.
+2. [x] Wiki: `tools/wiki_pull.py` → `tools/wiki/*.json`; `tools/build_design.py` → `data/sk-wiki.js`.
+3. [x] Runtime (rev 20260929b): lõi, sảnh + mua giả, 13 kỹ năng, 268 vũ khí, 5 trùm, lái buôn/tượng/buff, tiếng.
+4. [x] Lên hub, đẩy, bộ kiểm chạy trên Pages: smoke 16, lobby 19, bosses 46 (2026-09-29).
+5. [ ] Season Mode ("Escape from Monkia"): nghiên cứu ở `games/soulknight/tools/season/RESEARCH.md`.
+
+## Còn hở (chế độ thường)
+
+- Kỹ năng rơi về Song Thủ: Elf, Druid, Necromancer, Officer (cần hệ đồng minh/thú).
+- Kỹ năng 2 và 3 của mỗi nhân vật chưa có mã; chọn trong sảnh thì game vẫn dùng kỹ năng 1.
+- Nội tại phức tạp (phản đạn, độc, lửa, cầu máu...) chưa làm.
+- Buff bỏ qua: Well Begun, Piercing Crit, Bouncing Bullets, Extra Weapon.
+- Tượng Knight (cần hệ đi theo). Chưa có nhạc nền.
+
+## Bộ kiểm
+
+`node test/soulknight-<smoke|weapons|skills|bosses|rooms|lobby|sfx>.js`, cần `python -m http.server 8811`
+ở gốc repo; đặt `SK_URL=<url Pages>` để chạy trên bản thật.
