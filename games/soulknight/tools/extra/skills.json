@@ -1,40 +1,1240 @@
 {
-  "prefabs": [
-    "effect_c1_skill", "effect_c3_skill", "lightning_0", "lightning_1", "lightning_chain_fx", "proj_thunder",
-    "effect_ranger_roll", "roll_effect", "skill_assassin_night", "hit_assassin", "sword_dash",
-    "Gas_Alchemist_0", "explode_poison", "battery", "bullet_bat", "shield", "shield_wave",
-    "effect_priest_1", "effect_priest_1_cast", "effect_health_skill", "effect_c10_skill", "c10_skill_atk",
-    "sword_werewolf", "explode_poly_werewolf", "skill0_mark_s0", "c03_show_effect_s0", "fx_buff_dizzy"
-  ],
-  "sprites": [
-    "^bat_[0-9]$", "^engineer_0_skill_0_effect_0_[0-9]$", "^effect_ranger_skill_3_[0-9]$", "^sword_dash_[0-9]$",
-    "^dark_sword$", "^assassin_night$", "^x_[0-9]$", "^effect_explode_green_[0-9]+$", "^thunder 1_[0-9]$",
-    "^shield_wave_[0-9]$", "^druid_0_skill_0_effect_0_[0-9]+$", "^necromancer_0_skill_0_effect_0_0$",
-    "^werewolf_0_skill_0_effect_1_[0-9]$", "^c03_show_effect01_s0_[0-9]+$", "^texture_c[24]$",
-    "^skill_effect_priest(_cast)?_[0-9]+$", "^effect_08_[0-9]+$", "^effect04_[0-9]+$", "^effect02_[0-9]+$",
-    "^change_effect_0$", "^poison_[0-9]$", "^elves_0_skill_0_effect_1_0$", "^biaoqing_1[0-9]$"
-  ],
-  "clips": [],
-  "png_anims": {
-    "rogue_roll": {"dir": "skin/character/ranger/skin_0", "frames": ["ranger_0_skill_0_effect_0_0", "ranger_0_skill_0_effect_0_1", "ranger_0_skill_0_effect_0_2", "ranger_0_skill_0_effect_0_3"], "fps": 12, "loop": true, "anchor": "bottom", "register": false},
-    "werewolf_form": {"dir": "skin/character/werewolf/skin_0", "frames": ["werewolf_0_skill_0_effect_0_0", "werewolf_0_skill_0_effect_0_1", "werewolf_0_skill_0_effect_0_2", "werewolf_0_skill_0_effect_0_3", "werewolf_0_skill_0_effect_0_4", "werewolf_0_skill_0_effect_0_5", "werewolf_0_skill_0_effect_0_6", "werewolf_0_skill_0_effect_0_7", "werewolf_0_skill_0_effect_0_8", "werewolf_0_skill_0_effect_0_9", "werewolf_0_skill_0_effect_0_10", "werewolf_0_skill_0_effect_0_11", "werewolf_0_skill_0_effect_0_12", "werewolf_0_skill_0_effect_0_13", "werewolf_0_skill_0_effect_0_14", "werewolf_0_skill_0_effect_0_15"], "fps": 16, "loop": true, "anchor": "bottom", "register": true},
-    "robot_coil": {"dir": "hero", "frames": ["robot_0_skill_0_effect_0_0"], "fps": 1, "loop": true, "anchor": "bottom", "register": false},
-    "elf_bow": {"dir": "skin/character/elves/skin_0", "frames": ["elves_0_skill_0_effect_0_0"], "fps": 1, "loop": true, "anchor": "center", "register": false},
-    "icon_skill01": {"dir": "ui", "frames": ["ui_skill01"], "fps": 1, "anchor": "center", "register": false},
-    "icon_skill02": {"dir": "ui", "frames": ["ui_skill02"], "fps": 1, "anchor": "center", "register": false},
-    "icon_skill03": {"dir": "ui", "frames": ["ui_skill03"], "fps": 1, "anchor": "center", "register": false},
-    "icon_skill04": {"dir": "ui", "frames": ["ui_skill04"], "fps": 1, "anchor": "center", "register": false},
-    "icon_skill05": {"dir": "ui", "frames": ["ui_skill05"], "fps": 1, "anchor": "center", "register": false},
-    "icon_skill06": {"dir": "ui", "frames": ["ui_skill06"], "fps": 1, "anchor": "center", "register": false},
-    "icon_skill07": {"dir": "ui", "frames": ["ui_skill07"], "fps": 1, "anchor": "center", "register": false},
-    "icon_skill08": {"dir": "ui", "frames": ["ui_skill08"], "fps": 1, "anchor": "center", "register": false},
-    "icon_skill09": {"dir": "ui", "frames": ["ui_skill09"], "fps": 1, "anchor": "center", "register": false},
-    "icon_skill10": {"dir": "ui", "frames": ["ui_skill10"], "fps": 1, "anchor": "center", "register": false},
-    "icon_skill11": {"dir": "ui", "frames": ["ui_skill11"], "fps": 1, "anchor": "center", "register": false},
-    "icon_skill12": {"dir": "ui", "frames": ["ui_skill12"], "fps": 1, "anchor": "center", "register": false},
-    "icon_skill13": {"dir": "ui", "frames": ["ui_skill13"], "fps": 1, "anchor": "center", "register": false},
-    "icon_skill14": {"dir": "ui", "frames": ["ui_skill14"], "fps": 1, "anchor": "center", "register": false},
-    "icon_skill15": {"dir": "ui", "frames": ["ui_skill15"], "fps": 1, "anchor": "center", "register": false},
-    "icon_skill16": {"dir": "ui", "frames": ["ui_skill16"], "fps": 1, "anchor": "center", "register": false}
+ "prefabs": [
+  "effect_c1_skill",
+  "effect_c3_skill",
+  "lightning_0",
+  "lightning_1",
+  "lightning_chain_fx",
+  "proj_thunder",
+  "effect_ranger_roll",
+  "roll_effect",
+  "skill_assassin_night",
+  "hit_assassin",
+  "sword_dash",
+  "Gas_Alchemist_0",
+  "explode_poison",
+  "battery",
+  "bullet_bat",
+  "shield",
+  "shield_wave",
+  "effect_priest_1",
+  "effect_priest_1_cast",
+  "effect_health_skill",
+  "effect_c10_skill",
+  "c10_skill_atk",
+  "sword_werewolf",
+  "explode_poly_werewolf",
+  "skill0_mark_s0",
+  "c03_show_effect_s0",
+  "fx_buff_dizzy",
+  "wolf1_druid",
+  "wolf2_druid",
+  "druid_circle",
+  "show_effect_wolf",
+  "nec_ghost_hand",
+  "buff_nightmare",
+  "bullet_c09",
+  "elves_vine",
+  "weapon_skill_officer",
+  "bullet_14",
+  "bullet_8_revolver_skill",
+  "officer_duel_state",
+  "target2",
+  "bullet_plane",
+  "skill_slash",
+  "sword_2_5_assassin",
+  "c03_trail",
+  "bullet_taoist_sword",
+  "taoist_gravity",
+  "skill1_bagua_s0",
+  "mtao_sword",
+  "bullet_bottle_0_enhance",
+  "bullet_botton_gas",
+  "bullet_botton_explode",
+  "bullet_botton_frost",
+  "bullet_follow_ice_skill",
+  "explode_ice_box",
+  "bullet_fire_storm",
+  "bullet_209",
+  "bullet_shield_jump",
+  "weapon_skill_paladin",
+  "bullet_hammer",
+  "c14_skill1_effect",
+  "effect_chaos",
+  "arrow_rain",
+  "arrow_rain_up",
+  "nec_fireball",
+  "bat_particle",
+  "effect_vampire_body",
+  "thunder"
+ ],
+ "sprites": [
+  "^bat_[0-9]$",
+  "^engineer_0_skill_0_effect_0_[0-9]$",
+  "^effect_ranger_skill_3_[0-9]$",
+  "^sword_dash_[0-9]$",
+  "^dark_sword$",
+  "^assassin_night$",
+  "^x_[0-9]$",
+  "^effect_explode_green_[0-9]+$",
+  "^thunder 1_[0-9]$",
+  "^shield_wave_[0-9]$",
+  "^druid_0_skill_0_effect_0_[0-9]+$",
+  "^necromancer_0_skill_0_effect_0_0$",
+  "^werewolf_0_skill_0_effect_1_[0-9]$",
+  "^c03_show_effect01_s0_[0-9]+$",
+  "^texture_c[24]$",
+  "^skill_effect_priest(_cast)?_[0-9]+$",
+  "^effect_08_[0-9]+$",
+  "^effect04_[0-9]+$",
+  "^effect02_[0-9]+$",
+  "^change_effect_0$",
+  "^poison_[0-9]$",
+  "^elves_0_skill_0_effect_1_0$",
+  "^biaoqing_1[0-9]$",
+  "^hero_c15_skin_0_init_weapon_[0-9]$",
+  "^bow_[0-9]$"
+ ],
+ "clips": [
+  "^wolf_[01]_(ide|run|atk|swoop)$"
+ ],
+ "png_anims": {
+  "rogue_roll": {
+   "dir": "skin/character/ranger/skin_0",
+   "frames": [
+    "ranger_0_skill_0_effect_0_0",
+    "ranger_0_skill_0_effect_0_1",
+    "ranger_0_skill_0_effect_0_2",
+    "ranger_0_skill_0_effect_0_3"
+   ],
+   "fps": 12,
+   "loop": true,
+   "anchor": "bottom",
+   "register": false
+  },
+  "werewolf_form": {
+   "dir": "skin/character/werewolf/skin_0",
+   "frames": [
+    "werewolf_0_skill_0_effect_0_0",
+    "werewolf_0_skill_0_effect_0_1",
+    "werewolf_0_skill_0_effect_0_2",
+    "werewolf_0_skill_0_effect_0_3",
+    "werewolf_0_skill_0_effect_0_4",
+    "werewolf_0_skill_0_effect_0_5",
+    "werewolf_0_skill_0_effect_0_6",
+    "werewolf_0_skill_0_effect_0_7",
+    "werewolf_0_skill_0_effect_0_8",
+    "werewolf_0_skill_0_effect_0_9",
+    "werewolf_0_skill_0_effect_0_10",
+    "werewolf_0_skill_0_effect_0_11",
+    "werewolf_0_skill_0_effect_0_12",
+    "werewolf_0_skill_0_effect_0_13",
+    "werewolf_0_skill_0_effect_0_14",
+    "werewolf_0_skill_0_effect_0_15"
+   ],
+   "fps": 16,
+   "loop": true,
+   "anchor": "bottom",
+   "register": true
+  },
+  "robot_coil": {
+   "dir": "hero",
+   "frames": [
+    "robot_0_skill_0_effect_0_0"
+   ],
+   "fps": 1,
+   "loop": true,
+   "anchor": "bottom",
+   "register": false
+  },
+  "elf_bow": {
+   "dir": "skin/character/elves/skin_0",
+   "frames": [
+    "elves_0_skill_0_effect_0_0"
+   ],
+   "fps": 1,
+   "loop": true,
+   "anchor": "center",
+   "register": false
+  },
+  "icon_skill01": {
+   "dir": "ui",
+   "frames": [
+    "ui_skill01"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "icon_skill02": {
+   "dir": "ui",
+   "frames": [
+    "ui_skill02"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "icon_skill03": {
+   "dir": "ui",
+   "frames": [
+    "ui_skill03"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "icon_skill04": {
+   "dir": "ui",
+   "frames": [
+    "ui_skill04"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "icon_skill05": {
+   "dir": "ui",
+   "frames": [
+    "ui_skill05"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "icon_skill06": {
+   "dir": "ui",
+   "frames": [
+    "ui_skill06"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "icon_skill07": {
+   "dir": "ui",
+   "frames": [
+    "ui_skill07"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "icon_skill08": {
+   "dir": "ui",
+   "frames": [
+    "ui_skill08"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "icon_skill09": {
+   "dir": "ui",
+   "frames": [
+    "ui_skill09"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "icon_skill10": {
+   "dir": "ui",
+   "frames": [
+    "ui_skill10"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "icon_skill11": {
+   "dir": "ui",
+   "frames": [
+    "ui_skill11"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "icon_skill12": {
+   "dir": "ui",
+   "frames": [
+    "ui_skill12"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "icon_skill13": {
+   "dir": "ui",
+   "frames": [
+    "ui_skill13"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "icon_skill14": {
+   "dir": "ui",
+   "frames": [
+    "ui_skill14"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "icon_skill15": {
+   "dir": "ui",
+   "frames": [
+    "ui_skill15"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "icon_skill16": {
+   "dir": "ui",
+   "frames": [
+    "ui_skill16"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_ui_skill01": {
+   "dir": "ui",
+   "frames": [
+    "ui_skill01"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_0_1": {
+   "dir": "ui",
+   "frames": [
+    "skill_0_1"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_0_2": {
+   "dir": "ui",
+   "frames": [
+    "skill_0_2"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_ui_skill02": {
+   "dir": "ui",
+   "frames": [
+    "ui_skill02"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_1_1": {
+   "dir": "ui",
+   "frames": [
+    "skill_1_1"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_1_2": {
+   "dir": "ui",
+   "frames": [
+    "skill_1_2"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_ui_skill03": {
+   "dir": "ui",
+   "frames": [
+    "ui_skill03"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_2_1": {
+   "dir": "ui",
+   "frames": [
+    "skill_2_1"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_2_2": {
+   "dir": "ui",
+   "frames": [
+    "skill_2_2"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_ui_skill04": {
+   "dir": "ui",
+   "frames": [
+    "ui_skill04"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_3_1": {
+   "dir": "ui",
+   "frames": [
+    "skill_3_1"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_3_2": {
+   "dir": "ui",
+   "frames": [
+    "skill_3_2"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_ui_skill05": {
+   "dir": "ui",
+   "frames": [
+    "ui_skill05"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_4_1": {
+   "dir": "ui",
+   "frames": [
+    "skill_4_1"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_4_2": {
+   "dir": "ui",
+   "frames": [
+    "skill_4_2"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_ui_skill06": {
+   "dir": "ui",
+   "frames": [
+    "ui_skill06"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_5_1": {
+   "dir": "ui",
+   "frames": [
+    "skill_5_1"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_5_2": {
+   "dir": "ui",
+   "frames": [
+    "skill_5_2"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_ui_skill07": {
+   "dir": "ui",
+   "frames": [
+    "ui_skill07"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_6_1": {
+   "dir": "ui",
+   "frames": [
+    "skill_6_1"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_6_2": {
+   "dir": "ui",
+   "frames": [
+    "skill_6_2"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_ui_skill08": {
+   "dir": "ui",
+   "frames": [
+    "ui_skill08"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_7_1": {
+   "dir": "ui",
+   "frames": [
+    "skill_7_1"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_7_2": {
+   "dir": "ui",
+   "frames": [
+    "skill_7_2"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_ui_skill09": {
+   "dir": "ui",
+   "frames": [
+    "ui_skill09"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_8_1": {
+   "dir": "ui",
+   "frames": [
+    "skill_8_1"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_8_2": {
+   "dir": "ui",
+   "frames": [
+    "skill_8_2"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_ui_skill10": {
+   "dir": "ui",
+   "frames": [
+    "ui_skill10"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_ui_skill18": {
+   "dir": "ui",
+   "frames": [
+    "ui_skill18"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_9_2": {
+   "dir": "ui",
+   "frames": [
+    "skill_9_2"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_ui_skill11": {
+   "dir": "ui",
+   "frames": [
+    "ui_skill11"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_10_1": {
+   "dir": "ui",
+   "frames": [
+    "skill_10_1"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_10_2": {
+   "dir": "ui",
+   "frames": [
+    "skill_10_2"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_druid_skill_icon_0": {
+   "dir": "ui",
+   "frames": [
+    "druid_skill_icon_0"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_11_1": {
+   "dir": "ui",
+   "frames": [
+    "skill_11_1"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_11_2": {
+   "dir": "ui",
+   "frames": [
+    "skill_11_2"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_ui_skill13": {
+   "dir": "ui",
+   "frames": [
+    "ui_skill13"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_12_1": {
+   "dir": "ui",
+   "frames": [
+    "skill_12_1"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_12_2": {
+   "dir": "ui",
+   "frames": [
+    "skill_12_2"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_ui_skill14": {
+   "dir": "ui",
+   "frames": [
+    "ui_skill14"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_ui_skill17": {
+   "dir": "ui",
+   "frames": [
+    "ui_skill17"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_13_2": {
+   "dir": "ui",
+   "frames": [
+    "skill_13_2"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_ui_skill15": {
+   "dir": "ui",
+   "frames": [
+    "ui_skill15"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_ui_skill16": {
+   "dir": "ui",
+   "frames": [
+    "ui_skill16"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_14_2": {
+   "dir": "ui",
+   "frames": [
+    "skill_14_2"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_15_0": {
+   "dir": "ui",
+   "frames": [
+    "skill_15_0"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_15_1": {
+   "dir": "ui",
+   "frames": [
+    "skill_15_1"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_15_2": {
+   "dir": "ui",
+   "frames": [
+    "skill_15_2"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_16_1": {
+   "dir": "ui",
+   "frames": [
+    "skill_16_1"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_16_2": {
+   "dir": "ui",
+   "frames": [
+    "skill_16_2"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_16_3": {
+   "dir": "ui",
+   "frames": [
+    "skill_16_3"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_17_0": {
+   "dir": "ui",
+   "frames": [
+    "skill_17_0"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_transcendent_skill1_icon0": {
+   "dir": "ui",
+   "frames": [
+    "transcendent_skill1_icon0"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_envoy_skillicon_0": {
+   "dir": "ui",
+   "frames": [
+    "envoy_skillicon_0"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_19_0": {
+   "dir": "ui",
+   "frames": [
+    "skill_19_0"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_skill_20_0": {
+   "dir": "ui",
+   "frames": [
+    "skill_20_0"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_ninja_skill_1_icon": {
+   "dir": "ui",
+   "frames": [
+    "ninja_skill_1_icon"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_ui3_78": {
+   "dir": "ui",
+   "frames": [
+    "ui3_78"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_ui3_131": {
+   "dir": "ui",
+   "frames": [
+    "ui3_131"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_ui3_144": {
+   "dir": "ui",
+   "frames": [
+    "ui3_144"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_airbender_skill2_icon": {
+   "dir": "ui",
+   "frames": [
+    "airbender_skill2_icon"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_ui3_132": {
+   "dir": "ui",
+   "frames": [
+    "ui3_132"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_ui3_145": {
+   "dir": "ui",
+   "frames": [
+    "ui3_145"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_warlock_skill_2_icon": {
+   "dir": "ui",
+   "frames": [
+    "warlock_skill_2_icon"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_miner_skill_0_icon_0": {
+   "dir": "ui",
+   "frames": [
+    "miner_skill_0_icon_0"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_miner_skill_1_icon_0": {
+   "dir": "ui",
+   "frames": [
+    "miner_skill_1_icon_0"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_miner_skill_2_icon_0": {
+   "dir": "ui",
+   "frames": [
+    "miner_skill_2_icon_0"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_trapMaster_skillIcon_1_0": {
+   "dir": "ui",
+   "frames": [
+    "trapMaster_skillIcon_1_0"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_trapMaster_skillIcon_2_0": {
+   "dir": "ui",
+   "frames": [
+    "trapMaster_skillIcon_2_0"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_tarpMaster_skillIcon_3_0": {
+   "dir": "ui",
+   "frames": [
+    "tarpMaster_skillIcon_3_0"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_costumePrince_skillIcon_1_0": {
+   "dir": "ui",
+   "frames": [
+    "costumePrince_skillIcon_1_0"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_costumePrince_skillIcon_2_0": {
+   "dir": "ui",
+   "frames": [
+    "costumePrince_skillIcon_2_0"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_costumePrince_skillIcon_3_0": {
+   "dir": "ui",
+   "frames": [
+    "costumePrince_skillIcon_3_0"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_doctor_skillIcon_1": {
+   "dir": "ui",
+   "frames": [
+    "doctor_skillIcon_1"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_doctor_skillIcon_2": {
+   "dir": "ui",
+   "frames": [
+    "doctor_skillIcon_2"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_doctor_skillIcon_3": {
+   "dir": "ui",
+   "frames": [
+    "doctor_skillIcon_3"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_sword_master_skillIcon_1": {
+   "dir": "ui",
+   "frames": [
+    "sword_master_skillIcon_1"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_sword_master_skillIcon_2_0": {
+   "dir": "ui",
+   "frames": [
+    "sword_master_skillIcon_2_0"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_sword_master_skillIcon_3_0": {
+   "dir": "ui",
+   "frames": [
+    "sword_master_skillIcon_3_0"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_lancer_skillIcon_0": {
+   "dir": "ui",
+   "frames": [
+    "lancer_skillIcon_0"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_lancer_skill_1_Icon_0": {
+   "dir": "ui",
+   "frames": [
+    "lancer_skill_1_Icon_0"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_lancer_skill_2_sweep": {
+   "dir": "ui",
+   "frames": [
+    "lancer_skill_2_sweep"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_warliege_skillIcon_0": {
+   "dir": "ui",
+   "frames": [
+    "warliege_skillIcon_0"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_warliege_skillIcon_1": {
+   "dir": "ui",
+   "frames": [
+    "warliege_skillIcon_1"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_warliege_skillIcon_2": {
+   "dir": "ui",
+   "frames": [
+    "warliege_skillIcon_2"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_arcaneknight_skillIcon_0": {
+   "dir": "ui",
+   "frames": [
+    "arcaneknight_skillIcon_0"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_arcaneknight_skillIcon_1": {
+   "dir": "ui",
+   "frames": [
+    "arcaneknight_skillIcon_1"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_astrologist_skillIcon_0": {
+   "dir": "ui",
+   "frames": [
+    "astrologist_skillIcon_0"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_astrologist_skillIcon_1": {
+   "dir": "ui",
+   "frames": [
+    "astrologist_skillIcon_1"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_fighter_skillIcon_0": {
+   "dir": "ui",
+   "frames": [
+    "fighter_skillIcon_0"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_fighter_skill2Icon_2": {
+   "dir": "ui",
+   "frames": [
+    "fighter_skill2Icon_2"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_joker_skill0Icon": {
+   "dir": "ui",
+   "frames": [
+    "joker_skill0Icon"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_joker_skill1Icon": {
+   "dir": "ui",
+   "frames": [
+    "joker_skill1Icon"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_bard_skill_0_icon": {
+   "dir": "ui",
+   "frames": [
+    "bard_skill_0_icon"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_bard_skill_1_icon": {
+   "dir": "ui",
+   "frames": [
+    "bard_skill_1_icon"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_shooter_skillIcon_0": {
+   "dir": "ui",
+   "frames": [
+    "shooter_skillIcon_0"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_shooter_skillIcon_1": {
+   "dir": "ui",
+   "frames": [
+    "shooter_skillIcon_1"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_aigirl_skill_0_icon": {
+   "dir": "ui",
+   "frames": [
+    "aigirl_skill_0_icon"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_captain_skillIcon_0_1": {
+   "dir": "ui",
+   "frames": [
+    "captain_skillIcon_0_1"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_captain_skillIcon_1": {
+   "dir": "ui",
+   "frames": [
+    "captain_skillIcon_1"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_yinyang_skill_0_icon_0": {
+   "dir": "ui",
+   "frames": [
+    "yinyang_skill_0_icon_0"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_gunsexpert_skillIcon_0": {
+   "dir": "ui",
+   "frames": [
+    "gunsexpert_skillIcon_0"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
+  },
+  "sicon_ladychef_skill_icon_0": {
+   "dir": "ui",
+   "frames": [
+    "ladychef_skill_icon_0"
+   ],
+   "fps": 1,
+   "anchor": "center",
+   "register": false
   }
+ },
+ "bundles": [
+  "hero",
+  "common",
+  "bullet",
+  "weapon",
+  "skin/pet/wolf_1/skin_0",
+  "skin/pet/wolf_2/skin_0"
+ ]
 }

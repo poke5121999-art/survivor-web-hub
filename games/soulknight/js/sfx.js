@@ -225,6 +225,8 @@
     if (btn) { btn.textContent = sfx.muted ? '🔇' : '🔊'; btn.title = sfx.muted ? 'Bật tiếng (M)' : 'Tắt tiếng (M)'; btn.setAttribute('aria-pressed', String(sfx.muted)); }
   }
   sfx.setMuted = setMuted;
+  sfx.play = (name, o) => play(name, (o && o.ev) || 'api', o);
+  sfx.preload = names => Promise.all([].concat(names || []).map(load));
   sfx.bufCount = () => Object.keys(bufs).filter(k => bufs[k]).length;
 
   function mkButton() {
