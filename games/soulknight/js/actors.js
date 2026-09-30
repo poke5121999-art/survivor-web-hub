@@ -721,20 +721,26 @@
     const p = G.player;
     if (p.invulT > 0 && p.st !== 'dead' && Math.floor(p.invulT * 14) % 2 === 0) return;
     const key = p.st === 'dead' ? p.anims.dead : p.moving ? p.anims.run : p.anims.idle;
-    const fr = SK.animFrame(key, p.st === 'dead' ? p.stT : p.t);
+    const at = p.st === 'dead' ? p.stT : p.t;
+    const fr = SK.animFrame(key, at);
     const pages = p.flash > 0 ? SK.pagesWhite : null;
     const alpha = G.phase === 'portal' ? Math.max(0, 1 - G.phaseT / 0.6) : 1;
     ctx.save(); ctx.globalAlpha = alpha;
     const w = p.weapons[p.cur];
-    if (p.st !== 'dead' && p.dual) drawHeld(ctx, p, p.dual, 2);
-    if (!fr || !SK.draw(ctx, fr, p.x, p.y, { flip: p.face < 0, pages })) {
+    // Clip skin_<n>_idle/run/dead gốc: nhún nút img (thân + tay cầm súng) khi chạy, nảy khi chết.
+    const fs = p.face < 0 ? -1 : 1;
+    const xf = SK.animPose(key, at, p.anims.bodyPath), hf = SK.animPose(key, at, p.anims.handPath);
+    const hoff = [hf.dx * fs, hf.dy];
+    if (p.st !== 'dead' && p.dual) drawHeld(ctx, p, p.dual, 2, hoff);
+    if (!fr || !SK.draw(ctx, fr, p.x + xf.dx * fs, p.y + xf.dy, { flip: p.face < 0, pages, sx: xf.sx, sy: xf.sy, rot: xf.rot * fs })) {
       ctx.fillStyle = '#9aa4b5'; ctx.fillRect(p.x - 6, p.y - 16, 12, 16);
     }
-    if (p.st !== 'dead' && w) drawHeld(ctx, p, w, 1);
+    if (p.st !== 'dead' && w) drawHeld(ctx, p, w, 1, hoff);
     ctx.restore();
   };
-  function drawHeld(ctx, p, w, side) {
-    const [hx, hy] = handPos(p, side);
+  function drawHeld(ctx, p, w, side, off) {
+    let [hx, hy] = handPos(p, side);
+    if (off) { hx += off[0]; hy += off[1]; }
     if (w.def.w86) { drawRig(ctx, w, hx, hy, p.aim); return; }
     let ang = p.aim;
     if (w.def.kind === 'melee') ang += (w.swing > 0 ? (1 - w.swing / 0.16) * 2.2 - 1.1 : -0.6) * (Math.cos(p.aim) < 0 ? -1 : 1);
@@ -780,7 +786,7 @@
       id, d, p: ai.p || {}, cls: resolveAI(ai.cls), rawCls: ai.cls, x, y, kx: 0, ky: 0,
       hp: d.hp, hpMax: d.hp, face: SK.chance(0.5) ? 1 : -1, aim: 0, st: 'spawn', stT: 0.7, t: SK.rand() * 2,
       cd: SK.randf(0.6, 1.4) * ((ai.p && ai.p.shoot_cd) || 2), room, elite, flash: 0,
-      w: (d.weapons && d.weapons[0]) || null, anims: resolveAnims(d),
+      w: (d.weapons && d.weapons[0]) || null, anims: resolveAnims(d), pose: d.pose ? resolveAnims(d.pose) : null,
       r: Math.max(3, Math.min(8, col.circle ? col.circle.r * 0.8 : 5)),
       hb: col.hurt_box || { size: [12, 16], off: [0, 8] }, scale: elite ? R.eliteScale : 1, burst: 0
     };
@@ -1072,7 +1078,8 @@
     if (!targetable(e)) return false;
     e.hp -= dmg; e.flash = 0.08;
     if (!(e.p.kinematic)) { e.kx += Math.cos(ang) * repel * 30; e.ky += Math.sin(ang) * repel * 30; }
-    SK.num(G, e.x, e.y - e.hb.off[1] * e.scale - e.hb.size[1] * 0.5 * e.scale - 4, dmg, crit ? '#ffd23a' : '#ffffff', crit);
+    // [ĐO] CommonConfig.normalDamageColor (0.925, 0, 0) / criticDamageColor (1, 0.929, 0) trong common.ab.
+    SK.num(G, e.x, e.y - e.hb.off[1] * e.scale - e.hb.size[1] * 0.5 * e.scale - 4, dmg, crit ? '#ffed00' : '#ec0000', crit);
     SK.emit('enemyHit', G, e, dmg, crit);
     if (e.hp <= 0) killEnemy(G, e, ang);
     return true;
@@ -1095,23 +1102,32 @@
     }
   }
 
+  function stateAnim(e, an, dead) {
+    return dead ? an.dead : (e.st === 'move' || e.st === 'charge') ? an.run : (e.st === 'aim' || e.st === 'attack') && an.atk ? an.atk : an.idle;
+  }
   SK.drawEnemy = function (ctx, G, e) {
     if (e.draw) return e.draw(ctx, G, e);
     if (e.st === 'spawn') return;
     const dead = e.st === 'dead';
     if (dead && !e.anims.dead) return;
-    const key = dead ? e.anims.dead : (e.st === 'move' || e.st === 'charge') ? e.anims.run : (e.st === 'aim' || e.st === 'attack') && e.anims.atk ? e.anims.atk : e.anims.idle;
-    const fr = SK.animFrame(key, dead ? e.stT : e.t) || e.d.body;
+    const key = stateAnim(e, e.anims, dead);
+    const at = dead ? e.stT : e.t;
+    const fr = SK.animFrame(key, at) || e.d.body;
     const pages = e.flash > 0 ? SK.pagesWhite : e.elite ? SK.pagesElite : null;
     let x = e.x, y = e.y;
     if (e.st === 'aim' && (e.cls === 'EnemyAI04' || !e.w)) x += Math.sin(e.t * 60) * 1;
     const s = e.scale;
-    const flip = e.face < 0;
-    if (!fr || !SK.draw(ctx, fr, x, y, { flip, sx: s, sy: s, pages })) {
+    const flip = e.face < 0, fs = flip ? -1 : 1;
+    // Đường cong Transform của clip gốc lên nút thân (e.d.bodyPath, vd 'img/body' dưới Animator ở gốc prefab).
+    // e.pose: Animator gốc chỉ động Transform còn khung ở Animator của thân (e_owl_metal) -> cộng cả hai.
+    const xf = SK.animPose(key, at, e.d.bodyPath), pk = e.pose ? stateAnim(e, e.pose, dead) : key;
+    if (e.pose) { const q = SK.animPose(pk, at, e.d.pose.body); xf.dx += q.dx; xf.dy += q.dy; xf.sx *= q.sx; xf.sy *= q.sy; xf.rot += q.rot; }
+    if (!fr || !SK.draw(ctx, fr, x + xf.dx * s * fs, y + xf.dy * s, { flip, sx: s * xf.sx, sy: s * xf.sy, rot: xf.rot * fs, pages })) {
       ctx.fillStyle = e.elite ? '#b33' : '#7a3'; ctx.fillRect(x - 6, y - 14, 12, 14);
     }
     if (!dead && e.w && e.w.sprite) {
-      const [hx, hy] = eHand(e);
+      let [hx, hy] = eHand(e);
+      if (e.w.path) { const hf = SK.animPose(pk, at, e.w.path); hx += hf.dx * s * fs; hy += hf.dy * s; }
       let ang = e.w.p.need_lock === 0 && e.st !== 'aim' ? (e.face > 0 ? 0 : Math.PI) : e.aim;
       if (e.st !== 'aim' && e.st !== 'attack' && e.w.p.need_lock !== 0) ang = e.face > 0 ? 0.15 : Math.PI - 0.15;
       if (e.swing > 0) ang += (1 - e.swing / 0.18) * 2.4 - 1.2;

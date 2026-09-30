@@ -34,7 +34,10 @@ def node_paths(node, prefix=''):
 
 
 def float_tracks(rip, cab, clip_obj, paths):
-    """-> {'name','len','tracks':[{'path','type','prop','keys':[[t,v],...]}]} (chi duong float)."""
+    """-> {'name','len','tracks':[{'path','type','prop','keys':[[t,v],...], 'seg'?}]} (chi duong float).
+
+    `seg` (neu co) la he so bac ba cua doan bat dau o moi khoa streamed; khong co thi noi suy tuyen tinh.
+    """
     t = rip.tree(cab, clip_obj)
     binds = t['m_ClipBindingConstant']['genericBindings']
     clip = t['m_MuscleClip']['m_Clip']['data']
@@ -51,6 +54,7 @@ def float_tracks(rip, cab, clip_obj, paths):
         else:
             slots.append((b, PROP_OF.get(b['attribute'], '#%08x' % b['attribute'])))
     keys = {}
+    segs = {}  # chi so duong -> [[c0, c1, c2], ...] song song voi keys: v(t) = ((c0*d + c1)*d + c2)*d + v_key, d = t - t_key
     raw = struct.pack('<%dI' % len(sc['data']), *sc['data']) if sc['data'] else b''
     i = 0
     while i + 8 <= len(raw):
@@ -60,8 +64,11 @@ def float_tracks(rip, cab, clip_obj, paths):
             idx, = struct.unpack_from('<I', raw, i)
             c = struct.unpack_from('<4f', raw, i + 4)
             i += 20
-            if -1e30 < tm < 1e30:
+            # Khoa PPtr (sprite) trong streamed mang chi so >= curveCount, trung dai chi so dense/constant ben duoi:
+            # bo qua [DO monkey01_dead: PPtr o chi so 0, curveCount 0, 7 duong constant].
+            if idx < sc['curveCount'] and -1e30 < tm < 1e30:
                 keys.setdefault(idx, []).append([round(tm, 4), round(c[3], 4)])
+                segs.setdefault(idx, []).append([round(c[0], 5), round(c[1], 5), round(c[2], 5)])
     ns = sc['curveCount']
     nd = dc['m_CurveCount']
     if nd:
@@ -77,7 +84,10 @@ def float_tracks(rip, cab, clip_obj, paths):
     for idx, (b, prop) in enumerate(slots):
         if idx not in keys:
             continue
-        tracks.append({'path': paths.get(b['path'], '#%08x' % b['path']), 'type': b['typeID'], 'prop': prop,
-                       'keys': keys[idx]})
+        tr = {'path': paths.get(b['path'], '#%08x' % b['path']), 'type': b['typeID'], 'prop': prop, 'keys': keys[idx]}
+        sg = segs.get(idx)
+        if sg and any(any(x) for x in sg):
+            tr['seg'] = sg
+        tracks.append(tr)
     mc = t['m_MuscleClip']
     return {'name': t['m_Name'], 'len': round(mc['m_StopTime'] - mc['m_StartTime'], 4), 'tracks': tracks}

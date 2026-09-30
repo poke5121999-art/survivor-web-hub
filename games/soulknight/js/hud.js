@@ -218,15 +218,33 @@
     UI.q('map_info_root/miniMap/levelText').txt.s = G.stage.label;
   }
 
+  // Số sát thương theo UIDamageText gốc (common.ab › register/damage_text.prefab) [ĐO]:
+  // Text LC_Pixel (= họ LockClock) cỡ 32 × scale 0,02 đơn vị, Shadow (2,-2); DOJumpAnchorPos một lần tới điểm lệch
+  // x ±0,5..1,5, y -0,5..0,25 đơn vị, lực nảy 0,75..1,5, thời gian 0,5..0,6 s; chí mạng phóng thêm criticDeltaScale 0,2.
+  // Tham số ngẫu nhiên dùng Math.random để không đụng chuỗi SK.rand của gameplay.
+  // [SUY] Mờ dần 0,15 s cuối trong vòng đời 0,8 s của G.nums; fadeDuration gốc chưa đọc được.
+  const PPU = 16, NUM_PX = 32 * 0.02 * PPU, NUM_SHADOW = 2 * 0.02 * PPU;
+  const rnd = (a, b) => a + (b - a) * Math.random();
+  function damageNumber(ctx, n, cam) {
+    if (!n.jump) {
+      n.jump = { dx: (Math.random() < 0.5 ? -1 : 1) * rnd(0.5, 1.5) * PPU, dy: -rnd(-0.5, 0.25) * PPU,
+        h: rnd(0.75, 1.5) * PPU, dur: rnd(0.5, 0.6) };
+    }
+    const J = n.jump, u = Math.min(1, n.t / J.dur);
+    const x = n.x - cam.x + J.dx * u, y = n.y - cam.y + J.dy * u - J.h * 4 * u * (1 - u);
+    const size = NUM_PX * (n.big ? 1.2 : 1);
+    ctx.save();
+    ctx.globalAlpha = n.t > 0.65 ? Math.max(0, (0.8 - n.t) / 0.15) : 1;
+    ctx.font = size + 'px "skui_LockClock", ' + SK.FONT;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#000'; ctx.fillText(String(n.val), x + NUM_SHADOW, y + NUM_SHADOW);
+    ctx.fillStyle = n.color; ctx.fillText(String(n.val), x, y);
+    ctx.restore();
+  }
+
   function worldText(ctx, G) {
     const cam = G.view || G.cam;
-    for (const n of G.nums) {
-      const k = n.t / 0.8;
-      const y = n.y - cam.y - 10 * Math.min(1, k * 3);
-      ctx.save(); ctx.globalAlpha = k > 0.7 ? (1 - k) / 0.3 : 1;
-      SK.text(ctx, String(n.val), n.x - cam.x, y, n.big ? 12 : 9, n.color, 'center', 'rgba(0,0,0,0.9)');
-      ctx.restore();
-    }
+    for (const n of G.nums) damageNumber(ctx, n, cam);
     const it = G.interactTarget;
     if (it) SK.text(ctx, (SK.input.touchMode ? '' : '[E] ') + it.label, it.x - cam.x, it.y - cam.y, 8, '#ffe06a', 'center', 'rgba(0,0,0,0.9)');
   }

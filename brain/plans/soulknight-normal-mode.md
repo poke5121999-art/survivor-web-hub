@@ -67,11 +67,13 @@ nút kỹ năng có hồi chiêu.
 7. [ ] Đợt art + anim + UI gốc (chủ dự án 2026-09-30: "polish + xài đúng đủ art + anim của soul knight gốc là quan trọng nhất").
    - Kiểm kê chạy lại được: `node test/soulknight-art-audit.js` (lệnh vẽ tay lúc chạy, xếp theo diện tích) và
      `python tools/anim_audit.py` → `tools/ANIM_AUDIT.md` (state anim gốc so với bản web, theo từng thực thể).
-   - IL2CPP đã dump đủ (`D:\sk86-refuntime\dump\dump.cs`); cách làm ở `tools/config86/README.md` mục 8.
+   - IL2CPP đã dump đủ (`D:\sk86-ref
+untime\dump\dump.cs`); cách làm ở `tools/config86/README.md` mục 8.
    - [x] a. HUD trong ải dựng từ prefab gốc (`tools/ui`, `js/ugui.js`), rev 20260930a.
-   - [ ] b. Transform trong clip (nhún/co giãn/lệch của quái, 12 quái đứng một khung, clip kỹ năng của nhân vật).
+   - [x] b. Transform trong clip (`tools/clip_xform.py`, `SK.animXform/animPose`), rev 20260930b. Còn: 5 quái có chuyển động ở
+     nút con chưa vẽ (e_tentacle, e_statueCrab_host, e_pumpkinHouse, đầu malphite02/03); track đang nội suy tuyến tính, nên dùng `seg` bậc ba như UI.
    - [ ] c. Animator vũ khí của quái (103/142 thiếu), `char_hit`/`char_dizzy` dùng chung.
-   - [ ] d. Bản đồ nhỏ (`levelcommon` › `minimap*.prefab`), bảng tạm dừng (`window_pause`), thanh máu trùm, số sát thương.
+   - [x] d. Bản đồ nhỏ, bảng tạm dừng, số sát thương (font LockClock + DOJump + màu CommonConfig). Thanh máu trùm vốn đã theo `boss_hp`.
    - [ ] e. Vật thể có anim: rương, lái buôn, tượng, cổng, NPC sảnh, thú cưng.
    - [ ] f. Sảnh: bỏ hộp CSS, dựng từ prefab UI chọn nhân vật (`ui_chose`, `window_hero_list`).
 

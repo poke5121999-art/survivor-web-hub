@@ -126,13 +126,55 @@
   // ---------------------------------------------------------------- hoạt ảnh
   SK.anim = key => (D.anims && D.anims[key]) || null;
   SK.animLen = key => { const a = SK.anim(key); return a ? a.d.reduce((s, x) => s + x, 0) : 0; };
+  // Clip chỉ có đường Transform (f = []) trả undefined: nơi gọi giữ khung tĩnh của nút (drawPrefab, `|| e.d.body`).
   SK.animFrame = function (key, t) {
-    const a = SK.anim(key); if (!a || !a.f.length) return null;
+    const a = SK.anim(key); if (!a) return null;
+    if (!a.f.length) return undefined;
     const tot = a.d.reduce((s, x) => s + x, 0) || 1;
     let u = a.loop ? ((t % tot) + tot) % tot : Math.min(Math.max(t, 0), tot - 1e-6);
     let i = 0;
     while (i < a.d.length - 1 && u >= a.d[i]) { u -= a.d[i]; i++; }
     return a.f[i];
+  };
+
+  // Đường cong Transform của clip gốc (tools/clip_xform.py): a.tr[đường dẫn nút tính từ nút mang Animator] =
+  // {p: [[t, dx, dy]], s: [[t, sx, sy]], r: [[t, độ]]}, so với tư thế nghỉ, px y-LÊN, độ ngược kim đồng hồ.
+  // Giữa hai khoá nội suy tuyến tính, sau khoá cuối giữ nguyên; lặp/kẹp thời gian như animFrame, trên a.len.
+  // Trả về hệ màn hình: dx, dy (px, y xuống), sx, sy (hệ số nhân), rot (radian, chiều kim đồng hồ). Không có -> đồng nhất.
+  function keyAt(k, u) {
+    if (u <= k[0][0]) return k[0];
+    for (let i = 1; i < k.length; i++) {
+      if (u > k[i][0]) continue;
+      const a = k[i - 1], b = k[i], w = b[0] > a[0] ? (u - a[0]) / (b[0] - a[0]) : 1;
+      return [u, a[1] + (b[1] - a[1]) * w, a.length > 2 ? a[2] + (b[2] - a[2]) * w : 0];
+    }
+    return k[k.length - 1];
+  }
+  SK.animXform = function (key, t, path) {
+    const out = { dx: 0, dy: 0, sx: 1, sy: 1, rot: 0 };
+    const a = key && SK.anim(key), n = a && a.tr && a.tr[path || ''];
+    if (!n) return out;
+    const tot = a.len || a.d.reduce((s, x) => s + x, 0) || 1;
+    const u = a.loop ? ((t % tot) + tot) % tot : Math.min(Math.max(t, 0), tot - 1e-6);
+    if (n.p) { const v = keyAt(n.p, u); out.dx = v[1]; out.dy = -v[2]; }
+    if (n.s) { const v = keyAt(n.s, u); out.sx = v[1]; out.sy = v[2]; }
+    if (n.r) out.rot = -keyAt(n.r, u)[1] * Math.PI / 180;
+    return out;
+  };
+  // Tư thế của nút `path` gộp mọi nút tổ tiên có đường cong ('' rồi 'img' rồi 'img/body'...): cộng độ lệch, nhân cỡ,
+  // cộng góc. Bỏ qua việc cỡ/góc của cha xoay-co độ lệch của con (các clip quái/nhân vật không cần).
+  SK.animPose = function (key, t, path) {
+    const out = { dx: 0, dy: 0, sx: 1, sy: 1, rot: 0 };
+    const a = key && SK.anim(key);
+    if (!a || !a.tr || path == null) return out;
+    const parts = path ? path.split('/') : [];
+    for (let i = 0; i <= parts.length; i++) {
+      const pth = parts.slice(0, i).join('/');
+      if (!a.tr[pth]) continue;
+      const x = SK.animXform(key, t, pth);
+      out.dx += x.dx; out.dy += x.dy; out.sx *= x.sx; out.sy *= x.sy; out.rot += x.rot;
+    }
+    return out;
   };
 
   // ---------------------------------------------------------------- prefab
@@ -148,25 +190,51 @@
     if (!parts._sorted) parts._sorted = parts.map((p, i) => [p, i]).sort((a, b) => ((a[0].o || 0) - (b[0].o || 0)) || (a[1] - b[1])).map(x => x[0]);
     return parts._sorted;
   }
+  // Phần nào nằm dưới một nút mang Animator (p.a) -> [[phần Animator, đường dẫn tương đối]] để tra a.tr.
+  // Tên phần: gốc là tên prefab, còn lại '/a/b' (tools/build_sk.py prefab_parts).
+  function animOwners(parts) {
+    if (parts._owners) return parts._owners;
+    const owners = parts.filter(q => q.a && Object.values(q.a).some(k => SK.anim(k) && SK.anim(k).tr));
+    const m = new Map();
+    for (const p of parts) {
+      const l = [];
+      for (const q of owners) {
+        if (q === p) l.push([q, '']);
+        else if (q.n[0] !== '/') { if (p.n[0] === '/') l.push([q, p.n.slice(1)]); }
+        else if (p.n.startsWith(q.n + '/')) l.push([q, p.n.slice(q.n.length + 1)]);
+      }
+      if (l.length) m.set(p, l);
+    }
+    return (parts._owners = m);
+  }
+  const stateKey = (a, state) => (state && a[state]) || a[Object.keys(a)[0]];
   // o: {t, state, skip(part)->bool, alpha, pages, dx(part)->px}
   SK.drawPrefab = function (ctx, parts, x, y, o) {
     if (!parts) return false;
     o = o || {};
     let any = false;
+    const owners = animOwners(parts);
     for (const p of sorted(parts)) {
       if (o.skip && o.skip(p)) continue;
       let f = p.f;
       if (p.a) {
-        const key = (o.state && p.a[o.state]) || p.a[Object.keys(p.a)[0]];
-        const af = SK.animFrame(key, o.t || 0);
+        const af = SK.animFrame(stateKey(p.a, o.state), o.t || 0);
         if (af !== undefined) f = af;
       }
       if (!f || GLOW_FRAMES[f]) continue;
       const sc = p.sc || [1, 1];
       if (Math.abs(sc[0]) > 3 || Math.abs(sc[1]) > 3) continue;
       const k = o.scale || 1;
-      const px = x + p.at[0] * k + (o.dx ? o.dx(p) : 0), py = y - p.at[1] * k;
+      let px = x + p.at[0] * k + (o.dx ? o.dx(p) : 0), py = y - p.at[1] * k;
       const opt = { sx: sc[0] * k, sy: sc[1] * k, pages: o.pages, alpha: o.alpha };
+      const own = owners.get(p);
+      if (own) {
+        for (const [q, rel] of own) {
+          const xf = SK.animPose(stateKey(q.a, o.state), o.t || 0, rel);
+          px += xf.dx * k; py += xf.dy * k; opt.sx *= xf.sx; opt.sy *= xf.sy; opt.rot = (opt.rot || 0) + xf.rot;
+        }
+        if (!opt.sx || !opt.sy) continue;   // clip co về 0 (SK.draw coi 0 là 1)
+      }
       any = (p.c ? SK.drawTinted(ctx, f, px, py, p.c, opt) : SK.draw(ctx, f, px, py, opt)) || any;
     }
     return any;

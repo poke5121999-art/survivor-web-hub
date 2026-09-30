@@ -60,7 +60,16 @@ API giữ như cũ: `resolve`, `tree`, `script_name`, `roots`, `Node`, `sprite()
 
 - `SK_ATLAS.f[tên] = [trang, x, y, w, h, ax, ay]`. `(ax, ay)` là pivot Unity tính bằng điểm ảnh từ
   góc trên-trái của ảnh đã cắt. Đặt điểm này vào vị trí thế giới của vật.
-- `anims[khoá] = {f, d, loop, ev?}`: khung và số giây mỗi khung, giải từ AnimationClip thật.
+- `anims[khoá] = {f, d, loop, ev?, tr?, len?}`: khung và số giây mỗi khung, giải từ AnimationClip thật.
+  `tr` là đường cong Transform của clip (`clip_xform.py`, giải bằng `ui/uiclip.py`):
+  `tr["đường dẫn nút tính từ nút mang Animator"] = {p?: [[t, dx, dy]], s?: [[t, sx, sy]], r?: [[t, độ]]}`.
+  `p` là px lệch so với tư thế nghỉ trong prefab (đã nhân cỡ nghỉ của nút cha), y hướng lên như Unity. `s` là cỡ
+  clip chia cỡ nghỉ. `r` là góc z lệch so với góc nghỉ, tính bằng độ, ngược kim đồng hồ. Mỗi khoá là giá trị tại
+  thời điểm khoá. Giữa hai khoá nội suy tuyến tính, sau khoá cuối giữ nguyên. `len` là độ dài clip. Clip chỉ có
+  Transform thì `f = []`. Cùng khoá `controller/state` mà `tr` khác (prefab có tư thế nghỉ khác, hoặc hai
+  controller trùng tên) thì có thêm khoá `controller/state@<prefab>`. Mã chạy đọc bằng `SK.animXform` hoặc
+  `SK.animPose` (engine.js). Quái có `bodyPath` (nút thân) và `weapons[i].path`. Nhân vật có `s0.bodyPath` và
+  `s0.handPath`, tính theo prefab `c<index>` trong `hero.ab`.
 - `enemies`: cấu hình prefab quái thật [ĐO]. Gồm `RoleAttribute` (máu, tốc độ), lớp AI `EnemyAIxx`
   kèm tham số, súng `EGunxxx` (atk, bullet_speed, deviation, count, angle), vị trí tay và nòng.
 - `bullets`: prefab đạn quái (72 cái [ĐO 8.6]). Có sprite, anim, collider, MonoBehaviour.

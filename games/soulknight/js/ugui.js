@@ -72,12 +72,15 @@
   };
 
   // ---------------------------------------------------------------- clip
-  function sample(keys, t, step) {
+  // seg[i] = hệ số bậc ba của đoạn bắt đầu ở khoá i (đường streamed của Unity); không có thì nội suy tuyến tính.
+  function sample(keys, t, step, seg) {
     if (t <= keys[0][0]) return keys[0][1];
     for (let i = 1; i < keys.length; i++) {
       if (t < keys[i][0]) {
         const [t0, v0] = keys[i - 1], [t1, v1] = keys[i];
-        return step ? v0 : v0 + (v1 - v0) * (t - t0) / (t1 - t0);
+        if (step) return v0;
+        if (seg && seg[i - 1]) { const [a, b, c] = seg[i - 1], d = t - t0; return ((a * d + b) * d + c) * d + v0; }
+        return v0 + (v1 - v0) * (t - t0) / (t1 - t0);
       }
     }
     return keys[keys.length - 1][1];
@@ -90,7 +93,7 @@
       if (!n) continue;
       const [prop, ax] = tr.prop.split('.');
       const step = prop === 'm_IsActive' || prop === 'm_Enabled';
-      const v = sample(tr.keys, t, step);
+      const v = sample(tr.keys, t, step, tr.seg);
       const i = 'xyzw'.indexOf(ax) >= 0 ? 'xyzw'.indexOf(ax) : 'rgba'.indexOf(ax);
       if (prop === 'm_AnchoredPosition') n.p[i] = v;
       else if (prop === 'm_SizeDelta') n.sz[i] = v;

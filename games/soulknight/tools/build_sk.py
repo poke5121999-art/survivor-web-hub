@@ -20,6 +20,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from skrip import Rip  # noqa: E402
 from pack import Packer  # noqa: E402
+import clip_xform  # noqa: E402
 
 GAME = os.path.dirname(HERE)
 # --out DIR: ghi DIR/art/sk + DIR/data thay vì vào game (thử lever mà không đè bản các agent khác đang chạy)
@@ -102,9 +103,21 @@ def sprite_ref(ptr, cab, native=False):
     return frame_of(*r, native=native) if r else None
 
 
-def anim_of(cab, clip_obj, key):
+def anim_of(cab, clip_obj, key, root=None, variant=None):
+    """root: skrip.Node mang Animator -> thêm tr (đường cong Transform, xem clip_xform.py) và len. Cùng clip mà tư thế
+    nghỉ của prefab khác (tr khác) thì ghi thêm khoá '<key>@<variant>'. Clip chỉ có Transform thì f = []."""
+    tr, ln = clip_xform.clip_tr(rip, cab, clip_obj, root) if root is not None else (None, 0)
     if key in anims:
-        return key
+        if root is None or anims[key].get('tr') == tr:
+            return key
+        k2 = '%s@%s' % (key, variant or root.name)
+        if k2 not in anims:
+            a = {x: v for x, v in anims[key].items() if x not in ('tr', 'len')}
+            if tr:
+                a['tr'], a['len'] = tr, round(ln, 4)
+            anims[k2] = a
+            clip_xform.stats.variants += 1
+        return k2
     c = rip.clip(cab, clip_obj)
     fr, du = [], []
     keys = c['keys']
@@ -113,11 +126,13 @@ def anim_of(cab, clip_obj, key):
         nxt = keys[i + 1][0] if i + 1 < len(keys) else max(c['len'], t + 1.0 / max(c['rate'], 1))
         fr.append(f)
         du.append(round(max(nxt - t, 0.0), 4))
-    if not fr:
+    if not fr and not tr:
         return None
     a = {'f': fr, 'd': du, 'loop': c['loop']}
     if c['events']:
         a['ev'] = [[round(t, 4), fn] for t, fn in c['events']]
+    if tr:
+        a['tr'], a['len'] = tr, round(ln, 4)
     anims[key] = a
     return key
 
@@ -133,7 +148,7 @@ def animator_states(node, prefix):
     ctrl_name = rip.tree(*r).get('m_Name') or prefix
     out = {}
     for st, (clcab, clobj) in rip.controller(*r).items():
-        k = anim_of(clcab, clobj, '%s/%s' % (ctrl_name, st))
+        k = anim_of(clcab, clobj, '%s/%s' % (ctrl_name, st), node, prefix)
         if k:
             out[st] = k
     return out
@@ -221,6 +236,7 @@ def extract_enemy(root, theme, level):
     ai = [(c, mcab, t) for c, (mcab, t) in mbs.items() if c and c.startswith(AI_PREFIX)]
     e['ai'] = [{'cls': c, 'p': plain(t, mcab)} for c, mcab, t in ai]
     e['anims'] = animator_states(root, root.name)
+    root_anim = bool(e['anims'])
     e['col'] = {}
     e['parts'] = []
     for nd, path, off in root.walk():
@@ -234,9 +250,18 @@ def extract_enemy(root, theme, level):
             f = sr_frame(nd)
             if f:
                 e['body'] = f
+            # bodyPath: nút thân tính từ nút mang Animator của e['anims'] (khoá của anims[..].tr)
+            if root_anim:
+                e.setdefault('bodyPath', path[1:])
             st = animator_states(nd, root.name + '_body')
-            if st and not e['anims']:
+            if st and not any(anims[k]['f'] for k in e['anims'].values()):
+                # Animator ở gốc chỉ động Transform (vd e_owl_metal: gốc nhún img, thân vỗ cánh bằng Animator riêng):
+                # khung lấy từ Animator của thân như cũ, tư thế lấy từ Animator gốc qua e['pose'].
+                if e['anims']:
+                    e['pose'] = {'anims': e['anims'], 'body': path[1:]}
+                    e.pop('bodyPath', None)
                 e['anims'] = st
+                e['bodyPath'] = ''
         elif leaf == 'shadow':
             e['shadow'] = sr_frame(nd)
             e['shadowOff'] = px(off)
@@ -246,6 +271,8 @@ def extract_enemy(root, theme, level):
         if wmb:
             c, mcab, t = wmb[0]
             w = {'cls': c, 'p': plain(t, mcab), 'at': px(off)}
+            if root_anim:
+                w['path'] = path[1:]
             if 'bullet' in t:
                 w['bullet'] = bullet_ref(t['bullet'], mcab)
             w['anims'] = animator_states(nd, root.name + '_weapon')
@@ -634,6 +661,14 @@ def hero_clip_durations(rel, skin, kind, names):
     return None
 
 
+def hero_clip(rel, skin, kind):
+    """-> (cab, AnimationClip) tên skin_<n>_<kind> trong bundle skin, hoặc None."""
+    for cab, o in rip.objects([rel], ('AnimationClip',)):
+        if rip.tree(cab, o)['m_Name'] == 'skin_%d_%s' % (skin, kind):
+            return cab, o
+    return None
+
+
 def extract_heroes(want_skins=(0,)):
     cs = None
     for cab in rip.cabs('common'):
@@ -653,6 +688,15 @@ def extract_heroes(want_skins=(0,)):
         sp = bundle_sprites(rel) if rel else {}
         ok = bool(sp) and all(s['spriteName'] in sp for v in seqs.values() for s in v)
         pivot = None
+        hero_root = roots_by_name('hero.ab').get('c%02d' % m['characterIndex'])
+        if hero_root is not None:
+            for nd, path, off in hero_root.walk():
+                if nd.name == 'body' and nd.comp('SpriteRenderer') and 'bodyPath' not in entry:
+                    entry['bodyPath'] = path[1:]
+                elif nd.name == 'h1' and 'handPath' not in entry:
+                    entry['handPath'] = path[1:]
+        else:
+            log.append('hero %s: không có prefab c%02d trong hero.ab' % (folder, m['characterIndex']))
         for k, seq in seqs.items():
             names = [s['spriteName'] for s in seq]
             d = None
@@ -676,6 +720,13 @@ def extract_heroes(want_skins=(0,)):
             key = 'hero_%s_s%d/%s' % (folder, m['skinIndex'], k)
             # Mặc định 16 khung/giây [ĐO clip skin_0_idle/skin_0_run: 8 khung, 0,0625 s/khung].
             anims[key] = {'f': fr, 'd': d or [0.0625] * len(fr), 'loop': k != 'dead'}
+            # Đường cong Transform của clip skin_<n>_<kind> (nhún khi chạy, nảy khi chết), neo vào prefab c<index>
+            # trong hero.ab (Animator ở gốc).
+            hc = hero_clip(rel, m['skinIndex'], k) if (ok and hero_root) else None
+            if hc:
+                tr, ln = clip_xform.clip_tr(rip, hc[0], hc[1], hero_root)
+                if tr:
+                    anims[key]['tr'], anims[key]['len'] = tr, round(ln, 4)
             entry[k] = key
         hero_src['bundle' if ok else 'png'] += 1
         if pivot:
@@ -882,6 +933,13 @@ def main():
     extract_heroes()
     print('heroes', len(heroes), hero_src, 'frames', len(packer.frames), flush=True)
     print('bundles loaded', len(rip.loaded), 'CAB ngoài chỉ mục', rip.missing, flush=True)
+    xs = clip_xform.stats
+    print('transform: clip đọc %d, clip có tr %d, anim có tr %d, đường giữ %d, khoá biến thể %d, '
+          'hash chưa giải %d (%d đường), clip có PPtr trước float %d'
+          % (xs.clips, xs.with_tr, sum(1 for a in anims.values() if a.get('tr')), xs.tracks, xs.variants,
+             len(xs.unresolved), sum(xs.unresolved.values()), xs.pptr_first), flush=True)
+    if xs.unresolved:
+        print('  hash chưa giải:', ' '.join(sorted(xs.unresolved)), flush=True)
 
     os.makedirs(ART, exist_ok=True)
     os.makedirs(DATA, exist_ok=True)
