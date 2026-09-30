@@ -64,8 +64,12 @@ giữ bản gặp trước theo thứ tự bundle ở trên. Hero skill: phần 
 
 ```js
 { cat: 'fx'|'explode'|'buff'|'trail'|'muzzle', src: 'common.ab', dur: 1.0, loop?: 1, u?: ['ps:noise', ...],
-  nodes: [Node], anims?: [Anim] }
+  nodes: [Node], anims?: [Anim], end?: { after, state, spr?, L? } }
 ```
+
+- `end` (chỉ `BuffIce*`, 15 hiệu ứng) [ĐO `sk_method.py BuffIce.BuffEnd`]: hết buff (`stop()` hoặc hết `dur`) thì tách
+  khỏi vật bám, sprite gốc đổi sang `spr` (`ice_end`, băng vỡ), lớp `L` (Character), đứng yên `after` = 2 s
+  (`Invoke("Disappear", 2.0)`) rồi chạy trạng thái `state` (`disappear`, mờ 1 s) và tắt.
 
 - `dur`: `RGAutoDestory.d_time` nếu có (> 0), không thì dài nhất của (hoạt ảnh không lặp, delay + duration + tuổi
   thọ hạt lớn nhất). `loop: 1` = có phần lặp và không tự huỷ → game phải `stop()`/truyền `dur`.
@@ -77,10 +81,10 @@ giữ bản gặp trước theo thứ tự bundle ở trên. Hero skill: phần 
 |---|---|
 | `n`, `p` | tên, chỉ số cha (−1 = gốc) |
 | `T` | `[px py pz qx qy qz qw sx sy sz]` local Unity (y lên); vắng = đơn vị |
-| `off` | GameObject tắt lúc đầu (clip có thể bật) |
+| `off` | GameObject tắt lúc đầu (clip có thể bật; game bật nhánh skin/nguyên tố bằng `h.nodes[i].on = true`) |
 | `life` / `die` | `RGAutoDestory` ở gốc / ở nút con (nút tắt sau `die` giây) |
 | `spin` | độ/giây quanh Z (`ObjectRotate`, `AutoRotate`) |
-| `sr` | SpriteRenderer `{f, L, o?, c?[r,g,b,a], fx?, fy?, b?:'add'|'mul', off?}` |
+| `sr` | SpriteRenderer `{f, L, o?, c?[r,g,b,a], fx?, fy?, b?:'add'|'mul'|'screen', tint?, off?}` — `tint` = màu vật liệu (dưới) |
 | `sa` | ChillyRoom `SpriteAnimation` `{f:[khung], fps, mode: 0 lặp / 1 một lần / 2 qua lại, hide?, rnd?, off?}` |
 | `ps` | ParticleSystem (dưới) |
 | `tr` | TrailRenderer `{time, minD, w:{c,m}, g, tex, blend?, tint?, L, o?}` |
@@ -90,7 +94,7 @@ giữ bản gặp trước theo thứ tự bundle ở trên. Hero skill: phần 
 
 | Trường | Module |
 |---|---|
-| `dur loop prewarm delay simSpeed world max` | main (`world` = simulationSpace World; `max` bị chặn 200) |
+| `dur loop prewarm delay simSpeed world max scl?` | main (`world` = simulationSpace World; `max` bị chặn 200; `scl` = scalingMode 1 Local / 2 Shape, vắng = Hierarchy) |
 | `life speed size sizeY color rot flipRot grav` | main start* + gravityModifier (× 9.81 [ĐO PhysicsManager]) |
 | `rate rateDist bursts:[[t, count, cycles, interval, prob]]` | emission |
 | `shape:{t, r, ang?, arc?, len?, thick?, pos?, m?(3×3), rndDir?, sphDir?, donut?}` | shape (`t` = enum ParticleSystemShapeType) |
@@ -99,7 +103,15 @@ giữ bản gặp trước theo thứ tự bundle ở trên. Hero skill: phần 
 | `force:{x,y,z, world?}` | forceOverLifetime |
 | `col` / `sol` `solY?` / `rol` | colorOverLifetime / sizeOverLifetime / rotationOverLifetime |
 | `uv:{tx, ty, fot, sf?, cyc?, anim?, row?, rowMode?, time?, fps?, mode?, spr?}` | textureSheetAnimation (lưới hoặc danh sách sprite) |
-| `tex blend? tint? L o? rm? lenScale velScale maxSize? flip?` | renderer: texture từ `_MainTex`; `blend` theo tên shader / `_DstBlend`; `tint` = `_TintColor`×2 (shader Particles cổ) hoặc `_Color`; `rm` = renderMode (1 kéo dài) |
+| `tex blend? tint? L o? rm? lenScale velScale maxSize? flip?` | renderer: texture từ `_MainTex` (không gán → `#white`, ô vuông đặc; texture dựng sẵn ngoài bundle → `#Default-Particle`); `blend` theo trạng thái `Blend` của shader (dưới); `tint` = `_TintColor`×2 **không kẹp** (Particles cổ) hoặc `_Color`; `rm` = renderMode (1 kéo dài) |
+
+Vật liệu [ĐO]: `blend` đọc `m_ParsedForm.m_SubShaders[0]` → pass thường đầu tiên (`m_Type` 0, bỏ GrabPass) →
+`m_State.rtBlend0.srcBlend/destBlend`; giá trị có tên (`_SrcBlend`) thì lấy float của vật liệu. `dst One` → `add`
+(`src OneMinusDstColor` → `screen`), `One OneMinusSrcColor` → `screen`, `DstColor Zero` → `mul`, `One
+OneMinusSrcAlpha` + tên có "add" (Hovl) → `add` [ƯỚC LƯỢNG], còn lại `alpha`. Shader không nằm trong bundle
+(Sprites-Default…) thì đoán theo tên như trước. `tint` của SpriteRenderer chỉ xuất với shader Particles cổ
+(`Additive`, `Alpha Blended`, `Anim Alpha Blended`) và `Sprites/Default`; shader riêng có `_Color` thì ghi
+`u: sr:matColor` và không nhuộm (vd `boss_lvbu_dead_zone` có `_Color` đen, không rõ shader dùng thế nào).
 
 MinMaxCurve: số (hằng) | `{a, b}` (ngẫu nhiên giữa hai hằng) | `{c: keys, m}` (đường cong × m) | `{c, c2, m}` (ngẫu
 nhiên giữa hai đường cong). `keys = [[t, v, inSlope, outSlope]]`, slope `null` = bậc thang (Unity Constant).
@@ -139,6 +151,11 @@ SK.vfx.load()             // tải hết trang atlas (bình thường tải lư�
 - Toạ độ `x, y` là px thế giới game; `ang` (radian, chiều kim đồng hồ trên màn hình) xoay trục +X của hiệu ứng;
   `follow` = vật `{x, y[, ang]}` hiệu ứng bám theo (vệt đạn, buff trên quái); vật có `dead`/`gone` thì hiệu ứng `stop()`.
 - Instance nằm trong `G.vfx`. Lặp (`def.loop`) thì sống tới `stop()` hoặc `dur`.
+- Vị trí gốc của prefab bị bỏ (Instantiate ghi đè), trừ `cat: 'buff'` có x ≈ 0 (< 0.5 đv) [ƯỚC LƯỢNG]: buff gắn làm con
+  của nhân vật giữ độ lệch dọc (khiên `0,1`). 348 hiệu ứng có gốc lệch, tới 7.32 đv (`explode_energy*`) — trước đây vẽ
+  lệch 117 px khỏi điểm nổ.
+- Animator có trạng thái mặc định rỗng: `o.state` chọn trạng thái; không truyền thì chạy clip 0, **trừ** khi clip 0
+  chỉ là trạng thái `disappear` (băng: đứng yên tới lúc hết buff).
 - Lượt vẽ tự chia theo sorting layer thật: `BackGround/Floor/Shadow` → `'ground'` (dưới nhân vật), còn lại `'top'`;
   `o.layer` ép cả hiệu ứng.
 - Trần: 2 000 hạt tổng, 200 hạt mỗi hệ, 400 instance. Đo trong kiểm thử: 60 vụ nổ nặng nhất cùng lúc trên khung
@@ -152,6 +169,48 @@ mỗi bước / mỗi khung — và xoá hiệu ứng ở `SK.on('stageEnter')`.
 <script src="data/sk-vfx.js?v=..."></script>
 <script src="js/vfx.js?v=..."></script>
 ```
+
+## Đo khoảng cách với Unity (2026-09-30)
+
+Ba công cụ, chạy ở gốc repo:
+
+```sh
+node games/soulknight/tools/vfx/play_count.js 12 %TEMP%/vfx-play.json --give   # chơi thật ~4 phút, đếm SK.vfx.spawn
+node games/soulknight/tools/vfx/gap_report.js --play %TEMP%/vfx-play.json --top 40
+PYTHONIOENCODING=utf-8 python games/soulknight/tools/vfx/probe.py hit_orange common.ab   # thông số gốc một prefab
+```
+
+- `play_count.js`: bọc `SK.vfx.spawn`, 17 lượt (12 nhân vật + 3 trùm + 2 phòng màn 2/3), giữ J, K mỗi 3,2 s; `--give`
+  đổi vũ khí mỗi 4 s (không có thì chỉ thấy súng đầu). Ra `{counts, from (tệp:dòng gọi), perRun}`.
+- `gap_report.js`: mỗi hiệu ứng (kể cả thân đạn `W:*`) → danh sách khoảng cách, cộng theo số lần sinh khi chơi.
+  `fixed:*` = đã sửa (giữ để biết bao nhiêu hiệu ứng được lợi), `info:*` = không phải lỗi. `W:*` không mang vật liệu
+  nên luôn báo `—` dù có thể sai.
+- `probe.py`: cây nút, vật liệu (shader, texture, `_TintColor`/`_Color`, `_SrcBlend`/`_DstBlend`), module ParticleSystem.
+
+Đo được [ĐO, 2 lượt chơi: 2 941 lần sinh có `--give`, 2 100 không]: `hit_*` (tia trúng) ≈ 50 % mọi lần sinh, thân đạn
+`W:*` ≈ 35 %, nổ (`explode_*@explode_small|big`) ≈ 5 %, rồi `smoke`, `muzzle_*`, kỹ năng (`effect_c1_skill`…); buff
+trên quái hiếm (< 1 %) khi chơi súng đầu. Đã sửa, xếp theo lần thấy:
+
+1. **Hạt tia trúng là ô vuông đặc**, không phải đốm tròn mờ: renderer `hit_*` dùng `Sprites-Default` không gán
+   `_MainTex` → Unity dùng texture trắng. 852 hệ (556 hiệu ứng) chuyển từ `#Default-Particle` sang `#white`.
+2. **Glow ×2**: `light` của nổ dùng `Legacy Shaders/Particles/Additive` với `_TintColor (1,1,1,1)` = ×2 màu lẫn
+   alpha; SpriteRenderer trước đây bỏ hẳn tint vật liệu, hạt thì kẹp ở 1. 480 SpriteRenderer có `tint [2,2,2,2]`.
+3. **Blend theo shader**: `Unlit/RGSEffectLight` (One One) bị vẽ alpha thành ô tối (`fighter_0_angry_effect`);
+   `Mobile/Particles/Alpha Blended` có `_DstBlend` cũ = 1 bị vẽ cộng.
+4. **scalingMode** (`hit_*`: Shape): `o.scale` chỉ nới vùng phát, cỡ hạt giữ nguyên. 1 104 hệ Local/Shape.
+5. **Gốc prefab lệch** bị bỏ (trên). 6. **`buff_ice`** đứng yên suốt lúc đóng băng rồi `ice_end` (trên; trước đây
+   mờ hết trong 1 s đầu).
+7. **Texture sheet chế độ Sprite một khung** vẽ đúng sprite (trước: texture vật liệu → ô trắng,
+   `arcaneknight_0_skill1_add_armor_fx`). 8. Nút tắt sẵn của prefab đạn (`cat: trail`, 83 hiệu ứng) không còn bị bật
+   hết (`warliege_roll` vẽ nhánh tuyết thành ô trắng).
+
+Còn lệch (chưa sửa): thân đạn `W:*` (lever `sk-weapons86`, không ở đây) thiếu tint ×2 của glow `texiao_01`; cỡ hạt
+chế độ Sprite — runtime vẽ sprite vuông `size × size`, bỏ tỉ lệ/pivot của sprite, Unity dùng lưới sprite (chưa đo được
+hệ số: `fighter_0_angry_effect` size 4 với sprite 128 px mà nhân kích thước gốc thì ra 512 px, vô lý); texture của
+TrailRenderer/LineRenderer (325 + 72 hiệu ứng) vẽ nét màu phẳng; `tint > 1` chỉ kẹp màu, texel tối không sáng thêm
+(109 hiệu ứng); `limitVelocity.dampen` áp theo khung hình, Unity độc lập khung hình [ƯỚC LƯỢNG]; `hit_red` "to quá"
+(báo từ bên kỹ năng): đo khớp prefab (sprite 16×16 px PPU 16 = 1 đv, hạt 0.4 đv, thước gốc 1) — nếu vẫn lệch thì ở
+phía gọi (`RGBulletTrigger.fixedHitScale`: tia trúng nhân thước đạn).
 
 ## Hỗ trợ / chưa hỗ trợ [ĐO số hiệu ứng dùng]
 
@@ -212,6 +271,13 @@ Danh sách đủ: `stats.unsupportedVisual` trong `data/sk-vfx.js`; logic chơi 
   Runtime dùng sfc32. (`SK.rand` trong engine.js cũng là mulberry32.)
 - `common.ab` 8.6 chứa bản sao của nhiều prefab `bullet.ab` (cùng tên, khác CAB); tra theo tên, đừng theo cặp CAB.
 - GameObject tắt thì Unity xoá hạt của nó; giữ lại hạt "đóng băng" làm hiệu ứng không bao giờ tắt.
+- Vật liệu **không gán** `_MainTex` ≠ texture dựng sẵn: không gán → shader lấy "white" (ô vuông đặc); gán tới texture
+  nằm ngoài bundle (Default-Particle) → đốm tròn. Gộp hai trường hợp làm mọi tia trúng thành đốm mờ.
+- Tên shader / `_DstBlend` của vật liệu không đáng tin: vật liệu giữ thuộc tính của shader trước (`_TintColor`,
+  `_DstBlend = 1` trên `Mobile/Particles/Alpha Blended`). Đọc `rtBlend0` của shader; pass đầu có thể là GrabPass
+  (`Particles/Standard Unlit`: One Zero) — lấy pass `m_Type 0`, không thì 326 hệ cộng bị đổi sai sang alpha.
+- `_TintColor` ×2 phải để runtime kẹp **sau** khi nhân: kẹp ở lever (`min(1, 2c)`) thì mọi glow additive tối một nửa.
+- Chế độ Sprite của texture sheet chỉ có một sprite thì `nFrames = 1`: đừng rơi về texture vật liệu.
 
 ## Trang xem
 
@@ -226,7 +292,10 @@ trạng thái Animator, "được tham chiếu bởi", phim 1/30 s và mọi khu
 node test/soulknight-vfx.js   # cần python -m http.server 8811 ở gốc repo
 ```
 
-14 mục: atlas nạp đủ, lưới vẽ ra điểm ảnh, không lỗi trang; `hit_yellow` phát hạt ngay và tắt theo tuổi thọ +
+23 mục: atlas nạp đủ, lưới vẽ ra điểm ảnh, không lỗi trang; `hit_yellow` phát hạt ngay và tắt theo tuổi thọ +
 `RGAutoDestory`; toàn bộ 2 599 hiệu ứng chạy không ném lỗi, tự tắt, hệ có rate/bursts đều phát, bộ đếm hạt về 0;
 hiệu năng 60 vụ nổ; trong game (nạp script bằng `addScriptTag` khi `index.html` chưa có thẻ) hiệu ứng sinh, cập
-nhật qua vòng lặp thật và tắt hết. Ảnh: `%TEMP%/soulknight-vfx/`.
+nhật qua vòng lặp thật và tắt hết. Độ trung thực (số kỳ vọng lấy từ prefab): hạt `hit_orange` là ô đúng màu
+rgb(255,227,75); scalingMode Shape; glow `explode_s` ×2 (đỏ ×2, lam ×4); vòng đời `buff_ice` (2.75 s, `bullet_84`,
+2 s, mờ 1 s); `explode_energy3` vẽ tại điểm nổ; `fighter_0_angry_effect` cộng không có ô tối; armor một sprite không
+trắng; `warliege_roll` nhánh tắt không vẽ. Ảnh: `%TEMP%/soulknight-vfx/`.

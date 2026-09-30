@@ -224,3 +224,81 @@ Kết quả nằm ở `SK_DATA.extra`: `sprites[regex] = [khung]`, `clips[tên] 
   Heredoc dài có dòng `'EOF'`/ngoặc lạ cũng có lúc vỡ; khi đó ghi tệp .py rồi chạy.
 - `/tmp` của Git Bash và `/tmp` mà Python thấy là hai thư mục khác nhau. Dùng đường dẫn Windows đầy đủ.
 - Bộ nhớ: một lượt build ăn khoảng 2,3 GB RAM, vì phải giữ `common.ab` 50 MB và các texture đã giải.
+
+## Đọc mã gốc: `sk_method.py`
+
+Dịch ngược method C# của bản 8.6 (IL2CPP, ARMv7) và chú thích sẵn. Dùng nó để đọc số thật (thời lượng, bán
+kính, tốc độ, công thức sát thương) thay vì đoán.
+
+    PY=~/.pyenv/pyenv-win/versions/3.8.10/python.exe      # gọi thẳng python.exe, xem bẫy bên dưới
+    export PYTHONIOENCODING=utf-8
+    $PY games/soulknight/tools/sk_method.py C28Controller.RoleSkill                     # mọi overload
+    $PY games/soulknight/tools/sk_method.py 'SwordMasterFlySword.<BulletMove>d__21.MoveNext'   # lớp lồng
+    $PY games/soulknight/tools/sk_method.py --find 'C28Controller\.Skill2'   # regex trên "Kiểu.Method"
+    $PY games/soulknight/tools/sk_method.py --type 'SwordMaster'             # regex trên tên kiểu
+    $PY games/soulknight/tools/sk_method.py --fields C28Controller           # trường, offset, const, chuỗi cha
+    $PY games/soulknight/tools/sk_method.py --xref C28Controller.StopSkill   # ai gọi (BL/BLX/B + ô Method(...))
+    $PY games/soulknight/tools/sk_method.py --strref 'C28QuantumPulse'       # method nào dùng chuỗi này
+    $PY games/soulknight/tools/sk_method.py --addr 0xA72B6938                # địa chỉ thuộc method nào
+    # thêm: -n 2000 (số lệnh tối đa), --raw (bỏ chú thích), --rebuild (dựng lại cache)
+
+Nguồn đều nằm ngoài git, ở `D:\sk86-ref` (đổi bằng biến `SK86_REF`):
+
+- `runtime/libil2cpp_mem.so`, `runtime/dump/dump.cs`, `runtime/dump/script.json`, `runtime/global-metadata.dat`
+  (config86/README mục 8).
+- `config.armeabi_v7a/lib/armeabi-v7a/libil2cpp.so`: `.so` gốc trong APK, để giải các ô metadata (bẫy thứ nhất).
+- Cache ở `work/sk_method/index.pkl` (150 MB). Lần đầu dựng mất khoảng 25 s. Mỗi lần gọi sau mất 4–6 s,
+  `--xref` khoảng 12 s [ĐO 2026-09-30].
+
+Đọc chú thích:
+
+- `this.x?`: trường đoán theo offset, có tính lớp cha. `(Kiểu).x?` là đối tượng lấy từ trường có kiểu đã biết,
+  ví dụ `<>4__this` của coroutine trỏ về lớp ngoài.
+- `TypeInfo(...)`, `Method(...)`, `Field(...)`, `"chuỗi"`: ô metadata usage. `Kiểu.f (static)` là đọc
+  `static_fields` sau `TypeInfo`.
+- `vtable[k] X.M` và `gọi ảo X.M`: gọi ảo, tên lấy theo `Slot` trong dump.cs.
+- `[qua thunk]`: `bl` đi qua veneer của linker (`b X` hoặc `movw/movt ip; add ip, pc; bx ip`). `@plt` là hàm nhập
+  (`memcpy`, `__cxa_throw`...).
+- Tên hàm runtime il2cpp (`ThrowNullReferenceException`, `il2cpp_codegen_object_new`, `WriteBarrier`...) do mình
+  đặt theo ngữ cảnh gọi, xem `RUNTIME` trong mã. Tên có `?` là đoán yếu.
+- Gần như mọi method mở đầu bằng khối vá nóng IFix: `WrappersManagerImpl.IsPatched` rồi `__Gen_Wrap_N`. Thân thật
+  nằm sau nhánh `beq` đầu tiên.
+
+Đã kiểm [ĐO 2026-09-30]:
+
+- Offset trong `libil2cpp_mem.so` chính là RVA của dump.cs, gốc VA `0xA170A000`. Cả 344.832 hàm có địa chỉ đều giải
+  ra ARM. Thử Thumb thì ra rác ngay lệnh đầu.
+- `SwordMasterFlySword..ctor` nạp bảng float `[35, 45, -0.2, 0.2]` rồi ghi một lượt vào `startSpeed`, `endSpeed`,
+  `backSpeed`, `moveTime`. Nó cũng ghi `endMoveTime` = `backTime` = `lookOffsetY` = 0,3 và `rotateTime` = 0,18.
+- `C28Controller.GetSkill2MaxFieldSideLength` đọc `this.skill2MaxLength` (0x4E4, prefab trong `decoded/mb/hero.json`
+  = 15) rồi kẹp vào [0, 20]. Số 20 khớp const `Skill2MaxFieldSideLength = 20` trong dump.cs.
+- Thử bộ giải ô trên các ô mà Il2CppDumper đã đặt tên thì trùng tên ở 98.209/98.214 Method, 34.310/34.330 TypeInfo,
+  1.752/1.752 Field và 63.104/63.104 chuỗi. Chỗ lệch chỉ là cách viết tên generic lồng sâu.
+
+Bẫy đã sập:
+
+- **script.json thiếu tên của khoảng 26.100 ô metadata.** Game đã dùng các ô này trước lúc dump, nên chúng chứa con
+  trỏ heap chứ không còn số mã hoá, và Il2CppDumper bỏ qua. Số mã hoá gốc (`loại<<29 | chỉ số<<1 | 1`) vẫn nằm ở
+  cùng RVA trong `.so` của APK, nên tool tự giải. Ví dụ: `C28Controller.OnEnable` tạo `System.Action` qua ô
+  `0xE3F30B8`, và ô này chỉ có tên nhờ bước giải đó. Loại 7 là `FieldRva`.
+- **Ô metadata đi qua GOT.** `ldr rX, [pc, #lit]` rồi `ldr rX, [pc, rX]` chỉ cho *địa chỉ* ô. Phải thêm
+  `ldr rX, [rX]` mới ra TypeInfo. `--strref`/`--xref` quét cả kiểu trỏ thẳng lẫn kiểu qua GOT. Quét kiểu trỏ thẳng
+  thì không ra gì.
+- **Mỗi nửa lấy từ một bản.** Bảng `methodSpecs` trong `.rodata` của `.so` gốc bị che từ quãng giữa trở đi, còn trong
+  ảnh bộ nhớ thì sạch. Ngược lại, `Il2CppType` của lớp/struct trong bộ nhớ đã bị thay chỉ số TypeDef bằng con
+  trỏ vào metadata, và vài `Il2CppType` bằng 0. Phần này phải đọc từ `.so` gốc.
+- **vtable của `Il2CppClass` 32-bit ở `0xC0`**, không phải `0xBC` như cộng theo il2cpp.h. Đo bằng
+  `C28Controller.RoleSkill`: nó gọi `[klass, #0x4b8]`, tức slot 127 = `RoleSkillEnd`. `static_fields` ở `0x5C`,
+  `cctor_finished` ở `0x74`.
+- **Offset trường lớn không vừa lệnh.** Offset > 0xFFF (hoặc > 1020 với `vldr`) được dựng bằng `movw` + `add`, rồi
+  mới `vldr sN, [rX]`. Tool bắt mẫu này, ví dụ `this.skill2MaxLength` ở trên.
+- **Luật "3/4 word đầu mang điều kiện AL" nhận nhầm 1.765 hàm ngắn là Thumb.** Hàm mở đầu bằng lệnh NEON
+  (`vmov.i32`, điều kiện 0xF) cũng bị nhầm. Giờ tool chỉ xét word đầu (0xE/0xF, giải được ở ARM).
+- **`python` của pyenv là tệp `.bat`.** cmd hiểu `<BulletMove>d__21` thành chuyển hướng tệp, nên báo "The system
+  cannot find the file specified". Gọi thẳng `~/.pyenv/pyenv-win/versions/3.8.10/python.exe`. Còn `py -3.8` trỏ tới
+  `D:\python3.8.10`, bản này không có capstone.
+- `| head` trên Windows làm Python báo `OSError 22` khi ống đóng. Tool đã nuốt lỗi này.
+
+Giới hạn: tool đọc tuyến tính, không theo nhánh, nên trạng thái thanh ghi có thể sai sau điểm hợp nhánh. Offset
+trường struct trong dump.cs tính cả header 8 byte; truy cập qua con trỏ struct thì phải tự trừ 8. Gọi qua interface
+chỉ ra `GetInterfaceInvokeData?`, chưa ra tên method.

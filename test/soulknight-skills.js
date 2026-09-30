@@ -504,6 +504,11 @@ const CASES = {
   }
 };
 
+// Ca kiểm của từng nhân vật khác: test/sk-skills/<thư mục>.js xuất (h) => ({ 'thư mục/ô': async (p, id) => {...} }).
+const H = { check, sleep, until, near, standNear, snap, resetDmg, pressK, seq, real, mb, hitsOf };
+const XDIR = path.join(__dirname, 'sk-skills');
+if (fs.existsSync(XDIR)) for (const f of fs.readdirSync(XDIR).sort()) if (/\.js$/.test(f)) Object.assign(CASES, require(path.join(XDIR, f))(H));
+
 (async () => {
   const b = await chromium.launch();
   const ctx = await b.newContext({ viewport: { width: 960, height: 540 } });

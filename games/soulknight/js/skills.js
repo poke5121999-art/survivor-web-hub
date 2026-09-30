@@ -2117,6 +2117,14 @@
     for (const id in S) if (!S[id].icon) S[id].icon = iconFor(id) || null;
   }
   SK.skills86Apply = applyAll;   // data/sk-skills86.js nạp sau skills.js (kiểm thử chèn thẻ) thì gọi lại
+  // Đồ nghề cho js/skills/<thư mục nhân vật>.js: mỗi tệp đăng ký SK.SKILLS[id] của một nhân vật.
+  SK.skillKit = {
+    S86, H86, K86, MB, CTRL, cfg, XP, XS, XC, pngAnim, firstFrame, saFrames,
+    glow, drawRip, ripLen, ripFx, hasVfx, fx, stopFx,
+    alive, ec, enemyTop, inRoom, nearest, inRadius, hit, stun, aimDir, targetAng, setMul, hurtMods, ghost,
+    swapAnims, subAnim, heal, healFx, shoot, drawBolt, boltProp, DEBUFF, debuff,
+    allies, addAlly, hpBar, walk, layer, timers, charges, useCharge, DUR_UI, iconFor
+  };
   applyAll();
   if (document.readyState !== 'complete') addEventListener('load', applyAll);
 

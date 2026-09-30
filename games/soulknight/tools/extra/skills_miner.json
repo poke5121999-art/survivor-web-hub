@@ -1,0 +1,4 @@
+{
+  "prefabs": ["miner_car", "miner_car_bullet", "soil_miner", "explode_miner_skill1"],
+  "sprites": ["^miner_car_[0-9]+$"]
+}

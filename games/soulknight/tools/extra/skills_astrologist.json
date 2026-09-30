@@ -1,0 +1,4 @@
+{
+  "bundles": ["common", "bullet"],
+  "prefabs": ["astrologist_astrolabe", "astrologist_astrolabe_point", "astrologist_astrolabe_damage"]
+}

@@ -1,0 +1,4 @@
+{
+  "bundles": ["common", "bullet"],
+  "prefabs": ["sword_sweep_circle", "sword_sweep_dash_circle", "fly_slash"]
+}

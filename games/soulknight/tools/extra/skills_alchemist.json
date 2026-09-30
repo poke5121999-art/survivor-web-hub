@@ -1,0 +1,5 @@
+{
+ "bundles": ["weapon"],
+ "prefabs": ["weapon_skill_achemist"],
+ "sprites": ["^alchemist_0_skill_2_effect_0_[0-9]+$"]
+}

@@ -87,7 +87,9 @@ async function viewer(b) {
         // hệ có phát (rate/bursts) và nút đang bật lúc sinh; hệ chỉ phát bằng script (Emit) không tính
         const hasPs = h2.sys.some(s => (s.d.rate != null || s.d.bursts) && h2.nodes[s.i].vis); if (hasPs) withPs++;
         let seen = 0;
-        const lim = Math.min(45, (d.loop ? 1 : d.dur) + lifeMax(d) + 1);
+        // def.end (BuffIce): thêm pha kết thúc = after + độ dài clip của trạng thái kết thúc
+        const endT = d.end ? d.end.after + Math.max(0, ...(d.anims || []).map(a => a.st && a.st[d.end.state] != null ? a.clips[a.st[d.end.state]].len : 0)) : 0;
+        const lim = Math.min(45, (d.loop ? 1 : d.dur) + lifeMax(d) + endT + 1);
         let t = 0;
         while (G2.vfx.length && t < lim) { X.update(G2, 1 / 30); t += 1 / 30; if (hasPs) seen = Math.max(seen, h2.sys.reduce((s, x) => s + x.parts.length, 0)); if ((t * 30 | 0) % 10 === 0) X.draw(ctx, G2); }
         if (seen) particlesSeen++;
@@ -139,6 +141,146 @@ async function viewer(b) {
   await p.close();
 }
 
+// Đúng như Unity: số kỳ vọng lấy thẳng từ prefab 8.6 (tools/vfx/probe.py) và mã gốc (tools/sk_method.py).
+async function fidelity(b) {
+  const p = await b.newPage({ viewport: { width: 800, height: 600 } });
+  const errs = [];
+  watch(p, errs);
+  await p.goto(BASE + 'tools/vfx/viewer.html?q=^$');
+  await p.waitForFunction(() => document.body.dataset.ready === '1', null, { timeout: 60000 });
+  const r = await p.evaluate(() => {
+    const X = SK.vfx, V = SK_VFX, out = {};
+    const canvas = (w, h) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; const ctx = cv.getContext('2d'); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, w, h); return ctx; };
+    const run = (G, secs) => { for (let i = 0; i < Math.round(secs * 60); i++) X.update(G, 1 / 60); };
+
+    // 1. hit_orange: renderer dùng Sprites-Default không có _MainTex -> hạt là ô vuông đặc màu startColor (1, 0.8902, 0.2941)
+    {
+      const G = {}, h = X.spawn(G, 'hit_orange', 48, 48, { seed: 2 });
+      run(G, 4 / 60);
+      h.nodes[0].en = false; // chỉ vẽ hạt, tắt sprite chớp
+      const ctx = canvas(96, 96);
+      X.draw(ctx, G);
+      const d = ctx.getImageData(0, 0, 96, 96).data;
+      let lit = 0, exact = 0;
+      for (let i = 0; i < d.length; i += 4) if (d[i] + d[i + 1] + d[i + 2] > 30) { lit++; if (Math.abs(d[i] - 255) <= 2 && Math.abs(d[i + 1] - 227) <= 2 && Math.abs(d[i + 2] - 75) <= 2) exact++; }
+      out.hit = { tex: V.effects.hit_orange.nodes[0].ps.tex, lit, exact, parts: h.sys[0].parts.length };
+      X.clear(G);
+    }
+    // 2. scalingMode Shape (hit_orange: 2): thước spawn 2 chỉ nới vùng phát (bán kính 1 -> 2 đơn vị), cỡ hạt giữ 0.4 đv = 6.4 px
+    {
+      const G = {}, h = X.spawn(G, 'hit_orange', 48, 48, { seed: 3, scale: 2 });
+      run(G, 5 / 60);
+      h.nodes[0].en = false;
+      const ctx = canvas(96, 96), sides = [], fr = ctx.fillRect.bind(ctx);
+      ctx.fillRect = (x, y, w, hh) => { const m = ctx.getTransform(); sides.push(Math.hypot(m.a, m.b) * w); fr(x, y, w, hh); };
+      X.draw(ctx, G);
+      out.shape = { scl: V.effects.hit_orange.nodes[0].ps.scl, maxSide: Math.max(...sides), n: sides.length, maxR: Math.max(...h.sys[0].parts.map(q => Math.hypot(q.x, q.y))) };
+      X.clear(G);
+    }
+    // 3. explode_s/light: Legacy Shaders/Particles/Additive, _TintColor (1,1,1,1) -> ×2 cả màu lẫn alpha rồi kẹp
+    {
+      const light = V.effects.explode_s.nodes[2].sr;
+      const px = () => {
+        const G = {}, h = X.spawn(G, 'explode_s', 48, 48, { seed: 1, state: 'explode_small' });
+        run(G, 1 / 60);
+        h.nodes[1].en = false; // chỉ vẽ quầng sáng
+        const ctx = canvas(96, 96);
+        X.draw(ctx, G);
+        X.clear(G);
+        return Array.from(ctx.getImageData(48, 48, 1, 1).data);
+      };
+      const tint = light.tint, withT = px();
+      light.tint = null; const noT = px(); light.tint = tint;
+      out.light = { tint, withT, noT, rr: withT[0] / Math.max(1, noT[0]), rb: withT[2] / Math.max(1, noT[2]) };
+    }
+    // 4. buff_ice: BuffIce.buff_time 2.75 s đứng yên đủ; hết buff -> tách khỏi quái, sprite ice_end (bullet_84), 2 s sau
+    //    SetTrigger -> 'disappear' (mờ trong 1 s) rồi tắt [ĐO BuffIce.BuffEnd: Invoke("Disappear", 2.0)]
+    {
+      const G = {}, tgt = { x: 50, y: 50 };
+      const h = X.spawn(G, 'buff_ice', 0, 0, { follow: tgt, dur: 2.75, seed: 1 });
+      const snap = () => ({ a: +h.nodes[0].col[3].toFixed(3), spr: h.nodes[0].spr, x: h.x, alive: G.vfx.length });
+      run(G, 1.5); const s1 = snap();
+      tgt.x = 80; run(G, 1.4); const s2 = snap();          // t = 2.9: đã hết buff
+      tgt.x = 120; run(G, 2.35); const s3 = snap();        // t = 5.25: nửa clip disappear
+      run(G, 0.6); const s4 = snap();                      // t = 5.85: đã tắt
+      out.ice = { end: V.effects.buff_ice.end, s1, s2, s3, s4 };
+      X.clear(G);
+    }
+    // 5. explode_energy3: gốc prefab nằm ở x = 7.32 đv; Instantiate(prefab, vị trí, góc) ghi đè -> vẽ tại điểm nổ
+    {
+      const G = {}; X.spawn(G, 'explode_energy3', 100, 60, { seed: 1 });
+      run(G, 0.1);
+      const ctx = canvas(200, 120);
+      X.draw(ctx, G);
+      const d = ctx.getImageData(0, 0, 200, 120).data;
+      let n = 0, sx = 0, sy = 0;
+      for (let i = 0; i < d.length; i += 4) if (d[i] + d[i + 1] + d[i + 2] > 60) { n++; sx += (i / 4) % 200; sy += Math.floor(i / 4 / 200); }
+      out.root = { T0: V.effects.explode_energy3.nodes[0].T[0], n, cx: n ? sx / n : -1, cy: n ? sy / n : -1 };
+      X.clear(G);
+    }
+    // 6. fighter_0_angry_effect: shader Unlit/RGSEffectLight có Blend One One [ĐO m_ParsedForm] -> nền đen của sprite
+    //    không làm tối cảnh (trước đây vẽ alpha: ô vuông tối quanh nhân vật)
+    {
+      const G = {}; X.spawn(G, 'fighter_0_angry_effect', 48, 70, { seed: 1, dur: 1 });
+      run(G, 0.2);
+      const ctx = canvas(96, 96); ctx.fillStyle = '#404040'; ctx.fillRect(0, 0, 96, 96);
+      X.draw(ctx, G);
+      const d = ctx.getImageData(0, 0, 96, 96).data;
+      let darker = 0, brighter = 0;
+      for (let i = 0; i < d.length; i += 4) { if (d[i] < 60 && d[i + 1] < 60 && d[i + 2] < 60) darker++; else if (d[i] + d[i + 1] + d[i + 2] > 3 * 70) brighter++; }
+      out.angry = { blend: V.effects.fighter_0_angry_effect.nodes[1].ps.blend, darker, brighter };
+      X.clear(G);
+    }
+    // 7. arcaneknight_0_skill1_add_armor_fx: texture sheet chế độ Sprite với MỘT sprite -> vẽ sprite đó, không phải ô trắng
+    {
+      const G = {}; X.spawn(G, 'arcaneknight_0_skill1_add_armor_fx', 48, 60, { seed: 1 });
+      run(G, 0.15);
+      const ctx = canvas(96, 96);
+      X.draw(ctx, G);
+      const d = ctx.getImageData(0, 0, 96, 96).data;
+      let lit = 0, white = 0;
+      for (let i = 0; i < d.length; i += 4) if (d[i] + d[i + 1] + d[i + 2] > 30) { lit++; if (d[i] > 245 && d[i + 1] > 245 && d[i + 2] > 245) white++; }
+      out.armor = { spr: V.effects.arcaneknight_0_skill1_add_armor_fx.nodes[1].ps.uv.spr, lit, white };
+      X.clear(G);
+    }
+    // 8. warliege_roll: nhánh 'ice' tắt sẵn trong prefab (m_IsActive 0) -> không phát hạt (trước đây ô trắng)
+    {
+      const G = {}, h = X.spawn(G, 'warliege_roll', 48, 48, { seed: 1, dur: 1 });
+      run(G, 0.5);
+      const ice = h.nodes.find(n => n.d.n === 'ice');
+      out.roll = { off: !!(ice && ice.d.off), parts: h.sys.reduce((s2, x) => s2 + x.parts.length, 0) };
+      X.clear(G);
+    }
+    return out;
+  });
+  const an = r.angry;
+  check('fighter_0_angry_effect: blend cộng theo shader (One One), không có ô tối', an.blend === 'add' && an.darker === 0 && an.brighter > 50,
+    'blend ' + an.blend + ', ' + an.darker + ' điểm ảnh tối hơn nền, ' + an.brighter + ' sáng hơn');
+  const ar = r.armor;
+  check('arcaneknight armor: hạt chế độ Sprite một khung vẽ đúng sprite (không phải ô trắng)', ar.spr[0] === 'MagicKnight-skill2-armor' && ar.lit > 50 && ar.white / ar.lit < 0.3,
+    ar.white + '/' + ar.lit + ' điểm ảnh trắng tinh');
+  check('warliege_roll: nhánh tắt sẵn không vẽ', r.roll.off && r.roll.parts === 0, JSON.stringify(r.roll));
+  const h = r.hit;
+  check('hit_orange: hạt là ô vuông đặc đúng màu startColor rgb(255,227,75) (Sprites-Default không _MainTex)',
+    h.tex === '#white' && h.lit > 20 && h.exact / h.lit >= 0.4, 'tex ' + h.tex + ', ' + h.exact + '/' + h.lit + ' điểm ảnh đúng màu, ' + h.parts + ' hạt');
+  const s = r.shape;
+  check('scalingMode Shape: o.scale 2 nới vùng phát, cỡ hạt giữ ≤ 0.4 đv (6.4 px)', s.scl === 2 && s.n > 0 && s.maxSide <= 6.45 && s.maxR > 1,
+    'scl ' + s.scl + ', cạnh lớn nhất ' + s.maxSide.toFixed(2) + ' px, hạt xa tâm nhất ' + s.maxR.toFixed(2) + ' đv');
+  const l = r.light;
+  check('explode_s/light: 2 × _TintColor(1,1,1,1) của Particles/Additive -> đỏ ×≈2, lam ×≈4 so với không tint',
+    JSON.stringify(l.tint) === '[2,2,2,2]' && l.rr >= 1.7 && l.rr <= 2.4 && l.rb >= 3.3 && l.rb <= 5, 'tint ' + JSON.stringify(l.tint) + ', điểm giữa ' + l.withT.slice(0, 3) + ' / ' + l.noT.slice(0, 3));
+  const ic = r.ice;
+  check('buff_ice: đứng yên suốt 2.75 s đóng băng, rồi tách khỏi quái + đổi ice_end, 2 s sau mờ 1 s và tắt',
+    ic.end && ic.end.after === 2 && ic.end.spr === 'bullet_84' && ic.s1.a === 1 && ic.s1.x === 50 && ic.s2.spr === 'bullet_84' && ic.s2.a === 1 &&
+    ic.s3.x === ic.s2.x && Math.abs(ic.s3.a - 0.5) <= 0.05 && ic.s4.alive === 0,
+    JSON.stringify([ic.s1, ic.s2, ic.s3, ic.s4]));
+  const ro = r.root;
+  check('explode_energy3: bỏ vị trí gốc prefab (x 7.32 đv) — vẽ tại điểm nổ', ro.T0 === 7.32 && ro.n > 20 && Math.abs(ro.cx - 100) <= 4 && Math.abs(ro.cy - 60) <= 6,
+    ro.n + ' điểm ảnh, tâm (' + ro.cx.toFixed(1) + ', ' + ro.cy.toFixed(1) + ') so với (100, 60)');
+  check('kiểm độ trung thực không lỗi trang', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await p.close();
+}
+
 async function inGame(b) {
   const p = await b.newPage({ viewport: { width: 1280, height: 720 } });
   const errs = [];
@@ -182,6 +324,7 @@ async function inGame(b) {
   const b = await chromium.launch();
   try {
     await viewer(b);
+    await fidelity(b);
     await inGame(b);
   } catch (e) {
     check('chạy hết kịch bản', false, e.message);

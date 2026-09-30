@@ -134,6 +134,7 @@ class B86(BV.Builder):
         self.sa_map = None
         self.shader_cache, self.mat_cache = {}, {}
         self.unsup, self.modules, self.shaders = collections.Counter(), collections.Counter(), collections.Counter()
+        self.tex_fallback = collections.Counter()   # BV.Builder.material() ghi cách chọn texture/tint (glow ×2 _TintColor)
         self.missing_sprite = 0
         self.unsup_eff = 0
         self.names_mode = False

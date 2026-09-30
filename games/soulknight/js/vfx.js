@@ -204,12 +204,17 @@
       t: 0, stopped: false, dead: false,
       life: o.dur != null ? o.dur : def.loop ? Infinity : def.dur,
       rnd: rng(o.seed != null ? o.seed : (seedCounter = (seedCounter * 1103515245 + 12345) >>> 0)),
-      stop() { this.stopped = true; }, kill() { this.dead = true; }
+      stop() { if (this.def.end && !this.ending) beginEnd(this); else this.stopped = true; }, kill() { this.dead = true; }
     };
     h.nodes = def.nodes.map(n => ({
       d: n, T: n.T ? n.T.slice() : [0, 0, 0, 0, 0, 0, 1, 1, 1, 1], on: !n.off, en: !(n.sr && n.sr.off), col: n.sr && n.sr.c ? n.sr.c.slice() : [1, 1, 1, 1],
       spr: n.sr ? n.sr.f : null, loc: new Array(12), W: new Array(12), dirty: true, vis: true, saOff: 0, spin: 0
     }));
+    // Instantiate(prefab, vị trí, góc) ghi đè vị trí gốc: toạ độ gốc trong prefab (7.32 ở explode_energy*, 4.3,3.08 ở
+    // bullet_with_light... [ĐO 355 hiệu ứng]) là dư thừa lúc dựng, không phải độ lệch. Buff gắn làm con của nhân vật thì
+    // giữ vị trí cục bộ; chỉ tin khi lệch dọc (x ≈ 0, vd khiên 0,1) [ƯỚC LƯỢNG ngưỡng 0.5].
+    const R0 = h.nodes[0].T;
+    if (!(def.cat === 'buff' && Math.abs(R0[0]) < 0.5)) { R0[0] = 0; R0[1] = 0; R0[2] = 0; }
     for (const nd of h.nodes) if (nd.d.sa && nd.d.sa.rnd) nd.saOff = Math.floor(h.rnd() * nd.d.sa.f.length);
     h.sys = [];
     h.trails = [];
@@ -240,10 +245,23 @@
     return h;
   };
 
+  // def.end (BuffIce): hết buff thì tách khỏi quái, đổi sprite (băng vỡ), đứng yên `after` giây rồi chạy trạng thái
+  // `state` (disappear: mờ dần 1 s) và tắt. [ĐO BuffIce.BuffEnd]
+  function beginEnd(h) {
+    const e = h.def.end;
+    h.ending = true; h.endT0 = h.t; h.follow = null;
+    const root = h.nodes[0];
+    if (e.spr) root.spr = e.spr;
+    let len = 0;
+    for (const a of h.def.anims || []) { const i = a.st && a.st[e.state]; if (i != null) len = Math.max(len, a.clips[i].len / (a.clips[i].spd || 1)); }
+    h.life = h.t + (e.after || 0) + len;
+    if (e.L != null) { for (const dr of h.draws) if (dr.i === 0 && dr.k === 'spr') dr.L = e.L; h.draws.sort((a, b) => (a.L - b.L) || (a.o - b.o) || (a.i - b.i)); }
+  }
+
   function follow(h) {
     const f = h.follow;
     if (!f) return;
-    if (f.dead || f.gone) { h.follow = null; h.stopped = true; return; }
+    if (f.dead || f.gone) { h.follow = null; h.stop(); return; }
     h.x = f.x + h.dx; h.y = f.y + h.dy;
     if (f.ang != null && h.followAng !== false) h.ang = f.ang;
   }
@@ -255,10 +273,22 @@
     const an = h.def.anims;
     if (!an) return;
     for (const a of an) {
-      let order = a.seq;
-      if (h.state && a.st && a.st[h.state] != null) order = [a.st[h.state]];
-      else if (!order || !order.length) order = [0];
-      let tt = t, clip = null, ct = 0;
+      let order = a.seq, ta = t;
+      if (h.ending) {
+        // trạng thái kết thúc chạy sau `after` giây; trước đó sprite đứng yên
+        const e = h.def.end, i = a.st && a.st[e.state];
+        ta = h.t - h.endT0 - (e.after || 0);
+        if (i == null || ta < 0) continue;
+        order = [i];
+      } else if (h.state && a.st && a.st[h.state] != null) order = [a.st[h.state]];
+      else if (!order || !order.length) {
+        // Trạng thái mặc định rỗng: script gọi Play/SetTrigger. Chạy clip 0 (vd Explode -> explode_small) trừ khi mọi
+        // trạng thái của nó là trạng thái kết thúc (buff_ice chỉ có 'disappear': băng phải đứng yên suốt lúc đóng băng).
+        const names = a.st ? Object.keys(a.st).filter(k => a.st[k] === 0) : [];
+        if (names.length && names.every(k => /disappear/i.test(k))) continue;
+        order = [0];
+      }
+      let tt = ta, clip = null, ct = 0;
       for (let i = 0; i < order.length; i++) {
         const c = a.clips[order[i]], sp = c.spd || 1, len = c.len / sp;
         if (c.loop || i === order.length - 1) {
@@ -345,15 +375,32 @@
 
   // ---------------------------------------------------------------- hệ hạt
   function newSystem(h, i, d) {
-    const s = { i, d, t: 0, acc: 0, parts: [], bursts: (d.bursts || []).map(() => ({ n: 0, next: 0 })), delay: 0, done: false, lastPos: null };
+    const s = { i, d, t: 0, acc: 0, parts: [], bursts: (d.bursts || []).map(() => ({ n: 0, next: 0 })), delay: 0, done: false, lastPos: null, k: [1, 1, 1] };
     s.delay = d.delay != null ? mm(d.delay, 0, h.rnd()) : 0;
     s.bursts.forEach((b, j) => { b.next = d.bursts[j][0]; });
     return s;
   }
+  // scalingMode của ParticleSystem: 0 Hierarchy = thước cả cây; 1 Local = chỉ thước của chính nút (gốc thì cả thước
+  // spawn o.scale); 2 Shape = thước chỉ nới vùng phát, cỡ hạt và chuyển động giữ nguyên đơn vị. S = khung vẽ của hệ;
+  // s.k = hệ số nhân vị trí lúc phát (chế độ Shape).
+  function sysScreen(h, s, R, S) {
+    const nd = h.nodes[s.i];
+    nodeScreen(R, nd.W, S);
+    const m = s.d.scl;
+    if (!m) return S;
+    const W = nd.W;
+    for (let j = 0; j < 3; j++) {
+      const act = (Math.hypot(W[j], W[3 + j], W[6 + j]) || 1) * h.scale;
+      const want = m === 1 ? Math.abs(nd.T[7 + j]) * (nd.d.p < 0 ? h.scale : 1) : 1;
+      S[j] *= want / act; S[3 + j] *= want / act;
+      s.k[j] = m === 2 ? act : 1;
+    }
+    return S;
+  }
   function prewarm(h, s) {
     const step = 1 / 30, n = Math.min(90, Math.ceil(s.d.dur / step));
     const S = new Array(8);
-    nodeScreen(rootMat(h), h.nodes[s.i].W, S);
+    sysScreen(h, s, rootMat(h), S);
     for (let k = 0; k < n; k++) stepSystem(h, s, step, S);
   }
 
@@ -437,8 +484,9 @@
       shapeSample(h, d, P0, D0);
       const sp = mm(d.speed, st, r());
       const life = Math.max(0.01, mm(d.life, st, r()));
+      const K = s.k;
       const p = {
-        x: P0[0], y: P0[1], z: P0[2], vx: D0[0] * sp, vy: D0[1] * sp, vz: D0[2] * sp,
+        x: P0[0] * K[0], y: P0[1] * K[1], z: P0[2] * K[2], vx: D0[0] * sp, vy: D0[1] * sp, vz: D0[2] * sp,
         age: 0, life, size: mm(d.size, st, r()), sizeY: d.sizeY != null ? mm(d.sizeY, st, r()) : null,
         rot: d.rot != null ? mm(d.rot, st, r()) : 0, dirRot: 1,
         c: mmg(d.color, st, r()), r1: r(), r2: r(), r3: r(), r4: r(), gx: 0, gy: 0, gv: 0, wx: 0, wy: 0,
@@ -556,7 +604,7 @@
       if (h.dead) { dropParticles(h); continue; }
       follow(h);
       h.t += dt;
-      if (h.t >= h.life) h.stopped = true;
+      if (h.t >= h.life && !h.stopped) { if (h.def.end && !h.ending) beginEnd(h); else h.stopped = true; }
       applyAnims(h, h.t);
       for (const nd of h.nodes) {
         if (nd.d.spin) nd.spin = (nd.spin || 0) + nd.d.spin * dt;
@@ -567,7 +615,7 @@
       let alive = !h.stopped;
       for (const s of h.sys) {
         const nd = h.nodes[s.i];
-        nodeScreen(R, nd.W, S);
+        sysScreen(h, s, R, S);
         // GameObject tắt = Unity xoá hạt của nó; đồng hồ hệ vẫn chạy
         if (!nd.vis) { if (s.parts.length) { vfx.stats.particles -= s.parts.length; s.parts.length = 0; } if (!h.stopped) s.t += dt; }
         else stepSystem(h, s, dt, S);
@@ -629,7 +677,7 @@
     drawn++;
     ctx.setTransform(B.a * a + B.c * b, B.b * a + B.d * b, B.a * c + B.c * d, B.b * c + B.d * d, B.a * e + B.c * f + B.e, B.b * e + B.d * f + B.f);
   }
-  function blendOf(b) { return b === 'add' ? 'lighter' : b === 'mul' ? 'multiply' : 'source-over'; }
+  function blendOf(b) { return b === 'add' ? 'lighter' : b === 'mul' ? 'multiply' : b === 'screen' ? 'screen' : 'source-over'; }
 
   function spriteFrame(h, nd) {
     const sa = nd.d.sa;
@@ -651,14 +699,15 @@
     const k = (f[7] || 1) / U, sr = nd.d.sr || {};
     const fx = sr.fx ? -1 : 1, fy = sr.fy ? -1 : 1;
     let c = nd.col;
-    const t = h.tint;
-    const cr = c[0] * (t ? t[0] : 1), cg = c[1] * (t ? t[1] : 1), cb = c[2] * (t ? t[2] : 1), ca = c[3] * (t && t[3] != null ? t[3] : 1);
+    const t = h.tint, m = sr.tint; // m: tint vật liệu (shader Particles cổ = 2 × _TintColor, có thể > 1)
+    const cr = c[0] * (t ? t[0] : 1) * (m ? m[0] : 1), cg = c[1] * (t ? t[1] : 1) * (m ? m[1] : 1), cb = c[2] * (t ? t[2] : 1) * (m ? m[2] : 1);
+    const ca = c[3] * (t && t[3] != null ? t[3] : 1) * (m ? m[3] : 1);
     if (ca <= 0.003) return;
     ctx.globalAlpha = Math.min(1, ca);
     ctx.globalCompositeOperation = blendOf(sr.b);
     // (u,v) pixel sprite -> đơn vị: X = u*k, Y = -v*k
     setT(ctx, B, S[0] * k * fx, S[3] * k * fx, -S[1] * k * fy, -S[4] * k * fy, S[6], S[7]);
-    const tc = tinted(fname, cr, cg, cb);
+    const tc = tinted(fname, Math.min(1, cr), Math.min(1, cg), Math.min(1, cb));
     ctx.imageSmoothingEnabled = SMOOTH.has(fname);
     if (tc) ctx.drawImage(tc, -f[5], -f[6]);
     else ctx.drawImage(img, f[1], f[2], f[3], f[4], -f[5], -f[6], f[3], f[4]);
@@ -670,7 +719,7 @@
     const fname = d.tex, f = FR[fname];
     if (!f) return;
     const img = pageImg(f[0]); if (!img) return;
-    nodeScreen(R, nd.W, S);
+    sysScreen(h, s, R, S);
     ctx.globalCompositeOperation = blendOf(d.blend);
     ctx.imageSmoothingEnabled = SMOOTH.has(fname);
     const tint = d.tint, ht = h.tint;
@@ -698,7 +747,7 @@
       if (c3 <= 0.004) continue;
       // khung texture sheet
       let fn = fname, ff = f, sx = f[1], sy = f[2], sw = f[3], sh = f[4];
-      if (uv && nFrames > 1) {
+      if (uv && (nFrames > 1 || sprs)) { // chế độ Sprite dù chỉ một sprite: vẽ sprite đó, không phải texture vật liệu
         let fr;
         if (uv.time === 2) fr = Math.floor(p.age * (uv.fps || 30));
         else fr = Math.floor((mm(uv.fot, (a * (uv.cyc || 1)) % 1, p.r1) + (typeof p.frame0 === 'number' ? p.frame0 : 0)) * nFrames);
@@ -724,6 +773,11 @@
       }
       const cs = Math.cos(rot), sn = Math.sin(rot);
       setT(ctx, B, cs * w / sw, sn * w / sw, -sn * hgt / sh, cs * hgt / sh, px, py);
+      if (fn === '#white') { // ô vuông đặc (vật liệu không có _MainTex): tô thẳng đúng màu, khỏi nhuộm lượng tử
+        ctx.fillStyle = 'rgb(' + (Math.min(1, c0) * 255 + 0.5 | 0) + ',' + (Math.min(1, c1) * 255 + 0.5 | 0) + ',' + (Math.min(1, c2) * 255 + 0.5 | 0) + ')';
+        ctx.fillRect(-sw / 2, -sh / 2, sw, sh);
+        continue;
+      }
       // khoá màu lượng tử 4 bit/kênh giữ trên hạt: khỏi ghép chuỗi tra cache mỗi khung
       const qk = (Math.round(Math.min(1, c0) * 15) << 8) | (Math.round(Math.min(1, c1) * 15) << 4) | Math.round(Math.min(1, c2) * 15);
       let tc = null;

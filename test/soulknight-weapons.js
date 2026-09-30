@@ -198,7 +198,7 @@ async function main(b) {
   check('dao lớn: một nhát trúng nhiều quái (12 mỗi con), chém tan đạn địch', before.hp - after.hp >= 12 * Math.min(2, nm) && after.e < before.e,
     'máu −' + (before.hp - after.hp) + ' · đạn địch ' + before.e + '→' + after.e);
 
-  // Cung: giữ đủ max_time 0,6 s rồi nhả -> tên bay nhanh hơn nhả sớm [ƯỚC LƯỢNG nội suy tốc giữa hai bulletsInfo].
+  // Cung: giữ đủ max_time 0,6 s rồi nhả. bulletsInfo[1] là phần cộng khi tụ đầy [ĐO Gun005.Attack]: tốc 30 + (int)(k×10).
   await p.evaluate(() => { SK_GAME.debug.give('bow'); });
   const speeds = [];
   for (const hold of [60, 800]) {
@@ -209,7 +209,7 @@ async function main(b) {
     await p.keyboard.up('KeyJ'); await sleep(250);
     speeds.push(await p.evaluate(() => { clearInterval(window.__bp); return window.__sp; }));
   }
-  check('cung: nhả ngay tên chậm, tụ đủ 0,6 s tên nhanh (30 đơn vị/giây)', speeds[0] && speeds[1] && speeds[1] > speeds[0] && near(speeds[1] / 16, 30, 1.5),
+  check('cung: nhả ngay tên 30 đơn vị/giây, tụ đủ 0,6 s tên 40 đơn vị/giây', speeds[0] && speeds[1] && near(speeds[0] / 16, 30, 3.01) && near(speeds[1] / 16, 40, 0.01),
     speeds.map(s => s && (s / 16).toFixed(1)).join(' → ') + ' đơn vị/giây');
 
   // Tia: Arbitrator bắn tia tức thì (RGShortLaser) trúng quái.
@@ -220,6 +220,65 @@ async function main(b) {
   await sleep(700);
   after = await p.evaluate(() => ({ hp: SK_GAME.enemyHp }));
   check('Trọng Tài: tia laser tức thì trúng quái', after.hp < before.hp, 'máu ' + before.hp + '→' + after.hp);
+
+  // ---- độ lệch so với mã gốc 8.6 (tools/sk_method.py): bắn một lần qua SK.WEAPON_KINDS với ngẫu nhiên ghim ở cận trên
+  // (SK.randf -> hi, SK.rand -> 0,49) để so với số đo cứng.
+  const dv = await p.evaluate(() => {
+    const G = SK.G, P = G.player, out = {};
+    P.face = 1; P.aim = 0;
+    const r0 = SK.randf, q0 = SK.rand, c0 = P.crit;
+    P.crit = 0;   // crit của nhân vật = 0 để chỉ crit của đạn quyết định (rand 0,49 -> crit khi tỉ lệ ≥ 50)
+    const one = (id, o) => {
+      SK_GAME.debug.give(id);
+      const w = P.weapons[P.cur];
+      G.bullets = []; w.q = [];
+      SK.randf = (a, b) => b; SK.rand = () => 0.49;
+      try { SK.WEAPON_KINDS[w.def.kind].fire(G, P, w, Object.assign({ x: P.x + 40, y: P.y - 20, ang: 0 }, o)); }
+      finally { SK.randf = r0; SK.rand = q0; }
+      return G.bullets.filter(b => b.v86).map(b => ({ pf: b.v86, x: b.x - P.x, y: b.y - P.y, ang: b.ang * 180 / Math.PI, spd: Math.hypot(b.vx, b.vy) / 16,
+        dmg: b.crit ? b.dmg / SK_DESIGN.rules.critMult : b.dmg, crit: b.crit, size: b.size, flip: b.flip, fxd: b.fxh ? (b.fxh.ang - b.ang) * 180 / Math.PI : null, fxf: b.fxh ? b.fxh.flip : null }));
+    };
+    out.ak = one('ak_47')[0];
+    out.bubble = one('dormant_bubble_machine');
+    out.sword = one('broadsword')[0];
+    out.sword2 = one('broadsword', { flip: true })[0];
+    out.shield = one('blade_shield')[0];
+    out.bowFull = one('bow', { charge: 1 })[0];
+    out.bowTap = one('bow', { charge: 0 })[0];
+    out.staffFull = one('banishing_staff', { charge: 1 })[0];
+    out.staffTap = one('banishing_staff', { charge: 0 })[0];
+    out.rail = one('weapon_045', { charge: 1 })[0];
+    out.railHalf = one('weapon_045', { charge: 0.5 })[0];
+    out.flail = one('sacred_flail', { charge: 1 })[0];
+    P.crit = c0;
+    out.hand = { knight: SK_DESIGN.heroes.knight.hand, viking: SK_DESIGN.heroes.viking.hand };
+    out.hx = P.x + SK_DESIGN.heroes[P.hero].hand[0] - P.x; out.hy = -SK_DESIGN.heroes[P.hero].hand[1];
+    return out;
+  });
+  const n2 = (a, b) => Math.abs(a - b) < 0.01;
+  check('độ lệch = ±deviation, không phải ±deviation/2: AK-47 lệch tối đa 10° [ĐO GameUtil.GetFinalDeviation]',
+    dv.ak && n2(dv.ak.ang, 10), 'góc ' + (dv.ak && dv.ak.ang.toFixed(2)) + '°');
+  check('speed_correction cộng đơn vị/giây: Máy Bong Bóng 12 + 5 = 17 [ĐO Gun002.CreateBullet]',
+    dv.bubble.length === 5 && dv.bubble.every(b => n2(b.spd, 17)), dv.bubble.map(b => b.spd.toFixed(2)).join(','));
+  check('vệt chém sinh ở tay (h1), không ở mũi kiếm [ĐO Gun006.CreateBullet: transform.parent.position]',
+    dv.sword && n2(dv.sword.x, dv.hx) && n2(dv.sword.y, dv.hy), dv.sword && ('(' + dv.sword.x.toFixed(2) + ', ' + dv.sword.y.toFixed(2) + ') tay (' + dv.hx + ', ' + dv.hy + ')'));
+  check('nhát Attack2 lật trục Y cục bộ: hộp lật, hình vẽ góc + 180° kèm flip [ĐO Gun006.CreateBullet localScale.y = -1]',
+    dv.sword2 && dv.sword2.flip && n2(Math.abs(dv.sword2.fxd), 180) && dv.sword2.fxf === true && dv.sword && !dv.sword.flip, JSON.stringify(dv.sword2 && { fxd: dv.sword2.fxd, fxf: dv.sword2.fxf }));
+  check('cỡ vệt chém = bulletsInfo.size / cỡ nút b: Khiên & Kiếm 2/1,5 = 1,333; Dao Lớn 2,5/2,5 = 1 [ĐO RGSword.ResetSize]',
+    dv.shield && n2(dv.shield.size, 2 / 1.5) && n2(dv.sword.size, 1), dv.shield && dv.shield.size.toFixed(3));
+  check('cung tụ đầy: 8 sát thương, 40 đơn vị/giây, crit +50; nhả ngay: 4, 30, không crit [ĐO Gun005.Attack bulletDelta]',
+    dv.bowFull && dv.bowFull.dmg === 8 && n2(dv.bowFull.spd, 40) && dv.bowFull.crit === true && dv.bowTap.dmg === 4 && n2(dv.bowTap.spd, 30) && dv.bowTap.crit === false,
+    JSON.stringify([dv.bowFull, dv.bowTap].map(b => b && [b.dmg, b.spd, b.crit])));
+  check('Gậy Trục Xuất (Hiệp Sĩ Bí Pháp) tụ đầy 12 sát thương cỡ 1,85; nhả ngay 3 [ĐO WeaponChargeStaff.CreateBullet]',
+    dv.staffFull && dv.staffFull.dmg === 12 && n2(dv.staffFull.size, 1.85) && dv.staffTap.dmg === 3 && n2(dv.staffTap.size, 1),
+    JSON.stringify([dv.staffFull, dv.staffTap].map(b => b && [b.dmg, b.size])));
+  check('Súng Ray Ion: đầy 6+14 = 20, cỡ 1,95, tốc 35; nửa 6+7 = 13 [ĐO Gun007.<CreateBullet>]',
+    dv.rail && dv.rail.dmg === 20 && n2(dv.rail.size, 1.95) && n2(dv.rail.spd, 35) && dv.railHalf && dv.railHalf.dmg === 13,
+    JSON.stringify([dv.rail, dv.railHalf].map(b => b && [b.dmg, b.size, b.spd])));
+  check('Chuỳ Thánh tụ đầy: 6 + max_atk_add 4 = 10, cỡ max_scale 1,7', dv.flail && dv.flail.dmg === 10 && n2(dv.flail.size, 1.7),
+    JSON.stringify(dv.flail && [dv.flail.dmg, dv.flail.size]));
+  check('tay cầm súng từ nút h1 + pivot: Hiệp Sĩ [3,92; 6,8], Chiến Binh Cuồng [-0,53; 6] [ĐO hero.ab c00/c13]',
+    n2(dv.hand.knight[0], 3.92) && n2(dv.hand.knight[1], 6.8) && n2(dv.hand.viking[0], -0.53) && n2(dv.hand.viking[1], 6), JSON.stringify(dv.hand));
 
   // Vũ khí khởi đầu của cả 42 nhân vật bắn được và gây sát thương.
   const starters = await p.evaluate(() => [...new Set(Object.values(SK_DESIGN.heroes).map(h => h.weapon))]);

@@ -1,0 +1,4 @@
+{
+ "bundles": ["bullet"],
+ "prefabs": ["sword_joker_skill", "sword_joker_skill_1", "sword_joker_skill_phantom", "sword_joker_skill_phantom_1", "circle_slash", "circle_null", "buff_stealth_joker"]
+}

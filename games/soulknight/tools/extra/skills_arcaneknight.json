@@ -1,0 +1,5 @@
+{
+  "bundles": ["common", "bullet"],
+  "prefabs": ["arcaneknight_0_skill_0_melee", "arcaneknight_0_skill_0_energy_melee", "arcaneknight_0_skill1_teleport_mark",
+    "arcaneknight_0_skill1_magic_circle", "arcaneknight_0_skill1_armor_fx"]
+}

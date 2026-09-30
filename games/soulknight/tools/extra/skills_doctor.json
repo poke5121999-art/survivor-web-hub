@@ -1,0 +1,4 @@
+{
+ "prefabs": ["doctor_0_laser"],
+ "sprites": ["^ball_doctor_[0-9]+$"]
+}

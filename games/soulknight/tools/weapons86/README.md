@@ -59,3 +59,47 @@ mô phỏng với `atk_b` giữ = true (luôn bật thêm `start`, `can_atk`). G
 - Lớp tự viết không mô phỏng (chỉ có hoạt ảnh bắn, sát thương 0/không đúng): Đạn Đạo Lỗ Đen,
   Lá Phong Khổng Lồ, Gậy Ảo Ảnh (gọi phân thân), Gậy Tử Linh, Sách Bóng Tối, Cào Trúng Thưởng, Sổ Tay Chết Chóc.
 - `laser_plunger` (wiki) không có trong 8.6 → bỏ (267/268 món wiki còn).
+
+## Đối chiếu mã gốc 8.6 (2026-09-30, `tools/sk_method.py`)
+
+Đọc bằng `python tools/sk_method.py Kiểu.Method`. Đã sửa trong `js/actors.js` / `js/design.js`, có kiểm thử
+số cứng ở `test/soulknight-weapons.js`:
+
+| Chỗ | Mã gốc [ĐO] | Web trước đó |
+|---|---|---|
+| Độ lệch | `GameUtil.GetFinalDeviation` = `RGRandom.Range(-d, d)`, d = deviation × (1 + deviation nhân vật) | ±deviation/2 |
+| Góc đạn | `RGWeapon.GetBulletInfo`: `directionAngle = get_fixedAngle() + độ lệch`; fixedAngle = góc ngắm của nhân vật, không theo nòng đang giật | (đã đúng) |
+| `speed_correction` | `Gun002/Gun004/Gun012`: tốc = bullet_speed + `Range(-sc, sc)` đơn vị/giây | nhân (1 ± sc%) |
+| `has_delay` | `Gun004.Attack`: `Invoke("CreateBullet", max_delay)`, mọi viên trễ đúng max_delay | trễ ngẫu nhiên 0..max |
+| Chỗ sinh vệt chém | `Gun006/Gun015/GunAxe/GunInitAssassin/GunInitJoker/GunInitCaptain/Katana.CreateBullet`: `transform.parent.position` (nút h1 = tay); Gun015 `createBulletAtGunpoint`, GunHarmmer `useGunPoint` mới dùng nòng | gun_point đang vung (lệch xuống dưới tới ~3 ô) |
+| Nhát chém ngược | `Gun006.CreateBullet(reverse)`: `localScale = (facing, reverse ? -1 : 1)`; Attack: reverse = sword_reverse, Attack2: !sword_reverse | vfx.flip (gương trục X) → nhát thứ hai vẽ SAU lưng |
+| Cỡ vệt chém | `RGSword.ResetSize`: nút `b` = (size, revert ? −size : size), size = bulletInfo.size > 0 (đặt, không nhân) | bỏ size → 79/138 vệt chém sai cỡ (Kiếm Laser Tím 3,5 vs 2,5; Kiếm Sư 1 vs 1,75) |
+| Cung (`Gun005`) | `Attack`: bulletsInfo[1] là phần cộng (`bulletDelta`): sát thương/crit/tốc/xuyên = số[0] + (int)(k × số[1]), k = a_time/max_time | tốc nội suy 10→30, sát thương ×(1+k), không cộng crit |
+| Súng ray (`Gun007`) | `<CreateBullet>`: như cung + cỡ = size0 + k × size1 | đầy → viên [0], chưa đầy → viên [1] (tốc 0: đạn đứng yên) |
+| `WeaponChargeStaff` | `CreateBullet`: nội suy GetBulletInfo(0) → (1) theo k, làm tròn | NGƯỢC: đầy 3 sát thương, nhả ngay 12 |
+| Tay cầm súng | nút `img/h1` của `c<index>` trong `hero.ab`: (0, 0,5) đv, 9 nhân vật khác | [3, 6] px cho mọi nhân vật |
+
+Số đo đi kèm: Hiệp Sĩ tay [3,92; 6,8] px (pivot [3,92; 1,2] + h1 8 px); h1 khác mặc định: c02 0,4, c06 (0,1; 0,45),
+c07 0,6, c13/c22/c28 0,3, c23/c25/c26 0,35. h2 (tay trái, Song Thủ) ở (0,5–0,55; 0,6), tức TRƯỚC mặt — web vẫn
+đặt tay trái đối xứng sau lưng (chưa sửa). `grabLocalOffset` = 0 ở 1091/1097 súng: bỏ qua được.
+
+Thân đạn `W:*` giờ mang `tint [2,2,2,2]` của glow (`_TintColor` ×2, 209/425 hiệu ứng): `B86.__init__` phải có
+`self.tex_fallback` vì `BV.Builder.material()` ghi vào đó.
+
+### Còn lệch (chưa sửa)
+
+- **Lao người khi chém** (`RGWeapon.ApplySelfForce(dir, force)`): Gun015 (Nanh Rồng, Móng Sói…), GunInitAssassin,
+  GunInitJoker, Katana, GunInitMiner (`force` 30), đấm (`atk_force` 15). Cần đọc `RGBaseController.GetForce` để biết
+  lực tắt dần thế nào.
+- **Quay mặt trái**: vệt chém có `localScale.x = facing`; web chưa lật theo hướng mặt (hộp trúng vẫn ở phía trước).
+  Chưa rõ góc mà `BulletFactory`/`RGSword` đặt khi facing = −1.
+- Gatling: `heatIncreasePerShot`/`maxHeat` thuộc chiêu phụ `WeaponSpecial` (nút riêng) — web không có nút này.
+- Đạn thường vẫn bỏ `bulletsInfo.size` (trừ cỡ tụ lực ở trên); `RGBullet.ResetScale` chưa đọc.
+- Chuỳ Thánh (`GunInitPaladin`): trường đo được, cách nội suy theo k là [ƯỚC LƯỢNG] tuyến tính.
+
+### Bẫy mới
+
+- `python` trên máy này là shim `.bat` của pyenv: tham số có `<`, `>`, `|` (tên coroutine `Gun007.<CreateBullet>d__37`,
+  regex `A|B`) bị cmd nuốt. Gọi thẳng `~/.pyenv/pyenv-win/versions/3.8.10/python.exe`.
+- `vfx.spawn({flip})` là gương trục X cục bộ (như quay mặt trái). Gương trục Y của Unity (`localScale.y = -1`) phải
+  vẽ bằng `ang + π` kèm `flip` — `spawnBullet86(..., {flipY})` làm việc này.

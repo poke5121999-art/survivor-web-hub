@@ -1,0 +1,9 @@
+{
+ "bundles": ["common", "skin/character/swordmaster/skin_0", "skin/character/lancer/skin_0"],
+ "prefabs": [
+  "c28_skill_1_1", "c28_fly_slash", "c28_skill_1_big_sword", "c28_1_sword", "c28_1_sword_trail",
+  "c28_2_sword", "c28_2_sword_line", "c28_2_sword_cut_combo_small", "c28_2_sword_cut_combo",
+  "bullet_rotate_spear", "bullet_angry_rotate_spear", "lancer_s0_skill1_spear_crash0", "lancer_s0_skill1_spear_crash1",
+  "c30_jump_end"
+ ]
+}

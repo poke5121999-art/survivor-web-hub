@@ -207,6 +207,16 @@ window.SK_DESIGN = {
   };
   const base = DS.heroes.knight;
   const kindOk = { gun: 1, staff: 1, melee: 1 };
+  // Tay cầm súng = nút img/h1 của prefab c<index> trong hero.ab, đơn vị Unity so với gốc nhân vật [ĐO]: mặc định (0, 0,5),
+  // khác mặc định ở 9 nhân vật. Gốc nằm ở s0.pivot (px, y xuống) so với điểm neo khung, nên
+  // hand = [pivot.x + 16·h1.x, 16·h1.y − pivot.y] (px, y lên). Hiệp Sĩ: [3,92; 6,8] (bảng tay cũ ghi [3; 6] ước lượng).
+  const H1 = { 2: [0, 0.4], 6: [0.1, 0.45], 7: [0, 0.6], 13: [0, 0.3], 22: [0, 0.3], 23: [0, 0.35], 25: [0, 0.35], 26: [0, 0.35], 28: [0, 0.3] };
+  const handOf = folder => {
+    const s0 = window.SK_DATA && SK_DATA.heroes && SK_DATA.heroes[folder] && SK_DATA.heroes[folder].s0;
+    if (!s0 || !s0.pivot) return base.hand;
+    const h = H1[s0.index] || [0, 0.5];
+    return [+(s0.pivot[0] + 16 * h[0]).toFixed(2), +(16 * h[1] - s0.pivot[1]).toFixed(2)];
+  };
   for (const [folder, h] of Object.entries(WK.heroes)) {
     const sk = (h.skills || [])[0] || { name: 'Dual Wield', cd: 10 };
     const wid = h.weapon && WK.weapons[h.weapon] ? h.weapon : 'bad_pistol';
@@ -218,7 +228,7 @@ window.SK_DESIGN = {
     DS.heroes[folder] = Object.assign({}, folder === 'knight' ? base : {}, {
       name: VI[folder] || h.name, nameEn: h.name, folder,
       hp: h.hp, armor: h.armor, energy: h.energy, crit: h.crit || 0,
-      speed: base.speed, hand: base.hand, hurt: base.hurt, body: base.body, shadow: base.shadow,
+      speed: base.speed, hand: handOf(folder), hurt: base.hurt, body: base.body, shadow: base.shadow,
       // dur của Song Thủ là số cũ trong bảng tay; kỹ năng khác do js/skills.js tự định.
       skill: { id: slug(sk.name), name: sk.name, cd: sk.cd || 8, dur: folder === 'knight' ? base.skill.dur : 0 },
       skills: h.skills, passive: h.passive, weapon: wid, unlock: h.unlock, upgrades: h.upgrades

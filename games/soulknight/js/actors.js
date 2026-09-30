@@ -235,7 +235,13 @@
       b.area = true; b.life = Math.min(b.life, (X && X.fx[pf] ? X.fx[pf].dur : 0.4) || 0.4);   // đạn đứng yên: vùng sát thương một lần
     }
     G.bullets.push(b);
-    if (B && B.fx && ensureFx()) b.fxh = SK.vfx.spawn(G, 'W:' + pf, x, y, { ang, follow: b, scale: size, flip: b.flip });
+    if (o.flipY) {
+      // Nhát chém ngược: Unity đặt localScale.y = -1 (gương trục Y cục bộ, vệt vẫn ở phía trước) [ĐO Gun006.CreateBullet];
+      // vfx.flip là gương trục X, nên vẽ bằng góc + π kèm flip. Hộp trúng (localOf) đã coi b.flip là gương Y.
+      b.flip = true;
+      const fol = { get x() { return b.x; }, get y() { return b.y; }, get ang() { return b.ang + Math.PI; }, get dead() { return b.dead; }, get gone() { return b.gone; } };
+      if (B && B.fx && ensureFx()) b.fxh = SK.vfx.spawn(G, 'W:' + pf, x, y, { ang: ang + Math.PI, follow: fol, scale: size, flip: true });
+    } else if (B && B.fx && ensureFx()) b.fxh = SK.vfx.spawn(G, 'W:' + pf, x, y, { ang, follow: b, scale: size, flip: b.flip });
     return b;
   };
 
@@ -302,39 +308,59 @@
   function critRoll(p, crit) { return SK.rand() * 100 < ((p.crit || 0) + (crit || 0)); }
 
   // ---------------------------------------------------------------- một phát bắn của súng 8.6
-  // info = bulletsInfo [ĐO]: {p prefab, dmg, spd, size, crit, repel, thr}. Độ lệch: ±deviation/2 độ [ƯỚC LƯỢNG cách chia].
+  // info = bulletsInfo [ĐO]: {p prefab, dmg, spd, size, crit, repel, thr}.
+  // Cỡ nghỉ của nút 'b' trong prefab vệt chém (sword_1_75: 1,75; sword_0: 1,5) [ĐO X.fx nút b, T[7]].
+  const swordB = {};
+  function swordBase(pf) {
+    if (swordB[pf] != null) return swordB[pf];
+    const f = X && X.fx[pf], b = f && f.nodes.find(n => n.n === 'b');
+    return (swordB[pf] = b && b.T && Math.abs(b.T[7]) > 1e-6 ? Math.abs(b.T[7]) : 0);
+  }
   function shot86(G, p, w, info, mz, ang, o) {
-    const d = w.def, crit = critRoll(p, info.crit);
+    const d = w.def, crit = critRoll(p, o && o.crit != null ? o.crit : info.crit);
     const base = o && o.dmg != null ? o.dmg : info.dmg;
     const dmg = Math.max(0, Math.round(base * (d.w86.dmf || 1) * (p.dmgMul || 1))) * (crit ? R.critMult : 1);
-    const B = XB[info.p] || {};
+    const B = XB[info.p] || {}, x = d.w86.x;
     const [hx, hy] = handPos(p, w.side || 1);
-    // bulletsInfo.size không nhân vào hình: prefab đã mang sẵn cỡ (sword_2_5, bullet_28 nút b ×2) [ƯỚC LƯỢNG sau khi so ảnh]
-    const common = { dmg, crit, repel: info.repel, thr: info.thr, size: (o && o.size) || 1, h: Math.max(2, p.y - mz.y), owner: p,
-      spd: o && o.spd != null ? o.spd : info.spd, hx, hy, flip: o && o.flip, life: o && o.life, keep: w.beamKeep ? w : null, dur: w.beamKeep ? 0.2 : 0.15 };
+    const spd = o && o.spd != null ? o.spd : info.spd;
+    // Đạn thường: bulletsInfo.size không nhân vào hình, prefab đã mang sẵn cỡ (bullet_28 nút b ×2) [ƯỚC LƯỢNG sau khi so ảnh].
+    // Vệt chém RGSword thì khác: ResetSize ĐẶT cỡ nút b = (size, ±size) [ĐO RGSword.ResetSize, size = bulletInfo.size > 0],
+    // nên cỡ thật = size / cỡ nghỉ của b (Kiếm Laser Tím 3,5/2,5; Thiết Tướng 2/1,5; Kiếm Sư 1/1,75).
+    let size = (o && o.size) || 1;
+    const sword = MELEE_MV.test(B.mv || '');
+    if (sword && info.size > 0 && swordBase(info.p)) size *= info.size / swordBase(info.p);
+    // Vệt chém đứng yên sinh ở tay (transform.parent = h1), không ở nòng đang vung [ĐO CreateBullet của Gun006, Gun015,
+    // GunAxe, GunInitAssassin, GunInitJoker, GunInitCaptain, Katana]; Gun015.createBulletAtGunpoint / GunHarmmer.useGunPoint thì ở nòng.
+    let at = mz;
+    if (sword && !(spd > 0.01) && !x.createBulletAtGunpoint && !x.useGunPoint) at = { x: hx, y: hy };
+    const common = { dmg, crit, repel: info.repel, thr: o && o.thr != null ? o.thr : info.thr, size, h: Math.max(2, p.y - at.y), owner: p,
+      spd, hx, hy, flipY: o && o.flip, life: o && o.life, keep: w.beamKeep ? w : null, dur: w.beamKeep ? 0.2 : 0.15 };
     // Họ laser mà prefab đạn không phải lớp đạn bay (bullet_9 của Ion Laser không có MB): vẫn là tia [ĐO cây head/end/img]
-    if (BEAM_MV.test(B.mv || '') || (d.w86.fam === 'laser' && !/^(Bullet|RGSBullet)/.test(B.mv || ''))) return beam86(G, 'p', info.p, mz.x, mz.y, ang, common);
-    return SK.spawnBullet86(G, 'p', info.p, mz.x, mz.y, ang, common);
+    if (BEAM_MV.test(B.mv || '') || (d.w86.fam === 'laser' && !/^(Bullet|RGSBullet)/.test(B.mv || ''))) return beam86(G, 'p', info.p, at.x, at.y, ang, common);
+    return SK.spawnBullet86(G, 'p', info.p, at.x, at.y, ang, common);
   }
-  const jitter = dev => SK.deg(SK.randf(-dev / 2, dev / 2));
+  // Độ lệch mỗi viên: RGRandom.Range(-d, d), d = deviation × (1 + deviation của nhân vật) [ĐO GameUtil.GetFinalDeviation].
+  const jitter = dev => SK.deg(SK.randf(-dev, dev));
   // Mẫu bắn theo họ lớp Gun* (tools/weapons86 FAMILY_PREFIX) [ĐO trường: multiCount, angle, continuousCount, delay, max_delay].
   function fireW86(G, p, w, o) {
     const d = w.def, e = d.w86, x = e.x, bs = e.b.filter(b => b.p);
     if (!bs.length) return;
     const mz = { x: o.x, y: o.y }, aim = o.ang, dev = d.spread || 0;
     const pick = () => x.randomBullet ? SK.pick(bs) : bs[x.bulletIndex && bs[x.bulletIndex] ? x.bulletIndex : 0];
-    const spdK = () => x.speed_correction ? 1 + SK.randf(-x.speed_correction, x.speed_correction) / 100 : 1;
+    // Tốc mỗi viên = bullet_speed + RGRandom.Range(-sc, sc), sc tính bằng đơn vị/giây, không phải % [ĐO Gun002/Gun004.CreateBullet].
+    const spdOf = b => b.spd + (x.speed_correction ? SK.randf(-x.speed_correction, x.speed_correction) : 0);
     const fam = e.fam;
     const mc = d.pellets || x.multiCount || 1;   // def.pellets: buff "Súng Săn" (rooms.js) cộng thêm viên
     if (fam === 'fan') {
       const n = mc, step = x.angle || 0;
-      for (let i = 0; i < n; i++) { const b = pick(); shot86(G, p, w, b, mz, aim + SK.deg((i - (n - 1) / 2) * step) + jitter(dev), { spd: b.spd * spdK() }); }
+      for (let i = 0; i < n; i++) { const b = pick(); shot86(G, p, w, b, mz, aim + SK.deg((i - (n - 1) / 2) * step) + jitter(dev), { spd: spdOf(b) }); }
     } else if (fam === 'spray') {
       const n = mc;
       for (let i = 0; i < n; i++) {
-        const b = pick(), a = aim + jitter(dev), dl = x.has_delay ? SK.randf(0, x.max_delay || 0) : 0;
-        if (dl > 0) w.q.push({ t: dl, fn: () => shot86(G, p, w, b, mz, a, { spd: b.spd * spdK() }) });
-        else shot86(G, p, w, b, mz, a, { spd: b.spd * spdK() });
+        // has_delay: Invoke("CreateBullet", max_delay), mọi viên cùng trễ đúng max_delay [ĐO Gun004.Attack]
+        const b = pick(), a = aim + jitter(dev), dl = x.has_delay ? x.max_delay || 0 : 0;
+        if (dl > 0) w.q.push({ t: dl, fn: () => shot86(G, p, w, b, mz, a, { spd: spdOf(b) }) });
+        else shot86(G, p, w, b, mz, a, { spd: spdOf(b) });
       }
     } else if (fam === 'burst') {
       const n = x.continuousCount || 1;
@@ -348,19 +374,37 @@
       const own = G.bullets.find(b => b.orbit && b.owner === p && b.v86 === bs[0].p && !b.dead);
       if (own) own.life = life; else shot86(G, p, w, bs[0], { x: p.x, y: p.y - 7 }, aim, { life });
     } else if (fam === 'bow' || fam === 'charge') {
-      // Nhả nút: k = thời gian giữ / max_time. [ƯỚC LƯỢNG] tốc đạn nội suy giữa hai bulletsInfo, sát thương ×(1+k) như wiki "4~8".
+      // Nhả nút: k = thời gian giữ / max_time.
       const k = o.charge == null ? 1 : o.charge, b0 = bs[0], b1 = bs[1] || bs[0];
       const n = x.multiCount || 1, reps = x.continuousCount || 1;
       // LaserRain: releaseAngle là nón thả tia [ƯỚC LƯỢNG]; đạn đầu tốc 0 (tia sinh trong mã) thì lấy số lớn nhất của bulletsInfo
       const step = x.angle != null ? x.angle : (x.releaseAngle && n > 1 ? x.releaseAngle / (n - 1) : 0);
       const sHi = b0.spd || Math.max(...e.b.map(b => b.spd || 0)), sLo = b1.spd || sHi, dB = b0.dmg || Math.max(...e.b.map(b => b.dmg || 0));
-      const full = k >= 0.999;
+      const full = k >= 0.999, tr = Math.trunc;
+      let info = full ? b0 : b1, so = {};
+      if ((fam === 'bow' && e.cls !== 'LaserRain') || (fam === 'charge' && (x.clip_big != null || x.a_interval != null))) {
+        // bulletsInfo[1] là PHẦN CỘNG khi tụ đầy (bulletDelta): số = số[0] + (int)(k × số[1]) cho sát thương, crit, tốc, xuyên
+        // [ĐO Gun005.Attack, Gun007.<CreateBullet>]. Cung: 4→8 sát thương, 30→40 đơn vị/giây, crit 0→50. Cỡ (Gun007) = size0 + k × size1.
+        info = b0;
+        so = { dmg: b0.dmg + tr(k * b1.dmg), crit: b0.crit + tr(k * b1.crit), spd: b0.spd + tr(k * b1.spd), thr: b0.thr + tr(k * b1.thr) };
+        if (fam === 'charge' && b0.size > 0 && b1 !== b0) so.size = Math.max(0.1, (b0.size + k * b1.size) / b0.size);
+      } else if (e.cls === 'WeaponChargeStaff' && b1 !== b0) {
+        // Nội suy bulletsInfo[0] -> [1] theo k, làm tròn [ĐO WeaponChargeStaff.CreateBullet: GetBulletInfo(1), GetBulletInfo(0), modf/floor]
+        const L = (a, b) => a + (b - a) * k;
+        info = b0;
+        so = { dmg: Math.round(L(b0.dmg, b1.dmg)), crit: Math.round(L(b0.crit, b1.crit)), spd: L(b0.spd, b1.spd), size: b0.size > 0 ? L(b0.size, b1.size) / b0.size : 1 };
+      } else if (e.cls === 'GunInitPaladin' && x.max_atk_add != null) {
+        // [ĐO trường max_atk_add 4, max_critical_add 35, scale 1 -> max_scale 1,7] [ƯỚC LƯỢNG nội suy tuyến tính theo k]
+        info = b0;
+        so = { dmg: b0.dmg + Math.round(k * x.max_atk_add), crit: b0.crit + Math.round(k * (x.max_critical_add || 0)),
+          size: (x.scale || 1) > 0 ? ((x.scale || 1) + k * ((x.max_scale || 1) - (x.scale || 1))) / (x.scale || 1) : 1 };
+      }
       for (let r = 0; r < reps; r++) {
         const f = () => {
           for (let i = 0; i < n; i++) {
             const a = aim + SK.deg((i - (n - 1) / 2) * step) + jitter(dev);
-            if (fam === 'bow') shot86(G, p, w, b0, w.lastMz || mz, a, { spd: sLo + (sHi - sLo) * k, dmg: Math.round(dB * (1 + k)) });
-            else shot86(G, p, w, full ? b0 : b1, w.lastMz || mz, a);
+            if (e.cls === 'LaserRain') shot86(G, p, w, b0, w.lastMz || mz, a, { spd: sLo + (sHi - sLo) * k, dmg: Math.round(dB * (1 + k)) });
+            else shot86(G, p, w, info, w.lastMz || mz, a, so);
           }
         };
         if (r === 0) f(); else w.q.push({ t: r * (x.a_interval || 0.15), fn: f });
@@ -507,8 +551,10 @@
     // Rìu (GunAxe*): vòng xoáy quanh người, gun_point của rìu vung lên đầu nên đặt đạn ở tay [ƯỚC LƯỢNG]
     const mz = /^GunAxe/.test(e.cls) ? { x: hx, y: hy, ang: p.aim } : muzzle86(w, hx, hy, p.aim);
     w.lastMz = mz; w.lastAng = p.aim;
-    // Góc đạn = góc ngắm (độ giật của clip không đổi hướng đạn) [ƯỚC LƯỢNG]; Attack2 của kiếm là nhát chém ngược.
-    (SK.WEAPON_KINDS[d.kind] || SK.WEAPON_KINDS.gun).fire(G, p, w, { x: mz.x, y: mz.y, ang: p.aim, side, charge, fn, flip: /2$/.test(fn || '') });
+    // Góc đạn = fixedAngle của nhân vật (góc ngắm), không theo nòng đang giật [ĐO RGWeapon.GetBulletInfo: directionAngle =
+    // get_fixedAngle + GetFinalDeviation]. Kiếm: Attack chém với reverse = sword_reverse, Attack2 với !sword_reverse [ĐO Gun006.Attack/Attack2].
+    const flip = /2$/.test(fn || '') !== !!e.x.sword_reverse;
+    (SK.WEAPON_KINDS[d.kind] || SK.WEAPON_KINDS.gun).fire(G, p, w, { x: mz.x, y: mz.y, ang: p.aim, side, charge, fn, flip });
     if (!gpAnimated(e)) {
       const m = vfxOn() && SK.vfx.muzzleFor(d.prefab);
       if (m) vfx(G, m.muzzle, mz.x, mz.y, { ang: p.aim, flip: Math.cos(p.aim) < 0, dur: m.show });
@@ -654,13 +700,22 @@
     }
 
     const w = p.weapons[p.cur];
-    const want = G.phase !== 'portal' && I.down('attack') && !(I.touchMode && G.interactTarget && I.btn.attack);
+    // p.noFire: kỹ năng đang khoá vũ khí (chui đất, gọi tàu, hoá thân...).
+    const want = G.phase !== 'portal' && !p.noFire && I.down('attack') && !(I.touchMode && G.interactTarget && I.btn.attack);
     runWeapon(G, p, w, 1, want, dt);
     if (p.dual) runWeapon(G, p, p.dual, 2, want && p.skillT > 0, dt);
     if (want && w) holdMove(G, p, w.def); else releaseMove(p);
     if (G.phase === 'portal') return;
     if (p.skillT > 0) { p.skillT -= dt; const sd = skillDef(p); if (sd.update) sd.update(G, p, dt); if (p.skillT <= 0) SK.endSkill(G, p); }
-    if (I.hit('skill') && p.skillCd <= 0 && p.skillT <= 0) startSkill(G, p);
+    if (I.hit('skill')) {
+      // Kỹ năng nhiều giai đoạn (bấm lần nữa khi đang chạy: xuống thú, kích nổ...) khai báo press(G, p).
+      const sd = skillDef(p);
+      if (p.skillT > 0) { if (sd.press) { const n = p._skEnds; sd.press(G, p); if (p.skillT <= 0 && p._skEnds === n) SK.endSkill(G, p); } }
+      else if (p.skillCd <= 0) startSkill(G, p);
+      else if (sd.pressCd) sd.pressCd(G, p);
+    }
+    // Nút đặc biệt (btn_special gốc): chiêu phụ của kỹ năng, khai báo special(G, p).
+    if (I.hit('special')) { const sd = skillDef(p); if (sd.special) sd.special(G, p); }
     if (I.hit('swap') && p.weapons[1 - p.cur]) {
       const old = p.weapons[p.cur];
       if (old) { old.charging = false; old.hold = 0; stopChargeFx(old); old.st = null; old.q = []; }
@@ -688,6 +743,7 @@
       end(G, p) { p.dual = null; }
     }
   };
+  SK.skillDef = p => skillDef(p);
   function skillDef(p) {
     const id = p.h.skill && p.h.skill.id;
     if (SK.SKILLS[id]) return SK.SKILLS[id];
@@ -702,6 +758,7 @@
   SK.endSkill = function (G, p) {
     const sd = skillDef(p);
     p.skillT = 0;
+    p._skEnds = (p._skEnds || 0) + 1;
     if (sd.end) sd.end(G, p);
     p.skillCd = p.h.skill.cd;
   };
@@ -1283,7 +1340,9 @@
     }
   }
   function hitEnemyB86(G, b, e, cx, cy) {
+    G._hitBullet = b;   // sự kiện enemyHit đọc được viên đạn gây ra
     SK.hurtEnemy(G, e, b.dmg, b.crit, b.melee || b.orbit ? Math.atan2(e.y - b.y, e.x - b.x) : Math.atan2(b.vy, b.vx), b.repel);
+    G._hitBullet = null;
     hitVfx(G, b.v86, cx, cy, b.ang, 'hit_orange');
     hitSnd(b.v86);
     const tm = trigOf(b);
@@ -1485,7 +1544,9 @@
         if (b.side === 'p') {
           for (const e of G.enemies) {
             if (!targetable(e) || (b.hits && b.hits.indexOf(e) >= 0) || !hitsEnemy(e, b.x, b.y, b.r)) continue;
+            G._hitBullet = b;
             SK.hurtEnemy(G, e, b.dmg, b.crit, Math.atan2(b.vy, b.vx), b.repel);
+            G._hitBullet = null;
             if (b.boom) { legacyBoom(G, b); b.dead = true; break; }
             vfx(G, b.hit || 'hit_yellow', b.x, b.y, {});
             if (b.pierce > 0) { b.pierce--; (b.hits = b.hits || []).push(e); continue; }

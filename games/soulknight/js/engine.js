@@ -372,7 +372,7 @@
   const KEYMAP = {
     KeyW: 'up', ArrowUp: 'up', KeyS: 'down', ArrowDown: 'down', KeyA: 'left', ArrowLeft: 'left',
     KeyD: 'right', ArrowRight: 'right', KeyJ: 'attack', KeyK: 'skill', Space: 'skill',
-    KeyQ: 'swap', KeyE: 'interact', Enter: 'confirm'
+    KeyQ: 'swap', KeyE: 'interact', KeyL: 'special', Enter: 'confirm'
   };
   const I = SK.input = {
     held: {}, edge: {}, btn: {}, touchMode: false,

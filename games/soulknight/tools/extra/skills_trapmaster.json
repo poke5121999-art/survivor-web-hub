@@ -1,0 +1,4 @@
+{
+  "prefabs": ["trapmaster_magic_show", "trapmaster_appearing_person_magic_show", "tarpMaster_skill3_hat"],
+  "sprites": ["^tarpMaster_0_skill2", "^trapMaster_0_skill2"]
+}

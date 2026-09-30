@@ -52,6 +52,11 @@ EXP = re.compile(r'^(Explode(?!EffectTrigger|HammerSplit|SplitProcessor)|DelayEx
 SORTING_LAYERS = ['Default', 'BackGround', 'Floor', 'Shadow', 'Wall', 'Character', 'WallFont', 'WallTop', 'Door', 'Effect', 'UI']
 SKIP_SHADER = re.compile(r'HitDistortion|^Sprites/Distortion|CircularDistort|DistortSpin|TwistShader|WaveEffectShader|CameraFreeze|'
                          r'MirrorGround|RectMask|Teaching')
+# Shader Particles cổ có _TintColor và nhân 2 × _TintColor (Additive, Alpha Blended, Anim Alpha Blended; bản Premultiply,
+# Multiply, Additive (Soft) không có _TintColor) — theo mã nguồn builtin shaders của Unity.
+LEGACY_PARTICLE = re.compile(r'^(Legacy Shaders/)?Particles/(Additive|Alpha Blended|Anim Alpha Blended)$')
+# Shader sprite nhân _Color của vật liệu ('' = shader dựng sẵn không có trong bundle, vật liệu Sprites-Default)
+SPRITE_COLOR_SHADERS = ('', 'Sprites/Default')
 FX_FIELD = re.compile(r'(hit|fx|effect|explode|creation|smoke|buff|particle|prefab|boom|muzzle|fire|flash|trail|spark|dead|death|'
                       r'broken|shock|thunder|vfx|efx|show|aura|light)', re.I)
 
@@ -274,6 +279,7 @@ class Builder:
         self.missing_sprite = 0
         self.shaders = collections.Counter()
         self.unsup_eff = 0
+        self.tex_fallback = collections.Counter()  # cách chọn texture/tint khi vật liệu thiếu -> stats.texFallback
 
     # ---- sprite
     def sprite_atlas_map(self):
@@ -377,6 +383,13 @@ class Builder:
         self.atlas.spr_name[k] = name
         return name
 
+    def white(self):
+        # Vật liệu không gán _MainTex (vd Sprites-Default trên ParticleSystem): Unity dùng texture mặc định "white" của
+        # shader -> hạt là ô vuông đặc màu (tia lửa trúng đích). Không phải đốm tròn mờ.
+        if '#white' not in self.atlas.items:
+            self.atlas.items['#white'] = (Image.new('RGBA', (4, 4), (255, 255, 255, 255)), 2, 2, 1.0)
+        return '#white'
+
     def default_particle(self):
         if '#Default-Particle' not in self.atlas.items:
             im = Image.new('RGBA', (32, 32))
@@ -406,6 +419,37 @@ class Builder:
             self.shader_cache[k] = nm
         return self.shader_cache[k]
 
+    def shader_blend(self, ptr, cab, floats, name=''):
+        """Blend thật của pass đầu (m_ParsedForm ... m_State.rtBlend0) -> 'add'|'alpha'|'mul'|'screen'|None.
+
+        Giá trị có thể là tên thuộc tính (vd _SrcBlend) -> lấy float của vật liệu. Enum UnityEngine.Rendering.BlendMode:
+        0 Zero, 1 One, 2 DstColor, 3 SrcColor, 4 OneMinusDstColor, 5 SrcAlpha, 10 OneMinusSrcAlpha.
+        None = shader không có trong bundle (dựng sẵn) hoặc không đọc được -> đoán theo tên như cũ.
+        """
+        r = self.E.resolve(ptr, cab)
+        if not r:
+            return None
+        try:
+            ss = (self.E.tree(*r).get('m_ParsedForm') or {}).get('m_SubShaders') or []
+            # pass thường đầu tiên (m_Type 0); GrabPass (2) đứng trước trong Particles/Standard Unlit, mang One Zero mặc định
+            st = next(ps for ps in ss[0]['m_Passes'] if ps.get('m_Type', 0) == 0)['m_State']['rtBlend0']
+        except Exception:
+            return None
+
+        def val(x):
+            nm = x.get('name', '<noninit>')
+            return int(floats.get(nm, x.get('val', 0))) if nm != '<noninit>' else int(x.get('val', 0))
+        src, dst = val(st['srcBlend']), val(st['destBlend'])
+        if dst == 1:
+            return 'screen' if src == 4 else 'add'
+        if src == 1 and dst == 6:
+            return 'screen'   # One OneMinusSrcColor (Particles/Additive (Soft))
+        if src == 1 and dst == 10 and 'add' in name.lower():
+            return 'add'      # premultiplied, shader "Add_*" (Hovl) ra alpha ~0 -> cộng [ƯỚC LƯỢNG theo tên]
+        if (src == 2 and dst in (0, 3)) or (src == 0 and dst == 3):
+            return 'mul'
+        return 'alpha'
+
     def material(self, ptr, cab):
         """-> {'tex': frame|None, 'blend': 'add'|'alpha'|'mul', 'tint': [r,g,b,a], 'shader': name}"""
         r = self.E.resolve(ptr, cab)
@@ -424,23 +468,41 @@ class Builder:
         mt = texs.get('_MainTex')
         if mt and mt['m_Texture'].get('m_PathID'):
             tex = self.texture_frame(mt['m_Texture'], r[0])
+            if tex is None:
+                # texture nằm trong tài nguyên dựng sẵn của Unity (không có trong bundle): Default-Particle / -ParticleSystem
+                tex = self.default_particle()
+                self.tex_fallback['builtin:' + t.get('m_Name', '')] += 1
+        else:
+            tex = self.white()
+            self.tex_fallback['white:' + t.get('m_Name', '')] += 1
         low = sh.lower()
         blend = 'alpha'
+        sb = self.shader_blend(t.get('m_Shader'), r[0], floats, sh)
         if SKIP_SHADER.search(sh):
             blend = 'skip'   # khúc xạ/biến dạng màn hình: canvas không làm được, bỏ hẳn nút
+        elif sb:
+            # [ĐO] trạng thái Blend của shader trong bundle (vd Unlit/RGSEffectLight = One One: cộng, dù tên không có
+            # "add" và _DstBlend cũ của vật liệu = 0)
+            blend = sb
         elif 'add' in low or floats.get('_DstBlend') == 1:
             blend = 'add'
         elif 'multiply' in low:
             blend = 'mul'
+        self.tex_fallback['blend:%s:%s' % ('shader' if sb else 'guess', blend)] += 1
         self.shaders[sh or '(builtin)'] += 1
         tint = [1, 1, 1, 1]
-        if '_TintColor' in cols and 'particle' in low:
-            c = cols['_TintColor']
-            tint = [min(1, 2 * c['r']), min(1, 2 * c['g']), min(1, 2 * c['b']), min(1, 2 * c['a'])]
-        elif '_Color' in cols:
+        if LEGACY_PARTICLE.match(sh):
+            # shader Particles cổ: màu = 2 × _TintColor × màu đỉnh × texture, rồi mới kẹp [0,1] (kể cả alpha). Không
+            # kẹp ở đây: _TintColor (1,1,1,1) = ×2, glow nổ/đạn sáng gấp đôi. Mặc định 0.5 = ×1. Vật liệu giữ cả thuộc
+            # tính cũ của shader trước nên chỉ đọc _TintColor với shader thật sự dùng nó.
+            c = cols.get('_TintColor', {'r': 0.5, 'g': 0.5, 'b': 0.5, 'a': 0.5})
+            tint = [2 * c['r'], 2 * c['g'], 2 * c['b'], 2 * c['a']]
+            self.tex_fallback['tint2x:' + sh] += 1
+        elif '_Color' in cols and not low.startswith('mobile/particles'):
             c = cols['_Color']
             tint = [c['r'], c['g'], c['b'], c['a']]
-        out = {'tex': tex, 'blend': blend, 'tint': [r4(x) for x in tint], 'shader': sh, 'name': t.get('m_Name', '')}
+        out = {'tex': tex, 'blend': blend, 'tint': [r4(x) for x in tint], 'shader': sh, 'name': t.get('m_Name', ''),
+               'srTint': bool(LEGACY_PARTICLE.match(sh)) or sh in SPRITE_COLOR_SHADERS}
         self.mat_cache[k] = out
         return out
 
@@ -667,8 +729,10 @@ class Builder:
                  r4(ls['x']), r4(ls['y']), r4(ls['z'])]
             if T != [0, 0, 0, 0, 0, 0, 1, 1, 1, 1]:
                 nd['T'] = T
-            if not gt.get('m_IsActive', 1) and not trail_only:
-                nd['off'] = 1  # vệt đạn: script bật nhánh con theo skin (defaultBullet...), coi như bật hết
+            if not gt.get('m_IsActive', 1):
+                # GameObject tắt sẵn thì Unity không vẽ. Đạn bật nhánh con theo skin/nguyên tố bằng script: game tự bật
+                # (h.nodes[i].on = true); bật hết thì warliege_roll vẽ cả nhánh tuyết lẫn lửa/sét cùng lúc.
+                nd['off'] = 1
             for tn, cc, co in E.components(c, g):
                 ct = E.tree(cc, co)
                 if tn == 'SpriteRenderer' and not trail_only:
@@ -689,6 +753,11 @@ class Builder:
                         continue
                     if mat and mat['blend'] != 'alpha':
                         sr['b'] = mat['blend']
+                    if mat and mat['tint'] != [1, 1, 1, 1]:
+                        if mat['srTint']:
+                            sr['tint'] = mat['tint']
+                        else:
+                            used.add('sr:matColor')  # shader riêng có _Color: không rõ shader dùng thế nào, không nhuộm
                     if not ct.get('m_Enabled', 1):
                         sr['off'] = 1
                     if ct.get('m_DrawMode', 0):
@@ -719,6 +788,15 @@ class Builder:
                             nd['sa']['rnd'] = 1
                         if ct.get('frameIdxOffset'):
                             nd['sa']['off'] = ct['frameIdxOffset']
+                    elif cls == 'BuffIce' and i == 0 and not trail_only:
+                        # [ĐO sk_method.py BuffIce.BuffEnd] hết buff: tách khỏi quái, sprite = ice_end, lớp "Character",
+                        # Invoke("Disappear", 2.0) -> SetTrigger("trigger") -> trạng thái disappear
+                        fr = self.sprite_frame(ct.get('ice_end'), cc)
+                        eff_end = {'after': 2, 'state': 'disappear', 'L': SORTING_LAYERS.index('Character')}
+                        if fr:
+                            eff_end['spr'] = fr
+                        nd['_end'] = eff_end
+                        used.add('mb:BuffIce')
                     elif cls == 'RGAutoDestory':
                         if i == 0:
                             nd['life'] = r4(ct.get('d_time', 0))
@@ -780,8 +858,10 @@ class Builder:
                 if len(names) > 1 or not seq:
                     a2['st'] = names
                 anims.append(a2)
-        # bỏ nút rỗng ở lá (không vẽ gì, không con)
         eff = {'cat': cat, 'nodes': nodes}
+        end = nodes[0].pop('_end', None) if nodes else None
+        if end:
+            eff['end'] = end
         if anims:
             eff['anims'] = anims
         vis = any(('sr' in n and n['sr'].get('f')) or 'sa' in n or 'ps' in n or 'tr' in n or 'ln' in n for n in nodes) or \
@@ -869,6 +949,8 @@ class Builder:
             ps['simSpeed'] = r4(t['simulationSpeed'])
         if t.get('moveWithTransform', 0) == 1:
             ps['world'] = 1
+        if t.get('scalingMode', 0):
+            ps['scl'] = t['scalingMode']  # 1 Local, 2 Shape (vắng = 0 Hierarchy)
         if im.get('size3D'):
             ps['sizeY'] = mmc(im['startSizeY'])
         rot = mmc(im['startRotation'])
@@ -997,6 +1079,9 @@ class Builder:
         if mat and mat['blend'] == 'skip':
             used.add('shader:' + mat['shader'])
             return None
+        if not mat:
+            # con trỏ vật liệu tới tài nguyên dựng sẵn (không có trong bundle): Default-Particle của Unity, đốm tròn mờ
+            self.tex_fallback['nomat'] += 1
         ps['tex'] = (mat and mat['tex']) or self.default_particle()
         if mat and mat['blend'] != 'alpha':
             ps['blend'] = mat['blend']
@@ -1299,6 +1384,7 @@ def main():
         'unsupportedVisual': {k: v for k, v in B.unsup.most_common() if visual_unsupported(k)},
         'effectsWithUnsupportedVisual': B.unsup_eff,
         'ignoredLogic': {k: v for k, v in B.unsup.most_common() if not visual_unsupported(k)},
+        'texFallback': dict(B.tex_fallback.most_common()),
         'artBytes': total, 'missingSprites': B.missing_sprite, 'shaders': dict(B.shaders.most_common()), 'refFields': dict(fields.most_common(60)),
     }
     data = {'v': time.strftime('%Y%m%d%H%M'), 'ppu': 16, 'layers': SORTING_LAYERS, 'atlas': {'pages': pages, 'f': frames, 'smooth': smooth},

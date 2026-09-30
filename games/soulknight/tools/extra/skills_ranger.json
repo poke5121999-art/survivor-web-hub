@@ -1,0 +1,4 @@
+{
+ "bundles": ["bullet"],
+ "prefabs": ["axe_ranger", "axe_2_ice_ranger", "axe_mobile_ice_ranger"]
+}
