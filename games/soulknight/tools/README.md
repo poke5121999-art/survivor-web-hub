@@ -70,6 +70,21 @@ API giữ như cũ: `resolve`, `tree`, `script_name`, `roots`, `Node`, `sprite()
   controller trùng tên) thì có thêm khoá `controller/state@<prefab>`. Mã chạy đọc bằng `SK.animXform` hoặc
   `SK.animPose` (engine.js). Quái có `bodyPath` (nút thân) và `weapons[i].path`. Nhân vật có `s0.bodyPath` và
   `s0.handPath`, tính theo prefab `c<index>` trong `hero.ab`.
+  Animator gốc/súng của quái và layer của nhân vật đọc với `extra` (`clip_xform.clip_tr(..., extra=True)`): `tr[nút].on =
+  [[t, 0|1]]` là bật/tắt `SpriteRenderer.m_Enabled`/`GameObject.m_IsActive` (bậc thang, `SK.animOn`), `fp` là nút nhận
+  đường sprite khi nút đó không phải `body` (vd `dead_tap`). Clip không có khung lẫn Transform vẫn được giữ ở state của
+  súng và layer >= 1 (`{f: [], d: [], len, ev?}`), vì state rỗng vẫn là một bước của máy trạng thái.
+- `ctrl[tên]`: đồ thị AnimatorController gốc [ĐO] (`skrip.controller_graph`), dùng chung theo tên controller:
+  `{p: {param: [kiểu, mặc định]}, L: [{w, add, def, any: [T], st: {state: [T]}, sp?}]}`,
+  `T = [state đích | null (exit), [[mode, param, ngưỡng]], exitTime | null, thời lượng chuyển]`. Kiểu param: 1 float,
+  3 int, 4 bool, 9 trigger. mode: 1 If, 2 IfNot, 3 Greater, 4 Less, 6 Equals, 7 NotEqual. Tên state theo khoá anim
+  (`Ln.` cho layer n, trùng tên trong một layer thì `~k`). Thực thể trỏ tới đồ thị bằng `ctrl`: `enemies[id].ctrl` (map
+  state -> anim là `anims`), `weapons[i].ctrl` (map là `weapons[i].anims`), `heroes[x].s0.ctrl` (map là `s0.layers`, chỉ
+  layer >= 1). Mã chạy: `SK.smNew/smSet/smTrig/smStep/smKey` trong engine.js; trigger tiêu sau khi mọi layer đã xét, chuyển
+  mềm bị bỏ (đổi state tức thì). Mọi layer của controller quái là override, trọng số 1 [ĐO].
+- `enemies[id].nodes[đường dẫn] = {at, f, on, o}`: nút mà clip layer >= 1 bật/tắt hoặc đổi sprite (294 quái có
+  `dead_tap`: `L2.char_dizzy` chơi clip `char_atk` là dấu "!" đỏ, `L2.char_tap_dead` là hồn ma khi chết).
+  `weapons[i].spr`: sprite do mã EGun đổi (EGun004/EGunEliteArcher `s_ide`/`s_atk`: cung giương khi `atk_b`).
 - `enemies`: cấu hình prefab quái thật [ĐO]. Gồm `RoleAttribute` (máu, tốc độ), lớp AI `EnemyAIxx`
   kèm tham số, súng `EGunxxx` (atk, bullet_speed, deviation, count, angle), vị trí tay và nòng.
 - `bullets`: prefab đạn quái (72 cái [ĐO 8.6]). Có sprite, anim, collider, MonoBehaviour.
@@ -198,6 +213,13 @@ Kết quả nằm ở `SK_DATA.extra`: `sprites[regex] = [khung]`, `clips[tên] 
   (`wall504`).
 - **Clip `sword_sweep` (xin trong `weapons.json`) nằm ở `common` nhưng không có đường sprite.** Nó chỉ
   động Transform, nên `extra.clips` rỗng.
+- **`char_hit` không vẽ gì.** Clip `char_hit` (common.ab) rỗng, dài 0,0667 s, chỉ có sự kiện `HitBack` [ĐO 2026-09-30].
+  Nháy trắng khi trúng đòn là mã (material), không phải clip. State `char_dizzy` của layer 2 cũng không phải choáng: nó
+  chơi clip `char_atk` (dấu "!"), vào bằng trigger `atk`.
+- **Trigger dùng ở nhiều layer.** Trigger `dead` vừa chuyển layer 0 sang `dead` vừa chuyển layer 2 sang `char_tap_dead`.
+  Tiêu trigger ngay ở layer 0 thì layer 2 không bao giờ thấy nó, nên `SK.smStep` tiêu trigger sau khi xét đủ các layer.
+- **Sự kiện ở cuối clip bị mất khi chuyển mềm bị bỏ.** `char_hit` của nhân vật rời state ở exitTime 0,9 với chuyển 0,1 s,
+  còn `HitBack` nằm ở 1,0. `SK.smStep` vẫn bắn sự kiện của clip cũ trong khoảng thời lượng chuyển.
 - `python -c "..."` trong Bash tool ở máy này hỏng khi chuỗi bắt đầu bằng xuống dòng. Dùng heredoc.
   Heredoc dài có dòng `'EOF'`/ngoặc lạ cũng có lúc vỡ; khi đó ghi tệp .py rồi chạy.
 - `/tmp` của Git Bash và `/tmp` mà Python thấy là hai thư mục khác nhau. Dùng đường dẫn Windows đầy đủ.

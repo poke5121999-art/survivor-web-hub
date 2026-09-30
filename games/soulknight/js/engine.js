@@ -177,6 +177,86 @@
     return out;
   };
 
+  // Bật/tắt nút (tr[path].on = [[t, 0|1]], bậc thang) của clip ở thời điểm t: 1/0, hoặc null nếu clip không đụng nút.
+  SK.animOn = function (key, t, path) {
+    const a = key && SK.anim(key), n = a && a.tr && a.tr[path || ''];
+    if (!n || !n.on) return null;
+    const tot = a.len || a.d.reduce((s, x) => s + x, 0);
+    const u = !tot ? 0 : a.loop ? ((t % tot) + tot) % tot : Math.min(Math.max(t, 0), tot);
+    let v = n.on[0][1];
+    for (const k of n.on) { if (k[0] <= u + 1e-6) v = k[1]; else break; }
+    return v;
+  };
+
+  // ---------------------------------------------------------------- máy trạng thái Animator (SK_DATA.ctrl)
+  // ctrl = {p: {param: [kiểu, mặc định]}, L: [{w, add, def, any: [T], st: {state: [T]}, sp?: {state: tốc}}]},
+  // T = [state đích | null (exit -> state mặc định), [[mode, param, ngưỡng]], exitTime | null, thời lượng chuyển].
+  // Kiểu param Unity: 1 float, 3 int, 4 bool, 9 trigger. mode: 1 If, 2 IfNot, 3 Greater, 4 Less, 6 Equals, 7 NotEqual.
+  // Như Unity: mỗi bước mỗi layer xét chuyển từ Any State trước rồi tới state hiện tại, tối đa một chuyển; trigger bị
+  // tiêu khi một chuyển dùng nó (sau khi mọi layer đã xét); exitTime tính trên thời gian chuẩn hoá (len clip). Chuyển mềm (thời lượng) bị bỏ:
+  // đổi state tức thì. map: state -> khoá anim của thực thể (e.anims, w.anims, s0.layers).
+  SK.smNew = function (ctrlName, map) {
+    const c = ctrlName && D.ctrl && D.ctrl[ctrlName];
+    if (!c) return null;
+    const P = {};
+    for (const [k, v] of Object.entries(c.p)) P[k] = v[1];
+    return { c, map: map || {}, P, L: c.L.map(l => ({ st: l.def, t: 0 })) };
+  };
+  SK.smSet = (sm, name, v) => { if (sm && name in sm.P) sm.P[name] = v; };
+  SK.smTrig = (sm, name) => { if (sm && name in sm.P) sm.P[name] = true; };
+  SK.smKey = (sm, li) => (sm && sm.L[li || 0] && sm.map[sm.L[li || 0].st]) || null;
+  SK.smState = (sm, li) => (sm && sm.L[li || 0] ? sm.L[li || 0].st : null);
+  function smLen(sm, st) { const a = SK.anim(sm.map[st]); return !a ? 0 : a.len != null ? a.len : a.d.reduce((s, x) => s + x, 0); }
+  function smCond(sm, cs) {
+    for (const [m, k, thr] of cs) {
+      const v = sm.P[k];
+      if (v === undefined) return false;
+      if (m === 1 ? !v : m === 2 ? !!v : m === 3 ? !(v > thr) : m === 4 ? !(v < thr) : m === 6 ? v !== thr : m === 7 ? v === thr : false) return false;
+    }
+    return true;
+  }
+  // Mốc exitTime x có rơi vào khoảng thời gian chuẩn hoá (n0, n1] không: x < 1 với clip lặp thì xét mỗi vòng;
+  // x >= 1 (hoặc clip không lặp) thì đúng từ khi vượt mốc trở đi.
+  function exitHit(x, n0, n1, loop) {
+    if (x >= 1 || !loop) return n1 >= x;
+    return Math.floor(n1 - x) > Math.floor(n0 - x);
+  }
+  // onEv(tên hàm sự kiện, layer, state): sự kiện AnimationClip (ev) rơi vào bước này.
+  SK.smStep = function (sm, dt, onEv) {
+    if (!sm) return;
+    const used = [];
+    sm.c.L.forEach((ly, li) => {
+      const l = sm.L[li], a = SK.anim(sm.map[l.st]), len = smLen(sm, l.st);
+      const t0 = l.t, sp = (ly.sp && ly.sp[l.st]) || 1;
+      l.t += dt * sp;
+      const n0 = len > 0 ? t0 / len : (t0 > 0 ? 1e9 : 0), n1 = len > 0 ? l.t / len : 1e9;
+      let T = null;
+      for (const x of ly.any) if (x[1].length && smCond(sm, x[1])) { T = x; break; }
+      if (!T) {
+        for (const x of ly.st[l.st] || []) {
+          if (x[2] != null ? !exitHit(x[2], n0, n1, a && a.loop) : !x[1].length) continue;
+          if (smCond(sm, x[1])) { T = x; break; }
+        }
+      }
+      // Sự kiện của clip trong (t0, t1]; rời state bằng chuyển mềm thì clip cũ còn chạy thêm T[3] giây (Unity vẫn bắn
+      // sự kiện trong lúc chuyển, vd HitBack ở cuối char_hit của nhân vật: exit 0,9 + 0,1 s).
+      if (onEv && a && a.ev) {
+        const t1 = l.t + (T ? T[3] * sp : 0);
+        for (const [et, fn] of a.ev) {
+          let hit;
+          if (a.loop && len > 0) hit = Math.floor((t1 - et + 1e-6) / len) > Math.floor((t0 - et + 1e-6) / len) || (t0 === 0 && et === 0);
+          else hit = (t0 === 0 ? et >= 0 : et > t0 + 1e-6) && et <= t1 + 1e-6;
+          if (hit) onEv(fn, li, l.st);
+        }
+      }
+      if (T) {
+        for (const [, k] of T[1]) if (sm.c.p[k] && sm.c.p[k][0] === 9) used.push(k);
+        l.st = T[0] == null ? ly.def : T[0]; l.t = 0;
+      }
+    });
+    for (const k of used) sm.P[k] = false;   // trigger tiêu sau khi mọi layer đã xét (một trigger "dead" dùng ở layer 0 và 2)
+  };
+
   // ---------------------------------------------------------------- prefab
   // Phần có f là quad cộng sáng của Unity (UISprite, texiao_01...) — vẽ bằng code thay vì dán ảnh.
   const GLOW_FRAMES = { UISprite: 1, texiao_01: 1, light_01: 1, portal_center: 1, nothing: 1, ui_effect_progress_flash: 1 };

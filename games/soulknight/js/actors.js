@@ -32,7 +32,10 @@
     if (left) ctx.scale(1, -1);
     if (o && o.rot) ctx.rotate(o.rot);
     if (o && o.scale && o.scale !== 1) ctx.scale(o.scale, o.scale);
-    const ox = (off ? off[0] : 0) - ((o && o.kick) || 0), oy = off ? -off[1] : 0;
+    let ox = (off ? off[0] : 0) - ((o && o.kick) || 0), oy = off ? -off[1] : 0;
+    // o.xf: tư thế nút sprite 'w' theo clip Animator của vũ khí ({dx, dy, sx, sy, rot} của SK.animXform, trong hệ súng)
+    const xf = o && o.xf;
+    if (xf) { ctx.translate(ox + xf.dx, oy + xf.dy); if (xf.rot) ctx.rotate(xf.rot); if (xf.sx !== 1 || xf.sy !== 1) ctx.scale(xf.sx, xf.sy); ox = oy = 0; }
     if (!sprite || !SK.draw(ctx, sprite, ox, oy, { pages: o && o.pages })) {
       ctx.fillStyle = '#3a3f4a'; ctx.fillRect(ox - 2, oy - 2, 11, 4);
       ctx.fillStyle = '#8b93a3'; ctx.fillRect(ox - 2, oy - 2, 11, 1);
@@ -442,7 +445,9 @@
       hp: h.hp, hpMax: h.hp, armor: h.armor, armorMax: h.armor, energy: h.energy, energyMax: h.energy,
       crit: h.crit || 0, gold: 0, weapons: [SK.makeWeapon(h.weapon), null], cur: 0,
       st: 'alive', stT: 0, invulT: 0, armorT: 0, armorTick: 0, flash: 0,
-      skillCd: 0, skillT: 0, dual: null, target: null, god: false, speedMul: 1
+      skillCd: 0, skillT: 0, dual: null, target: null, god: false, speedMul: 1,
+      // Layer >= 1 của controller skin gốc (L1.char_hit khi trúng đòn), chạy bằng SK.smStep.
+      sm: hd && hd.ctrl ? SK.smNew(hd.ctrl, hd.layers) : null
     };
   };
 
@@ -616,6 +621,7 @@
   SK.updatePlayer = function (G, dt) {
     const p = G.player, I = SK.input;
     p.t += dt;
+    SK.smStep(p.sm, dt, fn => SK.emit('animEvent', G, p, fn));
     if (p.st === 'dead') { p.stT += dt; return; }
     p.invulT = Math.max(0, p.invulT - dt); p.flash = Math.max(0, p.flash - dt);
     p.skillCd = Math.max(0, p.skillCd - dt);
@@ -710,6 +716,7 @@
     p.hp -= dmg;
     if (p.god && p.hp < 1) p.hp = 1;
     p.invulT = R.hurtInvuln; p.flash = 0.1;
+    SK.smTrig(p.sm, 'hit');
     G.shake = Math.max(G.shake, 3); G.hurtT = 0.35;
     SK.num(G, p.x, p.y - 26, a + dmg, a && !dmg ? '#c9d2df' : '#ff4a4a');
     SK.emit('playerHurt', G, p, a + dmg);
@@ -790,6 +797,10 @@
       r: Math.max(3, Math.min(8, col.circle ? col.circle.r * 0.8 : 5)),
       hb: col.hurt_box || { size: [12, 16], off: [0, 8] }, scale: elite ? R.eliteScale : 1, burst: 0
     };
+    // Animator gốc (layer 1 char_hit, layer 2 dấu "!"/hồn ma ở nút dead_tap) và Animator của súng (w_ide, fire, w_bow*,
+    // w_sword*...), chạy theo đồ thị controller thật (SK_DATA.ctrl) bằng SK.smStep.
+    e.sm = SK.smNew(d.ctrl, d.anims);
+    e.wsm = e.w && e.w.ctrl ? SK.smNew(e.w.ctrl, e.w.anims) : null;
     SK.fx(G, 'spawn', x, y, { dur: 0.7 });
     return e;
   };
@@ -829,7 +840,13 @@
     faceTo(e, tx);
     return { arrived: false, hit: SK.moveBox(G.map, e, dx / d * s, dy / d * s, e.r) };
   }
-  function startAim(G, e, t) { e.st = 'aim'; e.stT = t || R.telegraph; aimAtPlayer(G, e); }
+  function startAim(G, e, t) {
+    e.st = 'aim'; e.stT = t || R.telegraph; aimAtPlayer(G, e);
+    // Trigger "atk" của Animator gốc -> state L2.char_dizzy (clip char_atk: dấu "!" đỏ ở nút dead_tap 0,875 s).
+    // [ƯỚC LƯỢNG] Unity bật nó trong RGEController.Scout() (lúc phát hiện mục tiêu); ở đây: lần giao chiến đầu tiên,
+    // bỏ qua quái có need_tap = 0.
+    if (!e.alerted && e.p.need_tap !== 0) { e.alerted = true; SK.smTrig(e.sm, 'atk'); }
+  }
 
   // Bước chung "đi dạo": idle ↔ move. Trả true nếu đang dạo (có thể bị ngắt để tấn công).
   function wander(G, e, dt) {
@@ -1052,7 +1069,22 @@
     }
     fn(G, e);
     e.kick = 2;
+    // RGEWeapon.atkMode [ĐO w.p.atkMode]: 0 SetAttack(bool atk_b), 1 SetAttackTrigger (atk_t), 2 cả hai.
+    if (e.wsm) {
+      const m = w.p.atkMode || 0;
+      if (m !== 0) SK.smTrig(e.wsm, 'atk_t');
+      if (m !== 1) e.wAtk = 0.1;
+    }
     SK.emit('enemyFire', G, e);
+  }
+  // Cung (EGun004/EGunEliteArcher có s_atk): SetAttack(true) lúc giương (e.st 'aim'), thả khi bắn. Súng/kiếm: atk_b bật
+  // từ phát bắn tới hết trạng thái 'attack' (tối thiểu 0,1 s).
+  function drivesWeapon(e, dt) {
+    const w = e.w, sm = e.wsm;
+    e.wAtk = Math.max(0, (e.wAtk || 0) - dt);
+    const draw = !!(w.spr && w.spr.s_atk);
+    SK.smSet(sm, 'atk_b',draw ? e.st === 'aim' : (e.st === 'attack' || e.wAtk > 0));
+    SK.smStep(sm, dt);
   }
 
   SK.updateEnemy = function (G, e, dt) {
@@ -1061,6 +1093,8 @@
     e.kick = Math.max(0, (e.kick || 0) - dt * 16);
     e.swing = Math.max(0, (e.swing || 0) - dt);
     e.thrust = Math.max(0, (e.thrust || 0) - dt);
+    SK.smStep(e.sm, dt, fn => SK.emit('animEvent', G, e, fn));
+    if (e.wsm && e.st !== 'dead') drivesWeapon(e, dt);
     if (e.st === 'dead') {
       e.stT += dt;
       if (Math.abs(e.kx) + Math.abs(e.ky) > 0.5) { SK.moveBox(G.map, e, e.kx * dt, e.ky * dt, e.r); const k = Math.exp(-dt * 7); e.kx *= k; e.ky *= k; }
@@ -1077,6 +1111,7 @@
   SK.hurtEnemy = function (G, e, dmg, crit, ang, repel) {
     if (!targetable(e)) return false;
     e.hp -= dmg; e.flash = 0.08;
+    SK.smTrig(e.sm, 'hit');   // L1.char_hit (clip gốc rỗng, chỉ có sự kiện HitBack ở 0,0667 s)
     if (!(e.p.kinematic)) { e.kx += Math.cos(ang) * repel * 30; e.ky += Math.sin(ang) * repel * 30; }
     // [ĐO] CommonConfig.normalDamageColor (0.925, 0, 0) / criticDamageColor (1, 0.929, 0) trong common.ab.
     SK.num(G, e.x, e.y - e.hb.off[1] * e.scale - e.hb.size[1] * 0.5 * e.scale - 4, dmg, crit ? '#ffed00' : '#ec0000', crit);
@@ -1089,6 +1124,7 @@
   // [ƯỚC LƯỢNG] tốc văng 150 px/s; không có anim dead thì khói 'smoke' thật (common.ab).
   function killEnemy(G, e, ang) {
     e.st = 'dead'; e.stT = 0; e.hp = 0;
+    SK.smTrig(e.sm, 'dead');   // L2.char_tap_dead: hồn ma ở nút dead_tap từ 0,625 s tới 2 s
     const k = e.p.kinematic ? 0 : 150;
     e.kx = Math.cos(ang || 0) * k; e.ky = Math.sin(ang || 0) * k;
     G.kills++;
@@ -1125,17 +1161,47 @@
     if (!fr || !SK.draw(ctx, fr, x + xf.dx * s * fs, y + xf.dy * s, { flip, sx: s * xf.sx, sy: s * xf.sy, rot: xf.rot * fs, pages })) {
       ctx.fillStyle = e.elite ? '#b33' : '#7a3'; ctx.fillRect(x - 6, y - 14, 12, 14);
     }
-    if (!dead && e.w && e.w.sprite) {
+    if (!dead && e.w && e.w.sprite && !weaponHidden(e, pk, at)) {
       let [hx, hy] = eHand(e);
       if (e.w.path) { const hf = SK.animPose(pk, at, e.w.path); hx += hf.dx * s * fs; hy += hf.dy * s; }
       let ang = e.w.p.need_lock === 0 && e.st !== 'aim' ? (e.face > 0 ? 0 : Math.PI) : e.aim;
       if (e.st !== 'aim' && e.st !== 'attack' && e.w.p.need_lock !== 0) ang = e.face > 0 ? 0.15 : Math.PI - 0.15;
-      if (e.swing > 0) ang += (1 - e.swing / 0.18) * 2.4 - 1.2;
-      const push = e.thrust > 0 ? Math.sin(e.thrust / 0.22 * Math.PI) * 8 : 0;
-      SK.drawGun(ctx, e.w.sprite, hx + Math.cos(ang) * push, hy + Math.sin(ang) * push, ang, e.w.spriteOff, { scale: s, kick: e.kick, pages });
+      // Có Animator súng: tư thế nút 'w' lấy từ clip gốc của state hiện tại (giật, vung kiếm, đâm giáo, giương cung)
+      // thay cho giật/vung/đâm vẽ tay. EGun004: SetAttack đổi sprite s_ide <-> s_atk.
+      const wk = e.wsm && SK.smKey(e.wsm), wxf = wk ? SK.animXform(wk, e.wsm.L[0].t, 'w') : null;
+      let spr = e.w.sprite;
+      if (e.wsm && e.w.spr && e.w.spr.s_atk) spr = e.wsm.P.atk_b ? e.w.spr.s_atk : (e.w.spr.s_ide || spr);
+      if (!e.wsm && e.swing > 0) ang += (1 - e.swing / 0.18) * 2.4 - 1.2;
+      const push = !e.wsm && e.thrust > 0 ? Math.sin(e.thrust / 0.22 * Math.PI) * 8 : 0;
+      SK.drawGun(ctx, spr, hx + Math.cos(ang) * push, hy + Math.sin(ang) * push, ang, e.w.spriteOff, { scale: s, kick: e.wsm ? 0 : e.kick, pages, xf: wxf });
     }
+    if (e.d.nodes && e.sm) drawNodes(ctx, e, x, y, s, flip, pk, at);
     if (e.st === 'aim' && e.w && e.w.p && e.w.p.aimTime) drawAimLine(ctx, G, e);
   };
+  // Clip layer 0 tắt nút tay/súng (tr[..].on = 0) -> không vẽ súng.
+  function weaponHidden(e, key, t) {
+    const parts = (e.w.path || '').split('/');
+    for (let i = 1; i <= parts.length; i++) if (SK.animOn(key, t, parts.slice(0, i).join('/')) === 0) return true;
+    return false;
+  }
+  // Nút phụ mà layer >= 1 của Animator gốc điều khiển (dead_tap): bật/tắt theo tr.on, khung theo anim có fp = nút,
+  // chồng theo thứ tự layer như Unity (layer sau ghi đè).
+  function drawNodes(ctx, e, x, y, s, flip, key0, t0) {
+    const fs = flip ? -1 : 1;
+    for (const [path, n] of Object.entries(e.d.nodes)) {
+      let on = n.on, f = n.f;
+      for (let li = 1; li < e.sm.L.length; li++) {
+        const k = SK.smKey(e.sm, li); if (!k) continue;
+        const lt = e.sm.L[li].t, v = SK.animOn(k, lt, path);
+        if (v != null) on = v;
+        const a = SK.anim(k);
+        if (a && a.fp === path) { const af = SK.animFrame(k, lt); if (af) f = af; }
+      }
+      if (!on || !f) continue;
+      const q = SK.animPose(key0, t0, path);
+      SK.draw(ctx, f, x + (n.at[0] + q.dx) * s * fs, y + (-n.at[1] + q.dy) * s, { flip, sx: s * q.sx, sy: s * q.sy });
+    }
+  }
   function drawAimLine(ctx, G, e) {
     const [mx, my] = muzzleOf(e);
     let len = 0;

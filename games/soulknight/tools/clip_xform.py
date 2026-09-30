@@ -7,6 +7,8 @@
   nghỉ của các nút cha, nên là px trong hệ của nút Animator.
 - s: cỡ clip chia cỡ nghỉ (1 = như prefab).
 - r: góc quay z so với góc nghỉ, độ, ngược chiều kim đồng hồ như Unity. Tháo vòng: hai khoá liền nhau lệch < 180°.
+- on (chỉ khi gọi với extra=True: Animator gốc/vũ khí của quái, nhân vật): bật/tắt SpriteRenderer.m_Enabled hoặc
+  GameObject.m_IsActive, [[t, 0|1]], giữ giá trị của khoá gần nhất phía trước (bậc thang).
 - Khoá là giá trị tại thời điểm khoá, như uiclip.float_tracks đọc; giữa hai khoá nội suy tuyến tính, sau khoá cuối
   giữ nguyên. Chỉ ghi đường có đổi hoặc khác tư thế nghỉ.
 
@@ -99,8 +101,18 @@ def _unwrap(vals):
     return out
 
 
-def clip_tr(rip, cab, clip_obj, root):
-    """-> (tr hoặc None, độ dài clip giây). root: skrip.Node mang Animator chơi clip này."""
+def sprite_path(rip, cab, clip_obj, root):
+    """Đường dẫn nút mà đường sprite (SpriteRenderer.m_Sprite) của clip nhắm tới, tính từ root; None nếu không có."""
+    paths, _ = _rest(root)
+    for b in rip.tree(cab, clip_obj)['m_ClipBindingConstant']['genericBindings']:
+        if b['isPPtrCurve'] and b['typeID'] == 212 and b['attribute'] == 0:
+            return paths.get(b['path'], '#%08x' % b['path'])
+    return None
+
+
+def clip_tr(rip, cab, clip_obj, root, extra=False):
+    """-> (tr hoặc None, độ dài clip giây). root: skrip.Node mang Animator chơi clip này.
+    extra: thêm đường bật/tắt 'on' (m_Enabled của SpriteRenderer, m_IsActive của GameObject)."""
     paths, rest = _rest(root)
     tree = rip.tree(cab, clip_obj)
     binds = tree['m_ClipBindingConstant']['genericBindings']
@@ -114,7 +126,12 @@ def clip_tr(rip, cab, clip_obj, root):
     stats.clips += 1
     ft = uiclip.float_tracks(rip, cab, clip_obj, paths)
     by = {}
+    onoff = {}
     for t in ft['tracks']:
+        if extra and ((t['type'] == 212 and t['prop'] == 'm_Enabled') or (t['type'] == 1 and t['prop'] == 'm_IsActive')):
+            if not t['path'].startswith('#'):
+                onoff[t['path']] = t['keys']
+            continue
         if t['type'] != 4:
             continue
         if t['path'].startswith('#'):
@@ -122,6 +139,12 @@ def clip_tr(rip, cab, clip_obj, root):
             continue
         by.setdefault(t['path'], {})[t['prop']] = t['keys']
     tr = {}
+    for path in sorted(onoff):
+        if path in rest:
+            rows = [[round(k[0], 4), 1 if k[1] > 0.5 else 0] for k in onoff[path]]
+            out = [r for i, r in enumerate(rows) if i == 0 or r[1] != rows[i - 1][1]]
+            tr.setdefault(path, {})['on'] = out
+            stats.tracks += 1
     for path in sorted(by):
         pr, r0 = by[path], rest.get(path)
         if r0 is None:
@@ -160,7 +183,7 @@ def clip_tr(rip, cab, clip_obj, root):
             if any(abs(r[1]) >= EPS['r'] for r in rows):
                 node['r'] = _squeeze(rows)
         if node:
-            tr[path] = node
+            tr.setdefault(path, {}).update(node)
             stats.tracks += len(node)
     if tr:
         stats.with_tr += 1

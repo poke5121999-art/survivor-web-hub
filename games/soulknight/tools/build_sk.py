@@ -103,18 +103,28 @@ def sprite_ref(ptr, cab, native=False):
     return frame_of(*r, native=native) if r else None
 
 
-def anim_of(cab, clip_obj, key, root=None, variant=None):
+def anim_of(cab, clip_obj, key, root=None, variant=None, extra=False, keep=False):
     """root: skrip.Node mang Animator -> thêm tr (đường cong Transform, xem clip_xform.py) và len. Cùng clip mà tư thế
-    nghỉ của prefab khác (tr khác) thì ghi thêm khoá '<key>@<variant>'. Clip chỉ có Transform thì f = []."""
-    tr, ln = clip_xform.clip_tr(rip, cab, clip_obj, root) if root is not None else (None, 0)
+    nghỉ của prefab khác (tr khác) thì ghi thêm khoá '<key>@<variant>'. Clip chỉ có Transform thì f = [].
+    extra (Animator gốc/vũ khí của quái, nhân vật): thêm đường bật/tắt 'on' vào tr và 'fp' = nút nhận đường sprite
+    khi nút đó không phải gốc. keep: clip không có khung lẫn Transform (vd char_hit chỉ có sự kiện HitBack, w_ide đúng
+    tư thế nghỉ) vẫn ghi {f: [], d: [], len, ev?} để state còn trong dữ liệu."""
+    tr, ln = clip_xform.clip_tr(rip, cab, clip_obj, root, extra) if root is not None else (None, 0)
+    fp = clip_xform.sprite_path(rip, cab, clip_obj, root) if (extra and root is not None) else None
+    if fp is not None and fp.split('/')[-1] in ('', 'body'):
+        fp = None   # nút thân (quy ước 'body' của extract_enemy/extract_heroes): mã chạy đã vẽ khung vào đó
     if key in anims:
-        if root is None or anims[key].get('tr') == tr:
+        if root is None or (anims[key].get('tr') == tr and anims[key].get('fp') == (fp or None)):
             return key
         k2 = '%s@%s' % (key, variant or root.name)
         if k2 not in anims:
-            a = {x: v for x, v in anims[key].items() if x not in ('tr', 'len')}
+            a = {x: v for x, v in anims[key].items() if x not in ('tr', 'len', 'fp')}
             if tr:
                 a['tr'], a['len'] = tr, round(ln, 4)
+            elif not a['f'] and 'len' in anims[key]:
+                a['len'] = anims[key]['len']
+            if fp:
+                a['fp'] = fp
             anims[k2] = a
             clip_xform.stats.variants += 1
         return k2
@@ -126,13 +136,17 @@ def anim_of(cab, clip_obj, key, root=None, variant=None):
         nxt = keys[i + 1][0] if i + 1 < len(keys) else max(c['len'], t + 1.0 / max(c['rate'], 1))
         fr.append(f)
         du.append(round(max(nxt - t, 0.0), 4))
-    if not fr and not tr:
+    if not fr and not tr and not keep:
         return None
     a = {'f': fr, 'd': du, 'loop': c['loop']}
     if c['events']:
         a['ev'] = [[round(t, 4), fn] for t, fn in c['events']]
     if tr:
         a['tr'], a['len'] = tr, round(ln, 4)
+    elif not fr:
+        a['len'] = round(c['len'], 4)
+    if fp:
+        a['fp'] = fp
     anims[key] = a
     return key
 
@@ -152,6 +166,76 @@ def animator_states(node, prefix):
         if k:
             out[st] = k
     return out
+
+
+# Máy trạng thái Animator (tools/README.md, mục `ctrl`): ctrls[tên] = {p, L}. Thực thể giữ tên qua trường `ctrl`, còn
+# khoá anim của từng state nằm trong map state -> khoá anim của thực thể (e.anims, w.anims, s0.layers).
+ctrls = {}
+_ctrl_sig = {}
+
+
+def _state_names(layer, li):
+    """Tên state theo quy ước khoá anim: layer 0 giữ tên, layer n thêm 'Ln.'; trùng tên trong layer thì thêm '~k'."""
+    out, seen = [], {}
+    for s in layer['states']:
+        nm = s['name'] if li == 0 else 'L%d.%s' % (li, s['name'])
+        if nm in seen:
+            seen[nm] += 1
+            nm = '%s~%d' % (nm, seen[nm])
+        else:
+            seen[nm] = 0
+        out.append(nm)
+    return out
+
+
+def register_ctrl(g):
+    """Đồ thị controller (skrip.controller_graph) -> khoá trong ctrls. Hai controller trùng tên mà đồ thị khác: '@2'..."""
+    sm = {'p': g['params'], 'L': []}
+    for li, L in enumerate(g['layers']):
+        names = _state_names(L, li)
+
+        def T(x):
+            return [names[x['to']] if x['to'] is not None else None, x['c'], x['exit'], x['dur']]
+        ly = {'w': 1.0 if li == 0 else L['w'], 'add': L['add'], 'def': names[L['def']] if names else None,
+              'any': [T(x) for x in L['any']], 'st': {}}
+        for nm, st in zip(names, L['states']):
+            ly['st'][nm] = [T(x) for x in st['tr']]
+            if st['speed'] != 1:
+                ly.setdefault('sp', {})[nm] = st['speed']
+        sm['L'].append(ly)
+    sig = json.dumps(sm, sort_keys=True)
+    base = g['name'] or 'ctrl'
+    name, i = base, 1
+    while name in ctrls and _ctrl_sig[name] != sig:
+        i += 1
+        name = '%s@%d' % (base, i)
+    ctrls[name], _ctrl_sig[name] = sm, sig
+    return name
+
+
+def animator_full(node, prefix, keep_from=0):
+    """Như animator_states nhưng đọc mọi layer theo đồ thị đầy đủ -> (map state -> khoá anim, tên ctrl | None).
+    State ở layer >= keep_from giữ cả clip rỗng (anim_of keep)."""
+    a = node.comp('Animator')
+    if not a:
+        return {}, None
+    ccab, co, t = a
+    r = rip.resolve(t.get('m_Controller'), ccab)
+    if not r:
+        return {}, None
+    g = rip.controller_graph(*r)
+    if not g:
+        return {}, None
+    ctrl_name = rip.tree(*r).get('m_Name') or prefix
+    out = {}
+    for li, L in enumerate(g['layers']):
+        for nm, st in zip(_state_names(L, li), L['states']):
+            if not st['clip'] or nm in out:
+                continue
+            k = anim_of(st['clip'][0], st['clip'][1], '%s/%s' % (ctrl_name, nm), node, prefix, True, li >= keep_from)
+            if k:
+                out[nm] = k
+    return out, register_ctrl(g)
 
 
 def px(p):
@@ -235,7 +319,9 @@ def extract_enemy(root, theme, level):
     e['crit'] = rt.get('critical', 0)
     ai = [(c, mcab, t) for c, (mcab, t) in mbs.items() if c and c.startswith(AI_PREFIX)]
     e['ai'] = [{'cls': c, 'p': plain(t, mcab)} for c, mcab, t in ai]
-    e['anims'] = animator_states(root, root.name)
+    e['anims'], ctl = animator_full(root, root.name, keep_from=1)
+    if ctl:
+        e['ctrl'] = ctl
     root_anim = bool(e['anims'])
     e['col'] = {}
     e['parts'] = []
@@ -275,7 +361,17 @@ def extract_enemy(root, theme, level):
                 w['path'] = path[1:]
             if 'bullet' in t:
                 w['bullet'] = bullet_ref(t['bullet'], mcab)
-            w['anims'] = animator_states(nd, root.name + '_weapon')
+            w['anims'], wctl = animator_full(nd, root.name + '_weapon')
+            if wctl:
+                w['ctrl'] = wctl
+            # Sprite do mã EGun đổi (EGun004.s_ide/s_atk: cung giương khi atk_b) -> khung trong atlas.
+            for fk, fv in t.items():
+                if isinstance(fv, dict) and set(fv) == {'m_FileID', 'm_PathID'} and fv['m_PathID']:
+                    rr = rip.resolve(fv, mcab)
+                    if rr and rr[1].type.name == 'Sprite':
+                        f = frame_of(*rr)
+                        if f:
+                            w.setdefault('spr', {})[fk] = f
             for wn, wpath, woff in nd.walk():
                 if wn is nd:
                     continue
@@ -297,6 +393,28 @@ def extract_enemy(root, theme, level):
             e['parts'].append({'at': '', 'cls': c, 'p': plain(t, mcab)})
     if not e['parts']:
         del e['parts']
+    # Nút mà clip layer >= 1 của Animator gốc bật/tắt hoặc đổi sprite ngoài thân (dead_tap: "!" của char_atk, hồn ma khi chết).
+    want = set()
+    for st, k in e['anims'].items():
+        if not st.startswith('L'):
+            continue   # layer 0: bật/tắt nút tay/súng mã chạy đọc thẳng từ tr, không cần nút riêng
+        a = anims.get(k) or {}
+        if a.get('fp'):
+            want.add(a['fp'])
+        want.update(p for p, n in (a.get('tr') or {}).items() if 'on' in n)
+    want.discard(e.get('bodyPath'))
+    if want and root_anim:
+        for nd, path, off in root.walk():
+            if path[1:] in want:
+                n = {'at': px(off)}
+                sr = nd.comp('SpriteRenderer')
+                if sr:
+                    f = sprite_ref(sr[2].get('m_Sprite'), sr[0])
+                    if f:
+                        n['f'] = f
+                    n['on'] = 1 if (sr[2].get('m_Enabled', 1) and nd.active) else 0
+                    n['o'] = sr[2].get('m_SortingOrder', 0)
+                e.setdefault('nodes', {})[path[1:]] = n
     return e
 
 
@@ -728,6 +846,26 @@ def extract_heroes(want_skins=(0,)):
                 if tr:
                     anims[key]['tr'], anims[key]['len'] = tr, round(ln, 4)
             entry[k] = key
+        # Layer >= 1 của controller skin (char_hit...): tr/fp tính theo prefab c<index> của hero.ab.
+        if ok and hero_root is not None:
+            for ccab, co in rip.objects([rel], ('AnimatorController', 'AnimatorOverrideController')):
+                g = rip.controller_graph(ccab, co)
+                if not g:
+                    continue
+                cname = rip.tree(ccab, co).get('m_Name') or folder
+                lay = {}
+                for li, L in enumerate(g['layers']):
+                    if li == 0:
+                        continue
+                    for nm, st in zip(_state_names(L, li), L['states']):
+                        if st['clip'] and nm not in lay:
+                            k = anim_of(st['clip'][0], st['clip'][1], '%s/%s' % (cname, nm), hero_root, folder, True, True)
+                            if k:
+                                lay[nm] = k
+                if lay:
+                    entry['layers'] = lay
+                    entry['ctrl'] = register_ctrl(g)
+                break
         hero_src['bundle' if ok else 'png'] += 1
         if pivot:
             entry['pivot'] = list(pivot)
@@ -932,6 +1070,9 @@ def main():
           'png', len(extra['png']), png_src, 'frames', len(packer.frames), '%.0fs' % (time.time() - t0), flush=True)
     extract_heroes()
     print('heroes', len(heroes), hero_src, 'frames', len(packer.frames), flush=True)
+    print('controllers', len(ctrls), 'súng quái có ctrl', sum(1 for e in enemies.values() for w in e.get('weapons', []) if w.get('ctrl')),
+          'quái có layer char_*', sum(1 for e in enemies.values() if any(k.startswith('L') for k in e['anims'])),
+          'nhân vật có layer', sum(1 for h in heroes.values() if h.get('s0', {}).get('layers')), flush=True)
     print('bundles loaded', len(rip.loaded), 'CAB ngoài chỉ mục', rip.missing, flush=True)
     xs = clip_xform.stats
     print('transform: clip đọc %d, clip có tr %d, anim có tr %d, đường giữ %d, khoá biến thể %d, '
@@ -949,7 +1090,7 @@ def main():
     atlas = {'pages': ['art/sk/' + p for p in pages], 'v': hv, 'f': table}
     data = {'ppu': PPU, 'anims': anims, 'enemies': enemies, 'bullets': bullets, 'themes': themes,
             'heroes': heroes, 'prefabs': prefabs, 'patterns': load_patterns(), 'hud': hud,
-            'sprites': {'bullets': sorted(v for v in extras.values() if v)}, 'extra': extra}
+            'sprites': {'bullets': sorted(v for v in extras.values() if v)}, 'extra': extra, 'ctrl': ctrls}
     tmp = os.path.join(DATA, 'sk-data.js.tmp')
     with io.open(tmp, 'w', encoding='utf-8', newline='\n') as f:
         f.write('// SINH TỰ ĐỘNG bởi tools/build_sk.py — không sửa tay.\n')

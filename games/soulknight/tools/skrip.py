@@ -382,6 +382,76 @@ class Rip:
                         break
         return out
 
+    def controller_graph(self, cab, o):
+        """AnimatorController (hoac Override) -> do thi may trang thai day du, moi layer:
+        {'name', 'params': {ten: [kieu, mac_dinh]}, 'layers': [{'w', 'add', 'def', 'any': [T], 'states': [S]}]}
+        S = {'name', 'clip': (cab, clip_obj) | None, 'speed', 'tr': [T]}
+        T = {'to': chi so state | None (exit -> state mac dinh), 'c': [[mode, param, nguong]], 'exit': exitTime | None, 'dur'}
+        Kieu param Unity: 1 float, 3 int, 4 bool, 9 trigger. mode: 1 If, 2 IfNot, 3 Greater, 4 Less, 6 Equals, 7 NotEqual.
+        Blend mode layer: 0 override, 1 additive. Layer 0 luon co trong so 1 (Unity bo qua m_DefaultWeight cua no)."""
+        t = self.tree(cab, o)
+        if o.type.name == 'AnimatorOverrideController':
+            base = self.resolve(t['m_Controller'], cab)
+            if not base:
+                return None
+            g = self.controller_graph(*base)
+            over = {}
+            for p in t.get('m_Clips', []):
+                a = self.resolve(p['m_OriginalClip'], cab)
+                b = self.resolve(p['m_OverrideClip'], cab)
+                if a and b:
+                    over[(a[0], a[1].path_id)] = b
+            for L in g['layers']:
+                for s in L['states']:
+                    if s['clip']:
+                        s['clip'] = over.get((s['clip'][0], s['clip'][1].path_id), s['clip'])
+            return g
+        tos = dict(t['m_TOS'])
+        C = t['m_Controller']
+        clips = t['m_AnimationClips']
+        dv = C['m_DefaultValues']['data']
+        kinds = {1: 'm_FloatValues', 3: 'm_IntValues', 4: 'm_BoolValues', 9: 'm_BoolValues'}
+        params = {}
+        for v in C['m_Values']['data']['m_ValueArray']:
+            arr = dv.get(kinds.get(v['m_Type'], ''), [])
+            d = arr[v['m_Index']] if 0 <= v['m_Index'] < len(arr) else 0
+            params[tos.get(v['m_ID'], str(v['m_ID']))] = [v['m_Type'], (bool(d) if v['m_Type'] in (4, 9) else round(float(d), 4))]
+        sms = C['m_StateMachineArray']
+        layers = []
+        for L in C['m_LayerArray']:
+            L = L['data']
+            sm = sms[L['m_StateMachineIndex']]['data']
+            ms = L.get('m_StateMachineMotionSetIndex', 0)
+            sts = sm['m_StateConstantArray']
+            n = len(sts)
+
+            def trans(tr):
+                tr = tr['data']
+                d = tr['m_DestinationState']
+                return {'to': d if 0 <= d < n else None,
+                        'c': [[c['data']['m_ConditionMode'], tos.get(c['data']['m_EventID'], str(c['data']['m_EventID'])),
+                               round(c['data'].get('m_EventThreshold', 0.0), 4)] for c in tr['m_ConditionConstantArray']],
+                        'exit': round(tr['m_ExitTime'], 4) if tr['m_HasExitTime'] else None,
+                        'dur': round(tr['m_TransitionDuration'], 4)}
+            states = []
+            for st in sts:
+                s = st['data']
+                clip = None
+                bts = s['m_BlendTreeConstantArray']
+                bi = s['m_BlendTreeConstantIndexArray'][ms] if ms < len(s['m_BlendTreeConstantIndexArray']) else 0
+                if 0 <= bi < len(bts):
+                    for nd in bts[bi]['data']['m_NodeArray']:
+                        ci = nd['data']['m_ClipID']
+                        if 0 <= ci < len(clips):
+                            clip = self.resolve(clips[ci], cab)
+                        break
+                states.append({'name': tos.get(s['m_NameID'], str(s['m_NameID'])), 'clip': clip,
+                               'speed': round(s['m_Speed'], 4), 'tr': [trans(x) for x in s['m_TransitionConstantArray']]})
+            layers.append({'w': round(L['m_DefaultWeight'], 4), 'add': L.get('(int&)m_LayerBlendingMode', L.get('m_LayerBlendingMode', 0)),
+                           'def': sm['m_DefaultState'] if 0 <= sm['m_DefaultState'] < n else 0,
+                           'any': [trans(x) for x in sm['m_AnyStateTransitionConstantArray']], 'states': states})
+        return {'name': t['m_Name'], 'params': params, 'layers': layers}
+
 
 class Node:
     """Mot GameObject voi cac component da giai."""
