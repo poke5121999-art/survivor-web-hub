@@ -1,0 +1,28 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>SK uGUI viewer</title>
+<style>body{margin:0;background:#1c2530;color:#ccc;font:13px monospace}canvas{display:block}#bar{padding:4px}</style>
+<div id="bar">prefab <select id="pf"></select> <label><input type="checkbox" id="all"> bật mọi nút tắt</label> size <input id="w" value="1600" size="4">x<input id="h" value="900" size="4"></div>
+<canvas id="cv"></canvas>
+<script src="../../data/sk-ui.js"></script>
+<script src="../../js/ugui.js"></script>
+<script>
+const ug = SK.ugui; ug.base = '../../';
+const sel = document.getElementById('pf');
+for (const k in SK_UI.prefabs) sel.add(new Option(k, k));
+const params = new URLSearchParams(location.search);
+if (params.get('p')) sel.value = params.get('p');
+function render() {
+  const cv = document.getElementById('cv'), W = +document.getElementById('w').value, H = +document.getElementById('h').value;
+  cv.width = W; cv.height = H;
+  const inst = ug.inst(sel.value);
+  if (document.getElementById('all').checked) (function on(n) { delete n.off; (n.k || []).forEach(on); })(inst.root);
+  const hide = (params.get('hide') || '').split(',').filter(Boolean);
+  hide.forEach(p => { const n = inst.q(p); if (n) n.off = 1; });
+  const ctx = cv.getContext('2d'); ctx.fillStyle = '#3b4a3a'; ctx.fillRect(0, 0, W, H);
+  inst.draw(ctx, W, H);
+  window.inst = inst;
+}
+ug.load().then(render);
+document.getElementById('bar').onchange = render;
+</script>

@@ -64,6 +64,17 @@ nút kỹ năng có hồi chiêu.
    - Số đã giải mã (Luban AES, Lua DES, config XOR) ở `D:\sk86-ref\decoded`; công cụ ở `tools/config86/` CHƯA commit vì
      chứa khoá của ChillyRoom, repo public — chờ chủ dự án quyết.
 
+7. [ ] Đợt art + anim + UI gốc (chủ dự án 2026-09-30: "polish + xài đúng đủ art + anim của soul knight gốc là quan trọng nhất").
+   - Kiểm kê chạy lại được: `node test/soulknight-art-audit.js` (lệnh vẽ tay lúc chạy, xếp theo diện tích) và
+     `python tools/anim_audit.py` → `tools/ANIM_AUDIT.md` (state anim gốc so với bản web, theo từng thực thể).
+   - IL2CPP đã dump đủ (`D:\sk86-refuntime\dump\dump.cs`); cách làm ở `tools/config86/README.md` mục 8.
+   - [x] a. HUD trong ải dựng từ prefab gốc (`tools/ui`, `js/ugui.js`), rev 20260930a.
+   - [ ] b. Transform trong clip (nhún/co giãn/lệch của quái, 12 quái đứng một khung, clip kỹ năng của nhân vật).
+   - [ ] c. Animator vũ khí của quái (103/142 thiếu), `char_hit`/`char_dizzy` dùng chung.
+   - [ ] d. Bản đồ nhỏ (`levelcommon` › `minimap*.prefab`), bảng tạm dừng (`window_pause`), thanh máu trùm, số sát thương.
+   - [ ] e. Vật thể có anim: rương, lái buôn, tượng, cổng, NPC sảnh, thú cưng.
+   - [ ] f. Sảnh: bỏ hộp CSS, dựng từ prefab UI chọn nhân vật (`ui_chose`, `window_hero_list`).
+
 ## Còn hở (sau đợt 8.6)
 
 - Kỹ năng: 24 kỹ năng còn rơi về Song Thủ (cần cưỡi thú, giữ-để-tụ, và mọi kỹ năng của hero c17–c41).

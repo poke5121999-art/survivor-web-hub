@@ -341,7 +341,7 @@
     document.getElementById('sk-start').onclick = () => startRun();
     document.getElementById('sk-retry').onclick = () => SK.lobby.enter();
     document.getElementById('sk-win-retry').onclick = () => SK.lobby.enter();
-    SK.loadArt().then(() => {
+    Promise.all([SK.loadArt(), SK.ugui.load ? SK.ugui.load() : null]).then(() => {
       document.body.classList.add('ready');
       SK.lobby.enter();
       SK.startLoop(step, render);

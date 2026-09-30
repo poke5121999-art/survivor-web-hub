@@ -3,158 +3,219 @@
   'use strict';
   const SK = window.SK, DS = SK.DS;
 
-  const ICONS = {
-    heart: ['.XX.XX.', 'XXXXXXX', 'XXXXXXX', '.XXXXX.', '..XXX..', '...X...'],
-    shield: ['XXXXXXX', 'XXXXXXX', 'XXXXXXX', '.XXXXX.', '..XXX..', '...X...'],
-    gem: ['...X...', '..XXX..', '.XXXXX.', 'XXXXXXX', '.XXXXX.', '..XXX..', '...X...']
-  };
-  function icon(ctx, name, x, y, color, dark) {
-    const rows = ICONS[name];
-    ctx.fillStyle = dark;
-    rows.forEach((r, j) => { for (let i = 0; i < r.length; i++) if (r[i] === 'X') ctx.fillRect(x + i + 0.5, y + j + 0.5, 1, 1); });
-    ctx.fillStyle = color;
-    rows.forEach((r, j) => { for (let i = 0; i < r.length; i++) if (r[i] === 'X') ctx.fillRect(x + i, y + j, 1, 1); });
-  }
-
-  // Bố cục nút (pixel game) — dùng chung cho vẽ và bấm chạm.
-  function layout() {
-    const v = SK.view, W = v.w, H = v.h;
-    return {
-      attack: { cx: W - 46, cy: H - 34, r: 20 },
-      skill: { cx: W - 16, cy: H - 17, r: 12 },
-      slot: { x: W - 78, y: H - 76, w: 48, h: 18 },
-      map: { x: W - 58, y: 16, w: 54, h: 54 }
-    };
-  }
-
+  // HUD trong ải dựng từ prefab gốc ui.ab › canvas.prefab (SK.ugui). Nút nào mã gốc bật theo chế độ/sự kiện
+  // mà ải thường không dùng thì tắt ở đây.
+  const HIDE = ['btn_season_prize', 'btn_season_gear', 'control/btn_emoticon', 'control/btn_fishing',
+    'control/btn_special', 'info_bar/show_currency_group_widget', 'info_bar/token_coin', 'info_bar/net_info',
+    'info_bar/vertical_bar', 're_read_guild_info', 'ui_chose', 'btn_rec', 'btn_ktplay', 'level_buff_info',
+    'item_info', 'setting_bar', 'window_pause', 'text_gems', 'temp_ui', 'curtain',
+    'state_bar/actAndFactorGroup', 'state_bar/btnGroup', 'state_bar/vertical_bar_left',
+    'control/btn_weapon/weaponLeftBottomText', 'control/btn_weapon/pressureLv', 'control/btn_skill/skill_count',
+    'control/btn_skill/cd_ok'];
+  const BARS = [['hp_bar', 'hp', 'hpMax'], ['armor_bar', 'armor', 'armorMax'], ['energy_bar', 'energy', 'energyMax']];
+  let UI = null, barW = 0, lastPhase = null, msgT = -1, skillReady = true;
   const hud = SK.hud = {};
-  hud.hitButton = function (xCss, yCss) {
-    const v = SK.view, x = xCss / v.scale, y = yCss / v.scale, L = layout();
+
+  function ui() {
+    if (UI || !SK.ugui || !SK.ugui.ok) return UI;
+    UI = SK.ugui.inst('hud');
+    for (const p of HIDE) { const n = UI.q(p); if (n) n.off = 1; }
+    barW = UI.q('state_bar/hp_bar/img').sz[0];
+    // [SUY] Ảnh hồi chiêu gốc dùng material xám (MaterialListMono); ở đây nhân màu xám đậm.
+    UI.q('control/btn_skill/mask_style_1/cooldown').img.c = [0.3, 0.3, 0.3, 1];
+    UI.q('control/btn_weapon/img').draw = (ctx, R) => fitSprite(ctx, weaponSprite, R);
+    // Ô tròn nhỏ dưới nút vũ khí là vũ khí dự phòng; prefab để sprite giữ chỗ objects_pickable_18.
+    UI.q('control/btn_weapon/weapon_slot/0').draw = (ctx, R) => fitSprite(ctx, spareSprite, R);
+    pauseInit();
+    return UI;
+  }
+
+  let weaponSprite = null, spareSprite = null;
+  function fitSprite(ctx, name, R) {
+    const f = SK.frame(name);
+    if (!f) return;
+    const sc = Math.min(R.w / f[3], R.h / f[4]);
+    SK.draw(ctx, name, R.x + R.w / 2 - (f[3] / 2 - f[5]) * sc, R.y + R.h / 2 - (f[4] / 2 - f[6]) * sc, { sx: sc, sy: sc });
+  }
+
+  // ---------------------------------------------------------------- tạm dừng: window_pause gốc
+  const PAUSE_HIDE = ['factor_list', 'hopperTicket', 'feedbackBtn', 'questionnaireBtn', 'mode_background',
+    'btn_entry_im', 'img_hero/rebornCard', 'buff_info/factorBanBg'];
+  let buffSel = -1;
+  function pauseInit() {
+    const w = 'window_pause/';
+    for (const p of PAUSE_HIDE) UI.q(w + p).off = 1;
+    UI.q(w + 'img_hero/mask/Image').draw = (ctx, R) => {
+      const p = SK.G.player;
+      fitSprite(ctx, p && SK.animFrame(p.anims.idle, 0), R);
+    };
+    UI.q(w + 'buff_list').draw = drawBuffRow;
+    UI.q(w + 'buff_info/Image').draw = (ctx, R) => { const id = curBuffs()[buffSel]; if (id != null) fitSprite(ctx, SK.ROOMS.buffIcon(id), R); };
+  }
+  const curBuffs = () => (SK.G.player && SK.G.player.buffs) || [];
+  const BUFF_CELL = 110;
+  function drawBuffRow(ctx, R) {
+    curBuffs().forEach((id, i) => {
+      const x = R.x + 20 + i * BUFF_CELL, cell = { x, y: R.y + (R.h - 90) / 2, w: 90, h: 90 };
+      if (i === buffSel) { ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(cell.x - 6, cell.y - 6, 102, 102); }
+      fitSprite(ctx, SK.ROOMS.buffIcon(id), cell);
+    });
+  }
+  // Ô mô tả nằm đè lên hàng nút ở đáy khung: chỉ hiện khi đang chọn một buff.
+  function refreshBuffInfo() {
+    const ids = curBuffs(), info = UI.q('window_pause/buff_info');
+    if (buffSel < 0 || buffSel >= ids.length) { info.off = 1; buffSel = -1; return; }
+    delete info.off;
+    const id = ids[buffSel];
+    UI.q('window_pause/buff_info/Text').txt.s = SK.ROOMS.buffName(id) + ': ' + SK.ROOMS.buffDesc(id);
+  }
+  function pauseBar(confirm) {
+    if (confirm) { UI.q('window_pause/btn_bar1').off = 1; delete UI.q('window_pause/btn_bar2').off; }
+    else { delete UI.q('window_pause/btn_bar1').off; UI.q('window_pause/btn_bar2').off = 1; }
+  }
+  hud.pause = function () {
     const G = SK.G;
-    if (G.state !== 'stage') return null;
-    const inC = c => Math.hypot(x - c.cx, y - c.cy) <= c.r + 3;
-    if (inC(L.skill)) return 'skill';
-    const s = L.slot;
-    if (x >= s.x && x <= s.x + s.w && y >= s.y - 12 && y <= s.y + s.h) return 'swap';
-    if (SK.input.touchMode && inC(L.attack)) return 'attack';
+    if (G.state !== 'stage' || G.phase === 'portal' || !G.player || !ui()) return false;
+    G.state = 'pause';
+    delete UI.q('window_pause').off;
+    UI.play('window_pause', 'show_window');
+    pauseBar(false);
+    buffSel = -1;
+    refreshBuffInfo();
+    SK.emit('pause', true);
+    return true;
+  };
+  hud.resume = function () {
+    const G = SK.G;
+    if (G.state !== 'pause') return;
+    G.state = 'stage';
+    UI.play('window_pause', 'hide_window');
+    UI.q('window_pause').off = 1;
+    SK.emit('pause', false);
+  };
+  function pauseClick(inR, x) {
+    if (buffSel >= 0 && !inR('window_pause/buff_list')) { buffSel = -1; refreshBuffInfo(); return; }
+    if (inR('window_pause/btn_bar1/btn_continue')) hud.resume();
+    else if (inR('window_pause/btn_bar1/btn_home')) pauseBar(true);
+    else if (inR('window_pause/btn_bar1/btn_setting')) { const m = document.getElementById('sk-mute'); if (m) m.click(); }
+    else if (inR('window_pause/btn_bar2/btn_no')) pauseBar(false);
+    else if (inR('window_pause/btn_bar2/btn_yes')) { hud.resume(); SK.lobby.enter(); }
+    else if (inR('window_pause/buff_list')) {
+      const r = pxRect('window_pause/buff_list'), k = SK.hudCtx.canvas.height / 720;
+      const i = Math.floor((x - r.x - 20 * k) / (BUFF_CELL * k));
+      buffSel = i >= 0 && i < curBuffs().length && i !== buffSel ? i : -1;
+      refreshBuffInfo();
+    }
+  }
+  SK.MODES = SK.MODES || {};
+  SK.MODES.pause = { step() {}, render() { hud.render(SK.G); } };
+  addEventListener('keydown', e => {
+    if (e.code !== 'Escape' && e.code !== 'KeyP') return;
+    const G = SK.G;
+    if (G && G.state === 'pause') hud.resume(); else hud.pause();
+  });
+
+  function pxRect(path) {
+    const c = SK.hudCtx.canvas;
+    return UI && UI.rectOf(path, c.width, c.height);
+  }
+  // Rect CSS px của một nút HUD (cho bộ kiểm bấm đúng chỗ vẽ).
+  hud.rect = path => { const r = ui() && pxRect(path), d = SK.view.dpr; return r && { x: r.x / d, y: r.y / d, w: r.w / d, h: r.h / d }; };
+
+  hud.hitButton = function (xCss, yCss) {
+    const G = SK.G;
+    if ((G.state !== 'stage' && G.state !== 'pause') || !ui()) return null;
+    const dpr = SK.view.dpr, x = xCss * dpr, y = yCss * dpr;
+    const inR = p => { const r = pxRect(p); return r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h; };
+    if (G.state === 'pause') { pauseClick(inR, x); return 'ui'; }
+    if (inR('info_bar/btn_pause')) { hud.pause(); return 'ui'; }
+    if (inR('control/btn_skill')) return 'skill';
+    if (inR('control/btn_weapon')) return 'swap';
+    if (SK.input.touchMode && inR('control/btn_atk')) return 'attack';
     return null;
   };
 
-  function bar(ctx, x, y, w, h, cur, max, color, dark, iconName) {
-    icon(ctx, iconName, x, y + 1, color, '#1a0f08');
-    const bx = x + 9;
-    ctx.fillStyle = '#1b120b'; ctx.fillRect(bx, y, w, h);
-    ctx.fillStyle = '#3a2a1e'; ctx.fillRect(bx + 1, y + 1, w - 2, h - 2);
-    const k = max > 0 ? Math.max(0, Math.min(1, cur / max)) : 0;
-    ctx.fillStyle = dark; ctx.fillRect(bx + 1, y + 1, Math.round((w - 2) * k), h - 2);
-    ctx.fillStyle = color; ctx.fillRect(bx + 1, y + 1, Math.round((w - 2) * k), h - 4);
-    SK.text(ctx, Math.ceil(cur) + '/' + max, bx + w / 2, y + h / 2 + 0.5, 8, '#ffffff', 'center', 'rgba(0,0,0,0.85)');
-  }
-
-  function statusPanel(ctx, p) {
-    const x = 3, y = 3, w = 92, h = 37;
-    ctx.fillStyle = '#2a1b10'; ctx.fillRect(x, y, w, h);
-    ctx.fillStyle = '#7a5433'; ctx.fillRect(x + 1, y + 1, w - 2, h - 2);
-    ctx.fillStyle = '#4b3220'; ctx.fillRect(x + 2, y + 2, w - 4, h - 4);
-    bar(ctx, x + 4, y + 4, 75, 9, p.hp, p.hpMax, '#e8453c', '#a8231d', 'heart');
-    bar(ctx, x + 4, y + 14, 75, 9, p.armor, p.armorMax, '#a3acb9', '#6b7280', 'shield');
-    bar(ctx, x + 4, y + 24, 75, 9, p.energy, p.energyMax, '#3d8fe8', '#1f5aa8', 'gem');
-  }
-
-  function goldAndMap(ctx, G) {
-    const L = layout(), m = L.map, v = SK.view;
-    const gx = v.w - 8;
-    SK.text(ctx, String(G.player.gold), gx, 8, 10, '#ffffff', 'right', 'rgba(0,0,0,0.8)');
-    ctx.font = '10px ' + SK.FONT;
-    const tw = ctx.measureText(String(G.player.gold)).width;
-    const coin = SK.art.object('coin');
-    if (!SK.drawPrefab(ctx, coin, gx - tw - 6, 12, { t: G.t, state: 'coin_gold' })) {
-      ctx.fillStyle = '#f5c542'; ctx.fillRect(gx - tw - 9, 5, 5, 6);
+  // [ĐO] UICanvas.UpdateHpBarValid/UpdateEnergyBarValid: img.sizeDelta.x = rộng gốc × hiện tại / tối đa, chữ "hiện tại/tối đa".
+  function statusBars(p) {
+    for (const [node, cur, max] of BARS) {
+      const k = p[max] > 0 ? Math.max(0, Math.min(1, p[cur] / p[max])) : 0;
+      UI.q('state_bar/' + node + '/img').sz[0] = barW * k;
+      UI.q('state_bar/' + node + '/Text').txt.s = Math.ceil(p[cur]) + '/' + p[max];
     }
-    ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(m.x, m.y, m.w, m.h);
-    const map = G.map, cell = 10, ox = m.x + 2, oy = m.y + 2;
-    const cpos = r => [ox + r.gx * cell + cell / 2, oy + r.gy * cell + cell / 2];
-    ctx.fillStyle = '#c9d1db';
-    for (const r of map.rooms) {
+  }
+
+  function controls(G, dt) {
+    const p = G.player, w = p.weapons[p.cur];
+    const spare = p.weapons[1 - p.cur];
+    weaponSprite = w && w.def.sprite;
+    spareSprite = spare && spare.def.sprite;
+    UI.q('control/btn_weapon/Text').txt.s = String((w && w.def.cost) || 0);
+    const sk = p.h.skill, cd = UI.q('control/btn_skill/mask_style_1/cooldown');
+    cd.img.fa = p.skillCd > 0 && sk.cd ? Math.min(1, p.skillCd / sk.cd) : 0;
+    const ready = !(p.skillCd > 0);
+    if (ready && !skillReady) {
+      const ok = UI.q('control/btn_skill/cd_ok');
+      delete ok.off;
+      const len = UI.play('control/btn_skill/cd_ok', 'cd_ok');
+      setTimeout(() => { ok.off = 1; }, len * 1000 + 50);
+    }
+    skillReady = ready;
+    const st = SK.input.stick, joy = UI.q('control/joystick'), knob = UI.q('control/joystick/btn');
+    if (!joy.home) joy.home = joy.p.slice();
+    if (st.active) {
+      const k = SK.hudCtx.canvas.height / 720, dpr = SK.view.dpr;
+      joy.p = [st.ox * dpr / k, 720 - st.oy * dpr / k];
+      const dx = (st.x - st.ox) * dpr / k, dy = (st.oy - st.y) * dpr / k, m = Math.hypot(dx, dy);
+      const R = joy.sz[0] / 2 - knob.sz[0] / 2;
+      knob.p = m > R ? [dx / m * R, dy / m * R] : [dx, dy];
+    } else { joy.p = joy.home.slice(); knob.p = [0, 0]; }
+    UI.q('info_bar/coin/Text').txt.s = String(G.player.gold);
+    void dt;
+  }
+
+  // Băng rôn vào ải: message_bar › show_message rồi hide_message, như UIMessageBar gốc.
+  // [SUY] 2 s: thời lượng do nơi gọi UICanvas.ShowLevelMessage(branch, msg, time) truyền vào, chưa đọc được.
+  function levelBanner(G, dt) {
+    if (G.phase === 'enter' && lastPhase !== 'enter') {
+      UI.q('message_bar/level_text').txt.s = G.stage.label;
+      UI.play('message_bar', 'show_message');
+      msgT = 2.0;
+    }
+    lastPhase = G.phase;
+    if (msgT > 0) { msgT -= dt; if (msgT <= 0) UI.play('message_bar', 'hide_message'); }
+  }
+
+  // ---------------------------------------------------------------- bản đồ nhỏ: MiniMapUIView gốc
+  // [ĐO] Phòng đặt cách nhau config.fixedRoomIntervals, phòng hiện tại ở giữa khung (_roomOffset) có khung `select`;
+  // hành lang (CreateCorridors) đặt ở trung điểm hai phòng, sizeDelta = (7, khoảng cách), xoay theo hướng nối.
+  const LOGO = { start: 'startRoomLogo', end: 'portalRoomLogo', boss: 'bossRoomLogo', chest: 'chestRoomLogo', special: 'specialRoomLogo' };
+  const rgba = c => [c.r, c.g, c.b, c.a];
+  const cloneTpl = n => JSON.parse(JSON.stringify(n));
+  function minimap(G) {
+    const mm = UI.q('map_info_root/miniMap'), cfg = mm.mbd.MiniMapUIView.config, iv = cfg.fixedRoomIntervals;
+    const rooms = UI.q('map_info_root/miniMap/root/rooms'), cors = UI.q('map_info_root/miniMap/root/corridors');
+    const tplR = SK_UI.prefabs.minimap_room, tplC = SK_UI.prefabs.minimap_corridor;
+    const cur = G.room || G.map.rooms[0], pos = r => [(r.gx - cur.gx) * iv, -(r.gy - cur.gy) * iv];
+    rooms.k = []; cors.k = [];
+    for (const r of G.map.rooms) {
       if (!r.seen) continue;
       for (const l of r.links) {
-        const o = map.rooms[l]; if (!o.seen || l < r.id) continue;
-        const [ax, ay] = cpos(r), [bx, by] = cpos(o);
-        ctx.fillRect(Math.min(ax, bx) - 1, Math.min(ay, by) - 1, Math.abs(bx - ax) + 2, Math.abs(by - ay) + 2);
+        const o = G.map.rooms[l];
+        if (!o.seen || l < r.id) continue;
+        const [ax, ay] = pos(r), [bx, by] = pos(o), c = cloneTpl(tplC);
+        c.p = [(ax + bx) / 2, (ay + by) / 2];
+        c.sz = [7, Math.hypot(bx - ax, by - ay)];
+        c.rz = Math.atan2(by - ay, bx - ax) * 180 / Math.PI - 90;
+        cors.k.push(c);
       }
+      const n = cloneTpl(tplR);
+      n.p = pos(r);
+      n.img.c = rgba(r === cur ? cfg.exploringRoomColor : r.visited ? cfg.exploredRoomColor : cfg.unexploredRoomColor);
+      const logo = n.k[0], sp = LOGO[r.type] && cfg[LOGO[r.type]];
+      if (sp) logo.img.sp = sp; else logo.off = 1;
+      rooms.k.push(n);
     }
-    const COLORS = { chest: '#ffd23a', end: '#5aa8ff', boss: '#ff4a4a', special: '#6fdc6a' };
-    for (const r of map.rooms) {
-      if (!r.seen) continue;
-      const [cx, cy] = cpos(r), s = r.type === 'battle' || r.type === 'boss' ? 7 : 6;
-      const cur = G.room === r;
-      ctx.fillStyle = cur ? '#ffffff' : r.visited ? '#9aa6b4' : '#4a5563';
-      ctx.fillRect(Math.round(cx - s / 2), Math.round(cy - s / 2), s, s);
-      if (COLORS[r.type]) { ctx.fillStyle = COLORS[r.type]; ctx.fillRect(Math.round(cx - 1.5), Math.round(cy - 1.5), 3, 3); }
-      if (cur) { ctx.strokeStyle = '#ffe06a'; ctx.lineWidth = 0.6; ctx.strokeRect(Math.round(cx - s / 2) - 0.8, Math.round(cy - s / 2) - 0.8, s + 1.6, s + 1.6); }
-    }
-    SK.text(ctx, G.stage.label, m.x + m.w / 2, m.y + m.h + 8, 12, '#ffffff', 'center', 'rgba(0,0,0,0.85)');
-  }
-
-  function weaponAndSkill(ctx, G) {
-    const L = layout(), p = G.player, s = L.slot, touch = SK.input.touchMode;
-    if (touch) {
-      const a = L.attack;
-      ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.beginPath(); ctx.arc(a.cx, a.cy, a.r, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 1.5; ctx.stroke();
-      ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.arc(a.cx, a.cy, 7, 0, Math.PI * 2); ctx.moveTo(a.cx - 11, a.cy); ctx.lineTo(a.cx + 11, a.cy); ctx.moveTo(a.cx, a.cy - 11); ctx.lineTo(a.cx, a.cy + 11); ctx.stroke();
-      if (G.interactTarget) SK.text(ctx, 'Nhặt', a.cx, a.cy + a.r + 5, 8, '#ffe06a', 'center', '#000');
-    }
-    const w = p.weapons[p.cur], other = p.weapons[1 - p.cur];
-    ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(s.x, s.y, s.w, s.h);
-    ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 0.6; ctx.strokeRect(s.x + 0.3, s.y + 0.3, s.w - 0.6, s.h - 0.6);
-    SK.drawGun(ctx, w.def.sprite, s.x + s.w / 2 - 6, s.y + s.h / 2 + 1, 0, null, {});
-    icon(ctx, 'gem', s.x + 2, s.y + 2, '#3d8fe8', '#000');
-    SK.text(ctx, String(w.def.cost || 0), s.x + 12, s.y + 5.5, 8, '#ffffff', 'left', '#000');
-    if (other) {
-      ctx.save(); ctx.globalAlpha = 0.75;
-      SK.drawGun(ctx, other.def.sprite, s.x + s.w - 14, s.y - 6, 0, null, { scale: 0.75 });
-      ctx.restore();
-      SK.text(ctx, touch ? '⇄' : 'Q', s.x + s.w - 2, s.y - 6, 8, '#ffe06a', 'right', '#000');
-    }
-    const k = L.skill, sk = p.h.skill;
-    ctx.fillStyle = 'rgba(20,40,80,0.75)'; ctx.beginPath(); ctx.arc(k.cx, k.cy, k.r, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = p.skillT > 0 ? '#ffe06a' : '#7fd3ff'; ctx.lineWidth = 1; ctx.stroke();
-    const sdef = SK.SKILLS && SK.SKILLS[sk.id], ico = sdef && sdef.icon && SK.frame(sdef.icon) ? sdef.icon : null;
-    if (ico) {
-      const f = SK.frame(ico), sc = (k.r * 1.5) / Math.max(f[3], f[4]);
-      SK.draw(ctx, ico, k.cx - (f[3] / 2 - f[5]) * sc, k.cy - (f[4] / 2 - f[6]) * sc, { sx: sc, sy: sc });
-    } else {
-      ctx.fillStyle = p.skillCd > 0 ? '#6b7c95' : '#ffe04a';
-      ctx.beginPath();
-      ctx.moveTo(k.cx + 1.5, k.cy - 7); ctx.lineTo(k.cx - 4, k.cy + 1); ctx.lineTo(k.cx - 0.5, k.cy + 1);
-      ctx.lineTo(k.cx - 1.5, k.cy + 7); ctx.lineTo(k.cx + 4, k.cy - 1); ctx.lineTo(k.cx + 0.5, k.cy - 1); ctx.closePath(); ctx.fill();
-    }
-    if (p.skillCd > 0) {
-      ctx.fillStyle = 'rgba(0,0,0,0.55)';
-      ctx.beginPath(); ctx.moveTo(k.cx, k.cy);
-      ctx.arc(k.cx, k.cy, k.r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (p.skillCd / sk.cd)); ctx.closePath(); ctx.fill();
-      SK.text(ctx, String(Math.ceil(p.skillCd)), k.cx, k.cy, 10, '#ffffff', 'center', '#000');
-    } else if (p.skillT > 0) {
-      ctx.strokeStyle = '#ffe06a'; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.arc(k.cx, k.cy, k.r + 1.5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (p.skillT / sk.dur)); ctx.stroke();
-    }
-    if (!touch) SK.text(ctx, 'K', k.cx + k.r - 1, k.cy - k.r + 1, 7, '#ffe06a', 'center', '#000');
-  }
-
-  function joystick(ctx) {
-    const st = SK.input.stick, v = SK.view;
-    if (!SK.input.touchMode) return;
-    const ox = st.active ? st.ox / v.scale : 40, oy = st.active ? st.oy / v.scale : v.h - 40;
-    ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.beginPath(); ctx.arc(ox, oy, 22, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1; ctx.stroke();
-    let kx = ox, ky = oy;
-    if (st.active) {
-      const dx = (st.x - st.ox) / v.scale, dy = (st.y - st.oy) / v.scale, m = Math.hypot(dx, dy), R = 16;
-      kx += m > R ? dx / m * R : dx; ky += m > R ? dy / m * R : dy;
-    }
-    ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.beginPath(); ctx.arc(kx, ky, 9, 0, Math.PI * 2); ctx.fill();
+    UI.q('map_info_root/miniMap/levelText').txt.s = G.stage.label;
   }
 
   function worldText(ctx, G) {
@@ -180,12 +241,6 @@
     if (G.phase === 'enter' && G.phaseT < 1.8) {
       const t = G.phaseT;
       if (t < 0.35) { ctx.fillStyle = 'rgba(0,0,0,' + (1 - t / 0.35) + ')'; ctx.fillRect(0, 0, v.w, v.h); }
-      const a = t < 0.3 ? t / 0.3 : t > 1.4 ? (1.8 - t) / 0.4 : 1;
-      ctx.save(); ctx.globalAlpha = Math.max(0, a);
-      ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(0, v.h * 0.32, v.w, 40);
-      SK.text(ctx, G.stage.label, v.w / 2, v.h * 0.32 + 15, 22, '#ffffff', 'center', '#000');
-      SK.text(ctx, DS.themeNames[G.stage.theme] || G.stage.theme, v.w / 2, v.h * 0.32 + 32, 10, '#bfe3ff', 'center', '#000');
-      ctx.restore();
     }
     if (G.phase === 'portal') { ctx.fillStyle = 'rgba(0,0,0,' + Math.min(G.hold ? 0.6 : 1, G.phaseT / 0.8) + ')'; ctx.fillRect(0, 0, v.w, v.h); }
     if (G.banner) SK.text(ctx, G.banner.text, v.w / 2, 22, 14, '#ff5a4a', 'center', '#000');
@@ -204,11 +259,19 @@
     ctx.imageSmoothingEnabled = false;
     if (G.state === 'lobby' || !G.player || !G.map) return;
     worldText(ctx, G);
-    statusPanel(ctx, G.player);
-    goldAndMap(ctx, G);
-    weaponAndSkill(ctx, G);
-    joystick(ctx);
     overlays(ctx, G);
+    if (ui()) {
+      const dt = Math.min(0.1, (G.t || 0) - (hud.lastT || 0)); hud.lastT = G.t || 0;
+      statusBars(G.player);
+      controls(G, dt);
+      levelBanner(G, dt);
+      minimap(G);
+      UI.tick(Math.max(0, dt));
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+      UI.draw(ctx, ctx.canvas.width, ctx.canvas.height);
+      ctx.restore();
+      ctx.setTransform(k, 0, 0, k, 0, 0);
+    }
     SK.emit('hud', ctx, G);
   };
 })();
