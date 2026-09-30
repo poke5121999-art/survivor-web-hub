@@ -82,8 +82,8 @@
       <div id="unity-warning"></div>
     </div>
 
-    <!-- Hub account + cloud save bridge (web-hub/games/BRIDGE.md Layer 0). A build overwrites index.html, so these
-         live in the template or the next build silently goes local-only. The port's PortHub.jslib calls window.HubSave. -->
+    <!-- Hub account layer (web-hub/games/BRIDGE.md Layer 0), kept for the hub page itself. The game no longer reads
+         window.HubSave: player data lives on GameSpark (the Supabase save sync and PortHub.jslib were removed). -->
     <script src="../../js/session.js"></script>
     <script src="../../js/supabase-config.js"></script>
     <script src="../../js/supabase-auth.js"></script>
@@ -104,9 +104,9 @@
 
       var buildUrl = "Build";
       var config = {
-        dataUrl: buildUrl + "/repo2d-unity-df915c0ab5.data.unityweb",
-        frameworkUrl: buildUrl + "/repo2d-unity-df915c0ab5.framework.js.unityweb",
-        codeUrl: buildUrl + "/repo2d-unity-df915c0ab5.wasm.unityweb",
+        dataUrl: buildUrl + "/repo2d-unity-8e82fb59d3.data.unityweb",
+        frameworkUrl: buildUrl + "/repo2d-unity-8e82fb59d3.framework.js.unityweb",
+        codeUrl: buildUrl + "/repo2d-unity-8e82fb59d3.wasm.unityweb",
         streamingAssetsUrl: "StreamingAssets",
         // Cùng trần độ nét với fitCanvas: không đặt thì Unity tự lấy devicePixelRatio (3 trên nhiều điện thoại) và
         // bộ đệm nhảy qua lại giữa hai cỡ mỗi lần trang đổi cỡ.
@@ -223,7 +223,7 @@
       }, 1000);
 
       var script = document.createElement("script");
-      script.src = buildUrl + "/repo2d-unity-df915c0ab5.loader.js";
+      script.src = buildUrl + "/repo2d-unity-8e82fb59d3.loader.js";
       script.onerror = function () { loadFailed("Không tải được " + script.src); };
       script.onload = function () {
         createUnityInstance(canvas, config, function (progress) {
