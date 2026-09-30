@@ -688,7 +688,7 @@ window.HUB_GAMES = [
     tagline: "Soul Knight dựng lại trên web: bắn tự ngắm, phòng khoá cửa, quái ra theo đợt, trùm cuối mỗi tầng. Chế độ thường 1-1 → 3-5 qua Rừng, Lâu Đài, Núi Lửa. 42 nhân vật với kỹ năng riêng (mở bằng đá quý; nhân vật trả phí thì mua giả), 361 vũ khí, 12 trùm, lái buôn, tượng, chọn buff. Có Chế độ mùa giải (Thoát khỏi Monkia): căn cứ, ra Ngoại ô căn cứ đánh khỉ, nhặt đồ, sơ tán về kho. Chỉ số, hoạt ảnh, hiệu ứng, tiếng và mẫu phòng lấy thẳng từ dữ liệu Soul Knight 8.6.",
     thumbnail: "assets/thumbnails/soulknight.png",
     path: "games/soulknight/index.html",
-    rev: "20260930c",
+    rev: "20260930d",
     // Plain canvas/JS, không engine. ART + CẤU HÌNH: bóc từ Soul Knight 8.5.1 (ChillyRoom) theo yêu cầu
     // của chủ dự án ngày 2026-09-29, bằng games/soulknight/tools/build_sk.py (máu/tốc độ/AI/súng của quái,
     // 711 hoạt ảnh gốc, 282 mẫu phòng kèm cấu hình đợt quái, rương/cửa/cổng/vật phẩm). Chỉ số vũ khí,

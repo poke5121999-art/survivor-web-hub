@@ -30,6 +30,14 @@ PREFABS = {
     'minimap': ('levelcommon', 'other/scene_object/minimap/minimap.prefab', []),
     'minimap_room': ('levelcommon', 'other/scene_object/minimap/minimap_room.prefab', []),
     'minimap_corridor': ('levelcommon', 'other/scene_object/minimap/minimap_corridor.prefab', []),
+    'choose_hero': ('common', 'assets/rgprefab/other/scene_object/choosehero/ui_choose_hero.prefab', []),
+}
+
+# Prefab con khong co trong m_Container, chi duoc tro toi tu mot MonoBehaviour cua prefab khac:
+# khoa -> (prefab chua, duong dan nut, lop MonoBehaviour, ten truong con tro GameObject).
+# [DO] SkinScrollView.cellPrefab = skin_cell (cung CAB voi ui_choose_hero), o thanh truot nhan vat o day man.
+REF_PREFABS = {
+    'skin_cell': ('choose_hero', 'mask_down/skin_scroll_view', 'SkinScrollView', 'cellPrefab'),
 }
 
 # Prefab gan vao nut cua prefab khac nhu ma goc lam luc chay: (dich, duong dan cha, nguon, vi tri).
@@ -37,12 +45,32 @@ PREFABS = {
 COMPOSE = [('hud', 'map_info_root', 'minimap', (-20, -220))]
 
 # MonoBehaviour giu nguyen du lieu (con tro Sprite doi thanh ten khung trong trang UI).
-MB_KEEP = {'MiniMapUIView'}
+# ChooseHeroView: sprite o tick/vach xanh-xam, SkinCell: nen/khung/sao cua o nhan vat, SkinScrollView + Scroller:
+# khoang cach o (cellInterval), vi tri o giua (scrollOffset), thoi gian bat o (snap).
+MB_KEEP = {'MiniMapUIView', 'ChooseHeroView', 'SkinCell', 'SkinScrollView', 'Scroller'}
 
 # Chu ma goc gan luc chay (khong co component Localize): duong dan nut -> term localization.
+# [DO] ChooseHeroView.Awake gan cac term tips/* nay cho nhan cua man chon nhan vat.
+_CH_ATTR = 'ui_left/panel/hero_attributes/'
 RUNTIME_TERMS = {
     'hud': {'window_pause/title/Text': 'Pause'},
+    'choose_hero': {
+        _CH_ATTR + 'value1/Name': 'tips/hp', _CH_ATTR + 'value2/Name': 'tips/armor',
+        _CH_ATTR + 'value3/Name': 'tips/energy', _CH_ATTR + 'value4/Name': 'tips/critical',
+        _CH_ATTR + 'buff/name': 'tips/passive_skill', _CH_ATTR + 'weapon/name': 'tips/init_weapon',
+        _CH_ATTR + 'jewelry/name': 'jewelry/name', _CH_ATTR + 'upgraded_detail_button/text': 'tips/upgrade_details',
+        'mask_down/skill_demo_checkbox/name': 'tips/skill_demo', 'mask_down/btn_ok/text': 'tips/start',
+        'mask_down/btn_ok/try_skin_active/text': 'tips/start',
+    },
 }
+
+# Term ma ma game ghep luc chay (khong gan vao nut nao); xuat ra SK_UI.terms = {term: chu vi (hoac en)}.
+# [DO] ChooseHeroView.RefreshSkills: tips/skill_{0}, tips/iap_unlock, tips/gem_unlock; RefreshSkillDetail:
+# multi_room_skin_ui_using, UNLOCK; GetSkillDetailDescription: skill_cd_description; RefreshSkillDemoCheckbox /
+# RefreshUnlockArea: tips/unlock_character_first, I_ComingSoon.
+EXTRA_TERMS = ['tips/skill_1', 'tips/skill_2', 'tips/skill_3', 'tips/iap_unlock', 'tips/gem_unlock',
+               'multi_room_skin_ui_using', 'UNLOCK', 'skill_cd_description', 'tips/unlock_character_first',
+               'I_ComingSoon', 'tips/unlock_char']
 
 # Font du phong cho dau tieng Viet (font pixel goc chi co ASCII); ban goc cung mang font nay trong common.ab.
 EXTRA_FONTS = ['BeVietnamPro-Regular']
@@ -55,6 +83,10 @@ RUNTIME_POS = {
         'control/btn_unmount': (-300, 110), 'control/btn_weapon': (-120, 300), 'control/btn_special': (-325, 260),
         'control/btn_emoticon': (-450, 290), 'control/btn_fishing': (-480, 85),
     },
+    # Prefab luu bon khoi o ngoai man; ChooseHeroView.ShowOrHideView truot chung ve ShowEndValues trong 0,25 s.
+    # [DO] ChooseHeroView..cctor: NodeNames = mask_up, mask_down, ui_left, ui_right; ShowEndValues = 4 x (0, 0);
+    # HideEndValues = (0, 180), (0, -300), (-550, 0), (550, 0) (chinh la vi tri trong prefab).
+    'choose_hero': {'mask_up': (0, 0), 'mask_down': (0, 0), 'ui_left': (0, 0), 'ui_right': (0, 0)},
 }
 
 # zpix: font pixel CJK 4,7 MB, chi cac nut chu Trung (dang an) dung; khong dua len web.
@@ -90,6 +122,7 @@ class Builder:
         self.sprites = {}   # (cab, pid) -> key
         self.images = {}    # key -> (PIL, border l,b,r,t, ppu)
         self.fonts = {}     # ten font -> bytes
+        self.font_lh = {}   # ten font -> m_LineSpacing / m_FontSize (chieu cao dong tren moi don vi co chu)
         self.scripts = {}
         self.loc = json.load(open(LOC, encoding='utf-8')) if os.path.exists(LOC) else {}
 
@@ -125,6 +158,8 @@ class Builder:
         if name not in self.fonts:
             data = t.get('m_FontData') or []
             self.fonts[name] = bytes(bytearray(data)) if data else None
+            if t.get('m_FontSize'):
+                self.font_lh[name] = r3(t['m_LineSpacing'] / t['m_FontSize'])
         return name
 
     def clips(self, n):
@@ -292,6 +327,25 @@ class Builder:
         return sheet, out
 
 
+def node_at(node, path):
+    """Nut skrip.Node theo duong dan ten con (nhu find, nhung tren cay goc)."""
+    for name in [x for x in path.split('/') if x]:
+        node = next((c for c in node.children() if c.name == name), None)
+        if node is None:
+            raise SystemExit('node not found: ' + path)
+    return node
+
+
+def ref_prefab(rip, root, path, cls, field):
+    """GameObject ma truong `field` cua MonoBehaviour `cls` tren nut `path` tro toi."""
+    for name, cab, mb in node_at(root, path).mbs():
+        if name == cls:
+            r = rip.resolve(mb[field], cab)
+            if r:
+                return skrip.Node(rip, r[0], r[1])
+    raise SystemExit('prefab reference not found: %s.%s at %s' % (cls, field, path))
+
+
 def find(node, path):
     for name in [x for x in path.split('/') if x]:
         node = next((c for c in node.get('k', []) if c['n'] == name), None)
@@ -342,9 +396,9 @@ def apply_clip(root, name):
 def main():
     rip = skrip.Rip(bundles=[v[0] for v in PREFABS.values()] + ['common', 'fonts_default', 'sprite_atlas'])
     b = Builder(rip)
-    prefabs = {}
+    prefabs, roots = {}, {}
     for key, (rel, suffix, apply) in PREFABS.items():
-        root = container(rip, rel, suffix)
+        root = roots[key] = container(rip, rel, suffix)
         prefabs[key] = b.node(root)
         for name in apply:
             apply_clip(prefabs[key], name)
@@ -355,6 +409,8 @@ def main():
             if not ev:
                 raise SystemExit('localization term not found: ' + term)
             find(prefabs[key], path)['txt']['s'] = ev[1] or ev[0]
+    for key, (src, path, cls, field) in REF_PREFABS.items():
+        prefabs[key] = b.node(ref_prefab(rip, roots[src], path, cls, field))
     for cab, o in rip.objects(['common'], ('Font',)):
         t = rip.tree(cab, o)
         if t['m_Name'] in EXTRA_FONTS and t.get('m_FontData'):
@@ -377,6 +433,8 @@ def main():
             fonts[name] = None
     data = {'ref': [1280, 720], 'match': 1, 'sheet': 'art/ui/ui0.png', 'frames': frames, 'fonts': fonts,
             'fallback': [f for f in EXTRA_FONTS if fonts.get(f)],
+            'fontLH': b.font_lh,
+            'terms': {t: (b.loc[t][1] or b.loc[t][0]) for t in EXTRA_TERMS},
             'prefabs': prefabs}
     js = '// Sinh boi tools/ui/build_ui.py tu prefab uGUI goc. Khong sua tay.\nwindow.SK_UI = ' + \
          json.dumps(data, ensure_ascii=False, separators=(',', ':')) + ';\n'

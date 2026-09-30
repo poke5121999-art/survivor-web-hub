@@ -29,23 +29,29 @@
     if (n.img) o.img = Object.assign({}, n.img);
     if (n.txt) o.txt = Object.assign({}, n.txt);
     if (n.sz) o.sz = n.sz.slice();
+    if (n.a) o.a = n.a.slice();
     if (n.p) o.p = n.p.slice();
     if (n.sc) o.sc = n.sc.slice();
     if (n.k) o.k = n.k.map(clone);
     return o;
   }
 
+  ug.clone = clone;
+
   // Một bản dựng của prefab. q('state_bar/hp_bar/img') trả nút để mã game đổi off/sz/img.sp/img.fa/txt.s.
   ug.inst = function (key) {
     const root = clone(U.prefabs[key]);
     const idx = {};
     const playing = new Map();
-    (function walk(n, path) {
+    function walk(n, path) {
       idx[path] = n;
       if (n.k) for (const c of n.k) walk(c, path ? path + '/' + c.n : c.n);
-    })(root, '');
+    }
+    walk(root, '');
     return {
       root,
+      // Dựng lại bảng đường dẫn sau khi mã game chuyển nút sang cha khác.
+      reindex() { for (const p in idx) delete idx[p]; walk(root, ''); },
       q(path) {
         const n = idx[path];
         if (!n) SK.warnOnce && SK.warnOnce('ugui' + key + path, 'ugui node not found: ' + key + '/' + path);
@@ -90,21 +96,34 @@
   function applyClip(inst, base, c, t) {
     for (const tr of c.tracks) {
       const n = inst.q(base ? (tr.path ? base + '/' + tr.path : base) : tr.path);
-      if (!n) continue;
-      const [prop, ax] = tr.prop.split('.');
-      const step = prop === 'm_IsActive' || prop === 'm_Enabled';
-      const v = sample(tr.keys, t, step, tr.seg);
-      const i = 'xyzw'.indexOf(ax) >= 0 ? 'xyzw'.indexOf(ax) : 'rgba'.indexOf(ax);
-      if (prop === 'm_AnchoredPosition') n.p[i] = v;
-      else if (prop === 'm_SizeDelta') n.sz[i] = v;
-      else if (prop === 'm_LocalScale') { n.sc = n.sc || [1, 1]; if (i < 2) n.sc[i] = v; }
-      else if (prop === 'm_IsActive') { if (v) delete n.off; else n.off = 1; }
-      else if (prop === 'm_Enabled') { const g = n.img || n.txt; if (g) { if (v) delete g.off; else g.off = 1; } }
-      else if (prop === 'm_Color') { const g = n.img || n.txt; if (g) { g.c = g.c.slice(); g.c[i] = v; } }
-      else if (prop === 'm_Alpha') n.cg = v;
-      else if (prop === 'm_FillAmount' && n.img) n.img.fa = v;
+      if (n) applyTrack(n, tr, t);
     }
   }
+  function applyTrack(n, tr, t) {
+    const [prop, ax] = tr.prop.split('.');
+    const step = prop === 'm_IsActive' || prop === 'm_Enabled';
+    const v = sample(tr.keys, t, step, tr.seg);
+    const i = 'xyzw'.indexOf(ax) >= 0 ? 'xyzw'.indexOf(ax) : 'rgba'.indexOf(ax);
+    if (prop === 'm_AnchoredPosition') n.p[i] = v;
+    else if (prop === 'm_SizeDelta') n.sz[i] = v;
+    else if (prop === 'm_AnchorMin' && i < 2) { n.a = (n.a || [0.5, 0.5, 0.5, 0.5]).slice(); n.a[i] = v; }
+    else if (prop === 'm_AnchorMax' && i < 2) { n.a = (n.a || [0.5, 0.5, 0.5, 0.5]).slice(); n.a[2 + i] = v; }
+    else if (prop === 'm_LocalScale') { n.sc = n.sc || [1, 1]; if (i < 2) n.sc[i] = v; }
+    else if (prop === 'm_IsActive') { if (v) delete n.off; else n.off = 1; }
+    else if (prop === 'm_Enabled') { const g = n.img || n.txt; if (g) { if (v) delete g.off; else g.off = 1; } }
+    else if (prop === 'm_Color') { const g = n.img || n.txt; if (g) { g.c = g.c.slice(); g.c[i] = v; } }
+    else if (prop === 'm_Alpha') n.cg = v;
+    else if (prop === 'm_FillAmount' && n.img) n.img.fa = v;
+  }
+  // Đặt một nút rời (bản sao prefab, không thuộc inst nào) về khung thời điểm t của clip: như Animator.Play(clip, 0, t)
+  // với speed 0 mà FancyScrollView gốc dùng để xếp ô theo vị trí cuộn.
+  ug.pose = function (node, c, t) {
+    for (const tr of c.tracks) {
+      let n = node;
+      for (const name of tr.path ? tr.path.split('/') : []) { n = (n.k || []).find(x => x.n === name); if (!n) break; }
+      if (n) applyTrack(n, tr, t);
+    }
+  };
 
   // ---------------------------------------------------------------- bố cục
   const ALIGN_X = [0, 0.5, 1, 0, 0.5, 1, 0, 0.5, 1];
@@ -113,10 +132,17 @@
 
   // Rect của nút trong hệ toạ độ cục bộ của cha (y hướng xuống, gốc ở góc trên trái rect cha).
   function place(n, P, forced) {
-    const a = n.a || [0.5, 0.5, 0.5, 0.5], pv = n.pv || [0.5, 0.5], p = n.p || [0, 0], sz = n.sz || [0, 0];
+    const a = n.a || [0.5, 0.5, 0.5, 0.5], pv = n.pv || [0.5, 0.5], p = n.p || [0, 0];
+    let sz = n.sz || [0, 0];
     if (forced) return forced;
     const ax0 = P.x + a[0] * P.w, ax1 = P.x + a[2] * P.w;
     const ayTop = P.y + (1 - a[3]) * P.h, ayBot = P.y + (1 - a[1]) * P.h;
+    // ContentSizeFitter (PreferredSize = 2) trên nút chữ: rộng = dòng dài nhất, cao = số dòng sau khi xuống dòng.
+    if (n.fit && n.txt && !n.txt.off) {
+      sz = sz.slice();
+      if (n.fit[0] === 2) sz[0] = textSize(n.txt, Infinity).w - (ax1 - ax0);
+      if (n.fit[1] === 2) sz[1] = textSize(n.txt, (ax1 - ax0) + sz[0]).h - (ayBot - ayTop);
+    }
     const w = (ax1 - ax0) + sz[0], h = (ayBot - ayTop) + sz[1];
     const px = ax0 + (ax1 - ax0) * pv[0] + p[0];
     const py = ayBot - (ayBot - ayTop) * pv[1] - p[1];
@@ -254,34 +280,113 @@
     return it + bold + '%spx ' + fam + '"LockClock", monospace';
   }
 
-  function drawText(ctx, t, R, fx) {
-    const s = String(t.s == null ? '' : t.s);
-    if (!s || t.c[3] <= 0) return;
-    const lines = s.replace(/<[^>]+>/g, '').split('\n');
-    let fs = t.fs;
-    const font = fontOf(t);
-    ctx.font = font.replace('%s', fs);
-    if (t.bf) {
-      const widest = () => Math.max(...lines.map(l => ctx.measureText(l).width));
-      while (fs > t.bf[0] && (widest() > R.w || lines.length * fs * 1.15 > R.h)) { fs--; ctx.font = font.replace('%s', fs); }
+  // Chữ giàu kiểu Unity: <color=#rrggbb[aa]>...</color> đổi màu, thẻ khác bỏ qua. Trả mảng mẩu {t, c}.
+  function richRuns(s, base) {
+    const out = [], stack = [base], re = /<color=#([0-9a-fA-F]{6,8})>|<\/color>|<[^>]+>/g;
+    let last = 0, m;
+    while ((m = re.exec(s))) {
+      if (m.index > last) out.push({ t: s.slice(last, m.index), c: stack[stack.length - 1] });
+      if (m[1]) {
+        const h = m[1], hx = i => parseInt(h.substr(i, 2), 16) / 255;
+        stack.push([hx(0), hx(2), hx(4), (h.length === 8 ? hx(6) : 1) * base[3]]);
+      } else if (m[0] === '</color>' && stack.length > 1) stack.pop();
+      last = re.lastIndex;
     }
-    const lh = fs * (t.ls || 1) * 1.15;
+    if (last < s.length) out.push({ t: s.slice(last), c: stack[stack.length - 1] });
+    return out;
+  }
+
+  const measureCtx = document.createElement('canvas').getContext('2d');
+  const widthCache = new Map();
+  function measure(font, str) {
+    const k = font + '|' + str;
+    let w = widthCache.get(k);
+    if (w === undefined) {
+      measureCtx.font = font; w = measureCtx.measureText(str).width;
+      if (widthCache.size > 20000) widthCache.clear();
+      widthCache.set(k, w);
+    }
+    return w;
+  }
+
+  // Xếp chữ thành dòng như Text của Unity: xuống dòng ở '\n'; hết bề ngang (khi không bật tràn ngang) thì ngắt ở
+  // khoảng trắng, từ dài hơn cả khung giữ nguyên một dòng. Mỗi dòng là { atoms: [{t, c, w}], w }.
+  function layoutText(t, font, maxW) {
+    const lines = [[]];
+    let lineW = 0;
+    const wrap = !t.ho && isFinite(maxW);
+    for (const run of richRuns(String(t.s == null ? '' : t.s), t.c)) {
+      for (const tok of run.t.split(/(\n| +)/)) {
+        if (!tok) continue;
+        if (tok === '\n') { lines.push([]); lineW = 0; continue; }
+        const w = measure(font, tok), line = lines[lines.length - 1];
+        const space = tok[0] === ' ';
+        if (wrap && !space && lineW + w > maxW + 0.5 && line.some(a => a.t.trim())) {
+          while (line.length && !line[line.length - 1].t.trim()) lineW -= line.pop().w;
+          lines.push([]); lineW = 0;
+        }
+        const cur = lines[lines.length - 1];
+        if (space && !cur.length && lines.length > 1 && wrap) continue;
+        cur.push({ t: tok, c: run.c, w }); lineW += w;
+      }
+    }
+    return lines.map(l => ({ atoms: l, w: l.reduce((sum, a) => sum + a.w, 0) }));
+  }
+
+  // Chiều cao dòng như Text của Unity: Font.lineHeight (m_LineSpacing / m_FontSize của font gốc) × lineSpacing của Text.
+  // [ĐO] pixel_bold 17,94 / 20 = 0,897; LockClock 24 / 16 = 1,5. Font không có số đo thì 1,15.
+  const lineK = t => ((U.fontLH && U.fontLH[t.f]) || 1.15) * (t.ls || 1);
+
+  function fitFont(t, maxW, maxH) {
+    const font = fontOf(t);
+    let fs = t.fs || 14, lines = layoutText(t, font.replace('%s', fs), maxW);
+    if (t.bf) {
+      const bad = () => Math.max(0, ...lines.map(l => l.w)) > maxW + 0.5 || lines.length * fs * lineK(t) > maxH + 0.5;
+      while (fs > t.bf[0] && bad()) { fs--; lines = layoutText(t, font.replace('%s', fs), maxW); }
+    }
+    return { fs, font: font.replace('%s', fs), lines, lh: fs * lineK(t) };
+  }
+
+  // Cỡ ưa thích của một Text (cho ContentSizeFitter): rộng dòng dài nhất, cao theo số dòng khi khung rộng maxW.
+  function textSize(t, maxW) {
+    const L = fitFont(t, maxW, Infinity);
+    return { w: Math.max(0, ...L.lines.map(l => l.w)), h: L.lines.length * L.lh };
+  }
+  ug.textSize = textSize;
+
+  const css = col => 'rgba(' + Math.round(col[0] * 255) + ',' + Math.round(col[1] * 255) + ',' + Math.round(col[2] * 255) + ',' + col[3] + ')';
+  function drawText(ctx, t, R, fx) {
+    if (t.s == null || t.s === '' || t.c[3] <= 0) return;
+    const L = fitFont(t, R.w, R.h);
+    ctx.font = L.font;
     const ax = ALIGN_X[t.al || 0];
-    const blockH = lh * lines.length;
-    const top = R.y + (R.h - blockH) * ALIGN_Y_DOWN[t.al || 0];
-    ctx.textAlign = ax === 0 ? 'left' : ax === 1 ? 'right' : 'center';
+    const top = R.y + (R.h - L.lh * L.lines.length) * ALIGN_Y_DOWN[t.al || 0];
+    ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    const x = R.x + R.w * ax;
     const pass = (col, dx, dy) => {
-      ctx.fillStyle = 'rgba(' + Math.round(col[0] * 255) + ',' + Math.round(col[1] * 255) + ',' + Math.round(col[2] * 255) + ',' + col[3] + ')';
-      lines.forEach((l, i) => ctx.fillText(l, x + dx, top + lh * (i + 0.5) + dy));
+      L.lines.forEach((l, i) => {
+        let x = R.x + (R.w - l.w) * ax + dx;
+        const y = top + L.lh * (i + 0.5) + dy;
+        for (const a of l.atoms) {
+          ctx.fillStyle = css(col || a.c);
+          ctx.fillText(a.t, x, y);
+          x += a.w;
+        }
+      });
     };
     for (const e of fx || []) {
       if (e.t === 's') pass(e.c, e.d[0], -e.d[1]);
       else for (const [sx, sy] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) pass(e.c, e.d[0] * sx, e.d[1] * sy);
     }
-    pass(t.c, 0, 0);
+    pass(null, 0, 0);
   }
+
+  // Vẽ một khung của trang UI vào rect R, giữ tỉ lệ (cho mã game vẽ icon gốc trong nút `draw` tự viết).
+  ug.drawFrame = function (ctx, name, R, c) {
+    const a = ctx.globalAlpha;
+    drawImage(ctx, { sp: name, c: c || [1, 1, 1, 1], pa: 1 }, R);
+    ctx.globalAlpha = a;
+  };
 
   function drawNode(ctx, n, P, forced) {
     if (n.off) return;
@@ -292,6 +397,8 @@
     if (n.rz) ctx.rotate(-n.rz * Math.PI / 180);
     if (n.sc) ctx.scale(n.sc[0], n.sc[1]);
     if (n.cg !== undefined) ctx.globalAlpha *= n.cg;
+    // Material xám (RGMaterial/ui_gray.mat) mà mã gốc gán cho nút bị khoá.
+    if (n.gray) ctx.filter = 'grayscale(1)';
     const R = { x: -pl.w * pv[0], y: -pl.h * (1 - pv[1]), w: pl.w, h: pl.h };
     if (n.img && !n.img.off && !n.img.sp && n.img.c[3] > 0 && !n.draw) {
       const c = n.img.c;
@@ -337,18 +444,22 @@
   // Rect màn hình (px) của một nút, để bấm chạm khớp đúng chỗ vẽ; nút (hoặc cha) đang tắt thì null. Bỏ qua xoay.
   function rectOf(root, path, wPx, hPx) {
     const { k, P } = canvasRect(wPx, hPx);
-    let n = root, R = P, ox = 0, oy = 0, s = 1;
+    let n = root, R = P, ox = 0, oy = 0, sx = 1, sy = 1;
     for (const name of path.split('/')) {
       const lay = layoutKids(n, R);
       const c = (n.k || []).find(x => x.n === name);
       if (!c || c.off) return null;
       const pl = place(c, R, lay.get(c));
       const pv = c.pv || [0.5, 0.5];
-      ox += pl.px * s; oy += pl.py * s;
-      s *= c.sc ? c.sc[0] : 1;
+      ox += pl.px * sx; oy += pl.py * sy;
+      if (c.sc) { sx *= c.sc[0]; sy *= c.sc[1]; }
       R = { x: -pl.w * pv[0], y: -pl.h * (1 - pv[1]), w: pl.w, h: pl.h };
       n = c;
     }
-    return { x: (ox + R.x * s) * k, y: (oy + R.y * s) * k, w: R.w * s * k, h: R.h * s * k };
+    // Scale âm (nút lật gương, ví dụ btn_back) đảo chiều rect: chuẩn hoá về rộng/cao dương.
+    let x = ox + R.x * sx, y = oy + R.y * sy, w = R.w * sx, h = R.h * sy;
+    if (w < 0) { x += w; w = -w; }
+    if (h < 0) { y += h; h = -h; }
+    return { x: x * k, y: y * k, w: w * k, h: h * k };
   }
 })();

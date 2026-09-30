@@ -72,10 +72,11 @@ untime\dump\dump.cs`); cách làm ở `tools/config86/README.md` mục 8.
    - [x] a. HUD trong ải dựng từ prefab gốc (`tools/ui`, `js/ugui.js`), rev 20260930a.
    - [x] b. Transform trong clip (`tools/clip_xform.py`, `SK.animXform/animPose`), rev 20260930b. Còn: 5 quái có chuyển động ở
      nút con chưa vẽ (e_tentacle, e_statueCrab_host, e_pumpkinHouse, đầu malphite02/03); track đang nội suy tuyến tính, nên dùng `seg` bậc ba như UI.
-   - [ ] c. Animator vũ khí của quái (103/142 thiếu), `char_hit`/`char_dizzy` dùng chung.
+   - [x] c. Animator vũ khí của quái (218/220 súng) + layer char_* qua đồ thị controller thật (`SK_DATA.ctrl`), rev 20260930c.
    - [x] d. Bản đồ nhỏ, bảng tạm dừng, số sát thương (font LockClock + DOJump + màu CommonConfig). Thanh máu trùm vốn đã theo `boss_hp`.
    - [ ] e. Vật thể có anim: rương, lái buôn, tượng, cổng, NPC sảnh, thú cưng.
-   - [ ] f. Sảnh: bỏ hộp CSS, dựng từ prefab UI chọn nhân vật (`ui_chose`, `window_hero_list`).
+   - [x] f. Màn chọn nhân vật 8.6 dựng từ `common.ab` › `choosehero/ui_choose_hero.prefab` (ChooseHeroView), rev 20260930d.
+     Còn: phụ đề skin, vé E, icon nội tại riêng từng nhân vật, ô dải cuộn dùng icon skin; mô tả kỹ năng dài bị tràn khung.
 
 ## Còn hở (sau đợt 8.6)
 
