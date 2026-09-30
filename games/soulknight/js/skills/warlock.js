@@ -1,25 +1,26 @@
 // Kỹ năng Thuật Sĩ Ác Ma (c23): amii_s_burning_body, helping_hand_eligos, amon_s_protection. Đồ nghề chung ở SK.skillKit (js/skills.js).
 // Tiểu Quỷ (PetWarlockDemonController) là nguồn hy sinh của cả ba kỹ năng; web chưa có nội tại triệu Tiểu Quỷ nên dựng ở đây (chỉ khi cầm Thuật Sĩ).
+// Cả ba kỹ năng chỉ dùng MỘT nút K như bản gốc (BtnSkillDown/RoleSkill1: bấm lần nữa = combo, giữ đủ dur = nổ), không có nút phụ nên không khai báo special().
 (function () {
   'use strict';
   const SK = window.SK, K = SK.skillKit, S = SK.SKILLS, U = SK.PPU;
   const { cfg, fx, hit, alive, ec, inRadius, setMul, hurtMods, layer, timers, addAlly, hpBar, walk, glow, drawRip, DUR_UI, nearest } = K;
 
   // [ĐO C24Controller (hằng số) + prefab pet_warlock_demon_skin_0: PetWarlockDemonController damage 2, atk_cd 2,5, min/max_follow 2/20, RoleAttribute max_hp 1, speed 6]
-  const DEMON = { max: 6, hp: 1, dmg: 2, cd: 2.5, near: 2 * U, far: 20 * U, speed: 6 * U, fly: 0.2, sight: 10 * U, bossDmg: 33 };   // sight [ƯỚC LƯỢNG]
-  const wl = p => p._wl || (p._wl = { demons: [], energy: 0, eligos: null, boss: 0, sacrificeStacks: 0 });
+  // remoteScoutDistance 16 (prefab); TrySummonDemon gọi từ KillSomeOne (mỗi quái chết) và HurtSomeOne (mỗi 33 sát thương lên trùm), tối đa MaxDemonCount 6. Tốc chạy pet [ƯỚC LƯỢNG].
+const DEMON = { max: 6, hp: 1, dmg: 2, cd: 2.5, near: 2 * U, far: 20 * U, speed: 6 * U, fly: 0.2, sight: 16 * U, bossDmg: 33 };
+  const wl = p => p._wl || (p._wl = { demons: [], energy: 0, eE: 0, eligos: null, boss: 0 });
   const demons = (G, p) => (wl(p).demons = wl(p).demons.filter(d => !d.gone && !d.used));
 
   // ---------------------------------------------------------------- Tiểu Quỷ
   const demonParts = () => SK.prefab('pet_warlock_demon_skin_0');
   function summon(G, p, x, y) {
     const w = wl(p);
-    if (w.eligos && !w.eligos.gone) { feedEligos(G, p, x, y, 1); return null; }
     if (demons(G, p).length >= DEMON.max) return null;
     layer(G);
     const d = addAlly(G, {
       demon: true, x, y, hp: DEMON.hp, hpMax: DEMON.hp, box: [8, 10, 6], face: 1, cd: DEMON.cd * 0.5, shot: null,
-      onZero(G2, a) { a.gone = true; fx(G2, 'hit_red', a.x, a.y - 6, {}); },
+      onZero(G2, a) { a.gone = true; fx(G2, 'hit_red', a.x, a.y - 6, {}); demonDied(G2, p, a); },
       update(G2, a, dt) {
         if (a.fly) return flyStep(G2, a, dt);
         const dp = Math.hypot(p.x - a.x, p.y - a.y), e = nearest(G2, a.x, a.y - 6, DEMON.sight, { los: true });
@@ -60,6 +61,13 @@
     a.x = f.x0 + (to.x - f.x0) * k; a.y = f.y0 + (to.y - f.y0) * k;
     if (k >= 1) { a.gone = true; if (f.cb) f.cb(a); }
   }
+  // OnDemonDead: Tiểu Quỷ chết (bị đánh hạ) thì hồn bay về kỹ năng đang cầm: +1 năng lượng cho Eligos (còn hiện diện, không đang ẩn) hoặc +1 linh hồn cho Amon;
+  // Tiểu Quỷ bị hy sinh không đi qua đây, mỗi kỹ năng tự tính phần của nó.
+  function demonDied(G, p, d) {
+    const w = wl(p), id = p.h.skill && p.h.skill.id;
+    if (id === 'helping_hand_eligos' && w.eligos && !w.eligos.gone && !(w.eligos.hide > 0)) feedEligos(G, p, d.x, d.y, 1);
+    else if (id === 'amon_s_protection') soul(G, p, d.x, d.y - 6);
+  }
   // Mỗi mạng Tiểu Quỷ mới khi giết quái (hoặc mỗi 33 sát thương lên trùm [ĐO BossDamageRequiredToSummonADemon]).
   SK.on('enemyKill', (G, e) => {
     const p = G.player;
@@ -81,7 +89,8 @@
   const AM = { dur: 10, extend: 1, shield: 0.5, gap: 0.5, cost: 2, burst: 10, move: 1.5, dmg: 8, every: 0.4, r: 5 * U, grow: 0.15, maxStack: 3, extraDmg: 3, extraR: 2 * U, extraT: 2, expand: 0.2, squash: 0.75 };   // thời gian vòng lửa phụ, tỉ lệ dẹt của vòng [ƯỚC LƯỢNG]
   DUR_UI.amii_s_burning_body = AM.dur;
   const amR = s => AM.r * (1 + AM.grow * s.stack);
-  // Fire2_warlock_skin_0 của sk-vfx.js chỉ có hạt nhân (blend mul) nên không hiện gì: vẽ vòng lửa ở đây, rải lửa thật (dead_fire) quanh vòng.
+  // [ĐO 2026-09-30 SK.vfx] Fire2_warlock_skin_0 giờ đã hiện, nhưng prefab chỉ có tia đỏ mờ và vài tàn lửa 1 px (Sparks size 0,05-0,1, bán kính 5): không có nền lửa,
+  // nên phần viền và nền vòng vẫn vẽ ở đây, rải lửa thật (dead_fire) quanh vòng.
   function circleProp(G, p, s) {
     G.props.push({ x: p.x, y: -1e9 + p.y, t: 0,
       update(G2, q, dt) {
@@ -107,9 +116,10 @@
       layer(G);
       const dur = +(cfg(p, 'amii_s_burning_body').args || '10;2').split(';')[0] || AM.dur;
       p.skillT = dur;
-      const s = p._wlAm = { t: 0, acc: 0, stack: 0, gap: 0, extra: [], flame: 0, r: AM.r };
+      const s = p._wlAm = { t: 0, acc: 0, stack: 0, gap: 0, extra: [], flame: 0, r: AM.r, circled: new Set() };
       setMul(p, 'moveMul', 'wl_amii', AM.move);
       circleProp(G, p, s);
+      s.fx = fx(G, 'Fire2_warlock_skin_0', p.x, p.y, { follow: p, dur: dur });
       fx(G, 'warlock_skill_fire', p.x, p.y - 6, { follow: p, dy: -6 });
     },
     update(G, p, dt) {
@@ -140,22 +150,28 @@
         s.stack = Math.min(AM.maxStack, s.stack + 1);
         for (const e of inRadius(G, p.x, p.y, amR(s), amR(s) * AM.squash)) {
           hit(G, p, e, AM.burst, { tag: 'wl_burst', noMul: true, repel: 2 });
+          if (s.circled.has(e)) continue;   // ShouldCreateSkill0SecondStageExtraFireCircle: mỗi quái chỉ mở một vòng phụ mỗi lần dùng kỹ năng
+          s.circled.add(e);
           s.extra.push({ x: ec(e)[0], y: e.y, t: 0, acc: 0 });
           fx(G, 'Fire2_warlock_dead_fire_skin_0', ec(e)[0], e.y, { dur: AM.extraT });
         }
         fx(G, 'warlock_skill_fire', p.x, p.y - 6, { follow: p, dy: -6 });
       });
     },
-    end(G, p) { p._wlAm = null; setMul(p, 'moveMul', 'wl_amii', 1); delete hurtMods(p).wl_amii; }
+    end(G, p) { if (p._wlAm && p._wlAm.fx && p._wlAm.fx.stop) p._wlAm.fx.stop(); p._wlAm = null; setMul(p, 'moveMul', 'wl_amii', 1); delete hurtMods(p).wl_amii; }
   };
   timers.wl_amii = (G, p, dt) => { const s = p._wlAm; if (s && s.shieldT > 0) { s.shieldT -= dt; if (s.shieldT <= 0) delete hurtMods(p).wl_amii; } };
 
   // ================================================================ Giúp Sức: Eligos
   // [ĐO C24Skill1Config warlock_eligos_config: eligosAttackDamageFactor 7, eligosAtkComboCount 2, eligosAtkComboCd 0,5, eligosAtkCd 2,5, eligosSkillComboDamageFactor 17,
-  //  eligosFinalSkillComboDamageFactor 31, skillComboCount 3, waitTimeBetweenSkillCombo 0,13, skillComboMoveValue 3, skillComboMoveDuration 0,25, explodeDelay 0,9;
-  //  ExplodeEligos damage 10, fire_rate 100, fireRange 5; C24Controller.DemonsToGetExtraSkillCombo 2, DemonGainEligosEnergy 1]
-  // Cách Tiểu Quỷ nuôi Eligos (mỗi con = 1 năng lượng, đủ 2 thì đòn kế là combo kỹ năng) và nút nổ bấm lần hai là [ƯỚC LƯỢNG theo tên hàm/UI warlock_eligos_explode_ui].
-  const EL = { atk: 7, combo: 2, comboGap: 0.5, cd: 2.5, skill: [17, 17, 31], skillGap: 0.13, move: 3 * U, moveT: 0.25, delay: 0.9, boom: 10, boomR: 5 * U, energyCombo: 2, reach: 10 * U, fly: 0.35 };   // tầm với [ƯỚC LƯỢNG]
+  //  eligosFinalSkillComboDamageFactor 31, skillComboCount 3, waitTimeBetweenSkillCombo 0,13, skillComboMoveValue 3, skillComboMoveDuration 0,25, waitTimeAfterSkillCombo 3, explodeDelay 0,9,
+  //  ignoreCd 0; ExplodeEligos damage 10, fire_rate 100; PetWarlockEligosController: EnergyEnoughToExplode 100, FindTarget(range = 14); DemonGainEligosEnergy 1 (2 nếu có tài năng pet)]
+  // [ĐO C24Controller.RoleSkill1 / RoleSkill1Start / EligosSkillCombo / ExplodeEligos] cùng một nút K, mỗi lần dùng đều vào hồi chiêu 10 s:
+  //   chưa có Eligos -> triệu hồi (theo sau người chơi, đánh khi người chơi bấm đánh);
+  //   có Eligos, năng lượng < 100 -> combo kỹ năng: mọi Tiểu Quỷ chết đổi thành 1 năng lượng mỗi con, Eligos lao vào 3 đòn 17/17/31, rồi ẩn 3 s;
+  //   có Eligos, năng lượng >= 100 -> tụ lực dur 1 s (bấm lần nữa giữa chừng = huỷ, chạy combo), đủ giờ thì Eligos nổ sau explodeDelay, năng lượng về 0.
+  // Năng lượng cộng khi Tiểu Quỷ chết (kể cả bị hy sinh cho combo), bay tới Eligos rồi mới vào (CreateCollectEnergy; thời gian bay [ƯỚC LƯỢNG]). Bán kính nổ 5 ô = ExplodeEligos.fireRange.
+  const EL = { atk: 7, combo: 2, comboGap: 0.5, cd: 2.5, skill: [17, 17, 31], skillGap: 0.13, move: 3 * U, moveT: 0.25, back: 3, delay: 0.9, boom: 10, boomR: 5 * U, energyMax: 100, reach: 14 * U, fly: 0.35 };
   const eligosParts = () => SK.prefab('warlock_eligos_skin_0');
   function feedEligos(G, p, x, y, n) {
     const a = wl(p).eligos;
@@ -165,7 +181,7 @@
       update(G2, q, dt) {
         q.t += dt; const k = Math.min(1, q.t / EL.fly);
         pt.x = x + (a.x - x) * k; pt.y = y - 6 + (a.y - 10 - (y - 6)) * k;
-        if (k >= 1) { q.gone = true; a.energy += n; }
+        if (k >= 1) { q.gone = true; if (!a.gone) wl(p).eE = Math.min(EL.energyMax, wl(p).eE + n); }
       } });
   }
   function eligosHit(G, p, a, e, dmg, tag) {
@@ -175,44 +191,42 @@
   function createEligos(G, p) {
     const w = wl(p);
     const a = w.eligos = addAlly(G, {
-      eligos: true, x: p.x - 14 * p.face, y: p.y + 2, hp: 1, hpMax: 1, box: null, face: p.face, energy: 0, cd: 0, act: null, boom: 0, hover: 0,
+      eligos: true, x: p.x - 14 * p.face, y: p.y + 2, hp: 1, hpMax: 1, box: null, face: p.face, cd: 0, act: null, boom: 0, hover: 0, hide: 0,
       update(G2, a, dt) {
         a.hover += dt; a.cd -= dt;
+        if (a.hide > 0) { a.hide -= dt; a.x = p.x; a.y = p.y; return; }
         if (a.boom > 0) { a.boom -= dt; if (a.boom <= 0) return explode(G2, p, a); return; }
         if (a.act) return eligosAct(G2, p, a, dt);
         walk(G2, a, p.x - 32 * p.face, p.y + 4, 7 * U, dt);
         if (Math.hypot(a.x - p.x, a.y - p.y) > 20 * U) { a.x = p.x; a.y = p.y; }
         a.face = p.face;
-        // Người chơi bấm đánh có quái trong tầm thì Eligos ra đòn (đòn thường mỗi 2,5 s; đủ năng lượng thì combo kỹ năng).
+        // Người chơi bấm đánh có quái trong tầm thì Eligos ra đòn thường mỗi 2,5 s.
         if (a.pendingAtk && a.cd <= 0) {
           a.pendingAtk = false;
           const e = nearest(G2, p.x, p.y - 6, EL.reach, { los: true });
           if (!e) return;
-          const sk = a.energy >= EL.energyCombo;
-          if (sk) a.energy -= EL.energyCombo;
-          a.act = { t: 0, e, sk, i: 0, from: { x: a.x, y: a.y } };
+          a.act = { t: 0, e, sk: false, i: 0 };
           a.cd = EL.cd;
         }
       },
       draw(ctx, G2, a) {
+        if (a.hide > 0) return;
         const parts = eligosParts();
         ctx.save();   // activeAlpha 180/255 = màu 0,706 đã nằm trong từng nút prefab [ĐO PetWarlockEligosController]
         const y = a.y - 8 + Math.sin(a.hover * 3) * 1.5;
-        if (parts) drawRip(ctx, parts, a.x, y + 8, { t: a.hover, flip: a.face < 0, state: 'idle', skip: n => /explode_paw/.test(n.n) });
+        if (parts) drawRip(ctx, parts, a.x, y + 8, { t: a.hover, flip: a.face < 0, state: 'idle', skip: n => /explode_paw/.test(n.n) || n.n === '/img/h' || n.n === '/img/show' });   // /img/show mang anim show (cả thân Eligos lúc hiện ra) và /img/h mang anim attack_*: vẽ ở trạng thái idle sẽ ra bản thứ hai
         else { glow(ctx, a.x, y - 4, 14, [0.6, 0.15, 1, 1], 0.8); ctx.fillStyle = '#2a0f40'; ctx.beginPath(); ctx.ellipse(a.x, y, 7, 9, 0, 0, 6.3); ctx.fill(); ctx.fillStyle = '#ff5a5a'; ctx.fillRect(a.x - 3, y - 3, 2, 2); ctx.fillRect(a.x + 1, y - 3, 2, 2); }
         ctx.restore();
-        if (a.energy > 0) SK.text(ctx, String(a.energy), a.x, a.y - 26, 7, '#c9a0ff', 'center', '#000');
+        if (w.eE > 0) SK.text(ctx, w.eE + '/' + EL.energyMax, a.x, a.y - 26, 7, '#c9a0ff', 'center', '#000');
       }
     });
     fx(G, 'warlock_skill_fire', a.x, a.y - 8, {});
-    // Tiểu Quỷ đang có: hy sinh hết cho Eligos.
-    for (const d of demons(G, p)) { d.used = true; d.box = null; d.fly = { t: 0, x0: d.x, y0: d.y, to: () => ({ x: a.x, y: a.y - 8 }), cb: () => { a.energy++; } }; }
     return a;
   }
   function eligosAct(G, p, a, dt) {
     const s = a.act; s.t += dt;
     const e = s.e;
-    if (!alive(e)) { a.act = null; return; }
+    if (!alive(e)) { a.act = null; if (s.sk) a.hide = EL.back; return; }
     const [tx, ty] = ec(e);
     // Lao tới sát mục tiêu rồi ra các đòn; xong thì quay về (walk lo).
     const gx = tx - Math.sign(tx - p.x || 1) * 12, gy = ty + 2;
@@ -220,30 +234,52 @@
     a.face = tx >= a.x ? 1 : -1;
     const seq = s.sk ? EL.skill : new Array(EL.combo).fill(EL.atk), gap = s.sk ? EL.skillGap : EL.comboGap, t0 = s.sk ? EL.moveT : 0.15;
     while (s.i < seq.length && s.t >= t0 + s.i * gap) { eligosHit(G, p, a, e, seq[s.i], s.sk ? 'wl_eligos_skill' : 'wl_eligos'); s.i++; }
-    if (s.i >= seq.length && s.t > t0 + seq.length * gap) a.act = null;
+    if (s.i >= seq.length && s.t > t0 + seq.length * gap) { a.act = null; if (s.sk) a.hide = EL.back; }
   }
-  SK.on('fire', (G, p) => { const a = p.hero === 'warlock' && wl(p).eligos; if (a && !a.gone) a.pendingAtk = true; });
+  SK.on('fire', (G, p) => { const a = p.hero === 'warlock' && wl(p).eligos; if (a && !a.gone && !(a.hide > 0)) a.pendingAtk = true; });
+  // <ExplodeCoroutine>d__86 đặt Eligos về vị trí chủ nhân trước khi nổ.
   function explode(G, p, a) {
-    a.gone = true; wl(p).eligos = null;
+    a.x = p.x; a.y = p.y; a.gone = true; wl(p).eligos = null; wl(p).eE = 0;
     fx(G, 'warlock_eligos_skin_0_explode', a.x, a.y - 4, {});
     G.shake = Math.max(G.shake, 4);
     for (const e of inRadius(G, a.x, a.y, EL.boomR)) { hit(G, p, e, EL.boom, { tag: 'wl_boom', repel: 4, noMul: true }); K.debuff(G, e, 'fire'); }
   }
+  // Combo kỹ năng: hy sinh hết Tiểu Quỷ (mỗi con thành 1 năng lượng), Eligos lao vào mục tiêu gần nhất trong 14 ô.
+  function eligosCombo(G, p) {
+    const a = wl(p).eligos, e = nearest(G, p.x, p.y - 6, EL.reach, { los: true });
+    for (const d of demons(G, p)) { d.used = true; d.box = null; d.fly = { t: 0, x0: d.x, y0: d.y, to: () => ({ x: a.x, y: a.y - 8 }), cb: () => {} }; feedEligos(G, p, d.x, d.y, 1); }
+    if (!e) { p._cdAfter = 0.5; return; }
+    a.act = { t: 0, e, sk: true, i: 0 }; a.pendingAtk = false;
+  }
   S.helping_hand_eligos = {
     start(G, p) {
       layer(G);
-      const w = wl(p);
-      if (w.eligos && !w.eligos.gone) { const a = w.eligos; if (!(a.boom > 0)) { a.boom = EL.delay; a.act = null; fx(G, 'warlock_eligos_skin_0_energy', a.x, a.y - 8, { follow: a, dy: -8, dur: EL.delay }); } return; }
-      createEligos(G, p);
+      const w = wl(p), a = w.eligos;
+      if (!a || a.gone) { createEligos(G, p); return; }
+      if (a.hide > 0 || a.act || a.boom > 0) { p._cdAfter = 0.3; return; }
+      if (w.eE >= EL.energyMax) {
+        p.skillT = cfg(p, 'helping_hand_eligos').dur || 1;
+        a.prep = true;
+        a.prepFx = fx(G, 'warlock_eligos_skin_0_energy', a.x, a.y - 8, { follow: a, dy: -8, dur: p.skillT + EL.delay });
+        return;
+      }
+      eligosCombo(G, p);
     },
-    pressCd(G, p) { if (wl(p).eligos && !wl(p).eligos.gone) S.helping_hand_eligos.start(G, p); }
+    // Bấm lần nữa khi đang tụ lực nổ = huỷ, chạy combo (CancelExplodePrepare + EligosSkillCombo).
+    press(G, p) { const a = wl(p).eligos; if (a && a.prep) { a.prep = false; a.cancel = true; p.skillT = 0; } },
+    end(G, p) {
+      const a = wl(p).eligos; if (!a || a.gone || (!a.prep && !a.cancel)) return;
+      if (a.cancel) { a.cancel = false; if (a.prepFx && a.prepFx.stop) a.prepFx.stop(); eligosCombo(G, p); return; }
+      a.prep = false; a.boom = EL.delay; a.act = null;
+    }
   };
 
   // ================================================================ Sự Bảo Vệ Của Amon
   // [ĐO C24Controller: Skill2MaxEnergy 50, Skill2Range 16, MoveSpeedValue 0,6; ExecuteSkill2: khiên = năng lượng / 10 giây (s16 = năng lượng ÷ 10);
-  //  buff_warlock_skill_2 = BuffWarlockSkill2: enemyDamage 1 / enemyInterval 1, buff_time 99999]. 1 linh hồn mỗi nhịp rút và 5 linh hồn mỗi Tiểu Quỷ [ƯỚC LƯỢNG].
+  //  buff_warlock_skill_2 = BuffWarlockSkill2: enemyDamage 1 / enemyInterval 1, buff_time 99999;
+  //  CreateEnergyForSkill2(source, value = 1): mỗi Tiểu Quỷ chết / bị hy sinh, và mỗi nhịp rút của BuffWarlockSkill2, cho 1 linh hồn; tốc +0,6 = ChangeSpeedNE("warlock_skill_2", 0,6)]. Thời gian linh hồn bay 0,5 s [ƯỚC LƯỢNG].
   // Chưa có: khiên cho đơn vị phe ta trong 16 ô (web chưa có đồng đội trúng khiên).
-  const AN = { max: 50, sec: 10, move: 1.6, tick: 1, dmg: 1, perDemon: 5, fly: 0.5, range: 16 * U };
+  const AN = { max: 50, sec: 10, move: 1.6, tick: 1, dmg: 1, perDemon: 1, fly: 0.5, range: 16 * U };
   const amonOn = p => p.h.skill && p.h.skill.id === 'amon_s_protection';
   DUR_UI.amon_s_protection = 5;
   SK.on('enemyHit', (G, e) => {
@@ -309,6 +345,7 @@
     const v = SK.view, cx = v.w - 16, cy = v.h - 17, w = wl(p);
     SK.text(ctx, demons(G, p).length + '/' + DEMON.max, cx - 9.5, cy - 20, 8, '#c9a0ff', 'center', '#000');
     if (amonOn(p)) SK.text(ctx, w.energy + '/' + AN.max, cx - 9.5, cy - 28, 8, '#7dffb0', 'center', '#000');
+    if (p.h.skill && p.h.skill.id === 'helping_hand_eligos' && w.eligos) SK.text(ctx, w.eE + '/' + EL.energyMax, cx - 9.5, cy - 28, 8, '#c9a0ff', 'center', '#000');
   });
 
   SK.warlock = { summon, state: wl, demons };   // cho ca kiểm

@@ -1,11 +1,13 @@
 // Kỹ năng Đạo Sĩ Âm Dương (c39): duskbell_talisman_dawnflare_fist (hai nửa: Phù Chuông Đêm = Âm, Quyền Minh Trú = Dương).
-// Số lấy từ ctrlFields của SK_SKILLS86.heroes.yinyang (controller C40Controller trong dump.cs) và MonoBehaviour của yin_bullet
-// (WobbleHomingRb2D) [ĐO]; logic nằm trong mã IL2CPP nên cách áp số là [ƯỚC LƯỢNG]. Web chỉ có một phím kỹ năng: K = Phù khi
-// chưa có phù nào bám quái, có phù thì K = Quyền (kích phù); đang hồi Phù thì K cũng ra Quyền.
+// Số lấy từ ctrlFields của SK_SKILLS86.heroes.yinyang, MonoBehaviour yin_bullet (WobbleHomingRb2D) / buff_yin (BuffYin) và mã C40Controller
+// (sk_method.py: SetUpChar, UpdateYinYangValue, Skill0Yin/Yang, CreateYinFu, SkillYangPunch, AddBulletBuff, BuffYin.OnTargetGotHurt) [ĐO].
+// Gốc có hai nút (skill0Btns = ButtonGroup): K = Phù Chuông Đêm (Âm), nút đặc biệt L = Quyền Minh Trú (Dương), mỗi bên một hồi chiêu
+// riêng (skill0YinBaseCooldown 4, skill0YangBaseCooldown 6). "max 3" trong config không phải số lượt: skillType 0 không thuộc {4, 6, 9, 12}
+// nên SkillInfo.hasMultiCount = false [ĐO SkillInfo.get_hasMultiCount].
 (function () {
   'use strict';
   const SK = window.SK, K = SK.skillKit, S = SK.SKILLS, T = SK.TILE, U = SK.PPU;
-  const { alive, ec, nearest, inRadius, hit, fx, ripFx, stopFx, cfg, CTRL, layer, timers, hurtMods } = K;
+  const { alive, ec, nearest, inRadius, hit, fx, ripFx, stopFx, CTRL, layer, timers, hurtMods, setMul } = K;
   const C = (k, d) => CTRL('yinyang', k, d);
   const Y = {
     fu: () => C('yinFuCount', 3), fuMax: () => C('yinFuCountMax', 9), fuDmg: () => C('skill0YinFuDamage', 1),
@@ -13,15 +15,23 @@
     combo: () => C('skill0ComboDamage', 6), punches: () => C('punchMaxCount', 7),
     yinCd: () => C('skill0YinBaseCooldown', 4), yangCd: () => C('skill0YangBaseCooldown', 6),
     speed: 15 * U, turn: 480 * Math.PI / 180, recall: 2,   // [ĐO WobbleHomingRb2D _speed 15, _turnRateDegPerSec 480, _maxRecallDuration 2]
-    aoeR: () => C('punchSize', 1.75) * 2 * U, dashT: 0.14, dashDist: 6 * T, gain: 4, store: 0.5, cap: 12, stormR: 2.5 * T, stormTick: 0.25
-  };   // aoeR, dashT, dashDist, gain, store, cap, stormR, stormTick: [ƯỚC LƯỢNG]
-  const st = p => p._yy || (p._yy = { yin: 0, yang: 0, yangCd: 0, fus: [], dash: null, storm: null, window: false, punchNext: false });
+    dashT: () => C('punchDelay', 0.1),                     // quyền đánh sau punchDelay [ĐO SkillYangPunch: WaitForSeconds(punchDelay)]
+    step: 10, buffT: 1, fuLife: 12, lockR: 20 * U,         // ±10 mỗi lần dùng [ĐO UpdateYinYangValue(10, −10)], buff phù/quyền 1 s [ĐO AddBulletBuff Timer.Register(1)], phù sống 12 s [ĐO buff_yin buff_time], FindEnemies(20)
+    cap: 60, speedUp: 0.5, speedUpT: 1,                    // phù nổ khi tổng sát thương nhận ≥ triggerDamageThreshold 60, nổ bằng đúng tổng đó [ĐO BuffYin]; +50% tốc chạy 1 s sau quyền [ĐO YinYangSkill0SpeedUp]
+    aoeR: () => C('punchSize', 1.75) * 2 * U, dashDist: 6 * T, stormR: 2.5 * T, stormTick: 0.25
+  };   // aoeR, dashDist, stormR, stormTick: [ƯỚC LƯỢNG] (bán kính là size của prefab đạn, lực lao force 80 chưa quy ra khoảng cách)
+  // Âm / Dương bắt đầu 50/50 [ĐO SetUpChar]; chỉ đổi khi dùng chiêu: Phù +10 Âm −10 Dương, Quyền ngược lại; vượt 100 thì cả hai về 50 [ĐO UpdateYinYangValue].
+  const st = p => p._yy || (p._yy = { yin: 50, yang: 50, yangCd: 0, fus: [], dash: null, storm: null, winT: 0, swordT: 0 });
+  function shift(s, dYin, dYang) {
+    s.yin += dYin; s.yang += dYang;
+    if (s.yin > 100 || s.yang > 100) s.yin = s.yang = 50;
+  }
   const hy = e => e.hb.off[1] * e.scale;
   const melee = w => !!(w && w.def && (w.def.w86 ? w.def.w86.melee : w.def.kind === 'melee'));
 
   // ---------------------------------------------------------------- phù (Âm)
   function fireFu(G, p, n) {
-    const s = st(p), en = G.enemies.filter(alive).sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y));
+    const s = st(p), en = G.enemies.filter(e => alive(e) && Math.hypot(e.x - p.x, e.y - p.y) <= Y.lockR).sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y));
     for (let i = 0; i < n; i++) {
       while (s.fus.filter(f => f.st !== 'gone').length >= Y.fuMax()) dropFu(s.fus.find(f => f.st !== 'gone'));
       const tgt = en[i % Math.max(1, en.length)] || null;
@@ -48,7 +58,7 @@
         if (f.e && alive(f.e)) {
           const [cx, cy] = ec(f.e);
           if (Math.hypot(cx - f.x, cy - f.y) < f.e.r + 4) {
-            f.st = 'stuck'; f.dx = f.x - f.e.x; f.dy = f.y - f.e.y;
+            f.st = 'stuck'; f.dx = f.x - f.e.x; f.dy = f.y - f.e.y; f.until = G.t + Y.fuLife;
             hit(G, p, f.e, Y.fuDmg(), { tag: 'yin', repel: 1, fx: 'hit_blue' });
             (f.e._fu = f.e._fu || []).push(f);
             if (f.h) stopFx(f.h);
@@ -56,7 +66,7 @@
           }
         } else if (f.t > 3) dropFu(f);
       } else if (f.st === 'stuck') {
-        if (!f.e || !alive(f.e)) dropFu(f);
+        if (!f.e || !alive(f.e) || G.t > f.until) dropFu(f);
       } else if (f.st === 'recall') {
         f.orb += 80 * Math.PI / 180 * dt;   // [ĐO _recallOrbitSpeed 80 độ/s]
         f.r = Math.min(Y.stormR, f.r + 60 * dt);
@@ -90,15 +100,17 @@
     fx(G, 'hit_red', x, y - 6, { scale: 1.5 });
     ripFx(G, 'yang_punch', x, y, { top: true, dur: 0.4 });
     for (const e of inRadius(G, x, y - 6, Y.aoeR())) {
-      const marked = !!(e._fu && e._fu.length);
-      hit(G, p, e, dmg + (marked ? Y.punch() : 0), { tag: 'yang', repel: 4, critChance: p.crit });
-      if (marked) { activate(e); p.skillCd = 0; st(p).yangCd = 0; }   // đánh trúng quái có phù: làm mới hồi chiêu, kích phù
+      const marked = !!(e._fu && e._fu.length), fresh = marked && !e._fuAct;
+      hit(G, p, e, dmg, { tag: 'yang', repel: 4, critChance: p.crit });
+      if (marked) { activate(e); st(p).yangCd = 0; }   // đánh trúng quái có phù: làm mới hồi chiêu Dương, kích phù
+      if (fresh) hit(G, p, e, Y.combo(), { tag: 'yang_combo', repel: 2 });   // phù mới kích: thêm nhát tổ hợp skill0ComboDamage [ĐO OnYangPunchHitEnemy → CreateSKill0YinYangCombo]
     }
+    setMul(p, 'moveMul', 'yy_speed', 1 + Y.speedUp); st(p).speedT = Y.speedUpT;
     G.shake = Math.max(G.shake, 2);
   }
   function startDash(G, p, n) {
     const s = st(p), { ang } = K.targetAng(G, p, 12 * T);
-    s.dash = { ang, t: 0, v: Y.dashDist / Y.dashT, left: n, dmg: n > 1 ? Y.combo() : Y.dash(), wait: 0 };
+    s.dash = { ang, t: 0, v: Y.dashDist / Y.dashT(), left: n, dmg: Y.dash(), wait: 0 };
     if (Math.abs(Math.cos(ang)) > 0.1) p.face = Math.cos(ang) > 0 ? 1 : -1;
     ripFx(G, 'yang_dash', p.x, p.y - 6, { top: true, rot: ang, dur: 0.3 });
     s.yangCd = Y.yangCd();
@@ -109,7 +121,7 @@
     if (d.wait > 0) { d.wait -= dt; return; }
     d.t += dt;
     SK.moveBox(G.map, p, Math.cos(d.ang) * d.v * dt, Math.sin(d.ang) * d.v * dt, p.h.body.r);
-    if (d.t < Y.dashT) return;
+    if (d.t < Y.dashT()) return;
     punchAoe(G, p, p.x, p.y, d.dmg);
     if (--d.left <= 0) { s.dash = null; delete hurtMods(p).yang; return; }
     // chuỗi nhiều quyền: nhịp trễ giảm dần [ĐO punchDelayCountinue 0.25, punchDelayCountinueDec 0.075]
@@ -134,51 +146,47 @@
     const p = G.player; if (!p || p.hero !== 'yinyang') return;
     const s = st(p);
     if (e._fuAct && G._skHit !== 'fu_boom') {
-      e._fuAct.stored += Math.max(1, Math.round(d * Y.store));
+      e._fuAct.stored += d;
       if (e._fuAct.stored >= Y.cap && alive(e)) detonate(G, p, e);
     }
     if (G._skHit) return;
-    const w = p.weapons[p.cur];
-    if (melee(w)) {
-      s.yang = Math.min(100, s.yang + Y.gain);
-      if (s.punchNext) { s.punchNext = false; ripFx(G, 'yang_punch', e.x, e.y, { top: true, dur: 0.4 }); hit(G, p, e, Y.punch(), { tag: 'yang_punch', repel: 3 }); }
-    } else s.yin = Math.min(100, s.yin + Y.gain);
+    if (melee(p.weapons[p.cur]) && s.swordT > 0) {   // Dương trên 50: quyền cường hóa đòn cận chiến kế tiếp (SwordStrength, một lần)
+      s.swordT = 0; ripFx(G, 'yang_punch', e.x, e.y, { top: true, dur: 0.4 }); hit(G, p, e, Y.punch(), { tag: 'yang_punch', repel: 3 });
+    }
   });
   SK.on('enemyKill', (G, e) => { const p = G.player; if (p && p.hero === 'yinyang') detonate(G, p, e); });
-  // Âm trên 50: trong thời gian kỹ năng, vũ khí tầm xa mỗi lần bắn thêm một lá phù.
-  SK.on('fire', (G, p, w) => { if (p.hero === 'yinyang' && p.skillT > 0 && st(p).window && !melee(w)) fireFu(G, p, 1); });
+  // Âm trên 50 sau khi dùng Phù: trong 1 s, vũ khí tầm xa mỗi lần bắn thêm một lá phù (BulletExtraFu qua onBulletCreate).
+  SK.on('fire', (G, p, w) => { if (p.hero === 'yinyang' && st(p).winT > 0 && !melee(w)) fireFu(G, p, 1); });
 
   // ---------------------------------------------------------------- kỹ năng
   timers.yinyang = (G, p, dt) => {
     if (p.hero !== 'yinyang' || !p._yy) return;
     const s = p._yy;
-    s.yangCd = Math.max(0, s.yangCd - dt);
+    s.yangCd = Math.max(0, s.yangCd - dt); s.winT = Math.max(0, s.winT - dt); s.swordT = Math.max(0, s.swordT - dt);
+    if (s.speedT > 0 && (s.speedT -= dt) <= 0) setMul(p, 'moveMul', 'yy_speed', 1);
+    p._ultReady = s.yang >= 99;   // khung chiêu cuối trên nút đặc biệt khi Dương đầy
     fuTick(G, p, dt); dashTick(G, p, dt);
   };
+  // K = Phù. Âm ≥ 99: thu mọi phù thành bão (CreateYinFuMax); sau đó Âm +10 thì vượt 100 và cả hai về 50.
   function doYin(G, p) {
     const s = st(p);
-    if (s.yin >= 100) { startStorm(G, p); s.yin = 50; s.window = false; p._cdAfter = Y.yinCd(); return; }
-    fireFu(G, p, Y.fu());
-    s.window = s.yin > 50;
-    if (s.window) p.skillT = cfg(p, 'duskbell_talisman_dawnflare_fist').dur || 6; else p._cdAfter = Y.yinCd();
+    if (s.yin >= 99) startStorm(G, p); else fireFu(G, p, Y.fu());
+    shift(s, Y.step, -Y.step);
+    if (s.yin > 50) s.winT = Y.buffT;
+    p._cdAfter = Y.yinCd();
   }
+  // L = Quyền. Dương ≥ 99: chuỗi punchMaxCount quyền (SkillYangPunchContinue).
   function doYang(G, p) {
     const s = st(p);
-    if (s.dash) return;
-    if (s.yang >= 100) { s.yang = 50; startDash(G, p, Y.punches()); } else {
-      if (s.yang > 50) s.punchNext = true;   // Dương trên 50: quyền cường hóa đòn cận chiến kế tiếp
-      startDash(G, p, 1);
-    }
+    if (s.dash || s.yangCd > 0) return;
+    const chain = s.yang >= 99;
+    shift(s, -Y.step, Y.step);
+    if (s.yang > 50) s.swordT = Y.buffT;
+    startDash(G, p, chain ? Y.punches() : 1);
   }
   S.duskbell_talisman_dawnflare_fist = {
-    start(G, p) {
-      layer(G);
-      const s = st(p), attached = s.fus.some(f => f.st === 'stuck');
-      if (s.yin < 100 && attached && s.yangCd <= 0) { doYang(G, p); p._cdAfter = 0; } else doYin(G, p);
-    },
-    press(G, p) { const s = st(p); if (s.yangCd <= 0) doYang(G, p); },   // đang trong thời gian Phù: K ra Quyền
-    pressCd(G, p) { const s = st(p); if (s.yangCd <= 0) doYang(G, p); },
-    end(G, p) { st(p).window = false; }
+    start(G, p) { layer(G); doYin(G, p); },
+    special(G, p) { doYang(G, p); }
   };
 
   // Vị trí nút kỹ năng trên HUD uGUI (đơn vị khung nhìn); không có thì góc phải dưới.
@@ -195,6 +203,6 @@
       ctx.fillStyle = col; ctx.fillRect(Math.round(b.x), Math.round(b.y) - 12 + i * 5, Math.round(w * p._yy[k] / 100), 4);
     });
   });
-  SK.on('runStart', G => { const p = G.player; if (p && p.hero === 'yinyang') { p._ch = null; p._yy = null; } });   // max 3 trong config không phải số lượt
+  SK.on('runStart', G => { const p = G.player; if (p && p.hero === 'yinyang') { p._yy = null; layer(G); } });
   SK.on('stageEnter', G => { const p = G.player; if (p && p._yy) { for (const f of p._yy.fus) dropFu(f); p._yy.fus = []; p._yy.dash = null; p._yy.storm = null; } });
 })();

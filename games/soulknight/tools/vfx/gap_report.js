@@ -6,9 +6,10 @@
  *
  * Nguồn: data/sk-vfx.js (+ thân đạn 'W:*' của data/sk-weapons86.js). Mỗi hiệu ứng -> danh sách khoảng cách:
  *   - mục `u` ảnh hưởng hình (cùng luật visual_unsupported của build_vfx.py): ps:noise, ps:render:mesh, shader:...
- *   - thứ runtime biết mà bỏ qua / làm gần đúng (đo từ dữ liệu): tr/ln texture, renderMode 2/3, sortMode, flip, shape
+ *   - thứ runtime biết mà bỏ qua / làm gần đúng (đo từ dữ liệu): renderMode 2/3, sortMode, flip, shape
  *     align/rndPos, hệ không có rate/bursts (script Emit), tint > 1 (chỉ kẹp màu, texel tối không sáng thêm)
- *   - 'fixed:*' = đã sửa (2026-09-30), giữ để biết số hiệu ứng được lợi; 'info:*' = không phải lỗi.
+ *   - 'fixed:*' = đã sửa (2026-09-30: vòng 1; sprite-mode-size, tr/ln texture + strip: vòng 2), giữ để biết số hiệu
+ *     ứng được lợi; 'info:*' = không phải lỗi.
  * Thân đạn 'W:*' (sk-weapons86.js, lever khác) không mang vật liệu/tint nên báo '—' dù có thể sai.
  */
 const fs = require('fs');
@@ -48,10 +49,11 @@ function gaps(name, e) {
       if (p.shape && p.shape.rndPos) g.add('ps:shape-rndPos');
       if (p.tint && p.tint.some((v, i) => i < 3 && v > 1)) g.add('approx:tint>1');
       if (p.tex === '#white') g.add('fixed:white-quad');
+      if (p.uv && p.uv.mode === 1) g.add('fixed:sprite-mode-size');
       for (const m of p.u || []) g.add('ps:' + m);
     }
-    if (nd.tr && nd.tr.tex) g.add('tr:texture-ignored');
-    if (nd.ln && nd.ln.tex) g.add('ln:texture-ignored');
+    if (nd.tr && nd.tr.tex) g.add(nd.tr.tex === '#white' ? 'fixed:tr-strip' : 'fixed:tr-texture');
+    if (nd.ln && nd.ln.tex) g.add(nd.ln.tex === '#white' ? 'fixed:ln-strip' : 'fixed:ln-texture');
     if (nd.sr && nd.sr.tint) g.add(nd.sr.tint.some((v, i) => i < 3 && v > 1) ? 'fixed:sr-tint(approx>1)' : 'fixed:sr-tint');
   }
   if (e.end) g.add('fixed:buff-end');

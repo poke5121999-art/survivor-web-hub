@@ -1,9 +1,11 @@
 // Kỹ năng Trang Phục Hoàng Tử (c26, C27Controller): transform_slime_king, forward_crystal_crab_king, manifest_king_violet.
 // Cả ba là hoá thân: p._form giữ hình (prefab CostumePrince_skill_0/1/0_skill_2), thanh máu riêng (Vua Slime, Cua Vua) hoặc
 // thanh Chiến Dũng (Tước Sĩ Tím), vũ khí riêng và một chiêu phụ. Nguồn: ctrlFields (s1Init*/s2Init*) và MonoBehaviour của
-// CostumePrince_skill_*/C27Skill3ShapeShiftCtrl.config + weapon_c27_skill0/1 trong common.ab/weapon.ab [ĐO], mốc thời gian sự kiện
-// của clip Animator (AnimaOnMainSkillEffect/Land...) [ĐO], wiki [WIKI]. Bấm K lần nữa để thoát hình. Game chưa có nút đặc biệt
-// nên chiêu phụ (Đập Tử Vong / Phòng Thủ 0 Độ / Tước Sĩ Bay Nhảy) gắn vào phím đổi vũ khí (swap), vì hình thú không đổi vũ khí được.
+// CostumePrince_skill_*/C27Skill3ShapeShiftCtrl.config + weapon_c27_skill0/1 trong common.ab/weapon.ab [ĐO], mã ARM của
+// C27Skill1/2/3ShapeShiftCtrl, C27Skill2Weapon, Bullet04 đọc bằng tools/sk_method.py [ĐO], mốc thời gian sự kiện của clip Animator
+// (AnimaOnMainSkillEffect/Land...) [ĐO], wiki [WIKI]. Bấm K lần nữa để thoát hình (BtnSkillDown -> RoleSkillEnd). Chiêu phụ nằm ở nút
+// đặc biệt (BtnSpecialClick -> DoMainSkill, phím L, khai báo special(G, p)): Đập Tử Vong / Phòng Thủ 0 Độ (giữ nút) / Tước Sĩ Bay Nhảy.
+// Phím đổi vũ khí không làm gì trong hoá thân (CanSwitchWeapon = !skillCasting).
 (function () {
   'use strict';
   const SK = window.SK, K = SK.skillKit, S = SK.SKILLS, DS = SK.DS, W = SK.world, U = SK.PPU, T = SK.TILE;
@@ -19,27 +21,51 @@
     hp: CT('s1InitShiftHp', 20), speed: CT('s1InitShiftSpeed', 0.8), bullet: CT('s1InitMainSkillBulletDamage', 3), hitTimes: CT('s1InitPassiveSkillHitTimes', 2),
     max: CT('s1InitMaxSlimeNum', 5), boom: CT('s1InitPassiveSkillExplodeDamage', 10), slimeBoom: CT('s1InitSlimeExplodeDamage', 6),
     inv: CT('s1InitHitInvincibilityFrameDuration', 0.4), cd: CT('s1InitMainSkillCd', 1),
-    land: 0.9375, end: 1.25, shock: 6, shockR: 3 * T, poolDmg: 1, poolT: 5, ring: 8, ringSpd: 10 * U,   // land/end [ĐO clip atk]; shock [ĐO bullet_hammer_c27_skill0]; pool [WIKI]; ring, bán kính [ƯỚC LƯỢNG]
-    r: 14, slimeHp: 3, boomR: 2.5 * T, slimeR: 1.5 * T, slimeSpd: 70, gloves: { dmg: 3, crit: 30, repel: 3, spd: 24 * U, rps: 1.6, n: 3, spread: 8 }   // gloves [ĐO weapon_c27_skill0]; rps [ƯỚC LƯỢNG]
+    // land/end [ĐO clip atk]; shock: ExplodeHammer damage 6, bán kính = CircleCollider 1 x scale gốc 2 x scale_factor 1.5 = 3 ô [ĐO bullet_hammer_c27_skill0].
+    // ring [ĐO AnimaOnMainSkillEffect]: 2 x 15 viên, cách nhau 12° quanh một vòng, lệch RGRandom(-8, 8)°; Bullet04: tốc 10, mỗi 0.1 s nhân 0.8
+    // tới khi <= min_speed 1, sống 5 s, hộp 0.5 x 0.5 ô. pool [ĐO Gas_Hit_Enemy BulletGas]: 1 sát thương / 0.5 s, bán kính 3, 6 s, không kèm buff.
+    land: 0.9375, end: 1.25, shock: 6, shockR: 2 * 1.5 * T, poolDmg: MB('Gas_Hit_Enemy', 'BulletGas', 'damage', 1), poolT: MB('Gas_Hit_Enemy', 'BulletGas', 'duration', 6),
+    ring: { n: 30, step: 12, jitter: 8, spd: 10 * U, decay: 0.8, tick: 0.1, min: 1 * U, life: 5, r: 0.25 * T },
+    r: 1.1 * T,   // CircleCollider2D "collider" của CostumePrince_skill_0/1: bán kính 1.1 ô [ĐO]
+    // Slime con = e_slime01 (levelobjects.ab): RoleAttribute max_hp 12, speed 3; nổ = explode_hit_enemy (CircleCollider 3 ô) [ĐO]. Slime con lao vào quái
+    // rồi nổ: cách tấn công của EnemyAI04 nằm trong mã AI, chưa đọc nên "nổ khi chạm" là [ƯỚC LƯỢNG].
+    slimeHp: 12, boomR: 3 * T, slimeR: 3 * T, slimeSpd: 3 * U,
+    // gloves [ĐO weapon_c27_skill0]; tốc đánh nằm trong Animator của vũ khí (clip), không có trong MonoBehaviour nên rps [ƯỚC LƯỢNG]
+    gloves: { dmg: 3, crit: 30, repel: 3, spd: 24 * U, rps: 1.6, n: 3, spread: 8 }
   };
   const CRAB = {
     hp: CT('s2InitShiftHp', 35), move: CT('s2InitShiftMoveSpeed', [0.8, 0.7]), hitTimes: CT('s2InitPassiveSkillHitTimes', 3), iceR: CT('s2InitPassiveSkillIceBulletRadius', 3) * T,
     boom: CT('s2InitPassiveSkillExplodeDamage', 15), inv: CT('s2InitHitInvincibilityFrameDuration', 0.2), hold: CT('s2InitMainSkillHoldDefenceDuration', 4), cd: CT('s2InitMainSkillCd', 6),
     add: CT('s2InitShiftAddHp', 4), zone: CT('s2InitCrystalZoneRadius', 3) * T, icicles: CT('s2InitCreateIcicleTimes', 3), spike: CT('s2InitCrystalSpikeDamage', 6),
-    ice: 3, iceDmg: 6, boomR: 2.5 * T, strikeAt: 0.5, strikeEnd: 1.0625, wave: 0.25, maxWaves: 9, r: 14,   // ice, iceDmg [ĐO skill_1 prefab, explode_ice_c27_skill1]; strikeAt/End [ĐO clip atk]; bán kính, nhịp [ƯỚC LƯỢNG]
-    claw: { dmg: 12, crit: 10, repel: 3, reach: 3 * T * 0.75, half: 60, rps: 1.6, iceEvery: 3, iceN: 5, iceR: 4 * T, iceDmg: 6 }   // [ĐO weapon_c27_skill1]; reach, rps, chu kỳ gai băng [ƯỚC LƯỢNG]
+    // ice/iceDmg [ĐO CostumePrince_skill_1: passiveSkillIceBulletNum 3, explode_ice_c27_skill1 damage 6]; strikeAt/End [ĐO clip atk]; boomR = CircleCollider 3 x scale 1.5
+    // của c27_skill_1_ice_explode [ĐO]. Gai băng = ExplodeLcicle: hộp chạm CircleCollider 1 x scale 0.2 = 0.2 ô (nhân cỡ đạn 2 của vũ khí = 0.4) [ĐO];
+    // Gai Pha Lê Chấn Động [ĐO C27Skill2ShapeShiftCtrl.AnimaOnMainSkillEffect/CreateIcicle]: số lượt = max(1, floor(thời gian giữ / 4 x s2InitCreateIcicleTimes)),
+    // mỗi lượt 6 gai rơi tại điểm ngẫu nhiên trong bán kính zone, các lượt cách nhau 0.33 s (MonoBehaviour.Invoke "CreateIcicle"); vùng CrystalSpikeShock_skin_0
+    // (BuffZoneCtrl buff_ice 0.5 s mỗi 1 s + bulletDestroyer xoá đạn địch) tồn tại tới hết clip atk.
+    ice: 3, iceDmg: 6, boomR: 3 * 1.5 * T, strikeAt: 0.5, strikeEnd: 1.0625, wave: 0.33, waveN: 6, iceHit: 0.4 * T, zoneFreeze: 0.5, zoneEvery: 1, r: 1.1 * T,
+    // claw [ĐO weapon_c27_skill1 + C27Skill2Weapon.Attack]: MỖI đòn vừa chém (sword_c27_skill1, 12, luân phiên atk_1/atk_2) vừa thả iceBulletNum 5 gai băng 6
+    // tại điểm ngẫu nhiên trong bán kính 4 ô quanh điểm đánh; vùng chém = polygon của sword_c27_skill1 nhân cỡ đạn 3, ánh xạ cỡ đạn -> phạm vi của RGSword
+    // chưa đọc được nên reach/half và tốc đánh (Animator) là [ƯỚC LƯỢNG]
+    claw: { dmg: 12, crit: 10, repel: 3, reach: 3 * T * 0.75, half: 60, rps: 1.6, iceN: 5, iceR: 4 * T, iceDmg: 6 }
   };
   const VIO_CFG = {
       shiftCd: 10, hitInvincibilityFrameDuration: 0.6, landDamage: 13, initPunchDamage: 10, initPunchSize: 2, initBladeDamage: 8, initBladeSize: 3.5, valorBladeSize: 4, initSpearDamage: 8, initSpearSize: 3,
       swordMissileDamage: 5, swordRevolveDamage: 5, swingSwordBulletDamage: 3, swingSwordBulletCreateTimesAfterMainSkill: 3, swingSwordBulletCreateTimesInValor: 3, swingSwordBulletNum: 5,
       initMainSkillCd: 5, jazzLeapLandingDamage: 2, jazzLeapLandingRadius: 4, jazzLeapLandingEffectDuration: 2, jazzLeapLandingDizzyDuration: 2, initValorValue: 30, initValorTurnOnValue: 50,
       initMaxValorValue: 100, turnValorHpProtectTime: 2, createDamageValorConversionRate: 0.25, killedEnemyValorAdditive: 5, valorStateValorValueReducePerSecond: 12, notCreateDamageTimeLimit: 2,
-      notCreateDamageValorValueReducePerSecond: 5, notValorGetDamageLimit: 5, valorStateDamageAdditive: 2, valorStateCdAdditive: 0.8, initCritic: 5, valorCriticAdditive: 20, valorAnimatorSpeed: 1.5, attackMoveSpeedAdditive: 1.2
+      notCreateDamageValorValueReducePerSecond: 5, notValorGetDamageLimit: 5, valorStateDamageAdditive: 2, valorStateCdAdditive: 0.8, initCritic: 5, valorCriticAdditive: 20, valorAnimatorSpeed: 1.5, attackMoveSpeedAdditive: 1.2,
+      getDamageValorConversionRate: 5, notAttackMoveSpeedAdditive: 0.8
     };   // [ĐO C27Skill3ShapeShiftCtrl.config trong common.ab]
   const VIO = {
     cfg: MB('CostumePrince_0_skill_2', 'C27Skill3ShapeShiftCtrl', 'config', VIO_CFG),
     takeoff: 0.1667, land: 0.8, end: 1.2167, range: 8 * T, fly: { missileT: 0.5, missileHover: 2, missileBack: 0.5, revolveR: 6 * T, revolveW: Math.PI * 2, revolveT: 0.25, revolveHover: 2.5, revolveBack: 0.25, tick: 1, r: 2 * T },
-    reach: 0.8, rps: 2.2, holdT: 0.5, tickZone: 0.5   // reach = tỉ lệ ô của "size"; rps, giữ nút, nhịp vùng [ƯỚC LƯỢNG]
+    // Bay Nhảy [ĐO AnimaOnMainSkillLand/CreateLandDamage]: landDamage = ExplodeHammer 'landDamage' (CircleCollider 1 x scale gốc 1.5 x scale_factor 1.5 = 2.25 ô,
+    // + valorStateDamageAdditive khi Chiến Dũng cao); hai lưỡi kiếm ở hai tay (CreateBlade) tại chỗ đáp; vùng jazzLeapLanding = CircleDamageCarrier startDelay 0.25,
+    // damageInterval 1.5, sống jazzLeapLandingEffectDuration, bán kính jazzLeapLandingRadius x (Chiến Dũng + 100) / 100 khi đang Chiến Dũng cao.
+    landR: 1 * 1.5 * 1.5 * T, zoneDelay: 0.25, zoneEvery: 1.5,
+    // reach = tỉ lệ ô của "size" (ánh xạ cỡ đạn -> phạm vi của RGSword chưa đọc được); rps = tốc Animator của kiếm; holdT = ngưỡng giữ nút để ném kiếm
+    // do transition của Animator quyết định, không có trong mã: đều [ƯỚC LƯỢNG]
+    reach: 0.8, rps: 2.2, holdT: 0.5
   };
 
   // ---------------------------------------------------------------- hình thể + hoá thân chung
@@ -83,15 +109,16 @@
     p.weapons = f.saved.weapons; p.cur = f.saved.cur; p.h = f.saved.h;
     for (const w of got) { if (!p.weapons[1]) p.weapons[1] = w; else G.items.push({ id: w.id, x: p.x, y: p.y + 4, t: 0 }); }
     G.items = G.items.filter(it => it.id.indexOf('_cp_') !== 0);
+    p.noFire = false;
     setMul(p, 'moveMul', 'form', 1); setMul(p, 'moveMul', 'formAct', 1); setMul(p, 'rateMul', 'valor', 1); setMul(p, 'moveMul', 'valor', 1);
     delete hurtMods(p).form;
     stopFx(f.auraH);
     fx(G, 'CostumePrince_skin0_showUp_effect', p.x, p.y - 4, { dur: 0.8 });
     snd('fx_short_fart');
   }
-  // Đang làm chiêu phụ: đứng yên, không bắn.
-  function act(p, name) { const f = p._form; f.act = name; f.actT = 0; setMul(p, 'moveMul', 'formAct', name === 'leap' ? 1 : 0.05); }
-  function actEnd(p) { const f = p._form; f.act = null; setMul(p, 'moveMul', 'formAct', 1); }
+  // Đang làm chiêu phụ: đứng yên (SetCantMove), không bắn (DoNormalSkill bị chặn khi IsDoingSkill) -> p.noFire.
+  function act(p, name) { const f = p._form; f.act = name; f.actT = 0; p.noFire = true; setMul(p, 'moveMul', 'formAct', name === 'leap' ? 1 : 0.05); }
+  function actEnd(p) { const f = p._form; f.act = null; p.noFire = false; setMul(p, 'moveMul', 'formAct', 1); }
   function formHurt(G, p, dmg) {
     const f = p._form;
     if (!f) return dmg;
@@ -102,7 +129,7 @@
     if (f.inv > 0 || f.act === 'leap') return 0;
     f.inv = f.invMax; f.flash = 0.12;
     if (f.act === 'hold') {
-      f.hp = Math.min(f.hpMax, f.hp + CRAB.add); f.stack++;
+      f.hp = Math.min(f.hpMax, f.hp + CRAB.add);
       fx(G, 'hit_blue2', p.x, p.y - 12, { scale: 0.8 });
       snd('fx_rebound');
       return 0;
@@ -183,6 +210,7 @@
     }
     return n;
   }
+  const aimAng = p => (Number.isFinite(p.aim) ? p.aim : p.face > 0 ? 0 : Math.PI);
   const faceTo = (p, ang) => { if (Math.abs(Math.cos(ang)) > 0.1) p.face = Math.cos(ang) > 0 ? 1 : -1; };
   // Đạn bay theo hướng, vẽ bằng hiệu ứng thật bám theo viên đạn.
   function bolt(G, p, x, y, ang, o) {
@@ -201,8 +229,8 @@
 
   // ================================================================ HOÁ THÂN! VUA SLIME
   // [ĐO ctrlFields s1Init*, CostumePrince_skill_0]: 20 máu hình, chạy x0.8, bất tử 0.4 s sau mỗi đòn; cứ 2 đòn nhận thì nổ 10 sát thương và
-  // sinh một Slime nhỏ (tối đa 5; Slime nổ 6); Đập Tử Vong: nhảy lên đập (clip atk 1.3125 s, chạm đất 0.9375 s), sóng xung kích 6 (bullet_hammer_c27_skill0),
-  // vòng đạn 3 sát thương (bullet_c27_skill0, tốc 10), vũng độc 1/nhịp 5 s [WIKI], hồi chiêu 1 s. Vũ khí Bao Tay Phép Thuật: 3 viên/đòn, lửa/độc luân phiên, 3 sát thương.
+  // sinh một Slime nhỏ (tối đa 5; Slime nổ 6); Đập Tử Vong (nút đặc biệt): nhảy lên đập (clip atk 1.3125 s, chạm đất 0.9375 s), sóng xung kích 6 (bullet_hammer_c27_skill0),
+  // vòng 30 đạn 3 sát thương (bullet_c27_skill0, tốc 10 giảm dần), vũng độc 1/0.5 s trong 6 s, hồi chiêu 1 s. Vũ khí Bao Tay Phép Thuật: 3 viên/đòn, lửa/độc luân phiên, 3 sát thương.
   const SLIME_KEYS = f => {
     const P = 'CostumePrince_skill_0';
     if (f.act === 'smash') return [{ key: KEY(P, 'ShapeshiftGee_skill_1_skin_0_atk'), t: f.actT }];
@@ -214,13 +242,17 @@
     },
     update(G, p, dt) { formTick(G, p, dt, slimeTick); },
     press(G, p) { SK.endSkill(G, p); },
+    // Nút đặc biệt = DoMainSkill: nhảy lên đập (hồi chiêu s1InitMainSkillCd), không làm khi đang làm chiêu.
+    special(G, p) {
+      const f = p._form;
+      if (f && f.kind === 'slime' && !f.act && f.cdT <= 0) { act(p, 'smash'); f.landed = false; }
+    },
     end(G, p) { leave(G, p); }
   };
   function formTick(G, p, dt, fn) {
     const f = p._form; if (!f) return;
     f.t += dt; f.animT += dt; f.inv = Math.max(0, f.inv - dt); f.flash = Math.max(0, f.flash - dt); f.cdT = Math.max(0, f.cdT - dt);
     f.moving = p.moving;
-    if (f.act) for (const w of p.weapons) if (w) w.cd = Math.max(w.cd, 0.05);
     if (f.broken) { SK.endSkill(G, p); return; }
     fn(G, p, f, dt);
   }
@@ -230,18 +262,29 @@
       f.actT += dt;
       if (!f.landed && f.actT >= SLIME.land) { f.landed = true; smashLand(G, p); }
       if (f.actT >= SLIME.end) { actEnd(p); f.landed = false; f.cdT = SLIME.cd; }
-    } else if (f.cdT <= 0 && I.hit('swap')) { act(p, 'smash'); f.landed = false; snd('fx_boss20_atk02'); }
+    }
   }
   function smashLand(G, p) {
-    const x = p.x, y = p.y;
+    const x = p.x, y = p.y, R = SLIME.ring;
+    snd('fx_boss20_atk02');
     fx(G, 'bullet_hammer_c27_skill0', x, y - 4, { layer: 'ground' });
     G.shake = Math.max(G.shake, 4);
     for (const e of inRadius(G, x, y - 4, SLIME.shockR, SLIME.shockR * 0.8)) hit(G, p, e, SLIME.shock, { repel: 3, fx: 'hit_yellow', ang: Math.atan2(ec(e)[1] - y, ec(e)[0] - x) });
-    for (let i = 0; i < SLIME.ring; i++) {
-      const a = i / SLIME.ring * Math.PI * 2;
-      bolt(G, p, x + Math.cos(a) * 8, y - 6 + Math.sin(a) * 8, a, { dmg: SLIME.bullet, speed: SLIME.ringSpd, life: 1.2, fx: 'bullet_c27_skill0', tag: 'ring', crit: 0 });
+    // Vòng đạn: mặt phải đi từ -180° tăng 12°, mặt trái từ 360° giảm 12° (cả hai phủ đủ một vòng), lệch ±8° [ĐO AnimaOnMainSkillEffect].
+    const face = p.face < 0 ? -1 : 1, ring = [];
+    for (let k = 0; k < R.n; k++) {
+      const a = SK.deg((face > 0 ? -180 + R.step * k : 360 - R.step * k) + SK.randf(-R.jitter, R.jitter));
+      ring.push(bolt(G, p, x + Math.cos(a) * 8, y - 6 + Math.sin(a) * 8, a, { dmg: SLIME.bullet, speed: R.spd, life: R.life, fx: 'bullet_c27_skill0', tag: 'ring', crit: 0, r: R.r }));
     }
-    // Vũng độc [WIKI: 1 sát thương/nhịp, 5 s]
+    // Bullet04: mỗi tick nhân speed_value nếu còn nhanh hơn min_speed.
+    p._form.ring = ring;
+    G.props.push({ x: 0, y: -1e9, t: 0, k: 0, draw() {},
+      update(G2, q, dt) {
+        q.t += dt; q.k += dt;
+        while (q.k >= R.tick) { q.k -= R.tick; for (const b of ring) if (!b.dead && Math.hypot(b.vx, b.vy) > R.min) { b.vx *= R.decay; b.vy *= R.decay; } }
+        if (q.t >= R.life) q.gone = true;
+      } });
+    // Vũng độc Gas_Hit_Enemy [ĐO BulletGas: damage 1, hit_invert 0.5, duration 6, bán kính 3; buff rỗng nên không kèm hiệu ứng].
     const r0 = MB('Gas_Hit_Enemy', 'BulletGas', 'damage_radius', 3) * U, every = MB('Gas_Hit_Enemy', 'BulletGas', 'hit_invert', 0.5);
     const h = fx(G, 'Gas_Hit_Enemy', x, y, { dur: SLIME.poolT, layer: 'ground' });
     G.props.push({ x, y: -1e9, t: 0, tick: 0, draw() {},
@@ -250,7 +293,7 @@
         if (q.t >= SLIME.poolT) { stopFx(h); q.gone = true; return; }
         if (q.tick > 0) return;
         q.tick = every;
-        for (const e of inRadius(G2, x, y, r0, r0 * 0.62)) { hit(G2, p, e, SLIME.poolDmg, { noMul: true, crit: false, tag: 'pool' }); if (SK.rand() < 0.3) debuff(G2, e, 'poison'); }
+        for (const e of inRadius(G2, x, y, r0, r0 * 0.62)) hit(G2, p, e, SLIME.poolDmg, { noMul: true, crit: false, tag: 'pool' });
       } });
   }
   function slimePassive(G, p, f) {
@@ -300,8 +343,8 @@
 
   // ================================================================ TIẾN CÔNG! CUA VUA PHA LÊ
   // [ĐO ctrlFields s2Init*, CostumePrince_skill_1, weapon_c27_skill1]: 35 máu hình, chạy x0.8 (x0.7 khi đánh), bất tử 0.2 s sau đòn; cứ 3 đòn nhận thì nổ băng 15
-  // + 3 gai băng 6 quanh 3 ô; Phòng Thủ 0 Độ (giữ phím): tối đa 4 s, không mất máu, mỗi đòn nhận hồi 4 máu hình và tích năng lượng pha lê; nhả ra thì Gai Pha Lê Chấn Động
-  // (clip atk: hiệu ứng 0.5 s, xong 1.0625 s): 3 lượt gai + 1 lượt mỗi đòn đã đỡ, 6 sát thương trong vùng 3 ô [WIKI: dựa trên năng lượng đã tích]; hồi chiêu 6 s.
+  // + 3 gai băng 6 rải ngẫu nhiên quanh 3 ô; Phòng Thủ 0 Độ (giữ nút đặc biệt): tối đa 4 s, không mất máu, mỗi đòn nhận hồi 4 máu hình; nhả ra thì
+  // Gai Pha Lê Chấn Động (clip atk: hiệu ứng 0.5 s, xong 1.0625 s): số lượt gai tính theo THỜI GIAN GIỮ (không phải số đòn đã đỡ) [ĐO AnimaOnMainSkillEffect]; hồi chiêu 6 s.
   const CRAB_KEYS = f => {
     const P = 'CostumePrince_skill_1';
     if (f.act === 'hold') return [{ key: KEY(P, 'hold'), t: f.actT }];
@@ -310,46 +353,71 @@
   };
   S.forward_crystal_crab_king = {
     start(G, p) {
-      const f = enter(G, p, 'crab', { prefab: 'CostumePrince_skill_1', weapon: '_cp_claw', speed: CRAB.move[0], r: CRAB.r, hp: CRAB.hp, hpMax: CRAB.hp, invMax: CRAB.inv, hitTimes: CRAB.hitTimes, stack: 0, body: 'img/body', barDy: 42, hide: (q, rel) => f.act === 'hold' && /^img\/f[1-4]$/.test(rel), keys: () => CRAB_KEYS(f) });
+      const f = enter(G, p, 'crab', { prefab: 'CostumePrince_skill_1', weapon: '_cp_claw', speed: CRAB.move[0], r: CRAB.r, hp: CRAB.hp, hpMax: CRAB.hp, invMax: CRAB.inv, hitTimes: CRAB.hitTimes, body: 'img/body', barDy: 42, hide: (q, rel) => f.act === 'hold' && /^img\/f[1-4]$/.test(rel), keys: () => CRAB_KEYS(f) });
     },
     update(G, p, dt) { formTick(G, p, dt, crabTick); },
     press(G, p) { SK.endSkill(G, p); },
+    // Nút đặc biệt: bấm xuống = vào thế thủ, nhả ra = tung Gai Pha Lê (BtnSpecialClick(isDown) -> DoMainSkill hai lần).
+    special(G, p) {
+      const f = p._form;
+      if (f && f.kind === 'crab' && !f.act && f.cdT <= 0) { act(p, 'hold'); snd('fx_shotgun'); }
+    },
     end(G, p) { leave(G, p); }
   };
   function crabTick(G, p, f, dt) {
     if (f.act === 'hold') {
       f.actT += dt;
-      if (!I.down('swap') && f.actT > 0.15 || f.actT >= CRAB.hold) { act(p, 'strike'); f.waves = 0; f.wave = 0; f.total = CRAB.icicles + Math.min(CRAB.maxWaves - CRAB.icicles, f.stack); f.struck = false; snd('fx_ice_shock'); }
+      // Nhả nút (hoặc hết s2InitMainSkillHoldDefenceDuration) thì đọc thời gian giữ: _holdTime = Timer.GetTimeElapsed [ĐO DoMainSkill/MainSkillHoldEnd].
+      if (!I.down('special') && f.actT > 0.05 || f.actT >= CRAB.hold) {
+        f.holdT = Math.min(f.actT, CRAB.hold);
+        act(p, 'strike');
+        f.total = Math.max(1, Math.floor(f.holdT / CRAB.hold * CRAB.icicles)); f.waves = 0; f.wave = 0; f.zone = null;
+      }
     } else if (f.act === 'strike') {
       f.actT += dt;
       if (f.actT >= CRAB.strikeAt) {
+        if (!f.zone) f.zone = { t: 0, tick: 0, h: fx(G, 'CrystalSpikeShock_skin_0', p.x, p.y - 2, { layer: 'ground', scale: CRAB.zone / (3 * T), dur: CRAB.strikeEnd - CRAB.strikeAt + 0.1 }) };
+        if (f.actT < CRAB.strikeEnd) zoneTick(G, p, f.zone, dt);
         f.wave -= dt;
-        if (f.waves < f.total && f.wave <= 0) { f.wave = CRAB.wave; f.waves++; crystalWave(G, p); }
+        if (f.waves < f.total && f.wave <= 0) { f.wave = CRAB.wave; f.waves++; icicleWave(G, p); }
       }
-      if (f.actT >= CRAB.strikeEnd && f.waves >= f.total) { actEnd(p); f.cdT = CRAB.cd; f.stack = 0; }
-    } else if (f.cdT <= 0 && I.hit('swap')) { act(p, 'hold'); f.stack = 0; snd('fx_shotgun'); }
+      if (f.actT >= CRAB.strikeEnd && f.waves >= f.total) { actEnd(p); f.cdT = CRAB.cd; f.zone = null; }
+    }
   }
-  function crystalWave(G, p) {
-    fx(G, 'CrystalSpikeShock_skin_0', p.x, p.y - 2, { layer: 'ground', scale: CRAB.zone / (3 * T) });
-    G.shake = Math.max(G.shake, 2);
-    for (const e of inRadius(G, p.x, p.y - 2, CRAB.zone, CRAB.zone * 0.8)) { hit(G, p, e, CRAB.spike, { repel: 2, fx: 'hit_white', tag: 'crystal' }); debuff(G, e, 'ice'); }
+  // CrystalSpikeShock_skin_0: BuffZoneCtrl buff_ice mỗi hitInvert 1 s, bulletDestroyer xoá đạn địch trong vùng [ĐO].
+  function zoneTick(G, p, z, dt) {
+    z.t += dt; z.tick -= dt;
+    if (z.tick <= 0) {
+      z.tick = CRAB.zoneEvery;
+      for (const e of inRadius(G, p.x, p.y - 2, CRAB.zone, CRAB.zone * 0.8)) debuff(G, e, 'ice', { t: CRAB.zoneFreeze });
+    }
     for (const b of G.bullets) if (b.side === 'e' && !b.dead && Math.hypot(b.x - p.x, (b.y - p.y) * 1.25) < CRAB.zone) b.dead = true;
   }
+  // Một lượt = 6 gai tại điểm ngẫu nhiên trong bán kính zone quanh người [ĐO C27Skill2ShapeShiftCtrl.CreateIcicle].
+  function icicleWave(G, p) {
+    snd('fx_ice_shock');
+    G.shake = Math.max(G.shake, 2);
+    for (let i = 0; i < CRAB.waveN; i++) iceAround(G, p, p.x, p.y - 2, CRAB.zone, CRAB.spike);
+  }
+  // Gai băng rơi ở một điểm ngẫu nhiên trong đĩa bán kính r; ghi nhật ký cho ca kiểm (p._cpIce).
+  function iceAround(G, p, cx, cy, r, dmg) {
+    const a = SK.rand() * Math.PI * 2, d = Math.sqrt(SK.rand()) * r;
+    iceSpike(G, p, cx + Math.cos(a) * d, cy + Math.sin(a) * d * 0.8, dmg);
+  }
   function iceSpike(G, p, x, y, dmg) {
+    (p._cpIce = p._cpIce || []).push([x, y, dmg]);
     fx(G, 'explode_ice_c27_skill1', x, y - 2, { scale: 0.8 });
-    for (const e of inRadius(G, x, y - 2, 1.2 * T)) { hit(G, p, e, dmg, { repel: 3, tag: 'ice' }); if (SK.rand() < 0.5) debuff(G, e, 'ice'); }
+    // targetbuff buff_ice: xác suất đóng băng của ExplodeLcicle chưa đọc từ mã [ƯỚC LƯỢNG: luôn đóng băng]
+    for (const e of inRadius(G, x, y - 2, CRAB.iceHit)) { hit(G, p, e, dmg, { repel: 3, tag: 'ice' }); debuff(G, e, 'ice'); }
   }
   function crabPassive(G, p, f) {
     fx(G, 'c27_skill_1_ice_explode', p.x, p.y - 4, { scale: 1.2 });
     G.shake = Math.max(G.shake, 3);
     for (const e of inRadius(G, p.x, p.y - 4, CRAB.boomR, CRAB.boomR * 0.8)) { hit(G, p, e, CRAB.boom, { repel: 3, tag: 'passive' }); if (SK.rand() < 0.5) debuff(G, e, 'ice'); }
-    const near = inRadius(G, p.x, p.y - 4, CRAB.iceR, CRAB.iceR * 0.8);
-    for (let i = 0; i < CRAB.ice; i++) {
-      const e = near.length ? near[i % near.length] : null, a = SK.rand() * Math.PI * 2, d = SK.rand() * CRAB.iceR;
-      iceSpike(G, p, e ? ec(e)[0] : p.x + Math.cos(a) * d, e ? ec(e)[1] : p.y + Math.sin(a) * d * 0.8, CRAB.iceDmg);
-    }
+    for (let i = 0; i < CRAB.ice; i++) iceAround(G, p, p.x, p.y - 4, CRAB.iceR, CRAB.iceDmg);   // RGRandom.RandomInCircle(radius) [ĐO DoPassiveSkill]
   }
-  // Vuốt Cua Vua: hai móng luân phiên 12 sát thương; mỗi đòn thứ 3 tung 5 gai băng 6 quanh 4 ô quanh mục tiêu [ĐO weapon_c27_skill1: bulletsInfo sword x2 + explode_ice x2, iceBulletNum 5, iceBulletRadius 4].
+  // Vuốt Cua Vua: hai móng luân phiên 12 sát thương; MỖI đòn thả thêm 5 gai băng 6 trong bán kính 4 ô quanh điểm đánh [ĐO C27Skill2Weapon.Attack:
+  // AttackSwordBullet + AttackIceBullet; bulletsInfo sword x2 + explode_ice x2, iceBulletNum 5, iceBulletRadius 4].
   SK.WEAPON_KINDS.cp_claw = {
     fire(G, p, w, o) {
       const c = CRAB.claw, n = w.n = (w.n || 0) + 1, left = n % 2 === 0;
@@ -357,22 +425,18 @@
       snd('fx_sword1');
       arcHit(G, p, o.ang, c.reach, c.half, c.dmg, { crit: c.crit, tag: 'claw' });
       fx(G, 'sword_purple_c27', p.x + Math.cos(o.ang) * 14, p.y - 8 + Math.sin(o.ang) * 10, { ang: Math.cos(o.ang) < 0 ? o.ang + Math.PI : o.ang, flip: left !== (Math.cos(o.ang) < 0), dur: 0.3, scale: 0.9, tint: [0.6, 0.9, 1, 1] });
-      if (n % c.iceEvery === 0) {
-        const near = inRadius(G, p.x, p.y - 8, c.iceR, c.iceR * 0.8);
-        for (let i = 0; i < c.iceN; i++) {
-          const e = near.length ? near[i % near.length] : null, a = SK.rand() * Math.PI * 2, d = SK.rand() * c.iceR;
-          iceSpike(G, p, e ? ec(e)[0] : p.x + Math.cos(a) * d, e ? ec(e)[1] : p.y + Math.sin(a) * d * 0.8, c.iceDmg);
-        }
-      }
+      for (let i = 0; i < c.iceN; i++) iceAround(G, p, o.x, o.y, c.iceR, c.iceDmg);
     }
   };
 
   // ================================================================ GIÁNG LÂM! TƯỚC SĨ TÍM
   // [ĐO C27Skill3ShapeShiftCtrl.config, clip L1.skill]: không có máu hình (dùng máu người chơi). Chiến Dũng 30 → cao nhất 100; ≥ 50 bật trạng thái Chiến Dũng
   // (bảo vệ máu 2 s), giảm 12/giây; ngoài trạng thái, 2 s không gây sát thương thì giảm 5/giây; gây sát thương +0.25 x sát thương, hạ quái +5. Chiến Dũng thấp:
-  // đòn nhận tối đa 5 [ĐO notValorGetDamageLimit]. Chiến Dũng cao: tốc đánh x1.5, +2 sát thương, +20 chí mạng, hồi chiêu x0.8, chạy x1.2, chưởng thép 10 khi hai
-  // kiếm đang bay. Đòn thường: kiếm 8 (size 3.5) hai nhát rồi mũi thương 8 (size 3); Tước Sĩ Bay Nhảy: bật lên (nhấc 0.1667 s, chạm đất 0.8 s, xong 1.2167 s),
-  // hạ cánh 13 sát thương, vùng 2/nhịp + choáng 2 s trong 2 s bán kính 4 ô, 3 lượt mưa 5 kiếm 3 sát thương; giữ nút đánh lúc Chiến Dũng cao thì ném hai kiếm bay
+  // đòn nhận tối đa 5 [ĐO notValorGetDamageLimit], mỗi đòn nhận cộng ceil(sát thương x 5) Chiến Dũng [ĐO getDamageValorConversionRate]. Chiến Dũng cao: tốc đánh x1.5,
+  // +2 sát thương, +20 chí mạng, hồi chiêu x0.8, chưởng thép 10 khi hai kiếm đang bay. Tốc chạy x1.2 trong 2 s sau khi gây sát thương, không thì x0.8 (độc lập
+  // Chiến Dũng) [ĐO set_IsSpeedUp]. Đòn thường: kiếm 8 (size 3.5) hai nhát rồi mũi thương 8 (size 3); Tước Sĩ Bay Nhảy (nút đặc biệt): bật lên (nhấc 0.1667 s,
+  // chạm đất 0.8 s, xong 1.2167 s), hạ cánh 13 (+2 khi Chiến Dũng cao) sát thương trong 2.25 ô + hai nhát kiếm ở hai tay, vùng 2 mỗi 1.5 s (trễ 0.25 s) + choáng 2 s trong
+  // 2 s, bán kính 4 ô (x(Chiến Dũng + 100)/100 khi Chiến Dũng cao), 3 lượt mưa 5 kiếm 3 sát thương; giữ nút đánh lúc Chiến Dũng cao thì ném hai kiếm bay
   // (missile 5: bay 0.5 s, treo 2 s, về 0.5 s; revolve 5: xoay quanh 6 ô, 2.5 s).
   const V_KEY = f => {
     const P = 'CostumePrince_0_skill_2', out = [{ key: KEY(P, (f.on ? 'idle2' : 'idle1').replace(/idle/, f.moving ? 'run' : 'idle')), t: f.animT }];
@@ -383,17 +447,26 @@
   S.manifest_king_violet = {
     start(G, p) {
       const c = VIO.cfg;
-      const f = enter(G, p, 'violet', { prefab: 'CostumePrince_0_skill_2', weapon: '_cp_blade', valor: c.initValorValue, on: false, protect: 0, swings: 0, combo: 0, atkT: 0, atkAge: 0, atkKey: 'L1.atk1', lastDmgT: G.t, swords: null, holdT: 0, body: 'img/body', keys: () => V_KEY(f) });
+      const f = enter(G, p, 'violet', { prefab: 'CostumePrince_0_skill_2', weapon: '_cp_blade', valor: c.initValorValue, on: false, protect: 0, swings: 0, combo: 0, atkT: 0, atkAge: 0, atkKey: 'L1.atk1', lastDmgT: G.t, lastHitT: -1e9, swords: null, holdT: 0, body: 'img/body', keys: () => V_KEY(f) });
+      setMul(p, 'moveMul', 'valor', c.notAttackMoveSpeedAdditive);
       G.props.push({ x: p.x, y: 1e9, t: 0, update(G2, q) { if (p._form !== f) q.gone = true; }, draw(ctx) { if (p._form === f) valorBar(ctx, p, f); } });
     },
     update(G, p, dt) { formTick(G, p, dt, violetTick); },
     press(G, p) { SK.endSkill(G, p); },
+    // Nút đặc biệt = DoMainSkill (Tước Sĩ Bay Nhảy).
+    special(G, p) {
+      const f = p._form;
+      if (f && f.kind === 'violet' && !f.act && f.cdT <= 0) startLeap(G, p, f);
+    },
     end(G, p) { const f = p._form; if (f && f.swords) f.swords.gone = true; leave(G, p); }
   };
+  // OnGetDamage: sát thương nhận vào bị chặn ở notValorGetDamageLimit khi chưa Chiến Dũng, rồi cộng ceil(sát thương x getDamageValorConversionRate) Chiến Dũng.
   function violetHurt(G, p, f, dmg) {
+    const c = VIO.cfg;
     if (f.act === 'leap') return 0;
     if (f.protect > 0) dmg = Math.min(dmg, Math.max(0, p.hp + p.armor - 1));
-    if (!f.on) dmg = Math.min(dmg, VIO.cfg.notValorGetDamageLimit);
+    if (!f.on) dmg = Math.min(dmg, c.notValorGetDamageLimit);
+    if (dmg > 0) f.valor = Math.min(c.initMaxValorValue, f.valor + Math.ceil(dmg * c.getDamageValorConversionRate));
     return dmg;
   }
   function violetTick(G, p, f, dt) {
@@ -409,9 +482,10 @@
     // Đòn chính (kiếm/thương/chưởng) đọc số từ đây.
     const d = p.weapons[0].def;
     d.dmg = c.initBladeDamage + (f.on ? c.valorStateDamageAdditive : 0); d.crit = c.initCritic + (f.on ? c.valorCriticAdditive : 0);
+    // Tốc chạy: x1.2 khi vừa gây sát thương (trong notCreateDamageTimeLimit), không thì x0.8; không phụ thuộc Chiến Dũng [ĐO set_IsSpeedUp].
+    setMul(p, 'moveMul', 'valor', G.t - f.lastHitT <= c.notCreateDamageTimeLimit ? c.attackMoveSpeedAdditive : c.notAttackMoveSpeedAdditive);
     // Bay Nhảy
     if (f.act === 'leap') leapTick(G, p, f, dt);
-    else if (f.cdT <= 0 && I.hit('swap')) startLeap(G, p, f);
     // Ném kiếm: giữ nút đánh khi Chiến Dũng cao.
     if (f.on && !f.swords && !f.act && I.down('attack')) {
       f.holdT += dt;
@@ -422,7 +496,6 @@
     const c = VIO.cfg;
     f.on = on;
     setMul(p, 'rateMul', 'valor', on ? c.valorAnimatorSpeed : 1);
-    setMul(p, 'moveMul', 'valor', on ? c.attackMoveSpeedAdditive : 1);
     if (on) {
       f.protect = c.turnValorHpProtectTime; f.swings = c.swingSwordBulletCreateTimesInValor;
       f.auraH = fx(G, 'c27_s3_skin0_valorEffect', p.x, p.y - 8, { follow: p, dy: -8, dur: 3600 });
@@ -437,7 +510,7 @@
   SK.on('enemyHit', (G, e, dmg) => {
     const p = G.player, f = p && p._form;
     if (!f || f.kind !== 'violet') return;
-    f.valor = Math.min(VIO.cfg.initMaxValorValue, f.valor + dmg * VIO.cfg.createDamageValorConversionRate); f.lastDmgT = G.t;
+    f.valor = Math.min(VIO.cfg.initMaxValorValue, f.valor + Math.ceil(dmg * VIO.cfg.createDamageValorConversionRate)); f.lastDmgT = f.lastHitT = G.t;   // OnCreateDamage: ceilf
   });
   SK.on('enemyKill', G => {
     const p = G.player, f = p && p._form;
@@ -463,18 +536,22 @@
     if (f.actT >= VIO.end) { actEnd(p); f.cdT = VIO.cfg.initMainSkillCd * (f.on ? VIO.cfg.valorStateCdAdditive : 1); f.lift = 0; }
   }
   function leapLand(G, p, f) {
-    const c = VIO.cfg, R = c.jazzLeapLandingRadius * T, x = p.x, y = p.y;
+    const c = VIO.cfg, R = c.jazzLeapLandingRadius * T * (f.on ? (f.valor + 100) / 100 : 1), x = p.x, y = p.y, bonus = f.on ? c.valorStateDamageAdditive : 0;
     fx(G, 'jazzLeapLanding', x, y - 2, { layer: 'ground', dur: c.jazzLeapLandingEffectDuration });
     G.shake = Math.max(G.shake, 4);
-    for (const e of inRadius(G, x, y - 2, R, R * 0.8)) { hit(G, p, e, c.landDamage, { repel: 4, fx: 'hit_purple', tag: 'leap', ang: Math.atan2(ec(e)[1] - y, ec(e)[0] - x) }); debuff(G, e, 'dizzy', { t: c.jazzLeapLandingDizzyDuration }); }
+    // ExplodeHammer landDamage: GetFinalDamage(landDamage) = landDamage (+2 khi Chiến Dũng cao), targetbuff buff_ele
+    for (const e of inRadius(G, x, y - 2, VIO.landR, VIO.landR * 0.8)) { hit(G, p, e, c.landDamage + bonus, { repel: 4, fx: 'hit_purple', tag: 'leap', ang: Math.atan2(ec(e)[1] - y, ec(e)[0] - x) }); debuff(G, e, 'ele'); }
+    // Hai lưỡi kiếm ở hai tay theo hướng nhìn (AnimaOnCreateBladeL/R tương đương CreateBlade x2) [ĐO AnimaOnMainSkillLand].
+    const crit = c.initCritic + (f.on ? c.valorCriticAdditive : 0), size = f.on ? c.valorBladeSize : c.initBladeSize;
+    for (let i = 0; i < 2; i++) arcHit(G, p, aimAng(p), size * T * VIO.reach, 65, c.initBladeDamage + bonus, { crit, tag: 'blade', hitFx: 'hit_purple' });
     f.swings = c.swingSwordBulletCreateTimesAfterMainSkill;
-    const z = { t: 0, tick: 0 };
+    const z = { t: 0, tick: VIO.zoneDelay };
     G.props.push({ x, y: -1e9, draw() {},
       update(G2, q, dt) {
         q.t += dt; z.tick -= dt;
         if (q.t >= c.jazzLeapLandingEffectDuration) { q.gone = true; return; }
         if (z.tick > 0) return;
-        z.tick = VIO.tickZone;
+        z.tick += VIO.zoneEvery;
         for (const e of inRadius(G2, x, y - 2, R, R * 0.8)) { hit(G2, p, e, c.jazzLeapLandingDamage, { noMul: true, crit: false, tag: 'zone' }); debuff(G2, e, 'dizzy', { t: c.jazzLeapLandingDizzyDuration }); }
       } });
   }

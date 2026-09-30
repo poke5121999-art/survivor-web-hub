@@ -27,7 +27,19 @@ module.exports = h => {
     await p.keyboard.down('KeyJ'); await h.sleep(1500); await p.keyboard.up('KeyJ');
     const t = await h.snap(p);
     const ch = h.hitsOf(t, 'mm');
-    h.check('shooter marksman: bắn tỉa nhảy mắt xích ×0.7 (6 → 4) [ĐO RifleDefaultAutoLockCount ' + cf.RifleDefaultAutoLockCount + ']', ch.length > 0 && ch.every(d => d <= 8) && ch.some(d => d === 4 || d === 8), 'đòn ' + ch.join(','));
+    h.check('shooter marksman: bắn tỉa nhảy mắt xích ceil(max(0.2, 1 − 0.2k) × gốc): 6 → 5, 4, 3 [ĐO RifleBaseAddition, RifleDefaultAutoLockCount ' + cf.RifleDefaultAutoLockCount + ']', ch.length > 0 && ch.some(d => d === 5) && ch.some(d => d === 4) && ch.some(d => d === 3), 'đòn ' + ch.join(','));
+  },
+  async 'shooter/0b'(p) {
+    // Súng săn: bội số 1 + bảng[ceil(cách − 2)], cách ≤ 3 ô thì ×2.5 (1 + 1.5) = ShotGunMaxMult [ĐO ShotGunBaseAddition.Init]. Đứng cách 20 px (1.25 ô).
+    const cf = await p.evaluate(() => SK_SKILLS86.heroes.shooter.ctrlFields);
+    await h.real(p, 'shooter', 'marksman_s_mastery');
+    await p.evaluate(() => { const pl = SK.G.player; pl.weapons[0] = SK.makeWeapon('cherry_blossom'); pl.weapons[1] = SK.makeWeapon('bad_pistol'); pl.cur = 0; });
+    await tough(p); await h.standNear(p, 20);
+    await h.pressK(p); await h.sleep(100);
+    await p.keyboard.down('KeyJ'); await h.sleep(1200); await p.keyboard.up('KeyJ');
+    const s = await h.snap(p);
+    const base = h.hitsOf(s), mm = h.hitsOf(s, 'mm');
+    h.check('shooter marksman: súng săn gần ×' + cf.ShotGunMaxMult + ' — thêm round(1.5 × đòn gốc) [ĐO bảng 1.5]', mm.some(d => base.some(b => d === Math.round(b * 1.5))), 'gốc ' + base.slice(0, 6).join(',') + ' · thêm ' + mm.slice(0, 8).join(','));
   },
   async 'shooter/1'(p) {
     const r = await h.real(p, 'shooter', 'deadeye_domain');
@@ -41,20 +53,26 @@ module.exports = h => {
     const a2 = await h.snap(p);
     const moved = await p.evaluate(() => { const c = SK.G.player._dd.cross, e = SK.G.enemies.filter(q => q.st !== 'dead' && q.st !== 'spawn').sort((u, v) => Math.hypot(u.x - c.x, u.y - c.y) - Math.hypot(v.x - c.x, v.y - c.y))[0]; return Math.hypot(e.x - c.x, e.y - c.y); });
     await p.keyboard.up('KeyD');
+    const crossIn = await p.evaluate(() => { const pl = SK.G.player, c = pl._dd.cross; return Math.hypot(c.x - pl.x, c.y - (pl.y - 6)) <= 35 * SK.PPU + 1; });
     await p.evaluate(() => { const G = SK.G, c = G.player._dd.cross, e = G.enemies.filter(q => q.st !== 'dead' && q.st !== 'spawn').sort((u, v) => Math.hypot(u.x - G.player.x, u.y - G.player.y) - Math.hypot(v.x - G.player.x, v.y - G.player.y))[0]; c.x = e.x; c.y = e.y - e.hb.off[1] * e.scale; });
     h.check('shooter deadeye: ẩn thân + đứng yên ' + r.dur + ' s [ĐO], cd ' + r.cd + ' [ĐO]', a.hidden && h.near(a.px, a2.px, 0.5) && moved > 20 && h.near(a.skillT, r.dur - 0.25, 0.4) && a.cd === r.cd, 'hidden ' + a.hidden + ' · người dời ' + Math.abs(a2.px - a.px).toFixed(1) + ' · tâm dời ' + moved.toFixed(0));
     await p.evaluate(() => { const G = SK.G, pl = G.player; G.bullets.push({ side: 'e', kind: 'orb', x: pl.x + 20, y: pl.y - 8, h: 8, vx: 0, vy: 0, ang: 0, dmg: 1, repel: 0, r: 3, life: 3, _probe: 1 }); });
     await p.keyboard.down('KeyJ'); await h.sleep(60); await p.keyboard.up('KeyJ'); await h.sleep(150);
     await h.seq(p, 'shooter_1', 6, 60);
     const b = await h.snap(p);
+    const slowed = await p.evaluate(() => SK.G.enemies.some(e => e.moveMul === 0.3 && e._sniperSlow > 0));
     const eaten = await p.evaluate(() => !SK.G.bullets.some(x => x._probe));
     const dd = h.hitsOf(b, 'dd');
     h.check('shooter deadeye: bắn phá ẩn thân, tâm bắn tỉa 20 [ĐO rifleDamageProfile], gió xoáy huỷ đạn địch', !b.hidden && dd.length >= 1 && (dd[0] === cf.rifleDamageProfile.damage || dd[0] === cf.rifleDamageProfile.damage * 2) && eaten, 'hidden ' + b.hidden + ' · đòn ' + dd.join(',') + ' · đạn địch ' + (eaten ? 'mất' : 'còn'));
+    // Phím Q là đổi súng, KHÔNG được đổi loại tâm; nút đặc biệt (L) mới đổi [ĐO ControlMapper → ShooterSkill2ChangeWeaponEvent].
+    h.check('shooter deadeye: tâm bắn tỉa làm chậm quái 70% trong 5 s [ĐO AimAreaDamage slowRatio −0.7, slowTime 5]; tâm kẹp trong skill2MaxMoveRange 35 [ĐO]', slowed && crossIn, 'chậm ' + slowed + ' · tâm trong 35 ô ' + crossIn);
     await p.keyboard.down('KeyQ'); await h.sleep(60); await p.keyboard.up('KeyQ'); await h.sleep(100);
+    const tq = await p.evaluate(() => SK.G.player._dd && SK.G.player._dd.type);
+    await p.keyboard.down('KeyL'); await h.sleep(60); await p.keyboard.up('KeyL'); await h.sleep(100);
     const ty = await p.evaluate(() => SK.G.player._dd && SK.G.player._dd.type);
     await p.evaluate(() => SK.endSkill(SK.G, SK.G.player));
     const e = await h.snap(p);
-    h.check('shooter deadeye: phím Q đổi loại tâm (bắn tỉa → súng săn), hết thì trả vũ khí + hồi chiêu', ty === 'shotgun' && e.weapon === a0.weapon && Math.abs(e.skillCd - r.cd) < 0.1, 'tâm ' + ty + ' · vũ khí ' + e.weapon + ' · cd ' + e.skillCd);
+    h.check('shooter deadeye: phím L (special) đổi loại tâm (bắn tỉa → súng săn), Q không đổi, hết thì trả vũ khí + hồi chiêu', tq === 'rifle' && ty === 'shotgun' && e.weapon === a0.weapon && Math.abs(e.skillCd - r.cd) < 0.1, 'tâm ' + ty + ' · vũ khí ' + e.weapon + ' · cd ' + e.skillCd);
   }
 };
 };

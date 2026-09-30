@@ -1,17 +1,21 @@
 // Kỹ năng Nữ Đầu Bếp (c41): mystic_stewpot. Đồ nghề chung ở SK.skillKit (js/skills.js).
-// Số lấy từ ctrlFields của SK_SKILLS86.heroes.ladychef (controller C42Controller trong dump.cs), prefab c42StewPot / c42StewPotWave /
-// c42DungeonStew / c42DreamStew / c42StewProjectile [ĐO]; logic nằm trong mã IL2CPP nên cách áp số là [ƯỚC LƯỢNG].
+// Số lấy từ ctrlFields của SK_SKILLS86.heroes.ladychef, MonoBehaviour c42StewPot / c42StewPotWave (ExplodeHammer) / c42IngredientUsing và mã C42Controller,
+// C42StewPot, C42DungeonGourmetRuntime (sk_method.py: OnChefHitEnemy, AddHeat, FindBounceTarget, GetDungeonStewProjectileDamage) [ĐO]. "max 3" trong config không
+// phải số lượt: skillType 0 không thuộc {4, 6, 9, 12} nên SkillInfo.hasMultiCount = false [ĐO SkillInfo.get_hasMultiCount].
 (function () {
   'use strict';
   const SK = window.SK, K = SK.skillKit, S = SK.SKILLS, T = SK.TILE, U = SK.PPU, W = SK.world;
-  const { alive, ec, nearest, inRadius, hit, fx, stopFx, cfg, CTRL, layer, hurtMods, timers } = K;
+  const { ec, inRadius, hit, fx, stopFx, CTRL, layer, hurtMods, timers } = K;
   const C = (k, d) => CTRL('ladychef', k, d);
   // [ĐO c41/skill 1: cd 10, args "4;5;5;10;1;1;1"; ctrl: stewPotSearchRadius 7, stewPotBounceCount 4, stewPotBounceDamage 12,
   // stewPotBounceMoveDuration 0.8, stewPotBounceArcHeight 4, dungeonStewPickupLifeTime 20, dungeonStewPickupPopDuration 0.5,
   // dungeonStewPickupPopHeight 2, dungeonStewDuration 5, dungeonStewProjectileCount 3 / SpreadAngle 30 / Speed 15 / Repel 2 /
   // DamageFactor 0.5 / FallbackDamage 1 / Duration 5 / Cooldown 0.25, dreamStewInvincibleDuration 5, maxHeat 100,
-  // heatGainOnEatIngredient 20, heatGainOnHitEnemy 5 (hồi 1 s); triggerRadius 0.45 / 0.5 ô]
-  const LC = { hitR: 1.5 * T, scatter: 3 * T, pick: 8 };   // bán kính nồi rơi trúng, tầm rải món hầm, tầm nhặt [ƯỚC LƯỢNG]
+  // heatGainOnHitEnemy 5 (hồi 1 s); triggerRadius 0.45 / 0.5 ô]. Độ Lửa chỉ tăng ở OnChefHitEnemy (đạn của bếp trưởng trúng quái, +5, hồi 1 s) và
+  // OnEatDungeonIngredient (+20); nguyên liệu chỉ do thiên phú Dungeon Gourmet tạo (C42DungeonGourmetRuntime.Ensure ← TalentBuff.InitBuffDungeonGourmet,
+  // rớt 15% khi quái chết) nên bản mặc định không có nguồn thứ hai. Nồi nảy tới quái NGẪU NHIÊN trong stewPotSearchRadius trừ quái vừa rơi
+  // [ĐO FindBounceTarget]; sóng xung kích c42StewPotWave (ExplodeHammer) gắn buff_ele [ĐO MB targetbuff]; sát thương viên = ceil(đòn × factor) [ĐO].
+  const LC = { hitR: 1.5 * T, scatter: 3 * T, pick: 8 };   // bán kính sóng nồi rơi, tầm rải món hầm (config 8 chưa rõ đơn vị), tầm nhặt [ƯỚC LƯỢNG]
   const st = p => p._lc || (p._lc = { heat: 0, tastyT: 0, dreamT: 0, hitCd: 0, projCd: 0, stews: [], pot: null });
 
   // ---------------------------------------------------------------- nồi hầm nảy giữa các quái
@@ -70,10 +74,10 @@
           // Rơi xuống: 12 sát thương quanh điểm rơi, sinh một món hầm, tìm quái kế tiếp trong stewPotSearchRadius.
           fx(G2, 'c42StewPotWave', pot.gx, pot.gy - 4, { layer: 'ground' });
           G2.shake = Math.max(G2.shake, 2);
-          for (const t of inRadius(G2, pot.gx, pot.gy - 6, LC.hitR)) hit(G2, p, t, C('stewPotBounceDamage', 12), { tag: 'skill', repel: 2, fx: 'hit_red', noMul: true });
+          for (const t of inRadius(G2, pot.gx, pot.gy - 6, LC.hitR)) { hit(G2, p, t, C('stewPotBounceDamage', 12), { tag: 'skill', repel: 2, fx: 'hit_red', noMul: true }); K.debuff(G2, t, 'ele'); }
           stewAt(G2, p, pot.gx, pot.gy, dream);
           if (--pot.left <= 0) { stopFx(pot.h); s.pot = null; q.gone = true; return; }
-          const nx = nearest(G2, pot.gx, pot.gy, search, { skip: t => t === pot.e }) || nearest(G2, pot.gx, pot.gy, search);
+          const near = inRadius(G2, pot.gx, pot.gy, search), pool = near.filter(t => t !== pot.e), nx = pool.length ? SK.pick(pool) : near[0];
           if (!nx) { stopFx(pot.h); s.pot = null; q.gone = true; return; }
           pot.e = nx; pot.x0 = pot.gx; pot.y0 = pot.gy; pot.to = ec(nx); pot.t = 0;
         }
@@ -87,17 +91,13 @@
     const s = st(p);
     if (s.hitCd <= 0) { s.hitCd = C('heatGainOnHitEnemyCooldown', 1); s.heat = Math.min(C('maxHeat', 100), s.heat + C('heatGainOnHitEnemy', 5)); }
   });
-  SK.on('pickup', (G, kind) => {
-    const p = G.player; if (!p || p.hero !== 'ladychef') return;
-    if (kind === 'hp_pot' || kind === 'en_pot') { const s = st(p); s.heat = Math.min(C('maxHeat', 100), s.heat + C('heatGainOnEatIngredient', 20)); }   // "ăn nguyên liệu" ≈ uống bình [ƯỚC LƯỢNG]
-  });
   SK.on('fire', (G, p, w) => {
     if (p.hero !== 'ladychef') return;
     const s = st(p);
     if (s.tastyT <= 0 || s.projCd > 0) return;
     s.projCd = C('dungeonStewProjectileCooldown', 0.25); s.volleys = (s.volleys || 0) + 1;
     const n = C('dungeonStewProjectileCount', 3), spread = SK.deg(C('dungeonStewProjectileSpreadAngle', 30)), d = w && w.def;
-    const dmg = Math.max(C('dungeonStewProjectileFallbackDamage', 1), Math.round(((d && d.dmg) || 0) * C('dungeonStewProjectileDamageFactor', 0.5)));
+    const dmg = Math.max(C('dungeonStewProjectileFallbackDamage', 1), Math.ceil(((d && d.dmg) || 0) * C('dungeonStewProjectileDamageFactor', 0.5)));
     for (let i = 0; i < n; i++) {
       const a = p.aim + (n > 1 ? (i / (n - 1) - 0.5) * spread : 0);
       K.shoot(G, p, p.x + Math.cos(p.aim) * 8, p.y - 7 + Math.sin(p.aim) * 8, a, { dmg, speed: C('dungeonStewProjectileSpeed', 15), sprite: 'c42StewProjectile_0', life: C('dungeonStewProjectileDuration', 5), repel: C('dungeonStewProjectileRepel', 2), hit: 'hit_red', critChance: p.crit });
@@ -117,6 +117,6 @@
     ctx.fillStyle = s.heat >= C('maxHeat', 100) ? '#ffb03a' : '#e2623a'; ctx.fillRect(x, y, Math.round(w * s.heat / C('maxHeat', 100)), 4);
     if (s.tastyT > 0) { ctx.fillStyle = '#ffd65a'; ctx.fillRect(x, y + 5, Math.round(w * s.tastyT / C('dungeonStewDuration', 5)), 2); }
   });
-  SK.on('runStart', G => { const p = G.player; if (p && p.hero === 'ladychef') { p._ch = null; p._lc = null; } });   // max 3 trong config không phải số lượt
+  SK.on('runStart', G => { const p = G.player; if (p && p.hero === 'ladychef') { p._lc = null; } });
   SK.on('stageEnter', G => { const p = G.player; if (p && p._lc) { for (const q of p._lc.stews) q.gone = true; p._lc.stews = []; p._lc.pot = null; } });
 })();

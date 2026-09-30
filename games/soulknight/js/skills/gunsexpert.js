@@ -1,11 +1,12 @@
 // Kỹ năng Chuyên Gia Súng Đạn (c40): call_to_arms. Đồ nghề chung ở SK.skillKit (js/skills.js).
-// Số lấy từ ctrlFields của SK_SKILLS86.heroes.gunsexpert (controller C41Controller trong dump.cs), prefab gunsexper_mercenary
-// (RoleAttribute, C41Mercenary, PhantomSplitProcessor damageFactor 0.5) và clip gunsexper_mercenary/{show,run,gunsexper_show_end,
-// gunsexper_fly} [ĐO]; logic nằm trong mã IL2CPP nên cách áp số là [ƯỚC LƯỢNG].
+// Số lấy từ ctrlFields của SK_SKILLS86.heroes.gunsexpert, prefab gunsexper_mercenary (RoleAttribute, C41Mercenary, PhantomSplitProcessor
+// damageFactor 0.5), gunsexper_0_shock_hammer (ExplodeHammer) và mã C41Controller / C41Mercenary (sk_method.py: SpawnSupportUnitsRoutine,
+// HandleRoleAttack, BuildLocalWeaponCache, SpawnShockwave) [ĐO]. "max 3" trong config không phải số lượt: skillType 1 không thuộc {4, 6, 9, 12}
+// nên SkillInfo.hasMultiCount = false [ĐO SkillInfo.get_hasMultiCount].
 (function () {
   'use strict';
   const SK = window.SK, K = SK.skillKit, S = SK.SKILLS, U = SK.PPU, DS = SK.DS;
-  const { alive, ec, nearest, inRadius, hit, fx, cfg, CTRL, layer, addAlly, hpBar, timers } = K;
+  const { ec, nearest, inRadius, hit, fx, CTRL, layer, addAlly, hpBar, timers } = K;
   const C = (k, d) => CTRL('gunsexpert', k, d);
   // [ĐO ctrl: supportCount 3, supportHp 20, supportDuration 5, spawnRadius 5, spawnMinRadius 2, orbitRadius 2.6, orbitAngleSpeed 180,
   // scatterSpeed 12, scatterDuration 0.5, supportAttackInterval 1.5 (Ex 1), weaponDamageFactor 0.5, supportAttackRange 12,
@@ -13,7 +14,9 @@
   // extraAttackWeaponAppearTime 0.2, extraAttackWeaponHideTime 0.25, extraAttackWeaponCount 3, extraWeaponPosList; clip show 0.29 s
   // rơi từ 142.56 px] Gọi 3 tùy tùng rơi từ trời (sóng xung kích 8 sát thương), quanh người 5 s bắn mỗi 1.5 s bằng vũ khí ngẫu nhiên
   // (50% sát thương), rồi bay đi; sau đó 3 vũ khí của chúng bám bên người 3 s, mỗi lần người bắn (cách ≥ 0.5 s) chúng bắn theo.
-  const GX = { shockR: 48, drop: 0.29, hand: [0, 8] };   // bán kính sóng xung kích [ƯỚC LƯỢNG]
+  // Sóng xung kích ExplodeHammer damage 6 (bị supportDamage config 8 thay), repel 3, gắn buff_ele lên quái trúng [ĐO MB gunsexper_0_shock_hammer]; tùy tùng rơi theo
+  // lô supportDropBatchCount 5 cách supportDropBatchInterval 0.2 s [ĐO SpawnSupportUnitsRoutine] nên 3 tùy tùng rơi cùng lúc.
+  const GX = { shockR: 48, drop: 0.29, hand: [0, 8] };   // shockR: bán kính sóng xung kích [ƯỚC LƯỢNG: collider prefab chưa bóc]; drop 0.29 s clip show [ĐO]
   const RANGED = ['single', 'fan', 'spray', 'burst'];
   const pool = p => {
     const own = p.weapons.map(w => w && w.id);
@@ -60,7 +63,7 @@
         for (let k = 0; k < 8 && SK.world.solidAt(G.map, x, y); k++) { x += (p.x - x) * 0.3; y += (p.y - y) * 0.3; }
         const w = SK.makeWeapon(SK.pick(ids)), hp = C('supportHp', 20);
         const a = addAlly(G, {
-          merc: true, x, y, hp, hpMax: hp, face: 1, aim: 0, landT: -i * 0.2, cd: C('supportAttackInterval', 1.5), orbit: (i / n) * Math.PI * 2, w, box: [12.8, 16, 8], leaving: false, moving: false, landed: false,
+          merc: true, x, y, hp, hpMax: hp, face: 1, aim: 0, landT: -Math.floor(i / C('supportDropBatchCount', 5)) * C('supportDropBatchInterval', 0.2), cd: C('supportAttackInterval', 1.5), orbit: (i / n) * Math.PI * 2, w, box: [12.8, 16, 8], leaving: false, moving: false, landed: false,
           onZero(G2, q) { q.gone = true; fx(G2, 'hit_white', q.x, q.y - 8, {}); },
           update(G2, q, dt) {
             if (q.leaving) { q.t2 = (q.t2 || 0) + dt; q.x += Math.cos(q.fly) * C('scatterSpeed', 12) * U * dt; q.y += Math.sin(q.fly) * C('scatterSpeed', 12) * U * dt; if (q.t2 >= C('scatterDuration', 0.5)) q.gone = true; return; }
@@ -71,7 +74,7 @@
             if (!q.landed) {   // vừa hạ cánh: sóng xung kích quanh chân
               q.landed = true;
               fx(G2, 'gunsexper_0_shock_hammer', q.x, q.y, { layer: 'ground' });
-              for (const e of inRadius(G2, q.x, q.y - 6, GX.shockR * C('shockwaveSize', 1.2) / 1.2)) hit(G2, p, e, C('shockwaveDamage', 8), { tag: 'skill', repel: 3, fx: 'hit_orange', noMul: true });
+              for (const e of inRadius(G2, q.x, q.y - 6, GX.shockR * C('shockwaveSize', 1.2) / 1.2)) { hit(G2, p, e, C('shockwaveDamage', 8), { tag: 'skill', repel: 3, fx: 'hit_orange', noMul: true }); K.debuff(G2, e, 'ele'); }
               G2.shake = Math.max(G2.shake, 2);
             }
             // Bay vòng quanh người bán kính orbitRadius, 180°/s.
@@ -141,5 +144,4 @@
     s.ws.forEach((w, i) => { const o = pos[i] || { x: 0, y: 0 }; drawWeapon(ctx, w, p.x + o.x * U * f, p.y - 8 - o.y * U, p.aim); });
     ctx.restore();
   };
-  SK.on('runStart', G => { const p = G.player; if (p && p.hero === 'gunsexpert') p._ch = null; });   // max 3 trong config không phải số lượt
 })();

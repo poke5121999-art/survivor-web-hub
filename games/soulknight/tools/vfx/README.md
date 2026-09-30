@@ -87,8 +87,11 @@ giữ bản gặp trước theo thứ tự bundle ở trên. Hero skill: phần 
 | `sr` | SpriteRenderer `{f, L, o?, c?[r,g,b,a], fx?, fy?, b?:'add'|'mul'|'screen', tint?, off?}` — `tint` = màu vật liệu (dưới) |
 | `sa` | ChillyRoom `SpriteAnimation` `{f:[khung], fps, mode: 0 lặp / 1 một lần / 2 qua lại, hide?, rnd?, off?}` |
 | `ps` | ParticleSystem (dưới) |
-| `tr` | TrailRenderer `{time, minD, w:{c,m}, g, tex, blend?, tint?, L, o?}` |
-| `ln` | LineRenderer `{pts:[[x,y]], world, loop, w, g, tex, L, o?}` |
+| `tr` | TrailRenderer `{time, minD, w:{c,m}, g, tex, blend?, tint?, tm?, st?, L, o?, noEmit?}` |
+| `ln` | LineRenderer `{pts:[[x,y]], world, loop, w, g, tex, blend?, tint?, tm?, st?, L, o?}` |
+
+`tm` = `LineParameters.textureMode` (vắng 0 Stretch, 1 Tile, 2 DistributePerSegment, 3 RepeatPerSegment, 4 Static);
+`st` = `[tileX, tileY, offX, offY]` của `_MainTex` trong vật liệu (vắng = 1, 1, 0, 0).
 
 `ps` (đơn vị Unity, giây, radian — y như serialize của Unity):
 
@@ -102,7 +105,7 @@ giữ bản gặp trước theo thứ tự bundle ở trên. Hero skill: phần 
 | `limit:{mag | x,y, damp, drag?}` | limitVelocityOverLifetime |
 | `force:{x,y,z, world?}` | forceOverLifetime |
 | `col` / `sol` `solY?` / `rol` | colorOverLifetime / sizeOverLifetime / rotationOverLifetime |
-| `uv:{tx, ty, fot, sf?, cyc?, anim?, row?, rowMode?, time?, fps?, mode?, spr?}` | textureSheetAnimation (lưới hoặc danh sách sprite) |
+| `uv:{tx, ty, fot, sf?, cyc?, anim?, row?, rowMode?, time?, fps?, mode?, spr?, rw?}` | textureSheetAnimation (lưới hoặc danh sách sprite; `rw` = bề rộng `m_Rect` từng sprite ở 16 px/đv, chỉ xuất khi khác bề rộng khung atlas vì ảnh bóc là `textureRect` cắt sát — 384 hệ) |
 | `tex blend? tint? L o? rm? lenScale velScale maxSize? flip?` | renderer: texture từ `_MainTex` (không gán → `#white`, ô vuông đặc; texture dựng sẵn ngoài bundle → `#Default-Particle`); `blend` theo trạng thái `Blend` của shader (dưới); `tint` = `_TintColor`×2 **không kẹp** (Particles cổ) hoặc `_Color`; `rm` = renderMode (1 kéo dài) |
 
 Vật liệu [ĐO]: `blend` đọc `m_ParsedForm.m_SubShaders[0]` → pass thường đầu tiên (`m_Type` 0, bỏ GrabPass) →
@@ -204,10 +207,40 @@ trên quái hiếm (< 1 %) khi chơi súng đầu. Đã sửa, xếp theo lần 
    `arcaneknight_0_skill1_add_armor_fx`). 8. Nút tắt sẵn của prefab đạn (`cat: trail`, 83 hiệu ứng) không còn bị bật
    hết (`warliege_roll` vẽ nhánh tuyết thành ô trắng).
 
+### Vòng 2 (2026-09-30) [ĐO lượt chơi 12 s × 17 lượt `--give`: 2 282 lần sinh]
+
+Gap report xếp lại theo lần sinh: chế độ Sprite 569 hiệu ứng / 73 lần sinh > texture vệt 365 / 19 > hạt Mesh 98 / 5 >
+texture LineRenderer 72 / 1 > noise 92 / 0, collision 71 / 0.
+
+9. **Cỡ hạt chế độ Sprite = bề rộng rect của sprite**, cao theo tỉ lệ ảnh, hạt đặt ở **pivot**. Đo trên 610 hệ pixel
+   art (cỡ trung bình × thước, so với kích thước gốc của sprite): luật "rộng = cỡ" lệch trung vị |log2| 0,47 (113 hệ
+   sprite không vuông), "cạnh dài = cỡ" 0,81, "cao = cỡ" 1,19, "kích thước gốc × cỡ" 1,00. Ca rõ nhất:
+   `bullet_weapon_362_lightning/VerticleStrike` sprite 16×64 px cỡ 1 → đúng 16 px rộng (luật cạnh dài: tia sét 4 px);
+   `lancer_spear/lightning` cỡ 3D (1.5, 1) → 24 × 64 px, cao đúng 64 px gốc; `rain_full_screen` 1×8 px cỡ 0.04 (luật
+   cạnh dài: 0,08 px, không thấy). `fighter_0_angry_effect` (cỡ 4, sprite 128 px HD) → 64 px, hợp lý.
+10. **TrailRenderer / LineRenderer là dải có texture** (`drawStrip`): tứ giác mỗi đoạn nối pháp tuyến trung bình ở đỉnh,
+    chia hai tam giác affine + clip; bề rộng / màu theo phần quãng đường từ đầu; `textureMode` + tiling `_MainTex`.
+    Đầu vệt u = 0 [ĐO: `#redtrail`, `#bluetrail`, `#yellowtrail`, `#lowres_modular_trail` sáng ở cột 0 rồi tối dần tới
+    0, gradient alpha của chúng hằng 1 — texture mang phần mờ]. Nét round-cap cũ đậm lên ở mỗi khớp khi vệt trong mờ.
+11. **Vệt của vật chậm**: runtime cũ dời đỉnh cuối theo vật nên vật đi < `minVertexDistance` mỗi khung chỉ có 1 đỉnh,
+    vệt không bao giờ hiện. Nay đỉnh cố định + đỉnh đầu `tr.head` luôn ở vị trí hiện tại (như Unity).
+12. **`Fire` (vòng lửa trứng rồng)**: shader `Fair/Unlit/WarlockRing` là SrcAlpha OneMinusSrcAlpha [ĐO rtBlend0] nhưng
+    sprite `warlock_0_skill_0_effect_3` đục hoàn toàn (1 681/1 681 điểm ảnh alpha 255, 1 262 đen tuyền) → alpha do shader
+    tính từ mặt nạ. Vẽ alpha thì ra ô đen (ảnh chụp riêng `Fire`: ô đen 41 px × thước); lever nay xuất `b: 'add'`, `tint`
+    = `_Color` [ƯỚC LƯỢNG cách tính alpha]. `additive()` trong `js/bosses.js` đúng về kết quả (nền đen phải biến mất) và
+    giờ thành thừa (chỉ đổi khi `!sr.b`).
+
+Không phải lỗi: **`ice_explode` chớp đen 0,0667–0,1333 s** là thật. Clip `captain_ice_explode` đặt `m_Color.rgb`
+(crc32 `m_Color.r` = 2526845255, đúng binding) của SpriteRenderer `Sprites-Default` về 0 bằng khoá bậc thang
+(`[0,1] [0.0667,0] [0.1333,1]`); cùng đường cong ở 40 clip nổ `explode_big` (`explode_s`, `explode_ice`…) — khung
+"impact" đen của vụ nổ lớn.
+
+Không làm (gap report nói không đáng): hạt Mesh (5/2 282 lần sinh: `arcaneknight_0_skill_0_beam|unleash_fx`,
+`skill_0_wave2`), noise và collision (0 lần sinh).
+
 Còn lệch (chưa sửa): thân đạn `W:*` (lever `sk-weapons86`, không ở đây) thiếu tint ×2 của glow `texiao_01`; cỡ hạt
-chế độ Sprite — runtime vẽ sprite vuông `size × size`, bỏ tỉ lệ/pivot của sprite, Unity dùng lưới sprite (chưa đo được
-hệ số: `fighter_0_angry_effect` size 4 với sprite 128 px mà nhân kích thước gốc thì ra 512 px, vô lý); texture của
-TrailRenderer/LineRenderer (325 + 72 hiệu ứng) vẽ nét màu phẳng; `tint > 1` chỉ kẹp màu, texel tối không sáng thêm
+chế độ Sprite khi thước nút không đều (`VerticleStrike` Local (2, 4)): runtime lấy trung bình nhân; renderMode kéo dài
+với sprite vẫn vẽ ô giữa tâm; màu vệt phẳng trong mỗi đoạn (Unity nội suy theo đỉnh); `tint > 1` chỉ kẹp màu, texel tối không sáng thêm
 (109 hiệu ứng); `limitVelocity.dampen` áp theo khung hình, Unity độc lập khung hình [ƯỚC LƯỢNG]; `hit_red` "to quá"
 (báo từ bên kỹ năng): đo khớp prefab (sprite 16×16 px PPU 16 = 1 đv, hạt 0.4 đv, thước gốc 1) — nếu vẫn lệch thì ở
 phía gọi (`RGBulletTrigger.fixedHitScale`: tia trúng nhân thước đạn).
@@ -218,9 +251,9 @@ Mô phỏng: main (start*, gravity, delay, prewarm, simulationSpace local/world,
 quãng đường, bursts có chu kỳ + xác suất), shape (sphere, hemisphere, cone, cone volume, box, circle, edge, donut,
 rectangle; radiusThickness, arc, randomDirection, sphericalDirection, vị trí/xoay/thước shape), velocity (+radial,
 orbital Z, speedModifier), limitVelocity (dampen, drag), force, color/size/rotation over lifetime, textureSheet (lưới,
-một hàng, danh sách sprite, theo fps), renderer billboard + kéo dài theo vận tốc, blend cộng / nhân. SpriteRenderer
+một hàng, danh sách sprite, theo fps), renderer billboard (chế độ Sprite: rộng theo rect, pivot) + kéo dài theo vận tốc, blend cộng / nhân. SpriteRenderer
 (màu, lật, blend), SpriteAnimation, clip Animator (Transform, bật tắt, màu, sprite; chuỗi trạng thái), TrailRenderer
-và LineRenderer (vẽ nét màu, bỏ texture), `RGAutoDestory`, `ObjectRotate`/`AutoRotate` quanh Z.
+và LineRenderer (dải texture, widthCurve, colorGradient, textureMode, tiling; không có cap/corner vertices), `RGAutoDestory`, `ObjectRotate`/`AutoRotate` quanh Z.
 
 Trong 2 599 hiệu ứng, **700** có ít nhất một thứ ảnh hưởng hình mà runtime bỏ qua (157 loại). Nhiều nhất:
 
@@ -278,6 +311,13 @@ Danh sách đủ: `stats.unsupportedVisual` trong `data/sk-vfx.js`; logic chơi 
   (`Particles/Standard Unlit`: One Zero) — lấy pass `m_Type 0`, không thì 326 hệ cộng bị đổi sai sang alpha.
 - `_TintColor` ×2 phải để runtime kẹp **sau** khi nhân: kẹp ở lever (`min(1, 2c)`) thì mọi glow additive tối một nửa.
 - Chế độ Sprite của texture sheet chỉ có một sprite thì `nFrames = 1`: đừng rơi về texture vật liệu.
+- Canvas `drawImage` với ô nguồn lẻ điểm ảnh (`sx`, `sw` không nguyên, smoothing tắt): Chrome làm tròn ô nguồn → khe tối
+  giữa các miếng texture của vệt. Vẽ cả khung dưới clip tam giác thay vì cắt ô nguồn.
+- Hình bình hành một affine cho mỗi đoạn vệt lệch mép ở khớp gấp (răng cưa sọc). Tứ giác đúng = hai tam giác.
+- Khi so "cũ/mới" bằng cách nạp `vfx.js` cũ vào trang xem: gọi `SK.vfx.load('../../')` — base rỗng thì trang atlas 404,
+  sprite không vẽ và tưởng nhầm bản cũ không hiện gì.
+- Ảnh bóc của sprite là `textureRect` (cắt sát khi sprite nằm trong atlas đóng gói chặt), không phải `m_Rect`: cỡ hạt
+  chế độ Sprite phải lấy bề rộng `m_Rect` (`uv.rw`).
 
 ## Trang xem
 
@@ -292,10 +332,13 @@ trạng thái Animator, "được tham chiếu bởi", phim 1/30 s và mọi khu
 node test/soulknight-vfx.js   # cần python -m http.server 8811 ở gốc repo
 ```
 
-23 mục: atlas nạp đủ, lưới vẽ ra điểm ảnh, không lỗi trang; `hit_yellow` phát hạt ngay và tắt theo tuổi thọ +
+28 mục: atlas nạp đủ, lưới vẽ ra điểm ảnh, không lỗi trang; `hit_yellow` phát hạt ngay và tắt theo tuổi thọ +
 `RGAutoDestory`; toàn bộ 2 599 hiệu ứng chạy không ném lỗi, tự tắt, hệ có rate/bursts đều phát, bộ đếm hạt về 0;
 hiệu năng 60 vụ nổ; trong game (nạp script bằng `addScriptTag` khi `index.html` chưa có thẻ) hiệu ứng sinh, cập
 nhật qua vòng lặp thật và tắt hết. Độ trung thực (số kỳ vọng lấy từ prefab): hạt `hit_orange` là ô đúng màu
 rgb(255,227,75); scalingMode Shape; glow `explode_s` ×2 (đỏ ×2, lam ×4); vòng đời `buff_ice` (2.75 s, `bullet_84`,
 2 s, mờ 1 s); `explode_energy3` vẽ tại điểm nổ; `fighter_0_angry_effect` cộng không có ô tối; armor một sprite không
-trắng; `warliege_roll` nhánh tắt không vẽ. Ảnh: `%TEMP%/soulknight-vfx/`.
+trắng; `warliege_roll` nhánh tắt không vẽ. Vòng 2 (28 mục): hạt Sprite `bullet_follow_ice_skill_s12` khung
+[40, 56] × [31.54, 49.83] (16 × 18.29 px, pivot 21.6/24); `#redtrail` đầu vệt sáng ≥ 2,5 × chỗ cách 45 px; vệt vật
+chậm dài 33 ± 2 px; `Fire` cộng, tint `[1, 0.6815, 0.3451, 1]`, 0 điểm ảnh tối; `ice_explode` đen đúng 0.0667–0.1333 s.
+Kiểm "tự tắt" cộng thêm `tr.time` (vệt còn tới lúc đỉnh cuối hết hạn). Ảnh: `%TEMP%/soulknight-vfx/`.

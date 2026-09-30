@@ -14,12 +14,15 @@
     shadowToMoonRatio: 10, moonToShadowRatio: 6, orbitCapacityPerRing: 6, orbitFirstRadius: 1, orbitRingSpacing: 0.8, orbitBaseRotateSpeed: 300
   };
   const MS = () => Object.assign({}, DEF, K.CTRL('priest', 'skill3MoonShadowConfig', {}));
-  const SPEED = 10 * U, TURN = 12, RANGE = 12 * U;   // tốc cầu [ĐO BulletShadowBall.speed 10], tầm dò 12 ô [WIKI]; tốc bẻ lái [ƯỚC LƯỢNG]
-  const VULN = { t: 3, k: 0.5 };                      // Dễ Tổn Thương: buff_time 3 [ĐO BuffEasilyInjured], +50% sát thương nhận [WIKI]
-  const ALLY_HEAL = 4, MOUNT_HEAL = 1, STAGGER = 0.12;   // hồi cho thú/đồng đội, mỗi phát cách nhau [WIKI / ƯỚC LƯỢNG]
+  // Tốc cầu 10 [ĐO BulletShadowBall.speed]; chọn mục tiêu ban đầu trong CircleCastAll bán kính 12 quanh người [ĐO SelectPriestSkill3ShadowTarget];
+  // bẻ lái tối đa 30° mỗi bước FixedUpdate 0,02 s [ĐO BulletShadowBall.Attack → BulletMoverFollow.Setup angleSpeed 30, RotateDirectionTo kẹp ±angleSpeed];
+  // đổi mục tiêu khi mất: tầm 30 ô với cầu bóng, 90 ô với cầu trăng [ĐO cùng Setup, targetRange].
+  const SPEED = 10 * U, TURN = 30 * Math.PI / 180 / 0.02, RANGE = 12 * U, RETARGET = { shadow: 30 * U, moon: 90 * U };
+  const VULN = { t: 3, k: 0.5 };   // buff_time 3 [ĐO BuffEasilyInjured]; ×1,5 sát thương đạn người chơi lên quái mang buff [ĐO OnPlayerBulletPreHitEnemyEvent: AttributeModifier 1.5]
+  const KILL_ENERGY = 2;           // cầu bóng trúng cộng 1, chí mạng 3, hạ quái cộng thêm 2 [ĐO OnPriestSkill3ShadowHit]
 
   const mine = p => p.hero === 'priest' && p.h.skill && p.h.skill.id === 'moon_shadow';
-  const state = p => p._ms || (p._ms = { shadow: true, orbs: [], gen: 0, sh: 0, mo: 0, spin: 0, fireT: 0 });   // hình thái đầu: Bóng Đen [ƯỚC LƯỢNG]
+  const state = p => p._ms || (p._ms = { shadow: true, orbs: [], gen: 0, sh: 0, mo: 0, spin: 0 });   // hình thái đầu: Bóng Đen [ĐO EnsurePriestSkill3Initialized]
   const held = s => s.orbs.filter(o => o.st === 'orbit');
 
   function spawnOrb(G, p, s, kind, batch, C) {
@@ -30,11 +33,13 @@
   }
   function removeOrb(o) { o.gone = true; stopFx(o.h); o.dead = true; }
 
+  // Nguy cấp = (tối đa - max(hiện tại,1)) / (tối đa - 1) trên máu + giáp [ĐO GetPriestSkill3Danger, Get*Survival].
+  const danger = (cur, max) => max < 2 ? 0 : Math.max(0, Math.min(1, (max - Math.max(cur, 1)) / (max - 1)));
   // Cầu hồi máu: người chơi hồi máu trước rồi tới giáp; thú/đồng đội theo a.hp. Trả nguy cấp của mục tiêu hồi (0 = không ai cần).
   function healTarget(G, p) {
     let best = null, bd = 0;
-    if (p.hp < p.hpMax || p.armor < p.armorMax) { bd = p.hp < p.hpMax ? 1 - p.hp / p.hpMax : 0.01; best = p; }
-    for (const a of allies(G)) if (!a.gone && a.hp != null && a.hp < a.hpMax) { const d = 1 - a.hp / a.hpMax; if (d > bd) { bd = d; best = a; } }
+    if (p.hp < p.hpMax || p.armor < p.armorMax) { bd = danger(p.hp + p.armor, p.hpMax + p.armorMax); best = p; }
+    for (const a of allies(G)) if (!a.gone && a.hp != null && a.hp < a.hpMax) { const d = danger(a.hp, a.hpMax); if (best == null || d > bd) { bd = d; best = a; } }
     return best ? { t: best, danger: bd } : null;
   }
   function heal(G, p, s, o, C) {
@@ -42,32 +47,31 @@
     if (t === p) {
       if (p.hp < p.hpMax) K.heal(G, p, C.moonHealValue); else if (p.armor < p.armorMax) p.armor = Math.min(p.armorMax, p.armor + C.moonHealValue);
     } else if (!t.gone) {
-      t.hp = Math.min(t.hpMax, t.hp + (t.mount ? MOUNT_HEAL : ALLY_HEAL));
+      t.hp = Math.min(t.hpMax, t.hp + C.moonHealValue);   // mọi mục tiêu hồi moonHealValue [ĐO ApplyPriestSkill3MoonHeal]
       if (t.down && t.hp >= t.hpMax) t.down = false;
     }
     fx(G, 'hit_white', t.x, (t === p ? p.y - 8 : t.y - 6), {});
-    s.mo += 1 + (o.danger >= C.moonDangerThreshold ? 1 : 0);   // mỗi cầu hồi +1 năng lượng, +1 nữa nếu mục tiêu đang nguy [ĐO moonDangerThreshold]
+    s.mo += 1 + (o.danger >= C.moonDangerThreshold ? 1 : 0);   // mỗi cầu hồi +1 năng lượng, +2 nếu mục tiêu đang nguy [ĐO OnPriestSkill3MoonHealResolved]
     removeOrb(o);
   }
   function strike(G, p, s, o, e, C) {
     const crit = SK.rand() * 100 < C.ballCritic;
-    const dmg = C.shadowDamage * (o.kind === 'moon' ? C.moonAttackDamageFactor : 1);
+    const dmg = C.shadowDamage * (o.kind === 'moon' ? C.moonAttackDamageFactor : 1) * (e._vuln > 0 ? 1 + VULN.k : 1);   // cầu cũng là đạn người chơi nên chịu Dễ Tổn Thương
     hit(G, p, e, dmg, { crit, repel: 1, fx: o.kind === 'shadow' ? 'hit_black' : 'hit_white', tag: 'skill' });
     if (o.kind === 'shadow') {
-      s.sh += crit ? 3 : 1;   // mỗi cầu trúng +1 năng lượng bóng, chí mạng +3 [WIKI]
+      s.sh += (crit ? 3 : 1) + (alive(e) ? 0 : KILL_ENERGY);
       if (!(e._vuln > 0)) e._vfx = fx(G, 'buff_easily_injured', e.x, e.y, { follow: e, dy: -(e.hb.off[1] + e.hb.size[1] / 2) * e.scale - 4, dur: VULN.t });
       e._vuln = VULN.t;
     }
     removeOrb(o);
   }
-  function pickEnemy(G, p, x, y) { return K.nearest(G, x, y, RANGE, {}); }   // tầm nhìn không cần thông: cầu xuyên tường [WIKI]
+  function pickEnemy(G, p, x, y, range) { return K.nearest(G, x, y, range || RANGE, {}); }   // không cần thông tầm nhìn: cầu xuyên tường [ĐO ignoreWall]
 
   function tick(G, p, dt) {
     if (!mine(p)) { if (p._ms) { p._ms.orbs.forEach(removeOrb); p._ms = null; } return; }
     if (p.st === 'dead') return;
     const s = state(p), C = MS();
     s.spin += C.orbitBaseRotateSpeed * Math.PI / 180 * dt;
-    s.fireT -= dt;
     s.orbs = s.orbs.filter(o => !o.dead);
     // Sinh cầu tự nhiên tới hạn lưu trữ.
     const lim = s.shadow ? C.shadowStorageLimit : C.moonStorageLimit, kind = s.shadow ? 'shadow' : 'moon';
@@ -93,7 +97,7 @@
         let e = o.tgt;
         if (!e || !alive(e)) {
           if (o.tries++ >= C.shadowRetargetLimit) { removeOrb(o); continue; }
-          e = o.tgt = pickEnemy(G, p, o.x, o.y);
+          e = o.tgt = pickEnemy(G, p, o.x, o.y, RETARGET[o.kind]);
           if (!e) { removeOrb(o); continue; }
         }
         const [cx, cy] = ec(e), want = Math.atan2(cy - o.y, cx - o.x);
@@ -118,10 +122,9 @@
         }
       }
     }
-    // Phóng / hồi máu: cầu đã bung xong; đợt đổi hình thái bắn cùng lúc, cầu tự sinh cách nhau STAGGER giây.
+    // Phóng / hồi máu: cầu bung xong (unfoldDelay, đợt đổi hình thái thêm switchVolleyDelay) thì đi ngay [ĐO CreateShadowBall + SchedulePriestSkill3Release].
     for (const o of hs) {
       if (o.t < o.ready || o.dead) continue;
-      if (!o.batch && s.fireT > 0) break;
       if (o.kind === 'shadow') {
         const e = pickEnemy(G, p, p.x, p.y - 8);
         if (!e) continue;
@@ -129,13 +132,12 @@
       } else {
         const h = healTarget(G, p);
         if (h) { Object.assign(o, { st: 'heal', tgt: h.t, danger: h.danger, t: 0, ox: o.x, oy: o.y, oa: Math.atan2(o.y - (p.y - 8), o.x - p.x) }); }
-        else if (hs.length > C.moonHealReserveCount) {   // luôn giữ 3 cầu dự trữ để hồi máu, dư mới đánh [WIKI]
+        else if (hs.length > C.moonHealReserveCount) {   // luôn giữ moonHealReserveCount cầu dự trữ để hồi máu, dư mới đánh [ĐO TryAssignPriestSkill3Target]
           const e = pickEnemy(G, p, p.x, p.y - 8);
           if (!e) continue;
           Object.assign(o, { st: 'fly', tgt: e, t: 0, ang: Math.atan2(ec(e)[1] - o.y, ec(e)[0] - o.x) });
         } else continue;
       }
-      s.fireT = STAGGER;
     }
     // Dễ Tổn Thương hết hạn.
     for (const e of G.enemies) if (e._vuln > 0) { e._vuln -= dt; if (e._vuln <= 0) stopFx(e._vfx); }
@@ -143,6 +145,7 @@
   timers.moon_shadow = tick;
 
   S.moon_shadow = {
+    CONST: { SPEED, TURN, RANGE, RETARGET, VULN, KILL_ENERGY },
     start(G, p) {
       layer(G);
       const s = state(p), C = MS();
@@ -158,9 +161,9 @@
   };
   SK.on('stageEnter', () => { const p = SK.G && SK.G.player; if (p && p._ms) { p._ms.orbs.forEach(removeOrb); p._ms = null; } });
 
-  // Dễ Tổn Thương: nhận thêm 50% mọi sát thương (đòn phụ không tự cộng dồn).
+  // Dễ Tổn Thương: đạn người chơi trúng quái nhận thêm 50%, đòn không phải đạn (lửa, độc...) thì không [ĐO OnPlayerBulletPreHitEnemyEvent].
   SK.on('enemyHit', (G, e, dmg) => {
-    if (!(e._vuln > 0) || G._vulnHit) return;
+    if (!(e._vuln > 0) || G._vulnHit || !G._hitBullet) return;
     G._vulnHit = true;
     SK.hurtEnemy(G, e, Math.max(1, Math.round(dmg * VULN.k)), false, 0, 0);
     G._vulnHit = false;

@@ -1269,12 +1269,6 @@
     bossProp(G, e, null, x, y, { rig: B.rig, state: 'boom_ide', hp: bb.hp || 3, life: bb.boom_time || 2, hb: { size: [14, 14], off: [0, 7] },
       onEnd(G2, pr) { explode(G2, pr.x, pr.y - 6, goRef(bb.explode) || 'explode_hit_player', 'explode_small', bb.damage || 8); } });
   }
-  // Vòng lửa trong sk-vfx.js thiếu cờ blend 'add' (nền đen của warlock_0_skill_0_effect_3 hiện thành ô đen):
-  // chỉ sửa trên bản của trùm, không đụng dữ liệu chung.
-  function additive(h, frame) {
-    if (h) for (const nd of h.nodes) if (nd.d.sr && nd.d.sr.f === frame && !nd.d.sr.b) nd.d = Object.assign({}, nd.d, { sr: Object.assign({}, nd.d.sr, { b: 'add' }) });
-    return h;
-  }
   // name: 'Fire' (trứng đỏ, rồng) hoặc 'FireGas' (trứng xanh lá: lửa độc) [ĐO ExplodeEffectTrigger.creation trong refs]
   function firePool(G, e, x, y, name) {
     name = name || 'Fire';
@@ -1282,7 +1276,7 @@
     // FireGas dùng cùng số [ƯỚC LƯỢNG — BulletFireGas chưa bóc]
     const fb = (BUL.Fire && BUL.Fire.mbs.BulletGasBuff) || {};
     const dur = fb.duration || 5, rad = (fb.baseRadius || 2.6) * U * 0.6;
-    const h = SK.vfx && additive(SK.vfx.spawn(G, name, x, y, { state: 'gas_start', dur, scale: name === 'Fire' ? 0.6 : 0.5 }), 'warlock_0_skill_0_effect_3');
+    const h = SK.vfx && SK.vfx.spawn(G, name, x, y, { state: 'gas_start', dur, scale: name === 'Fire' ? 0.6 : 0.5 });
     let tickT = 0;
     e.arena.objs.push({ t: 0, dur, update(G2, o, dt) {
       tickT -= dt;

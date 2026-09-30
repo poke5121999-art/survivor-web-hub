@@ -78,13 +78,18 @@ untime\dump\dump.cs`); cách làm ở `tools/config86/README.md` mục 8.
    - [x] f. Màn chọn nhân vật 8.6 dựng từ `common.ab` › `choosehero/ui_choose_hero.prefab` (ChooseHeroView), rev 20260930d.
      Còn: phụ đề skin, vé E, icon nội tại riêng từng nhân vật, ô dải cuộn dùng icon skin; mô tả kỹ năng dài bị tràn khung.
 
-8. [ ] Đợt kỹ năng + VFX + vũ khí (chủ dự án 2026-09-30: "skill của mỗi char đều chưa làm, fx cũng chưa đúng, weapon
+8. [x] Đợt kỹ năng + VFX + vũ khí (chủ dự án 2026-09-30: "skill của mỗi char đều chưa làm, fx cũng chưa đúng, weapon
    cũng chưa chuẩn"). Đo lúc bắt đầu: 39/103 kỹ năng có mã, 64 rơi về Song Thủ.
    - Khung: `SK.skillKit` (đồ nghề của skills.js), mỗi nhân vật thiếu kỹ năng một tệp `js/skills/<thư mục>.js`, ca kiểm ở
      `test/sk-skills/<thư mục>.js` (soulknight-skills.js tự nạp). actors.js: bấm K khi kỹ năng đang chạy gọi `press`.
    - Lever đọc mã ARM gốc: `tools/sk_method.py` (thay số [ƯỚC LƯỢNG] bằng [ĐO]).
    - Song song: 10 nhóm kỹ năng, kiểm + sửa vũ khí (actors.js phần vũ khí, weapons86), kiểm + sửa VFX (vfx.js, tools/vfx).
-   - Sau đó: rà lại 39 kỹ năng cũ bằng sk_method.py.
+   - Vòng 1 (rev 20260930e): 103/103 kỹ năng có mã. Vòng 2 (rev 20260930f): số và logic đọc lại từ mã gốc cho cả 103
+     kỹ năng, chiêu phụ lên `special`, `max` chỉ là số lượt khi skillType thuộc {4, 6, 9, 12} [ĐO SkillInfo.get_hasMultiCount];
+     vũ khí có lao cận chiến, 7 lớp tự viết, nút đặc biệt của vũ khí; VFX có hạt sprite và vệt có texture.
+   - Còn hở: nâng cấp/tài năng của nhân vật (bản web chưa có cấp nhân vật ngoài `SK.profile.level`), 54 lớp vũ khí có chiêu
+     phụ và phần tiến hoá, bán kính nằm trong collider prefab chưa bóc (nhiều chỗ còn [ƯỚC LƯỢNG] trong js/skills/*),
+     số của prefab envoy chưa vào build_skills86.py, `REAL_EV` trong actors.js là vá tạm cho `simulate` của build_w86.
 
 ## Còn hở (sau đợt 8.6)
 

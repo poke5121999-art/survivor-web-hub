@@ -1158,6 +1158,7 @@ def print_fields(ti, out=print):
 # ---------------------------------------------------------------- main
 
 def main():
+    sys.stdout.reconfigure(encoding='utf-8')   # chú thích tiếng Việt; console cp1252 thì sập
     global IDX
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('spec', nargs='?')

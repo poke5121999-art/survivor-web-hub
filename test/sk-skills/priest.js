@@ -11,8 +11,15 @@ module.exports = h => ({
     await until(p, () => SK.G.player._ms && SK.G.player._ms.sh >= 1, null, 4000);
     const a = await snap(p);
     const vuln = await p.evaluate(() => SK.G.enemies.some(e => e._vuln > 0) || window._skDbEver);
-    check('priest moon_shadow: cầu bóng ' + cf.shadowDamage + ' sát thương (chí mạng x' + crit + ') [ĐO shadowDamage], gây Dễ Tổn Thương',
-      hitsOf(a, 'skill').length >= 1 && hitsOf(a, 'skill').every(d => d === cf.shadowDamage || d === cf.shadowDamage * crit || d === Math.round(cf.shadowDamage / 2)), 'đòn ' + hitsOf(a, 'skill').join(',') + ' · vuln ' + vuln);
+    check('priest moon_shadow: cầu bóng 12 sát thương (×1,5 lên quái đang Dễ Tổn Thương) (chí mạng x' + crit + ') [ĐO shadowDamage], gây Dễ Tổn Thương',
+      hitsOf(a, 'skill').length >= 1 && hitsOf(a, 'skill').every(d => [12, 18, 12 * crit, 18 * crit, 6].indexOf(d) >= 0), 'đòn ' + hitsOf(a, 'skill').join(',') + ' · vuln ' + vuln);
+    const C = await p.evaluate(() => { const c = SK.SKILLS.moon_shadow.CONST; return { speed: c.SPEED / SK.PPU, turn: c.TURN, range: c.RANGE / SK.PPU, re: [c.RETARGET.shadow / SK.PPU, c.RETARGET.moon / SK.PPU], vuln: [c.VULN.t, c.VULN.k], kill: c.KILL_ENERGY }; });
+    check('priest moon_shadow: tốc 10, bẻ lái 30°/0,02 s, tầm 12, đổi mục tiêu 30/90, Dễ Tổn Thương 3 s ×1,5, hạ quái +2 [ĐO BulletShadowBall/C11Controller]', C.speed === 10 && near(C.turn, 26.18, 0.01) && C.range === 12 && C.re.join() === '30,90' && C.vuln.join() === '3,0.5' && C.kill === 2, JSON.stringify(C));
+    // hạ quái bằng cầu bóng: +1 (chí mạng 3) và +2 vì hạ được
+    await p.evaluate(() => { const G = SK.G, pl = G.player; pl._ms.sh = 0; const es = G.enemies.filter(e => e.st !== 'dead' && e.st !== 'spawn').sort((a, b) => Math.hypot(a.x - pl.x, a.y - pl.y) - Math.hypot(b.x - pl.x, b.y - pl.y)); es[0].hp = 1; });
+    await until(p, () => SK.G.player._ms.sh > 0, null, 4000);
+    const ke = await p.evaluate(() => SK.G.player._ms.sh);
+    check('priest moon_shadow: cầu bóng hạ quái cộng 3 năng lượng bóng (1 + 2), chí mạng 5 [ĐO OnPriestSkill3ShadowHit]', ke === 3 || ke === 5, 'sh ' + ke);
     const before = await p.evaluate(() => ({ sh: SK.G.player._ms.sh, n: SK.G.player._ms.orbs.filter(o => o.st === 'orbit').length }));
     await p.evaluate(() => { SK.G.player._ms.sh = 25; });
     await pressK(p); await sleep(150);

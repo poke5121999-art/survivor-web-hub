@@ -1,6 +1,7 @@
 // Kỹ năng Tay Súng (c36): marksman_s_mastery, deadeye_domain. Đồ nghề chung ở SK.skillKit (js/skills.js).
-// Số lấy từ ctrlFields của SK_SKILLS86.heroes.shooter (controller C37Controller trong dump.cs) và MonoBehaviour của prefab *_ShooterAim; emWeaponType [ĐO dump.cs]: 1 Gun (súng máy),
-// 2 ShotGun, 12 Rocket, 14 Pistol, 15 Rifle (bắn tỉa). Logic nằm trong mã IL2CPP (chưa đọc được) nên cách áp số là [ƯỚC LƯỢNG].
+// Số lấy từ ctrlFields của SK_SKILLS86.heroes.shooter, MonoBehaviour của prefab *_ShooterAim và mã C37Controller (sk_method.py); emWeaponType [ĐO dump.cs]:
+// 1 Gun (súng máy), 2 ShotGun, 12 Rocket, 14 Pistol, 15 Rifle (bắn tỉa). "max 3" trong config không phải số lượt: skillType 1 và 8 không thuộc
+// {4, 6, 9, 12} nên SkillInfo.hasMultiCount = false [ĐO SkillInfo.get_hasMultiCount].
 (function () {
   'use strict';
   const SK = window.SK, K = SK.skillKit, S = SK.SKILLS, T = SK.TILE, U = SK.PPU, DS = SK.DS, I = SK.input;
@@ -26,8 +27,13 @@
   // ================================================================ Thần Súng Giáng Lâm
   // [ĐO c36/skill 1: cd 10, duration 5, args "50;3;50"; C36 ctrl: PistolExplodeDmgValue 6, GunStackCount 3,
   // GunStackBulletDmgMultiple 3, RifleDefaultAutoLockCount 3, RifleMaxAutoLockRadius 10, ShotGunMaxMult 2.5, ShotGunMaxMultPos 2.4,
-  // CommonAtkSpeedAddition 0.5]: hiệu ứng theo loại vũ khí đang cầm; vũ khí phụ chỉ ăn args[0] = 50% (dùng làm hệ số s).
-  const MM = { boomR: 1.6 * T, rifleFall: 0.7, farPos: 8 * T };   // bán kính nổ, hệ số giảm mỗi mắt xích, tầm hết cộng [ƯỚC LƯỢNG]
+  // CommonAtkSpeedAddition 0.5]: hiệu ứng theo loại vũ khí đang cầm; vũ khí phụ chỉ ăn args[0] = 50% (BackWeaponEffectValue, mọi số nguyên đều ceil).
+  const MM = { boomR: 1.6 * T };   // bán kính nổ súng ngắn [ƯỚC LƯỢNG: prefab pistol_explode không có trong bảng explodes, collider chưa bóc]
+  // Súng săn: bội số = 1 + bảng[ceil(max(0, cách - 2))] × hệ số, cách = khoảng từ chỗ đạn bắn tới quái (ô), > 6 sau khi trừ 2 thì hết cộng
+  // [ĐO ShotGunBaseAddition.Init: Dictionary<int,float> 1.5 1.5 1.35 1.2 1.05 0.9 0.75 = ShotGunMaxMult 2.5 − 1 ở gần; OnPlayerBulletPreHitEnemyEvent].
+  const SG_TAB = [1.5, 1.5, 1.35, 1.2, 1.05, 0.9, 0.75];
+  // Bắn tỉa: mắt xích thứ k gây ceil(max(0.2, 1 − 0.2k) × sát thương gốc), k tính từ 1 [ĐO RifleBaseAddition.OnPlayerBulletHitEnemyEvent: đếm tăng trước khi tính].
+  const rifleHop = (d0, k) => Math.ceil(Math.max(0.2, 1 - 0.2 * k) * d0);
   function mmMods(p) {
     const k = cfg(p, 'marksman_s_mastery'), sec = (+String(k.args || '50;3;50').split(';')[0] || 50) / 100;
     const m = {}, add = (w, s) => { const c = catOf(w); if (w) m[c] = (m[c] || 0) + s; };
@@ -56,29 +62,31 @@
     const [cx, cy] = ec(e), m = s.mods;
     if (m.pistol) {   // Súng ngắn: đạn kèm nổ 6
       fx(G, 'pistol_explode', cx, cy, { scale: 0.8 });
-      for (const q of inRadius(G, cx, cy, MM.boomR)) hit(G, p, q, Math.round(C('PistolExplodeDmgValue', 6) * m.pistol), { tag: 'mm', repel: 2, noMul: true });
+      for (const q of inRadius(G, cx, cy, MM.boomR)) hit(G, p, q, Math.ceil(C('PistolExplodeDmgValue', 6) * m.pistol), { tag: 'mm', repel: 2, noMul: true });
     }
     if (m.gun) {      // Súng máy: đánh dấu, đủ GunStackCount tầng thì nổ thêm gấp GunStackBulletDmgMultiple lần đòn
       e._mmStack = (e._mmStack || 0) + 1; markFx(G, e);
       if (e._mmStack >= C('GunStackCount', 3)) {
         e._mmStack = 0; if (e._mmFx) stopFx(e._mmFx);
         fx(G, 'buff_stack_spatter', cx, cy, {});
-        hit(G, p, e, Math.max(1, Math.round(d * C('GunStackBulletDmgMultiple', 3) * m.gun)), { tag: 'mm', noMul: true });
+        hit(G, p, e, Math.max(1, Math.ceil(d * C('GunStackBulletDmgMultiple', 3) * m.gun)), { tag: 'mm', noMul: true });
       }
     }
-    if (m.shotgun) {  // Súng săn: càng gần càng đau, tối đa ×ShotGunMaxMult ở ShotGunMaxMultPos ô
-      const dist = Math.hypot(cx - p.x, cy - (p.y - 6)), near = C('ShotGunMaxMultPos', 2.4) * T, mx = C('ShotGunMaxMult', 2.5);
-      const mult = 1 + (mx - 1) * Math.max(0, Math.min(1, (MM.farPos - dist) / (MM.farPos - near)));
-      if (mult > 1.01) hit(G, p, e, Math.max(1, Math.round(d * (mult - 1) * m.shotgun)), { tag: 'mm', noMul: true });
+    if (m.shotgun) {  // Súng săn: càng gần càng đau, tối đa 1 + 1.5 = ShotGunMaxMult; chỗ bắn ≈ người chơi [ƯỚC LƯỢNG: gốc là điểm sinh đạn]
+      const dist = Math.max(0, Math.hypot(cx - p.x, cy - (p.y - 6)) / U - 2), i = Math.ceil(dist);
+      if (i < SG_TAB.length) {
+        const extra = Math.round(d * SG_TAB[i] * m.shotgun);
+        if (extra > 0) hit(G, p, e, extra, { tag: 'mm', noMul: true });
+      }
     }
     if (m.rifle && !G._mmChain) {   // Bắn tỉa: đạn nhảy sang quái kế tiếp, sát thương giảm dần
       G._mmChain = true;
-      let cur = e, dmg = d;
-      const seen = [e], n = Math.max(1, Math.round(C('RifleDefaultAutoLockCount', 3) * Math.min(1, m.rifle)));
+      let cur = e;
+      const seen = [e], n = Math.max(1, Math.ceil(C('RifleDefaultAutoLockCount', 3) * Math.min(1, m.rifle)));
       for (let i = 0; i < n; i++) {
-        const [ax, ay] = ec(cur), nx = nearest(G, ax, ay, C('RifleMaxAutoLockRadius', 10) * T, { skip: q => seen.indexOf(q) >= 0 });
+        const [ax, ay] = ec(cur), nx = nearest(G, ax, ay, C('RifleMaxAutoLockRadius', 10) * U, { skip: q => seen.indexOf(q) >= 0 });
         if (!nx) break;
-        seen.push(nx); dmg = Math.max(1, Math.round(dmg * MM.rifleFall));
+        seen.push(nx); const dmg = Math.max(1, rifleHop(d, i + 1));
         const [bx, by] = ec(nx);
         tracer(G, [ax, ay], [bx, by]);
         hit(G, p, nx, dmg, { tag: 'mm', noMul: true, fx: 'hit_yellow' });
@@ -90,14 +98,18 @@
 
   // ================================================================ Lĩnh Vực Săn Bắn
   // [ĐO c36/skill 2: cd 6, duration 8; ctrl: rifleDamageProfile {20, 0.2}, shotGunDamageProfile {4, 0}, gunDamageProfile {2, 0.3},
-  // rocketDamageProfile {8, 0}, WhirlWindSlashDmgValue 8, GunSpatterBulletCount 2, GunSpatterBulletDmgValue 10,
-  // GunSpatterBulletLockRadius 10, screenSize 10; prefab *_ShooterAim: AimAreaDamage.radius 1.57 / 3.7 / 1.6 / 2.04 ô,
-  // ShooterAimController.moveSpeed 17 / 12 / 12 / 12 ô/s, recoil lên+xuống 0.4 / 0.4 / — / 0.55 s (không bắn trong lúc giật),
-  // súng máy fireRate 15/s, maxHeat 100, heatPerShot 4, coolRate 50, coolDelay 0.1, enhancedDuration 5; bắn tỉa consecutiveBonus
-  // +5 mỗi lần trúng cùng mục tiêu, tối đa 4 tầng; ShooterRifleKillEnemy.lockRange 15]: ẩn thân + đứng yên, cần điều khiển dời tâm
-  // ngắm, bấm bắn = phá ẩn thân, bắn theo loại tâm, mỗi lần bắn quét gió xoáy 8 sát thương và huỷ đạn địch quanh người.
-  // Đổi loại tâm bằng phím đổi súng (Q) thay cho các vùng của nút bắn; tâm mở màn theo vũ khí đang cầm. [ƯỚC LƯỢNG: bán kính gió xoáy,
-  // tầm dời tâm (màn không zoom-out như screenSize 10), điểm hết cộng dồn của tên lửa]
+  // rocketDamageProfile {8, 0}, GunSpatterBulletCount 2, GunSpatterBulletDmgValue 10, GunSpatterBulletLockRadius 10, skill2Radius 17,
+  // skill2MaxMoveRange 35, screenSize 10; prefab *_ShooterAim: AimAreaDamage.radius 1.57 / 3.7 / 1.6 / 2.04 ô, ShooterAimController.moveSpeed
+  // 17 / 12 / 12 / 12 ô/s, recoil lên+xuống 0.4 / 0.4 / — / 0.55 s (không bắn trong lúc giật), súng máy fireRate 15/s, maxHeat 100,
+  // heatPerShot 4, coolRate 50, coolDelay 0.1, enhancedDuration 5, moveSlowRatio 0.4, FireEnchantEffect {burnChance 0.3, flat +2}; bắn tỉa
+  // consecutiveBonus +5 mỗi lần trúng cùng mục tiêu, tối đa 4 tầng, làm chậm quái slowRatio −0.7 trong 5 s, ShooterRifleKillEnemy.lockRange 15]:
+  // ẩn thân + đứng yên (SetCantMove, BuffStealth alpha 0.297), cần điều khiển dời tâm ngắm, bấm bắn = phá ẩn thân; mỗi phát AimAreaDamage.ApplyDamage
+  // sát thương MỌI quái trong vòng (OverlapCircle); cây súng xoay gunEffect có ShieldClearEnemyBullet nên xoá đạn địch.
+  // Tâm mở màn ở quái sống gần nhất trong skill2Radius 17 quanh người, không có thì ở người [ĐO RoleSkill1: FindNearestAliveByPoint]; tâm bị kẹp
+  // trong skill2MaxMoveRange 35 quanh người [ĐO ShooterAimController.FixedUpdate: _maxRange = C37Controller.skill2MaxMoveRange] và trong khung
+  // nhìn (web không zoom-out như screenSize 10). Gió xoáy 3 sát thương chỉ có khi có buff WhirlWindSlash 2101 (thiên phú), tối đa 1 lần / 2 s
+  // [ĐO OnSkill2EnemyDamaged: HasBuff(2101), Sk2WhirlCd = 2] nên bản gốc không có ở kỹ năng mặc định — bỏ. Loại tâm đổi bằng vùng biểu tượng trên nút
+  // bắn (ControlMapper) → chiêu phụ `special` (phím L). [ƯỚC LƯỢNG: bán kính xoá đạn của gunEffect, vòng lửa tên lửa (fireCircle prefab)]
   const AIM = {
     rifle: { pf: 'Rifle_ShooterAim', prof: 'rifleDamageProfile', cyc: 0.4, r: 1.57, spd: 17, stack: 5, maxStack: 4 },
     shotgun: { pf: 'ShotGun_ShooterAim', prof: 'shotGunDamageProfile', cyc: 0.4, r: 3.7, spd: 12, stun: 1 },
@@ -105,7 +117,7 @@
     rocket: { pf: 'Rocket_ShooterAim', prof: 'rocketDamageProfile', cyc: 0.55, r: 2.04, spd: 12, ring: 3 }
   };
   const ORDER = ['rifle', 'shotgun', 'gun', 'rocket'];
-  const DD = { reach: 8 * T, spin: 4 * T };
+  const DD = { find: 17 * U, range: 35 * U, spin: 4 * T, slow: 0.3, slowT: 5, holdSlow: 0.4, enchant: { p: 0.3, flat: 2 } };   // spin: bán kính xoá đạn [ƯỚC LƯỢNG]; slow = 1 − 0.7 [ĐO]
   const aimOf = w => { const t = w && w.def && w.def.type; return t === 15 ? 'rifle' : t === 2 ? 'shotgun' : t === 12 ? 'rocket' : 'gun'; };
   SK.WEAPON_KINDS.shooter_aim = { fire(G, p) { if (p._dd) ddShot(G, p, p._dd); } };
   function aimDef(sprite) {
@@ -122,8 +134,8 @@
     start(G, p) {
       layer(G);
       p.skillT = cfg(p, 'deadeye_domain').dur || 8;
-      const main = p.weapons[p.cur], first = nearest(G, p.x, p.y - 6, DD.reach);
-      const [ex, ey] = first ? ec(first) : [p.x + p.face * 5 * T, p.y - 6];
+      const main = p.weapons[p.cur], first = nearest(G, p.x, p.y - 6, DD.find);
+      const [ex, ey] = first ? ec(first) : [p.x, p.y - 6];
       const s = p._dd = { cross: { x: ex, y: ey }, orig: p.weapons.slice(), cur: p.cur, type: null, fxh: null, broke: false, hits: new Map(), heat: 0, heatT: 0, enhanced: 0, rings: [] };
       aimDef(main && main.def.sprite);
       p.weapons = p.weapons.map(w => w && SK.makeWeapon('_shooter_aim'));
@@ -134,11 +146,12 @@
     },
     update(G, p, dt) {
       const s = p._dd; if (!s) return;
-      const mv = I.moveVec(), sp = AIM[s.type].spd * U * dt;
+      const mv = I.moveVec(), sp = AIM[s.type].spd * U * dt * (s.type === 'gun' && I.down('attack') ? DD.holdSlow : 1);   // giữ bắn thì tâm súng máy × moveSlowRatio 0.4 [ĐO GunShooterAimController.OnUpdate]
       s.cross.x += mv.x * sp; s.cross.y += mv.y * sp;
-      const dx = s.cross.x - p.x, dy = s.cross.y - (p.y - 6), d = Math.hypot(dx, dy);
-      if (d > DD.reach) { s.cross.x = p.x + dx / d * DD.reach; s.cross.y = p.y - 6 + dy / d * DD.reach; }
-      if (I.hit('swap')) setType(G, s, ORDER[(ORDER.indexOf(s.type) + 1) % ORDER.length]);
+      const dx = s.cross.x - p.x, dy = s.cross.y - (p.y - 6), d = Math.hypot(dx, dy), v = SK.view;
+      if (d > DD.range) { s.cross.x = p.x + dx / d * DD.range; s.cross.y = p.y - 6 + dy / d * DD.range; }
+      s.cross.x = Math.max(p.x - v.w / 2 + 8, Math.min(p.x + v.w / 2 - 8, s.cross.x));   // camera bám người chơi nên khung nhìn ≈ người ± nửa màn
+      s.cross.y = Math.max(p.y - 6 - v.h / 2 + 8, Math.min(p.y - 6 + v.h / 2 - 8, s.cross.y));
       p.aim = Math.atan2(s.cross.y - (p.y - 6), s.cross.x - p.x); p.face = Math.cos(p.aim) >= 0 ? 1 : -1;
       s.heatT += dt;
       if (s.heatT > AIM.gun.coolDelay) s.heat = Math.max(0, s.heat - AIM.gun.cool * dt);
@@ -150,6 +163,7 @@
         if (r.tick <= 0) { r.tick = 0.5; for (const e of inRadius(G, r.x, r.y, r.r)) debuff(G, e, 'fire'); }
       }
     },
+    special(G, p) { const s = p._dd; if (s) setType(G, s, ORDER[(ORDER.indexOf(s.type) + 1) % ORDER.length]); },
     press(G, p) { p.skillT = Math.min(p.skillT, 1e-4); },
     end(G, p) {
       const s = p._dd; if (!s) return;
@@ -160,25 +174,25 @@
       if (s.fxh) stopFx(s.fxh);
     }
   };
-  // Mỗi phát bắn: phá ẩn thân, gió xoáy huỷ đạn địch, rồi bắn theo loại tâm.
+  // Mỗi phát bắn: phá ẩn thân, cây súng xoay xoá đạn địch, rồi bắn theo loại tâm.
   function ddShot(G, p, s) {
     if (!s.broke) { s.broke = true; p.hidden = false; p._alpha = null; }
     const A = AIM[s.type], prof = C(A.prof, { damage: 2, critChance: 0 }), cx = s.cross.x, cy = s.cross.y, R = A.r * U;
     fx(G, 'gunEffect', p.x, p.y - 8, { follow: p, dy: -8, dur: 0.5 });
-    K.ripFx(G, 'whirl_wind', p.x, p.y - 8, { follow: p, top: true, dur: 0.4 });
-    for (const e of inRadius(G, p.x, p.y - 8, DD.spin)) hit(G, p, e, C('WhirlWindSlashDmgValue', 8), { tag: 'dd_whirl', repel: 2 });
     for (const b of G.bullets) if (b.side === 'e' && !b.dead && Math.hypot(b.x - p.x, b.y - (p.y - 8)) < DD.spin) b.dead = true;
     const crit = (prof.critChance || 0) * 100, inside = inRadius(G, cx, cy, R);
-    const near = inside.slice().sort((a, b) => Math.hypot(ec(a)[0] - cx, ec(a)[1] - cy) - Math.hypot(ec(b)[0] - cx, ec(b)[1] - cy))[0];
-    if (s.type === 'rifle') {   // cộng dồn +5 mỗi lần trúng cùng mục tiêu, tối đa 4 tầng
-      if (!near) return;
-      const n = Math.min(A.maxStack, s.hits.get(near) || 0);
-      s.hits.set(near, n + 1);
-      const [ex, ey] = ec(near);
-      tracer(G, [p.x, p.y - 8], [ex, ey]);
-      hit(G, p, near, prof.damage + A.stack * n, { tag: 'dd', critChance: crit, repel: 3, fx: 'hit_yellow' });
-      if (near.hp <= 0) {   // hạ mục tiêu: khoá quái gần đó nhất trong lockRange 15 ô
-        const nx = nearest(G, ex, ey, 15 * U);
+    if (s.type === 'rifle') {   // mọi quái trong vòng: cộng dồn +5 mỗi lần trúng cùng mục tiêu, tối đa 4 tầng, làm chậm 70% trong 5 s
+      let killed = null;
+      for (const e of inside) {
+        const n = Math.min(A.maxStack, s.hits.get(e) || 0);
+        s.hits.set(e, n + 1);
+        const [ex, ey] = ec(e);
+        tracer(G, [p.x, p.y - 8], [ex, ey]);
+        hit(G, p, e, prof.damage + A.stack * n, { tag: 'dd', critChance: crit, repel: 3, fx: 'hit_yellow' });
+        if (e.hp > 0) { e.moveMul = DD.slow; e._sniperSlow = DD.slowT; } else killed = e;
+      }
+      if (killed) {   // hạ mục tiêu: khoá quái gần đó nhất trong lockRange 15 ô
+        const [ex, ey] = ec(killed), nx = nearest(G, ex, ey, 15 * U);
         if (nx) { const [nx1, ny1] = ec(nx); s.cross.x = nx1; s.cross.y = ny1; }
       }
     } else if (s.type === 'shotgun') {   // bắn choáng mọi quái trong vùng (buff_ele 1 s)
@@ -187,18 +201,19 @@
     } else if (s.type === 'gun') {   // nóng dần: đủ maxHeat thì bật đạn thiêu 5 s
       s.heat = Math.min(100, s.heat + A.heat); s.heatT = 0;
       if (s.heat >= 100 && s.enhanced <= 0) s.enhanced = A.enhanced;
-      if (!near) return;
-      const [ex, ey] = ec(near);
-      tracer(G, [p.x, p.y - 8], [ex, ey], '#ff9a4a');
-      hit(G, p, near, prof.damage, { tag: 'dd', critChance: crit, repel: 1, fx: 'hit_orange' });
-      if (s.enhanced > 0) debuff(G, near, 'fire');
-      if (near.hp <= 0) {   // hạ mục tiêu: bắn đạn văng ra quanh, khoá quái gần nhất
-        const seen = [near];
-        for (let i = 0; i < C('GunSpatterBulletCount', 2); i++) {
-          const q = nearest(G, ex, ey, C('GunSpatterBulletLockRadius', 10) * U, { skip: u => seen.indexOf(u) >= 0 });
-          if (!q) break;
-          seen.push(q); tracer(G, [ex, ey], ec(q), '#ff9a4a');
-          hit(G, p, q, C('GunSpatterBulletDmgValue', 10), { tag: 'dd_spatter', repel: 1, fx: 'hit_orange' });
+      for (const e of inside) {   // mọi quái trong vòng; thiêu (FireEnchantEffect): +2 sát thương, 30% cháy khi đang cường hoá
+        const [ex, ey] = ec(e), en = s.enhanced > 0;
+        tracer(G, [p.x, p.y - 8], [ex, ey], '#ff9a4a');
+        hit(G, p, e, prof.damage + (en ? DD.enchant.flat : 0), { tag: 'dd', critChance: crit, repel: 1, fx: 'hit_orange' });
+        if (en && SK.rand() < DD.enchant.p) debuff(G, e, 'fire');
+        if (e.hp <= 0) {   // hạ mục tiêu: bắn đạn văng ra quanh, khoá quái gần nhất
+          const seen = [e];
+          for (let i = 0; i < C('GunSpatterBulletCount', 2); i++) {
+            const q = nearest(G, ex, ey, C('GunSpatterBulletLockRadius', 10) * U, { skip: u => seen.indexOf(u) >= 0 });
+            if (!q) break;
+            seen.push(q); tracer(G, [ex, ey], ec(q), '#ff9a4a');
+            hit(G, p, q, C('GunSpatterBulletDmgValue', 10), { tag: 'dd_spatter', repel: 1, fx: 'hit_orange' });
+          }
         }
       }
     } else {   // tên lửa: dội bom vùng ngắm rồi để lại vòng lửa
@@ -209,5 +224,9 @@
       G.shake = Math.max(G.shake, 3);
     }
   }
-  SK.on('runStart', G => { const p = G.player; if (p && p.hero === 'shooter') p._ch = null; });   // max 3 trong config không phải số lượt
+  // Làm chậm bắn tỉa hết hạn thì trả tốc độ (RoleAttribute.ChangeSpeed "sniper_slow" [ĐO AimAreaDamage.ApplyDamage]).
+  K.timers.shooter = (G, p, dt) => {
+    for (const e of G.enemies) if (e._sniperSlow > 0 && (e._sniperSlow -= dt) <= 0) { e._sniperSlow = 0; e.moveMul = 1; }
+  };
+  SK.on('runStart', G => { const p = G.player; if (p && p.hero === 'shooter') { layer(G); } });
 })();

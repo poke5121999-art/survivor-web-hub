@@ -12,7 +12,15 @@ module.exports = h => {
       const a = await h.snap(p);
       const n1 = await p.evaluate(() => SK.G.player._lc.stews.filter(q => !q.gone).length);
       h.check('ladychef: nồi nảy gây ' + cf.stewPotBounceDamage + ' [ĐO stewPotBounceDamage], mỗi lần nảy sinh một món hầm, hồi ' + r.cd + ' s', h.hitsOf(a, 'skill').length > 0 && h.hitsOf(a, 'skill').every(d => d === cf.stewPotBounceDamage) && n1 >= 2 && a.cd === r.cd, 'đòn ' + h.hitsOf(a, 'skill').join(',') + ' · món hầm ' + n1);
-      await h.sleep(2500);
+      h.check('ladychef: sóng nồi gắn buff_ele lên quái [ĐO MB c42StewPotWave.targetbuff]', a.dbEver.indexOf('ele') >= 0, 'debuff ' + a.dbEver.join(','));
+      // Độ Lửa: +heatGainOnHitEnemy mỗi đòn trúng quái, hồi heatGainOnHitEnemyCooldown s [ĐO OnChefHitEnemy]; uống bình không cộng (nguyên liệu chỉ do thiên phú) [ĐO C42DungeonGourmetRuntime].
+      await p.evaluate(() => { const G = SK.G, pl = G.player, e = G.enemies.find(q => q.st !== 'dead' && q.st !== 'spawn'); pl._lc.heat = 0; pl._lc.hitCd = 0; SK.hurtEnemy(G, e, 1, false, 0, 0); SK.hurtEnemy(G, e, 1, false, 0, 0); });
+      const heat1 = await p.evaluate(() => SK.G.player._lc.heat);
+      await h.sleep(1200);
+      await p.evaluate(() => { const G = SK.G, e = G.enemies.find(q => q.st !== 'dead' && q.st !== 'spawn'); SK.hurtEnemy(G, e, 1, false, 0, 0); SK.emit('pickup', G, 'hp_pot'); });
+      const heat2 = await p.evaluate(() => SK.G.player._lc.heat);
+      h.check('ladychef: Độ Lửa +5 mỗi đòn, hồi 1 s (hai đòn liền chỉ tính một), bình thuốc không cộng', heat1 === cf.heatGainOnHitEnemy && heat2 === 2 * cf.heatGainOnHitEnemy, 'heat ' + heat1 + ' → ' + heat2);
+      await h.sleep(1300);
       const n2 = await p.evaluate(() => SK.G.player._lc.stews.filter(q => !q.gone).length);
       // Nhặt món hầm thường: ngon miệng 5 s, mỗi đòn thêm 3 viên nửa sát thương.
       await p.evaluate(() => { const G = SK.G, pl = G.player, q = pl._lc.stews.find(s => !s.gone); pl.x = q.x; pl.y = q.y + 4; for (const e of G.enemies) e.cd = 99; });

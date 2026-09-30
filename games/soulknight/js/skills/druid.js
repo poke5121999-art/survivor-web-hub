@@ -7,11 +7,13 @@
   // ================================================================ Xúc Tua Venom
   // [ĐO c11/skill 2: cd 12, dur 0; prefab druid_vine: RoleAttribute max_hp 10, VineController atk_cd 3.5; Gun002 multiCount 8, angle 45,
   // bullet_50_c11 speed 16 damage 3; clip tentacle_show 0.67 s / atk (sự kiện "Atk" 0.5 s) / hide 0.83 s]: 6 dây leo mọc quanh người trong
-  // vùng 8×8 ô, chặn đạn địch, mỗi 3.5 s toả 8 viên đạn lưỡi liềm tự dẫn theo 8 hướng, héo sau 8.5 s hoặc khi hết máu [WIKI].
+  // vùng 8×8 ô, chặn đạn địch, mỗi 3.5 s toả 8 viên đạn lưỡi liềm tự dẫn theo 8 hướng, héo sau 8 s hoặc khi hết máu.
   const VV = {
-    n: 6, area: 4 * T, life: 8.5, gap: 18,          // số dây [WIKI], nửa cạnh vùng 8×8 ô, tuổi thọ [WIKI], khoảng cách tối thiểu giữa hai dây
-    sight: 12 * U,                                   // tầm dò quái [ƯỚC LƯỢNG]
-    turn: 5, homing: 8 * U,                          // tốc bẻ lái rad/s, tầm tìm mục tiêu của đạn [ƯỚC LƯỢNG] (Bullet02.angle_speed 15)
+    n: 6, stagger: 0.15,                             // số dây = 6 + cấp/3, mỗi dây cách nhau 0,15 s [ĐO C12Controller.<CreatingVines>: count = SkillLevel/3 + 6, WaitForSeconds 0.15]
+    area: 4 * T, life: 8,                            // toạ độ ngẫu nhiên ±4 ô quanh người, né tường [ĐO GetValidPosition]; VineController.Start gọi Invoke("Passaway", 8) [ĐO]
+    gap: 18,                                         // khoảng cách tối thiểu giữa hai dây [ƯỚC LƯỢNG: gốc chỉ Raycast tường/cửa, không giữ khoảng cách]
+    sight: 12 * U,                                   // tầm dò quái, bị tường chặn [ĐO VineController.Scout: FindTarget(12, AllObstacleMask)]
+    turn: 15 * Math.PI / 180 / 0.02, homing: 12 * U, retarget: 0.1,   // đạn Bullet02 bẻ lái 15°/bước 0,02 s, dò trong 12 ô, quét mỗi 0,1 s, không xuyên tường [ĐO Bullet02.CreateBulletMover → BulletMoverFollow.Setup]
     show: 0.667, atk: 0.5, hide: 0.833               // [ĐO clip tentacle_show / tentacle_atk Atk / tentacle_hide]
   };
   // Số đo từ pet/vine.ab (dump_mb): prefab này chưa nằm trong SK_SKILLS86.mb nên ghi thẳng.
@@ -41,12 +43,13 @@
       spots.push([x, y]);
     }
     spots.forEach(([x, y], i) => {
-      const delay = SK.randf(0, 0.25);
+      const delay = i * VV.stagger;
       addAlly(G, {
         vine: true, x, y, hp: V.hp, hpMax: V.hp, box: [12, 30, 14], st: 'show', stT: -delay, life: VV.life, cd: 0, V, fired: false,
         onZero(G2, a) { a.hp = 0; wither(a); },
         update(G2, a, dt) {
-          a.stT += dt; a.life -= dt;
+          a.stT += dt;
+          if (a.stT >= 0) a.life -= dt;   // tuổi thọ tính từ lúc dây được tạo
           if (a.st === 'hide') { if (a.stT > VV.hide) a.gone = true; return; }
           if (a.life <= 0) { wither(a); return; }
           if (a.st === 'show') { if (a.stT >= VV.show) { a.st = 'ide'; a.stT = 0; } return; }
@@ -56,7 +59,7 @@
             if (a.stT >= 1) { a.st = 'ide'; a.stT = 0; }
             return;
           }
-          if (a.cd <= 0 && nearest(G2, a.x, a.y - 20, VV.sight)) { a.cd = V.cd; a.st = 'atk'; a.stT = 0; a.fired = false; }
+          if (a.cd <= 0 && nearest(G2, a.x, a.y - 20, VV.sight, { los: true })) { a.cd = V.cd; a.st = 'atk'; a.stT = 0; a.fired = false; }
         },
         draw(ctx, G2, a) {
           if (a.stT < 0) return;
@@ -81,7 +84,8 @@
   timers.venom_vines = (G, p, dt) => {
     for (const b of G.bullets) {
       if (!b._hm || b.dead) continue;
-      const e = nearest(G, b.x, b.y, VV.homing);
+      if ((b._tt = (b._tt || 0) - dt) <= 0 || (b._tg && !alive(b._tg))) { b._tt = VV.retarget; b._tg = nearest(G, b.x, b.y, VV.homing, { los: true }); }
+      const e = b._tg;
       if (!e) continue;
       const [cx, cy] = ec(e);
       let d = Math.atan2(cy - b.y, cx - b.x) - b.ang; d = Math.atan2(Math.sin(d), Math.cos(d));
@@ -98,28 +102,34 @@
   // ================================================================ Triệu hồi Gấu Khổng Lồ
   // [ĐO c11/skill 3: cd 10, dur 0; prefab mbear: RoleAttributePlayer max_hp 30, speed 6.5; BearController damage 12, atk_cd 2.5,
   // clip attack (sự kiện OnAtk 0.33 s); MountBearController; show_effect_bear; tiếng fx_bear_show; DrivePos (−4.8, 20.8)]: gọi gấu và cưỡi;
-  // đang cưỡi gấu chịu mọi sát thương thay ×4 [WIKI], bấm lại (kể cả đang hồi chiêu) thì gấu xuống đánh một mình: đập đất 12 sát thương
-  // bán kính 3 ô mỗi 2.5 s [WIKI]. Hết máu thì gấu nằm xuống hồi 20% mỗi 2 s, đầy máu mới đánh lại; bấm lại khi hết hồi chiêu = cưỡi lại,
-  // gấu về chỗ người chơi và được hồi 6 máu [WIKI]. Gấu tồn tại tới khi qua cổng.
+  // đang cưỡi gấu chịu mọi sát thương thay ×4; nút đặc biệt (phím L) thay btn_unmount gốc: gấu xuống đánh một mình, đập đất 12 sát thương
+  // mỗi 2,5 s. Hết máu thì gấu nằm xuống (còn 1 máu), sau 6 s không bị đánh thì hồi 20% máu tối đa mỗi 2 s, đầy máu mới đánh lại; bấm kỹ năng
+  // khi hết hồi chiêu = cưỡi lại, gấu về chỗ người chơi và được hồi 1/4 máu tối đa. Gấu tồn tại tới khi qua cổng.
   const BR = {
-    dmgTaken: 4, ride: 1, slam: 3 * U, slamAt: 0.333, atkLen: 0.5, regen: 0.2, regenEvery: 2, remountHeal: 6,   // [WIKI]; nhịp/độ dài đòn theo clip [ĐO]
-    drive: 20.8, sight: 12 * U, follow: 2 * U * 1.5, walk: 0.75                                                  // độ cao người ngồi [ĐO DrivePos], hệ số tốc đi [ƯỚC LƯỢNG]
+    dmgTaken: 4,                        // MountBearController.GetHurt gọi base với damage << 2 [ĐO]
+    ride: 1.7 / 1.5,                    // đang cưỡi cộng speed_rate 0,2 vào 0,5; tốc = speed × (1 + speed_rate) [ĐO RGMountController.ResetCommon, GetBasicMoveSpeed]
+    slam: 3 * U,                        // bán kính đòn: bullet_hammer là ExplodeHammer scale_factor 1,5 × swordScale 1,5 (×1,5 khi triệu hồi); collider không nằm trong MB nên giữ 3 ô [WIKI]
+    slamAt: 0.333, atkLen: 0.5,         // nhịp/độ dài đòn theo clip attack [ĐO]
+    regenDelay: 6, regen: 0.2, regenEvery: 2,   // ReplyingHP: chờ reply_time1 + reply_time2 = 4 + 2 s, rồi +max_hp/5 mỗi reply_time2 = 2 s [ĐO RGPetController..ctor, ReplyingHP]
+    remountFrac: 0.25,                  // ForceRecover: hp += max_hp / 4 khi lên gấu mà chưa đầy máu [ĐO OnDriveStatusChanged]
+    drive: 20.8, follow: 2 * U, atkDist: 2 * U, walk: 1,   // độ cao người ngồi [ĐO DrivePos]; min_follow_distance 2, atkDistance 2 [ĐO BearController]; tốc bằng người chơi (speed 6,5, speed_rate 0,5 như prefab hero) [ĐO]
+    sight: 12 * U                       // tầm dò quái của pet [ƯỚC LƯỢNG]
   };
   // Số đo từ mount/bear.ab: RoleAttributePlayer max_hp 30 speed 6.5; BearController damage 12 atk_cd 2.5 max_follow_distance 20.
-  const BM = { hp: 30, speed: 6.5, dmg: 12, atkCd: 2.5, maxFollow: 20 };
+  const BM = { hp: 30, speed: 6.5, dmg: 12, atkCd: 2.5, maxFollow: 20 };   // hp cộng thêm cấp × 8 [ĐO CreateBear: AddPetHp(level × 8)], cấp 0
   const BK = { ide: 'm_bear_ctrl/ide', run: 'm_bear_ctrl/run', atk: 'm_bear_ctrl/attack', dead: 'm_bear_ctrl/dead' };
   const bearOf = G => allies(G).find(a => a.bear);
 
   function mount(G, p, a) {
     a.mounted = true; a.down = false; a.box = null;
-    setMul(p, 'moveMul', 'bear', (p.h.speed + BR.ride) / p.h.speed);
+    setMul(p, 'moveMul', 'bear', BR.ride);
     p._liftY = BR.drive;
     hurtMods(p).bear = (G2, pl, dmg) => {
       const b = bearOf(G2);
       if (!b || !b.mounted) return dmg;
       b.hp -= dmg * BR.dmgTaken; b.flash = 0.08;
       SK.num(G2, p.x, p.y - 30, Math.round(dmg * BR.dmgTaken), '#6bb8ff');
-      if (b.hp <= 0) { b.hp = 0; dismount(G2, p, b, true); }
+      if (b.hp <= 0) dismount(G2, p, b, true);
       return 0;
     };
   }
@@ -128,13 +138,13 @@
     setMul(p, 'moveMul', 'bear', 1);
     p._liftY = 0;
     delete hurtMods(p).bear;
-    if (forced || a.hp <= 0) { a.down = true; a.hp = Math.max(0, a.hp); }
+    if (forced || a.hp <= 0) { a.down = true; a.hp = 1; }   // pet không chết: còn 1 máu rồi nằm chờ hồi [ĐO RGPetController.GetHurt]
   }
   function summon(G, p) {
     const hp = BM.hp;
     const a = addAlly(G, {
       bear: true, x: p.x, y: p.y, hp, hpMax: hp, face: p.face, mounted: false, st: 'idle', stT: 0, cd: 0, box: null,
-      onZero(G2, q) { q.hp = 0; q.down = true; q.st = 'idle'; },
+      onZero(G2, q) { q.hp = 1; q.down = true; q.st = 'idle'; q.hitT = 0; },
       update(G2, q, dt) { bearTick(G2, p, q, dt); },
       draw(ctx, G2, q) { drawBear(ctx, p, q); }
     });
@@ -145,8 +155,14 @@
       a.x = p.x; a.y = p.y - 0.5; a.face = p.face; a.st = p.moving ? 'run' : 'idle';
       return;
     }
+    // Hồi máu của pet [ĐO ReplyingHP]: đồng hồ về 0 mỗi lần bị đánh; tới 6 s thì +max/5 (làm tròn xuống) rồi đặt lại 4 s, tức 2 s một lần.
+    if (a.lastHp != null && a.hp < a.lastHp) a.reT = 0;
+    a.lastHp = a.hp;
+    if (a.hp < a.hpMax) {
+      a.reT = (a.reT || 0) + dt;
+      if (a.reT >= BR.regenDelay) { a.reT = BR.regenDelay - BR.regenEvery; a.hp = Math.min(a.hpMax, a.hp + Math.floor(a.hpMax * BR.regen)); a.lastHp = a.hp; }
+    }
     if (a.down) {
-      a.hp = Math.min(a.hpMax, a.hp + a.hpMax * BR.regen / BR.regenEvery * dt);
       if (a.hp >= a.hpMax) { a.down = false; a.box = [22, 26, 13]; fx(G, 'show_effect_bear', a.x, a.y, { dur: 0.6 }); }
       return;
     }
@@ -162,7 +178,7 @@
     if (e) {
       const [cx, cy] = ec(e), d = Math.hypot(cx - a.x, cy - (a.y - 8));
       a.face = cx >= a.x ? 1 : -1;
-      if (d > BR.slam * 0.6) { walk(G, a, cx, cy + 8, spd, dt); a.st = 'run'; }
+      if (d > BR.atkDist) { walk(G, a, cx, cy + 8, spd, dt); a.st = 'run'; }
       else if (a.cd <= 0) { a.cd = BM.atkCd; a.st = 'atk'; a.stT = 0; a.slammed = false; }
     } else if (Math.hypot(p.x - a.x, p.y - a.y) > BR.follow) { walk(G, a, p.x, p.y, spd * 1.3, dt); a.st = 'run'; }
     if (Math.hypot(p.x - a.x, p.y - a.y) > BM.maxFollow * U) { a.x = p.x; a.y = p.y + 4; }
@@ -195,14 +211,16 @@
         fx(G, 'show_effect_bear', p.x, p.y, { dur: 0.8 });
         if (SK.sfx) SK.sfx.play('fx_bear_show');
         mount(G, p, a);
-      } else if (a.mounted) dismount(G, p, a, false);    // hết hồi chiêu mà đang cưỡi: bấm = xuống
-      else {                                             // cưỡi lại: gấu về chỗ người chơi, hồi 6 máu
-        a.x = p.x; a.y = p.y; a.hp = Math.min(a.hpMax, a.hp + BR.remountHeal); a.down = false;
+      } else if (a.mounted) { if (SK.sfx) SK.sfx.play('fx_bear_show'); }   // đang cưỡi: gốc chỉ dựng lại Mount, không đổi gì
+      else {                                             // cưỡi lại: gấu về chỗ người chơi, hồi 1/4 máu tối đa nếu chưa đầy
+        a.x = p.x; a.y = p.y; a.down = false;
+        if (a.hp < a.hpMax) a.hp = Math.min(a.hpMax, a.hp + Math.floor(a.hpMax * BR.remountFrac));
         fx(G, 'show_effect_bear', p.x, p.y, { dur: 0.8 });
         mount(G, p, a);
       }
     },
-    pressCd(G, p) { const a = bearOf(G); if (a && a.mounted) dismount(G, p, a, false); }   // xuống được cả khi đang hồi chiêu [WIKI]
+    // Nút đặc biệt (phím L) đóng vai btn_unmount: xuống gấu bất cứ lúc nào, gấu tự chiến đấu. Đòn đánh khi đang cưỡi của special gốc chưa làm.
+    special(G, p) { const a = bearOf(G); if (a && a.mounted) dismount(G, p, a, false); }
   };
   SK.on('stageEnter', () => {
     const p = SK.G && SK.G.player;

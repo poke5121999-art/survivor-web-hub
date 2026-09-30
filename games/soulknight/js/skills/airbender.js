@@ -18,31 +18,40 @@
   }
 
   // ================================================================ Cú Đấm Xung Mạch
-  // [ĐO c22 prefab C23Controller: cd 6, dur 1 (thời gian tụ lực); skill0DeltaSpeedRate -0,6; skill0BoxingDamage 8; skill0BallDamage 12;
-  //  skill0BallSpeed 16; skill0BallProcTime 0,3 (đoạn lao); skill0LaserDamage 16 / Interval 0,15 / PostTime 2,5; skill0Ease 6 = OutQuad;
-  //  QigongDamage 8 (hằng); AirbenderSkill0Laser.laserLength 50, startHeight ~1,2]. Quãng lao, bán kính nổ [ƯỚC LƯỢNG].
+  // [ĐO c22 prefab C23Controller: cd 6, dur 1 (thời gian tụ lực = get_Skill0MaxTime); skill0DeltaSpeedRate -0,6; skill0BoxingDamage 8; skill0BallDamage 12;
+  //  skill0BallSpeed 16; skill0LaserDamage 16 / Interval 0,15 / PostTime 2,5; QigongDamage 8 (hằng); AirbenderSkill0Laser.laserLength 50]
+  // [ĐO <Skill0BallSequence>d__120] thả nút: chờ skill0BallProcTime 0,3 s (đứng yên) -> ném bom + sóng khí công, lao <Skill0BallSequence>g__Displacement
+  // = min(SkillInfo.range 10 ô, tới mục tiêu khoá) cắt bởi tường, DOMove 0,2 s ease skill0Ease 6 (OutQuad) -> đứng thêm skill0BallPostTime 0,35 s; cả lúc đó skillCasting (không đánh, không đi).
+  // [ĐO <Skill0LaserSequence>d__127] đủ chuỗi: chờ skill0LaserProcTime 0,1 s -> tia; người đứng yên 2,5 s (FixedSkill0 đặt vận tốc 0 khi _skill0LaserCasting).
+  // Bán kính nổ, độ dài / góc quạt sóng khí công nằm trong collider prefab (PolygonCollider2D, chưa bóc) [ƯỚC LƯỢNG]; cách bom xuyên / nổ [ƯỚC LƯỢNG].
   const PB = {
-    slow: -0.6, dashT: 0.3, dash: 5 * U, post: 0.35, box: 8, ball: 12, ballSpeed: 16 * U, wave: 8,
-    laser: 16, every: 0.15, laserT: 2.5, laserLen: 50 * U, laserW: 1.2 * U,
-    boxR: 2.5 * U, ballR: [1.5 * U, 2.5 * U], waveLen: 6 * U, waveHalf: 30, comboWindow: 8   // 30° = SwordBulletSplitProcessor.exactAngle; cửa sổ chuỗi [ƯỚC LƯỢNG]
+    slow: -0.6, windup: 0.3, dashT: 0.2, range: 10 * U, stop: 0.35 * U, post: 0.35, box: 8, ball: 12, ballSpeed: 16 * U, wave: 8,
+    laser: 16, every: 0.15, laserProc: 0.1, laserT: 2.5, laserLen: 50 * U, laserW: 1.2 * U,
+    boxR: 2.5 * U, ballR: [1.5 * U, 2.5 * U], waveLen: 6 * U, waveHalf: 30,   // 30° = SwordBulletSplitProcessor.exactAngle của airbender_boxing*
+    idxMax: 2, idxReset: 3                                               // get__boxingMaxIndex 2 (3 khi có buff 0x1f); Invoke("ResetBoxingIndex", 3) trong Boxing()
   };
-  // Sóng Phá Không: đấm 2 đòn -> kỹ năng -> đấm 6 đòn -> kỹ năng = tia sóng [ĐO skill0LaserInputs 0,1,-1,0,1,2,0,1,2; -1 là kỹ năng].
-  const seq = p => p._abSeq || (p._abSeq = { stage: 0, n: 0, t: 0 });
+  // [ĐO C23Controller.PushSkill0Input / Skill0InputMatchesConfig] mỗi đòn đấm ghi chỉ số nhịp (0,1,2,0,...; về 0 sau 3 s không đấm), mỗi lần bấm kỹ năng ghi -1;
+  // cửa sổ trượt 9 số. Khớp skill0LaserInputs [0,1,-1,0,1,2,0,1,2] thì lần bấm kỹ năng kế tiếp là tia (rồi xoá danh sách).
+  const LASER_IN = [0, 1, -1, 0, 1, 2, 0, 1, 2];
+  const seq = p => p._abSeq || (p._abSeq = { list: [], idx: 0, t: -9 });
+  const push = (q, v) => { q.list.push(v); if (q.list.length > LASER_IN.length) q.list.shift(); };
+  const laserReady = q => q.list.length === LASER_IN.length && q.list.every((v, i) => v === LASER_IN[i]);
   SK.on('fire', (G, p) => {
     if (p.hero !== 'airbender') return;
     const q = seq(p);
-    q.t = G.t;
-    if (q.stage === 0 && ++q.n >= 2) { q.stage = 1; q.n = 0; }
-    else if (q.stage === 2 && ++q.n >= 6) { q.stage = 3; q.n = 0; G.toast('Sóng Phá Không sẵn sàng'); }
+    if (G.t - q.t > PB.idxReset) q.idx = 0;
+    else if (q.idx > PB.idxMax) q.idx = 0;
+    push(q, q.idx); q.idx++; q.t = G.t;
+    if (laserReady(q) && !p._abPb) G.toast('Sóng Phá Không sẵn sàng');
   });
-  const comboTick = (G, p) => { const q = p._abSeq; if (q && q.stage && G.t - q.t > PB.comboWindow) { q.stage = 0; q.n = 0; } };
 
   S.pulsating_blow = {
     start(G, p) {
       layer(G);
-      const q = seq(p), s = p._abPb = { t: 0, ang: aimDir(p), dash: null };
-      comboTick(G, p);
-      if (q.stage === 1) { q.stage = 2; q.n = 0; } else if (q.stage === 3) { s.laser = true; q.stage = 0; q.n = 0; } else { q.stage = 0; q.n = 0; }
+      const q = seq(p), s = p._abPb = { t: 0, ang: aimDir(p), laser: laserReady(q), phase: 'charge' };
+      if (s.laser) q.list = [];
+      push(q, -1);
+      p.noFire = true;
       p.skillT = cfg(p, 'pulsating_blow').dur || 1;
       setMul(p, 'moveMul', 'ab_charge', 1 + PB.slow);
       s.fx = fx(G, 'effect_c23_skill_ji', p.x, p.y - 8, { follow: p, dy: -8, dur: p.skillT });
@@ -55,37 +64,51 @@
       if (Math.abs(Math.cos(s.ang)) > 0.1) p.face = Math.cos(s.ang) > 0 ? 1 : -1;
     },
     // Bấm lần nữa khi đang tụ lực = thả sớm (chưa đủ lực: đòn nhỏ, không xuyên).
-    press(G, p) { const s = p._abPb; if (s && !s.dash) { s.early = true; SK.endSkill(G, p); } },
+    press(G, p) { const s = p._abPb; if (s && s.phase === 'charge') { s.early = true; SK.endSkill(G, p); } },
     end(G, p) {
       const s = p._abPb; if (!s) return;
-      setMul(p, 'moveMul', 'ab_charge', 1);
       if (s.fx && s.fx.stop) s.fx.stop();
-      if (p.st === 'dead') { p._abPb = null; return; }
-      s.full = !s.early; s.dash = { t: 0, x0: p.x, y0: p.y };
-      // Vừa thả: sóng khí công quạt phía trước.
-      fx(G, 'skill_0_wave1', p.x, p.y - 6, { ang: s.ang, scale: s.full ? 1.2 : 0.8 });
-      cone(G, p, p.x, p.y - 6, s.ang, PB.waveLen, PB.waveHalf, PB.wave, 'ab_wave');
+      if (p.st === 'dead') { setMul(p, 'moveMul', 'ab_charge', 1); p.noFire = false; p._abPb = null; return; }
+      s.full = !s.early; s.phase = 'wind'; s.t = 0;
+      // Hướng và quãng lao chốt lúc thả: về phía mục tiêu khoá nếu có, không thì theo hướng đi / mặt quay, dài đúng tầm kỹ năng.
+      const tg = p.target && alive(p.target) ? p.target : K.nearest(G, p.x, p.y - 6, PB.range, { los: true });
+      s.disp = PB.range;
+      if (tg && !s.laser) { const [cx, cy] = ec(tg), d = Math.hypot(cx - p.x, cy - (p.y - 6)); s.ang = Math.atan2(cy - (p.y - 6), cx - p.x); s.disp = Math.max(0, Math.min(PB.range, d - PB.stop)); }
+      // Tia và đấm xung kích đứng yên; chỉ bom mới lao.
+      setMul(p, 'moveMul', 'ab_charge', 0);
     }
   };
   timers.ab_pb = (G, p, dt) => {
     if (p.hero !== 'airbender') return;
     const s = p._abPb;
-    if (!s || !s.dash) return;
-    const d = s.dash;
-    d.t = Math.min(PB.dashT, d.t + dt);
-    // OutQuad: tốc độ giảm tuyến tính; huỷ phần đi bộ để giữ đúng hướng, dừng khi chạm quái (cách skill0TargetStopOffset 0,35 ô).
-    const k = 2 * (1 - (d.t - dt / 2) / PB.dashT), v = PB.dash / PB.dashT * Math.max(0, k) * dt;
-    const mv = I.moveVec(), walkPx = p.h.speed * U * (p.speedMul || 1) * (p.moveMul || 1) * dt;
-    const blocked = inRadius(G, p.x + Math.cos(s.ang) * 6, p.y - 6 + Math.sin(s.ang) * 6, 6).length > 0;
-    if (!blocked) SK.moveBox(G.map, p, Math.cos(s.ang) * v - mv.x * walkPx, Math.sin(s.ang) * v - mv.y * walkPx, p.h.body.r);
-    if (d.t < PB.dashT && !blocked) return;
-    // Cuối đoạn lao: đấm xung kích + bom khí công (hoặc tia sóng nếu đủ chuỗi).
-    const ang = s.ang, fxx = p.x + Math.cos(ang) * 10, fyy = p.y - 6 + Math.sin(ang) * 10;
-    fx(G, 'airbender_boxing3', fxx, fyy, { ang });
-    for (const e of inRadius(G, fxx, fyy, PB.boxR)) hit(G, p, e, PB.box, { tag: 'ab_box', repel: 8, ang });
-    if (s.laser) laser(G, p, ang);
-    else ball(G, p, fxx, fyy, ang, s.full);
-    p._abPb = null;
+    if (!s || s.phase === 'charge') return;
+    s.t += dt;
+    const ang = s.ang;
+    if (s.phase === 'wind') {
+      if (s.t < (s.laser ? PB.laserProc : PB.windup)) return;
+      s.phase = s.laser ? 'laser' : 'dash'; s.t = 0; s.d = { x0: p.x, y0: p.y, done: 0 };
+      // Vừa hết chờ: sóng khí công quạt phía trước (CreateQigongWave) và bom.
+      fx(G, 'skill_0_wave1', p.x, p.y - 6, { ang, scale: s.full ? 1.2 : 0.8 });
+      cone(G, p, p.x, p.y - 6, ang, PB.waveLen, PB.waveHalf, PB.wave, 'ab_wave');
+      if (s.laser) { laser(G, p, ang); return; }
+      ball(G, p, p.x + Math.cos(ang) * 10, p.y - 6 + Math.sin(ang) * 10, ang, s.full);
+      return;
+    }
+    if (s.phase === 'dash') {
+      // OutQuad: quãng đã đi = 1 - (1 - k)^2. Đi đúng phần tăng thêm, huỷ phần đi bộ của lượt này (moveMul đã về 0 nên không còn).
+      const k = Math.min(1, s.t / PB.dashT), want = s.disp * (1 - (1 - k) * (1 - k));
+      const step = want - s.d.done; s.d.done = want;
+      SK.moveBox(G.map, p, Math.cos(ang) * step, Math.sin(ang) * step, p.h.body.r);
+      if (k < 1) return;
+      // Cuối đoạn lao: đấm xung kích quanh nắm đấm.
+      const fxx = p.x + Math.cos(ang) * 10, fyy = p.y - 6 + Math.sin(ang) * 10;
+      fx(G, 'airbender_boxing3', fxx, fyy, { ang });
+      for (const e of inRadius(G, fxx, fyy, PB.boxR)) hit(G, p, e, PB.box, { tag: 'ab_box', repel: 8, ang });
+      s.phase = 'post'; s.t = 0; return;
+    }
+    if (s.phase === 'post' && s.t >= PB.post || s.phase === 'laser' && s.t >= PB.laserT) {
+      setMul(p, 'moveMul', 'ab_charge', 1); p.noFire = false; p._abPb = null;
+    }
   };
   // Bom khí công: bay 16 ô/s, nổ ở quái/tường đầu tiên; đủ lực thì nổ rộng hơn và xuyên thêm một quái.
   function ball(G, p, x, y, ang, full) {
@@ -125,15 +148,17 @@
   }
 
   // ================================================================ Vật Đổi Sao Dời
-  // [ĐO object_swirl_0/ObjectSwirl: duration 6, range 8, shootInterval 0,02, shootRange 15, bulletSpeed 25, bulletLifetime 5, bulletExtraDamage 1]
-  // [WIKI] mỗi viên bay về gây (sát thương gốc + 1) và chắc chắn Bạo Kích. Xác suất giữ đạn "có thể" [ƯỚC LƯỢNG: mọi viên trong tầm].
-  const OS = { dur: 6, range: 8 * U, gap: 0.02, shootRange: 15 * U, speed: 25, life: 5, extra: 1, max: 60, orbit: 26 };
+  // [ĐO object_swirl_0/ObjectSwirl: duration 6, range 8, fixedInterval 0,05, shootInterval 0,02, shootRange 15, bulletSpeed 25, bulletLifetime 5, bulletExtraDamage 1;
+  //  FixedUpdate: quét vòng tròn bán kính range mỗi fixedInterval, thấy đạn địch (DamageCarrier.IsEnemyBullet) là hút hết, không xác suất; ShootObj: chọn NGẪU NHIÊN một quái
+  //  trong shootRange (RandomUtil.GetRandomObject); Targeting: bay tới đích, sát thương = ProcessSkillDamage(dmg đạn + 1), Bạo Kích theo tỉ lệ bạo kích của người chơi (get_critical)]
+  // Chưa có: hút hộp (swirlBoxProb 0,1, boxExtraDamage 10) và quái (swirlEnemyProb 0,06, enemyExtraDamage 25): thông tin kỹ năng không nhắc tới, web chưa có hộp bị ném.
+  const OS = { dur: 6, range: 8 * U, scan: 0.05, gap: 0.02, shootRange: 15 * U, speed: 25, life: 5, extra: 1, orbit: 26 };
   DUR_UI.orbiting_stars = OS.dur;
   S.orbiting_stars = {
     start(G, p) {
       layer(G);
       p.skillT = OS.dur;
-      const s = p._abOs = { held: [], t: 0 };
+      const s = p._abOs = { held: [], t: 0, scan: 0 };
       s.fx = fx(G, 'object_swirl_0', p.x, p.y - 8, { follow: p, dy: -8, dur: OS.dur });
       G.props.push({ x: p.x, y: 1e9, t: 0,
         update(G2, q) { if (p._abOs !== s) q.gone = true; },
@@ -149,9 +174,11 @@
     },
     update(G, p, dt) {
       const s = p._abOs; if (!s) return;
-      s.t += dt;
+      s.t += dt; s.scan -= dt;
+      if (s.scan > 0) return;
+      s.scan += OS.scan;
       for (const b of G.bullets) {
-        if (b.side !== 'e' || b.dead || s.held.length >= OS.max) continue;
+        if (b.side !== 'e' || b.dead) continue;
         if (Math.hypot(b.x - p.x, b.y - (p.y - 8)) > OS.range) continue;
         b.dead = true; if (b.fxh && b.fxh.kill) b.fxh.kill();
         const eb = D.bullets && D.bullets[b.v86];
@@ -161,38 +188,43 @@
     end(G, p) {
       const s = p._abOs; if (!s) return;
       const held = s.held; p._abOs = null;
-      // Thả từng viên cách 0,02 s về quái gần nhất trong 15 ô.
+      // Thả từng viên cách 0,02 s về một quái ngẫu nhiên trong 15 ô (chọn lúc thả).
       held.forEach((b, i) => G.props.push({ x: b.x, y: 1e9, t: 0, draw() {},
         update(G2, q, dt) {
           q.t += dt;
           if (q.t < i * OS.gap) return;
           q.gone = true;
-          const t = K.nearest(G2, b.x, b.y, OS.shootRange), ang = t ? Math.atan2(ec(t)[1] - b.y, ec(t)[0] - b.x) : SK.rand() * Math.PI * 2;
-          if (t) shoot(G2, p, b.x, b.y, ang, { dmg: b.dmg + OS.extra, speed: OS.speed, life: OS.life, critChance: 100, sprite: b.sprite, repel: 1 });
+          const ts = G2.enemies.filter(e => alive(e) && K.inRoom(G2, e) && Math.hypot(ec(e)[0] - b.x, ec(e)[1] - b.y) < OS.shootRange), t = ts[Math.floor(SK.rand() * ts.length)];
+          if (t) shoot(G2, p, b.x, b.y, Math.atan2(ec(t)[1] - b.y, ec(t)[0] - b.x), { dmg: b.dmg + OS.extra, speed: OS.speed, life: OS.life, critChance: p.crit || 0, sprite: b.sprite, repel: 1 });
         } }));
     }
   };
 
   // ================================================================ Lục Mạch Thần Kiếm
-  // [ĐO c22 skill 3: cd 11, dur 6, range 14] [WIKI] vũ khí trúng địch thi triển sóng khí công hình quạt bằng 50% sát thương vũ khí (làm tròn lên).
-  // Chưa có: truyền nội lực cho nhân vật phe ta (web không có đồng đội cầm vũ khí).
-  const MS = { dur: 6, frac: 0.5, len: 5 * U, half: 30, gap: 0.08 };   // độ dài quạt, nhịp tối thiểu [ƯỚC LƯỢNG]
+  // [ĐO c22 skill 3: cd 11, dur 6, range 14 (RoleSkill2: FindPlayers 14 ô, mọi người chơi trong tầm được truyền)]
+  // [ĐO <CreateQigongTrigger>b__137_0] mỗi đòn vũ khí trúng địch tạo một sóng khí công gây ceil((0,5 + 0,025 x cấp kỹ năng) x sát thương đòn), cấp 0 => 50 %; không giãn nhịp.
+  // [ĐO Skill2OnKill] mỗi quái chết trong lúc kỹ năng chạy hồi 1 giáp (RestoreArmor 1). Nhân vật phe ta trong 14 ô: web không có đồng đội cầm vũ khí.
+  // Độ dài / góc quạt là collider PolygonCollider2D của QigongWave1 (chưa bóc) [ƯỚC LƯỢNG].
+  const MS = { dur: 6, frac: 0.5, len: 5 * U, half: 30, armor: 1 };
   DUR_UI.meridian_sword = MS.dur;
   S.meridian_sword = {
     start(G, p) {
       layer(G);
       p.skillT = cfg(p, 'meridian_sword').dur || MS.dur;
-      p._abMs = { last: -9 };
+      p._abMs = true;
       fx(G, 'effect_c23_skill', p.x, p.y - 8, { follow: p, dy: -8, dur: 1 });
     },
-    end(G, p) { p._abMs = null; }
+    end(G, p) { p._abMs = false; }
   };
   SK.on('enemyHit', (G, e, dmg) => {
-    const p = G.player, s = p && p._abMs;
-    if (!s || p.hero !== 'airbender' || G._skHit || G.t - s.last < MS.gap) return;
-    s.last = G.t;
+    const p = G.player;
+    if (!p || p.hero !== 'airbender' || !p._abMs || G._skHit) return;
     const [cx, cy] = ec(e), ang = Math.atan2(cy - (p.y - 6), cx - p.x);
     fx(G, 'QigongWave1', cx, cy, { ang, scale: 0.8 });
     cone(G, p, cx, cy, ang, MS.len, MS.half, Math.ceil(dmg * MS.frac), 'qigong', { noMul: true });
+  });
+  SK.on('enemyKill', (G) => {
+    const p = G.player;
+    if (p && p.hero === 'airbender' && p._abMs && p.armor < p.armorMax) p.armor = Math.min(p.armorMax, p.armor + MS.armor);
   });
 })();

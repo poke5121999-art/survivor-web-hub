@@ -176,13 +176,17 @@ async function main(b) {
   const nb = await p.evaluate(stage, 70);
   await sleep(80);
   before = await p.evaluate(() => ({ hp: SK_GAME.enemyHp }));
-  await p.evaluate(() => { window.__vx = {}; window.__vp = setInterval(() => { for (const h of SK.G.vfx || []) window.__vx[h.name] = 1; }, 10); });
+  await p.evaluate(() => { window.__vx = {}; window.__vp = setInterval(() => { for (const h of SK.G.vfx || []) window.__vx[h.name] = h.name === 'explode_hit_enemy' ? h.scale : 1; }, 10); });
   await p.keyboard.down('KeyJ'); await sleep(60); await p.keyboard.up('KeyJ');
   await sleep(180); await snap(p, 'bazooka');
   await sleep(500);
   after = await p.evaluate(() => { clearInterval(window.__vp); return { hp: SK_GAME.enemyHp, vx: window.__vx }; });
   check('bazooka: nổ thật explode_hit_enemy, trúng cả đám (8 trực tiếp + 8 vùng mỗi con)', after.vx.explode_hit_enemy && before.hp - after.hp >= 8 * nb,
     'máu −' + (before.hp - after.hp) + ' (' + nb + ' quái) · ' + Object.keys(after.vx).filter(k => /explode|W:/.test(k)).join(', '));
+  // Thân đạn không đổi cỡ (updataInfoWithSize không có trong bundle), nhưng nổ scaleEffectByBulletSize = bulletsInfo.size 2 × sizeFactor 1
+  // [ĐO ExplodeEffectTrigger.ExplodeStart + Explode.UpdateInfo: localScale = one × size].
+  check('bazooka: nổ cỡ 2 = bulletsInfo.size × sizeFactor [ĐO ExplodeEffectTrigger.ExplodeStart]', after.vx.explode_hit_enemy === 2,
+    'scale ' + after.vx.explode_hit_enemy);
 
   // Dao lớn: vệt chém sword_2_5 thật, trúng nhiều quái một nhát, xoá đạn địch trong vệt.
   await p.evaluate(() => { SK_GAME.debug.give('broadsword'); });
@@ -236,7 +240,7 @@ async function main(b) {
       try { SK.WEAPON_KINDS[w.def.kind].fire(G, P, w, Object.assign({ x: P.x + 40, y: P.y - 20, ang: 0 }, o)); }
       finally { SK.randf = r0; SK.rand = q0; }
       return G.bullets.filter(b => b.v86).map(b => ({ pf: b.v86, x: b.x - P.x, y: b.y - P.y, ang: b.ang * 180 / Math.PI, spd: Math.hypot(b.vx, b.vy) / 16,
-        dmg: b.crit ? b.dmg / SK_DESIGN.rules.critMult : b.dmg, crit: b.crit, size: b.size, flip: b.flip, fxd: b.fxh ? (b.fxh.ang - b.ang) * 180 / Math.PI : null, fxf: b.fxh ? b.fxh.flip : null }));
+        dmg: b.crit ? b.dmg / SK_DESIGN.rules.critMult : b.dmg, crit: b.crit, size: b.size, bsize: b.bsize, flip: b.flip, fxd: b.fxh ? (b.fxh.ang - b.ang) * 180 / Math.PI : null, fxf: b.fxh ? b.fxh.flip : null }));
     };
     out.ak = one('ak_47')[0];
     out.bubble = one('dormant_bubble_machine');
@@ -250,6 +254,17 @@ async function main(b) {
     out.rail = one('weapon_045', { charge: 1 })[0];
     out.railHalf = one('weapon_045', { charge: 0.5 })[0];
     out.flail = one('sacred_flail', { charge: 1 })[0];
+    // quay mặt trái: vệt chém là ảnh gương (localScale.x = facing) [ĐO Gun006.CreateBullet]
+    P.face = -1; P.aim = Math.PI;
+    out.swordL = one('broadsword', { ang: Math.PI })[0];
+    out.swordL2 = one('broadsword', { ang: Math.PI, flip: true })[0];
+    out.bazooka = one('bazooka')[0];
+    P.face = 1; P.aim = 0;
+    out.hand2 = SK.handPos(P, 2).map((v, i) => +(v - (i ? P.y : P.x)).toFixed(2));
+    const SF = SK.SELF_FORCE, xa = SK_DESIGN.weapons.weapon_init_assassin ? SK_DESIGN.weapons.weapon_init_assassin.w86.x : { max_hold_force: 30 };
+    out.sf = { asn1: SF.GunInitAssassin(xa, 'Attack'), asn4: SF.GunInitAssassin(xa, 'Attack4'), joker: SF.GunInitJoker({ attackForce: 0 }),
+      kat: [0, 1, 2].map(i => SF.Katana({}, 'Attack', { katIdx: i }, { x: 0, y: 0, target: null }, { t: 0 })),
+      katNear: SF.Katana({}, 'Attack', { katIdx: 1 }, { x: 0, y: 0, target: { x: 6 * 16, y: 0 } }, { t: 0 }) };
     P.crit = c0;
     out.hand = { knight: SK_DESIGN.heroes.knight.hand, viking: SK_DESIGN.heroes.viking.hand };
     out.hx = P.x + SK_DESIGN.heroes[P.hero].hand[0] - P.x; out.hy = -SK_DESIGN.heroes[P.hero].hand[1];
@@ -279,6 +294,209 @@ async function main(b) {
     JSON.stringify(dv.flail && [dv.flail.dmg, dv.flail.size]));
   check('tay cầm súng từ nút h1 + pivot: Hiệp Sĩ [3,92; 6,8], Chiến Binh Cuồng [-0,53; 6] [ĐO hero.ab c00/c13]',
     n2(dv.hand.knight[0], 3.92) && n2(dv.hand.knight[1], 6.8) && n2(dv.hand.viking[0], -0.53) && n2(dv.hand.viking[1], 6), JSON.stringify(dv.hand));
+
+  check('quay mặt trái: vệt chém lật gương (flip), nhát Attack2 lật hai lần thành thẳng [ĐO Gun006.CreateBullet localScale = (facing, ±1)]',
+    dv.swordL && dv.swordL.flip === true && dv.swordL.fxf === true && n2(Math.abs(dv.swordL.fxd), 180) && dv.swordL2 && dv.swordL2.flip === false && !dv.swordL2.fxf,
+    JSON.stringify([dv.swordL, dv.swordL2].map(b => b && [b.flip, b.fxd, b.fxf])));
+  check('bazooka: thân đạn cỡ 1, cỡ logic (nổ) = bulletsInfo.size 2 [ĐO RGBullet.UpdateInfo: updataInfoWithSize mặc định false]',
+    dv.bazooka && dv.bazooka.size === 1 && dv.bazooka.bsize === 2, JSON.stringify(dv.bazooka && [dv.bazooka.size, dv.bazooka.bsize]));
+  check('tay trái Song Thủ ở h2 TRƯỚC mặt: Hiệp Sĩ [12,72; 8,4] px so với chân [ĐO hero.ab c00/img/h2 (0,55; 0,6)]',
+    n2(dv.hand2[0], 12.72) && n2(dv.hand2[1], -8.4), JSON.stringify(dv.hand2));
+  check('lực lao: Sát Thủ nhát thường 0, nhát tụ Attack4 30; Joker 0; Katana [0, 20, 15], gần mục tiêu 6 đv × (6−4)/4 = 10 [ĐO ApplySelfForce, Katana]',
+    dv.sf.asn1 === 0 && dv.sf.asn4 === 30 && dv.sf.joker === 0 && dv.sf.kat.join() === '0,20,15' && n2(dv.sf.katNear, 10), JSON.stringify(dv.sf));
+
+  // Lao người thật: Kiếm Đâm (Gun015, force 30) một nhát -> đi 2,916 đv = 46,65 px theo hướng ngắm, phím chạy bị bỏ qua
+  // [ĐO GetForce: min(|F|, 300); SetVelocity: forceLerp 1, inertial_vel × 0,8 mỗi 0,02 s tới khi ≤ 1].
+  const spearId = await p.evaluate(() => SK_DESIGN.weaponId('weapon_067'));
+  await p.evaluate(id => { SK_GAME.debug.give(id); }, spearId);
+  await p.evaluate(stage, 150);
+  await sleep(100);
+  const x0 = await p.evaluate(() => { window.__f0 = window.__fires; window.__lx = null; const P = SK.G.player; SK.on('fire', () => { if (window.__lx == null) window.__lx = [P.x, P.y]; }); return [SK.G.player.x, SK.G.player.y]; });
+  await p.keyboard.down('KeyJ');
+  await p.waitForFunction(() => window.__fires > window.__f0, null, { timeout: 3000 }).catch(() => {});
+  await p.keyboard.up('KeyJ');
+  await sleep(700);
+  const lg = await p.evaluate(() => ({ at: window.__lx, now: [SK.G.player.x, SK.G.player.y], n: window.__fires - window.__f0, aim: SK.G.player.aim }));
+  const dl = lg.at ? Math.hypot(lg.now[0] - lg.at[0], lg.now[1] - lg.at[1]) : 0;
+  check('Kiếm Đâm: một nhát lao 46,65 px (2,916 đv) theo hướng ngắm [ĐO Gun015.Attack force 30 + RGController.SetVelocity]',
+    lg.n === 1 && near(dl, 46.65, 1.2), 'lao ' + dl.toFixed(2) + ' px, ' + lg.n + ' nhát');
+
+  // Song Thủ: súng thứ hai vẽ sau thân (nằm trên) — thứ tự: thân, súng chính, súng h2.
+  const order = await p.evaluate(() => {
+    const G = SK.G, P = G.player, d0 = SK.draw, seen = [];
+    SK_GAME.debug.give('bad_pistol');
+    P.dual = SK.makeWeapon(P.weapons[P.cur].id);
+    const spr = P.weapons[P.cur].def.sprite;
+    SK.draw = function (ctx, f) { seen.push(f === spr ? 'gun' : /^weapon|^w\d/.test(f) ? 'gun' : 'x'); return d0.apply(this, arguments); };
+    try { SK.drawPlayer(document.createElement('canvas').getContext('2d'), G); } finally { SK.draw = d0; P.dual = null; }
+    return seen.join(',');
+  });
+  check('Song Thủ: súng thứ hai vẽ SAU thân (nằm trên thân), không còn khuất sau lưng', /^x(,x)*,gun(,gun)*$/.test(order) && (order.match(/gun/g) || []).length >= 2, order);
+
+  // Chiêu phụ vũ khí (nút L / btn_special) khi kỹ năng không giữ nút: Gatling tiến hoá tích nhiệt 3/lần bắn, đầy 100 ở lần thứ 34,
+  // bấm -> 4 loạt × 4 viên bullet_gatlin_power trong 1 s [ĐO GunGatlin]. Bản thường không tích nhiệt.
+  await p.evaluate(() => { SK_GAME.debug.give('gatling_gun'); });
+  await p.evaluate(stage, 120);
+  await p.keyboard.down('KeyJ'); await sleep(400); await p.keyboard.up('KeyJ');
+  const gBase = await p.evaluate(() => { const w = SK.G.player.weapons[SK.G.player.cur]; return { heat: w.heat || 0, sp: !!SK.weaponSpecial(SK.G.player) }; });
+  const gat = await p.evaluate(() => {
+    const G = SK.G, P = G.player, w = P.weapons[P.cur], S = SK.WEAPON_SPECIALS.GunGatlin, out = {};
+    w.evolved = true; w.heat = 0; w.overheat = false;
+    for (let i = 0; i < 33; i++) S.onAttack(G, P, w, 1);
+    out.h33 = [w.heat, !!w.overheat];
+    S.onAttack(G, P, w, 1);
+    out.h34 = [w.heat, !!w.overheat];
+    out.skill = !!(SK.skillDef(P).special);
+    G.bullets = [];
+    window.__gp = 0; window.__gpp = setInterval(() => { for (const b of SK.G.bullets) if (b.v86 === 'bullet_gatlin_power' && !b._c) { b._c = 1; window.__gp++; } }, 4);
+    return out;
+  });
+  await p.keyboard.down('KeyL'); await sleep(80); await p.keyboard.up('KeyL');
+  await sleep(1150);
+  const gat2 = await p.evaluate(() => { clearInterval(window.__gpp); const w = SK.G.player.weapons[SK.G.player.cur]; const r = { n: window.__gp, heat: w.heat, oh: !!w.overheat }; w.evolved = false; return r; });
+  check('Gatling: bản thường không nhiệt/không chiêu phụ; tiến hoá: 33 lần = 99, lần 34 = 100 quá nhiệt; nút L -> 16 viên bullet_gatlin_power, nhiệt về 0 [ĐO GunGatlin]',
+    gBase.heat === 0 && !gBase.sp && !gat.skill && gat.h33[0] === 99 && !gat.h33[1] && gat.h34[0] === 100 && gat.h34[1] && gat2.n === 16 && gat2.heat === 0 && !gat2.oh,
+    JSON.stringify({ gBase, gat, gat2 }));
+
+  // Katana tiến hoá: năng lượng chiêu 6 (1/giây), nút L -> lướt tới mục tiêu (khoảng cách + 0,5 đv) ở 40 đv/s, 0,15 s sau chém
+  // sword_katana_slash 24 sát thương [ĐO Katana.SpecialAtk/SpecialAtkDash].
+  await p.evaluate(() => { SK_GAME.debug.give(SK_DESIGN.weaponId('weapon_064')); });
+  await p.evaluate(stage, 60);
+  await sleep(120);
+  const k0 = await p.evaluate(() => {
+    const G = SK.G, P = G.player, w = P.weapons[P.cur];
+    w.evolved = true; w.spE = 5.9;
+    SK.WEAPON_SPECIALS.Katana.update(G, P, w, 0.2);
+    const t = P.target, d = t ? Math.hypot(t.x - P.x, t.y - P.y) : null;
+    window.__ks = null; window.__ksp = setInterval(() => { const b = SK.G.bullets.find(q => q.v86 === 'sword_katana_slash'); if (b && !window.__ks) window.__ks = { dmg: b.crit ? b.dmg / SK_DESIGN.rules.critMult : b.dmg }; }, 4);
+    return { spE: w.spE, d, x: P.x, y: P.y };
+  });
+  await p.keyboard.down('KeyL'); await sleep(60); await p.keyboard.up('KeyL');
+  await sleep(700);
+  const k1 = await p.evaluate(() => { clearInterval(window.__ksp); const P = SK.G.player, w = P.weapons[P.cur]; const r = { x: P.x, y: P.y, slash: window.__ks, spE: w.spE }; w.evolved = false; return r; });
+  const kd = Math.hypot(k1.x - k0.x, k1.y - k0.y);
+  check('Katana tiến hoá: nạp đủ 6, nút L lướt (khoảng cách + 8 px) rồi chém sword_katana_slash 24 [ĐO Katana.SpecialAtk]',
+    k0.spE === 6 && k0.d && near(kd, k0.d + 8, 1.5) && k1.slash && k1.slash.dmg === 24 && k1.spE < 1,
+    'lướt ' + kd.toFixed(1) + ' px (mục tiêu ' + (k0.d && k0.d.toFixed(1)) + ') · ' + JSON.stringify(k1.slash));
+
+  // Gậy Tử Linh: 01, 01, ex_01 (lần 3), mỗi lần −5 năng lượng; đủ 6 xác thì lần sau ra Thủ lĩnh npc_skeleton_03 (28 máu), xác bị gom
+  // [ĐO StaffOfNecromancy.Summon/RefreshSummonLeaderCondition, prefab npc_skeleton_*].
+  const nec = await p.evaluate(() => {
+    const G = SK.G, P = G.player, out = {};
+    SK_GAME.debug.give('staff_of_skeleton');
+    const w = P.weapons[P.cur], F = SK.CUSTOM_FIRE.StaffOfNecromancy, o = { x: P.x + 4, y: P.y - 7, ang: 0 };
+    out.cls = w.def.w86 && w.def.w86.cls; out.cost = w.def.cost;
+    for (let i = 0; i < 6; i++) F(G, P, w, o);
+    const mine = SK.weaponAllies(G).filter(a => a.skel);
+    out.kinds = mine.map(a => a.kind.replace('npc_skeleton_', '')).join(',');
+    out.hp = mine.map(a => a.hpMax).join(',');
+    for (const a of mine) a.life = 0;
+    return out;
+  });
+  await sleep(150);
+  const nec2 = await p.evaluate(() => {
+    const G = SK.G, P = G.player, w = P.weapons[P.cur];
+    const corpses = SK.weaponAllies(G).filter(a => a.corpse && !a.gone).length, st = { can: w.necro.canLeader, bones: w.necro.bones.length };
+    SK.CUSTOM_FIRE.StaffOfNecromancy(G, P, w, { x: P.x + 4, y: P.y - 7, ang: 0 });
+    const L = SK.weaponAllies(G).find(a => a.kind === 'npc_skeleton_03');
+    return { corpses, st, leader: L ? L.hpMax : 0, after: SK.weaponAllies(G).filter(a => a.corpse && !a.gone).length };
+  });
+  check('Gậy Tử Linh: 01,01,ex_01 (máu 8,8,16); 6 xác -> Thủ lĩnh 28 máu, gom hết xác [ĐO StaffOfNecromancy]',
+    nec.cls === 'StaffOfNecromancy' && nec.cost === 5 && nec.kinds === '01,01,ex_01,01,01,ex_01' && nec.hp === '8,8,16,8,8,16' &&
+    nec2.corpses === 6 && nec2.st.can && nec2.leader === 28 && nec2.after === 0, JSON.stringify({ nec, nec2 }));
+
+  // Gậy Ảo Ảnh: 1 bản sao cầm bản sao vũ khí sau lưng (Súng Ngắn Cũ), máu 100 + giáp tối đa; gọi lại khi vũ khí không đổi thì
+  // không làm gì và không tốn năng lượng [ĐO GunPhantom.CreatePhantom].
+  await p.evaluate(() => { SK_GAME.debug.give('staff_of_illusion'); for (const a of SK.weaponAllies(SK.G)) a.gone = true; });
+  await p.evaluate(stage, 70);
+  const ph0 = await p.evaluate(() => ({ en: SK.G.player.energy, f: window.__fires, hp: SK_GAME.enemyHp }));
+  await p.keyboard.down('KeyJ');
+  await p.waitForFunction(f => window.__fires > f, ph0.f, { timeout: 3000 }).catch(() => {});
+  await p.keyboard.up('KeyJ');
+  const ph1 = await p.evaluate(() => {
+    const G = SK.G, P = G.player, w = P.weapons[P.cur];
+    const ph = SK.weaponAllies(G).filter(a => a.phantomOf === w);
+    const en = P.energy, again = SK.CUSTOM_FIRE.GunPhantom(G, P, w, { x: P.x, y: P.y - 7, ang: 0 });
+    return { n: ph.length, wid: ph[0] && ph[0].w && ph[0].w.id, hp: ph[0] && ph[0].hpMax, armor: P.armorMax, en0: en, again, n2: SK.weaponAllies(G).filter(a => a.phantomOf === w).length };
+  });
+  await sleep(1300);
+  const ph2 = await p.evaluate(() => ({ hp: SK_GAME.enemyHp, en: SK.G.player.energy }));
+  check('Gậy Ảo Ảnh: 1 bản sao cầm Súng Ngắn Cũ, máu 100 + giáp; gọi lại không thay, không tốn năng lượng; bản sao bắn trúng quái',
+    ph1.n === 1 && ph1.wid === 'bad_pistol' && ph1.hp === 100 + ph1.armor && ph1.again === false && ph1.n2 === 1 && ph0.en - ph1.en0 === 10 && ph2.hp < ph0.hp,
+    JSON.stringify({ ph0, ph1, ph2 }));
+  await p.evaluate(() => { for (const a of SK.weaponAllies(SK.G)) a.gone = true; });
+
+  // Sổ Tay Chết Chóc: quái thường chết ngay (true, tốn năng lượng); trùm: false (hoàn năng lượng) [ĐO GunDeadNote.Attack].
+  await p.evaluate(stage, 60);
+  const dn = await p.evaluate(() => {
+    const G = SK.G, P = G.player, F = SK.CUSTOM_FIRE.GunDeadNote;
+    SK_GAME.debug.give(SK_DESIGN.weaponId('weapon_276'));
+    const w = P.weapons[P.cur], es = G.enemies.filter(e => e.st !== 'dead');
+    P.target = es[0]; const r1 = F(G, P, w), st1 = es[0].st;
+    es[1].arena = {}; P.target = es[1]; const r2 = F(G, P, w), st2 = es[1].st; delete es[1].arena;
+    return { r1, st1, r2, st2, cls: w.def.w86 && w.def.w86.cls, cost: w.def.cost };
+  });
+  check('Sổ Tay Chết Chóc: quái thường chết ngay, trùm không (không tốn năng lượng) [ĐO GunDeadNote.Attack]',
+    dn.cls === 'GunDeadNote' && dn.cost === 6 && dn.r1 === true && dn.st1 === 'dead' && dn.r2 === false && dn.st2 !== 'dead', JSON.stringify(dn));
+
+  // Cào Trúng Thưởng: ran 3 -> "Giải 1!!" 20 xu × 5 vàng sau 0,6333 + 0,7 s, thẻ bị bỏ [ĐO GunLottery.GetReward].
+  await p.evaluate(() => { SK_GAME.debug.give(SK_DESIGN.weaponId('weapon_332')); const w = SK.G.player.weapons[SK.G.player.cur]; w.forceRan = 3; SK.G.pickups = []; window.__lw = w; window.__g0 = SK.G.player.gold; });
+  await p.keyboard.down('KeyJ'); await sleep(80); await p.keyboard.up('KeyJ');
+  await sleep(700);
+  const lt0 = await p.evaluate(() => ({ spr: window.__lw.frameOverride, coins: SK.G.pickups.filter(k => k.kind === 'coin').length }));
+  await sleep(900);
+  const lt = await p.evaluate(() => { const P = SK.G.player, c = SK.G.pickups.filter(k => k.kind === 'coin'); return { gold: P.gold - window.__g0 + c.reduce((a, k) => a + k.value, 0), done: window.__lw.lotDone, held: P.weapons.indexOf(window.__lw) }; });
+  check('Cào Trúng Thưởng: ran 3 -> hình weapons_332_1 ở 0,63 s, "Giải 1!!" 20 xu × 5 = 100 vàng ở 1,33 s, thẻ bị bỏ [ĐO GunLottery]',
+    lt0.spr === 'weapons_332_1' && lt0.coins === 0 && lt.gold === 100 && lt.done === 'Giải 1!!' && lt.held === -1, JSON.stringify({ lt0, lt }));
+  await p.evaluate(() => { SK.G.pickups = []; SK_GAME.debug.give('bad_pistol'); });
+
+  // Lá Phong Khổng Lồ: nhịp thật 2 phát / 1,1666 s (1,714/giây, không phải 600); vòng 4 đv cách nòng 6,06 đv, 12 sát thương [ĐO clip].
+  const mapleId = await p.evaluate(() => SK_DESIGN.weaponId('weapon_374'));
+  await p.evaluate(id => { SK_GAME.debug.give(id); }, mapleId);
+  await p.evaluate(stage, 6 * 16 + 8);
+  const mp0 = await p.evaluate(() => ({ f: window.__fires, hp: SK_GAME.enemyHp, rps: SK_DESIGN.weapons[SK.G.player.weapons[SK.G.player.cur].id].rps }));
+  await p.keyboard.down('KeyJ'); await sleep(1150); await p.keyboard.up('KeyJ');
+  await sleep(200);
+  const mp1 = await p.evaluate(() => ({ f: window.__fires, hp: SK_GAME.enemyHp }));
+  check('Lá Phong Khổng Lồ: 1,714 phát/giây (giữ 1,15 s = 2 phát), vòng lá trúng quái cách 6 đv [ĐO w_staff_normal_atk(2), bullet_aoe_w374_2]',
+    near(mp0.rps, 1.714, 0.01) && mp1.f - mp0.f === 2 && mp1.hp < mp0.hp, JSON.stringify({ mp0, mp1 }));
+
+  // Lá Phong chiêu phụ (nút L, BaseRevolver hồi 7 s, sẵn sàng từ đầu): 0,3 s sau bắn vòng 6 đv + 5 lá; 1,5 s sau 5 lá phóng 16 đv/s, 8 sát thương.
+  await p.evaluate(() => { SK.G.bullets = []; window.__lv = 0; window.__lvp = setInterval(() => { for (const b of SK.G.bullets) if (b.v86 === 'bullet_0' && !b._c && Math.abs(Math.hypot(b.vx, b.vy) / 16 - 16) < 0.01 && (b.dmg === 8 || b.dmg === 16)) { b._c = 1; window.__lv++; } }, 4); });
+  const pq0 = await p.evaluate(() => { const w = SK.G.player.weapons[SK.G.player.cur]; return { cast: w.pqCast == null ? 'sẵn' : w.pqCast, sp: !!SK.weaponSpecial(SK.G.player) }; });
+  await p.keyboard.down('KeyL'); await sleep(60); await p.keyboard.up('KeyL');
+  await sleep(2100);
+  const pq1 = await p.evaluate(() => { clearInterval(window.__lvp); const w = SK.G.player.weapons[SK.G.player.cur]; return { leaves: window.__lv, cast: +w.pqCast.toFixed(1), prog: +SK.weaponSpecial(SK.G.player).progress.toFixed(2) }; });
+  check('Lá Phong chiêu phụ: nút L -> 5 lá phóng 16 đv/s (8 sát thương), hồi lại 7 s [ĐO BaseRevolver coldDown 7, Bullet374]',
+    pq0.sp && pq0.cast === 'sẵn' && pq1.leaves === 5 && pq1.cast < 3 && pq1.prog < 0.5, JSON.stringify({ pq0, pq1 }));
+
+  // Đạn Đạo Lỗ Đen: giữ ≥ 0,8 s rồi nhả -> 1 tên lửa bullet_89 (16 sát thương, 32 đv/s); nhả sớm -> không bắn [ĐO GunChannel/GunBlackHoleMissile].
+  const bhId = await p.evaluate(() => SK_DESIGN.weaponId('weapon_160'));
+  const bh = [];
+  for (const hold of [300, 1000]) {
+    await p.evaluate(id => { SK_GAME.debug.give(id); SK.G.bullets = []; window.__r89 = null; window.__z = 0;
+      window.__bhp = setInterval(() => { const b = SK.G.bullets.find(q => q.v86 === 'bullet_89'); if (b && !window.__r89) window.__r89 = { spd: Math.hypot(b.vx, b.vy) / 16, dmg: b.crit ? b.dmg / 2 : b.dmg }; window.__z = Math.max(window.__z, SK.G.props.filter(q => q.zone && !q.zone.gone).length); }, 4); }, bhId);
+    await p.evaluate(stage, 200);
+    await p.keyboard.down('KeyJ'); await sleep(hold); await p.keyboard.up('KeyJ');
+    await sleep(200);
+    bh.push(await p.evaluate(() => { clearInterval(window.__bhp); return { rocket: window.__r89, zone: window.__z }; }));
+  }
+  check('Đạn Đạo Lỗ Đen: lỗ đen khi giữ; nhả sớm không bắn; giữ 1 s nhả -> tên lửa 16 sát thương 32 đv/s [ĐO GunBlackHoleMissile.EndShooting]',
+    bh[0].zone >= 1 && !bh[0].rocket && bh[1].rocket && bh[1].rocket.dmg === 16 && near(bh[1].rocket.spd, 32, 0.01), JSON.stringify(bh));
+
+  // Sách Bóng Tối: bấm −2, giữ tới 1 s −2 nữa; 0,3 s -> vùng 2,2 đv; 1,8 s -> giai đoạn 3 (không trừ thêm) [ĐO GunDarkBook/BulletDarkBook].
+  const dbId = await p.evaluate(() => SK_DESIGN.weaponId('weapon_367'));
+  await p.evaluate(id => { SK_GAME.debug.give(id); }, dbId);
+  await p.evaluate(stage, 90);
+  const db0 = await p.evaluate(() => SK.G.player.energy);
+  await p.keyboard.down('KeyJ'); await sleep(500);
+  const dbA = await p.evaluate(() => { const s = SK.G.player.weapons[SK.G.player.cur].db; return s && { stage: s.stage, r: s.z.r / 16 }; });
+  await sleep(1600);
+  const dbB = await p.evaluate(() => { const s = SK.G.player.weapons[SK.G.player.cur].db; return s && { stage: s.stage, en: SK.G.player.energy }; });
+  await p.keyboard.up('KeyJ');
+  check('Sách Bóng Tối: −2 khi bấm, −2 ở 1 s; 0,5 s giai đoạn 2 (2,2 đv); 2,1 s giai đoạn 3 [ĐO GunDarkBook.Update, timeIntervals 0,3/1,5/3]',
+    dbA && dbA.stage === 2 && near(dbA.r, 2.2, 0.01) && dbB && dbB.stage === 3 && db0 - dbB.en === 4, JSON.stringify({ db0, dbA, dbB }));
+  await sleep(1500);
 
   // Vũ khí khởi đầu của cả 42 nhân vật bắn được và gây sát thương.
   const starters = await p.evaluate(() => [...new Set(Object.values(SK_DESIGN.heroes).map(h => h.weapon))]);

@@ -1,8 +1,10 @@
 // Kỹ năng Thương Khách (c29): dragon_lance, thunder_presence, lance_doctrine. Đồ nghề chung ở SK.skillKit (js/skills.js).
-// Số lấy từ ctrlFields của C30Controller (data/sk-skills86.js) và MonoBehaviour của prefab đạn (bullet.json / common.json) [ĐO];
-// thứ không có trong dữ liệu (tầm, tốc, thời gian giữa hai đòn) ghi [ƯỚC LƯỢNG]. Đơn vị Unity 1 = 1 ô = 16 px.
-// Nội tại Đấu Chí (buff 2145: năng lượng → trạng thái Nổ Giận) nằm trong C30Controller cùng chỗ với các đòn nên dựng ở đây,
-// tắt được bằng SK.passiveOn. Chưa làm: chế độ "Master" (MasterContinuousSlash/MasterShotgunSlash) và thanh angry_energy_ui thật.
+// Số lấy từ ctrlFields của C30Controller (data/sk-skills86.js), MonoBehaviour của prefab đạn (bullet.json / common.json) và mã
+// C30Controller đọc bằng tools/sk_method.py [ĐO <Lớp.Method>]; thứ không có trong dữ liệu (hộp va chạm prefab, tốc/thời gian trong animation)
+// ghi [ƯỚC LƯỢNG]. Đơn vị Unity 1 = 1 ô = 16 px.
+// Nội tại Đấu Chí (năng lượng → trạng thái Nổ Giận) nằm trong C30Controller cùng chỗ với các đòn nên dựng ở đây, tắt được bằng SK.passiveOn.
+// Chế độ "Master" của gốc là hai buff chung của ván (HasBuff 3 = Siêu Bom, HasBuff 31 = Liên Kích Mưa) đọc từ p.buffs. Thanh angry_energy_ui:
+// prefab UI không có trong data/sk-ui.js nên vẽ bằng mã (SetAngryEnergy chỉ đưa giá trị 0..AngryEnergyEnoughToExplode lên thanh).
 (function () {
   'use strict';
   const SK = window.SK, K = SK.skillKit, S = SK.SKILLS, W = SK.world, T = SK.TILE, I = SK.input;
@@ -16,10 +18,14 @@
   const ln = p => p._ln || (p._ln = { energy: 0, angry: 0, charge: 0, armed: false, state: 0, resetT: 0, lightT: 0, combo: null, spears: [], spirits: [] });
 
   // ---------------------------------------------------------------- nội tại: năng lượng → Nổ Giận
-  // [ĐO ctrlFields] mỗi đòn vũ khí +AttackAddEnergyValue 2, mỗi lần dùng kỹ năng +SkillAddEnergyValue 6; đủ AngryEnergyEnoughToExplode 100
-  // thì vào trạng thái AngryStateTime 15 s: chí mạng +30, tốc đánh +0.3, chiêu dùng số sát thương "Angry".
-  const AN = { atk: 2, skill: 6, full: 100, t: 15, crit: 30, rate: 0.3 };
+  // [ĐO C30Controller] mỗi viên đạn vũ khí trúng quái +AttackAddEnergyValue 2 (OnPlayerBulletHitEnemyEvent; không cộng khi đòn đó vừa kích sét
+  // của Long Thương Thánh Lâm), chỉ Thiên Long Trụy / Loạn Vô Song / Phi Thương Quyết cộng SkillAddEnergyValue 6 (Skill0_Init, mỗi giai đoạn);
+  // AddAngryEnergy bỏ qua khi đang nổ giận. Đủ AngryEnergyEnoughToExplode 100 → BeginAngry: AngryStateTime 15 s (thanh tụt đều về 0 rồi StopAngry),
+  // chí mạng +AngryAddCritical 30, tốc đánh +AngryAddAtkSpeed 30 % (ChangeAngryAttribute), hồi chiêu nhanh thêm AngrySkillCdValue 0.185 (BeginAngry cộng
+  // 0.185×100 vào trường 0x40 của skillInfo — hiểu là % tốc độ hồi chiêu) [ƯỚC LƯỢNG chỗ hiểu trường 0x40], chiêu dùng số sát thương "Angry".
+  const AN = { atk: 2, skill: 6, full: 100, t: 15, crit: 30, rate: 0.3, cd: 0.185 };
   const angry = p => on(p) && ln(p).angry > 0;
+  const hasBuff = (p, id) => !!(p.buffs && p.buffs.indexOf(id) >= 0);
   function addEnergy(G, p, n) {
     const s = ln(p);
     if (!on(p) || s.angry > 0) return;
@@ -32,11 +38,31 @@
   K.timers.lancer = (G, p, dt) => {
     if (p.hero !== 'lancer') return;
     const s = ln(p);
-    if (s.angry > 0 && (s.angry -= dt) <= 0) { s.angry = 0; p.crit -= AN.crit; K.setMul(p, 'rateMul', 'lancer', 1); }
+    if (s.angry > 0) {
+      const ch = p._ch;
+      p.skillCd = Math.max(0, p.skillCd - dt * AN.cd);
+      if (ch && ch.n < ch.max) ch.t += dt * AN.cd;
+      if ((s.angry -= dt) <= 0) { s.angry = 0; p.crit -= AN.crit; K.setMul(p, 'rateMul', 'lancer', 1); }
+    }
     if (s.combo && (s.combo.t -= dt) <= 0) s.combo = null;
     thunderTick(G, p, dt);
   };
-  SK.on('fire', (G, p) => { if (p && p.hero === 'lancer') { addEnergy(G, p, AN.atk); thunderFire(G, p); } });
+  // Đạn vũ khí trúng quái (G._hitBullet khác null, không phải đòn kỹ năng): sét của Long Thương Thánh Lâm, nếu không kích sét thì cộng năng lượng.
+  SK.on('enemyHit', (G, e) => {
+    const p = G.player;
+    if (!p || p.hero !== 'lancer' || !G._hitBullet || G._skHit) return;
+    const b = G._hitBullet;
+    if (b._ld3) K.debuff(G, e, 'ele');   // LancerUltra3Trigger: đạn ta đã xuyên Trận Thương Mưa Rào làm quái trúng đòn bị cảm điện
+    if (!thunderHit(G, p, e)) addEnergy(G, p, AN.atk);
+  });
+  // Thanh năng lượng Nổ Giận (angry_energy_ui) trên nút kỹ năng: đầy dần theo năng lượng, tụt đều trong trạng thái nổ giận.
+  SK.on('hud', (ctx, G) => {
+    const p = G.player;
+    if (!p || p.hero !== 'lancer' || G.state !== 'stage' || !on(p)) return;
+    const s = ln(p), v = SK.view, cx = v.w - 16, cy = v.h - 17, w = 30, f = s.angry > 0 ? s.angry / AN.t : s.energy / AN.full;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(cx - w / 2, cy - 32, w, 4);
+    ctx.fillStyle = s.angry > 0 ? '#ff6a3a' : '#ffc14a'; ctx.fillRect(cx - w / 2, cy - 32, Math.round(w * f), 4);
+  });
 
   // ---------------------------------------------------------------- tiện ích
   function guard(p, on_) {
@@ -109,7 +135,9 @@
   //    cứ WindInterval 1.6 s tung gió xoáy (whirl_wind) WindDmgValue 4;
   //  3 Phi Thương Quyết: sóng chém bay SlashDmgValue 12 (nổ giận 15) tốc SlashBulletSpeed 24 ô/s, kèm ThrowSpearCount 2 thương
   //    lệch ThrowSpearAngle 20° dmg ThrowSpearDmgValue 4 tốc 24 ô/s.
-  const DL = { jumpR: 2.4 * T, rotR: 2.6 * T, rotGap: 0.5, windR: 3.2 * T, range: 12 * T, waveW: 1.6 * T, lift: 0.4, liftAt: 0.25 };   // bán kính, nhịp trúng, tầm bay [ƯỚC LƯỢNG]
+  // Tầm bay = tốc × destroy_time 5 s của Bullet03 (bullet_slash_throw_spear / bullet_angry_...) [ĐO common.json], thực tế dừng ở tường (RGBulletTriggerWall).
+  // Bán kính hạ xuống / xoay / gió, nhịp trúng thương xoay, độ nâng và lúc bắn Phi Thương Quyết: hộp va chạm và animation của prefab, mã không nêu [ƯỚC LƯỢNG].
+  const DL = { jumpR: 2.4 * T, rotR: 2.6 * T, rotGap: 0.5, windR: 3.2 * T, range: 24 * 5 * T, waveW: 1.6 * T, lift: 0.4, liftAt: 0.25, contDelay: 0.2, shotgun: 2 };
   const cfgDur = p => K.cfg(p, 'dragon_lance').dur || 2;
   S.dragon_lance = {
     start(G, p) {
@@ -149,8 +177,19 @@
         const ag = angry(p), size = ag ? 1 + C('AngryAddSlashBulletSize', 0.25) : 1, cx = p.x, cy = p.y - BODY;
         fx(G, 'c28_buff', cx, cy, { follow: p, dy: -BODY, dur: 0.4, tint: [0.6, 0.8, 1, 1] });
         proj(G, p, { x: cx, y: cy, ang: s.ang, v: C('SlashBulletSpeed', 24) * T, range: DL.range, w: DL.waveW * size, dmg: ag ? C('SlashAngryDmgValue', 15) : C('SlashDmgValue', 12), fx: ag ? 'bullet_angry_slash_throw_spear' : 'bullet_slash_throw_spear' });
-        const n = C('ThrowSpearCount', 2), sp = rad(C('ThrowSpearAngle', 20));
-        for (let i = 0; i < n; i++) proj(G, p, { x: cx, y: cy, ang: s.ang + (i - (n - 1) / 2) * 2 * sp, v: C('ThrowSpearSpeed', 24) * T, range: DL.range, w: 8, dmg: C('ThrowSpearDmgValue', 4), fx: 'lancer_spear', repel: 1 });
+        // GenerateSubSlashThrow: ThrowSpearCount mũi, +MasterShotgunSlashAddCount 2 khi có buff 3 (Siêu Bom); xoè từng cặp ±ThrowSpearAngle [ƯỚC LƯỢNG chỗ chia góc khi > 2 mũi].
+        const n = C('ThrowSpearCount', 2) + (hasBuff(p, 3) ? C('MasterShotgunSlashAddCount', DL.shotgun) : 0), sp = rad(C('ThrowSpearAngle', 20));
+        ln(p).throwN = n;
+        for (let i = 0; i < n; i++) proj(G, p, { x: cx, y: cy, ang: s.ang + (i % 2 ? 1 : -1) * (Math.floor(i / 2) + 1) * sp, v: C('ThrowSpearSpeed', 24) * T, range: DL.range, w: 8, dmg: C('ThrowSpearDmgValue', 4), fx: 'lancer_spear', repel: 1 });
+        // GenerateMasterContinuousBullet (buff 31 Liên Kích Mưa): sau MasterContinuousSlashDelay 0.2 s thêm một sóng cùng hướng, sát thương 2, nhỏ hơn 0.15.
+        if (hasBuff(p, 31)) {
+          const ang = s.ang, k = { n: 0 };
+          G.props.push({ x: 0, y: 1e9, update(G2, q, dt) {
+            if ((k.n += dt) < C('MasterContinuousSlashDelay', DL.contDelay)) return;
+            q.gone = true; ln(p).contN = (ln(p).contN || 0) + 1;
+            proj(G2, p, { x: cx, y: cy, ang, v: C('SlashBulletSpeed', 24) * T, range: DL.range, w: DL.waveW * (size + C('MasterContinuousSlashModifySize', -0.15)), dmg: C('MasterContinuousSlashDmgValue', 2), fx: ag ? 'bullet_angry_slash_throw_spear' : 'bullet_slash_throw_spear' });
+          }, draw() {} });
+        }
         G.shake = Math.max(G.shake, 2);
       }
     },
@@ -177,7 +216,9 @@
   // +Skill1MoveSpeedUp 0.3, hồi chiêu ×(1-Skill1CooldownReduction 0.5), mỗi đòn vũ khí kèm sét liên tỏa Skill1ThunderStateLightningDamage
   // 3 × (Skill1ThunderStateLightningDamageCount 3) mục tiêu (chờ Skill1ThunderChargeLightningAtkCD 1 s), thương cắm xuống thêm sét
   // Skill1SpearLightningDamage 24 (bán kính 1.5 ô) và nhặt thương đả kích phạm vi Skill1CleaveLightningDamageRange 5 ô, +Skill1ThunderStateAddTime 1 s.
-  const TP = { v: 22 * T, range: 13 * T, crashR: 2 * T, pick: 12, jump: 8 * T, cleaveDmg: 10 };   // tốc ném, bán kính đâm, tầm nhặt, tầm sét, sát thương đả kích [ƯỚC LƯỢNG]
+  // Bán kính đâm = radius 1 của CircleDamageCarrier lancer_s0_skill1_spear_crash0/1 [ĐO common.json]. Tốc/tầm ném (hằng 40 lặp ở Skill1SpearCrash, RoleSkill1,
+  // Skill1PickupSpear chưa rõ nghĩa), tầm nhặt, sát thương đả kích khi nhặt (Skill1Cleave không đọc ra số) [ƯỚC LƯỢNG].
+  const TP = { v: 22 * T, range: 13 * T, crashR: 1 * T, pick: 12, cleaveDmg: 10 };
   function thunderTick(G, p, dt) {
     const s = ln(p);
     if (s.lightT > 0) s.lightT -= dt;
@@ -195,29 +236,30 @@
     hit(G, p, e, dmg, { critChance: 0, repel: 1, fx: 'lancer_s0_skill1_hit_fx', tag: 'skill' });
     K.debuff(G, e, 'ele');
   }
-  // Đòn vũ khí kế tiếp mang sét (Đấu Chí) / mọi đòn trong Lôi Động (sét liên tỏa).
-  function thunderFire(G, p) {
+  // OnPlayerBulletHitEnemyEvent: đạn vũ khí trúng quái e khi đang cầm Long Thương Thánh Lâm. Trong Lôi Động (chờ Skill1ThunderChargeLightningAtkCD 1 s)
+  // sét liên tỏa từ e qua tối đa Skill1ThunderStateLightningDamageCount 3 quái (mỗi bước ≤ 5 ô [ƯỚC LƯỢNG]); có Đấu Chí (armed) thì một tia
+  // Skill1ThunderChargeLightningDamage 6 vào e. Trả true nếu kích sét (khi đó không cộng năng lượng Nổ Giận).
+  function thunderHit(G, p, e) {
     const s = ln(p);
-    if (p.h.skill.id !== 'thunder_presence') return;
-    const from = () => [p.x, p.y - BODY];
+    if (p.h.skill.id !== 'thunder_presence') return false;
     if (s.state > 0) {
-      if (s.lightT > 0) return;
+      if (s.lightT > 0) return false;
       s.lightT = C('Skill1ThunderChargeLightningAtkCD', 1);
-      const chain = [];
-      let cur = K.nearest(G, p.x, p.y - BODY, TP.jump, { los: true });
-      for (let i = 0; cur && i < C('Skill1ThunderStateLightningDamageCount', 3); i++) {
-        chain.push(cur);
+      const chain = [e];
+      for (let cur = e; chain.length < C('Skill1ThunderStateLightningDamageCount', 3);) {
         const [cx, cy] = ec(cur);
         cur = K.nearest(G, cx, cy, 5 * T, { skip: q => chain.indexOf(q) >= 0 });
+        if (!cur) break;
+        chain.push(cur);
       }
-      let prev = from();
-      for (const e of chain) { lightning(G, p, prev, e, C('Skill1ThunderStateLightningDamage', 3)); const c = ec(e); prev = [c[0], c[1]]; }
-    } else if (s.armed) {
-      const e = K.nearest(G, p.x, p.y - BODY, TP.jump, { los: true });
-      if (!e) return;
-      s.armed = false;
-      lightning(G, p, from(), e, C('Skill1ThunderChargeLightningDamage', 6));
+      let prev = [p.x, p.y - BODY];
+      for (const q of chain) { lightning(G, p, prev, q, C('Skill1ThunderStateLightningDamage', 3)); const c = ec(q); prev = [c[0], c[1]]; }
+      return true;
     }
+    if (!s.armed) return false;
+    s.armed = false;
+    lightning(G, p, [p.x, p.y - BODY], e, C('Skill1ThunderChargeLightningDamage', 6));
+    return true;
   }
   function pickup(G, p, sp) {
     const s = ln(p);
@@ -268,11 +310,9 @@
         K.setMul(p, 'moveMul', 'tp', 1 + C('Skill1MoveSpeedUp', 0.3));
         const ch = K.charges(p, 'thunder_presence'); ch.cd = K.cfg(p, 'thunder_presence').cd * (1 - C('Skill1CooldownReduction', 0.5));
         fx(G, 'angry_effect', p.x, p.y, { follow: p, dur: s.state });
-        addEnergy(G, p, AN.skill);
         return;
       }
       K.charges(p, 'thunder_presence'); K.useCharge(p, 'thunder_presence');
-      addEnergy(G, p, AN.skill);
       const a = aimTo(G, p, TP.range);
       setFace(p, a.ang);
       throwSpear(G, p, a.ang);
@@ -288,33 +328,40 @@
 
   // ================================================================ 3. Thương Pháp Lâm Trận (lance_doctrine)
   // [ĐO ctrlFields, config max 2, cd 3]: hai chiêu cơ bản, nhấn kỹ năng lần 1 = một chiêu, lần 2 (trong combo) = chiêu cuối theo cặp.
-  // Web chỉ có một phím kỹ năng nên: nhấn K = Sắc Lạnh; nhấn K khi đang giữ nút tấn công = Vẫy Đuôi.
+  // Nút gốc: hai nút TryUseStab / TryUseSweep (skill2Btns). Web: K = Sắc Lạnh, nút đặc biệt (L, btn_special) = Vẫy Đuôi.
+  // [ĐO] _skill2ComboList chỉ bị xoá khi đủ 2 chiêu (ReleaseUltraSkill) — không có bộ đếm thời gian, nên chiêu thứ nhất chờ mãi tới lần bấm kế.
   //   Sắc Lạnh (stab_lancer): lao ngắn về hướng đi, stabDamage 4, stabScale 1.55;  Vẫy Đuôi (sweep_lancer): quét quạt sweepDamage 5, sweepScale 1.75.
   //   Sắc+Sắc → Lôi Đình Phá Ảnh (ultra_1): lao xa, ultra1Damage 8, ultra1Scale 2, ultra1Force 75, cảm điện + choáng, thêm cd ultra1ExtraCd 1;
   //   Vẫy+Vẫy → Phi Thương Hồi Chuyển (ultra_2): thương xoay nhảy qua tối đa maxDashCount 5 quái (dashTime 0.2), ultra2Damage 8, cảm điện + choáng, +3 cd;
   //   Sắc+Vẫy → Theo Gió Mà Đi (ultra_4): thương linh, ultra4LanceCount 6 mũi mỗi loạt, bắn 5 (bulletInfo) tốc 20, quét 8, +0.5 cd, tồn tại nhiều cái;
   //   Vẫy+Sắc → Trận Thương Mưa Rào (ultra_3): đâm liên tục về hướng đi, ultra3Damage 4/nhịp, đạn ta xuyên trận +deltaDamage 3 và cảm điện, +3.5 cd.
-  const LD = { stabD: 3.5 * T, stabT: 0.2, stabR: 1.8 * T, sweepR: 3 * T, sweepHalf: 1.05, window: 2,   // quãng lao, tầm quét, cửa sổ combo [ƯỚC LƯỢNG]
+  const LD = { stabD: 3.5 * T, stabT: 0.2, stabR: 1.8 * T, sweepR: 3 * T, sweepHalf: 1.05, window: Infinity,   // quãng lao (lực stabForce 35 / ultra1Force 75 trong mã không quy ra quãng), tầm quét [ƯỚC LƯỢNG]
     u1D: 9 * T, u1T: 0.25, u2Range: 12 * T, u2Hop: 6 * T, u2Speed: 26 * T, u2Max: 5, u2Hit: 0.2,
     u3T: 1.6, u3Gap: 0.2, u3Len: 4 * T, u3W: 2.2 * T, u4Life: 12, u4Gap: 1, u4Range: 12 * T, u4Max: 4, u4V: 20 * T, u4Fan: 60, u4Sweep: 3 * T };
+  function cast(G, p, kind) {
+    K.layer(G);
+    const id = 'lance_doctrine', s = ln(p);
+    K.charges(p, id); K.useCharge(p, id);
+    const first = s.combo && s.combo.t > 0 ? s.combo.k : null;
+    s.combo = { k: kind, t: LD.window };
+    const ang = moveAng(p), st = p._ld = { ang, t: 0, seen: new Set(), kind: first ? first + kind : kind, fired: false };
+    setFace(p, ang);
+    if (first) { s.combo = null; p._cdExtra = { SS: 'ultra1ExtraCd', WW: 'ultra2ExtraCd', SW: 'ultra4ExtraCd', WS: 'ultra3ExtraCd' }[st.kind]; }
+    const k = st.kind;
+    if (k === 'S') { p.skillT = LD.stabT; st.v = LD.stabD / LD.stabT; guard(p, true); }
+    else if (k === 'W') p.skillT = 0.3;
+    else if (k === 'SS') { p.skillT = LD.u1T; st.v = LD.u1D / LD.u1T; guard(p, true); }
+    else if (k === 'WW') p.skillT = 0.3;
+    else if (k === 'SW') p.skillT = 0.4;
+    else p.skillT = LD.u3T;   // WS
+  }
   S.lance_doctrine = {
-    start(G, p) {
-      K.layer(G);
-      const id = 'lance_doctrine', s = ln(p), sweep = I.down('attack');
-      K.charges(p, id); K.useCharge(p, id);
-      addEnergy(G, p, AN.skill);
-      const kind = sweep ? 'W' : 'S', first = s.combo && s.combo.t > 0 ? s.combo.k : null;
-      s.combo = { k: kind, t: LD.window };
-      const ang = moveAng(p), st = p._ld = { ang, t: 0, seen: new Set(), kind: first ? first + kind : kind, fired: false };
-      setFace(p, ang);
-      if (first) { s.combo = null; p._cdExtra = { SS: 'ultra1ExtraCd', WW: 'ultra2ExtraCd', SW: 'ultra4ExtraCd', WS: 'ultra3ExtraCd' }[st.kind]; }
-      const k = st.kind;
-      if (k === 'S') { p.skillT = LD.stabT; st.v = LD.stabD / LD.stabT; guard(p, true); }
-      else if (k === 'W') p.skillT = 0.3;
-      else if (k === 'SS') { p.skillT = LD.u1T; st.v = LD.u1D / LD.u1T; guard(p, true); }
-      else if (k === 'WW') p.skillT = 0.3;
-      else if (k === 'SW') p.skillT = 0.4;
-      else p.skillT = LD.u3T;   // WS
+    start(G, p) { cast(G, p, 'S'); },
+    // btn_special: Vẫy Đuôi (TryUseSweep). Cùng điều kiện với K: hết kỹ năng trước và còn lượt.
+    special(G, p) {
+      if (p.skillT > 0 || p.skillCd > 0) return;
+      cast(G, p, 'W');
+      SK.emit('skill', G, p);
     },
     update(G, p, dt) {
       const st = p._ld; if (!st) return;
@@ -364,12 +411,6 @@
       p._cdExtra = null;
     }
   };
-  // Đạn ta đã xuyên Trận Thương Mưa Rào làm quái trúng đòn bị cảm điện (LancerUltra3Trigger).
-  SK.on('enemyHit', (G, e) => {
-    if (G._skHit || !G.player || G.player.hero !== 'lancer') return;
-    const [cx, cy] = ec(e);
-    if (G.bullets.some(b => b._ld3 && Math.hypot(b.x - cx, b.y - cy) < 16 + b.r)) K.debuff(G, e, 'ele');
-  });
   // Phi Thương Hồi Chuyển: thương xoay lao tới quái, nhảy sang quái kế (≤ maxDashCount lần); không có quái thì bay thẳng hết tầm.
   function spinSpear(G, p, ang) {
     const s = { x: p.x, y: p.y - BODY, hits: 0, seen: new Set(), tgt: null, d: 0 };

@@ -18,12 +18,15 @@ module.exports = h => ({
     await setW(wid.gun);
     await pressK(p); await sleep(200);
     const a = await info(), s0 = await snap(p);
-    check('robot drone_swarm: ' + r.args + ' drone theo loại vũ khí (súng), hồi chiêu ' + r.cd + ' s chạy ngay [ĐO args, cd]', a && a.type === 'gun' && a.n === +r.args && s0.cd === r.cd && near(s0.skillCd, r.cd, 0.5), JSON.stringify(a) + ' · skillCd ' + s0.skillCd.toFixed(2));
+    check('robot drone_swarm: 4 drone theo loại vũ khí (súng), hồi chiêu ' + r.cd + ' s chạy ngay [ĐO args, cd]', a && a.type === 'gun' && a.n === 4 && r.args === '4' && s0.cd === r.cd && near(s0.skillCd, r.cd, 0.5), JSON.stringify(a) + ' · skillCd ' + s0.skillCd.toFixed(2));
+    const K0 = await p.evaluate(() => { const D = SK.SKILLS.drone_swarm.DR, U = SK.PPU; return [D.orbit / U, D.speed / U, D.range / U, D.every, D.gun.dmg, D.gun.shots, D.laser.dmg, D.laser.len / U, D.melee.dmg, D.melee.blast, D.melee.burn, D.ex.dur, D.ex.gap, D.ex.ring, D.ex.volleys, +D.spin.toFixed(3), +D.rocketTurn.toFixed(2)]; });
+    check('robot drone_swarm: quỹ đạo 2,25 ô, bay 15, dò 14 ô quanh chủ, nhịp 1,5 s, súng 2 ×2, laser 3 dài 100, kiếm 5, nổ 15 cháy 50%, đòn riêng 1,6 s nhịp 0,5 s 7 viên 4 loạt, xoay 2°/khung, tên lửa 30°/0,02 s [ĐO CreatingFunnel/GetFunnelRootPos/FindTarget/Skill1ExAttack/FunnelRotating]',
+      JSON.stringify(K0) === JSON.stringify([2.25, 15, 14, 1.5, 2, 2, 3, 100, 5, 15, 0.5, 1.6, 0.5, 7, 4, 2.094, 26.18]), JSON.stringify(K0));
     await resetD(p);
     await sleep(2600);
     await seq(p, 'robot_1', 6, 100);
     const g = await snap(p);
-    check('robot drone_swarm: drone súng bắn ' + DR.gun.dmg + ' sát thương mỗi viên [ĐO bullet_17]', g.dmg > 0 && hitsOf(g).every(d => d === DR.gun.dmg), 'đòn ' + hitsOf(g).join(','));
+    check('robot drone_swarm: drone súng bắn 2 sát thương mỗi viên [ĐO gunDamage]', g.dmg > 0 && hitsOf(g).every(d => d === 2), 'đòn ' + hitsOf(g).join(','));
     // 2) đòn riêng của drone súng (vũ khí lúc bấm là cận chiến -> bộ mới là cận chiến)
     await setW(wid.melee);
     await p.evaluate(() => { SK.G.player.skillCd = 0; });
@@ -32,7 +35,10 @@ module.exports = h => ({
     await pressK(p); await sleep(250);
     const nb = await p.evaluate(() => window._nb);
     const sp = await snap(p);
-    check('robot drone_swarm: bấm lại = đòn riêng: 3 loạt × ' + DR.n + ' drone × ' + DR.ring + ' viên [WIKI], skill đang chạy', nb >= DR.ring * DR.n && sp.skillT > 0, 'đạn ' + nb + ' · skillT ' + sp.skillT.toFixed(2));
+    check('robot drone_swarm: bấm lại = đòn riêng: mỗi loạt ' + DR.n + ' drone × 7 viên (2 + 5) [ĐO gunBulletCount + gunExBulletCount], skill đang chạy', nb >= 7 * DR.n && sp.skillT > 0, 'đạn ' + nb + ' · skillT ' + sp.skillT.toFixed(2));
+    await sleep(1000);
+    const nb2 = await p.evaluate(() => window._nb);
+    check('robot drone_swarm: đòn riêng súng bắn 4 loạt 0, 0,5, 1, 1,5 s (nhịp gunExInterval 0,5), tổng ≥ ' + (7 * DR.n * 3) + ' viên sau 1,25 s [ĐO Skill1ExAttack]', nb2 >= 7 * DR.n * 3, 'đạn ' + nb2);
     await until(p, () => SK.G.player.skillT <= 0, null, 4000);
     await sleep(200);
     const b = await info();
@@ -42,7 +48,7 @@ module.exports = h => ({
     await resetD(p);
     await sleep(1800);
     const m = await snap(p);
-    check('robot drone_swarm: drone cận chiến quét vòng ' + DR.melee.dmg + ' sát thương [ĐO robot_whirl_wind]', hitsOf(m, 'drone').length > 0 && hitsOf(m, 'drone').every(d => d === DR.melee.dmg), 'đòn ' + hitsOf(m, 'drone').join(','));
+    check('robot drone_swarm: drone cận chiến quét vòng 5 sát thương [ĐO meleeDamage]', hitsOf(m, 'drone').length > 0 && hitsOf(m, 'drone').every(d => d === 5), 'đòn ' + hitsOf(m, 'drone').join(','));
     await setW(wid.laser);
     await p.evaluate(() => { SK.G.player.skillCd = 0; });
     await resetD(p);
@@ -50,7 +56,7 @@ module.exports = h => ({
     await seq(p, 'robot_1b', 6, 120);
     await until(p, () => SK.G.player.skillT <= 0, null, 4000);
     const bl = await snap(p);
-    check('robot drone_swarm: đòn riêng cận chiến: drone lao tới quái tự nổ ' + DR.melee.blast + ' [ĐO robot_skill1_melee_bullet]', hitsOf(bl, 'drone_blast').length > 0 && hitsOf(bl, 'drone_blast').every(d => d === DR.melee.blast || d === DR.melee.blast * crit), 'nổ ' + hitsOf(bl, 'drone_blast').join(','));
+    check('robot drone_swarm: đòn riêng cận chiến: mỗi drone phóng tên lửa tự dẫn, trúng gây 15 [ĐO explodeDamage, robot_skill1_melee_bullet]', hitsOf(bl).some(d => d === 15 || d === 15 * crit), 'đòn ' + hitsOf(bl).join(','));
     await sleep(200);
     const c = await info();
     await resetD(p);
@@ -58,7 +64,7 @@ module.exports = h => ({
     await sleep(2500);
     await seq(p, 'robot_1c', 6, 100);
     const l = await snap(p);
-    check('robot drone_swarm: bộ mới là laser, mỗi tia ' + DR.laser.dmg + ' sát thương (chí mạng x' + crit + ') [ĐO bullet_41]', c && c.type === 'laser' && hitsOf(l, 'drone').length > 0 && hitsOf(l, 'drone').every(d => d === DR.laser.dmg || d === DR.laser.dmg * crit), JSON.stringify(c) + ' · đòn ' + hitsOf(l, 'drone').join(','));
+    check('robot drone_swarm: bộ mới là laser, mỗi tia 3 sát thương (chí mạng x' + crit + ') [ĐO laserDamage]', c && c.type === 'laser' && hitsOf(l, 'drone').length > 0 && hitsOf(l, 'drone').every(d => d === 3 || d === 3 * crit), JSON.stringify(c) + ' · đòn ' + hitsOf(l, 'drone').join(','));
   }
 });
 async function resetD(p) { await p.evaluate(() => { window._skDmg = 0; window._skHits = []; }); }

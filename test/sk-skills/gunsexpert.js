@@ -10,6 +10,7 @@ module.exports = h => {
       const a = await h.snap(p);
       const sup = await p.evaluate(() => (SK.G._allies || []).filter(x => x.merc && !x.gone).map(x => ({ hp: x.hp, hpMax: x.hpMax, w: x.w.id })));
       h.check('gunsexpert: gọi ' + cf.supportCount + ' tùy tùng máu ' + cf.supportHp + ' [ĐO], sóng xung kích ' + cf.shockwaveDamage + ' [ĐO], hồi ' + r.cd + ' s', sup.length === cf.supportCount && sup.every(x => x.hpMax === cf.supportHp) && h.hitsOf(a, 'skill').some(d => d === cf.shockwaveDamage) && a.cd === r.cd && a.skillT > 0, JSON.stringify(sup.map(x => x.w)) + ' · sóng ' + h.hitsOf(a, 'skill').join(','));
+      h.check('gunsexpert: sóng xung kích gắn buff_ele lên quái [ĐO MB shock_hammer.targetbuff]', a.dbEver.indexOf('ele') >= 0, 'debuff ' + a.dbEver.join(','));
       await h.sleep(2300);
       await h.seq(p, 'gunsexpert_0', 6, 80);
       const b = await h.snap(p);

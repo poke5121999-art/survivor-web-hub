@@ -1,6 +1,6 @@
 // Hiệu ứng thật từ prefab Soul Knight 8.6 (data/sk-vfx.js, sinh bởi tools/vfx/build_vfx.py).
 // Mô phỏng một tập con ParticleSystem của Unity + sprite theo khung (SpriteRenderer, SpriteAnimation, clip Animator),
-// TrailRenderer/LineRenderer vẽ đơn giản. 1 đơn vị Unity = 16 px. Dạng dữ liệu: tools/vfx/README.md.
+// TrailRenderer/LineRenderer (dải có texture, bề rộng, màu, textureMode). 1 đơn vị Unity = 16 px. Dạng dữ liệu: tools/vfx/README.md.
 (function () {
   'use strict';
   const SK = window.SK = window.SK || {};
@@ -625,14 +625,16 @@
         const nd = h.nodes[tr.i];
         nodeScreen(R, nd.W, S);
         const now = h.t;
+        // Unity: đỉnh cố định mỗi khi đi xa hơn minVertexDistance, cộng một đỉnh đầu luôn ở vị trí hiện tại (tr.head).
+        // (Trước đây dời đỉnh cuối theo vật: vật chậm hơn minD mỗi khung thì vệt chỉ có một điểm, không bao giờ hiện.)
         if (!h.stopped && nd.vis && !tr.d.noEmit) {
           const last = tr.pts[tr.pts.length - 1];
           const minD = (tr.d.minD || 0.1) * U * h.scale;
           if (!last || Math.hypot(S[6] - last[0], S[7] - last[1]) >= minD) tr.pts.push([S[6], S[7], now]);
-          else { last[0] = S[6]; last[1] = S[7]; last[2] = now; }
-        }
+          tr.head = [S[6], S[7], now];
+        } else if (tr.head) { tr.pts.push(tr.head); tr.head = null; }
         while (tr.pts.length && now - tr.pts[0][2] > tr.d.time) tr.pts.shift();
-        if (tr.pts.length > 1) alive = true;
+        if (tr.pts.length + (tr.head ? 1 : 0) > 1) alive = true;
       }
       if (!alive) { dropParticles(h); continue; }
       list[w++] = h;
@@ -746,9 +748,8 @@
       if (ht) { c0 *= ht[0]; c1 *= ht[1]; c2 *= ht[2]; if (ht[3] != null) c3 *= ht[3]; }
       if (c3 <= 0.004) continue;
       // khung texture sheet
-      let fn = fname, ff = f, sx = f[1], sy = f[2], sw = f[3], sh = f[4];
+      let fn = fname, ff = f, sx = f[1], sy = f[2], sw = f[3], sh = f[4], fr = 0;
       if (uv && (nFrames > 1 || sprs)) { // chế độ Sprite dù chỉ một sprite: vẽ sprite đó, không phải texture vật liệu
-        let fr;
         if (uv.time === 2) fr = Math.floor(p.age * (uv.fps || 30));
         else fr = Math.floor((mm(uv.fot, (a * (uv.cyc || 1)) % 1, p.r1) + (typeof p.frame0 === 'number' ? p.frame0 : 0)) * nFrames);
         fr = ((fr % nFrames) + nFrames) % nFrames;
@@ -772,47 +773,140 @@
         hgt = szY;
       }
       const cs = Math.cos(rot), sn = Math.sin(rot);
-      setT(ctx, B, cs * w / sw, sn * w / sw, -sn * hgt / sh, cs * hgt / sh, px, py);
-      if (fn === '#white') { // ô vuông đặc (vật liệu không có _MainTex): tô thẳng đúng màu, khỏi nhuộm lượng tử
-        ctx.fillStyle = 'rgb(' + (Math.min(1, c0) * 255 + 0.5 | 0) + ',' + (Math.min(1, c1) * 255 + 0.5 | 0) + ',' + (Math.min(1, c2) * 255 + 0.5 | 0) + ')';
-        ctx.fillRect(-sw / 2, -sh / 2, sw, sh);
+      if (sprs && d.rm !== 1) {
+        // [ĐO 610 hệ pixel art] chế độ Sprite: cỡ hạt = bề rộng rect của sprite (cao theo tỉ lệ ảnh), hạt đặt ở pivot.
+        // VerticleStrike 16×64 px cỡ 1 -> đúng 16 px rộng; luật "cạnh dài = cỡ" cho tia sét 4 px, mưa 1×8 rộng 0,1 px.
+        const rw = (uv.rw && uv.rw[fr]) || sw * (ff[7] || 1), kx = w / rw, ky = hgt / rw, s7 = ff[7] || 1;
+        setT(ctx, B, cs * kx * s7, sn * kx * s7, -sn * ky * s7, cs * ky * s7, px, py);
+        drawCell(ctx, fn, ff, c0, c1, c2, p, sx, sy, sw, sh, -ff[5], -ff[6]);
         continue;
       }
-      // khoá màu lượng tử 4 bit/kênh giữ trên hạt: khỏi ghép chuỗi tra cache mỗi khung
-      const qk = (Math.round(Math.min(1, c0) * 15) << 8) | (Math.round(Math.min(1, c1) * 15) << 4) | Math.round(Math.min(1, c2) * 15);
-      let tc = null;
-      if (qk !== 0xFFF) {
-        if (p.qk === qk && p.qf === fn) tc = p.qc;
-        else { tc = tinted(fn, Math.min(1, c0), Math.min(1, c1), Math.min(1, c2)); p.qk = qk; p.qf = fn; p.qc = tc; }
-      }
-      if (tc) ctx.drawImage(tc, sx - ff[1], sy - ff[2], sw, sh, -sw / 2, -sh / 2, sw, sh);
-      else { const im2 = pageImg(ff[0]); if (im2) ctx.drawImage(im2, sx, sy, sw, sh, -sw / 2, -sh / 2, sw, sh); }
+      setT(ctx, B, cs * w / sw, sn * w / sw, -sn * hgt / sh, cs * hgt / sh, px, py);
+      drawCell(ctx, fn, ff, c0, c1, c2, p, sx, sy, sw, sh, -sw / 2, -sh / 2);
     }
   }
+  // một ô texture (sx,sy,sw,sh trên trang atlas) nhuộm màu (c0,c1,c2), góc trên-trái ở (dx,dy) của khung vẽ hiện tại.
+  // p (hạt, có thể null) giữ khoá màu lượng tử 4 bit/kênh: khỏi ghép chuỗi tra cache mỗi khung.
+  function drawCell(ctx, fn, ff, c0, c1, c2, p, sx, sy, sw, sh, dx, dy) {
+    if (fn === '#white') { // ô vuông đặc (vật liệu không có _MainTex): tô thẳng đúng màu, khỏi nhuộm lượng tử
+      ctx.fillStyle = 'rgb(' + (Math.min(1, c0) * 255 + 0.5 | 0) + ',' + (Math.min(1, c1) * 255 + 0.5 | 0) + ',' + (Math.min(1, c2) * 255 + 0.5 | 0) + ')';
+      ctx.fillRect(dx, dy, sw, sh);
+      return;
+    }
+    const qk = (Math.round(Math.min(1, c0) * 15) << 8) | (Math.round(Math.min(1, c1) * 15) << 4) | Math.round(Math.min(1, c2) * 15);
+    let tc = null;
+    if (qk !== 0xFFF) {
+      if (p && p.qk === qk && p.qf === fn) tc = p.qc;
+      else { tc = tinted(fn, Math.min(1, c0), Math.min(1, c1), Math.min(1, c2)); if (p) { p.qk = qk; p.qf = fn; p.qc = tc; } }
+    }
+    if (tc) ctx.drawImage(tc, sx - ff[1], sy - ff[2], sw, sh, dx, dy, sw, sh);
+    else { const im2 = pageImg(ff[0]); if (im2) ctx.drawImage(im2, sx, sy, sw, sh, dx, dy, sw, sh); }
+  }
 
-  function gradCss(g, t, tint, ht, alphaMul) {
-    const c = g ? grad(g, t) : [1, 1, 1, 1];
-    let r = c[0], gg = c[1], b = c[2], a = c[3] * alphaMul;
-    if (tint) { r *= tint[0]; gg *= tint[1]; b *= tint[2]; a *= tint[3]; }
-    if (ht) { r *= ht[0]; gg *= ht[1]; b *= ht[2]; }
-    return ['rgb(' + (Math.min(1, r) * 255 | 0) + ',' + (Math.min(1, gg) * 255 | 0) + ',' + (Math.min(1, b) * 255 | 0) + ')', Math.min(1, a)];
+  // Dải TrailRenderer / LineRenderer. P: [[x, y]] px màn hình từ đầu (0) tới đuôi. Unity [ĐO dữ liệu + tài liệu
+  // LineRenderer]: bề rộng (widthCurve × widthMultiplier) và màu (colorGradient × tint vật liệu) lấy theo phần quãng
+  // đường từ đầu; texture theo textureMode: 0 Stretch (u = phần quãng đường), 1 Tile (u = quãng đường đơn vị Unity),
+  // 2 DistributePerSegment (u = chỉ số / số đoạn), 3 RepeatPerSegment (u = chỉ số), 4 Static (quãng đường tính từ
+  // đuôi, texture đứng yên); rồi u × tiling + offset của
+  // _MainTex. v = 0..1 ngang bề rộng. Mỗi đoạn là một tứ giác nối pháp tuyến trung bình ở đỉnh (không chồng mép như nét
+  // bút round-cap cũ, vốn đậm lên ở mỗi khớp khi vệt trong mờ).
+  const STRIP = { n: [], w: [], c: [], u: [], L: [] };
+  function drawStrip(ctx, B, h, d, P) {
+    const n = P.length;
+    if (n < 2) return;
+    const T = STRIP, k = U * h.scale;
+    let tot = 0;
+    T.L[0] = 0;
+    for (let i = 1; i < n; i++) { tot += Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]); T.L[i] = tot; }
+    if (tot < 0.5) return;
+    const tint = d.tint, ht = h.tint, st = d.st, tm = d.tm || 0;
+    for (let i = 0; i < n; i++) {
+      const f = T.L[i] / tot;
+      T.w[i] = (d.w.c.length ? curve(d.w.c, f) : 1) * d.w.m * k;
+      const c = d.g ? grad(d.g, f) : [1, 1, 1, 1];
+      if (tint) { c[0] *= tint[0]; c[1] *= tint[1]; c[2] *= tint[2]; c[3] *= tint[3]; }
+      if (ht) { c[0] *= ht[0]; c[1] *= ht[1]; c[2] *= ht[2]; if (ht[3] != null) c[3] *= ht[3]; }
+      T.c[i] = c;
+      let u = tm === 1 ? T.L[i] / k : tm === 2 ? i / (n - 1) : tm === 3 ? i : tm === 4 ? (tot - T.L[i]) / k : f;
+      if (st) u = u * st[0] + st[2];
+      T.u[i] = u;
+      // pháp tuyến trung bình của hai đoạn kề
+      const a = P[Math.max(0, i - 1)], b = P[Math.min(n - 1, i + 1)];
+      const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1;
+      T.n[i] = [-dy / l, dx / l];
+    }
+    const fname = d.tex, ff = fname && fname !== '#white' ? FR[fname] : null;
+    const img = ff && pageImg(ff[0]);
+    if (ff && !img) return; // trang atlas chưa tải
+    ctx.globalCompositeOperation = blendOf(d.blend);
+    ctx.imageSmoothingEnabled = !!ff && SMOOTH.has(fname);
+    for (let i = 0; i < n - 1; i++) {
+      const w0 = T.w[i], w1 = T.w[i + 1];
+      if (w0 < 0.3 && w1 < 0.3) continue;
+      const c0 = T.c[i], c1 = T.c[i + 1];
+      const al = (c0[3] + c1[3]) / 2;
+      if (al <= 0.004) continue;
+      const r = (c0[0] + c1[0]) / 2, g = (c0[1] + c1[1]) / 2, bb = (c0[2] + c1[2]) / 2;
+      ctx.globalAlpha = Math.min(1, al);
+      const A = P[i], Bp = P[i + 1], nA = T.n[i], nB = T.n[i + 1];
+      if (!ff) {
+        setT(ctx, B, 1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = 'rgb(' + (Math.min(1, r) * 255 + 0.5 | 0) + ',' + (Math.min(1, g) * 255 + 0.5 | 0) + ',' + (Math.min(1, bb) * 255 + 0.5 | 0) + ')';
+        ctx.beginPath();
+        ctx.moveTo(A[0] + nA[0] * w0 / 2, A[1] + nA[1] * w0 / 2); ctx.lineTo(Bp[0] + nB[0] * w1 / 2, Bp[1] + nB[1] * w1 / 2);
+        ctx.lineTo(Bp[0] - nB[0] * w1 / 2, Bp[1] - nB[1] * w1 / 2); ctx.lineTo(A[0] - nA[0] * w0 / 2, A[1] - nA[1] * w0 / 2);
+        ctx.closePath(); ctx.fill();
+        continue;
+      }
+      // texture: tứ giác đúng (cạnh chung với đoạn kề ở mỗi đỉnh) chia hai tam giác, mỗi tam giác một phép affine + clip.
+      // (Hình bình hành một phép affine lệch mép ở khớp gấp: vệt rộng hiện răng cưa sọc tối.)
+      const ax0 = A[0] + nA[0] * w0 / 2, ay0 = A[1] + nA[1] * w0 / 2, ax1 = A[0] - nA[0] * w0 / 2, ay1 = A[1] - nA[1] * w0 / 2;
+      const bx0 = Bp[0] + nB[0] * w1 / 2, by0 = Bp[1] + nB[1] * w1 / 2, bx1 = Bp[0] - nB[0] * w1 / 2, by1 = Bp[1] - nB[1] * w1 / 2;
+      const ua = T.u[i], ub = T.u[i + 1];
+      if (ua === ub) continue;
+      const lo = Math.min(ua, ub), hi = Math.max(ua, ub), sh = ff[4];
+      // cắt theo biên số nguyên (texture lặp, wrap Repeat)
+      for (let q = Math.floor(lo); q < hi; q++) {
+        const p0 = Math.max(lo, q), p1 = Math.min(hi, q + 1);
+        if (p1 - p0 < 1e-6) continue;
+        // vị trí s (0 = A, 1 = B) của hai mép miếng; toạ độ cục bộ = điểm ảnh của cả khung (x = (u - q) × rộng, y = v × cao).
+        // Vẽ cả khung rồi để clip cắt: cắt ô nguồn lẻ điểm ảnh (sx, sw không nguyên) thì Chrome làm tròn -> khe tối giữa các đoạn.
+        const fw = ff[3], xa = (p0 - q) * fw, xb = (p1 - q) * fw;
+        const s0 = (p0 - ua) / (ub - ua), s1 = (p1 - ua) / (ub - ua);
+        const P0x = ax0 + (bx0 - ax0) * s0, P0y = ay0 + (by0 - ay0) * s0, Q0x = ax1 + (bx1 - ax1) * s0, Q0y = ay1 + (by1 - ay1) * s0;
+        const P1x = ax0 + (bx0 - ax0) * s1, P1y = ay0 + (by0 - ay0) * s1, Q1x = ax1 + (bx1 - ax1) * s1, Q1y = ay1 + (by1 - ay1) * s1;
+        texTri(ctx, B, fname, ff, r, g, bb, xa, 0, P0x, P0y, xb, 0, P1x, P1y, xa, sh, Q0x, Q0y);
+        texTri(ctx, B, fname, ff, r, g, bb, xb, 0, P1x, P1y, xb, sh, Q1x, Q1y, xa, sh, Q0x, Q0y);
+      }
+    }
+  }
+  // Vẽ tam giác (x0,y0)(x1,y1)(x2,y2) (điểm ảnh của khung ff) lên tam giác màn hình (X0,Y0)... bằng affine + clip.
+  function texTri(ctx, B, fname, ff, r, g, bb, x0, y0, X0, Y0, x1, y1, X1, Y1, x2, y2, X2, Y2) {
+    const ux = x1 - x0, uy = y1 - y0, vx = x2 - x0, vy = y2 - y0, det = ux * vy - vx * uy;
+    if (Math.abs(det) < 1e-9) return;
+    const px = X1 - X0, py = Y1 - Y0, qx = X2 - X0, qy = Y2 - Y0;
+    if (Math.abs(px * qy - qx * py) < 0.05) return; // tam giác màn hình suy biến
+    const a = (px * vy - qx * uy) / det, c = (qx * ux - px * vx) / det;
+    const b = (py * vy - qy * uy) / det, d = (qy * ux - py * vx) / det;
+    const e = X0 - a * x0 - c * y0, f = Y0 - b * x0 - d * y0;
+    ctx.save();
+    ctx.setTransform(B);
+    ctx.beginPath(); ctx.moveTo(X0, Y0); ctx.lineTo(X1, Y1); ctx.lineTo(X2, Y2); ctx.closePath();
+    ctx.clip();
+    setT(ctx, B, a, b, c, d, e, f);
+    drawCell(ctx, fname, ff, r, g, bb, null, ff[1], ff[2], ff[3], ff[4], 0, 0);
+    ctx.restore();
   }
 
   function drawTrail(ctx, B, h, tr) {
-    if (!tr || tr.pts.length < 2) return;
-    const d = tr.d, pts = tr.pts, n = pts.length;
-    ctx.setTransform(B);
-    ctx.globalCompositeOperation = blendOf(d.blend);
-    ctx.lineCap = 'round';
-    for (let i = n - 1; i > 0; i--) {
-      const u = (h.t - pts[i][2]) / (d.time || 1); // 0 = đầu vệt
-      const wd = (d.w.c.length ? curve(d.w.c, u) : 1) * d.w.m * U * h.scale;
-      if (wd < 0.3) continue;
-      const cc = gradCss(d.g, u, d.tint, h.tint, 1);
-      if (cc[1] <= 0.004) continue;
-      ctx.globalAlpha = cc[1]; ctx.strokeStyle = cc[0]; ctx.lineWidth = wd;
-      ctx.beginPath(); ctx.moveTo(pts[i][0], pts[i][1]); ctx.lineTo(pts[i - 1][0], pts[i - 1][1]); ctx.stroke();
-    }
+    if (!tr) return;
+    const n = tr.pts.length + (tr.head ? 1 : 0);
+    if (n < 2) return;
+    const P = new Array(n);
+    let j = 0;
+    if (tr.head) P[j++] = tr.head;
+    for (let i = tr.pts.length - 1; i >= 0; i--) P[j++] = tr.pts[i];
+    drawStrip(ctx, B, h, tr.d, P);
   }
 
   function drawLine(ctx, B, h, nd, R, S) {
@@ -822,16 +916,7 @@
     const Rm = rootMat(h);
     const P = pts.map(p => d.world ? [Rm[4] + Rm[0] * p[0] - Rm[1] * p[1], Rm[5] + Rm[2] * p[0] - Rm[3] * p[1]] : [S[6] + S[0] * p[0] + S[1] * p[1], S[7] + S[3] * p[0] + S[4] * p[1]]);
     if (d.loop) P.push(P[0]);
-    ctx.setTransform(B);
-    ctx.globalCompositeOperation = blendOf(d.blend);
-    ctx.lineCap = 'butt';
-    for (let i = 0; i < P.length - 1; i++) {
-      const u = i / (P.length - 1);
-      const wd = (d.w.c.length ? curve(d.w.c, u) : 1) * d.w.m * U * h.scale;
-      const cc = gradCss(d.g, u, null, h.tint, 1);
-      ctx.globalAlpha = cc[1]; ctx.strokeStyle = cc[0]; ctx.lineWidth = Math.max(1, wd);
-      ctx.beginPath(); ctx.moveTo(P[i][0], P[i][1]); ctx.lineTo(P[i + 1][0], P[i + 1][1]); ctx.stroke();
-    }
+    drawStrip(ctx, B, h, d, P);
   }
 
   // ---------------------------------------------------------------- móc vào vòng lặp game mà không sửa tệp chung:

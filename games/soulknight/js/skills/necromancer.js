@@ -2,30 +2,31 @@
 (function () {
   'use strict';
   const SK = window.SK, K = SK.skillKit, S = SK.SKILLS, U = SK.PPU, R = SK.DS.rules, W = SK.world;
-  const { fx, stopFx, hit, nearest, alive, ec, allies, addAlly, hpBar, layer } = K;
+  const { fx, stopFx, hit, nearest, alive, ec, allies, addAlly, hpBar, layer, timers } = K;
 
-  // Vong Linh Hồi Sinh [ĐO c14/skill 3: cd 11, dur 0; prefab reborn_smoke + reborn_mark, tiếng fx_nec_reborn]: đứng gần xác một quái thì
-  // hồi sinh nó theo phe mình (máu = máu gốc, đánh nhanh hơn nhiều), để lại dấu lớn dưới đất; ban đầu chỉ điều khiển 1 quái, hồi sinh
-  // con mới thì con cũ tan. Không có xác hợp lệ thì kỹ năng hỏng và KHÔNG tính hồi chiêu [WIKI].
+  // Vong Linh Hồi Sinh [ĐO c14/skill 3: cd 11, dur 0; prefab reborn_smoke + reborn_mark, tiếng fx_nec_reborn; C15Controller.RoleSkill2]: quái nằm
+  // trong 4 ô thì hồi sinh theo phe mình sau 0,68 s (máu đầy, đánh nhanh hơn), để lại dấu lớn dưới đất; ban đầu chỉ điều khiển 1 quái, hồi sinh
+  // con mới thì con yếu nhất (ít máu nhất) tan. Không có xác hợp lệ thì kỹ năng hỏng và KHÔNG tính hồi chiêu (RoleSkill2 thoát trước ReSetSkillReload).
   const RB = {
-    reach: 6 * U,        // tầm tới xác [ƯỚC LƯỢNG: nguồn chỉ nói "gần xác"]
-    rot: 1.5,            // xác nằm ít nhất từng ấy giây mới hồi sinh được (wiki: "vài giây") [ƯỚC LƯỢNG]
-    life: 45,            // quái hồi sinh hết hạn sau một lúc nếu chưa bị hạ [WIKI, thời gian ƯỚC LƯỢNG]
-    atkRate: 0.35,       // nhịp đánh = shoot_cd × 0.35 ("tần suất tấn công tăng mạnh") [ƯỚC LƯỢNG]
-    follow: 3 * U,       // rảnh thì đứng cách người chơi ngần ấy
-    sight: 12 * U,       // tầm dò quái địch [ƯỚC LƯỢNG]
-    max: 1               // số quái điều khiển cùng lúc [WIKI, chưa nâng cấp]
+    reach: 4 * U,        // FindDeads(4): CircleCast bán kính 4 trên lớp Body_Dead, Linecast tường chặn [ĐO C15Controller.RoleSkill2, FindDeads]
+    rot: 1,              // xác vừa chết bị justDead tới khi EndJustDead: 1 s, trùm 2,5 s [ĐO RGEController.Dead]
+    delay: 0.68,         // từ lúc bấm tới lúc quái đứng dậy [ĐO GameUtil.RebornEnemy: Timer.Register(0.68)]
+    life: 3600,          // không có hạn sống: gốc chỉ dừng khi bị hạ, bị thay hoặc qua cổng (SetLifeTime không được kỹ năng này gọi) [ĐO]
+    atkRate: 0.75,       // atk_cd = shoot_cd × 0,75 [ĐO DeadBodyController.Setup]
+    follow: 4 * U,       // min_follow_distance 4 [ĐO DeadBodyController.Setup]
+    sight: 12 * U,       // tầm dò quái địch: gốc dùng MasterTargetingStrategy (chưa đọc được) [ƯỚC LƯỢNG]
+    max: 1               // số quái điều khiển cùng lúc: 1, có nâng cấp thì 2 [ĐO C15Controller.get_maxMinionCount]
   };
-  const STATIC_AI = /^(EnemyAIStatic|EnemyAISummon)$/;   // quái đứng yên / tổ quái không hồi sinh được [WIKI]
+  const STATIC_AI = /^(EnemyAIStatic|EnemyAISummon)$/;   // thẻ Static / NotReborn của quái không hồi sinh được [ĐO FindDeads]; dữ liệu game này không giữ thẻ nên xấp xỉ theo lớp AI
   const MELEE_W = /^(ESword01|EGun010)$/;
 
   function revivable(e) { return e.st === 'dead' && e.stT >= RB.rot && !e.bossKey && !e.def && !e.draw && !STATIC_AI.test(e.cls) && !e._eaten && e.anims && e.d; }
   function findCorpse(G, p) {
     let best = null, bd = RB.reach;
     for (const e of G.enemies) {
-      if (!revivable(e)) continue;
+      if (!revivable(e) || e._rebornWait) continue;
       const d = Math.hypot(e.x - p.x, e.y - p.y);
-      if (d < bd) { best = e; bd = d; }
+      if (d < bd && W.los(G.map, p.x, p.y - 6, e.x, e.y - 6)) { best = e; bd = d; }
     }
     return best;
   }
@@ -120,14 +121,38 @@
     if (e.wsm) { const m = w.p.atkMode || 0; if (m !== 0) SK.smTrig(e.wsm, 'atk_t'); if (m !== 1) e.wAtk = 0.1; }
   }
 
+  // Quá số lượng thì bỏ con ít máu nhất; hoà thì bỏ con cũ hơn [ĐO C15Controller.MinionsCountControl]. Con mới đã vào danh sách trước khi kiểm.
+  function cull(G) {
+    const list = allies(G).filter(q => q.revived && !q.gone && q.dying == null);
+    while (list.length > RB.max) {
+      let k = 0;
+      for (let i = 1; i < list.length; i++) if (list[i].hp < list[k].hp) k = i;
+      vanish(G, list[k]); list.splice(k, 1);
+    }
+  }
+
+  // Đợi RB.delay rồi mới dựng quái dậy (xác rung "HitBack" trong lúc chờ).
+  timers.souls_resurrect = (G, p, dt) => {
+    const q = p._nrq;
+    if (!q || !q.length) return;
+    for (const r of q) r.t -= dt;
+    for (const r of q.filter(r => r.t <= 0)) {
+      q.splice(q.indexOf(r), 1);
+      const e = r.e;
+      if (e.st === 'dead' && G.enemies.indexOf(e) >= 0) { reviveDrops(G, p, e); cull(G); } else e._rebornWait = false;
+    }
+  };
   S.souls_resurrect = {
     RB,
     start(G, p) {
       layer(G);
       const c = findCorpse(G, p);
       if (!c) { p._cdAfter = 0; SK.num(G, p.x, p.y - 26, '?', '#8a95a8'); return; }   // hỏng: không tính hồi chiêu
-      for (const a of allies(G).filter(q => q.revived)) if (!a.gone) vanish(G, a);       // chỉ giữ RB.max quái: con cũ tan
-      reviveDrops(G, p, c);
+      c._rebornWait = true;
+      G.shake = Math.max(G.shake, 2);   // GameUtil.CameraShake(2)
+      fx(G, 'reborn_smoke', c.x, c.y - 4, {});
+      (p._nrq = p._nrq || []).push({ e: c, t: RB.delay });
     }
   };
+  SK.on('stageEnter', () => { const p = SK.G && SK.G.player; if (p) p._nrq = []; });
 })();

@@ -76,7 +76,8 @@ async function viewer(b) {
     // mọi hiệu ứng: sinh, chạy 1 lượt, không ném lỗi; hiệu ứng không lặp phải tự tắt
     const names = Object.keys(V.effects);
     let thrown = [], stuck = [], particlesSeen = 0, withPs = 0;
-    const lifeMax = d => d.nodes.reduce((m, nd) => { if (!nd.ps) return m; const l = nd.ps.life; return Math.max(m, typeof l === 'number' ? l : l.c ? l.m : Math.max(l.a, l.b)); }, 0);
+    // tuổi thọ hạt dài nhất, hoặc thời gian vệt TrailRenderer (vệt còn hiện tới lúc đỉnh cuối hết hạn)
+    const lifeMax = d => d.nodes.reduce((m, nd) => { if (nd.tr) m = Math.max(m, nd.tr.time || 0); if (!nd.ps) return m; const l = nd.ps.life; return Math.max(m, typeof l === 'number' ? l : l.c ? l.m : Math.max(l.a, l.b)); }, 0);
     for (const n of names) {
       const d = V.effects[n];
       const G2 = {};
@@ -251,8 +252,85 @@ async function fidelity(b) {
       out.roll = { off: !!(ice && ice.d.off), parts: h.sys.reduce((s2, x) => s2 + x.parts.length, 0) };
       X.clear(G);
     }
+    // 9. hạt chế độ Sprite: cỡ = bề rộng rect sprite, cao theo tỉ lệ, đặt theo pivot [ĐO 610 hệ pixel art].
+    //    bullet_follow_ice_skill_s12/ice: cỡ 1 (scalingMode Shape), sprite hero_c02_skin_12_ice 21×24 px pivot (10.5, 21.6)
+    //    từ góc trên-trái -> 16 × 18.29 px, từ 8 px trái tới 8 px phải, 16.46 px trên tới 1.83 px dưới điểm hạt.
+    {
+      const G = {}, h = X.spawn(G, 'bullet_follow_ice_skill_s12', 48, 48, { seed: 1, dur: 2 });
+      h.sys = h.sys.filter(s2 => h.nodes[s2.i].d.n === 'ice');
+      run(G, 0.5);
+      const ctx = canvas(96, 96), boxes = [], di = ctx.drawImage.bind(ctx);
+      ctx.drawImage = function (img, ...a) {
+        const m = ctx.getTransform(), q = a.length === 8 ? a.slice(4) : a.length === 4 ? a : [a[0], a[1], img.width, img.height];
+        const P = [[q[0], q[1]], [q[0] + q[2], q[1]], [q[0], q[1] + q[3]], [q[0] + q[2], q[1] + q[3]]].map(([x, y]) => [m.a * x + m.c * y + m.e, m.b * x + m.d * y + m.f]);
+        boxes.push([Math.min(...P.map(v => v[0])), Math.max(...P.map(v => v[0])), Math.min(...P.map(v => v[1])), Math.max(...P.map(v => v[1]))]);
+        return di(img, ...a);
+      };
+      X.draw(ctx, G);
+      out.sprMode = { n: boxes.length, b: boxes[0] && boxes[0].map(v => +v.toFixed(2)), spr: V.effects.bullet_follow_ice_skill_s12.nodes[2].ps.uv.spr[0] };
+      X.clear(G);
+    }
+    // 10. TrailRenderer có texture (skill1_bullet: #redtrail, Stretch, gradient alpha 1 suốt vệt): texture sáng ở u = 0
+    //     (đầu vệt, [ĐO] cột sáng 0.48 -> 0 dọc ảnh) nên đầu vệt sáng, đuôi tối. Nét màu phẳng cũ: đỏ đều suốt vệt.
+    //     Vật chậm (1 px/khung < minVertexDistance 0.1 đv = 1.6 px): vệt vẫn dài time × tốc độ = 0.55 s × 60 px/s = 33 px.
+    {
+      const trail = (step, secs) => {
+        const G = {}, o = { x: 20, y: 30 }, h = X.spawn(G, 'skill1_bullet', o.x, o.y, { seed: 1, dur: 5, follow: o });
+        for (let i = 0; i < Math.round(secs * 60); i++) { o.x += step; X.update(G, 1 / 60); }
+        const ctx = canvas(200, 60);
+        X.draw(ctx, G);
+        const d = ctx.getImageData(0, 0, 200, 60).data, colMax = [];
+        for (let x = 0; x < 200; x++) { let m = 0; for (let y = 0; y < 60; y++) m = Math.max(m, d[(y * 200 + x) * 4]); colMax.push(m); }
+        const lit = colMax.map((v, x) => v > 12 ? x : -1).filter(x => x >= 0);
+        X.clear(G);
+        const tr0 = h.trails[0];
+        return { colMax, x0: lit.length ? lit[0] : -1, x1: lit.length ? lit[lit.length - 1] : -1, lit: lit.length, geo: tr0.head && tr0.pts.length ? +(tr0.head[0] - tr0.pts[0][0]).toFixed(1) : 0 };
+      };
+      const fast = trail(3, 0.4), slow = trail(1, 0.6);
+      const hx = fast.x1;
+      out.trail = { tex: V.effects.skill1_bullet.nodes[2].tr.tex, head: fast.colMax[hx - 4], mid: fast.colMax[hx - 45], x0: fast.x0, x1: fast.x1,
+        slowGeo: slow.geo, slowLit: slow.lit };
+    }
+    // 11. Vòng lửa Fire (trứng rồng): shader Fair/Unlit/WarlockRing, sprite xám đục hoàn toàn -> vẽ cộng + nhuộm _Color;
+    //     nền đen không được làm tối cảnh (trước: ô đen 41×41 px × thước). bosses.js additive() thành thừa.
+    {
+      const G = {}, h = X.spawn(G, 'Fire', 60, 60, { seed: 1, state: 'gas_start', dur: 2 });
+      h.sys = [];
+      run(G, 0.6);
+      const ctx = canvas(120, 120); ctx.fillStyle = '#404040'; ctx.fillRect(0, 0, 120, 120);
+      X.draw(ctx, G);
+      const d = ctx.getImageData(0, 0, 120, 120).data;
+      let darker = 0, brighter = 0;
+      for (let i = 0; i < d.length; i += 4) { if (d[i] < 60 && d[i + 1] < 60 && d[i + 2] < 60) darker++; else if (d[i] > 80) brighter++; }
+      const sr = V.effects.Fire.nodes[2].sr;
+      out.fire = { b: sr.b, tint: sr.tint, darker, brighter };
+      X.clear(G);
+    }
+    // 12. ice_explode (explode_big): chớp đen 0.0667–0.1333 s là THẬT — clip đặt m_Color.rgb (crc 2526845255 = m_Color.r)
+    //     của SpriteRenderer Sprites-Default về 0 bằng khoá bậc thang; cùng đường cong ở 40 clip nổ explode_big.
+    {
+      const G = {}, h = X.spawn(G, 'ice_explode', 48, 48, { seed: 1, state: 'explode_big' });
+      const at = t => { run(G, t - h.t); const n = h.nodes[1]; return [n.spr, +n.col[0].toFixed(2)]; };
+      out.iceFlash = [at(0.05), at(0.1), at(0.14)];
+      X.clear(G);
+    }
     return out;
   });
+  const sm = r.sprMode;
+  check('hạt chế độ Sprite: cỡ = bề rộng rect sprite, cao theo tỉ lệ, đặt theo pivot (ice s12: 16 × 18.29 px, x 40..56, y 31.54..49.83)',
+    sm.spr === 'hero_c02_skin_12_ice' && sm.n > 0 && Math.abs(sm.b[0] - 40) <= 0.1 && Math.abs(sm.b[1] - 56) <= 0.1 && Math.abs(sm.b[2] - 31.54) <= 0.15 && Math.abs(sm.b[3] - 49.83) <= 0.15,
+    sm.n + ' hạt, khung [x0 x1 y0 y1] ' + JSON.stringify(sm.b) + ' (luật cũ: ô 16×16 giữa tâm = [40,56,40,56])');
+  const tr = r.trail;
+  check('TrailRenderer vẽ texture: #redtrail sáng ở đầu vệt, tối dần về đuôi (không còn nét đỏ phẳng)',
+    tr.tex === '#redtrail' && tr.head >= 150 && tr.head >= 2.5 * tr.mid, 'đỏ đầu vệt ' + tr.head + ', cách đầu 45 px ' + tr.mid + ', vệt x ' + tr.x0 + '..' + tr.x1);
+  check('TrailRenderer: vật chậm hơn minVertexDistance mỗi khung vẫn có vệt dài time × tốc độ (33 px)',
+    Math.abs(tr.slowGeo - 33) <= 2 && tr.slowLit >= 15, 'đầu tới đỉnh cũ nhất ' + tr.slowGeo + ' px, ' + tr.slowLit + ' cột có điểm sáng (bản cũ: 1 đỉnh, không vẽ)');
+  const fi = r.fire;
+  check('Fire: vòng lửa WarlockRing vẽ cộng nhuộm _Color (1, 0.6815, 0.3451), không có ô đen',
+    fi.b === 'add' && JSON.stringify(fi.tint) === '[1,0.6815,0.3451,1]' && fi.darker === 0 && fi.brighter > 30, 'blend ' + fi.b + ', tint ' + JSON.stringify(fi.tint) + ', ' + fi.darker + ' điểm ảnh tối hơn nền, ' + fi.brighter + ' sáng hơn');
+  const ifl = r.iceFlash;
+  check('ice_explode: chớp đen 0.0667–0.1333 s đúng clip gốc (m_Color về 0), rồi ice_explode_1 trắng',
+    ifl[0][0] === 'ice_explode_0' && ifl[0][1] === 1 && ifl[1][0] === 'ice_explode_0' && ifl[1][1] === 0 && ifl[2][0] === 'ice_explode_1' && ifl[2][1] === 1, JSON.stringify(ifl));
   const an = r.angry;
   check('fighter_0_angry_effect: blend cộng theo shader (One One), không có ô tối', an.blend === 'add' && an.darker === 0 && an.brighter > 50,
     'blend ' + an.blend + ', ' + an.darker + ' điểm ảnh tối hơn nền, ' + an.brighter + ' sáng hơn');

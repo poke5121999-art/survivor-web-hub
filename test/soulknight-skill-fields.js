@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..', 'games', 'soulknight', 'js');
-const SHARED = new Set(['_alpha', '_cdAfter', '_ch', '_liftY', '_immuneT', '_hurt', '_hOrig', '_animsOrig', '_mulSrc', '_night']);
+const SHARED = new Set(['_alpha', '_cdAfter', '_ch', '_liftY', '_immuneT', '_hurt', '_hOrig', '_animsOrig', '_mulSrc', '_night', '_ultReady']);
 const files = [path.join(ROOT, 'skills.js')].concat(
   fs.readdirSync(path.join(ROOT, 'skills')).filter(f => /\.js$/.test(f)).map(f => path.join(ROOT, 'skills', f)));
 

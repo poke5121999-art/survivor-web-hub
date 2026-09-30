@@ -57,6 +57,10 @@ SKIP_SHADER = re.compile(r'HitDistortion|^Sprites/Distortion|CircularDistort|Dis
 LEGACY_PARTICLE = re.compile(r'^(Legacy Shaders/)?Particles/(Additive|Alpha Blended|Anim Alpha Blended)$')
 # Shader sprite nhân _Color của vật liệu ('' = shader dựng sẵn không có trong bundle, vật liệu Sprites-Default)
 SPRITE_COLOR_SHADERS = ('', 'Sprites/Default')
+# Shader mặt nạ: sprite là ảnh xám đục hoàn toàn (warlock_0_skill_0_effect_3: 1681/1681 điểm ảnh alpha 255, 1262 đen
+# tuyền) nhưng pass là SrcAlpha OneMinusSrcAlpha [ĐO rtBlend0] -> alpha do shader tính từ độ sáng mặt nạ, nhân _Color.
+# Canvas không chạy shader: vẽ cộng + nhuộm _Color (nền đen biến mất như trong game) [ƯỚC LƯỢNG cách tính alpha].
+LUMA_MASK_SHADERS = ('Fair/Unlit/WarlockRing',)
 FX_FIELD = re.compile(r'(hit|fx|effect|explode|creation|smoke|buff|particle|prefab|boom|muzzle|fire|flash|trail|spark|dead|death|'
                       r'broken|shock|thunder|vfx|efx|show|aura|light)', re.I)
 
@@ -185,6 +189,7 @@ class Atlas:
         self.by_hash = {}   # hash -> name
         self.spr_name = {}  # (cab,pid) -> frame name | None
         self.smooth = set()  # khung có texture lọc Bilinear/Trilinear (art HD mịn): runtime bật imageSmoothing
+        self.rectw = {}      # khung sprite -> bề rộng m_Rect ở 16 px/đv (ảnh bóc là textureRect, có thể bị cắt sát)
 
     def add(self, base, img, ax, ay, s=1.0, cap=None, smooth=False):
         if cap and max(img.width, img.height) * min(1.0, s) > cap:
@@ -352,7 +357,9 @@ class Builder:
         bb = img.getbbox()
         if not bb:
             return None
-        return self.atlas.add(t['m_Name'], img, ax, ay, 16.0 / ppu, cap, smooth)
+        name = self.atlas.add(t['m_Name'], img, ax, ay, 16.0 / ppu, cap, smooth)
+        self.atlas.rectw.setdefault(name, rw * 16.0 / ppu)
+        return name
 
     def filter_of(self, ptr, cab):
         r = self.E.resolve(ptr, cab) if ptr else None
@@ -466,6 +473,11 @@ class Builder:
         cols = dict((a, b) for a, b in props.get('m_Colors', []))
         tex = None
         mt = texs.get('_MainTex')
+        st = None
+        if mt:
+            sc, of = mt.get('m_Scale', {}), mt.get('m_Offset', {})
+            if sc.get('x', 1) != 1 or sc.get('y', 1) != 1 or of.get('x', 0) or of.get('y', 0):
+                st = [r4(sc.get('x', 1)), r4(sc.get('y', 1)), r4(of.get('x', 0)), r4(of.get('y', 0))]
         if mt and mt['m_Texture'].get('m_PathID'):
             tex = self.texture_frame(mt['m_Texture'], r[0])
             if tex is None:
@@ -480,6 +492,8 @@ class Builder:
         sb = self.shader_blend(t.get('m_Shader'), r[0], floats, sh)
         if SKIP_SHADER.search(sh):
             blend = 'skip'   # khúc xạ/biến dạng màn hình: canvas không làm được, bỏ hẳn nút
+        elif sh in LUMA_MASK_SHADERS:
+            blend = 'add'
         elif sb:
             # [ĐO] trạng thái Blend của shader trong bundle (vd Unlit/RGSEffectLight = One One: cộng, dù tên không có
             # "add" và _DstBlend cũ của vật liệu = 0)
@@ -502,7 +516,7 @@ class Builder:
             c = cols['_Color']
             tint = [c['r'], c['g'], c['b'], c['a']]
         out = {'tex': tex, 'blend': blend, 'tint': [r4(x) for x in tint], 'shader': sh, 'name': t.get('m_Name', ''),
-               'srTint': bool(LEGACY_PARTICLE.match(sh)) or sh in SPRITE_COLOR_SHADERS}
+               'srTint': bool(LEGACY_PARTICLE.match(sh)) or sh in SPRITE_COLOR_SHADERS or sh in LUMA_MASK_SHADERS, 'st': st}
         self.mat_cache[k] = out
         return out
 
@@ -1065,6 +1079,14 @@ class Builder:
                     del u[k]
             if uv.get('mode', 0) == 1:
                 u['spr'] = [self.sprite_frame(s['sprite'], cab, TEX_MAX) for s in uv.get('sprites', []) if s['sprite'].get('m_PathID')]
+                # [ĐO] cỡ hạt chế độ Sprite = bề rộng m_Rect của sprite, cao theo tỉ lệ, đặt theo pivot. Ảnh bóc là
+                # textureRect (có thể bị cắt sát) nên xuất bề rộng rect khi khác bề rộng khung atlas.
+                rw = []
+                for f in u['spr']:
+                    it = self.atlas.items.get(f) if f else None
+                    rw.append(r4(self.atlas.rectw.get(f, it[0].width * it[3])) if it else 0)
+                if any(f and abs(w - self.atlas.items[f][0].width * self.atlas.items[f][3]) > 0.01 for f, w in zip(u['spr'], rw)):
+                    u['rw'] = rw
             ps['uv'] = u
         for nm, key in (('noise', 'NoiseModule'), ('trails', 'TrailModule'), ('subEmitters', 'SubModule'), ('collision', 'CollisionModule'),
                         ('lights', 'LightsModule'), ('externalForces', 'ExternalForcesModule'), ('inheritVelocity', 'InheritVelocityModule'),
@@ -1112,6 +1134,19 @@ class Builder:
         self.modules['ps'] += 1
         return ps
 
+    def line_common(self, out, p, mat):
+        # LineParameters.textureMode: 0 Stretch, 1 Tile, 2 DistributePerSegment, 3 RepeatPerSegment
+        if p.get('textureMode', 0):
+            out['tm'] = p['textureMode']
+        if mat:
+            out['tex'] = mat['tex']
+            if mat['blend'] != 'alpha':
+                out['blend'] = mat['blend']
+            if mat['tint'] != [1, 1, 1, 1]:
+                out['tint'] = mat['tint']
+            if mat.get('st'):
+                out['st'] = mat['st']
+
     def trail(self, cab, t, used):
         mat = self.material(t['m_Materials'][0], cab) if t.get('m_Materials') else None
         p = t.get('m_Parameters', {})
@@ -1119,12 +1154,7 @@ class Builder:
                'w': {'c': curve_keys(p.get('widthCurve', {})), 'm': r4(p.get('widthMultiplier', 1))},
                'g': gradient(p['colorGradient']) if 'colorGradient' in p else None,
                'o': t.get('m_SortingOrder', 0), 'L': t.get('m_SortingLayer', 0)}
-        if mat:
-            out['tex'] = mat['tex']
-            if mat['blend'] != 'alpha':
-                out['blend'] = mat['blend']
-            if mat['tint'] != [1, 1, 1, 1]:
-                out['tint'] = mat['tint']
+        self.line_common(out, p, mat)
         if not t.get('m_Enabled', 1):
             out['off'] = 1
         if not t.get('m_Emitting', 1):
@@ -1140,10 +1170,7 @@ class Builder:
                'w': {'c': curve_keys(p.get('widthCurve', {})), 'm': r4(p.get('widthMultiplier', 1))},
                'g': gradient(p['colorGradient']) if 'colorGradient' in p else None,
                'o': t.get('m_SortingOrder', 0), 'L': t.get('m_SortingLayer', 0)}
-        if mat:
-            out['tex'] = mat['tex']
-            if mat['blend'] != 'alpha':
-                out['blend'] = mat['blend']
+        self.line_common(out, p, mat)
         if not t.get('m_Enabled', 1):
             out['off'] = 1
         self.modules['line'] += 1

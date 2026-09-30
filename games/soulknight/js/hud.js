@@ -161,9 +161,9 @@
       setTimeout(() => { ok.off = 1; }, len * 1000 + 50);
     }
     skillReady = ready;
-    // btn_special chỉ hiện khi kỹ năng đang cầm có chiêu phụ; p._ultReady bật khung chiêu cuối (img_ultimate_skill).
+    // btn_special chỉ hiện khi kỹ năng hoặc vũ khí đang cầm có chiêu phụ; p._ultReady bật khung chiêu cuối (img_ultimate_skill).
     const sd = SK.skillDef && SK.skillDef(p), spc = UI.q('control/btn_special');
-    if (sd && sd.special) delete spc.off; else spc.off = 1;
+    if ((sd && sd.special) || (SK.weaponSpecial && SK.weaponSpecial(p))) delete spc.off; else spc.off = 1;
     const ult = UI.q('control/btn_special/img_ultimate_skill');
     if (p._ultReady) delete ult.off; else ult.off = 1;
     const st = SK.input.stick, joy = UI.q('control/joystick'), knob = UI.q('control/joystick/btn');
