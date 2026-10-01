@@ -78,16 +78,17 @@ async function clickTile(p, x, y, opt) {
   // ------------------------------------------------------- đi tới lối ra (chuột thật)
   results.push('\n-- đi bộ --');
   async function walkTo(p, ex, area, ms) {
-    const t0 = Date.now(); let moved = false, s;
+    const t0 = Date.now(); let moved = false, s; const trail = [];
     while (Date.now() - t0 < ms) {
       s = await st(p);
       if (s.area === area) break;
       const dx = ex.x + 0.5 - s.hero.x, dy = ex.y + 0.5 - s.hero.y, d = Math.hypot(dx, dy), k = Math.min(1, 7 / d);
       const pt = await p.evaluate(([x, y]) => D2DBG.client(x, y), [s.hero.x + dx * k, s.hero.y + dy * k]);
       await p.mouse.move(pt.x, pt.y); await p.mouse.down(); await sleep(700); await p.mouse.up();
+      trail.push(s.hero.x.toFixed(1) + ',' + s.hero.y.toFixed(1) + ':' + s.hero.st + ':aggro' + s.mons.filter(m => m.aggro).length);
       if (!moved) { const s2 = await st(p); moved = Math.hypot(s2.hero.x - s.hero.x, s2.hero.y - s.hero.y) > 0.5; }
     }
-    return { moved, area: (await st(p)).area };
+    return { moved, area: (await st(p)).area, trail: trail.slice(-6).join(' | ') };
   }
   const exTown = s.exits.filter(e => e.to === 'blood_moor')[0];
   check('Rogue Encampment có lối ra Blood Moor (từ drlg)', !!exTown, JSON.stringify(s.exits));
@@ -103,7 +104,8 @@ async function clickTile(p, x, y, opt) {
   s = await st(p);
   const exBack = s.exits.filter(e => e.to === 'rogue_encampment')[0];
   const r2 = await walkTo(p, exBack, 'rogue_encampment', 40000);
-  check('đi bộ tới lối về Rogue Encampment', r2.area === 'rogue_encampment', r2.area);
+  check('đi bộ tới lối về Rogue Encampment', r2.area === 'rogue_encampment',
+    r2.area + (r2.area === 'rogue_encampment' ? '' : ' lối=' + JSON.stringify(exBack) + ' vết: ' + r2.trail));
   await p.evaluate(() => D2DBG.goto('blood_moor', 'rogue_encampment'));
   await waitFor(p, () => D2DBG.getState().area === 'blood_moor', 10000);
   await sleep(600);
