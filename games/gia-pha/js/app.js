@@ -325,7 +325,7 @@
   function initSearch() {
     const inp = $('#search'), list = $('#search-res');
     let hits = [], cur = 0;
-    const norm = (s) => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
+    const norm = (s) => String(s).normalize('NFD').replace(/\p{M}/gu, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
     const show = () => {
       const q = norm(inp.value.trim());
       if (!q) { list.classList.remove('show'); return; }
@@ -406,7 +406,8 @@
       { icon: '⤢', label: 'Mở hết các nhánh', run: () => collapseToGen(0) },
       ...gens,
       '-',
-      { icon: '⌖', label: 'Vừa khung (F)', run: () => V.fit() },
+      { icon: '⌖', label: 'Vừa khung (bấm lần nữa: toàn cảnh)', run: () => V.fitCycle() },
+      { icon: '?', label: 'Hướng dẫn', run: () => $('#help').classList.add('open') },
       { icon: '❀', label: 'Lá rơi: ' + (fx.on ? 'đang bật' : 'đang tắt'), run: () => ui.toast({ text: fx.toggle() ? 'Đã bật lá rơi' : 'Đã tắt lá rơi' }) },
     ]);
   }
@@ -436,13 +437,17 @@
     await S.deleteTree(S.doc.id);
     ui.toast({ text: 'Đã xoá cây' });
   }
+  function localDate() {
+    const d = new Date(), z = (n) => String(n).padStart(2, '0');
+    return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate());
+  }
   async function exportTree() {
     ui.toast({ text: 'Đang đóng gói…' });
     const data = await S.exportDoc();
     const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'gia-pha-' + S.doc.name.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd').replace(/[^\w]+/g, '-').toLowerCase() + '-' + new Date().toISOString().slice(0, 10) + '.json';
+    a.download = 'gia-pha-' + S.doc.name.normalize('NFD').replace(/\p{M}/gu, '').replace(/đ/gi, 'd').replace(/[^\w]+/g, '-').replace(/^-|-$/g, '').toLowerCase() + '-' + localDate() + '.json';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
     ui.toast({ text: 'Đã xuất ' + Object.keys(data.files).length + ' tài liệu kèm cây' });
@@ -568,7 +573,7 @@
       $('#view-btn').onclick = (e) => viewMenu(e.currentTarget);
       $('#zin').onclick = () => V.zoomBy(1.25);
       $('#zout').onclick = () => V.zoomBy(1 / 1.25);
-      $('#zfit').onclick = () => V.fit();
+      $('#zfit').onclick = () => V.fitCycle();
       $('#help-btn').onclick = () => $('#help').classList.add('open');
       $('#help').addEventListener('click', (e) => { if (e.target.id === 'help' || e.target.closest('.help-x')) $('#help').classList.remove('open'); });
       $('#crumbs').addEventListener('click', (e) => { const b = e.target.closest('[data-f]'); if (b) focusBranch(b.dataset.f || null); });

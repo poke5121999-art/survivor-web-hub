@@ -250,18 +250,30 @@
 
   // readable: cây lớn quá thì không thu tới mức chữ không đọc được, mà phóng vừa đọc và đặt cụ tổ ở đầu màn.
   function fit(dur, readable) {
+    const t = fitTarget(readable);
+    if (t) flyTo(t, dur);
+  }
+
+  // Nút ⌖: lần đầu phóng vừa đọc, bấm lần nữa khi đã ở đó thì thu toàn cảnh.
+  function fitCycle() {
+    const r = fitTarget(true);
+    if (!r) return;
+    const there = Math.abs(V.cam.k - r.k) < 0.01 && Math.abs(V.cam.x - r.x) < 4 && Math.abs(V.cam.y - r.y) < 4;
+    flyTo(there ? fitTarget(false) : r);
+  }
+
+  function fitTarget(readable) {
     const b = V.L && V.L.bounds;
-    if (!b || !b.w) return;
+    if (!b || !b.w) return null;
     const vp = viewport();
     const pad = vp.w < 500 ? 24 : 70;
     const k = Math.max(0.15, Math.min(1.1, (vp.w - pad * 2) / b.w, (vp.h - pad * 2) / b.h));
     const minK = vp.w < 500 ? 0.62 : 0.5;
     if (readable && k < minK) {
       const top = V.L.cards.reduce((a, c) => (c.y < a.y || (c.y === a.y && c.blood && !a.blood) ? c : a), V.L.cards[0]);
-      flyTo({ k: minK, x: vp.w / 2 - (top.x + CARD.w / 2) * minK, y: 40 - b.y * minK }, dur);
-      return;
+      return { k: minK, x: vp.w / 2 - (top.x + CARD.w / 2) * minK, y: 40 - b.y * minK };
     }
-    flyTo({ k, x: vp.w / 2 - (b.x + b.w / 2) * k, y: vp.h / 2 - (b.y + b.h / 2) * k + 10 }, dur);
+    return { k, x: vp.w / 2 - (b.x + b.w / 2) * k, y: vp.h / 2 - (b.y + b.h / 2) * k + 10 };
   }
 
   function centerOn(id, opts) {
@@ -514,7 +526,7 @@
 
   function invalidate(id) { if (id) delete V.sig[id]; else V.sig = {}; }
 
-  Object.assign(V, { init, render, fit, centerOn, select, pulse, zoomAt, flyTo, reset, applyCam, toScreen, invalidate,
+  Object.assign(V, { init, render, fit, fitCycle, centerOn, select, pulse, zoomAt, flyTo, reset, applyCam, toScreen, invalidate,
     zoomBy(f) { const r = stage.getBoundingClientRect(); zoomAt(f, r.left + viewport().w / 2, r.top + viewport().h / 2); } });
   GP.view = V;
 })(window.GP);

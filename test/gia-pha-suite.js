@@ -139,6 +139,14 @@ async function main() {
   await page.fill('#pn-name', 'Nguyễn Văn Lộc Tài');
   await settle();
   check('sửa tên: thẻ trên cây đổi theo', (await card('Nguyễn Văn Lộc Tài').count()) === 1);
+  const fit = await page.evaluate(() => { const p = document.getElementById('panel').getBoundingClientRect(); return [...document.querySelectorAll('#pn-born,#pn-died,#pn-place')].every((i) => i.getBoundingClientRect().right <= p.right - 10); });
+  check('ô Năm sinh / Năm mất / Quê quán nằm trọn trong bảng', fit);
+  const longName = 'Nguyễn Hoàng Phương Thảo Nguyên Bích Ngọc Lan Chi Mai Anh Tuyết Nhung Hồng Đào';
+  await page.fill('#pn-name', longName);
+  const nameFits = await page.evaluate(() => { const t = document.getElementById('pn-name'); return t.scrollHeight <= t.clientHeight + 2 && t.clientHeight > 40; });
+  check('tên rất dài xuống dòng, hiện đủ trong bảng', nameFits);
+  await page.fill('#pn-name', 'Nguyễn Văn Lộc Tài');
+  await page.waitForTimeout(300);
 
   // ---- thu / mở nhánh ----
   await page.keyboard.press('Escape');
@@ -228,6 +236,11 @@ async function main() {
   await page.waitForTimeout(700);
   check('ghi chú: chữ đậm được bọc thẻ <b>', /<b>Huân chương Kháng chiến<\/b>/.test(await page.innerHTML('#pn-doc')), (await page.innerHTML('#pn-doc')).slice(0, 120));
   check('ghi chú: chân trang báo đã lưu', (await page.textContent('#pn-saved')) === 'Đã lưu ✓');
+  await page.keyboard.press('Enter');
+  await page.click('#tb [data-cmd="bold"]');
+  await page.click('#tb [data-cmd="table"]');
+  await page.keyboard.type('ô1');
+  check('chèn bảng: con trỏ vào ô đầu, gõ là vào ô', (await page.locator('#pn-doc table td').first().textContent()) === 'ô1', await page.locator('#pn-doc table td').first().textContent());
   await page.click('#tb [data-cmd="full"]');
   await page.waitForTimeout(500);
   await shot('05-ghi-chu-trang-giay');
@@ -248,7 +261,12 @@ async function main() {
   check('tài liệu: thẻ tab ghi số 3', (await page.textContent('#pn-nfiles')) === '3');
   check('tài liệu: thẻ trên cây hiện 📎3', /📎3/.test(await card('Nguyễn Văn Đức').textContent()));
   check('tài liệu: âm thanh có trình phát ngay trong danh sách', (await page.locator('#pn-files .k-audio audio').count()) === 1);
-  await page.locator('#pn-files .k-image [data-fa="view"]').click();
+  await page.locator('#pn-files .k-image .fi-name').click();
+  await page.waitForTimeout(400);
+  check('bấm vào tên tệp cũng mở xem trước', await page.locator('#viewer.open').count() === 1);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+  await page.locator('#pn-files .k-image .fi-thumb').click();
   await page.waitForTimeout(500);
   const imgOk = await page.evaluate(() => { const i = document.querySelector('#vw-body img'); return !!i && i.complete && i.naturalWidth === 2; });
   check('xem ảnh: ảnh 2x2 tải được trong trình xem', imgOk);
@@ -303,6 +321,9 @@ async function main() {
   const file = path.join(SHOTS, 'export.json');
   await dl.saveAs(file);
   const ex = JSON.parse(fs.readFileSync(file, 'utf8'));
+  const now = new Date(), z = (n) => String(n).padStart(2, '0');
+  const today = now.getFullYear() + '-' + z(now.getMonth() + 1) + '-' + z(now.getDate());
+  check('xuất: tên tệp ghi ngày theo giờ máy, không gạch đôi', dl.suggestedFilename() === 'gia-pha-ho-nguyen-van-mau-' + today + '.json', dl.suggestedFilename());
   check('xuất: tệp có 26 người và 3 tài liệu kèm', Object.keys(ex.tree.people).length === 26 && Object.keys(ex.files).length === 3, Object.keys(ex.tree.people).length + ' người, ' + Object.keys(ex.files).length + ' tệp');
   await page.setInputFiles('#import-file', file);
   await settle(); await page.waitForTimeout(400);
@@ -351,6 +372,25 @@ async function main() {
   check('điện thoại: chạm thẻ mở tấm chi tiết', sheet && sheet.y < 844 - 200, sheet && sheet.y.toFixed(0));
   check('điện thoại: thẻ đang chọn không bị tấm che', mcb && mcb.y + mcb.height <= sheet.y + 2, mcb && (mcb.y + mcb.height).toFixed(0) + ' / ' + sheet.y.toFixed(0));
   check('điện thoại: nút thêm con hiện quanh thẻ đang chọn', await mp.locator('.card.sel .qa-child').isVisible());
+  const h0 = (await mp.locator('#panel').boundingBox()).height;
+  await mp.locator('.sheet-grip').tap();
+  await mp.waitForTimeout(500);
+  const h1 = (await mp.locator('#panel').boundingBox()).height;
+  check('điện thoại: chạm tay nắm thì tấm dưới mở cao hơn', h1 > h0 + 80, h0.toFixed(0) + ' → ' + h1.toFixed(0));
+  await mp.locator('.pn-close').tap();
+  await mp.waitForTimeout(500);
+  check('điện thoại: có nút ☰ trên thanh trên', await mp.locator('#view-btn').isVisible());
+  await mp.locator('#view-btn').tap();
+  await mp.waitForSelector('.menu.in');
+  check('điện thoại: menu ☰ có thu/mở theo đời và hướng dẫn', (await mp.locator('.menu button', { hasText: 'Hiện tới đời 2' }).count()) === 1 && (await mp.locator('.menu button', { hasText: 'Hướng dẫn' }).count()) === 1);
+  await mp.locator('.menu button', { hasText: 'Vừa khung' }).tap();
+  await mp.waitForTimeout(700);
+  const cw = (await mp.locator('.card').first().boundingBox()).width;
+  check('điện thoại: ⌖ lần đầu phóng vừa đọc (thẻ rộng ≥ 100px)', cw >= 100, cw.toFixed(0));
+  await mp.locator('#zfit').tap();
+  await mp.waitForTimeout(700);
+  const cw2 = (await mp.locator('.card').first().boundingBox()).width;
+  check('điện thoại: ⌖ lần hai thu toàn cảnh', cw2 < cw / 2, cw2.toFixed(0));
   await mp.screenshot({ path: path.join(SHOTS, '09-dien-thoai.png') });
   check('điện thoại: không lỗi trang', merrs.length === 0, merrs.join(' | '));
   await m.close();

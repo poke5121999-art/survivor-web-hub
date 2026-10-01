@@ -235,6 +235,7 @@ body.panel-open .crumbs { left: calc((100vw - 400px) / 2); }
 .fld input:focus, .fld select:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(201, 154, 60, .18); }
 .fld.sm { margin: 0; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+.grid2 > .fld, .fld input { min-width: 0; width: 100%; }
 .shake { animation: shake .35s; }
 @keyframes shake { 20%, 60% { translate: -5px 0; } 40%, 80% { translate: 5px 0; } }
 
@@ -257,7 +258,7 @@ body.panel-open .crumbs { left: calc((100vw - 400px) / 2); }
 .pn-av-cam { position: absolute; right: -4px; bottom: -2px; width: 26px; height: 26px; border-radius: 50%; background: #fff; display: grid; place-items: center; font-size: 13px; box-shadow: 0 1px 4px rgba(0, 0, 0, .2); transition: transform .15s; }
 .pn-av:hover .pn-av-cam { transform: scale(1.15); }
 .pn-who { min-width: 0; flex: 1; padding-right: 26px; }
-.pn-name { width: 100%; border: 0; border-bottom: 2px solid transparent; background: transparent; outline: none; padding: 2px 0; font: 700 22px/1.2 var(--disp); color: var(--ink); transition: border-color .2s; }
+.pn-name { display: block; width: 100%; resize: none; overflow: hidden; border: 0; border-bottom: 2px solid transparent; background: transparent; outline: none; padding: 2px 0; font: 700 22px/1.2 var(--disp); color: var(--ink); transition: border-color .2s; }
 .pn-name:hover { border-bottom-color: #eadfcb; }
 .pn-name:focus { border-bottom-color: var(--gold); }
 .pn-sub { color: var(--muted); font-size: 12.5px; margin-top: 3px; }
@@ -338,6 +339,7 @@ section.full .note-foot { max-width: 880px; margin: 10px auto 0; border: 0; }
 .fi-thumb .play { position: absolute; color: #fff; text-shadow: 0 1px 4px rgba(0, 0, 0, .6); font-size: 18px; }
 .fi-ic { font-size: 26px; }
 .fi-meta { flex: 1; min-width: 0; }
+.fi-name, .fi-sub { cursor: pointer; }
 .fi-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fi-sub { font-size: 11.5px; color: var(--muted); }
 .fi audio { width: 100%; height: 32px; margin-top: 4px; }
@@ -439,7 +441,7 @@ pre.paper { white-space: pre-wrap; font: 13px/1.5 ui-monospace, Consolas, monosp
   .tree-btn { font-size: 16px; max-width: 38vw; padding: 6px; }
   .search { width: auto; flex: 1; min-width: 0; }
   .search input { padding-left: 30px; }
-  #view-btn, #help-btn { display: none; }
+  #help-btn { display: none; }
   .search-res { position: fixed; left: 8px; right: 8px; top: 56px; }
   .panel { left: 0; right: 0; top: auto; width: auto; height: 72vh; border-radius: 20px 20px 0 0; border-left: 0; transform: translateY(105%); box-shadow: 0 -10px 40px rgba(60, 40, 20, .2); }
   .panel.open { transform: none; }

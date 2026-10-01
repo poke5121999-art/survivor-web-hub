@@ -56,6 +56,9 @@
 
   function person() { return P.id && S.doc.people[P.id]; }
 
+  // Tên dài xuống dòng thay vì trôi khuất trong một ô một dòng.
+  function growName() { const t = $('#pn-name', el); t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; }
+
   // ---------- dựng khung ----------
 
   function build() {
@@ -64,7 +67,7 @@
       '<header class="pn-head">' +
         '<button class="icon-btn pn-close" title="Đóng (Esc)">✕</button>' +
         '<label class="pn-av" title="Đổi ảnh đại diện"><input type="file" accept="image/*" hidden id="pn-photo"><span class="pn-av-in"></span><span class="pn-av-cam">📷</span></label>' +
-        '<div class="pn-who"><input class="pn-name" id="pn-name" placeholder="Họ và tên" autocomplete="off" spellcheck="false">' +
+        '<div class="pn-who"><textarea class="pn-name" id="pn-name" rows="1" placeholder="Họ và tên" autocomplete="off" spellcheck="false"></textarea>' +
         '<div class="pn-sub" id="pn-sub"></div></div>' +
       '</header>' +
       '<nav class="pn-tabs" role="tablist">' +
@@ -129,7 +132,9 @@
       });
     };
     bindField('#pn-name', 'name'); bindField('#pn-born', 'born'); bindField('#pn-died', 'died'); bindField('#pn-place', 'place');
-    $('#pn-name', el).addEventListener('keydown', (e) => { if (e.key === 'Enter') e.target.blur(); });
+    const nameI = $('#pn-name', el);
+    nameI.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); nameI.blur(); } });
+    nameI.addEventListener('input', () => growName());
     $$('#pn-gender button', el).forEach((b) => (b.onclick = () => {
       const id = P.id;
       S.commit('Đổi giới tính', (t) => M.update(t, id, { gender: b.dataset.g }));
@@ -181,7 +186,15 @@
       else if (cmd === 'docx') { saveSel(); $('#pn-notedocx', el).click(); }
       else if (cmd === 'table') {
         const row = '<tr><td><br></td><td><br></td><td><br></td></tr>';
-        document.execCommand('insertHTML', false, '<table class="nt"><tbody>' + row + row + row + '</tbody></table><p><br></p>');
+        document.execCommand('insertHTML', false, '<table class="nt" data-new="1"><tbody>' + row + row + row + '</tbody></table><p><br></p>');
+        const tbl = ed.querySelector('table[data-new]');
+        if (tbl) {
+          tbl.removeAttribute('data-new');
+          const r = document.createRange();
+          r.selectNodeContents(tbl.querySelector('td'));
+          r.collapse(true);
+          getSelection().removeAllRanges(); getSelection().addRange(r);
+        }
       } else if (cmd === 'full') { $('[data-pane="note"]', el).classList.toggle('full'); b.textContent = $('[data-pane="note"]', el).classList.contains('full') ? '✕' : '⛶'; }
       else document.execCommand(cmd, false, null);
       saveNoteSoon(); syncTb();
@@ -349,8 +362,8 @@
       it.style.animationDelay = (i * 40) + 'ms';
       it.innerHTML =
         '<button class="fi-thumb" data-fa="view" title="Xem">' + (k.k === 'image' ? '<img alt="">' : k.k === 'video' ? '<video muted preload="metadata"></video><span class="play">▶</span>' : '<span class="fi-ic">' + k.icon + '</span>') + '</button>' +
-        '<div class="fi-meta"><div class="fi-name" title="' + esc(r.name) + '">' + esc(r.name) + '</div>' +
-        '<div class="fi-sub">' + k.label + ' · ' + fmtSize(r.size) + ' · ' + new Date(r.added).toLocaleDateString('vi-VN') + '</div>' +
+        '<div class="fi-meta"><div class="fi-name" data-fa="view" title="' + esc(r.name) + '">' + esc(r.name) + '</div>' +
+        '<div class="fi-sub" data-fa="view">' + k.label + ' · ' + fmtSize(r.size) + ' · ' + new Date(r.added).toLocaleDateString('vi-VN') + '</div>' +
         (k.k === 'audio' ? '<audio controls preload="none"></audio>' : '') + '</div>' +
         '<div class="fi-acts">' +
           (k.k === 'image' ? '<button data-fa="avatar" title="Đặt làm ảnh đại diện">👤</button>' : '') +
@@ -511,7 +524,7 @@
     if (!p) { close(); return; }
     const a = document.activeElement;
     const setv = (sel, v) => { const i = $(sel, el); if (i !== a && i.value !== v) i.value = v; };
-    setv('#pn-name', p.name); setv('#pn-born', p.born); setv('#pn-died', p.died); setv('#pn-place', p.place);
+    setv('#pn-name', p.name); growName(); setv('#pn-born', p.born); setv('#pn-died', p.died); setv('#pn-place', p.place);
     $$('#pn-gender button', el).forEach((b) => b.classList.toggle('on', b.dataset.g === p.gender));
     const parents = M.parentsOf(S.doc, p.id).map((id) => S.doc.people[id].name).filter(Boolean);
     const sp = M.isSpouse(S.doc, p.id) ? M.spousesOf(S.doc, p.id).map((id) => S.doc.people[id].name)[0] : null;
@@ -565,7 +578,7 @@
       el.style.transition = '';
       const dy = e.clientY - y0; y0 = null;
       if (dy > 120 && h0 - dy < 200) { el.style.height = ''; close(); }
-      else if (Math.abs(dy) < 6) el.style.height = el.offsetHeight > innerHeight * 0.6 ? '' : (innerHeight * 0.9) + 'px';
+      else if (Math.abs(dy) < 6) el.style.height = el.offsetHeight > innerHeight * 0.8 ? '' : (innerHeight * 0.92) + 'px';
     });
   }
 
