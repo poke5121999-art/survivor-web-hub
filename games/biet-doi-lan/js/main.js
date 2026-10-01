@@ -325,8 +325,12 @@
   });
   canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
   canvas.addEventListener('wheel', function (e) { if (G.phase === 'dive') { edges.swap += e.deltaY > 0 ? 1 : -1; e.preventDefault(); } }, { passive: false });
-  // nút cảm ứng của các hệ mới gọi BDL.press('hook'|'skill'|'swap'|'jump'|'interact')
-  BDL.press = function (k) { if (k === 'swap') edges.swap += 1; else edges[k] = true; if (k === 'interact') edges.interact = true; };
+  // nút cảm ứng của các hệ mới gọi BDL.press('hook'|'skill'|'swap'|'jump'|'interact'), hoặc BDL.press('slot', 1..3)
+  BDL.press = function (k, v) {
+    if (k === 'swap') edges.swap += v || 1;
+    else if (k === 'slot') edges.slot = v | 0;
+    else edges[k] = true;
+  };
 
   // Chạm: HUD cảm ứng theo bản Android (data/mobile_ui.js). Nửa dưới bên trái là cần nổi; nút bắn lớn là cần ngắm:
   // giữ để rút vũ khí, kéo để chọn hướng, thả để bắn, kéo vào ô "Huỷ bắn" rồi thả là thôi. Nút nhỏ cạnh nó đổi xiên ↔ súng phụ.
