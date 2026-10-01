@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<!--
+  CÂY GIA PHẢ — dựng, xem và gìn giữ gia phả dòng họ ngay trên trình duyệt.
+  Dữ liệu và tài liệu đính kèm nằm trong IndexedDB của máy người dùng; muốn mang đi thì
+  Xuất ra tệp .json (kèm tài liệu) rồi Nhập ở máy khác.
+-->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#f6efe2">
+<title>Cây Gia Phả</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='11' r='9' fill='%237fa36b'/><rect x='14' y='16' width='4' height='13' rx='1' fill='%238a5a33'/><circle cx='10' cy='9' r='2' fill='%23e8a0a8'/><circle cx='21' cy='13' r='2' fill='%23e8a0a8'/></svg>">
+<link rel="stylesheet" href="css/style.css?v=20261001a">
+</head>
+<body>
+<header id="top">
+  <a class="hub-link" href="../../index.html" title="Về trang hub">‹</a>
+  <div class="brand" aria-hidden="true"><svg viewBox="0 0 32 32" width="28" height="28"><circle cx="16" cy="11" r="9" fill="#7fa36b"/><rect x="14" y="16" width="4" height="13" rx="1" fill="#8a5a33"/><circle cx="10" cy="9" r="2" fill="#e8a0a8"/><circle cx="21" cy="13" r="2" fill="#e8a0a8"/></svg></div>
+  <button id="tree-btn" class="tree-btn" title="Chọn cây, xuất/nhập, đổi tên"><span id="tree-name">Cây gia phả</span><span class="caret">▾</span></button>
+  <span id="stats" class="stats"></span>
+  <div class="search">
+    <input id="search" type="search" placeholder="Tìm người…  ( / )" autocomplete="off" spellcheck="false">
+    <div id="search-res" class="search-res"></div>
+  </div>
+  <div class="tools">
+    <button id="undo" class="icon-btn" title="Hoàn tác (Ctrl+Z)" disabled>↶</button>
+    <button id="redo" class="icon-btn" title="Làm lại (Ctrl+Y)" disabled>↷</button>
+    <button id="view-btn" class="icon-btn" title="Hiển thị: thu/mở theo đời">☰</button>
+    <button id="help-btn" class="icon-btn" title="Hướng dẫn (?)">?</button>
+    <span id="saved" class="saved" title="Đã lưu vào trình duyệt"><i></i></span>
+  </div>
+</header>
+
+<main id="stage">
+  <canvas id="leaves"></canvas>
+  <div id="world"><svg id="links" width="1" height="1"></svg><div id="cards"></div></div>
+  <div id="crumbs" class="crumbs no-pan"></div>
+  <div id="zoom" class="zoom no-pan">
+    <button id="zin" title="Phóng to (+)">＋</button><button id="zout" title="Thu nhỏ (−)">−</button><button id="zfit" title="Vừa khung (F)">⌖</button>
+  </div>
+  <div id="empty" class="empty no-pan">
+    <svg class="sprout" viewBox="0 0 120 120" width="120" height="120" aria-hidden="true">
+      <path class="s-trunk" d="M60 112 C60 90 58 76 60 58"/>
+      <path class="s-br" d="M60 80 C48 72 40 70 30 60"/><path class="s-br" d="M60 70 C72 62 80 60 92 50"/>
+      <circle class="s-lf" cx="30" cy="58" r="10"/><circle class="s-lf" cx="92" cy="48" r="11"/><circle class="s-lf" cx="60" cy="44" r="16"/>
+      <circle class="s-fl" cx="52" cy="38" r="3"/><circle class="s-fl" cx="70" cy="48" r="3"/><circle class="s-fl" cx="88" cy="44" r="2.5"/>
+    </svg>
+    <h2>Cây còn trống</h2>
+    <p>Bắt đầu từ người xưa nhất mà bạn biết. Sau đó bấm <b>＋</b> dưới thẻ để thêm con, <b>♥</b> để thêm vợ/chồng.</p>
+    <form id="empty-form">
+      <div class="seg"><button type="button" class="on" data-g="m">Nam</button><button type="button" data-g="f">Nữ</button></div>
+      <input id="empty-name" placeholder="Họ và tên cụ tổ" autocomplete="off">
+      <button class="btn primary" type="submit">Trồng cây</button>
+    </form>
+  </div>
+  <div id="warn" class="warn">Trình duyệt đang chặn bộ nhớ (chế độ ẩn danh?), nên gia phả sẽ mất khi đóng trang. Hãy bấm tên cây › Xuất ra tệp để giữ.</div>
+</main>
+
+<aside id="panel" class="panel no-pan" aria-label="Chi tiết người"></aside>
+<canvas id="sparks"></canvas>
+<div id="drag-hint" class="drag-hint"></div>
+<div id="toasts" class="toasts"></div>
+
+<div id="viewer" class="viewer">
+  <div class="vw-top">
+    <span id="vw-name" class="vw-name"></span><span id="vw-count" class="vw-count"></span>
+    <button id="vw-dl" class="icon-btn light" title="Tải về">⤓</button><button id="vw-close" class="icon-btn light" title="Đóng (Esc)">✕</button>
+  </div>
+  <button id="vw-prev" class="vw-nav l" title="Trước (←)">‹</button>
+  <div id="vw-body" class="vw-body"></div>
+  <button id="vw-next" class="vw-nav r" title="Sau (→)">›</button>
+</div>
+
+<div id="help" class="help">
+  <div class="help-card">
+    <button class="icon-btn help-x" title="Đóng">✕</button>
+    <h2>Cách dùng nhanh</h2>
+    <div class="help-grid">
+      <div><h4>Xem cây</h4>
+        <p><b>Kéo nền</b> để di chuyển, <b>lăn chuột</b> hoặc <b>chụm hai ngón</b> để phóng to/thu nhỏ. Nhấp đúp nền hoặc phím <kbd>F</kbd> để vừa khung.</p>
+        <p>Nút <b>−</b> / <b>+N</b> dưới thẻ để thu hoặc mở một nhánh. Menu <b>☰</b> để chỉ hiện tới đời thứ mấy. Trong bảng chi tiết có <b>Chỉ xem nhánh này</b>.</p></div>
+      <div><h4>Thêm, sửa, xoá</h4>
+        <p>Bấm vào một người để mở bảng chi tiết. Quanh thẻ có nút <b>＋</b> thêm con, <b>♥</b> thêm vợ/chồng, <b>↑</b> thêm cha/mẹ (chỉ với người đứng đầu nhánh).</p>
+        <p>Mọi thay đổi tự lưu. Lỡ tay thì <kbd>Ctrl</kbd>+<kbd>Z</kbd>.</p></div>
+      <div><h4>Kéo thả</h4>
+        <p><b>Kéo một thẻ</b> thả lên người khác để chuyển cả nhánh thành con của họ. Thả vào <b>mép trái/phải</b> của anh chị em để đổi thứ tự. Trên điện thoại: <b>giữ</b> thẻ rồi kéo.</p>
+        <p>Kéo <b>tệp từ máy</b> thả lên thẻ để đính kèm cho người đó.</p></div>
+      <div><h4>Ghi chú và tài liệu</h4>
+        <p>Thẻ <b>Ghi chú</b> soạn như Word: tiêu đề, đậm nghiêng, màu, danh sách, bảng, chèn ảnh, nhập tệp .docx. Nút ⛶ mở thành trang giấy.</p>
+        <p>Thẻ <b>Tài liệu</b> nhận mọi loại tệp, xem trước ảnh, tiếng, phim, PDF, Word. Có <b>ghi âm</b> lời kể ngay trong trang.</p></div>
+    </div>
+    <p class="keys"><kbd>/</kbd> tìm · <kbd>←↑→↓</kbd> đi giữa các thẻ · <kbd>Enter</kbd> sửa · <kbd>C</kbd> thêm con · <kbd>V</kbd> thêm vợ/chồng · <kbd>Space</kbd> thu/mở · <kbd>Delete</kbd> xoá</p>
+    <p class="muted small">Dữ liệu nằm trong trình duyệt của máy này. Muốn chép sang máy khác: bấm tên cây › Xuất ra tệp.</p>
+  </div>
+</div>
+
+<input type="file" id="import-file" accept=".json,application/json" hidden>
+
+<script src="js/model.js?v=20261001a"></script>
+<script src="js/layout.js?v=20261001a"></script>
+<script src="js/store.js?v=20261001a"></script>
+<script src="js/view.js?v=20261001a"></script>
+<script src="js/panel.js?v=20261001a"></script>
+<script src="js/app.js?v=20261001a"></script>
+</body>
+</html>

@@ -733,5 +733,21 @@ window.HUB_GAMES = [
     // Kiểm: node test/diablo2-rules.js, diablo2-drlg.js, diablo2-suite.js
     status: "available",
     tags: ["Nhập vai hành động", "Hầm ngục", "Isometric", "Nhặt đồ", "Diablo II"]
+  },
+  {
+    id: "gia-pha",
+    title: "Cây Gia Phả",
+    tagline: "Dựng gia phả dòng họ ngay trên trình duyệt. Bấm quanh thẻ để thêm con, vợ/chồng, cha/mẹ; kéo một thẻ thả lên người khác để chuyển cả nhánh, thả vào mép anh chị em để đổi thứ tự. Thu/mở từng nhánh, chỉ hiện tới đời thứ mấy, hoặc xem riêng một nhánh. Mỗi người có ghi chú soạn như Word (tiêu đề, màu, danh sách, bảng, chèn ảnh, nhập .docx) và kho tài liệu nhận mọi loại tệp: ảnh, tiếng, phim, PDF, Word, kèm ghi âm lời kể ngay trong trang. Tìm không cần gõ dấu, hoàn tác mọi thao tác, xuất ra tệp để chép sang máy khác.",
+    thumbnail: "assets/thumbnails/gia-pha.svg",
+    path: "games/gia-pha/index.html",
+    rev: "20261001a",
+    // Plain DOM + SVG, không engine, không bước build. Dữ liệu (người, cặp vợ chồng, ghi chú) và tài liệu
+    // đính kèm (Blob) nằm trong IndexedDB của máy người dùng, không lên máy chủ nào. Đọc .docx bằng
+    // mammoth 1.8.0 (BSD-2) vendor ở games/gia-pha/vendor, chỉ tải khi cần. Mô hình và bất biến:
+    // games/gia-pha/README.md.
+    //
+    // Kiểm: node test/gia-pha-suite.js
+    status: "available",
+    tags: ["Công cụ", "Gia phả", "Ghi chú", "Tài liệu", "Kéo thả"]
   }
 ];
