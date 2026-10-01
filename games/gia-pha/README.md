@@ -48,3 +48,13 @@ Một luật lo mọi trường hợp. Thẻ mới mọc ra từ tổ tiên gầ
 - Esc khi đang gõ chỉ rời ô gõ, Esc lần hai mới đóng bảng. Bài kiểm phải bấm hai lần.
 - Bài kiểm: mở bảng chi tiết làm camera dời theo thẻ đang chọn, nên toạ độ đo trước đó thành cũ. Bấm `F` (vừa khung) rồi mới đo hay bấm thẻ.
 - Bài kiểm: nút `+N` của nhánh đang thu có hoạt ảnh nhún, Playwright chờ "stable" mãi. Nhún giới hạn 3 lần, bài kiểm bấm bằng toạ độ chuột.
+
+## Bẫy do lượt kiểm độc lập tìm ra trên Pages (2026-10-02)
+
+Một agent khác dùng thử bản trên mạng mà không đọc mã. Nó tìm ra 8 lỗi mà bộ kiểm của người viết không thấy, vì bộ kiểm ấy mang cùng giả định với mã. Mỗi lỗi giờ có phép thử riêng.
+
+- `[BẪY ĐÃ SẬP]` Ẩn nút ☰ trên điện thoại cho đỡ chật là cắt mất cả tính năng "hiện tới đời N" và hướng dẫn. Gom chức năng vào menu, đừng ẩn lối vào menu.
+- `[BẪY ĐÃ SẬP]` `<input>` trong ô lưới `1fr 1fr` có bề rộng tối thiểu theo nội dung, nên tràn khỏi bảng. Cần `min-width: 0; width: 100%`.
+- `[BẪY ĐÃ SẬP]` `new Date().toISOString().slice(0, 10)` là ngày UTC. Ở Việt Nam (UTC+7), từ 0h tới 7h sáng nó ra ngày hôm trước.
+- `execCommand('insertHTML', …<table>…)` để con trỏ ở sau bảng. Phải tự đặt range vào ô đầu.
+- Chạm (không kéo) tay nắm tấm dưới phải đổi được chiều cao. Ngưỡng cũ 0.6 nhỏ hơn chiều cao mặc định 72vh, nên chạm không làm gì.
