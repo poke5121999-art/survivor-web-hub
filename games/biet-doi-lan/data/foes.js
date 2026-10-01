@@ -48,7 +48,7 @@ window.BDL = window.BDL || {};
     MIN_SPAWN_DIST: 30,             // m, cách Dave và cách điểm xuất phát của thuyền
     HIT_MAX_FRAC: 0.72,             // một đòn tối đa 72% dưỡng khí tối đa khi còn đầy (REPO HIT_MAX_FRAC)
     DMG_PER_LEVEL: 0.05,            // run_timers.foeDmgPerLevel
-    RELOCATE_AFTER: 40, RELOCATE_DIST: 16,
+    RELOCATE_AFTER: 150, RELOCATE_DIST: 16,
     TIRE_AT: 2.5, TIRED_AT: 8, GIVE_UP_AT: 12, REST: 6, TIRED_SPEED: 0.6,
     SIGHT_CONE: 1.1, SIGHT_NEAR: 3,
     CORPSE_TIME: 90,                // xác quái nằm lại lâu hơn xác cá (40 s) vì còn phải kéo lên thuyền

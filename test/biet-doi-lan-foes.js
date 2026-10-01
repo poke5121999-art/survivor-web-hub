@@ -369,6 +369,53 @@ async function skipRoll(browser, base) {
   await page.close();
 }
 
+async function roaming(browser, base) {
+  console.log('— map 0, lượt bỏ qua ngủ: quái đi lang thang khắp map, nghe tiếng thì tới xem');
+  const { page, errors, ok } = await open(browser, base, 0, seedFor(0, true));
+  check('vào dive', ok);
+  if (!ok) { await page.close(); return; }
+  const start = await FOES(page);
+  const seen = {}, rock = [];
+  start.forEach(f => { seen[f.id] = { x0: f.x, y0: f.y, maxD: 0, floors: new Set(), kinds: new Set() }; });
+  for (let i = 0; i < 80; i++) {
+    const snap = await page.evaluate(() => {
+      BDL_DEBUG.foes.tick(0.5);
+      const G = HX.game; G.diver.o2 = 100; G.diver.invuln = 0;
+      return BDL_DEBUG.foes.list().map(f => ({ id: f.id, x: f.x, y: f.y, mode: f.mode, aware: f.aware, roam: f.roam, dead: f.dead, open: G.world.open(f.x, f.y, 0.2), floor: BDL.floorAt(f.y, G.floors), key: f.key }));
+    });
+    for (const f of snap) {
+      const r = seen[f.id]; if (!r || f.dead) continue;
+      r.maxD = Math.max(r.maxD, Math.hypot(f.x - r.x0, f.y - r.y0));
+      r.floors.add(f.floor); if (f.roam) r.kinds.add(f.roam);
+      if (!f.aware && f.mode === 'patrol' && !f.open && f.key !== 'ghost') rock.push(f.key + '@' + f.x.toFixed(1) + ',' + f.y.toFixed(1));
+    }
+  }
+  const rs = Object.values(seen);
+  const movers = rs.filter(r => r.maxD > 20), multi = rs.filter(r => r.floors.size >= 2);
+  console.log('    ' + start.map(f => f.key + ' ' + seen[f.id].maxD.toFixed(0) + ' m, tầng ' + [...seen[f.id].floors].join('/')).join(' · '));
+  check('40 s: ≥ 2 quái đi xa > 20 m khỏi chỗ sinh', movers.length >= 2, movers.length + '/' + rs.length);
+  check('40 s: ≥ 2 quái ghé ≥ 2 tầng khác nhau', multi.length >= 2, multi.length + '/' + rs.length);
+  check('quái đi lang thang không đứng trong đá', rock.length === 0, rock.slice(0, 3).join(' '));
+
+  // tiếng động tại chỗ Dave: quái tàng hình-Dave (không thấy) vẫn tới trong 12 m
+  await page.evaluate(() => BDL_DEBUG.foes.clearAll());
+  const dv = await openWaterDave(page);
+  // đặt một kẻ húc xa Dave ≥ 40 m ở nước thông (lấy vị trí con vừa dọn)
+  const far = start.map(f => ({ x: f.x, y: f.y, d: Math.hypot(f.x - dv.x, f.y - dv.y), key: f.key })).sort((a, b) => b.d - a.d)[0];
+  const id = await page.evaluate(p => { BDL_DEBUG.foes.spawn('rook', p.x, p.y, {}); return BDL_DEBUG.foes.list()[0].id; }, far);
+  const before = await page.evaluate(i => BDL_DEBUG.foes.get(i), id);
+  await page.evaluate(() => { BDL.foes.blind(500); const d = HX.game.diver.pos; BDL.noise(d.x, d.y, 400, 1); });
+  let arrived = null, t = 0;
+  for (let i = 0; i < 160 && !arrived; i++) {
+    const r = await page.evaluate(i => { BDL_DEBUG.foes.tick(1); const f = BDL_DEBUG.foes.get(i), d = HX.game.diver.pos; return f && { dist: Math.hypot(f.x - d.x, f.y - d.y), mode: f.mode, aware: f.aware }; }, id);
+    t++;
+    if (r && r.dist < 12) arrived = r;
+  }
+  check('nghe tiếng động ở chỗ Dave: quái tới trong 12 m', !!arrived, before.dist.toFixed(0) + ' m lúc đầu, ' + (arrived ? 'tới sau ' + t + ' s' : 'không tới'));
+  check('không lỗi trang (đi lang thang)', errors.length === 0, errors.slice(0, 3).join(' | '));
+  await page.close();
+}
+
 async function mapFour(browser, base) {
   console.log('— map 4 (cấp 15) 1280x720');
   const { page, errors, ok } = await open(browser, base, 4, seedFor(4, false));
@@ -379,7 +426,7 @@ async function mapFour(browser, base) {
   check('sát thương × map × (1+0,05×14) = 1,35 × 1,7', Math.abs(ro.dmgMul - 1.35 * 1.7) < 1e-9, ro.dmgMul);
   const list = await FOES(page), si = await page.evaluate(() => BDL_DEBUG.foes.sleepInfo());
   check('cấp ≥ 11: không ngủ, quái thức từ đầu', si.total === 0 && list.length >= 11 && list.every(f => !f.asleep), JSON.stringify(si) + ' · ' + list.length + ' con');
-  check('mọi quái cách Dave ≥ 30 m', list.every(f => f.dist >= 30), Math.min(...list.map(f => f.dist)).toFixed(1));
+  check('mọi quái cách Dave ≥ 28 m (thức từ đầu nên đã bơi ~2,5 s)', list.every(f => f.dist >= 28), Math.min(...list.map(f => f.dist)).toFixed(1));
   const kinds = new Set(list.map(f => f.key));
   check('đủ loại của nhà 5 (không có bom con)', ['rook', 'chaser', 'gunner', 'gnome', 'brat', 'ghost'].every(k => kinds.has(k)) && !kinds.has('banger'), [...kinds].join());
   const lastY1 = await page.evaluate(() => HX.game.floors[HX.game.floors.length - 1].y1);
@@ -407,6 +454,7 @@ async function mapFour(browser, base) {
   try {
     await mapZero(browser, base);
     await skipRoll(browser, base);
+    await roaming(browser, base);
     await mapFour(browser, base);
   } catch (e) {
     check('bộ kiểm chạy hết không ngoại lệ', false, e.stack || e.message);

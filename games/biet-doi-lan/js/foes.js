@@ -28,6 +28,21 @@
     return !d || G.phase !== 'dive' || d.state === 'dead' || d.state === 'surfaced' || d.state === 'enter' || !!(G.deck && G.deck.on);
   }
 
+  // Người lặn khác (G.mates do js/mates.js dựng): quái nhắm kẻ gần nhất nhìn thấy được, như foeTarget của REPO.
+  function mateAlive(m) { return !!m && !!m.pos && (typeof m.alive === 'function' ? m.alive() : m.alive !== false) && typeof m.hurt === 'function'; }
+  function targets() {
+    var G = F.G, a = [];
+    if (!daveGone() && F.blindT <= 0) a.push(G.diver);
+    (G.mates || []).forEach(function (m) { if (mateAlive(m)) a.push(m); });
+    return a;
+  }
+  function tgtOf(foe) {
+    var t = foe.tgt;
+    return t && t !== F.G.diver && mateAlive(t) ? t : F.G.diver;
+  }
+  function gone(d) { return d === F.G.diver ? daveGone() : !mateAlive(d); }
+  function vulnerable(d) { return d.vulnerable ? d.vulnerable() : true; }
+
   // ---------- lưới ô nước thông (đi được từ chỗ xuất phát) ----------
   // Chỗ sinh quái và chỗ hồi sinh chỉ lấy ở ô nước nối liền với Dave, không lấy túi nước kín.
   function buildCells(G) {
@@ -171,7 +186,7 @@
     var r = stepBody(f, dt, noclip);
     if (r === 'blocked' && !noclip) foe.stuckT += dt; else foe.stuckT = Math.max(0, foe.stuckT - dt);
     if (foe.stuckT > 1) {
-      foe.stuckT = 0;
+      foe.stuckT = 0; foe.stuckN = (foe.stuckN || 0) + 1;
       var p = nearSpot(f.pos.x, f.pos.y, 3, 8);
       if (p) { foe.detour = p; foe.detourT = 2; }
     }
@@ -206,18 +221,27 @@
   function sense(foe) {
     var G = F.G, f = foe.body, d = G.diver, row = foe.row;
     foe.sensed = false;
-    if (daveGone()) { foe.see = false; foe.dd = 99; return; }
-    var c = f.center(), dd = dist(c.x, c.y, d.pos.x, d.pos.y);
-    foe.dd = dd;
-    // kỹ năng crew: Dave tàng hình hoặc quái đang bị choáng / dụ / nhốt thì không thấy, không nghe gì
-    if (F.blindT > 0 || ctlActive(foe)) { foe.see = false; return; }
-    var los = row.immune || lineOfSight(foe);
-    var dx = d.pos.x - c.x, cone = false;
-    if (dd < FD.SIGHT_NEAR || row.immune) cone = true;
-    else if (dx * f.facing > 0 && Math.acos(Math.min(1, dx * f.facing / dd)) < FD.SIGHT_CONE) cone = true;
-    foe.see = dd <= row.sight && los && cone;
-    var heard = dd < row.hear * 0.6 && Math.hypot(d.vel.x, d.vel.y) > 0.5 && !d.boosting;
-    if (foe.see || heard) { foe.sensed = true; foe.lastKnown = { x: d.pos.x, y: d.pos.y }; }
+    var c = f.center();
+    foe.ddDave = daveGone() ? 99 : dist(c.x, c.y, d.pos.x, d.pos.y);
+    var list = targets();
+    if (!list.length) { foe.see = false; foe.dd = 99; return; }
+    // kỹ năng crew: quái đang bị choáng / dụ / nhốt thì không thấy, không nghe gì (Dave tàng hình: Dave rời danh sách, đồng đội vẫn bị thấy)
+    if (ctlActive(foe)) { foe.see = false; foe.dd = foe.ddDave; return; }
+    var best = null, bd = 1e9, heardDave = false;
+    list.forEach(function (t) {
+      var dd = dist(c.x, c.y, t.pos.x, t.pos.y);
+      var los = row.immune || !G.world.raycast(c.x, c.y, t.pos.x, t.pos.y);
+      var dx = t.pos.x - c.x, cone = false;
+      if (dd < FD.SIGHT_NEAR || row.immune) cone = true;
+      else if (dx * f.facing > 0 && Math.acos(Math.min(1, dx * f.facing / dd)) < FD.SIGHT_CONE) cone = true;
+      if (dd <= row.sight && los && cone && dd < bd) { bd = dd; best = t; }
+      if (t === d && dd < row.hear * 0.6 && Math.hypot(d.vel.x, d.vel.y) > 0.5 && !d.boosting) heardDave = true;
+    });
+    foe.see = !!best;
+    if (!best && heardDave) best = d;
+    if (best) { foe.tgt = best; foe.dd = dist(c.x, c.y, best.pos.x, best.pos.y); } else foe.dd = dist(c.x, c.y, tgtOf(foe).pos.x, tgtOf(foe).pos.y);
+    if (foe.see) foe.lastSeenT = F.t;
+    if (best) { foe.sensed = true; foe.invest = null; foe.lastKnown = { x: best.pos.x, y: best.pos.y }; }
     // lũ rỉa và kẻ cướp để ý món đồ Dave đang kéo
     if ((row.brain === 'gnome' || row.brain === 'brat') && !foe.sensed) {
       var t = lootTarget();
@@ -251,7 +275,7 @@
     foe.asleep = false;
     var f = foe.body;
     if (f.state === 'sleep') f.go('brain');
-    foe.mode = 'patrol'; foe.mt = 0;
+    foe.mode = 'patrol'; foe.mt = 0; foe.rm = null; foe.pauseT = 0; foe.lastSeenT = F.t;
     setMark(foe, null);
     (foe.pack || []).forEach(function (o) { if (o !== foe) wakeFoe(o, why); });
     foe.wokeBy = why;
@@ -266,8 +290,11 @@
       var c = foe.body.center();
       if (dist(c.x, c.y, x, y) > reach) return;
       n++;
-      if (foe.asleep) wakeFoe(foe, 'noise');
-      alertFoe(foe, x, y);
+      var was = foe.asleep, near = dist(c.x, c.y, x, y) < 6;
+      if (was) wakeFoe(foe, 'noise');
+      // tiếng động xa: đi tới xem (REPO investigate), tới gần mà thấy Dave mới đuổi; vừa bị đánh thức hoặc ngay cạnh thì giật mình
+      if (was || near) alertFoe(foe, x, y);
+      if (!foe.dead) { foe.invest = { x: x, y: y }; foe.investT = F.t + 30; }
     });
     return n;
   };
@@ -293,10 +320,15 @@
       var nx = s.x + s.vx * dt, ny = s.y + s.vy * dt;
       if (G.world.raycast(s.x, s.y, nx, ny) || G.world.solid(nx, ny) || s.t > 3) {
         gone = true; G.fx.burst('spark', nx, ny, 3, 1.2);
-      } else if (!daveGone() && dist(nx, ny, d.pos.x, d.pos.y) < 0.4 && d.vulnerable()) {
-        d.hurt(s.dmg, s.x - s.vx * 0.1, s.y - s.vy * 0.1);
-        G.fx.burst('spark', nx, ny, 4, 1.5);
-        gone = true;
+      } else {
+        var ts = targets();
+        for (var k = 0; k < ts.length; k++) {
+          if (dist(nx, ny, ts[k].pos.x, ts[k].pos.y) < 0.4 && vulnerable(ts[k])) {
+            ts[k].hurt(s.dmg, s.x - s.vx * 0.1, s.y - s.vy * 0.1);
+            G.fx.burst('spark', nx, ny, 4, 1.5);
+            gone = true; break;
+          }
+        }
       }
       s.x = nx; s.y = ny;
       s.mesh.position.set(nx, ny, 0.3);
@@ -315,7 +347,9 @@
     G.audio.play(window.HX_ASSETS.audio.gun_grenade_explode ? 'gun_grenade_explode' : 'harpoon_hit_rock', { vol: 0.8 });
     foe.exploded = true;
     var hurt = false;
-    if (!daveGone() && dist(c.x, c.y, d.pos.x, d.pos.y) <= R) hurt = d.hurt(foe.dmg, c.x, c.y);
+    targets().forEach(function (t) {
+      if (dist(c.x, c.y, t.pos.x, t.pos.y) <= R) { var h = t.hurt(foe.dmg, c.x, c.y); if (t === d) hurt = h; }
+    });
     (G.loot || []).forEach(function (l) { if (l.pos && l.hit && dist(c.x, c.y, l.pos.x, l.pos.y) <= R) l.hit(foe.dmg * 2, c.x, c.y); });
     foe.explodeHurt = hurt;
     BDL.noise(c.x, c.y, 8, 1);
@@ -329,27 +363,159 @@
 
   function setMode(foe, m) { foe.mode = m; foe.mt = 0; }
 
-  function patrol(foe, f, dt, noclip) {
-    var row = foe.row;
-    foe.wt -= dt;
-    if (!foe.wp || foe.wt <= 0 || dist(f.pos.x, f.pos.y, foe.wp.x, foe.wp.y) < 0.8) {
-      foe.wp = nearSpot(foe.home.x, foe.home.y, 2, 9) || { x: foe.home.x, y: foe.home.y };
-      foe.wt = 4 + F.rnd() * 5;
+  // ---------- đi lang thang (REPO: quái đi giữa các phòng, nghe tiếng thì tới xem) ----------
+  // Tầng = "phòng" của REPO. Đường đi là BFS trên lưới ô nước thông rồi làm thẳng bằng tia, nên không xuyên đá.
+  function floorOfY(y) { return Math.max(0, Math.min(F.G.floors.length - 1, BDL.floorAt(y, F.G.floors))); }
+
+  function nodeCell(x, y) {
+    var C = F.grid, i0 = Math.floor((x - C.x0) / CELL), j0 = Math.floor((y - C.y0) / CELL);
+    for (var r = 0; r <= 4; r++) {
+      for (var a = -r; a <= r; a++) for (var b = -r; b <= r; b++) {
+        if (Math.max(Math.abs(a), Math.abs(b)) !== r) continue;
+        var i = i0 + a, j = j0 + b;
+        if (i >= 0 && j >= 0 && i < C.nx && j < C.ny && C.reach[i * C.ny + j]) return i * C.ny + j;
+      }
     }
-    var k = foe.restT > 0 ? 0.25 : 0.45;
-    swimTo(foe, f, foe.wp.x, foe.wp.y, row.speed * k, dt, 1.5, noclip);
-    anim(f, 'swim', 0.7);
+    return -1;
+  }
+
+  function findPath(sx, sy, tx, ty) {
+    var C = F.grid, ny = C.ny, s = nodeCell(sx, sy), t = nodeCell(tx, ty);
+    if (s < 0 || t < 0) return null;
+    var par = new Int32Array(C.nx * ny).fill(-2), q = [s], h = 0;
+    par[s] = -1;
+    while (h < q.length && par[t] === -2) {
+      var k = q[h++], i = (k / ny) | 0, j = k - i * ny;
+      for (var di = -1; di <= 1; di++) for (var dj = -1; dj <= 1; dj++) {
+        if (!di && !dj) continue;
+        var ni = i + di, nj = j + dj;
+        if (ni < 0 || nj < 0 || ni >= C.nx || nj >= ny) continue;
+        var nk = ni * ny + nj;
+        if (!C.reach[nk] || par[nk] !== -2) continue;
+        if (di && dj && (!C.reach[(i + di) * ny + j] || !C.reach[i * ny + nj])) continue;
+        par[nk] = k; q.push(nk);
+      }
+    }
+    if (par[t] === -2) return null;
+    var nodes = [];
+    for (var c = t; c >= 0; c = par[c]) { var ci = (c / ny) | 0, cj = c - ci * ny; nodes.push({ x: C.x0 + (ci + 0.5) * CELL, y: C.y0 + (cj + 0.5) * CELL }); }
+    nodes.reverse();
+    nodes[0] = { x: sx, y: sy }; nodes.push({ x: tx, y: ty });
+    // làm thẳng: nhảy tới nút xa nhất còn nhìn thấy nhau (3 tia để chừa bề ngang thân)
+    var W = F.G.world, out = [], i2 = 0, last = nodes.length - 1;
+    function clear(a, b) {
+      var dx = b.x - a.x, dy = b.y - a.y, l = Math.hypot(dx, dy) || 1, nx = -dy / l * 0.5, ny2 = dx / l * 0.5;
+      return !W.raycast(a.x, a.y, b.x, b.y) && !W.raycast(a.x + nx, a.y + ny2, b.x + nx, b.y + ny2) && !W.raycast(a.x - nx, a.y - ny2, b.x - nx, b.y - ny2);
+    }
+    while (i2 < last) {
+      var j2 = Math.min(last, i2 + 14);
+      while (j2 > i2 + 1 && !clear(nodes[i2], nodes[j2])) j2--;
+      out.push(nodes[j2]); i2 = j2;
+    }
+    return out;
+  }
+
+  function planTo(foe, goal, kind, noclip) {
+    var f = foe.body, path = noclip ? null : findPath(f.pos.x, f.pos.y, goal.x, goal.y);
+    if (!path) { if (!noclip && kind !== 'noise') return null; path = [{ x: goal.x, y: goal.y }]; }
+    var len = 0, px = f.pos.x, py = f.pos.y;
+    path.forEach(function (p) { len += dist(px, py, p.x, p.y); px = p.x; py = p.y; });
+    return { path: path, pi: 0, kind: kind, goal: goal, ttl: len / Math.max(0.3, foe.row.speed * 0.4) + 10 };
+  }
+
+  function pickCell(fl, ok) {
+    var pool = F.grid.byFloor[fl] || [];
+    for (var k = 0; k < 24 && pool.length; k++) {
+      var c = pool[Math.floor(F.rnd() * pool.length)];
+      if (ok(c) && F.G.world.open(c.x, c.y, 1.1)) return c;
+    }
+    return null;
+  }
+
+  // Phòng kế bên là chính, thỉnh thoảng nhảy 2 phòng, ít khi ở lại phòng cũ.
+  function pickRoam(foe, noclip) {
+    var nF = F.G.floors.length, f = foe.body, cur = floorOfY(f.pos.y), r = F.rnd();
+    var step = r < 0.7 ? 1 : r < 0.9 ? 2 : 0, sgn = F.rnd() < 0.5 ? -1 : 1;
+    for (var tries = 0; tries < 6; tries++) {
+      var fl = cur + sgn * step;
+      if (fl < 0 || fl >= nF) { sgn = -sgn; fl = cur + sgn * step; }
+      if (fl < 0 || fl >= nF) fl = cur;
+      var c = pickCell(fl, function (c) { return dist(c.x, c.y, f.pos.x, f.pos.y) > 12; });
+      if (c) { var p = planTo(foe, { x: c.x, y: c.y }, 'roam', noclip); if (p) return p; }
+      step = tries % 2 ? 1 : 0; sgn = -sgn;
+    }
+    return null;
+  }
+
+  // Lượt "săn lạc" (REPO relocate): đi tới một chỗ khuất tầm nhìn ở tầng Dave đang đứng hoặc tầng kề. Không dịch chuyển.
+  function pickHunt(foe, noclip) {
+    if (daveGone()) return null;
+    var G = F.G, d = G.diver.pos, cam = G.gfx.camera.position, hv = G.viewHalf, df = floorOfY(d.y);
+    var order = [df, df - 1, df + 1].filter(function (x) { return x >= 0 && x < G.floors.length; }).sort(function () { return F.rnd() - 0.5; });
+    for (var pass = 0; pass < 2; pass++) for (var i = 0; i < order.length; i++) {
+      var c = pickCell(order[i], function (c) {
+        var dd = dist(c.x, c.y, d.x, d.y);
+        if (Math.abs(c.x - cam.x) < hv.w + 4 && Math.abs(c.y - cam.y) < hv.h + 4) return false;
+        if (dd < 10 || dd > 60) return false;
+        return pass ? true : !!G.world.raycast(c.x, c.y, d.x, d.y);
+      });
+      if (c) { var p = planTo(foe, { x: c.x, y: c.y }, 'hunt', noclip); if (p) return p; }
+    }
+    return null;
+  }
+
+  function huntChance(foe) {
+    var unseen = F.t - foe.lastSeenT;
+    return Math.min(0.9, 0.2 + 0.4 * Math.min(1, unseen / 90) + 0.025 * (F.roster.level - 1));
+  }
+
+  function patrol(foe, f, dt, noclip) {
+    var row = foe.row, rm = foe.rm;
+    if (foe.invest && F.t > foe.investT) foe.invest = null;
+    if (foe.invest) {
+      rm = foe.rm = planTo(foe, foe.invest, 'noise', noclip); foe.invest = null; foe.pauseT = 0; foe.stuckN = 0;
+    } else if (!rm || rm.kind !== 'noise') {
+      foe.huntT -= dt;
+      if (foe.huntT <= 0) {
+        foe.huntT = 20 + F.rnd() * 15;
+        if (F.rnd() < huntChance(foe)) { var hp = pickHunt(foe, noclip); if (hp) { rm = foe.rm = hp; foe.pauseT = 0; foe.stuckN = 0; foe.hunts = (foe.hunts || 0) + 1; } }
+      }
+    }
+    var slow = foe.restT > 0 ? 0.55 : 1;
+    if (foe.pauseT > 0) {
+      foe.pauseT -= dt;
+      var kd = Math.exp(-2 * dt); f.vel.x *= kd; f.vel.y *= kd;
+      stepBody(f, dt, noclip);
+      anim(f, 'swim', 0.5);
+      return;
+    }
+    if (!rm) {
+      rm = foe.rm = pickRoam(foe, noclip); foe.stuckN = 0;
+      if (!rm) { var sp = nearSpot(f.pos.x, f.pos.y, 3, 9) || { x: f.pos.x, y: f.pos.y }; rm = foe.rm = { path: [sp], pi: 0, kind: 'roam', goal: sp, ttl: 10 }; }
+    }
+    var p = rm.path[rm.pi];
+    if (dist(f.pos.x, f.pos.y, p.x, p.y) < (rm.pi === rm.path.length - 1 ? 1 : 1.8)) rm.pi++;
+    rm.ttl -= dt;
+    if (rm.pi >= rm.path.length || rm.ttl <= 0 || (foe.stuckN || 0) >= 3) {
+      var arrived = rm.pi >= rm.path.length;
+      foe.rm = null; foe.stuckN = 0;
+      if (arrived) foe.pauseT = rm.kind === 'noise' ? 2.5 + F.rnd() * 2 : 1.2 + F.rnd() * 2.2;
+      return;
+    }
+    var k = (rm.kind === 'roam' ? 0.6 : 0.85) * slow * (noclip ? 1.3 : 1);
+    swimTo(foe, f, p.x, p.y, row.speed * k, dt, 1.8, noclip);
+    anim(f, 'swim', 0.8);
   }
 
   function targetPos(foe) {
-    var d = F.G.diver;
+    var d = tgtOf(foe);
     return foe.see || !foe.lastKnown ? { x: d.pos.x, y: d.pos.y } : foe.lastKnown;
   }
 
   // Kẻ húc
   BR.rook = {
     step: function (foe, f, G, dt) {
-      var row = foe.row, d = G.diver;
+      var row = foe.row, d = tgtOf(foe);
       foe.mt += dt;
       switch (foe.mode) {
         case 'patrol':
@@ -372,7 +538,7 @@
           tint(f, 1, 0.2, 0.1, pulse);
           anim(f, 'swim', 0.5);
           if (foe.mt >= row.telegraph) {
-            var tp2 = daveGone() ? foe.lastKnown || d.pos : d.pos, c = f.center();
+            var tp2 = gone(d) ? foe.lastKnown || d.pos : d.pos, c = f.center();
             var l = dist(c.x, c.y, tp2.x, tp2.y) || 1;
             foe.dir = { x: (tp2.x - c.x) / l, y: (tp2.y - c.y) / l };
             setMode(foe, 'charge'); untint(f);
@@ -386,7 +552,7 @@
           faceTo(f, f.pos.x + foe.dir.x);
           anim(f, 'sprint', 1.3);
           var r = stepBody(f, dt, false);
-          if (!daveGone() && f.hitTest(d.pos.x, d.pos.y, 0.35) && d.vulnerable()) {
+          if (!gone(d) && f.hitTest(d.pos.x, d.pos.y, 0.35) && vulnerable(d)) {
             var cc = f.center();
             if (d.hurt(foe.dmg, cc.x, cc.y)) { f.vel.x *= 0.2; f.vel.y *= 0.2; setMode(foe, 'recover'); foe.hitDave = (foe.hitDave || 0) + 1; break; }
           }
@@ -439,7 +605,7 @@
   // Kẻ bắn
   BR.gunner = {
     step: function (foe, f, G, dt) {
-      var row = foe.row, d = G.diver;
+      var row = foe.row, d = tgtOf(foe);
       foe.mt += dt; foe.cd = Math.max(0, (foe.cd || 0) - dt);
       if (foe.mode === 'patrol') {
         if (foe.aware) setMode(foe, 'engage'); else { patrol(foe, f, dt); return; }
@@ -473,7 +639,7 @@
   // Bom con
   BR.banger = {
     step: function (foe, f, G, dt) {
-      var row = foe.row, d = G.diver;
+      var row = foe.row, d = tgtOf(foe);
       foe.mt += dt;
       if (foe.mode === 'patrol') {
         if (foe.aware) setMode(foe, 'rush'); else { patrol(foe, f, dt); return; }
@@ -485,7 +651,7 @@
         var ox = Math.cos(foe.id * 1.7) * 0.5, oy = Math.sin(foe.id * 2.3) * 0.5;
         swimTo(foe, f, tp.x + ox, tp.y + oy, row.speed * foe.speedK, dt, 3);
         anim(f, 'sprint', 1);
-        if (foe.dd < row.fuseNear && !daveGone()) setMode(foe, 'fuse');
+        if (foe.dd < row.fuseNear && !gone(d)) setMode(foe, 'fuse');
         return;
       }
       if (foe.mode === 'fuse') {
@@ -504,7 +670,7 @@
   // Lũ rỉa
   BR.gnome = {
     step: function (foe, f, G, dt) {
-      var row = foe.row, d = G.diver;
+      var row = foe.row, d = tgtOf(foe);
       foe.mt += dt; foe.cd = Math.max(0, (foe.cd || 0) - dt);
       if (foe.mode === 'patrol') {
         if (foe.aware) setMode(foe, 'rush'); else { patrol(foe, f, dt); return; }
@@ -522,7 +688,7 @@
           foe.lootBites = (foe.lootBites || 0) + 1;
           if (loot.hit) loot.hit(foe.dmg * row.lootMul, f.pos.x, f.pos.y);
           G.fx.burst('spark', tx, ty, 3, 1);
-        } else if (!daveGone() && d.vulnerable()) {
+        } else if (!gone(d) && vulnerable(d)) {
           foe.daveBites = (foe.daveBites || 0) + 1;
           d.hurt(foe.dmg, f.pos.x, f.pos.y);
         }
@@ -533,7 +699,7 @@
   // Kẻ cướp
   BR.brat = {
     step: function (foe, f, G, dt) {
-      var row = foe.row, d = G.diver;
+      var row = foe.row, d = tgtOf(foe);
       foe.mt += dt;
       if (foe.mode === 'flee') {
         var carry = foe.carry;
@@ -586,7 +752,7 @@
   BR.ghost = {
     init: function (foe, f) { f.fu.opacity.value = 0.55; },
     step: function (foe, f, G, dt) {
-      var row = foe.row, d = G.diver;
+      var row = foe.row, d = tgtOf(foe);
       foe.mt += dt; foe.cd = Math.max(0, (foe.cd || 0) - dt);
       f.fu.opacity.value = 0.55;
       if (foe.mode === 'retreat') {
@@ -598,9 +764,9 @@
       if (foe.aware) {
         var tp = targetPos(foe);
         swimTo(foe, f, tp.x, tp.y, row.speed, dt, 1.2, true);
-      } else patrolGhost(foe, f, dt);
+      } else patrol(foe, f, dt, true);
       anim(f, 'swim', 1);
-      if (!daveGone() && foe.cd <= 0 && f.hitTest(d.pos.x, d.pos.y, 0.2)) {
+      if (!gone(d) && foe.cd <= 0 && f.hitTest(d.pos.x, d.pos.y, 0.2)) {
         var c = f.center();
         if (d.hurt(foe.dmg, c.x, c.y)) {
           foe.touches = (foe.touches || 0) + 1;
@@ -612,16 +778,6 @@
       }
     },
   };
-  function patrolGhost(foe, f, dt) {
-    foe.wt -= dt;
-    if (!foe.wp || foe.wt <= 0 || dist(f.pos.x, f.pos.y, foe.wp.x, foe.wp.y) < 0.8) {
-      var a = F.rnd() * Math.PI * 2, r = 3 + F.rnd() * 6;
-      foe.wp = { x: foe.home.x + Math.cos(a) * r, y: Math.max(lastY1() + 1, Math.min(surf() - 2, foe.home.y + Math.sin(a) * r * 0.5)) };
-      foe.wt = 5 + F.rnd() * 5;
-    }
-    swimTo(foe, f, foe.wp.x, foe.wp.y, foe.row.speed * 0.5, dt, 1.2, true);
-  }
-
   // ---------- sinh quái ----------
   function rowOf(key) { return FD.kinds[key]; }
 
@@ -638,7 +794,7 @@
       value: BDL.foeValue(hp, dmg),
       asleep: false, aware: false, alertT: 0, chaseT: 0, restT: 0, lostT: 0, senseT: Math.random() * 0.15,
       see: false, dd: 99, speedK: 1, mode: 'patrol', mt: 0, home: { x: x, y: y }, wp: null, wt: 0,
-      stuckT: 0, detourT: 0, hunt: false, dead: false, corpse: false, pack: null, immune: !!row.immune,
+      stuckT: 0, detourT: 0, rm: null, pauseT: 0, invest: null, investT: 0, huntT: 20 + F.rnd() * 15, lastSeenT: F.t, stuckN: 0, tgt: null, ddDave: 99, hunt: false, dead: false, corpse: false, pack: null, immune: !!row.immune,
       markCh: null, mark: null, lastKnown: null,
     };
     foe.step = function (ff, GG, dt) { if (foe.ctl && ctlStep(foe, ff, dt)) return; BR[row.brain].step(foe, ff, GG, dt); };
@@ -763,7 +919,7 @@
     if (!spot) return;
     var f = foe.body;
     f.pos.x = spot.x; f.pos.y = spot.y; f.vel.x = f.vel.y = 0;
-    foe.home = { x: spot.x, y: spot.y }; foe.wp = null; foe.lostT = 0; foe.relocations = (foe.relocations || 0) + 1;
+    foe.home = { x: spot.x, y: spot.y }; foe.rm = null; foe.lostT = 0; foe.relocations = (foe.relocations || 0) + 1;
     F.G.fx.burst('bubble', spot.x, spot.y, 5, 0.8);
   }
 
@@ -806,7 +962,7 @@
       else { f.buffLook(); f.slow *= foe.speedK; }
     }
     // mất dấu Dave 40 s và xa quá 16 m thì dời tới gần Dave, khuất tầm nhìn
-    if (foe.lostT > FD.RELOCATE_AFTER && foe.dd > FD.RELOCATE_DIST && !daveGone()) relocate(foe);
+    if (foe.lostT > FD.RELOCATE_AFTER && foe.ddDave > FD.RELOCATE_DIST && !daveGone()) relocate(foe);
     setMark(foe, B.mark ? B.mark(foe) : null);
     placeMark(foe);
   }
@@ -894,7 +1050,7 @@
     c.on = false; c.stunT = c.lureT = c.cageT = 0; c.kind = null; c.lure = null; c.cage = null;
     if (silent && (foe.dead || !f.alive())) return;
     freezeAnim(f, false); untint(f);
-    setMode(foe, 'patrol'); foe.home = { x: f.pos.x, y: f.pos.y }; foe.wp = null; foe.stuckT = 0; foe.detourT = 0;
+    setMode(foe, 'patrol'); foe.home = { x: f.pos.x, y: f.pos.y }; foe.rm = null; foe.stuckT = 0; foe.detourT = 0;
     setMark(foe, null);
   }
 
@@ -1096,7 +1252,7 @@
     var f = foe.body, d = F.G.diver.pos;
     return { id: foe.id, key: foe.key, x: f.pos.x, y: f.pos.y, dist: dist(f.pos.x, f.pos.y, d.x, d.y), asleep: foe.asleep, aware: foe.aware, mode: foe.mode,
       state: f.state, hp: f.hp, hpMax: foe.hpMax, dmg: foe.dmg, dead: foe.dead, corpse: foe.corpse, value: foe.value, species: f.sp.id, pack: foe.pack ? foe.pack.length : 0,
-      tethered: !!f.tethered, hunt: foe.hunt, stunned: foe.stunned || 0, hitDave: foe.hitDave || 0, shots: foe.shots || 0, lootBites: foe.lootBites || 0, daveBites: foe.daveBites || 0,
+      tethered: !!f.tethered, hunt: foe.hunt, roam: foe.rm ? foe.rm.kind : null, goal: foe.rm ? foe.rm.goal : null, hunts: foe.hunts || 0, stunned: foe.stunned || 0, hitDave: foe.hitDave || 0, shots: foe.shots || 0, lootBites: foe.lootBites || 0, daveBites: foe.daveBites || 0,
       grabs: foe.grabs || 0, touches: foe.touches || 0, exploded: !!foe.exploded, dissolvedByCap: !!foe.dissolvedByCap, restT: foe.restT, chaseT: foe.chaseT, wokeBy: foe.wokeBy || null };
   }
   function byId(id) { for (var i = 0; i < F.foes.length; i++) if (F.foes[i].id === id) return F.foes[i]; return null; }
@@ -1128,6 +1284,8 @@
       sleepInfo: function () { return { total: F.sleep.total, left: F.sleep.left, skipped: F.sleep.skipped, on: F.sleep.on, level: F.map.level, seed: F.seed }; },
       respawns: function () { return F.respawns.map(function (r) { return { key: r.key, in: r.due - F.t }; }); },
       advance: function (sec) { timers(sec); },
+      // chạy nhanh AI + thân cá sec giây mô phỏng (bước 0,05 s như khung hình), cho bộ kiểm không phải chờ giờ thật
+      tick: function (sec) { for (var t = 0; t < sec; t += 0.05) { G.fishes.update(0.05); system.update(0.05); } },
       roster: function () { return { kinds: F.roster.kinds.map(function (r) { return r.key; }), count: F.roster.count, hpMul: F.roster.hpMul, dmgMul: F.roster.dmgMul }; },
       stats: function () { return { kills: F.kills, respawned: F.respawned, shots: F.shots.length, cells: F.grid.cells.length, boat: F.boat }; },
       noise: function (x, y, r, s) { return BDL.noise(x, y, r, s); },
