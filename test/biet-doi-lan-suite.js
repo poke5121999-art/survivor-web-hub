@@ -90,9 +90,12 @@ async function oneMap(browser, base, W, H, i) {
     const W = HX.game.world;
     for (let x = 0; x < 60; x += 1) for (const sx of [x, -x]) if (W.open(sx, y - 3, 0.5) && W.open(sx, y + 0.5, 0.5)) return BDL_DEBUG.teleport(sx, y - 3);
   }, lastY1);
+  // map cấp cao có quái thức sẵn: tạm cho Dave miễn đòn để chỉ đo bức chắn
+  await page.evaluate(() => { const d = HX.game.diver; d._vuln = d.vulnerable; d.vulnerable = () => false; });
   const before = (await info(page)).o2;
   await sleep(1500);
   const after = await info(page);
+  await page.evaluate(() => { const d = HX.game.diver; d.vulnerable = d._vuln; });
   const warn = await page.evaluate(() => { const e = document.getElementById('press'); return !!e && getComputedStyle(e).display !== 'none'; });
   check(tag + ': đáy tầng cuối đẩy Dave lên', after.y >= lastY1 - 0.3, 'y=' + after.y.toFixed(2) + ', đáy ' + lastY1.toFixed(2));
   check(tag + ': chạm đáy tầng cuối không mất O₂', after.o2 === before, before + ' → ' + after.o2);

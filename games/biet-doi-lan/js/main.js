@@ -726,10 +726,13 @@
 
   // Đáy tầng cuối là bức chắn áp suất: Dave bị đẩy ngược lên, không mất O₂.
   // Bản đầu trừ 8 O₂/s dưới đáy tầng cuối; chủ dự án bơi lọt xuống (hình map còn kéo sâu tiếp) và tưởng là lỗi mất máu.
-  var PRESS_WARN = 2.5;
+  // Cảnh báo hiện khi tới gần đáy, và giữ thêm 2 giây sau lần chạm cuối để kịp đọc.
+  var PRESS_WARN = 2.5, PRESS_HOLD = 2;
   function pressure(dt) {
     var d = G.diver, floor = lastY1();
-    HX.hud.pressure(d.pos.y < floor + PRESS_WARN && d.state !== 'dead');
+    dive.pressShow = Math.max(0, (dive.pressShow || 0) - dt);
+    if (d.pos.y < floor) dive.pressShow = PRESS_HOLD;
+    HX.hud.pressure((d.pos.y < floor + PRESS_WARN || dive.pressShow > 0) && d.state !== 'dead');
     if (d.pos.y >= floor) return;
     d.pos.y += (floor - d.pos.y) * Math.min(1, dt * 8);
     if (d.vel.y < 0) d.vel.y = -d.vel.y * 0.3;
