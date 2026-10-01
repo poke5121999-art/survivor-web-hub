@@ -743,6 +743,8 @@
     if (G.drone) G.drone.update(gdt);
     G.fishes.update(gdt);
     eachSystem(function (s) { if (s.update) s.update(gdt, input); });
+    // một hệ có thể vừa kết thúc lượt lặn (khoang lái → G.onExtract → go('loading') dỡ cảnh): dừng khung này
+    if (!dive || G.phase !== 'dive') return;
     pressure(gdt);
     fx.update(gdt);
     updateCamera(dt);

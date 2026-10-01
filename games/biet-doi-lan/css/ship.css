@@ -1,1 +1,71 @@
-/* Thuyền trên mặt biển (chưa làm) */
+/* Thuyền trên mặt biển: túi cá, gợi ý phím, bảng đếm ngược khoang lái, chữ nổi "+$", nút cảm ứng. */
+#ship-ui { position: fixed; inset: 0; pointer-events: none; z-index: 12; font-family: var(--font-num, var(--disp)), "Roboto", system-ui, sans-serif; }
+
+/* chỉ có mặt khi đang lặn (quán, cano, cửa hàng dùng chung trang) */
+body:not([data-phase="dive"]) #ship-ui { display: none; }
+
+/* túi cá: góc trên trái, cạnh nút Esc không đụng */
+#ship-bag {
+  position: absolute; left: max(12px, env(safe-area-inset-left)); top: max(12px, env(safe-area-inset-top));
+  padding: 5px 12px 6px; border-radius: 999px; background: var(--panel); border: 1px solid var(--edge);
+  color: var(--ink); font-size: calc(var(--px, 1) * 15px); font-weight: 700; letter-spacing: .02em; font-variant-numeric: tabular-nums;
+  opacity: 0; transition: opacity .2s, color .2s, border-color .2s;
+}
+#ship-bag.on { opacity: 1; }
+#ship-bag.full { color: var(--gold); border-color: rgba(255, 210, 74, .75); animation: ship-pulse 1.1s ease-in-out infinite; }
+@keyframes ship-pulse { 50% { box-shadow: 0 0 0 4px rgba(255, 210, 74, .22); } }
+
+/* gợi ý phím nổi trên đầu Dave / trên tủ */
+#ship-prompt {
+  position: absolute; left: 0; top: 0; display: none; align-items: center; gap: 8px; white-space: nowrap;
+  padding: 5px 12px 5px 6px; border-radius: 999px; background: var(--panel); border: 1px solid var(--edge); color: var(--ink);
+  font-size: calc(var(--px, 1) * 15px); font-weight: 700; box-shadow: 0 3px 10px rgba(0, 20, 40, .45);
+}
+#ship-prompt.on { display: flex; }
+#ship-prompt .key {
+  min-width: 26px; height: 26px; padding: 0 7px; display: grid; place-items: center; border-radius: 7px;
+  background: linear-gradient(#f5fbfd, #bfe3ee); color: #0a2a3a; font-size: 14px; box-shadow: 0 2px 0 #6aa6bb;
+}
+#ship-prompt.space .key { min-width: 54px; }
+
+/* chữ nổi + giá */
+#ship-float { position: absolute; inset: 0; overflow: hidden; }
+.ship-fl {
+  position: absolute; left: 0; top: 0; font-size: calc(var(--px, 1) * 20px); font-weight: 800; color: var(--gold);
+  text-shadow: 0 2px 0 #5a3a00, 0 0 8px rgba(255, 190, 40, .55); will-change: transform, opacity;
+}
+.ship-fl.fish { color: #8be8ff; text-shadow: 0 2px 0 #043a52, 0 0 8px rgba(80, 200, 255, .55); }
+
+/* bảng khoang lái, theo tấm bảng của xe tải REPO: số to giữa màn + vòng chạy */
+#ship-board {
+  position: absolute; left: 50%; top: 30%; transform: translate(-50%, -50%) scale(.9); opacity: 0; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  transition: opacity .15s, transform .15s; text-align: center; text-shadow: 0 2px 6px rgba(0, 20, 40, .7);
+}
+#ship-board.on { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+#ship-board { --k: 0deg; }
+#ship-board .disc { position: relative; width: calc(var(--px, 1) * 150px); height: calc(var(--px, 1) * 150px); }
+#ship-board .ring {
+  position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(var(--gold) var(--k), rgba(255, 255, 255, .16) 0);
+  -webkit-mask: radial-gradient(circle, transparent 62%, #000 64%); mask: radial-gradient(circle, transparent 62%, #000 64%);
+}
+#ship-board .num { position: absolute; inset: 0; display: grid; place-items: center; font-size: calc(var(--px, 1) * 84px); font-weight: 900; color: #fff; }
+#ship-board .lbl { font-size: calc(var(--px, 1) * 24px); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--gold); }
+#ship-board .sub { font-size: calc(var(--px, 1) * 15px); color: var(--ink); background: var(--panel); border: 1px solid var(--edge); padding: 3px 12px; border-radius: 999px; }
+#ship-board.msg .disc, #ship-board.msg .lbl { display: none; }
+#ship-board.msg .sub { font-size: calc(var(--px, 1) * 18px); color: #ffb3a8; border-color: rgba(255, 90, 79, .6); }
+#ship-board.left .lbl { color: #fff; }
+
+/* nút cảm ứng: cụm dưới phải, nằm trên hàng nút lặn của HUD (cần trái ở dưới trái) */
+#ship-touch { display: none; }
+body.touch #ship-touch { display: block; }
+.ship-btn {
+  position: absolute; pointer-events: auto; touch-action: none; border: 2px solid rgba(255, 255, 255, .85); border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #5fd0ee, #1d6f9a 70%); color: #fff; font-weight: 800; font-size: calc(var(--px, 1) * 17px); line-height: 1; font-family: inherit;
+  box-shadow: 0 4px 0 #0b3a56, 0 6px 14px rgba(0, 20, 40, .5); display: none; place-items: center; -webkit-tap-highlight-color: transparent;
+  width: calc(var(--px, 1) * 78px); height: calc(var(--px, 1) * 78px);
+  right: max(18px, env(safe-area-inset-right)); bottom: calc(var(--px, 1) * 255px);
+}
+.ship-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #0b3a56; }
+#ship-btn-e { background: radial-gradient(circle at 35% 30%, #ffe27a, #e08a1c 70%); box-shadow: 0 4px 0 #6a3a00, 0 6px 14px rgba(0, 20, 40, .5); bottom: calc(var(--px, 1) * 345px); }
+#ship-ui.deck #ship-btn-jump { display: grid; }
+#ship-ui.can-e #ship-btn-e { display: grid; }
