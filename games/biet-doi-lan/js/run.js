@@ -29,7 +29,8 @@ window.BDL = window.BDL || {};
     dive: null,   // lượt đang lặn: {map, quota, lootTotal, onDeck, pile[], sold{}, droneLeft, kills}
 
     start: function () {
-      run.ca = { mapIdx: 0, wallet: 0, total: 0, upg: {}, stash: [], kills: 0, skills: 0, floorsMax: 0, cleared: 0 };
+      // bought/shopRoll: trạm (shop.js) đếm số lần mua từng nâng cấp và giữ đồ bày của lần ghé đang dở
+      run.ca = { mapIdx: 0, wallet: 0, total: 0, upg: {}, stash: [], kills: 0, skills: 0, floorsMax: 0, cleared: 0, bought: {}, shopRoll: null };
       run.dive = null;
       return run.ca;
     },

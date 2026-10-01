@@ -1,1 +1,100 @@
-/* Quán-trạm mua đồ (chưa làm) */
+/* Trạm tiếp tế (js/shop.js) và cano (js/cruise.js). Dùng biến màu của index.html (--gold, --cyan, --dim, --edge, --disp). */
+
+/* ---------- cano chạy giữa chỗ lặn và quán ---------- */
+#scr-cruise { padding: 0; display: block; }
+.bt-hud { position: absolute; inset: 0; pointer-events: none; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.bt-hud button { pointer-events: auto; cursor: pointer; }
+.bt-top {
+  position: absolute; left: 50%; top: max(8px, env(safe-area-inset-top)); transform: translateX(-50%);
+  width: min(440px, calc(100vw - 250px)); padding: 7px 14px 9px; border-radius: 12px;
+  background: rgba(8, 26, 44, .62); border: 1px solid var(--edge); box-shadow: 0 6px 22px rgba(0, 0, 0, .25);
+}
+.bt-top h2 { font: 700 19px/1.1 var(--disp); margin: 0 0 6px; color: var(--gold); text-shadow: 0 2px 0 rgba(0, 0, 0, .35); white-space: nowrap; }
+.bt-prog { display: flex; align-items: center; gap: 10px; }
+.bt-bar { position: relative; flex: 1; height: 8px; border-radius: 99px; background: rgba(255, 255, 255, .18); }
+.bt-fill { height: 100%; width: 0; border-radius: 99px; background: linear-gradient(90deg, #1c9cc4, var(--cyan)); }
+.bt-mark { position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 3px rgba(95, 208, 238, .55); }
+.bt-bar::after { content: ""; position: absolute; right: -3px; top: -6px; width: 4px; height: 20px; border-radius: 2px; background: var(--gold); }
+.bt-dist { min-width: 58px; text-align: right; font: 800 15px/1 system-ui, sans-serif; font-variant-numeric: tabular-nums; color: #fff; }
+.bt-speed {
+  position: absolute; left: max(14px, env(safe-area-inset-left)); bottom: max(12px, env(safe-area-inset-bottom));
+  display: flex; align-items: baseline; gap: 4px; padding: 6px 12px; border-radius: 12px; background: rgba(8, 26, 44, .55);
+  color: #fff; text-shadow: 0 2px 0 rgba(0, 0, 0, .4);
+}
+.bt-speed b { font: 800 30px/1 system-ui, sans-serif; font-variant-numeric: tabular-nums; min-width: 2ch; text-align: right; }
+.bt-speed small { font-size: 12px; color: var(--dim); font-weight: 700; }
+.bt-skip {
+  position: absolute; right: max(10px, env(safe-area-inset-right)); top: max(8px, env(safe-area-inset-top));
+  padding: 8px 14px; border: 1px solid var(--edge); border-radius: 10px; background: rgba(8, 26, 44, .7); color: #fff; font: 700 14px system-ui, sans-serif;
+}
+.bt-hint {
+  position: absolute; left: 50%; bottom: max(12px, env(safe-area-inset-bottom)); transform: translateX(-50%);
+  padding: 5px 14px; border-radius: 99px; background: rgba(8, 26, 44, .6); color: var(--ink); font-size: 12.5px; white-space: nowrap;
+}
+.bt-hint:empty { display: none; }
+.bt-fade { position: absolute; inset: 0; background: #08223a; opacity: 0; pointer-events: none; }
+.bt-load { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 10px 18px; border-radius: 12px; background: rgba(8, 26, 44, .8); color: var(--dim); }
+.bt-load[hidden] { display: none; }
+@media (max-height: 460px) {
+  .bt-top { padding: 5px 12px 7px; width: min(400px, calc(100vw - 230px)); }
+  .bt-top h2 { font-size: 16px; margin-bottom: 4px; }
+  .bt-dist { font-size: 13px; min-width: 50px; }
+  .bt-speed b { font-size: 24px; }
+}
+
+/* ---------- trạm tiếp tế ---------- */
+#scr-shop { padding: 0; display: block; pointer-events: none; }
+.sp-hud { position: absolute; inset: 0; pointer-events: none; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--ink); }
+.sp-top {
+  position: absolute; left: max(10px, env(safe-area-inset-left)); top: max(8px, env(safe-area-inset-top));
+  display: flex; gap: 8px; align-items: stretch; max-width: calc(100vw - 20px);
+}
+.sp-wallet, .sp-stash {
+  padding: 5px 12px 6px; border-radius: 10px; background: rgba(8, 26, 44, .82); border: 1px solid var(--edge); box-shadow: 0 4px 14px rgba(0, 0, 0, .35);
+}
+.sp-top small { display: block; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+.sp-wallet b { font: 800 24px/1.1 system-ui, sans-serif; font-variant-numeric: tabular-nums; color: #8cf0a0; text-shadow: 0 2px 0 rgba(0, 0, 0, .4); }
+.sp-stash-list { display: flex; gap: 4px; flex-wrap: wrap; max-width: min(46vw, 420px); min-height: 26px; align-items: center; }
+.sp-chip { display: inline-flex; align-items: center; gap: 2px; padding: 1px 4px; border-radius: 6px; background: rgba(255, 255, 255, .1); }
+.sp-chip em { font-style: normal; font-size: 10.5px; font-weight: 800; color: var(--gold); }
+.sp-ic { width: 22px; height: 22px; object-fit: contain; }
+.sp-em { display: inline-block; font-size: 17px; line-height: 22px; text-align: center; }
+.sp-none { font-size: 12px; color: var(--dim); }
+.sp-title {
+  position: absolute; right: max(12px, env(safe-area-inset-right)); top: max(8px, env(safe-area-inset-top)); text-align: right;
+  font: 800 18px/1.1 var(--disp); letter-spacing: .08em; color: var(--gold); text-shadow: 0 2px 8px rgba(0, 0, 0, .7);
+}
+.sp-title small { display: block; margin-top: 3px; font: 600 11px/1.2 system-ui, sans-serif; letter-spacing: 0; color: var(--ink); opacity: .85; }
+.sp-prompt {
+  position: absolute; left: 50%; bottom: max(14px, env(safe-area-inset-bottom)); transform: translateX(-50%);
+  max-width: min(760px, calc(100vw - 20px)); padding: 7px 16px; border-radius: 99px; text-align: center;
+  background: rgba(8, 26, 44, .88); border: 1px solid var(--edge); font-size: 14px; font-weight: 600; box-shadow: 0 4px 14px rgba(0, 0, 0, .4);
+}
+.sp-prompt[hidden], .sp-msg[hidden] { display: none; }
+.sp-msg {
+  position: absolute; left: 50%; top: 22%; transform: translateX(-50%); max-width: min(560px, calc(100vw - 24px)); text-align: center;
+  padding: 10px 20px; border-radius: 14px; background: rgba(20, 70, 40, .94); border: 1px solid #5fd08a; font: 800 16px/1.3 system-ui, sans-serif;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, .5);
+}
+.sp-msg.bad { background: rgba(110, 28, 22, .95); border-color: #ff7a6a; }
+.sp-pad, .sp-act { display: none; pointer-events: auto; touch-action: none; }
+body.touch .sp-pad {
+  display: block; position: absolute; left: max(18px, env(safe-area-inset-left)); bottom: max(54px, env(safe-area-inset-bottom));
+  width: 150px; height: 74px; border-radius: 40px; background: rgba(8, 26, 44, .55); border: 2px solid var(--edge);
+}
+.sp-knob { position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; margin: -26px 0 0 -26px; border-radius: 50%; background: rgba(255, 255, 255, .55); border: 2px solid #fff; }
+body.touch .sp-act {
+  display: block; position: absolute; right: max(22px, env(safe-area-inset-right)); bottom: max(54px, env(safe-area-inset-bottom));
+  width: 86px; height: 86px; border-radius: 50%; border: 3px solid #fff; background: rgba(28, 156, 196, .8); color: #fff; font: 800 30px/1 system-ui, sans-serif;
+}
+.sp-act small { display: block; margin-top: 2px; font: 700 10px/1 system-ui, sans-serif; }
+@media (max-height: 460px) {
+  .sp-wallet b { font-size: 19px; }
+  .sp-title { font-size: 14px; }
+  .sp-title small { display: none; }
+  .sp-prompt { font-size: 12.5px; padding: 5px 12px; bottom: max(8px, env(safe-area-inset-bottom)); }
+  .sp-msg { top: 18%; font-size: 14px; padding: 7px 14px; }
+}
+
+/* hộp gợi ý của hệ thuyền (ship.js) không được lòi ra ngoài pha lặn */
+body[data-phase="shop"] .ship-ui, body[data-phase="cruise"] .ship-ui { display: none !important; }
