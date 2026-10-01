@@ -281,7 +281,11 @@ async function clickTile(p, x, y, opt) {
   await waitFor(p, () => D2DBG.getState().area === 'blood_moor', 8000);
   await p.evaluate(() => { D2DBG.give({ gold: 400 }); D2DBG.S.char.hp = 1; D2DBG.spawn(D2DBG.monIds()[0], 3, 1.2, 0, 'champion'); });
   const goldPre = (await st(p)).gold;
-  const dead = await waitFor(p, () => document.querySelector('.screen.dead').style.display === 'flex', 20000);
+  // Zombie cấp 1 đánh nhân vật cấp 10 chỉ trúng 5-10% (công thức AR/DEF của D2), lại thêm máu tự hồi,
+  // nên đợi quái giết là chập chờn đúng luật. Cho quái 6 giây, rồi trừ máu thẳng qua đường damageHero.
+  if (!await waitFor(p, () => document.querySelector('.screen.dead').style.display === 'flex', 6000))
+    await p.evaluate(() => D2DBG.hurt(99999));
+  const dead = await waitFor(p, () => document.querySelector('.screen.dead').style.display === 'flex', 8000);
   check('hết máu -> màn hình chết', dead);
   if (dead) {
     s = await st(p);

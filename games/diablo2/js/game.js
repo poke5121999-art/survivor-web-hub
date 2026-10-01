@@ -7,7 +7,7 @@
   'use strict';
   var D2 = window.D2 = window.D2 || {};
   var E = D2.E, I = D2.Input, UI = D2.UI, A = window.D2_ASSETS || {};
-  var VER = '20261001c';
+  var VER = '20261001d';
   var SAVE_KEY = 'd2web.save.v1';
 
   function safe(fn, fb) { try { var v = fn(); return v == null ? fb : v; } catch (e) { return fb; } }
@@ -1583,6 +1583,7 @@
     },
     teleport: function (x, y) { if (S.hero) { S.hero.x = x; S.hero.y = y; S.hero.path = null; S.hero.goal = null; E.cam.x = x; E.cam.y = y; markSeen(); } },
     goto: function (id, from) { return enterArea(id, from || null); },
+    hurt: function (n) { damageHero(n); },
     spawn: function (monId, n, dx, dy, rank) {
       var out = [], h = S.hero;
       for (var i = 0; i < (n || 1); i++) {
