@@ -44,7 +44,7 @@
   function Drone(G, max) {
     this.G = G;
     this.max = max;
-    this.left = max;
+    this.left = max;   // Biệt Đội Lặn: items.js đồng bộ với BDL.run.dive.droneLeft (số chuyến mỗi lượt lặn)
     this.delivered = [];   // mã loài cá drone đã đưa lên thuyền trong lượt này
     this.flights = [];
     this.gltf = null;
@@ -52,20 +52,35 @@
     loadModel().then(function (g) { self.gltf = g; }, function (e) { G.errors.push(String(e)); });
   }
 
-  // Con cá này drone kéo được không: cá phải xả thịt (cỡ lớn), đã chết, đang ngủ hoặc đông đá, chưa có drone nào nhận.
+  // Biệt Đội Lặn: drone mang lên thuyền ba thứ: đồ cổ (đang buộc dây hoặc nằm yên / đang chìm trong tầm), xác cá to, xác quái.
+  // Cá lớn còn sống nhưng đang ngủ / đông đá vẫn bắt sống được như bản gốc.
+  var REACH = 4;   // [ĐỀ XUẤT] Dave cách món trong khoảng này (m) thì gọi được; món đang buộc dây thì 6 m
   Drone.prototype.liftable = function (f) {
-    return !!f && !!f.root.parent && f.carvable() && (f.corpse() || f.state === 'sleep' || f.state === 'iced');
+    if (!f || !f.root || !f.root.parent) return false;
+    if (f.isLoot) return f.state !== 'gone' && f.state !== 'onDeck' && !f.lifted;
+    if (f.state === 'lifted') return false;
+    if (f.corpse()) return f.sp.size >= 1 || !!f.isFoe;
+    return f.carvable() && (f.state === 'sleep' || f.state === 'iced');
   };
 
-  // Con cá gần Dave nhất mà drone kéo được (thân cá nở thêm T.drone.reach).
+  // Món gần Dave nhất mà drone mang được: món đang buộc dây trước, rồi đồ cổ gần nhất, rồi xác cá to.
   Drone.prototype.target = function () {
-    var d = this.G.diver, list = this.G.fishes.list, best = null, bd = Infinity;
+    var G = this.G, d = G.diver, best = null, bd = Infinity;
     if (!d) return null;
+    var tt = window.BDL && BDL.tether && BDL.tether.target && BDL.tether.target();
+    if (tt && this.liftable(tt) && Math.hypot(tt.pos.x - d.pos.x, tt.pos.y - d.pos.y) <= REACH + 2) return tt;
+    (G.loot || []).forEach(function (l) {
+      if (!this.liftable(l)) return;
+      var dd = Math.hypot(l.pos.x - d.pos.x, l.pos.y - d.pos.y);
+      if (dd <= REACH && dd < bd) { bd = dd; best = l; }
+    }, this);
+    if (best) return best;
+    var list = G.fishes.list;
     for (var i = 0; i < list.length; i++) {
       var f = list[i];
-      if (!this.liftable(f) || !f.hitTest(d.pos.x, d.pos.y, DT.reach)) continue;
-      var c = f.center(), dd = Math.hypot(c.x - d.pos.x, c.y - d.pos.y);
-      if (dd < bd) { bd = dd; best = f; }
+      if (!this.liftable(f)) continue;
+      var c = f.center(), dd2 = Math.hypot(c.x - d.pos.x, c.y - d.pos.y);
+      if (dd2 <= REACH + f.hh && dd2 < bd) { bd = dd2; best = f; }
     }
     return best;
   };
@@ -81,9 +96,15 @@
     var G = this.G;
     if (this.left <= 0 || !this.liftable(f)) return false;
     this.left--;
-    var kind = f.corpse() ? 'A' : 'B';
+    var rd = window.BDL && BDL.run && BDL.run.dive;
+    if (rd) rd.droneLeft = this.left;
+    // đang buộc dây vào món này thì nhả dây: drone nhận món từ đây
+    var tt = window.BDL && BDL.tether && BDL.tether.target && BDL.tether.target();
+    if (tt === f) BDL.tether.release();
+    var kind = f.isLoot || f.corpse() ? 'A' : 'B';
     f.clearBuffs();
-    f.go('lifted');
+    if (f.isLoot) { f.lifted = true; f.state = 'lifted'; f.tethered = false; f.vel.x = f.vel.y = 0; }
+    else f.go('lifted');
     var c = f.center();
     // gốc LiftDrone đặt ở chỗ nâng cá; clip đưa drone từ xa tới lơ lửng ngay trên đó
     var fl = { fish: f, kind: kind, phase: 'come', t: 0, x: c.x, y: c.y + f.hh * DT.liftUp, node: null, mixer: null, plays: [], off: null };
@@ -158,17 +179,27 @@
         return { x: q.x, y: q.y, z: fl.fish.z + 0.2 };
       } });
     }
-    if (fl.phase === 'away') { f.pos.x = tmp.x + fl.off.x; f.pos.y = tmp.y + fl.off.y; f.z = tmp.z + fl.off.z; }
+    if (fl.phase === 'away') {
+      f.pos.x = tmp.x + fl.off.x; f.pos.y = tmp.y + fl.off.y; f.z = tmp.z + fl.off.z;
+      if (f.isLoot) f.draw();
+    }
     return fl.t >= fl.length;
   };
 
-  // Cá lên thuyền: vào danh sách cá drone của lượt (main.js gộp vào mẻ cá khi hết lượt), thẻ bắt cá như cá vào túi.
+  // Món lên thuyền: vào đống đồ trên boong và tính vào chỉ tiêu (BDL.run.deliver → BDL.onDeliver → hệ thuyền).
   Drone.prototype.finish = function (fl) {
-    var G = this.G, f = fl.fish;
-    this.delivered.push(f.sp.id);
-    f.go('reeled');
-    G.hud.toast('Drone đã đưa ' + HX.fish.displayName(f.sp).toLowerCase() + ' lên thuyền');
-    G.hud.catchCard(f.sp, HX.fish.iconFor(G.gfx, f.sp));
+    var G = this.G, f = fl.fish, item = null;
+    if (window.BDL && BDL.deckItemOf && BDL.run && BDL.run.dive) {
+      try { item = BDL.deckItemOf(f); } catch (e) { G.errors.push('drone: ' + e); }
+    }
+    if (f.isLoot) f.removeFromWorld(); else f.go('reeled');
+    if (item) {
+      BDL.run.deliver(item);
+      G.hud.toast('Drone đã đưa ' + (item.label || 'một món').toLowerCase() + ' lên thuyền · +' + (BDL.fmt ? BDL.fmt(item.value) : item.value));
+    } else if (f.sp && !f.isLoot) {
+      this.delivered.push(f.sp.id);
+      G.hud.toast('Drone đã đưa ' + HX.fish.displayName(f.sp).toLowerCase() + ' lên thuyền');
+    }
     this.drop(fl);
   };
 

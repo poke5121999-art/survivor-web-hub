@@ -19,6 +19,17 @@
     return a + d * k;
   }
 
+  // Biệt Đội Lặn: đồ trên tay (js/items.js). active > 0 thì chuột trái dùng đồ chứ không bắn xiên.
+  function handOn() { var B = window.BDL; return !!(B && B.items && B.hand && B.hand.active > 0); }
+  function tethered() { var B = window.BDL; return !!(B && B.tether && B.tether.state === 'attached'); }
+  function stat(G, k, d) { var st = G.stats; return st && st[k] != null ? st[k] : d; }
+  // Bấm dùng đồ trên tay: true nếu đã đổi trạng thái (gunAim / melee) để vòng cập nhật dừng.
+  function itemFire(d, G, inp) {
+    var r = window.BDL.items.press(d, inp);
+    if (r && r.state) d.go(r.state, r.data);
+    return d.state !== 'swim' && d.state !== 'dash';
+  }
+
   // Tên hoạt ảnh trong game → clip gốc của PlayerAnimCtrl. Tên không có clip thì chạy đều theo D.anims[tên].fps.
   var CLIP = {
     Idle: 'Idle', Gasping: 'Ani2D_Dave_Gasping', Relief: 'Ani2D_Dave_Relief', Look: 'LookAround', Wait: 'WaitEscapepod',
@@ -224,12 +235,15 @@
   // Vật lý bơi chung: gia tốc theo cần, cản nước, trượt theo vách, trần là mặt nước.
   Diver.prototype.swim = function (dt, inp, cap, accelMul) {
     var P = T.diver;
-    var ax = inp.mx * P.accel * (accelMul || 1), ay = inp.my * P.accel * (accelMul || 1);
+    var am = (accelMul || 1) * stat(this.G, 'swimMul', 1);
+    var ax = inp.mx * P.accel * am, ay = inp.my * P.accel * am;
     this.vel.x += ax * dt; this.vel.y += ay * dt;
     var k = Math.exp(-P.drag * dt);
     this.vel.x *= k; this.vel.y *= k;
     // Biệt Đội Lặn: đang kéo vật bằng dây móc (js/tether.js đặt this.tow mỗi khung) thì chậm lại theo khối lượng vật
     if (this.tow) cap *= this.tow.mul;
+    var sm = stat(this.G, 'swimMul', 1);   // crew + nâng cấp Tốc bơi
+    cap *= sm;
     var sp = Math.hypot(this.vel.x, this.vel.y);
     if (sp > cap) { this.vel.x *= cap / sp; this.vel.y *= cap / sp; }
     this.G.world.move(this.pos, this.vel, P.radius, dt);
@@ -269,6 +283,7 @@
       return true;
     }
     if (!this.vulnerable()) return false;
+    dmg *= stat(G, 'dmgTaken', 1);   // giáp (grit) của crew + đồng đội
     this.o2 = Math.max(0, this.o2 - dmg);
     this.invuln = T.diver.invulnTime;
     var dx = this.pos.x - fromX, dy = this.pos.y - fromY, l = Math.hypot(dx, dy) || 1;
@@ -326,8 +341,9 @@
     }
 
     var spd = Math.hypot(this.vel.x, this.vel.y);
+    var stMax = stat(G, 'staminaMax', 100);
     if (this.boosting) this.stamina = Math.max(0, this.stamina - 22 * dt);
-    else this.stamina = Math.min(100, this.stamina + 16 * (spd > 0.35 ? 1 : 1.4) * dt);
+    else this.stamina = Math.min(stMax, this.stamina + 16 * stat(G, 'regenMul', 1) * (spd > 0.35 ? 1 : 1.4) * dt);
 
     this.bubbles();
     this.draw();
@@ -424,8 +440,10 @@
           if (dt0 && G.drone.left <= 0) return d.go('harvest', { fish: dt0, fail: 'Hết drone cứu hộ' });
         }
         if (inp.dash && d.dashCd <= 0 && moving) return d.go('dash', { mx: inp.mx, my: inp.my });
-        if (inp.firePressed && G.harpoon.state === 'ready') return d.go('aim');
-        if (inp.gunPressed && G.gun && G.harpoon.state === 'ready') return d.go('gunAim');
+        if (inp.firePressed && handOn()) { if (itemFire(d, G, inp)) return; }
+        else if (inp.firePressed && tethered()) window.BDL.tether.release();   // đang buộc dây: bấm chuột trái lần nữa là thả, không ngắm
+        else if (inp.firePressed && G.harpoon.state === 'ready') return d.go('aim');
+        if (inp.gunPressed && G.gun && !handOn() && G.harpoon.state === 'ready') return d.go('gunAim');
         if (inp.melee && d.knifeCd <= 0) return d.go('melee');
         d.swim(dt, inp, d.boosting ? T.diver.boostSpeed : T.diver.maxSpeed, d.boosting ? 1.5 : 1);
         // kéo vật nặng trên dây móc: đạp chân gấp (dãy tăng tốc), thân lắc và ngả ngược về phía dây
@@ -454,7 +472,7 @@
         d.boosting = false;
         d.swim(dt, { mx: 0, my: 0 }, T.diver.dashSpeed);
         if (d.st > T.diver.dashTime) d.go('swim');
-        else if (inp.firePressed && G.harpoon.state === 'ready') d.go('aim');
+        else if (inp.firePressed && !handOn() && G.harpoon.state === 'ready') d.go('aim');
       },
     },
 
@@ -474,8 +492,10 @@
         if (inp.aimCancel) return d.go('swim');  // cảm ứng: thả cần ngắm trong ô Huỷ bắn
         if (inp.fireReleased || !inp.fireHeld) d.data.release = true;
         if (d.data.release && d.st >= T.harpoon.minReady) {
-          var tip = d.gunTip();
-          G.harpoon.fire(tip.x, tip.y, d.aimAngle);
+          var tip = d.gunTip(), ang = d.aimAngle;
+          // tay xoay quanh vai nên trục mũi xiên lệch con trỏ vài phân: bắn từ đầu mũi thẳng tới con trỏ (như súng phụ)
+          if ((inp.aimX - tip.x) * Math.cos(ang) + (inp.aimY - tip.y) * Math.sin(ang) > 0.3) ang = Math.atan2(inp.aimY - tip.y, inp.aimX - tip.x);
+          G.harpoon.fire(tip.x, tip.y, ang);
           if (d.state === 'aim') d.go('shoot');  // fire() có thể đã trúng ngay cá sát nòng và chuyển sang reel/tug
         }
       },
@@ -562,13 +582,14 @@
       update: function (d, G, dt, inp) {
         d.rig = G.gun.rigSpec();
         d.boosting = false;
-        var t = inp.gunAuto ? G.gun.autoAim(d) : { x: inp.aimX, y: inp.aimY };
+        var t = { x: inp.aimX, y: inp.aimY };   // không có tự ngắm: luôn bắn theo con trỏ (cảm ứng: theo cần kéo, không kéo thì thẳng mặt Dave)
         d.gunTarget = t;
         d.aimAt({ aimX: t.x, aimY: t.y });
         d.tilt = lerpAngle(d.tilt, 0, Math.min(1, 12 * dt));
         d.swim(dt, inp, T.diver.aimSpeed, 0.6);
         if (inp.aimCancel) return d.go('swim');
-        if (inp.gunReleased || !inp.gunHeld) d.data.release = true;
+        var viaHand = handOn();   // súng trên tay bắn bằng chuột trái / nút bắn lớn
+        if (viaHand ? (inp.fireReleased || !inp.fireHeld) : (inp.gunReleased || !inp.gunHeld)) d.data.release = true;
         if (d.data.release && d.st >= T.harpoon.minReady) {
           var r = G.gun.trigger(d);
           if (r === 'fired') return d.go('gunFire');
@@ -590,30 +611,34 @@
         // giật lùi đẩy Dave về sau: giữ tư thế bắn tới khi gần đứng lại (hoặc người chơi bơi), kẻo swim quay mặt theo hướng lùi
         var settled = Math.hypot(d.vel.x, d.vel.y) < 0.35 || moving || d.st > 1.2;
         if (d.st >= Math.max(G.gun.spec.cooldown, T.harpoon.fireHold) && G.gun.pull <= 0 && settled) {
-          if (inp.gunHeld) return d.go('gunAim');
+          if (handOn() ? inp.fireHeld : inp.gunHeld) return d.go('gunAim');
           return d.go('swim');
         }
       },
     },
 
+    // Dao lặn (F) hoặc một nhát của đồ trên tay: d.data.item = { item, def, time, hitAt, anim } do BDL.items.press đưa vào.
     melee: {
       enter: function (d, G) {
-        d.play('MeleeDaggerAtk', true);
-        d.knifeCd = T.knife.cooldown + T.knife.time;
+        var it = d.data.item, tm = it ? it.time : T.knife.time;
+        d.play('MeleeDaggerAtk', true, T.knife.time / tm);
+        d.knifeCd = it ? tm + it.cd : T.knife.cooldown + T.knife.time;
         d.data.hit = false;
-        G.audio.play('knife');
+        G.audio.play(it && it.sfx ? it.sfx : 'knife');
         // MeleeBubble của EffectGroup: bọt tung ra theo nhát dao
         G.fx.play(G.fx.dive('meleeBubble'), d.pos.x, d.pos.y, { scale: S, z: 0.14, angle: d.facing > 0 ? d.tilt : -d.tilt, flip: d.facing < 0, name: 'melee' });
       },
       update: function (d, G, dt, inp) {
+        var it = d.data.item, tm = it ? it.time : T.knife.time;
         d.boosting = false;
         d.tilt = lerpAngle(d.tilt, 0, Math.min(1, 12 * dt));
         d.swim(dt, inp, T.diver.aimSpeed, 0.5);
-        if (!d.data.hit && d.st >= T.knife.hitAt) {
+        if (!d.data.hit && d.st >= (it ? it.hitAt : T.knife.hitAt)) {
           d.data.hit = true;
-          G.fishes.knife(d.pos.x + d.facing * 0.3 * S, d.pos.y + 0.05 * S, T.knife.range, G.loadout.knife);
+          if (it) window.BDL.items.swing(d, it);
+          else G.fishes.knife(d.pos.x + d.facing * 0.3 * S, d.pos.y + 0.05 * S, T.knife.range, Math.max(1, Math.round(G.loadout.knife * stat(G, 'dmgMul', 1))));
         }
-        if (d.st >= T.knife.time) d.go('swim');
+        if (d.st >= tm) d.go('swim');
       },
     },
 

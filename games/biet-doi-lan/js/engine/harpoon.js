@@ -16,6 +16,19 @@
     f.go('dying');
     return true;
   }
+  // Biệt Đội Lặn: súng xiên cũng là súng móc dây. Mũi xiên trúng đồ cổ hoặc xác cá to / xác quái thì móc dây vào (js/tether.js),
+  // cá nhỏ vẫn vào túi, cá lớn còn sống vẫn ăn sát thương + giằng co rồi chết thành xác buộc dây.
+  function hookTarget(G, x, y) {
+    var T2 = window.BDL && BDL.tether;
+    if (!T2) return null;
+    var L = G.loot || [], i;
+    for (i = 0; i < L.length; i++) if (T2.hookable(L[i]) && L[i].hitTest(x, y, 0.1)) return L[i];
+    var F = G.fishes.list;
+    for (i = 0; i < F.length; i++) if (T2.hookable(F[i]) && F[i].hitTest(x, y, 0.08)) return F[i];
+    return null;
+  }
+  function rangeOf(G) { return G.stats && G.stats.hookRange ? G.stats.hookRange : H.range; }
+
   // Hiệu ứng khi mũi xiên trúng cá, theo kiểu của đầu xiên đang lắp (G.loadout.head.effect, bảng HX_META.HEADS).
   // hit(hp, f, h, c) chạy sau khi đã trừ máu; c = { res ('dead'|'tug'|'alive'), dmg, x, y }.
   // Trả 'held' khi cá bị giữ tại chỗ (ngủ, đông đá): không giằng co nữa.
@@ -133,13 +146,26 @@
       for (var j = 0; j < fishes.length; j++) {
         if (fishes[j].alive() && fishes[j].hitTest(px, py, 0.04)) { this.x = px; this.y = py; this.hitFish(fishes[j]); break; }
       }
+      var hk = this.state === 'flying' ? hookTarget(G, px, py) : null;
+      if (hk) { this.x = px; this.y = py; this.hookOn(hk); }
     }
+  };
+
+  // Móc dây vào đồ cổ / xác: mũi xiên về tay ngay (dây móc của js/tether.js thay cho dây xiên).
+  Harpoon.prototype.hookOn = function (t) {
+    if (!window.BDL || !BDL.tether || !BDL.tether.hookTo(t, this.x, this.y)) return false;
+    this.fish = null;
+    this.state = 'ready';
+    this.missed = false;
+    return true;
   };
 
   Harpoon.prototype.hitFish = function (f) {
     var G = this.G, h = this.head;
     // sát thương = súng xiên + phần cộng của đầu xiên (HarpoonHeadSpecData._Damage) [DtD]
     var dmg = G.loadout.harpoon + (h.dmg || 0);
+    // Biệt Đội Lặn: sát thương nhân theo crew + đồng đội (G.stats.dmgMul, js/items.js)
+    if (G.stats && G.stats.dmgMul) dmg = Math.max(1, Math.round(dmg * G.stats.dmgMul));
     var res = f.damage(dmg, this.x - this.dx, this.y - this.dy, true);
     G.audio.play('harpoon_hit');
     // BloodHit.prefab gốc (bọt, máu, tia loé); mũi xiên hạ luôn con cá thì thêm BloodFatal
@@ -158,7 +184,7 @@
     if (res === 'dead') {
       keepCorpse(f);
       if (f.state === 'hauled') this.hook(f, 'reel');
-      else this.state = 'returning';
+      else if (!this.hookOn(f)) this.state = 'returning';
       return;
     }
     f.go('hooked');
@@ -181,7 +207,9 @@
     keepCorpse(f);
     this.G.fx.play(this.G.fx.dive('bloodFatal'), this.x, this.y, { z: f.z + 0.1, name: 'bloodFatal' });
     if (f.state === 'hauled') return true;
+    // cá lớn chết trên dây giằng co: mũi xiên rút ra, dây móc buộc vào xác
     this.release();
+    this.hookOn(f);
     return false;
   };
 
@@ -272,14 +300,15 @@
           var f = fishes[k];
           if (f.alive() && f.hitTest(this.x, this.y, 0.04)) { this.hitFish(f); break; }
         }
-        if (this.state === 'flying' && this.traveled >= H.range) { this.state = 'returning'; this.missed = true; }
+        if (this.state === 'flying') { var hk = hookTarget(G, this.x, this.y); if (hk && this.hookOn(hk)) break; }
+        if (this.state === 'flying' && this.traveled >= rangeOf(G)) { this.state = 'returning'; this.missed = true; }
       }
     } else if (this.state === 'stuck') {
       var f2 = this.fish;
       if (f2) keepCorpse(f2);
       // cá mắc xiên chết vì độc / bỏng giữa lúc giằng co: cá nhỏ theo dây về, cá lớn thành xác và mũi xiên rút ra
       if (f2 && d.state === 'tug' && f2.state === 'hauled') d.go('reel');
-      else if (f2 && f2.corpse()) { this.release(); f2 = null; if (d.state === 'tug' || d.state === 'reel') d.go('swim'); }
+      else if (f2 && f2.corpse()) { var dead = f2; this.release(); this.hookOn(dead); f2 = null; if (d.state === 'tug' || d.state === 'reel') d.go('swim'); }
       if (!f2) { this.state = 'returning'; }
       else {
         if (d.state === 'reel') {

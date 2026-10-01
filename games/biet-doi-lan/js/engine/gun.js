@@ -57,19 +57,6 @@
     return d.arms.world(d, [R[0] + mz[0] / D.ppu, R[1] + mz[1] / D.ppu], 'hold');
   };
 
-  // Chạm: nhắm con cá sống gần nhất trong tầm súng, ưu tiên phía trước mặt. Không có thì bắn thẳng trước mặt.
-  Gun.prototype.autoAim = function (d) {
-    var best = null, bs = 1e9, R = Math.max(2.5, this.spec.range * 1.1);
-    this.G.fishes.list.forEach(function (f) {
-      if (!f.alive() || f.state === 'hooked' || f.state === 'sleep' && this.spec.mode === 'sleep') return;
-      var c = f.center(), dx = c.x - d.pos.x, dy = c.y - d.pos.y, l = Math.hypot(dx, dy);
-      if (l > R || this.G.world.raycast(d.pos.x, d.pos.y, c.x, c.y)) return;
-      var score = l + (dx * d.facing < 0 ? 3 : 0);
-      if (score < bs) { bs = score; best = c; }
-    }, this);
-    return best || { x: d.pos.x + d.facing * 3, y: d.pos.y + 0.2 };
-  };
-
   Gun.prototype.aimStart = function () {
     var k = sfxKey(this.id, 'aim');
     if (k) this.G.audio.loop('gunaim', k, 0.5);
@@ -82,7 +69,7 @@
     if (this.cd > 0) return 'wait';
     if (this.ammo <= 0) {
       G.audio.play(sfxKey(this.id, 'empty'));
-      G.hud.toast('Hết đạn');
+      G.hud.toast('Hết đạn · chuyến sau nạp lại');
       this.emptyClicks = (this.emptyClicks || 0) + 1;
       return 'empty';
     }
@@ -233,6 +220,12 @@
       if (f.state === 'hooked') return;
       f.damage(sp.dmg, x, y, false);
     });
+    // Biệt Đội Lặn: sóng nổ cũng đập vào đồ cổ nằm gần (REPO: lựu 420 × độ mạnh, qua cùng công thức va đập)
+    (G.loot || []).slice().forEach(function (l) {
+      var dd = Math.hypot(l.pos.x - x, l.pos.y - y);
+      if (dd <= sp.blast + 0.3 && l.hit) l.hit(sp.dmg * 1.6 * (1 - 0.5 * dd / (sp.blast + 0.3)), x, y);
+    });
+    if (window.BDL && BDL.noise) BDL.noise(x, y, 16, 2);
   };
 
   Gun.prototype.remove = function () {

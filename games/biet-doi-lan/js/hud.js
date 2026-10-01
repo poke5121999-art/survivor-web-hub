@@ -28,7 +28,7 @@
   var DIVE_UI = {
     'stick': ['stick'], 'stick-knob': ['knob', 'stick'], 'stick-sprint': ['sprint', 'stick'], 'stick-sprint-img': ['sprintImg', 'sprint'],
     'tb-boost': ['boost'], 'tb-knife': ['melee'], 'tb-grab': ['interact'], 'tb-drone': ['drone'],
-    'tb-hook': ['hook'], 'tb-swap': ['swap'], 'tb-skill': ['skill'],
+    'tb-swap': ['swap'], 'tb-skill': ['skill'],
     'tb-fire': ['fire'], 'tb-fire-icon': ['fireIcon', 'fire'], 'tb-fire-lv': ['fireLevel', 'fire'], 'tb-fire-ammo': ['fireAmmo', 'fire'],
     'tb-switch': ['switch'], 'tb-aimbg': ['aimBg'], 'tb-aim': ['aim'], 'tb-cancel': ['cancel'],
     'tb-qte': ['qte'], 'tb-qte-ring': ['qteRing', 'qte'],
@@ -173,6 +173,8 @@
       if (!on) return;
       el.style.transform = 'translate(' + Math.round(p.x) + 'px,' + Math.round(p.y) + 'px)';
       el.classList.toggle('carve', !!p.carve);
+      // gọi drone là phím Ctrl (nút drone trên cảm ứng), không phải Space như nhặt xác
+      el.classList.toggle('drone', !!p.drone);
       if (p.carve) {
         $('hv-bar').style.setProperty('--k', (p.k * 360).toFixed(1) + 'deg');
         if (p.icon && Hud._hvIcon !== p.icon) { Hud._hvIcon = p.icon; $('hv-icon').src = p.icon; }
@@ -351,7 +353,6 @@
     el.addEventListener('touchend', function (e) { e.preventDefault(); });
     el.addEventListener('mousedown', function (e) { e.stopPropagation(); go(); });
   }
-  bindPress('tb-hook', 'hook');
   bindPress('tb-swap', 'swap');
   bindPress('tb-skill', 'skill');
   bindPress('skill', 'skill');

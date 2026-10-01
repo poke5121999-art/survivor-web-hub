@@ -119,7 +119,7 @@ async function pcRun(browser, base) {
   // ---- bố cục HUD
   const rects = await page.evaluate(RECTS, ['o2bar', 'stam', 'quota', 'floor', 'hand', 'skill', 'hud-drone']);
   layoutChecks(tag, rects, W, H);
-  const touchBtn = await page.evaluate(RECTS, ['tb-hook', 'tb-swap', 'tb-skill', 'tb-fire']);
+  const touchBtn = await page.evaluate(RECTS, ['tb-swap', 'tb-skill', 'tb-fire']);
   check(tag + ': PC không vẽ nút cảm ứng', touchBtn.every(r => !r.shown), touchBtn.filter(r => r.shown).map(r => r.id).join(','));
   const texts = await page.evaluate(() => ({ o2: document.getElementById('o2-num').textContent, max: document.getElementById('o2-max').textContent,
     quota: document.getElementById('quota-t').textContent, depth: document.getElementById('depth').textContent,
@@ -269,7 +269,7 @@ async function touchRun(browser, base) {
   await foes.clear(page);
   await sleep(300);
 
-  const BTN = ['tb-fire', 'tb-boost', 'tb-knife', 'tb-grab', 'tb-hook', 'tb-swap', 'tb-skill', 'tb-drone', 'btn-pause'];
+  const BTN = ['tb-fire', 'tb-boost', 'tb-knife', 'tb-grab', 'tb-swap', 'tb-skill', 'tb-drone', 'btn-pause'];
   const rects = await page.evaluate(RECTS, BTN.concat(['o2bar', 'stam', 'quota', 'floor', 'hand']));
   layoutChecks(tag, rects, W, H);
   const btnRects = rects.filter(r => BTN.includes(r.id) && r.shown);
@@ -303,10 +303,11 @@ async function touchRun(browser, base) {
   await page.evaluate(() => { window.__p = []; const o = BDL.press; BDL.press = function (k) { window.__p.push(k); return o.apply(this, arguments); }; });
   const center = id => rects.find(r => r.id === id);
   const tap = async id => { const r = center(id); await page.touchscreen.tap(r.x + r.w / 2, r.y + r.h / 2); await sleep(150); };
-  await tap('tb-hook');
   await tap('tb-swap');
   const pr0 = await page.evaluate(() => window.__p.slice());
-  check(tag + ': chạm nút Móc gọi BDL.press("hook"), nút Đổi gọi BDL.press("swap")', pr0.join() === 'hook,swap', pr0.join());
+  const noHook = await page.evaluate(() => !document.getElementById('tb-hook'));
+  check(tag + ': chạm nút Đổi gọi BDL.press("swap")', pr0.join() === 'swap', pr0.join());
+  check(tag + ': không còn nút Móc riêng (móc là nút bắn)', noHook);
   const bo0 = await page.evaluate(() => document.getElementById('tb-boost').classList.contains('on'));
   await tap('tb-boost');
   const bo1 = await page.evaluate(() => document.getElementById('tb-boost').classList.contains('on'));

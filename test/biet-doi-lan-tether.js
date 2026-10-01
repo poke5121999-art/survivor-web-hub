@@ -88,6 +88,22 @@ async function placeDave(page, x, y) {
   await sleep(350);
 }
 
+// Bắn súng xiên bằng chuột thật: rê tới điểm thế giới (x, y), giữ chuột trái để ngắm, thả để bắn. Trúng đồ cổ / xác thì móc dây.
+async function hookAt(page, x, y) {
+  const s = await page.evaluate(([x, y]) => BDL_DEBUG.items.screen(x, y), [x, y]);
+  await page.mouse.move(s.x, s.y);
+  await sleep(150);
+  await page.mouse.down();
+  await sleep(450);
+  await page.mouse.up();
+}
+// bấm chuột trái lần nữa (không cần ngắm) để thả dây đang buộc: nhấp chỗ trống của màn hình
+async function releaseClick(page) {
+  await page.mouse.move(980, 200);
+  await sleep(100);
+  await page.mouse.down(); await sleep(60); await page.mouse.up();
+}
+
 async function waitState(page, want, ms) {
   const t0 = Date.now();
   while (Date.now() - t0 < ms) {
@@ -133,9 +149,9 @@ async function oneMap(browser, base, m) {
   await sleep(1200);   // món mới thả chìm xuống đá
   let L0 = await page.evaluate(id => __t.loot(id), mid);
   await placeDave(page, L0.x - 2.2, L0.y + 2.4);
-  await page.evaluate(id => { const l = BDL_DEBUG.loot.get(id); BDL_DEBUG.tether.fireAt(l.pos.x, l.pos.y); }, mid);
+  await hookAt(page, L0.x, L0.y);
   let st = await waitState(page, ['attached'], 1500);
-  check(tag + ': bắn móc vào món vừa → attached', st === 'attached', st);
+  check(tag + ': súng xiên (chuột trái giữ-thả) trúng món vừa → móc dây, attached', st === 'attached', st);
   await sleep(400);
   await page.screenshot({ path: path.join(SHOTS, 'map' + m + '-attached.png') });
   L0 = await page.evaluate(id => __t.loot(id), mid);
@@ -160,10 +176,10 @@ async function oneMap(browser, base, m) {
   check(tag + ': bơi lại gần thì dây chùng', ti.state === 'attached' && ti.len < ti.rest - 0.2, 'dây ' + fx(ti.len) + ' m < nghỉ ' + fx(ti.rest) + ' m');
   await page.screenshot({ path: path.join(SHOTS, 'map' + m + '-slack.png') });
 
-  // ---- bấm móc lần nữa (phím Q): thả, món chìm ----
-  await page.keyboard.press('KeyQ');
+  // ---- bấm chuột trái lần nữa: thả, món chìm ----
+  await releaseClick(page);
   st = await waitState(page, ['retracting', 'idle'], 600);
-  check(tag + ': bấm lại là thả móc', st === 'retracting' || st === 'idle', st);
+  check(tag + ': bấm chuột trái lần nữa là thả móc (không cần ngắm)', st === 'retracting' || st === 'idle', st);
   L1 = await page.evaluate(id => __t.loot(id), mid);
   await sleep(2000);
   const L2 = await page.evaluate(id => __t.loot(id), mid);
@@ -189,9 +205,9 @@ async function oneMap(browser, base, m) {
   await sleep(1500);
   const Wr0 = await page.evaluate(id => __t.loot(id), wr);
   await placeDave(page, Wr0.x - 1.5, Wr0.y + 2.6);
-  await page.evaluate(id => { const l = BDL_DEBUG.loot.get(id); BDL_DEBUG.tether.fireAt(l.pos.x, l.pos.y); }, wr);
+  await hookAt(page, Wr0.x, Wr0.y);
   st = await waitState(page, ['attached'], 1500);
-  check(tag + ': móc vào xác thuyền', st === 'attached', st);
+  check(tag + ': móc vào xác thuyền bằng súng xiên', st === 'attached', st);
   await page.keyboard.down('KeyW'); await page.keyboard.down('KeyD'); await page.keyboard.down('ShiftLeft');
   let strainMax = 0, snapAt = -1, shot = false, t0 = Date.now(), struggled = false;
   while (Date.now() - t0 < 6000) {
@@ -230,21 +246,27 @@ async function oneMap(browser, base, m) {
     const G = HX.game, d = G.diver, f = G.fishes.list.find(q => q.id === fid), c = f.center(), tip = d.gunTip();
     G.harpoon.fire(tip.x, tip.y, Math.atan2(c.y - tip.y, c.x - tip.x));
   }, big);
-  await sleep(4000);
+  await sleep(2500);
   let B = await page.evaluate(fid => __t.fish(fid), big);
   const caught = await page.evaluate(() => HX.game.catches.slice());
-  check(tag + ': cá to trúng xiên chết thành xác nằm lại', !!B && (B.state === 'dying' || B.state === 'dead') && caught.indexOf('Dusky_Grouper') < 0,
+  check(tag + ': cá to trúng xiên chết thành xác nằm lại, không vào túi', !!B && (B.state === 'dying' || B.state === 'dead') && caught.indexOf('Dusky_Grouper') < 0,
     B ? B.state + ', túi [' + caught.join(',') + ']' : 'mất xác');
+  st = await page.evaluate(() => BDL_DEBUG.tether.state());
+  const autoHook = await page.evaluate(fid => { const t = BDL.tether.target(); return !!t && t.id === fid && !t.isLoot; }, big);
+  check(tag + ': cá to chết trên xiên thì xác buộc luôn vào dây móc', st === 'attached' && autoHook, st);
   if (B) {
+    await releaseClick(page);
+    await waitState(page, ['idle'], 2500);
+    B = await page.evaluate(fid => __t.fish(fid), big);
     await placeDave(page, B.x - 0.4, B.y);
     const hp = await page.evaluate(() => { const p = HX.game.diver.harvestPrompt(); return p ? { carve: p.carve, drone: !!p.drone } : null; });
     check(tag + ': cạnh xác cá to không có lời nhắc xả thịt', !hp || (!hp.carve && hp.drone), JSON.stringify(hp));
     await placeDave(page, B.x - 2.2, B.y + 1.8);
     B = await page.evaluate(fid => __t.fish(fid), big);
-    await page.evaluate(b => BDL_DEBUG.tether.fireAt(b.x, b.y), B);
+    await hookAt(page, B.x, B.y);
     st = await waitState(page, ['attached'], 1500);
     const tgtFish = await page.evaluate(fid => { const t = BDL.tether.target(); return !!t && t.id === fid && !t.isLoot; }, big);
-    check(tag + ': móc dây vào xác cá to', st === 'attached' && tgtFish, st);
+    check(tag + ': thả rồi bắn xiên lại vào xác cá to → móc dây', st === 'attached' && tgtFish, st);
     const Bt0 = await page.evaluate(fid => __t.fish(fid), big);
     await page.keyboard.down('KeyW'); await sleep(2500); await page.keyboard.up('KeyW');
     const Bt1 = await page.evaluate(fid => __t.fish(fid), big);

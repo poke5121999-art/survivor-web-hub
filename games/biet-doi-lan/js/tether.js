@@ -1,13 +1,12 @@
-// Móc dây (neo): bắn móc vào đồ cổ hoặc xác cá to, dây lò xo kéo vật theo Dave lên dần như REPO, bấm lại là thả.
+// Móc dây (neo): súng xiên (chuột trái, giữ để ngắm, thả để bắn: engine/harpoon.js) trúng đồ cổ hoặc xác cá to / xác quái thì
+// móc dây vào (BDL.tether.hookTo), dây lò xo kéo vật theo Dave lên dần như REPO; bấm chuột trái lần nữa là thả (engine/dave.js).
 // Vật nặng làm dây căng quá sức kéo thì dây "mỏi" dần rồi đứt, vật chìm xuống lại.
-// idle → flying → attached → (bấm lại: retracting | căng quá: snapped) → idle. Mũi xiên (harpoon.js) vẫn riêng, bắt cá nhỏ vào túi.
+// idle → attached → (thả: retracting | căng quá: snapped) → idle. Cá nhỏ vẫn vào túi qua mũi xiên.
 window.BDL = window.BDL || {};
 (function (BDL) {
   'use strict';
   var T = window.HX_TUNING;
 
-  var RANGE = 9;            // [ĐỀ XUẤT] tầm móc (m)
-  var SPEED = 20;           // [ĐỀ XUẤT] móc bay (m/s)
   var BACK = 18;            // [ĐỀ XUẤT] thu móc về (m/s)
   var REST_MIN = 1.5, REST_GOAL = 2.5;   // dây dài lúc móc trúng (tối thiểu 1,5 m), tời dần về 2,5 m
   var REEL = 0.8;           // [ĐỀ XUẤT] tời dây (m/s); tời đứng khi dây đã căng quá 75% sức kéo
@@ -26,18 +25,25 @@ window.BDL = window.BDL || {};
   var HEAD_SRC = 'art/dtd/icon/GGSTAnchor_Thumbnail.png', HEAD_W = 0.56, HEAD_H = 0.37, HEAD_RING = 0.82;
 
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+  // Sức kéo và tầm móc theo G.stats (js/items.js): crew + nâng cấp Sức kéo dây / Tầm móc; chưa có thì số REPO gốc
   function strOf() {
+    if (G && G.stats && G.stats.pull) return G.stats.pull;
     var ca = BDL.run && BDL.run.ca, up = ca && ca.upg ? ca.upg.str || 0 : 0;
     return STR_BASE + 10 * up;
   }
+  function rangeOf() { return G && G.stats && G.stats.hookRange ? G.stats.hookRange : T.harpoon.range; }
+  function floating() { return !!(BDL.items && BDL.items.floatOn && BDL.items.floatOn()); }
   // Khối lượng dùng cho dây: cá quá nhẹ làm lò xo cứng 600 N/m rung loạn, cá mập quá nặng thì kẹt chết [ĐỀ XUẤT]
-  function massOf(t) { return clamp(t.mass || 1, 2, 260); }
+  // Phao nổi (js/items.js): món đang buộc dây nhẹ như bấc trong lúc phao còn hiệu lực
+  function massOf(t) { return floating() ? 2 : clamp(t.mass || 1, 2, 260); }
 
-  // Xác cá kéo được: mọi xác (dying/dead); cá to đang ngủ hay đông đá thì móc vào là hạ luôn [ĐỀ XUẤT].
-  function fishTetherable(f) {
-    if (!f || f.tethered || !f.root || !f.root.parent || f.isLoot) return false;
-    if (f.corpse && f.corpse()) return true;
-    return f.sp && f.sp.size >= 1 && !f.brain && (f.state === 'sleep' || f.state === 'iced');
+  // Móc dây được: mọi đồ cổ còn nằm dưới nước, xác cá to (cỡ ≥ 1) và xác quái. Cá còn sống (kể cả đang ngủ / đông đá)
+  // do mũi xiên đánh như thường, chết trên dây rồi mới thành xác buộc dây.
+  function hookable(t) {
+    if (!t || t.tethered || !t.root || !t.root.parent) return false;
+    if (t.isLoot) return t.state !== 'gone' && t.state !== 'onDeck' && !t.lifted;
+    if (t.state === 'reeled' || t.state === 'hauled' || t.state === 'lifted' || !t.corpse || !t.corpse()) return false;
+    return t.sp.size >= 1 || !!t.isFoe;
   }
 
   // Món lên boong. Quái (foes.js, f.isFoe) tự ghi deckItem riêng thì dùng của nó; cá thường thì giá × (1 + cỡ) vì phải kéo cả con lên [ĐỀ XUẤT];
@@ -136,31 +142,6 @@ window.BDL = window.BDL || {};
     return { x: cc.x + S.off.x * (t.flip || 1), y: cc.y + S.off.y };
   }
 
-  function canFire(d) {
-    if (!d || G.phase !== 'dive' || (G.deck && G.deck.on)) return false;
-    return ['dead', 'enter', 'tug', 'harvest', 'callDrone', 'surfaced'].indexOf(d.state) < 0;
-  }
-
-  function fire(ax, ay) {
-    var d = G.diver, o = ropeFrom();
-    S.state = 'flying';
-    S.x = o.x; S.y = o.y;
-    S.angle = Math.atan2(ay - o.y, ax - o.x);
-    S.dx = Math.cos(S.angle); S.dy = Math.sin(S.angle);
-    S.traveled = 0;
-    d.faceToward(ax - d.pos.x);
-    G.audio.play('harpoon_shot', { rate: 0.72, vol: 0.9 });
-    G.fx.spawn('puff', o.x + S.dx * 0.3, o.y + S.dy * 0.3, 0.15, S.dx * 0.5, S.dy * 0.5, 0.5);
-  }
-
-  function findTarget(x, y) {
-    var L = G.loot || [];
-    for (var i = 0; i < L.length; i++) if (!L[i].tethered && L[i].hitTest(x, y, 0.1)) return L[i];
-    var F = G.fishes ? G.fishes.list : [];
-    for (var j = 0; j < F.length; j++) if (fishTetherable(F[j]) && F[j].hitTest(x, y, 0.08)) return F[j];
-    return null;
-  }
-
   function attach(t, x, y) {
     var d = G.diver;
     if (!t.isLoot && !(t.corpse && t.corpse())) { t.clearBuffs && t.clearBuffs(); t.die(false); }
@@ -235,24 +216,6 @@ window.BDL = window.BDL || {};
   }
 
   // ---------- mỗi khung ----------
-  function stepFlying(dt) {
-    var n = Math.max(1, Math.ceil(SPEED * dt / 0.1)), st = SPEED * dt / n;
-    for (var i = 0; i < n && S.state === 'flying'; i++) {
-      var nx = S.x + S.dx * st, ny = S.y + S.dy * st;
-      var wall = G.world.raycast(S.x, S.y, nx, ny);
-      if (wall) {
-        S.x = wall.x; S.y = wall.y; S.state = 'retracting';
-        G.audio.play('harpoon_hit_rock', { vol: 0.7 });
-        G.fx.spawn('spark', wall.x, wall.y, 0.2, 0, 0, 0.5);
-        return;
-      }
-      S.x = nx; S.y = ny; S.traveled += st;
-      var t = findTarget(S.x, S.y);
-      if (t) return attach(t, S.x, S.y);
-      if (S.traveled >= RANGE) S.state = 'retracting';
-    }
-  }
-
   function stepAttached(dt) {
     var t = S.target, d = G.diver;
     if (gone(t)) { detach(); S.state = 'retracting'; return; }
@@ -278,7 +241,7 @@ window.BDL = window.BDL || {};
     if (ratio > 1) S.strain = Math.min(1, S.strain + dt / STRAIN_TIME * Math.min(2.5, ratio));
     else if (ratio < 0.85) S.strain = Math.max(0, S.strain - dt * STRAIN_DECAY);
     // Dave kéo vật nặng thì chậm lại: REPO tốc độ / (1 + khối lượng / str), sàn 35%; chỉ khi dây đang căng
-    var taut = clamp((len - S.rest + 0.25) / 0.3, 0, 1), repo = Math.max(SPEED_FLOOR, 1 / (1 + mT / strOf()));
+    var taut = clamp((len - S.rest + 0.25) / 0.3, 0, 1), repo = floating() ? 1 : Math.max(SPEED_FLOOR, 1 / (1 + mT / strOf()));
     d.tow = { mul: 1 - (1 - repo) * taut, k: ratio, dx: -ux, dy: -uy };
     // dây kêu cót két khi căng gần đứt
     if (ratio > 0.85) {
@@ -322,8 +285,7 @@ window.BDL = window.BDL || {};
       sag = Math.min(2, Math.sqrt(3 * S.len * slack / 8)) + 0.06 * Math.max(0, 1 - S.tension / 40);
       wave = slack > 0.05 ? 0.12 * sag : 0;
       buzz = S.strain > 0.05 ? 0.035 * S.strain : 0;
-    } else if (S.state === 'flying') sag = Math.min(0.35, S.traveled * 0.04);
-    else if (S.state === 'retracting') sag = Math.min(0.6, Math.hypot(hx - o.x, hy - o.y) * 0.12);
+    } else if (S.state === 'retracting') sag = Math.min(0.6, Math.hypot(hx - o.x, hy - o.y) * 0.12);
     m.head.position.set(hx, hy, 0.12);
     m.head.rotation.z = ang;
     // dây buộc vào khoen neo (đuôi ảnh)
@@ -352,16 +314,24 @@ window.BDL = window.BDL || {};
   // Đồ cổ dưới chỗ ngắm (trong tầm móc) thì hiện tên và giá như REPO nhìn vào món đồ.
   function hoverTarget(input) {
     var d = G.diver;
-    if (!d || Math.hypot(input.aimX - d.pos.x, input.aimY - d.pos.y) > RANGE + 1) return null;
+    if (!d || Math.hypot(input.aimX - d.pos.x, input.aimY - d.pos.y) > rangeOf() + 1) return null;
     var L = G.loot || [];
     for (var i = 0; i < L.length; i++) if (L[i].hitTest(input.aimX, input.aimY, 0.25)) return L[i];
     return null;
   }
 
+  BDL.deckItemOf = deckItemOf;   // drone.js dùng chung cách quy ra món lên boong
   var api = {
     target: function () { return S && S.state === 'attached' ? S.target : null; },
     consume: function () { return S ? consume() : null; },
     release: function () { return S ? release() : false; },
+    hookable: hookable,
+    // Mũi xiên (harpoon.js) trúng t tại (x, y): móc dây vào. false nếu đang buộc vật khác hoặc t không móc được.
+    hookTo: function (t, x, y) {
+      if (!S || S.state === 'attached' || !hookable(t)) return false;
+      attach(t, x, y);
+      return true;
+    },
   };
   Object.defineProperty(api, 'state', { get: function () { return S ? S.state : 'idle'; }, enumerable: true });
   BDL.tether = api;
@@ -375,7 +345,6 @@ window.BDL = window.BDL || {};
       if (!tag) tag = makeTag();
       else if (!tag.el.parentNode) (document.getElementById('hud') || document.body).appendChild(tag.el);
       window.BDL_DEBUG.tether = {
-        fireAt: function (x, y) { if (S.state !== 'idle') return false; fire(x, y); return true; },
         state: function () { return S.state; },
         strain: function () { return S.strain; },
         info: function () {
@@ -388,11 +357,7 @@ window.BDL = window.BDL || {};
     update: function (dt, input) {
       var d = G.diver;
       if (!d || !S) return;
-      if (input.hook) {
-        if (S.state === 'idle' && canFire(d)) fire(input.aimX, input.aimY);
-        else if (S.state === 'attached') release();
-      }
-      if (S.state === 'flying') stepFlying(dt);
+      // input.hook (Q / chuột phải / nút Móc cũ) không còn tác dụng: móc đi bằng súng xiên chuột trái
       if (S.state === 'attached') stepAttached(dt);
       else if (S.state === 'retracting') stepBack(dt);
       else if (S.state === 'snapped') stepSnapped(dt);

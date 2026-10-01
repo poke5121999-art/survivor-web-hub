@@ -193,7 +193,7 @@
     // đèn đội đầu: lặn đêm thì luôn bật, ban ngày bật dần khi xuống sâu
     var want = st.theme.night ? 1 : Math.min(1, Math.max(0, (depth - D.lampFrom) / (D.lampFull - D.lampFrom)));
     lampK += (want - lampK) * Math.min(1, dt * 2);
-    W.uLamp.value = lampK;
+    W.uLamp.value = lampK * ((G.stats && G.stats.lampMul) || 1);
     if (G.diver) {
       var d = G.diver, a = aimingState(d.state) ? d.aimAngle : (d.facing > 0 ? d.tilt : Math.PI - d.tilt);
       W.uLampPos.value.set(d.pos.x, d.pos.y + 0.15, 0.6);
@@ -269,17 +269,17 @@
     // nhặt / xả thịt xác cá: E, hoặc Space (nút Interaction gốc) khi đứng cạnh xác; giữ để xả thịt
     interact: false, interactHeld: false,
     fireHeld: false, firePressed: false, fireReleased: false,
-    // súng phụ: chuột phải hoặc nút bắn cảm ứng khi đang cầm súng; gunAuto = nhắm tự động vào cá gần nhất (cảm ứng, chưa kéo cần)
+    // súng phụ: nút bắn cảm ứng khi đang cầm súng. Game không có ngắm tự động: chạm không kéo là bắn theo hướng mặt.
     // aimCancel: thả cần ngắm trong ô Huỷ bắn
-    gunHeld: false, gunPressed: false, gunReleased: false, gunAuto: false, aimCancel: false,
+    gunHeld: false, gunPressed: false, gunReleased: false, aimCancel: false,
     sx: innerWidth * 0.7, sy: innerHeight * 0.5, aimX: 0, aimY: 0,
     touch: { stick: null, aim: null, boost: false, gun: false, interact: false },
-    // Biệt Đội Lặn: hook = bắn/thả móc dây (chuột phải hoặc Q), jump = Space vừa bấm (trên boong là nhảy),
-    // skill = R, swap = lăn chuột ±1, slot = phím 1..3 (0 = không chọn)
-    hook: false, jump: false, skill: false, swap: 0, slot: 0,
+    // Biệt Đội Lặn: jump = Space vừa bấm (trên boong là nhảy), skill = R, swap = lăn chuột ±1, slot = phím 1..3 (0 = không chọn).
+    // Móc dây là chính súng xiên ở ô 0 (chuột trái theo hướng chuột), không có phím riêng.
+    jump: false, skill: false, swap: 0, slot: 0,
   };
   var edges = { dash: false, melee: false, tap: false, interact: false, firePressed: false, fireReleased: false, gunPressed: false, gunReleased: false, aimCancel: false, drone: false,
-    hook: false, jump: false, skill: false, swap: 0, slot: 0 };
+    jump: false, skill: false, swap: 0, slot: 0 };
   BDL.input = input;
   var mouseGun = false;
 
@@ -292,7 +292,6 @@
     if (G.phase === 'dive') {
       // Space: giữ để tăng tốc (đọc ở readInput), bấm để giật dây khi giằng co; không còn lướt và không nhặt xác
       if (e.code === 'Space') { edges.tap = true; edges.jump = true; e.preventDefault(); }
-      if (e.code === 'KeyQ') edges.hook = true;
       if (e.code === 'KeyR') edges.skill = true;
       if (e.code === 'Digit1' || e.code === 'Digit2' || e.code === 'Digit3') edges.slot = +e.code.slice(5);
       if (e.code === 'KeyE') edges.interact = true;
@@ -315,8 +314,7 @@
     // chuột bấm trong đáy cần ở chỗ gốc (bl 540,360) thì kéo cần, không bắn [ĐỀ XUẤT: cả vùng cần 2400×1800 phủ nửa trái màn, chuột cần chỗ ngắm]
     if (e.button === 0 && !input.touch.stick && onStickHome(e.clientX, e.clientY)) { stickStart('mouse', e.clientX, e.clientY); return; }
     if (e.button === 0) { input.fireHeld = true; edges.firePressed = true; edges.tap = true; }
-    // chuột phải: bắn móc dây, bấm lại là thả (súng phụ cũ của Hố Xanh không còn ở chuột phải)
-    if (e.button === 2) { edges.hook = true; edges.tap = true; }
+    if (e.button === 2) edges.tap = true;
   });
   addEventListener('mouseup', function (e) {
     if (e.button === 0) stickEnd('mouse');
@@ -325,7 +323,7 @@
   });
   canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
   canvas.addEventListener('wheel', function (e) { if (G.phase === 'dive') { edges.swap += e.deltaY > 0 ? 1 : -1; e.preventDefault(); } }, { passive: false });
-  // nút cảm ứng của các hệ mới gọi BDL.press('hook'|'skill'|'swap'|'jump'|'interact'), hoặc BDL.press('slot', 1..3)
+  // nút cảm ứng của các hệ mới gọi BDL.press('skill'|'swap'|'jump'|'interact'), hoặc BDL.press('slot', 1..3)
   BDL.press = function (k, v) {
     if (k === 'swap') edges.swap += v || 1;
     else if (k === 'slot') edges.slot = v | 0;
@@ -476,7 +474,7 @@
     if (G.phase !== 'dive') input.touch.boost = false;
     input.boost = !!(keys.ShiftLeft || keys.ShiftRight || keys.Space) || input.touch.boost || wheel;
     edges.dash = false;
-    input.hook = edges.hook; input.jump = edges.jump; input.skill = edges.skill; input.swap = edges.swap; input.slot = edges.slot;
+    input.jump = edges.jump; input.skill = edges.skill; input.swap = edges.swap; input.slot = edges.slot;
     input.dash = edges.dash; input.melee = edges.melee; input.tap = edges.tap; input.drone = edges.drone;
     input.interact = edges.interact; input.interactHeld = !!keys.KeyE || input.touch.interact;
     input.firePressed = edges.firePressed; input.fireReleased = edges.fireReleased; input.aimCancel = edges.aimCancel;
@@ -485,7 +483,6 @@
     if (a && d) {
       // chưa kéo khỏi vùng chết: xiên chĩa thẳng hướng mặt, súng phụ tự nhắm con gần nhất như nút Súng cũ [ĐỀ XUẤT]
       var av = stickVec(a.x - a.x0, a.y - a.y0, TOUCH.aimRange), n = Math.hypot(av.x, av.y);
-      input.gunAuto = a.gun && !n;
       input.aimX = d.pos.x + (n ? av.x / n : d.facing) * TOUCH.reach;
       input.aimY = d.pos.y + (n ? av.y / n : 0) * TOUCH.reach;
     } else {
@@ -493,7 +490,7 @@
       input.aimX = w.x; input.aimY = w.y;
     }
     edges.dash = edges.melee = edges.tap = edges.interact = edges.firePressed = edges.fireReleased = edges.gunPressed = edges.gunReleased = edges.aimCancel = edges.drone = false;
-    edges.hook = edges.jump = edges.skill = false; edges.swap = 0; edges.slot = 0;
+    edges.jump = edges.skill = false; edges.swap = 0; edges.slot = 0;
   }
 
   // Trạng thái HUD cảm ứng cho khung này (HX.hud.touch).
@@ -510,7 +507,7 @@
     return {
       boost: input.touch.boost, dashK: 0, qte: d.state === 'tug',
       aim: a ? { x: av.px, y: av.py, over: a.over } : null,
-      fire: harpoon, sub: null,
+      fire: BDL.items && BDL.items.fireIcon() ? { icon: BDL.items.fireIcon(), lv: 0 } : harpoon, sub: null,
       drone: G.drone ? { left: G.drone.left, ok: G.drone.canCall() } : null,
     };
   }
@@ -773,7 +770,7 @@
   function hudTick() {
     var d = G.diver;
     HX.hud.o2(d.o2, G.loadout.o2);
-    HX.hud.stamina(d.stamina, 100);
+    HX.hud.stamina(d.stamina, (G.stats && G.stats.staminaMax) || 100);
     var rd = BDL.run.dive;
     if (rd) HX.hud.quota('Chỉ tiêu ' + fmt(rd.onDeck) + ' / ' + fmt(rd.quota) + (BDL.run.quotaMet() ? ' ✓' : ''));
     var dm = depthM(d.pos.y);

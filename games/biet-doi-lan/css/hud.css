@@ -161,3 +161,10 @@ body.touch #ship-btn-e, body.touch #ship-btn-jump {
 body.touch #ship-btn-e { right: calc(var(--mu) * (690 - 95)); bottom: calc(var(--mu) * (196 - 95)); width: calc(var(--mu) * 190); height: calc(var(--mu) * 190); }
 body.touch #ship-btn-jump { --rc: 76, 170, 180; background: rgba(16, 30, 34, .82); right: calc(var(--mu) * (130 - 75)); bottom: calc(var(--mu) * (196 - 75)); width: calc(var(--mu) * 150); height: calc(var(--mu) * 150); font-size: calc(var(--mu) * 38); }
 body.touch .ship-btn:active { transform: none; filter: brightness(1.35); }
+
+/* lời nhắc trên mục tiêu drone: chữ Ctrl thay ảnh phím Space; cảm ứng thì chỉ chữ "gọi drone" */
+#hv-drone { display: none; position: absolute; left: 50%; top: -26px; transform: translateX(-50%); white-space: nowrap;
+  padding: 2px 8px; border-radius: 4px; background: rgba(10,14,20,.82); color: #e0b03c; font: 700 12px/1.4 sans-serif; }
+#harvest.drone #hv-key { display: none; }
+#harvest.drone #hv-drone { display: block; }
+body.touch #hv-drone { font-size: 11px; }

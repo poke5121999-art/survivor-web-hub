@@ -126,9 +126,13 @@ window.BDL = window.BDL || {};
     var G = this.G, m = this.mat;
     if (this.state === 'gone' || this.state === 'onDeck') return 0;
     if (imp > 1.2 && BDL.noise) BDL.noise(this.pos.x, this.pos.y, 3 + imp * 2.5, Math.min(2, imp / 2));
-    if (G.t < this.invulnUntil || G.t < this.grace || imp <= m.thresh) return 0;
+    var held = this.tethered, items = BDL.items;
+    // Áo bọc (js/items.js): món đang buộc dây không mất giá; dây bền (grip) nâng ngưỡng va đập lên 25% mỗi bậc
+    if (held && items && items.shieldOn && items.shieldOn()) return 0;
+    var thresh = m.thresh * (held && G.stats && G.stats.gripMul ? G.stats.gripMul : 1);
+    if (G.t < this.invulnUntil || G.t < this.grace || imp <= thresh) return 0;
     var before = this.value;
-    var loss = this.value0 * m.frag * DMG_SCALE * (imp - m.thresh) / m.thresh;
+    var loss = this.value0 * m.frag * DMG_SCALE * (imp - thresh) / thresh;
     this.value = Math.max(0, this.value - loss);
     this.invulnUntil = G.t + INVULN;
     if (m.shatter && this.value <= this.value0 * SHATTER_AT) this.value = 0;
@@ -179,9 +183,12 @@ window.BDL = window.BDL || {};
   Loot.prototype.update = function (dt) {
     if (this.state === 'gone' || this.state === 'onDeck') return;
     this.flashT = Math.max(0, this.flashT - dt);
+    if (this.lifted) { this.draw(); return; }   // drone đang mang đi: vị trí do drone đặt
     if (this.tethered) this.asleep = false;
     if (!this.asleep) {
-      var r = bodyStep(this.G, this.pos, this.vel, this.r, dt, SINK);
+      // phao nổi: món đang buộc dây không chìm
+      var sink = this.tethered && BDL.items && BDL.items.floatOn && BDL.items.floatOn() ? 0 : SINK;
+      var r = bodyStep(this.G, this.pos, this.vel, this.r, dt, sink);
       if (r.imp > 0.05) this.impact(r.imp);
       if (this.state === 'gone') return;
       var sp = Math.hypot(this.vel.x, this.vel.y);

@@ -33,7 +33,8 @@
   }
 
   // ---------- túi cá theo ký ----------
-  BDL.bagCap = function () { return (HX.game && HX.game.loadout && HX.game.loadout.bagKg) || 20; };   // [ĐỀ XUẤT] 20 kg gốc
+  // [ĐỀ XUẤT] 20 kg gốc + 5 kg mỗi bậc "Túi cá" + 1/4 sức mang của crew (G.stats.bagKg, js/items.js)
+  BDL.bagCap = function () { var G = HX.game; return (G && G.stats && G.stats.bagKg) || (G && G.loadout && G.loadout.bagKg) || 20; };
   BDL.bagKg = function () {
     var G = HX.game, kg = 0;
     if (!G || !G.catches) return 0;
@@ -278,8 +279,11 @@
     S.promptOn = !!kind; S.promptKind = kind;
     p.classList.toggle('on', !!kind);
     if (!kind) return;
-    p.classList.toggle('space', kind === 'jump');
-    p.querySelector('.key').textContent = kind === 'jump' ? 'Space' : 'E';
+    // màn cảm ứng không có phím: bỏ ô phím, chỉ còn chữ (nút Nhảy / E nằm ở cụm nút bên phải)
+    var touch = document.body.classList.contains('touch'), key = p.querySelector('.key');
+    p.classList.toggle('space', kind === 'jump' && !touch);
+    key.style.display = touch ? 'none' : '';
+    key.textContent = kind === 'jump' ? 'Space' : 'E';
     if (p._txt !== txt) { p.querySelector('.txt').textContent = txt; p._txt = txt; }
     p.style.transform = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px) translate(-50%,-100%)';
   }
