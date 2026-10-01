@@ -115,12 +115,15 @@
     commit(label, fn, merge, opts) {
       const last = this.undoStack[this.undoStack.length - 1];
       const now = Date.now();
-      if (!(merge && last && last.merge === merge && now - last.at < 4000)) {
-        this.undoStack.push({ label, s: this.snap(), merge: merge || null, at: now });
-        if (this.undoStack.length > UNDO_MAX) this.undoStack.shift();
-      } else last.at = now;
+      const before = this.snap();
       const draft = JSON.parse(JSON.stringify(this.doc));
       const out = fn(draft);
+      // Phép đổi tự báo không làm gì (false): không có bước hoàn tác rỗng, không phát sự kiện.
+      if (out === false) return false;
+      if (!(merge && last && last.merge === merge && now - last.at < 4000)) {
+        this.undoStack.push({ label, s: before, merge: merge || null, at: now });
+        if (this.undoStack.length > UNDO_MAX) this.undoStack.shift();
+      } else last.at = now;
       draft.updated = now;
       this.doc = draft;
       this.redoStack = [];

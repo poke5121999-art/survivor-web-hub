@@ -108,7 +108,8 @@
         if (opts.pop === c.id) el.classList.add('born');
       }
       el.className = 'card ' + (p.gender === 'f' ? 'f' : 'm') + (c.blood ? '' : ' spouse') + (p.died ? ' dead' : '') +
-        (V.sel === c.id ? ' sel' : '') + (el.classList.contains('born') ? ' born' : '') + (el.classList.contains('dying') ? '' : '');
+        (V.sel === c.id ? ' sel' : '') + (el.classList.contains('born') ? ' born' : '');
+      delete el.dataset.dying;
       const sig = JSON.stringify([p.name, p.gender, p.born, p.died, p.photo, p.files.length, !!p.note, c.gen, c.kids, c.hidden, c.collapsed, c.blood, p.parentUnion ? 1 : 0]);
       if (V.sig[c.id] !== sig) { V.sig[c.id] = sig; el.innerHTML = cardHTML(c, p, doc); fillPhotos(el); }
     }
@@ -458,8 +459,7 @@
         });
         if (moved) { S.emit('toast', { text: 'Đã chuyển ' + name(D.id) + ' sang nhánh ' + name(D.target), undo: true }); return; }
       } else {
-        S.commit('Đổi thứ tự ' + name(D.id), (t) => M.reorder(t, D.id, D.target, D.mode === 'after'));
-        return;
+        if (S.commit('Đổi thứ tự ' + name(D.id), (t) => M.reorder(t, D.id, D.target, D.mode === 'after')) !== false) return;
       }
     }
     render();

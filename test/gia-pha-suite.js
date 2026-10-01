@@ -155,6 +155,9 @@ async function main() {
   await tog();
   await settle();
   check('mở lại nhánh: đủ 26 thẻ', (await cardCount()) === 26);
+  await tog(); await page.waitForTimeout(120); await tog();
+  await settle();
+  check('thu rồi mở lại ngay giữa hoạt ảnh: không mất thẻ nào', (await cardCount()) === 26, await cardCount());
 
   // ---- kéo thả: chuyển Nguyễn Thị Lan làm con của Nguyễn Văn Thành ----
   await page.click('#zfit'); await settle();
