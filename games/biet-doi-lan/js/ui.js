@@ -47,8 +47,8 @@
     let modal = $('#modal');
     if (!modal) { modal = el('div'); modal.id = 'modal'; document.body.appendChild(modal); }
     if (!modal.classList.contains('bdl-ui')) { modal.classList.add('bdl-ui', 'modal'); }
-    let toast = $('#toast');
-    if (!toast) { toast = el('div'); toast.id = 'toast'; document.body.appendChild(toast); }
+    let toast = $('#lobby-toast');
+    if (!toast) { toast = el('div'); toast.id = 'lobby-toast'; document.body.appendChild(toast); }
     if (!toast.classList.contains('bdl-ui')) { toast.classList.add('bdl-ui', 'toast'); }
     return { menu: menu, modal: modal, toast: toast };
   }

@@ -261,6 +261,8 @@
   // 37% để chủ dự án đỡ phải đoán, o2s/o2m/o2l không bán ở sảnh (Unity cũng không bán thuốc ở sảnh).
   // ---------------------------------------------------------------------------
   const ICON = '../ho-xanh/art/gear/icon/';
+  // icon gốc Dave the Diver bóc bằng tools/rip_loot.py (tên ở tools/dtd-sprite-index.md)
+  const DTD = 'art/dtd/icon/';
   const ITEMS = [
     // --- súng ---
     { key: 'rifle',   name: 'Súng trường',   kind: 'gun',   price: 9000,  loadoutPrice: 3200, uses: 20, ammo: true, stock: 4, icon: ICON + 'Item_BasicRifle.png',      desc: 'Bắn liên tục, đạn thường.' },
@@ -270,29 +272,29 @@
     { key: 'net',     name: 'Súng lưới',     kind: 'gun',   price: 8000,  loadoutPrice: 3000, uses: 4,  ammo: true, stock: 2, icon: ICON + 'Item_NetGun.png',           desc: 'Bắn lưới trói cá dữ.' },
     { key: 'grenade', name: 'Súng phóng lựu', kind: 'gun',  price: 16000, loadoutPrice: 5900, uses: 3,  ammo: true, stock: 2, icon: ICON + 'Item_GrenadeLauncher.png',  desc: 'Lựu nổ vùng, hất tung đàn cá.' },
     // --- cận chiến ---
-    { key: 'knife',   name: 'Dao lặn',       kind: 'melee', price: 0,     loadoutPrice: null, uses: 0,  ammo: true, stock: 1, icon: '🗡️', desc: 'Món khởi điểm, miễn phí, dùng mãi.' },
-    { key: 'bat',     name: 'Gậy',           kind: 'melee', price: 8000,  loadoutPrice: 3000, uses: 12, ammo: true, stock: 2, icon: '🏏', desc: 'Đập mạnh, hất lùi quái.' },
-    { key: 'pan',     name: 'Chảo',          kind: 'melee', price: 6000,  loadoutPrice: 2200, uses: 18, ammo: true, stock: 2, icon: '🍳', desc: 'Rẻ, bền, đập đau bất ngờ.' },
-    { key: 'sledge',  name: 'Búa tạ',        kind: 'melee', price: 14000, loadoutPrice: 5200, uses: 8,  ammo: true, stock: 2, icon: '🔨', desc: 'Nặng tay, một nhát nát cá nhỏ.' },
-    { key: 'machete', name: 'Dao rựa',       kind: 'melee', price: 10000, loadoutPrice: 3800, uses: 20, ammo: true, stock: 2, icon: '🔪', desc: 'Chém nhanh, bền.' },
-    { key: 'prodzap', name: 'Gậy điện',      kind: 'melee', price: 12000, loadoutPrice: 4500, uses: 10, ammo: true, stock: 2, icon: '⚡', desc: 'Giật choáng quái chạm phải.' },
+    { key: 'knife',   name: 'Dao lặn',       kind: 'melee', price: 0,     loadoutPrice: null, uses: 0,  ammo: true, stock: 1, icon: DTD + 'BasicDagger_Thumbnail.png', desc: 'Món khởi điểm, miễn phí, dùng mãi.' },
+    { key: 'bat',     name: 'Gậy',           kind: 'melee', price: 8000,  loadoutPrice: 3000, uses: 12, ammo: true, stock: 2, icon: DTD + 'BaseballBat_Thumbnail.png', desc: 'Đập mạnh, hất lùi quái.' },
+    { key: 'pan',     name: 'Chảo',          kind: 'melee', price: 6000,  loadoutPrice: 2200, uses: 18, ammo: true, stock: 2, icon: DTD + 'Melee_Paddle_Thumbnail.png', desc: 'Rẻ, bền, đập đau bất ngờ.' },
+    { key: 'sledge',  name: 'Búa tạ',        kind: 'melee', price: 14000, loadoutPrice: 5200, uses: 8,  ammo: true, stock: 2, icon: DTD + 'Mjolnir_Thumbnail.png', desc: 'Nặng tay, một nhát nát cá nhỏ.' },
+    { key: 'machete', name: 'Dao rựa',       kind: 'melee', price: 10000, loadoutPrice: 3800, uses: 20, ammo: true, stock: 2, icon: DTD + 'Samurai_Thumbnail.png', desc: 'Chém nhanh, bền.' },
+    { key: 'prodzap', name: 'Gậy điện',      kind: 'melee', price: 12000, loadoutPrice: 4500, uses: 10, ammo: true, stock: 2, icon: DTD + 'BangStick_Thumbnail.png', desc: 'Giật choáng quái chạm phải.' },
     // --- đồ ném ---
-    { key: 'bomb',    name: 'Bom',           kind: 'throw', price: 7000,  loadoutPrice: 2400, uses: 2,  ammo: false, stock: 5, icon: '💣', desc: 'Ném đi, nổ vùng.' },
-    { key: 'stun',    name: 'Lựu choáng',    kind: 'throw', price: 5500,  loadoutPrice: 1900, uses: 2,  ammo: false, stock: 4, icon: '💫', desc: 'Choáng mọi con quái quanh điểm nổ.' },
-    { key: 'mine',    name: 'Mìn',           kind: 'throw', price: 8000,  loadoutPrice: 2800, uses: 2,  ammo: false, stock: 3, icon: '🧨', desc: 'Đặt xuống đáy, nổ khi cá lại gần.' },
+    { key: 'bomb',    name: 'Bom',           kind: 'throw', price: 7000,  loadoutPrice: 2400, uses: 2,  ammo: false, stock: 5, icon: DTD + 'InkBomb_Thumbnail.png', desc: 'Ném đi, nổ vùng.' },
+    { key: 'stun',    name: 'Lựu choáng',    kind: 'throw', price: 5500,  loadoutPrice: 1900, uses: 2,  ammo: false, stock: 4, icon: DTD + 'Trap_SensorBomb_Thumbnail.png', desc: 'Choáng mọi con quái quanh điểm nổ.' },
+    { key: 'mine',    name: 'Mìn',           kind: 'throw', price: 8000,  loadoutPrice: 2800, uses: 2,  ammo: false, stock: 3, icon: DTD + 'Trap_TriggerBomb_Thumbnail.png', desc: 'Đặt xuống đáy, nổ khi cá lại gần.' },
     // --- thuốc: bình O₂ ---
-    { key: 'o2s',     name: 'Bình O₂ nhỏ',   kind: 'heal',  price: 1800,  loadoutPrice: null, uses: 1,  ammo: false, stock: 6, heal: 25,  icon: ICON + 'Item_SubO2Tank.png', desc: 'Hồi 25 O₂.' },
-    { key: 'o2m',     name: 'Bình O₂ vừa',   kind: 'heal',  price: 4000,  loadoutPrice: null, uses: 1,  ammo: false, stock: 6, heal: 50,  icon: ICON + 'Item_SubO2Tank.png', desc: 'Hồi 50 O₂.' },
-    { key: 'o2l',     name: 'Bình O₂ lớn',   kind: 'heal',  price: 9000,  loadoutPrice: null, uses: 1,  ammo: false, stock: 6, heal: 100, icon: ICON + 'Item_SubO2Tank.png', desc: 'Hồi 100 O₂.' },
+    { key: 'o2s',     name: 'Bình O₂ nhỏ',   kind: 'heal',  price: 1800,  loadoutPrice: null, uses: 1,  ammo: false, stock: 6, heal: 25,  icon: DTD + 'O2Pocket_30_Thumbnail.png', desc: 'Hồi 25 O₂.' },
+    { key: 'o2m',     name: 'Bình O₂ vừa',   kind: 'heal',  price: 4000,  loadoutPrice: null, uses: 1,  ammo: false, stock: 6, heal: 50,  icon: DTD + 'O2Pocket_60_Thumbnail.png', desc: 'Hồi 50 O₂.' },
+    { key: 'o2l',     name: 'Bình O₂ lớn',   kind: 'heal',  price: 9000,  loadoutPrice: null, uses: 1,  ammo: false, stock: 6, heal: 100, icon: DTD + 'SubO2Tank_Thumbnail.png', desc: 'Hồi 100 O₂.' },
     // --- dụng cụ ---
-    { key: 'float',   name: 'Phao nổi',      kind: 'tool',  price: 10000, loadoutPrice: 3700, uses: 2,  ammo: false, stock: 3, dur: 20, icon: '🛟', desc: 'Đồ cổ không trọng lượng trong 20 giây.' },
-    { key: 'shield',  name: 'Áo bọc',        kind: 'tool',  price: 11000, loadoutPrice: 4100, uses: 2,  ammo: false, stock: 3, dur: 25, icon: '🛡️', desc: 'Đồ cổ không mất giá trong 25 giây.' },
+    { key: 'float',   name: 'Phao nổi',      kind: 'tool',  price: 10000, loadoutPrice: 3700, uses: 2,  ammo: false, stock: 3, dur: 20, icon: DTD + 'Booster_Thumbnail.png', desc: 'Đồ cổ không trọng lượng trong 20 giây.' },
+    { key: 'shield',  name: 'Áo bọc',        kind: 'tool',  price: 11000, loadoutPrice: 4100, uses: 2,  ammo: false, stock: 3, dur: 25, icon: DTD + 'Charm_Defense10_Thumbnail.png', desc: 'Đồ cổ không mất giá trong 25 giây.' },
     // --- nâng cấp (chỉ ở trạm; giá x1,6 mỗi lần mua, mỗi món chỉ được bày tối đa 3 lần mỗi ca) ---
-    { key: 'hp',      name: 'O₂ tối đa',     kind: 'upgrade', price: 6000, loadoutPrice: null, uses: 0, ammo: false, stock: 3, icon: '🫁', desc: 'Thêm O₂ tối đa và hồi đầy.' },
+    { key: 'hp',      name: 'O₂ tối đa',     kind: 'upgrade', price: 6000, loadoutPrice: null, uses: 0, ammo: false, stock: 3, icon: DTD + 'O2Capsule_50_Thumbnail.png', desc: 'Thêm O₂ tối đa và hồi đầy.' },
     { key: 'stam',    name: 'Thể lực',       kind: 'upgrade', price: 2000, loadoutPrice: null, uses: 0, ammo: false, stock: 3, icon: '💪', desc: 'Thêm thanh sức bền.' },
     { key: 'str',     name: 'Sức kéo dây',   kind: 'upgrade', price: 6000, loadoutPrice: null, uses: 0, ammo: false, stock: 3, icon: '🪢', desc: 'Đồ cổ nặng nhẹ đi tương đối.' },
-    { key: 'range',   name: 'Tầm móc',       kind: 'upgrade', price: 6000, loadoutPrice: null, uses: 0, ammo: false, stock: 3, icon: '🪝', desc: 'Bắn móc xa hơn.' },
-    { key: 'sprint',  name: 'Tốc bơi',       kind: 'upgrade', price: 6000, loadoutPrice: null, uses: 0, ammo: false, stock: 3, icon: '🏊', desc: 'Bơi nhanh hơn.' },
+    { key: 'range',   name: 'Tầm móc',       kind: 'upgrade', price: 6000, loadoutPrice: null, uses: 0, ammo: false, stock: 3, icon: DTD + 'GGSTAnchor_Thumbnail.png', desc: 'Bắn móc xa hơn.' },
+    { key: 'sprint',  name: 'Tốc bơi',       kind: 'upgrade', price: 6000, loadoutPrice: null, uses: 0, ammo: false, stock: 3, icon: DTD + 'UtaraPowerBooster_Thumbnail.png', desc: 'Bơi nhanh hơn.' },
     { key: 'grip',    name: 'Dây bền',       kind: 'upgrade', price: 7000, loadoutPrice: null, uses: 0, ammo: false, stock: 3, icon: '🧵', desc: 'Dây căng chịu được lâu hơn trước khi đứt.' },
     { key: 'regen',   name: 'Hồi sức',       kind: 'upgrade', price: 3000, loadoutPrice: null, uses: 0, ammo: false, stock: 3, icon: '🔋', desc: 'Sức bền hồi nhanh hơn khi đứng yên.' },
     { key: 'light',   name: 'Đèn đội đầu',   kind: 'upgrade', price: 5000, loadoutPrice: null, uses: 0, ammo: false, stock: 3, icon: '🔦', desc: 'Chùm sáng rộng và xa hơn.' },

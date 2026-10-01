@@ -25,6 +25,7 @@ body {
 }
 #scene { position: fixed; inset: 0; width: 100vw; height: 100dvh; display: block; }
 /* pha 2D (xem sổ pha trong js/main.js) vẽ lên tấm này, phủ kín cảnh 3D */
+body[data-phase="lobby"] #hud, body[data-phase="lobby"] #tc { display: none !important; }
 #stage2d { position: fixed; inset: 0; width: 100vw; height: 100dvh; display: none; }
 body[data-surface="2d"] #stage2d { display: block; }
 /* pha DOM dựng giao diện trong #screens > section.screen; go() chỉ hiện section của pha đang chạy */
@@ -403,6 +404,7 @@ body.in-pressure[data-phase="dive"] #floor { color: var(--red); }
 #pause-note[hidden] { display: none; }
 </style>
 <link rel="stylesheet" href="../ho-xanh/css/fonts.css?v=20261001a">
+<link rel="stylesheet" href="css/lobby.css?v=20261001a">
 <link rel="stylesheet" href="css/ship.css?v=20261001a">
 <link rel="stylesheet" href="css/shop.css?v=20261001a">
 </head>
@@ -410,6 +412,8 @@ body.in-pressure[data-phase="dive"] #floor { color: var(--red); }
 <canvas id="scene"></canvas>
 <canvas id="stage2d"></canvas>
 <div id="screens"></div>
+<!-- sảnh REPO (js/ui.js vẽ vào đây); ẩn khi đang trong ca (body.in-run) -->
+<div id="menu" hidden></div>
 
 <section id="boot" class="panel">
   <h1>Biệt Đội Lặn</h1>
@@ -505,6 +509,9 @@ body.in-pressure[data-phase="dive"] #floor { color: var(--red); }
 <script src="js/ship.js?v=20261001a"></script>
 <script src="js/cruise.js?v=20261001a"></script>
 <script src="js/shop.js?v=20261001a"></script>
+<script src="data/content.js?v=20261001a"></script>
+<script src="js/meta.js?v=20261001a"></script>
+<script src="js/ui.js?v=20261001a"></script>
 <script src="js/hud.js?v=20261001a"></script>
 <script src="js/main.js?v=20261001a"></script>
 </body>

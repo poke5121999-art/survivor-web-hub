@@ -9,6 +9,8 @@
   var REV = (document.currentScript.src.split('v=')[1] || '').split('&')[0];
   var ROOT = HX.ROOT;
 
+  // ?map=0..4 vào thẳng một lượt lặn (bản thử, không qua sảnh); không có thì mở sảnh REPO.
+  var devMap = params.has('map');
   var mapIdx = Math.max(0, Math.min(BDL.MAPS.length - 1, parseInt(params.get('map'), 10) || 0));
   var curMap = BDL.MAPS[mapIdx];
 
@@ -572,6 +574,17 @@
   G.stage2d = { canvas: stage, ctx: stage.getContext('2d'), w: innerWidth, h: innerHeight, dpr: 1 };
 
   var PHASES = {
+    lobby: {
+      surface: 'dom',
+      enter: function () {
+        document.body.classList.remove('in-run');
+        $('menu').hidden = false;
+        paused = false; HX.hud.pause(false);
+        HX.audio.stopAll();
+        BDL.ui.render();
+      },
+      exit: function () { $('menu').hidden = true; },
+    },
     loading: {
       surface: '3d',
       enter: function () {
@@ -624,21 +637,57 @@
 
   // Lên mặt nước không kết thúc lượt lặn (thuyền đến ở phase 2); Dave cứ ở lại mặt nước.
   G.onSurface = function () {};
-  // Khoang lái đếm ngược xong (hệ thuyền gọi): tiền boong vào ví ca, sang map sau.
-  // Phase 3 thay bằng cảnh cano chạy về quán-trạm; giờ vào thẳng map kế.
+  // ---------- vòng một ca: sảnh → cano ra → lặn → khoang lái → cano về → trạm → … → kết ca ----------
+  // Pha cano/trạm (cruise.js, shop.js) chưa đăng ký thì bỏ qua thẳng bước sau.
+  function cruise(dir, then) { if (phase('cruise')) go('cruise', { dir: dir, then: then }); else then(); }
+  function shop(then) { if (phase('shop')) go('shop', { then: then }); else then(); }
+  function diveMap(i) {
+    curMap = BDL.MAPS[i]; G.map = curMap;
+    if (BDL.restock) BDL.restock(BDL.run.ca);
+    go('loading');
+  }
+
+  BDL.onSail = function () {
+    HX.audio.unlock();
+    var crew = BDL.meta.runStart();
+    var ca = BDL.run.start();
+    ca.crew = crew;
+    if (crew.loadout) ca.stash.push({ key: crew.loadout.key, uses: crew.loadout.uses });
+    document.body.classList.add('in-run');
+    cruise('out', function () { diveMap(0); });
+  };
+
+  // Hết ca (thắng, chết, bỏ ca): trả vàng theo REPO (55% tiền đã giao + thưởng chuyến đã qua) rồi về sảnh.
+  function finishRun(win) {
+    var ca = BDL.run.ca;
+    var res = BDL.meta.runFinish({ delivered: ca.total, mapsCleared: ca.cleared, win: win, kills: ca.kills, skills: ca.skills, floors: ca.floorsMax, lootValue: ca.total });
+    BDL.run.ca = null; BDL.run.dive = null;
+    go('lobby');
+    BDL.ui.showRunEnd(res);
+  }
+  BDL.finishRun = finishRun;
+
+  // Khoang lái đếm ngược xong (hệ thuyền gọi): tiền boong vào ví ca, cano chạy về quán-trạm, rồi ra map sau.
   G.onExtract = function () {
     if (G.phase !== 'dive') return;
     var ca = BDL.run.endDive();
-    HX.hud.toast('Về quán · ví ca ' + fmt(ca.wallet));
-    if (ca.mapIdx >= BDL.MAPS.length) { BDL.run.start(); ca = BDL.run.ca; }
-    curMap = BDL.MAPS[ca.mapIdx]; G.map = curMap;
-    go('loading');
+    ca.floorsMax += curMap.floors;
+    if (devMap) {
+      HX.hud.toast('Về quán · ví ca ' + fmt(ca.wallet));
+      diveMap(ca.mapIdx % BDL.MAPS.length);
+      return;
+    }
+    if (ca.mapIdx >= BDL.MAPS.length) { cruise('home', function () { finishRun(true); }); return; }
+    cruise('home', function () { shop(function () { cruise('out', function () { diveMap(ca.mapIdx); }); }); });
   };
   G.onPod = function () {};
+  // Hết O₂ là cả tổ gục như REPO: mất lượt lặn đang dở, ca kết thúc, vẫn nhận phần đã giao ở các lượt trước.
   G.onDead = function () {
     if (G.phase !== 'dive') return;
     HX.audio.stopMusic(0.6);
     HX.hud.toast('Hết O₂');
+    if (devMap) return;
+    setTimeout(function () { if (G.phase === 'dive' && BDL.run.ca) { BDL.run.dive = null; finishRun(false); } }, 2600);
   };
 
   // Sang tầng địa hình khác (glb): đổi nhạc; cá mập bắt đầu hoặc thôi săn thì đổi nhạc.
@@ -776,6 +825,12 @@
   };
 
   G.loaded = loadShared(function () {});
-  go('loading');
+  if (devMap) { BDL.run.start(); go('loading'); }
+  else {
+    BDL.meta.load();
+    if (BDL.meta.syncFromHub) BDL.meta.syncFromHub().then(function (r) { if (r && r.took === 'cloud' && G.phase === 'lobby') BDL.ui.render(); });
+    document.addEventListener('visibilitychange', function () { if (document.hidden) BDL.meta.save(true); });
+    go('lobby');
+  }
   requestAnimationFrame(frame);
 })(window.HX = window.HX || {});
