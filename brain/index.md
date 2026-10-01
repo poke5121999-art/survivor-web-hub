@@ -10,6 +10,12 @@
 - [[codebase/repo-squad-ai-5-nha]]
 - [[codebase/ui-test-gotchas]]
 
+## Plans
+- [[plans/diablo2-flare]]
+- [[plans/ghe-nong-tfm2-full]]
+- [[plans/pokeone-2d-pro]]
+- [[plans/soulknight-normal-mode]]
+
 ## Other
 - [[todos]]
 

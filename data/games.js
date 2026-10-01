@@ -698,5 +698,22 @@ window.HUB_GAMES = [
     // Kiểm: node test/soulknight-smoke.js (cần server tĩnh ở cổng 8811 tại gốc repo)
     status: "available",
     tags: ["Roguelike", "Bắn súng", "Hầm ngục", "Pixel art", "Tự ngắm", "Soul Knight"]
+  },
+  {
+    id: "diablo2",
+    title: "Ác Quỷ II",
+    tagline: "Diablo II Act I làm lại trên web: Rogue Encampment, Blood Moor, Den of Evil. Chọn Amazon, Sorceress hoặc Barbarian; cây kỹ năng 3 nhánh, cộng điểm chỉ số, đồ thường/magic/rare/unique/set rơi theo treasure class gốc. Blood Moor và Den of Evil sinh ngẫu nhiên mỗi lần vào. Diệt sạch Den of Evil cho Akara để nhận điểm kỹ năng. Chuột trái đi/đánh, chuột phải dùng kỹ năng; điện thoại xoay ngang có cần điều khiển.",
+    thumbnail: "assets/thumbnails/diablo2.png",
+    path: "games/diablo2/index.html",
+    rev: "20261001c",
+    // Plain canvas/JS, không engine. Chủ dự án chốt 2026-10-01: CHỈ mượn hình + tiếng của Flare
+    // (flare-game, CC-BY-SA 3.0, ghi công ở games/diablo2/CREDITS.md); bản đồ, nhân vật, kỹ năng, cơ chế
+    // theo Diablo II gốc. Engine D2 nguồn mở (OpenDiablo2, Abyss Engine) không kèm art, cần MPQ Blizzard.
+    // Số liệu: bảng .txt 1.14d (blizzhackers/d2data e35dcd6c) qua games/diablo2/_tools/build_data.py.
+    // Art: games/diablo2/_tools/build_assets.py đọc D:\flare-ref. Ghi chép: games/diablo2/README.md.
+    //
+    // Kiểm: node test/diablo2-rules.js, diablo2-drlg.js, diablo2-suite.js
+    status: "available",
+    tags: ["Nhập vai hành động", "Hầm ngục", "Isometric", "Nhặt đồ", "Diablo II"]
   }
 ];
