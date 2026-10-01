@@ -663,6 +663,24 @@ window.HUB_GAMES = [
     tags: ["Lặn biển", "Bắt cá", "Súng xiên", "Lái cano", "Quán sushi", "Nâng cấp", "Pixel art", "3D", "Màn ngang"]
   },
   {
+    id: "biet-doi-lan",
+    title: "Biệt Đội Lặn",
+    tagline: "Dave the Diver ghép R.E.P.O.: một ca là năm chuyến lặn ở năm vùng biển, mỗi chuyến sâu hơn và chỉ tiêu cao hơn. Độ sâu chia theo tầng như phòng của REPO. Bắn móc vào đồ cổ bỏ hoang dưới đáy rồi vừa bơi vừa kéo dây lên cano; va đập là mất giá, kéo nặng quá thì dây căng rồi đứt. Săn cá đầy túi thì lên thuyền xả. Cá mập và cá dữ mang não quái REPO: ngủ, nghe tiếng động, rượt, hồi sinh; giết được thì kéo xác lên bán, mỗi loài tối đa ba lần. Đủ chỉ tiêu thì vào khoang lái đếm ngược chạy về quán Bancho, giờ là trạm mua súng, bom, đồ cận chiến, bình O₂ và nâng cấp. O₂ là máu, thể lực để tăng tốc, R để tung kỹ năng của crew. Sảnh, gacha, nạp giả, nhiệm vụ như Biệt Đội.",
+    thumbnail: "assets/thumbnails/biet-doi-lan.png",
+    path: "games/biet-doi-lan/index.html",
+    rev: "20261001a",
+    // Game mới 2026-10-01, không đè lên Hố Xanh hay Biệt Đội. Bộ máy lặn fork từ games/ho-xanh/js vào
+    // games/biet-doi-lan/js/engine; art, tiếng, map, vendor đọc thẳng từ ../ho-xanh/ (HX_ROOT), không chép.
+    // Sảnh REPO chép từ games/repo-squad với số của bản Unity (D:\REPO_Meta\gamespark-config).
+    // Đồ cổ và icon đồ nghề bóc từ Dave the Diver bằng games/biet-doi-lan/tools/rip_loot.py.
+    // Chưa xong: dùng món trong 3 ô tay cầm, tủ đồ trên thuyền, drone chở đồ 3 lần mỗi map.
+    // SEE: games/biet-doi-lan/README.md, brain/plans/biet-doi-lan.md
+    //
+    // Kiểm: node test/biet-doi-lan-suite.js (và -lobby, -ship, -tether, -foes, -shop, -hud)
+    status: "available",
+    tags: ["Lặn biển", "Kéo đồ", "Kiểu REPO", "Gacha", "Crew", "Pixel art", "3D", "Màn ngang"]
+  },
+  {
     id: "pokeone",
     title: "PokéOne",
     tagline: "Pokémon 2D chơi solo bám theo PRO (Pokémon Revolution Online): bản đồ dựng lại theo ảnh bản đồ PRO thật, bảng gặp Pokémon của PRO. Tạo nhân vật bằng sprite nhiều lớp, thức dậy ở Pallet Town, nhận Pokémon đầu từ Giáo sư Oak, đi theo ô qua Route 1 tới Viridian City. Trận đấu 2D với sprite, nền và hoạt ảnh chiêu gốc của PRO, luật Gen 7 chạy trên Pokémon Showdown. Chat toàn cục để khoe Pokémon và dán mã phòng boss; chỉ khi đánh boss (chủ gym, Tứ Thiên Vương, Nhà vô địch như PRO) mới lập đội được, tối đa 3 người đứng chung một sân như co-op của PokéOne, thắng xong chia đồ Cần/Tham/Bỏ. Chợ trời đấu giá Pokémon với người chơi khác (cần đăng nhập hub).",
