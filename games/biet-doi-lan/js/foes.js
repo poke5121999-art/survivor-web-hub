@@ -1098,6 +1098,8 @@
   function foeList() { return F ? F.foes.filter(function (o) { return !o.dead && o.body.alive(); }) : []; }
 
   BDL.foes = {
+    // quái tự chọn đồng đội làm mục tiêu và tự cắn họ (foeTarget ở đầu tệp): mates.js thôi trừ O₂ khi chạm
+    targetsMates: true,
     list: foeList,
     // quái gần (x, y) nhất trong r mét; opt.awake bỏ qua quái đang ngủ; opt.filter(foe) lọc thêm
     nearest: function (x, y, r, opt) {

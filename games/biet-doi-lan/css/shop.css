@@ -1,7 +1,7 @@
 /* Trạm tiếp tế (js/shop.js) và cano (js/cruise.js). Dùng biến màu của index.html (--gold, --cyan, --dim, --edge, --disp). */
 
 /* ---------- cano chạy giữa chỗ lặn và quán ---------- */
-#scr-cruise { padding: 0; display: block; }
+#scr-cruise:not([hidden]) { padding: 0; display: block; }
 .bt-hud { position: absolute; inset: 0; pointer-events: none; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 .bt-hud button { pointer-events: auto; cursor: pointer; }
 .bt-top {

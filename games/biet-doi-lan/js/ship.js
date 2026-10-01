@@ -238,8 +238,11 @@
   function addPile(item) {
     if (!S || !S.alive || item.__piled) return;
     item.__piled = true;
-    var k = S.pile.length, slot = pileSlot(k), size = PILE.size, m;
-    m = HX.gfx.sprite(iconTex(item.icon, function (w, h) { var q = size / Math.max(w, h); m.scale.set(w * q, h * q, 1); }), size, size, { alphaCut: 0.3, depthWrite: true });
+    var k = S.pile.length, slot = pileSlot(k), size = PILE.size, m = null, early = null;
+    // ảnh đã có trong bộ đệm thì iconTex gọi lại ngay, trước khi m được gán: giữ cỡ lại rồi đặt sau
+    var tex = iconTex(item.icon, function (w, h) { var q = size / Math.max(w, h); if (m) m.scale.set(w * q, h * q, 1); else early = [w * q, h * q]; });
+    m = HX.gfx.sprite(tex, size, size, { alphaCut: 0.3, depthWrite: true });
+    if (early) m.scale.set(early[0], early[1], 1);
     m.renderOrder = 8 + (k % 40) * 0.01;
     var from = S.arrive || { x: wx(slot.lx), y: wy(slot.ly) };
     m.userData = { slot: slot, k: k, t: 0, sx: from.x, sy: from.y };
