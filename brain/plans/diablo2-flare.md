@@ -93,3 +93,12 @@ D2R.itemName(item), D2R.itemStats(item)
 2. Ghép, chạy `test/diablo2-rules.js` và `test/diablo2-suite.js`.
 3. Thêm mục vào `data/games.js` (tệp đang có sửa dở của agent khác, chỉ stage khúc của mình), push, chơi thử trên Pages.
 4. Sau MVP: Cold Plains, Burial Grounds (Blood Raven), bốn lớp còn lại, waypoint, rương đồ.
+
+## Trạng thái 2026-10-01
+
+- MVP đã lên Pages ở rev `20261001d` (commit `0b9920db`, `e76d1b07`). Bộ kiểm trên Pages 78/78, một lần trượt "đi về thị trấn" không tái hiện được (13/13 lần đạt); test giờ in vết đường đi khi trượt.
+- Việc tiếp:
+  - Doanh trại đúng kích thước (140×100 ô) nhưng trống: thiếu lều to, hàng rào trong, thùng, đuốc, lính gác Rogue. Cần preset dày hơn và đồ vật nhiều ô.
+  - Vách đá Blood Moor có vài tile gỗ lạc chỗ do bảng autotile học từ bản đồ Flare.
+  - Amazon cầm javelin nhưng vẽ bằng gậy (Flare không có giáo).
+  - Cold Plains, Burial Grounds + Blood Raven, lính đánh thuê, curse/summon/Leap.
