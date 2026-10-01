@@ -85,44 +85,11 @@ body.touch .keys .kb, body:not(.touch) .keys .tc { display: none; }
 /* ---------- HUD ---------- */
 #hud { position: fixed; inset: 0; pointer-events: none; transition: opacity .4s; }
 body:not([data-phase="dive"]):not([data-phase="result"]) #hud { opacity: 0; }
-/* Đồng hồ O₂ theo bản Android trên mọi máy: PlayerStateInfoPanel neo (1,1), phóng 1,5, mép phải −320 đơn vị canvas 2340 */
-#o2box { position: absolute; right: calc(var(--mu) * 320); top: calc(var(--mu) * 12); width: calc(var(--mu) * 450); height: calc(var(--mu) * 249); }
-#o2box > img.frame { position: absolute; inset: 0; width: 100%; height: 100%; }
-/* Toạ độ dưới đây đo trên ảnh gốc UI_O2_Frame_New 300×166, đổi ra %. */
-#o2-pie {
-  position: absolute; left: 4.3%; top: 8.4%; width: 46.7%; height: 84.3%; border-radius: 50%;
-  background: conic-gradient(from 0deg, rgba(95, 208, 238, .55) var(--k, 360deg), transparent 0);
-  transition: background .2s;
-}
-body.low-o2 #o2-pie { background: conic-gradient(from 0deg, rgba(255, 90, 79, .6) var(--k, 360deg), transparent 0); }
-#o2-num {
-  position: absolute; left: 4.3%; top: 8.4%; width: 46.7%; height: 84.3%; display: grid; place-items: center;
-  font: 800 calc(var(--mu) * 68)/1 system-ui, sans-serif; font-variant-numeric: tabular-nums; color: #fff; text-shadow: 0 2px 0 rgba(0, 0, 0, .55);
-}
-#o2-lbl { position: absolute; left: 4.3%; width: 46.7%; top: 66%; text-align: center; font: 700 10px/1 system-ui, sans-serif; color: var(--cyan); letter-spacing: 1px; }
-#depth {
-  position: absolute; left: 71%; top: 17%; font: 800 calc(var(--mu) * 40)/1 system-ui, sans-serif; font-variant-numeric: tabular-nums; color: #fff;
-}
-#catch {
-  position: absolute; left: 56%; top: 50%; height: 26%; display: flex; align-items: center; gap: 6px;
-  font: 800 calc(var(--mu) * 40)/1 system-ui, sans-serif; font-variant-numeric: tabular-nums; color: var(--gold);
-}
-#catch.full { color: var(--red); }
-#catch::before { content: ""; width: 20px; height: 11px; background: var(--gold);
-  clip-path: polygon(0 50%, 25% 0, 70% 0, 85% 30%, 100% 0, 100% 100%, 85% 70%, 70% 100%, 25% 100%); }
-#warn { position: absolute; left: 40%; top: -4%; width: 30px; display: none; animation: blink .6s steps(2) infinite; }
-body.low-o2 #warn { display: block; }
+/* HUD lúc lặn (O₂, thể lực, chỉ tiêu, tay cầm, kỹ năng, nút cảm ứng): css/hud.css */
 @keyframes blink { 50% { opacity: .25; } }
 #vignette { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0; transition: opacity .5s; mix-blend-mode: multiply; }
 body.low-o2 #vignette { animation: throb 1.3s ease-in-out infinite; }
 body:not([data-phase="dive"]):not([data-phase="result"]) :is(#vignette, #area, #catch-card, #pod-hint, #tug, #harvest) { display: none; }
-#suit-warn {
-  position: fixed; right: calc(var(--mu) * 320); top: calc(var(--mu) * 270); display: none;
-  padding: 4px 10px; border-radius: 8px; background: rgba(90, 14, 10, .72); border: 1px solid rgba(255, 90, 79, .6);
-  color: #ffd0c8; font-size: 12px; font-weight: 700; pointer-events: none; animation: blink 1s steps(2) infinite;
-}
-body.too-deep[data-phase="dive"] #suit-warn { display: block; }
-body.too-deep[data-phase="dive"] #depth { color: var(--red); }
 @keyframes throb { 50% { filter: brightness(.7); } }
 #hurt { position: fixed; inset: 0; pointer-events: none; opacity: 0; box-shadow: inset 0 0 120px 40px rgba(255, 40, 40, .7); }
 #hurt.on { animation: hurt .45s ease-out; }
@@ -133,11 +100,6 @@ body.too-deep[data-phase="dive"] #depth { color: var(--red); }
 #reticle::after { left: -2px; top: -2px; width: 4px; height: 4px; background: #fff; border: 0; }
 #aimgun { position: fixed; left: 0; top: 0; width: calc(42px * var(--px, 1.2)); height: calc(16px * var(--px, 1.2)); margin: calc(-8px * var(--px, 1.2)) 0 0 0; transform-origin: 0 50%; pointer-events: none; opacity: .9; }
 
-#toast {
-  position: fixed; left: 50%; top: 24%; transform: translateX(-50%); pointer-events: none; opacity: 0;
-  font: 700 26px/1 var(--disp); color: var(--ink); text-shadow: 0 2px 10px rgba(0, 0, 0, .6); white-space: nowrap;
-}
-#toast.show { animation: toast 2.2s ease-out forwards; }
 /* băng tên vùng khi bắt đầu lượt và khi xuống tầng mới */
 #area { position: fixed; left: 50%; top: 15%; transform: translateX(-50%); pointer-events: none; opacity: 0; text-align: center; white-space: nowrap; }
 #area b { display: block; font: 700 34px/1.1 var(--disp); color: var(--ink); letter-spacing: .04em; text-shadow: 0 2px 14px rgba(0, 20, 40, .7); }
@@ -148,7 +110,6 @@ body.too-deep[data-phase="dive"] #depth { color: var(--red); }
   color: var(--gold); font-weight: 600; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .2s; }
 #pod-hint.show { opacity: 1; }
 @keyframes area { 0% { opacity: 0; transform: translate(-50%, 10px); } 12%, 72% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, -6px); } }
-@keyframes toast { 0% { opacity: 0; transform: translate(-50%, 8px); } 12%, 70% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
 
 /* ---------- thẻ bắt được cá ---------- */
 #catch-card {
@@ -244,8 +205,6 @@ body.touch img.kg { display: none; }
 body.sprint-wheel #tb-boost { display: none; }
 /* ShortDash: Slider tô 黑透遮罩 theo phần hồi chiêu còn lại */
 #tb-dash-cd { background: url(../ho-xanh/art/ui/mobile/cd_mask.png?v=20261001a) center / 100% 100%; -webkit-mask: conic-gradient(#000 var(--k, 0deg), transparent 0); mask: conic-gradient(#000 var(--k, 0deg), transparent 0); }
-#tc #tb-grab { display: none; }
-body.can-harvest #tc #tb-grab { display: block; }
 #tc #tb-switch { display: none; }
 body.has-gun #tc #tb-switch { display: block; }
 /* 无人机: CanvasGroup alpha 0 trong prefab, chỉ hiện khi có drone; hết lượt hoặc không có xác trong tầm thì xám [ĐỀ XUẤT] */
@@ -385,21 +344,6 @@ body[data-phase="loading"] #boot { display: block; }
 #boot .sub { margin: 0 0 12px; }
 #boot #load { display: block; }
 #tb-dash { display: none !important; }
-#o2-lbl { color: var(--red); }
-#stam { position: absolute; right: calc(var(--mu) * 320); top: calc(var(--mu) * 270); width: calc(var(--mu) * 450); height: 12px; border-radius: 99px;
-  background: rgba(0, 20, 36, .55); border: 1px solid var(--edge); overflow: hidden; }
-#stam-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #d8b02a, #ffe27a); }
-#stam.low #stam-fill { background: #d8602a; }
-#stam-lbl { position: absolute; right: calc(var(--mu) * 320); top: calc(var(--mu) * 270 + 14px); width: calc(var(--mu) * 450); text-align: right; font: 700 11px/1.2 system-ui, sans-serif; color: var(--dim); }
-#floor { position: absolute; right: calc(var(--mu) * 320); top: calc(var(--mu) * 270 + 32px); width: calc(var(--mu) * 450); text-align: right;
-  font: 800 15px/1.2 system-ui, sans-serif; color: #fff; text-shadow: 0 1px 4px rgba(0, 0, 0, .7); font-variant-numeric: tabular-nums; }
-#floor #depth { position: static; font: inherit; color: inherit; }
-#quota { position: absolute; left: 50%; top: 8px; transform: translateX(-50%); padding: 4px 16px; border-radius: 8px; background: var(--panel); border: 1px solid var(--edge);
-  font: 800 16px/1.3 system-ui, sans-serif; color: var(--gold); white-space: nowrap; }
-#press { position: absolute; left: 50%; top: 22%; transform: translateX(-50%); padding: 6px 16px; border-radius: 8px; background: rgba(90, 14, 10, .78);
-  border: 1px solid rgba(255, 90, 79, .7); color: #ffd0c8; font: 800 15px/1.3 system-ui, sans-serif; display: none; animation: blink 1s steps(2) infinite; white-space: nowrap; }
-body.in-pressure[data-phase="dive"] #press { display: block; }
-body.in-pressure[data-phase="dive"] #floor { color: var(--red); }
 #pause-note { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(4, 16, 28, .6); font: 700 28px/1 var(--disp); color: var(--ink); z-index: 8; }
 #pause-note[hidden] { display: none; }
 </style>
@@ -407,6 +351,7 @@ body.in-pressure[data-phase="dive"] #floor { color: var(--red); }
 <link rel="stylesheet" href="css/lobby.css?v=20261001a">
 <link rel="stylesheet" href="css/ship.css?v=20261001a">
 <link rel="stylesheet" href="css/shop.css?v=20261001a">
+<link rel="stylesheet" href="css/hud.css?v=20261001a">
 </head>
 <body data-phase="loading">
 <canvas id="scene"></canvas>
@@ -422,23 +367,35 @@ body.in-pressure[data-phase="dive"] #floor { color: var(--red); }
 </section>
 
 <div id="hud">
-  <div id="o2box">
-    <img class="frame px" src="../ho-xanh/art/ui/UI_O2_Frame_New.png?v=20261001a" alt="">
-    <div id="o2-pie"></div>
-    <div id="o2-num">100</div>
-    <div id="o2-lbl">O₂</div>
-    <img id="warn" class="px" src="../ho-xanh/art/ui/UI_Warning_Mark.png?v=20261001a" alt="">
+  <!-- trên trái: O₂ (là máu) + thể lực, như thanh máu / thể lực của REPO -->
+  <div id="hud-tl">
+    <div id="o2bar" class="hbar"><i id="o2-fill"></i><span class="lbl">O₂</span><b id="o2-num">100</b><small id="o2-max">/100</small></div>
+    <div id="stam" class="hbar thin"><i id="stam-fill"></i><span class="lbl">Thể lực</span></div>
   </div>
-  <div id="stam"><div id="stam-fill"></div></div>
-  <div id="stam-lbl">Thể lực</div>
-  <div id="floor"><span id="depth">Tầng 1/1 · 0 m</span></div>
-  <div id="quota">Chỉ tiêu —</div>
+  <!-- giữa trên: chỉ tiêu + tầng / độ sâu -->
+  <div id="hud-top">
+    <div id="quota"><span id="quota-t">Chỉ tiêu —</span><i id="quota-bar"></i></div>
+    <div id="floor"><span id="depth">Tầng 1/1 · 0 m</span></div>
+  </div>
   <div id="press">Vùng áp suất · O₂ đang tụt, lên ngay</div>
+  <!-- giữa dưới: kỹ năng (R) · tay cầm 4 ô (xiên ∞ + 3 đồ nghề) · drone -->
+  <div id="hud-bot">
+    <button id="skill" type="button" aria-label="Kỹ năng"><span class="ic"></span><i class="ring"></i><b class="cdn"></b><em class="key">R</em><span class="nm"></span></button>
+    <div id="hand">
+      <div class="cell on" data-i="0"><em class="k">LMB</em><img class="ic" alt=""><b class="n">∞</b></div>
+      <div class="cell" data-i="1"><em class="k">1</em><img class="ic" alt=""><span class="ei"></span><b class="n"></b></div>
+      <div class="cell" data-i="2"><em class="k">2</em><img class="ic" alt=""><span class="ei"></span><b class="n"></b></div>
+      <div class="cell" data-i="3"><em class="k">3</em><img class="ic" alt=""><span class="ei"></span><b class="n"></b></div>
+    </div>
+    <div id="hud-drone" title="Chuyến drone còn lại"><img src="../ho-xanh/art/ui/mobile/icon_drone.png?v=20261001a" alt=""><b id="hud-drone-n">3</b><em class="k">Ctrl</em></div>
+  </div>
+  <div id="marks"></div>
   <div id="reticle" hidden></div>
   <img id="aimgun" class="px" src="../ho-xanh/art/ui/Target_ArrowGun.png?v=20261001a" alt="" hidden>
 </div>
 <img id="vignette" src="../ho-xanh/art/ui/Depressurization_Vignetting.png?v=20261001a" alt="">
 <div id="hurt"></div>
+<div id="fxflash"></div>
 <div id="toast"></div>
 <div id="area"><b id="area-t"></b><span id="area-s"></span></div>
 
@@ -458,16 +415,20 @@ body.in-pressure[data-phase="dive"] #floor { color: var(--red); }
 
 <div id="tc">
   <div id="stick" class="tc-p" hidden><div id="stick-sprint" class="tc-p"><img id="stick-sprint-img" class="tc-p" src="../ho-xanh/art/ui/mobile/sprint_arrow.png?v=20261001a" alt=""></div><img class="bg" src="../ho-xanh/art/ui/mobile/stick_bg.png?v=20261001a" alt=""><img id="stick-knob" class="tc-p" src="../ho-xanh/art/ui/mobile/stick_knob.png?v=20261001a" alt=""></div>
-  <button id="tb-dash" class="tc-p" aria-label="Lướt"><img class="bg" src="../ho-xanh/art/ui/mobile/btn_blue.png?v=20261001a" alt=""><img id="tb-dash-icon" class="tc-p px" src="../ho-xanh/art/ui/mobile/dash_icon.png?v=20261001a" alt=""><div id="tb-dash-cd" class="tc-p"></div></button>
-  <button id="tb-boost" class="tc-p" aria-label="Tăng tốc"><img class="bg" src="../ho-xanh/art/ui/mobile/btn_blue.png?v=20261001a" alt=""><img id="tb-boost-icon" class="tc-p" src="../ho-xanh/art/ui/mobile/boost_icon.png?v=20261001a" alt=""><img id="tb-boost-on" class="tc-p" src="../ho-xanh/art/ui/mobile/boost_on.png?v=20261001a" alt=""></button>
-  <button id="tb-knife" class="tc-p" aria-label="Dao"><img class="bg" src="../ho-xanh/art/ui/mobile/btn_blue.png?v=20261001a" alt=""><img id="tb-knife-icon" class="tc-p px" src="../ho-xanh/art/ui/mobile/icon_knife.png?v=20261001a" alt=""></button>
-  <button id="tb-grab" class="tc-p" aria-label="Nhặt"><img class="bg" src="../ho-xanh/art/ui/mobile/btn_interact.png?v=20261001a" alt=""></button>
+  <button id="tb-dash" class="tc-p" aria-label="Lướt"><div id="tb-dash-cd" class="tc-p"></div></button>
+  <!-- cụm nút tay phải kiểu REPO (đĩa tối, viền màu): xiên to ở góc, vòng cung quanh nó; nửa trái dành cho cần di chuyển -->
+  <button id="tb-boost" class="tc-p rb c-teal tcb" aria-label="Tăng tốc"><img src="../ho-xanh/art/ui/mobile/boost_icon.png?v=20261001a" alt=""><span class="t">Chạy</span></button>
+  <button id="tb-knife" class="tc-p rb c-red tcb" aria-label="Dao"><img class="px" src="../ho-xanh/art/ui/mobile/icon_knife.png?v=20261001a" alt=""><span class="t">Dao</span></button>
+  <button id="tb-grab" class="tc-p rb c-green tcb" aria-label="Tương tác"><span class="g">E</span><span class="t">Nhặt</span></button>
+  <button id="tb-hook" class="tc-p rb c-amber tcb" aria-label="Bắn móc dây"><span class="g">🪝</span><span class="t">Móc</span></button>
+  <button id="tb-swap" class="tc-p rb c-blue tcb" aria-label="Đổi đồ trên tay"><span class="g">⇄</span><span class="t">Đổi</span></button>
+  <button id="tb-skill" class="tc-p rb c-ice tcb" aria-label="Kỹ năng"><span class="g ic"></span><i class="ring"></i><b class="cdn"></b><span class="t nm">Kỹ năng</span></button>
   <div id="tb-aimbg" class="tc-p"><img class="bg blue" src="../ho-xanh/art/ui/mobile/aim_bg.png?v=20261001a" alt=""><img class="bg red" src="../ho-xanh/art/ui/mobile/aim_bg_red.png?v=20261001a" alt=""></div>
-  <button id="tb-fire" class="tc-p" aria-label="Bắn"><img class="bg" src="../ho-xanh/art/ui/mobile/fire_bg.png?v=20261001a" alt=""><img id="tb-fire-icon" class="tc-p px" alt=""><span id="tb-fire-lv" class="tc-p tc-txt"></span><span id="tb-fire-ammo" class="tc-p tc-txt" hidden></span></button>
-  <button id="tb-switch" class="tc-p" aria-label="Đổi vũ khí"><img class="bg" src="../ho-xanh/art/ui/mobile/fire_bg.png?v=20261001a" alt=""><img id="tb-sub-icon" class="px" alt=""></button>
+  <button id="tb-fire" class="tc-p rb c-red tcb" aria-label="Bắn"><img id="tb-fire-icon" class="tc-p px" alt=""><span id="tb-fire-lv" class="tc-p tc-txt"></span><span id="tb-fire-ammo" class="tc-p tc-txt" hidden></span></button>
+  <button id="tb-switch" class="tc-p rb c-blue tcb" aria-label="Đổi vũ khí"><img id="tb-sub-icon" class="px" alt=""></button>
   <div id="tb-aim" class="tc-p"><img class="bg blue" src="../ho-xanh/art/ui/mobile/aim.png?v=20261001a" alt=""><img class="bg red" src="../ho-xanh/art/ui/mobile/aim_red.png?v=20261001a" alt=""></div>
   <div id="tb-cancel" class="tc-p"><img class="bg blue" src="../ho-xanh/art/ui/mobile/cancel.png?v=20261001a" alt=""><img class="bg red" src="../ho-xanh/art/ui/mobile/cancel_red.png?v=20261001a" alt=""><span id="tb-cancel-t" class="tc-txt">Huỷ bắn</span></div>
-  <button id="tb-drone" class="tc-p" aria-label="Gọi drone"><img class="bg" src="../ho-xanh/art/ui/mobile/btn_blue.png?v=20261001a" alt=""><img id="tb-drone-icon" class="tc-p px" src="../ho-xanh/art/ui/mobile/icon_drone.png?v=20261001a" alt=""><span id="tb-drone-n" class="tc-p tc-txt"></span></button>
+  <button id="tb-drone" class="tc-p rb c-blue tcb" aria-label="Gọi drone"><img class="px" src="../ho-xanh/art/ui/mobile/icon_drone.png?v=20261001a" alt=""><span id="tb-drone-n" class="tc-txt"></span><span class="t">Drone</span></button>
   <button id="btn-pause" class="tc-p" aria-label="Tạm dừng"><img class="bg" src="../ho-xanh/art/ui/mobile/menu.png?v=20261001a" alt=""></button>
   <button id="tb-qte" class="tc-p" aria-label="Giật dây"><img class="bg" src="../ho-xanh/art/ui/mobile/qte_btn.png?v=20261001a" alt=""><img id="tb-qte-ring" class="tc-p" src="../ho-xanh/art/ui/mobile/qte_ring.png?v=20261001a" alt=""></button>
 </div>
@@ -508,6 +469,7 @@ body.in-pressure[data-phase="dive"] #floor { color: var(--red); }
 <script src="js/tether.js?v=20261001a"></script>
 <script src="data/foes.js?v=20261001a"></script>
 <script src="js/foes.js?v=20261001a"></script>
+<script src="js/skills.js?v=20261001a"></script>
 <script src="js/ship.js?v=20261001a"></script>
 <script src="js/cruise.js?v=20261001a"></script>
 <script src="js/shop.js?v=20261001a"></script>

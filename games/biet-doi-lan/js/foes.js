@@ -209,6 +209,8 @@
     if (daveGone()) { foe.see = false; foe.dd = 99; return; }
     var c = f.center(), dd = dist(c.x, c.y, d.pos.x, d.pos.y);
     foe.dd = dd;
+    // kỹ năng crew: Dave tàng hình hoặc quái đang bị choáng / dụ / nhốt thì không thấy, không nghe gì
+    if (F.blindT > 0 || ctlActive(foe)) { foe.see = false; return; }
     var los = row.immune || lineOfSight(foe);
     var dx = d.pos.x - c.x, cone = false;
     if (dd < FD.SIGHT_NEAR || row.immune) cone = true;
@@ -225,8 +227,9 @@
     }
   }
 
-  function alertFoe(foe, x, y) {
+  function alertFoe(foe, x, y, force) {
     if (foe.dead || foe.asleep || foe.restT > 0) return;
+    if (ctlActive(foe) || (F.blindT > 0 && !force)) return;
     foe.alertT = 2.6;
     if (x != null) foe.lastKnown = { x: x, y: y };
     if (!foe.aware) {
@@ -638,13 +641,13 @@
       stuckT: 0, detourT: 0, hunt: false, dead: false, corpse: false, pack: null, immune: !!row.immune,
       markCh: null, mark: null, lastKnown: null,
     };
-    foe.step = function (ff, GG, dt) { BR[row.brain].step(foe, ff, GG, dt); };
+    foe.step = function (ff, GG, dt) { if (foe.ctl && ctlStep(foe, ff, dt)) return; BR[row.brain].step(foe, ff, GG, dt); };
     foe.onHurt = function (ff, n, fx, fy) {
       if (foe.asleep) wakeFoe(foe, 'hurt');
       // bị đánh thì biết Dave ở đâu, kể cả đang nghỉ mệt
       foe.restT = 0;
-      alertFoe(foe, G.diver.pos.x, G.diver.pos.y);
-      (foe.pack || []).forEach(function (o) { if (o !== foe && !o.dead) { if (o.asleep) wakeFoe(o, 'hurt'); alertFoe(o, G.diver.pos.x, G.diver.pos.y); } });
+      alertFoe(foe, G.diver.pos.x, G.diver.pos.y, true);
+      (foe.pack || []).forEach(function (o) { if (o !== foe && !o.dead) { if (o.asleep) wakeFoe(o, 'hurt'); alertFoe(o, G.diver.pos.x, G.diver.pos.y, true); } });
     };
     f.brain = foe; f.foe = foe; f.isFoe = true;
     f.deckItem = function () {
@@ -730,6 +733,7 @@
   function onDeath(foe) {
     foe.dead = true;
     var f = foe.body, row = foe.row;
+    if (foe.ctl) clearCtl(foe, true);
     dropCarry(foe);
     setMark(foe, null);
     if (f.sp.shark) f.stopFx();
@@ -829,6 +833,7 @@
 
   function timers(sec) {
     F.t += sec;
+    if (F.blindT > 0) F.blindT = Math.max(0, F.blindT - sec);
     if (F.sleep.on) {
       F.sleep.left -= sec;
       if (F.sleep.left <= 0) { F.sleep.left = 0; wakeAll('timer'); }
@@ -836,13 +841,205 @@
     processRespawns();
   }
 
+  // ---------- điều khiển từ ngoài (kỹ năng crew, js/skills.js) ----------
+  // Một quái chịu tối đa ba kiểu điều khiển, kiểm trong foe.step trước bộ não: nhốt > choáng/đông > dụ.
+  // Quái đang săn bằng trạng thái cá mập gốc (chase/charge/...) không chạy foe.step nên bị kéo về 'brain' trước.
+  var HUNT_STATES = ['chase', 'charge', 'attack', 'recover', 'flee', 'defend'];
+  function ctlOf(foe) { return foe.ctl || (foe.ctl = { stunT: 0, kind: null, lureT: 0, lure: null, cageT: 0, cage: null, cageMesh: null, on: false }); }
+  function ctlActive(foe) { var c = foe.ctl; return !!c && (c.stunT > 0 || c.lureT > 0 || c.cageT > 0); }
+  function controllable(foe) { return !foe.dead && !foe.asleep && foe.body.alive() && foe.body.state !== 'sleep' && foe.body.state !== 'iced' && foe.body.state !== 'hooked'; }
+
+  function seize(foe) {
+    var f = foe.body, c = ctlOf(foe);
+    if (!c.on) {
+      c.on = true;
+      calmFoe(foe);
+      foe.hunt = false;
+      if (HUNT_STATES.indexOf(f.state) >= 0) f.go('brain');
+    }
+  }
+
+  var cageTexCache = null;
+  function cageTex() {
+    if (cageTexCache) return cageTexCache;
+    var cv = document.createElement('canvas'); cv.width = cv.height = 128;
+    var g = cv.getContext('2d');
+    g.lineCap = 'round';
+    function stroke(w, col) {
+      g.lineWidth = w; g.strokeStyle = col;
+      g.beginPath(); g.ellipse(64, 64, 52, 52, 0, 0, Math.PI * 2); g.stroke();
+      for (var i = 0; i < 7; i++) { var x = 22 + i * 14; g.beginPath(); g.moveTo(x, 14); g.lineTo(x, 114); g.stroke(); }
+      g.beginPath(); g.moveTo(12, 28); g.lineTo(116, 28); g.moveTo(12, 100); g.lineTo(116, 100); g.stroke();
+    }
+    stroke(9, 'rgba(0,20,40,0.85)'); stroke(4, '#cfe3ee');
+    cageTexCache = new THREE.CanvasTexture(cv);
+    return cageTexCache;
+  }
+  function placeCage(foe) {
+    var c = foe.ctl, f = foe.body;
+    if (!c || !c.cageMesh) return;
+    var ct = f.center();
+    c.cageMesh.position.set(ct.x, ct.y, 0.7);
+    c.cageMesh.material.opacity = c.cageT < 1 ? 0.4 + 0.6 * Math.abs(Math.sin(F.t * 16)) : 0.95;
+  }
+  function dropCageMesh(c) {
+    if (c.cageMesh) { F.G.gfx.scene.remove(c.cageMesh); c.cageMesh.material.dispose(); c.cageMesh = null; }
+  }
+  // Hết mọi điều khiển (hoặc bị bỏ giữa chừng): trả thân về bộ não, đời mới tuần quanh chỗ đang đứng.
+  function clearCtl(foe, silent) {
+    var c = foe.ctl, f = foe.body;
+    if (!c) return;
+    dropCageMesh(c);
+    if (!c.on) return;
+    c.on = false; c.stunT = c.lureT = c.cageT = 0; c.kind = null; c.lure = null; c.cage = null;
+    if (silent && (foe.dead || !f.alive())) return;
+    freezeAnim(f, false); untint(f);
+    setMode(foe, 'patrol'); foe.home = { x: f.pos.x, y: f.pos.y }; foe.wp = null; foe.stuckT = 0; foe.detourT = 0;
+    setMark(foe, null);
+  }
+
+  var STUN_TINT = { stun: [0.4, 0.6, 1, 0.35], ice: [0.55, 0.9, 1, 0.55], flash: [1, 1, 0.75, 0.6] };
+  function ctlStep(foe, f, dt) {
+    var c = foe.ctl, ghost = foe.row.brain === 'ghost';
+    if (!c.on) return false;
+    if (c.cageT > 0) {
+      c.cageT -= dt;
+      if (c.stunT > 0) c.stunT -= dt;
+      f.vel.x = f.vel.y = 0;
+      if (c.cage) { f.pos.x = c.cage.x; f.pos.y = c.cage.y; }
+      anim(f, 'swim', 0.5);
+      placeCage(foe);
+      if (c.cageT <= 0) clearCtl(foe);
+      return true;
+    }
+    if (c.stunT > 0) {
+      c.stunT -= dt;
+      var k = Math.exp(-6 * dt);
+      f.vel.x *= k; f.vel.y *= k;
+      stepBody(f, dt, ghost);
+      freezeAnim(f, true);
+      var tt = STUN_TINT[c.kind] || STUN_TINT.stun;
+      tint(f, tt[0], tt[1], tt[2], tt[3] * (c.kind === 'flash' ? 0.7 + 0.3 * Math.sin(F.t * 18) : 1));
+      setMark(foe, '*'); placeMark(foe);
+      if (c.stunT <= 0) { if (c.lureT > 0) { freezeAnim(f, false); untint(f); } else clearCtl(foe); }
+      return true;
+    }
+    if (c.lureT > 0) {
+      c.lureT -= dt;
+      var L = c.lure, near = dist(f.pos.x, f.pos.y, L.x, L.y), a = F.t * 1.6 + foe.id;
+      if (near > 2) swimTo(foe, f, L.x, L.y, foe.row.speed * 1.15, dt, 3, ghost);
+      else swimTo(foe, f, L.x + Math.cos(a) * 1.8, L.y + Math.sin(a) * 1.1, foe.row.speed * 0.5, dt, 2, ghost);
+      faceTo(f, L.x);
+      anim(f, 'cruise', 1);
+      setMark(foe, '?'); placeMark(foe);
+      if (c.lureT <= 0) clearCtl(foe);
+      return true;
+    }
+    clearCtl(foe);
+    return false;
+  }
+
+  function foeList() { return F ? F.foes.filter(function (o) { return !o.dead && o.body.alive(); }) : []; }
+
+  BDL.foes = {
+    list: foeList,
+    // quái gần (x, y) nhất trong r mét; opt.awake bỏ qua quái đang ngủ; opt.filter(foe) lọc thêm
+    nearest: function (x, y, r, opt) {
+      var best = null, bd = r == null ? 1e9 : r;
+      foeList().forEach(function (foe) {
+        if (opt && opt.awake && foe.asleep) return;
+        if (opt && opt.filter && !opt.filter(foe)) return;
+        var c = foe.body.center(), dd = dist(c.x, c.y, x, y);
+        if (dd <= bd) { bd = dd; best = foe; }
+      });
+      return best;
+    },
+    // Choáng mọi quái thức trong r quanh (x, y) t giây. opt: kind 'stun' | 'ice' | 'flash' (màu + thôi theo dõi),
+    // forget (quên mục tiêu, nghỉ 2 s sau khi tỉnh), dmg (sát thương), push (m/s hất ra xa tâm). Trả số quái dính.
+    stunAt: function (x, y, r, t, opt) {
+      opt = opt || {};
+      var n = 0;
+      foeList().forEach(function (foe) {
+        var f = foe.body, c0 = f.center();
+        if (foe.asleep || !controllable(foe) || dist(c0.x, c0.y, x, y) > r) return;
+        if (opt.dmg) f.damage(opt.dmg, x, y);
+        if (!controllable(foe)) return;     // chết vì sát thương
+        seize(foe);
+        var c = ctlOf(foe);
+        c.stunT = Math.max(c.stunT, t); c.kind = opt.kind || 'stun';
+        if (opt.forget) { foe.lastKnown = null; foe.restT = Math.max(foe.restT, t + 2); }
+        if (opt.push) {
+          var dx = c0.x - x, dy = c0.y - y, l = Math.hypot(dx, dy) || 1;
+          f.vel.x = dx / l * opt.push; f.vel.y = dy / l * opt.push;
+        }
+        foe.stunned = (foe.stunned || 0) + 1;
+        n++;
+      });
+      return n;
+    },
+    // Dụ quái về (x, y) t giây, bỏ mục tiêu cũ. opt: radius (quanh cx, cy; mặc định quanh (x, y)), filter(foe). Trả số quái bị dụ.
+    lureTo: function (x, y, t, opt) {
+      opt = opt || {};
+      var cx = opt.cx == null ? x : opt.cx, cy = opt.cy == null ? y : opt.cy, n = 0;
+      foeList().forEach(function (foe) {
+        var f = foe.body, c0 = f.center();
+        if (foe.asleep || !controllable(foe)) return;
+        if (opt.radius != null && dist(c0.x, c0.y, cx, cy) > opt.radius) return;
+        if (opt.filter && !opt.filter(foe)) return;
+        var c = ctlOf(foe);
+        if (c.cageT > 0) return;
+        seize(foe);
+        c.lureT = Math.max(c.lureT, t); c.lure = { x: x, y: y };
+        n++;
+      });
+      return n;
+    },
+    // Dave tàng hình t giây: quái không thấy, không nghe; đang đuổi thì bỏ cuộc ngay.
+    blind: function (t) {
+      if (!F) return 0;
+      F.blindT = Math.max(F.blindT, t);
+      var n = 0;
+      F.foes.forEach(function (foe) {
+        if (foe.dead || foe.asleep) return;
+        if (foe.aware && !ctlActive(foe)) {
+          calmFoe(foe); foe.lastKnown = null; foe.hunt = false;
+          if (HUNT_STATES.indexOf(foe.body.state) >= 0) foe.body.go('brain');
+          n++;
+        }
+      });
+      return n;
+    },
+    blindLeft: function () { return F ? F.blindT : 0; },
+    // Nhốt một quái tại chỗ t giây (lồng sắt vẽ đè lên thân). Trả true nếu nhốt được.
+    cage: function (foe, t) {
+      if (!F || !foe || !controllable(foe)) return false;
+      seize(foe);
+      var c = ctlOf(foe), f = foe.body, ct = f.center();
+      c.cageT = Math.max(c.cageT, t); c.cage = { x: f.pos.x, y: f.pos.y }; c.lureT = 0; c.kind = c.kind || 'stun';
+      if (!c.cageMesh) {
+        var m = new THREE.Sprite(new THREE.SpriteMaterial({ map: cageTex(), transparent: true, depthTest: false, depthWrite: false }));
+        var s = Math.max(1.6, Math.max(f.hw, f.hh) * 2.7);
+        m.scale.set(s, s, 1); m.renderOrder = 61;
+        F.G.gfx.scene.add(m);
+        c.cageMesh = m;
+      }
+      placeCage(foe);
+      return true;
+    },
+    // trạng thái điều khiển của một quái: 'cage' | 'stun' | 'lure' | null
+    stateOf: function (foe) {
+      var c = foe && foe.ctl;
+      return !c ? null : c.cageT > 0 ? 'cage' : c.stunT > 0 ? 'stun' : c.lureT > 0 ? 'lure' : null;
+    },
+  };
+
   var system = {
     name: 'foes',
 
     build: function (G, map) {
       var seed = isNaN(seedParam) ? Math.floor(Math.random() * 1e9) : seedParam + map.id * 7919;
       F = { G: G, map: map, t: 0, foes: [], respawns: [], shots: [], kills: 0, respawned: 0, rnd: mulberry(seed), seed: seed,
-        noiseT: 0, roster: BDL.foeRoster(map), sleep: { on: false, total: 0, left: 0, skipped: false }, grid: null, boat: null };
+        noiseT: 0, blindT: 0, roster: BDL.foeRoster(map), sleep: { on: false, total: 0, left: 0, skipped: false }, grid: null, boat: null };
       var st = G.stack.layers[0].zone.start, d = G.diver.pos;
       F.boat = { x: st ? st[0] : d.x, y: surf() };
       F.grid = buildCells(G);
@@ -887,7 +1084,7 @@
 
     teardown: function (G) {
       if (!F) return;
-      F.foes.forEach(function (foe) { setMark(foe, null); });
+      F.foes.forEach(function (foe) { setMark(foe, null); if (foe.ctl) clearCtl(foe, true); });
       F.shots.forEach(function (s) { G.gfx.scene.remove(s.mesh); s.mesh.geometry.dispose(); s.mesh.material.dispose(); });
       F = null;
     },
@@ -937,7 +1134,7 @@
       setMode: function (id, m) { var f = byId(id); if (f) setMode(f, m); },
       charge: function (id, dx, dy) { var f = byId(id); if (!f) return; var l = Math.hypot(dx, dy) || 1; f.dir = { x: dx / l, y: dy / l }; wakeFoe(f, 'debug'); setMode(f, 'charge'); },
       clearAll: function () {
-        F.foes.forEach(function (foe) { setMark(foe, null); G.fishes.drop([foe.body]); });
+        F.foes.forEach(function (foe) { setMark(foe, null); if (foe.ctl) clearCtl(foe, true); G.fishes.drop([foe.body]); });
         F.foes = []; F.respawns = [];
       },
       alert: function (id) { var f = byId(id); if (f) alertFoe(f, G.diver.pos.x, G.diver.pos.y); },
