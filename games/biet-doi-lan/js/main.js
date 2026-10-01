@@ -153,7 +153,7 @@
     G.world = new HX.World(stack.walls);
     dive = {
       alive: true, stack: stack, layers: [new HX.level.Layer(G, stack.layers[0], gltf0)],
-      rays: new HX.level.Rays(G), dust: new HX.level.Dust(G), surface: new HX.level.Surface(G), layerI: 0, maxDepth: 0, pressT: 0, pressFlashT: 0,
+      rays: new HX.level.Rays(G), dust: new HX.level.Dust(G), surface: new HX.level.Surface(G), layerI: 0, maxDepth: 0,
     };
     G.dive = dive;
     var sp = findSpawn(G.world, stack.layers[0]);
@@ -724,15 +724,15 @@
     if (P.render) P.render();
   }
 
-  // Dưới tầng cuối: trừ O₂ 8/s bằng nhịp nhỏ 0,25 s qua hurt() kiểu soft (không hất lùi, không bất tử tạm).
-  var PRESS_DPS = 8, PRESS_TICK = 0.25;
+  // Đáy tầng cuối là bức chắn áp suất: Dave bị đẩy ngược lên, không mất O₂.
+  // Bản đầu trừ 8 O₂/s dưới đáy tầng cuối; chủ dự án bơi lọt xuống (hình map còn kéo sâu tiếp) và tưởng là lỗi mất máu.
+  var PRESS_WARN = 2.5;
   function pressure(dt) {
-    var d = G.diver, inP = d.pos.y < lastY1() && d.state !== 'dead';
-    HX.hud.pressure(inP);
-    if (!inP) { dive.pressT = 0; return; }
-    dive.pressT += dt; dive.pressFlashT -= dt;
-    while (dive.pressT >= PRESS_TICK) { dive.pressT -= PRESS_TICK; d.hurt(PRESS_DPS * PRESS_TICK, d.pos.x, d.pos.y, true); }
-    if (dive.pressFlashT <= 0) { dive.pressFlashT = 0.6; HX.hud.flash(); }
+    var d = G.diver, floor = lastY1();
+    HX.hud.pressure(d.pos.y < floor + PRESS_WARN && d.state !== 'dead');
+    if (d.pos.y >= floor) return;
+    d.pos.y += (floor - d.pos.y) * Math.min(1, dt * 8);
+    if (d.vel.y < 0) d.vel.y = -d.vel.y * 0.3;
   }
 
   function step(dt) {

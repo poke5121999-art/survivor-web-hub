@@ -46,7 +46,7 @@ window.BDL = window.BDL || {};
     setQuota: function (lootValueSum) {
       var d = run.dive, m = d.map;
       d.lootTotal = lootValueSum;
-      d.quota = Math.round(lootValueSum * QUOTA_FACTOR * BDL.curve(m.level) * SOLO_CREW_MUL * (m.quotaMul || 1) / 100) * 100;
+      d.quota = Math.round(lootValueSum * QUOTA_FACTOR * BDL.curve(m.level) * run.crewMul() * (m.quotaMul || 1) / 100) * 100;
       return d.quota;
     },
 
@@ -59,6 +59,13 @@ window.BDL = window.BDL || {};
       if (item.kind === 'foe') run.markSold(item.key);
       if (BDL.onDeliver) BDL.onDeliver(item);
       return item;
+    },
+
+    // extract_quota.crewMul của REPO: 0,4 + 0,15 × min(số người, 4). Chỉ tính cả tổ khi đồng đội lặn cùng thật
+    // (js/mates.js đặt BDL.MATES_DIVE = true lúc nạp); chưa có thì như lặn một mình.
+    crewMul: function () {
+      var mates = BDL.MATES_DIVE && run.ca && run.ca.crew ? run.ca.crew.mates.length : 0;
+      return mates ? 0.4 + 0.15 * Math.min(1 + mates, 4) : SOLO_CREW_MUL;
     },
 
     quotaMet: function () { return !!run.dive && run.dive.onDeck >= run.dive.quota; },

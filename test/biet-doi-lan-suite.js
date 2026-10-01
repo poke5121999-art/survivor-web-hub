@@ -84,19 +84,19 @@ async function oneMap(browser, base, W, H, i) {
   check(tag + ': giữ Space thì thể lực tụt', st1 < st0 - 10, st0.toFixed(1) + ' → ' + st1.toFixed(1));
   check(tag + ': nhả ra thì thể lực hồi', st2 > st1 + 10, st1.toFixed(1) + ' → ' + st2.toFixed(1));
 
-  // xuống dưới tầng cuối: O₂ tụt, hiện cảnh báo áp suất
+  // đáy tầng cuối là bức chắn: thả Dave dưới đáy thì bị đẩy lên lại, O₂ giữ nguyên, hiện cảnh báo
   const lastY1 = s.floors[s.floors.length - 1].y1;
-  // chỗ nước trống dưới tầng cuối (teleport vào đá thì bị đẩy ra lên trên)
   await page.evaluate(y => {
     const W = HX.game.world;
-    for (let x = 0; x < 60; x += 1) for (const sx of [x, -x]) if (W.open(sx, y - 3, 0.5)) return BDL_DEBUG.teleport(sx, y - 3);
+    for (let x = 0; x < 60; x += 1) for (const sx of [x, -x]) if (W.open(sx, y - 3, 0.5) && W.open(sx, y + 0.5, 0.5)) return BDL_DEBUG.teleport(sx, y - 3);
   }, lastY1);
   const before = (await info(page)).o2;
   await sleep(1500);
   const after = await info(page);
   const warn = await page.evaluate(() => { const e = document.getElementById('press'); return !!e && getComputedStyle(e).display !== 'none'; });
-  check(tag + ': dưới tầng cuối O₂ tụt', after.o2 < before, before + ' → ' + after.o2.toFixed(1) + ' (y=' + after.y.toFixed(1) + ', tầng ' + after.floor + ')');
-  check(tag + ': cảnh báo áp suất hiện', warn);
+  check(tag + ': đáy tầng cuối đẩy Dave lên', after.y >= lastY1 - 0.3, 'y=' + after.y.toFixed(2) + ', đáy ' + lastY1.toFixed(2));
+  check(tag + ': chạm đáy tầng cuối không mất O₂', after.o2 === before, before + ' → ' + after.o2);
+  check(tag + ': cảnh báo hết tầng hiện', warn);
 
   await page.evaluate(() => BDL_DEBUG.teleport(-30, HX_TUNING.water.surfaceY - 6));
   await sleep(600);
