@@ -183,6 +183,7 @@
     this.leader = null; this.offset = null;
     this.mixer = null; this.actions = {}; this.cur = null; this.role = null; this.timeScale = 1;
     this.motion = null; this.sfx = null; this.freezeAnim = false; this.fxPlays = [];
+    this.mass = window.BDL && BDL.fishKg ? BDL.fishKg(sp) : 1;
     this.state = null; this.st = 0; this.data = {};
     this.go('wander');
     var self = this;
@@ -252,6 +253,9 @@
   };
 
   Shark.prototype.go = function (name, data) {
+    // Quái (js/foes.js): các đường quay về trạng thái gốc đều về bộ não, trừ lúc đang săn bằng AI gốc (brain.hunt). Xem Fish.prototype.go.
+    var br = this.brain;
+    if (br && (name === 'wander' || (!br.hunt && (name === 'chase' || name === 'flee' || name === 'defend')))) name = 'brain';
     this.state = name; this.st = 0; this.data = data || {};
     var S = STATES[name];
     if (S.enter) S.enter(this, this.G);
@@ -272,7 +276,16 @@
   Shark.prototype.die = function (onRope) {
     this.hp = 0;
     this.clearBuffs();
-    this.go(onRope && !this.carvable() ? 'hauled' : 'dying');
+    this.go(onRope && !this.carvable() && !this.brain ? 'hauled' : 'dying');
+  };
+
+  // Giao diện "kéo được" của js/tether.js: xác nặng this.mass, dây buộc thì tethered = true. Quái (js/foes.js) ghi đè deckItem / removeFromWorld.
+  Shark.prototype.tethered = false;
+  Shark.prototype.hit = function () {};
+  Shark.prototype.removeFromWorld = function () { if (this.state !== 'reeled') this.go('reeled'); };
+  Shark.prototype.deckItem = function () {
+    var B = window.BDL, sp = this.sp;
+    return { kind: 'fish', key: sp.id, label: HX.fish.displayName(sp), value: B && B.fishValue ? B.fishValue(sp) : 0, icon: HX.fish.iconFor(this.G.gfx, sp) };
   };
 
   Shark.prototype.dot = function (n) {
@@ -367,13 +380,15 @@
         follow: function () { return G0.t - t0 < 1 ? cc : null; } });
       G0.audio.play('gear_ice_break');
       this.endBuff('freeze', true);
-      if (this.state === 'iced') { this.setFrozenAnim(false); this.state = 'wander'; }
+      if (this.state === 'iced') { this.setFrozenAnim(false); this.go('wander'); }
     }
+    if (this.brain && this.brain.immune) { this.flashT = 0.08; return 'alive'; }
     this.hp -= n;
     this.flashT = 0.12;
     var G = this.G, c = this.center();
     G.fx.spawn('blood', c.x, c.y, 0.2, 0, 0, 0.6 + this.sp.size * 0.4);
     if (this.hp <= 0) { this.die(byHarpoon); return 'dead'; }
+    if (this.brain && this.brain.onHurt) this.brain.onHurt(this, n, fromX, fromY);
     if (byHarpoon && this.sp.size >= T.tug.minSize && this.hp <= this.maxHp * T.tug.triggerHpFrac) return 'tug';
     this.angry = FT.angryTime;
     this.biteCd = Math.min(this.biteCd, 1);
@@ -652,6 +667,12 @@
       },
     },
 
+    // Bộ não của quái (js/foes.js): brain.step(f, G, dt) lo di chuyển và hoạt ảnh.
+    brain: {
+      enter: function (f) { f.target = null; f.setFrozenAnim(false); },
+      update: function (f, G, dt) { if (f.brain && f.brain.step) f.brain.step(f, G, dt); },
+    },
+
     sleep: {
       enter: function (f) { f.vel.x = 0; f.vel.y = 0; f.target = null; f.cancelTurn(); f.setFrozenAnim(true); },
       update: function (f) {
@@ -719,9 +740,10 @@
       limp: true, corpse: true,
       enter: function (f) { f.vel.x = 0; f.vel.y = 0; },
       update: function (f, G, dt) {
+        if (f.tethered) { f.vel.x = f.vel.y = 0; f.st = Math.min(f.st, 1); return; }
         f.vel.x = 0; f.vel.y = T.harvest.floatSpeed;
         f.integrate(dt);
-        if (f.st >= T.harvest.corpseTime) f.go('reeled');
+        if (f.st >= (f.corpseTime || T.harvest.corpseTime)) f.go('reeled');
       },
     },
     // Vào túi hoặc tan: mờ dần 0,2 giây rồi bộ sinh cá gỡ khỏi cảnh.
@@ -742,7 +764,7 @@
   }
 
   // Ảnh nhỏ cho thẻ bắt cá, màn kết quả, tủ cá: ItemIcon "<tên>_Thumbnail" gốc (64 px, rip_shark.py phóng ×3).
-  function iconFor(gfx, sp) { return sp.model.icon || ''; }
+  function iconFor(gfx, sp) { return sp.model.icon ? HX.ROOT + sp.model.icon : ''; }
 
   // Cá mập vào sổ loài chung: túi cá, thẻ bắt cá, màn kết quả, tủ cá và quán tra HX.fish.BY_ID, tên và ảnh qua HX.fish.
   // Không vào HX.fish.SPECIES (danh sách bộ sinh cá Spine).

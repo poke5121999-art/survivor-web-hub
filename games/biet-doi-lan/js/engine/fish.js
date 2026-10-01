@@ -130,6 +130,7 @@
     this.hw = b[2] * u / 2; this.hh = b[3] * u / 2;
     this.cx = (b[0] + b[2] / 2) * u; this.cy = (b[1] + b[3] / 2) * u;
     this.radius = Math.max(0.08, Math.min(this.hw, this.hh));
+    this.mass = window.BDL && BDL.fishKg ? BDL.fishKg(sp) : 1;
     this.state = null; this.st = 0; this.data = {};
     this.go('wander');
     this.mesh.state.update(Math.random() * 2);
@@ -145,6 +146,10 @@
   };
 
   Fish.prototype.go = function (name, data) {
+    // Quái của Biệt Đội Lặn (js/foes.js): mọi đường quay về wander/chase/flee/defend của thân cá đều về bộ não của quái,
+    // trừ lúc quái đang săn bằng đúng trạng thái chase gốc (brain.hunt).
+    var br = this.brain;
+    if (br && (name === 'wander' || (!br.hunt && (name === 'chase' || name === 'flee' || name === 'defend')))) name = 'brain';
     this.state = name; this.st = 0; this.data = data || {};
     var S = FISH_STATES[name];
     if (S.enter) S.enter(this, this.G);
@@ -172,7 +177,17 @@
   Fish.prototype.die = function (onRope) {
     this.hp = 0;
     this.clearBuffs();
-    this.go(onRope && !this.carvable() ? 'hauled' : 'dying');
+    // quái không bao giờ được xiên kéo vào túi: chết là thành xác (hoặc tan) tại chỗ
+    this.go(onRope && !this.carvable() && !this.brain ? 'hauled' : 'dying');
+  };
+
+  // Giao diện "kéo được" của js/tether.js: xác nặng this.mass, dây buộc thì tethered = true. Quái (js/foes.js) ghi đè deckItem / removeFromWorld.
+  Fish.prototype.tethered = false;
+  Fish.prototype.hit = function () {};
+  Fish.prototype.removeFromWorld = function () { if (this.state !== 'reeled') this.go('reeled'); };
+  Fish.prototype.deckItem = function () {
+    var B = window.BDL, sp = this.sp;
+    return { kind: 'fish', key: sp.id, label: HX.fish.displayName(sp), value: B && B.fishValue ? B.fishValue(sp) : 0, icon: HX.fish.iconFor(this.G.gfx, sp) };
   };
 
   // Sát thương theo thời gian (độc, bỏng): trừ máu, không đổi hành vi. Đang mắc xiên mà chết thì tính là chết trên dây.
@@ -292,14 +307,18 @@
         follow: function () { return G0.t - t0 < 1 ? cc : null; } });
       this.G.audio.play('gear_ice_break');
       this.endBuff('freeze', true);
-      if (this.state === 'iced') { this.mesh.state.timeScale = 1; this.state = 'wander'; }
+      if (this.state === 'iced') { this.mesh.state.timeScale = 1; this.go('wander'); }
     }
+    // sứa ma: chỉ đông đá / gây mê / sốc điện mới làm gì được nó
+    if (this.brain && this.brain.immune) { this.flashT = 0.08; return 'alive'; }
     this.hp -= n;
     this.flashT = 0.12;
     var G = this.G, c = this.center();
     G.fx.spawn('blood', c.x, c.y, this.z + 0.05, 0, 0, 0.6 + this.sp.size * 0.4);
     if (this.hp <= 0) { this.die(byHarpoon); return 'dead'; }
+    if (this.brain && this.brain.onHurt) this.brain.onHurt(this, n, fromX, fromY);
     if (byHarpoon && this.sp.size >= T.tug.minSize && this.hp <= this.maxHp * T.tug.triggerHpFrac) return 'tug';
+    if (this.brain) return 'alive';
     if (isPuffer(this.sp)) { this.go('defend'); return 'alive'; }
     if (this.sp.damage > 0) { this.angry = FT.angryTime; this.go('chase'); }
     else this.go('flee', { fromX: fromX, fromY: fromY });
@@ -462,6 +481,12 @@
       },
     },
 
+    // Bộ não của quái (js/foes.js): brain.step(f, G, dt) lo mọi việc, kể cả hoạt ảnh và di chuyển.
+    brain: {
+      enter: function (f) { f.mesh.state.timeScale = 1; f.leader = null; f.target = null; },
+      update: function (f, G, dt) { if (f.brain && f.brain.step) f.brain.step(f, G, dt); },
+    },
+
     // Ngủ vì đạn gây mê: đứng im một chỗ, hoạt ảnh dừng; hết giờ hoặc bị đánh thì tỉnh (damage() đổi trạng thái).
     sleep: {
       enter: function (f) { f.vel.x = 0; f.vel.y = 0; f.leader = null; f.target = null; f.mesh.state.timeScale = 0; },
@@ -536,9 +561,11 @@
       limp: true, corpse: true,
       enter: function (f) { f.vel.x = 0; f.vel.y = 0; },
       update: function (f, G, dt) {
+        // đang buộc dây (js/tether.js): đứng yên cho dây dẫn, không nổi, không tan
+        if (f.tethered) { f.vel.x = f.vel.y = 0; f.st = Math.min(f.st, 1); return; }
         f.vel.x = 0; f.vel.y = T.harvest.floatSpeed;
         f.integrate(dt);
-        if (f.st >= T.harvest.corpseTime) f.go('reeled');
+        if (f.st >= (f.corpseTime || T.harvest.corpseTime)) f.go('reeled');
       },
     },
 
@@ -610,8 +637,8 @@
         if (s.shark) {
           self.sharks[L.i].push({ zone: L.id, tid: a.members[0].tid, name: s.name, prefab: s.prefab, x: a.x, y: a.y,
             n: a.members.length, home: a.home, near: row.near || SPAWN.near, off: row.off || null });
+          // Biệt Đội Lặn: cá mập dữ do hệ quái (js/foes.js) sinh; bộ sinh cá chỉ giữ cá thường.
           a.shark = HX.Shark.forTid(a.members[0].tid);
-          if (a.shark && (!row.off || day >= (FT.sharkSwitch[row.off] || Infinity))) self.allocs.push(a);
         } else if (!row.off && s.id) {
           a.sp = BY_ID[s.id];
           self.allocs.push(a);
