@@ -10,6 +10,12 @@
   var ROPE = D.rope || { width: 0.02, color: [0, 0, 0, 1] };
 
   function roll(p) { return Math.random() < p; }
+  // Biệt Đội Lặn: cá cỡ 1 trở lên chết trên dây không theo dây về túi mà thành xác nằm lại, phải móc dây kéo lên thuyền (js/tether.js).
+  function keepCorpse(f) {
+    if (f.state !== 'hauled' || f.sp.size < 1) return false;
+    f.go('dying');
+    return true;
+  }
   // Hiệu ứng khi mũi xiên trúng cá, theo kiểu của đầu xiên đang lắp (G.loadout.head.effect, bảng HX_META.HEADS).
   // hit(hp, f, h, c) chạy sau khi đã trừ máu; c = { res ('dead'|'tug'|'alive'), dmg, x, y }.
   // Trả 'held' khi cá bị giữ tại chỗ (ngủ, đông đá): không giằng co nữa.
@@ -146,10 +152,11 @@
     var held = E.hit && h.buff ? E.hit(this, f, h, { res: res, dmg: dmg, x: this.x, y: this.y }) : null;
     this.lastHit = { fish: f.id, res: res, dmg: dmg, effect: h.effect, held: held };
     // cá nhỏ ngủ trên mũi xiên gây mê: kéo về còn sống (bắt sống, hạng cao nhất như bản gốc); cá lớn thì ngủ tại chỗ
-    if (held === 'held' && f.state === 'sleep' && !f.carvable()) { f.go('hauled', { alive: true }); return this.hook(f, 'reel'); }
+    if (held === 'held' && f.state === 'sleep' && f.sp.size < 1) { f.go('hauled', { alive: true }); return this.hook(f, 'reel'); }
     if (held === 'held' || res === 'alive') { this.state = 'returning'; return; }
     // chết: Fish.prototype.die đã quyết cá nhỏ theo dây về (hauled), cá lớn thành xác nằm lại (dying) và mũi xiên rút ra
     if (res === 'dead') {
+      keepCorpse(f);
       if (f.state === 'hauled') this.hook(f, 'reel');
       else this.state = 'returning';
       return;
@@ -171,6 +178,7 @@
     if (!f) return false;
     f.flashT = 0.15;
     f.die(true);
+    keepCorpse(f);
     this.G.fx.play(this.G.fx.dive('bloodFatal'), this.x, this.y, { z: f.z + 0.1, name: 'bloodFatal' });
     if (f.state === 'hauled') return true;
     this.release();
@@ -268,6 +276,7 @@
       }
     } else if (this.state === 'stuck') {
       var f2 = this.fish;
+      if (f2) keepCorpse(f2);
       // cá mắc xiên chết vì độc / bỏng giữa lúc giằng co: cá nhỏ theo dây về, cá lớn thành xác và mũi xiên rút ra
       if (f2 && d.state === 'tug' && f2.state === 'hauled') d.go('reel');
       else if (f2 && f2.corpse()) { this.release(); f2 = null; if (d.state === 'tug' || d.state === 'reel') d.go('swim'); }

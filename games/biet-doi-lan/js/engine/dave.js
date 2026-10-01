@@ -228,6 +228,8 @@
     this.vel.x += ax * dt; this.vel.y += ay * dt;
     var k = Math.exp(-P.drag * dt);
     this.vel.x *= k; this.vel.y *= k;
+    // Biệt Đội Lặn: đang kéo vật bằng dây móc (js/tether.js đặt this.tow mỗi khung) thì chậm lại theo khối lượng vật
+    if (this.tow) cap *= this.tow.mul;
     var sp = Math.hypot(this.vel.x, this.vel.y);
     if (sp > cap) { this.vel.x *= cap / sp; this.vel.y *= cap / sp; }
     this.G.world.move(this.pos, this.vel, P.radius, dt);
@@ -282,11 +284,12 @@
   };
 
   // Xác cá gần nhất mà Dave với tới (thân cá nở thêm T.harvest.reach).
+  // Biệt Đội Lặn: chỉ cá nhỏ (cỡ 0) nhặt vào túi; cá to và xác quái không xả thịt nữa mà phải móc dây kéo lên thuyền.
   Diver.prototype.corpseInReach = function () {
     var list = this.G.fishes.list, best = null, bd = Infinity;
     for (var i = 0; i < list.length; i++) {
       var f = list[i];
-      if (!f.corpse() || !f.hitTest(this.pos.x, this.pos.y, T.harvest.reach)) continue;
+      if (!f.corpse() || f.sp.size >= 1 || f.isFoe || f.tethered || !f.hitTest(this.pos.x, this.pos.y, T.harvest.reach)) continue;
       var c = f.center(), dd = Math.hypot(c.x - this.pos.x, c.y - this.pos.y);
       if (dd < bd) { bd = dd; best = f; }
     }
@@ -425,7 +428,13 @@
         if (inp.gunPressed && G.gun && G.harpoon.state === 'ready') return d.go('gunAim');
         if (inp.melee && d.knifeCd <= 0) return d.go('melee');
         d.swim(dt, inp, d.boosting ? T.diver.boostSpeed : T.diver.maxSpeed, d.boosting ? 1.5 : 1);
-        if (!d.poseSwim(dt, d.boosting)) d.play(d.o2 < T.o2.lowAt ? 'Gasping' : 'Idle');
+        // kéo vật nặng trên dây móc: đạp chân gấp (dãy tăng tốc), thân lắc và ngả ngược về phía dây
+        var tow = d.tow, strain = tow && moving ? Math.min(1.5, tow.k) : 0;
+        if (!d.poseSwim(dt, d.boosting || strain > 0.45)) d.play(d.o2 < T.o2.lowAt ? 'Gasping' : 'Idle');
+        else if (strain > 0.45) {
+          d.animSpeed = 1 + 0.6 * strain;
+          d.tilt += (Math.sin(d.st * 17) * 0.12 - tow.dy * 0.2) * strain * Math.min(1, dt * 10);
+        }
         if (inp.my > 0.3 && d.pos.y >= T.water.surfaceY - 0.45 * S) G.onSurface();
       },
     },
