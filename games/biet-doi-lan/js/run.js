@@ -55,6 +55,7 @@ window.BDL = window.BDL || {};
       item.value = Math.max(0, Math.round(item.value));
       d.pile.push(item);
       d.onDeck += item.value;
+      if (item.kind === 'foe') run.markSold(item.key);
       if (BDL.onDeliver) BDL.onDeliver(item);
       return item;
     },

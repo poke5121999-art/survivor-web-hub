@@ -533,21 +533,47 @@
   HX.hud.onPrefs(function () { if (G.phase === 'dive' && !input.touch.stick) showStick(false); });
 
   // ---------- các pha ----------
-  // Phase 1 chỉ có loading → dive. Pha lên thuyền, trạm, sảnh sẽ thêm vào PHASES ở phase sau.
+  // Sổ pha như Hố Xanh: mỗi pha { surface: '3d' | '2d' | 'dom' | 'scene', enter(args), exit(), update(dt), render() }.
+  //   3d   : cảnh lặn three.js (#scene), main.js chạy step() và vẽ.
+  //   dom  : vẽ cảnh nước trống làm nền, pha dựng giao diện trong G.screen(tên).
+  //   2d   : #stage2d phủ kín màn, pha tự vẽ trong render() lên G.stage2d.ctx.
+  //   scene: pha tự dựng cảnh three.js riêng và tự vẽ bằng G.gfx.renderer (cano chạy về quán).
+  // Pha ngoài main.js tự đăng ký vào HX.phases từ tệp riêng (cruise.js, shop.js).
+  function phase(name) { return PHASES[name] || (HX.phases && HX.phases[name]) || null; }
   function go(name, args) {
-    var next = PHASES[name];
+    var next = phase(name);
     if (!next) throw new Error('không có pha "' + name + '" trong sổ pha');
-    var prev = G.phase && PHASES[G.phase];
+    var prev = G.phase && phase(G.phase);
     if (prev && prev.exit) prev.exit();
-    if (name === 'loading') teardown();
+    if (name === 'loading' || next.surface !== '3d') teardown();
     G.phase = name;
     document.body.dataset.phase = name;
+    document.body.dataset.surface = next.surface;
+    showScreen(name);
     if (next.enter) next.enter(args || {});
   }
   G.go = go;
+  G.phaseOf = phase;
+
+  var screens = $('screens');
+  G.screen = function (name) {
+    var el = document.getElementById('scr-' + name);
+    if (!el) {
+      el = document.createElement('section');
+      el.id = 'scr-' + name; el.className = 'screen'; el.hidden = G.phase !== name;
+      screens.appendChild(el);
+    }
+    return el;
+  };
+  function showScreen(name) {
+    for (var i = 0; i < screens.children.length; i++) screens.children[i].hidden = screens.children[i].id !== 'scr-' + name;
+  }
+  var stage = $('stage2d');
+  G.stage2d = { canvas: stage, ctx: stage.getContext('2d'), w: innerWidth, h: innerHeight, dpr: 1 };
 
   var PHASES = {
     loading: {
+      surface: '3d',
       enter: function () {
         var map = curMap, kShared = 0, kGlb = 0;
         HX.save.store();
@@ -571,6 +597,7 @@
     },
 
     dive: {
+      surface: '3d',
       enter: function () {
         HX.hud.area(curMap.name, 'Lặn ' + (curMap.id + 1) + '/' + BDL.MAPS.length + ' · ' + G.floors.length + ' tầng');
         showStick(false);
@@ -637,8 +664,11 @@
     if (fpsAcc > 1) { G.fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; }
     if (paused || portrait.matches) { gfx.render(G.t); return; }
     G.t += dt;
-    if (G.phase === 'dive' && dive) step(dt);
-    gfx.render(G.t);
+    var P = phase(G.phase);
+    if (P.surface === '3d' && dive && G.phase === 'dive') step(dt);
+    if (P.update) P.update(dt);
+    if (P.surface === '3d' || P.surface === 'dom') gfx.render(G.t);
+    if (P.render) P.render();
   }
 
   // Dưới tầng cuối: trừ O₂ 8/s bằng nhịp nhỏ 0,25 s qua hurt() kiểu soft (không hất lùi, không bất tử tạm).
