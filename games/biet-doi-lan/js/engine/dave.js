@@ -3,6 +3,8 @@
 (function (HX) {
   'use strict';
   var T = window.HX_TUNING, D = window.HX_ASSETS.dave, M = window.HX_META;
+  // Biệt Đội Lặn: giằng co cần 1/3 số lần bấm của Hố Xanh (chủ dự án 2026-10-02: "bấm mỏi tay lắm")
+  var TUG_TAP_MUL = 3;
   // Sheet lưới: mỗi hàng một dãy khung, rộng bằng dãy dài nhất. Mọi khung nằm đúng chỗ trong ô 120 px như bản gốc.
   var names = Object.keys(D.anims);
   var SW = D.cell * Math.max.apply(null, names.map(function (k) { return D.anims[k].n; }));
@@ -548,7 +550,7 @@
         d.data.time -= dt;
         d.data.gauge -= T.tug.decay * dt;
         if (inp.tap) {
-          d.data.gauge += T.tug.tapGain * Math.max(fish.sp.shark ? T.tug.sharkFloor : 0.2, Math.min(1.5, T.tug.hpRef / Math.max(1, fish.hp)));
+          d.data.gauge += TUG_TAP_MUL * T.tug.tapGain * Math.max(fish.sp.shark ? T.tug.sharkFloor : 0.2, Math.min(1.5, T.tug.hpRef / Math.max(1, fish.hp)));
           G.audio.play('harpoon_tap', { vol: 0.8, rate: 0.9 + d.data.gauge * 0.4 });
           fish.flashT = 0.08;
           // BloodFight.prefab gốc: máu rỉ ra mỗi lần giật dây

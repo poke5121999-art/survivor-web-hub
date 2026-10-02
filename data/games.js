@@ -668,7 +668,7 @@ window.HUB_GAMES = [
     tagline: "Dave the Diver ghép R.E.P.O.: một ca là năm chuyến lặn ở năm vùng biển, mỗi chuyến sâu hơn và chỉ tiêu cao hơn. Độ sâu chia theo tầng như phòng của REPO. Bắn móc vào đồ cổ bỏ hoang dưới đáy rồi vừa bơi vừa kéo dây lên cano; va đập là mất giá, kéo nặng quá thì dây căng rồi đứt. Săn cá đầy túi thì lên thuyền xả. Cá mập và cá dữ mang não quái REPO: ngủ, nghe tiếng động, rượt, hồi sinh; giết được thì kéo xác lên bán, mỗi loài tối đa ba lần. Đủ chỉ tiêu thì vào khoang lái đếm ngược chạy về quán Bancho, giờ là trạm mua súng, bom, đồ cận chiến, bình O₂ và nâng cấp. O₂ là máu, thể lực để tăng tốc, R để tung kỹ năng của crew. Sảnh, gacha, nạp giả, nhiệm vụ như Biệt Đội.",
     thumbnail: "assets/thumbnails/biet-doi-lan.png",
     path: "games/biet-doi-lan/index.html",
-    rev: "20261002b",
+    rev: "20261002c",
     // Game mới 2026-10-01, không đè lên Hố Xanh hay Biệt Đội. Bộ máy lặn fork từ games/ho-xanh/js vào
     // games/biet-doi-lan/js/engine; art, tiếng, map, vendor đọc thẳng từ ../ho-xanh/ (HX_ROOT), không chép.
     // Sảnh REPO chép từ games/repo-squad với số của bản Unity (D:\REPO_Meta\gamespark-config).
