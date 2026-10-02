@@ -4,7 +4,7 @@
  * Chạy:  node test/biet-doi-lan-tether.js
  * 1280×720, map 0 và map 3. Ảnh chụp ra %TEMP%/bdl-tether-shots (đổi bằng SHOTS=...).
  * Kiểm: rải đồ cổ mỗi tầng và chỉ tiêu; móc món vừa → kéo lên; thả → chìm; đập món gốm → mất tiền;
- * xác thuyền kéo gắt → đứt dây rồi chìm; cá lớn chết thành xác nằm lại, không xả thịt, móc được; cá vừa giằng co xong vào túi;
+ * xác thuyền kéo gắt → đứt dây rồi chìm; cá lớn chết thành xác nằm lại, không xả thịt, móc được; cá vừa giằng co xong vào túi; giằng co thua vẫn trừ máu cá theo số lần bấm;
  * cá nhỏ của allocator là cá cảnh: xiên đi xuyên qua, không chết, không vào túi; cá mất máu bị cất đi rồi sinh lại không hồi máu.
  */
 'use strict';
@@ -300,6 +300,28 @@ async function oneMap(browser, base, m) {
   const midTether = await page.evaluate(() => BDL_DEBUG.tether.state());
   check(tag + ': cá vừa trúng xiên vào túi luôn, dây móc không buộc xác', bagMid.length === bag0 + 1 && bagMid[bagMid.length - 1] === 'Dusky_Grouper' && midTether !== 'attached',
     '[' + bagMid.join(',') + '] dây ' + midTether);
+
+  // ---- giằng co thua: mỗi lần bấm Space vẫn trừ máu cá, cá thoát với số máu đã mất ----
+  const tugFish = await page.evaluate(c => {
+    const G = HX.game, d = G.diver, x = c.x, y = c.y + 2;
+    BDL_DEBUG.teleport(x - 3, y);
+    const f = G.fishes.spawnAt(HX.fish.BY_ID.Giant_Trevally, x, y);
+    G.fishes.drop(G.fishes.list.filter(q => q !== f && Math.hypot(q.pos.x - x, q.pos.y - y) < 14));
+    f.frozen = true; f.facing = -1; f.flip = -1; f.hp = Math.floor(f.maxHp * 0.6);
+    d.vulnerable = function () { return false; };
+    const cc = f.center(), tip = d.gunTip();
+    G.harpoon.fire(tip.x, tip.y, Math.atan2(cc.y - tip.y, cc.x - tip.x));
+    return { id: f.id, tap: Math.max(1, Math.round(G.harpoon.damage() * 0.5)) };
+  }, col);
+  const inTug = await page.waitForFunction(() => HX.game.diver.state === 'tug', null, { timeout: 3000 }).then(() => true, () => false);
+  const hpTug = await page.evaluate(fid => HX.game.fishes.list.find(q => q.id === fid).hp, tugFish.id);
+  for (let i = 0; i < 5; i++) { await page.keyboard.press('Space'); await sleep(250); }
+  await page.waitForFunction(() => HX.game.diver.state !== 'tug', null, { timeout: 6000 }).catch(() => {});
+  const T1 = await page.evaluate(fid => { const f = HX.game.fishes.list.find(q => q.id === fid); return f ? { hp: f.hp, alive: f.alive(), state: f.state } : null; }, tugFish.id);
+  check(tag + ': giằng co thua, 5 lần bấm vẫn trừ máu cá', inTug && !!T1 && T1.alive && T1.hp === hpTug - 5 * tugFish.tap,
+    'vào giằng co ' + hpTug + ' máu, mỗi lần bấm ' + tugFish.tap + ' → ' + JSON.stringify(T1));
+  if (T1) await page.evaluate(fid => HX.game.fishes.drop(HX.game.fishes.list.filter(q => q.id === fid)), tugFish.id);
+  await sleep(1500);
 
   // ---- cá nhỏ của allocator: cá cảnh, xiên đi xuyên qua ----
   const deco = await page.evaluate(c => {

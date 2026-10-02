@@ -5,6 +5,8 @@
   var T = window.HX_TUNING, D = window.HX_ASSETS.dave, M = window.HX_META;
   // Biệt Đội Lặn: giằng co cần 1/3 số lần bấm của Hố Xanh (chủ dự án 2026-10-02: "bấm mỏi tay lắm")
   var TUG_TAP_MUL = 3;
+  // Biệt Đội Lặn: mỗi lần bấm giằng co trừ máu cá bằng nửa phát xiên; máu về 0 là thắng, thua thì cá vẫn mất phần máu đó [ĐỀ XUẤT]
+  var TUG_TAP_DMG = 0.5;
   // Sheet lưới: mỗi hàng một dãy khung, rộng bằng dãy dài nhất. Mọi khung nằm đúng chỗ trong ô 120 px như bản gốc.
   var names = Object.keys(D.anims);
   var SW = D.cell * Math.max.apply(null, names.map(function (k) { return D.anims[k].n; }));
@@ -553,11 +555,12 @@
           d.data.gauge += TUG_TAP_MUL * T.tug.tapGain * Math.max(fish.sp.shark ? T.tug.sharkFloor : 0.2, Math.min(1.5, T.tug.hpRef / Math.max(1, fish.hp)));
           G.audio.play('harpoon_tap', { vol: 0.8, rate: 0.9 + d.data.gauge * 0.4 });
           fish.flashT = 0.08;
+          fish.hp -= Math.max(1, Math.round(G.harpoon.damage() * TUG_TAP_DMG));
           // BloodFight.prefab gốc: máu rỉ ra mỗi lần giật dây
           G.fx.play(G.fx.dive('bloodFight'), G.harpoon.x, G.harpoon.y, { z: fish.z + 0.05, name: 'bloodFight' });
         }
         G.hud.tug(true, Math.max(0, Math.min(1, d.data.gauge)), d.data.time / T.tug.time);
-        if (d.data.gauge >= 1) {
+        if (d.data.gauge >= 1 || fish.hp <= 0) {
           var perfect = d.data.time / T.tug.time > T.tug.perfectAt;
           G.audio.play(perfect ? 'qte_perfect' : 'qte_success');
           G.hud.qteResult(true, perfect);

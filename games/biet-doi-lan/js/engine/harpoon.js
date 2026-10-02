@@ -160,12 +160,15 @@
     return true;
   };
 
+  // sát thương = súng xiên + phần cộng của đầu xiên (HarpoonHeadSpecData._Damage) [DtD]
+  // Biệt Đội Lặn: sát thương nhân theo crew + đồng đội (G.stats.dmgMul, js/items.js)
+  Harpoon.prototype.damage = function () {
+    var G = this.G, dmg = G.loadout.harpoon + (this.head.dmg || 0);
+    return G.stats && G.stats.dmgMul ? Math.max(1, Math.round(dmg * G.stats.dmgMul)) : dmg;
+  };
+
   Harpoon.prototype.hitFish = function (f) {
-    var G = this.G, h = this.head;
-    // sát thương = súng xiên + phần cộng của đầu xiên (HarpoonHeadSpecData._Damage) [DtD]
-    var dmg = G.loadout.harpoon + (h.dmg || 0);
-    // Biệt Đội Lặn: sát thương nhân theo crew + đồng đội (G.stats.dmgMul, js/items.js)
-    if (G.stats && G.stats.dmgMul) dmg = Math.max(1, Math.round(dmg * G.stats.dmgMul));
+    var G = this.G, h = this.head, dmg = this.damage();
     var res = f.damage(dmg, this.x - this.dx, this.y - this.dy, true);
     G.audio.play('harpoon_hit');
     // BloodHit.prefab gốc (bọt, máu, tia loé); mũi xiên hạ luôn con cá thì thêm BloodFatal
