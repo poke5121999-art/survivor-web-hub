@@ -687,13 +687,16 @@
   }
 
   // Sinh nốt số cá còn lại của allocator tại chỗ gốc, mỗi con lệch đúng như con của nó trong prefab Boid.
+  // Cá không hồi máu: con bị cất đi lúc đang mất máu sinh lại với đúng số máu đó (a.hp, ghi ở drop).
   Fishes.prototype.wake = function (a) {
-    var W = this.G.world, c = openNear(W, a.x, a.y), lead = null;
+    var W = this.G.world, c = openNear(W, a.x, a.y), lead = null, hp = a.hp || [];
+    a.hp = [];
     if (!c) { a.left = 0; return; }
     for (var i = 0; i < a.left; i++) {
       var m = a.members[i], ox = m.dx, oy = m.dy;
       if (!W.open(c.x + ox, c.y + oy, 0.2)) { ox = 0; oy = 0; }
       var f = a.shark ? this.spawnShark(a.shark, c.x + ox, c.y + oy) : this.spawnAt(a.sp, c.x + ox, c.y + oy);
+      if (hp[i] != null) f.hp = hp[i];
       f.alloc = a; f.home = a.home;
       f.decor = !a.shark && BDL.fishRole(a.sp) === 'decor';
       a.fish.push(f);
@@ -726,6 +729,7 @@
       if (a) {
         a.fish.splice(a.fish.indexOf(f), 1);
         if (!f.alive()) a.left--;
+        else (a.hp = a.hp || []).push(f.hp);
       }
       f.remove();
       self.list.splice(self.list.indexOf(f), 1);

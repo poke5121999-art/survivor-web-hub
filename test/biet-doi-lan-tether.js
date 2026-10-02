@@ -5,7 +5,7 @@
  * 1280×720, map 0 và map 3. Ảnh chụp ra %TEMP%/bdl-tether-shots (đổi bằng SHOTS=...).
  * Kiểm: rải đồ cổ mỗi tầng và chỉ tiêu; móc món vừa → kéo lên; thả → chìm; đập món gốm → mất tiền;
  * xác thuyền kéo gắt → đứt dây rồi chìm; cá lớn chết thành xác nằm lại, không xả thịt, móc được; cá vừa giằng co xong vào túi;
- * cá nhỏ của allocator là cá cảnh: xiên đi xuyên qua, không chết, không vào túi.
+ * cá nhỏ của allocator là cá cảnh: xiên đi xuyên qua, không chết, không vào túi; cá mất máu bị cất đi rồi sinh lại không hồi máu.
  */
 'use strict';
 const path = require('path'), http = require('http'), fs = require('fs'), os = require('os');
@@ -328,6 +328,27 @@ async function oneMap(browser, base, m) {
     const bagD = await page.evaluate(() => HX.game.catches.slice());
     check(tag + ': cá cảnh trúng xiên không mất máu, không vào túi', !!D && D.hp === deco.hp && bagD.length === bagD0.length,
       deco.sp + ' ' + JSON.stringify(D) + ' túi [' + bagD.join(',') + ']');
+  }
+
+  // ---- cá không hồi máu: cá lớn mất máu bị allocator cất đi (Dave ra xa) rồi sinh lại vẫn đúng số máu đó ----
+  const hurt = await page.evaluate(() => {
+    const G = HX.game, i = G.fishes.allocs.findIndex(a => a.sp && BDL.fishRole(a.sp) === 'drag' && a.left > 0);
+    if (i < 0) return null;
+    const a = G.fishes.allocs[i];
+    G.fishes.frozen = false;
+    if (!a.fish.length) G.fishes.wake(a);
+    a.fish[0].hp = Math.round(a.fish[0].maxHp * 0.3);
+    return { i: i, x: a.x, y: a.y, sp: a.sp.id, hp: a.fish.map(f => f.hp + '/' + f.maxHp) };
+  });
+  check(tag + ': map có allocator cá lớn', !!hurt);
+  if (hurt) {
+    await page.evaluate(a => BDL_DEBUG.teleport(a.x + (a.x > 0 ? -60 : 60), a.y), hurt);
+    const dropped = await page.waitForFunction(i => HX.game.fishes.allocs[i].fish.length === 0, hurt.i, { timeout: 10000 }).then(() => true, () => false);
+    await page.evaluate(a => BDL_DEBUG.teleport(a.x, a.y), hurt);
+    await page.waitForFunction(i => HX.game.fishes.allocs[i].fish.length > 0, hurt.i, { timeout: 10000 }).catch(() => {});
+    const back = await page.evaluate(i => HX.game.fishes.allocs[i].fish.map(f => f.hp + '/' + f.maxHp), hurt.i);
+    check(tag + ': cá mất máu bị cất đi rồi sinh lại không hồi máu', dropped && back.join() === hurt.hp.join(),
+      hurt.sp + ' ' + hurt.hp.join() + ' → ' + back.join());
   }
 
   const pageErr = await page.evaluate(() => BDL_DEBUG.info().errors);
