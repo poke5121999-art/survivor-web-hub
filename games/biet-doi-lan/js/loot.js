@@ -26,6 +26,45 @@ window.BDL = window.BDL || {};
     return texCache[path];
   }
 
+  // Cỡ ảnh (row.draw, data/loot.js) và vòng va chạm (theo row.len, thân vật lý cũ) của một món.
+  function dimsOf(row) {
+    var px = row.px || [64, 64], big = Math.max(px[0], px[1]), s = row.draw / big, ps = row.len / big;
+    return { w: px[0] * s, h: px[1] * s, r: Math.max(0.12, Math.min(px[0], px[1]) * ps / 2 * 0.95) };
+  }
+
+  // ---------- viền sáng: đồ cổ nổi bật trên nền đá, kể cả map đêm ----------
+  // Tấm con của sprite, nở thêm PAD mỗi phía; tô màu ở chỗ ảnh trong suốt mà điểm lân cận (cách PAD) có hình.
+  // Không qua lớp sương nước của gfx để vẫn đọc được ở tầng sâu.
+  var PAD = 0.08, GLOW_COL = new THREE.Color(1.0, 0.86, 0.38);
+  var GLOW_VERT = 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
+  var GLOW_FRAG = [
+    'uniform sampler2D map; uniform vec2 size; uniform vec2 pad; uniform vec3 color; uniform float time; uniform float on;',
+    'varying vec2 vUv;',
+    'float a(vec2 p) { return (p.x < 0.0 || p.y < 0.0 || p.x > 1.0 || p.y > 1.0) ? 0.0 : texture2D(map, p).a; }',
+    'void main() {',
+    '  vec2 p = (vUv * (size + 2.0 * pad) - pad) / size, o = pad / size;',
+    '  if (a(p) > 0.5) discard;',
+    '  float n = 0.0;',
+    '  for (int i = 0; i < 12; i++) { float t = float(i) * 0.5236; n = max(n, a(p + vec2(cos(t), sin(t)) * o)); }',
+    '  if (n < 0.5) discard;',
+    '  gl_FragColor = vec4(color, on * (0.8 + 0.2 * sin(time * 3.2)));',
+    '}',
+  ].join('\n');
+  function outline(tex, l) {
+    var mat = new THREE.ShaderMaterial({
+      uniforms: { map: { value: tex }, size: { value: new THREE.Vector2(l.w, l.h) }, pad: { value: new THREE.Vector2(PAD, PAD) },
+        color: { value: GLOW_COL }, time: { value: 0 }, on: { value: 1 } },
+      vertexShader: GLOW_VERT, fragmentShader: GLOW_FRAG, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    });
+    var g = new THREE.PlaneGeometry(1, 1);
+    g.translate(0, 0.5 - (l.r + PAD) / (l.h + 2 * PAD), 0);
+    var m = new THREE.Mesh(g, mat);
+    m.scale.set((l.w + 2 * PAD) / l.w, (l.h + 2 * PAD) / l.h, 1);
+    m.position.z = -0.002;
+    m.renderOrder = -1;
+    return m;
+  }
+
   // ---------- thân chìm: trọng lực trừ sức nổi, cản nước, trượt theo vách ----------
   // ox, oy: lệch từ pos tới tâm va chạm. Trả { imp (|Δv| do vách chặn, m/s), floor (đang tì lên mặt ngửa) }.
   function bodyStep(G, pos, vel, r, dt, sink, ox, oy) {
@@ -79,18 +118,19 @@ window.BDL = window.BDL || {};
     this.mass = row.mass;
     this.value0 = value0; this.value = value0;
     this.pos = { x: x, y: y }; this.vel = { x: 0, y: 0 };
-    var px = row.px || [64, 64], s = row.len / Math.max(px[0], px[1]);
-    this.w = px[0] * s; this.h = px[1] * s;
-    this.hw = this.w / 2; this.hh = this.h / 2; this.cx = 0; this.cy = 0;
-    // vòng va chạm = nửa chiều cao (đáy ảnh chạm đá); món dẹt dài thì hai đầu chòi ra ngoài vòng
-    this.r = Math.max(0.12, Math.min(this.hw, this.hh) * 0.95);
+    var dim = dimsOf(row);
+    this.w = dim.w; this.h = dim.h; this.r = dim.r;
+    // ảnh to hơn thân vật lý: đáy ảnh đặt ở đáy vòng va chạm, ảnh chòi lên trên; tâm ảnh lệch cy so với pos
+    this.hw = this.w / 2; this.hh = this.h / 2; this.cx = 0; this.cy = this.hh - this.r;
     this.state = 'rest'; this.tethered = false; this.asleep = false; this.restT = 0;
     this.invulnUntil = 0; this.grace = 0; this.flashT = 0; this.tilt = 0;
     this.facing = 1; this.flip = 1; this.z = 0.03 + (this.id % 17) * 0.0015;
     this.sp = { id: row.key, name: row.name, size: row.size, loot: true };
     this.isLoot = true;
     this.buffs = {};
-    this.mesh = HX.gfx.sprite(texOf(row.sprite), this.w, this.h, { alphaCut: 0.5, depthWrite: true });
+    this.mesh = HX.gfx.sprite(texOf(row.sprite), this.w, this.h, { alphaCut: 0.5, depthWrite: true, pivot: [0.5, this.r / this.h] });
+    this.glow = outline(texOf(row.sprite), this);
+    this.mesh.add(this.glow);
     this.root = this.mesh;
     G.gfx.scene.add(this.mesh);
     this.draw();
@@ -100,9 +140,9 @@ window.BDL = window.BDL || {};
   Loot.prototype.alive = function () { return false; };
   Loot.prototype.corpse = function () { return false; };
   Loot.prototype.carvable = function () { return false; };
-  Loot.prototype.center = function () { return { x: this.pos.x, y: this.pos.y }; };
+  Loot.prototype.center = function () { return { x: this.pos.x, y: this.pos.y + this.cy }; };
   Loot.prototype.hitTest = function (x, y, pad) {
-    var ex = (x - this.pos.x) / (this.hw + pad), ey = (y - this.pos.y) / (this.hh + pad);
+    var ex = (x - this.pos.x) / (this.hw + pad), ey = (y - this.pos.y - this.cy) / (this.hh + pad);
     return ex * ex + ey * ey <= 1;
   };
   Loot.prototype.damage = function (n, fx, fy) { this.hit(n, fx, fy); return 'alive'; };
@@ -139,7 +179,7 @@ window.BDL = window.BDL || {};
     var lost = before - this.value;
     this.flashT = 0.18;
     if (lost > 0.5) {
-      pop(G, this.pos.x, this.pos.y + this.hh, '−' + BDL.fmt(lost), this.value <= 0);
+      pop(G, this.pos.x, this.pos.y + this.cy + this.hh, '−' + BDL.fmt(lost), this.value <= 0);
       G.shake(Math.min(1.4, 0.3 + lost / 2500));
     }
     if (this.value <= 0) this.shatter(before);
@@ -208,17 +248,20 @@ window.BDL = window.BDL || {};
     this.mesh.position.set(this.pos.x, this.pos.y, this.z);
     this.mesh.rotation.z = this.tilt;
     this.mesh.material.uniforms.flash.value = this.flashT > 0 ? 0.7 : 0;
+    var u = this.glow.material.uniforms;
+    u.time.value = this.G.t + this.id * 0.37;
+    u.on.value = this.tethered ? 0.35 : 1;
   };
 
   BDL.Loot = Loot;
 
-  // ---------- xác cá: xác cá to (và mọi xác đang buộc dây) chìm dần như đồ cổ thay vì nổi lên ----------
+  // ---------- xác cá: xác cá lớn (vai 'drag') và mọi xác đang buộc dây chìm dần như đồ cổ thay vì nổi lên ----------
   // fish.js / shark.js (không thuộc hệ này) vẫn giữ state dying/dead và bộ đếm tan xác; f.tethered = true thì state dead
   // đứng yên, không đếm giờ. Hệ này mỗi khung trả pos về chỗ nó mô phỏng; vận tốc thật nằm ở f.bdlBody.vel
   // vì state dead ghi đè f.vel mỗi khung.
   function managed(f) {
     if (f.isLoot || !f.sp || f.state === 'reeled' || f.state === 'hauled' || f.state === 'lifted') return false;
-    return !!f.tethered || (f.sp.size >= 1 && (f.state === 'dying' || f.state === 'dead'));
+    return !!f.tethered || (BDL.fishRole(f.sp) === 'drag' && (f.state === 'dying' || f.state === 'dead'));
   }
   function bodyOf(f) {
     if (f.isLoot) return f;
@@ -284,9 +327,9 @@ window.BDL = window.BDL || {};
     return i === n && y >= G.floors[n - 1].y1 - DEEP_LIP ? n - 1 : i;
   }
 
-  function findSpot(G, ctx, fl, row, rnd) {
-    var W = G.world, px = row.px || [64, 64], sc = row.len / Math.max(px[0], px[1]);
-    var w = px[0] * sc, h = px[1] * sc, r = Math.max(0.12, Math.min(w, h) / 2 * 0.95);
+  // loose: tầng chật (hang hẹp) không còn chỗ cho cả ảnh to thì chỉ đòi chỗ cho thân vật lý; ảnh có thể chòi vào đá.
+  function findSpot(G, ctx, fl, row, rnd, loose) {
+    var W = G.world, dim = dimsOf(row), r = dim.r, k = loose ? row.len / row.draw : 1, w = dim.w * k, h = dim.h * k;
     var bx = T.view.boundX - 1.5, E = ctx.edges[fl.i], why = ctx.why;
     if (!E || !E.total) { why.noFloor++; return null; }
     for (var t = 0; t < 120; t++) {
@@ -301,11 +344,11 @@ window.BDL = window.BDL || {};
       if (!hit || hit.ny < 0.6) { why.noFloor++; continue; }
       var L = G.stack.layerAt(hit.y + 0.05), hl = layerWorld(G, L, ctx.layers).raycast(x, y, x, y - 2);
       if (!hl || Math.abs(hl.y - hit.y) > 0.05) { why.layer++; continue; }
-      var cy = hit.y + r + 0.02;
+      var cy = hit.y + r + 0.02, mid = cy - r + h * 0.5;
       if (floorOf(G, cy) !== fl.i) { why.band++; continue; }
-      if (W.solid(x, cy + h * 0.45) || !ctx.reach(x, cy + h * 0.5 + 0.3)) { why.room++; continue; }
-      // món dài: hai đầu ảnh không cắm vào đá
-      if (w > 2 * r + 0.1 && (W.solid(x - w * 0.42, cy + h * 0.2) || W.solid(x + w * 0.42, cy + h * 0.2))) { why.wide++; continue; }
+      if (W.solid(x, mid) || W.solid(x, cy - r + h * 0.9) || !ctx.reach(x, mid)) { why.room++; continue; }
+      // ảnh rộng: hai mép ảnh ở nửa trên không cắm vào đá
+      if (w > 2 * r + 0.1 && (W.solid(x - w * 0.42, mid) || W.solid(x + w * 0.42, mid))) { why.wide++; continue; }
       var near = false;
       for (var i = 0; i < G.loot.length; i++) {
         var o = G.loot[i];
@@ -354,7 +397,7 @@ window.BDL = window.BDL || {};
       if (size === 1 && capMed >= cap.med) size = 0;
       var wreck = size === 2 && deep >= 0.4 && rnd() < 0.25 + 0.3 * deep;
       var row = pickRow(size, wreck, rnd);
-      var spot = findSpot(G, ctx, floors[fi], row, rnd);
+      var spot = findSpot(G, ctx, floors[fi], row, rnd) || findSpot(G, ctx, floors[fi], row, rnd, true);
       if (!spot && wreck) { row = pickRow(size, false, rnd); spot = findSpot(G, ctx, floors[fi], row, rnd); }
       // tầng hết chỗ (nước trống, toàn vách đứng) thì nhường món cho tầng gần nhất còn chỗ, ưu tiên tầng sâu hơn
       for (var dd = 1; !spot && dd < n; dd++) {
@@ -372,7 +415,8 @@ window.BDL = window.BDL || {};
       made.push(l);
     }
     var sum = made.reduce(function (a, l) { return a + l.value0; }, 0);
-    BDL.run.setQuota(sum);
+    BDL.run.settle(G, map, sum);
+    made.forEach(function (l) { l.value0 = l.value = BDL.run.price('loot', l.value0); });
     return { sum: sum, count: made.length, cap: cap, valueCap: valueCap, why: ctx.why, gridMs: Math.round(gridMs), ms: Math.round(performance.now() - t0) };
   }
 
@@ -394,7 +438,7 @@ window.BDL = window.BDL || {};
         spawn: function (key, x, y) {
           var row = BDL.LOOT_BY_KEY[key];
           if (!row) throw new Error('không có đồ cổ "' + key + '"');
-          var l = new Loot(G, row, x, y, Math.round((row.vmin + row.vmax) / 2 / 50) * 50);
+          var l = new Loot(G, row, x, y, BDL.run.price('loot', (row.vmin + row.vmax) / 2));
           l.floor = BDL.floorAt(y, G.floors);
           G.loot.push(l);
           return l.id;

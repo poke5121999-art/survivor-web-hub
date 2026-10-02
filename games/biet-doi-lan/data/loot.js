@@ -1,7 +1,8 @@
 // Bảng đồ cổ bỏ hoang dưới biển (hệ đồ cổ + móc dây). Ảnh là sprite DtD đã bóc ở art/dtd/loot (tools/dtd-sprite-index.md).
 // Cỡ, khối lượng, giá theo bảng SIZES của REPO (games/repo2d/game.js:1482): nhỏ 8 kg 400–1100, vừa 24 kg 1400–3200, to 58 kg 4200–9000.
 // Xác thuyền đắm nặng và đắt hơn món "to" [ĐỀ XUẤT]: dây móc với sức kéo gốc không chịu nổi nếu bơi vội.
-// len = cạnh dài của ảnh khi vẽ (m): nhỏ ≈ 0,4, vừa ≈ 0,8, to ≈ 1,4, xác thuyền 2–3.
+// len = cạnh dài thân vật lý (m): nhỏ ≈ 0,4, vừa ≈ 0,8, to ≈ 1,4, xác thuyền 2–3; quyết định vòng va chạm, lọt hang.
+// draw = cạnh dài của ảnh khi vẽ: 1,5 / 1,75 / 2 lần thân Dave cho nhỏ / vừa / to (chủ dự án, 2026-10-02: đồ cổ quá bé, khó thấy).
 window.BDL = window.BDL || {};
 (function (BDL) {
   'use strict';
@@ -28,6 +29,10 @@ window.BDL = window.BDL || {};
   ];
   BDL.LOOT_SIZES = S;
 
+  // Thân Dave khi bơi ngang dài 62 px × 0,02 m = 1,24 m (ô MoveSide của ho-xanh/art/dave/dave.png, ppu 100 × scale 2); đứng cao 1,06 m.
+  var BODY = 1.2, DRAW_MUL = [1.5, 1.75, 2];
+  BDL.LOOT_BODY = BODY;
+
   // Cỡ ảnh gốc (px) để dựng tấm vẽ và vòng va chạm trước khi ảnh nạp xong.
   var PX = {
     extrasmall_gold: [44, 44], Small_gold_Thumbnail: [54, 64], Item_Pearl: [28, 28], Materials_Amethyst: [24, 24],
@@ -47,6 +52,7 @@ window.BDL = window.BDL || {};
     var s = S[size], r = { key: key, name: name, sprite: 'art/dtd/loot/' + file + '.png', size: size, mat: mat,
       vmin: s.vmin, vmax: s.vmax, mass: s.mass, len: s.len, px: PX[file] };
     for (var k in extra) r[k] = extra[k];
+    r.draw = Math.max(r.len, BODY * DRAW_MUL[size]);
     return r;
   }
 

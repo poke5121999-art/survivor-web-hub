@@ -299,12 +299,12 @@
   };
 
   // Xác cá gần nhất mà Dave với tới (thân cá nở thêm T.harvest.reach).
-  // Biệt Đội Lặn: chỉ cá nhỏ (cỡ 0) nhặt vào túi; cá to và xác quái không xả thịt nữa mà phải móc dây kéo lên thuyền.
+  // Biệt Đội Lặn: chỉ xác cá vào túi được (vai 'bag', data/fish.js) mới nhặt; cá lớn và xác quái phải móc dây kéo lên thuyền.
   Diver.prototype.corpseInReach = function () {
     var list = this.G.fishes.list, best = null, bd = Infinity;
     for (var i = 0; i < list.length; i++) {
       var f = list[i];
-      if (!f.corpse() || f.sp.size >= 1 || f.isFoe || f.tethered || !f.hitTest(this.pos.x, this.pos.y, T.harvest.reach)) continue;
+      if (!f.corpse() || BDL.fishRole(f.sp) !== 'bag' || f.isFoe || f.tethered || !f.hitTest(this.pos.x, this.pos.y, T.harvest.reach)) continue;
       var c = f.center(), dd = Math.hypot(c.x - this.pos.x, c.y - this.pos.y);
       if (dd < bd) { bd = dd; best = f; }
     }
@@ -741,12 +741,17 @@
         G.audio.play('dave_dead');
         G.harpoon.drop();
         G.fx.burst('bubbleBig', d.pos.x, d.pos.y + 0.1, 16, 1.4);
+        // còn đồng đội sống thì xác nằm lại chờ họ kéo về thuyền (js/bodies.js), lượt lặn không hết; hết người thì hết ca sau 3 s
+        d.data.body = !!(window.BDL && BDL.bodies && BDL.bodies.onDaveDown());
       },
       update: function (d, G, dt) {
         d.tilt = lerpAngle(d.tilt, 0, Math.min(1, 4 * dt));
-        d.vel.y -= 0.15 * dt;
-        d.swim(dt, { mx: 0, my: 0 }, 0.4);
-        if (d.st > 3.0) G.onDead();
+        // có xác (d.data.body): hệ bodies mô phỏng chìm / nằm đáy / bị dây kéo, d.pos và d.vel dùng chung
+        if (!d.data.body) {
+          d.vel.y -= 0.15 * dt;
+          d.swim(dt, { mx: 0, my: 0 }, 0.4);
+        }
+        if (d.st > 3.0 && !d.data.body && !d.data.sent) { d.data.sent = true; G.onDead(); }
       },
     },
   };

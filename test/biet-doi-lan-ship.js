@@ -177,7 +177,7 @@ async function run(browser, base, W, H) {
   const fishPlan = await page.evaluate(() => {
     const sp = HX.fish.SPECIES.filter(x => !x.shark).sort((a, b) => BDL.fishKg(a) - BDL.fishKg(b)).slice(0, 3);
     HX.game.catches.push(...sp.map(x => x.id));
-    return { ids: sp.map(x => x.id), sum: sp.reduce((a, x) => a + BDL.fishValue(x), 0), kg: BDL.bagKg() };
+    return { ids: sp.map(x => x.id), sum: sp.reduce((a, x) => a + BDL.run.price('fish', BDL.fishRaw(x)), 0), kg: BDL.bagKg() };
   });
   const bagTxt = await page.evaluate(() => { return new Promise(r => setTimeout(() => r(document.getElementById('ship-bag').textContent), 200)); });
   check(tag + ': HUD túi cá đổi theo cá mới', /Túi cá/.test(bagTxt) && !/0,0 \//.test(bagTxt), bagTxt);

@@ -304,10 +304,10 @@ async function mapZero(browser, base) {
   await sleep(300);
   const c1 = await page.evaluate(id => {
     const v = BDL_DEBUG.foes.get(id), f = HX.game.fishes.list.find(x => x.foe && x.foe.id === id);
-    return { v, item: f && f.deckItem(), expect: BDL.foeValue(v.hpMax, v.dmg) };
+    return { v, item: f && f.deckItem(), expect: BDL.run.price('foe', BDL.foeValue(v.hpMax, v.dmg)) };
   }, cid);
   check('giết cá mập săn: để lại xác có giá', killed === cid && c1.v.dead && c1.v.corpse && c1.item.kind === 'foe' && c1.item.key === 'chaser' && c1.item.value === c1.expect && c1.item.value > 0,
-    'giá ' + c1.item.value + ' (công thức ' + c1.expect + ')');
+    'giá ' + c1.item.value + ' (giá gốc REPO qua quỹ map ' + c1.expect + ')');
   const rs = await page.evaluate(() => BDL_DEBUG.foes.respawns());
   check('con vừa chết xếp hàng hồi sinh sau ~45 s', rs.length === 1 && rs[0].key === 'chaser' && rs[0].in > 40 && rs[0].in <= 45, JSON.stringify(rs));
 

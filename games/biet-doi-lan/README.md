@@ -6,7 +6,23 @@ Vào game: `index.html` mở sảnh REPO. `index.html?map=0..4` vào thẳng m�
 
 ## Vòng chơi
 
-Sảnh → RA KHƠI (`BDL.meta.runStart`) → cano ra (`cruise`) → lặn map 0 → khoang lái → cano về → trạm (`shop`) → cano ra → map 1 … → map 4 → cano về → `BDL.meta.runFinish` (vàng = 55% tiền đã giao + thưởng chuyến) → sảnh. Hết O₂ là thua ca, vẫn nhận phần đã giao. Luồng nằm trong `js/main.js` (`BDL.onSail`, `G.onExtract`, `G.onDead`, `finishRun`).
+Sảnh → RA KHƠI (`BDL.meta.runStart`) → cano ra (`cruise`) → lặn map 0 → khoang lái → cano về → trạm (`shop`) → cano ra → map 1 … → map 4 → cano về → `BDL.meta.runFinish` (vàng = 55% tiền đã giao + thưởng chuyến) → sảnh. Hết O₂ mà còn đồng đội sống thì không thua: người gục (Dave hay bot) thành xác nằm yên tại chỗ chìm xuống đáy (`js/bodies.js`, `BDL.bodies`), chỉ về thuyền khi có người khác buộc dây kéo tới (Dave móc bằng súng xiên rồi bấm E, hoặc bot rảnh tự đi kéo), hồi 25% O₂ trên boong [ĐỀ XUẤT]; cả tổ gục hết thì thua ca, vẫn nhận phần đã giao. Luồng nằm trong `js/main.js` (`BDL.onSail`, `G.onExtract`, `G.onDead`, `finishRun`).
+
+## Tiền, cá, đồ cổ (chủ dự án, 2026-10-02)
+
+- **Quỹ tiền mỗi map = 3 × chỉ tiêu, không hơn.** Chỉ tiêu vẫn theo REPO, tính từ tổng giá gốc đồ cổ đã rải. Rải xong, `BDL.run.settle` chia quỹ cho đồ cổ 60%, cá 25%, xác quái 15% (nguồn nào map không có thì phần đó chia lại) và đặt tỉ lệ nhân vào giá gốc. Mọi giá bán đi qua `BDL.run.price(kind, raw)`, làm tròn xuống 10 để tổng không vượt quỹ. Xác quái tính tối đa 3 lần mỗi loài (trần bán REPO). Cá không hồi sinh nên tổng có trần.
+- **Vai của cá** ở `data/fish.js` (`BDL.fishRole`):
+
+| Vai | Loài | Luật |
+|---|---|---|
+| `decor` | cá nhỏ (cỡ 0) do allocator sinh | bơi làm cảnh; xiên, dao, súng, lưới, bom đi xuyên qua, không chết, không bán |
+| `bag` | cá vừa (cỡ 1) và mọi loài sứa | giằng co xong vào túi luôn; chết rời thì bơi lại nhặt |
+| `drag` | cá lớn (cỡ 2) | chết thành xác nằm lại, móc dây kéo lên thuyền |
+| `gone` | cá ngựa, tôm | không sinh; allocator đổi sang cá lớn / sứa cùng vùng (`BDL.FISH_BIG`) |
+
+Ngoài ra 25% allocator cá cảnh (`BDL.FISH_UPGRADE`) cũng đổi thành cá lớn / sứa. Thân quái không qua bảng này, nên quái cỡ 0 (Bom con, Lũ rỉa) vẫn đánh được.
+
+- **Đồ cổ vẽ to 1,5 / 1,75 / 2 lần thân Dave** cho món nhỏ / vừa / to (`row.draw`, thân Dave 1,2 m), xác thuyền ít nhất 2 lần. Vòng va chạm vẫn theo thân vật lý cũ (`row.len`) để món kéo lọt hang. Ảnh đặt đáy ở đáy vòng va chạm rồi chòi lên. Viền vàng nhấp nháy là tấm con của sprite (`outline` trong `js/loot.js`), cộng sáng và không qua sương nước để vẫn thấy ở map đêm. Món đang buộc dây thì viền mờ đi.
 
 ## Điều khiển
 
@@ -31,7 +47,8 @@ Sảnh → RA KHƠI (`BDL.meta.runStart`) → cano ra (`cruise`) → lặn map 0
 | `index.html` | vỏ trang, HUD, nút cảm ứng; `window.HX_ROOT = '../ho-xanh/'` trước mọi script |
 | `data/maps.js` | `BDL.MAPS` (5 chuyến), `BDL.floorsOf`, `BDL.floorAt` |
 | `data/content.js`, `js/meta.js`, `js/ui.js`, `css/lobby.css` | sảnh REPO: crew, gacha 3 băng, nạp giả, nhiệm vụ, đồ nghề; số theo `D:\REPO_Meta\gamespark-config` |
-| `js/run.js` | sổ ca và chuyến: chỉ tiêu REPO, giao hàng, trần bán quái 3, giá cá/xác |
+| `js/run.js` | sổ ca và chuyến: chỉ tiêu REPO, quỹ 3 × chỉ tiêu (`settle`, `price`), giao hàng, trần bán quái 3 |
+| `data/fish.js` | vai của cá (`decor` / `bag` / `drag` / `gone`), loài thay thế theo vùng, giá gốc cá |
 | `js/main.js` | máy chủ: sổ pha, sổ hệ `BDL.systems`, nhập liệu, camera, vòng ca, `BDL_DEBUG` |
 | `data/loot.js`, `js/loot.js` | đồ cổ gốc DtD rải theo tầng, va đập trừ tiền/vỡ, chìm |
 | `js/tether.js` | dây móc: lò xo, kéo dần, căng đỏ rồi đứt |
@@ -41,6 +58,7 @@ Sảnh → RA KHƠI (`BDL.meta.runStart`) → cano ra (`cruise`) → lặn map 0
 | `js/items.js`, `js/locker.js`, `css/locker.css` | 3 ô tay cầm, súng/cận chiến/ném/O₂/dụng cụ, tủ đồ gỗ, drone, chỉ số crew + nâng cấp |
 | `js/skills.js` | 14 kỹ năng R |
 | `js/hud.js`, `css/hud.css` | HUD kiểu REPO cho PC và cảm ứng |
+| `js/minimap.js` | minimap kiểu REPO dưới thanh O₂: lưới ô 0,75 m tô một lần, chỉ ô trong 9 m quanh Dave/đồng đội mới lộ, cửa sổ 60 m cuộn theo Dave, mờ 0,16 khi Dave dưới góc |
 | `js/cruise.js` | cano chạy về quán / ra khơi (fork `ho-xanh/js/boat.js`) |
 | `js/shop.js`, `css/shop.css` | quán Bancho thành trạm REPO; `BDL.restock` nạp đạn đầu mỗi chuyến |
 | `js/engine/*.js` | fork bộ máy lặn Hố Xanh |
@@ -59,16 +77,22 @@ node test/biet-doi-lan-suite.js    # 5 map, tầng, O₂, thể lực, bức ch�
 node test/biet-doi-lan-flow.js     # đi đúng đường người chơi: sảnh → cano → lặn → móc bằng chuột → trạm → chuyến 2
 node test/biet-doi-lan-lobby.js    # sảnh, gacha, nạp giả, nhiệm vụ, đồ nghề
 node test/biet-doi-lan-ship.js     # boong, nhảy, leo, xả cá, đống đồ, khoang lái
-node test/biet-doi-lan-tether.js   # đồ cổ, móc, va đập, đứt dây
+node test/biet-doi-lan-tether.js   # đồ cổ, móc, va đập, đứt dây, cá lớn kéo xác / cá vừa vào túi / cá cảnh xiên xuyên
+node test/biet-doi-lan-economy.js  # quỹ ≤ 3 × chỉ tiêu ở 5 map, không cá ngựa/tôm, cỡ đồ cổ, viền sáng
 node test/biet-doi-lan-foes.js     # ngủ, đi lùng, nghe tiếng, hồi sinh, trần bán 3
 node test/biet-doi-lan-shop.js     # cano, trạm
 node test/biet-doi-lan-hud.js      # HUD, 14 kỹ năng
+node test/biet-doi-lan-minimap.js # minimap: vị trí, không chồng HUD/nút, lộ ô, chấm Dave
 node test/biet-doi-lan-items.js    # tay cầm, đồ, tủ, drone, chỉ số
 node test/biet-doi-lan-mates.js    # đồng đội
 BASE=https://poke5121999-art.github.io/survivor-web-hub node test/biet-doi-lan-flow.js   # trên bản Pages
 ```
 
 ## Đo mới biết
+
+- **Trước khi có quỹ, tiền trong một map gấp 14–28 lần chỉ tiêu** [ĐO TRONG REPO, 2026-10-02, `?map=N`, đếm allocator + đồ cổ + roster quái]. Map 0: chỉ tiêu 5.700, đồ cổ 37.150, cá 36.850. Map 1: chỉ tiêu 11.500, đồ cổ 55.900, cá 263.650 (hai đàn cá da trơn sọc cỡ vừa, 20 con mỗi đàn). Gốc rễ: chỉ tiêu REPO ở cấp 1 là Σ đồ cổ × 0,7 × 0,4 × 0,55 = 0,154 Σ, tức riêng đồ cổ đã 6,5 lần chỉ tiêu, rồi cá và xác quái cộng thêm mà không ai trừ. Sau `settle`: 2,95–3,0 lần ở cả 5 map.
+- Thân Dave: ô `MoveSide` của `ho-xanh/art/dave/dave.png` có hình rộng 62 px, ô `Idle` cao 53 px; × 0,02 m/px (ppu 100, scale 2) = dài 1,24 m, cao 1,06 m.
+- Ảnh đồ cổ to lên làm bước tìm chỗ đặt loại nhiều chỗ hơn: map 3 từng có tầng 4 không còn món nào. `findSpot` giờ thử chỗ cho cả ảnh trước, hết chỗ mới lùi về chỗ cho thân vật lý (`loose`).
 
 - **[BẪY ĐÃ SẬP] Màn cano phủ trong suốt lên cảnh lặn, nuốt hết chuột** [ĐO TRONG REPO, 2026-10-01].
   - `css/shop.css` có `#scr-cruise { display: block }`, luật id này thắng `.screen[hidden] { display: none }`. Sau chuyến cano, `#scr-cruise` không ẩn, phủ kín màn hình, canvas không nhận `mousedown`. Người chơi bắn móc không được.

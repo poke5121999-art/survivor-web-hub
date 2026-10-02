@@ -386,7 +386,7 @@ window.BDL = window.BDL || {};
     this.anim = 'Idle'; this.animT = 0; this.lock = 0; this.invuln = 0; this.atkCd = 0; this.swing = null; this.towMul = 1;
     this.waitT = 0; this.jump = null; this.diveT = 0; this.bubT = Math.random();
     this.cd = { heal: 0 };
-    this.stat = { delivered: 0, value: 0, hits: 0, kills: 0, refills: 0, revealed: 0, assists: 0, noises: 0, hurt: 0, snaps: 0 };
+    this.stat = { rescues: 0, delivered: 0, value: 0, hits: 0, kills: 0, refills: 0, revealed: 0, assists: 0, noises: 0, hurt: 0, snaps: 0 };
     this.hurtT = 99;
     this.lastHit = null;
     // hình
@@ -473,6 +473,7 @@ window.BDL = window.BDL || {};
 
   Mate.prototype.remove = function () {
     if (this.rope) dropRope(this, false);
+    if (this.downBody) { BDL.bodies.discard(this.downBody); this.downBody = null; }
     G.gfx.scene.remove(this.root);
     this.body.material.dispose();
     if (this.ropeMesh) { G.gfx.scene.remove(this.ropeMesh.rope); G.gfx.scene.remove(this.ropeMesh.head); this.ropeMesh.rope.geometry.dispose(); this.ropeMesh.rope.material.dispose(); this.ropeMesh.head.material.dispose(); }
@@ -500,10 +501,11 @@ window.BDL = window.BDL || {};
     return m.ropeMesh;
   }
   function targetGone(t) {
+    if (t.isBody) return t.state === 'aboard';
     if (t.isLoot) return t.state === 'gone' || t.state === 'onDeck' || !!t.lifted;
     return t.state === 'reeled' || !t.root || !t.root.parent;
   }
-  function anchorPt(t) { return t.isLoot ? { x: t.pos.x, y: t.pos.y + t.hh * 0.3 } : t.center(); }
+  function anchorPt(t) { return t.isBody ? { x: t.pos.x, y: t.pos.y + 0.1 } : t.isLoot ? { x: t.pos.x, y: t.pos.y + t.hh * 0.3 } : t.center(); }
   function massOf(t) { return clamp(t.mass || 2, 2, 260); }
 
   function anchor(m, t) {
@@ -511,7 +513,7 @@ window.BDL = window.BDL || {};
     m.job.best = null;
     t.tethered = true;
     t.__mate = m;
-    if (t.isLoot) { t.wake(); t.grace = G.t + 1.0; } else BDL.bodyVel(t);
+    if (t.isLoot || t.isBody) { t.wake(); t.grace = G.t + 1.0; } else BDL.bodyVel(t);
     m.state = 'haul';
     var a = anchorPt(t);
     G.audio.play('harpoon_hit', { vol: 0.35, rate: 0.85 });
@@ -535,7 +537,7 @@ window.BDL = window.BDL || {};
       m.stat.snaps++;
       m.say('Đứt dây!', 1.8);
       G.audio.play('harpoon_tap', { vol: 0.5, rate: 0.5 });
-      if (t && t.isLoot) blacklist(t, 25);
+      if (t && (t.isLoot || t.isBody)) blacklist(t, t.isBody ? 8 : 25);
     }
     if (m.state === 'haul') m.state = 'job';
     return t;
@@ -590,7 +592,16 @@ window.BDL = window.BDL || {};
 
   // Tới thuyền thì món buộc dây lên boong: đã bán, vào đống đồ của hệ thuyền qua BDL.onDeliver.
   function deliverRope(m) {
-    var t = m.rope.target, item = t.isLoot ? t.deckItem() : (t.deckItem ? t.deckItem() : BDL.deckItemOf(t));
+    var t = m.rope.target;
+    // kéo xác đồng đội / Dave tới thuyền: không bán, hồi người gục trên boong (js/bodies.js)
+    if (t.isBody) {
+      dropRope(m, false);
+      m.stat.rescues++;
+      m.say('Kéo về rồi!', 2.2);
+      BDL.bodies.board(t);
+      return;
+    }
+    var item = t.isLoot ? t.deckItem() : (t.deckItem ? t.deckItem() : BDL.deckItemOf(t));
     dropRope(m, false);
     t.removeFromWorld();
     // đống đồ trên boong (BDL.onDeliver của hệ thuyền) lỗi thì món vẫn đã tính tiền; đừng để lỗi đó làm kẹt vòng của bot
@@ -721,7 +732,7 @@ window.BDL = window.BDL || {};
     var d = goTo(m, P.x, P.y, speedOf(m), dt, 0.5);
     // 15 s không gần thuyền thêm được 2 m: món kẹt đá, buông ra tìm món khác
     if (J.best == null || d < J.best - 2) { J.best = d; J.stall = 0; }
-    else if ((J.stall += dt) > 15) { var t = dropRope(m, false); if (t && t.isLoot) blacklist(t, 60); J.best = null; return; }
+    else if ((J.stall += dt) > 15) { var t = dropRope(m, false); if (t && (t.isLoot || t.isBody)) blacklist(t, t.isBody ? 10 : 60); J.best = null; return; }
     if (nearHull(m.pos.x, m.pos.y) && m.pos.y > SURF - 3.5) deliverRope(m);
   }
 
@@ -985,35 +996,78 @@ window.BDL = window.BDL || {};
     G.audio.play('boat_splash', { vol: 0.45 });
   }
 
+  // Gục: xác nằm lại chỗ gục (chìm chậm tới đáy), không tự về thuyền. Chỉ khi có người buộc dây kéo tới thuyền mới hồi (revive).
   function down(m) {
     if (m.rope) dropRope(m, false);
-    m.fight = null; m.swing = null;
+    m.fight = null; m.swing = null; m.rescue = null;
+    m.vel.x *= 0.3; m.vel.y *= 0.3;   // ngất thì hết đà bơi: nằm gần chỗ gục
     m.state = 'downed'; m.o2 = 0;
     m.play('Die', true); m.lock = 0;
     m.say('Hết O₂!', 3);
-    HX.hud.toast(m.name + ' gục · nổi về thuyền, hết lượt lặn này');
+    HX.hud.toast(m.name + ' gục · nằm lại chỗ, chờ người kéo về thuyền');
     G.fx.burst('bubbleBig', m.pos.x, m.pos.y, 14, 1.4);
-    m.body.material.uniforms.tint.value.setRGB(0.55, 0.6, 0.65);
+    var tn = m.body.material.uniforms.tint.value;
+    if (!m.tint0) m.tint0 = tn.clone();
+    tn.setRGB(0.55, 0.6, 0.65);
     m.tag.el.classList.add('down');
+    m.downBody = BDL.bodies.create(m, m.name, m.pos, m.vel);
   }
 
-  // Gục: thân nổi dần về thuyền (theo đường nước), tới nơi thì nằm trên boong tới hết lượt lặn.
+  // Thân do hệ bodies (js/bodies.js) mô phỏng: chìm, nằm đáy, bị dây kéo. Ở đây chỉ lo dáng nằm.
   function downedStep(m, dt) {
-    var P = dropPoint();
-    goTo(m, P.x, Math.min(SURF - 1, P.y + 1), 1.5, dt, 0.5);
     m.tilt = lerpAngle(m.tilt, 0, Math.min(1, 4 * dt));
     if (m.anim !== 'Die' && m.anim !== 'DieIdle') m.play('DieIdle');
-    integrate(m, dt);
-    if (nearHull(m.pos.x, m.pos.y) && m.pos.y > SURF - 3.5) {
-      m.state = 'board';
-      G.fx.burst('bubbleBig', m.pos.x, SURF - 0.1, 8, 1.2);
-    }
   }
-  function boardStep(m) {
-    var sp = deckSpot(m);
-    if (sp) { m.pos.x = sp.x; m.pos.y = sp.y - 0.15; }
-    m.vel.x = m.vel.y = 0; m.tilt = 0;
-    m.play('DieIdle');
+
+  // Được kéo tới thuyền: hồi 25% O₂ [ĐỀ XUẤT: REPO hồi đồng đội khi đầu chạm cổng thoát], đứng trên boong, AI chạy lại (nhảy xuống tiếp).
+  Mate.prototype.revive = function () {
+    this.o2 = Math.max(1, Math.ceil(this.o2Max * BDL.bodies.REVIVE));
+    this.downBody = null; this.rope = null; this.fight = null; this.rescue = null; this.swing = null; this.jump = null;
+    this.state = 'deck'; this.job = { phase: 'start' }; this.waitT = 0; this.lock = 0; this.towMul = 1;
+    this.vel.x = this.vel.y = 0; this.tilt = 0; this.hurtT = 99; this.invuln = 1.5;
+    this.nav.path = null; this.nav.goal = null;
+    this.body.material.uniforms.tint.value.copy(this.tint0 || new THREE.Color(1, 1, 1));
+    this.tag.el.classList.remove('down');
+    this.play('Idle', true);
+    this.say('+' + Math.round(BDL.bodies.REVIVE * 100) + '% O₂', 2.4);
+  };
+
+  // =====================================================================================================
+  // KÉO XÁC: bot rảnh (không đánh, không khuân đồ) bơi tới xác gần nhất (đồng đội hoặc Dave), buộc dây, kéo về thuyền.
+  // Mỗi xác một bot (m.rescue). Tới thuyền thì deliverRope → BDL.bodies.board.
+  // =====================================================================================================
+  function ableMate(m) { return m.state !== 'downed' && m.state !== 'board'; }
+  function pickBody(m) {
+    var L = BDL.bodies.list, best = null, bd = 1e9;
+    for (var i = 0; i < L.length; i++) {
+      var b = L[i];
+      if (b.who === m || b.tethered || b.state !== 'down' || (blk[b.id] || 0) > G.t) continue;
+      var taken = false;
+      for (var k = 0; k < S.mates.length; k++) if (S.mates[k] !== m && S.mates[k].rescue === b) taken = true;
+      if (taken) continue;
+      var dd = dist(m.pos.x, m.pos.y, b.pos.x, b.pos.y);
+      if (dd < bd) { bd = dd; best = b; }
+    }
+    return best;
+  }
+  function rescueStep(m, dt) {
+    if (!BDL.bodies.rescue) return false;
+    var b = m.rescue;
+    if (b && (b.state === 'aboard' || (b.tethered && !(m.rope && m.rope.target === b)))) b = m.rescue = null;
+    if (!b) {
+      if (m.rope) return false;   // đang khuân đồ: giao xong đã
+      b = m.rescue = pickBody(m);
+      if (!b) return false;
+      m.rescueT = 0;
+      m.say('Cứu ' + (b.who === 'dave' ? 'cậu chủ' : b.name) + '!', 2);
+    }
+    if (m.rope && m.rope.target === b) { m.job.phase = 'haul'; haulStep(m, dt); return true; }
+    if (m.rope) return false;
+    m.job.phase = 'rescue';
+    var a = anchorPt(b), d = goTo(m, a.x, a.y + 0.7, speedOf(m, true), dt, 0.5);
+    if (d < ANCHOR_REACH && !G.world.raycast(m.pos.x, m.pos.y, a.x, a.y)) anchor(m, b);
+    else if ((m.rescueT += dt) > 45 || m.nav.noPath && m.rescueT > 6) { blacklist(b, 30); m.rescue = null; }
+    return true;
   }
 
   function poseSwim(m, dt) {
@@ -1036,7 +1090,6 @@ window.BDL = window.BDL || {};
     m.atkCd -= dt; m.hurtT += dt; m.cd.heal = Math.max(0, m.cd.heal - dt);
     if (m.state === 'deck') deckStep(m, dt);
     else if (m.state === 'downed') downedStep(m, dt);
-    else if (m.state === 'board') boardStep(m);
     else if (m.state === 'dive') {
       m.diveT += dt;
       m.vel.x *= Math.exp(-2 * dt); m.vel.y *= Math.exp(-1.2 * dt);
@@ -1046,7 +1099,7 @@ window.BDL = window.BDL || {};
       // job / haul / fight
       selfDefense(m);
       if (m.fight) fightStep(m, dt);
-      else (JOBS[m.tactic] || JOBS.loot)(m, dt);
+      else if (!rescueStep(m, dt)) (JOBS[m.tactic] || JOBS.loot)(m, dt);
       swingStep(m, dt);
       if (m.rope) ropeStep(m, dt);
       integrate(m, dt);
@@ -1145,6 +1198,9 @@ window.BDL = window.BDL || {};
       healCd: m.cd.heal, atk: m.stats.atk, carry: m.stats.carry, target: m.job.target ? m.job.target.id : null };
   }
 
+  // Cho js/bodies.js: số đồng đội còn kéo được Dave (chưa gục; đứng chờ trên boong cũng tính vì sắp nhảy xuống)
+  BDL.crew = { able: function () { return S ? S.mates.filter(ableMate).length : 0; } };
+
   BDL.systems.push({
     name: 'mates',
     build: function (g) {
@@ -1170,6 +1226,7 @@ window.BDL = window.BDL || {};
           return S.mates.map(view);
         },
         hurt: function (i, n) { var m = S.mates[i]; return m ? m.hurt(n, m.pos.x - 1, m.pos.y) : false; },
+        kill: function (i) { var m = S.mates[i]; if (!m || m.state === 'downed') return false; down(m); return true; },
         teleport: function (i, x, y) { var m = S.mates[i]; if (m) { m.pos.x = x; m.pos.y = y; m.vel.x = m.vel.y = 0; m.nav.path = null; } },
         revealed: function () { return S.revealed.length; },
         nav: function () { return { calls: S.nav.calls, nx: S.nav.nx, ny: S.nav.ny }; },

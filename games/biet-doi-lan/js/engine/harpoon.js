@@ -10,14 +10,14 @@
   var ROPE = D.rope || { width: 0.02, color: [0, 0, 0, 1] };
 
   function roll(p) { return Math.random() < p; }
-  // Biệt Đội Lặn: cá cỡ 1 trở lên chết trên dây không theo dây về túi mà thành xác nằm lại, phải móc dây kéo lên thuyền (js/tether.js).
+  // Biệt Đội Lặn: cá lớn (vai 'drag', data/fish.js) chết trên dây không theo dây về túi mà thành xác nằm lại, phải móc dây kéo lên thuyền (js/tether.js).
   function keepCorpse(f) {
-    if (f.state !== 'hauled' || f.sp.size < 1) return false;
+    if (f.state !== 'hauled' || BDL.fishRole(f.sp) !== 'drag') return false;
     f.go('dying');
     return true;
   }
   // Biệt Đội Lặn: súng xiên cũng là súng móc dây. Mũi xiên trúng đồ cổ hoặc xác cá to / xác quái thì móc dây vào (js/tether.js),
-  // cá nhỏ vẫn vào túi, cá lớn còn sống vẫn ăn sát thương + giằng co rồi chết thành xác buộc dây.
+  // cá vừa / sứa giằng co xong vào túi, cá lớn còn sống vẫn ăn sát thương + giằng co rồi chết thành xác buộc dây.
   function hookTarget(G, x, y) {
     var T2 = window.BDL && BDL.tether;
     if (!T2) return null;
@@ -229,7 +229,7 @@
       ch.t -= ch.every;
       var c0 = ch.from.center(), best = null, bd = H.chainRange;
       G.fishes.list.forEach(function (q) {
-        if (!q.alive() || q.state === 'hooked' || ch.hit.indexOf(q.id) >= 0) return;
+        if (q.decor || !q.alive() || q.state === 'hooked' || ch.hit.indexOf(q.id) >= 0) return;
         var c = q.center(), d = Math.hypot(c.x - c0.x, c.y - c0.y);
         if (d < bd) { bd = d; best = q; }
       });

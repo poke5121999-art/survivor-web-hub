@@ -159,7 +159,10 @@
     return { x: this.pos.x + this.cx * this.flip, y: this.pos.y + this.cy };
   };
 
+  // Cá cảnh (data/fish.js, đặt lúc allocator sinh) không trúng gì: xiên, dao, súng, lưới, dây đều đi xuyên qua.
+  Fish.prototype.decor = false;
   Fish.prototype.hitTest = function (x, y, pad) {
+    if (this.decor) return false;
     var c = this.center(), ex = (x - c.x) / (this.hw + pad), ey = (y - c.y) / (this.hh + pad);
     return ex * ex + ey * ey <= 1;
   };
@@ -187,12 +190,12 @@
   Fish.prototype.removeFromWorld = function () { if (this.state !== 'reeled') this.go('reeled'); };
   Fish.prototype.deckItem = function () {
     var B = window.BDL, sp = this.sp;
-    return { kind: 'fish', key: sp.id, label: HX.fish.displayName(sp), value: B && B.fishValue ? B.fishValue(sp) : 0, icon: HX.fish.iconFor(this.G.gfx, sp) };
+    return { kind: 'fish', key: sp.id, label: HX.fish.displayName(sp), value: B && B.fishRaw ? B.run.price('fish', B.fishRaw(sp)) : 0, icon: HX.fish.iconFor(this.G.gfx, sp) };
   };
 
   // Sát thương theo thời gian (độc, bỏng): trừ máu, không đổi hành vi. Đang mắc xiên mà chết thì tính là chết trên dây.
   Fish.prototype.dot = function (n) {
-    if (!this.alive() || n <= 0) return false;
+    if (this.decor || !this.alive() || n <= 0) return false;
     this.hp -= n;
     this.flashT = 0.08;
     var c = this.center();
@@ -296,6 +299,7 @@
 
   // Trả 'dead' | 'tug' | 'alive'.
   Fish.prototype.damage = function (n, fromX, fromY, byHarpoon) {
+    if (this.decor) return 'alive';
     // cá đang đông đá: vỡ băng, ăn thêm buffvalue1 [DtD DebuffFreezing]
     var ice = this.buffs.freeze;
     if (ice) {
@@ -413,7 +417,7 @@
       update: function (f, G, dt) {
         var d = G.diver, dx = d.pos.x - f.pos.x, dy = d.pos.y - f.pos.y, dist = Math.hypot(dx, dy);
         var daveOk = d.state !== 'dead' && G.phase === 'dive';
-        if (daveOk && f.sp.damage > 0 && (f.sp.aggressive && dist < FT.sight || f.angry > 0)) return f.go('chase');
+        if (daveOk && !f.decor && f.sp.damage > 0 && (f.sp.aggressive && dist < FT.sight || f.angry > 0)) return f.go('chase');
         if (daveOk && isPuffer(f.sp) && dist < FT.puffRange) return f.go('defend');
         if (daveOk && f.sp.damage === 0 && d.boosting && dist < FT.fleeRange) return f.go('flee', { fromX: d.pos.x, fromY: d.pos.y });
         if (f.leader && f.leader.state === 'wander' && f.leader.root.parent) {
@@ -641,6 +645,16 @@
           a.shark = HX.Shark.forTid(a.members[0].tid);
         } else if (!row.off && s.id) {
           a.sp = BY_ID[s.id];
+          // Biệt Đội Lặn (data/fish.js): cá ngựa, tôm và một phần đàn cá cảnh đổi thành cá lớn / sứa cùng vùng
+          var role = BDL.fishRole(a.sp);
+          if (role === 'gone' || (role === 'decor' && Math.random() < BDL.FISH_UPGRADE)) {
+            var pool = BDL.FISH_BIG[L.area] || BDL.FISH_BIG.A, pick = pool[Math.floor(Math.random() * pool.length)];
+            a.sp = BY_ID[pick.id];
+            var was = a.members;
+            a.members = [];
+            for (var q = 0; q < pick.n; q++) a.members.push(was[q] || { dx: q * 0.9, dy: 0 });
+            a.left = pick.n;
+          }
           self.allocs.push(a);
         }
       });
@@ -681,6 +695,7 @@
       if (!W.open(c.x + ox, c.y + oy, 0.2)) { ox = 0; oy = 0; }
       var f = a.shark ? this.spawnShark(a.shark, c.x + ox, c.y + oy) : this.spawnAt(a.sp, c.x + ox, c.y + oy);
       f.alloc = a; f.home = a.home;
+      f.decor = !a.shark && BDL.fishRole(a.sp) === 'decor';
       a.fish.push(f);
       if (a.shark) continue;
       if (lead) { f.leader = lead; f.offset = { x: ox, y: oy }; f.speed = lead.speed; } else lead = f;

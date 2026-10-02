@@ -6,6 +6,27 @@ window.BDL = window.BDL || {};
   'use strict';
 
   var QUOTA_FACTOR = 0.7, SOLO_CREW_MUL = 0.55, SELL_CAP = 3, DRONE_TRIPS = 3;
+  // Quỹ tiền của một map = 3 × chỉ tiêu, không hơn (chủ dự án, 2026-10-02). Chia cho đồ cổ / cá / xác quái theo SHARE [ĐỀ XUẤT];
+  // nguồn nào map không có thì phần của nó chia lại cho nguồn còn lại.
+  var POOL_MUL = 3;
+  var SHARE = { loot: 0.6, fish: 0.25, foe: 0.15 };
+
+  // Giá gốc của mọi cá bán được còn trong allocator (cá cảnh không tính).
+  function fishRawOf(G) {
+    var sum = 0;
+    (G.fishes ? G.fishes.allocs : []).forEach(function (a) {
+      if (a.sp && BDL.fishRole(a.sp) !== 'decor') sum += a.left * BDL.fishRaw(a.sp);
+    });
+    return sum;
+  }
+  // Xác quái bán được: mỗi loài có xác tối đa SELL_CAP lần, giá theo hp/dmg đã nhân của map (như js/foes.js makeFoe).
+  function foeRawOf(map) {
+    var R = BDL.foeRoster ? BDL.foeRoster(map) : { kinds: [] };
+    return R.kinds.reduce(function (sum, row) {
+      if (row.noCorpse || row.pack) return sum;
+      return sum + SELL_CAP * BDL.foeValue(Math.max(1, Math.round(row.hp * R.hpMul)), Math.round(row.dmg * R.dmgMul * 10) / 10);
+    }, 0);
+  }
 
   // extract_quota.difficultyCurve: 0,4 ở cấp 1, 0,7 ở cấp 10, 1,0 từ cấp 20.
   BDL.curve = function (lv) {
@@ -16,7 +37,11 @@ window.BDL = window.BDL || {};
   };
 
   // Cá nhỏ vào túi tính theo ký. Ký ước từ chiều dài vì bảng cá gốc không có cân nặng [ĐỀ XUẤT].
-  BDL.fishKg = function (sp) { return Math.max(0.1, Math.round(Math.pow(sp.cm / 100, 3) * 15 * 10) / 10); };
+  // Cá vào túi nặng tối đa 8 kg [ĐỀ XUẤT]: cá vừa dài tới 1,7 m theo công thức này nặng 26–73 kg, túi 20 kg không nhận nổi một con.
+  BDL.fishKg = function (sp) {
+    var kg = Math.max(0.1, Math.round(Math.pow(sp.cm / 100, 3) * 15 * 10) / 10);
+    return BDL.fishRole(sp) === 'bag' ? Math.min(kg, 8) : kg;
+  };
   BDL.fishValue = function (sp) {
     var r = sp.rank || 1;
     return Math.round((60 + r * r * 40) * (1 + sp.cm / 60) / 10) * 10;
@@ -48,6 +73,24 @@ window.BDL = window.BDL || {};
       d.lootTotal = lootValueSum;
       d.quota = Math.round(lootValueSum * QUOTA_FACTOR * BDL.curve(m.level) * run.crewMul() * (m.quotaMul || 1) / 100) * 100;
       return d.quota;
+    },
+
+    // Hệ đồ cổ gọi một lần sau khi rải: đặt chỉ tiêu REPO rồi chia quỹ 3 × chỉ tiêu cho ba nguồn tiền.
+    // Trả tỉ lệ { loot, fish, foe } nhân vào giá gốc; mọi giá bán trong lượt lặn đi qua run.price.
+    settle: function (G, map, lootRaw) {
+      var d = run.dive, raw = { loot: lootRaw, fish: fishRawOf(G), foe: foeRawOf(map) }, w = 0, k;
+      run.setQuota(lootRaw);
+      d.pool = d.quota * POOL_MUL;
+      for (k in SHARE) if (raw[k] > 0) w += SHARE[k];
+      d.raw = raw; d.rate = {};
+      for (k in SHARE) d.rate[k] = raw[k] > 0 ? d.pool * SHARE[k] / w / raw[k] : 0;
+      return d.rate;
+    },
+
+    // Giá bán thật của một món có giá gốc raw. Làm tròn xuống 10 cho tổng không vượt quỹ.
+    price: function (kind, raw) {
+      var d = run.dive, r = d && d.rate ? d.rate[kind] : 1;
+      return Math.floor(raw * r / 10) * 10;
     },
 
     // Một món lên boong: {kind: 'loot'|'fish'|'foe', key, label, value, icon}. Lên boong là đã bán, không lấy lại.
@@ -86,4 +129,5 @@ window.BDL = window.BDL || {};
   BDL.run = run;
   BDL.systems = BDL.systems || [];
   BDL.SELL_CAP = SELL_CAP;
+  BDL.POOL_MUL = POOL_MUL;
 })(window.BDL);

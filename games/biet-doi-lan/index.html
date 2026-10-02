@@ -135,7 +135,7 @@ body:not([data-phase="dive"]):not([data-phase="result"]) :is(#vignette, #area, #
 #tug { position: fixed; left: 0; top: 0; width: 52px; height: 104px; margin: -52px 0 0 -26px; pointer-events: none; }
 #tug[hidden] { display: none; }
 #tug .frame { position: absolute; inset: 0; width: 100%; height: 100%; }
-#tug .fillmask { position: absolute; inset: 0; -webkit-mask: url(../ho-xanh/art/ui/Gauge_Bar_Normal.png?v=20261001d) center / 100% 100% no-repeat; mask: url(../ho-xanh/art/ui/Gauge_Bar_Normal.png?v=20261001d) center / 100% 100% no-repeat; }
+#tug .fillmask { position: absolute; inset: 0; -webkit-mask: url(../ho-xanh/art/ui/Gauge_Bar_Normal.png?v=20261002a) center / 100% 100% no-repeat; mask: url(../ho-xanh/art/ui/Gauge_Bar_Normal.png?v=20261002a) center / 100% 100% no-repeat; }
 #tug-fill { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: linear-gradient(0deg, #ffb13b, var(--gold) 60%, #fff4b8); transition: height .08s; }
 #tug.tap .frame { animation: tap .12s; }
 @keyframes tap { 50% { transform: scale(1.1); filter: brightness(1.6); } }
@@ -148,11 +148,11 @@ body:not([data-phase="dive"]):not([data-phase="result"]) :is(#vignette, #area, #
 #harvest[hidden] { display: none; }
 #hv-gauge { display: none; position: absolute; left: calc(-34 * var(--u)); top: calc(-68 * var(--u)); width: calc(68 * var(--u)); height: calc(68 * var(--u)); }
 #harvest.carve #hv-gauge { display: block; }
-#hv-gauge, #hv-bar { -webkit-mask: url(../ho-xanh/art/ui/Circle_68.png?v=20261001d) center / 100% 100% no-repeat; mask: url(../ho-xanh/art/ui/Circle_68.png?v=20261001d) center / 100% 100% no-repeat; }
+#hv-gauge, #hv-bar { -webkit-mask: url(../ho-xanh/art/ui/Circle_68.png?v=20261002a) center / 100% 100% no-repeat; mask: url(../ho-xanh/art/ui/Circle_68.png?v=20261002a) center / 100% 100% no-repeat; }
 #hv-gauge { background: rgba(0, 0, 0, .69); }
 #hv-bar { position: absolute; inset: calc(2 * var(--u)); background: conic-gradient(#fff var(--k, 0deg), transparent 0); }
 #hv-disc { position: absolute; inset: calc(8 * var(--u)); display: grid; place-items: center;
-  -webkit-mask: url(../ho-xanh/art/ui/Circle_52.png?v=20261001d) center / 100% 100% no-repeat; mask: url(../ho-xanh/art/ui/Circle_52.png?v=20261001d) center / 100% 100% no-repeat;
+  -webkit-mask: url(../ho-xanh/art/ui/Circle_52.png?v=20261002a) center / 100% 100% no-repeat; mask: url(../ho-xanh/art/ui/Circle_52.png?v=20261002a) center / 100% 100% no-repeat;
   background: linear-gradient(90deg, rgb(219, 45, 77), rgb(182, 53, 156)); }
 #hv-icon { width: calc(40 * var(--u)); height: calc(40 * var(--u)); object-fit: contain; }
 #hv-key { position: absolute; left: calc(-18.5 * var(--u)); top: calc(-24 * var(--u)); width: calc(37 * var(--u)); image-rendering: pixelated; }
@@ -205,7 +205,7 @@ body.touch img.kg { display: none; }
 #tb-boost.on #tb-boost-on { opacity: 1; }
 body.sprint-wheel #tb-boost { display: none; }
 /* ShortDash: Slider tô 黑透遮罩 theo phần hồi chiêu còn lại */
-#tb-dash-cd { background: url(../ho-xanh/art/ui/mobile/cd_mask.png?v=20261001d) center / 100% 100%; -webkit-mask: conic-gradient(#000 var(--k, 0deg), transparent 0); mask: conic-gradient(#000 var(--k, 0deg), transparent 0); }
+#tb-dash-cd { background: url(../ho-xanh/art/ui/mobile/cd_mask.png?v=20261002a) center / 100% 100%; -webkit-mask: conic-gradient(#000 var(--k, 0deg), transparent 0); mask: conic-gradient(#000 var(--k, 0deg), transparent 0); }
 #tc #tb-switch { display: none; }
 body.has-gun #tc #tb-switch { display: block; }
 /* 无人机: CanvasGroup alpha 0 trong prefab, chỉ hiện khi có drone; hết lượt hoặc không có xác trong tầm thì xám [ĐỀ XUẤT] */
@@ -250,12 +250,12 @@ body.has-drone #tc #tb-drone { display: block; }
 .pz-top img { height: calc(var(--pu) * 40); }
 .pz-box { position: absolute; }
 .pz-box::before { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, #009297, #006789);
-  -webkit-mask-box-image: url(../ho-xanh/art/ui/mobile/pause_title.png?v=20261001d) 31 19 8 19 fill / calc(var(--pu) * 31) calc(var(--pu) * 19) calc(var(--pu) * 8) calc(var(--pu) * 19); }
+  -webkit-mask-box-image: url(../ho-xanh/art/ui/mobile/pause_title.png?v=20261002a) 31 19 8 19 fill / calc(var(--pu) * 31) calc(var(--pu) * 19) calc(var(--pu) * 8) calc(var(--pu) * 19); }
 .pz-box > b { position: absolute; left: calc(var(--pu) * 16); top: calc(var(--pu) * 2); font-size: calc(var(--pu) * 24); }
 #pz-equip { left: calc(var(--pu) * 100); top: calc(var(--pu) * 108); width: calc(var(--pu) * 980); height: calc(var(--pu) * 252); }
 #pz-loot { left: calc(var(--pu) * 1100); top: calc(var(--pu) * 108); width: calc(var(--pu) * 520); height: calc(var(--pu) * 800); }
 .pz-slot { position: absolute; width: calc(var(--pu) * 240); height: calc(var(--pu) * 88);
-  border-image: url(../ho-xanh/art/ui/mobile/pause_equip.png?v=20261001d) 31 5 2 5 fill / calc(var(--pu) * 31) calc(var(--pu) * 5) calc(var(--pu) * 2) calc(var(--pu) * 5); }
+  border-image: url(../ho-xanh/art/ui/mobile/pause_equip.png?v=20261002a) 31 5 2 5 fill / calc(var(--pu) * 31) calc(var(--pu) * 5) calc(var(--pu) * 2) calc(var(--pu) * 5); }
 .pz-slot span { position: absolute; left: calc(var(--pu) * 8); top: 0; font-size: calc(var(--pu) * 20); color: #8fd6ea; white-space: nowrap; }
 .pz-slot img { position: absolute; left: 50%; bottom: calc(var(--pu) * 4); height: calc(var(--pu) * 52); max-width: 90%; transform: translateX(-50%); object-fit: contain; image-rendering: pixelated; }
 .pz-slot i { position: absolute; right: calc(var(--pu) * 8); bottom: calc(var(--pu) * 4); font: 400 calc(var(--pu) * 26) / 1 var(--font-num); font-style: normal; }
@@ -267,7 +267,7 @@ body.has-drone #tc #tb-drone { display: block; }
 #pz-count { position: absolute; left: calc(var(--pu) * 16); top: calc(var(--pu) * 42); font: 400 calc(var(--pu) * 30) / 1 var(--font-num); }
 .pz-btn { position: absolute; height: calc(var(--pu) * 80); min-width: calc(var(--pu) * 192); padding: 0 calc(var(--pu) * 24);
   display: flex; align-items: center; justify-content: center; gap: calc(var(--pu) * 10); color: #fff; font: inherit; font-size: calc(var(--pu) * 30); background: none;
-  border: 0; border-image: url(../ho-xanh/art/ui/mobile/pause_btn.png?v=20261001d) 0 34 fill / 0 calc(var(--pu) * 40); }  /* phần giữa gốc rộng 0 px: chừa 1 px */
+  border: 0; border-image: url(../ho-xanh/art/ui/mobile/pause_btn.png?v=20261002a) 0 34 fill / 0 calc(var(--pu) * 40); }  /* phần giữa gốc rộng 0 px: chừa 1 px */
 .pz-btn img { height: calc(var(--pu) * 44); image-rendering: pixelated; }
 .pz-btn img.boat { height: calc(var(--pu) * 34); }
 #p-setting { right: calc(var(--pu) * 100); top: calc(var(--pu) * 20); }
@@ -282,40 +282,40 @@ body.touch .pz-btn img.kg, body.touch .set-head img.kg { display: none; }
 :root { --su: min(100vw / 1400, 100dvh / 864); }
 #settings { position: fixed; inset: 0; z-index: 7; background: rgba(0, 0, 0, .5); display: grid; place-items: center; color: #fff; }
 .set-panel { width: calc(var(--su) * 580); padding: 0 calc(var(--su) * 5) calc(var(--su) * 5); background: #004660;
-  -webkit-mask-box-image: url(../ho-xanh/art/ui/mobile/set_cell.png?v=20261001d) 11 14 fill / calc(var(--su) * 11) calc(var(--su) * 14);
+  -webkit-mask-box-image: url(../ho-xanh/art/ui/mobile/set_cell.png?v=20261002a) 11 14 fill / calc(var(--su) * 11) calc(var(--su) * 14);
   font: 700 calc(var(--su) * 26) / 1.2 var(--font-ui, system-ui); }
 .set-head { position: relative; height: calc(var(--su) * 72); display: flex; align-items: center; justify-content: center; gap: calc(var(--su) * 8); font-size: calc(var(--su) * 30);
   border-bottom: calc(var(--su) * 2) solid #186581; }
-.set-head .ic { width: calc(var(--su) * 40); height: calc(var(--su) * 40); background: #60c3e8; -webkit-mask: url(../ho-xanh/art/ui/mobile/set_icon.png?v=20261001d) center / contain no-repeat; }
+.set-head .ic { width: calc(var(--su) * 40); height: calc(var(--su) * 40); background: #60c3e8; -webkit-mask: url(../ho-xanh/art/ui/mobile/set_icon.png?v=20261002a) center / contain no-repeat; }
 #set-back { position: absolute; left: calc(var(--su) * 14); top: calc(var(--su) * 14); width: calc(var(--su) * 44); height: calc(var(--su) * 44); border: 0; padding: 0;
-  background: url(../ho-xanh/art/ui/mobile/set_back.png?v=20261001d) center / calc(var(--su) * 18) calc(var(--su) * 32) no-repeat; }
+  background: url(../ho-xanh/art/ui/mobile/set_back.png?v=20261002a) center / calc(var(--su) * 18) calc(var(--su) * 32) no-repeat; }
 .set-head img.kg { position: absolute; left: calc(var(--su) * 62); top: calc(var(--su) * 18); height: calc(var(--su) * 36); }
 .set-cell { position: relative; height: calc(var(--su) * 72); display: flex; align-items: center; padding: 0 calc(var(--su) * 20); gap: calc(var(--su) * 10);
   border-bottom: calc(var(--su) * 2) solid #186581; }
 .set-cell > span { flex: 1; }
 /* công tắc: 48×24 phóng 1,5; bật = thanh 0,447/0,847/1 tay nắm phải, tắt = thanh xám 0,467 tay nắm 0,69 bên trái */
 .set-tog { position: relative; width: calc(var(--su) * 72); height: calc(var(--su) * 36); border: 0; padding: 0; background: #777;
-  -webkit-mask-box-image: url(../ho-xanh/art/ui/mobile/set_onoff_bar.png?v=20261001d) 0 20 fill / 0 calc(var(--su) * 30); }
+  -webkit-mask-box-image: url(../ho-xanh/art/ui/mobile/set_onoff_bar.png?v=20261002a) 0 20 fill / 0 calc(var(--su) * 30); }
 .set-knob { position: absolute; top: calc(var(--su) * -4); left: calc(var(--su) * -4); width: calc(var(--su) * 44); height: calc(var(--su) * 44);
-  background: url(../ho-xanh/art/ui/mobile/set_onoff_handle.png?v=20261001d) center / 100% 100%; filter: brightness(.69); transition: left .12s; pointer-events: none; }
+  background: url(../ho-xanh/art/ui/mobile/set_onoff_handle.png?v=20261002a) center / 100% 100%; filter: brightness(.69); transition: left .12s; pointer-events: none; }
 .set-togw { position: relative; }
 .set-togw.on .set-tog { background: #72d8ff; }
 .set-togw.on .set-knob { left: calc(var(--su) * 32); filter: none; }
 /* thanh trượt: 120×10 phóng 1,5, nền xám 0,467, phần đã kéo 0,447/0,851/1, tay nắm tròn */
 .set-sl { display: flex; align-items: center; gap: calc(var(--su) * 8); }
-.set-sl button { width: calc(var(--su) * 28); height: calc(var(--su) * 32); border: 0; padding: 0; background: url(../ho-xanh/art/ui/mobile/set_arrow.png?v=20261001d) center / contain no-repeat; }
+.set-sl button { width: calc(var(--su) * 28); height: calc(var(--su) * 32); border: 0; padding: 0; background: url(../ho-xanh/art/ui/mobile/set_arrow.png?v=20261002a) center / contain no-repeat; }
 .set-sl button.l { transform: scaleX(-1); }
 .set-sl input { -webkit-appearance: none; appearance: none; width: calc(var(--su) * 180); height: calc(var(--su) * 15); margin: 0; border-radius: 99px;
   background: linear-gradient(90deg, #72d9ff var(--k, 50%), #777 0); }
 .set-sl input::-webkit-slider-thumb { -webkit-appearance: none; width: calc(var(--su) * 30); height: calc(var(--su) * 30); border: 0; border-radius: 50%;
-  background: url(../ho-xanh/art/ui/mobile/set_onoff_handle.png?v=20261001d) center / 100% 100%; }
+  background: url(../ho-xanh/art/ui/mobile/set_onoff_handle.png?v=20261002a) center / 100% 100%; }
 .set-sl b { width: calc(var(--su) * 60); text-align: right; font: 400 calc(var(--su) * 30) / 1 var(--font-num); }
 /* chọn một: nút tròn 54 未选中 / 选中, chữ bên trái */
 .set-radio { display: flex; gap: calc(var(--su) * 18); }
 .set-radio label { display: flex; align-items: center; gap: calc(var(--su) * 6); cursor: pointer; }
 .set-radio input { -webkit-appearance: none; appearance: none; margin: 0; width: calc(var(--su) * 40); height: calc(var(--su) * 40);
-  background: url(../ho-xanh/art/ui/mobile/set_radio_off.png?v=20261001d) center / 100% 100%; }
-.set-radio input:checked { background-image: url(../ho-xanh/art/ui/mobile/set_radio_on.png?v=20261001d); }
+  background: url(../ho-xanh/art/ui/mobile/set_radio_off.png?v=20261002a) center / 100% 100%; }
+.set-radio input:checked { background-image: url(../ho-xanh/art/ui/mobile/set_radio_on.png?v=20261002a); }
 /* ---------- cầm dọc trên máy cảm ứng: game chỉ chơi ngang như bản Android (HUD khớp bề ngang canvas 2340×1080) ----------
    main.js cũng dừng vòng lặp khi khớp đúng media query này. */
 #rotate { display: none; }
@@ -348,13 +348,13 @@ body[data-phase="loading"] #boot { display: block; }
 #pause-note { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(4, 16, 28, .6); font: 700 28px/1 var(--disp); color: var(--ink); z-index: 8; }
 #pause-note[hidden] { display: none; }
 </style>
-<link rel="stylesheet" href="../ho-xanh/css/fonts.css?v=20261001d">
-<link rel="stylesheet" href="css/lobby.css?v=20261001d">
-<link rel="stylesheet" href="css/ship.css?v=20261001d">
-<link rel="stylesheet" href="css/shop.css?v=20261001d">
-<link rel="stylesheet" href="css/hud.css?v=20261001d">
-<link rel="stylesheet" href="../repo2d/tu-do.css?v=20261001d">
-<link rel="stylesheet" href="css/locker.css?v=20261001d">
+<link rel="stylesheet" href="../ho-xanh/css/fonts.css?v=20261002a">
+<link rel="stylesheet" href="css/lobby.css?v=20261002a">
+<link rel="stylesheet" href="css/ship.css?v=20261002a">
+<link rel="stylesheet" href="css/shop.css?v=20261002a">
+<link rel="stylesheet" href="css/hud.css?v=20261002a">
+<link rel="stylesheet" href="../repo2d/tu-do.css?v=20261002a">
+<link rel="stylesheet" href="css/locker.css?v=20261002a">
 </head>
 <body data-phase="loading">
 <canvas id="scene"></canvas>
@@ -390,20 +390,20 @@ body[data-phase="loading"] #boot { display: block; }
       <div class="cell" data-i="2"><em class="k">2</em><img class="ic" alt=""><span class="ei"></span><b class="n"></b></div>
       <div class="cell" data-i="3"><em class="k">3</em><img class="ic" alt=""><span class="ei"></span><b class="n"></b></div>
     </div>
-    <div id="hud-drone" title="Chuyến drone còn lại"><img src="../ho-xanh/art/ui/mobile/icon_drone.png?v=20261001d" alt=""><b id="hud-drone-n">3</b><em class="k">Ctrl</em></div>
+    <div id="hud-drone" title="Chuyến drone còn lại"><img src="../ho-xanh/art/ui/mobile/icon_drone.png?v=20261002a" alt=""><b id="hud-drone-n">3</b><em class="k">Ctrl</em></div>
   </div>
   <div id="marks"></div>
   <div id="reticle" hidden></div>
-  <img id="aimgun" class="px" src="../ho-xanh/art/ui/Target_ArrowGun.png?v=20261001d" alt="" hidden>
+  <img id="aimgun" class="px" src="../ho-xanh/art/ui/Target_ArrowGun.png?v=20261002a" alt="" hidden>
 </div>
-<img id="vignette" src="../ho-xanh/art/ui/Depressurization_Vignetting.png?v=20261001d" alt="">
+<img id="vignette" src="../ho-xanh/art/ui/Depressurization_Vignetting.png?v=20261002a" alt="">
 <div id="hurt"></div>
 <div id="fxflash"></div>
 <div id="toast"></div>
 <div id="area"><b id="area-t"></b><span id="area-s"></span></div>
 
 <div id="tug" hidden>
-  <img class="frame px" src="../ho-xanh/art/ui/Gauge_Bar_Tap.png?v=20261001d" alt="">
+  <img class="frame px" src="../ho-xanh/art/ui/Gauge_Bar_Tap.png?v=20261002a" alt="">
   <div class="fillmask"><div id="tug-fill"></div></div>
   <div id="tug-label">Bấm liên tục!</div>
   <div id="tug-timebar"><div id="tug-time"></div></div>
@@ -411,77 +411,80 @@ body[data-phase="loading"] #boot { display: block; }
 
 <div id="harvest" hidden>
   <div id="hv-gauge"><div id="hv-bar"></div><div id="hv-disc"><img id="hv-icon" alt=""></div></div>
-  <img id="hv-key" src="../ho-xanh/art/ui/Space_Key_Dark.png?v=20261001d" alt="Space">
+  <img id="hv-key" src="../ho-xanh/art/ui/Space_Key_Dark.png?v=20261002a" alt="Space">
   <span id="hv-drone">Ctrl · gọi drone</span>
 </div>
 
 <div id="pause-note" hidden>Tạm dừng · bấm P để chơi tiếp</div>
 
 <div id="tc">
-  <div id="stick" class="tc-p" hidden><div id="stick-sprint" class="tc-p"><img id="stick-sprint-img" class="tc-p" src="../ho-xanh/art/ui/mobile/sprint_arrow.png?v=20261001d" alt=""></div><img class="bg" src="../ho-xanh/art/ui/mobile/stick_bg.png?v=20261001d" alt=""><img id="stick-knob" class="tc-p" src="../ho-xanh/art/ui/mobile/stick_knob.png?v=20261001d" alt=""></div>
+  <div id="stick" class="tc-p" hidden><div id="stick-sprint" class="tc-p"><img id="stick-sprint-img" class="tc-p" src="../ho-xanh/art/ui/mobile/sprint_arrow.png?v=20261002a" alt=""></div><img class="bg" src="../ho-xanh/art/ui/mobile/stick_bg.png?v=20261002a" alt=""><img id="stick-knob" class="tc-p" src="../ho-xanh/art/ui/mobile/stick_knob.png?v=20261002a" alt=""></div>
   <button id="tb-dash" class="tc-p" aria-label="Lướt"><div id="tb-dash-cd" class="tc-p"></div></button>
   <!-- cụm nút tay phải kiểu REPO (đĩa tối, viền màu): xiên to ở góc, vòng cung quanh nó; nửa trái dành cho cần di chuyển -->
-  <button id="tb-boost" class="tc-p rb c-teal tcb" aria-label="Tăng tốc"><img src="../ho-xanh/art/ui/mobile/boost_icon.png?v=20261001d" alt=""><span class="t">Chạy</span></button>
-  <button id="tb-knife" class="tc-p rb c-red tcb" aria-label="Dao"><img class="px" src="../ho-xanh/art/ui/mobile/icon_knife.png?v=20261001d" alt=""><span class="t">Dao</span></button>
+  <button id="tb-boost" class="tc-p rb c-teal tcb" aria-label="Tăng tốc"><img src="../ho-xanh/art/ui/mobile/boost_icon.png?v=20261002a" alt=""><span class="t">Chạy</span></button>
+  <button id="tb-knife" class="tc-p rb c-red tcb" aria-label="Dao"><img class="px" src="../ho-xanh/art/ui/mobile/icon_knife.png?v=20261002a" alt=""><span class="t">Dao</span></button>
   <button id="tb-grab" class="tc-p rb c-green tcb" aria-label="Tương tác"><span class="g">E</span><span class="t">Nhặt</span></button>
   <button id="tb-swap" class="tc-p rb c-blue tcb" aria-label="Đổi đồ trên tay"><span class="g">⇄</span><span class="t">Đổi</span></button>
   <button id="tb-skill" class="tc-p rb c-ice tcb" aria-label="Kỹ năng"><span class="g ic"></span><i class="ring"></i><b class="cdn"></b><span class="t nm">Kỹ năng</span></button>
-  <div id="tb-aimbg" class="tc-p"><img class="bg blue" src="../ho-xanh/art/ui/mobile/aim_bg.png?v=20261001d" alt=""><img class="bg red" src="../ho-xanh/art/ui/mobile/aim_bg_red.png?v=20261001d" alt=""></div>
+  <div id="tb-aimbg" class="tc-p"><img class="bg blue" src="../ho-xanh/art/ui/mobile/aim_bg.png?v=20261002a" alt=""><img class="bg red" src="../ho-xanh/art/ui/mobile/aim_bg_red.png?v=20261002a" alt=""></div>
   <button id="tb-fire" class="tc-p rb c-red tcb" aria-label="Bắn"><img id="tb-fire-icon" class="tc-p px" alt=""><span id="tb-fire-lv" class="tc-p tc-txt"></span><span id="tb-fire-ammo" class="tc-p tc-txt" hidden></span></button>
   <button id="tb-switch" class="tc-p rb c-blue tcb" aria-label="Đổi vũ khí"><img id="tb-sub-icon" class="px" alt=""></button>
-  <div id="tb-aim" class="tc-p"><img class="bg blue" src="../ho-xanh/art/ui/mobile/aim.png?v=20261001d" alt=""><img class="bg red" src="../ho-xanh/art/ui/mobile/aim_red.png?v=20261001d" alt=""></div>
-  <div id="tb-cancel" class="tc-p"><img class="bg blue" src="../ho-xanh/art/ui/mobile/cancel.png?v=20261001d" alt=""><img class="bg red" src="../ho-xanh/art/ui/mobile/cancel_red.png?v=20261001d" alt=""><span id="tb-cancel-t" class="tc-txt">Huỷ bắn</span></div>
-  <button id="tb-drone" class="tc-p rb c-blue tcb" aria-label="Gọi drone"><img class="px" src="../ho-xanh/art/ui/mobile/icon_drone.png?v=20261001d" alt=""><span id="tb-drone-n" class="tc-txt"></span><span class="t">Drone</span></button>
-  <button id="btn-pause" class="tc-p" aria-label="Tạm dừng"><img class="bg" src="../ho-xanh/art/ui/mobile/menu.png?v=20261001d" alt=""></button>
-  <button id="tb-qte" class="tc-p" aria-label="Giật dây"><img class="bg" src="../ho-xanh/art/ui/mobile/qte_btn.png?v=20261001d" alt=""><img id="tb-qte-ring" class="tc-p" src="../ho-xanh/art/ui/mobile/qte_ring.png?v=20261001d" alt=""></button>
+  <div id="tb-aim" class="tc-p"><img class="bg blue" src="../ho-xanh/art/ui/mobile/aim.png?v=20261002a" alt=""><img class="bg red" src="../ho-xanh/art/ui/mobile/aim_red.png?v=20261002a" alt=""></div>
+  <div id="tb-cancel" class="tc-p"><img class="bg blue" src="../ho-xanh/art/ui/mobile/cancel.png?v=20261002a" alt=""><img class="bg red" src="../ho-xanh/art/ui/mobile/cancel_red.png?v=20261002a" alt=""><span id="tb-cancel-t" class="tc-txt">Huỷ bắn</span></div>
+  <button id="tb-drone" class="tc-p rb c-blue tcb" aria-label="Gọi drone"><img class="px" src="../ho-xanh/art/ui/mobile/icon_drone.png?v=20261002a" alt=""><span id="tb-drone-n" class="tc-txt"></span><span class="t">Drone</span></button>
+  <button id="btn-pause" class="tc-p" aria-label="Tạm dừng"><img class="bg" src="../ho-xanh/art/ui/mobile/menu.png?v=20261002a" alt=""></button>
+  <button id="tb-qte" class="tc-p" aria-label="Giật dây"><img class="bg" src="../ho-xanh/art/ui/mobile/qte_btn.png?v=20261002a" alt=""><img id="tb-qte-ring" class="tc-p" src="../ho-xanh/art/ui/mobile/qte_ring.png?v=20261002a" alt=""></button>
 </div>
 
 <div id="rotate" role="alert"><i></i><b>Xoay ngang điện thoại để chơi</b><span>Biệt Đội Lặn chơi ngang máy. Màn hình không xoay theo thì tắt khoá xoay dọc.</span></div>
 
 <script>window.HX_ROOT = '../ho-xanh/';</script>
-<script src="../ho-xanh/vendor/three-r140.min.js?v=20261001d"></script>
-<script src="../ho-xanh/vendor/GLTFLoader-r140.js?v=20261001d"></script>
-<script src="../ho-xanh/vendor/meshopt_decoder.js?v=20261001d"></script>
-<script src="../ho-xanh/vendor/spine-threejs-4.0.31.min.js?v=20261001d"></script>
-<script src="../ho-xanh/data/tuning.js?v=20261001d"></script>
-<script src="../ho-xanh/data/assets.js?v=20261001d"></script>
-<script src="../ho-xanh/data/fish_spawn.js?v=20261001d"></script>
-<script src="../ho-xanh/data/zones.js?v=20261001d"></script>
-<script src="../ho-xanh/data/gear_sheet.js?v=20261001d"></script>
-<script src="../ho-xanh/data/boat_assets.js?v=20261001d"></script>
-<script src="../ho-xanh/data/bar_assets.js?v=20261001d"></script>
-<script src="../ho-xanh/data/meta.js?v=20261001d"></script>
-<script src="data/maps.js?v=20261001d"></script>
-<script src="js/engine/world.js?v=20261001d"></script>
-<script src="js/engine/gfx.js?v=20261001d"></script>
-<script src="js/engine/dive.js?v=20261001d"></script>
-<script src="js/engine/audio.js?v=20261001d"></script>
-<script src="js/engine/fx.js?v=20261001d"></script>
-<script src="js/engine/level.js?v=20261001d"></script>
-<script src="js/engine/fish.js?v=20261001d"></script>
-<script src="js/engine/dave.js?v=20261001d"></script>
-<script src="js/engine/harpoon.js?v=20261001d"></script>
-<script src="js/engine/gun.js?v=20261001d"></script>
-<script src="js/engine/drone.js?v=20261001d"></script>
-<script src="../ho-xanh/data/shark_assets.js?v=20261001d"></script><script src="js/engine/shark.js?v=20261001d"></script>
-<script src="../ho-xanh/data/mobile_ui.js?v=20261001d"></script>
-<script src="data/content.js?v=20261001d"></script>
-<script src="data/loot.js?v=20261001d"></script>
-<script src="js/run.js?v=20261001d"></script>
-<script src="js/loot.js?v=20261001d"></script>
-<script src="js/tether.js?v=20261001d"></script>
-<script src="data/foes.js?v=20261001d"></script>
-<script src="js/foes.js?v=20261001d"></script>
-<script src="js/mates.js?v=20261001d"></script>
-<script src="js/skills.js?v=20261001d"></script>
-<script src="js/ship.js?v=20261001d"></script>
-<script src="js/cruise.js?v=20261001d"></script>
-<script src="js/shop.js?v=20261001d"></script>
-<script src="js/meta.js?v=20261001d"></script>
-<script src="js/ui.js?v=20261001d"></script>
-<script src="js/items.js?v=20261001d"></script>
-<script src="js/locker.js?v=20261001d"></script>
-<script src="js/hud.js?v=20261001d"></script>
-<script src="js/main.js?v=20261001d"></script>
+<script src="../ho-xanh/vendor/three-r140.min.js?v=20261002a"></script>
+<script src="../ho-xanh/vendor/GLTFLoader-r140.js?v=20261002a"></script>
+<script src="../ho-xanh/vendor/meshopt_decoder.js?v=20261002a"></script>
+<script src="../ho-xanh/vendor/spine-threejs-4.0.31.min.js?v=20261002a"></script>
+<script src="../ho-xanh/data/tuning.js?v=20261002a"></script>
+<script src="../ho-xanh/data/assets.js?v=20261002a"></script>
+<script src="../ho-xanh/data/fish_spawn.js?v=20261002a"></script>
+<script src="../ho-xanh/data/zones.js?v=20261002a"></script>
+<script src="../ho-xanh/data/gear_sheet.js?v=20261002a"></script>
+<script src="../ho-xanh/data/boat_assets.js?v=20261002a"></script>
+<script src="../ho-xanh/data/bar_assets.js?v=20261002a"></script>
+<script src="../ho-xanh/data/meta.js?v=20261002a"></script>
+<script src="data/maps.js?v=20261002a"></script>
+<script src="js/engine/world.js?v=20261002a"></script>
+<script src="js/engine/gfx.js?v=20261002a"></script>
+<script src="js/engine/dive.js?v=20261002a"></script>
+<script src="js/engine/audio.js?v=20261002a"></script>
+<script src="js/engine/fx.js?v=20261002a"></script>
+<script src="js/engine/level.js?v=20261002a"></script>
+<script src="js/engine/fish.js?v=20261002a"></script>
+<script src="js/engine/dave.js?v=20261002a"></script>
+<script src="js/engine/harpoon.js?v=20261002a"></script>
+<script src="js/engine/gun.js?v=20261002a"></script>
+<script src="js/engine/drone.js?v=20261002a"></script>
+<script src="../ho-xanh/data/shark_assets.js?v=20261002a"></script><script src="js/engine/shark.js?v=20261002a"></script>
+<script src="../ho-xanh/data/mobile_ui.js?v=20261002a"></script>
+<script src="data/content.js?v=20261002a"></script>
+<script src="data/loot.js?v=20261002a"></script>
+<script src="data/fish.js?v=20261002a"></script>
+<script src="js/run.js?v=20261002a"></script>
+<script src="js/loot.js?v=20261002a"></script>
+<script src="js/tether.js?v=20261002a"></script>
+<script src="data/foes.js?v=20261002a"></script>
+<script src="js/foes.js?v=20261002a"></script>
+<script src="js/mates.js?v=20261002a"></script>
+<script src="js/bodies.js?v=20261002a"></script>
+<script src="js/skills.js?v=20261002a"></script>
+<script src="js/ship.js?v=20261002a"></script>
+<script src="js/cruise.js?v=20261002a"></script>
+<script src="js/shop.js?v=20261002a"></script>
+<script src="js/meta.js?v=20261002a"></script>
+<script src="js/ui.js?v=20261002a"></script>
+<script src="js/items.js?v=20261002a"></script>
+<script src="js/locker.js?v=20261002a"></script>
+<script src="js/hud.js?v=20261002a"></script>
+<script src="js/minimap.js?v=20261002a"></script>
+<script src="js/main.js?v=20261002a"></script>
 </body>
 </html>

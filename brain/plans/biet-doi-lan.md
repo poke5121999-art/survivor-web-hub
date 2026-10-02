@@ -72,3 +72,11 @@ Bộ kiểm `node test/biet-doi-lan-*.js` xanh trên bản Pages, không lỗi t
 - Quái là cá mập / cá dữ DtD mang não REPO, không dùng sprite top-down của REPO dưới nước.
 - Thiếu cửa khoang lái trong art gốc thì dùng thân `boat.glb` của Hố Xanh nhìn ngang.
 - Trần bán quái tính theo loài, theo từng lượt lặn.
+
+## Đợt chỉnh 2026-10-02 (chủ dự án chơi thử)
+
+- Đồ cổ vẽ to 1,5 / 1,75 / 2 lần thân Dave, có viền vàng. Vòng va chạm giữ theo thân vật lý cũ để kéo lọt hang.
+- Minimap kiểu REPO ở góc trái trên, dưới thanh O₂ (`js/minimap.js`).
+- Cá: nhỏ là cảnh (không trúng, không chết), vừa và sứa giằng co xong vào túi (tối đa 8 kg mỗi con), lớn kéo xác. Cá ngựa và tôm bỏ, thay bằng cá lớn / sứa (`data/fish.js`).
+- Chết: xác nằm yên, chỉ về thuyền khi người khác kéo, tới thuyền thì hồi 25% O₂. Dave gục mà còn đồng đội sống thì chưa hết ca (`js/bodies.js`).
+- Tiền: quỹ mỗi map = 3 × chỉ tiêu, chia đồ cổ 60 / cá 25 / xác quái 15 (`BDL.run.settle`).

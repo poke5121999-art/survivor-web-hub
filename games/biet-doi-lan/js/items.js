@@ -300,7 +300,7 @@ window.BDL = window.BDL || {};
     G.shake(P.dmg ? 2 : 1); if (P.dmg) G.hitstop(0.05);
     if (P.dmg) {
       G.fishes.list.slice().forEach(function (f) {
-        if (!f.alive() || f.state === 'hooked') return;
+        if (f.decor || !f.alive() || f.state === 'hooked') return;
         var c = f.center(), dd = Math.hypot(c.x - x, c.y - y);
         if (dd > P.radius + f.radius) return;
         f.damage(Math.max(1, Math.round(P.dmg * mul * (1 - 0.5 * Math.min(1, dd / P.radius)))), x, y, false);

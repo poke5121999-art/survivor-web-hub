@@ -186,7 +186,7 @@
     G.audio.play(sfxKey(this.id, 'hit'), { vol: 0.8 });
     G.fx.play(VFX[this.art.impact], x, y, { z: 0.2, name: 'net' });
     var inNet = G.fishes.list.filter(function (f) {
-      if (!f.alive() || f.state === 'hooked') return false;
+      if (f.decor || !f.alive() || f.state === 'hooked') return false;
       var c = f.center();
       return Math.hypot(c.x - x, c.y - y) <= R + f.radius;
     });

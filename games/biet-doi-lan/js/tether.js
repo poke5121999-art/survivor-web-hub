@@ -37,26 +37,30 @@ window.BDL = window.BDL || {};
   // Phao nổi (js/items.js): món đang buộc dây nhẹ như bấc trong lúc phao còn hiệu lực
   function massOf(t) { return floating() ? 2 : clamp(t.mass || 1, 2, 260); }
 
-  // Móc dây được: mọi đồ cổ còn nằm dưới nước, xác cá to (cỡ ≥ 1) và xác quái. Cá còn sống (kể cả đang ngủ / đông đá)
+  // Móc dây được: mọi đồ cổ còn nằm dưới nước, xác cá lớn (vai 'drag', data/fish.js) và xác quái. Cá còn sống (kể cả đang ngủ / đông đá)
   // do mũi xiên đánh như thường, chết trên dây rồi mới thành xác buộc dây.
+  // Xác người lặn (js/bodies.js, t.isBody) cùng nhánh với đồ cổ: có pos / vel / mass / tilt / hitTest như Loot.
+  function solid(t) { return !!t && (t.isLoot || t.isBody); }
   function hookable(t) {
+    if (t && t.isBody) return !t.tethered && t.state === 'down';
     if (!t || t.tethered || !t.root || !t.root.parent) return false;
     if (t.isLoot) return t.state !== 'gone' && t.state !== 'onDeck' && !t.lifted;
     if (t.state === 'reeled' || t.state === 'hauled' || t.state === 'lifted' || !t.corpse || !t.corpse()) return false;
-    return t.sp.size >= 1 || !!t.isFoe;
+    return BDL.fishRole(t.sp) === 'drag' || !!t.isFoe;
   }
 
-  // Món lên boong. Quái (foes.js, f.isFoe) tự ghi deckItem riêng thì dùng của nó; cá thường thì giá × (1 + cỡ) vì phải kéo cả con lên [ĐỀ XUẤT];
+  // Món lên boong. Quái (foes.js, f.isFoe) tự ghi deckItem riêng thì dùng của nó; cá thường theo BDL.fishRaw (data/fish.js);
   // cá mập thường (không bộ não quái) bán như xác quái.
   function deckItemOf(t) {
-    if (t.isLoot || t.isFoe || t.brain || Object.prototype.hasOwnProperty.call(t, 'deckItem')) return t.deckItem();
+    if (t.isLoot || t.isBody || t.isFoe || t.brain || Object.prototype.hasOwnProperty.call(t, 'deckItem')) return t.deckItem();
     var sp = t.sp, icon = '';
     try { icon = HX.fish.iconFor(t.G.gfx, sp); } catch (e) { icon = ''; }
-    if (sp.shark) return { kind: 'foe', key: sp.id, label: sp.vi || HX.fish.displayName(sp), value: BDL.foeValue(sp.hp, sp.damage), icon: icon };
-    return { kind: 'fish', key: sp.id, label: HX.fish.displayName(sp), value: BDL.fishValue(sp) * (1 + (sp.size || 0)), icon: icon };
+    if (sp.shark) return { kind: 'foe', key: sp.id, label: sp.vi || HX.fish.displayName(sp), value: BDL.run.price('foe', BDL.foeValue(sp.hp, sp.damage)), icon: icon };
+    return { kind: 'fish', key: sp.id, label: HX.fish.displayName(sp), value: BDL.run.price('fish', BDL.fishRaw(sp)), icon: icon };
   }
-  function labelOf(t) { return t.isLoot ? t.name : t.sp.vi || HX.fish.displayName(t.sp); }
+  function labelOf(t) { return solid(t) ? t.name : t.sp.vi || HX.fish.displayName(t.sp); }
   function gone(t) {
+    if (t.isBody) return t.state === 'aboard';
     if (t.isLoot) return t.state === 'gone' || t.state === 'onDeck';
     return t.state === 'reeled' || !t.root || !t.root.parent;
   }
@@ -104,9 +108,9 @@ window.BDL = window.BDL || {};
   function showTag(t, hover) {
     if (!t) { if (!tag.el.hidden) tag.el.hidden = true; return; }
     // đang kéo thì nhãn nằm dưới vật (Dave và dây thường ở phía trên), nhìn lướt thì nằm trên
-    var c0 = t.isLoot ? t.pos : t.center(), top = { x: c0.x, y: c0.y + (hover ? t.hh + 0.15 : -t.hh - 0.12) };
-    var s = G.gfx.worldToScreen(top.x, top.y), item = t.isLoot ? null : deckItemOf(t);
-    var v = t.isLoot ? Math.round(t.value) : item.value, key = labelOf(t) + '|' + v + '|' + hover;
+    var c0 = t.center(), top = { x: c0.x, y: c0.y + (hover ? t.hh + 0.15 : -t.hh - 0.12) };
+    var s = G.gfx.worldToScreen(top.x, top.y), item = solid(t) ? null : deckItemOf(t);
+    var v = t.isLoot ? Math.round(t.value) : t.isBody ? 0 : item.value, key = labelOf(t) + '|' + v + '|' + hover;
     tag.el.hidden = false;
     tag.el.classList.toggle('hover', !!hover);
     tag.el.classList.toggle('below', !hover);
@@ -114,7 +118,7 @@ window.BDL = window.BDL || {};
     if (key !== tag.key) {
       tag.key = key;
       tag.name.textContent = labelOf(t) + (t.isLoot ? ' · ' + t.mat.name : '');
-      tag.val.textContent = BDL.fmt(v);
+      tag.val.textContent = t.isBody ? 'Kéo về thuyền' : BDL.fmt(v);
       tag.val.classList.toggle('hurt', !!t.isLoot && t.value < t.value0 - 0.5);
     }
     tag.bar.style.visibility = hover ? 'hidden' : 'visible';
@@ -134,7 +138,7 @@ window.BDL = window.BDL || {};
 
   function attachPoint() {
     var t = S.target;
-    if (t.isLoot) {
+    if (solid(t)) {
       var c = Math.cos(t.tilt), s = Math.sin(t.tilt);
       return { x: t.pos.x + S.off.x * c - S.off.y * s, y: t.pos.y + S.off.x * s + S.off.y * c };
     }
@@ -144,10 +148,10 @@ window.BDL = window.BDL || {};
 
   function attach(t, x, y) {
     var d = G.diver;
-    if (!t.isLoot && !(t.corpse && t.corpse())) { t.clearBuffs && t.clearBuffs(); t.die(false); }
+    if (!solid(t) && !(t.corpse && t.corpse())) { t.clearBuffs && t.clearBuffs(); t.die(false); }
     S.target = t;
     t.tethered = true;
-    if (t.isLoot) {
+    if (solid(t)) {
       // móc vào thân món, kéo điểm buộc vào trong ảnh cho khỏi lơ lửng ở mép
       var c = Math.cos(-t.tilt), s = Math.sin(-t.tilt), lx = (x - t.pos.x) * 0.6, ly = (y - t.pos.y) * 0.6;
       S.off = { x: lx * c - ly * s, y: lx * s + ly * c };
@@ -208,7 +212,15 @@ window.BDL = window.BDL || {};
 
   function consume() {
     if (S.state !== 'attached' || !S.target) return null;
-    var t = S.target, item = deckItemOf(t);
+    var t = S.target;
+    // kéo xác người lặn tới thuyền: không bán, người gục hồi trên boong (BDL.bodies.board)
+    if (t.isBody) {
+      detach();
+      BDL.bodies.board(t);
+      S.state = 'idle';
+      return null;
+    }
+    var item = deckItemOf(t);
     detach();
     t.removeFromWorld();
     S.state = 'idle';
@@ -317,7 +329,25 @@ window.BDL = window.BDL || {};
     if (!d || Math.hypot(input.aimX - d.pos.x, input.aimY - d.pos.y) > rangeOf() + 1) return null;
     var L = G.loot || [];
     for (var i = 0; i < L.length; i++) if (L[i].hitTest(input.aimX, input.aimY, 0.25)) return L[i];
+    var B = BDL.bodies ? BDL.bodies.list : [];
+    for (var j = 0; j < B.length; j++) if (hookable(B[j]) && B[j].hitTest(input.aimX, input.aimY, 0.25)) return B[j];
     return null;
+  }
+
+  // Mũi xiên (engine/harpoon.js) chỉ quét G.loot và cá: xác người lặn nằm ngoài hai danh sách đó nên ở đây quét thêm
+  // dọc quãng đường mũi xiên vừa bay trong khung, trúng thì móc như đồ cổ.
+  function hookBodies() {
+    var H = G.harpoon, B = BDL.bodies;
+    if (!H || H.state !== 'flying' || S.state === 'attached' || !B) { S.hx = null; return; }
+    var px = S.hx != null ? S.hx : H.x - H.dx * 0.6, py = S.hx != null ? S.hy : H.y - H.dy * 0.6;
+    var L = B.list;
+    for (var k = 0; k <= 6; k++) {
+      var x = px + (H.x - px) * k / 6, y = py + (H.y - py) * k / 6;
+      for (var i = 0; i < L.length; i++) {
+        if (hookable(L[i]) && L[i].hitTest(x, y, 0.1)) { H.x = x; H.y = y; if (H.hookOn(L[i])) { S.hx = null; return; } }
+      }
+    }
+    S.hx = H.x; S.hy = H.y;
   }
 
   BDL.deckItemOf = deckItemOf;   // drone.js dùng chung cách quy ra món lên boong
@@ -358,6 +388,7 @@ window.BDL = window.BDL || {};
       var d = G.diver;
       if (!d || !S) return;
       // input.hook (Q / chuột phải / nút Móc cũ) không còn tác dụng: móc đi bằng súng xiên chuột trái
+      hookBodies();
       if (S.state === 'attached') stepAttached(dt);
       else if (S.state === 'retracting') stepBack(dt);
       else if (S.state === 'snapped') stepSnapped(dt);

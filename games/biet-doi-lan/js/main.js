@@ -683,8 +683,10 @@
   };
   G.onPod = function () {};
   // Hết O₂ là cả tổ gục như REPO: mất lượt lặn đang dở, ca kết thúc, vẫn nhận phần đã giao ở các lượt trước.
+  // Dave gục mà còn đồng đội sống thì không vào đây (xác chờ họ kéo về, js/bodies.js); vào đây khi cả tổ hết người kéo.
   G.onDead = function () {
     if (G.phase !== 'dive') return;
+    G.deadCalls = (G.deadCalls || 0) + 1;
     HX.audio.stopMusic(0.6);
     HX.hud.toast('Hết O₂');
     if (devMap) return;

@@ -4,7 +4,8 @@
  * Chạy:  node test/biet-doi-lan-tether.js
  * 1280×720, map 0 và map 3. Ảnh chụp ra %TEMP%/bdl-tether-shots (đổi bằng SHOTS=...).
  * Kiểm: rải đồ cổ mỗi tầng và chỉ tiêu; móc món vừa → kéo lên; thả → chìm; đập món gốm → mất tiền;
- * xác thuyền kéo gắt → đứt dây rồi chìm; cá to chết thành xác nằm lại, không xả thịt, móc được; cá nhỏ vẫn vào túi.
+ * xác thuyền kéo gắt → đứt dây rồi chìm; cá lớn chết thành xác nằm lại, không xả thịt, móc được; cá vừa giằng co xong vào túi;
+ * cá nhỏ của allocator là cá cảnh: xiên đi xuyên qua, không chết, không vào túi.
  */
 'use strict';
 const path = require('path'), http = require('http'), fs = require('fs'), os = require('os');
@@ -129,9 +130,10 @@ async function oneMap(browser, base, m) {
   const li = await page.evaluate(() => ({ info: BDL_DEBUG.loot.info(), list: BDL_DEBUG.loot.list() }));
   const per = li.info.perFloor;
   check(tag + ': mỗi tầng có đồ cổ', per.length > 0 && per.every(n => n > 0), per.join('/') + ' (' + li.info.count + ' món)');
-  const sum = li.list.reduce((a, l) => a + l.value0, 0);
+  // Σ là giá gốc REPO lúc rải; giá bán sau đó chia lại theo quỹ 3 × chỉ tiêu (test/biet-doi-lan-economy.js)
+  const sum = li.info.lootTotal;
   const want = Math.round(sum * 0.7 * li.info.curve * 0.55 * li.info.quotaMul / 100) * 100;
-  check(tag + ': chỉ tiêu = round(Σ×0,7×curve×0,55×quotaMul/100)×100', li.info.quota === want && li.info.lootTotal === sum,
+  check(tag + ': chỉ tiêu = round(Σ gốc×0,7×curve×0,55×quotaMul/100)×100', sum > 0 && li.info.quota === want,
     'Σ ' + sum + ' × curve ' + fx(li.info.curve) + ' × quotaMul ' + li.info.quotaMul + ' → ' + li.info.quota + ' (tính lại ' + want + ')');
   check(tag + ': tầng sâu không ít hơn tầng nông', per[per.length - 1] + per[per.length - 2] >= per[0] - 1, per.join('/'));
   const kinds = {};
@@ -228,11 +230,11 @@ async function oneMap(browser, base, m) {
   check(tag + ': đứt dây thì xác thuyền chìm lại', Wr2.y < Wr1.y - 0.2 || Wr2.state === 'rest', fx(Wr1.y) + ' → ' + fx(Wr2.y) + ' (' + Wr2.state + ')');
   await waitState(page, ['idle'], 2000);
 
-  // ---- cá to: chết là xác nằm lại, không xả thịt, móc được ----
+  // ---- cá lớn: chết là xác nằm lại, không xả thịt, móc được ----
   const big = await page.evaluate(c => {
     const G = HX.game, d = G.diver, x = c.x, y = c.y + 4;
     BDL_DEBUG.teleport(x - 2.6, y);
-    const f = G.fishes.spawnAt(HX.fish.BY_ID.Dusky_Grouper, x, y);
+    const f = G.fishes.spawnAt(HX.fish.BY_ID.Giant_Trevally, x, y);
     // cá hoang và quái quanh đó không được chắn đường xiên
     G.fishes.frozen = true;
     G.fishes.drop(G.fishes.list.filter(q => q !== f && Math.hypot(q.pos.x - x, q.pos.y - y) < 14));
@@ -249,7 +251,7 @@ async function oneMap(browser, base, m) {
   await sleep(2500);
   let B = await page.evaluate(fid => __t.fish(fid), big);
   const caught = await page.evaluate(() => HX.game.catches.slice());
-  check(tag + ': cá to trúng xiên chết thành xác nằm lại, không vào túi', !!B && (B.state === 'dying' || B.state === 'dead') && caught.indexOf('Dusky_Grouper') < 0,
+  check(tag + ': cá lớn trúng xiên chết thành xác nằm lại, không vào túi', !!B && (B.state === 'dying' || B.state === 'dead') && caught.indexOf('Giant_Trevally') < 0,
     B ? B.state + ', túi [' + caught.join(',') + ']' : 'mất xác');
   st = await page.evaluate(() => BDL_DEBUG.tether.state());
   const autoHook = await page.evaluate(fid => { const t = BDL.tether.target(); return !!t && t.id === fid && !t.isLoot; }, big);
@@ -272,31 +274,61 @@ async function oneMap(browser, base, m) {
     const Bt1 = await page.evaluate(fid => __t.fish(fid), big);
     check(tag + ': xác cá to theo dây lên', Bt1 && Bt1.y - Bt0.y > 1 && Bt1.tethered, Bt1 ? 'lên ' + fx(Bt1.y - Bt0.y) + ' m, ' + Bt1.state : 'mất xác');
     const item = await page.evaluate(() => BDL.tether.consume());
-    check(tag + ': lên boong thành món cá giá × (1 + cỡ)', !!item && item.kind === 'fish' && item.key === 'Dusky_Grouper' && item.value === await page.evaluate(() => BDL.fishValue(HX.fish.BY_ID.Dusky_Grouper) * 2),
+    check(tag + ': lên boong thành món cá giá gốc × 3 qua quỹ map', !!item && item.kind === 'fish' && item.key === 'Giant_Trevally' && item.value === await page.evaluate(() => BDL.run.price('fish', BDL.fishValue(HX.fish.BY_ID.Giant_Trevally) * 3)),
       JSON.stringify(item && { kind: item.kind, key: item.key, value: item.value }));
   }
 
-  // ---- cá nhỏ: xiên vẫn kéo vào túi ----
-  const small = await page.evaluate(c => {
+  // ---- cá vừa: giằng co xong vào túi luôn, không thành xác phải kéo ----
+  const medium = await page.evaluate(c => {
     const G = HX.game, d = G.diver, x = c.x, y = c.y + 2;
-    BDL_DEBUG.teleport(x - 2.2, y);
-    const f = G.fishes.spawnAt(HX.fish.BY_ID.ClownFish, x, y);
-    // cá hoang và quái quanh đó không được chắn đường xiên
+    BDL_DEBUG.teleport(x - 2.4, y);
+    const f = G.fishes.spawnAt(HX.fish.BY_ID.Dusky_Grouper, x, y);
     G.fishes.frozen = true;
     G.fishes.drop(G.fishes.list.filter(q => q !== f && Math.hypot(q.pos.x - x, q.pos.y - y) < 14));
-
-    f.frozen = true; f.hp = 1;
+    f.frozen = true; f.hp = 1; f.facing = -1; f.flip = -1;
     d.vulnerable = function () { return false; };
     return f.id;
   }, col);
   await sleep(300);
+  const bag0 = await page.evaluate(() => HX.game.catches.length);
   await page.evaluate(fid => {
     const G = HX.game, d = G.diver, f = G.fishes.list.find(q => q.id === fid), c = f.center(), tip = d.gunTip();
     G.harpoon.fire(tip.x, tip.y, Math.atan2(c.y - tip.y, c.x - tip.x));
-  }, small);
-  await sleep(3000);
-  const bag = await page.evaluate(() => HX.game.catches.slice());
-  check(tag + ': cá nhỏ trúng xiên vẫn vào túi', bag.indexOf('ClownFish') >= 0, '[' + bag.join(',') + ']');
+  }, medium);
+  await sleep(3500);
+  const bagMid = await page.evaluate(() => HX.game.catches.slice());
+  const midTether = await page.evaluate(() => BDL_DEBUG.tether.state());
+  check(tag + ': cá vừa trúng xiên vào túi luôn, dây móc không buộc xác', bagMid.length === bag0 + 1 && bagMid[bagMid.length - 1] === 'Dusky_Grouper' && midTether !== 'attached',
+    '[' + bagMid.join(',') + '] dây ' + midTether);
+
+  // ---- cá nhỏ của allocator: cá cảnh, xiên đi xuyên qua ----
+  const deco = await page.evaluate(c => {
+    const G = HX.game, d = G.diver, x = c.x, y = c.y + 2;
+    const a = G.fishes.allocs.find(q => q.sp && BDL.fishRole(q.sp) === 'decor' && q.left > 0 && !q.fish.length);
+    if (!a) return null;
+    G.fishes.wake(a);
+    const f = a.fish[0];
+    BDL_DEBUG.teleport(x - 2.2, y);
+    G.fishes.frozen = true;
+    G.fishes.drop(G.fishes.list.filter(q => q.alloc !== a && Math.hypot(q.pos.x - x, q.pos.y - y) < 14));
+    a.fish.slice(1).forEach(q => { q.pos.x = x + 30; });
+    f.pos.x = x; f.pos.y = y; f.frozen = true;
+    d.vulnerable = function () { return false; };
+    return { id: f.id, sp: f.sp.id, hp: f.hp };
+  }, col);
+  check(tag + ': map có đàn cá cảnh từ allocator', !!deco, deco ? deco.sp : 'không có allocator cá cảnh');
+  if (deco) {
+    const bagD0 = await page.evaluate(() => HX.game.catches.slice());
+    await page.evaluate(fid => {
+      const G = HX.game, d = G.diver, f = G.fishes.list.find(q => q.id === fid), c = f.center(), tip = d.gunTip();
+      G.harpoon.fire(tip.x, tip.y, Math.atan2(c.y - tip.y, c.x - tip.x));
+    }, deco.id);
+    await sleep(2500);
+    const D = await page.evaluate(fid => { const f = HX.game.fishes.list.find(q => q.id === fid); return f ? { hp: f.hp, state: f.state } : null; }, deco.id);
+    const bagD = await page.evaluate(() => HX.game.catches.slice());
+    check(tag + ': cá cảnh trúng xiên không mất máu, không vào túi', !!D && D.hp === deco.hp && bagD.length === bagD0.length,
+      deco.sp + ' ' + JSON.stringify(D) + ' túi [' + bagD.join(',') + ']');
+  }
 
   const pageErr = await page.evaluate(() => BDL_DEBUG.info().errors);
   check(tag + ': không lỗi trang', errors.length === 0 && pageErr.length === 0, errors.concat(pageErr).slice(0, 4).join(' | '));

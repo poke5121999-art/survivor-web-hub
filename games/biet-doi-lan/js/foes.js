@@ -791,7 +791,7 @@
     f.corpseTime = FD.CORPSE_TIME;
     var foe = {
       id: ++fid, row: row, key: row.key, body: f, dmg: dmg, hpMax: hp,
-      value: BDL.foeValue(hp, dmg),
+      value: BDL.run.price('foe', BDL.foeValue(hp, dmg)),
       asleep: false, aware: false, alertT: 0, chaseT: 0, restT: 0, lostT: 0, senseT: Math.random() * 0.15,
       see: false, dd: 99, speedK: 1, mode: 'patrol', mt: 0, home: { x: x, y: y }, wp: null, wt: 0,
       stuckT: 0, detourT: 0, rm: null, pauseT: 0, invest: null, investT: 0, huntT: 20 + F.rnd() * 15, lastSeenT: F.t, stuckN: 0, tgt: null, ddDave: 99, hunt: false, dead: false, corpse: false, pack: null, immune: !!row.immune,

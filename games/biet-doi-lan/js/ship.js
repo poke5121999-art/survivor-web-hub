@@ -217,7 +217,7 @@
       if (!sp) return;
       var icon;
       try { icon = HX.fish.iconFor(G.gfx, sp); } catch (e) { icon = '🐟'; }
-      items.push({ kind: 'fish', key: id, label: HX.fish.displayName(sp), value: BDL.fishValue(sp), icon: icon });
+      items.push({ kind: 'fish', key: id, label: HX.fish.displayName(sp), value: BDL.run.price('fish', BDL.fishRaw(sp)), icon: icon });
     });
     S.arrive = { x: fromX, y: Math.min(fromY, SURF - 0.2) };
     enterDeck(5.0, 'climb');
@@ -227,6 +227,8 @@
     HX.hud.toast(items.length ? 'Lên thuyền · ' + items.length + ' món · +' + BDL.fmt(total) : 'Lên thuyền');
     return true;
   }
+  // js/bodies.js: Dave được đồng đội kéo xác tới thuyền thì lên boong như tự leo (hồi O₂ do bodies.js đặt)
+  BDL.shipBoard = function () { return S && S.G && S.alive ? board() : false; };
 
   // ---------- đống đồ ----------
   function pileSlot(k) {

@@ -285,7 +285,7 @@
   Shark.prototype.removeFromWorld = function () { if (this.state !== 'reeled') this.go('reeled'); };
   Shark.prototype.deckItem = function () {
     var B = window.BDL, sp = this.sp;
-    return { kind: 'fish', key: sp.id, label: HX.fish.displayName(sp), value: B && B.fishValue ? B.fishValue(sp) : 0, icon: HX.fish.iconFor(this.G.gfx, sp) };
+    return { kind: 'fish', key: sp.id, label: HX.fish.displayName(sp), value: B && B.fishRaw ? B.run.price('fish', B.fishRaw(sp)) : 0, icon: HX.fish.iconFor(this.G.gfx, sp) };
   };
 
   Shark.prototype.dot = function (n) {
