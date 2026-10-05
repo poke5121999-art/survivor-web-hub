@@ -32,6 +32,16 @@ const LABELS_JS = 'window.DESIGN_LABELS = ' + JSON.stringify({
       'list.*.reward.gold': { label: 'Thưởng vàng', unit: 'vàng', int: true }, 'list.*.reward.gem': { label: 'Thưởng gem', int: true } } },
   gacha_banners: { title: 'Banner quay', rowLabels: { char: 'Banner nhân vật' },
     fields: { rate5: { label: 'Tỉ lệ 5★', pct: true, min: 0, max: 1, help: '0.006 = 0,6%' } } },
+  stage_houses: { title: 'Các nhà trong ải', rowTitle: 'name',
+    sections: [
+      { title: 'Phòng và hành lang (theo vị trí nhà, không xáo)', rowLabels: { 1: 'Nhà 1', 2: 'Nhà 2', 3: 'Nhà 3', 4: 'Nhà 4', 5: 'Nhà 5' },
+        fields: ['extractRooms', 'privateRooms', 'sharedRooms', 'shortCorridors', 'longCorridors', 'specialExtract', 'mediumRatio', 'largeRatio'] },
+      { title: 'Độ khó và quái (theo vị trí nhà, không xáo)', rowLabels: { 1: 'Nhà 1', 2: 'Nhà 2', 3: 'Nhà 3', 4: 'Nhà 4', 5: 'Nhà 5' },
+        fields: ['level', 'hpMul', 'dmgMul', 'quotaMul', 'foeCount', 'kindCount', 'foes'] },
+      { title: 'Theme (xáo ngẫu nhiên mỗi ca)', rowTitle: 'name',
+        noteWhen: { table: 'stage_rules', field: 'shuffleThemes', true: 'NOTE-BẬT', false: 'NOTE-TẮT' },
+        fields: ['name', 'houseStyle', 'loot', 'materials', 'giaTriMul', 'ownFoes', 'boss', 'bossFromHouse'] }],
+    fields: { extractRooms: { label: 'Số phòng extract', int: true, min: 0 }, name: { label: 'Tên nhà' } } },
   wallet_start: { title: 'Gói khởi đầu', blurb: 'Tài khoản mới nhận gì khi vào game lần đầu.', effect: 'Chỉ áp cho tài khoản tạo SAU khi lưu.',
     fields: { gold: { label: 'Vàng', unit: 'vàng', int: true, min: 0, help: 'Số vàng tài khoản mới có sẵn.' },
       gem: { label: 'Gem', unit: 'gem', int: true, min: 0 },
@@ -49,7 +59,8 @@ function hashDocs(docs) {
 }
 
 const fake = {
-  tables: { quests: JSON.parse(fs.readFileSync('D:/REPO_Meta/gamespark-config/quests.json', 'utf8')) },
+  tables: { quests: JSON.parse(fs.readFileSync('D:/REPO_Meta/gamespark-config/quests.json', 'utf8')),
+    stage_houses: JSON.parse(JSON.stringify(DEFAULTS.stage_houses)), stage_rules: JSON.parse(JSON.stringify(DEFAULTS.stage_rules)) },
   saves: [],
   view(n) { const d = this.tables[n]; return { exists: !!d, docs: d || [], hash: hashDocs(d || []) }; },
   mutate(n, fn) { fn(this.tables[n]); },
@@ -128,7 +139,7 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
   const open = async n => { await p.click(`#dz-nav [data-table="${n}"]`); await p.waitForSelector('.dz-pane__head'); };
   const txt = sel => p.$eval(sel, e => e.textContent.trim());
   const dryDone = () => p.waitForFunction(() => /GameSpark báo/.test(document.getElementById('dz-dry').textContent));
-  const barGone = () => p.waitForFunction(() => document.getElementById('dz-bar').hidden);
+  const barGone = () => p.waitForFunction(() => /^Chưa sửa gì/.test(document.getElementById('dz-bar-count').textContent));
 
   await p.goto(BASE + '/design.html?api=/gs&poll=300');
   await p.waitForSelector('#dz-nav .dz-chip--live');
@@ -141,6 +152,11 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
 
   // 1) sửa quests daily pick 5 -> 4
   await open('quests');
+  const idleBar = await p.$eval('#dz-bar', e => ({ hidden: e.hidden, txt: document.getElementById('dz-bar-count').textContent,
+    dis: document.getElementById('btn-review').disabled, title: document.getElementById('btn-review').title,
+    discard: document.getElementById('btn-discard').hidden }));
+  check('quests chưa sửa: thanh hiện, nút lưu disabled có title, nút huỷ ẩn', !idleBar.hidden && /^Chưa sửa gì/.test(idleBar.txt) &&
+    idleBar.dis && /Sửa ít nhất một ô/.test(idleBar.title) && idleBar.discard, JSON.stringify(idleBar));
   const origDocs = JSON.parse(JSON.stringify(fake.tables.quests));
   const origHash = hashDocs(origDocs);
   await p.fill(K('daily', 'pick') + ' input', '4');
@@ -236,6 +252,46 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
   check('fake đổi khi không có sửa: giá trị tự cập nhật thành 7', (await p.inputValue(K('daily', 'pick') + ' input')) === '7');
   const tt = await p.$$eval('.dz-toast', els => els.map(e => e.textContent).join('|'));
   check('có toast "Bảng vừa được cập nhật"', /Bảng vừa được cập nhật/.test(tt), tt);
+
+  // 9) bảng chia phần: stage_houses
+  await open('stage_houses');
+  const secTitles = await p.$$eval('.dz-section__title', els => els.map(e => e.textContent));
+  check('stage_houses có đúng 3 phần (không có "Khác")', secTitles.length === 3 && /^Phòng và hành lang/.test(secTitles[0]) &&
+    /^Độ khó/.test(secTitles[1]) && /^Theme/.test(secTitles[2]), secTitles.join(' | '));
+  const layoutCols = await p.$$eval('.dz-section:nth-of-type(1) [data-k^="5|"]', els => els.filter(e => e.offsetParent).map(e => e.getAttribute('data-k').split('|')[1]));
+  check('5 số phòng/hành lang nằm ngay trên lưới, không phải mở Chi tiết',
+    ['extractRooms', 'privateRooms', 'sharedRooms', 'shortCorridors', 'longCorridors'].every(k => layoutCols.includes(k)), layoutCols.join(','));
+  const posRows = await p.$$eval('.dz-section:nth-of-type(1) .dz-row .dz-row__title', els => els.map(e => e.textContent));
+  check('lưới vị trí đọc "Nhà 1".."Nhà 5"', posRows.join(',') === 'Nhà 1,Nhà 2,Nhà 3,Nhà 4,Nhà 5', posRows.join(','));
+  const themeRow = await txt('.dz-section:nth-of-type(3) .dz-row .dz-row__title');
+  check('lưới theme: dòng đầu là tên theme', themeRow === DEFAULTS.stage_houses[0].name, themeRow);
+  const noteOn = await txt('.dz-section:nth-of-type(3) .dz-section__note');
+  check('ghi chú theme khi shuffleThemes bật', noteOn === 'NOTE-BẬT', noteOn);
+  await p.fill(K('5', 'extractRooms') + ' input', '7');
+  const oldX = await txt(K('5', 'extractRooms') + ' .dz-cell__old');
+  const rowFlags = await p.$$eval('.dz-section .dz-row.is-changed', els => els.map(e => e.closest('.dz-section').querySelector('.dz-section__title').textContent.slice(0, 4)));
+  check('"trước:" hiện ở ô đã sửa, chỉ phần vị trí được đánh dấu đổi', /^trước: 3/.test(oldX) && rowFlags.join() === 'Phòn', oldX + ' / ' + rowFlags.join());
+  await p.click('#btn-review');
+  await dryDone();
+  const chg2 = await txt('#dz-changes');
+  check('hộp xem lại: dòng bắt đầu bằng "Nhà 5"', /^Nhà 5 · Số phòng extract: 3 → 7/.test(chg2), chg2);
+  await p.click('#btn-back');
+  await p.click('#btn-discard');
+  await p.fill('.dz-section:nth-of-type(3) ' + K('2', 'name') + ' input', 'Kim tự tháp mới');
+  await p.click('#btn-review');
+  await dryDone();
+  const chg3 = await txt('#dz-changes');
+  check('hộp xem lại: đổi trong phần theme gọi bằng tên theme', /^Kim tự tháp mới · Tên nhà/.test(chg3), chg3);
+  await p.click('#btn-back');
+  await p.click('#btn-discard');
+  fake.mutate('stage_rules', d => { d[0].shuffleThemes = false; });
+  await p.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await p.waitForTimeout(600);
+  await open('quests');
+  await open('stage_houses');
+  const noteOff = await txt('.dz-section:nth-of-type(3) .dz-section__note');
+  check('ghi chú theme đổi khi shuffleThemes tắt', noteOff === 'NOTE-TẮT', noteOff);
+  await p.screenshot({ path: SHOTS + '/houses-split.png', fullPage: true });
 
   const e = errs.filter(x => !/favicon|404/.test(x));
   check('không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));

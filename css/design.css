@@ -142,7 +142,7 @@
 
 /* ---- sticky bar ---- */
 .dz-bar { position: sticky; bottom: 0; z-index: 20; background: var(--bg-elev); border-top: 1px solid var(--border); box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.25); }
-.dz-bar[hidden] { display: none; }
+.dz-bar[hidden], .dz-bar [hidden] { display: none; }
 .dz-bar__inner { display: flex; align-items: center; gap: 10px; max-width: 1280px; margin: 0 auto; padding: 12px 24px; }
 .dz-bar__count { font-weight: 700; font-size: 14px; }
 .dz-bar__spacer { flex: 1 1 auto; }
@@ -195,3 +195,10 @@
   .dz-fld { grid-template-columns: minmax(0, 1fr); }
   .dz-grid > tbody > tr.dz-detail > td { display: block; min-width: 0; }
 }
+
+.dz-section { margin-top: 24px; }
+.dz-section:first-of-type { margin-top: 16px; }
+.dz-section__title { margin: 0; font-size: 16px; }
+.dz-section__note { margin: 4px 0 10px; color: var(--text-dim); max-width: 70ch; font-size: 14px; }
+/* The column header already carries the unit; repeating it in every cell pushed columns off-screen. */
+.dz-grid .dz-row > td .dz-unit { display: none; }

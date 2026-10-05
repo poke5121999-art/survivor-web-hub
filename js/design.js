@@ -277,11 +277,42 @@
 
   // ---------- field controls ----------
 
-  function rowTitle(table, doc) {
+  // A section may name rows its own way (rowLabels / rowTitle); otherwise the table's naming applies.
+  function rowTitle(table, doc, sec) {
     var L = LABELS[table] || {};
+    if (sec && (sec.rowLabels || sec.rowTitle)) L = sec;
     if (L.rowLabels && L.rowLabels[doc._id]) return L.rowLabels[doc._id];
     if (L.rowTitle && typeof doc[L.rowTitle] === "string" && doc[L.rowTitle]) return doc[L.rowTitle];
     return doc._id;
+  }
+
+  // Split a list table into the sections its labels declare. Fields no section lists
+  // land in a final "Khác" section so nothing is hidden. null = no sections declared.
+  function sectionsOf(table, docs) {
+    var L = LABELS[table] || {};
+    if (!L.sections || !L.sections.length) return null;
+    var listed = {}, extra = [];
+    L.sections.forEach(function (s) { s.fields.forEach(function (k) { listed[k] = 1; }); });
+    docs.forEach(function (d) {
+      Object.keys(d).forEach(function (k) { if (k !== "_id" && !listed[k] && extra.indexOf(k) < 0) extra.push(k); });
+    });
+    var res = L.sections.map(function (s, i) { return Object.assign({ idx: i }, s); });
+    if (extra.length) res.push({ idx: res.length, title: "Khác", fields: extra });
+    return res;
+  }
+
+  function sectionOfField(table, docs, key) {
+    var secs = sectionsOf(table, docs);
+    return secs && secs.filter(function (s) { return s.fields.indexOf(key) >= 0; })[0] || null;
+  }
+
+  // Section note; noteWhen picks the text from a boolean field of another table's draft.
+  function sectionNote(sec) {
+    var w = sec.noteWhen;
+    if (!w) return sec.note;
+    var t = S.tables[w.table], d = t && t.draft && t.draft[0];
+    var v = d ? d[w.field] : ((DEFAULTS[w.table] || [])[0] || {})[w.field];
+    return w[String(!!v)] || sec.note;
   }
 
   // One editable leaf: input + unit + (filled later by updateMarks) "trước" and error lines.
@@ -419,20 +450,31 @@
       });
       pane.appendChild(form);
     } else {
-      pane.appendChild(listGrid(n, docs));
+      var secs = sectionsOf(n, docs);
+      if (!secs) pane.appendChild(listGrid(n, docs, null));
+      else secs.forEach(function (sec) {
+        var note = sectionNote(sec);
+        pane.appendChild(h("section", { class: "dz-section" },
+          h("h3", { class: "dz-section__title", text: sec.title }),
+          note ? h("p", { class: "dz-section__note", text: note }) : null,
+          listGrid(n, docs, sec)));
+      });
     }
     updateMarks();
   }
 
-  function listGrid(table, docs) {
-    var L = LABELS[table] || {};
+  // sec (optional) restricts the grid to that section's fields, in its order.
+  function listGrid(table, docs, sec) {
+    var inSec = function (k) { return k !== "_id" && (!sec || sec.fields.indexOf(k) >= 0); };
     var cols = [];
     docs.forEach(function (d) {
       Object.keys(d).forEach(function (k) {
-        if (k !== "_id" && isScalar(d[k]) && cols.indexOf(k) < 0) cols.push(k);
+        if (inSec(k) && isScalar(d[k]) && cols.indexOf(k) < 0) cols.push(k);
       });
     });
-    cols = cols.slice(0, MAX_INLINE_COLS);
+    if (sec) cols.sort(function (a, b) { return sec.fields.indexOf(a) - sec.fields.indexOf(b); });
+    // A section is already a curated subset: show all of it inline instead of hiding some behind "Chi tiết".
+    cols = cols.slice(0, (sec && sec.inline) || MAX_INLINE_COLS);
     var wrap = h("div", { class: "dz-list" });
     var tbody = h("tbody");
 
@@ -453,10 +495,11 @@
     head.appendChild(h("th", { class: "dz-grid__more" }));
 
     docs.forEach(function (doc) {
-      var title = rowTitle(table, doc);
-      var rest = Object.keys(doc).filter(function (k) { return k !== "_id" && cols.indexOf(k) < 0; });
-      var openKey = table + SEP + doc._id;
+      var title = rowTitle(table, doc, sec);
+      var rest = Object.keys(doc).filter(function (k) { return inSec(k) && cols.indexOf(k) < 0; });
+      var openKey = table + SEP + (sec ? sec.idx + SEP : "") + doc._id;
       var tr = h("tr", { class: "dz-row", "data-id": doc._id });
+      tr._fields = sec ? sec.fields : null;
       tr._search = (title + " " + doc._id).toLowerCase();
       tr.appendChild(h("td", { class: "dz-grid__name" }, h("span", { class: "dz-row__title", text: title }),
         title !== doc._id ? h("span", { class: "dz-row__id", text: doc._id }) : null));
@@ -510,11 +553,8 @@
   function updateMarks() {
     var n = S.current;
     if (!n || !S.tables[n] || !S.tables[n].remote) { updateBar(); updateNav(); return; }
-    var diff = changes(n), by = {}, perRow = {};
-    diff.forEach(function (d) {
-      by[d._id + SEP + d.path.join(".")] = d;
-      perRow[d._id] = (perRow[d._id] || 0) + 1;
-    });
+    var diff = changes(n), by = {};
+    diff.forEach(function (d) { by[d._id + SEP + d.path.join(".")] = d; });
     var errs = S.errors[n] || {};
     document.querySelectorAll("#dz-pane [data-k]").forEach(function (el) {
       var k = el.getAttribute("data-k"), d = by[k], e = errs[k];
@@ -527,7 +567,8 @@
       if (e) er.textContent = e;
     });
     document.querySelectorAll("#dz-pane .dz-row").forEach(function (tr) {
-      var c = perRow[tr.getAttribute("data-id")] || 0;
+      var id = tr.getAttribute("data-id");
+      var c = diff.filter(function (d) { return d._id === id && (!tr._fields || tr._fields.indexOf(d.path[0]) >= 0); }).length;
       tr.classList.toggle("is-changed", c > 0);
       if (tr._btn) {
         var inDetail = 0;
@@ -547,14 +588,17 @@
     var n = S.current, bar = $("dz-bar");
     if (!n || !S.tables[n] || !S.tables[n].remote) { bar.hidden = true; return; }
     var c = changes(n).length, e = errCount(n), missing = isMissing(n);
-    bar.hidden = !(c || e || missing);
+    var clean = !c && !e && !missing;
+    bar.hidden = false;
     var txt = c ? c + " thay đổi" : (missing ? "Bảng chưa có trên GameSpark" : "");
+    if (clean) txt = "Chưa sửa gì · số trên trang khớp GameSpark";
     if (e) txt += (txt ? " · " : "") + e + " ô nhập lỗi, cần sửa trước khi lưu";
     $("dz-bar-count").textContent = txt;
     $("btn-discard").hidden = !(c || e);
     var rv = $("btn-review");
     rv.textContent = !c && !e && missing ? "Tạo bảng trên GameSpark" : "Xem lại & lưu";
-    rv.disabled = e > 0 || !!S.conflict[n];
+    rv.disabled = clean || e > 0 || !!S.conflict[n];
+    if (clean) rv.title = "Sửa ít nhất một ô để lưu lên GameSpark"; else rv.removeAttribute("title");
   }
 
   // ---------- actions ----------
@@ -640,7 +684,8 @@
     var settings = isSettings(docs);
     var meta = fieldMeta(n, d.path);
     var doc = (S.tables[n].draft.filter(function (x) { return x._id === d._id; })[0]) || { _id: d._id };
-    return (settings ? "" : rowTitle(n, doc) + " · ") + meta.label + ": " +
+    var sec = settings ? null : sectionOfField(n, S.tables[n].draft, d.path[0]);
+    return (settings ? "" : rowTitle(n, doc, sec) + " · ") + meta.label + ": " +
       fmtVal(d.before, meta) + " → " + fmtVal(d.after, meta);
   }
 

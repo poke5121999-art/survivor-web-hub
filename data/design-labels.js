@@ -261,10 +261,35 @@
 
     stage_houses: {
       title: "Các nhà trong ải",
-      blurb: "Từng nhà theo thứ tự chơi: số phòng từng loại (extract, loot riêng, loot chung; luôn 1 phòng xe tải), số hành lang ngắn và dài, quái, boss, hệ số máu/sát thương và giá đồ.",
+      blurb: "Bảng chia ba phần: phòng và hành lang, độ khó và quái (hai phần này theo vị trí nhà, không xáo), và theme (tên, kiểu nhà, loot, boss; xáo mỗi ca).",
       effect: RUN,
-      rowTitle: "name",
-      rowLabels: { "1": "Nhà 1", "2": "Nhà 2", "3": "Nhà 3", "4": "Nhà 4", "5": "Nhà 5" },
+      sections: [
+        {
+          title: "Phòng và hành lang (theo vị trí nhà, không xáo)",
+          note: "Mỗi nhà luôn có 1 phòng xe tải, cộng các phòng dưới đây. Nhà thứ n luôn dùng dòng n.",
+          rowLabels: { "1": "Nhà 1", "2": "Nhà 2", "3": "Nhà 3", "4": "Nhà 4", "5": "Nhà 5" },
+          inline: 5,
+          fields: ["extractRooms", "privateRooms", "sharedRooms", "shortCorridors", "longCorridors", "specialExtract",
+            "mediumRatio", "largeRatio"]
+        },
+        {
+          title: "Độ khó và quái (theo vị trí nhà, không xáo)",
+          note: "Nhà sau luôn khó hơn nhà trước, dù theme nào rơi vào.",
+          rowLabels: { "1": "Nhà 1", "2": "Nhà 2", "3": "Nhà 3", "4": "Nhà 4", "5": "Nhà 5" },
+          fields: ["level", "hpMul", "dmgMul", "quotaMul", "foeCount", "kindCount", "foes"]
+        },
+        {
+          title: "Theme (xáo ngẫu nhiên mỗi ca)",
+          note: "Theme gồm tên, kiểu nhà, loot, chất liệu, giá đồ, quái đặc trưng và boss.",
+          noteWhen: {
+            table: "stage_rules", field: "shuffleThemes",
+            "true": "Đang bật xáo: mỗi ca, 5 theme này được chia ngẫu nhiên vào 5 vị trí nhà.",
+            "false": "Đang tắt xáo (Luật ải): nhà thứ n luôn mang theme dòng n."
+          },
+          rowTitle: "name",
+          fields: ["name", "houseStyle", "loot", "materials", "giaTriMul", "ownFoes", "boss", "bossFromHouse"]
+        }
+      ],
       fields: {
         "_id": { label: "Thứ tự nhà", help: "1 = nhà đầu. Giữ nguyên." },
         "name": { label: "Tên nhà" },
@@ -277,7 +302,7 @@
         "ownFoes": { label: "Quái đặc trưng", help: "Kiểu nhà này rơi vào vị trí đã mở loài đó thì loài đó luôn có mặt." },
         "ownFoes.*": { label: "Mã loài" },
         "boss": { label: "Boss", help: "Mã loài boss, đúng một con. Trống = không có boss." },
-        "bossFromHouse": { label: "Boss có từ nhà thứ", min: 1, int: true },
+        "bossFromHouse": { label: "Boss có từ nhà thứ", min: 1, int: true, help: "Boss đi theo theme nhưng chỉ xuất hiện khi theme rơi vào nhà thứ này trở đi." },
         "hpMul": { label: "Hệ số máu quái", min: 0 },
         "dmgMul": { label: "Hệ số sát thương quái", min: 0 },
         "materials": { label: "Tỉ trọng chất liệu đồ", items: ["Gốm", "Gỗ", "Kim loại"], min: 0, help: "Để trống = chia đều." },
@@ -287,11 +312,11 @@
         "mediumRatio": { label: "Thiên hướng phòng vừa", min: 0, max: 1, help: "Không phải tỉ lệ chính xác: số càng cao càng hay bốc phòng cỡ vừa." },
         "largeRatio": { label: "Thiên hướng phòng to", min: 0, max: 1 },
         "quotaMul": { label: "Hệ số chỉ tiêu", min: 0 },
-        "extractRooms": { label: "Số phòng extract", unit: "phòng", min: 0, max: 8, int: true, help: "Phòng lá có bệ giao, không tính phòng xe tải. Số bệ giao của nhà = số này + 1 (bệ đầu nằm ở phòng xe tải)." },
-        "privateRooms": { label: "Số phòng loot riêng", unit: "phòng", min: 0, max: 8, int: true, help: "Phòng private loot của nhà này." },
-        "sharedRooms": { label: "Số phòng loot chung", unit: "phòng", min: 0, max: 40, int: true, help: "Phòng share loot. Tổng phòng của nhà = 1 phòng xe tải + extract + riêng + chung." },
-        "shortCorridors": { label: "Số hành lang ngắn", unit: "đoạn", min: 0, max: 40, int: true },
-        "longCorridors": { label: "Số hành lang dài", unit: "đoạn", min: 0, max: 40, int: true, help: "Mỗi đoạn dài bốc ngẫu nhiên dài hoặc rất dài. Tổng hành lang không được nhiều hơn số phòng loot chung." }
+        "extractRooms": { label: "Phòng extract", unit: "phòng", min: 0, max: 8, int: true, help: "Phòng lá có bệ giao, không tính phòng xe tải. Số bệ giao của nhà = số này + 1 (bệ đầu nằm ở phòng xe tải)." },
+        "privateRooms": { label: "Phòng loot riêng", unit: "phòng", min: 0, max: 8, int: true, help: "Phòng private loot của nhà này." },
+        "sharedRooms": { label: "Phòng loot chung", unit: "phòng", min: 0, max: 40, int: true, help: "Phòng share loot. Tổng phòng của nhà = 1 phòng xe tải + extract + riêng + chung." },
+        "shortCorridors": { label: "Hành lang ngắn", unit: "đoạn", min: 0, max: 40, int: true },
+        "longCorridors": { label: "Hành lang dài", unit: "đoạn", min: 0, max: 40, int: true, help: "Mỗi đoạn dài bốc ngẫu nhiên dài hoặc rất dài. Tổng hành lang không được nhiều hơn số phòng loot chung." }
       }
     },
 
