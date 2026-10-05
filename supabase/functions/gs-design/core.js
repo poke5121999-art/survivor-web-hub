@@ -10,7 +10,8 @@ export const KNOWN = [
 ];
 
 const MAX_BODY_BYTES = 400 * 1024;
-const QUERY_LIMIT = 1000;
+const QUERY_LIMIT = 50;
+const MAX_DOCS = 2000;
 const enc = new TextEncoder();
 
 const isPlain = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
@@ -98,10 +99,16 @@ function makeClient(env, fetchImpl) {
 
 // A missing table queries as an empty list, so "exists" means "has docs".
 async function readTable(call, table) {
-  const r = await call("/data/query", { collection: "md_" + table, limit: QUERY_LIMIT });
-  if (r.hasMore) throw new UpstreamError(200, "TOO_MANY_DOCS", `bảng ${table} có hơn ${QUERY_LIMIT} dòng`);
+  // The server caps limit at 50 whatever we ask, so page with skip until hasMore is false.
+  const raw = [];
+  for (;;) {
+    const r = await call("/data/query", { collection: "md_" + table, limit: QUERY_LIMIT, skip: raw.length });
+    raw.push(...(r.docs || []));
+    if (!r.hasMore || !(r.docs || []).length) break;
+    if (raw.length >= MAX_DOCS) throw new UpstreamError(200, "TOO_MANY_DOCS", `bảng ${table} có hơn ${MAX_DOCS} dòng`);
+  }
   // Server-stamped bookkeeping fields are not designer data and would break hash round trips.
-  const docs = normalize(r.docs || []).map(({ _createdAt, _updatedAt, ...rest }) => rest);
+  const docs = normalize(raw).map(({ _createdAt, _updatedAt, ...rest }) => rest);
   return { exists: docs.length > 0, docs, hash: await hashDocs(docs) };
 }
 
@@ -153,8 +160,10 @@ async function doSave(call, body) {
     try {
       await call("/data/collections", { name: table, kind: "metadata" });
     } catch (e) {
-      // 409 means the table already exists but is empty; sync can proceed.
+      // 409 is fine when the name is an empty metadata table; when a runtime (cd_) collection owns the
+      // logical name, sync could never succeed, so surface the platform's own explanation.
       if (!(e instanceof UpstreamError) || e.status !== 409) throw e;
+      if (!/loại metadata/.test(e.message)) return fail(409, "NAME_TAKEN", e.message);
     }
   }
   const r = await call("/data/sync", { collection: "md_" + table, docs, dryRun });

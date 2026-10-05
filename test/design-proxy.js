@@ -66,12 +66,21 @@ function shuffleKeys(v) {
     check("INVALID " + n, r.status === 400 && r.json.error.code === "INVALID", `status ${r.status}, ${r.json.error && r.json.error.message}`);
   }
 
-  const foes = JSON.parse(fs.readFileSync("D:/REPO_Meta/gamespark-config/foes.json", "utf8"));
-  const gf = await act({ action: "get", table: "foes" });
-  const dm = await act({ action: "save", table: "foes", docs: foes, baseHash: gf.json.hash, dryRun: true });
-  check("dryRun missing table foes", gf.json.exists === false && dm.status === 200 && dm.json.counts.insert === foes.length,
-    `exists=${gf.json.exists}, status ${dm.status}, insert=${dm.json.counts && dm.json.counts.insert}, expected ${foes.length}`);
+  const listed = await act({ action: "list" });
+  const gone = KNOWN.find((t) => !listed.json.tables[t].exists);
+  if (!gone) console.log("ℹ dryRun missing table — bỏ qua: cả 30 bảng đều đã có trên DEV");
+  else {
+    const want = JSON.parse(fs.readFileSync(`D:/REPO_Meta/gamespark-config/${gone}.json`, "utf8"));
+    const dm = await act({ action: "save", table: gone, docs: want, baseHash: listed.json.tables[gone].hash, dryRun: true });
+    check(`dryRun missing table ${gone}`, dm.status === 200 && dm.json.counts.insert === want.length,
+      `status ${dm.status}, insert=${dm.json.counts && dm.json.counts.insert}, expected ${want.length}`);
+  }
 
+
+  const li = await act({ action: "get", table: "loot_items" });
+  const liFile = JSON.parse(fs.readFileSync("D:/REPO_Meta/gamespark-config/loot_items.json", "utf8"));
+  check("loot_items đọc đủ qua nhiều trang (server cắt 50 dòng mỗi lần)", li.status === 200 && li.json.docs.length === 86 && li.json.hash === await hashDocs(liFile),
+    `status ${li.status}, ${li.json.docs && li.json.docs.length} dòng, khớp file=${li.json.hash === await hashDocs(liFile)}`);
 
   console.log(failed ? `FAIL (${failed} check(s) failed)` : "PASS");
   process.exit(failed ? 1 : 0);

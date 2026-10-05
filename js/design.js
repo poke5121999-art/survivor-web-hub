@@ -684,7 +684,7 @@
   }
 
   function dryFailed(e, dlg, status) {
-    if (e.status === 409) {
+    if (e.code === "CONFLICT") {
       dlg.close();
       var cur = e.body && e.body.current;
       markConflict(S.current, cur ? { exists: cur.exists, docs: cur.docs, hash: cur.hash } : null);
