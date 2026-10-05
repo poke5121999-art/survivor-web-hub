@@ -261,7 +261,7 @@
 
     stage_houses: {
       title: "Các nhà trong ải",
-      blurb: "Từng nhà theo thứ tự chơi: bố cục, bệ giao, quái, boss, hệ số máu/sát thương và giá đồ.",
+      blurb: "Từng nhà theo thứ tự chơi: số phòng từng loại (extract, loot riêng, loot chung; luôn 1 phòng xe tải), số hành lang ngắn và dài, quái, boss, hệ số máu/sát thương và giá đồ.",
       effect: RUN,
       rowTitle: "name",
       rowLabels: { "1": "Nhà 1", "2": "Nhà 2", "3": "Nhà 3", "4": "Nhà 4", "5": "Nhà 5" },
@@ -283,28 +283,26 @@
         "materials": { label: "Tỉ trọng chất liệu đồ", items: ["Gốm", "Gỗ", "Kim loại"], min: 0, help: "Để trống = chia đều." },
         "giaTriMul": { label: "Hệ số giá đồ", min: 0 },
         "loot": { label: "Bộ hình loot", help: "vampire, asylum… Để trống = hình chung." },
-        "roomCount": { label: "Số phòng", min: 2, int: true, help: "Gồm phòng xe tải, phòng extract và phòng riêng, không gồm hành lang. Phải đủ chỗ cho số bệ giao." },
         "specialExtract": { label: "Bệ giao nằm trong phòng đặc biệt", help: "Bật = mọi bệ giao nằm trong phòng SpecialExtract." },
         "mediumRatio": { label: "Thiên hướng phòng vừa", min: 0, max: 1, help: "Không phải tỉ lệ chính xác: số càng cao càng hay bốc phòng cỡ vừa." },
         "largeRatio": { label: "Thiên hướng phòng to", min: 0, max: 1 },
-        "longCorridorRatio": { label: "Thiên hướng hành lang dài", min: 0, max: 1 },
-        "extraLongCorridorRatio": { label: "Thiên hướng hành lang siêu dài", min: 0, max: 1 },
-        "corridorCountMin": { label: "Số đoạn hành lang ít nhất", min: 0, int: true },
-        "corridorCountMax": { label: "Số đoạn hành lang nhiều nhất", min: 0, int: true },
         "quotaMul": { label: "Hệ số chỉ tiêu", min: 0 },
-        "padCount": { label: "Số bệ giao", min: 0, max: 5, int: true, help: "Bệ đầu nằm ở phòng xe tải." }
+        "extractRooms": { label: "Số phòng extract", unit: "phòng", min: 0, max: 8, int: true, help: "Phòng lá có bệ giao, không tính phòng xe tải. Số bệ giao của nhà = số này + 1 (bệ đầu nằm ở phòng xe tải)." },
+        "privateRooms": { label: "Số phòng loot riêng", unit: "phòng", min: 0, max: 8, int: true, help: "Phòng private loot của nhà này." },
+        "sharedRooms": { label: "Số phòng loot chung", unit: "phòng", min: 0, max: 40, int: true, help: "Phòng share loot. Tổng phòng của nhà = 1 phòng xe tải + extract + riêng + chung." },
+        "shortCorridors": { label: "Số hành lang ngắn", unit: "đoạn", min: 0, max: 40, int: true },
+        "longCorridors": { label: "Số hành lang dài", unit: "đoạn", min: 0, max: 40, int: true, help: "Mỗi đoạn dài bốc ngẫu nhiên dài hoặc rất dài. Tổng hành lang không được nhiều hơn số phòng loot chung." }
       }
     },
 
     stage_rules: {
       title: "Luật ải",
-      blurb: "Luật chung cả ca: xáo kiểu nhà, khoảng cách bệ, phòng riêng, đồ trên xe, vài số của quái, tầm lửa và khí.",
+      blurb: "Luật chung cả ca: xáo kiểu nhà, khoảng cách bệ, đồ trên xe, vài số của quái, tầm lửa và khí.",
       effect: RUN,
       fields: {
         "_id": CFG_ID,
         "shuffleThemes": { label: "Xáo kiểu nhà mỗi ca", help: "Bật: độ khó vẫn theo vị trí nhà, còn tên, kiểu nhà, loot và quái đặc trưng được xáo." },
         "minPadSpacing": { label: "Khoảng cách tối thiểu giữa hai bệ", unit: "cửa", min: 1, int: true },
-        "privateMoiRun": { label: "Số nhà có phòng riêng", min: 0, int: true },
         "xeNoMul": { label: "Đồ trên xe chịu nổ", min: 0, help: "1 = đau như đồ trên sàn, 0 = xe che hết." },
         "cartFoeHitMul": { label: "Đồ trên xe khi quái đánh người đẩy", min: 0, help: "1 = như món đang vác, 0 = quái không làm hư đồ trên xe." },
         "shockThreshold": { label: "Ngưỡng đập tường", unit: "pixel/giây", min: 0, help: "Lựu đạn xung kích: thân bị thổi đập tường nhanh hơn số này mới mất máu." },
