@@ -37,7 +37,9 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
       if (e) { rs.writeHead(404); rs.end(); return; }
       rs.writeHead(200, { 'Content-Type': MIME[path.extname(u)] || 'application/octet-stream' }); rs.end(b);
     });
-  }).listen(8794);
+  });
+  await new Promise(r => srv.listen(0, "127.0.0.1", r));
+  const PAGE = 'http://127.0.0.1:' + srv.address().port;
 
   const before = (await api({ action: 'get', table: 'quests' })).docs.find(d => d._id === 'daily').pick;
   const b = await chromium.launch();
@@ -66,7 +68,7 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
     return { dry, list };
   };
 
-  await p.goto('http://127.0.0.1:8794/design.html?api=' + encodeURIComponent(API));
+  await p.goto(PAGE + '/design.html?api=' + encodeURIComponent(API));
   await p.waitForSelector('#dz-nav .dz-chip--live', { timeout: 60000 });
   const chipQ = await p.$eval('#dz-nav [data-table="quests"] .dz-chip', e => e.textContent.trim());
   check('quests trên DEV hiện "Trên GameSpark"', chipQ === 'Trên GameSpark', chipQ);

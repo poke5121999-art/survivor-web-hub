@@ -103,7 +103,7 @@ function serve(port) {
         rs.writeHead(200, { 'Content-Type': MIME[path.extname(u)] || 'application/octet-stream' }); rs.end(b);
       });
     });
-    srv.listen(port, () => res(srv));
+    srv.listen(port, "127.0.0.1", () => res(srv));
   });
 }
 
@@ -111,8 +111,8 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
 
 (async () => {
   fs.mkdirSync(SHOTS, { recursive: true });
-  const PORT = 8793, BASE = 'http://127.0.0.1:' + PORT;
-  const srv = await serve(PORT);
+  const srv = await serve(0);
+  const BASE = 'http://127.0.0.1:' + srv.address().port;
   const b = await chromium.launch();
   const ctx = await b.newContext({ viewport: { width: 1280, height: 900 } });
   await ctx.addInitScript(() => {
