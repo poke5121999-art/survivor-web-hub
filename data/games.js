@@ -720,15 +720,13 @@ window.HUB_GAMES = [
   {
     id: "diablo2",
     title: "Ác Quỷ II",
-    tagline: "Diablo II Act I làm lại trên web: Rogue Encampment, Blood Moor, Den of Evil. Chọn Amazon, Sorceress hoặc Barbarian; cây kỹ năng 3 nhánh, cộng điểm chỉ số, đồ thường/magic/rare/unique/set rơi theo treasure class gốc. Blood Moor và Den of Evil sinh ngẫu nhiên mỗi lần vào. Diệt sạch Den of Evil cho Akara để nhận điểm kỹ năng. Chuột trái đi/đánh, chuột phải dùng kỹ năng; điện thoại xoay ngang có cần điều khiển.",
+    tagline: "Diablo II Act I làm lại trên web bằng hình, tiếng, bản đồ và số liệu gốc của Diablo II: Rogue Encampment dựng từ bản đồ thật, Blood Moor và Den of Evil sinh ngẫu nhiên mỗi lần vào. Chọn Amazon, Sorceress hoặc Barbarian; nhân vật đổi hình theo đồ mặc như game gốc. Cây kỹ năng 3 nhánh, cộng điểm chỉ số, đồ thường/magic/rare/unique/set rơi theo treasure class. Diệt sạch Den of Evil cho Akara để nhận điểm kỹ năng. Chuột trái đi/đánh, chuột phải dùng kỹ năng; điện thoại xoay ngang có cần điều khiển.",
     thumbnail: "assets/thumbnails/diablo2.png",
     path: "games/diablo2/index.html",
-    rev: "20261001d",
-    // Plain canvas/JS, không engine. Chủ dự án chốt 2026-10-01: CHỈ mượn hình + tiếng của Flare
-    // (flare-game, CC-BY-SA 3.0, ghi công ở games/diablo2/CREDITS.md); bản đồ, nhân vật, kỹ năng, cơ chế
-    // theo Diablo II gốc. Engine D2 nguồn mở (OpenDiablo2, Abyss Engine) không kèm art, cần MPQ Blizzard.
-    // Số liệu: bảng .txt 1.14d (blizzhackers/d2data e35dcd6c) qua games/diablo2/_tools/build_data.py.
-    // Art: games/diablo2/_tools/build_assets.py đọc D:\flare-ref. Ghi chép: games/diablo2/README.md.
+    rev: "20261006a",
+    // Plain canvas/JS, không engine. Chủ dự án chốt 2026-10-06: dùng asset + config của Diablo II từ bản D2R
+    // trên máy (D:/Diablo2, giải nén ở D:/d2r-ref). Art 2D cổ (DCC/DT1/DS1/DC6) bóc từ kho CASC, số liệu từ
+    // excel 3.1. Lever ở games/diablo2/_tools/, hợp đồng ở brain/plans/diablo2-d2r.md, ghi chép ở README.md.
     //
     // Kiểm: node test/diablo2-rules.js, diablo2-drlg.js, diablo2-suite.js
     status: "available",

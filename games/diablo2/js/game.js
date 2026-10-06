@@ -6,8 +6,8 @@
 (function () {
   'use strict';
   var D2 = window.D2 = window.D2 || {};
-  var E = D2.E, I = D2.Input, UI = D2.UI, A = window.D2_ASSETS || {};
-  var VER = '20261001d';
+  var E = D2.E, I = D2.Input, UI = D2.UI, OBJ = E.OBJ, SPR = E.SPR;
+  var VER = '20261006a';
   var SAVE_KEY = 'd2web.save.v1';
 
   function safe(fn, fb) { try { var v = fn(); return v == null ? fb : v; } catch (e) { return fb; } }
@@ -96,37 +96,12 @@
     return skCache[id] || null;
   };
 
-  /* Biểu tượng kỹ năng: id kỹ năng D2 -> danh sách tên icon quyền năng Flare (lấy tên đầu tiên có trong D2_ASSETS.powerIcons).
-   * Thiếu powerIcons hoặc tên -> trả null, UI quay về ô chữ. */
-  var SK_ICON_RAW = {   // tên icon theo D2_ASSETS.powerIcons (tên quyền năng Flare)
-    // Sorceress
-    fire_bolt: 'fireball,ember_shot', fire_ball: 'fireball', fire_wall: 'burn,ember_shot', meteor: 'quake,fireball', inferno: 'burn,ember_shot', blaze: 'burn',
-    hydra: 'fireball,summon_skeleton', fire_mastery: 'burn,fireball', enchant: 'enchanted_blade',
-    ice_bolt: 'ice_bolt,freeze', ice_blast: 'freeze,ice_bolt', frost_nova: 'freeze', glacial_spike: 'ice_bolt,freeze', blizzard: 'freeze,ice_bolt',
-    frozen_orb: 'freeze,ice_bolt', cold_mastery: 'freeze',
-    frozen_armor: 'shield,barrier', shiver_armor: 'barrier,shield', chilling_armor: 'shield,barrier', warmth: 'energy_flow,shield', energy_shield: 'barrier,shield',
-    charged_bolt: 'shock', static_field: 'shock', telekinesis: 'mystic_blast', nova: 'shock,thunderstrike', lightning: 'thunderstrike,shock',
-    chain_lightning: 'thunderstrike,shock', teleport: 'teleport', thunder_storm: 'thunderstrike', lightning_mastery: 'shock,thunderstrike',
-    // Amazon
-    magic_arrow: 'shoot', fire_arrow: 'ember_shot,shoot', cold_arrow: 'ice_bolt,shoot', multiple_shot: 'multishot', exploding_arrow: 'charged_shot,ember_shot', ice_arrow: 'freeze,ice_bolt',
-    guided_arrow: 'piercing_shot', strafe: 'rapid_fire', immolation_arrow: 'burn,ember_shot', freezing_arrow: 'freeze,ice_bolt',
-    jab: 'swing', impale: 'piercing_shot', fend: 'cleave', power_strike: 'shield_bash,swing', charged_strike: 'shock', lightning_strike: 'thunderstrike,shock',
-    lightning_bolt: 'shock', lightning_fury: 'thunderstrike', poison_javelin: 'poison_shot', plague_javelin: 'poison_shot', slow_missiles: 'freeze',
-    inner_sight: 'wolf_s_eye', decoy: 'barrier,turn_invisible', valkyrie: 'summon_skeleton', critical_strike: 'cleave', dodge: 'haste', avoid: 'haste', evade: 'haste', penetrate: 'piercing_shot', pierce: 'piercing_shot',
-    // Barbarian
-    bash: 'shield_bash', double_swing: 'cleave', stun: 'shield_bash', concentrate: 'cleave', frenzy: 'swing,haste', berserk: 'vampirism,burn', leap: 'quake', leap_attack: 'quake,cleave',
-    whirlwind: 'cleave', double_throw: 'throw_axe', howl: 'warcry', taunt: 'warcry', shout: 'warcry', war_cry: 'warcry,quake', battle_cry: 'warcry',
-    battle_orders: 'energy_flow', battle_command: 'haste,energy_flow', grim_ward: 'stone_wall', find_item: 'treasure_potion', find_potion: 'health_potion', iron_skin: 'shield,barrier',
-    increased_speed: 'haste', increased_stamina: 'stamina_potion', natural_resistance: 'elemental_potion',
-    axe_mastery: 'swing', mace_mastery: 'swing', pole_arm_mastery: 'swing', spear_mastery: 'swing', sword_mastery: 'swing', throwing_mastery: 'throw_knife'
-  };
-  var SK_ICON = {};
-  Object.keys(SK_ICON_RAW).forEach(function (k) { SK_ICON[k] = SK_ICON_RAW[k].split(','); });
+  /* Biểu tượng kỹ năng: ô IconCel của skilldesc.txt trong dc6 biểu tượng của lớp (D2_UI.skillIcons[mã lớp]). */
   DA.skillIcon = function (id) {
-    var pi = A.powerIcons, names = SK_ICON[id];
-    if (!pi || !names) return null;
-    for (var i = 0; i < names.length; i++) { var v = pi[names[i]]; if (v == null) v = pi['power.' + names[i]]; if (typeof v === 'number') return v; }
-    return null;
+    var sk = DA.skill(id), cls = sk && D2DATA.classes[sk.cls];
+    var list = cls && E.UI.skillIcons && E.UI.skillIcons[cls.code];
+    var cel = sk && sk.raw && sk.raw.icon;
+    return list && cel != null && list[cel] ? list[cel] : null;
   };
 
   DA.itemName = function (it) {
@@ -164,13 +139,18 @@
     return { hp: pe.hp || 0, mp: pe.mp || 0, dur: Math.max(0.6, pe.seconds || 4) };
   };
   DA.req = function (it) { var b = DA.base(it) || {}; return { lvl: Math.max(it.reqlvl || 0, b.reqlvl || 0), str: b.reqstr || 0, dex: b.reqdex || 0 }; };
-  // Biểu tượng đồ: lấy khung cuối của sheet loot.* (hình món đồ nằm dưới đất) đặt vừa ô túi đồ.
+  // Hình đồ trong túi: dc6 invfile của D2 (đồ unique/set có hình riêng), đặt giữa khung bw x bh.
+  DA.invRect = function (it) {
+    var b = DA.base(it) || {}, ic = E.UI.icons || {};
+    var f = (it.q === 'unique' && b.uniqueinvfile) || (it.q === 'set' && b.setinvfile) || b.invfile;
+    if (DA.isGold(it)) f = 'invgld';
+    var e = f && ic[f];
+    return e ? e.r || e : null;
+  };
   DA.iconBox = function (it, bw, bh) {
-    var key = lootArt(it), sh = A.sheets && A.sheets[key]; if (!sh || !sh.anims) return null;
-    var an = sh.anims.power || sh.anims[Object.keys(sh.anims)[0]]; if (!an || !an.f) return null;
-    var fr = an.f[an.f.length - 1], r = fr && (fr[0] || fr[4]); if (!r) return null;
-    var k = Math.min(bw / r[2], bh / r[3], 1.6), w = Math.round(r[2] * k), h = Math.round(r[3] * k);
-    return 'width:' + w + 'px;height:' + h + 'px;background:url(' + sh.img + (E.ver ? '?v=' + E.ver : '') + ') no-repeat -' + Math.round(r[0] * k) + 'px -' + Math.round(r[1] * k) + 'px / ' + Math.round(sh.w * k) + 'px ' + Math.round(sh.h * k) + 'px;';
+    var r = DA.invRect(it); if (!r) return null;
+    var k = Math.min(bw / r[2], bh / r[3], 1.5);
+    return E.uiSprite(r, k);
   };
   DA.isEquippable = function (it) {
     var b = DA.base(it); if (!b) return true;
@@ -214,22 +194,19 @@
     if (t && t[lvl - 1] != null) return t[lvl - 1];
     return XP[Math.min(lvl, XP.length - 1)] || XP[XP.length - 1] * Math.pow(1.25, lvl - XP.length + 1);
   };
-  var AREA_FB = {
-    rogue_encampment: { id: 'rogue_encampment', name: 'Rogue Encampment', lvl: 1, town: true, music: 'town', tileset: 'grassland', monsters: [] },
-    blood_moor: { id: 'blood_moor', name: 'Blood Moor', lvl: 1, tileset: 'grassland', music: 'overworld', monsters: ['fallen'] },
-    den_of_evil: { id: 'den_of_evil', name: 'Den of Evil', lvl: 2, tileset: 'cave', music: 'cave', monsters: ['fallen'] }
-  };
+  // Khu chơi được = có trong D2DATA và bộ sinh bản đồ D2G dựng được
+  DA.playable = function (id) { return !!DA.area(id) && !!window.D2G && (!D2G.supports || D2G.supports(id)); };
   DA.area = function (id) {
     var a = coll(window.D2DATA && D2DATA.areas).filter(function (x) { return x.id === id; })[0];
     return a || null;
   };
   DA.monster = function (id) {
-    var m = window.D2DATA && D2DATA.monsters && (Array.isArray(D2DATA.monsters) ? D2DATA.monsters.filter(function (x) { return x.id === id; })[0] : D2DATA.monsters[id]);
-    return m || null;
+    return (window.D2DATA && D2DATA.monsters && D2DATA.monsters[id]) || null;
   };
   DA.aiKind = function (monId, m) {
     var k = ((m && m.aiKind) || '') + ' ' + monId;
     if (/shaman/.test(k)) return 'shaman';
+    if (/archer|ranged|missile/.test(k)) return 'ranged';
     if (/ranged/.test(k)) return 'ranged';
     if (/flee/.test(k)) return 'fallen';
     return 'melee';
@@ -279,7 +256,7 @@
   }
   function walkable(x, y) { return !blocked(S.grid, x, y); }
   function canStand(x, y, r) {
-    var g = S.grid; r = r == null ? 0.22 : r;
+    var g = S.grid; r = r == null ? 0.3 : r;
     return !blocked(g, x - r, y - r) && !blocked(g, x + r, y - r) && !blocked(g, x - r, y + r) && !blocked(g, x + r, y + r);
   }
   function tryMove(e, dx, dy) {
@@ -291,12 +268,12 @@
   }
   function los(ax, ay, bx, by) {
     var d = Math.hypot(bx - ax, by - ay), n = Math.ceil(d / 0.3);
-    for (var i = 1; i < n; i++) { var t = i / n; if (!canStand(ax + (bx - ax) * t, ay + (by - ay) * t, 0.15)) return false; }
+    for (var i = 1; i < n; i++) { var t = i / n; if (!canStand(ax + (bx - ax) * t, ay + (by - ay) * t, 0.2)) return false; }
     return true;
   }
   // Tìm đường A* 8 hướng, không cắt góc. Trả về mảng điểm [x,y] (tâm ô) hoặc null.
   // Lưới 200x200: không cấp phát lại 3 mảng 40000 phần tử mỗi lần; giới hạn vùng tìm (bbox đầu-cuối + PF_MARGIN ô) và PF_MAX_NODES nút.
-  var PF = { N: 0, g: null, from: null, stamp: null, gen: 0 }, PF_MARGIN = 40, PF_MAX_NODES = 14000;
+  var PF = { N: 0, g: null, from: null, stamp: null, gen: 0 }, PF_MARGIN = 80, PF_MAX_NODES = 60000;
   function findPath(sx, sy, tx, ty, margin) {
     if (margin == null) margin = PF_MARGIN;
     var g = S.grid, w = g.w, h = g.h, col = g.col;
@@ -352,50 +329,57 @@
   }
 
   /* ================================================================ vào khu vực */
-  function areaDef(id) { return DA.area(id) || AREA_FB[id] || null; }
-  function musicFor(def, g) {
-    var m = def && def.music; if (m && A.music && A.music[m]) return m;
-    if (def && def.town) return 'town';
-    return g.tileset === 'cave' ? 'cave' : g.tileset === 'dungeon' ? 'dungeon' : 'overworld';
+  function areaDef(id) { return DA.area(id); }
+  // Nhạc: soundenviron của D2 trỏ tới tên trong sounds.txt; D2_UI.music giữ đúng khoá đó khi có, nếu không thì theo loại khu
+  function musicFor(def) {
+    var m = E.UI.music || {};
+    if (def.music && m[def.music]) return def.music;
+    var k = def.town ? 'town1' : def.inside ? 'cave' : 'wild';
+    return m[k] ? k : Object.keys(m)[0];
   }
-  Game.playAreaMusic = function () { var d = areaDef(S.areaId); if (d && S.grid) E.music(musicFor(d, S.grid)); };
+  Game.playAreaMusic = function () { var d = areaDef(S.areaId); if (d) E.music(musicFor(d)); };
 
-  function sheetsForArea(def, g) {
+  // Thực thể đặt sẵn trong DS1: loại 1 là quái/NPC theo monpreset của act, loại 2 là vật thể theo objpreset
+  function presetName(id) { var l = D2DATA.monpreset && D2DATA.monpreset['1']; return (l && l[id]) || null; }
+  function objPreset(id) { return (OBJ.presets && OBJ.presets['act1:' + id]) || null; }
+  function monArt(id) {
+    var su = D2DATA.superuniques[id], base = su ? su.cls : id, m = DA.monster(base);
+    return (SPR.monmap && SPR.monmap[base]) || (m && m.art) || null;
+  }
+  function sheetsForArea(def, lv) {
     var keys = [];
-    coll(def && def.monsters).forEach(function (m) { var id = typeof m === 'string' ? m : m.id; var mm = DA.monster(id); if (mm && mm.art) keys.push(mm.art); });
-    g.npcs.forEach(function (n) { keys.push(npcArt(n.id)); });
-    (g.objects || []).forEach(function (o) { var t = townObj(o.type); if (t && t.sheet) keys.push(t.sheet); });
-    Object.keys(A.sheets || {}).forEach(function (k) { if (k.indexOf('power.') === 0 || k.indexOf('loot.') === 0) keys.push(k); });
+    (def.monsters || []).forEach(function (id) { var a = monArt(id); if (a) keys.push(a); });
+    lv.npcs.forEach(function (n) { var nd = D2DATA.npcs[presetName(n.id)]; if (nd && nd.art) keys.push(nd.art); });
+    lv.objects.forEach(function (o) { var p = objPreset(o.id); if (p && p.sprite) keys.push('obj.' + p.token); });
     return keys;
   }
 
   function enterArea(id, from, opts) {
     opts = opts || {};
     var def = areaDef(id);
-    if (!def || !window.D2G) { UI.msg('Khu vực này chưa mở trong bản MVP.'); return Promise.resolve(false); }
+    if (!DA.playable(id)) { UI.msg('Khu vực này chưa mở.'); return Promise.resolve(false); }
     UI.showLoad(true, 'Đang vào ' + def.name + '...');
     var seed = (S.corpse && S.corpse.area === id) ? S.corpse.seed : ((Math.random() * 1e9) | 0) + 1;
     if (opts.seed) seed = opts.seed;
     var g = D2G.build(id, seed);
     S.seed = seed;
     var char = S.char;
-    var objTs = {}; (g.objects || []).forEach(function (o) { var t = townObj(o.type); if (t && (t.tile != null || t.parts)) objTs[t.tileset || g.tileset] = 1; });
-    return Promise.all([E.ensureTileset(g.tileset), E.ensure(sheetsForArea(def, g)), E.ensureIcons(), E.ensure(heroSheetKeys())].concat(Object.keys(objTs).map(E.ensureTileset))).then(function () {
+    return Promise.all([E.ensureTileset(g.tileset), E.ensure(sheetsForArea(def, g)), E.ensureUi(), E.ensureHero(D2DATA.classes[char.cls].code)]).then(function () {
       S.grid = g; g.seen = new Uint8Array(g.w * g.h); S.areaId = id; S.areaName = def.name; S.def = def;
-      E.setGrid(g);
+      E.setLevel(g);
       S.ents = []; S.floaters = []; S.target = null; S.hover = null;
       var hx = g.hero[0] + 0.5, hy = g.hero[1] + 0.5;
       if (from) {
         var ex = g.exits.filter(function (e) { return e.to === from; })[0];
-        if (ex) { var sp = openCellNear(g, ex.x, ex.y, 3.5); hx = sp[0]; hy = sp[1]; }
+        if (ex) { var sp = openCellNear(g, ex.x, ex.y, 12); hx = sp[0]; hy = sp[1]; }
       }
       var hero = S.hero = mk('hero', hx, hy, { dir: 5, path: null, goal: null, act: null });
       E.cam.x = hx; E.cam.y = hy;
-      (g.objects || []).forEach(function (o) {   // đồ vật của khu: vẽ theo chiều sâu cùng thực thể; chỉ waypoint và kho đồ nhấp được
-        var w = o.w || 1, hh = o.h || 1;
-        mk('obj', o.x + w / 2, o.y + hh / 2, { otype: o.type, ow: w, oh: hh, cx: o.x, cy: o.y });
+      g.objects.forEach(function (o) { placeObj(g, o); });
+      g.npcs.forEach(function (n) {
+        var name = presetName(n.id), nd = name && D2DATA.npcs[name];
+        if (nd && nd.art && E.hasSheet(nd.art)) mk('npc', n.x + 0.5, n.y + 0.5, { npc: name, dir: 6, art: nd.art, home: [n.x + 0.5, n.y + 0.5] });
       });
-      g.npcs.forEach(function (n) { mk('npc', n.x + 0.5, n.y + 0.5, { npc: n.id, dir: 5, art: npcArt(n.id) }); });
       spawnMonsters(def, g, seed);
       if (S.corpse && S.corpse.area === id) mk('drop', S.corpse.x, S.corpse.y, { item: null, corpse: S.corpse, born: S.time, label: 'Xác của ' + char.name });
       S.arrive = S.time;
@@ -403,7 +387,7 @@
         S.denLeft = S.ents.filter(function (e) { return e.kind === 'mon'; }).length;
         if (char.quests.den_of_evil === 'cleared') S.denLeft = 0;
       } else S.denLeft = S.denLeft;
-      E.music(musicFor(def, g));
+      E.music(musicFor(def));
       UI.showLoad(false);
       UI.dirty = true; recalc();
       markSeen();
@@ -413,7 +397,7 @@
   function openCellNear(g, x, y, minD) {
     // BFS từ ô lối ra, lấy ô đi được cách lối ra >= minD
     var q = [[x, y]], seen = {}, best = null; seen[x + ',' + y] = 1;
-    for (var i = 0; i < q.length && i < 4000; i++) {
+    for (var i = 0; i < q.length && i < 16000; i++) {
       var c = q[i]; var d = Math.hypot(c[0] - x, c[1] - y);
       if (d >= minD && g.col[c[1] * g.w + c[0]] === 0) { best = c; break; }
       [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (o) {
@@ -425,29 +409,51 @@
     return best ? [best[0] + 0.5, best[1] + 0.5] : [x + 0.5, y + 0.5];
   }
 
-  function npcArt(id) {
-    var m = { akara: 'npc.peasant_woman1', charsi: 'npc.peasant_woman2', gheed: 'npc.wandering_trader', kashya: 'npc.knight', warriv: 'npc.peasant_man1', deckard_cain: 'npc.peasant_man2', cain: 'npc.peasant_man2' };
-    return m[id] || 'npc.peasant_man1';
+  /* Vật thể DS1: waypoint, kho đồ, lửa trại, đuốc, rương... Kích thước theo objects.txt (subtile), vật có
+   * va chạm thì chặn các subtile nó chiếm. Lửa trại, đuốc chạy chế độ ON (đang cháy) như trong thị trấn D2. */
+  function objKind(p) {
+    var c = (p.cls || '') + ' ' + (p.name || '');
+    return /waypoint/i.test(c) ? 'waypoint' : /stash|bank/i.test(c) ? 'stash' : /chest|casket|barrel|urn/i.test(c) && p.selectable ? 'chest' : null;
+  }
+  function placeObj(lv, o) {
+    var p = objPreset(o.id); if (!p || !p.sprite) return;
+    var w = p.w || 1, h = p.h || 1;
+    if (p.collide) for (var y = 0; y < h; y++) for (var x = 0; x < w; x++) {
+      var cx = o.x - (w >> 1) + x, cy = o.y - (h >> 1) + y;
+      if (cx >= 0 && cy >= 0 && cx < lv.w && cy < lv.h && !lv.col[cy * lv.w + cx]) lv.col[cy * lv.w + cx] = 1;
+    }
+    var modes = p.modes || ['NU'], kind = objKind(p);
+    var mode = kind === 'chest' ? 'NU' : modes.indexOf('ON') >= 0 && p.lit ? 'ON' : modes.indexOf('NU') >= 0 ? 'NU' : modes[0];
+    mk('obj', o.x + 0.5, o.y + 0.5, { otype: kind, art: 'obj.' + p.token, mode: mode, ow: w, oh: h, cx: o.x - (w >> 1), cy: o.y - (h >> 1), t0: Math.random() * 4000 });
   }
 
   /* ---------------------------------------------------------------- quái */
+  /* Quái theo hai nguồn như D2: đàn rải theo mật độ của khu (spawns của D2G) và điểm đặt sẵn trong DS1
+   * (place_fallen, place_fallenshaman, superunique như Corpsefire...). */
   function spawnMonsters(def, g, seed) {
     if (def.town) return;
-    var rng = safe(function () { return D2R.rng(seed ^ 0x5bd1); }, Math.random);
-    var types = coll(def.monsters).map(function (m) { return typeof m === 'string' ? m : m.id; });
-    if (!types.length) return;
+    var rng = D2R.rng(seed ^ 0x5bd1);
+    var types = def.monsters || [];
     var pid = 0;
-    g.spawns.forEach(function (sp) {
+    function pack(id, x, y, n, rank, name) {
       pid++;
-      var id = types[Math.floor(rng() * types.length)], special = null;
-      if (sp.id && DA.monster(sp.id)) id = sp.id; else if (sp.id) special = sp.id;
-      var n = Math.max(1, sp.n || 1);
       for (var i = 0; i < n; i++) {
-        var p = openAround(g, sp.x + 0.5, sp.y + 0.5, i === 0 ? 0 : 2.2, rng);
-        var rank = sp.kind === 'champion' ? 'champion' : (sp.kind === 'unique' && i === 0) ? 'unique' : 'normal';
-        var mid = (i > 0 && sp.kind === 'unique' && types.length) ? types[Math.floor(rng() * types.length)] : id;
-        makeMonster(mid, p[0], p[1], rank, pid, rng, special && i === 0 ? special : null);
+        var p = openAround(g, x + 0.5, y + 0.5, i === 0 ? 0 : 4.4, rng);
+        makeMonster(i === 0 || rank !== 'unique' ? id : (D2DATA.superuniques[id] ? D2DATA.superuniques[id].cls : id), p[0], p[1], i === 0 ? rank : rank === 'unique' ? 'minion' : rank, pid, rng, i === 0 ? name : null);
       }
+    }
+    g.spawns.forEach(function (sp) {
+      if (!types.length) return;
+      var id = DA.monster(sp.kind) ? sp.kind : types[Math.floor(rng() * types.length)];
+      var rank = sp.kind === 'special' ? 'champion' : 'normal';
+      pack(id, sp.x, sp.y, Math.max(1, sp.n || 1), rank, null);
+    });
+    g.npcs.forEach(function (n) {
+      var name = presetName(n.id); if (!name) return;
+      var su = Object.keys(D2DATA.superuniques).filter(function (k) { return D2DATA.superuniques[k].name === name; })[0];
+      if (su) { var mn = D2DATA.superuniques[su].minions || [4, 4]; pack(su, n.x, n.y, 1 + ri(mn[0], mn[1]), 'unique', null); return; }
+      var m = /^place_(fallen|fallenshaman)$/.exec(name);
+      if (m && DA.monster(m[1] + '1')) pack(m[1] + '1', n.x, n.y, m[1] === 'fallen' ? ri(3, 6) : 1, 'normal', null);
     });
   }
   function openAround(g, x, y, r, rng) {
@@ -466,92 +472,57 @@
     var hp = inst.hp != null ? inst.hp : inst.maxHp || 10;
     var spd = inst.run || inst.walk || m.runVel || m.walkVel;
     var e = mk('mon', x, y, {
-      monId: id, inst: inst, rank: rank, pack: pack, art: m.art || inst.art || null, ai: DA.aiKind(id, m), hp: hp, maxHp: hp,
-      speed: spd ? clamp(spd * 0.5, 1.2, 4.6) : 2.4, aggro: false, cd: rnd(0.2, 1.2), act: null,
-      dir: ri(0, 7), flee: 0, born: S.time, deadAt: 0, rez: 0, wander: 0, stuck: 0, hitFlash: 0
+      monId: id, inst: inst, rank: rank, pack: pack, art: monArt(id), ai: DA.aiKind(id, m), hp: hp, maxHp: hp,
+      speed: spd ? clamp(spd, 1, 12) : 4, aggro: false, cd: rnd(0.2, 1.2), act: null, snd: m.snd || {},
+      dir: rnd(0, 8), flee: 0, born: S.time, deadAt: 0, rez: 0, wander: 0, stuck: 0, hitFlash: 0
     });
     return e;
   }
 
   /* ---------------------------------------------------------------- hero look */
-  function heroSheetKeys(L0) {
-    var keys = []; var L = L0 || heroLayers(); Object.keys(L).forEach(function (k) { keys.push(L[k]); }); return keys;
+  /* Hình nhân vật theo đồ đang mặc, đúng cách D2 chọn DCC: thân/tay/chân/vai theo cột Torso, Legs, rArm, lArm,
+   * rSPad, lSPad của armor.txt (0 nhẹ, 1 vừa, 2 nặng), mũ/vũ khí/khiên theo alternategfx, lớp vũ khí theo wclass.
+   * Cung, nỏ cầm tay trái (LH) như D2. Thiếu DCC cho token nào thì engine lùi về LIT. */
+  var ARMOR_TOK = ['LIT', 'MED', 'HVY'];
+  function heroLook() {
+    var c = S.char, eq = c.equip, cls = D2DATA.classes[c.cls].code;
+    var body = DA.base(eq.body), helm = DA.base(eq.head), wp = DA.base(eq.rhand), sh = DA.base(eq.lhand);
+    var tok = {}, wclass = 'HTH';
+    if (body) {
+      tok.TR = ARMOR_TOK[body.torso || 0]; tok.LG = ARMOR_TOK[body.legs || 0];
+      tok.RA = ARMOR_TOK[body.rarm || 0]; tok.LA = ARMOR_TOK[body.larm || 0];
+      tok.S1 = ARMOR_TOK[body.rspad || 0]; tok.S2 = ARMOR_TOK[body.lspad || 0];
+    }
+    if (helm && helm.alternategfx) tok.HD = helm.alternategfx.toUpperCase();
+    if (wp) {
+      wclass = (wp.wclass || 'hth').toUpperCase();
+      tok[/bow/.test(wp.wclass || '') ? 'LH' : 'RH'] = (wp.alternategfx || wp.code).toUpperCase();
+    }
+    if (sh && sh.alternategfx) tok.SH = sh.alternategfx.toUpperCase();
+    var look = { cls: cls, wclass: wclass, tok: tok };
+    if (!E.heroCof(look, 'NU')) look.wclass = 'HTH';   // lớp vũ khí này chưa đóng gói cho lớp nhân vật: cầm tay không
+    return look;
   }
-  var heroLayerCache = null, heroLayerSig = '';
-
-  /* Hình dạng nhân vật theo trang bị (D2: đồ mặc trên người quyết định hình; không có đồ thì lớp vẫn mặc bộ nhẹ gốc).
-   * Khoá lớp Flare (không kèm giới tính): xem avatarLayers.slots trong manifest. Bảng, không if-chuỗi. */
-  var CLASS_BASE = {   // bộ đồ gốc khi chưa mặc gì: slot -> lớp
-    sorceress:   { head: 'head_long',  chest: 'mage_vest',    legs: 'mage_skirt', feet: 'mage_boots', hands: 'default_hands' },
-    amazon:      { head: 'head_long',  chest: 'leather_chest', legs: 'leather_pants', feet: 'leather_boots', hands: 'default_hands' },
-    barbarian:   { head: 'head_short', chest: 'default_chest', legs: 'cloth_pants', feet: 'leather_boots', hands: 'default_hands' },
-    necromancer: { head: 'head_short', chest: 'cloth_shirt',   legs: 'cloth_pants', feet: 'cloth_sandals', hands: 'default_hands' },
-    paladin:     { head: 'head_short', chest: 'chain_cuirass', legs: 'cloth_pants', feet: 'leather_boots', hands: 'default_hands' },
-    druid:       { head: 'head_short', chest: 'leather_chest', legs: 'leather_pants', feet: 'leather_boots', hands: 'default_hands' },
-    assassin:    { head: 'head_long',  chest: 'leather_chest', legs: 'leather_pants', feet: 'leather_boots', hands: 'default_hands' }
-  };
-  var LOOK_BY_CODE = {   // mã đồ D2 -> lớp Flare (ưu tiên hơn kiểu đồ)
-    // giáp thân: nhẹ -> da, vừa -> xích, nặng -> tấm
-    qui: 'leather_chest', lea: 'leather_chest', hla: 'leather_chest',
-    stu: 'chain_cuirass', rng: 'chain_cuirass', scl: 'chain_cuirass', brs: 'chain_cuirass', chn: 'chain_cuirass',
-    spl: 'plate_cuirass', plt: 'plate_cuirass', fld: 'plate_cuirass', gth: 'plate_cuirass', ful: 'plate_cuirass', ltp: 'plate_cuirass', aar: 'plate_cuirass',
-    // mũ
-    cap: 'leather_hood', skp: 'leather_hood', hlm: 'chain_coif', fhl: 'chain_coif', msk: 'chain_coif',
-    bhm: 'plate_helm', ghm: 'plate_helm', crn: 'plate_helm',
-    // găng, giày
-    lgl: 'leather_gloves', mgl: 'chain_gloves', tgl: 'chain_gloves', hgl: 'plate_gauntlets', vgl: 'plate_gauntlets',
-    lbt: 'leather_boots', mbt: 'chain_boots', tbt: 'chain_boots', hbt: 'plate_boots', vbt: 'plate_boots',
-    // kiếm / rìu nhỏ và lớn
-    ssd: 'shortsword', sbr: 'shortsword', scm: 'shortsword', flc: 'shortsword',
-    hax: 'hand_axe', axe: 'hand_axe', mpi: 'hand_axe', wax: 'hand_axe',
-    // khiên nhỏ và lớn
-    buc: 'buckler', sml: 'buckler', pa1: 'buckler', bsh: 'buckler',
-    // cung ngắn / dài
-    sbw: 'shortbow', sbb: 'shortbow', swb: 'shortbow', am1: 'shortbow', am2: 'shortbow'
-  };
-  var LOOK_BY_TYPE = {   // kiểu đồ D2 -> lớp Flare
-    swor: 'longsword', axe: 'battle_axe', taxe: 'hand_axe', knif: 'dagger', tkni: 'dagger', h2h: 'dagger',
-    mace: 'mace', club: 'mace', hamm: 'mace', scep: 'mace',
-    wand: 'wand', orb: 'wand', staf: 'staff',
-    jave: 'staff', ajav: 'staff', spea: 'staff', aspe: 'staff', pole: 'staff',   // Flare không có giáo/lao: gậy dài là hình gần nhất
-    bow: 'longbow', abow: 'longbow', xbow: 'shortbow',
-    shie: 'shield', ashd: 'shield',
-    tors: 'chain_cuirass', helm: 'chain_coif', phlm: 'chain_coif', pelt: 'leather_hood', glov: 'chain_gloves', boot: 'chain_boots'
-  };
-  var LOOK_FEMALE_FALLBACK = {   // Flare chỉ có bộ tấm cho nam
-    plate_cuirass: 'chain_cuirass', plate_helm: 'chain_coif', plate_gauntlets: 'chain_gloves', plate_boots: 'chain_boots', plate_greaves: 'chain_greaves'
-  };
-  DA.lookOf = function (it, gender) {
-    var b = DA.base(it) || {}, nm = LOOK_BY_CODE[it.base] || LOOK_BY_TYPE[b.type] || null;
-    if (nm && gender === 'female' && LOOK_FEMALE_FALLBACK[nm]) nm = LOOK_FEMALE_FALLBACK[nm];
-    return nm;
-  };
-  DA.heroLookSig = function (c) {
-    return c.cls + '|' + Object.keys(c.equip || {}).sort().map(function (k) { var it = c.equip[k]; return it ? k + ':' + it.base : ''; }).join(',');
-  };
-  function heroLayers() {
-    var c = S.char; if (!c) return {};
-    var g = DA.classInfo(c.cls).gender, sig = DA.heroLookSig(c);
-    if (sig === heroLayerSig && heroLayerCache) return heroLayerCache;
-    var slots = (A.avatarLayers && A.avatarLayers.slots) || {}, L = {};
-    function put(nm) { var sl = nm && slots[g + '.' + nm]; if (sl) L[sl] = 'avatar.' + g + '.' + nm; }
-    var base = CLASS_BASE[c.cls] || CLASS_BASE.barbarian;
-    Object.keys(base).forEach(function (sl) { put(base[sl]); });
-    Object.keys(c.equip).forEach(function (sl) { var it = c.equip[sl]; if (it) put(DA.lookOf(it, g)); });
-    heroLayerCache = L; heroLayerSig = sig;
-    E.ensure(heroSheetKeys(L));   // trang bị đổi: nạp sheet mới nếu chưa có
-    return L;
+  // Mode D2 của nhân vật theo trạng thái: trong thị trấn đứng/đi bằng TN/TW như game gốc
+  function heroMode(h) {
+    var town = S.def && S.def.town;
+    switch (h.st) {
+      case 'attack': case 'cast': return (h.act && h.act.mode) || 'A1';
+      case 'walk': return town ? 'TW' : 'WL';
+      case 'run': return 'RN';
+      case 'hit': return 'GH';
+      case 'die': case 'dead': return 'DT';
+      default: return town ? 'TN' : 'NU';
+    }
   }
+  function heroAnimDur(mode) { var cof = E.heroCof(heroLook(), mode); return cof ? E.animDur(cof) : 0; }
 
   /* ================================================================ chiến đấu */
   function elemOf(e) { e = String(e || 'phys').toLowerCase(); return /fire/.test(e) ? 'fire' : /cold|ice|frost/.test(e) ? 'cold' : /light|elec/.test(e) ? 'light' : /pois/.test(e) ? 'poison' : 'phys'; }
   function floatText(x, y, text, color, big) { S.floaters.push({ x: x, y: y, text: text, color: color || '#fff', t: 0, big: big }); }
   var ELCOL = { fire: '#ff8a3c', cold: '#7fd0ff', light: '#ffee66', poison: '#7fdf5f', phys: '#fff' };
 
-  function monSfx(m, what) {
-    var key = (m.art || '').replace('enemy.', '');
-    E.sfx([key + '_' + what, 'melee_attack'], 0.5);
-  }
+  function monSfx(m, what) { E.sfx([m.snd[what === 'hit' ? 'HitSound' : 'DeathSound']], 0.5); }
   function damageMon(m, amount, elem, fromHero) {
     if (m.st === 'die' || m.st === 'dead') return;
     elem = elemOf(elem);
@@ -564,7 +535,7 @@
     if (m.hp <= 0) { killMon(m); return; }
     monSfx(m, 'hit');
     // hit recovery: ngắt đòn đang đánh
-    var an = E.animOf(m.art, 'hit'); var dur = Math.max(260, (an ? an.dur : 200) * 1.6);
+    var dur = Math.max(200, E.animDur(E.animOf(m.art, 'GH')) || 320);
     if (m.rank === 'normal' || Math.random() < 0.4) { m.act = null; restart(m, 'hit', dur); }
   }
   function aggroMon(m) {
@@ -573,7 +544,7 @@
   }
   function killMon(m) {
     m.hp = 0; m.act = null;
-    var an = E.animOf(m.art, 'die'); restart(m, 'die', an ? an.dur : 500);
+    restart(m, 'die', E.animDur(E.animOf(m.art, 'DT')) || 600);
     m.deadAt = S.time; S.kills++;
     monSfx(m, 'die');
     // XP
@@ -586,7 +557,7 @@
     // đồ rơi
     var items = safe(function () { return D2R.rollDrop(m.monId, m.inst.lvl || 1, Math.random); }, []) || [];
     if (!items.some(DA.isGold) && Math.random() < 0.6) items.push({ gold: Math.round((m.inst.lvl || 1) * rnd(4, 12) * (m.rank === 'normal' ? 1 : 3)), base: 'gold', q: 'normal', w: 1, h: 1 });
-    items.forEach(function (it, i) { dropItem(it, m.x + rnd(-0.7, 0.7), m.y + rnd(-0.7, 0.7)); });
+    items.forEach(function (it, i) { dropItem(it, m.x + rnd(-1.4, 1.4), m.y + rnd(-1.4, 1.4)); });
     // nhiệm vụ Den of Evil
     if (S.areaId === 'den_of_evil' && S.denLeft != null) {
       S.denLeft = Math.max(0, S.denLeft - 1);
@@ -596,7 +567,7 @@
       UI.dirty = true;
     }
     // đồng đội Fallen chạy trốn
-    S.ents.forEach(function (o) { if (o.kind === 'mon' && o !== m && o.ai === 'fallen' && o.st !== 'dead' && o.st !== 'die' && dist(o, m) < 7 && Math.random() < 0.5) { o.flee = 2.5; o.aggro = true; } });
+    S.ents.forEach(function (o) { if (o.kind === 'mon' && o !== m && o.ai === 'fallen' && o.st !== 'dead' && o.st !== 'die' && dist(o, m) < 14 && Math.random() < 0.5) { o.flee = 2.5; o.aggro = true; } });
     if (S.target === m) S.target = null;
   }
   function onLevelUp() {
@@ -613,8 +584,8 @@
     E.sfx([DA.classInfo(c.cls).gender + '_hit'], 0.6);
     if (c.hp <= 0) { c.hp = 0; killHero(); return; }
     if (amount >= S.d.maxHp * 0.05) {
-      var an = E.animOf('avatar.female.default_chest', 'hit'); h.act = null;
-      restart(h, 'hit', Math.max(240, (an ? an.dur : 133) * 1.8));
+      h.act = null;
+      restart(h, 'hit', Math.max(200, heroAnimDur('GH') || 300));
     }
   }
   function killHero() {
@@ -652,14 +623,18 @@
   var NOUSE = { passive: 'Kỹ năng bị động, luôn có hiệu lực.', curse: 'Lời nguyền chưa có trong bản MVP.', leap: 'Kỹ năng này chưa có trong bản MVP.', corpse: 'Kỹ năng này chưa có trong bản MVP.', utility: 'Kỹ năng này chưa có trong bản MVP.', summon: 'Triệu hồi chưa có trong bản MVP.' };
   function skillRange(skillId) {
     var fx = fxOf(skillId);
-    if (!skillId || skillId === 'attack') return weaponKind() === 'bow' ? 11 : 1.7;
-    if (!fx) return 1.7;
-    if (fx.kind === 'melee') return 1.9;
-    return 12;
+    if (!skillId || skillId === 'attack') return weaponKind() === 'bow' ? 22 : 3.4;
+    if (!fx) return 3.4;
+    if (fx.kind === 'melee') return 3.8;
+    return 24;
   }
-  function animNameFor(e, kind, skillId) {
-    if (kind === 'cast') { var fx = fxOf(skillId); return fx && fx.requires && fx.requires.weapon.indexOf('miss') >= 0 ? 'shoot' : 'cast'; }
-    return weaponKind() === 'bow' && (!skillId || skillId === 'attack') ? 'shoot' : 'swing';
+  // Mode của đòn: cột anim của skills.txt (SC, A1, TH...); đánh thường xen A1/A2 như D2. Mode chưa đóng gói thì lùi về A1/SC.
+  function heroActMode(kind, fx) {
+    var want = fx && fx.anim ? fx.anim : kind === 'cast' ? 'SC' : (Math.random() < 0.5 ? 'A1' : 'A2');
+    if (/^(SQ|S[1-4]|TH|KK)$/.test(want)) want = kind === 'cast' ? 'SC' : 'A1';
+    var look = heroLook();
+    if (!E.heroCof(look, want)) want = kind === 'cast' && E.heroCof(look, 'SC') ? 'SC' : 'A1';
+    return want;
   }
 
   // bắt đầu đòn đánh/niệm chú của hero. Trả true nếu bắt đầu được.
@@ -680,7 +655,7 @@
     if (Math.abs(dx) + Math.abs(dy) > 0.01) h.dir = E.dirFromTiles(dx, dy);
     var dur = actDur(kind);
     h.act = { skill: skillId || 'attack', fx: fx, tx: tx, ty: ty, target: target || null, done: false, kind: kind, dur: dur };
-    h.act.anim = animNameFor(h, kind, skillId);
+    h.act.mode = heroActMode(kind, fx);
     restart(h, kind, dur);
     E.sfx(fx ? fxSound(fx) : ['melee_attack', 'melee_attack_2', 'melee_attack_3'].slice(ri(0, 2)), 0.45);
     return true;
@@ -702,14 +677,14 @@
     var a = h.act, c = S.char, d = S.d; a.done = true;
     var fx = a.fx;
     if (!fx) {   // đòn thường
-      if (weaponKind() === 'bow') { spawnMissile(h, a.tx, a.ty, { dmg: { min: d.dmgMin, max: d.dmgMax, elem: 'phys' }, art: 'power.arrows', speed: 12, pierce: 0, owner: 'hero', ar: d.ar, life: 1.1 }); return; }
+      if (weaponKind() === 'bow') { spawnMissile(h, a.tx, a.ty, { dmg: { min: d.dmgMin, max: d.dmgMax, elem: 'phys' }, art: 'mis.arrow', speed: 24, pierce: 0, owner: 'hero', ar: d.ar, life: 1.1 }); return; }
       meleeHit(a, d.dmgMin, d.dmgMax, 'phys', d.ar);
       return;
     }
     var ar = d.ar * (100 + (fx.toHitPct || 0)) / 100, el = elemOf(fx.dmg && fx.dmg.elem);
     if (fx.kind === 'melee') { var wd = weaponSkillDmg(fx); meleeHit(a, wd.min, wd.max, wd.elem, ar); return; }
     if (fx.kind === 'nova') {
-      var rad = clamp(fx.radius || 5, 2.5, 8);
+      var rad = clamp(fx.radius || 10, 5, 16);
       S.ents.forEach(function (m) { if (m.kind === 'mon' && m.st !== 'die' && m.st !== 'dead' && dist(m, h) <= rad) damageMon(m, rollDmg(fx.dmg || { min: 5, max: 8 }), fx.dmg && fx.dmg.elem, true); });
       mk('fx', h.x, h.y, { art: pickArt(fx), t: 0, life: 0.5, ring: rad, color: ELCOL[el] });
       return;
@@ -718,25 +693,29 @@
     var dm = fx.weaponPct && fx.requires && fx.requires.weapon.length ? weaponSkillDmg(fx) : fx.dmg || { min: 3, max: 6, elem: 'phys' };
     if (isChan) dm = { min: dm.min / 4, max: dm.max / 4, elem: dm.elem };
     var n = Math.max(1, Math.round(fx.count || 1)), base = Math.atan2(a.ty - h.y, a.tx - h.x);
-    var mv = fx.missile || {}, speed = clamp((mv.vel || fx.speed || 16) * 0.5, 7, 13), life = clamp((mv.range || 40) / 25 * 0.6, 0.8, 1.6);
+    var mv = fx.missile || {}, speed = clamp(mv.vel || fx.speed || 16, 14, 26), life = clamp((mv.range || 40) / 25 * 0.6, 0.8, 1.6);
     for (var i = 0; i < n; i++) {
       var ang = base + (n > 1 ? (i - (n - 1) / 2) * 0.22 : 0);
-      spawnMissile(h, h.x + Math.cos(ang) * 10, h.y + Math.sin(ang) * 10, { dmg: dm, art: pickArt(fx), speed: isChan ? 9 : speed, pierce: (fx.pierce || isChan) ? 99 : 0, owner: 'hero', ar: fx.weaponPct && fx.requires.weapon.length ? ar : 9999, life: isChan ? 0.45 : life });
+      spawnMissile(h, h.x + Math.cos(ang) * 20, h.y + Math.sin(ang) * 20, { dmg: dm, art: pickArt(fx), boom: boomArt(fx.missile && fx.missile.id), speed: isChan ? 18 : speed, pierce: (fx.pierce || isChan) ? 99 : 0, owner: 'hero', ar: fx.weaponPct && fx.requires.weapon.length ? ar : 9999, life: isChan ? 0.45 : life });
     }
   }
+  // Hình đạn: tên missiles.txt của kỹ năng (srvmissile), vụ nổ theo ExplosionMissile
   function pickArt(fx) {
-    var el = elemOf(fx.dmg && fx.dmg.elem);
-    if (fx.art && E.hasSheet(fx.art)) return fx.art;
-    return el === 'fire' ? 'power.fireball' : el === 'cold' ? 'power.icicle' : el === 'light' ? 'power.lightning' : el === 'poison' ? 'power.ember' : 'power.arrows';
+    var id = fx.missile && fx.missile.id;
+    return id && E.hasSheet('mis.' + id) ? 'mis.' + id : 'mis.arrow';
+  }
+  function boomArt(missId) {
+    var M = missId && D2DATA.missiles[missId], ex = M && M.ExplosionMissile;
+    return ex && E.hasSheet('mis.' + ex) ? 'mis.' + ex : null;
   }
   function meleeHit(a, mn, mx, elem, ar) {
     var h = S.hero, t = a.target;
     if (!t || t.st === 'die' || t.st === 'dead') {  // tìm quái đứng trước mặt trong tầm
-      var best = null, bd = 2.1;
-      S.ents.forEach(function (m) { if (m.kind === 'mon' && m.st !== 'die' && m.st !== 'dead') { var dd = dist(m, { x: h.x + Math.cos(angOf(h.dir)) * 0.9, y: h.y + Math.sin(angOf(h.dir)) * 0.9 }); if (dd < bd) { bd = dd; best = m; } } });
+      var best = null, bd = 4.2;
+      S.ents.forEach(function (m) { if (m.kind === 'mon' && m.st !== 'die' && m.st !== 'dead') { var dd = dist(m, { x: h.x + Math.cos(angOf(h.dir)) * 1.8, y: h.y + Math.sin(angOf(h.dir)) * 1.8 }); if (dd < bd) { bd = dd; best = m; } } });
       t = best;
     }
-    if (!t || dist(t, h) > 2.4) return;
+    if (!t || dist(t, h) > 4.8) return;
     var p = safe(function () { return D2R.hitChance(ar, S.char.lvl, t.inst.def || 0, t.inst.lvl || 1); }, 0.75);
     if (Math.random() < p) { damageMon(t, rnd(mn, mx + 0.999), elem, true); }
     else floatText(t.x, t.y, 'miss', '#aaa');
@@ -747,25 +726,26 @@
 
   /* ---------------------------------------------------------------- đạn */
   function spawnMissile(owner, tx, ty, o) {
-    var dx = tx - owner.x, dy = ty - owner.y, d = Math.hypot(dx, dy) || 1, sp = o.speed || 9;
-    var m = mk('missile', owner.x + dx / d * 0.5, owner.y + dy / d * 0.5, {
-      vx: dx / d * sp, vy: dy / d * sp, dir: E.dirFromTiles(dx, dy), art: o.art, dmg: o.dmg, owner: o.owner, pierce: o.pierce || 0,
-      life: o.life || 1.2, ar: o.ar, hit: {}, t: 0, rad: o.radius ? clamp(o.radius * 0.1, 0.55, 1.4) : 0.55, st: 'run'
+    var dx = tx - owner.x, dy = ty - owner.y, d = Math.hypot(dx, dy) || 1, sp = o.speed || 18;
+    var m = mk('missile', owner.x + dx / d * 1, owner.y + dy / d * 1, {
+      vx: dx / d * sp, vy: dy / d * sp, dir: E.dirFromTiles(dx, dy), art: o.art, boom: o.boom || null, dmg: o.dmg, owner: o.owner, pierce: o.pierce || 0,
+      life: o.life || 1.2, ar: o.ar, hit: {}, t: 0, rad: o.radius ? clamp(o.radius * 0.2, 1.1, 2.8) : 1.1, st: 'run'
     });
     m.y -= 0; return m;
   }
   function updateMissile(m, dt) {
-    if (m.st === 'die') { m.t += dt; if (m.t > 0.3) m.st = 'dead'; return; }
+    if (m.st === 'die') { m.t += dt; if (m.t > (m.boomDur || 0.3)) m.st = 'dead'; return; }
     m.t += dt; m.life -= dt;
-    var steps = Math.ceil(Math.hypot(m.vx, m.vy) * dt / 0.3), sx = m.vx * dt / steps, sy = m.vy * dt / steps;
+    var steps = Math.ceil(Math.hypot(m.vx, m.vy) * dt / 0.6), sx = m.vx * dt / steps, sy = m.vy * dt / steps;
     for (var i = 0; i < steps; i++) {
       m.x += sx; m.y += sy;
-      if (blocked(S.grid, m.x, m.y)) { explode(m); return; }
+      var mc = S.grid.col[Math.floor(m.y) * S.grid.w + Math.floor(m.x)];
+      if (mc === 1 || mc == null) { explode(m); return; }
       if (m.owner === 'hero') {
         for (var k = 0; k < S.ents.length; k++) {
           var o = S.ents[k];
           if (o.kind !== 'mon' || o.st === 'die' || o.st === 'dead' || m.hit[o.id]) continue;
-          if (dist(o, m) < m.rad + 0.15) {
+          if (dist(o, m) < m.rad + 0.3) {
             m.hit[o.id] = 1;
             var ok = m.ar >= 9000 || Math.random() < safe(function () { return D2R.hitChance(m.ar, S.char.lvl, o.inst.def || 0, o.inst.lvl || 1); }, 0.8);
             if (ok) damageMon(o, rollDmg(m.dmg), m.dmg.elem, true); else floatText(o.x, o.y, 'miss', '#aaa');
@@ -774,7 +754,7 @@
         }
       } else {
         var h = S.hero;
-        if (h.st !== 'die' && h.st !== 'dead' && dist(h, m) < 0.55) {
+        if (h.st !== 'die' && h.st !== 'dead' && dist(h, m) < 1.1) {
           var okh = Math.random() < safe(function () { return D2R.hitChance(m.ar || 30, 1, S.d.def, S.char.lvl); }, 0.7);
           if (okh) damageHero(rollDmg(m.dmg)); else floatText(h.x, h.y, 'miss', '#aaa');
           explode(m); return;
@@ -783,18 +763,17 @@
     }
     if (m.life <= 0) explode(m);
   }
-  function explode(m) { m.st = 'die'; m.t = 0; m.vx = m.vy = 0; }
+  function explode(m) {
+    m.st = 'die'; m.t = 0; m.vx = m.vy = 0;
+    var an = m.boom && E.animOf(m.boom, 'NU') || null;
+    m.boomDur = an ? E.animDur(an) / 1000 : 0.3;
+  }
 
   /* ---------------------------------------------------------------- đồ rơi */
+  // Hình đồ rơi: hoạt ảnh flippyfile của D2 (món đồ lật trên không rồi nằm xuống)
   function lootArt(it) {
-    var s = ((it.base || '') + ' ' + (it.name || '') + ' ' + (it.type || '')).toLowerCase().replace(/_/g, ' ');
-    var pot = DA.potionInfo(it);
-    if (DA.isGold(it)) { var n = DA.goldAmount(it); return n >= 100 ? 'loot.coins100' : n >= 25 ? 'loot.coins25' : 'loot.coins5'; }
-    if (pot) return pot.mp && !pot.hp ? 'loot.mp_potion' : 'loot.hp_potion';
-    var tbl = [[/ring/, 'loot.ring'], [/amulet|pendant/, 'loot.gem'], [/scroll/, 'loot.scroll'], [/belt/, 'loot.belt'], [/boot|greave/, 'loot.boots'], [/shield|buckler/, 'loot.shield'], [/helm|cap|hood|coif/, 'loot.clothes'],
-      [/axe/, 'loot.hand_axe'], [/dagger|knife/, 'loot.dagger'], [/short sword|shortsword|blade|sword/, 'loot.shortsword'], [/staff/, 'loot.staff'], [/wand/, 'loot.wand'], [/mace|club|hammer/, 'loot.mace'], [/bow/, 'loot.longbow'], [/armor|mail|plate|robe|vest/, 'loot.leather_armor']];
-    for (var i = 0; i < tbl.length; i++) if (tbl[i][0].test(s)) return tbl[i][1];
-    return 'loot.pouch';
+    var b = DA.base(it), f = DA.isGold(it) ? 'flpgld' : b && b.flippyfile;
+    return f && E.hasSheet('flp.' + f) ? 'flp.' + f : null;
   }
   function dropItem(it, x, y) {
     var g = S.grid, px = x, py = y;
@@ -861,7 +840,7 @@
   }
   Game.travelWaypoint = function (id) {
     if (id === S.areaId) { UI.msg('Bạn đang ở đây.'); return; }
-    if (!areaDef(id) || !(DA.area(id) || AREA_FB[id])) { UI.msg('Nơi này chưa mở trong bản MVP.', '#ff9a8a'); return; }
+    if (!DA.playable(id)) { UI.msg('Nơi này chưa mở.', '#ff9a8a'); return; }
     UI.closeWaypoints(); entering = true;
     enterArea(id, null).then(function () { entering = false; save(); }, function (err) { entering = false; UI.showLoad(false); UI.msg('Lỗi vào khu vực: ' + err); });
   };
@@ -957,15 +936,15 @@
       goTo(h, tx, ty, dt, g);
     } else if (g.type === 'pickup') {
       if (tgt.removed) { h.goal = null; return; }
-      if (dist(h, tgt) < 1.3) { pickup(tgt); h.goal = null; setSt(h, 'idle'); }
+      if (dist(h, tgt) < 2.6) { pickup(tgt); h.goal = null; setSt(h, 'idle'); }
       else goTo(h, tgt.x, tgt.y, dt, g);
     } else if (g.type === 'talk') {
-      if (dist(h, tgt) < 2.1) { h.dir = E.dirFromTiles(tgt.x - h.x, tgt.y - h.y); h.goal = null; setSt(h, 'idle'); talk(tgt); }
+      if (dist(h, tgt) < 4.2) { h.dir = E.dirFromTiles(tgt.x - h.x, tgt.y - h.y); h.goal = null; setSt(h, 'idle'); talk(tgt); }
       else goTo(h, tgt.x, tgt.y, dt, g);
     } else if (g.type === 'use') {
       if (tgt.removed) { h.goal = null; return; }
-      if (dist(h, tgt) < Math.max(tgt.ow, tgt.oh) / 2 + 2.4) { h.dir = E.dirFromTiles(tgt.x - h.x, tgt.y - h.y); h.goal = null; setSt(h, 'idle'); useObj(tgt); }
-      else if (!goTo(h, tgt.x, tgt.y, dt, g)) { if (dist(h, tgt) < Math.max(tgt.ow, tgt.oh) / 2 + 3.2) { h.goal = null; useObj(tgt); } else h.goal = null; }
+      if (dist(h, tgt) < Math.max(tgt.ow, tgt.oh) / 2 + 4.8) { h.dir = E.dirFromTiles(tgt.x - h.x, tgt.y - h.y); h.goal = null; setSt(h, 'idle'); useObj(tgt); }
+      else if (!goTo(h, tgt.x, tgt.y, dt, g)) { if (dist(h, tgt) < Math.max(tgt.ow, tgt.oh) / 2 + 6.4) { h.goal = null; useObj(tgt); } else h.goal = null; }
     } else if (g.type === 'move') {
       if (!goTo(h, g.x, g.y, dt, g)) { h.goal = null; if (h.st === 'walk' || h.st === 'run') setSt(h, 'idle'); }
     }
@@ -976,8 +955,8 @@
   }
   function heroSpeed(running) {
     var d = S.d, v = running ? d.run : d.walk;
-    var base = v > 2 && v < 40 ? v * 0.5 : (running ? 4.6 : 3);
-    return clamp(base, 2.2, 7);
+    var base = v > 2 && v < 40 ? v : (running ? 9 : 6);
+    return clamp(base, 4, 14);
   }
   function wantRun() { return S.runOn && (S.stamina > 2 || (S.hero.st === 'run' && S.stamina > 0)); }
   function moveHero(vx, vy, dt, direct) {
@@ -991,9 +970,9 @@
   function goTo(e, tx, ty, dt, g) {
     var h = e;
     var near = Math.hypot(tx - h.x, ty - h.y);
-    if (g.type === 'move' && near < 0.25) return false;
+    if (g.type === 'move' && near < 0.5) return false;
     if (!h.path || g.repath === undefined || S.time - g.repath > 0.45 && (g.type !== 'move')) {
-      var tgtMoved = !g.pt || Math.hypot(g.pt[0] - tx, g.pt[1] - ty) > 0.8;
+      var tgtMoved = !g.pt || Math.hypot(g.pt[0] - tx, g.pt[1] - ty) > 1.6;
       if (!h.path || tgtMoved || S.time - g.repath > 0.9) {
         if (los(h.x, h.y, tx, ty)) h.path = [[tx, ty]]; else h.path = findPath(h.x, h.y, tx, ty);
         g.pt = [tx, ty]; g.repath = S.time;
@@ -1005,7 +984,7 @@
     // cắt đường: nhảy tới điểm xa nhất nhìn thấy
     for (var k = Math.min(h.path.length - 1, 5); k > 0; k--) if (los(h.x, h.y, h.path[k][0], h.path[k][1])) { h.path.splice(0, k); p = h.path[0]; break; }
     var dx = p[0] - h.x, dy = p[1] - h.y, d = Math.hypot(dx, dy);
-    if (d < 0.18) { h.path.shift(); if (!h.path.length) { h.path = null; if (g.type === 'move') return false; } return true; }
+    if (d < 0.35) { h.path.shift(); if (!h.path.length) { h.path = null; if (g.type === 'move') return false; } return true; }
     moveHero(dx / d, dy / d, dt, false);
     if (h.st === 'idle') { h.path = null; g.repath = undefined; return g.type !== 'move'; }
     return true;
@@ -1013,7 +992,7 @@
   var seenT = 0;
   function markSeen() {
     var g = S.grid, h = S.hero; if (!g || !g.seen) return;
-    var r = 9, hx = Math.floor(h.x), hy = Math.floor(h.y);
+    var r = 18, hx = Math.floor(h.x), hy = Math.floor(h.y);
     for (var y = Math.max(0, hy - r); y <= Math.min(g.h - 1, hy + r); y++) for (var x = Math.max(0, hx - r); x <= Math.min(g.w - 1, hx + r); x++)
       if ((x - hx) * (x - hx) + (y - hy) * (y - hy) <= r * r) g.seen[y * g.w + x] = 1;
   }
@@ -1023,9 +1002,9 @@
     var h = S.hero, g = S.grid;
     for (var i = 0; i < g.exits.length; i++) {
       var ex = g.exits[i];
-      if (Math.hypot(ex.x + 0.5 - h.x, ex.y + 0.5 - h.y) < 1.4) {
-        if (!areaDef(ex.to) || !(DA.area(ex.to) || AREA_FB[ex.to])) {
-          if (S.time - exitLock > 2) { exitLock = S.time; UI.msg('Lối này chưa mở trong bản MVP.'); }
+      if (Math.hypot(ex.x + 0.5 - h.x, ex.y + 0.5 - h.y) < 2.8) {
+        if (!DA.playable(ex.to)) {
+          if (S.time - exitLock > 2) { exitLock = S.time; UI.msg('Lối này chưa mở.'); }
           return;
         }
         entering = true; var from = S.areaId; E.sfx(['env_stairs'], 0.4);
@@ -1036,7 +1015,7 @@
   }
 
   /* ---------------------------------------------------------------- AI quái */
-  var MON_LOSE_DIST = 45;   // ô lưới (~22 ô D2): quái đang đuổi xa hơn thì mất dấu và ngủ lại
+  var MON_LOSE_DIST = 90;   // subtile: quái đang đuổi xa hơn thì mất dấu và ngủ lại
   function updateMon(m, dt) {
     var h = S.hero;
     if (m.hitFlash > 0) m.hitFlash -= dt;
@@ -1047,15 +1026,15 @@
     m.stT += dt * 1000;
     if (m.st === 'die') { if (m.stT >= m.stDur) setSt(m, 'dead'); return; }
     var dd = dist(m, h);
-    if (dd > 26 && !m.aggro) return;   // ngủ: D2 chỉ cập nhật phòng gần người chơi
+    if (dd > 52 && !m.aggro) return;   // ngủ: D2 chỉ cập nhật phòng gần người chơi
     if (dd > MON_LOSE_DIST && m.aggro && m.st !== 'attack' && m.st !== 'cast') { m.aggro = false; if (m.st === 'walk' || m.st === 'run') setSt(m, 'idle'); return; }
     if (m.st === 'hit') { if (m.stT >= m.stDur) setSt(m, 'idle'); return; }
     if (m.spawnT > 0) { m.spawnT -= dt * 1000; return; }
     var alive = h.st !== 'die' && h.st !== 'dead';
-    if (!m.aggro && alive && dd < 9 && S.time - S.arrive > 0.6) { aggroMon(m); if (!m.said) { m.said = 1; E.sfx([(m.art || '').replace('enemy.', '') + '_ment'], 0.35); } }
+    if (!m.aggro && alive && dd < 18 && S.time - S.arrive > 0.6) { aggroMon(m); if (!m.said) { m.said = 1; E.sfx([m.snd.Neutral], 0.4); } }
     if (m.st === 'attack' || m.st === 'cast') {
       var a = m.act;
-      if (a && !a.done && m.stT >= m.stDur * 0.5) monStrike(m, a);
+      if (a && !a.done && m.stT >= m.stDur * (a.hitAt || 0.5)) monStrike(m, a);
       if (m.stT >= m.stDur) { m.act = null; setSt(m, 'idle'); } else return;
     }
     if (!m.aggro || !alive) { if (m.st === 'walk' || m.st === 'run') setSt(m, 'idle'); return; }
@@ -1067,21 +1046,21 @@
     }
     if (m.ai === 'melee' || m.ai === 'fallen') {
       if (m.ai === 'fallen' && m.hp < m.maxHp * 0.3 && !m.fled) { m.fled = 1; m.flee = 3; return; }
-      if (len > 1.35) { monStep(m, vx / len, vy / len, dt, 1); }
+      if (len > 2.7) { monStep(m, vx / len, vy / len, dt, 1); }
       else if (m.cd <= 0) monAttack(m, 'swing', len);
       else { m.dir = E.dirFromTiles(vx, vy); setSt(m, 'idle'); }
     } else if (m.ai === 'ranged') {
-      if (len > 8.5) monStep(m, vx / len, vy / len, dt, 1);
-      else if (len < 3.5) monStep(m, -vx / len, -vy / len, dt, 0.9);
+      if (len > 17) monStep(m, vx / len, vy / len, dt, 1);
+      else if (len < 7) monStep(m, -vx / len, -vy / len, dt, 0.9);
       else if (m.cd <= 0 && los(m.x, m.y, h.x, h.y)) monAttack(m, 'shoot', len);
       else { m.dir = E.dirFromTiles(vx, vy); setSt(m, 'idle'); }
     } else if (m.ai === 'shaman') {
       // hồi sinh Fallen đã gục nếu có
       var corpse = null;
-      S.ents.forEach(function (o) { if (!corpse && o.kind === 'mon' && o.st === 'dead' && o.ai === 'fallen' && !o.rez && dist(o, m) < 9) corpse = o; });
-      if (corpse && m.cd <= 0) { m.dir = E.dirFromTiles(corpse.x - m.x, corpse.y - m.y); m.act = { kind: 'rez', corpse: corpse, done: false }; corpse.rez = 1; var an = E.animOf(m.art, 'cast'); restart(m, 'cast', an ? an.dur * 1.5 : 700); m.cd = 4; return; }
-      if (len > 8) monStep(m, vx / len, vy / len, dt, 1);
-      else if (len < 4) monStep(m, -vx / len, -vy / len, dt, 0.9);
+      S.ents.forEach(function (o) { if (!corpse && o.kind === 'mon' && o.st === 'dead' && o.ai === 'fallen' && !o.rez && dist(o, m) < 18) corpse = o; });
+      if (corpse && m.cd <= 0) { m.dir = E.dirFromTiles(corpse.x - m.x, corpse.y - m.y); m.act = { kind: 'rez', corpse: corpse, done: false }; corpse.rez = 1; restart(m, 'cast', Math.max(500, E.animDur(E.animOf(m.art, 'S1') || E.animOf(m.art, 'SC')) || 700)); m.act.mode = E.animOf(m.art, 'S1') ? 'S1' : 'SC'; m.cd = 4; return; }
+      if (len > 16) monStep(m, vx / len, vy / len, dt, 1);
+      else if (len < 8) monStep(m, -vx / len, -vy / len, dt, 0.9);
       else if (m.cd <= 0 && los(m.x, m.y, h.x, h.y)) monAttack(m, 'cast', len);
       else { m.dir = E.dirFromTiles(vx, vy); setSt(m, 'idle'); }
     }
@@ -1093,7 +1072,7 @@
       var o = S.ents[i];
       if (o === m || o.kind !== 'mon' || o.st === 'dead' || o.st === 'die') continue;
       var dx = m.x - o.x, dy = m.y - o.y, d = Math.hypot(dx, dy);
-      if (d < 0.7 && d > 0.001) tryMove(m, dx / d * 1.2 * dt, dy / d * 1.2 * dt);
+      if (d < 1.4 && d > 0.001) tryMove(m, dx / d * 2.4 * dt, dy / d * 2.4 * dt);
     }
   }
   function monStep(m, vx, vy, dt, mul) {
@@ -1102,28 +1081,31 @@
     if (m.slideSign) offs = [0, 0.6 * m.slideSign, -0.6 * m.slideSign, 1.2 * m.slideSign, -1.2 * m.slideSign];
     for (var i = 0; i < offs.length; i++) {
       var a2 = ang + offs[i], dx = Math.cos(a2) * sp, dy = Math.sin(a2) * sp;
-      if (canStand(m.x + dx, m.y + dy, 0.28)) { m.x += dx; m.y += dy; ok = true; if (i > 0) m.slideSign = offs[i] > 0 ? 1 : -1; else m.slideSign = 0; break; }
+      if (canStand(m.x + dx, m.y + dy, 0.3)) { m.x += dx; m.y += dy; ok = true; if (i > 0) m.slideSign = offs[i] > 0 ? 1 : -1; else m.slideSign = 0; break; }
     }
     m.dir = E.dirFromTiles(vx, vy);
     setSt(m, ok ? 'run' : 'idle');
   }
+  // Đòn của quái: A1/A2 cận chiến, A2/SC/S1 đánh xa theo mode quái có. Thời lượng = số khung / fps của animdata.
   function monAttack(m, anim, len) {
-    var h = S.hero, an = E.animOf(m.art, anim) || E.animOf(m.art, 'swing');
-    var dur = clamp(m.inst.atkMs || (an ? an.dur : 600) * 1.25, 350, 1400);
+    var h = S.hero, art = m.art;
+    var mode = anim === 'swing' ? (E.animOf(art, 'A2') && Math.random() < 0.4 ? 'A2' : 'A1')
+      : (E.pickAnim(art, anim === 'cast' ? ['SC', 'S1', 'A2', 'A1'] : ['A2', 'A1']) || 'A1');
+    var an = E.animOf(art, mode), dur = clamp(E.animDur(an) || 600, 300, 1600);
     m.dir = E.dirFromTiles(h.x - m.x, h.y - m.y);
-    m.act = { kind: anim, done: false, anim: an ? anim : 'swing' };
+    m.act = { kind: anim, done: false, mode: mode, hitAt: an && an.hit > 0 ? an.hit / (an.frames || an.f.length) : 0.5 };
     restart(m, anim === 'shoot' || anim === 'cast' ? 'cast' : 'attack', dur);
     m.cd = dur / 1000 * rnd(1.1, 1.6) + 0.15;
-    E.sfx([(m.art || '').replace('enemy.', '') + '_phys', 'melee_attack'], 0.35);
+    E.sfx([m.snd.Attack1, m.snd.Weapon1].filter(Boolean), 0.5);
   }
   function monStrike(m, a) {
     a.done = true; var h = S.hero, inst = m.inst;
     if (a.kind === 'rez') {
-      var c = a.corpse; if (c && c.st === 'dead') { c.hp = Math.round(c.maxHp * 0.6); c.rez = 0; c.aggro = true; c.deadAt = 0; var an = E.animOf(c.art, 'spawn'); restart(c, 'idle', 0); c.spawnT = an ? an.dur : 0; c.spawnAnimT = 0; E.sfx(['power_heal'], 0.4); }
+      var c = a.corpse; if (c && c.st === 'dead') { c.hp = Math.round(c.maxHp * 0.6); c.rez = 0; c.aggro = true; c.deadAt = 0; restart(c, 'idle', 0); c.spawnT = 0; E.sfx([m.snd.Skill1], 0.5); }
       return;
     }
     if (a.kind === 'swing') {
-      if (dist(m, h) > 2.0) return;
+      if (dist(m, h) > 4.0) return;
       var p = safe(function () { return D2R.hitChance((inst.a1 && inst.a1.ar) || inst.ar || 30, inst.lvl || 1, S.d.def, S.char.lvl); }, 0.7);
       var a1 = inst.a1 || inst.dmg || { min: 1, max: 3 };
       if (Math.random() < p) damageHero(rnd(a1.min, a1.max + 0.999));
@@ -1131,7 +1113,7 @@
     } else {
       var fire = m.ai === 'shaman';
       var ms = inst.missile || {}, md = ms.dmg && (ms.dmg.max > 0) ? ms.dmg : (inst.a2 && inst.a2.max ? inst.a2 : inst.a1 || { min: 1, max: 3 });
-      spawnMissile(m, h.x, h.y, { dmg: { min: md.min, max: md.max, elem: ms.elem || (fire ? 'fire' : 'phys') }, art: fire ? 'power.fireball' : (E.hasSheet('power.arrows') ? 'power.arrows' : 'power.ember'), speed: clamp((ms.vel || 12) * 0.5, 5, 9), owner: 'mon', ar: ((inst.a2 && inst.a2.ar) || inst.ar || 30) * 1.5, life: 1.8 });
+      spawnMissile(m, h.x, h.y, { dmg: { min: md.min, max: md.max, elem: ms.elem || (fire ? 'fire' : 'phys') }, art: ms.id && E.hasSheet('mis.' + ms.id) ? 'mis.' + ms.id : 'mis.arrow', boom: boomArt(ms.id), speed: clamp(ms.vel || 12, 10, 18), owner: 'mon', ar: ((inst.a2 && inst.a2.ar) || inst.ar || 30) * 1.5, life: 1.8 });
     }
   }
 
@@ -1151,11 +1133,11 @@
         if (!OBJ_USE[e.otype]) return;
         for (var ly = 0; ly <= 40 && score == null; ly += 20) {   // bấm vào phần thân cao của vật cũng trúng
           var wp = E.toWorld(sx, sy + ly);
-          if (wp[0] >= e.cx - 0.4 && wp[0] <= e.cx + e.ow + 0.4 && wp[1] >= e.cy - 0.4 && wp[1] <= e.cy + e.oh + 0.4) score = 20 + ly / 20;
+          if (wp[0] >= e.cx - 1 && wp[0] <= e.cx + e.ow + 1 && wp[1] >= e.cy - 1 && wp[1] <= e.cy + e.oh + 1) score = 20 + ly / 20;
         }
       } else if (e.kind === 'mon' || e.kind === 'npc') {
         if (e.st === 'dead') return;
-        var dx = (sx - p[0]) / 26, dy = (sy - (p[1] - 36)) / 46;
+        var dx = (sx - p[0]) / 24, dy = (sy - (p[1] - 34)) / 40;
         if (dx * dx + dy * dy <= 1) score = 10 + dx * dx + dy * dy;
         if (e.kind === 'mon' && e.st === 'die') score = null;
       }
@@ -1196,10 +1178,10 @@
   function touchAttack(skill) {
     var h = S.hero, sk = skill || S.leftSkill || 'attack';
     if (h.st === 'die' || h.st === 'dead') return;
-    var best = null, bd = 12;
+    var best = null, bd = 24;
     S.ents.forEach(function (m) { if (m.kind === 'mon' && m.st !== 'die' && m.st !== 'dead') { var d = dist(m, h); if (d < bd) { bd = d; best = m; } } });
     if (best) { h.goal = { type: isSpell(sk) ? 'cast' : 'attack', skill: sk, target: best, hold: true }; S.target = best; }
-    else { var a = angOf(h.dir); h.goal = { type: isSpell(sk) ? 'cast' : 'attack', skill: sk, x: h.x + Math.cos(a) * 6, y: h.y + Math.sin(a) * 6, inPlace: true }; }
+    else { var a = angOf(h.dir); h.goal = { type: isSpell(sk) ? 'cast' : 'attack', skill: sk, x: h.x + Math.cos(a) * 12, y: h.y + Math.sin(a) * 12, inPlace: true }; }
   }
 
   Game.assignSkill = function (which, id) {
@@ -1249,7 +1231,7 @@
   };
   Game.dropItem = function (it) {
     var c = S.char, i = c.inv.indexOf(it); if (i >= 0) c.inv.splice(i, 1);
-    dropItem(it, S.hero.x + rnd(-0.6, 0.6), S.hero.y + rnd(0.5, 1.2)); UI.dirty = true;
+    dropItem(it, S.hero.x + rnd(-1.2, 1.2), S.hero.y + rnd(1, 2.4)); UI.dirty = true;
   };
   Game.toBelt = function (it) {
     var c = S.char, bi = beltFree(c); if (bi < 0) { UI.msg('Đai đã đầy.'); return; }
@@ -1304,7 +1286,6 @@
     S.char = ch; normChar(ch); recalc();
     ch.hp = ch.hp > 0 ? ch.hp : S.d.maxHp;
     S.stamina = S.stamMax; S.regen = []; S.denLeft = null; S.scene = 'play';
-    heroLayerCache = null;
     UI.showHud(true); UI.refreshSkillIcons(); UI.refreshBelt();
     return enterArea('rogue_encampment', null).then(function () {
       recalc();
@@ -1349,7 +1330,7 @@
       else if (e.kind === 'missile') updateMissile(e, dt);
       else if (e.kind === 'fx') { e.t += dt; if (e.t > e.life) e.removed = true; }
       else if (e.kind === 'drop') {
-        if (e.gold && !e.removed && dist(e, h) < 1.3 && h.st !== 'die' && h.st !== 'dead') pickup(e);
+        if (e.gold && !e.removed && dist(e, h) < 2.6 && h.st !== 'die' && h.st !== 'dead') pickup(e);
       } else e.stT += dt * 1000;
       if (e.kind === 'missile' && e.st === 'dead') e.removed = true;
     }
@@ -1364,90 +1345,79 @@
     if (S.areaId === 'den_of_evil' && S.denLeft === 0 && S.char.quests.den_of_evil === 'active') { S.char.quests.den_of_evil = 'cleared'; UI.msg('Den of Evil đã sạch! Hãy báo cho Akara.', '#ffe27a'); }
   }
 
-  function heroAnim(h) {
-    if (h.st === 'attack' || h.st === 'cast') return h.act ? h.act.anim : 'swing';
-    return { idle: 'stance', walk: 'run', run: 'run', hit: 'hit', die: 'die', dead: 'die' }[h.st] || 'stance';
-  }
-  function scaledT(e, an) {   // trải hoạt ảnh play_once lên đúng thời lượng trạng thái
-    if (an && e.stDur && (e.st === 'attack' || e.st === 'cast' || e.st === 'hit')) return e.stT * an.dur / e.stDur;
+  // Hoạt ảnh một lượt (đánh, niệm, trúng đòn) trải đúng lên thời lượng trạng thái do luật tính (tốc độ vũ khí...)
+  function actT(e, an) {
+    if (an && e.stDur && (e.st === 'attack' || e.st === 'cast' || e.st === 'hit')) return Math.min(e.stT / e.stDur, 0.999) * E.animDur(an);
     return e.stT;
   }
+  function shadow(sx, sy, rx, ry) { var c = E.ctx; c.fillStyle = 'rgba(0,0,0,.28)'; c.beginPath(); c.ellipse(sx, sy, rx, ry, 0, 0, 7); c.fill(); }
+  function oneShot(st) { return st === 'die' || st === 'dead' || st === 'attack' || st === 'cast' || st === 'hit'; }
   function drawHero(sx, sy, d) {
-    var h = d.e, L = heroLayers(), nm = heroAnim(h);
-    var any = false, probe = L.chest || L.head;
-    var an = E.animOf(probe, nm); var t = scaledT(h, an);
-    if (h.st === 'dead') t = 1e6;
-    E.ctx.fillStyle = 'rgba(0,0,0,.3)'; E.ctx.beginPath(); E.ctx.ellipse(sx, sy, 20, 9, 0, 0, 7); E.ctx.fill();
-    any = E.drawAvatar(L, nm, t, h.dir, sx, sy, 1);
-    if (!any) E.drawBlob(sx, sy, '#d8b080', 12, h.dir, null);
+    var h = d.e, look = heroLook(), mode = heroMode(h);
+    if (!E.heroCof(look, mode)) mode = 'NU';
+    var cof = E.heroCof(look, mode), t = h.st === 'dead' ? 1e7 : actT(h, cof);
+    shadow(sx, sy, 18, 8);
+    if (!E.drawHero(look, mode, t, h.dir, sx, sy, 1, oneShot(h.st))) E.drawBlob(sx, sy, '#d8b080', 12, h.dir, null);
+  }
+  function monMode(m) {
+    var art = m.art;
+    switch (m.st) {
+      case 'die': return 'DT';
+      case 'dead': return E.animOf(art, 'DD') ? 'DD' : 'DT';
+      case 'attack': case 'cast': return (m.act && m.act.mode) || 'A1';
+      case 'hit': return 'GH';
+      case 'run': case 'walk': return m.aggro && E.animOf(art, 'RN') ? 'RN' : 'WL';
+      default: return 'NU';
+    }
   }
   function drawMon(sx, sy, d) {
-    var m = d.e, nm, t = m.stT;
-    if (m.spawnT > 0) { nm = 'spawn'; t = (E.animOf(m.art, 'spawn') ? E.animOf(m.art, 'spawn').dur : 800) - m.spawnT; }
-    else if (m.st === 'die' || m.st === 'dead') { nm = E.pickAnim(m.art, ['die']) || 'die'; if (m.st === 'dead') t = 1e6; }
-    else if (m.st === 'attack') nm = (m.act && m.act.anim) || 'swing';
-    else if (m.st === 'cast') nm = (m.act && E.animOf(m.art, m.act.kind) ? m.act.kind : null) || E.pickAnim(m.art, ['cast', 'shoot', 'swing']) || 'swing';
-    else if (m.st === 'hit') nm = 'hit';
-    else if (m.st === 'run' || m.st === 'walk') nm = 'run';
-    else nm = 'stance';
-    var an = E.animOf(m.art, nm);
-    if (an && (m.st === 'attack' || m.st === 'cast' || m.st === 'hit') && m.stDur) t = m.stT * an.dur / m.stDur;
-    var big = m.rank !== 'normal';
-    if (m.st !== 'dead') { E.ctx.fillStyle = 'rgba(0,0,0,.3)'; E.ctx.beginPath(); E.ctx.ellipse(sx, sy, big ? 24 : 18, big ? 11 : 8, 0, 0, 7); E.ctx.fill(); }
-    if (m.rank === 'champion' || m.rank === 'unique') { E.ctx.save(); E.ctx.shadowColor = m.rank === 'unique' ? '#ffe45a' : '#6e7bff'; E.ctx.shadowBlur = 14; }
-    var ok = m.art ? E.drawSprite(m.art, nm, t, m.dir, sx, sy, m.hitFlash > 0 ? 0.7 : 1) : false;
-    if (m.rank === 'champion' || m.rank === 'unique') E.ctx.restore();
+    var m = d.e, mode = monMode(m), an = E.animOf(m.art, mode);
+    var t = m.st === 'dead' && mode === 'DT' ? 1e7 : actT(m, an), small = m.rank === 'normal' || m.rank === 'minion';
+    if (m.st !== 'dead') shadow(sx, sy, small ? 16 : 22, small ? 7 : 10);
+    var glow = m.rank === 'champion' || m.rank === 'unique';
+    if (glow) { E.ctx.save(); E.ctx.shadowColor = m.rank === 'unique' ? '#ffe45a' : '#6e7bff'; E.ctx.shadowBlur = 12; }
+    var ok = m.art ? E.drawSprite(m.art, mode, t, m.dir, sx, sy, m.hitFlash > 0 ? 0.7 : 1, oneShot(m.st)) : false;
+    if (glow) E.ctx.restore();
     if (!ok) E.drawBlob(sx, sy, m.st === 'dead' ? '#442' : '#a44', 11, m.dir, null);
-    if (S.hover === m && m.st !== 'dead') { E.ctx.strokeStyle = 'rgba(255,60,60,.8)'; E.ctx.lineWidth = 2; E.ctx.beginPath(); E.ctx.ellipse(sx, sy, 22, 10, 0, 0, 7); E.ctx.stroke(); }
+    if (S.hover === m && m.st !== 'dead') { E.ctx.strokeStyle = 'rgba(255,60,60,.8)'; E.ctx.lineWidth = 2; E.ctx.beginPath(); E.ctx.ellipse(sx, sy, 20, 9, 0, 0, 7); E.ctx.stroke(); }
   }
-  /* Đồ vật khu: D2_ASSETS.townObjects[type] = { tile, tileset? } hoặc { sheet, anim? }, kèm ox/oy (px, tuỳ chọn).
-   * Neo vẽ = tâm chân vật (x + w/2, y + h/2) trên lưới; parts: [{tile, dx, dy}] vẽ như ô bản đồ tại tâm + (dx, dy). Thiếu mục -> không vẽ gì. */
-  function townObj(type) { var t = A.townObjects; return (t && t[type]) || null; }
   var OBJ_USE = { stash: true, waypoint: true };
+  var OBJ_LABEL = { stash: 'Stash', waypoint: 'Waypoint' };
   function drawObj(sx, sy, d) {
-    var o = d.e, t = townObj(o.otype); if (!t) return;
-    var ts = A.tilesets && A.tilesets[t.tileset || S.grid.tileset], rec = ts && E.images[ts.img];
-    if (t.tile != null || t.parts) {
-      if (!ts || !rec || !rec.ok) return;
-      var parts = t.parts || [{ tile: t.tile, dx: 0, dy: 0 }], i;
-      for (i = 0; i < parts.length; i++) {   // mỗi mảnh vẽ như ô bản đồ tại ô (tâm + dx, tâm + dy)
-        var pt = parts[i], tr = ts.tiles[pt.tile]; if (!tr) continue;
-        var p = E.toScreen(o.x + (pt.dx || 0), o.y + (pt.dy || 0));
-        E.ctx.drawImage(rec.img, tr[0], tr[1], tr[2], tr[3], Math.round(p[0] - tr[4] * E.Z + (t.ox || 0)), Math.round(p[1] - tr[5] * E.Z + (t.oy || 0)), Math.round(tr[2] * E.Z), Math.round(tr[3] * E.Z));
-      }
-    } else if (t.sheet) {
-      E.drawSprite(t.sheet, t.anim || 'stance', S.time * 1000, 0, sx - (t.ox || 0), sy - (t.oy || 0), 1);
+    var o = d.e, mode = o.mode;
+    if (o.otype === 'waypoint' && S.char.waypoints && S.char.waypoints[S.areaId] && E.animOf(o.art, 'ON')) mode = 'ON';
+    E.drawSprite(o.art, mode, S.time * 1000 + o.t0, 0, sx, sy, 1);
+    if (S.hover === o && OBJ_LABEL[o.otype]) {
+      var c = E.ctx; c.font = '13px Georgia,serif'; c.textAlign = 'center'; c.fillStyle = '#fff'; c.strokeStyle = '#000'; c.lineWidth = 3;
+      c.strokeText(OBJ_LABEL[o.otype], sx, sy - 70); c.fillText(OBJ_LABEL[o.otype], sx, sy - 70);
     }
   }
   function drawNpc(sx, sy, d) {
     var n = d.e;
-    E.ctx.fillStyle = 'rgba(0,0,0,.3)'; E.ctx.beginPath(); E.ctx.ellipse(sx, sy, 18, 8, 0, 0, 7); E.ctx.fill();
-    if (!E.drawSprite(n.art, 'stance', n.stT, 5, sx, sy, 1)) E.drawBlob(sx, sy, '#6a8ac0', 11, 5, null);
-    var info = NPC[n.npc] || { name: n.npc };
-    var c = E.ctx; c.font = '12px Georgia,serif'; c.textAlign = 'center'; c.fillStyle = S.hover === n ? '#fff' : '#9ec8ff'; c.strokeStyle = '#000'; c.lineWidth = 3;
-    c.strokeText(info.name, sx, sy - 100); c.fillText(info.name, sx, sy - 100);
+    shadow(sx, sy, 16, 7);
+    if (!E.drawSprite(n.art, 'NU', n.stT, n.dir, sx, sy, 1)) E.drawBlob(sx, sy, '#6a8ac0', 11, n.dir, null);
+    if (S.hover === n) {
+      var nd = D2DATA.npcs[n.npc], name = nd ? nd.name : n.npc;
+      var c = E.ctx; c.font = '13px Georgia,serif'; c.textAlign = 'center'; c.fillStyle = '#fff'; c.strokeStyle = '#000'; c.lineWidth = 3;
+      c.strokeText(name, sx, sy - 90); c.fillText(name, sx, sy - 90);
+    }
   }
   function drawDrop(sx, sy, d) {
     var e = d.e;
     if (e.corpse) { E.ctx.fillStyle = '#322'; E.ctx.beginPath(); E.ctx.ellipse(sx, sy, 16, 7, 0, 0, 7); E.ctx.fill(); }
-    else {
-      var t = (S.time - e.born) * 1000;
-      var an = E.animOf(e.art, 'power'), tt = an ? Math.min(t, an.dur * 0.999) : 0;
-      if (!E.drawSprite(e.art, 'power', tt, 0, sx, sy, 1)) { E.ctx.fillStyle = e.gold ? '#ffd24a' : '#bbb'; E.ctx.fillRect(sx - 6, sy - 6, 12, 8); }
-    }
+    else if (!e.art || !E.drawSprite(e.art, 'NU', (S.time - e.born) * 1000, 0, sx, sy, 1, true)) { E.ctx.fillStyle = e.gold ? '#ffd24a' : '#bbb'; E.ctx.fillRect(sx - 6, sy - 6, 12, 8); }
     e.sx = sx; e.sy = sy;
   }
   function drawMissile(sx, sy, d) {
-    var m = d.e;
-    var ok;
-    if (m.st === 'die') { ok = E.drawSprite(m.art, 'power', m.t * 1000, m.dir, sx, sy - 18, Math.max(0, 1 - m.t / 0.3)); }
-    else ok = E.drawSprite(m.art, 'power', m.t * 1000, m.dir, sx, sy - 18, 1);
-    if (!ok) { E.ctx.fillStyle = ELCOL[elemOf(m.dmg && m.dmg.elem)]; E.ctx.beginPath(); E.ctx.arc(sx, sy - 18, m.st === 'die' ? 14 : 6, 0, 7); E.ctx.fill(); }
+    var m = d.e, ok;
+    if (m.st === 'die') ok = m.boom ? E.drawSprite(m.boom, 'NU', m.t * 1000, m.dir, sx, sy, 1, true) : E.drawSprite(m.art, 'NU', m.t * 1000, m.dir, sx, sy, Math.max(0, 1 - m.t / 0.3));
+    else ok = E.drawSprite(m.art, 'NU', m.t * 1000, m.dir, sx, sy, 1);
+    if (!ok) { E.ctx.fillStyle = ELCOL[elemOf(m.dmg && m.dmg.elem)]; E.ctx.beginPath(); E.ctx.arc(sx, sy - 30, m.st === 'die' ? 14 : 6, 0, 7); E.ctx.fill(); }
   }
   function drawFx(sx, sy, d) {
     var e = d.e, f = e.t / e.life, c = E.ctx;
     c.save(); c.globalAlpha = 1 - f; c.strokeStyle = e.color || '#fff'; c.lineWidth = 3;
-    c.beginPath(); c.ellipse(sx, sy, e.ring * (E.tw / 2) * f, e.ring * (E.th / 2) * f, 0, 0, 7); c.stroke(); c.restore();
+    c.beginPath(); c.ellipse(sx, sy, e.ring * 16 * f, e.ring * 8 * f, 0, 0, 7); c.stroke(); c.restore();
   }
 
   var vigCv = null;
@@ -1460,12 +1430,12 @@
         if (ps[0] < -320 || ps[0] > 960 + 320 || ps[1] < -260 || ps[1] > 540 + 420) return;
       }
       var fn = e.kind === 'hero' ? drawHero : e.kind === 'mon' ? drawMon : e.kind === 'npc' ? drawNpc : e.kind === 'obj' ? drawObj : e.kind === 'drop' ? drawDrop : e.kind === 'missile' ? drawMissile : e.kind === 'fx' ? drawFx : null;
-      if (fn) drawables.push({ k: e.x + e.y + (e.kind === 'drop' ? -0.4 : 0), x: e.x, y: e.y, e: e, draw: fn });
+      if (fn) drawables.push({ x: e.x, y: e.y, z: e.kind === 'drop' || (e.kind === 'mon' && e.st === 'dead') ? -1 : 0, e: e, draw: fn });
     });
     E.renderWorld(drawables);
     var c = E.ctx;
     // hầm động tối dần quanh người chơi
-    if (S.grid && S.grid.tileset !== 'grassland' && S.hero) {
+    if (S.def && S.def.inside && S.hero) {
       if (!vigCv) {   // vẽ sẵn một lần, kéo theo vị trí hero trên màn hình
         vigCv = document.createElement('canvas'); vigCv.width = 1920; vigCv.height = 1080;
         var vc = vigCv.getContext('2d'), gr = vc.createRadialGradient(960, 540, 120, 960, 540, 520);
@@ -1553,7 +1523,7 @@
       UI.showLoad(true, 'Thiếu tệp dữ liệu (D2DATA/D2R/D2G). Không thể khởi động.'); return;
     }
     UI.showLoad(true, 'Đang tải...');
-    E.ensureIcons().then(function () {
+    E.ensureUi().then(function () {
       UI.showLoad(false); S.scene = 'title'; UI.showTitle(Game.hasSave());
       requestAnimationFrame(frame);
     });
@@ -1581,6 +1551,8 @@
       var p = E.toScreen(x, y), r = document.getElementById('stage').getBoundingClientRect();
       return { x: r.left + p[0] * r.width / 960, y: r.top + (p[1] - (lift || 0)) * r.height / 540, sx: p[0], sy: p[1] };
     },
+    // đường A* của game từ hero tới (x, y), để test bấm chuột theo từng chặng thay vì đi thẳng vào hàng rào
+    path: function (x, y) { var h = S.hero; return h ? findPath(h.x, h.y, x, y, 1e6) : null; },
     teleport: function (x, y) { if (S.hero) { S.hero.x = x; S.hero.y = y; S.hero.path = null; S.hero.goal = null; E.cam.x = x; E.cam.y = y; markSeen(); } },
     goto: function (id, from) { return enterArea(id, from || null); },
     hurt: function (n) { damageHero(n); },
@@ -1608,15 +1580,15 @@
     sim: function (sec) { var n = Math.round(sec * 30); for (var i = 0; i < n; i++) updateWorld(1 / 30); render(); UI.update(performance.now() + 1000); },
     dropAt: function (it, x, y) { dropItem(it, x, y); },
     makePotion: DA.makePotion, entAt: entAt, render: render, DA: DA,
-    addNpc: function (id, x, y) { mk('npc', x, y, { npc: id, dir: 5, art: npcArt(id) }); },
+    addNpc: function (id, x, y) { mk('npc', x, y, { npc: id, dir: 6, art: D2DATA.npcs[id] && D2DATA.npcs[id].art }); },
     monIds: function () { return coll(S.def && S.def.monsters).map(function (m) { return typeof m === 'string' ? m : m.id; }); },
-    heroLayers: function () { return JSON.parse(JSON.stringify(heroLayers())); },
-    // to lien he 8 huong cua hero (canvas #d2-sheet gan vao body; file:// lam toDataURL loi), ve bang E.drawAvatar that len canvas phu
-    contactSheet: function (anim) {
-      var L = heroLayers(), cv = document.createElement('canvas'), W = 150, Hh = 170; cv.width = W * 8; cv.height = Hh;
+    heroLook: function () { return heroLook(); },
+    // tờ 8 hướng của hero vẽ bằng E.drawHero thật lên canvas phủ (file:// làm toDataURL lỗi nên gắn canvas vào trang)
+    contactSheet: function (mode) {
+      var look = heroLook(), cv = document.createElement('canvas'), W = 120, Hh = 140; cv.width = W * 8; cv.height = Hh;
       var c = cv.getContext('2d'), old = E.ctx; c.fillStyle = '#3a4a2c'; c.fillRect(0, 0, cv.width, Hh);
       E.ctx = c; var ok = 0;
-      for (var d = 0; d < 8; d++) { if (E.drawAvatar(L, anim || 'stance', 0, d, W * d + W / 2, Hh - 30, 1)) ok++; c.fillStyle = '#fff'; c.font = '12px sans-serif'; c.fillText('dir ' + d, W * d + 4, 14); }
+      for (var d = 0; d < 8; d++) { if (E.drawHero(look, mode || 'NU', 0, d, W * d + W / 2, Hh - 20, 1)) ok++; c.fillStyle = '#fff'; c.font = '12px sans-serif'; c.fillText('dir ' + d, W * d + 4, 14); }
       E.ctx = old; cv.id = 'd2-sheet'; cv.style.cssText = 'position:fixed;left:0;top:0;z-index:9999'; document.body.appendChild(cv); return { ok: ok };
     },
     freeze: function (on) { Game.freeze = !!on; },

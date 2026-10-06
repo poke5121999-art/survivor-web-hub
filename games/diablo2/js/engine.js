@@ -1,22 +1,20 @@
 /* Ác Quỷ II - engine.js
- * Vẽ isometric, nạp ảnh theo manifest (D2_ASSETS), chọn khung hình hoạt ảnh,
- * sắp xếp chiều sâu ô vật cản + thực thể theo (x+y).
- * Hợp đồng: xem brain/plans/diablo2-flare.md
+ * Vẽ thế giới D2: tile DT1 theo bản đồ DS1, sprite DCC nhiều hướng, nhân vật ghép lớp theo COF.
+ * Đơn vị thế giới là subtile (1 tile D2 = 5x5 subtile). Hợp đồng dữ liệu: brain/plans/diablo2-d2r.md
  */
 (function () {
   'use strict';
   var D2 = window.D2 = window.D2 || {};
-  var A = window.D2_ASSETS || { scale: 0.5, sheets: {}, tilesets: {}, autotile: {}, sfx: {}, music: {}, avatarLayers: { order: [] } };
   var W = 960, H = 540;
-  var TILE_CENTER = 0.5;       // ô (i,j) vẽ tại tâm (i+.5, j+.5); chỉnh nếu ô lệch khi nhìn ảnh chụp
+  var SPR = window.D2_SPRITES || { pages: [], sheets: {}, hero: { cofs: {}, layers: {} } };
+  var OBJ = window.D2_SPRITES_OBJ || { pages: [], sheets: {} };
+  var WORLD = window.D2_WORLD || { tilesets: {} };
+  var UIA = window.D2_UI || { pages: [], icons: {}, sfx: {}, music: {} };
 
   var E = D2.E = {
-    W: W, H: H, A: A, canvas: null, ctx: null,
-    Z: 1,                      // ảnh đóng gói đã ở cỡ vẽ (96x48 một ô sàn ~ ô D2 80x40); chỉnh nếu muốn phóng to
-    images: {}, grid: null,
-    cam: { x: 0, y: 0 },       // toạ độ ô
-    tw: 64, th: 32, shake: 0, ver: '', muted: false,
-    view: 1                    // thu phóng khung hình (1 = bình thường; <1 = nhìn xa, dùng khi chụp ảnh/gỡ lỗi)
+    W: W, H: H, canvas: null, ctx: null, images: {}, level: null,
+    cam: { x: 0, y: 0 }, tw: 32, th: 16, shake: 0, ver: '', muted: false, view: 1,
+    SPR: SPR, OBJ: OBJ, WORLD: WORLD, UI: UIA
   };
 
   /* ---------------------------------------------------------------- nạp ảnh */
@@ -33,256 +31,306 @@
   function whenLoaded(path) {
     return new Promise(function (res) {
       var r = E.img(path);
-      if (!r) return res(false);
       if (r.ok) return res(true);
       if (r.fail) return res(false);
       r.cbs.push(res);
     });
   }
-  E.sheet = function (key) { return (A.sheets && A.sheets[key]) || null; };
-  E.hasSheet = function (key) { return !!E.sheet(key); };
+
+  // Mỗi nguồn (sprites.js, sprites_obj.js) có mảng pages riêng; rect[6] là chỉ số trong mảng đó.
+  var SHEETS = {};
+  Object.keys(SPR.sheets || {}).forEach(function (k) { SHEETS[k] = { s: SPR.sheets[k], pages: SPR.pages }; });
+  Object.keys(OBJ.sheets || {}).forEach(function (k) { SHEETS[k] = { s: OBJ.sheets[k], pages: OBJ.pages }; });
+
+  function pagesOfAnims(anims, pages, out) {
+    function scan(f) {
+      for (var i = 0; i < f.length; i++) for (var d = 0; d < f[i].length; d++) {
+        var r = f[i][d]; if (r && r.length > 6) out[pages[r[6]]] = 1;
+      }
+    }
+    Object.keys(anims || {}).forEach(function (m) {
+      scan(anims[m].f || []);
+      (anims[m].fx || []).forEach(function (x) { scan(x.f || []); });
+    });
+    return out;
+  }
+  E.sheet = function (key) { var e = SHEETS[key]; return e ? e.s : null; };
+  E.hasSheet = function (key) { return !!SHEETS[key]; };
   E.ensure = function (keys) {
-    var ps = [];
-    keys.forEach(function (k) { var s = E.sheet(k); if (s && s.img) ps.push(whenLoaded(s.img)); });
-    return Promise.all(ps);
+    var need = {};
+    keys.forEach(function (k) {
+      var e = SHEETS[k]; if (!e) return;
+      if (!e.need) e.need = Object.keys(pagesOfAnims(e.s.anims, e.pages, {}));
+      e.need.forEach(function (p) { need[p] = 1; });
+    });
+    return Promise.all(Object.keys(need).map(whenLoaded));
+  };
+  E.ensurePrefix = function (prefixes) {
+    return E.ensure(Object.keys(SHEETS).filter(function (k) {
+      return prefixes.some(function (p) { return k.indexOf(p) === 0; });
+    }));
+  };
+  E.ensureHero = function (cls) {
+    var L = (SPR.hero && SPR.hero.layers) || {}, need = {};
+    Object.keys(L).forEach(function (k) { if (k.indexOf(cls + '.') === 0) pagesOfAnims(L[k], SPR.pages, need); });
+    return Promise.all(Object.keys(need).map(whenLoaded));
   };
   E.ensureTileset = function (name) {
-    var t = A.tilesets && A.tilesets[name];
-    return t && t.img ? whenLoaded(t.img) : Promise.resolve(false);
+    var ts = WORLD.tilesets && WORLD.tilesets[name];
+    return ts ? Promise.all(ts.pages.map(whenLoaded)) : Promise.resolve(false);
   };
-  E.ensureIcons = function () { return A.icons && A.icons.img ? whenLoaded(A.icons.img) : Promise.resolve(false); };
-  E.ensurePrefix = function (prefixes) {
-    var keys = Object.keys(A.sheets || {}).filter(function (k) {
-      return prefixes.some(function (p) { return k.indexOf(p) === 0; });
+  // Kích thước trang atlas UI để CSS phóng ảnh (background-size) khi vẽ icon to/nhỏ hơn gốc
+  E.ensureUi = function () {
+    return Promise.all((UIA.pages || []).map(whenLoaded)).then(function () {
+      UIA.pageSize = UIA.pages.map(function (p) { var im = E.images[p].img; return [im.naturalWidth, im.naturalHeight]; });
     });
-    return E.ensure(keys);
   };
 
   E.init = function (canvas) {
     E.canvas = canvas; canvas.width = W; canvas.height = H;
     E.ctx = canvas.getContext('2d');
+    E.ctx.imageSmoothingEnabled = false;
   };
 
   /* ------------------------------------------------------------- hình học iso */
-  E.setGrid = function (g) {
-    E.grid = g;
-    // Kích thước ô lấy từ chính ô sàn của bộ ô (hình thoi 2:1), để các ô khớp khít nhau.
-    var ts = A.tilesets && A.tilesets[g.tileset], tw = g.tileW || 64, th = g.tileH || 32, found = false;
-    if (ts && ts.tiles) {
-      for (var i = 0; i < 64 && !found; i++) {
-        var r = ts.tiles[g.bg[i]];
-        if (r && r[2] === r[3] * 2 && r[4] === r[2] / 2) { tw = r[2] * E.Z; th = r[3] * E.Z; found = true; }
-      }
-      if (!found) { var r16 = ts.tiles[16]; if (r16) { tw = r16[2] * E.Z; th = r16[3] * E.Z; } }
-    }
-    E.tw = tw; E.th = th;
-  };
-  E.project = function (x, y) { return [(x - y) * E.tw / 2, (x + y) * E.th / 2]; };
+  E.setLevel = function (lv) { E.level = lv; };
+  E.project = function (x, y) { return [(x - y) * 16, (x + y) * 8]; };
+  var camCache = [0, 0];
   E.camPx = function () {
     var p = E.project(E.cam.x, E.cam.y), s = E.shake > 0 ? E.shake : 0;
     return [Math.round(p[0] + (s ? (Math.random() - .5) * s : 0)), Math.round(p[1] + (s ? (Math.random() - .5) * s : 0))];
   };
-  var camCache = [0, 0];
+  E.updateCam = function () { var c = E.camPx(); camCache[0] = c[0]; camCache[1] = c[1]; };
   E.toScreen = function (x, y) {
-    var c = camCache;
-    return [Math.round((x - y) * E.tw / 2 - c[0] + W / 2), Math.round((x + y) * E.th / 2 - c[1] + H / 2)];
+    return [Math.round((x - y) * 16 - camCache[0] + W / 2), Math.round((x + y) * 8 - camCache[1] + H / 2)];
   };
-  E.toWorld = function (sx, sy) {   // màn hình -> toạ độ ô (số thực)
-    var c = camCache;
-    var wx = sx - W / 2 + c[0], wy = sy - H / 2 + c[1];
-    var a = wx / (E.tw / 2), b = wy / (E.th / 2);
+  E.toWorld = function (sx, sy) {
+    var a = (sx - W / 2 + camCache[0]) / 16, b = (sy - H / 2 + camCache[1]) / 8;
     return [(a + b) / 2, (b - a) / 2];
   };
-  E.updateCam = function () { var c = E.camPx(); camCache[0] = c[0]; camCache[1] = c[1]; };
 
-  // Flare: hướng 0 = Tây (màn hình), tăng theo chiều kim đồng hồ: 0 W,1 NW,2 N,3 NE,4 E,5 SE,6 S,7 SW
-  var DIR_BY_K = { '0': 4, '1': 5, '2': 6, '3': 7, '4': 0, '-4': 0, '-1': 3, '-2': 2, '-3': 1 };
+  /* Hướng nhìn là số thực trong [0, 8): 0 = Tây trên màn hình, tăng theo chiều kim đồng hồ (2 = Bắc, 4 = Đông, 6 = Nam).
+   * Sheet có `dirs` hướng thì lấy hướng gần nhất, nên sprite 8 và 16 hướng dùng chung một giá trị. */
   E.dirFromScreen = function (vx, vy) {
-    var k = Math.round(Math.atan2(vy, vx) / (Math.PI / 4));
-    return DIR_BY_K[String(k)];
+    var f = (Math.atan2(vy, vx) - Math.PI) / (2 * Math.PI);
+    f -= Math.floor(f);
+    return f * 8;
   };
-  E.dirFromTiles = function (dx, dy) {
-    return E.dirFromScreen((dx - dy) * E.tw / 2, (dx + dy) * E.th / 2);
-  };
+  E.dirFromTiles = function (dx, dy) { return E.dirFromScreen((dx - dy) * 16, (dx + dy) * 8); };
+  function dirIdx(dir, n) { return ((Math.round((dir || 0) * n / 8) % n) + n) % n; }
+  E.dirIdx = dirIdx;
 
   /* ------------------------------------------------------- khung hình hoạt ảnh */
-  E.frameIndex = function (anim, t) {
+  // Thời lượng một lượt hoạt ảnh (ms), theo fps của animdata.d2
+  E.animDur = function (anim) {
+    if (!anim) return 0;
+    var n = anim.frames || (anim.f ? anim.f.length : 1);
+    return n * 1000 / (anim.fps || 12.5);
+  };
+  // once: dừng ở khung cuối thay vì lặp lại
+  E.frameIndex = function (anim, t, once) {
     var n = anim.frames || (anim.f ? anim.f.length : 1);
     if (n <= 1) return 0;
-    var dur = anim.dur || 1000, type = anim.type || 'looped';
-    if (t < 0) t = 0;
-    if (type === 'play_once') return Math.min(n - 1, Math.floor(t / dur * n));
-    if (type === 'back_forth') {
-      var m = 2 * n - 2, k = Math.floor(t / dur * m) % m;
-      return k < n ? k : m - k;
-    }
-    return Math.floor(t / dur * n) % n;
+    var k = Math.floor(Math.max(0, t) * (anim.fps || 12.5) / 1000);
+    return once ? Math.min(n - 1, k) : k % n;
   };
-  E.animOf = function (sheetKey, name) {
-    var s = E.sheet(sheetKey); return s && s.anims ? s.anims[name] || null : null;
-  };
-  E.pickAnim = function (sheetKey, names) {
-    var s = E.sheet(sheetKey); if (!s || !s.anims) return null;
-    for (var i = 0; i < names.length; i++) if (s.anims[names[i]]) return names[i];
+  E.animOf = function (key, mode) { var s = E.sheet(key); return s && s.anims ? s.anims[mode] || null : null; };
+  E.pickAnim = function (key, modes) {
+    var s = E.sheet(key); if (!s || !s.anims) return null;
+    for (var i = 0; i < modes.length; i++) if (s.anims[modes[i]]) return modes[i];
     return null;
   };
-  E.rectOf = function (anim, t, dir) {
-    var fr = anim.f && anim.f[E.frameIndex(anim, t)];
-    if (!fr) return null;
-    return fr[dir] || fr[dir % fr.length] || fr[0] || null;
-  };
 
-  /* Vẽ sprite tại (sx,sy) = chân nhân vật: góc trên-trái = (sx - ox, sy - oy). */
-  E.drawSprite = function (sheetKey, animName, t, dir, sx, sy, alpha) {
-    var s = E.sheet(sheetKey); if (!s) return false;
-    var rec = E.img(s.img); if (!rec.ok) return false;
-    var anim = s.anims && s.anims[animName]; if (!anim) return false;
-    var r = E.rectOf(anim, t, dir); if (!r) return false;
-    var c = E.ctx, Z = E.Z;
-    if (alpha != null && alpha < 1) c.globalAlpha = alpha;
-    c.drawImage(rec.img, r[0], r[1], r[2], r[3], Math.round(sx - r[4] * Z), Math.round(sy - r[5] * Z), Math.round(r[2] * Z), Math.round(r[3] * Z));
-    if (alpha != null && alpha < 1) c.globalAlpha = 1;
+  function blit(pages, r, x, y, alpha, blend) {
+    var rec = E.images[pages[r[6] || 0]];
+    if (!rec || !rec.ok) { E.img(pages[r[6] || 0]); return false; }
+    var c = E.ctx;
+    if (blend === 'add') c.globalCompositeOperation = 'lighter';
+    var a = blend === 'alpha50' ? 0.5 : 1;
+    if (alpha != null) a *= alpha;
+    if (a < 1) c.globalAlpha = a;
+    c.drawImage(rec.img, r[0], r[1], r[2], r[3], Math.round(x - r[4]), Math.round(y - r[5]), r[2], r[3]);
+    if (a < 1) c.globalAlpha = 1;
+    if (blend === 'add') c.globalCompositeOperation = 'source-over';
     return true;
+  }
+  E.blit = blit;
+
+  /* Vẽ một sprite tại chân (sx, sy). Trả false nếu thiếu sheet/anim (người gọi tự vẽ thay thế). */
+  // Lớp trong suốt của vật thể (lửa trại, đuốc...) nằm ở an.fx: [{ blend, under, f }], cùng chỉ số khung và hướng.
+  function drawFx(e, an, fi, d, sx, sy, alpha, under) {
+    for (var i = 0; i < an.fx.length; i++) {
+      var x = an.fx[i]; if (!!x.under !== under) continue;
+      var r = x.f[fi] && x.f[fi][d];
+      if (r && r.length) blit(e.pages, r, sx, sy, alpha, x.blend);
+    }
+  }
+  E.drawSprite = function (key, mode, t, dir, sx, sy, alpha, once) {
+    var e = SHEETS[key]; if (!e) return false;
+    var an = e.s.anims && e.s.anims[mode]; if (!an || !an.f || !an.f.length) return false;
+    var fi = E.frameIndex(an, t, once || an.loop === false), fr = an.f[fi];
+    var d = dirIdx(dir, an.dirs || fr.length), r = fr && fr[d];
+    if (an.fx) drawFx(e, an, fi, d, sx, sy, alpha, true);
+    if (r && r.length) blit(e.pages, r, sx, sy, alpha, an.blend);
+    if (an.fx) drawFx(e, an, fi, d, sx, sy, alpha, false);
+    return true;   // khung trống là hợp lệ (vd. khung đầu của vụ nổ)
   };
 
-  /* Nhân vật nhiều lớp: layers = { feet:'avatar.female.feet', ... }, thứ tự theo avatarLayers.order[dir]. */
-  E.drawAvatar = function (layers, animName, t, dir, sx, sy, alpha) {
-    var ord = A.avatarLayers && A.avatarLayers.order && (A.avatarLayers.order[dir] || A.avatarLayers.order[0]);
-    if (!ord) ord = Object.keys(layers);
-    var any = false;
-    for (var i = 0; i < ord.length; i++) {
-      var key = layers[ord[i]];
-      if (key && E.drawSprite(key, animName, t, dir, sx, sy, alpha)) any = true;
+  /* Nhân vật người chơi: look = { cls: 'AM', wclass: '1HT', tok: { HD: 'LIT', RH: 'JAV', SH: 'BUC', ... } }.
+   * Thứ tự lớp theo bảng ưu tiên của COF cho từng hướng, từng khung, như D2. */
+  E.heroCof = function (look, mode) {
+    var cofs = SPR.hero && SPR.hero.cofs; if (!cofs) return null;
+    return cofs[look.cls + '.' + mode + '.' + look.wclass] || null;
+  };
+  E.drawHero = function (look, mode, t, dir, sx, sy, alpha, once) {
+    var cof = E.heroCof(look, mode); if (!cof) return false;
+    var L = SPR.hero.layers, fi = E.frameIndex(cof, t, once), d = dirIdx(dir, cof.dirs);
+    var row = cof.pri[d] && cof.pri[d][fi]; if (!row) return false;
+    var order = typeof row === 'string' ? row.split(',') : row, any = false;
+    for (var i = 0; i < order.length; i++) {
+      var ly = order[i], wc = ((cof.wclass && cof.wclass[ly]) || look.wclass).toUpperCase();
+      var tok = (look.tok && look.tok[ly]) || 'LIT';
+      var sh = L[look.cls + '.' + ly + '.' + tok + '.' + wc] || L[look.cls + '.' + ly + '.LIT.' + wc];
+      var an = sh && sh[mode]; if (!an || !an.f) continue;
+      var r = an.f[fi] && an.f[fi][d];
+      if (r && r.length && blit(SPR.pages, r, sx, sy, alpha, cof.blend && cof.blend[ly])) any = true;
     }
     return any;
   };
 
   /* Bóng + hình thay thế khi thiếu art (để game vẫn chơi được). */
-  var DX = [-1, -1, 0, 1, 1, 1, 0, -1], DY = [0, -1, -1, -1, 0, 1, 1, 1];
   E.drawBlob = function (sx, sy, color, r, dir, label) {
     var c = E.ctx;
     c.fillStyle = 'rgba(0,0,0,.35)'; c.beginPath(); c.ellipse(sx, sy, r * 1.1, r * .5, 0, 0, 7); c.fill();
     c.fillStyle = color; c.beginPath(); c.ellipse(sx, sy - r * 1.2, r * .7, r * 1.3, 0, 0, 7); c.fill();
     c.strokeStyle = '#000'; c.lineWidth = 1; c.stroke();
-    if (dir != null) {
-      c.strokeStyle = '#fff'; c.beginPath(); c.moveTo(sx, sy - r * 1.4);
-      c.lineTo(sx + DX[dir] * r, sy - r * 1.4 + DY[dir] * r * .5); c.stroke();
-    }
     if (label) { c.fillStyle = '#fff'; c.font = '10px sans-serif'; c.textAlign = 'center'; c.fillText(label, sx, sy - r * 2.9); }
   };
 
   /* ------------------------------------------------------------- vẽ thế giới */
-  E.drawTile = function (ts, id, i, j) {
-    var tr = ts.tiles[id]; if (!tr) return;
-    var rec = E.images[ts.img]; if (!rec || !rec.ok) return;
-    var p = E.toScreen(i + TILE_CENTER, j + TILE_CENTER), Z = E.Z;
-    var dx = Math.round(p[0] - tr[4] * Z), dy = Math.round(p[1] - tr[5] * Z), dw = Math.round(tr[2] * Z), dh = Math.round(tr[3] * Z);
-    if (dx > vR || dy > vB || dx + dw < vL || dy + dh < vT) return;
-    E.ctx.drawImage(rec.img, tr[0], tr[1], tr[2], tr[3], dx, dy, dw, dh);
-  };
-
-  var bnd = [0, 0, 0, 0], vL = 0, vR = W, vT = 0, vB = H;   // khung nhìn (toạ độ màn hình, trước thu phóng)
-  function visibleRange(g) {
-    var cs = [E.toWorld(vL - 100, vT - 60), E.toWorld(vR + 100, vT - 60), E.toWorld(vL - 100, vB + 280), E.toWorld(vR + 100, vB + 280)];
-    var i0 = 1e9, i1 = -1e9, j0 = 1e9, j1 = -1e9;
-    for (var k = 0; k < 4; k++) {
-      i0 = Math.min(i0, cs[k][0]); i1 = Math.max(i1, cs[k][0]);
-      j0 = Math.min(j0, cs[k][1]); j1 = Math.max(j1, cs[k][1]);
-    }
-    bnd[0] = Math.max(0, Math.floor(i0) - 1); bnd[1] = Math.min(g.w - 1, Math.ceil(i1) + 1);
-    bnd[2] = Math.max(0, Math.floor(j0) - 1); bnd[3] = Math.min(g.h - 1, Math.ceil(j1) + 1);
-    return bnd;
+  // Ô tile (tx, ty): đỉnh trên của hình thoi ở toạ độ subtile (5tx, 5ty). Biến thể nằm ở bit 16+ của giá trị lớp.
+  function tileVariant(ts, o, v) {
+    var t = v & 0xffff, list = ts.tiles[o + '_' + (t >> 8) + '_' + (t & 0xff)];
+    return list ? list[(v >>> 16) % list.length] : null;
+  }
+  function drawTile(ts, r, px, py, dy, alpha) {
+    if (!r[2] || !r[3]) return;   // tile cổng (orientation 10, 11) và tường giữ chỗ: chỉ có cờ va chạm, không có hình
+    if (px - 80 + r[2] < vL || px - 80 > vR || py + dy > vB || py + dy + r[3] < vT) return;
+    blit(ts.pages, [r[0], r[1], r[2], r[3], 0, 0, r[6]], px - 80, py + dy, alpha);
+  }
+  function tileXY(tx, ty) {
+    return [(tx - ty) * 80 - camCache[0] + W / 2, (tx + ty) * 40 - camCache[1] + H / 2];
+  }
+  function drawWall(ts, o, v, p) {
+    var r = tileVariant(ts, o, v); if (!r) return;
+    drawTile(ts, r, p[0], p[1], r[4] + 80);
+    if (o === 3) { var r4 = tileVariant(ts, 4, v & 0xffff); if (r4) drawTile(ts, r4, p[0], p[1], r4[4] + 80); }
   }
 
-  /* drawables: [{ k: x+y, x, y, draw: function(sx, sy, d) }] */
+  var vL = 0, vR = W, vT = 0, vB = H;
+  /* drawables: [{ x, y (subtile), draw(sx, sy, d) }]. Thứ tự theo d2maprenderer: lượt 1 tường thấp + sàn + bóng,
+   * lượt 2 theo từng tile (hàng trước, cột sau): tường đứng rồi các thực thể đứng trong tile đó, lượt 3 mái. */
   E.renderWorld = function (drawables) {
-    var g = E.grid, c = E.ctx;
+    var lv = E.level, c = E.ctx;
     E.updateCam();
     var V = E.view || 1;
     c.setTransform(1, 0, 0, 1, 0, 0);
     c.globalAlpha = 1;
     c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
-    if (!g) return;
+    if (!lv) return;
     c.setTransform(V, 0, 0, V, W / 2 * (1 - V), H / 2 * (1 - V));
     vL = W / 2 - W / 2 / V; vR = W / 2 + W / 2 / V; vT = H / 2 - H / 2 / V; vB = H / 2 + H / 2 / V;
-    var ts = (A.tilesets && A.tilesets[g.tileset]) || null;
-    var haveArt = !!(ts && E.images[ts.img] && E.images[ts.img].ok);
-    var r = visibleRange(g), i0 = r[0], i1 = r[1], j0 = r[2], j1 = r[3];
-    var i, j, id;
-    for (j = j0; j <= j1; j++) for (i = i0; i <= i1; i++) {
-      id = g.bg[j * g.w + i];
-      if (haveArt) { if (id > 0) E.drawTile(ts, id, i, j); }
-      else E.fallbackTile(i, j, g);
-    }
-    drawables.sort(function (a, b) { return a.k - b.k; });
-    var dn = drawables.length, di = 0;
-    function flush(limit) {
-      while (di < dn && drawables[di].k < limit) {
-        var d = drawables[di++], p = E.toScreen(d.x, d.y);
-        if (p[0] > vL - 240 && p[0] < vR + 240 && p[1] > vT - 120 && p[1] < vB + 320) d.draw(p[0], p[1], d);
+    var ts = WORLD.tilesets[lv.tileset];
+    var tw = lv.tw, th = lv.th;
+    // khung tile nhìn thấy, nới thêm phía dưới vì tường cao vẽ lên trên tile của nó
+    var cs = [E.toWorld(vL, vT), E.toWorld(vR, vT), E.toWorld(vL, vB + 400), E.toWorld(vR, vB + 400)];
+    var x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+    cs.forEach(function (p) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); });
+    var tx0 = Math.max(0, Math.floor(x0 / 5) - 2), tx1 = Math.min(tw - 1, Math.ceil(x1 / 5) + 1);
+    var ty0 = Math.max(0, Math.floor(y0 / 5) - 2), ty1 = Math.min(th - 1, Math.ceil(y1 / 5) + 1);
+    var tx, ty, i, k, p, v, o;
+
+    if (ts) for (ty = ty0; ty <= ty1; ty++) for (tx = tx0; tx <= tx1; tx++) {
+      k = ty * tw + tx; p = tileXY(tx, ty);
+      for (i = 0; i < lv.walls.length; i++) {
+        o = lv.walls[i].o[k];
+        if (o >= 16 && o <= 19 && (v = lv.walls[i].t[k])) drawWall(ts, o, v, p);
+      }
+      for (i = 0; i < lv.floors.length; i++) {
+        if ((v = lv.floors[i][k])) { var rf = tileVariant(ts, 0, v); if (rf) drawTile(ts, rf, p[0], p[1], rf[4]); }
+      }
+      for (i = 0; i < lv.shadows.length; i++) {
+        if ((v = lv.shadows[i][k])) { var rs = tileVariant(ts, 13, v); if (rs) drawTile(ts, rs, p[0], p[1], rs[4] + 80, 160 / 255); }
       }
     }
-    for (var d = i0 + j0; d <= i1 + j1; d++) {
-      flush(d + 1);
-      var a0 = Math.max(i0, d - j1), a1 = Math.min(i1, d - j0);
-      for (i = a0; i <= a1; i++) {
-        j = d - i; id = g.obj[j * g.w + i];
-        if (haveArt) { if (id > 0) E.drawTile(ts, id, i, j); }
-        else if (g.col[j * g.w + i] === 1) E.fallbackWall(i, j);
+
+    var buckets = {};
+    for (i = 0; i < drawables.length; i++) {
+      var d = drawables[i], b = Math.floor(d.y / 5) * tw + Math.floor(d.x / 5);
+      (buckets[b] || (buckets[b] = [])).push(d);
+    }
+    function flushTile(list) {
+      list.sort(function (a, b) { return (a.y - b.y) || (a.x - b.x) || ((a.z || 0) - (b.z || 0)); });
+      for (var j = 0; j < list.length; j++) { var q = E.toScreen(list[j].x, list[j].y); list[j].draw(q[0], q[1], list[j]); }
+    }
+    for (ty = ty0; ty <= ty1; ty++) for (tx = tx0; tx <= tx1; tx++) {
+      k = ty * tw + tx;
+      if (ts) {
+        p = tileXY(tx, ty);
+        for (i = 0; i < lv.walls.length; i++) {
+          o = lv.walls[i].o[k];
+          if (o >= 1 && o <= 14 && o !== 10 && o !== 11 && o !== 13 && (v = lv.walls[i].t[k])) drawWall(ts, o, v, p);
+        }
+      }
+      if (buckets[k]) { flushTile(buckets[k]); delete buckets[k]; }
+    }
+    // thực thể ngoài khung tile (vd. đạn bay ra mép bản đồ) vẫn vẽ, sau cùng
+    Object.keys(buckets).forEach(function (b) { flushTile(buckets[b]); });
+    // lượt 3: mái (yMin của mái đã trừ sẵn chiều cao mái lúc build)
+    if (ts) for (ty = ty0; ty <= ty1; ty++) for (tx = tx0; tx <= tx1; tx++) {
+      k = ty * tw + tx;
+      for (i = 0; i < lv.walls.length; i++) {
+        if (lv.walls[i].o[k] === 15 && (v = lv.walls[i].t[k])) { var rr = tileVariant(ts, 15, v); if (rr) { p = tileXY(tx, ty); drawTile(ts, rr, p[0], p[1], rr[4]); } }
       }
     }
-    flush(1e9);
     c.setTransform(1, 0, 0, 1, 0, 0);
   };
-  var FLOOR = ['#2c3a24', '#33422a'];
-  E.fallbackTile = function (i, j, g) {
-    var c = E.ctx, p = E.toScreen(i + TILE_CENTER, j + TILE_CENTER), hw = E.tw / 2, hh = E.th / 2;
-    if (p[0] < -hw || p[0] > W + hw || p[1] < -hh || p[1] > H + hh) return;
-    c.fillStyle = g.col[j * g.w + i] === 2 ? '#1b3a5c' : FLOOR[(i + j) & 1];
-    c.beginPath(); c.moveTo(p[0], p[1] - hh); c.lineTo(p[0] + hw, p[1]); c.lineTo(p[0], p[1] + hh); c.lineTo(p[0] - hw, p[1]); c.closePath(); c.fill();
-  };
-  E.fallbackWall = function (i, j) {
-    var c = E.ctx, p = E.toScreen(i + TILE_CENTER, j + TILE_CENTER), hw = E.tw / 2, hh = E.th / 2;
-    if (p[0] < -hw || p[0] > W + hw || p[1] < -hh - 40 || p[1] > H + hh + 40) return;
-    c.fillStyle = '#555';
-    c.beginPath(); c.moveTo(p[0], p[1] - hh - 28); c.lineTo(p[0] + hw, p[1] - 28); c.lineTo(p[0], p[1] + hh - 28); c.lineTo(p[0] - hw, p[1] - 28); c.closePath(); c.fill();
-    c.fillStyle = '#3a3a3a';
-    c.beginPath(); c.moveTo(p[0] - hw, p[1] - 28); c.lineTo(p[0], p[1] + hh - 28); c.lineTo(p[0], p[1] + hh); c.lineTo(p[0] - hw, p[1]); c.closePath(); c.fill();
-    c.fillStyle = '#2a2a2a';
-    c.beginPath(); c.moveTo(p[0] + hw, p[1] - 28); c.lineTo(p[0], p[1] + hh - 28); c.lineTo(p[0], p[1] + hh); c.lineTo(p[0] + hw, p[1]); c.closePath(); c.fill();
-  };
 
-  /* Icon (kho icons: { img, cell, cols, count }) -> chuỗi style CSS cho phần tử DOM cỡ `size` px */
-  E.iconStyle = function (idx, size) {
-    var ic = A.icons; if (!ic || idx == null || idx < 0) return '';
-    var cols = ic.cols || 1, cell = ic.cell || 32, k = size / cell;
-    var rows = Math.ceil((ic.count || cols) / cols);
-    return 'background-image:url(' + ic.img + (E.ver ? '?v=' + E.ver : '') + ');background-repeat:no-repeat;background-size:' + (cols * cell * k) + 'px ' + (rows * cell * k) + 'px;' +
-      'background-position:-' + ((idx % cols) * size) + 'px -' + (Math.floor(idx / cols) * size) + 'px;';
+  /* Ảnh trong atlas UI -> style CSS cho một phần tử DOM, phóng theo hệ số k. */
+  E.uiSprite = function (r, k) {
+    if (!r) return '';
+    k = k || 1;
+    var page = (UIA.pages || [])[r[6] || 0], dim = UIA.pageSize && UIA.pageSize[r[6] || 0];
+    var bs = dim ? 'background-size:' + Math.round(dim[0] * k) + 'px ' + Math.round(dim[1] * k) + 'px;' : '';
+    return 'background-image:url(' + page + (E.ver ? '?v=' + E.ver : '') + ');background-repeat:no-repeat;' + bs +
+      'width:' + Math.round(r[2] * k) + 'px;height:' + Math.round(r[3] * k) + 'px;' +
+      'background-position:-' + Math.round(r[0] * k) + 'px -' + Math.round(r[1] * k) + 'px;';
   };
 
   /* ----------------------------------------------------------------- âm thanh */
+  // Khoá tiếng là tên cột Sound trong sounds.txt của D2 (vd. 'cursor_pickup', 'zombie_hit_1')
   var audioOn = false, musicEl = null, musicKey = null, sfxPool = {};
   E.audioUnlock = function () {
     if (audioOn) return; audioOn = true;
     if (musicKey) { var k = musicKey; musicKey = null; E.music(k); }
   };
   E.sfxFind = function (subs) {
-    var m = A.sfx || {}, keys = Object.keys(m);
-    for (var s = 0; s < subs.length; s++) {
-      if (m[subs[s]]) return subs[s];
-      for (var i = 0; i < keys.length; i++) if (keys[i].indexOf(subs[s]) >= 0) return keys[i];
-    }
+    var m = UIA.sfx || {};
+    for (var s = 0; s < subs.length; s++) if (subs[s] && m[subs[s]]) return subs[s];
     return null;
   };
   E.sfx = function (subs, vol) {
     if (!audioOn || E.muted) return;
     if (typeof subs === 'string') subs = [subs];
     var k = E.sfxFind(subs); if (!k) return;
+    var grp = UIA.sfxGroup && UIA.sfxGroup[k];
+    if (grp && grp.length) k = grp[Math.floor(Math.random() * grp.length)];
+    if (!UIA.sfx[k]) return;
+    if (UIA.sfxVol && UIA.sfxVol[k] != null && vol == null) vol = UIA.sfxVol[k] / 255;
     try {
       var pool = sfxPool[k] || (sfxPool[k] = []), a = null;
       for (var i = 0; i < pool.length; i++) if (pool[i].ended || pool[i].paused) { a = pool[i]; break; }
-      if (!a) { if (pool.length > 4) return; a = new Audio(A.sfx[k]); pool.push(a); }
+      if (!a) { if (pool.length > 4) return; a = new Audio(UIA.sfx[k] + (E.ver ? '?v=' + E.ver : '')); pool.push(a); }
       a.volume = vol == null ? 0.6 : vol; a.currentTime = 0;
       var pr = a.play(); if (pr && pr.catch) pr.catch(function () {});
     } catch (e) {}
@@ -293,8 +341,8 @@
     if (!audioOn) return;
     try {
       if (musicEl) { musicEl.pause(); musicEl = null; }
-      var src = A.music && A.music[key]; if (!src || E.muted) return;
-      musicEl = new Audio(src); musicEl.loop = true; musicEl.volume = 0.35;
+      var src = UIA.music && UIA.music[key]; if (!src || E.muted) return;
+      musicEl = new Audio(src + (E.ver ? '?v=' + E.ver : '')); musicEl.loop = true; musicEl.volume = 0.35;
       var pr = musicEl.play(); if (pr && pr.catch) pr.catch(function () {});
     } catch (e) {}
   };

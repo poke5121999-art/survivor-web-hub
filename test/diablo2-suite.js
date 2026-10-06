@@ -82,8 +82,11 @@ async function clickTile(p, x, y, opt) {
     while (Date.now() - t0 < ms) {
       s = await st(p);
       if (s.area === area) break;
-      const dx = ex.x + 0.5 - s.hero.x, dy = ex.y + 0.5 - s.hero.y, d = Math.hypot(dx, dy), k = Math.min(1, 7 / d);
-      const pt = await p.evaluate(([x, y]) => D2DBG.client(x, y), [s.hero.x + dx * k, s.hero.y + dy * k]);
+      // điểm bấm: chặng xa nhất trong ~12 subtile trên đường A* của game (bản đồ D2 có hàng rào, đi thẳng sẽ kẹt)
+      const path = await p.evaluate(([x, y]) => D2DBG.path(x, y), [ex.x + 0.5, ex.y + 0.5]) || [[ex.x + 0.5, ex.y + 0.5]];
+      let tgt = path[path.length - 1];
+      for (const q of path) { if (Math.hypot(q[0] - s.hero.x, q[1] - s.hero.y) > 12) break; tgt = q; }
+      const pt = await p.evaluate(([x, y]) => D2DBG.client(x, y), tgt);
       await p.mouse.move(pt.x, pt.y); await p.mouse.down(); await sleep(700); await p.mouse.up();
       trail.push(s.hero.x.toFixed(1) + ',' + s.hero.y.toFixed(1) + ':' + s.hero.st + ':aggro' + s.mons.filter(m => m.aggro).length);
       if (!moved) { const s2 = await st(p); moved = Math.hypot(s2.hero.x - s.hero.x, s2.hero.y - s.hero.y) > 0.5; }
@@ -355,63 +358,59 @@ async function clickTile(p, x, y, opt) {
 
   // -------------------------------------------------- hình dạng nhân vật, kho đồ, waypoint, icon kỹ năng
   results.push('\n-- hình nhân vật theo lớp --');
-  const EXPECT = { sorceress: { main: /staff$/, chest: /mage_vest$/ }, amazon: { main: /staff$/, chest: /leather_chest$/ }, barbarian: { main: /hand_axe$/, chest: /default_chest$/ } };
+  // Hình theo cách D2 chọn DCC: lớp vũ khí (wclass) và token alternategfx của đồ khởi đầu trong charstats.txt
+  const EXPECT = { sorceress: { cls: 'SO', wclass: 'STF', RH: 'BST' }, amazon: { cls: 'AM', wclass: '1HT', RH: 'JAV', SH: 'BUC' }, barbarian: { cls: 'BA', wclass: '1HS', RH: 'HAX', SH: 'BUC' } };
   const SH = process.env.D2_FIGS || SHOTS;
   fs.mkdirSync(SH, { recursive: true });
   for (const cls of ['sorceress', 'amazon', 'barbarian']) {
     ({ ctx, p, errs } = await open(b, { viewport: { width: 1000, height: 600 } }));
     await startClass(p, cls, 'T' + cls);
     await sleep(700);
-    const L = await p.evaluate(() => D2DBG.heroLayers());
-    check(cls + ': có đủ lớp thân/chân/đầu (không trần)', !!(L.chest && L.legs && L.feet && L.head), JSON.stringify(L).replace(/avatar\./g, ''));
-    check(cls + ': cầm đúng vũ khí khởi đầu', !!L.main && EXPECT[cls].main.test(L.main), L.main);
-    check(cls + ': mặc bộ gốc của lớp', EXPECT[cls].chest.test(L.chest || ''), L.chest);
+    const L = await p.evaluate(() => D2DBG.heroLook());
+    const X = EXPECT[cls];
+    check(cls + ': lớp + vũ khí khởi đầu đúng DCC của D2', L.cls === X.cls && L.wclass === X.wclass && L.tok.RH === X.RH && (L.tok.SH || null) === (X.SH || null), JSON.stringify(L));
     await p.screenshot({ path: path.join(SH, 'f-' + cls + '-town.png') });
-    const cs = await p.evaluate(() => D2DBG.contactSheet('stance'));
+    const cs = await p.evaluate(() => D2DBG.contactSheet('NU'));
     check(cls + ': 8 hướng đều vẽ được', cs.ok === 8, cs.ok + '/8');
     await (await p.$('#d2-sheet')).screenshot({ path: path.join(SH, 'f-' + cls + '-8dir.png') });
     await p.evaluate(() => document.getElementById('d2-sheet').remove());
-    // đổi trang bị -> hình đổi
-    const before = L.chest;
+    // đổi trang bị -> token thân đổi theo cột Torso của armor.txt
     await p.evaluate(() => { const c = D2DBG.S.char; c.equip.body = D2DBG.DA.makeItem('chn'); });
-    const after = (await p.evaluate(() => D2DBG.heroLayers())).chest;
-    check(cls + ': mặc Chain Mail -> hình đổi theo đồ', after !== before && /chain_cuirass$/.test(after), before + ' -> ' + after);
+    const after = await p.evaluate(() => D2DBG.heroLook());
+    check(cls + ': mặc Chain Mail -> thân đổi sang giáp', !!after.tok.TR && after.tok.TR !== 'LIT', JSON.stringify(after.tok));
     await p.evaluate(() => { delete D2DBG.S.char.equip.body; });
     // Blood Moor + đánh nhau (chuột thật)
     await p.evaluate(() => D2DBG.goto('blood_moor', 'rogue_encampment'));
     await waitFor(p, () => D2DBG.getState().area === 'blood_moor', 10000);
     await sleep(500);
-    await p.evaluate(() => { D2DBG.spawn(D2DBG.monIds()[0], 2, 2.5, 0.5); D2DBG.S.char.hp = 9999; });
+    await p.evaluate(() => { D2DBG.spawn(D2DBG.monIds()[0], 2, 5, 1); D2DBG.S.char.hp = 9999; });
     await sleep(400);
-    const mm = (await st(p)).mons.filter(m => m.st !== 'die' && m.st !== 'dead')[0];
+    const mm = (await st(p)).mons.filter(m => m.st !== 'die' && m.st !== 'dead').sort((a, b) => 0)[0];
     if (mm) await clickTile(p, mm.x, mm.y, { lift: 30 });
     await sleep(500);
     await p.screenshot({ path: path.join(SH, 'f-' + cls + '-fight.png') });
     check(cls + ': không lỗi trang', errs.length === 0, errs.slice(0, 2).join(' | '));
     if (cls === 'sorceress') {
-      // icon kỹ năng: có powerIcons thì HUD/cây phải vẽ icon, chưa có thì phải quay về ô chữ
-      const hasPI = await p.evaluate(() => !!(window.D2_ASSETS && D2_ASSETS.powerIcons));
       const hudIco = await p.evaluate(() => { const e = document.querySelector('.skbtn.right .ico'); return e ? /url\(/.test(e.getAttribute('style') || '') : null; });
-      if (hasPI) check('HUD vẽ icon kỹ năng (powerIcons có)', hudIco === true, String(hudIco));
-      else { console.log('✘ D2_ASSETS.powerIcons chưa có: nút kỹ năng đang dùng ô chữ'); check('HUD rơi về ô chữ khi thiếu powerIcons', hudIco === false, String(hudIco)); }
+      check('HUD vẽ icon kỹ năng D2 (IconCel của skilldesc)', hudIco === true, String(hudIco));
       await p.keyboard.press('KeyT'); await sleep(300);
       const treeIco = await p.$$eval('.sknode .ico', n => n.filter(e => /url\(/.test(e.getAttribute('style') || '')).length);
-      check('cây kỹ năng: ' + (hasPI ? 'có icon' : 'không icon (chưa có powerIcons)'), hasPI ? treeIco > 0 : treeIco === 0, 'icon=' + treeIco);
+      check('cây kỹ năng có icon D2', treeIco > 0, 'icon=' + treeIco);
       await p.screenshot({ path: path.join(SH, 'f-sorceress-skilltree.png') });
       await p.keyboard.press('KeyT');
-      // thị trấn: kho đồ + waypoint bằng chuột thật
+      // thị trấn: kho đồ + waypoint là vật thể đặt sẵn trong DS1 của D2, bấm bằng chuột thật
       await p.evaluate(() => D2DBG.goto('rogue_encampment', 'blood_moor'));
       await waitFor(p, () => D2DBG.getState().area === 'rogue_encampment', 10000);
       await sleep(500);
-      const objs = await p.evaluate(() => (D2DBG.S.grid.objects || []).map(o => ({ type: o.type, x: o.x, y: o.y, w: o.w || 1, h: o.h || 1 })));
-      results.push('  (đồ vật trong thị trấn: ' + [...new Set(objs.map(o => o.type))].join(', ') + ')');
+      const objs = await p.evaluate(() => D2DBG.S.ents.filter(e => e.kind === 'obj' && e.otype).map(o => ({ type: o.otype, x: o.x, y: o.y })));
+      results.push('  (vật dùng được trong thị trấn: ' + [...new Set(objs.map(o => o.type))].join(', ') + ')');
       for (const t of ['stash', 'waypoint']) {
         const o = objs.find(q => q.type === t);
-        check('lưới thị trấn có ' + t, !!o);
-        if (!o) { console.log('✘ thiếu ' + t + ' trong thị trấn'); continue; }
-        await p.evaluate(([x, y]) => D2DBG.teleport(x, y), [o.x + o.w / 2 - 3, o.y + o.h / 2 - 1]);
+        check('thị trấn có ' + t, !!o);
+        if (!o) continue;
+        await p.evaluate(([x, y]) => D2DBG.teleport(x, y), [o.x + 5, o.y + 5]);
         await sleep(300);
-        await clickTile(p, o.x + o.w / 2, o.y + o.h / 2);
+        await clickTile(p, o.x, o.y, { lift: 20 });
         const sel = t === 'stash' ? '#p-stash' : '.wpmenu';
         const opened = await waitFor(p, s2 => { const e = document.querySelector(s2); return e && e.style.display === 'block'; }, 12000, sel);
         check('bấm ' + t + ' mở bảng', opened);
@@ -434,8 +433,6 @@ async function clickTile(p, x, y, opt) {
         }
         await p.evaluate(() => D2.UI.closeAll());
       }
-      const drawn = await p.evaluate(() => { const t = window.D2_ASSETS.townObjects; return t ? Object.keys(t) : null; });
-      if (!drawn) console.log('✘ D2_ASSETS.townObjects chưa có: đồ vật thị trấn không được vẽ (chủ ý, không vẽ ô giả)');
       await p.screenshot({ path: path.join(SH, 'f-sorceress-town-objects.png') });
     }
     await ctx.close();

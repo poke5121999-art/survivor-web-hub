@@ -209,7 +209,7 @@
     critical_strike: 'passive', dodge: 'passive',
     fire_bolt: 'missile', warmth: 'passive', charged_bolt: 'missile', ice_bolt: 'missile', frozen_armor: 'buff',
     inferno: 'channel', static_field: 'nova', telekinesis: 'utility', frost_nova: 'nova', ice_blast: 'missile',
-    bash: 'melee', sword_mastery: 'passive', axe_mastery: 'passive', mace_mastery: 'passive', howl: 'nova',
+    bash: 'melee', blade_mastery: 'passive', axe_mastery: 'passive', mace_mastery: 'passive', howl: 'nova',
     find_potion: 'corpse', leap: 'leap', double_swing: 'melee', shout: 'buff', taunt: 'curse', stun: 'melee',
   };
   // Flare power sheet used to draw the effect (assets/manifest.js 'power.<name>').
@@ -293,7 +293,7 @@
       case 'critical_strike': case 'dodge':
         out.stats[t.passivestat1] = calc('passivecalc1'); break;
       case 'warmth': out.stats.manarecoverybonus = calc('passivecalc1'); out.elem = null; break;
-      case 'sword_mastery': case 'axe_mastery': case 'mace_mastery':
+      case 'blade_mastery': case 'axe_mastery': case 'mace_mastery':
         out.stats = { tohitPct: calc('passivecalc1'), damagePct: calc('passivecalc2'), critPct: calc('passivecalc3') };
         out.itype = t.passiveitype; break;
       case 'frozen_armor':

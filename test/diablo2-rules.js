@@ -72,9 +72,9 @@ function near(a, b, eps, msg) { ok(Math.abs(a - b) <= eps, msg + ' (got ' + a + 
   eq([e.dmg.min, e.dmg.max, e.elem.synergyPct], [31, 40, 80], 'Fire Bolt slvl10 + 5 Fire Ball: +16%/lvl synergy -> 31-40');
   delete sor.skills.fire_ball;
   e = R.skillEffect('inferno', 1, sor);
-  eq([e.dmg.min, e.dmg.max], [12, 25], 'Inferno slvl1: 12-25 fire per second (Arreat Summit)');
+  eq([e.dmg.min, e.dmg.max], [28, 56], 'Inferno slvl1: 28-56 fire per second (3.1 skills.txt Inferno: EMin 36 EMax 72, HitShift 3; 1.14d was 12-25)');
   e = R.skillEffect('inferno', 2, sor);
-  eq([e.dmg.min, e.dmg.max], [21, 34], 'Inferno slvl2: 21-34 per second (Arreat Summit)');
+  eq([e.dmg.min, e.dmg.max], [46, 75], 'Inferno slvl2: 46-75 per second (3.1 skills.txt Inferno EMinLev1 24, EMaxLev1 25; 1.14d was 21-34)');
   eq(R.skillEffect('warmth', 2, sor).stats.manarecoverybonus, 42, 'Warmth slvl2: +42% mana regen');
   e = R.skillEffect('charged_bolt', 1, sor);
   eq([e.count, e.dmg.min, e.dmg.max, e.mana], [3, 2, 4, 3], 'Charged Bolt slvl1: 3 bolts of 2-4, 3 mana');
@@ -82,7 +82,7 @@ function near(a, b, eps, msg) { ok(Math.abs(a - b) <= eps, msg + ' (got ' + a + 
   e = R.skillEffect('ice_bolt', 1, sor);
   eq([e.dmg.min, e.dmg.max, e.elem.durationSec], [3, 5, 6], 'Ice Bolt slvl1: 3-5 cold, 6 s chill');
   e = R.skillEffect('frozen_armor', 1, sor);
-  eq([e.stats.defensePct, e.duration, e.freezeSec], [30, 120, 1.2], 'Frozen Armor slvl1: +30% def, 120 s, freezes 1.2 s');
+  eq([e.stats.defensePct, e.duration, e.freezeSec], [30, 144, 1.2], 'Frozen Armor slvl1: +30% def, 144 s, freezes 1.2 s (3.1 skills.txt Frozen Armor Param3 3600 frames; 1.14d 3000 = 120 s)');
   e = R.skillEffect('frost_nova', 1, sor);
   eq([e.dmg.min, e.dmg.max, e.elem.durationSec, e.kind], [2, 4, 8, 'nova'], 'Frost Nova slvl1: 2-4 cold, 8 s chill');
   e = R.skillEffect('ice_blast', 1, sor);
@@ -120,8 +120,9 @@ function near(a, b, eps, msg) { ok(Math.abs(a - b) <= eps, msg + ' (got ' + a + 
   eq(R.skillEffect('bash', 1, bar).dmgPct, 65, 'Bash gets +5%/lvl from Stun (calc1 synergy)');
   e = R.skillEffect('stun', 1, bar);
   eq([e.stunSec, e.toHitPct], [1.2, 15], 'Stun slvl1: 1.2 s stun, +15% AR');
-  e = R.skillEffect('sword_mastery', 1, bar);
-  eq([e.stats.damagePct, e.stats.tohitPct, e.itype], [28, 28, 'swor'], 'Sword Mastery slvl1: +28% dmg, +28% AR');
+  // 3.1 skills.txt: 'Sword Mastery' became 'Blade Mastery' (passiveitype blde, new crit stat), Param3 28 unchanged
+  e = R.skillEffect('blade_mastery', 1, bar);
+  eq([e.stats.damagePct, e.stats.tohitPct, e.itype], [28, 40, 'blde'], 'Blade Mastery slvl1: +28% dmg, +40% AR'); // 3.1 skills.txt Blade Mastery: Param1 40 (AR), Param3 28 (dmg)
   eq(R.skillEffect('axe_mastery', 2, bar).stats.damagePct, 33, 'Axe Mastery slvl2: +33% dmg');
   eq(R.skillEffect('mace_mastery', 1, bar).itype, 'blun', 'Mace Mastery applies to blunt weapons');
   e = R.skillEffect('howl', 1, bar);
@@ -130,7 +131,7 @@ function near(a, b, eps, msg) { ok(Math.abs(a - b) <= eps, msg + ' (got ' + a + 
   eq(R.skillEffect('leap', 1, bar).kind, 'leap', 'Leap is a leap');
   eq(R.skillEffect('double_swing', 1, bar).toHitPct, 15, 'Double Swing slvl1: +15% AR');
   e = R.skillEffect('shout', 1, bar);
-  eq([e.stats.defensePct, e.duration], [100, 20], 'Shout slvl1: +100% defense for 20 s');
+  eq([e.stats.defensePct, e.duration], [100, 30], 'Shout slvl1: +100% defense for 30 s (3.1 skills.txt Shout Param3 750 frames; 1.14d 500 = 20 s)');
   e = R.skillEffect('taunt', 1, bar);
   eq([e.stats.tohitPct, e.stats.damagePct], [-5, -5], 'Taunt slvl1: target -5% AR, -5% dmg');
 
@@ -145,7 +146,7 @@ function near(a, b, eps, msg) { ok(Math.abs(a - b) <= eps, msg + ' (got ' + a + 
   let errs = 0, warnAct1 = [];
   const act1 = ['magic_arrow', 'fire_arrow', 'jab', 'inner_sight', 'critical_strike', 'dodge', 'cold_arrow', 'multiple_shot', 'power_strike', 'poison_javelin',
     'fire_bolt', 'warmth', 'charged_bolt', 'ice_bolt', 'frozen_armor', 'inferno', 'static_field', 'telekinesis', 'frost_nova', 'ice_blast',
-    'bash', 'sword_mastery', 'axe_mastery', 'mace_mastery', 'howl', 'find_potion', 'leap', 'double_swing', 'shout', 'taunt', 'stun'];
+    'bash', 'blade_mastery', 'axe_mastery', 'mace_mastery', 'howl', 'find_potion', 'leap', 'double_swing', 'shout', 'taunt', 'stun'];
   for (const k of Object.keys(D.skills)) for (let L = 1; L <= 20; L++) {
     try { const x = R.skillEffect(k, L, ama); if (act1.includes(k) && x.warnings.length) warnAct1.push(k); } catch (er) { errs++; }
   }
@@ -188,7 +189,7 @@ function near(a, b, eps, msg) { ok(Math.abs(a - b) <= eps, msg + ' (got ' + a + 
   eq([Math.min(...hps), Math.max(...hps)], [7, 12], 'Zombie HP rolls 7-12 (7*101/100 .. 7*181/100)');
   const z = R.rollMonster('zombie1', 1, R.rng(9));
   eq([z.lvl, z.ac, z.ar, z.dmg.min, z.dmg.max, z.xp], [1, 5, 8, 1, 3, 33], 'Zombie: mlvl 1, def 5, AR 8, dmg 1-3, 33 XP');
-  eq([z.art, z.aiKind], ['enemy.zombie', 'melee_slow'], 'Zombie uses Flare enemy.zombie, slow melee AI');
+  eq([z.art, z.aiKind], ['mon.ZM', 'melee_slow'], 'Zombie art key mon.ZM (monstats Code), slow melee AI');
   const c = R.rollMonster('zombie1', 1, R.rng(9), 'champion');
   eq([c.lvl, c.xp, c.dmg.min, c.dmg.max], [3, 99, 1, 5], 'champion Zombie: +2 mlvl, XP x3, +90% damage');
   ok(c.hp >= 21 && c.hp <= 36, 'champion Zombie HP x3 (21-36)', c.hp);
@@ -203,11 +204,11 @@ function near(a, b, eps, msg) { ok(Math.abs(a - b) <= eps, msg + ' (got ' + a + 
   const q = R.rollMonster('quillrat1', 1, R.rng(3));
   eq([q.ranged, q.missile.id, q.missile.dmg], [true, 'spike1', { min: 1, max: 2 }], 'Quill Rat shoots spike1 (1-2)');
   const fs = R.rollMonster('fallenshaman1', 2, R.rng(3));
-  eq([fs.resurrects, fs.missile.dmg.min, fs.missile.dmg.max, fs.art], ['fallen', 1, 4, 'enemy.goblin_elite'], 'Fallen Shaman: fireball 1-4, resurrects Fallen');
+  eq([fs.resurrects, fs.missile.dmg.min, fs.missile.dmg.max, fs.art], ['fallen', 1, 4, 'mon.FS'], 'Fallen Shaman: fireball 1-4, resurrects Fallen');
   eq(R.rollMonster('fallen1', 1, R.rng(3)).flee, { onAllyDeath: true }, 'Fallen flee when an ally dies');
   for (const a of Object.values(D.areas)) for (const m of a.monsters) {
     const x = R.rollMonster(m, a.lvl, R.rng(7));
-    ok(x.hp > 0 && /^enemy\./.test(x.art), a.id + ': ' + m + ' (' + x.name + ') rolls with art ' + x.art);
+    ok(x.hp > 0 && /^mon\.[A-Z0-9]+$/.test(x.art), a.id + ': ' + m + ' (' + x.name + ') rolls with art ' + x.art);
   }
 }
 
@@ -221,19 +222,19 @@ function near(a, b, eps, msg) { ok(Math.abs(a - b) <= eps, msg + ' (got ' + a + 
   eq([D.areas.rogue_encampment.waypoint, D.areas.cold_plains.waypoint, D.areas.blood_moor.waypoint], [true, true, false], 'waypoints: town + Cold Plains, none in Blood Moor');
   eq(D.areas.den_of_evil.superuniques, ['corpsefire'], 'Corpsefire lives in the Den of Evil');
   eq(D.areas.burial_grounds.bosses, ['bloodraven'], 'Blood Raven in the Burial Grounds');
-  const grid = D.areas.rogue_encampment.preset;
-  ok(grid.length === 40 && grid.every(r => r.length === 56), 'camp preset is 56x40');
-  const all = grid.join('');
-  const count = ch => all.split(ch).length - 1;
-  eq(['A', 'C', 'g', 'k', 'r', 'S', 'h'].map(count), [1, 1, 1, 1, 1, 1, 1], 'camp has one spot each for Akara, Charsi, Gheed, Kashya, Warriv, stash, hero');
-  ok(count('W') === 4 && count('F') === 4 && count('E') >= 4, 'camp has waypoint, campfire and exits');
-  ok([...new Set(all)].every(ch => D.areas.rogue_encampment.presetLegend[ch]), 'every camp char is in the legend');
+  // the hand-drawn camp preset is gone: the town is the real towne1.ds1 (see test/diablo2-drlg.js); data carries the size and sounds
+  eq(D.areas.rogue_encampment.size, [56, 40], 'Rogue Encampment is 56x40 tiles (levels.txt SizeX/SizeY)');
+  eq(D.areas.den_of_evil.playSize, [24, 24], 'Den of Evil maze: 1 room of 24x24 tiles (lvlmaze.txt Act 1 - Cave 1)');
+  eq([D.areas.blood_moor.size, D.areas.cold_plains.size], [[80, 80], [80, 80]], 'Blood Moor and Cold Plains are 80x80 tiles');
+  eq(D.areas.rogue_encampment.music, 'music_town_1', 'town music key comes from soundenviron.txt via levels.txt SoundEnv');
+  eq(D.areas.rogue_encampment.npcs, ['akara', 'charsi', 'gheed', 'kashya', 'warriv1'], 'camp NPC list');
   const a = R.newCharacter('necromancer');
   eq(D.quests.den_of_evil.giver, 'akara', 'Den of Evil is given by Akara');
   const qr = R.completeQuest(a, 'den_of_evil');
   eq([qr.ok, a.skillPts], [true, 1], 'Den of Evil reward grants 1 skill point');
   eq(R.completeQuest(a, 'den_of_evil').ok, false, 'Den of Evil reward only once');
-  eq(Object.keys(D.npcs).sort(), ['akara', 'charsi', 'gheed', 'kashya', 'warriv'], 'Act I NPCs');
+  eq(Object.keys(D.npcs).filter(k => D.npcs[k].roles).sort(), ['akara', 'charsi', 'gheed', 'kashya', 'warriv1'], 'Act I NPCs with a role (npcs is keyed by monstats Id; warriv1 is the Act I Warriv)');
+  eq([D.npcs.akara.code, D.npcs.warriv1.code, D.npcs.cain1.code], ['PS', 'WA', 'DC'], 'NPC art codes come from monstats Code');
 }
 
 // ---------------------------------------------------------------- items / drops
@@ -273,7 +274,7 @@ function near(a, b, eps, msg) { ok(Math.abs(a - b) <= eps, msg + ' (got ' + a + 
   ok(u.q === 'unique' && u.uniqueName === 'The Gnasher', 'unique Hand Axe at ilvl 12 is The Gnasher', u.uniqueName);
   const fallback = R.createItem('hax', 1, 'unique', R.rng(1));
   ok(fallback.q === 'rare' || fallback.q === 'magic', 'unique roll below the unique level falls back to rare', fallback.q);
-  ok(D.items.bases.lsd.icon === 'sword' && D.items.bases.sbw.icon === 'bow' && D.items.bases.lea.icon === 'body_armor', 'items carry Flare icon hints');
+  ok(D.items.bases.lsd.invfile === 'invlsd' && D.items.bases.lsd.flippyfile === 'flplsd' && D.items.bases.sbw.wclass === 'bow' && D.items.bases.lea.torso === 1, 'items carry invfile/flippyfile/wclass/appearance columns from the 3.1 tables');
 }
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');

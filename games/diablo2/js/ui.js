@@ -122,7 +122,7 @@
 
   function skIconHtml(id, size) {
     var sk = DA().skill(id);
-    var ic = sk ? DA().skillIcon(id) : null, st = ic != null ? D2.E.iconStyle(ic, size) : '';
+    var ic = sk ? DA().skillIcon(id) : null, st = ic ? D2.E.uiSprite(ic, size / ic[2]) : '';
     return '<div class="ico" style="width:' + size + 'px;height:' + size + 'px;' + st + '">' + (st ? '' : !sk ? '&#9876;' : '<span class="sn">' + esc(sk.name) + '</span>') + '</div>';
   }
   UI.skIconHtml = skIconHtml;
@@ -134,7 +134,8 @@
     UI.rskill.innerHTML = skIconHtml(s.rightSkill, 44) + '<small>' + esc(r.name) + '</small>';
     for (var i = 0; i < 4; i++) {
       var id = s.fkeys[i], sk = id && DA().skill(id);
-      D2.Input.setTouchSkill(i, sk ? sk.name.split(' ').map(function (w) { return w[0]; }).join('').slice(0, 3) : '', sk && DA().skillIcon(id) != null ? D2.E.iconStyle(DA().skillIcon(id), 58) : '');
+      var ti = sk && DA().skillIcon(id);
+      D2.Input.setTouchSkill(i, sk ? sk.name.split(' ').map(function (w) { return w[0]; }).join('').slice(0, 3) : '', ti ? D2.E.uiSprite(ti, 58 / ti[2]) : '');
     }
     var ab = D2.Input.touchBtns && D2.Input.touchBtns.atk; if (ab) ab.textContent = 'Đánh';
   };
@@ -156,17 +157,9 @@
     var w = (it.w || 1), hgt = (it.h || 1);
     var e = h('div', 'item q-' + (it.q || 'normal'));
     e.style.width = (abs === false ? cell : w * cell) + 'px'; e.style.height = (abs === false ? cell : hgt * cell) + 'px';
-    var pot = DA().potionInfo(it);
-    var st = !pot && typeof it.icon === 'number' ? D2.E.iconStyle(it.icon, Math.min(w, hgt) * cell) : '';
-    var lootSt = !pot && !st ? DA().iconBox(it, w * cell - 4, hgt * cell - 4) : null;
-    if (pot) {
-      e.innerHTML = '<div class="bottle ' + (pot.hp && pot.mp ? 'rej' : pot.mp ? 'mp' : 'hp') + '"></div>';
-    } else if (lootSt) {
+    var lootSt = DA().iconBox(it, (abs === false ? 1 : w) * cell - 2, (abs === false ? 1 : hgt) * cell - 2);
+    if (lootSt) {
       var li = h('div', 'iimg', '', e); li.style.cssText = lootSt + 'left:50%;top:50%;margin:0;transform:translate(-50%,-50%);';
-    } else if (st) {
-      var inner = h('div', 'iimg', '', e);
-      var sz = Math.min(w, hgt) * cell;
-      inner.style.cssText = 'width:' + sz + 'px;height:' + sz + 'px;' + st + 'margin:auto;position:absolute;inset:0;';
     } else {
       e.textContent = DA().itemName(it).replace(/[^A-Za-zÀ-ỹ ]/g, '').split(' ').map(function (x) { return x[0]; }).join('').slice(0, 3);
     }
