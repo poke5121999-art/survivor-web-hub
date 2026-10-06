@@ -146,7 +146,7 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
   const items = await p.$$eval('#dz-nav .dz-nav__item', els => els.length);
   const chipQ = await txt('#dz-nav [data-table="quests"] .dz-chip');
   const chipF = await txt('#dz-nav [data-table="foes"] .dz-chip');
-  check('sidebar liệt kê 30 bảng', items === 30, String(items));
+  check('sidebar liệt kê 32 bảng', items === 32, String(items));
   check('quests là "Trên GameSpark"', chipQ === 'Trên GameSpark', chipQ);
   check('foes là "Chưa dán · số gốc"', chipF === 'Chưa dán · số gốc', chipF);
 

@@ -592,6 +592,38 @@
         "truckHeal.patch": { label: "Máu tối thiểu khi vào nhà mới", unit: "máu", min: 0, help: "Sàn an toàn: không ai bước vào nhà mới dưới ngần này máu." },
         "reviveHp": { label: "Máu khi được đỡ dậy", unit: "máu", min: 1 }
       }
+    },
+
+    rank_rewards: {
+      title: "Thưởng bảng xếp hạng tuần (Vô Tận)",
+      blurb: "Thưởng cho hạng của TUẦN TRƯỚC, phát khi người chơi mở bảng xếp hạng lần kế tiếp. Tuần đổi lúc 07:00 thứ Năm giờ VN. Mỗi bảng (Một mình / Cùng bạn) có các dải hạng riêng; các dải trong cùng một bảng không được chồng lên nhau. Chỉ top 200 có hạng, hạng ngoài các dải thì không có thưởng.",
+      effect: SERVER + " Không cần bản build mới.",
+      rowLabels: {"solo_1_1":"Một mình · Hạng 1","solo_2_3":"Một mình · Hạng 2–3","solo_4_10":"Một mình · Hạng 4–10","solo_11_50":"Một mình · Hạng 11–50","solo_51_100":"Một mình · Hạng 51–100","coop_1_1":"Cùng bạn · Hạng 1","coop_2_3":"Cùng bạn · Hạng 2–3","coop_4_10":"Cùng bạn · Hạng 4–10","coop_11_50":"Cùng bạn · Hạng 11–50","coop_51_100":"Cùng bạn · Hạng 51–100"},
+      fields: {
+        "_id": { label: "Mã", help: "Dạng bảng_từ_đến, game tìm theo mã này. Giữ nguyên." },
+        "board": { label: "Bảng", help: "solo = Một mình, coop = Cùng bạn. Giữ nguyên." },
+        "rankFrom": { label: "Hạng từ", min: 1, max: 200, int: true, help: "Hạng đầu của dải (1 = nhất). Không chồng với dải khác cùng bảng." },
+        "rankTo": { label: "Hạng đến", min: 1, max: 200, int: true, help: "Hạng cuối của dải, không nhỏ hơn Hạng từ. Chỉ top 200 có hạng." },
+        "gold": { label: "Thưởng vàng", unit: "vàng", min: 0, int: true },
+        "gem": { label: "Thưởng ngọc", unit: "ngọc", min: 0, int: true }
+      }
+    },
+
+    endless_rules: {
+      title: "Luật chế độ Vô Tận",
+      blurb: "Nhà 1–5 chơi như ải thường. Từ nhà 6 trở đi, mỗi nhà thêm một bậc khó nhân cộng dồn lên số của nhà 5, cho tới khi chạm trần.",
+      effect: RUN,
+      fields: {
+        "_id": CFG_ID,
+        "houseStyle": { label: "Kiểu nhà khoá", int: true, min: 17, max: 21, help: "Mọi nhà Vô Tận dùng một kiểu nhà này, phải trùng một kiểu trong bảng Các nhà trong ải: 17 Lâu đài vampire, 18 Kim tự tháp Ai Cập, 19 Khu vui chơi bỏ hoang, 20 Trạm vũ trụ, 21 Bệnh viện tâm thần." },
+        "levelStep": { label: "Mức độ tăng mỗi nhà", int: true, min: 0, help: "Từ nhà 6, mức độ (level) của nhà tăng thêm bấy nhiêu cho mỗi nhà." },
+        "hpGrowth": { label: "Máu quái tăng mỗi nhà", pct: true, min: 0, help: "8% = mỗi nhà từ nhà 6, máu quái nhân thêm 8% so với nhà trước." },
+        "dmgGrowth": { label: "Sát thương quái tăng mỗi nhà", pct: true, min: 0, help: "Như trên, áp cho sát thương quái." },
+        "quotaGrowth": { label: "Chỉ tiêu giao hàng tăng mỗi nhà", pct: true, min: 0, help: "Như trên, áp cho tiền phải giao." },
+        "maxMul": { label: "Trần hệ số", min: 1, help: "Hệ số nhân cộng dồn không vượt số này (4 = tối đa gấp 4 lần nhà 5). Phải từ 1 trở lên." },
+        "roomEvery": { label: "Cứ bao nhiêu nhà thêm một phòng", int: true, min: 1, help: "Cứ mỗi bấy nhiêu nhà kể từ nhà 6, nhà thêm một phòng loot chung." },
+        "maxExtraRooms": { label: "Số phòng thêm tối đa", unit: "phòng", int: true, min: 0, help: "Trần số phòng thêm so với nhà 5." }
+      }
     }
   };
 })();

@@ -7,6 +7,7 @@ export const KNOWN = [
   "stage_houses", "stage_rules", "extract_quota", "loot_cap", "loot_sizes", "loot_materials",
   "loot_items", "safes_chests", "station_upgrades", "station_gear", "station_healthpacks",
   "station_vehicles", "station_rules", "gacha_wheel", "foes", "run_timers",
+  "endless_rules", "rank_rewards",
 ];
 
 const MAX_BODY_BYTES = 400 * 1024;
