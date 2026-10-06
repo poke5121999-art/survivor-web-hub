@@ -12,7 +12,7 @@
   window.DESIGN_LABELS = {
     wallet_start: {
       title: "Gói khởi đầu",
-      blurb: "Tài khoản mới nhận gì khi vào game lần đầu.",
+      blurb: "Tài khoản mới nhận gì khi vào game lần đầu, và quà khi chơi hết màn hướng dẫn.",
       effect: "Chỉ áp cho tài khoản tạo SAU khi lưu.",
       fields: {
         "_id": CFG_ID,
@@ -21,7 +21,10 @@
         "ticketX": { label: "Vé Xác", unit: "vé", min: 0, int: true },
         "crew": { label: "Xác có sẵn", help: "Mã các xác người chơi mới có ngay, ví dụ bao (Flare)." },
         "crew.*": { label: "Mã xác" },
-        "mateTactics": { label: "Chiến thuật 4 ô đồng đội", items: ["Ô 1", "Ô 2", "Ô 3", "Ô 4"], help: "Mã chiến thuật: loot, thu, soi, baoke, cuuho, nhu, san, tiepte." }
+        "mateTactics": { label: "Chiến thuật 4 ô đồng đội", items: ["Ô 1", "Ô 2", "Ô 3", "Ô 4"], help: "Mã chiến thuật: loot, thu, soi, baoke, cuuho, nhu, san, tiepte." },
+        "tutorialGold": { label: "Quà hướng dẫn: vàng", unit: "vàng", min: 0, int: true, help: "Trao một lần duy nhất, khi người chơi chơi hết màn hướng dẫn lần đầu. 0 = không tặng." },
+        "tutorialGem": { label: "Quà hướng dẫn: ngọc", unit: "ngọc", min: 0, int: true, help: "Như trên." },
+        "tutorialTicketX": { label: "Quà hướng dẫn: vé xác", unit: "vé", min: 0, int: true, help: "Như trên." }
       }
     },
 
