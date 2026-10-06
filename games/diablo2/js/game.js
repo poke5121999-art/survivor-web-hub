@@ -7,7 +7,7 @@
   'use strict';
   var D2 = window.D2 = window.D2 || {};
   var E = D2.E, I = D2.Input, UI = D2.UI, OBJ = E.OBJ, SPR = E.SPR;
-  var VER = '20261006b';
+  var VER = '20261006c';
   var SAVE_KEY = 'd2web.save.v1';
 
   function safe(fn, fb) { try { var v = fn(); return v == null ? fb : v; } catch (e) { return fb; } }
@@ -23,10 +23,10 @@
     { id: 'amazon', name: 'Amazon', locked: false, gender: 'female', blurb: 'Cung thủ và giáo thủ nhanh nhẹn.' },
     { id: 'sorceress', name: 'Sorceress', locked: false, gender: 'female', blurb: 'Pháp sư lửa, băng, sét. Mong manh nhưng đau.' },
     { id: 'barbarian', name: 'Barbarian', locked: false, gender: 'male', blurb: 'Chiến binh cận chiến trâu bò.' },
-    { id: 'necromancer', name: 'Necromancer', locked: true, gender: 'male' },
-    { id: 'paladin', name: 'Paladin', locked: true, gender: 'male' },
-    { id: 'druid', name: 'Druid', locked: true, gender: 'male' },
-    { id: 'assassin', name: 'Assassin', locked: true, gender: 'female' }
+    { id: 'necromancer', name: 'Necromancer', locked: false, gender: 'male', blurb: 'Triệu hồi xác sống, nguyền rủa, xương độc.' },
+    { id: 'paladin', name: 'Paladin', locked: false, gender: 'male', blurb: 'Hiệp sĩ thánh với hào quang và khiên.' },
+    { id: 'druid', name: 'Druid', locked: false, gender: 'male', blurb: 'Biến hình, gọi thú, phép thiên nhiên.' },
+    { id: 'assassin', name: 'Assassin', locked: false, gender: 'female', blurb: 'Bẫy, võ thuật tích lực, ẩn thân.' }
   ];
   var TABS = {
     amazon: ['Bow and Crossbow', 'Passive and Magic', 'Javelin and Spear'],
@@ -158,19 +158,18 @@
   };
   // Hàng bán của NPC, dựng từ bảng đồ D2 (cấp thấp, loại thường).
   DA.shopStock = function (npcId) {
-    var bases = D2DATA.items.bases, out = [];
+    var bases = D2DATA.items.bases, out = [], nd = D2DATA.npcs[npcId] || {}, sells = nd.sells || [];
+    var act = (S.def && S.def.act) || 1, cap = 6 + act * 8;
     function pickFrom(list, n) { var arr = list.slice(), r = []; while (arr.length && r.length < n) r.push(arr.splice(Math.floor(Math.random() * arr.length), 1)[0]); return r; }
-    var all = Object.keys(bases).map(function (k) { return bases[k]; }).filter(function (b) { return b.tier === 'normal' && b.spawnable && (b.level || 0) <= 12; });
-    if (npcId === 'akara') {
-      POTS.forEach(function (c) { if (bases[c]) out.push(DA.makeItem(c)); });
-      if (bases.tsc) out.push(DA.makeItem('tsc'));
-      pickFrom(all.filter(function (b) { return /^(staf|wand|orb)$/.test(b.type); }), 3).forEach(function (b) { out.push(DA.makeItem(b.code)); });
-    } else if (npcId === 'charsi') {
-      pickFrom(all.filter(function (b) { return b.kind === 'weapon' && !/bow|jave|spea|aspe|ajav|abow|xbow|orb|wand|staf|tpot|h2h/.test(b.type); }), 6).forEach(function (b) { out.push(DA.makeItem(b.code)); });
-      pickFrom(all.filter(function (b) { return b.kind === 'armor'; }), 6).forEach(function (b) { out.push(DA.makeItem(b.code)); });
-    } else if (npcId === 'gheed') {
-      pickFrom(all.filter(function (b) { return b.kind === 'weapon' || b.kind === 'armor' || /ring|amul/.test(b.type); }), 8).forEach(function (b) { out.push(DA.makeItem(b.code)); });
-    }
+    var all = Object.keys(bases).map(function (k) { return bases[k]; }).filter(function (b) { return b.spawnable && (b.level || 0) <= cap && b.tier !== 'elite'; });
+    function has(x) { return sells.indexOf(x) >= 0; }
+    if (has('potions')) POTS.forEach(function (c) { if (bases[c]) out.push(DA.makeItem(c)); });
+    if (has('scrolls')) ['tsc', 'isc'].forEach(function (c) { if (bases[c]) out.push(DA.makeItem(c)); });
+    var caster = all.filter(function (b) { return (has('staves') && b.type === 'staf') || (has('wands') && b.type === 'wand') || (has('orbs') && b.type === 'orb'); });
+    pickFrom(caster, 4).forEach(function (b) { out.push(DA.makeItem(b.code)); });
+    if (has('weapons')) pickFrom(all.filter(function (b) { return b.kind === 'weapon' && !/orb|wand|staf|tpot/.test(b.type); }), 8).forEach(function (b) { out.push(DA.makeItem(b.code)); });
+    if (has('armor')) pickFrom(all.filter(function (b) { return b.kind === 'armor'; }), 8).forEach(function (b) { out.push(DA.makeItem(b.code)); });
+    if (has('misc')) pickFrom(all.filter(function (b) { return /ring|amul/.test(b.type); }), 3).forEach(function (b) { out.push(DA.makeItem(b.code)); });
     return out;
   };
   DA.buyPrice = function (it) { var b = DA.base(it); return it.price || it.value || it.cost || (b && b.cost) || (10 * (it.ilvl || 1)); };
@@ -237,6 +236,10 @@
     var d = safe(function () { return D2R.derived(c); }, null) || {};
     d.maxHp = d.maxHp || 50; d.maxMp = d.maxMp || 20; d.dmgMin = d.dmgMin != null ? d.dmgMin : 2; d.dmgMax = d.dmgMax != null ? d.dmgMax : 5;
     d.ar = d.ar || 20; d.def = d.def || 0; d.atkFrames = d.atkFrames || 15; d.res = d.res || {};
+    var bn = c.bonus || {};
+    if (bn.life) d.maxHp += bn.life;
+    if (bn.resAll) ['fire', 'cold', 'light', 'poison'].forEach(function (k) { d.res[k] = (d.res[k] || 0) + bn.resAll; });
+    if (window.D2S && D2S.modDerived) D2S.modDerived(Game.api, d);
     return d;
   }
   function recalc() {
@@ -247,6 +250,20 @@
     UI.dirty = true;
   }
   Game.recalc = recalc;
+  /* Giao diện cho js/skills.js (window.D2S): triệu hồi, lời nguyền, hào quang, biến hình, bẫy, võ thuật.
+   * Thực thể đồng minh là kind 'mon' có ally: true; game.js không chạy AI quái cho chúng, D2S.update lo. */
+  Game.api = {
+    S: S, E: E, UI: UI, DA: DA, mk: mk, dist: dist, rnd: rnd, ri: ri, clamp: clamp, setSt: setSt, restart: restart,
+    canStand: canStand, los: los, findPath: findPath, tryMove: tryMove,
+    damageMon: function (m, amt, elem, fromHero) { return damageMon(m, amt, elem, fromHero); },
+    damageHero: function (amt, src) { return damageHero(amt, src); },
+    killMon: function (m) { return killMon(m); },
+    spawnMissile: function (owner, tx, ty, o) { return spawnMissile(owner, tx, ty, o); },
+    makeMonster: function (id, x, y, rank, pack, rng, name) { return makeMonster(id, x, y, rank, pack, rng, name); },
+    floatText: function (x, y, t, c, big) { return floatText(x, y, t, c, big); },
+    monArt: function (id) { return monArt(id); }, removeEnt: function (e) { return removeEnt(e); },
+    recalc: function () { return recalc(); }, heroLook: function () { return heroLook(); }
+  };
 
   /* ================================================================ lưới & đường đi */
   function blocked(g, x, y) {
@@ -388,10 +405,10 @@
       spawnMonsters(def, g, seed);
       if (S.corpse && S.corpse.area === id) mk('drop', S.corpse.x, S.corpse.y, { item: null, corpse: S.corpse, born: S.time, label: 'Xác của ' + char.name });
       S.arrive = S.time;
-      if (id === 'den_of_evil') {
-        S.denLeft = S.ents.filter(function (e) { return e.kind === 'mon'; }).length;
-        if (char.quests.den_of_evil === 'cleared') S.denLeft = 0;
-      } else S.denLeft = S.denLeft;
+      var clearQ = Object.keys(D2DATA.quests).filter(function (q) { var g = D2DATA.quests[q].goal || {}; return g.type === 'clear_area' && g.area === id; })[0];
+      S.denLeft = clearQ ? (char.quests[clearQ] === 'cleared' || char.quests[clearQ] === 'done' ? 0 : S.ents.filter(function (e) { return e.kind === 'mon' && !e.ally; }).length) : null;
+      spawnMerc();
+      questEvent({ kind: 'enter', area: id });
       E.music(musicFor(def));
       UI.showLoad(false);
       UI.dirty = true; recalc();
@@ -530,6 +547,7 @@
   function monSfx(m, what) { E.sfx([m.snd[what === 'hit' ? 'HitSound' : 'DeathSound']], 0.5); }
   function damageMon(m, amount, elem, fromHero) {
     if (m.st === 'die' || m.st === 'dead') return;
+    if (window.D2S && D2S.onMonDamage) { amount = D2S.onMonDamage(Game.api, m, amount, elem, fromHero); if (amount <= 0) return; }
     elem = elemOf(elem);
     var res = (m.inst.res && m.inst.res[elem]) || 0;
     if (elem === 'phys' && m.inst.res && m.inst.res.phys) res = m.inst.res.phys;
@@ -563,12 +581,10 @@
     var items = safe(function () { return D2R.rollDrop(m.monId, m.inst.lvl || 1, Math.random); }, []) || [];
     if (!items.some(DA.isGold) && Math.random() < 0.6) items.push({ gold: Math.round((m.inst.lvl || 1) * rnd(4, 12) * (m.rank === 'normal' ? 1 : 3)), base: 'gold', q: 'normal', w: 1, h: 1 });
     items.forEach(function (it, i) { dropItem(it, m.x + rnd(-1.4, 1.4), m.y + rnd(-1.4, 1.4)); });
-    // nhiệm vụ Den of Evil
-    if (S.areaId === 'den_of_evil' && S.denLeft != null) {
+    questEvent({ kind: 'kill', id: m.monId });
+    if (S.denLeft != null && !m.ally) {   // khu của quest "dọn sạch" (Den of Evil): đếm quái còn lại
       S.denLeft = Math.max(0, S.denLeft - 1);
-      if (S.denLeft === 0 && c.quests.den_of_evil === 'active') {
-        c.quests.den_of_evil = 'cleared'; UI.msg('Den of Evil đã sạch! Hãy báo cho Akara.', '#ffe27a'); E.sfx(['level_up'], 0.5); save();
-      }
+      if (S.denLeft === 0) questEvent({ kind: 'cleared', area: S.areaId });
       UI.dirty = true;
     }
     // đồng đội Fallen chạy trốn
@@ -584,6 +600,7 @@
   function damageHero(amount, srcPos) {
     var c = S.char, h = S.hero;
     if (h.st === 'die' || h.st === 'dead') return;
+    if (window.D2S && D2S.onHeroDamage) { amount = D2S.onHeroDamage(Game.api, amount, srcPos); if (amount <= 0) return; }
     amount = Math.max(1, Math.round(amount));
     c.hp -= amount; floatText(h.x, h.y, String(amount), '#ff6a6a');
     E.sfx([DA.classInfo(c.cls).gender + '_hit'], 0.6);
@@ -651,7 +668,9 @@
   function beginAct(skillId, tx, ty, target) {
     var h = S.hero, c = S.char, fx = fxOf(skillId);
     if (skillId && skillId !== 'attack' && !fx) { UI.msg('Kỹ năng này chưa dùng được.'); return false; }
-    if (fx && NOUSE[fx.kind]) { UI.msg(NOUSE[fx.kind]); return false; }
+    var mod = window.D2S && fx && D2S.handles(fx);
+    if (fx && NOUSE[fx.kind] && !mod) { UI.msg(NOUSE[fx.kind]); return false; }
+    if (mod && D2S.instant && D2S.instant(fx)) return D2S.instantCast(Game.api, skillId, fx, tx, ty, target);
     var kind = !fx || fx.kind === 'melee' ? 'attack' : 'cast';
     if (fx && fx.requires && fx.requires.weapon.indexOf('miss') >= 0 && weaponKind() !== 'bow') { UI.msg('Cần cầm cung hoặc nỏ.'); return false; }
     if (fx && fx.kind === 'buff') {
@@ -686,6 +705,7 @@
   function applyHeroAct(h) {
     var a = h.act, c = S.char, d = S.d; a.done = true;
     var fx = a.fx;
+    if (fx && window.D2S && D2S.handles(fx)) { D2S.apply(Game.api, h.act); return; }
     if (!fx) {   // đòn thường
       if (weaponKind() === 'bow') { spawnMissile(h, a.tx, a.ty, { dmg: { min: d.dmgMin, max: d.dmgMax, elem: 'phys' }, art: 'mis.arrow', speed: 24, pierce: 0, owner: 'hero', ar: d.ar, life: 1.1 }); return; }
       meleeHit(a, d.dmgMin, d.dmgMax, 'phys', d.ar);
@@ -695,7 +715,7 @@
     if (fx.kind === 'melee') { var wd = weaponSkillDmg(fx); meleeHit(a, wd.min, wd.max, wd.elem, ar); return; }
     if (fx.kind === 'nova') {
       var rad = clamp(fx.radius || 10, 5, 16);
-      S.ents.forEach(function (m) { if (m.kind === 'mon' && m.st !== 'die' && m.st !== 'dead' && dist(m, h) <= rad) damageMon(m, rollDmg(fx.dmg || { min: 5, max: 8 }), fx.dmg && fx.dmg.elem, true); });
+      S.ents.forEach(function (m) { if (m.kind === 'mon' && m.st !== 'die' && m.st !== 'dead' && !(window.D2S && D2S.isFriend(m)) && dist(m, h) <= rad) damageMon(m, rollDmg(fx.dmg || { min: 5, max: 8 }), fx.dmg && fx.dmg.elem, true); });
       mk('fx', h.x, h.y, { art: pickArt(fx), t: 0, life: 0.5, ring: rad, color: ELCOL[el] });
       return;
     }
@@ -722,7 +742,7 @@
     var h = S.hero, t = a.target;
     if (!t || t.st === 'die' || t.st === 'dead') {  // tìm quái đứng trước mặt trong tầm
       var best = null, bd = 4.2;
-      S.ents.forEach(function (m) { if (m.kind === 'mon' && m.st !== 'die' && m.st !== 'dead') { var dd = dist(m, { x: h.x + Math.cos(angOf(h.dir)) * 1.8, y: h.y + Math.sin(angOf(h.dir)) * 1.8 }); if (dd < bd) { bd = dd; best = m; } } });
+      S.ents.forEach(function (m) { if (m.kind === 'mon' && m.st !== 'die' && m.st !== 'dead' && !(window.D2S && D2S.isFriend(m))) { var dd = dist(m, { x: h.x + Math.cos(angOf(h.dir)) * 1.8, y: h.y + Math.sin(angOf(h.dir)) * 1.8 }); if (dd < bd) { bd = dd; best = m; } } });
       t = best;
     }
     if (!t || dist(t, h) > 4.8) return;
@@ -754,7 +774,7 @@
       if (m.owner === 'hero') {
         for (var k = 0; k < S.ents.length; k++) {
           var o = S.ents[k];
-          if (o.kind !== 'mon' || o.st === 'die' || o.st === 'dead' || m.hit[o.id]) continue;
+          if (o.kind !== 'mon' || o.st === 'die' || o.st === 'dead' || m.hit[o.id] || (window.D2S && D2S.isFriend(o))) continue;
           if (dist(o, m) < m.rad + 0.3) {
             m.hit[o.id] = 1;
             var ok = m.ar >= 9000 || Math.random() < safe(function () { return D2R.hitChance(m.ar, S.char.lvl, o.inst.def || 0, o.inst.lvl || 1); }, 0.8);
@@ -766,7 +786,7 @@
         var h = S.hero;
         if (h.st !== 'die' && h.st !== 'dead' && dist(h, m) < 1.1) {
           var okh = Math.random() < safe(function () { return D2R.hitChance(m.ar || 30, 1, S.d.def, S.char.lvl); }, 0.7);
-          if (okh) damageHero(rollDmg(m.dmg)); else floatText(h.x, h.y, 'miss', '#aaa');
+          if (okh) damageHero(rollDmg(m.dmg), m); else floatText(h.x, h.y, 'miss', '#aaa');
           explode(m); return;
         }
       }
@@ -822,30 +842,69 @@
   }
   function removeEnt(e) { e.removed = true; }
 
-  /* ================================================================ NPC */
-  var NPC = {
-    akara: { name: 'Akara', title: 'Priestess of Rogue Encampment' },
-    charsi: { name: 'Charsi', title: 'Blacksmith' }, gheed: { name: 'Gheed', title: 'Gambler' },
-    kashya: { name: 'Kashya', title: 'Captain of the Rogues' }, warriv: { name: 'Warriv', title: 'Caravan Leader' },
-    deckard_cain: { name: 'Deckard Cain', title: 'Elder of the Horadrim' }
-  };
-  /* Kho đồ (D2: 6 cột x 8 hàng) và waypoint. */
-  var WAYPOINTS = [   // Act I theo thứ tự D2; chỉ hiện nơi đã kích hoạt, Rogue Encampment luôn có
-    { id: 'rogue_encampment', name: 'Rogue Encampment', always: true }, { id: 'cold_plains', name: 'Cold Plains' },
-    { id: 'stony_field', name: 'Stony Field' }, { id: 'dark_wood', name: 'Dark Wood' }, { id: 'black_marsh', name: 'Black Marsh' }
-  ];
+  /* ================================================================ NPC, nhiệm vụ, waypoint, lính đánh thuê */
+  /* Nhiệm vụ theo D2DATA.quests (27 quest của D2): chưa nhận -> active -> cleared -> done. Đích của quest:
+   * kill (quái/superunique), clear_area (dọn sạch khu), còn reach/rescue/collect/destroy được rút gọn thành
+   * "tới được khu của quest" vì bản này chưa có vật phẩm nhiệm vụ. Thưởng theo cột reward. */
+  function questName(q) { return q.name || q.id; }
+  function questGoalHit(q, ev) {
+    var g = q.goal || {};
+    if (ev.kind === 'kill') {
+      var ids = [g.monster, g.superunique].concat(g.superuniques || []).filter(Boolean);
+      if (ids.indexOf(ev.id) < 0) return false;
+      if (!g.superuniques) return true;
+      var done = S.char.quests[q.id + ':k'] = S.char.quests[q.id + ':k'] || {};
+      done[ev.id] = 1;
+      return g.superuniques.every(function (k) { return done[k]; });
+    }
+    if (ev.kind === 'enter') return g.type !== 'kill' && g.type !== 'clear_area' && (g.area || q.area) === ev.area;
+    if (ev.kind === 'cleared') return g.type === 'clear_area' && g.area === ev.area;
+    return false;
+  }
+  function questEvent(ev) {
+    var c = S.char, Q = D2DATA.quests;
+    Object.keys(Q).forEach(function (id) {
+      var st = c.quests[id];
+      if (st === 'cleared' || st === 'done') return;
+      if (!questGoalHit(Q[id], ev)) return;
+      c.quests[id] = 'cleared';
+      var who = Q[id].turnIn && D2DATA.npcs[Q[id].turnIn];
+      UI.msg(questName(Q[id]) + ': xong.' + (who ? ' Hãy báo cho ' + who.name + '.' : ''), '#ffe27a');
+      E.sfx(['cursor_questdone', 'cursor_level_up'], 0.6);
+      if (!Q[id].turnIn) giveReward(id);
+      save(); UI.dirty = true;
+    });
+  }
+  Game.questEvent = questEvent;
+  function giveReward(id) {
+    var c = S.char, q = D2DATA.quests[id], rw = q.reward || {};
+    D2R.completeQuest(c, id);
+    c.bonus = c.bonus || {};
+    var got = [];
+    if (rw.skillPts) got.push('+' + rw.skillPts + ' điểm kỹ năng');
+    if (rw.statPts) got.push('+' + rw.statPts + ' điểm chỉ số');
+    if (rw.resistPct) { c.bonus.resAll = (c.bonus.resAll || 0) + rw.resistPct; got.push('+' + rw.resistPct + '% kháng mọi hệ'); }
+    if (rw.lifeBonus) { c.bonus.life = (c.bonus.life || 0) + rw.lifeBonus; got.push('+' + rw.lifeBonus + ' máu'); }
+    if (rw.actAccess) { c.actAccess = c.actAccess || {}; c.actAccess[rw.actAccess] = true; got.push('mở đường đi tiếp'); }
+    if (rw.mercenary) { c.mercFree = true; got.push('được thuê lính miễn phí'); }
+    UI.msg('Hoàn thành ' + questName(q) + (got.length ? ': ' + got.join(', ') : ''), '#ffe27a');
+    recalc(); save(); UI.dirty = true;
+  }
+  // Waypoint của mọi act: thị trấn luôn có, còn lại phải chạm vào waypoint trong khu đó trước
   Game.stashCols = 6; Game.stashRows = 8;
   Game.visitedWaypoints = function () {
-    var c = S.char, w = c.waypoints || {};
-    return WAYPOINTS.filter(function (x) { return x.always || w[x.id]; });
+    var c = S.char, w = c.waypoints || {}, A = D2DATA.areas, maxAct = 1 + Object.keys(c.actAccess || {}).length;
+    return Object.keys(A).filter(function (k) { var a = A[k]; return a.waypoint && !a.unused && a.act <= maxAct && (a.town || w[k]); })
+      .sort(function (a, b) { return (A[a].act - A[b].act) || (A[a].d2id - A[b].d2id); })
+      .map(function (k) { return { id: k, name: A[k].name, act: A[k].act }; });
   };
   function useObj(o) {
     var c = S.char;
-    if (o.otype === 'stash') { E.sfx(['inv_metal', 'button'], 0.4); UI.openStash(); }
+    if (o.otype === 'stash') { E.sfx(['cursor_button_click'], 0.4); UI.openStash(); }
     else if (o.otype === 'waypoint') {
       c.waypoints = c.waypoints || {};
       if (S.areaId && !c.waypoints[S.areaId]) { c.waypoints[S.areaId] = true; UI.msg('Waypoint được kích hoạt.', '#9ec8ff'); save(); }
-      E.sfx(['button', 'power_heal'], 0.4); UI.openWaypoints();
+      E.sfx(['object_waypoint_open', 'cursor_button_click'], 0.5); UI.openWaypoints();
     }
   }
   Game.travelWaypoint = function (id) {
@@ -854,6 +913,72 @@
     UI.closeWaypoints(); entering = true;
     enterArea(id, null).then(function () { entering = false; save(); }, function (err) { entering = false; UI.showLoad(false); UI.msg('Lỗi vào khu vực: ' + err); });
   };
+
+  /* Lính đánh thuê: hireling.txt theo act, độ khó Normal, cấp gần cấp nhân vật. Lính là đồng minh (ally),
+   * AI do js/skills.js chạy; game lưu loại + cấp để gọi lại khi vào khu mới. */
+  function hireOffers(act) {
+    var lvl = S.char.lvl;
+    var rows = (D2DATA.hirelings || []).filter(function (h) { return h.act === act && h.diff === 'n'; });
+    var best = {};
+    rows.forEach(function (h) {
+      var k = h.name + '|' + h.sub;
+      if (h.level <= Math.max(lvl, rows.reduce(function (m, r) { return Math.min(m, r.level); }, 99)) && (!best[k] || h.level > best[k].level)) best[k] = h;
+    });
+    return Object.keys(best).map(function (k) { return best[k]; });
+  }
+  function hirePrice(h) { return S.char.mercFree ? 0 : Math.round((h.gold || 100) + (h.expPerLvl || 0) * 0 + (h.level || 1) * 50); }
+  function spawnMerc() {
+    var m = S.char.merc; if (!m || m.dead) return;
+    var row = (D2DATA.hirelings || []).filter(function (h) { return h.act === m.act && h.name === m.name && h.sub === m.sub; })[0];
+    if (!row) return;
+    var p = openAround(S.grid, S.hero.x, S.hero.y, 3, Math.random);
+    var e = makeMonster(row.monster, p[0], p[1], 'normal', -1, Math.random, row.name);
+    e.ally = true; e.merc = true; e.aggro = false; e.hireRow = row;
+    var hp = Math.round((row.hp || 50) + (row.hpPerLvl || 0) * Math.max(0, (m.lvl || row.level) - row.level));
+    e.hp = e.maxHp = m.hp && m.hp > 0 ? Math.min(m.hp, hp) : hp;
+    S.merc = e;
+  }
+  function hire(npc, h) {
+    var c = S.char, price = hirePrice(h);
+    if (c.gold < price) { UI.msg('Không đủ vàng.', '#ff9a8a'); return; }
+    c.gold -= price; c.mercFree = false;
+    if (S.merc) removeEnt(S.merc);
+    c.merc = { act: h.act, name: h.name, sub: h.sub, lvl: h.level };
+    spawnMerc(); UI.closeDialog(); UI.msg('Đã thuê ' + h.name + '.', '#9ec8ff'); save(); UI.dirty = true;
+  }
+
+  function talk(npc) {
+    var c = S.char, id = npc.npc, nd = D2DATA.npcs[id] || { name: id, roles: [] }, Q = D2DATA.quests, act = (S.def && S.def.act) || 1;
+    var def = { name: nd.name + (nd.title ? ' - ' + nd.title : ''), text: 'Chào lữ khách.', buttons: [] }, said = false;
+    Object.keys(Q).forEach(function (qid) {
+      var q = Q[qid], st = c.quests[qid];
+      if (q.act !== act) return;
+      if (q.giver === id && !st) {
+        if (!said) { def.text = 'Ta có việc cần nhờ ngươi: ' + questName(q) + '.'; said = true; }
+        def.buttons.push({ label: 'Nhận nhiệm vụ: ' + questName(q), fn: function () { c.quests[qid] = 'active'; UI.msg('Nhiệm vụ mới: ' + questName(q), '#ffe27a'); E.sfx(['cursor_questdone'], 0.4); UI.closeDialog(); save(); UI.dirty = true; } });
+      } else if (q.turnIn === id && st === 'cleared') {
+        def.text = 'Ngươi đã làm được: ' + questName(q) + '. Hãy nhận phần thưởng.'; said = true;
+        def.buttons.push({ label: 'Nhận thưởng: ' + questName(q), fn: function () { giveReward(qid); E.sfx(['cursor_questdone'], 0.5); UI.closeDialog(); } });
+      } else if ((q.giver === id || q.turnIn === id) && st === 'active' && !said) { def.text = 'Nhiệm vụ ' + questName(q) + ' vẫn đang chờ ngươi.'; said = true; }
+    });
+    var roles = nd.roles || [];
+    if (roles.indexOf('trade') >= 0 || roles.indexOf('gamble') >= 0) def.buttons.push({ label: 'Mua bán', fn: function () { UI.shopName = nd.name; UI.openShop(DA.shopStock(id)); } });
+    if (roles.indexOf('heal') >= 0) def.buttons.push({ label: 'Chữa trị', fn: function () { c.hp = S.d.maxHp; c.mp = S.d.maxMp; S.regen = []; UI.msg(nd.name + ' chữa lành cho bạn.', '#9f9'); UI.closeDialog(); } });
+    if (roles.indexOf('hire') >= 0 || nd.hires) hireOffers(act).forEach(function (h) {
+      def.buttons.push({ label: 'Thuê ' + h.name + ' (' + h.sub + ', cấp ' + h.level + ') - ' + hirePrice(h) + ' vàng', fn: function () { hire(npc, h); } });
+    });
+    var trv = D2DATA.actTravel && D2DATA.actTravel[act];
+    if (trv && trv.npc === id) {
+      var ok = c.quests[trv.needs] === 'done' || c.quests[trv.needs] === 'cleared';
+      def.buttons.push({ label: 'Đi tới ' + ((D2DATA.areas[trv.to] || {}).name || trv.to), fn: function () {
+        if (!ok) { UI.msg('Hãy hoàn thành ' + questName(Q[trv.needs]) + ' trước.', '#ff9a8a'); return; }
+        c.actAccess = c.actAccess || {}; c.actAccess[act + 1] = true;
+        UI.closeDialog(); Game.travelWaypoint(trv.to);
+      } });
+    }
+    UI.openDialog(npc, def);
+  }
+
   function stashSpot(c, w, hh) {
     var occ = [], cols = Game.stashCols, rows = Game.stashRows, i; for (i = 0; i < cols * rows; i++) occ[i] = 0;
     (c.stash || []).forEach(function (it) { for (var yy = 0; yy < (it.h || 1); yy++) for (var xx = 0; xx < (it.w || 1); xx++) { var k = (it.iy + yy) * cols + it.ix + xx; if (k >= 0 && k < occ.length) occ[k] = 1; } });
@@ -876,30 +1001,6 @@
     if (!addToInv(it)) { c.stash.splice(i, 0, it); UI.msg('Túi đồ đầy.', '#ff9a8a'); return; }
     UI.sel = null; UI.dirty = true; E.sfx(['inv_metal']); save();
   };
-  function talk(npc) {
-    var c = S.char, id = npc.npc, info = NPC[id] || { name: id, title: '' };
-    var nd = window.D2DATA && D2DATA.npcs && D2DATA.npcs[id]; if (nd) info = { name: nd.name || info.name, title: nd.title || info.title };
-    var def = { name: info.name + ' - ' + info.title, text: '', buttons: [] };
-    if (id === 'akara') {
-      var q = c.quests.den_of_evil;
-      if (!q) {
-        def.text = 'Chào mừng đến Rogue Encampment, lữ khách. Quỷ dữ đã làm ô uế hang động gần Blood Moor, mang tên Den of Evil. Hãy dọn sạch chúng và ta sẽ thưởng cho ngươi.';
-        def.buttons.push({ label: 'Nhận nhiệm vụ Den of Evil', fn: function () { c.quests.den_of_evil = 'active'; UI.msg('Nhiệm vụ mới: Den of Evil', '#ffe27a'); E.sfx(['level_up'], 0.4); UI.closeDialog(); save(); UI.dirty = true; } });
-      } else if (q === 'active') def.text = 'Hãy diệt hết quỷ trong Den of Evil, ở phía hang Blood Moor. Cẩn thận Corpsefire.';
-      else if (q === 'cleared') {
-        def.text = 'Ngươi làm được rồi! Den of Evil đã yên. Hãy nhận phần thưởng: sức mạnh để học thêm một kỹ năng.';
-        def.buttons.push({ label: 'Nhận thưởng (1 điểm kỹ năng)', fn: function () { D2R.completeQuest(c, 'den_of_evil'); UI.msg('Nhận 1 điểm kỹ năng!', '#ffe27a'); E.sfx(['level_up'], 0.5); UI.closeDialog(); save(); UI.dirty = true; } });
-      } else def.text = 'Cảm ơn ngươi đã giúp Rogues. Ánh sáng soi đường cho ngươi.';
-      def.buttons.push({ label: 'Mua bán', fn: function () { UI.shopName = 'Akara'; UI.openShop(DA.shopStock('akara')); } });
-      def.buttons.push({ label: 'Chữa trị (miễn phí)', fn: function () { c.hp = S.d.maxHp; c.mp = S.d.maxMp; S.regen = []; UI.msg('Akara chữa lành cho bạn.', '#9f9'); E.sfx(['power_heal'], 0.6); UI.closeDialog(); } });
-    } else if (id === 'kashya') def.text = 'Blood Raven đã chiếm tu viện ở phía Bắc, và cũng là kẻ từng là cung thủ giỏi nhất của ta. Hãy dọn đường qua Cold Plains... khi ngươi đủ mạnh.';
-    else if (id === 'charsi') { def.text = 'Ta rèn vũ khí và giáp tốt nhất Act I. Xem hàng của ta đi, lữ khách.'; def.buttons.push({ label: 'Mua bán', fn: function () { UI.shopName = 'Charsi'; UI.openShop(DA.shopStock('charsi')); } }); }
-    else if (id === 'gheed') { def.text = 'Chào bạn của ta! Hàng của Gheed toàn đồ tốt, giá phải chăng.'; def.buttons.push({ label: 'Mua bán', fn: function () { UI.shopName = 'Gheed'; UI.openShop(DA.shopStock('gheed')); } }); }
-    else if (id === 'warriv') def.text = 'Đoàn xe đi Act II chưa khởi hành. Hãy hoàn thành Act I trước đã.';
-    else if (id === 'deckard_cain') def.text = 'Hãy ngồi xuống bên lửa. Các câu chuyện cũ nói rằng một kẻ sẽ chấm dứt cơn ác mộng này. Mẹo: giữ Alt để thấy tên đồ dưới đất.';
-    else def.text = 'Chào bạn.';
-    UI.openDialog(npc, def);
-  }
 
   /* ================================================================ cập nhật */
   function updateHero(dt) {
@@ -1118,7 +1219,7 @@
       if (dist(m, h) > 4.0) return;
       var p = safe(function () { return D2R.hitChance((inst.a1 && inst.a1.ar) || inst.ar || 30, inst.lvl || 1, S.d.def, S.char.lvl); }, 0.7);
       var a1 = inst.a1 || inst.dmg || { min: 1, max: 3 };
-      if (Math.random() < p) damageHero(rnd(a1.min, a1.max + 0.999));
+      if (Math.random() < p) damageHero(rnd(a1.min, a1.max + 0.999), m);
       else floatText(h.x, h.y, 'miss', '#aaa');
     } else {
       var fire = m.ai === 'shaman';
@@ -1146,7 +1247,7 @@
           if (wp[0] >= e.cx - 1 && wp[0] <= e.cx + e.ow + 1 && wp[1] >= e.cy - 1 && wp[1] <= e.cy + e.oh + 1) score = 20 + ly / 20;
         }
       } else if (e.kind === 'mon' || e.kind === 'npc') {
-        if (e.st === 'dead') return;
+        if (e.st === 'dead' || (window.D2S && D2S.isFriend(e))) return;
         var dx = (sx - p[0]) / 24, dy = (sy - (p[1] - 34)) / 40;
         if (dx * dx + dy * dy <= 1) score = 10 + dx * dx + dy * dy;
         if (e.kind === 'mon' && e.st === 'die') score = null;
@@ -1189,7 +1290,7 @@
     var h = S.hero, sk = skill || S.leftSkill || 'attack';
     if (h.st === 'die' || h.st === 'dead') return;
     var best = null, bd = 24;
-    S.ents.forEach(function (m) { if (m.kind === 'mon' && m.st !== 'die' && m.st !== 'dead') { var d = dist(m, h); if (d < bd) { bd = d; best = m; } } });
+    S.ents.forEach(function (m) { if (m.kind === 'mon' && m.st !== 'die' && m.st !== 'dead' && !(window.D2S && D2S.isFriend(m))) { var d = dist(m, h); if (d < bd) { bd = d; best = m; } } });
     if (best) { h.goal = { type: isSpell(sk) ? 'cast' : 'attack', skill: sk, target: best, hold: true }; S.target = best; }
     else { var a = angOf(h.dir); h.goal = { type: isSpell(sk) ? 'cast' : 'attack', skill: sk, x: h.x + Math.cos(a) * 12, y: h.y + Math.sin(a) * 12, inPlace: true }; }
   }
@@ -1336,15 +1437,16 @@
     S.time += dt;
     var h = S.hero; if (!h) return;
     updateHero(dt);
+    if (window.D2S) D2S.update(Game.api, dt);
     var ents = S.ents;
     for (var i = 0; i < ents.length; i++) {
       var e = ents[i];
-      if (e.kind === 'mon') updateMon(e, dt);
+      if (e.kind === 'mon' && !e.ally) updateMon(e, dt);
       else if (e.kind === 'missile') updateMissile(e, dt);
       else if (e.kind === 'fx') { e.t += dt; if (e.t > e.life) e.removed = true; }
       else if (e.kind === 'drop') {
         if (e.gold && !e.removed && dist(e, h) < 2.6 && h.st !== 'die' && h.st !== 'dead') pickup(e);
-      } else e.stT += dt * 1000;
+      } else if (e.kind !== 'hero') e.stT += dt * 1000;
       if (e.kind === 'missile' && e.st === 'dead') e.removed = true;
     }
     for (i = S.floaters.length - 1; i >= 0; i--) { S.floaters[i].t += dt; if (S.floaters[i].t > 1.1) S.floaters.splice(i, 1); }
@@ -1355,7 +1457,7 @@
     // hover
     S.hover = I.mouse.inside && !I.touch ? entAt(I.mouse.x, I.mouse.y) : null;
     if (S.time - S.lastSave > 20) { S.lastSave = S.time; save(); }
-    if (S.areaId === 'den_of_evil' && S.denLeft === 0 && S.char.quests.den_of_evil === 'active') { S.char.quests.den_of_evil = 'cleared'; UI.msg('Den of Evil đã sạch! Hãy báo cho Akara.', '#ffe27a'); }
+
   }
 
   // Hoạt ảnh một lượt (đánh, niệm, trúng đòn) trải đúng lên thời lượng trạng thái do luật tính (tốc độ vũ khí...)
@@ -1366,6 +1468,7 @@
   function shadow(sx, sy, rx, ry) { var c = E.ctx; c.fillStyle = 'rgba(0,0,0,.28)'; c.beginPath(); c.ellipse(sx, sy, rx, ry, 0, 0, 7); c.fill(); }
   function oneShot(st) { return st === 'die' || st === 'dead' || st === 'attack' || st === 'cast' || st === 'hit'; }
   function drawHero(sx, sy, d) {
+    if (window.D2S && D2S.drawUnit && D2S.drawUnit(Game.api, d.e, sx, sy)) return;
     var h = d.e, look = heroLook(), mode = heroMode(h);
     if (!E.heroCof(look, mode)) mode = 'NU';
     var cof = E.heroCof(look, mode), t = h.st === 'dead' ? 1e7 : actT(h, cof);
@@ -1384,6 +1487,7 @@
     }
   }
   function drawMon(sx, sy, d) {
+    if (window.D2S && D2S.drawUnit && D2S.drawUnit(Game.api, d.e, sx, sy)) return;
     var m = d.e, mode = monMode(m), an = E.animOf(m.art, mode);
     var t = m.st === 'dead' && mode === 'DT' ? 1e7 : actT(m, an), small = m.rank === 'normal' || m.rank === 'minion';
     if (m.st !== 'dead') shadow(sx, sy, small ? 16 : 22, small ? 7 : 10);
@@ -1442,7 +1546,7 @@
         var ps = E.toScreen(e.x, e.y);
         if (ps[0] < -320 || ps[0] > 960 + 320 || ps[1] < -260 || ps[1] > 540 + 420) return;
       }
-      var fn = e.kind === 'hero' ? drawHero : e.kind === 'mon' ? drawMon : e.kind === 'npc' ? drawNpc : e.kind === 'obj' ? drawObj : e.kind === 'drop' ? drawDrop : e.kind === 'missile' ? drawMissile : e.kind === 'fx' ? drawFx : null;
+      var fn = e.kind === 'hero' ? drawHero : e.kind === 'mon' ? drawMon : e.kind === 'npc' ? drawNpc : e.kind === 'obj' ? drawObj : e.kind === 'drop' ? drawDrop : e.kind === 'missile' ? drawMissile : e.kind === 'fx' ? drawFx : e.kind === 'd2sfx' && window.D2S ? function (sx, sy, d) { D2S.draw(Game.api, d.e, sx, sy); } : null;
       if (fn) drawables.push({ x: e.x, y: e.y, z: e.kind === 'drop' || (e.kind === 'mon' && e.st === 'dead') ? -1 : 0, e: e, draw: fn });
     });
     E.renderWorld(drawables);

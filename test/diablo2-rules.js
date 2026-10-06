@@ -319,5 +319,67 @@ function near(a, b, eps, msg) { ok(Math.abs(a - b) <= eps, msg + ' (got ' + a + 
   ok(dr.length > 0 && dr.every(i => i.base === 'gld' || D.items.bases[i.base]), 'Hell Andariel rolls its Hell treasure class', dr.map(i => i.base));
 }
 
+// ---------------------------------------------------------------- class skills executed by js/skills.js (3.1 skills.txt rows)
+{
+  const nec = R.newCharacter('necromancer'), pal = R.newCharacter('paladin'), dru = R.newCharacter('druid');
+  const ass = R.newCharacter('assassin'), bar = R.newCharacter('barbarian'), sor = R.newCharacter('sorceress');
+  // every class skill: a contract kind game.js runs, or a D2S behaviour
+  const GAME = ['missile', 'melee', 'nova', 'channel', 'passive', 'buff'];
+  const bad = [];
+  Object.values(D.classes).forEach(c => c.skills.forEach(id => {
+    const fx = R.skillEffect(id, 1, R.newCharacter(c.id));
+    if (!fx.d2s && GAME.indexOf(fx.kind) < 0) bad.push(id + ':' + fx.kind);
+  }));
+  eq(bad, [], 'no class skill left on an unexecuted kind (summon/curse/aura/leap/corpse/utility/shapeshift/trap all carry a D2S behaviour)');
+
+  let e = R.skillEffect('raise_skeleton', 1, nec);
+  eq([e.kind, e.summon.max, e.summon.hp, e.summon.dmg.min, e.summon.dmg.max], ['summon', 1, 21, 1, 2], 'Raise Skeleton slvl1: 1 skeleton (petmax "(lvl < 4) ?lvl:(2+lvl/3)"), 21 life, 1-2 damage (monstats necroskeleton)');
+  eq(R.skillEffect('raise_skeleton', 4, nec).summon.max, 3, 'Raise Skeleton slvl4: 2 + 4/3 = 3 skeletons');
+  nec.skills.skeleton_mastery = 2;
+  e = R.skillEffect('raise_skeleton', 1, nec);
+  eq([e.summon.hp, e.summon.dmg.min], [37, 5], 'Skeleton Mastery 2: +16 life (Param1 8 <<8), +4 damage (Param2 2)');
+  delete nec.skills.skeleton_mastery;
+  e = R.skillEffect('raise_skeletal_mage', 1, nec);
+  eq(e.summon.mageElems.map(m => [m.type, m.min, m.max]), [['poison', 4, 4], ['cold', 2, 4], ['fire', 2, 6], ['light', 1, 7]], 'Skeletal Mage slvl1: missiles.txt necromage1-4 at NecromageMissile level 1');
+  e = R.skillEffect('clay_golem', 1, nec);
+  eq([e.summon.max, e.summon.hp, e.summon.pettype, e.summon.code], [1, 100, 'golem', 'G1'], 'Clay Golem slvl1: one golem, 100 life (monstats claygolem), art G1');
+  eq(R.skillEffect('revive', 1, nec).summon.durationSec, 180, 'Revive: 180 s (calc2 ln34, Param3 4500 frames)');
+  e = R.skillEffect('amplify_damage', 1, nec);
+  eq([e.kind, e.curse.stats.damageresist, e.curse.radius, e.curse.durationSec, e.overlay[0]], ['curse', -100, 3, 8, 'ovl.curseamplifydamage'], 'Amplify Damage slvl1: +100% physical taken (damageresist -par5), radius 3, 8 s (Param3 200 frames), states.txt overlay');
+  eq(R.skillEffect('weaken', 1, nec).curse.stats.damagepercent, -33, 'Weaken slvl1: monster damage -33% (ln56)');
+  eq(R.skillEffect('lower_resist', 1, nec).curse.stats.fireresist, -32, 'Lower Resist slvl1: -32% resists (dm56 of 25..70)');
+  eq(R.skillEffect('iron_maiden', 1, nec).curse.reflectPct, 200, 'Iron Maiden slvl1: returns 200% melee damage (calc1 ln56)');
+  e = R.skillEffect('corpse_explosion', 1, nec);
+  eq([e.corpse.minPct, e.corpse.maxPct, e.corpse.radius], [70, 120, 4], 'Corpse Explosion slvl1: 70-120% of corpse life in 4 subtiles (8 half squares)');
+  eq(R.skillEffect('bone_armor', 1, nec).buff.absorb.amount, 20, 'Bone Armor slvl1 absorbs 20 (ln12, <<8)');
+  e = R.skillEffect('might', 1, pal);
+  eq([e.kind, e.aura.stats.damagepercent, e.aura.radius], ['aura', 40, 16], 'Might slvl1: +40% damage (aurastat damagepercent ln34), radius 16');
+  e = R.skillEffect('holy_fire', 1, pal);
+  eq([e.aura.dmg.min, e.aura.dmg.max, e.aura.weapon.min, e.aura.weapon.max], [1, 3, 6, 18], 'Holy Fire slvl1: 1-3 fire every 2 s, 6-18 on the weapon (x Param5 6)');
+  eq(R.skillEffect('conviction', 1, pal).aura.monStats.fireresist, -30, 'Conviction slvl1: enemy resists -30% (ln34)');
+  e = R.skillEffect('werewolf', 1, dru);
+  eq([e.kind, e.shift.form, e.shift.durationSec, e.shift.stats.item_maxhp_percent], ['shapeshift', 'wolf', 40, 25], 'Werewolf slvl1: wolf form 40 s (1000 frames), +25% life (par2)');
+  dru.skills.lycanthropy = 1;
+  e = R.skillEffect('werewolf', 1, dru);
+  eq([e.shift.durationSec, e.shift.stats.item_maxhp_percent], [80, 45], 'Werewolf + Lycanthropy 1: 80 s (1000 + Shape Shifting ln12 1000 frames), +45% life (par2 + ln34)');
+  e = R.skillEffect('summon_spirit_wolf', 1, dru);
+  eq([e.summon.hp, e.summon.elem.type, e.summon.elem.min, e.summon.elem.max], [143, 'cold', 2, 6], 'Spirit Wolf slvl1: 130 life +10% (calc1), 2-6 cold bite');
+  e = R.skillEffect('fire_blast', 1, ass);
+  eq([e.kind, e.dmg.min, e.dmg.max, e.dmg.elem, e.bomb.radius], ['trap', 3, 4, 'fire', 5], 'Fire Blast slvl1: 3-4 fire (EMin 6 EMax 8 HitShift 7) in radius 5 (Param1)');
+  e = R.skillEffect('charged_bolt_sentry', 1, ass);
+  eq([e.summon.max, e.summon.shots, e.summon.bolts], [5, 5, 5], 'Charged Bolt Sentry slvl1: 5 traps max, 5 shots of 5 bolts');
+  e = R.skillEffect('tiger_strike', 1, ass);
+  eq([e.d2s, e.charge.max, e.charge.dmgPctPerCharge, e.charge.durationSec, e.charge.arPctPerCharge], ['charge', 3, 100, 15, 50], 'Tiger Strike slvl1: 3 charges of +100% damage (calc1 ln12), 15 s (Param3 375 frames), +50% AR per charge');
+  eq(R.skillEffect('dragon_talon', 7, ass).finisher.kicks, 2, 'Dragon Talon slvl7: 7/6+1 = 2 kicks');
+  e = R.skillEffect('battle_orders', 1, bar);
+  eq([e.d2s, e.warcry.stats.item_maxhp_percent, e.warcry.durationSec], ['warcry', 35, 30], 'Battle Orders slvl1: +35% life/mana (ln34), 30 s (Param1 750 frames)');
+  eq(R.skillEffect('war_cry', 1, bar).warcry.stunSec, 1, 'War Cry slvl1: 1 s stun (calc4 ln12 = 25 frames)');
+  e = R.skillEffect('hydra', 1, sor);
+  eq([e.summon.durationSec, e.summon.elem.min, e.summon.elem.max], [10, 14, 19], 'Hydra slvl1: 10 s (calc1 250 frames), 14-19 fire bolts (EMin 28 EMax 39 HitShift 7)');
+  eq(R.skillEffect('energy_shield', 1, sor).buff.manaShield.pct, 20, 'Energy Shield slvl1: absorbs 20% (min(edmn,95))');
+  sor.skills.fire_mastery = 1;
+  eq(R.skillEffect('fire_bolt', 1, sor).dmg.max, Math.floor(6 * 1.3), 'Fire Mastery 1: fire skills +30% (passive_fire_mastery ln12)');
+}
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

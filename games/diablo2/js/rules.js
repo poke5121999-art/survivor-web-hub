@@ -99,7 +99,8 @@
   function evalCalc(expr, ctx) {
     if (expr === undefined || expr === null || expr === '') return 0;
     if (typeof expr === 'number') return expr;
-    return ev(parse(expr), ctx);
+    // 3.1 quotes some cells ("min(ln12,250)"); the quotes are an export artefact, not part of the expression
+    return ev(parse(String(expr).replace(/"/g, '')), ctx);
   }
   function par(ctx, n) { return (ctx.sk.t['Param' + n] || 0); }
   function warn(ctx, msg) { if (ctx.warnings && ctx.warnings.indexOf(msg) < 0) ctx.warnings.push(msg); }
@@ -122,12 +123,15 @@
         var a = n.args.map(function (x) { return ev(x, ctx); });
         if (n.name === 'min') return Math.min.apply(null, a);
         if (n.name === 'max') return Math.max.apply(null, a);
+        // stat('item_pierce_*'.accr) = the caster's item stat; no item in this port grants those, so 0 is exact
+        if (n.name === 'stat' && n.args.length === 1 && n.args[0].k === 'ref') return 0;
         warn(ctx, 'function ' + n.name + '() not modelled, used 0'); // e.g. stat('...'.accr) on Hydra
         return 0;
       case 'ref': {
         var sid = skillIdByD2Name(n.name);
         var l = sid && ctx.char && ctx.char.skills ? (ctx.char.skills[sid] || 0) : 0;
         if (n.field === 'blvl' || n.field === 'lvl') return l;
+        if (!l) return 0; // an unlearned skill contributes nothing (else ln12 of level 0 would be par1 - par2)
         // other fields (ln12 of another skill etc.) evaluate in that skill's context
         var other = sid && DATA().skills[sid];
         return other ? ev({ k: 'id', v: n.field }, { sk: other, lvl: l, char: ctx.char }) : 0;
@@ -135,6 +139,7 @@
       case 'id': {
         var v = n.v, L = ctx.lvl, m;
         if (v === 'lvl' || v === 'blvl' || v === 'slvl') return L;
+        if (v === 'ulvl') return (ctx.char && ctx.char.lvl) || 1; // caster's character level
         if ((m = /^par(\d)$/.exec(v))) return par(ctx, +m[1]);
         if ((m = /^ln(\d)(\d)$/.exec(v))) return par(ctx, +m[1]) + (L - 1) * par(ctx, +m[2]);
         if ((m = /^dm(\d)(\d)$/.exec(v))) {
@@ -149,6 +154,8 @@
         // approx: edns/edxs (and the aura variants enms/exms) read as the shifted elemental min/max;
         // the Phrozen Keep skills.txt guide lists them as "elemental damage, shifted" but D2MOO has no
         // table of these codes to confirm. Not used by the Act I skills implemented here.
+        if (v === 'edma') return elemLen(ctx.sk, L); // approx: Venom's poison-length override, read as the skill's ELen
+        if (v === 'enma' || v === 'exma') v = v === 'enma' ? 'enms' : 'exms'; // approx: same shifted elemental min/max as enms/exms
         if (v === 'edns' || v === 'enms') return Math.floor(shifted(elemRaw(ctx.sk, L, 'EMin'), ctx.sk.t.HitShift));
         if (v === 'edxs' || v === 'exms') return Math.floor(shifted(elemRaw(ctx.sk, L, 'EMax'), ctx.sk.t.HitShift));
         warn(ctx, 'identifier ' + v + ' not modelled, used 0');
@@ -236,9 +243,10 @@
     var sk = findSkill(skillId), t = sk.t, L = Math.max(1, slvl | 0);
     var ctx = { sk: sk, lvl: L, char: char || { skills: {} }, warnings: [] };
     var calc = function (k) { return t[k] !== undefined ? evalCalc(t[k], ctx) : 0; };
-    var kind = SKILL_KIND[sk.id] || (t.passive ? 'passive' : (t.srvmissile || t.srvmissilea) ? 'missile' : t.range === 'h2h' ? 'melee' : t.auralencalc ? 'buff' : 'utility');
+    var role = ROLE[sk.id];
+    var kind = (role && role[0]) || SKILL_KIND[sk.id] || (t.passive ? 'passive' : (t.srvmissile || t.srvmissilea) ? 'missile' : t.range === 'h2h' ? 'melee' : t.auralencalc ? 'buff' : 'utility');
     var out = {
-      id: sk.id, name: sk.name, slvl: L, kind: kind, mana: manaCost(sk, L),
+      id: sk.id, name: sk.name, slvl: L, kind: kind, d2s: (role && role[1]) || null, anim: t.anim || null, mana: manaCost(sk, L),
       dmg: { min: 0, max: 0, elem: null }, speed: 0, pierce: false, count: 1, radius: 0, duration: 0,
       art: SKILL_ART[sk.id] || null,
       toHitPct: toHitPct(sk, L, ctx.char), weaponPct: t.SrcDam ? Math.round(t.SrcDam * 100 / 128) : 0,
@@ -250,6 +258,10 @@
     if (t.MinDam || t.MaxDam) {
       out.addMin = Math.floor(shifted(lvlSum(t, 'MinDam', 'MinLevDam', '', L), t.HitShift));
       out.addMax = Math.floor(shifted(lvlSum(t, 'MaxDam', 'MaxLevDam', '', L), t.HitShift));
+      if (t.DmgSymPerCalc) { // physical synergy % [TXT skills.txt DmgSymPerCalc]
+        var psyn = calc('DmgSymPerCalc');
+        out.addMin = Math.floor(out.addMin * (100 + psyn) / 100); out.addMax = Math.floor(out.addMax * (100 + psyn) / 100);
+      }
     }
     // elemental damage incl. synergy %: EDmgSymPerCalc [TXT]; length in frames [TXT]
     if (t.EType && (t.EMin || t.EMax)) {
@@ -262,7 +274,7 @@
         // poison: per-frame damage for `len` frames; total = perFrame * len (AS: Poison Javelin 25-37 over 8 s)
         e.min = Math.floor(mn * len); e.max = Math.floor(mx * len); e.perFrame = [mn, mx];
         e.durationSec = len / FPS;
-      } else if (kind === 'channel') {
+      } else if (kind === 'channel' || PER_FRAME[sk.id]) {
         // channelled (Inferno): table value is per frame; AS shows per second (12-25 at level 1)
         e.min = Math.floor(mn * FPS); e.max = Math.floor(mx * FPS); e.perSecond = true;
       } else {
@@ -293,7 +305,7 @@
       case 'critical_strike': case 'dodge':
         out.stats[t.passivestat1] = calc('passivecalc1'); break;
       case 'warmth': out.stats.manarecoverybonus = calc('passivecalc1'); out.elem = null; break;
-      case 'blade_mastery': case 'axe_mastery': case 'mace_mastery':
+      case 'blade_mastery': case 'axe_mastery': case 'mace_mastery': case 'polearm_mastery': case 'spear_mastery': case 'throwing_mastery': case 'claw_mastery':
         out.stats = { tohitPct: calc('passivecalc1'), damagePct: calc('passivecalc2'), critPct: calc('passivecalc3') };
         out.itype = t.passiveitype; break;
       case 'frozen_armor':
@@ -326,6 +338,17 @@
         if (t.auralencalc) out.duration = calc('auralencalc') / FPS;
         if (t.aurarangecalc) out.radius = calc('aurarangecalc');
     }
+    // Fire/Lightning Mastery raise the caster's own fire/lightning skill damage [TXT passive_fire_mastery / passive_ltng_mastery]
+    if (out.elem && char && char.skills && sk.cls === 'sorceress') {
+      var mid = out.elem.type === 'fire' ? 'fire_mastery' : out.elem.type === 'light' ? 'lightning_mastery' : null;
+      var mL = mid && char.skills[mid];
+      if (mL) {
+        var mp = skillEffect(mid, mL, null).stats[mid === 'fire_mastery' ? 'passive_fire_mastery' : 'passive_ltng_mastery'] || 0;
+        out.elem.min = Math.floor(out.elem.min * (100 + mp) / 100); out.elem.max = Math.floor(out.elem.max * (100 + mp) / 100);
+        out.elem.masteryPct = mp;
+      }
+    }
+    if (out.d2s) d2sExtra(out, sk, L, ctx, calc);
     if (out.elem) out.dmg = { min: out.elem.min, max: out.elem.max, elem: out.elem.type };
     else if (out.addMin || out.addMax) out.dmg = { min: out.addMin, max: out.addMax, elem: 'phys' };
     if (char && kind === 'melee' || (char && out.weaponPct && kind === 'missile')) {
@@ -333,6 +356,464 @@
       out.weaponDmg = { min: dv.dmgMin, max: dv.dmgMax };
     }
     return out;
+  }
+
+  // ------------------------------------------------------------------ class skills executed by js/skills.js (D2S)
+  // data.js drops these 3.1 columns, so they are copied from D2R 3.1 data/global/excel:
+  //   SKX       skills.txt restrict / State1 / aurastate / auratargetstate / castoverlay / aurastat4-6 (key = skills.txt name)
+  //   STATE_OVL states.txt overlay1 / overlay2 of the states named above (overlay.txt names; sheets are 'ovl.<name>')
+  //   PETS      monstats.txt rows of every class summon (Code, AI, Velocity, Run, minHP/maxHP, AC, A1/A2/S1 MinD/MaxD/TH,
+  //             El1Type/MinD/MaxD/Dur, Res*, Skill1, flying), Normal-difficulty columns
+  var SKX = {
+    "Inner Sight": {"auratargetstate":"innersight","castoverlay":"cast_innersight"},
+    "Slow Missiles": {"auratargetstate":"slowmissiles","castoverlay":"cast_slowmissiles"},
+    "Impale": {"auratargetstate":"impale"},
+    "Dopplezon": {"aurastate":"dopplezon","aurastat4":"poisonresist","aurastatcalc4":"min(lvl*par7,85)"},
+    "Valkyrie": {"aurastat4":"lightresist","aurastatcalc4":"min((lvl+skill('Dopplezon'.blvl))*par7,85)","aurastat5":"coldresist","aurastatcalc5":"min((lvl+skill('Dopplezon'.blvl))*par7,85)","aurastat6":"poisonresist","aurastatcalc6":"min((lvl+skill('Dopplezon'.blvl))*par7,85)"},
+    "Fire Bolt": {"castoverlay":"fire_cast_1"},
+    "Charged Bolt": {"castoverlay":"light_cast_1"},
+    "Ice Bolt": {"castoverlay":"ice_cast_1"},
+    "Frozen Armor": {"aurastate":"frozenarmor","castoverlay":"ice_cast_1"},
+    "Static Field": {"castoverlay":"light_cast_1"},
+    "Telekinesis": {"castoverlay":"light_cast_2"},
+    "Frost Nova": {"castoverlay":"ice_cast_2"},
+    "Ice Blast": {"castoverlay":"ice_cast_1"},
+    "Blaze": {"aurastate":"blaze","castoverlay":"fire_cast_2"},
+    "Fire Ball": {"castoverlay":"fire_cast_2"},
+    "Nova": {"castoverlay":"light_cast_1"},
+    "Lightning": {"castoverlay":"light_cast_1"},
+    "Shiver Armor": {"aurastate":"shiverarmor","castoverlay":"ice_cast_2"},
+    "Fire Wall": {"castoverlay":"fire_cast_2"},
+    "Enchant": {"aurastate":"enchant"},
+    "Chain Lightning": {"castoverlay":"light_cast_1"},
+    "Teleport": {"castoverlay":"teleport"},
+    "Glacial Spike": {"castoverlay":"ice_cast_2"},
+    "Meteor": {"castoverlay":"fire_cast_2"},
+    "Thunder Storm": {"aurastate":"thunderstorm","castoverlay":"light_cast_2"},
+    "Energy Shield": {"aurastate":"energyshield","castoverlay":"light_cast_2"},
+    "Blizzard": {"castoverlay":"ice_cast_3"},
+    "Chilling Armor": {"aurastate":"chillingarmor","castoverlay":"ice_cast_3"},
+    "Hydra": {"castoverlay":"fire_cast_2"},
+    "Frozen Orb": {"castoverlay":"ice_cast_3"},
+    "Amplify Damage": {"auratargetstate":"amplifydamage"},
+    "Bone Armor": {"aurastate":"bonearmor"},
+    "Dim Vision": {"auratargetstate":"dimvision"},
+    "Weaken": {"auratargetstate":"weaken"},
+    "Iron Maiden": {"auratargetstate":"ironmaiden"},
+    "Terror": {"auratargetstate":"terror"},
+    "Confuse": {"auratargetstate":"confuse"},
+    "Life Tap": {"auratargetstate":"lifetap"},
+    "Attract": {"auratargetstate":"attract"},
+    "Decrepify": {"auratargetstate":"decrepify","aurastat4":"attackrate","aurastatcalc4":"par5"},
+    "IronGolem": {"aurastate":"thorns"},
+    "Lower Resist": {"auratargetstate":"lowerresist","aurastat4":"poisonresist","aurastatcalc4":"-dm56"},
+    "FireGolem": {"aurastat4":"firemaxdam","aurastatcalc4":"edmx"},
+    "Might": {"aurastate":"might","auratargetstate":"might"},
+    "Prayer": {"aurastate":"prayer","auratargetstate":"prayer"},
+    "Resist Fire": {"aurastate":"resistfire","auratargetstate":"resistfire"},
+    "Holy Bolt": {"castoverlay":"cast_undead"},
+    "Holy Fire": {"aurastate":"holyfire"},
+    "Thorns": {"aurastate":"thorns","auratargetstate":"thorns"},
+    "Defiance": {"aurastate":"defiance","auratargetstate":"defiance"},
+    "Resist Cold": {"aurastate":"resistcold","auratargetstate":"resistcold"},
+    "Blessed Aim": {"aurastate":"blessedaim","auratargetstate":"blessedaim"},
+    "Cleansing": {"aurastate":"cleansing","auratargetstate":"cleansing"},
+    "Resist Lightning": {"aurastate":"resistlight","auratargetstate":"resistlight"},
+    "Concentration": {"aurastate":"concentration","auratargetstate":"concentration"},
+    "Holy Freeze": {"aurastate":"holywind","auratargetstate":"holywindcold"},
+    "Vigor": {"aurastate":"stamina","auratargetstate":"stamina"},
+    "Conversion": {"auratargetstate":"conversion"},
+    "Holy Shield": {"aurastate":"holyshield"},
+    "Holy Shock": {"aurastate":"holyshock"},
+    "Sanctuary": {"aurastate":"sanctuary","castoverlay":"cast_undead"},
+    "Meditation": {"aurastate":"meditation","auratargetstate":"meditation"},
+    "Fanaticism": {"aurastate":"fanaticism","auratargetstate":"fanaticism"},
+    "Conviction": {"aurastate":"conviction","auratargetstate":"conviction","aurastat4":"lightresist","aurastatcalc4":"-min(ln34,150)"},
+    "Redemption": {"aurastate":"redemption"},
+    "Salvation": {"aurastate":"resistall","auratargetstate":"resistall"},
+    "Howl": {"auratargetstate":"terror"},
+    "Taunt": {"auratargetstate":"taunt"},
+    "Shout": {"aurastate":"shout","auratargetstate":"shout"},
+    "Concentrate": {"aurastate":"concentrate"},
+    "Battle Cry": {"auratargetstate":"battlecry"},
+    "Frenzy": {"aurastate":"frenzy"},
+    "Battle Orders": {"aurastate":"battleorders","auratargetstate":"battleorders"},
+    "Grim Ward": {"auratargetstate":"terror","aurastat4":"damageresist","aurastatcalc4":"-par3 - (skill('Find Potion'.blvl) * par4)"},
+    "Whirlwind": {"aurastate":"whirlwind"},
+    "Berserk": {"aurastate":"berserk"},
+    "War Cry": {"castoverlay":"warcry"},
+    "Battle Command": {"aurastate":"battlecommand","auratargetstate":"battlecommand"},
+    "Raven": {"restrict":1},
+    "Plague Poppy": {"restrict":1,"aurastate":"vine_beast"},
+    "Wearwolf": {"restrict":1,"aurastate":"wolf","aurastat4":"item_maxhp_percent","aurastatcalc4":"par2+skill('Shape Shifting'.ln34)"},
+    "Firestorm": {"castoverlay":"druid_fire_cast_1"},
+    "Oak Sage": {"restrict":1},
+    "Summon Spirit Wolf": {"restrict":1,"aurastat4":"poisonresist","aurastatcalc4":"min(par8 * lvl,85)"},
+    "Wearbear": {"restrict":1,"aurastate":"bear","aurastat4":"skill_concentration","aurastatcalc4":"par6"},
+    "Molten Boulder": {"castoverlay":"druid_fire_cast_1"},
+    "Cycle of Life": {"restrict":1,"aurastate":"vine_beast"},
+    "Feral Rage": {"restrict":2,"State1":"wolf","aurastate":"feralrage"},
+    "Maul": {"restrict":2,"State1":"bear","aurastate":"maul"},
+    "Eruption": {"castoverlay":"druid_fire_cast_2"},
+    "Cyclone Armor": {"restrict":1,"aurastate":"cyclonearmor"},
+    "Heart of Wolverine": {"restrict":1},
+    "Summon Fenris": {"restrict":1,"aurastat4":"poisonresist","aurastatcalc4":"min(par8 * lvl,85)"},
+    "Rabies": {"restrict":2,"State1":"wolf","auratargetstate":"rabies"},
+    "Fire Claws": {"restrict":2,"State1":"wolf"},
+    "Vines": {"restrict":1,"aurastate":"vine_beast"},
+    "Hunger": {"restrict":2,"State1":"wolf"},
+    "Shock Wave": {"restrict":2,"State1":"bear"},
+    "Volcano": {"castoverlay":"druid_fire_cast_2"},
+    "Spirit of Barbs": {"restrict":1},
+    "Summon Grizzly": {"restrict":1,"aurastat4":"poisonresist","aurastatcalc4":"min(par8 * lvl,85)"},
+    "Fury": {"restrict":2,"State1":"wolf"},
+    "Armageddon": {"restrict":1,"aurastate":"armageddon","castoverlay":"druid_fire_cast_2"},
+    "Hurricane": {"restrict":1,"aurastate":"hurricane"},
+    "Psychic Hammer": {"castoverlay":"psychic_hammer_curse"},
+    "Tiger Strike": {"aurastate":"progressive_damage"},
+    "Quickness": {"aurastate":"quickness"},
+    "Fists of Fire": {"aurastate":"progressive_fire"},
+    "Cloak of Shadows": {"aurastate":"cloak_of_shadows","auratargetstate":"cloaked"},
+    "Cobra Strike": {"aurastate":"progressive_steal"},
+    "Fade": {"aurastate":"fade","aurastat4":"poisonresist","aurastatcalc4":"dm12","aurastat5":"curse_resistance","aurastatcalc5":"dm34","aurastat6":"damageresist","aurastatcalc6":"ln78"},
+    "Shadow Warrior": {"aurastate":"shadowwarrior","aurastat4":"dexterity","aurastatcalc4":"lvl*10"},
+    "Claws of Thunder": {"aurastate":"progressive_lightning"},
+    "Blades of Ice": {"aurastate":"progressive_cold"},
+    "Blade Shield": {"aurastate":"bladeshield"},
+    "Venom": {"aurastate":"venomclaws"},
+    "Shadow Master": {"aurastate":"shadowwarrior"},
+    "Royal Strike": {"aurastate":"progressive_other"}
+  };
+  var STATE_OVL = {"resistfire":["aura_resistfire"],"resistcold":["aura_resistcold"],"resistlight":["aura_resistlight"],"resistall":["aura_resistall_front","aura_resistall_back"],"amplifydamage":["curseamplifydamage"],"frozenarmor":["frozenarmor"],"bonearmor":["bonearmor_front","bonearmor_back"],"enchant":["enchant"],"innersight":["innersight"],"weaken":["curseweaken"],"chillingarmor":["chillarmor"],"dimvision":["cursedimvision"],"shout":["shout"],"taunt":["taunt"],"conviction":["convictionfront","convictionback"],"energyshield":["energyshield"],"battleorders":["battleorders"],"might":["aura_might_front","aura_might_back"],"prayer":["aura_prayer_front","aura_prayer_back"],"holyfire":["aura_holyfire_front","aura_holyfire_back"],"thorns":["aura_thorns_front","aura_thorns_back"],"defiance":["aura_defiance_front","aura_defiance_back"],"thunderstorm":["thunderstormback"],"blessedaim":["blessedaimfront","blessedaimback"],"stamina":["staminafront","staminaback"],"concentration":["concentrationfront","concentrationback"],"holywind":["holyfreeze"],"holywindcold":["null"],"cleansing":["cleansingfront","cleansingback"],"holyshock":["holyshockfront","holyshockback"],"sanctuary":["sanctuaryfront","sanctuaryback"],"meditation":["meditationfront","meditationback"],"fanaticism":["fanaticismfront","fanaticismback"],"redemption":["redemptionfront","redemptionback"],"battlecommand":["battlecommand"],"conversion":["conversionaura"],"ironmaiden":["curseironmaiden"],"terror":["curseterror"],"attract":["curseattract"],"lifetap":["cursereversevampire"],"confuse":["curseconfuse"],"decrepify":["cursedecrepify"],"lowerresist":["curselowerresist"],"slowmissiles":["innersight"],"shiverarmor":["shiverarmor"],"battlecry":["battlecry"],"frenzy":["frenzy"],"berserk":["berserkfront","berserkback"],"rabies":["rabiesplague"],"maul":["maul1","maul5"],"feralrage":["feralrage1","feralrage5"],"cyclonearmor":["cyclonearmor1front","cyclonearmor2front"],"cloaked":["cloaked"],"quickness":["quickness"],"bladeshield":["bladeshield"],"fade":["fade"],"whirlwind":["whirlwind"]};
+  var PETS = {
+    claygolem: {"code":"G1","ai":"NecroPet","vel":8,"run":8,"hp":[100,100],"ac":100,"a1":[2,5,40],"a2":[4,7,40],"res":{"phys":25,"light":20,"cold":50}},
+    bloodgolem: {"code":"G2","ai":"NecroPet","vel":9,"run":9,"hp":[201,201],"ac":120,"a1":[7,20,60],"a2":[14,30,60],"res":{"magic":20,"poison":20},"skill":"BloodGolem"},
+    irongolem: {"code":"G4","ai":"NecroPet","vel":9,"run":9,"hp":[306,306],"ac":140,"a1":[7,19,80],"a2":[15,29,80],"res":{"light":50,"poison":100}},
+    firegolem: {"code":"G3","ai":"NecroPet","vel":10,"run":10,"hp":[313,313],"ac":200,"a1":[10,27,120],"a2":[21,41,120],"el":["fire",5,10,0],"res":{"fire":100}},
+    boneprison1: {"code":"67","ai":"Idle","vel":0,"run":0,"hp":[193,385],"ac":84,"res":{"cold":70,"poison":70}},
+    bonewall: {"code":"BW","ai":"BoneWall","vel":0,"run":0,"hp":[19,19],"ac":35,"res":{"cold":70,"poison":70},"skill":"Bone Wall"},
+    hydra1: {"code":"HX","ai":"Hydra","vel":0,"run":0,"hp":[0,0],"ac":0,"skill":"HydraMissile"},
+    hydra2: {"code":"21","ai":"Hydra","vel":0,"run":0,"hp":[0,0],"ac":0,"skill":"HydraMissile"},
+    hydra3: {"code":"HZ","ai":"Hydra","vel":0,"run":0,"hp":[0,0],"ac":0,"skill":"HydraMissile"},
+    dopplezon: {"code":"VK","ai":"Idle","vel":9,"run":9,"hp":[10,10],"ac":141},
+    valkyrie: {"code":"VK","ai":"NecroPet","vel":11,"run":11,"hp":[400,480],"ac":141,"a1":[9,24,250],"a2":[18,37,250]},
+    necroskeleton: {"code":"SK","ai":"NecroPet","vel":13,"run":15,"hp":[21,21],"ac":5,"a1":[1,2,5],"a2":[1,2,5]},
+    necromage: {"code":"SK","ai":"NecroPet","vel":12,"run":14,"hp":[61,61],"ac":24,"a1":[1,2,5],"a2":[1,2,5],"skill":"NecromageMissile"},
+    wakeofdestruction: {"code":"e9","ai":"AssassinSentry","vel":0,"run":0,"hp":[100,100],"ac":100,"el":["fire",5,10,0],"skill":"Wake Of Destruction Sentry"},
+    chargeboltsentry: {"code":"lg","ai":"AssassinSentry","vel":0,"run":0,"hp":[100,100],"ac":100,"skill":"BoltSentry"},
+    lightningsentry: {"code":"lg","ai":"AssassinSentry","vel":0,"run":0,"hp":[100,100],"ac":100,"skill":"sentry lightning"},
+    bladecreeper: {"code":"b8","ai":"BladeCreeper","vel":12,"run":12,"hp":[100,100],"ac":100,"skill":"Blade Sentinel"},
+    infernosentry: {"code":"e9","ai":"AssassinSentry","vel":0,"run":0,"hp":[100,100],"ac":100,"skill":"mon inferno sentry"},
+    deathsentry: {"code":"lg","ai":"DeathSentry","vel":0,"run":0,"hp":[100,100],"ac":100,"skill":"mon death sentry"},
+    shadowwarrior: {"code":"k9","ai":"ShadowWarrior","vel":0,"run":0,"hp":[376,376],"ac":196,"a1":[0,0,163],"a2":[0,0,163],"res":{"phys":40},"skill":"Fists of Fire"},
+    shadowmaster: {"code":"k9","ai":"ShadowMaster","vel":0,"run":0,"hp":[376,376],"ac":196,"a1":[0,0,163],"a2":[0,0,163],"res":{"phys":40},"skill":"Fists of Fire"},
+    druidhawk: {"code":"hk","ai":"Raven","vel":10,"run":20,"hp":[26,26],"ac":25,"skill":"Raven","flying":1},
+    spiritwolf: {"code":"wf","ai":"DruidWolf","vel":5,"run":10,"hp":[130,130],"ac":67,"a1":[0,0,50],"skill":"Teleport 2"},
+    fenris: {"code":"wf","ai":"DruidWolf","vel":5,"run":10,"hp":[216,216],"ac":116,"a1":[0,0,150],"skill":"fenris rage"},
+    spiritofbarbs: {"code":"x4","ai":"Totem","vel":6,"run":6,"hp":[213,213],"ac":196,"res":{"phys":25,"magic":25,"fire":25,"light":25,"cold":25,"poison":70},"flying":1},
+    heartofwolverine: {"code":"x3","ai":"Totem","vel":6,"run":6,"hp":[136,136],"ac":123,"res":{"phys":25,"magic":25,"fire":25,"light":25,"cold":25,"poison":70},"flying":1},
+    oaksage: {"code":"xw","ai":"Totem","vel":6,"run":6,"hp":[60,60],"ac":49,"res":{"phys":25,"magic":25,"fire":25,"light":25,"cold":25,"poison":70},"flying":1},
+    plaguepoppy: {"code":"k9","ai":"Vines","vel":7,"run":7,"hp":[50,50],"ac":25,"skill":"Vine Attack"},
+    cycleoflife: {"code":"k9","ai":"CycleOfLife","vel":7,"run":7,"hp":[95,95],"ac":92,"skill":"CorpseCycler"},
+    vinecreature: {"code":"k9","ai":"CycleOfLife","vel":7,"run":7,"hp":[165,165],"ac":165,"skill":"VineCycler"},
+    druidbear: {"code":"b7","ai":"DruidBear","vel":5,"run":9,"hp":[750,750],"ac":245,"a1":[0,0,300],"skill":"BearSmite"}
+  };
+  // [kind, D2S behaviour]. kind stays in the contract set where game.js targeting depends on it (melee walks into
+  // range, missile/nova/buff/curse cast from range); the behaviour tells js/skills.js how to execute the skill.
+  var ROLE = {
+    inner_sight: ['curse', 'curse'], slow_missiles: ['curse', 'curse'], decoy: ['summon', 'summon'], valkyrie: ['summon', 'summon'],
+    fend: ['melee', 'multi'], impale: ['melee', 'hit'],
+    frozen_armor: ['buff', 'buff'], shiver_armor: ['buff', 'buff'], chilling_armor: ['buff', 'buff'], energy_shield: ['buff', 'buff'],
+    enchant: ['buff', 'buff'], thunder_storm: ['buff', 'buff'], blaze: ['buff', 'buff'], teleport: ['leap', 'teleport'],
+    telekinesis: ['utility', 'tk'], static_field: ['nova', 'static'], hydra: ['summon', 'summon'], fire_wall: ['missile', 'firewall'],
+    meteor: ['missile', 'meteor'], blizzard: ['missile', 'blizzard'], chain_lightning: ['missile', 'chain'], nova: ['nova', null],
+    amplify_damage: ['curse', 'curse'], dim_vision: ['curse', 'curse'], weaken: ['curse', 'curse'], iron_maiden: ['curse', 'curse'],
+    terror: ['curse', 'curse'], confuse: ['curse', 'curse'], life_tap: ['curse', 'curse'], attract: ['curse', 'curse'],
+    decrepify: ['curse', 'curse'], lower_resist: ['curse', 'curse'], bone_armor: ['buff', 'buff'],
+    raise_skeleton: ['summon', 'summon'], raise_skeletal_mage: ['summon', 'summon'], clay_golem: ['summon', 'summon'],
+    blood_golem: ['summon', 'summon'], iron_golem: ['summon', 'summon'], fire_golem: ['summon', 'summon'], revive: ['summon', 'summon'],
+    corpse_explosion: ['corpse', 'corpse'], poison_explosion: ['corpse', 'corpse'], bone_wall: ['summon', 'wall'],
+    bone_prison: ['summon', 'wall'], poison_nova: ['nova', null],
+    might: ['aura', 'aura'], prayer: ['aura', 'aura'], resist_fire: ['aura', 'aura'], holy_fire: ['aura', 'aura'], thorns: ['aura', 'aura'],
+    defiance: ['aura', 'aura'], resist_cold: ['aura', 'aura'], blessed_aim: ['aura', 'aura'], cleansing: ['aura', 'aura'],
+    resist_lightning: ['aura', 'aura'], concentration: ['aura', 'aura'], holy_freeze: ['aura', 'aura'], vigor: ['aura', 'aura'],
+    holy_shock: ['aura', 'aura'], sanctuary: ['aura', 'aura'], meditation: ['aura', 'aura'], fanaticism: ['aura', 'aura'],
+    conviction: ['aura', 'aura'], redemption: ['aura', 'aura'], salvation: ['aura', 'aura'],
+    holy_shield: ['buff', 'buff'], charge: ['leap', 'rush'], zeal: ['melee', 'multi'], smite: ['melee', 'hit'], conversion: ['melee', 'hit'],
+    fist_of_the_heavens: ['missile', 'fist'],
+    howl: ['nova', 'warcry'], taunt: ['curse', 'curse'], shout: ['buff', 'warcry'], battle_orders: ['buff', 'warcry'],
+    battle_command: ['buff', 'warcry'], battle_cry: ['warcry', 'warcry'], war_cry: ['warcry', 'warcry'],
+    find_potion: ['corpse', 'corpse'], find_item: ['corpse', 'corpse'], grim_ward: ['corpse', 'corpse'],
+    leap: ['leap', 'leap'], leap_attack: ['leap', 'leap'], whirlwind: ['leap', 'whirlwind'], double_throw: ['missile', 'throw2'], stun: ['melee', 'hit'],
+    raven: ['summon', 'summon'], poison_creeper: ['summon', 'summon'], oak_sage: ['summon', 'summon'], summon_spirit_wolf: ['summon', 'summon'],
+    carrion_vine: ['summon', 'summon'], heart_of_wolverine: ['summon', 'summon'], summon_dire_wolf: ['summon', 'summon'],
+    solar_creeper: ['summon', 'summon'], spirit_of_barbs: ['summon', 'summon'], summon_grizzly: ['summon', 'summon'],
+    werewolf: ['shapeshift', 'shapeshift'], werebear: ['shapeshift', 'shapeshift'],
+    feral_rage: ['melee', 'form'], maul: ['melee', 'form'], fire_claws: ['melee', 'form'], hunger: ['melee', 'form'], fury: ['melee', 'form'],
+    rabies: ['melee', 'form'], shock_wave: ['nova', 'form'], fissure: ['missile', 'fissure'], volcano: ['missile', 'volcano'],
+    armageddon: ['buff', 'buff'], hurricane: ['buff', 'buff'], cyclone_armor: ['buff', 'buff'], arctic_blast: ['channel', null],
+    fire_blast: ['trap', 'bomb'], shock_web: ['trap', 'bomb'], blade_sentinel: ['trap', 'summon'], charged_bolt_sentry: ['trap', 'summon'],
+    wake_of_fire: ['trap', 'summon'], lightning_sentry: ['trap', 'summon'], wake_of_inferno: ['trap', 'summon'], death_sentry: ['trap', 'summon'],
+    blade_shield: ['buff', 'buff'], burst_of_speed: ['buff', 'buff'], fade: ['buff', 'buff'], venom: ['buff', 'buff'],
+    cloak_of_shadows: ['curse', 'curse'], mind_blast: ['curse', 'curse'], psychic_hammer: ['utility', 'tk'],
+    shadow_warrior: ['summon', 'summon'], shadow_master: ['summon', 'summon'],
+    tiger_strike: ['melee', 'charge'], cobra_strike: ['melee', 'charge'], fists_of_fire: ['melee', 'charge'], claws_of_thunder: ['melee', 'charge'],
+    blades_of_ice: ['melee', 'charge'], phoenix_strike: ['melee', 'charge'],
+    dragon_talon: ['melee', 'finisher'], dragon_claw: ['melee', 'finisher'], dragon_tail: ['melee', 'finisher'], dragon_flight: ['leap', 'finisher'],
+  };
+  // elemental damage that skills.txt gives per frame for a lingering effect; shown per second like Inferno
+  var PER_FRAME = { fire_wall: 1, blaze: 1, arctic_blast: 1 };
+  // monsters hit by these paladin auras (srvdofunc 66/81 target enemies); the rest buff the party
+  var ENEMY_AURA = { holy_fire: 1, holy_shock: 1, holy_freeze: 1, sanctuary: 1, conviction: 1 };
+  // skills.txt '*calc1 desc' = "HP %" / "HP % Modifier" for these summons
+  var HP_CALC1 = {
+    raise_skeleton: 1, raise_skeletal_mage: 1, clay_golem: 1, blood_golem: 1, iron_golem: 1, fire_golem: 1, revive: 1, valkyrie: 1,
+    decoy: 1, raven: 1, poison_creeper: 1, carrion_vine: 1, solar_creeper: 1, oak_sage: 1, heart_of_wolverine: 1, spirit_of_barbs: 1,
+    summon_spirit_wolf: 1, summon_dire_wolf: 1, summon_grizzly: 1, bone_wall: 1, bone_prison: 1,
+  };
+  function ovlOf(state) { return (STATE_OVL[state] || []).filter(function (n) { return n && n !== 'null'; }).map(function (n) { return 'ovl.' + n; }); }
+  function ln(t, a, b, L) { return (t['Param' + a] || 0) + (L - 1) * (t['Param' + b] || 0); }
+  function dmPar(t, a, b, L) { var lo = t['Param' + a] || 0, hi = t['Param' + b] || 0; return lo + idiv((110 * L) * (hi - lo), 100 * (L + 6)); }
+  // aurastats (what the skill puts on its targets) and passivestats (on the caster) evaluated separately; the generic
+  // branch of skillEffect merges both into out.stats, which loses e.g. Fanaticism's full self bonus
+  function statSets(sk, ctx) {
+    var t = sk.t, x = SKX[sk.d2name] || {}, aura = {}, self = {};
+    for (var i = 1; i <= 6; i++) {
+      var as = t['aurastat' + i] || x['aurastat' + i], ac = t['aurastatcalc' + i] !== undefined ? t['aurastatcalc' + i] : x['aurastatcalc' + i];
+      if (as) aura[as] = (aura[as] || 0) + evalCalc(ac, ctx);
+      if (t['passivestat' + i]) self[t['passivestat' + i]] = (self[t['passivestat' + i]] || 0) + evalCalc(t['passivecalc' + i], ctx);
+    }
+    return { aura: aura, self: self };
+  }
+
+  function summonInfo(sk, L, ctx, calc, out) {
+    var t = sk.t, id = sk.id, ch = ctx.char || {}, clvl = ch.lvl || 1;
+    var monId = t.summon ? String(t.summon).toLowerCase() : null, P = (monId && PETS[monId]) || null;
+    var ss = statSets(sk, ctx), A = ss.aura, Ps = ss.self;
+    var st = function (k) { return (A[k] || 0) + (Ps[k] || 0); };
+    var s = {
+      mon: monId, code: P ? P.code : null, pettype: t.pettype || null, ai: P ? P.ai : null, perCast: 1,
+      max: t.petmax ? Math.max(1, Math.floor(evalCalc(String(t.petmax).replace(/"/g, ''), ctx))) : 1,
+      lvl: clvl, hpPct: HP_CALC1[id] ? calc('calc1') : 0, hp: 0, ac: 0, ar: 0, dmg: null, elem: null,
+      vel: P ? (P.run || P.vel || 0) : 0, res: Object.assign({}, P ? P.res : {}), durationSec: 0, flying: !!(P && P.flying),
+      needsCorpse: id === 'raise_skeleton' || id === 'raise_skeletal_mage' || id === 'revive',
+    };
+    // druid summons: calc2 = "Summon Pet Level"; approx: other pets take the caster's level (hit chance only, stats are noRatio)
+    if (/^(raven|poison_creeper|carrion_vine|solar_creeper|oak_sage|heart_of_wolverine|spirit_of_barbs|summon_spirit_wolf|summon_dire_wolf|summon_grizzly)$/.test(id)) s.lvl = Math.max(1, calc('calc2'));
+    if (P) {
+      var hp0 = P.hp[0] + idiv(P.hp[1] - P.hp[0], 2);
+      if (/^shadow_(warrior|master)$/.test(id)) s.hpPct = (L - 1) * (t.Param1 || 0); // "HP % per level"
+      s.hp = Math.floor((hp0 + idiv(st('maxhp'), 256)) * (100 + s.hpPct) / 100);
+      s.ac = Math.floor((P.ac + st('armorclass')) * (100 + st('item_armor_percent') + st('skill_armor_percent')) / 100);
+      var a1 = P.a1 || [0, 0, 0], a2 = P.a2 || null, pct = 100 + st('damagepercent'), flat = st('item_normaldamage');
+      var smin = out.addMin, smax = out.addMax; // skills.txt MinDam/MaxDam of the summon skill (Raven, Fenris, Grizzly, Blade Sentinel)
+      if (id === 'spirit_of_barbs') { smin = smax = 0; }
+      s.dmg = { min: Math.floor((a1[0] + flat + smin) * pct / 100), max: Math.floor((a1[1] + flat + smax) * pct / 100) };
+      if (a2 && (a2[0] || a2[1])) s.a2 = { min: Math.floor((a2[0] + flat + smin) * pct / 100), max: Math.floor((a2[1] + flat + smax) * pct / 100) };
+      s.ar = a1[2] + st('tohit') + (t.ToHit || t.LevToHit ? toHitPct(sk, L, ch) : 0);
+      s.vel = Math.max(0, (P.run || P.vel || 0) * (100 + st('velocitypercent')) / 100);
+      [['fireresist', 'fire'], ['coldresist', 'cold'], ['lightresist', 'light'], ['poisonresist', 'poison']].forEach(function (r) {
+        var v = st(r[0]); if (v) s.res[r[1]] = (s.res[r[1]] || 0) + v;
+      });
+      if (P.el) s.el = { type: ELEM[P.el[0]] || P.el[0], min: P.el[1], max: P.el[2] };
+    }
+    if (out.elem) s.elem = { type: out.elem.type, min: out.elem.min, max: out.elem.max, durationSec: out.elem.durationSec || 0 };
+    if (A.firemindam || A.firemaxdam) s.elem = { type: 'fire', min: A.firemindam || 0, max: A.firemaxdam || 0 };
+    switch (id) {
+      case 'revive':
+        s.durationSec = calc('calc2') / FPS; s.dmgPct = A.damagepercent || 0; s.velPct = Ps.velocitypercent || 0; break;
+      case 'hydra': s.durationSec = calc('calc1') / FPS; s.perCast = 1; s.missile = 'firebolt'; break;
+      case 'decoy': s.durationSec = calc('calc2') / FPS; s.hpFromCasterPct = calc('calc3'); s.hpPct = calc('calc1'); break;
+      case 'blade_sentinel': s.durationSec = calc('calc4') / FPS; s.weaponPct = Math.round((t.SrcDam || 0) * 100 / 128); break;
+      case 'charged_bolt_sentry': s.shots = calc('calc4'); s.bolts = t.Param3 || 5; s.missile = 'chargedbolt'; break;
+      case 'lightning_sentry': s.shots = t.Param1 || 10; s.missile = 'lightningbolt'; break;
+      case 'wake_of_fire': s.shots = t.Param1 || 5; s.missile = 'firewall'; break;
+      case 'wake_of_inferno': s.shots = t.Param1 || 10; s.missile = 'infernoflame1'; break;
+      case 'death_sentry': s.shots = t.Param1 || 5; s.missile = 'lightningbolt'; s.corpseExplode = true; break;
+      case 'raven': s.hits = calc('calc3'); break;
+      case 'bone_wall': s.durationSec = (t.Param2 || 0) / FPS; s.segments = Math.max(2, calc('calc2')); break;
+      case 'bone_prison': s.durationSec = (t.Param2 || 0) / FPS; break;
+      case 'blood_golem': s.lifeStealPct = calc('calc2'); s.toCasterPct = calc('calc3'); break;
+      case 'clay_golem': s.slowPct = A.item_slow || 0; break;
+      case 'iron_golem': s.thorns = A.item_attackertakesdamage || 0; break;
+      case 'fire_golem':
+        s.holyFireLvl = evalCalc('min(ln56,30)', ctx); s.fireAbsorbPct = A.item_absorbfire_percent || 0; break;
+      case 'oak_sage': s.aura = { lifePct: ln(t, 1, 2, L), radius: ln(t, 7, 8, L) }; break;
+      case 'heart_of_wolverine': s.aura = { dmgPct: ln(t, 5, 6, L), arPct: ln(t, 3, 4, L), radius: ln(t, 7, 8, L) }; break;
+      // approx: Barbs Aura radius baseline is not in skills.txt (only Param8 per level); Oak Sage's 30 is used
+      case 'spirit_of_barbs': s.aura = { thornsPct: out.addMin, radius: 30 + (L - 1) * (t.Param8 || 0) }; break;
+      case 'carrion_vine': s.corpseHealPct = ln(t, 5, 6, L); break;
+      case 'solar_creeper': s.corpseManaPct = ln(t, 5, 6, L); break;
+      case 'shadow_warrior': case 'shadow_master': s.copyHero = true; break;
+      case 'raise_skeletal_mage': {
+        // monster skill NecromageMissile at level sumsk1calc; one of missiles.txt necromage1-4 per mage
+        s.mageLvl = Math.max(1, evalCalc("max(skill('Skeleton Mastery'.lvl) + ((lvl < 4)?0:((lvl-2)/2)),1)", ctx));
+        s.mageElems = MAGE.map(function (m) {
+          var t2 = { EMin: m[1], EMax: m[3] };
+          for (var k = 1; k <= 5; k++) { t2['EMinLev' + k] = m[2][k - 1]; t2['EMaxLev' + k] = m[4][k - 1]; }
+          var mn = shifted(lvlSum(t2, 'EMin', 'EMinLev', '', s.mageLvl), m[6]), mx = shifted(lvlSum(t2, 'EMax', 'EMaxLev', '', s.mageLvl), m[6]);
+          if (m[5] && m[0] === 'pois') return { type: 'poison', min: Math.floor(mn * m[5]), max: Math.floor(mx * m[5]), durationSec: m[5] / FPS, missile: m[7] };
+          return { type: ELEM[m[0]], min: Math.floor(mn), max: Math.floor(mx), durationSec: m[5] / FPS, missile: m[7] };
+        });
+        break;
+      }
+    }
+    return s;
+  }
+  // missiles.txt necromage1-4: EType, EMin, MinELev1-5, EMax, MaxELev1-5, ELen, HitShift (empty = 0), missile
+  var MAGE = [
+    ['pois', 12, [8, 10, 14, 18, 24], 12, [8, 10, 14, 18, 24], 100, 0, 'necromage1'],
+    ['cold', 2, [1, 2, 4, 7, 9], 4, [1, 2, 4, 7, 9], 25, 8, 'necromage2'],
+    ['fire', 2, [2, 3, 5, 7, 9], 6, [2, 3, 5, 7, 9], 0, 8, 'necromage3'],
+    ['ltng', 1, [1, 1, 1, 1, 1], 7, [3, 5, 8, 11, 17], 0, 8, 'necromage4'],
+  ];
+
+  function d2sExtra(out, sk, L, ctx, calc) {
+    var t = sk.t, id = sk.id, x = SKX[sk.d2name] || {}, b = out.d2s, ss = statSets(sk, ctx);
+    for (var i = 4; i <= 6; i++) if (x['aurastat' + i] && !t['aurastat' + i]) out.stats[x['aurastat' + i]] = evalCalc(x['aurastatcalc' + i], ctx);
+    out.state = x.auratargetstate || x.aurastate || null;
+    out.overlay = ovlOf(out.state);
+    out.castOverlay = x.castoverlay ? 'ovl.' + x.castoverlay : null;
+    out.restrict = x.restrict || 0;          // skills.txt restrict: 0 not while shapeshifted, 1 allowed, 2 only shapeshifted
+    out.needForm = x.State1 || null;         // 'wolf' | 'bear'
+    if (t.auralencalc && !out.duration) out.duration = calc('auralencalc') / FPS;
+    if (t.aurarangecalc && !out.radius) out.radius = calc('aurarangecalc');
+    switch (b) {
+      case 'summon': case 'wall': out.summon = summonInfo(sk, L, ctx, calc, out); break;
+      case 'curse': {
+        var c = { state: out.state, radius: out.radius, durationSec: out.duration, stats: ss.aura };
+        if (id === 'iron_maiden') c.reflectPct = calc('calc1');
+        if (id === 'life_tap') c.lifeTapPct = calc('calc1');
+        if (id === 'terror') c.fleeDist = ln(t, 5, 6, L);
+        if (id === 'confuse') c.confuse = true;
+        if (id === 'attract') c.attract = true;
+        if (id === 'dim_vision') c.blind = true;
+        if (id === 'taunt') { c.single = true; c.durationSec = 10; c.radius = 0; } // approx: Taunt has no duration column; it ends when the target dies
+        if (id === 'inner_sight') c.stats = { armorclass: out.stats.armorclass };
+        if (id === 'slow_missiles') { c.missileVelPct = ss.aura.skill_handofathena; c.missileDmgPct = ss.aura.skill_missile_damage_scale; }
+        if (id === 'cloak_of_shadows') { c.blind = true; c.selfStats = ss.self; }
+        if (id === 'mind_blast') {
+          c.stunSec = ln(t, 1, 2, L) / FPS; c.convertPct = calc('calc1'); c.convertSec = calc('calc2') / FPS;
+          c.radius = calc('aurarangecalc'); c.durationSec = c.stunSec; c.dmg = { min: out.addMin, max: out.addMax };
+        }
+        out.curse = c; break;
+      }
+      case 'aura': {
+        var a = { state: out.state, radius: out.radius, periodSec: 50 / FPS, enemy: !!ENEMY_AURA[id] }; // perdelay 50 frames
+        var self = Object.assign({}, ss.aura, ss.self);
+        if (id === 'fanaticism') self.damagepercent = ss.self.damagepercent || 0;
+        a.stats = a.enemy ? {} : self;
+        a.monStats = a.enemy ? ss.aura : {};
+        if (out.elem && out.elem.max) {
+          a.dmg = { type: out.elem.type, min: out.elem.min, max: out.elem.max };
+          // Holy Fire/Shock/Freeze passivecalc firemindam = enms*par5/256: weapon damage = aura damage x Param5
+          if (t.Param5 && id !== 'sanctuary') a.weapon = { type: out.elem.type, min: out.elem.min * t.Param5, max: out.elem.max * t.Param5 };
+        }
+        if (id === 'holy_freeze' || id === 'conviction') { a.monStats = ss.aura; a.stats = {}; }
+        if (id === 'sanctuary') { a.undeadOnly = true; a.stats = { item_undeaddamage_percent: ss.self.item_undeaddamage_percent || 0, item_undead_tohit: ss.self.item_undead_tohit || 0 }; }
+        if (id === 'prayer' || id === 'cleansing' || id === 'meditation') a.heal = ss.aura.hitpoints || 0;
+        if (id === 'thorns') a.thornsPct = ss.aura.thorns_percent || 0;
+        if (id === 'redemption') a.redeem = { chancePct: calc('calc1'), hp: calc('calc2'), mp: calc('calc3') };
+        out.aura = a; break;
+      }
+      case 'warcry': {
+        var w = { radius: out.radius || 20, durationSec: out.duration, stats: ss.aura };
+        if (id === 'howl') { w.fleeDist = out.fleeDist; w.durationSec = out.duration; w.radius = Math.max(8, out.radius); }
+        if (id === 'battle_cry') { w.monStats = ss.aura; w.stats = {}; w.radius = 12; } // approx: radius from the battlecry missile size, not a table column
+        if (id === 'war_cry') {
+          w.dmg = { min: out.addMin, max: out.addMax }; w.stunSec = calc('calc4') / FPS; w.radius = 8; // approx radius
+        }
+        if (id === 'shout') w.stats = { skill_armor_percent: out.stats.defensePct };
+        out.warcry = w; break;
+      }
+      case 'shapeshift':
+        out.shift = { form: id === 'werewolf' ? 'wolf' : 'bear', durationSec: out.duration, stats: ss.aura }; break;
+      case 'charge': {
+        var ch3 = { max: 3, durationSec: out.duration || 15, arPctPerCharge: id === 'phoenix_strike' ? (t.Param7 || 0) : (t.Param4 || 0) };
+        if (id === 'tiger_strike') ch3.dmgPctPerCharge = calc('calc1');
+        if (id === 'cobra_strike') ch3.lifeStealPctPerCharge = calc('calc1');
+        if (id === 'fists_of_fire') { ch3.radius2 = t.Param1 || 4; ch3.radius3 = t.Param2 || 4; }
+        if (id === 'claws_of_thunder') { ch3.radius2 = 6; ch3.bolts3 = Math.floor(64 / (t.Param1 || 4)); } // approx: nova radius from missile
+        if (id === 'blades_of_ice') { ch3.radius2 = t.Param1 || 6; ch3.radius3 = t.Param2 || 3; }
+        if (id === 'phoenix_strike') { ch3.radius2 = t.Param1 || 8; ch3.radius3 = calc('calc1'); ch3.ice = t.Param5 || 16; }
+        if (out.elem) ch3.elem = { type: out.elem.type, min: out.elem.min, max: out.elem.max, durationSec: out.elem.durationSec || 0 };
+        // Royal Strike has no damage columns: approx 3 x weapon damage per release as fire/light/cold
+        out.charge = ch3; break;
+      }
+      case 'finisher': {
+        var f = {};
+        if (id === 'dragon_talon') { f.kicks = calc('calc1'); f.dmgPct = ln(t, 1, 2, L); }
+        if (id === 'dragon_claw') { f.dmgPct = calc('calc1'); f.hits = 2; }
+        if (id === 'dragon_tail') { f.dmgPct = calc('calc1'); f.radius = t.Param3 || 6; f.fire = true; }
+        if (id === 'dragon_flight') { f.dmgPct = calc('calc1'); f.range = t.Param7 || 38; }
+        out.dmgPct = f.dmgPct; out.finisher = f; break;
+      }
+      case 'corpse': {
+        var cp = { radius: 6 };
+        if (id === 'corpse_explosion') { cp.minPct = calc('calc1'); cp.maxPct = calc('calc2'); cp.elemPct = calc('calc3'); cp.radius = calc('aurarangecalc') / 2; } // "half squares"
+        if (id === 'poison_explosion') cp.radius = Math.max(4, calc('aurarangecalc') / 2); // approx: 3.1 row leaves Param3/4 empty
+        if (id === 'find_potion') { cp.chancePct = out.chancePct; cp.manaPct = out.manaPct; cp.rejuvPct = out.rejuvPct; }
+        if (id === 'find_item') cp.chancePct = calc('calc1');
+        if (id === 'grim_ward') { cp.radius = calc('calc2'); cp.durationSec = calc('calc1') / FPS; cp.fearDist = t.Param5 || 10; cp.fearSec = (t.Param6 || 60) / FPS; cp.monStats = ss.aura; }
+        out.corpse = cp; break;
+      }
+      case 'bomb':
+        out.bomb = { radius: id === 'fire_blast' ? (t.Param1 || 5) : Math.max(2, out.radius), count: id === 'shock_web' ? (t.Param1 || 6) + idiv(L, t.Param2 || 4) : 1, lingerSec: id === 'shock_web' ? 3.6 : 0 }; break; // approx: shock field lasts its missile range
+      case 'leap': case 'teleport': case 'rush': case 'whirlwind': {
+        var m = { range: 30 };
+        if (id === 'leap') { m.range = out.radius; m.knockbackRadius = out.knockbackRadius; }
+        if (id === 'leap_attack') { m.range = 24; out.dmgPct = calc('calc1'); m.attack = true; }
+        if (id === 'charge') { out.dmgPct = calc('calc1'); m.velPct = calc('calc2'); m.range = 30; m.attack = true; }
+        if (id === 'whirlwind') { out.dmgPct = calc('calc1'); m.range = 20; }
+        out.move = m; break;
+      }
+      case 'buff': {
+        var bf = { durationSec: out.duration, stats: Object.assign({}, ss.aura, ss.self) };
+        if (id === 'frozen_armor') bf.stats = { skill_armor_percent: out.stats.defensePct };
+        if (id === 'bone_armor') bf.absorb = { kind: 'phys', amount: idiv(ss.aura.bonearmor || 0, 256) };
+        if (id === 'cyclone_armor') bf.absorb = { kind: 'elem', amount: idiv(ss.aura.bonearmor || 0, 256) };
+        if (id === 'energy_shield') { bf.manaShield = { pct: calc('calc1'), manaPerHp: calc('calc2') / 16 }; }
+        if (id === 'shiver_armor' || id === 'chilling_armor' || id === 'frozen_armor') { bf.retaliate = out.elem ? { type: 'cold', min: out.elem.min, max: out.elem.max } : null; bf.freezeSec = out.freezeSec || (out.elem && out.elem.durationSec) || 0; }
+        if (id === 'enchant' || id === 'venom') bf.weapon = out.elem ? { type: out.elem.type, min: out.elem.min, max: out.elem.max } : null;
+        if (id === 'thunder_storm') { bf.radius = t.Param7 || 17; bf.periodSec = evalCalc('(100-dm56) * par4/100 + par3', ctx) / FPS; bf.dmg = out.dmg; }
+        if (id === 'blaze') bf.trail = out.elem;
+        if (id === 'holy_shield') { bf.stats = { skill_armor_percent: calc('calc1'), toblock: ss.aura.toblock || 0 }; bf.smite = { min: out.addMin, max: out.addMax }; }
+        if (id === 'blade_shield') { bf.radius = t.Param4 || 6; bf.periodSec = (t.Param3 || 25) / FPS; bf.dmg = { min: out.addMin, max: out.addMax, elem: 'phys' }; bf.weaponPct = Math.round((t.SrcDam || 0) * 100 / 128); }
+        if (id === 'armageddon' || id === 'hurricane') { bf.radius = t.Param3 || 8; bf.periodSec = (t.Param4 || 6) / FPS; bf.dmg = out.elem ? { min: out.elem.min + out.addMin, max: out.elem.max + out.addMax, elem: out.elem.type } : null; }
+        if (id === 'fade') bf.stats.curse_resistance = ss.aura.curse_resistance || 0;
+        out.buff = bf; break;
+      }
+      case 'multi': case 'hit': case 'form': {
+        var h = { hits: 1 };
+        if (id === 'zeal' || id === 'fury') { h.hits = calc('calc1'); out.dmgPct = calc('calc2'); }
+        if (id === 'fend') { h.allAround = true; out.dmgPct = calc('calc1'); }
+        if (id === 'smite') { out.dmgPct = calc('calc1'); h.stunSec = calc('calc2') / FPS; h.shield = true; }
+        if (id === 'stun') h.stunSec = out.stunSec;
+        if (id === 'impale') out.dmgPct = calc('calc1');
+        if (id === 'conversion') { h.convertPct = calc('calc1'); h.convertSec = out.duration; }
+        if (id === 'feral_rage') { out.dmgPct = calc('calc1'); h.maxCharges = calc('calc2'); h.lifeStealPerCharge = t.Param2 || 0; h.velPct = dmPar(t, 3, 4, L); h.chargeSec = (t.Param1 || 500) / FPS; }
+        if (id === 'maul') { h.maxCharges = calc('calc2'); h.dmgPctPerCharge = t.Param3 || 0; h.stunSec = dmPar(t, 5, 6, L) / FPS; h.chargeSec = (t.Param4 || 500) / FPS; }
+        if (id === 'hunger') { out.dmgPct = calc('calc1'); h.lifeStealPct = calc('calc2'); h.manaStealPct = calc('calc3'); }
+        if (id === 'rabies') h.spread = true;
+        if (id === 'shock_wave') { h.radius = 8; h.stunSec = calc('calc4') / FPS; } // approx radius of the shockwave missiles
+        out.hit = h; break;
+      }
+      case 'firewall': case 'meteor': case 'blizzard': case 'chain': case 'fist': case 'fissure': case 'volcano': case 'static': case 'tk': case 'throw2': {
+        var ar = { radius: out.radius || 4 };
+        if (id === 'fire_wall') { ar.length = 7; ar.durationSec = 3.6; } // approx: firewall missile Range 90 frames; half-length in subtiles
+        if (id === 'meteor') { ar.radius = calc('calc1'); ar.delaySec = 1.2; ar.fireSec = ln(t, 3, 4, L) / FPS; }
+        if (id === 'blizzard') { ar.radius = calc('calc1'); ar.rateSec = calc('calc2') / FPS; ar.durationSec = 4; } // approx: blizzardcenter Range
+        if (id === 'chain_lightning') { ar.jumps = calc('calc1'); ar.jumpRadius = t.Param1 || 20; }
+        if (id === 'fist_of_the_heavens') { ar.bolts = calc('calc4'); ar.heal = { min: calc('calc1'), max: calc('calc2') }; }
+        if (id === 'fissure') { ar.radius = calc('calc1'); ar.rateSec = Math.max(1, calc('calc2')) / FPS; ar.durationSec = 3.2; } // approx: erruption center Range
+        if (id === 'volcano') { ar.radius = t.Param1 || 12; ar.rateSec = Math.max(1, t.Param2 || 2) * 4 / FPS; ar.durationSec = 5; ar.phys = { min: out.addMin, max: out.addMax }; } // approx timings
+        if (id === 'static_field') ar.lifePct = out.lifePct;
+        if (id === 'telekinesis') ar.knockPct = calc('calc1');
+        if (id === 'psychic_hammer') ar.knockPct = calc('calc1');
+        if (id === 'double_throw') ar.throws = 2;
+        out.area = ar; break;
+      }
+    }
   }
 
   // ------------------------------------------------------------------ characters

@@ -69,7 +69,7 @@ async function clickTile(p, x, y, opt) {
   await p.screenshot({ path: path.join(SHOTS, '1-title.png') });
   check('màn hình đầu hiện tiêu đề', /ÁC QUỶ II/.test(await p.textContent('.screen.title')));
   const locked = await startClass(p, 'sorceress', 'Tester');
-  check('bảy lớp, bốn lớp khoá', locked === 4, 'khoá=' + locked);
+  check('bảy lớp, không lớp nào khoá', locked === 0, 'khoá=' + locked);
   let s = await st(p);
   check('vào Rogue Encampment', s.area === 'rogue_encampment', s.area);
   await sleep(600);
@@ -360,10 +360,12 @@ async function clickTile(p, x, y, opt) {
   // -------------------------------------------------- hình dạng nhân vật, kho đồ, waypoint, icon kỹ năng
   results.push('\n-- hình nhân vật theo lớp --');
   // Hình theo cách D2 chọn DCC: lớp vũ khí (wclass) và token alternategfx của đồ khởi đầu trong charstats.txt
-  const EXPECT = { sorceress: { cls: 'SO', wclass: 'STF', RH: 'BST' }, amazon: { cls: 'AM', wclass: '1HT', RH: 'JAV', SH: 'BUC' }, barbarian: { cls: 'BA', wclass: '1HS', RH: 'HAX', SH: 'BUC' } };
+  const EXPECT = { sorceress: { cls: 'SO', wclass: 'STF', RH: 'BST' }, amazon: { cls: 'AM', wclass: '1HT', RH: 'JAV', SH: 'BUC' }, barbarian: { cls: 'BA', wclass: '1HS', RH: 'HAX', SH: 'BUC' },
+    necromancer: { cls: 'NE', wclass: '1HS', RH: 'WND' }, paladin: { cls: 'PA', wclass: '1HS', RH: 'SSD', SH: 'BUC' },
+    druid: { cls: 'DZ', wclass: '1HS', RH: 'CLB', SH: 'BUC' }, assassin: { cls: 'AI', wclass: 'HT1', RH: 'KTR', SH: 'BUC' } };
   const SH = process.env.D2_FIGS || SHOTS;
   fs.mkdirSync(SH, { recursive: true });
-  for (const cls of ['sorceress', 'amazon', 'barbarian']) {
+  for (const cls of ['sorceress', 'amazon', 'barbarian', 'necromancer', 'paladin', 'druid', 'assassin']) {
     ({ ctx, p, errs } = await open(b, { viewport: { width: 1000, height: 600 } }));
     await startClass(p, cls, 'T' + cls);
     await sleep(700);

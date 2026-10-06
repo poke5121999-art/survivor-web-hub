@@ -723,7 +723,7 @@ window.HUB_GAMES = [
     tagline: "Diablo II Act I làm lại trên web bằng hình, tiếng, bản đồ và số liệu gốc của Diablo II: Rogue Encampment dựng từ bản đồ thật, Blood Moor và Den of Evil sinh ngẫu nhiên mỗi lần vào. Chọn Amazon, Sorceress hoặc Barbarian; nhân vật đổi hình theo đồ mặc như game gốc. Cây kỹ năng 3 nhánh, cộng điểm chỉ số, đồ thường/magic/rare/unique/set rơi theo treasure class. Diệt sạch Den of Evil cho Akara để nhận điểm kỹ năng. Chuột trái đi/đánh, chuột phải dùng kỹ năng; điện thoại xoay ngang có cần điều khiển.",
     thumbnail: "assets/thumbnails/diablo2.png",
     path: "games/diablo2/index.html",
-    rev: "20261006b",
+    rev: "20261006c",
     // Plain canvas/JS, không engine. Chủ dự án chốt 2026-10-06: dùng asset + config của Diablo II từ bản D2R
     // trên máy (D:/Diablo2, giải nén ở D:/d2r-ref). Art 2D cổ (DCC/DT1/DS1/DC6) bóc từ kho CASC, số liệu từ
     // excel 3.1. Lever ở games/diablo2/_tools/, hợp đồng ở brain/plans/diablo2-d2r.md, ghi chép ở README.md.
