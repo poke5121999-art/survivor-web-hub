@@ -749,5 +749,21 @@ window.HUB_GAMES = [
     // Kiểm: node test/gia-pha-suite.js
     status: "available",
     tags: ["Công cụ", "Gia phả", "Ghi chú", "Tài liệu", "Kéo thả"]
+  },
+  {
+    id: "tron-tim",
+    title: "Trốn Tìm",
+    tagline: "Trốn tìm 10 người trên bản đồ ghép ngẫu nhiên 3x3: 7 người trốn, 3 người tìm, chơi solo với 9 bot. Người tìm đóng giả người trốn 5 giây đầu rồi mới lộ mặt. Bo co dần qua 4 vòng, hết giờ thì cổng mở ở vòng cuối, một người trốn chạy tới cổng là cả đội thắng; bị bắt thì đồng đội đứng yên 3 giây để cứu. Núp trong bụi, nhảy qua thùng, nhặt hộp buff, radar quét lộ vị trí mỗi 45 giây. Tám nhân vật Soul Knight, mỗi người một kỹ năng: tàng hình, mồi nhử, lộn né, cầu nguyện, EMP, nhảy vồ, dịch chuyển, hố đen.",
+    thumbnail: "assets/thumbnails/tron-tim.png",
+    path: "games/tron-tim/index.html",
+    rev: "20261006a",
+    // Plain canvas/JS, không engine. Dựng lại Hide And Seek (Heallios, 2021), game trường cũ của chủ dự
+    // án, từ APK đã bóc ở D:\phanminhtam-ref (ngoài git): luật, số liệu, bố cục bản đồ và toàn bộ UI là
+    // của game gốc (dump RectTransform vẽ lại bằng ugui.js). Nhân vật, hoạt ảnh, kỹ năng, VFX, tiếng và
+    // ô bản đồ lấy từ Soul Knight qua games/tron-tim/tools/extract_sk.js. Thiết kế: games/tron-tim/DESIGN.md.
+    //
+    // Kiểm: node test/tron-tim-core.js, tron-tim-skills.js, tron-tim-ui.js (server tĩnh cổng 8814/8815)
+    status: "available",
+    tags: ["Trốn tìm", "Bot", "Bo co dần", "Pixel art", "Soul Knight", "Solo"]
   }
 ];
