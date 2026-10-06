@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tron Tim - SK subset viewer</title>
+<style>
+  html,body{margin:0;background:#101418;color:#cde;font:12px/1.4 monospace}
+  canvas{display:block;image-rendering:pixelated;background:#051f28;width:1280px;height:1200px}
+  #st{padding:4px 8px;white-space:pre-wrap}
+</style></head><body>
+<canvas id="cv" width="640" height="600"></canvas>
+<div id="st">tai...</div>
+<!-- Kiem tra thi giac cho lever extract_sk.js: du lieu o ../data, ma o ../js/sk, trang nap tu ../ -->
+<script src="../data/sk-subset.js"></script>
+<script src="../js/sk/engine.js"></script>
+<script src="../js/sk/world.js"></script>
+<script src="../js/sk/vfx.js"></script>
+<script>
+(function () {
+  'use strict';
+  const SK = window.SK, D = window.SK_DATA, cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+  const st = document.getElementById('st');
+  // trang atlas nam o games/tron-tim/ (cung cap voi index.html), viewer o tools/ nen them '../'
+  SK_ATLAS.pages = SK_ATLAS.pages.map(p => '../' + p);
+  SK.vfx.base = '../';
+
+  const HEROES = Object.keys(D.heroes).sort();
+  const PREFABS = Object.keys(D.prefabs).sort();
+  const VFX = Object.keys(window.SK_VFX.effects).sort();
+  const G = {};
+  const T = 16;
+
+  // ---- ban do nho dung W.drawFloor / W.collect: VOID0 FLOOR1 WALL2 OBST3
+  const MW = 14, MH = 6, W = SK.world;
+  const map = { theme: 'forest', th: D.themes.forest, lib: D.themes.forest.lib, W: MW, H: MH, rooms: [], obs: new Map(),
+    tiles: new Uint8Array(MW * MH), deco: new Uint8Array(MW * MH), door: new Int16Array(MW * MH), art: SK.art.tiles('forest'), bg: D.themes.forest.bg };
+  for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) {
+    const i = y * MW + x, edge = x === 0 || y === 0 || x === MW - 1 || y === MH - 1;
+    map.tiles[i] = edge ? 2 : 1;
+    map.deco[i] = ((x * 7 + y * 13) % 5 === 0) ? 1 + (x % 5) : 0;
+  }
+  [['box01', 3, 2], ['box02', 5, 3], ['cask_red_1', 7, 2], ['cask_green_1', 9, 3], ['cask_blue_1', 11, 2], ['speed_up', 4, 4], ['speed_down', 6, 4]].forEach(([n, x, y]) => {
+    const parts = SK.prefab(n); if (!parts) return;
+    const o = { name: n, parts, tx: x, ty: y, x: x * T + 8, y: (y + 1) * T, t: 0, kind: /speed/.test(n) ? 'pad' : 'box', solid: !/speed/.test(n) };
+    map.obs.set(y * MW + x, o); if (o.solid) map.tiles[y * MW + x] = 3;
+  });
+
+  // ---- tieng
+  const AU = window.SK_AUDIO, clipNames = Object.keys(AU.clips).sort();
+  let ac = null, clickN = 0, lastClip = '-';
+  const buf = {};
+  async function playClip(n) {
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    if (!buf[n]) {
+      const r = await fetch('../art/audio/' + AU.clips[n].file);
+      buf[n] = await ac.decodeAudioData(await r.arrayBuffer());
+    }
+    const s = ac.createBufferSource(); s.buffer = buf[n]; s.connect(ac.destination); s.start();
+  }
+  cv.addEventListener('pointerdown', () => {
+    const n = clipNames[clickN++ % clipNames.length];
+    lastClip = n + ' (dang phat)';
+    playClip(n).then(() => { lastClip = n + ' ok'; }, e => { lastClip = n + ' loi: ' + e.message; });
+  });
+
+  // ---- ve nhan vat: cong thuc actors.js drawPlayer
+  function hero(id, mode, x, y, t) {
+    const s0 = D.heroes[id].s0, key = s0[mode];
+    const fr = SK.animFrame(key, t), xf = SK.animPose(key, t, s0.bodyPath);
+    SK.draw(ctx, 'shadow2', x, y);
+    SK.draw(ctx, fr, x + xf.dx, y + xf.dy, { sx: xf.sx, sy: xf.sy, rot: xf.rot });
+  }
+
+  // ---- vfx
+  const spawned = [];
+  function respawn() {
+    for (const h of spawned) h && h.kill && h.kill();
+    spawned.length = 0;
+    VFX.forEach((n, i) => {
+      const col = i % 8, row = (i / 8) | 0;
+      spawned.push(SK.vfx.spawn(G, n, 40 + col * 76, 450 + row * 36, { dur: 1.6, layer: 'top' }));
+    });
+  }
+
+  let t0 = performance.now(), last = t0, cyc = 0, frames = 0;
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    const t = (now - t0) / 1000;
+    ctx.fillStyle = '#051f28'; ctx.fillRect(0, 0, 640, 600);
+    ctx.imageSmoothingEnabled = false;
+    // nhan vat: idle / run / dead
+    HEROES.forEach((h, i) => {
+      const x = 40 + i * 66;
+      hero(h, 'idle', x, 40, t); hero(h, 'run', x, 80, t); hero(h, 'dead', x, 120, t % 2.5);
+    });
+    // ban do: san, tuong, vat can (W.drawFloor + W.collect)
+    ctx.save(); ctx.translate(8, 140);
+    const cam = { x: 0, y: 0 };
+    W.drawFloor(ctx, map, cam, MW * T, MH * T + T);
+    const list = []; W.collect(list, map, cam, MW * T, MH * T + T, t);
+    list.sort((a, b) => a.y - b.y); for (const e of list) e.fn(ctx, e.a, e.b);
+    ctx.restore();
+    // cac khung san/tuong rieng
+    const tl = map.art;
+    tl.floor.forEach((f, i) => SK.draw(ctx, f, 250 + i * 17, 160));
+    tl.walls.forEach((w, i) => { SK.draw(ctx, w.front, 380 + i * 20, 200); if (w.top) SK.draw(ctx, w.top, 380 + i * 20, 200 - w.atTop); });
+    // moi prefab da chon
+    PREFABS.forEach((n, i) => {
+      const col = i % 10, row = (i / 10) | 0;
+      SK.drawPrefab(ctx, D.prefabs[n], 40 + col * 62, 262 + row * 52, { t, state: n === 'transfer_gate' ? 'transfer_gate' : undefined, scale: n === 'transfer_gate' || n === 'portal' ? 0.5 : 1 });
+    });
+    // vfx
+    if (((t / 2) | 0) !== cyc || !spawned.length) { cyc = (t / 2) | 0; respawn(); }
+    SK.vfx.update(G, dt);
+    ctx.save(); SK.vfx.draw(ctx, G, 'ground'); SK.vfx.draw(ctx, G, 'top'); ctx.restore();
+    frames++;
+    if (frames % 20 === 0) st.textContent = 'heroes ' + HEROES.join(' ') + '\nprefabs ' + PREFABS.join(' ') + '\nvfx ' + VFX.join(' ') +
+      '\nvfx dang song ' + (G.vfx || []).length + ' | trang vfx da nap ' + SK.vfx.pages.filter(Boolean).length + '/' + SK_VFX.atlas.pages.length +
+      '\nclick = phat clip ke tiep (' + clipNames.length + ' clip): ' + lastClip;
+    requestAnimationFrame(frame);
+  }
+  SK.loadArt().then(() => SK.vfx.load('../')).then(() => { window.__ready = true; requestAnimationFrame(frame); });
+})();
+</script>
+</body></html>

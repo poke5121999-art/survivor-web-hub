@@ -1,0 +1,33 @@
+{
+  "_doc": "Danh sach khoa chon tu Soul Knight cho Tron Tim. Sua tay, roi chay: node games/tron-tim/tools/extract_sk.js. Khoa thieu trong heroes/theme/prefabs/frames/audio => loi, dung. Khoa thieu trong vfx => bao ABSENT, bo qua.",
+  "heroes": ["assassin", "priest", "ranger", "trapmaster", "robot", "viking", "doctor", "vampire", "knight"],
+  "theme": "forest",
+  "prefabs": [
+    "wall_tree1", "box01", "box02", "box05", "box_weapon",
+    "cask_red_1", "cask_green_1", "cask_blue_1", "speed_down", "speed_up", "transfer_gate", "portal",
+    "chest_big", "statue_01", "signs01", "brazier03"
+  ],
+  "prefabsOptional": ["wall_bush1", "box03", "box04", "box06", "box07", "box08", "box09", "wall502", "roll_effect", "effect_ranger_roll", "skill_assassin_night", "effect_priest_1", "sword_dash", "shield_wave", "whirl_wind"],
+  "frames": ["shadow2", "shadow0"],
+  "vfx": [
+    "hit_red", "hit_yellow", "explode_s", "effect_health_skill", "effect_priest_1", "effect_priest_1_cast",
+    "reborn_smoke", "reborn_mark_s6", "buff_dizzy", "fx_buff_dizzy", "c03_show_effect_s0", "buff_astrologist_fade",
+    "ninja_phantom", "doctor_skin0_teleport_fx_start", "doctor_skin0_teleport_fx_end", "transfer_gate",
+    "buff_speed_down_ninja", "buff_atkspeedup", "fx_buff_invulnerable", "shield_s8", "wind_line", "whirl_wind_365",
+    "fx_walk_dust", "smoke", "explode_energy2_orange", "poison_explosion2"
+  ],
+  "skills": {
+    "assassin": "invisibility", "priest": "pray", "ranger": "dodge", "trapmaster": "master_s_trick",
+    "robot": "emp", "viking": "leap", "doctor": "quantum_translocator", "vampire": "alien_swirl"
+  },
+  "audio": {
+    "clips": [
+      "fx_dash", "fx_healing2", "sfx_footstep", "fx_transition_portal", "fx_whirlwind", "fx_ui_ding1", "fx_tapClick",
+      "dialog_click", "fx_cd_ready", "fx_applause", "fx_fail", "fx_hit_p1", "fx_transform", "fx_door", "fx_buy",
+      "fx_levelup", "fx_sword1", "fx_sword2", "fx_slash2", "fx_punch_short", "fx_hit", "fx_hit_p5", "fx_hit_p3",
+      "fx_sword_wield_01", "fx_error", "fx_btn1", "fx_btn_start", "fx_show_up", "fx_dead"
+    ],
+    "byHero": ["assassin", "priest", "ranger", "trapmaster", "robot", "viking", "doctor", "vampire"],
+    "music": { "lobby": "bgm_room", "battle": "bgm_1Low" }
+  }
+}

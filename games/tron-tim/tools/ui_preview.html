@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Xem UI Trốn Tìm</title>
+<style>
+  :root { --bg: #14161c; --fg: #e8e8ee; --mut: #9aa0ad; --ln: #2a2e3a; --ac: #ffcf4a; }
+  @media (prefers-color-scheme: light) { :root { --bg: #f2f3f6; --fg: #1b1d24; --mut: #5a6070; --ln: #d5d8e0; --ac: #a06a00; } }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.5 system-ui, sans-serif; }
+  body.shot { overflow: hidden; }
+  canvas { display: block; }
+  #links { padding: 16px; max-width: 960px; }
+  #links h2 { margin: 18px 0 6px; font-size: 15px; }
+  #links a { display: inline-block; margin: 2px 8px 2px 0; padding: 2px 8px; border: 1px solid var(--ln); border-radius: 4px; color: var(--ac); text-decoration: none; }
+  #links code { color: var(--mut); }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="links" hidden></div>
+<script src="../data/hs-ui.js"></script>
+<script src="../js/sk/ugui.js"></script>
+<script>
+// keep=BackGroud (mặc định): anh em giữ lại khi solo.
+// ?p=menu&show=MenuContainer/MainMenu&w=1920&h=1080&lang=vi[&solo=0][&hide=a/b,c][&smooth=0][&bg=%23223344]
+// show = đường dẫn (cách nhau dấu phẩy) cần bật cùng tổ tiên; solo=1 (mặc định) tắt anh em của chúng. [n] chọn con thứ n trùng tên.
+(function () {
+  'use strict';
+  const Q = new URLSearchParams(location.search);
+  const U = window.SK_UI, ug = window.SK.ugui;
+  const links = document.getElementById('links');
+  if (!Q.has('p')) { buildLinks(); return; }
+  document.body.classList.add('shot');
+  const W = +(Q.get('w') || 1920), H = +(Q.get('h') || 1080), lang = Q.get('lang') || 'vi';
+  const cv = document.getElementById('c');
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d');
+  // ugui.js tự tắt làm mượt ảnh (pixel art SK); UI này là ảnh HD nên giữ làm mượt (smooth=0 để trả về như SK).
+  if (Q.get('smooth') !== '0') Object.defineProperty(ctx, 'imageSmoothingEnabled', { get() { return true; }, set() {} });
+
+  function child(n, seg) {
+    const m = /^(.*?)(?:\[(\d+)\])?$/.exec(seg), want = +(m[2] || 0);
+    let i = 0;
+    for (const c of n.k || []) if (c.n === m[1] && i++ === want) return c;
+    return null;
+  }
+  function setLang(n) {
+    if (n.txt && n.txt.term) {
+      const e = U.terms[n.txt.term];
+      if (e) n.txt.s = n.txt.uc ? (e[lang] || e.vi).toUpperCase() : (e[lang] || e.vi);
+    }
+    (n.k || []).forEach(setLang);
+  }
+
+  const H0 = ug.inst(Q.get('p'));
+  const root = H0.root;
+  setLang(root);
+  const shown = new Set();
+  const errs = [];
+  const solo = Q.get('solo') !== '0', keep = (Q.has('keep') ? Q.get('keep') : 'BackGroud').split(',');
+  const parents = [];
+  for (const path of (Q.get('show') || '').split(',').filter(Boolean)) {
+    let n = root, segs = path.split('/');
+    if (segs[0] === 'Canvas' && !child(root, 'Canvas')) segs.shift();
+    for (const seg of segs) {
+      const c = child(n, seg);
+      if (!c) { errs.push('khong thay ' + path + ' tai ' + seg); break; }
+      parents.push([n, c]);
+      delete c.off; shown.add(c); n = c;
+    }
+  }
+  if (solo) for (const [par, c] of parents) for (const s of par.k) if (s !== c && !shown.has(s) && !keep.includes(s.n)) s.off = 1;
+  for (const path of (Q.get('hide') || '').split(',').filter(Boolean)) {
+    let n = root;
+    for (const seg of path.split('/')) { n = n && child(n, seg); }
+    if (n) n.off = 1; else errs.push('hide: khong thay ' + path);
+  }
+
+  ug.base = '../';
+  ug.load().then(() => {
+    if (!ug.ok) errs.push('ugui khong nap duoc sheet');
+    const bg = Q.get('bg') || (Q.get('p') === 'menu' ? 'art' : '#5a6a7a');
+    if (bg === 'none') document.body.style.background = 'transparent';
+    else {
+      ctx.fillStyle = bg === 'art' ? '#2a9fe8' : bg; ctx.fillRect(0, 0, W, H);
+      // Nền menu gốc là tranh 'LOADING SCREEN 2' (khớp ảnh chụp Main Camera của menu): phủ kín, giữ tỉ lệ, căn giữa.
+      if (bg === 'art' && U.frames['LOADING SCREEN 2']) {
+        const f = U.frames['LOADING SCREEN 2'], k = Math.max(W / f[2], H / f[3]);
+        ug.drawFrame(ctx, 'LOADING SCREEN 2', { x: (W - f[2] * k) / 2, y: (H - f[3] * k) / 2, w: f[2] * k, h: f[3] * k });
+      }
+    }
+    H0.draw(ctx, W, H);
+    window.__errs = errs;
+    window.__done = true;
+  });
+
+  function buildLinks() {
+    links.hidden = false;
+    const P = U.prefabs;
+    let h = '<h1>Xem UI Trốn Tìm</h1><p>Mỗi liên kết dựng một màn gốc riêng bằng <code>js/sk/ugui.js</code> + <code>data/hs-ui.js</code>. Tham số: <code>p</code> (prefab), <code>show</code>, <code>w</code>, <code>h</code>, <code>lang</code> (vi|en), <code>solo</code>, <code>hide</code>, <code>smooth</code>, <code>bg</code> (màu, <code>art</code> = tranh nền menu, <code>none</code> = trong suốt).</p>';
+    const L = (label, q) => '<a href="?' + q + '&w=1920&h=1080&lang=vi">' + label + '</a>';
+    h += '<h2>menu</h2>' + L('toàn bộ (như dump)', 'p=menu');
+    const mc = (P.menu.k || []).find(c => c.n === 'MenuContainer');
+    const top = (P.menu.k || []).filter(c => c.n !== 'MenuContainer');
+    top.forEach(c => { h += L(c.n, 'p=menu&show=' + encodeURIComponent(c.n)); });
+    ((mc && mc.k) || []).forEach(c => { h += L(c.n, 'p=menu&show=' + encodeURIComponent('MenuContainer/' + c.n)); });
+    const mm = ((mc && mc.k) || []).find(c => c.n === 'MainMenu');
+    h += '<h2>menu / MainMenu / cửa sổ con</h2>';
+    ((mm && mm.k) || []).filter(c => c.off).forEach(c => { h += L(c.n, 'p=menu&show=' + encodeURIComponent('MenuContainer/MainMenu/' + c.n)); });
+    const hud = P.hud, turn = (hud.k || []).find(c => c.n === 'TurnOn');
+    h += '<h2>hud (trận)</h2>' + L('đang chơi (TurnOn, không có IntroMap)', 'p=hud&show=TurnOn&solo=0&hide=IntroMap');
+    ((turn && turn.k) || []).forEach(c => { h += L(c.n, 'p=hud&show=' + encodeURIComponent('TurnOn/' + c.n)); });
+    (hud.k || []).filter(c => c.n !== 'TurnOn').forEach(c => { h += L(c.n, 'p=hud&show=' + encodeURIComponent(c.n)); });
+    const E = 'TurnOn/EndGame/';
+    h += L('EndGame Win', 'p=hud&show=' + ['Background', 'Title', 'WinTitle', 'PlayerWin', 'WIN'].map(x => E + x).join(','));
+    h += L('EndGame Lose', 'p=hud&show=' + ['Background', 'Title', 'LoseTitle', 'PlayerLose', 'LOSE'].map(x => E + x).join(','));
+    h += '<h2>PlayerCanvas (màn kết trận gốc)</h2>' + L('WinPanel', 'p=PlayerCanvas&show=WinPanel') + L('LosePanel', 'p=PlayerCanvas&show=LosePanel');
+    h += '<h2>prefab nhỏ</h2>';
+    Object.keys(P).filter(k => k !== 'menu' && k !== 'hud').forEach(k => { h += L(k, 'p=' + encodeURIComponent(k)); });
+    links.innerHTML = h;
+  }
+})();
+</script>
+</body>
+</html>
