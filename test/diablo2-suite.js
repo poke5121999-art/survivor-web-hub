@@ -270,7 +270,8 @@ async function clickTile(p, x, y, opt) {
   check('cửa hàng Akara có hàng', rows.length > 0, 'hàng=' + rows.length);
   s = await st(p);
   const g0 = s.gold, bl0 = s.belt + s.inv;
-  if (rows.length) await rows[0].click();
+  // bảng cửa hàng vẽ lại khi UI.dirty (vd. vừa nạp xong ảnh), nên bấm qua locator để tìm lại nút lúc click
+  if (rows.length) await p.locator('.shoprow button').first().click();
   await sleep(200);
   s = await st(p);
   check('mua bình -> trừ vàng, có bình', s.gold < g0 && s.belt + s.inv > bl0, 'gold ' + g0 + '->' + s.gold);
