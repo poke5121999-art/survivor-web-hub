@@ -169,6 +169,14 @@ function near(a, b, eps, msg) { ok(Math.abs(a - b) <= eps, msg + ' (got ' + a + 
   const hc = R.newCharacter('amazon'); hc.lvl = 10; hc.xp = 57800; hc.diff = 'h';
   eq([R.deathPenalty(hc).xpLost, hc.xp], [85, 57715], 'Hell death: 10% of the span, never below the start of the level');
   eq(R.deathPenalty(R.newCharacter('amazon')).xpLost, 0, 'Normal death: no XP loss');
+  eq([4, 9, 36, 41, 99].map(l => R.upgradeTc('Act 1 Chest A', l)), ['Act 1 Chest A', 'Act 1 Chest C', 'Act 5 Chest C', 'Act 1 (N) Chest B', 'Act 5 (H) Chest C'],
+    'chest TC climbs group 6 of TreasureClassEx to the highest level <= area level');
+  eq(R.upgradeTc('Act 1 Chest C', 2), 'Act 1 Chest C', 'TC upgrade never lowers a TC');
+  {
+    const r = R.rng(7); let n = 0, empty = 0;
+    for (let i = 0; i < 200; i++) { const d = R.rollDrop('chest', 9, r, { tc: 'Act 1 Chest A' }); n += d.length; if (!d.length) empty++; }
+    ok(n > 100 && empty > 0 && empty < 200, 'a clvl-9 chest (Act 1 Chest C, 4 picks, NoDrop 100) drops often but not always', 'items=' + n + ' empty=' + empty);
+  }
   const rc = R.newCharacter('sorceress');
   eq(['n', 'nm', 'h'].map(d => { rc.diff = d; return R.derived(rc).res.fire; }), [0, -40, -100], 'resist penalty 0 / -40 / -100 by difficulty');
   const b = R.newCharacter('barbarian');

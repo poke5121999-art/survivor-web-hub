@@ -294,6 +294,8 @@ def build_mon(job):
             fn = gp('monsters', lc, t.lower(), '%s%s%s%s%s.dcc' % (lc, t.lower(), comps[t], m.lower(),
                                                                   l['weapon_class']))
             dcc = load_dcc(fn)
+            if dcc is None and m == 'WL':    # VK ships its walk layers as <code><layer>lit WK
+                dcc = load_dcc(fn.replace('wl' + l['weapon_class'] + '.dcc', 'wk' + l['weapon_class'] + '.dcc'))
             if dcc is None:
                 continue
             ls[t] = dcc
@@ -632,8 +634,54 @@ def load_fragment():
     return {}
 
 
+def codes_main(codes, prefix='mon.'):
+    """--codes B8,G2,...: build only these monster Codes as mon.<CODE> groups, leave every other group alone.
+    Several monstats rows may share a Code (sentries, wolf/fenris): comps and modes are the union of the rows."""
+    ms, ex = rd_txt('monstats'), dict((r['Id'], r) for r in rd_txt('monstats2'))
+    jobs = []
+    for c in codes:
+        comps, modes, wc = {}, [], 'hth'
+        for r in ms:
+            if r['Code'].upper() != c:
+                continue
+            w, cp, md = mon_spec(ex[r['MonStatsEx']], r)
+            wc = w
+            for k, v in cp.items():
+                comps.setdefault(k, v)
+            modes.extend(m for m in md if m not in modes)
+        for t in MON_COMPS:    # monstats2 flags miss layers that ship with the art (B8 S1, VK TR): trust the disk
+            fs = glob.glob(gp('monsters', c.lower(), t.lower(), c.lower() + t.lower() + '???*.dcc'))
+            if fs and t not in comps:
+                comps[t] = os.path.basename(sorted(fs)[0])[len(c) + 2:len(c) + 5]
+        if not modes:
+            print('%s: no monstats row' % c)
+            continue
+        jobs.append((prefix + c, c, wc, comps, [m for m in MON_MODES if m in modes], False))
+    pool = multiprocessing.Pool(max(1, min(11, multiprocessing.cpu_count() - 1)))
+    out = pool.map(mon_group_job, jobs, chunksize=1)
+    pool.close()
+    frag = load_fragment()
+    frag.setdefault('sheets', {})
+    tot = 0
+    for key, nbytes, pages, modes, nn in out:
+        for n in nn:
+            print(n)
+        tot += nbytes
+        if pages:
+            frag['sheets'][key] = 'm/' + group_of(key)
+        print('%s: %d pages, %.2f MB' % (key, len(pages), nbytes / 1e6))
+    __import__('build_index').write_fragment('sprites', frag)
+    print('codes total webp MB %.2f' % (tot / 1e6))
+
+
 def main():
     args = sys.argv[1:]
+    if '--codes' in args:
+        codes_main([c.strip().upper() for c in args[args.index('--codes') + 1].split(',') if c.strip()])
+        return
+    if '--npc-codes' in args:     # same, but npc.<CODE> keys (town NPCs, critters)
+        codes_main([c.strip().upper() for c in args[args.index('--npc-codes') + 1].split(',') if c.strip()], 'npc.')
+        return
     only = set(['mon', 'npc', 'hero'])
     acts = list(ACTS)
     global HERO_DIRS

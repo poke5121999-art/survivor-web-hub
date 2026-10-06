@@ -42,6 +42,7 @@ function world(cls, skills, opts) {
     E: {
       hasSheet: k => /^(mon\.SK|mis\.firebolt|ovl\.curseamplifydamage)$/.test(k), animOf: () => null, animDur: () => 0, pickAnim: () => null,
       dirFromTiles: () => 0, heroCof: () => null, sfx: () => {}, toScreen: (x, y) => [x, y], ctx: null,
+      ensureHero: () => Promise.resolve(), ensure: () => Promise.resolve(),
     },
     UI: { msg: t => log.msgs.push(t) },
     DA: { itemName: it => it.name || it.base },

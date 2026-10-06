@@ -307,6 +307,48 @@ async function clickTile(p, x, y, opt) {
   }
 
   // ------------------------------------------------------------- lưu / nạp
+  results.push('\n-- chuyển act --');
+  await p.evaluate(() => { D2DBG.S.char.quests.sisters_to_the_slaughter = 'done'; D2DBG.goto('rogue_encampment', 'blood_moor'); });
+  await waitFor(p, () => D2DBG.getState().area === 'rogue_encampment', 10000);
+  await sleep(400);
+  const wv = (await st(p)).npcs.find(n => n.id === 'warriv1');
+  check('Rogue Encampment có Warriv', !!wv);
+  if (wv) {
+    await p.evaluate(([x, y]) => D2DBG.teleport(x - 3, y), [wv.x, wv.y]);
+    await sleep(300);
+    await clickTile(p, wv.x, wv.y, { lift: 40 });
+    const wdlg = await waitFor(p, () => document.querySelector('.dialog').style.display === 'block', 12000);
+    check('bấm Warriv -> hộp thoại có nút đi Lut Gholein', wdlg && (await p.$$('.dialog button:has-text("Lut Gholein")')).length === 1);
+    if (wdlg) await p.click('.dialog button:has-text("Lut Gholein")');
+    const lg = await waitFor(p, () => D2DBG.getState().area === 'lut_gholein', 30000);
+    const lgN = await p.evaluate(() => D2DBG.S.ents.filter(e => e.kind === 'npc').map(e => e.npc));
+    check('sang Act II: Lut Gholein có Jerhyn, Fara, Drognan, Meshif', lg && ['jerhyn', 'fara', 'drognan', 'meshif1'].every(n => lgN.includes(n)), lgN.filter(n => !/^act2/.test(n)).join(','));
+    await p.screenshot({ path: path.join(SHOTS, '6-lut-gholein.png') });
+  }
+  await p.evaluate(() => { D2DBG.S.char.quests.the_guardian = 'cleared'; D2DBG.goto('durance_of_hate_level_3'); });
+  await waitFor(p, () => D2DBG.getState().area === 'durance_of_hate_level_3', 30000);
+  await p.evaluate(() => D2DBG.killAllMons());
+  const gate = await p.evaluate(() => { const o = D2DBG.S.ents.find(e => e.kind === 'obj' && e.otype === 'portal'); return o ? { x: o.x, y: o.y } : null; });
+  check('Durance 3 có cổng đỏ (HellGate trong DS1)', !!gate);
+  if (gate) {
+    await p.evaluate(([x, y]) => D2DBG.teleport(x + 4, y + 4), [gate.x, gate.y]);
+    await sleep(400);
+    await clickTile(p, gate.x, gate.y, { lift: 30 });
+    const pf = await waitFor(p, () => D2DBG.getState().area === 'the_pandemonium_fortress', 30000);
+    check('xong The Guardian, bấm cổng đỏ -> Pandemonium Fortress', pf, await p.evaluate(() => D2DBG.getState().area));
+    await p.screenshot({ path: path.join(SHOTS, '6-pandemonium.png') });
+  }
+
+  await p.evaluate(() => D2DBG.goto('the_chaos_sanctuary'));
+  await waitFor(p, () => D2DBG.getState().area === 'the_chaos_sanctuary', 30000);
+  const seals = await p.evaluate(() => D2DBG.getState().mons.filter(m => m.rank === 'unique').map(m => m.id).sort());
+  check('Chaos Sanctuary có ba trùm giữ ấn, chưa có Diablo', seals.join() === 'grand_vizier_of_chaos,infector_of_souls,lord_de_seis', seals.join());
+  await p.evaluate(() => D2DBG.killAllMons());
+  const dia = await waitFor(p, () => D2DBG.getState().mons.some(m => m.id === 'diablo' && m.st !== 'dead' && m.st !== 'die'), 5000);
+  check('giết ba trùm ấn -> Diablo xuất hiện', dia);
+  await sleep(600);
+  await p.screenshot({ path: path.join(SHOTS, '6-diablo.png') });
+
   results.push('\n-- lưu --');
   const saved = await p.evaluate(() => { D2.Game.save(); return !!localStorage.getItem('d2web.save.v1'); });
   check('lưu vào localStorage', saved);
@@ -455,6 +497,31 @@ async function clickTile(p, x, y, opt) {
         await p.evaluate(() => D2.UI.closeAll());
       }
       await p.screenshot({ path: path.join(SH, 'f-sorceress-town-objects.png') });
+
+      let chest = null, chestArea = null;
+      for (const a of ['cold_plains', 'stony_field', 'dark_wood', 'black_marsh']) {
+        await p.evaluate(a => D2DBG.goto(a), a);
+        await waitFor(p, a => D2DBG.getState().area === a, 15000, a);
+        await sleep(400);
+        chest = await p.evaluate(() => { const h = D2DBG.S.hero; const c = D2DBG.S.ents.filter(e => e.kind === 'obj' && e.otype === 'chest').sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))[0]; return c ? { x: c.x, y: c.y } : null; });
+        if (chest) { chestArea = a; break; }
+      }
+      check('khu ngoài trời Act I có rương', !!chest, chestArea);
+      if (chest) {
+        await p.evaluate(() => D2DBG.killAllMons());
+        // đứng trên đường A* tới rương, cách vài bước: ô chéo cạnh rương có thể là tường của tàn tích
+        await p.evaluate(([x, y]) => { const pt = D2DBG.path(x, y) || []; const n = pt[Math.max(0, pt.length - 6)]; if (n) D2DBG.teleport(n[0], n[1]); }, [chest.x, chest.y]);
+        await sleep(300);
+        const drops0 = await p.evaluate(() => D2DBG.S.ents.filter(e => e.kind === 'drop' && !e.removed).length);
+        await clickTile(p, chest.x, chest.y, { lift: 12 });
+        const opened = await waitFor(p, ([x, y]) => D2DBG.S.ents.some(e => e.kind === 'obj' && e.opened && Math.abs(e.x - x) < 0.01 && Math.abs(e.y - y) < 0.01), 8000, [chest.x, chest.y]);
+        const drops1 = await p.evaluate(() => D2DBG.S.ents.filter(e => e.kind === 'drop' && !e.removed).length);
+        check('bấm rương -> rương mở (chế độ OP của D2)', opened, chestArea);
+        const again = await p.evaluate(([x, y]) => D2DBG.S.ents.filter(e => e.kind === 'obj' && e.opened && Math.abs(e.x - x) < 0.01 && Math.abs(e.y - y) < 0.01).map(e => e.otype)[0], [chest.x, chest.y]);
+        check('rương đã mở không bấm lại được', opened && again === null, 'otype=' + again + ', đồ ' + drops0 + '->' + drops1);
+        await sleep(800);
+        await p.screenshot({ path: path.join(SH, 'f-chest.png') });
+      }
     }
     await ctx.close();
   }

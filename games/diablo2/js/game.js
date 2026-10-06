@@ -7,7 +7,7 @@
   'use strict';
   var D2 = window.D2 = window.D2 || {};
   var E = D2.E, I = D2.Input, UI = D2.UI, OBJ = E.OBJ, SPR = E.SPR;
-  var VER = '20261006e';
+  var VER = '20261006f';
   var SAVE_KEY = 'd2web.save.v1';
 
   function safe(fn, fb) { try { var v = fn(); return v == null ? fb : v; } catch (e) { return fb; } }
@@ -383,10 +383,13 @@
     return keys;
   }
 
+  var SCRIPTED_NPCS = { lut_gholein: [{ npc: 'jerhyn', near: 'harem_level_1' }] };
   function enterArea(id, from, opts) {
     opts = opts || {};
     var def = areaDef(id);
     if (!DA.playable(id)) { UI.msg('Khu vực này chưa mở.'); return Promise.resolve(false); }
+    var gate = D2DATA.questGates && D2DATA.questGates[id], gst = gate && S.char.quests[gate];
+    if (gate && gst !== 'cleared' && gst !== 'done') { UI.msg('Cần xong ' + questName(D2DATA.quests[gate]) + ' trước.', '#ff9a8a'); return Promise.resolve(false); }
     UI.showLoad(true, 'Đang vào ' + def.name + '...');
     var seed = (S.corpse && S.corpse.area === id) ? S.corpse.seed : ((Math.random() * 1e9) | 0) + 1;
     if (opts.seed) seed = opts.seed;
@@ -413,7 +416,16 @@
         var name = presetName(n.id), nd = name && D2DATA.npcs[name];
         if (nd && nd.art && E.hasSheet(nd.art)) mk('npc', n.x + 0.5, n.y + 0.5, { npc: name, dir: 6, art: nd.art, home: [n.x + 0.5, n.y + 0.5] });
       });
+      // NPC do script của D2 đặt, không có trong DS1 nào: Jerhyn đứng trước cổng cung điện Lut Gholein
+      (SCRIPTED_NPCS[id] || []).forEach(function (sn) {
+        var nd = D2DATA.npcs[sn.npc], ex = g.exits.filter(function (x) { return x.to === sn.near; })[0];
+        if (!nd || !ex || S.ents.some(function (e) { return e.kind === 'npc' && e.npc === sn.npc; })) return;
+        var q = openAround(g, ex.x + 0.5, ex.y + 0.5, 5, D2R.rng(seed ^ 0x6a6572));
+        mk('npc', q[0], q[1], { npc: sn.npc, dir: 6, art: nd.art, home: [q[0], q[1]] });
+      });
+      S.pendingBoss = null;
       spawnMonsters(def, g, seed);
+      placeQuestItems(id, g);
       if (S.corpse && S.corpse.area === id) mk('drop', S.corpse.x, S.corpse.y, { item: null, corpse: S.corpse, born: S.time, label: 'Xác của ' + char.name });
       S.arrive = S.time;
       var clearQ = Object.keys(D2DATA.quests).filter(function (q) { var g = D2DATA.quests[q].goal || {}; return g.type === 'clear_area' && g.area === id; })[0];
@@ -444,9 +456,26 @@
 
   /* Vật thể DS1: waypoint, kho đồ, lửa trại, đuốc, rương... Kích thước theo objects.txt (subtile), vật có
    * va chạm thì chặn các subtile nó chiếm. Lửa trại, đuốc chạy chế độ ON (đang cháy) như trong thị trấn D2. */
+  /* Cổng đặt sẵn trong DS1: HellGate cuối Durance sang Act IV (actTravel.via), cổng Ancients lên Worldstone Keep,
+   * cổng cuối vào Worldstone Chamber. Cổng chỉ mở khi đã xong nhiệm vụ nó cần. */
+  var PORTALS = {
+    HellGate: function () {
+      var T = D2DATA.actTravel || {}, k = Object.keys(T).filter(function (a) { return T[a].via === S.areaId; })[0];
+      return k ? { to: T[k].to, needs: T[k].needs, act: +k + 1 } : null;
+    },
+    AncientsGateway: function () { return { to: 'worldstone_keep_level_1', needs: 'rite_of_passage' }; },
+    FinalPortal: function () { return { to: 'the_worldstone_chamber', needs: null }; }
+  };
+  function portalOf(o) {
+    var d = o.portal && PORTALS[o.portal] && PORTALS[o.portal](); if (!d) return null;
+    var st = d.needs && S.char.quests[d.needs];
+    d.open = !d.needs || st === 'cleared' || st === 'done';
+    return d;
+  }
   function objKind(p) {
     var c = (p.cls || '') + ' ' + (p.name || '');
-    return /waypoint/i.test(c) ? 'waypoint' : /stash|bank/i.test(c) ? 'stash' : /chest|casket|barrel|urn/i.test(c) && p.selectable ? 'chest' : null;
+    return /waypoint/i.test(c) ? 'waypoint' : /stash|bank/i.test(c) ? 'stash' : PORTALS[p.cls] ? 'portal'
+      : /chest|casket|barrel|urn/i.test(c) && p.selectable ? 'chest' : null;
   }
   function placeObj(lv, o) {
     var p = objPreset(o.id); if (!p || !p.sprite) return;
@@ -457,7 +486,7 @@
     }
     var modes = p.modes || ['NU'], kind = objKind(p);
     var mode = kind === 'chest' ? 'NU' : modes.indexOf('ON') >= 0 && p.lit ? 'ON' : modes.indexOf('NU') >= 0 ? 'NU' : modes[0];
-    mk('obj', o.x + 0.5, o.y + 0.5, { otype: kind, art: 'obj.' + p.token, mode: mode, ow: w, oh: h, cx: o.x - (w >> 1), cy: o.y - (h >> 1), t0: Math.random() * 4000 });
+    mk('obj', o.x + 0.5, o.y + 0.5, { otype: kind, portal: kind === 'portal' ? p.cls : null, art: 'obj.' + p.token, mode: mode, ow: w, oh: h, cx: o.x - (w >> 1), cy: o.y - (h >> 1), t0: Math.random() * 4000 });
   }
 
   /* ---------------------------------------------------------------- quái */
@@ -481,15 +510,18 @@
       var rank = sp.kind === 'special' ? 'champion' : 'normal';
       pack(id, sp.x, sp.y, Math.max(1, sp.n || 1), rank, null);
     });
+    var SU = D2DATA.superuniques, areaSu = def.superuniques || [], placed = {}, anchor = null;
+    // preset DS1 gọi superunique bằng tên hiện ("Radament") hoặc bằng mã quái gốc ("summoner" = the_summoner)
+    function suOf(name) { return Object.keys(SU).filter(function (k) { return SU[k].name === name || (areaSu.indexOf(k) >= 0 && SU[k].cls === name); })[0]; }
+    function suPack(su, x, y) { var mn = SU[su].minions || [4, 4]; pack(su, x, y, 1 + ri(mn[0], mn[1]), 'unique', null); placed[su] = placed[SU[su].cls] = 1; }
+    function spawnBoss(id, x, y) { var b = makeMonster(id, x + 0.5, y + 0.5, 'normal', ++pid, rng, null); b.rank = 'unique'; b.boss = true; placed[id] = 1; }
     g.npcs.forEach(function (n) {
       var name = presetName(n.id); if (!name) return;
-      var su = Object.keys(D2DATA.superuniques).filter(function (k) { return D2DATA.superuniques[k].name === name; })[0];
-      if (su) { var mn = D2DATA.superuniques[su].minions || [4, 4]; pack(su, n.x, n.y, 1 + ri(mn[0], mn[1]), 'unique', null); return; }
+      if (name === 'baalthrone') { anchor = n; return; }   // Baal ngồi ngai không đánh được; năm đợt quân đứng quanh ngai
+      var su = suOf(name);
+      if (su) { suPack(su, n.x, n.y); return; }
       var boss = name === 'place_bloodraven' ? 'bloodraven' : name;
-      if ((def.bosses || []).indexOf(boss) >= 0 && DA.monster(boss)) {
-        var b = makeMonster(boss, n.x + 0.5, n.y + 0.5, 'normal', ++pid, rng, null);
-        b.rank = 'unique'; b.boss = true; return;
-      }
+      if ((def.bosses || []).indexOf(boss) >= 0 && DA.monster(boss)) { spawnBoss(boss, n.x, n.y); return; }
       var m = /^place_(fallen|fallenshaman)$/.exec(name);
       if (m && DA.monster(m[1] + '1')) { pack(m[1] + '1', n.x, n.y, m[1] === 'fallen' ? ri(3, 6) : 1, 'normal', null); return; }
       var any = types.length ? types[Math.floor(rng() * types.length)] : null;
@@ -498,6 +530,29 @@
       else if (name === 'place_unique_pack') pack(any, n.x, n.y, 1 + ri(2, 4), 'unique', null);
       else if ((m = /^place_group(\d+)$/.exec(name)) && rng() * 100 < +m[1]) pack(any, n.x, n.y, ri(2, 5), 'normal', null);
     });
+    /* D2 đặt bằng script những trùm không có trong DS1: Nihlathak, ba trùm giữ ấn ở Chaos Sanctuary, năm đợt
+     * quân của Baal. Ở đây chúng đứng ở các điểm sinh quái xa lối vào nhất; Diablo chỉ ra khi ba trùm ấn đã chết. */
+    var h0 = g.hero || [0, 0], far = g.spawns.slice().sort(function (a, b) {
+      return Math.hypot(b.x - h0[0], b.y - h0[1]) - Math.hypot(a.x - h0[0], a.y - h0[1]);
+    }), k = 0;
+    var scripted = areaSu.filter(function (su) { return SU[su] && !placed[su]; });
+    scripted.forEach(function (su) { var at = anchor || far[k++ % Math.max(1, far.length)]; if (at) suPack(su, at.x, at.y); });
+    (def.bosses || []).forEach(function (b) {
+      if (placed[b] || !DA.monster(b) || !far.length) return;
+      if (scripted.length) {
+        var c = g.spawns.slice().sort(function (p1, p2) { return Math.hypot(p1.x - g.w / 2, p1.y - g.h / 2) - Math.hypot(p2.x - g.w / 2, p2.y - g.h / 2); })[0];
+        S.pendingBoss = { id: b, after: scripted, x: c.x, y: c.y };
+      } else spawnBoss(b, far[0].x, far[0].y);
+    });
+  }
+  function checkPendingBoss() {
+    var pb = S.pendingBoss; if (!pb) return;
+    var alive = S.ents.some(function (e) { return e.kind === 'mon' && pb.after.indexOf(e.monId) >= 0 && e.st !== 'die' && e.st !== 'dead'; });
+    if (alive) return;
+    S.pendingBoss = null;
+    var p = openAround(S.grid, pb.x + 0.5, pb.y + 0.5, 3, Math.random);
+    var b = makeMonster(pb.id, p[0], p[1], 'normal', -2, Math.random, null); b.rank = 'unique'; b.boss = true;
+    UI.msg((b.inst.name || pb.id) + ' đã xuất hiện!', '#ff7a5a'); E.sfx(['monster_diablo_taunt1', 'cursor_questdone'], 0.7);
   }
   function openAround(g, x, y, r, rng) {
     for (var t = 0; t < 20; t++) {
@@ -599,10 +654,13 @@
       if (r.leveled) onLevelUp();
     }
     // đồ rơi
-    var items = safe(function () { return D2R.rollDrop(m.monId, m.inst.lvl || 1, Math.random, { difficulty: dk() }); }, []) || [];
+    var bq = m.boss && questOfKill(m.monId), kind = bq && S.char.quests[bq] !== 'done' ? 'quest' : m.rank === 'champion' ? 'champion' : m.rank === 'unique' && !m.boss ? 'unique' : 'normal';
+    var items = safe(function () { return D2R.rollDrop(m.monId, m.inst.lvl || 1, Math.random, { difficulty: dk(), kind: kind }); }, []) || [];
     if (!items.some(DA.isGold) && Math.random() < 0.6) items.push({ gold: Math.round((m.inst.lvl || 1) * rnd(4, 12) * (m.rank === 'normal' ? 1 : 3)), base: 'gold', q: 'normal', w: 1, h: 1 });
     items.forEach(function (it, i) { dropItem(it, m.x + rnd(-1.4, 1.4), m.y + rnd(-1.4, 1.4)); });
+    questKillDrops(m);
     questEvent({ kind: 'kill', id: m.monId });
+    checkPendingBoss();
     if (S.denLeft != null && !m.ally) {   // khu của quest "dọn sạch" (Den of Evil): đếm quái còn lại
       S.denLeft = Math.max(0, S.denLeft - 1);
       if (S.denLeft === 0) questEvent({ kind: 'cleared', area: S.areaId });
@@ -852,6 +910,7 @@
   function beltFree(c) { for (var i = 0; i < 4; i++) if (!c.belt[i]) return i; return -1; }
   function pickup(drop) {
     var c = S.char;
+    if (drop.item && drop.item.qitem) { giveQuestItem(drop.item.qitem); removeEnt(drop); return true; }
     if (drop.corpse) {
       c.gold += drop.corpse.gold; UI.msg('Lấy lại ' + drop.corpse.gold + ' vàng từ xác.', '#ffd24a'); S.corpse = null; removeEnt(drop); E.sfx(['inv_coins']); return true;
     }
@@ -879,10 +938,70 @@
       done[ev.id] = 1;
       return g.superuniques.every(function (k) { return done[k]; });
     }
+    if (ev.kind === 'item') {
+      var held = questItemsHeld();
+      if (g.type === 'collect') return (g.items || []).indexOf(ev.name) >= 0 && g.items.every(function (n) { return held[n]; });
+      var dd = g.type === 'destroy' && D2DATA.questDestroy[g.object];
+      return !!(dd && dd.item === ev.name);
+    }
+    if (ev.kind === 'kill' && g.type === 'destroy') { var dk2 = D2DATA.questDestroy[g.object]; return !!(dk2 && dk2.kill === ev.id); }
     if (ev.kind === 'enter') return g.type !== 'kill' && g.type !== 'clear_area' && (g.area || q.area) === ev.area;
     if (ev.kind === 'cleared') return g.type === 'clear_area' && g.area === ev.area;
     return false;
   }
+  /* Vật phẩm nhiệm vụ (D2DATA.questItems): nằm trong rương xa lối vào nhất của khu, hoặc rơi từ quái được chỉ
+   * định. Chưa có hình trong túi đồ; game giữ cờ theo độ khó trong quests[':items']. */
+  function questItemsHeld(write) { var q = S.char.quests; return write ? (q[':items'] = q[':items'] || {}) : q[':items'] || {}; }
+  function giveQuestItem(name) {
+    var held = questItemsHeld(true); if (held[name]) return;
+    held[name] = 1;
+    UI.msg('Vật phẩm nhiệm vụ: ' + name, '#ffe27a'); E.sfx(['cursor_questdone'], 0.5);
+    var qi = D2DATA.questItems[name];
+    ((qi && qi.gives) || []).forEach(giveQuestItem);
+    questEvent({ kind: 'item', name: name });
+    save();
+  }
+  function questOfItem(name) {
+    var Q = D2DATA.quests;
+    return Object.keys(Q).filter(function (q) { return ((Q[q].goal || {}).items || []).indexOf(name) >= 0; })[0] || null;
+  }
+  function questOfKill(id) {
+    var Q = D2DATA.quests;
+    return Object.keys(Q).filter(function (q) { var g = Q[q].goal || {}; return g.monster === id || g.superunique === id; })[0] || null;
+  }
+  function placeQuestItems(id, g) {
+    var held = questItemsHeld(), QI = D2DATA.questItems || {}, h = S.hero;
+    Object.keys(QI).forEach(function (name) {
+      var q = QI[name];
+      if (held[name] || q.area !== id || q.from !== 'chest' || S.char.quests[questOfItem(name)] === 'done') return;
+      var far = null, fd = -1;
+      S.ents.forEach(function (e) { if (e.kind === 'obj' && e.otype === 'chest' && !e.qitem && dist(e, h) > fd) { far = e; fd = dist(e, h); } });
+      if (far) { far.qitem = name; return; }
+      g.spawns.forEach(function (sp) { var d = Math.hypot(sp.x - h.x, sp.y - h.y); if (d > fd) { far = sp; fd = d; } });
+      if (far) dropItem({ qitem: name, base: 'qitem', name: name, q: 'quest', w: 1, h: 1 }, far.x + 0.5, far.y + 0.5);
+    });
+  }
+  function questKillDrops(m) {
+    var held = questItemsHeld(), QI = D2DATA.questItems || {};
+    Object.keys(QI).forEach(function (name) {
+      var q = QI[name], qid = questOfItem(name), st = S.char.quests[qid];
+      if (held[name] || st === 'done' || st === 'cleared') return;
+      var hit = (q.mons || []).indexOf(m.monId) >= 0 || (q.anyUnique && st === 'active' && m.rank === 'unique' && !m.ally && curAct() === q.act);
+      if (hit) dropItem({ qitem: name, base: 'qitem', name: name, q: 'quest', w: 1, h: 1 }, m.x, m.y);
+    });
+  }
+  /* Rương: bấm thì chạy OP một lần rồi đứng ở khung cuối. TC rương của D2 là một thang trong nhóm 6 của
+   * TreasureClassEx (Act 1 Chest A level 0 ... Act 5 (H) Chest C level 85); D2R.rollDrop nâng TC theo cấp khu. */
+  function openChest(o) {
+    if (o.opened) return;
+    o.opened = true; o.otype = null;   // rương đã mở không còn bấm được, như D2
+    if (E.animOf(o.art, 'OP')) { o.mode = 'OP'; o.once = true; o.t0 = -S.time * 1000; }
+    E.sfx(['object_chest_large', 'object_chest_small'], 0.6);
+    var items = safe(function () { return D2R.rollDrop('chest', areaLvl(S.def), Math.random, { tc: 'Act 1 Chest A', difficulty: dk() }); }, []) || [];
+    items.forEach(function (it) { dropItem(it, o.x + rnd(-1.2, 1.2), o.y + rnd(0.8, 2)); });
+    if (o.qitem) giveQuestItem(o.qitem);
+  }
+  Game.openChest = openChest;
   function questEvent(ev) {
     var c = S.char, Q = D2DATA.quests;
     Object.keys(Q).forEach(function (id) {
@@ -926,6 +1045,15 @@
   function useObj(o) {
     var c = S.char;
     if (o.otype === 'stash') { E.sfx(['cursor_button_click'], 0.4); UI.openStash(); }
+    else if (o.otype === 'chest') openChest(o);
+    else if (o.otype === 'portal') {
+      var d = portalOf(o);
+      if (!d) return;
+      if (!d.open) { UI.msg('Cổng còn đóng. Cần xong ' + questName(D2DATA.quests[d.needs]) + '.', '#ff9a8a'); return; }
+      if (d.act) { c.actAccess = c.actAccess || {}; c.actAccess[d.act] = true; }
+      E.sfx(['object_portal_enter', 'cursor_button_click'], 0.6);
+      Game.travelWaypoint(d.to);
+    }
     else if (o.otype === 'waypoint') {
       c.waypoints = c.waypoints || {};
       if (S.areaId && !c.waypoints[S.areaId]) { c.waypoints[S.areaId] = true; UI.msg('Waypoint được kích hoạt.', '#9ec8ff'); save(); }
@@ -1540,12 +1668,13 @@
     if (!ok) E.drawBlob(sx, sy, m.st === 'dead' ? '#442' : '#a44', 11, m.dir, null);
     if (S.hover === m && m.st !== 'dead') { E.ctx.strokeStyle = 'rgba(255,60,60,.8)'; E.ctx.lineWidth = 2; E.ctx.beginPath(); E.ctx.ellipse(sx, sy, 20, 9, 0, 0, 7); E.ctx.stroke(); }
   }
-  var OBJ_USE = { stash: true, waypoint: true };
-  var OBJ_LABEL = { stash: 'Stash', waypoint: 'Waypoint' };
+  var OBJ_USE = { stash: true, waypoint: true, chest: true, portal: true };
+  var OBJ_LABEL = { stash: 'Stash', waypoint: 'Waypoint', chest: 'Rương', portal: 'Cổng' };
   function drawObj(sx, sy, d) {
     var o = d.e, mode = o.mode;
     if (o.otype === 'waypoint' && S.char.waypoints && S.char.waypoints[S.areaId] && E.animOf(o.art, 'ON')) mode = 'ON';
-    E.drawSprite(o.art, mode, S.time * 1000 + o.t0, 0, sx, sy, 1);
+    if (o.otype === 'portal') { var pd = portalOf(o); mode = pd && pd.open && E.animOf(o.art, 'ON') ? 'ON' : 'NU'; }
+    E.drawSprite(o.art, mode, S.time * 1000 + o.t0, 0, sx, sy, 1, o.once);
     if (S.hover === o && OBJ_LABEL[o.otype]) {
       var c = E.ctx; c.font = '13px Georgia,serif'; c.textAlign = 'center'; c.fillStyle = '#fff'; c.strokeStyle = '#000'; c.lineWidth = 3;
       c.strokeText(OBJ_LABEL[o.otype], sx, sy - 70); c.fillText(OBJ_LABEL[o.otype], sx, sy - 70);

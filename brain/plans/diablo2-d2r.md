@@ -143,13 +143,15 @@ D2_REG('<nhóm>', { pages: ['assets/img/...webp'], sheets: {...}, hero: { cofs, 
 
 ### Pha
 
-| Pha | Việc | Xong khi |
-|---|---|---|
-| 1 Nền | Hợp đồng v2 cho mọi lever, nén lossy, engine nạp nhóm; số liệu mọi level của 5 act (`areas` theo Levels.txt); HUD + bảng D2 | Act I như cũ, bộ kiểm 72/72 trên Pages, game ≤ 45 MB |
-| 2 Act I đủ | Mọi khu Act I (ngoài trời, hang, hầm mộ, tháp, tu viện, nhà giam, nhà thờ, hầm Catacombs, Tristram), nhiệm vụ Act I, Andariel, lính Rogue | Đi được từ doanh trại tới Andariel, bộ kiểm từng khu |
-| 3 Bảy lớp | Kỹ năng triệu hồi, lời nguyền, hào quang, biến hình, bẫy, võ thuật | Mỗi lớp dùng được mọi kỹ năng tới cấp 30 |
-| 4–7 | Act II, III, IV, V: tile, bản đồ, quái, NPC, nhiệm vụ, trùm | Đi hết act, giết trùm, sang act sau |
-| 8 | Nightmare, Hell, waypoint khắp các act | Đổi độ khó chạy đúng số liệu |
+| Pha | Việc | Xong khi | Trạng thái |
+|---|---|---|---|
+| 1 Nền | Hợp đồng v2 cho mọi lever, nén lossy, engine nạp nhóm; số liệu mọi level của 5 act (`areas` theo Levels.txt); HUD + bảng D2 | Act I như cũ, bộ kiểm 72/72 trên Pages, game ≤ 45 MB | xong, rev 20261006d (116 MB cho cả 5 act sprite + tiếng) |
+| 2 Act I đủ | Mọi khu Act I (ngoài trời, hang, hầm mộ, tháp, tu viện, nhà giam, nhà thờ, hầm Catacombs, Tristram), nhiệm vụ Act I, Andariel, lính Rogue | Đi được từ doanh trại tới Andariel, bộ kiểm từng khu | 38/39 khu (thiếu Moo Moo Farm); trùm ra từ preset DS1 từ rev e |
+| 3 Bảy lớp | Kỹ năng triệu hồi, lời nguyền, hào quang, biến hình, bẫy, võ thuật | Mỗi lớp dùng được mọi kỹ năng tới cấp 30 | xong phần luật (rev c); thiếu hình quái triệu hồi và biến hình |
+| 4–7 | Act II, III, IV, V: tile, bản đồ, quái, NPC, nhiệm vụ, trùm | Đi hết act, giết trùm, sang act sau | rev f: 131 khu × 20 seed qua test drlg (thiếu 6 khu phụ); thị trấn đủ NPC; trùm mọi act; chuyển act qua Warriv/Meshif/cổng đỏ/Tyrael; vật phẩm nhiệm vụ, cổng Duriel/Durance |
+| 8 | Nightmare, Hell, waypoint khắp các act | Đổi độ khó chạy đúng số liệu | xong rev e: kháng, mất XP, cấp khu, quái, lính, nhiệm vụ theo độ khó; mở bằng Eve of Destruction |
+
+Rương và đồ rơi: TC rương là thang nhóm 6 của TreasureClassEx, quái cũng được nâng TC theo cấp (`D2R.upgradeTc`). Vật phẩm nhiệm vụ: bảng tay `HAND_QUEST_ITEMS` trong `build_data.py` (nguồn Arreat Summit), chưa có hình trong túi đồ.
 
 ## Rủi ro
 

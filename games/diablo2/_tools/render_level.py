@@ -3,6 +3,7 @@
 
     node games/diablo2/js/drlg2.js --dump blood_moor 1 lv.json
     python render_level.py lv.json out.png [--col]
+    python render_level.py --map act2/town/townn1 out.png     (one DS1 of any maps_act<N>.js)
 
 Writes out.png and out_q.png (1/4 scale). --col paints blocked subtiles as red dots (water in blue).
 Tile (tx, ty) -> px = (tx - ty) * 80, py = (tx + ty) * 40; the variant image goes to (px - 80, py + dy):
@@ -33,6 +34,48 @@ def load_world(act=1):
     return json.loads(s[s.index('g.D2_WORLD=') + len('g.D2_WORLD='):s.rindex(';})(typeof')])
 
 
+def load_reg(path):
+    s = io.open(path, encoding='utf-8').read()
+    return json.loads(s[s.index(',', s.index('D2_REG(')) + 1:s.rindex(');')])
+
+
+def level_from_map(key):
+    """One DS1 of m/maps_act<N>.js as a Level, variants picked by rarity with a (tx, ty) hash."""
+    for act in range(1, 6):
+        p = os.path.join(ASSETS, 'm', 'maps_act%d.js' % act)
+        if not os.path.exists(p):
+            continue
+        maps = load_reg(p)['maps']
+        if key in maps:
+            break
+    else:
+        raise SystemExit('map not found in any maps_act*.js: ' + key)
+    m = maps[key]
+    tiles = load_world(act)['tilesets'][m['ts']]['tiles']
+    W, H = m['w'], m['h']
+
+    def pick(t, o, i):
+        if not t:
+            return 0
+        lst = tiles.get('%d_%d_%d' % (o, (t >> 8) & 255, t & 255))
+        if not lst:
+            return t
+        tot = sum(r[5] for r in lst)
+        if tot <= 0:
+            return t
+        h = ((i * 2654435761) >> 7) % tot
+        for v, r in enumerate(lst):
+            h -= r[5]
+            if h < 0:
+                return t | (v << 16)
+        return t
+    floors = [[pick(t, 0, i) for i, t in enumerate(F)] for F in m['floors']]
+    shadows = [[pick(t, 13, i) for i, t in enumerate(S)] for S in m['shadows']] or [[0] * (W * H)]
+    walls = [{'t': [pick(t, L['o'][i], i) for i, t in enumerate(L['t'])], 'o': L['o']} for L in m['walls']]
+    return {'tw': W, 'th': H, 'w': W * 5, 'h': H * 5, 'tileset': m['ts'], 'floors': floors, 'walls': walls,
+            'shadows': shadows, 'exits': [], 'hero': None, 'spawns': [], 'objects': []}
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith('--')]
     show_col = '--col' in sys.argv
@@ -40,9 +83,13 @@ def main():
     for a in sys.argv:
         if a.startswith('--img='):
             img_dir = a[6:]
-    lv = json.load(io.open(args[0], encoding='utf-8'))
+    if '--map' in sys.argv:
+        lv = level_from_map(args[0])
+    else:
+        lv = json.load(io.open(args[0], encoding='utf-8'))
     out = args[1]
-    ts = load_world()['tilesets'][lv['tileset']]
+    act = re.match(r'act(\d)', lv['tileset'])
+    ts = load_world(int(act.group(1)) if act else 1)['tilesets'][lv['tileset']]
     pages = {}
 
     def page(i):
@@ -142,7 +189,8 @@ def main():
 
     for e in lv['exits']:
         mark(e['x'], e['y'], (255, 255, 0, 255))
-    mark(lv['hero'][0], lv['hero'][1], (0, 255, 0, 255))
+    if lv.get('hero'):
+        mark(lv['hero'][0], lv['hero'][1], (0, 255, 0, 255))
     for s in lv['spawns']:
         mark(s['x'], s['y'], (255, 0, 255, 255))
     for o in lv.get('objects', []):

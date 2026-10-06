@@ -1399,6 +1399,18 @@
   //  * nested TCs inherit the larger Unique/Set/Rare/Magic modifiers; at most 6 items per kill.
   //  * single player: NoDrop as in the table (players=1).
   //  * gold = rand(5*ilvl) + ilvl, scaled by "mul" (x/256) [D2MOO D2GAME_InitItemStats_6FC4E520]
+  // TC upgrade [TXT TreasureClassEx.txt group/level]: a TC with a group is swapped for the highest-level TC
+  // of the same group whose level <= the dropping unit's level, never for a lower one
+  function upgradeTc(name, lvl) {
+    var T = DATA().items.tcs, tc = T[name];
+    if (!tc || !tc.group) return name;
+    var best = name, bl = tc.level || 0;
+    Object.keys(T).forEach(function (k) {
+      var t = T[k];
+      if (t.group === tc.group && (t.level || 0) <= lvl && (t.level || 0) > bl) { best = k; bl = t.level || 0; }
+    });
+    return best;
+  }
   function rollDrop(monId, mlvl, r, opts) {
     var D = DATA();
     opts = opts || {};
@@ -1413,6 +1425,7 @@
       var tdk = DIFF[opts.difficulty || 'normal'] || 'n', ti = kind === 'champion' ? 1 : (kind === 'unique' ? 2 : (kind === 'quest' ? 3 : 0));
       tcName = su ? (su.tc[tdk] || su.tc.n) : (m.d[tdk].tc[ti] || m.d[tdk].tc[0] || m.d.n.tc[ti] || m.d.n.tc[0]);
     }
+    tcName = upgradeTc(tcName, mlvl);
     var out = [], maxItems = opts.maxItems || 6, players = Math.max(1, opts.players || 1);
     function walk(name, q) {
       var tc = D.items.tcs[name];
@@ -1555,7 +1568,7 @@
     rollMonster: rollMonster, grantXp: grantXp, xpGain: xpGain, xpToReach: xpToReach, levelForXp: levelForXp,
     spendStat: spendStat, canLearn: canLearn, learnSkill: learnSkill, skillTree: skillTree,
     skillEffect: skillEffect, manaCost: function (id, L) { return manaCost(findSkill(id), L); },
-    rollDrop: rollDrop, makeItem: makeItem, createItem: createItem, rollQuality: rollQuality, affixLevel: affixLevel,
+    rollDrop: rollDrop, upgradeTc: upgradeTc, makeItem: makeItem, createItem: createItem, rollQuality: rollQuality, affixLevel: affixLevel,
     itemName: itemName, itemStats: itemStats, potionEffect: potionEffect,
     completeQuest: completeQuest, deathPenalty: deathPenalty, goldLimit: goldLimit,
   };

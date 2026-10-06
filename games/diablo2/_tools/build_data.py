@@ -234,6 +234,30 @@ HAND_ACT_TRAVEL = {
     '4': {'to': 'harrogath', 'npc': 'tyrael2', 'needs': 'terrors_end'},
 }
 
+# Where each quest item comes from, typed from the Arreat Summit quest pages
+# (classic.battle.net/diablo2exp/quests/). 'chest' = the quest chest/altar of that area, 'kill' = dropped by
+# one of the listed monsters. The Golden Bird is Meshif's trade for the figurine; this port hands it over at
+# once. 'destroy' goals map to the event D2 needs before the object can be smashed.
+HAND_QUEST_ITEMS = {
+    'Horadric Cube': {'area': 'halls_of_the_dead_level_2', 'from': 'chest'},
+    'Shaft of the Horadric Staff': {'area': 'maggot_lair_level_3', 'from': 'chest'},
+    'Top of the Horadric Staff': {'area': 'claw_viper_temple_level_2', 'from': 'chest'},
+    'The Gidbinn': {'area': 'flayer_jungle', 'from': 'chest'},
+    "Khalim's Eye": {'area': 'spider_cavern', 'from': 'chest'},
+    "Khalim's Brain": {'area': 'flayer_dungeon_level_3', 'from': 'chest'},
+    "Khalim's Heart": {'area': 'sewers_level_2_a3', 'from': 'chest'},
+    "Khalim's Flail": {'area': 'travincal', 'from': 'kill',
+                       'mons': ['ismail_vilehand', 'geleb_flamefinger', 'toorc_icefist']},
+    "Lam Esen's Tome": {'area': 'ruined_temple', 'from': 'chest'},
+    'A Jade Figurine': {'act': 3, 'from': 'kill', 'anyUnique': True, 'gives': ['The Golden Bird']},
+}
+HAND_QUEST_DESTROY = {
+    'Serpent Altar': {'item': 'Top of the Horadric Staff'},
+    "Mephisto's Soulstone": {'kill': 'the_feature_creep'},
+}
+# Areas a quest keeps shut until it is cleared (Duriel needs the staff, the Durance needs Khalim's Will)
+HAND_QUEST_GATES = {'tal_rashas_chamber': 'the_horadric_staff', 'durance_of_hate_level_1': 'khalims_will'}
+
 TOWN_AREAS = {1: 'rogue_encampment', 2: 'lut_gholein', 3: 'kurast_docks', 4: 'the_pandemonium_fortress',
               5: 'harrogath'}
 AMBIENT_NPCS = ['chicken', 'rat', 'bird1', 'bird2', 'bat']   # monstats rows the town DS1s scatter around
@@ -1109,7 +1133,7 @@ def build():
     for nid in npc_ids:
         r = ms[nid]
         npcs[nid] = {'id': nid, 'name': s(r.get('NameStr', nid)), 'code': str(r['Code']), 'velocity': r.get('Velocity', 0),
-                     'art': 'npc.' + str(r['Code']), 'monSound': r.get('MonSound')}
+                     'art': 'npc.' + str(r['Code']).upper(), 'monSound': r.get('MonSound')}
         sh = shops.get(nid)
         if sh:
             npcs[nid]['shop'] = {'buyMult': sh.get('buy mult', 0), 'sellMult': sh.get('sell mult', 0),
@@ -1171,6 +1195,7 @@ def build():
         'quests': quests, 'hirelings': hirelings, 'actTravel': HAND_ACT_TRAVEL,
         'areaAlias': {'cave_1': 'cave_level_1', 'cave_2': 'cave_level_2'},
         'townOfAct': {str(k): v for k, v in TOWN_AREAS.items()},
+        'questItems': HAND_QUEST_ITEMS, 'questDestroy': HAND_QUEST_DESTROY, 'questGates': HAND_QUEST_GATES,
     })
     return data
 

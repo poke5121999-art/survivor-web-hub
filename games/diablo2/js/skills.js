@@ -288,6 +288,7 @@
     if (fx.d2s === 'wall') return 'wall';
     return 'melee';
   }
+  var VALK_LOOK = { cls: 'AM', wclass: '2HT', tok: { HD: 'GHM', TR: 'HVY', LG: 'HVY', RA: 'HVY', LA: 'HVY', S1: 'HVY', S2: 'HVY', RH: 'SPR' } };
   function makePet(api, fx, monId, x, y, extra) {
     var S = api.S, sm = fx.summon, e = api.makeMonster(monId, x, y, 'normal', -1, Math.random, null);
     e.ally = true; e.hostile = false; e.aggro = false; e.act = null; e.flee = 0; e.spawnT = 0;
@@ -300,7 +301,9 @@
     e.speed = clamp(sm.vel || 0, 0, 14);
     e.art = petArt(api, sm.code, null);
     e.name = fx.name;
-    e.pet = { skill: fx.id, pettype: sm.pettype, ai: aiKindOf(fx), born: S.time, until: sm.durationSec ? S.time + sm.durationSec : 0, cd: 0.4, sm: sm, shots: sm.shots || 0, hits: sm.hits || 0, retarget: 0, tgt: null };
+    // monsters/vk của D2R chỉ có DCC giả 65 byte; Valkyrie vẽ bằng thân Amazon giáp nặng cầm giáo, như dáng của nó trong D2
+    if (fx.id === 'valkyrie') { e.art = null; api.E.ensureHero('AM'); }
+    e.pet = { look: fx.id === 'valkyrie' ? VALK_LOOK : null, skill: fx.id, pettype: sm.pettype, ai: aiKindOf(fx), born: S.time, until: sm.durationSec ? S.time + sm.durationSec : 0, cd: 0.4, sm: sm, shots: sm.shots || 0, hits: sm.hits || 0, retarget: 0, tgt: null };
     if (extra) for (var k in extra) e.pet[k] = extra[k];
     st(api).pets.push(e);
     return e;
@@ -1325,15 +1328,27 @@
       c.beginPath(); c.ellipse(sx, sy, e.ring * 16 * Math.max(0.2, f), e.ring * 8 * Math.max(0.2, f), 0, 0, 7); c.stroke(); c.restore();
     }
   };
+  // druid biến hình: thân sói/gấu là quái 40/TG của D2; chưa nạp xong sheet thì giữ hình người
+  var FORM_ART = { wolf: 'mon.40', bear: 'mon.TG' };
+  function drawForm(api, h, sx, sy) {
+    var E = api.E, s = st(api), art = s.form && FORM_ART[s.form.form];
+    if (!art || !E.hasSheet(art)) { if (art) E.ensure([art]); return false; }
+    var town = api.S.def && api.S.def.town;
+    var mode = { attack: 'A1', cast: 'A1', walk: 'WL', run: 'RN', hit: 'GH', die: 'DT', dead: 'DT' }[h.st] || 'NU';
+    if ((h.st === 'attack' || h.st === 'cast') && h.act && E.animOf(art, h.act.mode)) mode = h.act.mode;
+    if (h.st === 'walk' && town && E.animOf(art, 'WL')) mode = 'WL';
+    if (!E.animOf(art, mode)) mode = 'NU';
+    return E.drawSprite(art, mode, h.stT, h.dir, sx, sy, 1, h.st === 'die' || h.st === 'dead');
+  }
   // đồng minh không có hình riêng: vẽ bằng hình hero (Decoy, Shadow) hoặc khối xanh thay vì khối đỏ của quái
   D2S.drawUnit = function (api, e, sx, sy) {
     var E = api.E, S = api.S;
-    if (e === S.hero) return false;   // approx: werewolf/werebear sheets (40/TG) are not packed; the druid keeps his human look
+    if (e === S.hero) return drawForm(api, e, sx, sy);
     if (!e.ally || e.hostile) return false;
-    var mode = e.st === 'attack' || e.st === 'cast' ? (e.act && e.act.mode) || 'A1' : e.st === 'run' ? 'RN' : e.st === 'die' || e.st === 'dead' ? 'DT' : 'NU';
-    if (e.pet && e.pet.heroLook) {
-      var look = api.heroLook(); if (!E.heroCof(look, mode)) mode = 'NU';
-      E.ctx.save(); E.ctx.globalAlpha = e.pet.skill === 'decoy' ? 0.75 : 0.6;
+    var mode = e.st === 'attack' || e.st === 'cast' ? (e.act && e.act.mode) || 'A1' : e.st === 'run' ? 'RN' : e.st === 'walk' ? 'WL' : e.st === 'die' || e.st === 'dead' ? 'DT' : 'NU';
+    if (e.pet && (e.pet.heroLook || e.pet.look)) {
+      var look = e.pet.look || api.heroLook(); if (!E.heroCof(look, mode)) mode = 'NU';
+      E.ctx.save(); E.ctx.globalAlpha = e.pet.look ? 1 : e.pet.skill === 'decoy' ? 0.75 : 0.6;
       var ok = E.drawHero(look, mode, e.stT, e.dir, sx, sy, 1, e.st === 'die' || e.st === 'dead');
       E.ctx.restore();
       return ok;

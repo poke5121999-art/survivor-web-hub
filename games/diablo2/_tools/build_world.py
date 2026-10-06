@@ -5,7 +5,8 @@
 
 Per act N writes
     assets/m/world_actN.js   D2_REG('m/world_actN', {pages, tilesets: {<set>: {pages, tiles, flags, palette}}})
-    assets/m/maps_actN.js    D2_REG('m/maps_actN', {maps, presets, subs, levels, mazes, warps})
+    assets/m/maps_actN.js    D2_REG('m/maps_actN', {maps, presets, subs, levels, mazes, warps, waypointObjs})
+                             (warps[id].byDir {l, r, b} when lvlwarp.txt reuses one Id, Act V)
     assets/img/g/tiles_actN_<k>.webp  (one atlas shared by every tileset of the act, deduplicated)
 and the index fragment assets/idx/world.json ({tilesets: {set: group}, maps: {act: group}}).
 
@@ -55,8 +56,69 @@ ACTS = {
         'sub_prefix': 'act1/', 'sub_type': 2,
         'levels': (0, 39),   # levels.txt Act column value, max Id kept
         'warps': (0, 18),    # lvlwarp Id range
-        # floor used to fill the open ground of outdoor levels: (tileset, LvlType whose files hold it, key)
+        # floor used to fill the open ground of outdoor levels:
+        # (tileset, LvlType whose files hold it | [dt1 paths], key[, field name, default 'grass'])
         'grass': [('act1', 2, (0, 0, 0))],
+    },
+    # Def ranges below come from lvlprest.txt: LevelType of levels.txt when LevelId is set, else the
+    # 'Act N - <LvlType name>' prefix of Name, else the LvlType whose DT1 list covers the DS1's own list.
+    # Exceptions settled by hand: Act 3 Slums/Burbs/Metro/Bridge/Travincal/Mephisto stamps are Kurast (22)
+    # because only Kurast levels use them; Fortress Transition is Mesa (27). Defs 1090 (Pandemonium
+    # Finale, Act 1 Tristram) and 1091 (Colossal Summit, Garden/) are left out, as are levels 133..137.
+    2: {
+        'budget': 9 * 1024 * 1024,
+        'palette': 'act2',
+        'quality': 84,   # q88 gives 10.1 MB of webp
+        'tilesets': {12: 'act2town', 13: 'act2sewer', 14: 'act2harem', 15: 'act2basement', 16: 'act2desert',
+                     17: 'act2tomb', 18: 'act2lair', 19: 'act2arcane'},
+        'defs': [(301, 301, 12), (302, 352, 13), (353, 357, 14), (358, 361, 15), (362, 413, 16),
+                 (414, 481, 17), (482, 509, 18), (510, 528, 19)],
+        'sub_prefix': 'act2/', 'sub_type': 16,
+        'levels': (1, 74),
+        'warps': (19, 50),
+        # (0,0,1) is plain sand; (0,0,0) in ground.dt1 is cracked and tomb.dt1 has a paved (0,0,1)
+        'grass': [('act2desert', ['tiles/act2/town/ground.dt1'], (0, 0, 1))],
+    },
+    3: {
+        'budget': 9 * 1024 * 1024,
+        'palette': 'act3',
+        'tilesets': {20: 'act3town', 21: 'act3jungle', 22: 'act3kurast', 23: 'act3spider', 24: 'act3dungeon',
+                     25: 'act3sewer'},
+        'defs': [(529, 529, 20), (530, 604, 21), (605, 658, 22), (659, 664, 23), (665, 704, 24),
+                 (705, 747, 25), (748, 796, 22)],
+        'sub_prefix': None, 'sub_type': None,
+        'levels': (2, 102),
+        'warps': (51, 68),
+        # the most used floor of each type's stamps
+        'grass': [('act3jungle', ['tiles/act3/ground/darkmud.dt1'], (0, 0, 0)),
+                  ('act3kurast', ['tiles/act3/ground/darkgrass.dt1'], (0, 1, 0))],
+    },
+    4: {
+        'budget': 9 * 1024 * 1024,
+        'palette': 'act4',
+        'tilesets': {26: 'act4town', 27: 'act4mesa', 28: 'act4lava'},
+        'defs': [(797, 797, 26), (798, 835, 27), (836, 862, 28)],
+        'sub_prefix': None, 'sub_type': None,
+        'levels': (3, 108),
+        'warps': (69, 70),
+        'grass': [('act4mesa', ['tiles/act4/mesa/floor.dt1'], (0, 10, 0)),
+                  ('act4lava', ['tiles/act4/lava/floor.dt1'], (0, 20, 0))],
+    },
+    5: {
+        'budget': 9 * 1024 * 1024,
+        'palette': 'act5',
+        'quality': 80,   # q88 gives 11.2 MB of webp
+        'tilesets': {29: 'act5town', 30: 'act5siege', 31: 'act5barricade', 32: 'act5temple', 33: 'act5icecave',
+                     34: 'act5baal', 35: 'act5lava'},
+        'defs': [(863, 863, 29), (864, 864, 32), (865, 879, 30), (880, 1002, 31), (1003, 1041, 33),
+                 (1042, 1052, 32), (1053, 1058, 35), (1059, 1087, 34), (1088, 1089, 31)],
+        'sub_prefix': 'expansion/', 'sub_type': 31,
+        'levels': (4, 132),
+        'warps': (71, 82),
+        # Barricade SubType 10 lays snow patches on dirt, SubType 11 (Frozen Tundra) dirt patches on snow
+        'grass': [('act5siege', ['tiles/expansion/siege/ground.dt1'], (0, 0, 0)),
+                  ('act5barricade', ['tiles/expansion/siege/ground.dt1'], (0, 0, 0)),
+                  ('act5barricade', ['tiles/expansion/siege/snow.dt1'], (0, 6, 0), 'snow')],
     },
 }
 
@@ -167,10 +229,18 @@ def read_warps(act):
     for r in tab('lvlwarp.txt'):
         i = ival(r.get('Id'), -1)
         if a <= i <= b:
-            out[i] = {'name': r['Name'], 'select': [ival(r['SelectX']), ival(r['SelectY']), ival(r['SelectDX']),
-                                                     ival(r['SelectDY'])],
-                      'exitWalk': [ival(r['ExitWalkX']), ival(r['ExitWalkY'])],
-                      'offset': [ival(r['OffsetX']), ival(r['OffsetY'])], 'dir': r['Direction']}
+            w = {'name': r['Name'], 'select': [ival(r['SelectX']), ival(r['SelectY']), ival(r['SelectDX']),
+                                                ival(r['SelectDY'])],
+                 'exitWalk': [ival(r['ExitWalkX']), ival(r['ExitWalkY'])],
+                 'offset': [ival(r['OffsetX']), ival(r['OffsetY'])], 'dir': r['Direction']}
+            if i in out:
+                # expansion rows share one Id for the l/r wall variants; the game picks by Direction
+                first = out[i]
+                by = first.setdefault('byDir', {first['dir']: dict((k, v) for k, v in first.items()
+                                                                   if k != 'byDir')})
+                by[w['dir']] = w
+            else:
+                out[i] = w
     return out
 
 
@@ -183,6 +253,8 @@ def waypoint_objs(act):
 def read_subs(act):
     pre = ACTS[act]['sub_prefix']
     out = []
+    if not pre:
+        return out
     for r in tab('lvlsub.txt'):
         f = r.get('File', '')
         if not f.lower().startswith(pre):
@@ -211,17 +283,21 @@ class TileSet(object):
         for s in sorted(set(k[1] for k in prov)):
             ks = sorted(k for k in prov if k[1] == s)
             sig = (s, tuple(sorted(set(p for k in ks for p in prov[k]))))
-            if sig in self.alias:
-                a = self.alias[sig]
-            else:
-                a = None
-                if s != 0 and all(k not in self.reg or self.reg[k][0] == prov[k] for k in ks):
+
+            def fits(c):
+                return all((k[0], c, k[2]) not in self.reg or self.reg[(k[0], c, k[2])][0] == prov[k] for k in ks)
+            # the same file set can still give one key different providers when another DS1 lists only
+            # some of the files, so one sig may need several alias styles
+            cands = self.alias.setdefault(sig, [])
+            a = next((c for c in cands if fits(c)), None)
+            if a is None:
+                if s != 0 and s not in cands and fits(s):
                     a = s
-                if a is None:
+                else:
                     a = self.next_alias
                     self.next_alias += 1
                     assert a < 256, 'alias styles exhausted in ' + self.name
-                self.alias[sig] = a
+                cands.append(a)
             for k in ks:
                 nk = (k[0], a, k[2])
                 if nk in self.reg and self.reg[nk][0] != prov[k]:
@@ -354,16 +430,17 @@ def build(act):
                                'outdoors': row['outdoors'], 'levelId': row['levelId'], 'levelType': row['levelType'],
                                'pick': row['pick'], 'ts': ts.name}
     subs = {}
-    sub_ts = sets[spec['tilesets'][spec['sub_type']]]
     for s in read_subs(act):
+        sub_ts = sets[spec['tilesets'][spec['sub_type']]]
         key, m = load_ds1(sub_ts, s['file'], miss, type_libs[spec['sub_type']])
         maps[key] = m
         subs[s['name']] = {'type': s['type'], 'file': key}
     extra = {}
-    for set_name, lt, k in spec['grass']:
-        gm = sets[set_name].resolve(type_libs[lt], {k}, 'grass')
-        gk = gm[k]
-        extra[set_name] = {'grass': (gk[1] << 8) | gk[2]}
+    for g in spec['grass']:
+        set_name, src, k = g[:3]
+        libs = type_libs[src] if isinstance(src, int) else src
+        gk = sets[set_name].resolve(libs, {k}, 'grass')[k]
+        extra.setdefault(set_name, {})[g[3] if len(g) > 3 else 'grass'] = (gk[1] << 8) | gk[2]
     return rows, sets, maps, presets, subs, miss, extra
 
 
@@ -482,7 +559,8 @@ def write(path, text):
 
 
 def build_act(act, lossless, quality):
-    pal = d2fmt.load_palette(G + 'palette/act%d/pal.dat' % act)
+    pal = d2fmt.load_palette(G + 'palette/%s/pal.dat' % ACTS[act]['palette'])
+    quality = ACTS[act].get('quality', quality)
     rows, sets, maps, presets, subs, miss, extra = build(act)
     prefix = 'tiles_act%d_' % act
     if os.path.isdir(IMG):
@@ -500,14 +578,18 @@ def build_act(act, lossless, quality):
         'mazes': read_mazes(levels), 'warps': read_warps(act), 'waypointObjs': waypoint_objs(act)}))
     total = sum(os.path.getsize(os.path.join(IMG, fn)) for fn in os.listdir(IMG)
                 if fn.startswith(prefix) and fn.endswith('.webp'))
+    wsize, msize = os.path.getsize(os.path.join(OUT, wg + '.js')), os.path.getsize(os.path.join(OUT, mg + '.js'))
     ntiles = sum(len(v) for ts in tilesets.values() for v in ts['tiles'].values())
     print('act %d: ds1 %d, presets %d, subs %d, tile variants %d, pages %d' % (
         act, len(maps), len(presets), len(subs), ntiles, len(pages)))
-    print('  sets %s' % ', '.join('%s=%d keys/%d alias' % (k, len(sets[k].reg), sets[k].next_alias - ALIAS_BASE)
-                                   for k in sorted(sets)))
-    print('  tiles webp %.2f MB (%s, budget %.0f MB); %s %d B, %s %d B' % (
-        total / 1048576.0, 'lossless' if lossless else 'q%d' % quality, ACTS[act]['budget'] / 1048576.0,
-        wg, os.path.getsize(os.path.join(OUT, wg + '.js')), mg, os.path.getsize(os.path.join(OUT, mg + '.js'))))
+    print('  sets %s' % ', '.join('%s=%d keys/%d alias/%d presets' % (
+        k, len(sets[k].reg), sets[k].next_alias - ALIAS_BASE, sum(1 for p in presets.values() if p['ts'] == k))
+        for k in sorted(sets)))
+    # budget = the world group (its webp pages + world js); the maps group is reported beside it
+    print('  tiles webp %.2f MB (%s); %s %d B, %s %d B; world group %.2f MB (budget %.0f MB), with maps %.2f MB' % (
+        total / 1048576.0, 'lossless' if lossless else 'q%d' % quality, wg, wsize, mg, msize,
+        (total + wsize) / 1048576.0, ACTS[act]['budget'] / 1048576.0, (total + wsize + msize) / 1048576.0))
+    total += wsize
     print('  referenced keys without a DT1 tile: %d across %d ds1' % (sum(len(v) for v in miss.values()), len(miss)))
     for k in sorted(miss)[:8]:
         print('    ', k, miss[k][:4])

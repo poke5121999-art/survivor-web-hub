@@ -1,21 +1,34 @@
-// node test/diablo2-drlg.js [seeds] [area...] : D2G v2 (games/diablo2/js/drlg.js) for every Act I area.
+// node test/diablo2-drlg.js [seeds] [--act N[,M]] [area...] : D2G v2 (games/diablo2/js/drlg.js) for every area
+// of the chosen acts (default: every act whose assets/m/maps_act<N>.js exists; env D2_ACT=N[,M] works too).
 // Per area and seed: sizes, hero on a walkable subtile, every exit and spawn reachable from the hero
-// (BFS on col == 0, 4-neighbour), exits only to areas in links / vis, an exit for every link the generator
-// supports, waypoint object where levels.txt has one, same seed -> same level. Prints build times.
+// (BFS on col == 0, 4-neighbour), exits only to areas in links / vis, an exit for every same-act link the
+// generator supports, waypoint object where levels.txt has one, same seed -> same level. Prints build times.
 'use strict';
 var fs = require('fs'), path = require('path'), vm = require('vm');
 var root = path.join(__dirname, '..', 'games', 'diablo2');
 global.D2_GROUPS = {};
 global.D2_REG = function (name, obj) { global.D2_GROUPS[name] = obj; };
-['assets/m/maps_act1.js', 'assets/m/world_act1.js', 'js/data.js'].forEach(function (f) {
-  vm.runInThisContext(fs.readFileSync(path.join(root, f), 'utf8'), { filename: f });
-});
-var D2G = require(path.join(root, 'js', 'drlg.js'));
-var A = global.D2DATA.areas;
+function load(f) { vm.runInThisContext(fs.readFileSync(path.join(root, f), 'utf8'), { filename: f }); }
+load('js/data.js');
 
 var argv = process.argv.slice(2);
 var SEEDS = argv[0] && /^\d+$/.test(argv[0]) ? +argv.shift() : 20;
-var all = Object.keys(A).filter(function (k) { return A[k].act === 1; }).sort(function (a, b) { return A[a].d2id - A[b].d2id; });
+var actArg = process.env.D2_ACT || '', ai = argv.indexOf('--act');
+if (ai >= 0) { actArg = argv[ai + 1] || ''; argv.splice(ai, 2); }
+var ACTS = actArg ? actArg.split(',').map(Number) : [1, 2, 3, 4, 5].filter(function (n) {
+  return fs.existsSync(path.join(root, 'assets', 'm', 'maps_act' + n + '.js'));
+});
+ACTS.forEach(function (n) {
+  ['maps', 'world'].forEach(function (g) {
+    var f = 'assets/m/' + g + '_act' + n + '.js';
+    if (!fs.existsSync(path.join(root, f))) { console.log('diablo2-drlg: ' + f + ' not found (act ' + n + ' not built)'); process.exit(1); }
+    load(f);
+  });
+});
+var D2G = require(path.join(root, 'js', 'drlg.js'));
+var A = global.D2DATA.areas;
+var all = Object.keys(A).filter(function (k) { return ACTS.indexOf(A[k].act) >= 0; })
+  .sort(function (a, b) { return A[a].d2id - A[b].d2id; });
 var only = argv.length ? argv : null;
 
 var fails = 0;
@@ -55,7 +68,8 @@ all.forEach(function (id) {
   var a = A[id], allowed = {};
   (a.links || []).forEach(function (t) { allowed[t] = 1; });
   (a.vis || []).forEach(function (t) { allowed[t] = 1; });
-  var need = (a.links || []).filter(function (t) { return D2G.supports(t); });
+  // links to another act (Durance -> Pandemonium Fortress, Harrogath -> Uber levels) are quest portals, not exits
+  var need = (a.links || []).filter(function (t) { return A[t] && A[t].act === a.act && D2G.supports(t); });
   var tsum = 0, tmax = 0, ex = 0, sp = 0, walk = 0, size = '';
   for (var seed = 1; seed <= SEEDS; seed++) {
     var tag = id + ' seed ' + seed, lv, t0 = Date.now();
@@ -87,12 +101,12 @@ all.forEach(function (id) {
     if (sig(D2G.build(id, seed)) !== sig(lv)) fail(tag + ' not deterministic');
     ex += lv.exits.length; sp += lv.spawns.length;
   }
-  rows.push(id + ' [' + D2G.kind(id) + ' ' + size + ']: exits ' + (ex / SEEDS).toFixed(1) + ', spawns ' + (sp / SEEDS).toFixed(1) +
+  rows.push('a' + a.act + ' ' + id + ' [' + D2G.kind(id) + ' ' + size + ']: exits ' + (ex / SEEDS).toFixed(1) + ', spawns ' + (sp / SEEDS).toFixed(1) +
     ', walkable ' + Math.round(walk / SEEDS) + ', ' + Math.round(tsum / SEEDS) + ' ms/build (max ' + tmax + ')');
 });
 rows.forEach(function (s) { console.log(s); });
 if (unsupported.length) console.log('not supported: ' + unsupported.join(', '));
 var n = rows.length;
 console.log(fails ? 'diablo2-drlg: ' + fails + ' FAIL (' + n + ' areas x ' + SEEDS + ' seeds)' :
-  'diablo2-drlg: all passed (' + n + ' areas x ' + SEEDS + ' seeds)');
+  'diablo2-drlg: all passed (' + n + ' areas x ' + SEEDS + ' seeds, acts ' + ACTS.join(',') + ')');
 process.exit(fails ? 1 : 0);
