@@ -7,7 +7,7 @@
   "use strict";
 
   var OUT_RUN = ["wallet_start", "crew", "tactics", "upgrade", "passives", "gacha_banners", "gacha_rules",
-    "shop_packs", "shop_rules", "shop_exchange", "loadout", "quests", "maps", "run_reward", "rank_rewards"];
+    "shop_packs", "shop_rules", "shop_exchange", "loadout", "quests", "maps", "run_reward", "rank_rewards", "endless_seasons"];
   var IN_RUN = ["stage_houses", "stage_rules", "extract_quota", "loot_cap", "loot_sizes", "loot_materials",
     "loot_items", "safes_chests", "station_upgrades", "station_gear", "station_healthpacks", "station_vehicles",
     "station_rules", "gacha_wheel", "foes", "run_timers", "endless_rules"];
@@ -282,6 +282,10 @@
     var L = LABELS[table] || {};
     if (sec && (sec.rowLabels || sec.rowTitle)) L = sec;
     if (L.rowLabels && L.rowLabels[doc._id]) return L.rowLabels[doc._id];
+    if (L.rowPattern) {
+      var re = new RegExp(L.rowPattern.re);
+      if (re.test(doc._id)) return doc._id.replace(re, L.rowPattern.text);
+    }
     if (L.rowTitle && typeof doc[L.rowTitle] === "string" && doc[L.rowTitle]) return doc[L.rowTitle];
     return doc._id;
   }
@@ -451,6 +455,7 @@
       pane.appendChild(form);
     } else {
       var secs = sectionsOf(n, docs);
+      if (L.addRow) pane.appendChild(addRowBar(n, docs, L.addRow));
       if (!secs) pane.appendChild(listGrid(n, docs, null));
       else secs.forEach(function (sec) {
         var note = sectionNote(sec);
@@ -461,6 +466,30 @@
       });
     }
     updateMarks();
+  }
+
+  // Tables whose labels declare addRow let designers add a row: an id typed as text (checked by
+  // addRow.re), the other fields copied from the last row. Only endless_seasons uses it.
+  function addRowBar(table, docs, cfg) {
+    var input = h("input", { type: "text", class: "dz-input", id: "dz-add-id", autocomplete: "off", placeholder: cfg.placeholder, "aria-label": cfg.label, maxlength: "16" });
+    var err = h("p", { class: "dz-cell__err", id: "dz-add-err", hidden: true });
+    var btn = h("button", { class: "btn btn--sm", id: "dz-add-btn", type: "button", text: cfg.button });
+    btn.addEventListener("click", function () {
+      var id = input.value.trim();
+      var msg = null;
+      if (!new RegExp(cfg.re).test(id)) msg = cfg.invalid;
+      else if (docs.some(function (d) { return d._id === id; })) msg = cfg.exists;
+      err.hidden = !msg;
+      if (msg) { err.textContent = msg; return; }
+      var tpl = docs.length ? clone(docs[docs.length - 1]) : {};
+      tpl._id = id;
+      docs.push(tpl);
+      docs.sort(function (a, b) { return a._id < b._id ? -1 : a._id > b._id ? 1 : 0; });
+      S.errors[table] = S.errors[table] || {};
+      renderMain(); updateBar(); updateNav();
+    });
+    return h("div", { class: "dz-addrow" }, h("label", { class: "dz-fld__label", for: "dz-add-id", text: cfg.label }), input, btn, err,
+      h("p", { class: "dz-help", text: cfg.help }));
   }
 
   // sec (optional) restricts the grid to that section's fields, in its order.

@@ -30,7 +30,7 @@ function shuffleKeys(v) {
 
   const list = await act({ action: "list" });
   const names = Object.keys(list.json.tables || {});
-  check("list names", list.status === 200 && names.length === 32 && names.every((n, i) => n === KNOWN[i]) && KNOWN.length === 32,
+  check("list names", list.status === 200 && names.length === 33 && names.every((n, i) => n === KNOWN[i]) && KNOWN.length === 33,
     `status ${list.status}, ${names.length} tables`);
   check("list quests.exists", list.json.tables.quests.exists === true, `exists=${list.json.tables.quests.exists}`);
 
@@ -68,7 +68,7 @@ function shuffleKeys(v) {
 
   const listed = await act({ action: "list" });
   const gone = KNOWN.find((t) => !listed.json.tables[t].exists);
-  if (!gone) console.log("ℹ dryRun missing table — bỏ qua: cả 32 bảng đều đã có trên DEV");
+  if (!gone) console.log("ℹ dryRun missing table — bỏ qua: cả 33 bảng đều đã có trên DEV");
   else {
     const want = JSON.parse(fs.readFileSync(`D:/REPO_Meta/gamespark-config/${gone}.json`, "utf8"));
     const dm = await act({ action: "save", table: gone, docs: want, baseHash: listed.json.tables[gone].hash, dryRun: true });

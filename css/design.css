@@ -202,3 +202,7 @@
 .dz-section__note { margin: 4px 0 10px; color: var(--text-dim); max-width: 70ch; font-size: 14px; }
 /* The column header already carries the unit; repeating it in every cell pushed columns off-screen. */
 .dz-grid .dz-row > td .dz-unit { display: none; }
+
+.dz-addrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 14px; }
+.dz-addrow .dz-input { width: 9rem; }
+.dz-addrow .dz-help, .dz-addrow .dz-cell__err { flex-basis: 100%; margin: 0; }

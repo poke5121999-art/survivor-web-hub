@@ -594,16 +594,29 @@
       }
     },
 
-    rank_rewards: {
-      title: "Thưởng bảng xếp hạng tuần (Vô Tận)",
-      blurb: "Thưởng cho hạng của TUẦN TRƯỚC, phát khi người chơi mở bảng xếp hạng lần kế tiếp. Tuần đổi lúc 07:00 thứ Năm giờ VN. Mỗi bảng (Một mình / Cùng bạn) có các dải hạng riêng; các dải trong cùng một bảng không được chồng lên nhau. Chỉ top 200 có hạng, hạng ngoài các dải thì không có thưởng.",
+    endless_seasons: {
+      title: "Theme Vô Tận theo tháng",
+      blurb: "Mỗi tháng là một mùa Vô Tận (reset lúc 00:00 giờ VN ngày 1). Điền trước kiểu nhà cho các tháng tới; tháng chưa có dòng thì dùng \"Kiểu nhà khoá\" trong Luật chế độ Vô Tận.",
       effect: SERVER + " Không cần bản build mới.",
-      rowLabels: {"solo_1_1":"Một mình · Hạng 1","solo_2_3":"Một mình · Hạng 2–3","solo_4_10":"Một mình · Hạng 4–10","solo_11_50":"Một mình · Hạng 11–50","solo_51_100":"Một mình · Hạng 51–100","coop_1_1":"Cùng bạn · Hạng 1","coop_2_3":"Cùng bạn · Hạng 2–3","coop_4_10":"Cùng bạn · Hạng 4–10","coop_11_50":"Cùng bạn · Hạng 11–50","coop_51_100":"Cùng bạn · Hạng 51–100"},
+      rowPattern: { re: "^(\\d{4})-(\\d{2})$", text: "Tháng $2/$1" },
+      addRow: { label: "Thêm tháng", placeholder: "VD 2026-12", button: "Thêm tháng", re: "^\\d{4}-(0[1-9]|1[0-2])$", invalid: "Nhập tháng dạng NĂM-THÁNG, ví dụ 2026-12.", exists: "Tháng này đã có dòng rồi.", help: "Gõ năm-tháng (2026-12) rồi bấm Thêm tháng; dòng mới lấy sẵn kiểu nhà của dòng cuối, rồi sửa và lưu." },
+      fields: {
+        "_id": { label: "Tháng", help: "Dạng NĂM-THÁNG. Giữ nguyên." },
+        "houseStyle": { label: "Kiểu nhà của tháng", int: true, min: 17, max: 21, help: "17 Lâu đài vampire, 18 Kim tự tháp Ai Cập, 19 Khu vui chơi bỏ hoang, 20 Trạm vũ trụ, 21 Bệnh viện tâm thần." }
+      }
+    },
+
+    rank_rewards: {
+      title: "Thưởng bảng xếp hạng mùa (Vô Tận)",
+      blurb: "Thưởng MÙA (tháng), gửi vào Hộp thư khi mùa kết thúc. Mỗi bảng (Một mình / Cùng bạn) có 7 mốc hạng riêng; các mốc cùng bảng không được chồng nhau. Mốc cuối \"Hạng >100\" (Hạng đến = 0, tức trở xuống) chỉ dành cho ai đã vượt ít nhất \"Nhà tối thiểu\" nhà. Xếp hạng theo nhà vượt cao hơn, rồi thời gian ít hơn, rồi tiền nhiều hơn.",
+      effect: SERVER + " Không cần bản build mới.",
+      rowLabels: {"solo_1_1":"Một mình · Top 1","solo_2_2":"Một mình · Top 2","solo_3_3":"Một mình · Top 3","solo_4_20":"Một mình · Hạng 4–20","solo_21_50":"Một mình · Hạng 21–50","solo_51_100":"Một mình · Hạng 51–100","solo_101_0":"Một mình · Hạng >100","coop_1_1":"Cùng bạn · Top 1","coop_2_2":"Cùng bạn · Top 2","coop_3_3":"Cùng bạn · Top 3","coop_4_20":"Cùng bạn · Hạng 4–20","coop_21_50":"Cùng bạn · Hạng 21–50","coop_51_100":"Cùng bạn · Hạng 51–100","coop_101_0":"Cùng bạn · Hạng >100"},
       fields: {
         "_id": { label: "Mã", help: "Dạng bảng_từ_đến, game tìm theo mã này. Giữ nguyên." },
         "board": { label: "Bảng", help: "solo = Một mình, coop = Cùng bạn. Giữ nguyên." },
-        "rankFrom": { label: "Hạng từ", min: 1, max: 200, int: true, help: "Hạng đầu của dải (1 = nhất). Không chồng với dải khác cùng bảng." },
-        "rankTo": { label: "Hạng đến", min: 1, max: 200, int: true, help: "Hạng cuối của dải, không nhỏ hơn Hạng từ. Chỉ top 200 có hạng." },
+        "rankFrom": { label: "Hạng từ", min: 1, int: true, help: "Hạng đầu của mốc (1 = nhất). Không chồng với mốc khác cùng bảng." },
+        "rankTo": { label: "Hạng đến", min: 0, int: true, help: "Hạng cuối của mốc, không nhỏ hơn Hạng từ. 0 = trở xuống (không giới hạn)." },
+        "minHouse": { label: "Nhà tối thiểu", unit: "nhà", min: 0, int: true, help: "Phải vượt ít nhất ngần này nhà trong mùa mới nhận thưởng mốc này. 0 = không cần." },
         "gold": { label: "Thưởng vàng", unit: "vàng", min: 0, int: true },
         "gem": { label: "Thưởng ngọc", unit: "ngọc", min: 0, int: true }
       }
@@ -611,18 +624,25 @@
 
     endless_rules: {
       title: "Luật chế độ Vô Tận",
-      blurb: "Nhà 1–5 chơi như ải thường. Từ nhà 6 trở đi, mỗi nhà thêm một bậc khó nhân cộng dồn lên số của nhà 5, cho tới khi chạm trần.",
+      blurb: "Nhà 1–5 chơi như ải thường. Từ nhà 6 trở đi, mỗi nhà thêm một bậc khó nhân cộng dồn lên số của nhà 5, cho tới khi chạm trần. Kiểu nhà khoá ở đây chỉ là theme dự phòng, dùng khi tháng đó chưa có dòng trong bảng Theme Vô Tận theo tháng.",
       effect: RUN,
       fields: {
         "_id": CFG_ID,
-        "houseStyle": { label: "Kiểu nhà khoá", int: true, min: 17, max: 21, help: "Mọi nhà Vô Tận dùng một kiểu nhà này, phải trùng một kiểu trong bảng Các nhà trong ải: 17 Lâu đài vampire, 18 Kim tự tháp Ai Cập, 19 Khu vui chơi bỏ hoang, 20 Trạm vũ trụ, 21 Bệnh viện tâm thần." },
+        "houseStyle": { label: "Kiểu nhà khoá (dự phòng)", int: true, min: 17, max: 21, help: "Theme dùng khi tháng chưa có dòng trong Theme Vô Tận theo tháng. Phải trùng một kiểu trong bảng Các nhà trong ải: 17 Lâu đài vampire, 18 Kim tự tháp Ai Cập, 19 Khu vui chơi bỏ hoang, 20 Trạm vũ trụ, 21 Bệnh viện tâm thần." },
         "levelStep": { label: "Mức độ tăng mỗi nhà", int: true, min: 0, help: "Từ nhà 6, mức độ (level) của nhà tăng thêm bấy nhiêu cho mỗi nhà." },
         "hpGrowth": { label: "Máu quái tăng mỗi nhà", pct: true, min: 0, help: "8% = mỗi nhà từ nhà 6, máu quái nhân thêm 8% so với nhà trước." },
         "dmgGrowth": { label: "Sát thương quái tăng mỗi nhà", pct: true, min: 0, help: "Như trên, áp cho sát thương quái." },
         "quotaGrowth": { label: "Chỉ tiêu giao hàng tăng mỗi nhà", pct: true, min: 0, help: "Như trên, áp cho tiền phải giao." },
         "maxMul": { label: "Trần hệ số", min: 1, help: "Hệ số nhân cộng dồn không vượt số này (4 = tối đa gấp 4 lần nhà 5). Phải từ 1 trở lên." },
         "roomEvery": { label: "Cứ bao nhiêu nhà thêm một phòng", int: true, min: 1, help: "Cứ mỗi bấy nhiêu nhà kể từ nhà 6, nhà thêm một phòng loot chung." },
-        "maxExtraRooms": { label: "Số phòng thêm tối đa", unit: "phòng", int: true, min: 0, help: "Trần số phòng thêm so với nhà 5." }
+        "maxExtraRooms": { label: "Số phòng thêm tối đa", unit: "phòng", int: true, min: 0, help: "Trần số phòng thêm so với nhà 5." },
+        "lootGrowth": { label: "Giá trị đồ tăng mỗi nhà", pct: true, min: 0, max: 1, help: "8% = từ nhà 6, giá trị đồ đặt trong nhà tăng thêm 8% mỗi nhà, như chỉ tiêu. Từ 0% đến 100%." },
+        "minHouseSeconds": { label: "Số giây tối thiểu mỗi nhà (chống gian lận)", unit: "giây", int: true, min: 0, help: "Qua nhà nhanh hơn mức này bị coi là gian lận, lượt không được ghi." },
+        "fastHouseGrace": { label: "Số nhà được qua nhanh hơn mức trên ở đầu ca", unit: "nhà", int: true, min: 0, help: "Vài nhà đầu ca được phép qua nhanh hơn số giây tối thiểu mà không bị coi là gian lận." },
+        "minCoopPlayers": { label: "Số người tối thiểu để chơi Cùng bạn", unit: "người", int: true, min: 1 },
+        "maxCoopPlayers": { label: "Số người tối đa để chơi Cùng bạn", unit: "người", int: true, min: 1 },
+        "mailDays": { label: "Thư thưởng hết hạn sau … ngày", unit: "ngày", int: true, min: 1, help: "Thư thưởng mùa nằm trong Hộp thư bấy nhiêu ngày rồi hết hạn." },
+        "rankedUnlockRuns": { label: "Số ca phải chơi để mở Vô Tận xếp hạng", unit: "ca", int: true, min: 1, help: "Người chơi mới phải hoàn tất ngần này ca thì mới vào được Vô Tận xếp hạng." }
       }
     }
   };
