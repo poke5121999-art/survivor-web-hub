@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Ca Trực Đêm Biệt Đội</title>
+    <title>Boo Haul Co-op Horror</title>
     <link rel="shortcut icon" href="TemplateData/favicon.ico">
     <style>
       /*
@@ -104,9 +104,9 @@
 
       var buildUrl = "Build";
       var config = {
-        dataUrl: buildUrl + "/repo2d-unity-a957a72ab0.data.unityweb",
-        frameworkUrl: buildUrl + "/repo2d-unity-a957a72ab0.framework.js.unityweb",
-        codeUrl: buildUrl + "/repo2d-unity-a957a72ab0.wasm.unityweb",
+        dataUrl: buildUrl + "/repo2d-unity-bf3828bc3b.data.unityweb",
+        frameworkUrl: buildUrl + "/repo2d-unity-bf3828bc3b.framework.js.unityweb",
+        codeUrl: buildUrl + "/repo2d-unity-bf3828bc3b.wasm.unityweb",
         streamingAssetsUrl: "StreamingAssets",
         // Cùng trần độ nét với fitCanvas: không đặt thì Unity tự lấy devicePixelRatio (3 trên nhiều điện thoại) và
         // bộ đệm nhảy qua lại giữa hai cỡ mỗi lần trang đổi cỡ.
@@ -115,7 +115,7 @@
         // Để Unity tự khớp thì mỗi khung nó đặt lại canvas.width = cỡ CSS × devicePixelRatio và đè mất tỉ lệ ấy.
         matchWebGLToCanvasSize: false,
         companyName: "HLO",
-        productName: "Ca Trực Đêm Biệt Đội",
+        productName: "Boo Haul Co-op Horror",
         productVersion: "1.0",
         showBanner: unityShowBanner,
       };
@@ -223,7 +223,7 @@
       }, 1000);
 
       var script = document.createElement("script");
-      script.src = buildUrl + "/repo2d-unity-a957a72ab0.loader.js";
+      script.src = buildUrl + "/repo2d-unity-bf3828bc3b.loader.js";
       script.onerror = function () { loadFailed("Không tải được " + script.src); };
       script.onload = function () {
         createUnityInstance(canvas, config, function (progress) {
