@@ -233,7 +233,10 @@ function near(a, b, eps, msg) { ok(Math.abs(a - b) <= eps, msg + ' (got ' + a + 
   const qr = R.completeQuest(a, 'den_of_evil');
   eq([qr.ok, a.skillPts], [true, 1], 'Den of Evil reward grants 1 skill point');
   eq(R.completeQuest(a, 'den_of_evil').ok, false, 'Den of Evil reward only once');
-  eq(Object.keys(D.npcs).filter(k => D.npcs[k].roles).sort(), ['akara', 'charsi', 'gheed', 'kashya', 'warriv1'], 'Act I NPCs with a role (npcs is keyed by monstats Id; warriv1 is the Act I Warriv)');
+  // was Act I only; npcs now holds every act's town NPCs, so the Act I five are a subset (the camp list above is unchanged)
+  const roled = Object.keys(D.npcs).filter(k => D.npcs[k].roles);
+  ok(['akara', 'charsi', 'gheed', 'kashya', 'warriv1'].every(k => roled.includes(k)) && roled.length === 33, 'NPCs with a role: the Act I five among 33 across all acts (npcs is keyed by monstats Id)', roled.length);
+  eq(roled.filter(k => D.npcs[k].act === 1).sort(), ['akara', 'cain1', 'charsi', 'gheed', 'kashya', 'warriv1'], 'Act I NPCs with a role (Cain only appears after The Search for Cain)');
   eq([D.npcs.akara.code, D.npcs.warriv1.code, D.npcs.cain1.code], ['PS', 'WA', 'DC'], 'NPC art codes come from monstats Code');
 }
 
@@ -275,6 +278,45 @@ function near(a, b, eps, msg) { ok(Math.abs(a - b) <= eps, msg + ' (got ' + a + 
   const fallback = R.createItem('hax', 1, 'unique', R.rng(1));
   ok(fallback.q === 'rare' || fallback.q === 'magic', 'unique roll below the unique level falls back to rare', fallback.q);
   ok(D.items.bases.lsd.invfile === 'invlsd' && D.items.bases.lsd.flippyfile === 'flplsd' && D.items.bases.sbw.wclass === 'bow' && D.items.bases.lea.torso === 1, 'items carry invfile/flippyfile/wclass/appearance columns from the 3.1 tables');
+}
+
+// ---------------------------------------------------------------- all five acts (levels.txt, hireling.txt, quests, runes.txt)
+{
+  const byAct = {}; Object.values(D.areas).forEach(a => { byAct[a.act] = (byAct[a.act] || 0) + 1; });
+  // counted from levels.txt: Ids 1-39 Act I, 40-74 Act II, 75-102 Act III, 103-108 Act IV, 109-137 Act V (row 0 'Null' is not a level)
+  eq([byAct[1], byAct[2], byAct[3], byAct[4], byAct[5]], [39, 35, 28, 6, 29], 'areas per act equal the levels.txt row counts');
+  eq(Object.keys(D.areas).length, 137, '137 areas in total');
+  ok(Object.values(D.areas).every(a => a.act >= 1 && a.act <= 5 && D.areas[a.id] === a && a.links.every(l => D.areas[l] && D.areas[l].links.includes(a.id))), 'every area has an act 1-5 and only symmetric links to known areas');
+  eq(Object.values(D.areas).filter(a => !a.links.length).map(a => a.id), ['colossal_summit'], 'the only area without links is the unused Colossal Summit row');
+  eq([D.areas.lut_gholein.town, D.areas.lut_gholein.act, D.areas.lut_gholein.d2id], [true, 2, 40], 'Lut Gholein is the Act II town (levels.txt Id 40)');
+  eq(Object.values(D.areas).filter(a => a.town).map(a => a.id).sort(), ['harrogath', 'kurast_docks', 'lut_gholein', 'rogue_encampment', 'the_pandemonium_fortress'], 'one town per act');
+  eq([D.areas.catacombs_level_4.d2id, D.areas.catacombs_level_4.bosses, D.areas.catacombs_level_4.quests], [37, ['andariel'], ['sisters_to_the_slaughter']], 'Andariel lives in catacombs_level_4 (levels.txt Id 37)');
+  eq([D.areas.cave_level_1.d2id, D.areas.cave_level_2.d2id, D.areaAlias], [9, 13, { cave_1: 'cave_level_1', cave_2: 'cave_level_2' }], 'cave_1/cave_2 became cave_level_1/cave_level_2 (contract "Mã khu") with an alias map');
+  eq([D.areas.sewers_level_1.act, D.areas.sewers_level_1_a3.act, D.areas.sewers_level_1_a3.d2id], [2, 3, 92], 'duplicate level names get _a<act> (sewers_level_1_a3)');
+  eq(Object.keys(D.areas).filter(k => /^tal_rashas_tomb/.test(k)).length, 7, 'seven Tal Rasha tombs share one name and are numbered');
+  ok(D.areas.cold_plains.links.includes('stony_field') && D.areas.stony_field.links.includes('dark_wood') && D.areas.black_marsh.links.includes('tamoe_highland') && D.areas.cold_plains.links.includes('burial_grounds'), 'Act I outdoor links (hard-coded in the DRLG, typed per Arreat Summit act map)');
+  eq([D.areas.dark_wood.vis.includes('underground_passage_level_1'), D.areas.den_of_evil.vis], [true, ['blood_moor']], 'cave entrances come from levels.txt Vis0-7');
+  eq([D.areas.cold_plains.layout, D.areas.the_chaos_sanctuary.drlg, D.areas.crypt.levelType, D.areas.blood_moor.levelType], ['outdoor', 3, 'Act 1 - Crypt', 'Act 1 - Wilderness'], 'drlg / levelType from levels.txt + lvltypes.txt');
+  // Hell: monstats Level(H) 75 for Andariel; Blood Moor zombies are level 36 in Nightmare (Level(N))
+  eq([D.monsters.andariel.d.h.level, D.monsters.andariel.d.nm.level, D.monsters.zombie1.d.nm.level], [75, 49, 36], 'monster rows carry n/nm/h stats (monstats Level/Level(N)/Level(H): Andariel 12/49/75)');
+  eq([D.areas.blood_moor.lvlByDiff.n, D.areas.blood_moor.lvlByDiff.nm, D.areas.blood_moor.lvlByDiff.h, D.areas.blood_moor.monstersByDiff.h.slice(0, 2)], [1, 36, 67, ['zombie1', 'fallen1']], 'area levels and monster lists per difficulty (Hell uses nmon*)');
+  const en = D.items.runewords.find(r => r.name === 'Enigma');
+  eq([en && en.runes, en && en.itype], [['r31', 'r06', 'r30'], ['tors']], 'Enigma = Jah Ith Ber in body armor (runes.txt)');
+  ok(D.items.runewords.length >= 90 && D.items.gems.gpv && D.items.setBonuses["Civerb's Vestments"].full.length > 0, 'runewords, gems and set bonuses are present', D.items.runewords.length);
+  ok(['normal', 'exceptional', 'elite'].every(t => Object.values(D.items.bases).some(b => b.tier === t && b.kind === 'armor')), 'item bases cover all three tiers');
+  ok(D.items.prefixes.some(a => a.level > 80) && D.items.uniques.some(u => u.lvl >= 80), 'affixes and uniques are not capped at Act I levels');
+  eq(Object.keys(D.quests).length, 27, '27 quests');
+  eq([1, 2, 3, 4, 5].map(a => Object.values(D.quests).filter(q => q.act === a).length), [6, 6, 6, 3, 6], 'quests per act: 6/6/6/3/6');
+  eq([D.quests.radaments_lair.giver, D.quests.radaments_lair.reward, D.quests.lam_esens_tome.reward, D.quests.prison_of_ice.reward], ['atma', { skillPts: 1 }, { statPts: 5 }, { resistPct: 10 }], 'quest givers and rewards (Arreat Summit)');
+  ok(Object.values(D.quests).every(q => D.areas[q.area] && D.npcs[q.giver] && q.name), 'every quest has a name, a giver NPC and an area');
+  eq(Object.keys(D.monpreset), ['1', '2', '3', '4', '5'], 'monpreset holds all five acts');
+  eq([D.monpreset['2'][1], D.monpreset['5'][0]], ['atma', 'larzuk'], 'monpreset act 2/5 ids index into the act list');
+  eq([1, 2, 3, 4, 5].map(a => D.hirelings.filter(h => h.act === a).length), [24, 45, 36, 0, 30], 'hireling.txt rows per act (Version 0 classic rows + Version 100 LoD rows; Act IV has no mercenary)');
+  eq(D.hirelings.filter(h => h.name === 'Rogue Scout' && h.diff === 'n' && h.version === 100).map(h => h.level), [3, 36, 67, 3, 36, 67], 'Rogue Scout LoD rows for Normal: levels 3/36/67, fire and cold (hireling.txt)');
+  eq(['kashya', 'greiz', 'asheara', 'qual-kehk'].map(k => D.npcs[k].hires), [1, 2, 3, 5], 'mercenary hirers per act');
+  eq([D.npcs.larzuk.shop.buyMult, D.npcs.larzuk.roles.includes('socket')], [512, true], 'shop multipliers from npc.txt');
+  const dr = R.rollDrop('andariel', 75, R.rng(5), { difficulty: 'hell' });
+  ok(dr.length > 0 && dr.every(i => i.base === 'gld' || D.items.bases[i.base]), 'Hell Andariel rolls its Hell treasure class', dr.map(i => i.base));
 }
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');

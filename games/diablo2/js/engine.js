@@ -9,7 +9,7 @@
   var SPR = window.D2_SPRITES || { pages: [], sheets: {}, hero: { cofs: {}, layers: {} } };
   var OBJ = window.D2_SPRITES_OBJ || { pages: [], sheets: {} };
   var WORLD = window.D2_WORLD || { tilesets: {} };
-  var UIA = window.D2_UI || { pages: [], icons: {}, sfx: {}, music: {} };
+  var UIA = window.D2_UI || { pages: [], icons: {}, skillIcons: {}, sfx: {}, music: {} };
 
   var E = D2.E = {
     W: W, H: H, canvas: null, ctx: null, images: {}, level: null,
@@ -37,10 +37,55 @@
     });
   }
 
-  // Mỗi nguồn (sprites.js, sprites_obj.js) có mảng pages riêng; rect[6] là chỉ số trong mảng đó.
-  var SHEETS = {};
-  Object.keys(SPR.sheets || {}).forEach(function (k) { SHEETS[k] = { s: SPR.sheets[k], pages: SPR.pages }; });
-  Object.keys(OBJ.sheets || {}).forEach(function (k) { SHEETS[k] = { s: OBJ.sheets[k], pages: OBJ.pages }; });
+  // Hai cách nạp asset: bản v2 (D2_INDEX + nhóm assets/m/*.js đăng ký qua D2_REG, nạp khi cần) và bản cũ
+  // (sprites.js, sprites_obj.js, world.js, ui.js nạp sẵn). Mỗi sheet nhớ mảng pages của nguồn chứa nó.
+  var IDX = window.D2_INDEX || null;
+  var SHEETS = {}, GROUPS = window.D2_GROUPS = window.D2_GROUPS || {}, waiting = {};
+  SPR.heroPages = SPR.heroPages || {};
+  window.D2_MAPS = window.D2_MAPS || {};
+  window.D2_PRESETS = window.D2_PRESETS || {};
+  function addSheets(sheets, pages) { Object.keys(sheets || {}).forEach(function (k) { SHEETS[k] = { s: sheets[k], pages: pages }; }); }
+  addSheets(SPR.sheets, SPR.pages);
+  addSheets(OBJ.sheets, OBJ.pages);
+  if (SPR.pages && SPR.pages.length) ['AM', 'SO', 'NE', 'PA', 'BA', 'DZ', 'AI'].forEach(function (c) { SPR.heroPages[c] = SPR.pages; });
+
+  function groupName(n) { return String(n).replace(/^m\//, ''); }
+  window.D2_REG = function (name, g) {
+    name = groupName(name); GROUPS[name] = g;
+    var pages = g.pages || [];
+    addSheets(g.sheets, pages);
+    if (g.hero) {
+      Object.assign(SPR.hero.cofs, g.hero.cofs || {});
+      Object.assign(SPR.hero.layers, g.hero.layers || {});
+      Object.keys(g.hero.cofs || {}).forEach(function (k) { SPR.heroPages[k.split('.')[0]] = pages; });
+    }
+    Object.keys(g.tilesets || {}).forEach(function (k) { var ts = g.tilesets[k]; if (!ts.pages) ts.pages = pages; WORLD.tilesets[k] = ts; });
+    Object.assign(window.D2_MAPS, g.maps || {});
+    Object.assign(window.D2_PRESETS, g.presets || {});
+    if (g.ui) Object.assign(UIA, g.ui);
+    (waiting[name] || []).splice(0).forEach(function (f) { f(true); });
+  };
+  // Nạp một nhóm bằng thẻ <script> chèn động (chạy được cả trên file://)
+  E.loadGroup = function (path) {
+    var name = groupName(path);
+    if (GROUPS[name]) return Promise.resolve(true);
+    return new Promise(function (res) {
+      var first = !waiting[name];
+      (waiting[name] = waiting[name] || []).push(res);
+      if (!first) return;
+      var s = document.createElement('script');
+      s.src = 'assets/m/' + name + '.js' + (E.ver ? '?v=' + E.ver : '');
+      s.onerror = function () { (waiting[name] || []).splice(0).forEach(function (f) { f(false); }); };
+      document.head.appendChild(s);
+    });
+  };
+  function loadGroups(list) {
+    var seen = {};
+    return Promise.all(list.filter(function (g) { if (!g || seen[g]) return false; seen[g] = 1; return true; }).map(E.loadGroup));
+  }
+  E.index = IDX;
+  E.monmap = (IDX && IDX.monmap) || SPR.monmap || {};
+  E.objPresets = (IDX && IDX.objPresets) || OBJ.presets || {};
 
   function pagesOfAnims(anims, pages, out) {
     function scan(f) {
@@ -55,8 +100,8 @@
     return out;
   }
   E.sheet = function (key) { var e = SHEETS[key]; return e ? e.s : null; };
-  E.hasSheet = function (key) { return !!SHEETS[key]; };
-  E.ensure = function (keys) {
+  E.hasSheet = function (key) { return !!SHEETS[key] || !!(IDX && IDX.sheets && IDX.sheets[key]); };
+  function sheetPages(keys) {
     var need = {};
     keys.forEach(function (k) {
       var e = SHEETS[k]; if (!e) return;
@@ -64,24 +109,35 @@
       e.need.forEach(function (p) { need[p] = 1; });
     });
     return Promise.all(Object.keys(need).map(whenLoaded));
+  }
+  E.ensure = function (keys) {
+    return loadGroups(keys.map(function (k) { return !SHEETS[k] && IDX && IDX.sheets && IDX.sheets[k]; }))
+      .then(function () { return sheetPages(keys); });
   };
   E.ensurePrefix = function (prefixes) {
-    return E.ensure(Object.keys(SHEETS).filter(function (k) {
-      return prefixes.some(function (p) { return k.indexOf(p) === 0; });
-    }));
+    var all = Object.keys(SHEETS).concat(IDX && IDX.sheets ? Object.keys(IDX.sheets) : []);
+    return E.ensure(all.filter(function (k) { return prefixes.some(function (p) { return k.indexOf(p) === 0; }); }));
   };
   E.ensureHero = function (cls) {
-    var L = (SPR.hero && SPR.hero.layers) || {}, need = {};
-    Object.keys(L).forEach(function (k) { if (k.indexOf(cls + '.') === 0) pagesOfAnims(L[k], SPR.pages, need); });
-    return Promise.all(Object.keys(need).map(whenLoaded));
+    return loadGroups([IDX && IDX.hero && IDX.hero[cls]]).then(function () {
+      var L = (SPR.hero && SPR.hero.layers) || {}, need = {}, pages = SPR.heroPages[cls] || [];
+      Object.keys(L).forEach(function (k) { if (k.indexOf(cls + '.') === 0) pagesOfAnims(L[k], pages, need); });
+      return Promise.all(Object.keys(need).map(whenLoaded));
+    });
   };
   E.ensureTileset = function (name) {
-    var ts = WORLD.tilesets && WORLD.tilesets[name];
-    return ts ? Promise.all(ts.pages.map(whenLoaded)) : Promise.resolve(false);
+    return loadGroups([IDX && IDX.tilesets && IDX.tilesets[name]]).then(function () {
+      var ts = WORLD.tilesets && WORLD.tilesets[name];
+      return ts ? Promise.all(ts.pages.map(whenLoaded)) : false;
+    });
   };
+  // DS1 + LvlPrest của một act (D2G.build đọc chúng nên phải nạp trước khi dựng khu)
+  E.ensureMaps = function (act) { return loadGroups([IDX && IDX.maps && IDX.maps[act]]); };
   // Kích thước trang atlas UI để CSS phóng ảnh (background-size) khi vẽ icon to/nhỏ hơn gốc
   E.ensureUi = function () {
-    return Promise.all((UIA.pages || []).map(whenLoaded)).then(function () {
+    return loadGroups([IDX && IDX.ui]).then(function () {
+      return Promise.all((UIA.pages || []).map(whenLoaded));
+    }).then(function () {
       UIA.pageSize = UIA.pages.map(function (p) { var im = E.images[p].img; return [im.naturalWidth, im.naturalHeight]; });
     });
   };
@@ -166,7 +222,8 @@
     }
   }
   E.drawSprite = function (key, mode, t, dir, sx, sy, alpha, once) {
-    var e = SHEETS[key]; if (!e) return false;
+    var e = SHEETS[key];
+    if (!e) { if (IDX && IDX.sheets && IDX.sheets[key]) E.loadGroup(IDX.sheets[key]); return false; }
     var an = e.s.anims && e.s.anims[mode]; if (!an || !an.f || !an.f.length) return false;
     var fi = E.frameIndex(an, t, once || an.loop === false), fr = an.f[fi];
     var d = dirIdx(dir, an.dirs || fr.length), r = fr && fr[d];
@@ -184,7 +241,7 @@
   };
   E.drawHero = function (look, mode, t, dir, sx, sy, alpha, once) {
     var cof = E.heroCof(look, mode); if (!cof) return false;
-    var L = SPR.hero.layers, fi = E.frameIndex(cof, t, once), d = dirIdx(dir, cof.dirs);
+    var L = SPR.hero.layers, pages = SPR.heroPages[look.cls] || [], fi = E.frameIndex(cof, t, once), d = dirIdx(dir, cof.dirs);
     var row = cof.pri[d] && cof.pri[d][fi]; if (!row) return false;
     var order = typeof row === 'string' ? row.split(',') : row, any = false;
     for (var i = 0; i < order.length; i++) {
@@ -193,7 +250,7 @@
       var sh = L[look.cls + '.' + ly + '.' + tok + '.' + wc] || L[look.cls + '.' + ly + '.LIT.' + wc];
       var an = sh && sh[mode]; if (!an || !an.f) continue;
       var r = an.f[fi] && an.f[fi][d];
-      if (r && r.length && blit(SPR.pages, r, sx, sy, alpha, cof.blend && cof.blend[ly])) any = true;
+      if (r && r.length && blit(pages, r, sx, sy, alpha, cof.blend && cof.blend[ly])) any = true;
     }
     return any;
   };

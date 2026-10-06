@@ -919,7 +919,9 @@
       var m = D.monsters[su ? su.cls : monId];
       if (!m && !su) throw new Error('monster not found: ' + monId);
       var kind = su ? 'unique' : (opts.kind || 'normal');
-      tcName = su ? su.tc.n : m.d.n.tc[kind === 'champion' ? 1 : (kind === 'unique' ? 2 : (kind === 'quest' ? 3 : 0))] || m.d.n.tc[0];
+      // monstats/superuniques carry one TreasureClass per difficulty ('TreasureClass(N)', 'TC(H)'); Normal is the default
+      var tdk = DIFF[opts.difficulty || 'normal'] || 'n', ti = kind === 'champion' ? 1 : (kind === 'unique' ? 2 : (kind === 'quest' ? 3 : 0));
+      tcName = su ? (su.tc[tdk] || su.tc.n) : (m.d[tdk].tc[ti] || m.d[tdk].tc[0] || m.d.n.tc[ti] || m.d.n.tc[0]);
     }
     var out = [], maxItems = opts.maxItems || 6, players = Math.max(1, opts.players || 1);
     function walk(name, q) {

@@ -1,7 +1,11 @@
 /* Ác Quỷ II - ui.js
- * HUD kiểu D2 + các bảng (nhân vật, túi đồ, cây kỹ năng, NPC/cửa hàng, nhật ký, bản đồ, menu, màn hình đầu).
+ * HUD và các bảng dựng từ ảnh giao diện gốc của Diablo II (D2_UI, nạp qua D2.E.UI): thanh điều khiển, hai quả cầu,
+ * túi đồ, nhân vật, cây kỹ năng, kho, cửa hàng, waypoint, nhật ký. Chữ, hộp thoại, màn hình đầu vẫn là DOM.
  * DOM phủ lên canvas, nằm trong #stage 960x540 nên co giãn cùng canvas.
  * UI chỉ ĐỌC trạng thái từ D2.Game.S và gọi hàm của D2.Game (statUp, skillUp, equipItem ...).
+ *
+ * Toạ độ ảnh D2 tính cho màn 800x600: khung có r=[x,y,w,h,ox,oy,trang] đặt tại (x,y) thì góc trên trái là (x-ox, y-oy).
+ * Mỗi bảng là một khối .pin 320x432 theo toạ độ D2, co bằng transform: scale(PK) nên mọi con số bên dưới là điểm ảnh D2.
  */
 (function () {
   'use strict';
@@ -21,18 +25,46 @@
   function G() { return D2.Game; }
   function S() { return D2.Game.S; }
   function DA() { return D2.DA; }
+  function UA() { return D2.E.UI || {}; }
+  function PN(name) { return (UA().panels || {})[name] || []; }
 
   var QCOL = { normal: '#e8e8e8', superior: '#d8d8d8', low: '#8a8a8a', magic: '#6e7bff', rare: '#ffe45a', unique: '#c7b377', set: '#2fd12f', crafted: '#ff9a2e' };
   UI.qcol = function (q) { return QCOL[q] || QCOL.normal; };
+  var QBG = { magic: 'rgba(40,40,150,.35)', rare: 'rgba(150,140,30,.3)', unique: 'rgba(120,100,50,.35)', set: 'rgba(30,120,30,.35)', crafted: 'rgba(150,80,20,.35)' };
 
-  var SLOTS = [
-    { id: 'head', t: 'Mũ', x: 150, y: 6, w: 58, h: 58 }, { id: 'amulet', t: 'Dây chuyền', x: 222, y: 20, w: 30, h: 30 },
-    { id: 'rhand', t: 'Tay phải', x: 14, y: 64, w: 58, h: 100 }, { id: 'body', t: 'Áo giáp', x: 150, y: 72, w: 58, h: 86 },
-    { id: 'lhand', t: 'Tay trái', x: 286, y: 64, w: 58, h: 100 }, { id: 'gloves', t: 'Găng', x: 80, y: 172, w: 58, h: 52 },
-    { id: 'belt', t: 'Đai', x: 150, y: 172, w: 58, h: 28 }, { id: 'boots', t: 'Giày', x: 220, y: 172, w: 58, h: 52 },
-    { id: 'ring1', t: 'Nhẫn', x: 112, y: 202, w: 30, h: 30 }, { id: 'ring2', t: 'Nhẫn', x: 216, y: 202, w: 30, h: 30 }
-  ];
-  var CELL = 30;
+  var CELL = 29;            // ô túi đồ của D2
+  var PK = 0.95;            // hệ số co của bảng so với toạ độ D2: cao 432 -> 410, vừa phía trên thanh điều khiển
+  var HK = 1.2;             // 800 -> 960 theo chiều ngang, không méo
+  var PW = 320, PH = 432;
+  var BAR_TOP = 496, BAR_H = 104;
+  var SLOT_IDX = { head: 4, amulet: 5, body: 6, rhand: 7, lhand: 8, ring1: 9, ring2: 10, belt: 11, boots: 12, gloves: 13 };
+  var SLOT_NAME = { head: 'Mũ', amulet: 'Dây chuyền', rhand: 'Tay phải', body: 'Áo giáp', lhand: 'Tay trái', gloves: 'Găng', belt: 'Đai', boots: 'Giày', ring1: 'Nhẫn', ring2: 'Nhẫn' };
+
+  /* ------------------------------------------------------------ vẽ ảnh D2 */
+  function spStyle(r, x, y) { return 'left:' + (x - (r[4] || 0)) + 'px;top:' + (y - (r[5] || 0)) + 'px;' + D2.E.uiSprite(r, 1); }
+  function frames(parent, list, ox, oy) {
+    (list || []).forEach(function (f) {
+      if (!f || !f.r || !f.r.length) return;
+      var e = h('div', 'sp', '', parent); e.style.cssText = spStyle(f.r, f.x - ox, f.y - oy);
+    });
+  }
+  function box(parent, cls, x, y, w, hh, html) {
+    var e = h('div', cls, html == null ? '' : html, parent);
+    e.style.left = x + 'px'; e.style.top = y + 'px'; e.style.width = w + 'px'; e.style.height = hh + 'px';
+    return e;
+  }
+  /* Khối nền của một bảng: .pin theo toạ độ D2, gốc (ox,oy). */
+  function pin(p, list, ox, oy) {
+    p.innerHTML = '';
+    var q = h('div', 'pin', '', p);
+    frames(q, list, ox, oy == null ? 60 : oy);
+    return q;
+  }
+  function closeBtn(q, p, x, y) {
+    var b = box(q, 'xbtn', x, y, 36, 36, '&#10005;'); b.title = 'Đóng';
+    b.addEventListener('pointerdown', function (e) { e.stopPropagation(); UI.closePanelOf(p); });
+    return b;
+  }
 
   /* ------------------------------------------------------------------ dựng */
   UI.init = function (stage) {
@@ -41,13 +73,13 @@
     buildHud(r);
     UI.panels = {};
     ['inv', 'char', 'skill', 'quest', 'stash'].forEach(function (id) {
-      var p = h('div', 'panel ' + id, '', r); p.id = 'p-' + id; p.style.display = 'none';
+      var p = h('div', 'panel d2 ' + id, '', r); p.id = 'p-' + id; p.style.display = 'none';
       UI.panels[id] = p;
     });
     UI.panels.inv.classList.add('right'); ['char', 'skill', 'quest', 'stash'].forEach(function (k) { UI.panels[k].classList.add('left'); });
     UI.dlgEl = h('div', 'dialog', '', r); UI.dlgEl.style.display = 'none';
-    UI.shopEl = h('div', 'panel left shop', '', r); UI.shopEl.style.display = 'none';
-    UI.wpEl = h('div', 'modal wpmenu', '', r); UI.wpEl.style.display = 'none';
+    UI.shopEl = h('div', 'panel d2 left shop', '', r); UI.shopEl.style.display = 'none';
+    UI.wpEl = h('div', 'modal d2 wpmenu', '', r); UI.wpEl.style.display = 'none';
     UI.menuEl = h('div', 'modal menu', '', r); UI.menuEl.style.display = 'none';
     UI.popup = h('div', 'skpop', '', r); UI.popup.style.display = 'none';
     UI.tipEl = h('div', 'tip', '', r); UI.tipEl.style.display = 'none';
@@ -61,20 +93,55 @@
 
   function buildHud(r) {
     var hud = UI.hud = h('div', 'hud', '', r); hud.style.display = 'none';
-    UI.lifeOrb = h('div', 'orb life', '<div class="fill"></div><div class="lab"></div>', hud);
-    UI.manaOrb = h('div', 'orb mana', '<div class="fill"></div><div class="lab"></div>', hud);
-    UI.xpBar = h('div', 'xpbar', '<i></i>', hud);
-    UI.stamBar = h('div', 'stam', '<i></i>', hud);
-    UI.belt = h('div', 'belt', '', hud);
-    UI.lskill = h('div', 'skbtn left', '', hud); UI.rskill = h('div', 'skbtn right', '', hud);
+    var A = UA(), L = A.layout || {}, HL = L.hud || {}, bar = UI.bar = h('div', 'hbar', '', hud);
+    function at(cls, x, y, w, hh, html, parent) { return box(parent || bar, cls, x, y - BAR_TOP, w, hh, html); }
+    frames(bar, PN('ctrlpanel'), 0, BAR_TOP);
+    // quả cầu: ảnh cầu đầy được cắt từ đáy theo phần trăm (xem UI.update)
+    var G0 = (A.panels && A.panels.globes) || {};
+    UI._glob = { hp: G0.hp && G0.hp.r, mp: G0.mp && G0.mp.r };
+    if (G0.hpFrame) frames(bar, [G0.hpFrame, G0.mpFrame], 0, BAR_TOP);   // nền cầu rỗng, cầu đầy vẽ đè lên
+    UI.lifeOrb = at('orb life', G0.hp ? G0.hp.x : 29, G0.hp ? G0.hp.y : 507, 80, 80, '<div class="fill"></div><div class="lab"></div>');
+    UI.manaOrb = at('orb mana', G0.mp ? G0.mp.x : 689, G0.mp ? G0.mp.y : 507, 80, 80, '<div class="fill"></div><div class="lab"></div>');
+    ['hp', 'mp'].forEach(function (k) {
+      var f = $('.fill', k === 'hp' ? UI.lifeOrb : UI.manaOrb), r0 = UI._glob[k];
+      if (r0) f.style.cssText = D2.E.uiSprite(r0, 1) + 'left:0;bottom:0;top:auto;';
+    });
+    // layout.hud.exp/stamina/belt tính theo màn 640 nên lệch +80 so với thanh 800
+    var ex = HL.exp || [176, 561, 119, 2], sm = HL.stamina || [193, 573, 102, 18];
+    ex = [ex[0] + 80, ex[1], ex[2], ex[3]]; sm = [sm[0] + 80, sm[1], sm[2], sm[3]];
+    UI.xpBar = at('xpbar', ex[0], ex[1] - 1, ex[2], 4, '<i></i>');
+    UI.stamBar = at('stam', sm[0], sm[1], sm[2], sm[3], '<i></i>');
+    UI.belt = at('belt', 423, 562, 124, 30, '');
+    var ls = HL.leftSkill || [117, 552], rs = HL.rightSkill || [635, 552];
+    UI.lskill = at('skbtn left', ls[0], ls[1], 48, 48, ''); UI.rskill = at('skbtn right', rs[0], rs[1], 48, 48, '');
     UI.lskill.title = 'Kỹ năng chuột trái'; UI.rskill.title = 'Kỹ năng chuột phải';
     UI.lskill.addEventListener('pointerdown', function (e) { e.stopPropagation(); UI.skillPopup('left'); });
     UI.rskill.addEventListener('pointerdown', function (e) { e.stopPropagation(); UI.skillPopup('right'); });
-    UI.hudBtns = h('div', 'hudbtns', '', hud);
-    [['I', 'Túi', 'inv'], ['C', 'NV', 'char'], ['T', 'KN', 'skill'], ['Q', 'NVụ', 'quest']].forEach(function (b) {
-      var e = h('button', 'hb', b[1] + '<small>' + b[0] + '</small>', UI.hudBtns);
-      e.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); UI.toggle(b[2]); });
+    // dải nút nhỏ (mini panel): C, I, T, bản đồ, nhiệm vụ, menu
+    var mp = (A.panels && A.panels.minipanel && A.panels.minipanel.single);
+    UI.hudBtns = at('hudbtns', mp ? mp.x : 322, mp ? mp.y : 527, mp ? mp.r[2] : 152, 25, '');
+    if (mp) { var st = h('div', 'sp', '', UI.hudBtns); st.style.cssText = 'left:0;top:0;' + D2.E.uiSprite(mp.r, 1); }
+    var MB = (A.panels && A.panels.buttons && A.panels.buttons.minipanel) || [];
+    [['C', 'Nhân vật (C)', 'char', 0], ['I', 'Túi đồ (I)', 'inv', 1], ['T', 'Kỹ năng (T)', 'skill', 2], ['Tab', 'Bản đồ (Tab)', 'map', 3], ['Q', 'Nhiệm vụ (Q)', 'quest', 5], ['Esc', 'Menu (Esc)', 'menu', 6]].forEach(function (b) {
+      var e = h('button', 'hb', '', UI.hudBtns); e.title = b[1];
+      var fr = MB[b[3]];
+      e.style.left = (3 + b[3] * 21) + 'px'; e.style.top = '3px';
+      if (fr) e.style.cssText += ';' + D2.E.uiSprite(fr.r, 1);
+      e.addEventListener('pointerdown', function (ev) {
+        ev.stopPropagation();
+        if (b[2] === 'menu') UI.toggleMenu(); else UI.toggle(b[2]);
+      });
     });
+    // nút +chỉ số / +kỹ năng nhấp nháy khi còn điểm
+    var BU = (A.panels && A.panels.buttons) || {};
+    function lvlBtn(def, id, title, key) {
+      var e = at('lvlbtn', def[0].x, def[0].y, def[0].r[2], def[0].r[3], ''); e.title = title; e.style.display = 'none';
+      e.style.cssText += ';' + D2.E.uiSprite(def[0].r, 1);
+      e.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); UI.toggle(key); });
+      return e;
+    }
+    UI.statBtn = BU.statup ? lvlBtn(BU.statup, 'stat', 'Có điểm chỉ số', 'char') : null;
+    UI.skillBtn = BU.skillup ? lvlBtn(BU.skillup, 'skill', 'Có điểm kỹ năng', 'skill') : null;
     UI.lvlPts = h('div', 'ptsflag', '', hud);
     UI.lvlPts.addEventListener('pointerdown', function (e) { e.stopPropagation(); UI.toggle(S().char.statPts > 0 ? 'char' : 'skill'); });
     UI.mon = h('div', 'monbar', '<span></span><div><i></i></div>', hud);
@@ -83,13 +150,18 @@
 
   /* ----------------------------------------------------------- HUD mỗi khung */
   UI.showHud = function (on) { UI.hud.style.display = on ? 'block' : 'none'; };
+  function setGlobe(orb, r, pct) {
+    var f = $('.fill', orb); if (!r) return;
+    var hh = Math.round(r[3] * pct / 100);
+    f.style.height = hh + 'px'; f.style.backgroundPosition = '-' + r[0] + 'px -' + (r[1] + r[3] - hh) + 'px';
+  }
   UI.update = function (t) {
     var s = S(); if (!s || !s.char) return;
     var c = s.char, d = s.d || {}, L = UI._last;
     var mh = Math.max(1, d.maxHp || c.hp), mm = Math.max(1, d.maxMp || c.mp);
     var lp = Math.round(Math.max(0, c.hp) / mh * 100), mp = Math.round(Math.max(0, c.mp) / mm * 100);
-    if (L.lp !== lp) { L.lp = lp; $('.fill', UI.lifeOrb).style.height = lp + '%'; }
-    if (L.mp !== mp) { L.mp = mp; $('.fill', UI.manaOrb).style.height = mp + '%'; }
+    if (L.lp !== lp) { L.lp = lp; setGlobe(UI.lifeOrb, UI._glob.hp, lp); }
+    if (L.mp !== mp) { L.mp = mp; setGlobe(UI.manaOrb, UI._glob.mp, mp); }
     var lt = Math.ceil(c.hp) + '/' + mh, mt = Math.ceil(c.mp) + '/' + mm;
     if (L.lt !== lt) { L.lt = lt; $('.lab', UI.lifeOrb).textContent = lt; }
     if (L.mt !== mt) { L.mt = mt; $('.lab', UI.manaOrb).textContent = mt; }
@@ -102,6 +174,8 @@
       L.pk = pk;
       UI.lvlPts.style.display = (c.statPts > 0 || c.skillPts > 0) ? 'block' : 'none';
       UI.lvlPts.textContent = (c.statPts > 0 ? '+' + c.statPts + ' chỉ số ' : '') + (c.skillPts > 0 ? '+' + c.skillPts + ' kỹ năng' : '');
+      if (UI.statBtn) UI.statBtn.style.display = c.statPts > 0 ? 'block' : 'none';
+      if (UI.skillBtn) UI.skillBtn.style.display = c.skillPts > 0 ? 'block' : 'none';
     }
     var sig = c.hp > 0 ? [s.leftSkill, s.rightSkill, c.belt.map(function (b) { return b ? b.name || b.base : '-'; }).join(), JSON.stringify(s.fkeys), c.lvl].join('|') : L.sig;
     if (L.sig !== sig) { L.sig = sig; UI.refreshSkillIcons(); UI.refreshBelt(); }
@@ -130,8 +204,8 @@
   UI.refreshSkillIcons = function () {
     var s = S(); if (!s) return;
     var l = DA().skill(s.leftSkill) || { name: 'Đánh thường' }, r = DA().skill(s.rightSkill) || { name: 'Đánh thường' };
-    UI.lskill.innerHTML = skIconHtml(s.leftSkill, 44) + '<small>' + esc(l.name) + '</small>';
-    UI.rskill.innerHTML = skIconHtml(s.rightSkill, 44) + '<small>' + esc(r.name) + '</small>';
+    UI.lskill.innerHTML = skIconHtml(s.leftSkill, 46) + '<small>' + esc(l.name) + '</small>'; UI.lskill.title = 'Chuột trái: ' + l.name;
+    UI.rskill.innerHTML = skIconHtml(s.rightSkill, 46) + '<small>' + esc(r.name) + '</small>'; UI.rskill.title = 'Chuột phải: ' + r.name;
     for (var i = 0; i < 4; i++) {
       var id = s.fkeys[i], sk = id && DA().skill(id);
       var ti = sk && DA().skillIcon(id);
@@ -144,7 +218,8 @@
     for (var i = 0; i < 4; i++) {
       (function (i) {
         var slot = h('div', 'bslot', '<small>' + (i + 1) + '</small>', UI.belt), it = c.belt[i];
-        if (it) { slot.appendChild(itemEl(it, 30)); slot.title = DA().itemName(it); }
+        slot.style.left = (i * 31) + 'px';
+        if (it) { slot.appendChild(itemEl(it, 28, false)); slot.title = DA().itemName(it); }
         slot.addEventListener('pointerdown', function (e) { e.stopPropagation(); G().drinkBelt(i); });
       })(i);
     }
@@ -157,15 +232,23 @@
     var w = (it.w || 1), hgt = (it.h || 1);
     var e = h('div', 'item q-' + (it.q || 'normal'));
     e.style.width = (abs === false ? cell : w * cell) + 'px'; e.style.height = (abs === false ? cell : hgt * cell) + 'px';
-    var lootSt = DA().iconBox(it, (abs === false ? 1 : w) * cell - 2, (abs === false ? 1 : hgt) * cell - 2);
+    fillItem(e, it, (abs === false ? 1 : w) * cell, (abs === false ? 1 : hgt) * cell);
+    return e;
+  }
+  function fillItem(e, it, bw, bh) {
+    var lootSt = DA().iconBox(it, bw - 2, bh - 2);
     if (lootSt) {
       var li = h('div', 'iimg', '', e); li.style.cssText = lootSt + 'left:50%;top:50%;margin:0;transform:translate(-50%,-50%);';
     } else {
       e.textContent = DA().itemName(it).replace(/[^A-Za-zÀ-ỹ ]/g, '').split(' ').map(function (x) { return x[0]; }).join('').slice(0, 3);
     }
     e.style.color = UI.qcol(it.q);
-    e.style.borderColor = UI.qcol(it.q);
-    return e;
+    if (QBG[it.q]) e.style.backgroundColor = QBG[it.q];
+  }
+  /* Đồ vừa khít một ô có kích thước bw x bh (ô trang bị). */
+  function itemFit(it, bw, bh) {
+    var e = h('div', 'item q-' + (it.q || 'normal')); e.style.width = bw + 'px'; e.style.height = bh + 'px';
+    fillItem(e, it, bw, bh); return e;
   }
   UI.itemEl = itemEl;
 
@@ -218,62 +301,73 @@
   UI.renderPanel = function (id) {
     if (id === 'inv') renderInv(); else if (id === 'char') renderChar(); else if (id === 'skill') renderSkill(); else if (id === 'quest') renderQuest(); else if (id === 'stash') renderStash();
   };
-  function head(p, title) {
-    var hd = h('div', 'phead', esc(title) + '<button class="x">X</button>', p);
-    $('.x', hd).addEventListener('pointerdown', function (e) { e.stopPropagation(); UI.closePanelOf(p); });
-  }
   UI.closePanelOf = function (p) {
     Object.keys(UI.panels).forEach(function (k) { if (UI.panels[k] === p) { UI.open[k] = false; p.style.display = 'none'; } });
     if (p === UI.shopEl) UI.closeShop();
+    UI.tip(null);
   };
+  /* Tiêu đề nằm trong dải trên cùng của bảng (chữ Exocet thay bằng Cinzel). */
+  function title(q, text, x, y, w) { return box(q, 'ptitle', x, y, w, 24, esc(text)); }
+  /* Khung chi tiết đồ/kỹ năng: nằm ngoài bảng, phía trong màn hình, nên không bị co theo bảng. */
+  function detailBox(p) { return h('div', 'detail', '', p); }
 
   /* -------------------------------------------------------- bảng nhân vật */
   function renderChar() {
-    var p = UI.panels.char, s = S(), c = s.char, d = s.d; p.innerHTML = '';
-    head(p, 'Nhân vật');
+    var p = UI.panels.char, s = S(), c = s.char, d = s.d || {};
+    var q = pin(p, PN('character'), 80, 60);
     var nm = DA().className(c.cls);
-    h('div', 'sub', esc(c.name) + ' - ' + esc(nm) + ' - Cấp ' + c.lvl, p);
-    h('div', 'row', 'Kinh nghiệm <b>' + c.xp + '</b> / ' + DA().xpFor(c.lvl + 1), p);
-    h('div', 'row', 'Vàng <b style="color:#ffd24a">' + c.gold + '</b>', p);
-    var t = h('table', 'stats', '', p);
-    [['str', 'Sức mạnh'], ['dex', 'Nhanh nhẹn'], ['vit', 'Sinh lực'], ['ene', 'Năng lượng']].forEach(function (a) {
-      var tr = h('tr', '', '<td>' + a[1] + '</td><td class="v">' + c[a[0]] + '</td><td></td>', t);
+    box(q, 'fld', 10, 8, 172, 18, esc(c.name));
+    box(q, 'fld', 192, 8, 118, 18, esc(nm));
+    box(q, 'fld two', 10, 31, 42, 35, '<small>Cấp</small>' + c.lvl);
+    box(q, 'fld two', 63, 31, 120, 35, '<small>Kinh nghiệm</small>' + c.xp);
+    box(q, 'fld two', 192, 31, 118, 35, '<small>Cấp tiếp theo</small>' + DA().xpFor(c.lvl + 1));
+    var groups = [
+      { key: 'str', lab: 'Sức mạnh', y: 81, rows: [['Sát thương', Math.round(d.dmgMin || 0) + '-' + Math.round(d.dmgMax || 0)], ['Chính xác', Math.round(d.ar || 0)]] },
+      { key: 'dex', lab: 'Nhanh nhẹn', y: 143, rows: [['Phòng thủ', Math.round(d.def || 0)], ['Tốc đánh', (d.atkFrames || 0) + ' khung'], ['Vàng', '<span style="color:#ffd24a">' + c.gold + '</span>']] },
+      { key: 'vit', lab: 'Sinh lực', y: 231, rows: [['Sinh lực', Math.ceil(c.hp) + '/' + (d.maxHp || 0)], ['Thể lực', Math.round(s.stamina || 0) + '/' + Math.round(s.stamMax || 0)]] },
+      { key: 'ene', lab: 'Năng lượng', y: 293, rows: [['Mana', Math.ceil(c.mp) + '/' + (d.maxMp || 0)]] }
+    ];
+    var statupR = (((UA().panels || {}).buttons || {}).statup || [{}])[0].r;
+    groups.forEach(function (g) {
+      box(q, 'fld lv', 10, g.y, 38 + 70, 22, '<span>' + g.lab + '</span><b>' + c[g.key] + '</b>');
+      g.rows.forEach(function (r, i) { box(q, 'fld lv', 161, g.y + i * 23.5, 150, 22, '<span>' + r[0] + '</span><b>' + r[1] + '</b>'); });
       if (c.statPts > 0) {
-        var b = h('button', 'plus', '+', $('td:last-child', tr));
-        b.addEventListener('pointerdown', function (e) { e.stopPropagation(); G().statUp(a[0]); });
+        var bt = box(q, 'plus', 125, g.y - 4, 30, 29, '+'); bt.style.cssText += ';' + D2.E.uiSprite(statupR, 1);
+        bt.addEventListener('pointerdown', function (e) { e.stopPropagation(); G().statUp(g.key); });
       }
     });
-    h('div', 'row pts', 'Điểm chỉ số còn lại <b>' + c.statPts + '</b> &nbsp; Điểm kỹ năng <b>' + c.skillPts + '</b>', p);
+    box(q, 'fld lv', 3, 341, 135, 22, '<span>Chỉ số ' + c.statPts + '</span><b>Kỹ năng ' + c.skillPts + '</b>');
     var res = d.res || {};
-    h('div', 'derived', [
-      'Sinh lực <b>' + Math.ceil(c.hp) + '/' + d.maxHp + '</b>', 'Mana <b>' + Math.ceil(c.mp) + '/' + d.maxMp + '</b>',
-      'Sát thương <b>' + Math.round(d.dmgMin) + '-' + Math.round(d.dmgMax) + '</b>', 'Độ chính xác <b>' + Math.round(d.ar) + '</b>',
-      'Phòng thủ <b>' + Math.round(d.def) + '</b>', 'Tốc đánh <b>' + d.atkFrames + ' khung</b>',
-      'Kháng <span style="color:#f55">lửa ' + (res.fire || 0) + '</span> <span style="color:#6cf">lạnh ' + (res.cold || 0) +
-      '</span> <span style="color:#ff6">sét ' + (res.light || 0) + '</span> <span style="color:#7d7">độc ' + (res.poison || 0) + '</span>'
-    ].join('<br>'), p);
+    [['Kháng lửa', res.fire, '#f55'], ['Kháng lạnh', res.cold, '#6cf'], ['Kháng sét', res.light, '#ff6'], ['Kháng độc', res.poison, '#7d7']].forEach(function (r, i) {
+      box(q, 'fld lv', 174, 331 + i * 23, 137, 21, '<span style="color:' + r[2] + '">' + r[0] + '</span><b style="color:' + r[2] + '">' + (r[1] || 0) + '</b>');
+    });
+    closeBtn(q, p, 128, 388);
   }
 
   /* ------------------------------------------------------------- túi đồ */
+  function slotRect(name) {
+    var f = PN('inventory')[SLOT_IDX[name]]; if (!f || !f.r) return null;
+    return { x: f.x - (f.r[4] || 0) - 400, y: f.y - (f.r[5] || 0) - 60, w: f.r[2], h: f.r[3] };
+  }
   function renderInv() {
-    var p = UI.panels.inv, s = S(), c = s.char; p.innerHTML = '';
-    head(p, 'Túi đồ');
-    var eq = h('div', 'equip', '', p);
-    SLOTS.forEach(function (sl) {
-      var cell = h('div', 'eslot', '<small>' + sl.t + '</small>', eq);
-      cell.style.cssText = 'left:' + sl.x + 'px;top:' + sl.y + 'px;width:' + sl.w + 'px;height:' + sl.h + 'px';
-      var it = c.equip[sl.id];
+    var p = UI.panels.inv, s = S(), c = s.char;
+    var q = pin(p, PN('inventory'), 400, 60), L = (UA().layout || {}).inventory || {}, gr = L.grid || [19, 255, 10, 4];
+    Object.keys(SLOT_IDX).forEach(function (id) {
+      var rc = slotRect(id); if (!rc) return;
+      var cell = box(q, 'eslot', rc.x - 2, rc.y - 2, rc.w + 4, rc.h + 4, ''); cell.title = SLOT_NAME[id];
+      var it = c.equip[id];
       if (it) {
-        var e = itemEl(it, 28, false); e.style.cssText += ';position:absolute;inset:2px;width:auto;height:auto';
+        var e = itemFit(it, rc.w, rc.h); e.style.cssText += ';position:absolute;left:2px;top:2px';
+        if (UI.sel && UI.sel.item === it) e.classList.add('sel');
         cell.appendChild(e);
         hoverTip(cell, function () { return itemTipHtml(it); });
-        cell.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); UI.select({ item: it, equipped: sl.id }); });
+        cell.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); UI.select({ item: it, equipped: id }); });
       }
     });
-    var grid = h('div', 'grid', '', p);
-    grid.style.width = (10 * CELL) + 'px'; grid.style.height = (4 * CELL) + 'px';
+    var grid = box(q, 'grid', gr[0], gr[1], gr[2] * CELL, gr[3] * CELL, '');
     var rect = h('div', 'gridbg', '', grid);
-    for (var i = 0; i < 40; i++) h('i', '', '', rect);
+    rect.style.gridTemplateColumns = 'repeat(' + gr[2] + ',' + CELL + 'px)'; rect.style.gridTemplateRows = 'repeat(' + gr[3] + ',' + CELL + 'px)';
+    for (var i = 0; i < gr[2] * gr[3]; i++) h('i', '', '', rect);
     c.inv.forEach(function (it) {
       var e = itemEl(it, CELL); e.style.cssText += ';position:absolute;left:' + (it.ix * CELL) + 'px;top:' + (it.iy * CELL) + 'px';
       if (UI.sel && UI.sel.item === it) e.classList.add('sel');
@@ -281,8 +375,10 @@
       hoverTip(e, function () { return itemTipHtml(it); });
       e.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); UI.select({ item: it }); });
     });
-    h('div', 'gold', 'Vàng: <b>' + c.gold + '</b>', p);
-    var det = h('div', 'detail', '', p);
+    var gp = L.gold || [84, 391];
+    box(q, 'gold', gp[0] + 4, gp[1] + 1, 112, 18, 'Vàng: <b>' + c.gold + '</b>');
+    closeBtn(q, p, (L.close || [18, 384])[0], (L.close || [18, 384])[1]);
+    var det = detailBox(p);
     if (UI.sel && (UI.sel.item)) {
       var it = UI.sel.item;
       if (UI.sel.equipped ? c.equip[UI.sel.equipped] !== it : c.inv.indexOf(it) < 0 && c.belt.indexOf(it) < 0) UI.sel = null;
@@ -311,10 +407,14 @@
     if (!UI.open.inv) UI.toggle('inv');
   };
   function renderStash() {
-    var p = UI.panels.stash, c = S().char, CW = D2.Game.stashCols, RW = D2.Game.stashRows; p.innerHTML = '';
-    head(p, 'Kho đồ');
-    var grid = h('div', 'grid', '', p);
-    grid.style.width = (CW * CELL) + 'px'; grid.style.height = (RW * CELL) + 'px';
+    // tranh kho lớn của D2R là 10x10; chỉ 6x8 đầu dùng được, phần còn lại phủ tối
+    var p = UI.panels.stash, c = S().char, CW = D2.Game.stashCols, RW = D2.Game.stashRows;
+    var q = pin(p, PN('stash_big'), 80, 60), gx = 16, gy = 63;
+    box(q, 'gold', 18, 358, 180, 18, 'Vàng: <b>' + c.gold + '</b>');
+    for (var gyi = 0; gyi < 10; gyi++) for (var gxi = 0; gxi < 10; gxi++) {
+      if (gxi >= CW || gyi >= RW) box(q, 'lockcell', gx + gxi * CELL, gy + gyi * CELL, CELL, CELL, '');
+    }
+    var grid = box(q, 'grid', gx, gy, CW * CELL, RW * CELL, '');
     var rect = h('div', 'gridbg', '', grid); rect.style.gridTemplateColumns = 'repeat(' + CW + ',' + CELL + 'px)'; rect.style.gridTemplateRows = 'repeat(' + RW + ',' + CELL + 'px)';
     for (var i = 0; i < CW * RW; i++) h('i', '', '', rect);
     (c.stash || []).forEach(function (it) {
@@ -324,7 +424,8 @@
       hoverTip(e, function () { return itemTipHtml(it); });
       e.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); UI.stSel = it; renderStash(); });
     });
-    var det = h('div', 'detail', '', p); det.style.minHeight = '40px';
+    closeBtn(q, p, 275, 383);
+    var det = detailBox(p);
     if (UI.stSel && (c.stash || []).indexOf(UI.stSel) < 0) UI.stSel = null;
     if (UI.stSel) {
       det.innerHTML = itemTipHtml(UI.stSel);
@@ -334,12 +435,19 @@
   }
   UI.openWaypoints = function () {
     var m = UI.wpEl, list = G().visitedWaypoints(), here = S().areaId;
-    UI.open.wp = true; m.style.display = 'block'; m.innerHTML = '<h3>Waypoint</h3>';
+    UI.open.wp = true; m.style.display = 'block';
+    var q = pin(m, PN('waypoint'), 80, 60);
+    var tab = ((((UA().panels || {}).buttons || {}).waygate_tabs) || [])[1];
+    if (tab) { var te = h('div', 'sp', '', q); te.style.cssText = spStyle(tab.r, 5, 3); }
+    title(q, 'Waypoint - Act I', 0, 36, 320);
+    var lst = box(q, 'wplist', 22, 59, 284, 330, '');
     list.forEach(function (w) {
-      var b = h('button', w.id === here ? 'off' : '', esc(w.name) + (w.id === here ? ' (đang ở đây)' : ''), m);
+      var b = h('button', 'wpb' + (w.id === here ? ' off' : ''), esc(w.name) + (w.id === here ? ' (đang ở đây)' : ''), lst);
       b.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); G().travelWaypoint(w.id); });
     });
-    var x = h('button', '', 'Đóng', m); x.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); UI.closeWaypoints(); });
+    var x = h('button', 'wpb xb', 'Đóng', q); x.style.cssText = 'position:absolute;left:278px;top:390px;width:36px;height:36px;padding:0';
+    x.innerHTML = '&#10005;'; x.title = 'Đóng';
+    x.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); UI.closeWaypoints(); });
   };
   UI.closeWaypoints = function () { UI.open.wp = false; if (UI.wpEl) UI.wpEl.style.display = 'none'; };
 
@@ -349,25 +457,28 @@
     var cl = D2R.canLearn(c, sk.id);
     return { lv: lv, can: !!cl.ok, why: cl.why };
   }
+  // Ô kỹ năng: tâm cột/hàng đo trên tranh cây kỹ năng D2 (toạ độ trong bảng, gốc phải 400,60).
+  var SK_X0 = 38, SK_DX = 71, SK_Y0 = 40, SK_DY = 69;
+  var SK_TABS = [[232, 112, 86, 98], [232, 218, 86, 104], [232, 328, 86, 100]];
   function renderSkill() {
-    var p = UI.panels.skill, s = S(), c = s.char; p.innerHTML = '';
-    head(p, 'Cây kỹ năng');
-    var tabs = DA().tabNames(c.cls), tb = h('div', 'tabs', '', p);
+    var p = UI.panels.skill, s = S(), c = s.char;
+    var cd = D2DATA.classes && D2DATA.classes[c.cls], code = String((cd && cd.code) || '').toLowerCase();
+    // nền chung của lớp, rồi phần riêng của trang đang chọn đè lên
+    var q = pin(p, PN('skilltree_' + code).concat(PN('skilltree_' + code + '_p' + (UI.skTab + 1))), 400, 60);
+    var tabs = DA().tabNames(c.cls), tb = h('div', 'tabs', '', q);
     tabs.forEach(function (n, i) {
+      var r = SK_TABS[i] || SK_TABS[0];
       var b = h('button', i === UI.skTab ? 'on' : '', esc(n), tb);
+      b.style.cssText = 'left:' + r[0] + 'px;top:' + r[1] + 'px;width:' + r[2] + 'px;height:' + r[3] + 'px';
       b.addEventListener('pointerdown', function (e) { e.stopPropagation(); UI.skTab = i; renderSkill(); });
     });
-    h('div', 'sub', 'Điểm kỹ năng: <b>' + c.skillPts + '</b>', p);
-    var tree = h('div', 'tree', '', p);
+    box(q, 'skpts', 232, 6, 86, 96, '<small>Điểm kỹ năng</small><b>' + c.skillPts + '</b>');
+    var tree = h('div', 'tree', '', q);
     var list = DA().skillsOf(c.cls).filter(function (k) { return k.tab === UI.skTab; });
-    var svg = '<svg width="340" height="270">', COLW = 112, ROWH = 44, pos = {};
-    list.forEach(function (k) { pos[k.id] = { x: 14 + k.col * COLW + 21, y: 4 + k.row * ROWH + 21 }; });
-    list.forEach(function (k) { k.prereq.forEach(function (q) { var a = pos[q], b = pos[k.id]; if (a && b) svg += '<line x1="' + a.x + '" y1="' + a.y + '" x2="' + b.x + '" y2="' + b.y + '" stroke="' + ((c.skills[q] || 0) > 0 ? '#c9a24a' : '#554') + '" stroke-width="2"/>'; }); });
-    tree.innerHTML = svg + '</svg>';
     list.forEach(function (k) {
       var st = skillState(k), e = h('div', 'sknode' + (st.lv > 0 ? ' on' : '') + (st.can ? ' can' : '') + (UI.sel && UI.sel.skill === k.id ? ' sel' : ''), '', tree);
-      e.style.left = (14 + k.col * COLW) + 'px'; e.style.top = (4 + k.row * ROWH) + 'px';
-      e.innerHTML = skIconHtml(k.id, 38) + '<b>' + st.lv + '</b>';
+      e.style.left = (SK_X0 + k.col * SK_DX - 24) + 'px'; e.style.top = (SK_Y0 + k.row * SK_DY - 24) + 'px';
+      e.innerHTML = skIconHtml(k.id, 44) + '<b>' + st.lv + '</b>';
       hoverTip(e, function () { return skillTip(k); });
       e.addEventListener('pointerdown', function (ev) {
         ev.stopPropagation();
@@ -379,7 +490,8 @@
         pb.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); G().skillUp(k.id); });
       }
     });
-    var det = h('div', 'detail', '', p);
+    closeBtn(q, p, 172, 383);
+    var det = detailBox(p);
     if (UI.sel && UI.sel.skill) {
       var k2 = DA().skill(UI.sel.skill); if (k2) {
         det.innerHTML = skillTip(k2);
@@ -406,15 +518,18 @@
 
   /* ------------------------------------------------------------ nhật ký */
   function renderQuest() {
-    var p = UI.panels.quest, s = S(), c = s.char; p.innerHTML = '';
-    head(p, 'Nhiệm vụ - Act I');
+    var p = UI.panels.quest, s = S(), c = s.char;
+    var q0 = pin(p, PN('quest'), 80, 60);
+    title(q0, 'Nhiệm vụ - Act I', 0, 3, 320);
     var q = c.quests.den_of_evil, txt;
     if (!q) txt = 'Chưa nhận. Hãy nói chuyện với Akara ở Rogue Encampment.';
     else if (q === 'active') txt = 'Akara nhờ bạn dọn sạch quái ở Den of Evil (hang ở Blood Moor). Còn <b>' + (s.denLeft == null ? '?' : s.denLeft) + '</b> con.';
     else if (q === 'cleared') txt = 'Den of Evil đã sạch. Quay về báo cho Akara để nhận 1 điểm kỹ năng.';
     else txt = 'Hoàn thành. Phần thưởng đã nhận: 1 điểm kỹ năng.';
-    h('div', 'quest ' + (q === 'done' ? 'done' : ''), '<b>Den of Evil</b><br>' + txt, p);
-    h('div', 'quest dim', '<b>Sisters\' Burial Grounds</b><br>Chưa mở khoá (sau MVP).', p);
+    var list = box(q0, 'qlist', 10, 34, 300, 190, '');
+    h('div', 'quest ' + (q === 'done' ? 'done' : ''), '<b>Den of Evil</b><br>' + txt, list);
+    h('div', 'quest dim', '<b>Sisters\' Burial Grounds</b><br>Chưa mở khoá (sau MVP).', list);
+    closeBtn(q0, p, 278, 390);
   }
 
   /* ---------------------------------------------------- NPC & cửa hàng */
@@ -437,18 +552,32 @@
   };
   UI.closeShop = function () { UI.shop = null; UI.shopEl.style.display = 'none'; UI.tip(null); };
   UI.renderShop = function () {
-    var p = UI.shopEl, c = S().char; p.innerHTML = '';
-    head(p, (UI.shopName || 'Cửa hàng') + ' - Vàng ' + c.gold);
-    var g = h('div', 'shoplist', '', p);
+    var p = UI.shopEl, c = S().char;
+    var q = pin(p, PN('npc_trade'), 80, 60);
+    title(q, (UI.shopName || 'Cửa hàng') + ' - Vàng ' + c.gold, 0, 3, 320);
+    var grid = box(q, 'grid', 16, 63, 10 * CELL, 10 * CELL, ''), occ = [];
+    function fits(x, y, w, hh) {
+      if (x + w > 10 || y + hh > 10) return false;
+      for (var j = 0; j < hh; j++) for (var i = 0; i < w; i++) if (occ[(y + j) * 10 + x + i]) return false;
+      return true;
+    }
     UI.shop.forEach(function (it) {
-      var row = h('div', 'shoprow', '', g);
-      var ie = itemEl(it, 28, false); ie.style.cssText += ';position:relative;flex:none;width:34px;height:34px'; row.appendChild(ie);
-      h('span', 'nm', esc(DA().itemName(it).replace(/\n/g, ' ')), row);
-      var b = h('button', c.gold >= DA().buyPrice(it) ? '' : 'off', DA().buyPrice(it) + ' vàng', row);
-      b.addEventListener('pointerdown', function (e) { e.stopPropagation(); G().buyItem(it); });
+      var w = it.w || 1, hh = it.h || 1, px = -1, py = -1, x, y;
+      for (y = 0; y < 10 && py < 0; y++) for (x = 0; x < 10; x++) if (fits(x, y, w, hh)) { px = x; py = y; break; }
+      if (py < 0) return;
+      for (var j = 0; j < hh; j++) for (var i = 0; i < w; i++) occ[(py + j) * 10 + px + i] = 1;
+      var row = h('div', 'shoprow', '', grid);
+      row.style.cssText = 'left:' + (px * CELL) + 'px;top:' + (py * CELL) + 'px;width:' + (w * CELL) + 'px;height:' + (hh * CELL) + 'px';
+      var ie = itemEl(it, CELL); ie.style.cssText += ';position:absolute;left:0;top:0'; row.appendChild(ie);
+      var price = DA().buyPrice(it);
+      var b = h('button', 'price' + (c.gold >= price ? '' : ' off'), String(price), row);
+      b.title = esc(DA().itemName(it).replace(/\n/g, ' ')) + ' - ' + price + ' vàng';
+      function buy(e) { e.stopPropagation(); G().buyItem(it); }
+      b.addEventListener('pointerdown', buy); row.addEventListener('pointerdown', buy);
       hoverTip(row, function () { return itemTipHtml(it); });
     });
-    h('div', 'dim', 'Chọn đồ trong túi bên phải rồi bấm "Bán".', p);
+    box(q, 'hint', 16, 360, 186, 18, 'Chọn đồ trong túi bên phải, bấm "Bán".');
+    closeBtn(q, p, 272, 385);
   };
 
   /* -------------------------------------------------------- popup kỹ năng */
@@ -456,7 +585,7 @@
     var s = S(), c = s.char, pop = UI.popup;
     if (pop.style.display === 'block' && pop.dataset.w === which) { pop.style.display = 'none'; return; }
     pop.dataset.w = which; pop.innerHTML = ''; pop.style.display = 'block';
-    pop.style[which === 'left' ? 'left' : 'right'] = '60px'; pop.style[which === 'left' ? 'right' : 'left'] = 'auto';
+    pop.style[which === 'left' ? 'left' : 'right'] = '150px'; pop.style[which === 'left' ? 'right' : 'left'] = 'auto';
     var ids = [null].concat(DA().skillsOf(c.cls).filter(function (k) { return (c.skills[k.id] || 0) > 0 && !k.passive; }).map(function (k) { return k.id; }));
     ids.forEach(function (id) {
       var e = h('div', 'pk', skIconHtml(id, 40) + '<small>' + esc(id ? DA().skill(id).name : 'Đánh thường') + '</small>', pop);

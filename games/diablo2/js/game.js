@@ -7,7 +7,7 @@
   'use strict';
   var D2 = window.D2 = window.D2 || {};
   var E = D2.E, I = D2.Input, UI = D2.UI, OBJ = E.OBJ, SPR = E.SPR;
-  var VER = '20261006a';
+  var VER = '20261006b';
   var SAVE_KEY = 'd2web.save.v1';
 
   function safe(fn, fb) { try { var v = fn(); return v == null ? fb : v; } catch (e) { return fb; } }
@@ -340,11 +340,13 @@
   Game.playAreaMusic = function () { var d = areaDef(S.areaId); if (d) E.music(musicFor(d)); };
 
   // Thực thể đặt sẵn trong DS1: loại 1 là quái/NPC theo monpreset của act, loại 2 là vật thể theo objpreset
-  function presetName(id) { var l = D2DATA.monpreset && D2DATA.monpreset['1']; return (l && l[id]) || null; }
-  function objPreset(id) { return (OBJ.presets && OBJ.presets['act1:' + id]) || null; }
+  // Chỉ số đối tượng trong DS1 là theo act (monpreset.txt, objpreset.txt có cột Act)
+  function curAct() { return (S.def && S.def.act) || 1; }
+  function presetName(id) { var l = D2DATA.monpreset && D2DATA.monpreset[String(curAct())]; return (l && l[id]) || null; }
+  function objPreset(id) { return E.objPresets['act' + curAct() + ':' + id] || null; }
   function monArt(id) {
     var su = D2DATA.superuniques[id], base = su ? su.cls : id, m = DA.monster(base);
-    return (SPR.monmap && SPR.monmap[base]) || (m && m.art) || null;
+    return E.monmap[base] || (m && m.art) || null;
   }
   function sheetsForArea(def, lv) {
     var keys = [];
@@ -361,10 +363,13 @@
     UI.showLoad(true, 'Đang vào ' + def.name + '...');
     var seed = (S.corpse && S.corpse.area === id) ? S.corpse.seed : ((Math.random() * 1e9) | 0) + 1;
     if (opts.seed) seed = opts.seed;
-    var g = D2G.build(id, seed);
-    S.seed = seed;
-    var char = S.char;
-    return Promise.all([E.ensureTileset(g.tileset), E.ensure(sheetsForArea(def, g)), E.ensureUi(), E.ensureHero(D2DATA.classes[char.cls].code)]).then(function () {
+    var char = S.char, g = null;
+    S.def = def;   // curAct() đọc act của khu sắp vào khi tra preset trong lúc dựng
+    return E.ensureMaps(def.act || 1).then(function () {
+      g = D2G.build(id, seed, from);
+      S.seed = seed;
+      return Promise.all([E.ensureTileset(g.tileset), E.ensure(sheetsForArea(def, g)), E.ensureUi(), E.ensureHero(D2DATA.classes[char.cls].code)]);
+    }).then(function () {
       S.grid = g; g.seen = new Uint8Array(g.w * g.h); S.areaId = id; S.areaName = def.name; S.def = def;
       E.setLevel(g);
       S.ents = []; S.floaters = []; S.target = null; S.hover = null;
@@ -597,9 +602,14 @@
     S.corpse = { area: S.areaId, seed: S.seed, x: h.x, y: h.y, gold: pen.corpseGold, lost: pen.lost };
     setTimeout(function () { if (S.hero === h && h.st === 'dead') UI.showDead(true, respawn); }, 0);
   }
+  function townOf(act) {
+    var t = Object.keys(D2DATA.areas).filter(function (k) { var a = D2DATA.areas[k]; return a.town && a.act === act; })[0];
+    return t || 'rogue_encampment';
+  }
+  Game.townOf = townOf;
   function respawn() {
     var c = S.char; S.target = null;
-    enterArea('rogue_encampment', null).then(function () {
+    enterArea(townOf(curAct()), null).then(function () {
       recalc(); c.hp = Math.max(1, Math.round(S.d.maxHp * 0.5)); c.mp = 0; S.regen = [];
       UI.msg('Bạn hồi sinh ở Rogue Encampment.' + (S.corpse && S.corpse.gold ? ' Xác của bạn giữ ' + S.corpse.gold + ' vàng.' : ''), '#ffb0b0'); save();
     });
@@ -1281,6 +1291,9 @@
     var belt = c.belt || []; c.belt = [null, null, null, null]; belt.forEach(function (b, i) { if (b && i < 4) c.belt[i] = b; });
     c.inv.forEach(function (it) { if (it.ix == null) { var sp = findSpot({ inv: c.inv.filter(function (x) { return x !== it && x.ix != null; }) }, it.w || 1, it.h || 1); it.ix = sp ? sp[0] : 0; it.iy = sp ? sp[1] : 0; } });
     c.statPts = c.statPts || 0; c.skillPts = c.skillPts || 0; c.stash = c.stash || []; c.waypoints = c.waypoints || {};
+    var alias = D2DATA.areaAlias || {};
+    Object.keys(alias).forEach(function (o) { if (c.waypoints[o]) { c.waypoints[alias[o]] = true; delete c.waypoints[o]; } });
+    if (S.corpse && alias[S.corpse.area]) S.corpse.area = alias[S.corpse.area];
   }
   function startPlay(ch) {
     S.char = ch; normChar(ch); recalc();

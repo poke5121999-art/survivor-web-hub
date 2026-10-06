@@ -104,6 +104,53 @@ D2G.build(areaId, seed) -> Level
 
 Ngân sách: tối đa 60 MB cho cả game. Cả site tối đa 1 GB.
 
+## Bản đầy đủ (từ 2026-10-06, chủ dự án: "làm full")
+
+Đích: đủ 5 act, 7 lớp chơi được, lính đánh thuê, HUD và bảng của D2, ba độ khó. Mỗi pha lên Pages và có bộ kiểm riêng trước khi sang pha sau.
+
+**Giới hạn cứng:** cả site 780 MB / trần 1 GB của Pages [ĐO TRONG REPO, 2026-10-06]. Bản Act I lossless tốn 71 MB, nên ngân sách cả game là **150 MB**. Muốn vừa thì phải nén ảnh lossy, nạp asset theo nhóm khi cần, và mỗi act chỉ đóng gói đúng quái, NPC, tile mà act đó dùng.
+
+### Hợp đồng v2: nhóm asset nạp khi cần
+
+Thay `sprites.js`, `sprites_obj.js`, `world.js`, `maps.js`, `ui.js` (nạp hết lúc mở game) bằng một chỉ mục nhỏ và các tệp nhóm:
+
+```js
+// assets/index.js: nạp lúc mở game, nhỏ
+window.D2_INDEX = {
+  sheets:   { 'mon.ZM': 'm/mon_ZM', 'obj.rb': 'm/obj_act1', 'mis.firebolt': 'm/mis', 'flp.flpjav': 'm/flp', ... },  // khoá sheet -> nhóm
+  hero:     { AM: 'm/hero_AM', SO: 'm/hero_SO', ... },        // lớp nhân vật -> nhóm (cofs + layers của lớp đó)
+  tilesets: { act1: 'm/world_act1', act1cave: 'm/world_act1', ... },
+  maps:     { 1: 'm/maps_act1', 2: 'm/maps_act2', ... },      // act -> nhóm DS1 + D2_PRESETS của act
+  ui: 'm/ui',
+  monmap:   { cr_archer1: 'mon.CR.lbb', ... },
+  objPresets: { 'act1:2': { token, name, cls, w, h, collide, selectable, modes, lit }, ... }
+};
+// assets/m/<nhóm>.js: mỗi tệp gọi đúng một lần
+D2_REG('<nhóm>', { pages: ['assets/img/...webp'], sheets: {...}, hero: { cofs, layers }, tilesets: {...}, maps: {...}, presets: {...}, ui: {...} });
+```
+
+- `rect[6]` là chỉ số trang **trong nhóm đó**. Engine gắn `pages` của nhóm vào từng sheet khi `D2_REG` chạy.
+- Engine nạp nhóm bằng thẻ `<script>` chèn động, chạy được trên `file://`. Node test nạp bằng `vm`.
+- Ảnh WebP lossy (quality khoảng 90, alpha giữ nguyên) cho sprite và tile. Hình UI và icon nhỏ giữ lossless.
+- Nhạc Vorbis 96 kbps stereo. Tiếng hiệu ứng mono 22 kHz q1.
+
+### Mã khu (dùng chung cho số liệu, bản đồ, game)
+
+- `id` = snake_case của tên hiển thị tiếng Anh (`LevelName` của levels.txt qua bảng chuỗi): `rogue_encampment`, `blood_moor`, `cave_level_1`, `catacombs_level_4`, `lut_gholein`...
+- Trùng tên ở act khác thì thêm `_a<act>` cho bản ở act sau (vd. `sewers_level_1_a3`).
+- `D2DATA.areas[id]` có `d2id` (Id của levels.txt), `act`, `drlg` (1 mê cung, 2 preset, 3 ngoài trời), `levelType` (tên LvlTypes), `links` (khu kề nhau, gồm cả lối ngoài trời mà D2 viết cứng trong DRLG), `waypoint`.
+- Mã cũ `cave_1`, `cave_2` đổi thành `cave_level_1`, `cave_level_2`. Game đổi cả trong bản lưu cũ.
+
+### Pha
+
+| Pha | Việc | Xong khi |
+|---|---|---|
+| 1 Nền | Hợp đồng v2 cho mọi lever, nén lossy, engine nạp nhóm; số liệu mọi level của 5 act (`areas` theo Levels.txt); HUD + bảng D2 | Act I như cũ, bộ kiểm 72/72 trên Pages, game ≤ 45 MB |
+| 2 Act I đủ | Mọi khu Act I (ngoài trời, hang, hầm mộ, tháp, tu viện, nhà giam, nhà thờ, hầm Catacombs, Tristram), nhiệm vụ Act I, Andariel, lính Rogue | Đi được từ doanh trại tới Andariel, bộ kiểm từng khu |
+| 3 Bảy lớp | Kỹ năng triệu hồi, lời nguyền, hào quang, biến hình, bẫy, võ thuật | Mỗi lớp dùng được mọi kỹ năng tới cấp 30 |
+| 4–7 | Act II, III, IV, V: tile, bản đồ, quái, NPC, nhiệm vụ, trùm | Đi hết act, giết trùm, sang act sau |
+| 8 | Nightmare, Hell, waypoint khắp các act | Đổi độ khó chạy đúng số liệu |
+
 ## Rủi ro
 
 - Art và tiếng thuộc bản quyền Blizzard, lấy từ một bản crack. Hub đăng công khai trên Pages, nên có thể bị gửi yêu cầu gỡ bản quyền (DMCA). Chủ dự án đã yêu cầu dùng bộ này.
