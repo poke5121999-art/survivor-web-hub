@@ -961,8 +961,8 @@
       block = ((sb.block || 0) + c.blockFactor + (st.block || 0)) * (dex - 15) / (L * 2);
       block = Math.max(0, Math.min(75, Math.floor(block)));
     }
-    // resists [AS]: Normal difficulty has no penalty; cap 75 (+max res)
-    var all = st['res-all'] || 0;
+    // resists [AS]: difficultylevels.txt ResistPenalty (0 / -40 / -100); cap 75 (+max res)
+    var all = (st['res-all'] || 0) + (diffRow(char.diff).ResistPenalty || 0);
     function res(k, mk) { return Math.min(75 + (st[mk] || 0), (st[k] || 0) + all); }
     // regen [D2MOO PlrModes.cpp EVENTS_ManaRegen]: per frame maxMana/(25*ManaRegen) * (100+bonus)/100
     var mpRegen = maxMp / c.manaRegenSec * (100 + ps.manaRegenPct + (st['regen-mana'] || 0)) / 100;
@@ -1065,15 +1065,22 @@
   }
 
   // death [D2MOO Player.cpp PLAYER_ApplyDeathPenalty]: lose min(clvl,20)% of all gold (inventory+stash);
-  // the rest of the inventory gold drops with the corpse. Normal difficulty: no XP loss [AS basics/death].
+  // the rest of the inventory gold drops with the corpse. XP: DeathExpPenalty% (0/5/10) of the XP between
+  // this level and the next, never below the start of the level [AS basics/death].
   function deathPenalty(char) {
+    var xpPct = diffRow(char.diff).DeathExpPenalty || 0, xpLost = 0;
+    if (xpPct && char.lvl < 99) {
+      var lo = xpToReach(char.lvl), span = xpToReach(char.lvl + 1) - lo;
+      xpLost = Math.min(Math.floor(span * xpPct / 100), Math.max(0, (char.xp || 0) - lo));
+      char.xp -= xpLost;
+    }
     var total = (char.gold || 0) + (char.goldStash || 0);
     var lost = Math.floor(total * Math.min(char.lvl, 20) / 100);
     var corpseGold;
     if (lost > char.gold) { char.goldStash = (char.gold + char.goldStash) - lost; corpseGold = 0; }
     else corpseGold = char.gold - lost;
     char.gold = 0;
-    return { lost: lost, corpseGold: corpseGold, xpLost: 0 };
+    return { lost: lost, corpseGold: corpseGold, xpLost: xpLost };
   }
   function goldLimit(char) { return 10000 * char.lvl; } // [D2MOO Units.cpp UNITS_GetInventoryGoldLimit]
 
@@ -1092,6 +1099,8 @@
 
   // ------------------------------------------------------------------ monsters
   var DIFF = { normal: 'n', n: 'n', nightmare: 'nm', nm: 'nm', hell: 'h', h: 'h' };
+  // difficultylevels.txt row; zero cells are left out of the data, so a missing column reads as 0
+  function diffRow(d) { var D = DATA(); return (D.difficulties && D.difficulties[DIFF[d] || 'n']) || D.difficulty || {}; }
   function ratio(a, b) { return idiv(a * b, 100); } // DATATBLS_ApplyRatio(a, b, 100)
 
   // rollMonster [D2MOO Monster.cpp + MonsterTbls.cpp DATATBLS_CalculateMonsterStatsByLevel + MonsterUnique.cpp]
@@ -1133,7 +1142,7 @@
     if (kind === 'champion') {
       hp += idiv(hp * C[4 + dIdx], 100);
       xp = xp * 5; xp = xp - idiv(2 * xp, 5); // LevelBonus x5 then Champion -2/5 => x3
-      var cdb = D.difficulty.ChampionDamageBonus || 100;
+      var cdb = diffRow(dk).ChampionDamageBonus || 100;
       dmgPct += idiv(C[11] * cdb, 100); arPct += idiv(C[10] * cdb, 100); velPct += 20;
       mods.push('champion');
     } else if (kind === 'unique') {
@@ -1146,7 +1155,7 @@
       mods.push(m);
       var dm = row[3];
       switch (m) {
-        case 'strong': dmgPct += idiv(C[15] * (D.difficulty.UniqueDamageBonus || 100), 100); arPct += idiv(C[13] * (D.difficulty.UniqueDamageBonus || 100), 100); break; // [D2MOO UMod5_Strong]
+        case 'strong': dmgPct += idiv(C[15] * (diffRow(dk).UniqueDamageBonus || 100), 100); arPct += idiv(C[13] * (diffRow(dk).UniqueDamageBonus || 100), 100); break; // [D2MOO UMod5_Strong]
         case 'fast': velPct += Math.max(10, Math.min(100, idiv(2048, Math.max(1, mon.walkVel)) - 128)); break; // [D2MOO UMod6_Fast]
         case 'resist': if (res.cold < 100) res.cold += 40; if (res.fire < 100) res.fire += 40; if (res.light < 100) res.light += 40; break; // [D2MOO UMod8_Resistant case 8]
         case 'fire': extra.fire = { min: idiv(dm * C[28 + dIdx], 100), max: idiv(dm * C[31 + dIdx], 100) }; res.fire += 75; break; // [D2MOO UMod9]

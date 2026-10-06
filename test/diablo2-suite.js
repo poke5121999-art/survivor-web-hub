@@ -35,7 +35,8 @@ async function open(b, opts) {
   const errs = [];
   p.on('pageerror', e => errs.push('PAGEERROR ' + e.message));
   p.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE ' + m.text()); });
-  p.on('requestfailed', r => errs.push('REQFAIL ' + r.url().replace(/^.*games\/diablo2\//, '')));
+  // đổi bài nhạc làm trình duyệt huỷ luồng đang tải (ERR_ABORTED); đó không phải lỗi thiếu tệp
+  p.on('requestfailed', r => { if (!/ERR_ABORTED/.test(r.failure().errorText)) errs.push('REQFAIL ' + r.url().replace(/^.*games\/diablo2\//, '') + ' ' + r.failure().errorText); });
   await p.goto(URL);
   await p.waitForSelector('.screen.title .tmenu', { timeout: 15000 });
   return { ctx, p, errs };
@@ -73,6 +74,8 @@ async function clickTile(p, x, y, opt) {
   check('bảy lớp, không lớp nào khoá', locked === 0, 'khoá=' + locked);
   let s = await st(p);
   check('vào Rogue Encampment', s.area === 'rogue_encampment', s.area);
+  const hud = await p.evaluate(() => ({ frames: document.querySelectorAll('.hbar > .sp, .hbar > img, .hbar > div[style*="background"]').length, orb: getComputedStyle(document.querySelector('.orb.life .fill')).backgroundImage }));
+  check('HUD có khung ctrlpanel và cầu máu bằng hình D2', hud.frames > 0 && /url\(/.test(hud.orb), JSON.stringify(hud).slice(0, 120));
   await sleep(600);
   await p.screenshot({ path: path.join(SHOTS, '2-town.png') });
 
@@ -313,6 +316,20 @@ async function clickTile(p, x, y, opt) {
   await p.waitForFunction(() => D2DBG.getState().scene === 'play' && D2DBG.getState().hero, null, { timeout: 15000 });
   s = await st(p);
   check('nạp lại đúng nhân vật', s.cls === 'sorceress' && s.lvl > 1, 'lvl=' + s.lvl);
+
+  results.push('\n-- độ khó --');
+  await p.evaluate(() => { D2DBG.S.char.diffMax = 'nm'; D2.Game.save(); });
+  await p.reload(); await p.waitForSelector('.screen.title .tmenu');
+  const tb = await p.$$eval('.tmenu button', bs => bs.map(b => b.textContent));
+  check('mở Nightmare -> có nút Tiếp tục cho Normal và Nightmare', tb.includes('Tiếp tục · Normal') && tb.includes('Tiếp tục · Nightmare'), tb.join(' | '));
+  await p.click('.tmenu button:has-text("Tiếp tục · Nightmare")');
+  await p.waitForFunction(() => D2DBG.getState().scene === 'play' && D2DBG.getState().hero, null, { timeout: 15000 });
+  const nm = await p.evaluate(() => ({ diff: D2DBG.S.char.diff, fire: D2DBG.S.d.res.fire, quests: Object.keys(D2DBG.S.char.quests).length }));
+  check('Nightmare: kháng lửa trừ 40, nhiệm vụ làm lại từ đầu', nm.diff === 'nm' && nm.fire === -40 && nm.quests === 0, JSON.stringify(nm));
+  await p.evaluate(() => D2DBG.goto('blood_moor'));
+  await p.waitForFunction(() => D2DBG.getState().area === 'blood_moor' && D2DBG.getState().mons.length > 0, null, { timeout: 20000 });
+  const lv = await p.evaluate(() => D2DBG.S.ents.filter(e => e.kind === 'mon' && e.rank === 'normal').map(e => e.inst.lvl));
+  check('Nightmare: quái Blood Moor cấp 36 (MonLvlEx của levels.txt)', lv.length > 0 && lv.every(l => l === 36), [...new Set(lv)].join(','));
   check('không có lỗi trang (máy tính)', errs.length === 0, errs.slice(0, 3).join(' | '));
   await ctx.close();
 

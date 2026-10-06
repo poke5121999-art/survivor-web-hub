@@ -91,6 +91,12 @@
     UI.rotate = h('div', 'rotate', '<div>Hãy xoay ngang điện thoại</div><small>xoay ngang để chơi</small>', r);
   };
 
+  // ảnh UI nằm trong nhóm m/ui nạp sau UI.init, nên HUD được dựng lại khi nhóm đó tới
+  UI.rebuildHud = function () {
+    var old = UI.hud;
+    buildHud(UI.root);
+    UI.root.insertBefore(UI.hud, old); UI.root.removeChild(old);
+  };
   function buildHud(r) {
     var hud = UI.hud = h('div', 'hud', '', r); hud.style.display = 'none';
     var A = UA(), L = A.layout || {}, HL = L.hud || {}, bar = UI.bar = h('div', 'hbar', '', hud);
@@ -641,12 +647,14 @@
   UI.showLoad = function (on, text) { UI.loadEl.style.display = on ? 'flex' : 'none'; if (text) $('.lt', UI.loadEl).textContent = text; };
   UI.showTitle = function (hasSave) {
     var el = UI.titleEl; el.style.display = 'flex'; el.innerHTML = '';
-    h('div', 'logo', 'ÁC QUỶ II', el); h('div', 'logo2', 'Diablo II · Act I', el);
+    h('div', 'logo', 'ÁC QUỶ II', el); h('div', 'logo2', 'Diablo II', el);
     var m = h('div', 'tmenu', '', el);
     function b(label, fn) { var e = h('button', '', label, m); e.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); D2.E.audioUnlock(); fn(); }); return e; }
-    if (hasSave) b('Tiếp tục', function () { el.style.display = 'none'; G().continueGame(); });
+    var diffs = hasSave ? G().diffs() : [];
+    if (diffs.length > 1) diffs.forEach(function (d) { b('Tiếp tục · ' + d.name, function () { el.style.display = 'none'; G().continueGame(d.id); }); });
+    else if (hasSave) b('Tiếp tục', function () { el.style.display = 'none'; G().continueGame(); });
     b('Trò chơi mới', function () { UI.showClassSelect(); });
-    h('div', 'credit', 'Art &amp; âm thanh: Flare (CC-BY-SA 3.0). Luật chơi theo số liệu Diablo II công khai.', el);
+    h('div', 'credit', 'Hình, tiếng, bản đồ và số liệu: Diablo II (Blizzard Entertainment), bóc từ bản cài trên máy.', el);
   };
   UI.hideTitle = function () { UI.titleEl.style.display = 'none'; };
   UI.showClassSelect = function () {

@@ -164,6 +164,13 @@ function near(a, b, eps, msg) { ok(Math.abs(a - b) <= eps, msg + ' (got ' + a + 
   const dp = R.deathPenalty(a);
   eq([dp.lost, dp.corpseGold, a.gold], [50, 950, 0], 'death at clvl 5 with 1000 gold: lose 5%, rest drops with corpse');
   eq(R.goldLimit(a), 50000, 'gold carried limit = 10000 * clvl');
+  const nmc = R.newCharacter('amazon'); nmc.lvl = 10; nmc.xp = 60000; nmc.diff = 'nm';
+  eq([R.deathPenalty(nmc).xpLost, nmc.xp], [721, 59279], 'Nightmare death: lose 5% of the clvl 10->11 span (57715..72144)');
+  const hc = R.newCharacter('amazon'); hc.lvl = 10; hc.xp = 57800; hc.diff = 'h';
+  eq([R.deathPenalty(hc).xpLost, hc.xp], [85, 57715], 'Hell death: 10% of the span, never below the start of the level');
+  eq(R.deathPenalty(R.newCharacter('amazon')).xpLost, 0, 'Normal death: no XP loss');
+  const rc = R.newCharacter('sorceress');
+  eq(['n', 'nm', 'h'].map(d => { rc.diff = d; return R.derived(rc).res.fire; }), [0, -40, -100], 'resist penalty 0 / -40 / -100 by difficulty');
   const b = R.newCharacter('barbarian');
   b.lvl = 1;
   eq(R.derived(b).block, Math.min(75, Math.floor((0 + 25) * (20 - 15) / 2)), 'block = (shield + class bonus) * (dex-15) / (2*clvl), max 75');

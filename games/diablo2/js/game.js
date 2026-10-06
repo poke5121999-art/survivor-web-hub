@@ -7,7 +7,7 @@
   'use strict';
   var D2 = window.D2 = window.D2 || {};
   var E = D2.E, I = D2.Input, UI = D2.UI, OBJ = E.OBJ, SPR = E.SPR;
-  var VER = '20261006d';
+  var VER = '20261006e';
   var SAVE_KEY = 'd2web.save.v1';
 
   function safe(fn, fb) { try { var v = fn(); return v == null ? fb : v; } catch (e) { return fb; } }
@@ -366,6 +366,9 @@
   // Thực thể đặt sẵn trong DS1: loại 1 là quái/NPC theo monpreset của act, loại 2 là vật thể theo objpreset
   // Chỉ số đối tượng trong DS1 là theo act (monpreset.txt, objpreset.txt có cột Act)
   function curAct() { return (S.def && S.def.act) || 1; }
+  function dk() { return (S.char && S.char.diff) || 'n'; }
+  function areaLvl(def) { return (def && ((def.lvlByDiff && def.lvlByDiff[dk()]) || def.lvl)) || 1; }
+  function areaMons(def) { return (def && ((def.monstersByDiff && def.monstersByDiff[dk()]) || def.monsters)) || []; }
   function presetName(id) { var l = D2DATA.monpreset && D2DATA.monpreset[String(curAct())]; return (l && l[id]) || null; }
   function objPreset(id) { return E.objPresets['act' + curAct() + ':' + id] || null; }
   function monArt(id) {
@@ -374,7 +377,7 @@
   }
   function sheetsForArea(def, lv) {
     var keys = [];
-    (def.monsters || []).forEach(function (id) { var a = monArt(id); if (a) keys.push(a); });
+    areaMons(def).concat(def.bosses || [], def.superuniques || []).forEach(function (id) { var a = monArt(id); if (a) keys.push(a); });
     lv.npcs.forEach(function (n) { var nd = D2DATA.npcs[presetName(n.id)]; if (nd && nd.art) keys.push(nd.art); });
     lv.objects.forEach(function (o) { var p = objPreset(o.id); if (p && p.sprite) keys.push('obj.' + p.token); });
     return keys;
@@ -463,7 +466,7 @@
   function spawnMonsters(def, g, seed) {
     if (def.town) return;
     var rng = D2R.rng(seed ^ 0x5bd1);
-    var types = def.monsters || [];
+    var types = areaMons(def);
     var pid = 0;
     function pack(id, x, y, n, rank, name) {
       pid++;
@@ -482,8 +485,18 @@
       var name = presetName(n.id); if (!name) return;
       var su = Object.keys(D2DATA.superuniques).filter(function (k) { return D2DATA.superuniques[k].name === name; })[0];
       if (su) { var mn = D2DATA.superuniques[su].minions || [4, 4]; pack(su, n.x, n.y, 1 + ri(mn[0], mn[1]), 'unique', null); return; }
+      var boss = name === 'place_bloodraven' ? 'bloodraven' : name;
+      if ((def.bosses || []).indexOf(boss) >= 0 && DA.monster(boss)) {
+        var b = makeMonster(boss, n.x + 0.5, n.y + 0.5, 'normal', ++pid, rng, null);
+        b.rank = 'unique'; b.boss = true; return;
+      }
       var m = /^place_(fallen|fallenshaman)$/.exec(name);
-      if (m && DA.monster(m[1] + '1')) pack(m[1] + '1', n.x, n.y, m[1] === 'fallen' ? ri(3, 6) : 1, 'normal', null);
+      if (m && DA.monster(m[1] + '1')) { pack(m[1] + '1', n.x, n.y, m[1] === 'fallen' ? ri(3, 6) : 1, 'normal', null); return; }
+      var any = types.length ? types[Math.floor(rng() * types.length)] : null;
+      if (!any) return;
+      if (name === 'place_champion') pack(any, n.x, n.y, ri(2, 4), 'champion', null);
+      else if (name === 'place_unique_pack') pack(any, n.x, n.y, 1 + ri(2, 4), 'unique', null);
+      else if ((m = /^place_group(\d+)$/.exec(name)) && rng() * 100 < +m[1]) pack(any, n.x, n.y, ri(2, 5), 'normal', null);
     });
   }
   function openAround(g, x, y, r, rng) {
@@ -494,8 +507,8 @@
     return [x, y];
   }
   function makeMonster(id, x, y, rank, pack, rng, nameOverride) {
-    var def = S.def, lvl = (def && def.lvl) || 1;
-    var inst = safe(function () { return D2R.rollMonster(id, lvl, rng || Math.random, rank); }, null) || { id: id, name: id, lvl: lvl, hp: 10 + lvl * 6, xp: 10 * lvl, dmgMin: 1, dmgMax: 4, ar: 20, def: 5 };
+    var lvl = areaLvl(S.def);
+    var inst = safe(function () { return D2R.rollMonster(id, lvl, rng || Math.random, rank, { difficulty: dk() }); }, null) || { id: id, name: id, lvl: lvl, hp: 10 + lvl * 6, xp: 10 * lvl, dmgMin: 1, dmgMax: 4, ar: 20, def: 5 };
     if (nameOverride) inst.name = nameOverride.charAt(0).toUpperCase() + nameOverride.slice(1);
     var m = DA.monster(id) || {};
     inst.name = inst.name || m.name || id;
@@ -586,7 +599,7 @@
       if (r.leveled) onLevelUp();
     }
     // đồ rơi
-    var items = safe(function () { return D2R.rollDrop(m.monId, m.inst.lvl || 1, Math.random); }, []) || [];
+    var items = safe(function () { return D2R.rollDrop(m.monId, m.inst.lvl || 1, Math.random, { difficulty: dk() }); }, []) || [];
     if (!items.some(DA.isGold) && Math.random() < 0.6) items.push({ gold: Math.round((m.inst.lvl || 1) * rnd(4, 12) * (m.rank === 'normal' ? 1 : 3)), base: 'gold', q: 'normal', w: 1, h: 1 });
     items.forEach(function (it, i) { dropItem(it, m.x + rnd(-1.4, 1.4), m.y + rnd(-1.4, 1.4)); });
     questEvent({ kind: 'kill', id: m.monId });
@@ -624,7 +637,7 @@
     E.sfx([DA.classInfo(c.cls).gender + '_die'], 0.7);
     var pen = safe(function () { return D2R.deathPenalty(c); }, null) || { lost: 0, corpseGold: 0 };
     if (!pen.corpseGold && pen.lost === 0 && c.gold) { pen.corpseGold = Math.floor(c.gold * 0.5); c.gold -= pen.corpseGold; }
-    S.corpse = { area: S.areaId, seed: S.seed, x: h.x, y: h.y, gold: pen.corpseGold, lost: pen.lost };
+    S.corpse = { area: S.areaId, seed: S.seed, x: h.x, y: h.y, gold: pen.corpseGold, lost: pen.lost, xpLost: pen.xpLost || 0 };
     setTimeout(function () { if (S.hero === h && h.st === 'dead') UI.showDead(true, respawn); }, 0);
   }
   function townOf(act) {
@@ -636,7 +649,8 @@
     var c = S.char; S.target = null;
     enterArea(townOf(curAct()), null).then(function () {
       recalc(); c.hp = Math.max(1, Math.round(S.d.maxHp * 0.5)); c.mp = 0; S.regen = [];
-      UI.msg('Bạn hồi sinh ở Rogue Encampment.' + (S.corpse && S.corpse.gold ? ' Xác của bạn giữ ' + S.corpse.gold + ' vàng.' : ''), '#ffb0b0'); save();
+      UI.msg('Bạn hồi sinh ở ' + S.def.name + '.' + (S.corpse && S.corpse.xpLost ? ' Mất ' + S.corpse.xpLost + ' XP.' : '') +
+        (S.corpse && S.corpse.gold ? ' Xác của bạn giữ ' + S.corpse.gold + ' vàng.' : ''), '#ffb0b0'); save();
     });
   }
 
@@ -895,13 +909,16 @@
     if (rw.lifeBonus) { c.bonus.life = (c.bonus.life || 0) + rw.lifeBonus; got.push('+' + rw.lifeBonus + ' máu'); }
     if (rw.actAccess) { c.actAccess = c.actAccess || {}; c.actAccess[rw.actAccess] = true; got.push('mở đường đi tiếp'); }
     if (rw.mercenary) { c.mercFree = true; got.push('được thuê lính miễn phí'); }
+    if (rw.unlockDifficulty && DIFFS.indexOf(c.diffMax) <= DIFFS.indexOf(c.diff) && c.diff !== 'h') {
+      c.diffMax = DIFFS[DIFFS.indexOf(c.diff) + 1]; got.push('mở độ khó ' + DIFF_NAME[c.diffMax]);
+    }
     UI.msg('Hoàn thành ' + questName(q) + (got.length ? ': ' + got.join(', ') : ''), '#ffe27a');
     recalc(); save(); UI.dirty = true;
   }
   // Waypoint của mọi act: thị trấn luôn có, còn lại phải chạm vào waypoint trong khu đó trước
   Game.stashCols = 6; Game.stashRows = 8;
   Game.visitedWaypoints = function () {
-    var c = S.char, w = c.waypoints || {}, A = D2DATA.areas, maxAct = 1 + Object.keys(c.actAccess || {}).length;
+    var c = S.char, w = c.waypoints || {}, A = D2DATA.areas, maxAct = 1 + Object.keys(c.actAccess || {}).filter(function (k) { return /^\d$/.test(k); }).length;
     return Object.keys(A).filter(function (k) { var a = A[k]; return a.waypoint && !a.unused && a.act <= maxAct && (a.town || w[k]); })
       .sort(function (a, b) { return (A[a].act - A[b].act) || (A[a].d2id - A[b].d2id); })
       .map(function (k) { return { id: k, name: A[k].name, act: A[k].act }; });
@@ -926,7 +943,7 @@
    * AI do js/skills.js chạy; game lưu loại + cấp để gọi lại khi vào khu mới. */
   function hireOffers(act) {
     var lvl = S.char.lvl;
-    var rows = (D2DATA.hirelings || []).filter(function (h) { return h.act === act && h.diff === 'n'; });
+    var rows = (D2DATA.hirelings || []).filter(function (h) { return h.act === act && h.diff === dk(); });
     var best = {};
     rows.forEach(function (h) {
       var k = h.name + '|' + h.sub;
@@ -1403,15 +1420,30 @@
     var alias = D2DATA.areaAlias || {};
     Object.keys(alias).forEach(function (o) { if (c.waypoints[o]) { c.waypoints[alias[o]] = true; delete c.waypoints[o]; } });
     if (S.corpse && alias[S.corpse.area]) S.corpse.area = alias[S.corpse.area];
+    c.diff = c.diff || 'n'; c.diffMax = c.diffMax || 'n';
+    c.byDiff = c.byDiff || {};
+    c.byDiff.n = c.byDiff.n || { quests: c.quests, waypoints: c.waypoints, actAccess: c.actAccess || {} };
+    setDiff(c, c.diff);
   }
+  var DIFFS = ['n', 'nm', 'h'], DIFF_NAME = { n: 'Normal', nm: 'Nightmare', h: 'Hell' };
+  function setDiff(c, d) {
+    var b = c.byDiff[d] = c.byDiff[d] || { quests: {}, waypoints: {}, actAccess: {} };
+    c.diff = d; c.quests = b.quests; c.waypoints = b.waypoints; c.actAccess = b.actAccess;
+  }
+  Game.diffs = function () {
+    var c = loadSave(); c = c && c.char;
+    var max = DIFFS.indexOf((c && c.diffMax) || 'n');
+    return DIFFS.slice(0, max + 1).map(function (d) { return { id: d, name: DIFF_NAME[d] }; });
+  };
   function startPlay(ch) {
     S.char = ch; normChar(ch); recalc();
     ch.hp = ch.hp > 0 ? ch.hp : S.d.maxHp;
     S.stamina = S.stamMax; S.regen = []; S.denLeft = null; S.scene = 'play';
     UI.showHud(true); UI.refreshSkillIcons(); UI.refreshBelt();
-    return enterArea('rogue_encampment', null).then(function () {
+    var town = townOf(1 + Object.keys(ch.actAccess || {}).filter(function (k) { return /^\d$/.test(k); }).length);
+    return enterArea(town, null).then(function () {
       recalc();
-      UI.msg('Chào mừng đến Rogue Encampment.');
+      UI.msg('Chào mừng đến ' + S.def.name + (ch.diff !== 'n' ? ' (' + DIFF_NAME[ch.diff] + ')' : '') + '.');
       save();
     });
   }
@@ -1429,8 +1461,10 @@
     }
     startPlay(ch);
   };
-  Game.continueGame = function () {
+  Game.continueGame = function (diff) {
     var s = loadSave(); if (!s) return;
+    normChar(s.char);
+    if (diff && diff !== s.char.diff && DIFFS.indexOf(diff) <= DIFFS.indexOf(s.char.diffMax)) { setDiff(s.char, diff); s.corpse = null; }
     S.leftSkill = s.left || 'attack'; S.rightSkill = s.right || 'attack'; S.fkeys = s.fkeys || S.fkeys; S.corpse = s.corpse || null;
     UI.showLoad(true, 'Đang tải...');
     startPlay(s.char);
@@ -1649,7 +1683,7 @@
     }
     UI.showLoad(true, 'Đang tải...');
     E.ensureUi().then(function () {
-      UI.showLoad(false); S.scene = 'title'; UI.showTitle(Game.hasSave());
+      UI.rebuildHud(); UI.showLoad(false); S.scene = 'title'; UI.showTitle(Game.hasSave());
       requestAnimationFrame(frame);
     });
   }

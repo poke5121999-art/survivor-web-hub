@@ -1166,6 +1166,7 @@ def build():
         'monsters': monsters, 'superuniques': superuniques, 'monlvl': monlvl,
         'umod': {'names': umods, 'constants': umod_const},
         'difficulty': {k: v for k, v in list(T['difficultylevels'].values())[0].items()},
+        'difficulties': dict(zip(['n', 'nm', 'h'], [dict(r) for r in T['difficultylevels'].values()])),
         'items': items, 'experience': experience, 'areas': areas, 'npcs': npcs, 'monpreset': monpreset,
         'quests': quests, 'hirelings': hirelings, 'actTravel': HAND_ACT_TRAVEL,
         'areaAlias': {'cave_1': 'cave_level_1', 'cave_2': 'cave_level_2'},

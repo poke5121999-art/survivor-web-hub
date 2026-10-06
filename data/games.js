@@ -723,7 +723,7 @@ window.HUB_GAMES = [
     tagline: "Diablo II làm lại trên web bằng hình, tiếng, bản đồ và số liệu gốc của Diablo II. Đủ 38 khu của Act I, từ Rogue Encampment qua Blood Moor, Monastery tới Catacombs, dựng từ bản đồ thật và sinh ngẫu nhiên mỗi lần vào. Bảy lớp nhân vật với đủ cây kỹ năng, nhân vật đổi hình theo đồ mặc như game gốc. Có lính đánh thuê, waypoint, nhiệm vụ, kho đồ; đồ thường/magic/rare/unique/set rơi theo treasure class. Chuột trái đi/đánh, chuột phải dùng kỹ năng; điện thoại xoay ngang có cần điều khiển.",
     thumbnail: "assets/thumbnails/diablo2.png",
     path: "games/diablo2/index.html",
-    rev: "20261006d",
+    rev: "20261006e",
     // Plain canvas/JS, không engine. Chủ dự án chốt 2026-10-06: dùng asset + config của Diablo II từ bản D2R
     // trên máy (D:/Diablo2, giải nén ở D:/d2r-ref). Art 2D cổ (DCC/DT1/DS1/DC6) bóc từ kho CASC, số liệu từ
     // excel 3.1. Lever ở games/diablo2/_tools/, hợp đồng ở brain/plans/diablo2-d2r.md, ghi chép ở README.md.
