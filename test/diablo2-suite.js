@@ -339,6 +339,14 @@ async function clickTile(p, x, y, opt) {
     await p.screenshot({ path: path.join(SHOTS, '6-pandemonium.png') });
   }
 
+  await p.evaluate(() => { D2DBG.S.char.quests.hells_forge = 'active'; D2DBG.goto('river_of_flame'); });
+  await waitFor(p, () => D2DBG.getState().area === 'river_of_flame', 30000);
+  const heph = await p.evaluate(() => D2DBG.getState().mons.some(m => m.id === 'the_feature_creep'));
+  const hf0 = await p.evaluate(() => D2DBG.S.char.quests.hells_forge);
+  await p.evaluate(() => D2DBG.killAllMons());
+  const hf = await p.evaluate(() => D2DBG.S.char.quests.hells_forge);
+  check('River of Flame: vào khu chưa xong Hell\'s Forge, giết Hephasto mới xong', heph && hf0 === 'active' && (hf === 'cleared' || hf === 'done'), 'hephasto=' + heph + ' ' + hf0 + '->' + hf);
+
   await p.evaluate(() => D2DBG.goto('the_chaos_sanctuary'));
   await waitFor(p, () => D2DBG.getState().area === 'the_chaos_sanctuary', 30000);
   const seals = await p.evaluate(() => D2DBG.getState().mons.filter(m => m.rank === 'unique').map(m => m.id).sort());

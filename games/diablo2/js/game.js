@@ -7,7 +7,7 @@
   'use strict';
   var D2 = window.D2 = window.D2 || {};
   var E = D2.E, I = D2.Input, UI = D2.UI, OBJ = E.OBJ, SPR = E.SPR;
-  var VER = '20261006f';
+  var VER = '20261006g';
   var SAVE_KEY = 'd2web.save.v1';
 
   function safe(fn, fb) { try { var v = fn(); return v == null ? fb : v; } catch (e) { return fb; } }
@@ -384,14 +384,19 @@
   }
 
   var SCRIPTED_NPCS = { lut_gholein: [{ npc: 'jerhyn', near: 'harem_level_1' }] };
+  function corpseHere(id) { return !!(S.corpse && S.corpse.area === id && (S.corpse.diff || 'n') === dk()); }
   function enterArea(id, from, opts) {
+    var prev = S.def;
+    return enterArea0(id, from, opts).catch(function (err) { if (S.areaId !== id) S.def = prev; throw err; });
+  }
+  function enterArea0(id, from, opts) {
     opts = opts || {};
     var def = areaDef(id);
     if (!DA.playable(id)) { UI.msg('Khu vực này chưa mở.'); return Promise.resolve(false); }
     var gate = D2DATA.questGates && D2DATA.questGates[id], gst = gate && S.char.quests[gate];
     if (gate && gst !== 'cleared' && gst !== 'done') { UI.msg('Cần xong ' + questName(D2DATA.quests[gate]) + ' trước.', '#ff9a8a'); return Promise.resolve(false); }
     UI.showLoad(true, 'Đang vào ' + def.name + '...');
-    var seed = (S.corpse && S.corpse.area === id) ? S.corpse.seed : ((Math.random() * 1e9) | 0) + 1;
+    var seed = corpseHere(id) ? S.corpse.seed : ((Math.random() * 1e9) | 0) + 1;
     if (opts.seed) seed = opts.seed;
     var char = S.char, g = null;
     S.def = def;   // curAct() đọc act của khu sắp vào khi tra preset trong lúc dựng
@@ -426,7 +431,7 @@
       S.pendingBoss = null;
       spawnMonsters(def, g, seed);
       placeQuestItems(id, g);
-      if (S.corpse && S.corpse.area === id) mk('drop', S.corpse.x, S.corpse.y, { item: null, corpse: S.corpse, born: S.time, label: 'Xác của ' + char.name });
+      if (corpseHere(id)) mk('drop', S.corpse.x, S.corpse.y, { item: null, corpse: S.corpse, born: S.time, label: 'Xác của ' + char.name });
       S.arrive = S.time;
       var clearQ = Object.keys(D2DATA.quests).filter(function (q) { var g = D2DATA.quests[q].goal || {}; return g.type === 'clear_area' && g.area === id; })[0];
       S.denLeft = clearQ ? (char.quests[clearQ] === 'cleared' || char.quests[clearQ] === 'done' ? 0 : S.ents.filter(function (e) { return e.kind === 'mon' && !e.ally; }).length) : null;
@@ -539,9 +544,9 @@
     scripted.forEach(function (su) { var at = anchor || far[k++ % Math.max(1, far.length)]; if (at) suPack(su, at.x, at.y); });
     (def.bosses || []).forEach(function (b) {
       if (placed[b] || !DA.monster(b) || !far.length) return;
-      if (scripted.length) {
+      if (areaSu.some(function (su) { return SU[su]; })) {
         var c = g.spawns.slice().sort(function (p1, p2) { return Math.hypot(p1.x - g.w / 2, p1.y - g.h / 2) - Math.hypot(p2.x - g.w / 2, p2.y - g.h / 2); })[0];
-        S.pendingBoss = { id: b, after: scripted, x: c.x, y: c.y };
+        S.pendingBoss = { id: b, after: areaSu.filter(function (su) { return SU[su]; }), x: c.x, y: c.y };
       } else spawnBoss(b, far[0].x, far[0].y);
     });
   }
@@ -695,7 +700,7 @@
     E.sfx([DA.classInfo(c.cls).gender + '_die'], 0.7);
     var pen = safe(function () { return D2R.deathPenalty(c); }, null) || { lost: 0, corpseGold: 0 };
     if (!pen.corpseGold && pen.lost === 0 && c.gold) { pen.corpseGold = Math.floor(c.gold * 0.5); c.gold -= pen.corpseGold; }
-    S.corpse = { area: S.areaId, seed: S.seed, x: h.x, y: h.y, gold: pen.corpseGold, lost: pen.lost, xpLost: pen.xpLost || 0 };
+    S.corpse = { diff: dk(), area: S.areaId, seed: S.seed, x: h.x, y: h.y, gold: pen.corpseGold, lost: pen.lost, xpLost: pen.xpLost || 0 };
     setTimeout(function () { if (S.hero === h && h.st === 'dead') UI.showDead(true, respawn); }, 0);
   }
   function townOf(act) {
@@ -930,6 +935,7 @@
   function questName(q) { return q.name || q.id; }
   function questGoalHit(q, ev) {
     var g = q.goal || {};
+    if (ev.kind === 'kill' && g.type === 'destroy') { var dk2 = D2DATA.questDestroy[g.object]; return !!(dk2 && dk2.kill === ev.id); }
     if (ev.kind === 'kill') {
       var ids = [g.monster, g.superunique].concat(g.superuniques || []).filter(Boolean);
       if (ids.indexOf(ev.id) < 0) return false;
@@ -944,8 +950,7 @@
       var dd = g.type === 'destroy' && D2DATA.questDestroy[g.object];
       return !!(dd && dd.item === ev.name);
     }
-    if (ev.kind === 'kill' && g.type === 'destroy') { var dk2 = D2DATA.questDestroy[g.object]; return !!(dk2 && dk2.kill === ev.id); }
-    if (ev.kind === 'enter') return g.type !== 'kill' && g.type !== 'clear_area' && (g.area || q.area) === ev.area;
+    if (ev.kind === 'enter') return (g.type === 'reach' || g.type === 'rescue') && (g.area || q.area) === ev.area;
     if (ev.kind === 'cleared') return g.type === 'clear_area' && g.area === ev.area;
     return false;
   }
@@ -986,6 +991,7 @@
     Object.keys(QI).forEach(function (name) {
       var q = QI[name], qid = questOfItem(name), st = S.char.quests[qid];
       if (held[name] || st === 'done' || st === 'cleared') return;
+      if (S.ents.some(function (e) { return e.kind === 'drop' && !e.removed && e.item && e.item.qitem === name; })) return;
       var hit = (q.mons || []).indexOf(m.monId) >= 0 || (q.anyUnique && st === 'active' && m.rank === 'unique' && !m.ally && curAct() === q.act);
       if (hit) dropItem({ qitem: name, base: 'qitem', name: name, q: 'quest', w: 1, h: 1 }, m.x, m.y);
     });
@@ -1546,11 +1552,14 @@
     c.inv.forEach(function (it) { if (it.ix == null) { var sp = findSpot({ inv: c.inv.filter(function (x) { return x !== it && x.ix != null; }) }, it.w || 1, it.h || 1); it.ix = sp ? sp[0] : 0; it.iy = sp ? sp[1] : 0; } });
     c.statPts = c.statPts || 0; c.skillPts = c.skillPts || 0; c.stash = c.stash || []; c.waypoints = c.waypoints || {};
     var alias = D2DATA.areaAlias || {};
-    Object.keys(alias).forEach(function (o) { if (c.waypoints[o]) { c.waypoints[alias[o]] = true; delete c.waypoints[o]; } });
     if (S.corpse && alias[S.corpse.area]) S.corpse.area = alias[S.corpse.area];
     c.diff = c.diff || 'n'; c.diffMax = c.diffMax || 'n';
     c.byDiff = c.byDiff || {};
     c.byDiff.n = c.byDiff.n || { quests: c.quests, waypoints: c.waypoints, actAccess: c.actAccess || {} };
+    Object.keys(c.byDiff).forEach(function (d) {
+      var w = c.byDiff[d].waypoints || {};
+      Object.keys(alias).forEach(function (o) { if (w[o]) { w[alias[o]] = true; delete w[o]; } });
+    });
     setDiff(c, c.diff);
   }
   var DIFFS = ['n', 'nm', 'h'], DIFF_NAME = { n: 'Normal', nm: 'Nightmare', h: 'Hell' };
@@ -1592,7 +1601,7 @@
   Game.continueGame = function (diff) {
     var s = loadSave(); if (!s) return;
     normChar(s.char);
-    if (diff && diff !== s.char.diff && DIFFS.indexOf(diff) <= DIFFS.indexOf(s.char.diffMax)) { setDiff(s.char, diff); s.corpse = null; }
+    if (diff && diff !== s.char.diff && DIFFS.indexOf(diff) <= DIFFS.indexOf(s.char.diffMax)) setDiff(s.char, diff);
     S.leftSkill = s.left || 'attack'; S.rightSkill = s.right || 'attack'; S.fkeys = s.fkeys || S.fkeys; S.corpse = s.corpse || null;
     UI.showLoad(true, 'Đang tải...');
     startPlay(s.char);
