@@ -1,59 +1,98 @@
-// node test/diablo2-drlg.js : D2G.build cho 3 màn x 50 seed, kiểm đi được và kích thước.
+// node test/diablo2-drlg.js [seeds] [area...] : D2G v2 (games/diablo2/js/drlg.js) for every Act I area.
+// Per area and seed: sizes, hero on a walkable subtile, every exit and spawn reachable from the hero
+// (BFS on col == 0, 4-neighbour), exits only to areas in links / vis, an exit for every link the generator
+// supports, waypoint object where levels.txt has one, same seed -> same level. Prints build times.
 'use strict';
 var fs = require('fs'), path = require('path'), vm = require('vm');
 var root = path.join(__dirname, '..', 'games', 'diablo2');
-['world.js', 'maps.js'].forEach(function (f) { vm.runInThisContext(fs.readFileSync(path.join(root, 'assets', f), 'utf8')); });
+global.D2_GROUPS = {};
+global.D2_REG = function (name, obj) { global.D2_GROUPS[name] = obj; };
+['assets/m/maps_act1.js', 'assets/m/world_act1.js', 'js/data.js'].forEach(function (f) {
+  vm.runInThisContext(fs.readFileSync(path.join(root, f), 'utf8'), { filename: f });
+});
 var D2G = require(path.join(root, 'js', 'drlg.js'));
+var A = global.D2DATA.areas;
+
+var argv = process.argv.slice(2);
+var SEEDS = argv[0] && /^\d+$/.test(argv[0]) ? +argv.shift() : 20;
+var all = Object.keys(A).filter(function (k) { return A[k].act === 1; }).sort(function (a, b) { return A[a].d2id - A[b].d2id; });
+var only = argv.length ? argv : null;
 
 var fails = 0;
-function fail(msg) { fails++; if (fails < 20) console.log('FAIL ' + msg); }
+function fail(msg) { fails++; if (fails < 60) console.log('FAIL ' + msg); }
 
-function reach(lv, eight) {
+function reach(lv) {
   var w = lv.w, seen = new Uint8Array(w * lv.h), q = [lv.hero[1] * w + lv.hero[0]];
   seen[q[0]] = 1;
-  var dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-  if (eight) dirs = dirs.concat([[1, 1], [1, -1], [-1, 1], [-1, -1]]);
   for (var h = 0; h < q.length; h++) {
     var cx = q[h] % w, cy = (q[h] / w) | 0;
-    for (var d = 0; d < dirs.length; d++) {
-      var nx = cx + dirs[d][0], ny = cy + dirs[d][1];
+    for (var d = 0; d < 4; d++) {
+      var nx = cx + [1, -1, 0, 0][d], ny = cy + [0, 0, 1, -1][d];
       if (nx < 0 || ny < 0 || nx >= w || ny >= lv.h) continue;
       var ni = ny * w + nx;
       if (!seen[ni] && lv.col[ni] === 0) { seen[ni] = 1; q.push(ni); }
     }
   }
-  return seen;
+  return { seen: seen, n: q.length };
+}
+function nearReach(r, lv, x, y, rad) {
+  for (var yy = Math.max(0, y - rad); yy <= Math.min(lv.h - 1, y + rad); yy++) {
+    for (var xx = Math.max(0, x - rad); xx <= Math.min(lv.w - 1, x + rad); xx++) if (r.seen[yy * lv.w + xx]) return true;
+  }
+  return false;
+}
+function sig(lv) {
+  var h = 0;
+  for (var i = 0; i < lv.col.length; i++) h = (Math.imul(h, 31) + lv.col[i]) | 0;
+  lv.floors.forEach(function (L) { for (var j = 0; j < L.length; j++) h = (Math.imul(h, 31) + L[j]) | 0; });
+  return h + '|' + lv.hero.join() + '|' + JSON.stringify(lv.exits) + '|' + JSON.stringify(lv.spawns) + '|' + lv.objects.length;
 }
 
-var SIZES = { rogue_encampment: [57, 41], blood_moor: [80, 80] };
-var EXPECT_EXITS = { rogue_encampment: ['blood_moor'], blood_moor: ['rogue_encampment', 'den_of_evil'], den_of_evil: ['blood_moor'] };
-var stats = [];
-D2G.areas.forEach(function (area) {
-  var t0 = Date.now(), exits = 0, spawns = 0, walk = 0, n = 50, tmax = 0;
-  for (var seed = 1; seed <= n; seed++) {
-    var t1 = Date.now(), lv;
-    try { lv = D2G.build(area, seed); } catch (e) { fail(area + ' ' + seed + ' throw ' + e.message); continue; }
-    tmax = Math.max(tmax, Date.now() - t1);
-    var tag = area + ' seed ' + seed;
-    if (lv.w !== lv.tw * 5 || lv.h !== lv.th * 5 || lv.col.length !== lv.w * lv.h) fail(tag + ' kích thước không khớp');
-    if (SIZES[area] && (lv.tw !== SIZES[area][0] || lv.th !== SIZES[area][1])) fail(tag + ' sai cỡ ' + lv.tw + 'x' + lv.th);
-    if (lv.floors[0].length !== lv.tw * lv.th || lv.walls.some(function (L) { return L.t.length !== lv.tw * lv.th; })) fail(tag + ' lớp tile sai độ dài');
-    if (lv.col[lv.hero[1] * lv.w + lv.hero[0]] !== 0) fail(tag + ' hero đứng trên ô chặn');
-    var codes = lv.exits.map(function (e) { return e.to; }).sort().join();
-    if (codes !== EXPECT_EXITS[area].slice().sort().join()) fail(tag + ' lối ra ' + codes);
-    [false, true].forEach(function (eight) {
-      var seen = reach(lv, eight);
-      lv.exits.forEach(function (e) { if (!seen[e.y * lv.w + e.x]) fail(tag + ' lối ra ' + e.to + ' không tới được (' + (eight ? 8 : 4) + ')'); });
-      lv.spawns.forEach(function (s) { if (!seen[s.y * lv.w + s.x]) fail(tag + ' spawn ' + s.x + ',' + s.y + ' không tới được'); });
+var rows = [], unsupported = [];
+all.forEach(function (id) {
+  if (only && only.indexOf(id) < 0) return;
+  if (!D2G.supports(id)) { unsupported.push(id); return; }
+  var a = A[id], allowed = {};
+  (a.links || []).forEach(function (t) { allowed[t] = 1; });
+  (a.vis || []).forEach(function (t) { allowed[t] = 1; });
+  var need = (a.links || []).filter(function (t) { return D2G.supports(t); });
+  var tsum = 0, tmax = 0, ex = 0, sp = 0, walk = 0, size = '';
+  for (var seed = 1; seed <= SEEDS; seed++) {
+    var tag = id + ' seed ' + seed, lv, t0 = Date.now();
+    try { lv = D2G.build(id, seed); } catch (e) { fail(tag + ' throws ' + e.message); continue; }
+    var dt = Date.now() - t0; tsum += dt; tmax = Math.max(tmax, dt);
+    size = lv.tw + 'x' + lv.th + ' ' + lv.tileset;
+    if (lv.w !== lv.tw * 5 || lv.h !== lv.th * 5 || lv.col.length !== lv.w * lv.h) fail(tag + ' size mismatch');
+    if (lv.floors.some(function (L) { return L.length !== lv.tw * lv.th; }) ||
+        lv.walls.some(function (L) { return L.t.length !== lv.tw * lv.th || L.o.length !== lv.tw * lv.th; })) fail(tag + ' layer length');
+    if (lv.col[lv.hero[1] * lv.w + lv.hero[0]] !== 0) fail(tag + ' hero on a blocked subtile');
+    var r = reach(lv);
+    walk += r.n;
+    lv.exits.forEach(function (e) {
+      if (!allowed[e.to]) fail(tag + ' exit to ' + e.to + ' not in links/vis');
+      if (!r.seen[e.y * lv.w + e.x]) fail(tag + ' exit to ' + e.to + ' unreachable');
     });
-    var again = D2G.build(area, seed);
-    if (again.col.some(function (v, i) { return v !== lv.col[i]; }) || again.hero.join() !== lv.hero.join()) fail(tag + ' không tất định');
-    exits += lv.exits.length; spawns += lv.spawns.length;
-    for (var i = 0; i < lv.col.length; i++) if (lv.col[i] === 0) walk++;
+    need.forEach(function (t) { if (!lv.exits.some(function (e) { return e.to === t; })) fail(tag + ' no exit to ' + t); });
+    lv.spawns.forEach(function (s) { if (!r.seen[s.y * lv.w + s.x]) fail(tag + ' spawn ' + s.x + ',' + s.y + ' unreachable'); });
+    var wps = lv.objects.filter(function (o) { return o.kind === 'waypoint'; });
+    if (a.waypoint && !wps.length) fail(tag + ' waypoint missing');
+    if (!a.waypoint && wps.length) fail(tag + ' unexpected waypoint');
+    wps.forEach(function (o) { if (!nearReach(r, lv, Math.round(o.x), Math.round(o.y), 8)) fail(tag + ' waypoint unreachable'); });
+    // `from` puts the hero at the exit back to that area
+    if (lv.exits.length) {
+      var e0 = lv.exits[lv.exits.length - 1], lf = D2G.build(id, seed, e0.to);
+      var d = Math.abs(lf.hero[0] - e0.x) + Math.abs(lf.hero[1] - e0.y);
+      if (d > 45) fail(tag + ' from=' + e0.to + ' hero ' + d + ' subtiles from that exit');
+    }
+    if (sig(D2G.build(id, seed)) !== sig(lv)) fail(tag + ' not deterministic');
+    ex += lv.exits.length; sp += lv.spawns.length;
   }
-  stats.push(area + ': ' + n + ' seed, exits ' + exits + ', spawns ' + spawns + ', ô đi được TB ' + Math.round(walk / n) +
-    ', ' + Math.round((Date.now() - t0) / n / 2) + ' ms/build (max ' + tmax + ')');
+  rows.push(id + ' [' + D2G.kind(id) + ' ' + size + ']: exits ' + (ex / SEEDS).toFixed(1) + ', spawns ' + (sp / SEEDS).toFixed(1) +
+    ', walkable ' + Math.round(walk / SEEDS) + ', ' + Math.round(tsum / SEEDS) + ' ms/build (max ' + tmax + ')');
 });
-stats.forEach(function (s) { console.log(s); });
-console.log(fails ? 'diablo2-drlg: ' + fails + ' FAIL' : 'diablo2-drlg: all passed');
+rows.forEach(function (s) { console.log(s); });
+if (unsupported.length) console.log('not supported: ' + unsupported.join(', '));
+var n = rows.length;
+console.log(fails ? 'diablo2-drlg: ' + fails + ' FAIL (' + n + ' areas x ' + SEEDS + ' seeds)' :
+  'diablo2-drlg: all passed (' + n + ' areas x ' + SEEDS + ' seeds)');
 process.exit(fails ? 1 : 0);

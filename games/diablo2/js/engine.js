@@ -51,7 +51,7 @@
 
   function groupName(n) { return String(n).replace(/^m\//, ''); }
   window.D2_REG = function (name, g) {
-    name = groupName(name); GROUPS[name] = g;
+    name = groupName(name); GROUPS[name] = GROUPS['m/' + name] = g;
     var pages = g.pages || [];
     addSheets(g.sheets, pages);
     if (g.hero) {
@@ -132,7 +132,11 @@
     });
   };
   // DS1 + LvlPrest của một act (D2G.build đọc chúng nên phải nạp trước khi dựng khu)
-  E.ensureMaps = function (act) { return loadGroups([IDX && IDX.maps && IDX.maps[act]]); };
+  E.ensureMaps = function (act) {
+    var g = [IDX && IDX.maps && IDX.maps[act]];
+    Object.keys((IDX && IDX.tilesets) || {}).forEach(function (k) { if (k.indexOf('act' + act) === 0) g.push(IDX.tilesets[k]); });
+    return loadGroups(g);
+  };
   // Kích thước trang atlas UI để CSS phóng ảnh (background-size) khi vẽ icon to/nhỏ hơn gốc
   E.ensureUi = function () {
     return loadGroups([IDX && IDX.ui]).then(function () {

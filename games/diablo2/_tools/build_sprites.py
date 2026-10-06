@@ -16,6 +16,7 @@ import json
 import math
 import multiprocessing
 import os
+import re
 import sys
 import time
 
@@ -29,43 +30,63 @@ import d2pack  # noqa: E402
 
 GLOBAL = os.environ.get('D2_GLOBAL', r'D:\d2r-ref\fs\data\data\global')
 ASSETS = os.path.normpath(os.path.join(HERE, '..', 'assets'))
-IMG = os.path.join(ASSETS, 'img')
-WEB_IMG = 'assets/img'
 
 # ---------------------------------------------------------------------------
-# hero profile.  The full set the brief asks for (every mode x wclass x token) is ~380 MB of DCC
-# for 7 classes; the 25 MB budget forces this cut.  Everything else is derived from disk + excel.
+# hero profile.  Everything below is decided by measured size (--estimate prints dcc bytes per mode
+# and weapon class); see the report in the build log for what the 60 MB budget cut.
 # ---------------------------------------------------------------------------
 HERO_DIRS = 8
-# TH, KK and S1..S4 are dropped (budget): the engine falls back to A1/SC.
 HERO_MODES = ['NU', 'WL', 'RN', 'TN', 'TW', 'A1', 'A2', 'GH', 'DT', 'DD', 'BL', 'SC']
+# TH (throw), KK (kick) and S1..S4 only for the classes whose skills use them (budget).
+HERO_EXTRA_MODES = {'AM': ['TH'], 'BA': ['TH', 'S1', 'S2', 'S3', 'S4'], 'AI': ['KK', 'S1', 'S2', 'S3', 'S4']}
 HERO_CLASSES = ['AM', 'SO', 'NE', 'PA', 'BA', 'DZ', 'AI']
 HERO_WCLASSES = {
-    'AM': ['hth', '1ht', '2ht', 'bow'],
+    'AM': ['hth', '1ht', '2ht', 'bow', 'xbw'],
     'SO': ['hth', '1hs', 'stf'],
     'NE': ['hth', '1hs', 'stf'],
     'PA': ['hth', '1hs', '2hs'],
-    'BA': ['hth', '1hs', '2hs'],
+    'BA': ['hth', '1hs', '2hs', '1js', '1jt', '1ss', '1st'],
     'DZ': ['hth', '1hs', 'stf'],
     'AI': ['hth', 'ht1', 'ht2'],
 }
 ARMOR_TOKENS = ['lit', 'med', 'hvy']          # TR only
 TR_TOKENS = ARMOR_TOKENS
 OTHER_ARMOR_TOKENS = ['lit']                  # LG RA LA S1..S8
-HEAD_GENERIC = 3                              # first N normal-tier helms present for the class
+HEAD_GENERIC = 2                              # first N normal-tier helms present for the class
 HEAD_CLASS = 1                                # first N class-specific head items (pelt/phlm/head...)
-SHIELD_PICKS = 3
-WEAPON_PICKS = {'1hs': 4, '1ht': 3, '2hs': 3, '2ht': 3, 'bow': 3, 'xbw': 2, 'stf': 3,
-                'hth': 0, 'ht1': 3, 'ht2': 3}
+SHIELD_PICKS = 2
+WEAPON_PICKS = {'1hs': 3, '1ht': 2, '2hs': 2, '2ht': 2, 'bow': 2, 'xbw': 2, 'stf': 2,
+                'hth': 0, 'ht1': 2, 'ht2': 2, '1js': 2, '1jt': 2, '1ss': 2, '1st': 2}
 WEAPON_MAXLVL = 30
 
 MON_MODES = ['DT', 'NU', 'WL', 'GH', 'A1', 'A2', 'BL', 'SC', 'S1', 'S2', 'S3', 'S4', 'DD', 'KB',
              'SQ', 'RN']
 MON_COMPS = ['HD', 'TR', 'LG', 'RA', 'LA', 'RH', 'LH', 'SH', 'S1', 'S2', 'S3', 'S4', 'S5', 'S6',
              'S7', 'S8']
-SUPERS_IN_RANGE = ['Bishibosh', 'Rakanishu', 'Treehead WoodFist', 'Corpsefire']
-TOWN_EXTRA = ['cain1']          # Cain is quest-placed, not a type-1 object of towne1.ds1
-LEVELS = range(1, 9)
+ACTS = [1, 2, 3, 4, 5]
+# Budget cut: every 2nd frame (fps halved) for all monster modes but these; 60 MB cannot hold the full-rate set.
+FULL_RATE = ('A1',)             # the basic attack keeps every frame; every other mode is decimated
+# Act of every superunique base (superuniques.txt carries none); index = row order of the table.
+SUPER_ACT = {
+    'Bishibosh': 1, 'Bonebreak': 1, 'Coldcrow': 1, 'Rakanishu': 1, 'Treehead WoodFist': 1, 'Griswold': 1,
+    'The Countess': 1, 'Pitspawn Fouldog': 1, 'Flamespike the Crawler': 1, 'Boneash': 1,
+    'The Smith': 1, 'Corpsefire': 1, 'The Cow King': 1,
+    'Radament': 2, 'Bloodwitch the Wild': 2, 'Fangskin': 2, 'Beetleburst': 2, 'Leatherarm': 2,
+    'Coldworm the Burrower': 2, 'Fire Eye': 2, 'Dark Elder': 2, 'The Summoner': 2,
+    'Ancient Kaa the Soulless': 2,
+    'Web Mage the Burning': 3, 'Witch Doctor Endugu': 3, 'Stormtree': 3, 'Sarina the Battlemaid': 3,
+    'Icehawk Riftwing': 3, 'Ismail Vilehand': 3, 'Geleb Flamefinger': 3, 'Bremm Sparkfist': 3,
+    'Toorc Icefist': 3, 'Wyand Voidfinger': 3, 'Maffer Dragonhand': 3,
+    'Winged Death': 4, 'The Tormentor': 4, 'Taintbreeder': 4, 'Riftwraith the Cannibal': 4,
+    'Infector of Souls': 4, 'Lord De Seis': 4, 'Grand Vizier of Chaos': 4,
+}
+ACT_BOSSES = {1: ['andariel'], 2: ['duriel'], 3: ['mephisto'], 4: ['diablo'],
+              5: ['baalthrone', 'baalcrab', 'baalclone', 'baaltaunt', 'baalminion1', 'baalminion2',
+                  'baalminion3', 'baalhighpriest']}
+TOWN_EXTRA = {1: ['cain1']}      # Cain is quest-placed, not a type-1 object of the town DS1
+BOSS_IDS = set(b for v in ACT_BOSSES.values() for b in v)
+MERC_ACT = {'roguehire': 1, 'act2hire': 2, 'act3hire': 3, 'act5hire1': 5, 'act5hire2': 5}
+MERCS = sorted(MERC_ACT)
 
 
 def gp(*parts):
@@ -147,7 +168,11 @@ def anims():
 
 def load_cof(path):
     if path not in _COF:
-        _COF[path] = d2fmt.read_cof(open(path, 'rb').read()) if os.path.exists(path) else None
+        try:
+            _COF[path] = d2fmt.read_cof(open(path, 'rb').read()) if os.path.exists(path) else None
+        except Exception as e:  # noqa: BLE001 - amblxbow.cof does not parse (d2fmt); the sheet falls back
+            sys.stderr.write('WARN cof %s: %s' % (path, e) + chr(10))
+            _COF[path] = None
     return _COF[path]
 
 
@@ -155,7 +180,10 @@ def load_dcc(path, keep=False):
     if path in _DCC:
         return _DCC[path]
     try:
-        d = d2fmt.read_dcc(open(path, 'rb').read()) if os.path.exists(path) else None
+        if not os.path.exists(path) and os.path.exists(path[:-4] + '.dc6'):
+            d = d2fmt.read_dc6(open(path[:-4] + '.dc6', 'rb').read())   # Mephisto, some bosses ship DC6
+        else:
+            d = d2fmt.read_dcc(open(path, 'rb').read()) if os.path.exists(path) else None
     except Exception as e:  # noqa: BLE001 - a bad file must not kill the lever, it is reported
         sys.stderr.write('WARN dcc %s: %s\n' % (path, e))
         d = None
@@ -196,14 +224,18 @@ def composite_anim(cof, layer_dccs, n_out):
         boxes = {}
         for t, dcc in layer_dccs.items():
             di = dir_map(n_out, dcc['dirs'])[d]
-            f0 = dcc['frames'][di][0]
-            boxes[t] = (di, f0['ox'], f0['oy'], f0['w'], f0['h'])
+            frs = [fr for fr in dcc['frames'][di] if fr['w'] and fr['h']]
+            if not frs:
+                continue
+            # union over every frame: DC6 layers (Mephisto...) change size from frame to frame
+            boxes[t] = (di, min(fr['ox'] for fr in frs), min(fr['oy'] for fr in frs),
+                        max(fr['ox'] + fr['w'] for fr in frs), max(fr['oy'] + fr['h'] for fr in frs))
         if not boxes:
             continue
         bx = min(b[1] for b in boxes.values())
         by = min(b[2] for b in boxes.values())
-        ex = max(b[1] + b[3] for b in boxes.values())
-        ey = max(b[2] + b[4] for b in boxes.values())
+        ex = max(b[3] for b in boxes.values())
+        ey = max(b[4] for b in boxes.values())
         W, H = ex - bx, ey - by
         if W <= 0 or H <= 0:
             continue
@@ -212,33 +244,13 @@ def composite_anim(cof, layer_dccs, n_out):
             for t in cof['priority'][cdirs[d]][f]:
                 if t not in boxes:
                     continue
-                di, ox, oy, _, _ = boxes[t]
+                di = boxes[t][0]
                 frs = layer_dccs[t]['frames'][di]
                 if f >= len(frs):
                     continue
-                blend(canvas, frs[f], ox - bx, oy - by, t in transp)
+                blend(canvas, frs[f], frs[f]['ox'] - bx, frs[f]['oy'] - by, t in transp)
             out[f][d] = (canvas, -bx, -by)
     return out
-
-
-class DedupAtlas(object):
-    """d2pack.Atlas + identical-frame sharing (DCC 'equal cells' repeat whole frames)."""
-
-    def __init__(self, name):
-        self.atlas = d2pack.Atlas(name, IMG, WEB_IMG)
-        self.seen = {}
-
-    def add(self, rgba, ax, ay):
-        key = (rgba.shape, ax, ay, rgba.tobytes())
-        r = self.seen.get(key)
-        if r is None:
-            r = self.atlas.add(rgba, ax, ay)
-            self.seen[key] = r
-        return r
-
-    def save(self):
-        self.seen = None
-        return self.atlas.save(lossless=True)
 
 
 # ---------------------------------------------------------------------------
@@ -262,7 +274,7 @@ def mon_spec(row2, mstat):
 
 def build_mon(job):
     """job = (key, code, wclass, comps, modes) -> (key, anims dict, notes)."""
-    key, code, wclass, comps, modes = job
+    key, code, wclass, comps, modes = job[:5]
     lc = code.lower()
     notes = []
     res = {}
@@ -373,7 +385,7 @@ def hero_plan(cls, dirs_unused=None):
     tokf = hero_tokens(cls)
     cofs, files = {}, {}
     for wc in HERO_WCLASSES[cls]:
-        for m in HERO_MODES:
+        for m in HERO_MODES + HERO_EXTRA_MODES.get(cls, []):
             cp = None
             for cand in (wc, 'xbow' if wc == 'xbw' else wc):
                 p = gp('chars', lc, 'cof', lc + m.lower() + cand + '.cof')
@@ -383,6 +395,8 @@ def hero_plan(cls, dirs_unused=None):
             if cp is None:
                 continue
             cof = load_cof(cp)
+            if cof is None:
+                continue
             ckey = '%s.%s.%s' % (cls, m, norm_wc(wc).upper())
             cofs[ckey] = (cof, (cls + m + fwc).upper())
             for l in cof['layers']:
@@ -400,7 +414,7 @@ def build_hero_class(cls):
     t0 = time.time()
     lc = cls.lower()
     cofs, files = hero_plan(cls)
-    at = DedupAtlas('hero_' + lc)
+    at = d2anim.GroupAtlas('hero_' + cls)
     n_out = HERO_DIRS
     layers = {}
     notes = []
@@ -441,64 +455,98 @@ def build_hero_class(cls):
         if not an:
             notes.append('%s: no animdata' % ckey)
         cj[ckey] = e
-    pages = at.save()
-    notes.append('%s: %d layer keys, %d cofs, %d pages, %.0fs' % (cls, len(layers), len(cj), len(pages),
-                                                                 time.time() - t0))
-    return cls, cj, layers, pages, notes
+    pages, nbytes, modes = at.save()
+    d2anim.write_group('hero_' + cls, {'pages': pages, 'hero': {'cofs': cj, 'layers': layers}})
+    notes.append('%s: %d layer keys, %d cofs, %d pages (%s) %.1f MB, %.0fs' % (
+        cls, len(layers), len(cj), len(pages), ','.join(modes), nbytes / 1e6, time.time() - t0))
+    return cls, nbytes, notes
 
 
 def estimate():
+    """dcc bytes of the planned hero files, by class, mode and weapon class (all dirs of the file)."""
     tot = 0
+    bymode, bywc = {}, {}
     for cls in HERO_CLASSES:
         cofs, files = hero_plan(cls)
-        b = sum(os.path.getsize(p) for p in files.values())
-        # dcc files hold 16 directions (some 8); scale to HERO_DIRS
         b8 = 0
-        for p in files.values():
+        for (lkey, m), p in files.items():
             nd = open(p, 'rb').read(3)[2]
-            b8 += os.path.getsize(p) * min(1.0, float(HERO_DIRS) / nd)
-        print('%s: %d cofs, %d layer files, dcc %.2f MB, at %d dirs %.2f MB' %
-              (cls, len(cofs), len(files), b / 1e6, HERO_DIRS, b8 / 1e6))
+            sz = os.path.getsize(p) * min(1.0, float(HERO_DIRS) / nd)
+            b8 += sz
+            bymode[m] = bymode.get(m, 0) + sz
+            wc = lkey.split('.')[-1]
+            bywc[wc] = bywc.get(wc, 0) + sz
+        print('%s: %d cofs, %d layer files, at %d dirs %.2f MB' % (cls, len(cofs), len(files), HERO_DIRS, b8 / 1e6))
         tot += b8
-    print('estimated hero total %.2f MB' % (tot / 1e6))
+    print('by mode MB:', dict((k, round(v / 1e6, 1)) for k, v in sorted(bymode.items())))
+    print('by wclass MB:', dict((k, round(v / 1e6, 1)) for k, v in sorted(bywc.items())))
+    print('estimated hero dcc total %.2f MB' % (tot / 1e6))
 
 
 # ---------------------------------------------------------------------------
 # monster list
 # ---------------------------------------------------------------------------
 
-def monster_lists():
+def monster_lists(acts):
     ms = rd_txt('monstats')
     by_id = dict((r['Id'], r) for r in ms)
     ex = dict((r['Id'], r) for r in rd_txt('monstats2'))
     ids = []
+    per_act = dict((a, []) for a in acts)
+
+    def add(a, v):
+        if v and v in by_id:
+            if v not in ids:
+                ids.append(v)
+            if v not in per_act[a]:
+                per_act[a].append(v)
+
     for lv in rd_txt('levels'):
-        if not lv['Id'].isdigit() or int(lv['Id']) not in LEVELS:
+        if not lv['Id'].isdigit() or not lv.get('Act', '').isdigit() or int(lv['Act']) + 1 not in acts:
             continue
         for pre in ('mon', 'nmon', 'umon'):
             for i in range(1, 26):
-                v = lv.get('%s%d' % (pre, i), '')
-                if v and v in by_id and v not in ids:
-                    ids.append(v)
-    sup = {}
+                add(int(lv['Act']) + 1, lv.get('%s%d' % (pre, i), ''))
+    for a in acts:
+        for v in ACT_BOSSES.get(a, []):
+            add(a, v)
     for r in rd_txt('superuniques'):
-        if r['Superunique'] in SUPERS_IN_RANGE:
-            sup[r['Superunique']] = r['Class']
-            if r['Class'] not in ids:
-                ids.append(r['Class'])
-    # town NPCs: type-1 objects of towne1.ds1 -> monpreset (Act 1 rows, in order)
-    ds1 = d2fmt.read_ds1(open(gp('tiles', 'act1', 'town', 'towne1.ds1'), 'rb').read())
-    act1 = [r for r in rd_txt('monpreset') if r['Act'] == '1']
-    npc = []
-    for o in ds1['objects']:
-        if o['type'] == 1:
-            p = act1[o['id']]['Place']
-            if p in by_id and p not in npc:
-                npc.append(p)
-    for p in TOWN_EXTRA:
-        if p not in npc:
-            npc.append(p)
-    return ms, by_id, ex, ids, npc, sup
+        a = SUPER_ACT.get(r['Superunique'])
+        if a in acts and r['Class']:
+            add(a, r['Class'])
+    # town NPCs: type-1 objects of the act's town DS1s -> monpreset rows of that act, in order
+    lp = rd_txt('lvlprest')
+    mp = rd_txt('monpreset')
+    npc, npc_act = [], dict((a, []) for a in acts)
+    for a in acts:
+        rows = [r for r in mp if r['Act'] == str(a)]
+        files = set()
+        for r in lp:
+            if re.match(r'^Act %d - (Town|Fortress|Harrogath)' % a, r['Name']):
+                for k in range(1, 7):
+                    v = r.get('File%d' % k, '')
+                    if v and v != '0':
+                        files.add(v.lower().replace(chr(92), '/'))
+        for f in sorted(files):
+            p = gp('tiles', f)
+            if not os.path.exists(p):
+                continue
+            ds1 = d2fmt.read_ds1(open(p, 'rb').read())
+            for o in ds1['objects']:
+                if o['type'] == 1 and o['id'] < len(rows):
+                    pl = rows[o['id']]['Place']
+                    if pl in by_id and pl not in npc_act[a]:
+                        npc_act[a].append(pl)
+        for pl in TOWN_EXTRA.get(a, []):
+            if pl not in npc_act[a]:
+                npc_act[a].append(pl)
+        for hid in MERCS:
+            if hid in by_id and hid not in npc_act[a] and MERC_ACT[hid] == a:
+                npc_act[a].append(hid)
+        for pl in npc_act[a]:
+            if pl not in npc:
+                npc.append(pl)
+    return ms, by_id, ex, ids, npc, per_act, npc_act
 
 
 def plan_sheets(ids, npc, by_id, ex):
@@ -517,6 +565,14 @@ def plan_sheets(ids, npc, by_id, ex):
             if s == sig:
                 monmap[i] = k
                 return
+        for (s0, k0) in got:
+            base = dict(s0[1])
+            changed = set(c for c in set(base) | set(comps) if base.get(c) != comps.get(c))
+            if not changed & set(['RH', 'LH', 'SH']) and wc == s0[0] and tuple(modes) == s0[2]:
+                # colour/effect-only variant (same weapons, same modes): share the art, saves a full sheet
+                monmap[i] = k0
+                notes.append('%s: Code %s variant %s shares %s' % (i, code, sorted(changed), k0))
+                return
         if not got:
             k = pk
         else:
@@ -530,7 +586,7 @@ def plan_sheets(ids, npc, by_id, ex):
             notes.append('%s: Code %s has a different layout (%s) -> key %s' % (i, code, comps, k))
         got.append((sig, k))
         monmap[i] = k
-        jobs[k] = (k, code, wc, dict(comps), modes)
+        jobs[k] = (k, code, wc, dict(comps), modes, i in BOSS_IDS)
 
     for i in ids:
         if i not in npc:
@@ -540,112 +596,115 @@ def plan_sheets(ids, npc, by_id, ex):
     return sorted(jobs.values()), monmap, notes
 
 
-def pack_sheets(pool, jobs, name):
-    at = DedupAtlas(name)
-    sheets, notes = {}, []
-    for key, res, nn in pool.imap(build_mon, jobs):
-        notes.extend(nn)
-        an_out = {}
-        for m in MON_MODES:
-            if m not in res:
-                continue
-            n_out, nf, an, fr = res[m]
-            f = []
-            for fi in range(nf):
-                f.append([at.add(*x) if x is not None else [] for x in fr[fi]])
-            an_out[m] = {'dirs': n_out, 'fps': round(an['fps'], 4) if an else 12.5, 'frames': nf,
-                         'hit': an['hit'] if an else -1, 'f': f}
-        sheets[key] = {'anims': an_out}
-    return sheets, at, notes
+def group_of(key):
+    return key.replace('.', '_')
 
 
-def clean_old(prefixes):
-    for p in glob.glob(os.path.join(IMG, '*.webp')):
-        if os.path.basename(p).split('_')[0] in prefixes:
-            os.remove(p)
+def mon_group_job(job):
+    """Worker: decode + pack + write one monster/NPC sheet as its own group -> (key, nbytes, pages, modes, notes)."""
+    key, res, notes = build_mon(job)
+    at = d2anim.GroupAtlas(group_of(key))
+    an_out = {}
+    for m in MON_MODES:
+        if m not in res:
+            continue
+        n_out, nf, an, fr = res[m]
+        step = 1 if (m in FULL_RATE and not job[5]) else 2   # bosses: huge frames, decimate everything
+        f = []
+        for fi in range(0, nf, step):
+            f.append([at.add(*x) if x is not None else [] for x in fr[fi]])
+        fps = (an['fps'] if an else 12.5) / step
+        an_out[m] = {'dirs': n_out, 'fps': round(fps, 4), 'frames': len(f),
+                     'hit': (an['hit'] // step) if an and an['hit'] >= 0 else -1, 'f': f}
+    if not an_out:
+        notes.append('%s: no art on disk, sheet skipped' % key)
+        return key, 0, [], [], notes
+    pages, nbytes, modes = at.save()
+    d2anim.write_group(group_of(key), {'pages': pages, 'sheets': {key: {'anims': an_out}}})
+    return key, nbytes, pages, modes, notes
+
+
+def load_fragment():
+    p = os.path.join(ASSETS, 'idx', 'sprites.json')
+    if os.path.exists(p):
+        with io.open(p, encoding='utf-8') as f:
+            return json.load(f)
+    return {}
 
 
 def main():
     args = sys.argv[1:]
     only = set(['mon', 'npc', 'hero'])
+    acts = list(ACTS)
     global HERO_DIRS
     for i, a in enumerate(args):
         if a == '--only':
             only = set(args[i + 1].split(','))
         if a == '--dirs':
             HERO_DIRS = int(args[i + 1])
+        if a == '--acts':
+            acts = [int(x) for x in args[i + 1].split(',')]
     if '--estimate' in args:
         estimate()
         return
     t0 = time.time()
-    os.makedirs(IMG, exist_ok=True)
     pool = multiprocessing.Pool(max(1, min(11, multiprocessing.cpu_count() - 1)))
-    clean_old(set(['hero', 'mon', 'npc']) & only)
-    ms, by_id, ex, ids, npc, sup = monster_lists()
+    ms, by_id, ex, ids, npc, per_act, npc_act = monster_lists(acts)
     jobs, monmap, cnotes = plan_sheets(ids, npc, by_id, ex)
-    pages, sheets, allnotes = [], {}, list(cnotes)
-    # hero first so the slow jobs start early
-    hero_async = None
-    if 'hero' in only:
-        hero_async = pool.map_async(build_hero_class, HERO_CLASSES, chunksize=1)
+    allnotes = list(cnotes)
+    for a in acts:
+        print('act %d: %d monsters, %d npcs (%s)' % (a, len(per_act[a]), len(npc_act[a]), ' '.join(npc_act[a])))
+    frag = load_fragment()
+    frag.setdefault('sheets', {})
+    frag.setdefault('hero', {})
+    frag.setdefault('monmap', {})
     sizes = {}
+    res_async = {}
+    if 'hero' in only:
+        d2anim.clean_groups(['hero_'])
+        res_async['hero'] = pool.map_async(build_hero_class, HERO_CLASSES, chunksize=1)
     for grp, pre in (('mon', 'mon.'), ('npc', 'npc.')):
         if grp not in only:
             continue
+        d2anim.clean_groups([pre.replace('.', '_')])
         gj = [j for j in jobs if j[0].startswith(pre)]
-        sh, at, nn = pack_sheets(pool, gj, grp)
-        pg = at.save()
-        off = len(pages)
-        fix_pages(sh, off)
-        pages.extend(pg)
-        sheets.update(sh)
-        allnotes.extend(nn)
-        sizes[grp] = sum(os.path.getsize(os.path.join(IMG, os.path.basename(p))) for p in pg)
-    hero = {'cofs': {}, 'layers': {}}
-    if hero_async is not None:
-        hsize = 0
-        for cls, cj, layers, pg, nn in hero_async.get():
-            off = len(pages)
-            fix_pages(layers, off)
-            pages.extend(pg)
-            hero['cofs'].update(cj)
-            hero['layers'].update(layers)
-            allnotes.extend(nn)
-            hsize += sum(os.path.getsize(os.path.join(IMG, os.path.basename(p))) for p in pg)
-        sizes['hero'] = hsize
+        for k in list(frag['sheets']):
+            if k.startswith(pre):
+                del frag['sheets'][k]
+        res_async[grp] = pool.map_async(mon_group_job, gj, chunksize=1)
     pool.close()
-    doc = {'pages': pages, 'sheets': sheets, 'hero': hero,
-           'monmap': dict((k, v) for k, v in sorted(monmap.items()) if v != 'mon.%s' % by_id[k]['Code'].upper()
-                          and v != 'npc.%s' % by_id[k]['Code'].upper())}
-    out = os.path.join(ASSETS, 'sprites.js')
-    with io.open(out, 'w', encoding='utf-8', newline='\n') as f:
-        f.write(u'window.D2_SPRITES = ' + json.dumps(doc, sort_keys=True, separators=(',', ':')) + u';\n')
+    for grp in ('hero', 'mon', 'npc'):
+        if grp not in res_async:
+            continue
+        out = res_async[grp].get()
+        if grp == 'hero':
+            frag['hero'] = {}
+            tot = 0
+            for cls, nbytes, nn in out:
+                frag['hero'][cls] = 'm/hero_' + cls
+                tot += nbytes
+                allnotes.extend(nn)
+            sizes['hero'] = tot
+        else:
+            tot = 0
+            for key, nbytes, pages, modes, nn in out:
+                allnotes.extend(nn)
+                tot += nbytes
+                if pages:
+                    frag['sheets'][key] = 'm/' + group_of(key)
+            sizes[grp] = tot
+            sizes[grp + ' sheets'] = sum(1 for o in out if o[2])
+    built = set(frag['sheets'])
+    frag['monmap'] = dict((k, v) for k, v in sorted(monmap.items())
+                          if v in built and v != 'mon.%s' % by_id[k]['Code'].upper()
+                          and v != 'npc.%s' % by_id[k]['Code'].upper())
+    __import__('build_index').write_fragment('sprites', frag)
     for n in allnotes:
         print(n)
-    print('sheets:', ' '.join(sorted(sheets)))
-    print('sizes MB:', dict((k, round(v / 1e6, 2)) for k, v in sizes.items()),
-          'sprites.js %.2f MB' % (os.path.getsize(out) / 1e6), 'pages', len(pages), '%.0fs' % (time.time() - t0))
-
-
-def fix_pages(obj, off):
-    """Shift the page index of every rect (rect[6]) by `off`; rects are shared lists, shift once."""
-    if off == 0:
-        return
-    seen = set()
-
-    def walk(o):
-        if isinstance(o, list):
-            if len(o) == 7 and all(isinstance(v, int) for v in o):
-                if id(o) not in seen:
-                    seen.add(id(o))
-                    o[6] += off
-                return
-            for v in o:
-                walk(v)
-        elif isinstance(o, dict):
-            for k in sorted(o):
-                walk(o[k])
-    walk(obj)
+    gm = sum(os.path.getsize(p) for p in glob.glob(os.path.join(d2anim.M_DIR, '*.js'))
+             if os.path.basename(p).split('_')[0] in ('hero', 'mon', 'npc'))
+    print('sizes:', dict((k, round(v / 1e6, 2) if v > 1000 else v) for k, v in sizes.items()),
+          'group js MB %.2f' % (gm / 1e6), '%.0fs' % (time.time() - t0))
 
 
 if __name__ == '__main__':

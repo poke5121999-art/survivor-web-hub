@@ -1,21 +1,21 @@
 # -*- coding: utf-8 -*-
-"""Lever for the Diablo II world assets: tile atlases + DS1 stamps.
+"""Lever for the Diablo II world assets (contract v2, brain/plans/diablo2-d2r.md "Hop dong v2").
 
-Reads D2R data (D:/d2r-ref) and writes
-    assets/world.js            window.D2_WORLD.tilesets.{act1,act1cave}  (see brain/plans/diablo2-d2r.md)
-    assets/maps.js             window.D2_MAPS, window.D2_PRESETS
-    assets/img/tiles_<set>_<n>.webp
+    PYTHONIOENCODING=utf-8 python build_world.py [--acts 1] [--quality 88] [--lossless]
 
-DS1 set = LvlPrest def 1 (town) + 2..52 (wilderness stamps) -> tileset 'act1',
-          def 53..107 (Act 1 caves)                         -> tileset 'act1cave'.
-Rerunnable and deterministic (stable iteration order, no randomness).
+Per act N writes
+    assets/m/world_actN.js   D2_REG('m/world_actN', {pages, tilesets: {<set>: {pages, tiles, flags, palette}}})
+    assets/m/maps_actN.js    D2_REG('m/maps_actN', {maps, presets, subs, levels, mazes, warps})
+    assets/img/g/tiles_actN_<k>.webp  (one atlas shared by every tileset of the act, deduplicated)
+and the index fragment assets/idx/world.json ({tilesets: {set: group}, maps: {act: group}}).
 
-Why two tilesets and style aliases: one DT1 key space (orientation_style_sequence) cannot hold
-town/wilderness tiles and cave tiles at once, because different DT1 files reuse the same keys
-(real D2 resolves tiles per DS1 file list). Inside a set, a style whose keys clash with an earlier
-DS1 gets an alias style (64+). Style 0 is always aliased: layer value 0 means 'empty', so
-style 0 / sequence 0 would be indistinguishable from it. Consumers must read the style as
-(t >> 8) & 0xff and the variant as t >> 16.
+One tileset per LvlType (town + wilderness share 'act1'). A DS1 is resolved against the DT1 files it
+lists itself; one DT1 key space (orientation_style_sequence) cannot hold every file of a LvlType, so a
+style whose keys clash with an earlier DS1 of the same set gets an alias style (64+). Style 0 is always
+aliased because layer value 0 means 'empty'. Consumers read style as (t >> 8) & 0xff, variant as t >> 16.
+Rerunnable and deterministic.
+
+Adding an act: add an ACTS entry (LvlPrest def ranges -> LvlType, LvlType -> tileset name).
 """
 from __future__ import print_function
 import hashlib
@@ -23,6 +23,7 @@ import io
 import json
 import os
 import re
+import struct
 import sys
 
 import numpy as np
@@ -31,15 +32,54 @@ from PIL import Image
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import d2fmt  # noqa: E402
-import d2pack  # noqa: E402
+import build_index  # noqa: E402
 
 G = 'D:/d2r-ref/fs/data/data/global/'
 OUT = os.path.normpath(os.path.join(HERE, '..', 'assets'))
-IMG = os.path.join(OUT, 'img')
-BUDGET = 15 * 1024 * 1024
+IMG = os.path.join(OUT, 'img', 'g')
+WEB_IMG = 'assets/img/g'
 ALIAS_BASE = 64
+PAGE = 2048
+PAD = 2   # lossy WebP smears colour across 1 px; 2 px keeps neighbours out of each other's edge
+
+ACTS = {
+    1: {
+        'budget': 12 * 1024 * 1024,
+        'palette': 'act1',
+        'tilesets': {1: 'act1', 2: 'act1', 3: 'act1cave', 4: 'act1crypt', 5: 'act1mon', 6: 'act1court',
+                     7: 'act1bar', 8: 'act1jail', 9: 'act1cath', 10: 'act1cata', 11: 'act1tri'},
+        # LvlPrest def range -> LvlType (lvlprest.txt has no LvlType column; LevelId is 0 for stamps)
+        'defs': [(1, 3, 1), (4, 52, 2), (53, 107, 3), (108, 108, 2), (109, 159, 4), (160, 164, 2),
+                 (165, 165, 5), (166, 166, 6), (167, 205, 7), (206, 255, 8), (256, 256, 6), (257, 257, 9),
+                 (258, 299, 10), (300, 300, 11)],
+        'sub_prefix': 'act1/', 'sub_type': 2,
+        'levels': (0, 39),   # levels.txt Act column value, max Id kept
+        'warps': (0, 18),    # lvlwarp Id range
+        # floor used to fill the open ground of outdoor levels: (tileset, LvlType whose files hold it, key)
+        'grass': [('act1', 2, (0, 0, 0))],
+    },
+}
 
 _dt1_cache = {}
+
+
+def tab(name):
+    lines = io.open(G + 'excel/' + name, encoding='latin-1').read().split('\n')
+    h = lines[0].rstrip('\r').split('\t')
+    out = []
+    for l in lines[1:]:
+        c = l.rstrip('\r').split('\t')
+        if len(c) < 3:
+            continue
+        out.append(dict(zip(h, c)))
+    return out
+
+
+def ival(v, d=0):
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return d
 
 
 def dt1_tiles(path):
@@ -62,35 +102,93 @@ def dt1_index(path):
 
 def norm_dt1(fn):
     q = fn.lower().replace(chr(92), '/').replace('.tg1', '.dt1')
-    q = re.sub(r'^.*?/tiles/', 'tiles/', q)
-    return q
+    return re.sub(r'^.*?/tiles/', 'tiles/', q)
 
 
-def read_lvlprest():
-    rows = []
-    lines = io.open(G + 'excel/lvlprest.txt', encoding='latin-1').read().split('\n')
-    h = lines[0].rstrip('\r').split('\t')
-    for l in lines[1:]:
-        c = l.rstrip('\r').split('\t')
-        if len(c) < 17 or not c[1].isdigit():
-            continue
-        r = dict(zip(h, c))
-        d = int(r['Def'])
-        if d < 1 or d > 107:
-            continue
-        files = [r['File%d' % i] for i in range(1, 7) if r.get('File%d' % i, '0') not in ('0', '')]
-        rows.append({'def': d, 'name': r['Name'], 'files': files, 'sizeX': int(r['SizeX']),
-                     'sizeY': int(r['SizeY']), 'outdoors': r['Outdoors'] == '1'})
-    return rows
+def ds1_key(f):
+    return f.lower().replace(chr(92), '/').replace('.ds1', '')
 
 
 def lvltype_files(type_id):
-    lines = io.open(G + 'excel/lvltypes.txt', encoding='latin-1').read().split('\n')
-    for l in lines[1:]:
-        c = l.rstrip('\r').split('\t')
-        if len(c) > 3 and c[1] == str(type_id):
-            return ['tiles/' + f.lower() for f in c[2:34] if f not in ('0', '')]
+    for r in tab('lvltypes.txt'):
+        if r.get('Id') == str(type_id):
+            return ['tiles/' + r['File %d' % i].lower() for i in range(1, 33)
+                    if r.get('File %d' % i, '0') not in ('0', '')]
     raise KeyError(type_id)
+
+
+def read_lvlprest(act):
+    spec = ACTS[act]['defs']
+    rows = []
+    for r in tab('lvlprest.txt'):
+        d = ival(r.get('Def'), -1)
+        lt = None
+        for a, b, t in spec:
+            if a <= d <= b:
+                lt = t
+        if lt is None:
+            continue
+        files = [r['File%d' % i] for i in range(1, 7) if r.get('File%d' % i, '0') not in ('0', '')]
+        rows.append({'def': d, 'name': r['Name'].strip(), 'files': files, 'sizeX': ival(r['SizeX']),
+                     'sizeY': ival(r['SizeY']), 'outdoors': r['Outdoors'] == '1', 'levelType': lt,
+                     'levelId': ival(r['LevelId']), 'pick': ival(r['Files']), 'populate': ival(r['Populate'])})
+    return rows
+
+
+def read_levels(act):
+    a, top = ACTS[act]['levels']
+    out = {}
+    for r in tab('levels.txt'):
+        i = ival(r.get('Id'), -1)
+        if i <= 0 or i > top or ival(r.get('Act'), -1) != a:
+            continue
+        out[i] = {'name': r['Name'].strip(), 'levelName': r.get('LevelName', ''),
+                  'size': [ival(r['SizeX']), ival(r['SizeY'])], 'drlg': ival(r['DrlgType']),
+                  'levelType': ival(r['LevelType']), 'subType': ival(r['SubType']), 'subTheme': ival(r['SubTheme']),
+                  'subWaypoint': ival(r['SubWaypoint']), 'subShrine': ival(r['SubShrine']),
+                  'vis': [ival(r['Vis%d' % k]) for k in range(8)], 'warp': [ival(r['Warp%d' % k]) for k in range(8)],
+                  'waypoint': ival(r['Waypoint'], 255) != 255, 'teleport': ival(r['Teleport'])}
+    return out
+
+
+def read_mazes(levels):
+    out = {}
+    for r in tab('lvlmaze.txt'):
+        lv = ival(r.get('Level'), -1)
+        if lv in levels:
+            out[lv] = {'rooms': [ival(r['Rooms']), ival(r['Rooms(N)']), ival(r['Rooms(H)'])],
+                       'size': [ival(r['SizeX']), ival(r['SizeY'])], 'merge': ival(r['Merge'])}
+    return out
+
+
+def read_warps(act):
+    a, b = ACTS[act]['warps']
+    out = {}
+    for r in tab('lvlwarp.txt'):
+        i = ival(r.get('Id'), -1)
+        if a <= i <= b:
+            out[i] = {'name': r['Name'], 'select': [ival(r['SelectX']), ival(r['SelectY']), ival(r['SelectDX']),
+                                                     ival(r['SelectDY'])],
+                      'exitWalk': [ival(r['ExitWalkX']), ival(r['ExitWalkY'])],
+                      'offset': [ival(r['OffsetX']), ival(r['OffsetY'])], 'dir': r['Direction']}
+    return out
+
+
+def waypoint_objs(act):
+    """objpreset ids (DS1 object type 2) of the act's waypoints."""
+    return sorted(ival(r['Index']) for r in tab('objpreset.txt')
+                  if ival(r.get('Act')) == act and 'waypoint' in r.get('ObjectClass', '').lower())
+
+
+def read_subs(act):
+    pre = ACTS[act]['sub_prefix']
+    out = []
+    for r in tab('lvlsub.txt'):
+        f = r.get('File', '')
+        if not f.lower().startswith(pre):
+            continue
+        out.append({'name': r['Name'].strip(), 'type': ival(r['Type']), 'file': f})
+    return out
 
 
 class TileSet(object):
@@ -122,7 +220,7 @@ class TileSet(object):
                 if a is None:
                     a = self.next_alias
                     self.next_alias += 1
-                    assert a < 256, 'alias styles exhausted'
+                    assert a < 256, 'alias styles exhausted in ' + self.name
                 self.alias[sig] = a
             for k in ks:
                 nk = (k[0], a, k[2])
@@ -186,136 +284,261 @@ def flat(layer, kind, w, h, mp, orient=False):
     return (t, o) if orient else t
 
 
-def build():
-    rows = read_lvlprest()
-    sets = {'act1': TileSet('act1'), 'act1cave': TileSet('act1cave')}
-    maps = {}
-    presets = {}
-    miss = {}
+def load_ds1(ts, f, miss, fallback_libs):
+    key = ds1_key(f)
+    raw = open(G + 'tiles/' + f.lower().replace(chr(92), '/'), 'rb').read()
+    try:
+        ds = d2fmt.read_ds1(raw)
+    except struct.error:
+        # d2fmt.read_ds1 overreads the substitution-group table of some v12 files (act1/outdoors/trees.ds1);
+        # the tile layers come before it and parse fine, so pad and keep going.
+        ds = d2fmt.read_ds1(raw + bytes(65536))
+    libs = sorted(set(q for q in (norm_dt1(fn) for fn in ds['files']) if os.path.exists(G + q)))
+    refs = ds1_refs(ds)
+    mp = ts.resolve(libs, refs, key)
+    lost = [k for k in refs if k not in mp]
+    if lost and fallback_libs:
+        # DS1 file list incomplete: try the LvlType files like the game does (Dt1Mask ignored)
+        mp.update(ts.resolve(fallback_libs, set(lost), key))
+        lost = [k for k in refs if k not in mp]
+    if lost:
+        miss[key] = sorted(lost)
+    W, H = ds['width'], ds['height']
+    floors = [flat(L, 'floor', W, H, mp) for L in ds['floors']]
+    shadows = [flat(L, 'shadow', W, H, mp) for L in ds['shadows']]
+    m = {'w': W, 'h': H, 'ts': ts.name,
+         'floors': [L for L in floors if any(L)] or floors[:1],
+         'walls': [], 'shadows': [L for L in shadows if any(L)],
+         'objects': [{'type': o['type'], 'id': o['id'], 'x': o['x'], 'y': o['y']} for o in ds['objects']]}
+    # level exits: warp marker tiles (orientation 10/11). Their raw style is the Vis index in levels.txt
+    # (style >= 8 marks town / Tristram entry points). Kept raw because the tile key may be aliased.
+    wp = set()
+    for L in ds['walls']:
+        for y in range(H):
+            for x in range(W):
+                r = L[y][x]
+                if r['prop1'] and r['orientation'] in (10, 11):
+                    wp.add((x, y, r['style']))
+    if wp:
+        m['warps'] = [list(t) for t in sorted(wp)]
+    if ds['substitution_groups']:
+        m['groups'] = [[g['x'], g['y'], g['w'], g['h']] for g in ds['substitution_groups']]
+    for L in ds['walls']:
+        t, o = flat(L, 'wall', W, H, mp, True)
+        if any(t):
+            m['walls'].append({'t': t, 'o': o})
+    return key, m
+
+
+def build(act):
+    spec = ACTS[act]
+    rows = read_lvlprest(act)
+    sets = {}
+    for lt, name in sorted(spec['tilesets'].items()):
+        if name not in sets:
+            sets[name] = TileSet(name)
+    type_libs = {}
+    for lt in spec['tilesets']:
+        type_libs[lt] = sorted(p for p in lvltype_files(lt) if os.path.exists(G + p))
+    maps, presets, miss = {}, {}, {}
     for row in rows:
-        d = row['def']
-        ts = sets['act1'] if d <= 52 else sets['act1cave']
+        ts = sets[spec['tilesets'][row['levelType']]]
         keys = []
         for f in row['files']:
-            key = f.lower().replace('.ds1', '')
-            keys.append(key)
-            ds = d2fmt.read_ds1(open(G + 'tiles/' + f.lower(), 'rb').read())
-            libs = []
-            for fn in ds['files']:
-                q = norm_dt1(fn)
-                if os.path.exists(G + q):
-                    libs.append(q)
-            libs = sorted(set(libs))
-            refs = ds1_refs(ds)
-            mp = ts.resolve(libs, refs, key)
-            lost = sorted(k for k in refs if k not in mp)
-            if lost:
-                miss[key] = lost
-            W, H = ds['width'], ds['height']
-            m = {'w': W, 'h': H,
-                 'floors': [flat(L, 'floor', W, H, mp) for L in ds['floors']],
-                 'walls': [], 'shadows': [flat(L, 'shadow', W, H, mp) for L in ds['shadows']],
-                 'objects': [{'type': o['type'], 'id': o['id'], 'x': o['x'], 'y': o['y']} for o in ds['objects']]}
-            for L in ds['walls']:
-                t, o = flat(L, 'wall', W, H, mp, True)
-                m['walls'].append({'t': t, 'o': o})
+            key, m = load_ds1(ts, f, miss, type_libs[row['levelType']])
+            if key in maps and maps[key]['ts'] != ts.name:
+                raise RuntimeError('%s used by two tilesets' % key)
             maps[key] = m
-        presets[d] = {'name': row['name'], 'files': keys, 'sizeX': row['sizeX'], 'sizeY': row['sizeY'],
-                      'outdoors': row['outdoors']}
-    # wilderness grass: Town/Floor.dt1 style 0 seq 0, picked by the LevelType-2 file list
-    wild_libs = sorted(p for p in lvltype_files(2) if os.path.exists(G + p))
-    gm = sets['act1'].resolve(wild_libs, {(0, 0, 0)}, 'grass')
-    gk = gm[(0, 0, 0)]
-    grass_t = (gk[1] << 8) | gk[2]
-    return rows, sets, maps, presets, miss, grass_t
+            keys.append(key)
+        presets[row['def']] = {'name': row['name'], 'files': keys, 'sizeX': row['sizeX'], 'sizeY': row['sizeY'],
+                               'outdoors': row['outdoors'], 'levelId': row['levelId'], 'levelType': row['levelType'],
+                               'pick': row['pick'], 'ts': ts.name}
+    subs = {}
+    sub_ts = sets[spec['tilesets'][spec['sub_type']]]
+    for s in read_subs(act):
+        key, m = load_ds1(sub_ts, s['file'], miss, type_libs[spec['sub_type']])
+        maps[key] = m
+        subs[s['name']] = {'type': s['type'], 'file': key}
+    extra = {}
+    for set_name, lt, k in spec['grass']:
+        gm = sets[set_name].resolve(type_libs[lt], {k}, 'grass')
+        gk = gm[k]
+        extra[set_name] = {'grass': (gk[1] << 8) | gk[2]}
+    return rows, sets, maps, presets, subs, miss, extra
 
 
-class FullAtlas(d2pack.Atlas):
-    """d2pack.Atlas without the alpha trim: the engine draws the variant's own w x h at (px-80, py+dy)."""
+class Packer(object):
+    """Shelf packer over full tile images (no alpha trim: the engine draws the variant's own w x h)."""
 
-    def add(self, rgba, ax, ay):
+    def __init__(self, name):
+        self.name = name
+        self.items = []
+
+    def add(self, rgba):
         rect = []
-        self.items.append((rgba, 0, 0, rect))
+        self.items.append((rgba, rect))
         return rect
 
+    def save(self, lossless, quality):
+        order = sorted(self.items, key=lambda it: (-it[0].shape[0], -it[0].shape[1]))
+        pages, cur = [], None
+        x = y = shelf = 0
+        for img, rect in order:
+            h, w = img.shape[:2]
+            if cur is None or x + w > PAGE:
+                x, y, shelf = 0, y + shelf + PAD, 0
+            if cur is None or y + h > PAGE:
+                cur = np.zeros((PAGE, PAGE, 4), np.uint8)
+                pages.append([cur, 0])
+                x = y = shelf = 0
+            cur[y:y + h, x:x + w] = img
+            pages[-1][1] = max(pages[-1][1], y + h)
+            rect.extend([x, y, w, h, len(pages) - 1])
+            x += w + PAD
+            shelf = max(shelf, h)
+        if not os.path.isdir(IMG):
+            os.makedirs(IMG)
+        paths = []
+        for i, (arr, used_h) in enumerate(pages):
+            fn = '%s_%d.webp' % (self.name, i)
+            im = Image.fromarray(arr[:max(1, used_h)])
+            p = os.path.join(IMG, fn)
+            for attempt in range(3):
+                try:
+                    if lossless:
+                        im.save(p, 'WEBP', lossless=True, quality=100, method=6)
+                    else:
+                        im.save(p, 'WEBP', lossless=False, quality=quality, method=6, alpha_quality=100)
+                    break
+                except OSError:
+                    if attempt == 2:
+                        raise
+            back = np.asarray(Image.open(p).convert('RGBA'))[..., 3]
+            if not np.array_equal(back, arr[:max(1, used_h), :, 3]):
+                raise RuntimeError('%s: alpha changed by the encoder' % fn)
+            paths.append(WEB_IMG + '/' + fn)
+        return paths
 
-def pack_tileset(ts, pal):
-    atlas = FullAtlas('tiles_' + ts.name, IMG, 'assets/img')
+
+def pack(act, sets, pal, lossless, quality):
+    atlas = Packer('tiles_act%d' % act)
     seen = {}
-    entries = []   # (key, rect, yMin, rarity, flagsIdx, roofH)
-    for key in sorted(ts.reg):
-        o, s, q = key
-        for t in ts.reg[key][1]:
-            fi = ts.flags_index(t['subtile_flags'])
-            ymin = t['y_min']
-            roof = t['y_offset'] if o == 15 else 0
-            flat_fill = o not in (0, 13) and t['mask'].any() and len(np.unique(t['pix'][t['mask']])) == 1
-            if o in (10, 11) or flat_fill:
-                # flat_fill: solid-colour placeholder walls at map edges (town SE corner); keep flags, draw nothing
-                entries.append((key, [0, 0, 0, 0], 0, t['rarity'], fi, 0, None))
-                continue
-            rgba = d2fmt.to_rgba(t['pix'], t['mask'], pal)
-            if o == 13:
-                rgba[..., :3] = 0
-                rgba[..., 3] = np.where(t['mask'], 255, 0)
-            digest = hashlib.sha1(rgba.tobytes() + str(rgba.shape).encode()).hexdigest()
-            if digest in seen:
-                rect = seen[digest]
+    entries = {}
+    for name in sorted(sets):
+        ts = sets[name]
+        ent = entries[name] = []
+        for key in sorted(ts.reg):
+            o, s, q = key
+            for t in ts.reg[key][1]:
+                fi = ts.flags_index(t['subtile_flags'])
+                roof = t['y_offset'] if o == 15 else 0
+                flat_fill = o not in (0, 13) and t['mask'].any() and len(np.unique(t['pix'][t['mask']])) == 1
+                if o in (10, 11) or flat_fill or not t['mask'].any():
+                    # warp markers and solid-colour placeholder walls: keep flags, draw nothing
+                    ent.append((key, None, 0, t['rarity'], fi, 0))
+                    continue
+                rgba = d2fmt.to_rgba(t['pix'], t['mask'], pal)
+                if o == 13:
+                    rgba[..., :3] = 0
+                    rgba[..., 3] = np.where(t['mask'], 255, 0)
+                digest = hashlib.sha1(rgba.tobytes() + str(rgba.shape).encode()).hexdigest()
+                if digest not in seen:
+                    seen[digest] = atlas.add(rgba)
+                ent.append((key, seen[digest], t['y_min'] - roof, t['rarity'], fi, roof))
+    pages = atlas.save(lossless, quality)
+    out = {}
+    for name in sorted(sets):
+        tiles = {}
+        for key, rect, ymin, rar, fi, roof in entries[name]:
+            if rect is None:
+                row = [0, 0, 0, 0, 0, rar, 0, fi]
             else:
-                rect = atlas.add(rgba, 0, 0)
-                seen[digest] = rect
-            entries.append((key, rect, ymin - roof, t['rarity'], fi, roof, rect))
-    pages = atlas.save(lossless=True)
-    tiles = {}
-    for key, rect, ymin, rar, fi, roof, real in entries:
-        k = '%d_%d_%d' % key
-        if real is None:
-            row = [0, 0, 0, 0, 0, rar, 0, fi]
-        else:
-            row = [rect[0], rect[1], rect[2], rect[3], ymin, rar, rect[6], fi]
-        if roof:
-            row.append(roof)
-        tiles.setdefault(k, []).append(row)
-    return {'pages': pages, 'tiles': tiles, 'flags': ts.flags, 'palette': 'act1'}
+                row = [rect[0], rect[1], rect[2], rect[3], ymin, rar, rect[4], fi]
+            if roof:
+                row.append(roof)
+            tiles.setdefault('%d_%d_%d' % key, []).append(row)
+        out[name] = {'pages': pages, 'tiles': tiles, 'flags': sets[name].flags, 'palette': ACTS[act]['palette']}
+    return pages, out
 
 
-def js_wrap(name, obj):
+def reg_js(group, obj):
     body = json.dumps(obj, separators=(',', ':'), sort_keys=True)
-    return '/* generated by _tools/build_world.py, do not edit */\n(function(g){g.%s=%s;})(typeof window!=="undefined"?window:globalThis);\n' % (name, body)
+    return ('/* generated by _tools/build_world.py, do not edit */\n'
+            'D2_REG(%s,%s);\n' % (json.dumps(group), body))
+
+
+def write(path, text):
+    d = os.path.dirname(path)
+    if not os.path.isdir(d):
+        os.makedirs(d)
+    for attempt in range(3):
+        try:
+            with io.open(path, 'w', encoding='utf-8', newline='\n') as f:
+                f.write(text)
+            return
+        except OSError:
+            if attempt == 2:
+                raise
+
+
+def build_act(act, lossless, quality):
+    pal = d2fmt.load_palette(G + 'palette/act%d/pal.dat' % act)
+    rows, sets, maps, presets, subs, miss, extra = build(act)
+    prefix = 'tiles_act%d_' % act
+    if os.path.isdir(IMG):
+        for fn in os.listdir(IMG):
+            if fn.startswith(prefix) and fn.endswith('.webp'):
+                os.remove(os.path.join(IMG, fn))
+    pages, tilesets = pack(act, sets, pal, lossless, quality)
+    for name, e in extra.items():
+        tilesets[name].update(e)
+    wg, mg = 'm/world_act%d' % act, 'm/maps_act%d' % act
+    write(os.path.join(OUT, wg + '.js'), reg_js(wg, {'pages': pages, 'tilesets': tilesets}))
+    levels = read_levels(act)
+    write(os.path.join(OUT, mg + '.js'), reg_js(mg, {
+        'maps': maps, 'presets': presets, 'subs': subs, 'levels': levels,
+        'mazes': read_mazes(levels), 'warps': read_warps(act), 'waypointObjs': waypoint_objs(act)}))
+    total = sum(os.path.getsize(os.path.join(IMG, fn)) for fn in os.listdir(IMG)
+                if fn.startswith(prefix) and fn.endswith('.webp'))
+    ntiles = sum(len(v) for ts in tilesets.values() for v in ts['tiles'].values())
+    print('act %d: ds1 %d, presets %d, subs %d, tile variants %d, pages %d' % (
+        act, len(maps), len(presets), len(subs), ntiles, len(pages)))
+    print('  sets %s' % ', '.join('%s=%d keys/%d alias' % (k, len(sets[k].reg), sets[k].next_alias - ALIAS_BASE)
+                                   for k in sorted(sets)))
+    print('  tiles webp %.2f MB (%s, budget %.0f MB); %s %d B, %s %d B' % (
+        total / 1048576.0, 'lossless' if lossless else 'q%d' % quality, ACTS[act]['budget'] / 1048576.0,
+        wg, os.path.getsize(os.path.join(OUT, wg + '.js')), mg, os.path.getsize(os.path.join(OUT, mg + '.js'))))
+    print('  referenced keys without a DT1 tile: %d across %d ds1' % (sum(len(v) for v in miss.values()), len(miss)))
+    for k in sorted(miss)[:8]:
+        print('    ', k, miss[k][:4])
+    return {'tilesets': {name: wg for name in tilesets}, 'maps': {str(act): mg}}, total > ACTS[act]['budget']
 
 
 def main():
-    pal = d2fmt.load_palette(G + 'palette/act1/pal.dat')
-    rows, sets, maps, presets, miss, grass_t = build()
-    for fn in os.listdir(IMG) if os.path.isdir(IMG) else []:
-        if fn.startswith('tiles_act1') and fn.endswith('.webp'):
-            os.remove(os.path.join(IMG, fn))
-    world = {'tilesets': {}}
-    for name in ('act1', 'act1cave'):
-        world['tilesets'][name] = pack_tileset(sets[name], pal)
-    world['tilesets']['act1']['grass'] = grass_t
-    with io.open(os.path.join(OUT, 'world.js'), 'w', encoding='utf-8', newline='\n') as f:
-        f.write(js_wrap('D2_WORLD', world))
-    with io.open(os.path.join(OUT, 'maps.js'), 'w', encoding='utf-8', newline='\n') as f:
-        f.write(js_wrap('D2_MAPS', maps).replace('\n(function(g){g.D2_MAPS', '\n(function(g){g.D2_PRESETS=' +
-                                                  json.dumps(presets, separators=(',', ':'), sort_keys=True) +
-                                                  ';g.D2_MAPS', 1))
-    total = 0
-    for fn in sorted(os.listdir(IMG)):
-        if fn.startswith('tiles_act1') and fn.endswith('.webp'):
-            total += os.path.getsize(os.path.join(IMG, fn))
-    ntiles = sum(len(v) for ts in world['tilesets'].values() for v in ts['tiles'].values())
-    print('ds1 maps %d, tile variants %d, flag tables %s' % (
-        len(maps), ntiles, {k: len(v['flags']) for k, v in world['tilesets'].items()}))
-    print('pages %s' % {k: len(v['pages']) for k, v in world['tilesets'].items()})
-    print('aliases %s' % {k: sets[k].next_alias - ALIAS_BASE for k in sets})
-    print('tiles webp %.2f MB (budget %.0f MB)' % (total / 1048576.0, BUDGET / 1048576.0))
-    print('world.js %d B, maps.js %d B' % (os.path.getsize(os.path.join(OUT, 'world.js')),
-                                           os.path.getsize(os.path.join(OUT, 'maps.js'))))
-    print('referenced keys without a DT1 tile: %d across %d ds1' % (sum(len(v) for v in miss.values()), len(miss)))
-    for k in sorted(miss)[:6]:
-        print('  ', k, miss[k][:4])
-    if total > BUDGET:
+    argv = sys.argv[1:]
+    acts = [1]
+    quality = 88
+    lossless = '--lossless' in argv
+    if '--acts' in argv:
+        acts = [int(a) for a in argv[argv.index('--acts') + 1].split(',')]
+    if '--quality' in argv:
+        quality = int(argv[argv.index('--quality') + 1])
+    frag_path = os.path.join(OUT, 'idx', 'world.json')
+    frag = {'tilesets': {}, 'maps': {}}
+    if os.path.exists(frag_path):
+        old = json.load(io.open(frag_path, encoding='utf-8'))
+        frag['tilesets'].update(old.get('tilesets', {}))
+        frag['maps'].update(old.get('maps', {}))
+    over = False
+    for act in acts:
+        if act not in ACTS:
+            raise SystemExit('act %d has no ACTS entry yet' % act)
+        f, o = build_act(act, lossless, quality)
+        frag['tilesets'].update(f['tilesets'])
+        frag['maps'].update(f['maps'])
+        over = over or o
+    build_index.write_fragment('world', frag)
+    if over:
         print('OVER BUDGET')
         sys.exit(1)
 

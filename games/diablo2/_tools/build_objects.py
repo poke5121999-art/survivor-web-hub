@@ -1,10 +1,14 @@
 # -*- coding: utf-8 -*-
-"""Objects, missiles, overlays and item-drop sprites -> assets/sprites_obj.js + assets/img/{obj,mis,ovl,flp}_*.webp
+"""Objects, missiles, overlays and item-drop sprites -> assets/m/{obj_act1..5,mis,ovl,flp}.js (contract v2)
++ assets/img/g/<group>_<n>.webp pages + index fragment assets/idx/objects.json.
 
-Rerunnable and deterministic (sorted iteration, fixed pack order).  Same sheet shape as sprites.js:
-    window.D2_SPRITES_OBJ = { pages: [...], sheets: { 'obj.<tok>' | 'mis.<name>' | 'ovl.<name>' | 'flp.<file>':
-        { anims: { MODE: { dirs, frames, fps, loop, [blend], f: [dir][frame] -> [x,y,w,h,ox,oy,page] } } } },
-        presets: { 'act1:<ds1 object id>': {...} }, meta: {...} }
+    PYTHONIOENCODING=utf-8 python build_objects.py [--acts 1,2,3,4,5]
+
+Each group file is D2_REG('<group>', {pages: [...], sheets: { 'obj.<tok>' | 'mis.<name>' | 'ovl.<name>' |
+'flp.<file>': { anims: { MODE: { dirs, frames, fps, loop, [blend], f: [frame][dir] -> [x,y,w,h,ox,oy,page] } } } } }),
+page indices local to the group.  Objects: one group per act (a token shared by several acts lives in the lowest
+act's group; the index maps the sheet key to it).  Missiles: group 'mis'; overlays: 'ovl'; drops: 'flp'.
+Index fragment: sheets (key -> 'm/<group>') and objPresets ('act<N>:<ds1 object id>' -> preset).
 Directions: d = 0 is screen West, clockwise (d2fmt only names the 16 compass points, so the mean ring angle
 is computed here to keep 32/64-dir missiles collision free).
 
@@ -31,25 +35,25 @@ import multiprocessing
 import os
 import re
 import sys
+import time
 
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+import d2anim  # noqa: E402
 import d2fmt  # noqa: E402
 import d2pack  # noqa: E402
+import build_sprites as bsp  # noqa: E402
 
 G = 'D:/d2r-ref/fs/data/data/global/'
 GAME = os.path.normpath(os.path.join(HERE, '..'))
-IMG = os.path.join(GAME, 'assets', 'img')
-OUT_JS = os.path.join(GAME, 'assets', 'sprites_obj.js')
-WEB_IMG = 'assets/img'
+ACTS = [1, 2, 3, 4, 5]
+MAX_DIRS = 16
 
 MODES = ['NU', 'OP', 'ON', 'S1', 'S2', 'S3', 'S4', 'S5']
-LVLPREST_PREFIXES = ['Act 1 - Wild', 'Act 1 - Cave', 'Act 1 - DOE', 'Act 1 - Stone', 'Act 1 - Fallen',
-                     'Act 1 - Cottages', 'Act 1 - Swamp', 'Act 1 - Tree', 'Act 1 - Ruin', 'Act 1 - Camp',
-                     'Act 1 - Pond', 'Act 1 - Bivouac', 'Act 1 - Corral', 'Act 1 - Fence', 'Act 1 - River',
-                     'Act 1 - Bridge']
+# Objects every act needs even when no DS1 places them: waypoints, stashes, portals, chests, urns.
+ALWAYS_RX = re.compile(r'waypoint|stash|portal|chest|casket|urn|barrel|coffin|cain|shrine|well|fountain', re.I)
 # Classes that are in the Act I preset table or are things Act I players meet, even when no DS1 places them.
 EXTRA_OBJECT_CLASSES = ['TownPortal', 'PortalPermanent', 'Urn1', 'Urn2', 'Urn3', 'Urn4', 'Urn5', 'Casket3',
                         'Chest2', 'Chest3', 'Chest4', 'Chest1B', 'Chest2B', 'Chest3B', 'Chest8']
@@ -267,16 +271,19 @@ def _worker(job):
 # data selection
 # --------------------------------------------------------------------------
 
-def collect_ds1_objects(lvlprest, objpreset_act):
+def collect_ds1_objects(lvlprest, acts):
+    """Type-2 objects of every LvlPrest DS1 of the acts -> (Counter {(act, object id): n}, files read)."""
     files = set()
     for r in lvlprest:
-        if any(r['Name'].startswith(p) for p in LVLPREST_PREFIXES):
+        m = re.match(r'^Act (\d) - ', r['Name'])
+        if m and int(m.group(1)) in acts:
             for k in range(1, 7):
                 v = r.get('File%d' % k, '')
                 if v and v != '0':
-                    files.add(v.lower().replace('\\', '/'))
-    for t in 'nesw':
-        files.add('act1/town/town%s1.ds1' % t)
+                    files.add(v.lower().replace(chr(92), '/'))
+    if 1 in acts:
+        for t in 'nesw':
+            files.add('act1/town/town%s1.ds1' % t)
     placed = collections.Counter()
     nfiles = 0
     for f in sorted(files):
@@ -292,7 +299,7 @@ def collect_ds1_objects(lvlprest, objpreset_act):
     return placed, nfiles
 
 
-def select_missiles_overlays():
+def select_missiles_overlays(acts):
     skills = tab('skills.txt')
     sk_by = {}
     for r in skills:
@@ -310,16 +317,9 @@ def select_missiles_overlays():
     for r in ovl_rows:
         ov_by.setdefault(r['overlay'].lower(), r)
 
-    # Act I monster ids
-    levels = tab('levels.txt')
-    mon_ids = set()
-    rx = re.compile(r'^(mon|nmon|umon|cmon)\d+$')
-    for r in levels:
-        if r.get('Act') == '0':
-            for k, v in r.items():
-                if rx.match(k) and v:
-                    mon_ids.add(v.lower())
-    mon_ids.update(ACT1_BOSSES)
+    # monsters of the acts (levels, bosses, superuniques, town NPCs, mercenaries)
+    ms_, by_id, ex, ids, npc, per_act, npc_act = bsp.monster_lists(acts)
+    mon_ids = set(i.lower() for i in ids) | set(i.lower() for i in npc)
     monstats = tab('monstats.txt')
     skill_names = set()
     n_mon = 0
@@ -327,12 +327,12 @@ def select_missiles_overlays():
         if r['Id'].lower() in mon_ids:
             n_mon += 1
             for i in range(1, 9):
-                s = r.get('Skill%d' % i, '').strip()
-                if s:
-                    skill_names.add(s.lower())
+                s_ = r.get('Skill%d' % i, '').strip()
+                if s_:
+                    skill_names.add(s_.lower())
     class_skills = set()
     for r in skills:
-        if r['charclass'] and num(r['reqlevel'], 99) <= 18:
+        if r['charclass']:
             class_skills.add(r['skill'].lower())
     used_skills = [sk_by[s] for s in sorted(skill_names | class_skills) if s in sk_by]
 
@@ -416,7 +416,12 @@ def trans_blend(v):
 # --------------------------------------------------------------------------
 
 def main():
-    sys.stdout.flush()
+    args = sys.argv[1:]
+    acts = list(ACTS)
+    for i, a in enumerate(args):
+        if a == '--acts':
+            acts = [int(x) for x in args[i + 1].split(',')]
+    t0 = time.time()
     objects = tab('objects.txt')
     objpreset = tab('objpreset.txt')
     lvlprest = tab('lvlprest.txt')
@@ -426,36 +431,38 @@ def main():
     pre = {}
     for r in objpreset:
         pre[(num(r['Act']), num(r['Index']))] = r
-    placed, nds1 = collect_ds1_objects(lvlprest, pre)
+    placed, nds1 = collect_ds1_objects(lvlprest, acts)
     print('ds1 files read: %d, placed type-2 object kinds: %d' % (nds1, len(placed)))
     unresolved = [k for k in placed if k not in pre or pre[k]['ObjectClass'] not in byclass]
     if unresolved:
         print('WARN unresolved placed objects: %r' % unresolved)
 
-    # ---- object tokens ----
-    act1_rows = [(k, r) for k, r in sorted(pre.items()) if k[0] == 1]
-    tok_set = set()
+    # ---- object tokens, owned by the lowest act that needs them (one index key -> one group) ----
+    tok_act = {}
     preset_cls = {}
-    for (act, idx), r in act1_rows:
-        o = byclass.get(r['ObjectClass'])
-        if o:
+    for a in acts:
+        for (act, idx), r in sorted(pre.items()):
+            if act != a:
+                continue
+            o = byclass.get(r['ObjectClass'])
+            if not o:
+                continue
             preset_cls[(act, idx)] = o
-    for o in preset_cls.values():
-        tok_set.add(o['Token'].lower())
+            if (act, idx) in placed or ALWAYS_RX.search(r['ObjectClass']):
+                tok_act.setdefault(o['Token'].lower(), a)
     for c in EXTRA_OBJECT_CLASSES:
         if c in byclass:
-            tok_set.add(byclass[c]['Token'].lower())
+            tok_act.setdefault(byclass[c]['Token'].lower(), min(acts))
     tok_rows = {}
     for o in objects:
         t = o['Token'].lower()
-        if t in tok_set:
+        if t in tok_act:
             tok_rows.setdefault(t, []).append(o)
     jobs = []
     obj_job_meta = []
-    for tok in sorted(tok_set):
+    for tok in sorted(tok_act):
         if not os.path.isdir(G + 'objects/' + tok):
             continue
-        # object rows that share a token share art; take the row that places this token for timing
         o = tok_rows[tok][0]
         for mi, mode in enumerate(MODES):
             if num(o.get('Mode%d' % mi)) != 1:
@@ -466,22 +473,18 @@ def main():
             obj_job_meta.append((tok, mode, o, mi))
 
     # ---- missiles / overlays ----
-    sel = select_missiles_overlays()
-    print('act1 monsters: %d, skills: %d, states: %d' % (sel['n_mon'], sel['n_skills'], sel['n_states']))
-    mis_files = {}
-    mis_noart = []
+    sel = select_missiles_overlays(acts)
+    print('monsters: %d, skills: %d, states: %d' % (sel['n_mon'], sel['n_skills'], sel['n_states']))
+    mis_files, mis_noart = {}, []
     for m in sel['mis']:
-        row = sel['ms_by'][m]
-        p = resolve_art('missiles', row.get('CelFile', ''))
+        p = resolve_art('missiles', sel['ms_by'][m].get('CelFile', ''))
         if p is None:
             mis_noart.append(m)
         else:
             mis_files[m] = p
-    ovl_files = {}
-    ovl_noart = []
+    ovl_files, ovl_noart = {}, []
     for v in sel['ovl']:
-        row = sel['ov_by'][v]
-        p = resolve_art('overlays', row.get('Filename', ''))
+        p = resolve_art('overlays', sel['ov_by'][v].get('Filename', ''))
         if p is None:
             ovl_noart.append(v)
         else:
@@ -513,10 +516,14 @@ def main():
         uniq_files[ovl_files[v]] = 'ovl'
     for ff in sorted(flp):
         uniq_files[flp[ff]] = 'flp'
-    atlases = {k: d2pack.Atlas(k, IMG, WEB_IMG) for k in ('obj', 'mis', 'ovl', 'flp')}
+    groups = collections.OrderedDict()
+    for a in acts:
+        groups['obj_act%d' % a] = d2anim.GroupAtlas('obj_act%d' % a)
+    for k in ('mis', 'ovl', 'flp'):
+        groups[k] = d2anim.GroupAtlas(k)
     errors = []
 
-    pool = multiprocessing.Pool(max(1, min(8, os.cpu_count() or 2)))
+    pool = multiprocessing.Pool(max(1, min(10, os.cpu_count() or 2)))
     try:
         print('decoding %d object modes ...' % len(jobs))
         obj_res = pool.map(_worker, jobs, chunksize=1)
@@ -529,6 +536,9 @@ def main():
 
     def add_trimmed(atlas, tr_dirs):
         out = []
+        n = len(tr_dirs)
+        if n > MAX_DIRS and n % MAX_DIRS == 0:
+            tr_dirs = tr_dirs[::n // MAX_DIRS]    # 32/64-dir missiles: 16 dirs (budget)
         for row in tr_dirs:
             r = []
             for t in row:
@@ -540,6 +550,7 @@ def main():
         return out
 
     sheets = collections.OrderedDict()
+    sheet_group = {}
 
     # ---- objects ----
     obj_sheets = {}
@@ -550,6 +561,7 @@ def main():
         if isinstance(res, tuple) and res and res[0] == 'ERR':
             errors.append(res)
             continue
+        at = groups['obj_act%d' % tok_act[tok]]
         for ml in res['missing']:
             missing_layers[(tok, mode, ml)] += 1
         delta = num(o.get('FrameDelta%d' % mi), 256)
@@ -559,17 +571,18 @@ def main():
         if base is None:
             anim['f'] = [[[] for _ in range(res['frames'])] for _ in range(res['dirs'])]
         else:
-            anim['f'] = add_trimmed(atlases['obj'], base)
+            anim['f'] = add_trimmed(at, base)
         fx = []
         for b in ('add', 'alpha50'):
             if b in res['groups']:
                 fx.append({'blend': b, 'under': res['under'].get(b, False),
-                           'f': add_trimmed(atlases['obj'], res['groups'][b])})
+                           'f': add_trimmed(at, res['groups'][b])})
         if fx:
             anim['fx'] = fx
         obj_sheets.setdefault(tok, collections.OrderedDict())[mode] = anim
     for tok in sorted(obj_sheets):
         sheets['obj.' + tok] = {'anims': obj_sheets[tok]}
+        sheet_group['obj.' + tok] = 'obj_act%d' % tok_act[tok]
 
     # ---- missiles ----
     file_cache = {}
@@ -577,15 +590,13 @@ def main():
         if isinstance(res, tuple) and res and res[0] == 'ERR':
             errors.append(res)
             continue
-        kind = uniq_files[p]
-        file_cache[p] = (kind, res)
+        file_cache[p] = (uniq_files[p], res)
     rect_cache = {}
 
     def rects_for(path, kind):
         if path in rect_cache:
             return rect_cache[path]
-        k, res = file_cache[path]
-        r = add_trimmed(atlases[kind], res)
+        r = add_trimmed(groups[kind], file_cache[path][1])
         rect_cache[path] = r
         return r
 
@@ -614,6 +625,7 @@ def main():
         if any(off):
             sh['off'] = off
         sheets['mis.' + m] = sh
+        sheet_group['mis.' + m] = 'mis'
         mis_done += 1
 
     # ---- overlays ----
@@ -639,6 +651,7 @@ def main():
         if num(row.get('LoopWaitTime')):
             sh['loopWait'] = num(row.get('LoopWaitTime'))
         sheets['ovl.' + v] = sh
+        sheet_group['ovl.' + v] = 'ovl'
         ovl_done += 1
 
     # ---- flippy ----
@@ -650,6 +663,7 @@ def main():
         r = rects_for(p, 'flp')
         sheets['flp.' + ff] = {'anims': {'NU': {'dirs': len(r), 'frames': len(r[0]) if r else 0, 'fps': 25,
                                                   'loop': False, 'f': r}}}
+        sheet_group['flp.' + ff] = 'flp'
         flp_done += 1
 
     # ---- presets ----
@@ -687,29 +701,6 @@ def main():
             rec['blocksVis'] = True
         presets['act%d:%d' % (act, idx)] = rec
 
-    # ---- pack ----
-    for pat in ('obj_*.webp', 'mis_*.webp', 'ovl_*.webp', 'flp_*.webp'):
-        for old in glob.glob(os.path.join(IMG, pat)):
-            os.remove(old)
-    pages = []
-    sizes = {}
-    for k in ('obj', 'mis', 'ovl', 'flp'):
-        a = atlases[k]
-        paths = a.save()
-        for it in a.items:
-            if it[3]:
-                it[3][6] += len(pages)
-        pages.extend(paths)
-        sizes[k] = (len(paths), len(a.items))
-
-    meta = {
-        'palette': 'act1',
-        'dirs': 'd=0 is screen West, clockwise',
-        'fps': {'obj': '25*FrameDelta/256', 'mis': '25*AnimSpeed/16 (blank: 25*animrate/1024)',
-                'ovl': '25*AnimRate/16 (assumed)', 'flp': '25, once (assumed)'},
-        'blend': 'anim.blend / anim.fx[].blend: add | alpha50; fx[].under = draw below the opaque layers',
-        'rect': '[x,y,w,h,ox,oy,page]: draw with top-left at (anchor-ox, anchor-oy)',
-    }
     # rects are collected per direction; the contract (brain/plans/diablo2-d2r.md) indexes f[frame][dir]
     def by_frame(f):
         return [list(col) for col in zip(*f)] if f else f
@@ -718,21 +709,27 @@ def main():
             an['f'] = by_frame(an['f'])
             for x in an.get('fx', []):
                 x['f'] = by_frame(x['f'])
-    meta['f'] = 'f[frame][dir]'
-    doc = collections.OrderedDict([('pages', pages), ('sheets', sheets), ('presets', presets), ('meta', meta)])
-    with io.open(OUT_JS, 'w', encoding='utf-8', newline='\n') as f:
-        f.write(u'// generated by _tools/build_objects.py - do not edit\nwindow.D2_SPRITES_OBJ = ')
-        f.write(json.dumps(doc, separators=(',', ':'), ensure_ascii=True))
-        f.write(u';\n')
 
-    total = os.path.getsize(OUT_JS)
-    for pth in pages:
-        total += os.path.getsize(os.path.join(GAME, pth.replace('/', os.sep)))
+    # ---- pack + write one group file per atlas ----
+    d2anim.clean_groups(['obj_', 'mis', 'ovl', 'flp'])
+    sizes = {}
+    jsbytes = 0
+    for gname, at in groups.items():
+        pages, nbytes, modes = at.save()
+        body = {'pages': pages,
+                'sheets': dict((k, v) for k, v in sheets.items() if sheet_group[k] == gname)}
+        jsbytes += d2anim.write_group(gname, body)
+        sizes[gname] = (len(pages), nbytes, ''.join('l' if m == 'll' else 'q' for m in modes))
+    frag = {'sheets': dict((k, 'm/' + g) for k, g in sorted(sheet_group.items())),
+            'objPresets': presets}
+    __import__('build_index').write_fragment('objects', frag)
+
+    total = sum(v[1] for v in sizes.values()) + jsbytes
     print('objects: %d sheets (%d presets, %d placed kinds), missiles: %d (no art: %d), overlays: %d (no art: %d), '
           'flippy: %d (no art: %d)' % (len(obj_sheets), len(presets), len(placed), mis_done, len(mis_noart),
                                        ovl_done, len(ovl_noart), flp_done, len(flp_noart)))
-    print('pages (pages, frames):', sizes)
-    print('total bytes %d (%.2f MB), js %d' % (total, total / 1048576.0, os.path.getsize(OUT_JS)))
+    print('group (pages, bytes, page modes l=lossless q=lossy):', sizes)
+    print('total bytes %d (%.2f MB), group js %d, %.0fs' % (total, total / 1048576.0, jsbytes, time.time() - t0))
     if mis_noart:
         print('missiles without art:', ' '.join(mis_noart))
     if ovl_noart:

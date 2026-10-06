@@ -1,0 +1,1 @@
+D2_REG('mon_K9',{"pages":["assets/img/g/mon_K9_0.webp"],"sheets":{"mon.K9":{"anims":{"A1":{"dirs":1,"f":[[[0,0,1,1,0,0,0]]],"fps":12.5,"frames":1,"hit":-1},"NU":{"dirs":1,"f":[[[0,0,1,1,0,0,0]]],"fps":12.5,"frames":1,"hit":-1}}}}});

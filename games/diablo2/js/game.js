@@ -7,7 +7,7 @@
   'use strict';
   var D2 = window.D2 = window.D2 || {};
   var E = D2.E, I = D2.Input, UI = D2.UI, OBJ = E.OBJ, SPR = E.SPR;
-  var VER = '20261006c';
+  var VER = '20261006d';
   var SAVE_KEY = 'd2web.save.v1';
 
   function safe(fn, fb) { try { var v = fn(); return v == null ? fb : v; } catch (e) { return fb; } }
@@ -194,7 +194,14 @@
     return XP[Math.min(lvl, XP.length - 1)] || XP[XP.length - 1] * Math.pow(1.25, lvl - XP.length + 1);
   };
   // Khu chơi được = có trong D2DATA và bộ sinh bản đồ D2G dựng được
-  DA.playable = function (id) { return !!DA.area(id) && !!window.D2G && (!D2G.supports || D2G.supports(id)); };
+  // D2G.supports chỉ trả lời đúng khi nhóm bản đồ của act đã nạp; trước đó, có nhóm bản đồ cho act là đủ
+  DA.playable = function (id) {
+    var a = DA.area(id); if (!a || !window.D2G) return false;
+    var maps = E.index && E.index.maps, grp = maps && maps[a.act];
+    if (maps && !grp) return false;
+    if (grp && !(window.D2_GROUPS && D2_GROUPS[grp])) return true;
+    return !D2G.supports || D2G.supports(id);
+  };
   DA.area = function (id) {
     var a = coll(window.D2DATA && D2DATA.areas).filter(function (x) { return x.id === id; })[0];
     return a || null;
@@ -383,6 +390,7 @@
     var char = S.char, g = null;
     S.def = def;   // curAct() đọc act của khu sắp vào khi tra preset trong lúc dựng
     return E.ensureMaps(def.act || 1).then(function () {
+      if (!DA.playable(id)) throw new Error('khu ' + id + ' chưa dựng được');
       g = D2G.build(id, seed, from);
       S.seed = seed;
       return Promise.all([E.ensureTileset(g.tileset), E.ensure(sheetsForArea(def, g)), E.ensureUi(), E.ensureHero(D2DATA.classes[char.cls].code)]);

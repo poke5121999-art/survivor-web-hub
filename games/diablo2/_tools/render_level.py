@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """Draw a D2G Level the way js/engine.js will (brain/plans/diablo2-d2r.md, "Cách vẽ một tile").
 
-    node games/diablo2/js/drlg.js --dump blood_moor 1 lv.json
-    python render_level.py lv.json out.png [--col] [--quarter]
+    node games/diablo2/js/drlg2.js --dump blood_moor 1 lv.json
+    python render_level.py lv.json out.png [--col]
 
 Writes out.png and out_q.png (1/4 scale). --col paints blocked subtiles as red dots (water in blue).
 Tile (tx, ty) -> px = (tx - ty) * 80, py = (tx + ty) * 40; the variant image goes to (px - 80, py + dy):
@@ -23,7 +23,12 @@ ASSETS = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)
 Image.MAX_IMAGE_PIXELS = None
 
 
-def load_world():
+def load_world(act=1):
+    """v2 group m/world_act<N>.js (D2_REG(name, {...});), else the old assets/world.js."""
+    p = os.path.join(ASSETS, 'm', 'world_act%d.js' % act)
+    if os.path.exists(p):
+        s = io.open(p, encoding='utf-8').read()
+        return json.loads(s[s.index(',', s.index('D2_REG(')) + 1:s.rindex(');')])
     s = io.open(os.path.join(ASSETS, 'world.js'), encoding='utf-8').read()
     return json.loads(s[s.index('g.D2_WORLD=') + len('g.D2_WORLD='):s.rindex(';})(typeof')])
 
@@ -31,6 +36,10 @@ def load_world():
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith('--')]
     show_col = '--col' in sys.argv
+    img_dir = None
+    for a in sys.argv:
+        if a.startswith('--img='):
+            img_dir = a[6:]
     lv = json.load(io.open(args[0], encoding='utf-8'))
     out = args[1]
     ts = load_world()['tilesets'][lv['tileset']]
@@ -39,6 +48,8 @@ def main():
     def page(i):
         if i not in pages:
             p = os.path.join(ASSETS, '..', ts['pages'][i])
+            if img_dir:
+                p = os.path.join(img_dir, os.path.basename(p))
             pages[i] = np.asarray(Image.open(p).convert('RGBA'))
         return pages[i]
 
@@ -88,7 +99,7 @@ def main():
                 if l4:
                     blit(l4[min(v, len(l4) - 1)], px, py, l4[min(v, len(l4) - 1)][4] + 80)
 
-    floors = lv['floors'][0]
+    floor_layers = lv['floors']
     shadows = lv['shadows'][0]
     walls = lv['walls']
     for ty in range(th):
@@ -98,7 +109,8 @@ def main():
                 o = L['o'][i]
                 if 16 <= o <= 19:
                     draw(L['t'][i], o, tx, ty, 'wall')
-            draw(floors[i], 0, tx, ty, 'floor')
+            for F in floor_layers:
+                draw(F[i], 0, tx, ty, 'floor')
             draw(shadows[i], 13, tx, ty, 'shadow')
     for ty in range(th):
         for tx in range(tw):
@@ -126,13 +138,16 @@ def main():
 
     def mark(sx, sy, colr):
         X, Y = (sx - sy) * 16 + ox, (sx + sy) * 8 + 8 + oy
-        img[Y - 6:Y + 7, X - 6:X + 7] = colr
+        img[max(0, Y - 14):Y + 15, max(0, X - 14):X + 15] = colr
 
     for e in lv['exits']:
         mark(e['x'], e['y'], (255, 255, 0, 255))
     mark(lv['hero'][0], lv['hero'][1], (0, 255, 0, 255))
     for s in lv['spawns']:
         mark(s['x'], s['y'], (255, 0, 255, 255))
+    for o in lv.get('objects', []):
+        if o.get('kind') == 'waypoint':
+            mark(int(o['x']), int(o['y']), (0, 255, 255, 255))
 
     im = Image.fromarray(img)
     bb = im.getbbox()

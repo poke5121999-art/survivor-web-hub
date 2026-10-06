@@ -2,11 +2,11 @@
 """Build the Diablo II UI art, item icons, sound effects and music for games/diablo2.
 
 Writes (all under games/diablo2/assets/):
-    ui.js                 window.D2_UI manifest (see the contract in brain/plans/diablo2-d2r.md)
-    img/ui_<n>.webp       UI panels, buttons, cursors, skill icons  (units palette)
-    img/inv_<n>.webp      inventory pictures of items
-    sfx/*.ogg             mono 22050 Hz Vorbis, keyed by sounds.txt Sound name in ui.js
-    music/*.ogg           stereo 44.1 kHz Vorbis
+    m/ui.js               D2_REG('m/ui', {ui: D2_UI-shaped object}) + idx/ui.json fragment
+    img/g/ui_<n>.webp     UI panels, buttons, cursors, skill icons  (units palette)
+    img/g/inv_<n>.webp    inventory pictures of every item
+    a/sfx/*.ogg           mono 22050 Hz Vorbis q0, keyed by sounds.txt Sound name
+    a/music/*.ogg         stereo 44.1 kHz Vorbis q1
 
 Rerunnable and deterministic: atlases and ui.js are rebuilt every run, ogg files already on
 disk are kept (pass --force to re-encode, needed after changing ENC_* below).
@@ -29,31 +29,21 @@ import d2pack  # noqa: E402
 
 GAME = os.path.dirname(HERE)
 ASSETS = os.path.join(GAME, 'assets')
-IMG_DIR = os.path.join(ASSETS, 'img')
-SFX_DIR = os.path.join(ASSETS, 'sfx')
-MUS_DIR = os.path.join(ASSETS, 'music')
+IMG_DIR = os.path.join(ASSETS, 'img', 'g')
+SFX_DIR = os.path.join(ASSETS, 'a', 'sfx')
+MUS_DIR = os.path.join(ASSETS, 'a', 'music')
+GROUP = 'm/ui'
 SRC = os.environ.get('D2R_DATA', 'D:/d2r-ref/fs/data/data')
 G = SRC + '/global'
 BS = chr(92)
 
 FORCE = '--force' in sys.argv
 CELL = 29                       # inventory.txt gridBoxWidth; one item cell in px
-LEVELREQ_MAX = 30
-SKILL_REQLEVEL_MAX = 18
-ENC_SFX = ['-ac', '1', '-ar', '22050', '-c:a', 'libvorbis', '-q:a', '2']
-ENC_MUSIC = ['-ac', '2', '-ar', '44100', '-c:a', 'libvorbis', '-q:a', '2']
-
-# Music kept for budget (18 MB): crypt (271 s) and monastery (308 s) are Act I levels past
-# Den of Evil / the scope of the remake, so they are left out.
-MUSIC = [
-    ('town1', 'music/act1/town1.flac'),
-    ('wild', 'music/act1/wild.flac'),
-    ('cave', 'music/act1/caves.flac'),
-    ('denofevil', 'music/act1/denofevilaction.flac'),
-    ('bloodraven', 'music/act1/bloodravenresolution.flac'),
-    ('andariel', 'music/act1/andarielaction.flac'),
-    ('intro', 'music/introedit.flac'),
-]
+LOSSY_PAGE_BYTES = 1 << 20      # a lossless page above this is re-saved lossy q90 when --lossy-big
+ENC_SFX = ['-ac', '1', '-ar', '22050', '-c:a', 'libvorbis', '-q:a', '0']
+ENC_MUSIC = ['-ac', '2', '-ar', '44100', '-c:a', 'libvorbis', '-q:a', '1']
+MUSIC_CAP = float(os.environ.get('MUSIC_CAP', '110'))   # s; longer loops are cut and faded out
+FADE = 4.0
 
 SKILL_ICON_FILES = {'AM': 'amskillicon', 'AS': 'asskillicon', 'BA': 'baskillicon',
                     'DR': 'drskillicon', 'NE': 'neskillicon', 'PA': 'paskillicon',
@@ -110,7 +100,7 @@ class Sheet(object):
     """Atlas wrapper: caches (file, frame, anchor mode) -> rect so shared frames pack once."""
 
     def __init__(self, name):
-        self.atlas = d2pack.Atlas(name, IMG_DIR, 'assets/img')
+        self.atlas = d2pack.Atlas(name, IMG_DIR, 'assets/img/g')
         self.cache = {}
 
     def rect(self, rel, i, hot=False, track=True):
@@ -221,8 +211,10 @@ def build_buttons():
     b['quest_icons'] = frames('%squesticons.dc6' % M)
     b['quest_sockets'] = frames('%squestsockets.dc6' % M)
     b['quest_last'] = frames('%squestlast.dc6' % M)
-    for q in range(1, 7):
-        b['quest_a1q%d' % q] = frames('%sa1q%d.dc6' % (M, q))        # Act I quest art, 27 frames
+    for a in range(1, 6):
+        for q in range(1, 7):
+            if os.path.exists('%s/%sa%dq%d.dc6' % (G, M, a, q)):
+                b['quest_a%dq%d' % (a, q)] = frames('%sa%dq%d.dc6' % (M, a, q))
     return b
 
 
@@ -250,11 +242,12 @@ def build_skill_icons():
 # ---------------------------------------------------------------- item icons
 
 def build_icons():
-    armor, weapons, misc = tab('armor'), tab('weapons'), tab('misc')
+    """Every inventory picture of armor, weapons, misc (all tiers, uniques, sets, runes, gems,
+    charms, jewels, quest items, potions, scrolls, keys) plus uniqueitems/setitems invfile."""
     bases = {}
-    for kind, rows in (('armor', armor), ('weapon', weapons), ('misc', misc)):
+    for rows in (tab('armor'), tab('weapons'), tab('misc')):
         for r in rows:
-            if r['code'] and num(r.get('levelreq')) <= LEVELREQ_MAX:
+            if r['code']:
                 bases[r['code']] = r
     names = {}      # invfile -> (cw, ch) of the first base that uses it
 
@@ -264,15 +257,21 @@ def build_icons():
             names[fn] = (num(base['invwidth'], 1), num(base['invheight'], 1))
 
     for code in sorted(bases):
-        r = bases[code]
         for col in ('invfile', 'uniqueinvfile', 'setinvfile'):
-            want(r.get(col), r)
+            want(bases[code].get(col), bases[code])
     for r in tab('uniqueitems'):
-        if r['code'] in bases and num(r.get('lvl req')) <= LEVELREQ_MAX:
+        if r['code'] in bases:
             want(r.get('invfile'), bases[r['code']])
     for r in tab('setitems'):
-        if r['item'] in bases and num(r.get('lvl req')) <= LEVELREQ_MAX:
+        if r['item'] in bases:
             want(r.get('invfile'), bases[r['item']])
+    # D2 picks ring / amulet / charm / jewel / potion variants in code, not from the tables:
+    # every other inv*.dc6 is kept too, sized from its frame
+    for f in sorted(os.listdir(G + '/items')):
+        fn = f[:-4].lower()
+        if f.lower().endswith('.dc6') and fn.startswith('inv') and fn not in names:
+            fr = dc6('items/%s' % f, False)[0]
+            names[fn] = (max(1, int(round(fr['w'] / float(CELL)))), max(1, int(round(fr['h'] / float(CELL)))))
     icons = {}
     for fn in sorted(names):
         rect = inv.rect('items/%s.dc6' % fn, 0, track=False)
@@ -282,12 +281,15 @@ def build_icons():
 
 # ---------------------------------------------------------------- sound
 
-def ffmpeg(src, dst, enc):
+def ffmpeg(src, dst, enc, cap=0):
     if not FORCE and os.path.exists(dst) and os.path.getsize(dst) > 0:
         return
     tmp = dst + '.tmp.ogg'
+    cut = []
+    if cap:
+        cut = ['-t', '%g' % cap, '-af', 'afade=t=out:st=%g:d=%g' % (cap - FADE, FADE)]
     cmd = ['ffmpeg', '-v', 'error', '-y', '-i', src, '-vn', '-map_metadata', '-1',
-           '-fflags', '+bitexact', '-flags:a', '+bitexact'] + enc + [tmp]
+           '-fflags', '+bitexact', '-flags:a', '+bitexact'] + cut + enc + [tmp]
     subprocess.check_call(cmd)
     os.replace(tmp, dst)
 
@@ -363,46 +365,56 @@ def pick_sounds():
                 S.add(m.get('TravelSound'))
                 S.add(m.get('HitSound'))
 
-    # monsters of levels 1..8 (mon1..mon10) and the Act I NPCs / bosses
+    # every monster of every level (normal, nightmare/hell, unique, champion lists), all NPCs
+    # and bosses; both MonSound and UMonSound (the unique/boss variant) rows
     mons = []
     for r in levels:
-        if 1 <= num(r['Id']) <= 8:
-            mons += [r['mon%d' % i] for i in range(1, 11) if r.get('mon%d' % i)]
-    mons += ['akara', 'charsi', 'gheed', 'kashya', 'warriv1', 'cain1', 'rogue1', 'rogue2',
-             'act1hire', 'bloodraven', 'andariel', 'griswold', 'countess', 'smith']
-    for m in mons:
+        for pre in ('mon', 'nmon', 'umon', 'cmon'):
+            mons += [r['%s%d' % (pre, i)] for i in range(1, 26) if r.get('%s%d' % (pre, i))]
+    mons += ['smith']       # the Tristram smith has neither the npc nor the boss flag
+    mons += [i for i, r in monstats.items() if r.get('npc') == '1' or r.get('boss') == '1']
+    for m in sorted(set(mons)):
         ms = monstats.get(m)
         if not ms:
             continue
-        mrow = monsounds.get(ms['MonSound'])
-        if mrow:
-            for c in snd_cols:
-                S.add(mrow.get(c))
+        for col in ('MonSound', 'UMonSound'):
+            mrow = monsounds.get(ms.get(col, ''))
+            if mrow:
+                for c in snd_cols:
+                    S.add(mrow.get(c))
         for i in range(1, 9):
             sk = skills.get(ms.get('Skill%d' % i, ''))
             if sk:
                 skill_sounds(sk)
-    # player skills up to reqlevel 18, any class
+    # all class skills
     for sk in skills.values():
-        if sk.get('charclass') and num(sk.get('reqlevel')) <= SKILL_REQLEVEL_MAX:
+        if sk.get('charclass'):
             skill_sounds(sk)
-    # footsteps (Act I surfaces), combat, items, cursor/ui, quest, objects, class voices
+    # items: drop / use sounds
+    for name in ('armor', 'weapons', 'misc'):
+        for r in tab(name):
+            for c in ('dropsound', 'usesound'):
+                S.add(r.get(c))
+    # footsteps (every surface), class voices, combat, items, cursor/ui, quest, objects
     for r in S.rows:
         n = r['Sound']
-        if re.match(r'^(light|medium|heavy)_(walk|run)_(dirt|istone|ostone|wood)_\d$', n):
+        if re.match(r'^(light|medium|heavy)_(walk|run)_\w+_\d$', n):
             S.add(n)
         if n.startswith('player_'):
             S.add(n)
     S.add_prefix(['combat/', 'item/', 'cursor/', 'quest/', 'object/'])
-    scenes = ('wilderness_day_2', 'wilderness_night', 'cave', 'catacombs', 'cathedral', 'crypt',
-              'creepywind')
-    S.add_prefix(['ambient/scene/%s.flac' % s for s in scenes])
+    S.add_prefix(['ambient/scene/%s.flac' % s for s in AMBIENT])
     return S
+
+
+AMBIENT = ('wilderness_day_2', 'wilderness_night', 'cave', 'catacombs', 'cathedral', 'crypt',
+           'creepywind', 'desertday', 'desertnight', 'harem', 'jungleday', 'junglenight', 'sewer',
+           'tomb', 'town3day', 'town3night', 'lava', 'hell1')
 
 
 def encode_all(jobs, enc, label):
     with ThreadPoolExecutor(max_workers=8) as ex:
-        list(ex.map(lambda j: ffmpeg(j[0], j[1], enc), jobs))
+        list(ex.map(lambda j: ffmpeg(j[0], j[1], enc, j[2] if len(j) > 2 else 0), jobs))
     print('%s: %d files' % (label, len(jobs)))
 
 
@@ -420,7 +432,7 @@ def build_sfx():
     for fn in os.listdir(SFX_DIR):
         if fn.endswith('.ogg') and fn not in keep:
             os.remove(os.path.join(SFX_DIR, fn))
-    sfx = {n: 'assets/sfx/' + by_file[S.need[n]] for n in sorted(S.need)}
+    sfx = {n: 'assets/a/sfx/' + by_file[S.need[n]] for n in sorted(S.need)}
     groups = {n: [m for m in g if m in sfx] for n, g in sorted(S.groups.items()) if n in sfx}
     vol, loop = {}, []
     for n in sfx:
@@ -433,16 +445,47 @@ def build_sfx():
     return sfx, groups, vol, loop
 
 
+def music_list():
+    """(key, flac relative to global/, cap seconds or 0, [aliases]).  Env songs use the sounds.txt
+    names soundenviron.txt points at (music_wilderness...), so def.music of an area resolves."""
+    S = dict((r['Sound'], r) for r in tab('sounds'))
+    seen, out = {}, []
+    for r in tab('soundenviron'):
+        n = r['Song']
+        if n and n in S and n not in seen:
+            fn = S[n]['FileName'].replace(BS, '/').lower()
+            if fn.startswith('act'):
+                seen[n] = 1
+                out.append((n, 'music/' + fn, MUSIC_CAP, []))
+    # boss / event stingers: one key per file stem (the Act I three keep their old keys)
+    for act in range(1, 6):
+        d = '%s/music/act%d' % (G, act)
+        for f in sorted(os.listdir(d)):
+            rel = 'music/act%d/%s' % (act, f)
+            if not any(o[1] == rel for o in out):
+                stem = f[:-5]
+                key = {'denofevilaction': 'denofevil', 'bloodravenresolution': 'bloodraven',
+                       'andarielaction': 'andariel'}.get(stem, stem)
+                out.append((key, rel, 0, []))
+    out.append(('intro', 'music/introedit.flac', 0, []))
+    return out
+
+
+ALIAS = {'town1': 'music_town_1', 'wild': 'music_wilderness', 'cave': 'music_caves',
+         'caves': 'music_caves', 'town': 'music_town_1'}
+
+
 def build_music():
     os.makedirs(MUS_DIR, exist_ok=True)
     jobs, out = [], {}
-    for key, rel in MUSIC:
-        dst = os.path.join(MUS_DIR, key + '.ogg')
-        jobs.append(('%s/%s' % (G, rel), dst))
-        out[key] = 'assets/music/%s.ogg' % key
+    for key, rel, cap, _ in music_list():
+        src = '%s/%s' % (G, rel)
+        jobs.append((src, os.path.join(MUS_DIR, key + '.ogg'), cap))
+        out[key] = 'assets/a/music/%s.ogg' % key
     encode_all(jobs, ENC_MUSIC, 'music')
-    out['caves'] = out['cave']
-    keep = set(k + '.ogg' for k, _ in MUSIC)
+    for k, v in ALIAS.items():
+        out[k] = out[v]
+    keep = set(os.path.basename(j[1]) for j in jobs)
     for fn in os.listdir(MUS_DIR):
         if fn.endswith('.ogg') and fn not in keep:
             os.remove(os.path.join(MUS_DIR, fn))
@@ -455,6 +498,23 @@ def dirsize(d, pat):
     return sum(os.path.getsize(os.path.join(d, f)) for f in os.listdir(d) if re.match(pat, f))
 
 
+def save_pages(atlas):
+    """Lossless pages; with --lossy-big, any page over 1 MB is re-saved lossy q90 (same packing)."""
+    paths = atlas.save(lossless=True)
+    big = [p for p in paths if os.path.getsize(os.path.join(IMG_DIR, os.path.basename(p))) > LOSSY_PAGE_BYTES]
+    print('%s pages lossless: %s' % (atlas.name, ['%s %d KB' % (os.path.basename(p), os.path.getsize(os.path.join(IMG_DIR, os.path.basename(p))) // 1024) for p in paths]))
+    if big and '--lossy-big' in sys.argv:
+        for p in big:
+            fp = os.path.join(IMG_DIR, os.path.basename(p))
+            os.replace(fp, fp + '.ll')
+        atlas.save(lossless=False, quality=90)
+        for p in big:
+            fp = os.path.join(IMG_DIR, os.path.basename(p))
+            print('  %s lossy q90 %d KB (lossless %d KB, kept as .ll for comparison)' % (
+                os.path.basename(p), os.path.getsize(fp) // 1024, os.path.getsize(fp + '.ll') // 1024))
+    return paths
+
+
 def main():
     os.makedirs(IMG_DIR, exist_ok=True)
     panels = build_panels()
@@ -463,13 +523,12 @@ def main():
     skill_icons = build_skill_icons()
     icons = build_icons()
 
-    ui_pages = ui.atlas.save()
-    inv_pages = inv.atlas.save()
+    ui_pages = save_pages(ui.atlas)
+    inv_pages = save_pages(inv.atlas)
     off = len(ui_pages)
     for ic in icons.values():            # inventory pages follow the UI pages in `pages`
         if ic['r']:
             ic['r'][6] += off
-    # stale pages of a previous run (fewer pages now)
     keep = set(os.path.basename(p) for p in ui_pages + inv_pages)
     for fn in os.listdir(IMG_DIR):
         if re.match(r'^(ui|inv)_\d+\.webp$', fn) and fn not in keep:
@@ -495,12 +554,14 @@ def main():
            ('sfxGroup', groups), ('sfxVol', vol), ('sfxLoop', loop), ('music', music)]
     body = ',\n'.join('  %s: %s' % (json.dumps(k), json.dumps(v, separators=(',', ':')))
                       for k, v in man)
-    with io.open(os.path.join(ASSETS, 'ui.js'), 'w', encoding='utf-8', newline='\n') as f:
-        f.write('window.D2_UI = {\n%s\n};\n' % body)
+    mdir = os.path.join(ASSETS, 'm')
+    os.makedirs(mdir, exist_ok=True)
+    with io.open(os.path.join(mdir, 'ui.js'), 'w', encoding='utf-8', newline='\n') as f:
+        f.write(u"D2_REG('%s', { ui: {\n%s\n} });\n" % (GROUP, body))
+    import build_index
+    build_index.write_fragment('ui', {'ui': GROUP})
 
-    print('dc6 files used for the UI atlas (%d):' % len(set(used_dc6)))
-    for p in sorted(set(used_dc6)):
-        print('  ', p)
+    print('dc6 files used for the UI atlas (%d)' % len(set(used_dc6)))
     mb = 1024.0 * 1024.0
     print('pages: %d ui + %d inv' % (len(ui_pages), len(inv_pages)))
     print('images %.2f MB  sfx %.2f MB  music %.2f MB' % (

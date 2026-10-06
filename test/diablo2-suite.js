@@ -35,6 +35,7 @@ async function open(b, opts) {
   const errs = [];
   p.on('pageerror', e => errs.push('PAGEERROR ' + e.message));
   p.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE ' + m.text()); });
+  p.on('requestfailed', r => errs.push('REQFAIL ' + r.url().replace(/^.*games\/diablo2\//, '')));
   await p.goto(URL);
   await p.waitForSelector('.screen.title .tmenu', { timeout: 15000 });
   return { ctx, p, errs };
