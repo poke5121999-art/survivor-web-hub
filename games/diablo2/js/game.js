@@ -1644,10 +1644,10 @@
   /* ================================================================ lệnh người chơi */
   function heroActionPos(sx, sy) { return E.toWorld(sx, sy); }
 
-  function entAt(sx, sy) {
+  function entAt(sx, sy, only) {
     var best = null, bd = 1e9;
     S.ents.forEach(function (e) {
-      if (e.removed) return;
+      if (e.removed || (only && e.kind !== only)) return;
       var p = E.toScreen(e.x, e.y), score = null;
       if (e.kind === 'drop') {
         var r = e.labelRect;
@@ -1689,7 +1689,8 @@
     if (!S.hero || S.scene !== 'play') return;
     var h = S.hero; if (h.st === 'die' || h.st === 'dead') return;
     if (UI.dlg && btn === 'left') { /* nhấp ra ngoài thì giữ nguyên, tránh đóng nhầm */ }
-    var sk = skillFor(btn), e = entAt(sx, sy), w = E.toWorld(sx, sy);
+    // chuột phải / Shift chỉ nhắm quái: nhãn đồ vừa rơi che quái đứng sát thì phép không được bay về điểm đất sau lưng nó
+    var sk = skillFor(btn), e = entAt(sx, sy, btn === 'right' || shift ? 'mon' : null), w = E.toWorld(sx, sy);
     if (e && e.kind === 'drop' && btn === 'left') { h.goal = { type: 'pickup', target: e }; return; }
     if (e && e.kind === 'npc' && btn === 'left') { h.goal = { type: 'talk', target: e }; return; }
     if (e && e.kind === 'obj' && btn === 'left') { h.goal = { type: 'use', target: e }; return; }

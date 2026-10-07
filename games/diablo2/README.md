@@ -100,6 +100,16 @@ Ví dụ: `CASCConsole.exe -m Pattern -e "data/data/global/*" -d D:\d2r-ref\fs -
 - `[BẪY ĐÃ SẬP]` `S.hover` tính trong `updateWorld`, nên `D2DBG.freeze` khoá luôn hover; test rê chuột phải bỏ freeze.
 - `build_world.py` chạy khoảng 3–4 phút mỗi act.
 
+### Chuẩn gốc, đợt 2-UI (rev 20261007d)
+
+- `[ĐO TRONG REPO]` Font DC6 gốc (Font16/30/42, Exocet10, Formal12) chỉ có mã 0–255: thiếu ă ơ ư đ và mọi dấu thanh. Một hàm duy nhất `textFontOf` chọn font: chuỗi có ký tự ngoài bảng thì rơi về serif small-caps cùng cỡ, cùng màu. Vì thế có chỗ một tab chữ gốc nằm cạnh tab chữ web.
+- `[BẪY ĐÃ SẬP]` Mảnh shift 0 trong `pal.pl2` biến mọi glyph thành đen; "white" là glyph gốc, không áp shift. Mã 128–159 trong font là ô giữ chỗ (vẽ ra Ø), phải coi là thiếu.
+- `[BẪY ĐÃ SẬP]` Tranh nền 800×600 của màn đầu phải neo theo góc trên-trái từng ô; neo theo điểm DC6 thì các ô lệch hẳn lên trên.
+- `[BẪY ĐÃ SẬP]` Lớp `#touch` (z-index 6) che nút "Bắt đầu" khi chơi cảm ứng; ẩn nó ở màn đầu và màn tải.
+- `[BẪY ĐÃ SẬP]` Vàng tự nhặt trong bán kính 2,6 nhặt lại ngay vàng vừa thả; vàng thả ra mang cờ `noAuto`, phải bấm mới nhặt.
+- `[BẪY ĐÃ SẬP]` Nhãn đồ vừa rơi có điểm số 0 trong `entAt`, thắng quái đứng dưới nó. Chuột phải nhắm vào nhãn, phép bay về điểm đất sau lưng quái và trượt (suite trượt 1/2 lần sau khi ghép liền làm nhiều quái hơn). Giờ chuột phải và Shift chỉ nhắm quái (`entAt(sx, sy, 'mon')`); suite có kiểm riêng, trượt trên mã cũ.
+- Chưa có nút sửa đồ vì độ bền chưa bao giờ giảm. Màn chọn lớp giữ nửa số khung của động tác bước tới/lùi về.
+
 ## Kiểm
 
 ```sh
@@ -120,5 +130,5 @@ node test/diablo2-suite.js   # Playwright: chuột thật, cảm ứng 932×430
 - Hero chỉ 8 hướng (gốc 16); TH/KK/S1–S4 chỉ có ở lớp nào lever đã đóng gói COF đó. Ngân sách hình nhân vật là 22 MB.
 - Đổi màu unique mới là phủ màu, chưa đổi bảng `.pl2`/colormap như D2.
 - River of Flame ↔ Chaos Sanctuary và Barracks ↔ Outer Cloister vẫn là lối dịch chuyển, vì mê cung chưa nằm trong `layoutAct`.
-- Font DC6 gốc, automap bằng `maximap.dc6`, màn tiêu đề/chọn lớp/tải gốc, Horadric Cube, hộp thoại NPC và menu Esc kiểu gốc: đợt 2-UI.
+- Automap còn vẽ điểm ảnh, chưa dùng `maximap.dc6`; chưa có Horadric Cube.
 - Quái bỏ nửa khung ở mọi mode trừ A1; nhạc cắt còn 110 giây; chưa có lời nhân vật và lời chào NPC (`local/sfx`); tiếng `event_*` của soundenviron chưa đóng gói. Đợt 2-AVFX, cần dời ngân sách MB.

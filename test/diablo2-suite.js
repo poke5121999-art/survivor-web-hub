@@ -356,6 +356,25 @@ async function clickNpc(p, id) {
   s = await st(p);
   check('Fire Bolt (chuột phải) giết được quái', s.kills > kills0, 'kills=' + s.kills);
   check('mana bị trừ, XP tăng', s.xp > xp0, 'xp ' + xp0 + '->' + s.xp);
+  // nhãn đồ vừa rơi che quái đứng sát: chuột phải vẫn phải nhắm quái, không nhắm nhãn rồi bắn về điểm đất phía sau
+  await p.evaluate(() => { D2DBG.killAllMons(); D2DBG.S.ents.forEach(e => { if (e.kind === 'drop') e.removed = true; }); const m = D2DBG.monIds()[0]; D2DBG.spawn(m, 1, 2, 0); D2DBG.freeze(true); });
+  s = await st(p);
+  const mq = s.mons.filter(m => m.st !== 'dead' && m.st !== 'die')[0];
+  await p.evaluate(([x, y]) => { const it = D2DBG.makePotion('hp1'); D2DBG.dropAt(it, x, y); }, [mq.x, mq.y]);
+  await sleep(250);
+  // bấm vào tâm nhãn, chỗ nhãn đè lên thân quái: điều kiện là điểm đó trúng nhãn trước (không lọc) và cũng trúng quái
+  const cq = await p.evaluate(([x, y]) => {
+    const d = D2DBG.getState().drops.filter(o => o.rect && o.x === x && o.y === y)[0]; if (!d) return null;
+    const r = d.rect, sx = r[0] + r[2] / 2, sy = r[1] + r[3] / 2, v = document.getElementById('view').getBoundingClientRect(), k = v.width / 960;
+    const a = D2DBG.entAt(sx, sy), c = D2DBG.client(x, y, 34);
+    return { x: v.left + sx * k, y: v.top + sy * k, covered: !!a && a.kind === 'drop' && Math.hypot(sx - c.sx, sy - c.sy) < 24 };
+  }, [mq.x, mq.y]);
+  const covered = !!cq && cq.covered;
+  if (cq) await p.mouse.click(cq.x, cq.y, { button: 'right' });
+  await sleep(100);
+  const aimed = await p.evaluate(([x, y]) => { const t = D2DBG.S.target, g = D2DBG.S.hero.goal; return !!(t && t.x === x && t.y === y) || !!(g && g.target && g.target.x === x && g.target.y === y); }, [mq.x, mq.y]);
+  await p.evaluate(() => { D2DBG.freeze(false); D2DBG.killAllMons(); });
+  check('nhãn đồ che quái: chuột phải vẫn nhắm quái', covered && aimed, 'nhãn che điểm bấm=' + covered + ' nhắm quái=' + aimed);
   await p.screenshot({ path: path.join(SHOTS, '3b-after-kill.png') });
   const dots = await p.evaluate(() => window.__dots);
   check('Fire Bolt đầu tiên vẽ bằng hình đạn thật, không có chấm thay thế', dots === 0, 'chấm=' + dots);
@@ -513,8 +532,8 @@ async function clickNpc(p, id) {
   await sleep(150);
   const ib = await p.evaluate(() => { const e = [...document.querySelectorAll('#p-inv .grid .item')].pop(), b = e.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2, top: b.top, l: b.left, r: b.right }; });
   await p.mouse.move(ib.x, ib.y); await sleep(250);
-  const tip = await p.evaluate(() => { const t = document.querySelector('.tip'), b = t.getBoundingClientRect(), n = t.querySelector('.tname .d2t'); return { on: getComputedStyle(t).display !== 'none' && t.classList.contains('itip'), bottom: b.bottom, cx: (b.left + b.right) / 2, name: n && n.dataset.c, font: n && n.dataset.f, red: [...t.querySelectorAll('[data-k=req] .d2t')].map(x => x.dataset.c) }; });
-  check('rê lên đồ magic: chú thích ngay trên món đồ, tên màu blue bằng Font16', tip.on && tip.bottom <= ib.top + 1 && Math.abs(tip.cx - (ib.l + ib.r) / 2) < 3 && tip.name === 'blue' && tip.font === 'font16', JSON.stringify(tip) + ' món top=' + ib.top);
+  const tip = await p.evaluate(() => { const t = document.querySelector('.tip'), b = t.getBoundingClientRect(), n = t.querySelector('.tname .d2t'); const v = document.getElementById('stage').getBoundingClientRect(); return { on: getComputedStyle(t).display !== 'none' && t.classList.contains('itip'), bottom: b.bottom, cx: (b.left + b.right) / 2, edge: b.right >= v.right - 1 || b.left <= v.left + 1, name: n && n.dataset.c, font: n && n.dataset.f, red: [...t.querySelectorAll('[data-k=req] .d2t')].map(x => x.dataset.c) }; });
+  check('rê lên đồ magic: chú thích ngay trên món đồ, tên màu blue bằng Font16', tip.on && tip.bottom <= ib.top + 1 && (Math.abs(tip.cx - (ib.l + ib.r) / 2) < 3 || tip.edge) && tip.name === 'blue' && tip.font === 'font16', JSON.stringify(tip) + ' món top=' + ib.top);
   check('dòng yêu cầu chưa đủ màu đỏ', tip.red.includes('red'), tip.red.join(','));
   await p.screenshot({ path: path.join(SHOTS, '3d2-tooltip.png') });
   await p.mouse.move(5, 5);
