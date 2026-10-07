@@ -665,6 +665,60 @@ async function clickNpc(p, id) {
   await sleep(700);
   let lr = await lightRatio('3g-catacombs-dark');
   check('Catacombs: ngoài vùng sáng gần như đen, quanh hero vẫn sáng', lr.n > 0 && lr.out < 0.2 && lr.hero > 0.6, JSON.stringify(lr));
+
+  // ------------------------------------------------------------- automap
+  results.push('\n-- automap --');
+  // Đi vài bước bằng chuột thật về phía một lối ra, đặt quái cạnh hero, rồi bấm Tab. D2 vẽ automap từ cel nét mảnh
+  // của maximap.dc6 (UI.mapStats.cels đếm cel đã vẽ) và không vẽ quái: chỗ của từng quái trên bản đồ không có chấm đỏ
+  // #f33 của bản điểm ảnh cũ.
+  async function automapAfterWalk(tag, minCels) {
+    const s0 = await st(p);
+    // lối xa nhất: đi về phía lối gần thì bước vào nó và đổi khu
+    const ex = s0.exits.filter(e => e.to).sort((a, b) => Math.hypot(b.x - s0.hero.x, b.y - s0.hero.y) - Math.hypot(a.x - s0.hero.x, a.y - s0.hero.y))[0];
+    let walked = 0;
+    for (let i = 0; i < 4 && ex; i++) {
+      const s1 = await st(p);
+      const path = await p.evaluate(([x, y]) => D2DBG.path(x, y), [ex.x + 0.5, ex.y + 0.5]);
+      const near = (path || []).filter(q => Math.hypot(q[0] - s1.hero.x, q[1] - s1.hero.y) <= 10);
+      if (!near.length) break;
+      const c = await p.evaluate(([x, y]) => D2DBG.client(x, y), near[near.length - 1]);
+      await p.mouse.move(c.x, c.y); await p.mouse.down(); await sleep(700); await p.mouse.up(); await sleep(300);
+      const s2 = await st(p); walked += Math.hypot(s2.hero.x - s1.hero.x, s2.hero.y - s1.hero.y);
+    }
+    await p.evaluate(() => { D2DBG.killAllMons(); D2DBG.spawn(D2DBG.monIds()[0], 3, 3, 1); });
+    await p.keyboard.press('Tab');
+    const drew = await waitFor(p, n => D2.UI.mapStats.cels > n, 8000, minCels);
+    await p.evaluate(() => D2DBG.freeze(true)); await sleep(200);
+    const ms = await p.evaluate(() => {
+      const S = D2DBG.S, h = S.hero, r = document.querySelector('canvas.automap').getBoundingClientRect(), k = r.width / 960;
+      const mons = S.ents.filter(e => e.kind === 'mon' && e.st !== 'dead' && e.st !== 'die');
+      return { stats: Object.assign({}, D2.UI.mapStats), mons: mons.length,
+        at: mons.map(m => [r.left + (480 + ((m.x - h.x) - (m.y - h.y)) * 1.6) * k - 4, r.top + (270 + ((m.x - h.x) + (m.y - h.y)) * 0.8) * k - 4, 9, 9]) };
+    });
+    const png = await p.screenshot({ path: path.join(SHOTS, '3l-automap-' + tag + '.png') });
+    const red = await p.evaluate(([src, boxes]) => new Promise(res => {
+      const im = new Image();
+      im.onload = () => {
+        const cv = document.createElement('canvas'); cv.width = im.width; cv.height = im.height;
+        const x = cv.getContext('2d'); x.drawImage(im, 0, 0); let n = 0;
+        boxes.forEach(b => { const d = x.getImageData(Math.round(b[0]), Math.round(b[1]), b[2], b[3]).data; for (let i = 0; i < d.length; i += 4) if (d[i] > 235 && d[i + 1] > 35 && d[i + 1] < 70 && d[i + 2] > 35 && d[i + 2] < 70) n++; });
+        res(n);
+      };
+      im.src = 'data:image/png;base64,' + src;
+    }), [png.toString('base64'), ms.at]);
+    await p.evaluate(() => D2DBG.freeze(false));
+    await p.keyboard.press('Tab');
+    const sEnd = await st(p);
+    check('automap ' + tag + ': đi ' + walked.toFixed(1) + ' subtile rồi Tab vẽ > ' + minCels + ' cel maximap, không rơi về điểm ảnh',
+      drew && walked > 3 && sEnd.area === s0.area && ms.stats.pixelLevels === 0 && ms.stats.units >= 1, JSON.stringify(ms.stats) + ' khu ' + sEnd.area);
+    check('automap ' + tag + ': không có chấm quái (' + ms.mons + ' quái cạnh hero)', ms.mons > 0 && red === 0, 'điểm đỏ #f33: ' + red);
+  }
+  await automapAfterWalk('catacombs', 12);
+  await p.evaluate(() => D2DBG.goto('blood_moor', 'rogue_encampment'));
+  await waitFor(p, () => D2DBG.getState().area === 'blood_moor', 10000);
+  await sleep(500);
+  await automapAfterWalk('bloodmoor', 30);
+  await p.evaluate(() => D2DBG.killAllMons());
   await p.evaluate(() => D2DBG.goto('rogue_encampment'));
   await waitFor(p, () => D2DBG.getState().area === 'rogue_encampment', 10000);
   await p.evaluate(() => D2DBG.hour(12)); await sleep(300);
