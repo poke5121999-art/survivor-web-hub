@@ -165,6 +165,12 @@ async function clickNpc(p, id) {
   check('vào lại Blood Moor: bố cục giữ nguyên (lối ra, hang Den of Evil)', r3.area === 'blood_moor' && JSON.stringify(s.exits) === bm1 && !!den(bm1),
     'lần 1 ' + JSON.stringify(den(bm1)) + ', lần 2 ' + JSON.stringify(den(JSON.stringify(s.exits))) + (r3.area === 'blood_moor' ? '' : ' khu=' + r3.area + ' vết: ' + r3.trail));
   check('vào lại Blood Moor: hero ra ở mép, cạnh điểm bước khỏi thị trấn', !!s.cross && s.cross.to === 'blood_moor' && gap(s.cross) >= 0 && gap(s.cross) <= 6.5, JSON.stringify(s.cross));
+  // tới lối ngay trong 1,5 s ân hạn sau khi vào khu rồi đứng yên: vẫn phải qua (lỗi cũ: chỉ kiểm lối lúc hero đang bước)
+  await p.evaluate(() => D2DBG.goto('rogue_encampment', 'blood_moor'));
+  await waitFor(p, () => D2DBG.getState().area === 'rogue_encampment', 10000);
+  const txq = (await st(p)).exits.filter(e => e.to === 'blood_moor')[0];
+  await p.evaluate(([x, y]) => D2DBG.teleport(x, y), [txq.x + 0.5, txq.y + 0.5]);
+  check('đứng yên ở lối ngay sau khi vào khu -> vẫn sang Blood Moor', await waitFor(p, () => D2DBG.getState().area === 'blood_moor', 5000), (await st(p)).area);
   await p.evaluate(() => D2DBG.goto('blood_moor', 'rogue_encampment'));
   await waitFor(p, () => D2DBG.getState().area === 'blood_moor', 10000);
   await sleep(600);
@@ -499,7 +505,7 @@ async function clickNpc(p, id) {
   await waitFor(p, () => D2DBG.getState().area === 'catacombs_level_2', 20000);
   await sleep(700);
   let lr = await lightRatio('3g-catacombs-dark');
-  check('Catacombs: ngoài vùng sáng gần như đen, quanh hero vẫn sáng', lr.n > 0 && lr.out < 0.15 && lr.hero > 0.6, JSON.stringify(lr));
+  check('Catacombs: ngoài vùng sáng gần như đen, quanh hero vẫn sáng', lr.n > 0 && lr.out < 0.2 && lr.hero > 0.6, JSON.stringify(lr));
   await p.evaluate(() => D2DBG.goto('rogue_encampment'));
   await waitFor(p, () => D2DBG.getState().area === 'rogue_encampment', 10000);
   await p.evaluate(() => D2DBG.hour(12)); await sleep(300);

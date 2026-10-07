@@ -87,6 +87,7 @@ Ví dụ: `CASCConsole.exe -m Pattern -e "data/data/global/*" -d D:\d2r-ref\fs -
 - `[BẪY ĐÃ SẬP]` Tên NPC/vật khi rê chuột phải vẽ sau lớp tối, kẻo trong hầm bị phủ đen.
 - `[BẪY ĐÃ SẬP]` Nhãn đồ dàn ra không chồng nhau, nên bấm vào chính món đồ có thể trúng nhãn món khác. Test nhặt đồ bấm vào nhãn (`getState().drops[].rect`).
 - `[BẪY ĐÃ SẬP]` NPC giờ đi lại: test bấm đường đi có thể trúng NPC và mở hộp thoại, nên chọn điểm bấm không nằm trên NPC.
+- `[BẪY ĐÃ SẬP]` `checkExits` từng chỉ chạy trong `moveHero`. Hero chạy tới lối trong 1,5 s ân hạn sau khi vào khu rồi đứng yên thì không bao giờ qua được (suite trượt 2/5 lần). Giờ `updateWorld` kiểm lối mỗi khung; suite có kiểm riêng cho ca này.
 - Atlas UI không có tab act V của waypoint/nhiệm vụ; tab nằm ở `assets/img/g/exptabs.webp` (`_tools/build_exptabs.py`).
 
 ## Kiểm

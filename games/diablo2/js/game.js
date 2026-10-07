@@ -1420,7 +1420,7 @@
     var sp = heroSpeed(run) * dt, ok = tryMove(h, vx * sp, vy * sp);
     h.dir = E.dirFromTiles(vx, vy);
     if (ok) { setSt(h, run ? 'run' : 'walk'); stamRegen(dt, run); } else { setSt(h, 'idle'); stamRegen(dt, false); }
-    markSeen(); checkExits();
+    markSeen();
   }
   // đi tới đích (dùng đường A*); trả false nếu đã tới/không có đường
   function goTo(e, tx, ty, dt, g) {
@@ -1870,6 +1870,8 @@
     S.time += dt;
     var h = S.hero; if (!h) return;
     updateHero(dt);
+    // mỗi khung, không chỉ lúc đang bước: hero chạy tới lối trong 1,5 s ân hạn rồi đứng yên vẫn phải qua được
+    if (S.hero.st !== 'die' && S.hero.st !== 'dead') checkExits();
     heroSteps(h, dt);
     if (window.D2S) D2S.update(Game.api, dt);
     var ents = S.ents;
