@@ -507,7 +507,21 @@
   function follow(api, e, dt, near) {
     var h = api.S.hero, d = dist(e, h);
     if (d > 40) { var p = openNear(api, h.x + rnd(-2, 2), h.y + rnd(-2, 2)); e.x = p[0]; e.y = p[1]; return; }
-    if (d > (near || 4)) stepTo(api, e, h.x, h.y, dt, d > 10 ? 1.3 : 1);
+    // mỗi pet một chỗ riêng trên các vòng quanh hero (6 chỗ mỗi vòng); cùng đi tới toạ độ hero thì cả bầy chồng khít một điểm,
+    // nhìn như một con xoay vòng
+    if (e.slot == null) e.slot = st(api).slots = (st(api).slots || 0) + 1;
+    var ring = Math.floor(((e.slot - 1) % 18) / 6), a = ((e.slot - 1) % 6) * Math.PI / 3 + ring * Math.PI / 6, r = (near || 4) - 1.5 + ring * 1.6;
+    var tx = h.x + Math.cos(a) * r, ty = h.y + Math.sin(a) * r;
+    var taken = api.S.ents.filter(function (o) { return o !== e && o.slotT && isPet(o); }).map(function (o) { return o.slotT; });
+    var free = function (x, y) { return api.canStand(x, y, 0.3) && taken.every(function (q) { return Math.hypot(q[0] - x, q[1] - y) > 1.6; }); };
+    for (var k = 1; k < 13 && !free(tx, ty); k++) { tx = h.x + Math.cos(a + k * 0.35) * (r + k * 0.4); ty = h.y + Math.sin(a + k * 0.35) * (r + k * 0.4); }
+    e.slotT = [tx, ty];
+    var ds = Math.hypot(tx - e.x, ty - e.y), hm = h.st === 'walk' || h.st === 'run';
+    // vùng đệm: lệch chỗ quá 2.5 mới đi, về sát chỗ mới dừng. Một ngưỡng thì pet đổi chạy/đứng từng khung,
+    // hoạt ảnh reset liên tục nên đi giật. Gần chỗ mà hero còn đi thì chạy bằng tốc độ hero.
+    if (ds > 2.5) e.following = true;
+    else if (ds <= 0.5) e.following = false;
+    if (e.following) stepTo(api, e, tx, ty, dt, ds > 10 ? 1.3 : ds <= 1.5 ? Math.min(1, api.heroSpeed(h.st === 'run') / (e.speed || 6)) : 1);
     else if (e.st === 'run' || e.st === 'walk') api.setSt(e, 'idle');
   }
   function petAI(api, e, dt) {

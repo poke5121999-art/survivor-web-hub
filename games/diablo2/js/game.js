@@ -262,7 +262,7 @@
   /* Giao diện cho js/skills.js (window.D2S): triệu hồi, lời nguyền, hào quang, biến hình, bẫy, võ thuật.
    * Thực thể đồng minh là kind 'mon' có ally: true; game.js không chạy AI quái cho chúng, D2S.update lo. */
   Game.api = {
-    S: S, E: E, UI: UI, DA: DA, mk: mk, dist: dist, rnd: rnd, ri: ri, clamp: clamp, setSt: setSt, restart: restart,
+    S: S, E: E, UI: UI, DA: DA, mk: mk, dist: dist, rnd: rnd, ri: ri, clamp: clamp, setSt: setSt, restart: restart, heroSpeed: heroSpeed,
     canStand: canStand, los: los, findPath: findPath, tryMove: tryMove,
     colAt: function (x, y) { return S.grid.colAt(x, y); }, setCol: function (x, y, v) { S.grid.setCol(x, y, v); },
     damageMon: function (m, amt, elem, fromHero) { return damageMon(m, amt, elem, fromHero); },
@@ -1813,7 +1813,7 @@
       if (!sl) return false;
       delete c.equip[sl]; recalc();
     }
-    c.hand = it; E.sfx(['cursor_pickup', 'inv_metal'], 0.5); UI.dirty = true; UI._last.sig = null;
+    c.hand = it; itemSound(it, 'usesound'); UI.dirty = true; UI._last.sig = null;
     return true;
   };
   Game.putGrid = function (where, x, y) {
@@ -1825,7 +1825,7 @@
     if (hit.length > 1) return false;   // đè hai món trở lên thì D2 không cho đặt
     if (hit.length) list.splice(list.indexOf(hit[0]), 1);
     it.ix = x; it.iy = y; list.push(it); c.hand = hit[0] || null;
-    E.sfx(['inv_metal', 'inv_leather'], 0.5); UI.dirty = true; save();
+    itemSound(it, 'usesound'); UI.dirty = true; save();
     return true;
   };
   Game.putEquip = function (slot) {
@@ -1836,7 +1836,7 @@
     if (rq.lvl > c.lvl || rq.str > c.str || rq.dex > c.dex) { UI.msg('Chưa đủ yêu cầu để trang bị.', '#ff9a8a'); return false; }
     var old = c.equip[slot] || null;
     c.equip[slot] = it; c.hand = old; recalc();
-    E.sfx(['inv_metal'], 0.5); UI.dirty = true; UI._last.sig = null; save();
+    itemSound(it, 'usesound'); UI.dirty = true; UI._last.sig = null; save();
     return true;
   };
   Game.putBelt = function (i) {
@@ -1862,11 +1862,11 @@
     c.swap = { rhand: c.equip.rhand || null, lhand: c.equip.lhand || null };
     ['rhand', 'lhand'].forEach(function (k) { if (o[k]) c.equip[k] = o[k]; else delete c.equip[k]; });
     c.weaponSet = c.weaponSet ? 0 : 1;
-    recalc(); E.sfx(['inv_metal'], 0.5); UI._last.sig = null; UI.dirty = true; save();
+    recalc(); E.sfx(['cursor_switch']); UI._last.sig = null; UI.dirty = true; save();
   };
   Game.sellHand = function () {
     var c = S.char, it = c.hand; if (!it) return;
-    c.hand = null; c.gold += DA.sellPrice(it); E.sfx(['inv_coins']); UI.dirty = true; save();
+    c.hand = null; c.gold += DA.sellPrice(it); E.sfx(['item_gold']); UI.dirty = true; save();
   };
   Game.buyItem = function (it) {
     var c = S.char, pr = DA.buyPrice(it);

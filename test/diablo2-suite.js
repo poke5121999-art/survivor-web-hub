@@ -857,6 +857,31 @@ async function clickNpc(p, id) {
     await sleep(500);
     await p.screenshot({ path: path.join(SH, 'f-' + cls + '-fight.png') });
     check(cls + ': không lỗi trang', errs.length === 0, errs.slice(0, 2).join(' | '));
+    if (cls === 'necromancer') {
+      // xương triệu hồi theo hero: không đổi chạy/đứng từng khung (đi giật) và không chồng khít một chỗ (nhìn như xoay vòng)
+      await p.evaluate(() => { const S = D2DBG.S; S.char.skills.raise_skeleton = 20; D2DBG.setSkills('attack', 'raise_skeleton'); D2DBG.killAllMons(); D2DBG.spawn(D2DBG.monIds()[0], 6, 3, 0); D2DBG.killAllMons(); });
+      await sleep(1500);
+      for (let i = 0; i < 8; i++) {
+        const c = await p.evaluate(() => { const S = D2DBG.S, h = S.hero; S.char.mp = 500; const d = S.ents.filter(e => e.kind === 'mon' && e.st === 'dead' && !e.ally && !e.d2sUsed && !e.removed).sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))[0]; return d ? D2DBG.client(d.x, d.y, 10) : null; });
+        if (!c) break;
+        await p.mouse.click(c.x, c.y, { button: 'right' }); await sleep(900);
+      }
+      const fo = await p.evaluate(() => {
+        const S = D2DBG.S, h = S.hero, pets = S.ents.filter(e => e.kind === 'mon' && e.ally && !e.hostile), flips = pets.map(() => 0), last = pets.map(e => e.st);
+        const pts = [[h.x + 20, h.y], [h.x + 20, h.y + 20], [h.x, h.y + 20], [h.x, h.y]];
+        D2DBG.freeze(true);
+        for (let f = 0; f < 600; f++) {
+          if (f % 150 === 0) { const q = pts[f / 150]; h.goal = { type: 'move', x: q[0], y: q[1] }; h.path = null; }
+          D2DBG.sim(1 / 30);
+          pets.forEach((e, i) => { if (e.st !== last[i]) flips[i]++; last[i] = e.st; });
+        }
+        h.goal = null; for (let f = 0; f < 90; f++) D2DBG.sim(1 / 30);
+        D2DBG.freeze(false);
+        let md = 99; for (let i = 0; i < pets.length; i++) for (let j = i + 1; j < pets.length; j++) md = Math.min(md, Math.hypot(pets[i].x - pets[j].x, pets[i].y - pets[j].y));
+        return { n: pets.length, maxFlips: Math.max(0, ...flips), minPair: +md.toFixed(2) };
+      });
+      check('xương triệu hồi đi theo hero không giật (đổi chạy/đứng < 30 lần trong 20 s) và không chồng nhau (cách nhau > 0.8)', fo.n >= 3 && fo.maxFlips < 30 && fo.minPair > 0.8, JSON.stringify(fo));
+    }
     if (cls === 'sorceress') {
       const hudIco = await p.evaluate(() => { const e = document.querySelector('.skbtn.right .ico'); return e ? /url\(/.test(e.getAttribute('style') || '') : null; });
       check('HUD vẽ icon kỹ năng D2 (IconCel của skilldesc)', hudIco === true, String(hudIco));
