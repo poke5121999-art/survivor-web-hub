@@ -90,6 +90,16 @@ Ví dụ: `CASCConsole.exe -m Pattern -e "data/data/global/*" -d D:\d2r-ref\fs -
 - `[BẪY ĐÃ SẬP]` `checkExits` từng chỉ chạy trong `moveHero`. Hero chạy tới lối trong 1,5 s ân hạn sau khi vào khu rồi đứng yên thì không bao giờ qua được (suite trượt 2/5 lần). Giờ `updateWorld` kiểm lối mỗi khung; suite có kiểm riêng cho ca này.
 - Atlas UI không có tab act V của waypoint/nhiệm vụ; tab nằm ở `assets/img/g/exptabs.webp` (`_tools/build_exptabs.py`).
 
+### Chuẩn gốc, đợt 2-MAP (rev 20261007c)
+
+- `[ĐO TRONG REPO]` `S.grid` là một `D2G.World`: các khu ngoài trời của act nằm chung theo rect của `layoutAct`, hang/hầm là World một khu. `World.add` đổi mọi điểm của Level sang subtile thế giới một lần; tile và `col` giữ cục bộ, tra qua `levelAt`/`colAt`. Khu kề được dựng khi hero cách mép dưới 90 subtile, quái xa hơn 60 subtile thì ngủ.
+- `[ĐO TRONG REPO]` Khung hình ở Blood Moor sát mép Cold Plains (CDP, 960×540): 3,17 ms trước, 4,25 ms sau khi ghép (3 khu dựng sẵn).
+- `[BẪY ĐÃ SẬP]` DS1 preset rộng hơn levels.txt 1 tile, nên lối đi bộ của preset có thể nằm trên dải thừa thuộc khu kề. `goto(id, from)` với khu kề cùng World từng đặt hero vào dải thừa và lật sang khu kia; giờ bỏ qua `from`.
+- `[BẪY ĐÃ SẬP]` Tile warp orientation 10/11 không ẩn chính là hình cầu thang/cửa hang mà packer từng bỏ (Catacombs, Jail thiếu cầu thang). Marker ẩn là floor warp; bản sáng khi rê là sàn có style = seq của marker, seq|4 (D2MOO `LoadFloorWarpTiles`).
+- `[ĐO TRONG REPO]` Hộp bấm `SelectX/Y/DX/DY` của lvlwarp tính từ đỉnh ô tile. Warp `NoInteract` (cửa sập cống Act II, cửa đền Kurast, Travincal → Durance) kích hoạt khi bước lên; còn lại phải bấm.
+- `[BẪY ĐÃ SẬP]` `S.hover` tính trong `updateWorld`, nên `D2DBG.freeze` khoá luôn hover; test rê chuột phải bỏ freeze.
+- `build_world.py` chạy khoảng 3–4 phút mỗi act.
+
 ## Kiểm
 
 ```sh
@@ -109,6 +119,6 @@ node test/diablo2-suite.js   # Playwright: chuột thật, cảm ứng 932×430
 - Đích "rescue/reach" của nhiệm vụ rút gọn thành "tới được khu".
 - Hero chỉ 8 hướng (gốc 16); TH/KK/S1–S4 chỉ có ở lớp nào lever đã đóng gói COF đó. Ngân sách hình nhân vật là 22 MB.
 - Đổi màu unique mới là phủ màu, chưa đổi bảng `.pl2`/colormap như D2.
-- Khu ngoài trời chưa ghép liền: qua mép vẫn dịch chuyển (ra đúng điểm tương ứng), bên kia khe là vùng đen. Warp (hang, cầu thang) còn kích hoạt khi bước gần, chưa bấm được và chưa sáng khi rê. Đợt 2-MAP trong plan.
+- River of Flame ↔ Chaos Sanctuary và Barracks ↔ Outer Cloister vẫn là lối dịch chuyển, vì mê cung chưa nằm trong `layoutAct`.
 - Font DC6 gốc, automap bằng `maximap.dc6`, màn tiêu đề/chọn lớp/tải gốc, Horadric Cube, hộp thoại NPC và menu Esc kiểu gốc: đợt 2-UI.
 - Quái bỏ nửa khung ở mọi mode trừ A1; nhạc cắt còn 110 giây; chưa có lời nhân vật và lời chào NPC (`local/sfx`); tiếng `event_*` của soundenviron chưa đóng gói. Đợt 2-AVFX, cần dời ngân sách MB.
