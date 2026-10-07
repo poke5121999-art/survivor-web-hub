@@ -309,7 +309,14 @@ function near(a, b, eps, msg) { ok(Math.abs(a - b) <= eps, msg + ' (got ' + a + 
   eq([D.areas.cave_level_1.d2id, D.areas.cave_level_2.d2id, D.areaAlias], [9, 13, { cave_1: 'cave_level_1', cave_2: 'cave_level_2' }], 'cave_1/cave_2 became cave_level_1/cave_level_2 (contract "Mã khu") with an alias map');
   eq([D.areas.sewers_level_1.act, D.areas.sewers_level_1_a3.act, D.areas.sewers_level_1_a3.d2id], [2, 3, 92], 'duplicate level names get _a<act> (sewers_level_1_a3)');
   eq(Object.keys(D.areas).filter(k => /^tal_rashas_tomb/.test(k)).length, 7, 'seven Tal Rasha tombs share one name and are numbered');
-  ok(D.areas.cold_plains.links.includes('stony_field') && D.areas.stony_field.links.includes('dark_wood') && D.areas.black_marsh.links.includes('tamoe_highland') && D.areas.cold_plains.links.includes('burial_grounds'), 'Act I outdoor links (hard-coded in the DRLG, typed per Arreat Summit act map)');
+  ok(D.areas.cold_plains.links.includes('stony_field') && D.areas.black_marsh.links.includes('tamoe_highland') && D.areas.dark_wood.links.includes('black_marsh') && D.areas.cold_plains.links.includes('burial_grounds'), 'Act I outdoor links (hard-coded in the DRLG, typed per Arreat Summit act map)');
+  // D2MOO DrlgOutPlace.cpp: Stony Field and Dark Wood sit in two separate link groups (gAct1Wilderness / gAct1Monastery),
+  // the Canyon of the Magi in a group of its own (gAct2Canyon): no walking link, only the passage / portal / waypoint
+  eq([D.areas.stony_field.links.includes('dark_wood'), D.areas.dark_wood.links.includes('stony_field'),
+    D.areas.valley_of_snakes.links.includes('canyon_of_the_magi'), D.areas.canyon_of_the_magi.links.includes('valley_of_snakes'),
+    D.areas.stony_field.links.includes('underground_passage_level_1'), D.areas.dark_wood.links.includes('underground_passage_level_1'),
+    D.areas.canyon_of_the_magi.links.includes('arcane_sanctuary'), D.areas.canyon_of_the_magi.waypoint],
+  [false, false, false, false, true, true, true, true], 'no walk Stony Field - Dark Wood or Valley of Snakes - Canyon of the Magi (passage, portal, waypoint instead)');
   eq([D.areas.dark_wood.vis.includes('underground_passage_level_1'), D.areas.den_of_evil.vis], [true, ['blood_moor']], 'cave entrances come from levels.txt Vis0-7');
   eq([D.areas.cold_plains.layout, D.areas.the_chaos_sanctuary.drlg, D.areas.crypt.levelType, D.areas.blood_moor.levelType], ['outdoor', 3, 'Act 1 - Crypt', 'Act 1 - Wilderness'], 'drlg / levelType from levels.txt + lvltypes.txt');
   // Hell: monstats Level(H) 75 for Andariel; Blood Moor zombies are level 36 in Nightmare (Level(N))

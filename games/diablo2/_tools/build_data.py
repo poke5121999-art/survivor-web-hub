@@ -192,17 +192,20 @@ HAND_BOSS = {
 # Kurast Causeway-Travincal; Act IV Fortress-Outer Steppes-Plains of Despair-City of the Damned-River of
 # Flame; Act V Harrogath-Bloody Foothills-Frigid Highlands-Arreat Plateau). Links between levels that
 # Levels.txt Vis0-7 already lists (caves, tombs, temples, towers) are derived, not typed.
+# The walking pairs follow the link tables of D2MOO DrlgOutPlace.cpp (gAct*DrlgLink): Stony Field and Dark
+# Wood are two separate groups joined only by the Underground Passage warp, and the Canyon of the Magi is a
+# group of its own (Arcane Sanctuary portal or waypoint), so neither pair is a walking link.
 # [ĐỀ XUẤT] pairs marked 'portal' are quest/key portals, not walkable edges.
 HAND_LINKS = [
     # Act I
     ('rogue_encampment', 'blood_moor'), ('blood_moor', 'cold_plains'), ('cold_plains', 'stony_field'),
-    ('cold_plains', 'burial_grounds'), ('stony_field', 'dark_wood'), ('dark_wood', 'black_marsh'),
+    ('cold_plains', 'burial_grounds'), ('dark_wood', 'black_marsh'),
     ('black_marsh', 'tamoe_highland'), ('tamoe_highland', 'monastery_gate'),
     ('stony_field', 'tristram', 'portal'), ('rogue_encampment', 'the_secret_cow_level', 'portal'),
     # Act II
     ('lut_gholein', 'rocky_waste'), ('rocky_waste', 'dry_hills'), ('dry_hills', 'far_oasis'),
     ('far_oasis', 'lost_city'), ('lost_city', 'valley_of_snakes'),
-    ('valley_of_snakes', 'canyon_of_the_magi'), ('palace_cellar_level_3', 'arcane_sanctuary', 'portal'),
+    ('palace_cellar_level_3', 'arcane_sanctuary', 'portal'),
     ('arcane_sanctuary', 'canyon_of_the_magi', 'portal'),
     ('tal_rashas_tomb', 'tal_rashas_chamber', 'portal'), ('tal_rashas_tomb_2', 'tal_rashas_chamber', 'portal'),
     ('tal_rashas_tomb_3', 'tal_rashas_chamber', 'portal'), ('tal_rashas_tomb_4', 'tal_rashas_chamber', 'portal'),
