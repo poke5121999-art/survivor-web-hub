@@ -273,6 +273,7 @@
     monArt: function (id) { return monArt(id); }, removeEnt: function (e) { return removeEnt(e); },
     recalc: function () { return recalc(); }, heroLook: function () { return heroLook(); },
     heroActDur: function (kind, mode) { return heroActDur(kind, mode); },
+    noMana: function () { noMana(); },
     skillSound: function (id) { skillSound(id); }, swingSound: function () { swingSound(); }, impactSound: function (t) { impactSound(t); }
   };
 
@@ -791,6 +792,13 @@
   function impactSound(t) { E.sfx([IMPACT[hitClass()]], null, t); }
   function skillSound(id) { var s = DA.skill(id); E.sfx([s && s.raw.t.stsound]); }
   function heroSound(what) { E.sfx([S.char.cls + '_' + what + '_1']); }
+  // lời nhân vật (local/sfx/common/<lớp>): needmana, cantcarry, cantuseyet, impossible; tối đa một lời mỗi giây
+  function heroVoice(what) {
+    var cls = S.char.cls;
+    if (S.time - (S.voiceT == null ? -9 : S.voiceT) < 1) return null;
+    S.voiceT = S.time;
+    return E.sfx([cls + '_' + what + '_1', cls + '_' + what, what === 'cantcarry' ? cls + '_cant_carry' : null]);
+  }
   function itemSound(it, col, pos) { var b = DA.base(it); E.sfx([b && b[col]], null, pos); }
 
   /* Nhuộm kiểu colorshift của states.txt khi trúng lạnh/độc; quái unique đổi màu theo seed như colormap của D2
@@ -982,8 +990,8 @@
     }
     return true;
   }
-  // lời "không đủ mana" của nhân vật nằm ở local/sfx, chưa đóng gói (đợt 2), nên chỉ có dòng chữ
-  function noMana() { if (S.time - (S.noManaT || -9) > 1) { S.noManaT = S.time; UI.msg('Không đủ mana.', '#8ab0ff'); } }
+  // D2 không hiện chữ khi thiếu mana, chỉ có lời nhân vật
+  function noMana() { heroVoice('needmana'); }
 
   function rollDmg(d) { return rnd(d.min, d.max + 0.999); }
   // sát thương của kỹ năng dựa trên vũ khí (Jab, Bash, Magic Arrow...): vũ khí * %vũ khí * (100+%sát thương)/100 + cộng thêm
@@ -1138,7 +1146,7 @@
     var it = drop.item;
     if (DA.isGold(it)) { var g = DA.goldAmount(it); c.gold += g; removeEnt(drop); E.sfx(['item_gold']); UI.dirty = true; return true; }
     if (DA.potionInfo(it)) { var bi = beltFree(c); if (bi >= 0) { c.belt[bi] = it; removeEnt(drop); E.sfx(['item_pickup']); UI.dirty = true; return true; } }
-    if (!addToInv(it)) { UI.msg('Túi đồ đầy.', '#ff9a8a'); return false; }
+    if (!addToInv(it)) { heroVoice('cantcarry'); return false; }
     removeEnt(drop); E.sfx(['item_pickup']); UI.dirty = true;
     return true;
   }
@@ -1331,6 +1339,7 @@
   function talk(npc) {
     var c = S.char, id = npc.npc, nd = D2DATA.npcs[id] || { name: id, roles: [] }, Q = D2DATA.quests, act = (S.def && S.def.act) || 1;
     var def = { name: nd.name + (nd.title ? ' - ' + nd.title : ''), text: 'Chào lữ khách.', buttons: [] }, said = false;
+    E.sfx([E.UI.npcGreet && E.UI.npcGreet[id]], null, npc);   // D2 chọn ngẫu nhiên một câu trong nhóm lời chào
     Object.keys(Q).forEach(function (qid) {
       var q = Q[qid], st = c.quests[qid];
       if (q.act !== act) return;
@@ -1379,7 +1388,7 @@
   Game.stashOut = function (it) {
     var c = S.char, i = (c.stash || []).indexOf(it); if (i < 0) return;
     c.stash.splice(i, 1);
-    if (!addToInv(it)) { c.stash.splice(i, 0, it); UI.msg('Túi đồ đầy.', '#ff9a8a'); return; }
+    if (!addToInv(it)) { c.stash.splice(i, 0, it); heroVoice('cantcarry'); return; }
     UI.sel = null; UI.dirty = true; itemSound(it, 'usesound'); save();
   };
 
@@ -1761,18 +1770,19 @@
     var c = S.char, sl = DA.slotOf(it);
     if (sl === 'ring1' && c.equip.ring1 && !c.equip.ring2) sl = 'ring2';
     var rq = DA.req(it);
+    if (rq.lvl > c.lvl || rq.str > c.str || rq.dex > c.dex) heroVoice('cantuseyet');
     if (rq.lvl > c.lvl) { UI.msg('Cần cấp ' + rq.lvl + ' để trang bị.', '#ff9a8a'); return; }
     if (rq.str > c.str) { UI.msg('Cần Sức mạnh ' + rq.str + '.', '#ff9a8a'); return; }
     if (rq.dex > c.dex) { UI.msg('Cần Nhanh nhẹn ' + rq.dex + '.', '#ff9a8a'); return; }
     var idx = c.inv.indexOf(it); if (idx < 0) return;
     c.inv.splice(idx, 1);
     var old = c.equip[sl];
-    if (old) { if (!addToInv(old)) { c.inv.push(it); UI.msg('Túi đồ đầy.'); return; } }
+    if (old) { if (!addToInv(old)) { c.inv.push(it); heroVoice('cantcarry'); return; } }
     c.equip[sl] = it; recalc(); itemSound(it, 'usesound'); UI.sel = null; UI.dirty = true;
   };
   Game.unequip = function (sl) {
     var c = S.char, it = c.equip[sl]; if (!it) return;
-    if (!addToInv(it)) { UI.msg('Túi đồ đầy.'); return; }
+    if (!addToInv(it)) { heroVoice('cantcarry'); return; }
     delete c.equip[sl]; recalc(); UI.dirty = true;
   };
   Game.dropItem = function (it) {
@@ -1833,7 +1843,7 @@
     var sl = DA.slotOf(it), ring = /^ring/.test(slot);
     if (!sl || !DA.isEquippable(it) || (ring ? !/^ring/.test(sl) : sl !== slot)) return false;
     var rq = DA.req(it);
-    if (rq.lvl > c.lvl || rq.str > c.str || rq.dex > c.dex) { UI.msg('Chưa đủ yêu cầu để trang bị.', '#ff9a8a'); return false; }
+    if (rq.lvl > c.lvl || rq.str > c.str || rq.dex > c.dex) { heroVoice('cantuseyet'); UI.msg('Chưa đủ yêu cầu để trang bị.', '#ff9a8a'); return false; }
     var old = c.equip[slot] || null;
     c.equip[slot] = it; c.hand = old; recalc();
     E.sfx(['inv_metal'], 0.5); UI.dirty = true; UI._last.sig = null; save();
@@ -1873,7 +1883,7 @@
     if (c.gold < pr) { UI.msg('Không đủ vàng.', '#ff9a8a'); return; }
     var copy = JSON.parse(JSON.stringify(it));
     var bi = DA.potionInfo(copy) ? beltFree(c) : -1;
-    if (bi >= 0) c.belt[bi] = copy; else if (!addToInv(copy)) { UI.msg('Túi đồ đầy.'); return; }
+    if (bi >= 0) c.belt[bi] = copy; else if (!addToInv(copy)) { heroVoice('cantcarry'); return; }
     c.gold -= pr; E.sfx(['item_gold']); UI.dirty = true; UI._last.sig = null;
   };
   Game.sellItem = function (it) {
@@ -2344,12 +2354,13 @@
     addNpc: function (id, x, y) { mk('npc', x, y, { npc: id, dir: 6, art: D2DATA.npcs[id] && D2DATA.npcs[id].art }); },
     monIds: function () { return coll(S.def && S.def.monsters).map(function (m) { return typeof m === 'string' ? m : m.id; }); },
     heroLook: function () { return heroLook(); },
-    // tờ 8 hướng của hero vẽ bằng E.drawHero thật lên canvas phủ (file:// làm toDataURL lỗi nên gắn canvas vào trang)
-    contactSheet: function (mode) {
-      var look = heroLook(), cv = document.createElement('canvas'), W = 120, Hh = 140; cv.width = W * 8; cv.height = Hh;
+    // tờ n hướng (mặc định 8) của hero vẽ bằng E.drawHero thật lên canvas phủ (file:// làm toDataURL lỗi nên gắn canvas vào trang)
+    contactSheet: function (mode, n) {
+      n = n || 8;
+      var look = heroLook(), cv = document.createElement('canvas'), W = n > 8 ? 80 : 120, Hh = 140; cv.width = W * n; cv.height = Hh;
       var c = cv.getContext('2d'), old = E.ctx; c.fillStyle = '#3a4a2c'; c.fillRect(0, 0, cv.width, Hh);
       E.ctx = c; var ok = 0;
-      for (var d = 0; d < 8; d++) { if (E.drawHero(look, mode || 'NU', 0, d, W * d + W / 2, Hh - 20, 1)) ok++; c.fillStyle = '#fff'; c.font = '12px sans-serif'; c.fillText('dir ' + d, W * d + 4, 14); }
+      for (var d = 0; d < n; d++) { if (E.drawHero(look, mode || 'NU', 0, d * 8 / n, W * d + W / 2, Hh - 20, 1)) ok++; c.fillStyle = '#fff'; c.font = '12px sans-serif'; c.fillText('dir ' + d * 8 / n, W * d + 4, 14); }
       E.ctx = old; cv.id = 'd2-sheet'; cv.style.cssText = 'position:fixed;left:0;top:0;z-index:9999'; document.body.appendChild(cv); return { ok: ok };
     },
     freeze: function (on) { Game.freeze = !!on; },

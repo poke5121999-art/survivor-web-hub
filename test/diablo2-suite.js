@@ -423,7 +423,53 @@ async function clickNpc(p, id) {
   await sleep(1000);
   const mpB = await p.evaluate(() => D2DBG.S.char.mp);
   check('nhả chuột phải -> 1 giây sau mana không giảm nữa', mpB >= mpA.mp && !mpA.goal, 'mana ' + mpA.mp.toFixed(1) + '->' + mpB.toFixed(1) + ' goal=' + mpA.goal);
+  // D2 không hiện chữ khi thiếu mana: nhân vật nói (local/sfx/common/sorceress)
+  await sleep(1100);
+  const sfxM = await p.evaluate(() => { D2DBG.S.char.mp = 0; D2.UI.msgs.length = 0; return window.__sfx.length; });
+  await p.mouse.click(ground.x, ground.y, { button: 'right' }); await sleep(400);
+  const nmV = await sfxSince(sfxM, /^sorceress_needmana_\d$/);
+  const nmMsg = await p.evaluate(() => D2.UI.msgs.map(m => m.text).filter(t => /mana/i.test(t)));
+  check('niệm khi mana 0 -> lời sorceress_needmana, không hiện chữ', nmV.length > 0 && !nmV.some(k => /THIẾU/.test(k)) && !nmMsg.length, nmV.join(',') + ' chữ=' + nmMsg.join('|'));
   await p.evaluate(() => D2DBG.give({}));
+
+  // ------------------------------------------------- hoạt ảnh gốc: hero 16 hướng, quái đủ khung
+  results.push('\n-- hoạt ảnh và nhạc gốc --');
+  // vẽ thử mọi hướng một lần để trang atlas của từng hướng kịp nạp
+  await p.evaluate(() => D2DBG.contactSheet('WL', 16)); await sleep(800);
+  await p.evaluate(() => document.getElementById('d2-sheet').remove());
+  const h16 = await p.evaluate(() => {
+    const E = D2.E, look = D2DBG.heroLook(), cof = E.heroCof(look, 'WL'), a1 = E.heroCof(look, 'A1');
+    const rects = d => {   // các ô atlas mà E.drawHero vẽ cho hướng d (khung 0)
+      const out = [], o = E.ctx, fake = new Proxy(o, { get: (t, k) => k === 'drawImage' ? (im, ...a) => out.push(a.slice(0, 4).join(',')) : (typeof t[k] === 'function' ? t[k].bind(t) : t[k]), set: (t, k, v) => { t[k] = v; return true; } });
+      E.ctx = fake; try { E.drawHero(look, 'WL', 0, d, 100, 100, 1); } finally { E.ctx = o; }
+      return out.join('|');
+    };
+    const layer = E.SPR.hero.layers[look.cls + '.TR.' + ((look.tok && look.tok.TR) || 'LIT') + '.' + ((cof.wclass && cof.wclass.TR) || look.wclass).toUpperCase()];
+    return { dirs: cof && cof.dirs, pri: cof && cof.pri.length, layerDirs: layer && layer.WL && layer.WL.f[0].length, a1: a1 && a1.dirs,
+      r20: rects(2), r25: rects(2.5), r30: rects(3), r20b: rects(2.01) };
+  });
+  check('hero WL có 16 hướng (COF và lớp TR), A1 vẫn 8', h16.dirs === 16 && h16.pri === 16 && h16.layerDirs === 16 && h16.a1 === 8, JSON.stringify({ dirs: h16.dirs, pri: h16.pri, layer: h16.layerDirs, a1: h16.a1 }));
+  check('quay nửa bước (dir 2 -> 2.5 -> 3) -> khung vẽ đổi mỗi nửa bước', h16.r20 && h16.r20 !== h16.r25 && h16.r25 !== h16.r30 && h16.r20 === h16.r20b, h16.r20.slice(0, 40) + ' / ' + h16.r25.slice(0, 40));
+  await p.evaluate(() => D2DBG.contactSheet('WL', 16));
+  await (await p.$('#d2-sheet')).screenshot({ path: path.join(SHOTS, '4a-hero-wl-16dir.png') });
+  await p.evaluate(() => document.getElementById('d2-sheet').remove());
+  // zombie (ZM): animdata ZMWLHTH 12 khung 10,16 fps, ZMDTHTH 19 khung; trước đợt này còn 6 và 10
+  await p.evaluate(() => D2.E.drawSprite('mon.ZM', 'WL', 0, 0, -999, -999));
+  await waitFor(p, () => !!D2.E.animOf('mon.ZM', 'WL'), 10000);
+  const zm = await p.evaluate(() => { const a = m => { const x = D2.E.animOf('mon.ZM', m); return x && [x.frames, x.f.length, Math.round(x.fps * 100) / 100]; }; return { WL: a('WL'), DT: a('DT'), GH: a('GH') }; });
+  check('zombie đủ khung animdata: WL 12, DT 19, GH 5', zm.WL && zm.WL[0] === 12 && zm.WL[1] === 12 && zm.WL[2] === 10.16 && zm.DT[0] === 19 && zm.DT[1] === 19 && zm.GH[0] === 5, JSON.stringify(zm));
+  await p.evaluate(() => {
+    const E = D2.E, an = E.animOf('mon.ZM', 'WL'), n = an.frames, W = 90, H = 120, cv = document.createElement('canvas'); cv.width = W * n; cv.height = H * 2;
+    const c = cv.getContext('2d'), o = E.ctx; c.fillStyle = '#3a4a2c'; c.fillRect(0, 0, cv.width, cv.height); E.ctx = c;
+    for (let r = 0; r < 2; r++) for (let i = 0; i < n; i++) E.drawSprite('mon.ZM', 'WL', (i + 0.5) * 1000 / an.fps, r ? 6 : 0, W * i + W / 2, H * r + H - 15, 1);
+    E.ctx = o; cv.id = 'd2-zm'; cv.style.cssText = 'position:fixed;left:0;top:0;z-index:9999'; document.body.appendChild(cv);
+  });
+  await (await p.$('#d2-zm')).screenshot({ path: path.join(SHOTS, '4b-zombie-wl-12f.png') });
+  await p.evaluate(() => document.getElementById('d2-zm').remove());
+  // nhạc Blood Moor (music_wilderness) dài đủ bài 479 giây, không còn cắt ở 110 giây
+  await waitFor(p, () => { const m = D2.E.musicEl(); return !!(m && m.readyState >= 1); }, 10000);
+  const mus = await p.evaluate(() => { const m = D2.E.musicEl(); return m ? { src: m.src.replace(/^.*\//, ''), dur: m.duration } : null; });
+  check('nhạc ngoài trời (music_wilderness) dài > 200 giây', !!mus && /music_wilderness/.test(mus.src) && mus.dur > 200, JSON.stringify(mus));
   // Shift + trái: đánh tại chỗ khi giữ, nhả là dừng
   await p.keyboard.down('Shift'); await p.mouse.down(); await sleep(900);
   const sh = await st(p);
@@ -569,9 +615,12 @@ async function clickNpc(p, id) {
   if (!ak) { console.log('✘ drlg KHONG dat Akara (ak): dung D2DBG.addNpc de chay tiep'); await p.evaluate(() => { const h = D2DBG.getState().hero; D2DBG.addNpc('akara', h.x + 3, h.y); }); ak = (await st(p)).npcs.find(n => n.id === 'akara'); }
   await p.evaluate(([x, y]) => D2DBG.teleport(x - 3, y), [ak.x, ak.y]);
   await sleep(300);
+  const sfxA = await p.evaluate(() => window.__sfx.length);
   await clickNpc(p, 'akara');
   const dlg = await waitFor(p, () => document.querySelector('.dialog').style.display === 'block', 12000);
   check('bấm Akara -> hộp thoại hiện', dlg);
+  const greet = await sfxSince(sfxA, /_greeting/);
+  check('Akara chào bằng một câu trong nhóm akara_greeting (local/sfx)', greet.length === 1 && /^akara_greeting_[12]$/.test(greet[0]), greet.join(','));
   await p.screenshot({ path: path.join(SHOTS, '3e-akara.png') });
   if (dlg) await p.click('.dialog button:has-text("Nhận nhiệm vụ")');
   await sleep(200);
