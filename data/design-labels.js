@@ -162,7 +162,7 @@
       fields: {
         "_id": ID,
         "name": { label: "Tên gói" },
-        "vnd": { label: "Giá", unit: "VND", min: 0, int: true },
+        "usd": { label: "Giá", unit: "đô la", min: 0, cents: true, help: "Giá đô la, tối đa hai số lẻ, ví dụ 4.99. Giá thật trên điện thoại do Google Play và App Store đặt." },
         "gem": { label: "Ngọc nạp", unit: "ngọc", min: 0, int: true },
         "bonus": { label: "Ngọc tặng thêm", unit: "ngọc", min: 0, int: true },
         "tag": { label: "Nhãn", help: "Chữ nổi trên gói, ví dụ HOT. Để trống = không có nhãn." }

@@ -110,6 +110,7 @@
     if (!/^-?\d+(\.\d+)?$/.test(s)) return { err: "Chỉ nhập số." };
     var n = Number(s);
     if (meta.int && !Number.isInteger(n)) return { err: "Chỉ nhận số nguyên, không có phần thập phân." };
+    if (meta.cents && !/^-?\d+(\.\d{1,2})?$/.test(s)) return { err: "Tối đa hai số lẻ (cent), ví dụ 4.99." };
     var v = meta.pct ? +(n / 100).toPrecision(12) : n;
     if (meta.min != null && v < meta.min) return { err: "Không được nhỏ hơn " + numText(meta.min, meta) + "." };
     if (meta.max != null && v > meta.max) return { err: "Không được lớn hơn " + numText(meta.max, meta) + "." };
