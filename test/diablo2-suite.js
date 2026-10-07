@@ -23,6 +23,22 @@ function check(name, ok, detail) {
   else { fail++; results.push('  FAIL ' + name + (detail ? '  - ' + detail : '')); }
 }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+// độ sáng trung bình (0..255) của một vùng trên ảnh chụp: ảnh nạp qua data: URL nên canvas không bị khoá như file://
+async function luma(p, png, boxes) {
+  return p.evaluate(([src, boxes]) => new Promise(res => {
+    const im = new Image();
+    im.onload = () => {
+      const cv = document.createElement('canvas'); cv.width = im.width; cv.height = im.height;
+      const x = cv.getContext('2d'); x.drawImage(im, 0, 0);
+      res(boxes.map(b => {
+        const d = x.getImageData(Math.round(b[0]), Math.round(b[1]), b[2], b[3]).data; let s = 0;
+        for (let i = 0; i < d.length; i += 4) s += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+        return s / (d.length / 4);
+      }));
+    };
+    im.src = 'data:image/png;base64,' + src;
+  }), [png.toString('base64'), boxes]);
+}
 const st = p => p.evaluate(() => D2DBG.getState());
 async function waitFor(p, fn, ms, arg) {
   const t0 = Date.now();
@@ -62,6 +78,18 @@ async function clickTile(p, x, y, opt) {
   return c;
 }
 
+// NPC thị trấn đi lại (WL) nên đọc lại vị trí ngay trước khi bấm và chỉ bấm khi con trỏ đang chỉ đúng NPC đó
+async function clickNpc(p, id) {
+  for (let i = 0; i < 12; i++) {
+    const n = (await st(p)).npcs.find(x => x.id === id); if (!n) return false;
+    const c = await p.evaluate(([x, y]) => D2DBG.client(x, y, 40), [n.x, n.y]);
+    await p.mouse.move(c.x, c.y); await sleep(60);
+    if (await p.evaluate(nid => !!(D2DBG.S.hover && D2DBG.S.hover.npc === nid), id)) { await p.mouse.click(c.x, c.y); return true; }
+    await sleep(250);
+  }
+  return false;
+}
+
 (async () => {
   const b = await chromium.launch();
   let { ctx, p, errs } = await open(b, { viewport: { width: 1000, height: 600 } });
@@ -74,6 +102,9 @@ async function clickTile(p, x, y, opt) {
   check('bảy lớp, không lớp nào khoá', locked === 0, 'khoá=' + locked);
   let s = await st(p);
   check('vào Rogue Encampment', s.area === 'rogue_encampment', s.area);
+  // ghi lại mọi khoá tiếng game gọi (E.sfx trả khoá đã chọn, kể cả khi trình duyệt chưa cho phát)
+  await p.evaluate(() => { window.__sfx = []; const o = D2.E.sfx; D2.E.sfx = function () { const k = o.apply(this, arguments); if (k) window.__sfx.push(k); return k; }; });
+  const sfxSince = async (n, re) => p.evaluate(([n, re]) => { const r = new RegExp(re); return window.__sfx.slice(n).filter(k => r.test(k)).map(k => k + (D2.E.UI.sfx[k] ? '' : '(THIẾU)')); }, [n, re.source]);
   const hud = await p.evaluate(() => ({ frames: document.querySelectorAll('.hbar > .sp, .hbar > img, .hbar > div[style*="background"]').length, orb: getComputedStyle(document.querySelector('.orb.life .fill')).backgroundImage }));
   check('HUD có khung ctrlpanel và cầu máu bằng hình D2', hud.frames > 0 && /url\(/.test(hud.orb), JSON.stringify(hud).slice(0, 120));
   await sleep(600);
@@ -88,10 +119,14 @@ async function clickTile(p, x, y, opt) {
       if (s.area === area) break;
       // điểm bấm: chặng xa nhất trong ~12 subtile trên đường A* của game (bản đồ D2 có hàng rào, đi thẳng sẽ kẹt)
       const path = await p.evaluate(([x, y]) => D2DBG.path(x, y), [ex.x + 0.5, ex.y + 0.5]) || [[ex.x + 0.5, ex.y + 0.5]];
-      let tgt = path[path.length - 1];
-      for (const q of path) { if (Math.hypot(q[0] - s.hero.x, q[1] - s.hero.y) > 12) break; tgt = q; }
-      const pt = await p.evaluate(([x, y]) => D2DBG.client(x, y), tgt);
+      const near = path.filter(q => Math.hypot(q[0] - s.hero.x, q[1] - s.hero.y) <= 12);
+      const cand = (near.length ? near : [path[path.length - 1]]).reverse();
+      // NPC đi lại có thể đứng đúng chỗ định bấm: chọn chặng mà con trỏ không chỉ vào NPC (bấm NPC là mở hộp thoại)
+      let pt = null;
+      for (const q of cand) { pt = await p.evaluate(([x, y]) => { const c = D2DBG.client(x, y), e = D2DBG.entAt(c.sx, c.sy); return e && e.kind === 'npc' ? null : c; }, q); if (pt) break; }
+      if (!pt) { await sleep(300); continue; }
       await p.mouse.move(pt.x, pt.y); await p.mouse.down(); await sleep(700); await p.mouse.up();
+      await p.evaluate(() => { if (D2.UI.dlg) D2.UI.closeDialog(); });
       trail.push(s.hero.x.toFixed(1) + ',' + s.hero.y.toFixed(1) + ':' + s.hero.st + ':aggro' + s.mons.filter(m => m.aggro).length);
       if (!moved) { const s2 = await st(p); moved = Math.hypot(s2.hero.x - s.hero.x, s2.hero.y - s.hero.y) > 0.5; }
     }
@@ -149,6 +184,21 @@ async function clickTile(p, x, y, opt) {
   await p.evaluate(id => D2DBG.setSkills('attack', id), skInfo.id);
   s = await st(p);
   check('chuột phải = Fire Bolt', s.right === skInfo.id, s.right);
+  // đạn Fire Bolt và hình niệm đã nạp trước khi vào khu (không chờ lần vẽ đầu)
+  const pre = await p.evaluate(() => ['mis.firebolt', 'mis.fireexplode', 'ovl.fire_cast_1'].map(k => {
+    const s = D2.E.sheet(k), g = D2_GROUPS[k.split('.')[0]]; if (!s || !g) return k + ':chưa nạp';
+    const pg = {}; Object.values(s.anims).forEach(a => a.f.forEach(f => f.forEach(r => { if (r && r.length > 6) pg[g.pages[r[6]]] = 1; })));
+    return k + ':' + Object.keys(pg).every(u => D2.E.images[u] && D2.E.images[u].ok);
+  }));
+  check('vào khu đã nạp sẵn hình đạn, vụ nổ, hình niệm của Fire Bolt', pre.every(x => /:true$/.test(x)), pre.join(' '));
+  // trong trận: đếm chấm thay thế của đạn (arc bán kính 6/14 ở drawMissile) và mọi chữ vẽ lên canvas
+  await p.evaluate(() => {
+    window.__dots = 0; window.__texts = [];
+    const P = CanvasRenderingContext2D.prototype, arc = P.arc, ft = P.fillText;
+    P.arc = function (x, y, r, a0, a1) { if ((r === 6 || r === 14) && a1 === 7) window.__dots++; return arc.apply(this, arguments); };
+    P.fillText = function (t) { if (this.canvas.id === 'view') window.__texts.push(String(t)); return ft.apply(this, arguments); };
+  });
+  const sfx0 = await p.evaluate(() => window.__sfx.length);
 
   await p.evaluate(() => { const m = D2DBG.monIds()[0]; D2DBG.spawn(m, 1, 4, 0); });
   await sleep(100);
@@ -172,6 +222,26 @@ async function clickTile(p, x, y, opt) {
   check('Fire Bolt (chuột phải) giết được quái', s.kills > kills0, 'kills=' + s.kills);
   check('mana bị trừ, XP tăng', s.xp > xp0, 'xp ' + xp0 + '->' + s.xp);
   await p.screenshot({ path: path.join(SHOTS, '3b-after-kill.png') });
+  const dots = await p.evaluate(() => window.__dots);
+  check('Fire Bolt đầu tiên vẽ bằng hình đạn thật, không có chấm thay thế', dots === 0, 'chấm=' + dots);
+  const cast = await sfxSince(sfx0, /^(sorceress_cast_fire|sorceress_firebolt_\d|sorceress_firebolt_impact_\d)$/);
+  check('niệm Fire Bolt phát stsound + TravelSound + HitSound của bảng gốc', ['sorceress_cast_fire', 'sorceress_firebolt_', 'sorceress_firebolt_impact_'].every(k => cast.some(c => c.indexOf(k) === 0 && !/THIẾU/.test(c))), cast.join(' '));
+  const die = await sfxSince(sfx0, /^zombie_death_\d$/);
+  check('quái chết phát DeathSound của monsounds (zombie_death_*)', die.length > 0 && !die.some(c => /THIẾU/.test(c)), die.join(' ') || 'không có');
+  // cận chiến: đòn thường bằng gậy của Sorceress -> tiếng vung + tiếng trúng theo hit class (club) của weapons.txt
+  await p.evaluate(() => { D2DBG.setSkills('attack', D2DBG.getState().right); const h = D2DBG.getState().hero; D2DBG.spawn('zombie1', 1, 2.4, 0); });
+  const sfx1 = await p.evaluate(() => window.__sfx.length);
+  for (let i = 0; i < 12; i++) {
+    s = await st(p);
+    const z = s.mons.filter(m => m.id === 'zombie1' && m.st !== 'dead' && m.st !== 'die').sort((a, c) => Math.hypot(a.x - s.hero.x, a.y - s.hero.y) - Math.hypot(c.x - s.hero.x, c.y - s.hero.y))[0];
+    if (!z || Math.hypot(z.x - s.hero.x, z.y - s.hero.y) > 6) break;
+    await clickTile(p, z.x, z.y, { lift: 30 }); await sleep(500);
+    if ((await sfxSince(sfx1, /^impact_/)).length) break;
+  }
+  const melee = await sfxSince(sfx1, /^(weapon_|impact_)/);
+  check('đánh cận chiến phát weapon_1hs_large_* lúc vung và impact_blunt_* khi trúng', melee.some(k => /^weapon_1hs_large_\d$/.test(k)) && melee.some(k => /^impact_blunt_\d$/.test(k)), melee.join(' ') || 'không có');
+  const texts = await p.evaluate(() => window.__texts.filter(t => /^\d+$|miss|XP|LÊN CẤP|^\+/.test(t)));
+  check('trận đánh không vẽ chữ nổi (số sát thương, miss, +XP)', texts.length === 0, texts.slice(0, 6).join(' | '));
 
   // ------------------------------------------------------------- nhặt đồ
   results.push('\n-- đồ rơi --');
@@ -189,7 +259,13 @@ async function clickTile(p, x, y, opt) {
     await p.evaluate(([x, y]) => D2DBG.teleport(x - 2.5, y - 0.5), [d.x, d.y]);
     await sleep(200);
     await p.keyboard.down('Alt'); await sleep(100);
-    await clickTile(p, d.x, d.y, { lift: 10 });
+    // bấm vào nhãn của chính món đó (Alt hiện mọi nhãn; sau khi giết 20 quái, nhãn vàng có thể che chỗ món đồ nằm)
+    const lb = await p.evaluate(([x, y]) => {
+      const e = D2DBG.S.ents.filter(o => o.kind === 'drop' && !o.removed && Math.abs(o.x - x) < 1e-6 && Math.abs(o.y - y) < 1e-6)[0], r = e && e.labelRect;
+      const v = document.getElementById('view').getBoundingClientRect(), k = v.width / 960;
+      return r ? { x: v.left + (r[0] + r[2] / 2) * k, y: v.top + (r[1] + r[3] / 2) * k } : null;
+    }, [d.x, d.y]);
+    if (lb) { await p.mouse.move(lb.x, lb.y); await p.mouse.click(lb.x, lb.y); } else await clickTile(p, d.x, d.y, { lift: 10 });
     await p.keyboard.up('Alt');
     await sleep(1800);
   }
@@ -235,7 +311,7 @@ async function clickTile(p, x, y, opt) {
   if (!ak) { console.log('✘ drlg KHONG dat Akara (ak): dung D2DBG.addNpc de chay tiep'); await p.evaluate(() => { const h = D2DBG.getState().hero; D2DBG.addNpc('akara', h.x + 3, h.y); }); ak = (await st(p)).npcs.find(n => n.id === 'akara'); }
   await p.evaluate(([x, y]) => D2DBG.teleport(x - 3, y), [ak.x, ak.y]);
   await sleep(300);
-  await clickTile(p, ak.x, ak.y, { lift: 40 });
+  await clickNpc(p, 'akara');
   const dlg = await waitFor(p, () => document.querySelector('.dialog').style.display === 'block', 12000);
   check('bấm Akara -> hộp thoại hiện', dlg);
   await p.screenshot({ path: path.join(SHOTS, '3e-akara.png') });
@@ -258,7 +334,7 @@ async function clickTile(p, x, y, opt) {
   if (!ak2) { console.log('✘ drlg KHONG dat Akara (ak2): dung D2DBG.addNpc de chay tiep'); await p.evaluate(() => { const h = D2DBG.getState().hero; D2DBG.addNpc('akara', h.x + 3, h.y); }); ak2 = (await st(p)).npcs.find(n => n.id === 'akara'); }
   await p.evaluate(([x, y]) => D2DBG.teleport(x - 3, y), [ak2.x, ak2.y]);
   await sleep(300);
-  await clickTile(p, ak2.x, ak2.y, { lift: 40 });
+  await clickNpc(p, 'akara');
   await waitFor(p, () => document.querySelector('.dialog').style.display === 'block', 12000);
   await p.click('.dialog button:has-text("Nhận thưởng")');
   await sleep(200);
@@ -266,7 +342,7 @@ async function clickTile(p, x, y, opt) {
   check('nhận thưởng: +1 điểm kỹ năng, cờ done', s.skillPts === sp1 + 1 && s.quests.den_of_evil === 'done', 'skillPts ' + sp1 + '->' + s.skillPts);
 
   // cửa hàng: mua bình thuốc
-  await clickTile(p, ak2.x, ak2.y, { lift: 40 });
+  await clickNpc(p, 'akara');
   await waitFor(p, () => document.querySelector('.dialog').style.display === 'block', 12000);
   await p.click('.dialog button:has-text("Mua bán")');
   await sleep(250);
@@ -285,6 +361,50 @@ async function clickTile(p, x, y, opt) {
   await p.keyboard.press('Escape'); await sleep(100);
   if (await p.evaluate(() => !!D2.UI.open.menu)) await p.keyboard.press('Escape');
 
+  // ------------------------------------------------------------- ánh sáng
+  results.push('\n-- ánh sáng --');
+  // Đóng băng cảnh, chụp có và không có lớp ánh sáng; so độ sáng ở các ô nằm ngoài mọi nguồn sáng (D2DBG.lights) và quanh hero.
+  // Chỉ tính ô có hình khi tắt lớp sáng (bỏ ô đen ngoài mép bản đồ). Trả tỉ lệ sáng/không sáng.
+  async function lightRatio(name) {
+    await p.evaluate(() => D2DBG.freeze(true)); await sleep(150);
+    const g = await p.evaluate(() => {
+      const r = document.getElementById('view').getBoundingClientRect(), k = r.width / 960, L = D2DBG.lights().list, h = D2DBG.getState().hero, hc = D2DBG.client(h.x, h.y, 30);
+      const out = [];
+      for (let y = 20; y < 420; y += 40) for (let x = 20; x < 920; x += 50) {
+        const cx = x + 20, cy = y + 15;
+        if (L.every(l => Math.pow((cx - l.x) / (l.r * 22.6), 2) + Math.pow((cy - l.y) / (l.r * 11.3), 2) > 1.3)) out.push([r.left + x * k, r.top + y * k, Math.round(40 * k), Math.round(30 * k)]);
+      }
+      return { out, hero: [hc.x - 25, hc.y - 25, 50, 50] };
+    });
+    const lit = await p.screenshot({ path: path.join(SHOTS, name + '.png') });
+    await p.evaluate(() => D2DBG.noLight(true));
+    const raw = await p.screenshot();
+    await p.evaluate(() => { D2DBG.noLight(false); D2DBG.freeze(false); });
+    const boxes = g.out.concat([g.hero]), a = await luma(p, lit, boxes), b = await luma(p, raw, boxes);
+    let sa = 0, sb = 0, n = 0;
+    for (let i = 0; i < g.out.length; i++) if (b[i] > 12) { sa += a[i]; sb += b[i]; n++; }
+    return { out: n ? sa / sb : null, hero: a[boxes.length - 1] / Math.max(1, b[boxes.length - 1]), n };
+  }
+  await p.evaluate(() => D2DBG.goto('catacombs_level_2'));
+  await waitFor(p, () => D2DBG.getState().area === 'catacombs_level_2', 20000);
+  await sleep(700);
+  let lr = await lightRatio('3g-catacombs-dark');
+  check('Catacombs: ngoài vùng sáng gần như đen, quanh hero vẫn sáng', lr.n > 0 && lr.out < 0.15 && lr.hero > 0.6, JSON.stringify(lr));
+  await p.evaluate(() => D2DBG.goto('rogue_encampment'));
+  await waitFor(p, () => D2DBG.getState().area === 'rogue_encampment', 10000);
+  await p.evaluate(() => D2DBG.hour(12)); await sleep(300);
+  await p.screenshot({ path: path.join(SHOTS, '3h-town-day.png') });
+  await p.evaluate(() => D2DBG.hour(23)); await sleep(300);
+  await p.screenshot({ path: path.join(SHOTS, '3i-town-night.png') });
+  await p.evaluate(() => D2DBG.goto('blood_moor'));
+  await waitFor(p, () => D2DBG.getState().area === 'blood_moor', 10000);
+  await p.evaluate(() => D2DBG.hour(12)); await sleep(300);
+  lr = await lightRatio('3j-moor-day');
+  check('ngoài trời ban ngày không phủ tối', lr.n > 0 && lr.out > 0.95, JSON.stringify(lr));
+  await p.evaluate(() => D2DBG.hour(23)); await sleep(300);
+  lr = await lightRatio('3k-moor-night');
+  check('ngoài trời ban đêm tối đi ngoài vùng sáng của hero', lr.n > 0 && lr.out < 0.5 && lr.hero > 0.6, JSON.stringify(lr));
+  await p.evaluate(() => D2DBG.hour(12));
   // ------------------------------------------------------------- chết & hồi sinh
   results.push('\n-- chết --');
   await p.evaluate(() => D2DBG.goto('blood_moor', 'rogue_encampment'));
@@ -316,7 +436,7 @@ async function clickTile(p, x, y, opt) {
   if (wv) {
     await p.evaluate(([x, y]) => D2DBG.teleport(x - 3, y), [wv.x, wv.y]);
     await sleep(300);
-    await clickTile(p, wv.x, wv.y, { lift: 40 });
+    await clickNpc(p, 'warriv1');
     const wdlg = await waitFor(p, () => document.querySelector('.dialog').style.display === 'block', 12000);
     check('bấm Warriv -> hộp thoại có nút đi Lut Gholein', wdlg && (await p.$$('.dialog button:has-text("Lut Gholein")')).length === 1);
     if (wdlg) await p.click('.dialog button:has-text("Lut Gholein")');

@@ -201,15 +201,31 @@
     return null;
   };
 
+  /* Nhuộm màu kiểu colorshift của states.txt (lạnh xanh, độc lục...): E.tint = { k, c, a } đặt quanh lời gọi vẽ.
+   * Mỗi cặp (trang atlas, màu) nhuộm một lần ra canvas riêng: nhân màu rồi phủ nhẹ, giữ nguyên alpha của sprite. */
+  var tintCache = {};
+  function tintedPage(path, img, t) {
+    var key = path + '|' + t.k, cv = tintCache[key];
+    if (cv) return cv;
+    cv = tintCache[key] = document.createElement('canvas');
+    cv.width = img.naturalWidth; cv.height = img.naturalHeight;
+    var x = cv.getContext('2d');
+    x.drawImage(img, 0, 0);
+    x.globalCompositeOperation = 'multiply'; x.fillStyle = t.c; x.fillRect(0, 0, cv.width, cv.height);
+    x.globalCompositeOperation = 'source-atop'; x.globalAlpha = t.a || 0; x.fillRect(0, 0, cv.width, cv.height);
+    x.globalAlpha = 1; x.globalCompositeOperation = 'destination-in'; x.drawImage(img, 0, 0);
+    return cv;
+  }
+  E.tint = null;
   function blit(pages, r, x, y, alpha, blend) {
-    var rec = E.images[pages[r[6] || 0]];
-    if (!rec || !rec.ok) { E.img(pages[r[6] || 0]); return false; }
-    var c = E.ctx;
+    var path = pages[r[6] || 0], rec = E.images[path];
+    if (!rec || !rec.ok) { E.img(path); return false; }
+    var c = E.ctx, src = E.tint ? tintedPage(path, rec.img, E.tint) : rec.img;
     if (blend === 'add') c.globalCompositeOperation = 'lighter';
     var a = blend === 'alpha50' ? 0.5 : 1;
     if (alpha != null) a *= alpha;
     if (a < 1) c.globalAlpha = a;
-    c.drawImage(rec.img, r[0], r[1], r[2], r[3], Math.round(x - r[4]), Math.round(y - r[5]), r[2], r[3]);
+    c.drawImage(src, r[0], r[1], r[2], r[3], Math.round(x - r[4]), Math.round(y - r[5]), r[2], r[3]);
     if (a < 1) c.globalAlpha = 1;
     if (blend === 'add') c.globalCompositeOperation = 'source-over';
     return true;
@@ -357,6 +373,41 @@
     c.setTransform(1, 0, 0, 1, 0, 0);
   };
 
+  /* Lớp ánh sáng vẽ sau renderWorld: phủ tối `dark` (0..1) rồi khoét bằng các nguồn sáng.
+   * lights: [{ x, y (px màn hình, chân nguồn), r (bán kính, subtile), rgb: [r,g,b] | null }]. Một subtile trên màn hình
+   * rộng 16√2 px, cao bằng nửa (hình thoi iso), nên vùng sáng là elip dẹt. Vẽ ở 1/4 độ phân giải rồi phóng mượt. */
+  var LQ = 4, lightCv = null;
+  E.drawLights = function (dark, lights) {
+    if (dark <= 0.01) return;
+    if (!lightCv) { lightCv = document.createElement('canvas'); lightCv.width = W / LQ; lightCv.height = H / LQ; }
+    var x = lightCv.getContext('2d'), V = E.view || 1, i, L, g, rx;
+    x.setTransform(1, 0, 0, 1, 0, 0); x.globalCompositeOperation = 'source-over';
+    x.clearRect(0, 0, lightCv.width, lightCv.height);
+    x.fillStyle = 'rgba(0,0,0,' + dark + ')'; x.fillRect(0, 0, lightCv.width, lightCv.height);
+    x.globalCompositeOperation = 'destination-out';
+    for (i = 0; i < lights.length; i++) {
+      L = lights[i]; rx = L.r * 22.6 * V / LQ;
+      x.setTransform(1, 0, 0, 0.5, (W / 2 + (L.x - W / 2) * V) / LQ, (H / 2 + (L.y - H / 2) * V) / LQ);
+      g = x.createRadialGradient(0, 0, 0, 0, 0, rx);
+      g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(0.35, 'rgba(0,0,0,.9)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+      x.fillStyle = g; x.fillRect(-rx, -rx, rx * 2, rx * 2);
+    }
+    // nguồn có màu (lửa, đạn, quái phát sáng) nhuộm vùng sáng của nó: phủ màu mờ trên cùng lớp, nên cảnh chỉ ngả màu
+    // chứ không sáng hơn ban ngày (ánh sáng của D2 là nhân màu, không cộng)
+    x.globalCompositeOperation = 'source-over';
+    for (i = 0; i < lights.length; i++) {
+      L = lights[i]; if (!L.rgb) continue;
+      rx = L.r * 22.6 * V / LQ;
+      x.setTransform(1, 0, 0, 0.5, (W / 2 + (L.x - W / 2) * V) / LQ, (H / 2 + (L.y - H / 2) * V) / LQ);
+      g = x.createRadialGradient(0, 0, 0, 0, 0, rx);
+      g.addColorStop(0, 'rgba(' + L.rgb.join(',') + ',' + (0.12 * dark).toFixed(3) + ')'); g.addColorStop(1, 'rgba(' + L.rgb.join(',') + ',0)');
+      x.fillStyle = g; x.fillRect(-rx, -rx, rx * 2, rx * 2);
+    }
+    var c = E.ctx;
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.imageSmoothingEnabled = true; c.drawImage(lightCv, 0, 0, W, H); c.imageSmoothingEnabled = false;
+  };
+
   /* Ảnh trong atlas UI -> style CSS cho một phần tử DOM, phóng theo hệ số k. */
   E.uiSprite = function (r, k) {
     if (!r) return '';
@@ -380,20 +431,46 @@
     for (var s = 0; s < subs.length; s++) if (subs[s] && m[subs[s]]) return subs[s];
     return null;
   };
-  E.sfx = function (subs, vol) {
-    if (!audioOn || E.muted) return;
+  // Âm lượng lấy trong khoảng Volume Min/Max (0..255) của sounds.txt, cao độ trong Pitch Min/Max (100 = giữ nguyên).
+  // pos = { x, y } (subtile): tiếng nhỏ dần theo khoảng cách tới camera (luôn theo hero), quá SFX_FAR thì không phát.
+  var SFX_FAR = 30, SFX_NEAR = 5;
+  E.sfxMaster = 0.85;
+  function rangeOf(v, d) { return v == null ? d : Array.isArray(v) ? v[0] + Math.random() * (v[1] - v[0]) : v; }
+  E.sfx = function (subs, vol, pos) {
     if (typeof subs === 'string') subs = [subs];
-    var k = E.sfxFind(subs); if (!k) return;
+    var k = E.sfxFind(subs || []); if (!k) return null;
+    var att = 1;
+    if (pos) {
+      var d = Math.hypot(pos.x - E.cam.x, pos.y - E.cam.y);
+      if (d >= SFX_FAR) return null;
+      att = d <= SFX_NEAR ? 1 : 1 - (d - SFX_NEAR) / (SFX_FAR - SFX_NEAR);
+    }
     var grp = UIA.sfxGroup && UIA.sfxGroup[k];
     if (grp && grp.length) k = grp[Math.floor(Math.random() * grp.length)];
-    if (!UIA.sfx[k]) return;
-    if (UIA.sfxVol && UIA.sfxVol[k] != null && vol == null) vol = UIA.sfxVol[k] / 255;
+    if (!UIA.sfx[k] || !audioOn || E.muted) return k;
+    if (vol == null) vol = rangeOf(UIA.sfxVol && UIA.sfxVol[k], 255) / 255;
+    var P = window.D2DATA && D2DATA.sfxPitch && D2DATA.sfxPitch[k];
     try {
       var pool = sfxPool[k] || (sfxPool[k] = []), a = null;
       for (var i = 0; i < pool.length; i++) if (pool[i].ended || pool[i].paused) { a = pool[i]; break; }
-      if (!a) { if (pool.length > 4) return; a = new Audio(UIA.sfx[k] + (E.ver ? '?v=' + E.ver : '')); pool.push(a); }
-      a.volume = vol == null ? 0.6 : vol; a.currentTime = 0;
+      if (!a) { if (pool.length > 4) return k; a = new Audio(UIA.sfx[k] + (E.ver ? '?v=' + E.ver : '')); a.preservesPitch = false; pool.push(a); }
+      a.volume = Math.max(0, Math.min(1, vol * att * E.sfxMaster)); a.currentTime = 0;
+      a.playbackRate = P ? rangeOf(P, 100) / 100 : 1;
       var pr = a.play(); if (pr && pr.catch) pr.catch(function () {});
+    } catch (e) {}
+    return k;
+  };
+  // Tiếng nền lặp của khu (Day/Night Ambience của soundenviron); một kênh, đổi khoá thì thay bài
+  var ambEl = null, ambKey = null;
+  E.ambient = function (key) {
+    if (key === ambKey && (ambEl || !audioOn)) return;
+    ambKey = key;
+    if (ambEl) { ambEl.pause(); ambEl = null; }
+    if (!audioOn || E.muted || !key || !UIA.sfx || !UIA.sfx[key]) return;
+    try {
+      ambEl = new Audio(UIA.sfx[key] + (E.ver ? '?v=' + E.ver : '')); ambEl.loop = true;
+      ambEl.volume = rangeOf(UIA.sfxVol && UIA.sfxVol[key], 255) / 255 * E.sfxMaster;
+      var pr = ambEl.play(); if (pr && pr.catch) pr.catch(function () {});
     } catch (e) {}
   };
   E.music = function (key) {

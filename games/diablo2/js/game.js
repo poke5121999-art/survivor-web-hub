@@ -267,9 +267,10 @@
     killMon: function (m) { return killMon(m); },
     spawnMissile: function (owner, tx, ty, o) { return spawnMissile(owner, tx, ty, o); },
     makeMonster: function (id, x, y, rank, pack, rng, name) { return makeMonster(id, x, y, rank, pack, rng, name); },
-    floatText: function (x, y, t, c, big) { return floatText(x, y, t, c, big); },
     monArt: function (id) { return monArt(id); }, removeEnt: function (e) { return removeEnt(e); },
-    recalc: function () { return recalc(); }, heroLook: function () { return heroLook(); }
+    recalc: function () { return recalc(); }, heroLook: function () { return heroLook(); },
+    heroActDur: function (kind, mode) { return heroActDur(kind, mode); },
+    skillSound: function (id) { skillSound(id); }, swingSound: function () { swingSound(); }, impactSound: function (t) { impactSound(t); }
   };
 
   /* ================================================================ lưới & đường đi */
@@ -380,6 +381,20 @@
     areaMons(def).concat(def.bosses || [], def.superuniques || []).forEach(function (id) { var a = monArt(id); if (a) keys.push(a); });
     lv.npcs.forEach(function (n) { var nd = D2DATA.npcs[presetName(n.id)]; if (nd && nd.art) keys.push(nd.art); });
     lv.objects.forEach(function (o) { var p = objPreset(o.id); if (p && p.sprite) keys.push('obj.' + p.token); });
+    // đạn, vụ nổ, hình niệm của kỹ năng hero đã học và đạn của quái trong khu: nạp trước để phát đầu tiên đã có hình
+    function mis(id) { if (!id) return; keys.push('mis.' + id); var M = D2DATA.missiles[id]; if (M && M.ExplosionMissile) keys.push('mis.' + M.ExplosionMissile); }
+    Object.keys(S.char.skills || {}).forEach(function (id) {
+      var fx = S.char.skills[id] > 0 && fxOf(id); if (!fx) return;
+      mis(fx.missile && fx.missile.id);
+      if (fx.castOverlay) keys.push(fx.castOverlay);
+      (fx.overlay || []).forEach(function (o) { keys.push(o); });
+    });
+    areaMons(def).concat(def.bosses || []).forEach(function (id) {
+      var md = DA.monster(id); if (!md) return;
+      Object.keys(md.miss || {}).forEach(function (k) { mis(md.miss[k]); });
+      (md.skills || []).forEach(function (s) { var ms = D2DATA.monSkills[s.id]; mis(ms && ms.t.srvmissile); });
+    });
+    keys.push('mis.arrow', 'mis.blood1', 'mis.blood2', 'mis.bigblood1', 'mis.bigblood2');
     return keys;
   }
 
@@ -491,7 +506,7 @@
     }
     var modes = p.modes || ['NU'], kind = objKind(p);
     var mode = kind === 'chest' ? 'NU' : modes.indexOf('ON') >= 0 && p.lit ? 'ON' : modes.indexOf('NU') >= 0 ? 'NU' : modes[0];
-    mk('obj', o.x + 0.5, o.y + 0.5, { otype: kind, portal: kind === 'portal' ? p.cls : null, art: 'obj.' + p.token, mode: mode, ow: w, oh: h, cx: o.x - (w >> 1), cy: o.y - (h >> 1), t0: Math.random() * 4000 });
+    mk('obj', o.x + 0.5, o.y + 0.5, { otype: kind, portal: kind === 'portal' ? p.cls : null, art: 'obj.' + p.token, mode: mode, ow: w, oh: h, cx: o.x - (w >> 1), cy: o.y - (h >> 1), t0: Math.random() * 4000, lit: p.lit || null });
   }
 
   /* ---------------------------------------------------------------- quái */
@@ -557,7 +572,7 @@
     S.pendingBoss = null;
     var p = openAround(S.grid, pb.x + 0.5, pb.y + 0.5, 3, Math.random);
     var b = makeMonster(pb.id, p[0], p[1], 'normal', -2, Math.random, null); b.rank = 'unique'; b.boss = true;
-    UI.msg((b.inst.name || pb.id) + ' đã xuất hiện!', '#ff7a5a'); E.sfx(['monster_diablo_taunt1', 'cursor_questdone'], 0.7);
+    UI.msg((b.inst.name || pb.id) + ' đã xuất hiện!', '#ff7a5a'); E.sfx([b.snd.Taunt, b.snd.Init, 'cursor_questdone']);
   }
   function openAround(g, x, y, r, rng) {
     for (var t = 0; t < 20; t++) {
@@ -571,14 +586,18 @@
     var inst = safe(function () { return D2R.rollMonster(id, lvl, rng || Math.random, rank, { difficulty: dk() }); }, null) || { id: id, name: id, lvl: lvl, hp: 10 + lvl * 6, xp: 10 * lvl, dmgMin: 1, dmgMax: 4, ar: 20, def: 5 };
     if (nameOverride) inst.name = nameOverride.charAt(0).toUpperCase() + nameOverride.slice(1);
     var m = DA.monster(id) || {};
+    // tiếng, ánh sáng, máu lấy theo dòng quái gốc (superunique dùng dòng của lớp quái nó thuộc)
+    var md = m.id ? m : DA.monster((D2DATA.superuniques[id] || {}).cls) || {};
     inst.name = inst.name || m.name || id;
     var hp = inst.hp != null ? inst.hp : inst.maxHp || 10;
     var spd = inst.run || inst.walk || m.runVel || m.walkVel;
     var e = mk('mon', x, y, {
       monId: id, inst: inst, rank: rank, pack: pack, art: monArt(id), ai: DA.aiKind(id, m), hp: hp, maxHp: hp,
-      speed: spd ? clamp(spd, 1, 12) : 4, aggro: false, cd: rnd(0.2, 1.2), act: null, snd: m.snd || {},
-      dir: rnd(0, 8), flee: 0, born: S.time, deadAt: 0, rez: 0, wander: 0, stuck: 0, hitFlash: 0
+      speed: spd ? clamp(spd, 1, 12) : 4, aggro: false, cd: rnd(0.2, 1.2), act: null, snd: md.snd || {}, md: md,
+      dir: rnd(0, 8), flee: 0, born: S.time, deadAt: 0, rez: 0, wander: 0, stuck: 0
     });
+    e.neuAt = S.time + rnd(0, (e.snd.NeuTime || 250) / 25);
+    E.sfx([e.snd.Init], null, e);
     return e;
   }
 
@@ -614,33 +633,93 @@
       case 'walk': return town ? 'TW' : 'WL';
       case 'run': return 'RN';
       case 'hit': return 'GH';
+      case 'block': return 'BL';
       case 'die': case 'dead': return 'DT';
       default: return town ? 'TN' : 'NU';
     }
   }
   function heroAnimDur(mode) { var cof = E.heroCof(heroLook(), mode); return cof ? E.animDur(cof) : 0; }
+  /* Thời lượng một đòn theo số khung COF của mode và lớp vũ khí đang cầm, rút ngắn theo IAS (đánh) / FCR (niệm):
+   * khung = ceil(256 * F / floor(tốc độ hoạt ảnh * (100 + E) / 100)) - 1, tốc độ = fps * 256 / 25 [AS basics/speed]. */
+  function heroActDur(kind, mode) {
+    var cof = E.heroCof(heroLook(), mode), d = S.d, e;
+    if (!cof || !cof.frames) return actDur(kind);
+    if (kind === 'cast') { var f = d.fcr || 0; e = Math.min(75, Math.floor(120 * f / (120 + f))); }
+    else { var w = DA.base(S.char.equip.rhand), ias = d.ias || 0; e = clamp(Math.floor(120 * ias / (120 + ias)) - ((w && w.speed) || 0), -85, 75); }
+    var sp = Math.floor((cof.fps || 25) * 256 / 25 * (100 + e) / 100);
+    return Math.max(2, Math.ceil(256 * cof.frames / Math.max(1, sp)) - 1) * 40;
+  }
+  // Khung gây sát thương (animdata) của mode, tính theo phần của cả đòn; COF không có khung hit thì giữa đòn
+  function heroHitAt(mode) {
+    var cof = E.heroCof(heroLook(), mode);
+    return cof && cof.hit > 0 && cof.frames ? cof.hit / cof.frames : 0.5;
+  }
 
   /* ================================================================ chiến đấu */
   function elemOf(e) { e = String(e || 'phys').toLowerCase(); return /fire/.test(e) ? 'fire' : /cold|ice|frost/.test(e) ? 'cold' : /light|elec/.test(e) ? 'light' : /pois/.test(e) ? 'poison' : 'phys'; }
-  function floatText(x, y, text, color, big) { S.floaters.push({ x: x, y: y, text: text, color: color || '#fff', t: 0, big: big }); }
   var ELCOL = { fire: '#ff8a3c', cold: '#7fd0ff', light: '#ffee66', poison: '#7fdf5f', phys: '#fff' };
 
-  function monSfx(m, what) { E.sfx([m.snd[what === 'hit' ? 'HitSound' : 'DeathSound']], 0.5); }
-  function damageMon(m, amount, elem, fromHero) {
+  /* ---------------------------------------------------------------- tiếng */
+  /* Khoá là tên trong sounds.txt: monsounds cho quái (độ trễ theo khung 25 fps, xác suất theo %), stsound của skills.txt
+   * khi niệm, TravelSound/HitSound của missiles.txt, weapon_/impact_ theo hit class của weapons.txt. */
+  var sndQ = [];
+  function sfxLater(keys, pos, frames, vol) {
+    if (frames > 0) sndQ.push({ at: S.time + frames / 25, keys: keys, x: pos.x, y: pos.y, vol: vol });
+    else E.sfx(keys, vol, pos);
+  }
+  function monSnd(m, col, delCol, prbCol, volCol) {
+    var s = m.snd, k = s[col]; if (!k) return;
+    if (prbCol && !(Math.random() * 100 < (s[prbCol] || 0))) return;
+    sfxLater([k], m, s[delCol] || 0, volCol && s[volCol] ? s[volCol] / 255 : null);
+  }
+  // hit class của weapons.txt -> tiếng vung và tiếng trúng (nhóm tiếng chọn ngẫu nhiên trong E.sfx)
+  var SWING = { hth: 'weapon_punch_1', '1hss': 'weapon_1hs_small_1', '1hsl': 'weapon_1hs_large_1', '2hss': 'weapon_2hs_small_1', '2hsl': 'weapon_2hs_large_1', '1ht': 'weapon_1ht_1', '2ht': 'weapon_2ht_1', club: 'weapon_1hs_large_1', staf: 'weapon_staff_1', bow: 'weapon_bow_1', xbow: 'weapon_xbow_1', claw: 'weapon_punch_1' };
+  var IMPACT = { hth: 'impact_punch_1', '1hss': 'impact_blade_swing_1', '1hsl': 'impact_blade_swing_1', '2hss': 'impact_blade_swing_1', '2hsl': 'impact_blade_swing_1', '1ht': 'impact_blade_thrust_1', '2ht': 'impact_blade_thrust_1', club: 'impact_blunt_1', staf: 'impact_blunt_1', bow: 'impact_arrow_1', xbow: 'impact_arrow_1', claw: 'impact_claw_1' };
+  function hitClass() { var b = DA.base(S.char.equip.rhand); return (b && b.hitclass) || 'hth'; }
+  function swingSound() { E.sfx([SWING[hitClass()]]); }
+  function impactSound(t) { E.sfx([IMPACT[hitClass()]], null, t); }
+  function skillSound(id) { var s = DA.skill(id); E.sfx([s && s.raw.t.stsound]); }
+  function heroSound(what) { E.sfx([S.char.cls + '_' + what + '_1']); }
+  function itemSound(it, col, pos) { var b = DA.base(it); E.sfx([b && b[col]], null, pos); }
+
+  /* Nhuộm kiểu colorshift của states.txt khi trúng lạnh/độc; quái unique đổi màu theo seed như colormap của D2
+   * (trừ khi monstats2 noUniqueShift). Đây là phủ màu trên sprite, không phải đổi bảng màu .pl2 thật. */
+  var TINT = {
+    cold: { k: 'cold', c: 'rgb(120,160,255)', a: 0.2 }, poison: { k: 'pois', c: 'rgb(130,235,110)', a: 0.15 },
+    green: { k: 'green', c: 'rgb(90,210,70)', a: 0.1 }
+  };
+  var UTINT = [['u0', 'rgb(255,190,170)'], ['u1', 'rgb(190,200,255)'], ['u2', 'rgb(200,255,190)'], ['u3', 'rgb(255,240,160)'], ['u4', 'rgb(240,180,255)'], ['u5', 'rgb(170,240,240)']]
+    .map(function (u) { return { k: u[0], c: u[1], a: 0.08 }; });
+  function monTint(m) {
+    if (m.tintUntil > S.time) return TINT[m.tintKind];
+    if (m.uTint === undefined) m.uTint = m.rank === 'unique' && !m.boss && !D2DATA.superuniques[m.monId] && !(m.md && m.md.noUniqueShift) ? UTINT[m.id % UTINT.length] : null;
+    return m.uTint;
+  }
+  // monstats2 Bleed: 1 = blood1/blood2, 2 = thêm bigblood1/bigblood2; localBlood 2 = máu xanh
+  function bleed(m) {
+    var md = m.md || {};
+    if (!md.bleed || Math.random() < 0.35) return;
+    var arts = (md.bleed >= 2 ? ['mis.blood1', 'mis.blood2', 'mis.bigblood1', 'mis.bigblood2'] : ['mis.blood1', 'mis.blood2']).filter(function (k) { return E.sheet(k); });
+    if (!arts.length) return;
+    var art = pick(arts);
+    mk('fx', m.x, m.y, { spr: art, t: 0, life: (E.animDur(E.animOf(art, 'NU')) || 360) / 1000, dir: rnd(0, 8), z: 1, tint: md.localBlood === 2 ? TINT.green : null });
+  }
+
+  function damageMon(m, amount, elem, fromHero, durSec) {
     if (m.st === 'die' || m.st === 'dead') return;
     if (window.D2S && D2S.onMonDamage) { amount = D2S.onMonDamage(Game.api, m, amount, elem, fromHero); if (amount <= 0) return; }
     elem = elemOf(elem);
     var res = (m.inst.res && m.inst.res[elem]) || 0;
     if (elem === 'phys' && m.inst.res && m.inst.res.phys) res = m.inst.res.phys;
     var dmg = Math.max(1, Math.round(amount * (1 - clamp(res, -100, 95) / 100)));
-    m.hp -= dmg; m.hitFlash = 0.12;
-    floatText(m.x, m.y, String(dmg), ELCOL[elem] || '#fff', dmg > m.maxHp * 0.25);
+    m.hp -= dmg;
+    if (elem === 'cold' || elem === 'poison') { m.tintKind = elem; m.tintUntil = S.time + (durSec || (elem === 'cold' ? 4 : 2)); }
+    if (elem === 'phys') bleed(m);
     if (!m.aggro) aggroMon(m);
     if (m.hp <= 0) { killMon(m); return; }
-    monSfx(m, 'hit');
-    // hit recovery: ngắt đòn đang đánh
+    // hit recovery: ngắt đòn đang đánh; tiếng trúng đòn theo GH như D2
     var dur = Math.max(200, E.animDur(E.animOf(m.art, 'GH')) || 320);
-    if (m.rank === 'normal' || Math.random() < 0.4) { m.act = null; restart(m, 'hit', dur); }
+    if (m.rank === 'normal' || Math.random() < 0.4) { m.act = null; restart(m, 'hit', dur); monSnd(m, 'HitSound', 'HitDelay'); }
   }
   function aggroMon(m) {
     m.aggro = true;
@@ -650,14 +729,14 @@
     m.hp = 0; m.act = null;
     restart(m, 'die', E.animDur(E.animOf(m.art, 'DT')) || 600);
     m.deadAt = S.time; S.kills++;
-    monSfx(m, 'die');
+    monSnd(m, 'DeathSound', 'DeaDelay');
+    // xác nằm tới khi rời khu; quá CORPSE_CAP thì xác cũ nhất biến mất trước
+    var dead = S.ents.filter(function (o) { return o.kind === 'mon' && o.st === 'dead' && !o.removed && !o.rez; });
+    if (dead.length >= CORPSE_CAP) dead.sort(function (a, b) { return a.deadAt - b.deadAt; })[0].removed = true;
     // XP
     var c = S.char, d = S.d;
     var r = safe(function () { return D2R.grantXp(c, m.inst.lvl || 1, m.inst.xp || m.inst.exp || 10); }, null);
-    if (r) {
-      if (r.gained) floatText(S.hero.x, S.hero.y, '+' + r.gained + ' XP', '#c8d8ff');
-      if (r.leveled) onLevelUp();
-    }
+    if (r && r.leveled) onLevelUp();
     // đồ rơi
     var bq = m.boss && questOfKill(m.monId), kind = bq && S.char.quests[bq] !== 'done' ? 'quest' : m.rank === 'champion' ? 'champion' : m.rank === 'unique' && !m.boss ? 'unique' : 'normal';
     var items = safe(function () { return D2R.rollDrop(m.monId, m.inst.lvl || 1, Math.random, { difficulty: dk(), kind: kind }); }, []) || [];
@@ -677,27 +756,40 @@
   }
   function onLevelUp() {
     var c = S.char; recalc(); c.hp = S.d.maxHp; c.mp = S.d.maxMp;
-    UI.msg('Lên cấp ' + c.lvl + '!', '#ffe27a'); floatText(S.hero.x, S.hero.y - 1, 'LÊN CẤP!', '#ffe27a', true);
-    E.sfx(['level_up'], 0.6); UI.dirty = true; save();
+    UI.msg('Lên cấp ' + c.lvl + '!', '#ffe27a');
+    E.sfx(['cursor_level_up']); UI.dirty = true; save();
   }
 
+  /* Đỡ đòn: d.block là % của rules (khiên + BlockFactor của lớp, theo Dex/cấp), còn 1/3 khi chạy, không đỡ khi đang
+   * đánh hay niệm. Đỡ được thì chạy BL và không mất máu. */
+  function tryBlock(src) {
+    var h = S.hero, b = (S.d && S.d.block) || 0;
+    if (!b || !src || h.st === 'attack' || h.st === 'cast' || h.st === 'block') return false;
+    if (h.st === 'run') b /= 3;
+    if (Math.random() * 100 >= b) return false;
+    h.act = null;
+    restart(h, 'block', Math.max(120, (E.heroCof(heroLook(), 'BL') || {}).frames * 40 || 160));
+    E.sfx([src.kind === 'missile' ? 'block_arrow_1' : 'block_weapon_1']);
+    return true;
+  }
   function damageHero(amount, srcPos) {
     var c = S.char, h = S.hero;
     if (h.st === 'die' || h.st === 'dead') return;
+    if (tryBlock(srcPos)) return;
     if (window.D2S && D2S.onHeroDamage) { amount = D2S.onHeroDamage(Game.api, amount, srcPos); if (amount <= 0) return; }
     amount = Math.max(1, Math.round(amount));
-    c.hp -= amount; floatText(h.x, h.y, String(amount), '#ff6a6a');
-    E.sfx([DA.classInfo(c.cls).gender + '_hit'], 0.6);
+    c.hp -= amount;
     if (c.hp <= 0) { c.hp = 0; killHero(); return; }
     if (amount >= S.d.maxHp * 0.05) {
       h.act = null;
       restart(h, 'hit', Math.max(200, heroAnimDur('GH') || 300));
+      heroSound('hit');
     }
   }
   function killHero() {
     var h = S.hero, c = S.char;
     h.act = null; h.goal = null; h.path = null; restart(h, 'die', 800);
-    E.sfx([DA.classInfo(c.cls).gender + '_die'], 0.7);
+    heroSound('death');
     var pen = safe(function () { return D2R.deathPenalty(c); }, null) || { lost: 0, corpseGold: 0 };
     if (!pen.corpseGold && pen.lost === 0 && c.gold) { pen.corpseGold = Math.floor(c.gold * 0.5); c.gold -= pen.corpseGold; }
     S.corpse = { diff: dk(), area: S.areaId, seed: S.seed, x: h.x, y: h.y, gold: pen.corpseGold, lost: pen.lost, xpLost: pen.xpLost || 0 };
@@ -740,10 +832,11 @@
     if (fx.kind === 'melee') return 3.8;
     return 24;
   }
-  // Mode của đòn: cột anim của skills.txt (SC, A1, TH...); đánh thường xen A1/A2 như D2. Mode chưa đóng gói thì lùi về A1/SC.
+  // Mode của đòn: cột anim của skills.txt (SC, A1, TH, KK, S1-S4); đánh thường xen A1/A2 như D2. SQ (chuỗi seqnum) chưa
+  // có nên chạy SC/A1; mode chưa đóng gói cho lớp + vũ khí này cũng lùi về SC/A1.
   function heroActMode(kind, fx) {
     var want = fx && fx.anim ? fx.anim : kind === 'cast' ? 'SC' : (Math.random() < 0.5 ? 'A1' : 'A2');
-    if (/^(SQ|S[1-4]|TH|KK)$/.test(want)) want = kind === 'cast' ? 'SC' : 'A1';
+    if (want === 'SQ') want = kind === 'cast' ? 'SC' : 'A1';
     var look = heroLook();
     if (!E.heroCof(look, want)) want = kind === 'cast' && E.heroCof(look, 'SC') ? 'SC' : 'A1';
     return want;
@@ -761,24 +854,25 @@
     if (fx && fx.kind === 'buff') {
       if (fx.mana && c.mp < fx.mana) { noMana(); return false; }
       c.mp -= fx.mana || 0; S.buffs[skillId] = S.time + (fx.duration || 60);
-      UI.msg(DA.skill(skillId).name + ' kích hoạt.'); E.sfx(['power_shield', 'power_warcry'], 0.4);
+      UI.msg(DA.skill(skillId).name + ' kích hoạt.'); skillSound(skillId);
       return true;
     }
     if (fx && fx.mana) { if (c.mp < fx.mana) { noMana(); return false; } c.mp -= fx.mana; }
     var dx = tx - h.x, dy = ty - h.y;
     if (Math.abs(dx) + Math.abs(dy) > 0.01) h.dir = E.dirFromTiles(dx, dy);
-    var dur = actDur(kind);
-    h.act = { skill: skillId || 'attack', fx: fx, tx: tx, ty: ty, target: target || null, done: false, kind: kind, dur: dur };
-    h.act.mode = heroActMode(kind, fx);
+    var mode = heroActMode(kind, fx), dur = heroActDur(kind, mode);
+    h.act = { skill: skillId || 'attack', fx: fx, tx: tx, ty: ty, target: target || null, done: false, kind: kind, dur: dur, mode: mode };
     restart(h, kind, dur);
-    E.sfx(fx ? fxSound(fx) : ['melee_attack', 'melee_attack_2', 'melee_attack_3'].slice(ri(0, 2)), 0.45);
+    if (fx) skillSound(fx.id);
+    if (kind === 'attack') swingSound();
+    if (fx && fx.castOverlay && E.sheet(fx.castOverlay)) {
+      var ov = fx.castOverlay;
+      mk('fx', h.x, h.y, { spr: ov, follow: h, t: 0, life: (E.animDur(E.animOf(ov, 'NU')) || dur) / 1000, z: 1 });
+    }
     return true;
   }
-  function fxSound(fx) {
-    var el = elemOf(fx.dmg && fx.dmg.elem);
-    return el === 'fire' ? ['power_fireball', 'power_burn'] : el === 'cold' ? ['power_freeze'] : el === 'light' ? ['power_shock', 'power_thunder'] : ['power_shoot'];
-  }
-  function noMana() { if (S.time - (S.noManaT || -9) > 1) { S.noManaT = S.time; UI.msg('Không đủ mana.', '#8ab0ff'); E.sfx(['no_mana'], 0.5); } }
+  // lời "không đủ mana" của nhân vật nằm ở local/sfx, chưa đóng gói (đợt 2), nên chỉ có dòng chữ
+  function noMana() { if (S.time - (S.noManaT || -9) > 1) { S.noManaT = S.time; UI.msg('Không đủ mana.', '#8ab0ff'); } }
 
   function rollDmg(d) { return rnd(d.min, d.max + 0.999); }
   // sát thương của kỹ năng dựa trên vũ khí (Jab, Bash, Magic Arrow...): vũ khí * %vũ khí * (100+%sát thương)/100 + cộng thêm
@@ -792,7 +886,7 @@
     var fx = a.fx;
     if (fx && window.D2S && D2S.handles(fx)) { D2S.apply(Game.api, h.act); return; }
     if (!fx) {   // đòn thường
-      if (weaponKind() === 'bow') { spawnMissile(h, a.tx, a.ty, { dmg: { min: d.dmgMin, max: d.dmgMax, elem: 'phys' }, art: 'mis.arrow', speed: 24, pierce: 0, owner: 'hero', ar: d.ar, life: 1.1 }); return; }
+      if (weaponKind() === 'bow') { spawnMissile(h, a.tx, a.ty, { dmg: { min: d.dmgMin, max: d.dmgMax, elem: 'phys' }, art: 'mis.arrow', mid: 'arrow', speed: 24, pierce: 0, owner: 'hero', ar: d.ar, life: 1.1 }); return; }
       meleeHit(a, d.dmgMin, d.dmgMax, 'phys', d.ar);
       return;
     }
@@ -811,7 +905,7 @@
     var mv = fx.missile || {}, speed = clamp(mv.vel || fx.speed || 16, 14, 26), life = clamp((mv.range || 40) / 25 * 0.6, 0.8, 1.6);
     for (var i = 0; i < n; i++) {
       var ang = base + (n > 1 ? (i - (n - 1) / 2) * 0.22 : 0);
-      spawnMissile(h, h.x + Math.cos(ang) * 20, h.y + Math.sin(ang) * 20, { dmg: dm, art: pickArt(fx), boom: boomArt(fx.missile && fx.missile.id), speed: isChan ? 18 : speed, pierce: (fx.pierce || isChan) ? 99 : 0, owner: 'hero', ar: fx.weaponPct && fx.requires.weapon.length ? ar : 9999, life: isChan ? 0.45 : life });
+      spawnMissile(h, h.x + Math.cos(ang) * 20, h.y + Math.sin(ang) * 20, { dmg: dm, dur: fx.elem && fx.elem.durationSec, art: pickArt(fx), mid: mv.id, boom: boomArt(fx.missile && fx.missile.id), speed: isChan ? 18 : speed, pierce: (fx.pierce || isChan) ? 99 : 0, owner: 'hero', ar: fx.weaponPct && fx.requires.weapon.length ? ar : 9999, life: isChan ? 0.45 : life });
     }
   }
   // Hình đạn: tên missiles.txt của kỹ năng (srvmissile), vụ nổ theo ExplosionMissile
@@ -832,8 +926,7 @@
     }
     if (!t || dist(t, h) > 4.8) return;
     var p = safe(function () { return D2R.hitChance(ar, S.char.lvl, t.inst.def || 0, t.inst.lvl || 1); }, 0.75);
-    if (Math.random() < p) { damageMon(t, rnd(mn, mx + 0.999), elem, true); }
-    else floatText(t.x, t.y, 'miss', '#aaa');
+    if (Math.random() < p) { impactSound(t); damageMon(t, rnd(mn, mx + 0.999), elem, true); }
   }
   function angOf(dir) {   // hướng 0..7 -> góc trong toạ độ ô
     var v = [[-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1], [1, 0], [1, 1], [0, 1]][dir]; return Math.atan2(v[1], v[0]);
@@ -842,11 +935,14 @@
   /* ---------------------------------------------------------------- đạn */
   function spawnMissile(owner, tx, ty, o) {
     var dx = tx - owner.x, dy = ty - owner.y, d = Math.hypot(dx, dy) || 1, sp = o.speed || 18;
+    var mid = o.mid || (o.art && o.art.indexOf('mis.') === 0 ? o.art.slice(4) : null);
     var m = mk('missile', owner.x + dx / d * 1, owner.y + dy / d * 1, {
       vx: dx / d * sp, vy: dy / d * sp, dir: E.dirFromTiles(dx, dy), art: o.art, boom: o.boom || null, dmg: o.dmg, owner: o.owner, pierce: o.pierce || 0,
-      life: o.life || 1.2, ar: o.ar, hit: {}, t: 0, rad: o.radius ? clamp(o.radius * 0.2, 1.1, 2.8) : 1.1, st: 'run'
+      life: o.life || 1.2, ar: o.ar, hit: {}, t: 0, rad: o.radius ? clamp(o.radius * 0.2, 1.1, 2.8) : 1.1, st: 'run',
+      mid: mid, md: (mid && D2DATA.missiles[mid]) || {}, dur: o.dur
     });
-    m.y -= 0; return m;
+    E.sfx([m.md.TravelSound], null, m);
+    return m;
   }
   function updateMissile(m, dt) {
     if (m.st === 'die') { m.t += dt; if (m.t > (m.boomDur || 0.3)) m.st = 'dead'; return; }
@@ -855,7 +951,7 @@
     for (var i = 0; i < steps; i++) {
       m.x += sx; m.y += sy;
       var mc = S.grid.col[Math.floor(m.y) * S.grid.w + Math.floor(m.x)];
-      if (mc === 1 || mc == null) { explode(m); return; }
+      if (mc === 1 || mc == null) { explode(m, true); return; }
       if (m.owner === 'hero') {
         for (var k = 0; k < S.ents.length; k++) {
           var o = S.ents[k];
@@ -863,22 +959,24 @@
           if (dist(o, m) < m.rad + 0.3) {
             m.hit[o.id] = 1;
             var ok = m.ar >= 9000 || Math.random() < safe(function () { return D2R.hitChance(m.ar, S.char.lvl, o.inst.def || 0, o.inst.lvl || 1); }, 0.8);
-            if (ok) damageMon(o, rollDmg(m.dmg), m.dmg.elem, true); else floatText(o.x, o.y, 'miss', '#aaa');
-            if (m.pierce > 0) m.pierce--; else { explode(m); return; }
+            if (ok) damageMon(o, rollDmg(m.dmg), m.dmg.elem, true, m.dur);
+            if (m.pierce > 0) m.pierce--; else { explode(m, true); return; }
           }
         }
       } else {
         var h = S.hero;
         if (h.st !== 'die' && h.st !== 'dead' && dist(h, m) < 1.1) {
           var okh = Math.random() < safe(function () { return D2R.hitChance(m.ar || 30, 1, S.d.def, S.char.lvl); }, 0.7);
-          if (okh) damageHero(rollDmg(m.dmg), m); else floatText(h.x, h.y, 'miss', '#aaa');
-          explode(m); return;
+          if (okh) damageHero(rollDmg(m.dmg), m);
+          explode(m, true); return;
         }
       }
     }
     if (m.life <= 0) explode(m);
   }
-  function explode(m) {
+  // hit = đạn va vào quái, hero hay tường (HitSound của missiles.txt); hết tầm thì nổ im lặng
+  function explode(m, hit) {
+    if (hit) E.sfx([m.md.HitSound], null, m);
     m.st = 'die'; m.t = 0; m.vx = m.vy = 0;
     var an = m.boom && E.animOf(m.boom, 'NU') || null;
     m.boomDur = an ? E.animDur(an) / 1000 : 0.3;
@@ -895,7 +993,10 @@
     if (!canStand(px, py, 0.1)) { px = S.hero.x; py = S.hero.y; }
     var gold = DA.isGold(it);
     var label = gold ? DA.goldAmount(it) + ' vàng' : DA.itemName(it).replace(/\n/g, ' ');
-    mk('drop', px, py, { item: it, born: S.time, art: lootArt(it), label: label, gold: gold ? DA.goldAmount(it) : 0 });
+    var e = mk('drop', px, py, { item: it, born: S.time, art: lootArt(it), label: label, gold: gold ? DA.goldAmount(it) : 0 });
+    // item_flippy lúc tung lên, dropsound của bảng đồ khi chạm đất (cuối hoạt ảnh flippy)
+    E.sfx(['item_flippy'], null, e);
+    e.landAt = S.time + ((e.art && E.animDur(E.animOf(e.art, 'NU'))) || 500) / 1000;
   }
   function findSpot(c, w, hh) {
     var occ = []; for (var i = 0; i < 40; i++) occ[i] = 0;
@@ -917,13 +1018,13 @@
     var c = S.char;
     if (drop.item && drop.item.qitem) { giveQuestItem(drop.item.qitem); removeEnt(drop); return true; }
     if (drop.corpse) {
-      c.gold += drop.corpse.gold; UI.msg('Lấy lại ' + drop.corpse.gold + ' vàng từ xác.', '#ffd24a'); S.corpse = null; removeEnt(drop); E.sfx(['inv_coins']); return true;
+      c.gold += drop.corpse.gold; UI.msg('Lấy lại ' + drop.corpse.gold + ' vàng từ xác.', '#ffd24a'); S.corpse = null; removeEnt(drop); E.sfx(['item_gold']); return true;
     }
     var it = drop.item;
-    if (DA.isGold(it)) { var g = DA.goldAmount(it); c.gold += g; floatText(S.hero.x, S.hero.y, '+' + g + ' vàng', '#ffd24a'); removeEnt(drop); E.sfx(['inv_coins'], 0.5); UI.dirty = true; return true; }
-    if (DA.potionInfo(it)) { var bi = beltFree(c); if (bi >= 0) { c.belt[bi] = it; removeEnt(drop); E.sfx(['inv_potion']); UI.dirty = true; return true; } }
+    if (DA.isGold(it)) { var g = DA.goldAmount(it); c.gold += g; removeEnt(drop); E.sfx(['item_gold']); UI.dirty = true; return true; }
+    if (DA.potionInfo(it)) { var bi = beltFree(c); if (bi >= 0) { c.belt[bi] = it; removeEnt(drop); E.sfx(['item_pickup']); UI.dirty = true; return true; } }
     if (!addToInv(it)) { UI.msg('Túi đồ đầy.', '#ff9a8a'); return false; }
-    removeEnt(drop); E.sfx(['inv_metal', 'inv_leather']); UI.dirty = true;
+    removeEnt(drop); E.sfx(['item_pickup']); UI.dirty = true;
     return true;
   }
   function removeEnt(e) { e.removed = true; }
@@ -960,7 +1061,7 @@
   function giveQuestItem(name) {
     var held = questItemsHeld(true); if (held[name]) return;
     held[name] = 1;
-    UI.msg('Vật phẩm nhiệm vụ: ' + name, '#ffe27a'); E.sfx(['cursor_questdone'], 0.5);
+    UI.msg('Vật phẩm nhiệm vụ: ' + name, '#ffe27a'); E.sfx(['cursor_questdone']);
     var qi = D2DATA.questItems[name];
     ((qi && qi.gives) || []).forEach(giveQuestItem);
     questEvent({ kind: 'item', name: name });
@@ -1002,7 +1103,7 @@
     if (o.opened) return;
     o.opened = true; o.otype = null;   // rương đã mở không còn bấm được, như D2
     if (E.animOf(o.art, 'OP')) { o.mode = 'OP'; o.once = true; o.t0 = -S.time * 1000; }
-    E.sfx(['object_chest_large', 'object_chest_small'], 0.6);
+    E.sfx(['object_chest_large', 'object_chest_small'], null, o);
     var items = safe(function () { return D2R.rollDrop('chest', areaLvl(S.def), Math.random, { tc: 'Act 1 Chest A', difficulty: dk() }); }, []) || [];
     items.forEach(function (it) { dropItem(it, o.x + rnd(-1.2, 1.2), o.y + rnd(0.8, 2)); });
     if (o.qitem) giveQuestItem(o.qitem);
@@ -1017,7 +1118,7 @@
       c.quests[id] = 'cleared';
       var who = Q[id].turnIn && D2DATA.npcs[Q[id].turnIn];
       UI.msg(questName(Q[id]) + ': xong.' + (who ? ' Hãy báo cho ' + who.name + '.' : ''), '#ffe27a');
-      E.sfx(['cursor_questdone', 'cursor_level_up'], 0.6);
+      E.sfx(['cursor_questdone']);
       if (!Q[id].turnIn) giveReward(id);
       save(); UI.dirty = true;
     });
@@ -1050,20 +1151,21 @@
   };
   function useObj(o) {
     var c = S.char;
-    if (o.otype === 'stash') { E.sfx(['cursor_button_click'], 0.4); UI.openStash(); }
+    if (o.otype === 'stash') { E.sfx(['cursor_button_click']); UI.openStash(); }
     else if (o.otype === 'chest') openChest(o);
     else if (o.otype === 'portal') {
       var d = portalOf(o);
       if (!d) return;
       if (!d.open) { UI.msg('Cổng còn đóng. Cần xong ' + questName(D2DATA.quests[d.needs]) + '.', '#ff9a8a'); return; }
       if (d.act) { c.actAccess = c.actAccess || {}; c.actAccess[d.act] = true; }
-      E.sfx(['object_portal_enter', 'cursor_button_click'], 0.6);
+      E.sfx(['player_townportal_enter']);
       Game.travelWaypoint(d.to);
     }
     else if (o.otype === 'waypoint') {
       c.waypoints = c.waypoints || {};
-      if (S.areaId && !c.waypoints[S.areaId]) { c.waypoints[S.areaId] = true; UI.msg('Waypoint được kích hoạt.', '#9ec8ff'); save(); }
-      E.sfx(['object_waypoint_open', 'cursor_button_click'], 0.5); UI.openWaypoints();
+      // lần đầu chạm: waypoint chạy OP (mở) rồi mới sang ON như D2
+      if (S.areaId && !c.waypoints[S.areaId]) { c.waypoints[S.areaId] = true; o.opAt = S.time; UI.msg('Waypoint được kích hoạt.', '#9ec8ff'); E.sfx(['object_waypoint_open'], null, o); save(); }
+      UI.openWaypoints();
     }
   }
   Game.travelWaypoint = function (id) {
@@ -1114,10 +1216,10 @@
       if (q.act !== act) return;
       if (q.giver === id && !st) {
         if (!said) { def.text = 'Ta có việc cần nhờ ngươi: ' + questName(q) + '.'; said = true; }
-        def.buttons.push({ label: 'Nhận nhiệm vụ: ' + questName(q), fn: function () { c.quests[qid] = 'active'; UI.msg('Nhiệm vụ mới: ' + questName(q), '#ffe27a'); E.sfx(['cursor_questdone'], 0.4); UI.closeDialog(); save(); UI.dirty = true; } });
+        def.buttons.push({ label: 'Nhận nhiệm vụ: ' + questName(q), fn: function () { c.quests[qid] = 'active'; UI.msg('Nhiệm vụ mới: ' + questName(q), '#ffe27a'); E.sfx(['cursor_questdone']); UI.closeDialog(); save(); UI.dirty = true; } });
       } else if (q.turnIn === id && st === 'cleared') {
         def.text = 'Ngươi đã làm được: ' + questName(q) + '. Hãy nhận phần thưởng.'; said = true;
-        def.buttons.push({ label: 'Nhận thưởng: ' + questName(q), fn: function () { giveReward(qid); E.sfx(['cursor_questdone'], 0.5); UI.closeDialog(); } });
+        def.buttons.push({ label: 'Nhận thưởng: ' + questName(q), fn: function () { giveReward(qid); E.sfx(['cursor_questdone']); UI.closeDialog(); } });
       } else if ((q.giver === id || q.turnIn === id) && st === 'active' && !said) { def.text = 'Nhiệm vụ ' + questName(q) + ' vẫn đang chờ ngươi.'; said = true; }
     });
     var roles = nd.roles || [];
@@ -1152,13 +1254,13 @@
     var c = S.char, i = c.inv.indexOf(it); if (i < 0) return;
     c.stash = c.stash || []; var sp = stashSpot(c, it.w || 1, it.h || 1);
     if (!sp) { UI.msg('Kho đồ đầy.', '#ff9a8a'); return; }
-    c.inv.splice(i, 1); it.ix = sp[0]; it.iy = sp[1]; c.stash.push(it); UI.sel = null; UI.dirty = true; E.sfx(['inv_metal']); save();
+    c.inv.splice(i, 1); it.ix = sp[0]; it.iy = sp[1]; c.stash.push(it); UI.sel = null; UI.dirty = true; itemSound(it, 'usesound'); save();
   };
   Game.stashOut = function (it) {
     var c = S.char, i = (c.stash || []).indexOf(it); if (i < 0) return;
     c.stash.splice(i, 1);
     if (!addToInv(it)) { c.stash.splice(i, 0, it); UI.msg('Túi đồ đầy.', '#ff9a8a'); return; }
-    UI.sel = null; UI.dirty = true; E.sfx(['inv_metal']); save();
+    UI.sel = null; UI.dirty = true; itemSound(it, 'usesound'); save();
   };
 
   /* ================================================================ cập nhật */
@@ -1177,10 +1279,11 @@
     }
     if (h.st === 'attack' || h.st === 'cast') {
       var a = h.act;
-      if (a && !a.done && h.stT >= a.dur * 0.5) applyHeroAct(h);
+      if (a && a.hitAt == null) a.hitAt = heroHitAt(a.mode);
+      if (a && !a.done && h.stT >= a.dur * a.hitAt) applyHeroAct(h);
       if (h.stT >= h.stDur) { h.act = null; setSt(h, 'idle'); } else return;
     }
-    if (h.st === 'hit') { if (h.stT >= h.stDur) setSt(h, 'idle'); else return; }
+    if (h.st === 'hit' || h.st === 'block') { if (h.stT >= h.stDur) setSt(h, 'idle'); else return; }
 
     var joy = I.joyTiles();
     if (I.atkHeld && !joy) touchAttack();
@@ -1277,7 +1380,7 @@
           if (S.time - exitLock > 2) { exitLock = S.time; UI.msg('Lối này chưa mở.'); }
           return;
         }
-        entering = true; var from = S.areaId; E.sfx(['env_stairs'], 0.4);
+        entering = true; var from = S.areaId;
         enterArea(ex.to, from).then(function () { entering = false; save(); }, function (err) { entering = false; UI.showLoad(false); UI.msg('Lỗi vào khu vực: ' + err); });
         return;
       }
@@ -1286,13 +1389,10 @@
 
   /* ---------------------------------------------------------------- AI quái */
   var MON_LOSE_DIST = 90;   // subtile: quái đang đuổi xa hơn thì mất dấu và ngủ lại
+  var CORPSE_CAP = 50;      // xác quái giữ tới khi rời khu, tối đa ngần này xác
   function updateMon(m, dt) {
     var h = S.hero;
-    if (m.hitFlash > 0) m.hitFlash -= dt;
-    if (m.st === 'dead') {
-      if (S.time - m.deadAt > 25 && !m.rez) m.removed = true;
-      return;
-    }
+    if (m.st === 'dead') return;
     m.stT += dt * 1000;
     if (m.st === 'die') { if (m.stT >= m.stDur) setSt(m, 'dead'); return; }
     var dd = dist(m, h);
@@ -1301,7 +1401,9 @@
     if (m.st === 'hit') { if (m.stT >= m.stDur) setSt(m, 'idle'); return; }
     if (m.spawnT > 0) { m.spawnT -= dt * 1000; return; }
     var alive = h.st !== 'die' && h.st !== 'dead';
-    if (!m.aggro && alive && dd < 18 && S.time - S.arrive > 0.6) { aggroMon(m); if (!m.said) { m.said = 1; E.sfx([m.snd.Neutral], 0.4); } }
+    if (!m.aggro && alive && dd < 18 && S.time - S.arrive > 0.6) aggroMon(m);
+    // monsounds Neutral: lặp lại sau NeuTime khung khi quái đứng, đi, chạy
+    if ((m.st === 'idle' || m.st === 'walk' || m.st === 'run') && S.time >= m.neuAt) { m.neuAt = S.time + (m.snd.NeuTime || 250) / 25; E.sfx([m.snd.Neutral], null, m); }
     if (m.st === 'attack' || m.st === 'cast') {
       var a = m.act;
       if (a && !a.done && m.stT >= m.stDur * (a.hitAt || 0.5)) monStrike(m, a);
@@ -1366,12 +1468,14 @@
     m.act = { kind: anim, done: false, mode: mode, hitAt: an && an.hit > 0 ? an.hit / (an.frames || an.f.length) : 0.5 };
     restart(m, anim === 'shoot' || anim === 'cast' ? 'cast' : 'attack', dur);
     m.cd = dur / 1000 * rnd(1.1, 1.6) + 0.15;
-    E.sfx([m.snd.Attack1, m.snd.Weapon1].filter(Boolean), 0.5);
+    if (mode === 'A2') { monSnd(m, 'Attack2', 'Att2Del', 'Att2Prb'); monSnd(m, 'Weapon2', 'Wea2Del', null, 'Wea2Vol'); }
+    else if (anim === 'cast') monSnd(m, mode === 'S1' || mode === 'SC' ? 'Skill1' : 'Attack1', null);
+    else { monSnd(m, 'Attack1', 'Att1Del', 'Att1Prb'); monSnd(m, 'Weapon1', 'Wea1Del', null, 'Wea1Vol'); }
   }
   function monStrike(m, a) {
     a.done = true; var h = S.hero, inst = m.inst;
     if (a.kind === 'rez') {
-      var c = a.corpse; if (c && c.st === 'dead') { c.hp = Math.round(c.maxHp * 0.6); c.rez = 0; c.aggro = true; c.deadAt = 0; restart(c, 'idle', 0); c.spawnT = 0; E.sfx([m.snd.Skill1], 0.5); }
+      var c = a.corpse; if (c && c.st === 'dead') { c.hp = Math.round(c.maxHp * 0.6); c.rez = 0; c.aggro = true; c.deadAt = 0; restart(c, 'idle', 0); c.spawnT = 0; E.sfx([m.snd.Skill1], null, m); }
       return;
     }
     if (a.kind === 'swing') {
@@ -1379,7 +1483,6 @@
       var p = safe(function () { return D2R.hitChance((inst.a1 && inst.a1.ar) || inst.ar || 30, inst.lvl || 1, S.d.def, S.char.lvl); }, 0.7);
       var a1 = inst.a1 || inst.dmg || { min: 1, max: 3 };
       if (Math.random() < p) damageHero(rnd(a1.min, a1.max + 0.999), m);
-      else floatText(h.x, h.y, 'miss', '#aaa');
     } else {
       var fire = m.ai === 'shaman';
       var ms = inst.missile || {}, md = ms.dmg && (ms.dmg.max > 0) ? ms.dmg : (inst.a2 && inst.a2.max ? inst.a2 : inst.a1 || { min: 1, max: 3 });
@@ -1469,7 +1572,7 @@
   Game.statUp = function (st) {
     if (S.char.statPts <= 0) return;
     if (!safe(function () { return D2R.spendStat(S.char, st); }, false)) return;
-    recalc(); E.sfx(['button'], 0.3); UI.dirty = true; save();
+    recalc(); E.sfx(['cursor_button_click']); UI.dirty = true; save();
   };
   Game.skillUp = function (id) {
     var c = S.char, sk = DA.skill(id); if (!sk) return;
@@ -1479,7 +1582,7 @@
       Game.bindFree(id);
       if (!S.rightSkill || S.rightSkill === 'attack') S.rightSkill = id;
     }
-    recalc(); E.sfx(['button'], 0.3); UI.dirty = true; UI.refreshSkillIcons(); save();
+    recalc(); E.sfx(['cursor_button_click']); UI.dirty = true; UI.refreshSkillIcons(); save();
   };
   Game.equipItem = function (it) {
     var c = S.char, sl = DA.slotOf(it);
@@ -1492,7 +1595,7 @@
     c.inv.splice(idx, 1);
     var old = c.equip[sl];
     if (old) { if (!addToInv(old)) { c.inv.push(it); UI.msg('Túi đồ đầy.'); return; } }
-    c.equip[sl] = it; recalc(); E.sfx(['inv_metal']); UI.sel = null; UI.dirty = true;
+    c.equip[sl] = it; recalc(); itemSound(it, 'usesound'); UI.sel = null; UI.dirty = true;
   };
   Game.unequip = function (sl) {
     var c = S.char, it = c.equip[sl]; if (!it) return;
@@ -1514,7 +1617,7 @@
   };
   function quaff(p) {
     S.regen.push({ hp: p.hp / p.dur, mp: p.mp / p.dur, left: p.dur });
-    E.sfx(['power_potion', 'inv_potion'], 0.5); floatText(S.hero.x, S.hero.y, p.hp ? '+' + p.hp : '+' + p.mp, p.hp ? '#ff7a7a' : '#7aa0ff');
+    E.sfx(['item_potion_drink']);
   }
   Game.drinkBelt = function (i) {
     var c = S.char, it = c.belt[i]; if (!it || !S.hero || S.hero.st === 'die' || S.hero.st === 'dead') return;
@@ -1526,11 +1629,11 @@
     var copy = JSON.parse(JSON.stringify(it));
     var bi = DA.potionInfo(copy) ? beltFree(c) : -1;
     if (bi >= 0) c.belt[bi] = copy; else if (!addToInv(copy)) { UI.msg('Túi đồ đầy.'); return; }
-    c.gold -= pr; E.sfx(['inv_coins']); UI.dirty = true; UI._last.sig = null;
+    c.gold -= pr; E.sfx(['item_gold']); UI.dirty = true; UI._last.sig = null;
   };
   Game.sellItem = function (it) {
     var c = S.char, i = c.inv.indexOf(it); if (i < 0) return;
-    c.inv.splice(i, 1); c.gold += DA.sellPrice(it); E.sfx(['inv_coins']); UI.dirty = true;
+    c.inv.splice(i, 1); c.gold += DA.sellPrice(it); E.sfx(['item_gold']); UI.dirty = true;
   };
 
   /* ================================================================ lưu / nạp */
@@ -1607,7 +1710,7 @@
     startPlay(s.char);
   };
   Game.toTitle = function () {
-    save(); S.scene = 'title'; UI.showHud(false); UI.closeAll(); UI.showDead(false); E.music('town');
+    save(); S.scene = 'title'; UI.showHud(false); UI.closeAll(); UI.showDead(false); E.music('town'); E.ambient(null);
     S.ents = []; S.hero = null; UI.showTitle(Game.hasSave());
   };
 
@@ -1616,19 +1719,21 @@
     S.time += dt;
     var h = S.hero; if (!h) return;
     updateHero(dt);
+    heroSteps(h, dt);
     if (window.D2S) D2S.update(Game.api, dt);
     var ents = S.ents;
     for (var i = 0; i < ents.length; i++) {
       var e = ents[i];
       if (e.kind === 'mon' && !e.ally) updateMon(e, dt);
       else if (e.kind === 'missile') updateMissile(e, dt);
-      else if (e.kind === 'fx') { e.t += dt; if (e.t > e.life) e.removed = true; }
+      else if (e.kind === 'fx') { e.t += dt; if (e.t > e.life) e.removed = true; if (e.follow) { e.x = e.follow.x; e.y = e.follow.y; } }
       else if (e.kind === 'drop') {
+        if (e.landAt && S.time >= e.landAt) { e.landAt = 0; if (e.gold) E.sfx(['item_gold'], null, e); else itemSound(e.item, 'dropsound', e); }
         if (e.gold && !e.removed && dist(e, h) < 2.6 && h.st !== 'die' && h.st !== 'dead') pickup(e);
-      } else if (e.kind !== 'hero') e.stT += dt * 1000;
+      } else if (e.kind === 'npc') updateNpc(e, dt);
+      else if (e.kind !== 'hero') e.stT += dt * 1000;
       if (e.kind === 'missile' && e.st === 'dead') e.removed = true;
     }
-    for (i = S.floaters.length - 1; i >= 0; i--) { S.floaters[i].t += dt; if (S.floaters[i].t > 1.1) S.floaters.splice(i, 1); }
     if (ents.some(function (e) { return e.removed; })) { S.ents = ents.filter(function (e) { return !e.removed; }); }
     // cam
     var k = 1 - Math.pow(0.0005, dt);
@@ -1636,16 +1741,73 @@
     // hover
     S.hover = I.mouse.inside && !I.touch ? entAt(I.mouse.x, I.mouse.y) : null;
     if (S.time - S.lastSave > 20) { S.lastSave = S.time; save(); }
+    for (i = sndQ.length - 1; i >= 0; i--) if (S.time >= sndQ[i].at) { var q = sndQ.splice(i, 1)[0]; if (S.time - q.at < 1) E.sfx(q.keys, q.vol, q); }
+    soundscape();
+  }
 
+  /* ---------------------------------------------------------------- tiếng nền, bước chân */
+  // Giờ trong ngày cho khu ngoài trời: một ngày game dài DAY_SEC giây; tối nhất từ 21h tới 4h, chạng vạng 2 giờ hai đầu
+  var DAY_SEC = 2400;
+  S.hour0 = 9;
+  function hourNow() { return ((S.hour0 + S.time / DAY_SEC * 24) % 24 + 24) % 24; }
+  function nightLevel() {
+    var hr = hourNow();
+    if (hr >= 21 || hr < 4) return 1;
+    if (hr >= 19) return (hr - 19) / 2;
+    if (hr < 6) return 1 - (hr - 4) / 2;
+    return 0;
+  }
+  function soundEnv() { return S.def && D2DATA.soundEnv && D2DATA.soundEnv[S.def.soundEnv]; }
+  // soundenviron: Day/Night Ambience lặp, Day/Night Event phát ngẫu nhiên cách nhau quanh Event Delay khung
+  function soundscape() {
+    var env = soundEnv(), night = S.def && !S.def.inside && nightLevel() > 0.5;
+    E.ambient(env && !E.muted ? (night ? env.night : env.day) : null);
+    if (!env || !env.eventDelay) return;
+    if (S.evArea !== S.areaId) { S.evArea = S.areaId; S.evAt = S.time + env.eventDelay / 25 * rnd(0.5, 1.5); }
+    if (S.time >= S.evAt) { S.evAt = S.time + env.eventDelay / 25 * rnd(0.5, 1.5); E.sfx([night ? env.nightEvent : env.dayEvent]); }
+  }
+  // Bước chân hero: <light|medium|heavy>_<walk|run>_<chất liệu sàn>, nặng nhẹ theo giáp thân, sàn theo Material 1 của
+  // soundenviron (1 đất, 2 đá trong nhà, 3 đá ngoài trời, 4 cát, 5 gỗ, 6 tuyết). Hai bước mỗi vòng hoạt ảnh WL/RN.
+  var MATS = [null, 'dirt', 'istone', 'ostone', 'sand', 'wood', 'snow', 'wet', 'grass'];
+  function heroSteps(h, dt) {
+    if (h.st !== 'walk' && h.st !== 'run') { h.stepT = 0; return; }
+    var cof = E.heroCof(heroLook(), heroMode(h)), half = cof ? E.animDur(cof) / 2000 : 0.3;
+    h.stepT = (h.stepT || 0) + dt; if (h.stepT < half) return; h.stepT -= half;
+    var env = soundEnv(), mat = MATS[(env && env.mat1) || 1] || 'dirt', body = DA.base(S.char.equip.body);
+    var w = ['light', 'medium', 'heavy'][(body && body.torso) || 0] + '_' + (h.st === 'run' ? 'run' : 'walk');
+    E.sfx([w + '_' + mat + '_1', w + '_dirt_1']);
+  }
+
+  /* NPC thị trấn đi lại quanh chỗ đứng bằng WL, nghỉ vài giây giữa các chặng; đứng lại khi hero tới gần để nói chuyện */
+  var NPC_WANDER = 4, NPC_SPEED = 2;
+  function updateNpc(n, dt) {
+    n.stT += dt * 1000;
+    var h = S.hero;
+    if (!n.home || !E.animOf(n.art, 'WL')) return;
+    if (UI.dlg === n || (h.goal && h.goal.target === n) || dist(n, h) < 5) {
+      if (n.st === 'walk') setSt(n, 'idle');
+      n.wait = Math.max(n.wait || 0, 2);
+      return;
+    }
+    if (n.st !== 'walk') {
+      n.wait = (n.wait == null ? rnd(1, 6) : n.wait) - dt;
+      if (n.wait > 0) return;
+      var a = rnd(0, 6.283), r = rnd(1.5, NPC_WANDER), tx = n.home[0] + Math.cos(a) * r, ty = n.home[1] + Math.sin(a) * r;
+      if (!canStand(tx, ty, 0.3) || !los(n.x, n.y, tx, ty)) { n.wait = 0.5; return; }
+      n.to = [tx, ty]; setSt(n, 'walk'); return;
+    }
+    var dx = n.to[0] - n.x, dy = n.to[1] - n.y, d = Math.hypot(dx, dy), sp = Math.min(d, NPC_SPEED * dt);
+    if (d < 0.2 || !tryMove(n, dx / d * sp, dy / d * sp)) { setSt(n, 'idle'); n.wait = rnd(2, 7); return; }
+    n.dir = E.dirFromTiles(dx, dy);
   }
 
   // Hoạt ảnh một lượt (đánh, niệm, trúng đòn) trải đúng lên thời lượng trạng thái do luật tính (tốc độ vũ khí...)
   function actT(e, an) {
-    if (an && e.stDur && (e.st === 'attack' || e.st === 'cast' || e.st === 'hit')) return Math.min(e.stT / e.stDur, 0.999) * E.animDur(an);
+    if (an && e.stDur && (e.st === 'attack' || e.st === 'cast' || e.st === 'hit' || e.st === 'block')) return Math.min(e.stT / e.stDur, 0.999) * E.animDur(an);
     return e.stT;
   }
   function shadow(sx, sy, rx, ry) { var c = E.ctx; c.fillStyle = 'rgba(0,0,0,.28)'; c.beginPath(); c.ellipse(sx, sy, rx, ry, 0, 0, 7); c.fill(); }
-  function oneShot(st) { return st === 'die' || st === 'dead' || st === 'attack' || st === 'cast' || st === 'hit'; }
+  function oneShot(st) { return st === 'die' || st === 'dead' || st === 'attack' || st === 'cast' || st === 'hit' || st === 'block'; }
   function drawHero(sx, sy, d) {
     if (window.D2S && D2S.drawUnit && D2S.drawUnit(Game.api, d.e, sx, sy)) return;
     var h = d.e, look = heroLook(), mode = heroMode(h);
@@ -1670,10 +1832,9 @@
     var m = d.e, mode = monMode(m), an = E.animOf(m.art, mode);
     var t = m.st === 'dead' && mode === 'DT' ? 1e7 : actT(m, an), small = m.rank === 'normal' || m.rank === 'minion';
     if (m.st !== 'dead') shadow(sx, sy, small ? 16 : 22, small ? 7 : 10);
-    var glow = m.rank === 'champion' || m.rank === 'unique';
-    if (glow) { E.ctx.save(); E.ctx.shadowColor = m.rank === 'unique' ? '#ffe45a' : '#6e7bff'; E.ctx.shadowBlur = 12; }
-    var ok = m.art ? E.drawSprite(m.art, mode, t, m.dir, sx, sy, m.hitFlash > 0 ? 0.7 : 1, oneShot(m.st)) : false;
-    if (glow) E.ctx.restore();
+    E.tint = monTint(m);
+    var ok = m.art ? E.drawSprite(m.art, mode, t, m.dir, sx, sy, 1, oneShot(m.st)) : false;
+    E.tint = null;
     if (!ok) E.drawBlob(sx, sy, m.st === 'dead' ? '#442' : '#a44', 11, m.dir, null);
     if (S.hover === m && m.st !== 'dead') { E.ctx.strokeStyle = 'rgba(255,60,60,.8)'; E.ctx.lineWidth = 2; E.ctx.beginPath(); E.ctx.ellipse(sx, sy, 20, 9, 0, 0, 7); E.ctx.stroke(); }
   }
@@ -1683,7 +1844,10 @@
     var o = d.e, mode = o.mode;
     if (o.otype === 'waypoint' && S.char.waypoints && S.char.waypoints[S.areaId] && E.animOf(o.art, 'ON')) mode = 'ON';
     if (o.otype === 'portal') { var pd = portalOf(o); mode = pd && pd.open && E.animOf(o.art, 'ON') ? 'ON' : 'NU'; }
-    E.drawSprite(o.art, mode, S.time * 1000 + o.t0, 0, sx, sy, 1, o.once);
+    var t = S.time * 1000 + o.t0, once = o.once, op = o.opAt != null && E.animOf(o.art, 'OP');
+    if (op && (S.time - o.opAt) * 1000 < E.animDur(op)) { mode = 'OP'; t = (S.time - o.opAt) * 1000; once = true; }
+    o.drawMode = mode;
+    E.drawSprite(o.art, mode, t, 0, sx, sy, 1, once);
     if (S.hover === o && OBJ_LABEL[o.otype]) {
       var c = E.ctx; c.font = '13px Georgia,serif'; c.textAlign = 'center'; c.fillStyle = '#fff'; c.strokeStyle = '#000'; c.lineWidth = 3;
       c.strokeText(OBJ_LABEL[o.otype], sx, sy - 70); c.fillText(OBJ_LABEL[o.otype], sx, sy - 70);
@@ -1692,7 +1856,7 @@
   function drawNpc(sx, sy, d) {
     var n = d.e;
     shadow(sx, sy, 16, 7);
-    if (!E.drawSprite(n.art, 'NU', n.stT, n.dir, sx, sy, 1)) E.drawBlob(sx, sy, '#6a8ac0', 11, n.dir, null);
+    if (!E.drawSprite(n.art, n.st === 'walk' ? 'WL' : 'NU', n.stT, n.dir, sx, sy, 1)) E.drawBlob(sx, sy, '#6a8ac0', 11, n.dir, null);
     if (S.hover === n) {
       var nd = D2DATA.npcs[n.npc], name = nd ? nd.name : n.npc;
       var c = E.ctx; c.font = '13px Georgia,serif'; c.textAlign = 'center'; c.fillStyle = '#fff'; c.strokeStyle = '#000'; c.lineWidth = 3;
@@ -1713,11 +1877,41 @@
   }
   function drawFx(sx, sy, d) {
     var e = d.e, f = e.t / e.life, c = E.ctx;
+    if (e.spr) { E.tint = e.tint || null; E.drawSprite(e.spr, 'NU', e.t * 1000, e.dir || 0, sx, sy, 1, true); E.tint = null; return; }
     c.save(); c.globalAlpha = 1 - f; c.strokeStyle = e.color || '#fff'; c.lineWidth = 3;
     c.beginPath(); c.ellipse(sx, sy, e.ring * 16 * f, e.ring * 8 * f, 0, 0, 7); c.stroke(); c.restore();
   }
 
-  var vigCv = null;
+  /* ---------------------------------------------------------------- ánh sáng */
+  /* Trong nhà ngoài vùng sáng gần như đen như D2; ngoài trời tối theo giờ trong ngày. Nguồn sáng: hero (bán kính gốc
+   * HERO_LIGHT, [ĐOÁN] chưa có số gốc, cộng light radius của đồ), Light + Flicker của missiles.txt (màu theo sheet),
+   * Light + light-r/g/b của monstats2, Lit0-7 của objects.txt theo mode vật thể (màu lửa ấm, objects.txt Red/Green/Blue
+   * chưa đóng gói vào objPresets) và sheet đạn/overlay có light đang vẽ qua D2S. */
+  var HERO_LIGHT = 12, OBJ_MODES = ['NU', 'OP', 'ON', 'S1', 'S2', 'S3', 'S4', 'S5'], FIRE_RGB = [255, 190, 120];
+  function darkness() { return !S.def ? 0 : S.def.inside ? 0.94 : nightLevel() * 0.7; }
+  function sheetLight(art) { var s = art && E.sheet(art); return s && s.light; }
+  function lights() {
+    var out = [], h = S.hero;
+    function add(e, r, rgb) {
+      if (!(r > 0)) return;
+      var p = E.toScreen(e.x, e.y);
+      if (p[0] < -400 || p[0] > 1360 || p[1] < -300 || p[1] > 840) return;
+      out.push({ x: p[0], y: p[1], r: r, rgb: rgb && (rgb[0] < 250 || rgb[1] < 250 || rgb[2] < 250) ? rgb : null });
+    }
+    add(h, HERO_LIGHT + ((S.d && S.d.lightRadius) || 0), null);
+    S.ents.forEach(function (e) {
+      if (e.removed) return;
+      if (e.kind === 'missile') {
+        var L = sheetLight(e.st === 'die' && e.boom ? e.boom : e.art); if (!L) return;
+        if (S.time >= (e.flickAt || 0)) { e.flickAt = S.time + 0.16; e.flick = (e.md.Flicker || 0) * Math.random(); }
+        add(e, L[0] + (e.flick || 0), L.slice(1));
+      } else if (e.kind === 'mon' && e.md && e.md.light && e.st !== 'dead') add(e, e.md.light[0], e.md.light.slice(1));
+      else if (e.kind === 'obj' && e.lit) add(e, e.lit[OBJ_MODES.indexOf(e.drawMode || e.mode)], FIRE_RGB);
+      else if (e.kind === 'd2sfx') { var L2 = sheetLight(e.art); if (L2) add(e, L2[0], L2.slice(1)); }
+    });
+    return out;
+  }
+
   function render() {
     var drawables = [];
     E.updateCam();
@@ -1727,20 +1921,11 @@
         if (ps[0] < -320 || ps[0] > 960 + 320 || ps[1] < -260 || ps[1] > 540 + 420) return;
       }
       var fn = e.kind === 'hero' ? drawHero : e.kind === 'mon' ? drawMon : e.kind === 'npc' ? drawNpc : e.kind === 'obj' ? drawObj : e.kind === 'drop' ? drawDrop : e.kind === 'missile' ? drawMissile : e.kind === 'fx' ? drawFx : e.kind === 'd2sfx' && window.D2S ? function (sx, sy, d) { D2S.draw(Game.api, d.e, sx, sy); } : null;
-      if (fn) drawables.push({ x: e.x, y: e.y, z: e.kind === 'drop' || (e.kind === 'mon' && e.st === 'dead') ? -1 : 0, e: e, draw: fn });
+      if (fn) drawables.push({ x: e.x, y: e.y, z: e.z != null ? e.z : e.kind === 'drop' || (e.kind === 'mon' && e.st === 'dead') ? -1 : 0, e: e, draw: fn });
     });
     E.renderWorld(drawables);
     var c = E.ctx;
-    // hầm động tối dần quanh người chơi
-    if (S.def && S.def.inside && S.hero) {
-      if (!vigCv) {   // vẽ sẵn một lần, kéo theo vị trí hero trên màn hình
-        vigCv = document.createElement('canvas'); vigCv.width = 1920; vigCv.height = 1080;
-        var vc = vigCv.getContext('2d'), gr = vc.createRadialGradient(960, 540, 120, 960, 540, 520);
-        gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,.7)'); vc.fillStyle = gr; vc.fillRect(0, 0, 1920, 1080);
-      }
-      var p = E.toScreen(S.hero.x, S.hero.y);
-      c.drawImage(vigCv, Math.round(p[0] - 960), Math.round(p[1] - 30 - 540));
-    }
+    if (S.hero && !Game.noLight) E.drawLights(darkness(), lights());
     // nhãn đồ rơi
     var show = I.alt || I.touch, rects = [];
     c.font = '12px Georgia,serif'; c.textAlign = 'left'; c.textBaseline = 'alphabetic';
@@ -1753,13 +1938,6 @@
       rects.push([x, y]); e.labelRect = [x, y, tw, 14];
       c.fillStyle = hov ? 'rgba(60,40,10,.95)' : 'rgba(0,0,0,.7)'; c.fillRect(x, y, tw, 14);
       c.fillStyle = e.gold ? '#ffd24a' : e.corpse ? '#cc8' : UI.qcol(e.item && e.item.q); c.fillText(e.label, x + 4, y + 11);
-    });
-    // chữ nổi
-    c.textAlign = 'center';
-    S.floaters.forEach(function (f) {
-      var p2 = E.toScreen(f.x, f.y), a = 1 - f.t / 1.1;
-      c.globalAlpha = Math.max(0, a); c.font = (f.big ? 'bold 20px' : 'bold 14px') + ' Georgia,serif'; c.fillStyle = '#000'; c.fillText(f.text, p2[0] + 1, p2[1] - 60 - f.t * 40 + 1);
-      c.fillStyle = f.color; c.fillText(f.text, p2[0], p2[1] - 60 - f.t * 40);
     });
     c.globalAlpha = 1;
     // con trỏ nhắm (di chuột)
@@ -1889,6 +2067,10 @@
       E.ctx = old; cv.id = 'd2-sheet'; cv.style.cssText = 'position:fixed;left:0;top:0;z-index:9999'; document.body.appendChild(cv); return { ok: ok };
     },
     freeze: function (on) { Game.freeze = !!on; },
+    hour: function (hr) { if (hr != null) S.hour0 = hr - S.time / DAY_SEC * 24; return hourNow(); },   // giờ trong ngày ngoài trời
+    // lớp ánh sáng: nguồn sáng đang có (px màn hình, bán kính subtile) và bật/tắt cả lớp để chụp so sánh
+    lights: function () { return { dark: darkness(), list: lights() }; },
+    noLight: function (on) { Game.noLight = !!on; render(); },
     zoom: function (z) { E.view = z || 1; }   // chỉ để chụp ảnh khu rộng: thu nhỏ khung hình quanh tâm, không đụng luật
   };
 
