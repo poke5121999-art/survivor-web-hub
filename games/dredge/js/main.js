@@ -14,7 +14,7 @@
   // ---------- tải tài nguyên có tiến độ ----------
   // Kích thước trên đĩa (byte) để vẽ thanh tiến độ khi máy chủ không gửi Content-Length (nén gzip).
   const SIZE = {
-    'lib.glb': 13093832, 'boat.glb': 4313536, 'depthmask.png': 2184389, 'markers.json': 1436641, 'terrain_rg.png': 1381301,
+    'lib.glb': 13312292, 'boat.glb': 4313536, 'depthmask.png': 2184389, 'markers.json': 1436641, 'terrain_rg.png': 1381301,
     'instances.bin': 343320, 'scene_config.json': 146136, 'world.json': 129924, 'landmask.png': 29250
   };
   const prog = {};

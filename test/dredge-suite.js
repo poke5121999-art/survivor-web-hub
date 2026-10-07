@@ -175,10 +175,15 @@ async function run(browser, base, W, H) {
   const stock0 = I.view.nearSpot ? I.view.nearSpot.stock : 0;
   await sleep(500);
   await shot('4-harvest-spot');
-  const tFish = (await info()).time;
   await page.keyboard.press('Space');
   await page.waitForFunction(() => DR.mode === 'harvest', null, { timeout: 5000 }).catch(() => {});
   check('Space ở điểm câu → harvest', (await info()).mode === 'harvest');
+  // HarvestMinigameView gốc: mở bảng câu chưa tính giờ, phải bấm lần nữa mới thả câu
+  const tOpen = (await info()).time;
+  await sleep(800);
+  check('bảng câu mở mà chưa bắt đầu: giờ đứng yên', (await info()).time === tOpen);
+  const tFish = (await info()).time;
+  await page.keyboard.press('Space');
   const mg = await page.evaluate(() => !!(window.DRMinigame && DRMinigame.isOpen()));
   await sleep(1500);
   await shot('5-harvest-minigame');
@@ -242,24 +247,9 @@ async function run(browser, base, W, H) {
   check('Space → tự lái vào slot rồi neo bến', I.mode === 'dock' && I.dock === GM, I.mode + ' ' + I.dock);
   check('neo bến thì lưu sổ (đèn vừa nhận có trong sổ, dock = Greater Marrow)', await page.evaluate(() => { const v = JSON.parse(localStorage.getItem('dredge.save.v1')); return v.dock === 'dock.greater-marrow' && v.grids.INVENTORY.items.some(i => i.id === 'light1'); }));
 
-  // ---- bán cá ở người buôn cá (vòng chơi trọn: câu → cập bến → bán) ----
-  const sale = await page.evaluate(() => {
-    const inst = DR.give('cod', { size: 0.5, fresh: DR_CONFIG.maxFreshness });
-    DR.emit('cargo', 'INVENTORY', inst);
-    return { funds: DR.s.funds, price: DRRules.sellPrice(DR_CONFIG, DR_ITEMS.cod, inst), repay: DR_CONFIG.greaterMarrowDebtRepaymentProportion };
-  });
-  const fm = page.locator('button:visible', { hasText: 'Người buôn cá' }).first();
-  check('bến Greater Marrow có Người buôn cá', await fm.count() > 0);
-  check('bến Greater Marrow có Mayor', await page.locator('button:visible', { hasText: 'Mayor' }).count() > 0);
-  if (await fm.count()) {
-    await fm.click();
-    await page.locator('button:visible', { hasText: /^Bán$/ }).first().click();
-    await sleep(300);
-    const after = await page.evaluate(() => ({ funds: DR.s.funds, rep: DR.s.vars['gm-repayments'], cod: DR.grid('INVENTORY').items.some(i => i.id === 'cod') }));
-    const want = Math.round(sale.price * (1 - sale.repay) * 100) / 100;
-    check('bán cod: tiền tăng đúng giá trừ phần trả nợ 15%', Math.abs(after.funds - sale.funds - want) < 0.011 && !after.cod,
-      sale.funds + ' → ' + after.funds + ' (giá ' + sale.price + ', trả nợ ' + after.rep + ')');
-  }
+  // ---- bến khoá theo cốt truyện: Người buôn cá chỉ mở sau lời Mayor (SetDestinationAvailable); bán cá kiểm ở test/dredge-story.js ----
+  const dk = await page.evaluate(() => window.DRDock && DRDock._debug());
+  check('bến Greater Marrow chưa mở Người buôn cá khi chưa nói chuyện với Mayor', !!dk && !dk.dests.includes('destination.gm-fishmonger'), dk && dk.dests.join(','));
 
   // ---- tạm dừng ----
   if (!touch) {

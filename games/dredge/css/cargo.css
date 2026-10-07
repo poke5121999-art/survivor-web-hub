@@ -1,0 +1,128 @@
+/*
+ * Màn hình khoang thuyền (js/cargo.js). Số đo lấy từ Game.unity (PlayerSlidePanel, InventoryGrid, TooltipUI) và GridCell.prefab,
+ * đơn vị canvas 1920x1080 nhân hệ số --k (cargo.js đặt từ chiều cao cửa sổ, CanvasScaler khớp theo chiều cao).
+ * Sprite ở art/ui/cargo (tools/cargo_ui.py). Sprite Sliced của Unity co theo ppu/100: viền 72 px ở ppu 200 = 36 đơn vị canvas.
+ * Tiền tố cg- để không đụng các luật dc-* cũ trong ui.css (nay không còn dùng).
+ */
+.cg-root { --ink: #fff; --muted: #7d6244; position: fixed; inset: 0; z-index: 40; display: none; background: rgba(2, 8, 8, .32); touch-action: none; }
+.cg-root.on { display: block; }
+
+/* ---- bảng trượt ---- */
+.cg-panel { position: absolute; box-sizing: border-box; transition: transform .5s cubic-bezier(.16, 1, .3, 1); will-change: transform; }
+.cg-right { right: 0; transform: translateX(105%); }
+.cg-left { left: 0; transform: translateX(-105%); }
+.cg-panel.on { transform: none; }
+.cg-bg { position: absolute; inset: 0; box-sizing: border-box; pointer-events: none;
+  border-style: solid; border-width: calc(var(--k) * 36px) 0 calc(var(--k) * 36px) calc(var(--k) * 36px);
+  border-image: url(../art/ui/cargo/SidePanel_0.webp) 72 0 72 72 fill / calc(var(--k) * 36px) 0 calc(var(--k) * 36px) calc(var(--k) * 36px) stretch; }
+.cg-left .cg-bg { transform: scaleX(-1); }
+.cg-left.flash { animation: cg-flash .7s; }
+@keyframes cg-flash { 30% { filter: brightness(1.8); } }
+
+/* tay nắm SlidePanelTab: 50x50 ở mép trái bảng phải, bấm để đóng */
+.cg-handle { position: absolute; left: calc(var(--k) * -58px); top: calc(var(--k) * 82px); width: calc(var(--k) * 50px); height: calc(var(--k) * 50px); min-width: 28px; min-height: 28px;
+  padding: 0; border: 0; cursor: pointer; background: #000; border-radius: 4px 0 0 4px; }
+.cg-handle i { position: absolute; inset: 14%; background: #efe3c8; -webkit-mask: url(../art/ui/cargo/ShipIcon.webp) center / contain no-repeat; mask: url(../art/ui/cargo/ShipIcon.webp) center / contain no-repeat; }
+.cg-handle:hover i { background: #fff; }
+
+/* ---- thanh tab (TopBar/Tabs: inset 50 mỗi bên, cao 50) ---- */
+.cg-tabs { position: absolute; left: calc(var(--k) * 50px); right: calc(var(--k) * 50px); top: calc(var(--k) * 2px); height: calc(var(--k) * 50px); display: flex; z-index: 2; }
+.cg-tabs::after { content: ""; position: absolute; left: calc(var(--k) * -50px); right: calc(var(--k) * -50px); bottom: calc(var(--k) * -2px); height: calc(var(--k) * 4px); pointer-events: none;
+  background: url(../art/ui/cargo/TabDivider_0.webp) 0 0 / 100% 100% no-repeat; }
+.cg-tab { flex: 1 1 0; min-width: 0; appearance: none; margin: 0; padding: 0 2px; cursor: pointer; color: #b9ab8e; font: 600 max(11px, calc(var(--k) * 30px))/1 var(--dr-head); text-transform: uppercase; letter-spacing: .02em;
+  border-style: solid; border-width: calc(var(--k) * 6px); background: transparent; border-image: url(../art/ui/cargo/Tab_Unselected_0.webp) 12 fill / calc(var(--k) * 6px) stretch; white-space: nowrap; overflow: hidden; }
+.cg-tab.sel { color: #fff; cursor: default; border-image-source: url(../art/ui/cargo/Tab_Selected_0.webp); }
+.cg-tab[disabled] { color: #6b6b6b; cursor: not-allowed; border-image-source: url(../art/ui/cargo/Tab_Disabled_0.webp); }
+.cg-tab.un:hover { color: #fff; }
+
+/* ---- dải thông tin (StatsBackplate: cao 145) ---- */
+.cg-stats { position: absolute; left: calc(var(--k) * 4px); right: 0; top: calc(var(--k) * 54px); height: calc(var(--k) * 145px); box-sizing: border-box; display: flex;
+  border-style: solid; border-width: calc(var(--k) * 8px) calc(var(--k) * 32px) calc(var(--k) * 12px) calc(var(--k) * 32px);
+  border-image: url(../art/ui/cargo/SettingsPanelBackground_0.webp) 16 64 24 64 fill / calc(var(--k) * 8px) calc(var(--k) * 32px) calc(var(--k) * 12px) calc(var(--k) * 32px) stretch; }
+.cg-st-l { flex: 0 0 calc(var(--k) * 223px); display: flex; flex-direction: column; justify-content: center; font: 400 max(10px, calc(var(--k) * 23px))/1.45 var(--dr-ui); color: #fff; white-space: nowrap; }
+.cg-st-l b { font-weight: 600; }
+.cg-st-l .pj { font-weight: 400; }
+.cg-st-r { flex: 1; min-width: 0; margin-left: calc(var(--k) * 16px); border-left: 2px solid #000; padding-left: calc(var(--k) * 14px); display: flex; flex-direction: column; justify-content: center; }
+.cg-st-r .hd { font: 600 max(11px, calc(var(--k) * 28px))/1.2 var(--dr-head); color: #fff; margin-bottom: calc(var(--k) * 6px); }
+.cg-st-r .tags { display: flex; flex-wrap: wrap; gap: calc(var(--k) * 5px); }
+.cg-st-r .none { font: 400 max(10px, calc(var(--k) * 22px)) var(--dr-ui); color: #b9ab8e; }
+
+/* ---- thanh hư hại (HealthPanel: cao 50, rộng -200) ---- */
+.cg-health { position: absolute; left: calc(var(--k) * 100px); right: calc(var(--k) * 100px); height: calc(var(--k) * 50px); display: flex; align-items: center; gap: calc(var(--k) * 12px); box-sizing: border-box; z-index: 1;
+  border-style: solid; border-width: 0 calc(var(--k) * 37.5px) 0 calc(var(--k) * 37.5px);
+  border-image: url(../art/ui/cargo/HealthBarPanel.webp) 0 75 0 75 fill / 0 calc(var(--k) * 37.5px) 0 calc(var(--k) * 37.5px) stretch; }
+.cg-health .lab { font: 600 max(11px, calc(var(--k) * 30px))/1 var(--dr-head); color: #fff; margin-left: calc(var(--k) * -20px); }
+.cg-health .notches { display: flex; gap: calc(var(--k) * 5px); }
+.cg-health .notches i { width: calc(var(--k) * 30px); height: calc(var(--k) * 44px); min-width: 7px; background: url(../art/ui/cargo/DamageBox_Empty.webp) center / 100% 100% no-repeat; }
+.cg-health .notches i.full { background-image: url(../art/ui/cargo/DamageBox_Full.webp); }
+
+/* ---- bảng kho bên trái ---- */
+.cg-title { position: absolute; left: calc(var(--k) * 36px); right: calc(var(--k) * 8px); top: calc(var(--k) * 4px); height: calc(var(--k) * 46px); display: flex; align-items: center; justify-content: center;
+  font: 600 max(12px, calc(var(--k) * 30px))/1 var(--dr-head); text-transform: uppercase; color: #fff; }
+.cg-title::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: calc(var(--k) * 4px); background: url(../art/ui/cargo/TabDivider_0.webp) 0 0 / 100% 100% no-repeat; }
+
+/* ---- vùng lưới ---- */
+.cg-zone { position: absolute; }
+.cg-zonebg { position: absolute; inset: 0; pointer-events: none; background: url(../art/ui/cargo/PlayerInventoryBackground.webp) center / 100% 100% no-repeat; }
+.cg-grid { position: absolute; touch-action: none; }
+
+/* ---- ô lưới: GridCell.prefab (Background, OccupationImage, StatusImage, AcceptedItemTypeImage) ---- */
+.cg-c { position: absolute; }
+.cg-c i { position: absolute; inset: 2%; pointer-events: none; }
+.cg-c .b { background: #3a2820; -webkit-mask: url(../art/ui/cargo/CargoGrid_Default.webp) center / 100% 100% no-repeat; mask: url(../art/ui/cargo/CargoGrid_Default.webp) center / 100% 100% no-repeat; }
+.cg-c .o { display: none; }
+.cg-c.occ .o { display: block; }
+.cg-c.inf .o { box-shadow: inset 0 0 0 99px rgba(160, 60, 200, .38); }
+.cg-c .f { -webkit-mask: url(../art/ui/cargo/HighlightBorder.webp) center / 100% 100% no-repeat; mask: url(../art/ui/cargo/HighlightBorder.webp) center / 100% 100% no-repeat; }
+.cg-c .f.ok { background: #74d27a; }
+.cg-c .f.bad { background: #dc2c38; }
+.cg-c .f.semi { background: #ff9a3b; }
+.cg-c .ic { background: #3a2521; -webkit-mask: var(--m) center / 100% 100% no-repeat; mask: var(--m) center / 100% 100% no-repeat; }
+.cg-c .ic.hi { background: #fff; display: block !important; }
+.cg-dmg { position: absolute; pointer-events: none; background: url(../art/ui/sprites/CargoGrid_Damaged.webp) center / 100% 100% no-repeat; }
+
+/* ---- đồ ---- */
+.cg-item { position: absolute; pointer-events: none; }
+.cg-item img, .cg-held img { position: absolute; left: 50%; top: 50%; max-width: none; pointer-events: none; -webkit-user-drag: none; transform-origin: 50% 50%; }
+.cg-item.grey img { filter: grayscale(1) brightness(.8); }   /* greyscaleMaterial: thiết bị OPERATION nằm trên ô hỏng */
+.cg-item.settle img { animation: cg-settle .14s ease-out; }
+@keyframes cg-settle { from { scale: 1.07; } to { scale: 1; } }
+.cg-held { position: fixed; left: 0; top: 0; z-index: 90; display: none; pointer-events: none; will-change: transform; }
+.cg-cursor { position: fixed; left: 0; top: 0; z-index: 89; display: none; pointer-events: none; box-sizing: border-box;
+  border-style: solid; border-width: calc(var(--k, .67) * 10px) calc(var(--k, .67) * 25px) calc(var(--k, .67) * 11px) calc(var(--k, .67) * 25px);
+  border-image: url(../art/ui/cargo/Selector_0.webp) 20 50 22 50 / calc(var(--k, .67) * 10px) calc(var(--k, .67) * 25px) calc(var(--k, .67) * 11px) calc(var(--k, .67) * 25px) stretch; }
+
+/* ---- tooltip (TooltipUI: Container 330 rộng, padding 15/15/3/15, spacing 2) ---- */
+.cg-tip { position: fixed; left: 0; top: 0; z-index: 95; width: calc(var(--kt) * 330px); box-sizing: border-box; padding: calc(var(--kt) * 3px) calc(var(--kt) * 15px) calc(var(--kt) * 15px); pointer-events: none; opacity: 0; transition: opacity .35s; color: #fff; isolation: isolate; }
+.cg-tip.on { opacity: 1; }
+.cg-tip::before { content: ""; position: absolute; inset: 0; z-index: -1; box-sizing: border-box; border-style: solid; border-width: calc(var(--kt) * 32px);
+  border-image: url(../art/ui/cargo/PopupBackground_0.webp) 64 fill / calc(var(--kt) * 32px) stretch; }
+.cg-tip .hd { position: relative; display: flex; align-items: center; gap: calc(var(--kt) * 8px); min-height: calc(var(--kt) * 50px); padding-bottom: calc(var(--kt) * 8px); }
+.cg-tip .hd .ic { width: calc(var(--kt) * 40px); height: calc(var(--kt) * 40px); flex: none; object-fit: contain; }
+.cg-tip .hd .nm { flex: 1; font: 700 max(12px, calc(var(--kt) * 30px))/1.05 var(--dr-head); text-transform: uppercase; letter-spacing: .01em; }
+.cg-tip .hd .ln { position: absolute; left: 0; right: 0; bottom: calc(var(--kt) * 3px); height: 2px; background: #d7bfad; }
+.cg-tip .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: calc(var(--kt) * 30px); margin-top: calc(var(--kt) * 2px); }
+.cg-tip .row .l { font: 400 max(11px, calc(var(--kt) * 24px)) var(--dr-ui); }
+.cg-tip .row .v { font: 400 max(12px, calc(var(--kt) * 28px)) var(--dr-ui); text-align: right; }
+.cg-tip .row .tags { display: inline-flex; flex-wrap: wrap; gap: 3px; justify-content: flex-end; }
+.cg-tip .bar { position: relative; display: block; width: calc(var(--kt) * 135px); height: calc(var(--kt) * 30px); background: #811414; border: 2px solid #000; box-sizing: border-box; }
+.cg-tip .bar i { position: absolute; left: 0; top: 0; bottom: 0; background: #8ad275; }
+.cg-tip .bar em { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font: 600 max(10px, calc(var(--kt) * 22px)) var(--dr-ui); color: #fff; text-shadow: 0 1px 2px #000; }
+.cg-tip .ds { margin: calc(var(--kt) * 6px) 0 0; text-align: center; font: 400 max(11px, calc(var(--kt) * 24px))/1.2 var(--dr-ui); color: var(--muted); }
+.cg-tip .prompts { margin-top: calc(var(--kt) * 10px); display: flex; flex-wrap: wrap; justify-content: center; gap: calc(var(--kt) * 6px) calc(var(--kt) * 14px); }
+.cg-tip .pr { display: flex; align-items: center; gap: 6px; font: 400 max(10px, calc(var(--kt) * 22px)) var(--dr-ui); }
+.cg-tip .pr b { font-weight: 600; padding: 1px 7px; border: 1px solid #d7bfad; border-radius: 3px; background: rgba(255, 255, 255, .1); }
+
+/* nhãn loại thu hoạch (FishableTypeTag, sprite TypeTag, màu theo HarvestTypeTagConfig.colorLookup) */
+.cg-tag { position: relative; z-index: 0; display: inline-block; padding: 0 calc(var(--kt, .67) * 18px); min-width: calc(var(--kt, .67) * 100px); box-sizing: border-box; text-align: center; white-space: nowrap;
+  font: 400 max(10px, calc(var(--kt, .67) * 24px))/calc(var(--kt, .67) * 30px) var(--dr-ui); color: #fff; }
+.cg-st-r .cg-tag { min-width: calc(var(--k) * 110px); font-size: max(10px, calc(var(--k) * 24px)); line-height: calc(var(--k) * 30px); padding: 0 calc(var(--k) * 12px); }
+.cg-tag::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--c); -webkit-mask: url(../art/ui/cargo/TypeTag_0.webp) center / 100% 100% no-repeat; mask: url(../art/ui/cargo/TypeTag_0.webp) center / 100% 100% no-repeat; }
+
+/* ---- nút cảm ứng và vòng giữ phím vứt ---- */
+.cg-acts { position: fixed; left: 12px; bottom: 12px; z-index: 97; display: none; gap: 8px; }
+.cg-act { appearance: none; min-height: 40px; min-width: 64px; padding: 6px 14px; cursor: pointer; color: #fff; font: 600 14px var(--dr-head); background: rgba(10, 6, 4, .9); border: 2px solid #5a4630; border-radius: 4px; touch-action: none; }
+.cg-act:active { background: #3a2820; }
+.cg-ring { position: fixed; left: 0; top: 0; z-index: 96; width: 40px; height: 40px; display: none; pointer-events: none; border-radius: 50%;
+  background: conic-gradient(var(--c, #fff) var(--p, 0deg), rgba(255, 255, 255, .22) 0);
+  -webkit-mask: radial-gradient(circle, transparent 52%, #000 54%); mask: radial-gradient(circle, transparent 52%, #000 54%); }

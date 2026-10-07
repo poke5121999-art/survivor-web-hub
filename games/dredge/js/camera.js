@@ -1,10 +1,17 @@
 /*
  * Camera bám thuyền kiểu CinemachineFreeLook của bản gốc (DR_BOAT.physics.cinemachine):
  *   3 quỹ đạo (cao, bán kính) Top (20, 14) / Middle (9,5, 15,5) / Bottom (2, 10), trục Y mặc định 0,2;
- *   BindingMode LockToTargetWithWorldUp ⇒ góc X tính theo hướng mũi thuyền, YawDamping 1,5;
- *   Composer ScreenY 0,84 / 0,75 / 0,55 (thuyền nằm thấp trên màn để thấy biển phía trước); FOV 40.
- *   PlayerCamera: đứng yên passiveRecenteringWaitTime (2 s) thì tự quay về sau lái trong passiveRecenteringDuration (2 s).
- *   DRCamera.init(camera)  DRCamera.orbit(dx, dy)  DRCamera.zoom(d)  DRCamera.update(dt, mode)  DRCamera.dock(dockInfo)
+ *   BindingMode LockToTargetWithWorldUp ⇒ góc X tính theo hướng mũi thuyền (Heading TargetForward), YawDamping 1,5;
+ *   Composer ScreenY Top 0,55 / Middle 0,75 / Bottom 0,84 (thuyền nằm thấp trên màn để thấy biển phía trước); FOV 40.
+ *   Giảm chấn kiểu Cinemachine (Damper.Damp): mỗi khung đi được 1 − e^(−4,605·dt/damping) phần còn lại (99 % sau damping giây).
+ *   Chuột (CinemachineFreeLookInputProvider + InControl): giá trị trục = pixel·0,05 (MouseBindingSource.ScaleX, Raw);
+ *     X: m_MaxSpeed = baseSensitivityX 300 × cameraSensitivityX 0,5 = 150 °/s mỗi đơn vị; Y: 3 × 0,5 = 1,5 /s, đảo trục (cameraInvertY 1).
+ *   Tự quay về sau lái (cameraRecenter 1 ⇒ m_RecenterToTargetHeading): chỉ trục X, đợi passiveRecenteringWaitTime 2 s kể từ lần
+ *     chạm chuột cuối, rồi SmoothDamp về 0 trong passiveRecenteringDuration 2 s. Nút giữa = về ngay (forceRecenteringDuration 0,15 s,
+ *     xong khi |X| < forceRecenteringCompleteThreshold 1°). Trục Y không tự về (m_YAxisRecentering tắt).
+ *   DRCamera.init(camera)  DRCamera.look(px, py) (pixel chuột cộng dồn trong khung)  DRCamera.stick(x, y) (cần −1..1)
+ *   DRCamera.orbit(dx°, dy)  DRCamera.zoom(d)
+ *   DRCamera.update(dt, mode)  DRCamera.dock(dockInfo)  DRCamera.recenter()
  */
 (function (root) {
   'use strict';
@@ -14,10 +21,15 @@
   const SCREEN_Y = ['TopRig/cm', 'MiddleRig/cm', 'BottomRig/cm'].map(k => PH.cinemachine[k].CinemachineComposer.m_ScreenY);
   const YAW_DAMP = PH.cinemachine['MiddleRig/cm'].CinemachineOrbitalTransposer.m_YawDamping;
   const POS_DAMP = PH.cinemachine['MiddleRig/cm'].CinemachineOrbitalTransposer.m_XDamping;
+  const MOUSE_SCALE = 0.05; // InControl MouseBindingSource.ScaleX/ScaleY
+  const SENS = 0.5;         // SettingsSaveDataTemplate.cameraSensitivityX/Y (PC)
+  const MAX_X = 300 * SENS, MAX_Y = 3 * SENS; // CameraSensitivitySettingResponder.baseSensitivityX/Y (Player VCam)
+  const INVERT_Y = 1;       // SettingsSaveDataTemplate.cameraInvertY
+  const damp = (dt, t) => t <= 0 ? 1 : 1 - Math.exp(-4.605170186 * dt / t); // Cinemachine Damper.Damp
 
   const Cm = root.DRCamera = { cam: null, x: 0, y: FL.m_YAxis.Value, zoomK: 1, idle: 99, mode: 'follow', dockView: null };
   const tgt = new T.Vector3(), look = new T.Vector3(), want = new T.Vector3();
-  let heading = 0, recentering = false, titleT = 0;
+  let heading = 0, forced = false, titleT = 0, recVel = 0, lookX = 0, lookY = 0, holding = false;
 
   function init(cam) { Cm.cam = cam; cam.fov = C.defaultFOV; cam.updateProjectionMatrix(); }
 
@@ -31,35 +43,62 @@
 
   function orbit(dx, dy) {
     Cm.x += dx; Cm.y = Math.max(FL.m_YAxis.m_MinValue, Math.min(FL.m_YAxis.m_MaxValue, Cm.y + dy));
-    Cm.idle = 0; recentering = false;
+    Cm.idle = 0;
   }
+  // chuột: pixel cộng dồn trong khung (trình duyệt: y xuống là dương; Unity: y lên là dương)
+  function lookInput(px, py) { lookX += px; lookY += py; }
+  // cần analog −1..1 (trình duyệt: lên = −1)
+  let stickX = 0, stickY = 0;
+  function stick(x, y) { stickX = x; stickY = y; }
+  function hold(on) { holding = on; }
   // [ĐỀ XUẤT] FreeLook gốc không có zoom; cho phép co giãn bán kính 0,7–1,35
   function zoom(d) { Cm.zoomK = Math.max(0.7, Math.min(1.35, Cm.zoomK * (1 + d))); }
-  function recenter() { recentering = true; }
+  function recenter() { forced = true; recVel = 0; }
+
+  // Mathf.SmoothDamp
+  function smoothDamp(cur, target, smoothTime, dt) {
+    smoothTime = Math.max(0.0001, smoothTime);
+    const o = 2 / smoothTime, x = o * dt, e = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
+    const ch = cur - target, tmp = (recVel + o * ch) * dt;
+    recVel = (recVel - o * tmp) * e;
+    let out = target + (ch + tmp) * e;
+    if ((target - cur > 0) === (out > target)) { out = target; recVel = (out - target) / dt; }
+    return out;
+  }
 
   function update(dt, mode, env) {
     const cam = Cm.cam, D = root.DR, b = D.s && D.s.boat;
     if (!cam) return;
-    if (mode === 'title') { titleView(dt); return; }
-    if (mode === 'dock' && Cm.dockView) { dockView(dt); return; }
+    if (mode === 'title') { titleView(dt); lookX = lookY = 0; return; }
+    if (mode === 'dock' && Cm.dockView) { dockView(dt); lookX = lookY = 0; return; }
     if (!b) return;
-    // hướng mũi thuyền (three.js: mũi = −z cục bộ); camera đứng sau lái
+    // AxisState (SpeedMode MaxSpeed): giá trị += input · maxSpeed · dt; input = pixel · 0,05
+    // Chuột: delta pixel của khung × dt nên bản gốc nhạy theo fps; [ĐỀ XUẤT] chuẩn hoá về 60 khung/giây (bản PC khoá vsync)
+    //   ⇒ 0,05 · 150 / 60 = 0,125°/px ngang, 0,05 · 1,5 / 60 = 0,00125/px dọc. Cần analog (tay cầm) dùng dt thật.
+    const ix = lookX * MOUSE_SCALE / 60 + stickX * dt, iy = (-lookY * MOUSE_SCALE / 60 - stickY * dt) * (INVERT_Y ? -1 : 1);
+    if ((ix || iy) && !forced) orbit(-ix * MAX_X, iy * MAX_Y); // three.js: X tăng = quay ngược chiều kim đồng hồ ⇒ đổi dấu
+    lookX = lookY = 0;
+    // hướng mũi thuyền (three.js: mũi = −z cục bộ); camera đứng sau lái, quay theo thuyền với YawDamping
     let dh = b.yaw - heading; dh = Math.atan2(Math.sin(dh), Math.cos(dh));
-    heading += dh * Math.min(1, dt / Math.max(0.05, YAW_DAMP * 0.35));
+    heading += dh * damp(dt, YAW_DAMP);
     Cm.idle += dt;
-    if (Cm.idle > C.passiveRecenteringWaitTime) recentering = true;
-    if (recentering) {
-      const k = Math.min(1, dt / (C.passiveRecenteringDuration * 0.35));
-      Cm.x += (0 - Cm.x) * k; Cm.y += (FL.m_YAxis.Value - Cm.y) * k;
-      if (Math.abs(Cm.x) < 0.2 && Math.abs(Cm.y - FL.m_YAxis.Value) < 0.002) recentering = false;
-    }
+    // RecenterToTargetHeading: chỉ trục X; đang giữ nút kéo camera thì tắt
+    const waitT = forced ? 0 : C.passiveRecenteringWaitTime;
+    const recT = forced ? C.forceRecenteringDuration : C.passiveRecenteringDuration;
+    if ((forced || !holding) && Cm.idle >= waitT && Cm.x !== 0) {
+      let x = ((Cm.x + 180) % 360 + 360) % 360 - 180; // m_Wrap
+      x = smoothDamp(x, 0, recT, Math.max(dt, 1e-4));
+      Cm.x = Math.abs(x) < 1e-3 ? 0 : x;
+    } else if (!forced) recVel = 0;
+    if (forced && Math.abs(Cm.x) < C.forceRecenteringCompleteThreshold) forced = false;
     const R = rig(Cm.y), ang = heading + T.MathUtils.degToRad(Cm.x);
-    want.set(b.x, 0, b.z);
-    tgt.lerp(want, Math.min(1, dt / Math.max(0.05, POS_DAMP * 0.25)));
+    // Follow = Player.transform (gồm cả nhấp nhô), giảm chấn vị trí X/Y/Z = 1 s
+    want.set(b.x, root.DRBoat && DRBoat.root ? DRBoat.root.position.y : 0, b.z);
+    tgt.lerp(want, damp(dt, POS_DAMP));
     if (tgt.distanceToSquared(want) > 400) tgt.copy(want);
     const r = R.r * Cm.zoomK, h = R.h * Cm.zoomK;
-    cam.position.set(tgt.x + Math.sin(ang) * r, h, tgt.z + Math.cos(ang) * r);
-    look.set(tgt.x, 0.6, tgt.z);
+    cam.position.set(tgt.x + Math.sin(ang) * r, tgt.y + h, tgt.z + Math.cos(ang) * r);
+    look.set(tgt.x, tgt.y + 0.6, tgt.z);
     cam.lookAt(look);
     // Composer: đẩy thuyền xuống vị trí ScreenY (0,5 = giữa) bằng cách ngửa camera lên
     const tilt = Math.atan(Math.tan(T.MathUtils.degToRad(cam.fov / 2)) * (R.sy - 0.5) * 2);
@@ -103,8 +142,8 @@
   function snap() {
     const b = root.DR.s && root.DR.s.boat;
     if (!b) return;
-    heading = b.yaw; tgt.set(b.x, 0, b.z); Cm.x = 0; Cm.y = FL.m_YAxis.Value;
+    heading = b.yaw; tgt.set(b.x, root.DRBoat && DRBoat.root ? DRBoat.root.position.y : 0, b.z); Cm.x = 0; Cm.y = FL.m_YAxis.Value; recVel = 0; forced = false;
   }
 
-  Object.assign(Cm, { init, update, orbit, zoom, recenter, dock, snap, rig });
+  Object.assign(Cm, { init, update, orbit, look: lookInput, stick, hold, zoom, recenter, dock, snap, rig, get forced() { return forced; } });
 })(window);

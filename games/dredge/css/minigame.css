@@ -1,0 +1,58 @@
+/* Màn câu cá / nạo vét (HarvestMinigameView). Bố cục do js/minigame.js dựng từ cây RectTransform trong art/ui/minigame/harvest_ui.js.
+   Mọi kích thước là đơn vị canvas 1920x1080 nhân với --u (CanvasScaler "Scale With Screen Size", khớp theo chiều cao). */
+@font-face { font-family: "FrontPageNeue"; src: url(../art/ui/minigame/fonts/FrontPageNeue.woff2) format("woff2"); font-display: swap; }
+
+#dr-hv { position: fixed; inset: 0; z-index: 60; pointer-events: none; display: none; --u: 1px; color: #fff; -webkit-font-smoothing: antialiased; user-select: none; -webkit-user-select: none; }
+#dr-hv.on { display: block; }
+#dr-hv, #dr-hv * { box-sizing: border-box; }
+#dr-hv .mg-n { position: absolute; }
+#dr-hv .mg-n.off { display: none !important; }
+
+/* ---- Image: sprite trắng được nhân màu như Unity (Image.color × sprite) ---- */
+#dr-hv .mg-i { isolation: isolate; background: var(--s) 0 0 / 100% 100% no-repeat; }
+#dr-hv .mg-i.pa { background-size: contain; background-position: center; }
+#dr-hv .mg-i::after { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: var(--c, #fff); mix-blend-mode: multiply;
+  -webkit-mask: var(--s) 0 0 / 100% 100% no-repeat; mask: var(--s) 0 0 / 100% 100% no-repeat; }
+#dr-hv .mg-i.pa::after { -webkit-mask-size: contain; mask-size: contain; -webkit-mask-position: center; mask-position: center; }
+#dr-hv .mg-i.white::after { display: none; }
+#dr-hv .mg-i.sl { background: none; border-style: solid; border-color: transparent; border-width: var(--bw); border-image-source: var(--s); border-image-slice: var(--sl) fill; border-image-width: var(--bw); border-image-repeat: stretch; }
+#dr-hv .mg-i.sl::after { -webkit-mask: none; mask: none; background: var(--c, #fff); inset: calc(-1 * var(--bw-t, 0px)) 0 0 0; }
+#dr-hv .mg-i.sl.white::after { display: none; }
+#dr-hv .mg-i.plain { background: var(--c, #fff); }          /* sprite "square" 2x2 trắng = ô màu phẳng */
+#dr-hv .mg-i.plain::after { display: none; }
+
+/* ---- chữ TextMeshPro ---- */
+#dr-hv .mg-t { display: flex; line-height: 1.02; font-family: var(--f, "Signika", "Segoe UI", sans-serif); text-shadow: 0 1px 2px rgba(0, 0, 0, .45); }
+#dr-hv .mg-t > span { display: block; max-width: 100%; }
+#dr-hv .mg-t .kc { display: inline-block; height: 1.15em; width: 1.15em; vertical-align: -0.28em; background: var(--k) center / contain no-repeat; }
+
+/* ---- thanh trượt vào từ trái (HarvestMinigameView.Show: DOAnchorPosX 0,35 s OutExpo) ---- */
+#dr-hv .hv-slide { transition: transform .35s cubic-bezier(.16, 1, .3, 1); transform: translateX(-100%); }
+#dr-hv .hv-slide.in { transform: translateX(0); }
+
+/* ---- nút nhắc phím (ControlPromptEntry): Selectable ColorTint 0,388/0,157/0,157 -> 0,198 -> 0,425 ---- */
+#dr-hv .mg-btn { pointer-events: auto; cursor: pointer; touch-action: manipulation; overflow: hidden; }
+#dr-hv .mg-btn.dis { pointer-events: none; cursor: default; }
+#dr-hv .mg-btn .bp { --c: #632828 !important; }
+#dr-hv .mg-btn:hover .bp { --c: #323232 !important; }
+#dr-hv .mg-btn:active .bp { --c: #6c6c6c !important; }
+#dr-hv .mg-btn.shiny::before { content: ""; position: absolute; top: -20%; bottom: -20%; left: -40%; width: 30%; z-index: 5; pointer-events: none;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .5), transparent); transform: skewX(-18deg); animation: hvShiny 1.8s ease-in-out infinite; }
+@keyframes hvShiny { 0%, 55% { left: -40%; } 100% { left: 130%; } }
+
+#dr-hv .hv-catch { position: fixed; inset: 0; z-index: -1; pointer-events: none; display: none; }
+#dr-hv .hv-catch.on { display: block; pointer-events: auto; }
+#dr-hv .hv-leave { position: absolute; pointer-events: auto; font-size: calc(15 * var(--u)); min-height: 0; padding: 0 calc(14 * var(--u)); height: calc(34 * var(--u)); min-width: 0; }
+@media (max-height: 460px) { #dr-hv .hv-leave { height: 30px; font-size: 12px; padding: 0 10px; } }
+
+/* hiệu ứng thẻ tiết lộ cá */
+#dr-hv .hv-pop { animation: hvPop .55s cubic-bezier(.2, 1.4, .4, 1); }
+@keyframes hvPop { from { transform: scale(.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+#dr-hv .hv-fish { position: absolute; background: var(--s) center / contain no-repeat; pointer-events: none; }
+#dr-hv .hv-fish.sil { filter: brightness(0) invert(1); opacity: .22; }
+
+/* SpiralMinigame: sprite vẽ ở cỡ tự nhiên, pivot đặt giữa RectTransform 280x280 (xem chú thích trong js/minigame.js) */
+#dr-hv .mg-i.sp-nat { background-size: calc(240 * var(--u)) calc(255.5 * var(--u)); background-position: calc(29 * var(--u)) calc(4.5 * var(--u)); }
+#dr-hv .mg-i.sp-nat::after { -webkit-mask-size: calc(240 * var(--u)) calc(255.5 * var(--u)); mask-size: calc(240 * var(--u)) calc(255.5 * var(--u));
+  -webkit-mask-position: calc(29 * var(--u)) calc(4.5 * var(--u)); mask-position: calc(29 * var(--u)) calc(4.5 * var(--u)); }
+#dr-hv .sp-ov { -webkit-mask: var(--s) calc(29 * var(--u)) calc(4.5 * var(--u)) / calc(240 * var(--u)) calc(255.5 * var(--u)) no-repeat; mask: var(--s) calc(29 * var(--u)) calc(4.5 * var(--u)) / calc(240 * var(--u)) calc(255.5 * var(--u)) no-repeat; }

@@ -555,6 +555,24 @@ def build_material(glb, mat_obj):
     tint = pick(C, 'Color_9a80436d', '_BaseColor', '_Color')
     pbr = {'metallicFactor': 0, 'roughnessFactor': 1}
     m = {'name': mat.m_Name, 'pbrMetallicRoughness': pbr, 'extras': {'shader': shader}}
+    # Thông số shader graph theo tên hiển thị (GrassColour, SnowHeight...) cho js/world.js dựng lại shader toon gốc
+    # (công thức đọc từ bytecode DXBC, xem tools/env.py --dis). Màu Color để nguyên giá trị gamma như trong .mat.
+    try:
+        props = {p.m_Name: (p.m_Description, p.m_Type) for p in sh.m_ParsedForm.m_PropInfo.m_Props}
+    except Exception:
+        props = {}
+    params = {}
+    for n, v in F.items():
+        if n in props and not n.startswith('_Queue'):
+            params[props[n][0]] = round(v, 5)
+    for n, c in C.items():
+        if n in props:
+            params[props[n][0]] = [round(float(c.r), 5), round(float(c.g), 5), round(float(c.b), 5), round(float(c.a), 5)]
+    if params:
+        m['extras']['params'] = params
+    kw = list(getattr(mat, 'm_ValidKeywords', None) or []) or (getattr(mat, 'm_ShaderKeywords', '') or '').split()
+    if kw:
+        m['extras']['keywords'] = sorted(kw)
     base = [1.0, 1.0, 1.0]
     if tint is not None:
         base = [round(float(tint.r), 4), round(float(tint.g), 4), round(float(tint.b), 4)]
@@ -563,9 +581,9 @@ def build_material(glb, mat_obj):
         try:
             ti, alpha, img = glb.texture(tex_ptr.read())
             if triplanar:
-                # no usable UVs: bake the mean texture colour into the factor, keep the name for the game
-                avg = np.asarray(img.convert('RGB').resize((1, 1), Image.BOX))[0, 0] / 255.0
-                base = [round(b * float(a), 4) for b, a in zip(base, avg)]
+                # LitTriplanar lấy mẫu *_RGB theo UV0 × TextureScale + TextureOffset (không phải chiếu ba mặt):
+                # gắn texture để gltfpack giữ TEXCOORD_0; màu đá/cỏ/cát nằm ở extras.params
+                pbr['baseColorTexture'] = {'index': ti}
                 m['extras']['triplanarTexture'] = tex_ptr.read().m_Name
             else:
                 pbr['baseColorTexture'] = {'index': ti}
@@ -574,6 +592,16 @@ def build_material(glb, mat_obj):
                     m['alphaCutoff'] = round(F.get('_Cutoff', 0.5), 3)
         except Exception as e:  # texture in a bundle that did not load
             m['extras']['missingTex'] = str(e)[:80]
+    # Lit_Shader "Emission" (cửa sổ, đèn): cộng sau sương, nhân LightStrength, tắt ban ngày nếu LightsTurnOffAtDay
+    em_ptr = pick(T, 'Texture2D_c7b8c5c5')
+    if em_ptr is not None:
+        try:
+            ei, _, eimg = glb.texture(em_ptr.read())
+            if np.asarray(eimg.convert('RGB')).max() > 8:
+                m['emissiveTexture'] = {'index': ei}
+                m['emissiveFactor'] = [1.0, 1.0, 1.0]
+        except Exception as e:
+            m['extras']['missingEmission'] = str(e)[:80]
     pbr['baseColorFactor'] = base + [1.0]
     em = C.get('_EmissionColor')
     if em is not None and (em.r + em.g + em.b) > 0.01:

@@ -4,7 +4,7 @@
  *   - ô nhận hàng theo cờ: item có subtype thì so cờ subtype, không thì so cờ type;
  *   - ô có cấu hình itemType = 0 (ô ẩn, phần thân chưa nâng cấp) không nhận gì;
  *   - xoay 0/90/180/270 quanh ô gốc theo đúng công thức GetCellsAffectedByObjectAtPosition;
- *   - ô có vết hỏng (underlay "dmg") không đặt được đồ mới.
+ *   - ô có vết hỏng (underlay "dmg") không đặt được đồ mới, trừ món có ignoreDamageWhenPlacing (động cơ, cần, đèn: đặt được, nhưng bị tắt).
  * Hàm thuần, không đụng DOM, chạy được trong node (test/dredge-rules.js).
  */
 (function (root) {
@@ -91,7 +91,7 @@
       if (i < 0) return false;
       const occ = itemAt(g, cx, cy);
       if (occ && occ !== ignore) return false;
-      if (isDamaged(g, cx, cy)) return false;
+      if (isDamaged(g, cx, cy) && !it.ignoreDamageWhenPlacing) return false;   // GridObject.GetPlacementResult: thiết bị bỏ qua ô hỏng
       if (!accepts(g.cells[i], it)) return false;
     }
     return true;

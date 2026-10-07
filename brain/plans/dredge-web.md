@@ -40,6 +40,23 @@ Repo đã 2,84 GiB pack. `games/dredge` nhắm <= 90 MB: thế giới 40, item +
 |---|---|---|
 | 0 | xong 2026-10-07 | `tools/README.md` có thứ tự chạy và bẫy; hướng bản đồ kiểm bằng `MapWindow.cs:577` |
 | 1 | xong trên máy 2026-10-07, rev 20261007a | rules 35, ui 180, suite 75 đều đạt; còn kiểm trên Pages |
+| chuẩn gốc W1-W5 | ghép 2026-10-07, rev 20261007b | rules 35, suite 73, sea 26, env 26, fishing 241, cargo 127, story 42 trên máy. `dredge-ui.js` + `ui-dev.html` bị xoá vì kiểm UI cũ |
+
+## Đợt "chuẩn gốc" (2026-10-07, sau phản hồi chủ dự án)
+
+Chủ dự án chơi bản pha 1 và chê: chưa có cảm giác rẽ sóng, lái chưa giống, thiếu VFX, câu cá và xếp cá chưa giống, môi trường chưa giống, không có cốt truyện, gameplay khác hẳn.
+Nguyên nhân gốc: pha 1 chỉ bóc được số trong ScriptableObject và hình 3D; mọi thứ nằm trong prefab/scene (hạt, UI, material, hậu kỳ, Yarn) phải đoán.
+Lever mới: `D:\dredge-ref\ripped\ExportedProject` (AssetRipper, YAML đọc được). Hợp đồng giao việc: `D:\dredge-ref\notes\DELEGATE.md`.
+
+| Nhánh | Tệp | Kiểm |
+|---|---|---|
+| W1 biển, vệt rẽ sóng, cảm giác lái | `js/water.js`, `boat.js`, `camera.js`, `input.js`, `vfx.js` | `test/dredge-sea.js` |
+| W2 môi trường (trời, sương, hậu kỳ, cây, hạt) | `js/sky.js`, `world.js`, `data/env.js` | `test/dredge-env.js` |
+| W3 câu cá (HarvestMinigameView, VFX điểm câu) | `js/minigame.js`, `spots.js`, `css/minigame.css` | `test/dredge-fishing.js` |
+| W4 khoang hàng | `js/cargo.js`, `grid.js`, `css/cargo.css` | `test/dredge-cargo.js` |
+| W5 cốt truyện (VM Yarn từ `Dredge.asset`), bến, nhiệm vụ, intro | `js/yarn.js`, `dialogue.js`, `quests.js`, `intro.js`, `dock.js`, `docks.js`, `hud.js` | `test/dredge-story.js` |
+
+`index.html`, `main.js`, `state.js`, `css/ui.css`, `data/games.js` do agent gốc giữ; nhánh chỉ sửa tối thiểu và khai báo.
 
 ## Việc mở sau pha 1
 

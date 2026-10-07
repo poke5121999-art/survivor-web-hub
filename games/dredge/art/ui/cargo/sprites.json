@@ -1,0 +1,278 @@
+{
+ "CargoGrid_Default": {
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ],
+  "h": 64,
+  "ppu": 100.0,
+  "use": "GridCell.backplateImage + regularSprite",
+  "w": 64
+ },
+ "DamageBox_Empty": {
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ],
+  "h": 55,
+  "ppu": 200.0,
+  "use": "DamageNotchUI.emptyImage",
+  "w": 55
+ },
+ "DamageBox_Full": {
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ],
+  "h": 55,
+  "ppu": 200.0,
+  "use": "DamageNotchUI.filledImage",
+  "w": 55
+ },
+ "EngineEquipmentIcon": {
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ],
+  "h": 64,
+  "ppu": 100.0,
+  "use": "GridCell.engineSprite (ô nhận động cơ)",
+  "w": 64
+ },
+ "FishingEquipmentIcon": {
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ],
+  "h": 64,
+  "ppu": 100.0,
+  "use": "GridCell.tackleSprite (ô nhận cần câu)",
+  "w": 64
+ },
+ "HealthBarPanel": {
+  "border": [
+   75,
+   0,
+   75,
+   0
+  ],
+  "h": 92,
+  "ppu": 200.0,
+  "use": "HealthPanel (thanh hư hại)",
+  "w": 159
+ },
+ "HighlightBorder": {
+  "border": [
+   16,
+   16,
+   16,
+   16
+  ],
+  "h": 64,
+  "ppu": 100.0,
+  "use": "GridCell.fillImage (viền xanh/đỏ/cam khi đặt)",
+  "w": 64
+ },
+ "LightEquipmentIcon": {
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ],
+  "h": 64,
+  "ppu": 100.0,
+  "use": "GridCell.lightSprite (ô nhận đèn)",
+  "w": 64
+ },
+ "PlayerInventoryBackground": {
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ],
+  "h": 563,
+  "ppu": 100.0,
+  "use": "InventoryGrid/BackgroundImage (nền lưới hull)",
+  "w": 545
+ },
+ "PopupBackground_0": {
+  "border": [
+   64,
+   64,
+   64,
+   64
+  ],
+  "h": 384,
+  "ppu": 200.0,
+  "use": "Tooltip Container nền",
+  "w": 384
+ },
+ "ProgressBarCap_0": {
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ],
+  "h": 44,
+  "ppu": 100.0,
+  "use": "TooltipSectionDurabilityDetails/EndL",
+  "w": 20
+ },
+ "Selector_0": {
+  "border": [
+   50,
+   22,
+   50,
+   20
+  ],
+  "h": 44,
+  "ppu": 200.0,
+  "use": "CursorProxy.CursorSquare (khung con trỏ)",
+  "w": 128
+ },
+ "SettingsPanelBackground_0": {
+  "border": [
+   64,
+   24,
+   64,
+   16
+  ],
+  "h": 128,
+  "ppu": 200.0,
+  "use": "StatsBackplate (dải thông tin phía trên lưới)",
+  "w": 512
+ },
+ "ShipIcon": {
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ],
+  "h": 70,
+  "ppu": 100.0,
+  "use": "SlidePanelTab/Icon",
+  "w": 123
+ },
+ "SidePanel_0": {
+  "border": [
+   72,
+   72,
+   0,
+   72
+  ],
+  "h": 384,
+  "ppu": 200.0,
+  "use": "PlayerSlidePanel/Backplate (nền bảng khoang bên phải)",
+  "w": 384
+ },
+ "TabDivider_0": {
+  "border": [
+   64,
+   12,
+   64,
+   0
+  ],
+  "h": 8,
+  "ppu": 200.0,
+  "use": "TopBar/Line",
+  "w": 512
+ },
+ "Tab_Disabled_0": {
+  "border": [
+   12,
+   12,
+   12,
+   12
+  ],
+  "h": 64,
+  "ppu": 200.0,
+  "use": "TabUI.lockedSprite",
+  "w": 64
+ },
+ "Tab_Selected_0": {
+  "border": [
+   12,
+   12,
+   12,
+   12
+  ],
+  "h": 64,
+  "ppu": 200.0,
+  "use": "TabUI.selectedSprite",
+  "w": 64
+ },
+ "Tab_Unselected_0": {
+  "border": [
+   12,
+   12,
+   12,
+   12
+  ],
+  "h": 64,
+  "ppu": 200.0,
+  "use": "TabUI.unselectedSprite",
+  "w": 64
+ },
+ "TrawlEquipmentIcon": {
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ],
+  "h": 64,
+  "ppu": 100.0,
+  "use": "GridCell.trawlSprite (ô nhận lưới kéo)",
+  "w": 64
+ },
+ "TypeTag_0": {
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ],
+  "h": 54,
+  "ppu": 100.0,
+  "use": "FishableTypeTag (nhãn loại thu hoạch)",
+  "w": 192
+ },
+ "control-icon-outline-circle_2": {
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ],
+  "h": 128,
+  "ppu": 100.0,
+  "use": "HoldActionBack (vòng giữ phím vứt)",
+  "w": 128
+ },
+ "square_0": {
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ],
+  "h": 2,
+  "ppu": 100.0,
+  "use": "GridCell.occupationImage (nền màu của ô có đồ)",
+  "w": 2
+ }
+}

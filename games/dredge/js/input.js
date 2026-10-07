@@ -1,6 +1,6 @@
 /*
- * Điều khiển: bàn phím (WASD/mũi tên, Space tương tác, L đèn, Tab/I khoang, Esc tạm dừng), chuột (kéo xoay camera,
- * lăn chuột zoom), cảm ứng (cần ảo bên trái, nút bên phải, kéo nửa phải để xoay camera), tay cầm (tuỳ chọn).
+ * Điều khiển: bàn phím (WASD/mũi tên, Space tương tác, L đèn, Tab/I khoang, Esc tạm dừng), chuột (giữ trái kéo xoay camera,
+ * nút giữa về sau lái, lăn chuột zoom), cảm ứng (cần ảo bên trái, nút bên phải, kéo nửa phải để xoay camera), tay cầm (tuỳ chọn).
  *   DRInput.axes() → { x: rẽ −1..1 (phải = +), y: ga −1..1 }
  *   DRInput.on('interact' | 'interactUp' | 'lights' | 'cargo' | 'pause', fn)
  */
@@ -44,20 +44,27 @@
     return { x, y };
   }
 
-  // ---- chuột: kéo xoay camera, lăn zoom ----
+  // ---- chuột: giữ nút trái kéo để xoay camera (CameraMoveButton = Mouse.LeftButton, chế độ cameraFreelook 0 của bản gốc),
+  //      nút giữa về sau lái (CameraRecenter = Mouse.MiddleButton), lăn zoom ----
+  // [ĐỀ XUẤT] bản PC mặc định cameraFreelook 1 (rê chuột không cần giữ nút); trên web cần khoá con trỏ, vướng UI khoang hàng
   let drag = null;
   function bindMouse(el) {
     el.addEventListener('pointerdown', e => {
       if (e.pointerType !== 'mouse') return;
+      if (e.button === 1) { if (root.DRCamera) DRCamera.recenter(); e.preventDefault(); return; }
+      if (e.button !== 0) return;
       drag = { x: e.clientX, y: e.clientY };
+      if (root.DRCamera && DRCamera.hold) DRCamera.hold(true);
       el.setPointerCapture(e.pointerId);
     });
     el.addEventListener('pointermove', e => {
       if (!drag || e.pointerType !== 'mouse') return;
       const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag = { x: e.clientX, y: e.clientY };
-      if (root.DRCamera) DRCamera.orbit(-dx * 0.3, dy * 0.004); // m_InvertInput trục Y = 1
+      if (root.DRCamera) DRCamera.look(dx, dy);
     });
-    el.addEventListener('pointerup', () => { drag = null; });
+    const up = () => { drag = null; if (root.DRCamera && DRCamera.hold) DRCamera.hold(false); };
+    el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', up);
     el.addEventListener('wheel', e => { if (root.DRCamera) DRCamera.zoom(Math.sign(e.deltaY) * 0.08); e.preventDefault(); }, { passive: false });
     el.addEventListener('contextmenu', e => e.preventDefault());
   }
@@ -99,7 +106,7 @@
           const k = ui && ui.querySelector('.joy i');
           if (k) k.style.transform = 'translate(' + (dx * R * 0.6) + 'px,' + (dy * R * 0.6) + 'px)';
         } else if (camTouch && t.identifier === camTouch.id) {
-          if (root.DRCamera) DRCamera.orbit(-(t.clientX - camTouch.x) * 0.35, (t.clientY - camTouch.y) * 0.005);
+          if (root.DRCamera) DRCamera.look(t.clientX - camTouch.x, t.clientY - camTouch.y);
           camTouch.x = t.clientX; camTouch.y = t.clientY;
         }
       }
@@ -122,13 +129,14 @@
   function pollPad() {
     const pads = navigator.getGamepads ? navigator.getGamepads() : [];
     const p = pads && [...pads].find(Boolean);
-    if (!p) { I.pad.x = I.pad.y = 0; return; }
+    if (!p) { I.pad.x = I.pad.y = 0; if (root.DRCamera && DRCamera.stick) DRCamera.stick(0, 0); return; }
     const dz = v => Math.abs(v) < 0.18 ? 0 : v;
     I.pad.x = dz(p.axes[0] || 0); I.pad.y = -dz(p.axes[1] || 0);
     const rt = p.buttons[7] ? p.buttons[7].value : 0, lt = p.buttons[6] ? p.buttons[6].value : 0;
     if (rt || lt) I.pad.y = rt - lt;
     const cx = dz(p.axes[2] || 0), cy = dz(p.axes[3] || 0);
-    if ((cx || cy) && root.DRCamera) DRCamera.orbit(-cx * 4, cy * 0.03);
+    // cần phải: giá trị −1..1 như trục InControl (RightStick*), nhân maxSpeed·dt trong DRCamera
+    if (root.DRCamera && DRCamera.stick) DRCamera.stick(cx, cy);
     const map = { 0: 'interact', 3: 'lights', 2: 'cargo', 9: 'pause' };
     for (const [i, ev] of Object.entries(map)) {
       const down = !!(p.buttons[i] && p.buttons[i].pressed);

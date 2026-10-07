@@ -5,6 +5,10 @@
  *   DRWorld.load(fetchAsset, renderer, scene)   DRWorld.stream(x, z)
  *   DRWorld.sdf(x, z)  > 0 nước (m tới đất gần nhất), < 0 trong đất
  *   DRWorld.depth01(x, z)  DRWorld.steep01(x, z)  DRWorld.zoneAt(x, z)  DRWorld.resolve(b, halfW, halfL)
+ * Vật liệu: shader toon gốc rã từ DXBC (Lit / LitTriplanar / Foliage / LitYBillboard / TerrainShader), thông số lấy từ
+ * extras.params của lib.glb (tools/world.py) và data/env.js (tools/env.py); sương + ánh sáng dùng chung DRSky.GLSL_ENV.
+ * Cảnh động (DR_ENV.particles, DR_ENV.lighthouse): hải âu/đại bàng (BirdParticle), vệt gió + bụi quanh thuyền
+ * (AtmosphericParticles, tính trên GPU), đèn biển Greater Marrow quay 30°/s.   DRWorld.updateAmbient(dt, ctx, env)  DRWorld.ambient
  */
 (function (root) {
   'use strict';
@@ -138,40 +142,155 @@
     return 'OPEN_OCEAN';
   }
 
-  // ---------- vật liệu ----------
+  // ---------- vật liệu: shader toon gốc, rã từ DXBC (tools/env.py --dis) ----------
+  // Lit_Shader / Foliage / LitTriplanar / LitYBillboard đều KHÔNG có N·L: albedo × (nắng·mây·bóng + đèn phụ + ambient
+  // + (1 − WaveMask.b)), rồi sương gốc (DRSky.GLSL_ENV), rồi cộng phát sáng SAU sương (cửa sổ, đèn sáng xuyên sương).
   const matCache = new Map();
-  let triTex = {};
-  const srgb = (r, g, b) => new T.Color(r, g, b);
+  const s2l = x => x <= 0.04045 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+  const linC = c => new T.Color(s2l(c[0]), s2l(c[1]), s2l(c[2])); // Color của vật liệu Unity lưu gamma, shader nhận tuyến tính
+  const VERT_HEAD = 'uniform float uDrTime; uniform float uDrWind; uniform vec4 uKind;\nvarying vec3 vDrN; varying float vDrPh;\n';
+  const VERT_PROJECT = `
+#ifdef DR_YBILL
+  // LitYBillboard: quay quanh trục y về phía camera (unity_MatrixInvV), giữ tỉ lệ instance
+  mat4 drM = modelMatrix;
+  #ifdef USE_INSTANCING
+  drM = modelMatrix * instanceMatrix;
+  #endif
+  vec3 drC = (drM * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+  vec3 drSc = vec3(length(drM[0].xyz), length(drM[1].xyz), length(drM[2].xyz));
+  vec3 drR = normalize(vec3(viewMatrix[0][0], 0.0, viewMatrix[2][0]));
+  vec3 drB = normalize(vec3(viewMatrix[0][2], 0.0, viewMatrix[2][2]));
+  vec4 mvPosition = viewMatrix * vec4(drC + drR * transformed.x * drSc.x + vec3(0.0, transformed.y * drSc.y, 0.0) + drB * transformed.z * drSc.z, 1.0);
+  gl_Position = projectionMatrix * mvPosition;
+#else
+  #include <project_vertex>
+#endif
+#if defined( USE_COLOR ) || defined( USE_COLOR_ALPHA )
+  if (uKind.y > 0.5) { // Foliage_Shader: lệch theo gió ở toạ độ thế giới, trọng số 1 − màu đỉnh R
+    vec3 wp0 = drV2W(mvPosition);
+    float w = (wp0.x - wp0.z) * 0.1;
+    float tt = fract(uDrTime * 0.01) * 100.0;
+    float sx = sin(6.283186 * (w + tt * 2.0 * uDrWind)) * 0.4;
+    float sz = cos(6.283186 * (w - tt * 4.0 * uDrWind)) * 0.15;
+    float k = 1.0 - vColor.r;
+    mvPosition.xyz += (viewMatrix * vec4(vec3(sx, -sx * sx, -sz) * k, 0.0)).xyz;
+    gl_Position = projectionMatrix * mvPosition;
+  }
+#endif
+  { mat3 drN3 = mat3(modelMatrix);
+    #ifdef USE_INSTANCING
+    drN3 = drN3 * mat3(instanceMatrix);
+    #endif
+    vDrN = drN3 * normal;
+    vec4 drO = modelMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+    #ifdef USE_INSTANCING
+    drO = modelMatrix * instanceMatrix[3];
+    #endif
+    vDrPh = drO.x - drO.z; } // Unity: objectPos.x + objectPos.z
+`;
+  const FRAG_HEAD = `varying vec3 vDrN; varying float vDrPh;
+uniform vec3 uTriGrass; uniform vec3 uTriSand; uniform vec3 uTriSnow; uniform vec3 uTriRock;
+uniform vec4 uTriH; uniform vec4 uTriP; uniform float uTriWet;
+uniform sampler2D uEmis; uniform float uEmisK; uniform vec3 uWet; uniform vec4 uKind; uniform vec3 uEmisF;
+`;
+  const FRAG_OUT = `
+  vec3 drW = vDrFogW;
+  vec3 drL = drEnvLights(drW);
+  float drMb = drEnvMaskB(drW.xz);
+  #ifdef DR_LAMBERT
+  float drSh = getShadowMask();
+  #else
+  float drSh = 1.0;
+  #endif
+  #if defined( USE_COLOR ) || defined( USE_COLOR_ALPHA )
+  vec3 drVc = vColor.rgb;
+  #else
+  vec3 drVc = vec3(1.0); // Unity cấp màu đỉnh trắng khi lưới không có kênh COLOR [ĐỀ XUẤT]
+  #endif
+  vec3 drAlb = diffuseColor.rgb;
+  // loại shader theo uniform (ít chương trình GPU, ít đổi chương trình mỗi khung): uKind = (tri, foliage, dlc1, -)
+  if (uKind.y > 0.5) drAlb *= drVc.g;
+  #ifdef USE_MAP
+  if (uKind.x > 0.5) { // LitTriplanar_Shader: *_RGB theo UV0·TextureScale + TextureOffset (UV đã lật v trong glTF)
+    vec2 tuv = vec2(vUv.x * uTriH.w + uTriP.y, 1.0 - ((1.0 - vUv.y) * uTriH.w + uTriP.z));
+    vec3 n = texture2D(map, tuv).rgb; // sRGB8_ALPHA8: GPU tự giải mã như Unity (sRGBTexture 1)
+    vec3 N = normalize(vDrN);
+    float wet = max(step(0.15, n.r * drW.y), 1.0 - uTriWet);
+    vec3 rock = n.r * uTriRock * wet;
+    float rim = min(1.0, pow(1.0 - clamp(dot(N, normalize(cameraPosition - drW)), 0.0, 1.0), 2.0) * 1.6);
+    rock = mix(rock, vec3(uTriP.w), rim);
+    vec3 top = mix(uTriSand, uTriGrass, step(0.6, drW.y - uTriH.y));
+    top = mix(top, uTriSnow, step(0.9, n.g * (n.b + drW.y - uTriH.x)));
+    float isTop = step(drVc.r * uTriH.z, N.y * uTriP.x + n.r);
+    drAlb = mix(rock, top, isTop);
+    drSh *= max(step(0.3, dot(N, uDrSunDir)), 1.0 - isTop);
+  }
+  #endif
+  if (uKind.z > 0.5) { // [ĐỀ XUẤT] DLC1IslandsShader rút gọn: sườn lerp(SidesColorBottom, SidesColorTop, min(sat(y), màu đỉnh R)) × (RGB.r + 1)/2
+    // (lưới không có UV nên RGB.r coi như 0,5), mặt trên (N.y > 0,6) màu SnowColor; bỏ lấp lánh tuyết
+    vec3 N = normalize(vDrN);
+    vec3 side = mix(uTriSand, uTriGrass, clamp(min(clamp(drW.y, 0.0, 1.0), drVc.r), 0.0, 1.0)) * 0.75;
+    drAlb = mix(side, uTriSnow, step(0.6, N.y));
+  }
+  vec3 drLit = drAlb * drEnvLight(drW, drSh, drL, drMb);
+  if (uWet.z > 0.5) drLit *= max(step(uWet.x, drAlb.r * 2.0 + drW.y), 1.0 - uWet.y);
+  vec3 drOut = mix(drLit, drEnvFogColor(drW), drEnvFogAmount(drW, drL, drMb));
+  #ifdef USE_MAP
+  if (uEmisF.x > 0.5) { vec3 em = texture2D(uEmis, vUv).rgb * uEmisK; // emissiveMap glTF là sRGB, GPU giải mã
+    if (uEmisF.y > 0.5) em *= uDrNightL;                                // LightsTurnOffAtDay → _SceneLightness
+    if (uEmisF.z > 0.5) em *= drS2L(texture2D(uDrFlick, vec2(vDrPh - uDrTime * 0.1, 0.5)).r); // LightsFlicker
+    drOut += em; }
+  #endif
+  gl_FragColor = vec4(drOut, diffuseColor.a);
+`;
+  const WHITE = new T.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1);
+  WHITE.needsUpdate = true;
   function convertMaterial(src) {
     if (matCache.has(src)) return matCache.get(src);
-    const ex = src.userData || {}, shader = ex.shader || '';
-    let m = null;
+    const ex = src.userData || {}, shader = ex.shader || '', pr = ex.params || {}, kw = ex.keywords || [];
     if (/DepthMask/.test(shader) || ex.mask) { matCache.set(src, null); return null; }
-    m = new T.MeshLambertMaterial({
-      color: src.color.clone(), map: src.map || null, vertexColors: !!src.vertexColors,
+    const shadows = !!(root.DRSky && DRSky.shadows);
+    const defines = { DR_OWN_FOG: '' };
+    const tri = /LitTriplanar/.test(shader), fol = /Foliage/.test(shader), bill = /YBillboard/.test(shader);
+    const opts = {
+      color: new T.Color(1, 1, 1), map: src.map || (src.emissiveMap ? WHITE : null), vertexColors: !!src.vertexColors,
       alphaTest: src.alphaTest || 0, side: src.side, transparent: src.transparent, opacity: src.opacity
-    });
+    };
+    const m = shadows ? new T.MeshLambertMaterial(opts) : new T.MeshBasicMaterial(opts);
     m.name = src.name;
+    if (shadows) defines.DR_LAMBERT = '';
+    if (bill) { defines.DR_YBILL = ''; m.alphaTest = 0.5; m.side = T.DoubleSide; if (pr.ColorTint) m.color = linC(pr.ColorTint); }
+    if (/UnderwaterObject/.test(shader) && pr.ColorTint) m.color = linC(pr.ColorTint);
     if (/Foliage|Billboard|Cutout/.test(shader)) { m.side = T.DoubleSide; if (!m.alphaTest && src.transparent) m.alphaTest = 0.5; m.transparent = false; }
     if (/TransparentIce/.test(shader)) { m.transparent = true; m.opacity = 0.6; m.depthWrite = false; }
-    if (/Triplanar/.test(shader) && triTex[ex.triplanarTexture]) {
-      const tex = triTex[ex.triplanarTexture];
-      m.onBeforeCompile = sh => {
-        sh.uniforms.uTri = { value: tex };
-        sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vTriP; varying vec3 vTriN;')
-          .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\n vec4 triW = modelMatrix * vec4(transformed, 1.0);\n#ifdef USE_INSTANCING\n triW = modelMatrix * instanceMatrix * vec4(transformed, 1.0);\n#endif\n vTriP = triW.xyz; vTriN = normalize(mat3(modelMatrix) * objectNormal);\n#ifdef USE_INSTANCING\n vTriN = normalize(mat3(modelMatrix) * mat3(instanceMatrix) * objectNormal);\n#endif');
-        sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D uTri; varying vec3 vTriP; varying vec3 vTriN;')
-          .replace('#include <map_fragment>', `#include <map_fragment>
-  { vec3 bw = pow(abs(normalize(vTriN)), vec3(4.0)); bw /= (bw.x + bw.y + bw.z);
-    // [ĐỀ XUẤT] tỉ lệ 1/14 m; ba kênh R/G/B của *_RGB là ba lớp nhiễu đơn sắc, mỗi mặt chiếu lấy một kênh
-    vec3 s = vTriP / 14.0;
-    float d = texture2D(uTri, s.zy).r * bw.x + texture2D(uTri, s.xz).g * bw.y + texture2D(uTri, s.xy).b * bw.z;
-    diffuseColor.rgb *= mix(0.72, 1.28, d); }`);
-      };
-      m.customProgramCacheKey = () => 'tri';
-    }
-    // [ĐỀ XUẤT] đèn treo và đèn giàn khoan sáng lên theo sceneLights (TimeController) ban đêm
-    if (/HangingLamp|RigLights/.test(src.name)) { m.emissive = srgb(1, 0.72, 0.38); m.emissiveIntensity = 0; W.lampMats.push(m); }
+    const dlc1 = /DLC1IslandsShader/.test(shader);
+    const recv = pr.RecieveShadows === 1 || kw.some(k => /_SHADOWS_ON|BOOLEAN_831B22E2|BOOLEAN_94337006/.test(k));
+    const emisK = pr.LightStrength != null ? pr.LightStrength : pr.EmissionStrength != null ? pr.EmissionStrength : 1;
+    const uni = {
+      uTriGrass: { value: linC(pr.GrassColour || pr.SidesColorTop || [0, 0, 0]) }, uTriSand: { value: linC(pr.SandColour || pr.SidesColorBottom || [0, 0, 0]) },
+      uTriSnow: { value: linC(pr.SnowColour || pr.SnowColor || [0, 0, 0]) }, uTriRock: { value: linC(pr.RockColour || [1, 1, 1]) },
+      // (SnowHeight, SandHeight, GrassEdgeHeight, TextureScale), (EdgeJaggedAmount, TextureOffset.xy, RockColourLightness)
+      uTriH: { value: new T.Vector4(pr.SnowHeight || 0, pr.SandHeight || 0, pr.GrassEdgeHeight || 0, pr.TextureScale || 1) },
+      uTriP: { value: new T.Vector4(pr.EdgeJaggedAmount || 0, (pr.TextureOffset || [0, 0])[0], (pr.TextureOffset || [0, 0])[1], pr.RockColourLightness || 0) },
+      uTriWet: { value: pr.WetEdgesAmount || 0 },
+      uEmis: { value: src.emissiveMap || WHITE }, uEmisK: { value: emisK },
+      uWet: { value: new T.Vector3(pr.WetEdgeHeight || 0, pr.WetEdgeDarkness || 0, kw.includes('_WETEDGES') ? 1 : 0) },
+      uKind: { value: new T.Vector4(tri ? 1 : 0, fol ? 1 : 0, dlc1 ? 1 : 0, 0) },
+      uEmisF: { value: new T.Vector3(src.emissiveMap && pr.Emissive !== 0 ? 1 : 0, pr.LightsTurnOffAtDay === 1 ? 1 : 0, pr.LightsFlicker === 1 ? 1 : 0) }
+    };
+    m.defines = defines;
+    m.userData.drRecv = recv;
+    m.onBeforeCompile = sh => {
+      Object.assign(sh.uniforms, uni);
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', '#include <common>\n' + VERT_HEAD)
+        .replace('#include <project_vertex>', VERT_PROJECT);
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', '#include <common>\n' + FRAG_HEAD)
+        .replace('#include <color_fragment>', '')
+        .replace('#include <output_fragment>', FRAG_OUT);
+    };
+    m.customProgramCacheKey = () => 'drWorld';
     matCache.set(src, m);
     return m;
   }
@@ -211,6 +330,7 @@
         im.instanceMatrix.needsUpdate = true;
         im.matrixAutoUpdate = false;
         im.userData.mr = lr;
+        if (root.DRSky && DRSky.shadows) { im.castShadow = true; im.receiveShadow = !!part.mat.userData.drRecv; }
         g.add(im);
         W.stats.meshes++;
       }
@@ -238,18 +358,46 @@
   function seabed(px, Tm) {
     const step = 4, gw = Math.floor((Tm.width - 1) / step) + 1, gh = Math.floor((Tm.height - 1) / step) + 1;
     const geo = new T.PlaneGeometry(1, 1, gw - 1, gh - 1); geo.rotateX(-Math.PI / 2);
-    const pos = geo.attributes.position, col = new Float32Array(pos.count * 3);
-    const sand = new T.Color(0.46, 0.40, 0.29), deep = new T.Color(0.035, 0.06, 0.06), c = new T.Color();
+    const pos = geo.attributes.position, uv = geo.attributes.uv;
     for (let r = 0; r < gh; r++) for (let q = 0; q < gw; q++) {
       const ix = Math.min(Tm.width - 1, q * step), iz = Math.min(Tm.height - 1, r * step), k = (iz * Tm.width + ix) * 4;
       const y = Tm.y0 + (px[k] * 256 + px[k + 1]) / 65535 * Tm.sizeY, v = r * gw + q;
-      pos.setXYZ(v, Tm.x0 + ix * Tm.sizeX / (Tm.width - 1), Math.min(y, -0.35), Tm.z0 + iz * Tm.sizeZ / (Tm.height - 1));
-      c.copy(sand).lerp(deep, Math.min(1, Math.pow(-y / 40, 0.6)));
-      col[v * 3] = c.r; col[v * 3 + 1] = c.g; col[v * 3 + 2] = c.b;
+      const x = Tm.x0 + ix * Tm.sizeX / (Tm.width - 1), z = Tm.z0 + iz * Tm.sizeZ / (Tm.height - 1);
+      pos.setXYZ(v, x, Math.min(y, -0.35), z);
+      uv.setXY(v, (x - Tm.x0) / Tm.sizeX, (-z - Tm.z0) / Tm.sizeZ); // UV Terrain Unity (z Unity = −z three.js)
     }
-    geo.setAttribute('color', new T.BufferAttribute(col, 3));
     geo.computeVertexNormals();
-    const mesh = new T.Mesh(geo, new T.MeshLambertMaterial({ vertexColors: true }));
+    // TerrainShader (DXBC): splat (SplatAlpha 0) + nhiễu Terrain_RGB × TextureTiling chọn cát / tảo / đá / dung nham,
+    // ánh sáng = nắng + ambient + (1 − mask.b), KHÔNG có sương; dung nham phát sáng (2,996; 1,82; 0) trong 70 m quanh camera.
+    const TE = root.DR_ENV.terrain, M = TE.material, sky = root.DRSky;
+    const lc = c => new T.Vector4(s2l(c[0]), s2l(c[1]), s2l(c[2]), c[3]);
+    const mat = new T.MeshBasicMaterial({ color: 0xffffff });
+    mat.defines = { DR_OWN_FOG: '' };
+    const tn = sky.envTex(TE.noise), ts = sky.envTex(TE.splat, { clamp: true });
+    const uni = {
+      uTN: { value: tn }, uTS: { value: ts }, uTile: { value: new T.Vector2(M.TextureTiling[0], M.TextureTiling[1]) },
+      uSand: { value: lc(M.SandColour) }, uAlgae: { value: lc(M.AlgaeColour) }, uRock: { value: lc(M.RockColour) }, uMagma: { value: lc(M.MagmaColour) }
+    };
+    mat.onBeforeCompile = sh => {
+      Object.assign(sh.uniforms, uni);
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vTUv;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvTUv = uv;');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
+uniform sampler2D uTN; uniform sampler2D uTS; uniform vec2 uTile; uniform vec4 uSand; uniform vec4 uAlgae; uniform vec4 uRock; uniform vec4 uMagma;
+varying vec2 vTUv;`).replace('#include <output_fragment>', `
+  vec3 n = drS2L(texture2D(uTN, vTUv * uTile).rgb);
+  vec4 sp = texture2D(uTS, vTUv);
+  vec4 m = step(vec4(1.7, 0.5, 0.1, 0.5), vec4(sp.a, sp.g, sp.b, sp.a) * 2.0 - vec4(n.b, n.r, n.g, n.b));
+  vec3 c = mix(uSand.rgb, clamp(n.r + uAlgae.a, 0.0, 1.0) * uAlgae.rgb, m.y);
+  c = mix(c, clamp(n.g + uRock.a, 0.0, 1.0) * uRock.rgb, m.z);
+  c = mix(c, n.b * uMagma.rgb, m.w);
+  c *= uDrSunCol + uDrAmb + (1.0 - drEnvMaskB(vDrFogW.xz)) + vec3(uDrTintK, 0.0, 0.0); // TerrainShader: không mây, không bóng
+  float glow = drS2L(texture2D(uTN, vTUv * 150.0 + uDrTime * 0.02).b);
+  c += max(0.0, 1.0 - distance(vDrFogW.xz, cameraPosition.xz) / 70.0) * glow * vec3(2.996078, 1.819608, 0.0) * m.x;
+  gl_FragColor = vec4(c, 1.0);`);
+    };
+    mat.customProgramCacheKey = () => 'drTerrain';
+    const mesh = new T.Mesh(geo, mat);
     mesh.name = 'seabed';
     mesh.matrixAutoUpdate = false;
     return mesh;
@@ -299,12 +447,6 @@
       const l = new T.GLTFLoader(); l.setMeshoptDecoder(root.MeshoptDecoder);
       l.parse(glbBuf, '', res, rej);
     });
-    const imgs = gltf.parser.json.images || [];
-    for (let i = 0; i < imgs.length; i++) if (/_RGB$/.test(imgs[i].name)) {
-      const t = await gltf.parser.loadImageSource(i, gltf.parser.textureLoader);
-      t.wrapS = t.wrapT = T.RepeatWrapping; t.flipY = false; t.needsUpdate = true;
-      triTex[imgs[i].name] = t;
-    }
     gltf.scene.updateMatrixWorld(true);
     for (const node of gltf.scene.children) {
       if (!/^m\d+$/.test(node.name)) continue;
@@ -324,6 +466,7 @@
       const [cx, cz] = key.split(',').map(Number), C = world.cell;
       W.cells[key] = { entries: ents, x0: cx * C, z0: cz * C, x1: (cx + 1) * C, z1: (cz + 1) * C, group: null, count: 0 };
     }
+    if (root.DR_ENV && root.DR_ENV.particles) initAmbient();
   }
 
   // Bỏ vẽ cụm instanced nằm hẳn trong sương hoặc quá xa so với cỡ vật (đá nhỏ, bụi cây) — [ĐỀ XUẤT] 80 m + 20 × bán kính lưới.
@@ -335,7 +478,248 @@
     }
   }
 
-  function setNight(k) { for (const m of W.lampMats) m.emissiveIntensity = k * 1.4; }
+  // đèn cửa sổ/đèn treo giờ là Emission của Lit_Shader (uDrNightL = _SceneLightness); giữ hàm cho tương thích
+  function setNight(k) { W.sceneLights = k; }
+
+  // ---------- cảnh động: chim, vệt gió, đèn biển (DR_ENV.particles / DR_ENV.lighthouse, bóc từ Game.unity) ----------
+  const FLIP = new T.Matrix4().makeScale(1, 1, -1);
+  const u2t = arr => new T.Matrix4().fromArray(arr).transpose().premultiply(FLIP).multiply(FLIP); // Unity hàng trước → three.js
+  function hermite(keys, t) {
+    if (!keys || !keys.length) return 0;
+    if (t <= keys[0][0]) return keys[0][1];
+    for (let i = 1; i < keys.length; i++) if (t <= keys[i][0]) {
+      const a = keys[i - 1], b = keys[i], d = b[0] - a[0], u = (t - a[0]) / (d || 1), u2 = u * u, u3 = u2 * u;
+      return (2 * u3 - 3 * u2 + 1) * a[1] + (u3 - 2 * u2 + u) * a[3] * d + (-2 * u3 + 3 * u2) * b[1] + (u3 - u2) * b[2] * d;
+    }
+    return keys[keys.length - 1][1];
+  }
+  // MinMaxCurve: state 0 hằng, 1 đường cong, 2 giữa hai đường cong (r), 3 giữa hai hằng (r)
+  const mmc = (c, t, r) => !c ? 0 : c.state === 0 ? c.max : c.state === 3 ? c.min + (c.max - c.min) * r
+    : c.state === 1 ? c.max * hermite(c.curve, t) : c.max * (hermite(c.curveMin, t) + (hermite(c.curve, t) - hermite(c.curveMin, t)) * r);
+  function gradK(k, i, t, fixed) {
+    if (t <= k[0][0]) return k[0][i];
+    for (let j = 1; j < k.length; j++) if (t <= k[j][0]) { const p = k[j - 1], q = k[j]; return fixed ? p[i] : p[i] + (q[i] - p[i]) * (t - p[0]) / (q[0] - p[0] || 1); }
+    return k[k.length - 1][i];
+  }
+  const gradB = (g, t) => gradK(g.colors, 3, t, g.mode === 1); // kênh B (bật/tắt vỗ cánh)
+  const gradAl = (g, t) => gradK(g.alphas, 1, t, g.mode === 1);
+  const AMB = { birds: [], streaks: null, motes: null, beam: null, time: 0 };
+  W.ambient = AMB;
+
+  function birdMesh(m) {
+    const g = new T.BufferGeometry();
+    g.setAttribute('position', new T.Float32BufferAttribute(m.pos, 3));
+    g.setAttribute('uv', new T.Float32BufferAttribute(m.uv || new Array(m.pos.length / 3 * 2).fill(0), 2));
+    g.setAttribute('color', new T.Float32BufferAttribute(m.color || new Array(m.pos.length / 3 * 4).fill(1), 4));
+    g.setIndex(m.index);
+    g.computeBoundingSphere();
+    return g;
+  }
+  function initAmbient() {
+    const E = root.DR_ENV, P = E.particles, sky = root.DRSky;
+    // ---- chim: BirdParticle_Shader (vỗ cánh ở đỉnh, màu = MainTex × ambient.b, không sương)
+    const bm = P.materials.BirdParticle_Mat || {};
+    const birdMat = new T.ShaderMaterial({
+      uniforms: { tMain: { value: bm.texture ? sky.envTex(bm.texture, { clamp: true }) : WHITE }, uFlap: { value: new T.Vector2(bm.FlapSpeed || 12, bm.FlapAmount || 0.4) },
+        uT: { value: 0 }, uAmbB: { value: 1 } },
+      vertexShader: `attribute vec4 color; attribute vec4 aPCol; uniform vec2 uFlap; uniform float uT; varying vec2 vUv;
+void main() { vUv = uv; vec4 c = color * aPCol; vec3 p = position;
+  p.y += sin((uT - c.r * c.g) * c.a * uFlap.x) * c.b * uFlap.y * c.r;
+  gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(p, 1.0); }`,
+      fragmentShader: `uniform sampler2D tMain; uniform float uAmbB; varying vec2 vUv;
+vec3 s2l(vec3 c) { return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c)); }
+void main() { gl_FragColor = vec4(s2l(texture2D(tMain, vUv).rgb) * uAmbB, 1.0); }`,
+      side: T.DoubleSide
+    });
+    AMB.birdMat = birdMat;
+    const geos = {};
+    for (const e of P.birds) {
+      const m = P.meshes[e.mesh];
+      if (!m) continue;
+      const geo = geos[e.mesh] || (geos[e.mesh] = birdMesh(m));
+      const im = new T.InstancedMesh(geo, birdMat, e.maxParticles);
+      im.instanceMatrix.setUsage(T.DynamicDrawUsage);
+      const pc = new T.InstancedBufferAttribute(new Float32Array(e.maxParticles * 4).fill(1), 4);
+      im.geometry = geo.clone(); im.geometry.setAttribute('aPCol', pc);
+      im.frustumCulled = false; im.count = 0; im.name = 'birds ' + e.path;
+      scene.add(im);
+      AMB.birds.push({ e, im, pc, ps: [], cycle: -1, t: 0 });
+    }
+    // ---- vệt gió + bụi khí quyển quanh thuyền (AtmosphericParticles_Shader: màu × ánh sáng, có sương)
+    // GPU tính hết: mỗi ô hạt sống lại liên tục (đời L ngẫu nhiên, sinh lại ở điểm băm mới) ⇒ CPU không làm gì mỗi khung
+    const k3 = (keys, i) => { const k = (keys || []).slice(0, 3); while (k.length < 3) k.push(k.length ? k[k.length - 1] : [0, 1]); return new T.Vector3(k[0][i], k[1][i], k[2][i]); };
+    for (const e of P.atmospheric) {
+      const trail = !!e.TrailModule, V = e.VelocityModule || {};
+      const avgLife = (e.startLifetime.min + e.startLifetime.max) / 2;
+      const n = Math.min(e.maxParticles, Math.ceil(mmc(e.rate, 0, 1) * avgLife));
+      const g = new T.BufferGeometry(), per = trail ? 2 : 1;
+      const seed = new Float32Array(n * per * 2), pos = new Float32Array(n * per * 3);
+      for (let i = 0; i < n; i++) { const r = (i + 0.5) / n + Math.random() * 0.37; for (let j = 0; j < per; j++) { seed[(i * per + j) * 2] = r; seed[(i * per + j) * 2 + 1] = j; } } // đầu và đuôi vệt cùng một hạt
+      g.setAttribute('position', new T.BufferAttribute(pos, 3));
+      g.setAttribute('aSeed', new T.BufferAttribute(seed, 2));
+      const sc = e.startColor, ga = e.ColorModule && e.ColorModule.gradient && e.ColorModule.gradient.gradient;
+      const tc = trail ? e.TrailModule.colorOverLifetime : null;
+      const lt = trail ? mmc(e.TrailModule.lifetime, 0, 0) : 0;
+      const uni = {
+        fogColor: { value: new T.Color() }, fogDensity: { value: 0 }, uPx: { value: 1.5 }, uT: { value: 0 }, uBoat: { value: new T.Vector3() },
+        uLife: { value: new T.Vector2(e.startLifetime.min, e.startLifetime.max) }, uR: { value: e.shape.radius },
+        uVx: { value: new T.Vector2(V.x ? V.x.min : 0, V.x ? V.x.max : 0) }, uVz: { value: new T.Vector2(V.z ? V.z.min : 0, V.z ? V.z.max : 0) },
+        uNoise: { value: new T.Vector2(e.NoiseModule ? e.NoiseModule.strength.max : 0, e.NoiseModule ? e.NoiseModule.frequency : 0) },
+        uA0: { value: new T.Vector2(sc.state === 2 ? sc.min[3] : (sc.color || [1, 1, 1, 1])[3], sc.state === 2 ? sc.max[3] : (sc.color || [1, 1, 1, 1])[3]) },
+        uGT: { value: k3(ga && ga.alphas, 0) }, uGA: { value: k3(ga && ga.alphas, 1) },
+        uTrail: { value: trail ? lt : 0 },
+        uTAT: { value: k3(tc && (tc.gradientMin || tc.gradient).alphas, 0) }, uTAA: { value: k3(tc && (tc.gradientMin || tc.gradient).alphas, 1) },
+        uTBT: { value: k3(tc && tc.gradient.alphas, 0) }, uTBA: { value: k3(tc && tc.gradient.alphas, 1) }
+      };
+      const mat = new T.ShaderMaterial({
+        transparent: true, depthWrite: false, fog: true, uniforms: uni,
+        vertexShader: `attribute vec2 aSeed; varying float vA;
+uniform float uPx; uniform float uT; uniform vec3 uBoat; uniform vec2 uLife; uniform float uR; uniform vec2 uVx; uniform vec2 uVz; uniform vec2 uNoise;
+uniform vec2 uA0; uniform vec3 uGT; uniform vec3 uGA; uniform float uTrail; uniform vec3 uTAT; uniform vec3 uTAA; uniform vec3 uTBT; uniform vec3 uTBA;
+#include <common>
+#include <fog_pars_vertex>
+float h1(float n) { return fract(sin(n) * 43758.5453); }
+float g3(float u, vec3 t, vec3 a) { // gradient Unity 3 khoá alpha
+  if (u <= t.x) return a.x;
+  if (u <= t.y) return mix(a.x, a.y, (u - t.x) / max(t.y - t.x, 1e-4));
+  if (u <= t.z) return mix(a.y, a.z, (u - t.y) / max(t.z - t.y, 1e-4));
+  return a.z;
+}
+void main() {
+  float L = mix(uLife.x, uLife.y, h1(aSeed.x * 17.31));
+  float tt = uT + aSeed.x * 37.0 * L, k = floor(tt / L), age = tt - k * L, u = age / L;
+  float r1 = h1(aSeed.x * 113.1 + k * 7.13), r2 = h1(aSeed.x * 71.7 + k * 3.31), r3 = h1(aSeed.x * 29.9 + k * 5.71), r4 = h1(aSeed.x * 53.3 + k * 1.77);
+  // hình cầu bán kính 30 m quanh thuyền (không gian cục bộ) — [ĐỀ XUẤT] nửa dưới mặt nước lật lên trên
+  float R = uR * pow(r1, 0.3333), th = r2 * 6.2832, ph = acos(2.0 * r3 - 1.0);
+  vec3 p0 = vec3(R * sin(ph) * cos(th), abs(R * cos(ph)) * 0.35 + 0.5, R * sin(ph) * sin(th));
+  vec2 v = vec2(mix(uVx.x, uVx.y, r4), -mix(uVz.x, uVz.y, h1(r4 * 91.0))); // vận tốc thế giới: Unity +z = three.js −z
+  // [ĐỀ XUẤT] NoiseModule (strength, frequency) xấp xỉ bằng lệch sin tích phân theo tuổi
+  float w = 6.2832 * max(uNoise.y, 1e-3), ph0 = r2 * 100.0;
+  vec3 p = uBoat + p0 + vec3(v.x * age + uNoise.x * 0.3 / w * (cos(ph0) - cos(ph0 + age * w)), uNoise.x * 0.15 / w * (sin(ph0 * 1.7 + age * w) - sin(ph0 * 1.7)), v.y * age);
+  if (uTrail > 0.0) {
+    vA = aSeed.y > 0.5 ? 0.0 : mix(g3(u, uTAT, uTAA), g3(u, uTBT, uTBA), r1);
+    if (aSeed.y > 0.5) p.xz -= v * uTrail;
+  } else vA = mix(uA0.x, uA0.y, r3) * g3(u, uGT, uGA);
+  vec4 mvPosition = modelViewMatrix * vec4(p, 1.0);
+  gl_Position = projectionMatrix * mvPosition; gl_PointSize = uPx;
+#include <fog_vertex>
+}`,
+        fragmentShader: `varying float vA;
+#include <common>
+#include <fog_pars_fragment>
+void main() { vec3 c = drEnvLight(vDrFogW, 1.0, drEnvLights(vDrFogW), drEnvMaskB(vDrFogW.xz)); gl_FragColor = vec4(c, vA);
+#include <fog_fragment>
+}`
+      });
+      const obj = trail ? new T.LineSegments(g, mat) : new T.Points(g, mat);
+      obj.frustumCulled = false; obj.name = 'atmos ' + e.name;
+      scene.add(obj);
+      const sys = { e, obj, n, trail };
+      if (trail) AMB.streaks = sys; else AMB.motes = sys;
+    }
+    // ---- đèn biển Greater Marrow: ConstantlyRotateOnY 30°/s, DistanceScaler 0,004; LightBeam_Shader (fresnel^FadeSmoothness × tex.a × Opacity)
+    const L = (root.DR_ENV.lighthouse || [])[0];
+    if (L) {
+      const rootG = new T.Group(), pivot = new T.Group();
+      rootG.matrixAutoUpdate = false;
+      const R3 = u2t(L.rootMatrix), Pl = u2t(L.pivotLocal);
+      Pl.decompose(pivot.position, pivot.quaternion, pivot.scale);
+      rootG.add(pivot); scene.add(rootG);
+      const quad = new T.PlaneGeometry(1, 1);
+      for (const q of L.quads) {
+        const mat = new T.ShaderMaterial({
+          transparent: true, depthWrite: false, fog: false,
+          uniforms: { tMap: { value: sky.envTex(q.texture, { clamp: true }) }, uCol: { value: linC(q.color) }, uOp: { value: q.opacity }, uFade: { value: q.fade } },
+          vertexShader: 'varying vec2 vUv; varying vec3 vN; varying vec3 vV; void main(){ vUv = uv; vec4 w = modelMatrix * vec4(position, 1.0); vN = normalize(mat3(modelMatrix) * normal); vV = cameraPosition - w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }',
+          fragmentShader: `uniform sampler2D tMap; uniform vec3 uCol; uniform float uOp; uniform float uFade; varying vec2 vUv; varying vec3 vN; varying vec3 vV;
+vec3 s2l(vec3 c) { return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c)); }
+void main() { vec4 t = texture2D(tMap, vUv); float f = pow(clamp(dot(normalize(vN), normalize(vV)), 0.0, 1.0), uFade);
+  gl_FragColor = vec4(s2l(t.rgb) * uCol, f * t.a * uOp); }`
+        });
+        const m = new T.Mesh(quad, mat);
+        m.matrixAutoUpdate = false; m.matrix.copy(u2t(q.local)); m.frustumCulled = false; m.renderOrder = 3; m.name = 'beam ' + q.name;
+        pivot.add(m);
+      }
+      AMB.beam = { L, rootG, pivot, R3, q0: pivot.quaternion.clone(), angle: 0 };
+    }
+  }
+
+  const _bp = new T.Vector3(), _bq = new T.Quaternion(), _bs = new T.Vector3(), _bm = new T.Matrix4(), _fw = new T.Vector3(), _up = new T.Vector3(0, 1, 0), _yq = new T.Quaternion(), _o0 = new T.Vector3();
+  function spawnBird(B, now) {
+    const e = B.e;
+    if (B.ps.length >= e.maxParticles) return;
+    const r = Math.random(), sh = e.shape, sc = e.scale[0];
+    const phi = Math.random() * Math.PI * 2;
+    let rad = sh.radius * sc, dy = 0;
+    if (sh.type === 17) { const a = Math.random() * Math.PI * 2, d = Math.random() * sh.donutRadius; rad += Math.cos(a) * d; dy = Math.sin(a) * d; } // Donut
+    else if (sh.type === 10) rad *= 1 - (sh.radiusThickness || 0) * Math.random(); // Circle (radiusThickness 0 = mép)
+    B.ps.push({ born: now, life: mmc(e.startLifetime, 0, Math.random()), phi, rad, dy, w: mmc(e.VelocityModule && e.VelocityModule.orbitalY, 0, Math.random()),
+      rv: Math.random(), size: mmc(e.startSize, 0, r) });
+  }
+  function updateBirds(dt, env) {
+    AMB.time += dt;
+    const now = AMB.time;
+    AMB.birdMat.uniforms.uT.value = root.DRSky.uniforms.uDrTime.value;
+    AMB.birdMat.uniforms.uAmbB.value = root.DRSky.uniforms.uDrAmb.value.b;
+    const cam = AMB.cam;
+    for (const B of AMB.birds) {
+      const e = B.e;
+      // [ĐỀ XUẤT] bộ phát xa hơn 450 m (ngoài tầm sương ban ngày) không mô phỏng
+      if (cam && Math.hypot(cam.x - e.pos[0], cam.z - e.pos[2]) > 450) { B.ps.length = 0; B.im.count = 0; B.im.visible = false; continue; }
+      B.im.visible = true;
+      // phát theo burst mỗi vòng lengthInSec (looping)
+      const cyc = Math.floor(now / e.lengthInSec), tin = now - cyc * e.lengthInSec;
+      if (cyc !== B.cycle) { B.cycle = cyc; B.fired = 0; }
+      for (const b of e.bursts) for (let k = B.fired; k < b.cycles; k++) {
+        if (tin < b.time + k * b.interval) break;
+        if (Math.random() <= b.probability) { const c = Math.round(mmc(b.count, 0, Math.random())); for (let i = 0; i < c; i++) spawnBird(B, now); }
+        B.fired = k + 1;
+      }
+      B.ps = B.ps.filter(p => now - p.born < p.life);
+      const V = e.VelocityModule || {}, grad = e.ColorModule && e.ColorModule.gradient && e.ColorModule.gradient.gradient;
+      let i = 0;
+      for (const p of B.ps) {
+        const a = now - p.born, u = a / p.life;
+        // quỹ đạo quanh trục y của bộ phát + vận tốc y theo đường cong (tích phân số 16 bước)
+        let y = 0; const st = 8;
+        for (let s = 0; s < st; s++) y += mmc(V.y, (s + 0.5) / st * u, p.rv) * (a / st);
+        const ang = p.phi + p.w * a;
+        _bp.set(e.pos[0] + Math.cos(ang) * p.rad, e.pos[1] + p.dy + y, e.pos[2] + Math.sin(ang) * p.rad);
+        // căn theo vận tốc (alignment 4): tiếp tuyến quỹ đạo + thành phần y; mũi lưới (Unity +z) = −z three.js
+        const vy = mmc(V.y, u, p.rv);
+        _fw.set(-Math.sin(ang) * p.rad * p.w, vy, Math.cos(ang) * p.rad * p.w).normalize();
+        _bm.lookAt(_fw.negate(), _o0, _up); _bq.setFromRotationMatrix(_bm);
+        const s = p.size * mmc(e.SizeModule && e.SizeModule.curve, u, 0) * e.scale[1];
+        _bs.set(s, s, s);
+        _bm.compose(_bp, _bq, _bs);
+        B.im.setMatrixAt(i, _bm);
+        // màu hạt theo đời (gradient gốc chỉ đổi kênh B: vỗ cánh / lượn), R = G = A = 1
+        B.pc.setXYZW(i, 1, 1, grad ? gradB(grad, u) : 1, 1);
+        i++;
+      }
+      B.im.count = i;
+      B.im.instanceMatrix.needsUpdate = true; B.pc.needsUpdate = true;
+    }
+  }
+  const _rs = new T.Matrix4();
+  function updateAmbient(dt, ctx, env) {
+    if (!AMB.birdMat) return;
+    AMB.cam = ctx.cam || null;
+    updateBirds(dt, env);
+    for (const sys of [AMB.streaks, AMB.motes]) if (sys) {
+      const u = sys.obj.material.uniforms;
+      u.uT.value = AMB.time; u.uBoat.value.set(ctx.x, 0, ctx.z); // hạt mô phỏng trong không gian cục bộ của thuyền
+    }
+    const B = AMB.beam;
+    if (B) {
+      // localEulerAngles.y += dt·30 (Unity, tay trái) ⇒ quay −θ quanh y ở three.js
+      B.angle += dt * B.L.rotateSpeed * (B.L.counterClockwise ? -1 : 1);
+      B.pivot.quaternion.copy(B.q0).multiply(_yq.setFromAxisAngle(_up, -T.MathUtils.degToRad(B.angle)));
+      // DistanceScaler: localScale = 1 + khoảng cách ngang tới camera × 0,004
+      const cam = ctx.cam || _bp.set(ctx.x, 0, ctx.z), k = 1 + Math.hypot(cam.x - B.L.rootPos[0], cam.z - B.L.rootPos[2]) * B.L.distanceScale;
+      B.rootG.matrix.copy(B.R3).multiply(_rs.makeScale(k, k, k)); B.rootG.matrixWorldNeedsUpdate = true;
+    }
+  }
 
   // ---------- va chạm thuyền (hộp hướng theo yaw) với mặt nạ đất ----------
   // Trả về { nx, nz, impact } với impact = tốc độ đâm theo pháp tuyến (m/s), hoặc null khi không chạm.
@@ -361,5 +745,5 @@
     return hit;
   }
 
-  Object.assign(W, { load, stream, cull, sdf, grad, depth01, steep01, zoneAt, setNight, resolve, isLand: (x, z) => sdf(x, z) < 0 });
+  Object.assign(W, { load, stream, cull, sdf, grad, depth01, steep01, zoneAt, setNight, resolve, updateAmbient, isLand: (x, z) => sdf(x, z) < 0 });
 })(window);

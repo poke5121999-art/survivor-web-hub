@@ -1,7 +1,12 @@
 /*
  * HUD luôn bật khi đang lái thuyền / câu: bánh xe thời gian, mắt hoảng loạn, tiền, độ sâu, la bàn, ô hỏng thân tàu,
  * gợi ý tương tác và thông báo nổi. Đọc DR.s và DR.view mỗi khung hình (DR.view do engine ghi).
- *   DRHud.toast(text, ms)
+ * Thông báo nổi và thông báo nhiệm vụ nằm ở lớp riêng #dr-float để vẫn thấy khi đang neo bến (HUD chính ẩn lúc đó).
+ *   - Thông báo nhiệm vụ: Notification.prefab (250+100 x 100, nền NotificationBox, chữ 23) xếp từ góc trên trái
+ *     (NotificationHolder neo (0,1)); chữ gốc notification.quest-started / quest-progressed / quest-completed.
+ *   - Sổ nhiệm vụ (Pursuits, JournalWindow/QuestEntryUI): phím J hoặc nút "Nhiệm vụ"; nền PursuitsDialogBackground,
+ *     bước đã xong có PursuitTickIcon; nhiệm vụ có cập nhật chưa xem gắn chấm (hasUnseenUpdate).
+ *   DRHud.toast(text, ms)  DRHud.notify(kind, questId)  DRHud.journal(open?)  DRHud.journalOpen()
  */
 (function (root) {
   'use strict';
@@ -25,7 +30,7 @@
   let el = null;
   const cache = {};
   const pending = [];
-  let toasts = null;
+  let toasts = null, float = null, notes = null, jr = null, jbtn = null;
 
   function div(cls, parent, html) {
     const d = document.createElement('div');
@@ -52,7 +57,14 @@
     bag.title = 'Mở khoang thuyền (Tab / I)';
     bag.onclick = () => { if (root.DRCargo && DR.mode === 'sail') DRCargo.open({ keys: ['INVENTORY'], title: 'Khoang thuyền' }); };
     el.appendChild(bag);
-    toasts = div('hud-toasts', el);
+    float = div('dr-ui', document.body); float.id = 'dr-float';
+    toasts = div('hud-toasts', float);
+    notes = div('qn-stack', float);
+    jbtn = document.createElement('button');
+    jbtn.className = 'dr-btn qn-jbtn'; jbtn.title = 'Sổ nhiệm vụ (J)'; jbtn.dataset.act = 'journal';
+    jbtn.innerHTML = '<i></i><span>Nhiệm vụ</span><b class="dot"></b>';
+    jbtn.onclick = () => journal();
+    float.appendChild(jbtn);
     // Chạm vào gợi ý = nhấn Space (màn cảm ứng không có phím).
     prompt.onclick = () => {
       for (const t of ['keydown', 'keyup']) root.dispatchEvent(new KeyboardEvent(t, { code: 'Space', key: ' ', bubbles: true }));
@@ -68,8 +80,82 @@
     setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 600); }, ms || 3200);
   }
 
+  // ---------------------------------------------------------------- nhiệm vụ
+  const QSTR = { started: 'notification.quest-started', updated: 'notification.quest-progressed', completed: 'notification.quest-completed' };
+  const QVI = { started: 'Nhiệm vụ mới', updated: 'Nhiệm vụ cập nhật', completed: 'Hoàn thành nhiệm vụ' };
+  function notify(kind, id) {
+    if (!notes) return;
+    const Q = root.DRQuests;
+    const n = div('qn', notes);
+    n.dataset.kind = kind; n.dataset.quest = id;
+    const orig = (root.DR_STR && DR_STR[QSTR[kind]]) || '';
+    n.innerHTML = '<i class="ic"></i><div><b></b><span></span><small></small></div>';
+    n.querySelector('b').textContent = QVI[kind] || kind;
+    n.querySelector('span').textContent = Q ? Q.title(id) : id;
+    n.querySelector('small').textContent = orig;
+    while (notes.children.length > 3) notes.firstChild.remove();
+    try { if (root.DRAudio) DRAudio.play(kind === 'completed' ? 'ui.pursuit.complete' : 'ui.pursuit.update'); } catch (e) { /* tiếng không bắt buộc */ }
+    setTimeout(() => { n.classList.add('out'); setTimeout(() => n.remove(), 600); }, 4200);
+    updateDot();
+  }
+  function updateDot() {
+    if (!jbtn || !root.DRQuests || !root.DR || !DR.s) return;
+    jbtn.classList.toggle('unseen', DRQuests.list().some(q => q.unseen));
+  }
+  const sfx = k => { try { if (root.DRAudio) DRAudio.play(k); } catch (e) { /* tiếng không bắt buộc */ } };
+  let jsel = null;
+  function journal(open) {
+    if (!float || !root.DRQuests || !root.DR || !DR.s) return;
+    const on = open == null ? !jr : !!open;
+    if (!on) { if (jr) { jr.remove(); jr = null; sfx('ui.journal.close'); } return; }
+    if (root.DRDialogue && DRDialogue.isOpen()) return;
+    if (!jr) sfx('ui.journal.open');
+    renderJournal();
+  }
+  function renderJournal() {
+    const list = DRQuests.list();
+    if (jr) jr.remove();
+    jr = div('qj', float);
+    jr.onpointerdown = e => { if (e.target === jr) journal(false); };
+    const panel = div('qj-panel', jr);
+    const head = div('qj-head', panel, '<h2>Sổ nhiệm vụ</h2><small>' + esc((root.DR_STR && DR_STR['quests.header']) || 'Pursuits') + '</small>');
+    const x = document.createElement('button'); x.className = 'dr-btn'; x.textContent = 'Đóng'; x.dataset.act = 'close';
+    x.onclick = () => journal(false); head.appendChild(x);
+    const body = div('qj-body', panel);
+    const nav = div('qj-list', body), main = div('qj-main', body);
+    if (!list.length) { main.innerHTML = '<div class="qj-empty">Chưa có nhiệm vụ nào. Hãy nói chuyện với người dân ở bến.</div>'; return; }
+    if (!jsel || !list.some(q => q.id === jsel)) jsel = list[0].id;
+    DRQuests.markSeen(jsel);
+    for (const q of list) if (q.id === jsel) q.unseen = false;
+    for (const q of list) {
+      const b = document.createElement('button');
+      b.className = 'qj-item' + (q.id === jsel ? ' sel' : '') + (q.state === 'COMPLETED' ? ' done' : '');
+      b.dataset.quest = q.id;
+      b.innerHTML = '<span></span>' + (q.unseen ? '<i class="dot"></i>' : '');
+      b.firstChild.textContent = q.title;
+      b.onclick = () => { jsel = q.id; sfx('ui.journal.page.1'); renderJournal(); };
+      nav.appendChild(b);
+    }
+    const q = list.find(v => v.id === jsel);
+    DRQuests.markSeen(q.id); updateDot();
+    const h = document.createElement('h3'); h.textContent = q.title; main.appendChild(h);
+    div('qj-sum', main).textContent = q.summary;
+    div('qj-tasks-h', main).textContent = (root.DR_STR && DR_STR['quest-details.task-header']) || 'Tasks:';
+    for (const st of q.steps) {
+      const r = div('qj-step' + (st.done ? ' done' : ''), main);
+      r.dataset.step = st.id;
+      r.innerHTML = '<i></i><span></span>';
+      r.lastChild.textContent = st.text;
+    }
+    if (q.resolution) div('qj-res', main).textContent = q.resolution;
+  }
+
   function frame() {
     requestAnimationFrame(frame);
+    if (float && root.DR) {
+      const vis = !!DR.s && (DR.mode === 'sail' || DR.mode === 'dock') && !(root.DRDialogue && DRDialogue.isOpen()) && !(root.DRIntro && DRIntro.playing);
+      put('jb', vis, v => jbtn.classList.toggle('on', v));
+    }
     if (!el || !root.DR || !DR.s) return;
     const on = (DR.mode === 'sail' || DR.mode === 'harvest') && !(root.DRMinigame && DRMinigame.isOpen());
     put('on', on, v => el.classList.toggle('on', v));
@@ -141,8 +227,24 @@
   }
   const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-  function init() { build(); requestAnimationFrame(frame); }
+  function init() {
+    build(); requestAnimationFrame(frame);
+    if (root.DR && DR.on) {
+      DR.on('quest', ev => { if (ev && ev.id) notify(ev.kind, ev.id); if (jr) renderJournal(); });
+      DR.on('questState', () => updateDot());
+      DR.on('mode', m => { if (m === 'title' || m === 'harvest' || m === 'over') journal(false); });
+      DR.on('dialogue', on => { if (on) journal(false); });
+    }
+    root.addEventListener('keydown', e => {
+      if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+      if (e.code === 'KeyJ' && !e.repeat && root.DR && DR.s && (DR.mode === 'sail' || DR.mode === 'dock') && !(root.DRCargo && DRCargo.isOpen && DRCargo.isOpen())) { e.preventDefault(); journal(); }
+      else if (jr && (e.code === 'Escape' || e.code === 'KeyX')) { e.preventDefault(); e.stopImmediatePropagation(); journal(false); }
+    }, true);
+  }
   if (document.body) init(); else document.addEventListener('DOMContentLoaded', init);
 
-  root.DRHud = { toast, _debug: () => ({ cache: Object.assign({}, cache) }) };
+  root.DRHud = {
+    toast, notify, journal, journalOpen: () => !!jr,
+    _debug: () => ({ cache: Object.assign({}, cache), notes: notes ? [...notes.children].map(n => ({ kind: n.dataset.kind, quest: n.dataset.quest, text: n.textContent })) : [] })
+  };
 })(window);

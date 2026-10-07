@@ -1,26 +1,157 @@
 /*
- * Thời gian, ánh sáng, sương, bầu trời và hoảng loạn.
+ * Thời gian, ánh sáng, sương, bầu trời, hậu kỳ màu và hoảng loạn.
  *   TimeController: t += dt / (hourDurationInSeconds·24) · modifier; mặt trời góc lightAngleMin + 360·t quanh trục
  *   Euler (x, −90°, 0) ⇒ đi từ đông (+x) qua đỉnh xuống tây; màu nắng / ambient từ gradient sunColour /
  *   ambientLightColor; FogController: mật độ defaultFogDensityOverDay, màu defaultFogColorOverDay (+ FogPropertyModifier).
  *   PlayerSanity: sanity += sanityRate · dt · modifier (CODE.md 3).
- *   DRSky.init(scene, world)  DRSky.update(dt, ctx)  DRSky.passTime(hours, reason)  DRSky.env
+ *
+ * Môi trường dựng lại từ bytecode DXBC của shader gốc (tools/env.py --dis; số liệu ở data/env.js):
+ *   - Sương của MỌI vật liệu có fog (kể cả nước, thuyền của luồng khác): ShaderChunk.fog_* bị thay bằng công thức
+ *     Lit_Shader: tính theo khoảng cách tới _FogCenter (= thuyền), đường cos tới far = 350 + 337·_FogDensity·(_FogRemove − 1),
+ *     trừ theo độ cao (y/_FogHeight), sàn tuyến tính d/350, nhân kênh B của WaveMask, đèn phụ (đèn thuyền) xua sương,
+ *     màu sương ánh cam (0,752941; 0,235294; 0) về phía mặt trời lúc thấp. Uniform dùng chung tự cắm vào mọi vật liệu
+ *     (Material.prototype.onBeforeCompile được bọc, khoá cache chương trình giữ nguyên).
+ *   - Trời: Sky_Shader (màu trời × (nắng + ambient), mây Sky_RGB.r, sao .b, trăng .g, đĩa mặt trời HDR, dải sương chân trời).
+ *   - Hậu kỳ (URP, ColorGradingMode LDR): Bloom (threshold 1, intensity 2, scatter 0,7) → LUT ColorLookup tra trong sRGB →
+ *     ColorAdjustments của volume vùng (Stellar Basin, Devil's Spine) → sRGB. Quang sai màu theo sanity (SanityChromaticAberration).
+ *     Chèn bằng cách bọc renderer.render cho đúng (scene, màn hình); các lần render khác (render target) đi thẳng.
+ *
+ *   DRSky.init(scene, world)  DRSky.update(dt, ctx)  DRSky.passTime(hours, reason)
+ *   DRSky.env      { isDay, night, dayK, sunDir, sunColor[], ambientColor[], fogColor[] (sRGB như gradient), fogColorLinear (THREE.Color),
+ *                    fogDensityRaw (_FogDensity), fogHeight, fogCenter, fogFar, sceneLights, sceneLightness, cloudiness, wind, ... }
+ *   DRSky.uniforms uniform dùng chung (uDrFogC, uDrFogD, uDrSunDir, uDrSunCol, uDrAmb, ...) — ai tự viết ShaderMaterial có fog
+ *                  thì #include <fog_pars_fragment> là có sẵn hàm drEnvFogAmount / drEnvFogColor / drEnvLights / drEnvCloud.
+ *   DRSky.post     { enabled, stats }   DRSky.GLSL_ENV   DRSky.envTex(name)
  */
 (function (root) {
   'use strict';
-  const T = root.THREE, R = root.DRRules, CFG = root.DR_CONFIG;
-  // [ĐỀ XUẤT] _FogDensity gốc là tham số 0..1 của shader sương riêng; quy ra FogExp2: nền mù ban ngày + phần theo đường cong
-  const FOG_BASE = 0.0026, FOG_K = 0.034;
-  // [ĐỀ XUẤT] shader toon gốc trộn ambient như màu bóng chứ không cộng thẳng; hạ cả hai để trưa không cháy sáng
+  const T = root.THREE, R = root.DRRules, CFG = root.DR_CONFIG, E = root.DR_ENV;
+  // [ĐỀ XUẤT] đèn three.js của luồng khác (nước Phong, thuyền) vẫn dùng sun/ambient của three: giữ hệ số cũ cho chúng
   const AMB_K = 0.55, SUN_K = 0.85;
+  const FS = E.fogShader, MAXL = 4;
 
   const S = root.DRSky = {
-    env: { isDay: true, night: 0, dayK: 1, sunDir: new T.Vector3(0, 1, 0), fogDensity: 0, timeMode: 'idle', timeMod: 0 },
-    gameTime: 0, forced: null
+    env: {
+      isDay: true, night: 0, dayK: 1, sunDir: new T.Vector3(0, 1, 0), fogDensity: 0, fogFar: 365, timeMode: 'idle', timeMod: 0,
+      sunColor: [1, 1, 1], ambientColor: [1, 1, 1], fogColor: [1, 1, 1], fogColorLinear: new T.Color(), fogDensityRaw: 0,
+      fogHeight: 30, fogCenter: new T.Vector3(), sceneLights: 0, sceneLightness: 0, cloudiness: 0.4, cloudDarkness: 0.2, wind: 0.1
+    },
+    // [ĐỀ XUẤT] bóng đổ của mặt trời (URP: 1 cascade, 70 m, 1024², bóng cứng) tắt mặc định để giữ ngân sách khung hình; ?shadows=1 để bật
+    gameTime: 0, forced: null, shadows: /[?&]shadows=1/.test(root.location.search)
   };
-  let TC = null, FC = null, sun = null, amb = null, scene = null, dome = null, fogMods = [], sanityVols = [];
+  let TC = null, sun = null, amb = null, scene = null, dome = null, fogMods = [], sanityVols = [], postVols = [];
 
-  // ---- Unity Gradient / AnimationCurve ----
+  // ---------------------------------------------------------------- uniform dùng chung + GLSL
+  const v4 = () => [0, 1, 2, 3].map(() => new T.Vector4());
+  const U = S.uniforms = {
+    uDrFogC: { value: new T.Vector3() }, uDrFogD: { value: 0 }, uDrFogH: { value: 30 }, uDrFogR: { value: FS.remove },
+    uDrSunDir: { value: new T.Vector3(0, 1, 0) }, uDrSunCol: { value: new T.Color() }, uDrAmb: { value: new T.Color() },
+    uDrMask: { value: null }, uDrCloud: { value: null }, uDrCloudy: { value: 0.4 }, uDrWind: { value: E.wind }, uDrTime: { value: 0 },
+    uDrNightL: { value: 0 }, uDrFlick: { value: null }, uDrTint: { value: new T.Color(0, 0, 0) }, uDrTintK: { value: 0 },
+    uDrLP: { value: v4() }, uDrLC: { value: v4() }, uDrLD: { value: v4() }, uDrLN: { value: 0 }
+  };
+  const f6 = x => Number(x).toFixed(6);
+  const GLSL_ENV = `
+#ifndef DR_ENV_GLSL
+#define DR_ENV_GLSL
+uniform vec3 uDrFogC; uniform float uDrFogD; uniform float uDrFogH; uniform float uDrFogR;
+uniform vec3 uDrSunDir; uniform vec3 uDrSunCol; uniform vec3 uDrAmb;
+uniform sampler2D uDrMask; uniform sampler2D uDrCloud; uniform float uDrCloudy; uniform float uDrWind; uniform float uDrTime;
+uniform float uDrNightL; uniform sampler2D uDrFlick; uniform vec3 uDrTint; uniform float uDrTintK;
+uniform vec4 uDrLP[${MAXL}]; uniform vec4 uDrLC[${MAXL}]; uniform vec4 uDrLD[${MAXL}]; uniform int uDrLN;
+vec3 drS2L(vec3 c) { return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c)); }
+float drS2L(float c) { return c < 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4); }
+// WaveMask.b (Lit_Shader: t1.z ở xz/_WorldSize + 0,5; ngoài thế giới coi như 1)
+float drEnvMaskB(vec2 xz) {
+  vec2 uv = (xz + 750.0) / 1500.0;
+  if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) return 1.0;
+  return min(texture2D(uDrMask, uv).b, 1.0);
+}
+// vòng đèn phụ URP: suy giảm (1 − (d²/r²)²)² / d², nón spot bình phương, mỗi đèn kẹp [0,1] rồi cộng
+vec3 drEnvLights(vec3 wp) {
+  vec3 s = vec3(0.0);
+  for (int i = 0; i < ${MAXL}; i++) {
+    if (i >= uDrLN) break;
+    vec4 P = uDrLP[i]; vec4 C = uDrLC[i]; vec4 D = uDrLD[i];
+    vec3 d = P.xyz - wp; float d2 = max(dot(d, d), 0.000061);
+    float f = d2 * P.w; f = max(0.0, 1.0 - f * f); f = f * f / d2;
+    float sp = clamp(dot(D.xyz, d * inversesqrt(d2)) * C.w + D.w, 0.0, 1.0);
+    s += clamp(C.rgb * (f * sp * sp), 0.0, 1.0);
+  }
+  return s;
+}
+float drEnvFogAmount(vec3 wp, vec3 L, float mb) {
+  float d = distance(wp, uDrFogC);
+  float far = ${f6(FS.far)} + uDrFogD * ${f6(FS.densityK)} * (uDrFogR - 1.0);
+  float f = (1.0 - cos(clamp(d / far, 0.0, 1.0) * 3.141593)) * 0.5;
+  f *= mb * max(0.0, 1.0 - ${f6(FS.lightClearK)} * length(L));
+  f -= clamp(wp.y / uDrFogH, 0.0, 1.0);
+  return max(f, min(d / ${f6(FS.linearFar)}, 1.0));
+}
+vec3 drEnvFogColor(vec3 wp) {
+  vec3 V = normalize(cameraPosition - wp);
+  float g = clamp(dot(V, -uDrSunDir), 0.0, 1.0);
+  g = g * g * max(0.0, 1.0 - abs(uDrSunDir.y) + min(2.0 * uDrSunDir.y, 0.0));
+  vec3 c = mix(fogColor, mix(fogColor, vec3(${E.fogShader.glow.map(f6).join(', ')}), 0.5), g);
+  vec3 dark = mix(vec3(0.01), uDrTint, min(distance(wp, uDrFogC) / 100.0, 1.0));
+  return mix(c, dark, uDrTintK);
+}
+// mây che nắng (tọa độ Unity: z đổi dấu); nước dưới y = 0 luôn sáng
+float drEnvCloud(vec3 wp) {
+  vec2 uv = vec2(wp.x, -wp.z) * ${f6(E.cloudShadow.scale)} + vec2(uDrWind * ${f6(E.cloudShadow.windK)} * uDrTime, 0.0);
+  float n = drS2L(texture2D(uDrCloud, uv).r);
+  float c0 = uDrCloudy - ${f6(E.cloudShadow.soft)};
+  return min(1.0, clamp(-wp.y, 0.0, 1.0) + clamp((n - c0) / ${f6(E.cloudShadow.soft)}, 0.0, 1.0));
+}
+// ánh sáng toon của Lit_Shader: KHÔNG có N·L — albedo × (nắng·mây·bóng + đèn phụ + ambient + (1 − mask.b))
+vec3 drEnvLight(vec3 wp, float shadow, vec3 L, float mb) {
+  return uDrSunCol * (drEnvCloud(wp) * shadow) + L + uDrAmb + (1.0 - mb) + vec3(uDrTintK, 0.0, 0.0);
+}
+#endif
+`;
+  S.GLSL_ENV = GLSL_ENV;
+
+  // ---- ShaderChunk: sương gốc cho mọi vật liệu có fog
+  const CH = T.ShaderChunk;
+  CH.fog_pars_vertex = `#ifdef USE_FOG
+varying float vFogDepth;
+varying vec3 vDrFogW;
+vec3 drV2W(vec4 mv) { vec3 p = mv.xyz - viewMatrix[3].xyz; return vec3(dot(viewMatrix[0].xyz, p), dot(viewMatrix[1].xyz, p), dot(viewMatrix[2].xyz, p)); }
+#endif`;
+  CH.fog_vertex = `#ifdef USE_FOG
+vFogDepth = - mvPosition.z;
+vDrFogW = drV2W(mvPosition);
+#endif`;
+  CH.fog_pars_fragment = `#ifdef USE_FOG
+uniform vec3 fogColor;
+varying float vFogDepth;
+varying vec3 vDrFogW;
+${GLSL_ENV}
+#endif`;
+  CH.fog_fragment = `#ifdef USE_FOG
+#ifndef DR_OWN_FOG
+{ vec3 drLf = drEnvLights(vDrFogW); gl_FragColor.rgb = mix(gl_FragColor.rgb, drEnvFogColor(vDrFogW), drEnvFogAmount(vDrFogW, drLf, drEnvMaskB(vDrFogW.xz))); }
+#endif
+#endif`;
+
+  // ---- cắm uniform dùng chung vào mọi vật liệu (bọc onBeforeCompile; toString giữ nguyên để khoá cache không đổi)
+  const OBC = '__drObc';
+  function inject(sh) { for (const k in U) if (!(k in sh.uniforms)) sh.uniforms[k] = U[k]; }
+  const plainObc = function (sh) { inject(sh); };
+  plainObc.toString = () => T.Material.prototype.__drOrigObcSrc;
+  Object.defineProperty(T.Material.prototype, '__drOrigObcSrc', { value: String(T.Material.prototype.onBeforeCompile) });
+  Object.defineProperty(T.Material.prototype, 'onBeforeCompile', {
+    configurable: true,
+    get() { return this[OBC] || plainObc; },
+    set(f) {
+      if (typeof f !== 'function') { this[OBC] = null; return; }
+      const w = function (sh, r) { inject(sh); return f.call(this, sh, r); };
+      w.toString = () => String(f);
+      Object.defineProperty(this, OBC, { value: w, writable: true, configurable: true });
+    }
+  });
+
+  // ---------------------------------------------------------------- Unity Gradient / AnimationCurve
   function gradient(g, t) {
     const c = g.colors;
     if (t <= c[0][0]) return [c[0][1], c[0][2], c[0][3]];
@@ -44,49 +175,306 @@
     }
     return k[k.length - 1][1];
   }
-  const lin = (c, out) => (out || new T.Color()).setRGB(c[0], c[1], c[2]).convertSRGBToLinear();
+  const s2l = x => x <= 0.04045 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+  const lin = (c, out) => (out || new T.Color()).setRGB(s2l(c[0]), s2l(c[1]), s2l(c[2]));
 
+  // ---------------------------------------------------------------- texture môi trường
+  const texCache = {};
+  function envTex(path, opt) {
+    if (texCache[path]) return texCache[path];
+    const t = new T.TextureLoader().load(path + (S.rev ? '?v=' + S.rev : ''));
+    t.wrapS = t.wrapT = (opt && opt.clamp) ? T.ClampToEdgeWrapping : T.RepeatWrapping;
+    if (opt && opt.nearest) { t.minFilter = T.LinearFilter; t.magFilter = T.LinearFilter; t.generateMipmaps = false; }
+    texCache[path] = t;
+    return t;
+  }
+  S.envTex = envTex;
+
+  // ---------------------------------------------------------------- trời (Sky_Shader)
   function skyDome() {
+    const K = E.sky;
     const m = new T.ShaderMaterial({
-      depthWrite: false, depthTest: false, side: T.BackSide, fog: false,
-      uniforms: { uHorizon: { value: new T.Color() }, uZenith: { value: new T.Color() }, uSun: { value: new T.Vector3() }, uDay: { value: 1 }, uNight: { value: 0 } },
-      vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); vec4 p = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_Position = p.xyww; }',
-      fragmentShader: `uniform vec3 uHorizon; uniform vec3 uZenith; uniform vec3 uSun; uniform float uDay; uniform float uNight; varying vec3 vD;
-float h(vec3 p){ return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
-void main(){
+      // vẽ SAU vật đục, depthTest ở mặt phẳng xa: chỉ tô điểm ảnh trời thật sự lộ ra (shader trời nặng, đừng tô cả màn hình)
+      depthWrite: false, depthTest: true, side: T.BackSide, fog: false,
+      uniforms: Object.assign({
+        tRGB: { value: envTex(K.textures.rgb) }, tWarp: { value: envTex(K.textures.warp) }, tAur: { value: envTex(K.textures.aurora) },
+        uSkyCol: { value: lin(K.skyColor) }, uSunRad: { value: K.sunRadius }, uSunInt: { value: K.sunIntensity },
+        uFarTile: { value: K.cloudFarTiling }, uTOD: { value: 0.5 }, uAurora: { value: 0 }, uCloudDark: { value: 0.2 },
+        uFogLin: { value: new T.Color() }
+      }, U),
+      vertexShader: 'varying vec3 vD; void main(){ vD = position; vec4 p = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_Position = p.xyww; }',
+      fragmentShader: `uniform sampler2D tRGB; uniform sampler2D tWarp; uniform sampler2D tAur;
+uniform vec3 uSkyCol; uniform float uSunRad; uniform float uSunInt; uniform float uFarTile; uniform float uTOD; uniform float uAurora;
+uniform float uCloudDark; uniform vec3 uFogLin;
+uniform vec3 uDrSunDir; uniform vec3 uDrSunCol; uniform vec3 uDrAmb; uniform float uDrCloudy; uniform float uDrWind; uniform float uDrTime; uniform float uDrFogD;
+varying vec3 vD;
+vec3 s2l(vec3 c) { return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c)); }
+void main() {
   vec3 d = normalize(vD);
-  float up = clamp(d.y, 0.0, 1.0);
-  vec3 c = mix(uHorizon, uZenith, smoothstep(0.02, 0.55, up));
-  float sd = max(dot(d, normalize(uSun)), 0.0);
-  c += vec3(1.0, 0.92, 0.75) * (pow(sd, 900.0) * 2.0 + pow(sd, 12.0) * 0.12) * uDay;
-  vec3 g = floor(d * 420.0);
-  float st = step(0.9975, h(g)) * smoothstep(0.08, 0.35, up) * uNight * (0.55 + 0.45 * sin(h(g + 1.0) * 60.0));
-  c += vec3(st * 0.8);
-  gl_FragColor = vec4(c, 1.0);
-  #include <encodings_fragment>
+  vec3 du = vec3(d.x, d.y, -d.z);            // hướng theo trục Unity
+  vec3 Lu = vec3(uDrSunDir.x, uDrSunDir.y, -uDrSunDir.z);
+  float sd = clamp(dot(du, Lu), 0.0, 1.0);
+  float hor = max(0.0, 1.0 - abs(Lu.y) + min(2.0 * Lu.y, 0.0));
+  vec3 F = mix(uFogLin, mix(uFogLin, vec3(0.752941, 0.235294, 0.0), 0.5), sd * sd * hor);
+  vec3 glowF = F * pow(sd, 15.0);
+  vec3 sunC = step(1.0 - uSunRad, sd) * vec3(uSunInt, uSunInt, uSunInt * 0.768151) + glowF;
+  float phi = atan(du.z, du.x), th = asin(clamp(du.y, -1.0, 1.0));
+  // [ĐỀ XUẤT] UV lưới cầu trời gốc không xuất được: dùng (φ/2π + 0,5, θ/π + 0,5)
+  vec2 suv = vec2(phi * 0.159155 + 0.5, th * 0.31831 + 0.5);
+  float wob = s2l(texture2D(tWarp, suv * vec2(0.3, 0.01) + uDrTime * 0.01).rrr).r * 0.03;
+  vec4 au = texture2D(tAur, vec2((phi * 0.159155 + wob) * 2.0, th * 0.63662 * 4.0));
+  vec3 aur = s2l(au.rgb) * au.a;
+  float band = s2l(texture2D(tRGB, vec2(phi * 0.31831, th * 5.092957)).rrr).r;
+  vec2 sp = du.xz * 0.7 / (du.y + 1.0);
+  float star = s2l(texture2D(tRGB, sp * 6.0).bbb).b - (Lu.y + 1.0) * 0.5;
+  vec3 lightC = clamp(uDrSunCol, 0.0, 1.0) + uDrAmb;
+  vec3 base = uSkyCol * lightC + clamp(aur * uAurora + star, 0.0, 1.0);
+  vec3 lightS = clamp(lightC, 0.0, 1.0);
+  float mo = fract(uTOD + 0.4) * 52.0 - 26.0;
+  float moon = s2l(texture2D(tRGB, clamp(sp * 26.0 + mo, 0.0, 1.0)).ggg).g;
+  vec3 c6 = moon + base + sunC;
+  float om = 1.0 - du.y;
+  float hb = clamp(pow(clamp(band + pow(max(om, 0.0), 20.0 * (1.0 - uDrCloudy)), 0.0, 1.0), 15.0) * uDrCloudy, 0.0, 1.0);
+  c6 += hb * (lightS - c6);
+  vec2 cuv = du.xz * 0.7 / max(du.y + uFarTile, 0.02);
+  float wt = uDrWind * uDrTime;
+  float n = s2l(texture2D(tRGB, cuv * vec2(0.5, 0.6) + vec2(0.09 * wt, 0.0)).rrr).r + s2l(texture2D(tRGB, cuv * 0.25 + vec2(0.03 * wt, 0.0)).rrr).r;
+  float cov = du.y > -0.05 ? min(1.0, pow(max(n + uDrCloudy, 0.0), 80.0)) : 0.0;
+  float sh = clamp(1.0 - (n - (1.0 - uDrCloudy)), 0.7, 1.0);
+  vec3 cc = (glowF * (cov * sh * sh * sh * sh * sh) * uSunInt + lightS * sh) * (1.0 - uCloudDark);
+  vec3 sky = mix(c6, cc, cov);
+  float fd = min(uDrFogD, 0.85), k = (1.0 - fd) * (1.0 - fd) * 25.0;
+  float fb = min(1.0, pow(max(om, 0.0), k));
+  gl_FragColor = vec4(mix(sky, F, fb), 1.0);
 }`
     });
-    const mesh = new T.Mesh(new T.SphereGeometry(900, 32, 16), m);
-    mesh.frustumCulled = false; mesh.renderOrder = -10;
+    const mesh = new T.Mesh(new T.SphereGeometry(900, 48, 24), m);
+    mesh.frustumCulled = false; mesh.renderOrder = 1e6; mesh.name = 'sky';
     return mesh;
   }
 
+  // ---------------------------------------------------------------- hậu kỳ
+  const P = S.post = { enabled: true, ready: false, stats: { passes: 0 } };
+  const FSQ_V = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
+  function fsMat(frag, uniforms) {
+    return new T.ShaderMaterial({ vertexShader: FSQ_V, fragmentShader: frag, uniforms, depthTest: false, depthWrite: false, fog: false });
+  }
+  function setupPost(renderer) {
+    const gl = renderer.getContext(), isGL2 = renderer.capabilities.isWebGL2;
+    const half = isGL2 || renderer.extensions.has('OES_texture_half_float');
+    const type = half ? T.HalfFloatType : T.UnsignedByteType;
+    P.renderer = renderer; P.type = type;
+    P.scene = new T.Scene(); P.cam = new T.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    P.quad = new T.Mesh(new T.PlaneGeometry(2, 2)); P.quad.frustumCulled = false; P.scene.add(P.quad);
+    const opt = { type, minFilter: T.LinearFilter, magFilter: T.LinearFilter, depthBuffer: false };
+    P.rt = new T.WebGLRenderTarget(4, 4, { type, minFilter: T.LinearFilter, magFilter: T.LinearFilter, depthBuffer: true });
+    if (isGL2) P.rt.samples = 4;
+    P.mips = []; P.ups = [];
+    for (let i = 0; i < 4; i++) { P.mips.push(new T.WebGLRenderTarget(4, 4, opt)); P.ups.push(new T.WebGLRenderTarget(4, 4, opt)); }
+    const B = (E.post.volumes.find(v => v.global && v.active) || { components: {} }).components;
+    const bloom = B.Bloom || { threshold: 1, intensity: 2, scatter: 0.7 }, ca = B.ChromaticAberration || { intensity: 0 };
+    const lutPath = B.ColorLookup && B.ColorLookup.texturePath;
+    P.bloom = { threshold: bloom.threshold != null ? bloom.threshold : 0.9, intensity: bloom.intensity != null ? bloom.intensity : 0,
+      scatter: 0.05 + 0.9 * (bloom.scatter != null ? bloom.scatter : 0.7) }; // URP: lerp(0,05; 0,95; scatter)
+    P.ca = ca.intensity || 0;
+    P.prefilter = fsMat(`uniform sampler2D tSrc; uniform float uTh; uniform float uKnee; varying vec2 vUv;
+void main(){ vec3 c = min(texture2D(tSrc, vUv).rgb, vec3(65472.0));
+  float br = max(c.r, max(c.g, c.b)); float s = clamp(br - uTh + uKnee, 0.0, 2.0 * uKnee); s = s * s / (4.0 * uKnee + 0.0001);
+  c *= max(br - uTh, s) / max(br, 0.0001); gl_FragColor = vec4(max(c, 0.0), 1.0); }`,
+    { tSrc: { value: null }, uTh: { value: P.bloom.threshold }, uKnee: { value: P.bloom.threshold * 0.5 } });
+    // [ĐỀ XUẤT] chuỗi mờ Gauss 9+5 tap của URP thay bằng lọc đôi (dual filter) — cùng dạng mip, rẻ hơn
+    P.down = fsMat(`uniform sampler2D tSrc; uniform vec2 uTx; varying vec2 vUv;
+void main(){ vec3 c = texture2D(tSrc, vUv).rgb * 4.0;
+  c += texture2D(tSrc, vUv + uTx * vec2(-1.0, -1.0)).rgb + texture2D(tSrc, vUv + uTx * vec2(1.0, -1.0)).rgb;
+  c += texture2D(tSrc, vUv + uTx * vec2(-1.0, 1.0)).rgb + texture2D(tSrc, vUv + uTx * vec2(1.0, 1.0)).rgb;
+  gl_FragColor = vec4(c / 8.0, 1.0); }`, { tSrc: { value: null }, uTx: { value: new T.Vector2() } });
+    P.up = fsMat(`uniform sampler2D tLow; uniform sampler2D tHigh; uniform vec2 uTx; uniform float uScatter; varying vec2 vUv;
+void main(){ vec3 c = vec3(0.0);
+  c += texture2D(tLow, vUv + uTx * vec2(-2.0, 0.0)).rgb + texture2D(tLow, vUv + uTx * vec2(2.0, 0.0)).rgb;
+  c += texture2D(tLow, vUv + uTx * vec2(0.0, -2.0)).rgb + texture2D(tLow, vUv + uTx * vec2(0.0, 2.0)).rgb;
+  c += (texture2D(tLow, vUv + uTx * vec2(-1.0, -1.0)).rgb + texture2D(tLow, vUv + uTx * vec2(1.0, -1.0)).rgb
+     + texture2D(tLow, vUv + uTx * vec2(-1.0, 1.0)).rgb + texture2D(tLow, vUv + uTx * vec2(1.0, 1.0)).rgb) * 2.0;
+  gl_FragColor = vec4(mix(texture2D(tHigh, vUv).rgb, c / 12.0, uScatter), 1.0); }`,
+    { tLow: { value: null }, tHigh: { value: null }, uTx: { value: new T.Vector2() }, uScatter: { value: P.bloom.scatter } });
+    P.uber = fsMat(`uniform sampler2D tSrc; uniform sampler2D tBloom; uniform sampler2D tLut; uniform float uBloom; uniform float uCA;
+uniform float uLutK; uniform vec3 uFilter; uniform float uContrast; uniform float uHue; varying vec2 vUv;
+vec3 lutS(vec3 uvw) { uvw.z *= 31.0; float sh = floor(uvw.z);
+  vec2 uv = uvw.xy * 31.0 * vec2(1.0 / 1024.0, 1.0 / 32.0) + vec2(0.5 / 1024.0, 0.5 / 32.0); uv.x += sh / 32.0;
+  return mix(texture2D(tLut, uv).rgb, texture2D(tLut, uv + vec2(1.0 / 32.0, 0.0)).rgb, uvw.z - sh); }
+vec3 l2s(vec3 c) { return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
+vec3 s2l(vec3 c) { return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c)); }
+vec3 toLogC(vec3 x) { return mix(5.301883 * x + 0.092819, 0.244161 * log2(5.555556 * x + 0.047996) * 0.30103 + 0.386036, step(0.011361, x)); }
+vec3 fromLogC(vec3 x) { return mix((x - 0.092819) / 5.301883, (pow(vec3(10.0), (x - 0.386036) / 0.244161) - 0.047996) / 5.555556, step(5.301883 * 0.011361 + 0.092819, x)); }
+vec3 rgb2hsv(vec3 c) { vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0); vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+  vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r)); float d = q.x - min(q.w, q.y); float e = 1.0e-4;
+  return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x); }
+vec3 hsv2rgb(vec3 c) { vec3 p = abs(fract(c.xxx + vec3(1.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0); return c.z * mix(vec3(1.0), clamp(p - 1.0, 0.0, 1.0), c.y); }
+void main(){
+  vec3 col;
+  if (uCA > 0.0) { vec2 co = 2.0 * vUv - 1.0; vec2 dl = (vUv - co * dot(co, co) * uCA - vUv) / 3.0;
+    col = vec3(texture2D(tSrc, vUv).r, texture2D(tSrc, vUv + dl).g, texture2D(tSrc, vUv + 2.0 * dl).b); }
+  else col = texture2D(tSrc, vUv).rgb;
+  col += texture2D(tBloom, vUv).rgb * uBloom;
+  col = clamp(col, 0.0, 1.0);
+  vec3 g = l2s(col); col = s2l(mix(g, lutS(g), uLutK));
+  col = fromLogC((toLogC(col) - 0.4135884) * uContrast + 0.4135884);
+  col = max(col * uFilter, 0.0);
+  if (uHue != 0.0) { vec3 h = rgb2hsv(col); h.x = fract(h.x + uHue); col = hsv2rgb(h); }
+  gl_FragColor = vec4(l2s(clamp(col, 0.0, 1.0)), 1.0); }`,
+    { tSrc: { value: null }, tBloom: { value: null }, tLut: { value: lutPath ? envTex(lutPath, { clamp: true, nearest: true }) : null },
+      uBloom: { value: P.bloom.intensity }, uCA: { value: P.ca * 0.05 }, uLutK: { value: lutPath ? (B.ColorLookup.contribution || 0) : 0 },
+      uFilter: { value: new T.Vector3(1, 1, 1) }, uContrast: { value: 1 }, uHue: { value: 0 } });
+    P.copy = fsMat('uniform sampler2D tSrc; varying vec2 vUv; void main(){ gl_FragColor = texture2D(tSrc, vUv); }', { tSrc: { value: null } });
+    renderer.info.autoReset = false;
+    const orig = renderer.render.bind(renderer);
+    P.origRender = orig;
+    renderer.render = function (sc, cam) {
+      if (sc !== scene || renderer.getRenderTarget() !== null || !P.enabled) {
+        if (sc === scene && renderer.getRenderTarget() === null) renderer.info.reset();
+        return orig(sc, cam);
+      }
+      renderPost(sc, cam);
+    };
+    P.ready = true;
+  }
+  const _sz = new T.Vector2();
+  function pass(mat, target) { P.quad.material = mat; P.renderer.setRenderTarget(target); P.origRender(P.scene, P.cam); P.stats.passes++; }
+  function renderPost(sc, cam) {
+    const r = P.renderer;
+    r.info.reset(); P.stats.passes = 0;
+    r.getDrawingBufferSize(_sz);
+    const w = Math.max(4, _sz.x | 0), h = Math.max(4, _sz.y | 0);
+    if (P.rt.width !== w || P.rt.height !== h) {
+      P.rt.setSize(w, h);
+      let mw = w >> 1, mh = h >> 1;
+      for (let i = 0; i < P.mips.length; i++) { P.mips[i].setSize(Math.max(2, mw), Math.max(2, mh)); P.ups[i].setSize(Math.max(2, mw), Math.max(2, mh)); mw >>= 1; mh >>= 1; }
+    }
+    r.setRenderTarget(P.rt); P.origRender(sc, cam);
+    // bloom: lọc ngưỡng ở nửa độ phân giải, xuống 5 mức, lên lại trộn theo scatter
+    let bloomTex = null;
+    if (P.bloom.intensity > 0) {
+      P.prefilter.uniforms.tSrc.value = P.rt.texture; pass(P.prefilter, P.mips[0]);
+      for (let i = 1; i < P.mips.length; i++) {
+        P.down.uniforms.tSrc.value = P.mips[i - 1].texture;
+        P.down.uniforms.uTx.value.set(1 / P.mips[i - 1].width, 1 / P.mips[i - 1].height); pass(P.down, P.mips[i]);
+      }
+      let low = P.mips[P.mips.length - 1];
+      for (let i = P.mips.length - 2; i >= 0; i--) {
+        P.up.uniforms.tLow.value = low.texture; P.up.uniforms.tHigh.value = P.mips[i].texture;
+        P.up.uniforms.uTx.value.set(0.5 / low.width, 0.5 / low.height); pass(P.up, P.ups[i]); low = P.ups[i];
+      }
+      bloomTex = low.texture;
+    }
+    const u = P.uber.uniforms;
+    u.tSrc.value = P.rt.texture; u.tBloom.value = bloomTex || P.mips[P.mips.length - 1].texture;
+    u.uBloom.value = bloomTex ? (P.curBloom != null ? P.curBloom : P.bloom.intensity) : 0;
+    pass(P.uber, null);
+  }
+
+  // ---------------------------------------------------------------- volume hậu kỳ theo vùng
+  function volumeWeight(v, x, y, z) {
+    let best = Infinity;
+    for (const c of v.colliders || []) {
+      const sc = c.scale || [1, 1, 1], cen = c.center || [0, 0, 0];
+      const cx = c.pos[0] + cen[0] * sc[0], cz = c.pos[2] + cen[2] * sc[2];
+      if (c.shape === 'sphere') best = Math.min(best, Math.max(0, Math.hypot(x - cx, z - cz) - c.radius * Math.max(sc[0], sc[2])));
+    }
+    if (best === Infinity) return 0;
+    if (best <= 0) return v.weight;
+    return v.blendDistance > 0 ? v.weight * Math.max(0, 1 - best / v.blendDistance) : 0;
+  }
+  function updatePostVolumes(cam, sanity) {
+    if (!P.ready) return;
+    const f = [1, 1, 1]; let contrast = 0, hue = 0, th = P.bloom.threshold, bi = P.bloom.intensity, cai = P.ca;
+    for (const v of postVols) {
+      const k = volumeWeight(v, cam.x, cam.y, cam.z);
+      v.w = k;
+      if (k <= 0) continue;
+      const ca = v.components.ColorAdjustments, bl = v.components.Bloom, ch = v.components.ChromaticAberration;
+      if (ca && ca.colorFilter) for (let i = 0; i < 3; i++) f[i] += (ca.colorFilter[i] - f[i]) * k;
+      if (ca && ca.contrast != null) contrast += (ca.contrast - contrast) * k;
+      if (ca && ca.hueShift != null) hue += (ca.hueShift - hue) * k;
+      if (bl && bl.threshold != null) th += (bl.threshold - th) * k;
+      if (bl && bl.intensity != null) bi += (bl.intensity - bi) * k;
+      if (ch && ch.intensity != null) cai += (ch.intensity - cai) * k;
+    }
+    P.prefilter.uniforms.uTh.value = th; P.prefilter.uniforms.uKnee.value = th * 0.5; P.curBloom = bi;
+    const u = P.uber.uniforms;
+    // URP: colorFilter.linear; hueShift/360; contrast/100 + 1
+    u.uFilter.value.set(s2l(f[0]), s2l(f[1]), s2l(f[2]));
+    u.uContrast.value = contrast / 100 + 1; u.uHue.value = hue / 360;
+    const cv = E.post.sanityChromaticCurve;
+    u.uCA.value = Math.max(cai, cv ? curve(cv, 1 - (sanity == null ? 1 : sanity)) : 0) * 0.05;
+  }
+
+  // ---------------------------------------------------------------- đèn phụ (đèn thuyền...) cho sương + ánh sáng toon
+  let lightList = [], lightScan = 0;
+  const _p = new T.Vector3(), _q = new T.Vector3(), lightPick = [];
+  function updateLights(cx, cz) {
+    if (--lightScan <= 0) {
+      lightScan = 60; lightList = [];
+      scene.traverse(o => { if ((o.isPointLight || o.isSpotLight) && o !== sun) lightList.push(o); });
+    }
+    // MAXL đèn gần thuyền nhất (không cấp phát mỗi khung)
+    lightPick.length = 0;
+    for (const l of lightList) {
+      if (!l.visible || !(l.intensity > 0) || !(l.distance > 0)) continue;
+      l.getWorldPosition(_p);
+      const d = Math.hypot(_p.x - cx, _p.z - cz);
+      let k = lightPick.length;
+      while (k > 0 && lightPick[k - 1].d > d) k--;
+      if (k >= MAXL) continue;
+      lightPick.splice(k, 0, { l, x: _p.x, y: _p.y, z: _p.z, d });
+      if (lightPick.length > MAXL) lightPick.pop();
+    }
+    U.uDrLN.value = lightPick.length;
+    for (let i = 0; i < MAXL; i++) {
+      const a = lightPick[i], LP = U.uDrLP.value[i], LC = U.uDrLC.value[i], LD = U.uDrLD.value[i];
+      if (!a) { LP.set(0, -1e4, 0, 1); LC.set(0, 0, 0, 0); LD.set(0, 0, 0, 1); continue; }
+      const l = a.l, c = l.color;
+      LP.set(a.x, a.y, a.z, 1 / (l.distance * l.distance));
+      // [ĐỀ XUẤT] cường độ three.js của đèn thuyền coi như cường độ URP (boat.js đã quy đổi)
+      LC.set(c.r * l.intensity, c.g * l.intensity, c.b * l.intensity, 0);
+      if (l.isSpotLight) {
+        l.target.getWorldPosition(_q);
+        const dx = a.x - _q.x, dy = a.y - _q.y, dz = a.z - _q.z, n = Math.hypot(dx, dy, dz) || 1;
+        const co = Math.cos(l.angle), ci = Math.cos(l.angle * (1 - l.penumbra)), inv = 1 / Math.max(0.001, ci - co);
+        LD.set(dx / n, dy / n, dz / n, -co * inv); LC.w = inv;
+      } else LD.set(0, 0, 0, 1);
+    }
+  }
+
+  // ---------------------------------------------------------------- khởi tạo
   function init(sc, world) {
     scene = sc;
-    const L = world.data.scene.logic;
-    TC = L.TimeController[0].fields; FC = L.FogController[0].fields;
+    TC = E.time;
     const DL = world.data.scene.directionalLight;
     sun = new T.DirectionalLight(0xffffff, DL.intensity); sun.userData.base = DL.intensity;
     amb = new T.AmbientLight(0xffffff, AMB_K);
     scene.add(sun, sun.target, amb);
-    scene.fog = new T.FogExp2(0x000000, 0.01);
+    scene.fog = new T.FogExp2(0x000000, 0.0001); // chỉ để three bật USE_FOG; công thức thật ở ShaderChunk
     scene.background = new T.Color(0);
+    S.rev = ((document.querySelector('script[src*="js/sky.js"]') || {}).src || '').split('?v=')[1] || '';
     dome = skyDome(); scene.add(dome);
+    U.uDrMask.value = world.maskTex;
+    U.uDrCloud.value = envTex(E.textures.cloudShadow);
+    U.uDrFlick.value = envTex(E.textures.flicker);
     fogMods = world.data.markers.markers.filter(m => m.kind === 'waterProperty' && m.fields && m.fields.FogPropertyModifier)
-      .map(m => ({ x: m.pos[0], z: m.pos[2], f: m.fields.FogPropertyModifier }));
+      .map(m => ({ x: m.pos[0], y: m.pos[1], z: m.pos[2], f: m.fields.FogPropertyModifier }));
     sanityVols = world.data.markers.volumes.filter(v => v.type === 'sanity' && v.active !== false && v.colliders && v.colliders.length)
       .map(v => ({ x: v.colliders[0].pos[0], z: v.colliders[0].pos[2], r: v.colliders[0].radius * Math.max(v.colliders[0].scale[0], v.colliders[0].scale[2]), f: v.fields }));
+    postVols = E.post.volumes.filter(v => !v.global && v.active).map(v => Object.assign({ w: 0 }, v));
     root.DR.on('passTime', (hours, reason) => passTime(hours, reason));
+    const r = root.DR_DEBUG && root.DR_DEBUG.renderer;
+    if (r) setupPost(r);
+    if (S.shadows && r) {
+      r.shadowMap.enabled = true; r.shadowMap.type = T.BasicShadowMap; // URP: bóng cứng (m_SoftShadowsSupported 0)
+      sun.castShadow = true;
+      const sd = E.light.shadowDistance;
+      sun.shadow.mapSize.set(E.light.shadowResolution, E.light.shadowResolution);
+      Object.assign(sun.shadow.camera, { left: -sd, right: sd, top: sd, bottom: -sd, near: 1, far: 400 });
+      sun.shadow.bias = -0.0015;
+    }
   }
 
   // RestDestination gọi ForcefullyPassTime(hours, reason, SLEEP); ngủ thì sanity dùng SleepingSanityModifier.
@@ -118,6 +506,14 @@ void main(){
     return sum;
   }
 
+  // thời tiết: WeatherController lấy _cloudiness/_cloudDarkness/_auroraAmount của WeatherData hiện tại (mặc định Fine)
+  function weather() {
+    const W = root.DR_WEATHER || {}, s = root.DR.s;
+    const key = s && s.weather ? Object.keys(W).find(k => k.toLowerCase() === String(s.weather).toLowerCase()) : null;
+    const w = W[key || E.weatherFallback] || W[E.weatherFallback];
+    return w ? w.parameters : { cloudiness: 0.4, cloudDarkness: 0.2, auroraAmount: 0 };
+  }
+
   function update(dt, ctx) {
     const D = root.DR, s = D.s;
     const playing = s && D.mode !== 'title' && !ctx.paused;
@@ -138,9 +534,12 @@ void main(){
       }
     }
     const tmod = R.timeModifier(CFG, mode, input);
-    S.env.timeMode = mode; S.env.timeMod = tmod;
+    const env = S.env;
+    env.timeMode = mode; env.timeMod = tmod;
     S.gameTime += dt * (S.forced ? CFG.forcedTimePassageSpeedModifier : 1);
-    root.DRWater.uniforms.uGameTime.value = S.gameTime % 1000; // GameManager.gameTime quấn ở 1000
+    const gt = S.gameTime % 1000; // GameManager.gameTime quấn ở 1000
+    root.DRWater.uniforms.uGameTime.value = gt;
+    U.uDrTime.value = gt;
 
     const t = s ? R.timeOfDay(s.time) : 0.3;
     const day = R.isDay(s ? s.time : 0.3, TC.dawnTime, TC.duskTime);
@@ -153,46 +552,57 @@ void main(){
       s.sanity = R.stepSanity(s.sanity, rate, dt, tmod);
     }
 
-    // ánh sáng
+    // ánh sáng: directionalLight.color = sunColour(t), RenderSettings.ambientLight = ambientLightColor(t) (sRGB → tuyến tính)
     const ang = T.MathUtils.degToRad(TC.lightAngleMin + 360 * t);
-    S.env.sunDir.set(Math.cos(ang), Math.sin(ang), 0);
-    const sc = gradient(TC.sunColour, t);
-    lin(sc, sun.color);
+    env.sunDir.set(Math.cos(ang), Math.sin(ang), 0);
+    U.uDrSunDir.value.copy(env.sunDir);
+    const sc = gradient(TC.sunColour, t), ac = gradient(TC.ambientLightColor, t);
+    env.sunColor = sc; env.ambientColor = ac;
+    lin(sc, sun.color); lin(sc, U.uDrSunCol.value).multiplyScalar(sun.userData.base);
     sun.intensity = sun.userData.base * SUN_K;
-    sun.position.set(ctx.x + S.env.sunDir.x * 200, S.env.sunDir.y * 200, ctx.z);
+    sun.position.set(ctx.x + env.sunDir.x * 200, Math.max(5, env.sunDir.y * 200), ctx.z);
     sun.target.position.set(ctx.x, 0, ctx.z);
-    lin(gradient(TC.ambientLightColor, t), amb.color);
+    lin(ac, amb.color); lin(ac, U.uDrAmb.value);
     const dayK = Math.max(sc[0], sc[1], sc[2]);
-    const night = curve(TC.sceneLights, t);
-    S.env.isDay = day; S.env.dayK = dayK; S.env.night = 1 - dayK;
-    S.env.sceneLights = night;
+    env.isDay = day; env.dayK = dayK; env.night = 1 - dayK;
+    env.sceneLights = curve(TC.sceneLights, t);
+    // TimeController.RecalculateSceneLightness: 1 khi đêm hoặc mây đen (cloudDarkness + cloudiness > ngưỡng), ngày 0
+    const wp = weather();
+    env.cloudiness = wp.cloudiness; env.cloudDarkness = wp.cloudDarkness; env.wind = E.wind;
+    env.sceneLightness = (!day || wp.cloudDarkness + wp.cloudiness > TC.cloudLightEnableThreshold) ? 1 : 0;
+    U.uDrNightL.value = env.sceneLightness; U.uDrCloudy.value = wp.cloudiness;
 
-    // sương (FogController + FogPropertyModifier mạnh nhất tại thuyền)
-    let dens = curve(FC.defaultFogDensityOverDay, t), col = gradient(FC.defaultFogColorOverDay, t);
+    // sương (FogController + FogPropertyModifier mạnh nhất tại thuyền; đo bằng khoảng cách 3D như Vector3.Distance)
+    let dens = curve(E.fog.densityOverDay, t), col = gradient(E.fog.colorOverDay, t), fh = E.fog.height;
     let best = null, bk = 0;
     for (const m of fogMods) {
-      const d = Math.hypot(ctx.x - m.x, ctx.z - m.z);
-      const k = 1 - R.invLerp(m.f.fullValueRadius, m.f.partialValueRadius, d);
+      const d = Math.hypot(ctx.x - m.x, -m.y, ctx.z - m.z);
+      const k = d > m.f.partialValueRadius ? 0 : d < m.f.fullValueRadius ? 1 : 1 - R.invLerp(m.f.fullValueRadius, m.f.partialValueRadius, d);
       if (k > bk) { bk = k; best = m; }
     }
     if (best) {
       const fp = best.f.fogProperty, d2 = curve(fp.fogDensityOverDay, t), c2 = gradient(fp.fogColorOverDay, t);
-      dens += (d2 - dens) * bk; col = col.map((v, i) => v + (c2[i] - v) * bk);
+      dens += (d2 - dens) * bk; fh += (fp.fogHeight - fh) * bk; col = col.map((v, i) => v + (c2[i] - v) * bk);
     }
-    S.env.fogDensity = FOG_BASE + Math.max(0, dens) * FOG_K;
-    S.env.fogFar = 1.98 / S.env.fogDensity; // exp(-(ρd)²) < 2 %: quá đây là màu sương thuần
-    scene.fog.density = S.env.fogDensity;
-    // three r140 trộn sương SAU khi mã hoá sRGB (fog_fragment đứng sau encodings_fragment) ⇒ màu sương/nền giữ nguyên giá trị sRGB
-    scene.fog.color.setRGB(col[0], col[1], col[2]);
+    env.fogColor = col; env.fogDensityRaw = dens; env.fogHeight = fh; env.fogModifier = best ? best.f.fogProperty.name || bk : null;
+    env.fogCenter.set(ctx.x, 0, ctx.z);
+    U.uDrFogC.value.set(ctx.x, 0, ctx.z); U.uDrFogD.value = dens; U.uDrFogH.value = fh;
+    // tương thích: mật độ quy đổi để luồng khác (nếu còn đọc) có số dương nhỏ; tầm xa tối đa của sương gốc là 350 m quanh thuyền
+    env.fogDensity = 1.98 / (FS.far - FS.densityK * Math.max(0, Math.min(1.02, dens)) * (1 - FS.remove) + 1);
+    env.fogFar = FS.linearFar + 15;
+    lin(col, env.fogColorLinear);
+    // hậu kỳ bật: render target tuyến tính ⇒ màu sương tuyến tính; tắt: three trộn sương sau mã hoá sRGB ⇒ giữ giá trị sRGB
+    if (P.ready && P.enabled) scene.fog.color.copy(env.fogColorLinear); else scene.fog.color.setRGB(col[0], col[1], col[2]);
     scene.background.copy(scene.fog.color);
-    // trời: chân trời = màu sương; đỉnh lấy màu skybox gốc (Color_E54291A1 ngày, Color_C6772644 đêm)
     const u = dome.material.uniforms;
-    lin(col, u.uHorizon.value);
-    lin([0.25191, 0.3961, 0.48113], u.uZenith.value).lerp(lin([0.15758, 0.15041, 0.18868]), 1 - dayK);
-    u.uZenith.value.lerp(u.uHorizon.value, Math.min(1, Math.max(0, dens)) * 0.85);
-    u.uSun.value.copy(S.env.sunDir); u.uDay.value = dayK; u.uNight.value = Math.max(0, 1 - dayK * 3) * (1 - Math.min(1, Math.max(0, dens - 0.6)));
+    u.uFogLin.value.copy(env.fogColorLinear);
+    u.uTOD.value = t; u.uAurora.value = wp.auroraAmount || 0; u.uCloudDark.value = wp.cloudDarkness;
     if (ctx.cam) dome.position.copy(ctx.cam);
-    root.DRWorld.setNight(night);
+
+    updateLights(ctx.x, ctx.z);
+    updatePostVolumes(ctx.cam || env.fogCenter, s ? s.sanity : 1);
+    root.DRWorld.setNight(env.sceneLights);
+    if (root.DRWorld.updateAmbient) root.DRWorld.updateAmbient(dt, ctx, env);
   }
 
   Object.assign(S, { init, update, passTime, gradient, curve });

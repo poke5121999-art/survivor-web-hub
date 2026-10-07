@@ -1,17 +1,28 @@
 /*
- * Biển: mặt nước theo thuyền, màu theo độ sâu (depthmask.png), sóng Gerstner chép từ WaveDisplacement.Wave,
- * bọt ven bờ (khoảng cách tới đất tính từ landmask) và vệt nước sau thuyền.
+ * Biển: mặt nước theo thuyền, sóng Gerstner chép từ WaveDisplacement.Wave, màu + bọt theo Water_Mat và WaterController.
  *
  * Sóng gốc (WaveDisplacement.cs): 4 sóng (λ, λ·2, λ·4, λ·6) với độ dốc (s, s, .75s, .5s), tốc (v, .9v, .8v, .7v),
  * hướng waveDirections; sóng có λ < 8 bị bỏ (nên sóng thứ nhất λ=6 không có). s = WaveController.Steepness
- * × clamp01(alpha mặt nạ × 10). Cùng một hàm chạy ở GPU (mặt nước, vệt, điểm câu) và CPU (thuyền nhấp nhô).
- *   DRWater.init(scene, world)   DRWater.update(dt, cx, cz, env)   DRWater.wave(x, z, s) → [h, dhdx, dhdz]
- *   DRWater.uniforms              dùng chung cho mọi shader cần nằm trên mặt nước
+ * × clamp01(alpha mặt nạ × 10). Cùng một hàm chạy ở GPU (mặt nước, điểm câu) và CPU (thuyền nổi).
+ *
+ * Màu (WaterController.cs:36-66, Game.unity): _ShallowColor/_DeepColor/_FoamColor/_Depth = defaultWaterProperties, trộn
+ * về WaterPropertyModifier mạnh nhất tại thuyền (1 trong fullValueRadius, giảm tuyến tính tới partialValueRadius).
+ * Texture gốc (Water_Mat.mat): DistortionNormal = Water_Normal, WaterTexture = StylisedWater_Tex (bọt có lỗ),
+ * EdgeFoamOffset 0,61, FoamUVTiling 84, DistortionUVTiling 8, DistortionScrollSpeed 0,1, DistortionStrength 0,65,
+ * SkyBlue (0,318; 0,420; 0,482), ReflectionStrength 0,5. Thân Water_Shader bị AssetRipper bỏ (DummyShaderTextExporter)
+ * nên cách các số này ghép lại với nhau là [ĐỀ XUẤT] (ghi tại chỗ).
+ * Vệt bọt sau thuyền KHÔNG nằm ở đây: bản gốc là hệ hạt BoatTrailParticles (js/vfx.js).
+ *   DRWater.init(scene, world)   DRWater.update(dt, cx, cz, boat, env)   DRWater.wave(x, z, s) → [h, dhdx, dhdz]
+ *   DRWater.props() → WaterProperty hiện tại (sRGB như Inspector)   DRWater.uniforms (dùng chung cho shader nằm trên mặt nước)
  */
 (function (root) {
   'use strict';
   const T = root.THREE;
   const WC = root.DR_CONFIG.wave.WaveController;
+  const VFX = root.DR_VFX || null;
+  const WM = VFX ? VFX.waterMaterial.floats : { EdgeFoamOffset: 0.61, FoamUVTiling: 84, DistortionUVTiling: 8, DistortionScrollSpeed: 0.1, DistortionStrength: 0.65, ReflectionStrength: 0.5 };
+  const WCTL = VFX ? VFX.waterController : { default: { waterDepth: 1, foamColor: [0.6824, 0.7412, 0.7647, 1], shallowColor: [0.3255, 0.4745, 0.5294, 0.349], deepColor: [0.0902, 0.0863, 0.1333, 0] }, modifiers: [] };
+  const WORLD = root.DR_CONFIG.worldSize || 1500, DEPTH_M = root.DR_CONFIG.depthModifier || 100;
   const SPEED = 0.1; // WaveController.speed: hằng private trong mã, không serialize
   // [λ, hệ số dốc, hệ số tốc, chỉ số hướng]
   const WAVES = [[1, 1, 1, 0], [2, 1, 0.9, 1], [4, 0.75, 0.8, 2], [6, 0.5, 0.7, 3]]
@@ -31,7 +42,10 @@
     uLand: { value: null },
     uLandBox: { value: new T.Vector4(0, 0, 1, 1) }, // x0, z0, 1/w, 1/h (m)
     uNight: { value: 0 },
-    uFoam: { value: 0.2 } // WeatherData Fine.foamAmount
+    uFoam: { value: 0.2 }, // _FoamAmount (WeatherController.cs:447), Fine.foamAmount
+    uShallow: { value: new T.Color() }, uShallowA: { value: 0.35 }, uDeep: { value: new T.Color() },
+    uFoamCol: { value: new T.Color() }, uWaterDepth: { value: 1 },
+    uSky: { value: new T.Color() }, uNormalTex: { value: null }, uFoamTex: { value: null }
   };
 
   const GLSL_WAVE = `
@@ -76,7 +90,7 @@ ${WAVES.map(w => `  { float f = ${w.k.toFixed(6)} * (dot(vec2(${w.dx.toFixed(6)}
     return [h, gx, gz];
   }
 
-  let mesh = null, wake = null, world = null;
+  let mesh = null, world = null;
 
   // Lưới không đều: dày quanh tâm (thuyền), thưa dần ra xa: ô ≈ 0,8 m sát thuyền, ≈ 2 m ở 40 m, ≈ 6 m ở 130 m.
   function waterGeometry(n, half) {
@@ -115,121 +129,84 @@ ${WAVES.map(w => `  { float f = ${w.k.toFixed(6)} * (dot(vec2(${w.dx.toFixed(6)}
         .replace('#include <common>', '#include <common>\n' + GLSL_WAVE + `
 uniform float uNight;
 uniform float uFoam;
-varying vec3 vWPos;
-float drHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-float drNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
-  return mix(mix(drHash(i), drHash(i + vec2(1, 0)), f.x), mix(drHash(i + vec2(0, 1)), drHash(i + vec2(1, 1)), f.x), f.y); }`)
+uniform vec3 uShallow; uniform float uShallowA; uniform vec3 uDeep; uniform vec3 uFoamCol; uniform float uWaterDepth;
+uniform vec3 uSky; uniform sampler2D uNormalTex; uniform sampler2D uFoamTex;
+varying vec3 vWPos;`)
         .replace('vec4 diffuseColor = vec4( diffuse, opacity );', `
-  float dep = drDepthAt(vWPos.xz);
+  float depM = drDepthAt(vWPos.xz) * ${DEPTH_M.toFixed(1)};
   float ld = drLandDist(vWPos.xz);
   float camD = distance(vWPos.xz, cameraPosition.xz);
   float stp = drSteepAt(vWPos.xz) * uWaveSteep * smoothstep(0.5, 6.0, ld);
   vec3 wav = drWave(vWPos.xz, stp);
-  // [ĐỀ XUẤT] bảng màu: nông xanh ngọc, sâu xanh lục sẫm (linear), so theo ảnh chụp bản gốc
-  vec3 cShallow = vec3(0.045, 0.19, 0.18);
-  vec3 cMid = vec3(0.018, 0.085, 0.09);
-  vec3 cDeep = vec3(0.007, 0.036, 0.045);
-  vec3 col = mix(cShallow, cMid, smoothstep(0.0, 0.12, dep));
-  col = mix(col, cDeep, smoothstep(0.12, 0.6, dep));
-  // bọt: dải sát bờ + vạch bọt chạy ra xa bờ, đứt quãng theo nhiễu; ngọn sóng có bọt theo độ dốc
-  float n1 = drNoise(vWPos.xz * 0.35 + uGameTime * 0.05);
-  float n2 = drNoise(vWPos.xz * 1.3 - uGameTime * 0.11);
-  float edge = 1.0 - smoothstep(0.2, 1.6 + n1 * 1.4, ld);
-  float band = smoothstep(0.8, 0.97, sin(ld * 1.4 - uGameTime * 1.3) * 0.5 + 0.5) * (1.0 - smoothstep(2.0, 8.0, ld));
-  float foam = clamp(edge * (0.45 + 0.4 * n2) + band * step(0.5, n2) * 0.45, 0.0, 1.0) * (0.6 + uFoam * 2.0);
-  foam += smoothstep(0.75, 1.0, wav.x / max(0.05, stp * 8.0) * 0.6 + n2 * 0.55) * stp * 0.8 * (1.0 - smoothstep(40.0, 120.0, camD));
-  foam = clamp(foam, 0.0, 1.0);
-  col = mix(col, vec3(0.62, 0.68, 0.66), foam);
-  float alpha = mix(0.55, 0.97, smoothstep(0.0, 0.09, dep));
-  alpha = max(alpha, foam);
+  // [ĐỀ XUẤT] _Depth (WaterProperty.waterDepth) là quãng mờ dần từ nông sang sâu: trọng số nông = exp(−sâu/_Depth)
+  // với "sâu" = độ sâu đáy (depthmask kênh G × depthModifier); alpha nông = _ShallowColor.a (đáy hiện qua nước)
+  float kS = exp(-depM / max(0.05, uWaterDepth));
+  vec3 col = mix(uDeep, uShallow, kS);
+  float alpha = mix(1.0, uShallowA, kS);
+  // bọt mép: WaterTexture (StylisedWater_Tex) lấy mẫu toạ độ thế giới, lặp FoamUVTiling lần trên cả bản đồ;
+  // [ĐỀ XUẤT] độ gần bờ e = 1 − smoothstep(0, 0,5 + 7,5·_FoamAmount m, khoảng cách tới đất), bọt = tex − (1 − e) − (EdgeFoamOffset − 0,5) > 0
+  float e = 1.0 - smoothstep(0.0, 0.5 + 7.5 * uFoam, ld);
+  if (e > 0.001) {
+    float ftex = texture2D(uFoamTex, vWPos.xz * ${(WM.FoamUVTiling / WORLD).toFixed(6)}).r;
+    float foam = smoothstep(0.0, 0.06, ftex - (1.0 - e) - (${WM.EdgeFoamOffset.toFixed(3)} - 0.5));
+    col = mix(col, uFoamCol, foam);
+    alpha = max(alpha, foam);
+  }
   vec4 diffuseColor = vec4(col, alpha);`)
         .replace('#include <normal_fragment_begin>', `
   vec3 wn = normalize(vec3(-wav.y, 1.0, -wav.z));
-  // gợn nhỏ cho mặt nước khỏi phẳng lì, tắt dần theo khoảng cách để khỏi nhiễu răng cưa
-  vec2 rp = vWPos.xz * 0.9;
-  float rk = 0.12 * (1.0 - smoothstep(30.0, 90.0, camD));
-  wn = normalize(wn + vec3(drNoise(rp + uGameTime * 0.3) - 0.5, 0.0, drNoise(rp.yx - uGameTime * 0.27) - 0.5) * rk);
+  // gợn nhỏ: DistortionNormal (Water_Normal) lặp mỗi DistortionUVTiling m, trôi DistortionScrollSpeed/s theo hai hướng ngược nhau;
+  // [ĐỀ XUẤT] độ mạnh = DistortionStrength × 0,25, tắt dần theo khoảng cách để khỏi răng cưa
+  vec2 nuv = vWPos.xz / ${WM.DistortionUVTiling.toFixed(3)};
+  float ns = ${WM.DistortionScrollSpeed.toFixed(4)} * uGameTime;
+  vec2 n1 = texture2D(uNormalTex, nuv + vec2(ns, ns * 0.37)).rg * 2.0 - 1.0;
+  vec2 n2 = texture2D(uNormalTex, nuv * 0.71 - vec2(ns * 0.53, ns)).rg * 2.0 - 1.0;
+  float rk = ${(WM.DistortionStrength * 0.25).toFixed(4)} * (1.0 - smoothstep(30.0, 90.0, camD));
+  wn = normalize(wn + vec3(n1.x + n2.x, 0.0, -(n1.y + n2.y)) * 0.5 * rk);
   vec3 normal = normalize((viewMatrix * vec4(wn, 0.0)).xyz);
   vec3 geometryNormal = normal;
-  float faceDirection = 1.0;`);
+  float faceDirection = 1.0;`)
+        .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+  // phản chiếu: Reflections bật, ReflectionStrength 0,5; [ĐỀ XUẤT] không có planar reflection nên phản màu SkyBlue theo Fresnel
+  float fres = pow(1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0), 5.0);
+  totalEmissiveRadiance += uSky * ${WM.ReflectionStrength.toFixed(3)} * fres * (1.0 - uNight * 0.8);`);
     };
     return m;
   }
 
-  // ---- vệt nước sau thuyền ----
-  const WAKE_N = 48, WAKE_DT = 0.12; // [ĐỀ XUẤT] ~6 s vệt
-  const wakePts = [];
-  let wakeT = 0;
-  function wakeMesh() {
-    const g = new T.BufferGeometry();
-    g.setAttribute('position', new T.BufferAttribute(new Float32Array(WAKE_N * 2 * 3), 3));
-    g.setAttribute('aFade', new T.BufferAttribute(new Float32Array(WAKE_N * 2 * 2), 2));
-    const idx = [];
-    for (let i = 0; i < WAKE_N - 1; i++) { const a = i * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
-    g.setIndex(idx);
-    const m = new T.ShaderMaterial({
-      uniforms: Object.assign({ fogColor: { value: new T.Color() }, fogDensity: { value: 0 } }, uniforms),
-      transparent: true, depthWrite: false, fog: true,
-      vertexShader: GLSL_WAVE + `
-attribute vec2 aFade; varying vec2 vF; varying vec3 vWP;
-#include <fog_pars_vertex>
-void main() {
-  vec3 p = position;
-  float s = drSteepAt(p.xz) * uWaveSteep;
-  p.y += drWave(p.xz, s).x + 0.04;
-  vF = aFade; vWP = p;
-  vec4 mvPosition = viewMatrix * vec4(p, 1.0);
-  gl_Position = projectionMatrix * mvPosition;
-  #include <fog_vertex>
-}`,
-      fragmentShader: `
-uniform float uGameTime; uniform float uNight;
-varying vec2 vF; varying vec3 vWP;
-#include <common>
-#include <fog_pars_fragment>
-float h(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
-float nz(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
-  return mix(mix(h(i), h(i + vec2(1, 0)), f.x), mix(h(i + vec2(0, 1)), h(i + vec2(1, 1)), f.x), f.y); }
-void main() {
-  float side = abs(vF.y * 2.0 - 1.0);
-  float n = nz(vWP.xz * 2.2 + uGameTime * 0.2);
-  float a = (1.0 - vF.x) * smoothstep(0.0, 0.02, vF.x) * (smoothstep(0.35, 1.0, side) * 0.9 + 0.3) * smoothstep(0.25, 0.6, n + 0.3);
-  gl_FragColor = vec4(vec3(0.82, 0.88, 0.86) * mix(1.0, 0.35, uNight), a * 0.75);
-  #include <encodings_fragment>
-  #include <fog_fragment>
-}`
-    });
-    const mesh = new T.Mesh(g, m);
-    mesh.frustumCulled = false;
-    mesh.renderOrder = 2;
-    return mesh;
+  // ---- WaterController: thuộc tính nước tại thuyền ----
+  const cur = { waterDepth: 1, foamColor: [1, 1, 1, 1], shallowColor: [0, 0, 0, 0], deepColor: [0, 0, 0, 0], modifier: null, k: 0 };
+  function props() { return cur; }
+  function updateProps(x, z) {
+    const D = WCTL.default;
+    let best = null, bk = 0;
+    for (const m of WCTL.modifiers) {
+      if (!m.enabled) continue;
+      // GetProportionStrengthForPoint: Vector3.Distance (y của mặt nước ≈ y bộ điều chỉnh 0)
+      const d = Math.hypot(x - m.pos[0], z - m.pos[2]);
+      const k = d > m.partialValueRadius ? 0 : d < m.fullValueRadius ? 1 : 1 - (d - m.fullValueRadius) / (m.partialValueRadius - m.fullValueRadius);
+      if (k > bk) { bk = k; best = m; }
+    }
+    const L = (a, b2) => a + (b2 - a) * bk, LC = (a, b2) => a.map((v, i) => L(v, b2[i]));
+    const P = best || D;
+    cur.waterDepth = L(D.waterDepth, P.waterDepth);
+    cur.foamColor = LC(D.foamColor, P.foamColor); cur.shallowColor = LC(D.shallowColor, P.shallowColor); cur.deepColor = LC(D.deepColor, P.deepColor);
+    cur.modifier = best ? best.name : null; cur.k = bk;
+    // màu Inspector là sRGB; three.js tô trong không gian tuyến tính
+    uniforms.uShallow.value.setRGB(cur.shallowColor[0], cur.shallowColor[1], cur.shallowColor[2]).convertSRGBToLinear();
+    uniforms.uShallowA.value = cur.shallowColor[3];
+    uniforms.uDeep.value.setRGB(cur.deepColor[0], cur.deepColor[1], cur.deepColor[2]).convertSRGBToLinear();
+    uniforms.uFoamCol.value.setRGB(cur.foamColor[0], cur.foamColor[1], cur.foamColor[2]).convertSRGBToLinear();
+    uniforms.uWaterDepth.value = cur.waterDepth;
   }
 
-  function updateWake(dt, boat) {
-    wakeT += dt;
-    const speed = Math.hypot(boat.vx, boat.vz);
-    if (wakeT >= WAKE_DT) {
-      wakeT = 0;
-      // đuôi thuyền: 1,3 m sau tâm (Boat1 hullBounds z max ≈ 1,3)
-      const fx = -Math.sin(boat.yaw), fz = -Math.cos(boat.yaw);
-      wakePts.unshift({ x: boat.x - fx * 1.3, z: boat.z - fz * 1.3, rx: fz, rz: -fx, sp: Math.min(1, speed / 3), age: 0 });
-      if (wakePts.length > WAKE_N) wakePts.pop();
-    }
-    const pos = wake.geometry.attributes.position.array, fade = wake.geometry.attributes.aFade.array;
-    for (let i = 0; i < WAKE_N; i++) {
-      const p = wakePts[Math.min(i, wakePts.length - 1)];
-      if (!p) break;
-      if (i < wakePts.length) p.age += dt;
-      const life = Math.min(1, i / (WAKE_N - 1));
-      const w = (0.45 + life * 3.2) * p.sp; // vệt nở rộng dần
-      for (let s = 0; s < 2; s++) {
-        const k = (i * 2 + s), sg = s ? 1 : -1;
-        pos[k * 3] = p.x + p.rx * w * sg; pos[k * 3 + 1] = 0; pos[k * 3 + 2] = p.z + p.rz * w * sg;
-        fade[k * 2] = i < wakePts.length ? life : 1; fade[k * 2 + 1] = s;
-      }
-    }
-    wake.geometry.attributes.position.needsUpdate = true;
-    wake.geometry.attributes.aFade.needsUpdate = true;
+  function loadTex(key, linear) {
+    const d = VFX && VFX.textures[key];
+    const t = d ? new T.TextureLoader().load(d.src) : new T.DataTexture(new Uint8Array([128, 128, 255, 255]), 1, 1);
+    t.wrapS = t.wrapT = T.RepeatWrapping;
+    if (!d) t.needsUpdate = true;
+    if (!linear) t.encoding = T.LinearEncoding;
+    return t;
   }
 
   function init(scene, w) {
@@ -238,25 +215,26 @@ void main() {
     uniforms.uLand.value = w.landTex;
     const L = w.landBox;
     uniforms.uLandBox.value.set(L.x0, L.z0, 1 / L.w, 1 / L.h);
+    uniforms.uNormalTex.value = loadTex('waterNormal');
+    uniforms.uFoamTex.value = loadTex('waterTexture');
+    const sky = VFX ? VFX.waterMaterial.colors.SkyBlue : [0.3176, 0.4196, 0.4824];
+    uniforms.uSky.value.setRGB(sky[0], sky[1], sky[2]).convertSRGBToLinear();
+    updateProps(10, -10);
     mesh = new T.Mesh(waterGeometry(256, 1400), waterMaterial());
     mesh.frustumCulled = false;
     mesh.renderOrder = 1;
     scene.add(mesh);
-    wake = wakeMesh();
-    scene.add(wake);
   }
 
+  let propT = 0;
   function update(dt, cx, cz, boat, env) {
     // mặt nước bám camera, chốt theo bước 4 m để đỉnh không trượt
     mesh.position.set(Math.round(cx / 4) * 4, 0, Math.round(cz / 4) * 4);
     uniforms.uNight.value = env.night;
-    if (boat) updateWake(dt, boat);
+    propT -= dt;
+    if (propT <= 0 || !boat) { propT = 0.1; updateProps(boat ? boat.x : cx, boat ? boat.z : cz); }
   }
-  function syncFog(fog) {
-    if (!wake || !fog) return;
-    wake.material.uniforms.fogColor.value.copy(fog.color);
-    wake.material.uniforms.fogDensity.value = fog.density;
-  }
+  function syncFog() { /* vệt cũ đã bỏ; giữ hàm cho nơi gọi cũ */ }
 
-  root.DRWater = { init, update, wave, syncFog, uniforms, GLSL_WAVE, WAVES, get mesh() { return mesh; } };
+  root.DRWater = { init, update, wave, syncFog, props, uniforms, GLSL_WAVE, WAVES, get mesh() { return mesh; } };
 })(window);

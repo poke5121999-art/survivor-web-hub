@@ -767,10 +767,10 @@ window.HUB_GAMES = [
   {
     id: "dredge",
     title: "Biển Mù",
-    tagline: "Làm lại DREDGE trên web: một ngư dân lái chiếc thuyền cũ của thị trấn quanh quần đảo The Marrows, câu cá ở những vùng nước động rồi về Greater Marrow bán cho người buôn cá. Giờ chỉ trôi khi thuyền chạy hoặc khi đang câu. Trời tối thì sương dày lên, nỗi hoảng loạn tăng dần, phải bật đèn hoặc về bến. Mỗi loài cá có minigame riêng: vòng quay, con lắc, hứng bóng, kim cương, xoắn ốc. Cá nằm trong khoang theo đúng hình dáng của nó, phải xoay xếp cho vừa. Đâm đá thì hỏng một ô khoang. Thế giới, thuyền, cá, giá, tiếng và giao diện đều bóc từ bản gốc.",
+    tagline: "Làm lại DREDGE trên web: ngư dân đâm thuyền vào đá ở ngọn hải đăng, Mayor của Greater Marrow cho mượn chiếc thuyền cũ của thị trấn kèm món nợ $50. Từ đó câu cá ở những vùng nước động quanh quần đảo The Marrows, bán cho người buôn cá, nói chuyện với dân làng và theo nhiệm vụ chạy bằng đúng kịch bản Yarn của bản gốc. Giờ chỉ trôi khi thuyền chạy hoặc khi đang câu. Trời tối thì sương dày lên, nỗi hoảng loạn tăng dần, phải bật đèn hoặc về bến. Mỗi loài cá có minigame riêng: vòng quay, con lắc, hứng bóng, kim cương, xoắn ốc. Cá nằm trong khoang theo đúng hình dáng của nó, phải xoay xếp cho vừa. Đâm đá thì hỏng một ô khoang. Thế giới, thuyền, cá, giá, tiếng và giao diện đều bóc từ bản gốc.",
     thumbnail: "assets/thumbnails/dredge.png",
     path: "games/dredge/index.html",
-    rev: "20261007a",
+    rev: "20261007b",
     // three.js r140 vendor trong games/dredge/vendor, không bước build. Dựng lại DREDGE 1.5.3 (Black Salt
     // Games, 2023) theo yêu cầu của chủ dự án ngày 2026-10-07, từ bản cài trên máy (D:\dredge-ref).
     // Toàn bộ thế giới (scene Game.unity: 8.583 instance, landmask từ collider, bản đồ độ sâu
@@ -780,7 +780,9 @@ window.HUB_GAMES = [
     // games/dredge/tools/README.md. Kế hoạch theo pha: brain/plans/dredge-web.md.
     // Đây không phải tài sản của repo: muốn gỡ thì xoá games/dredge/art, games/dredge/audio và data/*.js sinh ra.
     //
-    // Kiểm: node test/dredge-rules.js, test/dredge-ui.js, test/dredge-suite.js (DR_URL để chạy trên Pages)
+    // Kiểm: node test/dredge-rules.js, test/dredge-suite.js (DR_URL để chạy trên Pages), test/dredge-sea.js, dredge-env.js,
+    // dredge-fishing.js, dredge-cargo.js, dredge-story.js. Prefab, material, UI và bytecode Yarn đọc từ bản xuất AssetRipper
+    // (D:\dredge-ref\ripped); hợp đồng giao việc ở D:\dredge-ref\notes\DELEGATE.md.
     status: "available",
     tags: ["Câu cá", "Kinh dị", "Lái thuyền", "Thế giới mở", "Xếp khoang", "3D"]
   }
