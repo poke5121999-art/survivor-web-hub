@@ -23,10 +23,16 @@ function eq(a, b, msg) { ok(JSON.stringify(a) === JSON.stringify(b), msg + ' (go
 // ---------------------------------------------------------------- fake world
 let rndSeq = null;
 ctx.Math.random = () => (rndSeq !== null ? rndSeq : 0.5);   // 0.5 by default; tests set 0.01 for "always hits"
+// one flat level with the D2G.World read / write interface game.js hands to D2S (S.grid)
+function grid(W, H) {
+  const col = new Uint8Array(W * H);
+  const idx = (x, y) => { const ix = Math.floor(x), iy = Math.floor(y); return ix < 0 || iy < 0 || ix >= W || iy >= H ? -1 : iy * W + ix; };
+  return { w: W, h: H, col, colAt: (x, y) => { const i = idx(x, y); return i < 0 ? 1 : col[i]; }, setCol: (x, y, v) => { const i = idx(x, y); if (i >= 0) col[i] = v; } };
+}
 function world(cls, skills, opts) {
   opts = opts || {};
   const W = 80, H = 80;
-  const S = { char: R.newCharacter(cls), ents: [], time: 0, nextId: 1, grid: { w: W, h: H, col: new Uint8Array(W * H) }, d: null, def: { lvl: 5 } };
+  const S = { char: R.newCharacter(cls), ents: [], time: 0, nextId: 1, grid: grid(W, H), d: null, def: { lvl: 5 } };
   S.char.lvl = opts.clvl || 30;
   Object.assign(S.char.skills, skills || {});
   const log = { msgs: [], heroHits: [] };
@@ -177,7 +183,7 @@ function foe(w, x, y, id) { const m = w.api.makeMonster(id || 'zombie1', x, y); 
   eq(w.S.ents.filter(e => D2S.isFriend(e) && e.pet.skill === 'summon_spirit_wolf' && e.st !== 'die' && e.st !== 'dead').length, 3, 'Spirit Wolf slvl3: petmax min(lvl,5) = 3 wolves');
   // đổi khu: đồng minh đi theo
   const pets = w.S.ents.filter(e => D2S.isFriend(e) && e.st !== 'die' && e.st !== 'dead').length;
-  w.S.ents = [w.S.hero]; w.S.grid = { w: 80, h: 80, col: new Uint8Array(6400) };
+  w.S.ents = [w.S.hero]; w.S.grid = grid(80, 80);
   run(w, 0.1);
   eq(w.S.ents.filter(e => D2S.isFriend(e)).length, pets, 'changing area: wolves and the Oak Sage follow the hero');
 }

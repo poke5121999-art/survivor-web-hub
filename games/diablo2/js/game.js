@@ -1,6 +1,8 @@
 /* Ác Quỷ II - game.js
  * Vòng lặp, thực thể (máy trạng thái idle|walk|run|attack|cast|hit|die|dead), AI quái D2, chiến đấu qua D2R,
  * đạn, đồ rơi, XP, nhiệm vụ Den of Evil, chết/hồi sinh, lưu/nạp.
+ * Thế giới (S.grid) là một D2G.World: các khu ngoài trời của act chung hệ toạ độ, đi bộ qua mép không nạp lại
+ * (xem "vào khu vực"); hang, hầm là thế giới một khu, vào bằng warp.
  * Mọi chỗ đọc D2DATA/D2R đều đi qua bộ chuyển D2.DA ở đầu tệp (đổi tên trường chỉ sửa ở đó).
  */
 (function () {
@@ -220,7 +222,7 @@
 
   /* ================================================================ trạng thái */
   var S = {
-    char: null, d: null, grid: null, areaId: null, areaName: '', ents: [], hero: null, hover: null, target: null,
+    char: null, d: null, grid: null /* D2G.World */, areaId: null, areaName: '', ents: [], hero: null, hover: null, target: null,
     stamina: 100, stamMax: 100, leftSkill: null, rightSkill: null, fkeys: [null, null, null, null, null, null, null, null],
     runOn: true, time: 0, denLeft: null, paused: false, regen: [], floaters: [], scene: 'boot', seed: 1,
     corpse: null, nextId: 1, shop: null, arrive: 0, kills: 0, buffs: {}, lastSave: 0
@@ -262,6 +264,7 @@
   Game.api = {
     S: S, E: E, UI: UI, DA: DA, mk: mk, dist: dist, rnd: rnd, ri: ri, clamp: clamp, setSt: setSt, restart: restart,
     canStand: canStand, los: los, findPath: findPath, tryMove: tryMove,
+    colAt: function (x, y) { return S.grid.colAt(x, y); }, setCol: function (x, y, v) { S.grid.setCol(x, y, v); },
     damageMon: function (m, amt, elem, fromHero) { return damageMon(m, amt, elem, fromHero); },
     damageHero: function (amt, src) { return damageHero(amt, src); },
     killMon: function (m) { return killMon(m); },
@@ -274,11 +277,9 @@
   };
 
   /* ================================================================ lưới & đường đi */
-  function blocked(g, x, y) {
-    var ix = Math.floor(x), iy = Math.floor(y);
-    if (ix < 0 || iy < 0 || ix >= g.w || iy >= g.h) return true;
-    return g.col[iy * g.w + ix] !== 0;
-  }
+  /* S.grid là một D2G.World (js/drlg.js): các khu chung hệ toạ độ của act. Mọi toạ độ thực thể là subtile thế giới;
+   * ô va chạm đọc qua W.colAt (ngoài mọi khu đã dựng = chặn). */
+  function blocked(g, x, y) { return g.colAt(x, y) !== 0; }
   function walkable(x, y) { return !blocked(S.grid, x, y); }
   function canStand(x, y, r) {
     var g = S.grid; r = r == null ? 0.3 : r;
@@ -297,13 +298,15 @@
     return true;
   }
   // Tìm đường A* 8 hướng, không cắt góc. Trả về mảng điểm [x,y] (tâm ô) hoặc null.
-  // Lưới 200x200: không cấp phát lại 3 mảng 40000 phần tử mỗi lần; giới hạn vùng tìm (bbox đầu-cuối + PF_MARGIN ô) và PF_MAX_NODES nút.
-  var PF = { N: 0, g: null, from: null, stamp: null, gen: 0 }, PF_MARGIN = 80, PF_MAX_NODES = 60000;
+  // Thế giới act rộng hàng nghìn subtile: ba mảng A* cấp cho cửa sổ tìm (bbox đầu-cuối + margin ô, chỉ số cục bộ trong
+  // cửa sổ), giữ lại khi đủ lớn; trần PF_MAX_NODES nút. Không có đường trong cửa sổ hẹp thì thử lại với PF_WIDE.
+  var PF = { N: 0, g: null, from: null, stamp: null, gen: 0 }, PF_MARGIN = 80, PF_WIDE = 400, PF_MAX_NODES = 60000;
   function findPath(sx, sy, tx, ty, margin) {
     if (margin == null) margin = PF_MARGIN;
-    var g = S.grid, w = g.w, h = g.h, col = g.col;
+    margin = Math.min(margin, PF_WIDE);
+    var g = S.grid;
     var s0 = [Math.floor(sx), Math.floor(sy)], t0 = [Math.floor(tx), Math.floor(ty)];
-    function open(x, y) { return x >= 0 && y >= 0 && x < w && y < h && col[y * w + x] === 0; }
+    function open(x, y) { return g.colAt(x, y) === 0; }
     if (!open(t0[0], t0[1])) {   // ô đích bị chặn: tìm ô đi được gần nhất
       var best = null, bd = 1e9;
       for (var r = 1; r <= 4 && !best; r++) for (var yy = t0[1] - r; yy <= t0[1] + r; yy++) for (var xx = t0[0] - r; xx <= t0[0] + r; xx++) {
@@ -312,12 +315,12 @@
       if (!best) return null; t0 = best;
     }
     if (!open(s0[0], s0[1])) return null;
-    var N = w * h;
-    if (PF.N !== N) { PF.N = N; PF.g = new Float32Array(N); PF.from = new Int32Array(N); PF.stamp = new Int32Array(N); PF.gen = 0; }
+    var wx0 = Math.min(s0[0], t0[0]) - margin, wx1 = Math.max(s0[0], t0[0]) + margin;
+    var wy0 = Math.min(s0[1], t0[1]) - margin, wy1 = Math.max(s0[1], t0[1]) + margin;
+    var w = wx1 - wx0 + 1, N = w * (wy1 - wy0 + 1);
+    if (PF.N < N) { PF.N = N; PF.g = new Float32Array(N); PF.from = new Int32Array(N); PF.stamp = new Int32Array(N); PF.gen = 0; }
     var gS = PF.g, from = PF.from, stamp = PF.stamp, gen = ++PF.gen;   // stamp[i] === gen: nút đã chạm trong lượt này; stamp[i] === -gen: đã đóng
-    var wx0 = Math.max(0, Math.min(s0[0], t0[0]) - margin), wx1 = Math.min(w - 1, Math.max(s0[0], t0[0]) + margin);
-    var wy0 = Math.max(0, Math.min(s0[1], t0[1]) - margin), wy1 = Math.min(h - 1, Math.max(s0[1], t0[1]) + margin);
-    var heap = [], si = s0[1] * w + s0[0], ti = t0[1] * w + t0[0];
+    var heap = [], si = (s0[1] - wy0) * w + (s0[0] - wx0), ti = (t0[1] - wy0) * w + (t0[0] - wx0);
     function hf(x, y) { var dx = Math.abs(x - t0[0]), dy = Math.abs(y - t0[1]); return (dx + dy) + (1.414 - 2) * Math.min(dx, dy); }
     function push(i, f) {
       heap.push([f, i]); var k = heap.length - 1;
@@ -336,19 +339,19 @@
     while (heap.length && iter++ < PF_MAX_NODES) {
       var cur = pop()[1]; if (stamp[cur] === -gen) continue; stamp[cur] = -gen;
       if (cur === ti) { found = true; break; }
-      var cx = cur % w, cy = (cur / w) | 0;
+      var cx = cur % w + wx0, cy = ((cur / w) | 0) + wy0;
       for (var k = 0; k < 8; k++) {
         var nx = cx + DX[k], ny = cy + DY[k];
         if (nx < wx0 || nx > wx1 || ny < wy0 || ny > wy1 || !open(nx, ny)) continue;
         if (k >= 4 && (!open(cx + DX[k], cy) || !open(cx, cy + DY[k]))) continue;
-        var ni = ny * w + nx, ng = gS[cur] + (k < 4 ? 1 : 1.414);
+        var ni = (ny - wy0) * w + (nx - wx0), ng = gS[cur] + (k < 4 ? 1 : 1.414);
         if (stamp[ni] === -gen) continue;
         if (stamp[ni] !== gen || ng < gS[ni]) { stamp[ni] = gen; gS[ni] = ng; from[ni] = cur; push(ni, ng + hf(nx, ny)); }
       }
     }
-    if (!found) return margin < 1e6 ? findPath(sx, sy, tx, ty, 1e6) : null;   // vòng đường dài hơn cửa sổ: thử lại toàn bản đồ (vẫn bị trần nút)
+    if (!found) return margin < PF_WIDE ? findPath(sx, sy, tx, ty, PF_WIDE) : null;   // vòng đường dài hơn cửa sổ: thử lại cửa sổ rộng (vẫn bị trần nút)
     var path = [], c = ti;
-    while (c !== si && c >= 0) { path.push([(c % w) + 0.5, ((c / w) | 0) + 0.5]); c = from[c]; }
+    while (c !== si && c >= 0) { path.push([(c % w) + wx0 + 0.5, ((c / w) | 0) + wy0 + 0.5]); c = from[c]; }
     path.reverse();
     return path;
   }
@@ -401,55 +404,122 @@
   var SCRIPTED_NPCS = { lut_gholein: [{ npc: 'jerhyn', near: 'harem_level_1' }] };
   function corpseHere(id) { return !!(S.corpse && S.corpse.area === id && (S.corpse.diff || 'n') === dk()); }
   /* Một game là một lần vào nhân vật, như D2: S.gameSeed sinh lúc vào game, bố cục act (D2G.layoutAct) và seed
-   * từng khu suy ra từ nó. Khu đã dựng nằm trong S.levels cùng trạng thái lúc rời (quái còn sống, rương đã mở,
-   * đồ dưới đất, automap), vào lại thì lấy ra chứ không dựng mới. Chỉ giữ các khu của act đang chơi. */
+   * từng khu suy ra từ nó. Thế giới đã dựng nằm trong S.worlds cùng trạng thái lúc rời (quái còn sống, rương đã mở,
+   * đồ dưới đất, automap), vào lại thì lấy ra chứ không dựng mới. Chỉ giữ các thế giới của act đang chơi.
+   *
+   * Thế giới (D2G.World, S.grid): các khu ngoài trời của một act (mọi khu trong D2G.layoutAct) nằm chung một thế
+   * giới theo hình chữ nhật của bố cục, nên đi bộ qua mép chung là đi tiếp, không nạp lại: khu kề dựng ngầm khi hero
+   * cách mép chung dưới NEAR_EDGE subtile (buildNear), khu hero đang đứng đọc mỗi khung bằng W.levelAt (setArea đổi
+   * tên khu, nhạc, nhiệm vụ). Hang, hầm, mê cung là thế giới một khu, vào bằng warp hay cổng (enterArea). Thực thể
+   * của cả thế giới nằm trong S.ents; quái xa hero ngủ trong updateMon. Automap `seen` theo từng khu (L.seen). */
   function actLayout(act) {
     var k = dk() + ':' + act;
     return S.layouts[k] || (S.layouts[k] = D2G.layoutAct(act, D2G.actSeed(S.gameSeed, dk(), act)));
   }
-  function stashLevel() {
-    var L = S.levelKey && S.levels[S.levelKey];
-    if (!L || L.g !== S.grid) return;
-    L.ents = S.ents.filter(function (e) {
+  function worldFor(id, act, lay) {
+    var out = !!lay.levels[id], key = dk() + ':' + (out ? 'act' + act : id), W = S.worlds[key];
+    if (!W) {
+      W = S.worlds[key] = new D2G.World(out ? lay : null);
+      W.lay = lay; W.key = key; W.act = act; W.ents = null; W.pendingBoss = null;
+    }
+    return W;
+  }
+  // dựng một khu vào thế giới (đồng bộ, 4-41 ms); thực thể của nó đặt sau trong populateLevel
+  function buildLevel(W, id) {
+    var seed = D2G.levelSeed(W.lay.seed, id), lv = D2G.build(id, seed, null, { layout: W.lay });
+    var L = W.add(id, lv, W.out ? W.lay.levels[id].rect : null);
+    L.def = areaDef(id); L.seed = seed; L.populated = false;
+    L.seen = new Uint8Array(lv.w * lv.h);
+    lv.exits.forEach(function (e) { if (e.warp) e.kind = 'warp'; });   // rê / bấm được như vật thể
+    return L;
+  }
+  function populateLevel(W, L) {
+    if (L.populated) return;
+    L.populated = true;
+    var g = L.lv, id = L.id, def = L.def, seed = L.seed;
+    g.objects.forEach(function (o) { placeObj(g, o); });
+    g.npcs.forEach(function (n) {
+      var name = presetName(n.id), nd = name && D2DATA.npcs[name];
+      if (nd && nd.art && E.hasSheet(nd.art)) mk('npc', n.x + 0.5, n.y + 0.5, { npc: name, dir: 6, art: nd.art, home: [n.x + 0.5, n.y + 0.5] });
+    });
+    // NPC do script của D2 đặt, không có trong DS1 nào: Jerhyn đứng trước cổng cung điện Lut Gholein
+    (SCRIPTED_NPCS[id] || []).forEach(function (sn) {
+      var nd = D2DATA.npcs[sn.npc], ex = g.exits.filter(function (x) { return x.to === sn.near; })[0];
+      if (!nd || !ex || S.ents.some(function (e) { return e.kind === 'npc' && e.npc === sn.npc; })) return;
+      var q = openAround(g, ex.x + 0.5, ex.y + 0.5, 5, D2R.rng(seed ^ 0x6a6572));
+      mk('npc', q[0], q[1], { npc: sn.npc, dir: 6, art: nd.art, home: [q[0], q[1]] });
+    });
+    spawnMonsters(def, g, seed);
+    placeQuestItems(id, g);
+  }
+  // Khoảng cách (subtile) từ hero tới đoạn mép chung [x0, y0, x1, y1] của một lối đi bộ
+  function distToEdge(x, y, e) {
+    var px = clamp(x, Math.min(e[0], e[2]), Math.max(e[0], e[2])), py = clamp(y, Math.min(e[1], e[3]), Math.max(e[1], e[3]));
+    return Math.hypot(x - px, y - py);
+  }
+  var NEAR_EDGE = 90;
+  function buildNear(W) {
+    if (!W.out || !S.hero) return;
+    var h = S.hero, cur = S.areaId;
+    W.lay.links.forEach(function (l) {
+      if (l.a !== cur && l.b !== cur) return;
+      var other = l.a === cur ? l.b : l.a;
+      if (W.levels[other] || !DA.playable(other) || distToEdge(h.x, h.y, l.edge) > NEAR_EDGE) return;
+      var L = buildLevel(W, other);
+      E.ensureTileset(L.lv.tileset);
+      // hình quái, NPC, vật của khu nạp xong mới đặt thực thể (hero còn cách mép cả màn hình)
+      E.ensure(sheetsForArea(L.def, L.lv)).then(function () { if (S.grid === W) populateLevel(W, L); });
+    });
+  }
+  function stashWorld() {
+    var W = S.grid; if (!W) return;
+    W.ents = S.ents.filter(function (e) {
       if (e.removed || e === S.hero) return false;
       if (e.kind === 'mon') return !e.ally && e.st !== 'die' && e.st !== 'dead' && e.hp > 0;
       return e.kind === 'obj' || e.kind === 'npc' || (e.kind === 'drop' && !e.corpse);
     });
-    L.pendingBoss = S.pendingBoss;
+    W.pendingBoss = S.pendingBoss;
   }
   function keepAct(act) {
-    Object.keys(S.levels).forEach(function (k) {
-      var p = k.indexOf(':'), d = areaDef(k.slice(p + 1));
-      if (k.slice(0, p) !== dk() || !d || (d.act || 1) !== act) delete S.levels[k];
+    Object.keys(S.worlds).forEach(function (k) {
+      var W = S.worlds[k];
+      if (k.indexOf(dk() + ':') !== 0 || W.act !== act) delete S.worlds[k];
     });
   }
-  /* Đi bộ qua mép khu: hai khu chung một hệ toạ độ của act, nên hero ra ở điểm tương ứng ngay trong mép khu mới,
-   * giữ độ lệch dọc theo mép, cách mép 3 subtile. Không phải lối đi bộ thì trả null. */
-  var OPP_SIDE = { n: 's', s: 'n', e: 'w', w: 'e' };
-  function walkArrival(g, lay, id, from, ex, out) {
-    var L = lay.links.filter(function (l) { return (l.a === id && l.b === from) || (l.a === from && l.b === id); })[0];
-    if (!L) return null;
-    var sd = L.a === id ? L.side : OPP_SIDE[L.side], hz = sd === 'n' || sd === 's';
-    var ra = lay.levels[from].rect, rb = lay.levels[id].rect;
-    var t = hz ? ex.x + 0.5 : ex.y + 0.5;
-    if (out) t = hz ? (ra[0] - rb[0]) * 5 + out[0] : (ra[1] - rb[1]) * 5 + out[1];
-    var n = sd === 'n' || sd === 'w' ? 3 : (hz ? rb[3] : rb[2]) * 5 - 3;
-    return nearestOpen(g, ex, hz ? t : n, hz ? n : t);
-  }
-  // ô đi được gần (x, y) nhất trong vùng nối với lối ra ex (BFS từ ex, nên luôn tới được)
-  function nearestOpen(g, ex, x, y) {
-    var w = g.w, start = ex.y * w + ex.x, q = [start], seen = {}, best = start, bd = Infinity;
-    seen[start] = 1;
-    for (var i = 0; i < q.length && i < 20000; i++) {
-      var c = q[i], cx = c % w, cy = (c / w) | 0, d = Math.hypot(cx + 0.5 - x, cy + 0.5 - y);
-      if (d < bd) { bd = d; best = c; }
+  // ô đi được gần (x, y) nhất trong vùng nối với lối ex (BFS từ ex, nên luôn tới được)
+  function nearestOpen(W, ex, x, y) {
+    var q = [[ex.x, ex.y]], seen = {}, best = q[0], bd = Infinity;
+    seen[ex.x + ',' + ex.y] = 1;
+    for (var i = 0; i < q.length && i < 4000; i++) {
+      var c = q[i], d = Math.hypot(c[0] + 0.5 - x, c[1] + 0.5 - y);
+      if (d < bd && W.colAt(c[0], c[1]) === 0) { bd = d; best = c; }
       [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (o) {
-        var nx = cx + o[0], ny = cy + o[1], k = ny * w + nx;
-        if (nx < 0 || ny < 0 || nx >= w || ny >= g.h || seen[k] || g.col[k] !== 0) return;
-        seen[k] = 1; q.push(k);
+        var nx = c[0] + o[0], ny = c[1] + o[1], k = nx + ',' + ny;
+        if (seen[k] || W.colAt(nx, ny) !== 0) return;
+        seen[k] = 1; q.push([nx, ny]);
       });
     }
-    return [best % w + 0.5, ((best / w) | 0) + 0.5];
+    return [best[0] + 0.5, best[1] + 0.5];
+  }
+  /* Ra khỏi warp như D2 (lvlwarp.txt): đứng ở OffsetX/Y subtile tính từ ô tile của warp bên này, rồi tự bước tới
+   * ExitWalkX/Y. Ô bị chặn thì lấy ô đi được gần nhất nối với lối. */
+  function warpArrival(W, ex) {
+    var w = ex.warp, t = w.tiles[0], bd = Infinity;
+    w.tiles.forEach(function (q) { var d = Math.hypot(q[0] * 5 + 2.5 - ex.x, q[1] * 5 + 2.5 - ex.y); if (d < bd) { bd = d; t = q; } });
+    var at = nearestOpen(W, ex, t[0] * 5 + w.offset[0] + 0.5, t[1] * 5 + w.offset[1] + 0.5);
+    at.walk = nearestOpen(W, ex, t[0] * 5 + w.exitWalk[0] + 0.5, t[1] * 5 + w.exitWalk[1] + 0.5);
+    return at;
+  }
+  // Hero đứng sang khu khác của cùng thế giới: tên khu, nhạc, tiếng nền, nhiệm vụ "tới khu", đếm quái của khu dọn sạch
+  function setArea(id) {
+    var def = areaDef(id), char = S.char;
+    S.areaId = id; S.def = def; S.areaName = def.name;
+    var clearQ = Object.keys(D2DATA.quests).filter(function (q) { var g = D2DATA.quests[q].goal || {}; return g.type === 'clear_area' && g.area === id; })[0];
+    S.denLeft = clearQ ? (char.quests[clearQ] === 'cleared' || char.quests[clearQ] === 'done' ? 0 :
+      S.ents.filter(function (e) { return e.kind === 'mon' && !e.ally && e.home === id && e.st !== 'die' && e.st !== 'dead'; }).length) : null;
+    questEvent({ kind: 'enter', area: id });
+    E.music(musicFor(def));
+    UI.dirty = true;
   }
   function enterArea(id, from, opts) {
     var prev = S.def;
@@ -462,93 +532,56 @@
     var gate = D2DATA.questGates && D2DATA.questGates[id], gst = gate && S.char.quests[gate];
     if (gate && gst !== 'cleared' && gst !== 'done') { UI.msg('Cần xong ' + questName(D2DATA.quests[gate]) + ' trước.', '#ff9a8a'); return Promise.resolve(false); }
     UI.showLoad(true, 'Đang vào ' + def.name + '...');
-    var char = S.char, g = null, act = def.act || 1, lay = null, seed = 0, key = dk() + ':' + id, kept = null;
+    var char = S.char, act = def.act || 1, W = null, L = null, fresh = false;
     S.def = def;   // curAct() đọc act của khu sắp vào khi tra preset trong lúc dựng
     return E.ensureMaps(act).then(function () {
       if (!DA.playable(id)) throw new Error('khu ' + id + ' chưa dựng được');
-      lay = actLayout(act);
-      seed = D2G.levelSeed(lay.seed, id);
-      kept = S.levels[key] || null;
-      g = kept ? kept.g : D2G.build(id, seed, null, { layout: lay });
-      S.seed = seed;
-      return Promise.all([E.ensureTileset(g.tileset), E.ensure(sheetsForArea(def, g)), E.ensureUi(), E.ensureHero(D2DATA.classes[char.cls].code)]);
+      W = worldFor(id, act, actLayout(act));
+      L = W.levels[id];
+      if (!L) { L = buildLevel(W, id); fresh = true; }
+      S.seed = L.seed;
+      return Promise.all([E.ensureTileset(L.lv.tileset), E.ensure(sheetsForArea(def, L.lv)), E.ensureUi(), E.ensureHero(D2DATA.classes[char.cls].code)]);
     }).then(function () {
-      // chỗ hero bước ra khỏi khu cũ (khi đang đứng ở lối sang khu này) để ra đúng điểm tương ứng bên kia
-      var oldEx = S.grid && S.hero && S.areaId === from && S.grid.exits.filter(function (e) { return e.to === id; })[0];
-      var out = oldEx && Math.hypot(oldEx.x + 0.5 - S.hero.x, oldEx.y + 0.5 - S.hero.y) < 6 ? [S.hero.x, S.hero.y] : null;
-      stashLevel(); keepAct(act);
-      if (!kept) S.levels[key] = { g: g, ents: null };
-      S.grid = g; if (!g.seen) g.seen = new Uint8Array(g.w * g.h); S.areaId = id; S.areaName = def.name; S.def = def; S.levelKey = key;
-      E.setLevel(g);
-      S.ents = []; S.floaters = []; S.target = null; S.hover = null; S.exitArm = null;
-      var hx = g.hero[0] + 0.5, hy = g.hero[1] + 0.5;
+      var g = L.lv, same = S.grid === W;
+      if (!same) { stashWorld(); keepAct(act); S.grid = W; E.setLevel(W); S.ents = W.ents || []; S.pendingBoss = W.pendingBoss || null; }
+      S.areaId = id; S.areaName = def.name; S.def = def;
+      S.floaters = []; S.target = null; S.hover = null; S.exitArm = null;
+      var hx = g.hero[0] + 0.5, hy = g.hero[1] + 0.5, walk = null;
       if (from) {
         var ex = g.exits.filter(function (e) { return e.to === from; })[0];
-        var wa = ex && lay.levels[from] && walkArrival(g, lay, id, from, ex, out);
-        if (wa) {
-          hx = wa[0]; hy = wa[1];
-          S.exitArm = { ex: ex, x: hx, y: hy };   // hero đứng sát lối về: lối đó chỉ mở lại khi hero đã bước đi
-          var ra = lay.levels[from].rect, rb = lay.levels[id].rect;
-          S.cross = { from: from, to: id, out: out && [ra[0] * 5 + out[0], ra[1] * 5 + out[1]], at: [rb[0] * 5 + hx, rb[1] * 5 + hy] };
-        } else if (ex) { var sp = openCellNear(g, ex.x, ex.y, 12); hx = sp[0]; hy = sp[1]; }
+        if (ex && ex.warp) { var wa = warpArrival(W, ex); hx = wa[0]; hy = wa[1]; walk = wa.walk; }
+        else if (ex && !(W.out && W.lay.levels[from])) {
+          // lối đi bộ sang thế giới khác (River of Flame - Chaos Sanctuary, Barracks - Outer Cloister): ra cạnh lối,
+          // lối đó chỉ mở lại khi hero đã bước đi
+          var sp = nearestOpen(W, ex, ex.x + 0.5, ex.y + 0.5); hx = sp[0]; hy = sp[1];
+          S.exitArm = { ex: ex, x: hx, y: hy };
+        }
       }
-      var hero = S.hero = mk('hero', hx, hy, { dir: 5, path: null, goal: null, act: null });
+      var hero = S.hero;
+      if (!same || !hero) {
+        if (hero) { var hi = S.ents.indexOf(hero); if (hi >= 0) S.ents.splice(hi, 1); }
+        hero = S.hero = mk('hero', hx, hy, { dir: 5, path: null, goal: null, act: null });
+      } else { hero.x = hx; hero.y = hy; hero.path = null; hero.goal = null; hero.act = null; setSt(hero, 'idle'); if (S.d2s) S.d2s.grid = null; }
       E.cam.x = hx; E.cam.y = hy;
-      if (kept && kept.ents) {
-        kept.ents.forEach(function (e) {
-          if (e.kind === 'mon') { e.aggro = false; e.act = null; e.flee = 0; e.path = null; restart(e, 'idle', 0); }
-          S.ents.push(e);
-        });
-        S.pendingBoss = kept.pendingBoss || null;
-      } else {
-        g.objects.forEach(function (o) { placeObj(g, o); });
-        g.npcs.forEach(function (n) {
-          var name = presetName(n.id), nd = name && D2DATA.npcs[name];
-          if (nd && nd.art && E.hasSheet(nd.art)) mk('npc', n.x + 0.5, n.y + 0.5, { npc: name, dir: 6, art: nd.art, home: [n.x + 0.5, n.y + 0.5] });
-        });
-        // NPC do script của D2 đặt, không có trong DS1 nào: Jerhyn đứng trước cổng cung điện Lut Gholein
-        (SCRIPTED_NPCS[id] || []).forEach(function (sn) {
-          var nd = D2DATA.npcs[sn.npc], ex = g.exits.filter(function (x) { return x.to === sn.near; })[0];
-          if (!nd || !ex || S.ents.some(function (e) { return e.kind === 'npc' && e.npc === sn.npc; })) return;
-          var q = openAround(g, ex.x + 0.5, ex.y + 0.5, 5, D2R.rng(seed ^ 0x6a6572));
-          mk('npc', q[0], q[1], { npc: sn.npc, dir: 6, art: nd.art, home: [q[0], q[1]] });
-        });
-        S.pendingBoss = null;
-        spawnMonsters(def, g, seed);
-        placeQuestItems(id, g);
-      }
+      if (!same) S.ents.forEach(function (e) {
+        if (e.kind === 'mon') { e.aggro = false; e.act = null; e.flee = 0; e.path = null; restart(e, 'idle', 0); }
+      });
+      W.list.forEach(function (K) { populateLevel(W, K); });   // khu vừa dựng, hoặc dựng ngầm lúc rời thế giới
       // xác của game trước (bản lưu cũ chưa có gameSeed) nằm trong một bản dựng khác, nên đặt cạnh chỗ hero vào
-      if (corpseHere(id)) {
+      if (corpseHere(id) && !S.ents.some(function (e) { return e.kind === 'drop' && e.corpse; })) {
         var cp = S.corpse.game === S.gameSeed ? [S.corpse.x, S.corpse.y] : openAround(g, hx, hy, 2, Math.random);
         mk('drop', cp[0], cp[1], { item: null, corpse: S.corpse, born: S.time, label: 'Xác của ' + char.name });
       }
       S.arrive = S.time;
-      var clearQ = Object.keys(D2DATA.quests).filter(function (q) { var g = D2DATA.quests[q].goal || {}; return g.type === 'clear_area' && g.area === id; })[0];
-      S.denLeft = clearQ ? (char.quests[clearQ] === 'cleared' || char.quests[clearQ] === 'done' ? 0 : S.ents.filter(function (e) { return e.kind === 'mon' && !e.ally; }).length) : null;
+      if (walk) hero.goal = { type: 'move', x: walk[0], y: walk[1] };
+      setArea(id);
       spawnMerc();
-      questEvent({ kind: 'enter', area: id });
-      E.music(musicFor(def));
       UI.showLoad(false);
       UI.dirty = true; recalc();
-      markSeen();
+      markSeen(true);
       return true;
     });
   }
-  function openCellNear(g, x, y, minD) {
-    // BFS từ ô lối ra, lấy ô đi được cách lối ra >= minD
-    var q = [[x, y]], seen = {}, best = null; seen[x + ',' + y] = 1;
-    for (var i = 0; i < q.length && i < 16000; i++) {
-      var c = q[i]; var d = Math.hypot(c[0] - x, c[1] - y);
-      if (d >= minD && g.col[c[1] * g.w + c[0]] === 0) { best = c; break; }
-      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (o) {
-        var nx = c[0] + o[0], ny = c[1] + o[1], k = nx + ',' + ny;
-        if (nx < 0 || ny < 0 || nx >= g.w || ny >= g.h || seen[k] || g.col[ny * g.w + nx] !== 0) return;
-        seen[k] = 1; q.push([nx, ny]);
-      });
-    }
-    return best ? [best[0] + 0.5, best[1] + 0.5] : [x + 0.5, y + 0.5];
-  }
-
   /* Vật thể DS1: waypoint, kho đồ, lửa trại, đuốc, rương... Kích thước theo objects.txt (subtile), vật có
    * va chạm thì chặn các subtile nó chiếm. Lửa trại, đuốc chạy chế độ ON (đang cháy) như trong thị trấn D2. */
   /* Cổng đặt sẵn trong DS1: HellGate cuối Durance sang Act IV (actTravel.via), cổng Ancients lên Worldstone Keep,
@@ -576,7 +609,7 @@
     var p = objPreset(o.id); if (!p || !p.sprite) return;
     var w = p.w || 1, h = p.h || 1;
     if (p.collide) for (var y = 0; y < h; y++) for (var x = 0; x < w; x++) {
-      var cx = o.x - (w >> 1) + x, cy = o.y - (h >> 1) + y;
+      var cx = o.x - (w >> 1) + x - lv.ox, cy = o.y - (h >> 1) + y - lv.oy;   // o.x, o.y là toạ độ thế giới, col cục bộ
       if (cx >= 0 && cy >= 0 && cx < lv.w && cy < lv.h && !lv.col[cy * lv.w + cx]) lv.col[cy * lv.w + cx] = 1;
     }
     var modes = p.modes || ['NU'], kind = objKind(p);
@@ -596,7 +629,7 @@
       pid++;
       for (var i = 0; i < n; i++) {
         var p = openAround(g, x + 0.5, y + 0.5, i === 0 ? 0 : 4.4, rng);
-        makeMonster(i === 0 || rank !== 'unique' ? id : (D2DATA.superuniques[id] ? D2DATA.superuniques[id].cls : id), p[0], p[1], i === 0 ? rank : rank === 'unique' ? 'minion' : rank, pid, rng, i === 0 ? name : null);
+        makeMonster(i === 0 || rank !== 'unique' ? id : (D2DATA.superuniques[id] ? D2DATA.superuniques[id].cls : id), p[0], p[1], i === 0 ? rank : rank === 'unique' ? 'minion' : rank, pid, rng, i === 0 ? name : null, def);
       }
     }
     g.spawns.forEach(function (sp) {
@@ -609,7 +642,7 @@
     // preset DS1 gọi superunique bằng tên hiện ("Radament") hoặc bằng mã quái gốc ("summoner" = the_summoner)
     function suOf(name) { return Object.keys(SU).filter(function (k) { return SU[k].name === name || (areaSu.indexOf(k) >= 0 && SU[k].cls === name); })[0]; }
     function suPack(su, x, y) { var mn = SU[su].minions || [4, 4]; pack(su, x, y, 1 + ri(mn[0], mn[1]), 'unique', null); placed[su] = placed[SU[su].cls] = 1; }
-    function spawnBoss(id, x, y) { var b = makeMonster(id, x + 0.5, y + 0.5, 'normal', ++pid, rng, null); b.rank = 'unique'; b.boss = true; placed[id] = 1; }
+    function spawnBoss(id, x, y) { var b = makeMonster(id, x + 0.5, y + 0.5, 'normal', ++pid, rng, null, def); b.rank = 'unique'; b.boss = true; placed[id] = 1; }
     g.npcs.forEach(function (n) {
       var name = presetName(n.id); if (!name) return;
       if (name === 'baalthrone') { anchor = n; return; }   // Baal ngồi ngai không đánh được; năm đợt quân đứng quanh ngai
@@ -635,7 +668,8 @@
     (def.bosses || []).forEach(function (b) {
       if (placed[b] || !DA.monster(b) || !far.length) return;
       if (areaSu.some(function (su) { return SU[su]; })) {
-        var c = g.spawns.slice().sort(function (p1, p2) { return Math.hypot(p1.x - g.w / 2, p1.y - g.h / 2) - Math.hypot(p2.x - g.w / 2, p2.y - g.h / 2); })[0];
+        var mx = g.ox + g.w / 2, my = g.oy + g.h / 2;
+        var c = g.spawns.slice().sort(function (p1, p2) { return Math.hypot(p1.x - mx, p1.y - my) - Math.hypot(p2.x - mx, p2.y - my); })[0];
         S.pendingBoss = { id: b, after: areaSu.filter(function (su) { return SU[su]; }), x: c.x, y: c.y };
       } else spawnBoss(b, far[0].x, far[0].y);
     });
@@ -656,8 +690,10 @@
     }
     return [x, y];
   }
-  function makeMonster(id, x, y, rank, pack, rng, nameOverride) {
-    var lvl = areaLvl(S.def);
+  // def: khu của quái (cấp, XP, đồ rơi theo khu đó, không theo khu hero đang đứng); mặc định là khu hiện tại
+  function makeMonster(id, x, y, rank, pack, rng, nameOverride, def) {
+    def = def || S.def;
+    var lvl = areaLvl(def);
     var inst = safe(function () { return D2R.rollMonster(id, lvl, rng || Math.random, rank, { difficulty: dk() }); }, null) || { id: id, name: id, lvl: lvl, hp: 10 + lvl * 6, xp: 10 * lvl, dmgMin: 1, dmgMax: 4, ar: 20, def: 5 };
     if (nameOverride) inst.name = nameOverride.charAt(0).toUpperCase() + nameOverride.slice(1);
     var m = DA.monster(id) || {};
@@ -669,7 +705,7 @@
     var e = mk('mon', x, y, {
       monId: id, inst: inst, rank: rank, pack: pack, art: monArt(id), ai: DA.aiKind(id, m), hp: hp, maxHp: hp,
       speed: spd ? clamp(spd, 1, 12) : 4, aggro: false, cd: rnd(0.2, 1.2), act: null, snd: md.snd || {}, md: md,
-      dir: rnd(0, 8), flee: 0, born: S.time, deadAt: 0, rez: 0, wander: 0, stuck: 0
+      dir: rnd(0, 8), flee: 0, born: S.time, deadAt: 0, rez: 0, wander: 0, stuck: 0, home: def && def.id
     });
     e.neuAt = S.time + rnd(0, (e.snd.NeuTime || 250) / 25);
     E.sfx([e.snd.Init], null, e);
@@ -820,7 +856,7 @@
     questKillDrops(m);
     questEvent({ kind: 'kill', id: m.monId });
     checkPendingBoss();
-    if (S.denLeft != null && !m.ally) {   // khu của quest "dọn sạch" (Den of Evil): đếm quái còn lại
+    if (S.denLeft != null && !m.ally && m.home === S.areaId) {   // khu của quest "dọn sạch" (Den of Evil): đếm quái còn lại
       S.denLeft = Math.max(0, S.denLeft - 1);
       if (S.denLeft === 0) questEvent({ kind: 'cleared', area: S.areaId });
       UI.dirty = true;
@@ -1025,8 +1061,7 @@
     var steps = Math.ceil(Math.hypot(m.vx, m.vy) * dt / 0.6), sx = m.vx * dt / steps, sy = m.vy * dt / steps;
     for (var i = 0; i < steps; i++) {
       m.x += sx; m.y += sy;
-      var mc = S.grid.col[Math.floor(m.y) * S.grid.w + Math.floor(m.x)];
-      if (mc === 1 || mc == null) { explode(m, true); return; }
+      if (S.grid.colAt(m.x, m.y) === 1) { explode(m, true); return; }
       if (m.owner === 'hero') {
         for (var k = 0; k < S.ents.length; k++) {
           var o = S.ents[k];
@@ -1160,7 +1195,10 @@
       var q = QI[name];
       if (held[name] || q.area !== id || q.from !== 'chest' || S.char.quests[questOfItem(name)] === 'done') return;
       var far = null, fd = -1;
-      S.ents.forEach(function (e) { if (e.kind === 'obj' && e.otype === 'chest' && !e.qitem && dist(e, h) > fd) { far = e; fd = dist(e, h); } });
+      S.ents.forEach(function (e) {
+        if (e.kind !== 'obj' || e.otype !== 'chest' || e.qitem || e.x < g.ox || e.y < g.oy || e.x >= g.ox + g.w || e.y >= g.oy + g.h) return;   // rương của chính khu này
+        if (dist(e, h) > fd) { far = e; fd = dist(e, h); }
+      });
       if (far) { far.qitem = name; return; }
       g.spawns.forEach(function (sp) { var d = Math.hypot(sp.x - h.x, sp.y - h.y); if (d > fd) { far = sp; fd = d; } });
       if (far) dropItem({ qitem: name, base: 'qitem', name: name, q: 'quest', w: 1, h: 1 }, far.x + 0.5, far.y + 0.5);
@@ -1272,6 +1310,8 @@
     var row = (D2DATA.hirelings || []).filter(function (h) { return h.act === m.act && h.name === m.name && h.sub === m.sub; })[0];
     if (!row) return;
     var p = openAround(S.grid, S.hero.x, S.hero.y, 3, Math.random);
+    // lính còn trong thế giới này (đi waypoint trong cùng act): kéo theo hero thay vì sinh lại
+    if (S.merc && !S.merc.removed && S.merc.hp > 0 && S.ents.indexOf(S.merc) >= 0) { S.merc.x = p[0]; S.merc.y = p[1]; S.merc.path = null; return; }
     var e = makeMonster(row.monster, p[0], p[1], 'normal', -1, Math.random, row.name);
     e.ally = true; e.merc = true; e.aggro = false; e.hireRow = row;
     var hp = Math.round((row.hp || 50) + (row.hpPerLvl || 0) * Math.max(0, (m.lvl || row.level) - row.level));
@@ -1401,6 +1441,11 @@
       if (tgt.removed) { h.goal = null; return; }
       if (dist(h, tgt) < Math.max(tgt.ow, tgt.oh) / 2 + 4.8) { h.dir = E.dirFromTiles(tgt.x - h.x, tgt.y - h.y); h.goal = null; setSt(h, 'idle'); useObj(tgt); }
       else if (!goTo(h, tgt.x, tgt.y, dt, g)) { if (dist(h, tgt) < Math.max(tgt.ow, tgt.oh) / 2 + 6.4) { h.goal = null; useObj(tgt); } else h.goal = null; }
+    } else if (g.type === 'warp') {
+      // bấm vào cầu thang / cửa hang: đi tới rồi vào (D2 không vào khi chỉ đi ngang qua)
+      var wd = Math.hypot(tgt.x + 0.5 - h.x, tgt.y + 0.5 - h.y);
+      if (wd < 3) { h.goal = null; setSt(h, 'idle'); useExit(tgt); }
+      else if (!goTo(h, tgt.x + 0.5, tgt.y + 0.5, dt, g)) { h.goal = null; if (wd < 5) useExit(tgt); }
     } else if (g.type === 'move') {
       if (!goTo(h, g.x, g.y, dt, g)) { h.goal = null; if (h.st === 'walk' || h.st === 'run') setSt(h, 'idle'); }
     }
@@ -1445,34 +1490,54 @@
     if (h.st === 'idle') { h.path = null; g.repath = undefined; return g.type !== 'move'; }
     return true;
   }
-  var seenT = 0;
-  function markSeen() {
-    var g = S.grid, h = S.hero; if (!g || !g.seen) return;
+  // Automap: ô trong bán kính 18 quanh hero, ghi vào `seen` của khu chứa ô (liền mạch qua mép khu)
+  var seenX = -1, seenY = -1;
+  function markSeen(force) {
+    var W = S.grid, h = S.hero; if (!W || !h) return;
     var r = 18, hx = Math.floor(h.x), hy = Math.floor(h.y);
-    for (var y = Math.max(0, hy - r); y <= Math.min(g.h - 1, hy + r); y++) for (var x = Math.max(0, hx - r); x <= Math.min(g.w - 1, hx + r); x++)
-      if ((x - hx) * (x - hx) + (y - hy) * (y - hy) <= r * r) g.seen[y * g.w + x] = 1;
+    if (!force && hx === seenX && hy === seenY) return;
+    seenX = hx; seenY = hy;
+    for (var y = hy - r; y <= hy + r; y++) for (var x = hx - r; x <= hx + r; x++) {
+      if ((x - hx) * (x - hx) + (y - hy) * (y - hy) > r * r) continue;
+      var L = W.levelAt(x, y);
+      if (L && L.seen) L.seen[(y - L.oy) * L.lv.w + (x - L.ox)] = 1;
+    }
   }
   var exitLock = 0, entering = false;
+  function useExit(ex) {
+    if (!DA.playable(ex.to)) {
+      if (S.time - exitLock > 2) { exitLock = S.time; UI.msg('Lối này chưa mở.'); }
+      return false;
+    }
+    entering = true; var from = S.areaId;
+    enterArea(ex.to, from).then(function () { entering = false; save(); }, function (err) { entering = false; UI.showLoad(false); UI.msg('Lỗi vào khu vực: ' + err); });
+    return true;
+  }
+  // Lối sang thế giới khác khi hero bước gần: warp NoInteract (hố cống, cửa đền Kurast), cổng, lối đi bộ sang mê cung.
+  // Khu kề cùng thế giới không có lối: hero đi tiếp qua mép. Warp bấm được vào bằng goal 'warp'.
   function checkExits() {
     if (entering || S.time - S.arrive < 1.5) return;
-    var h = S.hero, g = S.grid;
+    var h = S.hero, W = S.grid, L = W.levels[S.areaId]; if (!L) return;
     if (S.exitArm && Math.hypot(S.exitArm.x - h.x, S.exitArm.y - h.y) > 1) S.exitArm = null;
-    for (var i = 0; i < g.exits.length; i++) {
-      var ex = g.exits[i];
+    var exits = L.lv.exits;
+    for (var i = 0; i < exits.length; i++) {
+      var ex = exits[i];
+      if (W.out && W.lay.levels[ex.to]) continue;
+      if (ex.warp && !ex.warp.noInteract) continue;
       if (S.exitArm && ex === S.exitArm.ex) continue;
-      if (Math.hypot(ex.x + 0.5 - h.x, ex.y + 0.5 - h.y) < 2.8) {
-        if (!DA.playable(ex.to)) {
-          if (S.time - exitLock > 2) { exitLock = S.time; UI.msg('Lối này chưa mở.'); }
-          return;
-        }
-        entering = true; var from = S.areaId;
-        enterArea(ex.to, from).then(function () { entering = false; save(); }, function (err) { entering = false; UI.showLoad(false); UI.msg('Lỗi vào khu vực: ' + err); });
-        return;
-      }
+      if (Math.hypot(ex.x + 0.5 - h.x, ex.y + 0.5 - h.y) < 2.8) { useExit(ex); return; }
     }
+  }
+  // Hero sang khu khác của cùng thế giới (đi bộ qua mép): đổi khu không nạp lại; dựng khu kề khi tới gần mép
+  var nearT = 0;
+  function trackArea() {
+    var W = S.grid, h = S.hero, L = W.levelAt(h.x, h.y);
+    if (L && L.id !== S.areaId) setArea(L.id);
+    if (S.time - nearT > 0.4) { nearT = S.time; buildNear(W); }
   }
 
   /* ---------------------------------------------------------------- AI quái */
+  var MON_WAKE_DIST = 60;   // subtile: quái xa hơn ngủ (vòng "phòng gần" của D2); cả thế giới act chung một S.ents
   var MON_LOSE_DIST = 90;   // subtile: quái đang đuổi xa hơn thì mất dấu và ngủ lại
   var CORPSE_CAP = 50;      // xác quái giữ tới khi rời khu, tối đa ngần này xác
   function updateMon(m, dt) {
@@ -1481,7 +1546,7 @@
     m.stT += dt * 1000;
     if (m.st === 'die') { if (m.stT >= m.stDur) setSt(m, 'dead'); return; }
     var dd = dist(m, h);
-    if (dd > 52 && !m.aggro) return;   // ngủ: D2 chỉ cập nhật phòng gần người chơi
+    if (dd > MON_WAKE_DIST && !m.aggro) return;   // ngủ: D2 chỉ cập nhật phòng gần người chơi
     if (dd > MON_LOSE_DIST && m.aggro && m.st !== 'attack' && m.st !== 'cast') { m.aggro = false; if (m.st === 'walk' || m.st === 'run') setSt(m, 'idle'); return; }
     if (m.st === 'hit') { if (m.stT >= m.stDur) setSt(m, 'idle'); return; }
     if (m.spawnT > 0) { m.spawnT -= dt * 1000; return; }
@@ -1603,6 +1668,20 @@
     });
     return best;
   }
+  // Warp (cầu thang, cửa hang) dưới con trỏ: hộp SelectX/Y/DX/DY của lvlwarp.txt tính từ đỉnh trên của ô tile warp
+  function warpAt(sx, sy) {
+    var W = S.grid, L = W && W.levels[S.areaId]; if (!L) return null;
+    var exits = L.lv.exits;
+    for (var i = 0; i < exits.length; i++) {
+      var ex = exits[i], w = ex.warp;
+      if (!w || w.noInteract) continue;
+      for (var k = 0; k < w.tiles.length; k++) {
+        var p = E.toScreen(w.tiles[k][0] * 5, w.tiles[k][1] * 5), s = w.select;
+        if (sx >= p[0] + s[0] && sx <= p[0] + s[0] + s[2] && sy >= p[1] + s[1] && sy <= p[1] + s[1] + s[3]) return ex;
+      }
+    }
+    return null;
+  }
   function skillFor(btn) { return btn === 'left' ? S.leftSkill : S.rightSkill; }
   function isSpell(sk) { return !!sk && sk !== 'attack' && !!fxOf(sk) && fxOf(sk).kind !== 'melee'; }
   function command(sx, sy, btn, shift) {
@@ -1616,6 +1695,8 @@
     if (e && e.kind === 'mon') {
       h.goal = { type: isSpell(sk) ? 'cast' : 'attack', skill: sk || 'attack', target: e, btn: btn }; S.target = e; return;
     }
+    var wp = !e && btn === 'left' && !shift && warpAt(sx, sy);
+    if (wp) { h.goal = { type: 'warp', target: wp }; h.path = null; S.target = null; return; }
     // mặt đất
     if (isSpell(sk) || (btn === 'right' && sk && sk !== 'attack')) h.goal = { type: 'cast', skill: sk, x: w[0], y: w[1], btn: btn };
     else if (btn === 'right' || shift) h.goal = { type: 'attack', skill: sk || 'attack', x: w[0], y: w[1], inPlace: true, btn: btn };
@@ -1827,7 +1908,7 @@
     S.char = ch; normChar(ch); recalc();
     // game mới, trừ khi xác còn nằm ở game trước: khi đó chơi tiếp game đó để khu có xác dựng y như cũ
     S.gameSeed = (S.corpse && S.corpse.game) || ((Math.random() * 1e9) | 0) + 1;
-    S.levels = {}; S.layouts = {}; S.levelKey = null; S.grid = null; S.cross = null;
+    S.worlds = {}; S.layouts = {}; S.grid = null; S.ents = []; S.hero = null;
     ch.hp = ch.hp > 0 ? ch.hp : S.d.maxHp;
     S.stamina = S.stamMax; S.regen = []; S.denLeft = null; S.scene = 'play';
     UI.showHud(true); UI.refreshSkillIcons(); UI.refreshBelt();
@@ -1870,6 +1951,7 @@
     S.time += dt;
     var h = S.hero; if (!h) return;
     updateHero(dt);
+    trackArea();
     // mỗi khung, không chỉ lúc đang bước: hero chạy tới lối trong 1,5 s ân hạn rồi đứng yên vẫn phải qua được
     if (S.hero.st !== 'die' && S.hero.st !== 'dead') checkExits();
     heroSteps(h, dt);
@@ -1891,8 +1973,8 @@
     // cam
     var k = 1 - Math.pow(0.0005, dt);
     E.cam.x += (h.x - E.cam.x) * k; E.cam.y += (h.y - E.cam.y) * k;
-    // hover
-    S.hover = I.mouse.inside && !I.touch ? entAt(I.mouse.x, I.mouse.y) : null;
+    // hover: thực thể, rồi warp (sáng lên và hiện tên khu đích như D2)
+    S.hover = I.mouse.inside && !I.touch ? entAt(I.mouse.x, I.mouse.y) || warpAt(I.mouse.x, I.mouse.y) : null;
     if (S.time - S.lastSave > 20) { S.lastSave = S.time; save(); }
     for (i = sndQ.length - 1; i >= 0; i--) if (S.time >= sndQ[i].at) { var q = sndQ.splice(i, 1)[0]; if (S.time - q.at < 1) E.sfx(q.keys, q.vol, q); }
     soundscape();
@@ -2063,6 +2145,9 @@
   function render() {
     var drawables = [];
     E.updateCam();
+    var hw = S.hover && S.hover.kind === 'warp' ? S.hover : null;
+    E.lit = hw && hw.warp.lit.length ? { L: S.grid.levels[S.areaId], map: hw.warp.litMap } : null;
+    if (hw) { var hp = E.toScreen(hw.x + 0.5, hw.y + 0.5); hoverTag = [(areaDef(hw.to) || {}).name || hw.to, hp[0], hp[1] - 60]; }
     S.ents.forEach(function (e) {
       if (e.kind !== 'obj') {   // vật khu (lều, lò rèn...) to và neo ở tâm: để renderWorld tự cắt; còn lại cắt sớm ở đây
         var ps = E.toScreen(e.x, e.y);
@@ -2111,16 +2196,18 @@
   }
 
   /* ---------------------------------------------------------------- vòng lặp chính */
-  var last = 0, accum = 0;
+  var last = 0, accum = 0, perfMs = [], perfI = 0;
   function frame(ts) {
     requestAnimationFrame(frame);
     if (!last) last = ts; var dt = Math.min(0.05, (ts - last) / 1000); last = ts;
     if (S.scene === 'play' && S.hero) {
       var portrait = I.touch && window.innerHeight > window.innerWidth;
       S.paused = !!UI.open.menu || portrait;
+      var t0 = performance.now();
       if (!S.paused && !Game.freeze) updateWorld(dt);
       render();
       UI.update(ts);
+      perfMs[perfI++ % 120] = performance.now() - t0;
       if (E.shake > 0) E.shake = Math.max(0, E.shake - 40 * dt);
     } else if (S.scene === 'title') {
       E.ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -2183,15 +2270,17 @@
   window.D2DBG = {
     S: S,
     getState: function () {
-      var h = S.hero, c = S.char;
+      var h = S.hero, c = S.char, L = S.grid && S.grid.levels[S.areaId];
       return {
         scene: S.scene, area: S.areaId, time: S.time,
         hero: h ? { x: h.x, y: h.y, st: h.st, dir: h.dir, goal: h.goal ? h.goal.type : null } : null,
         hp: c && c.hp, mp: c && c.mp, lvl: c && c.lvl, xp: c && c.xp, gold: c && c.gold, statPts: c && c.statPts, skillPts: c && c.skillPts,
         cls: c && c.cls, skills: c && c.skills, quests: c && c.quests, inv: c ? c.inv.length : 0, belt: c ? c.belt.filter(Boolean).length : 0,
-        left: S.leftSkill, right: S.rightSkill, kills: S.kills, denLeft: S.denLeft, exits: S.grid ? S.grid.exits : [], hero0: S.grid && S.grid.hero,
-        cross: S.cross, gameSeed: S.gameSeed,
-        mons: S.ents.filter(function (e) { return e.kind === 'mon'; }).map(function (m) { return { id: m.monId, x: m.x, y: m.y, hp: m.hp, st: m.st, ai: m.ai, aggro: m.aggro, rank: m.rank, art: m.art }; }),
+        left: S.leftSkill, right: S.rightSkill, kills: S.kills, denLeft: S.denLeft,
+        // lối của khu hero đang đứng (toạ độ thế giới); worldLevels: các khu đã dựng trong thế giới hiện tại
+        exits: L ? L.lv.exits : [], hero0: L && L.lv.hero, worldLevels: S.grid ? Object.keys(S.grid.levels) : [],
+        gameSeed: S.gameSeed,
+        mons: S.ents.filter(function (e) { return e.kind === 'mon'; }).map(function (m) { return { id: m.monId, x: m.x, y: m.y, hp: m.hp, st: m.st, ai: m.ai, aggro: m.aggro, rank: m.rank, art: m.art, area: m.home }; }),
         drops: S.ents.filter(function (e) { return e.kind === 'drop' && !e.removed; }).map(function (d) { return { x: d.x, y: d.y, label: d.label, gold: d.gold, rect: d.labelRect || null }; }),
         npcs: S.ents.filter(function (e) { return e.kind === 'npc'; }).map(function (n) { return { id: n.npc, x: n.x, y: n.y }; })
       };
@@ -2202,9 +2291,17 @@
       return { x: r.left + p[0] * r.width / 960, y: r.top + (p[1] - (lift || 0)) * r.height / 540, sx: p[0], sy: p[1] };
     },
     // đường A* của game từ hero tới (x, y), để test bấm chuột theo từng chặng thay vì đi thẳng vào hàng rào
-    path: function (x, y) { var h = S.hero; return h ? findPath(h.x, h.y, x, y, 1e6) : null; },
-    teleport: function (x, y) { if (S.hero) { S.hero.x = x; S.hero.y = y; S.hero.path = null; S.hero.goal = null; E.cam.x = x; E.cam.y = y; markSeen(); } },
+    path: function (x, y) { var h = S.hero; return h ? findPath(h.x, h.y, x, y, PF_WIDE) : null; },
+    teleport: function (x, y) { if (S.hero) { S.hero.x = x; S.hero.y = y; S.hero.path = null; S.hero.goal = null; E.cam.x = x; E.cam.y = y; trackArea(); markSeen(true); } },
     goto: function (id, from) { return enterArea(id, from || null); },
+    // lối đi bộ giữa hai khu của bố cục act hiện tại: { side (phía b nhìn từ a), edge, seg } (subtile thế giới)
+    link: function (a, b) {
+      var lay = S.grid && S.grid.lay; if (!lay) return null;
+      var L = lay.links.filter(function (l) { return (l.a === a && l.b === b) || (l.a === b && l.b === a); })[0];
+      return L ? { side: L.a === a ? L.side : { n: 's', s: 'n', e: 'w', w: 'e' }[L.side], edge: L.edge, seg: L.seg } : null;
+    },
+    // thời gian xử lý một khung (cập nhật + vẽ + HUD) trong 120 khung gần nhất, ms
+    perf: function () { var n = perfMs.length, s = 0, mx = 0; perfMs.forEach(function (v) { s += v; mx = Math.max(mx, v); }); return { n: n, avg: n ? s / n : 0, max: mx }; },
     hurt: function (n) { damageHero(n); },
     spawn: function (monId, n, dx, dy, rank) {
       var out = [], h = S.hero;

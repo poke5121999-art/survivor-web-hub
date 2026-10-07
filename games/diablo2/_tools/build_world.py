@@ -6,7 +6,9 @@
 Per act N writes
     assets/m/world_actN.js   D2_REG('m/world_actN', {pages, tilesets: {<set>: {pages, tiles, flags, palette}}})
     assets/m/maps_actN.js    D2_REG('m/maps_actN', {maps, presets, subs, levels, mazes, warps, waypointObjs})
-                             (warps[id].byDir {l, r, b} when lvlwarp.txt reuses one Id, Act V)
+                             (warps[id].byDir {l, r, b} when lvlwarp.txt reuses one Id, Act V;
+                              maps[key].warps = marker tiles [x, y, rawStyle], maps[key].lit['x,y'] = the cells
+                              drawn lit on mouse-over, [x, y, 'w'|'f', layer])
     assets/img/g/tiles_actN_<k>.webp  (one atlas shared by every tileset of the act, deduplicated)
 and the index fragment assets/idx/world.json ({tilesets: {set: group}, maps: {act: group}}).
 
@@ -232,7 +234,9 @@ def read_warps(act):
             w = {'name': r['Name'], 'select': [ival(r['SelectX']), ival(r['SelectY']), ival(r['SelectDX']),
                                                 ival(r['SelectDY'])],
                  'exitWalk': [ival(r['ExitWalkX']), ival(r['ExitWalkY'])],
-                 'offset': [ival(r['OffsetX']), ival(r['OffsetY'])], 'dir': r['Direction']}
+                 'offset': [ival(r['OffsetX']), ival(r['OffsetY'])], 'dir': r['Direction'],
+                 # lit: a lit tile set exists; tiles: sequence bit of the lit wall tile; noInteract: walk onto it
+                 'lit': ival(r['LitVersion']), 'tiles': ival(r['Tiles'], 2), 'noInteract': ival(r['NoInteract'])}
             if i in out:
                 # expansion rows share one Id for the l/r wall variants; the game picks by Direction
                 first = out[i]
@@ -327,6 +331,16 @@ def ds1_refs(ds):
                     refs.add((o, r['style'], r['sequence']))
                     if o == 3:
                         refs.add((4, r['style'], r['sequence']))
+                    if o in (10, 11) and not r['hidden']:
+                        # lit version shown on mouse-over (D2Common DRLGROOMTILE_LoadWallWarpTiles: sequence | lvlwarp
+                        # Tiles, 2 or 4)
+                        refs.add((o, r['style'], r['sequence'] | 2))
+                        refs.add((o, r['style'], r['sequence'] | 4))
+                    elif o in (10, 11):
+                        # a hidden marker is a floor warp: its lit floor tiles are style = marker sequence,
+                        # sequence | 4 (DRLGROOMTILE_LoadFloorWarpTiles)
+                        for q in range(4, 8):
+                            refs.add((0, r['sequence'], q))
     for layer in ds['floors']:
         for row in layer:
             for r in row:
@@ -389,14 +403,33 @@ def load_ds1(ts, f, miss, fallback_libs):
     # level exits: warp marker tiles (orientation 10/11). Their raw style is the Vis index in levels.txt
     # (style >= 8 marks town / Tristram entry points). Kept raw because the tile key may be aliased.
     wp = set()
-    for L in ds['walls']:
+    lit = {}
+    for li, L in enumerate(ds['walls']):
         for y in range(H):
             for x in range(W):
                 r = L[y][x]
                 if r['prop1'] and r['orientation'] in (10, 11):
                     wp.add((x, y, r['style']))
+                    # cells drawn lit on mouse-over, [x, y, 'w' | 'f', layer]: the marker's own wall tile, or
+                    # (hidden marker = floor warp) the 2x2 floor tiles of style = marker sequence around it
+                    cells = []
+                    if not r['hidden']:
+                        cells.append([x, y, 'w', li])
+                    else:
+                        for fi, F in enumerate(ds['floors']):
+                            for dy in (-1, 0):
+                                for dx in (-1, 0):
+                                    fx, fy = x + dx, y + dy
+                                    if 0 <= fx < W and 0 <= fy < H:
+                                        q = F[fy][fx]
+                                        if q['prop1'] and q['style'] == r['sequence'] and q['sequence'] < 4:
+                                            cells.append([fx, fy, 'f', fi])
+                    if cells:
+                        lit['%d,%d' % (x, y)] = cells
     if wp:
         m['warps'] = [list(t) for t in sorted(wp)]
+        if lit:
+            m['lit'] = lit
     if ds['substitution_groups']:
         m['groups'] = [[g['x'], g['y'], g['w'], g['h']] for g in ds['substitution_groups']]
     for L in ds['walls']:
@@ -510,8 +543,9 @@ def pack(act, sets, pal, lossless, quality):
                 fi = ts.flags_index(t['subtile_flags'])
                 roof = t['y_offset'] if o == 15 else 0
                 flat_fill = o not in (0, 13) and t['mask'].any() and len(np.unique(t['pix'][t['mask']])) == 1
-                if o in (10, 11) or flat_fill or not t['mask'].any():
-                    # warp markers and solid-colour placeholder walls: keep flags, draw nothing
+                if flat_fill or not t['mask'].any():
+                    # solid-colour placeholder walls (hidden floor-warp markers among them): keep flags, draw nothing.
+                    # Shown warp markers (orientation 10/11) are the stairs / cave mouth graphics and are drawn.
                     ent.append((key, None, 0, t['rarity'], fi, 0))
                     continue
                 rgba = d2fmt.to_rgba(t['pix'], t['mask'], pal)

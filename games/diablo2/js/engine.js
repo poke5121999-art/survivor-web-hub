@@ -304,38 +304,60 @@
     drawTile(ts, r, p[0], p[1], r[4] + 80);
     if (o === 3) { var r4 = tileVariant(ts, 4, v & 0xffff); if (r4) drawTile(ts, r4, p[0], p[1], r4[4] + 80); }
   }
+  // Bản sáng của tile warp đang rê chuột: cùng khoá với sequence | add (lvlwarp.txt Tiles; sàn luôn | 4). Tileset
+  // chưa có bản sáng thì vẽ bản thường.
+  function litValue(ts, o, v, add) {
+    var lv2 = (v & ~0xff) | ((v & 0xff) | add);
+    return tileVariant(ts, o, lv2) ? lv2 : v;
+  }
 
   var vL = 0, vR = W, vT = 0, vB = H;
-  /* drawables: [{ x, y (subtile), draw(sx, sy, d) }]. Thứ tự theo d2maprenderer: lượt 1 tường thấp + sàn + bóng,
-   * lượt 2 theo từng tile (hàng trước, cột sau): tường đứng rồi các thực thể đứng trong tile đó, lượt 3 mái. */
+  /* E.level là một D2G.World: các khu chung hệ toạ độ, mỗi khu có lệch tile (tx, ty) và tileset riêng. Duyệt các
+   * tile thế giới trong khung nhìn, tra khu của từng tile rồi đọc lớp cục bộ của khu đó.
+   * drawables: [{ x, y (subtile), draw(sx, sy, d) }]. Thứ tự theo d2maprenderer: lượt 1 tường thấp + sàn + bóng,
+   * lượt 2 theo từng tile (hàng trước, cột sau): tường đứng rồi các thực thể đứng trong tile đó, lượt 3 mái.
+   * Tile warp (orientation 10, 11) là hình cầu thang / cửa hang, vẽ như tường; E.lit = { L, map } thì ô trong map
+   * của khu L vẽ bản sáng. */
+  E.lit = null;
+  var cells = [];
   E.renderWorld = function (drawables) {
-    var lv = E.level, c = E.ctx;
+    var Wd = E.level, c = E.ctx;
     E.updateCam();
     var V = E.view || 1;
     c.setTransform(1, 0, 0, 1, 0, 0);
     c.globalAlpha = 1;
     c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
-    if (!lv) return;
+    if (!Wd || !Wd.list || !Wd.list.length) return;
     c.setTransform(V, 0, 0, V, W / 2 * (1 - V), H / 2 * (1 - V));
     vL = W / 2 - W / 2 / V; vR = W / 2 + W / 2 / V; vT = H / 2 - H / 2 / V; vB = H / 2 + H / 2 / V;
-    var ts = WORLD.tilesets[lv.tileset];
-    var tw = lv.tw, th = lv.th;
+    var tb = Wd.tileBounds(), bw = tb[2] - tb[0];
     // khung tile nhìn thấy, nới thêm phía dưới vì tường cao vẽ lên trên tile của nó
     var cs = [E.toWorld(vL, vT), E.toWorld(vR, vT), E.toWorld(vL, vB + 400), E.toWorld(vR, vB + 400)];
     var x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
     cs.forEach(function (p) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); });
-    var tx0 = Math.max(0, Math.floor(x0 / 5) - 2), tx1 = Math.min(tw - 1, Math.ceil(x1 / 5) + 1);
-    var ty0 = Math.max(0, Math.floor(y0 / 5) - 2), ty1 = Math.min(th - 1, Math.ceil(y1 / 5) + 1);
-    var tx, ty, i, k, p, v, o;
-
-    if (ts) for (ty = ty0; ty <= ty1; ty++) for (tx = tx0; tx <= tx1; tx++) {
-      k = ty * tw + tx; p = tileXY(tx, ty);
+    var tx0 = Math.max(tb[0], Math.floor(x0 / 5) - 2), tx1 = Math.min(tb[2] - 1, Math.ceil(x1 / 5) + 1);
+    var ty0 = Math.max(tb[1], Math.floor(y0 / 5) - 2), ty1 = Math.min(tb[3] - 1, Math.ceil(y1 / 5) + 1);
+    var tx, ty, i, k, p, v, o, n = 0, q, L, lv, ts, lit = E.lit, lm;
+    // ô thế giới nhìn thấy -> khu, tileset, chỉ số cục bộ (một lần cho cả ba lượt)
+    for (ty = ty0; ty <= ty1; ty++) for (tx = tx0; tx <= tx1; tx++) {
+      L = Wd.levelAt(tx * 5, ty * 5); if (!L) continue;
+      ts = WORLD.tilesets[L.lv.tileset]; if (!ts) continue;
+      q = cells[n] || (cells[n] = {}); n++;
+      q.L = L; q.lv = L.lv; q.ts = ts; q.k = (ty - L.ty) * L.lv.tw + (tx - L.tx); q.b = (ty - tb[1]) * bw + (tx - tb[0]);
+      q.p = tileXY(tx, ty); q.lit = lit && lit.L === L ? lit.map[q.k] : null;
+    }
+    var j;
+    for (j = 0; j < n; j++) {
+      q = cells[j]; lv = q.lv; ts = q.ts; k = q.k; p = q.p; lm = q.lit;
       for (i = 0; i < lv.walls.length; i++) {
         o = lv.walls[i].o[k];
         if (o >= 16 && o <= 19 && (v = lv.walls[i].t[k])) drawWall(ts, o, v, p);
       }
       for (i = 0; i < lv.floors.length; i++) {
-        if ((v = lv.floors[i][k])) { var rf = tileVariant(ts, 0, v); if (rf) drawTile(ts, rf, p[0], p[1], rf[4]); }
+        if ((v = lv.floors[i][k])) {
+          if (lm && lm[0] === 'f' && lm[1] === i) v = litValue(ts, 0, v, lm[2]);
+          var rf = tileVariant(ts, 0, v); if (rf) drawTile(ts, rf, p[0], p[1], rf[4]);
+        }
       }
       for (i = 0; i < lv.shadows.length; i++) {
         if ((v = lv.shadows[i][k])) { var rs = tileVariant(ts, 13, v); if (rs) drawTile(ts, rs, p[0], p[1], rs[4] + 80, 160 / 255); }
@@ -344,31 +366,31 @@
 
     var buckets = {};
     for (i = 0; i < drawables.length; i++) {
-      var d = drawables[i], b = Math.floor(d.y / 5) * tw + Math.floor(d.x / 5);
+      var d = drawables[i], b = (Math.floor(d.y / 5) - tb[1]) * bw + (Math.floor(d.x / 5) - tb[0]);
       (buckets[b] || (buckets[b] = [])).push(d);
     }
     function flushTile(list) {
       list.sort(function (a, b) { return (a.y - b.y) || (a.x - b.x) || ((a.z || 0) - (b.z || 0)); });
       for (var j = 0; j < list.length; j++) { var q = E.toScreen(list[j].x, list[j].y); list[j].draw(q[0], q[1], list[j]); }
     }
-    for (ty = ty0; ty <= ty1; ty++) for (tx = tx0; tx <= tx1; tx++) {
-      k = ty * tw + tx;
-      if (ts) {
-        p = tileXY(tx, ty);
-        for (i = 0; i < lv.walls.length; i++) {
-          o = lv.walls[i].o[k];
-          if (o >= 1 && o <= 14 && o !== 10 && o !== 11 && o !== 13 && (v = lv.walls[i].t[k])) drawWall(ts, o, v, p);
+    for (j = 0; j < n; j++) {
+      q = cells[j]; lv = q.lv; ts = q.ts; k = q.k; p = q.p; lm = q.lit;
+      for (i = 0; i < lv.walls.length; i++) {
+        o = lv.walls[i].o[k];
+        if (o >= 1 && o <= 14 && o !== 13 && (v = lv.walls[i].t[k])) {
+          if (lm && lm[0] === 'w' && lm[1] === i) v = litValue(ts, o, v, lm[2]);
+          drawWall(ts, o, v, p);
         }
       }
-      if (buckets[k]) { flushTile(buckets[k]); delete buckets[k]; }
+      if (buckets[q.b]) { flushTile(buckets[q.b]); delete buckets[q.b]; }
     }
     // thực thể ngoài khung tile (vd. đạn bay ra mép bản đồ) vẫn vẽ, sau cùng
     Object.keys(buckets).forEach(function (b) { flushTile(buckets[b]); });
     // lượt 3: mái (yMin của mái đã trừ sẵn chiều cao mái lúc build)
-    if (ts) for (ty = ty0; ty <= ty1; ty++) for (tx = tx0; tx <= tx1; tx++) {
-      k = ty * tw + tx;
+    for (j = 0; j < n; j++) {
+      q = cells[j]; lv = q.lv; k = q.k;
       for (i = 0; i < lv.walls.length; i++) {
-        if (lv.walls[i].o[k] === 15 && (v = lv.walls[i].t[k])) { var rr = tileVariant(ts, 15, v); if (rr) { p = tileXY(tx, ty); drawTile(ts, rr, p[0], p[1], rr[4]); } }
+        if (lv.walls[i].o[k] === 15 && (v = lv.walls[i].t[k])) { var rr = tileVariant(q.ts, 15, v); if (rr) drawTile(q.ts, rr, q.p[0], q.p[1], rr[4]); }
       }
     }
     c.setTransform(1, 0, 0, 1, 0, 0);

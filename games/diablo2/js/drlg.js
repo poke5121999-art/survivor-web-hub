@@ -1,6 +1,7 @@
 /* D2G v2: level generator (every act with loaded asset groups) for the Diablo II remake. Pure functions, no DOM.
  *   D2G.build(areaId, seed[, from[, { layout }]]) -> Level      D2G.supports(areaId) -> bool      D2G.areas -> [ids]
  *   D2G.layoutAct(act, actSeed) -> world rects + walking links of an act; D2G.actSeed / D2G.levelSeed derive seeds
+ *   new D2G.World(layout | null) -> levels of one coordinate space (add / levelAt / colAt / setCol / tileBounds)
  * Contract: brain/plans/diablo2-d2r.md ("Hop dong D2G", "Hop dong v2", "Ma khu").
  * Reads asset groups at call time from root.D2_GROUPS ('m/maps_act<N>', 'm/world_act<N>', filled by D2_REG;
  * N = D2DATA.areas[id].act)
@@ -187,7 +188,7 @@
     this.shadow = new Int32Array(tw * th);
     this.walls = [];
     this.objects = [];
-    this.warps = [];     // [subX, subY, rawStyle]
+    this.warps = [];     // [subX, subY, rawStyle, tileX, tileY, litCells]
     this.occ = new Uint8Array(tw * th);
     this.ts = null;
   }
@@ -235,7 +236,9 @@
     });
     (m.warps || []).forEach(function (w) {
       if (w[0] < x0 || w[1] < y0 || w[0] >= x1 || w[1] >= y1) return;
-      self.warps.push([(ox + w[0] - x0) * SUB + 2, (oy + w[1] - y0) * SUB + 2, w[2]]);
+      var tx = ox + w[0] - x0, ty = oy + w[1] - y0;
+      var lit = ((m.lit && m.lit[w[0] + ',' + w[1]]) || []).map(function (c) { return [ox + c[0] - x0, oy + c[1] - y0, c[2], c[3]]; });
+      self.warps.push([tx * SUB + 2, ty * SUB + 2, w[2], tx, ty, lit]);
     });
   };
   Canvas.prototype.mark = function (x, y, w, h, margin) {
@@ -256,10 +259,12 @@
   // their own flags).
   var LAVA = { act4lava: 20, act5lava: 20 };
   // Pick tile variants, OR the subtile flags of every layer into col. Returns a Level without hero / exits.
+  // Variants are seeded with world tile coordinates (curOrg = the level's rect origin in the act layout).
+  var curOrg = [0, 0];
   function finish(cv, id, seed, C) {
     var tsName = cv.ts, TS = C.W.tilesets[tsName];
     if (!TS) throw new Error('D2G: tileset ' + tsName + ' missing from m/world_act' + C.act);
-    var tiles = TS.tiles, flags = TS.flags, lava = LAVA[tsName] || -1;
+    var tiles = TS.tiles, flags = TS.flags, lava = LAVA[tsName] || -1, orgX = curOrg[0], orgY = curOrg[1];
     var tw = cv.tw, th = cv.th, w = tw * SUB, h = th * SUB;
     var col = new Uint8Array(w * h), fl = new Uint8Array(25);
     var floors = cv.floors, shadows = cv.shadow, walls = cv.walls;
@@ -267,7 +272,7 @@
       var t = arr[i];
       var list = tiles[o + '_' + ((t >> 8) & 255) + '_' + (t & 255)];
       if (!list) { arr[i] = 0; return false; }
-      var v = pickVariant(list, tx, ty, seed);
+      var v = pickVariant(list, tx + orgX, ty + orgY, seed);
       arr[i] = t | (v << 16);
       var f = flags[list[v][7]];
       for (var s = 0; s < 25; s++) fl[s] |= f[s];
@@ -774,7 +779,9 @@
     return e && e.file != null ? e.file : 0;
   }
 
-  // Exits from warp tiles: cluster by raw style, each style s < 8 leads to levels.txt Vis[s].
+  // Exits from warp tiles: cluster by raw style, each style s < 8 leads to levels.txt Vis[s]. A warp exit carries
+  // its lvlwarp.txt row as `warp`: { id, tiles: [[tx, ty]] (marker tiles), lit: [[tx, ty, 'w'|'f', layer]] (cells
+  // drawn lit on mouse-over, sequence | add), add, select, offset, exitWalk, noInteract }.
   function warpExits(lv, comp, cv, d2, C) {
     var L = C.M.levels[d2], by = {}, out = [];
     cv.warps.forEach(function (w) { if (w[2] < 8) (by[w[2]] || (by[w[2]] = [])).push(w); });
@@ -785,7 +792,18 @@
       var ws = by[s], x = 0, y = 0;
       ws.forEach(function (w) { x += w[0]; y += w[1]; });
       var p = nearestIn(lv, comp, x / ws.length, y / ws.length, 0, 25);
-      if (p) out.push({ x: p[0], y: p[1], to: to, vis: +s });
+      if (!p) return;
+      var e = { x: p[0], y: p[1], to: to, vis: +s }, wid = L.warp[+s], rec = wid >= 0 && C.M.warps && C.M.warps[wid];
+      if (rec) {
+        if (rec.byDir) rec = rec.byDir.b || rec.byDir[Object.keys(rec.byDir)[0]];
+        var lit = [];
+        ws.forEach(function (w) { lit = lit.concat(w[5] || []); });
+        e.warp = {
+          id: wid, tiles: ws.map(function (w) { return [w[3], w[4]]; }), lit: rec.lit ? lit : [], add: rec.tiles || 2,
+          select: rec.select, offset: rec.offset, exitWalk: rec.exitWalk, noInteract: !!rec.noInteract
+        };
+      }
+      out.push(e);
     });
     return out;
   }
@@ -1722,6 +1740,74 @@
     return { lv: lv, comp: comp };
   }
 
+  // ---------------------------------------------------------------- world
+  // D2G.World(layout): the levels of one coordinate space. With a layout (D2G.layoutAct) every outdoor level of the
+  // act sits at its rect, so walking across a shared edge is plain movement; without one it holds a single level
+  // at the origin (caves, dungeons). add() translates the level's points (hero, exits, warp tiles, spawns, npcs,
+  // objects) into world subtiles once; tile layers and col stay local and are read through levelAt / colAt.
+  // Entry: { id, lv, tx, ty (tile offset), ox, oy (subtile offset), w, h (rect, subtiles) }.
+  function World(layout) {
+    this.lay = layout || null;
+    this.out = !!layout;
+    this.levels = {};
+    this.list = [];
+    this.last = null;
+    this.bounds = null;
+  }
+  World.prototype.add = function (id, lv, rect) {
+    rect = rect || [0, 0, lv.tw, lv.th];
+    var L = { id: id, lv: lv, tx: rect[0], ty: rect[1], ox: rect[0] * SUB, oy: rect[1] * SUB, w: rect[2] * SUB, h: rect[3] * SUB };
+    var ox = L.ox, oy = L.oy;
+    lv.ox = ox; lv.oy = oy;
+    lv.hero = [lv.hero[0] + ox, lv.hero[1] + oy];
+    [lv.exits, lv.spawns, lv.npcs, lv.objects].forEach(function (arr) { arr.forEach(function (p) { p.x += ox; p.y += oy; }); });
+    lv.exits.forEach(function (e) {
+      if (!e.warp) return;
+      e.warp.tiles = e.warp.tiles.map(function (t) { return [t[0] + L.tx, t[1] + L.ty]; });
+      // lit cells keep local tile indexes: the renderer draws layer `li` of cell `k` with sequence | add
+      var map = {};
+      e.warp.lit.forEach(function (c) { map[c[1] * lv.tw + c[0]] = [c[2], c[3], c[2] === 'f' ? 4 : e.warp.add]; });
+      e.warp.litMap = map;
+    });
+    this.levels[id] = L;
+    this.list.push(L);
+    this.bounds = null;
+    return L;
+  };
+  World.prototype.levelAt = function (x, y) {
+    var L = this.last, list = this.list, i;
+    if (L && x >= L.ox && y >= L.oy && x < L.ox + L.w && y < L.oy + L.h) return L;
+    for (i = 0; i < list.length; i++) {
+      L = list[i];
+      if (x >= L.ox && y >= L.oy && x < L.ox + L.w && y < L.oy + L.h) { this.last = L; return L; }
+    }
+    // a DS1 is one tile wider and taller than its levels.txt size: that spare strip counts where no rect claims it
+    for (i = 0; i < list.length; i++) {
+      L = list[i];
+      if (x >= L.ox && y >= L.oy && x < L.ox + L.lv.w && y < L.oy + L.lv.h) return L;
+    }
+    return null;
+  };
+  // col of a world subtile: 0 walkable, 1 blocked, 2 blocked but see-through; outside every level = 1
+  World.prototype.colAt = function (x, y) {
+    var ix = Math.floor(x), iy = Math.floor(y), L = this.levelAt(ix, iy);
+    return L ? L.lv.col[(iy - L.oy) * L.lv.w + (ix - L.ox)] : 1;
+  };
+  World.prototype.setCol = function (x, y, v) {
+    var ix = Math.floor(x), iy = Math.floor(y), L = this.levelAt(ix, iy);
+    if (L) L.lv.col[(iy - L.oy) * L.lv.w + (ix - L.ox)] = v;
+  };
+  // [tx0, ty0, tx1, ty1): tile box holding every built level
+  World.prototype.tileBounds = function () {
+    if (this.bounds) return this.bounds;
+    var b = [1e9, 1e9, -1e9, -1e9];
+    this.list.forEach(function (L) {
+      b[0] = Math.min(b[0], L.tx); b[1] = Math.min(b[1], L.ty);
+      b[2] = Math.max(b[2], L.tx + L.lv.tw); b[3] = Math.max(b[3], L.ty + L.lv.th);
+    });
+    return (this.bounds = this.list.length ? b : [0, 0, 0, 0]);
+  };
+
   // ---------------------------------------------------------------- dispatch
   function kindOf(id, C) {
     var d2 = C.byId[id];
@@ -1763,12 +1849,16 @@
       seed = seed | 0;
       var W = (opts && opts.layout) || layoutAct(C.act, seed);
       if (W.act !== C.act) throw new Error('D2G: layout of act ' + W.act + ' given for ' + id + ' (act ' + C.act + ')');
-      for (var a = 0; a < 60; a++) {
-        var r = BUILD[k](id, seed, from, a, C, W);
-        if (r && validate(r.lv, r.comp) && wpCheck(r.lv, C.byId[id], C, r.comp)) return r.lv;
-      }
+      curOrg = W.levels[id] ? W.levels[id].rect : [0, 0];
+      try {
+        for (var a = 0; a < 60; a++) {
+          var r = BUILD[k](id, seed, from, a, C, W);
+          if (r && validate(r.lv, r.comp) && wpCheck(r.lv, C.byId[id], C, r.comp)) return r.lv;
+        }
+      } finally { curOrg = [0, 0]; }
       throw new Error('D2G: ' + id + ' seed ' + seed + ' failed after 60 attempts');
     },
+    World: World,
     layoutAct: function (act, actSeed) { return layoutAct(act, actSeed | 0); },
     // one game: a seed per act and difficulty, a build seed per level of that act
     actSeed: function (gameSeed, diff, act) { return hash3(gameSeed | 0, strHash(String(diff)), act) | 0; },

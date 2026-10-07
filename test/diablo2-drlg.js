@@ -186,6 +186,65 @@ if (!only) ACTS.forEach(function (act) {
   if (nLinks) layoutRows.push('act ' + act + ' layout: ' + SEEDS + ' seeds, ' + nLinks + ' walking links, openings at most ' + worst.toFixed(1) +
     ' subtiles apart; sides ' + Object.keys(sides).map(function (k) { return k + ' ' + Object.keys(sides[k]).sort().join(''); }).join(', '));
 });
+// ---------------------------------------------------------------- act worlds (D2G.World)
+// Per act and seed: every level of the layout goes into one D2G.World at its rect; a BFS over World.colAt
+// (4-neighbour) from the town's hero spot reaches every level walking-linked to the town (the group of the
+// town; the Monastery group, the Canyon and the Frozen Tundra are reached by warps and are skipped).
+var WORLD_SEEDS = Math.min(SEEDS, 10), worldRows = [];
+if (!only) ACTS.forEach(function (act) {
+  var town = Object.keys(A).filter(function (k) { return A[k].town && A[k].act === act; })[0];
+  var cellsSum = 0, levelsSum = 0;
+  for (var s = 1; s <= WORLD_SEEDS; s++) {
+    var aseed = D2G.actSeed(s, 'n', act), lay = D2G.layoutAct(act, aseed), tag = 'act ' + act + ' world ' + aseed;
+    var W = new D2G.World(lay), ids = Object.keys(lay.levels).filter(D2G.supports);
+    ids.forEach(function (id) { W.add(id, D2G.build(id, D2G.levelSeed(lay.seed, id), null, { layout: lay }), lay.levels[id].rect); });
+    // the town's group: levels joined to it by the placed walking links
+    var grp = {}; grp[town] = 1;
+    for (var more = true; more;) {
+      more = false;
+      lay.links.forEach(function (L) {
+        if (grp[L.a] && !grp[L.b] && W.levels[L.b]) { grp[L.b] = 1; more = true; }
+        if (grp[L.b] && !grp[L.a] && W.levels[L.a]) { grp[L.a] = 1; more = true; }
+      });
+    }
+    var T = W.levels[town]; if (!T) { fail(tag + ' town not built'); continue; }
+    var bx0 = 1e9, by0 = 1e9, bx1 = -1e9, by1 = -1e9;
+    Object.keys(grp).forEach(function (id) { var L = W.levels[id]; bx0 = Math.min(bx0, L.ox); by0 = Math.min(by0, L.oy); bx1 = Math.max(bx1, L.ox + L.lv.w); by1 = Math.max(by1, L.oy + L.lv.h); });
+    var bw = bx1 - bx0, bh = by1 - by0, vis = new Uint8Array(bw * bh), q = new Int32Array(bw * bh), qh = 0, qt = 0;
+    var hx = T.lv.hero[0], hy = T.lv.hero[1];
+    if (W.colAt(hx, hy) !== 0) fail(tag + ' town hero on a blocked world subtile');
+    q[qt++] = (hy - by0) * bw + (hx - bx0); vis[q[0]] = 1;
+    while (qh < qt) {
+      var c = q[qh++], cx = c % bw + bx0, cy = ((c / bw) | 0) + by0;
+      for (var d = 0; d < 4; d++) {
+        var nx = cx + [1, -1, 0, 0][d], ny = cy + [0, 0, 1, -1][d];
+        if (nx < bx0 || ny < by0 || nx >= bx1 || ny >= by1) continue;
+        var ni = (ny - by0) * bw + (nx - bx0);
+        if (!vis[ni] && W.colAt(nx, ny) === 0) { vis[ni] = 1; q[qt++] = ni; }
+      }
+    }
+    cellsSum += qt; levelsSum += Object.keys(grp).length;
+    Object.keys(grp).forEach(function (id) {
+      var L = W.levels[id], ok = false;
+      // reached if any walkable subtile of the level's rect was visited
+      for (var y = L.oy; y < L.oy + L.h && !ok; y++) for (var x = L.ox; x < L.ox + L.w; x++) if (vis[(y - by0) * bw + (x - bx0)]) { ok = true; break; }
+      if (!ok) fail(tag + ': ' + id + ' not reachable on foot from ' + town + ' through the world col');
+      // the level's own hero spot (where a waypoint drops the hero) must be in the same component
+      if (ok && !vis[(L.lv.hero[1] - by0) * bw + (L.lv.hero[0] - bx0)]) fail(tag + ': ' + id + ' hero spot cut off from the town');
+    });
+    // levelAt agrees with the rects; every exit lies inside its level's DS1 (a walking exit of a preset may sit on
+    // the DS1's spare row beyond the rect, which the neighbour's rect claims)
+    Object.keys(grp).forEach(function (id) {
+      var L = W.levels[id];
+      if (W.levelAt(L.ox, L.oy) !== L || W.levelAt(L.ox + L.w - 1, L.oy + L.h - 1) !== L) fail(tag + ': levelAt misses ' + id);
+      L.lv.exits.forEach(function (e) {
+        if (e.x < L.ox || e.y < L.oy || e.x >= L.ox + L.lv.w || e.y >= L.oy + L.lv.h) fail(tag + ': exit of ' + id + ' at ' + e.x + ',' + e.y + ' outside its level');
+      });
+    });
+  }
+  worldRows.push('act ' + act + ' world: ' + WORLD_SEEDS + ' seeds, ' + (levelsSum / WORLD_SEEDS).toFixed(1) + ' levels on foot from ' + town + ', ' + Math.round(cellsSum / WORLD_SEEDS) + ' walkable subtiles');
+});
+layoutRows = layoutRows.concat(worldRows);
 // D2MOO DrlgOutPlace.cpp: Stony Field / Dark Wood and Valley of Snakes / Canyon of the Magi are in different link groups
 [['stony_field', 'dark_wood'], ['valley_of_snakes', 'canyon_of_the_magi']].forEach(function (p) {
   if (!A[p[0]] || ACTS.indexOf(A[p[0]].act) < 0) return;

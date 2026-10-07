@@ -377,10 +377,10 @@
     var segs = [];
     pts.forEach(function (p) {
       var cx = Math.floor(p[0]), cy = Math.floor(p[1]);
-      if (cx < 0 || cy < 0 || cx >= grid.w || cy >= grid.h || grid.col[cy * grid.w + cx] !== 0) return;
+      if (grid.colAt(cx, cy) !== 0) return;
       if (Math.hypot(cx + 0.5 - h.x, cy + 0.5 - h.y) < 1.2) return;
-      var w = makePet(api, fx, sm.mon, cx + 0.5, cy + 0.5, { cell: cy * grid.w + cx, grid: grid });
-      grid.col[w.pet.cell] = 2;   // ô bị chặn tạm (khác 1 = tường thật); trả lại 0 khi tường vỡ
+      var w = makePet(api, fx, sm.mon, cx + 0.5, cy + 0.5, { cell: [cx, cy], grid: grid });
+      grid.setCol(cx, cy, 2);   // ô bị chặn tạm (khác 1 = tường thật); trả lại 0 khi tường vỡ
       w.speed = 0; segs.push(w);
     });
     if (!segs.length) msg(api, 'Không đặt được tường ở đây.');
@@ -388,7 +388,7 @@
   function killPet(api, p, quiet) {
     if (!p || p.st === 'die' || p.st === 'dead') return;
     p.hp = 0; p.act = null;
-    if (p.pet && p.pet.cell != null && p.pet.grid && p.pet.grid.col[p.pet.cell] === 2) p.pet.grid.col[p.pet.cell] = 0;
+    if (p.pet && p.pet.cell && p.pet.grid && p.pet.grid.colAt(p.pet.cell[0], p.pet.cell[1]) === 2) p.pet.grid.setCol(p.pet.cell[0], p.pet.cell[1], 0);
     var an = p.art && api.E.animOf ? api.E.animOf(p.art, 'DT') : null;
     api.restart(p, 'die', quiet ? 200 : (an ? api.E.animDur(an) : 500));
     p.deadAt = api.S.time;

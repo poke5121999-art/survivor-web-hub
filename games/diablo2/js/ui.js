@@ -797,33 +797,38 @@
   };
 
   /* ---------------------------------------------------------- bản đồ */
+  // s.grid là D2G.World: mỗi khu đã dựng có `seen` riêng, vẽ theo lệch (ox, oy) của khu nên bản đồ liền qua mép khu
   UI.drawMap = function () {
-    var s = S(), g = s.grid, cv = UI.mapEl, c = cv.getContext('2d'), E = D2.E;
+    var s = S(), W = s.grid, cv = UI.mapEl, c = cv.getContext('2d'), E = D2.E;
     c.clearRect(0, 0, 960, 540); c.fillStyle = 'rgba(0,0,0,.45)'; c.fillRect(0, 0, 960, 540);
-    if (!g || !s.hero) return;
-    var k = g.w > 120 ? 2 : 3, hx = s.hero.x, hy = s.hero.y;
+    if (!W || !W.list || !s.hero) return;
+    var cur = W.levels[s.areaId], k = W.out || (cur && cur.lv.w > 120) ? 2 : 3, hx = s.hero.x, hy = s.hero.y;
     function P(x, y) { return [480 + ((x - hx) - (y - hy)) * k, 270 + ((x - hx) + (y - hy)) * k * 0.5]; }
-    var seen = g.seen;
-    // lưới 200x200: không fillRect từng ô mỗi khung; ô mới thấy được ghi vào một ảnh 1 px/ô, vẽ bằng một phép biến đổi iso
-    var mc = g._mapCv;
-    if (!mc) {
-      mc = g._mapCv = document.createElement('canvas'); mc.width = g.w; mc.height = g.h;
-      g._mapCtx = mc.getContext('2d'); g._mapDone = new Uint8Array(g.w * g.h);
-    }
-    var mx = g._mapCtx, done = g._mapDone, n = g.w * g.h, i, x, y;
-    for (i = 0; i < n; i++) {
-      if (!seen[i] || done[i]) continue;
-      done[i] = 1; x = i % g.w; y = (i - x) / g.w;
-      var col = g.col[i];
-      mx.fillStyle = col === 1 ? 'rgba(200,200,200,.8)' : col === 2 ? 'rgba(60,110,200,.6)' : 'rgba(120,90,40,.35)';
-      mx.fillRect(x, y, 1, 1);
-    }
-    c.save(); c.imageSmoothingEnabled = false;
-    c.setTransform(k, k * 0.5, -k, k * 0.5, 480 - k * (hx - hy), 270 - k * 0.5 * (hx + hy));
-    c.drawImage(mc, 0, 0); c.restore();
-    g.exits.forEach(function (e) { var p = P(e.x, e.y); c.fillStyle = '#4f4'; c.fillRect(p[0] - 3, p[1] - 3, 7, 7); });
-    g.npcs.forEach(function (n) { var p = P(n.x, n.y); c.fillStyle = '#6cf'; c.fillRect(p[0] - 2, p[1] - 2, 5, 5); });
-    s.ents.forEach(function (e) { if (e.kind === 'mon' && e.st !== 'dead' && e.st !== 'die' && seen[(e.y | 0) * g.w + (e.x | 0)]) { var p = P(e.x, e.y); c.fillStyle = '#f33'; c.fillRect(p[0] - 1, p[1] - 1, 3, 3); } });
+    function seenAt(x, y) { var L = W.levelAt(x, y); return !!(L && L.seen && L.seen[((y | 0) - L.oy) * L.lv.w + ((x | 0) - L.ox)]); }
+    W.list.forEach(function (L) {
+      var g = L.lv, seen = L.seen; if (!seen) return;
+      // lưới 200x200: không fillRect từng ô mỗi khung; ô mới thấy được ghi vào một ảnh 1 px/ô, vẽ bằng một phép biến đổi iso
+      var mc = L._mapCv;
+      if (!mc) {
+        mc = L._mapCv = document.createElement('canvas'); mc.width = g.w; mc.height = g.h;
+        L._mapCtx = mc.getContext('2d'); L._mapDone = new Uint8Array(g.w * g.h);
+      }
+      var mx = L._mapCtx, done = L._mapDone, n = g.w * g.h, i, x, y;
+      for (i = 0; i < n; i++) {
+        if (!seen[i] || done[i]) continue;
+        done[i] = 1; x = i % g.w; y = (i - x) / g.w;
+        var col = g.col[i];
+        mx.fillStyle = col === 1 ? 'rgba(200,200,200,.8)' : col === 2 ? 'rgba(60,110,200,.6)' : 'rgba(120,90,40,.35)';
+        mx.fillRect(x, y, 1, 1);
+      }
+      c.save(); c.imageSmoothingEnabled = false;
+      var ox = L.ox - hx, oy = L.oy - hy;
+      c.setTransform(k, k * 0.5, -k, k * 0.5, 480 + k * (ox - oy), 270 + k * 0.5 * (ox + oy));
+      c.drawImage(mc, 0, 0); c.restore();
+      g.exits.forEach(function (e) { if (!seenAt(e.x, e.y)) return; var p = P(e.x, e.y); c.fillStyle = '#4f4'; c.fillRect(p[0] - 3, p[1] - 3, 7, 7); });
+      g.npcs.forEach(function (n) { var p = P(n.x, n.y); c.fillStyle = '#6cf'; c.fillRect(p[0] - 2, p[1] - 2, 5, 5); });
+    });
+    s.ents.forEach(function (e) { if (e.kind === 'mon' && e.st !== 'dead' && e.st !== 'die' && seenAt(e.x, e.y)) { var p = P(e.x, e.y); c.fillStyle = '#f33'; c.fillRect(p[0] - 1, p[1] - 1, 3, 3); } });
     c.strokeStyle = '#fff'; c.beginPath(); c.moveTo(474, 270); c.lineTo(486, 270); c.moveTo(480, 264); c.lineTo(480, 276); c.stroke();
     c.fillStyle = '#ddd'; c.font = '14px serif'; c.textAlign = 'left'; c.fillText(s.areaName || '', 16, 28);
   };

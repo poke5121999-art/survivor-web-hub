@@ -39,6 +39,22 @@ async function luma(p, png, boxes) {
     im.src = 'data:image/png;base64,' + src;
   }), [png.toString('base64'), boxes]);
 }
+// [độ sáng trung bình, độ lệch chuẩn] của một vùng: vùng đen đặc cho [0, 0], hình đất đá có vân
+async function texture(p, png, boxes) {
+  return p.evaluate(([src, boxes]) => new Promise(res => {
+    const im = new Image();
+    im.onload = () => {
+      const cv = document.createElement('canvas'); cv.width = im.width; cv.height = im.height;
+      const x = cv.getContext('2d'); x.drawImage(im, 0, 0);
+      res(boxes.map(b => {
+        const d = x.getImageData(Math.round(b[0]), Math.round(b[1]), b[2], b[3]).data, n = d.length / 4; let s = 0, s2 = 0;
+        for (let i = 0; i < d.length; i += 4) { const l = 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]; s += l; s2 += l * l; }
+        return [s / n, Math.sqrt(Math.max(0, s2 / n - (s / n) * (s / n)))];
+      }));
+    };
+    im.src = 'data:image/png;base64,' + src;
+  }), [png.toString('base64'), boxes]);
+}
 const st = p => p.evaluate(() => D2DBG.getState());
 async function waitFor(p, fn, ms, arg) {
   const t0 = Date.now();
@@ -135,42 +151,116 @@ async function clickNpc(p, id) {
     return { moved, area: (await st(p)).area, trail: trail.slice(-6).join(' | ') };
   }
   const exTown = s.exits.filter(e => e.to === 'blood_moor')[0];
-  check('Rogue Encampment có lối ra Blood Moor (từ drlg)', !!exTown, JSON.stringify(s.exits));
-  if (exTown) {
-    const r1 = await walkTo(p, exTown, 'blood_moor', 70000);
-    check('chuột trái làm hero đi', r1.moved);
-    check('bước vào lối ra -> Blood Moor', r1.area === 'blood_moor', r1.area);
-  } else {
-    await p.evaluate(() => D2DBG.goto('blood_moor', 'rogue_encampment'));
-    await waitFor(p, () => D2DBG.getState().area === 'blood_moor', 10000);
+  check('Rogue Encampment có lối ra Blood Moor (từ drlg)', !!exTown, JSON.stringify(s.exits.map(e => e.to)));
+  // theo dõi suốt lúc đi bộ: màn nạp có hiện không, hero có nhảy vị trí giữa hai khung không
+  await p.evaluate(() => {
+    window.__loads = 0; window.__jump = 0; let lastP = null;
+    new MutationObserver(() => { if (D2.UI.loadEl.style.display !== 'none') window.__loads++; }).observe(D2.UI.loadEl, { attributes: true, attributeFilter: ['style'] });
+    (function tick() { const h = D2DBG.S.hero; if (h) { if (lastP) window.__jump = Math.max(window.__jump, Math.hypot(h.x - lastP[0], h.y - lastP[1])); lastP = [h.x, h.y]; } requestAnimationFrame(tick); })();
+  });
+  const watch = () => p.evaluate(() => { const r = { loads: window.__loads, jump: window.__jump }; window.__loads = 0; window.__jump = 0; return r; });
+  // hộp ảnh quanh một điểm thế giới, toạ độ ảnh chụp (viewport 1000x600, stage 960x540 phóng theo)
+  const boxAt = (x, y, w, hh) => p.evaluate(([x, y, w, hh]) => { const c = D2DBG.client(x, y), r = document.getElementById('stage').getBoundingClientRect(); return [c.x - w / 2, c.y - hh / 2, w, hh, r.left, r.top, r.width, r.height]; }, [x, y, w, hh]);
+  const inStage = b => b[0] >= b[4] && b[1] >= b[5] && b[0] + b[2] <= b[4] + b[6] && b[1] + b[3] <= b[5] + b[7];
+  // tâm và hộp của SelectX/Y/DX/DY (lvlwarp.txt) tính từ đỉnh ô tile warp, toạ độ trang
+  const selBox = (ex) => p.evaluate(([tx, ty, sel]) => { const q = D2.E.toScreen(tx * 5, ty * 5), r = document.getElementById('stage').getBoundingClientRect(), k = r.width / 960; return { x: r.left + (q[0] + sel[0] + sel[2] / 2) * k, y: r.top + (q[1] + sel[1] + sel[3] / 2) * k, box: [r.left + (q[0] + sel[0]) * k, r.top + (q[1] + sel[1]) * k, Math.round(sel[2] * k), Math.round(sel[3] * k)] }; }, [ex.warp.tiles[0][0], ex.warp.tiles[0][1], ex.warp.select]);
+  await watch();
+  const r1 = exTown ? await walkTo(p, exTown, 'blood_moor', 70000) : { moved: false, area: null, trail: '' };
+  const w1 = await watch();
+  check('chuột trái làm hero đi', r1.moved);
+  check('đi bộ qua mép thị trấn -> Blood Moor (areaId đổi)', r1.area === 'blood_moor', r1.area + ' vết: ' + r1.trail);
+  check('qua mép không hiện màn nạp', w1.loads === 0, 'màn nạp hiện ' + w1.loads + ' lần');
+  check('vị trí hero liên tục khi qua mép (không nhảy > 2 subtile giữa hai khung)', w1.jump <= 2, 'nhảy xa nhất ' + w1.jump.toFixed(2));
+  s = await st(p);
+  check('thế giới act đã dựng cả thị trấn lẫn Blood Moor', s.worldLevels.includes('rogue_encampment') && s.worldLevels.includes('blood_moor'), s.worldLevels.join(','));
+  // ảnh chụp ở mép (tắt lớp ánh sáng): hai bên đường ranh đều có hình, không phải vùng đen
+  const lk = await p.evaluate(() => D2DBG.link('blood_moor', 'rogue_encampment'));
+  const nrm = { n: [0, -1], s: [0, 1], e: [1, 0], w: [-1, 0] }[lk.side];
+  await p.evaluate(() => { D2DBG.noLight(true); D2DBG.freeze(true); });
+  await sleep(150);
+  const bMoor = await boxAt(s.hero.x - nrm[0] * 12, s.hero.y - nrm[1] * 12, 60, 40), bTown = await boxAt(s.hero.x + nrm[0] * 12, s.hero.y + nrm[1] * 12, 60, 40);
+  const shotB = await p.screenshot({ path: path.join(SHOTS, '2a-border.png') });
+  await p.evaluate(() => { D2DBG.noLight(false); D2DBG.freeze(false); });
+  // vùng đen đặc có độ sáng 0 và không có vân; hình đất đá (kể cả bóng tối dưới cầu của thị trấn) có độ lệch chuẩn > 2
+  const texB = await texture(p, shotB, [bMoor, bTown]);
+  check('ở mép: 12 subtile hai bên đường ranh đều có hình (không phải vùng đen đặc)', inStage(bMoor) && inStage(bTown) && texB.every(t => t[0] > 3 && t[1] > 2),
+    'phía Blood Moor sáng ' + texB[0][0].toFixed(1) + ' lệch ' + texB[0][1].toFixed(1) + ', phía thị trấn sáng ' + texB[1][0].toFixed(1) + ' lệch ' + texB[1][1].toFixed(1) + ' hướng ' + lk.side);
+  const sig = ex => JSON.stringify(ex.map(e => [e.to, e.x, e.y]));
+  const bm1 = sig(s.exits);
+  const den = x => (JSON.parse(x).filter(e => e[0] === 'den_of_evil')[0] || null);
+  // ----- warp: hang Den of Evil bấm được, sáng khi rê, ra theo lvlwarp
+  const dEx = s.exits.filter(e => e.to === 'den_of_evil')[0];
+  check('Blood Moor có cửa hang Den of Evil kiểu warp (lvlwarp.txt: hộp chọn, offset, lối bước ra)', !!(dEx && dEx.warp && dEx.warp.select && dEx.warp.offset && dEx.warp.exitWalk && !dEx.warp.noInteract),
+    JSON.stringify(dEx && dEx.warp && { id: dEx.warp.id, select: dEx.warp.select, offset: dEx.warp.offset, exitWalk: dEx.warp.exitWalk, lit: dEx.warp.lit.length }));
+  if (dEx && dEx.warp) {
+    await p.evaluate(([x, y]) => D2DBG.teleport(x + 6, y + 6), [dEx.x, dEx.y]);
+    await p.evaluate(() => D2DBG.hour(12));
+    await sleep(600);
+    const selC = await selBox(dEx);
+    await p.evaluate(() => D2DBG.noLight(true));
+    await p.mouse.move(selC.x - 300, selC.y + 200); await sleep(150);
+    const litOff = await p.screenshot();
+    await p.mouse.move(selC.x, selC.y); await sleep(200);
+    const hov = await p.evaluate(() => D2DBG.S.hover && D2DBG.S.hover.kind === 'warp' ? D2DBG.S.hover.to : null);
+    const litOn = await p.screenshot({ path: path.join(SHOTS, '2c-den-hover.png') });
+    await p.evaluate(() => D2DBG.noLight(false));
+    check('rê chuột lên cửa hang -> hover là warp sang Den of Evil', hov === 'den_of_evil', String(hov));
+    const lum = [(await luma(p, litOff, [selC.box]))[0], (await luma(p, litOn, [selC.box]))[0]];
+    check('rê chuột -> cửa hang vẽ bản sáng (độ sáng trong hộp chọn đổi)', Math.abs(lum[1] - lum[0]) > 0.5, 'không rê ' + lum[0].toFixed(2) + ' -> rê ' + lum[1].toFixed(2));
+    await p.mouse.click(selC.x, selC.y);
+    const inDen = await waitFor(p, () => D2DBG.getState().area === 'den_of_evil', 20000);
+    check('bấm chuột trái vào cửa hang -> vào Den of Evil', inDen, (await st(p)).area);
+    if (inDen) {
+      await sleep(1500);
+      s = await st(p);
+      const up = s.exits.filter(e => e.to === 'blood_moor')[0];
+      const dUp = up ? Math.hypot(up.x + 0.5 - s.hero.x, up.y + 0.5 - s.hero.y) : 99;
+      check('vào hang: hero đứng cạnh cầu thang lên (<= 4 subtile, OffsetX/Y + ExitWalkX/Y)', dUp <= 4, dUp.toFixed(1) + ' hero ' + s.hero.x.toFixed(1) + ',' + s.hero.y.toFixed(1) + ' thang ' + JSON.stringify(up && [up.x, up.y]));
+      await p.screenshot({ path: path.join(SHOTS, '2d-den-arrival.png') });
+      // đi ngang qua cầu thang không tự lên (D2 phải bấm); bấm thì lên và ra cạnh cửa hang
+      if (up && up.warp) {
+        await p.evaluate(([x, y]) => D2DBG.teleport(x + 1.5, y + 2.5), [up.x, up.y]);
+        await sleep(2200);
+        check('đứng sát cầu thang lên không tự chuyển khu', (await st(p)).area === 'den_of_evil', (await st(p)).area);
+        const upC = await selBox(up);
+        await p.mouse.move(upC.x, upC.y); await sleep(150); await p.mouse.click(upC.x, upC.y);
+        const back = await waitFor(p, () => D2DBG.getState().area === 'blood_moor', 20000);
+        s = await st(p);
+        const dDen = Math.hypot(dEx.x + 0.5 - s.hero.x, dEx.y + 0.5 - s.hero.y);
+        check('bấm cầu thang lên -> về Blood Moor, ra cạnh cửa hang (<= 6 subtile)', back && dDen <= 6, s.area + ' cách cửa ' + dDen.toFixed(1));
+      }
+    }
   }
-  await sleep(600);
+  // một game = một bản dựng: về lại Blood Moor thì khu y như lần đầu (lối ra, hang Den of Evil cùng chỗ)
+  if ((await st(p)).area !== 'blood_moor') { await p.evaluate(() => D2DBG.goto('blood_moor', 'den_of_evil')); await waitFor(p, () => D2DBG.getState().area === 'blood_moor', 10000); }
   s = await st(p);
-  // bố cục act chung một hệ toạ độ: hero ra ngay trong mép Blood Moor, đúng điểm tương ứng chỗ vừa bước khỏi thị trấn
-  const crossIn = s.cross, bm1 = JSON.stringify(s.exits);
-  const gap = c => c && c.out ? Math.hypot(c.out[0] - c.at[0], c.out[1] - c.at[1]) : -1;
-  check('qua mép thị trấn -> Blood Moor: hero ra cạnh điểm vừa bước đi (toạ độ act, <= 6.5 subtile)',
-    !!crossIn && crossIn.from === 'rogue_encampment' && gap(crossIn) >= 0 && gap(crossIn) <= 6.5, JSON.stringify(crossIn));
-  const exBack = s.exits.filter(e => e.to === 'rogue_encampment')[0];
-  const r2 = await walkTo(p, exBack, 'rogue_encampment', 40000);
-  check('đi bộ tới lối về Rogue Encampment', r2.area === 'rogue_encampment',
-    r2.area + (r2.area === 'rogue_encampment' ? '' : ' lối=' + JSON.stringify(exBack) + ' vết: ' + r2.trail));
-  s = await st(p);
-  check('về thị trấn cũng ra đúng điểm tương ứng (<= 6.5 subtile)', !!s.cross && s.cross.to === 'rogue_encampment' && gap(s.cross) >= 0 && gap(s.cross) <= 6.5, JSON.stringify(s.cross));
-  // một game = một bản dựng: đi bộ vào lại Blood Moor thì khu y như lần đầu (hang Den of Evil cùng chỗ)
-  const exTown2 = s.exits.filter(e => e.to === 'blood_moor')[0];
-  const r3 = exTown2 ? await walkTo(p, exTown2, 'blood_moor', 70000) : { area: s.area };
-  s = await st(p);
-  const den = x => (JSON.parse(x).filter(e => e.to === 'den_of_evil')[0] || null);
-  check('vào lại Blood Moor: bố cục giữ nguyên (lối ra, hang Den of Evil)', r3.area === 'blood_moor' && JSON.stringify(s.exits) === bm1 && !!den(bm1),
-    'lần 1 ' + JSON.stringify(den(bm1)) + ', lần 2 ' + JSON.stringify(den(JSON.stringify(s.exits))) + (r3.area === 'blood_moor' ? '' : ' khu=' + r3.area + ' vết: ' + r3.trail));
-  check('vào lại Blood Moor: hero ra ở mép, cạnh điểm bước khỏi thị trấn', !!s.cross && s.cross.to === 'blood_moor' && gap(s.cross) >= 0 && gap(s.cross) <= 6.5, JSON.stringify(s.cross));
-  // tới lối ngay trong 1,5 s ân hạn sau khi vào khu rồi đứng yên: vẫn phải qua (lỗi cũ: chỉ kiểm lối lúc hero đang bước)
-  await p.evaluate(() => D2DBG.goto('rogue_encampment', 'blood_moor'));
-  await waitFor(p, () => D2DBG.getState().area === 'rogue_encampment', 10000);
-  const txq = (await st(p)).exits.filter(e => e.to === 'blood_moor')[0];
-  await p.evaluate(([x, y]) => D2DBG.teleport(x, y), [txq.x + 0.5, txq.y + 0.5]);
-  check('đứng yên ở lối ngay sau khi vào khu -> vẫn sang Blood Moor', await waitFor(p, () => D2DBG.getState().area === 'blood_moor', 5000), (await st(p)).area);
+  check('về lại Blood Moor: bố cục giữ nguyên (lối ra, hang Den of Evil)', sig(s.exits) === bm1 && !!den(bm1), 'lần 1 ' + JSON.stringify(den(bm1)) + ', lần 2 ' + JSON.stringify(den(sig(s.exits))));
+  // ----- quái đang đuổi theo vẫn đuổi qua mép: đứng cách khe sang Cold Plains 10 subtile, sinh quái sát sau lưng rồi đi qua
+  const lkCP = await p.evaluate(() => D2DBG.link('blood_moor', 'cold_plains'));
+  const exCP = s.exits.filter(e => e.to === 'cold_plains')[0];
+  check('Blood Moor có lối đi bộ sang Cold Plains', !!(lkCP && exCP), JSON.stringify(lkCP));
+  if (lkCP && exCP) {
+    const nC = { n: [0, -1], s: [0, 1], e: [1, 0], w: [-1, 0] }[lkCP.side], midC = [(lkCP.seg[0] + lkCP.seg[2]) / 2, (lkCP.seg[1] + lkCP.seg[3]) / 2];
+    await p.evaluate(([x, y]) => D2DBG.teleport(x, y), [midC[0] - nC[0] * 10, midC[1] - nC[1] * 10]);
+    await sleep(800);
+    await p.evaluate(([dx, dy]) => { D2DBG.S.char.hp = 9999; D2DBG.spawn(D2DBG.monIds()[0], 1, dx, dy); }, [-nC[0] * 3, -nC[1] * 3]);
+    await sleep(1200);
+    const agg0 = (await st(p)).mons.filter(m => m.aggro).length;
+    await watch();
+    const r2 = await walkTo(p, exCP, 'cold_plains', 40000);
+    const w2 = await watch();
+    s = await st(p);
+    const chasing = s.mons.filter(m => m.aggro && m.st !== 'dead' && m.st !== 'die' && Math.hypot(m.x - s.hero.x, m.y - s.hero.y) < 30);
+    check('đi bộ Blood Moor -> Cold Plains: areaId đổi, không màn nạp, hero không nhảy', r2.area === 'cold_plains' && w2.loads === 0 && w2.jump <= 2, r2.area + ' nạp=' + w2.loads + ' nhảy=' + w2.jump.toFixed(2) + ' vết: ' + r2.trail);
+    check('quái đang đuổi vẫn đuổi theo sau khi qua mép', agg0 > 0 && chasing.length > 0, 'aggro trước ' + agg0 + ', đang đuổi gần hero ' + chasing.length);
+    await p.evaluate(() => D2DBG.freeze(true)); await sleep(150);
+    await p.screenshot({ path: path.join(SHOTS, '2e-cold-plains-crossing.png') });
+    await p.evaluate(() => D2DBG.freeze(false));
+    // bước ngược qua đường ranh bằng dịch chuyển: khu đổi ngay theo levelAt, không cần lối
+    await p.evaluate(([x, y]) => D2DBG.teleport(x, y), [midC[0] - nC[0] * 2, midC[1] - nC[1] * 2]);
+    check('đứng bên kia đường ranh -> khu là Blood Moor ngay', await waitFor(p, () => D2DBG.getState().area === 'blood_moor', 2000), (await st(p)).area);
+    await p.evaluate(() => D2DBG.killAllMons());
+  }
   await p.evaluate(() => D2DBG.goto('blood_moor', 'rogue_encampment'));
   await waitFor(p, () => D2DBG.getState().area === 'blood_moor', 10000);
   await sleep(600);
@@ -614,7 +704,8 @@ async function clickNpc(p, id) {
   check('Nightmare: kháng lửa trừ 40, nhiệm vụ làm lại từ đầu', nm.diff === 'nm' && nm.fire === -40 && nm.quests === 0, JSON.stringify(nm));
   await p.evaluate(() => D2DBG.goto('blood_moor'));
   await p.waitForFunction(() => D2DBG.getState().area === 'blood_moor' && D2DBG.getState().mons.length > 0, null, { timeout: 20000 });
-  const lv = await p.evaluate(() => D2DBG.S.ents.filter(e => e.kind === 'mon' && e.rank === 'normal').map(e => e.inst.lvl));
+  // chỉ quái của Blood Moor: thế giới act còn chứa quái của khu kề đã dựng ngầm (Cold Plains, cấp khác)
+  const lv = await p.evaluate(() => D2DBG.S.ents.filter(e => e.kind === 'mon' && e.rank === 'normal' && e.home === 'blood_moor').map(e => e.inst.lvl));
   check('Nightmare: quái Blood Moor cấp 36 (MonLvlEx của levels.txt)', lv.length > 0 && lv.every(l => l === 36), [...new Set(lv)].join(','));
   check('không có lỗi trang (máy tính)', errs.length === 0, errs.slice(0, 3).join(' | '));
   await ctx.close();
