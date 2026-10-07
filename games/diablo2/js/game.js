@@ -752,13 +752,13 @@
   }
   function onLevelUp() {
     var c = S.char; recalc(); c.hp = S.d.maxHp; c.mp = S.d.maxMp;
-    UI.msg('Lên cấp ' + c.lvl + '!', '#ffe27a'); floatText(S.hero.x, S.hero.y - 1, 'LÊN CẤP!', '#ffe27a', true);
     E.sfx(['level_up'], 0.6); UI.dirty = true; save();
   }
 
   function damageHero(amount, srcPos) {
     var c = S.char, h = S.hero;
     if (h.st === 'die' || h.st === 'dead') return;
+    if (srcPos && srcPos.dmg && elemOf(srcPos.dmg.elem) === 'poison') h.poisonUntil = S.time + 2;   // HUD đổi cầu máu sang cầu độc
     if (window.D2S && D2S.onHeroDamage) { amount = D2S.onHeroDamage(Game.api, amount, srcPos); if (amount <= 0) return; }
     amount = Math.max(1, Math.round(amount));
     c.hp -= amount; floatText(h.x, h.y, String(amount), '#ff6a6a');
@@ -987,7 +987,11 @@
     if (!sp) return false;
     it.ix = sp[0]; it.iy = sp[1]; c.inv.push(it); return true;
   }
-  function beltFree(c) { for (var i = 0; i < 4; i++) if (!c.belt[i]) return i; return -1; }
+  // số ô đai theo cột belt của armor.txt -> hàng của belts.txt (belt, sash, default, girdle, light, heavy, uber)
+  var BELT_BOX = [12, 8, 4, 16, 8, 12, 16];
+  function beltCap(c) { var b = c.equip && c.equip.belt, bs = b && DA.base(b); return b ? BELT_BOX[(bs && +bs.belt) || 0] || 4 : 4; }
+  Game.beltCap = function () { return beltCap(S.char); };
+  function beltFree(c) { for (var i = 0, n = beltCap(c); i < n; i++) if (!c.belt[i]) return i; return -1; }
   function pickup(drop) {
     var c = S.char;
     if (drop.item && drop.item.qitem) { giveQuestItem(drop.item.qitem); removeEnt(drop); return true; }
@@ -1264,17 +1268,21 @@
       moveHero(joy.x, joy.y, dt, true);
       return;
     }
-    // giữ chuột trái: tiếp tục đi / đánh theo con trỏ
-    if (I.mouse.left && !S.uiHold) holdTick();
+    // giữ chuột: quá ngưỡng 0,25 s thì lặp lệnh theo con trỏ (mouseBtnActionsThreshold của OpenDiablo2)
+    if (!S.uiHold) { if (I.mouse.left) holdTick('left'); else if (I.mouse.right) holdTick('right'); }
     var g = h.goal;
     if (!g) { if (h.st === 'walk' || h.st === 'run') setSt(h, 'idle'); stamRegen(dt, false); return; }
     var tgt = g.target;
     if (g.type === 'attack' || g.type === 'cast') {
       var sk = g.skill, rng = skillRange(sk);
-      if (tgt && (tgt.st === 'die' || tgt.st === 'dead' || tgt.removed)) { h.goal = null; return; }
+      // quái chết khi còn giữ nút: đứng yên tới lúc nhả, không tự đi theo con trỏ
+      if (tgt && (tgt.st === 'die' || tgt.st === 'dead' || tgt.removed)) { if (btnHeld(g.btn)) S.holdLock = g.btn; h.goal = null; return; }
+      // bấm một lần = một đòn; đòn sau chỉ ra khi nút vẫn còn giữ, nhả ra thì dừng sau đòn đang đánh
+      if (g.acted && !btnHeld(g.btn)) { h.goal = null; return; }
+      if (g.acted && !tgt && g.btn !== 'touch') { var wm = E.toWorld(I.mouse.x, I.mouse.y); g.x = wm[0]; g.y = wm[1]; }
       var tx = tgt ? tgt.x : g.x, ty = tgt ? tgt.y : g.y, dd = Math.hypot(tx - h.x, ty - h.y);
       if (g.inPlace || g.type === 'cast' && dd <= rng + 0.01 || dd <= rng) {
-        if (beginAct(sk, tx, ty, tgt)) { h.path = null; if (!tgt && g.once !== false) h.goal = g.hold ? g : null; else if (g.type === 'cast' && !tgt) h.goal = null; }
+        if (beginAct(sk, tx, ty, tgt)) { h.path = null; g.acted = true; }
         else h.goal = null;
         return;
       }
@@ -1503,32 +1511,31 @@
     if (e && e.kind === 'npc' && btn === 'left') { h.goal = { type: 'talk', target: e }; return; }
     if (e && e.kind === 'obj' && btn === 'left') { h.goal = { type: 'use', target: e }; return; }
     if (e && e.kind === 'mon') {
-      h.goal = { type: isSpell(sk) ? 'cast' : 'attack', skill: sk || 'attack', target: e, hold: true }; S.target = e; return;
+      h.goal = { type: isSpell(sk) ? 'cast' : 'attack', skill: sk || 'attack', target: e, btn: btn }; S.target = e; return;
     }
     // mặt đất
-    if (isSpell(sk) || (btn === 'right' && sk && sk !== 'attack')) h.goal = { type: 'cast', skill: sk, x: w[0], y: w[1], hold: true };
-    else if (btn === 'right' || shift) h.goal = { type: 'attack', skill: sk || 'attack', x: w[0], y: w[1], inPlace: true, hold: true };
+    if (isSpell(sk) || (btn === 'right' && sk && sk !== 'attack')) h.goal = { type: 'cast', skill: sk, x: w[0], y: w[1], btn: btn };
+    else if (btn === 'right' || shift) h.goal = { type: 'attack', skill: sk || 'attack', x: w[0], y: w[1], inPlace: true, btn: btn };
     else { h.goal = { type: 'move', x: w[0], y: w[1] }; h.path = null; }
     S.target = null;
   }
+  function btnHeld(b) { return b === 'left' ? I.mouse.left : b === 'right' ? I.mouse.right : b === 'touch' ? I.atkHeld : false; }
   var holdT = 0;
-  function holdTick() {
-    var h = S.hero; holdT += 1;
-    var btn = 'left', e = entAt(I.mouse.x, I.mouse.y);
+  function holdTick(btn) {
+    if (performance.now() - (I.mouse.downT || 0) < 250 || S.holdLock === btn) return;
+    var h = S.hero, g = h.goal; holdT += 1;
+    if (g && (g.type !== 'move' || holdT % 4)) return;
+    var e = entAt(I.mouse.x, I.mouse.y);
     if (e && e.kind !== 'mon') return;
-    var g = h.goal;
-    if (!g || g.type === 'move' || (g.type === 'cast' && !g.target) || (g.inPlace && !g.target)) {
-      var w = E.toWorld(I.mouse.x, I.mouse.y);
-      if (!g || holdT % 4 === 0) command(I.mouse.x, I.mouse.y, btn, I.shift);
-    }
+    command(I.mouse.x, I.mouse.y, btn, I.shift);
   }
   function touchAttack(skill) {
     var h = S.hero, sk = skill || S.leftSkill || 'attack';
     if (h.st === 'die' || h.st === 'dead') return;
     var best = null, bd = 24;
     S.ents.forEach(function (m) { if (m.kind === 'mon' && m.st !== 'die' && m.st !== 'dead' && !(window.D2S && D2S.isFriend(m))) { var d = dist(m, h); if (d < bd) { bd = d; best = m; } } });
-    if (best) { h.goal = { type: isSpell(sk) ? 'cast' : 'attack', skill: sk, target: best, hold: true }; S.target = best; }
-    else { var a = angOf(h.dir); h.goal = { type: isSpell(sk) ? 'cast' : 'attack', skill: sk, x: h.x + Math.cos(a) * 12, y: h.y + Math.sin(a) * 12, inPlace: true }; }
+    if (best) { h.goal = { type: isSpell(sk) ? 'cast' : 'attack', skill: sk, target: best, btn: 'touch' }; S.target = best; }
+    else { var a = angOf(h.dir); h.goal = { type: isSpell(sk) ? 'cast' : 'attack', skill: sk, x: h.x + Math.cos(a) * 12, y: h.y + Math.sin(a) * 12, inPlace: true, btn: 'touch' }; }
   }
 
   Game.assignSkill = function (which, id) {
@@ -1538,6 +1545,12 @@
   Game.bindFree = function (id) {
     var i = S.fkeys.indexOf(id); if (i >= 0) { UI.msg(DA.skill(id).name + ' đã ở F' + (i + 1)); return; }
     for (i = 0; i < 8; i++) if (!S.fkeys[i]) { S.fkeys[i] = id; UI.msg(DA.skill(id).name + ' -> F' + (i + 1)); return; }
+  };
+  // rê lên một kỹ năng trong bảng chọn rồi bấm F1-F8 để gán phím, như D2
+  Game.bindKey = function (n, id) {
+    if (!id) return;
+    var i = S.fkeys.indexOf(id); if (i >= 0) S.fkeys[i] = null;
+    S.fkeys[n] = id; UI._last.sig = null; UI.renderPopup();
   };
   function fkeyUse(n) {
     var id = S.fkeys[n]; if (!id) return;
@@ -1595,7 +1608,65 @@
   }
   Game.drinkBelt = function (i) {
     var c = S.char, it = c.belt[i]; if (!it || !S.hero || S.hero.st === 'die' || S.hero.st === 'dead') return;
-    var p = DA.potionInfo(it); if (!p) return; c.belt[i] = null; quaff(p); UI.dirty = true; UI._last.sig = null;
+    var p = DA.potionInfo(it); if (!p) return; c.belt[i] = null; beltDrop(c, i); quaff(p); UI.dirty = true; UI._last.sig = null;
+  };
+  // ô vừa trống: bình ở các hàng trên cùng cột tụt xuống một hàng, như đai D2
+  function beltDrop(c, i) {
+    for (var k = i; k + 4 < 16; k += 4) { if (c.belt[k]) return; c.belt[k] = c.belt[k + 4]; c.belt[k + 4] = null; }
+  }
+
+  /* Đồ trên con trỏ như D2: bấm vào đồ thì đồ rời chỗ cũ, dính con trỏ (c.hand, lưu cùng nhân vật);
+   * bấm vào ô lưới / ô trang bị / ô đai để đặt hoặc đổi chỗ, bấm ra thế giới để thả. */
+  Game.pickUp = function (it) {
+    var c = S.char, i, sl = null; if (c.hand || !it) return false;
+    if ((i = c.inv.indexOf(it)) >= 0) c.inv.splice(i, 1);
+    else if ((i = (c.stash || []).indexOf(it)) >= 0) c.stash.splice(i, 1);
+    else if ((i = c.belt.indexOf(it)) >= 0) { c.belt[i] = null; beltDrop(c, i); }
+    else {
+      Object.keys(c.equip).forEach(function (k) { if (c.equip[k] === it) sl = k; });
+      if (!sl) return false;
+      delete c.equip[sl]; recalc();
+    }
+    c.hand = it; E.sfx(['cursor_pickup', 'inv_metal'], 0.5); UI.dirty = true; UI._last.sig = null;
+    return true;
+  };
+  Game.putGrid = function (where, x, y) {
+    var c = S.char, it = c.hand; if (!it) return false;
+    var list = where === 'stash' ? (c.stash = c.stash || []) : c.inv, cols = where === 'stash' ? Game.stashCols : 10, rows = where === 'stash' ? Game.stashRows : 4;
+    var w = it.w || 1, hh = it.h || 1;
+    if (x < 0 || y < 0 || x + w > cols || y + hh > rows) return false;
+    var hit = list.filter(function (o) { return o.ix < x + w && o.ix + (o.w || 1) > x && o.iy < y + hh && o.iy + (o.h || 1) > y; });
+    if (hit.length > 1) return false;   // đè hai món trở lên thì D2 không cho đặt
+    if (hit.length) list.splice(list.indexOf(hit[0]), 1);
+    it.ix = x; it.iy = y; list.push(it); c.hand = hit[0] || null;
+    E.sfx(['inv_metal', 'inv_leather'], 0.5); UI.dirty = true; save();
+    return true;
+  };
+  Game.putEquip = function (slot) {
+    var c = S.char, it = c.hand; if (!it) return false;
+    var sl = DA.slotOf(it), ring = /^ring/.test(slot);
+    if (!sl || !DA.isEquippable(it) || (ring ? !/^ring/.test(sl) : sl !== slot)) return false;
+    var rq = DA.req(it);
+    if (rq.lvl > c.lvl || rq.str > c.str || rq.dex > c.dex) { UI.msg('Chưa đủ yêu cầu để trang bị.', '#ff9a8a'); return false; }
+    var old = c.equip[slot] || null;
+    c.equip[slot] = it; c.hand = old; recalc();
+    E.sfx(['inv_metal'], 0.5); UI.dirty = true; UI._last.sig = null; save();
+    return true;
+  };
+  Game.putBelt = function (i) {
+    var c = S.char, it = c.hand;
+    if (!it || !DA.potionInfo(it) || i >= beltCap(c)) return false;
+    var old = c.belt[i] || null; c.belt[i] = it; c.hand = old;
+    E.sfx(['inv_potion'], 0.5); UI.dirty = true; UI._last.sig = null;
+    return true;
+  };
+  Game.dropHand = function () {
+    var c = S.char, it = c.hand; if (!it || !S.hero) return;
+    c.hand = null; dropItem(it, S.hero.x + rnd(-0.6, 0.6), S.hero.y + rnd(0.6, 1.4)); UI.dirty = true; save();
+  };
+  Game.sellHand = function () {
+    var c = S.char, it = c.hand; if (!it) return;
+    c.hand = null; c.gold += DA.sellPrice(it); E.sfx(['inv_coins']); UI.dirty = true; save();
   };
   Game.buyItem = function (it) {
     var c = S.char, pr = DA.buyPrice(it);
@@ -1625,7 +1696,7 @@
   Game.hasSave = function () { var s = loadSave(); return !!(s && s.char); };
   function normChar(c) {
     c.skills = c.skills || {}; c.inv = c.inv || []; c.equip = c.equip || {}; c.quests = c.quests || {}; c.gold = c.gold || 0;
-    var belt = c.belt || []; c.belt = [null, null, null, null]; belt.forEach(function (b, i) { if (b && i < 4) c.belt[i] = b; });
+    var belt = c.belt || []; c.belt = []; for (var bi = 0; bi < 16; bi++) c.belt[bi] = belt[bi] || null;
     c.inv.forEach(function (it) { if (it.ix == null) { var sp = findSpot({ inv: c.inv.filter(function (x) { return x !== it && x.ix != null; }) }, it.w || 1, it.h || 1); it.ix = sp ? sp[0] : 0; it.iy = sp ? sp[1] : 0; } });
     c.statPts = c.statPts || 0; c.skillPts = c.skillPts || 0; c.stash = c.stash || []; c.waypoints = c.waypoints || {};
     var alias = D2DATA.areaAlias || {};
@@ -1755,7 +1826,8 @@
     var ok = m.art ? E.drawSprite(m.art, mode, t, m.dir, sx, sy, m.hitFlash > 0 ? 0.7 : 1, oneShot(m.st)) : false;
     if (glow) E.ctx.restore();
     if (!ok) E.drawBlob(sx, sy, m.st === 'dead' ? '#442' : '#a44', 11, m.dir, null);
-    if (S.hover === m && m.st !== 'dead') { E.ctx.strokeStyle = 'rgba(255,60,60,.8)'; E.ctx.lineWidth = 2; E.ctx.beginPath(); E.ctx.ellipse(sx, sy, 20, 9, 0, 0, 7); E.ctx.stroke(); }
+    // quái đang trỏ sáng lên như D2: vẽ lại sprite cộng sáng, không vẽ vòng dưới chân
+    if (ok && S.hover === m && m.st !== 'dead') { E.ctx.save(); E.ctx.globalCompositeOperation = 'lighter'; E.drawSprite(m.art, mode, t, m.dir, sx, sy, 0.25, oneShot(m.st)); E.ctx.restore(); }
   }
   var OBJ_USE = { stash: true, waypoint: true, chest: true, portal: true };
   var OBJ_LABEL = { stash: 'Stash', waypoint: 'Waypoint', chest: 'Rương', portal: 'Cổng' };
@@ -1822,17 +1894,30 @@
       c.drawImage(vigCv, Math.round(p[0] - 960), Math.round(p[1] - 30 - 540));
     }
     // nhãn đồ rơi
-    var show = I.alt || I.touch, rects = [];
+    // Nhãn gần đáy màn hình đặt trước; nhãn sau đụng bất kỳ nhãn đã đặt nào thì đẩy lên tới khi hết chồng.
+    var show = I.alt || I.touch, rects = [], labs = [];
     c.font = '12px Georgia,serif'; c.textAlign = 'left'; c.textBaseline = 'alphabetic';
     S.ents.forEach(function (e) {
-      if (e.kind !== 'drop' || e.sx == null) return;
-      var hov = S.hover === e;
-      if (!(show || hov || S.time - e.born < 4 || e.corpse)) { e.labelRect = null; return; }
-      var tw = c.measureText(e.label).width + 8, x = e.sx - tw / 2, y = e.sy - 30;
-      for (var i = 0; i < rects.length; i++) if (Math.abs(rects[i][0] - x) < tw && Math.abs(rects[i][1] - y) < 15) y = rects[i][1] - 15;
-      rects.push([x, y]); e.labelRect = [x, y, tw, 14];
-      c.fillStyle = hov ? 'rgba(60,40,10,.95)' : 'rgba(0,0,0,.7)'; c.fillRect(x, y, tw, 14);
-      c.fillStyle = e.gold ? '#ffd24a' : e.corpse ? '#cc8' : UI.qcol(e.item && e.item.q); c.fillText(e.label, x + 4, y + 11);
+      if (e.kind !== 'drop' || e.sx == null || e.removed) return;
+      if (!(show || S.hover === e || S.time - e.born < 4 || e.corpse)) { e.labelRect = null; return; }
+      labs.push(e);
+    });
+    labs.sort(function (a, b) { return b.sy - a.sy || a.sx - b.sx; });
+    labs.forEach(function (e) {
+      var tw = c.measureText(e.label).width + 8, x = Math.round(e.sx - tw / 2), y = e.sy - 30, r;
+      for (var n = 0; n < 200; n++) {
+        r = null;
+        for (var i = 0; i < rects.length; i++) { var q = rects[i]; if (x < q[0] + q[2] && q[0] < x + tw && y < q[1] + q[3] + 1 && q[1] < y + 15) { r = q; break; } }
+        if (!r) break;
+        y = r[1] - 15;
+      }
+      e.labelRect = [x, y, tw, 14]; rects.push(e.labelRect);
+    });
+    labs.sort(function (a, b) { return (S.hover === a) - (S.hover === b); });
+    labs.forEach(function (e) {
+      var hov = S.hover === e, lr = e.labelRect;
+      c.fillStyle = hov ? 'rgba(40,40,110,.95)' : 'rgba(0,0,0,.7)'; c.fillRect(lr[0], lr[1], lr[2], lr[3]);
+      c.fillStyle = e.gold ? '#ffd24a' : e.corpse ? '#cc8' : UI.qcol(e.item && e.item.q); c.fillText(e.label, lr[0] + 4, lr[1] + 11);
     });
     // chữ nổi
     c.textAlign = 'center';
@@ -1865,12 +1950,18 @@
 
   /* ---------------------------------------------------------------- nối input */
   function bindInput() {
-    I.on('click', function (ev) { if (S.scene === 'play' && !S.paused) { holdT = 0; command(ev.x, ev.y, 'left', ev.shift); } });
-    I.on('rclick', function (ev) { if (S.scene === 'play' && !S.paused) command(ev.x, ev.y, 'right', ev.shift); });
+    I.on('click', function (ev) {
+      if (S.scene !== 'play' || S.paused) return;
+      S.holdLock = null;
+      if (S.char.hand) { Game.dropHand(); return; }   // đang cầm đồ: bấm ra thế giới là thả xuống đất
+      holdT = 0; command(ev.x, ev.y, 'left', ev.shift);
+    });
+    I.on('rclick', function (ev) { if (S.scene === 'play' && !S.paused) { S.holdLock = null; command(ev.x, ev.y, 'right', ev.shift); } });
+    // lăn chuột chỉ xoay qua các kỹ năng đã gán phím F, như D2
     I.on('wheel', function (ev) {
       if (S.scene !== 'play') return;
-      var ids = ['attack'].concat(DA.skillsOf(S.char.cls).filter(function (k) { return (S.char.skills[k.id] || 0) > 0 && !k.passive; }).map(function (k) { return k.id; }));
-      var i = ids.indexOf(S.rightSkill); i = (i + ev.d + ids.length) % ids.length; S.rightSkill = ids[i]; UI.refreshSkillIcons();
+      var ids = S.fkeys.filter(Boolean); if (!ids.length) return;
+      var i = ids.indexOf(S.rightSkill); i = i < 0 ? 0 : (i + ev.d + ids.length) % ids.length; S.rightSkill = ids[i]; UI.refreshSkillIcons();
     });
     I.on('skillbtn', function (ev) {
       if (S.scene !== 'play') return;
@@ -1882,11 +1973,13 @@
     I.on('key', function (ev) {
       if (S.scene !== 'play') return;
       var k = ev.code;
-      if (k === 'KeyI') UI.toggle('inv'); else if (k === 'KeyC') UI.toggle('char'); else if (k === 'KeyT') UI.toggle('skill');
+      if (k === 'KeyI' || k === 'KeyB') UI.toggle('inv'); else if (k === 'KeyC' || k === 'KeyA') UI.toggle('char'); else if (k === 'KeyT') UI.toggle('skill');
       else if (k === 'KeyQ') UI.toggle('quest'); else if (k === 'Tab') UI.toggle('map'); else if (k === 'Escape') UI.toggleMenu();
-      else if (k === 'KeyR') { S.runOn = !S.runOn; UI.msg(S.runOn ? 'Chạy' : 'Đi bộ'); }
+      else if (k === 'KeyS') UI.skillPopup('right'); else if (k === 'Space') UI.closeAll(); else if (k === 'KeyH') UI.toggleHelp();
+      else if (k === 'Backquote') UI.toggleBelt();
+      else if (k === 'KeyR') S.runOn = !S.runOn;
       else if (/^Digit[1-4]$/.test(k)) Game.drinkBelt(+k.slice(5) - 1);
-      else if (/^F[1-8]$/.test(k)) fkeyUse(+k.slice(1) - 1);
+      else if (/^F[1-8]$/.test(k)) { if (UI.popHover !== undefined) Game.bindKey(+k.slice(1) - 1, UI.popHover); else fkeyUse(+k.slice(1) - 1); }
     });
     document.addEventListener('visibilitychange', function () { if (document.hidden) save(); });
     window.addEventListener('beforeunload', save);
@@ -1920,7 +2013,7 @@
         left: S.leftSkill, right: S.rightSkill, kills: S.kills, denLeft: S.denLeft, exits: S.grid ? S.grid.exits : [], hero0: S.grid && S.grid.hero,
         cross: S.cross, gameSeed: S.gameSeed,
         mons: S.ents.filter(function (e) { return e.kind === 'mon'; }).map(function (m) { return { id: m.monId, x: m.x, y: m.y, hp: m.hp, st: m.st, ai: m.ai, aggro: m.aggro, rank: m.rank, art: m.art }; }),
-        drops: S.ents.filter(function (e) { return e.kind === 'drop' && !e.removed; }).map(function (d) { return { x: d.x, y: d.y, label: d.label, gold: d.gold }; }),
+        drops: S.ents.filter(function (e) { return e.kind === 'drop' && !e.removed; }).map(function (d) { return { x: d.x, y: d.y, label: d.label, gold: d.gold, rect: d.labelRect || null }; }),
         npcs: S.ents.filter(function (e) { return e.kind === 'npc'; }).map(function (n) { return { id: n.npc, x: n.x, y: n.y }; })
       };
     },

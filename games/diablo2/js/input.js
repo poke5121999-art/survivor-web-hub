@@ -56,6 +56,7 @@
       I.mouse.x = p.x; I.mouse.y = p.y; I.mouse.inside = true;
       I.shift = e.shiftKey; I.alt = e.altKey;
       try { canvas.setPointerCapture(e.pointerId); } catch (er) {}
+      I.mouse.downT = performance.now();
       if (e.button === 0) { I.mouse.left = true; I.emit('click', { x: p.x, y: p.y, shift: e.shiftKey, touch: false }); }
       else if (e.button === 2) { I.mouse.right = true; I.emit('rclick', { x: p.x, y: p.y, shift: e.shiftKey }); }
     });

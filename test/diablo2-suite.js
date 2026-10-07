@@ -155,12 +155,14 @@ async function clickTile(p, x, y, opt) {
   const tabsOk = await p.$$eval('.tabs button', n => n.length);
   check('cây kỹ năng có 3 tab', tabsOk === 3, 'tab=' + tabsOk);
   await p.screenshot({ path: path.join(SHOTS, '3a-skilltree.png') });
-  const plus = await p.$$('.sknode.can .plus2');
-  if (plus.length) await plus[0].click();
+  // D2: bấm một lần vào kỹ năng học được là cộng một điểm
+  const canSk = await p.$$eval('.sknode.can', n => n.map(e => e.dataset.skill));
+  check('cây kỹ năng là bảng phải (cùng bên túi đồ)', await p.evaluate(() => document.getElementById('p-skill').classList.contains('right')));
+  if (canSk.length) await p.click('.sknode.can[data-skill=' + canSk[0] + ']');
   await sleep(200);
   s = await st(p);
   const total1 = Object.values(s.skills).reduce((a, c) => a + c, 0);
-  check('bấm nút + trong cây kỹ năng học thêm một điểm', total1 === total0 + 1, total0 + '->' + total1);
+  check('bấm một lần vào kỹ năng trong cây học thêm một điểm', total1 === total0 + 1, total0 + '->' + total1);
   check('điều kiện tiên quyết: Fire Ball bị khoá khi chưa đủ cấp', await p.evaluate(() => !D2R.canLearn(D2DBG.S.char, 'fire_ball').ok));
   await p.keyboard.press('KeyT');
   await p.evaluate(id => D2DBG.setSkills('attack', id), skInfo.id);
@@ -190,6 +192,87 @@ async function clickTile(p, x, y, opt) {
   check('mana bị trừ, XP tăng', s.xp > xp0, 'xp ' + xp0 + '->' + s.xp);
   await p.screenshot({ path: path.join(SHOTS, '3b-after-kill.png') });
 
+  // ------------------------------------------------- chuột và bảng như D2 (chuột thật)
+  results.push('\n-- chuột và bảng như D2 --');
+  await p.evaluate(() => { D2DBG.killAllMons(); D2DBG.sim(1.5); const c = D2DBG.S.char; c.hp = 9999; });
+  await p.evaluate(() => D2DBG.S.ents.forEach(e => { if (e.kind === 'drop') e.removed = true; }));
+  // đếm số lần niệm: mỗi lần niệm là một h.act mới (niệm liền nhau thì st vẫn là cast)
+  await p.evaluate(() => {
+    window.__casts = 0; let prev = null;
+    (function tick() { const h = D2DBG.S.hero; if (h) { if (h.st === 'cast' && h.act && h.act !== prev) window.__casts++; prev = h.act; } requestAnimationFrame(tick); })();
+  });
+  const ground = await p.evaluate(() => { const h = D2DBG.S.hero; return D2DBG.client(h.x + 4, h.y - 4); });
+  await p.evaluate(() => { D2DBG.S.char.mp = 999; D2DBG.S.d.maxMp = 999; window.__casts = 0; });
+  await p.mouse.move(ground.x, ground.y);
+  await p.mouse.click(ground.x, ground.y, { button: 'right' });
+  await sleep(1500);
+  const once = await p.evaluate(() => window.__casts);
+  check('bấm chuột phải một lần -> niệm đúng một lần', once === 1, 'số lần niệm=' + once);
+  await p.evaluate(() => { window.__casts = 0; });
+  await p.mouse.down({ button: 'right' }); await sleep(1600);
+  const held = await p.evaluate(() => ({ casts: window.__casts, mp: D2DBG.S.char.mp }));
+  await p.mouse.up({ button: 'right' });
+  check('giữ chuột phải -> niệm lặp lại', held.casts >= 2, 'số lần niệm=' + held.casts);
+  await sleep(1000);
+  const mpA = await p.evaluate(() => { D2DBG.S.d.mpRegen = 0; return { mp: D2DBG.S.char.mp, goal: D2DBG.getState().hero.goal }; });
+  await sleep(1000);
+  const mpB = await p.evaluate(() => D2DBG.S.char.mp);
+  check('nhả chuột phải -> 1 giây sau mana không giảm nữa', mpB >= mpA.mp && !mpA.goal, 'mana ' + mpA.mp.toFixed(1) + '->' + mpB.toFixed(1) + ' goal=' + mpA.goal);
+  await p.evaluate(() => D2DBG.give({}));
+  // Shift + trái: đánh tại chỗ khi giữ, nhả là dừng
+  await p.keyboard.down('Shift'); await p.mouse.down(); await sleep(900);
+  const sh = await st(p);
+  await p.mouse.up(); await p.keyboard.up('Shift'); await sleep(1200);
+  const sh2 = await st(p);
+  check('Shift + giữ chuột trái -> đứng yên đánh, nhả ra thì dừng', /attack|cast/.test(sh.hero.goal || '') && !sh2.hero.goal && sh2.hero.st !== 'attack', sh.hero.goal + ' -> ' + sh2.hero.goal + '/' + sh2.hero.st);
+
+  // khung nhìn dịch khi mở một bên bảng
+  await p.evaluate(() => { const h = D2DBG.S.hero; D2DBG.teleport(h.x, h.y); });
+  await sleep(300);
+  const hx0s = await p.evaluate(() => { const h = D2DBG.S.hero; return D2DBG.client(h.x, h.y).sx; });
+  await p.keyboard.press('KeyI'); await sleep(300);
+  const hx1s = await p.evaluate(() => { const h = D2DBG.S.hero; return D2DBG.client(h.x, h.y).sx; });
+  check('mở túi đồ (bảng phải) -> hero dịch sang trái ~152 px', Math.abs(hx0s - hx1s - 152) <= 4, hx0s + ' -> ' + hx1s);
+  await p.keyboard.press('KeyC'); await sleep(300);
+  const hx2s = await p.evaluate(() => { const h = D2DBG.S.hero; return D2DBG.client(h.x, h.y).sx; });
+  check('mở cả hai bên -> khung nhìn không dịch', Math.abs(hx2s - hx0s) <= 4, String(hx2s));
+  check('mở bảng trái không đóng bảng phải', await p.evaluate(() => D2.UI.open.inv && D2.UI.open.char));
+  await p.keyboard.press('Space'); await sleep(200);
+  check('Space đóng mọi bảng', await p.evaluate(() => !D2.UI.anyOpen()));
+
+  // cầm đồ trên con trỏ: bấm món trong túi -> món dính con trỏ -> bấm ô khác -> đồ đổi chỗ
+  await p.evaluate(() => { const c = D2DBG.S.char; c.inv = c.inv.filter(it => !(it.ix === 0 && it.iy === 0)); c.inv.push(Object.assign(D2DBG.DA.makeItem('rin'), { ix: 0, iy: 0 })); });
+  await p.keyboard.press('KeyI'); await sleep(300);
+  const cellAt = (x, y) => p.evaluate(([x, y]) => { const g = document.querySelector('#p-inv .grid[data-grid=inv]').getBoundingClientRect(); return { x: g.left + (x + 0.5) * g.width / 10, y: g.top + (y + 0.5) * g.height / 4 }; }, [x, y]);
+  const capItem = await p.evaluate(() => D2DBG.S.char.inv.find(it => it.ix === 0 && it.iy === 0).base);
+  const c0 = await cellAt(0, 0);
+  await p.mouse.click(c0.x, c0.y); await sleep(150);
+  const onCur = await p.evaluate(() => ({ hand: D2DBG.S.char.hand && D2DBG.S.char.hand.base, cur: document.querySelector('.cur').dataset.k, img: !!document.querySelector('.cur .item') }));
+  check('bấm đồ trong túi -> đồ dính con trỏ (hình đồ thay con trỏ)', onCur.hand === capItem && onCur.cur === 'item' && onCur.img, JSON.stringify(onCur));
+  const c1 = await cellAt(6, 2);
+  await p.mouse.move(c1.x, c1.y); await p.mouse.click(c1.x, c1.y); await sleep(150);
+  const placed = await p.evaluate(b => { const it = D2DBG.S.char.inv.find(x => x.base === b); return { ix: it && it.ix, iy: it && it.iy, hand: !!D2DBG.S.char.hand }; }, capItem);
+  check('bấm ô khác -> đặt đồ, vị trí trong túi đổi', placed.ix === 6 && placed.iy === 2 && !placed.hand, JSON.stringify(placed));
+  check('không còn hộp nút "Trang bị / Vứt" của DOM', await p.evaluate(() => !document.querySelector('.detail') && !document.querySelector('.ptsflag')));
+  // cầm lên rồi bấm ra thế giới -> thả xuống đất
+  await p.mouse.click(c1.x, c1.y); await sleep(150);
+  const nDrop0 = (await st(p)).drops.length;
+  await p.mouse.click(ground.x - 200, ground.y); await sleep(200);
+  s = await st(p);
+  check('đang cầm đồ, bấm ra thế giới -> đồ rơi xuống đất', s.drops.length === nDrop0 + 1 && !(await p.evaluate(() => !!D2DBG.S.char.hand)), 'drops ' + nDrop0 + '->' + s.drops.length);
+  await p.keyboard.press('KeyI'); await sleep(100);
+
+  // 10 món cùng một chỗ, giữ Alt: không cặp nhãn nào chồng nhau
+  await p.evaluate(() => { const h = D2DBG.S.hero; for (let i = 0; i < 10; i++) D2DBG.dropAt(D2DBG.DA.makeItem(['hp1', 'cap', 'buc', 'lbl', 'rin'][i % 5]), h.x + 2, h.y + 1); });
+  await p.keyboard.down('Alt'); await sleep(300);
+  const rects = (await st(p)).drops.map(d => d.rect).filter(Boolean);
+  await p.keyboard.up('Alt');
+  let overl = 0;
+  for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) { const a = rects[i], q = rects[j]; if (a[0] < q[0] + q[2] && q[0] < a[0] + a[2] && a[1] < q[1] + q[3] && q[1] < a[1] + a[3]) overl++; }
+  check('10 món ở một chỗ, giữ Alt -> nhãn không chồng nhau', rects.length >= 10 && overl === 0, 'nhãn=' + rects.length + ' cặp chồng=' + overl);
+  await p.screenshot({ path: path.join(SHOTS, '3g-labels.png') });
+  await p.evaluate(() => D2DBG.S.ents.forEach(e => { if (e.kind === 'drop') e.removed = true; }));
+
   // ------------------------------------------------------------- nhặt đồ
   results.push('\n-- đồ rơi --');
   await p.evaluate(() => D2DBG.sim(1));
@@ -205,8 +288,10 @@ async function clickTile(p, x, y, opt) {
   for (const d of s.drops.filter(d => !d.gold).slice(0, 2)) {
     await p.evaluate(([x, y]) => D2DBG.teleport(x - 2.5, y - 0.5), [d.x, d.y]);
     await sleep(200);
-    await p.keyboard.down('Alt'); await sleep(100);
-    await clickTile(p, d.x, d.y, { lift: 10 });
+    // giữ Alt rồi bấm vào nhãn của món đó (nhãn đã dàn ra không chồng nhau, nên bấm vào chính món có thể trúng nhãn món khác)
+    await p.keyboard.down('Alt'); await sleep(150);
+    const lr = await p.evaluate(([x, y]) => { const q = D2DBG.getState().drops.find(o => o.x === x && o.y === y); const r = q && q.rect, b = document.getElementById('stage').getBoundingClientRect(); return r ? { x: b.left + (r[0] + r[2] / 2) * b.width / 960, y: b.top + (r[1] + r[3] / 2) * b.height / 540 } : null; }, [d.x, d.y]);
+    if (lr) { await p.mouse.move(lr.x, lr.y); await p.mouse.click(lr.x, lr.y); } else await clickTile(p, d.x, d.y, { lift: 10 });
     await p.keyboard.up('Alt');
     await sleep(1800);
   }
@@ -238,6 +323,20 @@ async function clickTile(p, x, y, opt) {
   const gridOk = await p.$$eval('#p-inv .gridbg i', n => n.length);
   check('túi đồ có lưới 10x4', gridOk === 40, 'ô=' + gridOk);
   await p.keyboard.press('KeyI');
+  const miniHidden = await p.evaluate(() => getComputedStyle(document.querySelector('.hudbtns')).display === 'none');
+  await p.click('.hbtn.mini'); await sleep(150);
+  const miniShown = await p.evaluate(() => ({ on: getComputedStyle(document.querySelector('.hudbtns')).display !== 'none', n: document.querySelectorAll('.hudbtns .hb').length }));
+  check('mini panel ẩn mặc định, nút menu bật ra 7 nút', miniHidden && miniShown.on && miniShown.n === 7, JSON.stringify(miniShown));
+  await p.click('.hbtn.mini');
+  const run0 = await p.evaluate(() => D2DBG.S.runOn);
+  await p.click('.hbtn.run');
+  check('nút chạy/đi bộ trên HUD đổi chế độ', (await p.evaluate(() => D2DBG.S.runOn)) === !run0);
+  await p.click('.hbtn.run');
+  await p.keyboard.press('KeyQ'); await sleep(250);
+  const ql = await p.evaluate(() => ({ cells: document.querySelectorAll('#p-quest .qcell').length, tabs: document.querySelectorAll('#p-quest .acttab').length, txt: document.querySelector('#p-quest .qdesc').textContent }));
+  check('nhật ký nhiệm vụ: 6 ô nhiệm vụ Act I, 5 tab act', ql.cells === 6 && ql.tabs === 5 && !/MVP/.test(ql.txt), JSON.stringify(ql));
+  await p.screenshot({ path: path.join(SHOTS, '3h-quests.png') });
+  await p.keyboard.press('KeyQ');
   await p.keyboard.press('Tab'); await sleep(200);
   check('Tab mở bản đồ', await p.evaluate(() => getComputedStyle(document.querySelector('canvas.automap')).display === 'block'));
   await p.keyboard.press('Tab');
@@ -513,11 +612,14 @@ async function clickTile(p, x, y, opt) {
           check('lấy đồ ra khỏi kho', stOut[0] === 0 && stOut[1] === n0, JSON.stringify(stOut) + ' n0=' + n0);
         }
         if (t === 'waypoint' && opened) {
-          const wb = await p.$$eval('.wpmenu button', n => n.map(x => x.textContent));
-          check('waypoint liệt kê Rogue Encampment, chưa có Cold Plains', wb.some(x => /Rogue Encampment/.test(x)) && !wb.some(x => /Cold Plains/.test(x)), wb.join(' | '));
+          const wpl = () => p.$$eval('.wpmenu .wpb[data-area]', n => n.map(x => ({ a: x.dataset.area, off: x.disabled })));
+          const wb = await wpl();
+          const on = a => (wb.find(x => x.a === a) || {}).off === false;
+          check('waypoint liệt kê đủ 9 waypoint Act I, Cold Plains chưa chạm thì xám', wb.length === 9 && on('rogue_encampment') && !on('cold_plains') && wb.some(x => x.a === 'cold_plains'), JSON.stringify(wb));
+          check('bảng waypoint có 5 tab act', (await p.$$('.wpmenu .acttab')).length === 5);
           await p.evaluate(() => { D2DBG.S.char.waypoints.cold_plains = true; D2.UI.openWaypoints(); });
-          const wb2 = await p.$$eval('.wpmenu button', n => n.map(x => x.textContent));
-          check('đã kích hoạt Cold Plains -> hiện trong danh sách', wb2.some(x => /Cold Plains/.test(x)), wb2.join(' | '));
+          const wb2 = await wpl();
+          check('đã kích hoạt Cold Plains -> bấm được', (wb2.find(x => x.a === 'cold_plains') || {}).off === false, JSON.stringify(wb2));
         }
         await p.evaluate(() => D2.UI.closeAll());
       }
