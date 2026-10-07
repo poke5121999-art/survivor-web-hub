@@ -1519,35 +1519,40 @@
       default: return n;
     }
   }
+  // tooltip lines as D2 shows them: {text, kind}; kind 'base' (white), 'mod' (blue: an affix, or a base number an
+  // affix changed), 'req' with need {str|dex|lvl: n} so the UI can paint it red. D2 has no own line for cold/poison length.
   function itemStats(item) {
     var b = DATA().items.bases[item.base], lines = [];
     if (!b) return lines;
+    var has = {};
+    (item.affixes || []).forEach(function (a) { has[a.stat] = 1; });
+    function L(text, kind, need) { var o = { text: text, kind: kind || 'base' }; if (need) o.need = need; lines.push(o); }
     if (b.kind === 'weapon') {
       var mn = item.dmgMin || (b.twoHanded && b.mindam2h ? b.mindam2h : b.mindam), mx = item.dmgMax || (b.twoHanded && b.maxdam2h ? b.maxdam2h : b.maxdam);
-      lines.push((b.twoHanded ? 'Two-Hand' : 'One-Hand') + ' Damage: ' + mn + ' to ' + mx);
-      if (b.minmis) lines.push('Throw Damage: ' + b.minmis + ' to ' + b.maxmis);
+      L((b.twoHanded ? 'Two-Hand' : 'One-Hand') + ' Damage: ' + mn + ' to ' + mx, has['dmg%'] || has['dmg-min'] || has['dmg-max'] ? 'mod' : 'base');
+      if (b.minmis) L('Throw Damage: ' + b.minmis + ' to ' + b.maxmis);
     }
-    if (item.def !== undefined) lines.push('Defense: ' + item.def);
-    if (b.block) lines.push('Chance to Block: ' + b.block + '%');
-    if (item.maxDur) lines.push('Durability: ' + item.dur + ' of ' + item.maxDur);
-    if (item.qty) lines.push('Quantity: ' + item.qty);
-    if (b.reqdex) lines.push('Required Dexterity: ' + b.reqdex);
-    if (b.reqstr) lines.push('Required Strength: ' + b.reqstr);
+    if (item.def !== undefined) L('Defense: ' + item.def, has.ac || has['ac%'] ? 'mod' : 'base');
+    if (b.block) L('Chance to Block: ' + b.block + '%');
+    if (item.maxDur) L('Durability: ' + item.dur + ' of ' + item.maxDur);
+    if (item.qty) L('Quantity: ' + item.qty);
+    if (b.reqdex) L('Required Dexterity: ' + b.reqdex, 'req', { dex: b.reqdex });
+    if (b.reqstr) L('Required Strength: ' + b.reqstr, 'req', { str: b.reqstr });
     var rl = Math.max(item.reqlvl || 0, b.reqlvl || 0);
-    if (rl > 1) lines.push('Required Level: ' + rl);
+    if (rl > 1) L('Required Level: ' + rl, 'req', { lvl: rl });
     if (b.kind === 'misc' && b.stat) {
       var pe = potionEffect(item, null);
-      if (pe.hp) lines.push('Heals ' + pe.hp + ' Life over ' + pe.seconds + ' seconds');
-      if (pe.mp) lines.push('Restores ' + pe.mp + ' Mana over ' + pe.seconds + ' seconds');
-      if (pe.hpPct) lines.push('Heals ' + pe.hpPct + '% Life and Mana');
+      if (pe.hp) L('Heals ' + pe.hp + ' Life over ' + pe.seconds + ' seconds');
+      if (pe.mp) L('Restores ' + pe.mp + ' Mana over ' + pe.seconds + ' seconds');
+      if (pe.hpPct) L('Heals ' + pe.hpPct + '% Life and Mana');
     }
     (item.affixes || []).forEach(function (a) {
       var v = a.onItem !== undefined ? a.onItem : a.val;
-      if (a.stat === 'dmg%' && !v) return;
+      if ((a.stat === 'dmg%' && !v) || a.stat === 'cold-len' || a.stat === 'pois-len') return;
       var f = PROP_TEXT[a.stat];
       var txt = f ? f.replace('#', v).replace('$', a.val2 !== undefined ? a.val2 : '') : a.stat + ' ' + v;
       if (a.param !== undefined && (a.stat === 'skill' || a.stat === 'hit-skill' || a.stat === 'gethit-skill' || a.stat === 'charged')) txt = a.stat + ' ' + a.param + ' ' + v;
-      lines.push(txt);
+      L(txt, 'mod');
     });
     return lines;
   }

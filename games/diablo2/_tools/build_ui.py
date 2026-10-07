@@ -120,6 +120,8 @@ class Sheet(object):
 
 ui = Sheet('ui')
 inv = Sheet('inv')
+# pieces added in wave 2-UI live on their own page so ui_*.webp keep their packing
+uix = Sheet('uix')
 P = 'ui/panel/'
 M = 'ui/menu/'
 L0 = (80, 60)     # left panel origin in 800x600: anchor (400,300) + rect (-320,-240)
@@ -231,12 +233,195 @@ def build_cursor():
     return cur
 
 
+def build_extra():
+    """Mercenary portraits by act (ui/hireables: rogue, desert guard, iron wolf, barbarian), the drop-gold
+    dialog (menu/dialogbackground, amount bar + two sockets) and its OK / cancel buttons (menu/goldbtn:
+    0-1 ok, 2-3 cancel)."""
+    H = 'ui/hireables/'
+    return {'merc': {'1': uix.rect(H + 'rogueicon.dc6', 0), '2': uix.rect(H + 'act2hireableicon.dc6', 0),
+                     '3': uix.rect(H + 'act3hireableicon.dc6', 0), '5': uix.rect(H + 'barbhirable_icon.dc6', 0)},
+            'goldDialog': uix.rect(M + 'dialogbackground.dc6', 0),
+            'goldBtn': [uix.rect(M + 'goldbtn.dc6', i) for i in range(4)]}
+
+
 def build_skill_icons():
     out = {}
     for cls in sorted(SKILL_ICON_FILES):
         rel = 'ui/spells/%s.dc6' % SKILL_ICON_FILES[cls]
         out[cls] = [ui.rect(rel, i) for i in range(len(dc6(rel)))]
     return out
+
+
+# ---------------------------------------------------------------- fonts
+
+FONT_DIR = SRC + '/local/font/latin'
+# D2 text colours = pal.pl2 TextColorShifts index (ÿc0..ÿc;).  Shift 0 maps every index to black in the
+# 3.1 files, so 'white' is the glyph as drawn (no shift), the way OpenDiablo2 renders an uncoloured label.
+TEXT_COLORS = ['white', 'red', 'green', 'blue', 'gold', 'grey', 'black', 'tan', 'orange', 'yellow',
+               'dgreen', 'purple', 'green2']
+ALL_TEXT = [c for c in TEXT_COLORS if c not in ('black', 'green2')]
+FONTS = {'font16': ALL_TEXT, 'font30': ['white', 'gold'], 'font42': ['white', 'gold'],
+         'fontexocet10': ALL_TEXT, 'fontformal12': ['white', 'gold', 'grey']}
+FIRST, NCH, COLS = 32, 224, 16       # codes 32..255 (latin-1), 16 per row -> 14 rows per colour
+
+
+def read_tbl(path):
+    """font .tbl (d2font/font.go): 'Woo!\\x01' + 7 bytes, then 14 bytes per glyph:
+    code u16, 0, width, height, 1 0 0, frame u16, 4 bytes.  -> {code: (adv, height, frame)}."""
+    import struct
+    with open(path, 'rb') as f:
+        t = f.read()
+    if t[:5] != b'Woo!\x01':
+        raise ValueError('%s: font table signature not found' % path)
+    out = {}
+    for p in range(12, len(t) - 13, 14):
+        code, = struct.unpack_from('<H', t, p)
+        fr, = struct.unpack_from('<H', t, p + 8)
+        out[code] = (t[p + 3], t[p + 4], fr)
+    return out, t[10]
+
+
+def build_fonts():
+    """One image per font: a 16-column grid of glyph cells (codes 32..255), one block per baked colour.
+    Glyphs keep their DC6 frame (all frames of a font share one height, art sits at the bottom)."""
+    import numpy as np
+    from PIL import Image
+    pal = PAL
+    with open(G + '/palette/act1/pal.pl2', 'rb') as f:
+        pl2 = f.read()
+    # pal.pl2 layout (d2pl2/pl2.go): base 1024, light 32x256, inv 16x256, selected 256, alpha 3x256x256,
+    # additive, multiplicative 256x256 each, hue 111x256, r/g/b 3x256, unknown 14x256, maxcomp 256x256,
+    # darkened 256, then 13 RGB text colours and 13 text colour shifts
+    off = 1024 + 8192 + 4096 + 256 + 196608 + 65536 + 65536 + 28416 + 768 + 3584 + 65536 + 256
+    rgb = [list(pl2[off + 3 * i:off + 3 * i + 3]) for i in range(13)]
+    shifts = [np.frombuffer(pl2[off + 39 + 256 * i:off + 39 + 256 * (i + 1)], np.uint8) for i in range(13)]
+    out = {}
+    for name in sorted(FONTS):
+        tbl, line = read_tbl('%s/%s.tbl' % (FONT_DIR, name))
+        with open('%s/%s.dc6' % (FONT_DIR, name), 'rb') as f:
+            frs = [x for row in d2fmt.read_dc6(f.read())['frames'] for x in row]
+        hgt = max(fr['h'] for fr in frs)
+        cw = max(frs[tbl[c][2]]['w'] for c in range(FIRST, FIRST + NCH))
+        rows = NCH // COLS
+        cols = FONTS[name]
+        img = np.zeros((rows * hgt * len(cols), COLS * cw, 4), np.uint8)
+        mean = {}
+        for k, col in enumerate(cols):
+            ci = TEXT_COLORS.index(col)
+            acc = []
+            for i in range(NCH):
+                fr = frs[tbl[FIRST + i][2]]
+                pix = fr['pix'] if col == 'white' else shifts[ci][fr['pix']]
+                rgba = d2fmt.to_rgba(pix, fr['mask'], pal)
+                x, y = (i % COLS) * cw, (k * rows + i // COLS) * hgt + hgt - fr['h']
+                img[y:y + fr['h'], x:x + fr['w']] = rgba
+                acc.append(rgba[fr['mask']][:, :3])
+            # glyph face colour (mean of the brightest quarter; the rest is outline): the web-font fallback
+            # is drawn in it so mixed text looks alike
+            px = np.concatenate(acc).astype(np.float64)
+            lum = px @ [0.299, 0.587, 0.114]
+            mean[col] = [int(v) for v in px[lum >= np.percentile(lum, 75)].mean(0).round()]
+        e = frs[tbl[ord('E')][2]]['mask']
+        rws = np.nonzero(e.any(1))[0]
+        cap, base = int(rws.min()) + hgt - e.shape[0], int(rws.max()) + 1 + hgt - e.shape[0]
+        fn = 'font_%s.webp' % name
+        Image.fromarray(img).save(os.path.join(IMG_DIR, fn), 'WEBP', lossless=True, method=6)
+        # cap/base: rows of the top and bottom (+1) of 'E' inside a cell, for the fallback font size and baseline
+        out[name] = {'img': 'assets/img/g/' + fn, 'h': hgt, 'cw': cw, 'line': line, 'cap': cap, 'base': base, 'first': FIRST,
+                     'cols': COLS, 'rows': rows, 'colors': cols, 'rgb': mean,
+                     'adv': [tbl[c][0] for c in range(FIRST, FIRST + NCH)]}
+        print('font %s: %dx%d cells, %d colours, %d KB' % (name, cw, hgt, len(cols),
+                                                          os.path.getsize(os.path.join(IMG_DIR, fn)) // 1024))
+    return out, {TEXT_COLORS[i]: rgb[i] for i in range(13)}
+
+
+# ---------------------------------------------------------------- front end (group m/front)
+
+FRONT_GROUP = 'm/front'
+FRONT_Q = 80                    # lossy WebP: the screens are painted art, alpha kept
+# class select (OpenDiablo2 d2gamescreen/select_hero_class.go): feet position, click box [x, y, w, h],
+# play lengths in ms of idle / forward walk / back walk (0 = OD default), and whether the overlay layer
+# (<c>fws, <c>bws, <c>nu3s) is drawn additive.  nu2 is the same picture as nu1 and is left out.
+CLASSES = [('amazon', 'am', 100, 339, [70, 220, 55, 200], [2500, 2200, 1500], False),
+           ('assassin', 'as', 231, 365, [175, 235, 50, 180], [2500, 3800, 1500], False),
+           ('barbarian', 'ba', 400, 330, [364, 201, 90, 170], [0, 2500, 1000], False),
+           ('druid', 'dz', 720, 370, [680, 220, 70, 195], [1500, 4800, 1500], False),
+           ('necromancer', 'ne', 300, 335, [265, 220, 55, 175], [1200, 2000, 1500], True),
+           ('paladin', 'pa', 521, 338, [490, 210, 65, 180], [2500, 3400, 1300], False),
+           ('sorceress', 'so', 626, 352, [580, 240, 65, 160], [2500, 2300, 1200], True)]
+
+
+class FrontSheet(object):
+    def __init__(self):
+        self.atlas = d2pack.Atlas('front', IMG_DIR, 'assets/img/g')
+        self.pals = {}
+
+    def pal(self, name):
+        if name not in self.pals:
+            self.pals[name] = d2fmt.load_palette('%s/palette/%s/pal.dat' % (G, name))
+        return self.pals[name]
+
+    def rect(self, rel, i, pal, opaque=False, top_left=False):
+        """Anchored at the DC6 anchor (or the frame's top-left): draw at (x - ox, y - oy)."""
+        fr = dc6(rel, False)[i]
+        rgba = d2fmt.to_rgba(fr['pix'], fr['mask'], self.pal(pal))
+        if opaque:                 # full-screen backgrounds: index 0 is black there, not a hole
+            rgba[..., 3] = 255
+        return self.atlas.add(rgba, 0 if top_left else -fr['ox'], 0 if top_left else -fr['oy'])
+
+    def anim(self, rel, pal, step=1):
+        return [self.rect(rel, i, pal) for i in range(0, len(dc6(rel, False)), step)]
+
+    def screen(self, rel, pal):
+        """800x600 background stored as 256-px tiles row by row -> [{r, x, y}]."""
+        out, x, y, rowh = [], 0, 0, 0
+        for i, fr in enumerate(dc6(rel, False)):
+            if x >= 800:
+                x, y, rowh = 0, y + rowh, 0
+            out.append({'r': self.rect(rel, i, pal, True, True), 'x': x, 'y': y})
+            x += fr['w']
+            rowh = max(rowh, fr['h'])
+        return out
+
+
+def build_front():
+    fs = FrontSheet()
+    U = 'ui/frontend/'
+    front = {
+        'title': {'bg': fs.screen(U + 'titlescreen.dc6', 'sky'),
+                  # logo at (400, 120), fire layers drawn additive over the black ones (OD main_menu.go)
+                  'logo': {'x': 400, 'y': 120, 'fireL': fs.anim(U + 'd2logofireleft.dc6', 'units'),
+                           'fireR': fs.anim(U + 'd2logofireright.dc6', 'units'),
+                           'blackL': fs.rect(U + 'd2logoblackleft.dc6', 0, 'units'),
+                           'blackR': fs.rect(U + 'd2logoblackright.dc6', 0, 'units')}},
+        'create': {'bg': fs.screen(U + 'charactercreate.dc6', 'fechar'),
+                   'fire': {'x': 380, 'y': 335, 'f': fs.anim(U + 'fire.dc6', 'fechar')}},
+        'load': {'x': 400, 'y': 300, 'f': [fs.rect('ui/loading/loadingscreen_eng.dc6', i, 'loading')
+                                           for i in range(len(dc6('ui/loading/loadingscreen_eng.dc6', False)))]},
+        'btn': {'wide': [fs.rect(U + 'widebuttonblank.dc6', i, 'units', False, True) for i in (0, 1)],
+                'medium': [fs.rect(U + 'mediumbuttonblank.dc6', i, 'units', False, True) for i in (0, 1)],
+                'textbox': fs.rect(U + 'textbox2.dc6', 0, 'units', True, True)},
+        'cls': {},
+    }
+    for name, ab, x, y, box, lens, blend in CLASSES:
+        d = '%s%s/%s' % (U, name, ab)
+        c = {'x': x, 'y': y, 'box': box, 'len': lens, 'blend': blend}
+        for k in ('nu1', 'nu3', 'fw', 'bw', 'nu3s', 'fws', 'bws'):
+            rel = '%s%s.dc6' % (d, k)
+            if os.path.exists('%s/%s' % (G, rel)):
+                # the walks to and from the fire are 19..121 frames: every other one keeps the front group
+                # near 2 MB, played over the same OD length
+                c[k] = fs.anim(rel, 'fechar', 2 if k[:2] in ('fw', 'bw') else 1)
+        front['cls'][name] = c
+    pages = fs.atlas.save(lossless=False, quality=FRONT_Q)
+    keep = set(os.path.basename(p) for p in pages)
+    for fn in os.listdir(IMG_DIR):
+        if re.match(r'^front_\d+\.webp$', fn) and fn not in keep:
+            os.remove(os.path.join(IMG_DIR, fn))
+    front['pages'] = pages
+    with io.open(os.path.join(ASSETS, 'm', 'front.js'), 'w', encoding='utf-8', newline='\n') as f:
+        f.write(u"D2_REG('%s', { front: %s });\n" % (FRONT_GROUP, json.dumps(front, separators=(',', ':'))))
+    print('front pages: %s' % ['%s %d KB' % (os.path.basename(p), os.path.getsize(os.path.join(IMG_DIR, os.path.basename(p))) // 1024) for p in pages])
 
 
 # ---------------------------------------------------------------- item icons
@@ -519,19 +704,26 @@ def main():
     os.makedirs(IMG_DIR, exist_ok=True)
     panels = build_panels()
     panels['buttons'] = build_buttons()
+    panels['extra'] = build_extra()
     cursor = build_cursor()
     skill_icons = build_skill_icons()
     icons = build_icons()
+    fonts, text_rgb = build_fonts()
+    build_front()
 
     ui_pages = save_pages(ui.atlas)
     inv_pages = save_pages(inv.atlas)
+    uix_pages = save_pages(uix.atlas)
     off = len(ui_pages)
-    for ic in icons.values():            # inventory pages follow the UI pages in `pages`
+    for ic in icons.values():            # inventory pages follow the UI pages in `pages`, then the uix page
         if ic['r']:
             ic['r'][6] += off
-    keep = set(os.path.basename(p) for p in ui_pages + inv_pages)
+    for r in uix.cache.values():
+        if r:
+            r[6] += off + len(inv_pages)
+    keep = set(os.path.basename(p) for p in ui_pages + inv_pages + uix_pages)
     for fn in os.listdir(IMG_DIR):
-        if re.match(r'^(ui|inv)_\d+\.webp$', fn) and fn not in keep:
+        if re.match(r'^(ui|inv|uix)_\d+\.webp$', fn) and fn not in keep:
             os.remove(os.path.join(IMG_DIR, fn))
 
     sfx, groups, vol, loop = build_sfx()
@@ -549,9 +741,10 @@ def main():
                 'rightSkill': [635, 552], 'belt': [341, 559], 'stamina': [193, 573, 102, 18],
                 'exp': [176, 561, 119, 2]},
     }
-    man = [('pages', ui_pages + inv_pages), ('layout', layout), ('panels', panels),
+    man = [('pages', ui_pages + inv_pages + uix_pages), ('layout', layout), ('panels', panels),
            ('icons', icons), ('skillIcons', skill_icons), ('cursor', cursor), ('sfx', sfx),
-           ('sfxGroup', groups), ('sfxVol', vol), ('sfxLoop', loop), ('music', music)]
+           ('sfxGroup', groups), ('sfxVol', vol), ('sfxLoop', loop), ('music', music),
+           ('fonts', fonts), ('textColors', text_rgb)]
     body = ',\n'.join('  %s: %s' % (json.dumps(k), json.dumps(v, separators=(',', ':')))
                       for k, v in man)
     mdir = os.path.join(ASSETS, 'm')
@@ -559,13 +752,13 @@ def main():
     with io.open(os.path.join(mdir, 'ui.js'), 'w', encoding='utf-8', newline='\n') as f:
         f.write(u"D2_REG('%s', { ui: {\n%s\n} });\n" % (GROUP, body))
     import build_index
-    build_index.write_fragment('ui', {'ui': GROUP})
+    build_index.write_fragment('ui', {'ui': GROUP, 'front': FRONT_GROUP})
 
     print('dc6 files used for the UI atlas (%d)' % len(set(used_dc6)))
     mb = 1024.0 * 1024.0
     print('pages: %d ui + %d inv' % (len(ui_pages), len(inv_pages)))
     print('images %.2f MB  sfx %.2f MB  music %.2f MB' % (
-        dirsize(IMG_DIR, r'^(ui|inv)_\d+\.webp$') / mb, dirsize(SFX_DIR, r'.*\.ogg$') / mb,
+        dirsize(IMG_DIR, r'^(ui|inv|uix)_\d+\.webp$') / mb, dirsize(SFX_DIR, r'.*\.ogg$') / mb,
         dirsize(MUS_DIR, r'.*\.ogg$') / mb))
     print('panels %d, buttons %d, icons %d, skill icon sets %d, sfx %d, music %d' % (
         len(panels) - 1, len(panels['buttons']), len(icons), len(skill_icons), len(sfx),

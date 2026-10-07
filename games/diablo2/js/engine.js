@@ -420,6 +420,71 @@
       'background-position:-' + Math.round(r[0] * k) + 'px -' + Math.round(r[1] * k) + 'px;';
   };
 
+  /* ----------------------------------------------------------------- chữ D2 */
+  // Font gốc (local/font/latin/<font>.dc6 + .tbl, _tools/build_ui.py): ảnh lưới glyph mã 32..255, mỗi màu D2 một khối.
+  // Bảng latin không có ă ơ ư đ và dấu thanh tiếng Việt, nên chuỗi có ký tự ngoài bảng vẽ bằng web font serif small-caps
+  // cùng chiều cao chữ hoa và cùng màu trung bình của glyph. textFontOf là chỗ duy nhất quyết định chuyện đó.
+  function textFontOf(str, font) {
+    var F = (UIA.fonts || {})[font]; if (!F) return null;
+    for (var i = 0; i < str.length; i++) {
+      var k = str.charCodeAt(i);
+      if (k < 32 || k > 255 || (k >= 127 && k < 160)) return null;   // 128..159: ô giữ chỗ trong bảng D2
+    }
+    return F;
+  }
+  function textColorKey(F, color) { return F.colors.indexOf(color) >= 0 ? color : 'white'; }
+  function textRgb(font, color) {
+    var F = (UIA.fonts || {})[font], c = (F && F.rgb[color]) || (UIA.textColors || {})[color] || [200, 200, 200];
+    return 'rgb(' + c.join(',') + ')';
+  }
+  function webFont(font) {
+    var F = (UIA.fonts || {})[font], cap = F ? F.base - F.cap : 10;
+    return '600 ' + Math.round(cap / 0.66) + 'px "Palatino Linotype","Book Antiqua",Georgia,serif';
+  }
+  E.textFontOf = textFontOf;
+  E.textHeight = function (font) { var F = (UIA.fonts || {})[font]; return F ? F.h : 16; };
+  E.textWidth = function (str, font) {
+    str = String(str); var F = textFontOf(str, font), w = 0;
+    if (!F) { var c = E.ctx; c.save(); c.font = webFont(font); c.fontVariantCaps = 'small-caps'; w = c.measureText(str).width; c.restore(); return Math.ceil(w); }
+    for (var i = 0; i < str.length; i++) w += F.adv[str.charCodeAt(i) - F.first];
+    return w;
+  };
+  // Vẽ chuỗi lên canvas: (x, y) là góc trên của ô chữ cao textHeight(font); align 'left' | 'center' | 'right'.
+  E.text = function (str, font, x, y, color, align, ctx) {
+    str = String(str == null ? '' : str); color = color || 'white';
+    var c = ctx || E.ctx, F = textFontOf(str, font), rec = F && E.img(F.img), w = E.textWidth(str, font);
+    x = Math.round(align === 'center' ? x - w / 2 : align === 'right' ? x - w : x); y = Math.round(y);
+    if (!rec || !rec.ok) {
+      var G0 = (UIA.fonts || {})[font];
+      c.save(); c.font = webFont(font); c.fontVariantCaps = 'small-caps'; c.textAlign = 'left'; c.textBaseline = 'alphabetic';
+      c.fillStyle = textRgb(font, color); c.fillText(str, x, y + (G0 ? G0.base : 13)); c.restore();
+      return w;
+    }
+    var k = F.colors.indexOf(textColorKey(F, color));
+    for (var i = 0; i < str.length; i++) {
+      var g = str.charCodeAt(i) - F.first;
+      c.drawImage(rec.img, (g % F.cols) * F.cw, (k * F.rows + ((g / F.cols) | 0)) * F.h, F.cw, F.h, x, y, F.cw, F.h);
+      x += F.adv[g];
+    }
+    return w;
+  };
+  // Cùng chuỗi đó cho DOM: mỗi glyph là một <i> nền ảnh (chữ thật vẫn nằm trong, cỡ 0, để tìm/đọc được),
+  // hoặc một <span> web font khi font gốc thiếu ký tự. data-f/data-c ghi font và màu D2 đã dùng.
+  E.textHtml = function (str, font, color) {
+    str = String(str == null ? '' : str); color = color || 'white';
+    var F = textFontOf(str, font), esc = function (s) { return s.replace(/[&<>"]/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]; }); };
+    var head = '<span class="d2t' + (F ? '' : ' wf') + '" data-f="' + font + '" data-c="' + color + '"';
+    if (!F) return head + ' style="font:' + webFont(font).replace(/"/g, "'") + ';line-height:' + E.textHeight(font) + 'px;font-variant:small-caps;color:' + textRgb(font, color) + '">' + esc(str) + '</span>';
+    var k = F.colors.indexOf(textColorKey(F, color)), out = head + ' style="height:' + F.h + 'px;--fi:url(' + F.img + (E.ver ? '?v=' + E.ver : '') + ')">';
+    for (var i = 0; i < str.length; i++) {
+      var g = str.charCodeAt(i) - F.first;
+      out += '<i style="width:' + F.cw + 'px;margin-right:' + (F.adv[g] - F.cw) + 'px;background-position:-' + ((g % F.cols) * F.cw) + 'px -' + ((k * F.rows + ((g / F.cols) | 0)) * F.h) + 'px">' + esc(str[i]) + '</i>';
+    }
+    return out + '</span>';
+  };
+  // nạp sẵn ảnh font để lần vẽ canvas đầu không phải rơi về web font
+  E.textPreload = function () { Object.keys(UIA.fonts || {}).forEach(function (k) { E.img(UIA.fonts[k].img); }); };
+
   /* ----------------------------------------------------------------- âm thanh */
   // Khoá tiếng là tên cột Sound trong sounds.txt của D2 (vd. 'cursor_pickup', 'zombie_hit_1')
   var audioOn = false, musicEl = null, musicKey = null, sfxPool = {};
