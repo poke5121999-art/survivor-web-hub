@@ -43,7 +43,7 @@ function world(cls, skills, opts) {
   function canStand(x, y, r) { r = r == null ? 0.3 : r; return !blocked(x - r, y - r) && !blocked(x + r, y - r) && !blocked(x - r, y + r) && !blocked(x + r, y + r); }
   function elemOf(e) { e = String(e || 'phys').toLowerCase(); return /fire/.test(e) ? 'fire' : /cold/.test(e) ? 'cold' : /light/.test(e) ? 'light' : /pois/.test(e) ? 'poison' : 'phys'; }
   const api = {
-    S, mk, setSt, restart, canStand, dist: (a, b) => Math.hypot(a.x - b.x, a.y - b.y), rnd: (a, b) => a + ctx.Math.random() * (b - a), ri: (a, b) => a, clamp: (v, a, b) => Math.min(b, Math.max(a, v)),
+    S, mk, setSt, restart, canStand, heroSpeed: running => (running ? 9 : 6), dist: (a, b) => Math.hypot(a.x - b.x, a.y - b.y), rnd: (a, b) => a + ctx.Math.random() * (b - a), ri: (a, b) => a, clamp: (v, a, b) => Math.min(b, Math.max(a, v)),
     los: () => true, findPath: () => null, tryMove: () => true,
     E: {
       hasSheet: k => /^(mon\.SK|mis\.firebolt|ovl\.curseamplifydamage)$/.test(k), animOf: () => null, animDur: () => 0, pickAnim: () => null,

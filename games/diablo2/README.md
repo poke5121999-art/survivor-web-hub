@@ -110,6 +110,16 @@ Ví dụ: `CASCConsole.exe -m Pattern -e "data/data/global/*" -d D:\d2r-ref\fs -
 - `[BẪY ĐÃ SẬP]` Nhãn đồ vừa rơi có điểm số 0 trong `entAt`, thắng quái đứng dưới nó. Chuột phải nhắm vào nhãn, phép bay về điểm đất sau lưng quái và trượt (suite trượt 1/2 lần sau khi ghép liền làm nhiều quái hơn). Giờ chuột phải và Shift chỉ nhắm quái (`entAt(sx, sy, 'mon')`); suite có kiểm riêng, trượt trên mã cũ.
 - Chưa có nút sửa đồ vì độ bền chưa bao giờ giảm. Màn chọn lớp giữ nửa số khung của động tác bước tới/lùi về.
 
+### Chuẩn gốc, đợt 2-AVFX + automap (rev 20261007e)
+
+- `[ĐO TRONG REPO]` Hero 16 hướng cho NU WL RN TN TW (8 cho mode khác); quái đủ khung ở NU WL RN GH DT (zombie WL 12 khung, DT 19, GH 5); thêm cung và giáo cho SO/NE/DZ/PA. Nhạc đủ bài, Vorbis ABR 48k (đo ~43 kbps), wilderness 479 s. 111 lời thoại từ `local/sfx` (thiếu mana, túi đầy, chưa đủ yêu cầu, lời chào 37 NPC thị trấn). Assets 157 → 196 MB.
+- `[BẪY ĐÃ SẬP]` Chạy `build_sprites.py` không có `--codes` xoá 31 nhóm chỉ dựng qua `--codes`/`--npc-codes` (triệu hồi, biến hình, vài NPC). Chạy lại: `--codes 22,40,B7,B8,BW,E9,G1,G2,G3,G4,HK,HX,LG,SE,TG,VC,WF,X3,X4,XU,XW` và `--npc-codes 36,B9,BS,CM,HR,JE,RT,TX,XR,XS`.
+- Mã hoá lại nhạc cần `--force-music` (ogg đã có thì lever bỏ qua). Warriv không có `warriv_greeting_1`, dùng `warriv_greeting_inactive_1`.
+- `[ĐO TRONG REPO]` Automap vẽ bằng cel `maximap.dc6` theo `automap.txt` (lever `_tools/build_automap.py`, 0,19 MB). `act2map`, `act4map`, `extnmap` là tranh nguyên khối của thị trấn Act II/IV/V, chưa ghép; ba thị trấn đó vẫn vẽ điểm ảnh. `mapicons.dc6` là biểu tượng nhà thờ, cây, không phải dấu NPC.
+- `[BẪY ĐÃ SẬP]` Style trong `world_actN` có thể là style bí danh (≥ 64) do `build_world` đặt; `build_automap.py` chạy lại `build_world.build(act)` để đổi ngược. Dựng lại world thì phải chạy lại `build_automap.py`.
+- `[BẪY ĐÃ SẬP]` Xương triệu hồi đi giật và nhìn như xoay vòng: một ngưỡng 4 subtile làm pet đổi chạy/đứng gần như mỗi khung (đo 176 lần trong 20 s, hoạt ảnh reset liên tục), và cả bầy cùng đi tới toạ độ hero nên chồng khít một điểm (khoảng cách 0). Giờ `follow` (skills.js) có vùng đệm và mỗi pet một chỗ trên vòng quanh hero; suite đo lại (≤ 14 lần, cách nhau ≥ 1,45).
+- `api` mà game.js đưa cho D2S có `heroSpeed`; `test/diablo2-skills.js` dựng `api` giả nên phải khai cùng hàm.
+
 ## Kiểm
 
 ```sh
@@ -127,8 +137,8 @@ node test/diablo2-suite.js   # Playwright: chuột thật, cảm ứng 932×430
 - Ba trùm giữ ấn ở Chaos Sanctuary đứng ở điểm xa lối vào; chưa có ấn để mở. Diablo ra khi cả ba đã chết.
 - Vật phẩm nhiệm vụ chưa có hình trong túi đồ; Golden Bird trao ngay khi nhặt tượng ngọc.
 - Đích "rescue/reach" của nhiệm vụ rút gọn thành "tới được khu".
-- Hero chỉ 8 hướng (gốc 16); TH/KK/S1–S4 chỉ có ở lớp nào lever đã đóng gói COF đó. Ngân sách hình nhân vật là 22 MB.
+- TH/KK/S1–S4 của hero chỉ có ở lớp nào lever đã đóng gói COF đó.
 - Đổi màu unique mới là phủ màu, chưa đổi bảng `.pl2`/colormap như D2.
 - River of Flame ↔ Chaos Sanctuary và Barracks ↔ Outer Cloister vẫn là lối dịch chuyển, vì mê cung chưa nằm trong `layoutAct`.
-- Automap còn vẽ điểm ảnh, chưa dùng `maximap.dc6`; chưa có Horadric Cube.
-- Quái bỏ nửa khung ở mọi mode trừ A1; nhạc cắt còn 110 giây; chưa có lời nhân vật và lời chào NPC (`local/sfx`); tiếng `event_*` của soundenviron chưa đóng gói. Đợt 2-AVFX, cần dời ngân sách MB.
+- Chưa có Horadric Cube. Automap thị trấn Act II/IV/V còn vẽ điểm ảnh.
+- Trùm và các mode ngoài NU WL RN GH DT A1 của quái còn bỏ nửa khung; hero chưa có nỏ (xbw) và 1ht/2hs cho mọi lớp (hết ngân sách 200 MB).
