@@ -40,3 +40,11 @@
 - [ ] Trận: 26 nền phụ chưa bóc glb; hiệu ứng `fx_*` theo hệ là đoán (bản gốc không có VFX riêng từng chiêu).
 - [ ] Tốc độ khung đi (`AnimationSpeed`, `JumpSpeed`), xác suất gặp mỗi bước 11,7%, cấp Pokémon hoang dã là đoán theo FRLG.
 - [ ] Ở 844×390 chữ NGUI nhỏ vì UIRoot kẹp chiều cao ảo tối thiểu 700.
+
+## Biển Mù (DREDGE)
+- [ ] Chủ dự án chơi thử bản `20261007b` (đợt "chuẩn gốc" W1-W5) và chê tiếp trước khi làm pha 2.
+  - Chỉ suite 73, story 42, fishing 241 đã chạy trên Pages; sea, env, cargo mới chạy trên máy.
+- [ ] Pha 2: xưởng đóng tàu, mảnh nghiên cứu, cá thối theo ngày, đâm đá hỏng ô. Code đã có `hullTier`, `rotting`, `repair` ở `dock.js` nhưng chưa ai đối chiếu với vị từ trong `plans/dredge-web.md`.
+- [ ] Pha 3: chưa có bẫy cua (grep `crabpot` ra 0); lưới kéo (`trawl`) chỉ có trong lời thoại và nhiệm vụ; các bến khác chỉ có tên trên bản đồ, chưa có cửa hàng.
+- [ ] Pha 4: chưa có quái và sự kiện thế giới (grep `monster`, `worldEvent` ra 0); mới có cá dị dạng.
+- [ ] Pha 5 (Collector, relic, kết thúc) và pha 6 (DLC Pale Reach, Iron Rig) chưa làm.

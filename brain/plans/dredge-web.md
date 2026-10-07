@@ -40,7 +40,8 @@ Repo đã 2,84 GiB pack. `games/dredge` nhắm <= 90 MB: thế giới 40, item +
 |---|---|---|
 | 0 | xong 2026-10-07 | `tools/README.md` có thứ tự chạy và bẫy; hướng bản đồ kiểm bằng `MapWindow.cs:577` |
 | 1 | xong trên máy 2026-10-07, rev 20261007a | rules 35, ui 180, suite 75 đều đạt; còn kiểm trên Pages |
-| chuẩn gốc W1-W5 | ghép 2026-10-07, rev 20261007b | rules 35, suite 73, sea 26, env 26, fishing 241, cargo 127, story 42 trên máy. `dredge-ui.js` + `ui-dev.html` bị xoá vì kiểm UI cũ |
+| chuẩn gốc W1-W5 | ghép 2026-10-07, rev 20261007b, commit `8bfe0af9` | rules 35, suite 73, sea 26, env 26, fishing 241, cargo 127, story 42 trên máy. Trên Pages đã chạy suite 73, story 42, fishing 241 đều đạt; sea, env, cargo chưa. Chủ dự án chưa chơi thử. `dredge-ui.js` + `ui-dev.html` bị xoá vì kiểm UI cũ |
+| 2-6 | chưa làm | việc còn lại ghi ở `brain/todos.md` mục Biển Mù |
 
 ## Đợt "chuẩn gốc" (2026-10-07, sau phản hồi chủ dự án)
 
@@ -61,7 +62,6 @@ Lever mới: `D:\dredge-ref\ripped\ExportedProject` (AssetRipper, YAML đọc đ
 ## Việc mở sau pha 1
 
 - Bến: `markers.json` chưa có trường mua bán của `MarketDestination` (`itemSubtypesBought`...) và tên điểm đến theo `m_KeyId`. `dock.js` đang nhận người buôn cá theo id có chữ `fishmonger`.
-- Câu thoại nhân vật: lấy câu đầu trong bảng chữ, chưa chạy Yarn.
 - `scene_config.json` có `Infinity`, engine thay khi đọc; `world.py` nên ghi số hữu hạn.
 - Cao độ tiếng máy và quán tính quay là `[ĐỀ XUẤT]` (thuyền 3,6 m/s, 5,85 s một vòng).
 - Đêm còn tối phẳng, nón đèn mờ.
