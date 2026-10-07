@@ -435,6 +435,34 @@ FILES = {  # table -> row key column (None = row index); see load()
 }
 
 
+SFX_RUNTIME = re.compile(r'^(weapon_|impact_|item_|block_|scene_|event_|(light|medium|heavy)_(walk|run)_|'
+                         r'(amazon|sorceress|necromancer|paladin|barbarian|druid|assassin)_(hit|death)_)')
+
+
+def sfx_pitch(monsters, skills, missiles):
+    """sounds.txt Pitch Min/Max (100 = unchanged) of the sounds the game plays: monsounds, skill stsound,
+    missile Travel/HitSound and the runtime prefixes. A group head pulls in its Group Size rows."""
+    rows = list(load('sounds', 'Sound').values())
+    index = {r['Sound']: i for i, r in enumerate(rows)}
+    want = set()
+    for m in monsters.values():
+        want.update(v for v in m['snd'].values() if isinstance(v, str))
+    want.update(s['t']['stsound'] for s in skills.values() if s['t'].get('stsound'))
+    for m in missiles.values():
+        want.update(m[k] for k in ('TravelSound', 'HitSound') if m.get(k))
+    want.update(r['Sound'] for r in rows if SFX_RUNTIME.match(r['Sound']))
+    out = {}
+    for n in sorted(want):
+        i = index.get(n)
+        if i is None:
+            continue
+        for r in rows[i:i + max(1, rows[i].get('Group Size', 1))]:
+            p = [r.get('Pitch Min', 100), r.get('Pitch Max', 100)]
+            if p != [100, 100]:
+                out[r['Sound']] = p
+    return out
+
+
 def build():
     T = {n: load(n, k) for n, k in FILES.items()}
     S = load_strings()
@@ -506,7 +534,8 @@ def build():
                   'passivestat4', 'passivecalc4', 'passivestat5', 'passivecalc5', 'passiveitype',
                   'srvmissile', 'srvmissilea', 'srvmissileb', 'srvmissilec', 'summon', 'pettype', 'petmax',
                   'InTown', 'localdelay', 'globaldelay', 'repeat', 'weapsel', 'noammo',
-                  'cltmissile', 'cltmissilea', 'cltmissileb', 'cltmissilec', 'cltmissiled', 'anim', 'stsound', 'dosound']
+                  'cltmissile', 'cltmissilea', 'cltmissileb', 'cltmissilec', 'cltmissiled', 'anim', 'stsound', 'dosound',
+                  'castoverlay']
     skills = {}
     internal_to_id = {}
     missiles_needed = set()
@@ -652,6 +681,12 @@ def build():
             'd': per, 'code': str(r['Code']), 'art': 'mon.' + str(r['Code']).upper(), 'baseW': m2.get('BaseW'),
             'Velocity': r.get('Velocity', 0), 'Run': r.get('Run', 0),
         }
+        # monstats2: light radius in subtiles + colour, blood missiles (1 small, 2 small+big), green blood, no unique colour shift
+        if m2.get('Light'):
+            monsters[mid]['light'] = [m2['Light'], m2.get('light-r', 0), m2.get('light-g', 0), m2.get('light-b', 0)]
+        for k, col in (('bleed', 'Bleed'), ('localBlood', 'localBlood'), ('noUniqueShift', 'noUniqueShift')):
+            if m2.get(col):
+                monsters[mid][k] = m2[col]
         if mid in HAND_BOSS:
             monsters[mid].update(HAND_BOSS[mid])
         for k in ('MissA1', 'MissA2', 'MissS1', 'MissSQ'):
@@ -701,7 +736,7 @@ def build():
                  'MinLevDam5', 'MaxLevDam1', 'MaxLevDam2', 'MaxLevDam3', 'MaxLevDam4', 'MaxLevDam5', 'EType', 'EMin',
                  'MinELev1', 'MinELev2', 'MinELev3', 'MinELev4', 'MinELev5', 'EMax', 'MaxELev1', 'MaxELev2',
                  'MaxELev3', 'MaxELev4', 'MaxELev5', 'ELen', 'ELevLen1', 'ELevLen2', 'ELevLen3',
-                 'SubMissile1', 'ExplosionMissile', 'CelFile']
+                 'SubMissile1', 'ExplosionMissile', 'CelFile', 'Flicker', 'TravelSound', 'HitSound']
     mrows = {r['Missile']: r for r in T['Missiles'].values() if r.get('Missile')}
     missiles = {}
     queue = list(missiles_needed)
@@ -776,7 +811,7 @@ def build():
                 'strBonus': r.get('StrBonus', 0), 'dexBonus': r.get('DexBonus', 0), 'range': r.get('rangeadder', 0),
                 'wclass': r.get('wclass'), 'wclass2': r.get('2handedwclass'), 'wclass2h': r.get('2handedwclass'), 'dur': r.get('durability', 0),
                 'sockets': r.get('gemsockets', 0), 'stack': r.get('maxstack', 0), 'throwable': 1 if 'thro' in b['types'] else 0,
-                'quiver': r.get('quivered'), 'magicLvl': r.get('magic lvl', 0),
+                'quiver': r.get('quivered'), 'magicLvl': r.get('magic lvl', 0), 'hitclass': r.get('hit class'),
             }.items() if v not in (0, None)})
         elif kind == 'armor':
             b.update({k: v for k, v in {
@@ -1017,6 +1052,12 @@ def build():
     # ---------------- areas ----------------
     areas = {}
     songs = {r['Index']: r.get('Song') for r in T['soundenviron'].values()}
+    # soundenviron.txt: looping ambience and random one-shots by time of day, Event Delay in frames, footstep material
+    sound_env = {str(r['Index']): {k: v for k, v in {
+        'day': r.get('Day Ambience'), 'night': r.get('Night Ambience'), 'dayEvent': r.get('Day Event'),
+        'nightEvent': r.get('Night Event'), 'eventDelay': r.get('Event Delay', 0), 'indoors': r.get('Indoors', 0),
+        'mat1': r.get('Material 1', 0), 'mat2': r.get('Material 2', 0),
+    }.items() if v} for r in T['soundenviron'].values() if r.get('Index')}
     mazes = {r['Level']: r for r in load('lvlmaze').values() if r.get('Level')}
     ltype = {k: v.get('Name') for k, v in T['lvltypes'].items()}
     LAYOUT = {1: 'cave', 2: 'preset', 3: 'outdoor'}   # DrlgType: 1 maze, 2 preset, 3 outdoor
@@ -1190,7 +1231,8 @@ def build():
 
     data.update({
         'classes': classes, 'skills': skills, 'monSkills': monskills, 'missiles': missiles,
-        'monsters': monsters, 'superuniques': superuniques, 'monlvl': monlvl,
+        'monsters': monsters, 'superuniques': superuniques, 'monlvl': monlvl, 'soundEnv': sound_env,
+        'sfxPitch': sfx_pitch(monsters, skills, missiles),
         'umod': {'names': umods, 'constants': umod_const},
         'difficulty': {k: v for k, v in list(T['difficultylevels'].values())[0].items()},
         'difficulties': dict(zip(['n', 'nm', 'h'], [dict(r) for r in T['difficultylevels'].values()])),
@@ -1210,7 +1252,7 @@ HEADER = """// GENERATED by games/diablo2/_tools/build_data.py — do not edit; 
 //   tables  : D2R 3.1.91636 data/global/excel/*.txt (missing key = 0). Per section below: charstats,
 //             skills+skilldesc, monstats+monstats2+monsounds, monlvl, superuniques, monumod, missiles,
 //             levels+lvlmaze+soundenviron, monpreset, experience, treasureclassex, weapons/armor/misc, itemtypes,
-//             magicprefix/suffix, rareprefix/suffix, uniqueitems, setitems, itemratio, qualityitems.
+//             magicprefix/suffix, rareprefix/suffix, uniqueitems, setitems, itemratio, qualityitems, sounds (pitch).
 //   strings : D2R 3.1.91636 data/local/lng/strings/*.json (enUS; names only)
 //   formulas: Arreat Summit http://classic.battle.net/diablo2exp/ and D2MOO https://github.com/ThePhrozenKeep/D2MOO
 // Hand-entered values (outdoor exits, NPC roles, quest wiring) come from HAND_* constants in the lever and are

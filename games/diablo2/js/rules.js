@@ -348,6 +348,9 @@
         out.elem.masteryPct = mp;
       }
     }
+    // skills.txt castoverlay: hình niệm quanh người niệm, mọi kỹ năng (không chỉ kỹ năng chạy qua D2S)
+    var co = t.castoverlay || (SKX[sk.d2name] || {}).castoverlay;
+    out.castOverlay = co ? 'ovl.' + co : null;
     if (out.d2s) d2sExtra(out, sk, L, ctx, calc);
     if (out.elem) out.dmg = { min: out.elem.min, max: out.elem.max, elem: out.elem.type };
     else if (out.addMin || out.addMax) out.dmg = { min: out.addMin, max: out.addMax, elem: 'phys' };
@@ -673,7 +676,6 @@
     for (var i = 4; i <= 6; i++) if (x['aurastat' + i] && !t['aurastat' + i]) out.stats[x['aurastat' + i]] = evalCalc(x['aurastatcalc' + i], ctx);
     out.state = x.auratargetstate || x.aurastate || null;
     out.overlay = ovlOf(out.state);
-    out.castOverlay = x.castoverlay ? 'ovl.' + x.castoverlay : null;
     out.restrict = x.restrict || 0;          // skills.txt restrict: 0 not while shapeshifted, 1 allowed, 2 only shapeshifted
     out.needForm = x.State1 || null;         // 'wolf' | 'bear'
     if (t.auralencalc && !out.duration) out.duration = calc('auralencalc') / FPS;

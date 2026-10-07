@@ -74,6 +74,21 @@ Ví dụ: `CASCConsole.exe -m Pattern -e "data/data/global/*" -d D:\d2r-ref\fs -
 - `[ĐO TRONG REPO]` Preset DS1 gọi superunique bằng tên hiện ("Radament") hoặc mã quái gốc ("summoner" = `the_summoner`).
 - `[ĐO TRONG REPO]` TC rương là một thang trong nhóm 6 của TreasureClassEx (Act 1 Chest A level 0 tới Act 5 (H) Chest C level 85). `D2R.upgradeTc` nâng TC theo cấp, dùng cho cả quái.
 
+### Chuẩn gốc, đợt 1 (rev 20261007a)
+
+- `[ĐO TRONG REPO]` Mỗi act có bố cục cố định `D2G.layoutAct(act, actSeed)` port từ D2MOO (`DrlgOutPlace.cpp`): mỗi khu ngoài trời là một hình chữ nhật trên toạ độ thế giới của act. Khe mở nằm giữa đoạn mép chung nên hai đầu khớp nhau (lệch tối đa 1 tile, Lut Gholein–Rocky Waste).
+- `[ĐO TRONG REPO]` Một game là một lần vào nhân vật: `S.gameSeed` mới mỗi lần nạp; khu đã dựng (quái, rương, đồ dưới đất, automap) giữ trong phiên cho act hiện tại. Trạng thái khu lưu dạng ảnh chụp thực thể, không theo chỉ số đàn, vì cỡ đàn dùng `Math.random`.
+- `[BẪY ĐÃ SẬP]` Hero qua mép ra cách mép 3 subtile, nằm trong bán kính 2,8 của lối quay về. Game khoá lối đó tới khi hero bước đi; test bấm thẳng vào lối khi A* trả đường rỗng.
+- `[BẪY ĐÃ SẬP]` Stamp viền rộng 9 tile; Burial Grounds chỉ chung 24 tile mép với Cold Plains nên khe có thể cắt vào stamp góc.
+- `[ĐO TRONG REPO]` D2 không có lối đi bộ Stony Field–Dark Wood (đi qua Underground Passage) và Valley of Snakes–Canyon of the Magi (chỉ qua cổng Arcane Sanctuary hoặc waypoint).
+- `[BẪY ĐÃ SẬP]` 27/33 khoá tiếng viết cứng không có trong `sounds.txt` nên hero câm. Mọi khoá giờ lấy từ sounds.txt, skills.txt `stsound`, missiles.txt `TravelSound`/`HitSound`, monsounds.
+- `[BẪY ĐÃ SẬP]` Canvas mở từ `file://` bị khoá đọc pixel; test đo độ tối bằng ảnh chụp nạp qua data: URL.
+- `[BẪY ĐÃ SẬP]` Đuốc và lửa trại thị trấn có Lit 16–19 subtile, phủ gần kín màn hình, nên test ngày/đêm đo ở Blood Moor. Màu đuốc hắt bằng cộng sáng làm đêm sáng hơn ngày; giờ phủ màu ngay trong lớp tối.
+- `[BẪY ĐÃ SẬP]` Tên NPC/vật khi rê chuột phải vẽ sau lớp tối, kẻo trong hầm bị phủ đen.
+- `[BẪY ĐÃ SẬP]` Nhãn đồ dàn ra không chồng nhau, nên bấm vào chính món đồ có thể trúng nhãn món khác. Test nhặt đồ bấm vào nhãn (`getState().drops[].rect`).
+- `[BẪY ĐÃ SẬP]` NPC giờ đi lại: test bấm đường đi có thể trúng NPC và mở hộp thoại, nên chọn điểm bấm không nằm trên NPC.
+- Atlas UI không có tab act V của waypoint/nhiệm vụ; tab nằm ở `assets/img/g/exptabs.webp` (`_tools/build_exptabs.py`).
+
 ## Kiểm
 
 ```sh
@@ -91,5 +106,8 @@ node test/diablo2-suite.js   # Playwright: chuột thật, cảm ứng 932×430
 - Ba trùm giữ ấn ở Chaos Sanctuary đứng ở điểm xa lối vào; chưa có ấn để mở. Diablo ra khi cả ba đã chết.
 - Vật phẩm nhiệm vụ chưa có hình trong túi đồ; Golden Bird trao ngay khi nhặt tượng ngọc.
 - Đích "rescue/reach" của nhiệm vụ rút gọn thành "tới được khu".
-- Hero chỉ 8 hướng, chưa có mode TH/KK/S1–S4. Ngân sách hình nhân vật là 22 MB.
-- Đổi màu quái (champion, unique) theo colormap của D2.
+- Hero chỉ 8 hướng (gốc 16); TH/KK/S1–S4 chỉ có ở lớp nào lever đã đóng gói COF đó. Ngân sách hình nhân vật là 22 MB.
+- Đổi màu unique mới là phủ màu, chưa đổi bảng `.pl2`/colormap như D2.
+- Khu ngoài trời chưa ghép liền: qua mép vẫn dịch chuyển (ra đúng điểm tương ứng), bên kia khe là vùng đen. Warp (hang, cầu thang) còn kích hoạt khi bước gần, chưa bấm được và chưa sáng khi rê. Đợt 2-MAP trong plan.
+- Font DC6 gốc, automap bằng `maximap.dc6`, màn tiêu đề/chọn lớp/tải gốc, Horadric Cube, hộp thoại NPC và menu Esc kiểu gốc: đợt 2-UI.
+- Quái bỏ nửa khung ở mọi mode trừ A1; nhạc cắt còn 110 giây; chưa có lời nhân vật và lời chào NPC (`local/sfx`); tiếng `event_*` của soundenviron chưa đóng gói. Đợt 2-AVFX, cần dời ngân sách MB.

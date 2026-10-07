@@ -48,7 +48,9 @@
     return s.fxCache[k].fx;
   }
   function msg(api, t, c) { if (api.UI && api.UI.msg) api.UI.msg(t, c); }
-  function sfx(api, names, v) { try { if (api.E && api.E.sfx) api.E.sfx(names, v || 0.4); } catch (e) { /* tiếng chỉ là phụ */ } }
+  // tiếng theo khoá sounds.txt (game.js): skillSnd = stsound của skills.txt, swing = tiếng vung theo hit class vũ khí
+  function skillSnd(api, id) { if (api.skillSound) api.skillSound(id); }
+  function swing(api) { if (api.swingSound) api.swingSound(); }
   function hasSheet(api, k) { return !!(k && api.E && api.E.hasSheet && api.E.hasSheet(k)); }
   function misArt(api, id) { return id && hasSheet(api, 'mis.' + id) ? 'mis.' + id : null; }
 
@@ -168,7 +170,8 @@
   function strike(api, t, o) {
     var S = api.S, d = S.d;
     if (!t || dead(t)) return 0;
-    if (!o.always && Math.random() >= hitChance(api, t, o.arPct)) { api.floatText(t.x, t.y, 'miss', '#aaa'); return 0; }
+    if (!o.always && Math.random() >= hitChance(api, t, o.arPct)) return 0;
+    if (api.impactSound) api.impactSound(t);
     var phys = roll({ min: d.dmgMin, max: d.dmgMax }) * (o.weaponPct || 100) / 100 * (100 + (o.dmgPct || 0)) / 100 + rnd(o.addMin || 0, (o.addMax || 0) + 0.999);
     var hpBefore = t.hp;
     api.damageMon(t, phys, 'phys', true);
@@ -183,17 +186,18 @@
     var f = (kind === 'cast' ? (S.d.castFrames || (cd && cd.frames && cd.frames.spell) || S.d.atkFrames) : S.d.atkFrames) || 15;
     return clamp(f / FPS * 1000, 280, 1600);
   }
+  // cột anim của skills.txt: TH, KK, S1-S4 chạy thẳng COF đã đóng gói; SQ (chuỗi) chưa có nên chạy SC/A1
   function heroMode(api, fx, kind) {
     var want = fx && fx.anim ? fx.anim : kind === 'cast' ? 'SC' : 'A1', look = api.heroLook();
-    if (want === 'SQ' || /^S[1-4]$/.test(want) || want === 'TH') want = kind === 'cast' ? 'SC' : 'A1';
+    if (want === 'SQ') want = kind === 'cast' ? 'SC' : 'A1';
     if (!api.E.heroCof || !api.E.heroCof(look, want)) want = kind === 'cast' && api.E.heroCof && api.E.heroCof(look, 'SC') ? 'SC' : 'A1';
     return want;
   }
   function beginAnim(api, skillId, fx, tx, ty, target, kind, durMul, done) {
-    var h = api.S.hero, dur = actDur(api, kind) * (durMul || 1);
+    var h = api.S.hero, mode = heroMode(api, fx, kind), dur = (api.heroActDur ? api.heroActDur(kind, mode) : actDur(api, kind)) * (durMul || 1);
     var dx = tx - h.x, dy = ty - h.y;
     if (Math.abs(dx) + Math.abs(dy) > 0.01) h.dir = api.E.dirFromTiles(dx, dy);
-    h.act = { skill: skillId, fx: fx, tx: tx, ty: ty, target: target || null, done: !!done, kind: kind, dur: dur, mode: heroMode(api, fx, kind) };
+    h.act = { skill: skillId, fx: fx, tx: tx, ty: ty, target: target || null, done: !!done, kind: kind, dur: dur, mode: mode };
     api.restart(h, kind, dur);
     return h.act;
   }
@@ -219,7 +223,7 @@
       if (S.time - s.form.since < 1) return false;
       unshift(api); return true;
     }
-    if (fx.mana && c.mp < fx.mana) { msg(api, 'Không đủ mana.', '#8ab0ff'); sfx(api, ['no_mana'], 0.5); return false; }
+    if (fx.mana && c.mp < fx.mana) { msg(api, 'Không đủ mana.', '#8ab0ff'); return false; }
     // kiểm tra trước khi trừ mana: triệu hồi cần xác / đủ số
     if (b === 'summon' && !canSummon(api, fx, tx, ty)) return false;
     if (b === 'corpse' && !nearestCorpse(api, tx, ty, 6) && !nearestCorpse(api, h.x, h.y, 10)) { msg(api, 'Cần một xác quái gần đó.'); return false; }
@@ -230,7 +234,8 @@
     var mul = fx.hit && fx.hit.hits > 1 ? Math.min(2.2, 0.6 + fx.hit.hits * 0.35) : 1;   // approx: Zeal/Fury play one sequence for all hits
     beginAnim(api, skillId, fx, tx, ty, target, kind, mul, false);
     if (fx.castOverlay && hasSheet(api, fx.castOverlay)) addFx(api, { x: h.x, y: h.y, art: fx.castOverlay, follow: h, life: 0.8 });
-    sfx(api, kind === 'attack' ? ['melee_attack', 'melee_attack_2'] : ['power_cast', 'power_shield'], 0.4);
+    skillSnd(api, skillId);
+    if (kind === 'attack') swing(api);
     return true;
   };
 
@@ -396,8 +401,7 @@
     if (!p || dead(p)) return;
     if (p.pet && /^(trap|totem)$/.test(p.pet.ai) && p.pet.skill !== 'blade_sentinel') { /* bẫy và vật tổ vẫn nhận đòn như D2 */ }
     var dmg = Math.max(1, Math.round(amount * (1 - clamp(((p.inst && p.inst.res && p.inst.res.phys) || 0), -100, 95) / 100)));
-    p.hp -= dmg; p.hitFlash = 0.12;
-    api.floatText(p.x, p.y, String(dmg), '#ffb070');
+    p.hp -= dmg;
     if (p.pet && p.pet.sm && p.pet.sm.thorns && src && isEnemy(src)) api.damageMon(src, p.pet.sm.thorns, 'phys', false); // Iron Golem
     if (p.hp <= 0) killPet(api, p);
   }
@@ -431,13 +435,13 @@
     if (t === S.hero) {
       if (S.hero.st === 'die' || S.hero.st === 'dead' || dist(e, t) > 4.2) return;
       var ph = hitChance2(e.inst.a1 && e.inst.a1.ar, e.inst.lvl, S.d.def, S.char.lvl);
-      if (Math.random() < ph) api.damageHero(roll(e.inst.a1 || e.inst.dmg), e); else api.floatText(t.x, t.y, 'miss', '#aaa');
+      if (Math.random() < ph) api.damageHero(roll(e.inst.a1 || e.inst.dmg), e);
       return;
     }
     if (p.kind === 'cast') { petShoot(api, e, t); return; }
     if (dist(e, t) > 4.2) return;
     var pc = hitChance2(e.inst.a1 && e.inst.a1.ar, e.inst.lvl, (t.inst && t.inst.def) || 0, (t.inst && t.inst.lvl) || 1);
-    if (Math.random() >= pc) { api.floatText(t.x, t.y, 'miss', '#aaa'); return; }
+    if (Math.random() >= pc) return;
     var a = e.act && e.act.mode === 'A2' && e.inst.a2 ? e.inst.a2 : (e.inst.a1 || e.inst.dmg);
     var amt = roll(a);
     if (D2S.isFriend(t)) { damageAlly(api, t, amt, e); return; }
@@ -508,7 +512,6 @@
   }
   function petAI(api, e, dt) {
     var S = api.S, P = e.pet, h = S.hero;
-    if (e.hitFlash > 0) e.hitFlash -= dt;
     if (e.st === 'die') { if (e.stT >= e.stDur) { e.st = 'dead'; e.deadAt = S.time; } return; }
     if (e.st === 'dead') { if (S.time - (e.deadAt || 0) > 1.5) e.removed = true; return; }
     if (P.until && S.time >= P.until) { killPet(api, e, P.ai === 'trap' || P.ai === 'wall'); return; }
@@ -566,7 +569,6 @@
   // quái bị lời nguyền/hào quang lái: confuse đánh quái gần nhất, blind đứng yên trừ khi hero sát bên, lure đánh mồi
   function ctlAI(api, m, dt) {
     var S = api.S;
-    if (m.hitFlash > 0) m.hitFlash -= dt;
     if (dead(m) || S.time >= m.ctlUntil || (m.ctl === 'lure' && (!m.lureTgt || dead(m.lureTgt)))) { release(api, m); return; }
     if (m.spawnT > 0) { m.spawnT -= dt * 1000; return; }
     if (m.st === 'attack' || m.st === 'cast') { if (m.stT >= m.stDur) { m.act = null; api.setSt(m, 'idle'); } else return; }
@@ -644,7 +646,7 @@
     st(api).fx.forEach(function (f) { if (f.follow === h && f.auraFx) f.until = 0; });
     var fx = fxOf(api, id, lvlOf(api, id));
     (fx.overlay || []).forEach(function (a) { if (hasSheet(api, a)) { var e = addFx(api, { x: h.x, y: h.y, art: a, follow: h, life: 1e9, loop: true }); e.auraFx = true; } });
-    if (!quiet) { msg(api, fx.name + ' bật.'); sfx(api, ['power_shield'], 0.3); }
+    if (!quiet) { msg(api, fx.name + ' bật.'); skillSnd(api, id); }
     api.recalc();
   }
   function auraFx(api) { var s = st(api); return s.aura && lvlOf(api, s.aura) ? fxOf(api, s.aura, lvlOf(api, s.aura)) : null; }
@@ -712,7 +714,7 @@
     var fx = act.fx, b = fx.buff;
     addBuff(api, fx.id, fx, b);
     msg(api, fx.name + ' kích hoạt.');
-    sfx(api, ['power_shield'], 0.4);
+    skillSnd(api, fx.id);
   }
   function doWarcry(api, act) {
     var S = api.S, fx = act.fx, w = fx.warcry, h = S.hero, now = S.time;
@@ -729,7 +731,7 @@
     ring(api, h.x, h.y, w.radius, '#ffb84a', 0.5);
     var art = misArt(api, String(fx.id).replace(/_/g, ''));
     if (art) addFx(api, { x: h.x, y: h.y, art: art, life: 0.8 });
-    sfx(api, ['power_warcry'], 0.5);
+    skillSnd(api, fx.id);
   }
   function shapeshift(api, fx) {
     var s = st(api), now = api.S.time, sh = fx.shift;
@@ -828,7 +830,6 @@
     ch.n = Math.min(fx.charge.max, ch.n + 1); ch.until = S.time + fx.charge.durationSec; ch.fx = fx;
     dropOverlays(api, S.hero, 'ovl.' + chargeOvl(fx.id));
     overlay(api, S.hero, ['ovl.' + chargeOvl(fx.id)], ch.until, 0);
-    api.floatText(S.hero.x, S.hero.y, fx.name + ' ' + ch.n, '#ffd27a');
   }
   // tung các nạp lực lên mục tiêu: 1 lần = trúng mục tiêu, 2 = nổ vùng, 3 = thêm hiệu ứng lớn
   function releaseCharges(api, t, dealt) {
@@ -903,7 +904,7 @@
         ring(api, c.x, c.y, cp2.radius, ELCOL.poison); return;
       case 'find_potion': {
         c.d2sUsed = true;
-        if (Math.random() * 100 >= cp2.chancePct) { api.floatText(c.x, c.y, '...', '#aaa'); return; }
+        if (Math.random() * 100 >= cp2.chancePct) return;
         var r = Math.random() * 100, tier = clamp(Math.ceil(S.char.lvl / 12), 1, 5);   // approx: potion grade from character level
         var code = r < cp2.rejuvPct ? 'rvs' : r < cp2.rejuvPct + cp2.manaPct ? 'mp' + tier : 'hp' + tier;
         if (!(g.D2DATA && D2DATA.items.bases[code])) code = 'hp1';
@@ -911,7 +912,7 @@
       }
       case 'find_item': {
         c.d2sUsed = true;
-        if (Math.random() * 100 >= cp2.chancePct) { api.floatText(c.x, c.y, '...', '#aaa'); return; }
+        if (Math.random() * 100 >= cp2.chancePct) return;
         var items = []; try { items = R().rollDrop(c.monId, (c.inst && c.inst.lvl) || 1, Math.random) || []; } catch (e) { items = []; }
         items.forEach(function (it) { if (it.gold != null) api.mk('drop', c.x + rnd(-1, 1), c.y + rnd(-1, 1), { item: it, born: S.time, label: it.gold + ' vàng', gold: it.gold }); else makeDrop(api, it, c.x, c.y); });
         return;
@@ -1123,7 +1124,8 @@
     act.dur = dur * 1000; api.restart(h, 'attack', act.dur);
     if (b === 'rush') act.mode = api.E.heroCof && api.E.heroCof(api.heroLook(), 'RN') ? 'RN' : act.mode;
     st(api).move = { fx: fx, act: act, sx: h.x, sy: h.y, ex: ex, ey: ey, t: 0, dur: dur, tgt: tgt, hitT: 0, hit: {} };
-    sfx(api, ['melee_attack'], 0.4);
+    skillSnd(api, skillId);
+    swing(api);
     return true;
   }
   function moveTick(api, dt) {
@@ -1271,9 +1273,9 @@
     var elem = fromMis && src.dmg ? elemOf(src.dmg.elem) : 'phys';
     // né: Dodge (cận chiến), Avoid (đạn), Evade (khi đang chạy) [TXT passive_dodge/avoid/evade]
     var t = d.d2s || {};
-    if (fromMon && d.dodge && Math.random() * 100 < d.dodge && h.st !== 'attack') { api.floatText(h.x, h.y, 'Dodge', '#cfc'); return 0; }
-    if (fromMis && t.passive_avoid && Math.random() * 100 < t.passive_avoid) { api.floatText(h.x, h.y, 'Avoid', '#cfc'); return 0; }
-    if ((h.st === 'run' || h.st === 'walk') && t.passive_evade && Math.random() * 100 < t.passive_evade) { api.floatText(h.x, h.y, 'Evade', '#cfc'); return 0; }
+    if (fromMon && d.dodge && Math.random() * 100 < d.dodge && h.st !== 'attack') return 0;
+    if (fromMis && t.passive_avoid && Math.random() * 100 < t.passive_avoid) return 0;
+    if ((h.st === 'run' || h.st === 'walk') && t.passive_evade && Math.random() * 100 < t.passive_evade) return 0;
     if (elem !== 'phys' && d.res && d.res[elem]) amount = amount * (100 - clamp(d.res[elem], -100, 95)) / 100;
     if (d.dmgReducePct) amount = amount * (100 - clamp(d.dmgReducePct, 0, 50)) / 100;
     // phản đòn: Iron Maiden, Thorns aura, Spirit of Barbs; Frozen/Shiver Armor làm lạnh kẻ đánh

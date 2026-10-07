@@ -150,7 +150,7 @@
   function pressBtn(e, frameOf, fn) {
     function paint(dn) { var r0 = frameOf(dn); if (r0) e.style.cssText = e.style.cssText.replace(/background[^;]*;?/g, '') + ';' + D2.E.uiSprite(r0, 1); }
     e._paint = paint; paint(false);
-    e.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); paint(true); D2.E.sfx(['cursor_button_click', 'button'], 0.4); });
+    e.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); paint(true); D2.E.sfx(['cursor_button_click'], 0.4); });
     e.addEventListener('pointerup', function (ev) { ev.stopPropagation(); fn(); paint(false); });
     e.addEventListener('pointerleave', function () { paint(false); });
   }
@@ -410,7 +410,7 @@
     UI.open[id] = willOpen; UI.panels[id].style.display = willOpen ? 'block' : 'none';
     UI.tip(null);
     if (willOpen) UI.renderPanel(id);
-    D2.E.sfx(['button', 'click', 'menu'], 0.4);
+    D2.E.sfx(['cursor_button_click'], 0.4);
   };
   UI.closeAll = function () {
     closeSide('left'); closeSide('right');
