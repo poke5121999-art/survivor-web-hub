@@ -156,3 +156,22 @@ Rương và đồ rơi: TC rương là thang nhóm 6 của TreasureClassEx, quá
 ## Rủi ro
 
 - Art và tiếng thuộc bản quyền Blizzard, lấy từ một bản crack. Hub đăng công khai trên Pages, nên có thể bị gửi yêu cầu gỡ bản quyền (DMCA). Chủ dự án đã yêu cầu dùng bộ này.
+
+## Chuẩn gốc (từ 2026-10-07, chủ dự án: "map phải liên kết như game gốc, UI/UX, anim, sfx, vfx cũng vậy")
+
+Ba bản soát so với D2 gốc nằm ở `brain/plans/diablo2-chuan-goc/` (`audit-maps.md`, `audit-ui.md`, `audit-avfx.md`).
+Mỗi ý trong đó có nhãn đo / nguồn / đoán và số dòng mã.
+
+Quyết định đã chốt (không hỏi lại):
+- Bỏ những thứ D2 không có: số sát thương nổi, "+XP", "miss", "LÊN CẤP!", nháy mờ khi trúng, quầng sáng champion/unique, vòng elip đỏ dưới quái, dải `.ptsflag`, hộp hướng dẫn `.detail`. Thay bằng cách gốc (sprite sáng lên, colormap, tiếng).
+- Chữ giao diện tiếng Việt giữ nguyên. Font DC6 gốc dùng cho chữ không dấu (tên đồ, khu, quái, NPC) ở đợt 2.
+- Một "game" = một lần vào nhân vật. Seed của act sinh lúc vào game; khu đã dựng giữ nguyên cho tới khi thoát (như D2).
+
+| Đợt | Việc | Tệp chính |
+|---|---|---|
+| 1-MAP | Bố cục act theo D2MOO (hình chữ nhật thế giới), khe mở giữa đoạn mép chung ở cả hai đầu, ra đúng chỗ tương ứng, giữ khu trong phiên (quái đã giết, rương, automap), bỏ 2 lối sai, lật dải Act V | `drlg.js`, `build_data.py`, `game.js` (enterArea, lưu) |
+| 1-UI | Nhả chuột thì dừng, cầm đồ trên con trỏ, mini panel, bảng trái/phải + dịch khung nhìn, nhãn đồ không chồng, con trỏ bàn tay, HUD (nút chạy, thể lực, XP, cầu), "Entering X", nhật ký nhiệm vụ + waypoint đủ act, phím tắt | `ui.js`, `input.js`, `index.html`, `game.js` (input, nhãn) |
+| 1-AVFX | Khoá tiếng đúng (hero, kỹ năng, đạn, vũ khí, đồ), âm lượng theo khoảng cách, nạp trước đạn, lớp ánh sáng, bỏ thứ D2 không có, nhuộm lạnh/độc, máu, overlay niệm, mode S1–S4/TH/KK, khung gây sát thương, đỡ đòn, tiếng môi trường + bước chân | `engine.js`, `game.js`, `skills.js`, `rules.js` |
+| 2-MAP | Ghép liền các khu ngoài trời (mục E của audit-maps), warp bấm được + sáng khi rê, ra theo lvlwarp | `drlg.js`, `engine.js`, `game.js`, `build_world.py` |
+| 2-UI | Font DC6, automap bằng `maximap.dc6`, màn tiêu đề/chọn lớp/tải gốc, cube, hộp thoại NPC, menu Esc | `build_ui.py`, `ui.js` |
+| 2-AVFX | 16 hướng, đủ khung quái, nhạc dài hơn, lời nhân vật + NPC (cần dời ngân sách MB) | `build_sprites.py`, `build_ui.py` |
