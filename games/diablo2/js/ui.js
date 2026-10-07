@@ -938,40 +938,97 @@
   }
 
   /* ---------------------------------------------------------- bản đồ */
-  // s.grid là D2G.World: mỗi khu đã dựng có `seen` riêng, vẽ theo lệch (ox, oy) của khu nên bản đồ liền qua mép khu
+  // Như D2: mỗi tile đã thấy vẽ một cel nét mảnh của maximap.dc6 (nhóm m/automap, _tools/build_automap.py) ở đỉnh
+  // trên của hình thoi tile, tile 160x80 thành 16x8 (D2 chia toạ độ cho 10). s.grid là D2G.World: mỗi khu có
+  // seenT/seenQ riêng (markSeen trong game.js) và vẽ theo lệch (ox, oy) của khu nên bản đồ liền qua mép khu.
+  // Cel của khu vẽ dần vào một canvas riêng của khu khi tile mới vào hàng đợi; mỗi lần mở chỉ dán canvas đó.
+  // Không vẽ quái. Thị trấn Act II/IV/V D2 vẽ bằng tranh nguyên khối (Act2Map...) nên còn vẽ điểm ảnh của tường.
+  var AMK = 1.6;
+  function AMG() { var g = window.D2_GROUPS && D2_GROUPS.automap; return g && g.automap; }
+  UI.mapStats = { cels: 0, units: 0, pixelLevels: 0 };
   UI.drawMap = function () {
-    var s = S(), W = s.grid, cv = UI.mapEl, c = cv.getContext('2d'), E = D2.E;
-    c.clearRect(0, 0, 960, 540); c.fillStyle = 'rgba(0,0,0,.45)'; c.fillRect(0, 0, 960, 540);
+    var s = S(), W = s.grid, cv = UI.mapEl, c = cv.getContext('2d'), E = D2.E, AM = AMG();
+    c.clearRect(0, 0, 960, 540); c.fillStyle = 'rgba(0,0,0,.3)'; c.fillRect(0, 0, 960, 540);
+    if (!AM && E.index && E.index.automap && !UI._amLoad) UI._amLoad = E.loadGroup(E.index.automap);
     if (!W || !W.list || !s.hero) return;
-    var cur = W.levels[s.areaId], k = W.out || (cur && cur.lv.w > 120) ? 2 : 3, hx = s.hero.x, hy = s.hero.y;
-    function P(x, y) { return [480 + ((x - hx) - (y - hy)) * k, 270 + ((x - hx) + (y - hy)) * k * 0.5]; }
+    var hx = s.hero.x, hy = s.hero.y, st = UI.mapStats;
+    st.cels = 0; st.units = 0; st.pixelLevels = 0;
+    function P(x, y) { return [480 + ((x - hx) - (y - hy)) * AMK, 270 + ((x - hx) + (y - hy)) * AMK * 0.5]; }
     function seenAt(x, y) { var L = W.levelAt(x, y); return !!(L && L.seen && L.seen[((y | 0) - L.oy) * L.lv.w + ((x | 0) - L.ox)]); }
+    function sheet(act) {
+      var A = AM && AM.acts[act]; if (!A) return null;
+      var imgs = A.pages.map(function (p) { return E.img(p); });
+      return imgs.every(function (r) { return r.ok; }) ? { A: A, imgs: imgs } : null;
+    }
+    function put(ctx, sh, r, x, y) { if (r && r.length) ctx.drawImage(sh.imgs[r[6]].img, r[0], r[1], r[2], r[3], Math.round(x - r[4]), Math.round(y - r[5]), r[2], r[3]); }
+    c.imageSmoothingEnabled = false;
     W.list.forEach(function (L) {
-      var g = L.lv, seen = L.seen; if (!seen) return;
-      // lưới 200x200: không fillRect từng ô mỗi khung; ô mới thấy được ghi vào một ảnh 1 px/ô, vẽ bằng một phép biến đổi iso
-      var mc = L._mapCv;
+      var g = L.lv, def = L.def || {}, tab = AM && AM.lt[def.levelTypeId], sh = tab && sheet(def.act || W.act);
+      if (!L.seen) return;
+      if (tab && sh) drawCels(L, g, tab, sh);
+      else if (!tab) drawPixels(L, g);
+    });
+    function drawCels(L, g, tab, sh) {
+      var tw = g.tw, th = g.th, m = L._am;
+      if (!m) {
+        m = L._am = { cv: document.createElement('canvas'), n: 0, q: 0 };
+        m.cv.width = (tw + th) * 8; m.cv.height = (tw + th) * 4 + 32; m.ctx = m.cv.getContext('2d');
+      }
+      var Q = L.seenQ || [], li, cels;
+      for (; m.q < Q.length; m.q++) {
+        var i = Q[m.q], tx = i % tw, ty = (i - tx) / tw, x = (tx - ty) * 8 + th * 8, y = (tx + ty) * 4 + 24;
+        // D2 bốc ngẫu nhiên một trong Cel1..Cel4; ở đây băm theo toạ độ thế giới để mở lại vẫn y nguyên
+        var hsh = ((tx + L.tx) * 73856093 ^ (ty + L.ty) * 19349663) >>> 0;
+        for (li = 0; li < g.floors.length; li++) {
+          var f = g.floors[li][i];
+          if (f && (cels = tab['0_' + ((f >> 8) & 255) + '_' + (f & 255)])) { put(m.ctx, sh, sh.A.cels[cels[(hsh + li) % cels.length]], x, y); m.n++; }
+        }
+        for (li = 0; li < g.walls.length; li++) {
+          var t = g.walls[li].t[i];
+          if (t && (cels = tab[g.walls[li].o[i] + '_' + ((t >> 8) & 255) + '_' + (t & 255)])) { put(m.ctx, sh, sh.A.cels[cels[(hsh + li + 7) % cels.length]], x, y); m.n++; }
+        }
+      }
+      var o = P(L.ox, L.oy);
+      c.drawImage(m.cv, Math.round(o[0] - th * 8), Math.round(o[1] - 24));
+      st.cels += m.n;
+      // vật có ô AutoMap trong objects.txt (đền, giếng, rương nhiệm vụ, ấn Diablo...)
+      g.objects.forEach(function (ob) {
+        var pr = E.objPresets['act' + (L.def.act || W.act) + ':' + ob.id], cel = pr && AM.obj[pr.cls];
+        if (!cel || !seenAt(ob.x, ob.y)) return;
+        var p = P(ob.x + 0.5, ob.y + 0.5); put(c, sh, sh.A.cels[cel], p[0], p[1] - 4); st.cels++;
+      });
+    }
+    function drawPixels(L, g) {
+      // lưới 200x200: ô mới thấy ghi vào một ảnh 1 px/ô, vẽ bằng một phép biến đổi iso; chỉ tường như nét của D2
+      var seen = L.seen, mc = L._mapCv;
       if (!mc) {
         mc = L._mapCv = document.createElement('canvas'); mc.width = g.w; mc.height = g.h;
         L._mapCtx = mc.getContext('2d'); L._mapDone = new Uint8Array(g.w * g.h);
       }
-      var mx = L._mapCtx, done = L._mapDone, n = g.w * g.h, i, x, y;
+      var mx = L._mapCtx, done = L._mapDone, n = g.w * g.h, i;
+      mx.fillStyle = 'rgba(200,200,200,.8)';
       for (i = 0; i < n; i++) {
         if (!seen[i] || done[i]) continue;
-        done[i] = 1; x = i % g.w; y = (i - x) / g.w;
-        var col = g.col[i];
-        mx.fillStyle = col === 1 ? 'rgba(200,200,200,.8)' : col === 2 ? 'rgba(60,110,200,.6)' : 'rgba(120,90,40,.35)';
-        mx.fillRect(x, y, 1, 1);
+        done[i] = 1;
+        if (g.col[i] === 1) mx.fillRect(i % g.w, (i / g.w) | 0, 1, 1);
       }
-      c.save(); c.imageSmoothingEnabled = false;
       var ox = L.ox - hx, oy = L.oy - hy;
-      c.setTransform(k, k * 0.5, -k, k * 0.5, 480 + k * (ox - oy), 270 + k * 0.5 * (ox + oy));
+      c.save(); c.setTransform(AMK, AMK * 0.5, -AMK, AMK * 0.5, 480 + AMK * (ox - oy), 270 + AMK * 0.5 * (ox + oy));
       c.drawImage(mc, 0, 0); c.restore();
-      g.exits.forEach(function (e) { if (!seenAt(e.x, e.y)) return; var p = P(e.x, e.y); c.fillStyle = '#4f4'; c.fillRect(p[0] - 3, p[1] - 3, 7, 7); });
-      g.npcs.forEach(function (n) { var p = P(n.x, n.y); c.fillStyle = '#6cf'; c.fillRect(p[0] - 2, p[1] - 2, 5, 5); });
-    });
-    s.ents.forEach(function (e) { if (e.kind === 'mon' && e.st !== 'dead' && e.st !== 'die' && seenAt(e.x, e.y)) { var p = P(e.x, e.y); c.fillStyle = '#f33'; c.fillRect(p[0] - 1, p[1] - 1, 3, 3); } });
-    c.strokeStyle = '#fff'; c.beginPath(); c.moveTo(474, 270); c.lineTo(486, 270); c.moveTo(480, 264); c.lineTo(480, 276); c.stroke();
-    c.fillStyle = '#ddd'; c.font = '14px serif'; c.textAlign = 'left'; c.fillText(s.areaName || '', 16, 28);
+      st.pixelLevels++;
+    }
+    var hs = sheet((s.def && s.def.act) || W.act);
+    if (hs) {
+      // NPC trong thị trấn: dấu chữ thập của units.dc6 như người chơi, màu khác [ĐOÁN]
+      if (s.def && s.def.town) s.ents.forEach(function (e) {
+        if (e.kind !== 'npc' || !seenAt(e.x, e.y)) return;
+        var p = P(e.x, e.y); put(c, hs, hs.A.units[1], p[0], p[1]); st.units++;
+      });
+      put(c, hs, hs.A.units[6], 480, 270); st.units++;
+    } else {
+      c.strokeStyle = '#fff'; c.beginPath(); c.moveTo(474, 270); c.lineTo(486, 270); c.moveTo(480, 264); c.lineTo(480, 276); c.stroke();
+    }
+    if (s.areaName) E.text(s.areaName, 'font16', 944, 12, 'gold', 'right', c);
   };
 
   /* ------------------------------------------------------ màn hình đầu */

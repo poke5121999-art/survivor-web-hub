@@ -430,6 +430,7 @@
     var L = W.add(id, lv, W.out ? W.lay.levels[id].rect : null);
     L.def = areaDef(id); L.seed = seed; L.populated = false;
     L.seen = new Uint8Array(lv.w * lv.h);
+    L.seenT = new Uint8Array(lv.tw * lv.th); L.seenQ = [];   // tile đã thấy, hàng đợi để automap vẽ dần
     lv.exits.forEach(function (e) { if (e.warp) e.kind = 'warp'; });   // rê / bấm được như vật thể
     return L;
   }
@@ -1500,8 +1501,10 @@
     seenX = hx; seenY = hy;
     for (var y = hy - r; y <= hy + r; y++) for (var x = hx - r; x <= hx + r; x++) {
       if ((x - hx) * (x - hx) + (y - hy) * (y - hy) > r * r) continue;
-      var L = W.levelAt(x, y);
-      if (L && L.seen) L.seen[(y - L.oy) * L.lv.w + (x - L.ox)] = 1;
+      var L = W.levelAt(x, y); if (!L || !L.seen) continue;
+      var lx = x - L.ox, ly = y - L.oy, ti = ((ly / 5) | 0) * L.lv.tw + ((lx / 5) | 0);
+      L.seen[ly * L.lv.w + lx] = 1;
+      if (L.seenT && !L.seenT[ti]) { L.seenT[ti] = 1; L.seenQ.push(ti); }
     }
   }
   var exitLock = 0, entering = false;
