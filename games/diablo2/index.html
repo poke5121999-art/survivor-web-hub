@@ -13,9 +13,13 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;color:var(--ink);
 #frame{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#000}
 /* flex:0 0 auto: nếu không, #stage co theo flex-shrink còn canvas vẫn 960px và mép phải bị cắt. */
 #stage{position:relative;flex:0 0 auto;width:960px;height:540px;transform-origin:center center;background:#000;overflow:hidden}
-canvas#view{position:absolute;inset:0;width:960px;height:540px;display:block;touch-action:none;cursor:default}
+canvas#view{position:absolute;inset:0;width:960px;height:540px;display:block;touch-action:none}
+/* con trỏ của hệ điều hành ẩn trên stage; .cur là bàn tay D2 vẽ bằng DOM (ui.js drawCursor) */
+#stage,#stage *{cursor:none!important}
+.cur{position:absolute;left:0;top:0;z-index:60;pointer-events:none;background-repeat:no-repeat}
+body.touch .cur:not([data-k=item]){display:none}
 .ui{position:absolute;inset:0;pointer-events:none;z-index:5}
-.ui button,.ui .panel,.ui .dialog,.ui .modal,.ui .screen,.ui .skpop,.ui .hud .orb,.ui .hud .skbtn,.ui .belt,.ui .hudbtns,.ui .ptsflag,.ui .lvlbtn{pointer-events:auto}
+.ui button,.ui .panel,.ui .dialog,.ui .modal,.ui .screen,.ui .skpop,.ui .hud .orb,.ui .hud .skbtn,.ui .belt,.ui .beltpop,.ui .hudbtns,.ui .hbtn,.ui .lvlbtn,.ui .help{pointer-events:auto}
 button{font-family:var(--body);color:var(--ink);cursor:pointer;background:linear-gradient(#3a2e1c,#17110a);border:1px solid var(--gold2);border-radius:2px;padding:4px 10px;font-size:13px;box-shadow:inset 0 0 0 1px #000}
 button:hover{border-color:var(--gold);color:#fff}
 button.off{opacity:.45}
@@ -29,9 +33,12 @@ button.off{opacity:.45}
 .orb .lab{position:absolute;left:-10px;right:-10px;top:30px;text-align:center;font:700 12px var(--d2);color:#fff;text-shadow:0 0 3px #000,0 0 3px #000;opacity:0;transition:opacity .15s;pointer-events:none}
 .orb:hover .lab{opacity:1}
 .xpbar{background:rgba(0,0,0,.55)}
-.xpbar i{display:block;height:100%;background:linear-gradient(#f0d878,#a88a28)}
+.xpbar i{display:block;height:100%;background:#fff}
 .stam{background:rgba(0,0,0,.35)}
-.stam i{display:block;height:100%;background:linear-gradient(#58c858,#2a7a2a)}
+/* màu thể lực theo OD hud: 0xaf8848, dưới 25% thì đỏ */
+.stam i{display:block;height:100%;background:rgba(175,136,72,.78)}.stam.low i{background:rgba(255,0,0,.78)}
+.hbtn{background-repeat:no-repeat}
+.beltpop{overflow:visible}
 .belt{pointer-events:auto}
 .bslot{position:absolute;top:0;width:30px;height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer}
 .bslot small{position:absolute;left:2px;top:0;font-size:9px;color:#caa;text-shadow:0 0 2px #000;z-index:2;pointer-events:none}
@@ -46,10 +53,14 @@ button.off{opacity:.45}
 .hb:hover{filter:brightness(1.8)}
 .lvlbtn{background-repeat:no-repeat;cursor:pointer;animation:blink 1s infinite}
 @keyframes blink{50%{filter:brightness(1.7)}}
-.ptsflag{position:absolute;left:50%;transform:translateX(-50%);bottom:136px;background:rgba(20,14,6,.88);border:1px solid var(--gold);color:#ffe27a;padding:3px 10px;font:600 12px var(--d2);display:none;cursor:pointer}
-.monbar{position:absolute;left:50%;top:8px;width:300px;margin-left:-150px;text-align:center;font:600 13px var(--body);display:none;text-shadow:0 0 3px #000}
-.monbar div{height:8px;border:1px solid var(--gold2);background:#150808;margin-top:2px}.monbar i{display:block;height:100%;background:#c01818}
-.monbar.unique span{color:#ffe45a}.monbar.champion span{color:#6e7bff}
+/* quái đang trỏ: tên trên nền thanh máu đỏ ở giữa phía trên, champion xanh, unique vàng kim */
+.monbar{position:absolute;left:50%;top:6px;transform:translateX(-50%);min-width:130px;padding:2px 16px;background:rgba(0,0,0,.55);text-align:center;font:600 14px var(--body);color:#fff;display:none;white-space:nowrap}
+.monbar i{position:absolute;left:0;top:0;bottom:0;background:rgba(140,0,0,.85)}.monbar span{position:relative}
+.monbar.unique span,.monbar.superunique span{color:#c7b377}.monbar.champion span{color:#6969ff}
+.zone{position:absolute;left:0;right:0;top:118px;text-align:center;font:600 26px var(--d2);color:#e8e8e8;text-shadow:0 0 4px #000,0 2px 2px #000;pointer-events:none;display:none;transition:opacity 1s}.zone.out{opacity:0}
+.msglog{position:absolute;left:14px;bottom:136px;font:13px var(--body);color:#e8e8e8;text-shadow:0 0 3px #000,0 0 3px #000;pointer-events:none}
+.help{position:absolute;left:60px;right:60px;top:40px;bottom:150px;background:rgba(0,0,0,.88);border:2px solid var(--gold2);padding:10px 22px;z-index:25;overflow:hidden}
+.help h3{margin:0 0 8px;text-align:center;color:var(--d2gold);font:700 20px var(--d2)}.help dl{display:grid;grid-template-columns:96px 1fr 96px 1fr;gap:6px 12px;margin:0;font-size:13px}.help dt{color:var(--d2gold)}.help dd{margin:0;color:#e8e8e8}
 .toasts{position:absolute;left:50%;top:44px;transform:translateX(-50%);text-align:center;pointer-events:none}
 .toast{font-size:15px;color:#ffe9a8;text-shadow:0 0 4px #000,0 0 4px #000;transition:opacity .6s;margin:2px 0}.toast.out{opacity:0}
 /* ---------- bảng D2: .pin là 320x432 theo toạ độ D2, co 0.95 */
@@ -77,23 +88,20 @@ button.off{opacity:.45}
 .item.sel{outline:2px solid #fff;outline-offset:-2px}
 .iimg{position:absolute}
 .dim{color:#8a7a5a;font-size:12px}
-/* khung chi tiết nằm ngoài bảng, phía giữa màn hình */
-.detail{position:absolute;top:0;width:280px;background:rgba(10,7,4,.95);border:1px solid var(--gold2);padding:7px 9px;font:12px/1.45 var(--body);color:var(--ink);box-shadow:0 0 0 1px #000}
-.panel.left .detail{left:312px}.panel.right .detail{right:312px;top:150px}
-.acts{margin-top:5px;display:flex;gap:6px;flex-wrap:wrap}
 .tabs button{position:absolute;background:none;border:0;box-shadow:none;border-radius:0;padding:0;color:var(--d2gold);font:600 11px var(--d2);text-shadow:0 0 3px #000;cursor:pointer}
 .tabs button.on{color:#fff}.tabs button:hover{background:rgba(255,255,255,.06)}
 .skpts{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font:600 10px var(--d2);color:var(--d2gold);pointer-events:none}.skpts b{font-size:24px;color:#fff;font-weight:700}
 .tree{position:absolute;inset:0;pointer-events:none}
 .sknode{position:absolute;width:48px;height:48px;padding:2px;background:#0b0806;opacity:.62;cursor:pointer;pointer-events:auto;border:1px solid #2a2014}
-.sknode.on{opacity:1;border-color:var(--gold)}.sknode.can{opacity:1;border-color:#6c6;box-shadow:0 0 6px #6c6}.sknode.sel{outline:2px solid #fff}
+.sknode.on,.sknode.can{opacity:1}.sknode.on{border-color:var(--gold)}
 .sknode b{position:absolute;right:2px;bottom:0;font:700 11px var(--body);color:#fff;text-shadow:0 0 3px #000,0 0 3px #000}
-.plus2{position:absolute;left:-6px;top:-6px;background:#2a6a2a;color:#fff;width:18px;height:18px;border-radius:50%;text-align:center;line-height:18px;font-size:14px;cursor:pointer;z-index:2}
-.qlist{overflow:hidden}
-.quest{border:1px solid #3a2c18;background:rgba(0,0,0,.6);padding:6px;margin:0 0 6px;line-height:1.45;font-size:12px;color:var(--d2white)}.quest.done{border-color:#2a6a2a}
+.acttab{background-repeat:no-repeat}.acttab.off{filter:brightness(.45)}
+.qcell .sp{position:absolute}
+.qdesc{font:13px/1.5 var(--body);color:var(--d2white);text-align:center;pointer-events:none}.qdesc b{color:var(--d2gold);font-weight:600}
 .wplist{display:flex;flex-direction:column;gap:1.2px;overflow:hidden}
-.modal.d2 .wpb{display:block;width:100%;text-align:left;background:none;border:1px solid transparent;box-shadow:none;border-radius:0;padding:0 8px 0 42px;font:13px var(--body);color:var(--d2white);height:35px;flex:none}
-.modal.d2 .wpb:hover{border-color:var(--gold);color:#fff}.modal.d2 .wpb.off{color:var(--d2gold)}.modal.d2 .wpb.xb{text-align:center;font:700 16px var(--d2);color:var(--d2gold);background:none;border:0}
+.modal.d2 .wpb{position:relative;display:block;width:100%;text-align:left;background:none;border:1px solid transparent;box-shadow:none;border-radius:0;padding:0 8px 0 42px;font:13px var(--body);color:var(--d2white);height:35px;flex:none}
+.wpico{position:absolute;left:3px;top:2px}
+.modal.d2 .wpb:hover{border-color:var(--gold);color:#fff}.modal.d2 .wpb.here{color:var(--d2gold)}.modal.d2 .wpb.off,.modal.d2 .wpb.off:hover{color:#6a6a6a;border-color:transparent;opacity:1}.modal.d2 .wpb.xb{text-align:center;font:700 16px var(--d2);color:var(--d2gold);background:none;border:0}
 .shoprow{position:absolute;cursor:pointer}
 .shoprow .price{position:absolute;left:0;right:0;bottom:0;height:13px;padding:0;border:0;border-radius:0;background:rgba(0,0,0,.78);color:#ffd24a;font:700 9px/13px var(--body);box-shadow:none}
 .shoprow .price.off{color:#c66}
@@ -102,7 +110,7 @@ button.off{opacity:.45}
 .dname{color:var(--d2gold);font:700 17px var(--d2);margin-bottom:4px}.dtext{font-size:14px;line-height:1.5;margin-bottom:8px;color:var(--d2white)}.dbtns{display:flex;gap:8px;flex-wrap:wrap}
 .skpop{position:absolute;bottom:134px;display:none;background:var(--panel);border:2px solid var(--gold2);padding:6px;max-width:420px;flex-wrap:wrap;gap:6px}
 .skpop[style*="block"]{display:flex!important}
-.pk{width:70px;text-align:center;border:1px solid #3a2c18;padding:3px;cursor:pointer;font-size:10px}.pk:hover{border-color:var(--gold)}.pk .ico{margin:0 auto}
+.pk{position:relative;width:70px;text-align:center;border:1px solid #3a2c18;padding:3px;cursor:pointer;font-size:10px}.pk .fk{position:absolute;right:12px;top:3px;font:700 11px var(--body);font-style:normal;color:#ffe27a;text-shadow:0 0 3px #000}.pk:hover{border-color:var(--gold)}.pk .ico{margin:0 auto}
 .tip{position:absolute;z-index:20;background:rgba(8,5,3,.96);border:1px solid var(--gold2);padding:6px 9px;font:12px/1.45 var(--body);max-width:260px;pointer-events:none;color:var(--d2white)}
 .modal{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:260px;background:var(--panel);border:2px solid var(--gold2);padding:12px;text-align:center}
 .modal.d2{left:12px;top:4px;width:304px;height:411px;transform:none;background:none;border:0;padding:0;text-align:left}
@@ -126,10 +134,8 @@ button.off{opacity:.45}
 /* cảm ứng: nút bấm là của input.js; thanh điều khiển chỉ là nền, thu 1.0 và căn giữa để chừa chỗ cho nút */
 body.touch .belt,body.touch .skbtn,body.touch .hudbtns,body.touch .stam{display:none}
 body.touch .hbar{transform:translateX(80px) scale(1)}
-body.touch .ptsflag{bottom:110px}
 body.touch .panel{font-size:12px}
 body.touch .panel.right{right:auto;left:326px}
-body.touch .panel.right .detail{right:auto;left:312px;top:0;width:250px}
 body.touch .dialog{bottom:112px}
 @media (orientation:portrait) and (pointer:coarse){.rotate{display:flex}}
 </style>

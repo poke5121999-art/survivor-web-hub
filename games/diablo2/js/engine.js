@@ -160,7 +160,8 @@
     var p = E.project(E.cam.x, E.cam.y), s = E.shake > 0 ? E.shake : 0;
     return [Math.round(p[0] + (s ? (Math.random() - .5) * s : 0)), Math.round(p[1] + (s ? (Math.random() - .5) * s : 0))];
   };
-  E.updateCam = function () { var c = E.camPx(); camCache[0] = c[0]; camCache[1] = c[1]; };
+  // viewOffX: mở một bên bảng thì khung nhìn dịch để hero ở giữa nửa còn trống (ViewportToLeft/Right của OpenDiablo2)
+  E.updateCam = function () { var c = E.camPx(); camCache[0] = c[0] - (E.viewOffX || 0); camCache[1] = c[1]; };
   E.toScreen = function (x, y) {
     return [Math.round((x - y) * 16 - camCache[0] + W / 2), Math.round((x + y) * 8 - camCache[1] + H / 2)];
   };
