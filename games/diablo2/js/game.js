@@ -1107,6 +1107,7 @@
     // item_flippy lúc tung lên, dropsound của bảng đồ khi chạm đất (cuối hoạt ảnh flippy)
     E.sfx(['item_flippy'], null, e);
     e.landAt = S.time + ((e.art && E.animDur(E.animOf(e.art, 'NU'))) || 500) / 1000;
+    return e;
   }
   function findSpot(c, w, hh) {
     var occ = []; for (var i = 0; i < 40; i++) occ[i] = 0;
@@ -1848,6 +1849,20 @@
     var c = S.char, it = c.hand; if (!it || !S.hero) return;
     c.hand = null; dropItem(it, S.hero.x + rnd(-0.6, 0.6), S.hero.y + rnd(0.6, 1.4)); UI.dirty = true; save();
   };
+  // nút vàng trong túi: vàng thả ra không tự nhặt lại, phải bấm vào như D2
+  Game.dropGold = function (n) {
+    var c = S.char; n = Math.max(0, Math.min(c.gold, Math.floor(n) || 0)); if (!n || !S.hero) return;
+    c.gold -= n; dropItem({ gold: n, base: 'gold', q: 'normal', w: 1, h: 1 }, S.hero.x + rnd(-0.6, 0.6), S.hero.y + rnd(0.6, 1.4)).noAuto = true;
+    UI.dirty = true; save();
+  };
+  // W: đổi bộ vũ khí I/II (tay phải + tay trái), bộ kia nằm trong c.swap
+  Game.swapWeapons = function () {
+    var c = S.char, o = c.swap || {};
+    c.swap = { rhand: c.equip.rhand || null, lhand: c.equip.lhand || null };
+    ['rhand', 'lhand'].forEach(function (k) { if (o[k]) c.equip[k] = o[k]; else delete c.equip[k]; });
+    c.weaponSet = c.weaponSet ? 0 : 1;
+    recalc(); E.sfx(['inv_metal'], 0.5); UI._last.sig = null; UI.dirty = true; save();
+  };
   Game.sellHand = function () {
     var c = S.char, it = c.hand; if (!it) return;
     c.hand = null; c.gold += DA.sellPrice(it); E.sfx(['inv_coins']); UI.dirty = true; save();
@@ -1964,7 +1979,7 @@
       else if (e.kind === 'fx') { e.t += dt; if (e.t > e.life) e.removed = true; if (e.follow) { e.x = e.follow.x; e.y = e.follow.y; } }
       else if (e.kind === 'drop') {
         if (e.landAt && S.time >= e.landAt) { e.landAt = 0; if (e.gold) E.sfx(['item_gold'], null, e); else itemSound(e.item, 'dropsound', e); }
-        if (e.gold && !e.removed && dist(e, h) < 2.6 && h.st !== 'die' && h.st !== 'dead') pickup(e);
+        if (e.gold && !e.noAuto && !e.removed && dist(e, h) < 2.6 && h.st !== 'die' && h.st !== 'dead') pickup(e);
       } else if (e.kind === 'npc') updateNpc(e, dt);
       else if (e.kind !== 'hero') e.stT += dt * 1000;
       if (e.kind === 'missile' && e.st === 'dead') e.removed = true;
@@ -2160,14 +2175,10 @@
     var c = E.ctx;
     if (S.hero && !Game.noLight) E.drawLights(darkness(), lights());
     // tên NPC/vật đang trỏ vẽ sau lớp tối, kẻo trong hầm bị phủ đen
-    if (hoverTag) {
-      c.font = '13px Georgia,serif'; c.textAlign = 'center'; c.fillStyle = '#fff'; c.strokeStyle = '#000'; c.lineWidth = 3;
-      c.strokeText(hoverTag[0], hoverTag[1], hoverTag[2]); c.fillText(hoverTag[0], hoverTag[1], hoverTag[2]); hoverTag = null;
-    }
+    if (hoverTag) { E.text(hoverTag[0], 'font16', hoverTag[1], hoverTag[2] - 12, 'white', 'center'); hoverTag = null; }
     // nhãn đồ rơi
     // Nhãn gần đáy màn hình đặt trước; nhãn sau đụng bất kỳ nhãn đã đặt nào thì đẩy lên tới khi hết chồng.
     var show = I.alt || I.touch, rects = [], labs = [];
-    c.font = '12px Georgia,serif'; c.textAlign = 'left'; c.textBaseline = 'alphabetic';
     S.ents.forEach(function (e) {
       if (e.kind !== 'drop' || e.sx == null || e.removed) return;
       if (!(show || S.hover === e || S.time - e.born < 4 || e.corpse)) { e.labelRect = null; return; }
@@ -2175,22 +2186,23 @@
     });
     labs.sort(function (a, b) { return b.sy - a.sy || a.sx - b.sx; });
     labs.forEach(function (e) {
-      var tw = c.measureText(e.label).width + 8, x = Math.round(e.sx - tw / 2), y = e.sy - 30, r;
+      var tw = E.textWidth(e.label, 'font16') + 8, x = Math.round(e.sx - tw / 2), y = e.sy - 30, r;
       for (var n = 0; n < 200; n++) {
         r = null;
-        for (var i = 0; i < rects.length; i++) { var q = rects[i]; if (x < q[0] + q[2] && q[0] < x + tw && y < q[1] + q[3] + 1 && q[1] < y + 15) { r = q; break; } }
+        for (var i = 0; i < rects.length; i++) { var q = rects[i]; if (x < q[0] + q[2] && q[0] < x + tw && y < q[1] + q[3] + 1 && q[1] < y + 17) { r = q; break; } }
         if (!r) break;
-        y = r[1] - 15;
+        y = r[1] - 17;
       }
-      e.labelRect = [x, y, tw, 14]; rects.push(e.labelRect);
+      e.labelRect = [x, y, tw, 16]; rects.push(e.labelRect);
     });
     labs.sort(function (a, b) { return (S.hover === a) - (S.hover === b); });
     labs.forEach(function (e) {
       var hov = S.hover === e, lr = e.labelRect;
       c.fillStyle = hov ? 'rgba(40,40,110,.95)' : 'rgba(0,0,0,.7)'; c.fillRect(lr[0], lr[1], lr[2], lr[3]);
-      c.fillStyle = e.gold ? '#ffd24a' : e.corpse ? '#cc8' : UI.qcol(e.item && e.item.q); c.fillText(e.label, lr[0] + 4, lr[1] + 11);
+      E.text(e.label, 'font16', lr[0] + 4, lr[1], e.gold ? 'white' : e.corpse ? 'tan' : UI.qname(e.item && e.item.q));
     });
     c.globalAlpha = 1;
+    UI.drawOver(c);
     // con trỏ nhắm (di chuột)
     if (S.scene === 'play' && S.paused) { c.fillStyle = 'rgba(0,0,0,.35)'; c.fillRect(0, 0, 960, 540); }
   }
@@ -2244,6 +2256,7 @@
       else if (k === 'KeyS') UI.skillPopup('right'); else if (k === 'Space') UI.closeAll(); else if (k === 'KeyH') UI.toggleHelp();
       else if (k === 'Backquote') UI.toggleBelt();
       else if (k === 'KeyR') S.runOn = !S.runOn;
+      else if (k === 'KeyW') Game.swapWeapons();
       else if (/^Digit[1-4]$/.test(k)) Game.drinkBelt(+k.slice(5) - 1);
       else if (/^F[1-8]$/.test(k)) { if (UI.popHover !== undefined) Game.bindKey(+k.slice(1) - 1, UI.popHover); else fkeyUse(+k.slice(1) - 1); }
     });

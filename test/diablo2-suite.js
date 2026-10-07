@@ -114,7 +114,25 @@ async function clickNpc(p, id) {
   results.push('\n-- khởi động --');
   await p.screenshot({ path: path.join(SHOTS, '1-title.png') });
   check('màn hình đầu hiện tiêu đề', /ÁC QUỶ II/.test(await p.textContent('.screen.title')));
+  // màn chọn lớp như D2: cảnh lửa trại, 7 nhân vật có hoạt ảnh (UI.front.cls[lớp].f là khung đang vẽ)
+  await p.click('.tmenu button:has-text("Trò chơi mới")');
+  await p.waitForSelector('.ccard');
+  await sleep(300);
+  const fr0 = await p.evaluate(() => JSON.stringify(D2.UI.front.cls));
+  await sleep(500);
+  const fr1 = await p.evaluate(() => JSON.stringify(D2.UI.front.cls));
+  const moved = Object.keys(JSON.parse(fr1)).filter(k => JSON.parse(fr0)[k] && JSON.parse(fr0)[k].f !== JSON.parse(fr1)[k].f);
+  check('chọn lớp: 7 nhân vật quanh lửa trại, hoạt ảnh chạy (khung đổi)', (await p.$$('.ccard')).length === 7 && Object.keys(JSON.parse(fr1)).length === 7 && moved.length === 7,
+    'ô=' + (await p.$$('.ccard')).length + ' khung đổi: ' + moved.join(','));
+  await p.click('.ccard[data-cls=sorceress]'); await sleep(400);
+  const fw = await p.evaluate(() => D2.UI.front.cls.sorceress);
+  check('bấm Sorceress -> bước tới lửa (fw)', fw.st === 'fw' && fw.f > 0, JSON.stringify(fw));
+  await p.screenshot({ path: path.join(SHOTS, '1b-class.png') });
+  await p.click('.fbtn:has-text("Quay lại")');
+  await p.waitForSelector('.screen.title .tmenu');
   const locked = await startClass(p, 'sorceress', 'Tester');
+  // ghi lại mọi lần vẽ chữ bằng font DC6 lên canvas
+  await p.evaluate(() => { window.__tx = []; const o = D2.E.text; D2.E.text = function (s, f) { window.__tx.push(f + '|' + s); return o.apply(this, arguments); }; });
   check('bảy lớp, không lớp nào khoá', locked === 0, 'khoá=' + locked);
   let s = await st(p);
   check('vào Rogue Encampment', s.area === 'rogue_encampment', s.area);
@@ -265,6 +283,8 @@ async function clickNpc(p, id) {
   await waitFor(p, () => D2DBG.getState().area === 'blood_moor', 10000);
   await sleep(600);
   await p.screenshot({ path: path.join(SHOTS, '2b-bloodmoor.png') });
+  const ent = await p.evaluate(() => window.__tx.filter(x => /^font30\|Entering /.test(x)));
+  check('"Entering Blood Moor" vẽ bằng Font30 DC6 (E.text)', ent.includes('font30|Entering Blood Moor'), [...new Set(ent)].join(', '));
 
   // ------------------------------------------------------- Fire Bolt giết quái
   results.push('\n-- chiến đấu --');
@@ -486,6 +506,19 @@ async function clickNpc(p, id) {
   await p.keyboard.press('KeyC');
   await p.keyboard.press('KeyI'); await sleep(250);
   await p.screenshot({ path: path.join(SHOTS, '3d-inventory.png') });
+  // chú thích đồ như D2: ngay trên món đồ, tên màu theo phẩm chất (magic = blue), yêu cầu chưa đủ màu đỏ
+  await p.evaluate(() => { const c = D2DBG.S.char, it = D2R.createItem('lsd', 10, 'magic', D2R.rng(5));
+    const busy = (x, y) => c.inv.some(o => x >= o.ix && x < o.ix + (o.w || 1) && y >= o.iy && y < o.iy + (o.h || 1));
+    it.ix = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].find(x => ![0, 1, 2].some(y => busy(x, y))); it.iy = 0; it.tipTest = 1; c.inv.push(it); D2.UI.renderPanel('inv'); });
+  await sleep(150);
+  const ib = await p.evaluate(() => { const e = [...document.querySelectorAll('#p-inv .grid .item')].pop(), b = e.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2, top: b.top, l: b.left, r: b.right }; });
+  await p.mouse.move(ib.x, ib.y); await sleep(250);
+  const tip = await p.evaluate(() => { const t = document.querySelector('.tip'), b = t.getBoundingClientRect(), n = t.querySelector('.tname .d2t'); return { on: getComputedStyle(t).display !== 'none' && t.classList.contains('itip'), bottom: b.bottom, cx: (b.left + b.right) / 2, name: n && n.dataset.c, font: n && n.dataset.f, red: [...t.querySelectorAll('[data-k=req] .d2t')].map(x => x.dataset.c) }; });
+  check('rê lên đồ magic: chú thích ngay trên món đồ, tên màu blue bằng Font16', tip.on && tip.bottom <= ib.top + 1 && Math.abs(tip.cx - (ib.l + ib.r) / 2) < 3 && tip.name === 'blue' && tip.font === 'font16', JSON.stringify(tip) + ' món top=' + ib.top);
+  check('dòng yêu cầu chưa đủ màu đỏ', tip.red.includes('red'), tip.red.join(','));
+  await p.screenshot({ path: path.join(SHOTS, '3d2-tooltip.png') });
+  await p.mouse.move(5, 5);
+  await p.evaluate(() => { const c = D2DBG.S.char; c.inv = c.inv.filter(o => !o.tipTest); D2.UI.renderPanel('inv'); });
   const gridOk = await p.$$eval('#p-inv .gridbg i', n => n.length);
   check('túi đồ có lưới 10x4', gridOk === 40, 'ô=' + gridOk);
   await p.keyboard.press('KeyI');
@@ -552,12 +585,14 @@ async function clickNpc(p, id) {
   await waitFor(p, () => document.querySelector('.dialog').style.display === 'block', 12000);
   await p.click('.dialog button:has-text("Mua bán")');
   await sleep(250);
-  const rows = await p.$$('.shoprow button');
+  // hàng chia theo tab buyselltabs như D2; bình thuốc nằm ở tab "Khác", giá nằm trong chú thích chứ không dán lên đồ
+  if (await p.$('.shop .stab[data-tab=misc]')) { await p.click('.shop .stab[data-tab=misc]'); await sleep(150); }
+  const rows = await p.$$('.shoprow');
   check('cửa hàng Akara có hàng', rows.length > 0, 'hàng=' + rows.length);
   s = await st(p);
   const g0 = s.gold, bl0 = s.belt + s.inv;
   // bảng cửa hàng vẽ lại khi UI.dirty (vd. vừa nạp xong ảnh), nên bấm qua locator để tìm lại nút lúc click
-  if (rows.length) await p.locator('.shoprow button').first().click();
+  if (rows.length) await p.locator('.shoprow').first().click();
   await sleep(200);
   s = await st(p);
   check('mua bình -> trừ vàng, có bình', s.gold < g0 && s.belt + s.inv > bl0, 'gold ' + g0 + '->' + s.gold);
@@ -566,6 +601,21 @@ async function clickNpc(p, id) {
   check('phím 1 uống bình trong đai', (await st(p)).belt === 0 || true);
   await p.keyboard.press('Escape'); await sleep(100);
   if (await p.evaluate(() => !!D2.UI.open.menu)) await p.keyboard.press('Escape');
+  // menu Esc như D2: phủ tối, 3 mục chữ to, pentspin hai bên; Esc lần nữa về lại trận
+  await p.evaluate(() => D2.UI.closeAll());
+  await p.keyboard.press('Escape'); await sleep(250);
+  const mi = await p.$$('.escmenu .mitem');
+  if (mi.length) { const bb = await mi[2].boundingBox(); await p.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2); await sleep(200); }
+  const menu = await p.evaluate(() => ({ open: !!D2.UI.open.menu, paused: !!D2DBG.S.paused, n: document.querySelectorAll('.escmenu .mitem').length, pent: [...document.querySelectorAll('.escmenu .pent')].filter(e => e.style.backgroundImage).length }));
+  await p.screenshot({ path: path.join(SHOTS, '3f2-escmenu.png') });
+  await p.keyboard.press('Escape'); await sleep(250);
+  const back = await p.evaluate(() => ({ open: !!D2.UI.open.menu, disp: getComputedStyle(document.querySelector('.escmenu')).display, scene: D2DBG.getState().scene }));
+  check('Esc mở menu 3 mục (có pentspin), dừng trận', menu.open && menu.paused && menu.n === 3 && menu.pent === 2, JSON.stringify(menu));
+  check('Esc lần nữa đóng menu, về trận', !back.open && back.disp === 'none' && back.scene === 'play', JSON.stringify(back));
+  await p.keyboard.press('Escape'); await sleep(200);
+  if (mi.length) await p.click('.escmenu .mitem:has-text("Trở lại trò chơi")');
+  await sleep(150);
+  check('bấm "Trở lại trò chơi" cũng đóng menu', !(await p.evaluate(() => !!D2.UI.open.menu)));
 
   // ------------------------------------------------------------- ánh sáng
   results.push('\n-- ánh sáng --');

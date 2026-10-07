@@ -287,7 +287,7 @@ function near(a, b, eps, msg) { ok(Math.abs(a - b) <= eps, msg + ' (got ' + a + 
   ok(champ.length === 3, 'champion (Act 1 Champ A, Picks -2): Citem A once + Cpot A once (Picks 2) = 3 items', champ.map(i => i.base));
   // determinism of item text
   const it = R.createItem('lsd', 10, 'magic', R.rng(5));
-  ok(it.q === 'magic' && typeof R.itemName(it) === 'string' && R.itemStats(it).length >= 2, 'createItem magic Long Sword: ' + R.itemName(it) + ' | ' + R.itemStats(it).join('; '));
+  ok(it.q === 'magic' && typeof R.itemName(it) === 'string' && R.itemStats(it).length >= 2, 'createItem magic Long Sword: ' + R.itemName(it) + ' | ' + R.itemStats(it).map(l => l.text).join('; '));
   const u = R.createItem('hax', 12, 'unique', R.rng(1));
   ok(u.q === 'unique' && u.uniqueName === 'The Gnasher', 'unique Hand Axe at ilvl 12 is The Gnasher', u.uniqueName);
   const fallback = R.createItem('hax', 1, 'unique', R.rng(1));

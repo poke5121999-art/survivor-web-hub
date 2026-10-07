@@ -1,6 +1,7 @@
 /* Ác Quỷ II - ui.js
  * HUD và các bảng dựng từ ảnh giao diện gốc của Diablo II (D2_UI, nạp qua D2.E.UI): thanh điều khiển, hai quả cầu,
- * túi đồ, nhân vật, cây kỹ năng, kho, cửa hàng, waypoint, nhật ký. Chữ, hộp thoại, màn hình đầu vẫn là DOM.
+ * túi đồ, nhân vật, cây kỹ năng, kho, cửa hàng, waypoint, nhật ký, menu Esc, màn đầu. Chữ dùng font DC6 gốc qua
+ * E.text / E.textHtml (engine.js), chữ có dấu tiếng Việt rơi về web font.
  * DOM phủ lên canvas, nằm trong #stage 960x540 nên co giãn cùng canvas.
  * UI chỉ ĐỌC trạng thái từ D2.Game.S và gọi hàm của D2.Game (statUp, skillUp, equipItem ...).
  *
@@ -30,6 +31,11 @@
 
   var QCOL = { normal: '#e8e8e8', superior: '#d8d8d8', low: '#8a8a8a', magic: '#6e7bff', rare: '#ffe45a', unique: '#c7b377', set: '#2fd12f', crafted: '#ff9a2e' };
   UI.qcol = function (q) { return QCOL[q] || QCOL.normal; };
+  // màu chữ D2 (bảng TextColors của pal.pl2) theo phẩm chất, dùng cho E.text / E.textHtml
+  var QNAME = { normal: 'white', superior: 'white', low: 'white', magic: 'blue', rare: 'yellow', unique: 'gold', set: 'green', crafted: 'orange', quest: 'gold' };
+  UI.qname = function (q) { return QNAME[q] || 'white'; };
+  function T(str, font, color) { return D2.E.textHtml(str, font || 'font16', color); }
+  UI.T = T;
   var QBG = { magic: 'rgba(40,40,150,.35)', rare: 'rgba(150,140,30,.3)', unique: 'rgba(120,100,50,.35)', set: 'rgba(30,120,30,.35)', crafted: 'rgba(150,80,20,.35)' };
 
   var CELL = 29;            // ô túi đồ của D2
@@ -78,13 +84,12 @@
       UI.panels[id] = p;
     });
     RIGHT.forEach(function (k) { UI.panels[k].classList.add('right'); }); ['char', 'quest', 'stash'].forEach(function (k) { UI.panels[k].classList.add('left'); });
-    UI.zoneEl = h('div', 'zone', '', r);
     UI.logEl = h('div', 'msglog', '', r); UI.logEl.style.display = 'none';
     UI.helpEl = h('div', 'help', '', r); UI.helpEl.style.display = 'none';
     UI.dlgEl = h('div', 'dialog', '', r); UI.dlgEl.style.display = 'none';
     UI.shopEl = h('div', 'panel d2 left shop', '', r); UI.shopEl.style.display = 'none';
     UI.wpEl = h('div', 'modal d2 wpmenu', '', r); UI.wpEl.style.display = 'none';
-    UI.menuEl = h('div', 'modal menu', '', r); UI.menuEl.style.display = 'none';
+    UI.menuEl = h('div', 'escmenu', '', r); UI.menuEl.style.display = 'none';
     UI.popup = h('div', 'skpop', '', r); UI.popup.style.display = 'none';
     UI.tipEl = h('div', 'tip', '', r); UI.tipEl.style.display = 'none';
     UI.toasts = h('div', 'toasts', '', r);
@@ -219,6 +224,8 @@
     UI.statBtn = BU.statup ? lvlBtn(BU.statup, 'stat', 'Có điểm chỉ số', 'char') : null;
     UI.skillBtn = BU.skillup ? lvlBtn(BU.skillup, 'skill', 'Có điểm kỹ năng', 'skill') : null;
     UI.mon = h('div', 'monbar', '<i></i><span></span>', hud);
+    // chân dung lính đánh thuê góc trên trái (ui/hireables theo act) với thanh máu bên dưới
+    UI.mercEl = h('div', 'merc', '<div class="mpic"></div><i class="mbar"><b></b></i>', hud); UI.mercEl.style.display = 'none';
     UI._last = {};
   }
 
@@ -263,25 +270,42 @@
       if (UI.runBtn) UI.runBtn._paint(false);
     }
     // "Entering ..." giữa phía trên màn hình mỗi lần đổi khu, mờ dần sau ~3 giây (zoneChangeText của OD hud)
-    if (L.area !== s.areaId && s.areaId && s.areaName) {
-      L.area = s.areaId; UI.zoneEl.textContent = 'Entering ' + s.areaName;
-      UI.zoneEl.classList.remove('out'); UI.zoneEl.style.display = 'block'; void UI.zoneEl.offsetWidth;
-      clearTimeout(UI._zoneT); UI._zoneT = setTimeout(function () { UI.zoneEl.classList.add('out'); }, 3000);
-    }
+    if (L.area !== s.areaId && s.areaId && s.areaName) { L.area = s.areaId; UI.zone = { text: 'Entering ' + s.areaName, t: performance.now() }; }
     // quái đang trỏ: tên ở giữa phía trên trên nền thanh máu (champion xanh, unique vàng kim)
     var m = s.hover && s.hover.kind === 'mon' ? s.hover : s.target && s.target.kind === 'mon' && s.target.st !== 'dead' ? s.target : null;
     if (m && m.st !== 'dead' && m.inst) {
       UI.mon.style.display = 'block';
-      $('span', UI.mon).textContent = m.inst.name;
+      var mk = m.inst.name + '|' + m.rank;
+      if (UI.mon._k !== mk) { UI.mon._k = mk; $('span', UI.mon).innerHTML = T(m.inst.name, 'font16', m.rank === 'champion' ? 'blue' : /unique/.test(m.rank || '') ? 'gold' : 'white'); }
       $('i', UI.mon).style.width = Math.max(0, m.hp / m.maxHp * 100) + '%';
       UI.mon.className = 'monbar ' + (m.rank || 'normal');
     } else UI.mon.style.display = 'none';
+    var me = s.merc, mi = me && !me.removed && me.hp > 0 && c.merc ? c.merc.act + ':' + Math.ceil(me.hp / me.maxHp * 46) : '';
+    if (L.merc !== mi) {
+      L.merc = mi; UI.mercEl.style.display = mi ? 'block' : 'none';
+      if (mi) {
+        var mr = ((UA().panels || {}).extra || {}).merc || {}, pr = me.hp / me.maxHp;
+        $('.mpic', UI.mercEl).style.cssText = D2.E.uiSprite(mr[c.merc.act] || mr[1], 1);
+        var bar = $('b', UI.mercEl); bar.style.width = Math.round(pr * 100) + '%';
+        bar.style.background = pr > 0.5 ? '#18b818' : pr > 0.25 ? '#d8b818' : '#d81818';
+        UI.mercEl.title = c.merc.name + ' (' + Math.ceil(me.hp) + '/' + me.maxHp + ')';
+      }
+    }
     drawCursor();
     if (t - UI.dirtyAt > 150) {
       UI.dirtyAt = t;
       if (UI.dirty) { UI.dirty = false; UI.renderOpen(); }
       if (UI.open.map) UI.drawMap();
     }
+  };
+
+  // Lớp chữ vẽ thẳng lên canvas sau thế giới (game.js render gọi): "Entering X" bằng Font30 ở (W/2, H/4), giữ 3 giây
+  // rồi mờ trong 1 giây.
+  UI.drawOver = function (c) {
+    var z = UI.zone; if (!z) return;
+    var a = 1 - Math.max(0, (performance.now() - z.t - 3000) / 1000);
+    if (a <= 0) { UI.zone = null; return; }
+    c.globalAlpha = a; D2.E.text(z.text, 'font30', 480, 135 - D2.E.textHeight('font30') / 2, 'white', 'center'); c.globalAlpha = 1;
   };
 
   function skIconHtml(id, size) {
@@ -309,7 +333,7 @@
     var c = S().char, it = c.belt[i];
     var slot = h('div', 'bslot', i < 4 ? '<small>' + (i + 1) + '</small>' : '', parent);
     slot.style.left = x + 'px'; slot.style.top = y + 'px';
-    if (it) { slot.appendChild(itemEl(it, 28, false)); hoverTip(slot, function () { return itemTipHtml(it); }); }
+    if (it) { slot.appendChild(itemEl(it, 28, false)); hoverTip(slot, function () { return itemTipHtml(it); }, true); }
     slot.addEventListener('pointerdown', function (e) {
       e.stopPropagation();
       if (c.hand) G().putBelt(i);
@@ -361,22 +385,46 @@
   }
   UI.itemEl = itemEl;
 
-  function itemTipHtml(it) {
-    var lines = DA().itemLines(it);
-    return '<b style="color:' + UI.qcol(it.q) + '">' + esc(DA().itemName(it)).replace(/\n/g, '<br>') + '</b><br>' + lines.map(esc).join('<br>');
+  /* Chú thích đồ như D2: mọi dòng căn giữa, tên theo màu phẩm chất (xám nếu đồ thường có lỗ cắm hoặc ethereal),
+   * số gốc trắng, affix xanh, yêu cầu chưa đủ đỏ. Bình thuốc chỉ có tên. extra: dòng thêm (giá) màu trắng. */
+  function itemTipHtml(it, extra) {
+    var c = S() && S().char, q = it.q || 'normal';
+    var sock = (it.affixes || []).some(function (a) { return a.stat === 'sock'; });
+    var ncol = (q === 'normal' || q === 'superior') && (sock || it.eth) ? 'grey' : UI.qname(q);
+    var out = DA().itemName(it).split('\n').map(function (l, i) { return '<div' + (i ? '' : ' class="tname"') + '>' + T(l, 'font16', ncol) + '</div>'; });
+    var lines = DA().potionInfo(it) || !window.D2R ? [] : D2R.itemStats(it);
+    lines.forEach(function (l) {
+      var col = l.kind === 'mod' ? 'blue' : 'white';
+      if (l.kind === 'req' && c && Object.keys(l.need).some(function (k) { return (c[k] || 0) < l.need[k]; })) col = 'red';
+      out.push('<div data-k="' + l.kind + '">' + T(l.text, 'font16', col) + '</div>');
+    });
+    (extra || []).forEach(function (l) { out.push('<div>' + T(l, 'font16', 'white') + '</div>'); });
+    return out.join('');
   }
   UI.itemTipHtml = itemTipHtml;
 
-  UI.tip = function (html, x, y) {
-    if (!html || (S() && S().char && S().char.hand)) { UI.tipEl.style.display = 'none'; return; }
-    UI.tipEl.innerHTML = html; UI.tipEl.style.display = 'block';
-    var w = UI.tipEl.offsetWidth, hh = UI.tipEl.offsetHeight;
-    UI.tipEl.style.left = Math.max(2, Math.min(960 - w - 2, x + 14)) + 'px';
-    UI.tipEl.style.top = Math.max(2, Math.min(540 - hh - 2, y + 14)) + 'px';
+  // khung của phần tử theo toạ độ logic 960x540 (stage co giãn bằng transform)
+  function logicalRect(el) {
+    var s = UI.root.getBoundingClientRect(), r = el.getBoundingClientRect(), k = s.width / 960;
+    return { x: (r.left - s.left) / k, y: (r.top - s.top) / k, w: r.width / k, h: r.height / k };
+  }
+  // at: {x, y} con trỏ (chú thích kỹ năng, lệch phải-dưới) hoặc khung món đồ {x, y, w, h} (đặt giữa, ngay phía trên;
+  // không đủ chỗ thì xuống dưới)
+  UI.tip = function (html, at, item) {
+    var el = UI.tipEl;
+    if (!html || (S() && S().char && S().char.hand)) { el.style.display = 'none'; return; }
+    el.className = item ? 'tip itip' : 'tip';
+    el.innerHTML = html; el.style.display = 'block';
+    var w = el.offsetWidth, hh = el.offsetHeight, x, y;
+    if (item) { x = at.x + at.w / 2 - w / 2; y = at.y - hh; if (y < 0) y = at.y + at.h; }
+    else { x = at.x + 14; y = at.y + 14; }
+    el.style.left = Math.round(Math.max(0, Math.min(960 - w, x))) + 'px';
+    el.style.top = Math.round(Math.max(0, Math.min(540 - hh, y))) + 'px';
   };
-  function hoverTip(el, htmlFn) {
-    el.addEventListener('pointerenter', function (e) { if (e.pointerType === 'touch') return; var p = D2.Input.logical(e); UI.tip(htmlFn(), p.x, p.y); });
-    el.addEventListener('pointermove', function (e) { if (e.pointerType === 'touch') return; var p = D2.Input.logical(e); UI.tip(htmlFn(), p.x, p.y); });
+  function hoverTip(el, htmlFn, item) {
+    function show(e) { if (e.pointerType === 'touch') return; UI.tip(htmlFn(), item ? logicalRect(el) : D2.Input.logical(e), item); }
+    el.addEventListener('pointerenter', show);
+    el.addEventListener('pointermove', show);
     el.addEventListener('pointerleave', function () { UI.tip(null); });
     el.__tipFn = htmlFn;
   }
@@ -417,6 +465,7 @@
     UI.open.map = false; UI.mapEl.style.display = 'none';
     UI.closeDialog(); UI.popup.style.display = 'none'; UI.popHover = undefined; UI.tip(null);
     UI.open.help = false; UI.helpEl.style.display = 'none';
+    if (UI.goldEl) UI.goldEl.style.display = 'none';
     if (UI.beltOpen) UI.toggleBelt();
   };
   UI.anyOpen = function () { return UI.sideOpen('left') || UI.sideOpen('right') || UI.open.menu || UI.open.help || !!UI.dlg; };
@@ -429,38 +478,36 @@
     if (p === UI.shopEl) UI.closeShop();
     UI.tip(null);
   };
-  /* Tiêu đề nằm trong dải trên cùng của bảng (chữ Exocet thay bằng Cinzel). */
-  function title(q, text, x, y, w) { return box(q, 'ptitle', x, y, w, 24, esc(text)); }
 
   /* -------------------------------------------------------- bảng nhân vật */
   function renderChar() {
     var p = UI.panels.char, s = S(), c = s.char, d = s.d || {};
     var q = pin(p, PN('character'), 80, 60);
     var nm = DA().className(c.cls);
-    box(q, 'fld', 10, 8, 172, 18, esc(c.name));
-    box(q, 'fld', 192, 8, 118, 18, esc(nm));
-    box(q, 'fld two', 10, 31, 42, 35, '<small>Cấp</small>' + c.lvl);
-    box(q, 'fld two', 63, 31, 120, 35, '<small>Kinh nghiệm</small>' + c.xp);
-    box(q, 'fld two', 192, 31, 118, 35, '<small>Cấp tiếp theo</small>' + DA().xpFor(c.lvl + 1));
+    box(q, 'fld', 10, 8, 172, 18, T(c.name));
+    box(q, 'fld', 192, 8, 118, 18, T(nm));
+    box(q, 'fld two', 10, 31, 42, 35, '<small>Cấp</small>' + T(c.lvl));
+    box(q, 'fld two', 63, 31, 120, 35, '<small>Kinh nghiệm</small>' + T(c.xp));
+    box(q, 'fld two', 192, 31, 118, 35, '<small>Cấp tiếp theo</small>' + T(DA().xpFor(c.lvl + 1)));
     var groups = [
       { key: 'str', lab: 'Sức mạnh', y: 81, rows: [['Sát thương', Math.round(d.dmgMin || 0) + '-' + Math.round(d.dmgMax || 0)], ['Chính xác', Math.round(d.ar || 0)]] },
-      { key: 'dex', lab: 'Nhanh nhẹn', y: 143, rows: [['Phòng thủ', Math.round(d.def || 0)], ['Tốc đánh', (d.atkFrames || 0) + ' khung'], ['Vàng', '<span style="color:#ffd24a">' + c.gold + '</span>']] },
+      { key: 'dex', lab: 'Nhanh nhẹn', y: 143, rows: [['Phòng thủ', Math.round(d.def || 0)], ['Tốc đánh', (d.atkFrames || 0) + ' khung'], ['Vàng', c.gold]] },
       { key: 'vit', lab: 'Sinh lực', y: 231, rows: [['Sinh lực', Math.ceil(c.hp) + '/' + (d.maxHp || 0)], ['Thể lực', Math.round(s.stamina || 0) + '/' + Math.round(s.stamMax || 0)]] },
       { key: 'ene', lab: 'Năng lượng', y: 293, rows: [['Mana', Math.ceil(c.mp) + '/' + (d.maxMp || 0)]] }
     ];
     var statupR = (((UA().panels || {}).buttons || {}).statup || [{}])[0].r;
     groups.forEach(function (g) {
-      box(q, 'fld lv', 10, g.y, 38 + 70, 22, '<span>' + g.lab + '</span><b>' + c[g.key] + '</b>');
-      g.rows.forEach(function (r, i) { box(q, 'fld lv', 161, g.y + i * 23.5, 150, 22, '<span>' + r[0] + '</span><b>' + r[1] + '</b>'); });
+      box(q, 'fld lv', 10, g.y, 38 + 70, 22, '<span>' + g.lab + '</span><b>' + T(c[g.key]) + '</b>');
+      g.rows.forEach(function (r, i) { box(q, 'fld lv', 161, g.y + i * 23.5, 150, 22, '<span>' + r[0] + '</span><b>' + T(r[1]) + '</b>'); });
       if (c.statPts > 0) {
         var bt = box(q, 'plus', 125, g.y - 4, 30, 29, '+'); bt.style.cssText += ';' + D2.E.uiSprite(statupR, 1);
         bt.addEventListener('pointerdown', function (e) { e.stopPropagation(); G().statUp(g.key); });
       }
     });
-    box(q, 'fld lv', 3, 341, 135, 22, '<span>Chỉ số ' + c.statPts + '</span><b>Kỹ năng ' + c.skillPts + '</b>');
+    box(q, 'fld lv', 3, 341, 135, 22, '<span>Chỉ số ' + T(c.statPts) + '</span><b>Kỹ năng ' + T(c.skillPts) + '</b>');
     var res = d.res || {};
-    [['Kháng lửa', res.fire, '#f55'], ['Kháng lạnh', res.cold, '#6cf'], ['Kháng sét', res.light, '#ff6'], ['Kháng độc', res.poison, '#7d7']].forEach(function (r, i) {
-      box(q, 'fld lv', 174, 331 + i * 23, 137, 21, '<span style="color:' + r[2] + '">' + r[0] + '</span><b style="color:' + r[2] + '">' + (r[1] || 0) + '</b>');
+    [['Kháng lửa', res.fire, '#f55', 'red'], ['Kháng lạnh', res.cold, '#6cf', 'blue'], ['Kháng sét', res.light, '#ff6', 'yellow'], ['Kháng độc', res.poison, '#7d7', 'green']].forEach(function (r, i) {
+      box(q, 'fld lv', 174, 331 + i * 23, 137, 21, '<span style="color:' + r[2] + '">' + r[0] + '</span><b>' + T(r[1] || 0, 'font16', r[3]) + '</b>');
     });
     closeBtn(q, p, 128, 388);
   }
@@ -481,7 +528,7 @@
     list.forEach(function (it) {
       var e = itemEl(it, CELL); e.style.cssText += ';position:absolute;left:' + (it.ix * CELL) + 'px;top:' + (it.iy * CELL) + 'px';
       grid.appendChild(e);
-      hoverTip(e, function () { return itemTipHtml(it) + (UI.shop && where === 'inv' ? '<br><span style="color:#ffd24a">Bán: ' + DA().sellPrice(it) + ' vàng</span>' : ''); });
+      hoverTip(e, function () { return itemTipHtml(it, UI.shop && where === 'inv' ? ['Bán: ' + DA().sellPrice(it)] : null); }, true);
     });
     grid.addEventListener('pointerdown', function (ev) {
       ev.stopPropagation();
@@ -496,6 +543,7 @@
         if (!it) return;
         if (ev.button === 2) { if (where === 'inv' && DA().potionInfo(it)) G().useItem(it); }
         else if (ev.shiftKey && where === 'inv' && DA().potionInfo(it)) G().toBelt(it);
+        else if (UI.shop && UI.shopMode === 'sell' && where === 'inv') G().sellItem(it);
         else G().pickUp(it);
       }
       UI.tip(null); UI.dirty = false; UI.renderOpen(); drawCursor();
@@ -512,7 +560,7 @@
       if (it) {
         var e = itemFit(it, rc.w, rc.h); e.style.cssText += ';position:absolute;left:2px;top:2px';
         cell.appendChild(e);
-        hoverTip(cell, function () { return itemTipHtml(it); });
+        hoverTip(cell, function () { return itemTipHtml(it); }, true);
       }
       cell.addEventListener('pointerdown', function (ev) {
         ev.stopPropagation(); if (ev.button === 2) return;
@@ -522,9 +570,40 @@
     });
     itemGrid(q, 'inv', c.inv, gr[0], gr[1], gr[2], gr[3]);
     var gp = L.gold || [84, 391];
-    box(q, 'gold', gp[0] + 4, gp[1] + 1, 112, 18, 'Vàng: <b>' + c.gold + '</b>');
+    box(q, 'gold', gp[0] + 4, gp[1] + 1, 112, 18, 'Vàng: ' + T(c.gold));
+    // nút đồng vàng (goldcoinbtn) cạnh ô vàng: mở hộp thả vàng
+    var GB = (((UA().panels || {}).buttons) || {}).gold || [], gb = box(q, 'hbtn goldbtn', gp[0] - 22, gp[1] + 1, 20, 18, '');
+    gb.title = 'Thả vàng';
+    pressBtn(gb, function (dn) { var f = GB[dn ? 1 : 0]; return f && f.r; }, function () { if (S().char.gold > 0) UI.goldDialog(); });
+    // tab I/II trên hai ô vũ khí (đã vẽ sẵn trong tranh túi đồ): bấm hoặc phím W đổi bộ; tab đang tắt phủ tối
+    ['rhand', 'lhand'].forEach(function (sl) {
+      var rc = slotRect(sl); if (!rc) return;
+      [0, 1].forEach(function (k) {
+        var t = box(q, 'wtab' + ((c.weaponSet || 0) === k ? ' on' : ''), rc.x - 2 + k * (rc.w / 2 + 2), rc.y - 25, rc.w / 2 + 2, 21, '');
+        t.title = 'Bộ vũ khí ' + (k ? 'II' : 'I') + ' (W)'; t.dataset.set = k;
+        t.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); if ((S().char.weaponSet || 0) !== k) { G().swapWeapons(); renderInv(); } });
+      });
+    });
     closeBtn(q, p, (L.close || [18, 384])[0], (L.close || [18, 384])[1]);
   }
+
+  // Hộp thả vàng như D2: tranh dialogbackground (dải nhập số + hai hốc), goldbtn ✓ / ✗ trong hai hốc.
+  UI.goldDialog = function () {
+    var X = ((UA().panels || {}).extra) || {}, el = UI.goldEl;
+    if (!el) { el = UI.goldEl = h('div', 'golddlg', '', UI.root); el.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); }); }
+    el.innerHTML = ''; el.style.cssText = 'display:block;' + D2.E.uiSprite(X.goldDialog, 1);
+    box(el, 'fhead', 0, 14, 210, 40, T('Thả bao nhiêu vàng?', 'font16'));
+    var inp = h('input', 'gamt', '', el); inp.type = 'number'; inp.min = 0; inp.max = S().char.gold; inp.value = S().char.gold;
+    function close() { el.style.display = 'none'; }
+    function btn(k, x, fn) {
+      var e = box(el, 'hbtn', x, 124, 15, 14, ''); e.title = k ? 'Huỷ' : 'Thả';
+      pressBtn(e, function (dn) { var r = (X.goldBtn || [])[k * 2 + (dn ? 1 : 0)]; return r; }, fn);
+    }
+    btn(0, 43, function () { G().dropGold(+inp.value); close(); });
+    btn(1, 151, close);
+    inp.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { G().dropGold(+inp.value); close(); } else if (ev.key === 'Escape') close(); });
+    setTimeout(function () { inp.focus(); inp.select(); }, 0);
+  };
 
   /* ------------------------------------------------------- kho đồ (6x8) và waypoint */
   UI.openStash = function () {
@@ -535,7 +614,7 @@
     // tranh kho lớn của D2R là 10x10; chỉ 6x8 đầu dùng được, phần còn lại phủ tối
     var p = UI.panels.stash, c = S().char, CW = D2.Game.stashCols, RW = D2.Game.stashRows;
     var q = pin(p, PN('stash_big'), 80, 60), gx = 16, gy = 63;
-    box(q, 'gold', 18, 358, 180, 18, 'Vàng: <b>' + c.gold + '</b>');
+    box(q, 'gold', 18, 358, 180, 18, 'Vàng: ' + T(c.gold));
     for (var gyi = 0; gyi < 10; gyi++) for (var gxi = 0; gxi < 10; gxi++) {
       if (gxi >= CW || gyi >= RW) box(q, 'lockcell', gx + gxi * CELL, gy + gyi * CELL, CELL, CELL, '');
     }
@@ -573,7 +652,7 @@
     Object.keys(A).filter(function (k) { return A[k].waypoint && !A[k].unused && A[k].act === act; })
       .sort(function (a, b) { return A[a].d2id - A[b].d2id; })
       .forEach(function (k) {
-        var on = !!(A[k].town || w[k]), b = h('button', 'wpb' + (k === here ? ' here' : '') + (on ? '' : ' off'), esc(A[k].name), lst);
+        var on = !!(A[k].town || w[k]), b = h('button', 'wpb' + (k === here ? ' here' : '') + (on ? '' : ' off'), T(A[k].name, 'font16', k === here ? 'gold' : on ? 'white' : 'grey'), lst);
         b.dataset.area = k;
         var fi = h('i', 'wpico', '', b), fr = ICO[k === here ? 2 : on ? 0 : 3];
         if (fr) fi.style.cssText = D2.E.uiSprite(fr.r, 1);
@@ -609,7 +688,7 @@
       b.style.cssText = 'left:' + r[0] + 'px;top:' + r[1] + 'px;width:' + r[2] + 'px;height:' + r[3] + 'px';
       b.addEventListener('pointerdown', function (e) { e.stopPropagation(); UI.skTab = i; renderSkill(); });
     });
-    box(q, 'skpts', 232, 6, 86, 96, '<small>Điểm kỹ năng</small><b>' + c.skillPts + '</b>');
+    box(q, 'skpts', 232, 6, 86, 96, '<small>Điểm kỹ năng</small><b>' + T(c.skillPts, 'font30') + '</b>');
     var tree = h('div', 'tree', '', q);
     var list = DA().skillsOf(c.cls).filter(function (k) { return k.tab === UI.skTab; });
     // bấm một lần vào kỹ năng học được là cộng một điểm, như D2; gán kỹ năng qua nút kỹ năng trên HUD (hoặc S)
@@ -617,11 +696,11 @@
       var st = skillState(k), e = h('div', 'sknode' + (st.lv > 0 ? ' on' : '') + (st.can ? ' can' : ''), '', tree);
       e.style.left = (SK_X0 + k.col * SK_DX - 24) + 'px'; e.style.top = (SK_Y0 + k.row * SK_DY - 24) + 'px';
       e.dataset.skill = k.id;
-      e.innerHTML = skIconHtml(k.id, 44) + '<b>' + st.lv + '</b>';
+      e.innerHTML = skIconHtml(k.id, 44) + '<b>' + T(st.lv) + '</b>';
       hoverTip(e, function () { return skillTip(k); });
       e.addEventListener('pointerdown', function (ev) {
         ev.stopPropagation();
-        if (st.can) { G().skillUp(k.id); renderSkill(); var p2 = D2.Input.logical(ev); UI.tip(skillTip(k), p2.x, p2.y); }
+        if (st.can) { G().skillUp(k.id); renderSkill(); UI.tip(skillTip(k), D2.Input.logical(ev)); }
       });
     });
     closeBtn(q, p, 172, 383);
@@ -684,37 +763,70 @@
       else if (st === 'active') body = goalText(q) + (q.goal && q.goal.type === 'clear_area' && s.areaId === q.goal.area && s.denLeft != null ? ' Còn <b>' + s.denLeft + '</b> con.' : '');
       else if (st === 'cleared') body = 'Đã xong mục tiêu.' + (q.turnIn ? ' Quay về gặp ' + back + ' để nhận thưởng.' : '');
       else body = 'Hoàn thành.';
-      txt.innerHTML = '<b>' + esc(q.name) + '</b><br>' + body;
+      txt.innerHTML = '<b>' + T(q.name, 'font16', 'gold') + '</b><br>' + body;
     }
     closeBtn(q0, p, 278, 390);
   }
 
   /* ---------------------------------------------------- NPC & cửa hàng */
+  // Khung hộp từ boxpieces.dc6 (12x12): 0 trên-trái, 1 trên-phải, 2-7 cạnh trên, 8 dưới-trái, 9 dưới-phải,
+  // 10-12 cạnh trái, 13-15 cạnh phải, 16-21 cạnh dưới. Hộp được nới tới bội của 12 để các mảnh khít.
+  function boxFrame(el) {
+    var P = PN('dialog'); if (P.length < 22) return;
+    var W = Math.ceil(el.offsetWidth / 12) * 12, H = Math.ceil(el.offsetHeight / 12) * 12, k, x, y;
+    el.style.width = W + 'px'; el.style.height = H + 'px';
+    var fr = h('div', 'bframe', '', el);
+    function put(i, px, py) { h('div', 'sp', '', fr).style.cssText = spStyle(P[i].r, px, py); }
+    put(0, 0, 0); put(1, W - 12, 0); put(8, 0, H - 12); put(9, W - 12, H - 12);
+    for (k = 0, x = 12; x < W - 12; x += 12, k++) { put(2 + k % 6, x, 0); put(16 + k % 6, x, H - 12); }
+    for (k = 0, y = 12; y < H - 12; y += 12, k++) { put(10 + k % 3, 0, y); put(13 + k % 3, W - 12, y); }
+  }
+  // Hộp thoại NPC như D2: hộp boxpieces, tên NPC, lời chào, các lựa chọn chữ trắng căn giữa, cuối cùng là Đóng.
   UI.openDialog = function (npc, def) {
-    UI.dlg = npc; var el = UI.dlgEl; el.style.display = 'block'; el.innerHTML = '';
-    h('div', 'dname', esc(def.name), el);
+    UI.dlg = npc; var el = UI.dlgEl; el.style.cssText = 'display:block'; el.innerHTML = '';
+    h('div', 'dname', T(def.name, 'font16', 'gold'), el);
     h('div', 'dtext', def.text, el);
     var bar = h('div', 'dbtns', '', el);
     def.buttons.forEach(function (b) {
-      var e = h('button', '', esc(b.label), bar);
+      var e = h('button', 'dopt', T(b.label), bar);
       e.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); b.fn(); });
     });
-    var x = h('button', 'dclose', 'Đóng', bar); x.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); UI.closeDialog(); });
+    var x = h('button', 'dopt dclose', T('Đóng'), bar); x.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); UI.closeDialog(); });
+    boxFrame(el);
   };
   UI.closeDialog = function () { UI.dlg = null; UI.dlgEl.style.display = 'none'; UI.closeShop(); };
   UI.openShop = function (stock) {
     closeSide('left', 'shop');
-    UI.shop = stock; UI.shopEl.style.display = 'block'; UI.dlgEl.style.display = 'none';
+    UI.shop = stock; UI.shopMode = 'buy'; UI.shopTab = null; UI.shopEl.style.display = 'block'; UI.dlgEl.style.display = 'none';
     if (!UI.open.inv) UI.toggle('inv');
     UI.renderShop();
   };
   UI.closeShop = function () { UI.shop = null; UI.shopEl.style.display = 'none'; UI.tip(null); };
-  // Mua: bấm vào hàng của NPC. Bán: cầm đồ trong túi lên rồi thả vào bảng cửa hàng (như D2).
+  // Mua: bấm vào hàng của NPC. Bán: cầm đồ trong túi lên rồi thả vào bảng cửa hàng, hoặc bật nút Bán rồi bấm món trong
+  // túi (như D2). Tab buyselltabs chia hàng theo loại (khung k sáng, 4+k tối); giá nằm trong chú thích.
+  var SHOP_TABS = [['weapon', 'Vũ khí'], ['armor', 'Giáp'], ['misc', 'Khác']];
+  function shopKind(it) { var b = DA().base(it), k = b && b.kind; return k === 'weapon' || k === 'armor' ? k : 'misc'; }
   UI.renderShop = function () {
-    var p = UI.shopEl, c = S().char;
+    var p = UI.shopEl, c = S().char, B = ((UA().panels || {}).buttons) || {}, TL = (UA().layout || {}).npc_trade || {};
     var q = pin(p, PN('npc_trade'), 80, 60);
-    title(q, (UI.shopName || 'Cửa hàng') + ' - Vàng ' + c.gold, 0, 3, 320);
     q.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); if (S().char.hand) { G().sellHand(); UI.renderOpen(); drawCursor(); } });
+    var tabs = SHOP_TABS.filter(function (t) { return UI.shop.some(function (it) { return shopKind(it) === t[0]; }); });
+    if (!tabs.some(function (t) { return t[0] === UI.shopTab; })) UI.shopTab = tabs.length ? tabs[0][0] : null;
+    tabs.forEach(function (t, i) {
+      var on = t[0] === UI.shopTab, fr = (B.tabs_trade || [])[on ? i : 4 + i];
+      var e = box(q, 'stab' + (on ? ' on' : ''), 2 + i * 79, 1, 79, 31, T(t[1], 'font16', on ? 'white' : 'grey'));
+      if (fr) e.style.cssText += ';' + D2.E.uiSprite(fr.r, 1);
+      e.dataset.tab = t[0];
+      e.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); UI.shopTab = t[0]; UI.renderShop(); });
+    });
+    box(q, 'fld', 16, 359, 186, 18, 'Vàng: ' + T(c.gold));
+    // nút Mua / Bán (buysellbtn khung 2-3, 4-5): chọn chế độ, nút đang bật vẽ khung nhấn
+    [['buy', 2, 'Mua'], ['sell', 4, 'Bán']].forEach(function (m) {
+      var pos = TL[m[0]] || [116, 385], on = (UI.shopMode || 'buy') === m[0], fr = (B.buysell || [])[m[1] + (on ? 1 : 0)];
+      var e = box(q, 'sbtn', pos[0], pos[1], 32, 32, ''); e.title = m[2]; e.dataset.mode = m[0];
+      if (fr) e.style.cssText += ';' + D2.E.uiSprite(fr.r, 1);
+      e.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); UI.shopMode = m[0]; UI.renderShop(); });
+    });
     var grid = box(q, 'grid', 16, 63, 10 * CELL, 10 * CELL, ''), occ = [];
     function fits(x, y, w, hh) {
       if (x + w > 10 || y + hh > 10) return false;
@@ -722,6 +834,7 @@
       return true;
     }
     UI.shop.forEach(function (it) {
+      if (UI.shopTab && shopKind(it) !== UI.shopTab) return;
       var w = it.w || 1, hh = it.h || 1, px = -1, py = -1, x, y;
       for (y = 0; y < 10 && py < 0; y++) for (x = 0; x < 10; x++) if (fits(x, y, w, hh)) { px = x; py = y; break; }
       if (py < 0) return;
@@ -730,17 +843,17 @@
       row.style.cssText = 'left:' + (px * CELL) + 'px;top:' + (py * CELL) + 'px;width:' + (w * CELL) + 'px;height:' + (hh * CELL) + 'px';
       var ie = itemEl(it, CELL); ie.style.cssText += ';position:absolute;left:0;top:0'; row.appendChild(ie);
       var price = DA().buyPrice(it);
-      var b = h('button', 'price' + (c.gold >= price ? '' : ' off'), String(price), row);
-      b.title = esc(DA().itemName(it).replace(/\n/g, ' ')) + ' - ' + price + ' vàng';
-      function buy(e) {
+      row.dataset.price = price;
+      row.addEventListener('pointerdown', function (e) {
         e.stopPropagation();
         if (S().char.hand) G().sellHand(); else G().buyItem(it);
-        UI.renderOpen(); drawCursor();
-      }
-      b.addEventListener('pointerdown', buy); row.addEventListener('pointerdown', buy);
-      hoverTip(row, function () { return itemTipHtml(it) + '<br><span style="color:#ffd24a">Giá: ' + price + ' vàng</span>'; });
+        UI.tip(null); UI.renderOpen(); drawCursor();
+      });
+      hoverTip(row, function () { return itemTipHtml(it, ['Giá: ' + price]); }, true);
     });
-    closeBtn(q, p, 272, 385);
+    var cl = (B.buysell || [])[10], cp = TL.close || [272, 385], x = box(q, 'sbtn', cp[0], cp[1], 32, 32, ''); x.title = 'Đóng';
+    if (cl) x.style.cssText += ';' + D2.E.uiSprite(cl.r, 1);
+    x.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); UI.closePanelOf(p); });
   };
 
   /* -------------------------------------------------------- popup kỹ năng */
@@ -785,16 +898,44 @@
   };
 
   /* ---------------------------------------------------------- menu Esc */
+  // Như D2: phủ tối cả màn, các mục chữ Font42 căn giữa, ngôi sao pentspin quay hai bên mục đang trỏ.
   UI.toggleMenu = function () {
-    if (UI.open.menu) { UI.open.menu = false; UI.menuEl.style.display = 'none'; return; }
+    if (UI.open.menu) { UI.open.menu = false; UI.menuEl.style.display = 'none'; clearInterval(UI._pentT); return; }
     if (UI.anyOpen() && !UI.open.menu) { UI.closeAll(); return; }
-    UI.open.menu = true; var m = UI.menuEl; m.style.display = 'block'; m.innerHTML = '<h3>Tạm dừng</h3>';
-    function b(label, fn) { var e = h('button', '', label, m); e.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); fn(); }); }
-    b('Tiếp tục', function () { UI.toggleMenu(); });
-    b('Lưu trò chơi', function () { G().save(); UI.msg('Đã lưu.'); UI.toggleMenu(); });
-    b(D2.E.muted ? 'Bật âm thanh' : 'Tắt âm thanh', function () { D2.E.muted = !D2.E.muted; D2.E.music(null); if (!D2.E.muted) G().playAreaMusic(); UI.toggleMenu(); });
-    b('Về màn hình chính', function () { UI.toggleMenu(); G().toTitle(); });
+    UI.open.menu = true; UI.menuEl.style.display = 'block';
+    menuPage([
+      ['Tuỳ chọn', function () {
+        menuPage([
+          [D2.E.muted ? 'Âm thanh: tắt' : 'Âm thanh: bật', function () { D2.E.muted = !D2.E.muted; D2.E.music(null); if (!D2.E.muted) G().playAreaMusic(); UI.open.menu = false; UI.toggleMenu(); }],
+          ['Trở về', function () { UI.open.menu = false; UI.toggleMenu(); }]
+        ]);
+      }],
+      ['Lưu và thoát', function () { G().save(); UI.toggleMenu(); G().toTitle(); }],
+      ['Trở lại trò chơi', function () { UI.toggleMenu(); }]
+    ]);
   };
+  function menuPage(items) {
+    var m = UI.menuEl, H = 50, y0 = Math.round(270 - items.length * H / 2), sel = 0, pf = 0;
+    var P = (UA().cursor || {}).pentspin || [];
+    m.innerHTML = '';
+    var pl = h('div', 'pent', '', m), pr = h('div', 'pent', '', m), els = [];
+    function place() {
+      var e = els[sel], r = P[pf % P.length]; if (!e || !r) return;
+      // tâm ngôi sao lệch (+25, -26) so với điểm neo của khung pentspin
+      var cy = y0 + sel * H + H / 2, w = e.firstChild.offsetWidth;
+      pl.style.cssText = spStyle(r, 480 - w / 2 - 40 - 25, cy + 26);
+      pr.style.cssText = spStyle(r, 480 + w / 2 + 40 - 25, cy + 26);
+    }
+    items.forEach(function (it, i) {
+      var e = box(m, 'mitem', 0, y0 + i * H, 960, H, T(it[0], 'font42'));
+      e.addEventListener('pointerenter', function () { sel = i; place(); });
+      e.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); D2.E.sfx(['cursor_button_click'], 0.4); it[1](); });
+      els.push(e);
+    });
+    clearInterval(UI._pentT);
+    UI._pentT = setInterval(function () { if (!UI.open.menu) return clearInterval(UI._pentT); pf++; place(); }, 50);
+    place();
+  }
 
   /* ---------------------------------------------------------- bản đồ */
   // s.grid là D2G.World: mỗi khu đã dựng có `seen` riêng, vẽ theo lệch (ox, oy) của khu nên bản đồ liền qua mép khu
@@ -834,42 +975,162 @@
   };
 
   /* ------------------------------------------------------ màn hình đầu */
-  UI.showLoad = function (on, text) { UI.loadEl.style.display = on ? 'flex' : 'none'; if (text) $('.lt', UI.loadEl).textContent = text; };
+  // Tranh D2 800x600 (nhóm m/front, _tools/build_ui.py build_front) vẽ lên một canvas .fcv trong .screen, co 0.9 cho vừa
+  // chiều cao và căn giữa. Nút, ô tên, vùng bấm lớp là DOM trong .fpin, cũng theo toạ độ 800x600 rồi co cùng hệ số.
+  var FK = 0.9, FX = (960 - 800 * FK) / 2, FPS = 25;
+  var F = UI.front = { mode: null, under: null, t0: 0, cls: {}, hover: null, picked: null };
+  function FG() { var g = window.D2_GROUPS && D2_GROUPS.front; return g && g.front; }
+  function ensureFront() {
+    if (F.ready) return F.ready;
+    var gname = D2.E.index && D2.E.index.front;
+    return (F.ready = (gname ? D2.E.loadGroup(gname) : Promise.resolve(false)).then(function () {
+      var g = FG(); if (!g) return false;
+      return Promise.all(g.pages.map(function (pg) {
+        return new Promise(function (res) { var r = D2.E.img(pg); if (r.ok || r.fail) res(); else r.cbs.push(res); });
+      }));
+    }));
+  }
+  UI.ensureFront = ensureFront;
+  function fdraw(c, r, x, y) {
+    var g = FG(); if (!g || !r || !r.length) return;
+    var rec = D2.E.img(g.pages[r[6]]); if (!rec.ok) return;
+    c.drawImage(rec.img, r[0], r[1], r[2], r[3], x - r[4], y - r[5], r[2], r[3]);
+  }
+  function fsprite(r) {
+    var g = FG(); if (!g || !r || !r.length) return '';
+    return 'background-image:url(' + g.pages[r[6]] + (D2.E.ver ? '?v=' + D2.E.ver : '') + ');background-repeat:no-repeat;background-position:-' + r[0] + 'px -' + r[1] + 'px;width:' + r[2] + 'px;height:' + r[3] + 'px;';
+  }
+  function frontCanvas(el) { var c = h('canvas', 'fcv', '', el); c.width = 960; c.height = 540; return c; }
+  function fpin(el) { var q = h('div', 'fpin', '', el); q.style.cssText = 'left:' + FX + 'px;transform:scale(' + FK + ')'; return q; }
+  // nút ảnh D2 (widebuttonblank / mediumbuttonblank: khung 0 thả, 1 nhấn), chữ Exocet căn giữa
+  function fbtn(parent, kind, x, y, label, fn, id) {
+    var g = FG(), fr = g ? g.btn[kind] : null, e = h('button', 'fbtn ' + kind, T(label, 'fontexocet10', 'white'), parent);
+    if (id) e.id = id;
+    function paint(dn) { var r = fr && fr[dn ? 1 : 0]; e.style.cssText = 'left:' + (x - (r ? r[4] : 0)) + 'px;top:' + (y - (r ? r[5] : 0)) + 'px;' + fsprite(r); }
+    paint(false);
+    e.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); paint(true); D2.E.audioUnlock(); D2.E.sfx(['cursor_button_click'], 0.4); fn(); });
+    e.addEventListener('pointerup', function () { paint(false); });
+    e.addEventListener('pointerleave', function () { paint(false); });
+    return e;
+  }
+  // khung hoạt ảnh theo thời gian: len (ms) là cả lượt, 0 thì 25 khung/giây
+  function fframe(list, t, len, loop) {
+    var n = list.length, k = Math.floor(t / ((len || n * 1000 / FPS) / n));
+    return loop ? k % n : Math.min(n - 1, k);
+  }
+  function frontLoop() {
+    if (!F.mode) { F.loop = false; return; }
+    requestAnimationFrame(frontLoop);
+    var g = FG(), cv = F.mode === 'load' ? UI.loadCv : UI.titleCv; if (!g || !cv) return;
+    var c = cv.getContext('2d'), now = performance.now(), t = now - F.t0;
+    c.setTransform(1, 0, 0, 1, 0, 0); c.fillStyle = '#000'; c.fillRect(0, 0, 960, 540);
+    c.setTransform(FK, 0, 0, FK, FX, 0); c.imageSmoothingEnabled = true;
+    if (F.mode === 'title') {
+      g.title.bg.forEach(function (b) { fdraw(c, b.r, b.x, b.y); });
+      var L = g.title.logo, k = Math.floor(t * FPS / 1000);
+      fdraw(c, L.blackL, L.x, L.y); fdraw(c, L.blackR, L.x, L.y);
+      c.globalCompositeOperation = 'lighter';
+      fdraw(c, L.fireL[k % L.fireL.length], L.x, L.y); fdraw(c, L.fireR[k % L.fireR.length], L.x, L.y);
+      c.globalCompositeOperation = 'source-over';
+    } else if (F.mode === 'create') {
+      g.create.bg.forEach(function (b) { fdraw(c, b.r, b.x, b.y); });
+      // lớp đứng yên vẽ trước, lớp đang đi/được chọn vẽ sau, lửa trại sau cùng (OD select_hero_class)
+      var later = [];
+      Object.keys(g.cls).forEach(function (nm) { if (!F.cls[nm] || F.cls[nm].st === 'idle') drawHero(c, nm, now); else later.push(nm); });
+      later.forEach(function (nm) { drawHero(c, nm, now); });
+      var fi = g.create.fire;
+      c.globalCompositeOperation = 'lighter'; fdraw(c, fi.f[Math.floor(t * FPS / 1000) % fi.f.length], fi.x, fi.y); c.globalCompositeOperation = 'source-over';
+    } else if (F.mode === 'load') {
+      // khung 256x256 đặt giữa màn; cửa mở dần trong lúc tải
+      var ld = g.load, f = ld.f[Math.min(ld.f.length - 1, Math.floor(t / 120))];
+      fdraw(c, f, ld.x - f[2] / 2 + f[4], ld.y - f[3] / 2 + f[5]);
+    }
+  }
+  // Mỗi lớp: idle (nu1) -> fw (bước tới lửa) -> sel (nu3) -> bw (lùi về) -> idle. F.cls[lớp].f là khung đang vẽ.
+  function drawHero(c, nm, now) {
+    var d = FG().cls[nm], s = F.cls[nm] || (F.cls[nm] = { st: 'idle', t: now, f: 0 }), t, list, ov, len;
+    if (s.st === 'fw' && now - s.t >= d.len[1]) { s.st = 'sel'; s.t = now; }
+    if (s.st === 'bw' && now - s.t >= d.len[2]) { s.st = 'idle'; s.t = now; }
+    t = now - s.t;
+    if (s.st === 'idle') { list = d.nu1; len = d.len[0]; }
+    else if (s.st === 'fw') { list = d.fw; ov = d.fws; len = d.len[1]; }
+    else if (s.st === 'bw') { list = d.bw; ov = d.bws; len = d.len[2]; }
+    else { list = d.nu3; ov = d.nu3s; len = 0; }
+    var loop = s.st === 'idle' || s.st === 'sel';
+    s.f = fframe(list, t, len, loop);
+    // D2 thay nu1 bằng nu2 (sáng hơn) khi rê chuột; nu2 trùng ảnh nu1 nên làm sáng bằng filter
+    if (s.st === 'idle' && F.hover === nm) c.filter = 'brightness(1.6)';
+    fdraw(c, list[s.f], d.x, d.y); c.filter = 'none';
+    if (ov && ov.length) {
+      if (d.blend) c.globalCompositeOperation = 'lighter';
+      fdraw(c, ov[fframe(ov, t, len, loop)], d.x, d.y); c.globalCompositeOperation = 'source-over';
+    }
+  }
+  function setFront(mode) {
+    F.mode = mode; F.t0 = performance.now();
+    // lớp nút cảm ứng (#touch) nằm trên .ui: ẩn nó khi đang ở màn đầu/màn tải kẻo che nút Bắt đầu
+    document.body.classList.toggle('front', !!mode);
+    if (mode && !F.loop) { F.loop = true; requestAnimationFrame(frontLoop); }
+  }
+
+  UI.showLoad = function (on, text) {
+    UI.loadEl.style.display = on ? 'flex' : 'none'; if (text) $('.lt', UI.loadEl).textContent = text;
+    if (on) { if (!UI.loadCv) UI.loadCv = frontCanvas(UI.loadEl); setFront('load'); }
+    else setFront(UI.titleEl.style.display !== 'none' ? F.under : null);
+  };
   UI.showTitle = function (hasSave) {
+    D2.E.textPreload();
     var el = UI.titleEl; el.style.display = 'flex'; el.innerHTML = '';
-    h('div', 'logo', 'ÁC QUỶ II', el); h('div', 'logo2', 'Diablo II', el);
-    var m = h('div', 'tmenu', '', el);
-    function b(label, fn) { var e = h('button', '', label, m); e.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); D2.E.audioUnlock(); fn(); }); return e; }
+    // chờ nhóm m/front (tranh, nút) một lần; nhóm hỏng thì vẫn hiện menu, chỉ thiếu tranh
+    if (!FG() && !F.tried) { F.tried = true; ensureFront().then(function () { if (UI.titleEl.style.display !== 'none') UI.showTitle(hasSave); }); return; }
+    UI.titleCv = frontCanvas(el); F.under = 'title'; setFront('title');
+    h('h1', 'sr', 'ÁC QUỶ II', el);
+    var q = fpin(el), m = h('div', 'tmenu', '', q), y = 290;
+    function b(label, fn) { var e = fbtn(m, 'wide', 264, y, label, fn); y += 40; return e; }
     var diffs = hasSave ? G().diffs() : [];
-    if (diffs.length > 1) diffs.forEach(function (d) { b('Tiếp tục · ' + d.name, function () { el.style.display = 'none'; G().continueGame(d.id); }); });
-    else if (hasSave) b('Tiếp tục', function () { el.style.display = 'none'; G().continueGame(); });
+    if (diffs.length > 1) diffs.forEach(function (d) { b('Tiếp tục · ' + d.name, function () { UI.hideTitle(); G().continueGame(d.id); }); });
+    else if (hasSave) b('Tiếp tục', function () { UI.hideTitle(); G().continueGame(); });
     b('Trò chơi mới', function () { UI.showClassSelect(); });
     h('div', 'credit', 'Hình, tiếng, bản đồ và số liệu: Diablo II (Blizzard Entertainment), bóc từ bản cài trên máy.', el);
   };
-  UI.hideTitle = function () { UI.titleEl.style.display = 'none'; };
+  UI.hideTitle = function () { UI.titleEl.style.display = 'none'; F.under = null; setFront(null); };
+  // Chọn lớp: cảnh lửa trại của D2, bảy nhân vật đứng quanh lửa. Bấm một người thì người đó bước tới (fw), người đang
+  // được chọn lùi về (bw). Vùng bấm .ccard theo khung chọn của OD.
   UI.showClassSelect = function () {
-    var el = UI.titleEl; el.innerHTML = ''; h('div', 'logo2', 'Chọn nhân vật', el);
-    var row = h('div', 'classes', '', el), picked = null;
-    var info = h('div', 'cinfo', 'Chọn một nhân vật.', el);
-    var nameRow = h('div', 'namerow', '<input id="pname" maxlength="15" placeholder="Tên nhân vật" autocomplete="off"><button id="pgo" class="go">Bắt đầu</button>', el);
-    $('#pgo', nameRow).style.opacity = .5;
+    var el = UI.titleEl; el.innerHTML = '';
+    UI.titleCv = frontCanvas(el); F.under = 'create'; F.cls = {}; F.picked = null; setFront('create');
+    var q = fpin(el), g = FG(), picked = null;
+    box(q, 'fhead', 0, 17, 800, 30, T('Chọn lớp nhân vật', 'font30'));
+    var cname = box(q, 'fhead', 0, 65, 800, 30, ''), info = box(q, 'fhead', 150, 100, 500, 48, '');
     DA().classList().forEach(function (cl) {
-      var e = h('div', 'ccard' + (cl.locked ? ' locked' : ''), '<b>' + esc(cl.name) + '</b><small>' + (cl.locked ? 'Khoá' : esc(cl.blurb || '')) + '</small>', row);
-      e.dataset.cls = cl.id;
+      var d = g && g.cls[cl.id], bx = d ? d.box : [0, 0, 0, 0];
+      var e = box(q, 'ccard' + (cl.locked ? ' locked' : ''), bx[0], bx[1], bx[2], bx[3], '');
+      e.dataset.cls = cl.id; e.title = cl.name;
+      e.addEventListener('pointerenter', function () { F.hover = cl.id; });
+      e.addEventListener('pointerleave', function () { if (F.hover === cl.id) F.hover = null; });
       e.addEventListener('pointerdown', function (ev) {
         ev.stopPropagation(); D2.E.audioUnlock();
-        if (cl.locked) { info.textContent = cl.name + ' bị khoá trong bản này.'; return; }
-        picked = cl.id; [].forEach.call(row.children, function (x) { x.classList.remove('on'); }); e.classList.add('on');
-        info.textContent = cl.name + ': ' + (cl.blurb || ''); $('#pname', nameRow).value = $('#pname', nameRow).value || cl.name;
-        $('#pgo', nameRow).style.opacity = 1;
+        if (cl.locked) { info.innerHTML = T(cl.name + ' bị khoá trong bản này.'); return; }
+        if (picked === cl.id) return;
+        var now = performance.now();
+        if (picked) F.cls[picked] = { st: 'bw', t: now, f: 0 };
+        picked = F.picked = cl.id; F.cls[cl.id] = { st: 'fw', t: now, f: 0 };
+        [].forEach.call(q.querySelectorAll('.ccard'), function (x) { x.classList.remove('on'); }); e.classList.add('on');
+        cname.innerHTML = T(cl.name, 'font30');
+        info.innerHTML = T(cl.blurb || '', 'font16');
+        var inp = q.querySelector('#pname'); inp.value = inp.value || cl.name;
+        q.querySelector('#pgo').classList.remove('off');
       });
     });
-    $('#pgo', nameRow).addEventListener('pointerdown', function (ev) {
-      ev.stopPropagation(); if (!picked) return;
-      var nm = ($('#pname', nameRow).value || '').trim() || picked;
-      el.style.display = 'none'; G().newGame(picked, nm);
-    });
-    var back = h('button', 'back', 'Quay lại', el); back.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); UI.showTitle(G().hasSave()); });
+    box(q, 'flabel', 321, 475, 200, 16, T('Tên nhân vật', 'font16', 'gold'));
+    var tb = box(q, 'ftext', 318, 493, 169, 26, '<input id="pname" maxlength="15" autocomplete="off">');
+    if (g) tb.style.cssText += ';' + fsprite(g.btn.textbox) + 'left:318px;top:493px';
+    fbtn(q, 'medium', 33, 537, 'Quay lại', function () { UI.showTitle(G().hasSave()); });
+    fbtn(q, 'medium', 630, 537, 'Bắt đầu', function () {
+      if (!picked) return;
+      var nm = (q.querySelector('#pname').value || '').trim() || picked;
+      UI.hideTitle(); G().newGame(picked, nm);
+    }, 'pgo').classList.add('off');
   };
   UI.showDead = function (on, cb) {
     var el = UI.deadEl; el.style.display = on ? 'flex' : 'none'; if (!on) return;
