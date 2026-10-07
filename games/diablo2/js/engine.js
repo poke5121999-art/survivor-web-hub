@@ -561,6 +561,7 @@
       var pr = ambEl.play(); if (pr && pr.catch) pr.catch(function () {});
     } catch (e) {}
   };
+  E.musicEl = function () { return musicEl; };
   E.music = function (key) {
     if (key === musicKey) return;
     musicKey = key;

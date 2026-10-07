@@ -223,7 +223,7 @@
       if (S.time - s.form.since < 1) return false;
       unshift(api); return true;
     }
-    if (fx.mana && c.mp < fx.mana) { msg(api, 'Không đủ mana.', '#8ab0ff'); return false; }
+    if (fx.mana && c.mp < fx.mana) { if (api.noMana) api.noMana(); return false; }
     // kiểm tra trước khi trừ mana: triệu hồi cần xác / đủ số
     if (b === 'summon' && !canSummon(api, fx, tx, ty)) return false;
     if (b === 'corpse' && !nearestCorpse(api, tx, ty, 6) && !nearestCorpse(api, h.x, h.y, 10)) { msg(api, 'Cần một xác quái gần đó.'); return false; }

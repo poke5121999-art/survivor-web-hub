@@ -6,10 +6,12 @@ Writes (all under games/diablo2/assets/):
     img/g/ui_<n>.webp     UI panels, buttons, cursors, skill icons  (units palette)
     img/g/inv_<n>.webp    inventory pictures of every item
     a/sfx/*.ogg           mono 22050 Hz Vorbis q0, keyed by sounds.txt Sound name
-    a/music/*.ogg         stereo 44.1 kHz Vorbis q1
+                          (a/sfx/local_*.ogg: class voice lines and NPC greetings from local/sfx)
+    a/music/*.ogg         stereo 44.1 kHz Vorbis ABR 48 kbps, whole songs
 
 Rerunnable and deterministic: atlases and ui.js are rebuilt every run, ogg files already on
-disk are kept (pass --force to re-encode, needed after changing ENC_* below).
+disk are kept (pass --force to re-encode, needed after changing ENC_* below; --force-music
+re-encodes only the music).
 Env D2R_DATA overrides the extracted data root.  Python 3.8 + numpy + Pillow, ffmpeg on PATH.
 """
 from __future__ import print_function
@@ -38,11 +40,13 @@ G = SRC + '/global'
 BS = chr(92)
 
 FORCE = '--force' in sys.argv
+FORCE_MUSIC = FORCE or '--force-music' in sys.argv
 CELL = 29                       # inventory.txt gridBoxWidth; one item cell in px
 LOSSY_PAGE_BYTES = 1 << 20      # a lossless page above this is re-saved lossy q90 when --lossy-big
 ENC_SFX = ['-ac', '1', '-ar', '22050', '-c:a', 'libvorbis', '-q:a', '0']
-ENC_MUSIC = ['-ac', '2', '-ar', '44100', '-c:a', 'libvorbis', '-q:a', '1']
-MUSIC_CAP = float(os.environ.get('MUSIC_CAP', '110'))   # s; longer loops are cut and faded out
+# 2-AVFX: whole songs (7364 s for the 27 area songs) at ~43 kbps take ~40 MB; q1 (~68 kbps) cut at 110 s took 29 MB
+ENC_MUSIC = ['-ac', '2', '-ar', '44100', '-c:a', 'libvorbis', '-b:a', '48k']
+MUSIC_CAP = float(os.environ.get('MUSIC_CAP', '0'))   # s, 0 = whole song; longer songs are cut and faded out
 FADE = 4.0
 
 SKILL_ICON_FILES = {'AM': 'amskillicon', 'AS': 'asskillicon', 'BA': 'baskillicon',
@@ -466,8 +470,8 @@ def build_icons():
 
 # ---------------------------------------------------------------- sound
 
-def ffmpeg(src, dst, enc, cap=0):
-    if not FORCE and os.path.exists(dst) and os.path.getsize(dst) > 0:
+def ffmpeg(src, dst, enc, cap=0, force=None):
+    if not (FORCE if force is None else force) and os.path.exists(dst) and os.path.getsize(dst) > 0:
         return
     tmp = dst + '.tmp.ogg'
     cut = []
@@ -492,17 +496,26 @@ class Sounds(object):
         self.groups = {}
         self.sel = set()
 
-    def src(self, row, depth=0):
+    def src(self, row, depth=0, local=False):
+        """local: also resolve IsLocal rows (local/sfx, English voice). Off by default: every NPC and
+        quest line is local, and only the few lines add_local picks are worth the megabytes."""
         fn = row['FileName'].replace(BS, '/').lower()
         if fn and fn != 'none.flac':
-            p = '%s/sfx/%s' % (G, fn)
-            if os.path.exists(p):
+            loc = row['IsLocal'] == '1'
+            p = '%s/local/sfx/%s' % (SRC, fn) if loc else '%s/sfx/%s' % (G, fn)
+            if (local or not loc) and os.path.exists(p):
                 return p
         if row['Redirect'] and depth < 3 and row['Redirect'] in self.by_name:
-            return self.src(self.by_name[row['Redirect']], depth + 1)
+            return self.src(self.by_name[row['Redirect']], depth + 1, local)
         return None
 
-    def add(self, name):
+    def has(self, name, local=False):
+        return name in self.by_name and self.src(self.by_name[name], 0, local) is not None
+
+    def add_local(self, name):
+        self.add(name, True)
+
+    def add(self, name, local=False):
         """Select a sound by sounds.txt name; Group Size n pulls in the next n-1 rows too."""
         name = (name or '').strip()
         if not name or name not in self.by_name or name in self.sel:
@@ -516,7 +529,7 @@ class Sounds(object):
             self.groups[name] = members
         for m in members:
             self.sel.add(m)
-            p = self.src(self.by_name[m])
+            p = self.src(self.by_name[m], 0, local)
             if p:
                 self.need[m] = p
 
@@ -589,7 +602,38 @@ def pick_sounds():
             S.add(n)
     S.add_prefix(['combat/', 'item/', 'cursor/', 'quest/', 'object/'])
     S.add_prefix(['ambient/scene/%s.flac' % s for s in AMBIENT])
+    # soundenviron one-shots (Day/Night Event, one every ~Event Delay frames)
+    for r in tab('soundenviron'):
+        for c in ('Day Ambience', 'Night Ambience', 'Day Event', 'Night Event'):
+            S.add(r.get(c))
+    # class voice (local/sfx/common/<class>): not enough mana, inventory full, impossible, can't use yet
+    for cls in VOICE_CLASSES:
+        for k in ('needmana_1', 'cantcarry_1', 'cant_carry', 'impossible_1', 'cantuseyet', 'cantidentify_1'):
+            S.add_local('%s_%s' % (cls, k))
+    S.npc_greet = npc_greetings(S)
+    for k in S.npc_greet.values():
+        S.add_local(k)
     return S
+
+
+VOICE_CLASSES = ('amazon', 'assassin', 'barbarian', 'druid', 'necromancer', 'paladin', 'sorceress')
+# monstats Id -> sounds.txt speaker where the name differs (trailing digits are dropped first: cain3 -> cain)
+NPC_VOICE = {'drehya': 'anya', 'qual-kehk': 'qualkehk', 'jamella': 'jamella_old'}
+
+
+def npc_greetings(S):
+    """{monstats Id: greeting group} for every NPC with a greeting in local/sfx. D2 plays one line of the
+    group at random; Warriv has no <who>_greeting_1 and greets with his _greeting_inactive_1 group."""
+    out = {}
+    for r in tab('monstats'):
+        if r.get('npc') != '1':
+            continue
+        who = NPC_VOICE.get(r['Id'], re.sub(r'[0-9]+$', '', r['Id']))
+        for k in (who + '_greeting_1', who + '_greeting_inactive_1'):
+            if S.has(k, True):
+                out[r['Id']] = k
+                break
+    return out
 
 
 AMBIENT = ('wilderness_day_2', 'wilderness_night', 'cave', 'catacombs', 'cathedral', 'crypt',
@@ -608,9 +652,11 @@ def build_sfx():
     os.makedirs(SFX_DIR, exist_ok=True)
     by_file = {}
     for name in sorted(S.need):
-        rel = os.path.relpath(S.need[name], G + '/sfx').replace(BS, '/').lower()
-        out = re.sub(r'\.flac$', '', rel).replace('/', '_') + '.ogg'
-        by_file[S.need[name]] = out
+        p = S.need[name]
+        loc = p.startswith(SRC + '/local/')
+        rel = os.path.relpath(p, SRC + '/local/sfx' if loc else G + '/sfx').replace(BS, '/').lower()
+        out = ('local_' if loc else '') + re.sub(r'\.flac$', '', rel).replace('/', '_') + '.ogg'
+        by_file[p] = out
     encode_all([(s, os.path.join(SFX_DIR, o)) for s, o in sorted(by_file.items())], ENC_SFX, 'sfx')
     # drop stale ogg from an earlier selection so the folder matches ui.js
     keep = set(by_file.values())
@@ -627,7 +673,8 @@ def build_sfx():
             vol[n] = [lo, hi]
         if r['Loop'] == '1':
             loop.append(n)
-    return sfx, groups, vol, loop
+    greet = dict((k, v) for k, v in sorted(S.npc_greet.items()) if v in sfx)
+    return sfx, groups, vol, loop, greet
 
 
 def music_list():
@@ -667,7 +714,9 @@ def build_music():
         src = '%s/%s' % (G, rel)
         jobs.append((src, os.path.join(MUS_DIR, key + '.ogg'), cap))
         out[key] = 'assets/a/music/%s.ogg' % key
-    encode_all(jobs, ENC_MUSIC, 'music')
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        list(ex.map(lambda j: ffmpeg(j[0], j[1], ENC_MUSIC, j[2], FORCE_MUSIC), jobs))
+    print('music: %d files' % len(jobs))
     for k, v in ALIAS.items():
         out[k] = out[v]
     keep = set(os.path.basename(j[1]) for j in jobs)
@@ -726,7 +775,7 @@ def main():
         if re.match(r'^(ui|inv|uix)_\d+\.webp$', fn) and fn not in keep:
             os.remove(os.path.join(IMG_DIR, fn))
 
-    sfx, groups, vol, loop = build_sfx()
+    sfx, groups, vol, loop, greet = build_sfx()
     music = build_music()
 
     layout = {
@@ -743,7 +792,7 @@ def main():
     }
     man = [('pages', ui_pages + inv_pages + uix_pages), ('layout', layout), ('panels', panels),
            ('icons', icons), ('skillIcons', skill_icons), ('cursor', cursor), ('sfx', sfx),
-           ('sfxGroup', groups), ('sfxVol', vol), ('sfxLoop', loop), ('music', music),
+           ('sfxGroup', groups), ('sfxVol', vol), ('sfxLoop', loop), ('npcGreet', greet), ('music', music),
            ('fonts', fonts), ('textColors', text_rgb)]
     body = ',\n'.join('  %s: %s' % (json.dumps(k), json.dumps(v, separators=(',', ':')))
                       for k, v in man)

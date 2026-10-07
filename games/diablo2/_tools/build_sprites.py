@@ -36,17 +36,20 @@ ASSETS = os.path.normpath(os.path.join(HERE, '..', 'assets'))
 # and weapon class); see the report in the build log for what the 60 MB budget cut.
 # ---------------------------------------------------------------------------
 HERO_DIRS = 8
+# Turning shows the 8-dir step most in these modes; D2 ships them with 16 (2-AVFX budget, ~200 MB).
+HERO_DIRS16 = ('NU', 'WL', 'RN', 'TN', 'TW')
 HERO_MODES = ['NU', 'WL', 'RN', 'TN', 'TW', 'A1', 'A2', 'GH', 'DT', 'DD', 'BL', 'SC']
 # TH (throw), KK (kick) and S1..S4 only for the classes whose skills use them (budget).
 HERO_EXTRA_MODES = {'AM': ['TH'], 'BA': ['TH', 'S1', 'S2', 'S3', 'S4'], 'AI': ['KK', 'S1', 'S2', 'S3', 'S4']}
 HERO_CLASSES = ['AM', 'SO', 'NE', 'PA', 'BA', 'DZ', 'AI']
 HERO_WCLASSES = {
     'AM': ['hth', '1ht', '2ht', 'bow', 'xbw'],
-    'SO': ['hth', '1hs', 'stf'],
-    'NE': ['hth', '1hs', 'stf'],
-    'PA': ['hth', '1hs', '2hs'],
+    # bow and 2ht (spear) for the casters/paladin, ~0.6-0.9 MB each per class at 16 dirs; xbw left out (budget, 2-AVFX)
+    'SO': ['hth', '1hs', 'stf', 'bow', '2ht'],
+    'NE': ['hth', '1hs', 'stf', 'bow', '2ht'],
+    'PA': ['hth', '1hs', '2hs', 'bow', '2ht'],
     'BA': ['hth', '1hs', '2hs', '1js', '1jt', '1ss', '1st'],
-    'DZ': ['hth', '1hs', 'stf'],
+    'DZ': ['hth', '1hs', 'stf', 'bow', '2ht'],
     'AI': ['hth', 'ht1', 'ht2'],
 }
 ARMOR_TOKENS = ['lit', 'med', 'hvy']          # TR only
@@ -64,8 +67,8 @@ MON_MODES = ['DT', 'NU', 'WL', 'GH', 'A1', 'A2', 'BL', 'SC', 'S1', 'S2', 'S3', '
 MON_COMPS = ['HD', 'TR', 'LG', 'RA', 'LA', 'RH', 'LH', 'SH', 'S1', 'S2', 'S3', 'S4', 'S5', 'S6',
              'S7', 'S8']
 ACTS = [1, 2, 3, 4, 5]
-# Budget cut: every 2nd frame (fps halved) for all monster modes but these; 60 MB cannot hold the full-rate set.
-FULL_RATE = ('A1',)             # the basic attack keeps every frame; every other mode is decimated
+# Budget cut: every 2nd frame (fps halved) for the other monster modes and for bosses.
+FULL_RATE = ('NU', 'A1', 'WL', 'RN', 'GH', 'DT')   # 2-AVFX: the modes seen most keep every frame (+11 MB)
 # Act of every superunique base (superuniques.txt carries none); index = row order of the table.
 SUPER_ACT = {
     'Bishibosh': 1, 'Bonebreak': 1, 'Coldcrow': 1, 'Rakanishu': 1, 'Treehead WoodFist': 1, 'Griswold': 1,
@@ -411,13 +414,16 @@ def hero_plan(cls, dirs_unused=None):
     return cofs, files
 
 
+def hero_dirs(m):
+    return 16 if m in HERO_DIRS16 and HERO_DIRS < 16 else HERO_DIRS
+
+
 def build_hero_class(cls):
     """Worker: decode + pack one class.  Returns (cofs json, layers json, pages, notes)."""
     t0 = time.time()
     lc = cls.lower()
     cofs, files = hero_plan(cls)
     at = d2anim.GroupAtlas('hero_' + cls)
-    n_out = HERO_DIRS
     layers = {}
     notes = []
     for (lkey, m), path in sorted(files.items()):
@@ -425,6 +431,7 @@ def build_hero_class(cls):
         if dcc is None:
             notes.append('%s %s unreadable' % (lkey, m))
             continue
+        n_out = hero_dirs(m)
         dm = dir_map(n_out, dcc['dirs'])
         nf = dcc['frames_per_dir']
         fl = []
@@ -442,6 +449,7 @@ def build_hero_class(cls):
     cj = {}
     for ckey, (cof, aname) in sorted(cofs.items()):
         an = anims().get(aname)
+        n_out = hero_dirs(ckey.split('.')[1])
         cdm = dir_map(n_out, cof['dirs'])
         nf = cof['frames_per_dir']
         used = sorted(set(l['type'] for l in cof['layers']))
