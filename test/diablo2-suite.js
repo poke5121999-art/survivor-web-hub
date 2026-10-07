@@ -87,7 +87,9 @@ async function clickTile(p, x, y, opt) {
       s = await st(p);
       if (s.area === area) break;
       // điểm bấm: chặng xa nhất trong ~12 subtile trên đường A* của game (bản đồ D2 có hàng rào, đi thẳng sẽ kẹt)
-      const path = await p.evaluate(([x, y]) => D2DBG.path(x, y), [ex.x + 0.5, ex.y + 0.5]) || [[ex.x + 0.5, ex.y + 0.5]];
+      // hero vừa qua mép đứng sát lối: A* trả đường rỗng, bấm thẳng vào lối
+      let path = await p.evaluate(([x, y]) => D2DBG.path(x, y), [ex.x + 0.5, ex.y + 0.5]);
+      if (!path || !path.length) path = [[ex.x + 0.5, ex.y + 0.5]];
       let tgt = path[path.length - 1];
       for (const q of path) { if (Math.hypot(q[0] - s.hero.x, q[1] - s.hero.y) > 12) break; tgt = q; }
       const pt = await p.evaluate(([x, y]) => D2DBG.client(x, y), tgt);
@@ -109,10 +111,25 @@ async function clickTile(p, x, y, opt) {
   }
   await sleep(600);
   s = await st(p);
+  // bố cục act chung một hệ toạ độ: hero ra ngay trong mép Blood Moor, đúng điểm tương ứng chỗ vừa bước khỏi thị trấn
+  const crossIn = s.cross, bm1 = JSON.stringify(s.exits);
+  const gap = c => c && c.out ? Math.hypot(c.out[0] - c.at[0], c.out[1] - c.at[1]) : -1;
+  check('qua mép thị trấn -> Blood Moor: hero ra cạnh điểm vừa bước đi (toạ độ act, <= 6.5 subtile)',
+    !!crossIn && crossIn.from === 'rogue_encampment' && gap(crossIn) >= 0 && gap(crossIn) <= 6.5, JSON.stringify(crossIn));
   const exBack = s.exits.filter(e => e.to === 'rogue_encampment')[0];
   const r2 = await walkTo(p, exBack, 'rogue_encampment', 40000);
   check('đi bộ tới lối về Rogue Encampment', r2.area === 'rogue_encampment',
     r2.area + (r2.area === 'rogue_encampment' ? '' : ' lối=' + JSON.stringify(exBack) + ' vết: ' + r2.trail));
+  s = await st(p);
+  check('về thị trấn cũng ra đúng điểm tương ứng (<= 6.5 subtile)', !!s.cross && s.cross.to === 'rogue_encampment' && gap(s.cross) >= 0 && gap(s.cross) <= 6.5, JSON.stringify(s.cross));
+  // một game = một bản dựng: đi bộ vào lại Blood Moor thì khu y như lần đầu (hang Den of Evil cùng chỗ)
+  const exTown2 = s.exits.filter(e => e.to === 'blood_moor')[0];
+  const r3 = exTown2 ? await walkTo(p, exTown2, 'blood_moor', 70000) : { area: s.area };
+  s = await st(p);
+  const den = x => (JSON.parse(x).filter(e => e.to === 'den_of_evil')[0] || null);
+  check('vào lại Blood Moor: bố cục giữ nguyên (lối ra, hang Den of Evil)', r3.area === 'blood_moor' && JSON.stringify(s.exits) === bm1 && !!den(bm1),
+    'lần 1 ' + JSON.stringify(den(bm1)) + ', lần 2 ' + JSON.stringify(den(JSON.stringify(s.exits))));
+  check('vào lại Blood Moor: hero ra ở mép, cạnh điểm bước khỏi thị trấn', !!s.cross && s.cross.to === 'blood_moor' && gap(s.cross) >= 0 && gap(s.cross) <= 6.5, JSON.stringify(s.cross));
   await p.evaluate(() => D2DBG.goto('blood_moor', 'rogue_encampment'));
   await waitFor(p, () => D2DBG.getState().area === 'blood_moor', 10000);
   await sleep(600);

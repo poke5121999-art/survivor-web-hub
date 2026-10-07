@@ -385,6 +385,57 @@
 
   var SCRIPTED_NPCS = { lut_gholein: [{ npc: 'jerhyn', near: 'harem_level_1' }] };
   function corpseHere(id) { return !!(S.corpse && S.corpse.area === id && (S.corpse.diff || 'n') === dk()); }
+  /* Một game là một lần vào nhân vật, như D2: S.gameSeed sinh lúc vào game, bố cục act (D2G.layoutAct) và seed
+   * từng khu suy ra từ nó. Khu đã dựng nằm trong S.levels cùng trạng thái lúc rời (quái còn sống, rương đã mở,
+   * đồ dưới đất, automap), vào lại thì lấy ra chứ không dựng mới. Chỉ giữ các khu của act đang chơi. */
+  function actLayout(act) {
+    var k = dk() + ':' + act;
+    return S.layouts[k] || (S.layouts[k] = D2G.layoutAct(act, D2G.actSeed(S.gameSeed, dk(), act)));
+  }
+  function stashLevel() {
+    var L = S.levelKey && S.levels[S.levelKey];
+    if (!L || L.g !== S.grid) return;
+    L.ents = S.ents.filter(function (e) {
+      if (e.removed || e === S.hero) return false;
+      if (e.kind === 'mon') return !e.ally && e.st !== 'die' && e.st !== 'dead' && e.hp > 0;
+      return e.kind === 'obj' || e.kind === 'npc' || (e.kind === 'drop' && !e.corpse);
+    });
+    L.pendingBoss = S.pendingBoss;
+  }
+  function keepAct(act) {
+    Object.keys(S.levels).forEach(function (k) {
+      var p = k.indexOf(':'), d = areaDef(k.slice(p + 1));
+      if (k.slice(0, p) !== dk() || !d || (d.act || 1) !== act) delete S.levels[k];
+    });
+  }
+  /* Đi bộ qua mép khu: hai khu chung một hệ toạ độ của act, nên hero ra ở điểm tương ứng ngay trong mép khu mới,
+   * giữ độ lệch dọc theo mép, cách mép 3 subtile. Không phải lối đi bộ thì trả null. */
+  var OPP_SIDE = { n: 's', s: 'n', e: 'w', w: 'e' };
+  function walkArrival(g, lay, id, from, ex, out) {
+    var L = lay.links.filter(function (l) { return (l.a === id && l.b === from) || (l.a === from && l.b === id); })[0];
+    if (!L) return null;
+    var sd = L.a === id ? L.side : OPP_SIDE[L.side], hz = sd === 'n' || sd === 's';
+    var ra = lay.levels[from].rect, rb = lay.levels[id].rect;
+    var t = hz ? ex.x + 0.5 : ex.y + 0.5;
+    if (out) t = hz ? (ra[0] - rb[0]) * 5 + out[0] : (ra[1] - rb[1]) * 5 + out[1];
+    var n = sd === 'n' || sd === 'w' ? 3 : (hz ? rb[3] : rb[2]) * 5 - 3;
+    return nearestOpen(g, ex, hz ? t : n, hz ? n : t);
+  }
+  // ô đi được gần (x, y) nhất trong vùng nối với lối ra ex (BFS từ ex, nên luôn tới được)
+  function nearestOpen(g, ex, x, y) {
+    var w = g.w, start = ex.y * w + ex.x, q = [start], seen = {}, best = start, bd = Infinity;
+    seen[start] = 1;
+    for (var i = 0; i < q.length && i < 20000; i++) {
+      var c = q[i], cx = c % w, cy = (c / w) | 0, d = Math.hypot(cx + 0.5 - x, cy + 0.5 - y);
+      if (d < bd) { bd = d; best = c; }
+      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (o) {
+        var nx = cx + o[0], ny = cy + o[1], k = ny * w + nx;
+        if (nx < 0 || ny < 0 || nx >= w || ny >= g.h || seen[k] || g.col[k] !== 0) return;
+        seen[k] = 1; q.push(k);
+      });
+    }
+    return [best % w + 0.5, ((best / w) | 0) + 0.5];
+  }
   function enterArea(id, from, opts) {
     var prev = S.def;
     return enterArea0(id, from, opts).catch(function (err) { if (S.areaId !== id) S.def = prev; throw err; });
@@ -396,42 +447,66 @@
     var gate = D2DATA.questGates && D2DATA.questGates[id], gst = gate && S.char.quests[gate];
     if (gate && gst !== 'cleared' && gst !== 'done') { UI.msg('Cần xong ' + questName(D2DATA.quests[gate]) + ' trước.', '#ff9a8a'); return Promise.resolve(false); }
     UI.showLoad(true, 'Đang vào ' + def.name + '...');
-    var seed = corpseHere(id) ? S.corpse.seed : ((Math.random() * 1e9) | 0) + 1;
-    if (opts.seed) seed = opts.seed;
-    var char = S.char, g = null;
+    var char = S.char, g = null, act = def.act || 1, lay = null, seed = 0, key = dk() + ':' + id, kept = null;
     S.def = def;   // curAct() đọc act của khu sắp vào khi tra preset trong lúc dựng
-    return E.ensureMaps(def.act || 1).then(function () {
+    return E.ensureMaps(act).then(function () {
       if (!DA.playable(id)) throw new Error('khu ' + id + ' chưa dựng được');
-      g = D2G.build(id, seed, from);
+      lay = actLayout(act);
+      seed = D2G.levelSeed(lay.seed, id);
+      kept = S.levels[key] || null;
+      g = kept ? kept.g : D2G.build(id, seed, null, { layout: lay });
       S.seed = seed;
       return Promise.all([E.ensureTileset(g.tileset), E.ensure(sheetsForArea(def, g)), E.ensureUi(), E.ensureHero(D2DATA.classes[char.cls].code)]);
     }).then(function () {
-      S.grid = g; g.seen = new Uint8Array(g.w * g.h); S.areaId = id; S.areaName = def.name; S.def = def;
+      // chỗ hero bước ra khỏi khu cũ (khi đang đứng ở lối sang khu này) để ra đúng điểm tương ứng bên kia
+      var oldEx = S.grid && S.hero && S.areaId === from && S.grid.exits.filter(function (e) { return e.to === id; })[0];
+      var out = oldEx && Math.hypot(oldEx.x + 0.5 - S.hero.x, oldEx.y + 0.5 - S.hero.y) < 6 ? [S.hero.x, S.hero.y] : null;
+      stashLevel(); keepAct(act);
+      if (!kept) S.levels[key] = { g: g, ents: null };
+      S.grid = g; if (!g.seen) g.seen = new Uint8Array(g.w * g.h); S.areaId = id; S.areaName = def.name; S.def = def; S.levelKey = key;
       E.setLevel(g);
-      S.ents = []; S.floaters = []; S.target = null; S.hover = null;
+      S.ents = []; S.floaters = []; S.target = null; S.hover = null; S.exitArm = null;
       var hx = g.hero[0] + 0.5, hy = g.hero[1] + 0.5;
       if (from) {
         var ex = g.exits.filter(function (e) { return e.to === from; })[0];
-        if (ex) { var sp = openCellNear(g, ex.x, ex.y, 12); hx = sp[0]; hy = sp[1]; }
+        var wa = ex && lay.levels[from] && walkArrival(g, lay, id, from, ex, out);
+        if (wa) {
+          hx = wa[0]; hy = wa[1];
+          S.exitArm = { ex: ex, x: hx, y: hy };   // hero đứng sát lối về: lối đó chỉ mở lại khi hero đã bước đi
+          var ra = lay.levels[from].rect, rb = lay.levels[id].rect;
+          S.cross = { from: from, to: id, out: out && [ra[0] * 5 + out[0], ra[1] * 5 + out[1]], at: [rb[0] * 5 + hx, rb[1] * 5 + hy] };
+        } else if (ex) { var sp = openCellNear(g, ex.x, ex.y, 12); hx = sp[0]; hy = sp[1]; }
       }
       var hero = S.hero = mk('hero', hx, hy, { dir: 5, path: null, goal: null, act: null });
       E.cam.x = hx; E.cam.y = hy;
-      g.objects.forEach(function (o) { placeObj(g, o); });
-      g.npcs.forEach(function (n) {
-        var name = presetName(n.id), nd = name && D2DATA.npcs[name];
-        if (nd && nd.art && E.hasSheet(nd.art)) mk('npc', n.x + 0.5, n.y + 0.5, { npc: name, dir: 6, art: nd.art, home: [n.x + 0.5, n.y + 0.5] });
-      });
-      // NPC do script của D2 đặt, không có trong DS1 nào: Jerhyn đứng trước cổng cung điện Lut Gholein
-      (SCRIPTED_NPCS[id] || []).forEach(function (sn) {
-        var nd = D2DATA.npcs[sn.npc], ex = g.exits.filter(function (x) { return x.to === sn.near; })[0];
-        if (!nd || !ex || S.ents.some(function (e) { return e.kind === 'npc' && e.npc === sn.npc; })) return;
-        var q = openAround(g, ex.x + 0.5, ex.y + 0.5, 5, D2R.rng(seed ^ 0x6a6572));
-        mk('npc', q[0], q[1], { npc: sn.npc, dir: 6, art: nd.art, home: [q[0], q[1]] });
-      });
-      S.pendingBoss = null;
-      spawnMonsters(def, g, seed);
-      placeQuestItems(id, g);
-      if (corpseHere(id)) mk('drop', S.corpse.x, S.corpse.y, { item: null, corpse: S.corpse, born: S.time, label: 'Xác của ' + char.name });
+      if (kept && kept.ents) {
+        kept.ents.forEach(function (e) {
+          if (e.kind === 'mon') { e.aggro = false; e.act = null; e.flee = 0; e.path = null; restart(e, 'idle', 0); }
+          S.ents.push(e);
+        });
+        S.pendingBoss = kept.pendingBoss || null;
+      } else {
+        g.objects.forEach(function (o) { placeObj(g, o); });
+        g.npcs.forEach(function (n) {
+          var name = presetName(n.id), nd = name && D2DATA.npcs[name];
+          if (nd && nd.art && E.hasSheet(nd.art)) mk('npc', n.x + 0.5, n.y + 0.5, { npc: name, dir: 6, art: nd.art, home: [n.x + 0.5, n.y + 0.5] });
+        });
+        // NPC do script của D2 đặt, không có trong DS1 nào: Jerhyn đứng trước cổng cung điện Lut Gholein
+        (SCRIPTED_NPCS[id] || []).forEach(function (sn) {
+          var nd = D2DATA.npcs[sn.npc], ex = g.exits.filter(function (x) { return x.to === sn.near; })[0];
+          if (!nd || !ex || S.ents.some(function (e) { return e.kind === 'npc' && e.npc === sn.npc; })) return;
+          var q = openAround(g, ex.x + 0.5, ex.y + 0.5, 5, D2R.rng(seed ^ 0x6a6572));
+          mk('npc', q[0], q[1], { npc: sn.npc, dir: 6, art: nd.art, home: [q[0], q[1]] });
+        });
+        S.pendingBoss = null;
+        spawnMonsters(def, g, seed);
+        placeQuestItems(id, g);
+      }
+      // xác của game trước (bản lưu cũ chưa có gameSeed) nằm trong một bản dựng khác, nên đặt cạnh chỗ hero vào
+      if (corpseHere(id)) {
+        var cp = S.corpse.game === S.gameSeed ? [S.corpse.x, S.corpse.y] : openAround(g, hx, hy, 2, Math.random);
+        mk('drop', cp[0], cp[1], { item: null, corpse: S.corpse, born: S.time, label: 'Xác của ' + char.name });
+      }
       S.arrive = S.time;
       var clearQ = Object.keys(D2DATA.quests).filter(function (q) { var g = D2DATA.quests[q].goal || {}; return g.type === 'clear_area' && g.area === id; })[0];
       S.denLeft = clearQ ? (char.quests[clearQ] === 'cleared' || char.quests[clearQ] === 'done' ? 0 : S.ents.filter(function (e) { return e.kind === 'mon' && !e.ally; }).length) : null;
@@ -700,7 +775,7 @@
     E.sfx([DA.classInfo(c.cls).gender + '_die'], 0.7);
     var pen = safe(function () { return D2R.deathPenalty(c); }, null) || { lost: 0, corpseGold: 0 };
     if (!pen.corpseGold && pen.lost === 0 && c.gold) { pen.corpseGold = Math.floor(c.gold * 0.5); c.gold -= pen.corpseGold; }
-    S.corpse = { diff: dk(), area: S.areaId, seed: S.seed, x: h.x, y: h.y, gold: pen.corpseGold, lost: pen.lost, xpLost: pen.xpLost || 0 };
+    S.corpse = { diff: dk(), area: S.areaId, game: S.gameSeed, x: h.x, y: h.y, gold: pen.corpseGold, lost: pen.lost, xpLost: pen.xpLost || 0 };
     setTimeout(function () { if (S.hero === h && h.st === 'dead') UI.showDead(true, respawn); }, 0);
   }
   function townOf(act) {
@@ -1270,8 +1345,10 @@
   function checkExits() {
     if (entering || S.time - S.arrive < 1.5) return;
     var h = S.hero, g = S.grid;
+    if (S.exitArm && Math.hypot(S.exitArm.x - h.x, S.exitArm.y - h.y) > 1) S.exitArm = null;
     for (var i = 0; i < g.exits.length; i++) {
       var ex = g.exits[i];
+      if (S.exitArm && ex === S.exitArm.ex) continue;
       if (Math.hypot(ex.x + 0.5 - h.x, ex.y + 0.5 - h.y) < 2.8) {
         if (!DA.playable(ex.to)) {
           if (S.time - exitLock > 2) { exitLock = S.time; UI.msg('Lối này chưa mở.'); }
@@ -1574,6 +1651,9 @@
   };
   function startPlay(ch) {
     S.char = ch; normChar(ch); recalc();
+    // game mới, trừ khi xác còn nằm ở game trước: khi đó chơi tiếp game đó để khu có xác dựng y như cũ
+    S.gameSeed = (S.corpse && S.corpse.game) || ((Math.random() * 1e9) | 0) + 1;
+    S.levels = {}; S.layouts = {}; S.levelKey = null; S.grid = null; S.cross = null;
     ch.hp = ch.hp > 0 ? ch.hp : S.d.maxHp;
     S.stamina = S.stamMax; S.regen = []; S.denLeft = null; S.scene = 'play';
     UI.showHud(true); UI.refreshSkillIcons(); UI.refreshBelt();
@@ -1838,6 +1918,7 @@
         hp: c && c.hp, mp: c && c.mp, lvl: c && c.lvl, xp: c && c.xp, gold: c && c.gold, statPts: c && c.statPts, skillPts: c && c.skillPts,
         cls: c && c.cls, skills: c && c.skills, quests: c && c.quests, inv: c ? c.inv.length : 0, belt: c ? c.belt.filter(Boolean).length : 0,
         left: S.leftSkill, right: S.rightSkill, kills: S.kills, denLeft: S.denLeft, exits: S.grid ? S.grid.exits : [], hero0: S.grid && S.grid.hero,
+        cross: S.cross, gameSeed: S.gameSeed,
         mons: S.ents.filter(function (e) { return e.kind === 'mon'; }).map(function (m) { return { id: m.monId, x: m.x, y: m.y, hp: m.hp, st: m.st, ai: m.ai, aggro: m.aggro, rank: m.rank, art: m.art }; }),
         drops: S.ents.filter(function (e) { return e.kind === 'drop' && !e.removed; }).map(function (d) { return { x: d.x, y: d.y, label: d.label, gold: d.gold }; }),
         npcs: S.ents.filter(function (e) { return e.kind === 'npc'; }).map(function (n) { return { id: n.npc, x: n.x, y: n.y }; })

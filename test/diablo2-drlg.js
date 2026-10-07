@@ -3,6 +3,8 @@
 // Per area and seed: sizes, hero on a walkable subtile, every exit and spawn reachable from the hero
 // (BFS on col == 0, 4-neighbour), exits only to areas in links / vis, an exit for every same-act link the
 // generator supports, waypoint object where levels.txt has one, same seed -> same level. Prints build times.
+// Then per act seed (D2G.layoutAct): both ends of every walking link open onto the same world point, the
+// D2MOO placement rules (Tamoe +y of the gate, Siege -x of Harrogath, ...) hold, the two non-links stay absent.
 'use strict';
 var fs = require('fs'), path = require('path'), vm = require('vm');
 var root = path.join(__dirname, '..', 'games', 'diablo2');
@@ -104,7 +106,96 @@ all.forEach(function (id) {
   rows.push('a' + a.act + ' ' + id + ' [' + D2G.kind(id) + ' ' + size + ']: exits ' + (ex / SEEDS).toFixed(1) + ', spawns ' + (sp / SEEDS).toFixed(1) +
     ', walkable ' + Math.round(walk / SEEDS) + ', ' + Math.round(tsum / SEEDS) + ' ms/build (max ' + tmax + ')');
 });
-rows.forEach(function (s) { console.log(s); });
+// ---------------------------------------------------------------- act layouts (D2G.layoutAct)
+// Per act seed: every walking link of the act's areas is placed; both levels, built with the layout and their
+// own D2G.levelSeed, open onto the same world point (exits within 1 tile along the shared edge, next to it);
+// the D2MOO placement rules hold; the two links D2 never walks are absent.
+var layoutRows = [];
+function walkPairs(act) {
+  var out = {};
+  all.forEach(function (id) {
+    if (A[id].act !== act || !D2G.supports(id)) return;
+    D2G.linksOf(id).forEach(function (l) {
+      if (l.walk && D2G.supports(l.to)) out[id < l.to ? id + '|' + l.to : l.to + '|' + id] = 1;
+    });
+  });
+  return out;
+}
+if (!only) ACTS.forEach(function (act) {
+  var pairs = walkPairs(act), worst = 0, nLinks = 0, sides = {};
+  for (var s = 1; s <= SEEDS; s++) {
+    var aseed = D2G.actSeed(s, 'n', act), W = D2G.layoutAct(act, aseed), tag = 'act ' + act + ' layout ' + aseed;
+    if (JSON.stringify(D2G.layoutAct(act, aseed)) !== JSON.stringify(W)) fail(tag + ' not deterministic');
+    var placed = {}, built = {};
+    W.links.forEach(function (L) { placed[L.a < L.b ? L.a + '|' + L.b : L.b + '|' + L.a] = L; });
+    // the maze walks (River of Flame - Chaos Sanctuary, Outer Cloister - Barracks) are not outdoor placements
+    Object.keys(pairs).forEach(function (k) {
+      var ab = k.split('|');
+      if (W.levels[ab[0]] && W.levels[ab[1]] && !placed[k]) fail(tag + ' walking link ' + k + ' not placed');
+    });
+    function lv(id) { return built[id] || (built[id] = D2G.build(id, D2G.levelSeed(W.seed, id), null, { layout: W })); }
+    W.links.forEach(function (L) {
+      nLinks++;
+      (sides[L.a + '>' + L.b] = sides[L.a + '>' + L.b] || {})[L.side] = 1;
+      var ra = W.levels[L.a].rect, rb = W.levels[L.b].rect, hz = L.side === 'n' || L.side === 's';
+      var ea = lv(L.a).exits.filter(function (e) { return e.to === L.b; })[0], eb = lv(L.b).exits.filter(function (e) { return e.to === L.a; })[0];
+      if (!ea || !eb) { fail(tag + ' ' + L.a + ' / ' + L.b + ' exit missing'); return; }
+      var wa = [ra[0] * 5 + ea.x + 0.5, ra[1] * 5 + ea.y + 0.5], wb = [rb[0] * 5 + eb.x + 0.5, rb[1] * 5 + eb.y + 0.5];
+      var along = Math.abs(hz ? wa[0] - wb[0] : wa[1] - wb[1]), line = hz ? L.edge[1] : L.edge[0];
+      var na = Math.abs((hz ? wa[1] : wa[0]) - line), nb = Math.abs((hz ? wb[1] : wb[0]) - line);
+      var lo = hz ? L.edge[0] : L.edge[1], hi = hz ? L.edge[2] : L.edge[3], mid = hz ? wa[0] : wa[1];
+      worst = Math.max(worst, along);
+      if (along > 5) fail(tag + ' ' + L.a + ' > ' + L.b + ': openings ' + along.toFixed(1) + ' subtiles apart along the edge');
+      if (na > 5 || nb > 5) fail(tag + ' ' + L.a + ' > ' + L.b + ': exit ' + Math.max(na, nb).toFixed(1) + ' subtiles off the shared edge');
+      if (mid < lo || mid > hi) fail(tag + ' ' + L.a + ' > ' + L.b + ': opening outside the shared edge');
+    });
+    var side = function (a, b) {
+      var L = W.links.filter(function (x) { return (x.a === a && x.b === b) || (x.a === b && x.b === a); })[0];
+      return !L ? null : L.a === a ? L.side : { n: 's', s: 'n', e: 'w', w: 'e' }[L.side];
+    };
+    var lvl = W.levels;
+    if (act === 1) {
+      if (side('monastery_gate', 'tamoe_highland') !== 's') fail(tag + ' Tamoe Highland not on +y of the Monastery Gate');
+      var bm = lvl.blood_moor.rect;
+      if (!((bm[2] === 56 && bm[3] === 96) || (bm[2] === 96 && bm[3] === 56))) fail(tag + ' Blood Moor ' + bm[2] + 'x' + bm[3]);
+      // the town DS1 (TownN1 / E1 / S1 / W1) opens on the side the layout rolled
+      var re = lv('rogue_encampment'), ex = re.exits.filter(function (e) { return e.to === 'blood_moor'; })[0], sd = side('rogue_encampment', 'blood_moor');
+      var onEdge = { n: ex.y < 10, s: ex.y > re.h - 10, w: ex.x < 10, e: ex.x > re.w - 10 }[sd];
+      if (!onEdge) fail(tag + ' Rogue Encampment exit ' + ex.x + ',' + ex.y + ' not on its ' + sd + ' edge');
+    }
+    if (act === 2) {
+      var rw = side('lut_gholein', 'rocky_waste');
+      if (rw !== 'w' && rw !== 'n') fail(tag + ' Rocky Waste on side ' + rw + ' of Lut Gholein');
+    }
+    if (act === 4 && side('the_pandemonium_fortress', 'outer_steppes') !== 'e') fail(tag + ' Outer Steppes not on +x of the Fortress');
+    if (act === 5) {
+      // Siege on -x of Harrogath with "To Town" at its east end, Frigid Highlands further -x
+      if (side('harrogath', 'bloody_foothills') !== 'w') fail(tag + ' Bloody Foothills not on -x of Harrogath');
+      if (side('bloody_foothills', 'frigid_highlands') !== 'w') fail(tag + ' Frigid Highlands not on -x of the Bloody Foothills');
+      var bf = lv('bloody_foothills'), toTown = bf.exits.filter(function (e) { return e.to === 'harrogath'; })[0];
+      var toFrigid = bf.exits.filter(function (e) { return e.to === 'frigid_highlands'; })[0];
+      if (!(toTown.x > bf.w - 40 && toFrigid.x < 40)) fail(tag + ' Bloody Foothills exits: town ' + toTown.x + ', Frigid ' + toFrigid.x + ' (w ' + bf.w + ')');
+      var P5 = global.D2_GROUPS['m/maps_act5'].presets, parts = lvl.bloody_foothills.parts || [];
+      if (P5[865].files.indexOf(parts[parts.length - 1]) < 0 || P5[879].files.indexOf(parts[0]) < 0) {
+        fail(tag + ' Siege strip not "To Barricade" ... "To Town" from west to east: ' + parts[0] + ' ... ' + parts[parts.length - 1]);
+      }
+      var hg = lv('harrogath').exits.filter(function (e) { return e.to === 'bloody_foothills'; })[0];
+      if (hg.x > 10) fail(tag + ' Harrogath exit to the Siege at x ' + hg.x + ', not on its west edge');
+    }
+  }
+  if (nLinks) layoutRows.push('act ' + act + ' layout: ' + SEEDS + ' seeds, ' + nLinks + ' walking links, openings at most ' + worst.toFixed(1) +
+    ' subtiles apart; sides ' + Object.keys(sides).map(function (k) { return k + ' ' + Object.keys(sides[k]).sort().join(''); }).join(', '));
+});
+// D2MOO DrlgOutPlace.cpp: Stony Field / Dark Wood and Valley of Snakes / Canyon of the Magi are in different link groups
+[['stony_field', 'dark_wood'], ['valley_of_snakes', 'canyon_of_the_magi']].forEach(function (p) {
+  if (!A[p[0]] || ACTS.indexOf(A[p[0]].act) < 0) return;
+  [p, [p[1], p[0]]].forEach(function (q) {
+    if (D2G.linksOf(q[0]).some(function (l) { return l.to === q[1]; })) fail(q[0] + ' still links to ' + q[1]);
+    if (D2G.build(q[0], 1).exits.some(function (e) { return e.to === q[1]; })) fail(q[0] + ' has an exit to ' + q[1]);
+  });
+});
+
+rows.concat(layoutRows).forEach(function (s) { console.log(s); });
 if (unsupported.length) console.log('not supported: ' + unsupported.join(', '));
 var n = rows.length;
 console.log(fails ? 'diablo2-drlg: ' + fails + ' FAIL (' + n + ' areas x ' + SEEDS + ' seeds)' :

@@ -1,5 +1,6 @@
 /* D2G v2: level generator (every act with loaded asset groups) for the Diablo II remake. Pure functions, no DOM.
- *   D2G.build(areaId, seed[, from]) -> Level      D2G.supports(areaId) -> bool      D2G.areas -> [ids]
+ *   D2G.build(areaId, seed[, from[, { layout }]]) -> Level      D2G.supports(areaId) -> bool      D2G.areas -> [ids]
+ *   D2G.layoutAct(act, actSeed) -> world rects + walking links of an act; D2G.actSeed / D2G.levelSeed derive seeds
  * Contract: brain/plans/diablo2-d2r.md ("Hop dong D2G", "Hop dong v2", "Ma khu").
  * Reads asset groups at call time from root.D2_GROUPS ('m/maps_act<N>', 'm/world_act<N>', filled by D2_REG;
  * N = D2DATA.areas[id].act)
@@ -9,9 +10,11 @@
  *  - preset (DrlgType 2): one LvlPrest DS1 (town, monastery gate, cloisters, cathedral, Andariel's lair, ...)
  *  - maze (DrlgType 1): grid of LvlPrest room DS1s; LvlMaze gives room count and size; the door letters
  *    (N S E W) of each room match its neighbours; Prev / Next / Down / special rooms are leaves.
- *  - outdoor (DrlgType 3): 80x80 grass with Wild Border stamps on the edges, a gap per walking link,
+ *  - outdoor (DrlgType 3): grass with Wild Border stamps on the edges, a gap per walking link,
  *    entrance stamps for the cave / tower links, special presets (Cairn stones, Inifuss tree, ...) and fills.
  * Exits: warp marker tiles of the DS1s (raw style = Vis index of levels.txt) plus walking links on edges.
+ * The act layout places the outdoor levels of an act side by side like D2; the side and the opening of every
+ * walking link (and the size of Blood Moor, Frigid Highlands, Arreat Plateau) come from it.
  *
  * Level extras beyond the contract: tileset names a key of the world group's tilesets; floor / wall / shadow
  * values are style<<8 | seq | variant<<16 (style read as (t>>8)&0xff); objects carry kind 'waypoint' or 'ds1'.
@@ -428,86 +431,347 @@
   // Reached through a town portal / the Cairn stones, not by walking (D2 hard-codes these too).
   var PORTAL = { tristram: 1, the_secret_cow_level: 1, moo_moo_farm: 1 };
 
-  // Sides of the walking links, consistent between both ends (A's side to B is the opposite of B's side
-  // to A) wherever the presets allow. Laid out once per seed by a walk from the town.
-  var FIXED = {
-    monastery_gate: { outer_cloister: 'n', tamoe_highland: 's' },
-    outer_cloister: { monastery_gate: 's' },
-    inner_cloister: { cathedral: 'n' },
-    cathedral: { inner_cloister: 's' },
-    spider_forest: { kurast_docks: 's', great_marsh: 'n' },
-    great_marsh: { spider_forest: 's', flayer_jungle: 'n' },
-    flayer_jungle: { great_marsh: 's', lower_kurast: 'n' },
-    lower_kurast: { flayer_jungle: 's', kurast_bazaar: 'n' },
-    kurast_bazaar: { lower_kurast: 's', upper_kurast: 'n' },
-    upper_kurast: { kurast_bazaar: 's', kurast_causeway: 'n' },
-    kurast_causeway: { upper_kurast: 's', travincal: 'n' },
-    travincal: { kurast_causeway: 's' },
-    the_chaos_sanctuary: { river_of_flame: 's' },
-    bloody_foothills: { harrogath: 'w', frigid_highlands: 'e' },
-    frigid_highlands: { bloody_foothills: 'w' }
-  };
+  // Walking links the act layout does not place: the maze walk out of the River of Flame (side of B seen
+  // from A); the barracks door follows the courtyard variant.
+  var FIXED = { the_chaos_sanctuary: { river_of_flame: 's' } };
   var COURT_SIDES = ['w', 'n', 'e'];       // CourtW, CourtN, CourtE: side of the barracks door
-  function townVariant(seed) { return hash3(seed, 0x70776E, 1) % 4; }
-  function courtVariant(seed) { return hash3(seed, 0x636F7572, 2) % 3; }
 
-  var layoutCache = {};
-  function sideLayout(seed, C) {
-    var key = C.act + ':' + seed + ':' + (root.D2DATA ? 1 : 0), town = C.AC.town, te = C.AC.townExit;
-    if (layoutCache[key]) return layoutCache[key];
-    var rng = new Rng(hash3(seed, 0x4C41594F, 3));
-    var sides = {};
-    function set(a, b, s) { (sides[a] || (sides[a] = {}))[b] = s; }
-    function used(a) { var u = {}; Object.keys(sides[a] || {}).forEach(function (b) { u[sides[a][b]] = 1; }); return u; }
-    Object.keys(FIXED).forEach(function (a) { Object.keys(FIXED[a]).forEach(function (b) { set(a, b, FIXED[a][b]); }); });
-    if (te && te[1]) set(town, te[0], te[1][townVariant(seed)]);
-    else if (te) {
-      // the town's walking exit is on the most open edge of the chosen town DS1
-      var os = openSides(C, townFile(C, seed));
-      set(town, te[0], SIDES.slice().sort(function (p, q) { return os[q] - os[p]; })[0]);
-    }
-    if (C.act === 1) {
-      set('outer_cloister', 'barracks', COURT_SIDES[courtVariant(seed)]);
-      set('barracks', 'outer_cloister', OPP[COURT_SIDES[courtVariant(seed)]]);
-    }
-    var queue = [town], seen = {}, entry = {};
-    seen[town] = 1;
-    while (queue.length) {
-      var a = queue.shift();
-      linksOf(a, C).forEach(function (l) {
-        if (!l.walk) return;
-        var b = l.to;
-        if (!(sides[a] && sides[a][b])) {
-          var back = sides[b] && sides[b][a];
-          if (back && !used(a)[OPP[back]]) set(a, b, OPP[back]);
-          else {
-            var u = used(a), pref = entry[a] ? [OPP[entry[a]]] : [];
-            var free = SIDES.filter(function (s) { return !u[s]; });
-            var choice = pref.filter(function (s) { return !u[s]; })[0];
-            if (!choice || rng.f() < 0.4) choice = free.length ? rng.pick(free) : rng.pick(SIDES);
-            set(a, b, choice);
-          }
-        }
-        if (!(sides[b] && sides[b][a])) {
-          var want = OPP[sides[a][b]], ub = used(b);
-          if (ub[want]) { var fb = SIDES.filter(function (s) { return !ub[s]; }); want = fb.length ? rng.pick(fb) : want; }
-          set(b, a, want);
-        }
-        if (!seen[b]) { seen[b] = 1; entry[b] = sides[b][a]; queue.push(b); }
-      });
-      // areas the town does not reach on foot (behind a warp or a portal) start a walk of their own
-      if (!queue.length) {
-        var rest = Object.keys(C.byId).filter(function (x) { return !seen[x]; })
-          .sort(function (p, q) { return C.byId[p] - C.byId[q]; });
-        if (rest.length) { seen[rest[0]] = 1; queue.push(rest[0]); }
-      }
-    }
-    layoutCache[key] = sides;
-    return sides;
+  // ---------------------------------------------------------------- act layout
+  // D2 lays the outdoor levels of an act edge to edge in one tile space (D2MOO DrlgOutPlace.cpp,
+  // DRLGOUTPLACE_CreateLevelConnections). A link table hangs each level on an earlier one through a linker
+  // that rolls a direction (0 = +y, 1 = -x, 2 = -y, 3 = +x) and an alignment; when the act's check rejects
+  // the placement (it overlaps an earlier level) the linker takes its next roll, and an exhausted linker
+  // backtracks to the level before (sub_6FD823C0). Both ends of a walking link read side and opening here.
+  function place1430(p, c, dir, a4) {   // sub_6FD81430
+    if (dir === 0) { c.x = p.x - (a4 === 1 ? 16 : 0); c.y = p.y + p.h; }
+    else if (dir === 1) { c.x = p.x - c.w; c.y = p.y + (a4 === 1 ? -16 : a4 === 2 ? 8 : 0); }
+    else if (dir === 2) { c.x = p.x + p.w - c.w + (a4 === 1 ? 16 : 0); c.y = p.y - c.h; }
+    else { c.x = p.x + p.w; c.y = p.y + p.h - c.h + (a4 === 1 ? 16 : a4 === 2 ? -8 : a4 === 3 ? 8 : 0); }
   }
-  function sideOf(seed, C, a, b) {
-    var s = sideLayout(seed, C);
-    return (s[a] && s[a][b]) || 's';
+  function place1850(p, c, dir, a4) {   // sub_6FD81850: the other alignment
+    if (dir === 0) { c.x = p.x + p.w - c.w + (a4 === 1 ? 16 : 0); c.y = p.y + p.h; }
+    else if (dir === 1) { c.x = p.x - c.w; c.y = p.y + p.h - c.h + (a4 === 1 ? 16 : a4 === 2 ? -8 : 0); }
+    else if (dir === 2) { c.x = p.x - (a4 === 1 ? 16 : 0); c.y = p.y - c.h; }
+    else { c.x = p.x + p.w; c.y = p.y + (a4 === 1 ? -16 : a4 === 2 ? 8 : a4 === 3 ? -8 : 0); }
+  }
+  function place15E0(p, c, k, a4) {     // sub_6FD815E0: the eight placements of the Act II desert
+    var jx = a4 === 1 ? (c.w >> 1) + 8 : 0, jy = a4 === 1 ? (c.h >> 1) + 8 : 0;
+    if (k < 2) { c.x = p.x + (k ? jx : -jx); c.y = p.y + p.h; }
+    else if (k < 4) { c.x = p.x - c.w; c.y = p.y + (k === 3 ? jy : -jy); }
+    else if (k < 6) { c.x = p.x + (k === 5 ? jx : -jx); c.y = p.y - c.h; }
+    else { c.x = p.x + p.w; c.y = p.y + (k === 7 ? jy : -jy); }
+  }
+  // sub_6FD81720 (Rogue Encampment) / sub_6FD81950 (Blood Moor, 56x96 or 96x56 by direction): direction and
+  // alignment roll together and then step through all eight pairs
+  function pairStep(S, i, a4, sized) {
+    var r = S.r, n2, c = S.c[i];
+    if (r[1][i] < 0) { r[0][i] = r[1][i] = S.rng.int(4); n2 = r[3][i] = S.rng.int(2); }
+    else {
+      var n0 = (r[2][i] + r[0][i]) % 4;
+      n2 = (r[2][i] + 1) % 2;
+      if (n0 === r[1][i] && n2 === r[3][i]) return false;
+      r[0][i] = n0;
+    }
+    r[2][i] = n2;
+    if (sized) { c.w = r[0][i] % 2 ? 96 : 56; c.h = r[0][i] % 2 ? 56 : 96; }
+    (n2 === 1 ? place1430 : place1850)(S.c[S.list[i].parent], c, r[0][i], a4);
+    return true;
+  }
+  function stepRoll(S, i, n) {
+    var r = S.r;
+    if (r[1][i] < 0) { r[0][i] = r[1][i] = S.rng.int(n); return true; }
+    var k = (r[0][i] + 1) % n;
+    if (k === r[1][i]) return false;
+    r[0][i] = k;
+    return true;
+  }
+  var LINKERS = {
+    fixed: function (S, i) { var o = S.list[i].at; S.c[i].x = o[0]; S.c[i].y = o[1]; return true; },   // sub_6FD81330
+    rand4: function (S, i) {                                                                   // sub_6FD81380
+      if (!stepRoll(S, i, 4)) return false;
+      place1430(S.c[S.list[i].parent], S.c[i], S.r[0][i], 1);
+      return true;
+    },
+    town: function (S, i) { return pairStep(S, i, 2, false); },
+    bloodmoor: function (S, i) { return pairStep(S, i, 1, true); },
+    south: function (S, i) {                                                                   // sub_6FD81AD0
+      S.r[0][i] = S.r[1][i] = 0;
+      place1430(S.c[S.list[i].parent], S.c[i], 0, 0);
+      return true;
+    },
+    act2town: function (S, i) {          // sub_6FD81B30: Rocky Waste on -x (1) or -y (2) of Lut Gholein
+      var r = S.r;
+      if (r[1][i] < 0) r[0][i] = r[1][i] = 1 + S.rng.int(2);
+      else { var k = r[0][i] === 1 ? 2 : 1; if (k === r[1][i]) return false; r[0][i] = k; }
+      (r[0][i] === 1 ? place1430 : place1850)(S.c[S.list[i].parent], S.c[i], r[0][i], 0);
+      return true;
+    },
+    rand8: function (S, i) {                                                                   // sub_6FD81530
+      if (!stepRoll(S, i, 8)) return false;
+      place15E0(S.c[S.list[i].parent], S.c[i], S.r[0][i], 1);
+      return true;
+    },
+    rand8b: function (S, i) {                                          // sub_6FD81BF0 (Valley of Snakes)
+      if (!stepRoll(S, i, 8)) return false;
+      place15E0(S.c[S.list[i].parent], S.c[i], S.r[0][i], 0);
+      return true;
+    },
+    east: function (S, i) {                     // sub_6FD81CA0: Outer Steppes always on +x of the Fortress
+      S.r[0][i] = S.r[1][i] = 3;
+      (S.rng.int(2) ? place1430 : place1850)(S.c[S.list[i].parent], S.c[i], 3, 3);
+      return true;
+    }
+  };
+  function overlaps(a, b) { return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h; }
+  function clearOfOthers(S, i) {
+    for (var j = 0; j < i; j++) if (j !== S.list[i].parent && overlaps(S.c[i], S.c[j])) return false;
+    return true;
+  }
+  // dword_6FDD05C0: the town (direction, alignment) pairs that fit each Blood Moor placement
+  var TOWN_FIT = [1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1,
+    0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 1];
+  function act1WildCheck(S, i) {                                                               // sub_6FD82050
+    if (!clearOfOthers(S, i)) return false;
+    var id = S.list[i].id, p = S.list[i].parent, r = S.r;
+    if (id === 'rogue_encampment') return !!TOWN_FIT[r[0][i] + 4 * (r[2][i] + 2 * (r[0][p] + 4 * r[2][p]))];
+    // D2MOO compares an unnamed roll of the two children of Cold Plains; read here as their direction
+    if (id === 'burial_grounds') {
+      for (var j = 0; j < i; j++) if (S.list[j].parent === p && r[0][j] === r[0][i]) return false;
+    }
+    return true;
+  }
+  function act1MonCheck(S, i) {        // sub_6FD82130: keeps 200 tiles north of the first level of the table free
+    if (!clearOfOthers(S, i)) return false;
+    var m = S.c[0];
+    return !i || !overlaps({ x: m.x, y: m.y - 200, w: m.w, h: m.h + 200 }, S.c[i]);
+  }
+  // gAct*DrlgLink of D2MOO; `at` is the levels.txt OffsetX/Y of a table's first level
+  var CHAINS = {
+    1: [
+      { check: act1WildCheck, list: [
+        { id: 'stony_field', linker: 'fixed', at: [1000, 1000] },
+        { id: 'cold_plains', linker: 'rand4', parent: 0 },
+        { id: 'blood_moor', linker: 'bloodmoor', parent: 1 },
+        { id: 'rogue_encampment', linker: 'town', parent: 2 },
+        { id: 'burial_grounds', linker: 'rand4', parent: 1 }] },
+      { check: act1MonCheck, list: [
+        { id: null, linker: 'fixed', at: [5000, 1148], size: [80, 80] },   // Moo Moo Farm, only takes room
+        { id: 'monastery_gate', linker: 'fixed', at: [3000, 1000] },
+        { id: 'tamoe_highland', linker: 'south', parent: 1 },
+        { id: 'black_marsh', linker: 'rand4', parent: 2 },
+        { id: 'dark_wood', linker: 'rand4', parent: 3 }] }
+    ],
+    2: [
+      { check: clearOfOthers, list: [
+        { id: 'lut_gholein', linker: 'fixed', at: [1000, 1000] },
+        { id: 'rocky_waste', linker: 'act2town', parent: 0 },
+        { id: 'dry_hills', linker: 'rand8', parent: 1 },
+        { id: 'far_oasis', linker: 'rand8', parent: 2 },
+        { id: 'lost_city', linker: 'rand8', parent: 3 },
+        { id: 'valley_of_snakes', linker: 'rand8b', parent: 4 }] },
+      { check: clearOfOthers, list: [{ id: 'canyon_of_the_magi', linker: 'fixed', at: [2500, 1000] }] }
+    ],
+    4: [
+      { check: clearOfOthers, list: [
+        { id: 'the_pandemonium_fortress', linker: 'fixed', at: [1000, 1000] },
+        { id: 'outer_steppes', linker: 'east', parent: 0 },
+        { id: 'plains_of_despair', linker: 'rand4', parent: 1 },
+        { id: 'city_of_the_damned', linker: 'rand4', parent: 2 }] }
+    ]
+  };
+  function runChain(list, rng, check) {
+    var S = { list: list, rng: rng, r: [[], [], [], []], c: [] };
+    list.forEach(function (l, i) {
+      for (var k = 0; k < 4; k++) S.r[k][i] = -1;
+      S.c.push({ x: 0, y: 0, w: l.size[0], h: l.size[1] });
+    });
+    for (var i = 0, guard = 0; i < list.length;) {
+      if (++guard > 50000 || i < 0) throw new Error('D2G: act layout found no place for ' + list[Math.max(0, i)].id);
+      if (LINKERS[list[i].linker](S, i)) { if (check(S, i)) i++; }
+      else { for (var k = 0; k < 4; k++) S.r[k][i] = -1; i--; }
+    }
+    return S;
+  }
+  // Act III (DRLG_GenerateJungles): three jungles hang on the docks and on each other, each straight above
+  // its base or beside it a third / two thirds up; sorted from the docks upwards they are Spider Forest,
+  // Great Marsh, Flayer Jungle. D2 links every touching pair; this port keeps the levels.txt chain and
+  // rolls again when Great Marsh misses a neighbour.
+  function layoutJungles(rng, docks, sx, sy) {
+    var DX = [0, -sx, sx, -sx, sx], DY = [-sy, -Math.floor(sy / 3), -Math.floor(sy / 3), -Math.floor(2 * sy / 3), -Math.floor(2 * sy / 3)];
+    for (var guard = 0; guard < 500; guard++) {
+      var J = [{ x: docks.x, y: docks.y - sy, w: sx, h: sy }];
+      for (var t = 0; J.length < 3 && t < 50; t++) {
+        var base = J[rng.int(J.length)], r = rng.int(5), c = { x: base.x + DX[r], y: base.y + DY[r], w: sx, h: sy };
+        if (!J.some(function (o) { return overlaps(o, c); })) J.push(c);
+      }
+      if (J.length < 3) continue;
+      J.sort(function (a, b) { return b.y - a.y; });
+      if (sideBetween(J[0], J[1]) && sideBetween(J[1], J[2])) return J;
+    }
+    throw new Error('D2G: no jungle layout');
+  }
+  // side of b seen from a when they share an edge of positive length
+  function sideBetween(a, b) {
+    var ox = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x), oy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+    if (oy > 0 && b.x === a.x + a.w) return 'e';
+    if (oy > 0 && b.x + b.w === a.x) return 'w';
+    if (ox > 0 && b.y + b.h === a.y) return 'n';
+    if (ox > 0 && b.y === a.y + a.h) return 's';
+    return null;
+  }
+  // the DS1 file(s) a preset / composed level is built from, as chosen by the layout
+  function partsOf(id, e, C) {
+    var k = kindOf(id, C);
+    if (k === 'preset' && e.file != null) return [[C.M.presets[C.presetOf[C.byId[id]]].files[e.file], 0, 0]];
+    if (k === 'compose' && e.parts) return COMPOSE[id].map(function (q, i) { return [e.parts[i], q[1], q[2]]; });
+    return null;
+  }
+  // DS1 stamps finished on their own (cached per act): where a preset opens on a side
+  function probe(C, parts) {
+    C.probes = C.probes || {};
+    var key = parts.map(function (q) { return q.join(','); }).join(';');
+    if (C.probes[key]) return C.probes[key];
+    var tw = 0, th = 0;
+    parts.forEach(function (q) { var m = C.M.maps[q[0]]; tw = Math.max(tw, q[1] + m.w); th = Math.max(th, q[2] + m.h); });
+    var cv = new Canvas(tw, th);
+    parts.forEach(function (q) { cv.stamp(C.M.maps[q[0]], q[1], q[2]); });
+    var lv = finish(cv, 'probe', 0, C);
+    return (C.probes[key] = { lv: lv, comp: components(lv.col, lv.w, lv.h) });
+  }
+  // subtile along the `side` edge where a DS1 opens inside [lo, hi) (subtiles), or null
+  function opensAt(pb, side, lo, hi) {
+    var p = edgeCell(pb.lv, pb.comp, side, lo, hi, 40);
+    return p ? (side === 'n' || side === 's' ? p[0] : p[1]) + 0.5 : null;
+  }
+
+  // D2G.layoutAct(act, actSeed) -> { act, seed, levels: { id: { rect: [tx, ty, tw, th], file?, parts? } },
+  //   links: [{ a, b, side, edge, seg }] }. rect is in world tiles; side is the side of b seen from a; edge (the
+  // shared border) and seg (the opening on it) are [x0, y0, x1, y1] in world subtiles. A preset (town gate,
+  // cloister door) or a composed strip opens where its DS1 does; between generated levels the opening sits
+  // in the middle of the shared edge.
+  var layoutCache = {}, layoutKeys = [];
+  function layoutAct(act, seed) {
+    var C = ctx(act), key = act + ':' + (seed >>> 0), hit = layoutCache[key];
+    if (hit && hit.C === C) return hit.W;
+    var rng = new Rng(hash3(seed, 0x4C41594F, act)), R = {}, roll = {};
+    function size(id) { return OUTDOOR_SIZE[id] || C.M.levels[C.byId[id]].size; }
+    (CHAINS[act] || []).forEach(function (ch) {
+      var list = ch.list.map(function (l) { var o = {}; for (var k in l) o[k] = l[k]; o.size = l.size || size(l.id); return o; });
+      var S = runChain(list, rng, ch.check);
+      list.forEach(function (l, i) { if (l.id) { R[l.id] = S.c[i]; roll[l.id] = S.r[0][i]; } });
+    });
+    function at(id, x, y) { var s = size(id); R[id] = { x: x, y: y, w: s[0], h: s[1] }; }
+    if (act === 1) {
+      // levels.txt Depend + OffsetX/Y: the cloister on the gate, the cathedral on the inner cloister
+      at('outer_cloister', R.monastery_gate.x, R.monastery_gate.y - 40);
+      at('inner_cloister', 4000, 1000);
+      at('cathedral', 3996, 966);
+    }
+    if (act === 3) {
+      at('kurast_docks', 1000, 1000);
+      var js = size('spider_forest'), J = layoutJungles(rng, R.kurast_docks, js[0], js[1]);
+      ['spider_forest', 'great_marsh', 'flayer_jungle'].forEach(function (id, i) { R[id] = J[i]; });
+      // Lower Kurast to Travincal stacked on -y of the Flayer Jungle, centred on it
+      var fj = R.flayer_jungle, py = fj.y;
+      ['lower_kurast', 'kurast_bazaar', 'upper_kurast', 'kurast_causeway', 'travincal'].forEach(function (id) {
+        var s = size(id);
+        py -= s[1];
+        R[id] = { x: fj.x + (fj.w >> 1) - (s[0] >> 1), y: py, w: s[0], h: s[1] };
+      });
+    }
+    if (act === 5) {
+      // Harrogath and the Siege at their offsets; Frigid Highlands west of the Siege, its foot 16 tiles above
+      // the Siege's (DRLGOUTROOM_LinkLevelsByLevelCoords); Arreat Plateau from the offset table
+      // (DRLGOUTROOM_LinkLevelsByOffsetCoords). Both are 64x160 or 160x64.
+      at('harrogath', 1000, 1000);
+      at('bloody_foothills', 760, 1000);
+      var sf = R.bloody_foothills, rf = rng.int(2), ra = rng.int(2);
+      var fr = R.frigid_highlands = { w: rf ? 160 : 64, h: rf ? 64 : 160 };
+      fr.x = sf.x - fr.w; fr.y = sf.y + sf.h - fr.h - 16;
+      var off = [[0, -160], [-96, -64], [-64, -96], [-160, 0]][ra + 2 * rf];
+      R.arreat_plateau = { x: fr.x + off[0], y: fr.y + off[1], w: ra ? 160 : 64, h: ra ? 64 : 160 };
+    }
+    var levels = {};
+    Object.keys(R).forEach(function (id) {
+      if (C.byId[id] === undefined) return;
+      var r = R[id], e = levels[id] = { rect: [r.x, r.y, r.w, r.h] }, k = kindOf(id, C);
+      if (k === 'compose') e.parts = COMPOSE[id].map(function (q) { return rng.pick(C.M.presets[q[0]].files); });
+      if (k !== 'preset') return;
+      var files = C.M.presets[C.presetOf[C.byId[id]]].files;
+      if (id === 'rogue_encampment') e.file = roll[id];   // pPreset->nDirection: TownN1 / E1 / S1 / W1
+      else if (id === 'outer_cloister') {
+        // the Black Marsh direction turns the courtyard (sub_6FD823C0); other directions: any of the three [guess]
+        var bm = roll.black_marsh;
+        e.file = bm === 1 ? 2 - rng.int(2) : bm === 3 ? rng.int(2) : rng.int(3);
+      } else if (id === 'lut_gholein') {
+        // lutw / lutn: the town DS1 that opens towards the Rocky Waste
+        var want = sideBetween(R.lut_gholein, R.rocky_waste), ok = [];
+        files.forEach(function (f, i) {
+          var os = openSides(C, f);
+          if (SIDES.slice().sort(function (p, q) { return os[q] - os[p]; })[0] === want) ok.push(i);
+        });
+        e.file = ok.length ? rng.pick(ok) : rng.int(files.length);
+      } else e.file = rng.int(files.length);
+    });
+    var links = [], done = {};
+    Object.keys(levels).forEach(function (a) {
+      linksOf(a, C).forEach(function (l) {
+        var b = l.to, pk = a < b ? a + '|' + b : b + '|' + a;
+        if (!l.walk || !levels[b] || done[pk]) return;
+        done[pk] = 1;
+        var ra2 = R[a], rb = R[b], side = sideBetween(ra2, rb);
+        if (!side) throw new Error('D2G: act ' + act + ' layout keeps ' + a + ' and ' + b + ' apart');
+        var hz = side === 'n' || side === 's';
+        var lo = hz ? Math.max(ra2.x, rb.x) : Math.max(ra2.y, rb.y), hi = hz ? Math.min(ra2.x + ra2.w, rb.x + rb.w) : Math.min(ra2.y + ra2.h, rb.y + rb.h);
+        var line = (side === 'e' ? ra2.x + ra2.w : side === 'w' ? ra2.x : side === 's' ? ra2.y + ra2.h : ra2.y) * SUB;
+        function natural(id, sd) {
+          var parts = partsOf(id, levels[id], C);
+          if (!parts) return null;
+          var o = hz ? R[id].x : R[id].y, c = opensAt(probe(C, parts), sd, (lo - o) * SUB, (hi - o) * SUB);
+          return c == null ? null : o * SUB + c;
+        }
+        // where an outdoor level can open on that side (tiles): its gap stays clear of the corner stamps
+        function room(id, sd) {
+          if (kindOf(id, C) !== 'outdoor') return [lo, hi];
+          var bd = borderOf(C, id), span = gapSpan(C, bd, sd), o = hz ? R[id].x : R[id].y, len = hz ? R[id].w : R[id].h;
+          return [o + bd.B + span / 2 - CORNER_CUT, o + len - bd.B - span / 2 + CORNER_CUT];
+        }
+        var na = natural(a, side), nb = natural(b, OPP[side]), qa = room(a, side), qb = room(b, OPP[side]);
+        var mid = Math.max(lo, qa[0], qb[0]), mhi = Math.min(hi, qa[1], qb[1]);
+        var c = kindOf(a, C) === 'preset' && na != null ? na : kindOf(b, C) === 'preset' && nb != null ? nb :
+          na != null ? na : nb != null ? nb : (mid <= mhi ? (mid + mhi) / 2 : (lo + hi) / 2) * SUB;
+        var s0 = Math.max(lo * SUB, c - 4 * SUB), s1 = Math.min(hi * SUB, c + 4 * SUB);
+        links.push({
+          a: a, b: b, side: side,
+          edge: hz ? [lo * SUB, line, hi * SUB, line] : [line, lo * SUB, line, hi * SUB],
+          seg: hz ? [s0, line, s1, line] : [line, s0, line, s1]
+        });
+      });
+    });
+    var W = { act: act, seed: seed >>> 0, levels: levels, links: links };
+    layoutCache[key] = { C: C, W: W };
+    layoutKeys.push(key);
+    if (layoutKeys.length > 64) delete layoutCache[layoutKeys.shift()];
+    return W;
+  }
+  // The walking link from `id` to `to` in level coordinates: side, and c = middle of the opening in subtiles
+  // along that edge. Links the layout does not place fall back to FIXED / the courtyard variant (no c).
+  function opening(W, C, id, to) {
+    for (var i = 0; W && i < W.links.length; i++) {
+      var L = W.links[i];
+      if (!((L.a === id && L.b === to) || (L.b === id && L.a === to))) continue;
+      var side = L.a === id ? L.side : OPP[L.side], hz = side === 'n' || side === 's', r = W.levels[id].rect;
+      return { side: side, c: (hz ? (L.seg[0] + L.seg[2]) / 2 : (L.seg[1] + L.seg[3]) / 2) - (hz ? r[0] : r[1]) * SUB };
+    }
+    if (FIXED[id] && FIXED[id][to]) return { side: FIXED[id][to], c: null };
+    var court = COURT_SIDES[courtOf(W, C)];
+    if (id === 'outer_cloister' && to === 'barracks') return { side: court, c: null };
+    if (id === 'barracks' && to === 'outer_cloister') return { side: OPP[court], c: null };
+    return { side: 's', c: null };
+  }
+  function courtOf(W, C) {
+    var e = W && W.levels.outer_cloister;
+    return e && e.file != null ? e.file : 0;
   }
 
   // Exits from warp tiles: cluster by raw style, each style s < 8 leads to levels.txt Vis[s].
@@ -552,14 +816,14 @@
     return true;
   }
 
-  // Walking-link exits on the edges of a preset / maze level.
-  function edgeExits(lv, comp, id, seed, C, band) {
+  // Walking-link exits on the edges of a preset / composed / jungle level, inside the 8-tile window of the
+  // act layout's opening (the whole side when the layout does not place the link).
+  function edgeExits(lv, comp, id, C, W) {
     var out = [];
     linksOf(id, C).forEach(function (l) {
       if (!l.walk) return;
-      var side = sideOf(seed, C, id, l.to);
-      var b = band && band[l.to];
-      var p = b ? edgeCell(lv, comp, side, b[0], b[1], b[2]) : edgeCell(lv, comp, side);
+      var o = opening(W, C, id, l.to), side = o.side;
+      var p = o.c != null ? edgeCell(lv, comp, side, Math.round(o.c) - 4 * SUB, Math.round(o.c) + 4 * SUB, 40) : edgeCell(lv, comp, side);
       if (p) out.push({ x: p[0], y: p[1], to: l.to });
       else out.push(null);
     });
@@ -575,20 +839,19 @@
   }
 
   // ---------------------------------------------------------------- presets
-  function buildPreset(id, seed, from, attempt, C) {
+  function buildPreset(id, seed, from, attempt, C, W) {
     var d2 = C.byId[id], def = C.presetOf[d2];
     var rng = new Rng(hash3(seed, strHash(id), attempt));
     if (PRESET_DEFS[id]) def = rng.pick(PRESET_DEFS[id]);
     var P = C.M.presets[def];
-    var k, town = id === C.AC.town;
-    if (town) k = townVariant(seed) % P.files.length;
-    else if (id === 'outer_cloister') k = courtVariant(seed);
+    var k, town = id === C.AC.town, fixed = !PRESET_DEFS[id] && W.levels[id];
+    if (fixed && fixed.file != null) k = fixed.file;   // the town / courtyard variant the act layout rolled
     else k = rng.int(P.files.length);
     var m = C.M.maps[P.files[k]];
     var cv = new Canvas(m.w, m.h);
     cv.stamp(m, 0, 0);
     var lv = finish(cv, id, seed, C), comp = components(lv.col, lv.w, lv.h);
-    var ex = edgeExits(lv, comp, id, seed, C);
+    var ex = edgeExits(lv, comp, id, C, W);
     if (ex.indexOf(null) >= 0) return null;
     lv.exits = warpExits(lv, comp, cv, d2, C).concat(ex);
     // portal links (Tristram back to the Cairn stones, Anya's portal in Harrogath) and warp links whose
@@ -741,11 +1004,6 @@
     C.fits[ck] = ok;
     return ok;
   }
-  function townFile(C, seed) {
-    var P = C.M.presets[C.presetOf[C.byId[C.AC.town]]];
-    return P.files[townVariant(seed) % P.files.length];
-  }
-
   function genMaze(rng, GW, GH, total, entry, leaves, merge, allow) {
     for (var guard = 0; guard < 80; guard++) {
       var cells = {}, list = [];
@@ -813,7 +1071,7 @@
     return null;
   }
 
-  function buildMaze(id, seed, from, attempt, C) {
+  function buildMaze(id, seed, from, attempt, C, W) {
     var d2 = C.byId[id], L = C.M.levels[d2], Z = C.M.mazes[d2];
     var rng = new Rng(hash3(seed, strHash(id), attempt));
     var R = roomIndex(C)[C.AC.rooms[L.levelType]];
@@ -826,7 +1084,7 @@
     var spec = MAZE_SPECIAL[id];
     var entryName = spec[0], entry;
     if (entryName === 'Court Connect') {
-      var side = OPP[COURT_SIDES[courtVariant(seed)]];   // barracks side of the courtyard door, seen from the barracks
+      var side = OPP[COURT_SIDES[courtOf(W, C)]];   // barracks side of the courtyard door, seen from the barracks
       entry = { kind: entryName, need: [], courtSide: side };
     } else if (R['Prev'] && !R['Prev'].W && R['Prev'].EW) {
       // catacombs: the Prev rooms are corridors (EW / NS) or the 4-way exit room of level 1
@@ -861,7 +1119,7 @@
     var ccKey = null;
     if (entry.kind === 'Court Connect') {
       var files = R['Court Connect']['*'];
-      ccKey = files[courtVariant(seed)];
+      ccKey = files[courtOf(W, C)];
     }
     var minx = 1e9, miny = 1e9, maxx = -1e9, maxy = -1e9;
     mz.list.forEach(function (c) { minx = Math.min(minx, c.x); maxx = Math.max(maxx, c.x); miny = Math.min(miny, c.y); maxy = Math.max(maxy, c.y); });
@@ -1114,7 +1372,7 @@
     C.pidx[pre] = R;
     return R;
   }
-  function buildJungle(id, seed, from, attempt, C) {
+  function buildJungle(id, seed, from, attempt, C, W) {
     var d2 = C.byId[id], L = C.M.levels[d2], M = C.M.maps, J = JUNGLE[id];
     var rng = new Rng(hash3(seed, strHash(id), attempt));
     var R = prefixIndex(C, C.AC.jungle), K = prefixIndex(C, 'Act 3 - Clearing ' + J.clearing);
@@ -1131,7 +1389,7 @@
       cv.stamp(M[f], c.x * 32, c.y * 32);
     });
     var lv = finish(cv, id, seed, C), comp = components(lv.col, lv.w, lv.h);
-    var ex = edgeExits(lv, comp, id, seed, C);
+    var ex = edgeExits(lv, comp, id, C, W);
     if (ex.indexOf(null) >= 0) return null;
     lv.exits = warpExits(lv, comp, cv, d2, C).concat(ex);
     lv.hero = placeHero(lv, comp, from, null);
@@ -1148,17 +1406,22 @@
     travincal: [[653, 0, 0], [654, 16, 0], [655, 48, 0], [656, 0, 32], [657, 16, 32], [658, 48, 32]],
     // Diablo's star: heart in the middle, an arm on each side, the entry below the south arm
     the_chaos_sanctuary: [[861, 24, 0], [858, 0, 24], [862, 24, 24], [859, 48, 24], [860, 24, 48], [857, 24, 72]],
-    // the Siege: To Town, Strip 1..13, To Barricade, 16 tiles each from west to east
-    bloody_foothills: [865, 866, 867, 868, 869, 870, 871, 872, 873, 874, 875, 876, 877, 878, 879].map(function (d, i) { return [d, i * 16, 0]; })
+    // the Siege: To Town at the east end next to Harrogath, Strip 1..13, To Barricade at the west end, 16 tiles
+    // each (DRLGOUTSIEGE_InitAct5OutdoorLevel)
+    bloody_foothills: [879, 878, 877, 876, 875, 874, 873, 872, 871, 870, 869, 868, 867, 866, 865].map(function (d, i) { return [d, i * 16, 0]; })
   };
-  function buildCompose(id, seed, from, attempt, C) {
+  function buildCompose(id, seed, from, attempt, C, W) {
     var d2 = C.byId[id], M = C.M.maps, P = C.M.presets, parts = COMPOSE[id];
-    var rng = new Rng(hash3(seed, strHash(id), attempt)), tw = 0, th = 0;
-    var ms = parts.map(function (q) { var m = M[rng.pick(P[q[0]].files)]; tw = Math.max(tw, q[1] + m.w); th = Math.max(th, q[2] + m.h); return m; });
+    var rng = new Rng(hash3(seed, strHash(id), attempt)), tw = 0, th = 0, chosen = W.levels[id] && W.levels[id].parts;
+    var ms = parts.map(function (q, i) {
+      var m = M[chosen ? chosen[i] : rng.pick(P[q[0]].files)];
+      tw = Math.max(tw, q[1] + m.w); th = Math.max(th, q[2] + m.h);
+      return m;
+    });
     var cv = new Canvas(tw, th);
     parts.forEach(function (q, i) { cv.stamp(ms[i], q[1], q[2]); });
     var lv = finish(cv, id, seed, C), comp = components(lv.col, lv.w, lv.h);
-    var ex = edgeExits(lv, comp, id, seed, C);
+    var ex = edgeExits(lv, comp, id, C, W);
     if (ex.indexOf(null) >= 0) return null;
     lv.exits = warpExits(lv, comp, cv, d2, C).concat(ex);
     lv.hero = placeHero(lv, comp, from, null);
@@ -1252,6 +1515,18 @@
     });
     return o;
   }
+  // The border of an outdoor level: stamp defs by side / corner and their width B in tiles. A gap may cut
+  // CORNER_CUT tiles into a corner stamp, so short shared edges (Burial Grounds) still get facing gaps.
+  var CORNER_CUT = 3;
+  function borderOf(C, id) {
+    var OS = outSet(C, id), BORDER = OS ? OS.border : (SNOW[id] && C.AC.snowBorder) || C.AC.border;
+    return { OS: OS, BORDER: BORDER, B: C.M.maps[C.M.presets[BORDER.s].files[0]].w };
+  }
+  // tiles a gap takes on `side`: one border stamp, or the Kurast gate stamp set into it
+  function gapSpan(C, bd, side) {
+    var gd = bd.OS && bd.OS.gate[side];
+    return (gd ? Math.ceil((C.M.maps[C.M.presets[gd].files[0]].w - 1) / 8) : 1) * bd.B;
+  }
   // levels.txt gives the Valley of Snakes 32x32 tiles: inside its 9-tile borders the 17x17 Claw Viper
   // Temple entrance cannot fit, so the level is built larger.
   var OUTDOOR_SIZE = {
@@ -1273,65 +1548,83 @@
     return out;
   }
 
-  function buildOutdoor(id, seed, from, attempt, C) {
+  function buildOutdoor(id, seed, from, attempt, C, W) {
     var d2 = C.byId[id], L = C.M.levels[d2];
     var rng = new Rng(hash3(seed, strHash(id), attempt));
-    var sz = OUTDOOR_SIZE[id] || L.size, TW = sz[0], TH = sz[1], P = C.M.presets, M = C.M.maps;
-    var OS = outSet(C, id), cv = new Canvas(TW, TH), snow = !!SNOW[id];
-    var BORDER = OS ? OS.border : (snow && C.AC.snowBorder) || C.AC.border, B = M[P[BORDER.s].files[0]].w;
+    var sz = W.levels[id] ? W.levels[id].rect.slice(2) : OUTDOOR_SIZE[id] || L.size, TW = sz[0], TH = sz[1], P = C.M.presets, M = C.M.maps;
+    var cv = new Canvas(TW, TH), snow = !!SNOW[id], bd = borderOf(C, id), OS = bd.OS, BORDER = bd.BORDER, B = bd.B;
     // the open ground is the tileset of the border stamps, filled with its 'grass' floor (build_world.py)
     var tsName = P[BORDER.s].ts, grass = C.W.tilesets[tsName][snow ? 'snow' : 'grass'];
     for (var i = 0; i < TW * TH; i++) cv.floors[0][i] = grass;
     cv.ts = tsName;
     var links = linksOf(id, C);
-    // gaps in the border, one per walking link: [side, first stamp index]
-    var gaps = {}, bands = {}, trans = null, gates = null;
+    // gaps in the border, one per walking link: { side: [[first tile, end tile], ...] } along that edge,
+    // centred on the opening of the act layout so that the neighbour's gap faces this one
+    var gaps = { n: [], s: [], e: [], w: [] }, sides = {}, bands = {}, trans = null, gates = [];
     var nx = Math.floor((TW - 1) / B), ny = Math.floor((TH - 1) / B);
+    function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
     links.forEach(function (l) {
       if (!l.walk) return;
-      var side = sideOf(seed, C, id, l.to);
+      var o = opening(W, C, id, l.to), side = sides[l.to] = o.side, along = (side === 'n' || side === 's') ? TW : TH;
+      var c = o.c == null ? null : o.c / SUB;
       var td = (l.to === C.AC.town && C.AC.transition && C.AC.transition[OPP[side]]) || LINK_TRANS[id + '>' + l.to];
       if (td) {
-        // the town's gate strip replaces the border on that side; the exit is anywhere along it
-        var tm = M[P[td].files[0]], along = (side === 'n' || side === 's') ? TW : TH;
-        var len = (side === 'n' || side === 's') ? tm.w : tm.h, at = B + rng.int(Math.max(1, along - 2 * B - len + 1));
+        // the gate strip replaces the border on that side, its own opening on the layout's opening; it may
+        // reach the corner (D2 lays Barricade To Siege in the corner of the Frigid Highlands)
+        var tm = M[P[td].files[0]], len = (side === 'n' || side === 's') ? tm.w : tm.h, at;
+        var nat = c == null ? null : opensAt(probe(C, [[P[td].files[0], 0, 0]]), side, 0, len * SUB);
+        if (nat == null) at = B + rng.int(Math.max(1, along - 2 * B - len + 1));
+        else at = clamp(Math.round(c - nat / SUB), 0, along - len);
         trans = { m: tm, side: side, at: at, len: len };
-        bands[l.to] = [at * SUB, (at + len) * SUB, 60];
+        bands[l.to] = nat == null ? [at * SUB, (at + len) * SUB, 60] : [Math.round(c * SUB) - 4 * SUB, Math.round(c * SUB) + 4 * SUB, 60];
         return;
       }
       var n = (side === 'n' || side === 's') ? nx : ny;
-      var g = gaps[side] || (gaps[side] = []);
-      var gd = OS && OS.gate[side], gw = gd ? Math.ceil((M[P[gd].files[0]].w - 1) / 8) : 1;
-      var k = 0;
-      for (var t = 0; t < 20; t++) {
-        k = 2 + rng.int(Math.max(1, n - 3 - (gw - 1)));
-        if (g.indexOf(k) < 0 && g.indexOf(k - 1) < 0 && g.indexOf(k + 1) < 0 && g.indexOf(k + gw) < 0) break;
+      var gd = OS && OS.gate[side], span = gapSpan(C, bd, side), g0;
+      if (c != null) g0 = clamp(Math.round(c - span / 2), B - CORNER_CUT, along - B - span + CORNER_CUT);
+      else {
+        for (var t = 0; t < 20; t++) {
+          g0 = (2 + rng.int(Math.max(1, n - 3 - (gw - 1)))) * B;
+          if (!gaps[side].some(function (q) { return g0 < q[1] + B && q[0] < g0 + span + B; })) break;
+        }
       }
-      for (var gi = 0; gi < gw; gi++) g.push(k + gi);
-      if (gd) (gates || (gates = [])).push([side, k, M[P[gd].files[0]]]);
-      bands[l.to] = [k * B * SUB, (k + gw) * B * SUB, 60];
+      gaps[side].push([g0, g0 + span]);
+      if (gd) gates.push([side, g0, M[P[gd].files[0]]]);
+      bands[l.to] = [g0 * SUB, (g0 + span) * SUB, 60];
     });
     function file(def) { var f = P[def].files, n = P[def].pick || f.length; return M[f[rng.int(Math.min(n, f.length))]]; }
     var lastX = TW - B, lastY = TH - B;
     function edge(side) {
       var n = (side === 'n' || side === 's') ? nx : ny, lastP = (side === 'n' || side === 's') ? lastX : lastY;
+      var open = gaps[side].concat(trans && trans.side === side ? [[trans.at, trans.at + trans.len]] : []), ps = [];
+      function hit(p) { return open.some(function (q) { return p + B > q[0] && p < q[1]; }); }
       for (var k = 1; k <= n; k++) {
-        if ((gaps[side] || []).indexOf(k) >= 0) continue;
         var p = Math.min(k * B, lastP - B);
         if (k === n) p = lastP - B;
-        if (p <= 0) continue;
-        if (trans && trans.side === side && p + B > trans.at && p < trans.at + trans.len) continue;
+        if (p <= 0 || hit(p)) continue;
+        ps.push(p);
+      }
+      // a gap off the stamp grid leaves a hole beside it: one more stamp right against each end
+      open.forEach(function (q) {
+        [q[0] - B, q[1]].forEach(function (p) { if (p > 0 && p < lastP && !hit(p) && ps.indexOf(p) < 0) ps.push(p); });
+      });
+      ps.forEach(function (p) {
         var m = file(BORDER[side]);
         if (side === 'n') cv.stamp(m, p, 0); else if (side === 's') cv.stamp(m, p, lastY);
         else if (side === 'w') cv.stamp(m, 0, p); else cv.stamp(m, lastX, p);
-      }
+      });
     }
     SIDES.forEach(edge);
-    cv.stamp(file(BORDER.nw), 0, 0); cv.stamp(file(BORDER.ne), lastX, 0);
-    cv.stamp(file(BORDER.sw), 0, lastY); cv.stamp(file(BORDER.se), lastX, lastY);
+    // corners, cut back where a gap reaches into them: [def, x, y, side along x, side along y]
+    [['nw', 0, 0, 'n', 'w'], ['ne', lastX, 0, 'n', 'e'], ['sw', 0, lastY, 's', 'w'], ['se', lastX, lastY, 's', 'e']].forEach(function (k) {
+      var x0 = 0, x1 = B, y0 = 0, y1 = B;
+      gaps[k[3]].forEach(function (q) { if (k[1] === 0) x1 = Math.min(x1, q[0]); else x0 = Math.max(x0, q[1] - lastX); });
+      gaps[k[4]].forEach(function (q) { if (k[2] === 0) y1 = Math.min(y1, q[0]); else y0 = Math.max(y0, q[1] - lastY); });
+      if (x1 > x0 && y1 > y0) cv.stamp(file(BORDER[k[0]]), k[1] + x0, k[2] + y0, [x0, y0, x1 - x0, y1 - y0]);
+    });
     // Kurast: the walking link goes through a gate stamp set into the border gap
-    (gates || []).forEach(function (g) {
-      var gm = g[2], gp = g[1] * B;
+    gates.forEach(function (g) {
+      var gm = g[2], gp = g[1];
       if (g[0] === 'n') cv.stamp(gm, gp, 0); else if (g[0] === 's') cv.stamp(gm, gp, TH - gm.h);
       else if (g[0] === 'w') cv.stamp(gm, 0, gp); else cv.stamp(gm, TW - gm.w, gp);
     });
@@ -1401,8 +1694,7 @@
     var ex = [], okAll = true;
     links.forEach(function (l2) {
       if (!l2.walk) return;
-      var side = sideOf(seed, C, id, l2.to), b = bands[l2.to];
-      var p = edgeCell(lv, comp, side, b[0], b[1], 60);
+      var b = bands[l2.to], p = edgeCell(lv, comp, sides[l2.to], b[0], b[1], 60);
       if (!p) { okAll = false; return; }
       ex.push({ x: p[0], y: p[1], to: l2.to });
     });
@@ -1464,17 +1756,24 @@
       return out;
     },
     kind: function (id) { return kindOf(id, ctx(actOf(id))); },
-    build: function (id, seed, from) {
+    // opts.layout: the D2G.layoutAct of the area's act (default: the layout of `seed` itself)
+    build: function (id, seed, from, opts) {
       var C = ctx(actOf(id)), k = kindOf(id, C);
       if (!k) throw new Error('D2G: area ' + id + ' is not supported');
       seed = seed | 0;
+      var W = (opts && opts.layout) || layoutAct(C.act, seed);
+      if (W.act !== C.act) throw new Error('D2G: layout of act ' + W.act + ' given for ' + id + ' (act ' + C.act + ')');
       for (var a = 0; a < 60; a++) {
-        var r = BUILD[k](id, seed, from, a, C);
+        var r = BUILD[k](id, seed, from, a, C, W);
         if (r && validate(r.lv, r.comp) && wpCheck(r.lv, C.byId[id], C, r.comp)) return r.lv;
       }
       throw new Error('D2G: ' + id + ' seed ' + seed + ' failed after 60 attempts');
     },
-    sideOf: function (seed, a, b) { return sideOf(seed | 0, ctx(actOf(a)), a, b); },
+    layoutAct: function (act, actSeed) { return layoutAct(act, actSeed | 0); },
+    // one game: a seed per act and difficulty, a build seed per level of that act
+    actSeed: function (gameSeed, diff, act) { return hash3(gameSeed | 0, strHash(String(diff)), act) | 0; },
+    levelSeed: function (actSeed, id) { return mix(actSeed | 0, strHash(id)) | 0; },
+    sideOf: function (seed, a, b) { var C = ctx(actOf(a)); return opening(layoutAct(C.act, seed | 0), C, a, b).side; },
     linksOf: function (id) { return linksOf(id, ctx(actOf(id))); }
   };
 
