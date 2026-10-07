@@ -763,5 +763,25 @@ window.HUB_GAMES = [
     // Kiểm: node test/tron-tim-core.js, tron-tim-skills.js, tron-tim-ui.js (server tĩnh cổng 8814/8815)
     status: "available",
     tags: ["Trốn tìm", "Bot", "Bo co dần", "Pixel art", "Soul Knight", "Solo"]
+  },
+  {
+    id: "dredge",
+    title: "Biển Mù",
+    tagline: "Làm lại DREDGE trên web: một ngư dân lái chiếc thuyền cũ của thị trấn quanh quần đảo The Marrows, câu cá ở những vùng nước động rồi về Greater Marrow bán cho người buôn cá. Giờ chỉ trôi khi thuyền chạy hoặc khi đang câu. Trời tối thì sương dày lên, nỗi hoảng loạn tăng dần, phải bật đèn hoặc về bến. Mỗi loài cá có minigame riêng: vòng quay, con lắc, hứng bóng, kim cương, xoắn ốc. Cá nằm trong khoang theo đúng hình dáng của nó, phải xoay xếp cho vừa. Đâm đá thì hỏng một ô khoang. Thế giới, thuyền, cá, giá, tiếng và giao diện đều bóc từ bản gốc.",
+    thumbnail: "assets/thumbnails/dredge.png",
+    path: "games/dredge/index.html",
+    rev: "20261007a",
+    // three.js r140 vendor trong games/dredge/vendor, không bước build. Dựng lại DREDGE 1.5.3 (Black Salt
+    // Games, 2023) theo yêu cầu của chủ dự án ngày 2026-10-07, từ bản cài trên máy (D:\dredge-ref).
+    // Toàn bộ thế giới (scene Game.unity: 8.583 instance, landmask từ collider, bản đồ độ sâu
+    // waveHeightMask), thuyền 5 bậc thân, 420 item với giá trong blob Odin, lưới khoang, cấu hình
+    // GameConfigData, 259 đoạn tiếng, sprite UI và phông chữ đều bóc bằng games/dredge/tools/*.py.
+    // Công thức chép từ mã C# dịch ngược (D:\dredge-ref\notes\CODE.md). Cách bóc và bẫy:
+    // games/dredge/tools/README.md. Kế hoạch theo pha: brain/plans/dredge-web.md.
+    // Đây không phải tài sản của repo: muốn gỡ thì xoá games/dredge/art, games/dredge/audio và data/*.js sinh ra.
+    //
+    // Kiểm: node test/dredge-rules.js, test/dredge-ui.js, test/dredge-suite.js (DR_URL để chạy trên Pages)
+    status: "available",
+    tags: ["Câu cá", "Kinh dị", "Lái thuyền", "Thế giới mở", "Xếp khoang", "3D"]
   }
 ];

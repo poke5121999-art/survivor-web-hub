@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>DREDGE world check</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>html,body{margin:0;height:100%;background:#0b1622;overflow:hidden;font:12px monospace;color:#cde}
+#hud{position:fixed;left:8px;top:6px;white-space:pre;text-shadow:0 0 3px #000}canvas{display:block}</style>
+</head><body><div id="hud">loading…</div>
+<script src="../vendor/three-r140.min.js"></script>
+<script src="../vendor/GLTFLoader-r140.js"></script>
+<script src="../vendor/meshopt_decoder.js"></script>
+<script>
+// Check viewer for art/world. ?top=1 whole map from above (north = -z up); ?dock=<name> perspective near a dock;
+// ?cam=x,y,z,tx,ty,tz custom; ?mask=1 landmask overlay; ?flip=1 mirrors the top view horizontally (debug only);
+// ?w=1600&h=1200 canvas size. Without params: orbit camera (drag, wheel).
+const Q = new URLSearchParams(location.search), W = '../art/world/';
+const hud = document.getElementById('hud');
+const num = (k, d) => Q.has(k) ? +Q.get(k) : d;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(num('w', innerWidth), num('h', innerHeight));
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b1622);
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x384048, 1.1));
+const sun = new THREE.DirectionalLight(0xfff2d8, 0.9); sun.position.set(-1, 2, -0.6); scene.add(sun);
+
+const j = u => fetch(u).then(r => r.json());
+const bin = u => fetch(u).then(r => r.arrayBuffer());
+function loadImage(u) { return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = u; }); }
+
+async function main() {
+  const world = await j(W + 'world.json');
+  const inst = new Float32Array(await bin(W + 'instances.bin'));
+  const glb = await new Promise((res, rej) => {
+    const l = new THREE.GLTFLoader(); l.setMeshoptDecoder(MeshoptDecoder);
+    l.load(W + 'lib.glb', res, undefined, rej);
+  });
+  const nodes = {};
+  glb.scene.traverse(o => { if (/^m\d+$/.test(o.name)) nodes[o.name] = o; });
+  const m4 = new THREE.Matrix4(), p = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3();
+  let drawn = 0, tris = 0, missing = 0;
+  for (const cell of Object.values(world.cells)) for (const [id, [off, n]] of Object.entries(cell)) {
+    const node = nodes[id]; if (!node) { missing += n; continue; }
+    const metas = world.meshes[id];
+    node.traverse(o => {
+      if (!o.isMesh) return;
+      const im = new THREE.InstancedMesh(o.geometry, o.material, n);
+      for (let k = 0; k < n; k++) {
+        const b = (off + k) * 10;
+        p.set(inst[b], inst[b + 1], inst[b + 2]); q.set(inst[b + 3], inst[b + 4], inst[b + 5], inst[b + 6]);
+        s.set(inst[b + 7], inst[b + 8], inst[b + 9]); m4.compose(p, q, s); im.setMatrixAt(k, m4);
+      }
+      im.frustumCulled = false; scene.add(im); drawn += n; tris += n * metas.tris / Math.max(1, node.children.length || 1);
+    });
+  }
+  // terrain
+  const T = world.terrain;
+  const timg = await loadImage(W + T.fileRG);
+  const cv = document.createElement('canvas'); cv.width = T.width; cv.height = T.height;
+  const cx = cv.getContext('2d'); cx.drawImage(timg, 0, 0); const px = cx.getImageData(0, 0, T.width, T.height).data;
+  const step = 4, gw = Math.floor((T.width - 1) / step) + 1, gh = Math.floor((T.height - 1) / step) + 1;
+  const geo = new THREE.PlaneGeometry(1, 1, gw - 1, gh - 1); geo.rotateX(-Math.PI / 2);
+  const pos = geo.attributes.position, col = new Float32Array(pos.count * 3);
+  for (let r = 0; r < gh; r++) for (let c = 0; c < gw; c++) {
+    const ix = Math.min(T.width - 1, c * step), iz = Math.min(T.height - 1, r * step), k = (iz * T.width + ix) * 4;
+    const h = (px[k] * 256 + px[k + 1]) / 65535, y = T.y0 + h * T.sizeY, v = r * gw + c;
+    pos.setXYZ(v, T.x0 + ix * T.sizeX / (T.width - 1), y, T.z0 + iz * T.sizeZ / (T.height - 1));
+    const d = Math.min(1, -y / 100); col[v * 3] = 0.55 - 0.45 * d; col[v * 3 + 1] = 0.5 - 0.3 * d; col[v * 3 + 2] = 0.38 - 0.1 * d;
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.computeVertexNormals();
+  geo.attributes.position.needsUpdate = true;
+  scene.add(new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true })));
+  // sea plane
+  const B = world.bounds, sw = 4000;
+  const sea = new THREE.Mesh(new THREE.PlaneGeometry(sw, sw).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({ color: 0x2f7c91, transparent: true, opacity: Q.has('top') ? 0.55 : 0.35, depthWrite: false }));
+  sea.position.set((B.minX + B.maxX) / 2, -0.05, (B.minZ + B.maxZ) / 2); scene.add(sea);
+  if (Q.has('mask')) {
+    const L = world.landmask, mi = await loadImage(W + L.file);
+    const tex = new THREE.Texture(mi); tex.needsUpdate = true; tex.magFilter = THREE.NearestFilter;
+    const mm = new THREE.Mesh(new THREE.PlaneGeometry(L.width * L.metresPerPixel, L.height * L.metresPerPixel).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.45, depthWrite: false, color: 0xff3030 }));
+    mm.position.set(L.x0 + L.width * L.metresPerPixel / 2, 2, L.z0 + L.height * L.metresPerPixel / 2);
+    // after rotateX(-90deg) the texture top row lands at min z, as in the file
+    scene.add(mm);
+  }
+
+  const cw = renderer.domElement.width, ch = renderer.domElement.height;
+  let cam;
+  if (Q.has('top')) {
+    const L = world.landmask;
+    const x0 = L.x0, x1 = L.x0 + L.width * L.metresPerPixel, z0 = L.z0, z1 = L.z0 + L.height * L.metresPerPixel;
+    const half = Math.max((x1 - x0) / 2, (z1 - z0) / 2 * cw / ch);
+    cam = new THREE.OrthographicCamera(-half, half, half * ch / cw, -half * ch / cw, 1, 5000);
+    cam.position.set((x0 + x1) / 2, 2000, (z0 + z1) / 2); cam.up.set(0, 0, -1);
+    cam.lookAt((x0 + x1) / 2, 0, (z0 + z1) / 2);
+    if (Q.has('flip')) cam.left = -cam.left, cam.right = -cam.right, cam.updateProjectionMatrix();
+  } else {
+    cam = new THREE.PerspectiveCamera(55, cw / ch, 0.5, 6000);
+    let a = [0, 120, 160, 0, 0, 0];
+    if (Q.has('cam')) a = Q.get('cam').split(',').map(Number);
+    if (Q.has('dock')) {
+      const mk = await j(W + 'markers.json');
+      const d = mk.docks.find(x => x.name === Q.get('dock'));
+      if (d) a = [d.pos[0], d.pos[1] + 30, d.pos[2] + 30, d.pos[0], d.pos[1], d.pos[2]];
+    }
+    cam.position.set(a[0], a[1], a[2]); cam.lookAt(a[3], a[4], a[5]);
+    let drag = null, tgt = new THREE.Vector3(a[3], a[4], a[5]);
+    const el = renderer.domElement;
+    el.onmousedown = e => drag = [e.clientX, e.clientY];
+    onmouseup = () => drag = null;
+    onmousemove = e => { if (!drag) return; const dx = e.clientX - drag[0], dy = e.clientY - drag[1]; drag = [e.clientX, e.clientY];
+      const off = cam.position.clone().sub(tgt), sp = new THREE.Spherical().setFromVector3(off);
+      sp.theta -= dx * 0.005; sp.phi = Math.max(0.05, Math.min(1.5, sp.phi - dy * 0.005)); off.setFromSpherical(sp);
+      cam.position.copy(tgt).add(off); cam.lookAt(tgt); };
+    el.onwheel = e => { const off = cam.position.clone().sub(tgt).multiplyScalar(e.deltaY > 0 ? 1.1 : 0.9); cam.position.copy(tgt).add(off); };
+  }
+  hud.textContent = `instances ${drawn}${missing ? ' (missing ' + missing + ')' : ''}  nodes ${Object.keys(nodes).length}/${Object.keys(world.meshes).length}`;
+  const loop = () => { renderer.render(scene, cam); requestAnimationFrame(loop); };
+  renderer.render(scene, cam); requestAnimationFrame(loop);
+  window.__ready = { drawn, missing, nodes: Object.keys(nodes).length, meshes: Object.keys(world.meshes).length };
+}
+main().catch(e => { hud.textContent = 'ERROR ' + e; window.__error = String(e); console.error(e); });
+</script></body></html>

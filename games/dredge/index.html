@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>DREDGE — Biển Mù</title>
+<link rel="stylesheet" href="css/ui.css?v=20261007a">
+<style>
+html, body { margin: 0; height: 100%; overflow: hidden; background: #0b1416; color: #efe3c8; touch-action: none;
+  font-family: "Signika", "Segoe UI", Roboto, sans-serif; -webkit-user-select: none; user-select: none; }
+#dr-canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; outline: none; }
+.eng-screen { position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.eng-screen[hidden] { display: none; }
+.eng-screen h2 { font: 800 clamp(22px, 4vw, 34px) "Hahmlet", Georgia, serif; margin: 0 0 10px; letter-spacing: .02em; }
+.eng-screen p { font: 400 15px/1.45 "Poltawski Nowy", Georgia, serif; color: #b9ab8e; margin: 0 0 18px; text-align: center; max-width: 520px; padding: 0 18px; }
+.eng-btn { min-width: 220px; margin: 5px; padding: 10px 26px; font: 600 17px "Hahmlet", Georgia, serif; color: #efe3c8; cursor: pointer;
+  background: rgba(27, 20, 16, .82); border: 1px solid rgba(226, 184, 102, .55); border-radius: 3px; text-decoration: none; text-align: center; }
+.eng-btn:hover, .eng-btn:focus-visible { background: rgba(58, 42, 32, .95); border-color: #e2b866; outline: none; }
+.eng-btn.small { min-width: 0; font-size: 14px; padding: 7px 16px; }
+#dr-loading { background: radial-gradient(ellipse at 50% 60%, #12302f 0%, #071012 70%); z-index: 60; }
+#dr-loading .logo, #dr-title .logo { width: min(420px, 70vw); height: auto; filter: drop-shadow(0 4px 18px rgba(0,0,0,.6)); }
+#dr-loading .bar { width: min(360px, 70vw); height: 4px; background: rgba(239, 227, 200, .15); margin-top: 26px; border-radius: 2px; overflow: hidden; }
+#dr-loading .bar i { display: block; height: 100%; width: 0; background: #e2b866; transition: width .2s; }
+#dr-loading .msg { margin-top: 10px; font: 400 13px "Oswald", "Arial Narrow", sans-serif; letter-spacing: .08em; color: #b9ab8e; }
+#dr-loading.err .msg { color: #ff8a80; }
+#dr-title { justify-content: flex-end; padding-bottom: 7vh; background: linear-gradient(180deg, rgba(4,10,12,.0) 30%, rgba(4,10,12,.65) 100%); }
+#dr-title .logo { position: absolute; top: 12vh; }
+#dr-title .sub { position: absolute; top: calc(12vh + min(420px, 70vw) * .3 + 12px); font: 600 15px "Hahmlet", Georgia, serif; letter-spacing: .35em; color: #b9ab8e; }
+#dr-title .menu { display: flex; flex-direction: column; align-items: center; padding: 14px 40px;
+  background: url(art/ui/sprites/TitleBackground.webp?v=20261007a) center / 100% 100% no-repeat; }
+#dr-title .hint { margin-top: 12px; font: 400 12px "Oswald", sans-serif; letter-spacing: .06em; color: #8f8470; text-align: center; padding: 0 16px; }
+#dr-pause, #dr-over { background: rgba(5, 10, 12, .72); }
+#dr-over h2 { color: #dc2c38; }
+#dr-fade { position: fixed; inset: 0; z-index: 30; background: #000; opacity: 0; pointer-events: none; transition: opacity .9s; }
+#dr-fade.on { opacity: .82; }
+#dr-dockbar { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 35; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+#dr-dockbar[hidden] { display: none; }
+#dr-dockbar .name { width: 100%; text-align: center; font: 800 22px "Hahmlet", Georgia, serif; text-shadow: 0 2px 8px #000; margin-bottom: 4px; }
+#dr-touch { position: fixed; inset: 0; z-index: 25; pointer-events: none; display: none; }
+#dr-touch.on { display: block; }
+#dr-touch .joy { position: absolute; width: 120px; height: 120px; border-radius: 50%; border: 2px solid rgba(239,227,200,.35); background: rgba(0,0,0,.18); display: none; }
+#dr-touch .joy.on { display: block; }
+#dr-touch .joy i { position: absolute; left: 35px; top: 35px; width: 50px; height: 50px; border-radius: 50%; background: rgba(239,227,200,.55); }
+#dr-touch .tbtns { position: absolute; right: calc(max(14px, env(safe-area-inset-right)) + 92px); bottom: 12px; display: grid; grid-template-columns: auto auto; gap: 8px; pointer-events: auto; }
+#dr-touch button { pointer-events: auto; min-width: 64px; height: 44px; border-radius: 22px; border: 1px solid rgba(226,184,102,.6); background: rgba(27,20,16,.7); color: #efe3c8; font: 600 13px "Signika", sans-serif; }
+#dr-touch button.big { grid-column: span 2; height: 56px; font-size: 16px; }
+@media (max-height: 460px) {
+  #dr-title .logo { top: 5vh; width: min(300px, 50vw); }
+  #dr-title .sub { top: calc(5vh + min(300px, 50vw) * .3 + 6px); }
+  #dr-title { padding-bottom: 3vh; }
+  .eng-btn { padding: 7px 20px; font-size: 15px; margin: 3px; }
+}
+</style>
+</head>
+<body>
+<canvas id="dr-canvas" tabindex="0"></canvas>
+<div id="dr-loading" class="eng-screen">
+  <img class="logo" src="art/ui/sprites/Dredge_Title.webp?v=20261007a" alt="DREDGE">
+  <div class="bar"><i></i></div>
+  <div class="msg">Đang tải biển…</div>
+</div>
+<div id="dr-title" class="eng-screen" hidden>
+  <img class="logo" src="art/ui/sprites/Dredge_Title.webp?v=20261007a" alt="DREDGE">
+  <div class="sub">BIỂN MÙ</div>
+  <div class="menu">
+    <button class="eng-btn" id="btn-continue" hidden>Tiếp tục</button>
+    <button class="eng-btn" id="btn-new">Ván mới</button>
+    <a class="eng-btn small" id="btn-hub" href="../../index.html">← Về sảnh trò chơi</a>
+  </div>
+  <div class="hint">W/S ga · A/D lái · Space tương tác · L đèn · Tab khoang · Esc tạm dừng · kéo chuột xoay camera</div>
+</div>
+<div id="dr-pause" class="eng-screen" hidden>
+  <h2>Tạm dừng</h2>
+  <button class="eng-btn" id="btn-resume">Tiếp tục chơi</button>
+  <button class="eng-btn" id="btn-mute">Tắt tiếng</button>
+  <button class="eng-btn" id="btn-quit">Lưu và về màn chính</button>
+</div>
+<div id="dr-over" class="eng-screen" hidden>
+  <h2>Thuyền đã chìm</h2>
+  <p>Thân tàu vỡ nát dưới làn nước đen. Biển giữ lại những gì bạn mang theo.</p>
+  <button class="eng-btn" id="btn-reload">Về bến đã lưu</button>
+</div>
+<div id="dr-dockbar" hidden>
+  <div class="name"></div>
+  <button class="eng-btn small" id="btn-undock">Rời bến (Space)</button>
+  <button class="eng-btn small" id="btn-rest">Nghỉ tới sáng</button>
+</div>
+<div id="dr-fade"></div>
+<div id="dr-touch"></div>
+
+<script src="vendor/three-r140.min.js?v=20261007a"></script>
+<script src="vendor/GLTFLoader-r140.js?v=20261007a"></script>
+<script src="vendor/meshopt_decoder.js?v=20261007a"></script>
+<script src="data/config.js?v=20261007a"></script>
+<script src="data/items.js?v=20261007a"></script>
+<script src="data/strings.js?v=20261007a"></script>
+<script src="data/grids.js?v=20261007a"></script>
+<script src="data/upgrades.js?v=20261007a"></script>
+<script src="data/world_data.js?v=20261007a"></script>
+<script src="data/audio.js?v=20261007a"></script>
+<script src="data/boat.js?v=20261007a"></script>
+<script src="data/ui.js?v=20261007a"></script>
+<script src="data/quests.js?v=20261007a"></script>
+<script src="data/weather.js?v=20261007a"></script>
+<script src="js/grid.js?v=20261007a"></script>
+<script src="js/rules.js?v=20261007a"></script>
+<script src="js/state.js?v=20261007a"></script>
+<script src="js/audio.js?v=20261007a"></script>
+<script src="js/hud.js?v=20261007a"></script>
+<script src="js/minigame.js?v=20261007a"></script>
+<script src="js/cargo.js?v=20261007a"></script>
+<script src="js/dock.js?v=20261007a"></script>
+<script src="js/input.js?v=20261007a"></script>
+<script src="js/water.js?v=20261007a"></script>
+<script src="js/world.js?v=20261007a"></script>
+<script src="js/sky.js?v=20261007a"></script>
+<script src="js/boat.js?v=20261007a"></script>
+<script src="js/camera.js?v=20261007a"></script>
+<script src="js/spots.js?v=20261007a"></script>
+<script src="js/docks.js?v=20261007a"></script>
+<script src="js/main.js?v=20261007a"></script>
+</body>
+</html>
