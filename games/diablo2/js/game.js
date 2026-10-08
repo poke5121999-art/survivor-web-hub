@@ -147,7 +147,8 @@
     var b = DA.base(it) || {}, ic = E.UI.icons || {};
     var f = (it.q === 'unique' && b.uniqueinvfile) || (it.q === 'set' && b.setinvfile) || b.invfile;
     if (DA.isGold(it)) f = 'invgld';
-    var e = f && ic[f];
+    // invfile của rune trong armor/misc viết hoa (invrTal), khoá atlas viết thường
+    var e = f && (ic[f] || ic[String(f).toLowerCase()]);
     return e ? e.r || e : null;
   };
   DA.iconBox = function (it, bw, bh) {
