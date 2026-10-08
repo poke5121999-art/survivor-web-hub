@@ -12,6 +12,9 @@
  *   DRCamera.init(camera)  DRCamera.look(px, py) (pixel chuột cộng dồn trong khung)  DRCamera.stick(x, y) (cần −1..1)
  *   DRCamera.orbit(dx°, dy)  DRCamera.zoom(d)
  *   DRCamera.update(dt, mode)  DRCamera.dock(dockInfo)  DRCamera.recenter()
+ *   Móc cho camera của năng lực (ống nhòm, tăng tốc), để module khác không phải sửa tệp này:
+ *     DRCamera.override = function (cam, dt, mode, env) { ...; return true; }  trả true thì camera thường bỏ qua khung đó; null để trả lại
+ *     DRCamera.fovAdd = độ cộng thêm vào FOV của rig đang dùng (tăng tốc: hasteFOV − defaultFOV, nội suy bởi bên gọi)
  */
 (function (root) {
   'use strict';
@@ -27,7 +30,7 @@
   const INVERT_Y = 1;       // SettingsSaveDataTemplate.cameraInvertY
   const damp = (dt, t) => t <= 0 ? 1 : 1 - Math.exp(-4.605170186 * dt / t); // Cinemachine Damper.Damp
 
-  const Cm = root.DRCamera = { cam: null, x: 0, y: FL.m_YAxis.Value, zoomK: 1, idle: 99, mode: 'follow', dockView: null };
+  const Cm = root.DRCamera = { cam: null, x: 0, y: FL.m_YAxis.Value, zoomK: 1, idle: 99, mode: 'follow', dockView: null, override: null, fovAdd: 0 };
   const tgt = new T.Vector3(), look = new T.Vector3(), want = new T.Vector3();
   let heading = 0, forced = false, titleT = 0, recVel = 0, lookX = 0, lookY = 0, holding = false;
 
@@ -69,6 +72,9 @@
   function update(dt, mode, env) {
     const cam = Cm.cam, D = root.DR, b = D.s && D.s.boat;
     if (!cam) return;
+    const fov = C.defaultFOV + Cm.fovAdd;
+    if (cam.fov !== fov) { cam.fov = fov; cam.updateProjectionMatrix(); }
+    if (Cm.override && Cm.override(cam, dt, mode, env)) { lookX = lookY = 0; return; }
     if (mode === 'title') { titleView(dt); lookX = lookY = 0; return; }
     if (mode === 'dock' && Cm.dockView) { dockView(dt); lookX = lookY = 0; return; }
     if (!b) return;

@@ -181,6 +181,7 @@
     DRSky.update(run ? dt : 0, { x: b.x, z: b.z, moving: DRBoat.moved, inputMag: DRBoat.inputMag, cam: camera.position, paused: !run });
     if (D.s && D.mode !== 'title') DRBoat.update(run ? dt : 0, DRSky.env);
     DRSpots.update(run ? dt : 0, b.x, b.z);
+    DRParticles.update(run ? dt : 0, camera);
     DRDocks.update(dt, b.x, b.z);
     DRCamera.update(dt, D.mode, DRSky.env);
     DRWater.update(dt, camera.position.x, camera.position.z, D.s && D.mode !== 'title' ? b : null, DRSky.env);
@@ -215,6 +216,7 @@
       DRWater.init(scene, DRWorld);
       DRSky.init(scene, DRWorld);
       DRSpots.init(scene, DRWorld);
+      DRParticles.init(scene);
       DRDocks.init(DRWorld);
       DRCamera.init(camera);
       DRInput.bind(canvas);

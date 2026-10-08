@@ -13,6 +13,15 @@ Fields that live in Odin Serializer blobs (value, sellOverrideValue, research pr
 quest conditions, upgrade costs) are decoded with odin.py and merged into each entry.
 Normalisation: PPtr -> id/asset name string (Sprite -> exported image path), enum ints -> names
 (flags -> lists), LocalizedString -> English text, Color -> "#rrggbb", {x,y} -> [x,y].
+Round 2 additions (each has its own section below):
+  - items: tooltipTextColor/tooltipNotesColor; itemInsane*Key, additionalNoteKey (+ *Key of
+    dialogueNodeSpecificDescription) hold DR_STR keys, the English text sits beside them;
+  - grids: every GridConfiguration sub-asset the container scan never lists (Pot1, Pot7, Net2.., ItemPickup*,
+    the hull upgrade delivery grids...), DR_CONFIG.gridKeyIds;
+  - upgrades: DR_UPGRADES[id].questGrid (the 20 upgrade QuestGridConfigs), upgradeCost = decoded conditions;
+  - weather: parameters.sfx = AudioClip name (PPtr into an audio bundle that load_all skips);
+  - scene components with Odin data -> DR_WORLD.<Class>.<Class>: ShopRestocker, TooltipSectionGadgetDetails,
+    QuestGridPanel, UpgradeGridPanel, HarvestMinigameView (storage tray unlock quest).
 """
 import base64, collections, glob, json, os, re, struct, sys
 
@@ -306,7 +315,7 @@ def hexcolor(c):
 
 NOISE = {"m_GameObject", "m_Enabled", "m_Script", "serializationData", "m_Name", "m_ObjectHideFlags", "references",
          "harvestParticlePrefab", "overrideHarvestParticleDepth", "harvestParticleDepthOffset",
-         "flattenParticleShape", "tooltipTextColor", "tooltipNotesColor"}
+         "flattenParticleShape"}
 
 
 INLINE = set()   # classes expanded in place instead of referenced by name (set per export)
@@ -320,9 +329,50 @@ def raw_name(o):
     return raw[32:32 + n].decode("utf-8", "replace") if 0 <= n < 200 else "?"
 
 
+_CLIPS = {}
+
+
+def audio_clip_name(path_id):
+    """Name of an AudioClip inside an audio bundle that load_all() skips (gameaudio alone is 258 MB).
+    bundle_index.json lists every clip as Assets/Audio/.../<name>.ogg keyed by path_id; the name is the file name
+    without extension, the same convention as the Addressables AssetReference fields. None when unknown or ambiguous."""
+    if not _CLIPS:
+        for path, v in containers.items():
+            if v["type"] == "AudioClip":
+                _CLIPS.setdefault(v["path_id"], set()).add(os.path.splitext(os.path.basename(path))[0])
+    names = _CLIPS.get(path_id)
+    return next(iter(names)) if names and len(names) == 1 else None
+
+
+# GridConfiguration objects of different shape can share one asset name (the hull upgrade delivery grid Tier2Hull 5x6
+# and the hull layout Tier2Hull 7x10), so a name alone does not say which DR_GRIDS entry a reference points to.
+GRID_SIG = {}      # (asset name, shape signature) -> key in DR_GRIDS; empty until sweep_grids() has run
+GRID_HINT = {}     # (id(assets_file), path_id) -> GridKey name that delivers into that grid (suffix of a clashing key)
+_grid_cache = {}
+
+
+def grid_sig(d):
+    """Shape of an exported GridConfiguration. mainItemData is left out: the sharedassets0 copy of a grid names the
+    item by asset, the bundle copy by id, and nothing else differs between the two copies."""
+    return json.dumps({k: v for k, v in d.items() if k not in ("asset", "mainItemData")}, sort_keys=True)
+
+
+def grid_key_of(o):
+    """DR_GRIDS key of a GridConfiguration object (None while GRID_SIG is empty or the shape is unknown)."""
+    ident = (id(o.assets_file), o.path_id)
+    if ident not in _grid_cache:
+        d = export_obj(o, "GridConfiguration")
+        _grid_cache[ident] = GRID_SIG.get((d["asset"], grid_sig(d)))
+    return _grid_cache[ident]
+
+
 def ref_name(o):
     """Stable string for a referenced object: id of an ItemData-like asset, else asset name."""
     if o.type.name == "MonoBehaviour":
+        if GRID_SIG and W.cls(o) == "GridConfiguration":
+            k = grid_key_of(o)
+            if k:
+                return k
         try:
             t = o.read_typetree()
         except Exception:
@@ -349,7 +399,8 @@ def norm(v, ctype, sf, depth=1, field=None):
             return None
         o = W.obj(sf, v["m_FileID"], v["m_PathID"])
         if o is None:
-            return None
+            # external CAB not loaded: only AudioClips of the skipped audio bundles can still be named
+            return audio_clip_name(v["m_PathID"]) if v["m_FileID"] else None
         if o.type.name == "Sprite":
             if CURRENT["item"] and field == "sprite" and depth == 2:  # the item's own top-level field
                 return art.sprite(o, ART_ITEMS, CURRENT["item"], "art/items")
@@ -688,6 +739,248 @@ def export_wave():
     return out
 
 
+# ---------------------------------------------------------------- DR_STR keys next to English text
+STRINGS = {}     # DR_STR (filled by main): every key handed to the web is checked against it
+LOC_BAD = []
+
+ITEM_KEY_FIELDS = {"itemInsaneTitleKey": "itemInsaneTitle", "itemInsaneDescriptionKey": "itemInsaneDescription",
+                   "additionalNoteKey": "additionalNote"}                                  # key field -> text field
+ITEM_TEXT_FIELDS = {"dialogueNodeSpecificDescription": "dialogueNodeSpecificDescriptionKey"}  # text field -> key field
+
+
+def loc_pair(ls, what):
+    """(DR_STR key, English text) of a LocalizedString. The key must resolve to exactly that text in DR_STR."""
+    r = loc.resolve(ls)
+    if r is None or STRINGS.get(r["key"]) != r["text"]:
+        LOC_BAD.append("%s: %r" % (what, r))
+        return None, None
+    return r["key"], r["text"]
+
+
+def split_loc_fields(d, t):
+    """Item fields that hold a LocalizedString. norm() flattened them to English text, but the web looks strings up by
+    key in DR_STR. Rule: <x>Key holds the key and <x> the text (itemInsaneTitleKey + itemInsaneTitle);
+    dialogueNodeSpecificDescription keeps its text and gains dialogueNodeSpecificDescriptionKey."""
+    out = {}
+    for k, v in d.items():
+        if k in ITEM_KEY_FIELDS:
+            key, text = loc_pair(t[k], "%s.%s" % (d["id"], k))
+            out[k], out[ITEM_KEY_FIELDS[k]] = key, text
+        elif k in ITEM_TEXT_FIELDS:
+            key, text = loc_pair(t[k], "%s.%s" % (d["id"], k))
+            out[k], out[ITEM_TEXT_FIELDS[k]] = text, key
+        else:
+            out[k] = v
+    return out
+
+
+# ---------------------------------------------------------------- GridConfiguration sub-assets
+def sweep_grids(grids, exported):
+    """collect() lists only the main assets of a bundle (its container entries). Many GridConfigurations are sub-assets
+    that items, upgrades and quest grids point to (Pot1, Pot7, Net2.., ItemPickup*, the hull upgrade delivery grids), and
+    sharedassets0 holds only part of them. Walk every loaded file and add each GridConfiguration whose shape is not
+    exported yet: under its asset name, or name#<GridKey that delivers into it | bundle> when the name is taken.
+    `exported` holds the identities already in grids; they only seed the shape registry GRID_SIG."""
+    GRID_SIG.clear()
+    for k, d in grids.items():
+        GRID_SIG.setdefault((d["asset"], grid_sig(d)), k)
+    added, seen = [], set(exported)
+    for bname, sfs in W.bundle_cabs.items():
+        for sf in sfs:
+            for o in sf.objects.values():
+                if o.type.name != "MonoBehaviour" or (id(sf), o.path_id) in seen:
+                    continue
+                seen.add((id(sf), o.path_id))
+                if W.cls(o) != "GridConfiguration":
+                    continue
+                d = export_obj(o, "GridConfiguration")
+                sig = (d["asset"], grid_sig(d))
+                if sig in GRID_SIG:
+                    continue
+                k = d["asset"]
+                if k in grids:
+                    k = "%s#%s" % (k, GRID_HINT.get((id(sf), o.path_id)) or bname.split("_assets")[0])
+                assert k not in grids, "grid %s: key %s is taken by a grid of another shape" % (d["asset"], k)
+                grids[k] = d
+                GRID_SIG[sig] = k
+                added.append(k)
+    _grid_cache.clear()
+    print("grids swept in (sub-assets the container scan never lists): %d" % len(added), added)
+    return added
+
+
+# ---------------------------------------------------------------- upgrade QuestGridConfigs
+def upgrade_grid_objects(upgrade_objs):
+    """[(upgrade key, QuestGridConfig object, its typetree, delivery GridConfiguration object)]. The delivery grid is noted
+    in GRID_HINT so sweep_grids() can name a clashing asset after its GridKey (Tier2Hull#UPGRADE_T2_HULL)."""
+    out = []
+    for key, o in upgrade_objs:
+        t = o.read_typetree()
+        q = W.obj(o.assets_file, t["gridConfig"]["m_FileID"], t["gridConfig"]["m_PathID"])
+        qt = q.read_typetree()
+        g = W.obj(q.assets_file, qt["gridConfiguration"]["m_FileID"], qt["gridConfiguration"]["m_PathID"])
+        GRID_HINT[(id(g.assets_file), g.path_id)] = cs.enum_name("GridKey", qt["gridKey"])
+        out.append((key, q, qt, g))
+    return out
+
+
+def upgrade_quest_grid(q, qt, g):
+    """One upgrade's QuestGridConfig -> DR_UPGRADES[id].questGrid. Text fields follow the <x> text / <x>Key key rule."""
+    d = export_obj(q, "QuestGridConfig")
+    cond = d.get("completeConditions") or []
+    other = sorted({str(c.get("_t")) for c in cond} - {"ItemCountCondition"})
+    assert not other, "%s: completeConditions hold %s, only ItemCountCondition is exported" % (d["asset"], other)
+    out = {
+        "gridKey": d["gridKey"],
+        "gridKeyId": cs.enums["GridKey"][1][d["gridKey"]],
+        "gridConfiguration": d["gridConfiguration"],          # DR_GRIDS key (unique even where the asset name is shared)
+        "gridConfigurationAsset": raw_name(g),
+        "questGridExitMode": d["questGridExitMode"],
+        "isSaved": d["isSaved"],
+        "presetGridMode": d["presetGridMode"],
+        "allowStorageAccess": d["allowStorageAccess"],
+        "allowManualExit": d["allowManualExit"],
+        "allowEquipmentInstallation": d["allowEquipmentInstallation"],
+    }
+    for f in ("titleString", "helpStringOverride", "exitPromptOverride"):
+        if d.get(f):
+            key, text = loc_pair(qt[f], "%s.%s" % (d["asset"], f))
+            out[f], out[f + "Key"] = text, key
+    out["presetGrid"] = {"spatialItems": [{k: s[k] for k in ("id", "x", "y", "z")} for s in d["presetGrid"]["spatialItems"]]}
+    out["completeConditions"] = []
+    for c in cond:
+        e = {"item": c["item"], "count": c["count"]}
+        if c.get("allowLinkedAberrations"):
+            e["allowLinkedAberrations"] = True
+        out["completeConditions"].append(e)
+    return out
+
+
+def attach_upgrade_quest_grids(upgrades, info, grids):
+    """Hang each questGrid on its upgrade. UpgradeData.upgradeCost is a stale editor list: the game charges
+    gridConfig.completeConditions (IUpgradeCost.GetItemCost, UpgradeData.cs), so upgradeCost is rebuilt from them."""
+    changed = []
+    for key, q, qt, g in info:
+        u = upgrades[key]
+        u["questGrid"] = upgrade_quest_grid(q, qt, g)
+        gk, gt = u["questGrid"]["gridConfiguration"], g.read_typetree()
+        assert gk in grids and (grids[gk]["columns"], grids[gk]["rows"]) == (gt["columns"], gt["rows"]), \
+            "%s: DR_GRIDS[%r] is not the %dx%d delivery grid" % (key, gk, gt["columns"], gt["rows"])
+        cost = [{"_t": "UpgradeCost", "itemData": c["item"], "num": c["count"]} for c in u["questGrid"]["completeConditions"]]
+        if cost != u.get("upgradeCost"):
+            changed.append((key, u.get("upgradeCost"), cost))
+        u["upgradeCost"] = cost
+    print("upgradeCost replaced by the decoded conditions: %s" % [c[0] for c in changed])
+    return changed
+
+
+# ---------------------------------------------------------------- scene components with Odin data
+SCENE_COMPONENTS = ("ShopRestocker", "TooltipSectionGadgetDetails", "QuestGridPanel", "UpgradeGridPanel",
+                    "HarvestMinigameView")
+PANEL_STRINGS = ("revisitableString", "nonRevisitableString", "riskItemLossString", "exitPromptString")
+
+
+def export_scene_components(world):
+    """Singleton components of the Game scene whose fields the web needs. They sit in DR_WORLD.<Class>.<Class>, the shape
+    HarvestTypeTagConfig and SpeakerDataLookup already use. Each class must occur exactly once."""
+    found = collections.defaultdict(list)
+    for b in bundles_like("gamescene_scenes"):
+        for sf in W.bundle_cabs[b]:
+            for o in sf.objects.values():
+                if o.type.name == "MonoBehaviour":
+                    c = W.cls(o)
+                    if c in SCENE_COMPONENTS:
+                        found[c].append((sf, o))
+
+    def one(cls):
+        assert len(found[cls]) == 1, "%s: expected one scene component, found %d" % (cls, len(found[cls]))
+        sf, o = found[cls][0]
+        return sf, o.read_typetree()
+
+    def put(cls, d):
+        d.update({"cls": cls, "asset": cls, "source": "Game.unity"})
+        world[cls][cls] = d
+
+    # ShopRestocker: Odin list of {shopData, gridKey} + a plain list of items that survive every restock
+    sf, t = one("ShopRestocker")
+    sd = t["serializationData"]
+    od, refs = odin.decode(sd["SerializedBytes"]), sd["ReferencedUnityObjects"]
+    cfgs = {}
+    for it in od["shopDataGridConfigs"]["$items"]:
+        r = refs[it["shopData"]["$unity"]]
+        cfgs[ref_name(W.obj(sf, r["m_FileID"], r["m_PathID"]))] = cs.enum_name("GridKey", it["gridKey"])
+    keep = [ref_name(W.obj(sf, p["m_FileID"], p["m_PathID"])) for p in t["itemsToKeepInStock"]]
+    put("ShopRestocker", {"shopDataGridConfigs": cfgs, "itemsToKeepInStock": keep})
+
+    # TooltipSectionGadgetDetails.gadgetEffectNames: Odin Dictionary<GadgetEffect, LocalizedString>
+    sf, t = one("TooltipSectionGadgetDetails")
+    od = odin.decode(t["serializationData"]["SerializedBytes"])
+    names, keys = {}, {}
+    for it in od["gadgetEffectNames"]["$items"]:
+        v = it["$v"]
+        ls = {"m_TableReference": {"m_TableCollectionName": v["m_TableReference"]["m_TableCollectionName"]},
+              "m_TableEntryReference": {"m_KeyId": v["m_TableEntryReference"]["m_KeyId"], "m_Key": v["m_TableEntryReference"]["m_Key"]}}
+        eff = cs.enum_name("GadgetEffect", it["$k"])
+        keys[eff], names[eff] = loc_pair(ls, "gadgetEffectNames.%s" % eff)
+    put("TooltipSectionGadgetDetails", {"gadgetEffectNames": names, "gadgetEffectKeys": keys})
+
+    # default help/exit strings of the quest grid panels (a grid's helpStringOverride/exitPromptOverride replace them)
+    for cls in ("QuestGridPanel", "UpgradeGridPanel"):
+        sf, t = one(cls)
+        d = {}
+        for f in PANEL_STRINGS:
+            key, text = loc_pair(t[f], "%s.%s" % (cls, f))
+            d[f], d[f + "Key"] = text, key
+        put(cls, d)
+
+    # the storage tray appears once this quest is done (HarvestMinigameView.cs:348)
+    sf, t = one("HarvestMinigameView")
+    p = t["storageTrayUnlockQuest"]
+    put("HarvestMinigameView", {"storageTrayUnlockQuest": ref_name(W.obj(sf, p["m_FileID"], p["m_PathID"]))})
+
+
+# ---------------------------------------------------------------- strings the audits ask for
+STR_CHECK = (
+    # gear.md 3(8)
+    "notification.crab-pot-deployed", "notification.deploy-pot.none-with-durability", "tooltip.deployable.durability-value",
+    "equipment-status.damaged", "equipment-status.operational", "prompt.radial-show", "prompt.action",
+    # shop-upgrade.md 3(5)
+    "title.shipwright-rods", "title.shipwright-engines", "title.shipwright-nets", "title.shipwright-lights",
+    "title.travelling-merchant-rods", "title.travelling-merchant-engines", "title.travelling-merchant-pots",
+    "title.travelling-merchant-nets", "title.travelling-merchant-lights", "title.travelling-merchant-materials",
+    "upgrades.header.description", "button.purchase-upgrade", "quest-grid.exit-help.upgrades",
+    "notification.upgrade-hull-damaged", "notification.upgrade.items-in-overflow", "prompt.refund", "prompt.buy",
+    "prompt.sell", "prompt.sell-all-trinkets", "notification.sell-trinkets-bulk", "prompt.exit-repair-mode",
+    "prompt.repair", "prompt.uninstall")
+STR_CHECK_IDS = (128994277756948480, 128994359080308736, 128994513543942144, 167737034407071744, 124206426037080064,
+                 124653352582828032, 124210017581846528)
+# literal prompt names in the C# code (AbilityBarUI.cs:53, AbilityRadial.cs:109) that no string table holds
+STR_NOT_IN_GAME = ("prompt.radial-show", "prompt.action")
+
+
+def check_strings(strings):
+    """Every key and KeyId the round 2 audits name must exist in DR_STR. A KeyId whose text exists without a key name
+    would be added as keyid.<id> (nothing needs it today). Returns the keys that are missing from the game itself."""
+    added, lost = [], []
+    for i in STR_CHECK_IDS:
+        hits = [(g, tx[i]) for g, tx in loc.text.items() if i in tx]
+        if not hits:
+            lost.append(i)
+        for g, text in hits:
+            key = loc.shared[g].get(i)
+            if key is None:                      # text without a key name: expose it by id
+                strings["keyid.%d" % i] = text
+                added.append(i)
+            elif key not in strings:             # key lives in the Yarn table, so it is not in DR_STR
+                lost.append(i)
+    missing = [k for k in STR_CHECK if k not in strings]
+    unexpected = [k for k in missing if k not in STR_NOT_IN_GAME]
+    print("strings checked: %d keys + %d KeyIds; added by KeyId: %s; KeyIds not in DR_STR: %s; keys in no table: %s"
+          % (len(STR_CHECK), len(STR_CHECK_IDS), added, lost, missing))
+    assert not unexpected and not lost, "DR_STR lacks keys %s / KeyIds %s" % (unexpected, lost)
+    return missing
+
+
 def main():
     loc.load()
     W.load_all()
@@ -695,12 +988,16 @@ def main():
     strings, dialogue = {}, {}
     for tn, tab in loc.tables.items():
         (dialogue if tn == "Yarn" else strings).update(tab)
+    check_strings(strings)
+    STRINGS.update(strings)
     write_js("strings.js", "DR_STR", strings)
     write_js("strings-dialogue.js", "DR_STR_DIALOGUE", dialogue)
 
     items, grids = {}, {}
     quests = collections.defaultdict(dict)
     groups = collections.defaultdict(dict)
+    upgrade_objs = []
+    grid_idents = set()     # (id(assets_file), path_id) of the GridConfigurations already in grids
     for prefix in ("itemdata", "upgradedata", "gridconfigs", "weatherdata", "mapmarkerdata", "questdata",
                    "questgriddata", "worldeventdata", "achievementdata", "bundledprefab", "gamemetadata", "highlightdata"):
         for path, cls, o in collect(prefix):
@@ -709,17 +1006,20 @@ def main():
                 CURRENT["item"] = t.get("id") or t["m_Name"]
                 d = export_obj(o, cls)
                 CURRENT["item"] = None
-                d = shape_item(d, cls)
+                d = split_loc_fields(shape_item(d, cls), t)
                 items[key_of(d, items)] = d
                 continue
             d = export_obj(o, cls)
             if cls == "GridConfiguration":
                 grids[key_of(d, grids)] = d
+                grid_idents.add((id(o.assets_file), o.path_id))
             elif cls.startswith("Quest"):
                 quests[cls][key_of(d, quests[cls])] = d
             elif cls in ("HullUpgradeData", "SlotUpgradeData"):
                 d["cls"] = cls
-                groups["upgrades"][key_of(d, groups["upgrades"])] = d
+                k = key_of(d, groups["upgrades"])
+                groups["upgrades"][k] = d
+                upgrade_objs.append((k, o))
             elif cls == "WeatherData":
                 groups["weather"][d["asset"]] = d
             elif cls == "MapMarkerData":
@@ -746,14 +1046,23 @@ def main():
                 k = key_of(d, grids)
                 if k not in grids:
                     grids[k] = d
+                    grid_idents.add((id(o.assets_file), o.path_id))
                     added["grids"].append(k)
     print("player-build extras added:", {k: len(v) for k, v in added.items()})
+    assert not LOC_BAD, "item keys that do not resolve in DR_STR: %s" % LOC_BAD
+
+    # GridConfiguration sub-assets, then the upgrade QuestGridConfigs that point at them (grids first: the questGrid
+    # stores the DR_GRIDS key, and DR_CONFIG.gridConfigs below needs the registry to tell Tier2Hull 5x6 from 7x10)
+    upgrade_info = upgrade_grid_objects(upgrade_objs)
+    sweep_grids(grids, grid_idents)
+    attach_upgrade_quest_grids(groups["upgrades"], upgrade_info, grids)
 
     INLINE.update({"HarvestDifficultyConfigData", "SaveDataTemplate"})
     cfg = None
     for o in extra["GameConfigData"]:
         if o.read_typetree()["m_Name"].endswith("Prod"):
             cfg = export_obj(o, "GameConfigData")
+    cfg["gridKeyIds"] = dict(cs.enums["GridKey"][1])
     cfg["wave"] = export_wave()
     cfg["difficulties"] = {}
     for o in extra["HarvestDifficultyConfigData"]:
@@ -776,6 +1085,8 @@ def main():
             if key in world[base] and world[base][key] != d:
                 key = "%s#%s" % (key, c)
             world[base][key] = d
+    export_scene_components(world)
+    assert not LOC_BAD, "keys that do not resolve in DR_STR: %s" % LOC_BAD
     write_js("world_data.js", "DR_WORLD", world)
 
     write_js("items.js", "DR_ITEMS", items)

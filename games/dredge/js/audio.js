@@ -25,12 +25,27 @@
       document.addEventListener(ev, unlock, { capture: true, passive: true });
   }
 
+  // Khoá là khoá ngữ nghĩa ('fish.minigame.hit') hoặc tên clip gốc ('Organic Item - Pick up', lấy từ trường orig
+  // mà tools/audio.py ghi), để mã gọi được đúng tên trong bản gốc mà không cần chờ ai đặt khoá mới.
+  let byOrig = null, byOrigN = -1;
+  const norm = s => String(s).toLowerCase().replace(/\.(ogg|wav|mp3)$/, '').replace(/[\s_]+/g, ' ').trim();
+  function resolve(key) {
+    const A = root.DR_AUDIO || {};
+    if (A[key]) return key;
+    const n = Object.keys(A).length;
+    if (n !== byOrigN) {
+      byOrig = {}; byOrigN = n;
+      for (const [k, d] of Object.entries(A)) if (d.orig) byOrig[norm(d.orig.split('/').pop())] = k;
+    }
+    return byOrig[norm(key)] || null;
+  }
   function def(key) {
-    const d = root.DR_AUDIO && root.DR_AUDIO[key];
-    if (!d) console.warn('[audio] key not found:', key);
-    return d;
+    const k = resolve(key);
+    if (!k) console.warn('[audio] key not found:', key);
+    return k ? root.DR_AUDIO[k] : null;
   }
   function load(key) {
+    key = resolve(key) || key;
     if (buffers[key]) return Promise.resolve(buffers[key]);
     if (loading[key]) return loading[key];
     const d = def(key);
@@ -51,12 +66,14 @@
     return { src, g };
   }
 
-  function play(key, vol) {
+  // rate: tốc độ phát = cao độ, như AudioSource.pitch của Unity (vd 0,95-1,05 ngẫu nhiên cho tiếng trúng/trượt)
+  function play(key, vol, rate) {
     if (!ctx) return;
     const d = def(key); if (!d) return;
     load(key).then(buf => {
       if (!buf) return;
       const n = source(buf, (vol == null ? 1 : vol) * (d.vol || 1), false);
+      if (rate) n.src.playbackRate.value = rate;
       n.src.start();
     });
   }
@@ -112,5 +129,5 @@
     if (master) master.gain.setTargetAtTime(muted ? 0 : 1, ctx.currentTime, 0.05);
   }
 
-  root.DRAudio = { play, loop, stopLoop, music, setMuted, isMuted: () => muted, unlock, preload: load };
+  root.DRAudio = { play, loop, stopLoop, music, setMuted, isMuted: () => muted, unlock, preload: load, resolve };
 })(typeof window !== 'undefined' ? window : globalThis);
