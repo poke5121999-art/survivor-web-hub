@@ -2,7 +2,6 @@
 (function (VS) {
   'use strict';
   var STEP = 1 / 60, MAX_STEPS = 6;
-  var EDGES = ['fire', 'skill', 'light', 'interact'];
 
   var S = VS.state = { mode: 'boot', save: null, m: null, viewer: null, acc: 0, endT: 0, lastT: 0 };
 
@@ -71,12 +70,11 @@
     m.events.length = 0;
   }
 
-  function stepOnce(m, firstOfFrame) {
+  // Phím một bước do sim tự xoá sau mỗi bước, input.read trả mỗi lần bấm đúng một lần. Ở ?manual=1 bài kiểm lái bằng
+  // VS_DEBUG.intent nên không đọc bàn phím chuột.
+  function stepOnce(m) {
     var me = m.actors[S.viewer.id];
-    if (me && me.ctrl === 'human' && VS.input && VS.input.read) {
-      if (firstOfFrame) me.intent = VS.input.read(m, me);
-      else EDGES.forEach(function (k) { me.intent[k] = false; });
-    }
+    if (!VS.flags.manual && me && me.ctrl === 'human' && VS.input && VS.input.read) me.intent = VS.input.read(m, me);
     VS.sim.step(m, STEP);
   }
 
@@ -89,7 +87,7 @@
       if (!VS.flags.manual) {
         S.acc += dt;
         var n = 0;
-        while (S.acc >= STEP && n < MAX_STEPS) { stepOnce(m, n === 0); S.acc -= STEP; n++; }
+        while (S.acc >= STEP && n < MAX_STEPS) { stepOnce(m); S.acc -= STEP; n++; }
         if (n === MAX_STEPS) S.acc = 0;
       }
       drainEvents(m);
@@ -124,7 +122,7 @@
     match: function () { return S.m; },
     step: function (n) {
       var m = S.m;
-      for (var i = 0; i < (n || 1); i++) { stepOnce(m, i === 0); }
+      for (var i = 0; i < (n || 1); i++) { stepOnce(m); }
       drainEvents(m);
       return m.t;
     },

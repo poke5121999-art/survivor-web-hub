@@ -49,7 +49,7 @@
     },
     Megamouth_Shark: {
       name: 'Cá Mập Miệng To', rarity: 5, hp: 520, speed: 3.4, dash: 5.5, bite: 30, r: 1.3, skill: 'hut-nuoc',
-      blurb: 'Há cái miệng rộng một mét rưỡi là cả dòng nước bị hút vào. Cả kho báu cũng thế.'
+      blurb: 'Há cái miệng rộng một mét rưỡi là cả dòng nước bị hút vào, kho báu trên tay thợ lặn cũng tuột theo.'
     }
   };
   Object.keys(VS.SHARKS).forEach(function (id) { VS.SHARKS[id].id = id; });

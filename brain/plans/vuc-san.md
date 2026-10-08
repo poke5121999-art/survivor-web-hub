@@ -84,38 +84,49 @@ pick: { team, diver, shark }, pity: { bannerId: { n5, n4, guar } }, stats }`.
 
 ## Luật trận (số mặc định, chỉnh trong `data/tuning.js`)
 
-- 4 thợ lặn đấu 2 cá mập, 240 s, mở màn 4 s.
-- O₂ là máu của thợ lặn (như Dave the Diver): tụt 0,35/s, tăng tốc ×2,5, cá mập cắn trừ theo loài.
-  - O₂ về 0 thì gục 12 s. Đồng đội đứng cạnh giữ tương tác 2 s thì cứu dậy với 35 O₂. Cá mập cắn kẻ đang gục thì loại luôn.
-  - Bị loại thì rơi hết kho báu đang mang. Sau 7 s hồi sinh ở điểm xuất phát, tốn một lượt của đội (mặc định 4 lượt).
-- Kho báu: 12–18 món mỗi trận, 40–300 điểm, nặng 2–15 kg. Mang càng nặng bơi càng chậm. Chạm khoang cứu hộ là nộp.
-  Chỉ tiêu = 60% tổng giá trị kho báu của trận.
-- Cá mập nhanh hơn thợ lặn ở nước trống nhưng to hơn, nên khe hẹp là chỗ trú của thợ lặn.
-  Hết máu thì lui 8 s rồi quay lại từ chỗ sinh của cá mập.
-- Súng xiên: bấm là bắn về phía con trỏ, nạp lại theo súng, trúng cá mập thì trừ máu và làm chậm 30% trong 1 s.
+- 4 thợ lặn đấu 2 cá mập, 240 s chơi sau 4 s mở màn.
+- O₂ là máu của thợ lặn (như Dave the Diver): tụt 0,6/s nên bình 100 cạn sau khoảng 167 s, tăng tốc tụt ×2,5,
+  cá mập cắn trừ theo loài. Rương O₂ nạp 35, nghỉ 20 s.
+  - Bị cắn trúng thì bị ngậm 1,5 s, mất 12 O₂/s. Giãy (đổi chiều trái phải) rút ngắn thời gian ngậm.
+    Được nhả ra thì miễn cắn 1,2 s; con cá mập thứ hai không cắn được người đang bị ngậm.
+  - O₂ về 0 thì gục 12 s. Đồng đội đứng cạnh đủ 2 s liền (tự động, không cần phím) thì cứu dậy với 35 O₂.
+    Cá mập cắn kẻ đang gục thì loại luôn.
+  - Bị loại thì rơi hết kho báu đang mang. Sau 7 s hồi sinh, tốn một lượt của đội (mặc định 4 lượt), ở điểm sinh hoặc
+    khoang cứu hộ xa cá mập gần nhất nhất. Vừa sinh thì miễn sát thương 3 s (cả cá mập).
+- Kho báu: 12–16 món mỗi trận, 40–300 điểm, nặng 2–15 kg. Mang càng nặng bơi càng chậm. Thợ lặn đang bơi chạm khoang
+  cứu hộ là nộp. Chỉ tiêu = 60% tổng giá trị kho báu của trận. Kho báu không bao giờ bị huỷ.
+- Cá mập không vào được vùng 5 m quanh khoang cứu hộ (chống canh cửa). Cá mập nhanh hơn thợ lặn ở nước trống nhưng to
+  hơn, nên khe hẹp là chỗ trú của thợ lặn. Hết máu thì lui 8 s rồi quay lại từ chỗ sinh xa thợ lặn nhất.
+- Súng xiên: bấm là bắn về phía con trỏ, nạp lại theo súng, trúng cá mập thì trừ máu và chậm 30% trong 0,5 s
+  (hết chậm thì miễn chậm 2 s, để một thợ lặn không thả diều cá mập mãi).
+- Choáng, ngủ, bị ngậm hết thì miễn khống chế 2 s. Đang bị ngậm, choáng, ngủ thì không bắn, không dùng kỹ năng.
+- Điểm thưởng: thợ lặn 1 điểm mỗi 50 kho báu nộp và mỗi lần cứu; cá mập 1 điểm mỗi thợ lặn hạ gục (công thuộc con
+  cuối cùng làm mất O₂ trong 10 s).
 
 ## Tầm nhìn đèn pin (theo R.E.P.O.)
 
 - Nguồn sáng: đèn pin mỗi thợ lặn (nón 60°, 13 m, theo hướng ngắm, F để tắt/bật), quầng quanh người 2 m, khoang cứu hộ 5 m,
   rương O₂ 2,5 m, pháo sáng 10 m. Vách đá chặn sáng: mỗi nguồn tính một đa giác nhìn thấy bằng tia bắn vào lưới đoạn vách.
-- Đội thợ lặn thấy hợp các vùng sáng (ánh sáng là vật lý, đồng đội soi thì mình cũng thấy).
-- Đội cá mập thấy trong 7 m quanh mình (có che khuất), thấy mọi thợ lặn đang bật đèn trong 24 m (đèn là ngọn hải đăng),
-  và thấy thợ lặn dưới 30% O₂ trong 30 m (mùi máu).
+- Đội thợ lặn thấy hợp các vùng sáng. Cá mập và kho báu chỉ hiện khi nằm trong vùng sáng. Địa hình ngoài vùng sáng chỉ
+  lờ mờ (độ sáng theo chủ đề bản đồ, 8–18%) để còn tìm đường. Đồng đội luôn hiện, có mũi tên mép màn chỉ khoang cứu hộ
+  và đồng đội đang gục; kho báu đã từng được soi thấy thì cả đội nhớ (bot dùng chung trí nhớ này).
+- Đội cá mập thấy trong 7 m quanh mình (có che khuất), thấy thợ lặn đang bật đèn trong 18 m nếu không bị vách che
+  (đèn là ngọn hải đăng), và thấy thợ lặn dưới 30% O₂ trong 30 m (mùi máu). Cá mập thấy địa hình rõ hơn (35%).
 - Bot dùng đúng hàm tầm nhìn đó, nên không bot nào nhìn xuyên tối.
-- Vẽ: lớp `js/view/lightmask.js` vẽ vùng thấy được của đội người chơi vào một canvas độ phân giải thấp, pass hậu kỳ nhân
+- Vẽ: `js/view/lightmask.js` vẽ vùng thấy được của đội người chơi vào một canvas độ phân giải thấp, pass hậu kỳ nhân
   màu với mặt nạ ấy; đối thủ ngoài vùng thấy được thì ẩn hẳn.
 
 ## Bản đồ thư mục và chủ sở hữu tệp
 
 | Nhánh | Tệp | Kiểm |
 |---|---|---|
-| Khung (agent gốc) | `index.html`, `js/main.js`, `data/*.js`, `README.md`, `data/games.js` (chỉ khúc của mình) | `test/vuc-san-smoke.js` |
-| W1 mô phỏng | `js/sim/{rng,world,vision,actors,match}.js`, `tools/sim.js` | `test/vuc-san-sim.js` (Node) |
-| W2 lớp vẽ | `js/view/{gfx,level,fx,audio,sharkView,diverView,lightmask,camera}.js` | `test/vuc-san-view.js` |
+| Khung (agent gốc) | `index.html`, `js/main.js`, `js/core.js`, `data/*.js` (trừ `names.js`), `README.md`, `data/games.js` (chỉ khúc của mình) | `test/vuc-san-smoke.js` |
+| W1 mô phỏng | `js/sim/{geom,vision,actors,match}.js`, `js/sim/bots.js` (bản đơn giản), `js/sim/skills.js` (khung + 2 kỹ năng mẫu), `tools/sim.js`, `tools/simlab.html` | `test/vuc-san-sim.js` (Node) |
+| W2 lớp vẽ | `js/engine/{gfx,level,fx,audio,shark}.js`, `js/view/{diverSheet,diverView,sharkView,lightmask,view,hud}.js`, `js/input.js` (phím, chuột), `css/hud.css`, `tools/{fakematch.js,viewlab.html}` | `test/vuc-san-view.js` |
 | W3 sảnh, ghép trận giả, gacha | `js/meta/{save,gacha,mmk,lobby}.js`, `css/ui.css`, `data/names.js` | `test/vuc-san-meta.js` (Node) + `test/vuc-san-lobby.js` |
-| W4 lưới đi + bot | `js/sim/{nav,bots}.js`, `tools/mapgen.js` | `test/vuc-san-bots.js` (Node) |
-| W5 kỹ năng | `js/sim/skills.js` | `test/vuc-san-skills.js` (Node) |
-| W6 HUD, cảm ứng, tiếng | `js/view/hud.js`, `js/input.js`, `css/hud.css` | `test/vuc-san-flow.js` |
+| W4 lưới đi + bot (pha 2) | `js/sim/{nav,bots}.js`, `tools/mapgen.js` (điểm sinh, chỗ đặt kho báu, kiểm khoang nối nhau với khoảng trống >= r cá mập lớn nhất) | `test/vuc-san-bots.js` (Node) |
+| W5 kỹ năng (pha 2) | `js/sim/skills.js` (20 kỹ năng còn lại; `lach-khe` cần lưới đi ở 0,55 r) | `test/vuc-san-skills.js` (Node) |
+| W6 HUD, cảm ứng, tiếng (pha 2) | `js/view/hud.js`, `js/input.js` (thêm cảm ứng), `css/hud.css` | `test/vuc-san-flow.js` |
 
 ## Pha
 
@@ -133,4 +144,7 @@ pick: { team, diver, shark }, pity: { bannerId: { n5, n4, guar } }, stats }`.
 - 4 đấu 2 thay vì 4 đấu 3 của Depth: cá mập trong màn ngang to và mạnh, 2 con đủ tạo áp lực.
 - Thợ lặn dùng sheet Dave đổi màu áo (bản gốc chỉ có sprite Dave), tên tiếng Việt, không mượn tên nhân vật DtD.
 - Không nối trang chỉnh thông số (`design.html` chỉ phục vụ REPO); số chỉnh nằm ở `data/tuning.js`.
-- Một loại tiền: ngọc trai. Bắt đầu với 3200 (hai lần quay 10).
+- Một loại tiền: ngọc trai. Bắt đầu với 3200 (hai lần quay 10). Bảo hiểm 5★: tăng dần từ lượt 30, chắc chắn ở lượt 45.
+  Quay trùng nhân vật thì đổi ra ngọc trai (3★ 10, 4★ 60, 5★ 400), không có chỉ số theo sao.
+- Kho bản đồ: A01, A03N, B01, B02, B04N, B06. Bỏ C03 (khe 1,6 m nhốt cá mập) và A05 (trùng bố cục A01) theo bản soát
+  2026-10-08.
