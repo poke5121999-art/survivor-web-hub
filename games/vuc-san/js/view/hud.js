@@ -1,6 +1,7 @@
 // Lớp vẽ: HUD gọn trong #hud (DOM). Giờ, thanh kho báu đã nộp / chỉ tiêu, lượt hồi sinh; thợ lặn: đồng hồ O₂
 // (khung UI_O2_Frame_New gốc), cân đang mang, đèn; cá mập: máu + thể lực; nút kỹ năng có vạch hồi chiêu; mũi tên ở mép
-// màn chỉ tới mọi khoang cứu hộ và đồng đội đang gục ngoài màn hình; thông báo ngắn.
+// màn chỉ tới mọi khoang cứu hộ và đồng đội đang gục ngoài màn hình (né mọi khối HUD); thông báo ngắn.
+// Máy cảm ứng: thêm cần bơi, cần ngắm (chỉ vẽ, cử chỉ do input.js đọc), nút Đèn và Tương tác; nút Kỹ năng dùng chung.
 // m.t chỉ đếm thời gian chơi (0 suốt mở màn); mở màn đếm bằng m.phaseT.
 (function (VS) {
   'use strict';
@@ -37,6 +38,12 @@
       '  <div class="row st"><b>SỨC</b><div class="bar"><i></i></div></div>',
       '</div>',
       '<button class="vs-skill" type="button" hidden><span class="ic"></span><span class="cd"></span><span class="t"></span><span class="key">Q</span></button>',
+      '<div class="vs-tc" hidden>',
+      '  <div class="vs-stick move"><i class="b"></i><i class="k"></i></div>',
+      '  <div class="vs-stick aim"><i class="b"></i><i class="k"></i></div>',
+      '  <button class="vs-tbtn light" type="button" title="Bật/tắt đèn pin">ĐÈN</button>',
+      '  <button class="vs-tbtn act" type="button" title="Tương tác">TƯƠNG<br>TÁC</button>',
+      '</div>',
       '<div class="vs-hud-toasts"></div>',
       '<div class="vs-arrows"></div>',
     ].join('');
@@ -47,10 +54,22 @@
       o2: $('.vs-o2'), o2pie: $('.vs-o2 .pie'), o2n: $('.vs-o2 .n'), kg: $('.vs-o2 .kg span'), lamp: $('.vs-o2 .lamp'),
       shark: $('.vs-shark'), sname: $('.vs-shark .name'), hp: $('.vs-shark .hp .bar i'), hpv: $('.vs-shark .hp .v'), sta: $('.vs-shark .st .bar i'),
       skill: $('.vs-skill'), skIc: $('.vs-skill .ic'), skCd: $('.vs-skill .cd'), skT: $('.vs-skill .t'), toasts: $('.vs-hud-toasts'),
-      arrows: $('.vs-arrows'),
+      arrows: $('.vs-arrows'), tc: $('.vs-tc'), stMove: $('.vs-stick.move'), stAim: $('.vs-stick.aim'),
+      tLight: $('.vs-tbtn.light'), tAct: $('.vs-tbtn.act'),
     };
     // nút kỹ năng bấm được bằng chuột / chạm: đi qua lớp input như phím Q
     R.skill.addEventListener('pointerdown', function (e) { e.preventDefault(); e.stopPropagation(); if (VS.input && VS.input.press) VS.input.press('skill'); });
+    R.tLight.addEventListener('pointerdown', function (e) { e.preventDefault(); e.stopPropagation(); if (VS.input && VS.input.press) VS.input.press('light'); });
+    R.tAct.addEventListener('pointerdown', function (e) {
+      e.preventDefault(); e.stopPropagation();
+      if (!VS.input) return;
+      VS.input.press('interact');
+      if (VS.input.touch) VS.input.touch.hold('interact', true);
+    });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (n) {
+      R.tAct.addEventListener(n, function () { if (VS.input && VS.input.touch) VS.input.touch.hold('interact', false); });
+    });
+    window.addEventListener('resize', function () { blocksAt = 0; });
   }
 
   H.show = function (m, viewer) {
@@ -58,8 +77,10 @@
     var host = document.getElementById('hud');
     if (host) host.hidden = false;
     el.hidden = false;
-    cur.viewer = viewer; cur.team = viewer && viewer.team; cur.skill = null;
+    cur.viewer = viewer; cur.team = viewer && viewer.team; cur.skill = null; blocksAt = 0;
+    if (VS.input && VS.input.reset) VS.input.reset();
     var me = viewer && m.actors[viewer.id];
+    R.tLight.hidden = R.tAct.hidden = cur.team !== 'diver';
     R.o2.hidden = cur.team !== 'diver';
     R.shark.hidden = cur.team !== 'shark';
     if (me && cur.team === 'shark') setText(R.sname, (VS.SHARKS[me.defId] || {}).name || me.defId);
@@ -96,6 +117,7 @@
     var intro = m.phase === 'intro';
     if (R.intro.hidden === intro) R.intro.hidden = !intro;
     if (intro) setText(R.intro, Math.max(1, Math.ceil(TU.intro - (m.phaseT || 0))));
+    touchUi(me);
     arrows(m, viewer, me);
     var sc = m.score || { banked: 0, target: 0 };
     setW(R.scoreBar, sc.target ? sc.banked / sc.target : 0);
@@ -140,14 +162,74 @@
     }
   };
 
+  // ---------- cảm ứng: cần bơi, cần ngắm, nút Đèn ----------
+  var tcOn = false, tcPos = { move: '', aim: '' };
+  function stickUi(node, st, def, key) {
+    var R0 = VS.input.touch.state().radius, x = st ? st.bx : def.x, y = st ? st.by : def.y, pos = Math.round(x) + ',' + Math.round(y) + ',' + Math.round(R0);
+    if (tcPos[key] !== pos) {
+      tcPos[key] = pos;
+      node.style.transform = 'translate(' + x.toFixed(0) + 'px,' + y.toFixed(0) + 'px)';
+      node.style.setProperty('--R', R0 + 'px');
+    }
+    node.classList.toggle('on', !!st);
+    node.classList.toggle('max', !!(st && st.boost && key === 'move'));
+    var k = node.lastChild;
+    k.style.transform = st ? 'translate(' + (st.kx - st.bx).toFixed(1) + 'px,' + (st.ky - st.by).toFixed(1) + 'px)' : '';
+  }
+  function touchUi(me) {
+    var on = !!(VS.input && VS.input.touch && VS.input.touch.enabled());
+    if (on !== tcOn) { tcOn = on; el.classList.toggle('touch', on); R.tc.hidden = !on; blocksAt = 0; }
+    if (!on) return;
+    var ts = VS.input.touch.state();
+    stickUi(R.stMove, ts.move, { x: 100, y: innerHeight - 90 }, 'move');
+    stickUi(R.stAim, ts.aim, { x: innerWidth - 250, y: innerHeight - 100 }, 'aim');
+    if (me && cur.team === 'diver') R.tLight.classList.toggle('on', !!me.light);
+  }
+
   // ---------- mũi tên mép màn: mọi khoang cứu hộ, đồng đội đang gục ở ngoài màn hình ----------
-  var pool = [];
+  // Mũi tên trượt dọc mép tới chỗ gần nhất không đè khối HUD nào (thanh trên, O₂/máu, nút, cần, thông báo).
+  var pool = [], blocks = [], blocksAt = 0;
+  var BLOCKS = '.vs-hud-top, .vs-o2, .vs-shark, .vs-skill, .vs-tbtn, .vs-stick, .vs-hud-toast, .vs-state, .vs-intro';
+  function readBlocks() {
+    var now = performance.now();
+    if (now - blocksAt < 200) return;
+    blocksAt = now; blocks = [];
+    var list = el.querySelectorAll(BLOCKS);
+    for (var i = 0; i < list.length; i++) {
+      var r = list[i].getBoundingClientRect();
+      if (r.width > 1 && r.height > 1) blocks.push(r);
+    }
+  }
+  function freeBox(x0, y0, x1, y1, W, H) {
+    if (x0 < 2 || y0 < 2 || x1 > W - 2 || y1 > H - 2) return false;
+    for (var i = 0; i < blocks.length; i++) {
+      var r = blocks[i];
+      if (x1 > r.left - 3 && x0 < r.right + 3 && y1 > r.top - 3 && y0 < r.bottom + 3) return false;
+    }
+    return true;
+  }
+  // điểm ở khoảng s dọc chu vi hình chữ nhật [l, t, r, b], đi theo kim đồng hồ từ góc trên trái
+  function perimAt(s, l, t, r, b) {
+    var w = r - l, h = b - t, P = 2 * (w + h);
+    s = ((s % P) + P) % P;
+    if (s < w) return { x: l + s, y: t };
+    s -= w; if (s < h) return { x: r, y: t + s };
+    s -= h; if (s < w) return { x: r - s, y: b };
+    s -= w; return { x: l, y: b - s };
+  }
+  function perimOf(x, y, l, t, r, b) {
+    var w = r - l, h = b - t, dT = Math.abs(y - t), dB = Math.abs(y - b), dL = Math.abs(x - l), dR = Math.abs(x - r), m = Math.min(dT, dB, dL, dR);
+    if (m === dT) return x - l;
+    if (m === dR) return w + (y - t);
+    if (m === dB) return w + h + (r - x);
+    return 2 * w + h + (b - y);
+  }
   function arrowEl(i) {
     if (pool[i]) return pool[i];
     var d = document.createElement('div');
     d.innerHTML = '<span class="pt"></span><b></b>';
     R.arrows.appendChild(d);
-    return (pool[i] = { el: d, pt: d.firstChild, lbl: d.lastChild, cls: '', txt: '' });
+    return (pool[i] = { el: d, pt: d.firstChild, lbl: d.lastChild, cls: '', txt: '', w: 0, h: 0, top: 0, half: 0 });
   }
   function arrows(m, viewer, me) {
     var n = 0, W = innerWidth, H = innerHeight, pad = Math.max(26, Math.min(W, H) * 0.06);
@@ -158,17 +240,34 @@
     if (viewer) m.actors.forEach(function (a) {
       if (a.team === viewer.team && a.id !== viewer.id && a.st === 'down') list.push({ x: a.x, y: a.y, cls: 'down', label: a.name });
     });
+    readBlocks();
+    var L = pad, T = pad, Rr = W - pad, B = H - pad;
     for (var i = 0; i < list.length; i++) {
       var t = list[i], s = VS.view.worldToScreen(t.x, t.y);
       if (s.x > pad && s.x < W - pad && s.y > pad && s.y < H - pad) continue;   // đang trong màn hình: khỏi chỉ
       var dx = s.x - cx, dy = s.y - cy, k = Math.min(Math.abs((W / 2 - pad) / (dx || 1e-6)), Math.abs((H / 2 - pad) / (dy || 1e-6)));
-      var ax = cx + dx * k, ay = cy + dy * k, o = arrowEl(n++);
+      var o = arrowEl(n);
       var dist = Math.round(Math.hypot(t.x - (from ? from.x : cam.x), t.y - (from ? from.y : cam.y)));
       var cls = 'vs-arrow ' + t.cls, txt = (t.label ? t.label + ' · ' : '') + dist + ' m';
       if (o.cls !== cls) { o.cls = cls; o.el.className = cls; }
       if (o.txt !== txt) { o.txt = txt; o.lbl.textContent = txt; }
       o.el.hidden = false;
-      o.el.style.transform = 'translate(' + ax.toFixed(1) + 'px,' + ay.toFixed(1) + 'px)';
+      if (!o.half || o.txt !== o.measured) { o.half = o.pt.offsetWidth / 2 * 1.1; o.w = o.lbl.offsetWidth; o.h = o.lbl.offsetHeight; o.top = o.lbl.offsetTop; o.measured = o.txt; }
+      // chọn chỗ trên mép: chỗ tia hướng tới, không được thì trượt dần hai phía tới chỗ đầu tiên không đè gì
+      var s0 = perimOf(cx + dx * k, cy + dy * k, L, T, Rr, B), P = 2 * ((Rr - L) + (B - T)), best = null, step = 4, lx = 0;
+      for (var j = 0; j * step < P / 2 && !best; j++) {
+        for (var sg = 0; sg < (j ? 2 : 1) && !best; sg++) {
+          var q = perimAt(s0 + (sg ? -1 : 1) * j * step, L, T, Rr, B);
+          // nhãn lùi vào trong màn nếu tràn mép
+          var lc = Math.max(4 + o.w / 2, Math.min(W - 4 - o.w / 2, q.x)), hw = Math.max(o.half, 0);
+          var x0 = Math.min(q.x - hw, lc - o.w / 2), x1 = Math.max(q.x + hw, lc + o.w / 2);
+          if (freeBox(x0, q.y - o.half, x1, q.y + o.top + o.h, W, H)) { best = q; lx = lc - q.x; }
+        }
+      }
+      if (!best) { o.el.hidden = true; continue; }
+      n++;
+      o.lbl.style.left = lx.toFixed(1) + 'px';
+      o.el.style.transform = 'translate(' + best.x.toFixed(1) + 'px,' + best.y.toFixed(1) + 'px)';
       o.pt.style.transform = 'translate(-50%,-50%) rotate(' + Math.atan2(dy, dx).toFixed(3) + 'rad)';
     }
     for (; n < pool.length; n++) if (!pool[n].el.hidden) pool[n].el.hidden = true;

@@ -218,7 +218,7 @@
     if (armsOn) this.arms.pose(this.aimA, face, this.kick, ctx.t - this.lastShot > 0.25, flash);
     // đèn đội đầu: quầng ở mắt kính. Mặt nằm ở (+0,49; 0) m trong các khung bơi ngang (trước khi xoay theo thân),
     // ở (0; +0,32) m trong khung đứng / cầm súng (đo trên sheet gốc)
-    var lampOn = !!a.light && (st === 'swim' || st === 'held');
+    var lampOn = !!a.light && (st === 'swim' || st === 'held') && !hasEffect(a, 'lightOff', ctx.mt);
     this.lamp.visible = this.core.visible = lampOn;
     if (lampOn) {
       var swimFrame = this.anim.indexOf('Move') >= 0 && this.anim !== 'AimMove', lx = swimFrame ? 0.47 : 0.03, ly = swimFrame ? 0.02 : 0.31;

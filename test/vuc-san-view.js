@@ -8,6 +8,9 @@
  *   (d) ?divers=all: 10 thợ lặn, màu trung bình của từng người khác nhau (10 bảng màu)
  *   (e) in renderer.info.render.calls, số texture, chương trình shader, thời gian vẽ (SwiftShader: chỉ là mốc)
  *   (f) không pageerror, console error, requestfailed, http >= 400
+ *   (l) nét kỹ năng, hiệu ứng trên người, đạn, vùng kỹ năng: mỗi thứ chèn vào trận giả yên (không kịch bản), khung có nó khác khung
+ *       cùng thời điểm bị gỡ nó đi ≥ ngưỡng điểm ảnh trong vùng quanh nó; stealth giấu cá mập khỏi thợ lặn xa, đồng đội cá mập thấy mờ;
+ *       kind lạ (zone, đạn, hiệu ứng, kỹ năng, actor không có) bị bỏ qua, không lỗi
  *   thêm: (g) VS.input.read từ phím, chuột thật: hướng bơi, ngắm, phím một bước ra đúng một lần; (h) unloadMatch trả GPU,
  *   nạp lại được; (i) bị loại hẳn (hết lượt) thì camera theo đồng đội còn sống gần nhất; (j) đủ 6 bản đồ trong kho nạp
  *   và vẽ được; (k) VS.diverSheet.portrait cho ảnh chân dung đã đổi màu.
@@ -314,6 +317,163 @@ async function mapPool(br, base, vp, tag, problemsAll) {
   }
 }
 
+
+// ---------- (l) nét kỹ năng, hiệu ứng, đạn, vùng ----------
+// Ghim cả 6 người, tắt kịch bản (lab.quiet), tắt mặt nạ; chèn đúng một thứ, vẽ khung A, gỡ nó (lab.reset, vẽ lại với dt = 0 nên
+// cùng thời điểm vẽ) rồi vẽ khung C: chênh lệch A - C trong vùng quanh nó là phần lớp vẽ vẽ thêm.
+async function skillDraw(br, base, vp, tag, problemsAll) {
+  console.log('Vẽ kỹ năng, hiệu ứng, đạn, vùng ' + tag);
+  const { page, problems, ctx } = await openLab(br, base, '?seed=7&t=1&pause=1', vp);
+  problemsAll.push(['skill ' + tag, problems]);
+  const spot = await page.evaluate(() => {
+    VS.view.opts.mask = false; VS_LAB.allSeen(true); VS_LAB.quiet(true);
+    const m = VS_LAB.m, f = VS.fakeMatch, b = m.actors[0];
+    let best = null;
+    for (let r = 0; r < 40 && !best; r += 2) for (let k = 0; k < 12 && !best; k++) {
+      const x = b.x + Math.cos(k * Math.PI / 6) * r, y = b.y + Math.sin(k * Math.PI / 6) * r;
+      if (y > -20 && f.open(m, x, y, 7)) best = { x, y };
+    }
+    return best;
+  });
+  T.check('(l) ' + tag + ' tìm được chỗ nước thoáng 7 m để dàn cảnh', !!spot, JSON.stringify(spot));
+  if (!spot) { await ctx.close(); return; }
+  const X = spot.x, Y = spot.y;
+  await page.evaluate(([X, Y]) => {
+    VS_LAB.place(0, X, Y, { face: 1, aim: 0 });
+    VS_LAB.place(4, X + 5.5, Y, { face: -1 }); VS_LAB.place(5, X - 6, Y + 3, { face: 1 });
+    VS_LAB.place(1, X + 1.5, Y - 3.5, { face: 1 }); VS_LAB.place(2, X + 70, Y + 30); VS_LAB.place(3, X + 72, Y + 30);
+    VS_LAB.frame(0);
+  }, [X, Y]);
+
+  // một ca: run() chèn thứ cần vẽ; region = hộp thế giới [cx, cy, hx, hy] quanh nó
+  async function drawCase(name, run, region, min, expect) {
+    await page.evaluate(() => { VS_LAB.reset(); VS_LAB.m.t = 1; VS.fakeMatch.step(VS_LAB.m, 0); VS_LAB.frame(0); });
+    const before = await page.evaluate(() => VS_LAB.stats().particles);
+    await run();
+    const st = await page.evaluate(() => VS_LAB.fxState());
+    const after = await page.evaluate(() => VS_LAB.stats().particles);
+    await grab(page, 'view-skill-' + name.replace(/\s+/g, '-') + '-' + tag, 'sa');
+    await page.evaluate(() => VS_LAB.reset());
+    await grab(page, 'view-skill-ctl', 'sc');
+    const box = await page.evaluate(([cx, cy, hx, hy]) => { const a = VS_LAB.toScreen(cx - hx, cy + hy), b = VS_LAB.toScreen(cx + hx, cy - hy); return { x0: a.x, y0: a.y, x1: b.x, y1: b.y }; }, region);
+    const d = await page.evaluate((box) => __pix.diff(__shots.sa, __shots.sc, box, 24), box);
+    // ngưỡng theo diện tích màn (ngưỡng ghi cho 1366x650); hai khung chỉ khác nhau đúng thứ cần vẽ nên nhiễu bằng 0
+    const need = min === 0 ? 0 : Math.max(8, Math.round(min * (vp.width * vp.height) / (1366 * 650)));
+    const ok = d.n >= need && (!expect || expect(st, after - before));
+    T.check('(l) ' + tag + ' ' + name + ': khung có nó khác khung đã gỡ nó ≥ ' + need + ' điểm ảnh trong vùng', ok, d.n + ' điểm ảnh (tối đa lệch ' + d.max + '), ' + JSON.stringify(st) + ', hạt +' + (after - before));
+    return d.n;
+  }
+  const step = (sec) => page.evaluate((s) => VS_LAB.step(s), sec);
+  const shark = [X + 5.5, Y, 7, 6];
+
+  // --- nét kỹ năng theo sự kiện 'skill' ---
+  await drawCase('quat-duoi', async () => { await page.evaluate(() => VS_LAB.cast(4, 'quat-duoi')); await step(0.22); }, shark, 400, (st) => st.sfx === 1);
+  await drawCase('hut-nuoc', async () => { await page.evaluate(() => VS_LAB.cast(4, 'hut-nuoc')); await step(0.5); }, [X + 1, Y, 8, 5], 300, (st) => st.sfx === 1);
+  await drawCase('cua-xe', async () => {
+    await page.evaluate(() => VS_LAB.cast(4, 'cua-xe'));
+    for (let i = 1; i <= 4; i++) await page.evaluate(([x, y, i]) => { VS_LAB.place(4, x - i * 1.4, y, { face: -1 }); VS_LAB.step(0.1); }, [X + 5.5, Y, i]);
+  }, [X + 3, Y, 7, 3], 200, (st) => st.sfx === 1);
+  await drawCase('khoet-thit', async () => {
+    await page.evaluate(() => { const a = VS_LAB.m.actors[4]; VS_LAB.place(1, a.x - 2.2, a.y + 0.3, { face: 1 }); a.holdId = 1; VS_LAB.cast(4, 'khoet-thit'); });
+    await step(0.4);
+  }, [X + 3, Y, 6, 4], 120, (st) => st.sfx === 1);
+  await page.evaluate(([X, Y]) => { VS_LAB.m.actors[4].holdId = -1; VS_LAB.place(4, X + 5.5, Y, { face: -1 }); VS_LAB.place(1, X + 1.5, Y - 3.5, { face: 1 }); }, [X, Y]);
+  await drawCase('cam-dien', async () => { await page.evaluate(() => VS_LAB.cast(5, 'cam-dien')); await step(0.4); }, [X, Y, 30, 18], 400, (st) => st.sfx === 1);
+  for (const sk of ['lao-vut', 'toc-bien']) {
+    await drawCase(sk, async () => {
+      await page.evaluate((sk) => { const a = VS_LAB.m.actors[4]; VS_LAB.place(4, a.x, a.y, { face: -1, vx: -6, vy: 0 }); VS_LAB.cast(4, sk); }, sk);
+      await step(0.3);
+    }, [X + 7, Y, 6, 3], 150, (st) => st.sfx === 1);
+    await page.evaluate(([X, Y]) => VS_LAB.place(4, X + 5.5, Y, { face: -1, vx: 0, vy: 0 }), [X, Y]);
+  }
+  await drawCase('may-day', async () => { await page.evaluate(() => VS_LAB.cast(0, 'may-day')); await step(0.4); }, [X, Y, 4, 4], 150, (st) => st.sfx === 1);
+
+  // --- hiệu ứng trên người (a.effects) ---
+  const eff = [['stun', 5, 1, 30], ['sleep', 5, 1, 20], ['noDash', 5, 1, 300], ['slow', 5, 0.3, 80], ['armor', 5, 0.4, 150], ['reveal', 5, 1, 150], ['lightOff', 0, 1, 40]];
+  for (const [kind, id, mag, min] of eff) {
+    const a = await page.evaluate((id) => ({ x: VS_LAB.m.actors[id].x, y: VS_LAB.m.actors[id].y }), id);
+    const want = { noDash: 'net', slow: 'ripple' }[kind] || kind;
+    await drawCase('hiệu ứng ' + kind, async () => { await page.evaluate(([id, kind, mag]) => VS_LAB.addEffect(id, kind, 30, mag), [id, kind, mag]); await step(0.3); },
+      [a.x, a.y, 5, 4], min, (st) => kind === 'lightOff' || st.ov.indexOf(id + ':' + want) >= 0);
+  }
+  // chảy máu (cá mập) là hạt: hạt tăng
+  await drawCase('hiệu ứng bleed', async () => { await page.evaluate(() => VS_LAB.addEffect(5, 'bleed', 30, 4)); await step(0.5); }, [X - 6, Y + 3, 5, 4], 0, (st, dp) => dp > 0);
+
+  // --- vùng kỹ năng ---
+  const Z = { bait: 'lua-bay', o2gen: 'may-o2', mine: 'min-cam-bien', flare: 'phao-sang', ink: 'bom-muc', cage: 'long-thep' };
+  const zmin = { bait: 400, o2gen: 60, mine: 60, flare: 100, ink: 600, cage: 150 };
+  for (const kind of Object.keys(Z)) {
+    const r = await page.evaluate((id) => VS.SKILL_DATA[id].r, Z[kind]);
+    await drawCase('vùng ' + kind, async () => { await page.evaluate(([kind, x, y, r]) => VS_LAB.addZone({ kind, x, y, r, dur: 30, team: 'shark' }), [kind, X - 2, Y - 1, r]); await step(0.3); },
+      [X - 2, Y - 1, Math.min(r, 6) + 1, Math.min(r, 6) + 1], zmin[kind], (st) => st.zones === 1);
+  }
+
+  // --- đạn ---
+  for (const kind of ['harpoon', 'snipe', 'net', 'dart', 'jaw']) {
+    const own = kind === 'jaw' ? 4 : 0, team = kind === 'jaw' ? 'shark' : 'diver';
+    await drawCase('đạn ' + kind, async () => {
+      await page.evaluate(([kind, own, team]) => {
+        const o = VS_LAB.m.actors[own], dir = kind === 'jaw' ? -1 : 1;
+        VS_LAB.addProj({ owner: own, team, kind, x: o.x + dir * 3, y: o.y + 0.3, vx: dir * 0.01, vy: 0, life: 9, dmg: 10 });
+      }, [kind, own, team]);
+      await step(0.05);
+    }, kind === 'jaw' ? [X + 2.5, Y, 4, 2] : [X + 3, Y, 4, 2], 40, (st) => st.projs === 1);
+  }
+
+  // --- kind lạ, actor không có: bỏ qua, không lỗi ---
+  const unk = await page.evaluate(([X, Y]) => {
+    VS_LAB.reset();
+    const m = VS_LAB.m, z0 = VS_LAB.fxState();
+    VS_LAB.addZone({ kind: 'khong-co-zone', x: X, y: Y, r: 3, dur: 30, team: 'diver' });
+    VS_LAB.addProj({ owner: 0, team: 'diver', kind: 'khong-co-dan', x: X, y: Y, vx: 0.01, vy: 0, life: 9 });
+    VS_LAB.addProj({ owner: 77, team: 'diver', kind: 'harpoon', x: X + 1, y: Y, vx: 0.01, vy: 0, life: 9 });
+    VS_LAB.addEffect(5, 'khong-co-hieu-ung', 30, 1);
+    m.actors[4].skill = { id: 'khong-co-ky-nang', cd: 5, t: 3, charges: 0 };
+    m.events.push({ t: m.t, type: 'skill', id: 4, skill: 'khong-co-ky-nang' }, { t: m.t, type: 'skill', id: 99, skill: 'quat-duoi' }, { t: m.t, type: 'skill' }, { t: m.t, type: 'khong-co-su-kien', id: 4 });
+    VS_LAB.step(0.2);
+    VS_LAB.frame(0.1);
+    return { before: z0, after: VS_LAB.fxState() };
+  }, [X, Y]);
+  T.check('(l) ' + tag + ' zone, đạn, hiệu ứng, kỹ năng, sự kiện lạ và actor không có: bị bỏ qua, không lỗi; đạn của chủ không có vẫn vẽ',
+    unk.after.zones === unk.before.zones && unk.after.sfx === 0 && unk.after.ov.length === 0 && unk.after.projs === 1, JSON.stringify(unk));
+  await page.evaluate(() => VS_LAB.reset());
+
+  // --- stealth: thợ lặn xa thì không thấy cá mập ẩn, lại gần thì thấy ---
+  const vis = await page.evaluate(([X, Y]) => {
+    VS_LAB.allSeen(false);
+    VS_LAB.reset();
+    VS_LAB.addEffect(4, 'stealth', 30, 3);
+    VS_LAB.frame(0);
+    const far = { see: VS_LAB.canSee(4), drawn: VS_LAB.drawn(4) };
+    VS_LAB.place(0, X + 3.5, Y, { face: 1, aim: 0 });
+    VS_LAB.frame(0);
+    const near = { see: VS_LAB.canSee(4), drawn: VS_LAB.drawn(4) };
+    VS_LAB.place(0, X, Y, { face: 1, aim: 0 });
+    VS_LAB.reset();
+    return { far, near };
+  }, [X, Y]);
+  T.check('(l) ' + tag + ' Ẩn Đáy: thợ lặn đứng xa (> mag) không thấy và lớp vẽ không vẽ cá mập; đứng trong mag thì thấy và vẽ',
+    vis.far.see === false && vis.far.drawn === false && vis.near.see === true && vis.near.drawn === true, JSON.stringify(vis));
+  await ctx.close();
+
+  // đồng đội cá mập thấy mờ
+  const sh = await openLab(br, base, '?seed=7&t=1&pause=1&team=shark', vp);
+  problemsAll.push(['stealth đồng đội ' + tag, sh.problems]);
+  const mate = await sh.page.evaluate(() => {
+    VS.view.opts.mask = false; VS_LAB.quiet(true);
+    const m = VS_LAB.m;
+    VS_LAB.place(4, m.actors[5].x + 8, m.actors[5].y);
+    VS_LAB.frame(0);
+    const S = VS.view.debug.state(), before = S.views[5].body.fu.opacity.value;
+    VS_LAB.addEffect(5, 'stealth', 30, 3);
+    VS_LAB.frame(0.3);
+    return { drawn: VS_LAB.drawn(5), see: VS_LAB.canSee(5), before, after: S.views[5].body.fu.opacity.value };
+  });
+  T.check('(l) ' + tag + ' Ẩn Đáy: đồng đội cá mập vẫn thấy mình ẩn, vẽ mờ (độ đục ' + mate.before.toFixed(2) + ' → ' + mate.after.toFixed(2) + ')',
+    mate.drawn && mate.see && mate.before >= 0.99 && mate.after > 0.3 && mate.after < 0.5, JSON.stringify(mate));
+  await sh.ctx.close();
+}
+
 async function main() {
   const srv = await T.serve();
   const br = await T.browser();
@@ -321,9 +481,11 @@ async function main() {
   try {
     for (const vp of VIEWPORTS) {
       const tag = vp.width + 'x' + vp.height;
+      if (process.env.VS_ONLY === 'skill') { await skillDraw(br, srv.base, vp, tag, problemsAll); continue; }   // chạy riêng phần (l) khi chỉnh nét kỹ năng
       await maskAndSight(br, srv.base, vp, tag, problemsAll);
       await sharkGrid(br, srv.base, vp, tag, problemsAll);
       await diverGrid(br, srv.base, vp, tag, problemsAll);
+      await skillDraw(br, srv.base, vp, tag, problemsAll);
       if (vp === VIEWPORTS[0]) await mapPool(br, srv.base, vp, tag, problemsAll);
     }
   } finally {

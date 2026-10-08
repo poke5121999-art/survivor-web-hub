@@ -133,3 +133,35 @@
 .vs-hud-mark { position: absolute; left: 0; top: 0; display: block; opacity: .42; will-change: transform; }
 .vs-hud-mark[hidden] { display: none; }
 .vs-hud-mark img { display: block; width: 100%; height: auto; image-rendering: pixelated; filter: grayscale(.4) brightness(1.5) drop-shadow(0 0 3px rgba(120, 220, 255, .9)); }
+
+/* ---------- cảm ứng (.vs-hud.touch: máy pointer coarse hoặc đã chạm một lần) ----------
+   Cần bơi nửa trái, cần ngắm nửa phải đều thả nổi theo ngón; chỗ mờ là gợi ý ban đầu. Nút ≥ 44 px, kích cỡ tính bằng px
+   thật (không theo --u) để ngón bấm trúng ở mọi màn. Cụm nút nằm sát góc phải dưới, ô giữa màn để trống cho nhân vật. */
+.vs-tc { position: absolute; inset: 0; }
+.vs-tc[hidden] { display: none !important; }
+.vs-stick {
+  --R: 56px; position: absolute; left: 0; top: 0; width: calc(var(--R) * 2); height: calc(var(--R) * 2);
+  margin: calc(var(--R) * -1) 0 0 calc(var(--R) * -1); opacity: .32; pointer-events: none; will-change: transform;
+}
+.vs-stick.on { opacity: .9; }
+.vs-stick .b { position: absolute; inset: 0; border-radius: 50%; border: 2px solid rgba(160, 230, 255, .85); background: rgba(95, 208, 238, .1); }
+.vs-stick .k {
+  position: absolute; left: 50%; top: 50%; width: calc(var(--R) * .85); height: calc(var(--R) * .85);
+  margin: calc(var(--R) * -.425) 0 0 calc(var(--R) * -.425); border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, rgba(190, 240, 255, .95), rgba(60, 150, 190, .85)); box-shadow: 0 2px 6px rgba(0, 0, 0, .5);
+}
+.vs-stick.aim .b { border-color: rgba(255, 210, 74, .85); background: rgba(255, 210, 74, .08); }
+.vs-stick.aim .k { background: radial-gradient(circle at 40% 35%, rgba(255, 238, 170, .95), rgba(200, 140, 20, .85)); }
+.vs-stick.max .b { border-color: #6cf08a; box-shadow: 0 0 14px rgba(108, 240, 138, .8); }
+.vs-tbtn {
+  position: absolute; padding: 0; border-radius: 50%; pointer-events: auto; cursor: pointer; touch-action: none; -webkit-tap-highlight-color: transparent;
+  background: radial-gradient(circle at 50% 38%, #24506b, #0b2233 72%); border: 3px solid rgba(95, 208, 238, .55); color: #dff6ff;
+  font: 800 12px/1.05 var(--font-ui, system-ui);
+}
+.vs-tbtn:active { transform: scale(.94); }
+.vs-tbtn.light { width: 48px; height: 48px; right: 28px; bottom: 96px; }
+.vs-tbtn.light.on { color: #2a1d00; background: #ffe7a0; border-color: #ffe7a0; box-shadow: 0 0 12px rgba(255, 220, 140, .7); }
+.vs-tbtn.act { width: 52px; height: 52px; right: 96px; bottom: 24px; font-size: 10px; }
+.vs-hud.touch .vs-skill { width: 64px; height: 64px; right: 20px; bottom: 20px; touch-action: none; -webkit-tap-highlight-color: transparent; }
+.vs-hud.touch .vs-skill .key { display: none; }
+.vs-hud.touch .vs-o2, .vs-hud.touch .vs-shark { top: calc(var(--u) * 10); bottom: auto; }

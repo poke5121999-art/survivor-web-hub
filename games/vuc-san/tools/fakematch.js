@@ -128,7 +128,7 @@
       actors: [], loot: [], pods: (zone.pods || []).map(function (p) { return { x: p[0], y: p[1], r: VS.TUNING.pod.r }; }),
       o2: (zone.o2 || []).map(function (p) { return { x: p[0], y: p[1], readyAt: 0 }; }),
       projs: [], zones: [], score: { banked: 0, target: 0 }, tickets: VS.TUNING.match.tickets, events: [], result: null,
-      fake: { zone: zone, walls: walls(zone), pins: {}, lastSt: {}, nextProj: 1, fired: {}, cycleT: -1, known: { diver: {}, shark: {} }, occlude: true, grid: null },
+      fake: { zone: zone, walls: walls(zone), pins: {}, lastSt: {}, nextProj: 1, fired: {}, cycleT: -1, known: { diver: {}, shark: {} }, occlude: true, grid: null, extraZones: [], extraEff: {}, skillFired: {} },
     };
   }
 
@@ -266,7 +266,18 @@
     s5.intent.boost = inWin(c, 12, 15);
     if (s5.intent.boost && !F.pins[5]) { s5.vx *= 1.8; s5.vy *= 1.8; }
     setSt(m, s5, inWin(c, 16, 17.4) ? 'stun' : inWin(c, 22, 22.35) ? 'lunge' : 'swim');
-    s5.effects = inWin(c, 26, 29) ? [{ kind: 'sleep', until: m.t + (29 - c), mag: 1, src: 0 }] : [];
+    // hiệu ứng theo kịch bản (mọi kind của bảng hiệu ứng README mà lớp vẽ có nét riêng) + hiệu ứng phòng thử chèn thêm (F.extraEff)
+    var EFF = [[5, 1, 8, 'armor', 0.4], [4, 21, 27, 'slow', 0.6], [4, 21, 27, 'noDash', 1], [4, 28, 34, 'stealth', 3], [5, 12, 20, 'reveal', 1], [5, 16, 17.4, 'stun', 1],
+      [5, 26, 29, 'sleep', 1], [1, 12, 18, 'bleed', 4], [0, 14, 18, 'lightOff', 1], [2, 36, 38, 'stun', 1], [3, 1, 4, 'slow', 0.3], [5, 3, 9, 'shrink', 0.55]];
+    A.forEach(function (a) { a.effects = []; });
+    EFF.forEach(function (e) { if (!F.quiet && inWin(c, e[1], e[2])) A[e[0]].effects.push({ kind: e[3], until: m.t + (e[2] - c), mag: e[4], src: 0 }); });
+    Object.keys(F.extraEff).forEach(function (id) { F.extraEff[id] = F.extraEff[id].filter(function (e) { return e.until > m.t; }); F.extraEff[id].forEach(function (e) { A[id].effects.push(e); }); });
+    // nét kỹ năng theo kịch bản: sự kiện 'skill' đúng một lần mỗi vòng (cá mập ở chỗ đang bơi)
+    [[3.0, 4, 'quat-duoi'], [14.5, 4, 'cua-xe'], [22.5, 5, 'cam-dien']].forEach(function (k) {
+      var key = k[2];
+      if (!F.quiet && c >= k[0] && c < k[0] + 0.5 && !F.skillFired[key]) { F.skillFired[key] = true; ev(m, 'skill', { id: k[1], skill: k[2] }); }
+      if (c < k[0] || c > k[0] + 1) delete F.skillFired[key];
+    });
     [s4, s5].forEach(function (s) {
       var sp = Math.hypot(s.vx, s.vy), mx = VS.TUNING.shark.staminaMax;
       s.stamina = Math.max(0, Math.min(mx, s.stamina + (s.intent.boost ? -VS.TUNING.shark.staminaUse : VS.TUNING.shark.staminaRegen) * dt));
@@ -291,24 +302,24 @@
       d.ang = Math.atan2(d.intent.aimY - d.y, d.intent.aimX - d.x);
       d.intent.mx = Math.sign(d.vx); d.intent.my = Math.sign(d.vy);
       if (d.st === 'swim' && d.id !== 1) d.o2 = Math.max(10, d.o2 - VS.TUNING.diver.o2Drain * dt);
-      var sd = VS.SKILL_DATA[d.skill.id];
+      var sd = VS.SKILL_DATA[d.skill.id] || { cd: 1 };
       d.skill.cd = Math.max(0, sd.cd - ((c + i * 7) % (sd.cd + 3)));
     });
-    var sd4 = VS.SKILL_DATA[s4.skill.id], sd5 = VS.SKILL_DATA[s5.skill.id];
+    var sd4 = VS.SKILL_DATA[s4.skill.id] || { cd: 1 }, sd5 = VS.SKILL_DATA[s5.skill.id] || { cd: 1 };
     s4.skill.cd = Math.max(0, sd4.cd - (c % (sd4.cd + 3))); s5.skill.cd = Math.max(0, sd5.cd - ((c + 5) % (sd5.cd + 3)));
-    s5.skill.t = inWin(c, 12, 15) ? 15 - c : 0;
+    if (s5.skill.id === VS.SHARKS[s5.defId].skill) s5.skill.t = inWin(c, 12, 15) ? 15 - c : 0;   // phòng thử đổi kỹ năng (lab.cast) thì không đè
 
     // --- mũi xiên: người chơi bắn mỗi 6 giây, Bảo bắn phi tiêu lúc 12, Lan bắn lưới lúc 21 ---
-    var shots = [[0, 2, 'harpoon'], [0, 8, 'harpoon'], [0, 14, 'harpoon'], [0, 20, 'harpoon'], [0, 26, 'harpoon'], [0, 32, 'harpoon'], [0, 38, 'harpoon'],
-      [3, 12, 'dart'], [2, 21, 'net']];
+    var shots = F.quiet ? [] : [[0, 2, 'harpoon'], [0, 8, 'harpoon'], [0, 14, 'harpoon'], [0, 20, 'harpoon'], [0, 26, 'harpoon'], [0, 32, 'harpoon'], [0, 38, 'harpoon'],
+      [3, 12, 'dart'], [2, 21, 'net'], [2, 5, 'snipe'], [5, 31, 'jaw']];
     d0.intent.fireHeld = shots.some(function (s) { return s[0] === 0 && c >= s[1] - 0.5 && c < s[1] + 0.3; });
     shots.forEach(function (s) {
       var key = s[0] + '@' + s[1], who = A[s[0]];
       if (c >= s[1] && c < s[1] + 0.6 && !F.fired[key] && who.st === 'swim') {
         F.fired[key] = true;
-        var ang = Math.atan2(who.intent.aimY - who.y, who.intent.aimX - who.x), sp = s[2] === 'net' ? 12 : VS.TUNING.diver.harpoonSpeed;
-        var range = s[2] === 'net' ? 10 : VS.TUNING.diver.harpoonRange;
-        m.projs.push({ id: F.nextProj++, owner: who.id, team: 'diver', kind: s[2], x: who.x + Math.cos(ang) * 0.8, y: who.y + 0.1 + Math.sin(ang) * 0.8,
+        var ang = who.team === 'shark' ? who.ang : Math.atan2(who.intent.aimY - who.y, who.intent.aimX - who.x), sp = s[2] === 'net' ? 12 : s[2] === 'jaw' ? 14 : VS.TUNING.diver.harpoonSpeed;
+        var range = s[2] === 'net' ? 10 : s[2] === 'jaw' ? 9 : VS.TUNING.diver.harpoonRange;
+        m.projs.push({ id: F.nextProj++, owner: who.id, team: who.team, kind: s[2], x: who.x + Math.cos(ang) * 0.8, y: who.y + 0.1 + Math.sin(ang) * 0.8,
           vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, life: range / sp, dmg: VS.DIVERS[who.defId].dmg, fx: null });
         ev(m, 'fire', { owner: who.id });
       }
@@ -318,7 +329,7 @@
       var p = m.projs[i];
       p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
       var hit = null;
-      [s4, s5].forEach(function (s) { if (s.st !== 'out' && Math.hypot(s.x - p.x, s.y - p.y) < s.r + 0.3) hit = s; });
+      if (p.team === 'diver') [s4, s5].forEach(function (s) { if (s.st !== 'out' && Math.hypot(s.x - p.x, s.y - p.y) < s.r + 0.3) hit = s; });
       if (hit || p.life <= 0 || solidIn(F.walls, p.x, p.y)) {
         if (hit) { hit.hp = Math.max(1, hit.hp - p.dmg); ev(m, 'hit', { by: p.owner, target: hit.id, x: p.x, y: p.y, dmg: p.dmg }); }
         else ev(m, 'miss', { owner: p.owner, x: p.x, y: p.y });
@@ -328,12 +339,15 @@
 
     // --- vùng kỹ năng ---
     var Z = [];
+    if (!F.quiet) {
     if (inWin(c, 5, 13)) Z.push({ id: 'flare', kind: 'flare', x: -30, y: 3, r: VS.SKILL_DATA['phao-sang'].r, until: m.t + 13 - c, team: 'diver' });
     if (inWin(c, 20, 26)) Z.push({ id: 'ink', kind: 'ink', x: -40, y: 3, r: VS.SKILL_DATA['bom-muc'].r, until: m.t + 26 - c, team: 'diver' });
     if (inWin(c, 26, 32)) Z.push({ id: 'cage', kind: 'cage', x: -22, y: 6, r: VS.SKILL_DATA['long-thep'].r, until: m.t + 32 - c, team: 'diver' });
     if (inWin(c, 12, 20)) Z.push({ id: 'o2gen', kind: 'o2gen', x: -26, y: 12, r: VS.SKILL_DATA['may-o2'].r, until: m.t + 20 - c, team: 'diver' });
     Z.push({ id: 'mine', kind: 'mine', x: -14, y: 4, r: VS.SKILL_DATA['min-cam-bien'].r, until: m.t + 99, team: 'diver' });
-    m.zones = Z;
+    if (inWin(c, 3, 11)) Z.push({ id: 'bait', kind: 'bait', x: -22, y: 12, r: VS.SKILL_DATA['lua-bay'].r, until: m.t + 11 - c, team: 'shark' });
+    }
+    m.zones = Z.concat(F.extraZones.filter(function (z) { return z.until > m.t; }));
 
     A.forEach(function (a) { F.lastSt[a.id] = a.st; });
     updateKnown(m);
@@ -413,7 +427,7 @@
   // Nguồn nằm trong đá (khoang, rương đặt sát vách) thì không che, khỏi thành quạt rỗng.
   var OCC = null;
   function fanFrom(x, y, a0, a1, r, n) {
-    var pts = [x, y], segs = OCC && !solidIn(OCC.walls, x, y) ? nearSegs(OCC.grid, x, y, r) : null;
+    var pts = [x, y], segs = OCC && !solidIn(OCC.walls, x, y) ? nearSegs(OCC.seg, x, y, r) : null;
     for (var i = 0; i <= n; i++) {
       var a = a0 + (a1 - a0) * i / n, dx = Math.cos(a), dy = Math.sin(a), t = segs ? cast(segs, x, y, dx, dy, r) : r;
       pts.push(x + dx * t, y + dy * t);
@@ -428,7 +442,7 @@
   }
   function visionPolys(m, team) {
     var V = VS.TUNING.vision, out = [], F = m.fake;
-    if (F && F.occlude) { F.grid = F.grid || segGrid(F.walls); OCC = F; } else OCC = null;
+    if (F && F.occlude) { F.seg = F.seg || segGrid(F.walls); OCC = F; } else OCC = null;
     if (team === 'diver') {
       m.actors.forEach(function (a) {
         if (a.team !== 'diver' || a.st === 'out') return;
@@ -461,6 +475,9 @@
     if (a.st === 'out') return false;
     var V = VS.TUNING.vision;
     if (team === 'diver') {
+      // Ẩn Đáy: đối phương chỉ thấy khi thợ lặn đứng trong mag mét
+      var sth = (a.effects || []).filter(function (e) { return e.kind === 'stealth' && e.until > m.t; })[0];
+      if (sth && !m.actors.some(function (d) { return d.team === 'diver' && d.st !== 'out' && Math.hypot(d.x - a.x, d.y - a.y) <= sth.mag; })) return false;
       var polys = visionPolys(m, team), r = (a.r || 0.5) * 0.6;
       for (var i = 0; i < polys.length; i++) {
         for (var k = 0; k < 5; k++) {
@@ -482,9 +499,18 @@
   if (!VS.sim.canSee) VS.sim.canSee = canSee;
   if (!VS.sim.known) VS.sim.known = known;
 
+  function F_NEXT(m) { return m.fake.nextProj++; }
+
   VS.fakeMatch = {
     create: create, step: step, sharkGrid: sharkGrid, diverGrid: diverGrid,
     visionPolys: visionPolys, canSee: canSee, known: known, insideFan: insideFan, CYCLE: CYCLE,
+    // chèn thêm cho phòng thử: hiệu ứng actor, zone, đạn (chỉ cần hình dạng như sim thật)
+    addEffect: function (m, id, kind, dur, mag) { (m.fake.extraEff[id] = m.fake.extraEff[id] || []).push({ kind: kind, until: m.t + dur, mag: mag == null ? 1 : mag, src: -1 }); step(m, 0); },
+    addZone: function (m, z) { z.until = z.until || m.t + (z.dur || 8); z.id = z.id || 'x' + m.fake.extraZones.length; m.fake.extraZones.push(z); step(m, 0); },
+    // yên: tắt kịch bản hiệu ứng, vùng, đạn, sự kiện kỹ năng; chỉ còn những gì phòng thử chèn (bài kiểm vẽ kỹ năng đo từng thứ một)
+    quiet: function (m, on) { m.fake.quiet = on !== false; m.projs.length = 0; step(m, 0); },
+    reset: function (m) { m.fake.extraEff = {}; m.fake.extraZones = []; m.projs.length = 0; step(m, 0); },
+    addProj: function (m, p) { p.id = p.id || F_NEXT(m); m.projs.push(p); return p; },
     solid: function (m, x, y) { return solidIn(m.fake.walls, x, y); },
     open: function (m, x, y, r) { return openIn(m.fake.walls, x, y, r || 0.5); },
   };

@@ -116,6 +116,18 @@
     if (id === viewer.id) VS.view.snapCamera();
   };
   lab.unpin = function (id) { delete m.fake.pins[id]; VS.fakeMatch.step(m, 0); };
+  // Dùng kỹ năng giả: đặt a.skill = { id, cd, t } rồi phát sự kiện 'skill' như khung thật (lớp vẽ vẽ nét riêng theo id).
+  lab.cast = function (id, skill, t) {
+    var a = m.actors[id], D = VS.SKILL_DATA[skill];
+    a.skill = { id: skill, cd: D ? D.cd : 0, t: t == null ? (D && D.dur) || 0 : t, charges: 0 };
+    m.events.push({ t: m.t, type: 'skill', id: id, skill: skill });
+  };
+  lab.addEffect = function (id, kind, dur, mag) { VS.fakeMatch.addEffect(m, id, kind, dur || 10, mag); };
+  lab.addZone = function (z) { VS.fakeMatch.addZone(m, z); };
+  lab.addProj = function (p) { return VS.fakeMatch.addProj(m, p); };
+  lab.quiet = function (on) { VS.fakeMatch.quiet(m, on); };
+  lab.reset = function () { VS.fakeMatch.reset(m); VS.view.debug.clearFx(); VS.view.render(m, 0, viewer); };
+  lab.fxState = function () { var S = VS.view.debug.state(); return { sfx: S.sfx.length, ov: Object.keys(S.ov), zones: Object.keys(S.zones).length, projs: Object.keys(S.projs).filter(function (k) { return S.projs[k]; }).length }; };
   lab.canSee = function (id) { return !!VS.sim.canSee(m, viewer.team, m.actors[id]); };
   lab.drawn = function (id) { return VS.view.debug.drawn(id); };
   lab.screenBox = function (id) { return VS.view.debug.screenBox(id); };
@@ -147,7 +159,7 @@
     return d;
   }
   function hudRects() {
-    return Array.prototype.slice.call(document.querySelectorAll('.vs-hud-top, .vs-o2, .vs-shark, .vs-skill, .vs-hud-toasts, .vs-state, .vs-intro, .vs-hud-tag, .vs-arrow > *, .vs-hud-mark'))
+    return Array.prototype.slice.call(document.querySelectorAll('.vs-hud-top, .vs-o2, .vs-shark, .vs-skill, .vs-tbtn, .vs-stick, .vs-hud-toasts, .vs-state, .vs-intro, .vs-hud-tag, .vs-arrow > *, .vs-hud-mark'))
       .filter(function (e) { return e.offsetParent !== null; }).map(function (e) { return e.getBoundingClientRect(); });
   }
   function freeOfHud(px, py, rects, pad) {
