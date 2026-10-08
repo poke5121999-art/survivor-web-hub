@@ -313,6 +313,8 @@ async function run(browser, base) {
   check('vòng thời tiết phát qua bus Weather', (await state()).loops[wantKey].bus === 'Weather');
 
   // sét: Lightning.Emit — tiếng sét ngay, sấm sau khoảng cách × 0,005 s
+  // spy ghi lúc nguồn start (sau khi tải xong buffer): nạp sẵn 6 clip, không thì trên Pages tiếng sét start trễ theo mạng còn sấm thì không
+  await page.evaluate(() => DRAudio.preload(['weather.lightning.1', 'weather.lightning.2', 'weather.lightning.3', 'weather.thunder.1', 'weather.thunder.2', 'weather.thunder.3']));
   n0 = await mark();
   const t0 = Date.now();
   await ev(() => { const b = DR.s.boat; DR.emit('lightning', { x: b.x + 200, z: b.z, dist: 200 }); });
