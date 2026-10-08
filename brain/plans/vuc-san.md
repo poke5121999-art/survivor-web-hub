@@ -132,8 +132,8 @@ pick: { team, diver, shark }, pity: { bannerId: { n5, n4, guar } }, stats }`.
 
 | Pha | Việc | Vị từ "xong" |
 |---|---|---|
-| 0 | Khung: thư mục, `index.html` đủ thẻ script, bảng dữ liệu, `main.js` máy trạng thái màn hình, kiểm khói | trang mở không lỗi, `VS` có đủ bảng, kiểm khói xanh |
-| 1 | Lát cắt dọc: W1 + W2 + W3 song song, ghép ở `main.js` | một trận chơi bằng chuột/phím thật trên 1 bản đồ, đèn pin che tối, bot đơn giản, ra màn kết quả |
+| 0 ✅ | Khung: thư mục, `index.html` đủ thẻ script, bảng dữ liệu, `main.js` máy trạng thái màn hình, kiểm khói | trang mở không lỗi, `VS` có đủ bảng, kiểm khói xanh |
+| 1 ✅ | Lát cắt dọc: W1 + W2 + W3 song song, ghép ở `main.js` | một trận chơi bằng chuột/phím thật trên 1 bản đồ, đèn pin che tối, bot đơn giản, ra màn kết quả (`test/vuc-san-play.js`) |
 | 2 | W4 + W5 + W6 song song, kho 6 bản đồ | 12 kỹ năng cá mập + 10 kỹ năng thợ lặn có kiểm số; bot đi đường không kẹt; cảm ứng chơi được |
 | 3 | Cân bằng bằng `tools/sim.js`, đánh bóng, thẻ hub | mỗi phe thắng 40–60% khi bot đấu bot trên mọi bản đồ; toàn bộ kiểm xanh |
 | 4 | Đẩy `main`, kiểm trên Pages | chờ chủ dự án cho đẩy |
@@ -148,3 +148,12 @@ pick: { team, diver, shark }, pity: { bannerId: { n5, n4, guar } }, stats }`.
   Quay trùng nhân vật thì đổi ra ngọc trai (3★ 10, 4★ 60, 5★ 400), không có chỉ số theo sao.
 - Kho bản đồ: A01, A03N, B01, B02, B04N, B06. Bỏ C03 (khe 1,6 m nhốt cá mập) và A05 (trùng bố cục A01) theo bản soát
   2026-10-08.
+
+## Còn lại sau pha 1 (2026-10-08)
+
+- Ở 844x390, mũi tên mép màn (khoảng cách tới đồng đội, khoang) đè lên thanh điểm trên cùng: việc của W6 HUD.
+- Trên SwiftShader 1366x650, mô phỏng chạy khoảng 18% tốc độ thật (khung vẽ chậm, chạm `MAX_STEPS`); bài kiểm đo theo
+  `m.t`, chưa đo trên máy có GPU thật.
+- `[BẪY ĐÃ SẬP]` Hai nhánh song song đặt class trùng tên (`vs-top`, `vs-toast`, `vs-tag`, `vs-mark`); HUD nay dùng
+  tiền tố `vs-hud-`. `getImageData` trên canvas GPU chặn luồng vài giây khi sảnh đang chạy hoạt ảnh; canvas cần đọc
+  điểm ảnh phải tạo với `willReadFrequently: true`.
