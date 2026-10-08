@@ -345,7 +345,7 @@
   };
 
   // ---- Vồ Rắn ----
-  // data không có tốc độ hàm nên lấy 2 lần tốc độ cú lao của chính con cá mập.
+  // Tốc độ hàm: SKILL_DATA['vo-ran'].speed.
   function pullTo(m, d, a, amount) {
     var dx = a.x - d.x, dy = a.y - d.y, l = Math.sqrt(dx * dx + dy * dy);
     var mv = Math.min(amount, l - (a.r + d.r + 0.2));
@@ -359,7 +359,7 @@
 
   SK['vo-ran'] = {
     start: function (m, a) {
-      var D = dat('vo-ran'), ang = aimAngle(a), sp = a.def.dash * sim.K.lungeMul * 2, ux = Math.cos(ang), uy = Math.sin(ang);
+      var D = dat('vo-ran'), ang = aimAngle(a), sp = D.speed, ux = Math.cos(ang), uy = Math.sin(ang);
       var fromX = a.x, fromY = a.y;
       sim.addProj(m, {
         owner: a.id, team: 'shark', kind: 'jaw', x: a.x + ux * (a.r + 0.1), y: a.y + uy * (a.r + 0.1), px: a.x, py: a.y,
@@ -375,7 +375,7 @@
     bot: function (m, a) {
       var D = dat('vo-ran'), d = nearestFront(m, a, 3, D.dist - 1, 0.5);
       if (!d || !grabbable(m, d)) return null;
-      var tof = dist(a, d) / (a.def.dash * sim.K.lungeMul * 2);
+      var tof = dist(a, d) / D.speed;
       return { x: d.x + d.vx * tof, y: d.y + d.vy * tof };
     }
   };

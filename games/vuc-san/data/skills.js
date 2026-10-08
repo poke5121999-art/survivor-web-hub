@@ -24,7 +24,7 @@
       desc: 'Nuốt thợ lặn đang gục hoặc còn dưới 20 O₂ trong 3 m (loại luôn) và hồi 30% máu; không có ai thì giáp 40% trong 6 giây.' },
     'cam-dien': { team: 'shark', name: 'Cảm Điện', cd: 22, dur: 5, icon: null,
       desc: 'Cả đội cá mập thấy mọi thợ lặn trên bản đồ, xuyên vách, trong 5 giây; trừ người đang trong đám mực hoặc lồng thép.' },
-    'vo-ran': { team: 'shark', name: 'Vồ Rắn', cd: 13, dist: 9, pull: 4, stun: 0.8, icon: null,
+    'vo-ran': { team: 'shark', name: 'Vồ Rắn', cd: 13, dist: 9, speed: 18, pull: 4, stun: 0.8, icon: null,
       desc: 'Phóng hàm xa 9 m; thợ lặn đầu tiên trúng bị kéo về 4 m và choáng 0,8 giây.' },
     'hut-nuoc': { team: 'shark', name: 'Hút Nước', cd: 18, dur: 2.5, range: 8, arc: 70, pullSpeed: 2.5, icon: null,
       desc: 'Hút nước theo nón 70° dài 8 m trong 2,5 giây: kéo thợ lặn về miệng và giật kho báu họ đang mang rơi ra tại chỗ.' },

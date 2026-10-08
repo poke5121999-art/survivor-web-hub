@@ -94,15 +94,60 @@ console.log('Lách Khe');
     put(sh, R.cx, R.cy, 0); step(m, 2);
     T.check('ra chỗ rộng thì nở lại bán kính thật', near(sh.r, r0, 1e-9), sh.r);
   }
-  // Bot: thợ lặn đang thấy nằm trong chỗ cá mập thật không lọt thì dùng; chỗ thoáng thì không
-  const R2 = rig(id), s2 = R2.sh;
-  put(R2.d[0], R2.cx + 5, R2.cy, 0); SIM.updateVision(R2.m, true);
-  T.check('bot không dùng khi thợ lặn ở nước thoáng', SIM.skillBot(R2.m, s2) === null);
-  if (slot) {
-    put(R2.d[0], slot.x, slot.y, 0); put(s2, slot.x + 3, slot.y, 0); R2.d[0].light = true; SIM.updateVision(R2.m, true);
-    const seen = SIM.sharkSees(R2.m, s2, R2.d[0]);
-    T.check('bot dùng khi thợ lặn đang thấy nằm trong khe (thấy=' + seen + ')', !seen || SIM.skillBot(R2.m, s2) === true);
+  // Bot: thợ lặn thấy được nằm trong khe cá mập thật không lọt thì dùng; cùng khoảng cách ở nước thoáng thì không
+  const R2 = rig(id), s2 = R2.sh, w2 = R2.m.world;
+  put(R2.d[0], R2.cx + 3, R2.cy, 0); R2.d[0].light = true; SIM.updateVision(R2.m, true);
+  T.check('đối chứng: thợ lặn bật đèn cách 3 m ở nước thoáng được thấy, bot không dùng', SIM.sharkSees(R2.m, s2, R2.d[0]) === true && SIM.skillBot(R2.m, s2) === null);
+  let spot = null;
+  if (slot) for (let deg = 0; deg < 360 && !spot; deg += 15) {
+    const px = slot.x + Math.cos(deg * Math.PI / 180) * 3, py = slot.y + Math.sin(deg * Math.PI / 180) * 3;
+    if (w2.open(px, py, r0 + 0.05) && w2.clear(px, py, slot.x, slot.y)) spot = { x: px, y: py };
   }
+  T.check('có chỗ đứng thoáng cách khe 3 m, thông tầm nhìn', !!spot);
+  if (spot) {
+    put(R2.d[0], slot.x, slot.y, 0); put(s2, spot.x, spot.y, Math.atan2(slot.y - spot.y, slot.x - spot.x)); R2.d[0].light = true; SIM.updateVision(R2.m, true);
+    T.check('thợ lặn trong khe được cá mập thấy, và bot dùng Lách Khe', SIM.sharkSees(R2.m, s2, R2.d[0]) === true && SIM.skillBot(R2.m, s2) === true);
+  }
+}
+
+console.log('Lách Khe: chui qua khe hẹp bằng lái intent (không dịch chuyển)');
+{
+  // Quét A03N/A01/B01/B02/B04N/B06 (tools quét lưới 0,15 m): không bản đồ nào có khe xuyên giữa hai vùng rộng mà chỉ lọt khi nhỏ
+  // (mọi "khe" tìm thấy là dải sát biên bản đồ), nên dựng bản đồ thử có một khe xuyên đúng bề rộng cần kiểm.
+  const id = 'lach-khe', D = SD[id], def = VS.SHARKS[SHARK_OF[id]], r0 = def.r, small = r0 * D.rMul, GAP = 1.2, GL = 1;
+  const rect = (x0, y0, x1, y1) => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
+  W.HX_ZONES.T_KHE = Object.assign({}, W.HX_ZONES.A01, {
+    id: 'T_KHE', pods: [[-18, 14], [18, -14]], o2: [[-18, -14]], start: undefined,
+    bounds: { minX: -22, maxX: 22, minY: -18, maxY: 18 },
+    walls: [rect(-GL / 2, -60, GL / 2, -GAP / 2), rect(-GL / 2, GAP / 2, GL / 2, 60)]
+  });
+  T.check('khe thử rộng ' + GAP + ' m: ' + (2 * small).toFixed(3) + ' < ' + GAP + ' < ' + (2 * r0).toFixed(2) + ' (thân thật không lọt, thân nhỏ lọt)', 2 * small < GAP && GAP < 2 * r0);
+  const run = (withSkill, maxSec) => {
+    const lineup = D4.map((d, i) => ({ team: 'diver', defId: d, name: 'T' + i, ctrl: 'human' })).concat([{ team: 'shark', defId: SHARK_OF[id], name: 'C0', ctrl: 'human' }, { team: 'shark', defId: 'Blacktip_Reefshark', name: 'C1', ctrl: 'human' }]);
+    const m = SIM.createMatch({ seed: 1, mapId: 'T_KHE', lineup });
+    step(m, 240);
+    m.actors.forEach((a) => SIM.removeEffects(a, 'spawnImmune'));
+    const sh = m.actors[4];
+    for (let i = 0; i < 4; i++) put(m.actors[i], -15 + i * 5, 15, 0);
+    put(m.actors[5], 15, 15, 0);
+    put(sh, -9, 0, 0);
+    T.check((withSkill ? 'có' : 'không') + ' kỹ năng: cá mập xuất phát ở nước thoáng cách khe 9 m, thân thật mở được tại đó', m.world.open(sh.x, sh.y, r0) && !m.world.open(0, 0, r0) && m.world.open(0, 0, small));
+    if (withSkill) sh.intent.skill = true;
+    const t0 = m.t;
+    let t = -1, minX = sh.x, maxX = sh.x;
+    for (let i = 0; i < secs(maxSec); i++) {
+      sh.intent.mx = 1; sh.intent.my = (0 - sh.y) * 0.5;
+      SIM.step(m, DT);
+      if (sh.x > maxX) maxX = sh.x;
+      if (t < 0 && sh.x >= 4) { t = m.t - t0; break; }
+    }
+    return { t, maxX, r: sh.r };
+  };
+  const no = run(false, 8), yes = run(true, D.dur);
+  console.log('  khe thử: w = ' + GAP + ' m, dài ' + GL + ' m. Không kỹ năng: ' + (no.t < 0 ? 'chưa qua sau 8 s (tiến tới x = ' + no.maxX.toFixed(2) + ')' : 'qua sau ' + no.t.toFixed(2) + ' s') + '; có kỹ năng: ' + (yes.t < 0 ? 'chưa qua' : 'qua sau ' + yes.t.toFixed(2) + ' s'));
+  T.check('không kỹ năng: lái vào khe 8 s (dài hơn ' + D.dur + ' s) vẫn kẹt ở miệng khe (mũi tròn chỉ lấn tới x ≤ ' + (-GL / 2 - Math.sqrt(r0 * r0 - GAP * GAP / 4)).toFixed(3) + ') và chưa qua', no.t < 0 && no.maxX <= -GL / 2 - Math.sqrt(r0 * r0 - GAP * GAP / 4) + 0.02, no.maxX.toFixed(3));
+  T.check('có Lách Khe: qua khe sang x ≥ 4 trong ' + D.dur + ' s (cùng cách lái)', yes.t > 0 && yes.t <= D.dur, yes.t.toFixed(2));
+  T.check('thân nhỏ khi qua khe (' + small.toFixed(4) + ' m)', near(yes.r, small, 1e-9), yes.r);
 }
 
 console.log('Lùa Bầy');
