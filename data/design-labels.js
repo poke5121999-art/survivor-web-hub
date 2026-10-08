@@ -647,6 +647,20 @@
         "mailDays": { label: "Thư thưởng hết hạn sau … ngày", unit: "ngày", int: true, min: 1, help: "Thư thưởng mùa nằm trong Hộp thư bấy nhiêu ngày rồi hết hạn." },
         "rankedUnlockRuns": { label: "Số ca phải chơi để mở Vô Tận xếp hạng", unit: "ca", int: true, min: 1, help: "Người chơi mới phải hoàn tất ngần này ca thì mới vào được Vô Tận xếp hạng." }
       }
+    },
+
+    coop_rules: {
+      title: "Luật mạng co-op",
+      blurb: "Chọn hệ thống mạng cho phòng co-op. Chỉ áp cho phòng tạo MỚI sau khi lưu; phòng đang mở giữ nguyên hệ thống cũ.",
+      effect: SERVER + " Không cần bản build mới.",
+      fields: {
+        "_id": CFG_ID,
+        "netBackend": { label: "Mạng co-op cho phòng MỚI", choices: [
+          { v: "ngo", label: "Netcode + Relay (đang chạy)" },
+          { v: "rtd", label: "Engine RTD (repo-topdown) — chưa chạy được game này" },
+          { v: "steam", label: "Steam (chưa có)" }
+        ], help: "Phòng đang mở giữ hệ thống mạng lúc tạo; chỉ phòng tạo sau khi đổi mới dùng giá trị này. Chọn hệ thống chưa chạy được thì phòng mới sẽ không vào được." }
+      }
     }
   };
 })();

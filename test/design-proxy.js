@@ -30,7 +30,7 @@ function shuffleKeys(v) {
 
   const list = await act({ action: "list" });
   const names = Object.keys(list.json.tables || {});
-  check("list names", list.status === 200 && names.length === 33 && names.every((n, i) => n === KNOWN[i]) && KNOWN.length === 33,
+  check("list names", list.status === 200 && names.length === 34 && names.every((n, i) => n === KNOWN[i]) && KNOWN.length === 34,
     `status ${list.status}, ${names.length} tables`);
   check("list quests.exists", list.json.tables.quests.exists === true, `exists=${list.json.tables.quests.exists}`);
 
@@ -60,6 +60,7 @@ function shuffleKeys(v) {
     ["duplicate _id", { table: "quests", docs: [{ _id: "a" }, { _id: "a" }] }],
     ["$ key", { table: "quests", docs: [{ _id: "a", $bad: 1 }] }],
     ["non-array docs", { table: "quests", docs: { _id: "a" } }],
+    ["coop_rules netBackend lạ", { table: "coop_rules", docs: [{ _id: "default", netBackend: "udp" }] }],
   ];
   for (const [n, b] of invalid) {
     const r = await act({ action: "save", baseHash: h, dryRun: true, ...b });
@@ -68,7 +69,7 @@ function shuffleKeys(v) {
 
   const listed = await act({ action: "list" });
   const gone = KNOWN.find((t) => !listed.json.tables[t].exists);
-  if (!gone) console.log("ℹ dryRun missing table — bỏ qua: cả 33 bảng đều đã có trên DEV");
+  if (!gone) console.log("ℹ dryRun missing table — bỏ qua: cả 34 bảng đều đã có trên DEV");
   else {
     const want = JSON.parse(fs.readFileSync(`D:/REPO_Meta/gamespark-config/${gone}.json`, "utf8"));
     const dm = await act({ action: "save", table: gone, docs: want, baseHash: listed.json.tables[gone].hash, dryRun: true });
@@ -79,7 +80,7 @@ function shuffleKeys(v) {
 
   const li = await act({ action: "get", table: "loot_items" });
   const liFile = JSON.parse(fs.readFileSync("D:/REPO_Meta/gamespark-config/loot_items.json", "utf8"));
-  check("loot_items đọc đủ qua nhiều trang (server cắt 50 dòng mỗi lần)", li.status === 200 && li.json.docs.length === 86 && li.json.hash === await hashDocs(liFile),
+  check("loot_items đọc đủ qua nhiều trang (server cắt 50 dòng mỗi lần)", li.status === 200 && li.json.docs.length === liFile.length && li.json.hash === await hashDocs(liFile),
     `status ${li.status}, ${li.json.docs && li.json.docs.length} dòng, khớp file=${li.json.hash === await hashDocs(liFile)}`);
 
   console.log(failed ? `FAIL (${failed} check(s) failed)` : "PASS");

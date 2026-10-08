@@ -7,7 +7,7 @@
   "use strict";
 
   var OUT_RUN = ["wallet_start", "crew", "tactics", "upgrade", "passives", "gacha_banners", "gacha_rules",
-    "shop_packs", "shop_rules", "shop_exchange", "loadout", "quests", "maps", "run_reward", "rank_rewards", "endless_seasons"];
+    "shop_packs", "shop_rules", "shop_exchange", "loadout", "quests", "maps", "run_reward", "rank_rewards", "endless_seasons", "coop_rules"];
   var IN_RUN = ["stage_houses", "stage_rules", "extract_quota", "loot_cap", "loot_sizes", "loot_materials",
     "loot_items", "safes_chests", "station_upgrades", "station_gear", "station_healthpacks", "station_vehicles",
     "station_rules", "gacha_wheel", "foes", "run_timers", "endless_rules"];
@@ -96,7 +96,10 @@
     if (v === null) return "—";
     if (typeof v === "boolean") return v ? "Bật" : "Tắt";
     if (typeof v === "number") return numText(v, meta) + (meta.unit && !meta.pct ? " " + meta.unit : "");
-    if (typeof v === "string") return v === "" ? "(trống)" : v;
+    if (typeof v === "string") {
+      var ch = (meta.choices || []).filter(function (c) { return c.v === v; })[0];
+      return ch ? ch.label : (v === "" ? "(trống)" : v);
+    }
     return JSON.stringify(v);
   }
 
@@ -347,6 +350,13 @@
       box.appendChild(input);
       var u = meta.pct ? "%" : meta.unit;
       if (u) box.appendChild(h("span", { class: "dz-unit", text: u }));
+    } else if (typeof value === "string" && meta.choices) {
+      input = h("select", { class: "dz-input", "aria-label": meta.label });
+      meta.choices.forEach(function (c) { input.appendChild(h("option", { value: c.v, text: c.label })); });
+      if (meta.choices.every(function (c) { return c.v !== value; })) input.appendChild(h("option", { value: value, text: value + " (không hợp lệ)" }));
+      input.value = value;
+      input.addEventListener("change", function () { setAt(doc, path, input.value); onEdit(); });
+      box.appendChild(input);
     } else if (typeof value === "string") {
       input = h("input", { type: "text", autocomplete: "off", class: "dz-input", "aria-label": meta.label });
       input.value = value;

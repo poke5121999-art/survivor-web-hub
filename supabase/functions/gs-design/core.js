@@ -8,6 +8,7 @@ export const KNOWN = [
   "loot_items", "safes_chests", "station_upgrades", "station_gear", "station_healthpacks",
   "station_vehicles", "station_rules", "gacha_wheel", "foes", "run_timers",
   "endless_rules", "rank_rewards", "endless_seasons",
+  "coop_rules",
 ];
 
 const MAX_BODY_BYTES = 400 * 1024;
@@ -133,6 +134,18 @@ function validateDocs(docs) {
   return null;
 }
 
+const NET_BACKENDS = ["ngo", "rtd", "steam"];
+
+function checkTable(table, docs) {
+  if (table !== "coop_rules") return null;
+  for (const d of docs) {
+    if (!NET_BACKENDS.includes(d.netBackend)) {
+      return `Mạng co-op "${d.netBackend}" không hợp lệ, chỉ nhận ngo, rtd hoặc steam.`;
+    }
+  }
+  return null;
+}
+
 function localInserts(docs) {
   return {
     changes: docs.map((d) => ({ op: "insert", _id: d._id })),
@@ -144,6 +157,8 @@ async function doSave(call, body) {
   const { table, docs, baseHash } = body;
   const bad = validateDocs(docs);
   if (bad) return fail(400, "INVALID", bad);
+  const badRule = checkTable(table, docs);
+  if (badRule) return fail(400, "INVALID", badRule);
   if (typeof baseHash !== "string") return fail(400, "INVALID", "thiếu baseHash");
   if (body.dryRun !== undefined && typeof body.dryRun !== "boolean") {
     return fail(400, "INVALID", "dryRun không phải boolean");
