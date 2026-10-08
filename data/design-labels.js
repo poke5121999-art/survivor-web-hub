@@ -669,7 +669,7 @@
       effect: "Người chơi thấy ở lần mở game sau (DEV trễ tối đa 60 giây), không cần bản build mới.",
       rowLabels: { coop: "Chơi với bạn", pvp: "Đấu đội 5v5", endless_solo: "Vô tận một mình", endless_coop: "Vô tận cùng bạn" },
       fields: {
-        "_id": { label: "ID" },
+        "_id": ID,
         "open": { label: "Mở cho người chơi", help: "Tắt = thẻ hiện COMING SOON, không vào được." }
       }
     }
