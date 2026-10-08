@@ -153,7 +153,7 @@
   };
 
   /* ------------------------------------------------------------- hình học iso */
-  E.setLevel = function (lv) { E.level = lv; };
+  E.setLevel = function (lv) { if (lv !== E.level) dropChunks(); E.level = lv; };
   E.project = function (x, y) { return [(x - y) * 16, (x + y) * 8]; };
   var camCache = [0, 0];
   E.camPx = function () {
@@ -294,15 +294,16 @@
   function drawTile(ts, r, px, py, dy, alpha) {
     if (!r[2] || !r[3]) return;   // tile cổng (orientation 10, 11) và tường giữ chỗ: chỉ có cờ va chạm, không có hình
     if (px - 80 + r[2] < vL || px - 80 > vR || py + dy > vB || py + dy + r[3] < vT) return;
-    blit(ts.pages, [r[0], r[1], r[2], r[3], 0, 0, r[6]], px - 80, py + dy, alpha);
+    return blit(ts.pages, [r[0], r[1], r[2], r[3], 0, 0, r[6]], px - 80, py + dy, alpha);
   }
   function tileXY(tx, ty) {
     return [(tx - ty) * 80 - camCache[0] + W / 2, (tx + ty) * 40 - camCache[1] + H / 2];
   }
   function drawWall(ts, o, v, p) {
     var r = tileVariant(ts, o, v); if (!r) return;
-    drawTile(ts, r, p[0], p[1], r[4] + 80);
-    if (o === 3) { var r4 = tileVariant(ts, 4, v & 0xffff); if (r4) drawTile(ts, r4, p[0], p[1], r4[4] + 80); }
+    var ok = drawTile(ts, r, p[0], p[1], r[4] + 80);
+    if (o === 3) { var r4 = tileVariant(ts, 4, v & 0xffff); if (r4 && drawTile(ts, r4, p[0], p[1], r4[4] + 80) === false) ok = false; }
+    return ok;
   }
   // Bản sáng của tile warp đang rê chuột: cùng khoá với sequence | add (lvlwarp.txt Tiles; sàn luôn | 4). Tileset
   // chưa có bản sáng thì vẽ bản thường.
@@ -320,6 +321,108 @@
    * của khu L vẽ bản sáng. */
   E.lit = null;
   var cells = [];
+
+  // Khung tile cần duyệt để phủ hình chữ nhật [wx0, wx1] x [wy0, wy1] (px thế giới), kẹp vào biên thế giới tb: nới 400 px
+  // phía dưới vì tường cao vẽ lên trên ô của nó, thêm 2 ô phía trước và 1 ô phía sau.
+  function tileWindow(tb, wx0, wy0, wx1, wy1) {
+    var pts = [wx0, wy0, wx1, wy0, wx0, wy1 + 400, wx1, wy1 + 400], x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9, i, a, b, x, y;
+    for (i = 0; i < 8; i += 2) {
+      a = pts[i] / 16; b = pts[i + 1] / 8; x = (a + b) / 2; y = (b - a) / 2;
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+    }
+    return [Math.max(tb[0], Math.floor(x0 / 5) - 2), Math.min(tb[2] - 1, Math.ceil(x1 / 5) + 1),
+      Math.max(tb[1], Math.floor(y0 / 5) - 2), Math.min(tb[3] - 1, Math.ceil(y1 / 5) + 1)];
+  }
+  // Lượt 1 của một ô: tường thấp (16..19), sàn (bản sáng nếu là warp đang rê), bóng. false: còn hình chưa nạp.
+  function groundCell(ts, lv, k, p, lm) {
+    var i, o, v, r, ok = true;
+    for (i = 0; i < lv.walls.length; i++) {
+      o = lv.walls[i].o[k];
+      if (o >= 16 && o <= 19 && (v = lv.walls[i].t[k]) && drawWall(ts, o, v, p) === false) ok = false;
+    }
+    for (i = 0; i < lv.floors.length; i++) {
+      if (!(v = lv.floors[i][k])) continue;
+      if (lm && lm[0] === 'f' && lm[1] === i) v = litValue(ts, 0, v, lm[2]);
+      if ((r = tileVariant(ts, 0, v)) && drawTile(ts, r, p[0], p[1], r[4]) === false) ok = false;
+    }
+    for (i = 0; i < lv.shadows.length; i++) {
+      if ((v = lv.shadows[i][k]) && (r = tileVariant(ts, 13, v)) && drawTile(ts, r, p[0], p[1], r[4] + 80, 160 / 255) === false) ok = false;
+    }
+    return ok;
+  }
+
+  /* Lượt 1 không đổi giữa các khung, nên vẽ một lần vào các ô đệm CW x CH px toạ độ thế giới rồi dán mỗi khung. Ô đệm
+   * bắt đầu đen như canvas chính và vẽ đúng các ô tile chạm nó theo cùng thứ tự, nên điểm ảnh giống hệt vẽ thẳng (đo:
+   * test/diablo2-pixels.js). Ô vẽ lại khi thế giới thêm khu chạm nó, khi sàn warp đổi bản sáng, hoặc khi còn hình
+   * chưa nạp. E.view khác 1 (chỉ dùng để chụp) thì vẽ thẳng như cũ. */
+  var CW = 512, CH = 256, CHUNK_MAX = 48, chunks = {}, nChunks = 0, worldSeq = 0, litSeq = 0, frameNo = 0, lastLit = null;
+  E.groundCache = true;
+  function dropChunks() {
+    Object.keys(chunks).forEach(function (k) { chunks[k].cv.width = 0; });
+    chunks = {}; nChunks = 0; lastLit = null;
+  }
+  // đánh dấu vẽ lại các ô đệm của thế giới Wd chạm hình chữ nhật px thế giới [x0, x1] x [y0, y1]
+  function dirtyRect(Wd, x0, y0, x1, y1) {
+    var pre = Wd.chunkId + ':';
+    Object.keys(chunks).forEach(function (k) {
+      var ch = chunks[k];
+      if (k.indexOf(pre) === 0 && ch.wx < x1 && ch.wx + CW > x0 && ch.wy < y1 && ch.wy + CH > y0) ch.dirty = true;
+    });
+  }
+  // khu mới thêm vào thế giới (dựng ngầm khi hero tới gần mép): ô đệm phủ khu đó (cả dải dư một tile của DS1) vẽ lại
+  function dirtyLevel(Wd, L) {
+    var a = L.tx - 1, b = L.ty - 1, c = L.tx + L.lv.tw + 1, d = L.ty + L.lv.th + 1;
+    dirtyRect(Wd, (a - d) * 80 - 160, (a + b) * 40 - 1000, (c - b) * 80 + 160, (c + d) * 40 + 1000);
+  }
+  function dirtyLit(Wd, lit) {
+    var L = lit.L, tw = L.lv.tw;
+    Object.keys(lit.map).forEach(function (k) {
+      var tx = L.tx + k % tw, ty = L.ty + Math.floor(k / tw);
+      dirtyRect(Wd, (tx - ty) * 80 - 240, (tx + ty) * 40 - 400, (tx - ty) * 80 + 240, (tx + ty) * 40 + 400);
+    });
+  }
+  function buildChunk(Wd, tb, lit, ch) {
+    var x = ch.cv.getContext('2d');
+    x.setTransform(1, 0, 0, 1, 0, 0); x.globalAlpha = 1; x.globalCompositeOperation = 'source-over'; x.imageSmoothingEnabled = false;
+    x.fillStyle = '#000'; x.fillRect(0, 0, CW, CH);
+    var oc = E.ctx, ot = E.tint, c0 = camCache[0], c1 = camCache[1], b0 = vL, b1 = vR, b2 = vT, b3 = vB;
+    E.ctx = x; E.tint = null; camCache[0] = ch.wx + W / 2; camCache[1] = ch.wy + H / 2; vL = 0; vR = CW; vT = 0; vB = CH;
+    var win = tileWindow(tb, ch.wx, ch.wy, ch.wx + CW, ch.wy + CH), ok = true, tx, ty, L, ts, k;
+    for (ty = win[2]; ty <= win[3]; ty++) for (tx = win[0]; tx <= win[1]; tx++) {
+      L = Wd.levelAt(tx * 5, ty * 5); if (!L) continue;
+      ts = WORLD.tilesets[L.lv.tileset]; if (!ts) continue;
+      k = (ty - L.ty) * L.lv.tw + (tx - L.tx);
+      if (!groundCell(ts, L.lv, k, tileXY(tx, ty), lit && lit.L === L ? lit.map[k] : null)) ok = false;
+    }
+    E.ctx = oc; E.tint = ot; camCache[0] = c0; camCache[1] = c1; vL = b0; vR = b1; vT = b2; vB = b3;
+    ch.ok = ok; ch.t = performance.now();
+  }
+  function drawGround(Wd, tb, lit) {
+    if (!Wd.chunkId) { Wd.chunkId = ++worldSeq; Wd.chunkLevels = Wd.list.length; }
+    while (Wd.chunkLevels < Wd.list.length) dirtyLevel(Wd, Wd.list[Wd.chunkLevels++]);
+    if (lit && !lit.map.litId) lit.map.litId = ++litSeq;
+    var litKey = lit ? lit.map.litId : 0;
+    if (litKey !== (lastLit ? lastLit.map.litId : 0)) { if (lastLit) dirtyLit(Wd, lastLit); if (lit) dirtyLit(Wd, lit); }
+    lastLit = lit;
+    var x0 = camCache[0] - W / 2, y0 = camCache[1] - H / 2, now = performance.now(), cx, cy, key, ch;
+    var cx0 = Math.floor(x0 / CW), cx1 = Math.floor((x0 + W - 1) / CW), cy0 = Math.floor(y0 / CH), cy1 = Math.floor((y0 + H - 1) / CH);
+    frameNo++;
+    for (cy = cy0; cy <= cy1; cy++) for (cx = cx0; cx <= cx1; cx++) {
+      key = Wd.chunkId + ':' + cx + ',' + cy; ch = chunks[key];
+      if (!ch) {
+        ch = chunks[key] = { wx: cx * CW, wy: cy * CH, cv: document.createElement('canvas'), dirty: true, ok: false, t: 0 };
+        ch.cv.width = CW; ch.cv.height = CH; nChunks++;
+      }
+      if (ch.dirty || (!ch.ok && now - ch.t > 250)) { ch.dirty = false; buildChunk(Wd, tb, lit, ch); }
+      ch.used = frameNo;
+      E.ctx.drawImage(ch.cv, ch.wx - x0, ch.wy - y0);
+    }
+    if (nChunks > CHUNK_MAX) {
+      Object.keys(chunks).sort(function (a, b) { return chunks[a].used - chunks[b].used; }).slice(0, nChunks - CHUNK_MAX).forEach(function (k) {
+        chunks[k].cv.width = 0; delete chunks[k]; nChunks--;
+      });
+    }
+  }
   E.renderWorld = function (drawables) {
     var Wd = E.level, c = E.ctx;
     E.updateCam();
@@ -331,12 +434,8 @@
     c.setTransform(V, 0, 0, V, W / 2 * (1 - V), H / 2 * (1 - V));
     vL = W / 2 - W / 2 / V; vR = W / 2 + W / 2 / V; vT = H / 2 - H / 2 / V; vB = H / 2 + H / 2 / V;
     var tb = Wd.tileBounds(), bw = tb[2] - tb[0];
-    // khung tile nhìn thấy, nới thêm phía dưới vì tường cao vẽ lên trên tile của nó
-    var cs = [E.toWorld(vL, vT), E.toWorld(vR, vT), E.toWorld(vL, vB + 400), E.toWorld(vR, vB + 400)];
-    var x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
-    cs.forEach(function (p) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); });
-    var tx0 = Math.max(tb[0], Math.floor(x0 / 5) - 2), tx1 = Math.min(tb[2] - 1, Math.ceil(x1 / 5) + 1);
-    var ty0 = Math.max(tb[1], Math.floor(y0 / 5) - 2), ty1 = Math.min(tb[3] - 1, Math.ceil(y1 / 5) + 1);
+    var win = tileWindow(tb, vL - W / 2 + camCache[0], vT - H / 2 + camCache[1], vR - W / 2 + camCache[0], vB - H / 2 + camCache[1]);
+    var tx0 = win[0], tx1 = win[1], ty0 = win[2], ty1 = win[3];
     var tx, ty, i, k, p, v, o, n = 0, q, L, lv, ts, lit = E.lit, lm;
     // ô thế giới nhìn thấy -> khu, tileset, chỉ số cục bộ (một lần cho cả ba lượt)
     for (ty = ty0; ty <= ty1; ty++) for (tx = tx0; tx <= tx1; tx++) {
@@ -347,22 +446,8 @@
       q.p = tileXY(tx, ty); q.lit = lit && lit.L === L ? lit.map[q.k] : null;
     }
     var j;
-    for (j = 0; j < n; j++) {
-      q = cells[j]; lv = q.lv; ts = q.ts; k = q.k; p = q.p; lm = q.lit;
-      for (i = 0; i < lv.walls.length; i++) {
-        o = lv.walls[i].o[k];
-        if (o >= 16 && o <= 19 && (v = lv.walls[i].t[k])) drawWall(ts, o, v, p);
-      }
-      for (i = 0; i < lv.floors.length; i++) {
-        if ((v = lv.floors[i][k])) {
-          if (lm && lm[0] === 'f' && lm[1] === i) v = litValue(ts, 0, v, lm[2]);
-          var rf = tileVariant(ts, 0, v); if (rf) drawTile(ts, rf, p[0], p[1], rf[4]);
-        }
-      }
-      for (i = 0; i < lv.shadows.length; i++) {
-        if ((v = lv.shadows[i][k])) { var rs = tileVariant(ts, 13, v); if (rs) drawTile(ts, rs, p[0], p[1], rs[4] + 80, 160 / 255); }
-      }
-    }
+    if (V === 1 && E.groundCache) drawGround(Wd, tb, lit);
+    else for (j = 0; j < n; j++) { q = cells[j]; groundCell(q.ts, q.lv, q.k, q.p, q.lit); }
 
     var buckets = {};
     for (i = 0; i < drawables.length; i++) {
