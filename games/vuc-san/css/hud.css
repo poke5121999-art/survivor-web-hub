@@ -1,0 +1,135 @@
+/* HUD Vực Săn (nhánh W2): giờ, kho báu / chỉ tiêu, lượt hồi sinh, O₂ thợ lặn, máu + sức cá mập, nút kỹ năng, nhãn tên.
+   --u = 1 px ở màn 1366×650, nhỏ lại theo chiều thấp của màn (điện thoại ngang 844×390 ≈ 0,6). */
+.vs-hud, .vs-hud-tags {
+  --u: min(calc(100vh / 650), calc(100vw / 1100));
+  --cy: #5fd0ee; --gold: #ffd24a; --red: #ff5a4f; --green: #6cf08a; --panel: rgba(4, 14, 26, .74); --line: rgba(95, 208, 238, .32);
+  font-family: var(--font-ui, system-ui, sans-serif);
+}
+.vs-hud { position: absolute; inset: 0; color: #e8f4ff; pointer-events: none; user-select: none; -webkit-user-select: none; }
+.vs-hud[hidden], .vs-hud [hidden], .vs-hud-tags [hidden] { display: none !important; }
+
+/* ---------- trên cùng: lượt hồi sinh · giờ · kho báu ---------- */
+.vs-hud-top {
+  position: absolute; top: calc(var(--u) * 10); left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: calc(var(--u) * 12);
+  padding: calc(var(--u) * 6) calc(var(--u) * 12); background: var(--panel); border: 1px solid var(--line); border-radius: calc(var(--u) * 12);
+}
+.vs-timer { font: 800 calc(var(--u) * 24)/1 var(--font-num, system-ui); font-variant-numeric: tabular-nums; min-width: 3.2em; text-align: center; }
+.vs-timer.low { color: var(--red); }
+.vs-tickets { display: flex; gap: calc(var(--u) * 3); }
+.vs-tickets b { width: calc(var(--u) * 9); height: calc(var(--u) * 15); border-radius: calc(var(--u) * 3); background: var(--green); box-shadow: 0 0 calc(var(--u) * 6) rgba(108, 240, 138, .45); }
+.vs-tickets b.used { background: rgba(255, 255, 255, .14); box-shadow: none; }
+.vs-score { width: clamp(120px, 24vw, 300px); }
+.vs-score .bar { position: relative; height: calc(var(--u) * 10); background: rgba(255, 255, 255, .12); border-radius: calc(var(--u) * 6); overflow: hidden; }
+.vs-score .bar i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: linear-gradient(90deg, #ffb52e, #ffe27a); transition: width .3s; }
+.vs-score .num { display: flex; justify-content: space-between; margin-top: calc(var(--u) * 3); font: 700 calc(var(--u) * 12)/1.1 var(--font-num, system-ui); font-variant-numeric: tabular-nums; }
+.vs-score .b { color: var(--gold); }
+.vs-score .tg { color: #9fb6c8; }
+
+.vs-intro {
+  position: absolute; left: 50%; top: 38%; transform: translate(-50%, -50%);
+  font: 800 calc(var(--u) * 96)/1 var(--font-num, system-ui); color: #fff; text-shadow: 0 calc(var(--u) * 4) 0 rgba(0, 0, 0, .5);
+}
+.vs-state {
+  position: absolute; left: 50%; top: calc(var(--u) * 70); transform: translateX(-50%); white-space: nowrap;
+  padding: calc(var(--u) * 6) calc(var(--u) * 14); border-radius: calc(var(--u) * 20);
+  background: rgba(120, 18, 18, .78); border: 1px solid rgba(255, 120, 110, .5); font: 700 calc(var(--u) * 14)/1.2 var(--font-ui, system-ui);
+}
+
+/* ---------- O₂ thợ lặn: khung UI_O2_Frame_New gốc 300×166, toạ độ đo trên ảnh gốc đổi ra % ---------- */
+.vs-o2 { position: absolute; left: calc(var(--u) * 14); bottom: calc(var(--u) * 14); width: calc(var(--u) * 240); height: calc(var(--u) * 133); }
+.vs-o2 .frame { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
+.vs-o2 .pie {
+  position: absolute; left: 4.3%; top: 8.4%; width: 46.7%; height: 84.3%; border-radius: 50%;
+  background: conic-gradient(from 0deg, rgba(95, 208, 238, .6) var(--k, 360deg), transparent 0);
+}
+.vs-o2 .n {
+  position: absolute; left: 4.3%; top: 8.4%; width: 46.7%; height: 84.3%; display: grid; place-items: center;
+  font: 800 calc(var(--u) * 40)/1 var(--font-num, system-ui); font-variant-numeric: tabular-nums; color: #fff; text-shadow: 0 2px 0 rgba(0, 0, 0, .55);
+}
+.vs-o2 .lbl { position: absolute; left: 4.3%; width: 46.7%; top: 68%; text-align: center; font: 700 calc(var(--u) * 11)/1 var(--font-ui, system-ui); color: var(--cy); }
+.vs-o2 .kg { position: absolute; left: 60%; top: 18%; font: 800 calc(var(--u) * 20)/1 var(--font-num, system-ui); color: var(--gold); font-variant-numeric: tabular-nums; }
+.vs-o2 .lamp {
+  position: absolute; left: 60%; top: 58%; padding: calc(var(--u) * 3) calc(var(--u) * 8); border-radius: calc(var(--u) * 10);
+  font: 700 calc(var(--u) * 11)/1 var(--font-ui, system-ui); color: #7f93a3; border: 1px solid rgba(255, 255, 255, .18);
+}
+.vs-o2 .lamp.on { color: #2a1d00; background: #ffe7a0; border-color: #ffe7a0; box-shadow: 0 0 calc(var(--u) * 10) rgba(255, 220, 140, .7); }
+.vs-hud.low-o2 .vs-o2 .pie { background: conic-gradient(from 0deg, rgba(255, 90, 79, .65) var(--k, 360deg), transparent 0); }
+.vs-hud.low-o2 .vs-o2 .n { color: #ffb0a8; animation: vs-blink .6s steps(2) infinite; }
+@keyframes vs-blink { 50% { opacity: .35; } }
+
+/* ---------- cá mập: máu + thể lực ---------- */
+.vs-shark {
+  position: absolute; left: calc(var(--u) * 14); bottom: calc(var(--u) * 14); width: calc(var(--u) * 260);
+  padding: calc(var(--u) * 10) calc(var(--u) * 12); background: var(--panel); border: 1px solid var(--line); border-radius: calc(var(--u) * 12);
+}
+.vs-shark .name { font: 800 calc(var(--u) * 15)/1.1 var(--font-ui, system-ui); margin-bottom: calc(var(--u) * 6); }
+.vs-shark .row { display: flex; align-items: center; gap: calc(var(--u) * 8); margin-top: calc(var(--u) * 4); }
+.vs-shark .row b { width: calc(var(--u) * 34); font: 700 calc(var(--u) * 11)/1 var(--font-ui, system-ui); color: #9fb6c8; }
+.vs-shark .bar { flex: 1; position: relative; height: calc(var(--u) * 10); background: rgba(255, 255, 255, .1); border-radius: calc(var(--u) * 5); overflow: hidden; }
+.vs-shark .bar i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; }
+.vs-shark .hp .bar i { background: linear-gradient(90deg, #e2394a, #ff7a6a); }
+.vs-shark .st .bar i { background: linear-gradient(90deg, #3aa7d8, #8be4ff); }
+.vs-shark .hp .v { width: calc(var(--u) * 34); text-align: right; font: 700 calc(var(--u) * 12)/1 var(--font-num, system-ui); font-variant-numeric: tabular-nums; }
+
+/* ---------- nút kỹ năng: vạch hồi chiêu quét theo --k ---------- */
+.vs-skill {
+  position: absolute; right: calc(var(--u) * 18); bottom: calc(var(--u) * 18); width: calc(var(--u) * 76); height: calc(var(--u) * 76);
+  border-radius: 50%; padding: 0; overflow: hidden; pointer-events: auto; cursor: pointer;
+  background: radial-gradient(circle at 50% 38%, #24506b, #0b2233 72%); border: calc(var(--u) * 3) solid rgba(95, 208, 238, .55);
+  color: #fff; font: 800 calc(var(--u) * 22)/1 var(--font-num, system-ui);
+}
+.vs-skill.ready { border-color: #9ef0ff; box-shadow: 0 0 calc(var(--u) * 14) rgba(95, 208, 238, .65); }
+.vs-skill.active { border-color: var(--gold); box-shadow: 0 0 calc(var(--u) * 16) rgba(255, 210, 74, .7); }
+.vs-skill .ic { position: absolute; inset: 14%; display: grid; place-items: center; }
+.vs-skill .ic img { max-width: 100%; max-height: 100%; image-rendering: pixelated; }
+.vs-skill .cd { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 0deg, rgba(2, 8, 14, .72) var(--k, 0deg), transparent 0); }
+.vs-skill .t { position: absolute; inset: 0; display: grid; place-items: center; font: 800 calc(var(--u) * 24)/1 var(--font-num, system-ui); text-shadow: 0 2px 0 #000; }
+.vs-skill .key {
+  position: absolute; left: 50%; bottom: calc(var(--u) * 3); transform: translateX(-50%);
+  font: 700 calc(var(--u) * 10)/1 var(--font-ui, system-ui); color: #bfe9f7; opacity: .85;
+}
+
+/* ---------- thông báo ngắn ---------- */
+.vs-hud-toasts { position: absolute; right: calc(var(--u) * 16); top: calc(var(--u) * 14); display: flex; flex-direction: column; align-items: flex-end; gap: calc(var(--u) * 6); }
+.vs-hud-toast {
+  padding: calc(var(--u) * 5) calc(var(--u) * 12); border-radius: calc(var(--u) * 14); background: var(--panel); border: 1px solid var(--line);
+  font: 700 calc(var(--u) * 13)/1.2 var(--font-ui, system-ui); animation: vs-in .18s ease-out;
+}
+.vs-hud-toast.good { border-color: rgba(108, 240, 138, .6); color: #c8ffd4; }
+.vs-hud-toast.bad { border-color: rgba(255, 90, 79, .6); color: #ffd0cb; }
+@keyframes vs-in { from { opacity: 0; transform: translateY(calc(var(--u) * -6)); } }
+
+/* ---------- nhãn tên trên đầu (đồng đội xanh, đối thủ đỏ) ---------- */
+.vs-hud-tags { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+.vs-hud-tag {
+  position: absolute; left: 0; top: 0; display: flex; flex-direction: column; align-items: center; gap: calc(var(--u) * 2);
+  font: 700 calc(var(--u) * 12)/1 var(--font-ui, system-ui); white-space: nowrap; text-shadow: 0 1px 2px #000, 0 0 4px #000; will-change: transform;
+}
+.vs-hud-tag[hidden] { display: none; }
+.vs-hud-tag i { display: block; width: calc(var(--u) * 34); height: calc(var(--u) * 3); background: rgba(0, 0, 0, .55); border-radius: 2px; overflow: hidden; }
+.vs-hud-tag s { display: block; height: 100%; width: 100%; text-decoration: none; }
+.vs-hud-tag.mate b { color: #7dff9a; } .vs-hud-tag.mate s { background: #7dff9a; }
+.vs-hud-tag.foe b { color: #ff6b5e; } .vs-hud-tag.foe s { background: #ff6b5e; }
+.vs-hud-tag.down b::after { content: ' (gục)'; color: #ffd24a; }
+
+/* ---------- mũi tên mép màn: khoang cứu hộ (xanh), đồng đội gục (đỏ) ---------- */
+.vs-arrows { position: absolute; inset: 0; }
+.vs-arrow { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+.vs-arrow[hidden] { display: none; }
+.vs-arrow .pt {
+  position: absolute; left: 0; top: 0; width: calc(var(--u) * 26); height: calc(var(--u) * 26);
+  clip-path: polygon(100% 50%, 18% 8%, 36% 50%, 18% 92%); background: var(--cy); filter: drop-shadow(0 0 3px rgba(0, 0, 0, .8));
+}
+.vs-arrow b {
+  position: absolute; left: 0; top: calc(var(--u) * 14); transform: translateX(-50%); white-space: nowrap;
+  padding: calc(var(--u) * 2) calc(var(--u) * 6); border-radius: calc(var(--u) * 8); background: rgba(4, 14, 26, .7);
+  font: 700 calc(var(--u) * 11)/1.1 var(--font-ui, system-ui); color: #bfefff;
+}
+.vs-arrow.down .pt { background: var(--red); animation: vs-blink .8s steps(2) infinite; }
+.vs-arrow.down b { color: #ffd0cb; }
+
+/* ---------- dấu mờ kho báu đội đã thấy nhưng đang nằm trong tối ---------- */
+.vs-hud-mark { position: absolute; left: 0; top: 0; display: block; opacity: .42; will-change: transform; }
+.vs-hud-mark[hidden] { display: none; }
+.vs-hud-mark img { display: block; width: 100%; height: auto; image-rendering: pixelated; filter: grayscale(.4) brightness(1.5) drop-shadow(0 0 3px rgba(120, 220, 255, .9)); }

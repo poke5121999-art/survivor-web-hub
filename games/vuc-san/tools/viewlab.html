@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<!-- Mọi đường dẫn tương đối tính từ games/vuc-san/ như index.html, nên các thẻ dưới đây chép nguyên từ index.html. -->
+<base href="../">
+<title>Phòng thử lớp vẽ</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='15' fill='%23081a2e'/><circle cx='22' cy='14' r='3' fill='%235fd0ee'/></svg>">
+<link rel="stylesheet" href="../ho-xanh/css/fonts.css?v=20261008a">
+<link rel="stylesheet" href="css/ui.css?v=20261008a">
+<link rel="stylesheet" href="css/hud.css?v=20261008a">
+<style>
+  html, body { margin: 0; height: 100%; background: #02060c; overflow: hidden; touch-action: none; }
+  #gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  #hud, #ui { position: fixed; inset: 0; pointer-events: none; }
+  #boot { position: fixed; inset: 0; display: grid; place-items: center; color: #9fc3dd; font: 600 16px/1.4 system-ui, sans-serif; }
+  #lab-info { position: fixed; left: 8px; top: 8px; padding: 4px 8px; border-radius: 6px; background: rgba(0, 0, 0, .55); color: #bfe3f5;
+    font: 12px/1.35 ui-monospace, monospace; white-space: pre; pointer-events: none; }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<div id="hud" hidden></div>
+<div id="ui"></div>
+<div id="boot">Đang tải…</div>
+<div id="lab-info" hidden></div>
+
+<script>window.HX_ROOT = '../ho-xanh/';</script>
+<script src="../ho-xanh/vendor/three-r140.min.js?v=20261008a"></script>
+<script src="../ho-xanh/vendor/GLTFLoader-r140.js?v=20261008a"></script>
+<script src="../ho-xanh/vendor/meshopt_decoder.js?v=20261008a"></script>
+<script src="../ho-xanh/vendor/spine-threejs-4.0.31.min.js?v=20261008a"></script>
+<script src="../ho-xanh/data/tuning.js?v=20261008a"></script>
+<script src="../ho-xanh/data/assets.js?v=20261008a"></script>
+<script src="../ho-xanh/data/zones.js?v=20261008a"></script>
+<script src="../ho-xanh/data/shark_assets.js?v=20261008a"></script>
+<script src="../ho-xanh/data/mobile_ui.js?v=20261008a"></script>
+
+<script src="js/core.js?v=20261008a"></script>
+<script src="data/tuning.js?v=20261008a"></script>
+<script src="data/sharks.js?v=20261008a"></script>
+<script src="data/divers.js?v=20261008a"></script>
+<script src="data/skills.js?v=20261008a"></script>
+<script src="data/maps.js?v=20261008a"></script>
+<script src="data/banners.js?v=20261008a"></script>
+<script src="data/names.js?v=20261008a"></script>
+
+<script src="js/engine/gfx.js?v=20261008a"></script>
+<script src="js/engine/level.js?v=20261008a"></script>
+<script src="js/engine/fx.js?v=20261008a"></script>
+<script src="js/engine/audio.js?v=20261008a"></script>
+<script src="js/engine/shark.js?v=20261008a"></script>
+
+<script src="js/view/diverSheet.js?v=20261008a"></script>
+<script src="js/view/diverView.js?v=20261008a"></script>
+<script src="js/view/sharkView.js?v=20261008a"></script>
+<script src="js/view/lightmask.js?v=20261008a"></script>
+<script src="js/view/view.js?v=20261008a"></script>
+<script src="js/view/hud.js?v=20261008a"></script>
+
+<script src="js/input.js?v=20261008a"></script>
+<script src="tools/fakematch.js?v=20261008a"></script>
+<script>
+// Phòng thử lớp vẽ: dựng trận giả (tools/fakematch.js) rồi lái VS.view như main.js.
+// Cờ: ?team=shark xem từ phe cá mập · ?sharks=all lưới 12 loài · ?divers=all 10 thợ lặn đổi màu · ?seed=N · ?map=A01
+//     ?occlude=0 vùng sáng thay thế không bị vách che
+//     ?t=giây (giờ bắt đầu trong vòng kịch bản 40 giây) · ?pause=1 dừng thời gian · ?info=1 bảng số đo.
+// window.VS_LAB cho bài kiểm test/vuc-san-view.js: pause, frame, step, place, unpin, canSee, drawn, screenBox, probe, findSpot…
+(function (VS) {
+  'use strict';
+  var q = new URLSearchParams(location.search);
+  var mode = q.get('sharks') === 'all' ? 'sharks' : q.get('divers') === 'all' ? 'divers' : 'match';
+  var team = q.get('team') === 'shark' ? 'shark' : 'diver';
+  var seed = q.has('seed') ? (parseInt(q.get('seed'), 10) >>> 0) : 7;
+  var m = mode === 'sharks' ? VS.fakeMatch.sharkGrid(seed) : mode === 'divers' ? VS.fakeMatch.diverGrid(seed)
+    : VS.fakeMatch.create({ seed: seed, mapId: q.get('map') || 'A01', t0: q.has('t') ? parseFloat(q.get('t')) : 6, occlude: q.get('occlude') !== '0' });
+  // lưới: xem như đồng đội của chính những con trong lưới (đồng đội luôn được vẽ, nhãn xanh)
+  var viewer = mode === 'match' ? { id: team === 'shark' ? 4 : 0, team: team } : { id: -1, team: mode === 'sharks' ? 'shark' : 'diver' };
+  if (mode !== 'match') { VS.view.opts.mask = false; VS.view.opts.focus = m.labFocus; VS.view.opts.camDist = m.labDist; }
+  // so màu 10 thợ lặn: bỏ hậu kỳ phụ thuộc chỗ trên màn (viền tối hồng của A01, loá) cho màu chỉ còn là bảng màu
+  if (mode === 'divers') VS.view.opts.plainGrade = true;
+  var info = document.getElementById('lab-info');
+  info.hidden = q.get('info') !== '1';
+
+  var lab = window.VS_LAB = { m: m, viewer: viewer, mode: mode, paused: q.get('pause') === '1', ready: false, error: null, progress: 0, dirty: true };
+  // dừng thời gian thì chỉ vẽ lại khi có gì đổi (đổi cỡ cửa sổ); vẽ lặp khung y hệt trên SwiftShader làm chậm cả trang
+  window.addEventListener('resize', function () { lab.dirty = true; });
+
+  function drain() {
+    if (!m.events.length) return;
+    VS.view.onEvents(m, m.events, viewer);
+    if (mode === 'match') VS.hud.onEvents(m, m.events, viewer);
+    m.events.length = 0;
+  }
+  function frame(dt) {
+    VS.view.render(m, dt, viewer);
+    if (mode === 'match') VS.hud.update(m, viewer, dt);
+  }
+  lab.pause = function (on) { lab.paused = on !== false; };
+  lab.frame = function (dt) { frame(dt || 0); return VS.view.stats(); };
+  // Chạy trận giả thêm sec giây theo bước 1/60 rồi vẽ một khung (dt = sec).
+  lab.step = function (sec) {
+    var n = Math.max(1, Math.round(sec * 60));
+    for (var i = 0; i < n; i++) VS.fakeMatch.step(m, 1 / 60);
+    drain();
+    frame(sec);
+    return m.t;
+  };
+  // Ghim actor id đứng ở (x, y); opts: face (±1), aim (rad, hướng ngắm của thợ lặn).
+  lab.place = function (id, x, y, opts) {
+    var p = { x: x, y: y };
+    for (var k in (opts || {})) p[k] = opts[k];
+    m.fake.pins[id] = p;
+    VS.fakeMatch.step(m, 0);
+    if (id === viewer.id) VS.view.snapCamera();
+  };
+  lab.unpin = function (id) { delete m.fake.pins[id]; VS.fakeMatch.step(m, 0); };
+  lab.canSee = function (id) { return !!VS.sim.canSee(m, viewer.team, m.actors[id]); };
+  lab.drawn = function (id) { return VS.view.debug.drawn(id); };
+  lab.screenBox = function (id) { return VS.view.debug.screenBox(id); };
+  lab.polys = function () { return VS.sim.visionPolys(m, viewer.team); };
+  lab.toScreen = function (x, y) { return VS.view.worldToScreen(x, y); };
+  lab.toWorld = function (px, py) { return VS.view.screenToWorld(px, py); };
+  lab.stats = function () { return VS.view.stats(); };
+  lab.allSeen = function (on) { VS.view.opts.allSeen = !!on; };
+  lab.hud = function (on) { if (on) VS.hud.show(m, viewer); else VS.hud.hide(); };
+  // Clip đang chạy của từng cá mập (lưới 12 loài).
+  lab.sharks = function () {
+    var S = VS.view.debug.state();
+    return m.actors.filter(function (a) { return a.team === 'shark'; }).map(function (a) {
+      var b = S.views[a.id] && S.views[a.id].body;
+      return { id: a.id, defId: a.defId, st: a.st, loaded: !!(b && b.mixer), clips: b ? Object.keys(b.actions).length : 0, clip: b && b.clipName, role: b && b.role, error: b && b.error };
+    });
+  };
+
+  // ---------- điểm mẫu cho bài kiểm tầm nhìn ----------
+  function segDist(px, py, ax, ay, bx, by) {
+    var dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy, t = l2 ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / l2)) : 0;
+    return Math.hypot(px - ax - dx * t, py - ay - dy * t);
+  }
+  // khoảng cách tới đa giác (0 nếu ở trong)
+  function polyDist(p, x, y) {
+    if (VS.fakeMatch.insideFan(p.pts, x, y)) return 0;
+    var d = 1e9, n = p.pts.length / 2;
+    for (var i = 0, j = n - 1; i < n; j = i++) d = Math.min(d, segDist(x, y, p.pts[j * 2], p.pts[j * 2 + 1], p.pts[i * 2], p.pts[i * 2 + 1]));
+    return d;
+  }
+  function hudRects() {
+    return Array.prototype.slice.call(document.querySelectorAll('.vs-hud-top, .vs-o2, .vs-shark, .vs-skill, .vs-hud-toasts, .vs-state, .vs-intro, .vs-hud-tag, .vs-arrow > *, .vs-hud-mark'))
+      .filter(function (e) { return e.offsetParent !== null; }).map(function (e) { return e.getBoundingClientRect(); });
+  }
+  function freeOfHud(px, py, rects, pad) {
+    for (var i = 0; i < rects.length; i++) { var r = rects[i]; if (px > r.left - pad && px < r.right + pad && py > r.top - pad && py < r.bottom + pad) return false; }
+    return true;
+  }
+  function farFromThings(x, y, dA, dL) {
+    for (var i = 0; i < m.actors.length; i++) { var a = m.actors[i]; if (a.st !== 'out' && Math.hypot(a.x - x, a.y - y) < dA) return false; }
+    for (var j = 0; j < m.loot.length; j++) { var l = m.loot[j]; if (l.st === 'rest' && Math.hypot(l.x - x, l.y - y) < dL) return false; }
+    for (var k = 0; k < m.pods.length; k++) if (Math.hypot(m.pods[k].x - x, m.pods[k].y - y) < 3) return false;
+    return true;
+  }
+  // Điểm trong nón đèn của người xem (nước thoáng) và điểm tối xa mọi vùng sáng ≥ 3 m (cũng nước thoáng), px màn hình.
+  lab.probe = function () {
+    var polys = lab.polys(), me = m.actors[viewer.id], rects = hudRects(), W = innerWidth, H = innerHeight, out = { beam: null, dark: null };
+    var beam = polys.filter(function (p) { return p.kind === 'beam' && p.x === me.x && p.y === me.y; })[0];
+    if (beam) {
+      var a0 = Math.atan2(beam.pts[beam.pts.length - 1] - beam.y, beam.pts[beam.pts.length - 2] - beam.x);
+      var a1 = Math.atan2(beam.pts[3] - beam.y, beam.pts[2] - beam.x), mid = a1 + Math.atan2(Math.sin(a0 - a1), Math.cos(a0 - a1)) / 2;
+      [0.45, 0.35, 0.55, 0.3, 0.6].some(function (f) {
+        return [0, 0.12, -0.12, 0.22, -0.22].some(function (da) {
+          var x = beam.x + Math.cos(mid + da) * beam.r * f, y = beam.y + Math.sin(mid + da) * beam.r * f, s = lab.toScreen(x, y);
+          if (s.x < 30 || s.y < 30 || s.x > W - 30 || s.y > H - 30) return false;
+          if (!VS.fakeMatch.open(m, x, y, 0.9) || !farFromThings(x, y, 2.2, 1.2) || !freeOfHud(s.x, s.y, rects, 12)) return false;
+          out.beam = { x: x, y: y, px: Math.round(s.x), py: Math.round(s.y) };
+          return true;
+        });
+      });
+    }
+    var best = null;
+    for (var py = 24; py < H - 24; py += 16) for (var px = 24; px < W - 24; px += 16) {
+      var w = lab.toWorld(px, py);
+      if (!VS.fakeMatch.open(m, w.x, w.y, 0.9) || !farFromThings(w.x, w.y, 3, 1.5) || !freeOfHud(px, py, rects, 12)) continue;
+      var dmin = 1e9;
+      for (var i = 0; i < polys.length; i++) dmin = Math.min(dmin, polyDist(polys[i], w.x, w.y));
+      if (dmin < 3) continue;
+      var score = out.beam ? Math.abs(w.y - out.beam.y) : 0;
+      if (!best || score < best.score) best = { x: w.x, y: w.y, px: px, py: py, polyDist: +dmin.toFixed(2), score: score };
+    }
+    out.dark = best;
+    ['beam', 'dark'].forEach(function (k) { if (out[k]) out[k].mask = VS.view.debug.maskAt(out[k].px, out[k].py); });
+    return out;
+  };
+  // Chỗ nước thoáng cho actor id mà canSee = want: tâm trong màn hình (lề 30 px), ít nhất 55% khung thân trong màn, không
+  // đè người khác; ưu tiên gần giữa màn. Không đổi trạng thái trận (ghim thử rồi trả lại).
+  lab.findSpot = function (id, want) {
+    var a = m.actors[id], rects = hudRects(), W = innerWidth, H = innerHeight, R = (a.r || 1);
+    var hw = 2.9 * R, hh = 1.4 * R, best = null, keep = m.fake.pins[id];
+    for (var py = 30; py < H - 30; py += 12) for (var px = 30; px < W - 30; px += 12) {
+      var c = lab.toWorld(px, py), s0 = lab.toScreen(c.x - hw, c.y + hh), s1 = lab.toScreen(c.x + hw, c.y - hh);
+      var inW = Math.max(0, Math.min(s1.x, W) - Math.max(s0.x, 0)) * Math.max(0, Math.min(s1.y, H) - Math.max(s0.y, 0));
+      if (inW < 0.55 * (s1.x - s0.x) * (s1.y - s0.y)) continue;
+      if (!VS.fakeMatch.open(m, c.x, c.y, 0.5) || !freeOfHud(px, py, rects, Math.max(s1.x - s0.x, s1.y - s0.y) / 2)) continue;
+      var near = false;
+      for (var k = 0; k < m.actors.length; k++) { var o = m.actors[k]; if (o.id !== id && o.st !== 'out' && Math.hypot(o.x - c.x, o.y - c.y) < hw + 1) near = true; }
+      if (near) continue;
+      var score = Math.hypot(px - W / 2, py - H / 2);
+      if (best && score >= best.score) continue;
+      m.fake.pins[id] = { x: c.x, y: c.y, face: 1 };
+      VS.fakeMatch.step(m, 0);
+      if (lab.canSee(id) === want) best = { x: c.x, y: c.y, px: px, py: py, score: score };
+    }
+    if (keep) m.fake.pins[id] = keep; else delete m.fake.pins[id];
+    VS.fakeMatch.step(m, 0);
+    return best;
+  };
+  // Lớp DOM phủ phải khớp trạng thái: mũi tên cho mọi khoang ngoài màn (và đồng đội gục ngoài màn), dấu mờ cho mọi món
+  // đội đã thấy đang nằm trong tối mà ở trong màn hình.
+  lab.overlays = function () {
+    var W = innerWidth, H = innerHeight, pad = Math.max(26, Math.min(W, H) * 0.06), polys = lab.polys(), expArrows = 0, expMarks = 0;
+    function off(x, y) { var s = lab.toScreen(x, y); return !(s.x > pad && s.x < W - pad && s.y > pad && s.y < H - pad); }
+    m.pods.forEach(function (p) { if (off(p.x, p.y)) expArrows++; });
+    m.actors.forEach(function (a) { if (a.team === viewer.team && a.id !== viewer.id && a.st === 'down' && off(a.x, a.y)) expArrows++; });
+    VS.sim.known(m, viewer.team).forEach(function (l) {
+      if (l.st !== 'rest') return;
+      var lit = polys.some(function (p) { return VS.fakeMatch.insideFan(p.pts, l.x, l.y); }), s = lab.toScreen(l.x, l.y);
+      if (!lit && s.x > -40 && s.x < W + 40 && s.y > -40 && s.y < H + 40) expMarks++;
+    });
+    return {
+      arrows: document.querySelectorAll('.vs-arrow:not([hidden])').length, expArrows: expArrows,
+      marks: document.querySelectorAll('.vs-hud-mark:not([hidden])').length, expMarks: expMarks, known: VS.sim.known(m, viewer.team).length,
+    };
+  };
+
+  // ---------- chạy ----------
+  var last = 0;
+  function loop(now) {
+    requestAnimationFrame(loop);
+    var dt = last ? Math.min(0.1, (now - last) / 1000) : 0;
+    last = now;
+    if (!lab.ready) return;
+    if (lab.paused && !lab.dirty) return;
+    lab.dirty = false;
+    if (!lab.paused) { VS.fakeMatch.step(m, dt); drain(); }
+    frame(lab.paused ? 0 : dt);
+    if (!info.hidden) {
+      var s = VS.view.stats();
+      info.textContent = 'mode ' + mode + ' · team ' + viewer.team + ' · t ' + m.t.toFixed(1) + '\ncalls ' + s.calls + ' · tex ' + s.textures + ' · prog ' + s.programs +
+        ' · ' + s.frameMs + ' ms · hạt ' + s.particles;
+    }
+  }
+  VS.view.init(document.getElementById('gl')).then(function () {
+    return VS.view.loadMatch(m, function (p) { lab.progress = p; document.getElementById('boot').textContent = 'Đang tải… ' + Math.round(p * 100) + '%'; });
+  }).then(function () {
+    document.getElementById('boot').remove();
+    if (mode === 'match') VS.hud.show(m, viewer);
+    frame(0);
+    lab.ready = true;
+    requestAnimationFrame(loop);
+  }).catch(function (e) {
+    lab.error = String(e && e.stack || e);
+    document.getElementById('boot').textContent = 'Lỗi phòng thử: ' + (e && e.message || e);
+    throw e;
+  });
+})(window.VS);
+</script>
+</body>
+</html>
