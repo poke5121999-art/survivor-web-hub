@@ -9,7 +9,8 @@
   'use strict';
   var D2 = window.D2 = window.D2 || {};
   var E = D2.E, I = D2.Input, UI = D2.UI, OBJ = E.OBJ, SPR = E.SPR;
-  var VER = '20261006g';
+  // số bản lấy từ ?v= của chính thẻ <script> trong index.html, nên ảnh và nhóm asset đổi đuôi chống đệm cùng một chỗ
+  var VER = ((document.currentScript && /[?&]v=([^&]+)/.exec(document.currentScript.src)) || [])[1] || '';
   var SAVE_KEY = 'd2web.save.v1';
 
   function safe(fn, fb) { try { var v = fn(); return v == null ? fb : v; } catch (e) { return fb; } }
