@@ -376,8 +376,9 @@
   function dk() { return (S.char && S.char.diff) || 'n'; }
   function areaLvl(def) { return (def && ((def.lvlByDiff && def.lvlByDiff[dk()]) || def.lvl)) || 1; }
   function areaMons(def) { return (def && ((def.monstersByDiff && def.monstersByDiff[dk()]) || def.monsters)) || []; }
-  function presetName(id) { var l = D2DATA.monpreset && D2DATA.monpreset[String(curAct())]; return (l && l[id]) || null; }
-  function objPreset(id) { return E.objPresets['act' + curAct() + ':' + id] || null; }
+  // act: act của DS1 chứa điểm đặt (drlg ghi khi khác act của khu), mặc định act đang chơi
+  function presetName(id, act) { var l = D2DATA.monpreset && D2DATA.monpreset[String(act || curAct())]; return (l && l[id]) || null; }
+  function objPreset(id, act) { return E.objPresets['act' + (act || curAct()) + ':' + id] || null; }
   function monArt(id) {
     var su = D2DATA.superuniques[id], base = su ? su.cls : id, m = DA.monster(base);
     return E.monmap[base] || (m && m.art) || null;
@@ -385,8 +386,8 @@
   function sheetsForArea(def, lv) {
     var keys = [];
     areaMons(def).concat(def.bosses || [], def.superuniques || []).forEach(function (id) { var a = monArt(id); if (a) keys.push(a); });
-    lv.npcs.forEach(function (n) { var nd = D2DATA.npcs[presetName(n.id)]; if (nd && nd.art) keys.push(nd.art); });
-    lv.objects.forEach(function (o) { var p = objPreset(o.id); if (p && p.sprite) keys.push('obj.' + p.token); });
+    lv.npcs.forEach(function (n) { var nd = D2DATA.npcs[presetName(n.id, n.act)]; if (nd && nd.art) keys.push(nd.art); });
+    lv.objects.forEach(function (o) { var p = objPreset(o.id, o.act); if (p && p.sprite) keys.push('obj.' + p.token); });
     // đạn, vụ nổ, hình niệm của kỹ năng hero đã học và đạn của quái trong khu: nạp trước để phát đầu tiên đã có hình
     function mis(id) { if (!id) return; keys.push('mis.' + id); var M = D2DATA.missiles[id]; if (M && M.ExplosionMissile) keys.push('mis.' + M.ExplosionMissile); }
     Object.keys(S.char.skills || {}).forEach(function (id) {
@@ -443,7 +444,7 @@
     var g = L.lv, id = L.id, def = L.def, seed = L.seed;
     g.objects.forEach(function (o) { placeObj(g, o); });
     g.npcs.forEach(function (n) {
-      var name = presetName(n.id), nd = name && D2DATA.npcs[name];
+      var name = presetName(n.id, n.act), nd = name && D2DATA.npcs[name];
       if (nd && nd.art && E.hasSheet(nd.art)) mk('npc', n.x + 0.5, n.y + 0.5, { npc: name, dir: 6, art: nd.art, home: [n.x + 0.5, n.y + 0.5] });
     });
     // NPC do script của D2 đặt, không có trong DS1 nào: Jerhyn đứng trước cổng cung điện Lut Gholein
@@ -610,7 +611,7 @@
       : /chest|casket|barrel|urn/i.test(c) && p.selectable ? 'chest' : null;
   }
   function placeObj(lv, o) {
-    var p = objPreset(o.id); if (!p || !p.sprite) return;
+    var p = objPreset(o.id, o.act); if (!p || !p.sprite) return;
     var w = p.w || 1, h = p.h || 1;
     if (p.collide) for (var y = 0; y < h; y++) for (var x = 0; x < w; x++) {
       var cx = o.x - (w >> 1) + x - lv.ox, cy = o.y - (h >> 1) + y - lv.oy;   // o.x, o.y là toạ độ thế giới, col cục bộ
@@ -648,7 +649,7 @@
     function suPack(su, x, y) { var mn = SU[su].minions || [4, 4]; pack(su, x, y, 1 + ri(mn[0], mn[1]), 'unique', null); placed[su] = placed[SU[su].cls] = 1; }
     function spawnBoss(id, x, y) { var b = makeMonster(id, x + 0.5, y + 0.5, 'normal', ++pid, rng, null, def); b.rank = 'unique'; b.boss = true; placed[id] = 1; }
     g.npcs.forEach(function (n) {
-      var name = presetName(n.id); if (!name) return;
+      var name = presetName(n.id, n.act); if (!name) return;
       if (name === 'baalthrone') { anchor = n; return; }   // Baal ngồi ngai không đánh được; năm đợt quân đứng quanh ngai
       var su = suOf(name);
       if (su) { suPack(su, n.x, n.y); return; }

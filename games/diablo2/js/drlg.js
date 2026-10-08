@@ -58,6 +58,9 @@
       if (p.levelId && !c.presetOf[p.levelId]) c.presetOf[p.levelId] = +d;
     });
     (M.waypointObjs || []).forEach(function (i) { c.wp[i] = 1; });
+    // mã vật thể/quái đặt sẵn trong DS1 là của act ghi trong DS1 (D2MOO DrlgPreset.cpp:142-149), không phải act của khu:
+    // Abaddon, Pit of Acheron, Infernal Pit (Act V) dựng từ act4/expansion/lava*
+    Object.keys(M.maps).forEach(function (k) { var a = /^act(\d)\//.exec(k); if (a && +a[1] !== act) M.maps[k].srcAct = +a[1]; });
     ctxCache[act] = c;
     return c;
   }
@@ -232,7 +235,9 @@
     (m.objects || []).forEach(function (ob) {
       var lx = ob.x / SUB, ly = ob.y / SUB;
       if (lx < x0 || ly < y0 || lx >= x1 || ly >= y1) return;
-      self.objects.push({ type: ob.type, id: ob.id, x: sx + ob.x, y: sy + ob.y });
+      var po = { type: ob.type, id: ob.id, x: sx + ob.x, y: sy + ob.y };
+      if (m.srcAct) po.act = m.srcAct;
+      self.objects.push(po);
     });
     (m.warps || []).forEach(function (w) {
       if (w[0] < x0 || w[1] < y0 || w[0] >= x1 || w[1] >= y1) return;
@@ -305,10 +310,12 @@
     var npcs = [], objects = [];
     cv.objects.forEach(function (ob) {
       if (ob.x < 0 || ob.y < 0 || ob.x >= w || ob.y >= h) return;
-      if (ob.type === 1) npcs.push({ id: ob.id, x: ob.x, y: ob.y });
-      else if (ob.type === 2) {
-        objects.push({ token: 'ds1_' + ob.id, id: ob.id, x: ob.x, y: ob.y, kind: C.wp[ob.id] ? 'waypoint' : 'ds1' });
-      }
+      var q;
+      if (ob.type === 1) q = { id: ob.id, x: ob.x, y: ob.y };
+      else if (ob.type === 2) q = { token: 'ds1_' + ob.id, id: ob.id, x: ob.x, y: ob.y, kind: !ob.act && C.wp[ob.id] ? 'waypoint' : 'ds1' };
+      else return;
+      if (ob.act) q.act = ob.act;
+      (ob.type === 1 ? npcs : objects).push(q);
     });
     return {
       id: id, tw: tw, th: th, w: w, h: h, tileset: tsName,
@@ -1233,18 +1240,22 @@
   // names carry two door letters (NE NW SE SW) and every room has its own variants. Each room DS1 holds the stairs
   // of its quadrant; the files are chosen so that every warp leads somewhere and every Vis slot is reached.
   var QUADS = ['NW', 'NE', 'SW', 'SE'];
+  // D2 luôn thay một góc của hai hang nhện bằng phòng có rương (D2MOO DrlgMaze.cpp:245-255): Arachnid Lair góc NE,
+  // Spider Cavern góc NW (rương KhalimEyeChest)
+  var QUAD_CHEST = { arachnid_lair: 'NE', spider_cavern: 'NW' };
   function quadIndex(C, pre) {
     C.quadIdx = C.quadIdx || {};
     if (C.quadIdx[pre]) return C.quadIdx[pre];
-    var Q = { size: 0 };
+    var Q = { size: 0, chest: {} };
     QUADS.forEach(function (q) { Q[q] = []; });
     Object.keys(C.M.presets).forEach(function (d) {
       var p = C.M.presets[d];
       if (p.levelId || p.name.indexOf(pre + ' ') !== 0) return;
-      var m = /^(NE|NW|SE|SW)\b/.exec(p.name.slice(pre.length + 1));
+      var m = /^(Chest )?(NE|NW|SE|SW)\b/.exec(p.name.slice(pre.length + 1));
       if (!m) return;
+      var list = m[1] ? (Q.chest[m[2]] = Q.chest[m[2]] || []) : Q[m[2]];
       Q.size = p.sizeX;
-      p.files.forEach(function (f) { if (Q[m[1]].indexOf(f) < 0) Q[m[1]].push(f); });
+      p.files.forEach(function (f) { if (list.indexOf(f) < 0) list.push(f); });
     });
     C.quadIdx[pre] = Q;
     return Q;
@@ -1264,7 +1275,8 @@
     for (var t = 0; t < 400 && !pick; t++) {
       var got = {}, nwp = 0, ok = true, choice = {};
       QUADS.forEach(function (q) {
-        var opts = Q[q].filter(function (f) { return !info(f).bad; });
+        var pool = QUAD_CHEST[id] === q && Q.chest[q] ? Q.chest[q] : Q[q];
+        var opts = pool.filter(function (f) { return !info(f).bad; });
         if (!opts.length) { ok = false; return; }
         var f = rng.pick(opts), I = info(f);
         choice[q] = f; if (I.wp) nwp++;

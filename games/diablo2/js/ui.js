@@ -993,7 +993,7 @@
       st.cels += m.n;
       // vật có ô AutoMap trong objects.txt (đền, giếng, rương nhiệm vụ, ấn Diablo...)
       g.objects.forEach(function (ob) {
-        var pr = E.objPresets['act' + (L.def.act || W.act) + ':' + ob.id], cel = pr && AM.obj[pr.cls];
+        var pr = E.objPresets['act' + (ob.act || L.def.act || W.act) + ':' + ob.id], cel = pr && AM.obj[pr.cls];
         if (!cel || !seenAt(ob.x, ob.y)) return;
         var p = P(ob.x + 0.5, ob.y + 0.5); put(c, sh, sh.A.cels[cel], p[0], p[1] - 4); st.cels++;
       });
