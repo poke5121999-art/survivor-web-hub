@@ -1,5 +1,5 @@
-// Mô phỏng: bot pha 1 (đơn giản). Mỗi bot nghĩ mỗi TUNING.bots.think giây, lệch pha theo id; đi thẳng tới mục tiêu có thăm dò vách
-// bằng tia, kẹt quá 1,5 s thì chọn hướng thoáng ngẫu nhiên. Nhánh W4 sẽ thay phần đi đường bằng lưới tìm đường; giữ nguyên VS.bots.think.
+// Mô phỏng: bot. Mỗi bot nghĩ mỗi TUNING.bots.think giây, lệch pha theo id; chọn mục tiêu rồi đi theo đường của VS.nav (A* trên lưới đi được
+// theo bán kính thân). Kẹt thì bỏ mục tiêu đó một lúc và nghĩ lại. Bot chỉ ghi intent, không ghi trạng thái actor.
 // Bot chỉ dùng sim.canSee/sharkSees/known (cùng luật tầm nhìn với người chơi): thợ lặn chỉ đi tới kho báu đội đã soi thấy, chưa thấy thì dò đường.
 (function (VS) {
   'use strict';
@@ -11,14 +11,15 @@
   // Các ngưỡng của bot pha 1 (số trong bản thiết kế, không thuộc TUNING).
   var SHOOT_R = 8, FLEE_R = 4, REVIVE_R = 15, FLEE_O2 = 0.4, BANK_KG = 8, REFILL_O2 = 0.35, REFILL_R = 25;
   var LUNGE_R = 3.2, LUNGE_ARC = 0.3, STUCK_T = 1.5, ESCAPE_T = 1.2, GIVE_UP_T = 40, STRUGGLE_T = 0.2;
-  var EXPLORE_CELL = 6, EXPLORE_TRIES = 14, EXPLORE_MIN = 8, TURN_OFFS = [0, 25, -25, 50, -50, 80, -80, 120, -120, 180];
+  var EXPLORE_CELL = 6, EXPLORE_TRIES = 14, EXPLORE_MIN = 8;
+  var STALL_T = 3, STALL_MOVE = 1.5, STALL_SKIP_T = 20, NO_PATH_SKIP_T = 30;   // dịch ròng < 1,5 m sau 3 s khi mục tiêu cách > 3 m là kẹt
 
   function brainOf(m, a) {
     if (!a.brain) {
       a.brain = {
         nextT: a.id * VS.TUNING.bots.think / 6, has: false, gx: 0, gy: 0, arrive: 0.3, boost: false, key: '', fails: 0, skip: {},
         seen: {}, last: null, lootId: -1, lootUntil: 0, roamUntil: 0, exploreUntil: 0,
-        side: 1, dirA: 0, stuck: 0, chkT: 0, chkX: a.x, chkY: a.y, escUntil: 0, escA: 0, aimUntil: 0
+        mx: 0, my: 0, winT: -1, winX: 0, winY: 0, winKey: '', stuck: 0, chkT: 0, chkX: a.x, chkY: a.y, escUntil: 0, escA: 0, aimUntil: 0
       };
     }
     return a.brain;
@@ -45,21 +46,6 @@
 
   function dist(a, o) { return Math.sqrt((a.x - o.x) * (a.x - o.x) + (a.y - o.y) * (a.y - o.y)); }
 
-  // Hướng ang dài L còn thoáng cho thân tròn của a: tia tâm không cắt vách và nửa đường, cuối đường đều đủ chỗ.
-  function pathClear(m, a, ang, L) {
-    var w = m.world, cs = Math.cos(ang), sn = Math.sin(ang), r = a.r * 0.85, x1 = a.x + cs * L, y1 = a.y + sn * L;
-    return w._cast(a.x, a.y, x1, y1) > 1 && w.open(x1, y1, r) && w.open(a.x + cs * L * 0.5, a.y + sn * L * 0.5, r);
-  }
-
-  function pickDir(m, a, b, base, goalDist) {
-    var L = Math.min(goalDist, a.r + (a.team === 'shark' ? 3 : 1.6));
-    for (var i = 0; i < TURN_OFFS.length; i++) {
-      var ang = base + TURN_OFFS[i] * DEG * b.side;
-      if (pathClear(m, a, ang, L)) return ang;
-    }
-    return base + Math.PI;
-  }
-
   // Hướng thoáng dài nhất trong 8 hướng ngẫu nhiên (dùng khi kẹt).
   function randomOpenDir(m, a) {
     var best = 0, bt = -1;
@@ -71,24 +57,44 @@
     return best;
   }
 
-  // Mỗi bước: đặt mx,my,boost theo mục tiêu hiện tại của bot; phát hiện kẹt.
+  // Bỏ mục tiêu đang đi tới: key của nó bị bỏ qua skipT giây, bot nghĩ lại ở lần tới.
+  function giveUp(m, a, b, skipT) {
+    if (b.key) b.skip[b.key] = m.t + skipT;
+    b.fails = 0; b.has = false; b.lootId = -1; b.roamUntil = 0; b.exploreUntil = 0; b.last = null; b.nextT = m.t;
+    if (VS.nav) VS.nav.forget(a);
+  }
+
+  // Mỗi bước: đặt mx,my,boost theo đường nav tới mục tiêu hiện tại; phát hiện kẹt theo hai cách: thân đứng yên (0,5 s một lần)
+  // và dịch chuyển ròng quá ít sau STALL_T giây khi mục tiêu còn xa (đi vòng trong khe, trượt dọc vách).
   function steer(m, a, b) {
-    var it = a.intent, dx, dy, d;
+    var it = a.intent, d;
     if (m.t < b.escUntil) { it.mx = Math.cos(b.escA); it.my = Math.sin(b.escA); it.boost = false; return; }
-    if (!b.has) { it.mx = 0; it.my = 0; it.boost = false; b.stuck = 0; return; }
-    dx = b.gx - a.x; dy = b.gy - a.y; d = Math.sqrt(dx * dx + dy * dy);
-    if (d <= b.arrive) { it.mx = 0; it.my = 0; it.boost = false; b.stuck = 0; b.fails = 0; return; }
-    if (m.tick % 4 === (a.id & 3)) b.dirA = pickDir(m, a, b, Math.atan2(dy, dx), d);
-    it.mx = Math.cos(b.dirA); it.my = Math.sin(b.dirA); it.boost = b.boost;
+    if (!b.has) { it.mx = 0; it.my = 0; it.boost = false; b.stuck = 0; b.winT = -1; return; }
+    d = dist(a, { x: b.gx, y: b.gy });
+    if (d <= b.arrive) { it.mx = 0; it.my = 0; it.boost = false; b.stuck = 0; b.fails = 0; b.winT = -1; return; }
+    if (m.tick % 4 === (a.id & 3)) {
+      var v = VS.nav.steer(m, a, b.gx, b.gy);
+      if (v.mx === 0 && v.my === 0) { giveUp(m, a, b, NO_PATH_SKIP_T); it.mx = 0; it.my = 0; it.boost = false; return; }
+      b.mx = v.mx; b.my = v.my;
+    }
+    it.mx = b.mx; it.my = b.my; it.boost = b.boost;
     if (m.t >= b.chkT) {
-      var moved = Math.sqrt((a.x - b.chkX) * (a.x - b.chkX) + (a.y - b.chkY) * (a.y - b.chkY));
+      var moved = dist(a, { x: b.chkX, y: b.chkY });
       b.stuck = moved < 0.35 ? b.stuck + 0.5 : 0;
       b.chkT = m.t + 0.5; b.chkX = a.x; b.chkY = a.y;
       if (b.stuck >= STUCK_T) {
-        b.escA = randomOpenDir(m, a); b.escUntil = m.t + ESCAPE_T; b.stuck = 0; b.side = -b.side;
-        if (b.key && ++b.fails >= 2) { b.skip[b.key] = m.t + GIVE_UP_T; b.fails = 0; b.has = false; b.lootId = -1; b.roamUntil = 0; b.exploreUntil = 0; b.nextT = m.t + ESCAPE_T; }
+        b.escA = randomOpenDir(m, a); b.escUntil = m.t + ESCAPE_T; b.stuck = 0;
+        VS.nav.forget(a);
+        if (b.key && ++b.fails >= 2) { giveUp(m, a, b, GIVE_UP_T); b.nextT = m.t + ESCAPE_T; }
       }
     }
+    if (d > 3) {
+      if (b.winT < 0 || b.winKey !== b.key) { b.winT = m.t; b.winX = a.x; b.winY = a.y; b.winKey = b.key; }
+      else if (m.t - b.winT >= STALL_T) {
+        if (dist(a, { x: b.winX, y: b.winY }) < STALL_MOVE) giveUp(m, a, b, STALL_SKIP_T);
+        b.winT = m.t; b.winX = a.x; b.winY = a.y;
+      }
+    } else b.winT = -1;
     if (a.team === 'diver' && m.t >= b.aimUntil) { it.aimX = a.x + it.mx * 10; it.aimY = a.y + it.my * 10; }
   }
 
@@ -227,11 +233,18 @@
   }
 
   // ---- Cá mập ----
+  // Cá mập không vào được vùng an toàn quanh khoang cứu hộ, nên thợ lặn đứng trong đó (cộng 1,5 m để đuổi tới mép vẫn còn cắn được) không phải mục tiêu.
+  function inPodSafe(m, d) {
+    var R = VS.TUNING.pod.safeR + 1.5;
+    for (var i = 0; i < m.pods.length; i++) if (dist(d, m.pods[i]) < R) return true;
+    return false;
+  }
+
   function decideShark(m, a, b) {
     var T = VS.TUNING, S = T.shark, it = a.intent, i, tgt = null, best = 1e9;
     for (i = 0; i < m.actors.length; i++) {
       var d = m.actors[i];
-      if (d.team !== 'diver' || d.st === 'out' || d.st === 'held' || !sim.sharkSees(m, a, d)) continue;
+      if (d.team !== 'diver' || d.st === 'out' || d.st === 'held' || skipped(b, m, 'D' + d.id) || inPodSafe(m, d) || !sim.sharkSees(m, a, d)) continue;
       // Ưu tiên kẻ gục (một cú cắn là loại) và kẻ sắp cạn O2
       var sc = dist(a, d) - (d.st === 'down' ? 5 : 0) - (d.o2 < d.o2Max * 0.3 ? 3 : 0);
       if (sc < best) { best = sc; tgt = d; }
@@ -241,14 +254,14 @@
     if (tgt) {
       var dd = dist(a, tgt), lead = Math.min(dd / (a.def.speed * 1.5), 0.6);
       var gx = tgt.x + tgt.vx * lead, gy = tgt.y + tgt.vy * lead;
-      b.last = { x: tgt.x, y: tgt.y, t: m.t };
-      setGoal(b, gx, gy, 0.2, dd > 6 && a.stamina > S.staminaMax * 0.4, '');
+      b.last = { x: tgt.x, y: tgt.y, t: m.t, key: 'D' + tgt.id };
+      setGoal(b, gx, gy, 0.2, dd > 6 && a.stamina > S.staminaMax * 0.4, 'D' + tgt.id);
       if (!sk || sk === true) { it.aimX = tgt.x; it.aimY = tgt.y; }
       var facing = Math.abs(geom.angDiff(Math.atan2(gy - a.y, gx - a.x), a.ang));
       if (dd <= LUNGE_R && facing < LUNGE_ARC && a.st === 'swim' && a.biteCd <= 0 && m.world.clear(a.x, a.y, tgt.x, tgt.y)) it.fire = true;
       return;
     }
-    if (b.last && m.t - b.last.t < 3) { setGoal(b, b.last.x, b.last.y, 1.5, false, ''); return; }
+    if (b.last && m.t - b.last.t < 3 && !skipped(b, m, b.last.key)) { setGoal(b, b.last.x, b.last.y, 1.5, false, b.last.key); return; }
     // Đi tuần: tới một điểm kho báu ngẫu nhiên, tới nơi, kẹt hoặc quá 12 s thì chọn điểm khác
     if (!b.has || m.t >= b.roamUntil || Math.sqrt((b.gx - a.x) * (b.gx - a.x) + (b.gy - a.y) * (b.gy - a.y)) < 3) {
       var spot = null;

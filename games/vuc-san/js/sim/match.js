@@ -91,8 +91,9 @@
   }
 
   // Cá mập sinh sâu, xa chỗ thả thợ lặn, hai con cách nhau xa; chọn ngẫu nhiên từ m.rng trong 30% sâu nhất.
-  function placeSharks(m, world, grid, anchor, n) {
-    var cand = sharkCandidates(world, grid, anchor, m.pods), out = [], i, j;
+  // mapDef.sharks (từ tools/mapgen.js) là danh sách ứng viên đã xếp sâu trước; thiếu thì tự tìm trên lưới.
+  function placeSharks(m, world, grid, anchor, n, listed) {
+    var cand = listed || sharkCandidates(world, grid, anchor, m.pods), out = [], i, j;
     if (!cand.length) { for (i = 0; i < n; i++) out.push([anchor.x, anchor.y]); return out; }
     var pool = cand.slice(0, Math.max(8, Math.ceil(cand.length * 0.3)));
     out.push(m.rng.pick(pool));
@@ -180,8 +181,7 @@
     var anchor, ownDivers = mapDef && mapDef.divers && mapDef.divers.length >= T.match.divers;
     if (ownDivers) { m.spawns.diver = mapDef.divers.slice(0, T.match.divers).map(function (p) { return [p[0], p[1]]; }); anchor = { x: m.spawns.diver[0][0], y: m.spawns.diver[0][1] }; }
     else { anchor = diverAnchor(world, grid, zone); m.spawns.diver = placeDivers(world, grid, anchor, T.match.divers); }
-    if (mapDef && mapDef.sharks && mapDef.sharks.length >= T.match.sharks) m.spawns.shark = mapDef.sharks.slice(0, T.match.sharks).map(function (p) { return [p[0], p[1]]; });
-    else m.spawns.shark = placeSharks(m, world, grid, anchor, T.match.sharks);
+    m.spawns.shark = placeSharks(m, world, grid, anchor, T.match.sharks, mapDef && mapDef.sharks && mapDef.sharks.length >= T.match.sharks ? mapDef.sharks : null);
     makeLoot(m, world, grid, anchor, mapDef);
 
     var lineup = cfg.lineup && cfg.lineup.length ? cfg.lineup : defaultLineup(seed), nd = 0, ns = 0;
