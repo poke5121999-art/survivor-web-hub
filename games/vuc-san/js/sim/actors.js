@@ -246,7 +246,7 @@
     var rr = a.r + K.lootR;
     for (i = 0; i < m.loot.length; i++) {
       var lt = m.loot[i];
-      if (lt.st !== 'rest' || a.carryKg + lt.kg > T.diver.maxKg) continue;
+      if (lt.st !== 'rest' || a.carryKg + lt.kg > T.diver.maxKg || lt.freeAt > m.t) continue;   // freeAt: kỹ năng khoá nhặt tạm (Hút Nước)
       dx = lt.x - a.x; dy = lt.y - a.y;
       if (dx * dx + dy * dy > rr * rr) continue;
       lt.st = 'carried'; lt.by = a.id; a.carry.push(lt.id); a.carryKg += lt.kg;
@@ -573,6 +573,14 @@
   // Lái cá mập: quay mũi về (mx,my) theo turnRate, tốc độ dọc mũi tiến về mức mong muốn, không trượt ngang.
   function sharkDrive(m, a, dt) {
     var S = VS.TUNING.shark, it = a.intent, mod = a.mod;
+    // Móc cho kỹ năng chiếm quyền lái (Cưa Xẻ, Khoét Thịt): lockMove = {ang, vx, vy} thay hẳn việc lái theo intent
+    var lk = a.lockMove;
+    if (lk) {
+      a.ang = lk.ang; a.vx = lk.vx; a.vy = lk.vy;
+      a.face = Math.cos(lk.ang) >= 0 ? 1 : -1;
+      moveBody(m, a, dt);
+      return;
+    }
     var mx = it.mx, my = it.my, mag = Math.sqrt(mx * mx + my * my);
     if (mag > 1) { mx /= mag; my /= mag; mag = 1; }
     var thrust = mag > 0.05;
