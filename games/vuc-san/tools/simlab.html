@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vực Săn - phòng thí nghiệm mô phỏng</title>
+<!--
+  Công cụ dev: xem và chơi thử mô phỏng thuần (js/sim/*) trên canvas 2D, không THREE, không sảnh.
+  Mở qua máy chủ tĩnh ở gốc repo, ví dụ  http://127.0.0.1:8000/games/vuc-san/tools/simlab.html
+  Tham số URL: map=A01 seed=7 view=diver|shark|all run=<giây chạy trước bằng bot> pause=1 human=<0..5> follow=1 speed=1|4|16 hud=0
+-->
+<style>
+  html, body { margin: 0; height: 100%; background: #02060c; color: #cfe3f2; font: 12px/1.35 ui-monospace, Menlo, Consolas, monospace; overflow: hidden; }
+  #cv { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  .panel { position: fixed; background: rgba(4, 10, 18, 0.80); border: 1px solid #1d3347; border-radius: 6px; padding: 6px 8px; }
+  body.nohud .panel { display: none; }
+  #ctl { top: 8px; left: 8px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; max-width: 640px; }
+  #ctl select, #ctl input, #ctl button { font: inherit; color: #e6f2fb; background: #0b1b2a; border: 1px solid #28455e; border-radius: 4px; padding: 2px 6px; }
+  #ctl input[type=number] { width: 64px; }
+  #ctl button { cursor: pointer; }
+  #ctl label { display: flex; align-items: center; gap: 3px; }
+  #info { top: 8px; right: 8px; min-width: 350px; }
+  #info table { border-collapse: collapse; width: 100%; }
+  #info td, #info th { padding: 1px 5px; text-align: left; white-space: nowrap; font-weight: normal; }
+  #info th { color: #7fa6c2; border-bottom: 1px solid #1d3347; }
+  #info .d { color: #62e0d2; }
+  #info .s { color: #f0766e; }
+  #info .off { opacity: 0.45; }
+  #stat { margin-bottom: 4px; }
+  #log { left: 8px; bottom: 8px; width: 400px; height: 168px; overflow: hidden; white-space: pre; color: #9fc3dd; display: flex; flex-direction: column; justify-content: flex-end; }
+  #help { right: 8px; bottom: 8px; max-width: 440px; color: #7fa6c2; }
+  #result { position: fixed; left: 50%; top: 56px; transform: translateX(-50%); padding: 6px 16px; border-radius: 6px; background: rgba(4, 10, 18, 0.88); border: 1px solid #28455e; font-size: 15px; display: none; }
+  #err { position: fixed; left: 8px; top: 8px; color: #ff8a80; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="ctl" class="panel">
+  <select id="map" title="Bản đồ"></select>
+  <input id="seed" type="number" value="1" title="Hạt giống">
+  <button id="new" title="R">Ván mới</button>
+  <button id="next" title="N">Hạt giống kế</button>
+  <select id="view" title="Góc nhìn (V)">
+    <option value="diver">Thấy như thợ lặn</option>
+    <option value="shark">Thấy như cá mập</option>
+    <option value="all">Thấy tất cả</option>
+  </select>
+  <select id="speed" title="Tốc độ ([ ])">
+    <option value="0.25">x0.25</option><option value="1">x1</option><option value="4">x4</option><option value="16">x16</option><option value="64">x64</option>
+  </select>
+  <select id="human" title="Actor do tay lái"></select>
+  <button id="pause" title="P">Dừng</button>
+  <button id="step" title=". (khi đang dừng)">+1 bước</button>
+  <label><input id="follow" type="checkbox">Bám (C)</label>
+  <label><input id="rays" type="checkbox">Viền vùng sáng</label>
+</div>
+<div id="info" class="panel"><div id="stat"></div><table id="tbl"></table></div>
+<div id="log" class="panel"></div>
+<div id="help" class="panel">Tay lái: WASD bơi, Shift tăng tốc, chuột ngắm, bấm chuột bắn/lao, Q kỹ năng, F đèn. V đổi góc nhìn, P dừng, C bám, R ván mới, N hạt giống kế, [ ] tốc độ, H ẩn bảng, cuộn chuột phóng to, kéo chuột phải dời cảnh.</div>
+<div id="result"></div>
+<div id="err"></div>
+
+<script>
+(function () {
+  'use strict';
+  // Cùng thứ tự nạp với index.html, bỏ lớp vẽ, sảnh và core. Gắn dấu thời gian để lần mở nào cũng thấy mã mới nhất.
+  var SCRIPTS = [
+    '../../ho-xanh/data/zones.js', '../../ho-xanh/data/shark_assets.js',
+    '../data/tuning.js', '../data/sharks.js', '../data/divers.js', '../data/skills.js', '../data/maps.js',
+    '../js/sim/rng.js', '../js/sim/geom.js', '../js/sim/vision.js', '../js/sim/actors.js', '../js/sim/skills.js',
+    '../js/sim/match.js', '../js/sim/nav.js', '../js/sim/bots.js'
+  ];
+  window.HX_ROOT = '../../ho-xanh/';
+  var stamp = Date.now();
+  function load(src) {
+    return new Promise(function (ok, bad) {
+      var s = document.createElement('script');
+      s.src = src + '?t=' + stamp; s.onload = ok;
+      s.onerror = function () { bad(new Error('không nạp được ' + src)); };
+      document.head.appendChild(s);
+    });
+  }
+  function fail(e) { document.getElementById('err').textContent = String(e && e.stack || e); console.error(e); }
+  SCRIPTS.reduce(function (p, s) { return p.then(function () { return load(s); }); }, Promise.resolve()).then(start).catch(fail);
+  window.addEventListener('error', function (e) { fail(e.error || e.message); });
+
+  function start() {
+    var VS = window.VS, sim = VS.sim, DT = 1 / 60, Z = window.HX_ZONES;
+    var cv = document.getElementById('cv'), ctx = cv.getContext('2d'), fogCv = document.createElement('canvas'), fog = fogCv.getContext('2d');
+    var q = new URLSearchParams(location.search);
+    var S = {
+      m: null, mapId: q.get('map') || VS.MAPS[0].id, seed: parseInt(q.get('seed') || '1', 10) || 1, view: q.get('view') || 'diver',
+      speed: parseFloat(q.get('speed') || '1'), paused: q.get('pause') === '1', human: parseInt(q.get('human') || '-1', 10),
+      follow: q.get('follow') === '1', rays: q.get('rays') === '1', acc: 0, log: [], keys: {}, pend: {},
+      mouse: { x: 0, y: 0, down: false }, cam: { x: 0, y: 0, s: 8 }, dpr: 1, w: 0, h: 0, infoAt: 0
+    };
+    if (q.get('hud') === '0') document.body.classList.add('nohud');
+
+    var $ = function (id) { return document.getElementById(id); };
+    VS.MAPS.forEach(function (mp) { var o = document.createElement('option'); o.value = mp.id; o.textContent = mp.id + ' ' + mp.name; $('map').appendChild(o); });
+
+    function lineupFor(seed) {
+      var rng = VS.rng((seed ^ 0xa5a5a5a5) >>> 0), M = VS.TUNING.match;
+      var dv = rng.shuffle(Object.keys(VS.DIVERS)).slice(0, M.divers), sh = rng.shuffle(Object.keys(VS.SHARKS)).slice(0, M.sharks);
+      return dv.map(function (id, i) { return { team: 'diver', defId: id, name: 'T' + (i + 1), ctrl: 'bot' }; })
+        .concat(sh.map(function (id, i) { return { team: 'shark', defId: id, name: 'C' + (i + 1), ctrl: 'bot' }; }));
+    }
+
+    var SKIP = { fire: 1, hit: 1, lunge: 1, phase: 1 };
+    function drain(m) {
+      for (var i = 0; i < m.events.length; i++) {
+        var e = m.events[i];
+        if (SKIP[e.type]) continue;
+        var extra = [];
+        for (var k in e) if (k !== 't' && k !== 'type') extra.push(k + '=' + (typeof e[k] === 'number' && e[k] % 1 ? e[k].toFixed(1) : e[k]));
+        S.log.push(String(e.t.toFixed(1)).padStart(5) + 's ' + e.type + ' ' + extra.join(' '));
+      }
+      if (S.log.length > 40) S.log.splice(0, S.log.length - 40);
+      m.events.length = 0;
+    }
+
+    function applyHuman() {
+      S.m.actors.forEach(function (a) { a.ctrl = a.id === S.human ? 'human' : 'bot'; });
+      $('human').value = String(S.human);
+    }
+
+    function fillHumanSelect() {
+      var sel = $('human'), html = '<option value="-1">Bot cả sáu</option>';
+      S.m.actors.forEach(function (a) { html += '<option value="' + a.id + '">Lái #' + a.id + ' ' + a.name + ' ' + a.defId + '</option>'; });
+      sel.innerHTML = html;
+    }
+
+    // Chạy trước bằng bot (mọi actor) tới giây chơi thứ sec, để chụp màn hình giữa trận.
+    function preRun(sec) {
+      var m = S.m, n = 0, h = S.human;
+      S.human = -1; applyHuman();
+      while (m.phase !== 'end' && m.t < sec && n++ < 60 * (sec + 30)) { sim.step(m, DT); drain(m); }
+      S.human = h; applyHuman();
+    }
+
+    function newMatch(run) {
+      S.m = sim.createMatch({ seed: S.seed, mapId: S.mapId, lineup: lineupFor(S.seed) });
+      S.log.length = 0; S.acc = 0; S.pend = {};
+      fillHumanSelect(); applyHuman();
+      if (run > 0) preRun(run);
+      fitCamera();
+      $('map').value = S.mapId; $('seed').value = String(S.seed);
+    }
+
+    // ---- Camera ----
+    function resize() {
+      S.dpr = window.devicePixelRatio || 1; S.w = window.innerWidth; S.h = window.innerHeight;
+      cv.width = Math.round(S.w * S.dpr); cv.height = Math.round(S.h * S.dpr);
+      fogCv.width = cv.width; fogCv.height = cv.height;
+      if (S.m && !S.follow) fitCamera();
+    }
+    function fitCamera() {
+      var b = S.m.world.bounds, top = sim.K.surfaceY + 2, w = b.maxX - b.minX, h = top - b.minY;
+      S.cam.s = Math.min(S.w / w, S.h / h) * 0.97;
+      S.cam.x = (b.minX + b.maxX) / 2; S.cam.y = (b.minY + top) / 2;
+      if (S.follow) S.cam.s = Math.max(S.cam.s, 14);
+    }
+    function sx(x) { return (x - S.cam.x) * S.cam.s + S.w / 2; }
+    function sy(y) { return S.h / 2 - (y - S.cam.y) * S.cam.s; }
+    function toWorld(px, py) { return { x: (px - S.w / 2) / S.cam.s + S.cam.x, y: (S.h / 2 - py) / S.cam.s + S.cam.y }; }
+
+    // ---- Vẽ ----
+    function tracePoly(c, pts) {
+      c.beginPath(); c.moveTo(sx(pts[0]), sy(pts[1]));
+      for (var i = 2; i < pts.length; i += 2) c.lineTo(sx(pts[i]), sy(pts[i + 1]));
+      c.closePath();
+    }
+    function circle(c, x, y, r) { c.beginPath(); c.arc(sx(x), sy(y), Math.max(r * S.cam.s, 1), 0, Math.PI * 2); }
+
+    function drawTerrain(c, m) {
+      var surf = sy(sim.K.surfaceY), g = c.createLinearGradient(0, surf, 0, S.h);
+      c.fillStyle = '#1a2431'; c.fillRect(0, 0, S.w, S.h);
+      g.addColorStop(0, '#12507a'); g.addColorStop(0.5, '#0a2c47'); g.addColorStop(1, '#04121f');
+      c.fillStyle = g; c.fillRect(0, surf, S.w, S.h - surf);
+      c.strokeStyle = '#7fc8ff'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(0, surf); c.lineTo(S.w, surf); c.stroke();
+      var b = m.world.bounds;
+      c.strokeStyle = 'rgba(160,200,230,0.25)'; c.setLineDash([6, 6]); c.strokeRect(sx(b.minX), sy(b.maxY), (b.maxX - b.minX) * S.cam.s, (b.maxY - b.minY) * S.cam.s); c.setLineDash([]);
+      c.fillStyle = '#34444f';
+      m.world.polys.forEach(function (p) {
+        c.beginPath();
+        for (var i = 0; i < p.pts.length; i++) { if (i) c.lineTo(sx(p.pts[i][0]), sy(p.pts[i][1])); else c.moveTo(sx(p.pts[i][0]), sy(p.pts[i][1])); }
+        c.closePath(); c.fill();
+      });
+    }
+
+    function drawStatics(c, m) {
+      m.pods.forEach(function (p) {
+        c.strokeStyle = 'rgba(90,215,255,0.35)'; c.setLineDash([5, 5]); circle(c, p.x, p.y, VS.TUNING.pod.safeR); c.stroke(); c.setLineDash([]);
+        c.fillStyle = 'rgba(90,215,255,0.18)'; c.strokeStyle = '#5ad7ff'; c.lineWidth = 1.5; circle(c, p.x, p.y, p.r); c.fill(); c.stroke();
+      });
+      m.o2.forEach(function (o) {
+        var ready = o.readyAt <= m.t, s = Math.max(1.1 * S.cam.s, 5);
+        c.fillStyle = ready ? '#3ddc97' : '#1f5b46'; c.fillRect(sx(o.x) - s / 2, sy(o.y) - s / 2, s, s);
+        c.strokeStyle = '#d6fff0'; c.lineWidth = 1; c.strokeRect(sx(o.x) - s / 2, sy(o.y) - s / 2, s, s);
+      });
+      m.zones.forEach(function (z) {
+        if (z.until <= m.t) return;
+        var col = { cage: '170,180,190', ink: '5,5,15', mine: '255,120,60', flare: '255,235,130', o2gen: '80,230,200', bait: '160,110,60' }[z.kind] || '200,200,200';
+        c.fillStyle = 'rgba(' + col + ',0.28)'; c.strokeStyle = 'rgba(' + col + ',0.9)'; c.lineWidth = 1;
+        circle(c, z.x, z.y, z.r); c.fill(); c.stroke();
+      });
+    }
+
+    function drawLoot(c, m, lit) {
+      for (var i = 0; i < m.loot.length; i++) {
+        var l = m.loot[i];
+        if (l.st !== 'rest' || !lit(l)) continue;
+        var r = Math.max((0.35 + l.kg * 0.03) * S.cam.s, 3);
+        c.fillStyle = l.value >= 200 ? '#ffb02e' : l.value >= 100 ? '#ffd24a' : '#f3e58a';
+        c.strokeStyle = '#3a2c05'; c.lineWidth = 1;
+        c.beginPath(); c.arc(sx(l.x), sy(l.y), r, 0, Math.PI * 2); c.fill(); c.stroke();
+        if (S.cam.s >= 10) { c.fillStyle = '#fff6c9'; c.font = '9px ui-monospace, monospace'; c.fillText(l.value + '/' + l.kg + 'kg', sx(l.x) + r + 2, sy(l.y) + 3); }
+      }
+    }
+
+    function bar(c, x, y, w, f, col) {
+      c.fillStyle = 'rgba(0,0,0,0.6)'; c.fillRect(x - w / 2, y, w, 4);
+      c.fillStyle = col; c.fillRect(x - w / 2, y, w * Math.max(0, Math.min(1, f)), 4);
+    }
+
+    function drawActor(c, m, a) {
+      var px = sx(a.x), py = sy(a.y), r = Math.max(a.r * S.cam.s, 4), diver = a.team === 'diver';
+      var col = diver ? '#4fd1c5' : '#e0645c';
+      if (a.st === 'down') col = '#8d97a3'; else if (a.st === 'held') col = '#ffb347'; else if (a.st === 'stun') col = '#e8d96b';
+      if (a.st === 'hold' && a.holdId >= 0) {
+        var h = m.actors[a.holdId];
+        c.strokeStyle = '#ffb347'; c.lineWidth = 2; c.beginPath(); c.moveTo(px, py); c.lineTo(sx(h.x), sy(h.y)); c.stroke();
+      }
+      if (a.st === 'lunge') { c.strokeStyle = '#ff9a3c'; c.lineWidth = 2; c.beginPath(); c.arc(px, py, r + 3, 0, Math.PI * 2); c.stroke(); }
+      if (a.skill && a.skill.t > 0) { c.strokeStyle = '#c792ff'; c.lineWidth = 2; c.beginPath(); c.arc(px, py, r + 5, 0, Math.PI * 2); c.stroke(); }
+      c.fillStyle = col; c.strokeStyle = '#06121c'; c.lineWidth = 1.5;
+      c.beginPath(); c.arc(px, py, r, 0, Math.PI * 2); c.fill(); c.stroke();
+      if (a.st === 'swim' || a.st === 'lunge' || a.st === 'hold') {
+        var L = r + Math.max(0.7 * S.cam.s, 5);
+        c.strokeStyle = diver ? '#fff3b0' : '#ffd0cc'; c.lineWidth = 2; c.beginPath(); c.moveTo(px, py); c.lineTo(px + Math.cos(a.ang) * L, py - Math.sin(a.ang) * L); c.stroke();
+      }
+      if (a.id === S.human) { c.strokeStyle = '#ffffff'; c.lineWidth = 1; c.beginPath(); c.arc(px, py, r + 8, 0, Math.PI * 2); c.stroke(); }
+      var bw = Math.max(2.2 * S.cam.s, 22);
+      if (diver) {
+        bar(c, px, py - r - 9, bw, a.o2 / a.o2Max, a.o2 / a.o2Max < 0.3 ? '#ff6b5e' : '#4fc3ff');
+        if (a.carry.length) { c.fillStyle = '#ffd24a'; c.font = '9px ui-monospace, monospace'; c.fillText(a.carryKg + 'kg', px + r + 3, py - r); }
+      } else bar(c, px, py - r - 9, bw, a.hp / a.hpMax, '#ff5a4f');
+      if (S.cam.s >= 5) { c.fillStyle = '#e6f2fb'; c.font = '10px ui-monospace, monospace'; c.textAlign = 'center'; c.fillText(a.name + ' ' + a.st, px, py + r + 11); c.textAlign = 'left'; }
+    }
+
+    function drawProjs(c, m) {
+      c.lineWidth = 2; c.strokeStyle = '#fff3b0';
+      m.projs.forEach(function (p) {
+        c.beginPath(); c.moveTo(sx(p.x - p.vx * 0.06), sy(p.y - p.vy * 0.06)); c.lineTo(sx(p.x), sy(p.y)); c.stroke();
+      });
+    }
+
+    function visibleActor(m, team, a) { return a.st !== 'out' && (team === 'all' || a.team === team || sim.canSee(m, team, a)); }
+
+    function drawFog(m, team) {
+      var polys = sim.visionPolys(m, team), vt = VS.TUNING.vision;
+      var dark = team === 'shark' ? vt.sharkDark : (vt.dark[m.theme] != null ? vt.dark[m.theme] : 0.18);
+      fog.setTransform(S.dpr, 0, 0, S.dpr, 0, 0);
+      fog.globalCompositeOperation = 'source-over'; fog.clearRect(0, 0, S.w, S.h);
+      fog.fillStyle = 'rgba(2,6,14,' + (1 - dark).toFixed(3) + ')'; fog.fillRect(0, 0, S.w, S.h);
+      fog.globalCompositeOperation = 'destination-out'; fog.fillStyle = '#000';
+      polys.forEach(function (L) { tracePoly(fog, L.pts); fog.fill(); });
+      fog.globalCompositeOperation = 'source-over';
+      ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(fogCv, 0, 0); ctx.setTransform(S.dpr, 0, 0, S.dpr, 0, 0);
+    }
+
+    function drawRays(c, m, team) {
+      var kinds = { beam: ['rgba(255,225,120,0.16)', 'rgba(255,225,120,0.8)'], glow: ['rgba(120,200,255,0.07)', 'rgba(120,200,255,0.5)'], flare: ['rgba(255,240,150,0.1)', 'rgba(255,240,150,0.7)'], sense: ['rgba(255,90,80,0.07)', 'rgba(255,90,80,0.6)'] };
+      var teams = team === 'all' ? ['diver', 'shark'] : [team], seen = [];
+      teams.forEach(function (t) {
+        sim.visionPolys(m, t).forEach(function (L) {
+          if (seen.indexOf(L) >= 0) return;
+          seen.push(L);
+          var k = kinds[L.kind] || kinds.glow;
+          tracePoly(c, L.pts); c.fillStyle = k[0]; c.fill(); c.strokeStyle = k[1]; c.lineWidth = 1; c.stroke();
+        });
+      });
+    }
+
+    function draw() {
+      var m = S.m, c = ctx, team = S.view;
+      c.setTransform(S.dpr, 0, 0, S.dpr, 0, 0);
+      if (S.follow) {
+        var f = m.actors[S.human >= 0 ? S.human : 0];
+        S.cam.x += (f.x - S.cam.x) * 0.2; S.cam.y += (f.y - S.cam.y) * 0.2;
+      }
+      drawTerrain(c, m);
+      drawStatics(c, m);
+      var all = team === 'all';
+      var known = all ? null : sim.known(m, team);
+      drawLoot(c, m, function (l) { return all || sim.visibleTo(m, team, l.x, l.y); });
+      if (!all) {
+        drawFog(m, team);
+        // kho báu đã từng soi thấy nhưng đang tối: chấm mờ ngoài vùng sáng
+        for (var i = 0; i < known.length; i++) {
+          var l = known[i];
+          if (l.st !== 'rest' || sim.visibleTo(m, team, l.x, l.y)) continue;
+          c.fillStyle = 'rgba(255,210,74,0.55)'; c.strokeStyle = 'rgba(255,210,74,0.9)'; c.lineWidth = 1;
+          c.beginPath(); c.arc(sx(l.x), sy(l.y), Math.max(2.5, 0.4 * S.cam.s), 0, Math.PI * 2); c.fill(); c.stroke();
+        }
+      }
+      if (S.rays || all) drawRays(c, m, team);
+      drawProjs(c, m);
+      m.actors.forEach(function (a) { if (visibleActor(m, team, a)) drawActor(c, m, a); });
+      if (S.human >= 0) {
+        var ha = m.actors[S.human], w = toWorld(S.mouse.x, S.mouse.y);
+        c.strokeStyle = 'rgba(255,255,255,0.7)'; c.lineWidth = 1; c.beginPath(); c.arc(sx(w.x), sy(w.y), 6, 0, Math.PI * 2); c.stroke();
+        c.beginPath(); c.moveTo(sx(ha.x), sy(ha.y)); c.lineTo(sx(w.x), sy(w.y)); c.strokeStyle = 'rgba(255,255,255,0.18)'; c.stroke();
+      }
+    }
+
+    // ---- Bảng chữ ----
+    function esc(s) { return String(s).replace(/[&<>]/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch]; }); }
+    function updateInfo() {
+      var m = S.m, rows = '';
+      $('stat').innerHTML = esc('t ' + m.t.toFixed(1) + 's  ' + m.phase + (m.phase === 'intro' ? ' ' + m.phaseT.toFixed(1) : '') + '  kho ' + m.score.banked + '/' + m.score.target +
+        '  lượt ' + m.tickets + '  ' + S.mapId + ' #' + S.seed + '  x' + S.speed + (S.paused ? '  DỪNG' : ''));
+      rows += '<tr><th>#</th><th>tên</th><th>trạng thái</th><th>O2/máu</th><th>kg</th><th>nộp</th><th>hạ</th><th>loại</th><th>kn</th></tr>';
+      m.actors.forEach(function (a) {
+        var d = a.team === 'diver', def = d ? VS.DIVERS[a.defId] : VS.SHARKS[a.defId];
+        rows += '<tr class="' + (d ? 'd' : 's') + (a.st === 'out' ? ' off' : '') + '"><td>' + a.id + '</td><td>' + esc(a.name + ' ' + (def ? def.name : a.defId)).slice(0, 26) + '</td><td>' + a.st +
+          (a.stT > 0 && (a.st === 'down' || a.st === 'out') ? ' ' + a.stT.toFixed(0) : '') + '</td><td>' + (d ? Math.round(a.o2) + '/' + a.o2Max : Math.round(a.hp) + '/' + a.hpMax) + '</td><td>' + (d ? a.carryKg : '') +
+          '</td><td>' + a.stats.banked + '</td><td>' + a.stats.downs + '</td><td>' + a.stats.outs + '</td><td>' + (a.skill ? a.skill.id.slice(0, 8) + ' ' + (a.skill.cd > 0 ? a.skill.cd.toFixed(0) : 'ok') : '') + '</td></tr>';
+      });
+      $('tbl').innerHTML = rows;
+      $('log').textContent = S.log.slice(-11).join('\n');
+      var res = $('result');
+      if (m.result) { res.style.display = 'block'; res.textContent = (m.result.winner === 'diver' ? 'Thợ lặn thắng' : 'Cá mập thắng') + ' (' + m.result.reason + ')  -  R để ván mới'; } else res.style.display = 'none';
+    }
+
+    // ---- Vòng lặp ----
+    function feedHuman() {
+      var a = S.human >= 0 ? S.m.actors[S.human] : null;
+      if (!a) return;
+      var k = S.keys, it = a.intent, w = toWorld(S.mouse.x, S.mouse.y);
+      it.mx = (k.KeyD || k.ArrowRight ? 1 : 0) - (k.KeyA || k.ArrowLeft ? 1 : 0);
+      it.my = (k.KeyW || k.ArrowUp ? 1 : 0) - (k.KeyS || k.ArrowDown ? 1 : 0);
+      it.boost = !!(k.ShiftLeft || k.ShiftRight);
+      it.aimX = w.x; it.aimY = w.y; it.fireHeld = S.mouse.down;
+    }
+    function stepOnce() {
+      var m = S.m, a = S.human >= 0 ? m.actors[S.human] : null;
+      if (a) { feedHuman(); if (S.pend.fire) a.intent.fire = true; if (S.pend.skill) a.intent.skill = true; if (S.pend.light) a.intent.light = true; }
+      S.pend = {};
+      sim.step(m, DT); drain(m);
+    }
+    var last = 0;
+    function frame(ts) {
+      var dt = Math.min(0.1, (ts - last) / 1000 || 0); last = ts;
+      if (!S.paused) {
+        S.acc += dt * S.speed;
+        var n = 0;
+        while (S.acc >= DT && n < 4000) { stepOnce(); S.acc -= DT; n++; }
+        if (n >= 4000) S.acc = 0;
+      }
+      draw();
+      if (ts - S.infoAt > 150) { S.infoAt = ts; updateInfo(); }
+      requestAnimationFrame(frame);
+    }
+
+    // ---- Điều khiển ----
+    function setView(v) { S.view = v; $('view').value = v; }
+    function setPaused(p) { S.paused = p; $('pause').textContent = p ? 'Chạy' : 'Dừng'; }
+    function setSpeed(v) { S.speed = v; $('speed').value = String(v); }
+    function setFollow(f) { S.follow = f; $('follow').checked = f; fitCamera(); }
+    $('map').addEventListener('change', function () { S.mapId = this.value; newMatch(0); });
+    $('seed').addEventListener('change', function () { S.seed = parseInt(this.value, 10) || 1; newMatch(0); });
+    $('new').addEventListener('click', function () { newMatch(0); });
+    $('next').addEventListener('click', function () { S.seed++; newMatch(0); });
+    $('view').addEventListener('change', function () { setView(this.value); });
+    $('speed').addEventListener('change', function () { setSpeed(parseFloat(this.value)); });
+    $('human').addEventListener('change', function () { S.human = parseInt(this.value, 10); applyHuman(); this.blur(); });
+    $('pause').addEventListener('click', function () { setPaused(!S.paused); });
+    $('step').addEventListener('click', function () { stepOnce(); });
+    $('follow').addEventListener('change', function () { setFollow(this.checked); });
+    $('rays').addEventListener('change', function () { S.rays = this.checked; });
+    var SPEEDS = [0.25, 1, 4, 16, 64];
+    window.addEventListener('keydown', function (e) {
+      var tag = e.target && e.target.tagName;
+      if (tag === 'INPUT' || tag === 'SELECT') return;
+      S.keys[e.code] = true;
+      if (e.code === 'KeyQ') S.pend.skill = true;
+      else if (e.code === 'KeyF') S.pend.light = true;
+      else if (e.code === 'KeyV') setView({ diver: 'shark', shark: 'all', all: 'diver' }[S.view]);
+      else if (e.code === 'KeyP') setPaused(!S.paused);
+      else if (e.code === 'KeyC') setFollow(!S.follow);
+      else if (e.code === 'KeyR') newMatch(0);
+      else if (e.code === 'KeyN') { S.seed++; newMatch(0); }
+      else if (e.code === 'KeyH') document.body.classList.toggle('nohud');
+      else if (e.code === 'Period' && S.paused) stepOnce();
+      else if (e.code === 'BracketLeft') setSpeed(SPEEDS[Math.max(0, SPEEDS.indexOf(S.speed) - 1)] || 1);
+      else if (e.code === 'BracketRight') setSpeed(SPEEDS[Math.min(SPEEDS.length - 1, SPEEDS.indexOf(S.speed) + 1)] || 4);
+      if (/^(Key[WASD]|Arrow|Space|Shift)/.test(e.code)) e.preventDefault();
+    });
+    window.addEventListener('keyup', function (e) { S.keys[e.code] = false; });
+    window.addEventListener('blur', function () { S.keys = {}; S.mouse.down = false; });
+    var drag = null;
+    cv.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+    cv.addEventListener('mousedown', function (e) {
+      if (e.button === 2) { drag = { x: e.clientX, y: e.clientY, cx: S.cam.x, cy: S.cam.y }; return; }
+      S.mouse.down = true; S.pend.fire = true;
+    });
+    window.addEventListener('mouseup', function () { S.mouse.down = false; drag = null; });
+    window.addEventListener('mousemove', function (e) {
+      S.mouse.x = e.clientX; S.mouse.y = e.clientY;
+      if (drag) { S.follow = false; $('follow').checked = false; S.cam.x = drag.cx - (e.clientX - drag.x) / S.cam.s; S.cam.y = drag.cy + (e.clientY - drag.y) / S.cam.s; }
+    });
+    cv.addEventListener('wheel', function (e) {
+      e.preventDefault();
+      var before = toWorld(e.clientX, e.clientY);
+      S.cam.s = Math.max(2, Math.min(80, S.cam.s * Math.pow(1.0015, -e.deltaY)));
+      var after = toWorld(e.clientX, e.clientY);
+      if (!S.follow) { S.cam.x += before.x - after.x; S.cam.y += before.y - after.y; }
+    }, { passive: false });
+    window.addEventListener('resize', resize);
+
+    resize();
+    if (!Z[S.mapId]) S.mapId = VS.MAPS[0].id;
+    newMatch(parseFloat(q.get('run') || '0'));
+    setView(S.view); setSpeed(S.speed); setPaused(S.paused); $('follow').checked = S.follow; $('rays').checked = S.rays;
+    if (S.follow) fitCamera();
+    window.simlab = { S: S, VS: VS, step: stepOnce, draw: draw, newMatch: newMatch };
+    document.documentElement.setAttribute('data-ready', '1');
+    requestAnimationFrame(frame);
+  }
+})();
+</script>
+</body>
+</html>
