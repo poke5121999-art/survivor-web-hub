@@ -1,4 +1,16 @@
 {
+ "Button_White": {
+  "border": [
+   48,
+   17,
+   48,
+   17
+  ],
+  "h": 59,
+  "ppu": 100.0,
+  "use": "UpgradeGridSlidePanel/LightButton (nút 350x50 'Purchase Upgrade')",
+  "w": 192
+ },
  "CargoGrid_Default": {
   "border": [
    0,
@@ -59,6 +71,18 @@
   "use": "GridCell.tackleSprite (ô nhận cần câu)",
   "w": 64
  },
+ "FishmongerInventoryBackground": {
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ],
+  "h": 554,
+  "ppu": 100.0,
+  "use": "QuestGrid/UpgradeGrid/BackgroundImage (nền lưới nộp đồ)",
+  "w": 621
+ },
  "HealthBarPanel": {
   "border": [
    75,
@@ -82,6 +106,18 @@
   "ppu": 100.0,
   "use": "GridCell.fillImage (viền xanh/đỏ/cam khi đặt)",
   "w": 64
+ },
+ "InfectionBubble": {
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ],
+  "h": 126,
+  "ppu": 100.0,
+  "use": "InfectedObjectCell.prefab: hạt bong bóng trên ô cá nhiễm bệnh (118x127)",
+  "w": 117
  },
  "LightEquipmentIcon": {
   "border": [
@@ -227,6 +263,18 @@
   "use": "TabUI.unselectedSprite",
   "w": 64
  },
+ "TitleBackground": {
+  "border": [
+   105,
+   16,
+   105,
+   15
+  ],
+  "h": 120,
+  "ppu": 100.0,
+  "use": "QuestGridSlidePanel/NameBackplate (tấm tên lưới nộp đồ, rộng -240, cao 60)",
+  "w": 384
+ },
  "TrawlEquipmentIcon": {
   "border": [
    0,
@@ -238,6 +286,18 @@
   "ppu": 100.0,
   "use": "GridCell.trawlSprite (ô nhận lưới kéo)",
   "w": 64
+ },
+ "TrophyIcon": {
+  "border": [
+   0,
+   0,
+   0,
+   0
+  ],
+  "h": 47,
+  "ppu": 50.0,
+  "use": "TooltipSectionFishDetails: <sprite name=TrophyIcon> tô #FFD104 trước kích thước cá cúp",
+  "w": 47
  },
  "TypeTag_0": {
   "border": [

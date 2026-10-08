@@ -2,6 +2,8 @@
  * Khung hội thoại dựng theo DialogueView trong Game.unity (DredgeDialogueView.cs, TextOptionButton.cs):
  *   - CharacterPortraitContainer: neo giữa màn; lớp chân dung lấy từ SpeakerData.portraitPrefab (art/portraits/<prefab>/*.webp,
  *     toạ độ AnchoredPosition × LocalScale của từng lớp AddressableSpriteLoader, đơn vị canvas 1920×1080).
+ *     Mỗi lần đổi chân dung là một bản prefab mới và Animator của nó chạy từ khung đầu (DredgeDialogueView.ShowPortrait): cây RectTransform ở
+ *     DR_ANIM.rigs[prefab] (tools/anim.py), clip *Appear chạy bằng DRAnim (js/anim.js); Image.preserveAspect giữ tỉ lệ sprite.
  *   - DialogueTextContainer: neo đáy giữa, 750×190, cách đáy 10; chữ "Front Page Neue" 30,65; lề 30/25.
  *     Có người nói: nền DialogBoxSpeech + bảng tên (CharacterNameContainer 450×60 tại y −330 so với tâm, TitleBackground, chữ 36).
  *     Không người nói: nền DialogBox-White tô đen (thẻ #system-alert: nền trắng chữ đen).
@@ -12,6 +14,7 @@
  *   - continueSFX = submit.wav (ui.button.submit), skipSFX = select.wav (ui.button.select).
  *
  *   DRDialogue.start(node, { onEnd(runner) })   DRDialogue.isOpen()   DRDialogue.next()   DRDialogue.choose(i)   DRDialogue.state()
+ *   DRDialogue.portrait() → {prefab, handle, player} chân dung đang chạy · DRDialogue.debugPortrait(prefab) dựng chân dung theo tên (kiểm thử)
  *   DRStoryGrid.show(questGridName, cb(result))  — lưới nhiệm vụ rút gọn cho lệnh ShowQuestGrid (QuestGridResult 0/1).
  */
 (function (root) {
@@ -114,12 +117,29 @@
   let R = null;        // runner hiện tại
   let st = null;       // trạng thái dòng / lựa chọn
   let lastPrefab = null, lastSpeaker = null, onEnd = null;
+  let portrait = null; // { prefab, handle (rig DRAnim), player } của chân dung đang hiện
 
   function showPortrait(name) {
     const pf = portraitPrefab(name);
     if (!pf || pf === lastPrefab) return;
+    showPrefab(pf);
+  }
+  // DredgeDialogueView.ShowPortrait: mỗi lần đổi chân dung là một bản prefab mới trong CharacterPortraitContainer, Animator của nó chạy từ khung đầu
+  // (clip *Appear: màu Image 0 → 1, lớp người trượt vào theo m_AnchoredPosition). Có rig trong data/animlib.js thì dựng cây RectTransform và chạy
+  // Animator; không có thì xếp các lớp phẳng của data/yarn.js như trước.
+  function showPrefab(pf) {
     lastPrefab = pf;
+    stopPortrait();
     U.port.innerHTML = '';
+    const A = root.DRAnim;
+    if (A && A.hasRig(pf)) {
+      const wrap = el('div', 'dlg-pf rig', U.port);
+      wrap.dataset.prefab = pf;
+      // toạ độ lớp tính bằng đơn vị canvas 1080p; cả khối co theo --s (css/story.css .dlg-pf.rig). Bóng đổ cũ giữ nguyên, tính theo đơn vị canvas.
+      const handle = A.rig(pf, wrap, { shadow: 'drop-shadow(0 8px 18px rgba(0, 0, 0, .55))' });
+      portrait = { prefab: pf, handle, player: A.bind(handle, handle.ctrl, {}) };
+      return;
+    }
     const layers = (Y.portraits || {})[pf] || [];
     const wrap = el('div', 'dlg-pf', U.port);
     wrap.dataset.prefab = pf;
@@ -127,10 +147,11 @@
       const im = el('img', '', wrap);
       im.src = L.src; im.alt = '';
       // AnchoredPosition: y hướng lên, quanh tâm container
-      im.style.cssText = 'left:calc(' + (L.x - L.w / 2) + 'px*var(--s));top:calc(' + (-L.y - L.h / 2) + 'px*var(--s));width:calc(' + L.w + 'px*var(--s));height:calc(' + L.h + 'px*var(--s))';
+      im.style.cssText = 'left:calc(' + (L.x - L.w / 2) + 'px*var(--s));top:calc(' + (-L.y - L.h / 2) + 'px*var(--s));width:calc(' + L.w + 'px*var(--s));height:calc(' + L.h + 'px*var(--s));object-fit:contain';
     }
   }
-  function hidePortrait() { U.port.innerHTML = ''; lastPrefab = null; }
+  function stopPortrait() { if (portrait) { portrait.handle.destroy(); portrait = null; } }
+  function hidePortrait() { stopPortrait(); U.port.innerHTML = ''; lastPrefab = null; }
 
   const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   // Markup.Parse: [C0..C3] màu, [S1..S3] rung chữ (TextAnimator <shake a=0.1/0.2/0.3>) — tách thành từng ký tự để chạy máy chữ
@@ -317,8 +338,10 @@
     ensure();
     onEnd = (opts && opts.onEnd) || null;
     root.DR.emit('dialogue', true, node);
-    R = root.DRYarn.run(node, view);
-    return R;
+    // node không có lời nào kết thúc ngay trong run(): view.end đã đặt R = null, đừng gán lại runner đã chết
+    const r = root.DRYarn.run(node, view);
+    if (r && r.state !== 'Ended') R = r;
+    return r;
   }
 
   function state() {
@@ -420,6 +443,10 @@
   }
   SG.show = sgShow;
 
-  root.DRDialogue = { start, isOpen: () => !!R, next, choose, state, layout, speakerName, portraitPrefab };
+  // Móc kiểm thử (test/dredge-anim.js): portrait() = chân dung đang chạy {prefab, handle, player}; debugPortrait(prefab) dựng chân dung theo tên prefab
+  // mà không cần người nói (để ghép ảnh với ảnh gốc).
+  function debugPortrait(pf) { ensure(); showPrefab(pf); return { prefab: pf, rig: !!portrait }; }
+
+  root.DRDialogue = { start, isOpen: () => !!R, next, choose, state, layout, speakerName, portraitPrefab, portrait: () => portrait, debugPortrait };
   root.DRStoryGrid = SG;
 })(window);

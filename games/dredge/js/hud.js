@@ -25,6 +25,9 @@
   // Mốc kho theo HarvestMinigameView: >=5 nhiều, >=3 vừa, >0 ít, 0 hết.
   const bucket = s => s >= 5 ? 3 : s >= 3 ? 2 : s > 0 ? 1 : 0;
   const BUCKET_TXT = ['Hết cá', 'Cá còn ít', 'Cá vừa phải', 'Cá dồi dào'];
+  // HarvestPOI prompt: 'prompt.fish' = "Fish", 'prompt.dredge' = "Dredge" (data/strings.js)
+  const PROMPT_VI = { 'prompt.fish': 'Câu cá', 'prompt.dredge': 'Nạo vét' };
+  const str = k => (root.DR_STR && DR_STR[k]) || k;
   const pad2 = n => (n < 10 ? '0' : '') + n;
 
   let el = null;
@@ -207,20 +210,19 @@
       u.hull.title = 'Thân tàu: ' + bad + '/' + total + ' ô hỏng';
     });
 
-    // Gợi ý tương tác: bến ưu tiên hơn điểm câu; đang câu thì ẩn.
+    // Gợi ý tương tác: điểm câu hợp lệ thắng bến (main.js cũng xử lý Space theo thứ tự này), rồi bến, rồi điểm câu không hợp lệ;
+    // đang câu thì ẩn. Chữ theo loại điểm: 'prompt.fish' (câu cá) / 'prompt.dredge' (nạo vét), giữ chuỗi gốc ở data-orig.
     let html = '', warn = false;
     if (DR.mode === 'sail') {
-      if (v.nearDock) html = '<b>Cập bến — Space</b><span>' + esc(v.nearDock.name) + '</span>';
-      else if (v.nearSpot) {
-        const sp = v.nearSpot, ok = !sp.status || sp.status === 'ok';
-        if (ok) {
-          const b = bucket(sp.stock);
-          html = '<b>Câu cá — Space</b><span>' + esc(sp.name || '') + (sp.name ? ' · ' : '') + BUCKET_TXT[b] +
-            '<span class="hud-stock">' + [1, 2, 3].map(i => '<i class="' + (i <= b ? 'f' : '') + '"></i>').join('') + '</span></span>';
-        } else {
-          warn = true;
-          html = '<b>' + (MSG[sp.status] || sp.status) + '</b><span>' + esc(sp.name || '') + '</span>';
-        }
+      const sp = v.nearSpot, ok = sp && (!sp.status || sp.status === 'ok');
+      if (sp && ok) {
+        const b = bucket(sp.stock), key = sp.kind === 'dredge' ? 'prompt.dredge' : 'prompt.fish';
+        html = '<b data-orig="' + esc(str(key)) + '">' + PROMPT_VI[key] + ' — Space</b><span>' + esc(sp.name || '') + (sp.name ? ' · ' : '') + BUCKET_TXT[b] +
+          '<span class="hud-stock">' + [1, 2, 3].map(i => '<i class="' + (i <= b ? 'f' : '') + '"></i>').join('') + '</span></span>';
+      } else if (v.nearDock) html = '<b data-orig="' + esc(str('prompt.dock')) + '">Cập bến — Space</b><span>' + esc(v.nearDock.name) + '</span>';
+      else if (sp) {
+        warn = true;
+        html = '<b>' + (MSG[sp.status] || sp.status) + '</b><span>' + esc(sp.name || '') + '</span>';
       }
     }
     put('prompt', html + warn, () => { u.prompt.innerHTML = html || '<b></b><span></span>'; u.prompt.classList.toggle('on', !!html); u.prompt.classList.toggle('warn', warn); });

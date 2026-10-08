@@ -1,0 +1,100 @@
+/*
+ * Màn "Upgrades" của ụ tàu (js/upgrade.js). Số đo là đơn vị canvas 1920x1080 (CanvasScaler khớp theo chiều cao) nhân --s,
+ * lấy từ cây UpgradeWindow trong data/upgrade_ui.js (tools/upgrade_ui.py). Sprite ở art/ui/upgrade (cỡ gốc).
+ * Sprite Sliced co theo ppu/100: viền 119 px ở ppu 200 = 59,5 đơn vị canvas (js/upgrade.js đặt --bi từng phần tử).
+ * Tiền tố up-. Phông "Front Page Neue" do css/story.css khai báo.
+ */
+#dr-upg { position: fixed; inset: 0; z-index: 56; display: none; --s: 1; --kt: 1; opacity: 0; transition: opacity .35s linear;
+  font-family: "Front Page Neue", "Signika", sans-serif; color: #fff; -webkit-font-smoothing: antialiased; user-select: none; -webkit-user-select: none; touch-action: none; }
+#dr-upg.on { display: block; }
+#dr-upg.show { opacity: 1; }
+#dr-upg * { box-sizing: border-box; }
+
+/* cây RectTransform: mỗi GameObject là một .up-n đặt tuyệt đối theo neo/pivot (js/upgrade.js: cssRect) */
+.up-n { position: absolute; }
+.up-bg { position: absolute; inset: 0; pointer-events: none; }
+.up-scrim { position: absolute; inset: 0; }
+.up-bg.sl { border-style: solid; border-color: transparent; }
+.up-bg.sl::before { content: none; }
+.up-bg.sl { border-image: var(--bi); border-width: var(--bw); }
+/* Image.color là phép NHÂN với sprite: nền = màu, lớp ::before nhân ảnh lên (sprite nút không có alpha) */
+.up-bg.mul { isolation: isolate; background-color: var(--c, #fff); border: 0; border-image: none; }
+.up-bg.mul::before { content: ""; position: absolute; inset: 0; mix-blend-mode: multiply; border-style: solid; border-color: transparent; border-image: var(--bi); border-width: var(--bw); }
+.up-bg.mulm { isolation: isolate; background-color: var(--c, #fff); -webkit-mask: var(--sp) center / 100% 100% no-repeat; mask: var(--sp) center / 100% 100% no-repeat; }
+.up-bg.mulm::before { content: ""; position: absolute; inset: 0; mix-blend-mode: multiply; background: var(--sp) center / 100% 100% no-repeat; }
+.up-bg.si { background: var(--sp) center / 100% 100% no-repeat; }
+.up-bg.pa { background-size: contain; }
+.up-bg.solid { background-color: var(--c, #fff); }
+
+/* chữ TMP: .up-t là khung chữ, .up-tx đặt theo đường cơ sở (js/upgrade.js: placeText) */
+.up-t { pointer-events: none; white-space: nowrap; }
+.up-tx { position: absolute; left: 0; right: 0; line-height: 1; white-space: nowrap; }
+.up-tx i { font-style: normal; display: inline-block; }
+
+/* nút nâng cấp */
+.up-n.np { pointer-events: none; }
+.up-nd { cursor: default; }
+.up-nd[data-state="neutral"] { cursor: pointer; }
+.up-nd[data-state="neutral"]:hover .up-bg.mul { filter: brightness(.96); }
+.up-nd.sel .up-bg.mul { filter: brightness(.96); }
+
+/* nhắc phím "Back" (PopupWindow.backAction, ControlArea góc dưới phải) */
+.up-back { position: absolute; right: calc(var(--s) * 10px); bottom: calc(var(--s) * 14px); display: flex; align-items: center; gap: calc(var(--s) * 12px);
+  padding: 0; background: none; border: 0; color: #fff; cursor: pointer; font: inherit; font-size: calc(var(--s) * 36px); line-height: 1; text-shadow: 0 0 calc(var(--s) * 6px) #000; }
+.up-back b { display: inline-flex; align-items: center; justify-content: center; width: calc(var(--s) * 38px); height: calc(var(--s) * 38px); border-radius: calc(var(--s) * 9px);
+  background: #fff; color: #000; font-weight: 400; font-size: calc(var(--s) * 30px); }
+.up-back:hover b, .up-back:focus-visible b { background: #ffd104; }
+.up-back:focus-visible { outline: 0; }
+
+/* CoverScrim (UpgradeWindow.ShowCoverScrim: DOFade 0 → 1 trong 0,35 giây, chặn chuột khi hiện) */
+.up-n.up-cover { opacity: 0; pointer-events: none; transition: opacity .35s linear; }
+#dr-upg.cover .up-n.up-cover { opacity: 1; pointer-events: auto; }
+/* TriggerTopUIToggleRequest(false): ẩn nút sổ nhiệm vụ của HUD khi cửa sổ mở (toast vẫn hiện) */
+body.up-open .qn-jbtn { visibility: hidden !important; }
+
+/* ---- tooltip và thẻ chi tiết: TooltipUI (Container 330 rộng, đệm 15/15/3/15, cách 2) ---- */
+.up-tip, .up-card { position: fixed; left: 0; top: 0; width: calc(var(--kt) * 330px); padding: calc(var(--kt) * 3px) calc(var(--kt) * 15px) calc(var(--kt) * 15px);
+  color: #fff; isolation: isolate; font-family: inherit; }
+.up-tip { z-index: 5; pointer-events: none; opacity: 0; transition: opacity .35s; }
+.up-tip.on { opacity: 1; }
+.up-card { z-index: 6; display: none; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: auto; width: calc(var(--kc) * 330px); padding: calc(var(--kc) * 3px) calc(var(--kc) * 15px) calc(var(--kc) * 15px); }
+#dr-upg.cover .up-card { display: block; }
+.up-tip::before, .up-card::before { content: ""; position: absolute; inset: 0; z-index: -1; border-style: solid; border-color: transparent; }
+.up-tip::before { border-width: calc(var(--kt) * 32px); border-image: var(--pbi) / calc(var(--kt) * 32px) stretch; }
+.up-card::before { border-width: calc(var(--kc) * 32px); border-image: var(--pbi) / calc(var(--kc) * 32px) stretch; }
+.up-tip .hd, .up-card .hd { position: relative; display: flex; align-items: center; gap: calc(var(--k) * 8px); min-height: calc(var(--k) * 50px); padding-bottom: calc(var(--k) * 8px); }
+.up-tip .hd .ic, .up-card .hd .ic { width: calc(var(--k) * 40px); height: calc(var(--k) * 40px); flex: none; object-fit: contain; }
+.up-tip .hd .nm, .up-card .hd .nm { flex: 1; font-size: calc(var(--k) * 30px); line-height: 1.05; }
+.up-tip .hd .ln, .up-card .hd .ln { position: absolute; left: calc(var(--k) * -14px); right: calc(var(--k) * -14px); bottom: calc(var(--k) * 3px); height: 2px; background: #d7bfad; }
+.up-tip .ds, .up-card .ds { margin: calc(var(--k) * 4px) 0 0; text-align: center; font-size: calc(var(--k) * 24px); line-height: 1.2; white-space: pre-line; color: #fff; }
+.up-tip .cost, .up-card .cost { margin-top: calc(var(--k) * 4px); text-align: center; }
+.up-tip .cost .lb, .up-card .cost .lb { font-size: calc(var(--k) * 24px); line-height: calc(var(--k) * 30px); }
+.up-tip .cost .mv, .up-card .cost .mv { font-size: calc(var(--k) * 28.8px); line-height: calc(var(--k) * 30px); }
+.up-tip .cost .ci, .up-card .cost .ci { display: flex; justify-content: center; flex-wrap: wrap; gap: 0 calc(var(--k) * 5px); padding: calc(var(--k) * 5px) 0; }
+.up-tip .cost .c, .up-card .cost .c { position: relative; display: flex; align-items: center; justify-content: space-between; width: calc(var(--k) * 70px); height: calc(var(--k) * 35px); }
+.up-tip .cost .c .im, .up-card .cost .c .im { flex: none; width: calc(var(--k) * 35px); height: calc(var(--k) * 35px); background: var(--c, #fff);
+  -webkit-mask: var(--sp) left center / contain no-repeat; mask: var(--sp) left center / contain no-repeat; }
+.up-tip .cost .c b, .up-card .cost .c b { flex: 1; text-align: center; font-weight: 400; font-size: calc(var(--k) * 24px); line-height: 1; white-space: nowrap; color: var(--c, #fff); }
+.up-tip .prompts, .up-card .prompts { margin-top: calc(var(--k) * 8px); display: flex; justify-content: flex-end; gap: calc(var(--k) * 14px); }
+.up-tip .pr, .up-card .pr { display: flex; align-items: center; gap: calc(var(--k) * 8px); font-size: calc(var(--k) * 24px); line-height: 1; }
+.up-tip .pr b, .up-card .pr b { font-weight: 400; padding: calc(var(--k) * 4px) calc(var(--k) * 9px); border: 1px solid #d7bfad; border-radius: 3px; background: rgba(255, 255, 255, .1); font-size: calc(var(--k) * 20px); }
+.up-tip { --k: var(--kt); }
+.up-card { --k: var(--kc); }
+
+/* ---- thẻ chi tiết (tạm thay bảng "Materials Required" của UpgradeGridPanel, vòng 2) ---- */
+.up-card .title { margin: calc(var(--k) * 4px) 0 calc(var(--k) * 6px); text-align: center; font-size: calc(var(--k) * 26px); line-height: 1.1; color: #d7bfad; }
+.up-card .btns { display: flex; flex-direction: column; align-items: stretch; gap: calc(var(--k) * 8px); margin-top: calc(var(--k) * 8px); }
+.up-btn { appearance: none; position: relative; min-height: calc(var(--k) * 50px); padding: calc(var(--k) * 6px) calc(var(--k) * 18px); border: 0; background: none; cursor: pointer; isolation: isolate;
+  font: inherit; font-size: calc(var(--k) * 25px); line-height: 1.1; color: #1b1410; text-align: center; }
+.up-btn::before { content: ""; position: absolute; inset: 0; z-index: -1; border-style: solid; border-color: transparent; border-image: url(../art/ui/sprites/Button_White.webp) 18 48 18 48 fill / calc(var(--k) * 17px) calc(var(--k) * 48px); border-width: calc(var(--k) * 17px) calc(var(--k) * 48px); }
+.up-btn:hover::before, .up-btn:focus-visible::before { filter: brightness(.92); }
+.up-btn:focus-visible { outline: 0; }
+.up-btn[disabled] { cursor: not-allowed; }
+.up-btn[disabled]::before { filter: brightness(.45); }
+.up-btn[disabled] { color: #3a3a3a; }
+.up-btn.dark::before { filter: brightness(.13) sepia(.4); }
+.up-btn.dark { color: #fff; }
+.up-btn.dark:hover::before { filter: none; }
+.up-btn.dark:hover { color: #1b1410; }
+.up-btn .short { color: #dc2c38; }
+.up-card .note { margin: calc(var(--k) * 6px) 0 0; text-align: center; font-size: calc(var(--k) * 22px); line-height: 1.2; color: #d7bfad; }

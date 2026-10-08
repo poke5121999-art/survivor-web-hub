@@ -1,0 +1,19 @@
+/* Banner thông báo (BannerUI). Bố cục do js/banner.js dựng từ cây RectTransform trong art/ui/banner/banner_ui.js.
+   Mọi kích thước là đơn vị canvas 1920x1080 nhân với --u (BannerCanvas: CanvasScaler ScaleWithScreenSize, khớp theo chiều cao). */
+@font-face { font-family: "FrontPageNeue"; src: url(../art/ui/minigame/fonts/FrontPageNeue.woff2) format("woff2"); font-display: swap; }
+
+#dr-banner { position: fixed; inset: 0; z-index: 70; pointer-events: none; display: none; --u: 1px; color: #fff; -webkit-font-smoothing: antialiased; user-select: none; }
+#dr-banner.on { display: block; }
+#dr-banner, #dr-banner * { box-sizing: border-box; }
+#dr-banner .bn-n { position: absolute; }
+#dr-banner .bn-n.off { display: none !important; }
+#dr-banner .bn-i { background: 0 0 / 100% 100% no-repeat; }
+#dr-banner .bn-i.pa { background-size: contain; background-position: center; }
+#dr-banner .bn-i.sl { background: none; }
+#dr-banner .bn-i.sl::before { content: ""; position: absolute; inset: 0; pointer-events: none; border-style: solid; border-color: transparent; border-width: var(--bw);
+  border-image-source: var(--bsrc); border-image-slice: var(--bslice) fill; border-image-width: var(--bw); border-image-repeat: stretch; }
+#dr-banner .bn-t { display: flex; align-items: center; line-height: 1.02; text-shadow: 0 1px 2px rgba(0, 0, 0, .45); white-space: nowrap; }
+#dr-banner .bn-t > span { display: block; max-width: 100%; }
+/* thẻ <sprite name="TrophyIcon" tint=1> trong chữ phụ: hình cúp nhuộm màu <color=#FFD104> */
+#dr-banner .bn-ico { display: inline-block; width: 1em; height: 1em; margin-right: .15em; vertical-align: -0.12em; background: var(--c);
+  -webkit-mask: var(--k) center / contain no-repeat; mask: var(--k) center / contain no-repeat; }

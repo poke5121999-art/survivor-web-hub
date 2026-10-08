@@ -44,6 +44,10 @@ window.DR_BOAT = {
     "Light1/Light1Container/Beam1",
     "Light1/Light1Container/Beam2"
    ],
+   "lightContainers": [
+    "Light0/Light0Container",
+    "Light1/Light1Container"
+   ],
    "attach": {
     "DeployPosition": {
      "node": "DeployPosition",
@@ -228,6 +232,10 @@ window.DR_BOAT = {
    "lightBeams": [
     "Light1/Light1Container/Beam1",
     "Light1/Light1Container/Beam2"
+   ],
+   "lightContainers": [
+    "Light0/Light0Container",
+    "Light1/Light1Container"
    ],
    "attach": {
     "DeployPosition": {
@@ -415,6 +423,11 @@ window.DR_BOAT = {
     "Light1/Light1Container/Beam2",
     "Light2/Light2Container/Beam1",
     "Light2/Light2Container/Beam2"
+   ],
+   "lightContainers": [
+    "Light0/Light0Container",
+    "Light1/Light1Container",
+    "Light2/Light2Container"
    ],
    "attach": {
     "DeployPosition": {
@@ -639,6 +652,11 @@ window.DR_BOAT = {
     "Light2/Light2Container/Beam1",
     "Light2/Light2Container/Beam2"
    ],
+   "lightContainers": [
+    "Light0/Light0Container",
+    "Light1/Light1Container",
+    "Light2/Light2Container"
+   ],
    "attach": {
     "DeployPosition": {
      "node": "DeployPosition",
@@ -861,6 +879,11 @@ window.DR_BOAT = {
     "Light1/Light1Container/Beam2",
     "Light2/Light2Container/Beam1",
     "Light2/Light2Container/Beam2"
+   ],
+   "lightContainers": [
+    "Light0/Light0Container",
+    "Light1/Light1Container",
+    "Light2/Light2Container"
    ],
    "attach": {
     "DeployPosition": {
@@ -2392,6 +2415,24 @@ window.DR_BOAT = {
   ]
  },
  "playerAttach": {
+  "BuoyancyEffector2": {
+   "pos": [
+    0.45,
+    0.07,
+    -1.0
+   ],
+   "quat": [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ],
+   "forward": [
+    0.0,
+    0.0,
+    -1.0
+   ]
+  },
   "BoatTrailParticles": {
    "pos": [
     0.0,
@@ -2415,42 +2456,6 @@ window.DR_BOAT = {
     0.0,
     0.3,
     0.0
-   ],
-   "quat": [
-    0.0,
-    0.0,
-    0.0,
-    1.0
-   ],
-   "forward": [
-    0.0,
-    0.0,
-    -1.0
-   ]
-  },
-  "BuoyancyEffector3": {
-   "pos": [
-    0.45,
-    0.07,
-    0.75
-   ],
-   "quat": [
-    0.0,
-    0.0,
-    0.0,
-    1.0
-   ],
-   "forward": [
-    0.0,
-    0.0,
-    -1.0
-   ]
-  },
-  "BuoyancyEffector2": {
-   "pos": [
-    0.45,
-    0.07,
-    -1.0
    ],
    "quat": [
     0.0,
@@ -2505,6 +2510,24 @@ window.DR_BOAT = {
     -0.45,
     0.07,
     -1.0
+   ],
+   "quat": [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ],
+   "forward": [
+    0.0,
+    0.0,
+    -1.0
+   ]
+  },
+  "BuoyancyEffector3": {
+   "pos": [
+    0.45,
+    0.07,
+    0.75
    ],
    "quat": [
     0.0,
@@ -3306,6 +3329,18 @@ window.DR_BOAT = {
      "m_Bits": 256
     }
    },
+   "TeleportAbility": {
+    "swapItemSFXAssetReference": {
+     "m_AssetGUID": "",
+     "m_SubObjectName": "",
+     "m_SubObjectType": ""
+    },
+    "Locked": 0,
+    "preHoldTimeSec": 1.0,
+    "holdTimeSec": 0.5,
+    "sanityChange": -0.4,
+    "achievementDistance": 350.0
+   },
    "LightAbility": {
     "swapItemSFXAssetReference": {
      "m_AssetGUID": "",
@@ -3399,6 +3434,22 @@ window.DR_BOAT = {
     },
     "Locked": 0
    },
+   "BanishAbility": {
+    "swapItemSFXAssetReference": {
+     "m_AssetGUID": "",
+     "m_SubObjectName": "",
+     "m_SubObjectType": ""
+    },
+    "Locked": 0,
+    "animationEndDuration": 1.0,
+    "sanityLossOnActivate": -0.25,
+    "endSFX": {
+     "m_AssetGUID": "70aa67edcfd6cbb44b900ece70bd5484",
+     "m_SubObjectName": "",
+     "m_SubObjectType": ""
+    },
+    "endSFXVolume": 1.0
+   },
    "BaitAbility": {
     "swapItemSFXAssetReference": {
      "m_AssetGUID": "99a846b2939e13149ba4430721690747",
@@ -3406,6 +3457,5890 @@ window.DR_BOAT = {
      "m_SubObjectType": ""
     },
     "Locked": 0
+   },
+   "AtrophyAbility": {
+    "swapItemSFXAssetReference": {
+     "m_AssetGUID": "",
+     "m_SubObjectName": "",
+     "m_SubObjectType": ""
+    },
+    "Locked": 0,
+    "radius": 50.0,
+    "achievementDistance": 40.0,
+    "hitLayerMask": {
+     "m_Bits": 256
+    },
+    "sanityLossOnActivate": -0.25,
+    "loopAudioMaxVolume": 1.0,
+    "loopAudioFadeDuration": 0.5
+   },
+   "CameraAbility": {
+    "swapItemSFXAssetReference": {
+     "m_AssetGUID": "",
+     "m_SubObjectName": "",
+     "m_SubObjectType": ""
+    },
+    "Locked": 0,
+    "panSensitivity": 5.0,
+    "rollSensitivity": 15.0,
+    "minRoll": -45.0,
+    "maxRoll": 45.0,
+    "zoomSensitivity": 10.0,
+    "minZoom": 20.0,
+    "maxZoom": 60.0,
+    "floorHeight": 1.5,
+    "confinementRadius": 25.0
+   },
+   "PlayerTeleport": {
+    "preHoldTimeSec": 1.0,
+    "holdTimeSec": 0.5,
+    "castSFX": {
+     "m_AssetGUID": "09ead1cefc4a5cf418cba15cf2eb95d3",
+     "m_SubObjectName": "",
+     "m_SubObjectType": ""
+    }
+   }
+  },
+  "abilityAudio": {
+   "BoostAbility": {
+    "fields": {
+     "swapItemSFXAssetReference": "click-back",
+     "explosionClips": [
+      "Haste - Engine Explosion"
+     ]
+    },
+    "sources": [
+     {
+      "node": "CrackleSFX",
+      "clip": "Haste - Overheat Loop",
+      "volume": 0.0,
+      "pitch": 1.0,
+      "loop": true,
+      "minDistance": 3.0,
+      "maxDistance": 30.0,
+      "rolloffMode": 0
+     },
+     {
+      "node": "MainSFX",
+      "clip": "Haste - Loop",
+      "volume": 1.0,
+      "pitch": 1.0,
+      "loop": true,
+      "minDistance": 3.0,
+      "maxDistance": 30.0,
+      "rolloffMode": 0
+     }
+    ]
+   },
+   "SpyglassAbility": {
+    "fields": {},
+    "sources": []
+   },
+   "FoghornAbility": {
+    "fields": {
+     "foghornEndClip": "foghorn-end",
+     "advancedFoghornAssetRef": "Advanced Foghorn Ability",
+     "advancedFoghornPingAssetRef": "Advanced Foghorn Ping"
+    },
+    "sources": [
+     {
+      "node": "FoghornAbility",
+      "clip": "foghorn-end",
+      "volume": 0.5,
+      "pitch": 1.0,
+      "loop": false,
+      "minDistance": 3.0,
+      "maxDistance": 10.0,
+      "rolloffMode": 0
+     },
+     {
+      "node": "FoghornAbility",
+      "clip": "foghorn-loop",
+      "volume": 0.5,
+      "pitch": 1.0,
+      "loop": true,
+      "minDistance": 3.0,
+      "maxDistance": 10.0,
+      "rolloffMode": 0
+     }
+    ]
+   },
+   "TeleportAbility": {
+    "fields": {},
+    "sources": []
+   },
+   "LightAbility": {
+    "fields": {},
+    "sources": []
+   },
+   "TrawlNetAbility": {
+    "fields": {
+     "endSFX": "Trawl Net - Retract",
+     "breakSFX": "Trawl Net - Net Broken",
+     "catchSFX": "Trawl Net - Fish Caught",
+     "deploySFX": "Trawl Net - Deploy",
+     "retractSFX": "Trawl Net - Retract",
+     "oozeEndSFX": "Ooze Vacuum Retract",
+     "oozeBreakSFX": "Ooze Vacuum Retract",
+     "oozeDeploySFX": "Ooze Vacuum Activate",
+     "oozeRetractSFX": "Ooze Vacuum Retract",
+     "materialNetBreakSFX": "Material Net Retract",
+     "materialNetCatchSFX": "Trawl Net - Fish Caught",
+     "materialNetDeploySFX": "Material Net Deploy",
+     "materialNetRetractSFX": "Material Net Retract"
+    },
+    "sources": [
+     {
+      "node": "TrawlNetAbility",
+      "clip": "Ooze Vacuum Passive Loop",
+      "volume": 0.0,
+      "pitch": 1.0,
+      "loop": true,
+      "minDistance": 1.0,
+      "maxDistance": 30.0,
+      "rolloffMode": 1
+     },
+     {
+      "node": "TrawlNetAbility",
+      "clip": "Ooze Vacuum Active Loop",
+      "volume": 0.0,
+      "pitch": 1.0,
+      "loop": true,
+      "minDistance": 1.0,
+      "maxDistance": 30.0,
+      "rolloffMode": 1
+     }
+    ]
+   },
+   "DeployPotAbility": {
+    "fields": {
+     "swapItemSFXAssetReference": "click-back"
+    },
+    "sources": []
+   },
+   "BanishAbility": {
+    "fields": {
+     "endSFX": "Banish - Snuff Only"
+    },
+    "sources": [
+     {
+      "node": "BanishLoopSFX",
+      "clip": "Banish - No Snuff",
+      "volume": 1.0,
+      "pitch": 1.0,
+      "loop": false,
+      "minDistance": 1.0,
+      "maxDistance": 500.0,
+      "rolloffMode": 0
+     }
+    ]
+   },
+   "BaitAbility": {
+    "fields": {
+     "swapItemSFXAssetReference": "click-back"
+    },
+    "sources": []
+   },
+   "AtrophyAbility": {
+    "fields": {},
+    "sources": [
+     {
+      "node": "AtrophyLoopSFX",
+      "clip": "Atrophy - Loop",
+      "volume": 1.0,
+      "pitch": 1.0,
+      "loop": true,
+      "minDistance": 1.0,
+      "maxDistance": 500.0,
+      "rolloffMode": 0
+     }
+    ]
+   },
+   "CameraAbility": {
+    "fields": {
+     "activateClip": "Camera Ability - Open_1",
+     "deactivateClip": "Camera Ability - Close_1",
+     "takePhotoClips": [
+      "Camera Ability - Capture 1_1",
+      "Camera Ability - Capture 2_1",
+      "Camera Ability - Capture 3_1"
+     ]
+    },
+    "sources": [
+     {
+      "node": "CameraAbility",
+      "clip": null,
+      "volume": 1.0,
+      "pitch": 1.0,
+      "loop": false,
+      "minDistance": 1.0,
+      "maxDistance": 500.0,
+      "rolloffMode": 0
+     }
+    ]
+   }
+  },
+  "spyglassCam": {
+   "lens": {
+    "FieldOfView": 15.0,
+    "OrthographicSize": 10.0,
+    "NearClipPlane": 1.5,
+    "FarClipPlane": 5000.0,
+    "Dutch": 0.0,
+    "LensShift": {
+     "x": 0.0,
+     "y": 0.0
+    }
+   },
+   "priority": 11,
+   "sensitivity": {
+    "baseSensitivityX": 4.0,
+    "baseSensitivityY": 2.0
+   },
+   "pose": {
+    "pos": [
+     0.0,
+     3.0,
+     -0.3
+    ],
+    "quat": [
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ],
+    "forward": [
+     0.0,
+     0.0,
+     -1.0
+    ]
+   },
+   "CinemachinePOV": {
+    "m_RecenterTarget": 0,
+    "m_VerticalAxis": {
+     "Value": 0.0,
+     "m_SpeedMode": 1,
+     "m_MaxSpeed": 1.0,
+     "m_AccelTime": 0.1,
+     "m_DecelTime": 0.1,
+     "m_InputAxisName": "Mouse Y",
+     "m_InputAxisValue": 0.0,
+     "m_InvertInput": 1,
+     "m_MinValue": -10.0,
+     "m_MaxValue": 10.0,
+     "m_Wrap": 0,
+     "m_Recentering": {
+      "m_enabled": 0,
+      "m_WaitTime": 1.0,
+      "m_RecenteringTime": 2.0,
+      "m_LegacyHeadingDefinition": -1,
+      "m_LegacyVelocityFilterStrength": -1
+     }
+    },
+    "m_VerticalRecentering": {
+     "m_enabled": 0,
+     "m_WaitTime": 1.0,
+     "m_RecenteringTime": 2.0,
+     "m_LegacyHeadingDefinition": -1,
+     "m_LegacyVelocityFilterStrength": -1
+    },
+    "m_HorizontalAxis": {
+     "Value": 0.0,
+     "m_SpeedMode": 1,
+     "m_MaxSpeed": 2.0,
+     "m_AccelTime": 0.1,
+     "m_DecelTime": 0.1,
+     "m_InputAxisName": "Mouse X",
+     "m_InputAxisValue": 0.0,
+     "m_InvertInput": 0,
+     "m_MinValue": -180.0,
+     "m_MaxValue": 180.0,
+     "m_Wrap": 1,
+     "m_Recentering": {
+      "m_enabled": 0,
+      "m_WaitTime": 1.0,
+      "m_RecenteringTime": 2.0,
+      "m_LegacyHeadingDefinition": -1,
+      "m_LegacyVelocityFilterStrength": -1
+     }
+    },
+    "m_HorizontalRecentering": {
+     "m_enabled": 0,
+     "m_WaitTime": 1.0,
+     "m_RecenteringTime": 2.0,
+     "m_LegacyHeadingDefinition": -1,
+     "m_LegacyVelocityFilterStrength": -1
+    },
+    "m_ApplyBeforeBody": 0
+   },
+   "CinemachineTransposer": {
+    "m_BindingMode": 1,
+    "m_FollowOffset": {
+     "x": 0.0,
+     "y": 3.0,
+     "z": 0.0
+    },
+    "m_XDamping": 1.0,
+    "m_YDamping": 1.0,
+    "m_ZDamping": 1.0,
+    "m_AngularDampingMode": 0,
+    "m_PitchDamping": 0.0,
+    "m_YawDamping": 0.0,
+    "m_RollDamping": 0.0,
+    "m_AngularDamping": 0.0
+   }
+  }
+ },
+ "abilityUI": {
+  "rects": {
+   "ActiveAbility": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     0.0,
+     0.0
+    ],
+    "pos": [
+     10.0,
+     20.0
+    ],
+    "size": [
+     0.0,
+     0.0
+    ],
+    "pivot": [
+     0.0,
+     0.0
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "scripts": [
+     "AbilityBarUI"
+    ],
+    "fields": {
+     "AbilityBarUI": {
+      "refreshDelaySec": 0.2
+     }
+    }
+   },
+   "ActiveAbility/Container": {
+    "active": true,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     100.0,
+     100.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0
+   },
+   "ActiveAbility/Container/HasteInfoPanel": {
+    "active": true,
+    "aMin": [
+     0.5,
+     0.0
+    ],
+    "aMax": [
+     0.5,
+     0.0
+    ],
+    "pos": [
+     170.0,
+     75.0
+    ],
+    "size": [
+     20.0,
+     125.0
+    ],
+    "pivot": [
+     0.5,
+     0.0
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "scripts": [
+     "HasteAbilityInfoPanel"
+    ],
+    "fields": {
+     "HasteAbilityInfoPanel": {
+      "animateDurationSec": 0.35
+     }
+    }
+   },
+   "ActiveAbility/Container/HasteInfoPanel/Container": {
+    "active": false,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     0.0,
+     0.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "alpha": 1.0
+   },
+   "ActiveAbility/Container/HasteInfoPanel/Container/AnimatedIcon": {
+    "active": false,
+    "aMin": [
+     0.5,
+     1.0
+    ],
+    "aMax": [
+     0.5,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     5.0
+    ],
+    "size": [
+     40.0,
+     40.0
+    ],
+    "pivot": [
+     0.5,
+     0.0
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "FlameIcon",
+     "color": [
+      1.0,
+      0.0,
+      0.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/HasteInfoPanel/Container/Icon": {
+    "active": true,
+    "aMin": [
+     0.5,
+     1.0
+    ],
+    "aMax": [
+     0.5,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     5.0
+    ],
+    "size": [
+     40.0,
+     40.0
+    ],
+    "pivot": [
+     0.5,
+     0.0
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "FlameIcon",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/HasteInfoPanel/Container/Border": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     0.0,
+     0.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "CleanBorder",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 1,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": false,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/HasteInfoPanel/Container/Border/Background": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     -3.2,
+     -3.2
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "image": {
+     "sprite": "square",
+     "color": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 1,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": false,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/HasteInfoPanel/Container/Border/Fill": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     -3.2,
+     -3.2
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "image": {
+     "sprite": "square",
+     "color": [
+      1.0,
+      0.0,
+      0.0,
+      1.0
+     ],
+     "type": 3,
+     "fillMethod": 1,
+     "fillOrigin": 0,
+     "fillAmount": 0.559,
+     "fillClockwise": true,
+     "preserveAspect": false,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/HasteInfoPanel/Container/Border/AnimatedFill": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     -3.2,
+     -3.2
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "image": {
+     "sprite": "square",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      0.0
+     ],
+     "type": 0,
+     "fillMethod": 1,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": false,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/DeployableAbilityInfoPanel": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     0.0,
+     0.0
+    ],
+    "pos": [
+     205.0,
+     125.0
+    ],
+    "size": [
+     240.0,
+     150.0
+    ],
+    "pivot": [
+     0.0,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "scripts": [
+     "ActiveAbilityInfoPanel"
+    ],
+    "fields": {
+     "ActiveAbilityInfoPanel": {
+      "timeBetweenUpdates": 0.5,
+      "animateXAmount": 75.0,
+      "animateDurationSec": 0.35
+     }
+    }
+   },
+   "ActiveAbility/Container/DeployableAbilityInfoPanel/Container": {
+    "active": false,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     0.0,
+     0.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "image": {
+     "sprite": "PopupBackground",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 1,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": false,
+     "material": null
+    },
+    "alpha": 0.0
+   },
+   "ActiveAbility/Container/DeployableAbilityInfoPanel/Container/Contents": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     0.0,
+     0.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0
+   },
+   "ActiveAbility/Container/DeployableAbilityInfoPanel/Container/Contents/Header": {
+    "active": true,
+    "aMin": [
+     0.0,
+     1.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     0.0,
+     50.0
+    ],
+    "pivot": [
+     0.5,
+     1.0
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0
+   },
+   "ActiveAbility/Container/DeployableAbilityInfoPanel/Container/Contents/Header/CycleItemPrev": {
+    "active": true,
+    "aMin": [
+     0.0,
+     1.0
+    ],
+    "aMax": [
+     0.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     -25.0
+    ],
+    "size": [
+     50.0,
+     50.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "scripts": [
+     "ControlPromptIcon"
+    ],
+    "fields": {
+     "ControlPromptIcon": {
+      "enabledColor": [
+       1.0,
+       1.0,
+       1.0,
+       1.0
+      ],
+      "holdFillEnabledColor": [
+       0.0,
+       0.0,
+       0.0,
+       1.0
+      ],
+      "disabledColor": [
+       0.566,
+       0.566,
+       0.566,
+       1.0
+      ],
+      "delegateSpinSpeedDegPerSec": 180.0
+     }
+    }
+   },
+   "ActiveAbility/Container/DeployableAbilityInfoPanel/Container/Contents/Header/CycleItemPrev/HoldActionBack": {
+    "active": false,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     0.0,
+     0.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "control-icon-outline-circle",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/DeployableAbilityInfoPanel/Container/Contents/Header/CycleItemPrev/HoldActionFill": {
+    "active": false,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     0.0,
+     0.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     0.95,
+     0.95
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "control-icon-outline-circle",
+     "color": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+     ],
+     "type": 3,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": false,
+     "preserveAspect": true,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/DeployableAbilityInfoPanel/Container/Contents/Header/CycleItemPrev/HoldDelegateAction": {
+    "active": false,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     0.0,
+     0.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.12,
+    "image": {
+     "sprite": "control-icon-outline-spinner",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 0,
+     "fillOrigin": 0,
+     "fillAmount": 0.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/DeployableAbilityInfoPanel/Container/Contents/Header/CycleItemPrev/Icon": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     -14.0,
+     -14.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": null,
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/DeployableAbilityInfoPanel/Container/Contents/Header/ItemNameText": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     -50.0,
+     0.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "text": {
+     "text": "Silt Filtering Trawl Net",
+     "fontSize": 25.0,
+     "autoSize": true,
+     "fontSizeMin": 18.0,
+     "fontSizeMax": 25.0,
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "align": 2,
+     "valign": 512,
+     "fontStyle": 0,
+     "font": "Front Page Neue SDF"
+    },
+    "scripts": [
+     "LocalizeStringEvent",
+     "LocalizeFontBypass"
+    ]
+   },
+   "ActiveAbility/Container/DeployableAbilityInfoPanel/Container/Contents/Header/CycleItemNext": {
+    "active": true,
+    "aMin": [
+     1.0,
+     0.5
+    ],
+    "aMax": [
+     1.0,
+     0.5
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     50.0,
+     50.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "scripts": [
+     "ControlPromptIcon"
+    ],
+    "fields": {
+     "ControlPromptIcon": {
+      "enabledColor": [
+       1.0,
+       1.0,
+       1.0,
+       1.0
+      ],
+      "holdFillEnabledColor": [
+       0.0,
+       0.0,
+       0.0,
+       1.0
+      ],
+      "disabledColor": [
+       0.566,
+       0.566,
+       0.566,
+       1.0
+      ],
+      "delegateSpinSpeedDegPerSec": 180.0
+     }
+    }
+   },
+   "ActiveAbility/Container/DeployableAbilityInfoPanel/Container/Contents/Header/CycleItemNext/HoldActionBack": {
+    "active": false,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     0.0,
+     0.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "control-icon-outline-circle",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/DeployableAbilityInfoPanel/Container/Contents/Header/CycleItemNext/HoldActionFill": {
+    "active": false,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     0.0,
+     0.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     0.95,
+     0.95
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "control-icon-outline-circle",
+     "color": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+     ],
+     "type": 3,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": false,
+     "preserveAspect": true,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/DeployableAbilityInfoPanel/Container/Contents/Header/CycleItemNext/HoldDelegateAction": {
+    "active": false,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     0.0,
+     0.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.12,
+    "image": {
+     "sprite": "control-icon-outline-spinner",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 0,
+     "fillOrigin": 0,
+     "fillAmount": 0.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/DeployableAbilityInfoPanel/Container/Contents/Header/CycleItemNext/Icon": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     -14.0,
+     -14.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": null,
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/DeployableAbilityInfoPanel/Container/Contents/GameObject": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     -25.0
+    ],
+    "size": [
+     0.0,
+     -50.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0
+   },
+   "ActiveAbility/Container/DeployableAbilityInfoPanel/Container/Contents/GameObject/OozeCanisterFullness": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     0.0,
+     1.0
+    ],
+    "pos": [
+     10.0,
+     0.0
+    ],
+    "size": [
+     110.0,
+     -20.0
+    ],
+    "pivot": [
+     0.0,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0
+   },
+   "ActiveAbility/Container/DeployableAbilityInfoPanel/Container/Contents/GameObject/OozeCanisterFullness/CanisterFill": {
+    "active": true,
+    "aMin": [
+     0.5,
+     0.0
+    ],
+    "aMax": [
+     0.5,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     -1.5
+    ],
+    "size": [
+     15.0,
+     -13.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "square",
+     "color": [
+      0.5294,
+      0.1137,
+      0.3451,
+      1.0
+     ],
+     "type": 3,
+     "fillMethod": 1,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": false,
+     "material": null
+    },
+    "scripts": [
+     "ColorSettingResponder"
+    ],
+    "fields": {
+     "ColorSettingResponder": {
+      "imagesKeys": [
+       4
+      ]
+     }
+    }
+   },
+   "ActiveAbility/Container/DeployableAbilityInfoPanel/Container/Contents/GameObject/OozeCanisterFullness/CanisterOutline": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     0.0,
+     0.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "image": {
+     "sprite": "canister-outline",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/DeployableAbilityInfoPanel/Container/Contents/GameObject/OozeCanisterFullness/Arrow1": {
+    "active": true,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     25.0,
+     0.0
+    ],
+    "size": [
+     23.792,
+     14.54
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "canister-increase-arrow",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": false,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/DeployableAbilityInfoPanel/Container/Contents/GameObject/OozeCanisterFullness/Arrow2": {
+    "active": true,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     25.0,
+     9.0
+    ],
+    "size": [
+     23.792,
+     14.54
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "canister-increase-arrow",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": false,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/DeployableAbilityInfoPanel/Container/Contents/GameObject/Depth": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     0.0,
+     1.0
+    ],
+    "pos": [
+     10.0,
+     0.0
+    ],
+    "size": [
+     110.0,
+     -20.0
+    ],
+    "pivot": [
+     0.0,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0
+   },
+   "ActiveAbility/Container/DeployableAbilityInfoPanel/Container/Contents/GameObject/Depth/DepthIcon": {
+    "active": true,
+    "aMin": [
+     0.0,
+     1.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     0.0,
+     50.0
+    ],
+    "pivot": [
+     0.5,
+     1.0
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "image": {
+     "sprite": "DepthIcon",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/DeployableAbilityInfoPanel/Container/Contents/GameObject/Depth/DepthText": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     0.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     0.0,
+     30.0
+    ],
+    "pivot": [
+     0.5,
+     0.0
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "text": {
+     "text": "39.8m",
+     "fontSize": 28.75,
+     "autoSize": true,
+     "fontSizeMin": 18.0,
+     "fontSizeMax": 50.0,
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "align": 2,
+     "valign": 512,
+     "fontStyle": 0,
+     "font": "Front Page Neue SDF"
+    },
+    "scripts": [
+     "LocalizeFontBypass"
+    ]
+   },
+   "ActiveAbility/Container/DeployableAbilityInfoPanel/Container/Contents/GameObject/Quality": {
+    "active": true,
+    "aMin": [
+     1.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     -10.0,
+     0.0
+    ],
+    "size": [
+     110.0,
+     -20.0
+    ],
+    "pivot": [
+     1.0,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0
+   },
+   "ActiveAbility/Container/DeployableAbilityInfoPanel/Container/Contents/GameObject/Quality/QualityIcon": {
+    "active": true,
+    "aMin": [
+     0.0,
+     1.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     0.0,
+     50.0
+    ],
+    "pivot": [
+     0.5,
+     1.0
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "CrabIcon",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/DeployableAbilityInfoPanel/Container/Contents/GameObject/Quality/QualityValueText": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     0.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     0.0,
+     30.0
+    ],
+    "pivot": [
+     0.5,
+     0.0
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "text": {
+     "text": "<color=#8AD274>Good",
+     "fontSize": 28.75,
+     "autoSize": true,
+     "fontSizeMin": 18.0,
+     "fontSizeMax": 50.0,
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "align": 2,
+     "valign": 512,
+     "fontStyle": 0,
+     "font": "Front Page Neue SDF"
+    },
+    "scripts": [
+     "LocalizeStringEvent",
+     "LocalizeFontBypass"
+    ]
+   },
+   "ActiveAbility/Container/RadialPromptContainer": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.5
+    ],
+    "aMax": [
+     0.0,
+     0.5
+    ],
+    "pos": [
+     40.0,
+     180.0
+    ],
+    "size": [
+     75.0,
+     50.0
+    ],
+    "pivot": [
+     0.0,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0
+   },
+   "ActiveAbility/Container/RadialPromptContainer/Backplate": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     0.0,
+     0.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     -1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "image": {
+     "sprite": "PromptBackground",
+     "color": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+     ],
+     "type": 1,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": false,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/RadialPromptContainer/Icon": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.5
+    ],
+    "aMax": [
+     0.0,
+     0.5
+    ],
+    "pos": [
+     5.0,
+     0.0
+    ],
+    "size": [
+     45.0,
+     45.0
+    ],
+    "pivot": [
+     0.0,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "image": {
+     "sprite": "RadialMenuIcon",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/RadialPromptContainer/ControlPromptIcon": {
+    "active": true,
+    "aMin": [
+     1.0,
+     0.5
+    ],
+    "aMax": [
+     1.0,
+     0.5
+    ],
+    "pos": [
+     -25.0,
+     0.0
+    ],
+    "size": [
+     50.0,
+     50.0
+    ],
+    "pivot": [
+     0.0,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "scripts": [
+     "ControlPromptIcon"
+    ],
+    "fields": {
+     "ControlPromptIcon": {
+      "enabledColor": [
+       1.0,
+       1.0,
+       1.0,
+       1.0
+      ],
+      "holdFillEnabledColor": [
+       0.0,
+       0.0,
+       0.0,
+       1.0
+      ],
+      "disabledColor": [
+       0.566,
+       0.566,
+       0.566,
+       1.0
+      ],
+      "delegateSpinSpeedDegPerSec": 180.0
+     }
+    }
+   },
+   "ActiveAbility/Container/RadialPromptContainer/ControlPromptIcon/HoldActionBack": {
+    "active": false,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     0.0,
+     0.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "control-icon-outline-circle",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/RadialPromptContainer/ControlPromptIcon/HoldActionFill": {
+    "active": false,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     0.0,
+     0.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     0.95,
+     0.95
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "control-icon-outline-circle",
+     "color": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+     ],
+     "type": 3,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": false,
+     "preserveAspect": true,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/RadialPromptContainer/ControlPromptIcon/HoldDelegateAction": {
+    "active": false,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     0.0,
+     0.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.12,
+    "image": {
+     "sprite": "control-icon-outline-spinner",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 0,
+     "fillOrigin": 0,
+     "fillAmount": 0.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/RadialPromptContainer/ControlPromptIcon/Icon": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     -14.0,
+     -14.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": null,
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/CurrentContainer": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     0.0,
+     0.0
+    ],
+    "pos": [
+     50.0,
+     50.0
+    ],
+    "size": [
+     150.0,
+     150.0
+    ],
+    "pivot": [
+     0.0,
+     0.0
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0
+   },
+   "ActiveAbility/Container/CurrentContainer/AbilityIcon": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     12.5
+    ],
+    "size": [
+     0.0,
+     -25.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "scripts": [
+     "AbilityIcon"
+    ]
+   },
+   "ActiveAbility/Container/CurrentContainer/AbilityIcon/Backplate": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     0.0,
+     0.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "image": {
+     "sprite": "ActionButtonMain_Disabled",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 2,
+     "fillAmount": 0.66,
+     "fillClockwise": false,
+     "preserveAspect": true,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/CurrentContainer/AbilityIcon/CooldownFill": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     0.0,
+     0.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "image": {
+     "sprite": "ActionButtonMain_Inactive",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 3,
+     "fillMethod": 1,
+     "fillOrigin": 0,
+     "fillAmount": 0.66,
+     "fillClockwise": false,
+     "preserveAspect": true,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/CurrentContainer/AbilityIcon/DisabledLayer": {
+    "active": false,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     0.0,
+     0.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "image": {
+     "sprite": "ActionButtonMain_Disabled",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 1,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": false,
+     "preserveAspect": true,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/CurrentContainer/AbilityIcon/Icon": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     -10.0,
+     -10.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "image": {
+     "sprite": "SpyglassActionIcon",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 2,
+     "fillAmount": 0.66,
+     "fillClockwise": false,
+     "preserveAspect": true,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/CurrentContainer/AbilityControlPrompt": {
+    "active": true,
+    "aMin": [
+     1.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     0.0
+    ],
+    "pos": [
+     0.0,
+     20.0
+    ],
+    "size": [
+     45.0,
+     45.0
+    ],
+    "pivot": [
+     1.0,
+     0.0
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "scripts": [
+     "ControlPromptIcon"
+    ],
+    "fields": {
+     "ControlPromptIcon": {
+      "enabledColor": [
+       1.0,
+       1.0,
+       1.0,
+       1.0
+      ],
+      "holdFillEnabledColor": [
+       0.0,
+       0.0,
+       0.0,
+       1.0
+      ],
+      "disabledColor": [
+       0.566,
+       0.566,
+       0.566,
+       1.0
+      ],
+      "delegateSpinSpeedDegPerSec": 180.0
+     }
+    }
+   },
+   "ActiveAbility/Container/CurrentContainer/AbilityControlPrompt/HoldActionBack": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     0.0,
+     0.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "control-icon-outline-circle",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/CurrentContainer/AbilityControlPrompt/HoldActionFill": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     0.0,
+     0.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     0.95,
+     0.95
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "control-icon-outline-circle",
+     "color": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+     ],
+     "type": 3,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": false,
+     "preserveAspect": true,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/CurrentContainer/AbilityControlPrompt/HoldDelegateAction": {
+    "active": false,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     0.0,
+     0.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.12,
+    "image": {
+     "sprite": "control-icon-outline-spinner",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 0,
+     "fillOrigin": 0,
+     "fillAmount": 0.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/CurrentContainer/AbilityControlPrompt/Icon": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     -14.0,
+     -14.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": null,
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/ActiveTrawlTab": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.5
+    ],
+    "aMax": [
+     0.0,
+     0.5
+    ],
+    "pos": [
+     40.0,
+     240.0
+    ],
+    "size": [
+     0.0,
+     0.0
+    ],
+    "pivot": [
+     0.0,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "scripts": [
+     "TrawlActiveTab"
+    ],
+    "alpha": 1.0
+   },
+   "ActiveAbility/Container/ActiveTrawlTab/Container": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.5
+    ],
+    "aMax": [
+     0.0,
+     0.5
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     100.0,
+     50.0
+    ],
+    "pivot": [
+     0.0,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0
+   },
+   "ActiveAbility/Container/ActiveTrawlTab/Container/Backplate": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     -12.5,
+     0.0
+    ],
+    "size": [
+     -25.0,
+     0.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     -1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "PromptBackground",
+     "color": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+     ],
+     "type": 1,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": false,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/ActiveTrawlTab/Container/Icon": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.5
+    ],
+    "aMax": [
+     0.0,
+     0.5
+    ],
+    "pos": [
+     5.0,
+     0.0
+    ],
+    "size": [
+     75.0,
+     50.0
+    ],
+    "pivot": [
+     0.0,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "TrawlIcon",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/ActiveTrawlTab/Container/ItemCounter": {
+    "active": true,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     25.0,
+     0.0
+    ],
+    "size": [
+     50.0,
+     50.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.002,
+    "image": {
+     "sprite": "AlertIcon_Blank",
+     "color": [
+      0.1882,
+      0.502,
+      0.4588,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": false,
+     "material": null
+    },
+    "scripts": [
+     "ItemCounterUI"
+    ]
+   },
+   "ActiveAbility/Container/ActiveTrawlTab/Container/ItemCounter/Flash": {
+    "active": true,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     -0.0,
+     0.0
+    ],
+    "size": [
+     50.0,
+     50.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "image": {
+     "sprite": "AlertIcon_Blank",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      0.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": false,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/ActiveTrawlTab/Container/ItemCounter/CountText": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     -20.0,
+     -20.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "text": {
+     "text": "<mspace=10>99",
+     "fontSize": 24.0,
+     "autoSize": true,
+     "fontSizeMin": 12.0,
+     "fontSizeMax": 24.0,
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "align": 2,
+     "valign": 512,
+     "fontStyle": 0,
+     "font": "Front Page Neue SDF"
+    }
+   },
+   "ActiveAbility/Container/ActiveTrawlTab/Container/ItemCounter/Fish": {
+    "active": true,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     -0.0,
+     0.0
+    ],
+    "size": [
+     50.0,
+     50.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "image": {
+     "sprite": "FishingFishIcon",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      0.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": false,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/ActiveTrawlTab/Container/ItemCounter/Flash2": {
+    "active": true,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     50.0,
+     50.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 45.0,
+    "image": {
+     "sprite": "GridSquare",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": false,
+     "material": null
+    }
+   },
+   "ActiveAbility/Container/AttentionCallout": {
+    "active": false,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     120.0,
+     130.0
+    ],
+    "size": [
+     60.0,
+     60.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "AlertIcon",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    },
+    "scripts": [
+     "ColorSettingResponder"
+    ],
+    "fields": {
+     "ColorSettingResponder": {
+      "imagesKeys": [
+       2
+      ]
+     }
+    }
+   },
+   "AbilityRadial": {
+    "active": true,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     100.0,
+     100.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "scripts": [
+     "AbilityRadial"
+    ],
+    "fields": {
+     "AbilityRadial": {
+      "controllerDeadzoneMagnitude": 0.35
+     }
+    },
+    "alpha": 1.0
+   },
+   "AbilityRadial/Container": {
+    "active": false,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     550.0,
+     550.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0
+   },
+   "AbilityRadial/Container/Background": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     0.0,
+     0.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "image": {
+     "sprite": "circle-high-res",
+     "color": [
+      0.0,
+      0.0,
+      0.0,
+      0.7843
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": false,
+     "material": null
+    }
+   },
+   "AbilityRadial/Container/SelectionWedge": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     0.0,
+     0.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 16.0,
+    "image": {
+     "sprite": "circle-high-res",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 3,
+     "fillMethod": 4,
+     "fillOrigin": 2,
+     "fillAmount": 0.09,
+     "fillClockwise": true,
+     "preserveAspect": false,
+     "material": null
+    }
+   },
+   "AbilityRadial/Container/CooldownBackplate": {
+    "active": true,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     300.0,
+     300.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "image": {
+     "sprite": "circle-high-res",
+     "color": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 2,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": false,
+     "material": null
+    }
+   },
+   "AbilityRadial/Container/CooldownFill": {
+    "active": true,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     300.0,
+     300.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "image": {
+     "sprite": "circle-high-res",
+     "color": [
+      0.8627,
+      0.1725,
+      0.2196,
+      1.0
+     ],
+     "type": 3,
+     "fillMethod": 4,
+     "fillOrigin": 2,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": false,
+     "material": null
+    }
+   },
+   "AbilityRadial/Container/TextBackplate": {
+    "active": true,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     280.0,
+     280.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "image": {
+     "sprite": "circle-high-res",
+     "color": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": false,
+     "material": null
+    }
+   },
+   "AbilityRadial/Container/TextBackplate/TextContainer": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     -12.5
+    ],
+    "size": [
+     -50.0,
+     -75.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0
+   },
+   "AbilityRadial/Container/TextBackplate/TextContainer/AbilityTitle": {
+    "active": true,
+    "aMin": [
+     0.0,
+     1.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     -30.0
+    ],
+    "size": [
+     -50.0,
+     50.0
+    ],
+    "pivot": [
+     0.5,
+     0.0
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "text": {
+     "text": "Banish",
+     "fontSize": 32.0,
+     "autoSize": true,
+     "fontSizeMin": 18.0,
+     "fontSizeMax": 32.0,
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "align": 2,
+     "valign": 512,
+     "fontStyle": 1,
+     "font": "Front Page Neue SDF"
+    },
+    "scripts": [
+     "LocalizeStringEvent",
+     "LocalizeFontBypass"
+    ]
+   },
+   "AbilityRadial/Container/TextBackplate/TextContainer/AbilityDescription": {
+    "active": true,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     230.0,
+     125.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "text": {
+     "text": "Fire off a blazing light that dispels and protects.",
+     "fontSize": 32.0,
+     "autoSize": true,
+     "fontSizeMin": 18.0,
+     "fontSizeMax": 32.0,
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "align": 2,
+     "valign": 256,
+     "fontStyle": 0,
+     "font": "Front Page Neue SDF"
+    },
+    "scripts": [
+     "LocalizeStringEvent",
+     "LocalizeFontBypass"
+    ]
+   },
+   "AbilityRadial/Container/TextBackplate/TextContainer/InvalidAbilityText": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     0.0
+    ],
+    "pos": [
+     0.0,
+     50.0
+    ],
+    "size": [
+     -50.0,
+     50.0
+    ],
+    "pivot": [
+     0.5,
+     1.0
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "text": {
+     "text": "ON COOLDOWN",
+     "fontSize": 32.0,
+     "autoSize": true,
+     "fontSizeMin": 18.0,
+     "fontSizeMax": 32.0,
+     "color": [
+      0.8627,
+      0.1725,
+      0.2196,
+      1.0
+     ],
+     "align": 2,
+     "valign": 512,
+     "fontStyle": 16,
+     "font": "Front Page Neue SDF"
+    },
+    "scripts": [
+     "LocalizeStringEvent",
+     "LocalizeFontBypass"
+    ]
+   },
+   "AbilityRadial/Container/Abilities": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     0.0,
+     0.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0
+   },
+   "AbilityRadial/Container/Abilities/Lights": {
+    "active": true,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     0.0,
+     200.0
+    ],
+    "size": [
+     100.0,
+     100.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "image": {
+     "sprite": "LightsActionIcon",
+     "color": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    },
+    "scripts": [
+     "AbilityRadialWedge"
+    ],
+    "fields": {
+     "AbilityRadialWedge": {
+      "index": 0,
+      "radius": 200.0
+     }
+    }
+   },
+   "AbilityRadial/Container/Abilities/Lights/AttentionCallout": {
+    "active": false,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     35.0,
+     35.0
+    ],
+    "size": [
+     30.0,
+     30.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "AlertIcon",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    },
+    "scripts": [
+     "ColorSettingResponder"
+    ],
+    "fields": {
+     "ColorSettingResponder": {
+      "imagesKeys": [
+       2
+      ]
+     }
+    }
+   },
+   "AbilityRadial/Container/Abilities/Foghorn": {
+    "active": true,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     108.128,
+     168.251
+    ],
+    "size": [
+     100.0,
+     100.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "image": {
+     "sprite": "FogHornActionIcon",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    },
+    "scripts": [
+     "AbilityRadialWedge"
+    ],
+    "fields": {
+     "AbilityRadialWedge": {
+      "index": 1,
+      "radius": 200.0
+     }
+    }
+   },
+   "AbilityRadial/Container/Abilities/Foghorn/AttentionCallout": {
+    "active": false,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     35.0,
+     35.0
+    ],
+    "size": [
+     30.0,
+     30.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "AlertIcon",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    },
+    "scripts": [
+     "ColorSettingResponder"
+    ],
+    "fields": {
+     "ColorSettingResponder": {
+      "imagesKeys": [
+       2
+      ]
+     }
+    }
+   },
+   "AbilityRadial/Container/Abilities/Spyglass": {
+    "active": true,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     181.926,
+     83.083
+    ],
+    "size": [
+     100.0,
+     100.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "image": {
+     "sprite": "SpyglassActionIcon",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    },
+    "scripts": [
+     "AbilityRadialWedge"
+    ],
+    "fields": {
+     "AbilityRadialWedge": {
+      "index": 2,
+      "radius": 200.0
+     }
+    }
+   },
+   "AbilityRadial/Container/Abilities/Spyglass/AttentionCallout": {
+    "active": false,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     35.0,
+     35.0
+    ],
+    "size": [
+     30.0,
+     30.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "AlertIcon",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    },
+    "scripts": [
+     "ColorSettingResponder"
+    ],
+    "fields": {
+     "ColorSettingResponder": {
+      "imagesKeys": [
+       2
+      ]
+     }
+    }
+   },
+   "AbilityRadial/Container/Abilities/Pot": {
+    "active": true,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     197.964,
+     -28.463
+    ],
+    "size": [
+     100.0,
+     100.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "image": {
+     "sprite": "CrabPotActionIcon",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    },
+    "scripts": [
+     "AbilityRadialWedge"
+    ],
+    "fields": {
+     "AbilityRadialWedge": {
+      "index": 3,
+      "radius": 200.0
+     }
+    }
+   },
+   "AbilityRadial/Container/Abilities/Pot/AttentionCallout": {
+    "active": false,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     35.0,
+     35.0
+    ],
+    "size": [
+     30.0,
+     30.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "AlertIcon",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    },
+    "scripts": [
+     "ColorSettingResponder"
+    ],
+    "fields": {
+     "ColorSettingResponder": {
+      "imagesKeys": [
+       2
+      ]
+     }
+    }
+   },
+   "AbilityRadial/Container/Abilities/Net": {
+    "active": true,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     151.15,
+     -130.972
+    ],
+    "size": [
+     100.0,
+     100.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "image": {
+     "sprite": "TrawlActionIcon",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    },
+    "scripts": [
+     "AbilityRadialWedge"
+    ],
+    "fields": {
+     "AbilityRadialWedge": {
+      "index": 4,
+      "radius": 200.0
+     }
+    }
+   },
+   "AbilityRadial/Container/Abilities/Net/AttentionCallout": {
+    "active": false,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     35.0,
+     35.0
+    ],
+    "size": [
+     30.0,
+     30.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "AlertIcon",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    },
+    "scripts": [
+     "ColorSettingResponder"
+    ],
+    "fields": {
+     "ColorSettingResponder": {
+      "imagesKeys": [
+       2
+      ]
+     }
+    }
+   },
+   "AbilityRadial/Container/Abilities/Bait": {
+    "active": true,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     56.347,
+     -191.899
+    ],
+    "size": [
+     100.0,
+     100.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "image": {
+     "sprite": "CrabPotActionIcon",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    },
+    "scripts": [
+     "AbilityRadialWedge"
+    ],
+    "fields": {
+     "AbilityRadialWedge": {
+      "index": 5,
+      "radius": 200.0
+     }
+    }
+   },
+   "AbilityRadial/Container/Abilities/Bait/AttentionCallout": {
+    "active": false,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     35.0,
+     35.0
+    ],
+    "size": [
+     30.0,
+     30.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "AlertIcon",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    },
+    "scripts": [
+     "ColorSettingResponder"
+    ],
+    "fields": {
+     "ColorSettingResponder": {
+      "imagesKeys": [
+       2
+      ]
+     }
+    }
+   },
+   "AbilityRadial/Container/Abilities/Haste": {
+    "active": true,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     -56.347,
+     -191.899
+    ],
+    "size": [
+     100.0,
+     100.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "image": {
+     "sprite": "HasteActionIcon",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    },
+    "scripts": [
+     "AbilityRadialWedge"
+    ],
+    "fields": {
+     "AbilityRadialWedge": {
+      "index": 6,
+      "radius": 200.0
+     }
+    }
+   },
+   "AbilityRadial/Container/Abilities/Haste/AttentionCallout": {
+    "active": false,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     35.0,
+     35.0
+    ],
+    "size": [
+     30.0,
+     30.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "AlertIcon",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    },
+    "scripts": [
+     "ColorSettingResponder"
+    ],
+    "fields": {
+     "ColorSettingResponder": {
+      "imagesKeys": [
+       2
+      ]
+     }
+    }
+   },
+   "AbilityRadial/Container/Abilities/Atrophy": {
+    "active": true,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     -151.15,
+     -130.972
+    ],
+    "size": [
+     100.0,
+     100.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "image": {
+     "sprite": "AtrophyActionIcon",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    },
+    "scripts": [
+     "AbilityRadialWedge"
+    ],
+    "fields": {
+     "AbilityRadialWedge": {
+      "index": 7,
+      "radius": 200.0
+     }
+    }
+   },
+   "AbilityRadial/Container/Abilities/Atrophy/AttentionCallout": {
+    "active": false,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     35.0,
+     35.0
+    ],
+    "size": [
+     30.0,
+     30.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "AlertIcon",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    },
+    "scripts": [
+     "ColorSettingResponder"
+    ],
+    "fields": {
+     "ColorSettingResponder": {
+      "imagesKeys": [
+       2
+      ]
+     }
+    }
+   },
+   "AbilityRadial/Container/Abilities/Banish": {
+    "active": true,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     -197.964,
+     -28.463
+    ],
+    "size": [
+     100.0,
+     100.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "image": {
+     "sprite": "BanishActionIcon",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    },
+    "scripts": [
+     "AbilityRadialWedge"
+    ],
+    "fields": {
+     "AbilityRadialWedge": {
+      "index": 8,
+      "radius": 200.0
+     }
+    }
+   },
+   "AbilityRadial/Container/Abilities/Banish/AttentionCallout": {
+    "active": false,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     35.0,
+     35.0
+    ],
+    "size": [
+     30.0,
+     30.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "AlertIcon",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    },
+    "scripts": [
+     "ColorSettingResponder"
+    ],
+    "fields": {
+     "ColorSettingResponder": {
+      "imagesKeys": [
+       2
+      ]
+     }
+    }
+   },
+   "AbilityRadial/Container/Abilities/Manifest": {
+    "active": true,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     -181.926,
+     83.083
+    ],
+    "size": [
+     100.0,
+     100.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "image": {
+     "sprite": "ManifestActionIcon",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    },
+    "scripts": [
+     "AbilityRadialWedge"
+    ],
+    "fields": {
+     "AbilityRadialWedge": {
+      "index": 9,
+      "radius": 200.0
+     }
+    }
+   },
+   "AbilityRadial/Container/Abilities/Manifest/AttentionCallout": {
+    "active": false,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     35.0,
+     35.0
+    ],
+    "size": [
+     30.0,
+     30.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "AlertIcon",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    },
+    "scripts": [
+     "ColorSettingResponder"
+    ],
+    "fields": {
+     "ColorSettingResponder": {
+      "imagesKeys": [
+       2
+      ]
+     }
+    }
+   },
+   "AbilityRadial/Container/Abilities/Camera": {
+    "active": true,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     -108.128,
+     168.251
+    ],
+    "size": [
+     100.0,
+     100.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "image": {
+     "sprite": "CameraActionIcon",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    },
+    "scripts": [
+     "AbilityRadialWedge"
+    ],
+    "fields": {
+     "AbilityRadialWedge": {
+      "index": 10,
+      "radius": 200.0
+     }
+    }
+   },
+   "AbilityRadial/Container/Abilities/Camera/AttentionCallout": {
+    "active": false,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     35.0,
+     35.0
+    ],
+    "size": [
+     30.0,
+     30.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "AlertIcon",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    },
+    "scripts": [
+     "ColorSettingResponder"
+    ],
+    "fields": {
+     "ColorSettingResponder": {
+      "imagesKeys": [
+       2
+      ]
+     }
+    }
+   },
+   "SpyglassUI": {
+    "active": true,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     0.0,
+     0.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "scripts": [
+     "SpyglassUI"
+    ],
+    "fields": {
+     "SpyglassUI": {
+      "scaleMin": 0.8,
+      "scaleMax": 1.0,
+      "closeThreshold": 25.0,
+      "farThreshold": 150.0
+     }
+    }
+   },
+   "SpyglassUI/SpyglassGyroscope": {
+    "active": false,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     -0.0,
+     0.0
+    ],
+    "size": [
+     0.0,
+     0.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "scripts": [
+     "SpyglassGyroscope"
+    ],
+    "fields": {
+     "SpyglassGyroscope": {
+      "sensitivity": -0.5
+     }
+    }
+   },
+   "SpyglassUI/SpyglassGyroscope/XAxis": {
+    "active": true,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     32.0,
+     1920.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 90.0,
+    "image": {
+     "sprite": "SpyglassCrosshair",
+     "color": [
+      0.0745,
+      0.0588,
+      0.0902,
+      1.0
+     ],
+     "type": 2,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": false,
+     "material": null
+    }
+   },
+   "SpyglassUI/SpyglassGyroscope/YAxis": {
+    "active": true,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     32.0,
+     1080.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "SpyglassCrosshair",
+     "color": [
+      0.0745,
+      0.0588,
+      0.0902,
+      1.0
+     ],
+     "type": 2,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": false,
+     "material": null
+    }
+   },
+   "SpyglassUI/InfoPanelContainer": {
+    "active": false,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     305.0,
+     100.0
+    ],
+    "pivot": [
+     0.5,
+     0.0
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "alpha": 1.0
+   },
+   "SpyglassUI/InfoPanelContainer/Backplate": {
+    "active": true,
+    "aMin": [
+     0.5,
+     0.0
+    ],
+    "aMax": [
+     0.5,
+     0.0
+    ],
+    "pos": [
+     0.0,
+     28.0
+    ],
+    "size": [
+     305.0,
+     170.0
+    ],
+    "pivot": [
+     0.5,
+     0.0
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "PopupBackground",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 1,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": false,
+     "material": null
+    },
+    "scripts": [
+     "VerticalLayoutGroup",
+     "ContentSizeFitter"
+    ],
+    "fields": {
+     "VerticalLayoutGroup": {
+      "m_Padding": [
+       20,
+       20,
+       -20,
+       10
+      ],
+      "m_ChildAlignment": 4,
+      "m_Spacing": 0.0,
+      "m_ChildForceExpandWidth": 1,
+      "m_ChildForceExpandHeight": 0,
+      "m_ChildControlWidth": 0,
+      "m_ChildControlHeight": 0,
+      "m_ChildScaleWidth": 0,
+      "m_ChildScaleHeight": 0,
+      "m_ReverseArrangement": 0
+     },
+     "ContentSizeFitter": {
+      "m_HorizontalFit": 0,
+      "m_VerticalFit": 2
+     }
+    }
+   },
+   "SpyglassUI/InfoPanelContainer/Backplate/HarvestableTypeTag": {
+    "active": true,
+    "aMin": [
+     0.0,
+     1.0
+    ],
+    "aMax": [
+     0.0,
+     1.0
+    ],
+    "pos": [
+     152.5,
+     20.0
+    ],
+    "size": [
+     200.0,
+     40.0
+    ],
+    "pivot": [
+     0.5,
+     1.0
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "TypeTag",
+     "color": [
+      0.6941,
+      0.1804,
+      0.1373,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": false,
+     "material": null
+    },
+    "scripts": [
+     "HarvestableTypeTagUI"
+    ]
+   },
+   "SpyglassUI/InfoPanelContainer/Backplate/HarvestableTypeTag/AdvancedTypeIcon": {
+    "active": false,
+    "aMin": [
+     0.0,
+     1.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.991,
+     -2.1
+    ],
+    "size": [
+     1.982,
+     20.825
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "image": {
+     "sprite": "AdvancedTypeIcon",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 1,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    }
+   },
+   "SpyglassUI/InfoPanelContainer/Backplate/HarvestableTypeTag/Text": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     -2.0
+    ],
+    "size": [
+     -10.0,
+     0.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "text": {
+     "text": "type",
+     "fontSize": 25.0,
+     "autoSize": true,
+     "fontSizeMin": 10.0,
+     "fontSizeMax": 25.0,
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "align": 2,
+     "valign": 512,
+     "fontStyle": 16,
+     "font": "Front Page Neue SDF"
+    },
+    "scripts": [
+     "LocalizeStringEvent",
+     "LocalizeFontBypass"
+    ]
+   },
+   "SpyglassUI/InfoPanelContainer/Backplate/BasicContainer": {
+    "active": true,
+    "aMin": [
+     0.0,
+     1.0
+    ],
+    "aMax": [
+     0.0,
+     1.0
+    ],
+    "pos": [
+     152.5,
+     -60.0
+    ],
+    "size": [
+     265.0,
+     80.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0
+   },
+   "SpyglassUI/InfoPanelContainer/Backplate/BasicContainer/NameText": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     0.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     160.0,
+     0.0
+    ],
+    "pivot": [
+     0.0,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "text": {
+     "text": "Blacktip Reef Shark",
+     "fontSize": 32.0,
+     "autoSize": true,
+     "fontSizeMin": 18.0,
+     "fontSizeMax": 32.0,
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "align": 2,
+     "valign": 512,
+     "fontStyle": 0,
+     "font": "Front Page Neue SDF"
+    },
+    "scripts": [
+     "LocalizeStringEvent",
+     "LocalizeFontBypass"
+    ]
+   },
+   "SpyglassUI/InfoPanelContainer/Backplate/BasicContainer/Distance": {
+    "active": false,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     0.0,
+     0.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     160.0,
+     40.0
+    ],
+    "pivot": [
+     0.0,
+     0.0
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "text": {
+     "text": "50m",
+     "fontSize": 28.0,
+     "autoSize": false,
+     "fontSizeMin": 18.0,
+     "fontSizeMax": 72.0,
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "align": 2,
+     "valign": 512,
+     "fontStyle": 0,
+     "font": "Front Page Neue SDF"
+    },
+    "scripts": [
+     "LocalizeFontBypass"
+    ]
+   },
+   "SpyglassUI/InfoPanelContainer/Backplate/BasicContainer/Image": {
+    "active": true,
+    "aMin": [
+     1.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     -50.0,
+     0.0
+    ],
+    "size": [
+     100.0,
+     0.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "blacktip-reef-shark",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": "Silhouette_UI_Material"
+    }
+   },
+   "SpyglassUI/InfoPanelContainer/Backplate/BasicContainer/InvalidEquipmentImage": {
+    "active": true,
+    "aMin": [
+     1.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     -50.0,
+     0.0
+    ],
+    "size": [
+     100.0,
+     0.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "x",
+     "color": [
+      0.8627,
+      0.1725,
+      0.2196,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    },
+    "scripts": [
+     "ColorSettingResponder"
+    ],
+    "fields": {
+     "ColorSettingResponder": {
+      "imagesKeys": [
+       3
+      ]
+     }
+    }
+   },
+   "SpyglassUI/InfoPanelContainer/Backplate/AdvancedContainer": {
+    "active": false,
+    "aMin": [
+     0.0,
+     1.0
+    ],
+    "aMax": [
+     0.0,
+     1.0
+    ],
+    "pos": [
+     152.5,
+     -130.0
+    ],
+    "size": [
+     265.0,
+     60.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0
+   },
+   "SpyglassUI/InfoPanelContainer/Backplate/AdvancedContainer/PinIcon": {
+    "active": true,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     -35.0,
+     0.0
+    ],
+    "size": [
+     60.0,
+     60.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": 0.0,
+    "image": {
+     "sprite": "map-pin-icon",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    }
+   },
+   "SpyglassUI/InfoPanelContainer/Backplate/AdvancedContainer/ControlPromptIcon": {
+    "active": true,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     35.0,
+     0.0
+    ],
+    "size": [
+     50.0,
+     50.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "scripts": [
+     "ControlPromptIcon"
+    ],
+    "fields": {
+     "ControlPromptIcon": {
+      "enabledColor": [
+       1.0,
+       1.0,
+       1.0,
+       1.0
+      ],
+      "holdFillEnabledColor": [
+       0.0,
+       0.0,
+       0.0,
+       1.0
+      ],
+      "disabledColor": [
+       0.566,
+       0.566,
+       0.566,
+       1.0
+      ],
+      "delegateSpinSpeedDegPerSec": 180.0
+     }
+    }
+   },
+   "SpyglassUI/InfoPanelContainer/Backplate/AdvancedContainer/ControlPromptIcon/HoldActionBack": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     0.0,
+     0.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "control-icon-outline-circle",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    }
+   },
+   "SpyglassUI/InfoPanelContainer/Backplate/AdvancedContainer/ControlPromptIcon/HoldActionFill": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     0.0,
+     0.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     0.95,
+     0.95
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "control-icon-outline-circle",
+     "color": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+     ],
+     "type": 3,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": false,
+     "preserveAspect": true,
+     "material": null
+    }
+   },
+   "SpyglassUI/InfoPanelContainer/Backplate/AdvancedContainer/ControlPromptIcon/HoldDelegateAction": {
+    "active": false,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     0.0,
+     0.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.12,
+    "image": {
+     "sprite": "control-icon-outline-spinner",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 0,
+     "fillOrigin": 0,
+     "fillAmount": 0.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    }
+   },
+   "SpyglassUI/InfoPanelContainer/Backplate/AdvancedContainer/ControlPromptIcon/Icon": {
+    "active": true,
+    "aMin": [
+     0.0,
+     0.0
+    ],
+    "aMax": [
+     1.0,
+     1.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     -14.0,
+     -14.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": null,
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": true,
+     "material": null
+    }
+   },
+   "SpyglassUI/InfoPanelContainer/Underline": {
+    "active": true,
+    "aMin": [
+     0.5,
+     0.0
+    ],
+    "aMax": [
+     0.5,
+     0.0
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     305.0,
+     29.0
+    ],
+    "pivot": [
+     0.5,
+     0.0
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "image": {
+     "sprite": "DestinationPointer",
+     "color": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "type": 0,
+     "fillMethod": 4,
+     "fillOrigin": 0,
+     "fillAmount": 1.0,
+     "fillClockwise": true,
+     "preserveAspect": false,
+     "material": null
+    }
+   },
+   "SpyglassUI/StampContainer": {
+    "active": false,
+    "aMin": [
+     0.5,
+     0.5
+    ],
+    "aMax": [
+     0.5,
+     0.5
+    ],
+    "pos": [
+     0.0,
+     0.0
+    ],
+    "size": [
+     0.0,
+     0.0
+    ],
+    "pivot": [
+     0.5,
+     0.5
+    ],
+    "scale": [
+     1.0,
+     1.0
+    ],
+    "rotZ": -0.0,
+    "alpha": 1.0
+   }
+  },
+  "radial": {
+   "wedges": [
+    {
+     "slot": 0,
+     "ability": "lights",
+     "index": 0,
+     "radius": 200.0,
+     "node": "Lights",
+     "lockedSprite": "question-mark-solo"
+    },
+    {
+     "slot": 1,
+     "ability": "foghorn",
+     "index": 1,
+     "radius": 200.0,
+     "node": "Foghorn",
+     "lockedSprite": "question-mark-solo"
+    },
+    {
+     "slot": 2,
+     "ability": "spyglass",
+     "index": 2,
+     "radius": 200.0,
+     "node": "Spyglass",
+     "lockedSprite": "question-mark-solo"
+    },
+    {
+     "slot": 3,
+     "ability": "pot",
+     "index": 3,
+     "radius": 200.0,
+     "node": "Pot",
+     "lockedSprite": "question-mark-solo"
+    },
+    {
+     "slot": 4,
+     "ability": "trawl",
+     "index": 4,
+     "radius": 200.0,
+     "node": "Net",
+     "lockedSprite": "question-mark-solo"
+    },
+    {
+     "slot": 5,
+     "ability": "bait",
+     "index": 5,
+     "radius": 200.0,
+     "node": "Bait",
+     "lockedSprite": "question-mark-solo"
+    },
+    {
+     "slot": 6,
+     "ability": "haste",
+     "index": 6,
+     "radius": 200.0,
+     "node": "Haste",
+     "lockedSprite": "question-mark-solo"
+    },
+    {
+     "slot": 7,
+     "ability": "atrophy",
+     "index": 7,
+     "radius": 200.0,
+     "node": "Atrophy",
+     "lockedSprite": "question-mark-solo"
+    },
+    {
+     "slot": 8,
+     "ability": "banish",
+     "index": 8,
+     "radius": 200.0,
+     "node": "Banish",
+     "lockedSprite": "question-mark-solo"
+    },
+    {
+     "slot": 9,
+     "ability": "manifest",
+     "index": 9,
+     "radius": 200.0,
+     "node": "Manifest",
+     "lockedSprite": "question-mark-solo"
+    },
+    {
+     "slot": 10,
+     "ability": "camera",
+     "index": 10,
+     "radius": 200.0,
+     "node": "Camera",
+     "lockedSprite": "question-mark-solo"
+    }
+   ],
+   "controllerDeadzoneMagnitude": 0.35,
+   "openSFX": "Radial Menu - Appear",
+   "closeSFX": "Radial Menu - Disappear",
+   "selectSFX": "Radial Menu - Select"
+  },
+  "photoMode": true,
+  "numAbilities": 11,
+  "bar": {
+   "refreshDelaySec": 0.2
+  },
+  "spyglass": {
+   "scaleMin": 0.8,
+   "scaleMax": 1.0,
+   "closeThreshold": 25.0,
+   "farThreshold": 150.0,
+   "addMarkerSFX": "Advanced Spyglass Place Pin",
+   "removeMarkerSFX": "Advanced Spyglass Remove Pin"
+  },
+  "haste": {
+   "animateDurationSec": 0.35
+  },
+  "glyphs": {
+   "radial": {
+    "up": "art/ui/abilities/keyboard-icon-e-line.webp",
+    "down": "art/ui/abilities/keyboard-icon-e.webp"
+   },
+   "ability": {
+    "up": "art/ui/abilities/keyboard-icon-m2-line.webp",
+    "down": "art/ui/abilities/keyboard-icon-m2.webp"
    }
   }
  },
@@ -3422,6 +9357,8 @@ window.DR_BOAT = {
   "There is no fisherman figure in PlayerContainer.prefab (DREDGE shows no character on the boat); no skeleton or animation is exported.",
   "Colliders: only convex MeshColliders exist (Player root = trigger, BoatN = solid) plus sphere triggers on child detectors; sizes are bounds of those meshes.",
   "physics.* values are raw serialized Unity values (cinemachine m_FollowOffset etc. keep Unity z; negate z for three.js). Rigidbody.centerOfMass is not serialized (Unity default = collider centre); playerAttach.ColliderCenter is the authored point. Ability and rig references to other objects are dropped.",
-  "Unity forward is +Z. Exported to three.js by Z negation, so the bow ends up toward -Z in three space where Unity forward was +Z; `forward` vectors are already in three space."
+  "Unity forward is +Z. Exported to three.js by Z negation, so the bow ends up toward -Z in three space where Unity forward was +Z; `forward` vectors are already in three space.",
+  "LightAbility.DoActivate switches on tiers[].lightContainers (Light0Container, Light1Container, Light2Container) and lightBeams; Light1Container holds the only Spot Light (VariablePlayerLight: intensity = PlayerStats.LightLumens * 0.02, range = PlayerStats.LightRange = max range of undamaged lights). Beam quads use material extras.lightBeam (LightBeam_Shader: tex.rgb * color, alpha = fresnel^fade * tex.a * opacity).",
+  "physics.abilityAudio[cls]: clip names per ability (AudioClip fields, AssetReference guids resolved through the Addressables catalog, AudioSources under the ability node). physics.spyglassCam: SpyglassVCam lens/POV/transposer. abilityUI: Game.unity ability bar (ActiveAbility), radial (AbilityRadial: wedge order = abilityWedges list), SpyglassUI; rects in canvas units of a 1920x1080 reference, CanvasScaler matches height."
  ]
 };

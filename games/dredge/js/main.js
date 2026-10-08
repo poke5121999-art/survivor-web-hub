@@ -14,7 +14,7 @@
   // ---------- tải tài nguyên có tiến độ ----------
   // Kích thước trên đĩa (byte) để vẽ thanh tiến độ khi máy chủ không gửi Content-Length (nén gzip).
   const SIZE = {
-    'lib.glb': 13312292, 'boat.glb': 4313536, 'depthmask.png': 2184389, 'markers.json': 1436641, 'terrain_rg.png': 1381301,
+    'lib.glb': 13312292, 'boat.glb': 4320464, 'depthmask.png': 2184389, 'markers.json': 1436641, 'terrain_rg.png': 1381301,
     'instances.bin': 343320, 'scene_config.json': 146136, 'world.json': 129924, 'landmask.png': 29250
   };
   const prog = {};
@@ -131,8 +131,11 @@
   DRInput.on('interact', () => {
     if (!ready || paused) return;
     if (D.mode === 'sail') {
-      if (DRDocks.near) DRDocks.interact();
-      else if (D.view.nearSpot) DRSpots.interact();
+      // điểm câu hợp lệ (đủ đồ, còn cá, đúng giờ) thắng bến khi cả hai cùng trong tầm
+      const sp = D.view.nearSpot, spotOk = sp && (!sp.status || sp.status === 'ok');
+      if (spotOk) DRSpots.interact();
+      else if (DRDocks.near) DRDocks.interact();
+      else if (sp) DRSpots.interact();
     } else if (D.mode === 'dock' && !root.DRDock) D.setMode('sail');
   });
   DRInput.on('lights', () => { if (ready && !paused && (D.mode === 'sail' || D.mode === 'harvest')) DRBoat.toggleLights(); });
@@ -144,26 +147,19 @@
   DRInput.on('mute', toggleMute);
 
   // ---------- âm thanh nền ----------
+  // Đã chuyển sang js/sfx.js: nguồn tiếng đặt trong thế giới (Volume2D), thời tiết, nhạc chớp, hoảng loạn, nhạc + sóng màn đầu.
+  // Bản cũ phát vòng Waves Ambience 1 liên tục và mòng biển gần đất: cả hai không có trong bản gốc (SFX-08). Ở đây chỉ còn nhịp 0,5 s.
   let audioT = 0;
-  const NIGHT_AMB = { THE_MARROWS: 'region.marrows.wildlife.night', STELLAR_BASIN: 'region.stellarBasin.night', TWISTED_STRAND: 'region.twistedStrand.night' };
-  const DAY_AMB = { THE_MARROWS: 'region.marrows.wildlife.day', GALE_CLIFFS: 'region.galeCliffs.day', STELLAR_BASIN: 'region.stellarBasin.day', TWISTED_STRAND: 'region.twistedStrand.day', DEVILS_SPINE: 'region.devilsSpine.day' };
-  function ambience(x, z, zone) {
-    if (!root.DRAudio) return;
-    const day = DRSky.env.isDay, title = D.mode === 'title';
-    DRAudio.loop('ambience.sea', 0.8);
-    // [ĐỀ XUẤT] mòng biển ban ngày trong 40 m quanh đất
-    DRAudio.loop('ambience.seagulls', !title && day && DRWorld.sdf(x, z) < 40 ? 0.8 : 0);
-    for (const [zn, k] of Object.entries(DAY_AMB)) DRAudio.loop(k, !title && day && zone === zn ? 0.5 : 0);
-    for (const [zn, k] of Object.entries(NIGHT_AMB)) DRAudio.loop(k, !title && !day && (zone === zn || (zn === 'THE_MARROWS' && !NIGHT_AMB[zone])) ? 0.7 : 0);
-    if (title) DRAudio.music('music.title');
-  }
+  function ambience(x, z, zone) { if (root.DRSfx) DRSfx.update(x, z, zone); }
 
   // ---------- vòng lặp ----------
   let acc = 0, last = 0, statT = 0;
   function frame(now) {
     root.requestAnimationFrame(frame);
-    const dt = Math.min(0.1, last ? (now - last) / 1000 : 0.016); last = now;
+    const rdt = Math.min(0.1, last ? (now - last) / 1000 : 0.016); last = now;
     if (!ready) return;
+    // Time.timeScale (vòng chọn năng lực đặt 0,3 qua DR.timeScale): mọi thứ theo giờ game chậm lại, đo khung dùng giờ thật
+    const dt = rdt * (D.timeScale == null ? 1 : D.timeScale);
     const t0 = performance.now();
     const run = D.s && !paused && D.mode !== 'title';
     if (run) {
@@ -179,6 +175,7 @@
     } else { DRBoat.moved = false; DRBoat.inputMag = 0; }
     const b = D.s && D.mode !== 'title' ? D.s.boat : { x: 10, z: -10, yaw: 0, vx: 0, vz: 0 };
     DRSky.update(run ? dt : 0, { x: b.x, z: b.z, moving: DRBoat.moved, inputMag: DRBoat.inputMag, cam: camera.position, paused: !run });
+    if (run && root.DRCargo) DRCargo.tickFreshness();   // FreshnessCoroutine: cá ươn theo giờ trong game
     if (D.s && D.mode !== 'title') DRBoat.update(run ? dt : 0, DRSky.env);
     DRSpots.update(run ? dt : 0, b.x, b.z);
     DRParticles.update(run ? dt : 0, camera);
@@ -201,7 +198,7 @@
 
     renderer.render(scene, camera);
     perf.frames++;
-    perf.ms.push(dt * 1000); if (perf.ms.length > 240) perf.ms.shift();
+    perf.ms.push(rdt * 1000); if (perf.ms.length > 240) perf.ms.shift();
     perf.calls = renderer.info.render.calls; perf.tris = renderer.info.render.triangles;
     perf.cpu = perf.cpu || []; perf.cpu.push(performance.now() - t0); if (perf.cpu.length > 240) perf.cpu.shift();
   }

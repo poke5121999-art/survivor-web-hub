@@ -3,6 +3,11 @@
  * như DockPOIHandler (MoveTowards 1 m/s, quay về hướng slot hoặc ngược lại, cái nào gần hơn), rồi DR.setMode('dock').
  * Rời bến (dock → sail): đẩy thuyền ra vài mét.
  *   DRDocks.init(world)  DRDocks.update(dt, x, z)  DRDocks.interact()  DRDocks.dockAt(id, slot)  DRDocks.nearestDist(x, z)
+ * Tiếng bến (DockAudio.RefreshDockAudio, đọc DockData trong data/world_data.js):
+ *   dock.music            getter: khoá nhạc bến hiện hành (MusicAssetOverrides thắng nhạc gốc), tra theo trường orig của DR_AUDIO
+ *   DRDocks.ambience(dock) { day, night } TÊN clip gốc tiếng nền ngày/đêm của bến (đã áp AmbienceDay|NightAssetOverrides);
+ *                          DRSfx.dockEnter (js/sfx.js) đổi tên thành khoá và bật hai vòng lặp, docks.js không phát gì
+ *   Rời bến gọi DRSfx.dockLeave() (js/sfx.js) nếu có, không thì tắt nhạc.
  */
 (function (root) {
   'use strict';
@@ -13,12 +18,32 @@
   const PUSH = 4;            // [ĐỀ XUẤT] m đẩy ra khi rời bến
   const Dk = root.DRDocks = { list: [], byId: {}, docking: null };
 
-  function musicKey(id) {
-    const dd = root.DR_WORLD && root.DR_WORLD.DockData && root.DR_WORLD.DockData[id];
-    const name = dd && dd.musicAssetReference;
-    if (!name || !root.DR_AUDIO) return null;
-    for (const [k, v] of Object.entries(root.DR_AUDIO)) if (/^music\./.test(k) && v.orig && v.orig.indexOf(name) >= 0) return k;
+  // DockAudio.RefreshDockAudio: MusicAssetOverrides / AmbienceDay|NightAssetOverrides, cái đầu danh sách thoả đủ ba điều kiện thì thắng:
+  // đã qua hết nodesVisited, mọi boolValues bật, TIRWorldPhase >= tirWorldPhase (DLC2: bản web luôn 0).
+  function overrideOf(list) {
+    const D = root.DR;
+    for (const o of list || []) {
+      if ((o.nodesVisited || []).every(n => root.DRYarn && DRYarn.visited(n)) && (o.boolValues || []).every(b => D.s && D.s.vars && D.s.vars[b])
+        && ((D.s && D.s.vars && D.s.vars['tir-world-phase']) | 0) >= (o.tirWorldPhase || 0)) return o;
+    }
     return null;
+  }
+  const dockData = id => root.DR_WORLD && root.DR_WORLD.DockData && root.DR_WORLD.DockData[id];
+  function pickName(dd, base, overrides) {
+    const o = overrideOf(dd[overrides]);
+    return o ? o.assetReference : dd[base];
+  }
+  // tên clip gốc -> khoá phát: khớp đúng tên tệp (DRAudio.resolve), nên "Old Mayor's Dock Empty Theme" khác "Old Mayor's Theme"
+  function clipKey(name) {
+    if (!name || !root.DR_AUDIO) return null;
+    const k = root.DRAudio && DRAudio.resolve(name);
+    if (k) return k;
+    for (const [kk, v] of Object.entries(root.DR_AUDIO)) if (/^music\./.test(kk) && v.orig && v.orig.indexOf(name) >= 0) return kk;
+    return null;
+  }
+  function musicKey(id) {
+    const dd = dockData(id);
+    return dd ? clipKey(pickName(dd, 'musicAssetReference', 'musicAssetOverrides')) : null;
   }
 
   function init(world) {
@@ -34,8 +59,10 @@
           // DockData.speakers là nhân vật đứng ở bến (Mayor, Lighthouse Keeper...); ngủ nằm trong BoatActionsDestination của mọi bến.
           .concat(((root.DR_WORLD.DockData[id] || {}).speakers || []).map(sp => ({ id: 'speaker.' + sp, cls: 'CharacterDestination', speaker: sp })))
           .concat(d.boatActionsDestination ? [{ id: 'destination.rest', cls: 'RestDestination' }] : []),
-        music: musicKey(id)
+        music: null
       };
+      // nhạc bến tính lại mỗi lần đọc: ghi đè theo cốt truyện (Old Mayor, Iron Rig...) có hiệu lực ngay (yarn.js RestartWorldMusic dùng cái này)
+      Object.defineProperty(dock, 'music', { get: () => musicKey(id), enumerable: true });
       if (!dock.slots.length) dock.slots.push({ x: dock.poi.x, z: dock.poi.z, yaw: d.rotY });
       Dk.list.push(dock); Dk.byId[id] = dock;
     }
@@ -100,7 +127,9 @@
     if (root.DRCamera) DRCamera.dock({ slot, lookAt: dock.lookAt, pos: dock.pos });
     const ok = D.setMode('dock', { dockId: id, name: dock.name, destinations: dock.destinations });
     if (save) D.save();
-    if (!root.DRDock && root.DRAudio && dock.music) DRAudio.music(dock.music);
+    // js/sfx.js lo nhạc (có ghi đè), tiếng nền ngày/đêm và dừng nhạc chớp; không có thì giữ cách cũ
+    if (root.DRSfx) DRSfx.dockEnter(dock);
+    else if (!root.DRDock && root.DRAudio && dock.music) DRAudio.music(dock.music);
     return ok;
   }
 
@@ -109,7 +138,9 @@
     const D = root.DR, dock = Dk.byId[D.s.dock], b = D.s.boat;
     D.s.dock = null;
     if (root.DRCamera) { DRCamera.dock(null); DRCamera.snap(); }
-    if (root.DRAudio) { DRAudio.play('boat.dock.undocked'); if (!root.DRDock) DRAudio.music(null); }
+    if (root.DRAudio) DRAudio.play('boat.dock.undocked');
+    // DockAudio.OnPlayerDockedToggled(null): RequestMusicStop + tắt tiếng nền bến (trước đây có js/dock.js thì nhạc bến vẫn phát ngoài khơi)
+    if (root.DRSfx) DRSfx.dockLeave(); else if (root.DRAudio) DRAudio.music(null);
     if (!dock) return;
     let dx = b.x - dock.pos[0], dz = b.z - dock.pos[2];
     const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
@@ -122,6 +153,15 @@
     if (best) root.DRBoat.autoMove(best, null, 1.5);
   }
 
-  Object.assign(Dk, { init, update, interact, cancel, dockAt, undock, nearestDist });
+  // tên clip tiếng nền ngày / đêm của bến sau khi xét ghi đè (DRSfx.dockEnter đổi tên thành khoá phát)
+  function ambience(dock) {
+    const dd = dock && dockData(dock.id);
+    if (!dd) return null;
+    const day = pickName(dd, 'ambienceDayAssetReference', 'ambienceDayAssetOverrides');
+    const night = pickName(dd, 'ambienceNightAssetReference', 'ambienceNightAssetOverrides');
+    return day || night ? { day: day || null, night: night || null } : null;
+  }
+
+  Object.assign(Dk, { init, update, interact, cancel, dockAt, undock, nearestDist, ambience });
   Object.defineProperty(Dk, 'near', { get: () => near });
 })(window);

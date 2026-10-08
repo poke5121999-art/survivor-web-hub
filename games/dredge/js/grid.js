@@ -171,8 +171,88 @@
   const onDamaged = (g, inst) => inst.cells.some(([x, y]) => isDamaged(g, x, y));
   const usable = (g, x, y) => { const c = g.cells[idx(g, x, y)]; return !!c && c.type !== 0 && !c.hidden; };
 
+  // ---- Cá ươn thành "Rot" (ItemManager.ReplaceFishWithRot, ItemManager.cs:584-599) ----
+  // Cá nhiễm bệnh không ươn. Rot (1x1) đặt vào ô ĐẦU TIÊN của dấu chân con cá, giữ nguyên lưới; trả về instance Rot hoặc null.
+  function rotFish(g, inst, itemsById) {
+    if (inst.infected) return null;
+    const rot = itemsById.rot;
+    if (!rot) return null;
+    const [x, y] = inst.cells[0];
+    remove(g, inst);
+    const out = { uid: g.seq++, id: 'rot', x, y, rot: 0, cells: footprint(rot, x, y, 0) };
+    g.items.push(out);
+    return out;
+  }
+
+  // ---- Độ tươi trôi theo thời gian (FreshnessCoroutine.AdjustFreshnessForGrid, FreshnessCoroutine.cs:48-91) ----
+  // dDays = phần ngày vừa trôi. Khối băng (id chứa "ice-block") làm chậm mất tươi: InverseLerp(0, cellsForMaxFreshnessLossReduction, ô băng)
+  // qua freshnessLossReductionCurve x maxFreshnessLossReduction; băng tự mòn durability theo coolingChange và biến mất khi <= 0.
+  // Cá về 0 thì thành Rot. Trả về { rotted: [inst...], melted: [inst...] }.
+  // AnimationCurve của Unity, data.py ghi thành [[t, giá trị, tiếp tuyến vào, tiếp tuyến ra], ...]: nội suy Hermite như sky.js.
+  function hermite(keys, t) {
+    const k = keys || [];
+    if (!k.length) return t;
+    if (t <= k[0][0]) return k[0][1];
+    for (let i = 1; i < k.length; i++) if (t <= k[i][0]) {
+      const a = k[i - 1], b = k[i], d = b[0] - a[0];
+      if (Math.abs(a[3]) > 1e20 || Math.abs(b[2]) > 1e20) return a[1];
+      const u = (t - a[0]) / d, u2 = u * u, u3 = u2 * u;
+      return (2 * u3 - 3 * u2 + 1) * a[1] + (u3 - 2 * u2 + u) * a[3] * d + (-2 * u3 + 3 * u2) * b[1] + (u3 - u2) * b[2] * d;
+    }
+    return k[k.length - 1][1];
+  }
+  function tickFreshness(cfg, g, itemsById, dDays, evalCurve) {
+    evalCurve = evalCurve || hermite;
+    const out = { rotted: [], melted: [] };
+    if (!(dDays > 0)) return out;
+    const ice = g.items.filter(i => String(i.id).indexOf('ice-block') >= 0);
+    let cooled = 0;
+    for (const i of ice) cooled += ((itemsById[i.id] || {}).dims || []).length;
+    let fishChange, coolingChange;
+    if (!cooled) { fishChange = dDays * (+cfg.freshnessLossPerDay || 0); coolingChange = 0; }
+    else {
+      const t = cfg.cellsForMaxFreshnessLossReduction ? Math.min(1, Math.max(0, cooled / cfg.cellsForMaxFreshnessLossReduction)) : 1;
+      const red = evalCurve(cfg.freshnessLossReductionCurve, t) * (+cfg.maxFreshnessLossReduction || 0);
+      coolingChange = dDays * (1 - red);
+      fishChange = coolingChange * (+cfg.freshnessLossPerDay || 0);
+    }
+    for (const i of ice) {
+      i.dur = (i.dur == null ? (itemsById[i.id] || {}).maxDurabilityDays || 0 : i.dur) - coolingChange;
+      if (i.dur <= 0) { remove(g, i); out.melted.push(i); }
+    }
+    for (const i of g.items.slice()) {
+      const d = itemsById[i.id];
+      if (!d || !(subOf(d) & SUB.FISH)) continue;
+      if (i.infected) continue;                                     // DRRules.decayFish: cá nhiễm bệnh giữ nguyên
+      i.fresh = Math.max((i.fresh == null ? +cfg.maxFreshness : i.fresh) - fishChange * (d.rotCoefficient == null ? 1 : +d.rotCoefficient), 0);
+      if (i.fresh <= 0) { const r = rotFish(g, i, itemsById); if (r) out.rotted.push(i); }
+    }
+    return out;
+  }
+
+  // ---- Điều kiện hoàn thành lưới nộp đồ (CompletedGridCondition: ItemCountCondition, EmptyCondition) ----
+  function countItem(g, id, itemsById, allowLinkedAberrations) {
+    let n = 0;
+    for (const i of g.items) {
+      if (i.id === id) { n++; continue; }
+      const d = allowLinkedAberrations && itemsById && itemsById[i.id];
+      if (d && d.isAberration && d.nonAberrationParent === id) n++;
+    }
+    return n;
+  }
+  // Loại chưa dựng (CellCountOfItemTypeAndSubtype, ItemInventory, OtherQuest...) coi như chưa đạt để không mở khoá nhầm.
+  function conditionMet(c, g, itemsById) {
+    if (!c) return true;
+    const t = c._t || (c.item != null ? 'ItemCountCondition' : '');
+    if (t === 'EmptyCondition') return g.items.length === 0;
+    if (t === 'ItemCountCondition') return countItem(g, c.item, itemsById, !!c.allowLinkedAberrations) >= (c.count | 0);
+    return false;
+  }
+  const complete = (conds, g, itemsById) => (conds || []).every(c => conditionMet(c, g, itemsById));
+
   root.DRGrid = {
     TYPE, SUB, mask, typeOf, subOf, create, accepts, footprint, itemAt, isDamaged, canPlace, place, move,
-    remove, findSpot, autoPlace, canDamage, addDamage, onDamaged, usable
+    remove, findSpot, autoPlace, canDamage, addDamage, onDamaged, usable,
+    rotFish, tickFreshness, countItem, conditionMet, complete, hermite
   };
 })(typeof window !== 'undefined' ? window : globalThis);

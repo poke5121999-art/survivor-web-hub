@@ -72,6 +72,9 @@ Gỡ nhanh nếu bị yêu cầu: xoá `art/`, `audio/`, và mọi tệp `data/*
 - `[BẪY ĐÃ SẬP]` Sprite Sliced co theo `ppu/100` (CanvasScaler tham chiếu 100): viền 72 px ảnh ở ppu 200 = 36 đơn vị canvas, rồi nhân hệ số `--k` = chiều cao/1080.
 - `CargoGrid_Damaged` (ô hỏng) không có trong `Sprite/` của AssetRipper; dùng bản `art/ui/sprites/CargoGrid_Damaged.webp` do `data.py` bóc.
 - Số đo của bảng (650x935 ở y=-65, ô 60, tooltip 330 rộng, dải thông tin 145, thanh hư hại 50...) đọc từ `Scenes/Game.unity` bằng bộ đọc chunk YAML (tách theo `--- !u!<loại> &<id>`, dựng chỉ mục id → khoảng byte rồi đi cây `m_Children`). Bộ đọc tạm không giữ trong repo; muốn dựng lại thì làm như `D:\dredge-ref\notes\DELEGATE.md` gợi ý.
+- Đợt chuẩn gốc 2 (2026-10-08): thêm 5 sprite (`TrophyIcon`, `InfectionBubble`, `TitleBackground`, `Button_White`, `FishmongerInventoryBackground`; 28 sprite, 107 KB) và `art/ui/cargo/cargo_fx.js` (`window.DR_CARGO_FX.infection`: ParticleSystem của `GameObject/InfectedObjectCell.prefab`, `index.html` nạp trước `js/cargo.js`).
+- `[BẪY ĐÃ SẬP]` ParticleSystem YAML: trường `MinMaxCurve` có `minMaxState` 3 = ngẫu nhiên giữa `minScalar` và `scalar` (lifetime 8-12, size 15-30, burst 1-3); `ShapeModule` v6 ghi bán kính trong khối con `radius: {value: 0.4}` còn `m_Scale` (40) nhân thêm; `EmissionModule.rateOverTime` 0 nhưng `m_Bursts` phát mỗi chu kỳ `lengthInSec` 1 s. Prefab có hai con (`InfectedUIParticles`, `AmbientParticles`) nhưng chỉ một `!u!198`.
+- Bảng trái đo từ `Game.unity`: `StorageSlidePanel` 650x800 (y -40); `QuestGridSlidePanel` 650x550 với `QuestGrid` 450x450, `UpgradeGridSlidePanel` 650x600 với `UpgradeGrid` 420x360 và `LightButton` 350x50 ở y +90; `HelpContainer` neo đáy, y 60 → 0 (treo dưới bảng); `StorageTray` rộng -260 (= 460) cao 245 neo đáy `Container` 720x320 của bảng câu, lưới cách tâm y +15, `HelpTextContainer` rộng -100 cao 60. Chạy lại bộ đọc: `python -I <rt.py> <tên GO>` kiểu như ghi ở đây (tách khối, tra `m_GameObject`/`m_Father`/`m_Children`).
 
 ## Mặt biển, vệt bọt, cảm giác thuyền (`vfx.py`)
 
@@ -124,6 +127,15 @@ Gỡ nhanh nếu bị yêu cầu: xoá `art/`, `audio/`, và mọi tệp `data/*
   - Lệnh: `DR_ROOT=<thư mục chứa games/dredge cũ> BASELINE=1 node test/dredge-env.js`.
 - Kiểm: `node test/dredge-env.js` (26 khẳng định màu nắng/ambient/sương = số chép tay từ gradient gốc; ảnh ở `%TEMP%/dredge-env`). Thêm `?shadows=1` vào URL để bật bóng đổ mặt trời (đắt ~+40 % khung, nên tắt mặc định).
 
+### Vòng 2: thời tiết, chim, vật nổi, thác (`js/sky.js`, `js/world.js`, `js/water.js`)
+
+- `DRSky.weather = { cur, prev, k }` là cổng công khai của WeatherController: `pin(tên|null)`, `emitLightning()`, `random` (đổi được khi kiểm thử). Số liệu ở `data/env.js` mục `weather` (chuyển 15 s, kiểm vùng mỗi 5 s, Lightning 50–250 m, 3 WeatherTrigger) và `data/weather.js` (của `data.py`, chỉ đọc).
+- Mưa/tuyết đi qua `DRParticles.spawn('Rain'|'Snow', { loop: true })` và được lái bằng `handle.setRateOverTime(rainRate|snowRate)` (hạt/giây tuyệt đối, như `rateOverTime` của WeatherController). Tay cầm chưa có hàm này thì rơi về `setRate(k)`, và khi đó mưa mỏng, tuyết không hiện.
+- `[BẪY ĐÃ SẬP]` `setRate(k)` của nhánh vfx nhân với tốc độ nền của cảnh (Rain 150/s, Snow 0/s) và giải phóng hệ có nền 0 khi hết hạt sống: HeavyStorm chỉ ra 211 hạt sống (gốc 2000/s) và tuyết không bao giờ xuất hiện. Không chữa bằng `setRate(0)` + `emit(n)`.
+- Bão: sau 15 s steepness 0,15, foam 0,35 (đẩy vào `uWaveSteep`/`uFoam` của `water.js`). Pale Reach ban đêm bốc tuyết với trọng số 29/34 = 0,853.
+- Chim chỉ bay lúc t = 0,27–0,60; phao và thuyền bến nhấp nhô (tương quan 0,999 trễ 1,1 s); thác cuộn UV.
+- Kiểm: `node test/dredge-env.js` (ảnh ở `%TEMP%/dredge-env`, gồm `sbs-night-snow.png`, `sbs-dusk.png`). Chạy `env.py` và `world.py` hai lần phải ra cùng byte.
+
 ## Kích thước [ĐO TRONG REPO, 2026-10-07]
 
 | Thư mục | MB |
@@ -135,7 +147,9 @@ Gỡ nhanh nếu bị yêu cầu: xoá `art/`, `audio/`, và mọi tệp `data/*
 
 ## harvest_ui.py — màn thu hoạch (HarvestMinigameView) + hiệu ứng điểm câu [ĐO TRONG REPO, 2026-10-07]
 
-- Chạy sau `data.py`/`world.py`: `python tools/harvest_ui.py` (~35 s; `--no-spotfx` bỏ phần UnityPy dựng atlas cá). Cần `D:\dredge-ref` (AssetRipper export + cache). Ra `art/ui/minigame/harvest_ui.js` (`DR_HARVEST_UI`: cây RectTransform, hằng minigame, prefab, clip Animator, màu thẻ, SFX, spotfx), `sprites/`, `audio/gate-*.mp3`, `fonts/FrontPageNeue.woff2`, `fish_atlas.webp`.
+- Chạy sau `data.py`/`world.py`: `python -I tools/harvest_ui.py` (~50 s; `--no-spotfx` bỏ phần UnityPy, giữ spotfx của lần chạy trước). Cần `D:\dredge-ref` (AssetRipper export + cache), `ffprobe`. Ra `art/ui/minigame/harvest_ui.js` (`DR_HARVEST_UI`: cây RectTransform, hằng minigame, prefab, clip Animator, màu thẻ, SFX, `shiny` (UIShiny), `tutorialTransition` (UITransitionEffect), `cam` (camera thu hoạch), `spotfx`), `sprites/`, `audio/gate-*.mp3`, `fonts/FrontPageNeue.woff2`, `UITransitionTex.webp`, `spot_meshes.bin` (57 mesh hạt thật, ~100 KB), `spot_*.webp` (bảng màu AnimalColours, DredgeParticles, crate).
+- `cam`: "HarvestClearShot VCam" + 5 camera con (PlayerContainer.prefab: ưu tiên, vị trí, FOV, Transposer, Composer, CinemachineCollider) và blend của CinemachineBrain (`Scenes/Manager.unity` + `MonoBehaviour/Main Camera Blends.asset`).
+- `spotfx`: mọi hệ hạt của mỗi prefab điểm câu (mô-đun Initial/Shape/Emission/Velocity/Size/Rotation/Color/Noise/Limit, renderer, vật liệu, LODGroup, toggleObjects), vòng nước `DisturbedWaterParticles(_0)` / `SurfaceOozeParticles`, `poiSfx` = `HarvestPOIHandler.sfxClips` (Odin) + độ dài clip.
 - Kiểm: `node test/dredge-fishing.js` (bố cục px khớp RectTransform ở 1280×720 và 844×390, bot bấm hoàn hảo cả 6 minigame, luồng thật tới điểm -> thẻ bắt được -> khoang, khoang đầy, hiệu ứng điểm; ảnh ở `%TEMP%/dredge-fishing`).
 - Bẫy đã sập:
   - `[BẪY ĐÃ SẬP]` `m_LocalEulerAnglesHint` của AssetRipper đảo dấu: góc xoay phải lấy từ quaternion `m_LocalRotation` (`2*atan2(z,w)`).
@@ -144,7 +158,62 @@ Gỡ nhanh nếu bị yêu cầu: xoá `art/`, `audio/`, và mọi tệp `data/*
   - `[BẪY ĐÃ SẬP]` Sprite bóc theo `m_Rect` bị cắt sát; ảnh xoắn ốc `50PercentSpiral` phải vẽ cỡ tự nhiên (240×255,5, pivot 0,4625/0,4696), kéo vào 280×280 là lệch.
   - `[BẪY ĐÃ SẬP]` Âm thanh qua catalog addressables (guid), không theo tên tệp; `fish.cast` là tiếng kỹ năng mồi, không phải thả cần.
   - Scene có 5 `SpiralGate(Clone)` dính sẵn — phải xoá khi `prepare()`.
-  - Prefab không có HarvestableParticleSystem (Crab, Trinket, Cloth, Wood, MetalScrap, Relic...) chưa có silhouette -> shader vẽ như mảnh vụn.
+  - `[BẪY ĐÃ SẬP]` Hai đường dẫn băm `path_0xDFDB0ECB` / `path_0xA6710CB7` của HarvestMinigameHit/Miss là CRC32 của "FishMinigameWheel/Ring(/Indicator)", nút không tồn tại trong cảnh: bản gốc KHÔNG rung vòng cá. Đừng gắn chúng vào `RadialFishMinigameWheel`.
+  - `[BẪY ĐÃ SẬP]` Script trong DLL chỉ có `m_Script.fileID`: Cinemachine tra bằng MD4("s\0\0\0" + namespace + lớp) (`cm_classes()`). ClearShot có CinemachineCollider + ImpulseListener.
+  - `[BẪY ĐÃ SẬP]` Blend vào/ra camera thu hoạch là `m_DefaultBlend` của CinemachineBrain (Custom 2 s), không phải `m_DefaultBlend` EaseInOut 1 s của ClearShot (cái đó chỉ dùng giữa camera con). Brain nằm ở `Scenes/Manager.unity`, không ở Game.unity.
+  - `[BẪY ĐÃ SẬP]` Guid texture trong `.mat`: tra bằng dòng `guid:` ĐẦU của `.meta` (bảng `harvest_guids.pkl`); `grep guid:` thô trúng cả `.meta` của shader (texture mặc định) nên ra tên sai. Ảnh chính theo tên hiển thị: Albedo (Lit_Shader), MainTex (FishParticle), Sprite (FloatingParticle).
+  - `SphereLowPoly_2` không có trong bundle itemdata; tool kiểm nó trùng từng byte với `SphereLowPoly` (YAML AssetRipper) rồi dùng chung.
+  - Mesh xuất bằng `Mesh.export()` (OBJ: x đổi dấu, tam giác đảo) -> three.js = (−x, y, −z) của OBJ, giữ thứ tự tam giác.
+  - Hạt mảnh vụn (Trinket/Wood/MetalScrap) có `startLifetime` = Infinity, burst 30 chặn ở maxP 6: 6 mảnh cố định, tắt bằng `toggleObjects` khi kho < 1.
+- Kiểm: `node test/dredge-fishing.js` (vòng 2: `ONLY_R2=1` chỉ chạy phần mới; `FISH_BASE=<bản sao thư mục cũ>` để đo hiệu năng trước/sau; ảnh ghép cạnh `gog_04`/`gog_16` ở `%TEMP%/dredge-fishing/sbs-*.png`).
+
+## upgrade_ui.py — màn "Upgrades" của ụ tàu (UpgradeWindow) + tooltip nâng cấp [ĐO TRONG REPO, 2026-10-08]
+
+- Chạy sau `index_bundles.py` và `data.py`: `python -I games/dredge/tools/upgrade_ui.py` (~30 s, ra đúng từng byte). Cần `D:\dredge-ref`. Ra `data/upgrade_ui.js` (cây RectTransform, sprite, khoá chữ, màu, giá vật liệu) và `art/ui/upgrade/*.webp` (16 ảnh, 44 KB, cỡ gốc).
+- Kiểm: `node test/dredge-upgrade.js` (`ONLY=full|phone|apply`): vị trí 19 nút và 10 đường nối ±2 đơn vị canvas ở 1920x1080 và 844x390, màu theo trạng thái, tooltip vật liệu, mua bằng chuột, nâng thân bậc 2, áp trực tiếp `applyUpgrade`.
+- Bẫy đã sập (chi tiết trong docstring của tool):
+  - `[BẪY ĐÃ SẬP]` HorizontalLayoutGroup của `Nodes` bỏ qua con tắt (Tier5): `anchoredPosition` lưu trong scene là của bản 9 cột, bản cơ bản dịch phải 85; js/upgrade.js xếp lại bằng thuật toán Unity.
+  - `[BẪY ĐÃ SẬP]` `fontSize` của chữ trong cửa sổ là `calc()` nên không đọc ngược được từ style; `_debug()` lưu cỡ ở `box._tx.size`.
+  - `[BẪY ĐÃ SẬP]` `DRDialogue.start` gán `R = run(...)` sau khi node rỗng đã kết thúc ⇒ `isOpen()` kẹt true sau khi rời điểm đến (js/dialogue.js, chưa sửa); test dùng `DRYarn.current()` + khung `#dr-dlg`.
+  - Khoang bậc 1 (~36 ô cho đồ thường) không đủ chứa vật liệu hull 2 (30 ô) cùng đồ khác: test gỡ rod1/engine1 trước khi mua.
+
+## banner_ui.py — banner thông báo (BannersUI / BannerUI) [ĐO TRONG REPO, 2026-10-08]
+
+- Chạy SAU `harvest_ui.py` (dùng chung bộ đọc cảnh, chỉ mục guid, catalog, hàm cắt sprite): `python -I tools/banner_ui.py` (~3 s). Ra `art/ui/banner/banner_ui.js` (`DR_BANNER_UI`: CanvasScaler, topYPos/bottomYPos, cây RectTransform, trạng thái + clip của BannerAnimator kèm sự kiện, tên clip tiếng, chuỗi gốc) và `art/ui/banner/sprites/*.webp` (~36 KB).
+- Bẫy:
+  - `[BẪY ĐÃ SẬP]` ±250 là `anchoredPosition.y` của **BannerUIContainer** (nơi gắn BannerUI + Animator), không phải nút "BannerUI" con 600x100 (tắt sẵn, clip Enter bật lên).
+  - `holdTimeSec` 5 s là hằng trong mã (`BannersUI.cs:9`), không có trong cảnh. Banner kế chỉ hiện sau sự kiện `OnHideCompleteEventFired` của clip Exit (0,25 s).
+  - Ảnh `mackerel` trong cảnh là ảnh mẫu: bỏ, lúc chạy gán sprite của món.
+  - Viền 9 mảnh của Backplate phải vẽ ở `::before`: viền CSS trên chính nút làm Title/Subtitle bị thu hẹp và lệch.
+- Kiểm: `node test/dredge-fishing.js` (banner loài mới ở con đầu, không ở con thứ hai; tiếng "Fish - New").
+
+## Tiếng vòng 2: audio.py, sfx_dest.py, sfx_scene.py, js/sfx.js [ĐO TRONG REPO, 2026-10-08]
+
+- Thứ tự chạy: `index_bundles.py` -> `audio.py` (bóc mọi clip ra `D:\dredge-refudio`, dựng `audio/**` + `data/audio.js`, in giá vốn từng nhóm) -> `sfx_dest.py` (~2 phút, ghi `D:\dredge-ref\cache\sfx_dest.json`) -> `sfx_scene.py` (~15 s, ghi `data/sfx.js` = `window.DR_SFX`). `sfx_scene.py` chỉ liệt kê clip bằng TÊN GỐC, nên chạy được trước hoặc sau `audio.py`; clip chưa có trong `audio.js` thì lúc chạy bị bỏ qua.
+- `audio.py` chạy ~3-4 phút (ffmpeg từng clip) và dựng lại `audio/` từ đầu. Mã web gọi clip bằng tên gốc (`DRAudio.play('Dog - Pick Up 1')`) thì phải có dòng `N(...)` ở nhóm `p1-*`/`p2-*`; gõ sai tên thì cuối lần chạy in `PROBLEM`. Kiểm: `node test/dredge-asset-keys.js`.
+- Ngân sách vòng 2: +10 MB (cả `games/dredge` <= 90 MB). Thứ tự bỏ khi hết chỗ: nhạc bến > nhạc chớp (mono 64k) > P2 (truyện, điểm đến, POI) > P1.
+- Kiểm hành vi: `node test/dredge-sfx.js` (bấm chuột/phím thật, gián điệp WebAudio ghi mọi `start()` kèm cao độ/âm lượng). Đo tải: `scratchpad/sfx/perf_ab.js`, chỉ đo khi máy rảnh.
+- Bẫy đã sập:
+  - `[BẪY ĐÃ SẬP]` AssetRipper bỏ HẾT trường của Dock/BaseDestination/UpgradeGridPanel/AbilityRadial (chỉ còn `m_Script`): tiếng vào điểm đến phải đọc bằng UnityPy (`sfx_dest.py`), và phải nạp riêng bundle `gameaudio`/`commonaudio`/`gamescene` mới tra được tên clip.
+  - `[BẪY ĐÃ SẬP]` Nguồn tiếng vùng (Day/Night/General) có SpatialBlend 0: gốc chỉ chỉnh âm lượng theo khoảng cách (`Volume2D`), không panning. Chỉ nguồn 3D thật mới dùng PannerNode.
+  - `[BẪY ĐÃ SẬP]` `Waves Ambience 1` và tiếng mòng biển cố định KHÔNG có trong bản gốc (nguồn nằm trong GO bị tắt): đã bỏ, đừng thêm lại vòng biển 0,8.
+  - Tên gốc viết sai chính tả được giữ nguyên: `Relic Necklance Place`.
+  - Gói DLC (Pale Reach, Iron Rig) và nhạc/nhạc chớp của chúng cố ý không đóng gói; `Ooze Vacuum *` và `Fishing Minigame Doors *` (DLC2) chỉ đóng gói vì nhánh gear/fishing gọi bằng tên gốc.
+  - Trình duyệt chặn WebAudio tới cú chạm đầu tiên: `js/sfx.js` đặt lại trạng thái mong muốn mỗi nhịp thay vì chỉ phát một lần.
+
+## Hệ hạt chung (`particles.py` → `js/particles.js`) [ĐO TRONG REPO, 2026-10-08]
+
+- Chạy: `python -I games/dredge/tools/particles.py` (~2 phút, cần PyYAML có libyaml, numpy, Pillow; UnityPy cho phần shader). Ra `data/particles.js` (`DR_PARTICLES` 31 hệ gọi tên, `DR_PARTICLES_SCENE` 141 nguồn đặt sẵn, `DR_PARTICLES_LIB`; ~192 KB) và `art/vfx/p/*.webp` (27 texture, ~153 KB). Chạy lại ra đúng từng byte (đã kiểm md5 hai lần).
+  - `--dis`: rã DXBC đúng biến thể keyword của các vật liệu hạt vào `D:/dredge-ref/cache/particles/shaders/*.txt` (cùng cách `env.py --dis`). Thân shader trong `js/particles.js` đọc từ đây.
+- API cho luồng khác: `DRParticles.spawn(tên, { pos, parent, yaw, scale, loop, follow, size, lifetime })` → `{ stop(), setRate(k), setRateOverTime(r), setSimulationSpeed(v), setSubEmitProbability(i, p), alive }`.
+  - `setRate(k)` là hệ số nhân (khói ống khói = burn²). `setRateOverTime(r)` là số hạt/giây tuyệt đối của hệ gốc, như `WeatherController.cs:418,424`; thời tiết phải dùng cái này.
+  - Hệ gốc loop + playOnAwake (Rain, Snow) hoặc `loop: true` thì sống tới khi `stop()`. Hệ loop mà playOnAwake tắt (Lightning) tự giải phóng khi hết hạt.
+- `[BẪY ĐÃ SẬP]` Vật liệu Shader Graph bản 1.5.3 không ghi blend vào `.mat` (`_SrcBlend 1, _DstBlend 0` là mặc định cũ). Blend/ZWrite/ZTest/Cull/Queue phải lấy từ pass "Universal Forward" của shader đã tuần tự hoá trong bundle.
+- `[BẪY ĐÃ SẬP]` YAML Unity ghi tiếp tuyến vô hạn là chuỗi `'Infinity'`. Không ép về số thì đường cong bậc thang hỏng và tệp ra đổi giữa các lần chạy. Tool đổi thành ±1e30, runtime coi > 1e20 là bậc thang.
+- `[BẪY ĐÃ SẬP]` `FollowPlayer/Snow` trong cảnh có rateOverTime 0/s, chỉ có hạt khi `WeatherController` gán rate. Nhân hệ số (`setRate`) thì tuyết không bao giờ hiện; mưa HeavyStorm cần 2000/s tuyệt đối (giọt chạm trần maxN 2000).
+- `[BẪY ĐÃ SẬP]` emitProbability của sub-emitter phải gieo một lần lúc hạt cha sinh. Gieo mỗi khung thì chỉ làm trễ, xác suất thành 1 (SubEmitter_Lightning p 0,5 luôn bắn).
+- `[BẪY ĐÃ SẬP]` `test/dredge-particles.js` gọi `sbs.py` bằng python của node (PATH có thể trỏ bản không có Pillow). Script chọn sẵn pyenv 3.8.10; đổi bằng `PYTHON=<đường dẫn>`.
+- Kiểm: `node test/dredge-particles.js` (ảnh và ảnh ghép ở `%TEMP%/dredge-particles`). Đo khung: `PERF_ONLY=1 DR_ROOT=<cây cần đo> node test/dredge-particles.js`, chạy xen kẽ trước/sau, lấy trung vị.
 
 ## data.py — đợt 2: khoá chữ của item, lưới phụ, lưới giao nâng cấp, tiếng thời tiết, thành phần scene [ĐO TRONG REPO, 2026-10-08]
 
@@ -162,3 +231,48 @@ Gỡ nhanh nếu bị yêu cầu: xoá `art/`, `audio/`, và mọi tệp `data/*
   - `[BẪY ĐÃ SẬP]` Gọi `export_obj` mà chưa `loc.load()` thì mọi `LocalizedString` ra `null` (`odin_upg.py` của audit báo `titleString: null`). Tiêu đề lưới giao thật là `quest-grid.upgrades` "Materials Required".
   - `[BẪY ĐÃ SẬP]` Hai bảng chữ trợ giúp: `QuestGridPanel` "You can return to these items later." còn `UpgradeGridPanel` "Materials left here will be saved." (audit gán nhầm bộ đầu cho màn nâng cấp). `storageTrayUnlockQuest` là PPtr thường (`Quest_Intro`), không phải Odin.
   - `[BẪY ĐÃ SẬP]` `prompt.radial-show` và `prompt.action` là tên đặt cứng trong mã C# (`AbilityRadial.cs:109`, `AbilityBarUI.cs:53`), không có trong bảng chữ nào (quét cả khoá chung lẫn KeyId), nên không bổ sung được. Mọi khoá và KeyId khác mà audit nêu đã có trong `DR_STR`.
+
+## anim.py + js/anim.js — clip, Animator, chân dung (U2, U3, D1, D2) [ĐO TRONG REPO, 2026-10-08]
+
+- Chạy: `python -I games/dredge/tools/anim.py` (~2 giây, cần PyYAML có libyaml; không cần `index_bundles.py`). Ra `data/animlib.js` (`window.DR_ANIM`, ~0,32 MB). `--out <tệp>` ghi chỗ khác để so hai lần chạy: ra đúng từng byte.
+- Nguồn: YAML của AssetRipper (`AnimationClip`, `AnimatorController`, `AnimatorOverrideController`, `GameObject/<prefab>.prefab`, `Sprite`, đã giải nén `m_MuscleClip`) và các thư mục con của `art/portraits/` (danh sách prefab chân dung = thư mục `tools/yarn.py` đã bóc; nên chạy `yarn.py` trước, nó cũng cho `data/yarn.js` để tool đối chiếu bố cục).
+- Danh sách tường minh trong đầu `anim.py` (không bóc cả 419 clip: 130 clip xương cần khung xương mà web chưa có): 55 prefab chân dung → 38 controller (clip `*Appear`, kèm `BookIdle`, `Scientist7Idle`); HUD `BannerAnimator`, `LoadingScreenAnimator`, `SpyglassUIAnimator`, `ResearchNotchAnimator`, `SpeakerButtonAttentionCallout`, `UnseenCabinItemAnimator(_0)`, `HasteBarAnimator`; lưới `TrawlNet_Animator`, `SalvageNet_Animator` (3 layer, 17 clip mỗi cái); phao `CrabPotBuoy_Animator`, `Bait_Animator`, `FlotsamPotBuoy_Animator` (override, tool dựng thành controller đầy đủ). Tổng 98 clip, 51 controller, 55 rig, 1.958 curve.
+- Lược đồ `DR_ANIM` (chi tiết kiểu ở đầu `js/anim.js`):
+  - `clips[tên] = {len, loop, curves:[{path, prop, [cls], keys:[[t, giá trị, tiếp tuyến vào, tiếp tuyến ra]]}], [sprites], [events:[{t, fn, [data], [f], [i]}]]}`. **Tên clip = tên tệp `.anim`** (không phải `m_Name`: có `Idle`, `Idle_0`, `Idle_1`, `Idle_3` cùng tên). `path` tính từ GameObject mang Animator, `""` là chính nó. `prop` theo Unity: `m_LocalPosition.x`, `localEulerAnglesRaw.z` (độ, ZXY), `m_LocalScale.x`, `m_AnchoredPosition.x`, `m_Alpha`, `m_Color.a`, `m_IsActive`, `blendShape.Key 1`...
+  - `controllers[tên] = {params:[[tên, kiểu, mặc định]], default, states:{tên:{clip, speed, [speedParam], [wd:0]}}, transitions:[{from ("*" = any-state), to, cond:[[param, phép, ngưỡng]], dur, exitTime|null, [offset], [fixed:0], [self:0]}], [layers:[{name, weight, default, states, transitions}]]}`; layer 0 ở gốc, các layer sau ở `layers`.
+  - `rigs[prefab] = {ctrl, nodes:[{n, p, ap, sd, an:[minX,minY,maxX,maxY], pv, sc, rz, [on:0], [cg], [col], [img], [pa:1]}]}`: cây RectTransform của prefab chân dung theo thứ tự cây; `img` là tệp webp của `yarn.py`.
+- Dùng (đủ API ở đầu `js/anim.js`):
+  ```js
+  // lưới kéo / lưới trục vớt (đích three.js; path của clip tính từ node TrawlNet / SalvageNet trong boat.glb)
+  const net = DRAnim.bind(trawlNode, 'TrawlNet_Animator', { onEvent: (e) => {}, onFloat: (path, prop, v) => {} });
+  net.set('isDeployed', true); net.set('fullness', 0.4); net.set('isBroken', false);   // mỗi khung: net.update(dt)
+  // phao rập cua / mồi: bind(node, 'CrabPotBuoy_Animator' | 'Bait_Animator' | 'FlotsamPotBuoy_Animator'); p.trigger('deploy')
+  // HUD (DOM): dựng rig từ cây RectTransform của chủ rồi chạy controller; phần tử có sẵn nhận ma trận qua opts.adopt
+  const h = DRAnim.rig(nodes, container, { adopt: n => elementByPath[n.path] });
+  const p = DRAnim.bind(h, 'BannerAnimator'); p.set('showing', true);
+  // đích tuỳ ý: DRAnim.bind({ set(path, prop, value) {...}, end() {} }, 'SpyglassUIAnimator')
+  ```
+  Path của clip lưới mà `boat.glb` chưa có: `.../NetMesh/DestroyedParticles` và `.../NetMesh/Mesh/NetTrailParticles` (hệ hạt); `EmissionModule.enabled` và `m_IsActive` của chúng đi qua `onFloat` / `userData['an:...']`.
+- Clip HUD/gear animate gì (path tính từ GameObject mang Animator; chủ giao diện/gear dựng nút trùng tên):
+  - `BannerAnimator` (bool `showing`): `Enter` 0,333 s: `BannerUI` (m_Alpha, m_AnchoredPosition, m_IsActive), `BannerUI/Backplate` + `BannerUI/ImageBackplate` (m_LocalScale), `BannerUI/Backplate/Title` + `/Subtitle` (m_AnchoredPosition); `Exit` 0,25 s: `BannerUI` m_Alpha + m_IsActive, sự kiện `OnHideCompleteEventFired` ở 0,25 s.
+  - `LoadingScreenAnimator` (trigger `show`/`hide`, từ any-state, không tự chuyển vào chính nó): gốc m_Alpha + m_BlocksRaycasts, `Container` m_IsActive, 0,5 s, sự kiện `OnLoadingScreenAnimationComplete` ở 0,5 s.
+  - `SpyglassUIAnimator` (bool `showing`): `InfoPanelContainer` m_Alpha, Show/Hide 0,1167 s, Idle là tư thế tĩnh.
+  - `ResearchNotchAnimator` (trigger `fill`): `NotchFade` euler z 180 → 0, scale 5 → 1, m_Color.a 0 → 1 trong 0,5 s, sự kiện `OnAnimationComplete` ở 0,5 s.
+  - `SpeakerButtonAttentionCallout` (lặp 1,083 s): gốc lắc euler z + m_SizeDelta 60 → ~130 → 60; sprite `AlertIcon_0`. `UnseenCabinItemAnimator(_0)`: gốc m_SizeDelta + m_Pivot, `NewUnseenCabinItem` 0,333 s rồi `UnseenCabinItem` lặp 2 s.
+  - `HasteBarAnimator` (trigger `explode`): `Container/AnimatedIcon` scale 1 → 2,5 + m_Color.a 1 → 0, `Container/Border/AnimatedFill` m_Color.a nhấp nháy, 0,4667 s.
+  - `CrabPotBuoy_Animator` / `FlotsamPotBuoy_Animator` / `Bait_Animator` (trigger `deploy`): `BuoyMesh` scale 0 → 1 lúc 0,83–1 s rồi lắc euler tới 2,5167 s, `CrabPotParticle` m_IsActive; `BaitParticle` m_IsActive trong 2,5 s. Hết Place tự về Idle (exitTime 1).
+  - `TrawlNet_Animator` / `SalvageNet_Animator` (bool `isDeployed`, `isBroken`, float `fullness`): layer gốc `TrawlDeploy` 2,0 s (TrawlArm euler x 20 → −85 trong 0,667 s, NetMesh trượt xuống −1,1), `TrawlDeployedIdle`, `TrawlRetract` 0,917 s; layer `BrokenNet` (`TrawlNetBroken` 0,817 s: TrawlArmature rung, tắt `Mesh`, bật `DestroyedParticles`); layer `NetFillAmount` 11 tư thế `Net_00..Net_100` (blendShape `Key 1`, bật `Fish1..10`) đi từng bậc 10% mỗi khung theo ngưỡng `fullness`.
+- Kiểm: `node test/dredge-anim.js` (phần node đối chiếu từng curve với YAML bằng bộ đọc YAML riêng của bài kiểm; phần trình duyệt mở hội thoại Mayor bằng phím thật, ảnh chân dung ở 0 / 0,25 / 0,5 s và khi đứng yên, ghép với `gog_24` / `gog_02` bằng `sbs.py`; ảnh ở `%TEMP%/dredge-anim`).
+- Bẫy đã sập:
+  - `[BẪY ĐÃ SẬP]` fileID dài 18 chữ số: đọc qua `float` mất chữ số cuối nên mọi tham chiếu `{fileID: N}` trượt, rig ra 1 nút. Số nguyên phải đọc thẳng từ chuỗi.
+  - `[BẪY ĐÃ SẬP]` PyYAML đổi tên GameObject/đường dẫn `1`, `On`, `1.5` thành số/bool và `path:` rỗng thành `None`. Tool dùng bộ nạp không nhận dạng ngầm (mọi scalar là chuỗi) rồi ép số bằng `F()`/`I()`.
+  - `[BẪY ĐÃ SẬP]` Đường dẫn chỉ còn băm `path_0x23998AF8_vVpLuvN` (ShipwrightAppear) = CRC32 của đường dẫn thật `Shipwright_Foreground`; lớp này đã bị xoá khỏi prefab nên 2 curve đó chết (tool bỏ, in số lượng). `script_0x7822D856_...` = CRC32 của `m_Sprite` (SpeakerButtonAttentionCalloutLoop gán sprite `AlertIcon_0`). Ứng viên: đường dẫn có thật của prefab dùng clip + `<Prefab>_<Từ>` (Foreground, Background...).
+  - `[BẪY ĐÃ SẬP]` Tiếp tuyến `Infinity` (đường bậc thang, mọi `m_IsActive`) không phải JSON: `animlib.js` giữ nguyên chữ `Infinity`, còn `JSON.stringify` đổi thành `null`. Bậc thang: khoá trái có tiếp tuyến ra vô cực → giữ giá trị khoá trái tới khoá phải.
+  - `[BẪY ĐÃ SẬP]` Cả 13.154 curve đều `m_PreInfinity = m_PostInfinity = 2` (kẹp), cả 279.163 khoá `weightedMode 0` (không có trọng số; tool dừng nếu gặp). Vòng lặp nằm ở `m_AnimationClipSettings.m_LoopTime` (89/419 clip), không ở `m_WrapMode` (toàn 0).
+  - `[BẪY ĐÃ SẬP]` `m_EulerCurves` mang vector `{x,y,z}`; thứ tự xoay ZXY (`m_RotationOrder: 4`) = `Quaternion.Euler`. Sang three.js: dựng quaternion Unity rồi đổi `(−x,−y,z,w)`, vị trí `(x,y,−z)`; node GLB đã đổi sẵn cùng công thức. GLTFLoader bỏ `. / : [ ]` khỏi tên node nên so tên phải qua `sanitize`.
+  - `[BẪY ĐÃ SẬP]` `Image.preserveAspect`: hình chữ nhật RectTransform của lớp chân dung rộng hơn sprite (124/131 lớp, tới 4,7 lần). Bản phẳng cũ kéo ảnh cho đầy hộp (Scientist rộng gấp 1,7 so với gog_24). Rig vẽ `object-fit: contain` + `object-position` theo pivot như `Image.PreserveSpriteAspectRatio`; 6 Image tắt cờ (Book, CollectorReveal) vẫn kéo giãn.
+  - `[BẪY ĐÃ SẬP]` Muốn ghép ảnh với `gog_02` phải dùng prefab `CollectorUnknown` (người trong khung cửa, tối), không phải `Collector`; với `gog_24` dùng `Scientist_2` (bảng + 1 vết nứt + người; `Scientist_3` thêm hai tờ giấy mà ảnh gốc không có), không phải `Scientist` (một lớp, không bảng). [ĐO bằng mắt qua sbs.py]
+  - `[BẪY ĐÃ SẬP]` Lớp sprite có scale 100 trên hộp 5,7×7,0: đặt CSS lồng nhau bị LayoutUnit (1/64 px) làm lệch tới 1,5 px sau nhân 100. Rig tính ma trận thế giới bằng số thực, hộp CSS đặt cỡ nghỉ (sizeDelta × scale) nên ma trận chỉ còn phần chênh.
+  - `[BẪY ĐÃ SẬP]` Màu Image không chỉ là alpha: `m_Color.r/g/b` chạy 0 → 1 cùng alpha (lớp tối dần lên), và `BookR`/`BookB` có màu khác kênh (cần bộ lọc SVG `feColorMatrix`, `color-interpolation-filters: sRGB`; `brightness()` chỉ đủ khi r = g = b).
+  - `[BẪY ĐÃ SẬP]` `m_WriteDefaultValues: 0` ở layer gốc của lưới, các layer sau mặc định 1: layer ghi đè trọng số 1 với WriteDefaults bật sẽ ghi giá trị nghỉ đè lên thuộc tính layer dưới đã animate (đúng như Unity).
+  - 36 nút chân dung có sprite nhưng tắt lúc nghỉ (Scientist_2..5 vết nứt, tờ giấy...) chưa có ảnh vì `yarn.py` bỏ cả nhánh GameObject tắt; hệ hạt (`UIParticle`) không vào rig nhưng tính là "có thật" khi xét curve chết.

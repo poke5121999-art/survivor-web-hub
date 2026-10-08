@@ -214,10 +214,11 @@ async function run(browser, base, W, H) {
   // bản gốc chỉ lưu khi neo bến (Player.Dock updateSave): con cá câu sau lần neo cuối không có trong sổ
   check('nạp lại = trạng thái lúc neo bến cuối (cá câu ngoài biển chưa lưu)', !I.inv.some(i => /^(cod|mackerel)/.test(i.id)));
   await page.evaluate(() => DR_DEBUG.give('light1'));
-  await page.keyboard.press('KeyL');
+  // bản gốc: L là Bách khoa; đèn là năng lực 'lights' (nêm 0, chọn sẵn), dùng bằng chuột phải
+  await page.mouse.down({ button: 'right' }); await sleep(60); await page.mouse.up({ button: 'right' });
   await sleep(200);
-  const lit = await page.evaluate(() => ({ on: DR.s.lightsOn, point: DRBoat.lights.point.intensity, spot: DRBoat.lights.spots[0].intensity }));
-  check('L bật đèn: đèn điểm + đèn pha của Cracked Bulb', lit.on && lit.point > 0 && lit.spot > 0, JSON.stringify(lit));
+  const lit = await page.evaluate(() => ({ on: DR.s.lightsOn, point: DRBoat.lights.point.intensity, spot: DRBoat.lights.spot.intensity }));
+  check('chuột phải bật đèn: đèn điểm + đèn pha của Cracked Bulb', lit.on && lit.point > 0 && lit.spot > 0, JSON.stringify(lit));
   const s0 = (await info()).sanity;
   await page.keyboard.down('KeyW'); await sleep(2000); await page.keyboard.up('KeyW');
   const s1 = (await info()).sanity;

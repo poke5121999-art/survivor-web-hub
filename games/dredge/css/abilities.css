@@ -1,0 +1,66 @@
+/*
+ * Năng lực (js/abilities.js): thanh năng lực góc dưới trái (AbilityBarUI), vòng chọn giữa màn (AbilityRadial),
+ * ống nhòm (SpyglassUI: dấu thập + bảng tin bám điểm câu). Toạ độ trong JS là đơn vị canvas gốc 1920×1080,
+ * JS nhân scale = chiều cao cửa sổ / 1080 (CanvasScaler khớp chiều cao). Màu lấy từ Image.color trong Game.unity, JS đặt.
+ * Chữ gốc là Front Page Neue (không có trên web): [ĐỀ XUẤT] dùng Oswald, cùng kiểu chữ đứng hẹp.
+ */
+#dr-ab { position: fixed; inset: 0; z-index: 21; pointer-events: none; overflow: hidden; }
+#dr-ab div, #dr-ab i { position: absolute; display: block; font-style: normal; }
+#dr-ab .ab-img { background-repeat: no-repeat; background-position: center; background-size: contain; }
+
+/* ---- thanh năng lực: hộp 0×0 ở góc dưới trái, con nằm ở toạ độ âm ---- */
+#dr-ab .ab-bar { left: 0; bottom: 0; width: 0; height: 0; transform-origin: 0 0; display: none; }
+#dr-ab .ab-bar.on { display: block; }
+#dr-ab .ab-icon, #dr-ab .ab-rp { pointer-events: auto; touch-action: none; }
+#dr-ab .ab-alert, #dr-ab .ab-walert { display: none; }
+#dr-ab .ab-ctl i, #dr-ab .ab-rp i { pointer-events: none; }
+
+/* thanh nhiệt Tăng tốc (HasteInfoPanel): viền CleanBorder trắng 1,6 đơn vị, nền đen, đổ dọc từ đáy */
+#dr-ab .ab-heat { display: none; }
+#dr-ab .ab-border { background: #fff; border-radius: 3px; }
+#dr-ab .ab-hbg { background: #000; border-radius: 2px; }
+#dr-ab .ab-hfill { border-radius: 2px; }
+#dr-ab .ab-hflash { background: #fff; opacity: 0; border-radius: 2px; }
+#dr-ab .ab-flame2 { display: none; transform-origin: 50% 100%; }
+
+/* ---- vòng chọn ---- */
+#dr-ab .ab-radial { left: 50%; top: 50%; display: none; transform-origin: 50% 50%; }
+#dr-ab .ab-radial.on { display: block; }
+#dr-ab .ab-disc { border-radius: 50%; }
+#dr-ab .ab-tc, #dr-ab .ab-txt { pointer-events: none; }
+#dr-ab .ab-txt { display: flex; align-items: center; justify-content: center; text-align: center; color: #fff; overflow: hidden;
+  font-family: "Oswald", "Arial Narrow", sans-serif; line-height: 1.12; }
+#dr-ab .ab-title { font-size: 32px; font-weight: 700; align-items: flex-end; }
+#dr-ab .ab-desc { font-size: 21px; }
+#dr-ab .ab-invalid { font-size: 26px; text-transform: uppercase; align-items: flex-start; display: none; }
+
+/* ---- ống nhòm ---- */
+#dr-ab .ab-spy { inset: 0; display: none; }
+#dr-ab .ab-spy.on { display: block; }
+#dr-ab .ab-cross { left: 50%; top: 50%; width: 0; height: 0; transform-origin: 0 0; }
+/* dấu thập: sprite SpyglassCrosshair 32×120 lát (Image.Type Tiled), tô màu tối */
+#dr-ab .ab-axis { left: 0; top: 0;
+  -webkit-mask: url(../art/ui/sprites/SpyglassCrosshair.webp) center / 32px 120px repeat-y;
+  mask: url(../art/ui/sprites/SpyglassCrosshair.webp) center / 32px 120px repeat-y; }
+#dr-ab .ab-info { left: 0; top: 0; transform-origin: 50% 100%; opacity: 0; }
+/* PopupBackground: nền đen viền sáng, cắt 9 ô (Image.Type Sliced) */
+#dr-ab .ab-ibp::before { content: ""; position: absolute; inset: 0; border: 4px solid transparent;
+  border-image: url(../art/ui/sprites/PopupBackground.webp) 4 fill / 4px stretch; }
+#dr-ab .ab-tag { display: flex; align-items: center; justify-content: center;
+  background-color: var(--c, #b12e23);
+  -webkit-mask: url(../art/ui/sprites/TypeTag.webp) center / 100% 100% no-repeat;
+  mask: url(../art/ui/sprites/TypeTag.webp) center / 100% 100% no-repeat; }
+#dr-ab .ab-tag span { position: relative; font: 400 25px/1 "Oswald", "Arial Narrow", sans-serif; text-transform: uppercase; letter-spacing: .02em; margin-top: -4px; }
+#dr-ab .ab-tagadv { position: relative; right: auto; width: 20px; height: 20px; margin-left: 6px; display: none; }
+#dr-ab .ab-iname { display: flex; align-items: center; color: #fff; font: 400 28px/1.05 "Oswald", "Arial Narrow", sans-serif; overflow: hidden; }
+#dr-ab .ab-iimg { filter: brightness(0) invert(1); }
+#dr-ab .ab-ibad { display: none; }
+
+/* ---- nút riêng của bản web do js/hud.js tạo ("Nhiệm vụ", "Hành lý"): góc dưới trái là chỗ của thanh năng lực gốc
+   (ActiveAbility neo (0,0), pos (10,20)) nên dời lên dưới hàng ô hỏng thân tàu ở góc trên trái ---- */
+#dr-float .qn-jbtn { top: 158px; bottom: auto; }
+#dr-hud .hud-bag { top: 208px; bottom: auto; }
+@media (max-height: 460px), (max-width: 900px) {
+  #dr-float .qn-jbtn { top: 118px; bottom: auto; }
+  #dr-hud .hud-bag { top: 162px; bottom: auto; }
+}

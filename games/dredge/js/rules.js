@@ -38,7 +38,9 @@
       speed: Math.max(moveMod, num(cfg.basePlayerSpeed)) * num(cfg.baseMovementSpeedModifier || 1),
       turn: num(cfg.baseTurnSpeed) * gadget('TURN_SPEED'),
       reverse: num(cfg.baseReverseSpeedModifier) * Math.min(gadget('REVERSE_SPEED'), 1 / (num(cfg.baseReverseSpeedModifier) || 1)),
-      fishing: fishMod <= 1 ? fishMod : Math.pow(fishMod, 0.45),
+      // fishing = MinigameFishingSpeedModifier (minigame); fishingDisplay = FishingSpeedModifier thô, PlayerStatsUI hiện ×100 %
+      // (PlayerStats.cs:24-36, PlayerStatsUI.cs:167: 1,1 ⇒ "Fishing Speed: 110%")
+      fishing: fishMod <= 1 ? fishMod : Math.pow(fishMod, 0.45), fishingDisplay: fishMod,
       dredging: gadget('DREDGE_SPEED'),
       lumens, lightRange: lights.reduce((m, l) => Math.max(m, num(l.range)), 0),
       lightSanity: lerp(0, num(cfg.maxLightSanityModifier), invLerp(0, num(cfg.lumensForMaxLightSanityModifier), lumens)),

@@ -47,42 +47,27 @@ Chạy trên `https://poke5121999-art.github.io/survivor-web-hub/games/dredge/in
 | 2 | câu cá 2, cửa hàng, Upgrades 2, thả lưới/bẫy | `spots.js`, `dock.js`, `upgrade.js`, `deploy.js` mới | F2, F9, SU-01/02/04/05/07..14, GR-06, GR-07, GR-13 |
 | 3 (nếu còn ngân sách) | sinh vật, sự kiện thế giới | `creatures.py` mới | E05-E07, E11, E12, W1-W5 |
 
-## Bàn giao (tạm dừng 2026-10-08 15:40, chủ dự án mở phiên mới)
+## Trạng thái (2026-10-08 tối): đợt 1 đã gộp đủ 8 nhánh, rev `20261008b`
 
-Phiên mới **không** gọi lại được các agent của phiên cũ. Mỗi nhánh có tệp đề bài kèm trạng thái lúc dừng ở `D:\dredge-ref\notes\briefs\<nhánh>.md`. Giao lại nguyên văn tệp đó cho một agent mới, cùng model ghi ở dòng đầu, làm tiếp trong bản sao của nhánh.
+Phiên thứ hai giao lại 8 nhánh từ `D:\dredge-ref\notes\briefs\<nhánh>.md`, gộp từng nhánh khi nhánh tự kiểm xanh, rồi đẩy một lần.
+Các bản sao `D:\dredge-wt\*` không còn cần cho đợt 1; giữ lại làm gốc so sánh cho tới khi đợt 2 bắt đầu.
 
-- **Repo** (`D:\survivor-web-hub`, nhánh `main`): đã commit và đẩy theo yêu cầu chủ dự án, rev `20261008a`. Người chơi chưa thấy gì khác: phần đã đẩy chỉ gồm mối nối và dữ liệu.
-  - Mối nối đợt 0: `js/audio.js`, `js/camera.js`, `js/particles.js` (khung rỗng), `js/main.js` (2 dòng), `index.html` (1 dòng), `test/dredge-asset-keys.js`.
-  - Nhánh dữ liệu đã gộp: `tools/data.py`, `data/{items,grids,upgrades,weather,config,world_data}.js`, `tools/README.md`, `test/dredge-data.js`.
-  - Kiểm trên máy: rules 35/35, suite 73/73, data 73/73, asset-keys đạt.
-- **8 bản sao** ở `D:\dredge-wt`. Gốc để gộp: `_base1` cho câu cá, gear, tiếng, môi trường, Upgrades, hệ hạt, anim; `_base2` cho khoang.
+- Gộp bằng `python -I D:/dredge-ref/notes/merge_copy.py <nhánh> <_base1|_base2> [--apply]`. Script nay tự xử lý hai tệp mà nhánh nào cũng đụng:
+  `index.html` (đổi `?v=` của gốc và nhánh sang rev của repo trước khi gộp ba chiều) và `tools/README.md` (gộp ba chiều theo từng mục `## `).
+  Hai nhánh chèn thẻ sát nhau ở `index.html` vẫn đụng: ghép tay, rồi so tập `src`/`href` của repo với từng bản sao.
+- Root đã sửa ngoài tệp của nhánh: `dialogue.js` không gán lại runner đã kết thúc (kẹt hội thoại sau Esc); `.dk-boat` chỉ cho nút con nhận chuột (nút Ụ tàu ở 844x390);
+  `yarn.js` EmitLightning gọi `DRSky.weather.emitLightning()`; `sky.js` gán thêm `setSimulationSpeed` và `setSubEmitProbability` cho mưa;
+  `main.js` gọi `DRCargo.tickFreshness()` mỗi khung (cá giờ mới ươn) và cập nhật cỡ `boat.glb`.
+- Kiểm trên cây đã gộp (máy rảnh): rules 35, asset-keys đạt, data 73, particles 38, sfx 67, env 70, sea 26, anim 91, story 42, suite 73, gear 49, upgrade 105, fishing 295, cargo 283; không trượt.
+- Khung hình cảnh câu cá 1280x720 (CPU, nhỏ nhất): cả đợt 1,21 → 1,57 ms; riêng câu cá 1,36 → 1,55 ms. Các hàm update cộng lại khoảng 0,2 ms; phần còn lại là thêm draw call (161 → 173).
 
-| Nhánh | Lúc dừng | Việc đầu tiên khi chạy tiếp |
-|---|---|---|
-| tiếng | SFX-04..15 xong, sfx 67/67, suite 73/73, +7,62 MB | README; chạy story/fishing/cargo/env/sea |
-| anim | 98 clip, chân dung Appear chạy, anim 90/91 (lỗi test) | sửa khẳng định đồng hồ, chạy lại story/suite |
-| môi trường | E03/E08/E14/E10 xong, env 70/70 | chờ hệ hạt có `setRateOverTime`, rồi lái mưa/tuyết bằng tốc độ tuyệt đối |
-| hệ hạt | runtime + 31 hệ + 141 nguồn cảnh, particles 29/30 | thêm `setRateOverTime(r)`, giữ hệ lặp khi còn tay cầm; chạy lại test |
-| Upgrades | applyUpgrade 9/9; cửa sổ 21/24 ở 844x390 | sửa 3 trượt, chạy 1920x1080, ảnh ghép |
-| câu cá | F1, F4, F6, F8, F10, F13, F14, F16 qua; 283/294 | sửa test F5/F7/F12, kết luận F3 |
-| gear | boat.js xong chưa kiểm; abilities.js chưa gắn | css, input.js, hud.js (F11), test/dredge-gear.js |
-| khoang | mới đọc xong đầu vào, chưa sửa tệp | viết mối nối DRCargo + handler gốc, rồi C03-C16 |
-
-**Bẫy và việc của root** (người gộp):
-- Hạn mức: `bash ~/.claude/bin/usage-watch.sh --now`. Chạm 92% thì nhắn các nhánh dừng ở chỗ an toàn rồi hẹn giờ reset. Cache `~/.cache/ccstatusline/usage.json` dùng chung 3 tài khoản, script đã lọc `tokenHash`.
-- Gộp từng nhánh: `python -I D:/dredge-ref/notes/merge_copy.py <nhánh> <_base1|_base2>` để xem kế hoạch, thêm `--apply` để ghi.
-  - `tools/README.md` sẽ đụng nhau vì nhánh nào cũng nối một mục vào cuối. Cách xử lý: ghép cả hai mục.
-  - `index.html`: gộp ba chiều tự xử lý các dòng `<script>` mới.
-- Độ tươi của cá không được tính ở đâu (`DRRules.decayFish` chưa ai gọi), nên cá không bao giờ ươn. Nhánh khoang sẽ xuất hàm. Root thêm một dòng gọi ở `main.js` hoặc `sky.js`.
-- Ở 844x390, nút "Ụ tàu" bị `.dk-boat` đè (`dock.js` / `story.css`), nên bấm thật không được. Ai giữ `dock.js` ở đợt 2 sửa.
-- Blend camera khi câu là 2 s, theo CinemachineBrain trong `Manager.unity`, không phải 1 s.
-- Nhánh tiếng đã bỏ vòng sóng "Waves Ambience 1" và vòng mòng biển chung, vì bản gốc không có.
-- Cuối đợt: nâng `?v=` trong `index.html` và `rev:` trong `data/games.js`. `data/games.js` có sửa của agent khác, nên chỉ stage khúc của mình. Đẩy, đợi Pages, rồi chạy mọi `test/dredge-*.js` với `DR_URL`.
-- Đợt 2, sau khi gộp khoang:
-  - câu cá F2/F9: cá lên con trỏ, khay tạm;
-  - cửa hàng: handler Buy/Sell/Repair, SU-01/02/05/07..14;
-  - Upgrades SU-04: lưới nộp vật liệu thay `purchase(id)`;
-  - thả lưới/bẫy/mồi: GR-06/07/13, phát clip lưới bằng `DRAnim`.
+**Còn mở, chưa làm:**
+- Đợt 2 (cần mối nối khoang, nay đã có `DRCargo.open`): câu cá F2/F9 (cá lên con trỏ, khay tạm), cửa hàng Buy/Sell/Repair + SU-01/02/05/07..14, Upgrades SU-04 (lưới nộp thay `purchase(id)`), thả lưới/bẫy/mồi GR-06/07/13 qua `DRAbilities.register()`, GR-17.
+- Mưa gần như vô hình: alpha màu đầu của Rain trong Game.unity chỉ 0,008–0,012, ảnh `gog_13` đậm hơn. Chưa giải thích.
+- Cảnh đêm và hoàng hôn tối hơn ảnh thật (`gog_20`, `gog_01`): nước, đèn thuyền, mặt trời thấp hơn.
+- Lỗ phun Devil's Spine: khung +17% khi máy đang tải nặng, +5% khi rảnh; đo lại.
+- `storageTrayUnlockQuest` chưa xuất được; nhánh câu cá đợt 2 tự quyết khi nào mở khay.
+- Ở 844x390 đầu chân dung bị cắt (`--s` chặn ở 0,62) và thanh năng lực rất nhỏ.
 
 ## Kiểm
 

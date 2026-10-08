@@ -6,6 +6,9 @@
  */
 .cg-root { --ink: #fff; --muted: #7d6244; position: fixed; inset: 0; z-index: 40; display: none; background: rgba(2, 8, 8, .32); touch-action: none; }
 .cg-root.on { display: block; }
+/* docked (cạnh bảng câu): không che màn, không chặn chuột ngoài bảng (Harvester.ToggleInventorySolo) */
+.cg-root.docked { background: none; pointer-events: none; }
+.cg-root.docked .cg-panel { pointer-events: auto; }
 
 /* ---- bảng trượt ---- */
 .cg-panel { position: absolute; box-sizing: border-box; transition: transform .5s cubic-bezier(.16, 1, .3, 1); will-change: transform; }
@@ -18,6 +21,52 @@
 .cg-left .cg-bg { transform: scaleX(-1); }
 .cg-left.flash { animation: cg-flash .7s; }
 @keyframes cg-flash { 30% { filter: brightness(1.8); } }
+/* khay tạm (StorageTray) treo dưới bảng câu: trượt từ trên xuống 0,75 s OutExpo (HarvestMinigameView.ShowStorageTray) */
+.cg-tray { transform: translateY(-100%); transition-duration: .75s; z-index: 0; }
+.cg-tray.on { transform: none; }
+.cg-traybg { position: absolute; inset: 0; pointer-events: none; background: rgba(8, 5, 4, .92); border: 2px solid #3a2820; border-top: 0; border-radius: 0 0 6px 6px; }
+.cg-c.tray .b { background: #2b1e18; }
+/* chữ lệch theo sc (bảng trái co theo bề ngang trên điện thoại) */
+.cg-left { --sc: 1; }
+
+/* ---- bảng nộp đồ (QuestGridSlidePanel): NameBackplate = TitleBackground 410x60 nhô lên mép trên, lưới nền FishmongerInventoryBackground ---- */
+/* chữ đè lên cả phần viền 9-slice (Unity không co chữ theo viền), nên nền là ::before còn chữ chiếm trọn bề rộng */
+.cg-name { position: absolute; left: calc(var(--k) * var(--sc) * 120px); right: calc(var(--k) * var(--sc) * 120px); top: calc(var(--k) * var(--sc) * -24px); height: calc(var(--k) * var(--sc) * 60px); box-sizing: border-box; z-index: 1;
+  display: flex; align-items: center; justify-content: center; padding: 0 calc(var(--k) * var(--sc) * 14px); font: 600 max(12px, calc(var(--k) * var(--sc) * 38px))/1 var(--dr-head); color: #fff; text-align: center; white-space: nowrap; }
+.cg-name::before { content: ""; position: absolute; inset: 0; z-index: -1; box-sizing: border-box;
+  border-style: solid; border-width: calc(var(--k) * var(--sc) * 16px) calc(var(--k) * var(--sc) * 60px) calc(var(--k) * var(--sc) * 16px) calc(var(--k) * var(--sc) * 60px);
+  border-image: url(../art/ui/cargo/TitleBackground.webp) 15 105 16 105 fill / calc(var(--k) * var(--sc) * 16px) calc(var(--k) * var(--sc) * 60px) calc(var(--k) * var(--sc) * 16px) calc(var(--k) * var(--sc) * 60px) stretch; }
+.cg-sub { position: absolute; left: calc(var(--k) * var(--sc) * 50px); right: calc(var(--k) * var(--sc) * 50px); top: calc(var(--k) * var(--sc) * 70px); text-align: center;
+  font: 400 max(11px, calc(var(--k) * var(--sc) * 32px))/1.15 var(--dr-ui); color: #fff; }
+.cg-zonebg2 { position: absolute; inset: 0; pointer-events: none; background: url(../art/ui/cargo/FishmongerInventoryBackground.webp) center / 100% 100% no-repeat; opacity: .9; }
+.cg-ltabs { position: absolute; left: calc(var(--k) * var(--sc) * 50px); right: calc(var(--k) * var(--sc) * 50px); top: calc(var(--k) * var(--sc) * 52px); height: calc(var(--k) * var(--sc) * 50px); display: flex; z-index: 2; }
+.cg-ltabs .cg-tab .ic { height: 70%; width: auto; object-fit: contain; }
+/* bóng mờ gợi ý (Silhouette_UI_Material, màu trắng) [ĐỀ XUẤT] trắng mờ 35% */
+.cg-hint img { filter: brightness(0) invert(1); opacity: .35; }
+/* hàng giúp đỡ treo dưới bảng (HelpContainer y 60 -> 0, 0,75 s OutExpo sau 1 s): tấm PopupBackground 400x60 + nút Xong 170x60 */
+.cg-help { position: absolute; left: calc(var(--k) * var(--sc) * 20px); top: calc(100% - var(--k) * var(--sc) * 60px); display: flex; align-items: stretch; gap: calc(var(--k) * var(--sc) * 20px); pointer-events: none; z-index: -1; opacity: 0;
+  transition: top .75s cubic-bezier(.16, 1, .3, 1), opacity .3s; }
+.cg-help.on { top: 100%; opacity: 1; }
+.cg-help .tx { display: flex; align-items: center; justify-content: center; box-sizing: border-box; min-width: calc(var(--k) * var(--sc) * 400px); max-width: calc(var(--k) * var(--sc) * 400px); min-height: calc(var(--k) * var(--sc) * 60px); padding: 0 calc(var(--k) * var(--sc) * 18px);
+  font: 400 max(11px, calc(var(--k) * var(--sc) * 29px))/1.1 var(--dr-ui); color: #fff; text-align: center;
+  border-style: solid; border-width: calc(var(--k) * var(--sc) * 20px); border-image: url(../art/ui/cargo/PopupBackground_0.webp) 64 fill / calc(var(--k) * var(--sc) * 20px) stretch; }
+.cg-help .cg-done { pointer-events: auto; min-width: calc(var(--k) * var(--sc) * 170px); }
+.cg-trayhelp { left: 50%; transform: translateX(-50%); }
+.cg-trayhelp .tx { min-width: calc(var(--k) * var(--sc) * 360px); max-width: calc(var(--k) * var(--sc) * 360px); }
+.cg-foot { position: absolute; left: 0; right: 0; bottom: calc(var(--k) * var(--sc) * 65px); display: flex; justify-content: center; gap: 8px; }
+/* nút chung: LightButton 350x50 Button_White + chữ 25 pt (UpgradeGridSlidePanel/LightButton, ControlPanel) */
+.cg-btn { appearance: none; box-sizing: border-box; min-width: calc(var(--k) * var(--sc, 1) * 350px); height: calc(var(--k) * var(--sc, 1) * 50px); min-height: 28px; padding: 0 14px; cursor: pointer;
+  font: 600 max(11px, calc(var(--k) * var(--sc, 1) * 25px))/1 var(--dr-head); color: #1a120c; white-space: nowrap;
+  border-style: solid; border-width: calc(var(--k) * var(--sc, 1) * 17px) calc(var(--k) * var(--sc, 1) * 48px); background: transparent;
+  border-image: url(../art/ui/cargo/Button_White.webp) 17 48 fill / calc(var(--k) * var(--sc, 1) * 17px) calc(var(--k) * var(--sc, 1) * 48px) stretch; position: relative; }
+.cg-btn:hover:not([disabled]) { filter: brightness(1.08); }
+.cg-btn[disabled] { cursor: not-allowed; filter: grayscale(1) brightness(.6); color: #3a2f27; }
+.cg-btn.hold .hint { font-weight: 400; font-size: .7em; margin-left: 6px; color: #5a4630; }
+.cg-help .cg-done { min-width: calc(var(--k) * var(--sc) * 170px); }
+/* vùng điều khiển góc dưới phải (prompt area 'control': Sell All Fish, Repair All...) */
+.cg-ctl { position: fixed; right: 12px; bottom: 12px; z-index: 92; display: none; flex-direction: column; align-items: flex-end; gap: 6px; }
+.cg-ctl .cg-btn { min-width: calc(var(--k, .67) * 300px); }
+.cg-mode { position: absolute; left: 0; right: 0; text-align: center; font: 600 max(11px, calc(var(--k) * 24px))/1 var(--dr-head); color: #ff9a3b; letter-spacing: .04em; }
 
 /* tay nắm SlidePanelTab: 50x50 ở mép trái bảng phải, bấm để đóng */
 .cg-handle { position: absolute; left: calc(var(--k) * -58px); top: calc(var(--k) * 82px); width: calc(var(--k) * 50px); height: calc(var(--k) * 50px); min-width: 28px; min-height: 28px;
@@ -72,7 +121,6 @@
 .cg-c .b { background: #3a2820; -webkit-mask: url(../art/ui/cargo/CargoGrid_Default.webp) center / 100% 100% no-repeat; mask: url(../art/ui/cargo/CargoGrid_Default.webp) center / 100% 100% no-repeat; }
 .cg-c .o { display: none; }
 .cg-c.occ .o { display: block; }
-.cg-c.inf .o { box-shadow: inset 0 0 0 99px rgba(160, 60, 200, .38); }
 .cg-c .f { -webkit-mask: url(../art/ui/cargo/HighlightBorder.webp) center / 100% 100% no-repeat; mask: url(../art/ui/cargo/HighlightBorder.webp) center / 100% 100% no-repeat; }
 .cg-c .f.ok { background: #74d27a; }
 .cg-c .f.bad { background: #dc2c38; }
@@ -85,8 +133,9 @@
 .cg-item { position: absolute; pointer-events: none; }
 .cg-item img, .cg-held img { position: absolute; left: 50%; top: 50%; max-width: none; pointer-events: none; -webkit-user-drag: none; transform-origin: 50% 50%; }
 .cg-item.grey img { filter: grayscale(1) brightness(.8); }   /* greyscaleMaterial: thiết bị OPERATION nằm trên ô hỏng */
-.cg-item.settle img { animation: cg-settle .14s ease-out; }
-@keyframes cg-settle { from { scale: 1.07; } to { scale: 1; } }
+/* đặt xong: đứng ngay, không nảy (GridUI.cs:341-412 không có tween; C13) */
+/* hạt nhiễm bệnh: canvas 2D phủ lên món (InfectedObjectCell.prefab, UIParticle; C09) */
+.cg-inf { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; mix-blend-mode: screen; }
 .cg-held { position: fixed; left: 0; top: 0; z-index: 90; display: none; pointer-events: none; will-change: transform; }
 .cg-cursor { position: fixed; left: 0; top: 0; z-index: 89; display: none; pointer-events: none; box-sizing: border-box;
   border-style: solid; border-width: calc(var(--k, .67) * 10px) calc(var(--k, .67) * 25px) calc(var(--k, .67) * 11px) calc(var(--k, .67) * 25px);
@@ -108,9 +157,13 @@
 .cg-tip .bar { position: relative; display: block; width: calc(var(--kt) * 135px); height: calc(var(--kt) * 30px); background: #811414; border: 2px solid #000; box-sizing: border-box; }
 .cg-tip .bar i { position: absolute; left: 0; top: 0; bottom: 0; background: #8ad275; }
 .cg-tip .bar em { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font: 600 max(10px, calc(var(--kt) * 22px)) var(--dr-ui); color: #fff; text-shadow: 0 1px 2px #000; }
-.cg-tip .ds { margin: calc(var(--kt) * 6px) 0 0; text-align: center; font: 400 max(11px, calc(var(--kt) * 24px))/1.2 var(--dr-ui); color: var(--muted); }
+.cg-tip .ds { margin: calc(var(--kt) * 6px) 0 0; text-align: center; font: 400 max(11px, calc(var(--kt) * 24px))/1.2 var(--dr-ui); color: var(--muted); white-space: pre-line; }
+.cg-tip .ds.note { color: #fff; }   /* TooltipSectionAdditionalNote: màu tooltipNotesColor */
+.cg-tip .sz { display: inline-flex; align-items: center; gap: 4px; }
+.cg-tip .sz .trophy { display: inline-block; width: calc(var(--kt) * 26px); height: calc(var(--kt) * 26px); background: #ffd104; -webkit-mask: var(--m) center / contain no-repeat; mask: var(--m) center / contain no-repeat; }
 .cg-tip .prompts { margin-top: calc(var(--kt) * 10px); display: flex; flex-wrap: wrap; justify-content: center; gap: calc(var(--kt) * 6px) calc(var(--kt) * 14px); }
 .cg-tip .pr { display: flex; align-items: center; gap: 6px; font: 400 max(10px, calc(var(--kt) * 22px)) var(--dr-ui); }
+.cg-tip .pr.off { opacity: .45; }
 .cg-tip .pr b { font-weight: 600; padding: 1px 7px; border: 1px solid #d7bfad; border-radius: 3px; background: rgba(255, 255, 255, .1); }
 
 /* nhãn loại thu hoạch (FishableTypeTag, sprite TypeTag, màu theo HarvestTypeTagConfig.colorLookup) */

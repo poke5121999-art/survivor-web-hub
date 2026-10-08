@@ -32,7 +32,10 @@
   const norm180 = a => { a = norm360(a); return a > 180 ? a - 360 : a; };   // MathUtil.TransformAngleToNegative180Positive180 sau eulerAngles
   const isBetween = (t, a, b) => t >= Math.min(a, b) && t <= Math.max(a, b);
   const outQuad = t => 1 - (1 - t) * (1 - t);                     // DOTween mặc định
-  const play = (k, v) => { try { root.DRAudio && DRAudio.play(k, v); } catch (e) { /* tiếng là phần phụ */ } };
+  const play = (k, v, r) => { try { root.DRAudio && DRAudio.play(k, v, r); } catch (e) { /* tiếng là phần phụ */ } };
+  // cao độ ngẫu nhiên của tiếng trúng/trượt/nạo vét: Random.Range(randomPitchMin, randomPitchMax) của từng minigame
+  // (FishMinigame.cs:227,263; PendulumMinigame.cs:283,319; SpiralMinigame.cs:253,318; DredgeMinigame.cs:106,261; số trong cảnh: mini[*])
+  const pitchOf = mc => (mc && mc.randomPitchMax != null) ? rand(mc.randomPitchMin, mc.randomPitchMax) : 1;
 
   // Tiếng của sáu minigame (guid addressables -> catalog.json, xem tools/harvest_ui.py). Ba tiếng cánh cổng là của DLC2.
   if (root.DR_AUDIO) {
@@ -296,12 +299,10 @@
     leaveBtn.addEventListener('pointerdown', e => e.stopPropagation());
     leaveBtn.addEventListener('click', e => { e.stopPropagation(); leave(); });
     host.appendChild(leaveBtn);
-    // Animator của panel đặt trên Container; Ring / Indicator của vòng xoay cá là hai đường dẫn băm trong clip (tools/harvest_ui.py).
-    const res = (rel, root2) => {
-      if (rel === 'path_0xDFDB0ECB_tjUlINJ') return Q('RadialFishMinigameWheel/Ring');
-      if (rel === 'path_0xA6710CB7_WlhLHvH') return Q('RadialFishMinigameWheel/Ring/Indicator');
-      return rel === '' ? cont : Q(rel);
-    };
+    // Animator của panel đặt trên Container. Hai đường cong path_0xDFDB0ECB / path_0xA6710CB7 trong HarvestMinigameHit/Miss... là
+    // CRC32("FishMinigameWheel/Ring") và CRC32(".../Ring/Indicator"): cảnh gốc không có nút nào như vậy (vòng thật là
+    // RadialFishMinigameWheel) nên Animator gốc không gắn chúng vào đâu — vòng cá KHÔNG rung/loé (audit F10).
+    const res = rel => /^path_0x/.test(rel) ? null : rel === '' ? cont : Q(rel);
     ANIM = new Anim(['HarvestMinigameIdle', 'HarvestMinigameHit', 'HarvestMinigameMiss', 'HarvestMinigameHitSpecial', 'HarvestMinigameEnd', 'HarvestMinigameEndSpecial'], res, 'HarvestMinigameIdle');
     ANIM_D = new Anim(['DredgeMinigameIdle', 'DredgeMinigameHit', 'DredgeMinigameMiss', 'DredgeMinigameEnd'], res, 'DredgeMinigameIdle');
     resize();
@@ -730,7 +731,7 @@
         offset += c.rotationSpeed * dt; rings();
         if (overlap()) {
           if (!C.progressDisabled) {
-            C.removeProgress(c.targetValue); C.trigger('miss'); play(C.sfx.hit); until = C.mc.inputDisablePenaltySec;
+            C.removeProgress(c.targetValue); C.trigger('miss'); play(C.sfx.hit, 1, pitchOf(mc)); until = C.mc.inputDisablePenaltySec;
           }
           C.progressDisabled = true;
           C.removeProgress(0.01 * dt * 60, false);                        // RemoveProgress(0.01f) MỖI KHUNG trong mã gốc: quy về 60 khung/giây
@@ -739,7 +740,7 @@
         if (until <= 0) C.progressDisabled = false;
         iImg.setCol(inner ? ACT : INACT); oImg.setCol(inner ? INACT : ACT);   // LateUpdate
       },
-      press() { inner = !inner; lanes(); play(C.sfx.special); return 'lane'; },
+      press() { inner = !inner; lanes(); play(C.sfx.special, 1, pitchOf(mc)); return 'lane'; },
       onInputDisabled() { }, onInputReenabled() { },
       debug: () => ({ angle: ang(), speed: c.rotationSpeed, offset, inner, outer: ot.map(t => ({ a: t.a, w: t.w })), innerT: it.map(t => ({ a: t.a, w: t.w })), overlap: overlap() })
     };
@@ -778,7 +779,19 @@
     Q('HarvestableTypeTag').set('on', !!info.harvestType);
     const bad = info.status && info.status !== 'ok';
     Q('InvalidEquipmentIndicator').set('on', !!bad && /equipment|rod|advanced/.test(info.status));
+    // HarvestMinigameView.RefreshHarvestTarget: thiếu dụng cụ -> typeTagShiny.Play(); có dụng cụ nhưng chỉ trên ô hỏng -> brokenEquipmentOverlay
+    shine(tag, 'HarvestableTypeTag', !!info.equipShiny);
     Q('BrokenMinigameOverlay').set('on', !!info.broken);
+  }
+  // UIShiny (Coffee UIEffect): vệt sáng rộng m_Width (phần khung), nghiêng m_Rotation, quét trong duration rồi nghỉ loopDelay (harvest_ui.js shiny)
+  function shine(nd, key, on) {
+    const s = HUI.shiny && HUI.shiny[key];
+    nd.el.classList.toggle('hv-shiny', on);
+    if (on && s) {
+      const st = nd.el.style;
+      st.setProperty('--sh-w', (s.width * 100) + '%'); st.setProperty('--sh-rot', (90 - s.rotation) + 'deg');
+      st.setProperty('--sh-t', (s.duration + s.loopDelay) + 's'); st.setProperty('--sh-d', s.initialDelay + 's');
+    }
   }
 
   function showPrompt(mode) {                                           // 'start' | 'pull' | 'none'
@@ -792,7 +805,7 @@
       const k = sub(icon, 'Icon'); k.el.style.setProperty('--s', 'url(' + spriteUrl('keyboard-icon-f') + ')'); k.set('on', true);
       const q2 = Q('Frame/ControlPromptEntry/ControlPromptContainer/ControlPromptIcon2'); if (q2) q2.set('on', false);
     }
-    fr.el.classList.toggle('shiny', mode === 'start');
+    shine(fr, 'Frame/ControlPromptEntry/Backplate', mode === 'start');
     fr.el.classList.toggle('dis', !on);
   }
 
@@ -802,11 +815,52 @@
 
   function tutorial(show) {
     const tp = Q('TutorialPopup'), tx = Q('TutorialPopup/TutorialText');
-    if (!show) { tp.set('on', false); return; }
+    if (!show) {                                                        // TutorialPopup.Hide: tan biến ra rồi tắt
+      const vis = tp.s.on && tp.el.isConnected && getComputedStyle(tp.el).display !== 'none';
+      if (M) M.tutShown = false;
+      if (vis) dissolve(tp, false, () => { if (!M || !M.tutShown) { tp.set('on', false); tp.el.style.filter = ''; flush(); } });
+      else tp.set('on', false);
+      return;
+    }
+    if (M) M.tutShown = true;
     const k = '<span class="kc" style="--k:url(' + spriteUrl('keyboard-icon-f-line') + ')"></span>';
     tx.setText((T.tut[M.type] || '').replace('{k}', k));
-    tp.set('on', true); tp.el.classList.remove('hv-pop'); void tp.el.offsetWidth; tp.el.classList.add('hv-pop');
+    tp.set('on', true); flush();
+    dissolve(tp, true);
     placeFloaters();
+  }
+  // UITransitionEffect (Coffee UIEffect) chế độ Dissolve: alpha ×= saturate((texA − f·(1 + w) + w)·32/softness), w = m_DissolveWidth/4,
+  // f chạy 1 -> 0 khi hiện (0 -> 1 khi ẩn) trong m_Player.duration 0,35 s; texA = kênh alpha của UITransitionTex (RGB = 0).
+  // Dựng bằng bộ lọc SVG: feImage (texture kéo đầy khung, m_KeepAspectRatio 0) -> feFuncA tuyến tính -> cắt SourceGraphic.
+  // [ĐỀ XUẤT] bỏ viền màu m_DissolveColor (#0c0002, gần đen) vì nền popup đã tối.
+  let dissolveRaf = 0;
+  function dissolveFilter() {
+    if (document.getElementById('hv-dissolve')) return;
+    const TT = HUI.tutorialTransition, NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('width', '0'); svg.setAttribute('height', '0'); svg.style.cssText = 'position:absolute;width:0;height:0';
+    svg.innerHTML = '<filter id="hv-dissolve" x="0" y="0" width="1" height="1" filterUnits="objectBoundingBox" primitiveUnits="objectBoundingBox" color-interpolation-filters="sRGB">' +
+      '<feImage href="' + URLB(TT.tex.src) + '" x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="tex"/>' +
+      '<feColorMatrix in="tex" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="ta"/>' +
+      '<feComponentTransfer in="ta" result="mask"><feFuncA id="hv-dissolve-a" type="linear" slope="32" intercept="0"/></feComponentTransfer>' +
+      '<feComposite in="SourceGraphic" in2="mask" operator="in"/></filter>';
+    document.body.appendChild(svg);
+  }
+  function dissolve(nd, show, done) {
+    const TT = HUI.tutorialTransition;
+    if (!TT) { if (done) done(); return; }
+    dissolveFilter();
+    const fa = document.getElementById('hv-dissolve-a'), w = TT.width / 4, k = 32 / Math.max(0.001, TT.softness), t0 = performance.now();
+    cancelAnimationFrame(dissolveRaf);
+    nd.el.style.filter = 'url(#hv-dissolve)';
+    const step = now => {
+      const u = Math.min(1, (now - t0) / 1000 / TT.duration), f = show ? 1 - u : u;
+      fa.setAttribute('slope', k.toFixed(3)); fa.setAttribute('intercept', (k * (w - f * (1 + w))).toFixed(4));
+      nd.dissolveF = f;
+      if (u < 1) dissolveRaf = requestAnimationFrame(step);
+      else { if (show) nd.el.style.filter = ''; if (done) done(); }
+    };
+    step(t0);
   }
 
   function setPhase(p) { M.phase = p; }
@@ -836,7 +890,8 @@
     const C = M.core;
     showWheel(type);
     // hình ảnh/đối tượng phụ của panel về trạng thái nghỉ
-    for (const p of ['NegativePulseRing', 'PositivePulseRing', 'TrophyPulseRing', 'Line', 'OozeOverlay', 'StartText']) { const n = Q(p); if (n) n.set('on', false); }
+    // Line (Image 2 đơn vị, Filled, xoay 90°) bật trong cảnh và không mã nào tắt nên giữ nguyên (audit F16)
+    for (const p of ['NegativePulseRing', 'PositivePulseRing', 'TrophyPulseRing', 'OozeOverlay', 'StartText']) { const n = Q(p); if (n) n.set('on', false); }
     ['ProgressBar'].forEach(p => Q(p).set('on', false));
     Q('ProgressBar/FishIcon').el.style.setProperty('--s', 'url(' + spriteUrl(M.dredge ? 'DredgingChestIcon' : 'FishingFishIcon') + ')');
     Q('ProgressBar/FishIcon').setCol([1, 1, 1, 1]);
@@ -875,7 +930,12 @@
     M.wasTutorial = !!(vars && !vars[key]);
     tutorial(M.wasTutorial);
     Q('ProgressBar').set('on', true); Q('ProgressBar/FishIcon').set('on', true);
-    showPrompt('pull');
+    M.noInput = !!info.broken;
+    if (M.noInput) {                                                    // !HasUndamagedEquipment: không bật minigameInteractAction
+      showPrompt('none');
+      Q('CannotStartText').set('on', true);
+      Q('CannotStartText').setText(T.cannot.broken, { color: colCss(COLORS.NEGATIVE) });
+    } else showPrompt('pull');
     const trophy = !C.dredge && !!(o.rollTrophy ? o.rollTrophy() : o.trophy);
     M.trophyShown = trophy;
     C.hitSpecial = false;
@@ -900,24 +960,26 @@
 
   function pressMini() {                                                // OnMinigameInteractPress của từng lớp
     const C = M.core;
+    if (M.noInput) return;
     if (!C.dredge && !C.inputEnabled) return;
     if (C.dredge && !C.inputEnabled) return;
     const ctl = C.ctl, cfg = C.cfg;
     const r = ctl.press();
     if (C.dredge) { return; }
     const spiral = C.type === 'FISHING_SPIRAL';
+    const pitch = pitchOf(C.mc);                                        // một cao độ cho mỗi lần bấm (trúng hoặc trượt)
     let trig;
     if (r === 'special') { C.addProgress(1); trig = 'hit-special'; C.hitSpecial = true; }
     else if (r === 'hit') {
       const f = spiral ? cfg.spiralValueFactor : 1;
       C.addProgress(cfg.targetValue * C.speed * f); trig = 'hit';
       if (spiral && ctl.onHit) ctl.onHit(C.progress);
-      if (C.progress < 1) { play(C.sfx.hit); if (ctl.afterHit) ctl.afterHit(C.progress); }
+      if (C.progress < 1) { play(C.sfx.hit, 1, pitch); if (ctl.afterHit) ctl.afterHit(C.progress); }
     } else {
       const f = C.type === 'FISHING_BALL_CATCHER' || C.type === 'FISHING_DIAMOND' ? (cfg.valueFactor == null ? 1 : cfg.valueFactor) : 1;
       if (C.mc.removeProgressOnMiss) C.removeProgress(cfg.targetValue * f);
       if (ctl.onMiss) ctl.onMiss();
-      trig = 'miss'; play(C.sfx.miss);
+      trig = 'miss'; play(C.sfx.miss, 1, pitch);
       C.disableInput();
     }
     M.lastTrig = trig;
@@ -1014,7 +1076,9 @@
       Q('HarvestableTypeTag/AdvancedTypeIcon').set('on', false);
     }
     Q('InvalidEquipmentIndicator').set('on', false);
-    play(made.aberrant ? 'fish.new.aberration' : made.isNew ? 'fish.new' : 'fish.minigame.hit');
+    shine(tag, 'HarvestableTypeTag', false);
+    // không phát tiếng ở đây (audit SFX-10): bản gốc chỉ có tiếng của banner (js/banner.js: Fish - New / Fish - New Aberration /
+    // Notification - Generic), con thường không có tiếng riêng ngoài fishing-end
   }
 
   // quay lại trạng thái chờ cho con kế (HarvestMinigameView.RefreshHarvestTarget sau OnItemPlaceComplete)
