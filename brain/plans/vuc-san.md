@@ -124,9 +124,10 @@ pick: { team, diver, shark }, pity: { bannerId: { n5, n4, guar } }, stats }`.
 | W1 mô phỏng | `js/sim/{geom,vision,actors,match}.js`, `js/sim/bots.js` (bản đơn giản), `js/sim/skills.js` (khung + 2 kỹ năng mẫu), `tools/sim.js`, `tools/simlab.html` | `test/vuc-san-sim.js` (Node) |
 | W2 lớp vẽ | `js/engine/{gfx,level,fx,audio,shark}.js`, `js/view/{diverSheet,diverView,sharkView,lightmask,view,hud}.js`, `js/input.js` (phím, chuột), `css/hud.css`, `tools/{fakematch.js,viewlab.html}` | `test/vuc-san-view.js` |
 | W3 sảnh, ghép trận giả, gacha | `js/meta/{save,gacha,mmk,lobby}.js`, `css/ui.css`, `data/names.js` | `test/vuc-san-meta.js` (Node) + `test/vuc-san-lobby.js` |
-| W4 lưới đi + bot (pha 2) | `js/sim/{nav,bots}.js`, `tools/mapgen.js` (điểm sinh, chỗ đặt kho báu, kiểm khoang nối nhau với khoảng trống >= r cá mập lớn nhất) | `test/vuc-san-bots.js` (Node) |
-| W5 kỹ năng (pha 2) | `js/sim/skills.js` (20 kỹ năng còn lại; `lach-khe` cần lưới đi ở 0,55 r) | `test/vuc-san-skills.js` (Node) |
-| W6 HUD, cảm ứng, tiếng (pha 2) | `js/view/hud.js`, `js/input.js` (thêm cảm ứng), `css/hud.css` | `test/vuc-san-flow.js` |
+| W4 lưới đi + bot (pha 2) | `js/sim/{nav,bots}.js`, `data/maps.js`, `tools/mapgen.js` (điểm sinh, chỗ đặt kho báu, kiểm khoang nối nhau với khoảng trống >= r cá mập lớn nhất) | `test/vuc-san-bots.js` (Node) |
+| W5a kỹ năng cá mập (pha 2) | `js/sim/skills-shark.js` (11 kỹ năng), sửa nhỏ `js/sim/{actors,vision,match}.js` nếu thiếu móc | `test/vuc-san-skills-shark.js` (Node) |
+| W5b kỹ năng thợ lặn (pha 2) | `js/sim/skills-diver.js` (9 kỹ năng); không sửa lõi sim, thiếu móc thì báo | `test/vuc-san-skills-diver.js` (Node) |
+| W6 HUD, cảm ứng, tiếng (pha 2) | `js/view/*`, `js/engine/*`, `js/input.js` (thêm cảm ứng), `css/hud.css` | `test/vuc-san-flow.js` |
 
 ## Pha
 

@@ -90,7 +90,7 @@ function nodeSim(files) {
 const SIM_FILES = [
   '../ho-xanh/data/zones.js', '../ho-xanh/data/shark_assets.js',
   'data/tuning.js', 'data/sharks.js', 'data/divers.js', 'data/skills.js', 'data/maps.js',
-  'js/sim/rng.js', 'js/sim/geom.js', 'js/sim/vision.js', 'js/sim/actors.js', 'js/sim/skills.js', 'js/sim/match.js', 'js/sim/nav.js', 'js/sim/bots.js'
+  'js/sim/rng.js', 'js/sim/geom.js', 'js/sim/vision.js', 'js/sim/actors.js', 'js/sim/skills.js', 'js/sim/skills-shark.js', 'js/sim/skills-diver.js', 'js/sim/match.js', 'js/sim/nav.js', 'js/sim/bots.js'
 ];
 
 module.exports = { ROOT, GAME, SHOTS, check, done, serve, browser, open, shot, nodeSim, SIM_FILES };
