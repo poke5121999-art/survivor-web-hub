@@ -8,7 +8,7 @@ export const KNOWN = [
   "loot_items", "safes_chests", "station_upgrades", "station_gear", "station_healthpacks",
   "station_vehicles", "station_rules", "gacha_wheel", "foes", "run_timers",
   "endless_rules", "rank_rewards", "endless_seasons",
-  "coop_rules",
+  "coop_rules", "modes",
 ];
 
 const MAX_BODY_BYTES = 400 * 1024;
@@ -136,12 +136,21 @@ function validateDocs(docs) {
 
 const NET_BACKENDS = ["ngo", "rtd", "steam"];
 
+const MODE_IDS = ["coop", "pvp", "endless_solo", "endless_coop"];
+
+const TABLE_RULES = {
+  coop_rules: (d) => (NET_BACKENDS.includes(d.netBackend) ? null
+    : `Mạng co-op "${d.netBackend}" không hợp lệ, chỉ nhận ngo, rtd hoặc steam.`),
+  modes: (d) => (!MODE_IDS.includes(d._id) ? `Chế độ "${d._id}" không hợp lệ, chỉ nhận ${MODE_IDS.join(", ")}.`
+    : typeof d.open !== "boolean" ? `Giá trị open của "${d._id}" là ${JSON.stringify(d.open)}, phải là true hoặc false.` : null),
+};
+
 function checkTable(table, docs) {
-  if (table !== "coop_rules") return null;
+  const rule = TABLE_RULES[table];
+  if (!rule) return null;
   for (const d of docs) {
-    if (!NET_BACKENDS.includes(d.netBackend)) {
-      return `Mạng co-op "${d.netBackend}" không hợp lệ, chỉ nhận ngo, rtd hoặc steam.`;
-    }
+    const bad = rule(d);
+    if (bad) return bad;
   }
   return null;
 }
