@@ -1,33 +1,27 @@
 /*
  * Xúc tu đỏ gai của sự kiện thế giới TentacleAttack (V14: hoảng loạn cao). Dữ liệu: data/tentacle.js (tools/tentacle.py).
  *
- * WorldEventManager.cs (chỉ phần thấy được trên màn hình): mỗi worldEventRollFrequency (NORMAL 0,1 ngày) lúc đang đi biển (không neo, không câu, thời gian không
- * bị ép trôi) thăm dò một lần; WorldEventChance = 1 nên luôn bốc: lọc mọi WorldEventData (data/worldevents.js) theo TestWorldEvent rồi chọn theo
- * trọng số (SelectInsanityEvent). TentacleAttack: minWorldPhase 2, sanity ≤ 0,1, từ 0,75 qua nửa đêm tới 0,25, không ở STELLAR_BASIN / TWISTED_STRAND,
- * độ sâu tại (−2, 0, 12) phía trước thuyền > 0,1, nghỉ 3 ngày giữa hai lần. Sinh tại thuyền (playerSpawnOffset 0).
+ * Lịch bốc thăm: js/events.js (DREvents, chép WorldEventManager.cs). TentacleAttack: minWorldPhase 2, sanity ≤ 0,1, từ 0,75 qua nửa đêm tới 0,25,
+ * không ở STELLAR_BASIN / TWISTED_STRAND, không trong vùng an toàn, độ sâu tại (−2, 0, 12) phía trước thuyền > 0,1, nghỉ 3 ngày (lịch sử lưu sổ),
+ * Xua đuổi dập tắt. Sinh tại thuyền (playerSpawnOffset 0).
  *
  * AttackingTentacle.cs: gốc xúc tu bám theo vị trí thuyền + (−2, 0, 12) cục bộ với độ mạnh trackingStrength, giảm dần Lerp(f, 0, dt) và vị trí
  * Lerp(pos, đích, dt·Lerp(0, 5, f)); luôn quay mặt về thuyền Slerp(rot, đích, dt·Lerp(0, 40, mạnh)), mạnh = 1 từ lúc StartTrackingPlayer (0 s) tới
  * StopTrackingPlayer (3,875 s) rồi về 0. Hoạt ảnh: Empty →[play]→ Armature|Spawn (7,75 s, sự kiện AttackFinished ở cuối) → exit → Tentacle_Retract
  * (1,58 s, hoà 0,5 s) → AttackFinished → huỷ. Neo bến / thuyền vào bến thì rút ngay.
  *
- * [ĐỀ XUẤT] không có: kiểm vùng an toàn (DoesHitSafeZone: raycast layer safe zone), ooze, vùng bốc thăm ở chế độ PASSIVE, tiếng (emerge / submerge / attack
- * SFX), hạt BigSplash / TentacleTip / TentacleBase (chưa có trong data/particles.js), va chạm gây hại. Sự kiện khác trong danh sách ứng viên (cá voi, quạ...)
- * chưa có hình: bốc trúng thì chỉ ghi lịch sử nghỉ rồi bỏ.
+ * Gây hại: VariablePlayerDamager 2 điểm, requireOneHealthToKill, một lần (DRBoat.monsterHit), chạm hộp va chạm của 4 xương.
+ * [ĐỀ XUẤT] chưa có: tiếng (emerge / submerge / attack SFX), hạt BigSplash / TentacleTip / TentacleBase (chưa có trong data/particles.js).
  *
  *   DRTentacle.init(scene)  DRTentacle.update(dt)  DRTentacle.debug → { spawn(), state(), roll(), candidates() }
  */
 (function (root) {
   'use strict';
-  const T = root.THREE, D = root.DR_TENTACLE, EV = root.DR_WORLDEVENTS, CFG = root.DR_CONFIG;
+  const T = root.THREE, D = root.DR_TENTACLE, EV = root.DR_WORLDEVENTS;
   if (!T || !D || !EV) { root.DRTentacle = null; return; }
-  const ROLL_FREQ = (CFG.worldEventRollFrequency || { NORMAL: 0.1 }).NORMAL;        // GameConfigData.WorldEventRollFrequency[NORMAL]
-  const CHANCE = CFG.worldEventChance == null ? 1 : CFG.worldEventChance;
   const ID = 'TentacleAttack';
   const SPAWN = D.clips.spawn, RETRACT = D.clips.retract;
   let scene = null, mat = null, tex = null, inst = null;
-  let lastRoll = 0, current = null;
-  const history = {}; // eventHistory (không lưu vào save)
 
   // ---------------------------------------------------------------- hoạt ảnh (Hermite theo từng thành phần như AnimationCurve)
   function hermite(keys, t, n, out) {
@@ -122,23 +116,22 @@
     const f = fw(b), r = rt(b);
     return [b.x + r[0] * p[0] + f[0] * p[2], b.z + r[1] * p[0] + f[1] * p[2]];
   }
-  function spawn(force) {
+  function spawn() {
     if (inst || !scene) return false;
     const b = root.DR.s.boat, o = build();
     scene.add(o.root); scene.add(o.mesh);
     o.root.position.set(b.x, 0, b.z);
-    inst = { root: o.root, nodes: o.nodes, mesh: o.mesh, t: 0, retractT: 0, phase: 'spawn', blend: 0, follow: D.trackingStrength, track: 0, trackTarget: 0, fired: 0,
+    inst = { root: o.root, nodes: o.nodes, byName: Object.fromEntries(o.nodes.map(n => [n.name, n])), hit: false, mesh: o.mesh, t: 0, retractT: 0, phase: 'spawn', blend: 0, follow: D.trackingStrength, track: 0, trackTarget: 0, fired: 0,
       yaw: 0, age: 0, prevT: -1 };
     // AttackingTentacle.OnEnable: Invoke("PlayAnimation", animationDelay); StartTrackingPlayer là sự kiện ở 0 s của clip nên bắt đầu cùng clip
     inst.delay = D.animationDelay;
-    current = { id: ID, force: !!force };
     return true;
   }
   function finish() {
     if (!inst) return;
     scene.remove(inst.root); scene.remove(inst.mesh);
     inst.mesh.geometry.dispose();
-    inst = null; current = null;
+    inst = null;
   }
   function requestFinish() { if (inst && inst.phase === 'spawn') { inst.phase = 'retract'; inst.retractT = 0; inst.blend = 0; inst.spawnT = inst.t; } }
 
@@ -185,60 +178,77 @@
     }
   }
 
-  // ---------------------------------------------------------------- WorldEventManager.TestWorldEvent / SelectInsanityEvent (phần dùng được)
-  function depthOk(e, b) {
-    if (!e.hasMinDepth) return true;
-    const pts = e.depthTestPath, W = root.DRWorld;
-    const at = p => { const w = offsetWorld(b, p); return W.depth01(w[0], w[1]) > e.minDepth; };
-    if (!pts.length) return true;
-    if (!e.isPath || pts.length === 1) return e.isPath ? at(pts[0]) : pts.every(at);
-    const n = e.depthPathNumChecks;
-    for (let i = 0; i < pts.length - 1; i++) for (let j = 0; j <= n; j++) {
-      const u = j / n, a = pts[i], c = pts[i + 1];
-      if (!at([a[0] + (c[0] - a[0]) * u, a[1] + (c[1] - a[1]) * u, a[2] + (c[2] - a[2]) * u])) return false;
+  // ---------------------------------------------------------------- lịch sự kiện: js/events.js (WorldEventManager)
+  // AttackingTentacleWorldEvent: Activate sinh xúc tu; RequestEventFinish → animator exit → Retract → EventFinished khi huỷ.
+  const handle = {
+    requestFinish() { requestFinish(); },
+    get done() { return !inst; },
+    dispose() { finish(); }
+  };
+  if (root.DREvents) DREvents.register(ID, { spawn() { return spawn() ? handle : null; } });
+
+  // ---------------------------------------------------------------- gây hại: VariablePlayerDamager (TentacleAttack.prefab)
+  // damagePoints 2, oneHitOnly 1, requireOneHealthToKill 1; bốn SimplePlayerDetector trên các xương có BoxCollider (layer 7, tag SafeCollider,
+  // không phải trigger): Bone.003 size (1,1, 3,5, 1,1) tâm (0, 1, 0); Bone.004 (0,5, 3,5, 0,5) tâm (0, 2, 0); Bone.007 (0,5, 5, 0,5) tâm (0, 1, 0);
+  // Bone.012 (0,5, 3, 0,5) tâm (0, −0,5, 0). Hộp đối xứng quanh trục y của xương nên lật z (tools/tentacle.py) không đổi hộp.
+  // Tag SafeCollider ⇒ PlayerCollider.ProcessHit coi là va chạm êm; thiệt hại chỉ đến từ VariablePlayerDamager.
+  const HIT = { points: 2, oneHitOnly: true, requireOneHealth: true,
+    boxes: [['Bone.003', [1.1, 3.5, 1.1], [0, 1, 0]], ['Bone.004', [0.5, 3.5, 0.5], [0, 2, 0]], ['Bone.007', [0.5, 5, 0.5], [0, 1, 0]], ['Bone.012', [0.5, 3, 0.5], [0, -0.5, 0]]] };
+  // Thân thuyền: collider tag Player của PlayerContainer (MeshCollider lồi, trigger) — [ĐỀ XUẤT] thay bằng hộp bao của nó
+  // (DR_BOAT.colliderSize.player: tâm (0,004, 0,376, −0,003), cỡ (1,216, 0,648, 2,529)); chạm = hai hộp định hướng giao nhau (định lý trục tách).
+  const PC = (root.DR_BOAT && DR_BOAT.colliderSize && DR_BOAT.colliderSize.player) || { center: [0, 0.376, 0], size: [1.216, 0.648, 2.529] };
+  const _m = new T.Matrix4();
+  function obb(M, c, size) {                                         // tâm thế giới + 3 trục đã nhân nửa cạnh (gồm cả tỉ lệ của nút)
+    const e = M.elements, ax = [], h = [size[0] / 2, size[1] / 2, size[2] / 2];
+    for (let i = 0; i < 3; i++) ax.push([e[i * 4] * h[i], e[i * 4 + 1] * h[i], e[i * 4 + 2] * h[i]]);
+    const p = new T.Vector3(c[0], c[1], c[2]).applyMatrix4(M);
+    return { p: [p.x, p.y, p.z], ax };
+  }
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  function overlap(A, B) {
+    const d = [B.p[0] - A.p[0], B.p[1] - A.p[1], B.p[2] - A.p[2]], axes = A.ax.concat(B.ax);
+    for (const a of A.ax) for (const b of B.ax) axes.push(cross(a, b));
+    for (const L of axes) {
+      if (dot(L, L) < 1e-10) continue;
+      let ra = 0, rb = 0;
+      for (const a of A.ax) ra += Math.abs(dot(a, L));
+      for (const b of B.ax) rb += Math.abs(dot(b, L));
+      if (Math.abs(dot(d, L)) > ra + rb) return false;
     }
     return true;
   }
-  function test(name) {
-    const e = EV[name], S = root.DR.s, b = S.boat;
-    if ((S.worldPhase | 0) < e.minWorldPhase) return false;
-    if (S.sanity < e.minSanity || S.sanity > e.maxSanity) return false;
-    if (e.dispelByBanish && S.banishActive) return false;
-    const tod = S.time - Math.floor(S.time);
-    if (e.spawnStartTime < e.spawnEndTime) { if (tod < e.spawnStartTime || tod > e.spawnEndTime) return false; }
-    else if (tod < e.spawnStartTime && tod > e.spawnEndTime) return false;
-    if (!(S.time > (name in history ? history[name] : -Infinity) + (e.repeatDelay.NORMAL))) return false;
-    if (!depthOk(e, b)) return false;
-    const z = offsetWorld(b, e.zoneTestOffset);
-    if (e.forbiddenZones.includes(root.DRWorld.zoneAt(z[0], z[1]))) return false;
-    return true;
+  function contact() {
+    const bob = root.DRBoat && DRBoat.bob;
+    if (!bob) return false;
+    bob.updateWorldMatrix(true, false);
+    const hull = obb(bob.matrixWorld, [PC.center[0], PC.center[1], -PC.center[2]], PC.size);
+    for (const [name, size, c] of HIT.boxes) {
+      const n = inst.byName[name];
+      if (!n) continue;
+      n.updateWorldMatrix(true, false);
+      if (overlap(hull, obb(_m.copy(n.matrixWorld), c, size))) return name;
+    }
+    return false;
   }
-  const candidates = () => Object.keys(EV).filter(test);
-  function roll() {
-    const list = candidates();
-    if (!list.length) return null;
-    let tot = 0; for (const n of list) tot += EV[n].weight;
-    let r = Math.random() * tot, pick = list[list.length - 1];
-    for (const n of list) { r -= EV[n].weight; if (r <= 0) { pick = n; break; } }
-    history[pick] = root.DR.s.time;                                     // AddWorldEventToHistory
-    if (pick === ID) spawn();
-    return pick;
-  }
+
+  // ---------------------------------------------------------------- tương thích kiểm thử cũ (dredge-vwater, dredge-tour)
+  const candidates = () => (root.DREvents ? DREvents.candidates() : []);
+  const test = name => (root.DREvents ? DREvents.test(name, true) : false);
+  const roll = () => (root.DREvents ? DREvents.debug.roll() : null);
 
   function update(dt) {
     const Dr = root.DR, S = Dr.s;
-    if (!scene || !S || !S.boat) return;
-    if (inst) {
-      if (Dr.mode === 'dock' || S.dock) requestFinish();             // OnPlayerDockedToggled
-      if (Dr.mode === 'title') { finish(); return; }
-      if (inst) tick(Dr.mode === 'cargo' || Dr.paused ? 0 : dt);
-      return;
-    }
-    if (S.time < lastRoll) lastRoll = S.time;                        // thời gian lùi (móc setTime)
-    const playing = Dr.mode === 'sail' && !S.dock && !(root.DRMinigame && root.DRMinigame.isShown()) && !(root.DRSky && root.DRSky.forced);
-    if (playing && S.time > lastRoll + ROLL_FREQ) {
-      lastRoll = S.time;
-      if (Math.random() < CHANCE) roll();
+    if (!scene || !S || !S.boat || !inst) return;
+    if (Dr.mode === 'dock' || S.dock) requestFinish();             // OnPlayerDockedToggled
+    if (Dr.mode === 'title') { finish(); return; }
+    if (inst) tick(Dr.mode === 'cargo' || Dr.paused ? 0 : dt);
+    if (inst && !inst.hit && dt > 0) {
+      const h = contact();
+      if (h) {
+        inst.hit = h;                                                 // oneHitOnly: RemoveListeners sau cú đầu
+        if (root.DRBoat && DRBoat.monsterHit) DRBoat.monsterHit(HIT.points, { requireOneHealth: HIT.requireOneHealth, source: ID });
+      }
     }
   }
   function init(sc) {
@@ -246,6 +256,6 @@
     mat = material();
   }
   root.DRTentacle = { init, update, finish,
-    debug: { spawn: () => spawn(true), roll, candidates, test, state: () => inst && { phase: inst.phase, t: inst.t, retractT: inst.retractT, x: inst.root.position.x, z: inst.root.position.z,
+    debug: { spawn: () => { if (inst) return false; if (root.DREvents) DREvents.debug.force(ID); else spawn(true); return !!inst; }, roll, candidates, test, state: () => inst && { phase: inst.phase, t: inst.t, retractT: inst.retractT, x: inst.root.position.x, z: inst.root.position.z,
       yaw: inst.yaw, follow: inst.follow, track: inst.track }, get active() { return !!inst; }, get mesh() { return inst && inst.mesh; } } };
 })(window);

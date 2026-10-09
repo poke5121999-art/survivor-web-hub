@@ -194,7 +194,7 @@
   const FRAG_HEAD = `varying vec3 vDrN; varying float vDrPh;
 uniform vec3 uTriGrass; uniform vec3 uTriSand; uniform vec3 uTriSnow; uniform vec3 uTriRock;
 uniform vec4 uTriH; uniform vec4 uTriP; uniform float uTriWet;
-uniform sampler2D uEmis; uniform float uEmisK; uniform vec3 uWet; uniform vec4 uKind; uniform vec3 uEmisF;
+uniform sampler2D uEmis; uniform float uEmisK; uniform vec3 uWet; uniform vec4 uKind; uniform vec3 uEmisF; uniform vec4 uDrGlow; // [U6 seam] LoreRock_Mat: rgb = màu phát sáng cộng thêm, a = tầm mờ dần (m); a = 0 → tắt
 `;
   const FRAG_OUT = `
   vec3 drW = vDrFogW;
@@ -244,6 +244,7 @@ uniform sampler2D uEmis; uniform float uEmisK; uniform vec3 uWet; uniform vec4 u
     if (uEmisF.z > 0.5) em *= drS2L(texture2D(uDrFlick, vec2(vDrPh - uDrTime * 0.1, 0.5)).r); // LightsFlicker
     drOut += em; }
   #endif
+  if (uDrGlow.a > 0.0) drOut += uDrGlow.rgb * max(0.0, 1.0 - distance(vDrFogW.xz, cameraPosition.xz) / uDrGlow.a); // [U6 seam]
   gl_FragColor = vec4(drOut, diffuseColor.a);
 `;
   const WHITE = new T.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1);
@@ -345,8 +346,10 @@ void main() {
       uEmis: { value: src.emissiveMap || WHITE }, uEmisK: { value: emisK },
       uWet: { value: new T.Vector3(pr.WetEdgeHeight || 0, pr.WetEdgeDarkness || 0, kw.includes('_WETEDGES') ? 1 : 0) },
       uKind: { value: new T.Vector4(tri ? 1 : 0, fol ? 1 : 0, dlc1 ? 1 : 0, 0) },
-      uEmisF: { value: new T.Vector3(src.emissiveMap && pr.Emissive !== 0 ? 1 : 0, pr.LightsTurnOffAtDay === 1 ? 1 : 0, pr.LightsFlicker === 1 ? 1 : 0) }
+      uEmisF: { value: new T.Vector3(src.emissiveMap && pr.Emissive !== 0 ? 1 : 0, pr.LightsTurnOffAtDay === 1 ? 1 : 0, pr.LightsFlicker === 1 ? 1 : 0) },
+      uDrGlow: { value: new T.Vector4(0, 0, 0, 0) }   // [U6 seam] js/scares.js đặt (LoreRockManager: _GlowStrength)
     };
+    if (src.name === 'LoreRock_Mat') (W.loreGlow = W.loreGlow || []).push(uni.uDrGlow.value);   // [U6 seam] js/scares.js chạy LoreRockManager trên các vector này
     m.defines = defines;
     m.userData.drRecv = recv;
     m.onBeforeCompile = sh => {

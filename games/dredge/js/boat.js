@@ -247,24 +247,29 @@ void main() { vec4 t = texture2D(tMap, vUv); float f = pow(clamp(dot(normalize(v
     critFx = DRParticles.spawn('HullCriticalEffects', { parent: node || bob, loop: true });
   }
 
+  // LightFlickerEffect.Update (S1, MONSTERS.md §2.8): k = flickerCurve(t) ∈ [0, 1] ghi đè độ sáng — cường độ / tầm đèn = lerp(0, tính được, k),
+  // nón sáng hiện khi k > 0, phát sáng mô hình = lerp(0, maxMaterialLightStrength 4, k); null = trả về điều khiển của năng lực Đèn.
+  let lightK = null;
+  function lightOverride(k) { lightK = k == null ? null : Math.max(0, Math.min(1, k)); applyLights(); return lightK; }
+
   function applyLights() {
-    const D = root.DR, on = !!(D.s && D.s.lightsOn), st = Bt.stats;
+    const D = root.DR, ov = lightK, on = ov != null || !!(D.s && D.s.lightsOn), st = Bt.stats, kL = ov == null ? 1 : ov;
     const adv = advancedLights(), CA = CFG.advancedLightsIntensityModifier || 4, RA = CFG.advancedLightsRangeModifier || 1.25;
     // Light0: FixedPlayerLight (fixedIntensity 1, fixedRange 10), respondToAdvancedLightsAbility ⇒ ×4 / ×1,25
     const p = Bt.lights.point.userData.def, pp = p && p.playerLight;
     const pAdv = adv && pp && pp.respondToAdvancedLightsAbility;
-    Bt.lights.point.intensity = on ? (pp ? pp.fixedIntensity : 1) * (pAdv ? CA : 1) * 1.6 : 0; // [ĐỀ XUẤT] ×1,6 bù khác biệt đơn vị URP → three.js (đèn điểm, giữ từ vòng trước)
-    Bt.lights.point.distance = (pp ? pp.fixedRange : 10) * (pAdv ? RA : 1);
+    Bt.lights.point.intensity = on ? (pp ? pp.fixedIntensity : 1) * (pAdv ? CA : 1) * 1.6 * kL : 0; // [ĐỀ XUẤT] ×1,6 bù khác biệt đơn vị URP → three.js (đèn điểm, giữ từ vòng trước)
+    Bt.lights.point.distance = Math.max(1e-3, (pp ? pp.fixedRange : 10) * (pAdv ? RA : 1) * kL);   // three.js: distance 0 = vô hạn
     // Light1: VariablePlayerLight — cường độ = PlayerStats.LightLumens · lumensIntensityCoefficient (0,02), tầm = LightRange.
     // Cường độ three.js để nguyên số URP: sky.js đọc nó như cường độ URP cho đèn phụ của shader môi trường.
     const s = Bt.lights.spot, d = s.userData.def, coef = d && d.playerLight ? d.playerLight.lumensIntensityCoefficient : 0.02;
     const lit = on && st && st.lumens > 0;
-    s.intensity = lit ? st.lumens * coef : 0;
-    s.distance = st && st.lightRange > 0 ? st.lightRange : 10;
+    s.intensity = lit ? st.lumens * coef * kL : 0;
+    s.distance = Math.max(1e-3, (st && st.lightRange > 0 ? st.lightRange : 10) * kL);
     // BoatModelProxy.lights (Light0Container, Light1Container, Light2Container) bật/tắt theo năng lực; nón sáng nằm trong đó
-    for (const cp of B.tiers[tier - 1].lightContainers || []) { const o = path(tierNodes[tier], cp); if (o) o.visible = on; }
+    for (const cp of B.tiers[tier - 1].lightContainers || []) { const o = path(tierNodes[tier], cp); if (o) o.visible = on && kL > 0; }
     // BoatModelProxy.SetLightStrength(4 khi bật / 0 khi tắt): đèn trên mô hình phát sáng
-    player.traverse(o => { if (o.isMesh && o.material.userData.glow) o.material.userData.glow.value = on ? GLOW : 0; });
+    player.traverse(o => { if (o.isMesh && o.material.userData.glow) o.material.userData.glow.value = on ? GLOW * kL : 0; });
   }
 
   // LightAbility: bật/tắt đèn (js/abilities.js gọi khi bấm chuột phải với năng lực Đèn)
@@ -278,6 +283,7 @@ void main() { vec4 t = texture2D(tMap, vUv); float f = pow(clamp(dot(normalize(v
   function toggleLights() {
     const D = root.DR;
     if (!D.s.abilities || !D.s.abilities.lights) return false;
+    if (root.DRAbilities && DRAbilities.locked && DRAbilities.locked('lights')) return false;   // Ability.Locked (FlickerLights)
     setLights(!D.s.lightsOn);
     return true;
   }
@@ -450,6 +456,40 @@ void main() { vec4 t = texture2D(tMap, vUv); float f = pow(clamp(dot(normalize(v
     if (inv.damage.length > limit) D.emit('death', 'hull');
   }
 
+  // ---------- S1 (MONSTERS.md §0.2): hai đường gây hại của quái / chướng ngại ----------
+  // PlayerCollider.ProcessHit (PlayerCollider.cs:39-54): va chạm êm (tag SafeCollider) chỉ phát tiếng; còn lại hỏng 1 ô nếu đã qua
+  // invulnerabilityTimeInSeconds 1,5 s (PlayerContainer.prefab) kể từ cú trước — dùng chung mốc với va bờ ở collide().
+  function processHit(safe, monster) {
+    const now = performance.now() / 1000;
+    if (safe) { if (root.DRAudio) DRAudio.play('boat.impact.safe', 0.6); return false; }   // OnSafeCollisionEvent → PlayRandomSafe
+    if (!(now > Bt.lastHit + PH.playerCollider.invulnerabilityTimeInSeconds)) return false;
+    Bt.lastHit = now;
+    damage(1);
+    root.DR.emit('processHit', { monster: !!monster });   // cú va gây hại (đá ma, vòi rồng): rung / tiếng riêng nghe ở đây
+    return true;
+  }
+  // VariablePlayerDamager.OnPlayerHit (VariablePlayerDamager.cs:67-92): KHÔNG có thời gian miễn; requireOneHealthToKill: nếu máu còn lại
+  // (Player.RemainingHealth = DamageThreshold + 1 − số ô hỏng) khác 1 và cú đánh ≥ máu còn lại thì chỉ đánh máu − 1. Trả về số ô đã hỏng.
+  function monsterHit(points, opts) {
+    const D = root.DR, inv = D.grid('INVENTORY');
+    let n = points | 0;
+    if (opts && opts.requireOneHealth) {
+      const remaining = R.damageThreshold(CFG, D.s.hullTier) + 1 - inv.damage.length;
+      if (remaining !== 1 && n >= remaining) n = remaining - 1;
+    }
+    let done = 0;
+    for (let i = 0; i < n; i++) {                                   // GridManager.AddDamageToInventory(num): mỗi điểm một ô ngẫu nhiên
+      const res = root.DRGrid.addDamage(inv, root.DR_ITEMS, shipwrightOpen());
+      if (!res) break;
+      done++;
+      afterDamage(res, 0);
+      if (inv.damage.length > R.damageThreshold(CFG, D.s.hullTier)) break;   // đã chìm
+    }
+    Bt.shake = Math.max(Bt.shake, 0.35 * CFG.cameraShakeScaleFactor);   // [ĐỀ XUẤT] rung máy quay như va đá; bản gốc rung tay cầm (hitVibration)
+    D.emit('monsterHit', { points, applied: done, source: opts && opts.source });   // quái đánh trúng thuyền
+    return done;
+  }
+
   // ---------- tự lái (cập bến / rời bến): MoveTowards + Slerp như PlayerController ----------
   function autoMove(target, done, speed) { Bt.auto = { target, done, speed: speed || AUTO_SPEED }; }
   function autoStep() {
@@ -500,6 +540,8 @@ void main() { vec4 t = texture2D(tMap, vUv); float f = pow(clamp(dot(normalize(v
     Bt.steer += (RUDDER_MAX * mx - Bt.steer) * Math.min(1, dt * 10);
     for (const r of rudders) r.rotation.y = Bt.steer;
     Bt.shake = Math.max(0, Bt.shake - dt * 1.5);
+    if (root.DREvents) DREvents.update(dt);   // S1: lịch sự kiện thế giới (js/events.js) chạy theo khung của thuyền, dt = 0 khi tạm dừng
+    if (root.DRAngler) DRAngler.update(dt);   // U1: Night Angler (js/angler.js) — MonsterManager không phải sự kiện thế giới nên cần nhịp riêng
     if (root.DRVfx) DRVfx.update(dt, env);
     if (root.DRAudio) audio();
   }
@@ -539,5 +581,7 @@ void main() { vec4 t = texture2D(tMap, vUv); float f = pow(clamp(dot(normalize(v
   const speed = () => { const D = root.DR; return D.s ? Math.hypot(D.s.boat.vx, D.s.boat.vz) : 0; };
   const knots = () => speed() * 1.943844;
 
-  Object.assign(Bt, { load, setTier, refresh, applyLights, setLights, toggleLights, damageEquipment, place, stop, step, update, autoMove, speed, knots, sync, damage, settle, feel, DT, SINK });
+  Object.assign(Bt, { load, setTier, refresh, applyLights, setLights, toggleLights, damageEquipment, place, stop, step, update, autoMove, speed, knots, sync, damage, settle, feel, DT, SINK,
+    processHit, monsterHit, lightOverride });
+  Object.defineProperty(Bt, 'lightK', { get: () => lightK, enumerable: true });   // [U6 seam] Object.assign chỉ chép giá trị getter một lần (luôn null)
 })(window);

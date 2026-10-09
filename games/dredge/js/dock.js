@@ -17,6 +17,11 @@
  * (ngủ tới 06:00 rồi tự ra); CharacterDestination chỉ có hội thoại. Upgrade/Research/OverflowStorage/Constructable chưa có hệ thống.
  * Vòng 4 (clip): nhân vật đứng giữa màn cùng lời chào khi mở cửa hàng (greetShow, từ dòng cuối của node vừa chạy), nút "Rời đi [Space]" góc dưới phải.
  *   DRDock.show(info)  DRDock.hide()  DRDock.isOpen()  DRDock.visit(destId)  DRDock.talk(speaker)  DRDock.leave()  DRDock._debug()
+ * W0 seam: DRDock.registerDest(cls, fn) — giao diện cho một lớp điểm đến (d.cls). renderDest dựng khung (tiêu đề, tiền, nút
+ *   "Quay lại thị trấn") rồi gọi fn(d, ctx), ctx = { main (div thân), win, head, leave() rời điểm đến, close() bỏ khung để tự mở
+ *   cửa sổ riêng (như Upgrade), isCurrent() còn ở điểm đến này }. fn trả false = chưa xử lý → chữ "chưa có trong bản này".
+ *   renderDest chạy lại khi tiền đổi (DR 'funds') nếu khung còn mở, nên fn phải dựng lại được nhiều lần.
+ *   Điểm đến Market/Shipyard/Storage/Rest/Character đi đường riêng trong openDest, không qua sổ này.
  */
 (function (root) {
   'use strict';
@@ -410,6 +415,12 @@
     renderDest();
   }
 
+  // W0: sổ đăng ký giao diện điểm đến theo lớp (BaseDestination subclass: 'ResearchDestination', 'OverflowStorageDestination'...)
+  const DEST = {};
+  function registerDest(cls, fn) {
+    if (typeof fn !== 'function') throw new Error('destination handler is not a function: ' + cls);
+    DEST[cls] = fn;
+  }
   function renderDest() {
     if (!D || !D.dest) return;
     const d = D.dest;
@@ -424,7 +435,10 @@
     back.onclick = () => { play('ui.button.back'); leaveDest(); };
     const m = el('div', 'dk-main', wrap);
     D.main = m;
-    if (d.cls === 'UpgradeDestination' && root.DRUpgrade) {
+    const reg = DEST[d.cls];
+    if (reg && reg(d, { main: m, win, head, leave: leaveDest, close: closeWin, isCurrent: () => !!D && D.dest === d }) !== false) {
+      // W0: hệ thống điểm đến đăng ký qua DRDock.registerDest (research, overflow...)
+    } else if (d.cls === 'UpgradeDestination' && root.DRUpgrade) {
       // UpgradeDestinationUI.ShowMainUI → UpgradeWindow.Show (js/upgrade.js); đóng cửa sổ = rời điểm đến (OnUpgradeWindowHideComplete)
       closeWin();
       DRUpgrade.open({ dest: d, onClose: () => { if (D && D.dest === d) leaveDest(); } });
@@ -485,7 +499,7 @@
   wire();
 
   root.DRDock = {
-    show, hide, resume, visit, talk, leave, leaveDest, isOpen: () => !!D, aim, cam,
+    show, hide, resume, visit, talk, leave, leaveDest, isOpen: () => !!D, aim, cam, registerDest,
     _debug: () => D && {
       greet: greet ? { prefab: greet.host.querySelector('[data-prefab]').dataset.prefab, text: greet.text || null } : null,
       dockId: D.dockId, phase: D.phase, dest: D.dest && D.dest.id, tab: D.tab,

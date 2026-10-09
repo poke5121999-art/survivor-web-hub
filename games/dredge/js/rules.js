@@ -36,6 +36,7 @@
     const aberrationBonus = all(G.SUB.ROD | G.SUB.NET).reduce((s, h) => s + num(h.aberrationBonus), 0) + (research.ABERRATION_CATCH_BONUS || 0);
     return {
       speed: Math.max(moveMod, num(cfg.basePlayerSpeed)) * num(cfg.baseMovementSpeedModifier || 1),
+      moveMod,   // PlayerStats.MovementSpeedModifier = Equipment · (1 + Researched) · Ooze(1): tốc độ quái tính theo số này (MarrowMonster.cs:289)
       turn: num(cfg.baseTurnSpeed) * gadget('TURN_SPEED'),
       reverse: num(cfg.baseReverseSpeedModifier) * Math.min(gadget('REVERSE_SPEED'), 1 / (num(cfg.baseReverseSpeedModifier) || 1)),
       // fishing = MinigameFishingSpeedModifier (minigame); fishingDisplay = FishingSpeedModifier thô, PlayerStatsUI hiện ×100 %

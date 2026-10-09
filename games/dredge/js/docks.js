@@ -2,6 +2,7 @@
  * Bến (Dock trong markers.json): gợi ý cập bến khi thuyền ở gần và chậm, Space → tự lái vào DockSlot gần nhất
  * như DockPOIHandler (MoveTowards 1 m/s, quay về hướng slot hoặc ngược lại, cái nào gần hơn), rồi DR.setMode('dock').
  * Rời bến (dock → sail): đẩy thuyền ra vài mét.
+ * Bến DLC (TPR ×4, Pontoon TPR, Expedition Site, The Iron Rig) bị bỏ qua trừ khi URL có ?dlc=1 (W0); DRDocks.isDlc(marker).
  *   DRDocks.init(world)  DRDocks.update(dt, x, z)  DRDocks.interact()  DRDocks.dockAt(id, slot)  DRDocks.nearestDist(x, z)
  * Tiếng bến (DockAudio.RefreshDockAudio, đọc DockData trong data/world_data.js):
  *   dock.music            getter: khoá nhạc bến hiện hành (MusicAssetOverrides thắng nhạc gốc), tra theo trường orig của DR_AUDIO
@@ -46,9 +47,18 @@
     return dd ? clipKey(pickName(dd, 'musicAssetReference', 'musicAssetOverrides')) : null;
   }
 
+  // W0: bến DLC (EntitlementDependantObject: không có DLC thì tắt GameObject) chỉ mở với ?dlc=1.
+  // markers.json: path "DLC1/Docks/..." (4 bến TPR + Pontoon TPR), "DLC2/The Iron Rig Dock"; Expedition Site nằm ở "Docks/"
+  // nhưng điểm đến duy nhất là destination.expedition-site-photographer (DLC1 Photographer).
+  const DLC_PATH = /^DLC\d\//, DLC_IDS = ['dock.photographer-camp'];
+  const dlcOn = () => { try { return new URLSearchParams(root.location.search).get('dlc') === '1'; } catch (e) { return false; } };
+  Dk.isDlc = d => DLC_PATH.test(d.path || '') || DLC_IDS.includes(d.dockData && d.dockData.id);
+
   function init(world) {
+    const dlc = dlcOn();
     for (const d of world.data.markers.docks) {
       if (!d.dockData) continue;
+      if (!dlc && Dk.isDlc(d)) continue;   // W0: bến DLC ẩn khi không có ?dlc=1
       const id = d.dockData.id, poi = (d.pois || []).find(p => p.class === 'DockPOI');
       const dock = {
         id, name: STR[id] || (root.DR_WORLD.DockData[id] || {}).dockNameKey || d.name, pos: d.pos,
