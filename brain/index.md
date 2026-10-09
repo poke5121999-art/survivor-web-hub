@@ -20,6 +20,7 @@
 - [[plans/ghe-nong-tfm2-full]]
 - [[plans/pokeone-2d-pro]]
 - [[plans/soulknight-normal-mode]]
+- [[plans/toc-do]]
 - [[plans/vuc-san]]
 
 ## Other

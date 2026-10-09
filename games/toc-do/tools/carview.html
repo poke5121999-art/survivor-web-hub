@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Car viewer</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #20242b; overflow: hidden; font: 12px/1.4 monospace; color: #fff; }
+  #hud { position: fixed; left: 8px; top: 8px; background: rgba(0,0,0,.55); padding: 4px 8px; pointer-events: none; white-space: pre; }
+  body.clean #hud { display: none; }
+</style>
+</head>
+<body>
+<div id="hud">loading…</div>
+<script src="../vendor/three-r140.min.js"></script>
+<script src="../vendor/GLTFLoader-r140.js"></script>
+<script src="../vendor/meshopt_decoder.js"></script>
+<script>window.TD = window.TD || {};</script>
+<script src="../data/cars.js" onerror="window.TD_MISSING=1"></script>
+<script>
+// ?id=<kart id>&az=<deg, 0 = kart seen from its right side>&el=<deg>&spin=<0|1>&clean=1&dist=<m>&steer=<deg>
+// Turntable viewer for art/cars/<id>.glb: studio key light + hemisphere + generated environment map.
+'use strict';
+window.TD = window.TD || {};
+const Q = new URLSearchParams(location.search);
+const ID = Q.get('id') || '55';
+if (Q.get('clean')) document.body.classList.add('clean');
+const hud = document.getElementById('hud');
+window.ready = false; window.problems = [];
+addEventListener('error', (e) => window.problems.push(e.message));
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.setPixelRatio(1);
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x2a2f38);
+const cam = new THREE.PerspectiveCamera(32, innerWidth / innerHeight, 0.1, 100);
+
+// environment: dark studio box with a few bright softboxes, prefiltered once
+(function env() {
+  const s = new THREE.Scene();
+  s.add(new THREE.Mesh(new THREE.SphereGeometry(20, 32, 16), new THREE.MeshBasicMaterial({ color: 0x3a4250, side: THREE.BackSide })));
+  const box = (w, h, x, y, z, c) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(c), side: THREE.DoubleSide }));
+    m.position.set(x, y, z); m.lookAt(0, 0, 0); s.add(m);
+  };
+  box(14, 6, 0, 14, 0, 0xfff2dd); box(5, 8, 12, 4, 4, 0xffffff); box(5, 8, -12, 4, -4, 0xcfe0ff); box(10, 2, 0, 3, -14, 0xffe8c0);
+  const pm = new THREE.PMREMGenerator(renderer);
+  scene.environment = pm.fromScene(s, 0.02).texture;
+})();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x303038, 0.5));
+const key = new THREE.DirectionalLight(0xffffff, 1.6);
+key.position.set(4, 8, 5); scene.add(key);
+const floor = new THREE.Mesh(new THREE.CircleGeometry(6, 48), new THREE.MeshBasicMaterial({ color: 0x2f343c }));
+floor.rotation.x = -Math.PI / 2; scene.add(floor);
+
+const loader = new THREE.GLTFLoader();
+loader.setMeshoptDecoder(MeshoptDecoder);
+loader.load('../art/cars/' + ID + '.glb', (gltf) => {
+  const car = gltf.scene; scene.add(car);
+  const names = []; car.traverse((o) => names.push(o.name));
+  const need = ['body', 'wheel_fl', 'wheel_fr', 'wheel_rl', 'wheel_rr'];
+  const miss = need.filter((n) => !car.getObjectByName(n));
+  const st = parseFloat(Q.get('steer') || '0') * Math.PI / 180;
+  if (st) ['wheel_fl', 'wheel_fr'].forEach((n) => { car.getObjectByName(n).rotation.y = st; });
+  const box = new THREE.Box3().setFromObject(car.getObjectByName('body'));
+  const sz = box.getSize(new THREE.Vector3());
+  window.carInfo = { size: sz.toArray(), missing: miss, nodes: names.filter((n) => n && !/^Mesh|^Object/.test(n)) };
+  hud.textContent = 'kart ' + ID + '  size ' + sz.toArray().map((v) => v.toFixed(2)).join(' x ') + (miss.length ? '  MISSING ' + miss : '') + '\nnodes: ' + window.carInfo.nodes.join(' ');
+  const dist = parseFloat(Q.get('dist') || String(Math.max(sz.x, sz.z) * 1.9));
+  let az = parseFloat(Q.get('az') || '-35') * Math.PI / 180;
+  const el = parseFloat(Q.get('el') || '16') * Math.PI / 180;
+  const c = box.getCenter(new THREE.Vector3());
+  const place = () => {
+    cam.position.set(c.x + dist * Math.cos(el) * Math.cos(az), c.y + dist * Math.sin(el), c.z + dist * Math.cos(el) * Math.sin(az));
+    cam.lookAt(c.x, c.y - 0.05, c.z);
+  };
+  const frame = () => {
+    if (Q.get('spin') === '1') az += 0.01;
+    place(); renderer.render(scene, cam);
+    if (Q.get('spin') === '1') requestAnimationFrame(frame);
+  };
+  frame(); window.ready = true;
+}, undefined, (e) => { window.problems.push('load: ' + (e.message || e)); hud.textContent = 'load failed ' + ID; window.ready = true; });
+</script>
+</body>
+</html>

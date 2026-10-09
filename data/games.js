@@ -927,5 +927,28 @@ window.HUB_GAMES = [
     // Kiểm: node test/bazaar-sim.js (luật, Node), node test/bazaar-view.js (BZ_URL để chạy trên Pages).
     status: "available",
     tags: ["Tự đấu", "Thẻ bài", "Xây đội hình", "Quái", "Combat tự động"]
+  },
+  {
+    id: "toc-do",
+    title: "Tốc Độ",
+    tagline: "Zing Speed trên web: drift lấy nitro, phun nhỏ sau mỗi cua, đua 6 xe.",
+    desc: "Đua kart 2 vòng với 5 bot trên ba đường gốc của Zing Speed Mobile: Thành Phố 11, Thành Troy và Phố Tàu. Drift để nạp nitro. Thả drift rồi bấm phun ngay để có phun nhỏ, bấm thêm lần nữa ra phun đôi. Có 8 xe kart và 2 tay đua ngồi lái có hoạt ảnh. Chơi bằng phím hoặc cảm ứng.",
+    genre: "hanh-dong",
+    accent: "#2f8cff",
+    en: { title: "Top Speed", tagline: "Zing Speed on the web: drift for nitro, mini-boost out of every corner, 6-kart races.", desc: "Two-lap kart races against 5 bots on three original Zing Speed Mobile tracks: Eleven City, Troy and Chinatown. Drift to charge nitro. Release the drift and hit boost right away for a mini boost, hit it again for a dual boost. 8 karts and 2 animated drivers. Plays with keyboard or touch." },
+    thumbnail: "assets/thumbnails/toc-do.png",
+    path: "games/toc-do/index.html",
+    rev: "20261009a",
+    // three.js r140 vendor trong games/toc-do/vendor, không bước build. Dựng lại Zing Speed Mobile 1.55.0.27413 (VNG, bản Việt
+    // của QQ Speed Mobile) theo yêu cầu của chủ dự án ngày 2026-10-09, từ XAPK tải về ~/zingspeed-ref (ngoài git, 13.769 bundle
+    // Unity 2019.4 không mã hoá). Đường đua (scene + lightmap), dữ liệu checkpoint và đường chuẩn của người chơi giỏi, xe kart,
+    // tay đua kèm hoạt ảnh, tham số vật lý (carparams), VFX (ParticleSystem gốc), HUD NGUI và tiếng đều bóc bằng
+    // games/toc-do/tools/*.py. Bank tiếng xe gốc không có trong APK nên tiếng máy và lốp rít là tổng hợp WebAudio.
+    // Hợp đồng dữ liệu: games/toc-do/README.md. Kế hoạch: brain/plans/toc-do.md.
+    // Muốn gỡ: xoá games/toc-do/art, games/toc-do/audio và data/*.js sinh ra.
+    //
+    // Kiểm: node test/toc-do-sim.js, node test/toc-do-assets.js (Node); node test/toc-do-ui.js (TD_URL để chạy trên Pages).
+    status: "available",
+    tags: ["Đua xe", "Drift", "Kart", "Phun nitro", "Bot", "3D", "Màn ngang"]
   }
 ];

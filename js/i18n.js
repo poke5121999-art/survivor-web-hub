@@ -128,7 +128,8 @@
     "Công cụ": "Tool", "Gia phả": "Family tree", "Ghi chú": "Notes", "Tài liệu": "Documents", "Kéo thả": "Drag & drop",
     "Trốn tìm": "Hide & seek", "Bo co dần": "Shrinking zone", "Thế giới mở": "Open world", "Xếp khoang": "Cargo packing",
     "Đối kháng": "PvP", "Cá mập": "Sharks", "Đèn pin": "Flashlight",
-    "Tự đấu": "Auto-battle", "Thẻ bài": "Cards", "Xây đội hình": "Build crafting", "Quái": "Monsters", "Combat tự động": "Auto combat"
+    "Tự đấu": "Auto-battle", "Thẻ bài": "Cards", "Xây đội hình": "Build crafting", "Quái": "Monsters", "Combat tự động": "Auto combat",
+    "Đua xe": "Racing", "Drift": "Drift", "Kart": "Kart", "Phun nitro": "Nitro boost"
   };
 
   function read() {

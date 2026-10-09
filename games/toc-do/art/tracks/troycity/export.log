@@ -1,0 +1,105 @@
+scene Level_TroyCity_Art.unity: bundle AssetBundles/bd/bd10f782f94cdc97675888b6b2731e27
+bundles loaded: 69; unresolved externals: ['cab-0006cf558a2b2dfaba4f7ca666101a55', 'cab-0aa6a471fb33bc8ff259100b0c977344', 'cab-0ee476a9bbcc277a6c9e8ef0fd08a8e4', 'cab-146ea372bf0a13e6a4ea63e4a3c5e6bf', 'cab-151dfdce3c15f5e9a20aab4c8489d1b9', 'cab-cd1d29782da210e3960a6d457624c657', 'cab-f3e172233fa19193a1a32d3ffe375ac8', 'unity default resources', 'unity_builtin_extra']
+lightmapsMode=0 useShadowmask=True
+skip [skinned] /Artist/Troycity_A/PVS/LowD/E_TroyCity@floor2/E_Troycity_Road_03b002
+skip [skinned] /Artist/Troycity_B/PVS/Low/E_TroyCitybus/E_TroyCity@bus/E_TroyCity_Bus_01
+skip [skinned] /Artist/Troycity_A/PVS/LowD/E_TroyCity@floor1/E_Troycity_Road_03a002
+skip [skinned] /Artist/Troycity_A/PVS/LowD/E_TroyCity@elevatorA/E_Troycity_DT_01a
+skip [skinned] /Artist/Troycity_A/PVS/LowD/E_TroyCity@glass/E_Troycity_Boli_01a
+skip [skinned] /Artist/Troycity_A/PVS/LowD/E_TroyCity@floor3/E_Troycity_Road_03c004
+skip [skinned] /Artist/Troycity_A/PVS/LowD/E_TroyCity@elevatorB/E_Troycity_DT_01b
+skip [skinned] /Artist/Troycity_A/PVS/LowD/E_TroyCity@wall/E_Troycity_Rukou_01a
+skipped: skinned=8, inactive=195
+shader QF_Gamma/Env/Sky_Diffuse_no fog: texture slots ['_MainTex']
+shader QF_Gamma/Env/Transparent/Basic_AlphaBlendScroll: texture slots ['_AlphaTex', '_MainTex']
+shader QF_Gamma/Env/Transparent/Basic_AlphaBlendScrollBG: texture slots ['_AlphaTex', '_BackGroundTex', '_MainTex']
+shader QF_Gamma/Env/Water/Terrian_WaterAdvanced(Transparent): texture slots ['_Cubemap', '_MainTex', '_NormalMap', '_NormalMap2']
+shader QF_PBR/Env/NssStandard: texture slots ['_BaseMap', '_EmissionMap', '_NormalMRMap']
+  tex E_TroyCity_Sky_01 256x64 -> 256x64 rgb 1 KB
+prim sky:E_TroyCity_Sky_01: QF_Gamma/Env/Sky_Diffuse_no fog alpha=OPAQUE tris=480 verts=992 from ['E_TroyCity_Sky_01']
+  tex E_TroyCity_Toutie_01a 256x128 -> 256x128 rgba 7 KB
+  tex E_TroyCity_Toutie_01a 256x128 -> 256x128 rgb 3 KB
+prim E_TroyCity_Toutie_01a: QF_PBR/Env/NssStandard alpha=BLEND tris=20 verts=40 from ['E_Troycity_Toutie_01']
+  tex E_TroyCity_Toutie_01 256x256 -> 256x256 rgba 22 KB
+  tex E_TroyCity_Toutie_01 256x256 -> 256x256 rgb 6 KB
+prim E_TroyCity_Toutie_01: QF_PBR/Env/NssStandard alpha=BLEND tris=261 verts=346 from ['E_Troycity_Toutie_01']
+  tex E_TroyCity_Lujian_01_basecolor 256x256 -> 256x256 rgb 2 KB
+prim E_TroyCity_Lujian_01: QF_PBR/Env/NssStandard alpha=OPAQUE tris=16235 verts=28573 from ['E_Troycity_Dixia_01', 'E_Troycity_Road_01', 'E_Troycity_Road_01a', 'E_Troycity_Road_02', 'E_Troycity_Road_03', 'E_Troycity_Road_04']
+  tex E_TroyCity_Wall_01_basecolor 128x128 -> 128x128 rgb 0 KB
+prim E_TroyCity_Wall_02: QF_PBR/Env/NssStandard alpha=OPAQUE tris=3191 verts=5092 from ['E_Troycity_Ditie_01', 'E_Troycity_Dixia_01', 'E_Troycity_Road_04', 'E_Troycity_Suidao_01']
+  tex E_TroyCity_Guandao_01_basecolor 256x128 -> 256x128 rgb 0 KB
+prim E_TroyCity_Guandao_01: QF_PBR/Env/NssStandard alpha=OPAQUE tris=694 verts=769 from ['E_Troycity_Dixia_01', 'E_Troycity_Suidao_01']
+  tex E_TroyCity_Diban_01_basecolor 128x128 -> 128x128 rgb 0 KB
+prim E_TroyCity_Diban_01: QF_PBR/Env/NssStandard alpha=OPAQUE tris=2090 verts=2731 from ['E_Troycity_Dixia_01', 'E_Troycity_Suidao_01']
+  tex E_TroyCity_Road_04_basecolor 256x256 -> 256x256 rgb 3 KB
+  tex E_TroyCity_Road_04_emissive 256x256 -> 256x256 rgb 0 KB
+prim E_TroyCity_Road_04: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1378 verts=2932 from ['E_Troycity_Road_02', 'E_Troycity_Road_03', 'E_Troycity_Road_04', 'E_Troycity_Suidao_01']
+  tex E_TroyCity_Lc_01_basecolor 128x256 -> 128x256 rgb 3 KB
+prim E_TroyCity_Lc_01: QF_PBR/Env/NssStandard alpha=OPAQUE tris=3584 verts=6348 from ['E_TroyCity_Lc_01', 'E_Troycity_Road_01']
+  tex E_TroyCity_Road_03b_basecolor 256x256 -> 256x256 rgb 2 KB
+prim E_TroyCity_Road_03: QF_PBR/Env/NssStandard alpha=OPAQUE tris=104 verts=151 from ['E_Troycity_Road_02', 'E_Troycity_Road_04']
+  tex E_TroyCity_AddSpeed_01 256x64 -> 256x64 rgb 2 KB
+prim E_TroyCity_AddSpeed_01: QF_PBR/Env/NssStandard alpha=OPAQUE tris=30 verts=60 from ['E_Troycity_Road_01a', 'E_Troycity_Road_04']
+  tex E_TroyCity_Road_01_basecolor 256x256 -> 256x256 rgb 3 KB
+prim E_TroyCity_Road_01: QF_PBR/Env/NssStandard alpha=OPAQUE tris=602 verts=533 from ['E_Troycity_Road_01', 'E_Troycity_Road_01a']
+  tex E_TroyCity_AddSpeed_01a 256x256 -> 256x256 rgba 24 KB
+prim C_AddPSeed_M07: QF_Gamma/Env/Transparent/Basic_AlphaBlendScrollBG alpha=BLEND tris=94 verts=98 from ['E_Troycity_AddSpeed_01', 'E_Troycity_Road_01']
+  tex E_TroyCity_Cd_01a_basecolor 64x64 -> 64x64 rgb 0 KB
+prim E_TroyCity_Grass_01: QF_PBR/Env/NssStandard alpha=OPAQUE tris=98 verts=196 from ['E_Troycity_Road_01']
+  tex E_TroyCity_Door_01_basecolor 256x256 -> 256x256 rgb 9 KB
+  tex E_TroyCity_Door_01_emissive 256x256 -> 256x256 rgb 3 KB
+prim E_TroyCity_Door_01L: QF_PBR/Env/NssStandard alpha=OPAQUE tris=9963 verts=21391 from ['E_Troycity_Ditie_01', 'E_Troycity_Ditie_01a', 'E_Troycity_Guandao_01', 'E_Troycity_Rukou_01']
+prim E_TroyCity_Door_01a: QF_PBR/Env/NssStandard alpha=OPAQUE tris=144 verts=282 from ['E_Troycity_Guandao_01']
+  tex E_TroyCity_GzBuild_01a_basecolor 128x256 -> 128x256 rgb 4 KB
+prim E_TroyCity_DtBuild_02: QF_PBR/Env/NssStandard alpha=OPAQUE tris=3987 verts=7841 from ['E_TroyCity_DtBuild_02', 'E_TroyCity_DtBuild_02a', 'E_TroyCity_GzBuild_01']
+  tex E_TroyCity_Hc_01 128x128 -> 128x128 rgba 4 KB
+  tex E_TroyCity_Hc_01 128x128 -> 128x128 rgb 1 KB
+prim E_TroyCity_HC_01: QF_PBR/Env/NssStandard alpha=MASK tris=2860 verts=5720 from ['E_Troycity_Tree_01']
+  tex E_TroyCity_Road_04_basecolor 256x256 -> 256x256 rgb 3 KB
+prim E_TroyCity_Road_4a: QF_PBR/Env/NssStandard alpha=OPAQUE tris=6 verts=12 from ['E_Troycity_Road_02']
+  tex E_TroyCity_Dimian_01_basecolor 128x128 -> 128x128 rgb 0 KB
+prim E_TroyCity_Dimian_01: QF_PBR/Env/NssStandard alpha=OPAQUE tris=364 verts=427 from ['E_Troycity_Dimian_01']
+  tex E_TroyCity_Plant_02_basecolor 256x256 -> 256x256 rgba 16 KB
+  tex E_TroyCity_Plant_02_emissive 256x256 -> 256x256 rgb 2 KB
+prim E_TroyCity_Plant_02: QF_PBR/Env/NssStandard alpha=MASK tris=180 verts=259 from ['E_Troycity_Thing_01']
+  tex E_TroyCity_DtBuild_01_B 128x256 -> 128x256 rgb 6 KB
+  tex E_TroyCity_DtBuild_01_B_G 64x128 -> 64x128 rgb 2 KB
+prim E_TroyCity_DtBuild_01: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1224 verts=2645 from ['E_TroyCity_GzBuild_01']
+prim E_TroyCity_Wall_01: QF_PBR/Env/NssStandard alpha=OPAQUE tris=129 verts=239 from ['E_Troycity_Rukou_01']
+  tex E_TroyCity_Wall_02_basecolor 128x128 -> 128x128 rgb 0 KB
+prim E_TroyCity_Wall_02a: QF_PBR/Env/NssStandard alpha=OPAQUE tris=182 verts=362 from ['E_Troycity_Rukou_01']
+  tex E_TroyCity_Rukou_01_basecolor 128x128 -> 128x128 rgb 0 KB
+prim E_TroyCity_Rukou_01: QF_PBR/Env/NssStandard alpha=OPAQUE tris=203 verts=569 from ['E_Troycity_Ditie_01a', 'E_Troycity_Rukou_01']
+  tex C_AddPSeed02 256x256 -> 256x256 rgba 10 KB
+prim E_TroyCity_ZX_01: QF_Gamma/Env/Transparent/Basic_AlphaBlendScroll alpha=BLEND tris=88 verts=154 from ['E_TroyCity_Lianpai_01']
+prim E_TroyCity_PlantDT_02a: QF_PBR/Env/NssStandard alpha=BLEND tris=108 verts=140 from ['E_TroyCity_Lianpai_01']
+  tex E_TroyCity_PmBuild_01A_basecolor 256x256 -> 256x256 rgb 6 KB
+prim E_TroyCity_PmBuild_01A: QF_PBR/Env/NssStandard alpha=OPAQUE tris=16327 verts=34038 from ['E_TroyCity_PmBuild_01', 'E_TroyCity_PmBuild_03']
+prim E_TroyCity_Door_01: QF_PBR/Env/NssStandard alpha=OPAQUE tris=254 verts=508 from ['E_TroyCity_PmBuild_01', 'E_TroyCity_PmBuild_03']
+  tex E_TroyCity_PmBuild_03A_basecolor 128x256 -> 128x256 rgb 2 KB
+prim E_TroyCity_PmBuild_03a: QF_PBR/Env/NssStandard alpha=OPAQUE tris=8817 verts=17562 from ['E_TroyCity_PmBuild_01', 'E_TroyCity_PmBuild_03']
+  tex E_TroyCity_Wall_03a_basecolor 64x64 -> 64x64 rgb 0 KB
+prim E_TroyCity_Wall_03a: QF_PBR/Env/NssStandard alpha=OPAQUE tris=22 verts=34 from ['E_Troycity_Ditie_01']
+  tex E_TroyCity_TP_01_basecolor 128x64 -> 128x64 rgb 0 KB
+prim E_TroyCity_TP_01: QF_PBR/Env/NssStandard alpha=OPAQUE tris=164 verts=210 from ['E_Troycity_Ditie_01']
+prim E_TroyCity_PlantZX_02: QF_PBR/Env/NssStandard alpha=MASK tris=508 verts=784 from ['E_Troycity_Ditie_01a']
+  tex E_TroyCity_Wall_03_basecolor 64x64 -> 64x64 rgb 0 KB
+prim E_TroyCity_Wall_03: QF_PBR/Env/NssStandard alpha=OPAQUE tris=59 verts=99 from ['E_Troycity_Ditie_01a']
+  tex E_TroyCity_Road_03a_basecolor 256x256 -> 256x256 rgb 2 KB
+prim E_TroyCity_Road_03a: QF_PBR/Env/NssStandard alpha=OPAQUE tris=26 verts=24 from ['E_Troycity_Ditie_01a']
+  tex E_TroyCity_Boli_01_basecolor 32x32 -> 32x32 rgba 0 KB
+prim E_TroyCity_Boli_01: QF_PBR/Env/NssStandard alpha=BLEND tris=2 verts=4 from ['E_Troycity_Boli_01']
+  tex E_TroyCity_Boli_02_basecolor 64x64 -> 64x64 rgba 0 KB
+  tex E_TroyCity_Boli_02_emissive 64x64 -> 64x64 rgb 0 KB
+prim E_TroyCity_Boli_02a: QF_PBR/Env/NssStandard alpha=BLEND tris=14 verts=28 from ['E_Troycity_Boli_01']
+prim E_TroyCity_Plant_02a: QF_PBR/Env/NssStandard alpha=BLEND tris=40 verts=56 from ['E_Troycity_Boli_01']
+prim E_TroyCity_Plant_02B: QF_PBR/Env/NssStandard alpha=MASK tris=976 verts=1548 from ['E_Troycity_Boli_01', 'E_Troycity_Road_01a']
+  tex C_Water_03 256x256 -> 256x256 rgb 6 KB
+prim E_TroyCity_Water_01: QF_Gamma/Env/Water/Terrian_WaterAdvanced(Transparent) alpha=BLEND tris=28 verts=32 from ['E_Troycity_Water_01']
+  tex E_TroyCity_Road_06_basecolor 256x256 -> 256x256 rgb 6 KB
+  tex E_TroyCity_Road_06_emissive 128x128 -> 128x128 rgb 0 KB
+prim E_TroyCity_Road_06: QF_PBR/Env/NssStandard alpha=OPAQUE tris=208 verts=224 from ['E_Troycity_Road_03']
+  tex E_TroyCity_Road_05_basecolor 128x128 -> 128x128 rgb 3 KB
+prim E_TroyCity_Road_05: QF_PBR/Env/NssStandard alpha=OPAQUE tris=74 verts=120 from ['E_Troycity_Road_01a']
+lightmaps used by primitives: []
+done: 42 primitives, 44 textures (0.19 MB webp), 0 lightmaps, folder 1.73 MB
