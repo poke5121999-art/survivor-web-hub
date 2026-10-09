@@ -785,5 +785,23 @@ window.HUB_GAMES = [
     // (D:\dredge-ref\ripped); hợp đồng giao việc ở D:\dredge-ref\notes\DELEGATE.md.
     status: "available",
     tags: ["Câu cá", "Kinh dị", "Lái thuyền", "Thế giới mở", "Xếp khoang", "3D"]
+  },
+  {
+    id: "vuc-san",
+    title: "Vực Săn",
+    tagline: "Dave the Diver đối kháng: 4 thợ lặn đấu 2 cá mập trong vực tối. Chọn phe khi ghép trận, bot lấp các ghế còn lại, mỗi trận bốc ngẫu nhiên một trong sáu bản đồ gốc Dave the Diver. Thợ lặn chỉ thấy chỗ đèn pin soi, vách đá chặn sáng. Họ nhặt đồ cổ mang về khoang cứu hộ cho đủ chỉ tiêu trước khi hết 4 phút, dưỡng khí vừa là máu, đồng đội gục thì đứng cạnh để cứu. Cá mập thấy thợ lặn đang bật đèn từ xa và ngửi được người sắp cạn dưỡng khí, lao tới ngoạm, nhưng không chui được khe hẹp và không lại gần khoang cứu hộ. 12 loài cá mập, mỗi loài một kỹ năng: lách khe, ẩn đáy, tốc biến, nuốt chửng, hút nước. 10 thợ lặn với pháo sáng, bom mực, lồng thép, mìn, máy dưỡng khí. Gacha có banner thợ lặn và banner cá mập, đếm bảo hiểm riêng. Chơi được bằng cảm ứng.",
+    thumbnail: "assets/thumbnails/vuc-san.png",
+    path: "games/vuc-san/index.html",
+    rev: "20261008a",
+    // three.js r140 dùng chung với games/ho-xanh (HX_ROOT = '../ho-xanh/'), không bước build. Lấy cảm hứng từ Depth
+    // (Digital Confectioners, 2014) theo yêu cầu của chủ dự án ngày 2026-10-08. Cá mập GLB, sprite Dave, bản đồ, tiếng
+    // đọc thẳng từ bản rip Dave the Diver trong games/ho-xanh, đồ cổ từ games/biet-doi-lan; game không chép art.
+    // Mô phỏng trận là JS thuần chạy được cả trong Node (tools/sim.js đấu bot với bot). Hợp đồng giữa các tầng:
+    // games/vuc-san/README.md. Kế hoạch theo pha: brain/plans/vuc-san.md. Ảnh thẻ: node games/vuc-san/tools/thumb.js.
+    //
+    // Kiểm: node test/vuc-san-sim.js, vuc-san-skills-shark.js, vuc-san-skills-diver.js, vuc-san-bots.js, vuc-san-meta.js (Node);
+    // vuc-san-smoke.js, vuc-san-lobby.js, vuc-san-view.js, vuc-san-flow.js, vuc-san-play.js (VS_URL để chạy trên Pages).
+    status: "available",
+    tags: ["Đối kháng", "Lặn biển", "Cá mập", "Đèn pin", "Gacha", "Bot", "3D", "Màn ngang"]
   }
 ];

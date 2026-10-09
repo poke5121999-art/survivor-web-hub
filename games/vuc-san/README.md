@@ -93,6 +93,8 @@ VS.view.screenToWorld(px, py) → { x, y } ; VS.view.worldToScreen(x, y) → { x
 VS.view.unloadMatch()
 
 VS.input.read(m, actor) → Intent         // bàn phím, chuột, cảm ứng; phím một bước trả đúng một lần
+VS.input.press(name) ; VS.input.touch.hold(name, on)   // nút HUD/cảm ứng bấm thay phím (fire | skill | light | interact)
+VS.input.touch.enabled() ; VS.input.touch.enable(on) ; VS.input.touch.state()  // điều khiển ảo, bật khi có cảm ứng
 VS.hud.show(m, viewer) ; VS.hud.hide() ; VS.hud.update(m, viewer, dt) ; VS.hud.onEvents(m, events, viewer)
 
 VS.save.load() → Save ; VS.save.store(save)                         // js/meta/save.js
