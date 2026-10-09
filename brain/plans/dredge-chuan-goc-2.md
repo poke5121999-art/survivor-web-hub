@@ -91,3 +91,13 @@ Chủ dự án chơi rev `20261008b` rồi chê: nước nhìn góc nào cũng g
 | r2upgrade | `upgrade.js` | SU-04 lưới "Materials Required" |
 | r2deploy | `deploy.js` mới (+ một hàm thêm ở `spots.js`) | GR-06 lưới kéo, GR-07 bẫy cua, GR-13 mồi |
 | r2spells | `spells.js` mới | GR-17 Banish, Atrophy, Manifest |
+
+### Trạng thái đợt 2b (2026-10-09): đã đẩy rev `20261009b`, commit `6e0a565c` + `b69a61cd`
+
+16 bộ test chạy trên Pages đều xanh (danh sách và số trong `decisions.tsv`). Còn mở:
+- Banish chạy đúng luật nhưng hiệu ứng `BanishEffect` không hiện trên màn (vật liệu hồng alpha 0,3 + `FadeAtWorldYZero` trong `particles.js`). Chưa hệ nào đọc cờ banish (web chưa có quái).
+- Lưới kéo không hiện trên đuôi thuyền: `boat.glb` thiếu lưới da TrawlNet, cần `boat.py` xuất skin. Thiếu hạt SplashParticles, NetTrailParticles.
+- Màu nước dựa trên phán đoán cb0[127] = _ShallowColor (bảng tên cbuffer bị bỏ); khớp gog_01, gog_05 nhưng gog_20, gog_22 lệch. Pale Reach đêm sát thuyền sáng hơn gog_20 (59 so với 16).
+- Cửa hàng: tab Lưới kéo của xưởng trống tới khi web có hệ nghiên cứu; hệ số mặc cả coi như 1.
+- `DR.emit` chỉ chuyển 2 tham số nên `itemDestroyed(def, inst, false)` mất cờ thứ ba.
+- `dredge-suite` từng trượt 2 ca bấm đặt cá khi máy tải nặng; chạy riêng thì xanh.
