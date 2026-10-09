@@ -38,6 +38,8 @@ Nhật ký quyết định: `decisions.tsv` cùng thư mục.
 | Năng lực riêng của 28 vũ khí thần thoại (`weapon/weapon_mythic_NN/ability`) chưa chạy; vũ khí ngoài bể rương (rèn, sự kiện) chưa có đường lấy | localization ability/attr | chờ mục lò rèn (sảnh) |
 | Lợi Hại: hệ số quái (mật độ ×1,3, tinh anh 40%, trùm máu ×1,5) [ƯỚC LƯỢNG]; điều kiện mở gốc còn đòi mở hết vật phẩm Phòng Khách | [WIKI skvn Chế_Độ_Badass] +1 sát thương, trùm tinh anh; [LOC I_tip_09] | gốc không ghi số; sảnh web chưa có kinh tế vật phẩm |
 | Khu Thí Luyện: số ải (15, theo nhãn map_End_BR "BR 3-5") [SUY]; thiếu vé Lông Vũ Valkyrie, Thí Luyện Thuần Túy và trận Tước Sĩ Đỏ/Tím cuối, trùm tầng 4 | [CFG map_levels *_BR, enemies.boss_bossrush_final] | Tước Sĩ cần bóc rig + viết AI; vé cần Cảnh Sát/nhiệm vụ treo thưởng ở sảnh |
+| Nhân Tố Thử Thách: 36/65 nhân tố chạy; 29 nhân tố cần hệ thống chưa có (may mắn, debuff lên quái, phòng thêm, thú cưỡi, hồi sinh...) chưa đưa vào danh sách; chọn tối đa 3 [ƯỚC LƯỢNG]; chưa có bảng nhiệm vụ treo thưởng làm mới theo ngày | tools/polish/MODES.md 2c | js/factors.js |
+| Tước Sĩ cuối Khu Thí Luyện: web cho đánh khi không mang nhân tố; gốc đòi Thí Luyện Thuần Túy (không thiên phú/vũ khí, kịp giờ); thiếu lính e_bossrush_minion_* | [LOC bossrush_intro_tips4-6] | đồng hồ + kiểm thuần túy chưa làm |
 | Chủ đề sàn cỏ đá hoa văn 回 ở ải 1 (trùm Zulan) | [THẤY] https://youtu.be/LyMmXTQFcq8?t=33 | chưa tìm ra bundle; `level/1/{a,b,c,g}` đều không phải |
 | Màn tải: dòng mẹo ở 82% chiều cao (gốc 92%); thiếu kim cương quay góc phải; font pixel `zpix` không có trong bundle (đang dùng Be Vietnam Pro) | [THẤY] https://youtu.be/LyMmXTQFcq8?t=2 | nhỏ, chưa sửa |
 | Số lượt "Đổi 1 đợt" | nút gốc ghi (2/2) | web: 2 lượt mỗi lượt chơi [ƯỚC LƯỢNG], luật gốc chưa đọc |

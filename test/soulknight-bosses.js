@@ -44,7 +44,8 @@ const HP = {
   boss11: 960, boss12_1: 600, boss12_2: 600, boss18: 984,
   boss09: 540, boss10: 480, boss10_2: 576, boss13: 480, boss22: 552, boss23: 636, boss_dead_cell_giant: 614,
   boss03: 720, boss04: 720, boss15: 720, boss16: 540, boss24: 828, boss26: 960, boss27: 720,
-  boss_robot_king: 1440, boss_robot_queen: 1200, boss05: 960, boss06: 960, boss21: 1200, boss28: 1200, boss29: 2400
+  boss_robot_king: 1440, boss_robot_queen: 1200, boss05: 960, boss06: 960, boss21: 1200, boss28: 1200, boss29: 2400,
+  boss_bossrush_final: 1800, boss_bossrush_final_badass: 3000
 };
 // Số viên mỗi loạt: [đòn, {prefab đạn: số viên}, nguồn]. '%8' = bội số của 8.
 const PROBES = {

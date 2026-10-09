@@ -52,7 +52,12 @@
   const mbs = (name, cls) => SK.prefabMbs(SK.prefab(name), cls) || {};
   const rel = () => (G.stageIdx || 0) + 1;                 // [ĐO] GetRelativeLevelIndex: 1-1 = 1 ... 3-5 = 15
   const evenRound = v => { const r = Math.round(v); return r % 2 ? r + 1 : r; };
-  const critMult = () => R.critMult || 2;
+  const critMult = () => 1 + ((R.critMult || 2) - 1) * ((G.mods && G.mods.critDmgMul) || 1);
+  // Nhân tố thử thách (G.mods, js/factors.js): số ô buff, số thẻ mỗi lần chọn, miễn phí vài lần mua đầu.
+  const MD = () => G.mods || {};
+  const buffSlots = () => Math.max(1, BUFF_SLOTS + (MD().buffSlots || 0));
+  const buffChoices = () => Math.max(1, 3 + (MD().buffChoices || 0));
+  function freeBuy() { const M = G.mods; if (M && M.freeBuys > 0) { M.freeBuys--; G.toast('Miễn phí!'); return true; } return false; }
 
   // Tiếng: sfx.js không mở hàm phát cho mô-đun khác, nên mở riêng một bộ phát nhỏ trên cùng AudioContext.
   const sbuf = {}, sload = {};
@@ -82,6 +87,7 @@
   }
   function pay(n) {
     const p = G.player;
+    if (freeBuy()) return true;
     if (p.gold < n) { G.toast('Không đủ vàng!'); snd('fx_error', 0.6); return false; }
     p.gold -= n;
     return true;
@@ -108,7 +114,7 @@
     let f = 0;
     if (rel() >= P.from && base <= P.cap) f = f32(f32(rel() - 2) * f32(P.per));
     if (has(10)) f = f32(f - P.sale);
-    return Math.max(1, base + Math.trunc(f32(f * base)));
+    return Math.max(1, Math.round((base + Math.trunc(f32(f * base))) * (MD().priceMul || 1)));
   }
   // Tượng: khớp 13/13 ô bảng "Coins" của wiki với hệ số 0,1 và trần gấp đôi giá gốc [WIKI, dựng từ bảng]; Giảm Nửa Giá không áp.
   function statuePrice(base) {
@@ -907,8 +913,8 @@
   }
   function giveWeapon(id) {
     const p = G.player;
-    if (!p.weapons[1]) { p.weapons[1] = SK.makeWeapon(id); p.cur = 1; }
-    else if (has(25) && !p.extraW) { p.extraW = SK.makeWeapon(id); }
+    if (!p.weapons[1] && !MD().oneWeapon) { p.weapons[1] = SK.makeWeapon(id); p.cur = 1; }
+    else if (has(25) && !p.extraW && !MD().oneWeapon) { p.extraW = SK.makeWeapon(id); }
     else {
       const old = p.weapons[p.cur];
       p.weapons[p.cur] = SK.makeWeapon(id);
@@ -1032,7 +1038,7 @@
         use() {
           const pl = G.player;
           if (pl.armor < 1) { G.toast('Không đủ giáp!'); snd('fx_error', 0.6); return; }
-          if ((pl.buffs || []).length >= BUFF_SLOTS) { G.toast('Hết ô buff!'); return; }
+          if ((pl.buffs || []).length >= buffSlots()) { G.toast('Hết ô buff!'); return; }
           pl.armor -= 1; it.sold = true;
           takeBuff(pl, id);
           snd(evClip('shop') || 'fx_buy', 0.7);
@@ -1089,8 +1095,11 @@
         if (well.uses >= B.well.maxUse) { G.toast('Nước trở nên đục.'); return; }
         if (waiting()) { G.toast('Nhặt món đồ trong giếng trước đã.'); return; }
         const n = cost();
-        if (G.player.gold < n) { G.toast('Hết xu rồi.'); snd('fx_error', 0.6); return; }
-        G.player.gold -= n; well.uses++;
+        if (!freeBuy()) {
+          if (G.player.gold < n) { G.toast('Hết xu rồi.'); snd('fx_error', 0.6); return; }
+          G.player.gold -= n;
+        }
+        well.uses++;
         snd(clipOf('wishing_well', 'fire') || 'fx_buy', 0.7); snd(clipOf('wishing_well', 'water_clip') || 'fx_sea_wave', 0.4);
         vfx('object_fishing_spot_wishing_well', x, y + 6, { scale: 1 });
         vfx('explode_coin', x, y - 4, { scale: 0.6 });
@@ -1213,9 +1222,9 @@
   const choice = ROOMS.choice = { open: false, cards: [], rerolls: 2 };
   // ids: bộ thẻ định sẵn (kiểm thử); không có thì bốc 3 buff theo bể thật.
   function openChoice(ids) {
-    const list = (ids || offerIds(3)).filter(id => DEF[id]);
+    const list = (ids || offerIds(buffChoices())).filter(id => DEF[id]);
     if (!list.length) return false;
-    choice.cards = list.slice(0, 3);
+    choice.cards = list.slice(0, Math.max(3, buffChoices()));
     choice.open = true;
     snd('fx_show_up', 0.7);
     SK.emit('buffChoice', G, choice.cards.slice());
@@ -1223,10 +1232,10 @@
   }
   function rerollChoice() {
     if (!choice.open || choice.rerolls <= 0) return false;
-    const list = offerIds(3).filter(id => DEF[id]);
+    const list = offerIds(buffChoices()).filter(id => DEF[id]);
     if (!list.length) return false;
     choice.rerolls--;
-    choice.cards = list.slice(0, 3);
+    choice.cards = list.slice(0, buffChoices());
     snd('fx_show_up', 0.7);
     SK.emit('buffChoice', G, choice.cards.slice());
     return true;
@@ -1244,10 +1253,10 @@
   }
   ROOMS.pick = pickChoice;
   ROOMS.openChoice = openChoice;
-  ROOMS.BUFF_AFTER = BUFF_AFTER; ROOMS.BUFF_SLOTS = BUFF_SLOTS;
+  ROOMS.BUFF_AFTER = BUFF_AFTER; ROOMS.BUFF_SLOTS = BUFF_SLOTS; ROOMS.buffSlots = buffSlots; ROOMS.buffChoices = buffChoices; ROOMS.pay = pay;
   addEventListener('keydown', e => {
     if (!choice.open) return;
-    const m = /^(?:Digit|Numpad)([1-3])$/.exec(e.code);
+    const m = /^(?:Digit|Numpad)([1-9])$/.exec(e.code);
     if (m) { pickChoice(+m[1] - 1); e.preventDefault(); }
   });
 
@@ -1266,7 +1275,7 @@
   });
   SK.on('portalEnter', (G2, stage) => {
     const p = G2.player;
-    if (BUFF_AFTER.indexOf(stage.label) < 0 || !p.buffs || p.buffs.length >= BUFF_SLOTS) return;
+    if (BUFF_AFTER.indexOf(stage.label) < 0 || !p.buffs || p.buffs.length >= buffSlots()) return;
     if (openChoice()) G2.hold = true;
   });
 

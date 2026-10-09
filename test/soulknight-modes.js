@@ -112,7 +112,7 @@ async function until(p, fn, arg, ms) {
     mode: SK_GAME.mode, n: SK.STAGES.length, allBoss: SK.STAGES.every(s => s.boss && s.br), labels: SK.STAGES.map(s => s.label).join(','),
     rooms: SK_GAME.rooms.map(r => r.type).sort().join(','), badass: SK.G.badass
   }));
-  check('Khu Thí Luyện: 15 ải 1-1..3-5, ải nào cũng là trận trùm', br.mode === 'bossrush' && br.n === 15 && br.allBoss, br.labels);
+  check('Khu Thí Luyện: 15 ải 1-1..3-5 + trận cuối 3-6, ải nào cũng là trận trùm', br.mode === 'bossrush' && br.n === 16 && br.allBoss && /3-5,3-6$/.test(br.labels), br.labels);
   check('Khu Thí Luyện: ải chỉ có khởi đầu, rương, phòng phụ, phòng trùm, cổng (không phòng quái)', br.rooms === 'boss,chest,end,special,start', br.rooms);
   const seen = [];
   for (const label of ['1-1', '1-2', '1-3']) {
@@ -124,6 +124,13 @@ async function until(p, fn, arg, ms) {
   }
   await p.screenshot({ path: path.join(SHOTS, 'bossrush-1-3.png') });
   const keys = seen.map(x => x.split('@')[0]);
+  await p.evaluate(() => { SK_GAME.debug.stage('3-6'); SK_GAME.debug.god(true); });
+  await until(p, () => SK_GAME.phase === 'play', null, 5000);
+  await p.evaluate(() => { SK_GAME.debug.teleportTo('boss'); SK.G.player.y += 5 * 16; });
+  const fin = await until(p, () => SK.G.enemies.some(e => e.bossKey === 'boss_bossrush_final'), null, 6000);
+  await sleep(3500);
+  await p.screenshot({ path: path.join(SHOTS, 'bossrush-final.png') });
+  check('Khu Thí Luyện: ải 3-6 là Tước Sĩ Đỏ (độ khó thường)', fin);
   check('Khu Thí Luyện: ba ải đầu đều có trùm tầng 1, không lặp', keys.every(k => k !== 'không có') && new Set(keys).size === 3, seen.join(' · '));
   check('không lỗi trang', !errs.length, errs.slice(0, 3).join(' | '));
 

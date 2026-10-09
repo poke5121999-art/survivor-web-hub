@@ -30,6 +30,10 @@ OUT_EXTRA = os.path.join(TOOLS, 'extra', 'bosses.json')
 # Theme web -> LevelKey của config/enemies (level/1/a = forest ...) [ĐO themes[x].bundle trong sk-data.js]
 THEME_KEY = {'forest': '1A', 'glacier': '1B', 'ruins': '1C', 'castle': '2A', 'graveyard': '2B', 'halloween': '2C',
              'icecave': '2D', 'swamp': '2E', 'relic': '2F', 'machinery': '2G', 'aliens': '3A', 'volcano': '3B', 'island': '3C'}
+# Trận cuối Khu Thí Luyện: Tước Sĩ Đỏ (thường) / Tước Sĩ Tím (Lợi Hại) [ĐO enemies.boss_bossrush_final*, Path Level/bossrush];
+# prefab nằm trong levelobjects.ab chứ không có bundle boss/ riêng.
+EXTRA_POOL = {'bossrush_final': ['boss_bossrush_final', 'boss_bossrush_final_badass']}
+BUNDLE_OF = {'boss_bossrush_final': 'levelobjects', 'boss_bossrush_final_badass': 'levelobjects'}
 # Prefab phụ do AI trùm sinh ra (quái con, bia mộ...) cũng cần rig.
 SUB_PREFABS = {'boss20': ['e_slime01_temp'], 'boss18': ['temp_tombstone1', 'temp_tombstone2', 'e_mummy03_temp',
                                                           'e_mummy04_temp', 'e_mummy05_temp'],
@@ -465,6 +469,7 @@ def main():
         ids = [k for k, v in enemies.items() if v.get('IsBoss') and v.get('LevelKey') == key and k not in subs
                and not re.match(r'.*_(horse|\d)$', k) and v.get('Path', '').startswith('Level/')]
         pool[theme] = ids
+    pool.update(EXTRA_POOL)
     print('pool', pool)
     out = {'v': 1, 'pool': pool, 'bosses': {}, 'bullets': {}, 'info': {}}
     want_bullets = []
@@ -472,7 +477,7 @@ def main():
         for bid in ids:
             row = enemies[bid]
             m = re.match(r'.*/Boss/([^/]+)/', row['Path'], re.I)
-            bundle = 'boss/' + m.group(1).lower()
+            bundle = BUNDLE_OF.get(bid) or 'boss/' + m.group(1).lower()
             kids = [bid] + ([row['SubspeciesBoss']] if row.get('SubspeciesBoss') else []) + SUB_PREFABS.get(bid, [])
             if bid == 'boss12_parent':
                 kids = ['boss12_parent'] + SUB_PREFABS['boss12']

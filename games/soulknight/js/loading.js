@@ -24,6 +24,8 @@
     L.q(RB + 'ad_icon').off = 1; L.q(RB + 'free_icon').off = 0;
     L.q(RB + 'name').txt.s = U.terms['uiloading/reroll'];
     CARD = L.q('ui_buff_bar/body/grid').k;
+    // Nhân tố Thiên Phú Tự Chọn (+2 thẻ) cần tới 5 thẻ: nhân bản thẻ đầu vào cùng lưới; thẻ thừa tự tắt (off) khi không có buff.
+    while (CARD.length < 5) CARD.push(SK.ugui.clone(CARD[0]));
     CARD.forEach((c, i) => { c.n = 'card' + i; });   // ba bản ghép cùng tên buff_tpl3: đặt tên riêng để tra đường dẫn
     L.reindex();
     CARD.forEach((c, i) => {
@@ -52,6 +54,9 @@
     if (!ui()) return;
     const ch = SK.ROOMS && SK.ROOMS.choice, choosing = !!(ch && ch.open);
     L.q('ui_buff_bar').off = choosing ? 0 : 1;
+    // Số thẻ khác 3 (Nhân tố thiên phú): xếp lại hàng thẻ giữa màn, thu nhỏ khi nhiều để chừa chỗ nút đổi.
+    const nCard = choosing ? ch.cards.length : 3, sc = nCard <= 3 ? 1 : nCard === 4 ? 0.8 : 0.62, step = nCard <= 3 ? 310 : nCard === 4 ? 250 : 190;
+    CARD.forEach((c, i) => { c.p = [(i - (nCard - 1) / 2) * step, c.p[1]]; c.sc = [sc, sc]; });
     CARD.forEach((c, i) => {
       const id = choosing ? ch.cards[i] : null;
       c.off = id == null ? 1 : 0;

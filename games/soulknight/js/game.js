@@ -7,12 +7,15 @@
   // phòng phụ và phòng trùm (map_*_BR không có phòng quái, phòng phụ theo map_bossrush_base; phòng kết map_End_BR ghi nhãn
   // "BR 3-5") [ĐO config/map_levels]; mỗi ải một vùng đất ngẫu nhiên của tầng [SUY].
   const STAGES = [];
-  function buildStages(mode) {
+  function buildStages(mode, factors) {
     STAGES.length = 0;
     const br = mode === 'bossrush';
     for (const [theme, level] of DS.run) for (let i = 1; i <= 5; i++) {
       STAGES.push({ theme, level, n: i, label: level + '-' + i, boss: br || i === 5, br });
     }
+    // Trận cuối Khu Thí Luyện: anh hồn Tước Sĩ Đỏ (thường) / Tím (Lợi Hại) [LOC bossrush_intro_tips6, enemies.boss_bossrush_final*].
+    // Gốc chỉ mở khi "Thí Luyện Thuần Túy" (không mang nhân tố/thiên phú/vũ khí, kịp giờ); web: chỉ cần không mang nhân tố [SUY].
+    if (br && !(factors && factors.length)) STAGES.push({ theme: DS.run[2][0], level: 3, n: 6, label: '3-6', boss: true, br, final: true });
   }
   buildStages('level');
   SK.STAGES = STAGES;
@@ -42,11 +45,16 @@
   G.buildWaves = function (r) {
     const th = G.map.th;
     const roster = th.enemies.filter(id => D.enemies[id]);
-    if (r.type === 'boss') return SK.bossWaves(G, r);
+    if (r.type === 'boss') {
+      const bw = SK.bossWaves(G, r);
+      // Nhân tố "doubleBoss": mỗi phòng trùm có hai trùm cùng lúc (trùm thứ hai là bản sao cùng loại).
+      return G.mods && G.mods.doubleBoss && bw.length === 1 && bw[0].length === 1 ? [[bw[0][0], bw[0][0]]] : bw;
+    }
     const pat = r.pattern;
+    const MD = G.mods || {};
     const BD = G.badass ? DS.badass : null;
-    const pts = (pat ? pat.pts : DS.waves.pts) * (BD ? BD.density : 1), n = Math.max(1, pat ? pat.waves : DS.waves.count);
-    const exRate = Math.max((pat ? pat.ex : DS.waves.ex) / 100, BD ? BD.eliteRate : 0);
+    const pts = (pat ? pat.pts : DS.waves.pts) * (BD ? BD.density : 1) * (MD.spawnMul || 1), n = Math.max(1, pat ? pat.waves : DS.waves.count);
+    const exRate = Math.max((pat ? pat.ex : DS.waves.ex) / 100, BD ? BD.eliteRate : 0, MD.eliteRate || 0);
     const per = Math.max(1, Math.floor(pts / n));
     const waves = [];
     for (let w = 0; w < n; w++) {
@@ -119,7 +127,7 @@
   function pickWeapon(it) {
     const p = G.player;
     G.items = G.items.filter(x => x !== it);
-    if (!p.weapons[1]) { p.weapons[1] = SK.makeWeapon(it.id); p.cur = 1; }
+    if (!p.weapons[1] && !(G.mods && G.mods.oneWeapon)) { p.weapons[1] = SK.makeWeapon(it.id); p.cur = 1; }
     else {
       const old = p.weapons[p.cur];
       p.weapons[p.cur] = SK.makeWeapon(it.id);
@@ -195,15 +203,19 @@
   };
 
   // mode: 'level' (Chế độ Ải, mặc định) | 'bossrush' (Khu Thí Luyện).
-  function startRun(heroId, mode) {
+  // factors: mảng khoá Nhân Tố Thử Thách (SK.FACTORS); bỏ trống = không nhân tố.
+  function startRun(heroId, mode, factors) {
     if (typeof heroId === 'string') G.heroId = heroId;
+    G.factors = Array.isArray(factors) ? factors.slice() : [];
+    if (SK.factorsOn) SK.factorsOn(G); else G.mods = {};
     G.player = null; G.kills = 0; G.state = 'stage';
     G.mode = mode === 'bossrush' ? 'bossrush' : 'level'; G.bossSeen = [];
     setOverlay(null);
-    buildStages(G.mode);
+    buildStages(G.mode, G.factors);
     rollThemes();
     enterStage(0);
     SK.emit('runStart', G);
+    if (SK.factorsPlayer) SK.factorsPlayer(G, G.player);   // sau khi nâng cấp sảnh đã cộng vào hpMax...
   }
   SK.startRun = startRun;
   G.onPlayerDead = function () { G.shake = 5; };

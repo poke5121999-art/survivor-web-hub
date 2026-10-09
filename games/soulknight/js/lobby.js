@@ -34,6 +34,7 @@
   if (!P.won || typeof P.won !== 'object') P.won = {};
   if (!P.skin || typeof P.skin !== 'object') P.skin = {};
   if (!P.wonBadass || typeof P.wonBadass !== 'object') P.wonBadass = {};
+  if (!Array.isArray(P.factors)) P.factors = [];   // khoá Nhân Tố Thử Thách đã chọn (SK.FACTORS, js/factors.js)
   // Lợi Hại mở sau khi vượt Chế độ Ải một lần [WIKI]; bản gốc còn đòi mở hết vật phẩm Phòng Khách [LOC I_tip_09] — sảnh web
   // chưa có kinh tế vật phẩm nên bỏ điều kiện này (GAPS.md).
   const badassOpen = () => Object.keys(P.won).length > 0;
@@ -58,6 +59,14 @@
     level: id => P.level[id] || 0,
     skinOf: id => P.skin[id] || 0,
     get badass() { return P.diff === 'badass' && badassOpen(); },
+    // Nhân Tố Thử Thách: khoá hợp lệ, không trùng, tối đa SK.FACTOR_MAX; chỉ dùng khi vào trận từ thẻ "Nhân Tố Thử Thách".
+    get factors() { return P.factors.filter((k, i) => SK.FACTORS && SK.FACTORS[k] && P.factors.indexOf(k) === i).slice(0, SK.FACTOR_MAX || 3); },
+    setFactors(list) { P.factors = (list || []).filter((k, i, a) => SK.FACTORS && SK.FACTORS[k] && a.indexOf(k) === i).slice(0, SK.FACTOR_MAX || 3); save(); return P.factors.slice(); },
+    toggleFactor(k) {
+      const cur = this.factors, i = cur.indexOf(k);
+      if (i >= 0) cur.splice(i, 1); else if (SK.FACTORS && SK.FACTORS[k] && cur.length < (SK.FACTOR_MAX || 3)) cur.push(k); else return false;
+      this.setFactors(cur); return true;
+    },
     setBadass(on) { if (on && !badassOpen()) return false; P.diff = on ? 'badass' : 'normal'; save(); return true; },
     reset() { try { localStorage.removeItem(KEY); } catch (_) { /* bỏ qua */ } }
   };
@@ -650,6 +659,10 @@
       desc: 'Ba tầng, mỗi tầng một vùng đất ngẫu nhiên (Rừng Rậm, Băng Nguyên, Lâu Đài, Núi Lửa...), 5 màn, trùm ở màn cuối. Chơi một mình.' },
     // Khu Thí Luyện [LOC gamemode/bossrush]: 15 ải 1-1..3-5, ải nào cũng là một trận trùm (game.js buildStages). Biểu tượng
     // ui_game_entry_icon_shilian (ui.ab). Vé Lông Vũ Valkyrie và trận Tước Sĩ cuối chưa có (GAPS.md).
+    // Nhân Tố Thử Thách [LOC gamemode/challenge]: Chế độ Ải kèm vài nhân tố đổi luật (SK.FACTORS); chưa có biểu tượng riêng nên dùng ảnh Chế độ Ải.
+    { id: 'challenge', name: 'Nhân Tố Thử Thách', img: 'mode_level.png', ok: true,
+      start: () => { if (SK.G.state === 'hall') launch(P.selected, 'level'); },
+      desc: 'Chế độ Ải kèm vài nhân tố thử thách: mỗi nhân tố đổi một luật của lượt chơi. Chọn tối đa ba, không trùng nhau.' },
     { id: 'bossrush', name: 'Khu Thí Luyện', img: 'mode_bossrush.png', icon: true, ok: true,
       start: () => { if (SK.G.state === 'hall') launch(P.selected, 'bossrush'); },
       desc: 'Mười lăm ải liền, ải nào cũng là một Lãnh Chúa của vùng đất ngẫu nhiên; giữa các trận có rương và phòng phụ. Chơi một mình.' },
@@ -670,6 +683,7 @@
     $('hs-mode-img').src = ART + m.img;
     $('hs-mode-desc').textContent = m.desc;
     diffUi(m);
+    factorUi(m);
     const go = $('hs-mode-go');
     go.disabled = !m.ok;
     go.textContent = m.ok ? 'Bắt đầu' : 'Sắp ra mắt';
@@ -697,6 +711,33 @@
     for (const b of el.querySelectorAll('button')) b.onclick = () => { if (SK.profile.setBadass(b.dataset.d === 'badass')) { sfx(VIEW.tapClip); diffUi(m); } };
   }
 
+  // Danh sách Nhân Tố Thử Thách dưới mô tả thẻ "Nhân Tố Thử Thách": bấm để bật/tắt, tối đa SK.FACTOR_MAX; thay cho ảnh thẻ.
+  const TIER_ORDER = { 'dễ': 0, 'vừa': 1, 'khó': 2 };
+  function factorUi(m) {
+    let el = $('hs-mode-factors');
+    if (!el) {
+      el = document.createElement('div'); el.id = 'hs-mode-factors'; el.className = 'hs-mode-factors';
+      $('hs-mode-desc').after(el);
+    }
+    const on = m.id === 'challenge';
+    el.hidden = !on;
+    document.querySelector('.hs-mode-pic').style.display = on ? 'none' : '';
+    if (!on) return;
+    const sel = SK.profile.factors, max = SK.FACTOR_MAX || 3;
+    const keys = Object.keys(SK.FACTORS || {}).sort((a, b) => TIER_ORDER[SK.FACTORS[a].tier] - TIER_ORDER[SK.FACTORS[b].tier]);
+    el.innerHTML = '<div class="hs-fcount">Đã chọn <b>' + sel.length + '/' + max + '</b></div><div class="hs-flist">' + keys.map(k => {
+      const f = SK.FACTORS[k];
+      return '<button data-f="' + k + '" class="t' + TIER_ORDER[f.tier] + (sel.indexOf(k) >= 0 ? ' sel' : '') + '"><b>' + esc(f.vi) + '</b><small>' + esc(f.desc) + '</small></button>';
+    }).join('') + '</div>';
+    for (const b of el.querySelectorAll('button')) b.onclick = () => {
+      const ok = SK.profile.toggleFactor(b.dataset.f), top = el.querySelector('.hs-flist').scrollTop;
+      if (ok) sfx(VIEW.tapClip);
+      factorUi(m);
+      el.querySelector('.hs-flist').scrollTop = top;
+      if (!ok) el.querySelector('.hs-fcount').innerHTML = 'Tối đa <b>' + max + '</b> nhân tố — bỏ bớt một nhân tố trước';
+    };
+  }
+
   // ---------------------------------------------------------------- vào trận / kết quả
   function applySkillSlot(id) {
     const h = DS.heroes[id];
@@ -721,7 +762,12 @@
     // Bản gốc: chọn xong thì điều khiển nhân vật trong sảnh, đi vào cửa mới ra bảng chế độ. ?quick=1 vào hầm luôn.
     if (SK.QUICK || !SK.hall) launch(id); else SK.hall.enter('walk', id);
   }
-  function launch(id, mode) { applySkillSlot(id); SK.G.badass = SK.profile.badass; SK.startRun(id, mode); }
+  // factors: mảng khoá Nhân Tố Thử Thách. Bỏ trống: lấy nhân tố đã chọn khi thẻ đang chọn là "Nhân Tố Thử Thách" (Chế độ Ải thường
+  // và Khu Thí Luyện không có nhân tố).
+  function launch(id, mode, factors) {
+    if (factors === undefined) factors = modeSel === 'challenge' && mode !== 'bossrush' ? SK.profile.factors : [];
+    applySkillSlot(id); SK.G.badass = SK.profile.badass; SK.startRun(id, mode, factors);
+  }
 
   SK.on('runStart', G2 => {
     const p = G2.player; if (!p) return;
@@ -740,13 +786,14 @@
     if (r.won) P.won[hero] = 1;
     if (r.won && bad) P.wonBadass[hero] = 1;
     save();
-    pending = { hero, stage: r.stage, kills: r.kills, gold: r.gold, won: r.won, cleared, gems, bad, firstBad };
+    pending = { hero, stage: r.stage, kills: r.kills, gold: r.gold, won: r.won, cleared, gems, bad, firstBad, factors: (G2.factors || []).slice() };
   });
   function showSummary() {
     const s = pending; pending = null;
     dialog('<h3>' + (s.won ? 'Chiến thắng!' : 'Kết quả lượt chơi') + '</h3>' +
       '<p>' + esc(heroName(s.hero)) + (s.bad ? ' · Lợi Hại' : '') + ' · tới màn ' + esc(s.stage) + ' · qua ' + s.cleared + ' màn</p>' +
       (s.firstBad ? '<p>Lần đầu vượt Lợi Hại: +' + fmt(DS.badass.firstWinGems) + ' đá quý</p>' : '') +
+      (s.factors && s.factors.length ? '<p>Nhân Tố Thử Thách: ' + s.factors.map(k => esc(SK.FACTORS && SK.FACTORS[k] ? SK.FACTORS[k].vi : k)).join(', ') + '</p>' : '') +
       '<p>Hạ ' + s.kills + ' quái · ' + s.gold + ' vàng</p>' +
       '<p class="hs-price">+' + fmt(s.gems) + ' ' + gemImg + '</p>' +
       '<p class="hs-note">Đá quý = số quái hạ + 10 mỗi màn qua (+100 khi thắng) — công thức ước lượng.</p>',
@@ -773,7 +820,7 @@
 
   SK.lobby = {
     enter() {
-      G.state = 'lobby'; G.player = null; G.map = null; G.badass = false;
+      G.state = 'lobby'; G.player = null; G.map = null; G.badass = false; G.mods = null; G.factors = [];
       SK.setOverlay('sk-lobby');
       $('sk-lobby').classList.remove('only-modes');
       build();

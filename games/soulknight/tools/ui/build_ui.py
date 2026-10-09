@@ -36,6 +36,8 @@ PREFABS = {
     'loading': ('loading', 'scene:Canvas_Loading', []),
     # Thẻ chọn thiên phú UIBuffBar nạp lúc chạy (3 thẻ = buff_tpl3).
     'buff_tpl3': ('common', 'assets/rgprefab/ui/common/buff_tpl3.prefab', []),
+    # Màn chọn thú cưng ở sảnh (ChoosePetView).
+    'choose_pet': ('common', 'assets/rgprefab/other/scene_object/ui_choose_pet.prefab', []),
 }
 
 # Prefab con khong co trong m_Container, chi duoc tro toi tu mot MonoBehaviour cua prefab khac:

@@ -270,6 +270,13 @@
       g.addColorStop(0, 'rgba(255,0,0,0)'); g.addColorStop(1, 'rgba(200,0,0,' + (G.hurtT * 1.1) + ')');
       ctx.fillStyle = g; ctx.fillRect(0, 0, v.w, v.h);
     }
+    if (G.mods && G.mods.darkVision && G.player) {
+      // Mắt Cận Thị: chỉ thấy quanh người chơi (bán kính ~5,5 ô), ra xa thì tối dần [ƯỚC LƯỢNG].
+      const cam = G.view || G.cam, px = G.player.x - cam.x, py = G.player.y - 8 - cam.y, r = SK.TILE * 5.5;
+      const g = ctx.createRadialGradient(px, py, r * 0.45, px, py, r);
+      g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.94)');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, v.w, v.h);
+    }
     if (G.phase === 'enter' && G.phaseT < 1.8) {
       const t = G.phaseT;
       if (t < 0.35) { ctx.fillStyle = 'rgba(0,0,0,' + (1 - t / 0.35) + ')'; ctx.fillRect(0, 0, v.w, v.h); }

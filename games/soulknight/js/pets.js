@@ -74,6 +74,7 @@
 
   function spawn(G) {
     const id = SK.profile && SK.profile.pet ? SK.profile.pet() : 'pet0', parts = D.prefabs[id], p = G.player;
+    if (G.mods && G.mods.noPet) { G.pet = null; return; }   // Dũng Sĩ Cô Độc
     if (!parts || !p || G.petOff) return;
     const anim = parts[0].a || {};
     const a = { id, parts, anim, k: cfg(id), x: p.x - 10, y: p.y + 2, face: 1, st: 'ide', stT: 0, cd: 1, scan: 0, target: null };

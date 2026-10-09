@@ -307,7 +307,11 @@
     const hb = p.h.hurt, cy = p.y - hb.off[1];
     return Math.abs(x - p.x) < hb.size[0] / 2 + r && Math.abs(y - cy) < hb.size[1] / 2 + r;
   }
-  function critRoll(p, crit) { return SK.rand() * 100 < ((p.crit || 0) + (crit || 0)); }
+  // Nhân tố thử thách (SK.FACTORS, js/factors.js) chỉ đọc G.mods; thiếu G.mods (mùa giải...) thì trung tính.
+  const MODS = () => SK.G.mods || {};
+  const critRoll = (p, crit) => SK.rand() * 100 < ((p.crit || 0) + (crit || 0)) * (MODS().critRateMul || 1);
+  // Bạo kích = 1 + (hệ số gốc − 1) × critDmgMul: Thuật Cường Hóa Chính Xác ×2 → ×1,5, Dao Găm Điên Cuồng ×2 → ×2,5.
+  const CM = () => 1 + ((R.critMult || 2) - 1) * (MODS().critDmgMul || 1);
 
   // ---------------------------------------------------------------- một phát bắn của súng 8.6
   // info = bulletsInfo [ĐO]: {p prefab, dmg, spd, size, crit, repel, thr}.
@@ -321,7 +325,7 @@
   function shot86(G, p, w, info, mz, ang, o) {
     const d = w.def, crit = critRoll(p, o && o.crit != null ? o.crit : info.crit);
     const base = o && o.dmg != null ? o.dmg : info.dmg;
-    const dmg = Math.max(0, Math.round(base * (d.w86.dmf || 1) * (p.dmgMul || 1))) * (crit ? R.critMult : 1);
+    const dmg = Math.max(0, Math.round(base * (d.w86.dmf || 1) * (p.dmgMul || 1))) * (crit ? CM() : 1);
     const B = XB[info.p] || {}, x = d.w86.x;
     const [hx, hy] = handPos(p, w.side || 1);
     const spd = o && o.spd != null ? o.spd : info.spd;
@@ -436,7 +440,7 @@
   // Vũ khí tự định nghĩa không có dữ liệu 8.6 (kỹ năng...): một viên thẳng bằng prefab đạn nếu có.
   function legacyShot(G, p, w, o) {
     const d = w.def, crit = critRoll(p, d.crit);
-    const dmg = Math.round((d.dmg || 1) * (p.dmgMul || 1)) * (crit ? R.critMult : 1), a = o.ang + jitter(d.spread || 0);
+    const dmg = Math.round((d.dmg || 1) * (p.dmgMul || 1)) * (crit ? CM() : 1), a = o.ang + jitter(d.spread || 0);
     if (X) {
       const n = d.pellets || 1;
       for (let i = 0; i < n; i++) {
@@ -467,7 +471,7 @@
         for (const e of G.enemies) {
           if (!targetable(e) || !inArc(e.x, e.y - e.hb.off[1] * e.scale, e.r)) continue;
           const crit = critRoll(p, d.crit);
-          SK.hurtEnemy(G, e, Math.round(dmg * (p.dmgMul || 1)) * (crit ? R.critMult : 1), crit, o.ang, d.repel || 3);
+          SK.hurtEnemy(G, e, Math.round(dmg * (p.dmgMul || 1)) * (crit ? CM() : 1), crit, o.ang, d.repel || 3);
           vfx(G, 'hit_white', e.x, e.y - e.hb.off[1] * e.scale, { ang: o.ang });
         }
         for (const b of G.bullets) {
@@ -487,7 +491,15 @@
     return w;
   };
   // Ứng viên rương/lái buôn (design.js); nơi gọi SK.pick() trong danh sách trả về.
-  SK.weaponPool = (level, source) => (DS.weaponPool ? DS.weaponPool(level, source, SK.rand) : DS.chestPool.slice());
+  SK.weaponPool = (level, source) => {
+    const all = DS.weaponPool ? DS.weaponPool(level, source, SK.rand) : DS.chestPool.slice();
+    if (!MODS().meleeOnly) return all;
+    // meleeOnly (Cận Chiến Giới Hạn): chỉ cận chiến; bể cấp này không có thì lấy mọi vũ khí cận chiến trong các bể.
+    const melee = all.filter(id => DS.weapons[id] && DS.weapons[id].kind === 'melee');
+    if (melee.length) return melee;
+    const any = []; for (const l of Object.values(DS.weaponPools || {})) for (const id of l) if (DS.weapons[id] && DS.weapons[id].kind === 'melee' && any.indexOf(id) < 0) any.push(id);
+    return any.length ? any : all;
+  };
 
   // ---------------------------------------------------------------- người chơi
   // Tay cầm súng theo skin: DS.heroes[].hand tính từ pivot của s0 (design.js handOf); skin khác dời theo độ lệch pivot.
@@ -835,7 +847,7 @@
         const ey = e.y - e.hb.off[1] * e.scale;
         if (Math.hypot(e.x - z.x, ey - z.y) >= o.r + e.r) continue;
         hit.add(e);
-        const crit = critRoll(p, o.crit), dmg = Math.round(o.dmg * (p.dmgMul || 1)) * (crit ? R.critMult : 1);
+        const crit = critRoll(p, o.crit), dmg = Math.round(o.dmg * (p.dmgMul || 1)) * (crit ? CM() : 1);
         SK.hurtEnemy(G2, e, dmg, crit, Math.atan2(ey - z.y, e.x - z.x), o.repel || 0);
       }
     } });
@@ -1090,7 +1102,7 @@
         if (a.cd > 0) return;
         a.cd = k.cd;
         const ang = Math.atan2(ey - (a.y - 7), e.x - a.x), crit = SK.rand() * 100 < k.crit;
-        const dmg = Math.round(k.dmg * (p.dmgMul || 1)) * (crit ? R.critMult : 1);
+        const dmg = Math.round(k.dmg * (p.dmgMul || 1)) * (crit ? CM() : 1);
         const bx = a.x + Math.cos(ang) * (k.off || 0) * U, by = a.y - 7 + Math.sin(ang) * (k.off || 0) * U;
         SK.spawnBullet86(G2, 'p', k.pf, bx, by, ang, { dmg, crit, repel: k.repel, owner: a, h: 7, spd: 0, size: k.size || 1, flipY: a.face < 0 });
       },
@@ -1286,13 +1298,15 @@
     if (p.st === 'dead') { p.stT += dt; return; }
     p.invulT = Math.max(0, p.invulT - dt); p.flash = Math.max(0, p.flash - dt);
     p.skillCd = Math.max(0, p.skillCd - dt);
+    if (SK.factorsTick) SK.factorsTick(G, p, dt);
     for (const w of p.weapons) if (w) { w.cd -= dt; w.kick = Math.max(0, w.kick - dt * 20); w.swing = Math.max(0, (w.swing || 0) - dt); }
     { const w = p.weapons[p.cur], ws = w && w.def.w86 && WEAPON_SPECIALS[w.def.w86.cls]; if (ws && ws.update) ws.update(G, p, w, dt); }
     if (p.dual) { p.dual.cd -= dt; p.dual.kick = Math.max(0, p.dual.kick - dt * 20); p.dual.swing = Math.max(0, (p.dual.swing || 0) - dt); }
 
     // giáp hồi sau một quãng không trúng đòn
     p.armorT -= dt;
-    if (p.armorT <= 0 && p.armor < p.armorMax) {
+    // armorNoRegen (Vỏ Cứng Bảo Vệ): giáp không hồi khi đang đánh nhau (phòng khoá).
+    if (p.armorT <= 0 && p.armor < p.armorMax && !(MODS().armorNoRegen && G.room && G.room.state === 'locked')) {
       p.armorTick -= dt;
       if (p.armorTick <= 0) { p.armor++; p.armorTick = R.armorTick; }
     }
@@ -1301,7 +1315,7 @@
     p.moving = Math.abs(mv.x) + Math.abs(mv.y) > 0.05;
     const pad = W.obstacleAt(G.map, p.x, p.y - 2);
     p.speedMul = pad && pad.kind === 'pad' ? (pad.p.speed_down ? 1 - pad.p.speed_rate : 1 + pad.p.speed_rate) : 1;
-    const spd = p.h.speed * U * p.speedMul * (p.moveMul || 1);
+    const spd = p.h.speed * U * p.speedMul * (p.moveMul || 1) * (MODS().moveMul || 1);
     if (p.lunge) stepPush(G, p, dt);   // đang lao người (forceLerp = 1: phím chạy bị bỏ qua) [ĐO RGController.SetVelocity]
     else if (!(p.weapons[p.cur] && p.weapons[p.cur].dash)) SK.moveBox(G.map, p, mv.x * spd * dt, mv.y * spd * dt, p.h.body.r);
     if (p.moving && Math.random() < dt * 8) SK.fx(G, 'dust', p.x - p.face * 4, p.y, { dur: 0.2 });
@@ -1380,7 +1394,7 @@
   }
   function startSkill(G, p) {
     skillDef(p).start(G, p);
-    if (!(p.skillT > 0)) p.skillCd = p.h.skill.cd;
+    if (!(p.skillT > 0)) p.skillCd = p.h.skill.cd * (MODS().skillCdMul || 1);
     SK.emit('skill', G, p);
   }
   SK.endSkill = function (G, p) {
@@ -1388,7 +1402,7 @@
     p.skillT = 0;
     p._skEnds = (p._skEnds || 0) + 1;
     if (sd.end) sd.end(G, p);
-    p.skillCd = p.h.skill.cd;
+    p.skillCd = p.h.skill.cd * (MODS().skillCdMul || 1);
   };
 
   SK.hurtPlayer = function (G, dmg) {
@@ -1419,6 +1433,7 @@
     const pages = p.flash > 0 ? SK.pagesWhite : null;
     const alpha = G.phase === 'portal' ? Math.max(0, 1 - G.phaseT / 0.6) : 1;
     ctx.save(); ctx.globalAlpha = alpha;
+    if (p.sizeMul && p.sizeMul !== 1) { ctx.translate(p.x, p.y); ctx.scale(p.sizeMul, p.sizeMul); ctx.translate(-p.x, -p.y); }   // Biến To / Biến Nhỏ
     const w = p.weapons[p.cur];
     // Clip skin_<n>_idle/run/dead gốc: nhún nút img (thân + tay cầm súng) khi chạy, nảy khi chết.
     const fs = p.face < 0 ? -1 : 1;
@@ -1471,6 +1486,10 @@
   // Quái không có trong SK_DATA.enemies (trùm...) đăng ký nhà máy riêng ở đây.
   SK.CUSTOM_ENEMIES = {};
   SK.makeEnemy = function (G, id, x, y, room) {
+    const e = makeEnemy0(G, id, x, y, room);
+    return SK.factorsEnemy ? SK.factorsEnemy(G, e) : e;   // máu / tốc độ theo G.mods (enemyHpMul, enemySpeedMul)
+  };
+  function makeEnemy0(G, id, x, y, room) {
     if (SK.CUSTOM_ENEMIES[id]) return SK.CUSTOM_ENEMIES[id](G, x, y, room);
     const d = D.enemies[id];
     const ai = (d.ai && d.ai[0]) || { cls: 'EnemyAI01', p: {} };
@@ -1490,7 +1509,7 @@
     e.wsm = e.w && e.w.ctrl ? SK.smNew(e.w.ctrl, e.w.anims) : null;
     SK.fx(G, 'spawn', x, y, { dur: 0.7 });
     return e;
-  };
+  }
 
   function enemyDmg(atk) { return Math.max(1, Math.round((atk || 1) * R.enemyAtkScale)); }
   function walkSpeed(e) { return (e.d.speed || 3) * U * R.enemyMoveScale * (e.moveMul || 1); }
@@ -1687,7 +1706,7 @@
   }
   // Đạn quái = prefab đạn thật của EGun (bay/nổ/tách theo MonoBehaviour, hình + tia trúng đích thật). [ĐO EGun*.bullet, bullet_speed, atk]
   function eShoot(G, e, x, y, ang, o) {
-    const w = e.w, spdU = Math.min(R.enemyBulletMaxSpeed, (w.p.bullet_speed || 7) * (o && o.spdMul || 1));
+    const w = e.w, spdU = Math.min(R.enemyBulletMaxSpeed, (w.p.bullet_speed || 7) * (o && o.spdMul || 1) * (MODS().enemyBulletSpeedMul || 1));
     if (w.bullet && XB[w.bullet]) {
       return SK.spawnBullet86(G, 'e', w.bullet, x, y, ang, { spd: spdU, dmg: enemyDmg(w.p.atk), repel: w.p.repel || 0, h: Math.max(2, e.y - y), owner: e });
     }
@@ -1792,11 +1811,13 @@
       SK.moveBox(G.map, e, e.kx * dt, e.ky * dt, e.r);
       const k = Math.exp(-dt * 12); e.kx *= k; e.ky *= k;
     }
+    if (SK.factorsEnemyTick) SK.factorsEnemyTick(G, e, dt);
     SK.AI[e.cls](G, e, dt);
   };
 
   SK.hurtEnemy = function (G, e, dmg, crit, ang, repel) {
     if (!targetable(e)) return false;
+    const df = MODS().enemyDef; if (df && dmg > 0) dmg = Math.max(1, dmg - df);   // Kẻ Địch Kiên Cuồng: phòng thủ +1
     e.hp -= dmg; e.flash = 0.08;
     SK.smTrig(e.sm, 'hit');   // L1.char_hit (clip gốc rỗng, chỉ có sự kiện HitBack ở 0,0667 s)
     if (!(e.p.kinematic)) { e.kx += Math.cos(ang) * repel * 30; e.ky += Math.sin(ang) * repel * 30; }

@@ -18,10 +18,11 @@ Thứ tự theo đúng lời chủ dự án. Mỗi mục là một hoặc vài �
 3. [~] Vùng đất và trùm riêng: [x] 22 trùm mới cho 10 vùng đất (rev 20261010b, `js/bosses/<pid>.js`, 7 agent song song,
    mỗi trùm qua `test/soulknight-bosses.js`). [ ] vùng 1G, tầng 4 (4A/4B/4C), 5A.
 4. [~] Chế độ chơi (đặc tả: scratchpad MODES.md → tools/polish/MODES.md): [x] Lợi Hại, [x] Khu Thí Luyện 15 ải (rev 20261010c),
-   [ ] Nhân Tố Thử Thách, [ ] Tước Sĩ cuối, [ ] Mê Trận Tà Vương, Xâm Nhập Hư Không, Thần Điện Thủ Hộ, Chỉ Huy Nhỏ.
+   [x] Nhân Tố Thử Thách 36 nhân tố, [x] Tước Sĩ Đỏ/Tím ải 3-6 (rev 20261010d), [ ] Mê Trận Tà Vương, Xâm Nhập Hư Không, Thần Điện Thủ Hộ, Chỉ Huy Nhỏ.
    Cũ: Lợi Hại (badass), Khu Thí Luyện (boss rush), Nhân Tố Thử Thách, rồi các chế độ còn lại theo độ khả thi.
    Bỏ qua chế độ online (PVP, nhiều người).
-5. [ ] Sảnh: tiện ích tương tác (rương, tủ lạnh, két, mèo chiêu tài, máy quay trứng, bàn rèn, lò đúc, luyện kim,
+5. [ ] Sảnh (đặc tả 43 tiện ích + kinh tế + 9 bước: tools/polish/HALL.md; bước 1 kho đồ/thư/tương tác → 2 rơi vật liệu →
+   3 két/chuyển phát/máy đổi → 4 bàn thiết kế + rèn → 5 rương/máy trứng/mèo → 6 vườn → 7 nội thất bản vẽ → 8 sổ tay/thành tựu → 9 xưởng/treo thưởng): tiện ích tương tác (rương, tủ lạnh, két, mèo chiêu tài, máy quay trứng, bàn rèn, lò đúc, luyện kim,
    thầy huấn luyện, cảnh sát, máy Dilili, hầm, xưởng, khu phép thuật), skin sảnh.
 6. [ ] Thú cưng: 55 thú cưng + kỹ năng riêng, chọn thú cưng; thú cưỡi 5, tùy tùng 6.
 7. [ ] Cây trồng: vườn, 51 cây, hạt giống, phân bón, thu hoạch.

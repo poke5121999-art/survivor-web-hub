@@ -1667,7 +1667,9 @@
   SK.bossWaves = function (G) {
     const f = SK.bossDebug.force;
     let id = f && (AIS[f] || GROUPS[f]) ? f : null;
-    if (!id) {
+    if (!id && G.stage.final) id = G.badass ? 'boss_bossrush_final_badass' : 'boss_bossrush_final';
+    if (!id || !(AIS[id] || GROUPS[id])) {
+      id = null;
       const all = poolOf(G.stage.theme);
       // Khu Thí Luyện: cố tránh gặp lại trùm đã đánh trong lượt (G.bossSeen) [SUY].
       const fresh = all.filter(x => (G.bossSeen || []).indexOf(x) < 0), list = fresh.length ? fresh : all;
