@@ -913,6 +913,7 @@
   }
   function giveWeapon(id) {
     const p = G.player;
+    if (SK.profile && SK.profile.pickWeapon) SK.profile.pickWeapon(id);
     if (!p.weapons[1] && !MD().oneWeapon) { p.weapons[1] = SK.makeWeapon(id); p.cur = 1; }
     else if (has(25) && !p.extraW && !MD().oneWeapon) { p.extraW = SK.makeWeapon(id); }
     else {

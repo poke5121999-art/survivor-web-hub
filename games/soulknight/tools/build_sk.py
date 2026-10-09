@@ -32,6 +32,8 @@ PPU = 16.0
 
 THEMES = {
     'level/1/a.ab': ('forest', 1), 'level/1/b.ab': ('glacier', 1), 'level/1/c.ab': ('ruins', 1),
+    # 1G Di Tích Máy Móc (map_G1 "1-1", quái e_old_*, trùm boss30 Di Tích Zulan) [ĐO config/map_levels, enemies.LevelKey]
+    'level/1/g.ab': ('zulanruins', 1),
     'level/2/a.ab': ('castle', 2), 'level/2/b.ab': ('graveyard', 2), 'level/2/c.ab': ('halloween', 2),
     'level/2/d.ab': ('icecave', 2), 'level/2/e.ab': ('swamp', 2), 'level/2/f.ab': ('relic', 2),
     'level/2/g.ab': ('machinery', 2),

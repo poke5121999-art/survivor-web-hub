@@ -127,6 +127,7 @@
   function pickWeapon(it) {
     const p = G.player;
     G.items = G.items.filter(x => x !== it);
+    if (SK.profile && SK.profile.pickWeapon) SK.profile.pickWeapon(it.id);   // đếm lần nhặt cho hồ sơ (điều kiện rèn)
     if (!p.weapons[1] && !(G.mods && G.mods.oneWeapon)) { p.weapons[1] = SK.makeWeapon(it.id); p.cur = 1; }
     else {
       const old = p.weapons[p.cur];

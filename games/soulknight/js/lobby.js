@@ -39,6 +39,33 @@
   // chưa có kinh tế vật phẩm nên bỏ điều kiện này (GAPS.md).
   const badassOpen = () => Object.keys(P.won).length > 0;
   P.gems = Math.max(0, Math.floor(+P.gems || 0));
+  // Sảnh kiểu Nhà Kỵ Sĩ (HALL.md): kho vật liệu, vũ khí đã nhặt, ngày, thư, két sắt, thống kê. Hồ sơ cũ thiếu trường thì rỗng.
+  const isObj = o => o && typeof o === 'object' && !Array.isArray(o);
+  const cleanMap = o => { const r = {}; if (isObj(o)) for (const k of Object.keys(o)) { const n = Math.floor(+o[k]); if (n > 0) r[k] = n; } return r; };
+  P.inv = cleanMap(P.inv);                       // {khoá vật phẩm: số} (SK_ITEMS: vật liệu, hạt giống, vé đổi, bản vẽ)
+  P.picked = cleanMap(P.picked);                 // {id vũ khí: số lần đã nhặt} (điều kiện mở Bàn Rèn, bước 4)
+  P.day = typeof P.day === 'string' ? P.day : '';   // YYYY-MM-DD giờ máy; đổi ngày thì xoá daily
+  P.daily = isObj(P.daily) ? P.daily : {};       // việc làm một lần mỗi ngày: {postman: 1, ...}
+  P.mail = Array.isArray(P.mail) ? P.mail.filter(m => m && m.id && m.title) : [];   // [{id, title, body, reward:{gems?, items?}}]
+  P.safe = Math.max(0, Math.min(5, Math.floor(+P.safe || 0)));   // cấp Két Sắt 0..5
+  P.box = Array.isArray(P.box) ? P.box.filter(id => DS.weapons[id]) : [];   // hòm vũ khí chờ mang vào ván (bưu kiện, Máy Đổi)
+  P.stats = Object.assign({ kills: 0, boss: 0, pass: 0, dead: 0, best: 0 }, isObj(P.stats) ? P.stats : {});
+  for (const k of Object.keys(P.stats)) P.stats[k] = Math.max(0, Math.floor(+P.stats[k] || 0));
+  const two = n => (n < 10 ? '0' : '') + n;
+  const todayStr = () => { const d = new Date(); return d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d.getDate()); };
+  function rollDay() { const t = todayStr(); if (P.day !== t) { P.day = t; P.daily = {}; save(); } }
+  let mailSeq = 0;
+  const mailId = () => 'm' + Date.now().toString(36) + (mailSeq++).toString(36);
+  // Thư chào [LOC mailbox/welcome_title, welcome_content], không kèm thưởng: gửi một lần cho hồ sơ chưa có hộp thư.
+  if (!P.welcomed) {
+    P.welcomed = 1;
+    P.mail.push({ id: mailId(), title: 'Huấn luyện đạt', body: 'Chúc mừng bạn đã hoàn thành giáo trình huấn luyện, nhưng trong Nhà Ngục còn nhiều quái vật nguy hiểm. Mau cầm vũ khí đánh bại chúng!', reward: {} });
+  }
+  // Két Sắt: cấp 1..5 cộng vàng đầu ván 2/4/6/8/10, giá 500..2500 đá; mở sau khi qua ải 2-2 [WIKI soul-knight.fandom.com/wiki/Safe].
+  // Các cấp giữa nội suy tuyến tính [ƯỚC LƯỢNG]. best = số màn đã vượt xa nhất (2-2 = màn thứ 7 trong SK.STAGES).
+  const SAFE_COST = [500, 1000, 1500, 2000, 2500], SAFE_GOLD = [2, 4, 6, 8, 10], SAFE_OPEN_BEST = 7;
+  // Vàng còn lại cuối ván đổi thành đá [LOC I_tip_10]; tỉ lệ không có trong config → 1 vàng = 1 đá [ƯỚC LƯỢNG].
+  const GOLD_GEM = 1;
   function save() { try { localStorage.setItem(KEY, JSON.stringify(P)); } catch (_) { /* chế độ riêng tư: chơi tiếp, không lưu */ } }
 
   const HEROES = Object.keys(DS.heroes).filter(id => D.heroes && D.heroes[id])
@@ -68,9 +95,74 @@
       this.setFactors(cur); return true;
     },
     setBadass(on) { if (on && !badassOpen()) return false; P.diff = on ? 'badass' : 'normal'; save(); return true; },
+    badassOpen: () => badassOpen(),
+    // ---- kho vật liệu: khoá trong SK_ITEMS.items; n âm = tiêu (không xuống dưới 0)
+    item: key => P.inv[key] | 0,
+    items() { return Object.assign({}, P.inv); },
+    addItem(key, n) {
+      n = Math.floor(n == null ? 1 : n);
+      const v = Math.max(0, (P.inv[key] | 0) + n);
+      if (v) P.inv[key] = v; else delete P.inv[key];
+      save(); return v;
+    },
+    spendItem(key, n) { if ((P.inv[key] | 0) < n) return false; this.addItem(key, -n); return true; },
+    // ---- vũ khí đã nhặt (đếm mỗi lần nhặt, giữ qua các ván)
+    pickWeapon(id) { if (!DS.weapons[id]) return 0; P.picked[id] = (P.picked[id] | 0) + 1; save(); return P.picked[id]; },
+    picked: id => P.picked[id] | 0,
+    // ---- hòm vũ khí chờ mang vào ván
+    get box() { return P.box.slice(); },
+    get boxFull() { return P.box.length >= BOX_MAX; },
+    addBox(id) { if (!DS.weapons[id] || P.box.length >= BOX_MAX) return false; P.box.push(id); save(); return true; },
+    dropBox(id) { const i = P.box.indexOf(id); if (i < 0) return false; P.box.splice(i, 1); save(); return true; },
+    // ---- ngày + việc hằng ngày
+    get day() { rollDay(); return P.day; },
+    dailyDone(name) { rollDay(); return !!P.daily[name]; },
+    markDaily(name) { rollDay(); P.daily[name] = 1; save(); },
+    // ---- thư: reward {gems?, items?: {khoá: số}}; nhận thư thì cộng thưởng rồi xoá thư
+    get mail() { return P.mail.map(m => Object.assign({}, m, { reward: Object.assign({}, m.reward) })); },
+    addMail(m) {
+      const id = mailId();
+      P.mail.push({ id, title: String(m.title || ''), body: String(m.body || ''), reward: Object.assign({}, m.reward) });
+      save(); if (built) refresh(); return id;
+    },
+    claimMail(id) {
+      const i = P.mail.findIndex(m => m.id === id); if (i < 0) return null;
+      const r = P.mail[i].reward || {};
+      P.mail.splice(i, 1);
+      if (r.gems) P.gems += Math.max(0, Math.floor(r.gems));
+      for (const k of Object.keys(r.items || {})) P.inv[k] = (P.inv[k] | 0) + Math.max(0, Math.floor(r.items[k]));
+      save(); if (built) refresh();
+      return { gems: r.gems | 0, items: Object.assign({}, r.items) };
+    },
+    deleteMail(id) {
+      const i = P.mail.findIndex(m => m.id === id), r = i >= 0 && P.mail[i].reward;
+      if (i < 0 || (r && (r.gems || Object.keys(r.items || {}).length))) return false;   // thưởng chưa nhận thì không xoá [LOC mailbox/confirm_delete_read]
+      P.mail.splice(i, 1); save(); return true;
+    },
+    // ---- két sắt
+    get safe() {
+      const lv = P.safe;
+      return { level: lv, max: SAFE_COST.length, gold: lv ? SAFE_GOLD[lv - 1] : 0, nextCost: lv < SAFE_COST.length ? SAFE_COST[lv] : 0,
+        nextGold: lv < SAFE_COST.length ? SAFE_GOLD[lv] : 0, open: P.stats.best >= SAFE_OPEN_BEST };
+    },
+    upgradeSafe() {
+      const s = this.safe;
+      if (!s.open) return { ok: false, reason: 'locked' };
+      if (s.level >= s.max) return { ok: false, reason: 'max' };
+      if (P.gems < s.nextCost) return { ok: false, reason: 'gems', need: s.nextCost - P.gems };
+      P.gems -= s.nextCost; P.safe++; save(); if (built) refresh();
+      return { ok: true, level: P.safe, gold: SAFE_GOLD[P.safe - 1], cost: s.nextCost };
+    },
+    // ---- thống kê
+    get stats() { return Object.assign({}, P.stats); },
+    addStat(k, n) { if (k in P.stats) { P.stats[k] += Math.max(0, Math.floor(n == null ? 1 : n)); save(); } },
+    // ---- chuyển phát: 500 đá/ngày (+100 sau nâng cấp) [WIKI soul-knight.fandom.com/wiki/Gems; LOC item/postmanUpgrade_desc]
+    get postmanPlus() { return !!P.postmanPlus; },
+    upgradePostman() { P.postmanPlus = 1; save(); },
     reset() { try { localStorage.removeItem(KEY); } catch (_) { /* bỏ qua */ } }
   };
   const isUnlocked = SK.profile.isUnlocked;
+  const BOX_MAX = 8;   // chỗ hòm vũ khí [ƯỚC LƯỢNG]; Bàn Rèn gốc giữ tối đa 4 món rèn [WIKI touchtapplay forge]
 
   // ---------------------------------------------------------------- giá
   const FAKE_HERO_GEMS = 10000;   // nhân vật mở bằng thành tựu / nguyên liệu → đổi đá quý [ƯỚC LƯỢNG]
@@ -773,6 +865,8 @@
     const p = G2.player; if (!p) return;
     const b = upgradeBonus(p.hero);
     p.hpMax += b.hp; p.hp += b.hp; p.armorMax += b.armor; p.armor += b.armor; p.energyMax += b.energy; p.energy += b.energy;
+    // Két Sắt: vàng khởi đầu mỗi ván [LOC Object_safe_info "Vàng ban đầu"]; Khu Thí Luyện không có vàng nên bỏ.
+    if (G2.mode !== 'bossrush') p.gold += SK.profile.safe.gold;
   });
 
   // Đá quý cuối lượt: theo số quái hạ + số màn đã qua [ƯỚC LƯỢNG]; SK gốc cũng trả theo quái hạ + tầng đạt được.
@@ -780,13 +874,18 @@
   SK.on('runEnd', (G2, r) => {
     const cleared = r.won ? SK.STAGES.length : G2.stageIdx;
     const bad = !!G2.badass, firstBad = bad && r.won && !Object.keys(P.wonBadass).length;
-    const gems = Math.round((r.kills + cleared * 10 + (r.won ? 100 : 0)) * (bad ? DS.badass.gemMul : 1)) + (firstBad ? DS.badass.firstWinGems : 0);
+    const runGems = Math.round((r.kills + cleared * 10 + (r.won ? 100 : 0)) * (bad ? DS.badass.gemMul : 1)) + (firstBad ? DS.badass.firstWinGems : 0);
+    // Vàng còn lại đổi thành đá [LOC I_tip_10] (GOLD_GEM: ước lượng), cộng thống kê hồ sơ.
+    const goldGems = Math.floor(Math.max(0, r.gold | 0) * GOLD_GEM), gems = runGems + goldGems;
     const hero = G2.player ? G2.player.hero : P.selected;
     P.gems += gems;
+    P.stats.kills += Math.max(0, r.kills | 0);
+    if (r.won) P.stats.pass++; else P.stats.dead++;
+    if (G2.mode !== 'bossrush') P.stats.best = Math.max(P.stats.best, cleared);
     if (r.won) P.won[hero] = 1;
     if (r.won && bad) P.wonBadass[hero] = 1;
     save();
-    pending = { hero, stage: r.stage, kills: r.kills, gold: r.gold, won: r.won, cleared, gems, bad, firstBad, factors: (G2.factors || []).slice() };
+    pending = { hero, stage: r.stage, kills: r.kills, gold: r.gold, won: r.won, cleared, gems, goldGems, bad, firstBad, factors: (G2.factors || []).slice() };
   });
   function showSummary() {
     const s = pending; pending = null;
@@ -795,8 +894,9 @@
       (s.firstBad ? '<p>Lần đầu vượt Lợi Hại: +' + fmt(DS.badass.firstWinGems) + ' đá quý</p>' : '') +
       (s.factors && s.factors.length ? '<p>Nhân Tố Thử Thách: ' + s.factors.map(k => esc(SK.FACTORS && SK.FACTORS[k] ? SK.FACTORS[k].vi : k)).join(', ') + '</p>' : '') +
       '<p>Hạ ' + s.kills + ' quái · ' + s.gold + ' vàng</p>' +
+      (s.goldGems ? '<p>Vàng còn lại quy đổi: +' + fmt(s.goldGems) + ' đá (1 vàng = 1 đá, tỉ lệ ước lượng)</p>' : '') +
       '<p class="hs-price">+' + fmt(s.gems) + ' ' + gemImg + '</p>' +
-      '<p class="hs-note">Đá quý = số quái hạ + 10 mỗi màn qua (+100 khi thắng) — công thức ước lượng.</p>',
+      '<p class="hs-note">Đá quý = số quái hạ + 10 mỗi màn qua (+100 khi thắng) + vàng còn lại — công thức ước lượng.</p>',
     [{ label: 'Nhận', id: 'hs-claim', cls: 'ok' }]);
   }
 
@@ -860,6 +960,9 @@
       drawUI();
     },
     select, selectSkin, openModes, openShop, refresh, launch,
+    // Dùng chung cho sảnh đi (js/hall.js, js/hall_use.js): hộp thoại DOM của lobby, thanh toán giả, định dạng.
+    dialog, closeDialog, toast: toastDlg, fakePay, fmt, esc, gemImg,
+    get dialogOpen() { return !$('hs-modal').hidden; },
     // Móc kiểm thử: rect CSS px của nút prefab, chữ đang hiện trên nút, và trạng thái màn.
     rect,
     text: path => { const n = ui() && UI.q(path); return n && n.txt ? String(n.txt.s) : null; },

@@ -4,7 +4,7 @@
  * Ảnh chụp: $SK_SHOTS hoặc <tmp>/soulknight-themes/.
  *
  * 1. Không ghim: 60 lượt chơi với 60 seed, chủ đề mỗi tầng thuộc đúng tầng đó, cả 5 ải của tầng cùng chủ đề,
- *    và đủ 13 chủ đề xuất hiện.
+ *    và đủ 14 chủ đề xuất hiện (3 + 1G, 7, 3).
  * 2. Ghim từng chủ đề bằng ?themes=: ải đầu tầng đúng chủ đề, phòng đánh khoá và có quái,
  *    ải x-5 có trùm xuất hiện, không lỗi trang.
  */
@@ -65,7 +65,7 @@ async function rolls(b) {
   check('mỗi tầng một chủ đề, đúng tầng (60 lượt)', !r.bad.length, r.bad.slice(0, 5).join(' '));
   const all = [].concat(r.tiers[1], r.tiers[2], r.tiers[3]);
   const missing = all.filter(t => !r.seen[t]);
-  check('đủ ' + all.length + ' chủ đề xuất hiện', all.length === 13 && !missing.length, JSON.stringify(r.seen) + (missing.length ? ' thiếu ' + missing : ''));
+  check('đủ ' + all.length + ' chủ đề xuất hiện', all.length === 14 && !missing.length, JSON.stringify(r.seen) + (missing.length ? ' thiếu ' + missing : ''));
   check('không lỗi trang khi bốc chủ đề', !errs.length, errs.slice(0, 3).join(' | '));
   await p.close();
   return r.tiers;

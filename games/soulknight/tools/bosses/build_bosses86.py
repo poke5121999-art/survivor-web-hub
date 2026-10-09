@@ -28,7 +28,7 @@ OUT_JS = os.path.join(TOOLS, '..', 'data', 'sk-bosses86.js')
 OUT_EXTRA = os.path.join(TOOLS, 'extra', 'bosses.json')
 
 # Theme web -> LevelKey của config/enemies (level/1/a = forest ...) [ĐO themes[x].bundle trong sk-data.js]
-THEME_KEY = {'forest': '1A', 'glacier': '1B', 'ruins': '1C', 'castle': '2A', 'graveyard': '2B', 'halloween': '2C',
+THEME_KEY = {'forest': '1A', 'glacier': '1B', 'ruins': '1C', 'zulanruins': '1G', 'castle': '2A', 'graveyard': '2B', 'halloween': '2C',
              'icecave': '2D', 'swamp': '2E', 'relic': '2F', 'machinery': '2G', 'aliens': '3A', 'volcano': '3B', 'island': '3C'}
 # Trận cuối Khu Thí Luyện: Tước Sĩ Đỏ (thường) / Tước Sĩ Tím (Lợi Hại) [ĐO enemies.boss_bossrush_final*, Path Level/bossrush];
 # prefab nằm trong levelobjects.ab chứ không có bundle boss/ riêng.

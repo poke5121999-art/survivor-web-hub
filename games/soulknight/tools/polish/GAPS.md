@@ -25,6 +25,7 @@ Nhật ký quyết định: `decisions.tsv` cùng thư mục.
 | Vùng đất ngoài Rừng/Lâu Đài/Núi Lửa mượn trùm của vùng gốc | [ĐO config/enemies.json LevelKey] 1B boss09/10/13, 1C boss22/23/dead_cell_giant, 2B boss03/04, 2C boss15/16, 2D boss24, 2E boss26, 2F boss27, 2G robot king/queen, 3A boss05/06/21, 3C boss28/29 | 22 trùm mới (`js/bosses/<pid>.js`, `SK.bossRegister`), bể theo vùng đất; `build_bosses86.py` chạy trên Linux với config giải bằng `~/sk86-ref/tools/decode_config.py` |
 | Thiếu 113 vũ khí đánh số + 28 thần thoại | [ĐO config/weapons.json] 409 + 28 | `build_w86.py` bóc đủ 503 món; 80 món của bảng rơi `weapons_drop` vào bể rương theo Group [SUY]; `test/soulknight-allweapons.js` quét từng món |
 | Chỉ có skin 0 của nhân vật | [ĐO CharacterSprites] 740 skin | `tools/skins/build_skins.py`, gói nạp lười, thanh trượt skin ở màn chọn nhân vật |
+| Chủ đề sàn đá xanh hoa văn 回 ở ải 1 (trùm Zulan) chưa tìm ra bundle | [THẤY] https://youtu.be/LyMmXTQFcq8?t=33 | là vùng 1G Di Tích Máy Móc `level/1/g.ab` (map_G1 "1-1", quái e_old_*, trùm boss30 Di Tích Zulan) [ĐO config/map_levels, enemies.LevelKey]; theme `zulanruins` tầng 1 |
 
 ## Còn mở
 
@@ -40,7 +41,7 @@ Nhật ký quyết định: `decisions.tsv` cùng thư mục.
 | Khu Thí Luyện: số ải (15, theo nhãn map_End_BR "BR 3-5") [SUY]; thiếu vé Lông Vũ Valkyrie, Thí Luyện Thuần Túy và trận Tước Sĩ Đỏ/Tím cuối, trùm tầng 4 | [CFG map_levels *_BR, enemies.boss_bossrush_final] | Tước Sĩ cần bóc rig + viết AI; vé cần Cảnh Sát/nhiệm vụ treo thưởng ở sảnh |
 | Nhân Tố Thử Thách: 36/65 nhân tố chạy; 29 nhân tố cần hệ thống chưa có (may mắn, debuff lên quái, phòng thêm, thú cưỡi, hồi sinh...) chưa đưa vào danh sách; chọn tối đa 3 [ƯỚC LƯỢNG]; chưa có bảng nhiệm vụ treo thưởng làm mới theo ngày | tools/polish/MODES.md 2c | js/factors.js |
 | Tước Sĩ cuối Khu Thí Luyện: web cho đánh khi không mang nhân tố; gốc đòi Thí Luyện Thuần Túy (không thiên phú/vũ khí, kịp giờ); thiếu lính e_bossrush_minion_* | [LOC bossrush_intro_tips4-6] | đồng hồ + kiểm thuần túy chưa làm |
-| Chủ đề sàn cỏ đá hoa văn 回 ở ải 1 (trùm Zulan) | [THẤY] https://youtu.be/LyMmXTQFcq8?t=33 | chưa tìm ra bundle; `level/1/{a,b,c,g}` đều không phải |
+| Sảnh: Máy Đổi và Máy Game là khối giữ chỗ tự vẽ (nội thất web không có prefab hai món này; Máy Đổi gốc ở khu Xưởng); Két Sắt cấp 2–4 nội suy; 1 vàng = 1 đá cuối lượt [ƯỚC LƯỢNG]; bỏ 14 mục rơi có `conditions` | tools/polish/HALL.md | js/hall_use.js, js/drops.js |
 | Màn tải: dòng mẹo ở 82% chiều cao (gốc 92%); thiếu kim cương quay góc phải; font pixel `zpix` không có trong bundle (đang dùng Be Vietnam Pro) | [THẤY] https://youtu.be/LyMmXTQFcq8?t=2 | nhỏ, chưa sửa |
 | Số lượt "Đổi 1 đợt" | nút gốc ghi (2/2) | web: 2 lượt mỗi lượt chơi [ƯỚC LƯỢNG], luật gốc chưa đọc |
 | Cột sáng rơi xuống nhân vật lúc vào ải | [THẤY] https://youtu.be/LyMmXTQFcq8?t=5 | chưa tìm ra hiệu ứng (`fx_landing`, `effect_reborn` đều không phải) |

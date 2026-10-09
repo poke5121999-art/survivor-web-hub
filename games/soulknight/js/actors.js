@@ -2301,6 +2301,7 @@
       draw(ctx, k, t) { if (!SK.drawPrefab(ctx, SK.art.object('energy_potion'), k.x, k.y - k.z, { t })) { ctx.fillStyle = '#39f'; ctx.fillRect(k.x - 3, k.y - 9, 6, 8); } }
     }
   };
+  SK.pickupKinds = PICKUP;   // js/drops.js đăng ký thêm kiểu 'material' (vật liệu/hạt giống/bản vẽ rơi từ quái)
   SK.updatePickups = function (G, dt) {
     const p = G.player;
     for (const k of G.pickups) {
