@@ -28,6 +28,11 @@ window.SK_DESIGN = {
   // Rương dùng SK.weaponPool(level, 'chest'); danh sách này là dự phòng cấp 1 cho code cũ (khối dưới lấp).
   chestPool: [],
 
+  // Độ khó Lợi Hại (gamemode/badass "Độ khó Lợi Hại") của Chế độ Ải: người chơi +1 sát thương mọi nguồn, quái đông và
+  // nhiều tinh anh hơn, trùm luôn bản tinh anh [WIKI skvn.fandom.com/vi/wiki/Chế_Độ_Badass]; hệ số [ƯỚC LƯỢNG] (gốc không ghi số).
+  // Lần đầu vượt Lợi Hại: 5000 đá quý [ĐO config/achievements 8].
+  badass: { dmgAdd: 1, density: 1.3, eliteRate: 0.4, bossHp: 1.5, gemMul: 1.5, firstWinGems: 5000 },
+
   rules: {
     hurtInvuln: 0.8,       // giây bất tử sau khi trúng đòn [ƯỚC LƯỢNG]
     armorDelay: 3.0,       // giây không trúng đòn trước khi giáp hồi [ƯỚC LƯỢNG]

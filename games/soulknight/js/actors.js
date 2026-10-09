@@ -1394,6 +1394,7 @@
   SK.hurtPlayer = function (G, dmg) {
     const p = G.player;
     if (p.st === 'dead' || p.invulT > 0 || dmg <= 0) return false;
+    if (G.badass) dmg += DS.badass.dmgAdd;
     if (p.onHurt) { dmg = p.onHurt(G, p, dmg); if (!(dmg > 0)) return false; }
     p.armorT = R.armorDelay; p.armorTick = R.armorTick;
     const a = Math.min(p.armor, dmg);

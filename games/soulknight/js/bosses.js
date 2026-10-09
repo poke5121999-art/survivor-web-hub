@@ -466,7 +466,8 @@
   }
 
   // ---------------------------------------------------------------- khung trùm chung
-  function pagesOf(e) { return e.flash > 0 ? SK.pagesWhite : null; }
+  // Lợi Hại: trùm là bản tinh anh, vẽ bằng trang tô đỏ như quái tinh anh.
+  function pagesOf(e) { return e.flash > 0 ? SK.pagesWhite : e.badass ? SK.pagesElite : null; }
   function drawBoss(ctx, G, e) {
     if (e.hidden) return;
     const def = e.def;
@@ -1620,7 +1621,7 @@
   function makeBoss(G, pid, room) {
     const ent = B86.bosses[pid], def = AIS[pid];
     const ai = Object.values(ent.mbs || {}).find(v => v && v.shoot_cd != null) || {};
-    const hp = Math.round((ent.hp || 500) * HP_FACTOR);
+    const hp = Math.round((ent.hp || 500) * HP_FACTOR * (G.badass ? DS.badass.bossHp : 1));
     const p = G.player, T = SK.TILE;
     let [x, y] = W.roomCenter(room);
     y += 4;
@@ -1646,7 +1647,7 @@
       st: 'spawn', stT: 1e9, t: 0, cd: 0, room, elite: false, flash: 0, w: null, anims: { dead: true },
       r: Math.max(6, hb.size[0] / 2), hb, scale: 1, burst: 0,
       used: {}, busy: 0, atk: null, enraged: false, moving: false, deathDone: false, deathT: 0,
-      lastX: x, lastY: y, draw: drawBoss, bossGroup: grp || pid
+      lastX: x, lastY: y, draw: drawBoss, bossGroup: grp || pid, badass: !!G.badass
     };
     rigPlay(Rg, def.idle);
     e.arena = makeArena(G, e);
@@ -1667,8 +1668,11 @@
     const f = SK.bossDebug.force;
     let id = f && (AIS[f] || GROUPS[f]) ? f : null;
     if (!id) {
-      const list = poolOf(G.stage.theme);
+      const all = poolOf(G.stage.theme);
+      // Khu Thí Luyện: cố tránh gặp lại trùm đã đánh trong lượt (G.bossSeen) [SUY].
+      const fresh = all.filter(x => (G.bossSeen || []).indexOf(x) < 0), list = fresh.length ? fresh : all;
       id = list.length ? SK.pick(list) : Object.keys(AIS)[0];
+      if (G.bossSeen) G.bossSeen.push(id);
       const sub = B86.bosses[id] && B86.bosses[id].sub;
       if (sub && AIS[sub] && SK.rand() * 100 < SUBSPECIES_RATE) id = sub;
     }

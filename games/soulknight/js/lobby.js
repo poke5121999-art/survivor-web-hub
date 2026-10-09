@@ -33,6 +33,10 @@
   if (!DS.heroes[P.selected]) P.selected = 'knight';
   if (!P.won || typeof P.won !== 'object') P.won = {};
   if (!P.skin || typeof P.skin !== 'object') P.skin = {};
+  if (!P.wonBadass || typeof P.wonBadass !== 'object') P.wonBadass = {};
+  // Lợi Hại mở sau khi vượt Chế độ Ải một lần [WIKI]; bản gốc còn đòi mở hết vật phẩm Phòng Khách [LOC I_tip_09] — sảnh web
+  // chưa có kinh tế vật phẩm nên bỏ điều kiện này (GAPS.md).
+  const badassOpen = () => Object.keys(P.won).length > 0;
   P.gems = Math.max(0, Math.floor(+P.gems || 0));
   function save() { try { localStorage.setItem(KEY, JSON.stringify(P)); } catch (_) { /* chế độ riêng tư: chơi tiếp, không lưu */ } }
 
@@ -53,6 +57,8 @@
     skillSlot: id => P.slot[id] || 0,
     level: id => P.level[id] || 0,
     skinOf: id => P.skin[id] || 0,
+    get badass() { return P.diff === 'badass' && badassOpen(); },
+    setBadass(on) { if (on && !badassOpen()) return false; P.diff = on ? 'badass' : 'normal'; save(); return true; },
     reset() { try { localStorage.removeItem(KEY); } catch (_) { /* bỏ qua */ } }
   };
   const isUnlocked = SK.profile.isUnlocked;
@@ -642,6 +648,11 @@
     { id: 'level', name: 'Chế độ màn chơi', img: 'mode_level.png', ok: true,
       start: () => { if (SK.G.state === 'hall') launch(P.selected); },
       desc: 'Ba tầng, mỗi tầng một vùng đất ngẫu nhiên (Rừng Rậm, Băng Nguyên, Lâu Đài, Núi Lửa...), 5 màn, trùm ở màn cuối. Chơi một mình.' },
+    // Khu Thí Luyện [LOC gamemode/bossrush]: 15 ải 1-1..3-5, ải nào cũng là một trận trùm (game.js buildStages). Biểu tượng
+    // ui_game_entry_icon_shilian (ui.ab). Vé Lông Vũ Valkyrie và trận Tước Sĩ cuối chưa có (GAPS.md).
+    { id: 'bossrush', name: 'Khu Thí Luyện', img: 'mode_bossrush.png', icon: true, ok: true,
+      start: () => { if (SK.G.state === 'hall') launch(P.selected, 'bossrush'); },
+      desc: 'Mười lăm ải liền, ải nào cũng là một Lãnh Chúa của vùng đất ngẫu nhiên; giữa các trận có rương và phòng phụ. Chơi một mình.' },
     { id: 'season', name: 'Chế độ mùa giải', img: 'mode_season.png', isNew: true, ok: true,
       desc: 'Thoát khỏi Monkia: căn cứ giữa rừng thông, qua cổng xoáy ra Ngoại ô căn cứ, đánh khỉ, mở thùng, về điểm rút lui mang đồ về.',
       start: () => SK.SEASON && SK.SEASON.start && SK.SEASON.start(SK.profile.selected || 'knight') },
@@ -649,7 +660,7 @@
   ];
   let modeSel = 'level';
   function openModes() {
-    $('hs-mode-list').innerHTML = MODES.map(m => '<button class="hs-mode' + (m.id === modeSel ? ' sel' : '') + '" data-mode="' + m.id +
+    $('hs-mode-list').innerHTML = MODES.map(m => '<button class="hs-mode' + (m.id === modeSel ? ' sel' : '') + (m.icon ? ' icon' : '') + '" data-mode="' + m.id +
       '" style="background-image:url(' + ART + m.img + ')">' + (m.isNew ? '<i class="hs-new">MỚI!</i>' : '') +
       (m.ok ? '' : '<i class="hs-soon">Sắp ra mắt</i>') + '<span>' + m.name + '</span></button>').join('');
     for (const el of document.querySelectorAll('.hs-mode')) el.onclick = () => { modeSel = el.dataset.mode; openModes(); };
@@ -658,6 +669,7 @@
     $('hs-mode-name').textContent = m.name;
     $('hs-mode-img').src = ART + m.img;
     $('hs-mode-desc').textContent = m.desc;
+    diffUi(m);
     const go = $('hs-mode-go');
     go.disabled = !m.ok;
     go.textContent = m.ok ? 'Bắt đầu' : 'Sắp ra mắt';
@@ -665,6 +677,24 @@
     const f = heroFrame0(P.selected);
     if (f) drawFit($('hs-mode-face'), f, { feet: true });
     $('hs-modes').hidden = false;
+  }
+
+  // Hai nút độ khó dưới mô tả Chế độ Ải [LOC difficulty/normal, difficulty/badass]; Lợi Hại khoá thì xám kèm điều kiện.
+  function diffUi(m) {
+    let el = $('hs-mode-diff');
+    if (!el) {
+      el = document.createElement('div'); el.id = 'hs-mode-diff'; el.className = 'hs-mode-diff';
+      $('hs-mode-desc').after(el);
+    }
+    el.hidden = m.id !== 'level' && m.id !== 'bossrush';
+    if (el.hidden) return;
+    const open = badassOpen(), bad = SK.profile.badass;
+    // Ảnh thẻ theo độ khó: ui_game_entry_icon_difficulty_1/_2 (ui.ab) cho Chế độ Ải.
+    if (m.id === 'level') $('hs-mode-img').src = ART + (bad ? 'diff_2.png' : 'mode_level.png');
+    el.innerHTML = '<button data-d="normal" class="' + (bad ? '' : 'sel') + '">Độ khó thường</button>' +
+      '<button data-d="badass" class="' + (bad ? 'sel' : '') + '"' + (open ? '' : ' disabled') + '>Độ khó Lợi Hại' +
+      (open ? '' : '<small>Vượt Chế độ Ải một lần để mở</small>') + '</button>';
+    for (const b of el.querySelectorAll('button')) b.onclick = () => { if (SK.profile.setBadass(b.dataset.d === 'badass')) { sfx(VIEW.tapClip); diffUi(m); } };
   }
 
   // ---------------------------------------------------------------- vào trận / kết quả
@@ -691,7 +721,7 @@
     // Bản gốc: chọn xong thì điều khiển nhân vật trong sảnh, đi vào cửa mới ra bảng chế độ. ?quick=1 vào hầm luôn.
     if (SK.QUICK || !SK.hall) launch(id); else SK.hall.enter('walk', id);
   }
-  function launch(id) { applySkillSlot(id); SK.startRun(id); }
+  function launch(id, mode) { applySkillSlot(id); SK.G.badass = SK.profile.badass; SK.startRun(id, mode); }
 
   SK.on('runStart', G2 => {
     const p = G2.player; if (!p) return;
@@ -703,17 +733,20 @@
   let pending = null;
   SK.on('runEnd', (G2, r) => {
     const cleared = r.won ? SK.STAGES.length : G2.stageIdx;
-    const gems = Math.round(r.kills + cleared * 10 + (r.won ? 100 : 0));
+    const bad = !!G2.badass, firstBad = bad && r.won && !Object.keys(P.wonBadass).length;
+    const gems = Math.round((r.kills + cleared * 10 + (r.won ? 100 : 0)) * (bad ? DS.badass.gemMul : 1)) + (firstBad ? DS.badass.firstWinGems : 0);
     const hero = G2.player ? G2.player.hero : P.selected;
     P.gems += gems;
     if (r.won) P.won[hero] = 1;
+    if (r.won && bad) P.wonBadass[hero] = 1;
     save();
-    pending = { hero, stage: r.stage, kills: r.kills, gold: r.gold, won: r.won, cleared, gems };
+    pending = { hero, stage: r.stage, kills: r.kills, gold: r.gold, won: r.won, cleared, gems, bad, firstBad };
   });
   function showSummary() {
     const s = pending; pending = null;
     dialog('<h3>' + (s.won ? 'Chiến thắng!' : 'Kết quả lượt chơi') + '</h3>' +
-      '<p>' + esc(heroName(s.hero)) + ' · tới màn ' + esc(s.stage) + ' · qua ' + s.cleared + ' màn</p>' +
+      '<p>' + esc(heroName(s.hero)) + (s.bad ? ' · Lợi Hại' : '') + ' · tới màn ' + esc(s.stage) + ' · qua ' + s.cleared + ' màn</p>' +
+      (s.firstBad ? '<p>Lần đầu vượt Lợi Hại: +' + fmt(DS.badass.firstWinGems) + ' đá quý</p>' : '') +
       '<p>Hạ ' + s.kills + ' quái · ' + s.gold + ' vàng</p>' +
       '<p class="hs-price">+' + fmt(s.gems) + ' ' + gemImg + '</p>' +
       '<p class="hs-note">Đá quý = số quái hạ + 10 mỗi màn qua (+100 khi thắng) — công thức ước lượng.</p>',
@@ -740,7 +773,7 @@
 
   SK.lobby = {
     enter() {
-      G.state = 'lobby'; G.player = null; G.map = null;
+      G.state = 'lobby'; G.player = null; G.map = null; G.badass = false;
       SK.setOverlay('sk-lobby');
       $('sk-lobby').classList.remove('only-modes');
       build();

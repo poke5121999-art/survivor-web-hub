@@ -57,6 +57,8 @@
     border:calc(var(--u)*.5) solid #0d0f12;image-rendering:pixelated;display:flex;align-items:flex-end;justify-content:center}
   .hs-mode span{font-size:calc(var(--u)*3.2);text-shadow:0 0 3px #000,0 2px 0 #000;padding-bottom:calc(var(--u)*.4)}
   .hs-mode.sel{border-color:#ff9a2e}
+  .hs-mode.icon{background-size:auto 70%;background-position:center 30%;image-rendering:pixelated}
+  .hs-mode-pic img{image-rendering:pixelated}
   .hs-mode .hs-new{position:absolute;right:calc(var(--u)*-1);top:calc(var(--u)*-1.6);color:#ff3a3a;font-size:calc(var(--u)*2.8);text-shadow:0 0 2px #fff}
   .hs-mode .hs-soon{position:absolute;left:0;right:0;top:0;padding:calc(var(--u)*.3);background:rgba(0,0,0,.7);font-size:calc(var(--u)*2.4);text-align:center}
   .hs-mode-card{left:50%;top:calc(var(--u)*13);transform:translateX(-50%);width:calc(var(--u)*55);padding:calc(var(--u)*2.2);background:#1f242d;
@@ -66,6 +68,13 @@
   .hs-mode-head b{font-weight:400;font-size:calc(var(--u)*5)}
   .hs-mode-pic{height:calc(var(--u)*26);display:flex;align-items:center;justify-content:center}
   .hs-mode-pic img{height:100%;max-width:100%;object-fit:contain}
+  .hs-mode-diff{display:flex;gap:calc(var(--u)*1.5);margin-top:calc(var(--u)*1)}
+  .hs-mode-diff[hidden]{display:none}
+  .hs-mode-diff button{flex:1;display:flex;flex-direction:column;align-items:center;padding:calc(var(--u)*.8);font-size:calc(var(--u)*2.8)!important;
+    background:#2b313c;border:2px solid #0c0e11;color:#d6dbe3}
+  .hs-mode-diff button.sel{border-color:#ff9a2e;color:#fff}
+  .hs-mode-diff button:disabled{opacity:.5}
+  .hs-mode-diff small{font-size:calc(var(--u)*2);color:#9aa3b0}
   .hs-mode-desc{margin:0;font-size:calc(var(--u)*3)!important;color:#c7ced8;text-shadow:none!important;min-height:calc(var(--u)*7)}
   .hs-go{position:absolute;left:0;right:0;bottom:calc(var(--u)*-11.5);height:calc(var(--u)*9);font-size:calc(var(--u)*5)!important;background:#4cb843;
     border:calc(var(--u)*.6) solid #133d10;box-shadow:inset 0 calc(var(--u)*-.9) 0 #2f8a28,inset 0 calc(var(--u)*.6) 0 #7fe06f}
@@ -151,14 +160,14 @@
 <script src="data/skins/index.js?v=20261010a"></script>
 <script src="data/sk-wiki.js?v=20260929b"></script>
 <script src="data/sk-weapons86.js?v=20261010b"></script>
-<script src="js/design.js?v=20261010b"></script>
+<script src="js/design.js?v=20261010c"></script>
 <script src="js/engine.js?v=20261010a"></script>
-<script src="js/world.js?v=20260929b"></script>
-<script src="js/actors.js?v=20261010a"></script>
+<script src="js/world.js?v=20261010c"></script>
+<script src="js/actors.js?v=20261010c"></script>
 <script src="data/sk-ui.js?v=20261009c"></script>
 <script src="js/ugui.js?v=20261009a"></script>
 <script src="js/hud.js?v=20261009a"></script>
-<script src="js/game.js?v=20261009e"></script>
+<script src="js/game.js?v=20261010c"></script>
 <script src="data/sk-skills86.js?v=20260929h"></script>
 <script src="js/skills.js?v=20260930f"></script>
 <script src="js/skills/ranger.js?v=20260930f"></script>
@@ -197,7 +206,7 @@
 <script src="js/skills/gunsexpert.js?v=20260930f"></script>
 <script src="js/skills/ladychef.js?v=20260930f"></script>
 <script src="data/sk-bosses86.js?v=20261010b"></script>
-<script src="js/bosses.js?v=20261010b"></script>
+<script src="js/bosses.js?v=20261010c"></script>
 <script src="js/bosses/boss09.js?v=20261010b"></script>
 <script src="js/bosses/boss10.js?v=20261010b"></script>
 <script src="js/bosses/boss13.js?v=20261010b"></script>
@@ -226,7 +235,7 @@
 <script src="js/sfx.js?v=20261009e"></script>
 <script src="data/sk-vfx.js?v=20260930f"></script>
 <script src="js/vfx.js?v=20260930f"></script>
-<script src="js/lobby.js?v=20261010a"></script>
+<script src="js/lobby.js?v=20261010c"></script>
 <script src="data/sk-hall.js?v=20261009b"></script>
 <script src="js/hall.js?v=20261010a"></script>
 <script src="data/season-data.js?v=20260929g"></script>

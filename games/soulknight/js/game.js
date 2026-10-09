@@ -3,8 +3,18 @@
   'use strict';
   const SK = window.SK, D = SK.D, DS = SK.DS, T = SK.TILE, W = SK.world;
 
+  // Chế độ Ải: x-1..x-5, trùm ở x-5. Khu Thí Luyện (bossrush): cùng nhãn 1-1..3-5 nhưng ải nào cũng chỉ có phòng khởi đầu,
+  // phòng phụ và phòng trùm (map_*_BR không có phòng quái, phòng phụ theo map_bossrush_base; phòng kết map_End_BR ghi nhãn
+  // "BR 3-5") [ĐO config/map_levels]; mỗi ải một vùng đất ngẫu nhiên của tầng [SUY].
   const STAGES = [];
-  for (const [theme, level] of DS.run) for (let i = 1; i <= 5; i++) STAGES.push({ theme, level, n: i, label: level + '-' + i, boss: i === 5 });
+  function buildStages(mode) {
+    STAGES.length = 0;
+    const br = mode === 'bossrush';
+    for (const [theme, level] of DS.run) for (let i = 1; i <= 5; i++) {
+      STAGES.push({ theme, level, n: i, label: level + '-' + i, boss: br || i === 5, br });
+    }
+  }
+  buildStages('level');
   SK.STAGES = STAGES;
   // Bản gốc: mỗi tầng bốc một chủ đề trong các chủ đề cùng tầng (level/N/*) [THẤY rừng/băng nguyên tầng 1 ở các clip].
   // ?themes=forest,castle,volcano ghim chủ đề (bộ kiểm cần màn cố định).
@@ -15,7 +25,7 @@
     const pin = PIN ? PIN.split(',') : null;
     DS.run.forEach(([, level], t) => {
       const theme = pin && D.themes[pin[t]] ? pin[t] : SK.pick(SK.tierThemes(level));
-      for (const st of STAGES) if (st.level === level) st.theme = theme;
+      for (const st of STAGES) if (st.level === level) st.theme = st.br && !pin ? SK.pick(SK.tierThemes(level)) : theme;
     });
   }
 
@@ -34,7 +44,9 @@
     const roster = th.enemies.filter(id => D.enemies[id]);
     if (r.type === 'boss') return SK.bossWaves(G, r);
     const pat = r.pattern;
-    const pts = pat ? pat.pts : DS.waves.pts, n = Math.max(1, pat ? pat.waves : DS.waves.count), exRate = (pat ? pat.ex : DS.waves.ex) / 100;
+    const BD = G.badass ? DS.badass : null;
+    const pts = (pat ? pat.pts : DS.waves.pts) * (BD ? BD.density : 1), n = Math.max(1, pat ? pat.waves : DS.waves.count);
+    const exRate = Math.max((pat ? pat.ex : DS.waves.ex) / 100, BD ? BD.eliteRate : 0);
     const per = Math.max(1, Math.floor(pts / n));
     const waves = [];
     for (let w = 0; w < n; w++) {
@@ -182,10 +194,13 @@
     }
   };
 
-  function startRun(heroId) {
+  // mode: 'level' (Chế độ Ải, mặc định) | 'bossrush' (Khu Thí Luyện).
+  function startRun(heroId, mode) {
     if (typeof heroId === 'string') G.heroId = heroId;
     G.player = null; G.kills = 0; G.state = 'stage';
+    G.mode = mode === 'bossrush' ? 'bossrush' : 'level'; G.bossSeen = [];
     setOverlay(null);
+    buildStages(G.mode);
     rollThemes();
     enterStage(0);
     SK.emit('runStart', G);
@@ -374,6 +389,7 @@
     get state() { return G.state; },
     get phase() { return G.phase; },
     get stage() { return G.stage ? G.stage.label : null; },
+    get mode() { return G.state === 'stage' ? G.mode : null; },
     get player() {
       const p = G.player; if (!p) return null;
       return { x: p.x, y: p.y, hp: p.hp, hpMax: p.hpMax, armor: p.armor, armorMax: p.armorMax, energy: p.energy,

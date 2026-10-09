@@ -75,7 +75,8 @@
     const th = D.themes[stage.theme];
     const cfg = (th.stages && th.stages[stage.label]) || { map_long: 3, roomSpacing: 35 };
     const G = DS.rooms.grid, S = cfg.roomSpacing || 35, pad = 3;
-    const types = ['start'].concat(Array(cfg.map_long || 3).fill('battle'), stage.boss ? ['boss'] : [], ['end']);
+    const types = stage.br ? ['start', 'boss', 'end']
+      : ['start'].concat(Array(cfg.map_long || 3).fill('battle'), stage.boss ? ['boss'] : [], ['end']);
     const cells = layoutPath(types.length, G);
     const map = {
       theme: stage.theme, th, level: th.level || stage.level, lib: themeLib(th),
@@ -109,7 +110,9 @@
     const occupied = new Set(cells.map(c => c + ''));
     const sides = ['chest', 'special'];
     for (const type of sides) {
-      const hosts = SK.shuffle(path.filter(r => r.type === 'battle' || r.type === 'start'));
+      // Ải Khu Thí Luyện chỉ có khởi đầu → trùm: phòng khởi đầu nằm góc lưới thì nhánh phụ treo vào phòng trùm.
+      const hosts = SK.shuffle(path.filter(r => r.type === 'battle' || r.type === 'start'))
+        .concat(stage.br ? path.filter(r => r.type === 'boss') : []);
       let placed = false;
       for (const host of hosts) {
         const nb = SK.shuffle([[1, 0], [-1, 0], [0, 1], [0, -1]]).map(d => [host.gx + d[0], host.gy + d[1]])
