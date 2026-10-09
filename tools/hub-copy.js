@@ -56,7 +56,9 @@ const COPY = {
   'dredge': ['kinh-di', '#93c5fd', 'Câu cá trên quần đảo sương mù. Đừng ở ngoài khơi khi trời tối.',
     'Làm lại DREDGE trên web. Mượn chiếc thuyền cũ kèm món nợ $50, câu cá quanh The Marrows và bán cho người buôn. Mỗi loài cá có minigame riêng, xếp cá vào khoang theo đúng hình dáng. Trời tối thì sương dày lên và nỗi hoảng loạn tăng dần.'],
   'vuc-san': ['hanh-dong', '#06b6d4', '4 thợ lặn đấu 2 cá mập trong vực tối. Chọn phe, soi đèn, sống sót.',
-    'Thợ lặn chỉ thấy chỗ đèn pin soi và phải mang đồ cổ về khoang cứu hộ trước khi hết 4 phút. Cá mập thấy người bật đèn từ xa nhưng không chui được khe hẹp. 12 loài cá mập, 10 thợ lặn, mỗi người một kỹ năng. Bot lấp ghế trống, chơi được bằng cảm ứng.']
+    'Thợ lặn chỉ thấy chỗ đèn pin soi và phải mang đồ cổ về khoang cứu hộ trước khi hết 4 phút. Cá mập thấy người bật đèn từ xa nhưng không chui được khe hẹp. 12 loài cá mập, 10 thợ lặn, mỗi người một kỹ năng. Bot lấp ghế trống, chơi được bằng cảm ứng.'],
+  'bazaar': ['chien-thuat', '#e0a84b', 'The Bazaar trên web: xếp đồ lên thảm, đồ tự đánh theo cooldown.',
+    'Bản đầu là màn xem trận: chọn hai trong 166 quái của game gốc rồi xem chúng đấu nhau. Mỗi bên tối đa 10 món tự kích hoạt theo cooldown: chém, bắn, dựng khiên, đốt, tẩm độc, đóng băng. Sau 30 giây có bão cát. Thẻ, art và tiếng lấy từ bản demo Steam.']
 };
 
 const EN = {
@@ -107,7 +109,9 @@ const EN = {
   'dredge': ['Fogbound', 'Fish the islands in the fog. Do not stay out after dark.',
     'DREDGE remade for the web. Borrow an old boat along with a $50 debt, fish around The Marrows and sell to the fishmonger. Every species has its own minigame, and fish fill the hold in their real shapes. After dark the fog thickens and panic sets in.'],
   'vuc-san': ['The Hunting Deep', '4 divers versus 2 sharks in a dark abyss. Pick a side, light the way, survive.',
-    'Divers only see what their flashlight hits and must bring relics back to the rescue pod within 4 minutes. Sharks spot lit divers from afar but cannot squeeze through narrow gaps. 12 sharks and 10 divers, each with a skill. Bots fill empty seats, and touch controls work.']
+    'Divers only see what their flashlight hits and must bring relics back to the rescue pod within 4 minutes. Sharks spot lit divers from afar but cannot squeeze through narrow gaps. 12 sharks and 10 divers, each with a skill. Bots fill empty seats, and touch controls work.'],
+  'bazaar': ['Market Day', 'The Bazaar on the web: lay items on your rug and they fight on their own cooldowns.',
+    "This first build is a battle viewer: pick two of the original's 166 monsters and watch them fight. Each side has up to 10 items that trigger on cooldown: slash, shoot, shield, burn, poison, freeze. A sandstorm hits after 30 seconds. Cards, art and sound come from the Steam demo."]
 };
 
 const FILE = path.join(__dirname, '..', 'data', 'games.js');

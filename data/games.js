@@ -910,7 +910,11 @@ window.HUB_GAMES = [
   {
     id: "bazaar",
     title: "Chợ Phiên",
-    tagline: "Làm lại The Bazaar trên web. Mỗi bên dàn tối đa 10 ô vật phẩm trên tấm thảm, món nào cũng tự kích hoạt theo cooldown riêng: chém, bắn, dựng khiên, đốt, tẩm độc, hồi máu, làm chậm hay đóng băng đồ của đối thủ. Bản đầu tiên là màn xem trận: chọn hai trong 166 quái của game gốc rồi xem chúng đấu nhau, có đạn bay, số nổi, rung màn hình, bão cát sau 30 giây và tooltip đủ chữ của từng thẻ. Luật combat chép từ mã C# dịch ngược; thẻ, quái, art, khung bậc và tiếng bóc thẳng từ bản demo trên Steam.",
+    tagline: "The Bazaar trên web: xếp đồ lên thảm, đồ tự đánh theo cooldown.",
+    desc: "Bản đầu là màn xem trận: chọn hai trong 166 quái của game gốc rồi xem chúng đấu nhau. Mỗi bên tối đa 10 món tự kích hoạt theo cooldown: chém, bắn, dựng khiên, đốt, tẩm độc, đóng băng. Sau 30 giây có bão cát. Thẻ, art và tiếng lấy từ bản demo Steam.",
+    genre: "chien-thuat",
+    accent: "#e0a84b",
+    en: { title: "Market Day", tagline: "The Bazaar on the web: lay items on your rug and they fight on their own cooldowns.", desc: "This first build is a battle viewer: pick two of the original's 166 monsters and watch them fight. Each side has up to 10 items that trigger on cooldown: slash, shoot, shield, burn, poison, freeze. A sandstorm hits after 30 seconds. Cards, art and sound come from the Steam demo." },
     thumbnail: "assets/thumbnails/bazaar.png",
     path: "games/bazaar/index.html",
     rev: "20261009b",
