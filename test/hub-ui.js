@@ -1,6 +1,7 @@
 /*
  * Bộ kiểm giao diện hub (index.html): game nổi bật, lọc thể loại, bảng giới thiệu, thẻ bấm vào được.
  * Dùng:  node test/hub-ui.js        Ảnh chụp: HUB_SHOTS=<thư mục> (mặc định không chụp).
+ *        HUB_URL=https://poke5121999-art.github.io/survivor-web-hub node test/hub-ui.js   chạy trên Pages.
  */
 'use strict';
 const path = require('path');
@@ -31,7 +32,8 @@ async function openHub(br, base, viewport, colorScheme) {
 }
 
 async function main() {
-  const srv = await T.serve(), br = await T.browser();
+  const srv = process.env.HUB_URL ? { base: process.env.HUB_URL.replace(/\/$/, ''), close() {} } : await T.serve();
+  const br = await T.browser();
 
   console.log('dữ liệu');
   const genres = ['hanh-dong', 'kinh-di', 'nhap-vai', 'chien-thuat', 'thu-gian', 'khac'];
