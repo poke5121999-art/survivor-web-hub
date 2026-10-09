@@ -917,7 +917,7 @@ window.HUB_GAMES = [
     en: { title: "Market Day", tagline: "The Bazaar on the web: lay items on your rug and they fight on their own cooldowns.", desc: "This first build is a battle viewer: pick two of the original's 166 monsters and watch them fight. Each side has up to 10 items that trigger on cooldown: slash, shoot, shield, burn, poison, freeze. A sandstorm hits after 30 seconds. Cards, art and sound come from the Steam demo." },
     thumbnail: "assets/thumbnails/bazaar.png",
     path: "games/bazaar/index.html",
-    rev: "20261009b",
+    rev: "20261009c",
     // Plain JS, không bước build. Dựng lại The Bazaar (Tempo Storm) theo yêu cầu của chủ dự án ngày 2026-10-09,
     // từ bản The Bazaar Demo trên Steam (D:\bazaar-ref). Dữ liệu thẻ/quái lấy từ GameData.db (SQLite, mỗi dòng là JSON),
     // sim combat thông dịch DSL thẻ theo $type (games/bazaar/js/sim, luật ở D:\bazaar-ref\notes\CODE-COMBAT.md).

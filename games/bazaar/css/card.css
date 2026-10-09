@@ -7,7 +7,9 @@
   background: rgba(0,0,0,.55); filter: blur(8px); opacity: .5; transition: opacity .15s, transform .15s; }
 .bz-card.hover .shadow { opacity: .85; transform: translateY(14px) scale(1.08); }
 .bz-card .win { position: absolute; overflow: hidden; background: #1a100a; }
-.bz-card .art { position: absolute; inset: 0; background-size: cover; background-position: center; }
+/* Art gốc là ảnh thẻ đã bị ép vào ô vuông 1024×1024 (cả 1096 ảnh), mesh thẻ trong game kéo giãn lại theo cỡ S/M/L.
+   Phải kéo giãn 100% × 100%; dùng cover thì thẻ nhỏ bị phình ngang, thẻ lớn bị phình dọc (so với ảnh chụp game: Vanessa_Pearl). */
+.bz-card .art { position: absolute; inset: 0; background-size: 100% 100%; background-position: center; }
 /* màn đen 50 % che phần chưa nạp, đường quét xanh #00CF6D (FX_M_CooldownGreen_01) */
 .bz-card .veil { position: absolute; left: 0; right: 0; top: 0; height: 100%; transform-origin: 50% 0; background: rgba(0,0,0,.5);
   will-change: transform; }
