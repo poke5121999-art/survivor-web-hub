@@ -666,7 +666,7 @@ async function perf(browser, headFiles, label) {
 }
 
 (async () => {
-  const srv = await serve(), base = 'http://127.0.0.1:' + srv.address().port;
+  const srv = await serve(), base = (process.env.DR_URL ? process.env.DR_URL.replace(/[/]$/, '') : 'http://127.0.0.1:' + srv.address().port);
   const browser = await chromium.launch({ args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required', '--disable-gpu-vsync', '--disable-frame-rate-limit'] });
   try {
     if (!process.env.ONLY_R2) {

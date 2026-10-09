@@ -288,7 +288,7 @@
     cancelAnimationFrame(raf);
     const step = () => {
       if (!st || st.kind !== 'line' || !st.typing) return;
-      const want = Math.min(st.spans.length, Math.floor((now() - st.t0) / TYPE_SEC));
+      const want = Math.min(st.spans.length, Math.floor((now() - st.t0) / (TYPE_SEC / (root.DRMenus && DRMenus.typewriterSpeed ? DRMenus.typewriterSpeed() : 1))));   // W7: typewriterSpeeds[textSpeed] (DredgeDialogueView.cs:142)
       while (st.shown < want) { const s = st.spans[st.shown++]; if (s.classList) s.classList.add('v'); }
       if (st.shown >= st.spans.length) { finishTyping(); return; }
       raf = requestAnimationFrame(step);

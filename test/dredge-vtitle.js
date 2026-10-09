@@ -38,7 +38,7 @@ function watch(page) {
 }
 
 (async () => {
-  const srv = await serve(), base = 'http://localhost:' + srv.address().port;
+  const srv = await serve(), base = (process.env.DR_URL ? process.env.DR_URL.replace(/[/]$/, '') : 'http://localhost:' + srv.address().port);
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
   const page = await ctx.newPage(), errors = watch(page);
@@ -72,16 +72,19 @@ function watch(page) {
   near('logo rộng 290/960', T.logo.w / T.W, 290 / 960, 0.012);
   check('Tiếp tục ẩn khi chưa có save', T.cont === true);
   await page.screenshot({ path: path.join(SHOTS, 'title.png') });
+  // W7: Cài đặt mở cửa sổ cài đặt (js/menus.js), Giới thiệu mở credits cuộn chữ; Esc đóng
   await page.click('#btn-settings');
-  check('Cài đặt mở bảng', await page.evaluate(() => !document.getElementById('tt-settings').hidden && document.getElementById('tt-credits').hidden));
+  check('Cài đặt mở cửa sổ', await page.evaluate(() => DRMenus.settingsOpen && !DRMenus.credits.playing));
   const m0 = await page.evaluate(() => DRAudio.isMuted());
-  await page.click('#tt-mute');
+  await page.click('.dm-row[data-key="_mute"] .dm-seg button[data-v="' + (m0 ? 0 : 1) + '"]');
   check('nút tắt tiếng đổi trạng thái', (await page.evaluate(() => DRAudio.isMuted())) !== m0);
-  await page.click('#tt-mute');
-  await page.click('#btn-credits');
-  check('Giới thiệu mở bảng khác, đóng bảng cài đặt', await page.evaluate(() => !document.getElementById('tt-credits').hidden && document.getElementById('tt-settings').hidden));
+  await page.click('.dm-row[data-key="_mute"] .dm-seg button[data-v="' + (m0 ? 1 : 0) + '"]');
   await page.keyboard.press('Escape');
-  check('Esc đóng bảng', await page.evaluate(() => document.querySelectorAll('#dr-title .tt-panel:not([hidden])').length === 0));
+  check('Esc đóng cửa sổ cài đặt', await page.evaluate(() => !DRMenus.settingsOpen));
+  await page.click('#btn-credits');
+  check('Giới thiệu mở credits', await page.evaluate(() => DRMenus.credits.playing && !document.getElementById('dr-credits').hidden && !DRMenus.settingsOpen));
+  await page.evaluate(() => DRMenus.credits.stop());
+  check('Dừng credits ẩn lớp phủ', await page.evaluate(() => (document.getElementById('dr-credits') || { hidden: true }).hidden));
   check('nút về sảnh trỏ ra hub', (await page.getAttribute('#btn-hub', 'href')) === '../../index.html');
 
   // ---- V12: phần mở đầu ----

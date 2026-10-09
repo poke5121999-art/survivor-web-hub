@@ -76,7 +76,7 @@ async function colorCount(page, png, pred) {   // đếm điểm ảnh theo đi�
 }
 
 (async () => {
-  const srv = await serve(), base = 'http://localhost:' + srv.address().port, errors = [];
+  const srv = await serve(), base = (process.env.DR_URL ? process.env.DR_URL.replace(/[/]$/, '') : 'http://localhost:' + srv.address().port), errors = [];
   const browser = await chromium.launch({ args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
   const { page, spot } = await newSea(browser, base, errors, 1280, 720);
   const E = fn => page.evaluate(fn);

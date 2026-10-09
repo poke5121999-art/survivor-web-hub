@@ -318,7 +318,7 @@ async function run(browser, base) {
 
 (async () => {
   const srv = await serve();
-  const base = 'http://127.0.0.1:' + srv.address().port;
+  const base = (process.env.DR_URL ? process.env.DR_URL.replace(/[/]$/, '') : 'http://127.0.0.1:' + srv.address().port);
   const browser = await chromium.launch({ args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required',
     '--disable-gpu-vsync', '--disable-frame-rate-limit'] });
   try { await run(browser, base); } catch (e) { fail++; out.push('  ✘ lỗi chạy: ' + (e && e.stack || e)); }

@@ -68,7 +68,7 @@ const CLIPS = ['World Event - Eyes', 'World Event - Ghost Wind', 'Waterspout Nor
 }
 
 (async () => {
-  const srv = await serve(), base = 'http://127.0.0.1:' + srv.address().port;
+  const srv = await serve(), base = (process.env.DR_URL ? process.env.DR_URL.replace(/[/]$/, '') : 'http://127.0.0.1:' + srv.address().port);
   const browser = await chromium.launch({ args: ['--use-angle=d3d11', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader'] });
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   const errors = [];

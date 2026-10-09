@@ -62,12 +62,13 @@
   const n2 = v => (Math.round(v * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   function sizeStr(it, size01) {
     const cm = it.minSizeCentimeters + (it.maxSizeCentimeters - it.minSizeCentimeters) * size01;
+    const imp = window.DRMenus && DRMenus.sizeImperial(cm); if (imp) return imp;   // W7: units = 1 (ft/in)
     return cm > 100 ? n2(cm / 100) + ' m' : n2(Math.round(cm * 10) / 10) + ' cm';
   }
   function depthStr(it) {
     const bands = CFG().depthBands || {}, mod = CFG().depthModifier || 1;
     const a = bands[it.minDepth] || [0, 0], b = bands[it.maxDepth] || [0, 0];
-    const f = v => (Math.round(v * mod * 10) / 10).toFixed(1) + 'm';
+    const f = v => (window.DRMenus && DRMenus.depthFt(v * mod, '')) || (Math.round(v * mod * 10) / 10).toFixed(1) + 'm';   // W7: units
     if (it.hasMinDepth && it.hasMaxDepth) return f(a[0]) + ' - ' + f(b[1]);
     if (it.hasMinDepth) return f(a[0]) + ' +';
     if (it.hasMaxDepth) return '0 - ' + f(b[1]);
