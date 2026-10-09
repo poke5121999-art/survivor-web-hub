@@ -6,6 +6,18 @@
   const STAGES = [];
   for (const [theme, level] of DS.run) for (let i = 1; i <= 5; i++) STAGES.push({ theme, level, n: i, label: level + '-' + i, boss: i === 5 });
   SK.STAGES = STAGES;
+  // Bản gốc: mỗi tầng bốc một chủ đề trong các chủ đề cùng tầng (level/N/*) [THẤY rừng/băng nguyên tầng 1 ở các clip].
+  // ?themes=forest,castle,volcano ghim chủ đề (bộ kiểm cần màn cố định).
+  const PIN = (/[?&]themes=([a-z,]+)/.exec(location.search) || [])[1];
+  SK.tierThemes = level => Object.keys(D.themes).filter(k => D.themes[k].level === level);
+  SK.tierAnchor = level => (DS.run.find(r => r[1] === level) || DS.run[0])[0];
+  function rollThemes() {
+    const pin = PIN ? PIN.split(',') : null;
+    DS.run.forEach(([, level], t) => {
+      const theme = pin && D.themes[pin[t]] ? pin[t] : SK.pick(SK.tierThemes(level));
+      for (const st of STAGES) if (st.level === level) st.theme = theme;
+    });
+  }
 
   const G = SK.G = {
     state: 'lobby', phase: null, phaseT: 0, t: 0, stageIdx: 0, stage: null, map: null, room: null,
@@ -174,6 +186,7 @@
     if (typeof heroId === 'string') G.heroId = heroId;
     G.player = null; G.kills = 0; G.state = 'stage';
     setOverlay(null);
+    rollThemes();
     enterStage(0);
     SK.emit('runStart', G);
   }

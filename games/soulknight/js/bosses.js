@@ -1603,7 +1603,11 @@
   const GROUPS = { boss12_parent: ['boss12_1', 'boss12_2'] };
   SK.BOSS_AIS = AIS;
   // Bể trùm theo theme [ĐO enemies.LevelKey + IsBoss]; chọn đều [ƯỚC LƯỢNG]; chỉ giữ trùm đã có AI.
-  function poolOf(theme) { return (B86.pool[theme] || []).filter(id => AIS[id] || GROUPS[id]); }
+  // Chỉ forest/castle/volcano có bể trùm bóc được; chủ đề khác mượn bể của chủ đề gốc cùng tầng [SUY] (GAPS.md).
+  function poolOf(theme) {
+    const th = SK.D.themes[theme], ids = B86.pool[theme] || B86.pool[th ? SK.tierAnchor(th.level) : 'forest'] || [];
+    return ids.filter(id => AIS[id] || GROUPS[id]);
+  }
 
   function makeBoss(G, pid, room) {
     const ent = B86.bosses[pid], def = AIS[pid];

@@ -120,9 +120,16 @@ untime\dump\dump.cs`); cách làm ở `tools/config86/README.md` mục 8.
    - Nhật ký quyết định: `games/soulknight/tools/polish/decisions.tsv`. Bảng lệch: `tools/polish/GAPS.md`.
    - Xong khi: mọi lệch mức "nặng" trong GAPS.md đã sửa và chụp lại cạnh khung gốc; 10 bộ kiểm xanh trên Pages; rev mới.
    - [x] Đợt 1 (rev 20261009a, `e49a7f8e`): chữ CLEAR, thú cưng `js/pets.js`, sửa Mask hiện khối trắng. Kiểm trên Pages.
-   - [ ] Đợt 2 (rev 20261009b): sảnh `js/hall.js` + `tools/hall/build_hall.py`. Mở game vào sảnh; `?quick=1` giữ luồng cũ
+   - [x] Đợt 2 (rev 20261009b, `3ee2c5fe`): sảnh `js/hall.js` + `tools/hall/build_hall.py`. Mở game vào sảnh; `?quick=1` giữ luồng cũ
      (mọi bộ kiểm cũ chạy với cờ này, `test/soulknight-hall.js` kiểm luồng sảnh). `build_sk.py` thêm cờ `ia` cho phần prefab
      nằm dưới tổ tiên đang tắt; chỉ sảnh bỏ qua chúng (`skip`).
+   - [x] Đợt 3 (rev 20261009c, `25cb814b`): màn tải `js/loading.js` từ scene `loading.ab › Canvas_Loading`, chọn thiên
+     phú bằng `ui_buff_bar` + 3 thẻ `buff_tpl3`. Bổ sung sảnh (rev 20261009d, `d248a1c0`): ô đá quý, mèo đi theo.
+   - [x] Đợt 4 (rev 20261009e): mỗi tầng bốc chủ đề trong `level/N/*` (`game.js rollThemes`). Chủ đề ngoài forest/castle/
+     volcano mượn bể trùm + nhạc của chủ đề gốc cùng tầng (`SK.tierAnchor`); bộ kiểm cũ ghim `?themes=forest,castle,volcano`,
+     `test/soulknight-themes.js` phủ cả 13. Trùm riêng mỗi chủ đề cần `config/enemies.json` đã giải mã (GAPS.md).
+   - `[BẪY ĐÃ SẬP]` Vòng chờ `until ! pgrep -f "test/soulknight-"` tự khớp chính dòng lệnh của nó nên không bao giờ thoát.
+     Chờ bộ kiểm bằng `run_in_background` (có thông báo khi xong), không vòng pgrep theo chuỗi có trong lệnh.
    - `[BẪY ĐÃ SẬP]` `pkill -f build_sk.py` giết luôn shell đang chạy lệnh (dòng lệnh của shell chứa chuỗi đó). Dùng
      `pgrep -f 'python.*build_sk'` lấy PID rồi `kill`.
    - `[BẪY ĐÃ SẬP]` Dựng `sk-data.js` (14 phút) trong lúc bộ kiểm đang chạy thì trang có thể nạp tệp ghi dở. Dựng xong rồi mới kiểm.

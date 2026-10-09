@@ -148,7 +148,7 @@
     if (G.state === 'stage' && G.stage) {
       const r = G.room;
       if (r && r.type === 'boss' && r.state === 'locked') return M.boss[G.stage.level] || M.boss['1'];
-      return M.theme[G.stage.theme] || M.theme.forest;
+      return M.theme[G.stage.theme] || M.theme[SK.tierAnchor(G.stage.level)] || M.theme.forest;
     }
     if (G.state === 'lobby') return M.lobby;
     return null;   // chết / thắng: để im cho tiếng thua/thắng nổi lên

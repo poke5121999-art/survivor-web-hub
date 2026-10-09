@@ -16,7 +16,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
-const URL = (process.env.SK_URL || 'http://localhost:8811/games/soulknight/index.html') + '?quick=1';
+const URL = (process.env.SK_URL || 'http://localhost:8811/games/soulknight/index.html') + '?quick=1&themes=forest,castle,volcano';
 const SHOTS = process.env.SK_SHOTS || path.join(os.tmpdir(), 'soulknight-lobby');
 fs.mkdirSync(SHOTS, { recursive: true });
 

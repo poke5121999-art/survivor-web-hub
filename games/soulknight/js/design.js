@@ -58,9 +58,7 @@ window.SK_DESIGN = {
     grid: 5                 // "ranks 5|5" của MapManager
   },
 
-  themeNames: { forest: 'Rừng Rậm', castle: 'Lâu Đài', volcano: 'Núi Lửa', glacier: 'Sông Băng' },
-
-  // Chuỗi màn: tầng 1 rừng, tầng 2 lâu đài, tầng 3 núi lửa.
+  // Chuỗi màn: [chủ đề gốc, tầng]. Mỗi lượt chơi game.js bốc chủ đề trong cùng tầng; chủ đề gốc cho bể trùm và nhạc.
   run: [['forest', 1], ['castle', 2], ['volcano', 3]]
 };
 
