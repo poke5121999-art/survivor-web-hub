@@ -81,5 +81,3 @@ $$;
 
 revoke all on function public.fb_set_status(bigint, text, text, text) from public;
 grant execute on function public.fb_set_status(bigint, text, text, text) to anon, authenticated;
-
-notify pgrst, 'reload schema';
