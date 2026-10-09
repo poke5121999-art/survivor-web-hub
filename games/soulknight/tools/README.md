@@ -6,7 +6,10 @@ Sinh `art/sk/atlas*.png` và `data/sk-data.js` từ bản cài Soul Knight **8.6
     PYTHONIOENCODING=utf-8 python games/soulknight/tools/build_sk.py --out DIR  # build thử ra DIR/art/sk + DIR/data
     node games/soulknight/tools/check_keys.js [--out DIR]                         # soát khoá, xem dưới
 
-Chạy khoảng 2,5 phút [ĐO 2026-09-29]. Nguồn:
+Chạy khoảng 2,5 phút [ĐO 2026-09-29]; trên Linux lần đầu 14 phút vì dựng chỉ mục CAB [ĐO 2026-10-09].
+Gốc nguồn là biến `SK86` (`skrip.REF`); không đặt thì `D:\sk86-ref` trên Windows, `~/sk86-ref` trên máy khác.
+Dựng lại nguồn từ XAPK 8.6.0 (apkpure, versionCode 80600): giải `UnityDataAssetPack.apk` vào `$SK86/UnityDataAssetPack`.
+Nguồn:
 
 - `D:\sk86-ref\UnityDataAssetPack\assets\AssetBundles\`: 2375 bundle `.ab` (523 MB) trong thư mục lồng
   nhau (`level/1/a.ab`, `boss/boss08.ab`, `skin/character/knight/skin_0.ab`...). Không chép bundle vào repo.

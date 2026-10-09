@@ -82,7 +82,7 @@ async function fight(p, label, key) {
   const ok = await p.evaluate(([label, key]) => {
     SK.bossDebug.force = key; SK.bossDebug.hold = true;
     if (!SK_GAME.debug.stage(label)) return false;
-    SK_GAME.debug.god(true);
+    SK_GAME.debug.god(true); SK_GAME.debug.pet(false);
     window.__hurt = 0;
     return true;
   }, [label, key]);

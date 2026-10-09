@@ -20,10 +20,11 @@ import time
 import UnityPy
 from PIL import Image
 
-AB86 = r'D:\sk86-ref\UnityDataAssetPack\assets\AssetBundles'
+REF = os.environ.get('SK86') or (r'D:\sk86-ref' if os.name == 'nt' else os.path.expanduser('~/sk86-ref'))
+AB86 = os.path.join(REF, 'UnityDataAssetPack', 'assets', 'AssetBundles')
 AB851 = os.path.expanduser('~/Downloads/sk-ref/_ab')
 AB_DIR = AB86
-WORK = r'D:\sk86-ref\work\foundation'
+WORK = os.path.join(REF, 'work', 'foundation')
 
 
 def _index_path(root):

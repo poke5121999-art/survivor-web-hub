@@ -19,7 +19,7 @@ import skrip  # noqa: E402
 from ui import uiclip  # noqa: E402
 from PIL import Image  # noqa: E402
 
-LOC = r'D:\sk86-ref\decoded\localization_en_vi.json'
+LOC = os.path.join(skrip.REF, 'decoded', 'localization_en_vi.json')
 OUT_JS = os.path.join(GAME, 'data', 'sk-ui.js')
 OUT_PNG = os.path.join(GAME, 'art', 'ui', 'ui0.png')
 OUT_FONTS = os.path.join(GAME, 'art', 'ui', 'fonts')
@@ -294,8 +294,9 @@ class Builder:
                         out['txt']['s'] = ev[1]
             else:
                 cls.append(name)
+        # Mask.m_ShowMaskGraphic = 0: Image van bat (clip co the bat/tat no) nhung khong bao gio ve ra.
         if hide_gfx and out.get('img'):
-            out['img']['off'] = 1
+            out['img']['gfx'] = 0
         if cls:
             out['cls'] = cls
             for c in cls:

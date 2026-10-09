@@ -79,7 +79,7 @@ const IGNORE = /bosses86|theme|lib|colour/;
     await ev(() => SK_GAME.debug.seed(424242));
     await p.click('#sk-start');
     await until(p, () => SK_GAME.state === 'stage', null, 3000);
-    await ev(() => SK_GAME.debug.god(true));
+    await ev(() => { SK_GAME.debug.god(true); SK_GAME.debug.pet(false); });
 
     // ================================================================ dữ liệu thật
     const D = await ev(() => {

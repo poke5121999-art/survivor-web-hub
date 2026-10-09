@@ -288,7 +288,7 @@
     return (parts._owners = m);
   }
   const stateKey = (a, state) => (state && a[state]) || a[Object.keys(a)[0]];
-  // o: {t, state, skip(part)->bool, alpha, pages, dx(part)->px}
+  // o: {t, state, skip(part)->bool, alpha, pages, dx(part)->px, flip (lật ngang quanh x)}
   SK.drawPrefab = function (ctx, parts, x, y, o) {
     if (!parts) return false;
     o = o || {};
@@ -304,14 +304,14 @@
       if (!f || GLOW_FRAMES[f]) continue;
       const sc = p.sc || [1, 1];
       if (Math.abs(sc[0]) > 3 || Math.abs(sc[1]) > 3) continue;
-      const k = o.scale || 1;
-      let px = x + p.at[0] * k + (o.dx ? o.dx(p) : 0), py = y - p.at[1] * k;
-      const opt = { sx: sc[0] * k, sy: sc[1] * k, pages: o.pages, alpha: o.alpha };
+      const k = o.scale || 1, fl = o.flip ? -1 : 1;
+      let px = x + (p.at[0] * k + (o.dx ? o.dx(p) : 0)) * fl, py = y - p.at[1] * k;
+      const opt = { sx: sc[0] * k * fl, sy: sc[1] * k, pages: o.pages, alpha: o.alpha };
       const own = owners.get(p);
       if (own) {
         for (const [q, rel] of own) {
           const xf = SK.animPose(stateKey(q.a, o.state), o.t || 0, rel);
-          px += xf.dx * k; py += xf.dy * k; opt.sx *= xf.sx; opt.sy *= xf.sy; opt.rot = (opt.rot || 0) + xf.rot;
+          px += xf.dx * k * fl; py += xf.dy * k; opt.sx *= xf.sx; opt.sy *= xf.sy; opt.rot = (opt.rot || 0) + xf.rot * fl;
         }
         if (!opt.sx || !opt.sy) continue;   // clip co về 0 (SK.draw coi 0 là 1)
       }

@@ -1,0 +1,4 @@
+{
+ "bundles": ["common"],
+ "prefabs": ["pet0", "pet1", "pet2", "pet3", "pet4", "pet5"]
+}

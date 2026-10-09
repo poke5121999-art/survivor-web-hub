@@ -190,6 +190,14 @@
     lastPhase = G.phase;
     if (msgT > 0) { msgT -= dt; if (msgT <= 0) UI.play('message_bar', 'hide_message'); }
   }
+  // Dọn phòng: chữ CLEAR trắng trên ba cọc cửa cam (clear/Image = ui_89) trượt xuống, mờ hết sau 1,5 s
+  // [THẤY https://youtu.be/B9Gb2Y26Cow?t=112]. Prefab để Text rỗng, mã gốc điền chữ lúc gọi.
+  SK.on('roomClear', () => {
+    if (!ui()) return;
+    UI.q('message_bar/Text').txt.s = 'CLEAR';
+    UI.play('message_bar', 'show_signpost');
+    msgT = -1;
+  });
 
   // ---------------------------------------------------------------- bản đồ nhỏ: MiniMapUIView gốc
   // [ĐO] Phòng đặt cách nhau config.fixedRoomIntervals, phòng hiện tại ở giữa khung (_roomOffset) có khung `select`;

@@ -110,3 +110,12 @@ untime\dump\dump.cs`); cách làm ở `tools/config86/README.md` mục 8.
 
 `node test/soulknight-<smoke|weapons|skills|bosses|rooms|lobby|sfx|vfx|season-world|season-ui>.js`, cần `python -m http.server 8811`
 ở gốc repo; đặt `SK_URL=<url Pages>` để chạy trên bản thật.
+
+9. [ ] Đợt polish theo clip (chủ dự án 2026-10-09: "polish lại full game … áp dụng watch-game-clips để làm cho game perfect").
+   - Nguồn dựng lại trên Linux: XAPK 8.6.0 (apkpure, versionCode 80600) giải ra `~/sk86-ref` (2375 bundle, cùng bản với
+     `D:\sk86-ref`). `skrip.py` đọc `SK86`, mặc định `~/sk86-ref` khi không phải Windows. `tools/config86` + `decoded/` không
+     còn trên máy này; các tệp `data/sk-*86.js` đã sinh sẵn nên chưa cần giải mã lại.
+   - Cách làm: mỗi cảnh chuẩn (sảnh, chọn nhân vật, phòng đầu, phòng đánh, rương, lái buôn, tượng, chọn buff, trùm, cổng,
+     chết, tạm dừng, chủ đề 2-x/3-x) lấy khung clip gốc đặt cạnh ảnh bản web, ghi chỗ lệch kèm mốc giây. Lệch nặng sửa trước.
+   - Nhật ký quyết định: `games/soulknight/tools/polish/decisions.tsv`. Bảng lệch: `tools/polish/GAPS.md`.
+   - Xong khi: mọi lệch mức "nặng" trong GAPS.md đã sửa và chụp lại cạnh khung gốc; 10 bộ kiểm xanh trên Pages; rev mới.

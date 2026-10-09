@@ -74,7 +74,7 @@ const snap = p => p.evaluate(() => {
 const resetDmg = p => p.evaluate(() => { window._skDmg = 0; window._skHits = []; window._skDb = {}; });
 
 async function enterBattle(p, folder, slot) {
-  await p.evaluate(([f, s]) => { SK_GAME.debug.seed(20260929); SK.setSkillSlot(f, s); SK.startRun(f); SK_GAME.debug.god(true); }, [folder, slot]);
+  await p.evaluate(([f, s]) => { SK_GAME.debug.seed(20260929); SK.setSkillSlot(f, s); SK.startRun(f); SK_GAME.debug.god(true); SK_GAME.debug.pet(false); }, [folder, slot]);
   await until(p, () => SK_GAME.state === 'stage', null, 3000);
   await p.evaluate(() => SK_GAME.debug.teleportTo('battle'));
   const ok = await until(p, () => SK_GAME.room != null && SK_GAME.rooms[SK_GAME.room].state === 'locked' && SK.G.enemies.some(e => e.st !== 'spawn' && e.st !== 'dead'), null, 5000);

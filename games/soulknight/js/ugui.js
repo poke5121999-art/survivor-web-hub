@@ -400,13 +400,14 @@
     // Material xám (RGMaterial/ui_gray.mat) mà mã gốc gán cho nút bị khoá.
     if (n.gray) ctx.filter = 'grayscale(1)';
     const R = { x: -pl.w * pv[0], y: -pl.h * (1 - pv[1]), w: pl.w, h: pl.h };
-    if (n.img && !n.img.off && !n.img.sp && n.img.c[3] > 0 && !n.draw) {
+    const img = n.img && !n.img.off && n.img.gfx !== 0 ? n.img : null;
+    if (img && !img.sp && img.c[3] > 0 && !n.draw) {
       const c = n.img.c;
       ctx.fillStyle = 'rgba(' + Math.round(c[0] * 255) + ',' + Math.round(c[1] * 255) + ',' + Math.round(c[2] * 255) + ',' + c[3] + ')';
       ctx.fillRect(R.x, R.y, R.w, R.h);
     }
     if (n.draw) n.draw(ctx, R);
-    else if (n.img && !n.img.off && n.img.sp) {
+    else if (img && img.sp) {
       for (const e of n.fx || []) {
         if (e.t !== 's') continue;
         const a = ctx.globalAlpha;

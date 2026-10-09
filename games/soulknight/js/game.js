@@ -395,6 +395,8 @@
         tpTo(r); return true;
       },
       god(on) { if (G.player) G.player.god = on !== false; },
+      // pet(false): bỏ thú cưng (bộ kiểm cần số sát thương chính xác), giữ qua các ải tới khi pet(true)
+      pet(on) { G.petOff = on === false; return true; },
       stage(label) {
         const i = STAGES.findIndex(s => s.label === label);
         if (i < 0 || G.state !== 'stage') return false;

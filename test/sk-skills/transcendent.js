@@ -140,7 +140,7 @@ module.exports = h => {
       const again = await p.evaluate(() => ({ mode: SK.G.player._bh && SK.G.player._bh.mode, skillT: SK.G.player.skillT }));
       check('transcendent blackhole_burst: hết hố / đang hồi chiêu thì L không nổ', !again.mode && !(again.skillT > 0), JSON.stringify(again));
       // Tia laser thật: vào phòng mới (quái còn sống), đặt hai hố, bắn tia qua hố thì hố kia phóng thêm tia, sát thương ceil(gốc × 0,8).
-      await p.evaluate(() => { SK_GAME.debug.seed(20260930); SK.setSkillSlot('transcendent', 1); SK.startRun('transcendent'); SK_GAME.debug.god(true); });
+      await p.evaluate(() => { SK_GAME.debug.seed(20260930); SK.setSkillSlot('transcendent', 1); SK.startRun('transcendent'); SK_GAME.debug.god(true); SK_GAME.debug.pet(false); });
       await until(p, () => SK_GAME.state === 'stage', null, 3000);
       await p.evaluate(() => SK_GAME.debug.teleportTo('battle'));
       await until(p, () => SK_GAME.room != null && SK_GAME.rooms[SK_GAME.room].state === 'locked' && SK.G.enemies.some(e => e.st !== 'spawn' && e.st !== 'dead'), null, 5000);

@@ -3,7 +3,7 @@
 module.exports = h => {
   const KEYS = { fire: 'ArrowUp', ice: 'ArrowRight', poison: 'ArrowDown', lightning: 'ArrowLeft' };
   const fresh = async p => {
-    await p.evaluate(() => { SK_GAME.debug.seed(20260930); SK.setSkillSlot('envoy', 0); SK.startRun('envoy'); SK_GAME.debug.god(true); });
+    await p.evaluate(() => { SK_GAME.debug.seed(20260930); SK.setSkillSlot('envoy', 0); SK.startRun('envoy'); SK_GAME.debug.god(true); SK_GAME.debug.pet(false); });
     await h.until(p, () => SK_GAME.state === 'stage', null, 3000);
     await p.evaluate(() => SK_GAME.debug.teleportTo('battle'));
     await h.until(p, () => SK_GAME.room != null && SK_GAME.rooms[SK_GAME.room].state === 'locked' && SK.G.enemies.filter(e => e.st !== 'spawn' && e.st !== 'dead').length >= 3, null, 5000);
