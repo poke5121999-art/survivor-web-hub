@@ -89,6 +89,19 @@
     <script src="../../js/supabase-auth.js"></script>
     <script src="../../js/save-sync.js"></script>
     <script>
+      // Chữ màn tải hiện TRƯỚC khi Unity nạp, nên tự đọc ngôn ngữ đã lưu (cùng khoá với Ng.KEY): "anh"/"viet";
+      // chưa lưu thì theo máy — chỉ máy để tiếng Việt mới ra Việt, còn lại tiếng Anh (khớp Ng.Load).
+      var LOADER_EN = (function () {
+        var raw = null;
+        try { raw = localStorage.getItem("repo2d.ngonngu.v1"); } catch (e) {}
+        if (raw === "anh") return true;
+        if (raw === "viet") return false;
+        var lang = navigator.userLanguage || navigator.language || "";
+        return String(lang).toLowerCase().indexOf("vi") !== 0;
+      })();
+      function loaderText(vi, en) { return LOADER_EN ? en : vi; }
+      document.documentElement.lang = LOADER_EN ? "en" : "vi";
+      document.querySelector("#unity-loading-title").textContent = loaderText("ĐANG TẢI", "LOADING");
       var canvas = document.querySelector("#unity-canvas");
       var loadingBar = document.querySelector("#unity-loading-bar");
       var progressBarFull = document.querySelector("#unity-progress-bar-full");
@@ -104,9 +117,9 @@
 
       var buildUrl = "Build";
       var config = {
-        dataUrl: buildUrl + "/repo2d-unity-b21bf017be.data.unityweb",
-        frameworkUrl: buildUrl + "/repo2d-unity-b21bf017be.framework.js.unityweb",
-        codeUrl: buildUrl + "/repo2d-unity-b21bf017be.wasm.unityweb",
+        dataUrl: buildUrl + "/repo2d-unity-5a4845485e.data.unityweb",
+        frameworkUrl: buildUrl + "/repo2d-unity-5a4845485e.framework.js.unityweb",
+        codeUrl: buildUrl + "/repo2d-unity-5a4845485e.wasm.unityweb",
         streamingAssetsUrl: "StreamingAssets",
         // Cùng trần độ nét với fitCanvas: không đặt thì Unity tự lấy devicePixelRatio (3 trên nhiều điện thoại) và
         // bộ đệm nhảy qua lại giữa hai cỡ mỗi lần trang đổi cỡ.
@@ -190,10 +203,10 @@
         try { sessionStorage.removeItem(RETRY_KEY); } catch (e) {}
         loadingBar.classList.add("done");
         warningBanner.style.display = "block";
-        warningBanner.textContent = "Tải game không thành công. ";
+        warningBanner.textContent = loaderText("Tải game không thành công. ", "The game failed to load. ");
         var btn = document.createElement("button");
         btn.id = "unity-retry";
-        btn.textContent = "Tải lại";
+        btn.textContent = loaderText("Tải lại", "Reload");
         btn.onclick = function () { location.reload(); };
         warningBanner.appendChild(btn);
         var detail = document.createElement("div");
@@ -212,19 +225,19 @@
       function showProgress(progress) {
         var pct = Math.floor(100 * progress);
         if (pct !== lastPct) { lastPct = pct; lastChange = Date.now(); }
-        loadingTitle.textContent = progress < 0.9 ? "ĐANG TẢI" : "ĐANG KHỞI ĐỘNG";
+        loadingTitle.textContent = progress < 0.9 ? loaderText("ĐANG TẢI", "LOADING") : loaderText("ĐANG KHỞI ĐỘNG", "STARTING");
         loadingPct.textContent = pct + "% · " + Math.round((Date.now() - loadStart) / 1000) + " s";
       }
       var loadTicker = setInterval(function () {
         if (window.unityInstance) { clearInterval(loadTicker); return; }
         showProgress(Math.max(0, lastPct) / 100);
         var still = (Date.now() - lastChange) / 1000;
-        loadingHint.textContent = still > 15 ? (lastPct < 90 ? "Mạng chậm, vẫn đang tải…" : "Máy đang giải nén, chờ thêm chút…") : "";
+        loadingHint.textContent = still > 15 ? (lastPct < 90 ? loaderText("Mạng chậm, vẫn đang tải…", "Slow network, still loading…") : loaderText("Máy đang giải nén, chờ thêm chút…", "Unpacking, please wait a little longer…")) : "";
       }, 1000);
 
       var script = document.createElement("script");
-      script.src = buildUrl + "/repo2d-unity-b21bf017be.loader.js";
-      script.onerror = function () { loadFailed("Không tải được " + script.src); };
+      script.src = buildUrl + "/repo2d-unity-5a4845485e.loader.js";
+      script.onerror = function () { loadFailed(loaderText("Không tải được ", "Could not load ") + script.src); };
       script.onload = function () {
         createUnityInstance(canvas, config, function (progress) {
           progressBarFull.style.width = (100 * progress) + "%";
