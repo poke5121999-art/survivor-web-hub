@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Feedback inbox · Game Hub</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/feedback.css" />
+  <script src="js/session.js"></script>
+  <script src="js/supabase-config.js"></script>
+</head>
+<body>
+  <header class="hub-header">
+    <div class="hub-header__inner fb-header">
+      <div>
+        <h1 class="hub-title" data-i18n="pageTitle"></h1>
+        <p class="hub-subtitle" data-i18n="subtitle"></p>
+      </div>
+      <div class="fb-header__actions">
+        <div class="fb-lang" id="fb-lang" role="group" aria-label="Language">
+          <button type="button" data-lang="en">EN</button>
+          <button type="button" data-lang="vi">VI</button>
+        </div>
+        <a class="hub-refresh fb-back" href="feedback.html" data-i18n="toPublic"></a>
+        <button class="hub-refresh" id="fa-lock" type="button" data-i18n="lock" hidden></button>
+      </div>
+    </div>
+  </header>
+
+  <main class="hub-main fa-main">
+    <p class="fb-banner" id="fb-banner" hidden></p>
+
+    <form class="fb-card fa-unlock" id="fa-unlock" hidden>
+      <h2 class="fb-h2" data-i18n="unlockTitle"></h2>
+      <p class="fa-note" data-i18n="unlockNote"></p>
+      <div class="fa-unlock__row">
+        <input class="fb-input" id="fa-key" type="password" autocomplete="off" data-i18n-ph="keyPh" />
+        <button class="fb-submit" type="submit" data-i18n="unlock"></button>
+      </div>
+      <p class="fb-msg fb-msg--err" id="fa-key-msg"></p>
+    </form>
+
+    <section class="fa-board" id="fa-board" hidden>
+      <div class="fa-stats" id="fa-stats"></div>
+
+      <div class="fb-card fa-filters">
+        <input class="fb-input fa-search" id="fa-search" type="search" data-i18n-ph="searchPh" />
+        <select class="fb-input" id="fa-game"></select>
+        <select class="fb-input" id="fa-kind"></select>
+        <button class="hub-refresh" id="fa-reload" type="button" data-i18n="reload"></button>
+      </div>
+
+      <p class="fa-count" id="fa-count"></p>
+      <ol class="fb-items fa-items" id="fa-items"></ol>
+    </section>
+  </main>
+
+  <script src="data/games.js"></script>
+  <script src="js/feedback-core.js"></script>
+  <script src="js/feedback-admin.js"></script>
+</body>
+</html>

@@ -103,8 +103,9 @@ Chỉ dùng anon key có sẵn trong `js/supabase-config.js`; không cần và k
 
 ## Hộp thư báo lỗi / góp ý (`feedback.sql`)
 
-Bảng `hub_feedback` cho trang `feedback.html`: người chơi (cả khách) gửi phiếu và xem status. Chỉ hàm `fb_set_status` đổi được
-status, và chỉ khi đưa đúng khoá triage. Repo giữ SHA-256 của khoá; khoá thật ở `~/.config/survivor-hub/feedback.key` trên máy
+Bảng `hub_feedback` và bucket ảnh `hub-feedback` cho trang `feedback.html`: người chơi (cả khách) gửi phiếu kèm tối đa 3 ảnh
+và xem status. Chỉ `fb_set_status` / `fb_delete` đổi được phiếu, và chỉ khi đưa đúng khoá triage. Chủ hub quản lý ở
+`feedback-admin.html` (dán khoá một lần, lưu trong trình duyệt). Repo giữ SHA-256 của khoá; khoá thật ở `~/.config/survivor-hub/feedback.key` trên máy
 chạy Claude. Claude dùng `node tools/feedback.js` (xem `.claude/skills/feedback/SKILL.md`).
 
 1. Supabase Dashboard → **SQL Editor → New query**, dán toàn bộ **`feedback.sql`**, bấm **Run**. Chạy lại vô hại.

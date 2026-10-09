@@ -3,7 +3,7 @@
  * Hộp thư báo lỗi / góp ý của hub (bảng hub_feedback, xem db/feedback.sql), phía Claude.
  *
  *   node tools/feedback.js list [--game <id>] [--status open,doing|all] [--json]
- *   node tools/feedback.js show <id> [--json]
+ *   node tools/feedback.js show <id> [--json] [--shots <thư mục tải ảnh về>]
  *   node tools/feedback.js set <id> <open|doing|closed|wontfix> ["kết quả: commit, vì sao"]
  *
  * `set` cần khoá triage: biến HUB_FEEDBACK_KEY hoặc tệp ~/.config/survivor-hub/feedback.key.
@@ -14,7 +14,7 @@ const os = require('os');
 const path = require('path');
 
 const STATUSES = ['open', 'doing', 'closed', 'wontfix'];
-const COLUMNS = 'id,game_id,kind,title,body,status,resolution,reporter_name,env,created_at,updated_at';
+const COLUMNS = 'id,game_id,kind,title,body,status,resolution,reporter_name,shots,env,created_at,updated_at';
 
 function config() {
   const src = fs.readFileSync(path.join(__dirname, '..', 'js', 'supabase-config.js'), 'utf8');
@@ -47,6 +47,23 @@ async function rest(method, route, body) {
   return data;
 }
 
+function shotUrl(p) {
+  return config().url + '/storage/v1/object/public/hub-feedback/' + p;
+}
+
+async function saveShots(f, dir) {
+  fs.mkdirSync(dir, { recursive: true });
+  const out = [];
+  for (const p of f.shots || []) {
+    const res = await fetch(shotUrl(p));
+    if (!res.ok) throw new Error('GET ' + p + ' -> ' + res.status);
+    const file = path.join(dir, `fb${f.id}-${path.basename(p)}`);
+    fs.writeFileSync(file, Buffer.from(await res.arrayBuffer()));
+    out.push(file);
+  }
+  return out;
+}
+
 function flags(argv) {
   const out = { _: [] };
   for (let i = 0; i < argv.length; i++) {
@@ -59,7 +76,8 @@ function flags(argv) {
 }
 
 function line(f) {
-  return `#${f.id}  [${f.status}] ${f.kind === 'bug' ? 'BUG ' : 'IDEA'}  ${f.game_id}  ${f.title}  (${f.reporter_name || 'ẩn danh'}, ${f.created_at.slice(0, 10)})`;
+  const shots = f.shots && f.shots.length ? `  [${f.shots.length} ảnh]` : '';
+  return `#${f.id}  [${f.status}] ${f.kind === 'bug' ? 'BUG ' : 'IDEA'}  ${f.game_id}  ${f.title}${shots}  (${f.reporter_name || 'ẩn danh'}, ${f.created_at.slice(0, 10)})`;
 }
 
 function detail(f) {
@@ -69,6 +87,7 @@ function detail(f) {
     f.body || '(không có mô tả)',
     '',
     'env: ' + JSON.stringify(f.env),
+    ...(f.shots || []).map((p) => 'ảnh: ' + shotUrl(p)),
     'kết quả: ' + (f.resolution || '-'),
     'cập nhật: ' + f.updated_at
   ].join('\n');
@@ -91,6 +110,7 @@ async function main() {
     const rows = await rest('GET', 'hub_feedback?select=' + COLUMNS + '&id=eq.' + Number(id));
     if (!rows.length) throw new Error('feedback #' + id + ' not found');
     console.log(a.json ? JSON.stringify(rows[0], null, 2) : detail(rows[0]));
+    if (a.shots) (await saveShots(rows[0], String(a.shots))).forEach((f) => console.log('đã tải: ' + f));
     return;
   }
   if (cmd === 'set' && id && STATUSES.includes(status)) {

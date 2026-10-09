@@ -22,6 +22,11 @@ create table if not exists public.hub_feedback (
   updated_at    timestamptz not null default now()
 );
 
+-- Đường dẫn ảnh trong bucket hub-feedback, dạng <game_id>/<uuid>.<webp|jpg|png>, tối đa 3 ảnh.
+alter table public.hub_feedback add column if not exists shots text[] not null default '{}'
+  check (cardinality(shots) <= 3
+         and array_to_string(shots, ' ') ~ '^([a-z0-9-]{1,40}/[0-9a-f-]{36}\.(webp|jpg|png)( |$))*$');
+
 drop trigger if exists touch_hub_feedback on public.hub_feedback;
 create trigger touch_hub_feedback
   before update on public.hub_feedback
@@ -33,7 +38,7 @@ alter table public.hub_feedback enable row level security;
 -- Quyền insert theo cột nên client không đặt được status, resolution, reporter hay id.
 revoke all on public.hub_feedback from anon, authenticated;
 grant select on public.hub_feedback to anon, authenticated;
-grant insert (game_id, kind, title, body, reporter_name, env) on public.hub_feedback to anon, authenticated;
+grant insert (game_id, kind, title, body, reporter_name, env, shots) on public.hub_feedback to anon, authenticated;
 
 -- Bảng công khai có chủ đích: người chơi xem được phiếu của nhau để khỏi báo trùng, và khách
 -- chưa đăng nhập cũng báo lỗi được. Giới hạn độ dài ở bảng chặn một phiếu phình to.
@@ -52,6 +57,19 @@ insert into public.hub_feedback_keys (hash)
   values ('b3e0fc55c03a9fe2e5c47c4b9fadb4867e91ed0f76e6a3995e5d7c39f615f18e')
   on conflict do nothing;
 
+create or replace function public.fb_key_ok(p_key text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.hub_feedback_keys
+    where hash = encode(sha256(convert_to(coalesce(p_key, ''), 'UTF8')), 'hex')
+  );
+$$;
+
 create or replace function public.fb_set_status(p_id bigint, p_status text, p_resolution text, p_key text)
 returns public.hub_feedback
 language plpgsql
@@ -61,10 +79,7 @@ as $$
 declare
   r public.hub_feedback;
 begin
-  if not exists (
-    select 1 from public.hub_feedback_keys
-    where hash = encode(sha256(convert_to(coalesce(p_key, ''), 'UTF8')), 'hex')
-  ) then
+  if not public.fb_key_ok(p_key) then
     raise exception 'triage key rejected' using errcode = '42501';
   end if;
   update public.hub_feedback
@@ -81,3 +96,42 @@ $$;
 
 revoke all on function public.fb_set_status(bigint, text, text, text) from public;
 grant execute on function public.fb_set_status(bigint, text, text, text) to anon, authenticated;
+
+-- Xoá phiếu rác từ feedback-admin.html. Ảnh của phiếu ở lại trong bucket: xoá thẳng storage.objects bằng SQL
+-- không xoá file thật, phải xoá ở Storage trên Dashboard.
+create or replace function public.fb_delete(p_id bigint, p_key text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.fb_key_ok(p_key) then
+    raise exception 'triage key rejected' using errcode = '42501';
+  end if;
+  delete from public.hub_feedback where id = p_id;
+  if not found then
+    raise exception 'feedback % not found', p_id using errcode = 'P0002';
+  end if;
+end;
+$$;
+
+revoke all on function public.fb_key_ok(text) from public;
+grant execute on function public.fb_key_ok(text) to anon, authenticated;
+revoke all on function public.fb_delete(bigint, text) from public;
+grant execute on function public.fb_delete(bigint, text) to anon, authenticated;
+
+-- Ảnh đính kèm: bucket công khai (xem bằng URL /object/public/ không cần policy), chỉ cho tải lên,
+-- không ghi đè, không xoá. Trình duyệt nén ảnh còn tối đa 1600px trước khi gửi.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+  values ('hub-feedback', 'hub-feedback', true, 1572864, array['image/webp', 'image/jpeg', 'image/png'])
+  on conflict (id) do update
+    set public = excluded.public,
+        file_size_limit = excluded.file_size_limit,
+        allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "hub_feedback_shots_upload" on storage.objects;
+create policy "hub_feedback_shots_upload" on storage.objects
+  for insert to anon, authenticated
+  with check (bucket_id = 'hub-feedback'
+              and name ~ '^[a-z0-9-]{1,40}/[0-9a-f-]{36}\.(webp|jpg|png)$');

@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Báo lỗi & góp ý — Game Hub</title>
-  <meta name="description" content="Chọn game, báo lỗi hoặc góp ý, theo dõi phiếu đã gửi." />
+  <title>Bug reports & feedback · Game Hub</title>
+  <meta name="description" content="Pick a game, report a bug or send feedback, track its status." />
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="css/style.css" />
   <link rel="stylesheet" href="css/feedback.css" />
@@ -15,10 +15,16 @@
   <header class="hub-header">
     <div class="hub-header__inner fb-header">
       <div>
-        <h1 class="hub-title">Báo lỗi & góp ý</h1>
-        <p class="hub-subtitle">Chọn game, kể lại chuyện gì xảy ra. Phiếu nào sửa xong sẽ được đóng kèm ghi chú.</p>
+        <h1 class="hub-title" data-i18n="pageTitle"></h1>
+        <p class="hub-subtitle" data-i18n="subtitle"></p>
       </div>
-      <a class="hub-refresh fb-back" href="index.html">← Về trang chơi</a>
+      <div class="fb-header__actions">
+        <div class="fb-lang" id="fb-lang" role="group" aria-label="Language">
+          <button type="button" data-lang="en">EN</button>
+          <button type="button" data-lang="vi">VI</button>
+        </div>
+        <a class="hub-refresh fb-back" href="index.html" data-i18n="back"></a>
+      </div>
     </div>
   </header>
 
@@ -26,40 +32,49 @@
     <p class="fb-banner" id="fb-banner" hidden></p>
 
     <form class="fb-card fb-form" id="fb-form" novalidate>
-      <h2 class="fb-h2">Gửi phiếu mới</h2>
+      <h2 class="fb-h2" data-i18n="newTicket"></h2>
 
-      <label class="fb-label" for="fb-game">Game</label>
+      <label class="fb-label" for="fb-game" data-i18n="game"></label>
       <div class="fb-game">
         <img class="fb-game__thumb" id="fb-game-thumb" alt="" />
         <select class="fb-input" id="fb-game" name="game"></select>
       </div>
 
-      <span class="fb-label">Loại</span>
+      <span class="fb-label" data-i18n="kind"></span>
       <div class="fb-kind" role="radiogroup">
-        <label><input type="radio" name="kind" value="bug" checked /> <span>🐞 Báo lỗi</span></label>
-        <label><input type="radio" name="kind" value="feedback" /> <span>💡 Góp ý</span></label>
+        <label><input type="radio" name="kind" value="bug" checked /> <span data-i18n="kindBug"></span></label>
+        <label><input type="radio" name="kind" value="feedback" /> <span data-i18n="kindFeedback"></span></label>
       </div>
 
-      <label class="fb-label" for="fb-title">Tiêu đề</label>
-      <input class="fb-input" id="fb-title" name="title" maxlength="120" autocomplete="off"
-             placeholder="Ví dụ: Thuyền kẹt ở bãi đá phía tây" />
+      <label class="fb-label" for="fb-title" data-i18n="titleLabel"></label>
+      <input class="fb-input" id="fb-title" name="title" maxlength="120" autocomplete="off" data-i18n-ph="titlePh" />
 
-      <label class="fb-label" for="fb-body">Chi tiết</label>
+      <label class="fb-label" for="fb-body" data-i18n="bodyLabel"></label>
       <textarea class="fb-input" id="fb-body" name="body" rows="6" maxlength="4000"></textarea>
 
-      <label class="fb-label" for="fb-name">Tên bạn</label>
-      <input class="fb-input" id="fb-name" name="name" maxlength="40" autocomplete="nickname" placeholder="Để trống thì hiện là Khách" />
+      <span class="fb-label" data-i18n="shotsLabel"></span>
+      <div class="fb-shots" id="fb-shots">
+        <ul class="fb-shots__list" id="fb-shot-list"></ul>
+        <label class="fb-shots__add" id="fb-shot-add">
+          <input type="file" id="fb-shot-input" accept="image/*" multiple hidden />
+          <span data-i18n="addShots"></span>
+        </label>
+        <span class="fb-shots__hint" data-i18n="shotsHint"></span>
+      </div>
+
+      <label class="fb-label" for="fb-name" data-i18n="nameLabel"></label>
+      <input class="fb-input" id="fb-name" name="name" maxlength="40" autocomplete="nickname" data-i18n-ph="namePh" />
 
       <div class="fb-form__foot">
         <p class="fb-msg" id="fb-msg" role="status"></p>
-        <button class="fb-submit" id="fb-submit" type="submit">Gửi phiếu</button>
+        <button class="fb-submit" id="fb-submit" type="submit" data-i18n="submit"></button>
       </div>
     </form>
 
     <section class="fb-card fb-list" aria-labelledby="fb-list-title">
       <div class="fb-list__head">
-        <h2 class="fb-h2" id="fb-list-title">Phiếu đã gửi</h2>
-        <label class="fb-scope"><input type="checkbox" id="fb-all-games" /> Mọi game</label>
+        <h2 class="fb-h2" id="fb-list-title" data-i18n="listTitle"></h2>
+        <label class="fb-scope"><input type="checkbox" id="fb-all-games" /> <span data-i18n="allGames"></span></label>
       </div>
       <div class="fb-tabs" id="fb-tabs" role="tablist"></div>
       <ol class="fb-items" id="fb-items"></ol>
@@ -67,6 +82,7 @@
   </main>
 
   <script src="data/games.js"></script>
+  <script src="js/feedback-core.js"></script>
   <script src="js/feedback.js"></script>
 </body>
 </html>
