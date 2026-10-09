@@ -20,3 +20,8 @@ ts	phase	decision	why	evidence	result
 2026-10-09T10:48:51Z	tests	codemod thêm ?quick=1 cho 15 bộ kiểm cũ (luồng cũ: vào thẳng màn chọn, Bắt đầu vào hầm)	sảnh thành màn đầu làm 14 bộ kiểm chờ #sk-start	test/soulknight-*.js	hall 10 smoke 16 hud 11 lobby 24 rooms 69 bosses 129 weapons 47 anim-weapon 22 anim-xform 10 pets 6 vfx 28 sfx OK season-ui 31/31
 2026-10-09T10:48:51Z	loc	lever build_loc.py dựng lại bảng dịch đủ 17.794 term từ localization.ab	tools/config86 không có trên máy; I2 Localization để trần	tools/ui/build_loc.py; 32/32 term cũ khớp từng chữ	VERIFIED
 2026-10-09T10:48:51Z	tests	season-world treo ở #hs-back cả ở worktree HEAD	nút bị bỏ từ 292d316b	scratchpad/sw-head	lỗi có sẵn, ghi GAPS
+2026-10-09T10:52:55Z	ship	đẩy đợt 2 (3ee2c5fe), kiểm trên Pages	xong = đã kiểm trên bản thật	SK_URL=Pages: hall 10/0 smoke 16/0 lobby 24/0 pets 6/0	VERIFIED
+2026-10-09T11:10:09Z	loading	dựng màn tải + chọn thiên phú từ scene gốc Canvas_Loading và thẻ buff_tpl3; bỏ lớp HTML #sk-buffs	gốc chọn buff trên màn tải xám với thẻ tối; web dùng thẻ nâu tự vẽ đè lên hầm	youtu.be/LyMmXTQFcq8?t=44; scratchpad/web/ld-0.png, ld2-0.png	VERIFIED bằng ảnh
+2026-10-09T11:10:09Z	loading	agent nộp khung 'buff-pick' sai (mặt pixel); tự dò khung tối theo độ sáng trung bình mỗi giây	không tin tự báo của agent	scratchpad/dark/, seq/buff44.5.jpg	tìm ra giây 43-49, 133-140
+2026-10-09T11:10:09Z	tests	rooms/bosses/smoke đọc SK.ROOMS.choice + SK.loading thay DOM; thêm ca nhấp chuột vào thẻ 2	migrate callers rồi xoá lớp HTML cũ	test/soulknight-rooms.js	rooms 69/0
+2026-10-09T11:18:12Z	verify	hồi quy đợt 3 trên máy	trước khi đẩy	hall 10 smoke 16 hud 11 lobby 24 rooms 69 bosses 129 weapons 47 anim-weapon 22 anim-xform 10 pets 6 vfx 28 sfx OK season-ui 31/31	VERIFIED

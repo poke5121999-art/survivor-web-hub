@@ -9,6 +9,7 @@ texture/atlas goc bang skrip.Rip.sprite, xep vao mot trang PNG, giu nguyen diem 
 import io
 import json
 import math
+import re
 import os
 import sys
 
@@ -31,6 +32,10 @@ PREFABS = {
     'minimap_room': ('levelcommon', 'other/scene_object/minimap/minimap_room.prefab', []),
     'minimap_corridor': ('levelcommon', 'other/scene_object/minimap/minimap_corridor.prefab', []),
     'choose_hero': ('common', 'assets/rgprefab/other/scene_object/choosehero/ui_choose_hero.prefab', []),
+    # Man tai giua hai ai: goc Canvas_Loading cua scene loading.ab (khong co trong m_Container).
+    'loading': ('loading', 'scene:Canvas_Loading', []),
+    # Thẻ chọn thiên phú UIBuffBar nạp lúc chạy (3 thẻ = buff_tpl3).
+    'buff_tpl3': ('common', 'assets/rgprefab/ui/common/buff_tpl3.prefab', []),
 }
 
 # Prefab con khong co trong m_Container, chi duoc tro toi tu mot MonoBehaviour cua prefab khac:
@@ -42,7 +47,11 @@ REF_PREFABS = {
 
 # Prefab gan vao nut cua prefab khac nhu ma goc lam luc chay: (dich, duong dan cha, nguon, vi tri).
 # [DO] MiniMapUIView.visiblePosition = (-20, -220), cha la map_info_root cua HUD.
-COMPOSE = [('hud', 'map_info_root', 'minimap', (-20, -220))]
+COMPOSE = [('hud', 'map_info_root', 'minimap', (-20, -220)),
+           # 3 the buff trong luoi cua UIBuffBar, cach nhau 310 don vi canvas [DO khung https://youtu.be/LyMmXTQFcq8?t=44].
+           ('loading', 'ui_buff_bar/body/grid', 'buff_tpl3', (-310, 0)),
+           ('loading', 'ui_buff_bar/body/grid', 'buff_tpl3', (0, 0)),
+           ('loading', 'ui_buff_bar/body/grid', 'buff_tpl3', (310, 0))]
 
 # MonoBehaviour giu nguyen du lieu (con tro Sprite doi thanh ten khung trong trang UI).
 # ChooseHeroView: sprite o tick/vach xanh-xam, SkinCell: nen/khung/sao cua o nhan vat, SkinScrollView + Scroller:
@@ -70,7 +79,8 @@ RUNTIME_TERMS = {
 # RefreshUnlockArea: tips/unlock_character_first, I_ComingSoon.
 EXTRA_TERMS = ['tips/skill_1', 'tips/skill_2', 'tips/skill_3', 'tips/iap_unlock', 'tips/gem_unlock',
                'multi_room_skin_ui_using', 'UNLOCK', 'skill_cd_description', 'tips/unlock_character_first',
-               'I_ComingSoon', 'tips/unlock_char']
+               'I_ComingSoon', 'tips/unlock_char', 'ui_loading_new_when_buff_popup', 'ui_loading_new_title', 'uiloading/reroll']
+# [SUY] Meo man tai: moi term I_tip_<so> (UILoading chon ngau nhien; I_tip_00 'Hay chon 1 thien phu' khong phai meo).
 
 # Font du phong cho dau tieng Viet (font pixel goc chi co ASCII); ban goc cung mang font nay trong common.ab.
 EXTRA_FONTS = ['BeVietnamPro-Regular']
@@ -103,7 +113,13 @@ def color(c):
 
 
 def container(rip, rel, suffix):
-    """Tim GameObject goc cua prefab qua AssetBundle.m_Container."""
+    """Tim GameObject goc cua prefab qua AssetBundle.m_Container; 'scene:<ten>' = goc cua scene trong bundle."""
+    if suffix.startswith('scene:'):
+        for cab in rip.cabs(rel):
+            for r in rip.roots(cab):
+                if r.name == suffix[6:]:
+                    return r
+        raise SystemExit('scene root not found: %s in %s' % (suffix, rel))
     for cab in rip.cabs(rel):
         for o in list(rip.files[cab].objects.values()):
             if o.type.name != 'AssetBundle':
@@ -419,6 +435,8 @@ def main():
     for dst, parent, src, pos in COMPOSE:
         child = json.loads(json.dumps(prefabs[src]))
         child['p'] = list(pos)
+        if src == 'buff_tpl3':
+            child['a'], child['off'] = [0.5, 0.5, 0.5, 0.5], 1
         find(prefabs[dst], parent).setdefault('k', []).append(child)
     sheet, frames = b.pack()
     os.makedirs(os.path.dirname(OUT_PNG), exist_ok=True)
@@ -436,6 +454,7 @@ def main():
             'fallback': [f for f in EXTRA_FONTS if fonts.get(f)],
             'fontLH': b.font_lh,
             'terms': {t: (b.loc[t][1] or b.loc[t][0]) for t in EXTRA_TERMS},
+            'tips': [b.loc[t][1] or b.loc[t][0] for t in sorted(b.loc) if re.match(r'^I_tip_\d+$', t) and t != 'I_tip_00'],
             'prefabs': prefabs}
     js = '// Sinh boi tools/ui/build_ui.py tu prefab uGUI goc. Khong sua tay.\nwindow.SK_UI = ' + \
          json.dumps(data, ensure_ascii=False, separators=(',', ':')) + ';\n'

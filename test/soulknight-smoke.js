@@ -129,7 +129,7 @@ async function mainRun(b) {
   // Sau 1-1 game dừng ở cổng cho chọn buff (như SK); bấm phím 1 khi ba thẻ hiện ra.
   const t0 = Date.now(); let next = false, buffShown = false;
   while (Date.now() - t0 < 8000) {
-    const st = await p.evaluate(() => ({ stage: SK_GAME.stage, buffs: !!(document.getElementById('sk-buffs') && !document.getElementById('sk-buffs').hidden) }));
+    const st = await p.evaluate(() => ({ stage: SK_GAME.stage, buffs: SK.ROOMS.choice.open }));
     if (st.stage === '1-2') { next = true; break; }
     if (st.buffs) { buffShown = true; await p.keyboard.up('KeyW'); await p.keyboard.press('Digit1'); }
     await sleep(150);

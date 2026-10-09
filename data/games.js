@@ -789,7 +789,7 @@ window.HUB_GAMES = [
     en: { title: "Soul Knight", tagline: "Soul Knight on the web: auto-aim shooting, room clearing, a boss on every floor.", desc: "Fight from 1-1 to 3-5 through the Forest, Castle and Volcano. 42 characters with their own skills, 361 weapons, 12 bosses, merchants, statues and buffs. Includes the Escape from Monkia season mode. Stats come straight from Soul Knight 8.6." },
     thumbnail: "assets/thumbnails/soulknight.png",
     path: "games/soulknight/index.html",
-    rev: "20261009b",
+    rev: "20261009c",
     // Plain canvas/JS, không engine. ART + CẤU HÌNH: bóc từ Soul Knight 8.5.1 (ChillyRoom) theo yêu cầu
     // của chủ dự án ngày 2026-09-29, bằng games/soulknight/tools/build_sk.py (máu/tốc độ/AI/súng của quái,
     // 711 hoạt ảnh gốc, 282 mẫu phòng kèm cấu hình đợt quái, rương/cửa/cổng/vật phẩm). Chỉ số vũ khí,

@@ -168,7 +168,7 @@ async function fight(p, label, key) {
   // Cổng sau 1-5 / 2-5 dừng cho chọn buff (như SK): bấm 1 khi ba thẻ hiện ra.
   const t0p = Date.now(); let went = false;
   while (Date.now() - t0p < 9000) {
-    const st = await p.evaluate(() => ({ stage: SK_GAME.stage, state: SK_GAME.state, buffs: !!(document.getElementById('sk-buffs') && !document.getElementById('sk-buffs').hidden) }));
+    const st = await p.evaluate(() => ({ stage: SK_GAME.stage, state: SK_GAME.state, buffs: SK.ROOMS.choice.open }));
     if (next ? st.stage === next : st.state === 'victory') { went = true; break; }
     if (st.buffs) await p.keyboard.press('Digit1');
     await sleep(150);

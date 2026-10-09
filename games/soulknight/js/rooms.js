@@ -1208,67 +1208,31 @@
   }
   ROOMS.poolFor = poolFor; ROOMS.offerIds = offerIds;
 
-  const choice = ROOMS.choice = { open: false, cards: [], el: null };
-  function buildOverlay() {
-    if (choice.el) return choice.el;
-    const st = document.createElement('style');
-    st.textContent = `
-#sk-buffs{background:rgba(4,12,18,.72);z-index:5}
-#sk-buffs .skb-row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;max-width:760px}
-#sk-buffs .skb-card{font:inherit;color:var(--ink);cursor:pointer;width:clamp(150px,26vw,220px);padding:12px 10px 14px;
-  display:flex;flex-direction:column;align-items:center;gap:6px;background:var(--wood);border:3px solid #2a1b10;
-  box-shadow:inset 0 -4px 0 var(--wood2),inset 0 2px 0 #9a7048,0 4px 0 #000;touch-action:manipulation;text-align:center}
-#sk-buffs .skb-card:hover,#sk-buffs .skb-card:focus-visible{filter:brightness(1.15);outline:2px solid var(--gold);outline-offset:2px}
-#sk-buffs .skb-card:active{transform:translateY(2px)}
-#sk-buffs canvas{width:64px;height:64px;image-rendering:pixelated;background:#130c07;border:2px solid #2a1b10}
-#sk-buffs .skb-name{font-size:24px;color:var(--gold);line-height:1;text-shadow:0 2px 0 #000}
-#sk-buffs .skb-desc{font-size:20px;line-height:1.05;text-shadow:0 1px 0 #000}
-#sk-buffs .skb-key{font-size:16px;opacity:.75}
-@media (max-width:560px){#sk-buffs .skb-card{width:min(92vw,360px);flex-direction:row;text-align:left;padding:8px}
-  #sk-buffs canvas{width:48px;height:48px;flex:none}#sk-buffs .skb-key{display:none}}`;
-    document.head.appendChild(st);
-    const el = document.createElement('div');
-    el.id = 'sk-buffs'; el.className = 'sk-ov'; el.hidden = true;
-    el.innerHTML = '<h2>Chọn một buff</h2><div class="skb-row"></div><p class="keys"></p>';
-    document.body.appendChild(el);
-    choice.el = el;
-    return el;
-  }
-  function iconCanvas(name, px) {
-    const cv = document.createElement('canvas');
-    cv.width = cv.height = px;
-    const x = cv.getContext('2d');
-    x.imageSmoothingEnabled = false;
-    const f = SK.frame(name);
-    const k = f ? Math.min(1, px / Math.max(f[3], f[4])) : 1;
-    SK.draw(x, name, px / 2, px / 2, { sx: k, sy: k });
-    return cv;
-  }
+  // Bảng chọn thiên phú: chỉ giữ trạng thái; js/loading.js vẽ nó trên màn tải bằng prefab gốc (ui_buff_bar + buff_tpl3).
+  // rerolls: lượt "Đổi 1 đợt" còn lại trong lượt chơi [ƯỚC LƯỢNG 2, nút gốc ghi (2/2) https://youtu.be/LyMmXTQFcq8?t=44].
+  const choice = ROOMS.choice = { open: false, cards: [], rerolls: 2 };
   // ids: bộ thẻ định sẵn (kiểm thử); không có thì bốc 3 buff theo bể thật.
   function openChoice(ids) {
-    const p = G.player;
     const list = (ids || offerIds(3)).filter(id => DEF[id]);
     if (!list.length) return false;
     choice.cards = list.slice(0, 3);
-    const el = buildOverlay(), row = el.querySelector('.skb-row');
-    row.innerHTML = '';
-    choice.cards.forEach((id, i) => {
-      const bt = document.createElement('button');
-      bt.className = 'skb-card'; bt.dataset.buff = id;
-      const t = document.createElement('div'); t.style.display = 'flex'; t.style.flexDirection = 'column'; t.style.gap = '4px';
-      t.innerHTML = '<span class="skb-name"></span><span class="skb-desc"></span><span class="skb-key"></span>';
-      t.children[0].textContent = buffName(id); t.children[1].textContent = buffDesc(id); t.children[2].textContent = '[' + (i + 1) + ']';
-      bt.appendChild(iconCanvas(buffIcon(id), 32)); bt.appendChild(t);
-      bt.addEventListener('click', () => pickChoice(i));
-      row.appendChild(bt);
-    });
-    el.querySelector('.keys').textContent = 'Bấm 1 · 2 · 3 hoặc chạm vào thẻ · ô buff ' + (p.buffs.length + 1) + '/' + BUFF_SLOTS;
-    el.hidden = false; choice.open = true;
+    choice.open = true;
     snd('fx_show_up', 0.7);
     SK.emit('buffChoice', G, choice.cards.slice());
     return true;
   }
-  function closeChoice() { choice.open = false; G.hold = false; if (choice.el) choice.el.hidden = true; }
+  function rerollChoice() {
+    if (!choice.open || choice.rerolls <= 0) return false;
+    const list = offerIds(3).filter(id => DEF[id]);
+    if (!list.length) return false;
+    choice.rerolls--;
+    choice.cards = list.slice(0, 3);
+    snd('fx_show_up', 0.7);
+    SK.emit('buffChoice', G, choice.cards.slice());
+    return true;
+  }
+  ROOMS.reroll = rerollChoice;
+  function closeChoice() { choice.open = false; G.hold = false; }
   function pickChoice(i) {
     if (!choice.open || !choice.cards[i]) return;
     const id = choice.cards[i];
@@ -1287,7 +1251,7 @@
     if (m) { pickChoice(+m[1] - 1); e.preventDefault(); }
   });
 
-  SK.on('runStart', G2 => { closeChoice(); G2.player.buffs = []; G2.player.bm = {}; G2.player.statues = []; G2.player.statueCds = {}; lastPos = null; lastCur = 0; });
+  SK.on('runStart', G2 => { closeChoice(); choice.rerolls = 2; G2.player.buffs = []; G2.player.bm = {}; G2.player.statues = []; G2.player.statueCds = {}; lastPos = null; lastCur = 0; });
   SK.on('runEnd', () => closeChoice());
   SK.on('stageEnter', (G2, stage) => {
     const p = G2.player;
