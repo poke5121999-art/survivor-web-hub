@@ -22,6 +22,8 @@
  *   DRSky.uniforms uniform dùng chung (uDrFogC, uDrFogD, uDrSunDir, uDrSunCol, uDrAmb, ...) — ai tự viết ShaderMaterial có fog
  *                  thì #include <fog_pars_fragment> là có sẵn hàm drEnvFogAmount / drEnvFogColor / drEnvLights / drEnvCloud.
  *   DRSky.post     { enabled, stats }   DRSky.GLSL_ENV   DRSky.envTex(name)
+ *   DRSky.weather  { cur, prev, k, ... }  thời tiết tự bốc thăm theo vùng/ngày-đêm, lerp 15 s, sét, WeatherTrigger (khối "thời tiết" bên dưới);
+ *                  DRSky.env.{cloudiness, cloudDarkness, auroraAmount, waveSteepness, foamAmount, weather, tod} là giá trị sống mỗi khung
  */
 (function (root) {
   'use strict';
@@ -465,6 +467,9 @@ void main(){
       .map(v => ({ x: v.colliders[0].pos[0], z: v.colliders[0].pos[2], r: v.colliders[0].radius * Math.max(v.colliders[0].scale[0], v.colliders[0].scale[2]), f: v.fields }));
     postVols = E.post.volumes.filter(v => !v.global && v.active).map(v => Object.assign({ w: 0 }, v));
     root.DR.on('passTime', (hours, reason) => passTime(hours, reason));
+    resetWeather();
+    if (wx.pinned) { wx.pinned = W.pinned = nameOf(wx.pinned); if (wx.pinned) setNow(wx.pinned, false); }
+    root.DR.on('weather', name => changeByName(name));   // lệnh Yarn ChangeWeather (yarn.js emit 'weather' sau khi ghi DR.s.weather)
     const r = root.DR_DEBUG && root.DR_DEBUG.renderer;
     if (r) setupPost(r);
     if (S.shadows && r) {
@@ -506,13 +511,305 @@ void main(){
     return sum;
   }
 
-  // thời tiết: WeatherController lấy _cloudiness/_cloudDarkness/_auroraAmount của WeatherData hiện tại (mặc định Fine)
-  function weather() {
-    const W = root.DR_WEATHER || {}, s = root.DR.s;
-    const key = s && s.weather ? Object.keys(W).find(k => k.toLowerCase() === String(s.weather).toLowerCase()) : null;
-    const w = W[key || E.weatherFallback] || W[E.weatherFallback];
-    return w ? w.parameters : { cloudiness: 0.4, cloudDarkness: 0.2, auroraAmount: 0 };
+  // ---------------------------------------------------------------- thời tiết
+  // Cổng từ WeatherController.cs (PickNewWeather 261-283, Update 295-449, ChangeWeather 452-505, OnTeleportComplete 246-259),
+  // Lightning.cs:47-101 và WeatherTrigger.cs:17-32. Số liệu: data/weather.js (15 WeatherData, tools/data.py) và data/env.js `weather`
+  // (transitionSec 15, kiểm vùng mỗi 5 s, Lightning 50–250 m, thunderDelay 0,005, 3 WeatherTrigger; tools/env.py).
+  //   DRSky.weather = { cur, prev, k, name, ... }
+  //     cur   WeatherParameters của thời tiết hiện tại kèm `name`, `.parameters` (= DR_WEATHER[name].parameters) và toString() = tên,
+  //           nên DR_WEATHER[DRSky.weather.cur] cũng chạy; prev = ảnh chụp giá trị ĐANG SỐNG lúc đổi + đường cong/sfx của thời tiết
+  //           cũ (như previousWeather gốc, :469-497); k = tiến độ chuyển 0..1 (1 = xong, chuyển 15 s).
+  //     giá trị sống lerp 15 s: cloudiness, cloudDarkness, auroraAmount, waveSteepness, foamAmount, rain{rate,speed,splash,dropMin,dropMax},
+  //           snow{rate,speed}, sfxVolume (thời tiết mới), prevSfxVolume (thời tiết cũ), lightning{playing,left,min,max}.
+  //     rainK = rain.rate/2000, snowK = snow.rate/1000 (trần [Range] của WeatherController) → DRParticles setRate(k).
+  //   Sự kiện: DR.emit('lightning', { x, z, dist, delay }) mỗi lần sét đánh (delay = dist·thunderDelay giây tới tiếng sấm).
+  //   Hạt: DRParticles.spawn('Rain', { follow: 'camera', loop: true }), ('Snow', { follow: 'player', loop: true }), ('Lightning', { pos }).
+  //   Truyện: DR.on('weather', tên) (lệnh Yarn ChangeWeather). Kiểm thử/chụp ảnh: ?weather=HeavyStorm ghim thời tiết (không đổi tự động).
+  //   API: DRSky.weather.set(tên) đặt ngay · change(tên) như lệnh Yarn (chuyển 15 s; tên lạ = bốc thăm) · pick(vùng, ngày, rnd) → tên (không đổi gì)
+  //        pin(tên|null) ghim/bỏ ghim · emitLightning() như EmitLightning của Yarn · random (đổi được khi kiểm thử) · triggers (3 WeatherTrigger).
+  //   Chưa nối: yarn.js đang `stub('EmitLightning')` — gọi DRSky.weather.emitLightning() ở đó (tệp của luồng khác).
+  const WE = E.weather || { transitionSec: 15, zoneCheckSec: 5, lightning: { minRange: 50, maxRange: 250, thunderDelay: 0.005 }, triggers: [] };
+  const LT = WE.lightning;
+  // ZoneEnum (ZoneEnum.cs); permittedZones trong data/weather.js ghi tên cờ, 'ALL' = −1, 'UNKNOWN_-128' = các bit trên 0x40
+  const ZONE_BIT = { THE_MARROWS: 1, GALE_CLIFFS: 2, STELLAR_BASIN: 4, TWISTED_STRAND: 8, DEVILS_SPINE: 16, OPEN_OCEAN: 32, PALE_REACH: 64 };
+  const maskOf = list => (list || []).reduce((m, n) => m | (n === 'ALL' ? -1 : n in ZONE_BIT ? ZONE_BIT[n] : /^UNKNOWN_(-?\d+)$/.test(n) ? Number(RegExp.$1) : 0), 0);
+  const clamp01 = v => v < 0 ? 0 : v > 1 ? 1 : v;
+  const mixf = (a, b, t) => a + (b - a) * clamp01(t);               // Mathf.Lerp
+  const evalCurve = (cv, t) => curve({ keys: cv || [] }, t);        // AnimationCurve.Evaluate; đường cong rỗng = 0
+  const WD = () => root.DR_WEATHER || {};
+  const nameOf = key => {
+    const all = WD();
+    if (!key) return null;
+    if (all[key]) return key;
+    const k = String(key).toLowerCase();
+    return Object.keys(all).find(n => n.toLowerCase() === k) || null;
+  };
+  // [ĐỀ XUẤT] Iron Rig không có ZoneCollider nên PlayerZoneDetector.GetCurrentZone() trả OPEN_OCEAN (PlayerZoneDetector.cs:28-35);
+  // zoneAt() của web tách riêng IRON_RIG cho việc khác, ở đây gộp về OPEN_OCEAN đúng như bản gốc.
+  const weatherZone = (x, z) => { const zn = root.DRWorld.zoneAt(x, z); return zn === 'IRON_RIG' ? 'OPEN_OCEAN' : zn; };
+  const canExist = (name, zone) => {
+    const w = WD()[name], bit = ZONE_BIT[zone] || 0;
+    return !!w && (maskOf(w.permittedZones) & bit) === bit;
+  };
+  // MathUtil.GetRandomWeightedIndex (MathUtil.cs:6-39)
+  function weightedIndex(w, value) {
+    let sum = 0;
+    for (let i = 0; i < w.length; i++) {
+      if (w[i] === Infinity) return i;
+      if (w[i] >= 0 && !isNaN(w[i])) sum += w[i];
+    }
+    let acc = 0, last = -1;
+    for (let i = 0; i < w.length; i++) {
+      if (isNaN(w[i]) || w[i] <= 0) continue;
+      last = i; acc += w[i] / sum;
+      if (acc >= value) return i;
+    }
+    return last; // [ĐỀ XUẤT] bản gốc trả −1 (rồi list[−1] văng lỗi) khi cộng dồn float hụt; ở đây lấy phần tử có trọng số cuối
   }
+
+  // giá trị sống (các biến `_...` của WeatherController); khởi tạo từ Fine ở Awake (:212-219), rain/snow/sfx giữ 0 như scene
+  const L = { cloudiness: 0.4, cloudDarkness: 0.2, auroraAmount: 0, waveSteepness: 0.1, foamAmount: 0.2, lightningDelayMin: 0, lightningDelayMax: 0,
+    rainSpeed: 0, rainRate: 0, snowSpeed: 0, snowRate: 0, dropletHeightMin: 0, dropletHeightMax: 0, splashChance: 0, sfxVolume: 0, prevSfxVolume: 0 };
+  const LG = { playing: false, left: 0, min: 0, max: 0 };
+  const FX = { rain: null, snow: null, rainIdle: 0, snowIdle: 0 };
+  const TRG = WE.triggers.map(t => Object.assign({ last: -Infinity, inside: false }, t));
+  const wx = { clock: 0, cur: null, prev: null, curName: 'Fine', curP: null, tStart: -1e9, needs: false, dirty: false, zoneT: 0, sRef: null, last: null, pinned: null };
+  const pin0 = /[?&]weather=([A-Za-z]+)/.exec(root.location.search);
+  const descCache = {};
+  const describe = (name, P) => {
+    const o = Object.assign({}, P, { name, asset: name, parameters: P });
+    Object.defineProperty(o, 'toString', { value: () => name });
+    return o;
+  };
+
+  const W = S.weather = {
+    cur: null, prev: null, k: 1, name: 'Fine', transitioning: false, rainK: 0, snowK: 0,
+    rain: { rate: 0, speed: 0, splash: 0, dropMin: 0, dropMax: 0 }, snow: { rate: 0, speed: 0 },
+    sfxVolume: 0, prevSfxVolume: 0, lightning: LG, triggers: TRG, pinned: null,
+    random: Math.random   // đổi được (kiểm thử): mọi lần bốc thăm của WeatherController, Lightning, WeatherTrigger đi qua đây
+  };
+
+  function resetWeather() {
+    const F = WD()[E.weatherFallback];
+    if (!F) return;
+    const P = F.parameters;
+    Object.assign(L, { cloudiness: P.cloudiness, cloudDarkness: P.cloudDarkness, auroraAmount: P.auroraAmount, waveSteepness: P.waveSteepness,
+      foamAmount: P.foamAmount, lightningDelayMin: P.lightningDelayMin, lightningDelayMax: P.lightningDelayMax });
+    wx.curName = E.weatherFallback; wx.curP = P;
+    W.cur = wx.cur = descCache[wx.curName] || (descCache[wx.curName] = describe(wx.curName, P));
+    W.prev = null; W.name = wx.curName; wx.needs = false; W.k = 1; W.transitioning = false;
+  }
+
+  // WeatherController.ChangeWeather (:452-505): chụp giá trị đang sống làm previousWeather, bắt đầu chuyển 15 s tới `name`.
+  function changeTo(name, save) {
+    const w = WD()[name];
+    if (!w || !wx.curP) return false;
+    const C0 = wx.curP;
+    wx.tStart = wx.clock; wx.needs = true;
+    const pv = {
+      durationHours: 0, weight: 0, cloudiness: L.cloudiness, cloudDarkness: L.cloudDarkness, auroraAmount: L.auroraAmount,
+      waveSteepness: L.waveSteepness, foamAmount: L.foamAmount, lightningDelayMin: L.lightningDelayMin, lightningDelayMax: L.lightningDelayMax,
+      rainSpeed: L.rainSpeed, rainRate: L.rainRate, dropletHeightMin: L.dropletHeightMin, dropletHeightMax: L.dropletHeightMax,
+      splashChance: L.splashChance, sfxVolume: L.sfxVolume, snowSpeed: L.snowSpeed, snowRate: L.snowRate,
+      hasRain: C0.hasRain, rainEnterCurve: C0.rainEnterCurve, rainExitCurve: C0.rainExitCurve,
+      hasSnow: C0.hasSnow, snowEnterCurve: C0.snowEnterCurve, snowExitCurve: C0.snowExitCurve,
+      sfx: C0.sfx, sfxEnterCurve: C0.sfxEnterCurve, sfxExitCurve: C0.sfxExitCurve, forbidStingers: false
+    };
+    W.prev = describe(wx.curName, pv);
+    wx.prevP = pv;
+    wx.curName = name; wx.curP = w.parameters;
+    W.cur = wx.cur = descCache[name] || (descCache[name] = describe(name, w.parameters));
+    W.name = name;
+    const s = root.DR.s;
+    if (save && s && root.DR.mode !== 'title') {   // SaveData.Weather / WeatherChangeTime (:500-504)
+      s.weather = name;
+      (s.vars = s.vars || {})['weather-time'] = s.time;
+    }
+    return true;
+  }
+
+  // WeatherController.Update: đoạn chuyển (:318-412) — `clock` là Time.time (đứng khi tạm dừng)
+  function advanceTransition() {
+    const C = wx.curP, P = wx.prevP, dur = WE.transitionSec;
+    if (!wx.needs) return;
+    if (wx.clock < wx.tStart + dur) {
+      const n = (wx.clock - wx.tStart) / dur;
+      L.cloudiness = mixf(P.cloudiness, C.cloudiness, n);
+      L.cloudDarkness = mixf(P.cloudDarkness, C.cloudDarkness, n);
+      L.auroraAmount = mixf(P.auroraAmount, C.auroraAmount, n);
+      L.waveSteepness = mixf(P.waveSteepness, C.waveSteepness, n);
+      L.foamAmount = mixf(P.foamAmount, C.foamAmount, n);
+      L.lightningDelayMin = C.lightningDelayMin; L.lightningDelayMax = C.lightningDelayMax;
+      L.splashChance = mixf(P.splashChance, C.splashChance, n);
+      if (P.dropletHeightMin > 0) {
+        L.dropletHeightMin = mixf(P.dropletHeightMin, C.dropletHeightMin, n);
+        L.dropletHeightMax = mixf(P.dropletHeightMax, C.dropletHeightMax, n);
+      } else { L.dropletHeightMin = C.dropletHeightMin; L.dropletHeightMax = C.dropletHeightMax; }
+      // mưa/tuyết: đúng từng nhánh của bản gốc, kể cả chỗ nó đọc đường cong vào của thời tiết CŨ khi chỉ thời tiết mới có mưa (:345-348, :369-372)
+      if (C.hasRain && P.hasRain) L.rainSpeed = mixf(P.rainSpeed, C.rainSpeed, evalCurve(C.rainEnterCurve, n));
+      else if (C.hasRain) L.rainSpeed = mixf(1, C.rainSpeed, evalCurve(P.rainEnterCurve, n));
+      else L.rainSpeed = mixf(L.rainSpeed, 1, n);
+      if (C.hasRain) L.rainRate = mixf(P.rainRate, C.rainRate, evalCurve(C.rainEnterCurve, n));
+      else if (P.hasRain) L.rainRate = mixf(P.rainRate, C.rainRate, evalCurve(P.rainExitCurve, n));
+      else L.rainRate = mixf(L.rainRate, 0, n);
+      if (C.hasSnow && P.hasSnow) L.snowSpeed = mixf(P.snowSpeed, C.snowSpeed, evalCurve(C.snowEnterCurve, n));
+      else if (C.hasSnow) L.snowSpeed = mixf(1, C.snowSpeed, evalCurve(P.snowEnterCurve, n));
+      else L.snowSpeed = mixf(L.snowSpeed, 1, n);
+      if (C.hasSnow) L.snowRate = mixf(P.snowRate, C.snowRate, evalCurve(C.snowEnterCurve, n));
+      else if (P.hasSnow) L.snowRate = mixf(P.snowRate, C.snowRate, evalCurve(P.snowExitCurve, n));
+      else L.snowRate = mixf(L.snowRate, 0, n);
+      L.sfxVolume = mixf(0, C.sfxVolume, evalCurve(C.sfxEnterCurve, n));
+      L.prevSfxVolume = mixf(P.sfxVolume, 0, evalCurve(P.sfxExitCurve, n));
+      W.k = clamp01(n);
+    } else {
+      Object.assign(L, { sfxVolume: C.sfxVolume, cloudiness: C.cloudiness, cloudDarkness: C.cloudDarkness, auroraAmount: C.auroraAmount,
+        waveSteepness: C.waveSteepness, foamAmount: C.foamAmount, lightningDelayMin: C.lightningDelayMin, lightningDelayMax: C.lightningDelayMax,
+        rainRate: C.rainRate, rainSpeed: C.rainSpeed, splashChance: C.splashChance, dropletHeightMin: C.dropletHeightMin,
+        dropletHeightMax: C.dropletHeightMax, snowRate: C.snowRate, snowSpeed: C.snowSpeed });
+      wx.needs = false; W.k = 1;
+    }
+    wx.dirty = true;
+  }
+
+  // WeatherController.PickNewWeather (:261-283): theo vùng, ngày/đêm và trọng số; setImmediate bỏ đoạn chuyển
+  const candidates = (zone, day) => { const all = WD(); return Object.keys(all).filter(n => canExist(n, zone) && ((all[n].day && day) || (all[n].night && !day))); };
+  W.pick = (zone, day, rnd) => {
+    const list = candidates(zone, day);
+    const i = weightedIndex(list.map(n => WD()[n].parameters.weight), (rnd || W.random)());
+    return i < 0 ? null : list[i];
+  };
+  function pickNew(zone, day, immediate) {
+    const n = W.pick(zone, day);
+    if (n && changeTo(n, true) && immediate) wx.tStart = -99999;
+  }
+  // SetWeather (:550-556): đặt ngay, không chuyển
+  function setNow(name, save) {
+    if (!changeTo(name, save)) return false;
+    wx.tStart = -99999; advanceTransition();
+    return true;
+  }
+  // ChangeWeather(string) (:568-583): tên lạ → bốc thăm; lệnh Yarn ChangeWeather và WeatherTrigger đi vào đây
+  function changeByName(name) {
+    if (wx.pinned) return;
+    const n = nameOf(name);
+    if (n) changeTo(n, true);
+    else if (wx.last) pickNew(weatherZone(wx.last.x, wx.last.z), root.DRSky.env.isDay, false);
+  }
+  W.change = changeByName;
+  W.set = name => { const n = nameOf(name); return !!n && setNow(n, true); };
+  W.pin = name => {
+    const n = name ? nameOf(name) : null;
+    wx.pinned = W.pinned = n;
+    if (n) setNow(n, false);
+  };
+
+  // Lightning.cs: SetLightningDelay (:47-58), Update (:60-71), Emit (:73-94)
+  function setLightningDelay(min, max) {
+    LG.min = min; LG.max = max;
+    if (min <= 0 || max <= 0) { LG.playing = false; return; }
+    LG.playing = true; LG.left = min + (max - min) * W.random();
+  }
+  function strike(x0, z0) {
+    const a = W.random() * Math.PI * 2, d = LT.minRange + (LT.maxRange - LT.minRange) * W.random();
+    const x = x0 + Math.cos(a) * d, z = z0 + Math.sin(a) * d;
+    // sfx: Lightning_1–3 tại chỗ rồi Thunder 1–3 sau `delay` giây (Lightning.cs:86, :98); hạt: DRParticles 'Lightning' tại điểm đánh
+    root.DR.emit('lightning', { x, z, dist: d, delay: d * LT.thunderDelay });
+    if (root.DRParticles) root.DRParticles.spawn('Lightning', { pos: [x, 0, z] });
+  }
+  W.emitLightning = () => { const p = wx.last || { x: 0, z: 0 }; strike(p.x, p.z); };
+
+  // WeatherTrigger.OnTriggerEnter (:17-32): cầu trigger đụng hộp va chạm của thuyền; Aurora chỉ bật ban đêm (SceneTimeResponder)
+  function touches(t, b, half) {
+    const dx = b.x - t.pos[0], dz = b.z - t.pos[2], c = Math.cos(b.yaw), sn = Math.sin(b.yaw);
+    const lx = dx * c - dz * sn, lf = -dx * sn - dz * c;   // trục phải/trước của thân (boat.js: trước = (−sin, −cos))
+    return Math.hypot(Math.max(Math.abs(lx) - half[0], 0), Math.max(Math.abs(lf) - half[1], 0)) < t.radius;
+  }
+  function stepTriggers(s, day) {
+    const half = (root.DRBoat && DRBoat.half) || [1.2, 2.5];
+    for (const t of TRG) {
+      const inside = (!t.nightOnly || !day) && touches(t, s.boat, half);
+      if (inside && !t.inside && !wx.pinned && s.time > t.last + t.cooldownDays) {
+        t.last = s.time;                                    // cooldown tính từ lúc vào, kể cả khi bốc thăm trượt
+        if (W.random() < t.chance) changeTo(t.weather, true);
+      }
+      t.inside = inside;
+    }
+  }
+
+  // thuyền nhảy xa trong một khung (dịch chuyển tức thời) ≈ OnTeleportComplete (:246-259)
+  function onTeleport(zone, day) {
+    if (wx.pinned || canExist(wx.curName, zone)) return;
+    L.rainRate = 0; L.snowRate = 0; L.auroraAmount = 0; L.prevSfxVolume = 0;
+    pickNew(zone, day, true);
+  }
+
+  // hạt mưa/tuyết: một tay cầm DRParticles mỗi loại, tắt hẳn sau 10 s không mưa/tuyết; setRateOverTime(hạt/giây) mỗi khung (nhánh vfx)
+  // ghi tốc độ phát tuyệt đối (hạt/giây) như rateOverTime của WeatherController; tay cầm chưa có setRateOverTime thì rơi về setRate(k) [ĐỀ XUẤT]
+  function setRateAbs(h, perSec, k) { if (h.setRateOverTime) h.setRateOverTime(perSec); else if (h.setRate) h.setRate(k); }
+  function stepFx(dt) {
+    const rk = clamp01(L.rainRate / 2000), sk = clamp01(L.snowRate / 1000);
+    W.rainK = rk; W.snowK = sk;
+    if (rk > 0) {
+      FX.rainIdle = 0;
+      if (!FX.rain && root.DRParticles) FX.rain = root.DRParticles.spawn('Rain', { follow: 'camera', loop: true });
+    } else if (FX.rain && (FX.rainIdle += dt) > 10) { if (FX.rain.stop) FX.rain.stop(); FX.rain = null; }
+    if (FX.rain) {
+      setRateAbs(FX.rain, L.rainRate, rk);
+      // WeatherController.cs:417-419: simulationSpeed = _rainSpeed, sub-emitter 0 (vệt bắn) = _splashChance
+      if (FX.rain.setSimulationSpeed) FX.rain.setSimulationSpeed(L.rainSpeed);
+      if (FX.rain.setSubEmitProbability) FX.rain.setSubEmitProbability(0, L.splashChance);
+    }
+    if (sk > 0) {
+      FX.snowIdle = 0;
+      if (!FX.snow && root.DRParticles) FX.snow = root.DRParticles.spawn('Snow', { follow: 'player', loop: true });
+    } else if (FX.snow && (FX.snowIdle += dt) > 10) { if (FX.snow.stop) FX.snow.stop(); FX.snow = null; }
+    if (FX.snow) {
+      setRateAbs(FX.snow, L.snowRate, sk);
+      if (FX.snow.setSimulationSpeed) FX.snow.setSimulationSpeed(L.snowSpeed);
+    }
+  }
+
+  // ván mới / nạp ván: lấy thời tiết đã lưu ngay (không chuyển 15 s), WeatherTrigger tính lại từ đầu (timeOfLastTrigger không lưu)
+  function syncWeather(s) {
+    wx.sRef = s;
+    s.vars = s.vars || {};
+    if (typeof s.vars['weather-time'] !== 'number') s.vars['weather-time'] = s.time;
+    setNow(wx.pinned || nameOf(s.weather) || E.weatherFallback, false);
+    L.prevSfxVolume = 0;
+    for (const t of TRG) { t.inside = false; t.last = -Infinity; }
+    wx.last = null; wx.zoneT = WE.zoneCheckSec;
+  }
+
+  // một khung của WeatherController + Lightning + WeatherTrigger; kết quả nằm ở L (giá trị sống) và W (công khai)
+  function stepWeather(dt, ctx, s, day, playing) {
+    wx.clock += dt;
+    if (s && wx.sRef !== s) syncWeather(s);
+    if (s && playing) {
+      const zone = weatherZone(ctx.x, ctx.z);
+      if (wx.last && Math.hypot(ctx.x - wx.last.x, ctx.z - wx.last.z) > 150) onTeleport(zone, day);
+      wx.last = { x: ctx.x, z: ctx.z };
+      wx.zoneT -= dt;
+      if (wx.zoneT <= 0) {                                     // :299-307 — kiểm vùng mỗi 5 s
+        wx.zoneT = WE.zoneCheckSec;
+        if (!wx.pinned && !canExist(wx.curName, zone)) pickNew(zone, day, false);
+      }
+      const v = s.vars;                                        // :309-317 — hết durationHours thì bốc thăm lại (không khi đang chuyển)
+      if (v['weather-time'] > s.time) v['weather-time'] = s.time;   // thời gian lùi (móc setTime): neo lại
+      if (!wx.pinned && !wx.needs && s.time > v['weather-time'] + wx.curP.durationHours / 24) pickNew(zone, day, false);
+      stepTriggers(s, day);
+    }
+    advanceTransition();
+    if (wx.dirty) { setLightningDelay(L.lightningDelayMin, L.lightningDelayMax); wx.dirty = false; }   // :429-432 (bốc lại hẹn giờ mỗi khung khi đang chuyển)
+    if (LG.playing && playing && wx.last) {
+      LG.left -= dt;
+      if (LG.left <= 0) { strike(wx.last.x, wx.last.z); LG.left = LG.min + (LG.max - LG.min) * W.random(); }
+    }
+    W.transitioning = wx.needs;
+    W.rain.rate = L.rainRate; W.rain.speed = L.rainSpeed; W.rain.splash = L.splashChance; W.rain.dropMin = L.dropletHeightMin; W.rain.dropMax = L.dropletHeightMax;
+    W.snow.rate = L.snowRate; W.snow.speed = L.snowSpeed; W.sfxVolume = L.sfxVolume; W.prevSfxVolume = L.prevSfxVolume;
+    stepFx(dt);
+  }
+  if (pin0) wx.pinned = W.pinned = pin0[1];   // chuẩn hoá tên ở init() khi đã có DR_WEATHER
 
   function update(dt, ctx) {
     const D = root.DR, s = D.s;
@@ -566,11 +863,13 @@ void main(){
     const dayK = Math.max(sc[0], sc[1], sc[2]);
     env.isDay = day; env.dayK = dayK; env.night = 1 - dayK;
     env.sceneLights = curve(TC.sceneLights, t);
+    // WeatherController: _cloudiness/_cloudDarkness/_auroraAmount/_waveSteepness/_foamAmount sống theo WeatherData hiện tại, lerp 15 s
+    stepWeather(dt, ctx, s, day, playing);
+    env.cloudiness = L.cloudiness; env.cloudDarkness = L.cloudDarkness; env.auroraAmount = L.auroraAmount; env.wind = E.wind;
+    env.waveSteepness = L.waveSteepness; env.foamAmount = L.foamAmount; env.weather = wx.curName; env.tod = t;
     // TimeController.RecalculateSceneLightness: 1 khi đêm hoặc mây đen (cloudDarkness + cloudiness > ngưỡng), ngày 0
-    const wp = weather();
-    env.cloudiness = wp.cloudiness; env.cloudDarkness = wp.cloudDarkness; env.wind = E.wind;
-    env.sceneLightness = (!day || wp.cloudDarkness + wp.cloudiness > TC.cloudLightEnableThreshold) ? 1 : 0;
-    U.uDrNightL.value = env.sceneLightness; U.uDrCloudy.value = wp.cloudiness;
+    env.sceneLightness = (!day || L.cloudDarkness + L.cloudiness > TC.cloudLightEnableThreshold) ? 1 : 0;
+    U.uDrNightL.value = env.sceneLightness; U.uDrCloudy.value = L.cloudiness;
 
     // sương (FogController + FogPropertyModifier mạnh nhất tại thuyền; đo bằng khoảng cách 3D như Vector3.Distance)
     let dens = curve(E.fog.densityOverDay, t), col = gradient(E.fog.colorOverDay, t), fh = E.fog.height;
@@ -596,7 +895,7 @@ void main(){
     scene.background.copy(scene.fog.color);
     const u = dome.material.uniforms;
     u.uFogLin.value.copy(env.fogColorLinear);
-    u.uTOD.value = t; u.uAurora.value = wp.auroraAmount || 0; u.uCloudDark.value = wp.cloudDarkness;
+    u.uTOD.value = t; u.uAurora.value = L.auroraAmount || 0; u.uCloudDark.value = L.cloudDarkness;
     if (ctx.cam) dome.position.copy(ctx.cam);
 
     updateLights(ctx.x, ctx.z);

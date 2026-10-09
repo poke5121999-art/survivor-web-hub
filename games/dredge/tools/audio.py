@@ -6,6 +6,8 @@ Run:    python -I audio.py [AA bundle dir] [ref dir] [repo dredge dir]
 Writes: <ref>/audio/<group>/<name>.ogg (all clips) + <ref>/audio/catalog.tsv
         <dredge>/audio/<category>/<name>.mp3 (subset) + <dredge>/data/audio.js (window.DR_AUDIO)
 Rerunnable: the repo audio/ dir is rebuilt from scratch each run.
+Round 2 (sfx owner): clips the web code calls by ORIGINAL name (js/*.js call DRAudio.play('Dog - Pick Up 1')) are looked up by
+clip basename (N(...)), so a name typo shows up as PROBLEM. The cost of each group is printed at the end (budget: +10 MB).
 """
 import glob, io, json, os, re, shutil, subprocess, sys, wave
 import UnityPy
@@ -24,19 +26,38 @@ PREFIX = {"gamescene": "gamescene_scenes_all", "player": "player_assets_all"}
 
 # ---- subset: key -> (category, name, loop, vol). name = container path under Assets/Audio/ without
 # extension, or the bare clip name for scene/player clips (they have no container path).
+# prof = encoding profile of PROF (None = the old rule by category), cap = seconds (None = profile default),
+# bus = mixer group of the original (js/sfx.js sets the gain of that bus from DR_SFX.mixer).
 S = []
+SN = []   # same, but the clip is looked up by basename (N): no need to type the container path
+GROUP = ["base"]  # group label for the cost report
 
 
-def add(key, cat, name, loop=False, vol=0.8):
-    S.append((key, cat, name, loop, vol))
+def add(key, cat, name, loop=False, vol=0.8, prof=None, cap=None, bus=None):
+    S.append((key, cat, name, loop, vol, prof, cap, bus, GROUP[0]))
+
+
+def N(key, cat, base, loop=False, vol=0.8, prof=None, cap=None, bus=None, sub=None):
+    SN.append((key, cat, base, loop, vol, prof, cap, bus, GROUP[0], sub))
+
+
+# encoding profiles: (ffmpeg args, cap in seconds or None). Loops are cut to the cap with a 2 s crossfade; one-shots with fades.
+PROF = {
+    "sfx": (["-ac", "1", "-b:a", "64k"], None),
+    "amb": (["-ac", "1", "-b:a", "48k"], 30),
+    "amb32": (["-ac", "1", "-b:a", "32k"], 20),     # long background beds without voice: 32 kb/s mono is enough
+    "sting": (["-ac", "1", "-b:a", "64k"], 15),     # music sting: mono 64k, first 15 s (the original runs 20-55 s)
+    "music": (["-ac", "2", "-b:a", "96k"], 50),
+    "musicLite": (["-ac", "1", "-b:a", "56k"], 40),
+}
 
 
 # music: no per-region day/night overworld music exists in the build (only per-region stingers and
 # ambiences), so regions get dock themes + stingers.
-add("music.title", "music", "Music/Dredge Theme 1", True, 0.7)
-add("music.paleReach", "music", "Music/Pale Reach Theme", True, 0.7)
-add("music.ironRig", "music", "Music/Iron Rig Theme", True, 0.7)
-add("music.collector", "music", "Music/Collector's Edition Theme", True, 0.7)
+add("music.title", "music", "Music/Dredge Theme 1", True, 0.7, bus="Music_Menu")
+add("music.paleReach", "music", "Music/Pale Reach Theme", True, 0.7, bus="Music_Menu")
+add("music.ironRig", "music", "Music/Iron Rig Theme", True, 0.7, bus="Music_Menu")
+add("music.collector", "music", "Music/Collector's Edition Theme", True, 0.7, bus="Music_Menu")
 add("music.credits.good", "music", "Music/Good Ending Credits Theme", False, 0.7)
 add("music.credits.bad", "music", "Music/Bad Ending Credits Theme", False, 0.7)
 add("music.ending", "music", "EndingMusic2", False, 0.7)
@@ -45,31 +66,33 @@ for k, n in [("greaterMarrow", "Greater Marrow Dock Theme"), ("littleMarrow", "L
              ("devilsSpine", "Devil's Spine Dock Theme"), ("stellarBasin", "Stellar Basin Dock Theme"),
              ("ingfell", "Ingfell Theme"), ("ruinedSettlement", "Ruined Settlement Dock Theme"),
              ("oldMayor", "Old Mayor's Theme"), ("collector", "Collector's Theme")]:
-    add("music.dock." + k, "music", "Music/Dock Themes/" + n, True, 0.6)
-for reg, folder, nm in [("marrows", "Marrows", "Marrows"), ("galeCliffs", "Gale Cliffs", "Gale Cliffs"),
-                        ("stellarBasin", "Stellar Basin", "Stellar Basin"),
-                        ("devilsSpine", "Devil's Spine", "Devil's Spine"),
-                        ("paleReach", "The Pale Reach", "Pale Reach"),
-                        ("twistedStrand", "Twisted Strand", "Twisted Strand")]:
-    for i in (1, 2):
+    add("music.dock." + k, "music", "Music/Dock Themes/" + n, True, 0.6, bus="Music_Dock")
+GROUP[0] = "p3-stinger"
+for reg, folder, nm, n in [("marrows", "Marrows", "Marrows", 6), ("galeCliffs", "Gale Cliffs", "Gale Cliffs", 7),
+                           ("stellarBasin", "Stellar Basin", "Stellar Basin", 7),
+                           ("devilsSpine", "Devil's Spine", "Devil's Spine", 7),
+                           ("twistedStrand", "Twisted Strand", "Twisted Strand", 7)]:
+    for i in range(1, n + 1):  # StingerAudio.stingerAssetReferences (Game.unity &124184): 6-7 clips per zone
         add("music.stinger.%s.%d" % (reg, i), "music",
-            "Music/Stingers/%s/%s Stinger %d" % (folder, nm, i), False, 0.7)
+            "Music/Stingers/%s/%s Stinger %d" % (folder, nm, i), False, 0.7, prof="sting", bus="Music_Stinger")
+GROUP[0] = "base"
 for i in (1, 2, 3, 4):  # panic / insanity layers
-    add("music.insanity.%d" % i, "music", "Ambience/Insanity Layers/Insanity Ambience %d" % i, True, 0.5)
+    add("music.insanity.%d" % i, "music", "Ambience/Insanity Layers/Insanity Ambience %d" % i, True, 0.5, bus="InsanitySFX")
 
 # ambience
-add("ambience.sea", "ambience", "Ambience/Waves Ambience 1", True, 0.5)
-add("ambience.seagulls", "ambience", "Ambience/Seagulls Ambience 1", True, 0.4)
+# 'Waves Ambience 1' sits on no AudioSource/prefab/scene of the original and GameSceneAudio/SeagullAmbience is inactive in
+# Game.unity, so the web's old always-on sea loop and proximity seagulls were not original: removed (SFX-08, round 2).
 add("ambience.waves.large", "ambience", "Ambience/Misc/Ambience Large Waves", True, 0.5)
+add("ambience.title", "ambience", "Ambience/Misc/Ambience Large Waves", True, 0.5)  # Title.unity plays this clip
 add("ambience.waves.boat", "ambience", "Ambience/Misc/Ambience Waves Against Boat", True, 0.5)
 add("ambience.boatWake", "ambience", "Ambience/Misc/Boat Wake", True, 0.5)
 for k, n in [("rain.light", "Light Rain 1"), ("rain.normal", "Normal Rain 1"), ("rain.heavy", "Heavy Rain 1"),
              ("wind", "Windy"), ("snow.light", "Light Snow"), ("snow.heavy", "Heavy Snow"),
              ("aurora", "Aurora")]:
-    add("weather." + k, "ambience", "Ambience/Weather/" + n, True, 0.5)
+    add("weather." + k, "ambience", "Ambience/Weather/" + n, True, 0.5, bus="Weather")
 for i in (1, 2, 3):
-    add("weather.thunder.%d" % i, "ambience", "Ambience/Weather/Thunder %d" % i, False, 0.8)
-    add("weather.lightning.%d" % i, "ambience", "Ambience/Weather/Lightning_%d" % i, False, 0.8)
+    add("weather.thunder.%d" % i, "ambience", "Ambience/Weather/Thunder %d" % i, False, 0.8, bus="Weather")
+    add("weather.lightning.%d" % i, "ambience", "Ambience/Weather/Lightning_%d" % i, False, 0.8, bus="Weather")
 for k, n in [("marrows.day", "Blackstone Isle Day Undocked"),
              ("marrows.wildlife.day", "Marrows Undocked - Wildlife Ambience Day"),
              ("marrows.wildlife.night", "Marrows Undocked - Wildlife Ambience Night"),
@@ -90,7 +113,7 @@ for k, n in [("greaterMarrow.day", "Marrows/Greater Marrow Dock Day"),
              ("littleMarrow.day", "Marrows/Little Marrow - Dock Day"),
              ("littleMarrow.night", "Marrows/Little Marrow - Dock Night"),
              ("ingfell.day", "Gale Cliffs/Ingfell - Dock Day"), ("ingfell.night", "Gale Cliffs/Ingfell - Dock Night")]:
-    add("dock." + k, "ambience", "Ambience/" + n, True, 0.5)
+    add("dock." + k, "ambience", "Ambience/" + n, True, 0.5, bus="DayDockAmbience" if k.endswith(".day") else "NightDockAmbience")
 # boat
 for i in range(1, 6):
     add("boat.engine.%d" % i, "boat", "SFX/Engine%d" % i, True, 0.5)
@@ -220,10 +243,112 @@ add("monster.bluewhale.call", "monsters", "SFX/World Event/Blue Whale/Blue Whale
 add("monster.crocodile.call", "monsters", "SFX/World Event/Crocodile/Crocodile - Call 1")
 add("monster.dolphin.call", "monsters", "SFX/World Event/Dolphin/Dolphin Pod - Call 1")
 
-# vocals: up to three evenly spaced barks for each main NPC; clip names are "<NPC> - <bark>"
-NPCS = [("courier", "Courier"), ("collector", "Collector"), ("fishmonger", "Fishmonger"), ("mayor", "Mayor"),
-        ("researcher", "Researcher"), ("trader", "Trader"), ("painter", "Painter"), ("builder", "Builder"),
-        ("pilot", "Pilot"), ("merchant", "Travelling Merchant")]
+# vocals: the 30 'vocal.<npc>.n' keys had no caller (dialogue plays art/portraits/vox, built by yarn.py): dropped, SFX-23.
+
+
+# ======================================================================================================
+# Vòng 2 (chủ tiếng): clip mà mã web gọi bằng TÊN GỐC (DRAudio.play('Dog - Pick Up 1')) hoặc mà js/sfx.js cần.
+# N(khoá, loại, tên clip gốc ...) tra clip theo tên tệp; PROBLEM nghĩa là gõ sai tên hoặc trùng tên.
+# Ưu tiên khi hết ngân sách (+10 MB): nối dây P0 (không tốn) > P1 > P2 > nhạc chớp mono 64k > nhạc bến.
+# ======================================================================================================
+GROUP[0] = "p1-fishing"
+for k, lab in [("small", "Small Fish"), ("medium", "Medium Fish"), ("large", "Large Fish"), ("trinket", "Trinkets"),
+               ("material", "Material"), ("relic", "Relic")]:
+    for i in (2, 3):   # HarvestPOIHandler: mỗi loại 3 biến thể, chọn ngẫu nhiên (fish.spot.<loại> là biến thể 1)
+        N("fish.spot.%s.%d" % (k, i), "fishing", "Harvest Spot - %s %d" % (lab, i))
+
+GROUP[0] = "p1-grid"
+for k, n in [("dog.1", "Dog - Pick Up 1"), ("dog.2", "Dog - Pick Up 2"), ("dog.3", "Dog - Pick Up 3"),
+             ("relic.key.pick", "Relic Key Pickup"), ("relic.key.place", "Relic Key Place"),
+             ("relic.musicbox.pick", "Relic Musicbox Pickup"), ("relic.musicbox.place", "Relic Musicbox Place"),
+             ("relic.necklace.pick", "Relic Necklace Pickup"),
+             ("relic.necklace.place", "Relic Necklance Place"),   # tên gốc viết sai chính tả ("Necklance")
+             ("relic.pocketwatch.pick", "Relic Pocketwatch Pickup"), ("relic.pocketwatch.place", "Relic Pocketwatch Place"),
+             ("icestone.pick", "Ice Stone - Pick up"), ("icestone.place", "Ice Stone - Place"),
+             ("darksplash.1", "Dark Splash-001"), ("darksplash.2", "Dark Splash-002"), ("darksplash.3", "Dark Splash-003"),
+             ("kit.repair", "Repair Kit"), ("kit.sanity", "Sanity Kit"), ("kit.crabpot", "Crabpot Kit")]:
+    N("ui.grid." + k, "ui", n, vol=0.7)
+
+GROUP[0] = "p1-window"
+for k, n in [("ui.pursuits.open", "Pursuits - Open"), ("ui.pursuits.close", "Pursuits - Close"),
+             ("ui.pursuits.open.one", "Pursuits - Open Individual"), ("ui.pursuits.close.one", "Pursuits - Close Individual"),
+             ("ui.messages.open.one", "Messages - Open Individual"), ("ui.messages.close.one", "Messages - Close Individual"),
+             ("ui.journal.page.3", "Encyclopedia - Turn Page 3"), ("ui.radial.close", "Radial Menu - Disappear")]:
+    N(k, "ui", n, vol=0.8)
+
+GROUP[0] = "p1-ability"
+for k, n in [("boat.horn.adv", "Advanced Foghorn Ability"), ("boat.horn.adv.ping", "Advanced Foghorn Ping"),
+             ("boat.light.adv.on", "Advanced Lights On"), ("boat.light.adv.off", "Advanced Lights Off"),
+             ("boat.spyglass.adv.extend", "Advanced Spyglass Extend"), ("boat.spyglass.adv.retract", "Advanced Spyglass Retract"),
+             ("boat.spyglass.adv.pin", "Advanced Spyglass Place Pin"), ("boat.spyglass.adv.unpin", "Advanced Spyglass Remove Pin"),
+             ("boat.banish.snuff", "Banish - Snuff Only"), ("boat.atrophy.cast", "Atrophy - Cast"),
+             ("boat.teleport", "Manifest"), ("fish.camera.open", "Camera Ability - Open_1"),
+             ("fish.camera.close", "Camera Ability - Close_1"), ("fish.camera.capture.2", "Camera Ability - Capture 2_1"),
+             ("fish.camera.capture.3", "Camera Ability - Capture 3_1"), ("fish.material.deploy", "Material Net Deploy"),
+             ("fish.material.retract", "Material Net Retract"), ("fish.material.caught", "Material Net Caught")]:
+    N(k, "boat" if k.startswith("boat.") else "fishing", n, vol=0.7)
+# vòng lặp của năng lực: cắt 15 s, nối đuôi vào đầu
+N("boat.banish.loop", "boat", "Banish - No Snuff", True, 0.7, prof="amb32", cap=15)
+N("boat.atrophy.loop", "boat", "Atrophy - Loop", True, 0.7, prof="amb32", cap=15)
+N("boat.haste.overheat", "boat", "Haste - Overheat Loop", True, 0.7, prof="amb32", cap=15)
+# Tên clip mà nhánh khác gọi bằng tên gốc (gear: lưới hút bùn của TrawlNetAbility; fishing: cổng xoắn trong harvest_ui.js)
+for k, n in [("ooze.activate", "Ooze Vacuum Activate"), ("ooze.retract", "Ooze Vacuum Retract"),
+             ("fish.doors.open", "Fishing Minigame Doors Open"), ("fish.doors.close", "Fishing Minigame Doors Close"),
+             ("fish.doors.hit", "Fishing Minigame Doors Closed Hit")]:
+    N(k if k.startswith("fish.") else "fish." + k, "fishing", n, vol=0.7)
+for k, n in [("fish.ooze.passive", "Ooze Vacuum Passive Loop"), ("fish.ooze.active", "Ooze Vacuum Active Loop")]:
+    N(k, "fishing", n, True, 0.7, prof="amb32", cap=15)
+
+GROUP[0] = "p2-story"
+# 26 clip của lệnh Yarn PlayClip / PlayLoopingDialogueAudio (census: cmd). Vòng lặp = PlayLoopingDialogueAudio.
+for n in ["fishmonger-door-slam", "collector-page-turn", "collector-ability-unlock", "mirror-shatter", "tir-leviathan-roar",
+          "Frozen_Soul_Smash", "Ice_Shaper_Cut", "mystical-fire-ignite", "lighthouse-sweep", "Adjust_Bunting_Off",
+          "Adjust_Bunting_On", "Paint_Boat", "Grind_Crabs", "Change_Flag", "scientist-reveal", "scientist-crunch",
+          "scientist-screech", "Bait_Mixed", "generator-startup"]:
+    N("story." + n.lower(), "story", n, vol=0.8)
+for n in ["generator-ambience", "beacon-activated", "beacon-unactivated", "mystical-fire-loop", "cultist-ambience",
+          "scientist-loop", "airman-ambience"]:
+    N("story." + n.lower(), "story", n, True, 0.6, prof="amb32")
+
+GROUP[0] = "p2-destination"
+for n in ["Collector", "Dry Dock", "Explosives Shop", "Fishmonger", "Painter", "Research", "Researcher", "Shipwright",
+          "Storage", "Trader", "Travelling Merchant"]:   # BaseDestination/SpeakerData.visitSFX: một nhịp ~1 s
+    N("dest.visit." + n.lower().replace(" ", "-"), "ui", n + " - Visit", vol=0.8)
+for n, b in [("Collector", "Collector - Ambience"), ("Fishmonger", "Fishmonger Ambience"), ("Lighthouse Keeper", "Lighthouse Keeper - Ambience"),
+             ("Mayor", "Mayor - Ambience"), ("Painter", "Painter - Ambience"), ("Researcher", "Researcher Ambience"),
+             ("Shipwright", "Shipwright - Ambience"), ("Trader", "Trader Ambience"), ("Travelling Merchant", "Travelling Merchant - Ambience"),
+             ("Photographer", "Photographer Character Ambience 1_Loop")]:
+    N("dest.loop." + n.lower().replace(" ", "-"), "ambience", b, True, 0.5, prof="amb32", cap=15)
+N("dest.loop.lighthouse-keeper.sfx", "ambience", "lighthouse-loop", True, 0.5, prof="amb32", cap=15)
+
+GROUP[0] = "p2-poi"
+# IntermittentSFXPlayer (xác tàu gỗ, chai thư, máy bay rơi, bẫy Twisted Strand): clip ngắn
+for n in ["POI - Wooden Shipwreck 1", "POI - Wooden Shipwreck 2", "POI - Wooden Shipwreck 3", "POI - Message in Bottle 1",
+          "POI - Message in Bottle 2", "POI - Plane wreck 1", "POI - Plane wreck 2", "POI - Twisted Strand Monster Traps 1",
+          "POI - Twisted Strand Monster Traps 2", "POI - Twisted Strand Monster Traps 3"]:
+    N("poi." + n[6:].lower().replace(" ", "-"), "world", n, vol=0.8)
+# nguồn lặp đặt cố định (DR_SFX.emitters): lỗ hơi, đền cá, giáo phái, thác, máy phát điện, vệ tinh
+for k, n in [("steamvent", "POI - Steam Vent Loop"), ("shrine", "POI - Fish Shrines"), ("cultist", "POI - Cultist Loop"),
+             ("waterfall.close", "POI - Waterfall Close"), ("waterfall.far", "POI - Waterfall Distant"),
+             ("generator", "Generator - Ambience"), ("satellite", "Old Fortress Dock Ambience - Satellite")]:
+    N("poi.loop." + k, "world", n, True, 0.5, prof="amb32", cap=15)
+
+GROUP[0] = "p3-dock-ambience"
+# DockData.ambienceDay/NightAssetReference của các bến game gốc chưa có tiếng (3 bến đầu đã có từ trước)
+for n in ["Blackstone Isle Day Dock", "Blackstone Isle Night Dock", "Old Fortress Dock Ambience - Wind", "Ruined Settlement Dock Ambience",
+          "Steel Point Dock Ambience - Day", "Steel Point Dock Ambience - Night", "Photographer Dock Ambience Day 1_Loop",
+          "Photographer Dock Ambience - Night 1_Loop", "Airman Camp", "Research Station Dock Ambience - Wind",
+          "Dock Ambience - Old Mayor Docks Campfire"]:
+    N("dock.amb." + re.sub(r"[^a-z0-9]+", "-", n.lower()).strip("-"), "ambience", n, True, 0.5, prof="amb32")
+
+GROUP[0] = "p3-dock-music"
+# DockData.musicAssetReference còn thiếu của bến game gốc: bản nhẹ (mono 56k, 40 s)
+for k, n in [("oldMayorEmpty", "Old Mayor's Dock Empty Theme"), ("airman", "Airman's Theme"),
+             ("researchPontoon", "Destroyed Research Pontoon Theme"), ("merchantTwistedStrand", "Travelling Merchant - Twisted Strand"),
+             ("merchantDevilsSpine", "Travelling Merchant - Devil's Spine"), ("merchantStellarBasin", "Travelling Merchant - Stellar Basin"),
+             ("merchantGaleCliffs", "Travelling Merchant - Gale Cliffs")]:
+    N("music.dock." + k, "music", n, True, 0.6, prof="musicLite", bus="Music_Dock")
+GROUP[0] = "base"
 
 
 # Budget: the repo audio/ dir must stay under 25 MB, so long loops/themes are cut to a cap (seconds)
@@ -279,23 +404,24 @@ def main():
     for r in rows:
         r["rel"] = r["container"][len("Assets/Audio/"):].rsplit(".", 1)[0] if r["container"] else r["name"]
         byrel[r["rel"]] = r
-    wanted = {}  # rel -> [(key, cat, loop, vol)]
+    wanted = {}  # rel -> [(key, cat, loop, vol, prof, cap, bus, group)]
     problems = []
-    for key, cat, name, loop, vol in S:
+    bybase = {}
+    for r in rows:
+        bybase.setdefault(os.path.basename(r["rel"]).lower(), []).append(r)
+    for key, cat, name, loop, vol, prof, cap, bus, grp in S:
         if name not in byrel:
             problems.append("missing clip for %s: %s" % (key, name))
             continue
-        wanted.setdefault(name, []).append((key, cat, loop, vol))
-    voc = sorted((r for r in rows if r["group"] == "vocals"), key=lambda r: r["rel"])
-    for k, npc in NPCS:
-        mine = [r for r in voc if os.path.basename(r["rel"]).startswith(npc + " - ")]
-        if not mine:
-            problems.append("no vocals for " + npc)
+        wanted.setdefault(name, []).append((key, cat, loop, vol, prof, cap, bus, grp))
+    for key, cat, base, loop, vol, prof, cap, bus, grp, sub in SN:
+        hit = [r for r in bybase.get(base.lower(), []) if r["group"] != "vocals" and (not sub or sub.lower() in r["rel"].lower())]
+        if len(hit) != 1:
+            problems.append("%s clip for %s: %s%s" % ("missing" if not hit else "ambiguous (%d)" % len(hit), key, base, " [%s]" % sub if sub else ""))
             continue
-        for j, i in enumerate(sorted({0, len(mine) // 2, len(mine) - 1})):
-            wanted.setdefault(mine[i]["rel"], []).append(("vocal.%s.%d" % (k, j + 1), "vocals", False, 0.9))
+        wanted.setdefault(hit[0]["rel"], []).append((key, cat, loop, vol, prof, cap, bus, grp))
 
-    cat_rows, used, failed, seen, audio = [], {}, [], {}, {}
+    cat_rows, used, failed, seen, audio, cost = [], {}, [], {}, {}, {}
     for r in rows:
         g, n = r["group"], r["name"]
         stem = safe(n)
@@ -314,13 +440,16 @@ def main():
             continue
         cat_rows.append((g, r["container"] or "(scene/player: no container)", n, "%.2f" % dur, ch, rate,
                          "loop" if loop_hint(n) else ""))
-        for key, cat, loop, vol in wanted.get(r["rel"], []):
+        for key, cat, loop, vol, prof, kcap, bus, grp in wanted.get(r["rel"], []):
             if r["rel"] not in used:
-                if cat == "music" and not key.startswith("music.insanity"):
+                if prof:
+                    enc, cap = list(PROF[prof][0]), kcap or PROF[prof][1]
+                elif cat == "music" and not key.startswith("music.insanity"):
                     enc = ["-ac", "2", "-b:a", "96k"]
+                    cap = cap_for(key, cat)
                 else:
                     enc = ["-ac", "1", "-b:a", "48k" if cat == "ambience" or key.startswith("music.insanity") else "64k"]
-                cap = cap_for(key, cat)
+                    cap = cap_for(key, cat)
                 if cap and dur > cap + 1 and loop and dur > cap + XF:
                     # A fade-out at the seam dips the volume every lap; instead crossfade the tail
                     # [cap, cap+XF] into the head [0, XF] so the last sample flows into the first.
@@ -339,9 +468,12 @@ def main():
                 os.makedirs(os.path.join(REPO_AUDIO, cat), exist_ok=True)
                 ffenc(wav, os.path.join(REPO_AUDIO, cat, stem + ".mp3"), ["-c:a", "libmp3lame"] + enc)
                 used[r["rel"]] = (cat, stem, dur_out)
+                cost[grp] = cost.get(grp, 0) + os.path.getsize(os.path.join(REPO_AUDIO, cat, stem + ".mp3"))
             c2, s2, d2 = used[r["rel"]]
             audio[key] = dict(src="audio/%s/%s.mp3" % (c2, s2), loop=loop, vol=vol, dur=round(d2, 2),
                               orig=r["container"] or n)
+            if bus:
+                audio[key]["bus"] = bus
     cat_rows.sort(key=lambda t: (GROUPS.index(t[0]), t[1], t[2]))
     with io.open(os.path.join(OUT, "catalog.tsv"), "w", encoding="utf-8", newline="\n") as fh:
         fh.write("group\tcontainer\tname\tduration_s\tchannels\trate\tloop_hint\n")
@@ -361,6 +493,9 @@ def main():
         print("FAILED", f)
     for p in problems:
         print("PROBLEM", p)
+    tot = sum(os.path.getsize(os.path.join(d, f)) for d, _, fs in os.walk(REPO_AUDIO) for f in fs)
+    print("audio/ total %.2f MB | by group (first file written for each clip): %s" % (
+        tot / 1e6, ", ".join("%s %.0f KB" % (g, c / 1000) for g, c in sorted(cost.items()))))
 
 
 main()

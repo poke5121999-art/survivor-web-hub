@@ -7,8 +7,11 @@
  *   DRWorld.depth01(x, z)  DRWorld.steep01(x, z)  DRWorld.zoneAt(x, z)  DRWorld.resolve(b, halfW, halfL)
  * Vật liệu: shader toon gốc rã từ DXBC (Lit / LitTriplanar / Foliage / LitYBillboard / TerrainShader), thông số lấy từ
  * extras.params của lib.glb (tools/world.py) và data/env.js (tools/env.py); sương + ánh sáng dùng chung DRSky.GLSL_ENV.
- * Cảnh động (DR_ENV.particles, DR_ENV.lighthouse): hải âu/đại bàng (BirdParticle), vệt gió + bụi quanh thuyền
- * (AtmosphericParticles, tính trên GPU), đèn biển Greater Marrow quay 30°/s.   DRWorld.updateAmbient(dt, ctx, env)  DRWorld.ambient
+ * Cảnh động (DR_ENV.particles, DR_ENV.lighthouse): hải âu/đại bàng (BirdParticle; chỉ phát trong khung giờ `tod` 0,27–0,60 của
+ * TimeOfDayParticles, chim đang bay bay nốt), vệt gió + bụi quanh thuyền (AtmosphericParticles, tính trên GPU), đèn biển Greater
+ * Marrow quay 30°/s.   DRWorld.updateAmbient(dt, ctx, env)  DRWorld.ambient
+ * Vật nổi (world.json.buoys: 23 phao + 5 thuyền bến, SimpleBuoyantObject): DRWorld.buoys[{name, x, z, y, depth, cy (y vật chủ hiện tại),
+ * target, parts}] bập bềnh theo DRWater.surface; thác Gale Cliffs (GaleCliffsWaterfall_Shader) cuộn UV + dời đỉnh theo thời gian.
  */
 (function (root) {
   'use strict';
@@ -245,10 +248,76 @@ uniform sampler2D uEmis; uniform float uEmisK; uniform vec3 uWet; uniform vec4 u
 `;
   const WHITE = new T.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1);
   WHITE.needsUpdate = true;
+
+  // GaleCliffsWaterfall_Shader (rã DXBC: tools/env.py --dis → GaleCliffsWaterfall_Shader.txt). Một texture (Texture2D_40488f58) lấy mẫu hai lần
+  // theo UV Unity (v lên; glb lật v nên đổi lại ở đây):
+  //   dời đỉnh (vs): pos += normal · tex(u, v + t·ScrollSpeed1, mip 3).g · DisplacementAmount · màu đỉnh G
+  //   ps: A = tex(2u, v + t·ScrollSpeed1), B = tex(6u, 2v + t·ScrollSpeed2); x = sat(15·(A.r·B.g − màu đỉnh R)) + 0,5·A.g + max(1 − 0,08·d, 0)
+  //   màu = dải (0,2549; 0,3211; 0,4039) + s·(0,1608; 0,2118; 0,2196), s = sat(1,6111·x), rồi pha tới xám 0,6698 (x > 0,6207) và 0,8962 (x > 0,7299);
+  //   cắt điểm ảnh khi A.b·B.b < max(1 − 0,08·d, 0) (tan dần khi lại gần: d = khoảng cách tới camera, m);
+  //   ánh sáng Lit KHÔNG có mây che nắng/bóng: nắng + đèn phụ + ambient + (1 − mask.b); sương Lit nhưng không có hệ số đèn xua sương.
+  function waterfallMaterial(src, pr) {
+    const m = new T.ShaderMaterial({
+      uniforms: { tMap: { value: src.map }, uScroll: { value: new T.Vector2(pr.ScrollSpeed1 || 0, pr.ScrollSpeed2 || 0) }, uDisp: { value: pr.DisplacementAmount || 0 },
+        fogColor: { value: new T.Color() }, fogDensity: { value: 0 } },
+      vertexColors: true, fog: true, side: src.side, defines: { DR_OWN_FOG: '' },
+      vertexShader: `uniform sampler2D tMap; uniform vec2 uScroll; uniform float uDisp; uniform float uDrTime;
+varying vec2 vUv;
+#include <common>
+#include <color_pars_vertex>
+#include <fog_pars_vertex>
+void main() {
+  vUv = uv;
+  #include <color_vertex>
+  vec2 sv = vec2(uv.x, 1.0 - uv.y + uDrTime * uScroll.x);
+  #if __VERSION__ >= 300
+  float h = textureLod(tMap, vec2(sv.x, 1.0 - sv.y), 3.0).g;
+  #else
+  float h = texture2DLod(tMap, vec2(sv.x, 1.0 - sv.y), 3.0).g;
+  #endif
+  vec4 mvPosition = vec4(position + normal * (h * uDisp * vColor.g), 1.0);
+  #ifdef USE_INSTANCING
+  mvPosition = instanceMatrix * mvPosition;
+  #endif
+  mvPosition = modelViewMatrix * mvPosition;
+  gl_Position = projectionMatrix * mvPosition;
+  #include <fog_vertex>
+}`,
+      fragmentShader: `uniform sampler2D tMap; uniform vec2 uScroll;
+varying vec2 vUv;
+#include <common>
+#include <color_pars_fragment>
+#include <fog_pars_fragment>
+void main() {
+  vec3 wp = vDrFogW;
+  vec2 su = vec2(vUv.x, 1.0 - vUv.y);
+  vec2 a = vec2(su.x * 2.0, su.y + uDrTime * uScroll.x), b = vec2(su.x * 6.0, su.y * 2.0 + uDrTime * uScroll.y);
+  vec4 ta = texture2D(tMap, vec2(a.x, 1.0 - a.y)), tb = texture2D(tMap, vec2(b.x, 1.0 - b.y));
+  float nearK = max(1.0 - distance(wp, cameraPosition) * 0.08, 0.0);
+  if (ta.b * tb.b - nearK < 0.0) discard;
+  float x = clamp((ta.r * tb.g - vColor.r) * 15.0, 0.0, 1.0) + ta.g * 0.5 + nearK;
+  vec3 alb = clamp(x * 1.611107, 0.0, 1.0) * vec3(0.160812, 0.211787, 0.219608) + vec3(0.254874, 0.321118, 0.403922);
+  alb = mix(alb, vec3(0.669811), clamp((x - 0.620691) * 9.158044, 0.0, 1.0));
+  alb = mix(alb, vec3(0.896226), clamp((x - 0.729885) * 3.702124, 0.0, 1.0));
+  float mb = drEnvMaskB(wp.xz);
+  vec3 lit = alb * (uDrSunCol + drEnvLights(wp) + uDrAmb + (1.0 - mb) + vec3(uDrTintK, 0.0, 0.0));
+  gl_FragColor = vec4(mix(lit, drEnvFogColor(wp), drEnvFogAmount(wp, vec3(0.0), mb)), 1.0);
+  #include <encodings_fragment>
+}`
+    });
+    m.name = src.name;
+    return m;
+  }
+
   function convertMaterial(src) {
     if (matCache.has(src)) return matCache.get(src);
     const ex = src.userData || {}, shader = ex.shader || '', pr = ex.params || {}, kw = ex.keywords || [];
     if (/DepthMask/.test(shader) || ex.mask) { matCache.set(src, null); return null; }
+    if (/GaleCliffsWaterfall/.test(shader) && src.map) {
+      const wm = waterfallMaterial(src, pr);
+      matCache.set(src, wm);
+      return wm;
+    }
     const shadows = !!(root.DRSky && DRSky.shadows);
     const defines = { DR_OWN_FOG: '' };
     const tri = /LitTriplanar/.test(shader), fol = /Foliage/.test(shader), bill = /YBillboard/.test(shader);
@@ -336,8 +405,77 @@ uniform sampler2D uEmis; uniform float uEmisK; uniform vec3 uWet; uniform vec4 u
       }
       count += n;
     }
+    buildBuoys(g, key);
     cell.group = g; cell.count = count;
     return g;
+  }
+
+  // ---------- vật nổi (SimpleBuoyantObject.cs:28-44): phao + thuyền bến, tách khỏi instances.bin (tools/world.py → world.json.buoys) ----------
+  // Mỗi vật chủ giữ ma trận gốc của từng mesh con; mỗi khung cộng độ lệch y của vật chủ vào ma trận. y vật chủ lerp (dt) về
+  // mặt nước(x, z) + objectDepth, mục tiêu lấy lại mỗi 0,5 s (timeBetweenUpdatingWaveSteepnessSec).
+  const BUOY_PERIOD = 0.5, BUOY_SWING = 2.5; // BUOY_SWING: bán kính cộng thêm cho khối bao (sóng bão cao nhất ~1,8 m)
+  function buildBuoys(g, key) {
+    const list = W.buoyCells[key];
+    if (!list) return;
+    const byMesh = {};
+    for (const B of list) { B.refs.length = 0; for (const p of B.parts) (byMesh[p.mesh] = byMesh[p.mesh] || []).push({ B, p }); }
+    for (const [mid, items] of Object.entries(byMesh)) {
+      const parts = variants[mid], meta = W.data.world.meshes[mid];
+      if (!parts || !parts.length || !meta) continue;
+      const bb = meta.bbox, lc = new T.Vector3((bb[0][0] + bb[1][0]) / 2, (bb[0][1] + bb[1][1]) / 2, (bb[0][2] + bb[1][2]) / 2);
+      const lr = Math.hypot(bb[1][0] - bb[0][0], bb[1][1] - bb[0][1], bb[1][2] - bb[0][2]) / 2;
+      const sphere = new T.Sphere(); let first = true;
+      const mats = items.map(({ p }) => {
+        _p.set(p.pos[0], p.pos[1], p.pos[2]); _q.set(p.q[0], p.q[1], p.q[2], p.q[3]); _s.set(p.s[0], p.s[1], p.s[2]);
+        const m = new T.Matrix4().compose(_p, _q, _s);
+        const sp = new T.Sphere(_c.copy(lc).applyMatrix4(m).clone(), lr * Math.max(_s.x, _s.y, _s.z) + BUOY_SWING);
+        if (first) { sphere.copy(sp); first = false; } else sphere.union(sp);
+        return m;
+      });
+      for (const part of parts) {
+        const geo = new T.BufferGeometry();
+        for (const [name, a] of Object.entries(part.geo.attributes)) geo.setAttribute(name, a);
+        geo.setIndex(part.geo.index);
+        geo.boundingSphere = sphere.clone();
+        const im = new T.InstancedMesh(geo, part.mat, items.length);
+        im.instanceMatrix.setUsage(T.DynamicDrawUsage);
+        items.forEach(({ B }, k) => {
+          const m = part.local ? new T.Matrix4().multiplyMatrices(mats[k], part.local) : mats[k].clone();
+          im.setMatrixAt(k, m);
+          B.refs.push({ im, k, m });
+        });
+        im.instanceMatrix.needsUpdate = true;
+        im.matrixAutoUpdate = false;
+        im.userData.mr = lr;
+        if (root.DRSky && DRSky.shadows) { im.castShadow = true; im.receiveShadow = !!part.mat.userData.drRecv; }
+        g.add(im);
+        W.stats.meshes++;
+      }
+    }
+    for (const B of list) { if (B.cy === null) retargetBuoy(B); applyBuoy(B); }
+  }
+  function retargetBuoy(B) {
+    const cam = AMB.cam, cx = cam ? cam.x : B.x, cz = cam ? cam.z : B.z;
+    B.target = root.DRWater.surface(B.x, B.z, cx, cz, true) + B.depth;   // true: collider của chính phao nằm trong landmask
+    if (B.cy === null) B.cy = B.target; // [ĐỀ XUẤT] bản gốc lerp từ y đặt sẵn trong scene; ở đây vật vào thẳng mặt nước khi ô được dựng
+    B.t = 0;
+  }
+  function applyBuoy(B) {
+    const dy = B.cy - B.y;
+    for (const r of B.refs) { _m.copy(r.m); _m.elements[13] += dy; r.im.setMatrixAt(r.k, _m); r.im.instanceMatrix.needsUpdate = true; }
+  }
+  function stepBuoys(dt) {
+    if (!W.buoyCells) return;
+    for (const key of W.loaded) {
+      const list = W.buoyCells[key];
+      if (!list) continue;
+      for (const B of list) {
+        B.t += dt;
+        if (B.t > BUOY_PERIOD) retargetBuoy(B);
+        B.cy += (B.target - B.cy) * Math.min(1, dt); // Mathf.Lerp(y, target, Time.deltaTime)
+        applyBuoy(B);
+      }
+    }
   }
   function stream(x, z) {
     for (const [key, c] of Object.entries(W.cells)) {
@@ -466,6 +604,16 @@ varying vec2 vTUv;`).replace('#include <output_fragment>', `
       const [cx, cz] = key.split(',').map(Number), C = world.cell;
       W.cells[key] = { entries: ents, x0: cx * C, z0: cz * C, x1: (cx + 1) * C, z1: (cz + 1) * C, group: null, count: 0 };
     }
+    // vật nổi: gom theo ô; ô chỉ có phao (không có cảnh tĩnh) vẫn cần một mục để stream() nạp nó
+    W.buoys = (world.buoys || []).map(b => Object.assign({ cy: null, target: 0, t: 0, refs: [] }, b));
+    W.buoyCells = {};
+    for (const b of W.buoys) {
+      (W.buoyCells[b.cell] = W.buoyCells[b.cell] || []).push(b);
+      if (!W.cells[b.cell]) {
+        const [cx, cz] = b.cell.split(',').map(Number), C = world.cell;
+        W.cells[b.cell] = { entries: {}, x0: cx * C, z0: cz * C, x1: (cx + 1) * C, z1: (cz + 1) * C, group: null, count: 0 };
+      }
+    }
     if (root.DR_ENV && root.DR_ENV.particles) initAmbient();
   }
 
@@ -543,7 +691,7 @@ void main() { gl_FragColor = vec4(s2l(texture2D(tMain, vUv).rgb) * uAmbB, 1.0); 
       im.geometry = geo.clone(); im.geometry.setAttribute('aPCol', pc);
       im.frustumCulled = false; im.count = 0; im.name = 'birds ' + e.path;
       scene.add(im);
-      AMB.birds.push({ e, im, pc, ps: [], cycle: -1, t: 0 });
+      AMB.birds.push({ e, im, pc, ps: [], cycle: -1, t: 0, playing: false, t0: 0, spawned: 0 });
     }
     // ---- vệt gió + bụi khí quyển quanh thuyền (AtmosphericParticles_Shader: màu × ánh sáng, có sương)
     // GPU tính hết: mỗi ô hạt sống lại liên tục (đời L ngẫu nhiên, sinh lại ở điểm băm mới) ⇒ CPU không làm gì mỗi khung
@@ -655,7 +803,10 @@ void main() { vec4 t = texture2D(tMap, vUv); float f = pow(clamp(dot(normalize(v
     else if (sh.type === 10) rad *= 1 - (sh.radiusThickness || 0) * Math.random(); // Circle (radiusThickness 0 = mép)
     B.ps.push({ born: now, life: mmc(e.startLifetime, 0, Math.random()), phi, rad, dy, w: mmc(e.VelocityModule && e.VelocityModule.orbitalY, 0, Math.random()),
       rv: Math.random(), size: mmc(e.startSize, 0, r) });
+    B.spawned++;
   }
+  // TimeOfDayParticles.cs:14-41: tod = [start, end] theo phần lẻ của ngày; start > end quấn qua nửa đêm
+  const inWindow = (tod, t) => !tod || (tod[0] > tod[1] ? (t < tod[1] || t > tod[0]) : (t < tod[1] && t > tod[0]));
   function updateBirds(dt, env) {
     AMB.time += dt;
     const now = AMB.time;
@@ -664,16 +815,23 @@ void main() { vec4 t = texture2D(tMap, vUv); float f = pow(clamp(dot(normalize(v
     const cam = AMB.cam;
     for (const B of AMB.birds) {
       const e = B.e;
+      // TimeOfDayParticles: Play() khi vào khung giờ (hệ chạy lại từ 0), Stop() khi ra ngoài — Stop chỉ ngừng phát, chim đang bay bay nốt.
+      // Trạng thái phát theo giờ cập nhật cả cho bộ phát xa (không mô phỏng) để cờ `playing` luôn đúng.
+      const win = inWindow(e.tod, env && env.tod != null ? env.tod : 0.3);
+      if (win && !B.playing) { B.playing = true; B.t0 = now; B.cycle = -1; B.fired = 0; }
+      else if (!win && B.playing) B.playing = false;
       // [ĐỀ XUẤT] bộ phát xa hơn 450 m (ngoài tầm sương ban ngày) không mô phỏng
       if (cam && Math.hypot(cam.x - e.pos[0], cam.z - e.pos[2]) > 450) { B.ps.length = 0; B.im.count = 0; B.im.visible = false; continue; }
       B.im.visible = true;
       // phát theo burst mỗi vòng lengthInSec (looping)
-      const cyc = Math.floor(now / e.lengthInSec), tin = now - cyc * e.lengthInSec;
-      if (cyc !== B.cycle) { B.cycle = cyc; B.fired = 0; }
-      for (const b of e.bursts) for (let k = B.fired; k < b.cycles; k++) {
-        if (tin < b.time + k * b.interval) break;
-        if (Math.random() <= b.probability) { const c = Math.round(mmc(b.count, 0, Math.random())); for (let i = 0; i < c; i++) spawnBird(B, now); }
-        B.fired = k + 1;
+      if (B.playing) {
+        const age = now - B.t0, cyc = Math.floor(age / e.lengthInSec), tin = age - cyc * e.lengthInSec;
+        if (cyc !== B.cycle) { B.cycle = cyc; B.fired = 0; }
+        for (const b of e.bursts) for (let k = B.fired; k < b.cycles; k++) {
+          if (tin < b.time + k * b.interval) break;
+          if (Math.random() <= b.probability) { const c = Math.round(mmc(b.count, 0, Math.random())); for (let i = 0; i < c; i++) spawnBird(B, now); }
+          B.fired = k + 1;
+        }
       }
       B.ps = B.ps.filter(p => now - p.born < p.life);
       const V = e.VelocityModule || {}, grad = e.ColorModule && e.ColorModule.gradient && e.ColorModule.gradient.gradient;
@@ -703,8 +861,9 @@ void main() { vec4 t = texture2D(tMap, vUv); float f = pow(clamp(dot(normalize(v
   }
   const _rs = new T.Matrix4();
   function updateAmbient(dt, ctx, env) {
-    if (!AMB.birdMat) return;
     AMB.cam = ctx.cam || null;
+    stepBuoys(dt, ctx);
+    if (!AMB.birdMat) return;
     updateBirds(dt, env);
     for (const sys of [AMB.streaks, AMB.motes]) if (sys) {
       const u = sys.obj.material.uniforms;

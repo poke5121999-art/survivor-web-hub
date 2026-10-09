@@ -200,8 +200,32 @@ def mesh_json(M, mo):
     return out
 
 
-def particle_systems(S, M):
-    """ParticleSystem dùng BirdParticle_Shader (hải âu, đại bàng) và AtmosphericParticles_Shader (vệt gió quanh thuyền)."""
+def scripts_of(S, names):
+    """{tên lớp: [(pid GameObject, ObjectReader)]} cho các MonoBehaviour của scene; một lượt duyệt cho mọi tên."""
+    out = {n: [] for n in names}
+    for g in S.G:
+        for cn, o in S.scripts(g):
+            if cn in out:
+                out[cn].append((g, o))
+    return out
+
+
+def time_of_day_windows(S, found):
+    """TimeOfDayParticles (TimeOfDayParticles.cs:14-41): {pid ParticleSystem: [start, end]} theo phần lẻ của ngày.
+    start < end: phát khi start < t < end; start > end: quấn qua nửa đêm, phát khi t > start hoặc t < end."""
+    out = {}
+    for g, o in found['TimeOfDayParticles']:
+        d = o.parse_as_dict()
+        ps = S.deref(o.assets_file, d['particles'])
+        if ps is not None:
+            out[ps.path_id] = [r5(d['particleStartTime']), r5(d['particleEndTime'])]
+    return out
+
+
+def particle_systems(S, M, tod=None):
+    """ParticleSystem dùng BirdParticle_Shader (hải âu, đại bàng) và AtmosphericParticles_Shader (vệt gió quanh thuyền).
+    tod = time_of_day_windows(): mỗi chim mang thêm `tod` [start, end] (cả 8 bộ phát chim là 0,27–0,6)."""
+    tod = tod or {}
     birds, atmos, meshes, mats = [], [], {}, {}
     for g in S.G:
         comps = S.comps(g)
@@ -250,6 +274,8 @@ def particle_systems(S, M):
             e['TrailModule'] = {'lifetime': mmc(T['lifetime']), 'colorOverLifetime': mmg(T['colorOverLifetime']),
                                 'widthOverTrail': mmc(T['widthOverTrail']), 'sizeAffectsWidth': bool(T['sizeAffectsWidth']),
                                 'inheritParticleColor': bool(T['inheritParticleColor'])}
+        if pp[0] in tod:
+            e['tod'] = tod[pp[0]]
         if rd['m_RenderMode'] == 4 and rd['m_Mesh']['m_PathID']:
             meo = S.deref(S.af, rd['m_Mesh'])
             if meo is not None:
@@ -305,6 +331,54 @@ def lighthouse(S):
                                    'texture': save_tex(tx, 'beam_%s.webp' % tx.m_Name.lower(), 256) if tx is not None else None})
         out.append(e)
     return out
+
+
+def weather_system(S, M, found, cfg):
+    """Hằng số của WeatherController / Lightning / WeatherTrigger mà js/sky.js cần ngoài data/weather.js.
+      - transitionDurationSec: trường scene của Logic/WeatherController (15 s). timeBetweenZoneChecks = 5 s là hằng
+        private trong mã (WeatherController.cs:127), không serialize.
+      - Lightning (FollowPlayer/Lightning): minRange, maxRange, thunderDelay (Lightning.cs:75, :98).
+      - WeatherTrigger (WeatherTrigger.cs:17-32): vị trí + cầu trigger. Vật chủ nằm dưới SceneTimeResponder với
+        onWhenNight thì chỉ bật ban đêm (SceneTimeResponder.cs:14-19): `nightOnly`. Vật chủ bị tắt ở tổ tiên không phải
+        SceneTimeResponder thì không bao giờ chạy: bỏ."""
+    W = cfg['logic']['WeatherController'][0]['fields']
+    toggles = {}
+    for g, o in found['SceneTimeResponder']:
+        d = o.parse_as_dict()
+        tgt = S.deref(o.assets_file, d['objectToToggle'])
+        if tgt is not None:
+            toggles[tgt.path_id] = bool(d['onWhenNight'])
+    triggers = []
+    for g, o in found['WeatherTrigger']:
+        d = o.parse_as_dict()
+        wd = S.deref(o.assets_file, d['weather'])
+        chain, p = [], g
+        while p:
+            chain.append(p)
+            p = S.parent(p)
+        if any(c not in toggles and not S.G[c]['m_IsActive'] for c in chain):
+            continue
+        gated = [toggles[c] for c in chain if c in toggles]
+        if gated and not all(gated):
+            continue  # SceneTimeResponder không bao giờ bật nó
+        cv = [c for c in WT.collider_volumes(S, M, g) if c.get('trigger') and c['shape'] == 'sphere']
+        if wd is None or not cv:
+            raise LookupError('WeatherTrigger %s has no WeatherData or no sphere trigger' % S.path(g))
+        c = cv[0]
+        Wm = S.world(g)
+        ctr = Wm @ np.array([c['center'][0], c['center'][1], -c['center'][2], 1.0])
+        triggers.append({'path': S.path(g), 'weather': wd.parse_as_dict()['m_Name'], 'cooldownDays': r5(d['cooldownDays']),
+                         'chance': r5(d['chance']), 'nightOnly': bool(gated),
+                         'pos': [r5(ctr[0]), r5(ctr[1]), r5(-ctr[2])], 'radius': r5(c['radius'] * max(c['scale']))})
+    triggers.sort(key=lambda t: t['path'])
+    lg = found['Lightning']
+    if len(lg) != 1:
+        raise LookupError('expected one Lightning component in the scene, found %d' % len(lg))
+    ld = lg[0][1].parse_as_dict()
+    return {'note': 'WeatherController.cs:295-449 (15 s lerp, 5 s zone check), Lightning.cs:47-101, WeatherTrigger.cs:17-32',
+            'transitionSec': r5(W['transitionDurationSec']), 'zoneCheckSec': 5.0,
+            'lightning': {'minRange': r5(ld['minRange']), 'maxRange': r5(ld['maxRange']), 'thunderDelay': r5(ld['thunderDelay'])},
+            'triggers': triggers}
 
 
 # ---------------------------------------------------------------- rã DXBC (tuỳ chọn)
@@ -369,7 +443,8 @@ def main():
         disassemble(S, sys.argv[sys.argv.index('--dis') + 1],
                     {'Lit_Shader', 'LitTriplanar_Shader', 'Foliage_Shader', 'LitYBillboard_Shader', 'TerrainShader',
                      'Sky_Shader', 'LightBeam_Shader', 'AtmosphericParticles_Shader', 'FloatingParticle_Shader',
-                     'BirdParticle_Shader', 'RavenParticle_Shader', 'UnderwaterObject_Shader'})
+                     'BirdParticle_Shader', 'RavenParticle_Shader', 'UnderwaterObject_Shader',
+                     'GaleCliffsWaterfall_Shader'})
 
     L = cfg['logic']
     TC, FC = L['TimeController'][0]['fields'], L['FogController'][0]['fields']
@@ -460,8 +535,9 @@ def main():
                     'quanh 0,4135884, hueShift). Scatter thật = lerp(0,05; 0,95; scatter).')
     env['post'] = post
 
-    log('particles / lighthouse')
-    birds, atmos, meshes, mats = particle_systems(S, M)
+    log('particles / lighthouse / weather')
+    found = scripts_of(S, ('TimeOfDayParticles', 'SceneTimeResponder', 'WeatherTrigger', 'Lightning'))
+    birds, atmos, meshes, mats = particle_systems(S, M, time_of_day_windows(S, found))
     env['particles'] = {
         'note': 'ParticleSystem gốc (Game.unity). Chim: Mesh render, căn theo vận tốc (alignment 4), vỗ cánh trong BirdParticle_Shader: '
                 'y += sin((t − R·G)·A·FlapSpeed)·B·FlapAmount·R với RGBA = màu đỉnh × màu hạt (ColorModule.b bật/tắt vỗ cánh); '
@@ -470,6 +546,9 @@ def main():
     log('  %d bird emitters, %d atmospheric, meshes %s' % (len(birds), len(atmos), list(meshes)))
     env['lighthouse'] = lighthouse(S)
     log('  %d lighthouse beams' % len(env['lighthouse']))
+    env['weather'] = weather_system(S, M, found, cfg)
+    log('  weather: %d triggers %s, lightning %s' % (len(env['weather']['triggers']),
+        [(t['weather'], t['nightOnly']) for t in env['weather']['triggers']], env['weather']['lightning']))
 
     with open(OUT_JS, 'w', encoding='utf-8', newline='\n') as fh:
         fh.write('// Generated by games/dredge/tools/env.py from Game.unity (AssetRipper/UnityPy). Do not edit.\n')

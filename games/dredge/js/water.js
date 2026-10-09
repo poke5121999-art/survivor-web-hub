@@ -12,7 +12,11 @@
  * SkyBlue (0,318; 0,420; 0,482), ReflectionStrength 0,5. Thân Water_Shader bị AssetRipper bỏ (DummyShaderTextExporter)
  * nên cách các số này ghép lại với nhau là [ĐỀ XUẤT] (ghi tại chỗ).
  * Vệt bọt sau thuyền KHÔNG nằm ở đây: bản gốc là hệ hạt BoatTrailParticles (js/vfx.js).
+ * Thời tiết (WeatherController.cs:445-447): env.waveSteepness / env.foamAmount do js/sky.js lerp 15 s theo WeatherData
+ * (Clear 0,05 … FinaleStorm 0,23; bọt 0,2 … 0,35) và update() ghi thẳng vào uWaveSteep / uFoam. Bản CPU của thuyền và phao
+ * (boat.js, DRWater.surface) đọc cùng uWaveSteep nên bờ sóng theo thời tiết cho cả hình lẫn vật nổi.
  *   DRWater.init(scene, world)   DRWater.update(dt, cx, cz, boat, env)   DRWater.wave(x, z, s) → [h, dhdx, dhdz]
+ *   DRWater.surface(x, z, camX, camZ, noLand) → y mặt nước nhìn thấy tại (x, z): sóng × mặt nạ × độ dốc thời tiết × độ tắt dần gần bờ / xa camera
  *   DRWater.props() → WaterProperty hiện tại (sRGB như Inspector)   DRWater.uniforms (dùng chung cho shader nằm trên mặt nước)
  */
 (function (root) {
@@ -226,15 +230,30 @@ varying vec3 vWPos;`)
     scene.add(mesh);
   }
 
+  // y của mặt nước vẽ ra tại (x, z) — bản CPU của đoạn đỉnh ở waterMaterial(): s = mặt nạ·10 (kẹp) × uWaveSteep, tắt dần
+  // gần bờ (smoothstep 0,5–6 m tới đất) và xa camera (70–160 m). Dùng cho vật nổi tĩnh (phao, thuyền bến) bám đúng mặt nước.
+  // noLand: bỏ độ tắt dần gần bờ — dùng cho vật tự có collider trong landmask (phao, thuyền bến): ở chính nó khoảng cách tới đất luôn ≈ 0
+  const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  function surface(x, z, camX, camZ, noLand) {
+    const W = root.DRWorld;
+    const steep = Math.min(1, Math.max(0, W.steep01(x, z) * 10)) * uniforms.uWaveSteep.value;
+    const land = noLand ? 64 : Math.min(64, Math.max(0, W.sdf(x, z)));
+    const fade = sstep(0.5, 6, land) * (1 - sstep(70, 160, Math.hypot(x - camX, z - camZ)));
+    return wave(x, z, steep * fade)[0];
+  }
+
   let propT = 0;
   function update(dt, cx, cz, boat, env) {
     // mặt nước bám camera, chốt theo bước 4 m để đỉnh không trượt
     mesh.position.set(Math.round(cx / 4) * 4, 0, Math.round(cz / 4) * 4);
     uniforms.uNight.value = env.night;
+    // WeatherController.cs:445-447: _WaveSteepness (cũng là WaveController.Steepness của thuyền) và _FoamAmount của thời tiết hiện tại
+    if (env.waveSteepness != null) uniforms.uWaveSteep.value = env.waveSteepness;
+    if (env.foamAmount != null) uniforms.uFoam.value = env.foamAmount;
     propT -= dt;
     if (propT <= 0 || !boat) { propT = 0.1; updateProps(boat ? boat.x : cx, boat ? boat.z : cz); }
   }
   function syncFog() { /* vệt cũ đã bỏ; giữ hàm cho nơi gọi cũ */ }
 
-  root.DRWater = { init, update, wave, syncFog, props, uniforms, GLSL_WAVE, WAVES, get mesh() { return mesh; } };
+  root.DRWater = { init, update, wave, surface, syncFog, props, uniforms, GLSL_WAVE, WAVES, get mesh() { return mesh; } };
 })(window);

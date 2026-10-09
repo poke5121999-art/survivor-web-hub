@@ -30,7 +30,7 @@ function shuffleKeys(v) {
 
   const list = await act({ action: "list" });
   const names = Object.keys(list.json.tables || {});
-  check("list names", list.status === 200 && names.length === 34 && names.every((n, i) => n === KNOWN[i]) && KNOWN.length === 34,
+  check("list names", list.status === 200 && names.length === 35 && names.every((n, i) => n === KNOWN[i]) && KNOWN.length === 35,
     `status ${list.status}, ${names.length} tables`);
   check("list quests.exists", list.json.tables.quests.exists === true, `exists=${list.json.tables.quests.exists}`);
 
@@ -60,6 +60,8 @@ function shuffleKeys(v) {
     ["duplicate _id", { table: "quests", docs: [{ _id: "a" }, { _id: "a" }] }],
     ["$ key", { table: "quests", docs: [{ _id: "a", $bad: 1 }] }],
     ["non-array docs", { table: "quests", docs: { _id: "a" } }],
+    ["modes _id lạ", { table: "modes", docs: [{ _id: "arena", open: true }] }],
+    ["modes open không phải boolean", { table: "modes", docs: [{ _id: "coop", open: "yes" }] }],
     ["coop_rules netBackend lạ", { table: "coop_rules", docs: [{ _id: "default", netBackend: "udp" }] }],
   ];
   for (const [n, b] of invalid) {
@@ -69,7 +71,7 @@ function shuffleKeys(v) {
 
   const listed = await act({ action: "list" });
   const gone = KNOWN.find((t) => !listed.json.tables[t].exists);
-  if (!gone) console.log("ℹ dryRun missing table — bỏ qua: cả 34 bảng đều đã có trên DEV");
+  if (!gone) console.log("ℹ dryRun missing table — bỏ qua: cả 35 bảng đều đã có trên DEV");
   else {
     const want = JSON.parse(fs.readFileSync(`D:/REPO_Meta/gamespark-config/${gone}.json`, "utf8"));
     const dm = await act({ action: "save", table: gone, docs: want, baseHash: listed.json.tables[gone].hash, dryRun: true });

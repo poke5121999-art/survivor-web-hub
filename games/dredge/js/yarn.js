@@ -559,7 +559,7 @@
   stub('MakeBait', 'bait grids (BAIT_INPUT/OUTPUT) not built');
   stub('ConstructBuildingTier', 'Iron Rig buildings not built');
   stub('DetonateExplosives', 'ExplosivePOI not built');
-  stub('EmitLightning', 'weather lightning not built');
+  cmd('EmitLightning', () => { const w = root.DRSky && root.DRSky.weather; if (w && w.emitLightning) w.emitLightning(); });
   stub('DoFinalePreparations', 'finale not built');
   stub('DoFinaleCutscenePreparations', 'finale not built');
   stub('ShowRigTentacles', 'Iron Rig not built');

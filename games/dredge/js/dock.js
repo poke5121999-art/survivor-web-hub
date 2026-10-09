@@ -371,7 +371,11 @@
     D.main = m;
     const fn = { MarketDestination: market, ShipyardDestination: shipyard }[d.cls];
     if (fn) fn(m, d);
-    else {
+    else if (d.cls === 'UpgradeDestination' && root.DRUpgrade) {
+      // UpgradeDestinationUI.ShowMainUI → UpgradeWindow.Show (js/upgrade.js); đóng cửa sổ = rời điểm đến (OnUpgradeWindowHideComplete)
+      closeWin();
+      DRUpgrade.open({ dest: d, onClose: () => { if (D && D.dest === d) leaveDest(); } });
+    } else {
       console.info('[dock] destination has no system yet:', d.cls, d.id);
       el('div', 'dk-empty', m, '"' + destTitle(d) + '" chưa có trong bản này.');
     }

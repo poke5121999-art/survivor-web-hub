@@ -12,7 +12,9 @@
  * 2. Cột khói ống khói = LineRenderer 3 điểm + SmokeColumn.cs: điểm i bám theo đích T + (gió + lên)·i·spacing với tốc
  *    Lerp(12, 500, (1 − i/n)^20) nên cột khói ngả về sau khi thuyền chạy; rộng 1,5 × đường cong, đen alpha 0,39 → 0 ở 60 %.
  *
- *   DRVfx.init(scene)  DRVfx.update(dt, env)  DRVfx.reset()  DRVfx.stats() → { alive, emitted, maxSize, ... }
+ * 3. Khói ống khói (SmokePuffs, BoatModelProxy.chimneySmoke) chạy qua DRParticles; DRVfx.smokeBoost (0..1) = burn² của Haste.
+ *
+ *   DRVfx.init(scene)  DRVfx.update(dt, env)  DRVfx.reset()  DRVfx.stats() → { alive, emitted, maxSize, ... }  DRVfx.smokeBoost
  */
 (function (root) {
   'use strict';
@@ -218,6 +220,24 @@
     foamLin = [srgb2lin(fc[0]), srgb2lin(fc[1]), srgb2lin(fc[2])];
     write();
     updateSmoke(dt);
+    updateChimney();
+  }
+
+  // ---------- khói ống khói (B2): hệ BoatModelProxy.chimneySmoke của thân đang dùng (DR_PARTICLES.ChimneySmoke, biến thể BoatN).
+  // BoostAbility.cs:188: rateOverTime = Lerp(0, chimneySmokeEmissionMax, burn²) khi đang tăng tốc, 0 khi không.
+  // Dữ liệu đã ghi rate = chimneySmokeEmissionMax; luồng thiết bị đặt DRVfx.smokeBoost (0..1, = burn² lúc bật Haste).
+  let chimney = null, chimneyTier = 0;
+  function updateChimney() {
+    const P = root.DRParticles, D = root.DR, model = root.DRBoat && DRBoat.model;
+    if (!P || !P.has('ChimneySmoke') || !model || !D.s) return;
+    const tier = D.s.hullTier || 1;
+    if (!chimney || chimneyTier !== tier || !chimney.alive) {
+      if (chimney) chimney.stop();
+      const node = model.children.find(c => (c.userData && c.userData.name || c.name) === 'Boat' + tier);
+      chimney = node ? P.spawn('ChimneySmoke', { parent: node }) : null;
+      chimneyTier = tier;
+    }
+    if (chimney) chimney.setRate(Math.min(1, Math.max(0, +root.DRVfx.smokeBoost || 0)));
   }
 
   function simulate(dt, M) {
@@ -396,5 +416,5 @@ void main() { float a = texture2D(uTex, vec2(vUv.x - uDist, vUv.y)).a * vCol.a; 
       smoke: columns.map(c => c.pts.map(p => [p.x, p.y, p.z])) };
   }
 
-  root.DRVfx = { init, update, reset, stats, curve, get mesh() { return mesh; } };
+  root.DRVfx = { init, update, reset, stats, curve, smokeBoost: 0, get mesh() { return mesh; }, get chimney() { return chimney; } };
 })(window);

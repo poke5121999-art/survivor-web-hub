@@ -552,6 +552,9 @@ def build_material(glb, mat_obj):
                     return v
         return None
     tex_ptr = pick(T, 'Texture2D_9aa7ba22', '_MainTex', '_BaseMap')
+    if tex_ptr is None and 'GaleCliffsWaterfall' in shader:
+        # GaleCliffsWaterfall_Shader lấy mẫu Texture2D_40488f58 (cuộn UV, dời đỉnh): gắn làm baseColorTexture để gltfpack giữ UV0
+        tex_ptr = pick(T, 'Texture2D_40488f58')
     tint = pick(C, 'Color_9a80436d', '_BaseColor', '_Color')
     pbr = {'metallicFactor': 0, 'roughnessFactor': 1}
     m = {'name': mat.m_Name, 'pbrMetallicRoughness': pbr, 'extras': {'shader': shader}}
@@ -615,7 +618,9 @@ def build_material(glb, mat_obj):
 
 
 def collect_instances(S, M):
-    """Every static LOD0 MeshRenderer under STATIC_ROOTS -> list of dicts."""
+    """Every static LOD0 MeshRenderer under STATIC_ROOTS -> list of dicts.
+    Mesh nằm dưới một SimpleBuoyantObject (phao, thuyền bến) mang thêm `buoy` = pid GameObject chứa nó và
+    `buoyDepth` = objectDepth: export_scenery tách chúng khỏi instances.bin để js/world.js cho bập bềnh theo sóng."""
     inst = []
     stats = collections.Counter()
     roots = []
@@ -626,6 +631,21 @@ def collect_instances(S, M):
         allgos += list(S.walk(rg, SKIP_NAMES))
     skip_r = lod_skip_set(S, allgos)
     main = S.af
+    sbo = {}  # pid GameObject -> objectDepth của SimpleBuoyantObject đang bật (SimpleBuoyantObject.cs:28-44)
+    for g in allgos:
+        if any(t == 'MonoBehaviour' for t, _ in S.comps(g)):
+            for cn, o in S.scripts(g):
+                if cn == 'SimpleBuoyantObject':
+                    d = o.parse_as_dict()
+                    if d.get('m_Enabled', 1):
+                        sbo[g] = float(d['objectDepth'])
+
+    def buoy_container(g):
+        while g:
+            if g in sbo:
+                return g
+            g = S.parent(g)
+        return None
     for ri, (rn, rg) in enumerate(roots):
         for g in S.walk(rg, SKIP_NAMES):
             types = {t: p for t, p in S.comps(g)}
@@ -667,7 +687,10 @@ def collect_instances(S, M):
                 continue
             pos, q, s, mir, shear = decompose(S.world(g))
             stats['shear>0.02'] += shear > 0.02
-            inst.append(dict(g=g, root=rn, mesh=mesh, mats=mats, pos=pos, q=q, s=s, mir=mir))
+            bc = buoy_container(g)
+            inst.append(dict(g=g, root=rn, mesh=mesh, mats=mats, pos=pos, q=q, s=s, mir=mir,
+                             buoy=bc, buoyDepth=sbo.get(bc)))
+            stats['buoyant'] += bc is not None
     stats['instances'] = len(inst)
     return inst, stats
 
@@ -1306,6 +1329,27 @@ def export_scenery(S, M, no_gltf):
                         '-vtf'], check=True, stdout=subprocess.DEVNULL)
     log('lib.glb %.1f MB' % (os.path.getsize(out) / 1e6))
 
+    # Vật nổi (SimpleBuoyantObject): tách khỏi instances.bin, xuất thành danh sách riêng trong world.json để
+    # js/world.js cập nhật y mỗi khung. Mỗi mục là một vật chủ (phao, thuyền bến) với các mesh con của nó;
+    # biến thể mesh vẫn nằm trong lib.glb như mọi instance khác (id m<N> không đổi).
+    groups = collections.OrderedDict()
+    for i in inst:
+        if i['buoy'] is not None:
+            groups.setdefault(i['buoy'], []).append(i)
+    buoys = []
+    for gid, parts in sorted(groups.items(), key=lambda kv: S.path(kv[0])):
+        c = three_pos(S.world(gid))
+        ps = []
+        for i in parts:
+            q = i['q'] if i['q'][3] >= 0 else -i['q']
+            ps.append({'mesh': vid[vkey(i)], 'pos': [round(float(x), 4) for x in i['pos']],
+                       'q': [round(float(x), 6) for x in q], 's': [round(float(x), 5) for x in i['s']]})
+        buoys.append({'name': S.name(gid), 'path': S.path(gid), 'root': parts[0]['root'],
+                      'x': round(c[0], 3), 'y': round(c[1], 4), 'z': round(c[2], 3), 'depth': round(parts[0]['buoyDepth'], 4),
+                      'cell': '%d,%d' % (int(math.floor(c[0] / CELL)), int(math.floor(c[2] / CELL))), 'parts': ps})
+    inst = [i for i in inst if i['buoy'] is None]
+    log('buoyant containers %d (%d mesh parts) split out of the static instances' % (len(buoys), sum(len(b['parts']) for b in buoys)))
+
     regions = STATIC_ROOTS
     rows = []
     for i in inst:
@@ -1349,7 +1393,7 @@ def export_scenery(S, M, no_gltf):
             if (nx - x) ** 2 + (nz - z) ** 2 <= 250 ** 2:
                 n += 1
         touched.append(n)
-    return dict(inst=len(rows), stats=dict(stats), meshes=meshes_info, cells=cells,
+    return dict(inst=len(rows), buoys=buoys, stats=dict(stats), meshes=meshes_info, cells=cells,
                 cellRegion={k: v.most_common(1)[0][0] for k, v in cell_reg.items()}, regions=regions,
                 bounds=bounds, touched=(float(np.mean(touched)), int(max(touched))),
                 variants=len(order), unique_meshes=len({k[0] for k in order}),
@@ -1510,7 +1554,12 @@ def main():
                           'instance_roots.bin = uint8[N] index into regions. Cell ranges [offset,count] are instance indices.',
         'bounds': b, 'cell': CELL, 'cellKey': 'floor(x/cell),floor(z/cell) in three.js coordinates',
         'regions': sc['regions'], 'cellRegion': sc['cellRegion'], 'meshes': sc['meshes'], 'cells': sc['cells'],
-        'counts': {'instances': sc['inst'], 'variants': sc['variants'], 'uniqueMeshes': sc['unique_meshes'],
+        'buoyFormat': 'buoys[] = SimpleBuoyantObject (SimpleBuoyantObject.cs:28-44) không nằm trong instances.bin: {name, path, '
+                      'x, y, z (vị trí vật chủ, three.js), depth (objectDepth), cell (khoá ô như cells), parts[{mesh m<N>, pos, q, s}]}; '
+                      'y của vật chủ lerp về sóng(x, z) + depth, mọi mesh con dời theo cùng độ lệch.',
+        'buoys': sc['buoys'],
+        'counts': {'instances': sc['inst'], 'buoys': len(sc['buoys']), 'variants': sc['variants'],
+                   'uniqueMeshes': sc['unique_meshes'],
                    'mirrored': sc['mirrored'], 'cells': len(sc['cells']), 'filtered': sc['stats']},
         'viewRadius250CellsTouched': {'mean': round(sc['touched'][0], 2), 'max': sc['touched'][1]},
         'terrain': terrain, 'depthMask': depth, 'worldSize': world_size,

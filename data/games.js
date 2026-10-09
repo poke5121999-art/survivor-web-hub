@@ -770,7 +770,7 @@ window.HUB_GAMES = [
     tagline: "Làm lại DREDGE trên web: ngư dân đâm thuyền vào đá ở ngọn hải đăng, Mayor của Greater Marrow cho mượn chiếc thuyền cũ của thị trấn kèm món nợ $50. Từ đó câu cá ở những vùng nước động quanh quần đảo The Marrows, bán cho người buôn cá, nói chuyện với dân làng và theo nhiệm vụ chạy bằng đúng kịch bản Yarn của bản gốc. Giờ chỉ trôi khi thuyền chạy hoặc khi đang câu. Trời tối thì sương dày lên, nỗi hoảng loạn tăng dần, phải bật đèn hoặc về bến. Mỗi loài cá có minigame riêng: vòng quay, con lắc, hứng bóng, kim cương, xoắn ốc. Cá nằm trong khoang theo đúng hình dáng của nó, phải xoay xếp cho vừa. Đâm đá thì hỏng một ô khoang. Thế giới, thuyền, cá, giá, tiếng và giao diện đều bóc từ bản gốc.",
     thumbnail: "assets/thumbnails/dredge.png",
     path: "games/dredge/index.html",
-    rev: "20261007b",
+    rev: "20261008b",
     // three.js r140 vendor trong games/dredge/vendor, không bước build. Dựng lại DREDGE 1.5.3 (Black Salt
     // Games, 2023) theo yêu cầu của chủ dự án ngày 2026-10-07, từ bản cài trên máy (D:\dredge-ref).
     // Toàn bộ thế giới (scene Game.unity: 8.583 instance, landmask từ collider, bản đồ độ sâu

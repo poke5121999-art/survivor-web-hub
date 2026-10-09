@@ -661,6 +661,17 @@
           { v: "steam", label: "Steam (chưa có)" }
         ], help: "Phòng đang mở giữ hệ thống mạng lúc tạo; chỉ phòng tạo sau khi đổi mới dùng giá trị này. Chọn hệ thống chưa chạy được thì phòng mới sẽ không vào được." }
       }
+    },
+
+    modes: {
+      title: "Bật / tắt chế độ chơi",
+      blurb: "Tắt một chế độ thì thẻ của nó ở màn chọn chế độ hiện COMING SOON, người chơi bấm vào chỉ thấy thông báo COMING SOON. Ải 5 nhà luôn mở vì màn hướng dẫn chạy trên nó.",
+      effect: "Người chơi thấy ở lần mở game sau (DEV trễ tối đa 60 giây), không cần bản build mới.",
+      rowLabels: { coop: "Chơi với bạn", pvp: "Đấu đội 5v5", endless_solo: "Vô tận một mình", endless_coop: "Vô tận cùng bạn" },
+      fields: {
+        "_id": ID,
+        "open": { label: "Mở cho người chơi", help: "Tắt = thẻ hiện COMING SOON, không vào được." }
+      }
     }
   };
 })();
