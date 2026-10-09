@@ -179,3 +179,5 @@
 .cg-ring { position: fixed; left: 0; top: 0; z-index: 96; width: 40px; height: 40px; display: none; pointer-events: none; border-radius: 50%;
   background: conic-gradient(var(--c, #fff) var(--p, 0deg), rgba(255, 255, 255, .22) 0);
   -webkit-mask: radial-gradient(circle, transparent 52%, #000 54%); mask: radial-gradient(circle, transparent 52%, #000 54%); }
+/* Bảng khoang (cả cửa hàng, lưới nộp) đang mở thì nút sổ nhiệm vụ của HUD đè lên tab bảng trái; bản gốc ẩn nó khi mở khoang */
+body:has(#dr-cargo.on) .qn-jbtn { visibility: hidden !important; }

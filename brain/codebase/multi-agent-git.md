@@ -26,3 +26,13 @@
     2 dòng phình thành 494 dòng. Tệp chữ phải băm bằng `--path=`; `--no-filters` chỉ dành cho ảnh.
   - `grep -c $'\r'` trong Git Bash báo 0 dù tệp có CRLF; kiểm bằng `file <tệp>` hoặc `od -c`.
   - Dọn: dừng server của worktree trước (nó giữ thư mục), rồi `git worktree remove --force` và `rm -rf`.
+- Remote đi trước trong khi cây có tệp dở của agent khác trùng tệp upstream đổi [ĐO TRONG REPO, 2026-10-09, Biển Mù 2b]:
+  - `rebase`/`pull` đòi cây sạch; `merge` từ chối vì đè tệp dở (`data/games.js`, `brain/index.md`). Không stash.
+  - Dựng commit chồng lên remote chỉ bằng object: `git merge-tree --write-tree --merge-base HEAD~1 origin/main HEAD` ra cây,
+    `git log -1 --format=%B HEAD | git commit-tree <cây> -p origin/main`, so `git diff --stat` hai commit, rồi
+    `git push origin <commit>:refs/heads/main`.
+  - Đưa máy theo: `git update-ref refs/heads/main <mới> <cũ>`, `git reset -q` (chỉ index), `git checkout <mới> -- <tệp upstream đổi mà
+    cây không dở>`, còn tệp dở thì `git apply --include=<tệp>` bản `git diff <cũ> <mới> -- <tệp>` lên cây.
+  - `[BẪY ĐÃ SẬP]` `git apply` nhiều tệp là nguyên tử: một tệp hỏng thì không tệp nào được áp. Áp từng tệp; tệp nào lệch thì sửa tay.
+- `[BẪY ĐÃ SẬP]` Lệnh `( … ) &` trong công cụ Bash không chết khi lệnh trả về [ĐO TRONG REPO, 2026-10-09]: nó chạy song song với lượt
+  `run_in_background` gọi sau, hai lượt ghi chung log và chung thư mục ảnh, ra trượt giả (`sbs.py` đọc ảnh đang ghi dở). Chỉ dùng `run_in_background`.

@@ -206,7 +206,8 @@ async function run(browser, base, W, H) {
 }
 
 (async () => {
-  const srv = await serve(), base = 'http://127.0.0.1:' + srv.address().port;
+  // DR_URL=https://poke5121999-art.github.io/survivor-web-hub để chạy trên Pages
+  const srv = await serve(), base = process.env.DR_URL || 'http://127.0.0.1:' + srv.address().port;
   const browser = await chromium.launch({ args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
   try {
     await run(browser, base, 1920, 1080);
