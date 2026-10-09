@@ -93,7 +93,7 @@
     bag.className = 'hud-bag'; bag.dataset.act = 'cargo';
     bag.title = 'Mở khoang thuyền (Tab)';
     bag.innerHTML = '<i class="dr-mask"></i><kbd>TAB</kbd>';
-    bag.onclick = () => { if (root.DRCargo && DR.mode === 'sail') DRCargo.open({ keys: ['INVENTORY'], title: 'Khoang thuyền' }); };
+    bag.onclick = () => { if (root.DRCargo && DR.mode === 'sail') DRCargo.open({ keys: ['INVENTORY'], title: 'Khoang thuyền' }); else if (root.DRCargo && DR.mode === 'dock') DRCargo.open({ keys: ['INVENTORY', 'STORAGE'], title: 'Khoang thuyền' }); };
     el.appendChild(bag);
     float = div('dr-ui', document.body); float.id = 'dr-float';
     toasts = div('hud-toasts', float);
@@ -238,11 +238,12 @@
     requestAnimationFrame(frame);
     if (float && root.DR) {
       // V02: đang lái thì không có nút "Nhiệm vụ" (vẫn mở sổ bằng J); nút chỉ còn ở bến
-      const vis = !!DR.s && DR.mode === 'dock' && !(root.DRDialogue && DRDialogue.isOpen()) && !(root.DRIntro && DRIntro.playing);
+      const vis = false;   // w2dock: clip 1050/192 không có nút "Nhiệm vụ" ở bến (sổ vẫn mở bằng J); chip TAB ở hud.bag thay chỗ
       put('jb', vis, v => jbtn.classList.toggle('on', v));
     }
     if (!el || !root.DR || !DR.s) return;
-    const on = (DR.mode === 'sail' || DR.mode === 'harvest') && !(root.DRMinigame && DRMinigame.isOpen());
+    // w2dock: neo bến vẫn có mặt đồng hồ + chip TAB (clip 1050); ẩn khi màn mở đầu đang chạy
+    const on = (DR.mode === 'sail' || DR.mode === 'harvest' || (DR.mode === 'dock' && !(root.DRIntro && DRIntro.playing))) && !(root.DRMinigame && DRMinigame.isOpen());
     put('on', on, v => el.classList.toggle('on', v));
     if (!on) return;
     const s = DR.s, v = DR.view || {}, u = el._;
@@ -312,7 +313,7 @@
         html = '<b>' + (MSG[sp.status] || sp.status) + '</b><span>' + esc(sp.name || '') + '</span>';
       }
     }
-    put('bag', DR.mode === 'sail', vis => u.bag.style.display = vis ? '' : 'none');
+    put('bag', DR.mode === 'sail' || (DR.mode === 'dock' && !(root.DRDialogue && DRDialogue.isOpen())), vis => u.bag.style.display = vis ? '' : 'none');
     put('prompt', html + warn, () => { u.prompt.innerHTML = html || '<b></b><span></span>'; u.prompt.classList.toggle('on', !!html); u.prompt.classList.toggle('warn', warn); });
   }
   const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

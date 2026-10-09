@@ -142,6 +142,17 @@ const STATES = [
       await sleep(4200);
     } },
   { key: 'dock-arrive', go: async (page) => { await newGame(page); await dockReady(page); await sleep(1500); } },
+  { key: 'dock-day2', go: async (page) => {       // sáng ngày 2 ở bến sau khi ngủ (clip 700): nhãn bến + thanh nợ, mặt đồng hồ, chip TAB, không tiền
+      await newGame(page); await dockReady(page);
+      await ev(page, () => { DR.s.vars['gm-debt-introduced'] = true; DR.s.availableDestinations.push('destination.rest'); DRDock.leave(); });
+      await sleep(600);
+      await ev(page, () => DRDocks.dockAt('dock.greater-marrow', 1, false));
+      await dockReady(page);
+      await page.dispatchEvent('.dk-boat .sub[data-act="rest"]', 'click');
+      await page.waitForFunction(() => Math.floor(DR.s.time) >= 1, null, { timeout: 40000 });
+      await dockReady(page);
+      await sleep(2500);
+    } },
   { key: 'sail-day', go: async (page) => { await seaAt(page, 0.5); await hold(page, ['KeyW'], 2000); } },
   { key: 'tutorial-first', go: async (page) => {       // những giây đầu lái sau hội thoại mở đầu: hộp hướng dẫn WASD (V09)
       await newGame(page); await dockReady(page);
@@ -164,6 +175,14 @@ const STATES = [
       await ev(page, () => { for (const f of ['mackerel', 'cod', 'black-sea-bass', 'grey-mullet']) try { DR_DEBUG.give(f); } catch (e) { /* */ } });
       await page.keyboard.press('Tab');
       await page.waitForFunction(() => DRCargo.isOpen(), null, { timeout: 5000 });
+      await sleep(1000);
+    } },
+  { key: 'cabin', go: async (page) => {                    // tab CABIN của bảng khoang (V18, js/cargo.js): Tab rồi E
+      await seaAt(page, 0.5);
+      await ev(page, () => { DR.s.ownedNonSpatial = [{ id: 'book-speed-1', isNew: false, progress: 0, isActive: true }, { id: 'book-ecology-1', isNew: false, progress: 0 }]; });
+      await page.keyboard.press('Tab');
+      await page.waitForFunction(() => DRCargo.isOpen(), null, { timeout: 5000 });
+      await page.keyboard.press('KeyE');
       await sleep(1000);
     } },
   { key: 'fishmonger', go: async (page) => {
@@ -238,6 +257,29 @@ const STATES = [
       await seaAt(page, 0.5);
       await ev(page, () => DR_DEBUG.hit());
       await sleep(250);
+    } },
+  { key: 'inspect-buoy', go: async (page) => {            // phao Buoy_Inspect: dấu "?" + "Inspect F" (clip t=166), rồi F mở lời kể (w2poi: js/poi.js)
+      await seaAt(page, 0.5);
+      await ev(page, () => DR_DEBUG.teleport(37.6, 7.7, 0));
+      await page.waitForFunction(() => DRPoi._debug().near === 'Buoy_Inspect', null, { timeout: 6000 });
+      await sleep(1400);
+      await page.keyboard.press('KeyF');
+      await page.waitForFunction(() => DRDialogue.isOpen(), null, { timeout: 4000 });
+      await sleep(2200);
+    } },
+  { key: 'wreck-items', go: async (page) => {             // xác tàu GM_ShoreCache1: lưới "Found Items" bên trái + khoang bên phải (clip t=2360)
+      await seaAt(page, 0.5);
+      await ev(page, () => DR_DEBUG.teleport(-20, -36, 0));
+      await page.waitForFunction(() => DRPoi._debug().near === 'GM_ShoreCache1', null, { timeout: 6000 });
+      await sleep(900);
+      await page.keyboard.press('KeyF');
+      for (let i = 0; i < 30 && !(await ev(page, () => DRCargo.isOpen())); i++) {
+        const st = await ev(page, () => DRDialogue.isOpen() ? DRDialogue.state() : null);
+        if (st && st.kind === 'options') { await sleep(700); await page.click('.dlg-opt[data-index="0"]').catch(() => {}); }
+        else if (st) await page.keyboard.press('Space');
+        await sleep(450);
+      }
+      await sleep(1600);
     } },
   { key: 'banner', go: async (page) => {
       await catchFish(page);

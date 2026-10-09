@@ -181,3 +181,29 @@
   -webkit-mask: radial-gradient(circle, transparent 52%, #000 54%); mask: radial-gradient(circle, transparent 52%, #000 54%); }
 /* Bảng khoang (cả cửa hàng, lưới nộp) đang mở thì nút sổ nhiệm vụ của HUD đè lên tab bảng trái; bản gốc ẩn nó khi mở khoang */
 body:has(#dr-cargo.on) .qn-jbtn { visibility: hidden !important; }
+
+/* ---- tab CABIN (CabinPanel: ButtonContainer 4 nút + BookshelfHeader + ItemScroller; cây dựng bằng DRBookKit từ DR_BOOK.cabin, tools/book_ui.py) ---- */
+.cg-qe { position: absolute; top: calc(var(--k) * 8px); width: calc(var(--k) * 36px); height: calc(var(--k) * 36px); min-width: 16px; min-height: 16px; z-index: 3; display: flex; align-items: center; justify-content: center;
+  border-radius: calc(var(--k) * 8px); background: #fff; color: #000; font: 600 max(10px, calc(var(--k) * 24px))/1 var(--dr-head); pointer-events: none; }
+.cg-qe.l { left: calc(var(--k) * 7px); }
+.cg-qe.r { right: calc(var(--k) * 7px); }
+.cg-cabin { position: absolute; font-family: "Front Page Neue", var(--dr-head), sans-serif; color: #fff; user-select: none; -webkit-user-select: none; --s: var(--k); }
+.cg-cabin * { box-sizing: border-box; }
+.cg-cabin .none { padding: calc(var(--k) * 20px); font: 400 max(11px, calc(var(--k) * 28px)) var(--dr-ui); color: #b9ab8e; text-align: center; }
+.cg-cbtn { cursor: pointer; }
+.cg-cbtn:hover { filter: brightness(1.12); }
+.cg-cbtn.off { cursor: not-allowed; filter: grayscale(1) brightness(.62); }
+.cg-cbk { position: absolute; inset: calc(var(--s) * 9px); display: flex; align-items: center; justify-content: center; border-radius: calc(var(--s) * 8px); background: #fff; color: #000;
+  font: 600 calc(var(--s) * 26px)/1 "Front Page Neue", var(--dr-head), sans-serif; pointer-events: none; }
+.cg-shelf .cg-books { position: absolute; inset: 0; overflow-y: auto; padding: calc(var(--s) * 7px) calc(var(--s) * 2px); display: flex; flex-direction: column; gap: calc(var(--s) * 15px); scrollbar-width: thin; }
+/* NonSpatialGridEntryUI / ResearchableGridEntryUI: ô 600x162; thân đen, viền + dải tên + dòng trạng thái theo màu (backgroundImage.color = statusTextField.color) */
+.cg-book { flex: 0 0 auto; height: calc(var(--s) * 162px); background: #000; border: calc(var(--s) * 3px) solid var(--bc, #fff); cursor: pointer; position: relative; overflow: hidden; }
+.cg-book.act::before, .cg-book.act::after { content: ""; position: absolute; width: calc(var(--s) * 18px); height: calc(var(--s) * 18px); border: calc(var(--s) * 3px) solid #fff; pointer-events: none; }
+.cg-book.act::before { left: calc(var(--s) * -3px); top: calc(var(--s) * -3px); border-right: 0; border-bottom: 0; }
+.cg-book.act::after { right: calc(var(--s) * -3px); bottom: calc(var(--s) * -3px); border-left: 0; border-top: 0; }
+.cg-book .hd { height: calc(var(--s) * 64px); background: var(--bc, #fff); color: #1c1410; display: flex; align-items: center; gap: calc(var(--s) * 14px); padding: 0 calc(var(--s) * 14px); }
+.cg-book .ic { flex: 0 0 auto; width: calc(var(--s) * 56px); height: calc(var(--s) * 44px); background: url(../art/ui/book/BookIcon.webp) center / contain no-repeat; }
+.cg-book .nm { font-size: calc(var(--s) * 34px); font-weight: 700; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cg-book .sts { padding: calc(var(--s) * 8px) calc(var(--s) * 14px) 0; color: var(--bc, #fff); font-size: calc(var(--s) * 30px); text-transform: uppercase; white-space: nowrap; }
+.cg-book .ds { display: flex; align-items: flex-start; gap: calc(var(--s) * 8px); padding: calc(var(--s) * 4px) calc(var(--s) * 14px); font-size: calc(var(--s) * 28px); line-height: 1.1; color: #fff; }
+.cg-book .dm { flex: 0 0 auto; width: calc(var(--s) * 16px); height: calc(var(--s) * 16px); margin-top: calc(var(--s) * 7px); border: calc(var(--s) * 2px) solid #fff; transform: rotate(45deg); }

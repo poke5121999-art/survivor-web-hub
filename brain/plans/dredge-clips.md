@@ -36,3 +36,13 @@ Chủ dự án yêu cầu: "dredge: áp dụng skill watch-game-clips để làm
 
 **Còn mở:** V16 quái, V17 xác tàu/phao/ống nhòm/thư, V18 tab CABIN trong khoang, V19 bản đồ mờ vùng chưa tới (chi tiết ở `D:\dredge-ref\notes\clips\GAPS.md`).
 Nước giữa trưa vẫn sáng hơn clip khoảng 1,2 lần; thân dưới thuyền còn ván sẫm; thuyền khuất sau cầu tàu ở ô đỗ 0; mắt hoảng loạn ở mức đỏ nhạt hơn clip.
+
+## Đợt 2 (2026-10-09): 4 nhánh w2*, rev `20261009d`
+
+- w2dock: mặt đồng hồ + chip TAB ở bến, bỏ tiền, thanh nợ sau hội thoại Mayor; ván mới vẫn đỗ ô 0 (khuất) vì bản gốc cũng vậy.
+- w2water: nước sát bến hết nâu xám (độ sâu đo theo tia nhìn); vẫn tối hơn clip khoảng 0,7 lần, hai test water/vwater kẹp `WATER_LIT` hai đầu.
+- w2cabin: tab Phòng trong khoang (V18). V19 đóng: vùng mờ trên bản đồ clip là nhãn bản demo.
+- w2poi: 38 điểm kiểm tra (phao, xác tàu + Đồ tìm thấy). Chưa có chai thư ItemPOI, camera trôi tới phao.
+- Bẫy: `dredge-vhud` từng chạy WebGL phần mềm (`--use-gl=swiftshader`); sau vài bộ nặng thì mất context lúc biên dịch shader. Mọi test DREDGE dùng `--use-angle=d3d11`.
+
+**Còn mở sau đợt 2:** V16 quái (pha 4), chai thư, thư Messages, sách đọc theo giờ, nước sáng/tối lệch khoảng 1,2-1,4 lần theo giờ.

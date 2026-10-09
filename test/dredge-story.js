@@ -198,7 +198,7 @@ async function run(browser, base) {
   dk = await ev(() => DRDock._debug()) || { dests: [], speakers: [] };
   check('bến hiện nút Người buôn cá và Kho của tôi', dk.dests.includes('destination.gm-fishmonger') && dk.dests.includes('destination.storage'), dk.dests.join(','));
   const debtTxt = await ev(() => { const p = document.querySelector('.dk-progress'); return p && p.textContent; });
-  check('bảng nợ tàu: "$50.00 remaining"', !!debtTxt && /\$50\.00 remaining/.test(debtTxt), debtTxt);
+  check('bảng nợ tàu: "Còn nợ $50.00" (gốc "{0} remaining")', !!debtTxt && /Còn nợ \$50\.00/.test(debtTxt), debtTxt);
   await sleep(1200);
   await shot('dock-2-destinations');
 

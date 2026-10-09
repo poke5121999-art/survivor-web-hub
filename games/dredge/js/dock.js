@@ -181,16 +181,16 @@
       if (DR.s.vars['gm-debt-introduced'] && paid < debt) {
         const box = el('div', 'dk-progress', ui);
         box.dataset.debtLeft = left;
-        el('div', 't', box, STR(dd.progressTitleLocalizationKey) || 'Ship Loan Repayments:');
+        el('div', 't', box, 'Trả nợ thuyền:');                      // gốc: "Ship Loan Repayments:"
         const bar = el('div', 'bar', box); el('i', '', bar).style.width = (paid / debt * 100).toFixed(1) + '%';
-        el('div', 'v', box, (STR(dd.progressValueLocalizationKey) || '{0} remaining').replace('{0}', money(left)));
+        el('div', 'v', box, 'Còn nợ ' + money(left));                // gốc: "{0} remaining"
       }
     }
     // nút "Leave [Space]" góc dưới phải (clip 1050: ControlPanel của DockUI); Space đã nối ở bộ phím dưới
     const lv = el('button', 'dk-leave', ui); lv.dataset.act = 'leave';
     el('span', '', lv, 'Rời đi'); el('b', '', lv, 'Space');
     lv.onclick = () => { play('ui.button.back'); leave(); };
-    el('div', 'dk-money', ui, money(DR.s.funds));
+    // w2dock: clip 1050/192 không hiện tiền ở bến; tiền chỉ nằm trên khoang / cửa hàng (dk-money bỏ)
     // điểm đến bám 3D
     D.btns = [];
     for (const d of visibleDests()) {

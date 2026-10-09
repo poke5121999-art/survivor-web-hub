@@ -247,7 +247,7 @@
     if (showStats && cs < want) { showStats = false; cs = fit(false); }
     // điện thoại: ép ô tối thiểu để chạm được; lưới không vừa thì cuộn
     cs = Math.max(26, Math.floor(cs));
-    return { W, H, k, cs, top, panelH, panelW, zoneW, showStats, hasInv: !!inv, ls };
+    return { W, H, k, cs, top, panelH, panelW, zoneW, showStats, hasInv: !!inv || S.right.cur === 'CABIN', ls };
   }
   const curRightGrid = () => gridOf(S.right.cur);
   const curLeftGrid = () => S.left && S.left.cur ? gridOf(S.left.cur) : null;
@@ -270,7 +270,7 @@
     S.motes = [];
     if (S.left) buildLeftPanel(M);
     const inv = curRightGrid();
-    if (inv) buildPlayerPanel(M, inv);
+    if (inv || S.right.cur === 'CABIN') buildPlayerPanel(M, inv);
     refreshHeld();
     updateCursor();
     updatePreview();
@@ -296,15 +296,18 @@
     hd.onclick = () => close();
     if (S.docked) hd.style.display = 'none';
     const tabs = el('div', 'cg-tabs', p);
-    // PlayerTabbedPanel: chỉ vẽ tab được mở (C11); CABIN chưa có trong Biển Mù nên không vẽ
-    const NAMES = { INVENTORY: 'Khoang', STORAGE: 'Kho' };
+    // PlayerTabbedPanel: chỉ vẽ tab được mở (C11); CABIN (tab 2) chỉ có khi mở khoang ở biển (S.cabin, w2cabin)
+    const NAMES = { INVENTORY: 'Khoang', STORAGE: 'Kho', CABIN: 'Phòng' };   // "Cargo" / "Storage" / "Cabin" (tab.cargo, tab.storage, tab.cabin)
     NAMES.TRAWL_NET = 'Lưới kéo';                                 // r2deploy: tab lưới kéo (SaveData.TrawlNet)
-    for (const key of S.right.tabs) {
+    const tabKeys = rightTabKeys();
+    for (const key of tabKeys) {
       const sel = key === S.right.cur;
       const t = el('button', 'cg-tab ' + (sel ? 'sel' : 'un'), tabs, NAMES[key] || key);
       t.dataset.tab = key;
-      if (!sel) t.onclick = () => { if (S) { S.right.cur = key; render(); } };   // PlayerTabbedPanel.ShowNewPanel
+      if (!sel) t.onclick = () => switchTab(key);                 // PlayerTabbedPanel.ShowNewPanel
     }
+    if (qeTabs()) for (const [side, k] of [['l', 'Q'], ['r', 'E']]) el('b', 'cg-qe ' + side, p, k);   // phím Q / E chuyển tab (video t=2190: ô phím trắng hai đầu thanh tab)
+    if (!inv) { buildCabin(p, M); return; }
     const isInv = inv.key === 'INVENTORY';
     if (M.showStats) buildStats(p);
     if (isInv) {
@@ -319,6 +322,112 @@
     const zh = M.panelH - zoneTop - 30 * M.k;
     buildZone(p, inv, M, { x: 50 * M.k, y: zoneTop, w: M.zoneW, h: zh, inv: isInv });
     if (S.mode === 'repair') { const b = el('div', 'cg-mode', p, 'CHẾ ĐỘ SỬA CHỮA'); b.style.top = zoneTop - 26 * M.k + 'px'; }
+  }
+
+  // ---------------------------------------------------------------- tab CABIN (CabinPanel + CabinItemContainer, w2cabin)
+  // Thanh tab: các lưới bên phải + CABIN (nếu mở ở biển). Q / E đổi tab khi có từ 2 tab và bảng trái không tự dùng Q / E cho tab của nó (cửa hàng).
+  const rightTabKeys = () => S.right.tabs.concat(S.cabin ? ['CABIN'] : []);
+  const qeTabs = () => rightTabKeys().length > 1 && !(S.left && S.left.tabs);
+  function switchTab(key, dir) {
+    if (!S) return false;
+    const ks = rightTabKeys();
+    if (key == null) key = ks[(ks.indexOf(S.right.cur) + dir + ks.length) % ks.length];
+    if (key === S.right.cur) return false;
+    if (S.held) { play('ui.grid.error'); toast('Hãy đặt món đang cầm xuống trước khi đổi tab'); return false; }
+    S.right.cur = key; S.hover = null; hideTip();
+    render();
+    return true;
+  }
+  // CabinPanel.OnJournalButtonClicked / OnMapButtonClicked / OnMessagesButtonClicked / OnEncyclopediaButtonClicked: mở cửa sổ, đóng xong thì về lại tab CABIN
+  // (InventoryPanelTab.Unsubscribe / Subscribe). Bản web đóng bảng khoang rồi mở lại: các cửa sổ kia chỉ mở được khi DR.mode là 'sail'.
+  const CABIN_BTN = {
+    JournalButton: { vi: 'Sổ nhiệm vụ', key: 'J', open: () => { if (!root.DRHud) return false; DRHud.journal(true); return DRHud.journalOpen(); }, isOpen: () => root.DRHud && DRHud.journalOpen() },
+    MapButton: { vi: 'Bản đồ', key: 'M', open: () => root.DRBook && DRBook.openMap(), isOpen: () => root.DRBook && DRBook.isOpen() },
+    MessagesButton: { vi: 'Thư tín', key: 'I', open: null, why: 'Cửa sổ Thư tín (MessagesWindow) chưa có trong Biển Mù' },   // 21 MessageItemData đã có trong data/items.js nhưng chưa có cửa sổ đọc
+    EncyclopediaButton: { vi: 'Bách khoa', key: 'L', open: () => root.DRBook && DRBook.openEncyclopedia(), isOpen: () => root.DRBook && DRBook.isOpen() }
+  };
+  function cabinGo(b) {
+    if (!S || !b.open) return;
+    const reopen = S.cabin && !S.docked;
+    close(true);
+    if (!b.open()) return;
+    if (!reopen) return;
+    let n = 0;
+    const iv = setInterval(() => {
+      n++;
+      const dr = root.DR;
+      if (S || !dr || n > 36000) { clearInterval(iv); return; }
+      if (b.isOpen()) return;
+      clearInterval(iv);
+      if (dr.mode === 'sail' && !(root.DRBook && DRBook.busy())) open({ keys: ['INVENTORY'], title: 'Khoang thuyền', tab: 'CABIN' });
+    }, 100);
+  }
+  // CabinItemContainer.PopulateGrid: sách (ResearchableItemInstance) đang đọc lên đầu, rồi món mới, rồi tiến độ giảm dần, sách xong cuối cùng
+  function bookshelf() {
+    const s = DR.s; if (!s || !Array.isArray(s.ownedNonSpatial)) return [];
+    const out = [];
+    for (const e of s.ownedNonSpatial) { const d = root.DR_ITEMS[e.id]; if (d && d.cls === 'ResearchableItemData' && d.showInCabin) out.push({ e, d }); }
+    const prog = x => (x.e.progress || 0) >= 1 ? -1 : (x.e.progress || 0);
+    return out.map((x, i) => [x, i]).sort((a, b) => (!!b[0].e.isActive - !!a[0].e.isActive) || (!!b[0].e.isNew - !!a[0].e.isNew) || (prog(b[0]) - prog(a[0])) || a[1] - b[1]).map(a => a[0]);
+  }
+  // ResearchableGridEntryUI.RefreshUI: màu = POSITIVE (xong) / WARNING (đang đọc) / NEUTRAL (trên kệ); chuỗi trạng thái + mô tả theo từng trạng thái
+  function bookStatus(x) {
+    const pct = Math.floor((x.e.progress || 0) * 100);
+    if ((x.e.progress || 0) >= 1) return { color: COLOR.POSITIVE, st: '(Đã đọc xong)', ds: x.d.completedDescriptionKey || '' };      // researchable.status-complete
+    if (x.e.isActive) return { color: COLOR.WARNING, st: '(Đang đọc - ' + pct + '% xong)', ds: 'Sách đang đọc, hãy trôi thời gian để đọc' };  // status-in-progress / description-hidden-active
+    return { color: COLOR.NEUTRAL, st: '(Trên kệ - ' + pct + '% xong)', ds: 'Đọc để mở khoá' };                                                  // status-inactive / description-hidden-inactive
+  }
+  function buildBookshelf(shelf) {
+    const box = el('div', 'cg-books', shelf);
+    const paint = () => {
+      box.innerHTML = '';
+      const list = bookshelf();
+      S.cabinBooks = list.map(x => x.e.id);
+      for (const x of list) {
+        const st = bookStatus(x), row = el('div', 'cg-book' + (x.e.isActive && !((x.e.progress || 0) >= 1) ? ' act' : ''), box);
+        row.dataset.id = x.e.id; row.style.setProperty('--bc', st.color);
+        const hd = el('div', 'hd', row);
+        el('i', 'ic', hd); el('span', 'nm', hd, x.d.name || x.e.id);
+        el('div', 'sts', row, st.st);
+        const ds = el('div', 'ds', row); el('i', 'dm', ds); el('span', '', ds, st.ds);
+        x.e.isNew = false;                                                                                     // MarkNonSpatialItemAsSeen
+        row.onclick = () => {                                                                                  // OnEntrySubmitted: chỉ sách chưa đọc xong mới thành sách đang đọc (SetActiveResearchableItem)
+          if ((x.e.progress || 0) >= 1) return;
+          for (const o of DR.s.ownedNonSpatial) o.isActive = o === x.e;
+          play('ui.button.select'); paint();
+        };
+      }
+      if (!box.children.length) el('div', 'none', box, 'Chưa có cuốn sách nào');
+    };
+    paint();
+  }
+  const BTN_TINT = [0.04, 0.03, 0.03, 1];                                                    // [ĐỀ XUẤT] màu nền nút đo từ video t=2190 (gần đen); prefab nút không nằm trong dữ liệu bóc
+  function buildCabin(p, M) {
+    const K = root.DRBookKit, B = root.DR_BOOK;
+    const box = el('div', 'cg-cabin', p);
+    box.style.cssText = 'left:' + 4 * M.k + 'px;right:0;top:' + 54 * M.k + 'px;bottom:' + 30 * M.k + 'px';   // cùng chỗ với StatsBackplate của tab khoang
+    if (!K || !B || !B.cabin) { el('div', 'none', box, 'Phòng thuyền chưa nạp được dữ liệu'); return; }
+    const tree = Object.assign({}, B.cabin.tree.k[0], { on: 1 });                          // Container tắt sẵn trong scene; TabbedPanel bật khi chọn tab
+    const ctx = K.mount(tree, box, {
+      skip: (n, path) => /ControlPromptIcon[^/]*\//.test(path) || n.n === 'UnseenItemIcon' || n.n === 'NonSpatialItemGrid',
+      tint: n => /Button$/.test(n.n),                                                       // Selectable.colors.normalColor của nút nhân lên Button_White
+      on: (n, b, path) => {
+        const m = /^ButtonContainer\/(\w+)$/.exec(path);
+        if (m && CABIN_BTN[m[1]]) {
+          K.setTint(b, BTN_TINT);
+          const cb = CABIN_BTN[m[1]]; b.classList.add('cg-cbtn'); b.dataset.btn = m[1];
+          if (cb.open) b.onclick = () => cabinGo(cb); else { b.classList.add('off'); b.title = cb.why; }
+        }
+        if (/^ControlPromptIcon/.test(n.n)) { const cb = CABIN_BTN[path.split('/')[1]]; if (cb) el('b', 'cg-cbk', b, cb.key); }
+      }
+    });
+    for (const [nm, cb] of Object.entries(CABIN_BTN)) K.setText(ctx.byPath['ButtonContainer/' + nm + '/Text (TMP)'], cb.vi);
+    K.setText(ctx.byPath['BookshelfHeader/Label'], 'Giá sách');                              // cabin.bookshelf.title "Bookshelf"
+    const sc = ctx.byPath['ItemScroller'];
+    if (sc) { sc.classList.add('cg-shelf'); buildBookshelf(sc); }
+    const fit = () => K.fit(ctx, box, 1920 * M.k, 1080 * M.k);
+    fit();
+    if (document.fonts && document.fonts.load) document.fonts.load('50px "Front Page Neue"').then(() => { if (S && box.isConnected) fit(); }).catch(() => {});
   }
 
   function buildStats(p) {
@@ -1305,7 +1414,7 @@
 
   // ---------------------------------------------------------------- con trỏ
   function onDown(e) {
-    if (!S || e.target.closest('button') || e.target.closest('.cg-acts')) return;
+    if (!S || e.target.closest('button') || e.target.closest('.cg-acts') || e.target.closest('.cg-cabin')) return;
     S.ptr = { x: e.clientX, y: e.clientY }; lastPtr = S.ptr; lastType = e.pointerType;
     // dựng lại DOM khi nhặt/đặt làm mất phần tử đích: giữ con trỏ ở host để cảm ứng không mất sự kiện kéo
     try { host.setPointerCapture(e.pointerId); } catch (err) { /* trình duyệt cũ */ }
@@ -1472,9 +1581,12 @@
       // r2shop: right.cur chọn tab mở sẵn
       right: { tabs: rightTabs.filter(k => DR.s.grids[k]), cur: (opts.right && opts.right.cur) || rightTabs[0] }, left, docked: !!opts.docked, mode, handlers,
       holding, onClose: opts.onClose, ptr: start, grids: [], held: null, changed: false, prevMode, openMode: prevMode, result: null,
-      shown: false, hover: null, hold: null, prompts: [], motes: [], hasStorage: false
+      shown: false, hover: null, hold: null, prompts: [], motes: [], hasStorage: false,
+      // w2cabin: tab CABIN chỉ khi mở khoang ở biển bằng Tab (không cập bến, không bảng trái, không do bên ngoài chọn tab, không có món vừa kiếm trên tay)
+      cabin: !opts.docked && !left && !holding && prevMode === 'sail' && !(opts.right && opts.right.tabs) && !!(root.DR_BOOK && DR_BOOK.cabin)
     };
     if (!S.right.tabs.includes(S.right.cur)) S.right.cur = S.right.tabs[0] || null;
+    if (S.cabin && opts.tab === 'CABIN') S.right.cur = 'CABIN';        // mở lại sau khi đóng Bản đồ / Sổ nhiệm vụ / Bách khoa (tab đang đứng)
     // r2deploy: PlayerTabbedPanel có tab lưới kéo khi đã lắp lưới; chỉ thêm khi người mở không tự chọn tab bên phải
     if (!(opts.right && opts.right.tabs) && S.right.tabs.includes('INVENTORY') && DR.s.grids.TRAWL_NET && !S.right.tabs.includes('TRAWL_NET')) S.right.tabs.push('TRAWL_NET');
     for (const k of S.right.tabs) S.grids.push({ key: k, g: DR.grid(k), st: stateOf(k), cfg: null, hints: null });
@@ -1563,7 +1675,8 @@
         if (S.held && hasHome(S.held)) cancelHold();
         else if (S.left && S.left.kind === 'quest' && !S.docked) exitLeft();
         else if (!S.docked) close();
-      } else if (k === 'Tab' || k === 'KeyI') { if (S.docked) { /* bảng câu giữ khoang mở */ } else if (S.held && !hasHome(S.held)) close(); else if (S.changed) close(); }
+      } else if ((k === 'KeyQ' || k === 'KeyE') && qeTabs() && !S.hold) { if (!e.repeat) switchTab(null, k === 'KeyQ' ? -1 : 1); }   // PlayerTabbedPanel: Q / E đổi tab
+      else if (k === 'Tab' || k === 'KeyI') { if (S.docked) { /* bảng câu giữ khoang mở */ } else if (S.held && !hasHome(S.held)) close(); else if (S.changed) close(); }
       else if (/^Key[A-Z]$/.test(k) && (refreshPrompts(), promptFor(k))) {   // r2shop: phím riêng của handler (F bán, R sửa hết, T chế độ sửa)
         if (!e.repeat) { const p = promptFor(k); if (p.hold > 0) { startHold(p, 'key'); if (S && S.hold) S.hold.key = k; } else runPrompt(p); }
       }
@@ -1610,7 +1723,7 @@
     open, close: () => close(), isOpen: () => !!S, held: () => S && S.held ? S.held.inst : null, setLeft, hold, tickFreshness, sfxFor,
     refresh: () => { if (S) { afterChange(); render(); } },
     _debug: () => S && {
-      cs: S.M.cs, k: S.M.k, ptr: S.ptr, showStats: S.M.showStats, mode: S.mode, docked: S.docked, rightTab: S.right.cur, leftKind: S.left && S.left.kind,
+      cs: S.M.cs, k: S.M.k, ptr: S.ptr, showStats: S.M.showStats, mode: S.mode, docked: S.docked, rightTab: S.right.cur, tabs: rightTabKeys(), leftKind: S.left && S.left.kind,
       held: S.held && { id: S.held.inst.id, rot: S.held.rot, src: S.held.src, st: S.held.st, dragging: S.held.dragging, angle: S.held.angle },
       hover: S.hover && { id: S.hover.inst && S.hover.inst.id, key: S.hover.gr.key, cell: [S.hover.cx, S.hover.cy] },
       tip: tip.classList.contains('on') ? tip.textContent : null, disc: !!S.hold, hold: S.hold && S.hold.p.id,

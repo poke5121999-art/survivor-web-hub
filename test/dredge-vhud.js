@@ -10,7 +10,7 @@ let pass = 0, fail = 0;
 const ok = (n, c, d) => { c ? pass++ : fail++; console.log((c ? '  ✔ ' : '  ✘ ') + n + (d !== undefined ? '  — ' + JSON.stringify(d) : '')); };
 (async () => {
   const srv = await new Promise(r => { const s = http.createServer((q, p) => { const u = decodeURIComponent(q.url.split('?')[0]); fs.readFile(path.join(ROOT, u), (e, b) => { if (e) { p.writeHead(404); p.end(); return; } p.writeHead(200, { 'Content-Type': MIME[path.extname(u)] || 'application/octet-stream', 'Content-Length': b.length }); p.end(b); }); }).listen(0, () => r(s)); });
-  const br = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+  const br = await chromium.launch({ args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
   const page = await (await br.newContext({ viewport: { width: 1280, height: 720 } })).newPage();
   const errs = [];
   page.on('pageerror', e => errs.push(e.message)); page.on('console', m => m.type() === 'error' && errs.push(m.text()));

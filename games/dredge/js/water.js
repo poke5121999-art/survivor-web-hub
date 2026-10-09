@@ -65,7 +65,7 @@
     w.dx = Math.cos(a); w.dz = -Math.sin(a);
     w.k = Math.PI * 2 / w.len;
   }
-  const SEE_K = 0.15, WATER_LIT = 0.65, HULL_FOAM_K = 3; // [ĐỀ XUẤT] V04, xem chú thích đầu tệp
+  const SEE_K = 0.15, WATER_LIT = 0.63, HULL_FOAM_K = 3, LIT_DEPTH = 0.5; // [ĐỀ XUẤT] V04, xem chú thích đầu tệp
   const SEABED_MAX = 100; // m; texture sâu đáy mã hoá sqrt(sâu/100): đáy địa hình sâu tới 100 m, Stellar Basin có _Depth 12 m
 
   const uniforms = {
@@ -76,7 +76,7 @@
     uLandBox: { value: new T.Vector4(0, 0, 1, 1) }, // x0, z0, 1/w, 1/h (m)
     uNight: { value: 0 },
     uFoam: { value: 0.2 }, // _FoamAmount (WeatherController.cs:447), Fine.foamAmount
-    uSeeK: { value: SEE_K }, uHullFoamK: { value: HULL_FOAM_K }, uWaterLit: { value: WATER_LIT }, uShallow: { value: new T.Color() }, uShallowA: { value: 0.35 }, uDeep: { value: new T.Color() }, uDeepA: { value: 0 },
+    uSeeK: { value: SEE_K }, uHullFoamK: { value: HULL_FOAM_K }, uWaterLit: { value: WATER_LIT }, uLitDepth: { value: LIT_DEPTH }, uShallow: { value: new T.Color() }, uShallowA: { value: 0.35 }, uDeep: { value: new T.Color() }, uDeepA: { value: 0 },
     uFoamCol: { value: new T.Color() }, uWaterDepth: { value: 1 },
     uSky: { value: new T.Color() }, uNormalTex: { value: null }, uFoamTex: { value: null },
     uSeabed: { value: null }, uSeabedBox: { value: new T.Vector4(0, 0, 1, 1) },
@@ -198,7 +198,7 @@ void main() {
 #include <common>
 ${GLSL_WAVE}
 uniform float uFoam;
-uniform float uSeeK; uniform float uWaterLit; uniform float uHullFoamK; uniform vec3 uShallow; uniform float uShallowA; uniform vec3 uDeep; uniform float uDeepA; uniform vec3 uFoamCol; uniform float uWaterDepth;
+uniform float uSeeK; uniform float uWaterLit; uniform float uLitDepth; uniform float uHullFoamK; uniform vec3 uShallow; uniform float uShallowA; uniform vec3 uDeep; uniform float uDeepA; uniform vec3 uFoamCol; uniform float uWaterDepth;
 uniform vec3 uSky; uniform sampler2D uNormalTex; uniform sampler2D uFoamTex;
 uniform sampler2D uSeabed; uniform vec4 uSeabedBox; uniform vec4 uHull; uniform vec3 uHullSize;
 varying vec3 vWPos;
@@ -232,8 +232,14 @@ void main() {
     hullD = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - rr;
     dep = min(dep, max(0.0, wp.y - uHullSize.z) + max(hullD, 0.0) * 4.0);
   }
-  float kS = min(1.0, exp(-dep / max(0.01, uWaterDepth)));
-  vec3 col = mix(uShallow, uDeep, kS) * uWaterLit; // uWaterLit: xem chú thích V04 đầu tệp
+  // _Depth đo trên bộ đệm sâu: hiệu độ sâu eye-space (z) giữa đáy và mặt nước dọc TIA NHÌN, không phải độ sâu thẳng đứng
+  // (V04 bến Greater Marrow: camera nghiêng nên độ sâu z gấp ~1,5–2× độ sâu thẳng đứng; nước nông phải ngả về _ShallowColor)
+  float zK = sqrt(clamp(vViewZ / max(distance(wp, cameraPosition), 0.01), 0.3, 1.0) / max(V.y, 0.1)); // [ĐỀ XUẤT] căn bậc hai: ép tỉ lệ về nửa để nước vịnh không sáng quá clip
+  float kS = min(1.0, exp(-dep * zK / max(0.01, uWaterDepth)));
+  // [ĐỀ XUẤT] V04: clip cho nước nông sát bến sáng (06:01 (66..75, 95..104, 91..104); 12:35 (109..118, 146..158, 156..166)) còn nước vịnh sâu tối hơn
+  // ~0,65× (xem WATER_LIT) ⇒ hệ số 0,65 chỉ áp cho nước sâu, nước nông về 1 theo độ sâu z của đáy (cùng thang với kS)
+  float litK = mix(uWaterLit, 1.0, exp(-depSea * zK / uLitDepth));
+  vec3 col = mix(uShallow, uDeep, kS) * litK;
 
   float f10 = pow(1.0 - clamp(V.y, 0.0, 1.0), 10.0);
   float fadeD = 1.0 - 0.004 * (1.0 + vViewZ);

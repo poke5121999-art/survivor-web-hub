@@ -277,7 +277,7 @@ def pptr(o, p):
 
 
 # --------------------------------------------------------------------------- chạy
-M = scene_monos("MapWindow", "EncyclopediaWindow", "Encyclopedia", "EncyclopediaPage", "AberrationInfoUI")
+M = scene_monos("MapWindow", "EncyclopediaWindow", "Encyclopedia", "EncyclopediaPage", "AberrationInfoUI", "CabinPanel")
 
 
 def window_tree(mono, expect_suffix):
@@ -293,6 +293,10 @@ map_tree, map_base = window_tree(map_mb, "MapWindow")
 map_ct = get(map_mb)
 enc_win = M["EncyclopediaWindow"][0]
 enc_tree, enc_base = window_tree(enc_win, "EncyclopediaWindow")
+
+# tab CABIN của bảng khoang (CabinPanel: Pursuits / Map / Messages / Encyclopedia + Bookshelf), dựng từ chính nút CabinPanel
+cabin_tr = tr_of(go_of(M["CabinPanel"][0]))
+cabin_tree = walk(cabin_tr, path_of(cabin_tr), set())
 
 # thứ tự cá của sách (Encyclopedia.allFish) và tham số
 enc_mb = M["Encyclopedia"][0]
@@ -351,12 +355,13 @@ for name, s in sorted(SPRITES.items()):
 sprites_out = {k: {kk: vv for kk, vv in v.items() if kk != "img"} for k, v in sorted(SPRITES.items())}
 
 out = {
-    "source": "DREDGE 1.5.3: Game scene bundle (MapWindow, EncyclopediaWindow, Encyclopedia, EncyclopediaPage, AberrationInfoUI), SettingsSaveDataTemplate",
+    "source": "DREDGE 1.5.3: Game scene bundle (MapWindow, EncyclopediaWindow, Encyclopedia, EncyclopediaPage, AberrationInfoUI, CabinPanel), SettingsSaveDataTemplate",
     "canvas": {"w": 1920, "h": 1080, "ppu": 100},
     "font": FONTS,
     "colors": colors,
     "map": {"tree": map_tree, "p": map_params},
     "enc": {"tree": enc_tree, "p": enc_params, "fish": fish},
+    "cabin": {"tree": cabin_tree},
     "sprites": sprites_out,
 }
 os.makedirs(os.path.dirname(OUT_JS), exist_ok=True)
