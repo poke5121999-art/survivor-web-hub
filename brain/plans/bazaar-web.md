@@ -40,7 +40,15 @@ Mọi pha chỉ coi là xong khi chạy được trên `https://poke5121999-art.
 | 0 | xong 2026-10-09 | notes đủ 6 tệp; art 3526 webp 60 MB (8 hero), tiếng 900 ogg 26 MB (render đúng event FMOD bằng `fmodstudio.dll` của game), DB → `data/*.js` |
 | 1a sim | xong trên máy 2026-10-09 | `js/sim/*`, `node test/bazaar-sim.js` 40/0; 0 `$type` chưa cài; Transform chỉ xấp xỉ vì server xoá đích biến hình |
 | 1b xem combat | xong trên Pages 2026-10-09, rev 20261009b | DOM/CSS cho bàn + thẻ + tooltip, một canvas phủ cho đạn/số/hạt; khung thẻ phẳng lấy từ sprite `Card_PreviewFrame_*` bằng `tools/frames.py`. `BZ_URL=… node test/bazaar-view.js` 18/18 trên Pages. Chủ dự án chưa xem |
-| 2a luật vòng chơi | đang làm | reducer thuần `js/run/*`, máy trạng thái theo `phase.kind`, số server giấu gom vào `js/run/tuning.js` |
+| 2a luật vòng chơi | xong 2026-10-09 | reducer thuần `js/run/*`, máy trạng thái theo `phase.kind`, số server giấu gom vào `js/run/tuning.js`; `node test/bazaar-run.js` 67/0 |
+| 2b giao diện vòng chơi | xong trên Pages 2026-10-09, rev 20261009d | `js/ui/*`, `SCREENS[kind]`; `BZ_URL=… node test/bazaar-play.js` 20/0 và `bazaar-view.js` 18/0 trên Pages. Chủ dự án chưa chơi thử |
+
+## Việc mở sau pha 2
+
+- Luật: lệnh `swap` khi kéo vào ô đã có đồ; cho `move`/`sell` ở pha `fight` (xếp lại sau khi xem đối thủ); lưu `run.best` cho màn hết run.
+- Cân bằng: bot tham lam thua PvP ~72% (341/1082), uy tín cạn quanh ngày 7 — bóng PvP có thể quá mạnh; chỉnh sau khi chủ dự án chơi.
+- Giao diện: màn bệ chưa chụp được; ô bên cạnh chưa né khi kéo; popup kết quả trận che băng-rôn.
+- Nội dung: mới 3 hero (Vanessa, Pygmalien, Dooley); 60 sự kiện không nối được bước con bị bỏ; Fates khi hết uy tín chưa làm.
 
 ## Bẫy pha 0
 
