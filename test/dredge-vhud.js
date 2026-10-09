@@ -15,7 +15,7 @@ const ok = (n, c, d) => { c ? pass++ : fail++; console.log((c ? '  âœ” ' : '  âœ
   const errs = [];
   page.on('pageerror', e => errs.push(e.message)); page.on('console', m => m.type() === 'error' && errs.push(m.text()));
   page.on('response', r => r.status() >= 400 && errs.push('HTTP ' + r.status() + r.url()));
-  await page.goto('http://localhost:' + srv.address().port + '/games/dredge/index.html?fresh=1');
+  await page.goto((process.env.DR_URL || 'http://localhost:' + srv.address().port) + '/games/dredge/index.html?fresh=1');
   await page.waitForFunction(() => window.DR_DEBUG && DR_DEBUG.ready(), null, { timeout: 180000 });
   await page.click('#btn-new');
   await page.waitForFunction(() => DR.mode === 'dock', null, { timeout: 15000 });
