@@ -28,8 +28,9 @@
 (function (root) {
   'use strict';
   const T = root.THREE, R = root.DRRules, CFG = root.DR_CONFIG, E = root.DR_ENV;
-  // [ĐỀ XUẤT] đèn three.js của luồng khác (nước Phong, thuyền) vẫn dùng sun/ambient của three: giữ hệ số cũ cho chúng
-  const AMB_K = 0.55, SUN_K = 0.85;
+  // đèn three.js cho vật liệu Lambert/Phong còn lại (thuyền, phao, bọt): cường độ đúng như bản gốc — RenderSettings.m_AmbientIntensity 1
+  // (Game.unity, m_AmbientMode 3 = Flat) và DirectionalLight.intensity. Hệ số đoán cũ 0,55 / 0,85 làm thuyền tối hơn gốc lúc chiều tối.
+  const AMB_K = 1, SUN_K = 1;
   const FS = E.fogShader, MAXL = 4;
 
   const S = root.DRSky = {

@@ -276,3 +276,26 @@ Gỡ nhanh nếu bị yêu cầu: xoá `art/`, `audio/`, và mọi tệp `data/*
   - `[BẪY ĐÃ SẬP]` Màu Image không chỉ là alpha: `m_Color.r/g/b` chạy 0 → 1 cùng alpha (lớp tối dần lên), và `BookR`/`BookB` có màu khác kênh (cần bộ lọc SVG `feColorMatrix`, `color-interpolation-filters: sRGB`; `brightness()` chỉ đủ khi r = g = b).
   - `[BẪY ĐÃ SẬP]` `m_WriteDefaultValues: 0` ở layer gốc của lưới, các layer sau mặc định 1: layer ghi đè trọng số 1 với WriteDefaults bật sẽ ghi giá trị nghỉ đè lên thuộc tính layer dưới đã animate (đúng như Unity).
   - 36 nút chân dung có sprite nhưng tắt lúc nghỉ (Scientist_2..5 vết nứt, tờ giấy...) chưa có ảnh vì `yarn.py` bỏ cả nhánh GameObject tắt; hệ hạt (`UIParticle`) không vào rig nhưng tính là "có thật" khi xét curve chết.
+
+## deploy.py — phao bẫy cua, điểm mồi (lưới kéo, bẫy cua, mồi: js/deploy.js) [ĐO TRONG REPO, 2026-10-09]
+
+- Chạy SAU `data.py` (đọc `data/items.js` để tra id item theo tên asset): `python -I games/dredge/tools/deploy.py` (~10 giây, phần lớn là đọc dòng `Game.unity`). Ra `data/deploy.js` (`window.DR_DEPLOY`, ~115 KB: cây nút + lưới + vật liệu của `PlacedHarvestPOI`, `PlacedMaterialHarvestPOI`, `BaitPOI`; `materialPotItem`; `bait.items/deepForm` của BaitAbility) và `art/deploy/*.webp` (3 ảnh 32×32 lossless, < 1 KB). Chạy hai lần ra đúng từng byte.
+- Hoạt hình phao (`CrabPotBuoy_Animator`, `FlotsamPotBuoy_Animator`, `Bait_Animator`) và lưới (`TrawlNet_Animator`) đã có sẵn trong `data/animlib.js` (anim.py), js/deploy.js chạy bằng `DRAnim.bind`.
+- Kiểm: `node test/dredge-r2deploy.js` (ảnh ở `%TEMP%\dredge-r2deploy`).
+- Bẫy:
+  - `[BẪY ĐÃ SẬP]` `id` của item nằm trong blob Odin, không có dòng `id:` trong `.asset` của AssetRipper: tool tra ngược theo tên asset (`TIRPot1` → `tir-pot1`) qua `data/items.js`.
+  - `[BẪY ĐÃ SẬP]` Controller của phao vật liệu là `AnimatorOverrideController` (thư mục riêng), không phải `AnimatorController`: chỉ mục guid phải quét cả hai.
+  - `[BẪY ĐÃ SẬP]` `BuoyMesh/CrabPotParticle` (lưới ~45-75 KB) tắt sẵn; clip Place chỉ bật nút hạt CÙNG TÊN ở `CrabPotBuoy/CrabPotParticle` (ParticleSystem). Tool bỏ lưới của nút đang tắt.
+  - `[BẪY ĐÃ SẬP]` Vật liệu nhấp nháy dùng `BlinkingLightGradient`, không phải `LightFlickerGradient` chung của `art/env/flicker.png`: tool ghi kênh R vào `materials.*.flickerGradient`.
+  - Trường `OccasionalGridPanel.openSFX`, `ActiveAbilityInfoPanel.*QualityIcon` bị AssetRipper bỏ (khối rỗng như AbilityRadial): js/deploy.js chọn clip/sprite cùng tên, ghi `[ĐỀ XUẤT]`.
+  - `GameConfigData.maxCrabPotCount` (25) không còn được mã 1.5.3 đọc; web chặn ở bẫy thứ 26 theo chuỗi `notification.crab-pot-deployment-failed-too-many`.
+
+## shop_ui.py — chợ / xưởng tàu hai lưới (MarketDestination, ShipyardSlidePanel, MarketSlidePanel) [ĐO TRONG REPO, 2026-10-09]
+- Chạy: `python -I games/dredge/tools/shop_ui.py` (sau `index_bundles.py`; ~50 s vì `load_all()` để giải PPtr sprite tab và `specificItemsBought`). Ghi `data/shop_ui.js` (`DR_SHOP_UI.dests[id]`: loại / phân loại mua, bán sỉ, `sellValueModifier`, `allowSellIfGridFull`, `allowRepairs`, `allowStorageAccess`, tab `{gridKey, icon, titleKey, title, unlockNodes}`, `playerTabs`; `DR_SHOP_UI.layout`: RectTransform của 16 nút UI). Không tạo ảnh.
+- Dùng: `js/shop.js` (lưới hàng `DR.s.grids['Shop_' + GridKey]`, nhập hàng theo `DR_WORLD.ShopRestocker` + `ShopData`). Kiểm: `node test/dredge-r2shop.js`.
+- Bẫy:
+  - `[BẪY ĐÃ SẬP]` Game.unity của AssetRipper bỏ hết trường `MarketDestination` (SerializedMonoBehaviour): phải đọc typetree trong bundle scene như `sfx_dest.py`.
+  - 5 pontoon cùng id `destination.tm-shipyard` / `tm-fish-market`, giá trị giống hệt nhau: tool lấy bản đầu theo đường dẫn.
+  - `gridKey` trong `marketTabs` là số: đổi tên qua enum `GridKey` của mã C# (`Dt.cs.enum_name`). `lm-trader` có tab `NONE` (bán là mất, không có lưới hàng).
+  - Đi cây UI bằng tên con từ `MarketDestinationUI` thay vì quét mọi RectTransform của scene (quét hết chậm hàng phút).
+  - Bố cục: `rectIn()` trong `js/shop.js` tính hộp từ neo + pivot + sizeDelta (trục y Unity hướng lên); ShopGrid nằm trong `TabbedPanelContainer/Panels/ShopPanel/Container` → lưới 8x9 ô 60 ở (72, 312) trên canvas 1920x1080.

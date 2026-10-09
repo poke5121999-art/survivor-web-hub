@@ -13,7 +13,7 @@
  *   - Vào điểm đến: ghi lượt ghé (RecordShopVisit), bật vCam của điểm đến, chạy node nhân vật (bước nhiệm vụ showAtSpeaker >
  *     speakerRootNodeOverride > SpeakerData.yarnRootNode) rồi mới mở giao diện điểm đến; RequestExitDestination thì quay ra luôn.
  *     Rời điểm đến → chạy lại node gốc của bến (HideCurrentDestination → dockUI.Show).
- * Giao diện từng điểm đến: MarketDestination (bán), ShipyardDestination (mua đồ, sửa thân), StorageDestination (DRCargo), RestDestination
+ * Giao diện từng điểm đến: MarketDestination / ShipyardDestination (js/shop.js: lưới hàng + khoang, mua bán sửa), StorageDestination (DRCargo), RestDestination
  * (ngủ tới 06:00 rồi tự ra); CharacterDestination chỉ có hội thoại. Upgrade/Research/OverflowStorage/Constructable chưa có hệ thống.
  *   DRDock.show(info)  DRDock.hide()  DRDock.isOpen()  DRDock.visit(destId)  DRDock.talk(speaker)  DRDock.leave()  DRDock._debug()
  */
@@ -29,12 +29,7 @@
       document.head.appendChild(l);
     }
   }
-  const G = root.DRGrid;
   const Y = root.DR_YARN || {};
-  const FRESH_VN = { fresh: 'Tươi', stale: 'Hơi ươn', rotting: 'Ươn' };
-  const SHOP_TABS = [
-    ['Shipwright_Rods', 'Cần câu'], ['Shipwright_Engines', 'Động cơ'], ['Shipwright_Lights', 'Đèn'], ['Shipwright_Nets', 'Lưới'], ['repair', 'Sửa thân tàu']
-  ];
   // Tên điểm đến: chuỗi gốc DR_STR[id]; vài điểm đến quen dùng tên tiếng Việt cho người chơi
   const TITLE_VI = {
     'destination.gm-fishmonger': 'Người buôn cá', 'destination.gm-shipwright': 'Thợ đóng tàu', 'destination.storage': 'Kho của tôi',
@@ -57,10 +52,6 @@
   };
   const play = k => { try { root.DRAudio && DRAudio.play(k); } catch (e) { /* audio optional */ } };
   const toast = t => { if (root.DRHud && DRHud.toast) DRHud.toast(t); };
-  const isFish = def => !!(G.subOf(def) & G.SUB.FISH);
-  const freshOf = inst => DRRules.freshLabel(DR_CONFIG, inst.fresh == null ? DR_CONFIG.maxFreshness : inst.fresh);
-  const sizeCm = (def, inst) => def.minSizeCentimeters != null && inst.size != null
-    ? Math.round(def.minSizeCentimeters + (def.maxSizeCentimeters - def.minSizeCentimeters) * inst.size) : null;
   const visited = n => root.DRYarn.visited(n);
   const avail = () => root.DRYarn.ensure();
 
@@ -338,10 +329,11 @@
 
   function leaveDest() {
     if (!D) return;
+    const d = D.dest;
+    D.dest = null;              // trước khi đóng khoang: onClose của khoang thấy dest đã rời thì không gọi lại hàm này
     closeWin();
     if (root.DRCargo && DRCargo.isOpen()) DRCargo.close();
-    DR.emit('destination', D.dest && D.dest.id, false);
-    D.dest = null;
+    DR.emit('destination', d && d.id, false);
     enterDock(0);
   }
 
@@ -352,6 +344,9 @@
     if (d.cls === 'CharacterDestination') { leaveDest(); return; }       // CharacterDestinationUI.ShowMainUI → rời ngay
     if (d.cls === 'RestDestination') { rest(); return; }
     if (d.cls === 'StorageDestination') { openStorage(); return; }
+    // MarketDestinationUI: lưới hàng bên trái + khoang bên phải (js/shop.js); đóng khoang = rời điểm đến
+    if ((d.cls === 'MarketDestination' || d.cls === 'ShipyardDestination') && root.DRShop &&
+      DRShop.open(d, { onClose: () => { if (D && D.phase === 'dest' && D.dest === d) leaveDest(); } })) return;
     renderDest();
   }
 
@@ -369,9 +364,7 @@
     back.onclick = () => { play('ui.button.back'); leaveDest(); };
     const m = el('div', 'dk-main', wrap);
     D.main = m;
-    const fn = { MarketDestination: market, ShipyardDestination: shipyard }[d.cls];
-    if (fn) fn(m, d);
-    else if (d.cls === 'UpgradeDestination' && root.DRUpgrade) {
+    if (d.cls === 'UpgradeDestination' && root.DRUpgrade) {
       // UpgradeDestinationUI.ShowMainUI → UpgradeWindow.Show (js/upgrade.js); đóng cửa sổ = rời điểm đến (OnUpgradeWindowHideComplete)
       closeWin();
       DRUpgrade.open({ dest: d, onClose: () => { if (D && D.dest === d) leaveDest(); } });
@@ -390,160 +383,9 @@
     if (D.main) D.main.scrollTop = y;
   }
 
-  // ---------------------------------------------------------------- chợ (MarketDestinationUI / SellModeActionHandler)
-  const debtLeft = () => Math.max(0, (DR.s.vars['gm-debt'] != null ? DR.s.vars['gm-debt'] : DR_CONFIG.greaterMarrowDebt) - (DR.s.vars['gm-repayments'] || 0));
-  // ProcessDebtRepayment: chỉ ở destination.gm-fishmonger, min(nợ còn, thu × greaterMarrowDebtRepaymentProportion)
-  const repayShare = (destId, price) => destId === 'destination.gm-fishmonger'
-    ? Math.min(debtLeft(), Math.round(price * DR_CONFIG.greaterMarrowDebtRepaymentProportion * 100) / 100) : 0;
-  const priceOf = inst => DRRules.sellPrice(DR_CONFIG, DR.item(inst.id), inst, 1, 1);
-
-  function sellItems(dest, insts) {
-    const inv = DR.grid('INVENTORY');
-    let gross = 0, repaid = 0, n = 0;
-    for (const inst of insts) {
-      const p = priceOf(inst), r = repayShare(dest.id, p);
-      if (!G.remove(inv, inst)) continue;
-      DR.s.vars['gm-repayments'] = Math.round(((DR.s.vars['gm-repayments'] || 0) + r) * 100) / 100;
-      DR.addFunds(Math.round((p - r) * 100) / 100);
-      root.DRYarn.recordItemTransaction(inst.id, true);
-      if (isFish(DR.item(inst.id))) DR.s.vars['fish-sale-total'] = Math.round(((DR.s.vars['fish-sale-total'] || 0) + p) * 100) / 100;
-      DR.emit('itemSold', inst.id, p);
-      gross += p; repaid += r; n++;
-    }
-    if (!n) return;
-    root.DRYarn.recordShopTransaction(dest.id, Math.round(gross * 100) / 100);
-    DR.emit('cargo', 'INVENTORY', null);
-    play('ui.sell');
-    toast('Đã bán ' + n + ' món: ' + money(gross - repaid) + (repaid ? ' (trả nợ ' + money(repaid) + ')' : ''));
-    DR.save();
-    refresh();
-  }
-
-  function market(m, dest) {
-    const fishMarket = /fishmonger|fish-market/.test(dest.id);
-    const inv = DR.grid('INVENTORY');
-    const rows = inv.items.filter(inst => {
-      const def = DR.item(inst.id);
-      if (def.canBeSoldByPlayer === false) return false;
-      return fishMarket ? isFish(def) : !isFish(def);
-    }).map(inst => ({ inst, def: DR.item(inst.id), price: priceOf(inst) })).sort((a, b) => b.price - a.price);
-    el('h3', '', m, destTitle(dest)).appendChild(el('small', '', null, fishMarket ? 'Mua cá tươi, trả theo cỡ và độ tươi' : 'Mua đồ nhặt được'));
-    if (!rows.length) { el('div', 'dk-empty', m, fishMarket ? 'Trong khoang không có con cá nào để bán.' : 'Không có món nào ông này muốn mua.'); return; }
-    for (const r of rows) {
-      const row = el('div', 'dk-row', m); row.dataset.uid = r.inst.uid;
-      const im = el('img', 'thumb', row); im.src = r.def.sprite;
-      const nm = el('div', 'nm', row);
-      el('b', '', nm, r.def.name);
-      const cm = sizeCm(r.def, r.inst);
-      el('span', '', nm, isFish(r.def) ? (cm != null ? cm + ' cm · ' : '') + (r.inst.infected ? 'Nhiễm bệnh' : FRESH_VN[freshOf(r.inst)]) : r.def.cls.replace('ItemData', ''));
-      el('div', 'pr', row, money(r.price));
-      const b = el('button', 'dr-btn gold', row, 'Bán'); b.dataset.act = 'sell';
-      b.onclick = () => sellItems(dest, [r.inst]);
-    }
-    const bulk = rows.filter(r => r.def.canBeSoldInBulkAction !== false);
-    const bar = el('div', 'dk-bulk', m);
-    const total = bulk.reduce((s, r) => s + r.price, 0), debtNow = debtLeft();
-    el('div', 'note', bar, dest.id === 'destination.gm-fishmonger' && debtNow > 0
-      ? 'Một phần mỗi lần bán (' + Math.round(DR_CONFIG.greaterMarrowDebtRepaymentProportion * 100) + '%) tự trả khoản nợ tàu, còn ' + money(debtNow) + '.'
-      : 'Tiền bán về hết túi bạn.');
-    el('div', 'dr-money', bar, money(total)).style.fontSize = '20px';
-    const all = el('button', 'dr-btn gold', bar, 'Bán tất cả'); all.dataset.act = 'sell-all';
-    all.disabled = !bulk.length;
-    all.onclick = () => sellItems(dest, bulk.map(r => r.inst));
-  }
-
-  // ---------------------------------------------------------------- xưởng tàu
-  function shopStock(key) {
-    const sh = DR_WORLD.ShopData[key];
-    if (!sh) return [];
-    const day = Math.floor(DR.s.time), v = DR.s.vars;
-    if (!v.shopTaken || v.shopTaken.day !== day) v.shopTaken = { day };      // ShopRestocker: nhập hàng lại mỗi ngày
-    const taken = v.shopTaken[key] || {}, out = [];
-    const add = e => {
-      const def = DR_ITEMS[e.itemData];
-      if (!def || e.chance <= 0) return;
-      if (!(def.researchPointsRequired === 0 || def.buyableWithoutResearch)) return;
-      const left = e.count - (taken[e.itemData] || 0);
-      if (!out.some(o => o.def === def)) out.push({ def, left, key });
-    };
-    (sh.alwaysInStock || []).forEach(add);
-    for (const p of sh.phaseLinkedShopData || []) if ((DR.s.worldPhase || 0) >= p.phase) (p.itemData || []).forEach(add);
-    for (const p of sh.dialogueLinkedShopData || []) {
-      const nodes = p.dialogueNodes || [];
-      const ok = p.requireMode === 'ALL' ? nodes.every(visited) : nodes.some(visited);
-      if (ok) (p.itemData || []).forEach(id => add({ itemData: id, count: 1, chance: 1 }));
-    }
-    return out;
-  }
-
-  function buy(dest, row) {
-    const def = row.def, price = DRRules.buyPrice(def, 1), inv = DR.grid('INVENTORY');
-    if (DR.s.funds < price) { play('ui.error'); toast('Không đủ tiền'); return; }
-    if (!G.findSpot(inv, def, 0, false)) { play('ui.error'); toast('Khoang không còn chỗ hợp để đặt món này'); return; }
-    DR.addFunds(-price);
-    DR.give(def.id);
-    root.DRYarn.recordShopTransaction(dest.id, -price);
-    root.DRYarn.recordItemTransaction(def.id, false);
-    const t = DR.s.vars.shopTaken;
-    t[row.key] = t[row.key] || {};
-    t[row.key][def.id] = (t[row.key][def.id] || 0) + 1;
-    play('ui.buy');
-    toast('Đã mua ' + def.name + ' (' + money(price) + ')');
-    DR.save();
-    refresh();
-  }
-
-  function shipyard(m, dest) {
-    const tab = D.tab || SHOP_TABS[0][0];
-    el('h3', '', m, destTitle(dest));
-    const tabs = el('div', 'dk-tabs', m);
-    for (const [k, label] of SHOP_TABS) {
-      const b = el('button', 'dr-btn' + (k === tab ? ' sel' : ''), tabs, label); b.dataset.tab = k;
-      b.onclick = () => { D.tab = k; refresh(); };
-    }
-    if (tab === 'repair') return repair(m);
-    const stock = shopStock(tab);
-    if (!stock.length) { el('div', 'dk-empty', m, 'Hôm nay không có hàng loại này.'); return; }
-    for (const r of stock) {
-      const price = DRRules.buyPrice(r.def, 1), row = el('div', 'dk-row', m); row.dataset.item = r.def.id;
-      const im = el('img', 'thumb', row); im.src = r.def.sprite;
-      const nm = el('div', 'nm', row);
-      el('b', '', nm, r.def.name);
-      el('span', 'd', nm, r.def.desc || '');
-      el('span', '', nm, 'Chiếm ' + r.def.w + '×' + r.def.h + ' ô · còn ' + Math.max(0, r.left));
-      el('div', 'pr', row, money(price));
-      const b = el('button', 'dr-btn gold', row, 'Mua'); b.dataset.act = 'buy';
-      b.disabled = r.left <= 0 || DR.s.funds < price;
-      b.onclick = () => buy(dest, r);
-    }
-  }
-
-  function repair(m) {
-    const inv = DR.grid('INVENTORY'), n = inv.damage.length, each = DR_CONFIG.hullRepairCostPerSquare;
-    if (!n) { el('div', 'dk-empty', m, 'Thân tàu còn nguyên vẹn, không có ô nào cần sửa.'); return; }
-    const row = el('div', 'dk-row', m);
-    const nm = el('div', 'nm', row);
-    el('b', '', nm, 'Ô thân tàu bị hỏng: ' + n);
-    el('span', '', nm, money(each) + ' mỗi ô');
-    const one = el('button', 'dr-btn gold', row, 'Sửa 1 ô'), all = el('button', 'dr-btn gold', row, 'Sửa hết ' + money(n * each));
-    one.dataset.act = 'repair-one'; all.dataset.act = 'repair-all';
-    const doRepair = cnt => {
-      const cost = cnt * each;
-      if (DR.s.funds < cost) { play('ui.error'); toast('Không đủ tiền sửa'); return; }
-      DR.addFunds(-cost);
-      inv.damage.splice(inv.damage.length - cnt, cnt);
-      play('ui.upgrade.complete');
-      toast('Đã sửa ' + cnt + ' ô thân tàu (' + money(cost) + ')');
-      DR.save();
-      refresh();
-    };
-    one.disabled = DR.s.funds < each; all.disabled = DR.s.funds < n * each;
-    one.onclick = () => doRepair(1); all.onclick = () => doRepair(n);
-  }
-
   // ---------------------------------------------------------------- kho / nghỉ
   function openStorage() {
-    if (root.DRCargo) DRCargo.open({ keys: ['INVENTORY', 'STORAGE'], title: 'Kho của tôi', onClose: () => { if (D && D.phase === 'dest') leaveDest(); } });
+    if (root.DRCargo) DRCargo.open({ keys: ['INVENTORY', 'STORAGE'], title: 'Kho của tôi', onClose: () => { if (D && D.phase === 'dest' && D.dest) leaveDest(); } });
     else leaveDest();
   }
   // RestDestinationUI.ShowMainUI: ngủ tới 06:00 (0,25 ngày) rồi tự rời điểm đến

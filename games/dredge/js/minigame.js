@@ -8,7 +8,10 @@
  *   DRMinigame.open({ type, cfg, speed, itemId, info, rollTrophy(), onDone({caught, trophy, aborted}) })
  *       mở panel ở trạng thái CHỜ: chưa tính giờ, chưa có mục tiêu. Bấm F / Space / chạm nút "Bắt đầu" mới chạy.
  *   DRMinigame.isOpen()   true CHỈ khi minigame đang chạy (đồng hồ thế giới chạy: IsTimePassingViaFishing); isShown() = panel đang hiện.
- *   DRMinigame.reveal(made, cb)   thẻ "bắt được" trên panel; refresh(opts) quay về trạng thái chờ cho con kế; close() trượt panel ra.
+ *   Bắt xong (Progress >= 1): gọi onDone NGAY (HarvestMinigameView.OnProgressComplete -> SpawnItem cùng khung), panel sang 'held': nút bắt đầu
+ *   tắt, không thả cần được, Esc không rời (Harvester.OnLeaveActionPressed cần con trỏ trống) cho tới khi spots.js gọi refresh(opts) sau khi món
+ *   được đặt / vứt. Không có thẻ "bắt được" riêng: bản gốc đưa món lên con trỏ, khoang mở sẵn bên phải.
+ *   refresh(opts) quay về trạng thái chờ cho con kế; close() trượt panel ra.
  * Góc: độ, Unity eulerAngles z (ngược chiều kim đồng hồ dương), 0 = đỉnh vòng. Con trỏ xoay thuận chiều kim đồng hồ = góc GIẢM.
  */
 (function (root) {
@@ -67,7 +70,6 @@
       FISHING_DIAMOND: 'Nhấn {k} khi <b>hình thoi khớp</b> vòng để kéo cá <b>nhanh hơn</b>.',
       FISHING_SPIRAL: 'Nhấn {k} <b>đúng lúc</b> để <b>mở cổng</b> cho quả bóng đi qua.', DREDGE_RADIAL: 'Nhấn {k} để <b>đổi làn</b> và <b>tránh các khoảng trống</b>.'
     },
-    tags: { trophy: 'KỶ LỤC', aberrant: 'DỊ BIẾN', isnew: 'MỚI' }, size: 'Dài ', cm: ' cm'
   };
 
   const WHEEL = { FISHING_RADIAL: 'RadialFishMinigameWheel', FISHING_PENDULUM: 'PendulumMinigame', FISHING_BALL_CATCHER: 'BallCatcherMinigame', FISHING_DIAMOND: 'DiamondMinigame', FISHING_SPIRAL: 'SpiralMinigame', DREDGE_RADIAL: 'DredgeMinigameWheel' };
@@ -725,7 +727,8 @@
           if (i === n - 1) flag = true; else if (Math.random() < 0.9) flag = !flag;
           (flag ? it : ot).push(t);
         }
-        ot.forEach((t, j) => cfgImg(oT[j], t)); it.forEach((t, j) => cfgImg(iT[j], t));
+        // GenerateTargets gốc ném lỗi khi một vòng nhận nhiều mục tiêu hơn số ảnh (cờ không đảo, 10%); Unity chỉ bỏ dở hàm, mục tiêu vẫn tính va chạm
+        ot.forEach((t, j) => { if (oT[j]) cfgImg(oT[j], t); }); it.forEach((t, j) => { if (iT[j]) cfgImg(iT[j], t); });
       },
       update(dt) {
         offset += c.rotationSpeed * dt; rings();
@@ -863,7 +866,6 @@
     step(t0);
   }
 
-  function setPhase(p) { M.phase = p; }
 
   function open(opts) {
     if (!HUI) return false;
@@ -872,7 +874,7 @@
     host.classList.add('on');
     resize();
     const type = WHEEL[opts.type] ? opts.type : 'FISHING_RADIAL';
-    M = { opts, type, dredge: type === 'DREDGE_RADIAL', phase: 'prestart', t: 0, doneT: 0, wasTutorial: false, revealT: 0, closing: false };
+    M = { opts, type, dredge: type === 'DREDGE_RADIAL', phase: 'prestart', t: 0, wasTutorial: false, closing: false };
     setupSession(opts);
     const cont = Q('');
     cont.el.classList.remove('in'); void cont.el.offsetWidth;
@@ -951,7 +953,6 @@
   function onAction() {
     if (!M) return;
     if (M.phase === 'prestart') { startGame(); return; }
-    if (M.phase === 'reveal') { M.revealT = 99; return; }
     if (M.phase !== 'running') return;
     const C = M.core;
     if (!C.running) return;
@@ -1002,7 +1003,7 @@
   }
   function complete() {
     const C = M.core;
-    C.running = false; M.phase = 'ending'; M.doneT = 0;
+    C.running = false; M.phase = 'held';
     try { root.DRAudio && DRAudio.stopLoop(C.sfx.loop); } catch (e) { /* tiếng là phần phụ */ }
     play(C.sfx.end);
     C.trigger(C.hitSpecial ? 'end-special' : 'end');
@@ -1013,6 +1014,8 @@
     const vars = root.DR && DR.s && DR.s.vars;
     if (vars && M.wasTutorial) vars['played-minigame-type-' + M.type] = true;
     if (M.wasTutorial) tutorial(false);
+    const o = M.opts;
+    if (o.onDone) o.onDone({ caught: true, trophy: !!C.hitSpecial, aborted: false });   // món lên con trỏ cùng khung hoàn thành
   }
 
   function tick(now) {
@@ -1025,19 +1028,12 @@
       if (M) M.core.anim.update(dt);
     }
     if (!M) return;
-    if (M.phase === 'ending') {
-      M.doneT += eff;
-      if (M.doneT >= 0.45) { const o = M.opts, r = { caught: true, trophy: !!M.core.hitSpecial, aborted: false }; setPhase('wait'); if (o.onDone) o.onDone(r); }
-    } else if (M.phase === 'reveal') {
-      M.revealT += eff;
-      if (M.revealT >= 2.4) { const cb = M.revealCb; M.revealCb = null; setPhase('wait'); if (cb) cb(); }
-    }
     flush();
   }
 
   function leave() {
-    if (!M) return;
-    const o = M.opts, wasRunning = M.phase === 'running';
+    if (!M || M.phase === 'held') return;                               // Harvester: leaveAction bị gỡ khi đang cầm món (OnItemPickedUp)
+    const o = M.opts;
     if (M.core.running) { try { root.DRAudio && DRAudio.stopLoop(M.core.sfx.loop); } catch (e) { /* tiếng là phần phụ */ } }
     closeNow(false);
     if (o.onDone) o.onDone({ caught: false, trophy: false, aborted: true });
@@ -1058,34 +1054,10 @@
     flush();
   }
 
-  // thẻ "bắt được": HintImage hiện cá thật (không còn bóng), tiêu đề = tên cá, chữ phụ = kích thước, thẻ loại = Mới / Kỷ lục / Dị biến
-  function reveal(made, cb) {
-    if (!M || !made) { if (cb) cb(); return; }
-    M.phase = 'reveal'; M.revealT = 0; M.revealCb = cb;
-    const it = made.item || itemOf(made.id);
-    setHint(true, made.id, false);
-    const hint = Q('HintImage'); hint.el.classList.remove('hv-pop'); void hint.el.offsetWidth; hint.el.classList.add('hv-pop');
-    Q('Title').setText(it ? it.name : '');
-    const cm = made.cm || 0;
-    Q('StockText').setText(cm ? T.size + cm + T.cm : '', { color: '#ffffff' });
-    const tag = Q('HarvestableTypeTag'), which = made.trophy ? 'trophy' : made.aberrant ? 'aberrant' : made.isNew ? 'isnew' : '';
-    tag.set('on', !!which);
-    if (which) {
-      tag.setCol(colArr(which === 'trophy' ? COL.VALUABLE : which === 'aberrant' ? '#cd46d6' : COL.EMPHASIS));
-      Q('HarvestableTypeTag/Text').setText(T.tags[which], { color: which === 'trophy' ? '#1b1410' : '#ffffff' });
-      Q('HarvestableTypeTag/AdvancedTypeIcon').set('on', false);
-    }
-    Q('InvalidEquipmentIndicator').set('on', false);
-    shine(tag, 'HarvestableTypeTag', false);
-    // không phát tiếng ở đây (audit SFX-10): bản gốc chỉ có tiếng của banner (js/banner.js: Fish - New / Fish - New Aberration /
-    // Notification - Generic), con thường không có tiếng riêng ngoài fishing-end
-  }
-
   // quay lại trạng thái chờ cho con kế (HarvestMinigameView.RefreshHarvestTarget sau OnItemPlaceComplete)
   function refresh(opts) {
     if (!M) return open(opts);
     M.type = WHEEL[opts.type] ? opts.type : 'FISHING_RADIAL'; M.dredge = M.type === 'DREDGE_RADIAL';
-    M.revealCb = null;
     setupSession(opts);
     leaveBtn.style.display = '';
     return true;
@@ -1099,14 +1071,14 @@
   // phím: chặn hẳn để engine không lái thuyền / mở cargo khi đang câu
   root.addEventListener('keydown', e => {
     if (!M) return;
-    if (M.phase === 'wait' || M.phase === 'cargo') return;           // cargo.js tự xử lý Esc / Tab
+    // 'held': Space/F không thả cần, Esc không rời; Z (vứt) và chuột để cargo.js xử lý
     if (e.code === 'Space' || e.code === 'KeyF') { e.preventDefault(); e.stopImmediatePropagation(); if (!e.repeat) onAction(); }
-    else if (e.code === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); if (M.phase === 'reveal') M.revealT = 99; else leave(); }
-    else if (M.phase === 'running' || M.phase === 'prestart' || M.phase === 'reveal' || M.phase === 'ending') {
+    else if (e.code === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); leave(); }
+    else {
       if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab', 'KeyI', 'KeyL'].includes(e.code)) { e.preventDefault(); e.stopImmediatePropagation(); }
     }
   }, true);
-  root.addEventListener('keyup', e => { if (M && (e.code === 'Space' || e.code === 'KeyF') && M.phase !== 'wait') e.stopImmediatePropagation(); }, true);
+  root.addEventListener('keyup', e => { if (M && (e.code === 'Space' || e.code === 'KeyF')) e.stopImmediatePropagation(); }, true);
 
   const dbg = () => {
     if (!M) return null;
@@ -1114,10 +1086,9 @@
     return Object.assign({ type: M.type, phase: M.phase, progress: C.progress, running: C.running, inputEnabled: C.inputEnabled, penalty: C.penalty, progressDisabled: C.progressDisabled, hitSpecial: C.hitSpecial, trophy: !!M.trophyShown, u: USC }, C.ctl.debug());
   };
   root.DRMinigame = {
-    open, refresh, setInfo, reveal, close: () => leave(), hide: () => closeNow(false),
+    open, refresh, setInfo, close: () => leave(), hide: () => closeNow(false),
     isOpen: () => !!(M && M.phase === 'running'),                       // thời gian trôi chỉ khi đang chạy
     isShown: () => !!M,
-    wait: () => { if (M) M.phase = 'wait'; },                           // spots.js giữ panel trong lúc cargo mở
     phase: () => M && M.phase,
     nodeRect: rel => { const n = Q(rel); return n && n.el.getBoundingClientRect(); },
     node: rel => Q(rel),

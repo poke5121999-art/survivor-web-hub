@@ -1,0 +1,42 @@
+/*
+ * Bảng hàng của chợ / xưởng tàu (js/shop.js) đè lên bảng trái kiểu 'shop' của js/cargo.js. Số đo từ data/shop_ui.js (tools/shop_ui.py):
+ *   ShipyardSlidePanel 650x800: TitleContainer cao 60 nằm TRÊN mép bảng (pivot y 0), thụt 50 mỗi bên, chữ 36;
+ *     TopBar 50 ở đỉnh, Tabs thụt 50 mỗi bên, vạch TabDivider 4 ở đáy TopBar;
+ *     ShopPanel/Container: RepairAllButton 350x50 cách đỉnh 5 (sau TopBar 50), Button_DefaultLight tô (0.55, 0.34, 0.09), RepairIcon 40 ở x 50,
+ *     chữ 30 (bản web 24: chữ tiếng Việt dài hơn) [ĐỀ XUẤT]; Divider TabDivider 4 ở y -60 trong Panels (tức 110 từ đỉnh bảng).
+ *   MarketSlidePanel 650x800 (y -40): TitleContainer 400x60 pivot y 0.3 (nhô 42 lên trên mép), không có tab.
+ * Đơn vị canvas nhân --k (cao cửa sổ / 1080) và --sc (bảng co theo bề ngang trên điện thoại).
+ */
+.cg-left.cg-shop .cg-title { left: calc(var(--k) * var(--sc) * 50px); right: calc(var(--k) * var(--sc) * 50px); top: calc(var(--k) * var(--sc) * -60px); height: calc(var(--k) * var(--sc) * 60px);
+  box-sizing: border-box; z-index: 1; padding: 0 calc(var(--k) * var(--sc) * 40px); text-transform: none; white-space: nowrap;
+  font: 600 max(12px, calc(var(--k) * var(--sc) * 36px))/1 var(--dr-head); }
+.cg-left.cg-shop .cg-title::after { content: ""; position: absolute; inset: 0; z-index: -1; height: auto; box-sizing: border-box; background: none;
+  border-style: solid; border-width: calc(var(--k) * var(--sc) * 16px) calc(var(--k) * var(--sc) * 60px);
+  border-image: url(../art/ui/cargo/TitleBackground.webp) 15 105 16 105 fill / calc(var(--k) * var(--sc) * 16px) calc(var(--k) * var(--sc) * 60px) stretch; }
+.cg-left.cg-shop:not(:has(.cg-ltabs)) .cg-title { left: calc(50% - var(--k) * var(--sc) * 200px); right: auto; width: calc(var(--k) * var(--sc) * 400px); top: calc(var(--k) * var(--sc) * -42px); }
+
+/* tab hình (Tab_Selected + icon) ngay đỉnh bảng; vạch TabDivider dưới thanh tab trải hết bề rộng */
+.cg-left.cg-shop .cg-ltabs { top: 0; }
+.cg-left.cg-shop .cg-ltabs::after { content: ""; position: absolute; left: calc(var(--k) * var(--sc) * -50px); right: calc(var(--k) * var(--sc) * -50px); bottom: 0; height: calc(var(--k) * var(--sc) * 4px);
+  pointer-events: none; background: url(../art/ui/cargo/TabDivider_0.webp) 0 0 / 100% 100% no-repeat; }
+.cg-left.cg-shop .cg-ltabs .cg-tab { display: flex; align-items: center; justify-content: center; }
+.cg-left.cg-shop .cg-ltabs .cg-tab .ic { height: calc(100% - var(--k) * var(--sc) * 4px); }
+
+/* nút Sửa tất cả: thay chân bảng mặc định; hàng giúp đỡ của bảng nộp đồ không dùng ở cửa hàng */
+.cg-left.cg-shop .cg-help { display: none; }
+.cg-left.cg-shop .cg-foot { top: calc(var(--k) * var(--sc) * 55px); bottom: auto; right: calc(var(--k) * var(--sc) * 4px); }   /* Container trong TabbedPanelContainer rộng 646 */
+.cg-left.cg-shop .cg-foot::after { content: ""; position: absolute; left: 0; right: 0; top: calc(var(--k) * var(--sc) * 55px); height: calc(var(--k) * var(--sc) * 4px); pointer-events: none;
+  background: url(../art/ui/cargo/TabDivider_0.webp) 0 0 / 100% 100% no-repeat; }
+.cg-left.cg-shop .cg-foot .cg-btn { width: calc(var(--k) * var(--sc) * 350px); min-width: 0; padding: 0 calc(var(--k) * var(--sc) * 12px) 0 calc(var(--k) * var(--sc) * 95px); color: #fff;
+  overflow: hidden; text-overflow: ellipsis; text-align: center;
+  font: 600 max(11px, calc(var(--k) * var(--sc) * 24px))/1 var(--dr-head); border: 0; border-image: none; border-radius: calc(var(--k) * var(--sc) * 8px);
+  background: rgb(140, 87, 23); }
+.cg-left.cg-shop .cg-foot .cg-btn::before { content: ""; position: absolute; left: calc(var(--k) * var(--sc) * 50px); top: calc(var(--k) * var(--sc) * 5px); bottom: calc(var(--k) * var(--sc) * 5px); width: calc(var(--k) * var(--sc) * 40px);
+  background: url(../art/ui/sprites/RepairIcon.webp) center / contain no-repeat; }
+.cg-left.cg-shop .cg-foot .cg-btn[disabled] { color: #d8c8b4; }
+
+/* chế độ sửa: không cho bấm vào lưới hàng (MarketDestinationUI.OnMaintenanceModeToggled gỡ handler Mua/Bán) */
+.cg-root.repair .cg-left.cg-shop .cg-zone { opacity: .45; }
+
+/* màn thấp (điện thoại ngang): bảng sát mép trên, không còn chỗ cho tấm tiêu đề nhô lên; tab hình đã nói loại hàng [ĐỀ XUẤT] */
+@media (max-height: 520px) { .cg-left.cg-shop .cg-title { display: none; } }

@@ -17,7 +17,8 @@
  *     holding: null | { inst, src: 'harvest'|'buy'|..., onPlaced(inst, key), onDiscarded(inst) },
  *     mode: 'default' | 'equip' | 'repair',                  // equip = Player.CanMoveInstalledItems (cập bến); mặc định suy từ DR.mode
  *     onClose(result)
- *   }) -> { close(), refresh(), held(), setLeft(left) }
+ *   }) -> { close(), refresh(), held(), setLeft(left), hold(holding) }
+ *   hold(holding): đặt món lên con trỏ của bảng ĐANG mở (GridManager.AddItemOfTypeToCursor; vd. cá vừa câu khi khoang docked đã mở sẵn)
  *
  *   handler = { canPick(item, key), canPlace(item, key, x, y, rot), onPick(item, key), onPlace(item, key, fromKey), onDiscard(item, key),
  *               prompts(ctx) -> [{ id, label, price, hold, enabled, run(), bind, area }] }   // ctx = { hovered, held, cand, mode }
@@ -201,6 +202,7 @@
   function leftSpec() {
     const L = S.left;
     if (!L) return null;
+    if (L.spec) return L.spec;            // r2shop: bảng trái tự đưa số đo (js/shop.js tính từ ShipyardSlidePanel / MarketSlidePanel)
     const gr = curLeftGrid();
     const rows = gr ? gr.g.rows : 3, cols = gr ? gr.g.cols : 6;
     if (L.kind === 'tray') return { w: 460, h: 245, x: 130, y: 540 + 160, gridW: 360, gridH: 180, gridX: 50, gridY: 107.5 - 90, title: false };
@@ -280,7 +282,7 @@
   }
 
   function panelBox(cls, M, w, h, top) {
-    const p = el('div', 'cg-panel ' + cls + (S.shown ? ' on' : ''), host);
+    const p = el('div', 'cg-panel ' + cls + (S.shown && !(S.entering && S.entering[cls.split(' ')[0]]) ? ' on' : ''), host);   // entering: setLeft trượt vào
     p.style.cssText = 'top:' + top + 'px;width:' + w + 'px;height:' + h + 'px';
     el('div', 'cg-bg', p);
     return p;
@@ -296,6 +298,7 @@
     const tabs = el('div', 'cg-tabs', p);
     // PlayerTabbedPanel: chỉ vẽ tab được mở (C11); CABIN chưa có trong Biển Mù nên không vẽ
     const NAMES = { INVENTORY: 'Khoang', STORAGE: 'Kho' };
+    NAMES.TRAWL_NET = 'Lưới kéo';                                 // r2deploy: tab lưới kéo (SaveData.TrawlNet)
     for (const key of S.right.tabs) {
       const sel = key === S.right.cur;
       const t = el('button', 'cg-tab ' + (sel ? 'sel' : 'un'), tabs, NAMES[key] || key);
@@ -399,14 +402,17 @@
   function buildLeftPanel(M) {
     const L = S.left, ls = M.ls, gr = curLeftGrid();
     if (!ls) return;
-    const lw = Math.min(ls.w * M.k, M.W * 0.4), sc = lw / (ls.w * M.k);   // điện thoại: bảng co theo bề ngang, mọi số đo nhân sc
+    let lw = Math.min(ls.w * M.k, M.W * 0.4), sc = lw / (ls.w * M.k);     // điện thoại: bảng co theo bề ngang, mọi số đo nhân sc
+    // r2fish: khay là con của Container bảng câu (js/minigame.js tỉ lệ riêng): treo đúng đáy bảng, căn giữa, máy thấp thì co cho vừa
+    const mg = L.kind === 'tray' && root.DRMinigame && DRMinigame.isShown() ? DRMinigame.nodeRect('') : null;
+    if (mg && mg.height > 0) { const f = (M.H - mg.bottom - 2) / (ls.h * M.k); if (f < sc) { sc = Math.max(f, 0.1); lw = ls.w * M.k * sc; } }
     const u = v => v * M.k * sc;
     const h = Math.min(u(ls.h), M.H - 12);
     let top = ls.y != null ? u(ls.y) : (M.H - h) / 2 + u(ls.dy || 0);
-    if (L.kind === 'tray') top = Math.min(top, M.H - h - 40 * M.k);
+    if (L.kind === 'tray') top = mg && mg.height > 0 ? mg.bottom : Math.min(top, M.H - h - 40 * M.k);
     const p = panelBox('cg-left cg-' + L.kind, M, lw, h, Math.max(0, top));
     p.style.setProperty('--sc', sc.toFixed(4));
-    p.style.left = u(ls.x) + 'px';
+    p.style.left = (mg && mg.height > 0 ? mg.left + (mg.width - lw) / 2 : u(ls.x)) + 'px';
     if (L.kind === 'tray') {
       // StorageTray: không có khung SidePanel, chỉ Backplate tối; lưới + dòng nhắc "Đồ để lại đây sẽ mất." khi còn đồ
       p.querySelector('.cg-bg').className = 'cg-traybg';
@@ -436,7 +442,8 @@
       if (F.buttons && F.buttons.length) {
         const fb = el('div', 'cg-foot', p);
         for (const b of F.buttons) {
-          const btn = el('button', 'cg-btn', fb, labelOf(b));
+          const btn = el('button', 'cg-btn', fb);
+          fillLabel(btn, b);
           btn.dataset.act = b.id || b.label;
           const ok = typeof b.enabled === 'function' ? !!b.enabled(ctx()) : b.enabled !== false;
           btn.disabled = !ok;
@@ -697,7 +704,7 @@
     if (dst === 'IN_QUEST_GRID') return !!(gr.cfg && gr.cfg.canAddItemsInQuestMode) || src === 'IN_QUEST_GRID';
     if (dst === 'IN_TRAY') return !def.forbidStorageTray;
     if (dst === 'IN_INVENTORY') return def.moveMode === 'FREE' || (isInstall(def) && canMoveInstalled());
-    if (dst === 'IN_SHOP') return src === 'JUST_PURCHASED';               // hoàn tiền: chủ cửa hàng viết handler, chỉ cho món vừa mua
+    if (dst === 'IN_SHOP') return false;                                   // r2shop: DefaultActionHandler.TryAddPlaceAction không có IN_SHOP; hoàn tiền là phím Bán
     return false;
   }
 
@@ -973,6 +980,7 @@
     const hv = S.hover ? { gr: S.hover.gr, key: S.hover.gr.key, st: S.hover.gr.st, inst: S.hover.inst, def: S.hover.inst ? defOf(S.hover.inst) : null, cell: [S.hover.cx, S.hover.cy], damaged: !!S.hover.damaged } : null;
     return {
       hovered: hv, held: S.held, cand: S.cand, mode: S.mode, left: S.left, funds: DR.s ? DR.s.funds : 0,
+      tab: S.right.cur, setMode,                                            // r2shop: tab khoang đang mở + bật/tắt chế độ sửa (GridManager.ToggleRepairMode)
       grid: key => { const g = gridOf(key); return g ? g.g : null; },
       // handler đưa món lên con trỏ (BuyModeActionHandler: mua xong món dính con trỏ, src 'buy' -> JUST_PURCHASED)
       take: (inst, src, st) => { if (!S) return; inst.rot = inst.rot || 0; S.held = makeHeld(inst, src || 'buy', S.ptr, st); S.held.dragging = false; sfx('pick', defOf(inst), S.held.st); hideTip(); render(); },
@@ -1036,19 +1044,29 @@
     else { afterChange(); render(); }
   }
   const promptLabel = p => labelOf(p) + (p.price != null ? ' [' + money(p.price) + ']' : '');
-  const BIND_VN = { lmb: 'Chuột trái', rmb: 'Chuột phải', mmb: 'Chuột giữa', KeyZ: 'Z' };
+  // r2shop: giá trong prompt tô màu như "<color=#..>$X</color>" của BuyModeActionHandler / SellModeActionHandler (priceColor)
+  function fillLabel(e, p) {
+    if (p.price == null || !p.priceColor) { e.textContent = promptLabel(p); return; }   // không tô màu: một nút chữ như cũ
+    e.textContent = labelOf(p);
+    e.appendChild(document.createTextNode(' ['));
+    const s = el('span', 'price', e, money(p.price));
+    if (p.priceColor) s.style.color = p.priceColor;
+    e.appendChild(document.createTextNode(']'));
+  }
+  const BIND_VN = { lmb: 'Chuột trái', rmb: 'Chuột phải', mmb: 'Chuột giữa', KeyZ: 'Z', KeyF: 'F', KeyR: 'R', KeyT: 'T' };
 
   // vùng điều khiển góc dưới phải (ControlPanel / "Leave B" của bản gốc): prompt có area 'control'
   function renderControl() {
     const list = (S.prompts || []).filter(p => p.area === 'control');
     // chỉ dựng lại khi danh sách đổi, để nút đang được giữ không bị thay giữa chừng
-    const sig = list.map(p => p.id + '|' + promptLabel(p) + '|' + (p.enabled !== false)).join(';');
+    const sig = list.map(p => p.id + '|' + promptLabel(p) + '|' + (p.enabled !== false) + '|' + (p.priceColor || '')).join(';');
     if (sig === S.ctlSig) return;
     S.ctlSig = sig;
     ctl.innerHTML = '';
     ctl.style.display = list.length ? 'flex' : 'none';
     for (const p of list) {
-      const b = el('button', 'cg-btn cg-cbtn', ctl, promptLabel(p));
+      const b = el('button', 'cg-btn cg-cbtn', ctl);
+      fillLabel(b, p);
       b.dataset.act = p.id;
       b.disabled = p.enabled === false;
       if (p.hold > 0) wireHoldButton(b, p); else b.onclick = e => { e.stopPropagation(); runPrompt(p); };
@@ -1059,7 +1077,8 @@
     for (const b of S.left.footer.buttons || []) {
       const btn = host.querySelector('.cg-foot [data-act="' + (b.id || b.label) + '"]');
       if (!btn) continue;
-      btn.textContent = labelOf(b);
+      fillLabel(btn, b);
+      if (b.hold) el('span', 'hint', btn, '(giữ)');
       btn.disabled = !(typeof b.enabled === 'function' ? b.enabled(ctx()) : b.enabled !== false);
     }
   }
@@ -1085,7 +1104,7 @@
     const r = el('div', 'pr' + (p.enabled === false ? ' off' : ''), parent);
     r.dataset.act = p.id;
     el('b', '', r, (p.hold > 0 ? 'Giữ ' : '') + (BIND_VN[p.bind] || 'Bấm'));
-    el('span', '', r, promptLabel(p));
+    fillLabel(el('span', '', r), p);
     return r;
   }
   // LanguageManager.FormatTimeStringForDurability (:142-170): <= 0 "Cần sửa"; làm tròn ngày, < 1 ngày thì tính giờ, ít nhất 1
@@ -1203,6 +1222,8 @@
     // TooltipUI.LateUpdate (:279-283, :299): ẩn khi đang câu; chế độ sửa chỉ hiện món có độ bền
     if (inMinigame()) { hideTip(); return; }
     if (S.held) showTip(S.held.inst, S.held.def, 'HOLD');
+    // r2shop: chế độ sửa rê lên ô hỏng (món "dmg" nằm dưới) thì tooltip của vết hỏng mang prompt Sửa (RepairActionHandler.repairAction.showInTooltip)
+    else if (S.mode === 'repair' && S.hover && S.hover.damaged && (!S.hover.inst || defOf(S.hover.inst).damageMode !== 'DURABILITY') && root.DR_ITEMS.dmg) showTip(null, root.DR_ITEMS.dmg, 'DAMAGE');
     else if (S.hover && S.hover.inst) {
       const def = defOf(S.hover.inst);
       if (S.mode === 'repair' && !def.isUnderlayItem && def.damageMode !== 'DURABILITY') { hideTip(); return; }
@@ -1301,6 +1322,7 @@
     }
     S.hover = hoverAt(e.clientX, e.clientY);
     refreshPrompts();
+    if (S.hover && !S.hover.inst && S.hover.damaged) { const pr = promptFor('lmb'); if (pr) runPrompt(pr); return; }   // r2shop: ô hỏng trống trong chế độ sửa (RepairItem = chuột trái)
     if (!S.hover || !S.hover.inst) return;
     const p = promptFor('lmb');
     if (!p) { const def = defOf(S.hover.inst); if (lockedFor(def)) pickUp(S.hover.gr, S.hover.inst, e); else sfx('error', def); return; }
@@ -1447,11 +1469,14 @@
     if (opts.handler) handlers.push(opts.handler);
     if (left && left.kind === 'tray') handlers.push(trayHandler());
     S = {
-      right: { tabs: rightTabs.filter(k => DR.s.grids[k]), cur: rightTabs[0] }, left, docked: !!opts.docked, mode, handlers,
+      // r2shop: right.cur chọn tab mở sẵn
+      right: { tabs: rightTabs.filter(k => DR.s.grids[k]), cur: (opts.right && opts.right.cur) || rightTabs[0] }, left, docked: !!opts.docked, mode, handlers,
       holding, onClose: opts.onClose, ptr: start, grids: [], held: null, changed: false, prevMode, openMode: prevMode, result: null,
       shown: false, hover: null, hold: null, prompts: [], motes: [], hasStorage: false
     };
     if (!S.right.tabs.includes(S.right.cur)) S.right.cur = S.right.tabs[0] || null;
+    // r2deploy: PlayerTabbedPanel có tab lưới kéo khi đã lắp lưới; chỉ thêm khi người mở không tự chọn tab bên phải
+    if (!(opts.right && opts.right.tabs) && S.right.tabs.includes('INVENTORY') && DR.s.grids.TRAWL_NET && !S.right.tabs.includes('TRAWL_NET')) S.right.tabs.push('TRAWL_NET');
     for (const k of S.right.tabs) S.grids.push({ key: k, g: DR.grid(k), st: stateOf(k), cfg: null, hints: null });
     for (const gr of leftGrids(left)) if (!S.grids.some(x => x.key === gr.key)) S.grids.push(gr);
     S.hasStorage = S.grids.some(g => g.key === 'STORAGE') || (left && left.kind === 'quest' && left.quest && left.quest.allowStorageAccess && !!DR.s.grids.STORAGE);
@@ -1473,7 +1498,20 @@
     requestAnimationFrame(() => { if (S) { S.shown = true; host.querySelectorAll('.cg-panel').forEach(p => p.classList.add('on')); } });
     return handle();
   }
-  const handle = () => ({ close: () => close(), refresh: () => { if (S) { afterChange(); render(); } }, held: () => S && S.held ? S.held.inst : null, setLeft });
+  const handle = () => ({ close: () => close(), refresh: () => { if (S) { afterChange(); render(); } }, held: () => S && S.held ? S.held.inst : null, setLeft, hold });
+  // r2fish: món mới lên con trỏ khi bảng đã mở (không mở lại bảng: mở lại sẽ đóng khay và chạy lại tiếng mở)
+  function hold(h) {
+    if (!S || !h || !h.inst || S.held) return false;
+    S.holding = h;
+    h.inst.rot = h.inst.rot || 0;
+    S.held = makeHeld(h.inst, h.src || 'harvest', S.ptr);
+    S.held.dragging = false;
+    sfx('pick', S.held.def, S.held.st);                                // GridManager.ObjectPickedUp -> GridObjectAudio.OnItemPickedUp
+    hideTip();
+    render();
+    startLoop();
+    return true;
+  }
   function setLeft(left) {
     if (!S) return;
     S.left = left || null;
@@ -1484,9 +1522,17 @@
     if (left && left.kind === 'tray') S.handlers.push(trayHandler());
     for (const gr of leftGrids(left)) if (!S.grids.some(x => x.key === gr.key)) S.grids.push(gr);
     S.hasStorage = S.grids.some(g => g.key === 'STORAGE');
+    // r2fish: khay mở giữa phiên thì trượt xuống (ShowStorageTray: 0,75 s OutExpo), không hiện tức thì
+    if (left && left.kind === 'tray' && S.shown) {
+      S.entering = { 'cg-left': true };
+      requestAnimationFrame(() => { if (!S || !S.entering) return; S.entering = null; host.querySelectorAll('.cg-left').forEach(p => { void p.offsetWidth; p.classList.add('on'); }); });
+    }
     afterChange();
     render();
   }
+
+  // r2shop: đổi chế độ lưới giữa phiên (RepairActionHandler.ToggleRepairMode); bỏ ô đang rê để prompt tính lại
+  function setMode(m) { if (!S || !m) return; S.mode = m; S.hover = null; hideTip(); render(); }
 
   function close(force, extra) {
     if (!S) return false;
@@ -1518,6 +1564,9 @@
         else if (S.left && S.left.kind === 'quest' && !S.docked) exitLeft();
         else if (!S.docked) close();
       } else if (k === 'Tab' || k === 'KeyI') { if (S.docked) { /* bảng câu giữ khoang mở */ } else if (S.held && !hasHome(S.held)) close(); else if (S.changed) close(); }
+      else if (/^Key[A-Z]$/.test(k) && (refreshPrompts(), promptFor(k))) {   // r2shop: phím riêng của handler (F bán, R sửa hết, T chế độ sửa)
+        if (!e.repeat) { const p = promptFor(k); if (p.hold > 0) { startHold(p, 'key'); if (S && S.hold) S.hold.key = k; } else runPrompt(p); }
+      }
       else return;
       e.preventDefault(); e.stopImmediatePropagation();
       return;
@@ -1527,7 +1576,7 @@
       open({ keys: ['INVENTORY'], title: 'Khoang thuyền' });
     }
   }, true);
-  root.addEventListener('keyup', e => { if (S && e.code === 'KeyZ' && S.hold && S.hold.how === 'key') stopHold(); }, true);
+  root.addEventListener('keyup', e => { if (S && S.hold && S.hold.how === 'key' && (e.code === 'KeyZ' || e.code === S.hold.key)) stopHold(); }, true);
   root.addEventListener('blur', () => stopHold());
 
   if (root.DR && DR.on) DR.on('mode', m => {
@@ -1558,7 +1607,7 @@
   if (root.DR && DR.on) { DR.on('newgame', () => { freshAt = null; }); DR.on('load', () => { freshAt = null; }); }
 
   root.DRCargo = {
-    open, close: () => close(), isOpen: () => !!S, held: () => S && S.held ? S.held.inst : null, setLeft, tickFreshness, sfxFor,
+    open, close: () => close(), isOpen: () => !!S, held: () => S && S.held ? S.held.inst : null, setLeft, hold, tickFreshness, sfxFor,
     refresh: () => { if (S) { afterChange(); render(); } },
     _debug: () => S && {
       cs: S.M.cs, k: S.M.k, ptr: S.ptr, showStats: S.M.showStats, mode: S.mode, docked: S.docked, rightTab: S.right.cur, leftKind: S.left && S.left.kind,

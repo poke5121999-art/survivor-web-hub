@@ -1,6 +1,7 @@
 /*
  * Điểm câu / nạo vét (HarvestPOI trong markers.json): hạt của prefab gốc, kho cá bền theo sổ lưu,
- * Space -> màn thu hoạch (DRMinigame = HarvestMinigameView) -> con cá tạo theo ItemManager.CreateFishItem (CODE.md 4.1, 4.2, 4.4).
+ * Space -> màn thu hoạch (DRMinigame = HarvestMinigameView) + khoang docked bên phải -> con cá tạo theo ItemManager.CreateFishItem (CODE.md 4.1,
+ * 4.2, 4.4) rồi nằm trên con trỏ (BEING_HARVESTED) tới khi người chơi đặt vào khoang/khay hoặc giữ Z vứt; khay 6x3 sau con đầu khi xong Quest_Intro.
  *   DRSpots.init(scene, world)  DRSpots.update(dt, x, z)  DRSpots.interact()  DRSpots.nearest(fn)
  *
  * Hạt điểm câu (HarvestPOI.Start + HarvestableParticles.cs; tham số bóc bởi tools/harvest_ui.py -> DR_HARVEST_UI.spotfx):
@@ -736,19 +737,31 @@ void main() {
     return { type: cur.item.harvestMinigameType, cfg, speed: dredge ? st.dredging : st.fishing, itemId: cur.itemId, spotId: cur.sp.id, info: viewInfo(cur), rollTrophy, onDone: finish };
   }
 
+  // Harvester.OnEnable -> UI.ToggleInventorySolo(true): khoang (chỉ tab INVENTORY) trượt vào bên phải cạnh bảng câu, không che màn
+  function openHold(cur) {
+    if (!root.DRCargo || typeof DRCargo.open !== 'function') return;
+    cur.cargo = DRCargo.open({ right: { tabs: ['INVENTORY'] }, docked: true, onClose: () => { if (Sp.cur === cur) { cur.cargo = null; cur.tray = false; } } });
+  }
+  // HarvestMinigameView.OnProgressComplete: khay mở khi đã xong storageTrayUnlockQuest (world_data.js: Quest_Intro), một lần mỗi phiên
+  const TRAY_QUEST = (((root.DR_WORLD || {}).HarvestMinigameView || {}).HarvestMinigameView || {}).storageTrayUnlockQuest || null;
+  const trayUnlocked = () => !!(TRAY_QUEST && root.DRQuests && DRQuests.state(TRAY_QUEST) === 'COMPLETED');
+
   function interact() {
     const D = root.DR, ns = D.view.nearSpot;
     if (!near || !ns || ns.status !== 'ok' || Sp.cur) return false;   // PlayerPOIInteraction: chỉ HarvestPOI VALID mới nhận lệnh
     const sp = near;
     if (!D.setMode('harvest', { spotId: sp.id })) return false;
     root.DRBoat.stop();
-    Sp.cur = { sp, itemId: null, item: null, dredge: false };
+    Sp.cur = { sp, itemId: null, item: null, dredge: false, cargo: null, tray: false, held: null };
     pickNext(Sp.cur);
     D.emit('harvestStart', Sp.cur);                                     // phát khi vào điểm: {sp, itemId, item}
     DRMinigame.open(viewOpts(Sp.cur));                                  // giờ thế giới chỉ trôi khi minigame chạy (DRMinigame.isOpen), không phải lúc chờ bắt đầu
+    openHold(Sp.cur);
     return true;
   }
 
+  // Harvester.OnLeaveActionPressed: chỉ rời được khi con trỏ không cầm gì. Đổi chế độ thì khoang docked tự đóng (cargo.js nghe 'mode'),
+  // khay chạy ResetStorageTray (đồ còn lại bị huỷ, tính là vứt).
   function leave(caughtAny) {
     const D = root.DR;
     Sp.cur = null; Sp.fishing = false;
@@ -763,23 +776,26 @@ void main() {
     const caught = result && typeof result === 'object' ? !!(result.caught != null ? result.caught : (result.success != null ? result.success : result.ok)) : !!result;
     const trophyHit = !!(result && typeof result === 'object' && (result.trophy || result.trophyHit));
     if (!caught) { leave(false); return; }
+    if (!cur.tray && cur.cargo && trayUnlocked()) { cur.tray = true; cur.cargo.setLeft({ kind: 'tray' }); }   // ShowStorageTray trước SpawnItem
     const made = createCatch(cur, trophyHit);
-    const again = () => {                                               // HarvestMinigameView.RefreshHarvestTarget sau OnItemPlaceComplete
-      if (!Sp.cur || D.mode !== 'harvest') return;
+    D.emit('harvestEnd', { caught, made });                             // phát khi xong một con: {caught, made}
+    const again = () => {                                               // HarvestMinigameView.RefreshHarvestTarget sau OnItemPlaceComplete / OnItemRemovedFromCursor
+      cur.held = null;
+      if (Sp.cur !== cur || D.mode !== 'harvest') return;
       pickNext(cur);
       if (root.DRMinigame && DRMinigame.isShown()) DRMinigame.refresh(viewOpts(cur)); else DRMinigame.open(viewOpts(cur));
     };
-    D.emit('harvestEnd', { caught, made });                             // phát khi xong một con: {caught, made}
-    const afterReveal = () => {
-      if (!Sp.cur) return;
-      if (made && !made.placed) {
-        if (root.DRCargo && typeof DRCargo.open === 'function') {
-          DRMinigame.wait();
-          DRCargo.open({ keys: ['INVENTORY'], holding: made.holding, title: 'Khoang thuyền', onClose: () => again() });
-        } else { if (root.DRHud) DRHud.toast('Khoang đầy — đành thả ' + made.item.name + ' về biển'); again(); }
-      } else again();
-    };
-    if (root.DRMinigame && DRMinigame.isShown() && DRMinigame.reveal) DRMinigame.reveal(made, afterReveal); else afterReveal();
+    // gọi thẳng không qua minigame (DR_DEBUG.catchNow của test/dredge-story.js): bỏ qua cả con trỏ, món vào khoang như móc gỡ lỗi cũ
+    const viaMinigame = !!(root.DRMinigame && DRMinigame.phase && DRMinigame.phase() === 'held');
+    if (!viaMinigame) {
+      const extra = Object.assign({}, made.holding); delete extra.id;
+      if (D.give(made.id, extra)) { again(); return; }
+    }
+    // GridManager.AddItemOfTypeToCursor(item, BEING_HARVESTED): món nằm trên con trỏ, CHƯA vào khoang; người chơi đặt hoặc giữ Z để vứt
+    if (!cur.cargo) openHold(cur);
+    const h = { inst: made.holding, src: 'harvest', onPlaced: () => again(), onDiscarded: () => again() };
+    if (cur.cargo && cur.cargo.hold && cur.cargo.hold(h)) cur.held = made.holding;
+    else { console.error('[spots] catch not held: cargo hold unavailable'); again(); }
   }
 
   // ItemManager.CreateFishItem (ItemManager.cs:250-335) + HarvestMinigameView.cs:372-391
@@ -819,13 +835,12 @@ void main() {
         v['fish-before-next-trophy-notch'] = (v['fish-before-next-trophy-notch'] || 0) - 1;
       }
     }
-    const inst = D.give(id, extra);
+    const inst = Object.assign({ id }, extra || {});                    // instance chưa thuộc lưới nào (BEING_HARVESTED)
     const cm = isFish && extra ? Math.round(R.lerp(item.minSizeCentimeters || 0, item.maxSizeCentimeters || 0, extra.size)) : 0;
-    root.DRBoat.refresh();
     // trophy theo ItemManager.SetItemSeen: size ≥ TrophyMaxSize -> TriggerTrophyFishCaught
     const trophy = !!(isFish && extra && extra.size >= CFG.trophyMaxSize);
-    const out = { id, item, inst, aberrant, trophy: trophyHit, trophySize: trophy, size: extra ? extra.size : null, isNew: wasNew && isFish, cm, placed: !!inst,
-      relic: String(item.subtype) === 'RELIC', holding: Object.assign({ id }, extra || {}) };
+    const out = { id, item, inst, aberrant, trophy: trophyHit, trophySize: trophy, size: extra ? extra.size : null, isNew: wasNew && isFish, cm, placed: false,
+      relic: String(item.subtype) === 'RELIC', holding: inst };
     D.emit('catch', out);                                               // phát khi có món mới (banner, âm thanh, nhiệm vụ nghe)
     return out;
   }
@@ -839,6 +854,16 @@ void main() {
     }
     return best;
   }
+
+  // ---- r2deploy: điểm câu tạm (BaitAbility.DeployBait dựng BaitPOI lúc chạy, không lưu sổ). def = { id, x, z, r, d } (d như harvestPOIData).
+  // Trả { sp, remove() }; remove() gỡ điểm khỏi danh sách và xoá kho trong DR.s.spots. Thêm vào, không đổi luồng câu sẵn có.
+  Sp.addTemp = function (def) {
+    const id = String(def.id);
+    if (Sp.byId[id]) throw new Error('spot id already in use: ' + id);
+    const sp = { id, x: def.x, y: 0, z: def.z, d: def.d, dredge: false, r: def.r || 2, special: false, spDay: null, spT: -1, temp: true };
+    Sp.list.push(sp); Sp.byId[id] = sp;
+    return { sp, remove() { const i = Sp.list.indexOf(sp); if (i >= 0) Sp.list.splice(i, 1); delete Sp.byId[id]; if (root.DR.s && root.DR.s.spots) delete root.DR.s.spots[id]; } };
+  };
 
   Object.assign(Sp, { init, update, interact, finish, nearest, regen, rec });
   Object.defineProperty(Sp, 'mesh', { get: () => mesh });

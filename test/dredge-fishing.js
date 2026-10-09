@@ -4,8 +4,9 @@
  * Chạy:  node test/dredge-fishing.js            (tự dựng máy chủ tĩnh ở gốc repo; Playwright như test/dredge-suite.js)
  * Ảnh:   %TEMP%/dredge-fishing/<rộng>x<cao>-*.png  (mở ra xem bằng mắt)
  * Kiểm:  (1) bố cục: vị trí/kích cỡ px của từng nút so với số RectTransform viết thẳng ở LAYOUT (đơn vị canvas 1920x1080, khớp theo chiều cao);
- *        (2) luồng gốc: tới điểm -> Space -> panel hiện, GIỜ ĐỨNG -> bấm bắt đầu, giờ trôi -> minigame -> thẻ bắt được -> cá vào khoang -> chờ con kế -> Esc rời;
- *        (3) bot "bấm hoàn hảo" thắng cả sáu minigame mà không lần trượt nào; (4) cargo đầy -> DRCargo.open có holding;
+ *        (2) luồng gốc: tới điểm -> Space -> panel hiện, GIỜ ĐỨNG -> bấm bắt đầu, giờ trôi -> minigame -> cá lên con trỏ (khoang docked, r2fish F2)
+ *            -> chuột trái đặt vào khoang -> chờ con kế -> Esc rời;
+ *        (3) bot "bấm hoàn hảo" thắng cả sáu minigame mà không lần trượt nào; (4) cargo đầy -> món vẫn trên con trỏ, giữ Z vứt;
  *        (5) kho/chữ/màu panel thông tin; (6) hiệu ứng điểm (số cá theo kho, điểm đặc biệt, dị biến); (7) tần số khung hình không tệ hơn 15% so với HEAD.
  * Vòng 2 (audit D:\dredge-ref\notes\audit\fishing.md, số mong đợi viết thẳng từ dữ liệu gốc):
  *        F1 camera HarvestClearShot: vào điểm -> cao 20,3 m trên thuyền, chúc 75,96°, FOV 40 sau blend Brain 2 s; rời -> về rig bám thuyền;
@@ -136,6 +137,22 @@ function botSource() {
     st.ms = performance.now() - st.t0;
     return st;
   };
+}
+
+// r2fish: đặt món đang cầm vào ô trống đầu tiên của khoang bằng chuột trái thật (tâm dấu chân = con trỏ, như js/cargo.js)
+async function placeHeld(page) {
+  const p = await page.evaluate(() => {
+    const held = DRCargo.held(), dk = DRCargo._debug();
+    if (!held || !dk) return null;
+    const def = DR.item(held.id), gr = dk.grids.find(g => g.key === 'INVENTORY'), s = DRGrid.findSpot(DR.grid('INVENTORY'), def, 0, false);
+    if (!s || !gr) return null;
+    const f = DRGrid.footprint(def, s.x, s.y, 0), xs = f.map(q => q[0]), ys = f.map(q => q[1]);
+    return { x: gr.x + (Math.min(...xs) + Math.max(...xs) + 1) / 2 * dk.cs, y: gr.y + (Math.min(...ys) + Math.max(...ys) + 1) / 2 * dk.cs };
+  });
+  if (!p) return false;
+  await page.mouse.move(p.x, p.y, { steps: 6 }); await sleep(80);
+  await page.mouse.down(); await page.mouse.up(); await sleep(250);
+  return true;
 }
 
 async function boot(browser, base, W, H) {
@@ -338,7 +355,7 @@ async function run(browser, base, W, H) {
     const a0 = await page.evaluate(() => __aud.length);
     const st = await page.evaluate(botSource(), type);
     check('[' + tag + '] ' + type + ': bot thắng ở điểm thật, 0 trượt', st.misses === 0, st.presses + ' bấm, ' + st.misses + ' trượt');
-    await page.waitForFunction(() => DRMinigame.phase() === 'reveal', null, { timeout: 8000 }).catch(() => {});
+    await page.waitForFunction(() => DRCargo.held(), null, { timeout: 8000 }).catch(() => {});
     if (type === 'FISHING_RADIAL') {
       // F5: con đầu tiên của loài -> banner "loài mới" (tên món gốc DR_ITEMS.mackerel.name = "Blue Mackerel"), tiếng "Fish - New";
       // thẻ bắt được KHÔNG phát tiếng riêng (SFX-10): sau tiếng kết thúc "fish.end" không còn fish.new / fish.minigame.hit nào.
@@ -354,16 +371,18 @@ async function run(browser, base, W, H) {
         !snd.includes('fish.new') && !after.includes('fish.minigame.hit'), snd.join(','));
       await shot(page, '4-banner-new-species');
     }
-    const rv = await page.evaluate(() => ({ ph: DRMinigame.phase(), title: DRMinigame.node('Title').el.textContent, stock: DRMinigame.node('StockText').el.textContent, hint: getComputedStyle(DRMinigame.node('HintImage').el).display }));
+    // r2fish F2 (thay thẻ "bắt được" + tự vào khoang): món nằm trên con trỏ (BEING_HARVESTED), khoang chưa đổi; chuột trái đặt vào ô trống
+    const rv = await page.evaluate(() => ({ ph: DRMinigame.phase(), held: DRCargo._debug() && DRCargo._debug().held, docked: DRCargo._debug() && DRCargo._debug().docked }));
+    check('[' + tag + '] ' + type + ': bắt xong -> món trên con trỏ của khoang docked, panel "held", khoang chưa đổi', rv.ph === 'held' && rv.held && rv.held.st === 'BEING_HARVESTED' && rv.docked && (await info()).inv.length === inv0, JSON.stringify(rv));
+    if (type === 'FISHING_RADIAL') await shot(page, '4-catch-held');
+    await placeHeld(page);
     const i1 = await info();
-    check('[' + tag + '] ' + type + ': thẻ "bắt được" hiện tên + kích thước', rv.ph === 'reveal' && rv.title.length > 0 && (type === 'DREDGE_RADIAL' || /cm/.test(rv.stock)), JSON.stringify(rv));
-    check('[' + tag + '] ' + type + ': vật phẩm vào INVENTORY', i1.inv.length === inv0 + 1, inv0 + ' -> ' + i1.inv.length + ' ' + (i1.inv[i1.inv.length - 1] && i1.inv[i1.inv.length - 1].id));
+    check('[' + tag + '] ' + type + ': chuột trái đặt -> vật phẩm vào INVENTORY', i1.inv.length === inv0 + 1, inv0 + ' -> ' + i1.inv.length + ' ' + (i1.inv[i1.inv.length - 1] && i1.inv[i1.inv.length - 1].id));
     const stock1 = await page.evaluate(id => DR.s.spots[id].stock, sp.id);
     check('[' + tag + '] ' + type + ': kho điểm giảm 1', Math.abs(stock1 - (stock0 - 1)) < 0.2, stock0.toFixed(2) + ' -> ' + stock1.toFixed(2));
-    if (type === 'FISHING_RADIAL') await shot(page, '4-catch-reveal');
     await page.waitForFunction(() => DRMinigame.phase() === 'prestart', null, { timeout: 8000 }).catch(() => {});
     const nx = await page.evaluate(() => ({ mode: DR.mode, ph: DRMinigame.phase(), shown: DRMinigame.isShown() }));
-    check('[' + tag + '] ' + type + ': sau thẻ, quay lại chờ con kế (vẫn trong màn thu hoạch)', nx.mode === 'harvest' && nx.ph === 'prestart' && nx.shown, JSON.stringify(nx));
+    check('[' + tag + '] ' + type + ': sau khi đặt, quay lại chờ con kế (vẫn trong màn thu hoạch)', nx.mode === 'harvest' && nx.ph === 'prestart' && nx.shown, JSON.stringify(nx));
     if (type === 'FISHING_RADIAL') {
       // F5: con thứ hai cùng loài -> KHÔNG có banner loài mới (BannersUI.OnItemSeen: GetCaughtCountById == 0)
       const nb0 = await page.evaluate(() => DRBanner.history.filter(h => h.kind === 'fish').length);
@@ -377,7 +396,7 @@ async function run(browser, base, W, H) {
         await sleep(60);
       }
       await page.evaluate(botSource(), type);
-      await page.waitForFunction(() => DRMinigame.phase() === 'reveal' || DRMinigame.phase() === 'prestart', null, { timeout: 8000 }).catch(() => {});
+      await page.waitForFunction(() => DRCargo.held(), null, { timeout: 8000 }).catch(() => {});
       await sleep(600);
       const h2 = await page.evaluate(() => ({ fish: DRBanner.history.filter(h => h.kind === 'fish').length, caught: DR.s.caught.mackerel, last: DRBanner.history.slice(-1)[0] }));
       check('[' + tag + '] F5 con thứ hai (mackerel lần ' + h2.caught + '): không có banner loài mới', h2.caught === 2 && h2.fish === nb0, JSON.stringify(h2));
@@ -387,6 +406,7 @@ async function run(browser, base, W, H) {
       const rs = blips.map(b => b.r);
       check('[' + tag + '] F7 tiếng trúng/trượt: cao độ trong [0,95; 1,05], khác nhau giữa các lần bấm (≥ 2 trượt do Space thật)', range[0] === 0.95 && range[1] === 1.05 && blips.filter(b => b.k === 'miss').length >= 2 && blips.some(b => b.k === 'hit') &&
         rs.every(r => typeof r === 'number' && r >= 0.95 && r <= 1.05) && new Set(rs.map(r => r.toFixed(4))).size >= Math.min(3, rs.length), blips.map(b => b.k + ' ' + (b.r == null ? '-' : b.r.toFixed(3))).join(', '));
+      await placeHeld(page);
       await page.waitForFunction(() => DRMinigame.phase() === 'prestart', null, { timeout: 8000 }).catch(() => {});
     }
     await page.keyboard.press('Escape');
@@ -507,16 +527,17 @@ async function run(browser, base, W, H) {
     await page.keyboard.press('Space');
     await sleep(300);
     const st = await page.evaluate(botSource(), 'FISHING_RADIAL');
-    await page.waitForFunction(() => DRMinigame.phase() === 'reveal', null, { timeout: 8000 }).catch(() => {});
-    await page.waitForFunction(() => DRCargo.isOpen(), null, { timeout: 8000 }).catch(() => {});
-    const cg = await page.evaluate(() => ({ cargo: DRCargo.isOpen(), ph: DRMinigame.phase(), mode: DR.mode, dbg: DRCargo._debug && DRCargo._debug() }));
-    check('[' + tag + '] khoang đầy (' + filled + ' món): DRCargo.open mở với món đang cầm, panel giữ chỗ', cg.cargo && cg.ph === 'wait' && cg.mode === 'harvest', JSON.stringify({ cargo: cg.cargo, ph: cg.ph, mode: cg.mode }));
+    await page.waitForFunction(() => DRCargo.held(), null, { timeout: 8000 }).catch(() => {});
+    const cg = await page.evaluate(() => ({ cargo: DRCargo.isOpen(), ph: DRMinigame.phase(), mode: DR.mode, held: !!DRCargo.held(), docked: DRCargo._debug().docked }));
+    check('[' + tag + '] khoang đầy (' + filled + ' món): món vừa bắt vẫn trên con trỏ của khoang docked, panel "held"', cg.cargo && cg.held && cg.docked && cg.ph === 'held' && cg.mode === 'harvest', JSON.stringify(cg));
     await shot(page, '7-cargo-full');
-    await page.evaluate(() => { for (let i = 0; i < 3; i++) { /* mở chỗ trống bằng cách xoá bớt */ } });
-    await page.keyboard.press('Escape');                                 // cargo chặn đóng khi còn cầm đồ
+    await page.keyboard.press('Escape');                                 // Harvester: không rời được khi còn cầm đồ
     await sleep(300);
-    check('[' + tag + '] khoang đầy: Esc không đóng được khi còn cầm món vừa bắt', await page.evaluate(() => DRCargo.isOpen()));
-    await page.evaluate(() => { DRCargo.close(); DR.setMode('sail'); });
+    check('[' + tag + '] khoang đầy: Esc không rời / không đóng khi còn cầm món vừa bắt', await page.evaluate(() => DRCargo.isOpen() && DR.mode === 'harvest'));
+    await page.keyboard.down('KeyZ'); await sleep(950); await page.keyboard.up('KeyZ'); await sleep(200);
+    check('[' + tag + '] khoang đầy: giữ Z vứt món vừa bắt (BEING_HARVESTED luôn vứt được), panel chờ lại', await page.evaluate(() => !DRCargo.held() && DRMinigame.phase() === 'prestart'));
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => DR.mode === 'sail', null, { timeout: 4000 }).catch(() => {});
   }
 
   check('[' + tag + '] không có pageerror / console error / HTTP >= 400', errs.length === 0, errs.slice(0, 5).join(' | '));

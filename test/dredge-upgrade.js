@@ -221,6 +221,20 @@ async function run(browser, base, W, H, full) {
       prompt: (t.querySelector('.pr span') || {}).textContent || null, box: (() => { const r = t.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom }; })() };
   });
   const give = ids => ev(ids => ids.map(id => !!DR.give(id)), ids);
+  // Mua bằng lưới "Materials Required" (UpgradeGridPanel): cài sẵn vật liệu từ khoang vào lưới đã lưu của nâng cấp, rồi bấm nút bằng chuột/chạm.
+  // Phép kéo từng món bằng chuột thật được kiểm ở test/dredge-r2upgrade.js.
+  const deliver = id => ev(id => {
+    const u = DR_UPGRADES[id], q = u.questGrid, inv = DR.grid('INVENTORY');
+    if (!DR.s.grids[q.gridKey]) DR.resetGrid(q.gridKey, q.gridConfiguration);
+    const g = DR.grid(q.gridKey);
+    for (const it of q.presetGrid.spatialItems) {                                   // đặt đúng ô bóng mờ (presetGrid) bằng món thật lấy từ khoang
+      const inst = inv.items.find(i => i.id === it.id); if (!inst) return false;
+      DRGrid.remove(inv, inst);
+      if (!DRGrid.place(g, DR.item(it.id), it.x, it.y, it.z || 0)) return false;
+    }
+    return true;
+  }, id);
+  const BUYBTN = '.cg-btn[data-act="purchase"]';
   // ô (x, y) của INVENTORY có nhận vật phẩm id không (GridCellData.CanAccept): [[x, y, id], ...] → [bool, ...]
   const cellsOk = list => ev(l => l.map(([x, y, id]) => { const g = DR.grid('INVENTORY'); return DRGrid.accepts(g.cells[y * g.cols + x], DR.item(id)); }), list);
   const closeAll = async () => { await ctx.close(); };
@@ -325,13 +339,14 @@ async function run(browser, base, W, H, full) {
     await dockReady(page);
     const again = await openDryDock(page, true);
     check('lần sau chưa mua: chỉ node Shipwright_DryDock_Return (một câu, không lựa chọn)', again.nodes.includes('Shipwright_DryDock_Return') && !again.nodes.includes('Shipwright_DryDock_Unlocked') && !again.kinds.includes('options'), again.nodes.join(' > '));
+    check('chuẩn bị lưới vật liệu Rod +2 (2 gỗ, 1 sắt vụn, 1 vải)', await deliver('tier-1-fishing-1'));
     const p = await centerOf('tier-1-fishing-1');
-    await page.touchscreen.tap(p.x, p.y); await sleep(700);
-    const card = await ev(() => { const c = document.querySelector('.up-card'); const r = c.getBoundingClientRect(); return { stage: DRUpgrade._debug().stage, vis: getComputedStyle(c).display !== 'none', l: r.left, t: r.top, r: r.right, b: r.bottom, buy: !!c.querySelector('[data-act="purchase"]:not([disabled])') }; });
-    check('chạm nút: thẻ "Materials Required" hiện đủ trong màn, nút Purchase bấm được', card.stage === 'card' && card.vis && card.l >= -0.5 && card.t >= -0.5 && card.r <= W + 0.5 && card.b <= H + 0.5 && card.buy, JSON.stringify(card));
+    await page.touchscreen.tap(p.x, p.y); await sleep(900);
+    const card = await ev(() => { const c = document.querySelector('.cg-left'); const r = c.getBoundingClientRect(); return { stage: DRUpgrade._debug().stage, vis: getComputedStyle(c).display !== 'none', l: r.left, t: r.top, r: r.right, b: r.bottom, buy: !!c.querySelector('[data-act="purchase"]:not([disabled])') }; });
+    check('chạm nút: bảng "Materials Required" hiện đủ trong màn, nút Purchase bấm được', card.stage === 'card' && card.vis && card.l >= -0.5 && card.t >= -0.5 && card.r <= W + 0.5 && card.b <= H + 0.5 && card.buy, JSON.stringify(card));
     await shot('card');
-    await page.touchscreen.tap(...(await ev(() => { const r = document.querySelector('.up-card [data-act="back"]').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }))); await sleep(500);
-    eq('nút Back của thẻ về cây (chưa mua gì)', [await ev(() => DRUpgrade._debug().stage), await ev(() => DR.s.upgrades || [])], ['tree', []]);
+    await page.touchscreen.tap(...(await ev(() => { const r = document.querySelector('.cg-left [data-act="done"]').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }))); await sleep(700);
+    eq('nút Xong của bảng về cây (chưa mua gì)', [await ev(() => DRUpgrade._debug().stage), await ev(() => DR.s.upgrades || [])], ['tree', []]);
     await hover('tier-1-net-1');
     tip = await tipInfo();
     check('tooltip ở cỡ điện thoại nằm trong màn hình', !!tip && tip.box.l >= 0 && tip.box.t >= 0 && tip.box.r <= W && tip.box.b <= H, tip && JSON.stringify(tip.box));
@@ -349,18 +364,20 @@ async function run(browser, base, W, H, full) {
   const second = await openDryDock(page);
   check('lần sau chưa mua: chỉ node Shipwright_DryDock_Return (một câu, không lựa chọn)', second.nodes.includes('Shipwright_DryDock_Return') && !second.nodes.includes('Shipwright_DryDock_Unlocked') && !second.kinds.includes('options'), second.nodes.join(' > '));
   eq('trước khi mua: ô (4,3) và (4,4) của Tier1Hull không nhận cần câu', await cellsOk([[4, 3, 'rod1'], [4, 4, 'rod1']]), [false, false]);
+  check('chuẩn bị lưới vật liệu Rod +2 (2 gỗ, 1 sắt vụn, 1 vải)', await deliver('tier-1-fishing-1'));
   await clickNode('tier-1-fishing-1');
+  await sleep(500);
   await shot('4-card');
-  const card = await ev(() => { const c = document.querySelector('.up-card'); return { stage: DRUpgrade._debug().stage, title: c.querySelector('.title').textContent, buy: c.querySelector('[data-act="purchase"]').textContent, dis: c.querySelector('[data-act="purchase"]').disabled, cells: [...c.querySelectorAll('.c')].map(x => x.querySelector('b').textContent) }; });
-  eq('bấm nút bấm được: thẻ "Materials Required" với nút Purchase Upgrade [$95.00] và vật liệu đủ 2/2 1/1 1/1', [card.stage, card.title, card.buy, card.dis, card.cells], ['card', 'Materials Required', 'Purchase Upgrade [$95.00]', false, ['2/2', '1/1', '1/1']]);
+  const card = await ev(() => { const c = document.querySelector('.cg-left'); return { stage: DRUpgrade._debug().stage, title: c.querySelector('.cg-name').textContent, buy: c.querySelector('[data-act="purchase"]').textContent, dis: c.querySelector('[data-act="purchase"]').disabled, cells: [...document.querySelectorAll('.cg-left .cg-item, .cg-left [data-id]')].length }; });
+  eq('bấm nút bấm được: bảng "Materials Required" với nút Purchase Upgrade [$95.00] bấm được khi lưới đủ', [card.stage, card.title, card.buy, card.dis], ['card', 'Materials Required', 'Purchase Upgrade [$95.00]', false]);
   const q = await centerOf('tier-1-net-1'); await page.mouse.move(q.x, q.y - 4, { steps: 3 }); await sleep(450);
-  check('thẻ đang mở: các nút nâng cấp không rê/tooltip được', (await tipInfo()) === null);
+  check('bảng đang mở: các nút nâng cấp không rê/tooltip được', (await tipInfo()) === null);
   const fundsBefore = await ev(() => DR.s.funds);
-  await page.click('.up-card [data-act="purchase"]'); await sleep(700);
+  await page.click(BUYBTN); await sleep(700);
   const bought = await ev(() => ({ owned: DR.s.upgrades, funds: DR.s.funds, inv: DR.grid('INVENTORY').items.map(i => i.id).sort(), flag: DR.s.vars['upgrade-bought'], stage: DRUpgrade._debug().stage, saved: JSON.parse(localStorage.getItem('dredge.save.v1')).upgrades }));
-  eq('mua Rod +2: sở hữu tier-1-fishing-1, trừ $95, mất đúng 2 gỗ + 1 sắt vụn + 1 vải, cờ upgrade-bought, đã lưu',
+  eq('mua Rod +2: sở hữu tier-1-fishing-1, trừ $95, mất đúng 2 gỗ + 1 sắt vụn + 1 vải (đã giao), cờ upgrade-bought, đã lưu',
     [bought.owned, bought.funds, bought.inv, bought.flag, bought.saved], [['tier-1-fishing-1'], fundsBefore - 95, ['engine1', 'rod1'], true, ['tier-1-fishing-1']]);
-  check('mua xong thẻ đóng, quay về cây', bought.stage === 'tree');
+  check('mua xong bảng đóng, quay về cây', bought.stage === 'tree');
   eq('nâng cấp ô Rod: (4,3),(4,4) nhận cần câu; ô kế bên (3,3) vẫn không', await cellsOk([[4, 3, 'rod1'], [4, 4, 'rod1'], [3, 3, 'rod1']]), [true, true, false]);
   const d1 = await dbg();
   eq('nút Rod thành POSITIVE; PostLine + nhánh phải T1FishingLine1 xanh; hull bậc 2 vẫn DISABLED (còn thiếu 3 nâng cấp)',
@@ -375,20 +392,21 @@ async function run(browser, base, W, H, full) {
   await clickNode('tier-1-fishing-1');
   await clickNode('tier-2-fishing-1');
   eq('bấm nút đã sở hữu / nút DISABLED: không mở thẻ', await ev(() => DRUpgrade._debug().stage), 'tree');
-  await clickNode('tier-1-engines-1');
-  const dis = await ev(() => { const b = document.querySelector('.up-card [data-act="purchase"]'); return [b.disabled, [...document.querySelectorAll('.up-card .c b')].map(x => x.textContent)]; });
-  eq('thiếu vật liệu: nút Purchase tắt, ô vật liệu 0/1 và 0/2', dis, [true, ['0/1', '0/2']]);
+  await clickNode('tier-1-engines-1'); await sleep(400);
+  const dis = await ev(() => { const b = document.querySelector('.cg-left [data-act="purchase"]'); return [b.disabled, DRUpgrade.have('lumber', 'tier-1-engines-1'), DRUpgrade.have('scrap', 'tier-1-engines-1')]; });
+  eq('lưới chưa có vật liệu: nút Purchase tắt, đã giao 0 gỗ và 0 sắt vụn', dis, [true, 0, 0]);
   await ev(() => { window.__played = []; const e = DRAudio.play; DRAudio.play = function (k) { window.__played.push(k); return e.apply(this, arguments); }; });
   const refused = await ev(() => { const r = DRUpgrade.purchase('tier-1-engines-1'); return { r, owned: DR.s.upgrades.length, played: window.__played.slice(), stage: DRUpgrade._debug().stage }; });
-  check('purchase() khi thiếu vật liệu: từ chối { ok: false, why: "materials" }, không mua, phát tiếng ui.error, thẻ vẫn mở', refused.r.ok === false && refused.r.why === 'materials' && refused.owned === 1 && refused.played.includes('ui.error') && refused.stage === 'card', JSON.stringify(refused));
+  check('purchase() khi thiếu vật liệu: từ chối { ok: false, why: "materials" }, không mua, phát tiếng ui.error, bảng vẫn mở', refused.r.ok === false && refused.r.why === 'materials' && refused.owned === 1 && refused.played.includes('ui.error') && refused.stage === 'card', JSON.stringify(refused));
   await page.keyboard.press('Escape'); await sleep(450);
-  eq('Esc khi thẻ đang mở: đóng thẻ trước, cửa sổ vẫn mở', [await ev(() => DRUpgrade._debug().stage), await ev(() => DRUpgrade.isOpen())], ['tree', true]);
+  eq('Esc khi bảng đang mở: đóng bảng trước, cửa sổ vẫn mở', [await ev(() => DRUpgrade._debug().stage), await ev(() => DRUpgrade.isOpen())], ['tree', true]);
 
   // ===== ba nâng cấp ô còn lại của Tier1: mỗi cái mở đúng ô =====
   const buy = async (id, mats) => {
     await ev(mats => { for (const m of mats) DR.give(m); }, mats);
-    await clickNode(id);
-    await page.click('.up-card [data-act="purchase"]'); await sleep(600);
+    await deliver(id);
+    await clickNode(id); await sleep(300);
+    await page.click(BUYBTN); await sleep(600);
   };
   await buy('tier-1-engines-1', ['lumber', 'scrap', 'scrap']);
   await buy('tier-1-lights-1', ['lumber', 'lumber', 'scrap']);
@@ -420,9 +438,10 @@ async function run(browser, base, W, H, full) {
   eq('trước khi nâng: vòng máy gọi theo bậc 1', await ev(() => __loops.filter(k => /^boat\.engine\./.test(k)).slice(-1)[0]), 'boat.engine.1');
   eq('nút hull 2 NEUTRAL; thân hiện là Tier1Hull 6x9', [await ev(() => DRUpgrade.state('tier-2-hull')), await ev(() => [DR.s.grids.INVENTORY.cfg, DR.grid('INVENTORY').cols, DR.grid('INVENTORY').rows])], ['neutral', ['Tier1Hull', 6, 9]]);
   const money0 = await ev(() => DR.s.funds);
-  await clickNode('tier-2-hull');
+  check('chuẩn bị lưới vật liệu hull 2', await deliver('tier-2-hull'));
+  await clickNode('tier-2-hull'); await sleep(400);
   await shot('5-card-hull');
-  await page.click('.up-card [data-act="purchase"]'); await sleep(900);
+  await page.click(BUYBTN); await sleep(900);
   const after = await ev(() => {
     const inv = DR.grid('INVENTORY'), sto = DR.grid('STORAGE'), G = DRGrid;
     const grp = i => { const d = DR.item(i.id), t = G.typeOf(d), sb = G.subOf(d); return t === G.TYPE.EQUIPMENT ? (sb === G.SUB.DREDGE ? 0 : sb === G.SUB.POT ? 3 : 1) : sb === G.SUB.FISH ? 4 : 2; };
@@ -458,8 +477,9 @@ async function run(browser, base, W, H, full) {
   await page.waitForFunction(() => DRUpgrade.isOpen(), null, { timeout: 15000 });
   await sleep(600);
   const e0 = (await cellsOk([[3, 6, 'engine1']]))[0];
-  await clickNode('tier-2-engines-1');
-  await page.click('.up-card [data-act="purchase"]'); await sleep(600);
+  await deliver('tier-2-engines-1');
+  await clickNode('tier-2-engines-1'); await sleep(300);
+  await page.click(BUYBTN); await sleep(600);
   const e1 = (await cellsOk([[3, 6, 'engine1']]))[0];
   eq('Tier2 Engine +1 mở ô (3,6) của Tier2Hull cho động cơ', [e0, e1], [false, true]);
   const owned1 = await ev(() => DR.s.upgrades.slice());

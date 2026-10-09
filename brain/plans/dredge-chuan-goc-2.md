@@ -74,3 +74,20 @@ Các bản sao `D:\dredge-wt\*` không còn cần cho đợt 1; giữ lại làm
 - Mỗi nhánh: test riêng `test/dredge-<nhánh>.js` (đầu vào thật, so số liệu gốc), ảnh ghép với ảnh thật, cộng `dredge-rules`, `dredge-suite`, `dredge-asset-keys`.
 - Sau mỗi lần gộp: chạy lại toàn bộ `test/dredge-*.js` trên cây repo; đo khung hình so với mốc Pages 2,74 ms.
 - Cuối: đẩy, đợi Pages, chạy toàn bộ với `DR_URL` trỏ vào Pages, xem ảnh tận mắt.
+
+## Đợt 2b (2026-10-09): sáu lời chê mới, sáu nhánh
+
+Chủ dự án chơi rev `20261008b` rồi chê: nước nhìn góc nào cũng gãy khúc (low poly); cá câu được vẫn tự vào khoang; nâng cấp bấm mua là trừ vật liệu luôn; cửa hàng vẫn là danh sách; lưới kéo, bẫy cua, mồi mua được mà không dùng được; Banish, Atrophy, Manifest chưa có; nước gần bờ trắng quá, đêm tối hơn bản gốc.
+
+- Hợp đồng chung: `D:\dredge-ref\notes\DELEGATE-R3.md`. Đề bài từng nhánh: `D:\dredge-ref\notes\briefs\r2*.md`.
+- Bản sao `D:\dredge-wt\r2water|r2fish|r2shop|r2upgrade|r2deploy|r2spells`, bản gốc `_base3` = commit `5da3330c`.
+- Gộp: `python -I D:/dredge-ref/notes/merge_copy.py r2<nhánh> _base3 [--apply]`. Tool sinh dữ liệu dùng chung (`audio.py`, `particles.py`) thì root chạy lại sau khi gộp hết.
+
+| Nhánh | Tệp | Khác biệt |
+|---|---|---|
+| r2water | `water.js`, `sky.js`, `env.py` | nước mượt ở mọi camera, bờ bớt trắng, đêm và hoàng hôn theo `gog_20`, `gog_01` |
+| r2fish | `spots.js`, `minigame.js`, `banner.js`, `harvest_ui.py` | F2 cá lên con trỏ, khoang mở bên phải; F9 khay 6x3 |
+| r2shop | `dock.js`, `shop.js` mới | SU-01/02/05/07..14: hai lưới, bán, sửa |
+| r2upgrade | `upgrade.js` | SU-04 lưới "Materials Required" |
+| r2deploy | `deploy.js` mới (+ một hàm thêm ở `spots.js`) | GR-06 lưới kéo, GR-07 bẫy cua, GR-13 mồi |
+| r2spells | `spells.js` mới | GR-17 Banish, Atrophy, Manifest |

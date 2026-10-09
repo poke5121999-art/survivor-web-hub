@@ -48,13 +48,6 @@
 #dr-hv .hv-leave { position: absolute; pointer-events: auto; font-size: calc(15 * var(--u)); min-height: 0; padding: 0 calc(14 * var(--u)); height: calc(34 * var(--u)); min-width: 0; }
 @media (max-height: 460px) { #dr-hv .hv-leave { height: 30px; font-size: 12px; padding: 0 10px; } }
 
-/* TutorialPopup: tan biến bằng bộ lọc SVG #hv-dissolve (js/minigame.js dissolve()), không còn hiệu ứng "pop" */
-/* hiệu ứng thẻ tiết lộ cá (HintImage của thẻ "bắt được", còn giữ tới khi có luồng đặt cá lên con trỏ) */
-#dr-hv .hv-pop { animation: hvPop .55s cubic-bezier(.2, 1.4, .4, 1); }
-@keyframes hvPop { from { transform: scale(.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-#dr-hv .hv-fish { position: absolute; background: var(--s) center / contain no-repeat; pointer-events: none; }
-#dr-hv .hv-fish.sil { filter: brightness(0) invert(1); opacity: .22; }
-
 /* SpiralMinigame: sprite vẽ ở cỡ tự nhiên, pivot đặt giữa RectTransform 280x280 (xem chú thích trong js/minigame.js) */
 #dr-hv .mg-i.sp-nat { background-size: calc(240 * var(--u)) calc(255.5 * var(--u)); background-position: calc(29 * var(--u)) calc(4.5 * var(--u)); }
 #dr-hv .mg-i.sp-nat::after { -webkit-mask-size: calc(240 * var(--u)) calc(255.5 * var(--u)); mask-size: calc(240 * var(--u)) calc(255.5 * var(--u));

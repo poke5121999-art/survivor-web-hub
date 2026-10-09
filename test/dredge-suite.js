@@ -190,9 +190,20 @@ async function run(browser, base, W, H) {
   const tMid = (await info()).time;
   // minigame chạy thì giờ trôi ×fishingTimePassageSpeedModifier (2,5)
   check('đang câu: giờ trôi ×2,5', tMid - tFish > 1.2 * 2.5 / 288 * 0.8, ((tMid - tFish) * 288).toFixed(2) + ' s giờ game / 1,5 s thật');
-  if (mg) await page.waitForFunction(() => DR.mode === 'sail', null, { timeout: 30000 }).catch(() => {}); // để tiến độ thụ động tự đầy
+  // r2fish F2: bắt xong thì cá nằm trên con trỏ của khoang docked (HarvestMinigameView.SpawnItem); chuột trái đặt vào ô trống rồi Esc rời
+  if (mg) await page.waitForFunction(() => DRCargo.held(), null, { timeout: 30000 }).catch(() => {}); // để tiến độ thụ động tự đầy
   else await page.evaluate(() => DR_DEBUG.catchNow());
-  await page.waitForFunction(() => DR.mode === 'sail', null, { timeout: 30000 }).catch(() => {});
+  const free = await page.evaluate(() => {
+    const held = DRCargo.held(), dk = DRCargo._debug();
+    if (!held || !dk) return null;
+    const def = DR.item(held.id), gr = dk.grids.find(g => g.key === 'INVENTORY'), s = DRGrid.findSpot(DR.grid('INVENTORY'), def, 0, false);
+    const f = DRGrid.footprint(def, s.x, s.y, 0), xs = f.map(q => q[0]), ys = f.map(q => q[1]);
+    return { x: gr.x + (Math.min(...xs) + Math.max(...xs) + 1) / 2 * dk.cs, y: gr.y + (Math.min(...ys) + Math.max(...ys) + 1) / 2 * dk.cs };
+  });
+  check('bắt xong: cá trên con trỏ, chưa vào khoang', !!free && !(await info()).inv.some(i => /^(cod|mackerel)/.test(i.id)));
+  if (free) { await page.mouse.move(free.x, free.y, { steps: 5 }); await sleep(80); await page.mouse.down(); await page.mouse.up(); await sleep(250); }
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => DR.mode === 'sail', null, { timeout: 5000 }).catch(() => {});
   I = await info();
   const fish = I.inv.find(i => /^(cod|mackerel)/.test(i.id));
   check('cá vào khoang INVENTORY' + (mg ? ' (qua minigame của UI)' : ' (minigame chưa có: lối thụ động)'), !!fish, JSON.stringify(fish));

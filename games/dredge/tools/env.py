@@ -444,7 +444,7 @@ def main():
                     {'Lit_Shader', 'LitTriplanar_Shader', 'Foliage_Shader', 'LitYBillboard_Shader', 'TerrainShader',
                      'Sky_Shader', 'LightBeam_Shader', 'AtmosphericParticles_Shader', 'FloatingParticle_Shader',
                      'BirdParticle_Shader', 'RavenParticle_Shader', 'UnderwaterObject_Shader',
-                     'GaleCliffsWaterfall_Shader'})
+                     'GaleCliffsWaterfall_Shader', 'Water_Shader'})
 
     L = cfg['logic']
     TC, FC = L['TimeController'][0]['fields'], L['FogController'][0]['fields']

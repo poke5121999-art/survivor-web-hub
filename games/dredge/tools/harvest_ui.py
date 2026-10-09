@@ -16,6 +16,7 @@ Ghi thêm (vòng 2):
        spotfx   = mọi hệ hạt của prefab điểm câu (cá, mảnh vụn, vòng nước động, ooze), danh sách clip tiếng gần điểm + độ dài,
                   mesh thật -> art/ui/minigame/spot_meshes.bin, bảng màu -> art/ui/minigame/spot_*.webp
        art/ui/minigame/UITransitionTex.webp (mặt nạ tan biến của TutorialPopup, UITransitionEffect)
+Ghi thêm (r2fish): tray = cây RectTransform của Container/StorageTray (460x245 dưới đáy bảng câu, lưới 6x3, HelpTextContainer).
 
 Bẫy đã sập (ghi lại để khỏi sập lần nữa):
 - `m_LocalEulerAnglesHint` của AssetRipper bị ĐẢO DẤU so với `m_LocalRotation`. Luôn đọc góc từ quaternion: rotZ = 2*atan2(z, w).
@@ -381,7 +382,7 @@ def export_font():
         if o.type.name == "Font":
             f = o.read()
             if f.m_Name == "Front Page Neue":
-                font = TTFont(io.BytesIO(bytes(f.m_FontData)))
+                font = TTFont(io.BytesIO(bytes(f.m_FontData)), recalcTimestamp=False)   # mặc định ghi giờ chạy vào head.modified
                 opts = subset.Options(); opts.flavor = "woff2"
                 sb = subset.Subsetter(opts); sb.populate(unicodes=list(range(0x20, 0x7F)) + list(range(0xA0, 0x100)) + [0x2013, 0x2014, 0x2018, 0x2019, 0x201C, 0x201D])
                 sb.subset(font)
@@ -921,6 +922,18 @@ def main():
     view_go = S.y(view_mb)[1]["m_GameObject"]["fileID"]
     path_of = {}
     tree = walk(S, view_go, "", path_of, skip=("StorageTray", "Audio"))
+    # ---- StorageTray (audit F9): con của Container, lưới 6x3 do js/cargo.js vẽ (left kind 'tray'); xuất riêng để test so bố cục
+    def child_named(go, name):
+        for c in S.y(tf_of(S, go))[1].get("m_Children", []):
+            cg = S.y(c["fileID"])[1]["m_GameObject"]["fileID"]
+            if S.y(cg)[1]["m_Name"] == name:
+                return cg
+            r = child_named(cg, name)
+            if r:
+                return r
+    keep = dict(SPRITES)                                         # sprite của khay do cargo.js tự vẽ: không xuất thêm ảnh
+    tray = walk(S, child_named(view_go, "StorageTray"), "", {})
+    SPRITES.clear(); SPRITES.update(keep)
     # ---- hằng số của 6 minigame (trường [SerializeField] đọc được; ref -> đường dẫn nút)
     mini = {}
     for cname in ("FishMinigame", "PendulumMinigame", "BallCatcherMinigame", "DiamondMinigame", "SpiralMinigame", "DredgeMinigame"):
@@ -997,7 +1010,7 @@ def main():
     os.makedirs(OUT + "/audio", exist_ok=True)
     for src, dst in (("Fishing_Minigame_Doors_Open", "gate-open"), ("Fishing_Minigame_Doors_Close", "gate-close"), ("Fishing_Minigame_Doors_Closed_Hit", "gate-hit")):
         subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", REF + "/audio/gameaudio/%s.ogg" % src, "-ac", "1", "-b:a", "64k", OUT + "/audio/%s.mp3" % dst], check=True)
-    data = {"canvas": [1920, 1080], "tree": tree, "mini": mini, "prefabs": prefabs, "clips": clips, "tags": tags, "sfx": refs, "sprites": meta,
+    data = {"canvas": [1920, 1080], "tree": tree, "tray": tray, "mini": mini, "prefabs": prefabs, "clips": clips, "tags": tags, "sfx": refs, "sprites": meta,
             "colors": {"NEUTRAL": "#ffffff", "EMPHASIS": "#3b9795", "POSITIVE": "#74d27a", "NEGATIVE": "#dc2c38", "CRITICAL": "#871d58", "WARNING": "#ff9a3b", "VALUABLE": "#ffd104", "DISABLED": "#6b6b6b"}}
     # ---- TutorialPopup: UITransitionEffect (Coffee UIEffect, chế độ tan biến) + texture chuyển cảnh
     def find(n, name):

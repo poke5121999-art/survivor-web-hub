@@ -13,7 +13,9 @@
  *   DRUpgrade.open({ dest, onClose })   mở cửa sổ; dest = điểm đến (id để tra allowHullTier5Content)
  *   DRUpgrade.close()  isOpen()  owned(id)  list()  state(id)  cost(id)  have(item)
  *   DRUpgrade.applyUpgrade(id)          SU-03: đánh dấu đã sở hữu + áp vào thuyền (UpgradeManager.OnUpgradesChanged), KHÔNG trừ tiền
- *   DRUpgrade.purchase(id)              trừ tiền + vật liệu trong khoang rồi applyUpgrade (ĐƯỜNG NỐI, xem chú thích hàm)
+ *   DRUpgrade.purchase(id)              UpgradeGridPanel.OnPurchaseButtonClicked: kiểm thân hỏng / kho tràn / tiền / lưới vật liệu đủ,
+ *                                       trừ tiền + vật liệu đã giao rồi applyUpgrade. Bảng "Materials Required" mở qua DRCargo.open (left.kind 'quest')
+ *   DRUpgrade.have(item, id)            số món item trong lưới đã giao của nâng cấp id (TooltipSectionUpgradeCost: uc.CountItems(grid))
  *   DRUpgrade.reapplyOwned()            ApplyOwnedSlotUpgrades: áp lại ô của nâng cấp ô đã có ở bậc hull hiện tại
  *   Sự kiện: DR.emit('upgrade', { id, kind: 'hull'|'slot', tier, hullTier }) = GameEvents.OnUpgradesChanged
  * Trạng thái lưu: DR.s.upgrades = mảng id đã sở hữu (SaveData.upgradeIdsOwned, khởi tạo lười vì state.js do root giữ),
@@ -75,10 +77,16 @@
     const items = c ? c.items.map(x => ({ item: x.item, count: x.count })) : (u.upgradeCost || []).map(x => ({ item: x.itemData, count: x.num }));
     return { money: u.monetaryCost, items };
   }
-  // ĐƯỜNG NỐI [vòng 3]: bản gốc đếm vật liệu trong lưới nhiệm vụ đã lưu của nâng cấp (TooltipSectionUpgradeCost: uc.CountItems(grid)).
-  // Vòng này chưa có lưới "Materials Required" nên đếm trong khoang (INVENTORY); khi có lưới, đổi hàm này sang đếm lưới đó.
-  function have(item) {
-    return DR.grid('INVENTORY').items.reduce((n, i) => n + (i.id === item ? 1 : 0), 0);
+  // Lưới vật liệu đã giao của một nâng cấp: DR.s.grids[questGrid.gridKey] (QuestGridPanel isSaved), chưa mở lần nào thì null
+  const gridKeyOf = id => U[id] && U[id].questGrid ? U[id].questGrid.gridKey : null;
+  function delivered(id) {
+    const k = gridKeyOf(id);
+    return k && DR.s.grids[k] ? DR.grid(k) : null;
+  }
+  // TooltipSectionUpgradeCost: uc.CountItems(lưới đã lưu của nâng cấp). Không truyền id thì đếm trong khoang
+  function have(item, id) {
+    const g = id ? delivered(id) : DR.grid('INVENTORY');
+    return g ? G.countItem(g, item, root.DR_ITEMS, false) : 0;
   }
   const titleOf = u => fmt(u.titleKey, isHull(u) ? [u.tier] : [newCells(u)]);                    // TooltipSectionHeader.Init(UpgradeData)
   const descOf = u => fmt(u.descriptionKey, isHull(u) ? [u.tier, newCells(u)] : [newCells(u)]);   // TooltipSectionDescription.Init(UpgradeData)
@@ -192,10 +200,8 @@
   }
 
   // ================================================================ mua nâng cấp
-  // ĐƯỜNG NỐI [vòng 3]: bản gốc bấm nút mở bảng "Materials Required" (UpgradeGridPanel), kéo vật liệu vào lưới đã lưu rồi bấm
-  // "Purchase Upgrade [$X]" (UpgradeGridPanel.OnPurchaseButtonClicked → UpgradeManager.AddUpgrade(free: false)). Vòng này mua thẳng:
-  // kiểm vật liệu trong khoang + tiền, trừ cả hai, rồi applyUpgrade. Vòng sau thay thân hàm bằng lưới vật liệu trên đường nối cargo
-  // (giữ thứ tự kiểm: thân hỏng, kho tràn, tiền; vật liệu do lưới báo COMPLETE; have() đếm trong lưới đó).
+  // UpgradeGridPanel.OnPurchaseButtonClicked → UpgradeManager.AddUpgrade(free: false). Thứ tự kiểm: thân hỏng, kho tràn (chỉ nâng thân),
+  // đang cầm đồ, tiền, rồi lưới vật liệu (completeConditions). Vật liệu lấy từ lưới đã giao; món thừa trả về khoang / kho.
   function purchase(id) {
     const u = U[id], fail = (why, msg) => { play('ui.error'); toast(msg); return { ok: false, why }; };
     if (!u) return fail('unknown');
@@ -204,12 +210,16 @@
     if (isHull(u) && DR.grid('INVENTORY').damage.length > 0) return fail('hull-damaged', STR('notification.upgrade-hull-damaged'));
     const of = DR.s.grids.OVERFLOW_STORAGE || DR.s.grids.OVERFLOW;
     if (isHull(u) && of && of.items.length > 0) return fail('overflow', STR('notification.upgrade.items-in-overflow'));
+    if (root.DRCargo && DRCargo.held()) return fail('holding', 'Hãy đặt món đang cầm xuống trước');
     const c = cost(id);
     if (DR.s.funds < c.money) return fail('funds', 'Không đủ tiền cho nâng cấp này');
-    const miss = c.items.filter(x => have(x.item) < x.count);
-    if (miss.length) return fail('materials', 'Thiếu vật liệu trong khoang: ' + miss.map(x => (x.count - have(x.item)) + ' ' + DR.item(x.item).name).join(', '));
-    const inv = DR.grid('INVENTORY');
-    for (const x of c.items) for (let k = 0; k < x.count; k++) G.remove(inv, inv.items.find(i => i.id === x.item));
+    const dg = delivered(id);
+    const miss = c.items.filter(x => have(x.item, id) < x.count);
+    if (miss.length) return fail('materials', 'Thiếu vật liệu trong lưới: ' + miss.map(x => (x.count - have(x.item, id)) + ' ' + DR.item(x.item).name).join(', '));
+    for (const x of c.items) for (let k = 0; k < x.count; k++) G.remove(dg, dg.items.find(i => i.id === x.item));
+    const rest = dg.items.slice();
+    for (const i of rest) G.remove(dg, i);
+    if (rest.length) addBulk(rest, true, DR.grid('INVENTORY'), DR.grid('STORAGE'), { moved: [], overflow: [], sold: [], tries: 0 });
     DR.addFunds(-c.money);                                                          // UpgradeManager.AddUpgrade: AddFunds(-MonetaryCost)
     const res = applyUpgrade(id);
     DR.s.vars['upgrade-bought'] = true;                                            // SaveData.UpgradeBought
@@ -220,7 +230,7 @@
   }
 
   // ================================================================ giao diện
-  let host = null, S = null, tipEl = null, cardEl = null, FM = null;
+  let host = null, S = null, tipEl = null, FM = null;
   const px = n => 'calc(var(--s)*' + (Math.round(n * 1000) / 1000) + 'px)';
   const lin = (pct, n) => !pct ? px(n) : !n ? pct + '%' : 'calc(' + (Math.round(pct * 1000) / 1000) + '% + var(--s)*' + (Math.round(n * 1000) / 1000) + 'px)';
   // RectTransform → CSS tuyệt đối: trái = ax0·P + ap − pivot·w ; trên = (1−ay1)·P − ap_y − (1−pivot_y)·h (Unity y hướng lên)
@@ -399,7 +409,6 @@
     el('span', '', back, STR('prompt.back') || 'Back'); el('b', '', back, 'X');
     back.onclick = () => goBack();
     // thẻ chi tiết + tooltip (nằm trên CoverScrim của cây)
-    cardEl = el('div', 'up-card', host);
     tipEl = el('div', 'up-tip', host);
     paint();
   }
@@ -418,11 +427,10 @@
 
   // ---------------------------------------------------------------- tooltip và thẻ chi tiết
   function itemIcon(id) { const d = DR.item(id); return d.itemTypeIcon || d.sprite; }
-  // mode: 'tip' (tooltip khi rê) hoặc 'card' (thẻ xác nhận mua)
-  function fillCard(box, u, mode) {
+  // Tooltip khi rê nút (TooltipUI.ConstructUpgradeTooltip); bảng mua là UpgradeGridPanel mở qua openCard
+  function fillCard(box, u) {
     const own = owned(u.id), clickable = state(u.id) === 'neutral';
     box.innerHTML = '';
-    if (mode === 'card') el('div', 'title', box, STR('quest-grid.upgrades'));            // "Materials Required"
     const hd = el('div', 'hd', box);
     const ic = el('img', 'ic', hd); ic.src = new URL('../' + u.sprite, (me && me.src) || location.href).href; ic.alt = '';
     el('span', 'nm', hd, titleOf(u)); el('i', 'ln', hd);
@@ -434,41 +442,24 @@
     const mv = el('div', 'mv', cb, money(c.money));
     mv.style.color = enough ? COLOR.NEUTRAL : COLOR.NEGATIVE;
     const ci = el('div', 'ci', cb);
-    for (const x of c.items) {                         // TooltipUpgradeCostIcon.Init: "có/cần", NEUTRAL khi đủ, NEGATIVE khi thiếu
-      const h = have(x.item), cell = el('div', 'c', ci);
+    for (const x of c.items) {                         // TooltipUpgradeCostIcon.Init: "có/cần" trong lưới đã giao, NEUTRAL khi đủ, NEGATIVE khi thiếu
+      const h = have(x.item, u.id), cell = el('div', 'c', ci);
       cell.dataset.item = x.item; cell.dataset.have = h; cell.dataset.need = x.count;
       const col = h >= x.count ? COLOR.NEUTRAL : COLOR.NEGATIVE;
       const im = el('i', 'im', cell); im.style.setProperty('--sp', artUrl(itemIcon(x.item))); im.style.setProperty('--c', col);
       el('b', '', cell, h + '/' + x.count).style.setProperty('--c', col);
     }
-    if (mode === 'tip') {
-      if (clickable) {                                 // enterAction "prompt.show-details" chỉ có khi nút bấm được (UpgradeWindow.OnEntryHovered)
-        const pr = el('div', 'prompts', box), p = el('div', 'pr', pr);
-        el('b', '', p, 'Click'); el('span', '', p, STR('prompt.show-details'));
-      }
-      return;
+    if (clickable) {                                   // enterAction "prompt.show-details" chỉ có khi nút bấm được (UpgradeWindow.OnEntryHovered)
+      const pr = el('div', 'prompts', box), p = el('div', 'pr', pr);
+      el('b', '', p, 'Click'); el('span', '', p, STR('prompt.show-details'));
     }
-    const btns = el('div', 'btns', box);
-    const ok = enough && c.items.every(x => have(x.item) >= x.count);
-    const buy = el('button', 'up-btn', btns); buy.dataset.act = 'purchase'; buy.disabled = !ok;
-    const label = fmt(STR('button.purchase-upgrade'), ['\u0000']).split('\u0000');   // "Purchase Upgrade [$X]" với giá đỏ khi thiếu tiền
-    buy.append(label[0]);
-    el('span', enough ? '' : 'short', buy, money(c.money));
-    buy.append(label[1] || '');
-    buy.onclick = () => {
-      const r = purchase(u.id);
-      if (r.ok) { closeCard(); paint(); }
-      else refreshCard();
-    };
-    const bk = el('button', 'up-btn dark', btns, STR('prompt.back')); bk.dataset.act = 'back';
-    bk.onclick = () => { play('ui.button.back'); closeCard(); };
   }
 
   function onEnter(e) {
     if (!S || S.stage !== 'tree') return;
     play('ui.button.select');
     S.hover = e;
-    fillCard(tipEl, e.u, 'tip');
+    fillCard(tipEl, e.u);
     tipEl.classList.add('on');
     placeTip();
   }
@@ -491,24 +482,45 @@
     hideTip();
     openCard(e);
   }
-  // ĐƯỜNG NỐI [vòng 3]: thẻ này thay tạm bảng UpgradeGridPanel ("Materials Required" + nút "Purchase Upgrade [$X]"); bảng thật
-  // mở ở bên trái cùng khoang (ToggleInventoryAdHoc) và lớp CoverScrim phủ cửa sổ 0,35 giây.
+  // UpgradeWindow.OnEntryClicked → ToggleInventoryAdHoc: lớp CoverScrim phủ cửa sổ 0,35 giây rồi mở bảng UpgradeGridPanel bên trái
+  // ("Materials Required" + nút "Purchase Upgrade [$X]") cùng khoang bên phải (QuestGridPanel.cs, UpgradeGridPanel.cs:20-96).
   function openCard(e) {
+    const q = e.u.questGrid;
+    if (!q || !root.DRCargo) return;
     S.stage = 'card'; S.sel = e;
     e.box.classList.add('sel');
-    fillCard(cardEl, e.u, 'card');
     host.classList.add('cover');
+    document.body.classList.add('up-grid');
+    const c = cost(e.u.id);
+    const h = DRCargo.open({
+      right: { tabs: ['INVENTORY'] },
+      left: {
+        // baseHeight 300 của UpgradeGridPanel (scene_ui.json); cargo.js đọc gridHeightOverride làm chiều cao nền, rồi cộng hàng x 60 (QuestGridPanel.cs:242-248)
+        kind: 'quest', quest: Object.assign({}, q, { gridHeightOverride: 300 }), title: STR('quest-grid.upgrades'),   // "Materials Required"
+        footer: { buttons: [{
+          id: 'purchase',
+          label: () => fmt(STR('button.purchase-upgrade'), [money(c.money)]),
+          // UpgradeGridPanel.cs:91-96: đủ ItemCountCondition, không cầm gì, tiền đủ (thân hỏng / kho tràn chỉ báo khi bấm, OnPurchaseButtonClicked)
+          enabled: cx => !cx.held && !!cx.left.complete && DR.s.funds >= c.money,
+          run: () => { const r = purchase(e.u.id); if (r.ok) closeCard(); }
+        }] }
+      },
+      onClose: () => { if (S && S.stage === 'card') closeCard(); }
+    });
+    if (!h) closeCard();
   }
-  function refreshCard() { if (S && S.stage === 'card') fillCard(cardEl, S.sel.u, 'card'); }
   function closeCard() {
-    if (!S) return;
-    if (S.sel) S.sel.box.classList.remove('sel');
+    if (!S || S.stage !== 'card') return;
+    S.sel.box.classList.remove('sel');
     S.stage = 'tree'; S.sel = null;
     host.classList.remove('cover');
+    document.body.classList.remove('up-grid');
+    if (root.DRCargo && DRCargo.isOpen()) DRCargo.close();
+    paint();
   }
   function goBack() {
     if (!S) return;
-    if (S.stage === 'card') { play('ui.button.back'); closeCard(); return; }
+    if (S.stage === 'card') { play('ui.button.back'); if (root.DRCargo && DRCargo.isOpen() && DRCargo.held()) return; closeCard(); return; }
     play('ui.button.back');
     close();
   }
@@ -535,7 +547,8 @@
     if (!S) return false;
     const s = S; S = null;
     host.classList.remove('on', 'show', 'cover');
-    document.body.classList.remove('up-open');
+    document.body.classList.remove('up-open', 'up-grid');
+    if (s.stage === 'card' && root.DRCargo && DRCargo.isOpen()) DRCargo.close();
     hideTipRaw();
     if (!silent && s.onClose) s.onClose();
     return true;
@@ -546,6 +559,7 @@
     if (!S) return;
     if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
     const k = e.code;
+    if (S.stage === 'card' && root.DRCargo && DRCargo.isOpen() && (k === 'Escape' || k === 'KeyX' || k === 'Tab' || k === 'KeyI')) return;   // bảng nộp đồ tự xử lý Esc (QuestGridPanel thoát thủ công), onClose của nó đóng thẻ
     if (k === 'Escape' || k === 'KeyX') { if (!e.repeat) goBack(); }
     else if (k === 'Tab' || k === 'KeyI' || k === 'Space' || k === 'KeyL' || k === 'KeyJ' || k === 'KeyM') { /* không rò xuống khoang/tương tác khi cửa sổ mở */ }
     else return;
@@ -568,7 +582,7 @@
   if (root.DR && DR.on) {
     DR.on('load', () => reapplyOwned());                                           // SaveData.Load → ApplyOwnedSlotUpgrades
     DR.on('mode', m => { if (S && (m === 'sail' || m === 'title' || m === 'over' || m === 'harvest')) close(true); });
-    const again = () => { if (S) { paint(); if (S.hover) fillCard(tipEl, S.hover.u, 'tip'); refreshCard(); } };
+    const again = () => { if (S) { paint(); if (S.hover) fillCard(tipEl, S.hover.u); } };
     DR.on('funds', again); DR.on('cargo', again); DR.on('upgrade', again);
   }
 })(window);

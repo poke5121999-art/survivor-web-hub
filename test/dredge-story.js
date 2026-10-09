@@ -207,10 +207,15 @@ async function run(browser, base) {
   await page.waitForFunction(() => DRDialogue.isOpen(), null, { timeout: 5000 }).catch(() => {});
   const fm = await talk();
   check('Người buôn cá nói lần đầu (Fishmonger_Intro)', fm.some(l => l.name === 'Fishmonger'), (fm.find(l => l.name) || {}).text);
-  await page.waitForSelector('#dr-dock.on .dk-row [data-act="sell"]', { timeout: 5000 }).catch(() => {});
+  // r2shop: chợ là hai lưới (js/shop.js) thay bảng danh sách; bán = rê con cá trong khoang rồi bấm F (SellItem)
+  await page.waitForFunction(() => window.DRShop && DRShop.isOpen(), null, { timeout: 5000 }).catch(() => {});
+  await sleep(900);
   const sale = await ev(() => { const inv = DR.grid('INVENTORY'); const f = inv.items.find(i => DRGrid.subOf(DR_ITEMS[i.id]) & DRGrid.SUB.FISH); return { funds: DR.s.funds, price: DRRules.sellPrice(DR_CONFIG, DR_ITEMS[f.id], f, 1, 1) }; });
   await shot('market');
-  await page.click('#dr-dock.on .dk-row [data-act="sell"]');
+  const fc = await ev(() => { const f = DR.grid('INVENTORY').items.find(i => DRGrid.subOf(DR_ITEMS[i.id]) & DRGrid.SUB.FISH), g = document.querySelector('.cg-grid[data-key="INVENTORY"]').getBoundingClientRect(), cs = DRCargo._debug().cs;
+    return { x: g.left + (f.cells[0][0] + 0.5) * cs, y: g.top + (f.cells[0][1] + 0.5) * cs }; });
+  await page.mouse.move(fc.x, fc.y, { steps: 3 }); await sleep(250);
+  await page.keyboard.press('KeyF');
   await sleep(400);
   const after = await ev(() => ({ funds: DR.s.funds, rep: DR.s.vars['gm-repayments'], tx: (DR.s.shopHistories['destination.gm-fishmonger'] || {}).transactionDays }));
   const wantRep = Math.round(sale.price * 0.15 * 100) / 100, wantFunds = Math.round((sale.price - wantRep) * 100) / 100;
@@ -219,7 +224,7 @@ async function run(browser, base) {
   check('ghi giao dịch của destination.gm-fishmonger (GetNumShopTransactionDaysUnique > 0)', Array.isArray(after.tx) && after.tx.length === 1, JSON.stringify(after.tx));
 
   // ---- quay lại thị trấn: Mayor_Intro_2 + lưới nhận Research Part
-  await page.click('#dr-dock.on [data-act="leave-dest"]');
+  await page.keyboard.press('Escape');                                       // r2shop: rời chợ = đóng khoang (Back)
   await page.waitForFunction(() => DRDialogue.isOpen(), null, { timeout: 5000 }).catch(() => {});
   const intro2 = await talk();
   check('rời chợ → node gốc chạy Mayor_Intro_2', intro2.some(l => /Excellent work/.test(l.text || '')), (intro2[1] || {}).text);
@@ -245,7 +250,8 @@ async function run(browser, base) {
   check('gặp Thợ đóng tàu → "A Fresh Start" COMPLETED', q3.st === 'COMPLETED', JSON.stringify(q3));
   check('Mayor đứng ở bến từ nay (SetSpeakerAvailability Mayor true)', q3.speakers.includes('Mayor'), q3.speakers.join(','));
   check('thông báo "Hoàn thành nhiệm vụ"', await ev(() => __quest.some(e => e.kind === 'completed' && e.id === 'Quest_Intro')));
-  await page.click('#dr-dock.on [data-act="leave-dest"]').catch(() => {});
+  await page.waitForFunction(() => window.DRShop && DRShop.isOpen(), null, { timeout: 4000 }).catch(() => {});
+  await page.keyboard.press('Escape');                                       // r2shop: xưởng tàu mở lưới hàng; Esc rời điểm đến
   await sleep(600);
   await talk();
   await page.waitForFunction(() => DRDock._debug() && DRDock._debug().phase === 'ui', null, { timeout: 5000 }).catch(() => {});

@@ -98,3 +98,5 @@ body.up-open .qn-jbtn { visibility: hidden !important; }
 .up-btn.dark:hover { color: #1b1410; }
 .up-btn .short { color: #dc2c38; }
 .up-card .note { margin: calc(var(--k) * 6px) 0 0; text-align: center; font-size: calc(var(--k) * 22px); line-height: 1.2; color: #d7bfad; }
+/* bảng Materials Required (DRCargo, kind quest) mở TRÊN cửa sổ Upgrades đang bị CoverScrim phủ (z 56) */
+body.up-grid #dr-cargo { z-index: 60; }
