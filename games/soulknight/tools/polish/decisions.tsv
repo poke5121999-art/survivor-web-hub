@@ -25,3 +25,5 @@ ts	phase	decision	why	evidence	result
 2026-10-09T11:10:09Z	loading	agent nộp khung 'buff-pick' sai (mặt pixel); tự dò khung tối theo độ sáng trung bình mỗi giây	không tin tự báo của agent	scratchpad/dark/, seq/buff44.5.jpg	tìm ra giây 43-49, 133-140
 2026-10-09T11:10:09Z	tests	rooms/bosses/smoke đọc SK.ROOMS.choice + SK.loading thay DOM; thêm ca nhấp chuột vào thẻ 2	migrate callers rồi xoá lớp HTML cũ	test/soulknight-rooms.js	rooms 69/0
 2026-10-09T11:18:12Z	verify	hồi quy đợt 3 trên máy	trước khi đẩy	hall 10 smoke 16 hud 11 lobby 24 rooms 69 bosses 129 weapons 47 anim-weapon 22 anim-xform 10 pets 6 vfx 28 sfx OK season-ui 31/31	VERIFIED
+2026-10-09T11:25:08Z	ship	đẩy đợt 3 (25cb814b), kiểm trên Pages	xong = kiểm trên bản thật	SK_URL=Pages: rooms 69/0 smoke 16/0 hall 10/0	VERIFIED
+2026-10-09T11:26:52Z	hall	sảnh thêm ô đá quý (cây show_currency_widget gốc) và mèo đi theo ở chế độ đi	khung gốc có ô đá quý góc phải; thú cưng đi theo chủ	js/hall.js; scratchpad/hall-t3	hall 10/0 smoke 16/0 lobby 24/0

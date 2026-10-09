@@ -74,7 +74,8 @@
       const npc = hall.npcs.find(n => n.id === id) || { x: H.door.x, y: H.door.y - 4, face: 1 };
       hall.npcs = hall.npcs.filter(n => n !== npc);
       hall.me = { id, x: npc.x, y: npc.y, face: npc.face, moving: false };
-    } else hall.me = null;
+      hall.pet = { x: npc.x - 1, y: npc.y - 0.3, face: 1, st: 'ide', t: 0 };
+    } else { hall.me = null; hall.pet = null; }
   }
 
   function step(dt) {
@@ -94,6 +95,18 @@
       if (walkable(nx, me.y) && walkable(nx - 0.4 * Math.sign(mv.x || 1), me.y)) me.x = nx;
       if (walkable(me.x, ny)) me.y = ny;
       if (Math.abs(mv.x) > 0.05) me.face = mv.x > 0 ? 1 : -1;
+    }
+    // Thú cưng bám chủ như trong hầm (min_follow 2 đv, tốc 8 đv/s) [ĐO Pet0Controller, RoleAttributePet].
+    const pt = hall.pet;
+    if (pt) {
+      pt.t += dt;
+      const dx = me.x - me.face * 0.8 - pt.x, dy = me.y - 0.3 - pt.y, d = Math.hypot(dx, dy);
+      if (d > 2 || (pt.st === 'run' && d > 0.3)) {
+        const k = Math.min(1, 8 * dt / d), nx = pt.x + dx * k, ny = pt.y + dy * k;
+        if (walkable(nx, ny)) { pt.x = nx; pt.y = ny; } else { pt.x += dx * k; pt.y += dy * k; }
+        if (Math.abs(dx) > 0.05) pt.face = dx > 0 ? 1 : -1;
+        if (pt.st !== 'run') { pt.st = 'run'; pt.t = 0; }
+      } else if (pt.st !== 'ide') { pt.st = 'ide'; pt.t = 0; }
     }
     // Cửa là trigger nằm sát mép tường trên: tới hàng sàn cuối dưới cửa là vào [ĐO door_enter BoxCollider2D].
     const dr = H.door, atDoor = Math.abs(me.x - dr.x) < dr.w / 2 && me.y > dr.y - dr.h / 2 - 1.2;
@@ -160,6 +173,8 @@
     for (const n of hall.npcs) list.push({ y: n.y, fn: () => drawHero(ctx, n.id, n.x, n.y, n.face, false, hall.t + n.x) });
     const me = hall.me;
     if (me) list.push({ y: me.y, fn: () => drawHero(ctx, me.id, me.x, me.y, me.face, me.moving, hall.t) });
+    const pt = hall.pet, petParts = D.prefabs.pet0;
+    if (pt && petParts) list.push({ y: pt.y, fn: () => { const [x, y] = px(pt.x, pt.y); SK.drawPrefab(ctx, petParts, x, y, { state: pt.st, t: pt.t, flip: pt.face < 0 }); } });
     list.sort((a, b) => b.y - a.y);
     for (const e of list) e.fn();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -169,6 +184,20 @@
       ctx.font = Math.round(bar * 0.5) + 'px "Be Vietnam Pro", sans-serif';
       ctx.fillText('Chọn nhân vật', ctx.canvas.width / 2, bar / 2);
     }
+    const g = gems();
+    if (g) { g.q('w/Bg/Text').txt.s = String(SK.profile.gems); g.draw(ctx, ctx.canvas.width, ctx.canvas.height); }
+  }
+  // Ô đá quý góc trên phải như sảnh gốc [THẤY ?t=74]: cây nút show_currency_widget của màn chọn nhân vật (prefab gốc).
+  let GEMS = null;
+  function gems() {
+    if (GEMS || !SK.ugui || !SK.ugui.ok || !window.SK_UI) return GEMS;
+    const find = (n, name) => { if (n.n === name) return n; for (const c of n.k || []) { const r = find(c, name); if (r) return r; } return null; };
+    const w = JSON.parse(JSON.stringify(find(window.SK_UI.prefabs.choose_hero, 'show_currency_widget')));
+    Object.assign(w, { n: 'w', a: [1, 1, 1, 1], pv: [1, 1], p: [-24, -8], sz: [185, 52] });
+    window.SK_UI.prefabs._hall_gems = { n: 'root', k: [w] };
+    GEMS = SK.ugui.inst('_hall_gems');
+    GEMS.q('w/Bg/Image/Icon').img.sp = 'ui_102';
+    return GEMS;
   }
 
   // Chạm nhân vật trong chế độ chọn (toạ độ CSS → điểm ảnh HUD → đv thế giới).
