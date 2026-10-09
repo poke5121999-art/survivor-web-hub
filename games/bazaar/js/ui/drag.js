@@ -99,16 +99,16 @@
     if (!U.cards.trayIsOpen() && ch && p.x >= ch.x && p.x <= ch.x + ch.w && p.y >= ch.y && p.y <= ch.y + ch.h) {
       U.cards.toggleStash(true);
     }
+    var T = G.tray, inTray = U.cards.trayIsOpen() && p.y >= T.top - 20 && p.y <= T.top + T.hgt - 12 && p.x >= T.left && p.x <= T.left + T.w;
+    if (inTray && !isSkill) {
+      var s2 = clampS(Math.round((cx - (T.left + T.x0)) / T.pitch - size / 2), size);
+      return { type: 'stash', socket: s2, n: size, ok: placeOk('stash', s2, size) };
+    }
     if (rs.kind === 'own' && st.sell != null && p.y < 545 && p.x > 378 && p.x < 1542) return { type: 'sell', ok: true };
     if (isSkill) {
       // kỹ năng: thả đâu trên bàn cũng được, tự vào ô kỹ năng
       if (p.y > 520 && rs.kind !== 'own') return { type: 'auto', ok: affordable(rs), n: 0 };
       return null;
-    }
-    var T = G.tray;
-    if (U.cards.trayIsOpen() && p.y >= T.top && p.x >= T.left && p.x <= T.left + T.w) {
-      var s2 = clampS(Math.round((cx - (T.left + T.x0)) / T.pitch - size / 2), size);
-      return { type: 'stash', socket: s2, n: size, ok: placeOk('stash', s2, size) };
     }
     if (p.y >= 520 && p.y <= 800 && p.x >= 380 && p.x <= 1540) {
       var s = clampS(Math.round((cx - G.hand.x0) / G.hand.pitch - size / 2), size);

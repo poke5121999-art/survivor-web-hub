@@ -276,9 +276,10 @@ async function desktop(browser, base) {
       const card0 = await page.evaluate(() => { const c = document.querySelector('.rs-daycard'); return c ? { old: c.querySelector('.old').textContent, nw: c.querySelector('.new').textContent, hidden: getComputedStyle(document.querySelector('.rs-top')).display } : null; });
       check('đổi ngày: thẻ ngày hiện (Ngày ' + dayB + ' → ' + rDay.day + ') và che ba khung', !!card0 && +card0.old === dayB && +card0.nw === rDay.day && card0.hidden === 'none', JSON.stringify(card0));
       await shot(page, '21a-day-card');
-      await sleep(1400); await shot(page, '21b-day-card-roll');
-      const rolled = await page.evaluate(() => !!document.querySelector('.rs-daycard.roll'));
-      check('thẻ ngày lăn sang số mới sau ~1,3 s', rolled);
+      // số lăn ở ~3,9 s theo clip REF-run-flow (day-card), chờ tới khi lớp .roll xuất hiện thay vì ngủ cứng
+      const rolled = await page.waitForFunction(() => !!document.querySelector('.rs-daycard.roll'), null, { timeout: 6000 }).then(() => true, () => false);
+      await shot(page, '21b-day-card-roll');
+      check('thẻ ngày lăn sang số mới (≤ 6 s)', rolled);
       await page.click('.rs-daycard');
       await page.waitForFunction(() => !document.querySelector('.rs-daycard'), null, { timeout: 3000 });
       await sleep(250); await shot(page, '21c-choices-pop');

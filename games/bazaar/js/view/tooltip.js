@@ -116,13 +116,16 @@
     box.className = 'bz-tip t-' + (info.tier || 'Bronze') + (showing ? ' show' : '');
     box.style.display = 'block';
     var w = box.offsetWidth, h = box.offsetHeight;
-    var gap = 26, x = rect.x + rect.w + gap, left = false;
-    if (x + w > stageW - 12) { x = rect.x - gap - w; left = true; }
-    if (x < 12) x = 12;
-    var y = rect.y + rect.h / 2 - h / 2;
+    // clip UBBAzdzXo8g: thẻ ở hàng dưới → tooltip nằm TRÊN thẻ, mép trái lệch ~20 px; hàng trên → bên phải thẻ (lật trái khi hết chỗ)
+    var gap = 26, x = rect.x + rect.w + gap, left = false, y = rect.y + rect.h / 2 - h / 2;
+    if (rect.y + rect.h / 2 > stageH * 0.5 && rect.y - h - 14 >= 12) { x = rect.x - 20; y = rect.y - h - 14; }
+    else if (x + w > stageW - 12) { x = rect.x - gap - w; left = true; }
+    x = Math.max(12, Math.min(stageW - w - 12, x));
     y = Math.max(12, Math.min(stageH - h - 12, y));
     box.style.left = Math.round(x) + 'px'; box.style.top = Math.round(y) + 'px';
     box.style.transformOrigin = (left ? '100%' : '0') + ' 50%';
+    var ks = box.querySelector('.keys');
+    if (ks) { ks.style.left = Math.round(24 - x) + 'px'; ks.style.top = Math.round(stageH - 24 - ks.offsetHeight - y) + 'px'; }
     if (!box.classList.contains('show')) { void box.offsetWidth; box.classList.add('show'); }
   };
   T.hide = function () { if (!box) return; box.classList.remove('show'); box.style.display = 'none'; cur = null; };

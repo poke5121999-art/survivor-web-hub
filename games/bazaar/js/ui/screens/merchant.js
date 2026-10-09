@@ -20,21 +20,24 @@
   U.SCREENS.merchant = {
     enter: function (run, prev) {
       var ph = run.phase;
-      U.top.base(run, { hero: true, sides: true, board: true });
+      U.top.base(run, { hero: true, sides: true, board: true, lane: 'merchant' });
       var e = root.BZ_ENCOUNTERS.events[ph.merchantId] || {};
       side = U.top.portrait(ph.name, e.StartingTier || 'Bronze', U.top.artOf({ type: 'merchant', id: ph.merchantId }),
         U.top.nameBlock('Thương nhân', ph.name, ph.desc));
       var r = side.r;
       var rb = U.el('div', 'rs-merchant-ctl', r);
       var rr = U.button(rb, 'rs-reroll', '<i class="ic"></i><span class="tag"><i></i><b></b></span><small></small>', 'Đổi hàng', function () {
-        if (U.dispatch({ t: 'reroll' }).ok) { var b = rr.querySelector('.ic'); b.classList.remove('spin'); void b.offsetWidth; b.classList.add('spin'); }
+        // clip reroll: chớp vàng 200 ms, lấp lánh xanh 500 ms, rồi hàng mới bật ra 500 ms (~1,3 s)
+        U.cards.dealDelay = 500; var r0 = U.dispatch({ t: 'reroll' }); U.cards.dealDelay = 0;
+        if (r0.ok) { var b = rr.querySelector('.ic'); b.classList.remove('spin'); void b.offsetWidth; b.classList.add('spin'); U.transitions.sparkle(); }
       });
       rr.querySelector('.ic').style.backgroundImage = U.bg('art/ui/ui_sprite_atlas/Btn_Reroll_Active_TUI.webp');
       rr.querySelector('.tag').style.backgroundImage = U.bg('art/ui/ui_sprite_atlas/Container_PriceTagReroll_TUI.webp');
       rr.querySelector('.tag i').style.backgroundImage = U.bg(U.ICON.coin);
       U.bigButton(rb, 'brown', 'Rời đi', 'Rời thương nhân (sang giờ kế)', function () { U.dispatch({ t: 'leave' }); }).classList.add('leave');
       this._rr = rr;
-      if (prev) { U.cards.dealDelay = 300; setTimeout(function () { U.cards.dealDelay = 0; }, 0); U.transitions.portal(); U.sfx(voKey(ph.name) + '.enter', { gap: 2000 }) || U.sfx(voKey(ph.name) + '.idle', { gap: 2000 }); U.sfx('trans.boardIn', { vol: 0.6 }); }
+      // sau viền vàng + lấp lánh xanh, hàng bật ra (clip merchant-enter: tổng ~2,6 s)
+      if (prev) { U.cards.dealDelay = 900; setTimeout(function () { U.cards.dealDelay = 0; }, 0); U.transitions.portal(); U.sfx(voKey(ph.name) + '.enter', { gap: 2000 }) || U.sfx(voKey(ph.name) + '.idle', { gap: 2000 }); U.sfx('trans.boardIn', { vol: 0.6 }); }
       U.top.layer().appendChild(U.el('div', 'rs-hint', null, 'Kéo hàng xuống bàn để mua · kéo đồ của bạn lên đây để bán'));
     },
     render: function (run) {

@@ -9,7 +9,7 @@
   var RP = root.BZReplay = {};
   var V = function () { return root.BZView; }, FXc = function () { return root.BZFX; }, AU = function () { return root.BZAudio; };
   RP.LAG_HERO = 350; RP.LAG_CARD = 250; RP.END_HOLD = 3200;
-  RP.BANNER_HOLD = 1500; // băng-rôn Chiến thắng giữ ~1,2-1,5 s (clip heZSYG0dD_c ?t=1828; wUzq6Q4u9Jc ?t=212), trước đây giữ tới hết trận
+  RP.BANNER_HOLD = 2000; RP.BANNER_HOLD_LOSE = 1700; // cuộn vào 700 ms + giữ 1,3 s (thua: 500 + 1,2 s ≈ 2,0 s), rồi 300 ms bay đi (REF death-victory) // băng-rôn Chiến thắng giữ ~1,2-1,5 s (clip heZSYG0dD_c ?t=1828; wUzq6Q4u9Jc ?t=212), trước đây giữ tới hết trận
   RP.FX = {}; RP.APPLY = {};
   var S = null, warned = {};
   RP.state = function () { return S; };
@@ -63,9 +63,33 @@
   RP.pointOf = pointOf;
 
   // ---------- âm thanh theo thẻ (BZ_AUDIO_CARDS → BZ_AUDIO_FX), không có thì theo loại hành động (BZ_AUDIO_ACTION) ----------
+  // ---------- VFX/âm thanh theo thẻ từ BZ_VFXMAP (data/vfxmap.js): cards[cardId] (ghi đè theo prefab) → defaults[ActionType] ----------
+  var ACTION = { damage: 'PlayerDamage', burn: 'PlayerBurnApply', poison: 'PlayerPoisonApply', heal: 'PlayerHeal', regen: 'PlayerRegenApply', shield: 'PlayerShieldApply',
+    freeze: 'CardFreeze', slow: 'CardSlow', haste: 'CardHaste', charge: 'CardCharge', reload: 'CardReload', destroy: 'CardDestroy' };
+  var SZ = { 1: 'S', 2: 'M', 3: 'L' };
+  function mapEntry(uid, kind) {
+    var M = root.BZ_VFXMAP; if (!M || uid == null) return null;
+    var ci = cardInfo(uid), act = ACTION[kind || 'damage'], E = null;
+    var c = ci && ci.inst && M.cards && M.cards[ci.inst.id];
+    if (c && !c.default && c.prefab && (!c.action || !act || c.action === act)) E = c;
+    if (!E) {
+      var d = M.defaults && M.defaults[act];
+      if (d) { var sz = ci && ci.inst && SZ[ci.inst.size || (root.BZSim && root.BZSim.tpl && 0)]; E = (d.sizes && sz && d.sizes[sz]) || d; }
+    }
+    return E;
+  }
+  RP.mapEntry = mapEntry;
+  // đạn rời thẻ sao cho CHẠM đúng lúc sim trừ máu (LAG_HERO): bay đúng travelMs của prefab, xuất phát trễ phần còn lại
+  function flight(E, lag) {
+    var tm = E ? (E.visualTravelMs > 0 ? E.visualTravelMs : E.travelMs) : lag;
+    tm = Math.max(60, Math.min(lag, tm || lag));
+    return { travel: tm, delay: lag - tm };
+  }
   function cardSound(uid, phase, kind) {
     var ci = cardInfo(uid), A = AU();
     if (!A) return;
+    var E0 = mapEntry(uid, kind || 'damage'), key = E0 && E0.sounds && E0.sounds[phase === 'shot' ? 'fire' : phase];
+    if (key && A.has && A.has(key)) { A.play(key); return; }
     var CA = root.BZ_AUDIO_CARDS || {}, FXA = root.BZ_AUDIO_FX || {}, ACT = root.BZ_AUDIO_ACTION || {};
     if (ci) {
       var c = CA[ci.inst.id];
@@ -148,13 +172,13 @@
     var hp = e.hp || 0, sh = e.shield || 0;
     var pct = before > 0 ? hp / before : 0;
     if (e.src != null && kind === 'Damage') {
-      var from = pointOf(e.src, 1 - ts), to = heroPt(ts);
-      FXc().projectile({ from: from, to: to, kind: 'damage', t0: e.t, travel: RP.LAG_HERO, crit: e.crit });
+      var from = pointOf(e.src, 1 - ts), to = heroPt(ts), E = mapEntry(e.src, 'damage'), fl = flight(E, RP.LAG_HERO);
+      FXc().projectile({ from: from, to: to, kind: 'damage', t0: e.t + fl.delay, travel: fl.travel, crit: e.crit, entry: E });
       if (e.crit) snd('combat.critgain_shot');
     }
     FXc().at(at, function (tt) {
       var p = heroPt(ts);
-      var nk = kind === 'Burn' ? 'burn' : kind === 'Poison' ? 'poison' : 'damage';
+      var nk = kind === 'Burn' ? 'burn' : kind === 'Poison' ? 'poison' : kind === 'Sandstorm' ? 'sand' : 'damage';
       if (e.amt > 0) {
         if (hp > 0 || sh === 0) FXc().number({ x: p.x, y: p.y, kind: nk, value: hp > 0 ? hp : e.amt, crit: e.crit, frac: (hp || e.amt) / mx, t0: tt, side: ts });
         else FXc().number({ x: p.x, y: p.y, kind: 'shieldLoss', value: sh, crit: e.crit, frac: sh / mx, t0: tt, side: ts });
@@ -163,7 +187,7 @@
       if (kind === 'Burn') { FXc().burst('burn', p.x, p.y, { t0: tt, big: 0.8 }); snd('board.tickBurn'); }
       else if (kind === 'Poison') { FXc().burst('poison', p.x, p.y, { t0: tt, big: 0.8 }); snd('board.tickPoison'); }
       else {
-        FXc().burst(kind === 'Sandstorm' ? 'sandstorm' : 'damage', p.x, p.y, { t0: tt, crit: e.crit });
+        FXc().burst(kind === 'Sandstorm' ? 'sandstorm' : 'damage', p.x, p.y, { t0: tt, crit: e.crit, entry: kind === 'Damage' ? mapEntry(e.src, 'damage') : null });
         if (e.src != null) cardSound(e.src, 'impact', 'damage');
         V().heroFlash(ts, tt, sh > 0 && hp === 0 ? '#ffe36d' : '#ffffff');
       }
@@ -176,36 +200,42 @@
     var ts = sideOf(e.target), at = impactHero(e.t), mx = hpMax(ts, e.t);
     var kind = e.kind === 'Regen' ? 'regen' : e.kind === 'Lifesteal' ? 'lifesteal' : 'heal';
     if (e.src != null && kind !== 'regen') {
-      FXc().projectile({ from: pointOf(e.src, ts), to: heroPt(ts), kind: kind === 'lifesteal' ? 'lifesteal' : 'heal', t0: e.t, travel: RP.LAG_HERO });
+      var Eh = mapEntry(e.src, 'heal'), fh = flight(Eh, RP.LAG_HERO);
+      FXc().projectile({ from: pointOf(e.src, ts), to: heroPt(ts), kind: kind === 'lifesteal' ? 'lifesteal' : 'heal', t0: e.t + fh.delay, travel: fh.travel, entry: Eh });
       cardSound(e.src, 'shot', 'heal');
     }
     FXc().at(at, function (tt) {
       var p = heroPt(ts);
       if (e.amt > 0) FXc().number({ x: p.x, y: p.y, kind: kind === 'regen' ? 'regen' : 'heal', value: e.amt, crit: e.crit, frac: e.amt / mx, t0: tt, side: ts });
-      FXc().burst(kind, p.x, p.y, { t0: tt, big: kind === 'regen' ? 0.6 : 1 });
-      if (kind === 'regen') snd('board.tickRegen'); else snd('combat.heal_impact');
+      FXc().burst(kind, p.x, p.y, { t0: tt, big: kind === 'regen' ? 0.6 : 1, entry: kind === 'heal' ? mapEntry(e.src, 'heal') : null });
+      if (kind === 'regen') snd('board.tickRegen'); else { var hs = mapEntry(e.src, 'heal'); snd(hs && hs.sounds && hs.sounds.impact && AU() && AU().has && AU().has(hs.sounds.impact) ? hs.sounds.impact : 'combat.heal_impact'); }
+      V().heroFlash(ts, tt, '#fcfc2c');
     });
   };
   X.shield = function (e) {
     var ts = sideOf(e.target), at = impactHero(e.t), mx = hpMax(ts, e.t);
-    FXc().projectile({ from: pointOf(e.src, ts), to: heroPt(ts), kind: 'shield', t0: e.t, travel: RP.LAG_HERO });
+    var Es = mapEntry(e.src, 'shield'), fs_ = flight(Es, RP.LAG_HERO);
+    FXc().projectile({ from: pointOf(e.src, ts), to: heroPt(ts), kind: 'shield', t0: e.t + fs_.delay, travel: fs_.travel, entry: Es });
     cardSound(e.src, 'shot', 'shield');
     FXc().at(at, function (tt) {
       var p = heroPt(ts);
       FXc().number({ x: p.x, y: p.y, kind: 'shield', value: e.amt, crit: e.crit, frac: e.amt / mx, t0: tt, side: ts });
-      FXc().burst('shield', p.x, p.y, { t0: tt });
+      FXc().burst('shield', p.x, p.y, { t0: tt, entry: Es });
       cardSound(e.src, 'impact', 'shield');
+      if (V().rowGlow) V().rowGlow(ts, '#fcdc2c', 1200);
+      V().heroFlash(ts, tt, '#fcfc2c');
     });
   };
   function statusApply(kind, numKind) {
     return function (e) {
       var ts = sideOf(e.target), at = impactHero(e.t), mx = hpMax(ts, e.t);
-      FXc().projectile({ from: pointOf(e.src, 1 - ts), to: heroPt(ts), kind: kind, t0: e.t, travel: RP.LAG_HERO, count: false });
+      var Ea = mapEntry(e.src, kind), fa = flight(Ea, RP.LAG_HERO);
+      FXc().projectile({ from: pointOf(e.src, 1 - ts), to: heroPt(ts), kind: kind, t0: e.t + fa.delay, travel: fa.travel, count: false, entry: Ea });
       cardSound(e.src, 'shot', kind);
       FXc().at(at, function (tt) {
         var p = heroPt(ts);
         FXc().number({ x: p.x, y: p.y, kind: numKind, value: e.amt, frac: e.amt / mx, t0: tt, side: ts, aux: true });
-        FXc().burst(kind, p.x, p.y, { t0: tt, big: 0.7 });
+        FXc().burst(kind, p.x, p.y, { t0: tt, big: 0.7, entry: Ea });
         cardSound(e.src, 'impact', kind);
       });
     };
@@ -218,11 +248,12 @@
       var to = V().cardRect(e.target);
       if (!to) return;
       var ts = cardSide(e.target);
-      FXc().projectile({ from: pointOf(e.src, ts), to: { x: to.cx, y: to.cy }, kind: kind, t0: e.t, travel: RP.LAG_CARD, count: false, arc: 1.6 });
+      var Ec = mapEntry(e.src, kind), fc = flight(Ec, RP.LAG_CARD);
+      FXc().projectile({ from: pointOf(e.src, ts), to: { x: to.cx, y: to.cy }, kind: kind, t0: e.t + fc.delay, travel: fc.travel, count: false, arc: 1.6, entry: Ec });
       cardSound(e.src, 'shot', kind);
       FXc().at(e.t + RP.LAG_CARD, function (tt) {
         var r = V().cardRect(e.target); if (!r) return;
-        FXc().burst(kind, r.cx, r.cy, { t0: tt });
+        FXc().burst(kind, r.cx, r.cy, { t0: tt, entry: Ec });
         var el = V().cardEl(e.target);
         if (el) { root.BZCard.hitFlash(el, tt); if (kind === 'reload') root.BZCard.reloadFlash(el); if (kind === 'charge') root.BZCard.flash(el, tt, '#00ffce'); }
         if (kind === 'freeze') snd('combat.freeze_start'); else cardSound(e.src, 'impact', kind);
@@ -294,7 +325,7 @@
   function endPhases(t, live) {
     var res = S.res, base = S.endMs + RP.LAG_HERO;
     var w = res.winner, ph = S.phase;
-    var deadOn = t >= base + 60, crownOn = t >= base + 650, bannerOn = t >= base + 750 && t < base + 750 + RP.BANNER_HOLD, bannerPast = t >= base + 750 + RP.BANNER_HOLD;
+    var deadOn = t >= base + 60, crownOn = t >= base + 650, hold = w === 1 ? RP.BANNER_HOLD_LOSE : RP.BANNER_HOLD, bannerOn = t >= base + 750 && t < base + 750 + hold, bannerPast = t >= base + 750 + hold;
     if (ph.dead !== deadOn) {
       ph.dead = deadOn;
       if (!live || !deadOn) { [0, 1].forEach(function (s) { V().setDead(s, deadOn && (w === 'draw' ? false : s !== w) && res.players[s].health <= 0); }); }
@@ -344,6 +375,7 @@
     var cfg = (root.BZSim && root.BZSim.SANDSTORM) || { countdownStart: 25000, countdown: 5000 };
     var storm = t >= cfg.countdownStart + cfg.countdown && S.info.sandstorm !== false && t <= S.endMs + RP.LAG_HERO;
     if (S.phase.storm !== storm) { S.phase.storm = storm; V().sand(storm); }
+    V().sandLevel(storm ? Math.min(1, 0.15 + (t - cfg.countdownStart - cfg.countdown) / 40000) : 0); // viền cồn cát dày dần (~40 s)
     FXc().ambient('sand', 'sand', { x: 0, y: 60, w: 1920, h: 960 }, storm ? Math.min(1, 0.3 + (t - cfg.countdownStart - cfg.countdown) / 30000) : 0);
     V().dial(Math.min(t, S.endMs), cfg);
   };

@@ -48,14 +48,16 @@
     var win = el('div', 'win', cb);
     var art = el('div', 'art', win);
     var src = C.artSrc(inst.id);
-    if (src) art.style.backgroundImage = 'url("' + src + REV() + '")';
-    else art.style.background = 'linear-gradient(160deg,#4a3324,#24160d)';
-    var veil = el('div', 'veil', win);
+    var veil = el('div', 'veil', win); // bản sao ảnh art, xám + tối, cắt theo tiến độ hồi chiêu (clip: màn xám phủ cả thẻ, vạch xanh quét từ đáy lên)
+    if (src) { art.style.backgroundImage = veil.style.backgroundImage = 'url("' + src + REV() + '")'; }
+    else art.style.background = veil.style.background = 'linear-gradient(160deg,#4a3324,#24160d)';
+    var rub = el('div', 'rub', win); // đống đổ nát màu cát khi thẻ bị phá (clip J6T0 destroy)
     var line = el('div', 'cdline', win);
     var stH = el('div', 'st st-haste', win), stS = el('div', 'st st-slow', win), stF = el('div', 'st st-freeze', win);
     var hit = el('div', 'hit', win);
     var ench = null;
     if (inst.ench) { ench = el('div', 'ench', win); ench.style.setProperty('--ec', ENCH_COL[inst.ench] || '#be47ff'); }
+    var ring = el('div', 'ring', cb); // viền trạng thái ngoài ô art: haste/slow/freeze/hover
     var frame = el('img', 'frame', cb); frame.alt = ''; frame.draggable = false;
     var cssf = el('div', 'cssframe', cb);
     var fglow = el('div', 'fglow', cb);
@@ -65,9 +67,10 @@
     var ammo = el('div', 'ammo', cb);
     var chH = el('div', 'chip haste', cb), chS = el('div', 'chip slow', cb), chF = el('div', 'chip freeze', cb);
     var buff = el('div', 'buff', cb);
+    var upg = el('div', 'upg', cb), thaw = el('div', 'thaw', cb), fly = el('div', 'flybadge', cb);
     var B = root_._bz = {
       inst: inst, attrs: opts.attrs || {}, side: opts.side || 0, h: opts.h || 230, w: 0,
-      cb: cb, win: win, art: art, veil: veil, line: line, stH: stH, stS: stS, stF: stF, hit: hit, frame: frame, cssf: cssf, fglow: fglow,
+      cb: cb, win: win, art: art, veil: veil, rub: rub, ring: ring, upg: upg, thaw: thaw, fly: fly, line: line, stH: stH, stS: stS, stF: stF, hit: hit, frame: frame, cssf: cssf, fglow: fglow,
       gems: gems, mc: mc, tag: tag, ammo: ammo, chH: chH, chS: chS, chF: chF, buff: buff, ench: ench,
       s: {}, gemVals: {}, pips: [],
       // animation
@@ -87,6 +90,13 @@
     place(B.win, wn.x * k, wn.y * k, wn.w * k, wn.h * k);
     B.win.style.borderRadius = Math.max(4, (wn.r || 10) * k) + 'px';
     B.winRect = { x: wn.x * k, y: wn.y * k, w: wn.w * k, h: wn.h * k };
+    place(B.ring, wn.x * k - 3, wn.y * k - 3, wn.w * k + 6, wn.h * k + 6);
+    B.ring.style.borderRadius = Math.max(6, (wn.r || 10) * k + 3) + 'px';
+    B.line.style.height = Math.max(18, wn.h * k * 0.16) + 'px'; B.line.style.marginTop = -Math.max(18, wn.h * k * 0.16) / 2 + 'px';
+    B.upg.style.left = B.w / 2 + 'px'; B.upg.style.top = (wn.y + wn.h / 2) * k + 'px';
+    B.upg.style.setProperty('--us', Math.round(Math.max(B.w, h) * 1.6) + 'px');
+    B.thaw.style.cssText = 'left:' + (wn.x * k) + 'px;top:' + (wn.y * k) + 'px;width:' + (wn.w * k) + 'px;height:' + (wn.h * k) + 'px';
+    place(B.fly, wn.x * k + 3, wn.y * k + 3, Math.max(16, wn.w * k * 0.2), Math.max(16, wn.w * k * 0.2));
     if (fr.real) {
       B.frame.style.display = ''; B.cssf.style.display = 'none';
       var s = f.src + REV();
@@ -158,18 +168,19 @@
 
   // update(e, {progress, ammo, haste, slow, freeze, destroyed, flying}) — ghi DOM chỉ khi đổi
   C.update = function (e, s, force) {
-    var B = e._bz, o = B.s;
+    var B = e._bz, o = B.s, parts = root.BZ_FRAMES && root.BZ_FRAMES.parts;
     o.last = s;
     var p = s.progress || 0;
     var charging = p > 0.0005 && !s.destroyed;
     if (force || Math.abs((o.p == null ? -1 : o.p) - p) > 0.0008) {
       o.p = p;
-      B.veil.style.transform = 'scaleY(' + (1 - p).toFixed(4) + ')';
+      B.veil.style.clipPath = 'inset(0 0 ' + (p * 100).toFixed(2) + '% 0)';
       B.line.style.transform = 'translateY(' + ((1 - p) * B.winRect.h).toFixed(1) + 'px)';
     }
     if (force || o.charging !== charging) { o.charging = charging; e.classList.toggle('charging', charging); }
     var hasCd = (B.attrs.CooldownEffective || B.attrs.CooldownMax || 0) > 0;
     if (force || o.hasCd !== hasCd) { o.hasCd = hasCd; B.veil.style.display = hasCd ? '' : 'none'; B.line.style.display = hasCd ? '' : 'none'; }
+    if (o.freeze === true && !(s.freeze > 0)) C.thawFx(e);
     tog(e, o, 'haste', s.haste > 0, force); tog(e, o, 'slow', s.slow > 0, force); tog(e, o, 'freeze', s.freeze > 0, force);
     tog(e, o, 'destroyed', !!s.destroyed, force); tog(e, o, 'flying', !!s.flying, force);
     txt(B.chH, o, 'th', s.haste > 0 ? fmtSec(s.haste) : '');
@@ -178,7 +189,14 @@
     var am = B.attrs.AmmoMax || 0;
     if (am > 0 && s.ammo != null && s.ammo >= 0 && (force || o.ammo !== s.ammo)) {
       if (B.pips.length !== am) buildPips(B, am);
-      for (var i = 0; i < B.pips.length; i++) B.pips[i].classList.toggle('off', i >= s.ammo);
+      for (var i = 0; i < B.pips.length; i++) {
+        var off = i >= s.ammo, pp = B.pips[i];
+        if (pp.classList.contains('off') !== off) {
+          pp.classList.toggle('off', off);
+          if (parts && parts.pipFull) pp.style.backgroundImage = 'url("' + (off ? parts.pipEmpty : parts.pipFull).src + REV() + '")';
+          if (off && !force && o.ammo != null) { pp.classList.remove('spent'); void pp.offsetWidth; pp.classList.add('spent'); } // đạn vừa tiêu: chớp cam rồi tắt
+        }
+      }
       o.ammo = s.ammo;
     }
   };
@@ -187,7 +205,7 @@
   function buildPips(B, n) {
     B.ammo.innerHTML = ''; B.pips = [];
     var parts = root.BZ_FRAMES && root.BZ_FRAMES.parts;
-    var A = B.ammoA, size = Math.min(A.pip, (A.w * 0.9) / n - 1);
+    var A = B.ammoA, size = Math.min(A.pip * 1.1, (A.w * 0.92) / n - 1);
     for (var i = 0; i < n; i++) {
       var p = el('div', 'pip', B.ammo);
       p.style.width = p.style.height = size + 'px';
@@ -202,10 +220,23 @@
     b.classList.remove('go'); void b.offsetWidth; b.classList.add('go');
   };
   C.multicastFlash = function (e) { var m = e._bz.mc; m.classList.remove('flash'); void m.offsetWidth; m.classList.add('flash'); };
+  // tan băng (clip G freeze): chớp trắng-lam + mảnh vỡ ~300 ms
+  C.thawFx = function (e) { var t = e._bz.thaw; t.classList.remove('go'); void t.offsetWidth; t.classList.add('go'); };
+  // nâng bậc (clip kacCuk6ZOuo upgrade): thẻ chớp trắng, tia vàng-trắng xoè ra, vòng tím-hồng nở, thẻ nảy ~1,1 s
+  C.upgradeFx = function (e) {
+    var B = e._bz;
+    B.upg.classList.remove('go'); e.classList.remove('upgrading'); void B.upg.offsetWidth; B.upg.classList.add('go'); e.classList.add('upgrading');
+    setTimeout(function () { e.classList.remove('upgrading'); }, 1100);
+  };
 
   // ---------- chuyển động: hover (đồng hồ thật) + giật lùi/chớp (đồng hồ phát lại) ----------
   C.kick = function (e, t) { e._bz.kickT = t; e._bz.dirty = true; };
-  C.flash = function (e, t, color) { var B = e._bz; B.flashT = t; B.flashCol = color || '#00ffa8'; B.fglow.style.setProperty('--gc', B.flashCol); B.dirty = true; };
+  C.flash = function (e, t, color) {
+    var B = e._bz;
+    if (color === '#b3e4e5') C.upgradeFx(e); // màu bậc-lên do ui/anim.js đặt
+    else if (color === '#00ffce') { e.classList.remove('chg'); void e.offsetWidth; e.classList.add('chg'); } // sạc: vạch hồi chiêu nhảy, chớp xanh
+    B.flashT = t; B.flashCol = color || '#00ffa8'; B.fglow.style.setProperty('--gc', B.flashCol); B.dirty = true;
+  };
   C.hitFlash = function (e, t) { e._bz.hitT = t; e._bz.dirty = true; };
   C.punch = function (e, t) { e._bz.punchT = t; e._bz.dirty = true; };
   C.setHover = function (e, on, now) {
@@ -235,15 +266,15 @@
   // tick(e, nowWall, tReplay, dtWall) → true nếu còn chuyển động
   C.tick = function (e, now, t, dt) {
     var B = e._bz;
-    var u = Math.min(1, (now - B.hoverT0) / 150);
+    var u = Math.min(1, (now - B.hoverT0) / (B.hoverTo ? 260 : 150)); // clip UBBAzdzXo8g: nhấc ~300 ms (prefab 150 ms)
     B.hover = B.hoverFrom + (B.hoverTo - B.hoverFrom) * (B.hoverTo ? outQuad(u) : outBounceSoft(u));
     var kz = keyAt(KZ, t - B.kickT), ky = keyAt(KY, t - B.kickT);
     var a = 1 - Math.exp(-10 * dt / 1000); // Quaternion.Lerp(cur, target, dt*10)
     B.rx += (B.trx - B.rx) * a; B.ry += (B.try_ - B.ry) * a;
     var dir = B.side === 1 ? -1 : 1; // bàn trên (đối thủ) giật ngược lên (Card_Kickback_A_Mirrored)
-    var sc = (1 + 0.085 * B.hover) * (1 + kz * 0.06) * (1 + ky * 0.22);
+    var sc = (1 + 0.15 * B.hover) * (1 + kz * 0.06) * (1 + ky * 0.22);
     var pu = t - B.punchT, punch = pu > 0 && pu < 220 ? Math.sin(pu / 220 * Math.PI * 3) * (1 - pu / 220) * 7 : 0;
-    var ty = -16 * B.hover + dir * (-kz * 18) + punch;
+    var ty = -22 * B.hover + dir * (-kz * 18) + punch;
     var tr = 'translate3d(0,' + ty.toFixed(2) + 'px,0) scale(' + sc.toFixed(4) + ')';
     if (B.hover > 0.01) tr += ' rotateX(' + (B.rx * B.hover).toFixed(2) + 'deg) rotateY(' + (B.ry * B.hover).toFixed(2) + 'deg)';
     B.cb.style.transform = tr;

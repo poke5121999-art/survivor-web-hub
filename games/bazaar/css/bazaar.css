@@ -24,27 +24,29 @@ button { font: inherit; color: inherit; }
   contain: layout paint; }
 #bz-world { position: absolute; inset: 0; will-change: transform; }
 
-/* ---------- nền sân: gạch cát, kênh nước xanh hai bên (ảnh gốc là cảnh 3D; dựng lại bằng gradient) [ĐỀ XUẤT] ---------- */
+/* ---------- nền sân: gạch đất nung, kênh nước ngọc lam có sóng sáng trôi, cây chậu ở góc (ảnh gốc là cảnh 3D; dựng bằng ảnh phẳng art/env) [ĐỀ XUẤT] ---------- */
 .bz-bg { position: absolute; inset: 0; background:
-  radial-gradient(ellipse 60% 70% at 50% 50%, rgba(255,214,150,.18), transparent 70%),
-  repeating-linear-gradient(0deg, rgba(90,45,15,.10) 0 2px, transparent 2px 72px),
-  repeating-linear-gradient(90deg, rgba(90,45,15,.10) 0 2px, transparent 2px 96px),
-  linear-gradient(180deg, #c68a52 0%, #b8763f 50%, #a9662f 100%); }
+  radial-gradient(ellipse 60% 70% at 50% 50%, rgba(255,222,160,.20), transparent 70%),
+  url(../art/env/floor.webp) 0 0 / 256px 256px repeat; }
 .bz-bg::after { content: ""; position: absolute; inset: 0; pointer-events: none;
-  background: radial-gradient(ellipse 75% 80% at 50% 50%, transparent 55%, rgba(30,12,2,.65) 100%); }
-.bz-canal { position: absolute; top: 318px; height: 452px; width: 400px; overflow: hidden;
-  background: linear-gradient(180deg, #2a9c98, #3ab5b0 30%, #44c2bb 50%, #31a5a2 75%, #22807f);
-  box-shadow: inset 0 14px 18px rgba(0,40,40,.55), inset 0 -14px 18px rgba(0,40,40,.55); }
-.bz-canal.l { left: -20px; border-radius: 0 40px 40px 0; }
-.bz-canal.r { right: -20px; border-radius: 40px 0 0 40px; }
-.bz-canal::before { content: ""; position: absolute; inset: 0; opacity: .5;
-  background: radial-gradient(ellipse 30% 12% at 30% 30%, rgba(255,255,255,.35), transparent 70%),
-    radial-gradient(ellipse 26% 10% at 70% 62%, rgba(255,255,255,.28), transparent 70%),
-    radial-gradient(ellipse 20% 8% at 45% 85%, rgba(255,255,255,.22), transparent 70%),
-    repeating-linear-gradient(170deg, rgba(255,255,255,.07) 0 3px, transparent 3px 34px); }
-.bz-canal-rim { position: absolute; top: 300px; height: 488px; width: 420px; border: 14px solid #d29a5e;
-  border-radius: 46px; box-shadow: 0 0 0 4px #8e5a2e, inset 0 0 0 3px #f0c58d; pointer-events: none; }
+  background: radial-gradient(ellipse 75% 80% at 50% 50%, transparent 52%, rgba(40,16,2,.6) 100%); }
+.bz-canal { position: absolute; top: 318px; height: 452px; width: 400px; overflow: hidden; background: #2a9c98;
+  box-shadow: inset 0 16px 22px rgba(0,50,50,.6), inset 0 -16px 22px rgba(0,50,50,.6), inset 14px 0 18px rgba(0,50,50,.35); }
+.bz-canal.l { left: -20px; border-radius: 0 44px 44px 0; }
+.bz-canal.r { right: -20px; border-radius: 44px 0 0 44px; }
+.bz-canal::before { content: ""; position: absolute; left: -256px; top: -256px; width: calc(100% + 512px); height: calc(100% + 512px);
+  background: url(../art/env/water.webp) 0 0 / 256px 256px repeat; animation: bz-water 14s linear infinite; }
+.bz-canal::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,60,70,.35), transparent 22%, transparent 78%, rgba(0,60,70,.4)); }
+@keyframes bz-water { to { transform: translate(256px, 128px); } }
+.bz-canal-rim { position: absolute; top: 300px; height: 488px; width: 420px; border: 16px solid #d8a86a;
+  border-radius: 50px; box-shadow: 0 0 0 4px #7a4a22, inset 0 0 0 3px #f6d6a0, 0 8px 14px rgba(40,16,0,.45); pointer-events: none; }
 .bz-canal-rim.l { left: -60px; } .bz-canal-rim.r { right: -60px; }
+.bz-plant, .bz-shrub { position: absolute; pointer-events: none; background: no-repeat center / contain; filter: drop-shadow(0 8px 6px rgba(30,12,0,.35)); }
+.bz-plant { width: 300px; height: 345px; background-image: url(../art/env/plant.svg); }
+.bz-plant.tl { left: 10px; top: -70px; transform: scale(.8); } .bz-plant.tr { right: 20px; top: -80px; transform: scale(.7) scaleX(-1); }
+.bz-plant.bl { left: -20px; bottom: -110px; } .bz-plant.br { right: -10px; bottom: -120px; transform: scaleX(-1); }
+.bz-shrub { width: 210px; height: 270px; background-image: url(../art/env/shrub.svg); }
+.bz-shrub.r { right: 40px; top: 420px; } .bz-shrub.l { left: 6px; top: 640px; transform: scale(.55); opacity: .95; }
 
 /* ---------- bàn ---------- */
 .bz-table { position: absolute; left: 378px; top: 74px; width: 1164px; height: 940px; border-radius: 26px;
@@ -191,22 +193,31 @@ button { font: inherit; color: inherit; }
 .bz-pick-btn { position: absolute; right: 24px; top: 22px; height: 64px; padding: 0 24px; font: 700 24px/1 var(--f-text); }
 .bz-seed { position: absolute; right: 30px; top: 96px; font: 600 16px/1 var(--f-text); color: #ffe9c8; text-shadow: 0 1px 2px #000; opacity: .85; }
 
-/* ---------- băng-rôn ---------- */
+/* ---------- băng-rôn: cuộn giấy vàng cuộn từ trái 700 ms (thua 500), giữ, rồi cuộn lại bay lên góc phải 300 ms (REF death-victory) ---------- */
 .bz-banner { position: absolute; left: 0; right: 0; top: 446px; height: 190px; display: flex; align-items: center; justify-content: center;
-  pointer-events: none; opacity: 0; }
-.bz-banner .in { position: relative; padding: 18px 90px; text-align: center;
-  background: linear-gradient(90deg, transparent, rgba(30,14,4,.92) 18%, rgba(30,14,4,.92) 82%, transparent);
-  border-top: 3px solid #e0b25a; border-bottom: 3px solid #e0b25a; }
-.bz-banner h2 { margin: 0; font: 900 96px/1 var(--f-title); letter-spacing: .04em; color: #ffd36b;
-  text-shadow: 0 4px 0 #6a3200, 0 0 30px rgba(255,170,60,.7); }
-.bz-banner p { margin: 8px 0 0; font: 700 30px/1.2 var(--f-text); color: var(--cream); }
-.bz-banner.storm h2 { color: #ffc27a; font-size: 72px; }
-.bz-banner.draw h2 { color: #d8e2ff; text-shadow: 0 4px 0 #22305a, 0 0 30px rgba(140,170,255,.6); }
-.bz-banner.lose h2 { color: #ff8a7a; text-shadow: 0 4px 0 #4a1410, 0 0 30px rgba(255,90,70,.55); }
-.bz-banner.show { animation: bz-banner-in .5s cubic-bezier(.2,1.4,.4,1) forwards; }
-.bz-banner.hide { animation: bz-banner-out .4s ease-in forwards; }
-@keyframes bz-banner-in { 0% { opacity: 0; transform: scale(1.6); } 100% { opacity: 1; transform: scale(1); } }
-@keyframes bz-banner-out { 0% { opacity: 1; } 100% { opacity: 0; transform: scale(.92); } }
+  pointer-events: none; opacity: 0; --bn-in: 700ms; }
+.bz-banner .in { position: relative; padding: 18px 120px; text-align: center; min-width: 760px;
+  background: linear-gradient(180deg, #3b78d0, #1f4c9c 55%, #163878);
+  border-top: 5px solid #f0c85a; border-bottom: 5px solid #f0c85a; box-shadow: 0 10px 30px rgba(0,0,0,.5), inset 0 0 40px rgba(120,180,255,.35); }
+.bz-banner .in::before, .bz-banner .in::after { content: ""; position: absolute; top: -12px; bottom: -12px; width: 34px; border-radius: 17px;
+  background: linear-gradient(90deg, #8a5a14, #f6d878 40%, #b8841f); box-shadow: 0 4px 8px rgba(0,0,0,.5); }
+.bz-banner .in::before { left: -17px; } .bz-banner .in::after { right: -17px; }
+.bz-banner h2 { margin: 0; font: 900 96px/1 var(--f-title); letter-spacing: .04em; color: #fff;
+  text-shadow: 0 4px 0 #0e2a66, 0 0 26px rgba(120,190,255,.8); }
+.bz-banner p { margin: 8px 0 0; font: 700 30px/1.2 var(--f-text); color: #e8f1ff; }
+.bz-banner.storm { --bn-in: 450ms; }
+.bz-banner.storm .in { background: linear-gradient(180deg, #d89a48, #a8651f 55%, #7c4410); box-shadow: 0 10px 30px rgba(0,0,0,.5), inset 0 0 40px rgba(255,210,120,.35); }
+.bz-banner.storm h2 { color: #fff0cc; font-size: 72px; text-shadow: 0 4px 0 #5a2c00, 0 0 24px rgba(255,190,90,.8); }
+.bz-banner.draw .in { background: linear-gradient(180deg, #7a88b8, #4a5688 55%, #2e386a); }
+.bz-banner.draw h2 { text-shadow: 0 4px 0 #22305a, 0 0 30px rgba(140,170,255,.6); }
+.bz-banner.lose { --bn-in: 500ms; }
+.bz-banner.lose .in { background: linear-gradient(180deg, #c03a36, #8c1e22 55%, #5e1018); box-shadow: 0 10px 30px rgba(0,0,0,.55), inset 0 0 50px rgba(0,60,60,.45); }
+.bz-banner.lose h2 { color: #ffe2dc; text-shadow: 0 4px 0 #3a0608, 0 0 28px rgba(255,90,70,.7); }
+.bz-banner.lose .in::before, .bz-banner.lose .in::after { background: linear-gradient(90deg, #4a4a44, #b8b2a0 40%, #6a665a); }
+.bz-banner.show { animation: bz-banner-in var(--bn-in) cubic-bezier(.25,.8,.3,1) forwards; }
+.bz-banner.hide { animation: bz-banner-out .3s ease-in forwards; }
+@keyframes bz-banner-in { 0% { opacity: 1; clip-path: inset(0 100% 0 0); transform: translateX(-80px); } 100% { opacity: 1; clip-path: inset(-30px 0 -30px 0); transform: none; } }
+@keyframes bz-banner-out { 0% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translate(620px, -380px) scale(.25, .5); } }
 .bz-crown { position: absolute; left: 50%; width: 92px; height: 72px; margin-left: -46px; pointer-events: none; opacity: 0;
   background: url(../art/ui/ui_sprite_atlas/Portrait_WinBanner_TUI.webp) center/contain no-repeat; filter: drop-shadow(0 4px 8px rgba(0,0,0,.6)); }
 .bz-crown.top { top: 54px; } .bz-crown.bot { top: 808px; }
@@ -214,9 +225,32 @@ button { font: inherit; color: inherit; }
 @keyframes bz-crown { 0% { opacity: 0; transform: translateY(-40px) scale(.4); } 100% { opacity: 1; transform: none; } }
 
 #bz-fx { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; pointer-events: none; }
-.bz-sand { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 1.2s;
-  background: radial-gradient(ellipse at 50% 50%, rgba(214,150,70,.12) 20%, rgba(170,100,35,.62) 100%); }
+.bz-sand { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 1.2s; --sk: 0;
+  background: radial-gradient(ellipse at 50% 50%, rgba(214,150,70,calc(.04 + .1 * var(--sk))) 25%, rgba(170,100,35,calc(.25 + .5 * var(--sk))) 100%);
+  box-shadow: inset 0 0 calc(30px + 110px * var(--sk)) calc(6px + 40px * var(--sk)) rgba(224,170,70,calc(.45 + .4 * var(--sk))); }
 .bz-sand.on { opacity: 1; }
+.bz-sand .dune { position: absolute; left: 0; right: 0; bottom: 0; height: calc(34px + 110px * var(--sk));
+  background: radial-gradient(ellipse 90px 70% at 50% 100%, #e2b04e 0 66%, transparent 68%) 0 100% / 150px 100% repeat-x, linear-gradient(0deg, #c8923a, transparent);
+  filter: drop-shadow(0 -4px 6px rgba(120,70,10,.5)); }
+.bz-sand::before, .bz-sand::after { content: ""; position: absolute; top: 0; bottom: 0; width: calc(30px + 120px * var(--sk));
+  background: linear-gradient(90deg, rgba(226,176,78,.85), transparent); }
+.bz-sand::after { right: 0; transform: scaleX(-1); }
+
+/* nộ: khung đỏ nhấp nháy ở đáy bàn của bên nộ, ~1 s sau mới phủ vành tối đỏ toàn sân (REF enrage) */
+.bz-enr-frame { position: absolute; left: 392px; width: 1136px; height: 242px; border-radius: 10px; pointer-events: none; opacity: 0; }
+.bz-enr-frame.top { top: 300px; } .bz-enr-frame.bot { top: 548px; }
+.bz-enr-frame.on { opacity: 1; box-shadow: inset 0 -26px 40px -14px rgba(255,30,40,.85), 0 0 0 3px rgba(255,60,60,.9), 0 0 36px rgba(255,20,30,.8); animation: bz-enr-pulse .45s ease-in-out infinite alternate; }
+@keyframes bz-enr-pulse { from { filter: brightness(.7); } to { filter: brightness(1.35); } }
+.bz-enr-vig { position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  background: radial-gradient(ellipse at 50% 50%, transparent 38%, rgba(80,0,8,.55) 75%, rgba(60,0,6,.85) 100%); }
+.bz-enr-vig.on { animation: bz-enr-vig 1.2s 1s ease-out forwards; }
+@keyframes bz-enr-vig { from { opacity: 0; } to { opacity: 1; } }
+.bz-rowglow { position: absolute; left: 586px; width: 748px; height: 196px; border-radius: 10px; pointer-events: none; opacity: 0;
+  box-shadow: inset 0 0 0 4px var(--rg), inset 0 0 40px var(--rg), 0 0 36px var(--rg);
+  background: repeating-linear-gradient(45deg, transparent 0 14px, rgba(252,220,44,.16) 14px 16px), repeating-linear-gradient(-45deg, transparent 0 14px, rgba(252,220,44,.16) 14px 16px);
+  animation: bz-rowglow 1.2s ease-out forwards; }
+.bz-rowglow.top { top: 70px; } .bz-rowglow.bot { top: 824px; }
+@keyframes bz-rowglow { 0% { opacity: 0; } 12% { opacity: 1; } 70% { opacity: .8; } 100% { opacity: 0; } }
 
 /* ---------- chọn trận ---------- */
 .bz-picker { position: absolute; inset: 0; z-index: 50; display: none; background: rgba(10,6,3,.72); backdrop-filter: blur(3px); }

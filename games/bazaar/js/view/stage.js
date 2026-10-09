@@ -24,6 +24,8 @@
     el('div', 'bz-bg', wd);
     el('div', 'bz-canal l', wd); el('div', 'bz-canal r', wd);
     el('div', 'bz-canal-rim l', wd); el('div', 'bz-canal-rim r', wd);
+    // sân gạch + cây chậu + bụi cây bên bờ nước: dựng lại cảnh 3D gốc bằng ảnh phẳng nhẹ (art/env, tools không đụng) [ĐỀ XUẤT]
+    ['bz-shrub r', 'bz-shrub l', 'bz-plant tl', 'bz-plant tr', 'bz-plant bl', 'bz-plant br'].forEach(function (c) { el('div', c, wd); });
     el('div', 'bz-table', wd);
     R.boards = [el('div', 'bz-board bot', wd), el('div', 'bz-board top', wd)];
     R.cardLayer = el('div', '', wd); R.cardLayer.style.cssText = 'position:absolute;inset:0;';
@@ -44,7 +46,10 @@
     R.dialTimeN = R.dialTime.firstChild;
     var storm = el('div', 'storm', dial); R.dialStorm = el('i', '', storm);
     R.dialLabel = el('div', 'bz-dial-label', wd, 'Bão cát sau 30 giây');
+    R.enrFrame = [el('div', 'bz-enr-frame bot', wd), el('div', 'bz-enr-frame top', wd)];
+    R.enrVig = el('div', 'bz-enr-vig', wd);
     R.sand = el('div', 'bz-sand', wd);
+    el('div', 'dune', R.sand);
     R.fx = el('canvas', '', wd); R.fx.id = 'bz-fx';
     R.banner = el('div', 'bz-banner', st, '<div class="in"><h2></h2><p></p></div>');
     R.ui = el('div', '', st); R.ui.style.cssText = 'position:absolute;inset:0;pointer-events:none;';
@@ -216,7 +221,14 @@
     if (o.pf !== pf || o.frac2 !== frac) { o.pf = pf; h.poison.style.transform = 'translateX(' + ((frac - bf - pf) * 100).toFixed(3) + '%) scaleX(' + Math.max(0, pf).toFixed(4) + ')'; }
     o.frac2 = frac;
     var enr = (v.enragedMs || 0) > 0;
-    if (o.enr !== enr) { o.enr = enr; h.pf.classList.toggle('enraged', enr); }
+    if (o.enr !== enr) {
+      o.enr = enr; h.pf.classList.toggle('enraged', enr);
+      // nộ: khung đỏ nhấp nháy ở đáy bàn, ~1 s sau mới phủ vành tối đỏ (REF enrage)
+      var ef = R.enrFrame[side], on = enr;
+      if (ef) { ef.classList.remove('on'); if (on) { void ef.offsetWidth; ef.classList.add('on'); } }
+      var any = R.enrFrame.some(function (x) { return x.classList.contains('on'); });
+      R.enrVig.classList.toggle('on', any);
+    }
     if (enr) {
       var p = Math.min(1, v.enragedMs / 5000);
       h.ring.style.background = 'conic-gradient(#ff2a4a ' + (p * 360).toFixed(1) + 'deg, transparent 0)';
@@ -307,6 +319,13 @@
     }
   };
   V.sand = function (on) { R.sand.classList.toggle('on', !!on); };
+  V.sandLevel = function (k) { var q = Math.round(Math.max(0, Math.min(1, k)) * 50) / 50; if (R._sk !== q) { R._sk = q; R.sand.style.setProperty('--sk', q); } };
+  // vầng vàng quanh hàng chân dung khi nhận khiên (REF shield: viền hàng chuyển lưới vàng ~1,2 s)
+  V.rowGlow = function (side, color, ms) {
+    var d = el('div', 'bz-rowglow ' + (side ? 'top' : 'bot'), R.world);
+    d.style.setProperty('--rg', color || '#fcdc2c'); d.style.animationDuration = (ms || 1200) + 'ms';
+    setTimeout(function () { if (d.parentNode) d.parentNode.removeChild(d); }, (ms || 1200) + 60);
+  };
   var bannerTimer = null;
   V.banner = function (title, sub, cls, holdMs) {
     var b = R.banner;

@@ -1,7 +1,7 @@
 /* Chợ Phiên — trang xem trận (pha 1b): chọn hai quái (BZ_MONSTERS, gom theo cấp) hoặc "trận ngẫu nhiên cân sức",
    chạy BZSim.run một lần rồi phát lại bằng BZReplay. Nối: BZView (sân), BZCard (thẻ), BZTooltip, BZFX (canvas), BZAudio.
    URL: ?a=<id quái bàn dưới>&b=<id quái bàn trên>&seed=N&speed=N (id đủ, 8 ký tự đầu, hoặc InternalName).
-   Móc kiểm thử: window.BZ_DEBUG = {fight, seek, speed, state, perf}. */
+   Móc kiểm thử: window.BZ_DEBUG = {fight, fightBoards, seek, speed, state, perf}. */
 (function (root) {
   'use strict';
   root.BZ_REV = root.BZ_REV || '20261009d';
@@ -36,8 +36,12 @@
   function fight(aId, bId, seed, keepSpeed) {
     var A = findMon(aId), B = findMon(bId);
     if (!A || !B) throw new Error('monster not found: ' + (!A ? aId : bId));
+    return fightWith(A, B, seed, keepSpeed, null);
+  }
+  // boards: null = dựng từ hai quái; hoặc hai bàn sim tuỳ ý (BZ_DEBUG.fightBoards) — A/B chỉ lo chân dung + tên
+  function fightWith(A, B, seed, keepSpeed, custom) {
     seed = seed == null ? 1 : +seed;
-    var boards = [BZ.boardFromMonster(A, 'a'), BZ.boardFromMonster(B, 'b')];
+    var boards = custom || [BZ.boardFromMonster(A, 'a'), BZ.boardFromMonster(B, 'b')];
     var res = BZ.run({ boards: boards, seed: seed, sandstorm: true });
     cur = { a: A.Id, b: B.Id, seed: seed, res: res, boards: boards, mons: [A, B] };
     buildView();
@@ -360,6 +364,13 @@
         cards: Object.keys(cur.info.cards).length, audio: AU ? Object.assign({}, AU.stats) : null };
     },
     events: function () { var S = RP.state(); return S ? S.evs.map(function (e) { return { type: e.type, kind: e.kind, src: e.src, target: e.target, amt: e.amt, t: e.t }; }) : []; },
+    // bàn sim tuỳ ý (test/bazaar-capture.js): b0 = bàn dưới, b1 = bàn trên, dạng {name, healthMax, level, cards:[{uid,id,tier,ench,socket,size,section,attrs}], attrs};
+    // opts.mon = [id quái làm chân dung dưới, id quái làm chân dung trên]
+    fightBoards: function (b0, b1, seed, opts) {
+      opts = opts || {};
+      var mon = opts.mon || [], A = findMon(mon[0]) || MON[0], B = findMon(mon[1]) || MON[1] || MON[0];
+      return fightWith(A, B, seed, true, [b0, b1]);
+    },
     perf: function () { return RP.perf(); },
     resetPerf: function () { RP.resetPerf(); },
     hover: function (uid) { var el = V.cardEl(uid); if (!el) return false; var r = el.getBoundingClientRect(); setHovered(el, { clientX: r.left + r.width / 2, clientY: r.top + r.height / 3 }); return true; },

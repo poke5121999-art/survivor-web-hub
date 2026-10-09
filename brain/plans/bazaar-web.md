@@ -56,6 +56,21 @@ Ghi chú có mốc giờ ở `D:\bazaar-ref\notes\clips\<id>.md`, khung hình �
 
 Rev 20261009e: bot thắng PvP 40,1% (trước 29,3% với cùng đường máu và `GHOST_LEVEL_OFFSET` 1).
 
+## Pha 3: làm cho khớp hẳn với game gốc (đang làm 2026-10-09)
+
+Chủ dự án hỏi "vfx, sfx, anim, gameplay đã theo clip hết chưa" → chưa → "làm cho perfect, tìm thêm nhiều clip".
+Hợp đồng: `D:\bazaar-ref\notes\MOMENTS.md` (danh sách khoảnh khắc + thư mục `ref/`, `web/`, `compare/`).
+
+1. Tham chiếu từ clip mới (2025-2026, đúng UI bản hiện tại): 3 nhánh chia theo khoảnh khắc → `D:\bazaar-ref\ref\<moment>\` + `notes\clips\REF-*.md`.
+2. Bảng đạn/tiếng theo thẻ chính xác: `tools/vfxmap.py` → `data/vfxmap.js` (GUID `VFXOverrideKey` → prefab → sprite + event FMOD).
+3. Lever so sánh: `test/bazaar-capture.js` (quay bản web theo khoảnh khắc, đều theo thời gian game) + `tools/compare_sheet.py` → `D:\bazaar-ref\compare\`.
+4. Sửa theo bảng so sánh, chạy lại lever, đẩy lên Pages, gửi bảng trước/sau cho chủ dự án.
+
+Vòng 1 (rev 20261009f): thẻ (cooldown kiểu gốc: phần trên xám mờ, vạch xanh #00CF6D dâng lên, phần dưới vạch sáng lại; trạng thái; ammo; hover; tooltip), đạn và số nổi
+(crit, khiên tím, hồi máu, bỏng, băng-rôn 0,7/1,3/0,3 s), đạn/tiếng theo thẻ qua `data/vfxmap.js` (283 thẻ chính xác, 526 mặc định
+theo hành động), 6 tiếng còn thiếu, màn vòng chơi theo clip. Còn lệch: nền sân (gốc mỗi hero một bàn riêng, web dùng chung), số
+crit nhỏ hơn gốc (~130 so với ~190 px), `enrage` chưa chụp được trận thật, `slow/charge/flying` chưa có tham chiếu clip.
+
 ## Việc mở sau pha 2
 
 - Luật: lệnh `swap` khi kéo vào ô đã có đồ; cho `move`/`sell` ở pha `fight` (xếp lại sau khi xem đối thủ); lưu `run.best` cho màn hết run.

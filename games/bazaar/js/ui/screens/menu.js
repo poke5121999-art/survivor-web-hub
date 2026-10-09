@@ -100,6 +100,7 @@
 
   // ---------- chọn hero ----------
   var selHero = 'Vanessa';
+  var HEX_POS = [[56, 330], [236, 300], [130, 560], [310, 540]]; // hai cột so le như sảnh gốc (hero-select: lục giác ở góc trái trên)
   U.SCREENS.heroSelect = {
     enter: function () {
       U.music('music.mainMenu', 1.5);
@@ -115,12 +116,6 @@
         big.style.backgroundImage = U.bg(Hh.store); big.classList.remove('in'); void big.offsetWidth; big.classList.add('in');
         bg.style.background = 'radial-gradient(ellipse 60% 70% at 62% 45%, ' + Hh.color + '66, transparent 70%)';
         info.innerHTML = '<h2>' + U.esc(h) + '</h2><div class="tag">' + U.esc(Hh.tag) + '</div><p>' + U.esc(Hh.desc) + '</p>';
-        var go = U.el('div', 'go', info);
-        U.bigButton(go, 'yellow', 'Bắt đầu', 'Bắt đầu run với ' + h, function () {
-          U.state.run = U.state.run && U.state.run.phase.kind === 'heroSelect' ? U.state.run : R().newRun({ seed: 1 + Math.floor(Math.random() * 2147483000) });
-          U.dispatch({ t: 'pickHero', hero: selHero });
-        }).classList.add('play');
-        U.bigButton(go, 'brown', 'Quay lại', 'Về màn tiêu đề', function () { U.go('title'); });
         if (!silent) U.sfx('vo.' + h.toLowerCase() + '.idle', { gap: 1500 }) || U.sfx('ui.equip');
       }
       list.forEach(function (h) {
@@ -131,9 +126,19 @@
         U.el('span', 'plate', b, U.esc(h.toUpperCase()));
         b.addEventListener('click', function () { U.sfx('ui.click'); pick(h); });
         b.addEventListener('pointerenter', function () { U.sfx('ui.hover', { vol: 0.5 }); });
+        var hp = HEX_POS[list.indexOf(h)] || HEX_POS[0]; b.style.left = hp[0] + 'px'; b.style.top = hp[1] + 'px';
         btns[h] = b;
       });
-      U.el('div', 'title', s, '<h1>Chọn nhân vật</h1>');
+      // thanh dưới của sảnh (clip hero-select): nút Quay lại tròn, nút Ready xanh giữa, hai thẻ XẾP HẠNG / THƯỜNG hai bên
+      var bar = U.el('div', 'bar', s);
+      U.el('div', 'mode l', bar, '<b>XẾP HẠNG</b><small>Có giải thưởng</small>');
+      U.el('div', 'mode r on', bar, '<b>THƯỜNG</b><small>Chơi tự do</small>');
+      U.bigButton(bar, 'blue', 'Sẵn sàng', 'Bắt đầu run với hero đang chọn', function () {
+        U.state.run = U.state.run && U.state.run.phase.kind === 'heroSelect' ? U.state.run : R().newRun({ seed: 1 + Math.floor(Math.random() * 2147483000) });
+        U.dispatch({ t: 'pickHero', hero: selHero });
+      }).classList.add('play');
+      U.button(s, 'back', '<svg viewBox="0 0 24 24"><path d="M15 4 7 12l8 8 2-2-6-6 6-6z"/></svg>', 'Về màn tiêu đề', function () { U.go('title'); }).classList.add('rs-back');
+      U.el('div', 'title', s, '<small>Sảnh</small><h1>Chọn nhân vật</h1>');
       pick(list.indexOf(selHero) >= 0 ? selHero : list[0], true);
     },
     exit: function () { M.overlayOff(); },
@@ -148,27 +153,30 @@
       U.clearSaved();
       setTimeout(function () { U.heroVo(win ? (run.prestige >= 20 ? 'runperfect' : 'runvictory') : 'rundefeat'); }, 900);
       var s = M.overlayOn('endrun ' + (win ? 'win' : 'lose'));
-      var ban = U.el('div', 'banner', s);
-      ban.style.backgroundImage = U.bg('art/ui/ui_sprite_atlas/Victory_BannerCenter_01_TUI.webp');
+      // clip run-end: tối dần ~2 s, huy chương cúp xoay 1,3 s (bạc → vàng), loé sáng, rồi thẻ tổng kết hiện (băng-rôn, bàn cuối, thống kê, CONTINUE)
+      var pre = win ? 3300 : 1500;
+      s.style.setProperty('--pre', pre + 'ms');
+      var pr = U.el('div', 'pre', s, win ? '<i class="medal"></i><i class="burst"></i>' : '');
+      if (win) pr.querySelector('.medal').style.backgroundImage = U.bg('art/ui/clock/UI_VictoriesIcon_T_Temp.webp');
       var title = win ? (run.prestige >= 20 ? 'Chiến thắng hoàn hảo' : 'Chiến thắng') : reason === 'prestige' ? 'Hết uy tín' : 'Hết 10 ngày';
-      U.el('h1', '', s, title);
+      var rib = U.el('div', 'rib', s, '<b>' + run.wins + '</b><span>THẮNG<em>' + U.esc(title) + '</em></span>');
       var hero = U.el('div', 'hero', s); hero.style.backgroundImage = U.bg((U.HEROES[run.hero] || {}).store);
+      U.el('div', 'who', s, '<small>' + U.esc(U.HEROES[run.hero] ? U.HEROES[run.hero].tag : '') + '</small><b>' + U.esc(run.hero) + '</b>');
       var st = U.el('div', 'stats', s);
-      [['Trận thắng', run.wins + '/10', 'art/ui/clock/UI_VictoriesIcon_T_Temp.webp'], ['Ngày', String(Math.min(run.day, 10)), null], ['Cấp', String(run.level), U.ICON.xp], ['Uy tín', run.prestige + '/20', U.ICON.prestige], ['Vàng', String(run.gold), U.ICON.coin]]
-        .forEach(function (x) { U.el('div', 'st', st, (x[2] ? '<i style="background-image:' + U.bg(x[2]) + '"></i>' : '') + '<b>' + x[1] + '</b><span>' + x[0] + '</span>'); });
+      [['Máu tối đa', String(run.healthMax), U.ICON.health, 'hp'], ['Uy tín', String(run.prestige), U.ICON.prestige, 'pr'], ['Cấp', String(run.level), U.ICON.xp, 'lv'], ['Thu nhập', String(run.income), U.ICON.coin, 'in'], ['Vàng', String(run.gold), U.ICON.coin, 'go']]
+        .forEach(function (x) { U.el('div', 'st ' + x[3], st, '<span>' + x[0] + '</span><b><i style="background-image:' + U.bg(x[2]) + '"></i>' + x[1] + '</b>'); });
       var chests = U.el('div', 'chests', s);
       [4, 7, 10].forEach(function (n, i) { U.el('div', 'ch' + (run.wins >= n ? ' on' : ''), chests, '<i style="background-image:' + U.bg(U.ICON.prize) + '"></i><b>+' + [2, 4, 6][i] + '</b><span>' + n + ' thắng</span>'); });
-      U.el('h3', '', s, 'Bàn cuối cùng');
       var bd = U.el('div', 'board', s);
-      var info = U.boardInfo(run);
+      var info = U.boardInfo(run), n = run.board.hand.length, ch = n > 8 ? 150 : 190;
       run.board.hand.slice().sort(function (a, b) { return a.socket - b.socket; }).forEach(function (c) {
-        var el = root.BZCard.create({ uid: 'end' + c.uid, id: c.id, tier: c.tier, size: c.size, ench: c.ench, type: 'Item' }, { h: 180, attrs: (info[c.uid] || {}).attrs || {} });
+        var el = root.BZCard.create({ uid: 'end' + c.uid, id: c.id, tier: c.tier, size: c.size, ench: c.ench, type: 'Item' }, { h: ch, attrs: (info[c.uid] || {}).attrs || {} });
         el.style.position = 'relative'; bd.appendChild(el);
       });
       if (!run.board.hand.length) U.el('p', 'empty', bd, 'Bàn trống');
       var b = U.el('div', 'btns', s);
-      U.bigButton(b, 'yellow', 'Chơi lại', 'Bắt đầu run mới', function () { U.newRun(); }).classList.add('play');
       U.bigButton(b, 'brown', 'Về menu', 'Về màn tiêu đề', function () { U.state.run = null; U.go('title'); });
+      U.bigButton(b, 'blue', 'Chơi lại', 'Bắt đầu run mới', function () { U.newRun(); }).classList.add('play');
       U.sfx(win ? 'trans.victoryIn' : 'trans.defeatIn');
     },
     exit: function () { M.overlayOff(); }

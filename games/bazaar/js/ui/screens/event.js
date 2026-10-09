@@ -40,7 +40,7 @@
     enter: function (run, prev) {
       var ph = run.phase;
       if (ph.eventId === 'start') { U.top.base(run, {}); U.sfx('board.pickerAppear'); return; }
-      U.top.base(run, { hero: true, sides: true, board: true });
+      U.top.base(run, { hero: true, sides: true, board: true, lane: 'event' });
       var e = root.BZ_ENCOUNTERS.events[ph.eventId] || {};
       var side = U.top.portrait(ph.name, e.StartingTier || 'Bronze', U.top.artOf({ type: 'event', id: ph.eventId }), U.top.nameBlock('Sự kiện', ph.name, ph.desc));
       if (ph.canExit) U.bigButton(side.r, 'brown', 'Rời đi', 'Bỏ qua sự kiện', function () { U.dispatch({ t: 'leave' }); }).classList.add('leave');
@@ -75,7 +75,7 @@
   U.SCREENS.loot = {
     enter: function (run) {
       var ph = run.phase, src = ph.source, enc = root.BZ_ENCOUNTERS;
-      U.top.base(run, { hero: !!src, sides: true, board: true });
+      U.top.base(run, { hero: !!src, sides: true, board: true, lane: 'loot' });
       var name = 'Phần thưởng', tier = 'Gold', art = { bg: null, char: null };
       if (src && enc.combats[src]) { name = enc.combats[src].Title; tier = enc.combats[src].StartingTier; art = U.top.artOf({ type: 'combat', id: src }); }
       else if (src && enc.events[src]) { name = enc.events[src].Title; tier = enc.events[src].StartingTier; art = U.top.artOf({ type: 'event', id: src }); }
@@ -107,7 +107,7 @@
   U.SCREENS.pedestal = {
     enter: function (run) {
       var ph = run.phase, e = root.BZ_ENCOUNTERS.pedestals[ph.pedestalId] || {};
-      U.top.base(run, { hero: true, sides: true, board: true });
+      U.top.base(run, { hero: true, sides: true, board: true, lane: 'pedestal' });
       var side = U.top.portrait(ph.name, e.StartingTier || 'Gold', U.top.artOf({ type: 'pedestal', id: ph.pedestalId }), U.top.nameBlock('Bệ thờ', ph.name, ph.desc));
       U.bigButton(side.r, 'brown', 'Rời đi', 'Không dùng bệ', function () { U.dispatch({ t: 'leave' }); }).classList.add('leave');
       var msg = ph.eligible.length ? (ph.behavior.type === 'upgrade' ? 'Bấm một vật phẩm đang sáng để nâng bậc' : 'Bấm một vật phẩm đang sáng để yểm bùa' + (ph.behavior.ench ? ' ' + ph.behavior.ench : ''))

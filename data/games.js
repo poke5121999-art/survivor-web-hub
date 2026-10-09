@@ -917,7 +917,7 @@ window.HUB_GAMES = [
     en: { title: "Market Day", tagline: "The Bazaar on the web: lay items on your rug and they fight on their own cooldowns.", desc: "Pick a hero (Vanessa, Pygmalien, Dooley) and survive 10 days at the market. Each hour choose one of three stops: a merchant, an event or a monster. Drag items from the stall onto your rug to buy, drag them back to sell, reroll when you don't like the stock. Items on the rug fight on their own cooldowns: slash, shoot, shield, burn, poison, freeze. Beat monsters to take their loot, level up to open more slots, and face a ghost in PvP at the end of each day; losing costs prestige. Cards, monsters, art and sound come from the Steam demo." },
     thumbnail: "assets/thumbnails/bazaar.png",
     path: "games/bazaar/index.html",
-    rev: "20261009e",
+    rev: "20261009f",
     // Plain JS, không bước build. Dựng lại The Bazaar (Tempo Storm) theo yêu cầu của chủ dự án ngày 2026-10-09,
     // từ bản The Bazaar Demo trên Steam (D:\bazaar-ref). Dữ liệu thẻ/quái lấy từ GameData.db (SQLite, mỗi dòng là JSON),
     // sim combat thông dịch DSL thẻ theo $type (games/bazaar/js/sim, luật ở D:\bazaar-ref\notes\CODE-COMBAT.md).

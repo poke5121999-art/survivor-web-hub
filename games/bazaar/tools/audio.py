@@ -590,6 +590,12 @@ def build_jobs():
             add("combat." + slug(base), p, "combat", 2 if e["len"] < 1600 else 1, 5, 1 if re.search(
                 r"/(Common|Heal|Shield|Poison|Burn|Freeze|Haste|Slow|Cooldown|CritGain|Gunshot|Slash|Blunt|Arrow|Cannonball|Fireball|Electric|Coin|Bite|Pierce|Punch|Dam)/", p) else 2)
     add("combat.hitStun", "event:/SFX/Combat/HitStun", "combat", 1, 3, 2)
+    # sự kiện của SoundProjectile (prefab ActionType mặc định) mà vòng trên bỏ sót: len=0 (Heal_Impact, Joy_Impact: có thể câm thật)
+    # hoặc nằm ngoài SFX/Combat (SFX/Board/BoardProjectiles/*). Xem VFXMAP.md "event thiếu trong BZ_AUDIO".
+    for p, m in [("Combat/Heal/Heal_Impact", 3), ("Combat/Joy/Joy_Impact", 3),
+                 ("Board/BoardProjectiles/Expereince/Experience_Shot", 6), ("Board/BoardProjectiles/Expereince/Experience_Impact", 6),
+                 ("Board/BoardProjectiles/Destroy/Destroy_Impact", 6), ("Board/BoardProjectiles/PortraitSwap/PortraitSwap_Shot", 6)]:
+        add("combat." + slug(p.rsplit("/", 1)[1].replace("Expereince", "Experience")), B + p, "combat", 1, m, 1)
     # ---- nhạc ngắn
     add("music.endrun.win", "event:/Music/Music_EndRun_Win", "music", 1, 16, 1)
     add("music.endrun.lose", "event:/Music/Music_EndRun_Lose", "music", 1, 14, 1)
@@ -774,7 +780,7 @@ def stage_render(only=None, chunk=120):
 
 
 # ---------------------------------------------------------------- 6. export: cắt lặng, chuẩn mức, mã hoá ogg, ghi audio.js
-BUDGET_MB = 30.0
+BUDGET_MB = 32.0
 GROUP_VOL = {"music": 0.55, "ambience": 0.5, "env": 0.8, "vo": 1.0}      # âm lượng gợi ý (đã chuẩn hoá từng nhóm)
 
 
@@ -1052,20 +1058,23 @@ def write_audio_js(table, chain):
                 row[slot] = ek
         if row:
             fx.setdefault(nm, row)
-    # khoá ngữ nghĩa thân thiện cho hành động chiến đấu (tên thư mục prefab -> khoá)
+    # khoá ngữ nghĩa cho hành động chiến đấu = prefab MẶC ĐỊNH của ActionType (VFXMAP.md §3: BazaarVFXManagerSO._projectilesByActionMap /
+    # _projectilesByCardAttributeMap) -> SoundProjectile của prefab đó (buildup/shot/impact, chain.json). Không còn đoán theo tên thư mục.
+    ACTION_PREFAB = {"damage": "Projectile_Damage_Base_PV", "heal": "Projectile_Heal_PV", "regen": "Projectile_HealReg_PV",
+                     "maxHp": "Projectile_MaxHP_PV", "shield": "Projectile_Shield_PV", "burn": "Projectile_Burn_PV",
+                     "poison": "Projectile_Poison_PV", "joy": "Projectile_Joy_PV", "freeze": "Projectile_Freeze_PV",
+                     "haste": "Projectile_Haste_PV", "slow": "Projectile_Slow_PV", "charge": "Projectile_Charged_S_PV",
+                     "reload": "Projectile_S_Reload_01_PV", "repair": "Projectile_Repair_S_PV", "destroy": "Projectile_S_AntimatterChamber_PV",
+                     "disable": "Projectile_Destroy_S_PV", "transform": "Projectile_Transform_PV", "goldSteal": "Projectile_CoinBurst_PV",
+                     "experience": "FX_Projectile_Experience_PV", "portraitSwap": "Projectile_PortraitSwap_PV",
+                     "questComplete": "Projectile_QuestComplete_S_PV", "flyStart": "Projectile_FlyStart_PV", "flyStop": "Projectile_FlyStop_PV"}
     alias = {}
-    for act, dirs in {"damage": ["Damage"], "heal": ["Heal"], "shield": ["Shield"], "burn": ["Burn"], "poison": ["Poison"],
-                      "freeze": ["Freeze"], "haste": ["Haste"], "slow": ["Slow"], "crit": ["CritGain"],
-                      "cooldownUp": ["CooldownIncrease"], "cooldownDown": ["CooldownDecrease"]}.items():
-        for prefab, d in sorted(chain["projectiles"].items()):
-            if any("/Projectiles/%s/" % x in prefab for x in dirs):
-                nm = os.path.basename(prefab).replace(".prefab", "")
-                if nm in fx:
-                    alias["combat." + act] = fx[nm]
-                    break
-    alias.setdefault("combat.damage", {"shot": "combat.general_shot", "impact": "combat.general_impact"})
-    alias["combat.heal"] = {"shot": "combat.heal_shot", "impact": "combat.heal_impact"}
-    alias["combat.shield"] = {"shot": "combat.shield_shot", "impact": "combat.shield_impact"}
+    for act, nm in ACTION_PREFAB.items():
+        alias["combat." + act] = fx.get(nm, {})          # {} = prefab có thật nhưng không có SoundProjectile (câm trong game)
+    # [ĐỀ XUẤT] không có prefab mặc định theo ActionType trong game cho 3 việc này; giữ khoá cũ để mã gọi không vỡ
+    alias["combat.cooldownUp"] = {"buildup": "combat.cooldown_increase_buildup"}
+    alias["combat.cooldownDown"] = {"buildup": "combat.cooldown_decrease_buildup"}
+    alias["combat.crit"] = {"shot": "combat.critgain_shot", "impact": "combat.critgain_impact"}
     # thẻ -> projectile override + khoá VO (CardAudio)
     cards = {}
     for cid, c in chain["cards"].items():
@@ -1112,7 +1121,7 @@ def write_audio_js(table, chain):
     js += "window.BZ_AUDIO_VOICE = " + json.dumps(voice, ensure_ascii=False, separators=(",", ":")) + ";\n"
     js += "// prefab projectile (VFXOverrideKey của thẻ, bỏ .prefab và thư mục) -> khoá âm buildup/shot/impact\n"
     js += "window.BZ_AUDIO_FX = " + json.dumps(fx, ensure_ascii=False, separators=(",", ":")) + ";\n"
-    js += "// khoá ngữ nghĩa cho hành động chiến đấu mặc định [ĐỀ XUẤT: chọn theo tên thư mục prefab, không giải được GUID của BazaarVFXManagerSO]\n"
+    js += "// khoá ngữ nghĩa cho hành động chiến đấu mặc định (prefab mặc định của ActionType, đo từ BazaarVFXManagerSO; cooldownUp/Down/crit là [ĐỀ XUẤT])\n"
     js += "window.BZ_AUDIO_ACTION = " + json.dumps(alias, ensure_ascii=False, separators=(",", ":")) + ";\n"
     js += "// thẻ (Id trong cards.json) -> {n: tên, fx: [prefab], voice: AudioKey đã chuẩn hoá}\n"
     js += "window.BZ_AUDIO_CARDS = " + json.dumps(cards, ensure_ascii=False, separators=(",", ":")) + ";\n"

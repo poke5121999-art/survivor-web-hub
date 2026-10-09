@@ -9,10 +9,11 @@
   var V = function () { return root.BZView; }, FX = function () { return root.BZFX; };
   var T = U.transitions = { dayCards: 0, vsScreens: 0 };
 
-  // thời gian (ms) — nguồn: https://youtu.be/wUzq6Q4u9Jc?t=1322 (thẻ ngày) và ?t=708 (VS)
-  T.DAY = { in: 350, roll: 1300, out: 3000, end: 3450 };   // thẻ ngày: N hiện ~1,3 s rồi lăn sang N+1 (clip 1322 → 1324), cả thẻ ~3,2-3,5 s
-  T.VS = { flash: 500, hold: 2500, flip: 400, stagger: 170 }; // chớp 0,5 s (clip 702,5); VS giữ 2,5 s (gốc 5,5 s, rút ngắn); lật mỗi thẻ 0,4 s
-  T.PORTAL = 900;                                            // cổng xanh quét hàng thương nhân ~1 s (clip ?t=1344)
+  // thời gian (ms) — bản hiện tại (1.0.8161), clip https://youtu.be/kacCuk6ZOuo?t=494 (thẻ ngày) và ?t=2094 (VS) [ĐO TRÊN CLIP]
+  // thẻ ngày: quét vàng 800 → thẻ hiện 500 → "Day N" giữ 2600 → lăn sang N+1 600 → giữ 900 → tan thành bụi 1000 (tổng ~6,4 s kể cả quét)
+  T.DAY = { wipe: 800, in: 500, hold: 2600, roll: 600, hold2: 900, dissolve: 1000 };
+  T.VS = { flash: 500, hold: 4400, flip: 400, stagger: 170 }; // chớp trắng 0,8 s; VS giữ ~4,4 s; lật mỗi thẻ 0,4 s
+  T.PORTAL = 900;                                            // lấp lánh xanh quét hàng thương nhân (clip merchant-enter: 500 + bật hàng 600)
 
   var day = null, vs = null, timers = [];
   function later(ms, fn) { var id = setTimeout(function () { var i = timers.indexOf(id); if (i >= 0) timers.splice(i, 1); fn(); }, ms); timers.push(id); return id; }
@@ -21,26 +22,30 @@
   // ---------- thẻ ngày ----------
   T.dayCard = function (run, d) {
     T.cancelDay();
-    var st = stage(), M = U.HEROES[run.hero] || {};
+    var st = stage(), M = U.HEROES[run.hero] || {}, D = T.DAY;
+    var wipe = U.el('div', 'rs-daywipe', st, '<i></i>');
     var el = U.el('div', 'rs-daycard', st,
-      '<div class="ring r1"></div><div class="ring r2"></div><div class="hero"></div>' +
+      '<div class="ring r2"></div><div class="ring r1"></div><div class="hero"></div>' +
       '<div class="txt"><span class="lbl">Ngày</span><span class="num"><b class="old">' + (d - 1) + '</b><b class="new">' + d + '</b></span></div>' +
       '<i class="orb o1"></i><i class="orb o2"></i><small>Bấm để tiếp tục</small>');
     if (M.store) el.querySelector('.hero').style.backgroundImage = U.bg(M.store);
+    el.style.animationDelay = D.wipe + 'ms';
     st.classList.add('card-hold');
-    day = { el: el, ids: [], done: false };
+    day = { el: el, wipe: wipe, ids: [], done: false };
     T.dayCards++;
-    var close = function () {
+    var close = function (fast) {
       if (!day || day.done) return;
       day.done = true;
-      el.classList.add('out');
-      day.ids.push(setTimeout(function () { T.cancelDay(true); }, 380));
+      el.classList.add('out'); if (fast) el.classList.add('fast');
+      day.ids.push(setTimeout(function () { T.cancelDay(true); }, fast ? 380 : D.dissolve));
     };
     el.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
-    el.addEventListener('click', function (e) { e.stopPropagation(); close(); });
-    day.close = close;
-    day.ids.push(setTimeout(function () { if (day && !day.done) { el.classList.add('roll'); U.sfx('board.attrGold', { vol: 0.5 }); } }, T.DAY.roll));
-    day.ids.push(setTimeout(close, T.DAY.out));
+    el.addEventListener('click', function (e) { e.stopPropagation(); close(true); });
+    day.close = function () { close(true); };
+    var tRoll = D.wipe + D.in + D.hold;
+    day.ids.push(setTimeout(function () { wipe.remove(); }, D.wipe + 50));
+    day.ids.push(setTimeout(function () { if (day && !day.done) { el.classList.add('roll'); U.sfx('board.attrGold', { vol: 0.5 }); } }, tRoll));
+    day.ids.push(setTimeout(function () { close(false); }, tRoll + D.roll + D.hold2));
     return el;
   };
   // cancelDay(reveal): gỡ thẻ; reveal = true → hiện ba khung gặp gỡ kèm lấp lánh
@@ -48,6 +53,7 @@
     if (!day) return;
     day.ids.forEach(clearTimeout);
     if (day.el.parentNode) day.el.parentNode.removeChild(day.el);
+    if (day.wipe && day.wipe.parentNode) day.wipe.parentNode.removeChild(day.wipe);
     day = null;
     var st = stage(); if (st) st.classList.remove('card-hold');
     if (reveal) T.revealChoices();
@@ -69,23 +75,31 @@
   T.dayActive = function () { return !!day; };
 
   // ---------- màn VS (PvP) ----------
+  // hai thanh kiếm cong trắng bắt chéo trong khung lục giác vàng đôi (clip ?t=2094)
   function swords() {
-    return '<svg viewBox="0 0 120 120"><path d="M60 4 116 60 60 116 4 60z" fill="#3a1a0a" stroke="#ffd36b" stroke-width="5"/><path d="M60 14 106 60 60 106 14 60z" fill="none" stroke="#ffe9a8" stroke-width="1.5" opacity=".7"/>' +
-      '<g stroke="#4a2a08" stroke-width="2.5" fill="#fff4cf"><path d="M30 28l6 0 34 36-5 5L30 34z"/><path d="M90 28l-6 0-34 36 5 5L90 34z"/></g>' +
-      '<g fill="#ffd36b" stroke="#4a2a08" stroke-width="2"><rect x="32" y="66" width="18" height="6" transform="rotate(45 41 69)"/><rect x="70" y="66" width="18" height="6" transform="rotate(-45 79 69)"/></g></svg>';
+    return '<svg viewBox="0 0 240 240"><g fill="none" stroke="#ffd36b" stroke-width="3"><path d="M120 6 226 70 226 170 120 234 14 170 14 70z"/><path d="M120 26 208 78 208 162 120 214 32 162 32 78z" opacity=".6"/></g>' +
+      '<g fill="#fff" stroke="#fff3c8" stroke-width="2"><path d="M42 48C100 88 152 140 198 190L186 198C140 160 88 122 38 66z"/><path d="M198 48C140 88 88 140 42 190L54 198C100 160 152 122 202 66z"/></g>' +
+      '<g fill="#fff" opacity=".9"><path d="M30 176l22 8-6 12-22-8z" transform="rotate(10 40 186)"/><path d="M210 176l-22 8 6 12 22-8z" transform="rotate(-10 200 186)"/></g></svg>';
+  }
+  // khung lục giác vàng hai bên màn VS
+  function edge(cls) {
+    return '<svg class="edge ' + cls + '" viewBox="0 0 240 1080" preserveAspectRatio="none"><g fill="none" stroke="#ffd36b" stroke-width="3" opacity=".85">' +
+      '<path d="M30 110 130 30 130 330 30 410 30 640 130 720 130 1050"/><path d="M60 130 160 50 160 330 60 410 60 640 160 720 160 1030" opacity=".5"/></g></svg>';
   }
   // vsScreen(run, opp, done): chớp trắng → VS → done(). Trả về false nếu không dựng được.
   T.vsScreen = function (run, opp, done) {
     T.cancelVs();
     var st = stage(), M = U.HEROES[run.hero] || {}, art = U.combat.opponentArt(opp);
     var el = U.el('div', 'rs-vs', st,
-      '<div class="shade"></div><div class="side l"><div class="img"></div></div><div class="side r"><div class="img"></div></div>' +
+      '<div class="shade"></div>' + edge('l') + edge('r') + '<div class="side l"><div class="img"></div></div><div class="side r"><div class="img"></div></div>' +
       '<div class="plate l"><small>Thương nhân tập sự</small><b></b></div><div class="plate r"><small>Bóng ma · ngày ' + run.day + '</small><b></b></div>' +
       '<div class="mid">' + swords() + '<span>VS</span></div><div class="flash"></div><small class="skip">Bấm để bỏ qua</small>');
     el.querySelector('.side.l .img').style.backgroundImage = U.bg(M.store || M.portrait);
     el.querySelector('.side.r .img').style.backgroundImage = U.bg(art.char || art.bg);
     el.querySelector('.plate.l b').textContent = run.hero;
     el.querySelector('.plate.r b').textContent = opp.name;
+    if (String(opp.name).length > 14) el.querySelector('.plate.r b').classList.add('long');
+    if (String(run.hero).length > 14) el.querySelector('.plate.l b').classList.add('long');
     vs = { el: el, ids: [], done: false, cb: done };
     T.vsScreens++;
     U.sfx('trans.pvp');
@@ -136,6 +150,11 @@
     later(T.PORTAL, function () { if (p.parentNode) p.parentNode.removeChild(p); });
     later(180, function () { FX().burst('charge', 960, 420, { big: 1.2 }); FX().burst('buff', 960, 420, { big: 1 }); });
     U.sfx('trans.boardIn', { vol: 0.5 });
+  };
+
+  // lấp lánh xanh trên hàng thương nhân (đổi hàng: clip reroll 500 ms)
+  T.sparkle = function () {
+    later(0, function () { FX().burst('charge', 960, 420, { big: 1 }); FX().burst('buff', 800, 420, { big: 0.7 }); FX().burst('buff', 1120, 420, { big: 0.7 }); });
   };
 
   // bấm Enter / Space / Esc: bỏ qua thẻ ngày hoặc màn VS đang hiện; trả true nếu đã xử lý

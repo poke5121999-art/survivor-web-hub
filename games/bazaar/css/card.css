@@ -1,5 +1,6 @@
 /* Chợ Phiên — thẻ trên bàn. Toạ độ lớp con (ô art, gem, tag cooldown, đạn) do js/view/card.js đặt theo BZ_FRAMES.
-   Hiệu ứng: VISUAL.md §1 (nhấc + nghiêng ±6°), §3 (giật lùi), §4 (màn cooldown), §5 (Haste/Slow/Freeze). */
+   Hiệu ứng: VISUAL.md §1 (nhấc + nghiêng ±6°), §3 (giật lùi), §4 (màn cooldown), §5 (Haste/Slow/Freeze); hình dạng/thời gian lấy theo clip 2026
+   (REF-combat-core/status) khi lệch VISUAL.md. */
 .bz-card { position: absolute; perspective: 900px; z-index: 1; }
 .bz-card.hover { z-index: 20; }
 .bz-card .cb { position: absolute; inset: 0; transform-style: preserve-3d; will-change: transform; transform-origin: 50% 55%; }
@@ -9,15 +10,25 @@
 .bz-card .win { position: absolute; overflow: hidden; background: #1a100a; }
 /* Art gốc là ảnh thẻ đã bị ép vào ô vuông 1024×1024 (cả 1096 ảnh), mesh thẻ trong game kéo giãn lại theo cỡ S/M/L.
    Phải kéo giãn 100% × 100%; dùng cover thì thẻ nhỏ bị phình ngang, thẻ lớn bị phình dọc (so với ảnh chụp game: Vanessa_Pearl). */
-.bz-card .art { position: absolute; inset: 0; background-size: 100% 100%; background-position: center; }
-/* màn đen 50 % che phần chưa nạp, đường quét xanh #00CF6D (FX_M_CooldownGreen_01) */
-.bz-card .veil { position: absolute; left: 0; right: 0; top: 0; height: 100%; transform-origin: 50% 0; background: rgba(0,0,0,.5);
-  will-change: transform; }
-.bz-card .cdline { position: absolute; left: -4%; right: -4%; top: 0; height: 14px; margin-top: -7px; will-change: transform; pointer-events: none;
-  background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(220,255,235,.95) 0, rgba(0,207,109,.85) 28%, rgba(0,207,109,0) 72%);
-  filter: drop-shadow(0 0 4px rgba(0,255,150,.8)); opacity: 0; }
-.bz-card .cdline::after { content: ""; position: absolute; left: 4%; right: 4%; top: 6px; height: 2px; background: #eafff2; box-shadow: 0 0 6px #94ffc4; }
+.bz-card .art { position: absolute; inset: 0; background-size: 100% 100%; background-position: center; transition: filter .15s; }
+
+/* Màn hồi chiêu (clip UBBAzdzXo8g 2026): cả thẻ phủ xám đã khử màu + tối; vạch xanh #00CF6D sáng, quầng rộng, quét từ ĐÁY lên ĐỈNH;
+   phía dưới vạch thẻ sáng, phía trên vẫn xám. Veil = bản sao art cắt bằng clip-path theo tiến độ (card.js).
+   VISUAL §4 ghi màn đen 50 %, clip cho thấy xám khử màu nên ưu tiên clip. */
+.bz-card .veil { position: absolute; inset: 0; background-size: 100% 100%; background-position: center;
+  filter: grayscale(.82) brightness(.52) contrast(1.05); will-change: clip-path; }
+.bz-card .cdline { position: absolute; left: -6%; right: -6%; top: 0; height: 18px; margin-top: -9px; will-change: transform; pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(0,0,0,0) 0, rgba(190,255,225,.95) 47%, #fff 50%, rgba(190,255,225,.95) 53%, rgba(0,0,0,0) 100%) center/100% 3px no-repeat,
+    linear-gradient(180deg, rgba(0,207,109,0) 0, rgba(0,207,109,.55) 30%, rgba(0,230,120,.9) 50%, rgba(0,207,109,.55) 70%, rgba(0,207,109,0) 100%);
+  filter: drop-shadow(0 0 5px rgba(0,255,150,.9)); opacity: 0; }
 .bz-card.charging .cdline { opacity: 1; }
+.bz-card.chg .cdline { animation: bz-chg .35s ease-out; }
+@keyframes bz-chg { 0% { filter: brightness(3) drop-shadow(0 0 12px #00ffce); } 100% { filter: drop-shadow(0 0 5px rgba(0,255,150,.9)); } }
+.bz-card.chg .win::after { content: ""; position: absolute; inset: 0; background: linear-gradient(0deg, rgba(0,255,206,.55), rgba(0,255,206,0) 70%);
+  animation: bz-chgw .4s ease-out forwards; pointer-events: none; }
+@keyframes bz-chgw { from { opacity: 1; } to { opacity: 0; } }
+
 .bz-card .frame { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 /* khung CSS dự phòng khi chưa có data/frames.js (VISUAL §17 màu bậc) */
 .bz-card .cssframe { position: absolute; border-radius: 9px; pointer-events: none;
@@ -41,40 +52,100 @@
 .bz-card .cdtag.css { background: #c66606; border-radius: 4px 10px 10px 4px; box-shadow: inset 0 0 0 2px #ffcf8a; padding-left: 0; }
 .bz-card .mc { position: absolute; display: grid; place-items: center; background: center/contain no-repeat; pointer-events: none;
   font: 800 20px/1 var(--f-num); color: #fff; text-shadow: 0 2px 0 #000; padding-bottom: 14%; }
-.bz-card .mc.flash { animation: bz-gem-pop .3s ease-out; }
+.bz-card .mc.flash { animation: bz-mc .32s ease-out; }
+@keyframes bz-mc { 0% { transform: scale(1.7); filter: brightness(2.4) drop-shadow(0 0 6px #fff); } 100% { transform: scale(1); filter: none; } }
 .bz-card .ammo { position: absolute; display: flex; align-items: center; justify-content: center; gap: 1px; pointer-events: none; }
 .bz-card .pip { flex: 0 0 auto; background: center/contain no-repeat; transition: filter .15s; }
-.bz-card .pip.off { filter: grayscale(1) brightness(.35); }
+.bz-card .pip.spent { animation: bz-spent .35s ease-out; }
+@keyframes bz-spent { 0% { filter: brightness(2.2) sepia(1) saturate(4); transform: scale(1.45); } 100% { filter: none; transform: none; } }
 .bz-card .pip.css { border-radius: 50%; background: radial-gradient(circle, #ffdc78 0 35%, #e8a92a 40% 62%, #2a160a 66%); }
 .bz-card .pip.css.off { background: radial-gradient(circle, #3a2414 0 62%, #170c04 66%); filter: none; }
 .bz-card .ammo.reload .pip { animation: bz-pip .35s ease-out; }
 @keyframes bz-pip { 0% { filter: brightness(2.4); transform: scale(1.4); } 100% { transform: none; } }
 
-/* trạng thái: Haste (tia xanh viền trên + chip), Slow (hổ phách viền dưới), Freeze (băng phủ) */
+/* trạng thái (clip G/Q + VISUAL §5): Haste = viền xanh ngọc #00EAC2 phát sáng + tia chạy lên; Slow = viền hổ phách #CCA06E, tia rơi chậm;
+   Freeze = băng trắng-lam phủ đục, lấp lánh, số giây còn lại vẫn hiện; hết băng → chớp vỡ 300 ms. */
+.bz-card .ring { position: absolute; pointer-events: none; opacity: 0; transition: opacity .18s; border: 2px solid var(--rc, #3ec8f8);
+  box-shadow: 0 0 12px 3px var(--rg, rgba(62,200,248,.7)), inset 0 0 14px 2px var(--rg, rgba(62,200,248,.5)); }
+.bz-card.hover .ring { opacity: 1; --rc: #94c6ff; --rg: rgba(148,198,255,.75); } /* T_FX_Highlight_01 #94C6FF (VISUAL §1) */
+.bz-card.haste .ring { opacity: 1; --rc: #35f2d4; --rg: rgba(0,234,194,.8); animation: bz-ringp .4s ease-in-out infinite alternate; }
+.bz-card.slow:not(.haste) .ring { opacity: 1; --rc: #d9b07c; --rg: rgba(204,160,110,.75); }
+.bz-card.freeze .ring { opacity: 1; --rc: #bff0ff; --rg: rgba(120,215,255,.9); }
+@keyframes bz-ringp { from { filter: brightness(.9); } to { filter: brightness(1.35); } }
 .bz-card .st { position: absolute; pointer-events: none; opacity: 0; transition: opacity .2s; }
-.bz-card .st-haste { left: 0; right: 0; top: 0; height: 40%;
-  background: linear-gradient(180deg, rgba(60,255,220,.5), rgba(0,234,194,0)); }
-.bz-card .st-slow { left: 0; right: 0; bottom: 0; height: 40%;
-  background: linear-gradient(0deg, rgba(230,180,120,.55), rgba(204,160,110,0)); }
+.bz-card .st-haste { inset: 0; background:
+  linear-gradient(180deg, rgba(60,255,220,.5), rgba(0,234,194,0) 40%),
+  repeating-linear-gradient(0deg, rgba(150,255,240,0) 0 14px, rgba(150,255,240,.28) 14px 16px);
+  background-size: 100% 100%, 100% 48px; }
+.bz-card .st-slow { inset: 0; background:
+  linear-gradient(0deg, rgba(230,180,120,.55), rgba(204,160,110,0) 40%),
+  repeating-linear-gradient(180deg, rgba(240,200,140,0) 0 18px, rgba(240,200,140,.2) 18px 20px);
+  background-size: 100% 100%, 100% 60px; }
 .bz-card .st-freeze { inset: 0; background:
-  linear-gradient(160deg, rgba(200,240,255,.38), rgba(60,170,230,.22) 45%, rgba(200,240,255,.34));
-  box-shadow: inset 0 0 18px 4px rgba(150,225,255,.85), inset 0 0 0 2px rgba(220,248,255,.9); }
+  radial-gradient(circle at 22% 18%, #fff 0 2px, rgba(255,255,255,0) 4px),
+  radial-gradient(circle at 74% 30%, #fff 0 2px, rgba(255,255,255,0) 4px),
+  radial-gradient(circle at 40% 70%, #fff 0 2px, rgba(255,255,255,0) 4px),
+  radial-gradient(circle at 82% 78%, #fff 0 2px, rgba(255,255,255,0) 4px),
+  linear-gradient(160deg, rgba(244,252,255,.78), rgba(176,222,248,.66) 48%, rgba(236,249,255,.74));
+  box-shadow: inset 0 0 20px 6px rgba(150,225,255,.9), inset 0 0 0 2px rgba(235,250,255,.95); }
 .bz-card.haste .st-haste, .bz-card.slow .st-slow, .bz-card.freeze .st-freeze { opacity: 1; }
-.bz-card.haste .st-haste { animation: bz-haste .35s linear infinite alternate; }
-@keyframes bz-haste { from { opacity: .7; } to { opacity: 1; } }
-.bz-card.freeze .art { filter: saturate(.55) brightness(1.05); }
-.bz-card .chip { position: absolute; left: 50%; min-width: 50px; height: 28px; padding: 0 8px; border-radius: 14px; transform: translateX(-50%) scale(0);
-  display: grid; place-items: center; font: 800 22px/1 var(--f-num); color: #fff; pointer-events: none; transition: transform .16s cubic-bezier(.3,1.6,.5,1);
-  text-shadow: 0 2px 0 rgba(0,0,0,.7); }
-.bz-card .chip.haste { top: 22%; background: #00a88c; box-shadow: 0 0 0 2px #00eac2, 0 0 10px #00eac2; }
-.bz-card .chip.slow { bottom: 24%; background: #8a5e2c; box-shadow: 0 0 0 2px #cca06e, 0 0 10px #cca06e; }
-.bz-card .chip.freeze { top: 46%; background: #1f6f98; box-shadow: 0 0 0 2px #3ec8f8, 0 0 12px #3ec8f8; }
+.bz-card.haste .st-haste { animation: bz-haste .35s linear infinite; }
+@keyframes bz-haste { from { background-position: 0 0, 0 0; } to { background-position: 0 0, 0 -48px; } }
+.bz-card.slow .st-slow { animation: bz-slow 1.4s linear infinite; }
+@keyframes bz-slow { from { background-position: 0 0, 0 0; } to { background-position: 0 0, 0 60px; } }
+.bz-card.freeze .st-freeze { animation: bz-frost 1.2s ease-in-out infinite alternate; }
+@keyframes bz-frost { from { filter: brightness(1); } to { filter: brightness(1.12) saturate(1.15); } }
+.bz-card.freeze .art { filter: saturate(.4) brightness(1.25); }
+.bz-card.freeze .veil { opacity: 0; }
+.bz-card.slow .art { filter: saturate(.7) brightness(.92); }
+.bz-card .thaw { position: absolute; pointer-events: none; opacity: 0; overflow: hidden; }
+.bz-card .thaw::before { content: ""; position: absolute; inset: -20%; background:
+  radial-gradient(circle, #fff 0, rgba(190,240,255,.9) 22%, rgba(90,200,255,.5) 46%, rgba(90,200,255,0) 70%),
+  conic-gradient(from 10deg, rgba(220,248,255,.95) 0 6%, transparent 6% 14%, rgba(220,248,255,.9) 14% 19%, transparent 19% 30%, rgba(220,248,255,.95) 30% 38%,
+    transparent 38% 52%, rgba(220,248,255,.9) 52% 57%, transparent 57% 70%, rgba(220,248,255,.95) 70% 77%, transparent 77% 88%, rgba(220,248,255,.9) 88% 93%, transparent 93%); }
+.bz-card .thaw.go { animation: bz-thaw .32s ease-out forwards; }
+@keyframes bz-thaw { 0% { opacity: 1; transform: scale(.7); } 100% { opacity: 0; transform: scale(1.35); } }
+/* chip thời hạn: viên thuốc tối ở giữa thẻ (CardTimer_*_BG alpha .84), số trắng */
+.bz-card .chip { position: absolute; left: 50%; min-width: 46px; height: 26px; padding: 0 9px; border-radius: 13px; transform: translateX(-50%) scale(0);
+  display: grid; place-items: center; font: 800 21px/1 var(--f-num); color: #fff; pointer-events: none; transition: transform .16s cubic-bezier(.3,1.6,.5,1);
+  background: rgba(14,28,26,.84); text-shadow: 0 0 2px #000222, 0 2px 0 rgba(0,2,34,.75); }
+.bz-card .chip.haste { top: 20%; box-shadow: 0 0 0 2px #00eac2; }
+.bz-card .chip.slow { bottom: 26%; box-shadow: 0 0 0 2px #cca06e; }
+.bz-card .chip.freeze { bottom: 18%; color: #0b3a55; background: rgba(240,250,255,.88); text-shadow: none; box-shadow: 0 0 0 2px #3ec8f8, 0 0 10px #8fe0ff; }
 .bz-card.haste .chip.haste, .bz-card.slow .chip.slow, .bz-card.freeze .chip.freeze { transform: translateX(-50%) scale(1); }
-.bz-card.destroyed .art { filter: grayscale(1) brightness(.3); }
-.bz-card.destroyed .veil { opacity: 0; }
-.bz-card.destroyed .frame { filter: grayscale(.8) brightness(.55); }
-.bz-card.flying .cb { animation: bz-fly 1.6s ease-in-out infinite; }
-@keyframes bz-fly { 0%, 100% { translate: 0 -10px; } 50% { translate: 0 -22px; } }
+
+/* thẻ bị phá: đống đổ nát phẳng màu cát, không art, mất gem/tag, khung mờ; ở đến hết trận (clip J6T0 destroy) */
+.bz-card .rub { position: absolute; inset: 0; opacity: 0; pointer-events: none; transition: opacity .25s; background:
+  radial-gradient(ellipse 40% 30% at 55% 45%, rgba(70,52,26,.55), rgba(70,52,26,0) 70%),
+  radial-gradient(ellipse 30% 25% at 30% 70%, rgba(120,96,56,.5), rgba(120,96,56,0) 70%), linear-gradient(170deg, #b09a62, #9a8450 60%, #86723f); }
+.bz-card.destroyed .rub { opacity: .96; }
+.bz-card.destroyed .art, .bz-card.destroyed .veil, .bz-card.destroyed .ench, .bz-card.destroyed .st, .bz-card.destroyed .cdline { opacity: 0; }
+.bz-card.destroyed .frame, .bz-card.destroyed .cssframe { opacity: .35; filter: sepia(1) brightness(.8); }
+.bz-card.destroyed .gems, .bz-card.destroyed .cdtag, .bz-card.destroyed .mc, .bz-card.destroyed .ammo, .bz-card.destroyed .chip, .bz-card.destroyed .ring { opacity: 0; }
+
+/* thẻ bay: nổi nhẹ, bóng tách ra, huy hiệu cánh (clip không thấy rõ ở 720p: [ĐỀ XUẤT]) */
+.bz-card.flying .cb { animation: bz-fly 1.8s ease-in-out infinite; }
+@keyframes bz-fly { 0%, 100% { translate: 0 -4px; } 50% { translate: 0 -9px; } }
+.bz-card.flying .shadow { opacity: .8; transform: translateY(12px) scale(.9); }
+.bz-card .flybadge { position: absolute; display: none; background: url(../art/icons/Fly.webp) center/contain no-repeat; filter: drop-shadow(0 1px 2px #000); }
+.bz-card.flying .flybadge { display: block; }
+
+/* nâng bậc: chớp trắng, tia vàng-trắng, vòng tím-hồng nở, khung sáng rồi về bậc mới (clip kacCuk6ZOuo 0,9-1,1 s) */
+.bz-card .upg { position: absolute; width: var(--us, 300px); height: var(--us, 300px); margin: calc(var(--us, 300px) / -2) 0 0 calc(var(--us, 300px) / -2);
+  pointer-events: none; opacity: 0; z-index: 5; }
+.bz-card .upg::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background:
+  radial-gradient(circle, #fff 0, rgba(255,246,200,.85) 18%, rgba(255,215,90,.4) 40%, rgba(255,215,90,0) 66%),
+  repeating-conic-gradient(from 0deg, rgba(255,250,220,.9) 0 3deg, transparent 3deg 15deg);
+  -webkit-mask: radial-gradient(circle, #000 25%, transparent 70%); mask: radial-gradient(circle, #000 25%, transparent 70%); }
+.bz-card .upg::after { content: ""; position: absolute; inset: 22%; border-radius: 50%; border: 3px solid #d03cff;
+  box-shadow: 0 0 14px 4px rgba(208,60,255,.8), inset 0 0 10px rgba(208,60,255,.7); }
+.bz-card .upg.go { animation: bz-upg 1.1s ease-out forwards; }
+@keyframes bz-upg { 0% { opacity: 0; transform: scale(.4); } 14% { opacity: 1; transform: scale(.95); } 55% { opacity: .85; transform: scale(1.1); } 100% { opacity: 0; transform: scale(1.3); } }
+.bz-card.upgrading .win::before { content: ""; position: absolute; inset: 0; z-index: 4; background: #fff; pointer-events: none; animation: bz-upgw .6s ease-out forwards; }
+@keyframes bz-upgw { 0% { opacity: .95; } 100% { opacity: 0; } }
+.bz-card.upgrading .frame { animation: bz-upgf .9s ease-out; }
+@keyframes bz-upgf { 0% { filter: brightness(2.6) saturate(.4); } 100% { filter: none; } }
+
 .bz-card .ench { position: absolute; inset: 0; pointer-events: none; border-radius: 8px; opacity: .55;
   box-shadow: inset 0 0 18px 2px var(--ec, #be47ff); animation: bz-ench 2.4s ease-in-out infinite alternate; }
 @keyframes bz-ench { from { opacity: .3; } to { opacity: .7; } }

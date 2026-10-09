@@ -3,7 +3,8 @@
 
 Chạy (Python 3.8, Pillow + numpy):
   python -I vfx.py
-Chạy lại ra đúng các tệp như cũ (xoá art/vfx rồi dựng lại).
+Chạy lại ra đúng các tệp như cũ (xoá art/vfx rồi dựng lại). Cuối cùng gọi vfxmap.py (texture phụ cho từng thẻ/hành động, hạn mức
+art/vfx tổng 15 MB, data/vfxmap.js); thêm `--no-map` để bỏ bước đó.
 
 Nguồn: D:\\bazaar-ref\\vfx (1292 PNG + manifest.json, bóc bởi ripped\\tools\\vfxexport.py, xem VISUAL.md §18).
 Texture gốc phần lớn là mặt nạ xám vẽ trên nền đen (blend premultiplied/additive), shader tô màu theo hạt.
@@ -166,6 +167,11 @@ def main():
     print("art/vfx: %d tệp, %.1f KB (hạn %d KB)" % (len(out["tex"]) + 1, total / 1024.0, BUDGET // 1024))
     if total > BUDGET:
         raise SystemExit("art/vfx vượt hạn mức")
+    if "--no-map" not in sys.argv:
+        # bộ texture theo từng thẻ/hành động + data/vfxmap.js (chạy ngay sau vì cây art/vfx vừa bị xoá và dựng lại)
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import vfxmap
+        vfxmap.main()
 
 
 if __name__ == "__main__":

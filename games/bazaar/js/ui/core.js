@@ -148,6 +148,7 @@
   U.dispatch = function (cmd, ctx) {
     var run = S.run;
     if (!run) return { ok: false, reason: 'no run' };
+    if (U.transitions && U.transitions.dayActive()) U.transitions.cancelDay(true); // lệnh mới = người chơi đã đi tiếp: bỏ thẻ ngày đang chạy (thẻ gốc kéo dài ~6 s)
     var r = R().apply(run, cmd);
     if (!r.ok) {
       var reason = r.events[0] && r.events[0].reason;

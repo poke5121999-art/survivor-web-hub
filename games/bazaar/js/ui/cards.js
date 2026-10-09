@@ -10,7 +10,7 @@
   var C = U.cards = {};
   var G = C.G = {
     hand: { x0: 412, pitch: 109.6, top: 553, h: 232 },
-    tray: { left: 392, top: 800, w: 1136, hgt: 248, x0: 68, pitch: 100, y: 34, h: 202 },
+    tray: { left: 392, top: 300, w: 1136, hgt: 242, x0: 20, pitch: 109.6, y: 5, h: 232 }, // kho nằm đúng chỗ dải trên (clip stash-open)
     topRow: { cx: 960, top: 305, h: 232, pitch: 109.6, gap: 16 }
   };
   var own = {};      // uid → el

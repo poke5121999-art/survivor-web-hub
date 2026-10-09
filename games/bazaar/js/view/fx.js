@@ -34,6 +34,17 @@
     g.setTransform(k, 0, 0, k, 0, 0);
     F.k = k;
   };
+  // sprite riêng của từng prefab (BZ_VFXMAP.sprites, tools/vfxmap.py): nạp lười, khoá 'm:<tên>'; thiếu thì trả null, không bao giờ ném lỗi
+  F.mapSprite = function (key) {
+    if (!key) return null;
+    var id = 'm:' + key;
+    if (texImg[id]) return id;
+    var M = root.BZ_VFXMAP, sp = M && M.sprites && M.sprites[key];
+    if (!sp || !sp.src) return null;
+    var im = new Image(); im.decoding = 'async'; im.src = sp.src + '?v=' + (root.BZ_REV || '');
+    texImg[id] = { img: im, meta: sp };
+    return id;
+  };
   function ready(name) { var t = texImg[name]; return t && t.img.complete && t.img.naturalWidth > 0 ? t : null; }
   function tinted(name, color) {
     var key = name + '|' + color, c = tintCache[key];
@@ -85,25 +96,30 @@
   // ---------- kiểu số bay (ScrollingTextTypeConfig, VISUAL.md §6) ----------
   // off/travel tính bằng đơn vị thế giới (x ngang chân dung, y lên, z về phía camera → cả hai đẩy lên trên màn hình)
   var NT = {
-    damage: { face: '#ffffff', tint: '#ff0000', amt: lin([[0, 1], [0.126, 0], [0.779, 0], [1, 1]]), outline: '#820003', glow: 'rgba(130,0,4,.45)', gs: [3, 1.5],
+    damage: { neg: true, face: '#ffffff', tint: '#ff0000', amt: lin([[0, 1], [0.126, 0], [0.779, 0], [1, 1]]), outline: '#820003', glow: 'rgba(130,0,4,.45)', gs: [3, 1.5],
       off: [-1, 0, 1], offL: [-1, 0, 0.8], offC: [-1, 0, 0.6], travel: [-3, 0, 0], jitter: [2, 0, 0], total: 1000, fin: 50, fout: 250, s: 1.3, sL: 2.0, sC: 2.6,
       dist: curve([[0, 0, 4.9], [0.138, 0.491, 0.6], [0.697, 0.741, 1], [1, 1, 0.02]]), sc: curve([[0.006, 1, -0.13], [1, 0.498, -1.4]]) },
     heal: { face: '#ffffff', tint: '#00ff00', amt: lin([[0, 1], [0.235, 0], [0.779, 0], [1, 1]]), outline: '#375802', glow: 'rgba(2,103,0,.58)', gs: [3, 1.25],
       off: [0.5, 0, 0], travel: [0.2, 0, 0], travelL: [0.3, 0, 0], total: 800, fin: 25, fout: 250, s: 1.0, sL: 1.2, plus: true,
       dist: curve([[0, 0, 2.3], [0.247, 0.557, 1.3], [1, 1, 0.4]]), sc: curve([[0, 0.818, 1.2], [0.133, 1, 0], [0.246, 1, 0], [1, 0.691, -0.66]]) },
-    shield: { face: '#ffe96d', tint: '#fed800', amt: lin([[0, 1], [0.224, 0], [0.6, 0], [1, 1]]), outline: '#9a11a6', glow: 'rgba(128,58,188,.5)', gs: [3, 1.5],
-      off: [1, 0.5, 0.4], offL: [1, 0.5, 0.2], offC: [1, 0.5, 0], travel: [2, 0, 0], total: 800, fin: 25, fout: 200, s: 1.5, sL: 2.5, sC: 2.6, plus: true,
+    shield: { face: '#fcfc2c', tint: '#fcfc2c', amt: lin([[0, 0], [1, 0]]), outline: '#3c0c52', glow: 'rgba(160,80,210,.55)', gs: [3.4, 2], pill: '#742c8c', pillEdge: '#a45cc8',
+      off: [1, 0.5, 0.4], offL: [1, 0.5, 0.2], offC: [1, 0.5, 0], travel: [1.2, 0, 0], total: 1200, fin: 60, fout: 300, s: 1.25, sL: 1.7, sC: 2.0, plus: true,
       dist: curve([[0, 0], [0.138, 0.505], [0.697, 0.741], [1, 1]]), sc: curve([[0, 0.818], [0.133, 1], [0.299, 1], [0.622, 0.553], [1, 0.553]]) },
-    shieldLoss: { face: '#ffe96d', tint: '#fe0700', amt: lin([[0, 1], [0.224, 0], [0.6, 0], [1, 1]]), outline: '#820003', glow: 'rgba(188,58,75,.5)', gs: [3, 1.5],
+    shieldLoss: { neg: true, face: '#ffe96d', tint: '#fe0700', amt: lin([[0, 1], [0.224, 0], [0.6, 0], [1, 1]]), outline: '#820003', glow: 'rgba(188,58,75,.5)', gs: [3, 1.5],
       off: [-1, 0.5, 0.4], travel: [-2, 0, 0], total: 800, fin: 25, fout: 200, s: 1.2, sL: 2.0,
       dist: curve([[0, 0], [0.138, 0.505], [0.697, 0.741], [1, 1]]), sc: curve([[0, 0.818], [0.133, 1], [0.299, 1], [0.622, 0.553], [1, 0.553]]) },
-    burn: { face: '#fff7cb', tint: '#ff4a00', amt: lin([[0, 0], [0.232, 0], [0.624, 0.45], [1, 1]]), outline: '#a40000', glow: 'rgba(152,0,0,.49)', gs: [2, 2.5],
+    burn: { neg: true, face: '#f03020', tint: '#ff8a30', amt: lin([[0, 0], [0.232, 0], [0.624, 0.45], [1, 1]]), outline: '#5a0800', glow: 'rgba(152,20,0,.55)', gs: [2, 2.5],
       off: [-0.25, 0.25, 0], travel: [0, 0, 1], total: 750, fin: 50, fout: 400, s: 1.0, sL: 1.3,
       dist: function (t) { return t; }, sc: curve([[0, 0, 11], [0.087, 0.986, 0], [0.986, 0.007, -1]]) },
-    poison: { face: '#ffffff', tint: '#009876', amt: lin([[0, 1], [0.241, 0], [0.632, 0], [1, 1]]), outline: '#035951', glow: 'rgba(0,123,114,.5)', gs: [3, 1.25],
+    poison: { neg: true, face: '#ffffff', tint: '#009876', amt: lin([[0, 1], [0.241, 0], [0.632, 0], [1, 1]]), outline: '#035951', glow: 'rgba(0,123,114,.5)', gs: [3, 1.25],
       off: [-0.5, 0, 0], travel: [-0.3, 0, 0], travelL: [-0.4, 0, 0], total: 800, totalL: 1000, fin: 25, fout: 250, s: 1.0, sL: 1.2,
       dist: curve([[0, 0, 4.7], [0.119, 0.563, 1.5], [1, 1, 0.09]]), sc: curve([[0, 0.689], [0.075, 1], [0.262, 1], [0.986, 0.498]]) }
   };
+  // CRIT -294 (REF-combat-core: đỏ đặc #e44434 bật ra → trắng #fcf4f4 viền/quầng đỏ, vệt đỏ-cam kéo sang trái, tổng ~1,1 s)
+  NT.crit = { neg: true, crit: true, face: '#fcf4f4', tint: '#e44434', amt: lin([[0, 1], [0.1, 1], [0.24, 0], [1, 0]]), outline: '#b01818', glow: 'rgba(228,52,40,.65)', gs: [3.2, 1.9],
+    off: [-0.5, 0.3, 0.9], offC: [-0.5, 0.3, 0.9], travel: [-0.9, 0, 0.3], total: 1100, fin: 30, fout: 320, s: 4.0, sL: 4.0, sC: 4.0, streak: true,
+    dist: curve([[0, 0, 3], [0.15, 0.5, 0.6], [1, 1, 0.1]]), sc: curve([[0, 1.35, -3], [0.09, 1, 0], [0.7, 1, 0], [1, 0.7, -0.8]]) };
+  NT.sand = Object.assign({}, NT.damage, { face: '#ff5a48', tint: '#ff1a10', outline: '#5a0000', glow: 'rgba(200,30,20,.55)', total: 900 });
   NT.regen = Object.assign({}, NT.heal);
   NT.burnGain = Object.assign({}, NT.burn, { plus: true, off: [-0.9, 0.6, 0], travel: [-0.4, 0, 0.6] });
   NT.poisonGain = Object.assign({}, NT.poison, { plus: true, off: [-1.1, 0.4, 0], travel: [-0.5, 0, 0.3] });
@@ -138,11 +154,12 @@
     var tint = layer(0, tintCol);
     var label = null;
     if (critLabel) {
-      label = document.createElement('canvas'); label.width = cw; label.height = Math.ceil(40 * Us);
-      var lx = label.getContext('2d');
-      lx.font = '900 ' + (30 * Us) + 'px "Noto Sans", sans-serif'; lx.textAlign = 'center'; lx.textBaseline = 'middle';
-      lx.lineJoin = 'round'; lx.lineWidth = 9 * Us; lx.strokeStyle = '#3a0002'; lx.strokeText(critLabel, cw / 2, label.height / 2);
-      lx.fillStyle = '#ffffff'; lx.fillText(critLabel, cw / 2, label.height / 2);
+      label = document.createElement('canvas');
+      var lx = label.getContext('2d'), lf = '900 ' + (30 * Us) + 'px "Noto Sans", sans-serif';
+      lx.font = lf; label.width = Math.ceil(lx.measureText(critLabel).width + 18 * Us); label.height = Math.ceil(44 * Us);
+      lx.font = lf; lx.textAlign = 'center'; lx.textBaseline = 'middle';
+      lx.lineJoin = 'round'; lx.lineWidth = 9 * Us; lx.strokeStyle = '#a01010'; lx.strokeText(critLabel, label.width / 2, label.height / 2);
+      lx.fillStyle = '#fcf4f4'; lx.fillText(critLabel, label.width / 2, label.height / 2);
     }
     return { base: base, tint: tint, label: label, w: cw / Us, h: chh / Us, Us: Us };
   }
@@ -150,6 +167,7 @@
   // number({x, y, kind, value, crit, t0, frac, side, aux})
   F.number = function (o) {
     var ty = NT[o.kind] || NT.damage;
+    if (o.crit && (o.kind === 'damage' || !o.kind)) ty = NT.crit;
     var big = Math.max(0, Math.min(1, (o.frac || 0) * 100 / 50));
     var crit = !!o.crit && (ty.sC != null);
     var off = crit ? (ty.offC || ty.off) : (big > 0.5 && ty.offL ? ty.offL : ty.off);
@@ -173,7 +191,7 @@
       t0: o.t0 == null ? T : o.t0, life: (big > 0.5 && ty.totalL) ? ty.totalL : ty.total, ty: ty, crit: crit,
       x0: o.x + ox + off[0] * U * flip, y0: o.y + oy - off[1] * 30 - off[2] * 30 + (Math.random() * 2 - 1) * 8,
       dx: (tr[0] + jx) * U * flip, dy: -(tr[1] * 30 + tr[2] * 34),
-      s: s * 0.82, text: (ty.plus ? '+' : '') + String(Math.round(o.value)), sprite: null, tint: null
+      s: s * 0.82, text: (ty.plus ? '+' : ty.neg ? '-' : '') + String(Math.round(o.value)), sprite: null, tint: null
     };
     nums.push(n);
     if (o.aux) F.stats.numbersAux++; else F.stats.numbers++;
@@ -186,7 +204,7 @@
     if (lt < 0) return true;
     if (lt >= 1) return false;
     if (!n.sprite) {
-      n.sprite = glyphSprite(n.text, n.ty.face, n.ty.outline, n.ty.tint, n.crit ? 'Crit!' : null);
+      n.sprite = glyphSprite(n.text, n.ty.face, n.ty.outline, n.ty.tint, n.crit ? 'CRIT' : null);
       if (!n.sprite) return true;
     }
     var ty = n.ty, d = ty.dist(lt), sc = Math.max(0, ty.sc(lt)) * n.s;
@@ -203,10 +221,24 @@
       g.drawImage(gl, px - gw / 2, py - gh / 2, gw, gh);
     }
     g.globalAlpha = a; g.globalCompositeOperation = 'source-over';
+    if (ty.pill) { // viên thuốc tím của khiên (#742c8c) quanh chữ vàng
+      var pw = w * 1.18, ph = h * 1.02, pr = ph / 2, pxl = px - pw / 2, pyl = py - ph / 2;
+      g.beginPath(); g.moveTo(pxl + pr, pyl); g.lineTo(pxl + pw - pr, pyl); g.arc(pxl + pw - pr, py, pr, -Math.PI / 2, Math.PI / 2);
+      g.lineTo(pxl + pr, pyl + ph); g.arc(pxl + pr, py, pr, Math.PI / 2, Math.PI * 1.5); g.closePath();
+      g.fillStyle = ty.pill; g.fill(); g.lineWidth = Math.max(2, ph * 0.06); g.strokeStyle = ty.pillEdge; g.stroke();
+    }
+    if (ty.streak && lt < 0.6) { // vệt đỏ-cam sang trái
+      var sl = w * (0.9 + lt), sa = a * (1 - lt / 0.6) * 0.9, sx0 = px - w * 0.35;
+      var gr = g.createLinearGradient(sx0, 0, sx0 - sl, 0);
+      gr.addColorStop(0, 'rgba(255,170,60,' + sa.toFixed(3) + ')'); gr.addColorStop(0.4, 'rgba(240,60,30,' + (sa * 0.8).toFixed(3) + ')'); gr.addColorStop(1, 'rgba(200,20,20,0)');
+      g.globalCompositeOperation = 'lighter'; g.globalAlpha = 1; g.fillStyle = gr;
+      g.beginPath(); g.moveTo(sx0, py - h * 0.12); g.lineTo(sx0 - sl, py - h * 0.02); g.lineTo(sx0 - sl, py + h * 0.02); g.lineTo(sx0, py + h * 0.12); g.closePath(); g.fill();
+      g.globalCompositeOperation = 'source-over'; g.globalAlpha = a;
+    }
     g.drawImage(sp.base, px - w / 2, py - h / 2, w, h);
     var ta = ty.amt(lt);
     if (ta > 0.01) { g.globalAlpha = a * ta; g.drawImage(sp.tint, px - w / 2, py - h / 2, w, h); }
-    if (sp.label) { var lw = w * 0.9, lh = lw * sp.label.height / sp.label.width; g.globalAlpha = a; g.drawImage(sp.label, px - lw / 2, py - h / 2 - lh * 0.75, lw, lh); }
+    if (sp.label) { var lh = h * 0.42, lw = lh * sp.label.width / sp.label.height; g.globalAlpha = a; g.drawImage(sp.label, px - w / 2 + w * 0.05, py - h / 2 - lh * 0.6, lw, lh); }
     return true;
   }
 
@@ -279,17 +311,30 @@
   F.PROJ = PK;
   F.travel = function (kind) { return (PK[kind] || PK.damage).travel; };
   // projectile({from:{x,y}, to:{x,y}, kind, t0, travel, crit, count})
+  function entryKit(E, base) { // đổi entry vfxmap thành bộ thông số đạn (màu, đường cong tiến độ, kích thước)
+    var k = Object.assign({}, base);
+    if (E.color) k.c = E.color;
+    if (E.curve && E.curve.length > 1) k.ease = lin(E.curve);
+    k.c2 = base.c2;
+    return k;
+  }
   F.projectile = function (o) {
-    var k = PK[o.kind] || PK.damage;
+    var k = PK[o.kind] || PK.damage, E = o.entry || null;
+    if (E) k = entryKit(E, k);
     var dx = o.to.x - o.from.x, dy = o.to.y - o.from.y, L = Math.sqrt(dx * dx + dy * dy) || 1;
     var p = { k: k, kind: o.kind, x0: o.from.x, y0: o.from.y, x1: o.to.x, y1: o.to.y, t0: o.t0 == null ? T : o.t0,
-      travel: o.travel || k.travel, crit: !!o.crit,
+      travel: o.travel || k.travel, crit: !!o.crit, entry: E, body: E ? F.mapSprite(E.projectile) : null, trailTex: E ? F.mapSprite(E.trail) : null,
+      melee: !!(E && !E.projectile),
       nx: -dy / L, ny: dx / L, arc: (Math.random() < 0.5 ? -1 : 1) * Math.min(90, L * 0.12) * (o.arc == null ? 1 : o.arc), lastEmit: -1 };
     projs.push(p);
     if (o.count !== false) F.stats.projectiles++;
     // tụ lực ở thẻ (Slot_BuildUp ~0,2 s)
-    spawn({ tex: 'glow', color: k.c, x: p.x0, y: p.y0, vx: 0, vy: 0, life: 260, s0: 70 * k.size, s1: 120 * k.size, a0: 0.9, a1: 0, t0: p.t0 });
-    spawn({ tex: 'flash', color: k.c2, x: p.x0, y: p.y0, vx: 0, vy: 0, life: 180, s0: 40, s1: 90 * k.size, a0: 1, a1: 0, t0: p.t0, rot: Math.random() * 6 });
+    if (!p.melee) {
+      spawn({ tex: 'glow', color: k.c, x: p.x0, y: p.y0, vx: 0, vy: 0, life: 260, s0: 70 * k.size, s1: 120 * k.size, a0: 0.9, a1: 0, t0: p.t0 });
+      spawn({ tex: 'flash', color: k.c2, x: p.x0, y: p.y0, vx: 0, vy: 0, life: 180, s0: 40, s1: 90 * k.size, a0: 1, a1: 0, t0: p.t0, rot: Math.random() * 6 });
+    }
+    var bu = E && F.mapSprite(E.buildup);
+    if (bu) spawn(mapPart(bu, E.color, p.x0, p.y0, Math.min(200, Math.max(60, (E.size && E.size.p || 2) * 28)), 360, p.t0));
     return p;
   };
   function projPos(p, u) {
@@ -297,6 +342,13 @@
     var arc = Math.sin(Math.PI * e) * p.arc;
     return { x: p.x0 + (p.x1 - p.x0) * e + p.nx * arc, y: p.y0 + (p.y1 - p.y0) * e + p.ny * arc };
   }
+  // hạt từ sprite vfxmap: add/premul → cộng sáng, alpha → vẽ thường; anim 'life' chạy hết các ô trong đời hạt
+  function mapPart(id, color, x, y, size, life, t0, grow) {
+    var m = texImg[id].meta, add = m.blend !== 'alpha';
+    return { tex: id, color: color, x: x, y: y, vx: 0, vy: 0, life: life, s0: size, s1: size * (grow || 1.25), a0: 1, a1: 0, t0: t0, add: add, anim: (m.cols || 1) * (m.rows || 1) > 1,
+      rot: Math.random() * 6.28, ar: (m.cols && m.rows && m.cols !== m.rows) ? m.cols / m.rows : 1 };
+  }
+  F.mapPart = mapPart;
   function drawProj(p) {
     var u = (T - p.t0) / p.travel;
     if (u < 0) return true;
@@ -304,6 +356,7 @@
     var k = p.k, s = k.size * (p.crit ? 1.35 : 1);
     var head = projPos(p, u), prev = projPos(p, u - 0.06);
     var ang = Math.atan2(head.y - prev.y, head.x - prev.x);
+    if (p.melee) return true; // đòn cận chiến: không có đạn, chỉ có chớp trúng
     g.globalCompositeOperation = 'lighter';
     // vệt đuôi: dập nhiều quầng nhỏ dọc đường đã bay
     var gl = tinted('glow', k.c);
@@ -318,7 +371,18 @@
       g.globalAlpha = 1; g.drawImage(gl, head.x - 70 * s, head.y - 70 * s, 140 * s, 140 * s);
       var gw2 = tinted('glow', k.c2); if (gw2) { g.globalAlpha = 0.9; g.drawImage(gw2, head.x - 30 * s, head.y - 30 * s, 60 * s, 60 * s); }
     }
-    var ar = tinted('arrow', k.c2);
+    var bt = p.body && ready(p.body);
+    if (bt) { // thân đạn theo sprite của prefab
+      var bm = bt.meta, bs = Math.min(170, Math.max(34, (p.entry.size && p.entry.size.p || 1) * 22)) * (p.crit ? 1.25 : 1);
+      var bimg = tinted(p.body, p.entry.color && bm.kind === 'mask' ? p.entry.color : null), bc = bm.cols || 1, br = bm.rows || 1, bf = 0;
+      if (bc * br > 1) bf = Math.min(bc * br - 1, Math.floor(u * bc * br));
+      var bw = bimg.width / bc, bh = bimg.height / br;
+      g.save(); g.translate(head.x, head.y); g.rotate(ang);
+      g.globalCompositeOperation = bm.blend === 'alpha' ? 'source-over' : 'lighter'; g.globalAlpha = 1;
+      g.drawImage(bimg, (bf % bc) * bw, Math.floor(bf / bc) * bh, bw, bh, -bs / 2, -bs / 2 * (bh / bw), bs, bs * (bh / bw));
+      g.restore(); g.globalCompositeOperation = 'lighter';
+    }
+    var ar = bt ? null : tinted('arrow', k.c2);
     if (ar) {
       g.save(); g.translate(head.x, head.y); g.rotate(ang + Math.PI);
       g.globalAlpha = 1; g.drawImage(ar, -14 * s, -30 * s, 110 * s, 60 * s); g.restore();
@@ -339,6 +403,10 @@
     o = o || {};
     var t0 = o.t0 == null ? T : o.t0, big = o.big || 1, i;
     F.stats.bursts++;
+    if (o.entry && o.entry.impact) { // chớp trúng riêng của prefab (cộng thêm lên chùm hạt chung)
+      var im = F.mapSprite(o.entry.impact);
+      if (im) { var isz = Math.min(150, Math.max(50, (o.entry.size && o.entry.size.i || 4) * 14)); var mp = mapPart(im, o.entry.impactColor || o.entry.color, x, y, isz * (o.crit ? 1.3 : 1), Math.min(380, o.entry.impactMs || 500), t0, 1.35); mp.add = true; mp.a0 = 0.55; spawn(mp); }
+    }
     switch (kind) {
       case 'damage': case 'sandstorm': {
         var crit = !!o.crit, m = crit ? 1.6 : 1;
@@ -369,8 +437,8 @@
           drag: 1, life: rnd(500, 900), s0: rnd(10, 26), s1: rnd(18, 32), a0: 0.95, a1: 0, t0: t0 });
         break;
       case 'heal': case 'regen': case 'lifesteal': {
-        var hc = kind === 'lifesteal' ? '#ff7ab0' : '#8fe931';
-        spawn({ tex: 'glow', color: kind === 'lifesteal' ? '#bd3e7a' : '#00ff00', x: x, y: y, vx: 0, vy: 0, life: 500, s0: 120 * big, s1: 190 * big, a0: 0.6, a1: 0, t0: t0 });
+        var hc = kind === 'lifesteal' ? '#ff7ab0' : '#2cdc24';
+        spawn({ tex: 'glow', color: kind === 'lifesteal' ? '#bd3e7a' : '#2cdc24', x: x, y: y, vx: 0, vy: 0, life: 500, s0: 120 * big, s1: 190 * big, a0: 0.6, a1: 0, t0: t0 });
         for (i = 0; i < (kind === 'regen' ? 6 : 14); i++) spawn({ tex: i % 4 === 0 ? 'heart' : 'dots', color: hc, x: x + rnd(-70, 70), y: y + rnd(-30, 40),
           vx: rnd(-30, 30), vy: rnd(-180, -60), drag: 1.2, life: rnd(500, 900), s0: rnd(12, 24), s1: 4, a0: 1, a1: 0, frame: i % 4, t0: t0 });
         break;

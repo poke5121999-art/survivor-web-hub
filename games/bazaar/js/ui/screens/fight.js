@@ -48,24 +48,38 @@
     key: function (e) { if (e.key === 'Enter') { U.dispatch({ t: 'fight' }); return true; } }
   };
 
-  var panel = null;
+  var panel = null, panelT = 0;
+  // Kết quả (clip fight-result): băng-rôn "Victory!" cuộn vào 0,6 s, giữ 1,4 s, ra 0,4 s (do trang xem trận vẽ); vàng bay về túi;
+  // sau đó ô góc phải trên (chỗ phần thưởng của đối thủ) đổi thành nút Continue + hai biểu tượng (xem lại, chi tiết). Không còn hộp giữa màn.
+  function resultText(run) {
+    var ph = run.phase, won = ph.won, pvp = ph.combatType === 'PVP';
+    if (pvp) return won ? '+1 chiến thắng (' + (run.wins + 1) + '/10)' : '−' + run.day + ' uy tín (còn ' + Math.max(0, run.prestige - run.day) + ')';
+    if (won) return '+' + (ph.rewards.gold || 0) + ' vàng · +' + (ph.rewards.xp || 0) + ' XP · 1 món của quái';
+    return 'Thua quái không mất gì. Xếp lại bàn rồi đi tiếp.';
+  }
   function showResult(run, live) {
     var ph = run.phase, won = ph.won, pvp = ph.combatType === 'PVP';
     if (panel) panel.remove();
-    panel = U.el('div', 'rs-result ' + (won ? 'win' : 'lose'), V().refs.overlay);
-    var h = won ? 'Chiến thắng' : (ph.winner === 'draw' ? 'Hết giờ — thua' : 'Thất bại');
-    var body = '';
-    if (pvp) body = won ? '<div class="it"><i style="background-image:' + U.bg('art/ui/clock/UI_VictoriesIcon_T_Temp.webp') + '"></i><b>+1</b><span>chiến thắng (' + (run.wins + 1) + '/10)</span></div>'
-      : '<div class="it neg"><i style="background-image:' + U.bg('art/ui/clock/UI_PrestigeIcon_T_Temp.webp') + '"></i><b>−' + run.day + '</b><span>uy tín (còn ' + Math.max(0, run.prestige - run.day) + ')</span></div>';
-    else if (won) body = '<div class="it"><i style="background-image:' + U.bg(U.ICON.coins) + '"></i><b>+' + (ph.rewards.gold || 0) + '</b><span>vàng</span></div>' +
-      '<div class="it xp"><i style="background-image:' + U.bg(U.ICON.xpBig) + '"></i><b>+' + (ph.rewards.xp || 0) + '</b><span>XP</span></div>' +
-      '<div class="it"><i style="background-image:' + U.bg(U.ICON.chest) + '"></i><b>1</b><span>món của quái</span></div>';
-    else body = '<p>Thua quái không mất gì. Xếp lại bàn rồi đi tiếp.</p>';
-    panel.innerHTML = '<div class="box"><h2>' + h + '</h2><div class="sub">' + U.esc(ph.opponent.name) + ' · ' + (ph.endMs / 1000).toFixed(1) + ' giây</div><div class="rw">' + body + '</div><div class="btns"></div></div>';
-    var btns = panel.querySelector('.btns');
-    U.bigButton(btns, 'yellow', 'Tiếp tục', 'Nhận kết quả, đi tiếp', function () { U.dispatch({ t: 'next' }); }).classList.add('play');
-    if (!live) U.bigButton(btns, 'brown', 'Xem lại trận', 'Phát lại trận vừa đánh', function () { panel.remove(); panel = null; startReplay(U.state.run); });
-    else U.bigButton(btns, 'brown', 'Xem lại', 'Phát lại từ đầu', function () { panel.remove(); panel = null; U.combat.restart(); });
+    clearTimeout(panelT);
+    var S = V().refs.sides[1], h = won ? 'Chiến thắng' : (ph.winner === 'draw' ? 'Hết giờ — thua' : 'Thất bại');
+    S.r.innerHTML = ''; // ô phải của đối thủ chỉ còn Continue + 2 biểu tượng (clip)
+    panel = U.el('div', 'rs-result ' + (won ? 'win' : 'lose'), S.r);
+    panel.innerHTML = '<div class="ic"></div><div class="go"></div>';
+    var ic = panel.querySelector('.ic'), go = panel.querySelector('.go');
+    var rp = U.button(ic, 'sq', '<svg viewBox="0 0 24 24"><path d="M12 5V2L7 6.5 12 11V8a5 5 0 1 1-5 5H5a7 7 0 1 0 7-8z"/></svg>', 'Xem lại trận', function () {
+      var p = panel; panel = null; if (p) p.remove();
+      if (live) U.combat.restart(); else startReplay(U.state.run);
+    });
+    var det = U.button(ic, 'sq', '<svg viewBox="0 0 24 24"><path d="M10 3a7 7 0 1 0 4.2 12.6l5.1 5.1 1.4-1.4-5.1-5.1A7 7 0 0 0 10 3zm0 2a5 5 0 1 1 0 10 5 5 0 0 1 0-10z"/></svg>', 'Chi tiết kết quả', function () { /* tooltip bằng hover */ });
+    det.addEventListener('pointerenter', function () {
+      var b = det.getBoundingClientRect(), q = V().toStage(b.left, b.top);
+      U.panelTip({ x: q.x, y: q.y, w: b.width / V().scale, h: b.height / V().scale }, h, U.esc(ph.opponent.name) + ' · ' + (ph.endMs / 1000).toFixed(1) + ' giây<br>' + resultText(run));
+    });
+    det.addEventListener('pointerleave', function () { U.panelTip(null); });
+    U.bigButton(go, 'blue', 'Tiếp tục', 'Nhận kết quả, đi tiếp', function () { U.dispatch({ t: 'next' }); }).classList.add('play');
+    // giữ ô chờ băng-rôn: hiện sau ~2 s (0,6 + 1,4) khi vừa phát xong trận
+    panel.classList.add('wait');
+    panelT = setTimeout(function () { if (panel) panel.classList.remove('wait'); }, live ? 2000 : 0);
     if (live) U.heroVo(pvp ? (won ? 'pvpvictory' : 'pvpdefeat') : (won ? 'pvevictory' : 'pvedefeat'));
   }
   function startReplay(run) {
@@ -86,13 +100,13 @@
     render: function (run) { if (!U.combat.active()) U.cards.render(run); },
     canDrag: function () { return false; },
     exit: function () {
-      if (panel) { panel.remove(); panel = null; }
+      clearTimeout(panelT); if (panel) { panel.remove(); panel = null; }
       U.combat.stop();
       U.musicKey = null; // trận đổi nhạc: màn sau đặt lại nhạc của hero
     },
     key: function (e) {
       if (e.key === 'End' && U.combat.active()) { U.combat.skip(); return true; }
-      if (e.key === 'Enter' && panel) { U.dispatch({ t: 'next' }); return true; }
+      if (e.key === 'Enter' && panel && !panel.classList.contains('wait')) { U.dispatch({ t: 'next' }); return true; }
     }
   };
 })(window);

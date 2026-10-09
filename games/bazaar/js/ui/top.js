@@ -16,6 +16,8 @@
     st.classList.toggle('top-hp', !!o.hp);
     st.classList.toggle('top-sides', !!o.sides);
     st.classList.toggle('top-board', !!o.board);
+    // màu dải trên theo loại màn (clip: thương nhân = dải tím, sự kiện = băng-rôn kem, loot/kho = khung vàng, bệ = ngọc lam)
+    ['merchant', 'event', 'loot', 'pedestal'].forEach(function (k) { st.classList.toggle('lane-' + k, o.lane === k); });
   };
   T.clear = function () { V().refs.runTop.innerHTML = ''; U.cards.clearTop(); U.panelTip(null); };
   T.layer = function () { return V().refs.runTop; };
@@ -88,17 +90,18 @@
     return m;
   };
   // frames(options, onPick, opts) — ba khung so le; options: [{type,id,name,tier,desc,kind,level,health,gold,xp}]
-  var XS = [600, 960, 1320], YS = [96, 170, 112];
+  // ref hour-choice (1024x576): khung giữa x 50 %, hai khung bên x 37 % / 63 %; đỉnh khung y 20 % / 26 % / 20 %; khung cao ~16 % màn [ĐO TRÊN CLIP]
+  var XS = [713, 960, 1207], YS = [219, 285, 221], FH = 176;
   T.frames = function (options, onPick, opts) {
     opts = opts || {};
     var layer = T.layer(), out = [];
-    var n = options.length, xs = n === 3 ? XS : n === 2 ? [760, 1160] : [960];
+    var n = options.length, xs = n === 3 ? XS : n === 2 ? [830, 1090] : [960];
     options.forEach(function (o, i) {
       var tier = o.tier || 'Bronze', F = root.BZ_FRAMES && root.BZ_FRAMES.encounter && (root.BZ_FRAMES.encounter[tier] || root.BZ_FRAMES.encounter.Bronze);
-      var H = 250, k = F ? H / F.h : 1, W = F ? F.w * k : 290;
+      var H = FH, k = F ? H / F.h : 1, W = F ? F.w * k : 210;
       var box = U.el('div', 'rs-enc t-' + tier + (opts.special === i ? ' special' : ''), layer);
-      box.style.left = (xs[i] - W / 2) + 'px'; box.style.top = (YS[i % 3] + (opts.dy || 0)) + 'px'; box.style.width = W + 'px'; box.style.height = (H + 70) + 'px';
-      box.style.animationDelay = (i * 110) + 'ms';
+      box.style.left = (xs[i] - W / 2) + 'px'; box.style.top = (YS[i % 3] + (opts.dy || 0)) + 'px'; box.style.width = W + 'px'; box.style.height = (H + 90) + 'px';
+      box.style.animationDelay = (i * 80) + 'ms'; box.style.setProperty('--d', (i * 80) + 'ms');
       var fr = U.el('div', 'fr', box); fr.style.height = H + 'px';
       var art = U.el('div', 'win', fr), A = T.artOf(o);
       if (F) {
@@ -112,7 +115,7 @@
       if (F) { var im = U.el('img', 'frame', fr); im.src = U.url(F.src); im.alt = ''; im.draggable = false; }
       U.el('i', 'gem', fr);
       var pt = opts.pennant ? opts.pennant(o) : T.pennantType(o);
-      var pn = U.el('div', 'pennant p-' + pt, box, ICONS[pt] || ICONS.event);
+      var pn = U.el('div', 'pennant p-' + pt, box, ICONS[pt] || ICONS.event); pn.style.top = (H - 8) + 'px'; box.classList.add('k-' + pt);
       U.el('div', 'nm', box, U.esc(o.name));
       box.addEventListener('pointerenter', function (e) {
         U.sfx('board.portraitHover', { vol: 0.6 });
@@ -136,7 +139,7 @@
         box.classList.add('chosen');
         Array.prototype.forEach.call(layer.querySelectorAll('.rs-enc'), function (b) { if (b !== box) b.classList.add('faded'); });
         U.sfx('board.encounterClick');
-        setTimeout(function () { U.state.busy = false; onPick(i); }, 260);
+        setTimeout(function () { U.state.busy = false; onPick(i); }, opts.pickDelay != null ? opts.pickDelay : 800); // clip: các khung khác mờ 400 ms + viền vàng 400 ms rồi mới vào màn
       });
       out.push(box);
     });
