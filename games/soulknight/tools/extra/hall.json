@@ -1,0 +1,7 @@
+{
+ "bundles": ["hero_room/common", "hero_room/hall/skin_0"],
+ "prefabs": ["books_0_normal", "carpet_0_normal", "chest_0_normal", "egg_machine_0_normal", "fridge_0_normal",
+  "gallery_0_normal", "hire_board_0_normal", "hostess_0_normal", "mail_box_0_normal", "pet_food_0_normal",
+  "plant_0_normal", "plutus_cat_0_normal", "postman_0_normal", "safe_0_normal", "sofa_0_normal", "table_0_normal",
+  "trash_can_0_normal", "tv_0_normal", "drink_seller_0_normal", "fish_bowl_0_normal", "handbook_entry_0_normal"]
+}

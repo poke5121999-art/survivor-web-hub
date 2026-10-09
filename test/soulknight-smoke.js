@@ -15,8 +15,8 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
-const URL = process.env.SK_URL || 'http://localhost:8811/games/soulknight/index.html';
-const FILE_URL = 'file:///' + path.resolve(__dirname, '..', 'games', 'soulknight', 'index.html').split(path.sep).join('/');
+const URL = (process.env.SK_URL || 'http://localhost:8811/games/soulknight/index.html') + '?quick=1';
+const FILE_URL = 'file:///' + path.resolve(__dirname, '..', 'games', 'soulknight', 'index.html').split(path.sep).join('/') + '?quick=1';
 const SHOTS = process.env.SK_SHOTS || path.join(os.tmpdir(), 'soulknight-smoke');
 fs.mkdirSync(SHOTS, { recursive: true });
 

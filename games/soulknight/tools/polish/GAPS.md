@@ -18,13 +18,15 @@ Nhật ký quyết định: `decisions.tsv` cùng thư mục.
 |---|---|---|
 | Dọn phòng không có chữ CLEAR | [THẤY] https://youtu.be/B9Gb2Y26Cow?t=112, cả lúc trùm chết https://youtu.be/rNUWLt51lmA?t=76 | `js/hud.js` phát clip gốc `message_bar/show_signpost`, Text = CLEAR |
 | Khung mask hiện thành khối trắng khi clip bật Image | [THẤY] ảnh chụp web | `build_ui.py` ghi `img.gfx = 0` cho `Mask.m_ShowMaskGraphic = 0`; `ugui.js` không vẽ |
+| Mở game vào thẳng màn chọn nhân vật, không có sảnh | [THẤY] sảnh "Select a hero" https://youtu.be/rhNuFTPktF4?t=74 | `js/hall.js` + `tools/hall/build_hall.py`: nền 2 lớp từ `hall_0_normal`, 21 prefab nội thất, mặt nạ đi được, khối chặn đồ đạc, cửa `door_enter` → bảng chế độ. `?quick=1` giữ luồng cũ cho bộ kiểm |
 | Không có thú cưng đi theo | [THẤY] mèo đen https://youtu.be/LyMmXTQFcq8?t=33, chó https://youtu.be/B9Gb2Y26Cow?t=812 | `js/pets.js`, prefab `pet0..pet5` [ĐO Pet0Controller: 3 sát thương, atk_cd 2, theo chủ 2–20 đv, tốc 8] |
 
 ## Còn mở
 
 | lệch | bằng chứng | vì sao chưa làm |
 |---|---|---|
-| Không có sảnh đi lại (vào thẳng màn chọn nhân vật) | [ĐO] `hero_room/hall/skin_0` › `hall_0_normal`, nội thất `hero_room/common` `*_0_normal`; bản phác dựng được | đợt kế; vị trí đứng của từng nhân vật nằm trong bảng cấu hình chưa giải mã |
+| Vị trí đứng của nhân vật trong sảnh | [THẤY] mỗi người cạnh đồ trang trí riêng https://youtu.be/rhNuFTPktF4?t=74 | 6 người neo theo đồ `decorate_*`/vòng phép/quan tài/ống nghiệm/hộp đồ nghề [SUY]; còn lại đứng ô trống [ƯỚC LƯỢNG]; bảng gốc chưa giải mã |
+| Sảnh thiếu ô đá quý góc phải, nút nhà góc trái, thú cưng trong sảnh | [THẤY] cùng khung | chưa làm |
 | Lượt chơi cố định Rừng → Lâu Đài → Núi Lửa; gốc bốc chủ đề mỗi tầng | [THẤY] trùm Zulan ở chủ đề đá xanh https://youtu.be/B9Gb2Y26Cow?t=812 | trùm phụ thuộc chủ đề; `sk-bosses86.js` chỉ có bể trùm Rừng/Lâu Đài/Núi Lửa. 13 chủ đề đều sinh quái và đánh được |
 | Chủ đề sàn cỏ đá hoa văn 回 ở ải 1 (trùm Zulan) | [THẤY] https://youtu.be/LyMmXTQFcq8?t=33 | chưa tìm ra bundle; `level/1/{a,b,c,g}` đều không phải |
 | Màn tải giữa hai ải: nền đen, xoáy cổng, hai dòng mẹo | [THẤY] https://youtu.be/LyMmXTQFcq8?t=2 | chưa làm; cần `loading.ab` và chữ mẹo tiếng Việt |
@@ -32,3 +34,5 @@ Nhật ký quyết định: `decisions.tsv` cùng thư mục.
 | Thoại NPC sau trùm, nút SKIP | [AGENT] https://youtu.be/B9Gb2Y26Cow?t=890 | chưa kiểm khung |
 | Trùm nổi giận ~40% máu | [AGENT] https://youtu.be/rNUWLt51lmA?t=50 | chưa kiểm |
 | Chọn thú cưng ở sảnh | — | web luôn dùng `pet0` (mèo đen) |
+| Bộ kiểm `soulknight-season-world.js` treo ở `#hs-back` | nút bị bỏ từ `292d316b` (màn chọn nhân vật dựng từ prefab); worktree HEAD cũng treo | nợ bộ kiểm, chưa sửa |
+| Bộ kiểm `skills`: `alchemist concoction` hỏng | hỏng y hệt ở HEAD trước đợt 1 | lỗi có sẵn, chưa sửa |

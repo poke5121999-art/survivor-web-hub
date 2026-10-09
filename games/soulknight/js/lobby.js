@@ -472,7 +472,7 @@
     const inR = p => { const r = rect(p); return r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h; };
     const tap = () => sfx(VIEW.tapClip);
     if (inR('mask_down/center_buttons/btn_unlock')) { tap(); buyHero(); return; }
-    if (inR('mask_up/btn_back')) { tap(); openModes(); return; }
+    if (inR('mask_up/btn_back')) { tap(); if (SK.QUICK || !SK.hall) openModes(); else SK.hall.enter('select'); return; }
     if (inR(CUR + 'show_currency_widget')) { tap(); openShop(); return; }
     if (inR('mask_down/ui_left_button/button')) { tap(); step(-1); return; }
     if (inR('mask_down/ui_right_button/button')) { tap(); step(1); return; }
@@ -619,6 +619,7 @@
   // ---------------------------------------------------------------- chọn chế độ (ảnh i)
   const MODES = [
     { id: 'level', name: 'Chế độ màn chơi', img: 'mode_level.png', ok: true,
+      start: () => { if (SK.G.state === 'hall') launch(P.selected); },
       desc: 'Ba tầng Rừng Rậm → Lâu Đài → Núi Lửa, mỗi tầng 5 màn, trùm ở màn cuối. Chơi một mình.' },
     { id: 'season', name: 'Chế độ mùa giải', img: 'mode_season.png', isNew: true, ok: true,
       desc: 'Thoát khỏi Monkia: căn cứ giữa rừng thông, qua cổng xoáy ra Ngoại ô căn cứ, đánh khỉ, mở thùng, về điểm rút lui mang đồ về.',
@@ -666,9 +667,10 @@
     if (!isUnlocked(id)) { if (key) sfx(VIEW.tapClip); buyHero(); return; }
     if (key) sfx(VIEW.startClip);
     closeDialog();
-    applySkillSlot(id);
-    SK.startRun(id);
+    // Bản gốc: chọn xong thì điều khiển nhân vật trong sảnh, đi vào cửa mới ra bảng chế độ. ?quick=1 vào hầm luôn.
+    if (SK.QUICK || !SK.hall) launch(id); else SK.hall.enter('walk', id);
   }
+  function launch(id) { applySkillSlot(id); SK.startRun(id); }
 
   SK.on('runStart', G2 => {
     const p = G2.player; if (!p) return;
@@ -719,6 +721,7 @@
     enter() {
       G.state = 'lobby'; G.player = null; G.map = null;
       SK.setOverlay('sk-lobby');
+      $('sk-lobby').classList.remove('only-modes');
       build();
       $('hs-modes').hidden = true;
       closeDialog();
@@ -753,7 +756,7 @@
       if (!pix) { ctx.fillStyle = 'rgba(4,10,18,0.6)'; ctx.fillRect(0, 0, v.w, v.h); }
       drawUI();
     },
-    select, openModes, openShop, refresh,
+    select, openModes, openShop, refresh, launch,
     // Móc kiểm thử: rect CSS px của nút prefab, chữ đang hiện trên nút, và trạng thái màn.
     rect,
     text: path => { const n = ui() && UI.q(path); return n && n.txt ? String(n.txt.s) : null; },

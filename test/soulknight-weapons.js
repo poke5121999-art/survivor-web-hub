@@ -14,7 +14,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
-const URL = process.env.SK_URL || 'http://localhost:8811/games/soulknight/index.html';
+const URL = (process.env.SK_URL || 'http://localhost:8811/games/soulknight/index.html') + '?quick=1';
 const SHOTS = process.env.SK_SHOTS || path.join(os.tmpdir(), 'soulknight-weapons');
 fs.mkdirSync(SHOTS, { recursive: true });
 
@@ -68,7 +68,7 @@ async function main(b) {
   let injected = false;
   p.on('pageerror', e => errs.push('pageerror: ' + e.message));
   p.on('console', m => { if (m.type() === 'error') errs.push('console: ' + m.text()); });
-  await p.route('**/games/soulknight/index.html', async route => {
+  await p.route('**/games/soulknight/index.html*', async route => {
     const r = await route.fetch(); let t = await r.text();
     if (!/sk-weapons86/.test(t)) { injected = true; t = t.replace('<script src="js/design.js', '<script src="data/sk-weapons86.js"></script>\n<script src="js/design.js'); }
     route.fulfill({ response: r, body: t, headers: Object.assign({}, r.headers(), { 'content-type': 'text/html; charset=utf-8' }) });

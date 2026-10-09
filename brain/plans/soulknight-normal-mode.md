@@ -119,3 +119,10 @@ untime\dump\dump.cs`); cách làm ở `tools/config86/README.md` mục 8.
      chết, tạm dừng, chủ đề 2-x/3-x) lấy khung clip gốc đặt cạnh ảnh bản web, ghi chỗ lệch kèm mốc giây. Lệch nặng sửa trước.
    - Nhật ký quyết định: `games/soulknight/tools/polish/decisions.tsv`. Bảng lệch: `tools/polish/GAPS.md`.
    - Xong khi: mọi lệch mức "nặng" trong GAPS.md đã sửa và chụp lại cạnh khung gốc; 10 bộ kiểm xanh trên Pages; rev mới.
+   - [x] Đợt 1 (rev 20261009a, `e49a7f8e`): chữ CLEAR, thú cưng `js/pets.js`, sửa Mask hiện khối trắng. Kiểm trên Pages.
+   - [ ] Đợt 2 (rev 20261009b): sảnh `js/hall.js` + `tools/hall/build_hall.py`. Mở game vào sảnh; `?quick=1` giữ luồng cũ
+     (mọi bộ kiểm cũ chạy với cờ này, `test/soulknight-hall.js` kiểm luồng sảnh). `build_sk.py` thêm cờ `ia` cho phần prefab
+     nằm dưới tổ tiên đang tắt; chỉ sảnh bỏ qua chúng (`skip`).
+   - `[BẪY ĐÃ SẬP]` `pkill -f build_sk.py` giết luôn shell đang chạy lệnh (dòng lệnh của shell chứa chuỗi đó). Dùng
+     `pgrep -f 'python.*build_sk'` lấy PID rồi `kill`.
+   - `[BẪY ĐÃ SẬP]` Dựng `sk-data.js` (14 phút) trong lúc bộ kiểm đang chạy thì trang có thể nạp tệp ghi dở. Dựng xong rồi mới kiểm.

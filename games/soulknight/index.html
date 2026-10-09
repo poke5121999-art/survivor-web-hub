@@ -35,6 +35,7 @@
   #sk-lobby{--u:min(1vh,.462vw);--line:#3b4556;--pane:#1c222c;--pane2:#12171f;--blue:#3d8bff;
     display:block;padding:0;text-align:left;font-size:calc(var(--u)*3.2)}
   #sk-lobby[hidden]{display:none}
+  #sk-lobby.only-modes > :not(#hs-modes):not(#hs-modal){display:none}
   #sk-lobby button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
   #sk-lobby img,#sk-lobby canvas{image-rendering:pixelated}
   .hs-sr{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
@@ -146,7 +147,7 @@
   <h2 style="color:var(--gold)">Chiến thắng!</h2><p id="sk-win-info"></p>
   <button id="sk-win-retry" class="sk-btn">Chơi lại</button>
 </div>
-<script src="data/sk-data.js?v=20261009a"></script>
+<script src="data/sk-data.js?v=20261009b"></script>
 <script src="data/sk-wiki.js?v=20260929b"></script>
 <script src="data/sk-weapons86.js?v=20260930e"></script>
 <script src="js/design.js?v=20260930f"></script>
@@ -156,7 +157,7 @@
 <script src="data/sk-ui.js?v=20261009a"></script>
 <script src="js/ugui.js?v=20261009a"></script>
 <script src="js/hud.js?v=20261009a"></script>
-<script src="js/game.js?v=20261009a"></script>
+<script src="js/game.js?v=20261009b"></script>
 <script src="data/sk-skills86.js?v=20260929h"></script>
 <script src="js/skills.js?v=20260930f"></script>
 <script src="js/skills/ranger.js?v=20260930f"></script>
@@ -203,7 +204,9 @@
 <script src="js/sfx.js?v=20260929h"></script>
 <script src="data/sk-vfx.js?v=20260930f"></script>
 <script src="js/vfx.js?v=20260930f"></script>
-<script src="js/lobby.js?v=20260930d"></script>
+<script src="js/lobby.js?v=20261009b"></script>
+<script src="data/sk-hall.js?v=20261009b"></script>
+<script src="js/hall.js?v=20261009b"></script>
 <script src="data/season-data.js?v=20260929g"></script>
 <script src="data/season-items.js?v=20260929g"></script>
 <script src="js/season/inventory.js?v=20260929g"></script>

@@ -9,6 +9,8 @@ Sinh `art/sk/atlas*.png` và `data/sk-data.js` từ bản cài Soul Knight **8.6
 Chạy khoảng 2,5 phút [ĐO 2026-09-29]; trên Linux lần đầu 14 phút vì dựng chỉ mục CAB [ĐO 2026-10-09].
 Gốc nguồn là biến `SK86` (`skrip.REF`); không đặt thì `D:\sk86-ref` trên Windows, `~/sk86-ref` trên máy khác.
 Dựng lại nguồn từ XAPK 8.6.0 (apkpure, versionCode 80600): giải `UnityDataAssetPack.apk` vào `$SK86/UnityDataAssetPack`.
+Chữ tiếng Việt chính thức: `python tools/ui/build_loc.py` đọc `localization.ab` (I2 Localization, không mã hoá, 17.794 term) ra
+`$SK86/decoded/localization_en_vi.json` mà `build_ui.py` dùng. Sảnh: `python tools/hall/build_hall.py` → `art/hall/`, `data/sk-hall.js`.
 Nguồn:
 
 - `D:\sk86-ref\UnityDataAssetPack\assets\AssetBundles\`: 2375 bundle `.ab` (523 MB) trong thư mục lồng

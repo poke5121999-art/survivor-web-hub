@@ -363,7 +363,7 @@ async function inGame(b) {
   const p = await b.newPage({ viewport: { width: 1280, height: 720 } });
   const errs = [];
   watch(p, errs);
-  await p.goto(BASE + 'index.html');
+  await p.goto(BASE + 'index.html?quick=1');
   await p.waitForSelector('#sk-start', { state: 'visible', timeout: 10000 });
   // index.html chưa có thẻ script (bên lead thêm) → nạp tay theo đúng thứ tự sẽ thêm
   const tagged = await p.evaluate(() => !!(window.SK && SK.vfx));

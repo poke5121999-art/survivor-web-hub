@@ -23,6 +23,8 @@ PX = 16  # preview pixels per world unit
 
 r = None
 _name_cache = {}
+# --top=/ten_prefab: lay goc khac lam "scene that" (vd /hall_0_normal trong hero_room/hall/skin_0)
+TOP = next((a[6:] for a in sys.argv if a.startswith('--top=')), None)
 SKIP_COMP = {'Transform', 'RectTransform', 'ParticleSystem', 'ParticleSystemRenderer', 'Tilemap', 'MonoScript'}
 DROP_KEYS = {'m_GameObject', 'm_ObjectHideFlags', 'm_CorrespondingSourceObject', 'm_PrefabInstance', 'm_PrefabAsset',
              'm_EditorHideFlags', 'm_EditorClassIdentifier', 'm_Script', 'm_Name', 'm_CastShadows', 'm_ReceiveShadows',
@@ -203,7 +205,7 @@ def build_graph(cab):
         setw(rt, (1, 0, 0, 1, 0, 0))
     # The bundle holds the top prefab (/Scene1 or /Init) PLUS loose copies of its nested prefabs as extra roots
     # (/Grid, /Bunkers, /Teleports ... or /Shop, /Tent ...). Only the top prefab is the real scene.
-    top = '/Scene1' if any(x.path == '/Scene1' for x in roots) else '/Init'
+    top = TOP or ('/Scene1' if any(x.path == '/Scene1' for x in roots) else '/Init')
     for n in nodes.values():
         n.canon = n.path == top or n.path.startswith(top + '/')
     return nodes, roots
@@ -489,7 +491,7 @@ def render(cab, nodes, tms, pts, bounds, opts):
     minx, miny, maxx, maxy = bounds
     W, H = int((maxx - minx) * PX), int((maxy - miny) * PX)
     print('  canvas', W, H)
-    canvas = Image.new('RGBA', (W, H), (24, 28, 34, 255))
+    canvas = Image.new('RGBA', (W, H), opts.get('bg', (24, 28, 34, 255)))
     items = []
     stats = {'ground': 0, 'dual': 0, 'scatter': 0, 'tile': 0, 'sr': 0}
 
@@ -515,7 +517,7 @@ def render(cab, nodes, tms, pts, bounds, opts):
                         stats['ground'] += 1
 
     # ---- tilemaps
-    for tm in tms:
+    for tm in (tms if opts.get('tiles', True) else []):
         rd = tm['renderer']
         if not rd or not tm['nTiles']:
             continue
@@ -598,7 +600,7 @@ def render(cab, nodes, tms, pts, bounds, opts):
             stats['tile'] += 1
 
     # ---- SpriteRenderers
-    for n in nodes.values():
+    for n in (nodes.values() if opts.get('sr', True) else []):
         if not n.canon:
             continue
         for tn, o in n.comps:

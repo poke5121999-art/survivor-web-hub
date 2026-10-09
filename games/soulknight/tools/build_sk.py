@@ -503,11 +503,15 @@ PREFAB_NAMES = [
 
 def prefab_parts(root):
     """Cây prefab -> danh sách phần vẽ được: [{n, at, sc, o, f?, a?, c?, col?, mbs?}] theo thứ tự duyệt."""
-    parts = []
+    parts, dead = [], []
     for nd, path, off in root.walk():
         if not nd.active and nd is not root:
+            dead.append(path)
             continue
         e = {'n': path or nd.name, 'at': px(off)}
+        # ia: một tổ tiên đang tắt (m_IsActive = 0), mã gốc bật lúc chạy; nơi vẽ tĩnh (sảnh) bỏ qua.
+        if any(path.startswith(d + '/') for d in dead):
+            e['ia'] = 1
         sc = nd.scale()
         if sc != (1.0, 1.0):
             e['sc'] = [round(sc[0], 3), round(sc[1], 3)]
@@ -532,7 +536,7 @@ def prefab_parts(root):
         m = {c: plain(t, mcab) for c, mcab, t in nd.mbs() if c}
         if m:
             e['mbs'] = m
-        if len(e) > 2:
+        if len(e) - ('ia' in e) > 2:
             parts.append(e)
     return parts
 

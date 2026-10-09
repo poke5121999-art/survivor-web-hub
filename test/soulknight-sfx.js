@@ -4,7 +4,7 @@
 const PW = process.env.PLAYWRIGHT_PATH ||
   'C:/Users/tamph/AppData/Roaming/npm/node_modules/@playwright/cli/node_modules/playwright';
 const { chromium } = require(PW);
-const URL = process.env.SK_URL || 'http://localhost:8811/games/soulknight/index.html';
+const URL = (process.env.SK_URL || 'http://localhost:8811/games/soulknight/index.html') + '?quick=1';
 let fail = 0;
 const check = (n, ok, d) => { if (!ok) fail++; console.log((ok ? '  OK   ' : '  FAIL ') + n + (d ? ' - ' + d : '')); };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -135,7 +135,7 @@ async function withAudioTag(ctx) {
   const ferrs = [];
   pf.on('pageerror', e => ferrs.push(e.message));
   pf.on('console', m => { if (m.type() === 'error' && !/fonts\.(googleapis|gstatic)/.test(m.text())) ferrs.push(m.text()); });
-  await pf.goto('file:///' + require('path').resolve(__dirname, '..', 'games/soulknight/index.html').replace(/\\/g, '/'));
+  await pf.goto('file:///' + require('path').resolve(__dirname, '..', 'games/soulknight/index.html').replace(/\\/g, '/') + '?quick=1');
   await pf.keyboard.press('Space'); await sleep(600);
   check('file://: chế độ im lặng, không lỗi', ['file', 'no-data'].includes(await pf.evaluate(() => SK.sfx.mode)) && ferrs.length === 0, ferrs.join(' | '));
   await b.close();

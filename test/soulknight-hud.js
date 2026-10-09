@@ -7,7 +7,7 @@ const PW = process.env.PLAYWRIGHT_PATH ||
   'C:/Users/tamph/AppData/Roaming/npm/node_modules/@playwright/cli/node_modules/playwright';
 const { chromium } = require(PW);
 
-const URL = process.env.SK_URL || 'http://localhost:8811/games/soulknight/index.html';
+const URL = (process.env.SK_URL || 'http://localhost:8811/games/soulknight/index.html') + '?quick=1';
 let pass = 0, fail = 0;
 const out = [];
 function check(name, ok, detail) {
