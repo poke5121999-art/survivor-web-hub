@@ -9,7 +9,8 @@ import re
 
 import UnityPy
 
-AB_ROOT = r'D:\sk86-ref\UnityDataAssetPack\assets\AssetBundles'
+REF = os.environ.get('SK86') or (r'D:\sk86-ref' if os.name == 'nt' else os.path.expanduser('~/sk86-ref'))
+AB_ROOT = os.path.join(REF, 'UnityDataAssetPack', 'assets', 'AssetBundles')
 SKIP_DEPS = re.compile(r'^(fonts_|bgm/|sound_effect|escape_audio|gp_vnm|localization)')
 
 

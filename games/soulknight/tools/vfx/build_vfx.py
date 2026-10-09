@@ -20,13 +20,13 @@ import zlib
 from PIL import Image
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from abx import AB_ROOT, Env  # noqa: E402
+from abx import AB_ROOT, REF, Env  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 GAME = os.path.normpath(os.path.join(HERE, '..', '..'))
 OUT_JS = os.path.join(GAME, 'data', 'sk-vfx.js')
 OUT_ART = os.path.join(GAME, 'art', 'vfx')
-WORK = r'D:\sk86-ref\work\vfx'
+WORK = os.path.join(REF, 'work', 'vfx')
 
 BOSSES = sorted('boss/' + os.path.basename(p) for p in glob.glob(os.path.join(AB_ROOT, 'boss', '*.ab')))
 SRC = ['bullet.ab', 'common.ab', 'weapon.ab', 'hero.ab', 'levelcommon.ab',

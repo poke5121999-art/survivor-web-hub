@@ -20,13 +20,16 @@ TOOLS = os.path.dirname(HERE)
 sys.path.insert(0, TOOLS)
 from skrip import Rip  # noqa: E402
 
-DEC = r'D:\sk86-ref\decoded'
-WORK = r'D:\sk86-ref\work\bosses'
+import skrip  # noqa: E402
+
+DEC = os.path.join(skrip.REF, 'decoded')
+WORK = os.path.join(skrip.REF, 'work', 'bosses')
 OUT_JS = os.path.join(TOOLS, '..', 'data', 'sk-bosses86.js')
 OUT_EXTRA = os.path.join(TOOLS, 'extra', 'bosses.json')
 
 # Theme web -> LevelKey của config/enemies (level/1/a = forest ...) [ĐO themes[x].bundle trong sk-data.js]
-THEME_KEY = {'forest': '1A', 'castle': '2A', 'volcano': '3B'}
+THEME_KEY = {'forest': '1A', 'glacier': '1B', 'ruins': '1C', 'castle': '2A', 'graveyard': '2B', 'halloween': '2C',
+             'icecave': '2D', 'swamp': '2E', 'relic': '2F', 'machinery': '2G', 'aliens': '3A', 'volcano': '3B', 'island': '3C'}
 # Prefab phụ do AI trùm sinh ra (quái con, bia mộ...) cũng cần rig.
 SUB_PREFABS = {'boss20': ['e_slime01_temp'], 'boss18': ['temp_tombstone1', 'temp_tombstone2', 'e_mummy03_temp',
                                                           'e_mummy04_temp', 'e_mummy05_temp'],
@@ -454,7 +457,8 @@ def main():
     os.makedirs(WORK, exist_ok=True)
     enemies = jload('config', 'enemies.json')
     loc = jload('localization_en_vi.json')
-    bosses_tbl = jload('bosses.json')
+    # bosses.json (tên + lớp AI) của bộ giải cũ không còn: tên lấy localization theo id, lớp AI là MB tên Boss*.
+    bosses_tbl = jload('bosses.json') if os.path.exists(os.path.join(DEC, 'bosses.json')) else {}
     pool = {}
     for theme, key in THEME_KEY.items():
         subs = {v['SubspeciesBoss'] for v in enemies.values() if v.get('SubspeciesBoss')}
@@ -483,7 +487,8 @@ def main():
                 cfg = enemies.get(pid) or {}
                 tb = bosses_tbl.get(pid) or {}
                 ent = {'bundle': rel, 'rig': rig, 'hp': cfg.get('Hp'), 'speed': cfg.get('Speed'),
-                       'name': (tb.get('name') or {}), 'ai': tb.get('ai'), 'weapon': cfg.get('BossWeapon'),
+                       'name': tb.get('name') or ({'en': loc[pid][0], 'vi': loc[pid][1]} if pid in loc else {}),
+                       'ai': tb.get('ai'), 'weapon': cfg.get('BossWeapon'),
                        'bgm': (cfg.get('BossBgm') or '').split('/')[-1].replace('.mp3', ''),
                        'sub': cfg.get('SubspeciesBoss') or None, 'level': cfg.get('LevelKey')}
                 MB_SPRITES[0] = True
@@ -491,6 +496,8 @@ def main():
                     if cls and cls not in ('RGNetBehaviour',):
                         ent.setdefault('mbs', {})[cls] = plain(mt, mcab)
                 MB_SPRITES[0] = False
+                if not ent['ai']:
+                    ent['ai'] = next((c for c in ent.get('mbs', {}) if re.match(r'Boss|AI', c)), None)
                 out['bosses'][pid] = ent
                 want_bullets += refs_in(ent.get('mbs', {}), [])
                 for nd in rig['nodes']:

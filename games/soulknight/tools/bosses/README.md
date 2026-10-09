@@ -13,14 +13,18 @@ Nhãn dùng trong chú thích mã: **[ĐO]** đọc từ dữ liệu thật (có
 ## Chạy lại
 
 ```sh
-cd games/soulknight/tools/bosses
-export PYTHONIOENCODING=utf-8
-C:/Users/tamph/.pyenv/pyenv-win/versions/3.8.10/python.exe build_bosses86.py   # ~2 phút, log ở D:\sk86-ref\work\bosses\build.log
-cd ../../../.. && python games/soulknight/tools/build_sk.py                      # ~4 phút, cắt lại atlas
-node games/soulknight/tools/check_keys.js                                      # phải ra "OK"
+~/sk86-ref/venv/bin/python -I ~/sk86-ref/tools/decode_config.py           # một lần: config.ab -> $SK86/decoded/config/*.json (ngoài git)
+PYTHONIOENCODING=utf-8 ~/sk86-ref/venv/bin/python games/soulknight/tools/bosses/build_bosses86.py   # ~2 phút
+PYTHONIOENCODING=utf-8 ~/sk86-ref/venv/bin/python games/soulknight/tools/build_sk.py               # ~14 phút, cắt lại atlas
+node games/soulknight/tools/check_keys.js                                                          # phải ra "OK"
 ```
 
-Cần đã chạy `tools/config86` (dùng `decoded/config/enemies.json`, `decoded/bosses.json`, `decoded/localization_en_vi.json`).
+Cần `decoded/config/enemies.json` + `decoded/localization_en_vi.json`. `decoded/bosses.json` của bộ giải cũ không còn:
+tên trùm lấy localization theo id, lớp AI là MonoBehaviour tên `Boss*`.
+
+AI: 13 trùm đầu nằm trong `js/bosses.js`; 22 trùm sau mỗi trùm một tệp `js/bosses/<pid>.js`, đăng ký bằng
+`SK.bossRegister(pid, def)` và dùng bộ đồ nghề `SK.BOSS_KIT`. Kiểm từng trùm:
+`SK_BOSSES=1-5:boss09 node test/soulknight-bosses.js`.
 
 ## Danh sách trùm [ĐO config/enemies.json]
 
@@ -31,6 +35,16 @@ Trùm có `IsBoss`, `LevelKey` theo theme, `Path` bắt đầu bằng `Level/`, 
 | forest (1-5) | boss07 Hoa Ma, boss08 Thầy Tế Goblin, boss14 Người Cây Giáng Sinh, boss19 Thỏ Trứng Màu, boss25 Thầy Tế (ma ám) |
 | castle (2-5) | boss01 Kỵ Sĩ Lớn (+ biến thể boss01_2), boss02 Phù Thủy Lớn, boss20 Slime Lớn |
 | volcano (3-5) | boss11 Sâu Cát Núi Lửa, boss12_parent (boss12_1 + boss12_2, cặp rồng), boss18 Anubis |
+| glacier (1-5) | boss09 Vua Vượn Núi Tuyết, boss10 Cua Pha Lê (+ biến thể boss10_2), boss13 Vua Người Tuyết |
+| ruins (1-5) | boss22 Tượng Viễn Cổ, boss23 Vua Khỉ Mặt Vàng, boss_dead_cell_giant Người Khổng Lồ |
+| graveyard (2-5) | boss03 Vua Xương, boss04 C6H8O6 |
+| halloween (2-5) | boss15 Vua U Linh, boss16 Kỵ Sĩ Không Đầu |
+| icecave (2-5) | boss24 Sâu Băng Hang Động |
+| swamp (2-5) | boss26 ⊿卝⊙ϟ‡ |
+| relic (2-5) | boss27 Vua Sâu Giữ Mộ |
+| machinery (2-5) | boss_robot_king Hoàng Đế Robot, boss_robot_queen Hoàng Hậu Robot |
+| aliens (3-5) | boss05 Thủ Lĩnh Wackern, boss06 Zulan The Colossus, boss21 Đĩa Nổi Laser |
+| island (3-5) | boss28 Cướp Biển Sắt "Cấp Vua", boss29 Kẻ Phá Sóng |
 
 - [ĐO] Biến thể (`SubspeciesBoss`) ra với tỉ lệ 30%: `BossCreator.GetSubspeciesBossPrefab` so `RGRandom.Range(0,100) < 0x1e`.
 - [ƯỚC LƯỢNG] Chọn đều trong danh sách; trọng số thật chưa tìm thấy.

@@ -13,8 +13,10 @@ Thứ tự theo đúng lời chủ dự án. Mỗi mục là một hoặc vài �
    Thiếu nó thì trùm theo vùng đất, vũ khí thiếu, thú cưng, cây trồng đều phải đoán.
 1. [x] Nhân vật (rev 20261010a): 42/42 hero, 103/103 kỹ năng đã có. Thiếu skin: 782 gốc, web chỉ s0. Lever: `extract_heroes(want_skins)`
    trong `build_sk.py` đã đọc được mọi skin; tách atlas skin theo hero, nạp lười khi chọn. Chọn skin ở màn chọn nhân vật.
-2. [ ] Vũ khí: 120 vũ khí đánh số + 28 thần thoại chưa có (`tools/weapons86/build_w86.py`, cần bảng weapons).
-3. [ ] Vùng đất và trùm riêng: 28 trùm chế độ thường còn thiếu (mỗi trùm cần rig + AI), vùng 1G, tầng 4 (4A/4B/4C), 5A.
+2. [x] Vũ khí (rev 20261010b): đủ 409 đánh số + 28 thần thoại (503 món kể cả vũ khí khởi đầu), `build_w86.py` chạy trên
+   Linux; 80 món bảng rơi vào bể rương [SUY]. Còn: năng lực thần thoại, đường lấy đồ rèn (mục 5).
+3. [~] Vùng đất và trùm riêng: [x] 22 trùm mới cho 10 vùng đất (rev 20261010b, `js/bosses/<pid>.js`, 7 agent song song,
+   mỗi trùm qua `test/soulknight-bosses.js`). [ ] vùng 1G, tầng 4 (4A/4B/4C), 5A.
 4. [ ] Chế độ chơi: Lợi Hại (badass), Khu Thí Luyện (boss rush), Nhân Tố Thử Thách, rồi các chế độ còn lại theo độ khả thi.
    Bỏ qua chế độ online (PVP, nhiều người).
 5. [ ] Sảnh: tiện ích tương tác (rương, tủ lạnh, két, mèo chiêu tài, máy quay trứng, bàn rèn, lò đúc, luyện kim,

@@ -1,6 +1,6 @@
 # Vũ khí + đạn thật 8.6 (`build_w86.py`)
 
-Bóc số đo, hoạt ảnh và thân đạn của **361 vũ khí / 439 prefab đạn** Soul Knight 8.6 từ bundle
+Bóc số đo, hoạt ảnh và thân đạn của **503 vũ khí (409 đánh số + 28 thần thoại + vũ khí khởi đầu) / 688 prefab đạn** Soul Knight 8.6 từ bundle
 Unity, ghi ra:
 
 | Tệp | Nội dung |
@@ -18,8 +18,10 @@ python games/soulknight/tools/build_sk.py      # atlas chính có sprite súng m
 python games/soulknight/tools/build_design.py  # (không cần sửa gì, chạy như cũ)
 ```
 
-Cần sẵn: `D:\sk86-ref\decoded\*.json` (tools/config86), bundle 8.6 ở `D:\sk86-ref\...`
-(qua `tools/vfx/abx.py`). `W86_LIMIT=20` chỉ bóc 20 súng đầu để thử nhanh.
+Cần sẵn: `$SK86/decoded/config/weapons*.json` (`~/sk86-ref/tools/decode_config.py`, ngoài git) và bản
+`data/sk-weapons86.js` cũ (bể rương WG_level* + ánh xạ wiki từ bảng luban, máy này chưa giải được luban nên đọc lại
+từ tệp đã sinh). Món trong bảng rơi `config/weapons_drop` chưa có bể nào được thêm theo Group 0-1/2-3/4-6 → chương 1/2/3 [SUY].
+Bundle 8.6 ở `$SK86` (mặc định `~/sk86-ref`, Windows `D:\sk86-ref`) qua `tools/vfx/abx.py`. `W86_LIMIT=20` chỉ bóc 20 súng đầu để thử nhanh.
 Trang cần `<script src="data/sk-weapons86.js?v=...">` **trước** `js/design.js`.
 Không có tệp này thì `design.js`/`actors.js` quay về số wiki + đạn vẽ kiểu cũ.
 

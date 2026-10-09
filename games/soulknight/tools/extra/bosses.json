@@ -2,38 +2,90 @@
  "bundles": [
   "boss/boss01",
   "boss/boss02",
+  "boss/boss03",
+  "boss/boss04",
+  "boss/boss05",
+  "boss/boss06",
   "boss/boss07",
   "boss/boss08",
+  "boss/boss09",
+  "boss/boss10",
   "boss/boss11",
   "boss/boss12",
+  "boss/boss13",
   "boss/boss14",
+  "boss/boss15",
+  "boss/boss16",
   "boss/boss18",
   "boss/boss19",
   "boss/boss20",
+  "boss/boss21",
+  "boss/boss22",
+  "boss/boss23",
+  "boss/boss24",
   "boss/boss25",
+  "boss/boss26",
+  "boss/boss27",
+  "boss/boss28",
+  "boss/boss29",
+  "boss/boss_dead_cell_giant",
+  "boss/boss_robot_king",
+  "boss/boss_robot_queen",
   "bullet",
   "common",
   "levelobjects",
-  "sprite_atlas"
+  "sprite_atlas",
+  "weapon"
  ],
  "sprites": [
   "^(boss01_0|boss01_1|boss01_10|boss01_2|boss01_2_0|boss01_2_1|boss01_2_10|boss01_2_11|boss01_2_2|boss01_2_3|boss01_2_4|boss01_2_5|boss01_2_6|boss01_2_7|boss01_2_8|boss01_3|boss01_4|boss01_5|boss01_6|boss01_7|boss01_8|boss01_9)$",
   "^(boss02_0|boss02_1|boss02_2|boss02_3|boss02_4|boss02_5|boss02_6|boss02_7|boss02_8)$",
+  "^(boss03_0|boss03_1|boss03_2|boss03_3|boss03_4|boss03_5|boss03_6|boss03_7|boss03_8|boss03_9|enemy07_0|enemy07_1|enemy07_2|enemy07_3|enemy07_4|enemy07_5|enemy07_6|enemy07_7|enemy07_8)$",
+  "^(boss04_0|boss04_1|boss04_2|boss04_3|boss04_4|boss04_5|boss04_6|boss04_7|boss04_8)$",
+  "^(boss05_0|boss05_1|boss05_10|boss05_11|boss05_2|boss05_3|boss05_4|boss05_5|boss05_6|boss05_7|boss05_8|boss05_9|tentacle_temp_1|tentacle_temp_2|tentacle_temp_3|tentacle_temp_4|tentacle_temp_5)$",
+  "^(boss06_0|boss06_1|boss06_2|boss06_3|boss06_4|boss06_5|boss06_6|boss06_7)$",
   "^(boss07_0|boss07_1|boss07_10|boss07_11|boss07_12|boss07_13|boss07_2|boss07_3|boss07_4|boss07_5|boss07_6|boss07_7|boss07_8|boss07_9)$",
   "^(boss08_0|boss08_1|boss08_2|boss08_3|boss08_4|boss08_5|boss08_6|boss08_7|boss08_8)$",
+  "^(boss09_new_0|boss09_new_1|boss09_new_10|boss09_new_11|boss09_new_12|boss09_new_13|boss09_new_14|boss09_new_15|boss09_new_16|boss09_new_17|boss09_new_18|boss09_new_19|boss09_new_2|boss09_new_20|boss09_new_21|boss09_new_22|boss09_new_23|boss09_new_24|boss09_new_25|boss09_new_26|boss09_new_27|boss09_new_28|boss09_new_29|boss09_new_3|boss09_new_30|boss09_new_31|boss09_new_32|boss09_new_33|boss09_new_34|boss09_new_4|boss09_new_5|boss09_new_6|boss09_new_7|boss09_new_8|boss09_new_9)$",
+  "^(boss10_0|boss10_1|boss10_2|boss10_2_0|boss10_2_1|boss10_2_2|boss10_2_3|boss10_2_4|boss10_2_5|boss10_3|boss10_4|boss10_5|boss10_6|boss10_7|boss10_8)$",
   "^(boss11_0|boss11_1|boss11_10|boss11_11|boss11_12|boss11_13|boss11_14|boss11_2|boss11_3|boss11_4|boss11_5|boss11_6|boss11_7|boss11_8|boss11_9)$",
   "^(boss12_1_0|boss12_1_1|boss12_1_12|boss12_1_2|boss12_1_3|boss12_1_4|boss12_1_5|boss12_1_6|boss12_1_7|boss12_1_8|boss12_1_9|boss12_2_0|boss12_2_1|boss12_2_10|boss12_2_12|boss12_2_2|boss12_2_3|boss12_2_4|boss12_2_5|boss12_2_6|boss12_2_7|boss12_2_8|boss12_2_9)$",
+  "^(boss13_0|boss13_1|boss13_10|boss13_2|boss13_3|boss13_4|boss13_5|boss13_6|boss13_7|boss13_8|boss13_9|enemy46_0|enemy46_1|enemy46_2|enemy46_3|enemy46_4|enemy46_5|enemy46_6)$",
   "^(boss14_new_0|boss14_new_1|boss14_new_10|boss14_new_11|boss14_new_12|boss14_new_13|boss14_new_14|boss14_new_15|boss14_new_16|boss14_new_17|boss14_new_18|boss14_new_19|boss14_new_2|boss14_new_20|boss14_new_21|boss14_new_22|boss14_new_23|boss14_new_3|boss14_new_4|boss14_new_5|boss14_new_6|boss14_new_7|boss14_new_8|boss14_new_9|dash_triangle_0|dash_triangle_1|dash_triangle_2|dash_triangle_3)$",
+  "^(boss15_0|boss15_1|boss15_10|boss15_11|boss15_12|boss15_13|boss15_14|boss15_15|boss15_16|boss15_17|boss15_18|boss15_19|boss15_2|boss15_20|boss15_21|boss15_22|boss15_23|boss15_24|boss15_25|boss15_26|boss15_27|boss15_28|boss15_29|boss15_3|boss15_4|boss15_5|boss15_6|boss15_7|boss15_8|boss15_9|ghost_0|ghost_1|ghost_10|ghost_11|ghost_12|ghost_13|ghost_2|ghost_4|ghost_5|ghost_6|ghost_7|ghost_8|ghost_9)$",
+  "^(boss16_0|boss16_1|boss16_11|boss16_12|boss16_13|boss16_14|boss16_2|boss16_3|boss16_4|boss16_6|boss16_7|boss16_8|boss16_9)$",
   "^(boss18_0|boss18_1|boss18_2|boss18_3|boss18_4|boss18_5|boss18_6|boss18_7|boss18_8|bullet3_5|bullet3_6|enemy40_0|enemy40_1|enemy40_2|enemy40_3|enemy40_4|enemy40_5|enemy40_6|enemy42_0|enemy42_1|enemy42_2|enemy42_3|enemy42_4|enemy42_5|enemy42_6)$",
-  "^(boss19_attack_0|boss19_attack_1|boss19_attack_2|boss19_attack_3|boss19_attack_4|boss19_attack_5|boss19_dead_0|boss19_dead_2|boss19_dead_3|boss19_dead_4|boss19_dead_5|boss19_dead_6|boss19_dead_7|boss19_dead_8|boss19_dead_9|boss19_idle_0|boss19_idle_1|boss19_idle_2|boss19_idle_3|boss19_run_0|boss19_run_1|boss19_run_2|boss19_run_3|boss19_run_4|boss19_run_5|boss19_weapon_0|boss19_weapon_1|boss19_weapon_2|boss19_weapon_3|boss19_weapon_4|boss19_weapon_5|boss19_weapon_6|boss19_weapon_8|effect_08_31|effect_08_32|effect_08_33|effect_08_34|enemy_egg01_0|enemy_egg01_1|enemy_egg01_2|enemy_egg01_3|enemy_egg01_4|enemy_egg01_5|enemy_egg01_6|enemy_egg01_7|enemy_egg01_8|enemy_egg02_0|enemy_egg02_1|enemy_egg02_2|enemy_egg02_3|enemy_egg02_4|enemy_egg02_5|enemy_egg02_6|enemy_egg02_7|enemy_egg02_8)$",
+  "^(boss19_attack_0|boss19_attack_1|boss19_attack_2|boss19_attack_3|boss19_attack_4|boss19_attack_5|boss19_dead_0|boss19_dead_2|boss19_dead_3|boss19_dead_4|boss19_dead_5|boss19_dead_6|boss19_dead_7|boss19_dead_8|boss19_dead_9|boss19_idle_0|boss19_idle_1|boss19_idle_2|boss19_idle_3|boss19_run_0|boss19_run_1|boss19_run_2|boss19_run_3|boss19_run_4|boss19_run_5|boss19_weapon_0|boss19_weapon_1|boss19_weapon_2|boss19_weapon_3|boss19_weapon_4|boss19_weapon_5|boss19_weapon_6|boss19_weapon_8|enemy_egg01_0|enemy_egg01_1|enemy_egg01_2|enemy_egg01_3|enemy_egg01_4|enemy_egg01_5|enemy_egg01_6|enemy_egg01_7|enemy_egg01_8|enemy_egg02_0|enemy_egg02_1|enemy_egg02_2|enemy_egg02_3|enemy_egg02_4|enemy_egg02_5|enemy_egg02_6|enemy_egg02_7|enemy_egg02_8)$",
   "^(boss20_0|boss20_1|boss20_10|boss20_11|boss20_2|boss20_3|boss20_4|boss20_5|boss20_6|boss20_7|boss20_8|boss20_9)$",
+  "^(boss21_0|boss21_1|boss21_2|boss21_3|boss21_4|boss21_5|effect_08_31|effect_08_32|effect_08_33|effect_08_34|enemy10_0|enemy10_1|enemy10_2|enemy10_3|enemy10_4|enemy10_5|enemy10_6)$",
+  "^(biaoqing_18|boss22_0|boss22_1|boss22_2|boss_0|boss_1|boss_2|boss_3|boss_4|boss_5|boss_6|boss_7|boss_8|circle|circle_ring|malphite_0|malphite_1|malphite_11|malphite_12|malphite_13|malphite_15|malphite_3|malphite_4|malphite_5)$",
+  "^(boss23_0|boss23_1|boss23_2|boss23_3|boss23_4|boss23_5|boss23_6|boss23_7|boss23_8|boss23_9)$",
+  "^(boss24_0|boss24_1|boss24_11|boss24_2|boss24_3|boss24_4|boss24_5|boss24_6|boss24_7|circle_ring_white|skill_effect_9)$",
   "^(boss25_8|boss25_9|boss25_body_0|boss25_body_1|boss25_body_2|boss25_body_3|boss25_body_4|boss25_dead|boss25_hand_1|boss25_head|boss25_tentacle_0|boss25_tentacle_1|boss25_tentacle_2|boss25_tentacle_3|boss25_tentacle_4)$",
-  "^(biaoqing_19)$",
-  "^(biaoqing_12|biaoqing_14|bullet_107|bullet_108|bullet_109|bullet_111|bullet_18|bullet_26|bullet_29|bullet_30|bullet_35|bullet_37|bullet_4|bullet_85|bullet_87|bullet_89|bullet_9|bullet_90|bullet_91|bullet_92|bullet_93|bullet_94|bullet_95|bullet_96|bullet_97|effect04_0|effect04_13|effect04_14|effect04_15|effect04_16|effect04_17|effect04_18|effect04_20|effect_08_29|effect_explode_0|effect_explode_1|effect_explode_2|effect_explode_3|effect_explode_4|effect_explode_5|effect_explode_6|effect_explode_7|effect_explode_8|effect_explode_9|effect_fireball_0|effect_nuclear_explode_0|effect_nuclear_explode_1|effect_nuclear_explode_10|effect_nuclear_explode_2|effect_nuclear_explode_3|effect_nuclear_explode_4|effect_nuclear_explode_5|effect_nuclear_explode_6|effect_nuclear_explode_7|effect_nuclear_explode_8|effect_nuclear_explode_9|effect_shock1_0|effect_shock1_2|effect_shock1_4|effect_shock1_6|effect_shock2_0|effect_shock2_1|effect_shock2_2|effect_shock2_5|shadow3|skill_effect_9|texiao_01|texture_c2|texture_c4|texture_c5|warlock_0_skill_0_effect_3)$",
-  "^(enemy01_0|enemy01_1|enemy01_2|enemy01_3|enemy01_4|enemy01_5|enemy01_6)$",
-  "^(bullet2_10|bullet2_13|weapons2_0|weapons2_48|weapons2_50|weapons3_132|weapons3_24|weapons_28|weapons_s_04)$"
+  "^(boss26_body|boss26_l1_0|boss26_l1_1|boss26_l1_2|boss26_l1_3|boss26_l2_0|boss26_l2_1|boss26_l2_2|boss26_l2_3|boss26_r1_0|boss26_r1_1|boss26_r1_2|boss26_r1_3|boss26_r2_0|boss26_r2_1|boss26_r2_2|boss26_r2_3|boss26_ultimate_buff_0|clock_time_4|universeMask2)$",
+  "^(death_0|death_1|death_2|death_3|effect_shock2_0|effect_shock2_1|effect_shock2_2|effect_shock2_3|effect_shock2_4|effect_shock2_5|effect_shock2_6|effect_shock2_7|emoticon_0|emoticon_11|heavyChop_0|heavyChop_1|heavyChop_10|heavyChop_11|heavyChop_12|heavyChop_2|heavyChop_3|heavyChop_4|heavyChop_5|heavyChop_6|heavyChop_7|heavyChop_8|heavyChop_9|idle_0|idle_1|idle_2|idle_3|jump_0|jump_1|jump_2|jump_3|relic_scarabFire_0|relic_scarabFire_1|relic_scarabFire_10|relic_scarabFire_11|relic_scarabFire_2|relic_scarabFire_3|relic_scarabFire_4|relic_scarabFire_5|relic_scarabFire_6|relic_scarabFire_7|relic_scarabFire_8|relic_scarabFire_9|relic_scarabIce_0|relic_scarabIce_1|relic_scarabIce_10|relic_scarabIce_11|relic_scarabIce_2|relic_scarabIce_3|relic_scarabIce_4|relic_scarabIce_5|relic_scarabIce_6|relic_scarabIce_7|relic_scarabIce_8|relic_scarabIce_9|relic_scarabPoison_0|relic_scarabPoison_1|relic_scarabPoison_10|relic_scarabPoison_11|relic_scarabPoison_2|relic_scarabPoison_3|relic_scarabPoison_4|relic_scarabPoison_5|relic_scarabPoison_6|relic_scarabPoison_7|relic_scarabPoison_8|relic_scarabPoison_9|walk_0|walk_1|walk_2|walk_3|walk_4|walk_5)$",
+  "^(boss_28_0|boss_28_1|boss_28_10|boss_28_12|boss_28_13|boss_28_14|boss_28_15|boss_28_2|boss_28_3|boss_28_4|boss_28_5|boss_28_6|boss_28_7|boss_28_8|boss_28_9|boss_28_animation_0|effect_gun_fire_shockwave_0|effect_gun_fire_shockwave_1|effect_gun_fire_shockwave_2|effect_gun_fire_shockwave_3|effect_gun_fire_shockwave_4|effect_gun_fire_shockwave_5|effect_gun_fire_shockwave_6|effect_gun_fire_shockwave_7)$",
+  "^(biaoqing_11|pirateShip_Boss_0|pirateShip_Boss_1|pirateShip_Boss_10|pirateShip_Boss_13|pirateShip_Boss_14|pirateShip_Boss_15|pirateShip_Boss_16|pirateShip_Boss_17|pirateShip_Boss_18|pirateShip_Boss_2|pirateShip_Boss_3|pirateShip_Boss_4|pirateShip_Boss_5|pirateShip_Boss_6|pirateShip_Boss_7|pirateShip_Boss_8|pirateShip_Boss_9)$",
+  "^(boss_deadcell_giant_0|boss_deadcell_giant_1|boss_deadcell_giant_10|boss_deadcell_giant_11|boss_deadcell_giant_2|boss_deadcell_giant_3|boss_deadcell_giant_4|boss_deadcell_giant_5|boss_deadcell_giant_6|boss_deadcell_giant_7|boss_deadcell_giant_8|boss_deadcell_giant_9|boss_deadcell_hole|effect04_0|effect04_20|fill_circle|shadow4)$",
+  "^(efx_glow|knight\\-B_0|knight\\-B_1|knight\\-B_10|knight\\-B_11|knight\\-B_12|knight\\-B_13|knight\\-B_14|knight\\-B_15|knight\\-B_16|knight\\-B_17|knight\\-B_18|knight\\-B_19|knight\\-B_2|knight\\-B_3|knight\\-B_32|knight\\-B_34|knight\\-B_4|knight\\-B_5|knight\\-B_6|knight\\-B_7|knight\\-B_8|knight\\-B_9|knight\\-P_0|knight\\-P_1|knight\\-P_10|knight\\-P_11|knight\\-P_12|knight\\-P_13|knight\\-P_14|knight\\-P_15|knight\\-P_16|knight\\-P_17|knight\\-P_18|knight\\-P_19|knight\\-P_2|knight\\-P_20|knight\\-P_21|knight\\-P_22|knight\\-P_23|knight\\-P_24|knight\\-P_25|knight\\-P_26|knight\\-P_27|knight\\-P_28|knight\\-P_29|knight\\-P_3|knight\\-P_30|knight\\-P_31|knight\\-P_32|knight\\-P_4|knight\\-P_5|knight\\-P_6|knight\\-P_7|knight\\-P_8|knight\\-P_9|robot_king_1_smash_0|robot_king_1_smash_1|robot_king_1_smash_10|robot_king_1_smash_11|robot_king_1_smash_12|robot_king_1_smash_13|robot_king_1_smash_14|robot_king_1_smash_15|robot_king_1_smash_2|robot_king_1_smash_3|robot_king_1_smash_4|robot_king_1_smash_5|robot_king_1_smash_6|robot_king_1_smash_7|robot_king_1_smash_8|robot_king_1_smash_9|robot_king_2\\-1_befor_0|robot_king_2\\-1_befor_1|robot_king_2\\-1_befor_10|robot_king_2\\-1_befor_11|robot_king_2\\-1_befor_12|robot_king_2\\-1_befor_13|robot_king_2\\-1_befor_14|robot_king_2\\-1_befor_2|robot_king_2\\-1_befor_3|robot_king_2\\-1_befor_4|robot_king_2\\-1_befor_5|robot_king_2\\-1_befor_6|robot_king_2\\-1_befor_7|robot_king_2\\-1_befor_8|robot_king_2\\-1_befor_9|robot_king_2\\-2_aimStart_0|robot_king_2\\-2_aimStart_1|robot_king_2\\-2_aimStart_2|robot_king_2\\-2_aimStart_3|robot_king_2\\-2_aimStart_4|robot_king_2\\-2_aimStart_5|robot_king_2\\-2_aimStart_6|robot_king_2\\-2_aimStart_7|robot_king_2\\-3_aimHold_0|robot_king_2\\-3_aimHold_1|robot_king_2\\-3_aimHold_2|robot_king_2\\-3_aimHold_3|robot_king_2\\-4_shot_0|robot_king_2\\-4_shot_1|robot_king_2\\-4_shot_2|robot_king_2\\-4_shot_3|robot_king_2\\-4_shot_4|robot_king_2\\-4_shot_5|robot_king_2\\-4_shot_6|robot_king_2\\-4_shot_7|robot_king_2\\-5_shotEnd_0|robot_king_2\\-5_shotEnd_1|robot_king_2\\-5_shotEnd_11|robot_king_2\\-5_shotEnd_12|robot_king_2\\-5_shotEnd_2|robot_king_2\\-5_shotEnd_3|robot_king_2\\-5_shotEnd_4|robot_king_2_aimLight_0|robot_king_2_aimLight_1|robot_king_2_aimLight_2|robot_king_2_aimLight_3|robot_king_2_aimLight_4|robot_king_2_aimLight_5|robot_king_2_aimLight_6|robot_king_2_aimLight_7|robot_king_3_attackEnd_0|robot_king_3_attackEnd_1|robot_king_3_attackEnd_2|robot_king_3_attackEnd_3|robot_king_3_attackEnd_4|robot_king_3_attackEnd_5|robot_king_3_attackHold_0|robot_king_3_attackHold_1|robot_king_3_attackHold_2|robot_king_3_attackHold_3|robot_king_3_attackHold_4|robot_king_3_attackHold_5|robot_king_3_attackHold_6|robot_king_3_attackHold_7|robot_king_3_befor_0|robot_king_3_befor_1|robot_king_3_befor_2|robot_king_3_befor_3|robot_king_3_befor_4|robot_king_3_befor_5|robot_king_3_befor_6|robot_king_3_befor_7|robot_king_3_stickSpinning_0|robot_king_3_stickSpinning_1|robot_king_3_stickSpinning_2|robot_king_3_stickSpinning_3|robot_king_4\\-2_befor_0|robot_king_4\\-2_befor_1|robot_king_4\\-2_befor_10|robot_king_4\\-2_befor_11|robot_king_4\\-2_befor_12|robot_king_4\\-2_befor_13|robot_king_4\\-2_befor_14|robot_king_4\\-2_befor_15|robot_king_4\\-2_befor_16|robot_king_4\\-2_befor_2|robot_king_4\\-2_befor_3|robot_king_4\\-2_befor_4|robot_king_4\\-2_befor_5|robot_king_4\\-2_befor_6|robot_king_4\\-2_befor_7|robot_king_4\\-2_befor_8|robot_king_4\\-2_befor_9|robot_king_4\\-3_beforHold_0|robot_king_4\\-3_beforHold_1|robot_king_4\\-3_beforHold_2|robot_king_4\\-3_beforHold_3|robot_king_4\\-4_end_0|robot_king_4\\-4_end_1|robot_king_4\\-4_end_10|robot_king_4\\-4_end_11|robot_king_4\\-4_end_12|robot_king_4\\-4_end_13|robot_king_4\\-4_end_2|robot_king_4\\-4_end_3|robot_king_4\\-4_end_4|robot_king_4\\-4_end_5|robot_king_4\\-4_end_6|robot_king_4\\-4_end_7|robot_king_4\\-4_end_8|robot_king_4\\-4_end_9|robot_king_4_crashFX1_0|robot_king_4_crashFX1_1|robot_king_4_crashFX1_2|robot_king_4_crashFX1_3|robot_king_4_crashFX1_4|robot_king_4_crashFX2_0|robot_king_4_crashFX2_1|robot_king_4_crashFX2_10|robot_king_4_crashFX2_2|robot_king_4_crashFX2_3|robot_king_4_crashFX2_4|robot_king_4_crashFX2_5|robot_king_4_crashFX2_6|robot_king_4_crashFX2_7|robot_king_4_crashFX2_8|robot_king_4_crashFX2_9|robot_king_5_0|robot_king_5_1|robot_king_5_10|robot_king_5_11|robot_king_5_12|robot_king_5_2|robot_king_5_3|robot_king_5_4|robot_king_5_5|robot_king_5_6|robot_king_5_7|robot_king_5_8|robot_king_5_9|robot_king_6_befor_0|robot_king_6_befor_1|robot_king_6_befor_10|robot_king_6_befor_11|robot_king_6_befor_12|robot_king_6_befor_2|robot_king_6_befor_3|robot_king_6_befor_4|robot_king_6_befor_5|robot_king_6_befor_6|robot_king_6_befor_7|robot_king_6_befor_8|robot_king_6_befor_9|robot_king_6_shoot_0|robot_king_6_shoot_1|robot_king_6_shoot_2|robot_king_6_shoot_3|robot_king_7_\\ summonRing|robot_king_7_summon_0|robot_king_7_summon_1|robot_king_7_summon_10|robot_king_7_summon_11|robot_king_7_summon_12|robot_king_7_summon_13|robot_king_7_summon_14|robot_king_7_summon_15|robot_king_7_summon_16|robot_king_7_summon_17|robot_king_7_summon_18|robot_king_7_summon_2|robot_king_7_summon_3|robot_king_7_summon_4|robot_king_7_summon_5|robot_king_7_summon_6|robot_king_7_summon_7|robot_king_7_summon_8|robot_king_7_summon_9|robot_king_8_transform_0|robot_king_8_transform_1|robot_king_8_transform_10|robot_king_8_transform_11|robot_king_8_transform_12|robot_king_8_transform_13|robot_king_8_transform_14|robot_king_8_transform_2|robot_king_8_transform_3|robot_king_8_transform_4|robot_king_8_transform_5|robot_king_8_transform_6|robot_king_8_transform_7|robot_king_8_transform_8|robot_king_8_transform_9|robot_king_dead|robot_king_idle_0|robot_king_idle_1|robot_king_idle_2|robot_king_idle_3|robot_king_idle_4|robot_king_idle_5|robot_king_idle_6|robot_king_idle_7|robot_knight_3_0|robot_knight_3_1|robot_knight_3_10|robot_knight_3_11|robot_knight_3_12|robot_knight_3_13|robot_knight_3_14|robot_knight_3_15|robot_knight_3_16|robot_knight_3_17|robot_knight_3_18|robot_knight_3_19|robot_knight_3_2|robot_knight_3_20|robot_knight_3_21|robot_knight_3_22|robot_knight_3_23|robot_knight_3_24|robot_knight_3_25|robot_knight_3_26|robot_knight_3_27|robot_knight_3_28|robot_knight_3_29|robot_knight_3_3|robot_knight_3_30|robot_knight_3_31|robot_knight_3_4|robot_knight_3_5|robot_knight_3_6|robot_knight_3_7|robot_knight_3_8|robot_knight_3_9|robot_knight_4_0|robot_knight_4_1|robot_knight_4_10|robot_knight_4_11|robot_knight_4_12|robot_knight_4_13|robot_knight_4_14|robot_knight_4_15|robot_knight_4_16|robot_knight_4_17|robot_knight_4_18|robot_knight_4_2|robot_knight_4_21|robot_knight_4_3|robot_knight_4_4|robot_knight_4_5|robot_knight_4_6|robot_knight_4_8|robot_knight_4_9)$",
+  "^(queen\\ handL_0|queen\\ handL_1|queen\\ handL_2|queen\\ handL_3|queen\\ handL_4|queen\\ handL_5|queen\\ handL_6|queen\\ handL_7|queen\\ handL_8|queen\\ handR_0|queen\\ handR_1|queen\\ handR_2|queen\\ handR_3|queen\\ handR_4|queen\\ handR_5|queen\\ handR_6|queen\\ handR_7|queen\\ handR_8|robot_queen_0|robot_queen_1|robot_queen_10|robot_queen_11|robot_queen_12|robot_queen_13|robot_queen_14|robot_queen_15|robot_queen_16|robot_queen_2|robot_queen_3|robot_queen_4|robot_queen_5|robot_queen_6|robot_queen_7|robot_queen_8|robot_queen_9|robot_queen_atk4_0|robot_queen_atk4_1|robot_queen_atk4_2|robot_queen_atk4_3|robot_queen_atk4_4|robot_queen_atk4_5|robot_queen_atk4_6|robot_queen_atk4_7|robot_queen_explode_0|robot_queen_explode_1|robot_queen_explode_2|robot_queen_explode_3|robot_queen_explode_4|robot_queen_explode_5|robot_queen_explode_6|robot_queen_explode_7|robot_queen_lighting_ball_0|robot_queen_lighting_ball_1|robot_queen_lighting_ball_2|robot_queen_lighting_ball_3|robot_queen_lighting_ball_4|robot_queen_lighting_ball_5|robot_queen_lighting_ball_6|robot_queen_lighting_ball_7|robot_queen_turnAngry_0|robot_queen_turnAngry_1|robot_queen_turnAngry_10|robot_queen_turnAngry_11|robot_queen_turnAngry_12|robot_queen_turnAngry_13|robot_queen_turnAngry_14|robot_queen_turnAngry_15|robot_queen_turnAngry_16|robot_queen_turnAngry_17|robot_queen_turnAngry_18|robot_queen_turnAngry_19|robot_queen_turnAngry_2|robot_queen_turnAngry_20|robot_queen_turnAngry_21|robot_queen_turnAngry_22|robot_queen_turnAngry_23|robot_queen_turnAngry_24|robot_queen_turnAngry_25|robot_queen_turnAngry_26|robot_queen_turnAngry_27|robot_queen_turnAngry_28|robot_queen_turnAngry_29|robot_queen_turnAngry_3|robot_queen_turnAngry_30|robot_queen_turnAngry_31|robot_queen_turnAngry_32|robot_queen_turnAngry_33|robot_queen_turnAngry_34|robot_queen_turnAngry_35|robot_queen_turnAngry_36|robot_queen_turnAngry_37|robot_queen_turnAngry_38|robot_queen_turnAngry_39|robot_queen_turnAngry_4|robot_queen_turnAngry_40|robot_queen_turnAngry_41|robot_queen_turnAngry_42|robot_queen_turnAngry_43|robot_queen_turnAngry_44|robot_queen_turnAngry_45|robot_queen_turnAngry_46|robot_queen_turnAngry_47|robot_queen_turnAngry_5|robot_queen_turnAngry_6|robot_queen_turnAngry_7|robot_queen_turnAngry_8|robot_queen_turnAngry_9)$",
+  "^(biaoqing_19|bullet_punch_0|bullet_punch_1|bullet_punch_2|bullet_punch_3|bullet_punch_4|bullet_punch_5|bullet_punch_6|bullet_punch_7|effect_sting_0|robot_king_laser_1\\-1_startFX_0|robot_king_laser_1\\-1_startFX_1|robot_king_laser_1\\-1_startFX_2|robot_king_laser_1\\-1_startFX_3|robot_king_laser_1\\-2_startFX_0|robot_king_laser_1\\-2_startFX_1|robot_king_laser_1\\-2_startFX_2|robot_king_laser_1\\-2_startFX_3|robot_king_laser_1\\-2_startFX_4|robot_king_laser_1\\-2_startFX_5|robot_king_laser_1\\-2_startFX_6|robot_king_laser_1\\-3_start_0|robot_king_laser_1\\-3_start_1|robot_king_laser_1\\-3_start_2|robot_king_laser_1\\-3_start_3|robot_king_laser_1\\-3_start_4|robot_king_laser_2\\-1_hold_0|robot_king_laser_2\\-1_hold_1|robot_king_laser_2\\-1_hold_2|robot_king_laser_2\\-1_hold_3|robot_king_laser_2\\-2_holdFX_0|robot_king_laser_2\\-2_holdFX_1|robot_king_laser_2\\-2_holdFX_2|robot_king_laser_2\\-2_holdFX_3|robot_king_laser_2\\-2_holdFX_4|robot_king_laser_2\\-2_holdFX_5|robot_king_laser_2\\-2_holdFX_6|robot_king_laser_2\\-2_holdFX_7|robot_king_laser_2\\-2_holdFX_8|robot_king_laser_3\\-1_end_0|robot_king_laser_3\\-1_end_1|robot_king_laser_3\\-1_end_2|robot_king_laser_3\\-1_end_3|robot_king_laser_3\\-2_endFX_0|robot_king_laser_3\\-2_endFX_1|robot_king_laser_3\\-2_endFX_2|robot_king_laser_3\\-2_endFX_3|robot_king_laser_3\\-2_endFX_4|robot_king_laser_3\\-2_endFX_5|robot_king_laser_3\\-2_endFX_6|robot_king_laser_3\\-2_endFX_7|robot_king_laser_3\\-2_endFX_8|robot_king_laser_3\\-2_endFX_9)$",
+  "^(biaoqing_12|biaoqing_14|biaoqing_17|bullet3_0|bullet3_1|bullet3_2|bullet3_3|bullet3_4|bullet_107|bullet_108|bullet_109|bullet_110|bullet_111|bullet_18|bullet_26|bullet_29|bullet_30|bullet_35|bullet_37|bullet_4|bullet_44|bullet_45|bullet_46|bullet_54|bullet_55|bullet_56|bullet_57|bullet_58|bullet_59|bullet_60|bullet_61|bullet_62|bullet_63|bullet_64|bullet_65|bullet_81|bullet_84|bullet_85|bullet_86|bullet_87|bullet_89|bullet_9|bullet_90|bullet_91|bullet_92|bullet_93|bullet_94|bullet_95|bullet_96|bullet_97|bullet_thorn_1|cave_ice_nail_0|effect04_13|effect04_14|effect04_15|effect04_16|effect04_17|effect04_18|effect_08_29|effect_explode_0|effect_explode_1|effect_explode_2|effect_explode_3|effect_explode_4|effect_explode_5|effect_explode_6|effect_explode_7|effect_explode_8|effect_explode_9|effect_fireball_0|effect_nuclear_explode_0|effect_nuclear_explode_1|effect_nuclear_explode_10|effect_nuclear_explode_2|effect_nuclear_explode_3|effect_nuclear_explode_4|effect_nuclear_explode_5|effect_nuclear_explode_6|effect_nuclear_explode_7|effect_nuclear_explode_8|effect_nuclear_explode_9|effect_shock1_0|effect_shock1_1|effect_shock1_2|effect_shock1_4|effect_shock1_5|effect_shock1_6|effect_shock1_7|effect_sting_1|effect_sting_2|efx_circle|light_01|shadow3|shadow_lock|spray_0|spray_1|spray_2|spray_3|spray_4|texiao_01|texture_c14|texture_c15|texture_c2|texture_c4|texture_c5|texture_c7|universeMask1|warlock_0_skill_0_effect_3)$",
+  "^(boss26_0|boss26_1|boss26_10|boss26_11|boss26_2|boss26_3|boss26_4|boss26_5|boss26_6|boss26_7|boss26_8|boss26_9|boss26_face_0|boss26_face_1|boss26_face_2|boss26_face_3|boss26_face_4|boss26_face_5|boss26_face_6|boss26_face_7|enemy01_0|enemy01_1|enemy01_2|enemy01_3|enemy01_4|enemy01_5|enemy01_6)$",
+  "^(bullet2_10|bullet2_13|bullet2_20|bullet2_26|bullet2_3|bullet2_8|bullet2_91|weapons2_0|weapons2_35|weapons2_48|weapons2_50|weapons3_132|weapons3_24|weapons3_32|weapons_123|weapons_142|weapons_28|weapons_60|weapons_s_04)$",
+  "^(c01_4)$"
  ],
  "png_anims": {
+  "bossui_boss09_new_outline": {
+   "dir": "boss/boss09",
+   "frames": [
+    "boss09_new_outline"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
+  },
   "bossui_boss14_new_outline": {
    "dir": "boss/boss14",
    "frames": [
@@ -74,6 +126,46 @@
    "anchor": "center",
    "register": false
   },
+  "bossui_boss_03": {
+   "dir": "boss/boss03",
+   "frames": [
+    "boss_03"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
+  },
+  "bossui_boss_04": {
+   "dir": "boss/boss04",
+   "frames": [
+    "boss_04"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
+  },
+  "bossui_boss_05": {
+   "dir": "boss/boss05",
+   "frames": [
+    "boss_05"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
+  },
+  "bossui_boss_06": {
+   "dir": "boss/boss06",
+   "frames": [
+    "boss_06"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
+  },
   "bossui_boss_07": {
    "dir": "boss/boss07",
    "frames": [
@@ -94,6 +186,26 @@
    "anchor": "center",
    "register": false
   },
+  "bossui_boss_10": {
+   "dir": "boss/boss10",
+   "frames": [
+    "boss_10"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
+  },
+  "bossui_boss_10_2": {
+   "dir": "boss/boss10",
+   "frames": [
+    "boss_10_2"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
+  },
   "bossui_boss_11": {
    "dir": "boss/boss11",
    "frames": [
@@ -108,6 +220,36 @@
    "dir": "boss/boss12",
    "frames": [
     "boss_12"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
+  },
+  "bossui_boss_13": {
+   "dir": "boss/boss13",
+   "frames": [
+    "boss_13"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
+  },
+  "bossui_boss_15": {
+   "dir": "boss/boss15",
+   "frames": [
+    "boss_15"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
+  },
+  "bossui_boss_16": {
+   "dir": "boss/boss16",
+   "frames": [
+    "boss_16"
    ],
    "fps": 1,
    "loop": false,
@@ -144,10 +286,120 @@
    "anchor": "center",
    "register": false
   },
+  "bossui_boss_21": {
+   "dir": "boss/boss21",
+   "frames": [
+    "boss_21"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
+  },
+  "bossui_boss_22": {
+   "dir": "boss/boss22",
+   "frames": [
+    "boss_22"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
+  },
+  "bossui_boss_23": {
+   "dir": "boss/boss23",
+   "frames": [
+    "boss_23"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
+  },
+  "bossui_boss_24": {
+   "dir": "boss/boss24",
+   "frames": [
+    "boss_24"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
+  },
   "bossui_boss_25": {
    "dir": "boss/boss25",
    "frames": [
     "boss_25"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
+  },
+  "bossui_boss_26": {
+   "dir": "boss/boss26",
+   "frames": [
+    "boss_26"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
+  },
+  "bossui_boss_27": {
+   "dir": "boss/boss27",
+   "frames": [
+    "boss_27"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
+  },
+  "bossui_boss_28": {
+   "dir": "boss/boss28",
+   "frames": [
+    "boss_28"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
+  },
+  "bossui_boss_deadcellgiant": {
+   "dir": "boss/boss_dead_cell_giant",
+   "frames": [
+    "boss_deadcellgiant"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
+  },
+  "bossui_pirateShip_BossPRVW": {
+   "dir": "boss/boss29",
+   "frames": [
+    "pirateShip_BossPRVW"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
+  },
+  "bossui_robot_king_outline": {
+   "dir": "boss/boss_robot_king",
+   "frames": [
+    "robot_king_outline"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
+  },
+  "bossui_robot_queen_icon": {
+   "dir": "boss/boss_robot_queen",
+   "frames": [
+    "robot_queen_icon"
    ],
    "fps": 1,
    "loop": false,

@@ -308,8 +308,9 @@ window.SK_DESIGN = {
       charge: (e.fam === 'bow' || e.fam === 'charge') ? (charge || 1) : 0
     };
   }
-  const want = new Set([...Object.values(X.wiki), ...Object.values(X.heroes), ...Object.values(X.pools).flat()]);
-  for (const pf of want) if (X.weapons[pf]) DS.weapons[id(pf)] = def(pf);
+  // Mọi vũ khí đã bóc (409 đánh số + 28 thần thoại + vũ khí khởi đầu): rương/lái buôn chỉ bốc trong DS.weaponPools,
+  // món ngoài bể (đồ rèn, thần thoại, quà sự kiện) để lò rèn và sổ tay dùng.
+  for (const pf of Object.keys(X.weapons)) DS.weapons[id(pf)] = def(pf);
   for (const w of Object.keys(DS.weapons)) if (!DS.weapons[w].prefab && w !== '_claw') delete DS.weapons[w]; // không có trong 8.6
   for (const [folder, pf] of Object.entries(X.heroes)) {
     const h = DS.heroes[folder];

@@ -1597,16 +1597,24 @@
     return keys[keys.length - 1].value;
   }
 
+  // Đồ nghề cho trùm ở tệp riêng: rig, đạn thật, nổ, điểm nút, ngắm, sàn đấu (e.arena.objs), quái con.
+  SK.BOSS_KIT = { TAU, DEG, U, B86, BUL, dmgOf, angTo, smooth, frameOf, goRef, rigPlay, rigState, rigTime, rigPoint, rigAng, rigPose,
+    sfx, bulInfo, fire, explode, blast, hurtIn, formation, aimAt, point, aimHand, roomPoint, clampRoom, wander, setMove,
+    startAttack, meteor, spawnMinion, bossProp, beam, beamLen, shortLaser, firePool, gasPool, throwEgg, groupDone };
+
   // ---------------------------------------------------------------- bảng trùm
   const AIS = { boss08, boss07, boss14, boss19, boss25, boss01, boss01_2, boss02, boss20, boss11, boss18, boss12_1, boss12_2 };
   // Bể ghi boss12_parent (BossAI12Parent: boss1_obj/boss2_obj) [ĐO] = hai rồng cùng lúc.
   const GROUPS = { boss12_parent: ['boss12_1', 'boss12_2'] };
   SK.BOSS_AIS = AIS;
   // Bể trùm theo theme [ĐO enemies.LevelKey + IsBoss]; chọn đều [ƯỚC LƯỢNG]; chỉ giữ trùm đã có AI.
-  // Chỉ forest/castle/volcano có bể trùm bóc được; chủ đề khác mượn bể của chủ đề gốc cùng tầng [SUY] (GAPS.md).
+  // Vùng đất mà chưa trùm nào của nó có AI thì mượn bể của vùng gốc cùng tầng [SUY] (GAPS.md).
   function poolOf(theme) {
-    const th = SK.D.themes[theme], ids = B86.pool[theme] || B86.pool[th ? SK.tierAnchor(th.level) : 'forest'] || [];
-    return ids.filter(id => AIS[id] || GROUPS[id]);
+    const ok = id => AIS[id] || GROUPS[id];
+    const own = (B86.pool[theme] || []).filter(ok);
+    if (own.length) return own;
+    const th = SK.D.themes[theme];
+    return (B86.pool[th ? SK.tierAnchor(th.level) : 'forest'] || []).filter(ok);
   }
 
   function makeBoss(G, pid, room) {
@@ -1645,6 +1653,14 @@
     return e;
   }
   for (const pid of Object.keys(AIS)) SK.CUSTOM_ENEMIES[pid] = (G, x, y, room) => makeBoss(G, pid, room);
+  // Trùm viết ở tệp riêng (js/bosses/<pid>.js, nạp sau tệp này): SK.bossRegister(pid, def[, nhóm]) + bộ đồ nghề SK.BOSS_KIT.
+  SK.bossRegister = function (pid, def, group) {
+    if (!B86.bosses[pid] && !group) { SK.warnOnce('breg' + pid, 'boss ' + pid + ' not in sk-bosses86'); return false; }
+    if (group) { GROUPS[pid] = group; return true; }
+    AIS[pid] = def;
+    SK.CUSTOM_ENEMIES[pid] = (G, x, y, room) => makeBoss(G, pid, room);
+    return true;
+  };
 
   // Trùm x-5: chọn đều trong bể của theme; có biến thể (SubspeciesBoss) thì 30% ra biến thể [ĐO].
   SK.bossWaves = function (G) {

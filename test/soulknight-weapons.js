@@ -101,6 +101,8 @@ async function main(b) {
       }
     }
     out.n = Object.keys(SK_DESIGN.weapons).length;
+    out.numbered = Object.keys(SK_W86.weapons).filter(k => /^weapon_\d+$/.test(k)).length;
+    out.mythic = Object.keys(SK_W86.weapons).filter(k => /^weapon_mythic_\d+$/.test(k)).length;
     out.wiki = Object.keys(SK_WIKI.weapons).length;
     out.heroes = Object.entries(SK_DESIGN.heroes).map(([f, h]) => [f, h.weapon, !!(SK_DESIGN.weapons[h.weapon] && SK_DESIGN.weapons[h.weapon].prefab)]);
     out.pool1 = [...new Set(SK_DESIGN.weaponPools['1'])];
@@ -112,6 +114,7 @@ async function main(b) {
   if (!inv) { await ctx.close(); return; }
   check('mọi vũ khí có sprite trong atlas, kind có hàm bắn, prefab đạn có dữ liệu', inv.bad.length === 0,
     inv.n + ' món' + (inv.bad.length ? ' · lỗi ' + inv.bad.slice(0, 6).join(', ') : ''));
+  check('đủ 409 vũ khí đánh số + 28 thần thoại của config/weapons gốc', inv.numbered === 409 && inv.mythic === 28, inv.numbered + ' + ' + inv.mythic);
   check('vũ khí wiki còn dùng được (trừ món 8.6 không có)', inv.missingWiki.length <= 1 && inv.missingWiki.every(x => x === 'laser_plunger'),
     (inv.wiki - inv.missingWiki.length) + '/' + inv.wiki + (inv.missingWiki.length ? ' · thiếu ' + inv.missingWiki.join(',') : ''));
   check('số thật 8.6: sát thương, năng lượng, crit, độ lệch, tốc bắn, số viên, tên Việt chính thức', inv.mism.length === 0,
@@ -120,7 +123,7 @@ async function main(b) {
   check('42 nhân vật cầm vũ khí khởi đầu thật (weapon_init_*), Hiệp Sĩ = Súng Ngắn Cũ',
     inv.heroes.length === 42 && !badHero.length && inv.heroes.find(h => h[0] === 'knight')[1] === 'bad_pistol',
     inv.heroes.length + ' nhân vật' + (badHero.length ? ' · thiếu ' + badHero.map(h => h[0]).join(',') : ''));
-  check('rương 1-x = bể WG_level1 (33 món) [ĐO luban]', inv.pool1.length === 33 && POOL1.every(x => inv.pool1.indexOf(x) >= 0) &&
+  check('rương 1-x = bể WG_level1 (33 món) [ĐO luban] + 20 món Group 0-1 của bảng rơi config/weapons_drop [SUY]', inv.pool1.length === 53 && POOL1.every(x => inv.pool1.indexOf(x) >= 0) &&
     inv.draw.every(x => inv.pool1.indexOf(x) >= 0), inv.pool1.length + ' món, bốc 300 lần ra ' + inv.draw.length + ' món khác nhau');
 
   // ---- vào phòng đánh

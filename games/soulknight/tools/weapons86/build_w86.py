@@ -3,7 +3,7 @@
 
     PYTHONIOENCODING=utf-8 python games/soulknight/tools/weapons86/build_w86.py
 
-Chạy SAU tools/config86 (cần D:\\sk86-ref\\decoded\\*.json). Sau đó chạy build_sk.py (tệp này ghi
+Chạy SAU ~/sk86-ref/tools/decode_config.py (cần $SK86/decoded/config/weapons*.json, ngoài git). Sau đó chạy build_sk.py (tệp này ghi
 tools/extra/weapons.json: sprite của súng + khung hoạt ảnh súng) rồi build_design.py. Xem README.md cạnh tệp.
 Dùng lại bộ đọc hiệu ứng của tools/vfx/build_vfx.py (chỉ import, không sửa) để xuất thân đạn.
 """
@@ -22,22 +22,16 @@ TOOLS = os.path.dirname(HERE)
 GAME = os.path.dirname(TOOLS)
 sys.path.insert(0, os.path.join(TOOLS, 'vfx'))
 import build_vfx as BV  # noqa: E402
-from abx import Env  # noqa: E402
+from abx import REF, Env  # noqa: E402
 
-DEC = r'D:\sk86-ref\decoded'
-WORK = r'D:\sk86-ref\work\weapons'
+DEC = os.path.join(REF, 'decoded')
+WORK = os.path.join(REF, 'work', 'weapons')
 OUT_JS = os.path.join(GAME, 'data', 'sk-weapons86.js')
 OUT_ART = os.path.join(GAME, 'art', 'w86')
 EXTRA_JSON = os.path.join(TOOLS, 'extra', 'weapons.json')
-WIKI_JS = os.path.join(GAME, 'data', 'sk-wiki.js')
 SKDATA_JS = os.path.join(GAME, 'data', 'sk-data.js')
 BUNDLES = ['weapon.ab', 'bullet.ab', 'common.ab', 'sprite_atlas.ab', 'levelcommon.ab']
 r4 = BV.r4
-
-# Tên wiki khác tên game [ĐO bằng mắt trên localization weapon/*]. None = không có trong 8.6.
-WIKI_ALIAS = {'forest_melody': 'weapon_init_bard', 'jackdaw': 'weapon_init_shooter', 'laser_plunger': None, 'arms_041_upgraded': 'weapon_init_gunsexpertx',
-              'key_of_the_faint_star_upgraded': 'weapon_init_warlockx', 'staff_of_plague_upgraded': 'weapon_init_necromancerx',
-              'visage_of_elemental_power_upgraded': 'weapon_init_envoyx', 'vorpan_upgraded': 'weapon_init_beheadedx'}
 
 # Họ hành vi theo tiền tố danh sách trường riêng của lớp Gun* (lớp con giữ trường của lớp cha ở đầu) [ĐO mb/weapon.json].
 FAMILY_PREFIX = [
@@ -595,30 +589,32 @@ def explode_entry(B, name, bundle=None):
 
 
 # ---------------------------------------------------------------- chọn vũ khí
+# Bảng rơi config/weapons_drop (Group 0..6) -> bể rương theo chương của web: bể luban WG_level1..3 cũ ứng với
+# Group 0-1 / 2-3 / 4-6 (đếm chéo 219 món đã có trong cả hai bảng) [SUY].
+DROP_LEVEL = {0: '1', 1: '1', 2: '2', 3: '2', 4: '3', 5: '3', 6: '3'}
+ALL_KEYS = re.compile(r'^weapon_(\d+|mythic_\d+)$')
+
+
 def selection(W):
-    src = io.open(WIKI_JS, encoding='utf-8').read()
-    WK = json.loads(re.search(r'window\.SK_WIKI = (.*?);\n', src, re.S).group(1))
-    norm = lambda s: re.sub(r'[^a-z0-9]', '', (s or '').lower())  # noqa: E731
-    byen = collections.defaultdict(list)
-    for k, v in W.items():
-        if v.get('name'):
-            byen[norm(v['name']['en'])].append(k)
-    wmap = {}
-    for wid, w in WK['weapons'].items():
-        if wid in WIKI_ALIAS:
-            if WIKI_ALIAS[wid]:
-                wmap[wid] = WIKI_ALIAS[wid]
-            continue
-        c = sorted(byen.get(norm(w['name']), []), key=lambda k: (len(k), k))
-        if c:
-            wmap[wid] = c[0]
-    G = J('luban', 'pseudorandom_tbweapongroup.json')
-    pools = {g['WeaponGroupId'].replace('WG_level', ''): [u['Id'] for u in g['WeaponUnit']] for g in G}
-    weights = {g['WeaponGroupId'].replace('WG_level', ''): {u['Id']: u['Weight'] for u in g['WeaponUnit']} for g in G}
-    heroes = {}
-    for f in WK['heroes']:
-        heroes[f] = 'weapon_000' if f == 'knight' else 'weapon_init_' + f
-    return WK, wmap, pools, weights, heroes
+    """Bảng luban (bể rương WG_level*, ánh xạ wiki) chưa giải được trên máy này: lấy lại từ data/sk-weapons86.js đã sinh,
+    rồi thêm mọi vũ khí đánh số + thần thoại của config/weapons và món trong bảng rơi chưa có trong bể nào."""
+    old = json.loads(re.search(r'window\.SK_W86=(.*?);\n', io.open(OUT_JS, encoding='utf-8').read(), re.S).group(1))
+    wmap, heroes = dict(old['wiki']), dict(old['heroes'])
+    pools = {k: list(v) for k, v in old['pools'].items()}
+    weights = {k: dict(v) for k, v in old.get('weights', {}).items()}
+    inpool = {x for v in pools.values() for x in v}
+    for row in sorted(J('config', 'weapons_drop.json').values(), key=lambda r: r['Key']):
+        w, lv = row['Weapon'], DROP_LEVEL.get(row['Group'])
+        if lv and w in W and w not in inpool:
+            pools.setdefault(lv, []).append(w)
+            weights.setdefault(lv, {})[w] = row['Weight']
+            inpool.add(w)
+    # Tiếng bắn: bảng weapons cũ (luban) có trường sfx, config/weapons không có; giữ số đã bóc trước.
+    for k, v in old['weapons'].items():
+        if k in W and v.get('sfx'):
+            W[k]['sfx'] = v['sfx']
+    extra = sorted(k for k in W if ALL_KEYS.match(k))
+    return extra, wmap, pools, weights, heroes
 
 
 def read_enemy_bullets():
@@ -664,10 +660,10 @@ def main():
     enemy_only = False
     os.makedirs(WORK, exist_ok=True)
     t0 = time.time()
-    W = J('weapons.json')
+    W = J('config', 'weapons.json')
     LOC = J('localization_en_vi.json')
-    WK, wmap, pools, weights, heroes = selection(W)
-    S = sorted(set(wmap.values()) | {k for v in pools.values() for k in v} | {v for v in heroes.values() if v})
+    extra, wmap, pools, weights, heroes = selection(W)
+    S = sorted(set(wmap.values()) | {k for v in pools.values() for k in v} | {v for v in heroes.values() if v} | set(extra))
     LIMIT = int(os.environ.get('W86_LIMIT', '0') or 0)
     if LIMIT:
         S = S[:LIMIT]
