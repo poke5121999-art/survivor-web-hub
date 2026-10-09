@@ -225,6 +225,7 @@
   gap: 16px;
   flex-wrap: wrap;
 }
+.hub-feedback-link { margin-left: auto; text-decoration: none; }
 .hub-account {
   display: flex;
   align-items: center;
