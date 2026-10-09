@@ -130,6 +130,10 @@ async function run(browser, base) {
   await page.keyboard.press('KeyL');
   await sleep(200);
   check('L không bật đèn (L gốc = Bách khoa)', !(await page.evaluate(() => DR.s.lightsOn)));
+  check('L mở Bách khoa', await page.evaluate(() => !!(window.DRBook && DRBook.isOpen())));
+  await page.keyboard.press('Escape');
+  await sleep(300);
+  check('Esc đóng Bách khoa, giờ chạy lại', await page.evaluate(() => !DRBook.isOpen() && (DR.timeScale == null || DR.timeScale === 1)));
 
   // ---- giữ E: vòng chọn, time scale 0,3 ----
   await page.keyboard.down('KeyW');

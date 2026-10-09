@@ -56,6 +56,8 @@
     const canvas = document.createElement('canvas'); wrap.appendChild(canvas);
     const scrim = document.createElement('div'); scrim.className = 'in-scrim'; wrap.appendChild(scrim);
     const text = document.createElement('div'); text.className = 'in-text'; wrap.appendChild(text);
+    // thẻ chương lúc nạp (bản gốc: góc phải-dưới, chuỗi loading.themed "Dredging the depths"; clip 00:00 và 00:35)
+    const card = document.createElement('div'); card.className = 'in-card'; card.innerHTML = '<i></i><span>Vét sâu đáy biển</span>'; wrap.appendChild(card);
     const skip = document.createElement('div'); skip.className = 'in-skip';
     skip.innerHTML = '<i></i><span>Giữ Space để bỏ qua</span>';
     wrap.appendChild(skip);
@@ -106,6 +108,53 @@
       if (!byPath[n.path]) byPath[n.path] = o;
       if (n.parent >= 0) objs[n.parent].add(o); else scene.add(o);
     }
+    // Vệt nắng trên nước dưới mặt trời (Scene1BoatWave/WaterHighlight_Particles: hạt trắng-xanh nhạt, sống 1–2 s, 200 hạt/s).
+    // [ĐỀ XUẤT] không dựng đúng hệ hạt Unity: rải các vệt ngang nhấp nháy trên mặt nước y = −1,82 theo đường từ camera tới mặt trời.
+    const glitter = [];
+    const sc1 = byPath['Scene1Container'];
+    if (sc1) {
+      const gg = new T.PlaneGeometry(1, 1);
+      const cam0 = [-3.88566, -1.37914, -7.08846], sunZ = 21.1, sunX = 0;      // Camera pos t=0 / Scene1Sun
+      for (let i = 0; i < 90; i++) {
+        const u = Math.random(), z = 2 + u * u * 36;                             // dày ở gần, thưa ở xa
+        const k = (z - cam0[2]) / (sunZ - cam0[2]);
+        const cx = cam0[0] + (sunX - cam0[0]) * k, spread = 0.7 + z * 0.35 * (1 - Math.min(1, z / 45));
+        const m = new T.MeshBasicMaterial({ color: new T.Color(0.55, 0.8, 0.85), transparent: true, depthTest: false, depthWrite: false, blending: T.AdditiveBlending, opacity: 0 });
+        const q = new T.Mesh(gg, m);
+        q.position.set(cx + (Math.random() - 0.5) * spread * 2, -1.82, -z);
+        const w = (0.1 + Math.random() * 0.5) * (0.5 + z * 0.12);
+        q.scale.set(w, w * 0.05, 1); q.renderOrder = 6;
+        q.userData = { ph: Math.random() * 6.28, f: 1.5 + Math.random() * 2.5, a: 0.35 + Math.random() * 0.5 };
+        sc1.add(q); glitter.push(q);
+      }
+    }
+    // CutsceneProfile (Volume toàn cục của IntroCutscene.unity): ColorLookup LUT_0 (đóng góp 1), Vignette 0,22 / smoothness 1, FilmGrain 0,4.
+    // Bỏ qua: Bloom 1,5 (ngưỡng 1, cần HDR), ChromaticAberration 0,1, MotionBlur [ĐỀ XUẤT].
+    const rt = new T.WebGLRenderTarget(4, 4, { samples: 4, minFilter: T.LinearFilter, magFilter: T.LinearFilter });
+    rt.texture.encoding = T.sRGBEncoding;
+    const lutTex = new T.TextureLoader().load('art/ui/intro/LUT_0.png?v=20261009c');
+    lutTex.minFilter = lutTex.magFilter = T.LinearFilter; lutTex.generateMipmaps = false;
+    const post = new T.Scene(), postCam = new T.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    const postMat = new T.ShaderMaterial({
+      uniforms: { tScene: { value: rt.texture }, tLut: { value: lutTex }, uT: { value: 0 } },
+      depthTest: false, depthWrite: false,
+      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+      fragmentShader: `uniform sampler2D tScene; uniform sampler2D tLut; uniform float uT; varying vec2 vUv;
+        vec3 lut(vec3 c) { c = clamp(c, 0.0, 1.0); float b = c.b * 31.0, b0 = floor(b), b1 = min(b0 + 1.0, 31.0), f = b - b0;
+          float v = (c.g * 31.0 + 0.5) / 32.0;
+          vec3 a = texture2D(tLut, vec2((b0 * 32.0 + c.r * 31.0 + 0.5) / 1024.0, v)).rgb;
+          vec3 d = texture2D(tLut, vec2((b1 * 32.0 + c.r * 31.0 + 0.5) / 1024.0, v)).rgb;
+          return mix(a, d, f); }
+        void main() {
+          vec3 c = lut(texture2D(tScene, vUv).rgb);
+          vec2 dist = abs(vUv - 0.5) * 0.22 * 3.0;                                  // URP Vignette
+          c *= pow(clamp(1.0 - dot(dist, dist), 0.0, 1.0), 1.0);
+          float n = fract(sin(dot(vUv * 913.0 + uT, vec2(12.9898, 78.233))) * 43758.5453);
+          c += (n - 0.5) * 0.4 * 0.08;                                              // FilmGrain 0,4 [ĐỀ XUẤT: biên độ]
+          gl_FragColor = vec4(c, 1.0);
+        }`
+    });
+    post.add(new T.Mesh(new T.PlaneGeometry(2, 2), postMat));
     const camNode = byPath['Camera/CameraMain'];
     const textNode = D.nodes.find(n => n.path === 'Canvas/Text');
     if (textNode && textNode.text) {
@@ -126,6 +175,7 @@
     function resize() {
       const w = root.innerWidth, h = root.innerHeight;
       renderer.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix();
+      rt.setSize(Math.max(1, Math.floor(w * renderer.getPixelRatio())), Math.max(1, Math.floor(h * renderer.getPixelRatio())));
       wrap.style.setProperty('--s', (h / 1080).toFixed(4));   // CanvasScaler 1920×1080, khớp chiều cao
       placeText();
     }
@@ -149,6 +199,8 @@
         }
       }
       scrim.style.opacity = Math.max(0, Math.min(1, scrimA.v)).toFixed(3);
+      for (const q of glitter) q.material.opacity = q.userData.a * Math.max(0, Math.sin(t * q.userData.f + q.userData.ph)) ** 2;
+      postMat.uniforms.uT.value = t % 10;
       text.classList.toggle('on', textOn.v);
       if (camNode) {
         camNode.updateWorldMatrix(true, false);
@@ -159,11 +211,12 @@
       root.removeEventListener('resize', resize);
       scene.traverse(o => { if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } });
       for (const g of Object.values(geoCache)) g.dispose();
+      rt.dispose(); lutTex.dispose(); postMat.dispose();
       renderer.dispose();
       if (renderer.forceContextLoss) renderer.forceContextLoss();
       wrap.remove();
     }
-    return { wrap, skip, apply, render: () => renderer.render(scene, cam), dispose, dur: D.dur || 31.78 };
+    return { wrap, skip, card, apply, render: () => { renderer.setRenderTarget(rt); renderer.render(scene, cam); renderer.setRenderTarget(null); renderer.render(post, postCam); }, dispose, dur: D.dur || 31.78 };
   }
 
   let audioOn = false;
@@ -214,6 +267,7 @@
       if (holding && st.t >= SKIP_DELAY) { hold += dt; V.skip.style.setProperty('--p', Math.min(1, hold / SKIP_HOLD)); if (hold >= SKIP_HOLD) { endIllustrated(); return; } }
       else { hold = 0; V.skip.style.setProperty('--p', 0); }
       V.apply(Math.min(st.t, V.dur));
+      V.card.classList.toggle('on', st.t < 1.5 || st.t > V.dur - 2);   // đầu và cuối phần minh hoạ, lúc màn đen
       V.render();
       if (st.t >= V.dur) endIllustrated();
     } else if (st.stage === 'cinematic') {

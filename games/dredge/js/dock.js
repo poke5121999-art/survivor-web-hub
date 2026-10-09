@@ -15,6 +15,7 @@
  *     Rời điểm đến → chạy lại node gốc của bến (HideCurrentDestination → dockUI.Show).
  * Giao diện từng điểm đến: MarketDestination / ShipyardDestination (js/shop.js: lưới hàng + khoang, mua bán sửa), StorageDestination (DRCargo), RestDestination
  * (ngủ tới 06:00 rồi tự ra); CharacterDestination chỉ có hội thoại. Upgrade/Research/OverflowStorage/Constructable chưa có hệ thống.
+ * Vòng 4 (clip): nhân vật đứng giữa màn cùng lời chào khi mở cửa hàng (greetShow, từ dòng cuối của node vừa chạy), nút "Rời đi [Space]" góc dưới phải.
  *   DRDock.show(info)  DRDock.hide()  DRDock.isOpen()  DRDock.visit(destId)  DRDock.talk(speaker)  DRDock.leave()  DRDock._debug()
  */
 (function (root) {
@@ -124,7 +125,7 @@
     if (!D) return;
     cancelAnimationFrame(D.raf);
     D = null;
-    hideUi(); closeWin();
+    hideUi(); closeWin(); greetHide(); capStop();
     if (root.DRCargo && DRCargo.isOpen()) DRCargo.close();
   }
 
@@ -185,6 +186,10 @@
         el('div', 'v', box, (STR(dd.progressValueLocalizationKey) || '{0} remaining').replace('{0}', money(left)));
       }
     }
+    // nút "Leave [Space]" góc dưới phải (clip 1050: ControlPanel của DockUI); Space đã nối ở bộ phím dưới
+    const lv = el('button', 'dk-leave', ui); lv.dataset.act = 'leave';
+    el('span', '', lv, 'Rời đi'); el('b', '', lv, 'Space');
+    lv.onclick = () => { play('ui.button.back'); leave(); };
     el('div', 'dk-money', ui, money(DR.s.funds));
     // điểm đến bám 3D
     D.btns = [];
@@ -293,6 +298,57 @@
     DR.setMode('sail');
   }
 
+  // ---------------------------------------------------------------- lời chào ở cửa hàng (V05)
+  // Bản gốc: node của nhân vật (Shipwright_Visit_0, Fishmonger_RandomNormal...) chạy xong thì dòng cuối VẪN nằm trong hộp thoại, chân dung đứng giữa màn
+  // giữa hai bảng hàng / khoang (clip 340, 1496, 2130). Ở đây DRDialogue đóng hộp khi node hết, nên ghi lại dòng cuối + chân dung rồi dựng lại bản sao.
+  let cap = null, greet = null;
+  function capStart() {
+    capStop();
+    cap = { html: null, name: null, prefab: null, t: setInterval(() => {
+      const s = root.DRDialogue && DRDialogue.isOpen() && DRDialogue.state();
+      if (!s || s.kind !== 'line' || !s.text) return;     // innerHTML đã đủ chữ từ đầu (ký tự chưa gõ chỉ trong suốt); node AutoResolveNextLine không kịp gõ xong
+      const n = document.querySelector('#dr-dlg .dlg-text');
+      if (n) { cap.html = n.innerHTML; cap.name = s.name; cap.prefab = s.prefab; }
+    }, 60) };
+  }
+  function capStop() { if (cap && cap.t) { clearInterval(cap.t); cap.t = 0; } }
+  // CharacterDestination không có trường nhân vật: tên node gốc "Shipwright_Root" -> SpeakerData.Shipwright
+  function speakerOf(d) {
+    if (d.speaker) return d.speaker;
+    const n = String(d.root || '').split('_')[0], SD = DR_WORLD.SpeakerData || {};
+    return SD[n] ? n : null;
+  }
+  function greetHide() {
+    if (greet) { try { greet.handle && greet.handle.destroy(); } catch (e) { /* rig đã huỷ */ } greet.host.remove(); greet = null; }
+  }
+  function greetShow(d) {
+    greetHide();
+    const sp = speakerOf(d), DLG = root.DRDialogue, A = root.DRAnim;
+    const prefab = (cap && cap.prefab) || (sp && DLG && DLG.portraitPrefab(sp));
+    if (!prefab) return;
+    const host = el('div', 'dr-ui', document.body); host.id = 'dr-greet';
+    host.style.setProperty('--s', scale().toFixed(4));
+    greet = { host, handle: null };
+    const port = el('div', 'dlg-portrait', host);
+    if (A && A.hasRig(prefab)) {
+      const wrap = el('div', 'dlg-pf rig', port); wrap.dataset.prefab = prefab;
+      greet.handle = A.rig(prefab, wrap, { shadow: 'drop-shadow(0 8px 18px rgba(0, 0, 0, .55))' });
+      A.bind(greet.handle, greet.handle.ctrl, {});
+    } else {
+      const wrap = el('div', 'dlg-pf', port); wrap.dataset.prefab = prefab;
+      for (const L of ((root.DR_YARN || {}).portraits || {})[prefab] || []) {
+        const im = el('img', '', wrap); im.src = L.src; im.alt = '';
+        im.style.cssText = 'left:calc(' + (L.x - L.w / 2) + 'px*var(--s));top:calc(' + (-L.y - L.h / 2) + 'px*var(--s));width:calc(' + L.w + 'px*var(--s));height:calc(' + L.h + 'px*var(--s));object-fit:contain';
+      }
+    }
+    if (cap && cap.html) {
+      if (cap.name) { const nm = el('div', 'dlg-name on', host); el('span', '', nm, cap.name); }
+      const box = el('div', 'dlg-box in' + (cap.name ? ' speech' : ''), host);   // dòng không người nói: hộp đen như DredgeDialogueView
+      const tx = el('div', 'dlg-text', box); tx.innerHTML = cap.html;
+      greet.text = tx.textContent;
+    }
+  }
+
   // ---------------------------------------------------------------- điểm đến (BaseDestinationUI.Show)
   function visit(id) {
     const d = (D.data.dests || []).find(x => x.id === id);
@@ -315,9 +371,12 @@
     }
     if (!node && d.root) node = d.root;
     if (!node && d.speaker) node = (DR_WORLD.SpeakerData[d.speaker] || {}).yarnRootNode || '';
+    cap = null;
     if (node && root.DRYarn.hasNode(node)) {
+      capStart();
       DRDialogue.start(node, {
         onEnd: r => {
+          capStop();
           if (!D) return;
           if (r && r.flags.exitDestination) { leaveDest(); return; }
           openDest();
@@ -330,6 +389,7 @@
   function leaveDest() {
     if (!D) return;
     const d = D.dest;
+    greetHide();
     D.dest = null;              // trước khi đóng khoang: onClose của khoang thấy dest đã rời thì không gọi lại hàm này
     closeWin();
     if (root.DRCargo && DRCargo.isOpen()) DRCargo.close();
@@ -346,7 +406,7 @@
     if (d.cls === 'StorageDestination') { openStorage(); return; }
     // MarketDestinationUI: lưới hàng bên trái + khoang bên phải (js/shop.js); đóng khoang = rời điểm đến
     if ((d.cls === 'MarketDestination' || d.cls === 'ShipyardDestination') && root.DRShop &&
-      DRShop.open(d, { onClose: () => { if (D && D.phase === 'dest' && D.dest === d) leaveDest(); } })) return;
+      DRShop.open(d, { onClose: () => { if (D && D.phase === 'dest' && D.dest === d) leaveDest(); } })) { greetShow(d); return; }
     renderDest();
   }
 
@@ -392,12 +452,11 @@
   function rest() {
     const t = DR.s.time % 1, k = 0.25;
     const hours = (t >= k ? k + (1 - t) : k - t) * 24;
-    toast('Bạn chìm vào giấc ngủ…');
     let done = false;
     const fin = () => { if (done) return; done = true; if (D && D.phase === 'dest') leaveDest(); };
     DR.on('passTimeDone', fin);
     DR.emit('passTime', hours, 'SLEEP');
-    setTimeout(fin, 9000);   // [ĐỀ XUẤT] sky.js không báo xong thì vẫn quay ra
+    setTimeout(fin, 20000);   // [ĐỀ XUẤT] sky.js không báo xong thì vẫn quay ra (màn js/passtime.js lo phần hiển thị)
   }
 
   // ---------------------------------------------------------------- phím
@@ -428,6 +487,7 @@
   root.DRDock = {
     show, hide, resume, visit, talk, leave, leaveDest, isOpen: () => !!D, aim, cam,
     _debug: () => D && {
+      greet: greet ? { prefab: greet.host.querySelector('[data-prefab]').dataset.prefab, text: greet.text || null } : null,
       dockId: D.dockId, phase: D.phase, dest: D.dest && D.dest.id, tab: D.tab,
       dests: ui ? [...ui.querySelectorAll('.dk-dest')].map(b => b.dataset.dest) : [],
       speakers: ui ? [...ui.querySelectorAll('.dk-speaker')].map(b => b.dataset.speaker) : []

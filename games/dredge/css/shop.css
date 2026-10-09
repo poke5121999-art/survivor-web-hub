@@ -30,7 +30,7 @@
 .cg-left.cg-shop .cg-foot .cg-btn { width: calc(var(--k) * var(--sc) * 350px); min-width: 0; padding: 0 calc(var(--k) * var(--sc) * 12px) 0 calc(var(--k) * var(--sc) * 95px); color: #fff;
   overflow: hidden; text-overflow: ellipsis; text-align: center;
   font: 600 max(11px, calc(var(--k) * var(--sc) * 24px))/1 var(--dr-head); border: 0; border-image: none; border-radius: calc(var(--k) * var(--sc) * 8px);
-  background: rgb(140, 87, 23); }
+  background: rgba(255, 255, 255, .07); }   /* clip 340: thanh tối trong suốt, không cam (màu cam của Button_DefaultLight không thấy ở bản chạy) */
 .cg-left.cg-shop .cg-foot .cg-btn::before { content: ""; position: absolute; left: calc(var(--k) * var(--sc) * 50px); top: calc(var(--k) * var(--sc) * 5px); bottom: calc(var(--k) * var(--sc) * 5px); width: calc(var(--k) * var(--sc) * 40px);
   background: url(../art/ui/sprites/RepairIcon.webp) center / contain no-repeat; }
 .cg-left.cg-shop .cg-foot .cg-btn[disabled] { color: #d8c8b4; }
@@ -40,3 +40,22 @@
 
 /* màn thấp (điện thoại ngang): bảng sát mép trên, không còn chỗ cho tấm tiêu đề nhô lên; tab hình đã nói loại hàng [ĐỀ XUẤT] */
 @media (max-height: 520px) { .cg-left.cg-shop .cg-title { display: none; } }
+
+/* V05: phím Q / E ở hai đầu thanh tab (clip 340: ô Q bên trái tab đầu, ô E bên phải tab cuối; PlayerTabbedPanel cũng có Q / E) */
+.cg-left.cg-shop .cg-ltabs::before, .cg-left.cg-shop .cg-ltabs .cg-tab:last-of-type::after { position: absolute; top: calc(50% - var(--k) * var(--sc) * 14px); width: calc(var(--k) * var(--sc) * 28px); height: calc(var(--k) * var(--sc) * 28px);
+  display: flex; align-items: center; justify-content: center; box-sizing: border-box; border-radius: calc(var(--k) * var(--sc) * 6px); background: #fff; color: #111;
+  font: 600 max(10px, calc(var(--k) * var(--sc) * 20px))/1 var(--dr-head); pointer-events: none; z-index: 2; }
+.cg-left.cg-shop .cg-ltabs::before { content: "Q"; left: calc(var(--k) * var(--sc) * -42px); }
+.cg-left.cg-shop .cg-ltabs .cg-tab:last-of-type::after { content: "E"; right: calc(var(--k) * var(--sc) * -42px); }
+
+/* V05: nút ở vùng điều khiển của cửa hàng thành chữ trơn + ô phím như bản gốc ("Repair All [$x]", "Enter Repair Mode [T]", "Return to Town [Esc]") */
+body:has(.cg-root.on .cg-left.cg-shop) .cg-ctl .cg-cbtn { min-width: 0; background: none; border: 0; border-image: none; box-shadow: none; padding: 2px 4px; color: #fff; text-align: right;
+  display: flex; align-items: center; gap: 10px; text-shadow: 0 1px 4px #000; font: 600 max(13px, calc(var(--k) * 26px))/1.1 var(--dr-head); }
+body:has(.cg-root.on .cg-left.cg-shop) .cg-ctl .cg-cbtn[data-act]::after { content: ""; font-size: .62em; font-weight: 600; padding: .2em .5em; border-radius: .3em; background: #fff; color: #111; text-shadow: none; }
+body:has(.cg-root.on .cg-left.cg-shop) .cg-ctl .cg-cbtn[disabled] { opacity: .55; }
+body:has(.cg-root.on .cg-left.cg-shop) .cg-ctl .cg-cbtn:not([disabled]):hover { color: #fee7d1; }
+
+body:has(.cg-root.on .cg-left.cg-shop) .cg-ctl .cg-cbtn[data-act="repair-all"]::after { content: "R"; }
+body:has(.cg-root.on .cg-left.cg-shop) .cg-ctl .cg-cbtn[data-act="repair-mode"]::after { content: "T"; }
+body:has(.cg-root.on .cg-left.cg-shop) .cg-ctl .cg-cbtn[data-act="return"]::after { content: "Esc"; }
+body:has(.cg-root.on .cg-left.cg-shop) .cg-ctl .cg-cbtn[data-act="sell-all"]::after { content: "F"; }

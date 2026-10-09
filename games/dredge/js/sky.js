@@ -839,8 +839,8 @@ void main(){
     root.DRWater.uniforms.uGameTime.value = gt;
     U.uDrTime.value = gt;
 
-    const t = s ? R.timeOfDay(s.time) : 0.3;
-    const day = R.isDay(s ? s.time : 0.3, TC.dawnTime, TC.duskTime);
+    const t = s ? R.timeOfDay(s.time) : 0.27;   // chưa có ván = màn tiêu đề: DummyTimeProxy.fakeTime 0,27 (Title.unity)
+    const day = R.isDay(s ? s.time : 0.27, TC.dawnTime, TC.duskTime);
     // sanity
     if (playing && tmod > 0) {
       const st = root.DRBoat && DRBoat.stats;

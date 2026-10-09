@@ -23,6 +23,7 @@
   const SYS = V.systems.boatTrail;
   const MAX = SYS.maxParticles;
   const G = 9.81;
+  const PUFF_Y = 0.35;
 
   // ---------- đường cong / gradient Unity ----------
   // AnimationCurve Hermite giữa hai khoá [t, v, inSlope, outSlope]
@@ -141,12 +142,14 @@
     mesh.name = 'BoatTrailParticles';
     scene.add(mesh);
     initSmoke();
+    if (root.DRTentacle) root.DRTentacle.init(scene); // V14: xúc tu đỏ của sự kiện TentacleAttack (js/tentacle.js)
   }
 
   function reset() {
     alive = 0; emitAcc = 0; hasPrev = false;
     if (mesh) mesh.count = 0;
     for (const c of columns) c.init = false;
+    if (root.DRTentacle) root.DRTentacle.finish();
   }
 
   // ma trận emitter = Player (bob) × vị trí cục bộ của BoatTrailParticles
@@ -190,6 +193,7 @@
 
   let foamLin = [1, 1, 1];
   function update(dt, env) {
+    if (root.DRTentacle) root.DRTentacle.update(dt);
     if (!mesh) return;
     const D = root.DR, b = D.s && D.s.boat;
     if (!b) return;
@@ -216,7 +220,9 @@
     emPrev.copy(emPos);
     // màu bọt: WaterController._FoamColor (sRGB → tuyến tính)
     const wp = root.DRWater && DRWater.props ? DRWater.props() : null;
-    const fc = wp ? wp.foamColor : V.waterController.default.foamColor;
+    // V04/halo: bản rã FloatingParticle_Shader (biến thể BOOLEAN_692E…_ON của FoamParticle_Mat) nhân albedo với cb0[126] — màu NƯỚC chứ không phải cb0[128]
+    // (_FoamColor của Water_Shader) — nên bọt thuyền cùng tông nước (xanh nhạt) chứ không trắng loang; clip gốc không có cục trắng cạnh thuyền
+    const fc = wp ? wp.shallowColor : V.waterController.default.shallowColor;
     foamLin = [srgb2lin(fc[0]), srgb2lin(fc[1]), srgb2lin(fc[2])];
     write();
     updateSmoke(dt);
@@ -286,7 +292,8 @@
       dummy.position.set(px[i], py[i], pz[i]);
       // startRotation (2D) quay quanh trục z của hạt; RenderAlignment World
       dummy.rotation.set(0, 0, -rot[i]);
-      dummy.scale.setScalar(Math.max(1e-4, sz));
+      // [ĐỀ XUẤT] dẹt theo trục y (PUFF_Y): clip gốc chỉ thấy gợn mảnh sát mặt nước, không có cục nổi cao cạnh thân tàu
+      const z0 = Math.max(1e-4, sz); dummy.scale.set(z0, z0 * PUFF_Y, z0);
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
       if (CO) gradColor(CO.gradient, t, cg);

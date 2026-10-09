@@ -1,0 +1,14 @@
+/* Hộp hướng dẫn (TutorialPopup, js/tutorial.js): 420x200 canvas, nền đen, chữ trắng cỡ 22, thanh tiến trình 10 px ở đáy.
+   Tỉ lệ canvas -> màn hình là --hu (css/ui.css, js/hud.js đặt). Viền trắng mảnh như khung clip ObBBFGMem5U t=120 / 916. */
+#dr-tut { position: fixed; z-index: 26; width: calc(420px * var(--hu, 1)); height: calc(200px * var(--hu, 1)); min-width: 250px; min-height: 120px; pointer-events: none;
+  display: flex; align-items: center; justify-content: center; padding: calc(12px * var(--hu, 1)) calc(10px * var(--hu, 1)) calc(22px * var(--hu, 1));
+  background: #0a0908; outline: 1px solid #fff; outline-offset: -1px; color: #fff; text-align: center;
+  font: 400 max(13px, calc(30px * var(--hu, 1)))/1.25 "Front Page Neue", "Oswald", "Arial Narrow", sans-serif;
+  opacity: 0; transform: scale(.96); transition: opacity .35s ease, transform .35s ease; visibility: hidden; }
+#dr-tut.on { opacity: 1; transform: none; visibility: visible; }
+#dr-tut .tp-text { text-shadow: 0 1px 2px #000; }
+#dr-tut .tp-bar { position: absolute; left: 0; right: 0; bottom: 0; height: calc(10px * var(--hu, 1)); min-height: 4px; background: rgba(255, 255, 255, .12); }
+#dr-tut .tp-bar i { display: block; height: 100%; width: 0; background: #fff; }
+#dr-tut kbd { display: inline-block; min-width: 1.35em; padding: 0 .3em; margin: 0 .1em; border-radius: .25em; background: #fff; color: #0a0908; font: 400 .82em/1.45 "Front Page Neue", "Oswald", sans-serif; vertical-align: .05em; }
+#dr-tut kbd.mouse, #dr-tut kbd.wheel { font-size: .7em; }
+#dr-tut .tp-eye { display: inline-block; width: 1.5em; height: 1em; vertical-align: -.12em; background: #dc2c38; -webkit-mask: var(--eye) center / contain no-repeat; mask: var(--eye) center / contain no-repeat; }

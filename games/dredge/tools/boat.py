@@ -237,7 +237,30 @@ BASE_TEX_PRIORITY = ("_BaseMap", "_MainTex")
 # Which mask channel tints with which material colour. The hull shader is compiled Shader Graph (not
 # readable), so channels were chosen from the mask layout: blue fills most of the palette (hull),
 # red is the top row (roof), green the bottom row (trim). Guess; see notes in boat.js.
-TINT = (("r", "_Roof_Color"), ("g", "_Trim1_Color"), ("b", "_Hull_Color"))
+# [ĐÃ ĐO] LitBoat_Shader (DXBC của bản D3D11, dịch bằng D3DDisassemble): albedo * (mask.r * cb3[11] + mask.g * cb3[8] + mask.b * cb3[10]),
+# ba màu là _Roof_Color, _Hull_Color, _Base_Color. Kênh đỏ (hàng 0-1 của bảng màu = nóc cabin) = Roof, kênh xanh lá (hàng 14-15 = dải
+# thân thuyền) = Hull, kênh xanh dương (phần còn lại: cabin, boong, ống khói) = Base_Color (trắng) nên KHÔNG bị nhuộm.
+# Trim1/2/3_Color trong .mat là thuộc tính cũ (alpha 0), shader không còn đọc. Hull/Roof do PlayerColorCustomizer ghi đè (xem customizer()).
+TINT = (("r", "_Roof_Color"), ("g", "_Hull_Color"), ("b", "_Base_Color"))
+TIER_OF = {"SmallBoat_Mat": 1, "Boat2_Mat": 2, "Boat3_Mat": 3, "Boat4_Mat": 4, "Boat5_Mat": 5}
+CUSTOM = {}
+
+
+def customizer(prefab):
+    """PlayerColorCustomizer: roofColors/hullColors + default index per hull tier (Odin dictionaries in SerializedBytes)."""
+    for go, _, _ in walk(prefab):
+        ptr = mono_of(go, "PlayerColorCustomizer")
+        if ptr is None:
+            continue
+        t = ptr.read_typetree()
+        raw = bytes(t["serializationData"]["SerializedBytes"])
+        ent = re.findall(rb"\x24\x00\x6b\x00(.{4})\x17\x01\x02\x00\x00\x00\x24\x00\x76\x00(.{4})", raw, re.S)
+        vals = [(struct.unpack("<i", k)[0], struct.unpack("<i", v)[0]) for k, v in ent]
+        assert len(vals) == 10, "PlayerColorCustomizer: %d default colour entries found, expected 10 (5 tiers x roof/hull)" % len(vals)
+        col = lambda c: (c["r"], c["g"], c["b"])
+        return {"roof": [col(c) for c in t["roofColors"]], "hull": [col(c) for c in t["hullColors"]],
+                "defRoof": dict(vals[:5]), "defHull": dict(vals[5:])}
+    raise LookupError("PlayerColorCustomizer not found in the player prefab")
 
 
 def tex_image(ptr):
@@ -261,7 +284,18 @@ def pick_base_tex(sp):
     return cand[0][1] if cand else None
 
 
-def bake_hull_tint(img, sp):
+def _lin(c):
+    c = np.asarray(c, dtype=float)
+    return np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
+
+
+def _srgb(c):
+    return np.where(c <= 0.0031308, c * 12.92, 1.055 * np.power(np.maximum(c, 0), 1 / 2.4) - 0.055)
+
+
+def bake_hull_tint(img, sp, tier):
+    """albedo * (r * Roof + g * Hull + b * Base) in linear space, like the compiled shader (see TINT).
+    Colour properties are gamma colours that Unity converts to linear (linear colour space project)."""
     mask_ptr = next((e.m_Texture for k, e in sp.m_TexEnvs if k == "_ColorMask" and e.m_Texture.m_PathID), None)
     if mask_ptr is None:
         return img
@@ -269,15 +303,15 @@ def bake_hull_tint(img, sp):
     if mimg.size != img.size:
         mimg = mimg.resize(img.size, Image.NEAREST)
     cols = {k: (c.r, c.g, c.b) for k, c in sp.m_Colors}
+    cols["_Roof_Color"] = CUSTOM["roof"][CUSTOM["defRoof"][tier]]   # PlayerColorCustomizer.RefreshBoatColors overwrites both
+    cols["_Hull_Color"] = CUSTOM["hull"][CUSTOM["defHull"][tier]]
     base = np.asarray(img, dtype=float) / 255.0
     m = np.asarray(mimg, dtype=float)[..., :3] / 255.0
-    w = m / np.maximum(m.sum(axis=2, keepdims=True), 1.0)
     tint = np.zeros(base.shape[:2] + (3,))
     for i, (_, cname) in enumerate(TINT):
-        tint += w[..., i:i + 1] * np.array(cols.get(cname, (1, 1, 1)))
+        tint += m[..., i:i + 1] * _lin(cols.get(cname, (1, 1, 1)))
     out = base.copy()
-    # x2: palette greys sit around 0.5, so a plain multiply would halve the hull brightness
-    out[..., :3] = np.clip(base[..., :3] * tint * 2.0, 0, 1)
+    out[..., :3] = _srgb(np.clip(_lin(base[..., :3]) * tint, 0, 1))
     return Image.fromarray((out * 255 + 0.5).astype(np.uint8), "RGBA")
 
 
@@ -372,7 +406,7 @@ def material_index(g, ptr):
         if tp is not None:
             name, img = tex_image(tp)
             if shader.endswith("LitBoat_Shader"):
-                img = bake_hull_tint(img, sp)
+                img = bake_hull_tint(img, sp, TIER_OF[mm.m_Name])
                 m["extras"]["paint"] = paint_colors(mm)
             m["pbrMetallicRoughness"]["baseColorTexture"] = {"index": g.texture(img, max(img.size) <= 64)}
             m["extras"]["texture"] = name
@@ -394,8 +428,16 @@ def material_index(g, ptr):
             m["doubleSided"] = True
         elif mm.m_Name in ("Rope_Mat", "Trawl_Mat"):
             m["doubleSided"] = True
-        if mm.m_Name == "BoatWindows_Mat":
-            m["extras"]["emissiveTexture"] = "SmallBoat_Emission"  # driven by _LightStrength at runtime
+        # Emission (Texture2D_c7b8c5...): LitBoat/Lit shaders add emission * _LightStrength (BoatModelProxy.SetLightStrength: 4 lit, 0 off),
+        # so cabin windows and lamps glow when the lights are on. The runtime (boat.js) switches emissive between black and white.
+        ep = next((e.m_Texture for k, e in sp.m_TexEnvs if k.startswith("Texture2D_c7b8c5") and e.m_Texture.m_PathID), None)
+        emissive_on = dict(sp.m_Floats).get("BOOLEAN_0965F30455D645A4AD7F01AF266AE935", 1) > 0   # shader toggle "Emissive": 0 on the hull materials, 1 on BoatWindows_Mat
+        if ep is not None and emissive_on:
+            ename, eimg = tex_image(ep)
+            if np.asarray(eimg)[..., :3].max() > 0:
+                m["emissiveTexture"] = {"index": g.texture(eimg, max(eimg.size) <= 64)}
+                m["emissiveFactor"] = [1.0, 1.0, 1.0]
+                m["extras"]["emissionTexture"] = ename
     g.mats.append(m)
     g.mat_key[key] = len(g.mats) - 1
     return g.mat_key[key]
@@ -1120,7 +1162,7 @@ NOTES = [
     "net: exactly one of trawl / ironhaven / salvage is active (tir-net1 -> siphon = ironhaven, tir-net2 -> material = salvage, otherwise regular trawl); none when no net is equipped. Their skins are baked at rest pose, the trawl animation is not exported.",
     "Hull mesh damage: BoatN_Damage<i> nodes are the damageStateMeshes (i = index, 0 is the intact hull); toggle by damaged slots (ceil(slots/2), last one = DamageThreshold + hullCriticalEffects).",
     "Light0 is a point light always on (fixedIntensity/fixedRange apply); Light1/Light2 spot intensity at runtime = lumens * lumensIntensityCoefficient from the equipped LightItemData.",
-    "Hull textures are 16x16 palette swatches tinted at runtime by _ColorMask and Hull/Roof/Trim colours (PlayerColorCustomizer). The glb bakes the prefab colours with a guessed channel mapping (blue=hull, red=roof, green=trim1); paint colours are in each hull material's extras.paint.",
+    "Hull textures are 16x16 palette swatches tinted at runtime by _ColorMask and Hull/Roof/Trim colours (PlayerColorCustomizer). The glb bakes albedo * (r*Roof + g*Hull + b*Base_Color) like the compiled LitBoat_Shader (measured from its DXBC), with Hull/Roof taken from PlayerColorCustomizer default indices per tier; paint colours are in each hull material's extras.paint (material values, not the customizer ones).",
     "There is no fisherman figure in PlayerContainer.prefab (DREDGE shows no character on the boat); no skeleton or animation is exported.",
     "Colliders: only convex MeshColliders exist (Player root = trigger, BoatN = solid) plus sphere triggers on child detectors; sizes are bounds of those meshes.",
     "physics.* values are raw serialized Unity values (cinemachine m_FollowOffset etc. keep Unity z; negate z for three.js). Rigidbody.centerOfMass is not serialized (Unity default = collider centre); playerAttach.ColliderCenter is the authored point. Ability and rig references to other objects are dropped.",
@@ -1134,6 +1176,7 @@ def main():
     global ENV
     env, prefab = load()
     ENV = env
+    CUSTOM.update(customizer(prefab))
     write_tree(prefab)
     find_builtin_quad(prefab)
     os.makedirs(ART, exist_ok=True)
