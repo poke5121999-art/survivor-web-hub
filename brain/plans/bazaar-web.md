@@ -39,11 +39,13 @@ Mọi pha chỉ coi là xong khi chạy được trên `https://poke5121999-art.
 |---|---|---|
 | 0 | xong 2026-10-09 | notes đủ 6 tệp; art 3526 webp 60 MB (8 hero), tiếng 900 ogg 26 MB (render đúng event FMOD bằng `fmodstudio.dll` của game), DB → `data/*.js` |
 | 1a sim | xong trên máy 2026-10-09 | `js/sim/*`, `node test/bazaar-sim.js` 40/0; 0 `$type` chưa cài; Transform chỉ xấp xỉ vì server xoá đích biến hình |
-| 1b xem combat | đang làm | DOM/CSS cho bàn + thẻ + tooltip, một canvas phủ cho đạn/số/hạt; khung thẻ phẳng vẽ từ mesh bằng `tools/frames.py` |
+| 1b xem combat | xong trên Pages 2026-10-09, rev 20261009b | DOM/CSS cho bàn + thẻ + tooltip, một canvas phủ cho đạn/số/hạt; khung thẻ phẳng lấy từ sprite `Card_PreviewFrame_*` bằng `tools/frames.py`. `BZ_URL=… node test/bazaar-view.js` 18/18 trên Pages. Chủ dự án chưa xem |
+| 2a luật vòng chơi | đang làm | reducer thuần `js/run/*`, máy trạng thái theo `phase.kind`, số server giấu gom vào `js/run/tuning.js` |
 
 ## Bẫy pha 0
 
 - Bản demo là client mỏng: lịch giờ, tỉ lệ bậc theo ngày, vàng khởi đầu, PvP bóng, hệ số crit, thông số bão cát đều nằm trên server (`[BazaarObfuscate]`). Lấp bằng wiki và `[ĐỀ XUẤT]`.
 - AssetRipper không xuất được bundle (header không ghi phiên bản Unity). UnityPy đọc được khi đặt phiên bản dự phòng `6000.3.11f1`.
 - Khung thẻ là mesh 3D trải UV, không phải ảnh khung phẳng.
+- `[BẪY ĐÃ SẬP]` Art thẻ là ảnh thẻ bị ép vào ô vuông 1024×1024 (cả 1096 ảnh, mọi cỡ S/M/L); mesh kéo giãn lại. Hiện bằng `cover` thì thẻ nhỏ phình ngang, thẻ lớn phình dọc (chủ dự án thấy "art bị kéo dãn"). Đúng là `background-size: 100% 100%`; đã so với ảnh chụp game thật ở thẻ Vanessa_Pearl.
 - Font gốc chỉ có atlas SDF, phủ 21/68 chữ có dấu tiếng Việt: chữ giao diện dùng web font.

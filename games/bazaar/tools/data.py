@@ -14,6 +14,9 @@ Ra (trong repo, cạnh thư mục tools):
 - data/monsters.js window.BZ_MONSTERS = [monster...]    + trường suy ra `Encounters` (các thẻ TCardEncounterCombat
                                                        trỏ tới quái đó: tên hiển thị, bậc, Level, vàng/XP thưởng)
 - data/mode.js     window.BZ_MODE     = {mode, levelUps, tooltips}
+- data/encounters.js window.BZ_ENCOUNTERS = {events, steps, pedestals, combats}  thẻ gặp gỡ cho vòng chơi (js/run):
+                                                       Kind suy ra (merchant/pile/instant/choice/unknown), Steps nối theo tên,
+                                                       Days từ tên "(Day 4-6)"; chi tiết ở write_encounters()
 
 DSL giữ nguyên tên `$type` và tên trường; chỉ bỏ những gì runtime không dùng:
 InternalDescription, MigrationData, TranslationKey, Version, TemplateVersion, khoá dịch `Key`,
@@ -21,9 +24,11 @@ VFXConfig khi là mặc định (VFXOverrideKey null, VFXShouldPlay true, VFXIsT
 mọi trường null (thiếu = null), InternalName của ability/aura (giữ ở cấp thẻ).
 Giữ chuỗi `Text` của tooltip. Khối Enchantments trùng nhau được ghi một lần rồi nối lại khi nạp. JSON gọn (không thụt lề), khoá giữ thứ tự gốc nên chạy lại ra cùng tệp.
 """
+import collections
 import io
 import json
 import os
+import re
 import sqlite3
 import sys
 import zipfile
@@ -104,6 +109,131 @@ def write_js(name, var, obj, note, ench=None):
     with io.open(path, "w", encoding="utf-8", newline="\n") as f:
         f.write(body)
     return path, len(body.encode("utf-8"))
+
+
+ENC_DROP = re.compile(r"DEBUG|Debug|TEMPLATE|Tutorial|DEFUNCT|Internal Only|Expedition|Start Run|Start Skill")
+DAYS_RE = re.compile(r"\(Day (\d+)(?:\s*(?:-|to|and Day)\s*(\d+))?(\+)?\)")
+
+
+def loc_text(c, key):
+    return ((c.get("Localization") or {}).get(key) or {}).get("Text")
+
+
+def enc_days(name):
+    """"Cache of Riches (Day 1 to 2)" -> [1, 2]; "(Day 5+)" -> [5, 99]; "(Day 9)" -> [9, 9]; không có -> None."""
+    m = DAYS_RE.search(name or "")
+    if not m:
+        return None
+    lo = int(m.group(1))
+    hi = int(m.group(2)) if m.group(2) else (99 if m.group(3) else lo)
+    return [lo, hi]
+
+
+def step_key(name):
+    """Khoá nối bước (TCardEncounterStep) về sự kiện cha: NextEncounterOnSelection bị máy chủ xoá ([BazaarObfuscate]),
+    nhưng tên nội bộ mang tên sự kiện: "[Bex] 1st Quarter", "Upgrade (Botul)", "Haddy - Bag of Gold"."""
+    m = re.match(r"^\[([^\]]+)\]", name) or re.search(r"\(([^()]+)\)\s*$", name)
+    if m:
+        return m.group(1)
+    if " - " in name:
+        return name.rsplit(" - ", 1)[0]
+    return None
+
+
+def enc_limit(sc):
+    lim = ((sc or {}).get("SpawnContext") or {}).get("Limit") or {}
+    if lim.get("$type") == "TRangeValue":
+        return [int(lim.get("MinValue") or 0), int(lim.get("MaxValue") or 0)]
+    v = lim.get("Value")
+    return int(v) if v is not None else None
+
+
+def write_encounters(cards):
+    """data/encounters.js cho vòng chơi (games/bazaar/js/run). Mỗi bản ghi gọn: Id, InternalName, Title, Desc, StartingTier,
+    Heroes, Tags, ArtKey, Xp (= ExperienceAwardUponSelection), Days (từ tên), LevelUp (tên có "(Level Up)").
+    - events: Kind = merchant (Tags Merchant hoặc "Sells ..."), instant (không có SelectionContext: ability chạy khi chọn),
+      pile (chọn miễn phí: SelectionIsFree), choice (chọn có bước con nối được theo tên), unknown (bước con không nối được).
+      Rules = SelectionContext.Rules, Limit = số thẻ bày ra (TRangeValue -> [min, max]).
+    - steps: bước con được sự kiện giữ lại + mọi bước "(Level Up)"; Abilities giữ nguyên DSL (đã strip).
+    - pedestals: Criteria = SelectionCriteria (DSL TCardConditional*); Behavior bị xoá -> js/run suy ra từ Desc.
+    - combats: thẻ quái (MonsterTemplateId, Level, vàng/XP thưởng) — monsters.js cũng có trường Encounters tương tự.
+    Bỏ bản DEBUG/Tutorial/DEFUNCT/Expedition/Internal/Start Run (không vào được vòng chơi web)."""
+    by_name = collections.defaultdict(list)
+    events, steps, peds, combats = {}, {}, {}, {}
+    all_steps = [c for c in cards if c["$type"] == "TCardEncounterStep"]
+
+    def base(c):
+        o = {"Id": c["Id"], "InternalName": c.get("InternalName"), "Title": loc_text(c, "Title"),
+             "Desc": loc_text(c, "Description"), "StartingTier": c.get("StartingTier"), "Heroes": c.get("Heroes") or [],
+             "Tags": c.get("Tags") or [], "ArtKey": c.get("ArtKey"), "Xp": c.get("ExperienceAwardUponSelection") or 0}
+        d = enc_days(c.get("InternalName"))
+        if d:
+            o["Days"] = d
+        if "(Level Up)" in (c.get("InternalName") or ""):
+            o["LevelUp"] = True
+        if c.get("Abilities"):
+            o["Abilities"] = strip(c["Abilities"], False)
+        return o
+
+    for c in cards:
+        if c["$type"] != "TCardEncounterEvent" or ENC_DROP.search(c.get("InternalName") or ""):
+            continue
+        o = base(c)
+        sc = c.get("SelectionContext")
+        if sc:
+            o["Rules"] = strip(sc.get("Rules") or {}, False)
+            o["Limit"] = enc_limit(sc)
+        desc = o["Desc"] or ""
+        if "Merchant" in o["Tags"] or (sc and desc.startswith("Sells ")):
+            o["Kind"] = "merchant"
+        elif not sc:
+            o["Kind"] = "instant"
+        elif (sc.get("Rules") or {}).get("SelectionIsFree"):
+            o["Kind"] = "pile"
+        else:
+            o["Kind"] = "unknown"  # thành "choice" nếu nối được bước con bên dưới
+        events[c["Id"]] = o
+        by_name[c["InternalName"]].append(c["Id"])
+        if o["Title"] and o["Title"] != c["InternalName"]:
+            by_name[o["Title"]].append(c["Id"])
+
+    linked = 0
+    for s in all_steps:
+        name = s.get("InternalName") or ""
+        if ENC_DROP.search(name):
+            continue
+        key = step_key(name)
+        parents = [p for p in by_name.get(key, []) if events[p]["Kind"] in ("unknown", "choice")] if key else []
+        if not parents and "(Level Up)" not in name:
+            continue
+        steps[s["Id"]] = base(s)
+        for p in parents:
+            ev = events[p]
+            ev["Kind"] = "choice"
+            ev.setdefault("Steps", []).append(s["Id"])
+            linked += 1
+
+    for c in cards:
+        if c["$type"] == "TCardEncounterPedestal" and not ENC_DROP.search(c.get("InternalName") or ""):
+            o = base(c)
+            o["Criteria"] = strip(c.get("SelectionCriteria"), False)
+            peds[c["Id"]] = o
+        elif c["$type"] == "TCardEncounterCombat" and not ENC_DROP.search(c.get("InternalName") or ""):
+            ct = c.get("CombatantType") or {}
+            if not ct.get("MonsterTemplateId"):
+                continue
+            o = base(c)
+            o.update({"Monster": ct.get("MonsterTemplateId"), "Level": ct.get("Level"),
+                      "Gold": c.get("RewardCombatGold") or 0, "XpReward": c.get("RewardCombatXp") or 0})
+            combats[c["Id"]] = o
+
+    data = {"events": events, "steps": steps, "pedestals": peds, "combats": combats}
+    kinds = collections.Counter(e["Kind"] for e in events.values())
+    note = (f"{len(events)} events ({', '.join(f'{k} {v}' for k, v in sorted(kinds.items()))}), {len(steps)} steps "
+            f"({linked} links by name), {len(peds)} pedestals, {len(combats)} combats.")
+    p, n = write_js("encounters.js", "BZ_ENCOUNTERS", data, note)
+    print("encounters:", note)
+    print(f"{p}: {n} bytes ({n / 1048576:.2f} MB)")
 
 
 def main():
@@ -187,6 +317,7 @@ def main():
     print(f"monsters: {len(out_mons)} (with encounter card: {sum(1 for m in out_mons if m['Encounters'])})")
     for p, n in (r1, r2, r3):
         print(f"{p}: {n} bytes ({n / 1048576:.2f} MB)")
+    write_encounters(cards)
 
 
 if __name__ == "__main__":
