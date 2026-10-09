@@ -490,9 +490,18 @@
   SK.weaponPool = (level, source) => (DS.weaponPool ? DS.weaponPool(level, source, SK.rand) : DS.chestPool.slice());
 
   // ---------------------------------------------------------------- người chơi
+  // Tay cầm súng theo skin: DS.heroes[].hand tính từ pivot của s0 (design.js handOf); skin khác dời theo độ lệch pivot.
+  SK.heroHand = function (heroId, skin, left) {
+    const h = DS.heroes[heroId], base = (left && h.hand2) || h.hand || [3, 6];
+    const H = D.heroes && D.heroes[heroId], e = SK.heroSkin(heroId, skin);
+    if (!H || !e || e === H.s0 || !e.pivot || !H.s0.pivot) return base;
+    return [+(base[0] + e.pivot[0] - H.s0.pivot[0]).toFixed(2), +(base[1] - e.pivot[1] + H.s0.pivot[1]).toFixed(2)];
+  };
   SK.makePlayer = function (heroId, x, y) {
-    const h = DS.heroes[heroId];
-    const hd = D.heroes && D.heroes[heroId] && D.heroes[heroId].s0;
+    const skin = SK.profile && SK.profile.skinOf ? SK.profile.skinOf(heroId) : 0;
+    const hd = D.heroes && SK.heroSkin(heroId, skin);
+    let h = DS.heroes[heroId];
+    if (hd && D.heroes[heroId].s0 !== hd) h = Object.assign(Object.create(h), { hand: SK.heroHand(heroId, skin), hand2: SK.heroHand(heroId, skin, true) });
     return {
       hero: heroId, h, anims: hd || {}, x, y, face: 1, aim: 0, moving: false, t: 0,
       hp: h.hp, hpMax: h.hp, armor: h.armor, armorMax: h.armor, energy: h.energy, energyMax: h.energy,

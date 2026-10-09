@@ -32,6 +32,7 @@
   if (P.unlocked.indexOf('knight') < 0) P.unlocked.push('knight');
   if (!DS.heroes[P.selected]) P.selected = 'knight';
   if (!P.won || typeof P.won !== 'object') P.won = {};
+  if (!P.skin || typeof P.skin !== 'object') P.skin = {};
   P.gems = Math.max(0, Math.floor(+P.gems || 0));
   function save() { try { localStorage.setItem(KEY, JSON.stringify(P)); } catch (_) { /* chế độ riêng tư: chơi tiếp, không lưu */ } }
 
@@ -51,6 +52,7 @@
     unlockSkill(id, slot) { const a = P.skills[id] = P.skills[id] || []; if (a.indexOf(slot) < 0) a.push(slot); save(); if (built) refresh(); },
     skillSlot: id => P.slot[id] || 0,
     level: id => P.level[id] || 0,
+    skinOf: id => P.skin[id] || 0,
     reset() { try { localStorage.removeItem(KEY); } catch (_) { /* bỏ qua */ } }
   };
   const isUnlocked = SK.profile.isUnlocked;
@@ -110,8 +112,10 @@
   }
 
   // ---------------------------------------------------------------- vẽ khung atlas
-  const heroAnim = (id, kind) => D.heroes[id] && D.heroes[id].s0 && D.heroes[id].s0[kind];
-  const heroFrame0 = id => { const a = SK.anim(heroAnim(id, 'idle')); return a && a.f[0]; };
+  // Skin của hero: 0 = mặc định; skin khác vẽ khi gói data/skins/<hero>.js đã nạp (SK.loadPack), chưa nạp thì s0.
+  const skinList = id => [0].concat(((window.SK_SKINS && SK_SKINS[id]) || { skins: [] }).skins.map(x => +x[0].slice(1)));
+  const heroAnim = (id, kind, skin) => { const e = SK.heroSkin(id, skin == null ? P.skin[id] : skin); return e && e[kind]; };
+  const heroFrame0 = (id, skin) => { const a = SK.anim(heroAnim(id, 'idle', skin)); return a && a.f[0]; };
   function drawFit(cv, name, o) {
     const ctx = cv.getContext('2d'), f = SK.frame(name);
     ctx.imageSmoothingEnabled = false;
@@ -135,10 +139,13 @@
     ctx.drawImage(skillSheet, (idx % 16) * 32, Math.floor(idx / 16) * 32, 32, 32, R.x, R.y, R.w, R.h);
   }
   const portraits = {};
+  // Tranh skin n (art/lobby/portrait/<hero>_s<n>.png, tools/skins/build_skins.py); skin không có tranh tĩnh thì tranh skin 0.
   function portrait(id) {
     if (!(LA().portraits || {})[id]) return null;
-    let im = portraits[id];
-    if (!im) { im = portraits[id] = new Image(); im.src = ART + 'portrait/' + id + '.png'; }
+    const sk = P.skin[id] || 0, ix = window.SK_SKINS && SK_SKINS[id];
+    const file = sk && ix && ix.d.indexOf(sk) >= 0 ? id + '_s' + sk : id;
+    let im = portraits[file];
+    if (!im) { im = portraits[file] = new Image(); im.src = ART + 'portrait/' + file + '.png'; }
     return im.complete && im.naturalWidth ? im : null;
   }
 
@@ -365,22 +372,25 @@
     }
   }
 
-  // ---------------------------------------------------------------- thanh trượt nhân vật (SkinScrollView + skin_cell)
+  // ---------------------------------------------------------------- thanh trượt skin (SkinScrollView + skin_cell)
+  // Bản gốc: thanh dưới là các skin của nhân vật đang chọn (SkinScrollView; nút "unlock hero first" khi chọn skin của
+  // nhân vật chưa mở), hai mũi tên ui_left_button / ui_right_button đổi nhân vật.
   const mod = (a, n) => ((a % n) + n) % n;
   const cells = {};
-  function cellOf(id) {
-    let c = cells[id];
+  function cellOf(id, sk) {
+    const key = id + ':' + sk;
+    let c = cells[key];
     if (!c) {
-      c = cells[id] = SK.ugui.clone(CELL);
-      c.n = 'hero:' + id;
+      c = cells[key] = SK.ugui.clone(CELL);
+      c.n = 'skin:' + sk;
       for (const k of c.k) if (k.n === 'redPoint' || k.n === 'trial' || k.n === 'skin_trial') k.off = 1;
       const img = c.k.find(k => k.n === 'img');
-      img.draw = (ctx, R) => fitSprite(ctx, heroFrame0(id), R);
+      img.draw = (ctx, R) => fitSprite(ctx, heroFrame0(id, sk), R);
     }
     return c;
   }
   function carouselTick() {
-    const N = HEROES.length, t = now();
+    const SKS = skinList(P.selected), N = SKS.length, t = now();
     if (car.anim) {
       const u = Math.min(1, (t - car.t0) / SNAP_T);
       car.pos = car.from + (car.to - car.from) * easeInOutCubic(u);
@@ -391,25 +401,25 @@
     for (let o = -3; o <= 3; o++) {
       const idx = base + o, pos = (idx - car.pos) * CELL_IV + CELL_OFF;
       if (pos < -0.001 || pos > 1.001) continue;
-      const id = HEROES[mod(idx, N)], c = cellOf(id), sel = id === P.selected, open = isUnlocked(id);
+      const sk = SKS[mod(idx, N)], c = cellOf(P.selected, sk), sel = sk === (P.skin[P.selected] || 0), open = isUnlocked(P.selected);
       SK.ugui.pose(c, clip, pos);
       const part = n => c.k.find(k => k.n === n);
       part('bg').img.sp = sel ? mb.lightBackground : mb.darkBackground;
       part('img').gray = !open;
       if (open) part('lock').off = 1; else delete part('lock').off;
       // Khung + sao dưới ô = đã phá đảo bằng nhân vật này (PassGameLevel); bản web ghi khi thắng một lượt.
-      for (const k of ['frame', 'star']) { if (P.won[id]) delete part(k).off; else part(k).off = 1; }
+      for (const k of ['frame', 'star']) { if (P.won[P.selected] && sel) delete part(k).off; else part(k).off = 1; }
       content.k.push(c);
     }
   }
-  function nearestIdx(heroIdx) {
-    const N = HEROES.length, base = Math.round(car.pos);
+  function nearestIdx(i0, N) {
+    const base = Math.round(car.pos);
     let best = base, bd = 1e9;
-    for (let o = -N; o <= N; o++) { const i = base + o; if (mod(i, N) === heroIdx && Math.abs(i - car.pos) < bd) { bd = Math.abs(i - car.pos); best = i; } }
+    for (let o = -N; o <= N; o++) { const i = base + o; if (mod(i, N) === i0 && Math.abs(i - car.pos) < bd) { bd = Math.abs(i - car.pos); best = i; } }
     return best;
   }
-  function scrollTo(id, instant) {
-    const target = nearestIdx(HEROES.indexOf(id));
+  function scrollTo(sk, instant) {
+    const SKS = skinList(P.selected), target = nearestIdx(Math.max(0, SKS.indexOf(sk)), SKS.length);
     if (instant) { car.pos = car.to = target; car.anim = false; return; }
     Object.assign(car, { from: car.pos, to: target, t0: now(), anim: true });
   }
@@ -418,7 +428,18 @@
     if (!DS.heroes[id] || !(D.heroes && D.heroes[id])) return false;
     P.selected = id; save();
     demoT = 0; detail = null;
-    scrollTo(id, instant || !UI);
+    SK.loadPack(id);
+    car.pos = 0;
+    scrollTo(P.skin[id] || 0, true);
+    refresh();
+    return true;
+  }
+  function selectSkin(sk, instant) {
+    if (skinList(P.selected).indexOf(sk) < 0) return false;
+    if (sk) P.skin[P.selected] = sk; else delete P.skin[P.selected];
+    save(); demoT = 0;
+    SK.loadPack(P.selected);
+    scrollTo(sk, instant || !UI);
     refresh();
     return true;
   }
@@ -455,10 +476,10 @@
   }
 
   function rectPx(path) { return UI && UI.rectOf(path, cv.width, cv.height); }
-  // Rect CSS px của một nút prefab ('hero:<id>' = ô nhân vật trên thanh trượt, 'skill:<i>' = ô kỹ năng i).
+  // Rect CSS px của một nút prefab ('skin:<n>' = ô skin n trên thanh trượt, 'skill:<i>' = ô kỹ năng i).
   function rect(path) {
     if (!ui()) return null;
-    if (path.startsWith('hero:')) path = CAR + '/' + path + '/bg';
+    if (path.startsWith('skin:')) path = CAR + '/' + path + '/bg';
     else if (path.startsWith('skill:')) {
       const i = +path.slice(6);
       path = i === curSlot() ? SKP + 'skill_detail' : SKP + 'skill_' + (i + 1) + '/bg';
@@ -489,8 +510,8 @@
     for (let i = 0; i < 3; i++) {
       if (i !== curSlot() && inR('skill:' + i)) { clickSkill(i); return; }
     }
-    for (const id of HEROES) {
-      if (inR('hero:' + id)) { if (id !== P.selected) { tap(); select(id); } return; }
+    for (const sk of skinList(P.selected)) {
+      if (inR('skin:' + sk)) { if (sk !== (P.skin[P.selected] || 0)) { tap(); selectSkin(sk); } return; }
     }
     if (detail && !inR('ui_left/panel')) { detail = null; refreshDetail(); }
   }
@@ -525,9 +546,9 @@
       const d = down; down = null;
       if (!d.moved) { click(d.x, d.y); return; }
       if (d.car) {
-        const idx = Math.round(car.pos), id = HEROES[mod(idx, HEROES.length)];
+        const SKS = skinList(P.selected), idx = Math.round(car.pos), sk = SKS[mod(idx, SKS.length)];
         Object.assign(car, { from: car.pos, to: idx, t0: now(), anim: true });
-        if (id !== P.selected) { P.selected = id; save(); detail = null; demoT = 0; refresh(); sfx(VIEW.tapClip); }
+        if (sk !== (P.skin[P.selected] || 0)) { if (sk) P.skin[P.selected] = sk; else delete P.skin[P.selected]; save(); demoT = 0; refresh(); sfx(VIEW.tapClip); }
       }
       void e;
     };
@@ -713,7 +734,7 @@
     ctx.beginPath(); ctx.ellipse(x, y, 7, 2.5, 0, 0, Math.PI * 2); ctx.fill();
     SK.draw(ctx, SK.animFrame(key, tt), x, y, { flip: face < 0 });
     const w = DS.weapons[DS.heroes[id].weapon];
-    const hand = DS.heroes[id].hand || [3, 6];
+    const hand = SK.heroHand(id, P.skin[id]);
     if (w && SK.drawGun) SK.drawGun(ctx, w.sprite, x + hand[0] * face, y - hand[1], face > 0 ? 0 : Math.PI, null, {});
   }
 
@@ -728,7 +749,9 @@
       $('sk-start').onclick = onStart;
       detail = null;
       slideAt = now();
-      scrollTo(P.selected, true);
+      SK.loadPack(P.selected);
+      car.pos = 0;
+      scrollTo(P.skin[P.selected] || 0, true);
       refresh();
       if (pending) showSummary();
     },
@@ -756,13 +779,14 @@
       if (!pix) { ctx.fillStyle = 'rgba(4,10,18,0.6)'; ctx.fillRect(0, 0, v.w, v.h); }
       drawUI();
     },
-    select, openModes, openShop, refresh, launch,
+    select, selectSkin, openModes, openShop, refresh, launch,
     // Móc kiểm thử: rect CSS px của nút prefab, chữ đang hiện trên nút, và trạng thái màn.
     rect,
     text: path => { const n = ui() && UI.q(path); return n && n.txt ? String(n.txt.s) : null; },
     state: () => ({ ready: !!ui(), selected: P.selected, name: UI && UI.q('mask_up/layout/text_name').txt.s,
       startGray: !!(UI && UI.q('mask_down/btn_ok').gray), unlockShown: !!(UI && !UI.q('mask_down/center_buttons/btn_unlock').off),
       view: P.view, demo: P.demo !== false, detail, slot: curSlot(), carousel: car.pos,
-      cells: UI ? UI.q(CAR).k.map(c => c.n.slice(5)) : [], heroes: HEROES.slice(), skills: skillList(P.selected).length })
+      cells: UI ? UI.q(CAR).k.map(c => +c.n.slice(5)) : [], heroes: HEROES.slice(), skills: skillList(P.selected).length,
+      skin: P.skin[P.selected] || 0, skins: skinList(P.selected) })
   };
 })();

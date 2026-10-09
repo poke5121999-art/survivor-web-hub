@@ -52,11 +52,9 @@ async function tap(p, q, touch) {
   else await p.mouse.click(r.x + r.w / 2, r.y + r.h / 2);
   await sleep(120);
 }
-// Đưa ô nhân vật `id` vào thanh trượt bằng cách chọn ô kề nó, rồi bấm vào ô đó.
-async function tapHero(p, id, touch) {
-  await p.evaluate(h => { const L = SK.lobby.state().heroes, i = L.indexOf(h); SK.lobby.select(L[(i + 1) % L.length], true); }, id);
-  await sleep(100);
-  await tap(p, 'hero:' + id, touch);
+// Chọn nhân vật `id` (ở bản gốc chạm nhân vật trong sảnh; thanh trượt dưới là skin của nhân vật đó).
+async function tapHero(p, id) {
+  await p.evaluate(h => SK.lobby.select(h, true), id);
   await sleep(400);
 }
 
@@ -72,19 +70,19 @@ async function desktop(b) {
 
   const s0 = await st(p);
   const g0gems = await p.evaluate(() => SK.profile.gems);
-  check('hồ sơ mới: chọn sẵn Hiệp Sĩ, 0 đá quý, đủ 42 nhân vật, 5 ô trên thanh trượt', s0.selected === 'knight' && g0gems === 0 &&
-    s0.heroes.length === 42 && s0.cells.length === 5 && s0.cells[2] === 'knight', s0.name + ' · ' + s0.cells.join(',') + ' · ' + s0.skills + ' kỹ năng');
+  check('hồ sơ mới: chọn sẵn Hiệp Sĩ skin 0, 0 đá quý, đủ 42 nhân vật, thanh trượt 5 ô skin', s0.selected === 'knight' && g0gems === 0 &&
+    s0.heroes.length === 42 && s0.cells.length === 5 && s0.cells[2] === 0 && s0.skin === 0 && s0.skins.length === 38,
+    s0.name + ' · ô ' + s0.cells.join(',') + ' · ' + s0.skins.length + ' skin · ' + s0.skills + ' kỹ năng');
   const slid = await p.evaluate(() => ['mask_up', 'mask_down', 'ui_left', 'ui_right'].map(n => SK.lobby.rect(n)));
   check('bốn khối đã trượt vào đúng chỗ (ShowEndValues = 0)', slid[2].x === 0 && Math.abs(slid[3].x + slid[3].w - 1386) < 1 && slid[0].y === 0,
     JSON.stringify(slid.map(r => [Math.round(r.x), Math.round(r.y)])));
 
   // ---- nhân vật khoá bằng đá quý, thiếu đá → bị chặn
-  await tap(p, 'hero:mage');
-  await sleep(400);
+  await tapHero(p, 'mage');
   const m0 = await st(p);
   const m0v = { hp: await txt(p, ATTR + 'value1/Text'), en: await txt(p, ATTR + 'value3/Text'), bar: await p.evaluate(a => SK.lobby.rect(a + 'value1/Image').w, ATTR) };
-  check('bấm ô Phù Thuỷ trên thanh trượt → tên + chỉ số đổi, nút Bắt đầu xám, hiện nút Mở khóa', /Phù Thuỷ/.test(m0.name) && m0.startGray && m0.unlockShown &&
-    m0v.hp === '3' && m0v.en === '240' && m0.cells[2] === 'mage', JSON.stringify({ name: m0.name, gray: m0.startGray, ...m0v }));
+  check('chọn Phù Thuỷ → tên + chỉ số đổi, nút Bắt đầu xám, hiện nút Mở khóa, thanh trượt về skin 0', /Phù Thuỷ/.test(m0.name) && m0.startGray && m0.unlockShown &&
+    m0v.hp === '3' && m0v.en === '240' && m0.cells[2] === 0, JSON.stringify({ name: m0.name, gray: m0.startGray, ...m0v }));
   await tap(p, 'skill:1');
   await p.waitForSelector('#hs-dlg h3', { state: 'visible' });
   const sk = await p.evaluate(() => document.getElementById('hs-dlg').textContent);
@@ -189,13 +187,27 @@ async function desktop(b) {
   await sleep(450);
   const dr = await st(p);
   const iK = dr.heroes.indexOf('knight');
-  check('mũi tên phải → nhân vật kế; kéo thanh trượt sang trái → dừng khớp ô, chọn nhân vật xa hơn',
-    ar.selected === dr.heroes[iK + 1] && dr.heroes.indexOf(dr.selected) > iK + 1 && Number.isInteger(dr.carousel), ar.selected + ' → ' + dr.selected + ' @' + dr.carousel);
+  check('mũi tên phải → nhân vật kế; kéo thanh trượt sang trái → dừng khớp ô, chọn skin xa hơn của cùng nhân vật',
+    ar.selected === dr.heroes[iK + 1] && dr.selected === ar.selected && dr.skin >= 1 && Number.isInteger(dr.carousel),
+    ar.selected + ' → ' + dr.selected + ' skin ' + dr.skin + ' @' + dr.carousel);
+  await p.evaluate(() => SK.lobby.selectSkin(0, true));
   const d0 = (await st(p)).demo;
   await tap(p, 'mask_down/skill_demo_checkbox');
   const d1 = (await st(p)).demo;
   await tap(p, 'mask_down/skill_demo_checkbox');
   check('ô tick "Trình diễn kỹ năng" bật/tắt', d0 !== d1 && (await st(p)).demo === d0, d0 + ' → ' + d1);
+
+  await tapHero(p, 'knight');
+  await tap(p, 'skin:1');
+  const skOk = await until(p, () => SK.lobby.state().skin === 1 && SK.lobby.state().cells[2] === 1 && !!SK_DATA.heroes.knight.s1 && !!SK.pages[SK.A.f[SK.anim(SK_DATA.heroes.knight.s1.idle).f[0]][0]], null, 6000);
+  const sk1 = await p.evaluate(() => {
+    const e = SK.heroSkin('knight', 1), pl = SK.makePlayer('knight', 0, 0);
+    return { name: e.name, idle: e.idle, player: pl.anims.idle, hand: pl.h.hand, hand0: SK_DESIGN.heroes.knight.hand, cells: SK.lobby.state().cells };
+  });
+  await p.screenshot({ path: path.join(SHOTS, 'skin-1.png') });
+  check('bấm ô skin 1 → gói skin Hiệp Sĩ nạp, nhân vật trong trận mang skin 1 ("Kỵ Sĩ Tinh Anh")', skOk && sk1.name === 'Kỵ Sĩ Tinh Anh' &&
+    sk1.player === 'hero_knight_s1/idle' && sk1.cells[2] === 1, JSON.stringify(sk1));
+  await p.evaluate(() => SK.lobby.selectSkin(0, true));
 
   // ---- chọn chế độ
   await tap(p, 'mask_up/btn_back');

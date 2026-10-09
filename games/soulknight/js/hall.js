@@ -57,6 +57,7 @@
   function placeNpcs() {
     const spots = freeSpots();
     hall.npcs = SK.profile.unlocked.filter(id => DS.heroes[id] && D.heroes[id]).map(id => {
+      if (SK.profile.skinOf(id)) SK.loadPack(id);
       const d = H.deco[DECO[id]];
       const [x, y] = d ? [d[0], d[1] - 1.2] : (spots.shift() || [0, 0]);
       return { id, x, y, face: x > 0 ? -1 : 1 };
@@ -148,7 +149,7 @@
   const px = (x, y) => [(x - X0) * U, (Y1 - y) * U];
 
   function drawHero(ctx, id, x, y, face, moving, t) {
-    const hd = D.heroes[id] && D.heroes[id].s0;
+    const hd = SK.heroSkin(id, SK.profile.skinOf(id));
     if (!hd) return;
     const [hx, hy] = px(x, y);
     ctx.fillStyle = 'rgba(0,0,0,0.35)';

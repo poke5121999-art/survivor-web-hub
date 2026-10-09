@@ -56,12 +56,48 @@
       im.onload = () => res(im);
       im.onerror = () => { SK.warnOnce('atlas' + src, 'atlas not loaded: ' + src); res(null); };
       im.src = src + (A.v ? '?v=' + A.v : '');
-    }))).then(imgs => {
-      SK.pages = imgs;
-      SK.pagesWhite = imgs.map(im => im && tintPage(im, '#ffffff', 1));
-      SK.pagesElite = imgs.map(im => im && tintPage(im, '#ff2a1a', 0.32));
-    });
+    }))).then(imgs => imgs.forEach((im, i) => setPage(i, im)));
   };
+  // Gán theo chỉ số (không thay mảng) để trang của gói nạp lười (SK.loadPack) không bị ghi đè.
+  function setPage(i, im) {
+    SK.pages[i] = im;
+    SK.pagesWhite[i] = im && tintPage(im, '#ffffff', 1);
+    SK.pagesElite[i] = im && tintPage(im, '#ff2a1a', 0.32);
+  }
+
+  // Gói nạp lười (data/skins/<hero>.js → window.SK_PACKS[hero], tools/skins/build_skins.py): khung nối vào A.f với
+  // chỉ số trang dời sau mọi trang đã cấp, anim nối vào D.anims, skin nối vào D.heroes[hero] (layer/ctrl lấy của s0).
+  const packs = {};
+  let nextPage = A.pages.length;
+  SK.loadPack = function (hero) {
+    if (packs[hero]) return packs[hero];
+    return (packs[hero] = new Promise(res => {
+      const s = document.createElement('script');
+      const ix = window.SK_SKINS && SK_SKINS[hero];
+      s.src = 'data/skins/' + hero + '.js' + (ix ? '?v=' + ix.v : '');
+      s.onerror = () => { SK.warnOnce('pack' + hero, 'skin pack not loaded: ' + hero); res(false); };
+      s.onload = () => {
+        const P = window.SK_PACKS && SK_PACKS[hero];
+        if (!P) { res(false); return; }
+        const base = nextPage; nextPage += P.pages.length;
+        Promise.all(P.pages.map((src, i) => new Promise(r => {
+          const im = new Image();
+          im.onload = () => { setPage(base + i, im); r(); };
+          im.onerror = () => { SK.warnOnce('pack' + src, 'skin page not loaded: ' + src); r(); };
+          im.src = src + '?v=' + P.v;
+        }))).then(() => {
+          for (const k in P.f) { const f = P.f[k].slice(); f[0] += base; A.f[k] = f; }
+          Object.assign(D.anims, P.anims);
+          const H = D.heroes[hero], s0 = H.s0;
+          for (const sk in P.skins) H[sk] = Object.assign({ layers: s0.layers, ctrl: s0.ctrl, name: P.names[sk] }, P.skins[sk]);
+          res(true);
+        });
+      };
+      document.head.appendChild(s);
+    }));
+  };
+  // Mục hero theo skin; skin chưa nạp (hoặc không có) thì s0.
+  SK.heroSkin = (hero, skin) => { const H = D.heroes[hero]; return H && ((skin && H['s' + skin]) || H.s0); };
 
   SK.frame = name => (name && A.f[name]) || null;
 
