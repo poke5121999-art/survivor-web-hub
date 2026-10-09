@@ -869,7 +869,7 @@ window.HUB_GAMES = [
     en: { title: "Fogbound", tagline: "Fish the islands in the fog. Do not stay out after dark.", desc: "DREDGE remade for the web. Borrow an old boat along with a $50 debt, fish around The Marrows and sell to the fishmonger. Every species has its own minigame, and fish fill the hold in their real shapes. After dark the fog thickens and panic sets in." },
     thumbnail: "assets/thumbnails/dredge.png",
     path: "games/dredge/index.html",
-    rev: "20261010b",
+    rev: "20261010c",
     // three.js r140 vendor trong games/dredge/vendor, không bước build. Dựng lại DREDGE 1.5.3 (Black Salt
     // Games, 2023) theo yêu cầu của chủ dự án ngày 2026-10-07, từ bản cài trên máy (D:\dredge-ref).
     // Toàn bộ thế giới (scene Game.unity: 8.583 instance, landmask từ collider, bản đồ độ sâu

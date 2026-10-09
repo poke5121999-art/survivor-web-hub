@@ -84,7 +84,7 @@ async function openWater(page) {
 
 (async () => {
   const srv = await serve();
-  const base = 'http://127.0.0.1:' + srv.address().port;
+  const base = (process.env.DR_URL ? process.env.DR_URL.replace(/[/]$/, '') : 'http://127.0.0.1:' + srv.address().port);
   const browser = await chromium.launch({ args: ['--use-angle=d3d11', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const { page, errors } = await boot(browser, base, 1280, 720);
   const ev = (fn, a) => page.evaluate(fn, a);

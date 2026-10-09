@@ -63,7 +63,7 @@ async function openWater(page) {
 (async () => {
   const srv = http.createServer((q, r) => { const u = decodeURIComponent(q.url.split('?')[0]); fs.readFile(path.join(ROOT, u), (e, b) => { if (e) { r.writeHead(404); r.end(); return; } r.writeHead(200, { 'Content-Type': MIME[path.extname(u)] || 'application/octet-stream' }); r.end(b); }); }).listen(0);
   await sleep(200);
-  const base = 'http://localhost:' + srv.address().port;
+  const base = (process.env.DR_URL ? process.env.DR_URL.replace(/[/]$/, '') : 'http://localhost:' + srv.address().port);
   const br = await chromium.launch({ args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
   const ctx = await br.newContext({ viewport: { width: 1280, height: 720 } });
   const page = await ctx.newPage();
@@ -80,25 +80,26 @@ async function openWater(page) {
   // 1. stub của các đơn vị: dữ liệu rỗng, script tải được; sổ lệnh Yarn mở cho tệp khác
   const st = await ev(page, () => ({
     expl: Array.isArray(window.DR_EXPLOSIVES) && DR_EXPLOSIVES.length,
+    // các đơn vị W1-W9 / R1-R8 lần lượt điền dữ liệu, nên chỉ kiểm biến toàn cục có mặt và là object
     objs: ['DR_RESEARCH_UI', 'DR_QUESTOBJ', 'DR_FINALE', 'DR_CREDITS', 'DR_SERPENT', 'DR_SBCREATURE', 'DR_JELLY', 'DR_MINDSUCKER', 'DR_TSHAZARDS', 'DR_PIRANHA', 'DR_LEVIATHAN', 'DR_GREATWHITE', 'DR_CETACEANS']
-      .filter(g => !window[g] || typeof window[g] !== 'object' || Object.keys(window[g]).length),
+      .filter(g => !window[g] || typeof window[g] !== 'object'),
     scripts: ['progress', 'research', 'overflow', 'explosives', 'questcmds', 'finale', 'finale_cut', 'menus', 'paint', 'photo', 'serpent', 'sbcreature', 'jelly', 'mindsucker', 'tshazards', 'piranha', 'mimic', 'statues', 'leviathan', 'greatwhite', 'cetaceans']
       .filter(f => !document.querySelector('script[src^="js/' + f + '.js?v="]')),
     css: ['research', 'menus'].filter(f => !document.querySelector('link[href^="css/' + f + '.css?v="]')),
     yarnApi: typeof DRYarn.command === 'function' && typeof DRYarn.fn === 'function',
     aberrationDay: window.DRProgress && DRProgress.aberrationDay
   }));
-  ok(st.expl === 0, 'DR_EXPLOSIVES stub is not an empty array: ' + st.expl);
-  ok(!st.objs.length, 'data stubs not empty objects: ' + st.objs.join(','));
+  ok(st.expl !== false, 'DR_EXPLOSIVES is not an array');
+  ok(!st.objs.length, 'data globals missing: ' + st.objs.join(','));
   ok(!st.scripts.length, 'script tags missing: ' + st.scripts.join(','));
   ok(!st.css.length, 'css links missing: ' + st.css.join(','));
   ok(st.yarnApi, 'DRYarn.command / DRYarn.fn not exported');
   ok(st.aberrationDay === 4, 'aberration day must be aberrationStartDay 5 - 1 = 4, got ' + st.aberrationDay);
   const yr = await ev(page, () => {
-    const was = DRYarn.stubs().includes('MakeBait'), keep = DRYarn.commands.MakeBait;
-    let ran = 0; DRYarn.command('MakeBait', () => { ran++; });
-    const now = DRYarn.stubs().includes('MakeBait');
-    DRYarn.commands.MakeBait.f([]); DRYarn.commands.MakeBait = keep;
+    const was = DRYarn.stubs().includes('TogglePortraitVFX'), keep = DRYarn.commands.TogglePortraitVFX;
+    let ran = 0; DRYarn.command('TogglePortraitVFX', () => { ran++; });
+    const now = DRYarn.stubs().includes('TogglePortraitVFX');
+    DRYarn.commands.TogglePortraitVFX.f([]); DRYarn.commands.TogglePortraitVFX = keep;
     return { was, now, ran };
   });
   ok(yr.was && !yr.now && yr.ran === 1, 'DRYarn.command does not override a stub: ' + JSON.stringify(yr));

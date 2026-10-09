@@ -167,7 +167,8 @@
 
   function visibleDests() {
     const L = avail().availableDestinations;
-    return (D.data.dests || []).filter(d => d.always || L.includes(d.id));
+    // w2overflow: OverflowStorageDestination.AlwaysShow = còn món trong kho tràn
+    return (D.data.dests || []).filter(d => d.always || L.includes(d.id) || (d.cls === 'OverflowStorageDestination' && root.DROverflow && DROverflow.alwaysShow()));
   }
 
   function showUi() {

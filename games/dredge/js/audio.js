@@ -31,7 +31,7 @@
     if (!AC) return;
     ctx = new AC();
     master = ctx.createGain();
-    master.gain.value = muted ? 0 : 1;
+    master.gain.value = muted ? 0 : vol.master;
     master.connect(ctx.destination);
     for (const [n, g] of Object.entries(busWant)) busNode(n).gain.value = g;
   }
@@ -94,12 +94,12 @@
   }
 
   // ---- bus: nhóm mixer của bản gốc (Day, Night, Weather, Music_Dock...). Âm lượng đặt từ js/sfx.js theo snapshot.
-  function busNode(name) {
+  function busNode(name, key) {
     if (!ctx || !name) return null;
     if (!buses[name]) {
       const g = ctx.createGain();
       g.gain.value = name in busWant ? busWant[name] : 1;
-      g.connect(master);
+      g.connect(catNode(kindOf(name, key)));
       buses[name] = g;
     }
     return buses[name];
@@ -109,7 +109,26 @@
     busWant[name] = gain;
     if (ctx) busNode(name).gain.setTargetAtTime(gain, ctx.currentTime, Math.max(0.01, tc == null ? 0.25 : tc));
   }
-  const out = name => busNode(name) || master;
+  // W7 (menus.js): bốn thanh trượt âm lượng của SettingsSaveData (music/sfx/ui/voice) đứng giữa bus và master; master dùng chung với nút tắt tiếng.
+  // Phân loại theo khoá clip (ui.* / story.* / music.*) hoặc tên bus Music*; còn lại là sfx.
+  const vol = { master: 1, music: 1, sfx: 1, ui: 1, voice: 1 }, cats = {};
+  function kindOf(name, key) {
+    if (name && /^Music/.test(name)) return 'music';
+    if (key) { if (/^music\./.test(key)) return 'music'; if (/^ui\./.test(key)) return 'ui'; if (/^story\./.test(key)) return 'voice'; }
+    return 'sfx';
+  }
+  function catNode(kind) {
+    if (!cats[kind]) { const g = ctx.createGain(); g.gain.value = vol[kind]; g.connect(master); cats[kind] = g; }
+    return cats[kind];
+  }
+  function setVolume(kind, v) {
+    if (!(kind in vol)) return;
+    vol[kind] = Math.max(0, Math.min(1, +v));
+    if (!ctx) return;
+    if (kind === 'master') master.gain.setTargetAtTime(muted ? 0 : vol.master, ctx.currentTime, 0.05);
+    else if (cats[kind]) cats[kind].gain.setTargetAtTime(vol[kind], ctx.currentTime, 0.05);
+  }
+  const out = (name, key) => { const b = busNode(name, key); return b || catNode(kindOf(null, key)); };
 
   function gate(keys, ms) {
     const until = now() + ms;
@@ -118,11 +137,11 @@
   const gated = k => gates[k] && now() < gates[k];
   function alias(from, to) { aliases[from] = to; }
 
-  function source(buf, vol, loop, bn) {
+  function source(buf, v0, loop, bn, key) {
     const src = ctx.createBufferSource(), g = ctx.createGain();
     src.buffer = buf; src.loop = !!loop;
-    g.gain.value = vol;
-    src.connect(g); g.connect(out(bn));
+    g.gain.value = v0;
+    src.connect(g); g.connect(out(bn, key));
     return { src, g };
   }
 
@@ -182,9 +201,9 @@
         const p = ctx.createPanner();
         p.panningModel = 'equalpower'; p.distanceModel = 'linear';
         p.refDistance = o.min == null ? 1 : o.min; p.maxDistance = o.max == null ? 500 : o.max; p.rolloffFactor = 1;
-        h.p = p; g.connect(p); p.connect(out(h.bus));
+        h.p = p; g.connect(p); p.connect(out(h.bus, rk));
         h.pos(o.pos.x, o.pos.y || 0, o.pos.z);
-      } else g.connect(out(h.bus));
+      } else g.connect(out(h.bus, rk));
       if (o.rate) src.playbackRate.value = o.rate;
       if (o.fade) g.gain.setTargetAtTime(h.want, ctx.currentTime, Math.max(0.01, o.fade / 3));
       src.onended = () => { h.alive = false; voices.delete(h); if (o.onend) o.onend(h); };
@@ -219,7 +238,7 @@
     const rec = loops[key] = { target, rate, g: null, bus: bn || d.bus || null };
     load(key).then(buf => {
       if (!buf || loops[key] !== rec) return;
-      const n = source(buf, 0, true, rec.bus);
+      const n = source(buf, 0, true, rec.bus, key);
       rec.g = n.g; rec.src = n.src;
       n.src._drKey = key; n.src._drVol = rec.target; n.src._drBus = rec.bus;
       n.src.playbackRate.value = rec.rate;
@@ -246,7 +265,7 @@
     const rk = resolve(key);
     load(rk).then(buf => {
       if (!buf || musicKey !== key) return;
-      const n = source(buf, 0, d.loop !== false, bn || d.bus || null);
+      const n = source(buf, 0, d.loop !== false, bn || d.bus || null, rk);
       n.src._drKey = rk; n.src._drBus = bn || d.bus || null;
       n.g.gain.setTargetAtTime((vol == null ? 1 : vol) * (d.vol || 1), ctx.currentTime, 0.8);
       n.src.start();
@@ -266,7 +285,7 @@
 
   function setMuted(m) {
     muted = !!m;
-    if (master) master.gain.setTargetAtTime(muted ? 0 : 1, ctx.currentTime, 0.05);
+    if (master) master.gain.setTargetAtTime(muted ? 0 : vol.master, ctx.currentTime, 0.05);
   }
 
   // nạp trước: một khoá hoặc danh sách; nạp từng đợt nhỏ để khỏi nghẽn giải mã lúc đang chơi
@@ -294,7 +313,7 @@
   }
 
   root.DRAudio = {
-    play, loop, stopLoop, music, stinger, stopStinger, stingerPlaying, voice, bus, gate, alias, listener, setMuted,
+    play, loop, stopLoop, music, stinger, stopStinger, stingerPlaying, voice, bus, gate, alias, listener, setMuted, setVolume, volumes: () => Object.assign({}, vol),
     isMuted: () => muted, unlock, preload, resolve, state
   };
 })(typeof window !== 'undefined' ? window : globalThis);

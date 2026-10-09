@@ -29,6 +29,7 @@
     stats: { cells: 0, instances: 0, meshes: 0 }
   };
   let scene = null, mask = null, sdfArr = null, LB = null, zones = [];
+  let solidArr = null, foamArr = null; const hiddenInst = new Set();   // [W4 seam] carveLand / hideInstances (điểm nổ mìn, js/explosives.js)
 
   // ---------- giải mã ảnh ----------
   async function bitmap(buf, raw) {
@@ -96,7 +97,7 @@
       sdf[i] = solid[i] ? -(toWater[i] - 0.5) : toLand[i] - 0.5;
       foam[i] = Math.max(0, Math.min(255, Math.round(Math.max(0, sdf[i]) / 64 * 255)));
     }
-    return { sdf, foam };
+    return { sdf, foam, solid };
   }
   // song tuyến; tâm pixel (i, j) ở x0 + i + 0,5
   function sdf(x, z) {
@@ -399,6 +400,8 @@ void main() {
         geo.boundingSphere = sphere.clone();
         const im = new T.InstancedMesh(geo, part.mat, n);
         for (let k = 0; k < n; k++) im.setMatrixAt(k, part.local ? _m.multiplyMatrices(mats[k], part.local) : mats[k]);
+        im.userData.off = off;   // [W4 seam] chi so instances.bin cua o thu 0
+        if (hiddenInst.size) zeroHidden(im, off, n);
         im.instanceMatrix.needsUpdate = true;
         im.matrixAutoUpdate = false;
         im.userData.mr = lr;
@@ -573,7 +576,7 @@ varying vec2 vTUv;`).replace('#include <output_fragment>', `
     const L = world.landmask, lpx = pixels(await bitmap(landBuf));
     LB = W.landBox = { x0: L.x0, z0: L.z0, res: L.metresPerPixel, cols: L.width, rows: L.height, w: L.width * L.metresPerPixel, h: L.height * L.metresPerPixel };
     const sd = buildSdf(lpx, L.width, L.height);
-    sdfArr = sd.sdf;
+    sdfArr = sd.sdf; solidArr = sd.solid; foamArr = sd.foam;
     const lt = new T.DataTexture(sd.foam, L.width, L.height, T.RedFormat, T.UnsignedByteType);
     lt.minFilter = T.LinearFilter; lt.magFilter = T.LinearFilter; lt.unpackAlignment = 1; lt.needsUpdate = true;
     W.landTex = lt;
@@ -907,5 +910,55 @@ void main() { vec4 t = texture2D(tMap, vUv); float f = pow(clamp(dot(normalize(v
     return hit;
   }
 
-  Object.assign(W, { load, stream, cull, sdf, grad, depth01, steep01, zoneAt, setNight, resolve, updateAmbient, isLand: (x, z) => sdf(x, z) < 0 });
+
+  // ---------- [W4 seam] điểm nổ mìn: xoá ô đất khỏi landmask lúc chạy + ẩn vật cảnh (js/explosives.js, tools/explosives.py) ----------
+  // carveLand(runs, back): runs = [[hàng j, cột i đầu, số ô]] của landmask.png; các ô thành nước (back = true: trả lại thành đất, ván mới sau khi đã nổ), tính lại trường khoảng cách và texture bọt trong cửa sổ quanh chúng
+  // (đất xa hơn 64 m không đổi được kết quả: bọt cắt ở 64 m). Trả về số ô đã đổi.
+  const ZERO_M = new T.Matrix4().makeScale(0, 0, 0);
+  function carveLand(runs, back) {
+    if (!solidArr || !LB) return 0;
+    const cols = LB.cols, rows = LB.rows;
+    let i0 = 1e9, i1 = -1, j0 = 1e9, j1 = -1, n = 0;
+    for (const [j, i, c] of runs) {
+      if (j < 0 || j >= rows) continue;
+      for (let k = 0; k < c; k++) { const a = i + k; if (a >= 0 && a < cols && solidArr[j * cols + a] !== (back ? 1 : 0)) { solidArr[j * cols + a] = back ? 1 : 0; n++; } }
+      i0 = Math.min(i0, i); i1 = Math.max(i1, i + c - 1); j0 = Math.min(j0, j); j1 = Math.max(j1, j);
+    }
+    if (!n) return 0;
+    const PAD = 128, WR = 64;
+    const wi0 = Math.max(0, i0 - PAD), wi1 = Math.min(cols - 1, i1 + PAD), wj0 = Math.max(0, j0 - PAD), wj1 = Math.min(rows - 1, j1 + PAD);
+    const ww = wi1 - wi0 + 1, wh = wj1 - wj0 + 1, sub = new Uint8Array(ww * wh);
+    for (let y = 0; y < wh; y++) for (let x = 0; x < ww; x++) sub[y * ww + x] = solidArr[(wj0 + y) * cols + wi0 + x];
+    const toLand = chamfer(sub, ww, wh, 1), toWater = chamfer(sub, ww, wh, 0);
+    for (let y = Math.max(0, j0 - WR - wj0); y <= Math.min(wh - 1, j1 + WR - wj0); y++) {
+      for (let x = Math.max(0, i0 - WR - wi0); x <= Math.min(ww - 1, i1 + WR - wi0); x++) {
+        const q = y * ww + x, p = (wj0 + y) * cols + wi0 + x, d = sub[q] ? toWater[q] : toLand[q];
+        if (d >= 1e8) continue;                                      // không thấy phía đối diện trong cửa sổ: giữ giá trị cũ
+        const v = sub[q] ? -(d - 0.5) : d - 0.5;
+        sdfArr[p] = v;
+        foamArr[p] = Math.max(0, Math.min(255, Math.round(Math.max(0, v) / 64 * 255)));
+      }
+    }
+    if (W.landTex) W.landTex.needsUpdate = true;
+    return n;
+  }
+  // hideInstances(list): chỉ số trong instances.bin; ẩn bằng ma trận co về 0 (cả ô đã dựng lẫn ô dựng sau)
+  function zeroHidden(im, off, n) {
+    const keep = im.userData.saved || (im.userData.saved = new Map()), arr = im.instanceMatrix.array;
+    let ch = false;
+    for (let k = 0; k < n; k++) {
+      if (hiddenInst.has(off + k)) { if (!keep.has(k)) { keep.set(k, arr.slice(k * 16, k * 16 + 16)); im.setMatrixAt(k, ZERO_M); ch = true; } }
+      else if (keep.has(k)) { arr.set(keep.get(k), k * 16); keep.delete(k); ch = true; }   // hiện lại (ván mới sau khi đã nổ)
+    }
+    if (ch) im.instanceMatrix.needsUpdate = true;
+  }
+  function hideInstances(list, show) {
+    for (const i of list) { if (show) hiddenInst.delete(i); else hiddenInst.add(i); }
+    for (const c of Object.values(W.cells)) {
+      if (!c.group) continue;
+      for (const im of c.group.children) if (im.isInstancedMesh && im.userData.off !== undefined) zeroHidden(im, im.userData.off, im.count);
+    }
+  }
+
+  Object.assign(W, { carveLand, hideInstances, load, stream, cull, sdf, grad, depth01, steep01, zoneAt, setNight, resolve, updateAmbient, isLand: (x, z) => sdf(x, z) < 0 });
 })(window);

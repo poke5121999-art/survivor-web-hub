@@ -495,7 +495,11 @@
   cmd('ClearQuestGrid', a => {
     const c = ((root.DR_QUESTS || {}).QuestGridConfig || {})[a[0]];
     if (!c) { console.warn('[yarn] ClearQuestGrid: quest grid not found:', a[0]); return; }
-    if (c.gridKey && c.gridKey !== 'NONE' && S().grids[c.gridKey]) { S().grids[c.gridKey].items = []; delete S().grids[c.gridKey]._rt; }
+    // Clear(reInit: true) (DredgeDialogueRunner.cs:585-597): làm trống tại chỗ; _rt là thuộc tính không xoá được (state.js:74)
+    const rec = c.gridKey && c.gridKey !== 'NONE' && S().grids[c.gridKey];
+    if (!rec) return;
+    rec.items.length = 0; rec.damage.length = 0;
+    if (rec._rt) { rec._rt.seq = 1; rec._rt.damage = rec.damage; }
   });
   cmd('SellAllItemsInQuestGrid', a => {
     const c = ((root.DR_QUESTS || {}).QuestGridConfig || {})[a[0]];

@@ -50,7 +50,7 @@ async function openShop(page, id) {
 }
 
 (async () => {
-  const srv = await serve(), base = 'http://localhost:' + srv.address().port;
+  const srv = await serve(), base = (process.env.DR_URL ? process.env.DR_URL.replace(/[/]$/, '') : 'http://localhost:' + srv.address().port);
   const browser = await chromium.launch({ args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
   const allErrs = [];
 

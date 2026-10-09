@@ -153,6 +153,7 @@
   const fmtSize = (it, size) => {                                       // ItemManager.GetFormattedFishSizeString (đơn vị mét, "n2")
     const cm = (it.minSizeCentimeters || 0) + ((it.maxSizeCentimeters || 0) - (it.minSizeCentimeters || 0)) * size;
     const f = v => v.toLocaleString('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const imp = window.DRMenus && DRMenus.sizeImperial(cm); if (imp) return imp;   // W7: units = 1 (ft/in)
     return cm > 100 ? f(Math.round(cm / 100 * 100) / 100) + ' m' : f(Math.round(cm * 10) / 10) + ' cm';
   };
   function setText(nd, html, color) {

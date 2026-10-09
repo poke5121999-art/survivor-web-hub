@@ -32,13 +32,14 @@
   // ItemPOI (chai thư, ItemPOIHandler): dấu "?" như điểm kiểm tra, gợi ý "Nhặt F" (prompt.collect-item), F thêm đồ vào sổ thư và chai biến mất hẳn
   // (ItemPOI.OnHarvested trừ kho 1 → poiCollider tắt). Đã nhặt lưu ở DR.s.itemPoiTaken { <id>: 1 }.
   const BOTTLES = ((root.DR_POI && root.DR_POI.items) || []).map(b => Object.assign({ bottle: true }, b));
+  const EXTRA = [];              // [W4 seam] điểm gắn thêm lúc chạy (js/explosives.js: 24 ExplosivePOI), cùng dạng {id, x, z, r, node, once, needs, hideAfter}
   const taken = b => !!(root.DR && DR.s && ((DR.s.itemPoiTaken || {})[b.id] || (DR.s.itemsOwned || []).includes(b.item)));
   const BOAT_R = 1.5;            // [ĐỀ XUẤT] nửa bề ngang thân thuyền: collider của người chơi chạm cầu tương tác sớm hơn tâm thuyền
   const FADE = 0.75;             // InteractPointUI.fadeDurationSec
   const APPEAR_Y = 2, DISAPPEAR_Y = -0.25;
   const MARK_M = 1.1;            // [ĐỀ XUẤT] đường kính khung dấu "?" trong thế giới (m), đo bằng mắt trên clip ObBBFGMem5U t=166
   const REENABLE = 0.25;         // InspectPOIHandler.DelayedInputReenable
-  const VI = { 'Found Items': 'Đồ tìm thấy', 'Old Wreck': 'Xác tàu cũ' };      // tiêu đề bảng trái (QuestGridConfig.titleString)
+  const VI = { 'Found Items': 'Đồ tìm thấy', 'Old Wreck': 'Xác tàu cũ', 'Rock Slab': 'Phiến đá' };      // tiêu đề bảng trái (QuestGridConfig.titleString)
   const visited = n => !!(root.DRYarn && DRYarn.visited(n));
   const dist = p => { const b = DR.s.boat; return Math.hypot(b.x - p.x, b.z - p.z); };
   const outExpo = t => t >= 1 ? 1 : 1 - Math.pow(2, -10 * t);                  // DOTween Ease.OutExpo
@@ -51,6 +52,7 @@
   // ConversationPOI.RefreshStatus
   function enabled(p) {
     if (p.bottle) return !taken(p);
+    if (p.off && !(DR.s.poiOn || {})[p.id]) return false;                  // GameObject tắt sẵn trong Game.unity (Finale_Root) đến khi DRPoi.enable
     if (p.once && visited(p.node)) return false;
     if (p.needs.length && !p.needs.every(visited)) return false;
     if (p.hideAfter.some(visited)) return false;
@@ -80,7 +82,7 @@
     const v = DR.view || {}, sp = v.nearSpot;
     if ((sp && (!sp.status || sp.status === 'ok')) || v.nearDock) return null;      // flag2 / flag3 thắng flag5
     let best = null, bd = 1e9;
-    for (const p of P.concat(BOTTLES)) {
+    for (const p of P.concat(BOTTLES, EXTRA)) {
       const d = dist(p);
       if (d > p.r + BOAT_R || d >= bd || !enabled(p)) continue;
       best = p; bd = d;
@@ -92,7 +94,10 @@
     if (!p || p !== near || !idle() || !root.DRDialogue) return false;
     if (p.bottle) return collect(p);
     active = p;
-    DR.emit('poiInspect', p.id, p.node);                                    // người nghe âm thanh / thống kê (chưa ai dùng)
+    DR.emit('poiInspect', p.id, p.node);
+    // AutoMovePOI.OnConversationStarted: SetAutoMoveTarget(autoMoveDestination) (+ SetAutoRotateTarget(forward) nếu includeRotation). Hệ lái tự động
+    // thuộc đơn vị finale (W6a): nghe 'poiAutoMove' (x, z, fx, fz, rotate) hoặc gán DRPoi.onAutoMove.
+    if (p.auto) { const a = p.auto; DR.emit('poiAutoMove', a.x, a.z, a.fx, a.fz, !a.norot); if (root.DRPoi && DRPoi.onAutoMove) DRPoi.onAutoMove(a, p); }                                    // người nghe âm thanh / thống kê (chưa ai dùng)
     const done = () => { active = null; lockUntil = performance.now() + REENABLE * 1000; };
     let r = null;
     try { r = DRDialogue.start(p.node, { onEnd: done }); } catch (e) { console.warn('[poi] dialogue failed:', e.message); }
@@ -124,8 +129,9 @@
       const o = DRStoryGrid.show;
       DRStoryGrid.show = function (name, cb) {
         const q = ((root.DR_QUESTS || {}).QuestGridConfig || {})[name];
-        const ok = active && root.DRCargo && DR.s && q && q.isSaved && q.questGridExitMode === 'REVISITABLE' && q.presetGridMode === 'CREATE' &&
-          (q.completeConditions || []).every(c => c._t === 'EmptyCondition');
+        // lưới lưu được, vào lại được (kho xác tàu, bia đá ShrineXxx và phần thưởng của chúng): bảng QuestGridSlidePanel thật; lưới giao đồ một lần
+        // (HoodedFigure ITEM_DELIVER, không lưu) vẫn đi đường rút gọn của dialogue.js
+        const ok = active && root.DRCargo && DR.s && q && q.isSaved && q.questGridExitMode === 'REVISITABLE';
         if (!ok) return o.call(this, name, cb);
         const h = DRCargo.open({
           right: { tabs: ['INVENTORY'] },
@@ -182,7 +188,8 @@
     if (!shown || !cam || !T || prop <= 0.003) { if (mk.style.opacity !== '0') mk.style.opacity = '0'; return; }
     T3 = T3 || new T.Vector3();
     const y = DISAPPEAR_Y + (APPEAR_Y - DISAPPEAR_Y) * prop;
-    T3.set(shown.x, y, shown.z);
+    if (shown.mk) T3.set(shown.mk[0], shown.mk[1] + y, shown.mk[2]);          // interactPointTargetTransform: dấu "?" nổi từ chỗ đó
+    else T3.set(shown.x, y, shown.z);
     const dpos = T3.distanceTo(cam.position);
     T3.project(cam);
     if (T3.z > 1 || T3.z < -1) { mk.style.opacity = '0'; return; }
@@ -194,12 +201,28 @@
     mk.style.transform = 'translate(' + ((T3.x * 0.5 + 0.5) * W - px / 2).toFixed(1) + 'px,' + ((-T3.y * 0.5 + 0.5) * H - px / 2).toFixed(1) + 'px)';
   }
 
-  function init() { build(); wrap(); requestAnimationFrame(frame); }
+  // QuestGridConfig.backgroundImage (nền riêng của lưới: bia đá Cod/Crab/Shark/Aberration, kho bờ biển): cargo.js chỉ vẽ nền Fishmonger chung, nên
+  // ở đây thay nền của vùng lưới có data-key tương ứng bằng quy tắc CSS (:has) sinh từ dữ liệu; cargo.js dựng lại DOM mỗi lần đổi cũng không mất.
+  function gridBackgrounds() {
+    const G = (root.DR_QUESTS || {}).QuestGridConfig || {}, css = [];
+    for (const n in G) {
+      const q = G[n];
+      if (q.backgroundImage && q.isSaved && q.gridKey) css.push('.cg-left .cg-zone:has(.cg-grid[data-key="' + q.gridKey + '"]) .cg-zonebg2{background-image:url(' + base(q.backgroundImage) + ');opacity:1}');
+    }
+    if (!css.length) return;
+    const st = document.createElement('style'); st.id = 'dr-poi-gridbg'; st.textContent = css.join(' ');
+    document.head.appendChild(st);
+  }
+
+  function init() { build(); wrap(); gridBackgrounds(); requestAnimationFrame(frame); }
   if (document.body) init(); else document.addEventListener('DOMContentLoaded', init);
 
   root.DRPoi = {
-    start: id => start(P.find(p => p.id === id)),
-    enabled, points: P, bottles: BOTTLES, collect: id => collect(BOTTLES.find(b => b.id === String(id))),
+    start: id => start(P.concat(EXTRA).find(p => p.id === id)),
+    enabled, points: P, extra: EXTRA,
+    // bật / tắt điểm mà Game.unity để tắt sẵn (Finale_Root: FinalePOIEnabler.EnableBad/GoodFinalePOI → SetActive(true)); lưu ở DR.s.poiOn
+    enable: (id, on) => { if (!root.DR || !DR.s) return false; (DR.s.poiOn = DR.s.poiOn || {})[id] = on === false ? 0 : 1; if (DR.save) DR.save(); return true; },
+    onAutoMove: null, bottles: BOTTLES, collect: id => collect(BOTTLES.find(b => b.id === String(id))),
     _debug: () => ({ near: near && near.id, shown: shown && shown.id, prop: +prop.toFixed(3), active: active && active.id, prompt: !!prompt && prompt.classList.contains('on'),
       marker: mk ? { opacity: +mk.style.opacity || 0, w: parseFloat(mk.style.width) || 0 } : null, points: P.length,
       enabledNow: root.DR && DR.s ? P.filter(enabled).map(p => p.id) : [], bottlesLeft: root.DR && DR.s ? BOTTLES.filter(enabled).map(b => b.id) : [] })

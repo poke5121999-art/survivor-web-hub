@@ -75,7 +75,7 @@
   const FADED = 0.196;                  // GridObject.maintenanceModeFadedColor: đồ không có độ bền mờ đi trong chế độ sửa
 
   // Trạng thái lưới theo GridObjectState của bản gốc, suy từ khoá lưới
-  const stateOf = key => key === 'INVENTORY' ? 'IN_INVENTORY' : key === 'STORAGE' ? 'IN_STORAGE' : key === 'STORAGE_TRAY' ? 'IN_TRAY'
+  const stateOf = key => key === 'INVENTORY' ? 'IN_INVENTORY' : key === 'STORAGE' || key === 'OVERFLOW_STORAGE' ? 'IN_STORAGE' : key === 'STORAGE_TRAY' ? 'IN_TRAY'
     : /^Shop_/.test(key) ? 'IN_SHOP' : 'IN_QUEST_GRID';
 
   let host = null, held = null, tip = null, ring = null, acts = null, cursor = null, ctl = null;
@@ -1233,7 +1233,7 @@
   function depthStr(def) {
     const bands = cfg().depthBands || {}, mod = cfg().depthModifier || 1;
     const a = bands[def.minDepth] || [0, 0], b = bands[def.maxDepth] || [0, 0];
-    const f = v => Math.round(v * mod) + ' m';
+    const f = v => (window.DRMenus && DRMenus.depthFt(v * mod, ' ')) || Math.round(v * mod) + ' m';   // W7: units
     if (def.hasMinDepth && def.hasMaxDepth) return f(a[0]) + ' - ' + f(b[1]);
     if (def.hasMinDepth) return f(a[0]) + ' +';
     if (def.hasMaxDepth) return '- ' + f(b[1]);
@@ -1258,7 +1258,7 @@
         if (cm != null) {
           const v = el('span', 'sz');
           if (trophy) { const t = el('i', 'trophy', v); t.style.setProperty('--m', 'url(' + ART('TrophyIcon') + ')'); }
-          el('span', '', v, cm > 100 ? (cm / 100).toFixed(2) + ' m' : cm.toFixed(1) + ' cm');
+          el('span', '', v, (window.DRMenus && DRMenus.sizeImperial(cm)) || (cm > 100 ? (cm / 100).toFixed(2) + ' m' : cm.toFixed(1) + ' cm'));   // W7: units
           tipRow(tip, 'Kích thước:', v, trophy ? COLOR.VALUABLE : null);
         }
         tipRow(tip, 'Tình trạng:', fk === 'inf' ? 'Nhiễm bệnh' : FRESH_VN[fk], fk === 'inf' ? COLOR.CRITICAL : FRESH_COL[fk]);
@@ -1285,7 +1285,7 @@
       if (sub === G.SUB.ENGINE) tipRow(tip, 'Tốc độ:', on ? '+' + fmt(def.speedBonus || 0, 1) + ' kn' : '0 kn', on ? null : COLOR.NEGATIVE);
       if (sub === G.SUB.LIGHT) {
         tipRow(tip, 'Độ sáng:', on ? '+' + Math.round(def.lumens || 0) + ' lm' : '0 lm', on ? null : COLOR.NEGATIVE);
-        tipRow(tip, 'Tầm chiếu:', on ? Math.round(def.range || 0) + ' m' : '0 m', on ? null : COLOR.NEGATIVE);
+        tipRow(tip, 'Tầm chiếu:', on ? ((window.DRMenus && DRMenus.depthFt(def.range || 0, ' ')) || Math.round(def.range || 0) + ' m') : '0 m', on ? null : COLOR.NEGATIVE);
       }
       if (sub === G.SUB.POT || sub === G.SUB.NET) {
         // TooltipSectionDeployableDetails (:91-140): bền theo thời gian, "Bắt được" ~N hoặc a - b mỗi ngày, sức chứa lưới, thưởng dị biến, loại
@@ -1517,7 +1517,7 @@
     const out = [];
     const mk = (key, g, cfgObj) => ({ key, g, st: stateOf(key), cfg: cfgObj || null, hints: null });
     if (!L) return out;
-    if (L.kind === 'storage') { if (DR.s.grids.STORAGE) out.push(mk('STORAGE', DR.grid('STORAGE'), root.DR_GRIDS.Storage)); L.cur = 'STORAGE'; }
+    if (L.kind === 'storage') { const sk = L.key || 'STORAGE'; /* w2overflow: left.key chọn lưới (OVERFLOW_STORAGE) */ if (DR.s.grids[sk]) out.push(mk(sk, DR.grid(sk), root.DR_GRIDS[DR.s.grids[sk].cfg] || root.DR_GRIDS.Storage)); L.cur = sk; }
     else if (L.kind === 'tray') {
       const c = root.DR_GRIDS.StorageTray;
       out.push(mk('STORAGE_TRAY', G.create(c), c)); L.cur = 'STORAGE_TRAY';

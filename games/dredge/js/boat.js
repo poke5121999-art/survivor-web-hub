@@ -111,6 +111,7 @@
         if (/Mask_Mat/.test(src.name)) { o.material = depthOnly; o.renderOrder = /Foam/.test(src.name) ? 1.5 : 0.5; return; }
         if (src.userData && src.userData.lightBeam) { o.material = beamMat || (beamMat = beamMaterial(src)); o.renderOrder = 3; return; }
         const m = litBoat(src);
+        if (root.DRPaint) DRPaint.hook(m, src);   // W8 seam: sơn/cờ (js/paint.js) đăng ký vật liệu
         o.material = m;
       }
     });
@@ -128,6 +129,7 @@
     Bt.lights = { point, spot, spots: [spot] };
     bob.add(point); bob.add(spot);
     setTier(root.DR.s ? root.DR.s.hullTier : 1);
+    if (root.DRPaint) DRPaint.attach(player);   // W8 seam: tìm FlagAccessory/BuntingAccessory rồi áp màu/cờ/dây cờ đã lưu
   }
 
   // LightBeam_Shader (Shader Graph, thân bị bỏ khi xuất): màu = tex.rgb · Color, alpha = fresnel^FadeSmoothness · tex.a · Opacity;

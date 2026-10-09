@@ -1,1 +1,87 @@
-/* Stub rỗng của đơn vị W7 (WORLD-GAPS.md §6), W0 đặt sẵn thẻ <link> trong index.html. */
+/* W7 menus: cửa sổ Cài đặt, chọn ô lưu và màn Credits cuộn chữ (js/menus.js). Đơn vị --s = cao khung / 1080 (canvas tham chiếu của bản gốc). */
+.dm-scrim { position: fixed; inset: 0; z-index: 70; display: flex; align-items: center; justify-content: center; background: rgba(3, 6, 7, .74); }
+.dm-scrim[hidden] { display: none; }
+.dm-win { box-sizing: border-box; width: min(760px, 94vw); max-height: min(86vh, 640px); display: flex; flex-direction: column; color: #efe3c8;
+  background: rgba(9, 12, 12, .97); border: 1px solid rgba(226, 184, 102, .42); box-shadow: 0 10px 40px rgba(0, 0, 0, .6); }
+.dm-head { display: flex; align-items: center; gap: 12px; padding: 12px 18px 8px; border-bottom: 1px solid rgba(226, 184, 102, .22); }
+.dm-head h2 { margin: 0; flex: 1; font: 800 clamp(20px, 3.4vh, 28px) "Hahmlet", Georgia, serif; letter-spacing: .02em; }
+.dm-x { width: 30px; height: 30px; padding: 0; cursor: pointer; font: 600 18px/28px "Oswald", sans-serif; color: #efe3c8; background: transparent; border: 1px solid rgba(226, 184, 102, .4); }
+.dm-x:hover, .dm-x:focus-visible { background: #1d1a15; border-color: #e2b866; outline: none; }
+.dm-tabs { display: flex; gap: 2px; padding: 8px 18px 0; flex-wrap: wrap; }
+.dm-tab { padding: 6px 16px; cursor: pointer; font: 600 15px "Oswald", sans-serif; letter-spacing: .04em; color: #b9ab8e; background: rgba(27, 20, 16, .7); border: 0; border-bottom: 2px solid transparent; }
+.dm-tab:hover, .dm-tab:focus-visible { color: #efe3c8; outline: none; }
+.dm-tab[aria-selected="true"] { color: #e2b866; border-bottom-color: #e2b866; background: rgba(58, 42, 32, .7); }
+.dm-body { padding: 8px 18px 6px; overflow-y: auto; overscroll-behavior: contain; min-height: 120px; }
+.dm-row { display: flex; align-items: center; gap: 14px; padding: 8px 0; border-bottom: 1px solid rgba(239, 227, 200, .07); }
+.dm-row > label, .dm-row > .lb { flex: 0 0 38%; font: 400 16px "Signika", sans-serif; }
+.dm-row .ctl { flex: 1; display: flex; align-items: center; gap: 10px; min-width: 0; }
+.dm-row .val { flex: 0 0 3.2em; text-align: right; font: 400 14px "Oswald", sans-serif; color: #b9ab8e; }
+.dm-row .note { flex-basis: 100%; margin: 4px 0 0; font: 400 13px/1.4 "Poltawski Nowy", Georgia, serif; color: #b9ab8e; }
+.dm-row.has-note { flex-wrap: wrap; }
+.dm-row input[type=range] { flex: 1; min-width: 0; accent-color: #e2b866; height: 24px; }
+.dm-seg { display: flex; flex-wrap: wrap; gap: 2px; }
+.dm-seg button { padding: 5px 14px; cursor: pointer; font: 600 14px "Oswald", sans-serif; letter-spacing: .02em; color: #efe3c8; background: rgba(27, 20, 16, .85); border: 1px solid rgba(226, 184, 102, .3); }
+.dm-seg button:hover, .dm-seg button:focus-visible { border-color: #e2b866; outline: none; }
+.dm-seg button[aria-pressed="true"] { background: #e2b866; border-color: #e2b866; color: #1b1410; }
+.dm-foot { display: flex; gap: 8px; justify-content: flex-end; padding: 10px 18px 14px; }
+.dm-btn { min-width: 110px; padding: 0 20px; height: 34px; cursor: pointer; font: 600 15px "Oswald", sans-serif; letter-spacing: .03em; color: #f4efe4; background: rgba(6, 7, 7, .93); border: 1px solid rgba(226, 184, 102, .5); }
+.dm-btn:hover, .dm-btn:focus-visible { background: #1d1a15; border-color: #e2b866; outline: none; }
+.dm-btn.danger { border-color: rgba(220, 44, 56, .7); color: #ff9a9f; }
+
+/* ô lưu */
+.dm-win.slots { width: min(900px, 94vw); }
+.dm-slots { display: flex; gap: 14px; padding: 16px 18px 6px; }
+.dm-slot { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding: 14px 12px; background: rgba(27, 20, 16, .8); border: 1px solid rgba(226, 184, 102, .3); }
+.dm-slot.on { border-color: #e2b866; }
+.dm-slot h3 { margin: 0; font: 600 16px "Oswald", sans-serif; letter-spacing: .05em; color: #e2b866; }
+.dm-slot .info { flex: 1; min-height: 3.6em; white-space: pre-line; font: 400 15px/1.45 "Poltawski Nowy", Georgia, serif; color: #efe3c8; }
+.dm-slot.empty .info { color: #b9ab8e; }
+.dm-slot .acts { display: flex; gap: 6px; }
+.dm-slot .acts .dm-btn { flex: 1; min-width: 0; padding: 0 8px; }
+.dm-confirm { margin: 8px 18px 0; padding: 10px 14px; background: rgba(60, 14, 18, .6); border: 1px solid rgba(220, 44, 56, .6); font: 400 15px/1.45 "Poltawski Nowy", Georgia, serif; white-space: pre-line; }
+.dm-confirm[hidden] { display: none; }
+.dm-confirm .acts { display: flex; gap: 8px; margin-top: 8px; }
+
+/* Credits */
+#dr-credits { position: fixed; inset: 0; z-index: 80; overflow: hidden; color: #efe3c8; --s: 1; font-family: "Poltawski Nowy", Georgia, serif; }
+#dr-credits[hidden] { display: none; }
+#dr-credits .scrim { position: absolute; inset: 0; background: #000; opacity: 0; }
+#dr-credits .pg { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; pointer-events: none; text-align: center; }
+#dr-credits .logo { font: 800 calc(70px * var(--s)) "Hahmlet", Georgia, serif; letter-spacing: .06em; text-transform: uppercase; margin-bottom: calc(60px * var(--s)); text-shadow: 0 2px 14px #000; }
+#dr-credits .who { margin: calc(26px * var(--s)) 0; }
+#dr-credits .who b { display: block; font: 600 calc(52px * var(--s)) "Hahmlet", Georgia, serif; }
+#dr-credits .who i { display: block; font: 400 calc(30px * var(--s)) "Oswald", sans-serif; font-style: normal; letter-spacing: .12em; text-transform: uppercase; color: #e2b866; margin-top: calc(4px * var(--s)); }
+#dr-credits .roll { position: absolute; left: 0; right: 0; top: 0; opacity: 0; will-change: transform; text-align: center; }
+#dr-credits .roll .wrap { width: calc(1200px * var(--s)); max-width: 96vw; margin: 0 auto; padding: 0 0 0; }
+#dr-credits .roll .gap { height: calc(150px * var(--s)); }
+#dr-credits .dept { font: 800 calc(64px * var(--s)) "Hahmlet", Georgia, serif; letter-spacing: .03em; margin: calc(70px * var(--s)) 0 calc(24px * var(--s)); }
+#dr-credits .team { font: 600 calc(34px * var(--s)) "Oswald", sans-serif; letter-spacing: .1em; text-transform: uppercase; color: #e2b866; margin: calc(34px * var(--s)) 0 calc(8px * var(--s)); }
+#dr-credits .nm { font: 400 calc(38px * var(--s)) "Poltawski Nowy", Georgia, serif; line-height: 1.25; }
+#dr-credits .rl { font: 400 calc(28px * var(--s)) "Signika", sans-serif; color: #b9ab8e; margin-bottom: calc(10px * var(--s)); }
+#dr-credits .grid { display: grid; text-align: center; margin: 0 auto; }
+#dr-credits .grid span { font: 400 calc(34px * var(--s)) "Poltawski Nowy", Georgia, serif; display: flex; align-items: center; justify-content: center; }
+#dr-credits .end { height: calc(300px * var(--s)); font: 400 calc(30px * var(--s)) "Oswald", sans-serif; letter-spacing: .2em; color: #b9ab8e; padding-top: calc(120px * var(--s)); }
+#dr-credits .skip { position: absolute; right: 24px; bottom: 18px; display: flex; align-items: center; gap: 10px; opacity: 0; transition: opacity .3s; font: 400 15px "Oswald", sans-serif; letter-spacing: .06em; color: #efe3c8; }
+#dr-credits .skip.on { opacity: .9; }
+#dr-credits .skip button { height: 32px; padding: 0 16px; cursor: pointer; position: relative; overflow: hidden; font: 600 14px "Oswald", sans-serif; color: #efe3c8; background: rgba(6, 7, 7, .8); border: 1px solid rgba(226, 184, 102, .5); }
+#dr-credits .skip button i { position: absolute; left: 0; bottom: 0; height: 3px; width: 0; background: #e2b866; }
+
+@media (max-height: 460px) {
+  .dm-win { max-height: 94vh; }
+  .dm-head { padding: 6px 14px 4px; }
+  .dm-tabs { padding: 4px 14px 0; }
+  .dm-tab { padding: 4px 12px; font-size: 14px; }
+  .dm-body { padding: 4px 14px; }
+  .dm-row { padding: 4px 0; gap: 10px; }
+  .dm-row > label, .dm-row > .lb { font-size: 14px; }
+  .dm-seg button { padding: 3px 10px; font-size: 13px; }
+  .dm-foot { padding: 6px 14px 8px; }
+  .dm-btn { height: 28px; font-size: 14px; }
+  .dm-slots { padding: 10px 14px 4px; gap: 8px; }
+  .dm-slot { padding: 8px; gap: 4px; }
+  .dm-slot .info { font-size: 13px; min-height: 3em; }
+}
+@media (max-width: 640px) {
+  .dm-row > label, .dm-row > .lb { flex-basis: 34%; }
+  .dm-slots { flex-direction: column; }
+}

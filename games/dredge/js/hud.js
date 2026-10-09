@@ -252,7 +252,7 @@
     const f = s.time - Math.floor(s.time), hh = Math.floor(f * 24), mm = Math.floor((f * 24 - hh) * 60);
     const dayN = Math.floor(s.time);
     put('day', dayN, d => u.day.textContent = DAY_VI[d % 7] + ', Ngày ' + (d + 1));
-    put('clock', pad2(hh) + ':' + pad2(mm), c => u.tray.firstChild.textContent = c);
+    put('clock', root.DRMenus && DRMenus.fmtClock ? DRMenus.fmtClock(hh, mm) : pad2(hh) + ':' + pad2(mm), c => u.tray.firstChild.textContent = c);   // W7: clockStyle (TimeController.GetTimeFormatted)
     // TimeOfDayUI.cs: bánh xe quay -Time*360 độ (Unity: dương = ngược chiều kim đồng hồ), mốc nửa đêm ở dưới cùng.
     put('wheel', Math.round(f * 3600) / 10, a => u.w.style.transform = 'rotate(' + a + 'deg)');
 

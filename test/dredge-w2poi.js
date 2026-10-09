@@ -105,7 +105,7 @@ async function pump(page, stop, limit) {            // đi hội thoại bằng 
 async function poiTests(page, vw, vh, tag) {
   console.log('Điểm kiểm tra ' + tag);
   const P = await ev(page, () => DR_POI.points.map(p => ({ id: p.id, x: p.x, z: p.z, r: p.r, node: p.node })));
-  ok(P.length === 38, 'data/poi.js có 38 điểm kiểm tra có node (đếm trong markers.json); có ' + P.length);
+  ok(P.length === 50, 'data/poi.js có 50 điểm (38 InspectPOI con trực tiếp trong markers.json + 12 ConversationPOI đọc từ Game.unity, W3); có ' + P.length);
   const b = P.find(p => p.id === 'Buoy_Inspect');
   near(b.x, BUOY.x, 0.01, 'phao x'); near(b.z, BUOY.z, 0.01, 'phao z'); ok(b.r === BUOY.r, 'phao bán kính 5');
   ok(P.filter(p => /^GM_/.test(p.id)).length === 3 && P.some(p => p.id === 'Lighthouse_Inspect'), 'có 3 kho bờ biển GM và Lighthouse_Inspect');

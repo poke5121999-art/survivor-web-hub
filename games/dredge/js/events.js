@@ -39,7 +39,7 @@
 (function (root) {
   'use strict';
   const EV = root.DR_WORLDEVENTS || {}, CFG = root.DR_CONFIG || {};
-  const MODE = 'NORMAL';
+  let MODE = 'NORMAL';   // W7: DREvents.setGameMode(m) (menus.js) đổi theo SettingsSaveData.gameMode
   const FREQ = () => (CFG.worldEventRollFrequency || { NORMAL: 0.1 })[MODE];   // GameConfigData.WorldEventRollFrequency
   const CHANCE = CFG.worldEventChance == null ? 1 : CFG.worldEventChance;      // GameConfigData.WorldEventChance
   const handlers = {}, statics = {};
@@ -251,6 +251,13 @@
     },
     staticEvent(type, obj) { (statics[type] = statics[type] || []).push(obj); },   // RegisterStaticWorldEvent
     update, phase, safe, test, candidates, offsetWorld,
+    // W7 (WorldEventManager.OnGameModeChanged :59-67): đổi chế độ thì PASSIVE dọn sự kiện đang chạy không cho phép ở PASSIVE, tần suất bốc lấy lại từ GameConfigData
+    setGameMode(m) {
+      if (!(m === 'NORMAL' || m === 'PASSIVE' || m === 'NIGHTMARE')) return;
+      MODE = m;
+      if (m === 'PASSIVE' && current && !current.e.allowInPassiveMode && current.e.dispelByBanish) requestFinish(current);
+    },
+    get gameMode() { return MODE; }, get rollFrequency() { return FREQ(); },
     get current() { return current; },
     get banished() { return banish; },
     get foghorn() { return { active: horn, hold: hornHold, blasts: hornBlasts }; },

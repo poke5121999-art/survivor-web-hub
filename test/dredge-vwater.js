@@ -99,7 +99,7 @@ async function whiteCount(page, png, box, thr) {   // số điểm ảnh gần t
 const within = (v, lo, hi) => v >= lo && v <= hi;
 
 (async () => {
-  const srv = await serve(), base = 'http://localhost:' + srv.address().port, errors = [];
+  const srv = await serve(), base = (process.env.DR_URL ? process.env.DR_URL.replace(/[/]$/, '') : 'http://localhost:' + srv.address().port), errors = [];
   const browser = await chromium.launch({ args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
   const { ctx, page } = await newSea(browser, base, errors);
 

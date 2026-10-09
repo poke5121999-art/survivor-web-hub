@@ -1,1 +1,88 @@
-/* Stub rỗng của đơn vị W1 (WORLD-GAPS.md §6), W0 đặt sẵn thẻ <link> trong index.html. */
+/*
+ * Màn "Research" của điểm đến nghiên cứu (js/research.js). Số đo là đơn vị canvas 1920x1080 (CanvasScaler khớp theo chiều cao) nhân --s,
+ * lấy từ cây ResearchWindow trong data/research_ui.js (tools/research_ui.py). Sprite ở art/ui/research (cỡ gốc).
+ * Cùng cách dựng với css/upgrade.css (cây RectTransform → .rs-n tuyệt đối). Tiền tố rs-. Phông "Front Page Neue" do css/story.css khai báo.
+ */
+#dr-rsch { position: fixed; inset: 0; z-index: 56; display: none; --s: 1; --kt: 1; opacity: 0; transition: opacity .35s linear;
+  font-family: "Front Page Neue", "Signika", sans-serif; color: #fff; -webkit-font-smoothing: antialiased; user-select: none; -webkit-user-select: none; touch-action: none; }
+#dr-rsch.on { display: block; }
+#dr-rsch.show { opacity: 1; }
+#dr-rsch * { box-sizing: border-box; }
+
+.rs-n { position: absolute; pointer-events: none; }                 /* chỉ ô mục và tab nhận chuột (khung Lines/Researchables phủ cả panel) */
+.rs-n.off { display: none; }
+.rs-bg { position: absolute; inset: 0; pointer-events: none; }
+.rs-bg.sl { border-style: solid; border-color: transparent; border-image: var(--bi); border-width: var(--bw); }
+.rs-bg.si { background: var(--sp) center / 100% 100% no-repeat; }
+.rs-bg.pa { background-size: contain; }
+.rs-bg.solid { background-color: var(--c, #fff); }
+/* Image.color nhân với sprite (cog trắng/đỏ, nền ô lưới): nền = màu, lớp ::before nhân ảnh lên */
+.rs-bg.mulm { isolation: isolate; background-color: var(--c, #fff); -webkit-mask: var(--sp) center / contain no-repeat; mask: var(--sp) center / contain no-repeat; }
+.rs-bg.mulm.stretch { -webkit-mask-size: 100% 100%; mask-size: 100% 100%; }
+/* ô lưới Tiled (Border của mục): GridSquare lặp theo --tile; Image.color nhân với sprite nên màu = nền, sprite = mặt nạ */
+.rs-bg.tile { background-color: var(--c, #6b6b6b); -webkit-mask: var(--sp) 0 0 / var(--tile) var(--tile) repeat; mask: var(--sp) 0 0 / var(--tile) var(--tile) repeat; }
+
+.rs-t { pointer-events: none; white-space: nowrap; }
+.rs-tx { position: absolute; left: 0; right: 0; line-height: 1; white-space: nowrap; }
+.rs-tx i { font-style: normal; display: inline-block; }
+.rs-n.up .rs-tx { text-transform: uppercase; }                       /* tên tab hiện chữ hoa như clip */
+
+.rs-n.np { pointer-events: none; }
+.rs-tab { cursor: pointer; pointer-events: auto; }
+.rs-n.rs-en, .rs-tab .rs-tbtn { pointer-events: auto; }
+.rs-tab .rs-tbtn { position: absolute; inset: 0; }
+
+/* mục nghiên cứu */
+.rs-en .rs-img { position: absolute; inset: 0; pointer-events: none; background: var(--sp) center / 100% 100% no-repeat; }
+.rs-en.sil .rs-img { filter: brightness(0) invert(1); }                 /* silhouetteMaterial: món chưa mở hiện bóng trắng */
+.rs-en.can { cursor: pointer; }
+.rs-en.can:hover .rs-bg.tile, .rs-en.hold .rs-bg.tile { filter: brightness(1.35); }
+.rs-en .rs-holdbar { position: absolute; left: 0; bottom: 0; height: calc(var(--s) * 6px); width: 0; background: #74d27a; pointer-events: none; }
+.rs-notch .rs-nf { transition: opacity .25s linear, transform .25s ease-out; opacity: 0; }
+.rs-notch.full .rs-nf { opacity: 1; }
+.rs-notch.pop .rs-nf { animation: rs-pop .45s ease-out; }
+@keyframes rs-pop { 0% { transform: scale(2.2); opacity: 0; } 60% { transform: scale(.9); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+
+/* số linh kiện: nháy đỏ khi hết (ResearchWindow.FlashResearchItemCount, trigger "failure") */
+.rs-flash { opacity: 0; pointer-events: none; }
+#dr-rsch.fail .rs-flash { animation: rs-fail .6s linear; }
+@keyframes rs-fail { 0% { opacity: 1; } 100% { opacity: 0; } }
+
+/* nhắc phím */
+.rs-key { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; border-radius: calc(var(--s) * 9px); background: #fff; color: #000;
+  font-weight: 400; font-size: calc(var(--s) * 34px); line-height: 1; margin: calc(var(--s) * 2px); pointer-events: none; }
+.rs-back { position: absolute; right: calc(var(--s) * 10px); bottom: calc(var(--s) * 14px); display: flex; align-items: center; gap: calc(var(--s) * 12px);
+  padding: 0; background: none; border: 0; color: #fff; cursor: pointer; font: inherit; font-size: calc(var(--s) * 36px); line-height: 1; text-shadow: 0 0 calc(var(--s) * 6px) #000; }
+.rs-back b { display: inline-flex; align-items: center; justify-content: center; width: calc(var(--s) * 38px); height: calc(var(--s) * 38px); border-radius: calc(var(--s) * 9px);
+  background: #fff; color: #000; font-weight: 400; font-size: calc(var(--s) * 30px); }
+.rs-back:hover b, .rs-back:focus-visible b { background: #ffd104; }
+.rs-back:focus-visible { outline: 0; }
+body.rs-open .qn-jbtn { visibility: hidden !important; }
+
+/* tooltip (TooltipUI: Container 330 rộng, đệm 15/15/3/15; ConstructSpatialItemTooltip chế độ RESEARCH_PREVIEW / MYSTERY) */
+.rs-tip { position: fixed; left: 0; top: 0; z-index: 5; width: calc(var(--kt) * 330px); padding: calc(var(--kt) * 3px) calc(var(--kt) * 15px) calc(var(--kt) * 15px);
+  color: #fff; isolation: isolate; pointer-events: none; opacity: 0; transition: opacity .35s; --k: var(--kt); }
+.rs-tip.on { opacity: 1; }
+.rs-tip::before { content: ""; position: absolute; inset: 0; z-index: -1; border-style: solid; border-color: transparent;
+  border-width: calc(var(--kt) * 32px); border-image: var(--pbi) / calc(var(--kt) * 32px) stretch; }
+.rs-tip .hd { position: relative; display: flex; align-items: center; gap: calc(var(--k) * 8px); min-height: calc(var(--k) * 50px); padding-bottom: calc(var(--k) * 8px); }
+.rs-tip .hd .ic { width: calc(var(--k) * 40px); height: calc(var(--k) * 40px); flex: none; object-fit: contain; }
+.rs-tip .hd .nm { flex: 1; font-size: calc(var(--k) * 30px); line-height: 1.05; }
+.rs-tip .hd .ln { position: absolute; left: calc(var(--k) * -14px); right: calc(var(--k) * -14px); bottom: calc(var(--k) * 3px); height: 2px; background: #d7bfad; }
+.rs-tip .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: calc(var(--k) * 30px); margin-top: calc(var(--k) * 2px); font-size: calc(var(--k) * 26px); }
+.rs-tip .ds { margin: calc(var(--k) * 4px) 0 0; text-align: center; font-size: calc(var(--k) * 24px); line-height: 1.2; white-space: pre-line; color: #fff; }
+.rs-tip .prompts { margin-top: calc(var(--k) * 8px); display: flex; justify-content: center; gap: calc(var(--k) * 14px); }
+.rs-tip .pr { position: relative; display: flex; align-items: center; gap: calc(var(--k) * 8px); font-size: calc(var(--k) * 24px); line-height: 1; }
+.rs-tip .pr b { font-weight: 400; padding: calc(var(--k) * 4px) calc(var(--k) * 9px); border: 1px solid #d7bfad; border-radius: 3px; background: rgba(255, 255, 255, .1); font-size: calc(var(--k) * 20px); }
+.rs-tip .pr i { display: inline-block; width: calc(var(--k) * 26px); height: calc(var(--k) * 26px); background: var(--sp) center / contain no-repeat; vertical-align: middle; }
+.rs-tip .holdline { height: calc(var(--k) * 5px); margin-top: calc(var(--k) * 6px); background: rgba(255, 255, 255, .15); }
+.rs-tip .holdline i { display: block; height: 100%; width: 0; background: #74d27a; }
+
+/* banner "Nghiên cứu hoàn tất" (BannersUI ResearchBannerListing; [ĐỀ XUẤT] vị trí dưới khung, tự tắt sau 4,2 s) */
+.rs-note { position: absolute; left: 50%; bottom: calc(var(--s) * 70px); transform: translateX(-50%); z-index: 7; pointer-events: none; text-align: center; isolation: isolate;
+  padding: calc(var(--s) * 14px) calc(var(--s) * 40px); min-width: calc(var(--s) * 560px); animation: rs-note 4.2s linear forwards; }
+.rs-note::before { content: ""; position: absolute; inset: 0; z-index: -1; border-style: solid; border-color: transparent;
+  border-width: calc(var(--s) * 32px); border-image: var(--pbi) / calc(var(--s) * 32px) stretch; }
+.rs-note b { display: block; font-weight: 400; font-size: calc(var(--s) * 44px); line-height: 1.1; color: #fff; }
+.rs-note span { display: block; font-size: calc(var(--s) * 28px); line-height: 1.2; color: #d7bfad; }
+@keyframes rs-note { 0% { opacity: 0; } 8% { opacity: 1; } 85% { opacity: 1; } 100% { opacity: 0; } }

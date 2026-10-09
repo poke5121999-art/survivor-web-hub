@@ -35,7 +35,7 @@ const near = (a, b, t, m) => ok(Math.abs(a - b) <= t, m + ' (' + a + ' vs ' + b 
   page.on('pageerror', e => errors.push('pageerror ' + e.message));
   page.on('console', m => { if (m.type() === 'error') errors.push('console ' + m.text()); });
   page.on('response', r => { if (r.status() >= 400) errors.push('HTTP ' + r.status() + ' ' + r.url()); });
-  await page.goto('http://localhost:' + srv.address().port + '/games/dredge/index.html?fresh=1');
+  await page.goto((process.env.DR_URL ? process.env.DR_URL.replace(/[/]$/, '') : 'http://localhost:' + srv.address().port) + '/games/dredge/index.html?fresh=1');
   await page.waitForFunction(() => window.DR_DEBUG && DR_DEBUG.ready(), null, { timeout: 180000 });
   await page.click('#btn-new');
   await page.waitForFunction(() => DR.mode === 'dock', null, { timeout: 15000 });

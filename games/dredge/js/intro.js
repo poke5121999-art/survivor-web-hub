@@ -132,7 +132,7 @@
     // Bỏ qua: Bloom 1,5 (ngưỡng 1, cần HDR), ChromaticAberration 0,1, MotionBlur [ĐỀ XUẤT].
     const rt = new T.WebGLRenderTarget(4, 4, { samples: 4, minFilter: T.LinearFilter, magFilter: T.LinearFilter });
     rt.texture.encoding = T.sRGBEncoding;
-    const lutTex = new T.TextureLoader().load('art/ui/intro/LUT_0.png?v=20261010b');
+    const lutTex = new T.TextureLoader().load('art/ui/intro/LUT_0.png?v=20261010c');
     lutTex.minFilter = lutTex.magFilter = T.LinearFilter; lutTex.generateMipmaps = false;
     const post = new T.Scene(), postCam = new T.OrthographicCamera(-1, 1, 1, -1, 0, 1);
     const postMat = new T.ShaderMaterial({
@@ -325,6 +325,14 @@
     root.DR.emit('intro', 'done');
   }
   function skip() {
+    // bỏ qua trước khi start() kịp chạy (newgame đặt 'pending' rồi start sau setTimeout 0): coi như đã xem xong
+    if (!st && I.stage === 'pending') {
+      I.playing = false; I.stage = null;
+      root.DR.s.vars['has-viewed-intro-cutscene'] = true; root.DR.s.vars['played-intro-cinematic'] = true;
+      if (root.DRDock && DRDock.resume) DRDock.resume();
+      root.DR.emit('intro', 'done');
+      return true;
+    }
     if (!st) return false;
     if (st.stage === 'illustrated') endIllustrated();
     if (st && st.stage === 'cinematic') { begin(); finish(true); }
