@@ -333,7 +333,20 @@ async function adminPage(br, base) {
   await s.ctx.close();
 }
 
+// Pages cho trình duyệt giữ file 10 phút: HTML mới chạy với JS cũ từng làm feedback-admin.html trắng trơn.
+function cacheBust() {
+  console.log('chống đệm');
+  const ref = /(?:src|href)="((?:js|css)\/(?:feedback[\w-]*\.(?:js|css)|auth\.js))(\?v=[\w]+)?"/g;
+  const seen = [];
+  for (const f of ['feedback.html', 'feedback-admin.html', 'login.html']) {
+    for (const m of fs.readFileSync(path.join(ROOT, f), 'utf8').matchAll(ref)) seen.push(f + ':' + m[1] + (m[2] || ''));
+  }
+  const versions = new Set(seen.map((x) => (x.split('?v=')[1] || 'THIẾU')));
+  check('mọi file feedback/auth đều gắn cùng một ?v=', seen.length === 7 && versions.size === 1 && !versions.has('THIẾU'), seen.join(' '));
+}
+
 (async () => {
+  cacheBust();
   const { chromium } = require(PW);
   const srv = process.env.FB_URL ? { base: process.env.FB_URL.replace(/\/+$/, ''), close() {} } : await serve();
   const br = await chromium.launch();

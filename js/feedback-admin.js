@@ -307,6 +307,9 @@
 
   function load() {
     return FB.api("GET", "hub_feedback?select=" + FB.COLUMNS + "&order=id.desc&limit=1000").then(function (rows) {
+      // Không còn phiếu mở thì mặc định "Đang mở" ra danh sách trống, trông như trang hỏng; mở "Tất cả".
+      if (!state.loaded && !rows.some(function (x) { return FB.GROUP[x.status] === "active"; })) state.filter.status = "all";
+      state.loaded = true;
       state.tickets = rows;
       state.notes = {};
       render();
