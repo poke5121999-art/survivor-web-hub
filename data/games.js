@@ -38,7 +38,7 @@ window.HUB_GAMES = [
     id: "dragonproj",
     title: "Săn Rồng",
     tagline: "Bắn từ trên xuống, một ngón. Sáu lớp vũ khí — súng trường, súng săn, bắn tỉa, cung nạp lực, gậy phép, súng phóng — mỗi lớp giỏi nhất đúng một thứ và tệ nhất hai thứ. Kéo để chạy, chạm để bắn, giữ để rải/nạp/ghì súng, vẩy để né. Gacha ra NHÂN VẬT kiểu White Cat: 43 người, mỗi người gắn cứng một lớp và một hệ. Mang ba người vào ải, đổi qua lại giữa trận. 38 ải solo, dọn quái rồi hạ Behemoth cuối ải.",
-    thumbnail: "assets/thumbnails/dragonproj.svg",
+    thumbnail: "assets/thumbnails/dragonproj.png",
     path: "games/dragonproj/index.html",
     rev: "20260901a",
     // Plain canvas/JS, không engine, mở được từ file://. Dựng lại từ Dragon Project
@@ -266,7 +266,7 @@ window.HUB_GAMES = [
     id: "stardew",
     title: "Quần Đảo Sao Rơi",
     tagline: "Ông ngoại để lại một hòn đảo. Biển quanh đây còn hai mươi bốn hòn nữa — mua từng hòn một, và trong đám cỏ cao trên vài hòn có thứ đang trốn.",
-    thumbnail: "assets/thumbnails/stardew.svg",
+    thumbnail: "assets/thumbnails/stardew.png",
     path: "games/stardew/index.html",
     // Bumped on every redeploy. js/hub.js appends it to the card's href so the
     // browser cannot serve a stale index.html out of the ten-minute Pages cache.
@@ -320,7 +320,7 @@ window.HUB_GAMES = [
     id: "hic",
     title: "Hắn Đang Tới",
     tagline: "Ba ngày để nhặt đồ, rồi hắn tới. Bạn không bấm được gì trong trận — thắng hay thua đã nằm trong đống đồ bạn chọn lúc còn sáng.",
-    thumbnail: "assets/thumbnails/hic.svg",
+    thumbnail: "assets/thumbnails/hic.png",
     path: "games/hic/index.html",
     // available since 2026-08-23. Plain canvas/JS, no engine: 9 files plus one
     // 29 KB data bundle. All graphics are VECTOR drawn in code (curves, rounded
@@ -413,7 +413,7 @@ window.HUB_GAMES = [
     id: "slimeclash",
     title: "SlimeClash",
     tagline: "Một lưới 6×6, một con quái to. Ba bước mỗi lượt: kéo quân như game merge, xếp 3 con cùng loại cùng cấp thành hàng để gộp lên cấp — và nó đổi hình luôn. Hết bước thì cả sân bắn vào quái, rồi quái nện xuống một cột nó đã báo trước. Mười ngày một chương, boss ở ngày 5 và ngày 10. Thắng thua nằm ở chỗ có đủ sát thương trong ngần ấy lượt hay không, chứ không ở chỗ né được hay không.",
-    thumbnail: "assets/thumbnails/slimeclash.svg",
+    thumbnail: "assets/thumbnails/slimeclash.png",
     path: "games/slimeclash/index.html",
     // Cơ chế GỘP + tiến trình + kinh tế của Slime Legion (Perfeggs, 2023), bỏ hẳn pha thủ
     // thành auto-battle, thay bằng trận theo lượt lấy cảm hứng từ Might & Magic: Clash of
@@ -466,7 +466,7 @@ window.HUB_GAMES = [
     id: "chuyen-tau",
     title: "Chuyến Tàu Cuối",
     tagline: "Bắn từ trên xuống, màn hình ngang. Một đoàn tàu hơi nước chạy qua sa mạc Viễn Tây đầy xác sống: tàu chạy thì bạn đi trên nóc toa mà thủ, tàu dừng ga thì xuống lục soát nhà với một cái đồng hồ đếm ngược trên đầu — và tàu chạy tiếp dù có bạn hay không. Ngày không có một con quái nào, đêm mới đổ ra, và có bốn loại đêm khác nhau. Gacha ra NGƯỜI: mười nhân vật, mỗi người một chiêu bấm được không ai trùng ai — chặn đạn, húc, móc kéo, vách chắn, thời gian chậm, gom quái, tàng hình hai bước, quay ngược bốn giây, tiêm hồi máu bấm được cả khi đang choáng, thả chó ghim quái. Ngoài ván thì nâng trang bị, nâng toa tàu, tiến hoá. Chín chuyến, ba tới năm chặng mỗi chuyến.",
-    thumbnail: "assets/thumbnails/chuyen-tau.svg",
+    thumbnail: "assets/thumbnails/chuyen-tau.png",
     path: "games/chuyen-tau/index.html",
     rev: "20260907e",
     // Dựng lại Dead Rails (RCM Games, Roblox 2025) ở dạng 2D nhìn từ trên xuống. KHÔNG
@@ -517,7 +517,7 @@ window.HUB_GAMES = [
     id: "deepcore",
     title: "Lõi Sâu",
     tagline: "Đào hầm nhìn từ trên xuống, màn hình dọc, một cần gạt. Bạn KHÔNG tự đánh: mỗi món mang theo là một con linh thú tự đi, tự chọn mục tiêu, tự đánh — mười con, mỗi con một luật ngắm in thẳng lên thẻ. Việc của bạn là đi, đào, và đứng đúng chỗ. Một ván là MỘT TẦNG khoảng mười phút: nhận nhiệm vụ, đục đá tìm quặng, sống qua mấy đợt bầy có báo trước, hạ chủ hang rồi chạy về khoang thoát trong lúc cả hang đổ ra chặn đầu. Đèn là một ô trang bị riêng vì ngoài quầng sáng là đen đặc. Ngoài ván: hai loại tiền, quay trứng linh thú, nâng bậc, sáu ô trang bị — mũ, áo, quần đổi luôn hình nhân vật.",
-    thumbnail: "assets/thumbnails/deepcore.svg",
+    thumbnail: "assets/thumbnails/deepcore.png",
     path: "games/deepcore/index.html",
     rev: "20260907f",
     // Trộn ba game: Deep Rock Galactic (nhịp đi hang, nhiệm vụ, bầy có báo trước,
@@ -575,7 +575,7 @@ window.HUB_GAMES = [
     id: "ghe-nong",
     title: "Ghế Nóng",
     tagline: "Quản lý đội tuyển esport. Nuôi huấn luyện viên kiểu Uma Musume: 5 giáo án CƠ/BỀN/LỰC/LÌ/NÃO, thể lực, tâm trạng, tỉ lệ hỏng hiện sẵn, thân thiết tới 80 thì nổ cầu vồng. Vào ca chọn 1 huấn luyện viên + 5 tuyển thủ + 2 cựu huấn luyện viên để kế thừa, nuôi thẻ tuyển thủ bằng xu và bằng kinh nghiệm chạy mùa. Một mùa 24 lượt: 5 ngày tập rồi 1 giải, tới chung kết thế giới thì 1 ngày tập 1 trận. 24 đội máy có tên, có ngôi sao, có bảng xếp hạng chạy song song và bản tin sinh từ chính chuyện đang xảy ra — kết quả gây sốc, chuỗi thắng, chuyển nhượng làm đổi sức đội thật. Thi đấu là cấm/chọn 20 tướng — mỗi tướng có ảnh, kèm hai nhãn thông thạo TA/ĐỊCH để biết mà cấm đúng tủ đối thủ — rồi xem trận 5v5 tự đánh trên bản đồ 5v5 thật của Teamfight Manager 2: ba đường, tường đá phải đi vòng, bụi rậm, rồng, chúa hang. Trụ, lính, quái rừng, viên đạn, hiệu ứng chiêu và cả hai mươi món đồ đều có art thật, bốn mức zoom và camera bám theo người mình chọn. Xem trận chậm lại còn ba lần thật và có nội suy, nên nhìn ra được từng động tác: ai cũng CẦM VŨ KHÍ trên tay — lính cận thọc thương, lính xa bắn súng thấy rõ đạn, kiếm rìu búa vung một cung, giáo thì thọc — quái rừng đánh trả chứ không đứng im, và bốn mươi chiêu của hai mươi tướng mỗi chiêu một bộ mặt riêng kèm TÊN CHIÊU hiện trên đầu người vừa bung. Kỹ năng riêng của huấn luyện viên cũng nổ ra thành hào quang phủ cả đội đúng lúc điều kiện bật lên. Menu dựng theo đúng màn Home của Uma: thanh NĂM nút ở đáy, ba nút tròn, và một nút CAREER lớn đứng riêng — vì một ca huấn luyện là MỘT CHẾ ĐỘ RIÊNG, không phải một tab. Vào ca đi qua đúng bốn bước như Uma (thể thức → huấn luyện viên → cựu huấn luyện viên → đội hình), và bảng xếp hạng sống chỉ tồn tại bên trong ca đang chạy: mỗi ca là một mùa riêng, hết ca là bảng ấy khép lại, ca sau bốc lịch mới. Trong ca thì sáu nút chính như Uma, bấm Tập mới mở ra năm sân. Nuôi thẻ dựng theo màn Enhance của Uma: ba tab đúng ba kho, và quay trúng người đã có thì bản trùng thành MỘT MẢNH nằm chờ trong kho chứ không tự cộng — mang mảnh vào mà mở trần, bốn bậc, mỗi bậc một mảnh và nới trần cấp thêm năm, bảng bốn bậc luôn hiện kể cả lúc đang tiêu xu lên cấp; với huấn luyện viên thì bậc hai và bậc bốn còn làm kỹ năng riêng mạnh thêm 15% rồi 20%. Trận đấu đã được soi lại bằng một bộ đo riêng cho BỘ NÃO trong trận: trụ giờ là chỗ nguy hiểm thật — đòn trụ đi thang sát thương riêng và LEO THANG theo số phát liên tiếp vào cùng một người, nên lao vào một mình là chết còn cả đội xúm vào thì trụ vẫn đổ trong mươi giây; năm người bàn nhau đẩy CHUNG một đường thay vì mỗi người một nơi, tập trung hoả lực vào kẻ sắp chết, rút thì vừa chạy vừa đánh chứ không đứng lì, và khi địch gãy quá nửa đội thì cả đội vào thẳng nhà. Đo bằng máy trên 200 trận: 23 mạng một trận thay vì 93, trận dài 19 phút, và 76% số trận kết thúc bằng việc phá được lõi chứ không phải hết giờ chia điểm; thời gian một người đứng lì dưới trụ địch rơi từ 276 giây xuống 60, số mạng rơi lúc đang rút từ 79% xuống 32%. Cả hai mươi tướng vẫn cân trong ngưỡng 12%, và đường cong tám giải của mùa đầu vẫn đúng chỗ cũ: thắng 79% giải mở màn, 23% vô địch thế giới.",
-    thumbnail: "assets/thumbnails/ghe-nong.svg",
+    thumbnail: "assets/thumbnails/ghe-nong.png",
     path: "games/ghe-nong/index.html",
     rev: "20260925l",
     // Nuôi quân theo Uma Musume (Cygames 2021), thi đấu theo Teamfight Manager 2 (Early Access
