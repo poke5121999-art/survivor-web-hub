@@ -1,0 +1,86 @@
+Skin_DOO_01a.png
+size:2048,2048
+filter:Linear,Linear
+pma:true
+scale:0.64
+Eyeframe_With light
+bounds:645,1135,609,475
+rotate:90
+back skarf_L
+bounds:2,1705,94,143
+body
+bounds:1094,1332,723,714
+rotate:180
+body_back
+bounds:1514,100,296,177
+ear_L
+bounds:498,1694,154,301
+rotate:90
+ear_R
+bounds:992,39,259,285
+rotate:180
+eye
+bounds:2,393,364,317
+eye base
+bounds:994,402,404,399
+offsets:0,0,405,399
+eye_higlight
+bounds:1820,1645,216,401
+eyelid_L_Bot_With light
+bounds:349,146,406,233
+eyelid_Up
+bounds:1744,175,462,302
+offsets:0,0,462,303
+rotate:90
+eyeshadow
+bounds:2,1294,678,554
+offsets:2,18,700,572
+flare
+bounds:2,136,255,266
+rotate:90
+full eye
+bounds:1543,625,364,372
+rotate:90
+full eye small
+bounds:1820,1417,224,226
+offsets:3,4,230,233
+glitch_1
+bounds:295,931,389,363
+offsets:7,4,404,371
+glitch_2
+bounds:1114,977,427,364
+offsets:9,4,443,372
+lens light
+bounds:1372,281,348,343
+scarf_R
+bounds:1158,83,355,348
+offsets:0,1,355,349
+rotate:180
+scarf_shadow
+bounds:768,578,727,405
+offsets:0,17,727,422
+shadow
+bounds:2,1850,1135,196
+side_L
+bounds:270,42,150,367
+offsets:0,1,163,368
+rotate:90
+side_R
+bounds:728,225,211,455
+rotate:90
+skarf_L
+bounds:2,996,261,330
+skarf_L1
+bounds:696,107,239,124
+skarf_front
+bounds:113,676,804,429
+offsets:2,0,806,435
+rotate:180
+star flare
+bounds:968,1713,115,135
+wheel
+bounds:1618,991,428,416
+wheel_shadow
+bounds:366,362,428,316
+offsets:0,1,428,317
+rotate:180

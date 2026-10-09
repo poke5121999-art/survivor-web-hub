@@ -1,0 +1,84 @@
+/* Chợ Phiên — thẻ trên bàn. Toạ độ lớp con (ô art, gem, tag cooldown, đạn) do js/view/card.js đặt theo BZ_FRAMES.
+   Hiệu ứng: VISUAL.md §1 (nhấc + nghiêng ±6°), §3 (giật lùi), §4 (màn cooldown), §5 (Haste/Slow/Freeze). */
+.bz-card { position: absolute; perspective: 900px; z-index: 1; }
+.bz-card.hover { z-index: 20; }
+.bz-card .cb { position: absolute; inset: 0; transform-style: preserve-3d; will-change: transform; transform-origin: 50% 55%; }
+.bz-card .shadow { position: absolute; left: 6%; right: 6%; bottom: 3%; height: 10%; border-radius: 50%;
+  background: rgba(0,0,0,.55); filter: blur(8px); opacity: .5; transition: opacity .15s, transform .15s; }
+.bz-card.hover .shadow { opacity: .85; transform: translateY(14px) scale(1.08); }
+.bz-card .win { position: absolute; overflow: hidden; background: #1a100a; }
+.bz-card .art { position: absolute; inset: 0; background-size: cover; background-position: center; }
+/* màn đen 50 % che phần chưa nạp, đường quét xanh #00CF6D (FX_M_CooldownGreen_01) */
+.bz-card .veil { position: absolute; left: 0; right: 0; top: 0; height: 100%; transform-origin: 50% 0; background: rgba(0,0,0,.5);
+  will-change: transform; }
+.bz-card .cdline { position: absolute; left: -4%; right: -4%; top: 0; height: 14px; margin-top: -7px; will-change: transform; pointer-events: none;
+  background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(220,255,235,.95) 0, rgba(0,207,109,.85) 28%, rgba(0,207,109,0) 72%);
+  filter: drop-shadow(0 0 4px rgba(0,255,150,.8)); opacity: 0; }
+.bz-card .cdline::after { content: ""; position: absolute; left: 4%; right: 4%; top: 6px; height: 2px; background: #eafff2; box-shadow: 0 0 6px #94ffc4; }
+.bz-card.charging .cdline { opacity: 1; }
+.bz-card .frame { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+/* khung CSS dự phòng khi chưa có data/frames.js (VISUAL §17 màu bậc) */
+.bz-card .cssframe { position: absolute; border-radius: 9px; pointer-events: none;
+  box-shadow: inset 0 0 0 3px var(--tc, #b17f3e), inset 0 0 0 5px rgba(0,0,0,.6), inset 0 0 0 7px var(--tc2, #3c2517), 0 0 0 2px #120a05; }
+.bz-card.t-Bronze { --tc: #b17f3e; --tc2: #6a4421; } .bz-card.t-Silver { --tc: #e9f0fd; --tc2: #6d7488; }
+.bz-card.t-Gold { --tc: #f9c04c; --tc2: #8a5f1e; } .bz-card.t-Diamond { --tc: #eff7f8; --tc2: #78b0d3; }
+.bz-card.t-Legendary { --tc: #e4975b; --tc2: #dd6826; }
+.bz-card .fglow { position: absolute; left: 5%; right: 5%; top: 7%; bottom: 6%; pointer-events: none; opacity: 0; border-radius: 10px; will-change: opacity;
+  box-shadow: 0 0 14px 3px var(--gc, #00ffa8), inset 0 0 22px 2px var(--gc, #00ffa8), inset 0 0 0 2px rgba(255,255,255,.8); }
+.bz-card .hit { position: absolute; inset: 0; pointer-events: none; opacity: 0; background: rgba(255,255,255,.9); will-change: opacity; }
+
+.bz-card .gems { position: absolute; display: flex; justify-content: center; gap: 2px; pointer-events: none; }
+.bz-card .gem { position: relative; height: 100%; aspect-ratio: 2 / 1; background: center/100% 100% no-repeat; display: grid; place-items: center;
+  font: 800 26px/1 var(--f-num); color: #fff; padding-bottom: 2px;
+  text-shadow: 0 0 2px #000, 0 2px 0 #000, 2px 0 0 #000, -2px 0 0 #000, 0 -1px 0 #000; }
+.bz-card .gem.css { border-radius: 6px; clip-path: polygon(11% 0, 89% 0, 100% 24%, 100% 76%, 89% 100%, 11% 100%, 0 76%, 0 24%); }
+.bz-card .gem.pop { animation: bz-gem-pop .35s ease-out; }
+@keyframes bz-gem-pop { 0% { transform: scale(1.5); filter: brightness(2); } 100% { transform: scale(1); filter: none; } }
+.bz-card .cdtag { position: absolute; display: grid; place-items: center; background: center/contain no-repeat; pointer-events: none;
+  font: 800 23px/1 var(--f-num); color: #fff; text-shadow: 0 0 2px #4a1d00, 0 2px 0 #4a1d00, 2px 0 0 #4a1d00, -2px 0 0 #4a1d00; padding-left: 12%; }
+.bz-card .cdtag.css { background: #c66606; border-radius: 4px 10px 10px 4px; box-shadow: inset 0 0 0 2px #ffcf8a; padding-left: 0; }
+.bz-card .mc { position: absolute; display: grid; place-items: center; background: center/contain no-repeat; pointer-events: none;
+  font: 800 20px/1 var(--f-num); color: #fff; text-shadow: 0 2px 0 #000; padding-bottom: 14%; }
+.bz-card .mc.flash { animation: bz-gem-pop .3s ease-out; }
+.bz-card .ammo { position: absolute; display: flex; align-items: center; justify-content: center; gap: 1px; pointer-events: none; }
+.bz-card .pip { flex: 0 0 auto; background: center/contain no-repeat; transition: filter .15s; }
+.bz-card .pip.off { filter: grayscale(1) brightness(.35); }
+.bz-card .pip.css { border-radius: 50%; background: radial-gradient(circle, #ffdc78 0 35%, #e8a92a 40% 62%, #2a160a 66%); }
+.bz-card .pip.css.off { background: radial-gradient(circle, #3a2414 0 62%, #170c04 66%); filter: none; }
+.bz-card .ammo.reload .pip { animation: bz-pip .35s ease-out; }
+@keyframes bz-pip { 0% { filter: brightness(2.4); transform: scale(1.4); } 100% { transform: none; } }
+
+/* trạng thái: Haste (tia xanh viền trên + chip), Slow (hổ phách viền dưới), Freeze (băng phủ) */
+.bz-card .st { position: absolute; pointer-events: none; opacity: 0; transition: opacity .2s; }
+.bz-card .st-haste { left: 0; right: 0; top: 0; height: 40%;
+  background: linear-gradient(180deg, rgba(60,255,220,.5), rgba(0,234,194,0)); }
+.bz-card .st-slow { left: 0; right: 0; bottom: 0; height: 40%;
+  background: linear-gradient(0deg, rgba(230,180,120,.55), rgba(204,160,110,0)); }
+.bz-card .st-freeze { inset: 0; background:
+  linear-gradient(160deg, rgba(200,240,255,.38), rgba(60,170,230,.22) 45%, rgba(200,240,255,.34));
+  box-shadow: inset 0 0 18px 4px rgba(150,225,255,.85), inset 0 0 0 2px rgba(220,248,255,.9); }
+.bz-card.haste .st-haste, .bz-card.slow .st-slow, .bz-card.freeze .st-freeze { opacity: 1; }
+.bz-card.haste .st-haste { animation: bz-haste .35s linear infinite alternate; }
+@keyframes bz-haste { from { opacity: .7; } to { opacity: 1; } }
+.bz-card.freeze .art { filter: saturate(.55) brightness(1.05); }
+.bz-card .chip { position: absolute; left: 50%; min-width: 50px; height: 28px; padding: 0 8px; border-radius: 14px; transform: translateX(-50%) scale(0);
+  display: grid; place-items: center; font: 800 22px/1 var(--f-num); color: #fff; pointer-events: none; transition: transform .16s cubic-bezier(.3,1.6,.5,1);
+  text-shadow: 0 2px 0 rgba(0,0,0,.7); }
+.bz-card .chip.haste { top: 22%; background: #00a88c; box-shadow: 0 0 0 2px #00eac2, 0 0 10px #00eac2; }
+.bz-card .chip.slow { bottom: 24%; background: #8a5e2c; box-shadow: 0 0 0 2px #cca06e, 0 0 10px #cca06e; }
+.bz-card .chip.freeze { top: 46%; background: #1f6f98; box-shadow: 0 0 0 2px #3ec8f8, 0 0 12px #3ec8f8; }
+.bz-card.haste .chip.haste, .bz-card.slow .chip.slow, .bz-card.freeze .chip.freeze { transform: translateX(-50%) scale(1); }
+.bz-card.destroyed .art { filter: grayscale(1) brightness(.3); }
+.bz-card.destroyed .veil { opacity: 0; }
+.bz-card.destroyed .frame { filter: grayscale(.8) brightness(.55); }
+.bz-card.flying .cb { animation: bz-fly 1.6s ease-in-out infinite; }
+@keyframes bz-fly { 0%, 100% { translate: 0 -10px; } 50% { translate: 0 -22px; } }
+.bz-card .ench { position: absolute; inset: 0; pointer-events: none; border-radius: 8px; opacity: .55;
+  box-shadow: inset 0 0 18px 2px var(--ec, #be47ff); animation: bz-ench 2.4s ease-in-out infinite alternate; }
+@keyframes bz-ench { from { opacity: .3; } to { opacity: .7; } }
+.bz-card .buff { position: absolute; left: 50%; top: 40%; transform: translate(-50%, 0); font: 800 28px/1 var(--f-num); color: #b6ff7a;
+  text-shadow: 0 2px 0 #0b3a07, 0 0 8px rgba(0,0,0,.8); pointer-events: none; opacity: 0; white-space: nowrap; }
+.bz-card .buff.go { animation: bz-buff .9s ease-out forwards; }
+@keyframes bz-buff { 0% { opacity: 0; transform: translate(-50%, 10px) scale(.6); } 20% { opacity: 1; transform: translate(-50%, 0) scale(1.15); }
+  100% { opacity: 0; transform: translate(-50%, -40px) scale(1); } }
+.bz-card.skill-mini { perspective: none; }

@@ -1,0 +1,58 @@
+/* Chợ Phiên — tooltip thẻ (VISUAL.md §14, WIKI.md §2.4; ảnh cooldown-uzi-1.jpg, status-slow-shield-1.jpg).
+   Bảng gỗ nâu sẫm vát góc, tab kích cỡ/loại phía trên, tiêu đề serif kem, đồng hồ cooldown tròn đè mép trái,
+   dòng hiệu ứng có mũi tên, từ khoá tô màu + icon, ô đạn cam bên phải, bảng giải nghĩa từ khoá phía dưới. */
+.bz-tip { position: absolute; z-index: 40; width: 560px; pointer-events: none; transform-origin: 0 50%; opacity: 0; display: none; }
+.bz-tip.show { display: block; animation: bz-tip-in .15s ease-out forwards; }
+@keyframes bz-tip-in { 0% { opacity: 0; transform: scale(.94); } 66% { opacity: .2; transform: scale(1); } 100% { opacity: 1; transform: scale(1); } }
+.bz-tip .tabs { display: flex; gap: 3px; margin-left: 22px; }
+.bz-tip .tab { padding: 8px 14px 6px; border-radius: 8px 8px 0 0; font: 700 17px/1 var(--f-text); letter-spacing: .08em; text-transform: uppercase;
+  color: #e8cfa6; background: linear-gradient(180deg, #4a3220, #2e1f12); box-shadow: inset 0 0 0 1px #7a5530; }
+.bz-tip .tab.t { color: var(--tag); background: linear-gradient(180deg, #2f3150, #1e1f34); box-shadow: inset 0 0 0 1px #5a5f96; }
+.bz-tip .box { position: relative; isolation: isolate; filter: drop-shadow(0 10px 18px rgba(0,0,0,.55)); }
+.bz-tip .box::before { content: ""; position: absolute; inset: 0; z-index: -1; background:
+  linear-gradient(180deg, var(--tg, rgba(150,100,40,.35)) 0, transparent 70px), url(../art/ui/ui_sprite_atlas/Tooltip_BG_TUI.webp) center/300px repeat, #2a1e12;
+  clip-path: polygon(14px 0, calc(100% - 14px) 0, 100% 14px, 100% calc(100% - 14px), calc(100% - 14px) 100%, 14px 100%, 0 calc(100% - 14px), 0 14px);
+  box-shadow: inset 0 0 0 2px var(--tf, #b17f3e), inset 0 0 0 4px rgba(0,0,0,.6), inset 0 0 40px rgba(0,0,0,.6); }
+.bz-tip.t-Bronze { --tf: #9b6d38; --tg: rgba(177,127,62,.35); } .bz-tip.t-Silver { --tf: #9ca4c5; --tg: rgba(233,240,253,.22); }
+.bz-tip.t-Gold { --tf: #f7b318; --tg: rgba(249,192,76,.32); } .bz-tip.t-Diamond { --tf: #78b0d3; --tg: rgba(120,176,211,.32); }
+.bz-tip.t-Legendary { --tf: #dd6826; --tg: rgba(228,151,91,.38); }
+.bz-tip .head { display: flex; align-items: center; gap: 12px; padding: 16px 22px 14px 26px; border-bottom: 1px solid rgba(255,205,146,.18); }
+.bz-tip .head h3 { flex: 1; margin: 0; font: 700 36px/1.08 var(--f-title); color: var(--cream);
+  text-shadow: 0 0 1px #cc6e28, 0 2px 0 #0c0519; }
+.bz-tip .head .tier { font: 700 15px/1 var(--f-text); letter-spacing: .12em; text-transform: uppercase; color: var(--tf); opacity: .95; }
+.bz-tip .body { position: relative; display: flex; align-items: stretch; gap: 12px; padding: 16px 18px 16px 26px; min-height: 96px; }
+.bz-tip .body.has-clock { padding-left: 104px; }
+.bz-tip .clock { position: absolute; left: -40px; z-index: 2; filter: drop-shadow(0 4px 6px rgba(0,0,0,.6)); top: 50%; width: 136px; height: 124px; margin-top: -62px;
+  background: url(../art/ui/ui_sprite_atlas/Tooltip_Gold_Clock_TUI.webp) center/contain no-repeat;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; padding-right: 12px; }
+.bz-tip.t-Bronze .clock { background-image: url(../art/ui/ui_sprite_atlas/Tooltip_Bronze_Clock_TUI.webp); }
+.bz-tip.t-Silver .clock { background-image: url(../art/ui/ui_sprite_atlas/Tooltip_Silver_Clock_TUI.webp); }
+.bz-tip.t-Diamond .clock { background-image: url(../art/ui/ui_sprite_atlas/Tooltip_Diamond_Clock_TUI.webp); }
+.bz-tip.t-Legendary .clock { background-image: url(../art/ui/ui_sprite_atlas/Tooltip_Legendary_Clock_TUI.webp); }
+.bz-tip .clock b { font: 800 40px/1 var(--f-num); color: #fff; text-shadow: 0 2px 0 #000; }
+.bz-tip .clock small { font: 700 13px/1 var(--f-text); letter-spacing: .14em; color: #d99551; margin-top: 1px; }
+.bz-tip .lines { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 8px; }
+.bz-tip .ln { position: relative; padding-left: 28px; font: 600 23px/1.3 var(--f-text); color: var(--cream2); }
+.bz-tip .ln::before { content: ""; position: absolute; left: 0; top: .42em; width: 18px; height: 14px;
+  background: url(../art/ui/ui_sprite_atlas/Tooltip_Arrow_TUI.webp) center/contain no-repeat; opacity: .9; }
+.bz-tip .ln.passive { padding-left: 0; color: #ffcd92; font-weight: 500; }
+.bz-tip .ln.passive::before { display: none; }
+.bz-tip .ln.ench { color: #ffd800; }
+.bz-tip .kw { font-weight: 800; }
+.bz-tip .num { font: 800 1.12em/1 var(--f-num); }
+.bz-tip .ico { display: inline-block; width: 1.25em; height: 1.25em; vertical-align: -.28em; margin-right: 1px; background: center/contain no-repeat; }
+.bz-tip .passives { padding: 12px 26px 16px; border-top: 1px solid rgba(255,205,146,.14); display: flex; flex-direction: column; gap: 6px; }
+.bz-tip .ammo { flex: 0 0 auto; width: 62px; margin: -4px -6px -4px 0; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  background: url(../art/ui/ui_sprite_atlas/Tooltip_Gold_Ammo_TUI.webp) center/100% 100% no-repeat;
+  font: 800 34px/1 var(--f-num); color: #fe8e00; text-shadow: 0 2px 0 #000; }
+.bz-tip .ammo i { width: 34px; height: 34px; background: url(../art/icons/Ammo.webp) center/contain no-repeat; }
+.bz-tip .crit { padding: 10px 26px 12px; border-top: 1px solid rgba(255,205,146,.16); font: 700 17px/1 var(--f-text); letter-spacing: .1em; color: #e8cfa6; }
+.bz-tip .crit .num { color: var(--crit); font-size: 22px; }
+.bz-tip .keys { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.bz-tip .key { padding: 10px 16px 12px; border-radius: 6px; background: rgba(22,15,9,.94); box-shadow: inset 0 0 0 1px rgba(255,205,146,.15), 0 6px 16px rgba(0,0,0,.5); }
+.bz-tip .key h4 { margin: 0 0 4px; display: flex; align-items: center; gap: 6px; font: 800 22px/1.1 var(--f-text); }
+.bz-tip .key h4 i { width: 24px; height: 24px; background: center/contain no-repeat; }
+.bz-tip .key p { margin: 0; font: 600 17px/1.3 var(--f-text); color: #bfb3a2; }
+.bz-tip .sell { display: inline-flex; align-items: center; gap: 8px; margin: 10px 0 0 40px; padding: 8px 16px; border-radius: 6px;
+  background: rgba(22,15,9,.94); font: 700 19px/1 var(--f-text); color: var(--cream); box-shadow: inset 0 0 0 1px rgba(255,205,146,.15); }
+.bz-tip .sell .num { color: var(--gold); }
