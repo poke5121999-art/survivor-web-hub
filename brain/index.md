@@ -18,6 +18,7 @@
 - [[plans/diablo2-chuan-goc/audit-ui]]
 - [[plans/diablo2-d2r]]
 - [[plans/dredge-chuan-goc-2]]
+- [[plans/dredge-clips]]
 - [[plans/dredge-web]]
 - [[plans/ghe-nong-tfm2-full]]
 - [[plans/pokeone-2d-pro]]

@@ -229,6 +229,8 @@ async function run(browser, base) {
   const errors = watch(page);
   const shot = async name => { const f = path.join(SHOTS, name + '.png'); await page.screenshot({ path: f }); return f; };
   await boot(page, base);
+  // hộp hướng dẫn (js/tutorial.js) nằm đè vùng nước được đo
+  await page.addStyleTag({ content: '#dr-tut { display: none !important; }' });
   const info = {}, R = {};
   for (const cam of ['dock', 'chase', 'harvest', 'spyglass', 'grazing']) {
     info[cam] = await CAMS[cam](page);

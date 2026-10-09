@@ -4,13 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>DREDGE — Biển Mù</title>
-<link rel="stylesheet" href="css/ui.css?v=20261009b">
-<link rel="stylesheet" href="css/story.css?v=20261009b">
-<link rel="stylesheet" href="css/banner.css?v=20261009b">
-<link rel="stylesheet" href="css/abilities.css?v=20261009b">
-<link rel="stylesheet" href="css/upgrade.css?v=20261009b">
-<link rel="stylesheet" href="css/shop.css?v=20261009b">
-<link rel="stylesheet" href="css/deploy.css?v=20261009b">
+<link rel="stylesheet" href="css/ui.css?v=20261009c">
+<link rel="stylesheet" href="css/story.css?v=20261009c">
+<link rel="stylesheet" href="css/title.css?v=20261009c">
+<link rel="stylesheet" href="css/banner.css?v=20261009c">
+<link rel="stylesheet" href="css/abilities.css?v=20261009c">
+<link rel="stylesheet" href="css/upgrade.css?v=20261009c">
+<link rel="stylesheet" href="css/shop.css?v=20261009c">
+<link rel="stylesheet" href="css/passtime.css?v=20261009c">
+<link rel="stylesheet" href="css/tutorial.css?v=20261009c">
+<link rel="stylesheet" href="css/deploy.css?v=20261009c">
+<link rel="stylesheet" href="css/book.css?v=20261009c">
 <style>
 html, body { margin: 0; height: 100%; overflow: hidden; background: #0b1416; color: #efe3c8; touch-action: none;
   font-family: "Signika", "Segoe UI", Roboto, sans-serif; -webkit-user-select: none; user-select: none; }
@@ -29,12 +33,20 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #0b1416; col
 #dr-loading .bar i { display: block; height: 100%; width: 0; background: #e2b866; transition: width .2s; }
 #dr-loading .msg { margin-top: 10px; font: 400 13px "Oswald", "Arial Narrow", sans-serif; letter-spacing: .08em; color: #b9ab8e; }
 #dr-loading.err .msg { color: #ff8a80; }
-#dr-title { justify-content: flex-end; padding-bottom: 7vh; background: linear-gradient(180deg, rgba(4,10,12,.0) 30%, rgba(4,10,12,.65) 100%); }
-#dr-title .logo { position: absolute; top: 12vh; }
-#dr-title .sub { position: absolute; top: calc(12vh + min(420px, 70vw) * .3 + 12px); font: 600 15px "Hahmlet", Georgia, serif; letter-spacing: .35em; color: #b9ab8e; }
-#dr-title .menu { display: flex; flex-direction: column; align-items: center; padding: 14px 40px;
-  background: url(art/ui/sprites/TitleBackground.webp?v=20261009b) center / 100% 100% no-repeat; }
-#dr-title .hint { margin-top: 12px; font: 400 12px "Oswald", sans-serif; letter-spacing: .06em; color: #8f8470; text-align: center; padding: 0 16px; }
+/* màn tiêu đề: bố cục đo từ khung gốc 1920x1080 (clips/frames/title/ObBBFGMem5U_0.jpg), đơn vị vh = cao khung; logo lệch trái, bốn thanh đen dọc dưới logo */
+#dr-title { justify-content: flex-start; align-items: flex-start; background: radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 55%, rgba(0,0,0,.22) 100%); }
+#dr-title .logo { position: absolute; left: 5.2vw; top: 24vh; width: min(53.7vh, 40vw); }
+#dr-title .sub { display: none; }
+#dr-title .menu { position: absolute; left: 13.75vw; top: 44.4vh; display: flex; flex-direction: column; gap: 1.1vh; width: min(23.7vh, 24vw); }
+#dr-title .tt-bar { display: block; box-sizing: border-box; width: 100%; height: 4.9vh; min-height: 26px; padding: 0; border: 0; border-radius: 0; cursor: pointer; text-decoration: none; text-align: center;
+  font: 600 clamp(12px, 2.1vh, 20px)/min(4.9vh, 100%) "Oswald", "Arial Narrow", sans-serif; letter-spacing: .01em; color: #f4efe4; background: rgba(6, 7, 7, .93); line-height: max(4.9vh, 26px); }
+#dr-title .tt-bar:hover, #dr-title .tt-bar:focus-visible { background: #1d1a15; color: #fff; outline: 1px solid #e2b866; outline-offset: -1px; }
+#dr-title .tt-bar[hidden] { display: none; }
+#dr-title .hint { position: absolute; left: 14px; bottom: 10px; font: 400 12px "Oswald", sans-serif; letter-spacing: .06em; color: rgba(239, 227, 200, .6); text-shadow: 0 1px 3px #000; padding: 0; max-width: 60vw; }
+#dr-title .tt-panel { position: absolute; left: calc(13.75vw + min(23.7vh, 24vw) + 18px); top: 44.4vh; width: min(380px, 50vw); padding: 14px 18px; background: rgba(6, 7, 7, .93); color: #efe3c8; font: 400 15px/1.5 "Poltawski Nowy", Georgia, serif; }
+#dr-title .tt-panel[hidden] { display: none; }
+#dr-title .tt-panel h3 { margin: 0 0 8px; font: 600 18px "Oswald", sans-serif; letter-spacing: .04em; }
+#dr-title .tt-panel .tt-bar { display: inline-block; width: auto; padding: 0 22px; margin-top: 10px; }
 #dr-pause, #dr-over { background: rgba(5, 10, 12, .72); }
 #dr-over h2 { color: #dc2c38; }
 #dr-fade { position: fixed; inset: 0; z-index: 30; background: #000; opacity: 0; pointer-events: none; transition: opacity .9s; }
@@ -51,9 +63,8 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #0b1416; col
 #dr-touch button { pointer-events: auto; min-width: 64px; height: 44px; border-radius: 22px; border: 1px solid rgba(226,184,102,.6); background: rgba(27,20,16,.7); color: #efe3c8; font: 600 13px "Signika", sans-serif; }
 #dr-touch button.big { grid-column: span 2; height: 56px; font-size: 16px; }
 @media (max-height: 460px) {
-  #dr-title .logo { top: 5vh; width: min(300px, 50vw); }
-  #dr-title .sub { top: calc(5vh + min(300px, 50vw) * .3 + 6px); }
-  #dr-title { padding-bottom: 3vh; }
+  #dr-title .tt-bar { height: 26px; line-height: 26px; }
+  #dr-title .tt-panel { font-size: 13px; }
   .eng-btn { padding: 7px 20px; font-size: 15px; margin: 3px; }
 }
 </style>
@@ -61,17 +72,28 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #0b1416; col
 <body>
 <canvas id="dr-canvas" tabindex="0"></canvas>
 <div id="dr-loading" class="eng-screen">
-  <img class="logo" src="art/ui/sprites/Dredge_Title.webp?v=20261009b" alt="DREDGE">
+  <img class="logo" src="art/ui/sprites/Dredge_Title.webp?v=20261009c" alt="DREDGE">
   <div class="bar"><i></i></div>
   <div class="msg">Đang tải biển…</div>
 </div>
 <div id="dr-title" class="eng-screen" hidden>
-  <img class="logo" src="art/ui/sprites/Dredge_Title.webp?v=20261009b" alt="DREDGE">
-  <div class="sub">BIỂN MÙ</div>
+  <img class="logo" src="art/ui/sprites/Dredge_Title.webp?v=20261009c" alt="DREDGE">
   <div class="menu">
-    <button class="eng-btn" id="btn-continue" hidden>Tiếp tục</button>
-    <button class="eng-btn" id="btn-new">Ván mới</button>
-    <a class="eng-btn small" id="btn-hub" href="../../index.html">← Về sảnh trò chơi</a>
+    <button class="tt-bar" id="btn-continue" hidden>Tiếp tục</button>
+    <button class="tt-bar" id="btn-new">Ván mới</button><!-- New Game -->
+    <button class="tt-bar" id="btn-settings">Cài đặt</button><!-- Settings -->
+    <button class="tt-bar" id="btn-credits">Giới thiệu</button><!-- Credits -->
+    <a class="tt-bar" id="btn-hub" href="../../index.html">Về sảnh trò chơi</a><!-- thay cho Quit: tab web không tự đóng được -->
+  </div>
+  <div class="tt-panel" id="tt-settings" hidden>
+    <h3>Cài đặt</h3>
+    <button class="tt-bar" id="tt-mute">Tắt tiếng</button>
+    <button class="tt-bar" data-close>Quay lại</button>
+  </div>
+  <div class="tt-panel" id="tt-credits" hidden>
+    <h3>Giới thiệu</h3>
+    DREDGE do Black Salt Games làm. Biển Mù là bản dựng lại trên web của bản demo, không thương mại: số liệu, hình và âm thanh lấy từ chính bản demo.
+    <br><button class="tt-bar" data-close>Quay lại</button>
   </div>
   <div class="hint">W/S ga · A/D lái · Space tương tác · L đèn · Tab khoang · Esc tạm dừng · kéo chuột xoay camera</div>
 </div>
@@ -94,62 +116,72 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #0b1416; col
 <div id="dr-fade"></div>
 <div id="dr-touch"></div>
 
-<script src="vendor/three-r140.min.js?v=20261009b"></script>
-<script src="vendor/GLTFLoader-r140.js?v=20261009b"></script>
-<script src="vendor/meshopt_decoder.js?v=20261009b"></script>
-<script src="data/config.js?v=20261009b"></script>
-<script src="data/items.js?v=20261009b"></script>
-<script src="data/strings.js?v=20261009b"></script>
-<script src="data/grids.js?v=20261009b"></script>
-<script src="data/upgrades.js?v=20261009b"></script>
-<script src="data/upgrade_ui.js?v=20261009b"></script>
-<script src="data/world_data.js?v=20261009b"></script>
-<script src="data/audio.js?v=20261009b"></script>
-<script src="data/sfx.js?v=20261009b"></script>
-<script src="data/boat.js?v=20261009b"></script>
-<script src="data/vfx.js?v=20261009b"></script>
-<script src="data/ui.js?v=20261009b"></script>
-<script src="data/quests.js?v=20261009b"></script>
-<script src="data/yarn.js?v=20261009b"></script>
-<script src="data/animlib.js?v=20261009b"></script>
-<script src="data/weather.js?v=20261009b"></script>
-<script src="data/env.js?v=20261009b"></script>
-<script src="data/particles.js?v=20261009b"></script>
-<script src="data/deploy.js?v=20261009b"></script>
-<script src="data/shop_ui.js?v=20261009b"></script>
-<script src="js/grid.js?v=20261009b"></script>
-<script src="js/rules.js?v=20261009b"></script>
-<script src="js/state.js?v=20261009b"></script>
-<script src="js/audio.js?v=20261009b"></script>
-<script src="js/hud.js?v=20261009b"></script>
-<script src="js/quests.js?v=20261009b"></script>
-<script src="js/yarn.js?v=20261009b"></script>
-<script src="js/anim.js?v=20261009b"></script>
-<script src="js/dialogue.js?v=20261009b"></script>
-<script src="art/ui/minigame/harvest_ui.js?v=20261009b"></script>
-<script src="js/minigame.js?v=20261009b"></script>
-<script src="art/ui/cargo/cargo_fx.js?v=20261009b"></script>
-<script src="js/cargo.js?v=20261009b"></script>
-<script src="js/dock.js?v=20261009b"></script>
-<script src="js/shop.js?v=20261009b"></script>
-<script src="js/upgrade.js?v=20261009b"></script>
-<script src="js/input.js?v=20261009b"></script>
-<script src="js/water.js?v=20261009b"></script>
-<script src="js/world.js?v=20261009b"></script>
-<script src="js/sky.js?v=20261009b"></script>
-<script src="js/vfx.js?v=20261009b"></script>
-<script src="js/particles.js?v=20261009b"></script>
-<script src="js/boat.js?v=20261009b"></script>
-<script src="js/camera.js?v=20261009b"></script>
-<script src="js/spots.js?v=20261009b"></script>
-<script src="art/ui/banner/banner_ui.js?v=20261009b"></script>
-<script src="js/banner.js?v=20261009b"></script>
-<script src="js/docks.js?v=20261009b"></script>
-<script src="js/sfx.js?v=20261009b"></script>
-<script src="js/intro.js?v=20261009b"></script>
-<script src="js/abilities.js?v=20261009b"></script>
-<script src="js/deploy.js?v=20261009b"></script>
-<script src="js/spells.js?v=20261009b"></script>
-<script src="js/main.js?v=20261009b"></script>
+<script src="vendor/three-r140.min.js?v=20261009c"></script>
+<script src="vendor/GLTFLoader-r140.js?v=20261009c"></script>
+<script src="vendor/meshopt_decoder.js?v=20261009c"></script>
+<script src="data/config.js?v=20261009c"></script>
+<script src="data/items.js?v=20261009c"></script>
+<script src="data/strings.js?v=20261009c"></script>
+<script src="data/grids.js?v=20261009c"></script>
+<script src="data/upgrades.js?v=20261009c"></script>
+<script src="data/upgrade_ui.js?v=20261009c"></script>
+<script src="data/world_data.js?v=20261009c"></script>
+<script src="data/audio.js?v=20261009c"></script>
+<script src="data/sfx.js?v=20261009c"></script>
+<script src="data/boat.js?v=20261009c"></script>
+<script src="data/vfx.js?v=20261009c"></script>
+<script src="data/ui.js?v=20261009c"></script>
+<script src="data/quests.js?v=20261009c"></script>
+<script src="data/yarn.js?v=20261009c"></script>
+<script src="data/animlib.js?v=20261009c"></script>
+<script src="data/weather.js?v=20261009c"></script>
+<script src="data/env.js?v=20261009c"></script>
+<script src="data/particles.js?v=20261009c"></script>
+<script src="data/tentacle.js?v=20261009c"></script>
+<script src="data/worldevents.js?v=20261009c"></script>
+<script src="data/deploy.js?v=20261009c"></script>
+<script src="data/shop_ui.js?v=20261009c"></script>
+<script src="data/encyclopedia.js?v=20261009c"></script>
+<script src="js/grid.js?v=20261009c"></script>
+<script src="js/rules.js?v=20261009c"></script>
+<script src="js/state.js?v=20261009c"></script>
+<script src="js/audio.js?v=20261009c"></script>
+<script src="js/hud.js?v=20261009c"></script>
+<script src="js/tutorial.js?v=20261009c"></script>
+<script src="js/quests.js?v=20261009c"></script>
+<script src="js/yarn.js?v=20261009c"></script>
+<script src="js/anim.js?v=20261009c"></script>
+<script src="js/dialogue.js?v=20261009c"></script>
+<script src="art/ui/minigame/harvest_ui.js?v=20261009c"></script>
+<script src="js/minigame.js?v=20261009c"></script>
+<script src="art/ui/cargo/cargo_fx.js?v=20261009c"></script>
+<script src="js/cargo.js?v=20261009c"></script>
+<script src="js/dock.js?v=20261009c"></script>
+<script src="js/passtime.js?v=20261009c"></script>
+<script src="js/shop.js?v=20261009c"></script>
+<script src="js/upgrade.js?v=20261009c"></script>
+<script src="js/input.js?v=20261009c"></script>
+<script src="js/water.js?v=20261009c"></script>
+<script src="js/world.js?v=20261009c"></script>
+<script src="js/sky.js?v=20261009c"></script>
+<script src="js/vfx.js?v=20261009c"></script>
+<script src="js/particles.js?v=20261009c"></script>
+<script src="js/tentacle.js?v=20261009c"></script>
+<script src="js/boat.js?v=20261009c"></script>
+<script src="js/camera.js?v=20261009c"></script>
+<script src="js/spots.js?v=20261009c"></script>
+<script src="art/ui/banner/banner_ui.js?v=20261009c"></script>
+<script src="js/banner.js?v=20261009c"></script>
+<script src="js/docks.js?v=20261009c"></script>
+<script src="js/sfx.js?v=20261009c"></script>
+<script src="js/title.js?v=20261009c"></script>
+<script src="js/intro.js?v=20261009c"></script>
+<script src="js/abilities.js?v=20261009c"></script>
+<script src="js/deploy.js?v=20261009c"></script>
+<script src="js/spells.js?v=20261009c"></script>
+<script src="js/book_kit.js?v=20261009c"></script>
+<script src="js/map.js?v=20261009c"></script>
+<script src="js/encyclopedia.js?v=20261009c"></script>
+<script src="js/main.js?v=20261009c"></script>
 </body>
 </html>

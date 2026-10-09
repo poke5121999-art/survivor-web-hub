@@ -25,7 +25,7 @@
     I.keys.add(e.code);
     if (e.repeat) return;
     switch (e.code) {
-      case 'Space': e.preventDefault(); fire('interact'); break;
+      case 'Space': case 'KeyF': e.preventDefault(); fire('interact'); break;       // V13: bản gốc dùng F (Fish F / Dock F / Inspect F); giữ Space
       case 'KeyE': if (AB()) AB().radialDown(); break;
       case 'Tab': case 'KeyI': if (!uiOpen()) { e.preventDefault(); fire('cargo'); } break;
       case 'Escape': if (!uiOpen() && !(AB() && AB().back())) fire('pause'); break;
@@ -34,7 +34,7 @@
   });
   root.addEventListener('keyup', e => {
     I.keys.delete(e.code);
-    if (e.code === 'Space') fire('interactUp');
+    if (e.code === 'Space' || e.code === 'KeyF') fire('interactUp');
     if (e.code === 'KeyE' && AB()) AB().radialUp();
   });
   root.addEventListener('blur', () => {

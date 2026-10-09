@@ -62,6 +62,34 @@
   function child(o, name) { return o.children.find(c => c.userData.name === name || c.name === name) || null; }
   function path(o, p) { for (const n of p.split('/')) { o = o && child(o, n); } return o; }
 
+  // LitBoat_Shader (rã DXBC, xem tools/boat.py): KHÔNG có N·L. màu = albedo·nhuộm × (nắng·mây + đèn phụ + ambient + (1 − WaveMask.b) + (tint,0,0)),
+  // rồi pha sương; phát sáng = ảnh Emission × _LightStrength (BoatModelProxy.SetLightStrength 4 bật / 0 tắt), cộng sau sương.
+  // Công thức ánh sáng dùng chung với thế giới: drEnvLight/drEnvLights/drEnvMaskB trong sky.js (cb0[6] = _MainLightColor, SH.w = ambient, t1.b = WaveMask).
+  const GLOW = 4;
+  const BOAT_OUT = `
+  vec3 drW = vDrFogW;
+  vec3 drL = drEnvLights(drW);
+  float drMb = drEnvMaskB(drW.xz);
+  vec3 drOut = mix(diffuseColor.rgb * drEnvLight(drW, 1.0, drL, drMb), drEnvFogColor(drW), drEnvFogAmount(drW, drL, drMb));
+  #ifdef DR_EMIS
+  drOut += texture2D(uBoatEmis, vUv).rgb * uBoatGlow;
+  #endif
+  gl_FragColor = vec4(drOut, diffuseColor.a);
+`;
+  function litBoat(src) {
+    const m = new T.MeshBasicMaterial({ color: src.color, map: src.map, vertexColors: !!src.vertexColors, side: src.side,
+      alphaTest: src.alphaTest || (src.transparent ? 0.5 : 0), fog: true });
+    const uni = { uBoatEmis: { value: src.emissiveMap || null }, uBoatGlow: { value: 0 } };
+    if (src.emissiveMap) { m.defines = { DR_EMIS: '' }; m.userData.glow = uni.uBoatGlow; }
+    m.onBeforeCompile = sh => {
+      Object.assign(sh.uniforms, uni);
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D uBoatEmis; uniform float uBoatGlow;')
+        .replace('#include <output_fragment>', BOAT_OUT);
+    };
+    m.customProgramCacheKey = () => 'drBoat' + (src.emissiveMap ? 'E' : '');
+    return m;
+  }
+
   // ---------- nạp ----------
   async function load(get, scene) {
     const buf = await get(B.glb, 'buffer');
@@ -82,9 +110,7 @@
         const src = o.material;
         if (/Mask_Mat/.test(src.name)) { o.material = depthOnly; o.renderOrder = /Foam/.test(src.name) ? 1.5 : 0.5; return; }
         if (src.userData && src.userData.lightBeam) { o.material = beamMat || (beamMat = beamMaterial(src)); o.renderOrder = 3; return; }
-        const m = new T.MeshLambertMaterial({ color: src.color, map: src.map, vertexColors: !!src.vertexColors, side: src.side,
-          alphaTest: src.alphaTest || (src.transparent ? 0.5 : 0) });
-        if (src.emissiveMap) { m.emissiveMap = src.emissiveMap; m.emissive = new T.Color(0, 0, 0); m.userData.glow = true; }
+        const m = litBoat(src);
         o.material = m;
       }
     });
@@ -238,7 +264,7 @@ void main() { vec4 t = texture2D(tMap, vUv); float f = pow(clamp(dot(normalize(v
     // BoatModelProxy.lights (Light0Container, Light1Container, Light2Container) bật/tắt theo năng lực; nón sáng nằm trong đó
     for (const cp of B.tiers[tier - 1].lightContainers || []) { const o = path(tierNodes[tier], cp); if (o) o.visible = on; }
     // BoatModelProxy.SetLightStrength(4 khi bật / 0 khi tắt): đèn trên mô hình phát sáng
-    player.traverse(o => { if (o.isMesh && o.material.userData.glow) o.material.emissive.setRGB(on ? 1 : 0, on ? 0.8 : 0, on ? 0.5 : 0); });
+    player.traverse(o => { if (o.isMesh && o.material.userData.glow) o.material.userData.glow.value = on ? GLOW : 0; });
   }
 
   // LightAbility: bật/tắt đèn (js/abilities.js gọi khi bấm chuột phải với năng lực Đèn)

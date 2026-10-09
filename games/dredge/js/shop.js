@@ -301,7 +301,13 @@
   const SELL_STATES = ['IN_INVENTORY', 'IN_STORAGE', 'BEING_HARVESTED'];
   // cảm ứng không có phím F: Bán / Hoàn tiền thành nút ở vùng điều khiển [ĐỀ XUẤT] (bản gốc chỉ ghi trong tooltip)
   const coarse = () => !!(root.matchMedia && matchMedia('(pointer: coarse)').matches);
+  // "Return to Town [Esc]" luôn là dòng cuối của vùng điều khiển (clip 340, 2130); Esc do DRCargo xử lý (đóng khoang = rời điểm đến)
   function prompts(ctx) {
+    const list = prompts0(ctx);
+    if (cur) list.push({ id: 'return', label: 'Về thị trấn', bind: 'Escape', hold: 0, area: 'control', enabled: true, run: () => { if (root.DRCargo) DRCargo.close(); } });
+    return list;
+  }
+  function prompts0(ctx) {
     if (!cur) return [];
     const c = cur.c, out = [], h = ctx.held, hv = ctx.hovered, funds = DR.s.funds;
     if (c.allowRepairs) {

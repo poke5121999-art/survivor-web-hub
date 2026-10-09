@@ -1,0 +1,19 @@
+/* Màn thời gian trôi (js/passtime.js; TimePassScrimUI): đồng hồ cát trong vòng tiến trình, tiêu đề phía trên, "Thức dậy [Esc]" phía dưới.
+   Đơn vị canvas 1080p nhân --s. Số đo [ĐỀ XUẤT] đo từ khung clip 2170. */
+#dr-passtime { position: fixed; inset: 0; z-index: 60; display: none; pointer-events: none; --s: 1; --p: 0deg; color: #fff;
+  font-family: "Front Page Neue", "Signika", "Segoe UI", sans-serif; background: rgba(0, 0, 0, .28); }
+#dr-passtime.on { display: block; animation: ptIn .5s ease-out both; }
+@keyframes ptIn { from { opacity: 0; } to { opacity: 1; } }
+/* cảnh phía sau tối vừa phải như clip (sky.js bật #dr-fade ở .82 nên thấy gần như đen) */
+html body #dr-fade.on { opacity: .5; }
+#dr-passtime .pt-ring { position: absolute; left: 50%; top: 50%; width: calc(330px * var(--s)); height: calc(330px * var(--s)); transform: translate(-50%, -50%);
+  background: conic-gradient(from 0deg, #fff var(--p), rgba(255, 255, 255, .12) 0);
+  -webkit-mask: var(--ring) center / 100% 100% no-repeat; mask: var(--ring) center / 100% 100% no-repeat; }
+#dr-passtime .pt-glass { position: absolute; left: 50%; top: 50%; height: calc(150px * var(--s)); width: auto; transform: translate(-50%, -50%) rotate(-24deg); }
+#dr-passtime .pt-title { position: absolute; left: 50%; top: 50%; transform: translate(-50%, calc(-50% - 215px * var(--s))); white-space: nowrap;
+  font-size: calc(38px * var(--s)); text-shadow: 0 calc(2px * var(--s)) calc(6px * var(--s)) #000; }
+#dr-passtime .pt-wake { position: absolute; left: 50%; top: 50%; transform: translate(-50%, calc(-50% + 215px * var(--s))); pointer-events: auto; cursor: pointer;
+  display: flex; align-items: center; gap: calc(12px * var(--s)); padding: calc(6px * var(--s)) calc(22px * var(--s)); border: 0; border-radius: calc(8px * var(--s));
+  background: rgba(0, 0, 0, .6); color: #fff; font: inherit; font-size: calc(30px * var(--s)); }
+#dr-passtime .pt-wake b { font-weight: 400; font-size: .62em; padding: .15em .45em; border-radius: .3em; background: #fff; color: #111; }
+#dr-passtime .pt-wake:hover { background: #fee7d1; color: #1b1410; }

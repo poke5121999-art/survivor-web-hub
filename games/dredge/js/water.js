@@ -16,6 +16,12 @@
  *     _ShallowColor của vùng (0,17; 0,11; 0,11) chứ không ô liu như _DeepColor; gog_20 thấy rõ vỏ thuyền dưới nước (độ trong cao
  *     sát vật) trong màu tím đen của _DeepColor. ⇒ cb0[127] = _ShallowColor (xa vật dưới nước), cb0[126] = _DeepColor (sát vật),
  *     độ trong = 1 − _DeepColor.a (mặc định a = 0: sát vỏ/đáy nông thấy rõ vật bên dưới; Twisted Strand, Devil's Spine a = 1: đục).
+ *     V04 (clip ObBBFGMem5U; nước vịnh Marrows lúc 10:55 đo (66..78, 95..114, 106..128), điểm câu 14:40 (60, 75, 85), 07:12 (52..62, 60..73,
+ *     63..74), đêm (33,33,39); web trước (134..148, 160..165, 164..169)): mọi đo đều ra màu nước ≈ 0,4× của công thức bản rã (nắng·mây + ambient +
+ *     (1 − mask.b)) × albedo — bọt trắng gốc lại sáng đầy, nên chỉ phần nước tối. Chưa tìm ra số hạng DXBC nào lệch (đã thử hoán đổi cb0[126]/[127]:
+ *     ra đúng clip nhưng đen ở gog_01 nước 9 m, bỏ). [ĐỀ XUẤT] hai hệ số đo thẳng: WATER_LIT = 0,65 nhân albedo nước (không nhân bọt, không nhân
+ *     màu trời xa), và SEE_K = 0,15 che phần nhìn xuyên xuống đáy cát (đáy trong clip tối, đáy web sáng). Giữa vịnh ra (76..82, 113..120, 119..131) / bình minh
+ *     (69..71, 91..93, 86..90) / đêm (35,43,45). HULL_FOAM_K = 3 co dải bọt chạm quanh vỏ (hộp va chạm to hơn lưới vỏ; clip chỉ có vòng gợn mảnh); gog_01 hoàng hôn vẫn trong ±15 của test/dredge-water.js (vì thế không hạ thêm). Vỏ thuyền dưới nước vẫn nhìn xuyên đủ (depSea − dep).
  *     Rồi lerp tới lerp(SkyBlue, màu sương, _FogDensity²) theo f10·(f10 + sat(mờ·(1 − dốc)(5·dốc + h))),
  *     f10 = (1 − V.y)^10, mờ = 1 − 0,004·(1 + độ sâu nhìn), h = độ dời đỉnh.
  *   - bọt: F = sat(WaveMask.r·(sat(h) + _FoamAmount)·mờ) + sọc bờ sat((sin 2π(0,2t − 100(r − EdgeFoamOffset)) − 2000(r − EdgeFoamOffset)²)·3);
@@ -59,6 +65,7 @@
     w.dx = Math.cos(a); w.dz = -Math.sin(a);
     w.k = Math.PI * 2 / w.len;
   }
+  const SEE_K = 0.15, WATER_LIT = 0.65, HULL_FOAM_K = 3; // [ĐỀ XUẤT] V04, xem chú thích đầu tệp
   const SEABED_MAX = 100; // m; texture sâu đáy mã hoá sqrt(sâu/100): đáy địa hình sâu tới 100 m, Stellar Basin có _Depth 12 m
 
   const uniforms = {
@@ -69,7 +76,7 @@
     uLandBox: { value: new T.Vector4(0, 0, 1, 1) }, // x0, z0, 1/w, 1/h (m)
     uNight: { value: 0 },
     uFoam: { value: 0.2 }, // _FoamAmount (WeatherController.cs:447), Fine.foamAmount
-    uShallow: { value: new T.Color() }, uShallowA: { value: 0.35 }, uDeep: { value: new T.Color() }, uDeepA: { value: 0 },
+    uSeeK: { value: SEE_K }, uHullFoamK: { value: HULL_FOAM_K }, uWaterLit: { value: WATER_LIT }, uShallow: { value: new T.Color() }, uShallowA: { value: 0.35 }, uDeep: { value: new T.Color() }, uDeepA: { value: 0 },
     uFoamCol: { value: new T.Color() }, uWaterDepth: { value: 1 },
     uSky: { value: new T.Color() }, uNormalTex: { value: null }, uFoamTex: { value: null },
     uSeabed: { value: null }, uSeabedBox: { value: new T.Vector4(0, 0, 1, 1) },
@@ -191,7 +198,7 @@ void main() {
 #include <common>
 ${GLSL_WAVE}
 uniform float uFoam;
-uniform vec3 uShallow; uniform float uShallowA; uniform vec3 uDeep; uniform float uDeepA; uniform vec3 uFoamCol; uniform float uWaterDepth;
+uniform float uSeeK; uniform float uWaterLit; uniform float uHullFoamK; uniform vec3 uShallow; uniform float uShallowA; uniform vec3 uDeep; uniform float uDeepA; uniform vec3 uFoamCol; uniform float uWaterDepth;
 uniform vec3 uSky; uniform sampler2D uNormalTex; uniform sampler2D uFoamTex;
 uniform sampler2D uSeabed; uniform vec4 uSeabedBox; uniform vec4 uHull; uniform vec3 uHullSize;
 varying vec3 vWPos;
@@ -215,6 +222,7 @@ void main() {
   // [ĐỀ XUẤT] không có bộ đệm sâu của cảnh: "vật bên dưới" = đáy biển (lưới đáy) hoặc đáy vỏ thuyền (hộp va chạm bo góc,
   // đáy = điểm thấp nhất của thân thuyền); ngoài mép vỏ độ sâu tăng 4 m mỗi m để quầng sáng chỉ ôm sát vỏ như ảnh gốc
   float dep = max(0.0, wp.y + drSeabedDepth(wp.xz));
+  float depSea = dep;
   float hullD = 1000.0;
   if (uHullSize.x > 0.0) {
     vec2 d = wp.xz - uHull.xy;
@@ -225,7 +233,7 @@ void main() {
     dep = min(dep, max(0.0, wp.y - uHullSize.z) + max(hullD, 0.0) * 4.0);
   }
   float kS = min(1.0, exp(-dep / max(0.01, uWaterDepth)));
-  vec3 col = mix(uShallow, uDeep, kS);
+  vec3 col = mix(uShallow, uDeep, kS) * uWaterLit; // uWaterLit: xem chú thích V04 đầu tệp
 
   float f10 = pow(1.0 - clamp(V.y, 0.0, 1.0), 10.0);
   float fadeD = 1.0 - 0.004 * (1.0 + vViewZ);
@@ -243,7 +251,7 @@ void main() {
   // [ĐỀ XUẤT] bọt chạm (gốc: chênh độ sâu cảnh − mặt nước dọc tia nhìn): tia xuống gặp đáy sau sâu/V.y, đi ngang gặp vỏ thuyền sau
   // khoảng cách/√(1 − V.y²). Không dùng landmask: hộp va chạm của đá to hơn lưới đá nên bọt chạm theo nó trắng loang ngoài đá
   float vh = max(sqrt(max(0.0, 1.0 - V.y * V.y)), 0.05);
-  float dd = min(dep / max(V.y, 0.05), max(hullD, 0.0) / vh);
+  float dd = min(dep / max(V.y, 0.05), max(hullD, 0.0) * uHullFoamK / vh);
   float q = F * 2.0 * s2;
   float v = mix(s1, q, q) * q + pow(1.0 - clamp(dd * 0.25, 0.0, 1.0), 25.0);
   float foamA = step(0.2, clamp(v, 0.0, 1.0)) * clamp(v, 0.5, 1.0);
@@ -272,7 +280,7 @@ void main() {
   float fog = clamp(drEnvFogAmount(wp, Ls, mb), 0.0, 1.0);
   vec3 fogC = drEnvFogColor(wp);
   // trộn kiểu nhân sẵn alpha: phần còn lại (Tr) là cảnh phía sau mặt nước (đáy, vỏ thuyền dưới nước)
-  float tS = (1.0 - fog) * (1.0 - wR) * Tr;
+  float tS = (1.0 - fog) * (1.0 - wR) * Tr * mix(uSeeK, 1.0, clamp((depSea - dep) * 2.0, 0.0, 1.0)); // đáy biển nhìn xuyên ×uSeeK, vỏ thuyền thì nguyên (V04)
   vec3 rgb = (1.0 - fog) * ((1.0 - wR) * (1.0 - Tr) * col + wR * Rf) + fog * fogC;
   gl_FragColor = vec4(rgb, 1.0 - tS);
   #include <encodings_fragment>

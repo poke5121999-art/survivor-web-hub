@@ -1,0 +1,69 @@
+/*
+ * Bản đồ (js/map.js, phím M) và Bách khoa (js/encyclopedia.js, phím L). Số đo là đơn vị canvas 1920x1080 (CanvasScaler khớp theo chiều cao)
+ * nhân --s, lấy từ cây RectTransform của MapWindow / EncyclopediaWindow trong data/encyclopedia.js (tools/book_ui.py).
+ * Dựng cây theo cách js/upgrade.js: mỗi GameObject bật là một .bk-n đặt tuyệt đối theo neo/pivot. Tiền tố bk-.
+ * Phông "Front Page Neue" do css/story.css khai báo.
+ */
+.bk-host { position: fixed; inset: 0; z-index: 58; display: none; --s: 1; opacity: 0; transition: opacity .3s linear;
+  font-family: "Front Page Neue", "Signika", sans-serif; color: #fff; -webkit-font-smoothing: antialiased; user-select: none; -webkit-user-select: none; }
+.bk-host.on { display: block; }
+.bk-host.show { opacity: 1; }
+.bk-host * { box-sizing: border-box; }
+
+.bk-n { position: absolute; }
+.bk-n.bk-clip { overflow: hidden; }
+.bk-bg { position: absolute; inset: 0; pointer-events: none; }
+.bk-bg.sl { border-style: solid; border-color: transparent; border-image: var(--bi); border-width: var(--bw); }
+.bk-bg.si { background: var(--sp) center / 100% 100% no-repeat; }
+.bk-bg.pa { background-size: contain; }
+.bk-bg.solid { background-color: var(--c, #fff); }
+/* Image.color nhân với sprite: nền màu bị cắt theo alpha của sprite, lớp ::before nhân ảnh lên (như .up-bg.mulm) */
+.bk-bg.mulm { isolation: isolate; background-color: var(--c, #fff); -webkit-mask: var(--sp) center / 100% 100% no-repeat; mask: var(--sp) center / 100% 100% no-repeat; }
+.bk-bg.mulm.pa { -webkit-mask-size: contain; mask-size: contain; }
+.bk-bg.mulm::before { content: ""; position: absolute; inset: 0; mix-blend-mode: multiply; background: var(--sp) center / 100% 100% no-repeat; }
+.bk-bg.mulm.pa::before { background-size: contain; }
+.bk-bg.mul { isolation: isolate; background-color: var(--c, #fff); border: 0; border-image: none; }
+.bk-bg.mul::before { content: ""; position: absolute; inset: 0; mix-blend-mode: multiply; border-style: solid; border-color: transparent; border-image: var(--bi); border-width: var(--bw); }
+.bk-bg.tile { background: var(--sp) 0 0 / var(--tw) var(--th) repeat; }
+/* RawImage tô màu lên texture: nền màu cắt theo alpha của texture (lưới bản đồ) */
+.bk-bg.raw { background-color: var(--c, #fff); -webkit-mask: var(--sp) var(--ux) var(--uy) / var(--tw) var(--th) repeat; mask: var(--sp) var(--ux) var(--uy) / var(--tw) var(--th) repeat; }
+
+/* chữ TMP một dòng: .bk-t là khung, .bk-tx đặt theo đường cơ sở (placeText) */
+.bk-t { pointer-events: none; white-space: nowrap; }
+.bk-tx { position: absolute; left: 0; right: 0; line-height: 1; white-space: nowrap; }
+.bk-tx i { font-style: normal; display: inline-block; }
+/* chữ nhiều dòng (mô tả cá): khung flex, xuống dòng theo bề rộng */
+.bk-t.wrap .bk-tx { position: static; display: flex; align-items: center; height: 100%; white-space: normal; line-height: 1.12; }
+.bk-t.wrap .bk-tx i { display: block; width: 100%; }
+
+.bk-btn { cursor: pointer; }
+
+/* nhắc phím "Back" (PopupWindow.backAction, góc dưới phải) */
+.bk-back { position: absolute; right: calc(var(--s) * 10px); bottom: calc(var(--s) * 14px); display: flex; align-items: center; gap: calc(var(--s) * 12px);
+  padding: 0; background: none; border: 0; color: #fff; cursor: pointer; font: inherit; font-size: calc(var(--s) * 36px); line-height: 1; text-shadow: 0 0 calc(var(--s) * 6px) #000; }
+.bk-back b { display: inline-flex; align-items: center; justify-content: center; min-width: calc(var(--s) * 38px); height: calc(var(--s) * 38px); padding: 0 calc(var(--s) * 4px); border-radius: calc(var(--s) * 9px);
+  background: #fff; color: #000; font-weight: 400; font-size: calc(var(--s) * 26px); }
+.bk-back:hover b, .bk-back:focus-visible b { background: #ffd104; }
+.bk-back:focus-visible { outline: 0; }
+
+/* ô phím nhỏ (Q / E dưới mũi tên sang trang) */
+.bk-key { position: absolute; display: flex; align-items: center; justify-content: center; border-radius: calc(var(--s) * 9px); background: #fff; color: #000; font-weight: 400; pointer-events: none; }
+
+/* ---- Bản đồ ---- */
+#dr-map .bk-n[data-n="Container"] { pointer-events: auto; }
+#dr-map .bk-marker { position: absolute; transform: translate(-50%, -50%); pointer-events: none; }
+#dr-map .bk-marker i { position: absolute; inset: 0; }
+#dr-map .bk-dock-off { display: none; }
+
+/* ---- Bách khoa ---- */
+#dr-enc .enc-zone, #dr-enc .enc-type { cursor: pointer; }
+#dr-enc .enc-click { position: absolute; cursor: pointer; }
+#dr-enc .enc-list { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
+#dr-enc .enc-zrow { position: absolute; left: 0; right: 0; display: flex; align-items: center; padding: 0 calc(var(--s) * 8px); white-space: nowrap; overflow: hidden; }
+#dr-enc .enc-aber { cursor: pointer; }
+#dr-enc .enc-fish { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: var(--sp) center / 100% 100% no-repeat; pointer-events: none; }
+#dr-enc .enc-fish.dark { filter: brightness(0); }
+#dr-enc .enc-cell { position: absolute; border: 1px solid rgba(0, 0, 0, .31); pointer-events: none; }
+#dr-enc .enc-pg { transition: opacity .15s linear; }
+#dr-enc .enc-pg.fade { opacity: 0; }
+body.bk-open .qn-jbtn { visibility: hidden !important; }

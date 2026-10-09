@@ -299,3 +299,24 @@ Gỡ nhanh nếu bị yêu cầu: xoá `art/`, `audio/`, và mọi tệp `data/*
   - `gridKey` trong `marketTabs` là số: đổi tên qua enum `GridKey` của mã C# (`Dt.cs.enum_name`). `lm-trader` có tab `NONE` (bán là mất, không có lưới hàng).
   - Đi cây UI bằng tên con từ `MarketDestinationUI` thay vì quét mọi RectTransform của scene (quét hết chậm hàng phút).
   - Bố cục: `rectIn()` trong `js/shop.js` tính hộp từ neo + pivot + sizeDelta (trục y Unity hướng lên); ShopGrid nằm trong `TabbedPanelContainer/Panels/ShopPanel/Container` → lưới 8x9 ô 60 ở (72, 312) trên canvas 1920x1080.
+
+## tentacle.py — xúc tu đỏ gai của sự kiện TentacleAttack (V14, hoảng loạn cao) [ĐO TRONG REPO, 2026-10-09]
+- Chạy: `python -I games/dredge/tools/tentacle.py` (vài giây, chỉ đọc `GameObject/TentacleAttack.prefab`, `Mesh/*.asset`, hai clip `Armature_Spawn` / `Tentacle_Retract`, `Material/AttackingTentacle_Mat`). Ghi `data/tentacle.js` (~75 KB) và `art/vfx/tentacle/{albedo,emission}.webp` (256 px).
+- Dùng: `js/tentacle.js` (sự kiện thế giới + xương + vật liệu), nối qua `DRVfx.init/update/reset` trong `js/vfx.js`. Kiểm: `node test/dredge-vwater.js`; ảnh so clip: `node test/dredge-tour.js panic-high`.
+- Bẫy:
+  - `[BẪY ĐÃ SẬP]` Sự kiện bị bỏ nhầm là `Vines`: prefab đó là dây leo vân gỗ ô liu, cấm ở Marrows; xúc tu đỏ ở clip (t = 1671) là `TentacleAttack` (sanity ≤ 0,1, worldPhase ≥ 2, đêm). Tìm bằng `AttackingTentacle_Mat` (texture + emission đỏ gai), không bằng tên "panic".
+  - Mesh có trọng số xương nằm trong kênh 12/13 của vertex buffer (không phải `m_Skin`); bindpose Unity đã gồm biến đổi của nút `Tentacle` nên mesh ở gốc thế giới, `bind(skeleton, đơn vị)` (xem đầu `js/tentacle.js`).
+  - Đổi hệ toạ độ: z đảo dấu ở vị trí, quaternion (x,y,z,w) → (−x,−y,z,w), bindpose S·M·S, tam giác đảo chiều. Đường cong clip là Hermite theo từng thành phần: giữ khoá thưa, không lấy mẫu lại.
+  - `data/worldevents.js` (đã có từ trước) chưa được nạp ở đâu; `index.html` nay nạp nó cho `js/tentacle.js` (TestWorldEvent/SelectInsanityEvent thật).
+  - Độ sâu `CheckDepthRelativePoint` dùng `depth01 > minDepth` (minDepth 0,1 = 10 m): vịnh Marrows quá nông, xúc tu chỉ ra ở biển sâu.
+
+## book_ui.py — Bản đồ (MapWindow, M) và Bách khoa (EncyclopediaWindow, L) [ĐO TRONG REPO, 2026-10-09]
+- Chạy sau `index_bundles.py` và `data.py`: `python -I games/dredge/tools/book_ui.py` (~6 phút vì `load_all()`; ra đúng từng byte). Ghi `data/encyclopedia.js` (`window.DR_BOOK`: cây RectTransform hai cửa sổ, sprite, thứ tự cá `allFish`, màu, tham số) và `art/ui/book/*.webp` (~0,6 MB, cỡ gốc; ảnh > 150 nghìn điểm lưu WebP q88).
+- Dùng: `js/book_kit.js` (dựng cây + cửa sổ chung `DRBook`), `js/map.js`, `js/encyclopedia.js`. Kiểm: `node test/dredge-vbook.js`; ảnh so video: `node test/dredge-tour.js map encyclopedia`.
+- Bẫy:
+  - `[BẪY ĐÃ SẬP]` `Image` tắt (`m_Enabled = 0`) của vùng bấm Zones / Types và `Mask` có `m_ShowMaskGraphic = 0` (MapMask, LettersMask, NumbersMask): vẽ chúng thành khối trắng che cả sách. Tool ghi `img.en` và `mask`.
+  - `[BẪY ĐÃ SẬP]` Lưới bản đồ là `RawImage` (texture `MapTilingCell` lặp 19 x 15), không phải sprite `GridSquare` (đó là viền ô ảnh cá trong sách).
+  - Nhãn vùng uốn cung dùng script plugin (không có trong Assembly-CSharp), nhận bằng trường `m_arcDegrees`; `m_fontStyle` 17 = đậm + chữ hoa.
+  - `DockLabel.dockData.id` = khoá chuỗi (`dock.greater-marrow`), trùng id bến của web và cờ `has-visited-dock-<id>`.
+  - `Encyclopedia.allFish` có 230 cá kể cả DLC; web bỏ cá cần DLC_1 / DLC_2 (còn 151), nên sách hiện "x/151" chứ không phải "x/128" của bản demo trong video.
+  - Danh sách vùng trong ô "vùng" là cách vẽ của bản demo (video t=360); bản 1.5.3 dùng ảnh `zone-img-*`. Web vẽ danh sách.
