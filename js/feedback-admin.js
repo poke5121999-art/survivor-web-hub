@@ -1,6 +1,7 @@
 /*
  * Trang quản lý phiếu (feedback-admin.html): thống kê, lọc, đổi status + ghi chú, xoá phiếu rác.
- * Mọi thao tác ghi đi qua fb_set_status / fb_delete với khoá triage, lưu ở localStorage của trình duyệt này.
+ * Vào được khi đăng nhập bằng tài khoản có email trong hub_feedback_admins, hoặc dán khoá triage (lưu ở localStorage).
+ * Database tự xét quyền trong fb_can_manage / fb_set_status / fb_delete; trang chỉ hỏi để biết nên hiện gì.
  */
 (function () {
   "use strict";
@@ -13,9 +14,14 @@
       pageTitle: "Feedback inbox",
       subtitle: "Track every report, change its status, leave a note players can see.",
       toPublic: "Report page →",
-      lock: "Lock",
-      unlockTitle: "Unlock the inbox",
-      unlockNote: "Paste the triage key (the content of ~/.config/survivor-hub/feedback.key). It stays in this browser only.",
+      lock: "Forget key",
+      gateTitle: "Sign in to manage reports",
+      gateGuest: "Sign in with a hub admin account.",
+      gateNotAdmin: "{0} is signed in, but this account is not a feedback admin.",
+      signIn: "Sign in",
+      switchAccount: "Use another account",
+      orKey: "Or use the triage key",
+      unlockNote: "Paste the content of ~/.config/survivor-hub/feedback.key. It stays in this browser only.",
       keyPh: "Triage key",
       unlock: "Unlock",
       wrongKey: "That key was rejected.",
@@ -44,9 +50,14 @@
       pageTitle: "Quản lý phiếu",
       subtitle: "Theo dõi mọi phiếu, đổi status, để lại ghi chú người chơi đọc được.",
       toPublic: "Trang gửi phiếu →",
-      lock: "Khoá lại",
-      unlockTitle: "Mở khoá hộp thư",
-      unlockNote: "Dán khoá triage (nội dung tệp ~/.config/survivor-hub/feedback.key). Khoá chỉ lưu trong trình duyệt này.",
+      lock: "Quên khoá",
+      gateTitle: "Đăng nhập để quản lý phiếu",
+      gateGuest: "Đăng nhập bằng tài khoản admin của hub.",
+      gateNotAdmin: "Đang đăng nhập bằng {0}, nhưng tài khoản này không có quyền quản lý phiếu.",
+      signIn: "Đăng nhập",
+      switchAccount: "Đổi tài khoản",
+      orKey: "Hoặc dùng khoá triage",
+      unlockNote: "Dán nội dung tệp ~/.config/survivor-hub/feedback.key. Khoá chỉ lưu trong trình duyệt này.",
       keyPh: "Khoá triage",
       unlock: "Mở khoá",
       wrongKey: "Khoá không đúng.",
@@ -75,7 +86,9 @@
   var KEY_STORE = "hub.feedback.key";
   var STATS = [["active", "statActive"], ["open", "open"], ["doing", "doing"], ["closed", "closed"], ["wontfix", "wontfix"], ["all", "statAll"]];
 
+  // access: "checking" → "granted" | "denied".
   var state = {
+    access: "checking",
     key: FB.store(KEY_STORE),
     tickets: [],
     filter: { status: "active", game: "", kind: "", q: "" },
@@ -86,7 +99,7 @@
   };
 
   var $ = function (id) { return document.getElementById(id); };
-  var banner = $("fb-banner"), unlockForm = $("fa-unlock"), board = $("fa-board"), lockBtn = $("fa-lock");
+  var banner = $("fb-banner"), gate = $("fa-gate"), unlockForm = $("fa-unlock"), board = $("fa-board"), lockBtn = $("fa-lock");
   var gameSel = $("fa-game"), kindSel = $("fa-kind"), search = $("fa-search");
 
   function showBanner(err) {
@@ -95,23 +108,41 @@
     banner.textContent = FB.errorText(err);
   }
 
+  function member() {
+    var s = window.HubSession && window.HubSession.get();
+    return s && s.kind === "member" ? s : null;
+  }
+
   function fail(err) {
-    if (err.kind === "key") return lock("wrongKey");
+    if (err.kind === "key") { state.access = "denied"; return render(); }
     showBanner(err);
   }
 
-  function lock(msgKey) {
-    state.key = null;
-    FB.store(KEY_STORE, null);
-    $("fa-key-msg").textContent = msgKey ? t(msgKey) : "";
+  function setKey(key, msgKey) {
+    state.key = key;
+    FB.store(KEY_STORE, key);
     $("fa-key-msg").dataset.msg = msgKey || "";
-    renderGate();
+  }
+
+  // Hỏi database xem người đang xem (tài khoản đăng nhập, hoặc khoá đã lưu) có quyền không.
+  function checkAccess() {
+    return FB.rpc("fb_can_manage", { p_key: state.key }).then(function (ok) {
+      if (!ok && state.key) setKey(null, "wrongKey");
+      state.access = ok ? "granted" : "denied";
+      render();
+      if (ok) load();
+    }, showBanner);
   }
 
   function renderGate() {
-    unlockForm.hidden = !!state.key;
-    board.hidden = !state.key;
+    var m = member();
+    gate.hidden = state.access !== "denied";
+    board.hidden = state.access !== "granted";
     lockBtn.hidden = !state.key;
+    $("fa-who").hidden = !m;
+    $("fa-who").textContent = m ? "👤 " + m.email : "";
+    $("fa-gate-note").textContent = m ? t("gateNotAdmin", m.email) : t("gateGuest");
+    $("fa-signin").textContent = m ? t("switchAccount") : t("signIn");
   }
 
   function matches(x) {
@@ -263,7 +294,7 @@
     if (km.dataset.msg) km.textContent = t(km.dataset.msg);
     if (state.error) banner.textContent = FB.errorText(state.error);
     renderGate();
-    if (!state.key) return;
+    if (state.access !== "granted") return;
     renderStats();
     renderFilters();
     var rows = state.tickets.filter(matches);
@@ -286,18 +317,16 @@
     e.preventDefault();
     var key = $("fa-key").value.trim();
     if (!key) return;
-    FB.rpc("fb_key_ok", { p_key: key }).then(function (ok) {
-      if (!ok) return lock("wrongKey");
-      state.key = key;
-      FB.store(KEY_STORE, key);
-      $("fa-key").value = "";
-      $("fa-key-msg").dataset.msg = "";
-      $("fa-key-msg").textContent = "";
-      render();
-      load();
-    }, showBanner);
+    $("fa-key").value = "";
+    setKey(key);
+    checkAccess();
   });
-  lockBtn.addEventListener("click", function () { lock(); render(); });
+  lockBtn.addEventListener("click", function () {
+    setKey(null);
+    state.access = "checking";
+    render();
+    checkAccess();
+  });
   $("fa-reload").addEventListener("click", load);
   gameSel.addEventListener("change", function () { state.filter.game = gameSel.value; render(); });
   kindSel.addEventListener("change", function () { state.filter.kind = kindSel.value; render(); });
@@ -305,10 +334,14 @@
   FB.bindLangSwitch($("fb-lang"), render);
 
   render();
-  if (state.key) {
-    FB.rpc("fb_key_ok", { p_key: state.key }).then(function (ok) {
-      if (ok) load();
-      else { lock("wrongKey"); render(); }
-    }, showBanner);
+  // Token hết hạn thì core gửi anon key và database không nhận ra tài khoản; làm mới trước khi hỏi quyền.
+  var m = member();
+  if (m && window.HubAuth && window.HubSession.isExpired()) {
+    window.HubAuth.refresh(m).then(function (r) {
+      if (r && r.ok) window.HubSession.set(r.session);
+      checkAccess();
+    });
+  } else {
+    checkAccess();
   }
 })();

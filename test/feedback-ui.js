@@ -14,6 +14,8 @@ const PW = process.env.PLAYWRIGHT_PATH || '/home/bui-thanh-thuong/.cache/pw-node
 const SHOTS = process.env.FB_SHOTS;
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.webp': 'image/webp', '.jpg': 'image/jpeg' };
 const KEY = 'good-key';
+const ADMIN = { kind: 'member', name: 'Poke', email: 'poke5121999@gmail.com', accessToken: 'admin-jwt', refreshToken: 'r', expiresAt: Date.now() + 3600e3 };
+const PLAYER = { kind: 'member', name: 'Bình', email: 'binh@example.com', accessToken: 'member-jwt', refreshToken: 'r', expiresAt: Date.now() + 3600e3 };
 const SHOT_RE = /^[a-z0-9-]{1,40}\/[0-9a-f-]{36}\.(webp|jpg)$/;
 
 let pass = 0, fail = 0;
@@ -89,12 +91,16 @@ async function open(br, base, file, opts) {
     }
     return json(route, 200, db.rows.slice().reverse());
   });
+  await page.route('**/auth/v1/token**', (route) => json(route, 200, {
+    access_token: 'admin-jwt', refresh_token: 'r2', expires_in: 3600, user: { id: 'u1', email: ADMIN.email, user_metadata: { display_name: 'Poke' } }
+  }));
   await page.route('**/rest/v1/rpc/**', async (route) => {
     const name = route.request().url().split('/rpc/')[1];
     const a = JSON.parse(route.request().postData());
-    db.rpc.push([name, a]);
-    if (name === 'fb_key_ok') return json(route, 200, a.p_key === KEY);
-    if (a.p_key !== KEY) return json(route, 401, { code: '42501', message: 'triage key rejected' });
+    const allowed = a.p_key === KEY || route.request().headers().authorization === 'Bearer admin-jwt';
+    db.rpc.push([name, a, route.request().headers().authorization]);
+    if (name === 'fb_can_manage') return json(route, 200, allowed);
+    if (!allowed) return json(route, 401, { code: '42501', message: 'feedback manage denied' });
     const row = db.rows.find((r) => r.id === a.p_id);
     if (name === 'fb_delete') { db.rows = db.rows.filter((r) => r !== row); return route.fulfill({ status: 204 }); }
     Object.assign(row, { status: a.p_status, resolution: a.p_resolution, updated_at: new Date().toISOString() });
@@ -222,20 +228,40 @@ async function reportPage(br, base) {
 }
 
 async function adminPage(br, base) {
-  console.log('feedback-admin.html · desktop 1280x800');
+  console.log('feedback-admin.html · khách, chưa đăng nhập');
   let s = await open(br, base, 'feedback-admin.html', { viewport: { width: 1280, height: 800 } });
   let { page } = s;
-  check('chưa có khoá thì chỉ hiện ô mở khoá', await page.isVisible('#fa-unlock') && await page.isHidden('#fa-board'));
+  await page.waitForSelector('#fa-gate:not([hidden])');
+  check('chưa đăng nhập thì hiện cổng, không hiện phiếu', await page.isHidden('#fa-board') && /Sign in with a hub admin account/.test(await page.textContent('#fa-gate-note')));
+  check('nút Sign in dẫn về login rồi quay lại', await page.getAttribute('#fa-signin', 'href') === 'login.html?next=feedback-admin.html' && await page.textContent('#fa-signin') === 'Sign in');
+  await page.click('.fa-keybox summary');
   await page.click('#fa-key');
   await page.keyboard.type('wrong');
   await page.keyboard.press('Enter');
   await page.waitForFunction(() => /rejected/.test(document.getElementById('fa-key-msg').textContent));
-  check('khoá sai bị từ chối', await page.isHidden('#fa-board'));
-  await page.fill('#fa-key', '');
+  check('khoá sai bị từ chối, không lưu', await page.isHidden('#fa-board') && await page.evaluate(() => localStorage.getItem('hub.feedback.key')) === null);
   await page.click('#fa-key');
   await page.keyboard.type(KEY);
   await page.click('#fa-unlock button[type="submit"]');
   await page.waitForSelector('#fa-board:not([hidden])');
+  check('khoá đúng mở được bảng', await page.isVisible('#fa-lock'));
+  await page.click('#fa-lock');
+  await page.waitForSelector('#fa-gate:not([hidden])');
+  check('Forget key quên khoá, quay về cổng', await page.evaluate(() => localStorage.getItem('hub.feedback.key')) === null);
+  check('không lỗi trang', !s.problems.length, s.problems.join(' | '));
+  await s.ctx.close();
+
+  console.log('feedback-admin.html · thành viên thường');
+  s = await open(br, base, 'feedback-admin.html', { viewport: { width: 1280, height: 800 }, session: PLAYER });
+  await s.page.waitForSelector('#fa-gate:not([hidden])');
+  check('thành viên thường thấy báo không có quyền', /binh@example\.com is signed in, but this account is not a feedback admin/.test(await s.page.textContent('#fa-gate-note')) && await s.page.textContent('#fa-signin') === 'Use another account');
+  await s.ctx.close();
+
+  console.log('feedback-admin.html · admin đăng nhập, desktop 1280x800');
+  s = await open(br, base, 'feedback-admin.html', { viewport: { width: 1280, height: 800 }, session: ADMIN });
+  page = s.page;
+  await page.waitForSelector('#fa-board:not([hidden])');
+  check('admin vào thẳng, không cần khoá', await page.isHidden('#fa-gate') && await page.isHidden('#fa-lock') && /poke5121999@gmail\.com/.test(await page.textContent('#fa-who')));
   const stats = await page.$$eval('.fa-stat', (n) => n.map((x) => x.innerText.replace(/\s+/g, ' ')));
   check('thống kê theo status đúng', JSON.stringify(stats) === JSON.stringify(['3 Open', '2 New', '1 In progress', '1 Fixed', '1 Won\'t fix', '5 All']), JSON.stringify(stats));
   check('mặc định lọc phiếu đang mở', await page.textContent('#fa-count') === '3 of 5 reports');
@@ -259,7 +285,7 @@ async function adminPage(br, base) {
   await page.click('.fa-editor .fb-submit');
   await page.waitForFunction(() => /Saved/.test(document.querySelector('.fa-editor .fb-msg').textContent));
   const call = s.db.rpc.find((r) => r[0] === 'fb_set_status');
-  check('Lưu gọi fb_set_status đúng tham số', call && call[1].p_id === 3 && call[1].p_status === 'closed' && call[1].p_resolution === 'abc1234: giảm số hạt ở màn 3' && call[1].p_key === KEY, JSON.stringify(call));
+  check('Lưu gọi fb_set_status bằng JWT admin, không kèm khoá', call && call[1].p_id === 3 && call[1].p_status === 'closed' && call[1].p_resolution === 'abc1234: giảm số hạt ở màn 3' && call[1].p_key === null && call[2] === 'Bearer admin-jwt', JSON.stringify(call));
   check('phiếu đổi chip sang Fixed, vẫn mở', await page.textContent('.fa-items .fb-chip') === 'Fixed' && await page.$eval('.fa-items details', (d) => d.open));
   check('thống kê cập nhật', /^0\s/.test(await page.innerText('.fa-stat--doing')) && /^2\s/.test(await page.innerText('.fa-stat--closed')));
   if (SHOTS) await page.screenshot({ path: path.join(SHOTS, 'feedback-admin.png'), fullPage: true });
@@ -272,20 +298,38 @@ async function adminPage(br, base) {
   await page.click('#fb-lang [data-lang="vi"]');
   check('trang quản lý đổi sang tiếng Việt', await page.textContent('h1') === 'Quản lý phiếu');
   check('không lỗi trang', !s.problems.length, s.problems.join(' | '));
-  await page.click('#fa-lock');
-  check('Khoá lại thì quên khoá', await page.isVisible('#fa-unlock') && await page.evaluate(() => localStorage.getItem('hub.feedback.key')) === null);
   await s.ctx.close();
 
-  console.log('feedback-admin.html · khoá cũ đã bị thay, điện thoại 390x844');
-  s = await open(br, base, 'feedback-admin.html', { viewport: { width: 390, height: 844 }, adminKey: 'old-key' });
-  await s.page.waitForFunction(() => /rejected/.test(document.getElementById('fa-key-msg').textContent));
-  check('khoá lưu sẵn mà sai thì quay về ô mở khoá', await s.page.isVisible('#fa-unlock'));
-  await s.ctx.close();
-  s = await open(br, base, 'feedback-admin.html', { viewport: { width: 390, height: 844 }, adminKey: KEY, scheme: 'light' });
+  console.log('feedback-admin.html · admin token hết hạn, điện thoại 390x844');
+  s = await open(br, base, 'feedback-admin.html', { viewport: { width: 390, height: 844 }, scheme: 'light', session: Object.assign({}, ADMIN, { accessToken: 'stale', expiresAt: Date.now() - 1000 }) });
   await s.page.waitForSelector('.fa-items .fb-item');
+  check('token hết hạn được làm mới rồi vào thẳng', await s.page.evaluate(() => JSON.parse(localStorage.getItem('hub.session.v1')).accessToken) === 'admin-jwt');
   await s.page.click('.fa-items .fb-item summary');
   check('không cuộn ngang ở 390px', await s.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   if (SHOTS) await s.page.screenshot({ path: path.join(SHOTS, 'feedback-admin-phone.png'), fullPage: true });
+  await s.ctx.close();
+
+  console.log('feedback-admin.html · khoá lưu sẵn đã bị thay');
+  s = await open(br, base, 'feedback-admin.html', { viewport: { width: 1280, height: 800 }, adminKey: 'old-key' });
+  await s.page.waitForFunction(() => /rejected/.test(document.getElementById('fa-key-msg').textContent));
+  check('khoá cũ sai thì quay về cổng và bị quên', await s.page.isVisible('#fa-gate') && await s.page.evaluate(() => localStorage.getItem('hub.feedback.key')) === null);
+  await s.ctx.close();
+
+  console.log('login.html?next=feedback-admin.html');
+  s = await open(br, base, 'login.html', { viewport: { width: 1280, height: 800 }, query: '?next=feedback-admin.html' });
+  await s.page.fill('#login-form input[name="email"]', ADMIN.email);
+  await s.page.fill('#login-form input[name="password"]', 'secret123');
+  await s.page.click('#login-form button[type="submit"]');
+  await s.page.waitForURL((u) => u.pathname.endsWith('/feedback-admin.html'));
+  await s.page.waitForSelector('#fa-board:not([hidden])');
+  check('đăng nhập xong quay về trang quản lý và vào thẳng', true);
+  await s.ctx.close();
+  s = await open(br, base, 'login.html', { viewport: { width: 1280, height: 800 }, query: '?next=https://evil.example/x.html' });
+  await s.page.fill('#login-form input[name="email"]', ADMIN.email);
+  await s.page.fill('#login-form input[name="password"]', 'secret123');
+  await s.page.click('#login-form button[type="submit"]');
+  await s.page.waitForURL((u) => u.pathname.endsWith('/index.html'));
+  check('next trỏ ra ngoài bị bỏ qua, về index.html', true);
   await s.ctx.close();
 }
 

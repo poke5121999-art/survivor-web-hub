@@ -28,7 +28,7 @@ node tools/feedback.js set 12 closed "a1b2c3d: va chạm đá dùng hộp nhỏ 
 ```
 
 `set` đọc khoá ở `~/.config/survivor-hub/feedback.key`. Không in, không commit, không dán khoá vào đâu.
-Chủ hub làm cùng việc trên trang `feedback-admin.html` (cùng khoá, lưu trong trình duyệt của họ).
+Chủ hub làm cùng việc trên `feedback-admin.html`, đăng nhập bằng tài khoản có trong bảng `hub_feedback_admins`.
 
 ## Quy trình mỗi phiếu
 

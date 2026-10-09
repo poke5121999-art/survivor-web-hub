@@ -3,9 +3,9 @@
 --
 -- Ai làm được gì:
 --   anon, authenticated  đọc mọi phiếu; gửi phiếu mới (chỉ các cột nội dung, status luôn là 'open').
---   fb_set_status(...)   đổi status + ghi kết quả. Chỉ chạy khi p_key khớp một hash trong
---                        hub_feedback_keys. Khoá thật nằm ở máy chủ hub (~/.config/survivor-hub/feedback.key),
---                        repo chỉ giữ SHA-256 của nó. tools/feedback.js là người gọi duy nhất.
+--   fb_set_status, fb_delete  đổi / xoá phiếu. Người gọi phải là tài khoản có email trong hub_feedback_admins
+--                        (feedback-admin.html), hoặc đưa p_key khớp một hash trong hub_feedback_keys (tools/feedback.js
+--                        của Claude). Khoá thật ở ~/.config/survivor-hub/feedback.key, repo chỉ giữ SHA-256 của nó.
 
 create table if not exists public.hub_feedback (
   id            bigint      generated always as identity primary key,
@@ -70,6 +70,26 @@ as $$
   );
 $$;
 
+create table if not exists public.hub_feedback_admins (email text primary key check (email = lower(email)));
+alter table public.hub_feedback_admins enable row level security;
+revoke all on public.hub_feedback_admins from anon, authenticated;
+insert into public.hub_feedback_admins (email) values ('poke5121999@gmail.com') on conflict do nothing;
+
+-- Email lấy từ auth.users theo auth.uid() chứ không từ claim trong JWT, để chỉ tài khoản có thật mới khớp.
+create or replace function public.fb_can_manage(p_key text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select public.fb_key_ok(p_key) or exists (
+    select 1 from auth.users u
+    join public.hub_feedback_admins a on a.email = lower(u.email)
+    where u.id = auth.uid()
+  );
+$$;
+
 create or replace function public.fb_set_status(p_id bigint, p_status text, p_resolution text, p_key text)
 returns public.hub_feedback
 language plpgsql
@@ -79,8 +99,8 @@ as $$
 declare
   r public.hub_feedback;
 begin
-  if not public.fb_key_ok(p_key) then
-    raise exception 'triage key rejected' using errcode = '42501';
+  if not public.fb_can_manage(p_key) then
+    raise exception 'feedback manage denied' using errcode = '42501';
   end if;
   update public.hub_feedback
      set status = p_status,
@@ -106,8 +126,8 @@ security definer
 set search_path = public
 as $$
 begin
-  if not public.fb_key_ok(p_key) then
-    raise exception 'triage key rejected' using errcode = '42501';
+  if not public.fb_can_manage(p_key) then
+    raise exception 'feedback manage denied' using errcode = '42501';
   end if;
   delete from public.hub_feedback where id = p_id;
   if not found then
@@ -118,6 +138,8 @@ $$;
 
 revoke all on function public.fb_key_ok(text) from public;
 grant execute on function public.fb_key_ok(text) to anon, authenticated;
+revoke all on function public.fb_can_manage(text) from public;
+grant execute on function public.fb_can_manage(text) to anon, authenticated;
 revoke all on function public.fb_delete(bigint, text) from public;
 grant execute on function public.fb_delete(bigint, text) to anon, authenticated;
 

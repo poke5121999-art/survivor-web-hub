@@ -104,12 +104,14 @@ Chỉ dùng anon key có sẵn trong `js/supabase-config.js`; không cần và k
 ## Hộp thư báo lỗi / góp ý (`feedback.sql`)
 
 Bảng `hub_feedback` và bucket ảnh `hub-feedback` cho trang `feedback.html`: người chơi (cả khách) gửi phiếu kèm tối đa 3 ảnh
-và xem status. Chỉ `fb_set_status` / `fb_delete` đổi được phiếu, và chỉ khi đưa đúng khoá triage. Chủ hub quản lý ở
-`feedback-admin.html` (dán khoá một lần, lưu trong trình duyệt). Repo giữ SHA-256 của khoá; khoá thật ở `~/.config/survivor-hub/feedback.key` trên máy
+và xem status. Chỉ `fb_set_status` / `fb_delete` đổi được phiếu: người gọi phải đăng nhập bằng tài khoản có email trong
+`hub_feedback_admins` (trang `feedback-admin.html`), hoặc đưa đúng khoá triage (Claude, qua `tools/feedback.js`). Repo giữ SHA-256 của khoá; khoá thật ở `~/.config/survivor-hub/feedback.key` trên máy
 chạy Claude. Claude dùng `node tools/feedback.js` (xem `.claude/skills/feedback/SKILL.md`).
 
 1. Supabase Dashboard → **SQL Editor → New query**, dán toàn bộ **`feedback.sql`**, bấm **Run**. Chạy lại vô hại.
 2. Kiểm: `node tools/feedback.js list` in "Không có phiếu nào." thay vì "hub_feedback is not installed".
-3. Đổi khoá: sinh khoá mới vào tệp trên, rồi `insert into hub_feedback_keys values ('<sha256 hex>')` và xoá dòng hash cũ.
+3. Thêm người quản lý phiếu (tài khoản hub phải đăng ký trước, email viết thường):
+   `insert into public.hub_feedback_admins (email) values ('ten@email.com');` Bỏ quyền: `delete from public.hub_feedback_admins where email = '...';`
+4. Đổi khoá: sinh khoá mới vào tệp trên, rồi `insert into hub_feedback_keys values ('<sha256 hex>')` và xoá dòng hash cũ.
 
 Kiểm SQL không cần Supabase: `node test/feedback-db.js` (PGlite, role anon/authenticated giả lập).

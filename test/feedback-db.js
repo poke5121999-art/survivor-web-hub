@@ -11,6 +11,7 @@ const PGLITE = process.env.PGLITE_PATH || path.join(require('os').homedir(), '.c
 const DB = path.join(__dirname, '..', 'db');
 const KEY = 'test-key-' + crypto.randomBytes(8).toString('hex');
 const USER = '11111111-1111-1111-1111-111111111111';
+const ADMIN = '22222222-2222-2222-2222-222222222222';
 
 const SUPABASE_STUB = `
 create role anon nologin; create role authenticated nologin;
@@ -21,7 +22,7 @@ create function auth.uid() returns uuid language sql stable as
 grant usage on schema auth to anon, authenticated;
 grant usage on schema public to anon, authenticated;
 alter default privileges in schema public grant all on tables to anon, authenticated;
-insert into auth.users (id, email) values ('${USER}', 'a@b.c');
+insert into auth.users (id, email) values ('${USER}', 'a@b.c'), ('${ADMIN}', 'Poke5121999@gmail.com');
 create schema storage;
 create table storage.buckets (id text primary key, name text, public boolean, file_size_limit bigint, allowed_mime_types text[]);
 create table storage.objects (id uuid primary key default gen_random_uuid(), bucket_id text, name text, owner uuid);
@@ -108,7 +109,7 @@ async function as(db, role, sub, sql, params) {
   const id = guest.rows[0].id;
   const rpc = 'select id, status, resolution from public.fb_set_status($1, $2, $3, $4)';
   const wrong = await as(db, 'anon', '', rpc, [id, 'closed', 'x', 'sai-khoa']);
-  check('fb_set_status từ chối khoá sai', /triage key rejected/.test(wrong.error || ''), wrong.error);
+  check('fb_set_status từ chối khoá sai', /feedback manage denied/.test(wrong.error || ''), wrong.error);
 
   const doing = await as(db, 'anon', '', rpc, [id, 'doing', null, KEY]);
   check('fb_set_status đổi sang doing', doing.rows && doing.rows[0].status === 'doing' && doing.rows[0].resolution === null, JSON.stringify(doing.rows || doing.error));
@@ -127,12 +128,26 @@ async function as(db, role, sub, sql, params) {
   check('fb_key_ok phân biệt khoá đúng / sai', okWrong.rows[0].ok === false && okRight.rows[0].ok === true);
 
   const delWrong = await as(db, 'anon', '', 'select public.fb_delete($1, $2)', [2, 'sai']);
-  check('fb_delete từ chối khoá sai', /triage key rejected/.test(delWrong.error || ''), delWrong.error);
+  check('fb_delete từ chối khoá sai', /feedback manage denied/.test(delWrong.error || ''), delWrong.error);
   const delRight = await as(db, 'anon', '', 'select public.fb_delete($1, $2)', [2, KEY]);
   const left = (await db.query('select count(*)::int as n from public.hub_feedback where id = 2')).rows[0].n;
   check('fb_delete xoá phiếu', !delRight.error && left === 0, delRight.error || left);
   const delMissing = await as(db, 'anon', '', 'select public.fb_delete($1, $2)', [2, KEY]);
   check('xoá phiếu không tồn tại báo rõ', /feedback 2 not found/.test(delMissing.error || ''), delMissing.error);
+
+  const canGuest = await as(db, 'anon', '', 'select public.fb_can_manage(null) as ok');
+  const canUser = await as(db, 'authenticated', USER, 'select public.fb_can_manage(null) as ok');
+  const canAdmin = await as(db, 'authenticated', ADMIN, 'select public.fb_can_manage(null) as ok');
+  check('fb_can_manage: khách, thành viên thường không; admin có (email không phân biệt hoa thường)',
+    canGuest.rows[0].ok === false && canUser.rows[0].ok === false && canAdmin.rows[0].ok === true,
+    JSON.stringify([canGuest.rows, canUser.rows, canAdmin.rows]));
+
+  const userSet = await as(db, 'authenticated', USER, rpc, [id, 'wontfix', 'x', null]);
+  check('thành viên thường không đổi được status', /feedback manage denied/.test(userSet.error || ''), userSet.error);
+  const adminSet = await as(db, 'authenticated', ADMIN, rpc, [id, 'open', 'Mở lại', null]);
+  check('admin đăng nhập đổi được status, không cần khoá', adminSet.rows && adminSet.rows[0].status === 'open', JSON.stringify(adminSet.rows || adminSet.error));
+  const adminsRead = await as(db, 'authenticated', ADMIN, 'select * from public.hub_feedback_admins');
+  check('bảng admin không đọc thẳng được', /permission denied/.test(adminsRead.error || ''), adminsRead.error);
 
   const touched = (await db.query('select created_at < updated_at as t from public.hub_feedback where id = $1', [id])).rows[0].t;
   check('updated_at được làm mới', touched === true, touched);

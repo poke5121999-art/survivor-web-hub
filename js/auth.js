@@ -67,9 +67,11 @@
   tabSignup.addEventListener("click", function () { selectTab("signup"); });
 
   // ---- Enter the hub --------------------------------------------------------
+  // ?next=<trang>.html đưa người vừa đăng nhập về trang đã gửi họ tới đây (vd feedback-admin.html).
   function enterHub(session) {
     window.HubSession.set(session);
-    location.replace("index.html");
+    var next = new URLSearchParams(location.search).get("next") || "";
+    location.replace(/^[a-z0-9-]+\.html$/.test(next) ? next : "index.html");
   }
 
   // Shared "service down → offer guest" message.

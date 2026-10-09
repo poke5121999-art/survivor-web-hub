@@ -211,11 +211,15 @@ textarea.fb-input { resize: vertical; min-height: 120px; line-height: 1.45; }
 
 /* ---- feedback-admin.html ---- */
 .fa-main { display: flex; flex-direction: column; gap: 16px; }
-.fa-unlock { max-width: 520px; }
+.fa-gate { max-width: 520px; }
+.fa-signin { display: inline-block; text-decoration: none; text-align: center; }
+.fa-keybox { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
+.fa-keybox summary { cursor: pointer; color: var(--text-dim); font-size: 14px; margin-bottom: 10px; }
+.fa-who { font-size: 13px; color: var(--text-dim); }
 .fa-note { margin: 0 0 12px; color: var(--text-dim); font-size: 14px; }
 .fa-unlock__row { display: flex; gap: 10px; }
 .fa-board { display: flex; flex-direction: column; gap: 14px; }
-.fa-board[hidden], .fa-unlock[hidden] { display: none; }
+.fa-board[hidden], .fa-gate[hidden] { display: none; }
 .fa-stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
 .fa-stat {
   font: inherit;

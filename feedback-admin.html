@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="css/feedback.css" />
   <script src="js/session.js"></script>
   <script src="js/supabase-config.js"></script>
+  <script src="js/supabase-auth.js"></script>
 </head>
 <body>
   <header class="hub-header">
@@ -23,6 +24,7 @@
           <button type="button" data-lang="en">EN</button>
           <button type="button" data-lang="vi">VI</button>
         </div>
+        <span class="fa-who" id="fa-who" hidden></span>
         <a class="hub-refresh fb-back" href="feedback.html" data-i18n="toPublic"></a>
         <button class="hub-refresh" id="fa-lock" type="button" data-i18n="lock" hidden></button>
       </div>
@@ -32,15 +34,20 @@
   <main class="hub-main fa-main">
     <p class="fb-banner" id="fb-banner" hidden></p>
 
-    <form class="fb-card fa-unlock" id="fa-unlock" hidden>
-      <h2 class="fb-h2" data-i18n="unlockTitle"></h2>
-      <p class="fa-note" data-i18n="unlockNote"></p>
-      <div class="fa-unlock__row">
-        <input class="fb-input" id="fa-key" type="password" autocomplete="off" data-i18n-ph="keyPh" />
-        <button class="fb-submit" type="submit" data-i18n="unlock"></button>
-      </div>
-      <p class="fb-msg fb-msg--err" id="fa-key-msg"></p>
-    </form>
+    <section class="fb-card fa-gate" id="fa-gate" hidden>
+      <h2 class="fb-h2" data-i18n="gateTitle"></h2>
+      <p class="fa-note" id="fa-gate-note"></p>
+      <a class="fb-submit fa-signin" id="fa-signin" href="login.html?next=feedback-admin.html"></a>
+      <details class="fa-keybox">
+        <summary data-i18n="orKey"></summary>
+        <p class="fa-note" data-i18n="unlockNote"></p>
+        <form class="fa-unlock__row" id="fa-unlock">
+          <input class="fb-input" id="fa-key" type="password" autocomplete="off" data-i18n-ph="keyPh" />
+          <button class="hub-refresh" type="submit" data-i18n="unlock"></button>
+        </form>
+        <p class="fb-msg fb-msg--err" id="fa-key-msg"></p>
+      </details>
+    </section>
 
     <section class="fa-board" id="fa-board" hidden>
       <div class="fa-stats" id="fa-stats"></div>

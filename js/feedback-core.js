@@ -87,7 +87,7 @@
         var data = null;
         try { data = text ? JSON.parse(text) : null; } catch (e) { data = null; }
         if (data && (data.code === "PGRST205" || data.code === "PGRST202")) throw { kind: "missing" };
-        if (data && /triage key rejected/.test(data.message || "")) throw { kind: "key" };
+        if (data && /feedback manage denied/.test(data.message || "")) throw { kind: "key" };
         if (!res.ok) throw { kind: "http", message: (data && (data.message || data.error)) || ("HTTP " + res.status) };
         return data;
       });
