@@ -1,0 +1,106 @@
+/* Cảnh về đích: chữ GOAL, cận cảnh ăn mừng (hạng, băng kỷ lục, dải thống kê), thẻ thưởng, bảng xếp hạng. Nạp sau game.css. */
+.fin-goal { position: absolute; left: 0; right: 0; top: 26%; text-align: center; font-size: clamp(44px, 9vw, 96px); font-style: italic; letter-spacing: 6px;
+  color: #fff; -webkit-text-stroke: 2px rgba(60,70,90,.55); text-shadow: 0 4px 0 rgba(40,50,70,.55), 0 0 22px rgba(255,255,255,.55);
+  animation: fin-goal 2.2s ease-out forwards; pointer-events: none; }
+.fin-goal.dnf { font-size: clamp(34px, 7vw, 72px); color: #ffd7d7; }
+@keyframes fin-goal { 0% { opacity: 0; transform: scale(2.2); } 14% { opacity: 1; transform: scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: scale(1.05); } }
+
+.fin-cel { position: absolute; inset: 0; pointer-events: none; transition: opacity .5s; }
+.fin-cel.out { opacity: 0; }
+/* Chữ hạng to kèm vệt cam như khung 452 của clip */
+.fin-rank { position: absolute; right: 8%; top: 22%; font-size: clamp(54px, 11vw, 120px); font-style: italic; color: #fff3c4;
+  text-shadow: 0 0 22px rgba(255,170,30,.95), 0 4px 0 #b85a00; animation: fin-rank 1.6s ease-out forwards; }
+.fin-rank::before { content: ''; position: absolute; left: -90vw; right: -20vw; top: 38%; height: 18%; background: linear-gradient(90deg, rgba(255,150,20,0), rgba(255,160,30,.85) 60%, rgba(255,200,80,0));
+  filter: blur(2px); z-index: -1; }
+.fin-rank b { font-weight: normal; }
+@keyframes fin-rank { 0% { opacity: 0; transform: translateX(80px) scale(1.4); } 18% { opacity: 1; transform: none; } 70% { opacity: 1; } 100% { opacity: 0; transform: translateX(-30px); } }
+/* Băng kỷ lục trượt từ trên xuống giữa màn, vàng cam, chữ lớn và thời gian nhỏ bên dưới */
+.fin-rec { position: absolute; left: 50%; top: 4%; width: min(60vw, 560px); transform: translate(-50%, -140%); text-align: center; padding: 6px 0 8px;
+  background: linear-gradient(90deg, rgba(255,150,20,0), rgba(255,160,30,.88) 18%, rgba(255,140,10,.92) 82%, rgba(255,150,20,0));
+  animation: fin-rec 5s .9s cubic-bezier(.2,1.2,.4,1) forwards; }
+.fin-rec b { display: block; font-size: clamp(24px, 4.6vw, 44px); font-weight: normal; letter-spacing: 3px; color: #fff4d0; text-shadow: 0 3px 0 #9a4a00, 0 0 14px rgba(255,220,120,.9); }
+.fin-rec span { font: clamp(16px, 2.6vw, 24px) TDNum, Cafeta, sans-serif; color: #fff; text-shadow: 0 2px 0 #9a4a00; }
+@keyframes fin-rec { 0% { transform: translate(-50%, -140%); } 14% { transform: translate(-50%, 0); } 92% { transform: translate(-50%, 0); opacity: 1; } 100% { transform: translate(-50%, -30%); opacity: 0; } }
+/* Dải thống kê: thay cho HUD, nằm dưới màn như khung 456 */
+.fin-strip { position: absolute; left: 50%; bottom: 9%; transform: translateX(-50%); width: min(86vw, 760px); display: flex; justify-content: space-around; align-items: baseline;
+  padding: 10px 14px; background: linear-gradient(90deg, rgba(8,20,40,0), rgba(8,20,40,.72) 12%, rgba(8,20,40,.72) 88%, rgba(8,20,40,0));
+  animation: fin-strip .5s .5s backwards ease-out; }
+.fin-strip div { display: flex; align-items: baseline; gap: 8px; }
+.fin-strip small { color: #c9d8ee; font-size: clamp(11px, 1.7vw, 16px); }
+.fin-strip b { font: clamp(20px, 3.4vw, 32px) TDNum, Cafeta, sans-serif; color: var(--gold); font-weight: normal; text-shadow: 0 2px 0 rgba(0,0,0,.5); }
+.fin-strip i { font-style: normal; color: #c9d8ee; font-size: clamp(11px, 1.7vw, 16px); }
+@keyframes fin-strip { from { opacity: 0; transform: translate(-50%, 20px); } }
+
+/* ---- thẻ thưởng + bảng xếp hạng: một nút gốc .result.fin, data-stage chọn lớp ---- */
+.result.fin { display: block; background: linear-gradient(180deg, rgba(2,8,22,.55), rgba(2,8,22,.25) 40%, rgba(2,8,22,.55)); pointer-events: none; }
+.fin-cardlayer, .fin-table { position: absolute; inset: 0; transition: opacity .45s, transform .45s; }
+.result.fin[data-stage="card"] { pointer-events: auto; }          /* chạm bất kỳ đâu để tiếp tục */
+.result.fin[data-stage="card"] .fin-table { opacity: 0; transform: translateY(18px); pointer-events: none; }
+.result.fin[data-stage="card"] .fin-table *, #ui .result.fin[data-stage="card"] .fin-table button { pointer-events: none; }
+.result.fin[data-stage="table"] .fin-cardlayer { opacity: 0; transform: translateY(-18px); pointer-events: none; }
+.result.fin[data-stage="table"] { background: linear-gradient(90deg, rgba(2,8,22,.78), rgba(2,8,22,.55)); }
+
+.fin-cardlayer { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(8px, 2.4vh, 22px); }
+.fin-congrats { font-size: clamp(30px, 6vw, 58px); letter-spacing: 3px; color: #fff3c4; text-shadow: 0 3px 0 #9a4a00, 0 0 24px rgba(255,190,60,.85); animation: fin-in .6s backwards cubic-bezier(.2,1.5,.4,1); }
+.fin-cards { display: flex; gap: clamp(10px, 2.4vw, 24px); }
+.fin-card { position: relative; width: clamp(170px, 24vw, 260px); padding: clamp(8px, 1.8vh, 16px) 14px clamp(8px, 1.8vh, 14px); text-align: center; display: grid; gap: clamp(2px, 1vh, 8px); justify-items: center;
+  background: linear-gradient(180deg, rgba(20,80,160,.88), rgba(10,44,100,.9)); border: 2px solid rgba(110,200,255,.9); border-radius: 6px; box-shadow: 0 0 22px rgba(60,160,255,.5), inset 0 0 22px rgba(60,160,255,.25);
+  animation: fin-in .5s backwards cubic-bezier(.2,1.4,.4,1); }
+.fin-card:nth-child(2) { animation-delay: .12s; }
+.fin-card h4 { margin: 0; font-weight: normal; font-size: clamp(13px, 2.2vw, 18px); color: #dff0ff; }
+.fin-card small { color: #9fc0e8; font: clamp(10px, 1.6vw, 12px) system-ui, sans-serif; }
+.fin-avatar { width: clamp(44px, 9vh, 72px); height: clamp(44px, 9vh, 72px); border-radius: 50%; display: grid; place-items: center; font-size: clamp(24px, 5vh, 38px);
+  background: radial-gradient(circle at 40% 30%, #3a4a66, #121a2c); border: 4px solid var(--gold); box-shadow: 0 0 12px rgba(255,200,60,.7); }
+.fin-coin { width: clamp(44px, 9vh, 72px); height: clamp(44px, 9vh, 72px); object-fit: contain; filter: drop-shadow(0 0 10px rgba(255,200,60,.8)); }
+.fin-gain { font: clamp(26px, 5.6vh, 40px) TDNum, Cafeta, sans-serif; color: var(--gold); text-shadow: 0 2px 0 #7a3a00, 0 0 12px rgba(255,190,40,.6); }
+.fin-lv { display: grid; grid-template-columns: auto 1fr; grid-template-areas: "lv num" "bar bar"; gap: 2px 8px; width: 100%; align-items: end; text-align: left; }
+.fin-lv span { grid-area: lv; font-size: clamp(11px, 1.8vw, 14px); color: #dff0ff; }
+.fin-lv em { grid-area: num; text-align: right; font: normal clamp(10px, 1.7vw, 13px) TDNum, Cafeta, sans-serif; color: #bcd8f5; }
+.fin-bar { grid-area: bar; height: 9px; background: rgba(0,10,30,.7); border: 1px solid rgba(110,200,255,.5); overflow: hidden; }
+.fin-bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #ff9a1a, #ffe14a); transition: width 1.1s cubic-bezier(.3,.8,.3,1); }
+.fin-up { position: absolute; right: -10px; top: -14px; transform: rotate(8deg); display: grid; padding: 4px 12px 5px; background: linear-gradient(180deg, #ffe566, #ff9a1a); border-radius: 4px;
+  color: #5a2a00; text-align: center; box-shadow: 0 3px 0 #9a4a00, 0 0 18px rgba(255,200,60,.9); animation: fin-up 1.2s .7s infinite alternate ease-in-out backwards; }
+.fin-up b { font-weight: normal; font-size: clamp(14px, 2.6vw, 20px); letter-spacing: 1px; }
+.fin-up span { font: clamp(9px, 1.6vw, 12px) TDNum, Cafeta, sans-serif; }
+@keyframes fin-up { from { transform: rotate(8deg) scale(1); } to { transform: rotate(8deg) scale(1.08); } }
+.fin-hint { color: #c9ddf5; font-size: clamp(13px, 2.2vw, 18px); animation: fin-blink 1.4s infinite alternate; text-shadow: 0 2px 0 rgba(0,0,0,.6); }
+@keyframes fin-blink { from { opacity: .45; } to { opacity: 1; } }
+@keyframes fin-in { from { opacity: 0; transform: translateY(24px) scale(.9); } }
+
+/* bảng: tiêu đề, hàng cột, sáu hàng, nút */
+.fin-table { display: flex; flex-direction: column; justify-content: center; align-items: center; background: none; border: 0; box-shadow: none; padding: 0; border-radius: 0; }
+.fin-table > * { width: min(94vw, 880px); }
+.fin-title { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 7px 14px; border: 1px solid rgba(110,200,255,.6); border-bottom: 0;
+  background: linear-gradient(90deg, rgba(8,70,140,.92), rgba(8,40,90,.85)); }
+.fin-title b { font-weight: normal; font-size: clamp(15px, 2.6vw, 22px); color: #e4f4ff; }
+.fin-title span { font-size: clamp(11px, 1.9vw, 15px); color: #bcd8f5; }
+.fin-title em { color: var(--gold); font-style: normal; }
+.fin-cols, .fin-table .row { display: grid; grid-template-columns: 11% 1fr 22% 9% 9% 11%; align-items: center; }
+.fin-cols { padding: 4px 10px; font-size: clamp(10px, 1.7vw, 13px); color: #9fc0e8; background: rgba(4,20,48,.7); }
+.fin-cols span:nth-child(n+3), .fin-table .row .tm, .fin-table .row .c { text-align: center; }
+.fin-table .rows { display: grid; gap: clamp(2px, .7vh, 5px); margin: clamp(3px, .8vh, 6px) 0 clamp(6px, 1.4vh, 12px); }
+.fin-table .row { min-height: clamp(30px, 8.4vh, 52px); padding: 2px 10px; border-radius: 0; background: rgba(10,40,92,.8); background-image: none; border: 1px solid rgba(110,190,255,.4); gap: 0; }
+.fin-table .row.me { background: rgba(70,56,8,.78); border-color: var(--gold); box-shadow: 0 0 14px rgba(255,200,60,.45); }
+.fin-table .row .rk { display: grid; place-items: center; justify-items: start; }
+.fin-table .row .rk img { height: clamp(24px, 6.4vh, 40px); }
+.fin-table .row .rk .n { font: clamp(20px, 4.2vh, 28px) TDNum, Cafeta, sans-serif; padding-left: 8px; }
+.fin-table .row .nm { font-size: clamp(13px, 2.2vw, 18px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fin-table .row .nm small { display: block; font: clamp(9px, 1.5vw, 11px) system-ui, sans-serif; color: #9fc0e8; }
+.fin-table .row .tm { font: clamp(14px, 2.4vw, 19px) TDNum, Cafeta, sans-serif; }
+.fin-table .row .tm .dnf { font: normal clamp(11px, 1.9vw, 14px) system-ui, sans-serif; color: #9fc0e8; }
+.fin-table .row .tm .newrec { height: clamp(16px, 3.6vh, 24px); vertical-align: middle; margin-right: 6px; }
+.fin-table .row .c { font: clamp(14px, 2.4vw, 19px) TDNum, Cafeta, sans-serif; color: #e8f2ff; }
+.fin-table .row.me .c { color: var(--gold); }
+.fin-table .acts { display: flex; gap: 12px; justify-content: center; }
+.fin-table .acts .btn { width: clamp(150px, 22vw, 200px); }
+
+@media (max-height: 480px) {
+  .fin-table .row .nm small { display: none; }
+  .fin-table .row { min-height: 30px; }
+  .fin-table .acts .btn { height: 38px; }
+}
+@media (max-height: 420px) {
+  .fin-cardlayer { gap: 6px; }
+  .fin-card { gap: 2px; }
+  .fin-strip { bottom: 6%; }
+}

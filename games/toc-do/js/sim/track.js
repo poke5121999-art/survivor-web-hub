@@ -125,10 +125,23 @@
           var dx = T.x[b] - T.x[a], dz = T.z[b] - T.z[a];
           var along = dx * T.fx[a] + dz * T.fz[a], dq = dx * T.fz[a] - dz * T.fx[a];
           if (Math.abs(along) > 12 || Math.abs(T.y[b] - T.y[a]) > 3) return;
+          if (levelBetween(T, a, dq)) return;
           if (dq > 0) T.lw[a] = Math.max(T.lw[a], dq); else T.rw[a] = Math.max(T.rw[a], -dq);
         });
       });
     }
+  }
+
+  // Giữa hai dải (cách a dq mét ngang) có đường khác tầng nằm hẳn dưới/trên không? Có thì khe đó là khoảng trống của cầu vượt:
+  // nới ruy băng lấp khe sẽ làm xe lơ lửng trên đường dưới (Thành Troy, s≈4590–4610: khe 14 m giữa hai dải cao 25 m trên đường thấp).
+  function levelBetween(T, a, dq) {
+    var mx = T.x[a] + T.fz[a] * dq / 2, mz = T.z[a] - T.fx[a] * dq / 2;   // trái = (fz, −fx)
+    for (var c = 0; c < T.n; c++) {
+      if (Math.abs(T.y[c] - T.y[a]) <= 6) continue;
+      var dx = T.x[c] - mx, dz = T.z[c] - mz;
+      if (dx * dx + dz * dz < 144) return true;
+    }
+    return false;
   }
 
   function evalSeg(T, sg, x, y, z, out) {

@@ -78,7 +78,7 @@
     k.st = 'drive';
     if (why !== 'release') k._driftBlock = true;   // phải nhả nút drift mới drift lại
     k.drift.lastEnd = why;
-    var ok = vd >= U.miniAnyVD && why === 'release';
+    var ok = vd >= U.miniAnyVD && why === 'release' && k.drift.t >= U.miniMinDrift;
     k.nitro.miniWindowT = ok ? U.miniWindow : 0;
     k.nitro.miniPerfect = vd >= U.miniMinVD && vd <= U.miniMaxVD;
     ev(R, k, 'drift_end', { vd: vd, peak: k.drift.peak, dur: k.drift.t, why: why, mini: ok });
@@ -294,6 +294,8 @@
     var U = TD.TUNING;
     k.miniKmh = U.startKmh; k.nitro.miniT = k.miniDur = U.startTime;
     k.speed += U.startKmh / 3.6 * U.miniKick;
+    // cộng bình như một cú drift tốt (cùng công thức nạp bình trong step)
+    k.nitro.gauge = Math.min(1, k.nitro.gauge + U.gaugeRate * k.p.drift * k.p.top * Math.sin(U.miniMinVD * D2R) * U.startGaugeSec);
     ev(R, k, 'miniboost', { kind: 'start', kmh: U.startKmh });
   }
 

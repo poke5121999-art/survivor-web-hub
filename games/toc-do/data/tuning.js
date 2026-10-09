@@ -57,15 +57,17 @@
     miniMinVD: 35,                     // src: CarTurbo_00.m_miniBoostMinVDAngle (từ đây là "hoàn hảo")
     miniMaxVD: 50,                     // src: CarTurbo_00.m_miniBoostMaxVDAngle
     miniAnyVD: 10,                     // chọn: VD lúc nhả dưới mức này thì không có phun nhỏ
+    miniMinDrift: 0.35,                // chọn: drift ngắn hơn (giây) thì thả ra không có phun nhỏ — video https://youtu.be/92kbCuZvo4Y?t=140 (gốc không có trường thời gian tối thiểu)
     miniKmh: 30,                       // chọn: +km/h trần lúc phun nhỏ thường
     miniPerfectKmh: 42,                // chọn: +km/h trần khi VD trong [miniMinVD, miniMaxVD]
     miniOnNitro: 0.3,                  // chọn: phun nhỏ khi đang nitro chỉ cộng 30% (trần nitro ≈ +36%, tối đa ~+42%)
     miniKick: 0.45,                    // chọn: phần của lượng trên cộng ngay vào tốc độ
-    dualWindow: 0.2,                   // src: CarTurbo_00.mDualBoostDelayCheckTime
+    dualWindow: 0.5,                   // chọn: cửa sổ nhấn lại để phun đôi, nhấn ở 0.3 s vẫn ăn — video https://youtu.be/GFqmLev-cEg?t=49; mốc sớm nhất gốc CarTurbo_00.mDualBoostDelayCheckTime = 0.2, đuôi 0.5 = hết đường m_CW_OverCoefLapExtraKMPH
     stackCoef: [1.0, 0.5, 0.3, 0.2, 0.1, 0.0], // src: CarTurbo_00.mDeductExtraMaxKMPHCoef (phun thứ n trong chuỗi)
     startWindow: 0.25,                 // chọn: nhấn ga trong ±0.25 s quanh GO
     startKmh: 40,                      // chọn
     startTime: 1.2,                    // chọn
+    startGaugeSec: 1.0,                // chọn: phun xuất phát cộng bình bằng 1 s drift hoàn hảo (VD = miniMinVD) ở tốc độ tối đa, cùng công thức gaugeRate với drift thường ≈ 0.25 bình — video https://youtu.be/92kbCuZvo4Y?t=7
 
     // --- Va chạm ---
     wallKeep: [[0, 0.98], [80, 0.75]],       // src: CarCollision_00.m_fenceCollisionDumpTangVelCoef (góc va độ → phần vận tốc tiếp tuyến giữ lại)

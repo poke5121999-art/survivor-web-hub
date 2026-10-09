@@ -34,6 +34,9 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .stat b { display: block; height: 100%; background: linear-gradient(90deg, #2f8cff, #5fe1ff); border-radius: 4px; }
 .drivers { display: flex; gap: 6px; margin-top: 10px; }
 .chip { flex: 1; padding: 7px 0; border-radius: 8px; background: rgba(255,255,255,.08); border: 1px solid var(--line); font-size: 14px; }
+.paints { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.sw { width: 30px; height: 30px; border-radius: 50%; border: 2px solid rgba(255,255,255,.35); padding: 0; }
+.sw.on { border-color: #fff; box-shadow: 0 0 0 2px var(--cyan), 0 0 10px rgba(95,225,255,.6); }
 .chip.on { background: linear-gradient(#2f8cff, #1659c9); border-color: var(--cyan); }
 .cars { position: absolute; left: max(14px, env(safe-area-inset-left)); right: 360px; bottom: 54px; display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px 8px;
   scrollbar-width: thin; }
@@ -137,6 +140,7 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
   .stat:nth-child(n+5) { display: none; }
   .drivers { margin-top: 4px; }
   .chip { padding: 6px 0; min-height: 32px; }
+  .paints { margin-top: 4px; gap: 6px; }
   .trackpick { width: 190px; top: 60px; }
   .cars { bottom: 34px; right: 220px; }
   .go { width: 190px; height: 54px; bottom: 30px; }

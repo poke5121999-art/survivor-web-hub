@@ -8,6 +8,11 @@ meta.json (fog, ambient, sun, sky, lightmaps, startPose), export.log (what was k
 Lightmaps (what this game ships): ASTC, sRGB, Unity dLDR + Bakery shadowmask in alpha.
   rgb = baked indirect light (gamma space, decode x2), a = baked sun visibility (1 lit, 0 shadow).
   gamma-space shading: color = albedo * (2*lm.rgb + sunColor*sunIntensity*max(N.L,0)*lm.a) + emissive
+  The game is a linear-colour-space project; QF_PBR/Env/NssTerrain2Layer decodes in linear (lm sRGB-decoded x5,
+  albedo/tint sRGB-decoded) and js/view/track.js follows that for those materials.
+
+LODGroups: only LOD0 is kept. LOD1+ of the vegetation is a 2-6 triangle NssImpostorRuntime billboard (4x4 view
+atlas), not a lighter mesh, so it cannot replace LOD0 without an impostor shader.
 """
 import io, json, math, os, re, struct, subprocess, sys, collections
 import numpy as np
@@ -626,7 +631,12 @@ def main():
                                         intensity1=f.get('_BaseColorIntensity', 1.0), intensity2=f.get('_BaseColor2Intensity', 1.0),
                                         heightContrast=f.get('_HeightContrast', 0.5), heightOffset=f.get('_HeightOffset', 0.5),
                                         inputVertexAlpha=f.get('_InputVertexAlpha', 0.0), normalZMask=f.get('_NormalZMask', 0.0),
-                                        normalZMaskMul=f.get('_NormalZMaskMul', 0.0), normalZMaskAdd=f.get('_NormalZMaskAdd', 0.0))
+                                        normalZMaskMul=f.get('_NormalZMaskMul', 0.0), normalZMaskAdd=f.get('_NormalZMaskAdd', 0.0),
+                                        # variant _ALLOW_BLEND_WITH_POWER raises vertex alpha and normal-Z mask to these powers.
+                                        # Exact keyword only: materials carrying just '_ALLOW_BLEND_WITH_POWER_ON' (the toggle's
+                                        # default name) match no compiled variant, so the game draws them without the powers.
+                                        blendPower='_ALLOW_BLEND_WITH_POWER' in mat.kw,
+                                        normalZMaskPower=f.get('_NormalZMaskPower', 0.0), vertexColorPower=f.get('_VertexColorPower', 0.0))
                 if '_HEIGHT_MASK' in mat.kw and '_HeightMaskTex' in mat.tex:
                     hm = texs.get(mat, '_HeightMaskTex', 256, False)
                     if hm is not None:

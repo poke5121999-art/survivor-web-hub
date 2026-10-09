@@ -317,35 +317,54 @@ def mat_info(mo):
 def blend_of(mi):
     f = mi['flt']
     dst = f.get('DstFactor', f.get('_DstBlend', f.get('_DstFactor')))
+    # _DstBlend = 0 (Zero) là vẽ đè đục, vô lý với hạt VFX: shader Legacy FX_UVOffset bỏ trường đó, dùng _DstFactor.
+    if dst == 0 and '_DstFactor' in f:
+        dst = f['_DstFactor']
     if dst is not None:
         return 'add' if dst == 1 else 'alpha'
     n = mi['name'].lower()
-    return 'add' if re.search(r'add|glow|light|fire|flame|spark', n) else 'alpha'
+    if re.search(r'add|glow|light|fire|flame|spark', n):
+        return 'add'
+    # Shader cố định kiểu trộn (không có _DstBlend): texture không kênh alpha và không _AlphaTex thì không thể là trộn
+    # alpha, vẽ alpha sẽ ra ô vuông đen (wall_spark, finish_burst).
+    mt = main_tex(mi)
+    if mt and '_AlphaTex' not in mi['tex']:
+        im = mt['obj'].read().image
+        if 'A' not in im.getbands() or im.getchannel('A').getextrema() == (255, 255):
+            return 'add'
+    return 'alpha'
 
 
 def main_tex(mi):
-    for k in ('_MainTex', '_BaseMap', '_Tex', '_MainTexture'):
+    # QF_FXCommon không có _MainTex: ảnh màu là _SecondTex, _DissTex chỉ là nhiễu tan rã.
+    for k in ('_MainTex', '_BaseMap', '_Tex', '_MainTexture', '_SecondTex'):
         if k in mi['tex']:
             return mi['tex'][k]
     return next(iter(mi['tex'].values()), None)
 
 
-def export_tex(mi, maxdim=512):
-    """Xuất texture chính (gộp _AlphaTex nếu có) vào art/fx. Trả tên tệp tương đối art/."""
+def export_tex(mi, maxdim=512, luma_alpha=False):
+    """Xuất texture chính (gộp _AlphaTex nếu có) vào art/fx. Trả tên tệp tương đối art/.
+    luma_alpha: lớp trộn alpha mà ảnh đục hoàn toàn (QF_FXCommon lấy hình từ mặt nạ SECOND_MASK) thì alpha = độ sáng,
+    ghi ra tệp riêng (_la) để lớp cộng dùng chung ảnh không bị đổi."""
     mt = main_tex(mi)
     if mt is None:
         return None
     t = mt['obj'].read()
     at = mi['tex'].get('_AlphaTex')
-    key = (t.m_Name, at['obj'].read().m_Name if at else None)
+    im0 = t.image
+    luma = luma_alpha and at is None and ('A' not in im0.getbands() or im0.getchannel('A').getextrema() == (255, 255))
+    key = (t.m_Name, at['obj'].read().m_Name if at else None, luma)
     if key in TEX_CACHE:
         return TEX_CACHE[key]
     safe = re.sub(r'[^A-Za-z0-9_]+', '_', t.m_Name).lower()
-    rel = 'art/fx/%s.webp' % safe
+    rel = 'art/fx/%s%s.webp' % (safe, '_la' if luma else '')
     if DRY[0]:
         TEX_CACHE[key] = rel
         return rel
-    im = t.image.convert('RGBA')
+    im = im0.convert('RGBA')
+    if luma:
+        im.putalpha(im0.convert('L'))
     if at is not None:
         a = at['obj'].read().image.convert('L')
         if a.size != im.size:
@@ -457,7 +476,7 @@ def material_layer(L, rend):
     mi = next((m for m in mats if main_tex(m)), mats[0])
     L['blend'] = blend_of(mi)
     L['material'] = mi['name']
-    tex = export_tex(mi)
+    tex = export_tex(mi, luma_alpha=L['blend'] == 'alpha')
     if tex:
         L['tex'] = tex
     mt = main_tex(mi)

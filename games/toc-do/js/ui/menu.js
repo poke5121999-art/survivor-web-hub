@@ -26,10 +26,14 @@
   UI.lobby = function () {
     const d = TD.save.d, cars = Object.values(TD.CARS), tracks = Object.values(TD.TRACKS), T = TD.TRACKS[d.track];
     const car = TD.CARS[d.car];
+    const pi = (d.paint && d.paint[car.id]) | 0;
+    const css = (c) => 'rgb(' + c.map((x) => Math.round(Math.min(1, x) * 255)).join(',') + ')';
+    const sw = car.paintMaps ? [car.paint].concat(TD.PAINTS).map((p, i) =>
+      `<button class="sw ${i === pi ? 'on' : ''}" data-paint="${i}" aria-label="Màu sơn ${i ? esc(p.name) : 'gốc'}" style="background:linear-gradient(135deg,${css(p[0])} 55%,${css(p[1])} 55%)"></button>`).join('') : '';
     show(`
 <div class="lobby">
   <div class="top">
-    <div class="me"><div class="avatar">${d.driver === 'nu' ? '♀' : '♂'}</div><div><b>${esc(d.name)}</b><small>${d.races} trận · ${d.wins} lần về nhất</small></div></div>
+    <div class="me"><div class="avatar">${d.driver === 'nu' ? '♀' : '♂'}</div><div><b>${esc(d.name)}</b><small>Lv.${TD.LEVEL.of(d.xp).lv} · ${d.races} trận · ${d.wins} lần về nhất</small></div></div>
     <div class="coins"><img src="art/ui/coin.png" alt=""> ${d.coins.toLocaleString('vi-VN')}</div>
     <button class="icon gear" data-act="settings" aria-label="Cài đặt">⚙</button>
   </div>
@@ -37,6 +41,7 @@
     <h2>${esc(car.name)}</h2>
     ${statBars(car)}
     <div class="drivers">${Object.values(TD.DRIVERS).map((x) => `<button class="chip ${x.id === d.driver ? 'on' : ''}" data-driver="${x.id}">${esc(x.name)}</button>`).join('')}</div>
+    ${sw ? `<div class="paints">${sw}</div>` : ''}
   </div>
   <div class="cars">${cars.map((c) => `<button class="card ${c.id === d.car ? 'on' : ''}" data-car="${c.id}"><span>${esc(c.name)}</span><em>${'★'.repeat(1 + Math.round(((c.stats.speed || 0) + (c.stats.accel || 0)) / 4))}</em></button>`).join('')}</div>
   <div class="trackpick">
@@ -54,7 +59,10 @@
       if (!b) return;
       click();
       if (b.dataset.car) { d.car = b.dataset.car; TD.save.save(); TD.main.showCar(d.car, d.driver); UI.lobby(); }
-      else if (b.dataset.driver) { d.driver = b.dataset.driver; TD.save.save(); TD.main.showCar(d.car, d.driver); UI.lobby(); }
+      else if (b.dataset.paint) {
+        d.paint = d.paint || {}; d.paint[d.car] = Number(b.dataset.paint); TD.save.save();
+        TD.kartView.repaintHuman(); UI.lobby();
+      } else if (b.dataset.driver) { d.driver = b.dataset.driver; TD.save.save(); TD.main.showCar(d.car, d.driver); UI.lobby(); }
       else if (b.dataset.track) {
         const ids = tracks.map((t) => t.id), i = ids.indexOf(d.track);
         d.track = ids[(i + Number(b.dataset.track) + ids.length) % ids.length]; TD.save.save(); UI.lobby();
@@ -69,12 +77,14 @@
     const wrap = document.createElement('div');
     wrap.className = 'modal';
     wrap.innerHTML = `<div class="panel"><h3>Cài đặt</h3>${row('music', 'Nhạc nền')}${row('sfx', 'Âm thanh')}${row('shake', 'Rung màn hình')}
+      <label class="tog"><input type="checkbox" data-hand ${s.hand === 'twoside' ? 'checked' : ''}><span>Nút cảm ứng hai bên</span></label>
       <label class="name">Tên tay đua <input maxlength="14" value="${esc(TD.save.d.name)}" data-name></label>
       <button class="btn blue" data-close>Xong</button></div>`;
     UI.root.appendChild(wrap);
     wrap.addEventListener('change', (e) => {
       const k = e.target.dataset.set;
       if (k) { s[k] = e.target.checked; TD.save.save(); TD.audio.applySettings(); }
+      if (e.target.matches('[data-hand]')) { s.hand = e.target.checked ? 'twoside' : 'one'; TD.save.save(); if (TD.hud.inst) TD.hud.setTouch(TD.hud.touch); }
     });
     wrap.addEventListener('click', (e) => {
       if (e.target.closest('[data-close]')) {
@@ -147,33 +157,114 @@
     });
   };
 
+  // ---------- về đích (xem main.js finishStep) ----------
+  const ORD = ['', '1st', '2nd', '3rd', '4th', '5th', '6th'];
+  const race$ = () => $('.race', UI.root);
+
+  // Chữ GOAL! khi xe còn chạy (bản gốc vẽ chữ 3D dưới cổng đích, không có sprite).
+  UI.goal = function (ok) {
+    const r = race$();
+    if (!r) return;
+    const g = document.createElement('div');
+    g.className = 'fin-goal' + (ok ? '' : ' dnf');
+    g.textContent = ok ? 'GOAL!' : 'HẾT GIỜ';
+    r.appendChild(g);
+    setTimeout(() => g.remove(), 2200);
+  };
+
+  // Cận cảnh ăn mừng: bỏ nút tạm dừng/chữ nảy, hiện hạng, băng kỷ lục trượt từ trên, dải thống kê.
+  UI.celebrate = function (F, me) {
+    const r = race$();
+    if (!r) return;
+    for (const el of r.querySelectorAll('.pause, .pops, .banner, .intro')) el.style.display = 'none';
+    const t = TD.fmtTime(me.finishT);
+    const box = document.createElement('div');
+    box.className = 'fin-cel';
+    box.innerHTML = `
+      <div class="fin-rank ${F.place <= 3 ? 'top' : ''}"><b>${ORD[F.place] || F.place + 'th'}</b></div>
+      <div class="fin-rec"><b>${F.newRecord ? 'KỶ LỤC MỚI' : (F.dnf ? 'HẾT GIỜ' : 'HẠNG ' + F.place)}</b><span>${F.dnf ? '--:--.--' : t}</span></div>
+      <div class="fin-strip">
+        <div><small>Drift</small><b>${F.stats.drifts}</b></div>
+        <div><small>Phun</small><b>${F.stats.boosts}</b></div>
+        <div><small>Va chạm</small><b>${F.stats.hits}</b></div>
+        <div><small>Tốc độ TB</small><b>${F.stats.avg.toFixed(1)}</b><i>km/h</i></div>
+      </div>`;
+    r.appendChild(box);
+  };
+  UI.celebrateEnd = function () { const c = $('.fin-cel', UI.root); if (c) c.classList.add('out'); };
+
+  const pct = (l) => Math.round(100 * l.into / l.need);
   function rows(R, me) {
+    const F = UI._fin;
     const list = R.karts.slice().sort((a, b) => (a.place || 9) - (b.place || 9));
     return list.map((k) => {
-      const done = k.st === 'finish' && k.finishT != null;
-      const time = done ? (k.dnf ? 'Chưa về' : TD.fmtTime(k.finishT)) : '…';
-      const best = k.stats.bestLap != null ? TD.fmtTime(k.stats.bestLap) : '--';
-      const rankImg = k.place <= 5 ? `<img src="art/ui/${['', 'rank_1st', 'rank_2nd', 'rank_3rd', 'rank_4th', 'rank_5th'][k.place]}.png" alt="${k.place}">` : `<b class="n">${k.place}</b>`;
-      return `<div class="row ${k === me ? 'me' : ''}">${rankImg}<span class="nm">${esc(k.name)}<small>${esc((TD.CARS[k.carId] || {}).name || '')}</small></span><span class="tm">${time}<small>Vòng nhanh ${best}</small></span></div>`;
+      // k.st có thể rời 'finish' (xe đứng sau về đích bị hồi sinh); finishT mới là dấu hiệu đã về.
+      const time = k.finishT != null && !k.dnf ? TD.fmtTime(k.finishT) : '<em class="dnf">Chưa về</em>';
+      const st = k.stats, mine = k === me;
+      const rankImg = k.place <= 3 ? `<img src="art/ui/rank_big_${k.place}.png" alt="${k.place}">` : `<b class="n">${k.place}</b>`;
+      const rec = mine && F && F.newRecord ? '<img class="newrec" src="art/ui/result_new_record.png" alt="Kỷ lục mới">' : '';
+      return `<div class="row ${mine ? 'me' : ''}"><span class="rk">${rankImg}</span><span class="nm">${esc(k.name)}<small>${esc((TD.CARS[k.carId] || {}).name || '')}</small></span>` +
+        `<span class="tm">${rec}${time}</span><span class="c">${st.drifts}</span><span class="c">${st.miniBoosts + st.nitros}</span><span class="c">${mine && F ? F.stats.hits : st.wallHits}</span></div>`;
     }).join('');
   }
 
-  UI.result = function (R, me, o) {
-    const d = TD.save.d;
-    show(`<div class="result"><div class="panel res">
-      <div class="head ${me.place === 1 ? 'gold' : ''}"><img src="art/ui/${me.place <= 3 ? 'cup_' + me.place : 'trophy_cup'}.png" alt=""><div><b>${me.place === 1 ? 'VỀ NHẤT!' : 'HẠNG ' + me.place}</b>
-        <small>${esc(TD.TRACKS[R.trackId].name)} · ${TD.fmtTime(me.finishT)}${o.newRecord ? ' · <em>KỶ LỤC MỚI</em>' : ''}</small></div>
-        <div class="gain"><img src="art/ui/coin.png" alt=""> +${o.reward}</div></div>
-      <div class="rows">${rows(R, me)}</div>
-      <div class="acts"><button class="btn yellow" data-r="again">ĐUA LẠI</button><button class="btn blue" data-r="lobby">VỀ SẢNH</button></div>
-      <div class="sum">Drift ${me.stats.drifts} · Phun nhỏ ${me.stats.miniBoosts} · Nitro ${me.stats.nitros} · Va tường ${me.stats.wallHits} · Tổng xu ${d.coins.toLocaleString('vi-VN')}</div>
-    </div></div>`);
+  // Thẻ thưởng (chạm để tiếp tục) rồi bảng xếp hạng. Cả hai dựng sẵn trong một nút gốc .result; data-stage chọn lớp hiện.
+  UI.result = function (R, me, F) {
+    const d = TD.save.d, T = TD.TRACKS[R.trackId];
+    UI._fin = F; UI._stage = 'card'; UI._cardT = 0; UI._sig = null;
+    const lb = F.lvBefore, la = F.lvAfter;
+    const from = F.levelUp ? 0 : pct(lb), to = pct(la);
+    show(`<div class="result fin" data-stage="card">
+  <div class="fin-cardlayer">
+    <div class="fin-congrats">CHÚC MỪNG!</div>
+    <div class="fin-cards">
+      <div class="fin-card">
+        <h4>${esc(d.name)}</h4>
+        <div class="fin-avatar">${d.driver === 'nu' ? '♀' : '♂'}</div>
+        <div class="fin-gain">+${F.xp}</div>
+        <div class="fin-lv"><span>LV.${la.lv}</span><div class="fin-bar"><i data-to="${to}" style="width:${from}%"></i></div><em>${la.into}/${la.need}</em></div>
+        <small>XP · hạng ${F.place}</small>
+        ${F.levelUp ? `<div class="fin-up"><b>LEVEL UP</b><span>Lv.${lb.lv} → Lv.${la.lv}</span></div>` : ''}
+      </div>
+      <div class="fin-card">
+        <h4>Xu</h4>
+        <img class="fin-coin" src="art/ui/coin.png" alt="">
+        <div class="fin-gain">+${F.reward}</div>
+        <small>Tổng ${d.coins.toLocaleString('vi-VN')}</small>
+      </div>
+    </div>
+    <div class="fin-hint">Chạm để tiếp tục</div>
+  </div>
+  <div class="fin-table panel">
+    <div class="fin-title"><b>${esc(T.name)}</b><span>${F.dnf ? 'Hết giờ' : 'Hạng ' + F.place + ' · ' + TD.fmtTime(me.finishT)}${F.newRecord ? ' · <em>KỶ LỤC MỚI</em>' : ''}${F.levelUp ? ' · <em>LEVEL UP Lv.' + la.lv + '</em>' : ''}</span></div>
+    <div class="fin-cols"><span>Hạng</span><span>Tên</span><span>Thời gian</span><span>Drift</span><span>Phun</span><span>Va chạm</span></div>
+    <div class="rows">${rows(R, me)}</div>
+    <div class="acts"><button class="btn yellow" data-r="again">ĐUA LẠI</button><button class="btn blue" data-r="lobby">VỀ SẢNH</button></div>
+  </div>
+</div>`);
+    // Thanh XP chạy từ mức cũ lên mức mới sau khi thẻ hiện.
+    setTimeout(() => { const i = $('.fin-bar i', UI.root); if (i) i.style.width = i.dataset.to + '%'; }, 500);
     UI.root.onclick = (e) => {
       const b = e.target.closest('[data-r]');
-      if (!b) return;
-      click();
-      if (b.dataset.r === 'again') TD.main.startRace(); else { TD.audio.play('Play_UI_Back'); TD.main.toLobby(); }
+      if (b) {
+        click();
+        if (b.dataset.r === 'again') TD.main.startRace(); else { TD.audio.play('Play_UI_Back'); TD.main.toLobby(); }
+      } else if (UI._stage === 'card') { click(); UI._advance(); }
     };
+  };
+
+  UI._advance = function () {
+    if (UI._stage !== 'card') return;
+    UI._stage = 'table';
+    const r = $('.result', UI.root);
+    if (r) r.dataset.stage = 'table';
+    TD.main.resultShown = true;
+  };
+  // Không chạm thì thẻ tự qua bảng sau 8 s mô phỏng (tính theo dt của trận để bài kiểm tua nhanh vẫn chạy).
+  UI.tickResult = function (dt) {
+    if (UI._stage !== 'card' || !$('.result', UI.root)) return;
+    UI._cardT += dt;
+    if (UI._cardT > 8) UI._advance();
   };
 
   UI.updateResult = function (R, me) {

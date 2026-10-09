@@ -16,12 +16,16 @@
 <script src="../vendor/GLTFLoader-r140.js"></script>
 <script src="../vendor/meshopt_decoder.js"></script>
 <script>
-// ?id=<track>&view=start|overview&cam=x,y,z&look=x,y,z&clean=1&lm=<rgbScale>&sun=<scale>
-// Gamma-space shading like the original (Unity Gamma color space): textures are sampled raw, no sRGB decode.
+// ?id=<track>&view=start|overview&cam=x,y,z&look=x,y,z&clean=1&path=1
+// Tô màu bằng chính js/view/track.js của game (nhánh PBR tuyến tính / gamma theo shader gốc).
 'use strict';
 const Q = new URLSearchParams(location.search);
 const ID = Q.get('id') || '11citynew';
-const BASE = '../art/tracks/' + ID + '/';
+window.TD = { TRACKS: { [ID]: { art: '../art/tracks/' + ID + '/track.glb' } } };
+</script>
+<script src="../js/view/track.js"></script>
+<script>
+'use strict';
 if (Q.get('clean')) document.body.classList.add('clean');
 const hud = document.getElementById('hud');
 window.ready = false;
@@ -30,136 +34,17 @@ window.problems = [];
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
+// shader đường đua ghi thẳng màu hiển thị
 renderer.outputEncoding = THREE.LinearEncoding;
 document.body.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.5, 9000);
 
-const VS = `
-  attribute vec2 uv2; attribute vec4 vcol;
-  varying vec2 vUv; varying vec2 vUv2; varying vec3 vN; varying vec4 vCol;
-  #include <fog_pars_vertex>
-  void main() {
-    vUv = uv; vUv2 = uv2; vCol = vcol;
-    vN = normalize(mat3(modelMatrix) * normal);
-    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-    gl_Position = projectionMatrix * mvPosition;
-    #include <fog_vertex>
-  }`;
-const FS = `
-  uniform sampler2D map; uniform sampler2D lightMap; uniform sampler2D emissiveMap;
-  uniform sampler2D map2, mask2; uniform float hasMap2, hasMask2; uniform vec3 tint2; uniform vec4 uvST2, maskST2;
-  uniform vec4 l2a; uniform vec4 l2b; // (contrast, heightOffset, inputVertexAlpha, normalZMask), (zMul, zAdd, intensity1, intensity2)
-  uniform float hasMap, hasLM, hasEm, unlit, alphaTest, opacity, lmScale, sunScale;
-  uniform vec3 tint, emissive, sunCol, toSun, ambient;
-  varying vec2 vUv; varying vec2 vUv2; varying vec3 vN; varying vec4 vCol;
-  #include <fog_pars_fragment>
-  void main() {
-    vec4 a = hasMap > 0.5 ? texture2D(map, vUv) : vec4(1.0);
-    vec3 N = normalize(vN) * (gl_FrontFacing ? 1.0 : -1.0);
-    if (hasMap2 > 0.5) {
-      // NssTerrain2Layer weight of layer 1, transcribed from the game's GLES3 shader
-      float a8 = mix(vCol.a, 1.0 - vCol.a, l2a.z);
-      float z = clamp(clamp(N.y, 0.0, 1.0) * abs(l2b.x) + l2b.y, 0.0, 1.0);
-      float t = l2b.x >= 0.0 ? z : 1.0 - z;
-      float t2 = a8 + l2a.w * max(t - a8, 0.0);
-      float w1 = t2;
-      if (hasMask2 > 0.5) {
-        float h1 = (1.0 - max(l2a.y, 0.5)) * (texture2D(mask2, vUv * maskST2.xy + maskST2.zw).r + 1.0);
-        w1 = min(clamp(h1 - 2.0 * l2a.y * t2, 0.0, 1.0) / (1.0 - min(l2a.x, 0.999)), 1.0);
-      }
-      vec3 c2 = texture2D(map2, vUv * uvST2.xy + uvST2.zw).rgb;
-      a.rgb = mix(c2, a.rgb, w1) * mix(tint2 * l2b.w, tint * l2b.z, w1) * vCol.rgb;
-    } else a.rgb *= tint;
-    if (a.a < alphaTest) discard;
-    float ndl = max(dot(N, toSun), 0.0);
-    vec3 light;
-    if (unlit > 0.5) light = vec3(1.0);
-    else if (hasLM > 0.5) {
-      vec4 lm = texture2D(lightMap, vUv2);
-      light = lm.rgb * lmScale + sunCol * sunScale * ndl * lm.a;
-    } else light = ambient + sunCol * sunScale * ndl;
-    vec3 c = a.rgb * light;
-    if (hasEm > 0.5) c += texture2D(emissiveMap, vUv).rgb * emissive;
-    gl_FragColor = vec4(c, a.a * opacity);
-    #include <fog_fragment>
-  }`;
-
 function vec(a) { return new THREE.Vector3(a[0], a[1], a[2]); }
 
 async function main() {
-  const meta = await (await fetch(BASE + 'meta.json')).json();
-  const tl = new THREE.TextureLoader();
-  const lms = await Promise.all(meta.lightmaps.map((l) => new Promise((res) => tl.load(BASE + l.file, (t) => {
-    t.flipY = false; res(t);
-  }, undefined, () => { window.problems.push('lightmap ' + l.file); res(null); }))));
-  const lmScale = +(Q.get('lm') || (meta.lightmaps[0] && meta.lightmaps[0].rgbScale) || 2);
-  const sunScale = +(Q.get('sun') || 1);
-  const sun = meta.sun || { dir: [0, -1, 0], color: [1, 1, 1], intensity: 1 };
-  const toSun = vec(sun.dir).multiplyScalar(-1).normalize();
-  const sunCol = new THREE.Color(sun.color[0], sun.color[1], sun.color[2]).multiplyScalar(sun.intensity);
-  const amb = meta.ambient ? new THREE.Color(...meta.ambient.sky).multiplyScalar(meta.ambient.intensity) : new THREE.Color(0.5, 0.5, 0.5);
-  if (meta.fog && meta.fog.enabled) {
-    const fc = new THREE.Color(...meta.fog.color);
-    scene.fog = meta.fog.mode === 'linear' ? new THREE.Fog(fc, meta.fog.start, meta.fog.end) : new THREE.FogExp2(fc, meta.fog.density);
-  }
-  scene.background = new THREE.Color(...(meta.fog ? meta.fog.color : [0.5, 0.6, 0.8]));
-
-  const loader = new THREE.GLTFLoader();
-  loader.setMeshoptDecoder(MeshoptDecoder);
-  const gltf = await new Promise((res, rej) => loader.load(BASE + meta.glb, res, undefined, rej));
-  const stats = { meshes: 0, tris: 0, noMap: [], lmMissing: [] };
-  gltf.scene.traverse((o) => {
-    if (!o.isMesh) return;
-    const m = o.material, x = m.userData || {};
-    for (const t of [m.map, m.emissiveMap, m.aoMap, m.metalnessMap]) if (t) t.encoding = THREE.LinearEncoding;  // xem js/view/track.js
-    const lmi = x.lightmap != null ? x.lightmap : -1;
-    const lmTex = lmi >= 0 ? lms[lmi] : null;
-    if (lmi >= 0 && !lmTex) stats.lmMissing.push(o.name);
-    if (!m.map && !x.sky) stats.noMap.push(o.name);
-    const sm = new THREE.ShaderMaterial({
-      vertexShader: VS, fragmentShader: FS, fog: !x.sky,
-      uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, {
-        map: { value: null }, lightMap: { value: null }, emissiveMap: { value: null }, map2: { value: null },
-        mask2: { value: null }, hasMask2: { value: 0 }, maskST2: { value: new THREE.Vector4(1, 1, 0, 0) },
-        l2a: { value: new THREE.Vector4() }, l2b: { value: new THREE.Vector4() },
-        hasMap2: { value: 0 }, tint2: { value: new THREE.Color(1, 1, 1) }, uvST2: { value: new THREE.Vector4(1, 1, 0, 0) },
-        hasMap: { value: m.map ? 1 : 0 }, hasLM: { value: lmTex ? 1 : 0 }, hasEm: { value: m.emissiveMap ? 1 : 0 },
-        unlit: { value: x.unlit || x.sky ? 1 : 0 }, alphaTest: { value: m.alphaTest || 0 }, opacity: { value: 1 },
-        lmScale: { value: lmScale }, sunScale: { value: sunScale },
-        tint: { value: new THREE.Color().copy(m.color) }, emissive: { value: new THREE.Color().copy(m.emissive) },
-        sunCol: { value: sunCol }, toSun: { value: toSun }, ambient: { value: amb },
-      }]),
-    });
-    if (x.layer2) {
-      const L = x.layer2, u = sm.uniforms;
-      // exporter stores layer 2 in the occlusion slot and its mask in the metallicRoughness slot
-      if (m.aoMap) { m.aoMap.anisotropy = renderer.capabilities.getMaxAnisotropy(); u.map2.value = m.aoMap; u.hasMap2.value = 1; }
-      if (L.mask && m.metalnessMap) {
-        u.mask2.value = m.metalnessMap; u.hasMask2.value = 1;
-        u.maskST2.value.set(L.mask.uvScale[0], L.mask.uvScale[1], L.mask.uvOffset[0], L.mask.uvOffset[1]);
-      }
-      u.l2a.value.set(L.heightContrast, L.heightOffset, L.inputVertexAlpha, L.normalZMask);
-      u.l2b.value.set(L.normalZMaskMul, L.normalZMaskAdd, L.intensity1, L.intensity2); u.tint2.value.setRGB(L.tint[0], L.tint[1], L.tint[2]);
-      u.uvST2.value.set(L.uvScale[0], L.uvScale[1], L.uvOffset[0], L.uvOffset[1]);
-      const c = o.geometry.getAttribute('color');
-      if (c) o.geometry.setAttribute('vcol', c);
-    }
-    sm.uniforms.map.value = m.map; sm.uniforms.lightMap.value = lmTex; sm.uniforms.emissiveMap.value = m.emissiveMap;
-    // GLTFLoader converts baseColorFactor to linear; the original shaders multiply in gamma space
-    sm.uniforms.tint.value.convertLinearToSRGB();
-    sm.uniforms.emissive.value.convertLinearToSRGB();
-    sm.side = m.side;
-    sm.transparent = m.transparent;
-    sm.depthWrite = !m.transparent;
-    if (x.sky) { sm.depthWrite = false; sm.side = THREE.DoubleSide; o.renderOrder = -10; o.frustumCulled = false; o.userData.sky = true; }
-    const maxAniso = renderer.capabilities.getMaxAnisotropy();
-    for (const t of [m.map, m.emissiveMap]) if (t) t.anisotropy = maxAniso;
-    o.material = sm;
-    stats.meshes++;
-    stats.tris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3;
-  });
-  scene.add(gltf.scene);
+  const tv = await TD.trackView.load(scene, renderer, ID);
+  const meta = tv.meta, stats = tv.stats, gltf = { scene: tv.root };
   window.meta = meta;
   window.stats = stats;
 
@@ -202,21 +87,12 @@ async function main() {
   });
   addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
   let last = performance.now();
-  // sky domes reach 20+ km; shrink them about the camera so every direction stays the same but fits in far
-  const skies = [];
-  // nodes carry the meshopt dequantization transform; scale on top of it
-  gltf.scene.traverse((o) => { if (o.isMesh && o.userData.sky) skies.push([o, o.position.clone(), o.scale.x]); });
-  const skyC = meta.sky ? vec(meta.sky.center) : new THREE.Vector3(), skyR = meta.sky ? meta.sky.radius : 1;
   function render() {
-    for (const [o, p0, s0] of skies) {
-      const k = Math.min(1, 0.9 * camera.far / (skyR + camera.position.distanceTo(skyC)));
-      o.scale.setScalar(s0 * k);
-      o.position.copy(camera.position).multiplyScalar(1 - k).addScaledVector(p0, k);
-    }
+    TD.trackView.update(camera);
     renderer.render(scene, camera);
     const p = camera.position;
     hud.textContent = `${ID}  meshes ${stats.meshes}  tris ${stats.tris | 0}  calls ${renderer.info.render.calls}\n` +
-      `cam ${p.x.toFixed(1)},${p.y.toFixed(1)},${p.z.toFixed(1)}  lm×${lmScale} sun×${sunScale}`;
+      `cam ${p.x.toFixed(1)},${p.y.toFixed(1)},${p.z.toFixed(1)}  pbr ${stats.pbr}/${stats.meshes}`;
   }
   function loop(t) {
     const dt = Math.min(0.1, (t - last) / 1000); last = t;

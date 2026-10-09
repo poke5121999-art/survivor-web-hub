@@ -9,6 +9,9 @@
   const P = { enabled: true, rt: null, down: [], up: [], mips: 0,
     params: { bloom: 0.4, threshold: 0.72, scatter: 0.7, radial: 0, vignette: 0.22, flash: 0, sat: 0 } };
 
+  // Bản gốc phun gần như không nhoè xuyên tâm (khung p1ecZRtMGYI t=485): chỉ để lại một chút làm tín hiệu tốc độ.
+  const RADIAL_MAX = 0.25;
+
   const VERT = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
   const S2L = 'vec3 s2l(vec3 c){ c = max(c, 0.0); return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), c)); }\n' +
     'vec3 l2s(vec3 c){ c = max(c, 0.0); return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), c)); }\n';
@@ -141,7 +144,7 @@ void main(){
     }
     const u = P.mFinal.uniforms;
     u.tSrc.value = P.rt.texture; u.tBloom.value = (P.mips > 1 ? P.up[0] : P.down[0]).texture;
-    u.uBloom.value = p.bloom; u.uRadial.value = p.radial; u.uVig.value = p.vignette; u.uFlash.value = p.flash; u.uSat.value = p.sat;
+    u.uBloom.value = p.bloom; u.uRadial.value = p.radial * RADIAL_MAX; u.uVig.value = p.vignette; u.uFlash.value = p.flash; u.uSat.value = p.sat;
     pass(P.mFinal, null);
   };
 

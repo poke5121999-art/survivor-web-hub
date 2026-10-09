@@ -87,6 +87,10 @@ TD.CARS = {
    "steer": "CarSteer_00",
    "driftExt": "CarDriftExt_00",
    "turbo": "CarTurbo_00"
+  },
+  "paintMaps": {
+   "base": "art/cars/04_base.jpg",
+   "mask": "art/cars/04_mask.jpg"
   }
  },
  "06": {
@@ -176,6 +180,10 @@ TD.CARS = {
    "steer": "CarSteer_02",
    "driftExt": "CarDriftExt_02",
    "turbo": "CarTurbo_01"
+  },
+  "paintMaps": {
+   "base": "art/cars/06_base.jpg",
+   "mask": "art/cars/06_mask.jpg"
   }
  },
  "297": {
@@ -265,6 +273,10 @@ TD.CARS = {
    "steer": "CarSteer_03",
    "driftExt": "CarDriftExt_03",
    "turbo": "CarTurbo_015"
+  },
+  "paintMaps": {
+   "base": "art/cars/297_base.jpg",
+   "mask": "art/cars/297_mask.jpg"
   }
  },
  "16": {
@@ -354,6 +366,10 @@ TD.CARS = {
    "steer": "CarSteer_03",
    "driftExt": "CarDriftExt_03",
    "turbo": "CarTurbo_015"
+  },
+  "paintMaps": {
+   "base": "art/cars/16_base.jpg",
+   "mask": "art/cars/16_mask.jpg"
   }
  },
  "175": {
@@ -443,6 +459,10 @@ TD.CARS = {
    "steer": "CarSteer_04",
    "driftExt": "CarDriftExt_04",
    "turbo": "CarTurbo_02"
+  },
+  "paintMaps": {
+   "base": "art/cars/175_base.jpg",
+   "mask": "art/cars/175_mask.jpg"
   }
  },
  "284": {
@@ -532,6 +552,10 @@ TD.CARS = {
    "steer": "CarSteer_05",
    "driftExt": "CarDriftExt_05",
    "turbo": "CarTurbo_03"
+  },
+  "paintMaps": {
+   "base": "art/cars/284_base.jpg",
+   "mask": "art/cars/284_mask.jpg"
   }
  },
  "254": {
@@ -621,6 +645,10 @@ TD.CARS = {
    "steer": "CarSteer_057",
    "driftExt": "CarDriftExt_06",
    "turbo": "CarTurbo_04"
+  },
+  "paintMaps": {
+   "base": "art/cars/254_base.jpg",
+   "mask": "art/cars/254_mask.jpg"
   }
  },
  "55": {
@@ -710,6 +738,10 @@ TD.CARS = {
    "steer": "CarSteer_06",
    "driftExt": "CarDriftExt_06",
    "turbo": "CarTurbo_06"
+  },
+  "paintMaps": {
+   "base": "art/cars/55_base.jpg",
+   "mask": "art/cars/55_mask.jpg"
   }
  }
 };

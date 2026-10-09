@@ -1,7 +1,7 @@
 // Điều khiển: bàn phím và cảm ứng ghi chung một Intent cho xe người chơi.
 // Như Zing Speed Mobile, xe tự tăng ga; người chơi chỉ lái, drift, phun, phanh.
 // Phím: ←/→ hoặc A/D lái, Shift drift, Space hoặc Ctrl phun, ↓/S phanh, R hồi về đường, Esc/P tạm dừng.
-// Cảm ứng: nút lấy hình chữ nhật từ provider (bố cục operatingmode_twoside của HUD gốc), đa chạm bằng pointer events.
+// Cảm ứng: nút lấy hình chữ nhật từ provider (bố cục operatingmode_oneside / twoside của HUD gốc), đa chạm bằng pointer events.
 (function (TD) {
   'use strict';
   const I = { keys: {}, touch: {}, pointers: new Map(), rects: null, nitroQ: 0, resetQ: 0, pauseQ: 0, enabled: true, lastSrc: 'key' };

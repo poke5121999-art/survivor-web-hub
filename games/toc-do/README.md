@@ -40,6 +40,9 @@ Unity là hệ tay trái (x phải, y lên, z tới), three.js tay phải. **Đ�
 | `tools/export_driver.py` → `art/drivers/`, `data/drivers.js` | tay đua glb kèm hoạt ảnh ngồi lái | nhánh Tay đua |
 | `tools/export_audio.py` → `audio/`, `data/audio.js` | tiếng theo tên event gốc | nhánh Tiếng |
 | `tools/export_fx_ui.py` → `art/fx/`, `art/ui/`, `data/fx.js`, `data/ui.js` | texture VFX, tham số hạt, sprite HUD | nhánh VFX/UI |
+| `tools/export_campath.py` → `data/campaths.js` | camera mở màn gốc (chỉ 11citynew có trong APK) | tay |
+| `tools/export_podium.py` → `art/podium/` | sân khấu bục `Podium.unity`, hoạt ảnh `ranking_01..06` | tay |
+| `tools/export_cars.py` (`PAINT_ONLY=1`) → `art/cars/*_base.jpg`, `*_mask.jpg` | ảnh nền chưa tô và mặt nạ sơn | tay |
 | `js/sim/*` | mô phỏng thuần JS (không `document`, `THREE`, `window` ngoài `TD`) | nhánh Mô phỏng |
 | `js/view/*`, `js/ui/*`, `index.html`, `css/*` | vẽ, camera, VFX, âm thanh, HUD, sảnh | tích hợp |
 
@@ -83,3 +86,8 @@ type ∈ countdown | go | drift_start | drift_end | miniboost | nitro_start | ni
 - Texture của shader gamma (đường đua) phải để `LinearEncoding`: three r140 trên WebGL2 tải texture sRGB dạng SRGB8_ALPHA8
   và GPU tự giải về tuyến tính, làm albedo tối hẳn. Xe và tay đua là PBR tuyến tính, giữ sRGB.
 - Thư mục đường đua theo `TD.TRACKS[id].art` (Phố Tàu: `art/tracks/chinatown/`, bộ xuất mặc định đặt tên `chinatown_new`).
+- Kiểu trộn VFX: vật liệu không ghi `_DstBlend` thì `export_fx_ui.py` đoán. Texture đục hoàn toàn mà trộn alpha (QF_FXCommon
+  lấy hình từ mặt nạ `SECOND_MASK`) thì xuất thêm bản `_la` có alpha = độ sáng. Trộn alpha với ảnh đục vẽ ra ô vuông đen.
+- Màu đường: game gốc là dự án Unity không gian tuyến tính. `NssTerrain2Layer` (Phố Tàu) tính theo công thức tuyến tính của
+  shader gốc; `NssStandard` vẫn theo công thức gamma vì chưa có reflection probe (chuyển sang thì đường 11citynew tối hẳn).
+- Bài kiểm trình duyệt chờ trạng thái bằng `until(...)`, không chờ cứng: trên swiftshader bấm tạm dừng mất ~600 ms.

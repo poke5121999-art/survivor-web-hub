@@ -318,6 +318,23 @@ def add_paint(g, p, notes):
     return len(g.materials) - 1
 
 
+def export_paint_maps(p, cid, notes):
+    """Bản gốc đổi màu sơn bằng _paintColor1/2 nhân qua mặt nạ (R: màu 1, G: màu 2). Glb chỉ chứa ảnh đã nướng màu gốc,
+    nên xuất thêm ảnh nền chưa nhuộm + mặt nạ để game nhuộm lại lúc chạy (js/view/karts.js)."""
+    main = tex_of(p, '_MainTex')
+    mk, _ = mask_keys(p)
+    mask = tex_of(p, mk)
+    if main is None or mask is None:
+        notes.append('no paint mask: palette picker disabled')
+        return None
+    size = main.size
+    base = os.path.join(OUT, 'art', 'cars', cid.lstrip('0').rjust(2, '0'))
+    to_im(arr(main)[..., :3]).save(base + '_base.jpg', 'JPEG', quality=88, optimize=True)
+    to_im(arr(mask, size)[..., :3]).save(base + '_mask.jpg', 'JPEG', quality=92, optimize=True)
+    rel = 'art/cars/' + os.path.basename(base)
+    return {'base': rel + '_base.jpg', 'mask': rel + '_mask.jpg'}
+
+
 def add_glass(g, p, mname):
     a = tex_of(p, '_GlassAlphaTex') or tex_of(p, '_AlphaTex')
     c = tex_of(p, '_MainTex')
@@ -480,6 +497,9 @@ def export_car(cid, spec):
             log['orig'][want] = log['orig'].get(want, 0) + len(tris)
     if paint_props is None or not any(g.materials[m]['name'] == 'paint' for _, m in body_prims):
         raise RuntimeError('no usable paint material (textures missing from the APK)')
+    pmaps = export_paint_maps(paint_props, cid, notes)
+    if os.environ.get('PAINT_ONLY'):  # chỉ xuất ảnh sơn, không động tới glb
+        return {'id': cid.lstrip('0').rjust(2, '0'), 'paintMaps': pmaps}, notes
     prims = [g.primitive(p[0], p[1], p[2], p[3], m) for p, m in body_prims]
     g.meshes.append({'name': 'body', 'primitives': prims})
     g.nodes.append({'name': 'body', 'mesh': 0})
@@ -570,6 +590,8 @@ def export_car(cid, spec):
         'paint': [[round(float(x), 3) for x in color(paint_props, k)] for k in ('_paintColor1', '_paintColor2')],
         'bytes': os.path.getsize(out), 'wheelSource': wsuffix,
     }
+    if pmaps:
+        info['paintMaps'] = pmaps
     return info, notes
 
 
@@ -611,6 +633,10 @@ def main():
         try:
             info, notes = export_car(cid, CARS.get(cid, dict(tier=0, name='Xe ' + cid)))
             spec = CARS.get(cid, dict(tier=0, name='Xe ' + cid))
+            if os.environ.get('PAINT_ONLY'):
+                res[info['id']] = info
+                print(cid, info['paintMaps'], '; '.join(notes))
+                continue
             info['name'] = spec['name']
             info['stats'], info['params'] = stats_for(spec['tier'])
             res[info['id']] = info
@@ -620,7 +646,12 @@ def main():
             print(cid, 'FAILED', e)
     path = os.path.join(OUT, 'data', 'cars.js')
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    if not sys.argv[1:] or not os.path.exists(path):
+    if os.environ.get('PAINT_ONLY'):
+        merged = json.loads(open(path).read().split('=', 1)[1].rstrip().rstrip(';'))
+        for k, v in res.items():
+            if v['paintMaps']:
+                merged[k]['paintMaps'] = v['paintMaps']
+    elif not sys.argv[1:] or not os.path.exists(path):
         merged = res
     else:
         merged = json.loads(open(path).read().split('=', 1)[1].rstrip().rstrip(';'))

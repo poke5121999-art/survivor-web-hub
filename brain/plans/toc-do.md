@@ -46,6 +46,8 @@ Kiểm: `node test/toc-do-sim.js` (33), `test/toc-do-assets.js` (8), `test/toc-d
 
 ## Còn mở
 
+Danh sách bàn giao chi tiết: [[plans/toc-do-con-lai]].
+
 - Chưa ai nghe tiếng bằng tai. Toàn bộ tiếng là bản thay thế (bank xe/nhạc gốc không có trong APK); tiếng máy, lốp rít tổng hợp.
 - Texture trong APK là bản xem trước 128–256 px; bản HD tải sau khi cài. Phố Tàu nặng (350k tam giác, 8,5 MB).
 - Thành Troy không có lightmap nướng sẵn nên mặt đường tối hơn tranh gốc.

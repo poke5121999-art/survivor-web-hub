@@ -54,8 +54,18 @@ T.check('sprite art/ui gọi trong mã đều có', uiFiles.every((n) => exists(
 console.log('Đã bóc mà chưa dùng (thông tin)');
 const unusedAudio = Object.keys(TD.AUDIO).filter((k) => !code.includes("'" + k + "'"));
 console.log('  tiếng chưa gọi: ' + unusedAudio.length + '/' + Object.keys(TD.AUDIO).length + (unusedAudio.length ? ' (' + unusedAudio.join(', ') + ')' : ''));
+// VFX cố ý không dùng: tên -> lý do một dòng. Mục nào được dùng thì xoá khỏi đây (test dưới báo nếu lệch).
+const FX_SKIP = {
+  drift_flame_c: 'biến thể lửa drift (driftflame_00010) của xe khác; web chỉ có một kiểu lửa drift là 00003',
+  tire_smoke: 'mesh khói tĩnh FX_Car_Common_Smoke; khói lốp đã có từ tire_dust dạng hạt',
+
+  nitro_flame_big: 'lửa phun dạng mesh riêng của xe SDFB (00001); web dựng một lửa DTS dùng chung cho mọi xe, chưa có bảng xe nào dùng SDFB',
+  miniboost_flame: 'như nitro_flame_big, bản phun nhỏ',
+  start_line: 'dải vạch xuất phát đặt cứng toạ độ cảnh Level (376, 44, 183); web có vạch xuất phát riêng của đường',
+};
 const unusedFx = Object.keys(TD.FX).filter((k) => !fxCalls.includes(k) && !code.includes('TD.FX.' + k) && !fxTex.some((t) => [TD.FX[k]].concat(TD.FX[k].layers || []).some((l) => l.tex === t)));
-console.log('  VFX chưa gọi: ' + unusedFx.length + '/' + Object.keys(TD.FX).length + ' (' + unusedFx.join(', ') + ')');
+const unexplained = unusedFx.filter((k) => !FX_SKIP[k]), stale = Object.keys(FX_SKIP).filter((k) => !unusedFx.includes(k));
+T.check('mọi VFX chưa gọi đều có lý do trong FX_SKIP', unexplained.length === 0 && stale.length === 0, unexplained.concat(stale.map((k) => k + ' (đã dùng, bỏ khỏi FX_SKIP)')).join(', ') || unusedFx.length + '/' + Object.keys(TD.FX).length + ' cố ý bỏ');
 const usedUi = new Set(uiFiles);
 console.log('  sprite art/ui dùng: ' + usedUi.size + '/' + Object.keys(TD.UI).length);
 T.done();

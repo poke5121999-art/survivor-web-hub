@@ -35,6 +35,9 @@ PREFABS = collections.OrderedDict([
     ('ingameview', 'ingame/#ingame/ingameview.prefab'),
     ('speednitro', 'ingame/#ingame/ig_siglespeednitrogen.prefab'),
     ('controls', 'ingame/#ingame/operatingmode_twoside.prefab'),
+    ('controls1', 'ingame/#ingame/operatingmode_oneside.prefab'),
+    ('fgtime', 'ingame/#ingame/ig_fgtime.prefab'),
+    ('personalrecord', 'ingame/#ingame/ig_personalrecord.prefab'),
     ('countdown', 'ingame/#ingame/ig_startcountdowndialog.prefab'),
     ('minimap', 'ingame/#ingame/ig_minimapcontainer.prefab'),
     ('minimapparams', 'ingame/#ingame/minimapparams.prefab'),
@@ -549,7 +552,8 @@ class Builder:
 
 # Ghep HUD dua: prefab con gan vao diem neo cua ingameview nhu goc lam luc chay. [SUY] noi gan (xem UI.md).
 COMPOSE = [('racehud', 'ingameview', [('StaticUI/AnchorTopRight/Offset', 'minimap'), ('DynamicUI/AnchorButtom', 'speednitro'),
-                                      ('', 'controls')])]
+                                      ('', 'controls'), ('', 'controls1'),
+                                      ('StaticUI/AnchorTopRight/Offset', 'fgtime'), ('StaticUI/AnchorTopRight/Offset', 'personalrecord')])]
 
 
 # MeshRenderer phang chi lay o cac prefab nay (chu so dem nguoc, bien LAP/FINISH); VFX cong sang khong dung.

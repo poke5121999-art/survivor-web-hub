@@ -39,6 +39,29 @@ function steps(R, sec, fn) {
   for (let i = 0; i < n; i++) { if (fn) fn(i * TD.TUNING.dt); TD.Race.step(R, TD.TUNING.dt); }
 }
 
+// Mặt ruy băng GỐC (chưa nới ở chỗ tách/nhập nhánh) chứa (x,z): danh sách độ cao. Dùng để biết xe có thật sự đứng trên đường không.
+function origSurfaces(T, x, z) {
+  const p = T.src.pts, ids = T.grid[Math.floor(x / 24) + ',' + Math.floor(z / 24)] || [], ys = [];
+  for (const id of ids) {
+    const sg = T.segs[id], a = sg.a, b = sg.b;
+    const da = (x - p.x[a]) * T.fx[a] + (z - p.z[a]) * T.fz[a], db = (x - p.x[b]) * T.fx[b] + (z - p.z[b]) * T.fz[b];
+    if (da < -5 || db > 5) continue;   // chừa 5 m dọc như locator: chỗ ruy băng gấp khúc hai đoạn hở nhau ở mép ngoài
+    const t = Math.max(0, Math.min(1, da / (da - db || 1)));
+    let fx = T.fx[a] + (T.fx[b] - T.fx[a]) * t, fz = T.fz[a] + (T.fz[b] - T.fz[a]) * t;
+    const fl = Math.hypot(fx, fz) || 1; fx /= fl; fz /= fl;
+    const d = (x - (p.x[a] + (p.x[b] - p.x[a]) * t)) * fz - (z - (p.z[a] + (p.z[b] - p.z[a]) * t)) * fx;
+    const w = (v) => (v < 2 ? 8 : v);   // bề rộng 0 trong dữ liệu gốc (đoạn qua khe nhảy): track.js lấy 8 m
+    if (d <= w(p.lw[a]) + (w(p.lw[b]) - w(p.lw[a])) * t && -d <= w(p.rw[a]) + (w(p.rw[b]) - w(p.rw[a])) * t) ys.push(p.y[a] + (p.y[b] - p.y[a]) * t);
+  }
+  return ys;
+}
+// "Lơ lửng": locator nhận xe là trên đường (inside) ở độ cao h, nhưng không có mặt đường gốc nào trong ±3 m quanh h
+// mà lại có mặt đường gốc nằm thấp hơn ≥5 m (đường dưới cầu vượt) → xe treo giữa không trung.
+function floating(T, x, y, z) {
+  const ys = origSurfaces(T, x, z);
+  return !ys.some((v) => Math.abs(v - y) < 3) && ys.some((v) => v < y - 5);
+}
+
 for (const id of TRACKS) {
   console.log(`\n# ${id} (${TD.TRACKS[id].name})`);
   const T = TD.Track.get(id);
@@ -68,6 +91,45 @@ for (const id of TRACKS) {
   // 8. tất định
   const again = runBots(id, 7).R;
   check('cùng seed → cùng thứ tự và thời gian', again.order.join() === R.order.join() && again.karts.every((k, i) => k.finishT === R.karts[i].finishT), R.order.join());
+
+  // Không lơ lửng trên cầu vượt. (a) quét ngang mỗi điểm ruy băng, ra ngoài bề rộng gốc tới 30 m, ở độ cao của điểm đó:
+  // chỗ nào locator vẫn bảo "trên đường" thì phải có mặt đường gốc đỡ — nới lấp khe không được phủ lên đường tầng dưới.
+  {
+    let bad = 0, first = null;
+    for (let i = 0; i < T.n; i++) {
+      const hint = T.segFrom[i][0]; if (hint == null || T.src.pts.lw[i] < 2 || T.src.pts.rw[i] < 2) continue;
+      const lx = T.fz[i], lz = -T.fx[i];
+      for (let d = -(T.src.pts.rw[i] + 30); d <= T.src.pts.lw[i] + 30; d += 3) {
+        const x = T.x[i] + lx * d, z = T.z[i] + lz * d;
+        const l = TD.Track.locate(T, x, T.y[i], z, hint);
+        if (l.inside && floating(T, x, l.y, z)) { bad++; if (!first) first = 'pt ' + i + ' s=' + T.s[i].toFixed(0) + ' d=' + d + ' y=' + l.y.toFixed(1); }
+      }
+    }
+    check('ruy băng nới không phủ lên đường tầng dưới (quét ngang)', bad === 0, bad + ' điểm lơ lửng' + (first ? ', đầu tiên ' + first : ''));
+  }
+  // (b) bot đua: không xe nào treo trên đường tầng dưới quá 0.5 s, và không bay (k.y − mặt đường > 3 m) quá 2 s liền.
+  // Đo trên 2 seed × 6 bot × 3 đường: treo = 0 s mọi xe; bay lâu nhất 1.08 s (nhảy khỏi đầu cầu Troy) → ngưỡng 2 s chừa gấp đôi.
+  {
+    let worstFloat = 0, worstAir = 0, where = '';
+    for (const seed of [11, 12]) {
+      const R2 = TD.Race.create({ trackId: id, seed, finishGrace: 60 });
+      const fl = {}, air = {}; let n = 0;
+      while (R2.phase !== 'done' && R2.t < 400) {
+        TD.Race.step(R2, 1 / 60); R2.events.length = 0; n++;
+        for (const k of R2.karts) {
+          if (!k.loc || k.st === 'respawn') continue;
+          air[k.id] = k.y - k.loc.y > 3 ? (air[k.id] || 0) + 1 / 60 : 0;
+          if (air[k.id] > worstAir) { worstAir = air[k.id]; where = 'bay seed ' + seed + ' t=' + R2.t.toFixed(0); }
+          if (n % 6 === 0) {
+            fl[k.id] = k.grounded && floating(T, k.x, k.y, k.z) ? (fl[k.id] || 0) + 0.1 : 0;
+            if (fl[k.id] > worstFloat) { worstFloat = fl[k.id]; where = 'treo seed ' + seed + ' t=' + R2.t.toFixed(0) + ' (' + k.x.toFixed(0) + ',' + k.z.toFixed(0) + ') y=' + k.y.toFixed(1); }
+          }
+        }
+      }
+    }
+    check('bot không treo trên đường tầng dưới > 0.5 s', worstFloat <= 0.5, worstFloat.toFixed(1) + ' s ' + where);
+    check('bot không bay cao hơn mặt đường 3 m quá 2 s liền', worstAir <= 2, worstAir.toFixed(2) + ' s');
+  }
 }
 
 // Các bài dưới dùng 11citynew (đoạn thẳng xuất phát rộng ~37 m chạy theo +x)
@@ -128,6 +190,37 @@ for (const id of TRACKS) {
     const inWin = tryMini(0.3), late = tryMini(TD.TUNING.miniWindow + 0.2);
     check('phun nhỏ trong cửa sổ (0.3 s sau drift_end)', inWin.endT != null && inWin.minis === 1, 'mini ' + inWin.minis);
     check('không phun nhỏ ngoài cửa sổ (' + (TD.TUNING.miniWindow + 0.2) + ' s)', late.endT != null && late.minis === 0, 'mini ' + late.minis);
+  }
+
+  // phun nhỏ: drift ngắn không có phun; phun đôi nhấn lại 0.3 s sau vẫn ăn (video: youtu.be/92kbCuZvo4Y?t=140, youtu.be/GFqmLev-cEg?t=49)
+  {
+    // giữ drift driftLen giây (lái trái), rồi nhấn nitro tại các mốc taps (giây sau drift_end); trả về danh sách kind của miniboost
+    const driftRun = (driftLen, taps) => {
+      const { R, k } = soloAt(id, 1, 170);
+      const kinds = []; let endT = null;
+      steps(R, driftLen + 0.3 + 1.2, (t) => {
+        k.input.throttle = 1;
+        k.input.drift = t < driftLen;
+        k.input.steer = t < driftLen ? -0.6 : 0;
+        for (const e of R.events) { if (e.type === 'drift_end') endT = e.t; if (e.type === 'miniboost') kinds.push(e.kind); }
+        R.events.length = 0;
+        k.input.nitro = endT != null && taps.some((d) => R.t >= endT + d && R.t < endT + d + 0.03);
+      });
+      return kinds.join();
+    };
+    check('drift 0.2 s (quá ngắn) không có phun nhỏ', driftRun(0.2, [0.05]) === '', '[' + driftRun(0.2, [0.05]) + ']');
+    check('drift 0.7 s có phun nhỏ', /^(mini|perfect)$/.test(driftRun(0.7, [0.05])), '[' + driftRun(0.7, [0.05]) + ']');
+    const d3 = driftRun(0.7, [0.05, 0.35]), d6 = driftRun(0.7, [0.05, 0.6]);
+    check('phun đôi: nhấn lại 0.3 s sau phun nhỏ vẫn ăn', /^(mini|perfect),dual$/.test(d3), '[' + d3 + ']');
+    check('phun đôi: nhấn lại 0.55 s sau thì hết cửa sổ', /^(mini|perfect)$/.test(d6), '[' + d6 + ']');
+  }
+
+  // phun xuất phát cộng cả bình nitro bằng một cú drift tốt (youtu.be/92kbCuZvo4Y?t=7)
+  {
+    const { R, k } = soloAt(id, 1, 0);
+    k.nitro.gauge = 0;
+    TD.Kart.startBoost(R, k);
+    check('phun xuất phát cộng gauge ≈ 0.25', k.nitro.gauge > 0.24 && k.nitro.gauge < 0.26, k.nitro.gauge.toFixed(3));
   }
 
   // 6. lái vào tường: |d| không vượt giới hạn, có sự kiện wall

@@ -54,8 +54,7 @@ async function desktop(br, base) {
   await T.shot(page, 'ui-drift-1366');
   await page.keyboard.up('ShiftLeft'); await page.keyboard.up('ArrowLeft');
   await page.keyboard.press('Escape');
-  await page.waitForTimeout(300);
-  T.check('Esc mở bảng tạm dừng', await page.evaluate(() => TD.main.paused && !!document.querySelector('.pausebox')));
+  T.check('Esc mở bảng tạm dừng', await until(page, (k) => k.paused) && await page.evaluate(() => !!document.querySelector('.pausebox')));
   await page.click('[data-p="resume"]');
   T.check('Tiếp tục đóng bảng', await page.evaluate(() => !TD.main.paused && !document.querySelector('.pausebox')));
   await page.evaluate(() => { const me = TD.main.me; me.ctrl = 'bot'; TD.Bot.init(me, TD.main.race, 0.95); TD.main.timeScale = 6; });
@@ -101,8 +100,7 @@ async function phone(br, base) {
   await touch('touchEnd', []);
   T.check('nhấc ngón thì thả lái', await until(page, (k) => k.steer === 0 && !k.drift));
   await page.tap('.pause');
-  await page.waitForTimeout(300);
-  T.check('nút tạm dừng bấm được bằng chạm', await page.evaluate(() => TD.main.paused));
+  T.check('nút tạm dừng bấm được bằng chạm', await until(page, (k) => k.paused));
   await T.shot(page, 'ui-pause-844');
   T.check('không lỗi trang (844)', problems.length === 0, problems.slice(0, 5).join(' | '));
   await page.context().close();
