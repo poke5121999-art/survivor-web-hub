@@ -99,17 +99,29 @@
       S.idleT -= dt;
       if (S.idleT <= 0 && S.view.ready) { S.idleT = 6 + Math.random() * 4; TD.kartView.oneShot(S.view, 'idle' + (1 + ((Math.random() * 6) | 0))); }
     }
-    const narrow = innerWidth / innerHeight < 1.2;
-    M.camera.position.set(narrow ? 0 : -1.6, 1.55, narrow ? 7.2 : 5.6);
-    M.camera.lookAt(narrow ? 0 : -1.6, 0.55, 0);
-    M.camera.fov = 45; M.camera.updateProjectionMatrix();
+    // Sảnh (js/ui/lobby.js) đặt M.lobbyCam = { pos:[x,y,z], look:[x,y,z], fov } theo bố cục của màn đang mở.
+    const narrow = innerWidth / innerHeight < 1.2, lc = M.lobbyCam;
+    if (lc) { M.camera.position.set(...lc.pos); M.camera.lookAt(...lc.look); M.camera.fov = lc.fov || 45; }
+    else { M.camera.position.set(narrow ? 0 : -1.6, 1.55, narrow ? 7.2 : 5.6); M.camera.lookAt(narrow ? 0 : -1.6, 0.55, 0); M.camera.fov = 45; }
+    M.camera.updateProjectionMatrix();
     TD.postfx.params.radial = 0; TD.postfx.params.flash = 0;
     TD.postfx.render(S.scene, M.camera);
   }
 
   // ---------- trận ----------
-  M.startRace = async function () {
+  // Plugin trận (đạo cụ, luyện tập, xếp hạng, nhiệm vụ...): mỗi tệp tự đẩy vào TD.racePlugins một mục
+  //   { start(ctx), update(dt, ctx), event(e, mine, ctx), settle(F, ctx), end(ctx), rects(), draw(g, hud) }
+  // ctx = { R, me, M, root (THREE.Group của trận) }. Mục nào không hợp chế độ thì tự bỏ qua (đọc ctx.R.mode).
+  TD.racePlugins = TD.racePlugins || [];
+  const plug = (fn, ...a) => { for (const p of TD.racePlugins) if (p[fn]) { try { p[fn](...a); } catch (e) { console.error(e); } } };
+  M.plug = plug;
+
+  // opts = { mode: id trong TD.MODES } (mặc định chế độ vừa chơi). Đường đua lấy từ bản lưu.
+  M.startRace = async function (opts) {
     const d = TD.save.d;
+    const mode = TD.MODES[(opts && opts.mode) || d.mode] || TD.MODES.speed;
+    d.mode = mode.id;
+    if (M.race) plug('end', M.ctx);
     TD.audio.unlock();
     TD.audio.music(null);
     M.state = 'loading';
@@ -130,14 +142,20 @@
     const R0 = TD.RNG(seed), rng = () => R0.next();
     const cars = Object.keys(TD.CARS), drivers = Object.keys(TD.DRIVERS);
     const names = TD.BOT_NAMES.slice().sort(() => rng() - 0.5);
-    const karts = [];
-    const slot = 5;   // người chơi xuất phát ở hàng cuối như đua xếp hạng, có chỗ để vượt
-    for (let i = 0; i < 6; i++) {
-      if (i === slot) karts.push({ carId: d.car, driverId: d.driver, name: d.name, ctrl: 'human' });
-      else karts.push({ carId: cars[(rng() * cars.length) | 0], driverId: drivers[(rng() * drivers.length) | 0], name: names[i], ctrl: 'bot', skill: 0.45 + rng() * 0.45 });
+    const karts = [], n = mode.karts;
+    const slot = n - 1;   // người chơi xuất phát ở hàng cuối như đua xếp hạng, có chỗ để vượt
+    // Kỹ năng bot: xếp hạng theo bậc (TD.RANK.botSkill), khu luyện đạo cụ dễ, còn lại ngẫu nhiên 0,45–0,9.
+    const skill = () => mode.ranked && TD.RANK ? TD.RANK.botSkill(d, rng) : mode.practice ? 0.3 + rng() * 0.2 : 0.45 + rng() * 0.45;
+    for (let i = 0; i < n; i++) {
+      // Đội: người chơi luôn Đội Xanh (1), xe xen kẽ đội theo ô xuất phát.
+      const team = mode.teams ? ((slot - i) % 2 === 0 ? 1 : 0) : undefined;
+      if (i === slot) karts.push({ carId: d.car, driverId: d.driver, name: d.name, ctrl: 'human', team });
+      else karts.push({ carId: cars[(rng() * cars.length) | 0], driverId: drivers[(rng() * drivers.length) | 0], name: names[i], ctrl: 'bot', skill: skill(), team });
     }
-    const R = TD.Race.create({ trackId: d.track, seed, karts });
+    const R = TD.Race.create({ trackId: d.track, seed, mode, karts });
     M.race = R; M.me = R.karts[slot];
+    // Kỹ năng bằng lái (js/ui/garage.js) nhân thông số xe của người chơi.
+    if (TD.garage && TD.garage.applySkills) TD.garage.applySkills(M.me, d);
     M.views = R.karts.map((k) => TD.kartView.create(M.raceRoot, k));
     await Promise.all(M.views.map((v) => v.loading));
     TD.menu.loading(TD.TRACKS[d.track], 1);
@@ -151,7 +169,9 @@
     $('hud').style.visibility = '';
     M.camera.fov = 60; M.camera.updateProjectionMatrix();   // cảnh cận ăn mừng đổi FOV
     M.state = 'race';
-    TD.menu.race(TD.TRACKS[d.track]);
+    TD.menu.race(TD.TRACKS[d.track], mode);
+    M.ctx = { R, me: M.me, M, root: M.raceRoot };
+    plug('start', M.ctx);
     TD.audio.engineStart();
     const amb = AMB[d.track];
     TD.audio.play(amb ? amb.start : 'Play_Amb_Crowd', { vol: 0.8 });
@@ -170,6 +190,7 @@
       if (v) TD.kartView.onEvent(v, e);
       TD.hud.event(e, mine);
       if (TD.fx && k) TD.fx.onEvent(e, k, v, mine);
+      plug('event', e, mine, M.ctx);
       switch (e.type) {
         case 'countdown': TD.audio.play('Play_BGM_CountDown'); break;
         case 'go':
@@ -201,7 +222,7 @@
         case 'final_lap': if (mine) { TD.audio.play('Play_Race_FinalLap'); TD.menu.banner('VÒNG CUỐI'); } break;
         case 'overtake': if (mine) TD.menu.pop('rank', e.place); break;
         case 'finish':
-          if (mine) {
+          if (mine && !M.fin) {
             TD.audio.play('Play_Race_Finish');
             TD.audio.play(e.place <= 3 ? 'Play_UI_Win' : 'Play_UI_Lose', { vol: 0.9 });
             TD.audio.music(null);
@@ -259,6 +280,7 @@
     TD.audio.engineUpdate(kmh, me.input.throttle, Math.max(boost, mini * 0.6), dt);
     TD.audio.skid(me.st === 'drift' && me.grounded ? Math.min(1, 0.45 + Math.abs(me.drift.vd) / 90) : 0, kmh);
     if (TD.fx) TD.fx.update(dt, M.views, me, M.camera);
+    plug('update', dt, M.ctx);
     const amb = AMB[R.trackId];
     if (amb && R.phase !== 'countdown' && (M.ambT -= dt) <= 0) { M.ambT = 14 + Math.random() * 14; TD.audio.play(pick(amb.pass), { vol: 0.7 }); }
     TD.trackView.update(M.camera);
@@ -284,8 +306,15 @@
     TD.save.save();
     const lvB = TD.LEVEL.of(d.xp);
     const avg = k.finishT ? (R.T.L * R.laps) / k.finishT * 3.6 : 0;
-    return { dnf, place: k.place, reward, xp, newRecord, prev, lvBefore: lvA, lvAfter: lvB, levelUp: lvB.lv > lvA.lv,
+    const F = { dnf, place: k.place, reward, xp, newRecord, prev, lvBefore: lvA, lvAfter: lvB, levelUp: lvB.lv > lvA.lv, mode: R.mode,
+      team: R.mode.teams ? TD.teamScore(R) : null, cards: [],
       stats: { drifts: k.stats.drifts, boosts: k.stats.miniBoosts + k.stats.nitros, hits: k.stats.wallHits + M.bumps, avg } };
+    // Đội thắng: cả đội nhận thêm 50% xu (chọn).
+    if (F.team && F.team.win === k.team) { const add = Math.round(reward / 2); d.coins += add; F.reward += add; }
+    // Plugin ghi thêm (sao xếp hạng, nhiệm vụ...) rồi đẩy thẻ HTML vào F.cards; lưu lần nữa sau khi chúng sửa bản lưu.
+    plug('settle', F, M.ctx);
+    TD.save.save();
+    return F;
   }
 
   function showResult() {
@@ -326,6 +355,7 @@
   }
 
   M.toLobby = function () {
+    if (M.race) plug('end', M.ctx);
     TD.audio.engineStop();
     TD.audio.skid(0, 0);
     TD.audio.stopAll();
@@ -337,7 +367,8 @@
     TD.postfx.params.radial = 0;
     if (M.show) M.show.key = null;
     M.showCar(TD.save.d.car, TD.save.d.driver);
-    TD.menu.lobby();
+    TD.hud.ctx.clearRect(0, 0, TD.hud.canvas.width, TD.hud.canvas.height);   // khung HUD cuối trận còn trên canvas
+    TD.lobby.show();
   };
 
   function frame(now) {

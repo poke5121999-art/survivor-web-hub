@@ -101,7 +101,9 @@
     const pos = P.meta.pos;
     const list = R.karts.slice().sort((a, b) => (a.place || 99) - (b.place || 99)).slice(0, SLOT.length);
     list.forEach((k, i) => {
-      const s = pos[SLOT[i]];
+      // Ba bục: điểm RankN của scene gốc nằm sát mép sau mặt bục (ảnh finish-w-3pod-b: chân tay đua ở mép xa), có lẽ vì gốc
+      // xương nhân vật gốc lệch; kéo về phía camera (−z) 0,45 m cho đứng giữa mặt bục.
+      const s = i < 3 ? [pos[SLOT[i]][0], pos[SLOT[i]][1], pos[SLOT[i]][2] - 0.45] : pos[SLOT[i]];
       // Camera ở z âm nhìn về +z, tay đua quay mặt về −z; glb tay đua đã nhìn về −z nên giữ yaw 0.
       const a = stand(k.driverId, i + 1, s, 0);
       a.kart = k;

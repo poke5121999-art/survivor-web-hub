@@ -6,7 +6,9 @@ const { check, done, nodeSim, GAME } = require('./toc-do-lib.js');
 
 const FILES = ['data/tuning.js', 'data/tracks.js'];
 if (fs.existsSync(path.join(GAME, 'data/cars.js'))) FILES.push('data/cars.js');
-FILES.push('js/sim/rng.js', 'js/sim/track.js', 'js/sim/kart.js', 'js/sim/bot.js', 'js/sim/race.js');
+for (const f of ['rng', 'track', 'kart', 'bot', 'modes', 'rank', 'items', 'ghost', 'race']) {
+  if (fs.existsSync(path.join(GAME, 'js/sim/' + f + '.js'))) FILES.push('js/sim/' + f + '.js');
+}
 const W = nodeSim(FILES);
 const TD = W.TD;
 const TRACKS = (process.env.TD_TRACKS ? process.env.TD_TRACKS.split(',') : Object.keys(TD.TRACKS)).filter((t) => TD.TRACKS[t]);
@@ -263,6 +265,20 @@ for (const id of TRACKS) {
     };
     check('phun xuất phát khi nhấn ga sát GO', go(2.9) === 1 && go(3.1) === 1, 'trước 0.1 s: ' + go(2.9) + ', sau 0.1 s: ' + go(3.1));
     check('không phun xuất phát khi nhấn sớm', go(2.0) === 0, String(go(2.0)));
+  }
+
+  // xe đã về đích bị hồi sinh (bot lái tiếp sau vạch) không được về đích lần hai khi hết hạn chờ
+  {
+    const R = TD.Race.create({ trackId: id, seed: 4, finishGrace: 2, karts: [{ ctrl: 'bot', skill: 1 }, { ctrl: 'bot', skill: 0.1 }] });
+    const k = R.karts[0];
+    let fins = 0;
+    for (let i = 0; i < 120 * 600 && R.phase !== 'done'; i++) {
+      TD.Race.step(R, 1 / 120);
+      for (const e of R.events) if (e.type === 'finish' && e.kart === k.id) fins++;
+      R.events.length = 0;
+      if (k.done && k.st === 'finish' && !k._rs) { k._rs = true; TD.Race.respawn(R, k, 'stuck'); }
+    }
+    check('về đích một lần dù bị hồi sinh sau vạch', fins === 1 && k.place === 1 && k.st !== 'drive', 'finish ' + fins + ', hạng ' + k.place + ', st ' + k.st);
   }
 }
 done();

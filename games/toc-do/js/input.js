@@ -4,7 +4,10 @@
 // Cảm ứng: nút lấy hình chữ nhật từ provider (bố cục operatingmode_oneside / twoside của HUD gốc), đa chạm bằng pointer events.
 (function (TD) {
   'use strict';
-  const I = { keys: {}, touch: {}, pointers: new Map(), rects: null, nitroQ: 0, resetQ: 0, pauseQ: 0, enabled: true, lastSrc: 'key' };
+  const I = { keys: {}, touch: {}, pointers: new Map(), rects: null, nitroQ: 0, resetQ: 0, pauseQ: 0, enabled: true, lastSrc: 'key', tapQ: {} };
+  // Nút bấm một lần của các chế độ (đạo cụ, cờ luyện tập): phím → id; nút cảm ứng cùng id đếm vào tapQ, đọc bằng I.take(id).
+  const TAPS = { KeyE: 'item', KeyQ: 'item2', KeyF: 'flag', KeyG: 'flagBack', KeyX: 'flagDel' };
+  const HOLD = new Set(['left', 'right', 'drift', 'brake', 'nitro', 'reset', 'pause']);
 
   const DRIFT = ['ShiftLeft', 'ShiftRight'], NITRO = ['Space', 'ControlLeft', 'ControlRight'];
   const LEFT = ['ArrowLeft', 'KeyA'], RIGHT = ['ArrowRight', 'KeyD'], BRAKE = ['ArrowDown', 'KeyS'];
@@ -17,6 +20,7 @@
       if (NITRO.includes(e.code)) I.nitroQ++;
       if (e.code === 'KeyR') I.resetQ++;
       if (e.code === 'Escape' || e.code === 'KeyP') I.pauseQ++;
+      if (TAPS[e.code]) I.tapQ[TAPS[e.code]] = (I.tapQ[TAPS[e.code]] || 0) + 1;
       if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault();
       if (TD.audio) TD.audio.unlock();
     });
@@ -33,6 +37,7 @@
       if (id === 'nitro') I.nitroQ++;
       if (id === 'reset') I.resetQ++;
       if (id === 'pause') I.pauseQ++;
+      if (!HOLD.has(id)) I.tapQ[id] = (I.tapQ[id] || 0) + 1;
       I.recount();
     };
     const move = (e) => {
@@ -82,6 +87,7 @@
     I.nitroQ = 0;
   };
   I.takeReset = function () { const v = I.resetQ > 0; I.resetQ = 0; return v; };
+  I.take = function (id) { const v = I.tapQ[id] > 0; I.tapQ[id] = 0; return v; };
   I.takePause = function () { const v = I.pauseQ > 0; I.pauseQ = 0; return v; };
   I.isTouch = function () { return matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window; };
 

@@ -1,0 +1,20 @@
+{
+ "scene": "Lobby_L_Art.unity",
+ "primitives": 35,
+ "skipped": [
+  "/Dynamic/Lobby_V13/FX_Layer/FX_Env_Lobby/GameObject_Mid/GameObject/Quad"
+ ],
+ "camera": {
+  "p": [
+   1.36,
+   3.48,
+   -9.95
+  ],
+  "fwd": [
+   -0.134,
+   0.0,
+   0.991
+  ],
+  "fov": 36.0
+ }
+}

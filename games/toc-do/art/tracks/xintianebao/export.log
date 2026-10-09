@@ -1,0 +1,134 @@
+scene Level_XinTianEBao_Art.unity: bundle AssetBundles/06/066b6b25018ccb001e867421c47f3067
+bundles loaded: 60; unresolved externals: ['cab-0006cf558a2b2dfaba4f7ca666101a55', 'cab-0aa6a471fb33bc8ff259100b0c977344', 'cab-146ea372bf0a13e6a4ea63e4a3c5e6bf', 'cab-cd1d29782da210e3960a6d457624c657', 'cab-f3e172233fa19193a1a32d3ffe375ac8', 'unity default resources', 'unity_builtin_extra']
+lightmap 0: Level_XinTianEBao_Art_LMA1_final 512x512 fmt=51 colorSpace=1 rgb mean=0.344 max=1.000 alpha mean=1.000
+lightmap 1: Level_XinTianEBao_Art_LMA2_final 512x512 fmt=51 colorSpace=1 rgb mean=0.198 max=1.000 alpha mean=1.000
+lightmap 2: Level_XinTianEBao_Art_LM0_final 512x512 fmt=51 colorSpace=1 rgb mean=0.353 max=1.000 alpha mean=1.000
+lightmapsMode=0 useShadowmask=False
+skip [skinned] /Artist/No_PVS/C_AniObj_Yangqun/E_XinTianEBao_Animation_Yang 1
+skip [skinned] /Artist/PVS/High/C_AniObj_Qizi/E_XinTianEBao_Animation_Qizi
+skip [skinned] /Artist/PVS/High/C_AniObj_Chuan/E_XinTianEBao_Animation_Chuan
+skip [skinned] /Artist/No_PVS/C_AniObj_Yangqun/E_XinTianEBao_Animation_Yang
+skip [skinned] /Artist/No_PVS/C_AniObj_Men/Object3305
+skip [skinned] /Artist/No_PVS/C_AniObj_Mutong (1)/E_XinTianEBao_Tong_01
+skip [skinned] /Artist/No_PVS/C_AniObj_Mutong/E_XinTianEBao_Tong_01
+skip [skinned] /Artist/No_PVS/C_AniObj_Gejuyuan/E_XinTianEBao_GJY_06
+skip [skinned] /Artist/No_PVS/C_AniObj_Yangqun/E_XinTianEBao_Animation_Yang 2
+skip [skinned] /Artist/PVS/High/C_AniObj_Tiane/E_XinTianEBao_Animation_Tiane002
+skip [skinned] /Artist/PVS/High/C_AniObj_Yang/E_XinTianEBao_Animation_Yang
+skip [skinned] /Artist/PVS/High/C_AniObj_Yang (1)/E_XinTianEBao_Animation_Yang
+skip [skinned] /Artist/No_PVS/C_AniObj_Tianechufa/E_XinTianEBao_Animation_Tiane
+skipped: skinned=13, inactive=2
+shader QF_Gamma/Env/BVertexAnimation/ForwardRotation: texture slots ['_MainTex']
+shader QF_Gamma/Env/Basic_CubemapMirror: texture slots ['_Cubemap', '_MainTex', '_MaskTex']
+shader QF_Gamma/Env/Basic_Diffuse: texture slots ['_MainTex']
+shader QF_Gamma/Env/Basic_Diffuse_Double_no LM: texture slots ['_MainTex']
+shader QF_Gamma/Env/Basic_SepcularCubeNormal_AlphaBlend: texture slots ['_MainTex', '_MaskTex', '_ReflectMap']
+shader QF_Gamma/Env/Sky_Diffuse_no fog: texture slots ['_MainTex']
+shader QF_Gamma/Env/Terr_TrackSpecular: texture slots ['_MainTex', '_RoadAlphaMap']
+shader QF_Gamma/Env/Terr_TrackSpecularNormal: texture slots ['_MainTex', '_NormalTex', '_RoadAlphaMap']
+shader QF_Gamma/Env/Transparent/Basic_AlphaBlendScrollBG: texture slots ['_BackGroundTex', '_MainTex']
+shader QF_Gamma/Env/Transparent/Basic_AlphaBlend_Double_no LM: texture slots ['_AlphaTex', '_MainTex']
+shader QF_Gamma/Env/Water/Terrian_WaterAdvanced(Transparent): texture slots ['_Cubemap', '_MainTex', '_NormalMap', '_NormalMap2']
+  tex E_XinTianEBao_Shu_01 256x256 -> 256x256 rgba 30 KB
+prim E_XinTianEBao_Shu_01_F: QF_Gamma/Env/Transparent/Basic_AlphaBlend_Double_no LM alpha=BLEND tris=1222 verts=2882 from ['E_XinTianEBao_Shu_04', 'E_XinTianEBao_Shu_06']
+  tex C_AddPSeed_D03 256x256 -> 256x256 rgb 6 KB
+prim E_XinTianEBao_Jiasu_01: QF_Gamma/Env/Transparent/Basic_AlphaBlendScrollBG alpha=BLEND tris=46 verts=62 from ['E_Deguo_Addspeed_01']
+  tex E_XinTianEBao_TEB_01 256x256 -> 256x256 rgb 8 KB
+prim E_XinTianEBao_TEB_01: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=92 verts=152 from ['E_Deguo_Addspeed_01']
+  tex E_XinTianEBao_GJY_01 256x256 -> 256x256 rgb 8 KB
+prim E_XinTianEBao_GJY_03|lm2: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=462 verts=805 from ['E_XinTianEBao_GJY_01']
+  tex E_XinTianEBao_Boli_01 32x32 -> 32x32 rgb 0 KB
+prim E_XinTianEBao_Boli_02: QF_Gamma/Env/Basic_SepcularCubeNormal_AlphaBlend alpha=BLEND tris=8 verts=12 from ['E_XinTianEBao_Boli_01']
+prim E_XinTianEBao_TEB_01|lm1: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=1705 verts=3031 from ['E_XinTianEBao_Chengmen_01']
+prim E_XinTianEBao_Shu_01: QF_Gamma/Env/Transparent/Basic_AlphaBlend_Double_no LM alpha=BLEND tris=4459 verts=9547 from ['E_XinTianEBao_GJY_04', 'E_XinTianEBao_Hua_01', 'E_XinTianEBao_Shu_01', 'E_XinTianEBao_Shu_02']
+  tex C_StarChess 512x512 -> 512x512 rgb 15 KB
+prim C_StarChess|lm2: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=4 verts=6 from ['E_XinTianEBao_Hongbaige_01']
+  tex E_XinTianEBao_Yuanjing_01 256x256 -> 256x256 rgb 6 KB
+prim sky:E_XinTianEBao_Yuanjing_02: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=333 verts=364 from ['E_XinTianEBao_Yuanjing_02']
+  tex E_XinTianEBao_Building_08 256x256 -> 256x256 rgb 9 KB
+prim E_XinTianEBao_Building_08|lm1: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=492 verts=785 from ['E_XinTianEBao_Building_06']
+  tex E_XinTianEBao_Wuding_03 64x64 -> 64x64 rgb 0 KB
+prim E_XinTianEBao_Wuding_03|lm1: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=53 verts=106 from ['E_XinTianEBao_Building_06']
+  tex E_XinTianEBao_Sky 512x512 -> 512x512 rgb 16 KB
+prim sky:E_XinTianEBao_06_01: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=176 verts=159 from ['E_XinTianEBao_Sky']
+  tex E_XinTianEBao_Qiangbi_01 128x128 -> 128x128 rgb 0 KB
+prim E_XinTianEBao_Qiangbi_01|lm2: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=1376 verts=2144 from ['E_XinTianEBao_TEB_01']
+  tex E_XinTianEBao_Building_03 64x64 -> 64x64 rgb 0 KB
+prim E_XinTianEBao_08|lm2: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=183 verts=407 from ['E_XinTianEBao_TEB_01']
+prim E_XinTianEBao_TEB_01|lm2: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=4404 verts=7800 from ['E_XinTianEBao_TEB_01', 'E_XinTianEBao_TEB_02']
+  tex E_XinTianEBao_Lujie_02 128x128 -> 128x128 rgb 1 KB
+prim E_XinTianEBao_Lujie_02: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=101 verts=159 from ['E_XinTianEBao_Lianpai_01']
+prim E_XinTianEBao_GJY_03|lm1: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=2183 verts=4026 from ['E_XinTianEBao_GJY_03', 'E_XinTianEBao_GJY_05']
+  tex E_XinTianEBao_Lu_01 256x256 -> 256x256 rgb 5 KB
+prim E_XinTianEBao_Lu_01|lm2: QF_Gamma/Env/Terr_TrackSpecular alpha=OPAQUE tris=826 verts=803 from ['E_XinTianEBao_Lu_01']
+  tex E_XinTianEBao_Lu_02 256x256 -> 256x256 rgb 2 KB
+prim E_XinTianEBao_Lu_02|lm2: QF_Gamma/Env/Terr_TrackSpecularNormal alpha=OPAQUE tris=695 verts=664 from ['E_XinTianEBao_Lu_01']
+  tex E_XinTianEBao_Shu_01 256x256 -> 256x256 rgb 13 KB
+prim E_XinTianEBao_Shu_01_A: QF_Gamma/Env/Basic_Diffuse_Double_no LM alpha=OPAQUE tris=1377 verts=2027 from ['E_XinTianEBao_Shu_05', 'E_XinTianEBao_Shu_06']
+prim E_XinTianEBao_Building_08|lm2: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=427 verts=908 from ['E_XinTianEBao_Chengqiang_01']
+prim E_XinTianEBao_Tiane: QF_Gamma/Env/BVertexAnimation/ForwardRotation alpha=OPAQUE tris=372 verts=568 from ['']
+  tex E_XinTianEBao_GJY_02 128x128 -> 128x128 rgb 0 KB
+prim E_XinTianEBao_GJY_02|lm2: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=14 verts=19 from ['E_XinTianEBao_GJY_02']
+prim E_XinTianEBao_Wuding_03|lm0: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=144 verts=272 from ['E_XinTianEBao_Building_02']
+  tex E_XinTianEBao_Wuding_02 64x64 -> 64x64 rgb 0 KB
+prim E_XinTianEBao_Wuding_04|lm0: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=65 verts=117 from ['E_XinTianEBao_Building_02']
+  tex E_XinTianEBao_Building_01 256x256 -> 256x256 rgb 14 KB
+prim E_XinTianEBao_02|lm0: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=2677 verts=4294 from ['E_XinTianEBao_Building_02', 'E_XinTianEBao_wujian_01']
+  tex E_XinTianEBao_Qiang_09 128x128 -> 128x128 rgb 0 KB
+prim E_XinTianEBao_Qiang_09|lm0: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=285 verts=325 from ['E_XinTianEBao_Building_02']
+  tex E_XinTianEBao_Qiang_06 128x128 -> 128x128 rgb 1 KB
+prim E_XinTianEBao_Qiang_06|lm0: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=97 verts=118 from ['E_XinTianEBao_Building_02']
+  tex E_XinTianEBao_01 256x256 -> 256x256 rgb 6 KB
+prim E_XinTianEBao_01|lm2: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=897 verts=843 from ['E_XinTianEBao_Ground_01', 'E_XinTianEBao_TEB_02']
+  tex E_XinTianEBao_Lujie_01 256x256 -> 256x256 rgb 4 KB
+prim E_XinTianEBao_04|lm2: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=2732 verts=3429 from ['E_XinTianEBao_Ground_01', 'E_XinTianEBao_TEB_02']
+  tex E_XinTianEBao_TEB_03 128x128 -> 128x128 rgb 1 KB
+prim E_XinTianEBao_TEB_03|lm2: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=17 verts=35 from ['E_XinTianEBao_TEB_02']
+  tex E_XinTianEBao_TEB_02 64x64 -> 64x64 rgb 0 KB
+prim E_XinTianEBao_TEB_02|lm2: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=145 verts=125 from ['E_XinTianEBao_TEB_02']
+  tex E_XinTianEBao_TEB_04 128x128 -> 128x128 rgb 0 KB
+prim E_XinTianEBao_TEB_04|lm2: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=502 verts=744 from ['E_XinTianEBao_TEB_02']
+  tex E_XinTianEBao_Dibiao_01 128x128 -> 128x128 rgb 0 KB
+prim E_XinTianEBao_Dibiao_01|lm0: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=299 verts=526 from ['E_XinTianEBao_Ground_02']
+  tex E_XinTianEBao_Qiang_04 128x128 -> 128x128 rgb 1 KB
+prim E_XinTianEBao_Qiang_04|lm0: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=1229 verts=1836 from ['E_XinTianEBao_Ground_02', 'E_XinTianEBao_Ground_04']
+prim E_XinTianEBao_GJY_02|lm0: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=18 verts=32 from ['E_XinTianEBao_Ground_02']
+prim E_XinTianEBao_TEB_04|lm0: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=83 verts=167 from ['E_XinTianEBao_Ground_02']
+prim E_XinTianEBao_01|lm0: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=936 verts=789 from ['E_XinTianEBao_Ground_02', 'E_XinTianEBao_Ground_04']
+  tex E_XinTianEBao_Lianpai02 128x128 -> 128x128 rgb 2 KB
+prim E_XinTianEBao_Lianpai_02: QF_Gamma/Env/Basic_Diffuse_Double_no LM alpha=OPAQUE tris=1105 verts=2037 from ['E_XinTianEBao_Lianpai_02']
+  tex E_XinTianEBao_Chuan_01 128x128 -> 128x128 rgb 2 KB
+prim E_XinTianEBao_Chuan_01|lm1: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=924 verts=1729 from ['E_XinTianEBao_Chuan_01']
+prim E_XinTianEBao_Building_01|lm2: QF_Gamma/Env/Basic_CubemapMirror alpha=OPAQUE tris=2669 verts=4901 from ['E_XinTianEBao_Building_01', 'E_XinTianEBao_Shu_03']
+  tex E_XinTianEBao_Guanggao_01 128x128 -> 128x128 rgb 4 KB
+prim E_XinTianEBao_Guanggao_02: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=127 verts=261 from ['E_XinTianEBao_Guanggao_01']
+  tex E_XinTianEBao_Shanti_02 128x128 -> 128x128 rgb 1 KB
+prim E_XinTianEBao_Shanti_02|lm2: QF_Gamma/Env/Terr_TrackSpecular alpha=OPAQUE tris=721 verts=1154 from ['E_XinTianEBao_Shanti_01']
+  tex E_XinTianEBao_Qiangbi_02 128x128 -> 128x128 rgb 0 KB
+prim E_XinTianEBao_Qiangbi_02|lm0: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=175 verts=179 from ['E_XinTianEBao_TEB_03']
+prim sky:E_XinTianEBao_Yuanjing_01: QF_Gamma/Env/Sky_Diffuse_no fog alpha=OPAQUE tris=1697 verts=2039 from ['E_XinTianEBao_Yuanjing_01']
+  tex C_Water_05 256x256 -> 256x256 rgb 10 KB
+prim E_XinTianEBao_Water_01: QF_Gamma/Env/Water/Terrian_WaterAdvanced(Transparent) alpha=BLEND tris=10 verts=18 from ['E_XinTianEBao_Water_01']
+prim E_XinTianEBao_Chuan_01: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=138 verts=207 from ['E_XinTianEBao_Chuan_02']
+prim E_XinTianEBao_04|lm0: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=1485 verts=1422 from ['E_XinTianEBao_Ground_04']
+  tex E_XinTianEBao_Qiang_07 128x128 -> 128x128 rgb 0 KB
+prim E_XinTianEBao_Qiang_07|lm2: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=950 verts=1002 from ['E_XinTianEBao_Building_01', 'E_XinTianEBao_Building_05']
+prim E_XinTianEBao_02|lm2: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=125 verts=247 from ['E_XinTianEBao_Building_05']
+prim E_XinTianEBao_Wuding_04|lm2: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=291 verts=544 from ['E_XinTianEBao_Building_01', 'E_XinTianEBao_Building_05']
+prim sky:E_XinTianEBao_06: QF_Gamma/Env/Sky_Diffuse_no fog alpha=OPAQUE tris=176 verts=159 from ['E_XinTianEBao_Sky']
+  tex E_XinTianEBao_Wujian_04 256x256 -> 256x256 rgb 10 KB
+prim E_XinTianEBao_Wujian_04: QF_Gamma/Env/Basic_Diffuse_Double_no LM alpha=OPAQUE tris=1297 verts=2195 from ['E_XinTianEBao_Qizi_03']
+prim E_XinTianEBao_Shu_01_D: QF_Gamma/Env/Transparent/Basic_AlphaBlend_Double_no LM alpha=BLEND tris=436 verts=872 from ['E_XinTianEBao_Shu_07']
+  tex E_XinTianEBao_Building_10 128x128 -> 128x128 rgb 2 KB
+prim E_XinTianEBao_Building_10|lm2: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=323 verts=405 from ['E_XinTianEBao_Ground_01']
+prim E_XinTianEBao_Building_08: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=656 verts=990 from ['E_XinTianEBao_Jiushengquan']
+  tex E_XinTianEBao_Muban_01 256x256 -> 256x256 rgb 5 KB
+prim E_XinTianEBao_Muban_01|lm0: QF_Gamma/Env/Terr_TrackSpecular alpha=OPAQUE tris=384 verts=379 from ['E_XinTianEBao_Qiao_01']
+prim E_XinTianEBao_Lujie_02|lm0: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=713 verts=1085 from ['E_XinTianEBao_Qiao_01']
+prim E_XinTianEBao_Building_08|lm0: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=5371 verts=9828 from ['E_XinTianEBao_Building_030', 'E_XinTianEBao_Qiao_01']
+prim E_XinTianEBao_Building_10|lm0: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=73 verts=147 from ['E_XinTianEBao_Building_030']
+  tex E_XinTianEBao_Building_13 128x128 -> 128x128 rgb 0 KB
+prim E_XinTianEBao_Qiang_10|lm0: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=404 verts=443 from ['E_XinTianEBao_Building_030']
+prim E_XinTianEBao_01: QF_Gamma/Env/Basic_Diffuse alpha=OPAQUE tris=559 verts=395 from ['E_XinTianEBao_Ground_03']
+lightmaps used by primitives: [0, 1, 2]
+done: 62 primitives, 39 textures (0.21 MB webp), 3 lightmaps, folder 2.48 MB

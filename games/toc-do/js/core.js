@@ -5,7 +5,11 @@
   TD.REV = TD.REV || '';
   const KEY = 'td.save.v1', CLOUD_ID = 'toc-do';
   const DEF = () => ({ v: 1, car: '04', driver: 'nam', track: '11citynew', name: 'Tay Đua', coins: 0, races: 0, wins: 0, xp: 0,
-    best: {}, paint: {}, settings: { music: true, sfx: true, shake: true, hand: 'one' }, ver: 0, at: 0 });
+    best: {}, paint: {}, settings: { music: true, sfx: true, shake: true, hand: 'one' }, ver: 0, at: 0,
+    // Chế độ vừa chơi (TD.MODES), sao xếp hạng (js/sim/rank.js), xe đã có (null = bộ xe khởi đầu, js/ui/garage.js),
+    // cấp kỹ năng bằng lái, nhiệm vụ ngày, thành tựu, tổng số liệu cộng dồn cho nhiệm vụ/thành tựu.
+    mode: 'speed', rank: { pts: 0, best: 0, streak: 0, games: 0, wins: 0 }, owned: null, skills: {},
+    quests: { day: '', prog: {}, done: {} }, ach: {}, totals: { races: 0, drifts: 0, boosts: 0, items: 0, hits: 0, km: 0 } });
   // Bảng màu sơn chọn thêm ngoài màu gốc của xe: [màu 1, màu 2] là hệ số nhân qua mặt nạ như _paintColor1/2 gốc.
   TD.PAINTS = [
     { name: 'Đỏ', c: [[1, 0.06, 0.06], [0.95, 0.9, 0.85]] },
@@ -23,6 +27,11 @@
     const paint = {}, np = TD.PAINTS.length;
     if (o.paint && typeof o.paint === 'object') for (const k of Object.keys(o.paint)) if (TD.CARS[k] && o.paint[k] >= 0 && o.paint[k] <= np) paint[k] = o.paint[k] | 0;
     o.paint = paint;
+    const D = DEF();
+    for (const k of ['rank', 'quests', 'totals']) o[k] = Object.assign(D[k], d[k] && typeof d[k] === 'object' ? d[k] : {});
+    for (const k of ['skills', 'ach']) if (!o[k] || typeof o[k] !== 'object') o[k] = {};
+    if (Array.isArray(o.owned)) o.owned = o.owned.filter((id) => TD.CARS[id]); else o.owned = null;
+    if (!TD.MODES || !TD.MODES[o.mode]) o.mode = 'speed';
     o.ver = o.ver | 0; o.at = Number(o.at) || 0;
     o.xp = Math.max(0, Math.floor(Number(o.xp) || 0));   // bản lưu cũ không có xp
     if (!TD.CARS[o.car]) o.car = Object.keys(TD.CARS)[0];
@@ -64,7 +73,7 @@
       for (let i = 0; i < 120 && !document.querySelector('#ui .lobby, #ui:empty'); i++) await new Promise((ok) => setTimeout(ok, 500));
       if (c.at <= S.d.at) return 'local';
       S.d = c; local();
-      if (document.querySelector('#ui .lobby') && TD.menu && TD.main) { TD.main.showCar(S.d.car, S.d.driver); TD.kartView.repaintHuman(); TD.menu.lobby(); }
+      if (document.querySelector('#ui .lobby') && TD.menu && TD.main) { TD.main.showCar(S.d.car, S.d.driver); TD.kartView.repaintHuman(); TD.lobby.show(); }
       return 'cloud';
     } catch (e) { return 'local'; }
   };

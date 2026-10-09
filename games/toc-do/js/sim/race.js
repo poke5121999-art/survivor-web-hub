@@ -1,5 +1,6 @@
 // Trận đua: tạo, bước, checkpoint/vòng, thứ hạng, về đích. Thuần JS.
-//   var R = TD.Race.create({ trackId, seed, laps?, karts: [{ id?, carId, driverId, name, ctrl: 'human'|'bot', skill? }], finishGrace? })
+//   var R = TD.Race.create({ trackId, seed, mode?, laps?, karts: [{ id?, carId, driverId, name, ctrl: 'human'|'bot', skill?, team? }], finishGrace? })
+//   mode = một mục của TD.MODES (mặc định speed). Có mode.items và TD.Items thì R.items = TD.Items.init(R), mỗi bước gọi TD.Items.step.
 //   TD.Race.step(R, dt)   — dt bất kỳ (giây thật), bên trong chạy bước cố định 1/120 s.
 // Sự kiện: R.events[] = { t, type, kart, ... }. Lớp vẽ/âm thanh đọc rồi tự xoá mỗi khung: `R.events.length = 0`.
 // Người chơi: ghi R.karts[i].input mỗi khung trước khi gọi step.
@@ -19,14 +20,15 @@
   function create(o) {
     var U = TD.TUNING;
     var T = TD.Track.get(o.trackId);
+    var mode = o.mode || (TD.MODES && TD.MODES.speed) || { id: 'speed' };
     var R = {
-      trackId: T.id, t: 0, phase: 'countdown', countdown: U.countdown, laps: o.laps || T.laps, karts: [], order: [], events: [],
+      trackId: T.id, mode: mode, t: 0, phase: 'countdown', countdown: U.countdown, laps: o.laps || mode.laps || T.laps, karts: [], order: [], events: [], items: null,
       seed: o.seed >>> 0, rng: TD.RNG(o.seed), T: T, goT: null, finishDeadline: null, finishGrace: o.finishGrace != null ? o.finishGrace : U.finishGrace,
       leaderProgress: 0, _acc: 0, _cdShown: Math.ceil(U.countdown) + 1, nFinished: 0,
     };
     var list = o.karts || [0, 1, 2, 3, 4, 5].map(function (i) { return { ctrl: 'bot' }; });
     list.forEach(function (ko, i) {
-      var k = TD.Kart.create({ id: ko.id != null ? ko.id : i, carId: ko.carId, driverId: ko.driverId, name: ko.name || ('Bot ' + (i + 1)), ctrl: ko.ctrl || 'bot' });
+      var k = TD.Kart.create({ id: ko.id != null ? ko.id : i, carId: ko.carId, driverId: ko.driverId, name: ko.name || ('Bot ' + (i + 1)), ctrl: ko.ctrl || 'bot', team: ko.team });
       var g = gridSlot(T, i);
       k.x = k.px = g.x; k.z = k.pz = g.z; k.yaw = k.vyaw = g.yaw;
       k.loc = TD.Track.locate(T, k.x, T.cps[T.startCp].y + 1, k.z, null);
@@ -37,6 +39,7 @@
       R.karts.push(k);
     });
     progressAll(R);
+    if (mode.items && TD.Items) R.items = TD.Items.init(R);
     return R;
   }
 
@@ -75,8 +78,9 @@
     if (k.lap === R.laps) ev(R, k, 'final_lap');
   }
 
+  // k.done giữ dấu đã về đích kể cả khi xe (bot lái tiếp sau vạch) bị hồi sinh làm k.st rời 'finish'.
   function finish(R, k, timeout) {
-    k.st = 'finish';
+    k.st = 'finish'; k.done = true;
     k.lap = Math.min(k.lap, R.laps);
     k.finishT = timeout ? null : R.t - R.goT;
     R.nFinished++;
@@ -91,7 +95,7 @@
   function progressAll(R) {
     var T = R.T, L = T.L;
     R.karts.forEach(function (k) {
-      if (k.st === 'finish') return;
+      if (k.done) return;
       var base = T.cps[k.lastCp].s, ds = (k.loc ? k.loc.s : base) - base;
       while (ds > L / 2) ds -= L;
       while (ds < -L / 2) ds += L;
@@ -115,7 +119,7 @@
       k.place = np;
     });
     R.order = ks.map(function (k) { return k.id; });
-    R.leaderProgress = ks.length ? Math.max.apply(null, ks.map(function (k) { return k.st === 'finish' ? -1e9 : k.progress; })) : 0;
+    R.leaderProgress = ks.length ? Math.max.apply(null, ks.map(function (k) { return k.done ? -1e9 : k.progress; })) : 0;
   }
 
   function collide(R) {
@@ -149,8 +153,9 @@
     }
   }
 
-  function respawn(R, k, why) {
-    var U = TD.TUNING, r = TD.Track.resetFor(R.T, k);
+  // pose = { x, y, z, yaw } đặt xe đúng chỗ (về điểm cờ); không có thì về điểm hồi sinh gần nhất của đường.
+  function respawn(R, k, why, pose) {
+    var U = TD.TUNING, r = pose || TD.Track.resetFor(R.T, k);
     k.x = k.px = r.x; k.z = k.pz = r.z; k.y = r.y; k.yaw = k.vyaw = r.yaw;
     k.loc = TD.Track.locate(R.T, k.x, k.y, k.z, null);
     k.y = k.loc.y;
@@ -158,6 +163,7 @@
     k.st = 'respawn'; k.respawnT = U.respawnFreeze; k.ghostT = U.ghostTime;
     k.drift.dir = 0; k.nitro.boostT = 0; k.nitro.miniT = 0; k.nitro.miniWindowT = 0;
     k.wrongT = 0; k.stuckT = 0;
+    k.fx.stunT = 0; k.fx.slowT = 0; k.fx.slowMul = 1; k.fx.kind = null;
     k.stats.respawns++;
     k._tele = true;
     if (k.bot) k.bot.li = -1;
@@ -215,6 +221,7 @@
       k.px = px; k.pz = pz;
     });
     collide(R);
+    if (R.items) TD.Items.step(R, h);
     R.karts.forEach(function (k) {
       if (k.st !== 'finish' && k.st !== 'respawn' && !k._tele) gates(R, k);
       k._tele = false;
@@ -223,7 +230,7 @@
     progressAll(R);
     rank(R);
     if (R.finishDeadline != null && R.phase !== 'done') {
-      var left = R.karts.filter(function (k) { return k.st !== 'finish'; });
+      var left = R.karts.filter(function (k) { return !k.done; });
       if (R.t >= R.finishDeadline) {
         left.sort(function (a, b) { return b.progress - a.progress; }).forEach(function (k) { finish(R, k, true); });
         left = [];

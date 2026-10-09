@@ -1,0 +1,83 @@
+scene Level_TROYpalace_Art.unity: bundle AssetBundles/4f/4fa5d5a99b2963a42b728e1caabe11b7
+bundles loaded: 52; unresolved externals: ['cab-0006cf558a2b2dfaba4f7ca666101a55', 'cab-0aa6a471fb33bc8ff259100b0c977344', 'cab-146ea372bf0a13e6a4ea63e4a3c5e6bf', 'cab-f3e172233fa19193a1a32d3ffe375ac8', 'unity default resources', 'unity_builtin_extra']
+lightmap 0: Level_TROYpalace_Art_LM1_final 512x512 fmt=51 colorSpace=1 rgb mean=0.260 max=1.000 alpha mean=1.000
+lightmap 1: Level_TROYpalace_Art_LMA1_final 512x512 fmt=51 colorSpace=1 rgb mean=0.150 max=1.000 alpha mean=1.000
+lightmapsMode=0 useShadowmask=False
+skip [skinned] /Artist/PVS/Low/E_TROYpalace@CDM/E_TROYpalace_CDM_01
+skip [skinned] /Artist/PVS/Low/E_TROYpalace@Sz01/E_TROYpalace_SZ_01
+skip [skinned] /Artist/PVS/Low/E_TROYpalace@ShiBing/E_TROYpalace_shibing_01
+skipped: skinned=3, inactive=4
+shader QF_Gamma/Env/Basic_Plant_Test: texture slots ['_MainTex', '_sssTex']
+shader QF_Gamma/Env/Basic_SkyBoxSwitch: texture slots ['_MainTex']
+shader QF_Gamma/Env/Transparent/Basic_AlphaBlend: texture slots ['_AlphaTex', '_MainTex']
+shader QF_Gamma/Env/Transparent/Basic_AlphaBlendScrollBG: texture slots ['_AlphaTex', '_BackGroundTex', '_MainTex']
+shader QF_Gamma/EnvStandard/EnvStandard: texture slots ['_AlphaTex', '_BaseMap', '_BumpMap', '_EmissionMap', '_ParamMap']
+  tex E_TROYpalace_St_01 256x256 -> 256x256 rgb 4 KB
+prim E_TROYpalace_St_01|lm1: QF_Gamma/EnvStandard/EnvStandard alpha=OPAQUE tris=929 verts=669 from ['E_TROYpalace_St_01']
+  tex E_TROYpalace_Wj_01 256x256 -> 256x256 rgb 7 KB
+prim E_TROYpalace_Wj_01|lm1: QF_Gamma/EnvStandard/EnvStandard alpha=OPAQUE tris=2025 verts=3562 from ['E_TROYpalace_Psc_01']
+  tex E_TROYpalace_Road_03 128x256 -> 128x256 rgb 1 KB
+prim E_TROYpalace_Road_03a|lm0: QF_Gamma/EnvStandard/EnvStandard alpha=OPAQUE tris=120 verts=240 from ['E_TROYpalace_Road_02']
+  tex E_TROYpalace_Jzm_01 256x256 -> 256x256 rgb 6 KB
+prim E_TROYpalace_Jzm_01|lm0: QF_Gamma/EnvStandard/EnvStandard alpha=OPAQUE tris=8782 verts=15631 from ['E_TROYpalace_Jzm_03', 'E_TROYpalace_Jzm_04']
+  tex E_TROYpalace_Wp_01 64x64 -> 64x64 rgb 0 KB
+prim E_TROYpalace_Wp_01|lm0: QF_Gamma/EnvStandard/EnvStandard alpha=OPAQUE tris=1572 verts=3269 from ['E_TROYpalace_Jzm_03', 'E_TROYpalace_Jzm_04', 'E_TROYpalace_Tsg_01']
+  tex E_TROYpalace_Lava_01_basecolor 256x256 -> 256x256 rgb 8 KB
+prim E_TROYpalace_Lava_01: QF_Gamma/EnvStandard/EnvStandard alpha=OPAQUE tris=111 verts=73 from ['E_TROYpalace_Yanjiang_01']
+  tex C_AddPSeed_D04 256x256 -> 256x256 rgba 45 KB
+prim C_AddPSeed_M06: QF_Gamma/Env/Transparent/Basic_AlphaBlendScrollBG alpha=BLEND tris=124 verts=111 from ['E_TROYpalace_Jsd_01']
+  tex E_TROYpalace_YJP_01 256x256 -> 256x256 rgba 17 KB
+prim E_TROYpalace_YJP_02: QF_Gamma/EnvStandard/EnvStandard alpha=MASK tris=2168 verts=4025 from ['E_TROYpalace_HZ_01', 'E_TROYpalace_Plant_02', 'E_TROYpalace_Plant_03', 'E_TROYpalace_Yjp_01']
+  tex E_TROYpalace_Road_01 1024x1024 -> 1024x1024 rgb 48 KB
+prim E_TROYpalace_Road_03|lm0: QF_Gamma/EnvStandard/EnvStandard alpha=OPAQUE tris=1002 verts=971 from ['E_TROYpalace_Road_01']
+  tex E_TROYpalace_Road_02 256x256 -> 256x256 rgb 2 KB
+prim E_TROYpalace_Road_02|lm0: QF_Gamma/EnvStandard/EnvStandard alpha=OPAQUE tris=351 verts=432 from ['E_TROYpalace_Road_01']
+  tex E_TROYpalace_Jzm_05 256x256 -> 256x256 rgb 6 KB
+prim E_TROYpalace_Jzm_05|lm1: QF_Gamma/EnvStandard/EnvStandard alpha=OPAQUE tris=4859 verts=7321 from ['E_TROYpalace_Jzm_05']
+  tex E_TROYpalace_Db_02 128x128 -> 128x128 rgb 0 KB
+prim E_TROYpalace_Db_02|lm1: QF_Gamma/EnvStandard/EnvStandard alpha=OPAQUE tris=88 verts=90 from ['E_TROYpalace_Jzm_05']
+  tex E_TROYpalace_Sky_01 256x256 -> 256x256 rgb 3 KB
+prim E_TROYpalace_Sky_01a|lm0: QF_Gamma/EnvStandard/EnvStandard alpha=OPAQUE tris=1658 verts=3322 from ['E_TROYpalace_Ny_02']
+  tex E_TROYpalace_Lujian_02 256x256 -> 256x256 rgb 4 KB
+prim E_TROYpalace_Lujian_02|lm0: QF_Gamma/EnvStandard/EnvStandard alpha=OPAQUE tris=1636 verts=2110 from ['E_TROYpalace_Yp_01']
+  tex E_TROYpalace_Lujian_01 256x256 -> 256x256 rgb 2 KB
+prim E_TROYpalace_Lujian_01|lm0: QF_Gamma/EnvStandard/EnvStandard alpha=OPAQUE tris=2454 verts=3871 from ['E_TROYpalace_Yp_01']
+  tex E_TROYpalace_Wj_02 256x256 -> 256x256 rgb 7 KB
+prim E_TROYpalace_Wj_03|lm1: QF_Gamma/EnvStandard/EnvStandard alpha=OPAQUE tris=5262 verts=9688 from ['E_TROYpalace_Wj_01']
+prim E_TROYpalace_Wj_02|lm1: QF_Gamma/EnvStandard/EnvStandard alpha=OPAQUE tris=1516 verts=1873 from ['E_TROYpalace_Wj_01']
+prim E_TROYpalace_Jzm_05|lm0: QF_Gamma/EnvStandard/EnvStandard alpha=OPAQUE tris=3303 verts=5934 from ['E_TROYpalace_Tsg_01']
+prim E_TROYpalace_Wj_01|lm0: QF_Gamma/EnvStandard/EnvStandard alpha=OPAQUE tris=12012 verts=23010 from ['E_TROYpalace_JzSn_01', 'E_TROYpalace_Psc_02']
+  tex E_TROYpalace_Diban_02 256x256 -> 256x256 rgb 1 KB
+prim E_TROYpalace_Diban_02|lm0: QF_Gamma/EnvStandard/EnvStandard alpha=OPAQUE tris=72 verts=88 from ['E_TROYpalace_JzSn_01']
+  tex E_TROYpalace_Diban_03 128x128 -> 128x128 rgb 0 KB
+prim E_TROYpalace_Diban_03|lm0: QF_Gamma/EnvStandard/EnvStandard alpha=OPAQUE tris=547 verts=928 from ['E_TROYpalace_JzSn_01', 'E_TROYpalace_Wall_01']
+  tex E_TROYpalace_Sky_01 256x256 -> 256x256 rgb 3 KB
+prim sky:E_TROYpalace_Sky_01: QF_Gamma/Env/Basic_SkyBoxSwitch alpha=OPAQUE tris=72 verts=68 from ['E_TROYpalace_Sky_01']
+  tex E_TROYpalace_Jzm_08 128x128 -> 128x128 rgb 0 KB
+prim E_TROYpalace_Jzm_08|lm0: QF_Gamma/EnvStandard/EnvStandard alpha=OPAQUE tris=65 verts=58 from ['E_TROYpalace_Jzm_07']
+  tex E_TROYpalace_Jzm_07 256x256 -> 256x256 rgb 4 KB
+prim E_TROYpalace_Jzm_07|lm0: QF_Gamma/EnvStandard/EnvStandard alpha=OPAQUE tris=546 verts=937 from ['E_TROYpalace_Jzm_07']
+prim E_TROYpalace_YJP_03: QF_Gamma/Env/Transparent/Basic_AlphaBlend alpha=MASK tris=36 verts=74 from ['E_TROYpalace_Light_02']
+  tex E_TROYpalace_CaiDdan_01 256x256 -> 256x256 rgb 5 KB
+prim E_TROYpalace_CaiDdan_01|lm0: QF_Gamma/EnvStandard/EnvStandard alpha=OPAQUE tris=1542 verts=2761 from ['E_TROYpalace_Jzm_06']
+prim E_TROYpalace_YJP_04: QF_Gamma/Env/Transparent/Basic_AlphaBlend alpha=MASK tris=60 verts=52 from ['E_TROYpalace_Light_03']
+  tex E_TROYpalace_Cd_01 128x128 -> 128x128 rgb 1 KB
+prim E_TROYpalace_Cd_01|lm0: QF_Gamma/EnvStandard/EnvStandard alpha=OPAQUE tris=170 verts=210 from ['E_TROYpalace_CD_01']
+prim E_TROYpalace_YJP_02|lm0: QF_Gamma/EnvStandard/EnvStandard alpha=MASK tris=504 verts=1008 from ['E_TROYpalace_Plant_01']
+prim E_TROYpalace_Lujian_02|lm1: QF_Gamma/EnvStandard/EnvStandard alpha=OPAQUE tris=403 verts=675 from ['E_TROYpalace_Db_01']
+prim E_TROYpalace_Lujian_01|lm1: QF_Gamma/EnvStandard/EnvStandard alpha=OPAQUE tris=3145 verts=5363 from ['E_TROYpalace_Db_01']
+  tex E_TROYpalace_CDM_02 256x256 -> 256x256 rgba 30 KB
+prim E_TROYpalace_CDM_02: QF_Gamma/EnvStandard/EnvStandard alpha=BLEND tris=624 verts=376 from ['E_TROYpalace_Dqy_01']
+prim E_TROYpalace_YJP_01: QF_Gamma/EnvStandard/EnvStandard alpha=BLEND tris=2229 verts=2441 from ['E_TROYpalace_GP_01', 'E_TROYpalace_Light_01']
+  tex E_TROYpalace_Db_05_basecolor 256x256 -> 256x256 rgb 5 KB
+prim E_TROYpalace_Db_05|lm1: QF_Gamma/EnvStandard/EnvStandard alpha=OPAQUE tris=99 verts=119 from ['E_TROYpalace_Db_01a']
+prim E_TROYpalace_Jzm_01|lm1: QF_Gamma/EnvStandard/EnvStandard alpha=OPAQUE tris=7345 verts=11666 from ['E_TROYpalace_Jzm_02']
+prim E_TROYpalace_Wp_01|lm1: QF_Gamma/EnvStandard/EnvStandard alpha=OPAQUE tris=1030 verts=1956 from ['E_TROYpalace_Jzm_02']
+prim E_TROYpalace_Diban_03|lm1: QF_Gamma/EnvStandard/EnvStandard alpha=OPAQUE tris=54 verts=60 from ['E_TROYpalace_Jzm_02']
+  tex E_TROYpalace_Diban_01 128x128 -> 128x128 rgb 0 KB
+prim E_TROYpalace_Diban_01|lm0: QF_Gamma/EnvStandard/EnvStandard alpha=OPAQUE tris=100 verts=189 from ['E_TROYpalace_Db_02']
+prim E_TROYpalace_Wj_03|lm0: QF_Gamma/EnvStandard/EnvStandard alpha=OPAQUE tris=3640 verts=5871 from ['E_TROYpalace_Ny_01']
+  tex Atlas_Color@RGBAC_01 256x256 -> 256x256 rgba 9 KB
+prim E_TROYpalace_Guanmu_02|lm0: QF_Gamma/Env/Basic_Plant_Test alpha=MASK tris=12276 verts=21318 from ['LOD0']
+lightmaps used by primitives: [0, 1]
+done: 40 primitives, 27 textures (0.24 MB webp), 2 lightmaps, folder 2.83 MB

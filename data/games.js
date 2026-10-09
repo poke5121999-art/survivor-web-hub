@@ -938,7 +938,7 @@ window.HUB_GAMES = [
     en: { title: "Top Speed", tagline: "Zing Speed on the web: drift for nitro, mini-boost out of every corner, 6-kart races.", desc: "Two-lap kart races against 5 bots on three original Zing Speed Mobile tracks: Eleven City, Troy and Chinatown. Drift to charge nitro. Release the drift and hit boost right away for a mini boost, hit it again for a dual boost. 8 karts and 2 animated drivers. Plays with keyboard or touch." },
     thumbnail: "assets/thumbnails/toc-do.png",
     path: "games/toc-do/index.html",
-    rev: "20261009b",
+    rev: "20261010a",
     // three.js r140 vendor trong games/toc-do/vendor, không bước build. Dựng lại Zing Speed Mobile 1.55.0.27413 (VNG, bản Việt
     // của QQ Speed Mobile) theo yêu cầu của chủ dự án ngày 2026-10-09, từ XAPK tải về ~/zingspeed-ref (ngoài git, 13.769 bundle
     // Unity 2019.4 không mã hoá). Đường đua (scene + lightmap), dữ liệu checkpoint và đường chuẩn của người chơi giỏi, xe kart,

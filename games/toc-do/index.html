@@ -5,8 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Tốc Độ</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='15' fill='%23103a7a'/><path d='M6 20l14-12-4 9h10L12 26l4-6z' fill='%23ffd23a'/></svg>">
-<link rel="stylesheet" href="css/game.css?v=20261009b">
-<link rel="stylesheet" href="css/finish.css?v=20261009b">
+<link rel="stylesheet" href="css/game.css?v=20261010a">
+<link rel="stylesheet" href="css/finish.css?v=20261010a">
+<link rel="stylesheet" href="css/lobby.css?v=20261010a">
+<link rel="stylesheet" href="css/garage.css?v=20261010a">
+<link rel="stylesheet" href="css/ranked.css?v=20261010a">
 </head>
 <body>
 <canvas id="gl"></canvas>
@@ -14,43 +17,53 @@
 <div id="ui"></div>
 <div id="boot">Đang tải…</div>
 
-<script>window.TD = { REV: '20261009b' };</script>
-<script src="vendor/three-r140.min.js?v=20261009b"></script>
-<script src="vendor/GLTFLoader-r140.js?v=20261009b"></script>
-<script src="vendor/meshopt_decoder.js?v=20261009b"></script>
+<script>window.TD = { REV: '20261010a' };</script>
+<script src="vendor/three-r140.min.js?v=20261010a"></script>
+<script src="vendor/GLTFLoader-r140.js?v=20261010a"></script>
+<script src="vendor/meshopt_decoder.js?v=20261010a"></script>
 
-<script src="data/tuning.js?v=20261009b"></script>
-<script src="data/tracks.js?v=20261009b"></script>
-<script src="data/campaths.js?v=20261009b"></script>
-<script src="data/cars.js?v=20261009b"></script>
-<script src="data/drivers.js?v=20261009b"></script>
-<script src="data/audio.js?v=20261009b"></script>
-<script src="data/fx.js?v=20261009b"></script>
-<script src="data/ui.js?v=20261009b"></script>
-<script src="data/ugui.js?v=20261009b"></script>
-<script src="../../js/session.js?v=20261009b"></script>
-<script src="../../js/supabase-config.js?v=20261009b"></script>
-<script src="../../js/supabase-auth.js?v=20261009b"></script>
-<script src="../../js/save-sync.js?v=20261009b"></script>
-<script src="js/core.js?v=20261009b"></script>
+<script src="data/tuning.js?v=20261010a"></script>
+<script src="data/tracks.js?v=20261010a"></script>
+<script src="data/campaths.js?v=20261010a"></script>
+<script src="data/cars.js?v=20261010a"></script>
+<script src="data/drivers.js?v=20261010a"></script>
+<script src="data/audio.js?v=20261010a"></script>
+<script src="data/fx.js?v=20261010a"></script>
+<script src="data/ui.js?v=20261010a"></script>
+<script src="data/ugui.js?v=20261010a"></script>
+<script src="data/items.js?v=20261010a"></script>
+<script src="../../js/session.js?v=20261010a"></script>
+<script src="../../js/supabase-config.js?v=20261010a"></script>
+<script src="../../js/supabase-auth.js?v=20261010a"></script>
+<script src="../../js/save-sync.js?v=20261010a"></script>
+<script src="js/core.js?v=20261010a"></script>
 
-<script src="js/sim/rng.js?v=20261009b"></script>
-<script src="js/sim/track.js?v=20261009b"></script>
-<script src="js/sim/kart.js?v=20261009b"></script>
-<script src="js/sim/bot.js?v=20261009b"></script>
-<script src="js/sim/race.js?v=20261009b"></script>
+<script src="js/sim/rng.js?v=20261010a"></script>
+<script src="js/sim/track.js?v=20261010a"></script>
+<script src="js/sim/kart.js?v=20261010a"></script>
+<script src="js/sim/bot.js?v=20261010a"></script>
+<script src="js/sim/modes.js?v=20261010a"></script>
+<script src="js/sim/rank.js?v=20261010a"></script>
+<script src="js/sim/items.js?v=20261010a"></script>
+<script src="js/sim/ghost.js?v=20261010a"></script>
+<script src="js/sim/race.js?v=20261010a"></script>
 
-<script src="js/ui/ugui.js?v=20261009b"></script>
-<script src="js/view/audio.js?v=20261009b"></script>
-<script src="js/view/postfx.js?v=20261009b"></script>
-<script src="js/view/camera.js?v=20261009b"></script>
-<script src="js/view/track.js?v=20261009b"></script>
-<script src="js/view/karts.js?v=20261009b"></script>
-<script src="js/view/fx.js?v=20261009b"></script>
-<script src="js/view/podium.js?v=20261009b"></script>
-<script src="js/input.js?v=20261009b"></script>
-<script src="js/ui/hud.js?v=20261009b"></script>
-<script src="js/ui/menu.js?v=20261009b"></script>
-<script src="js/main.js?v=20261009b"></script>
+<script src="js/ui/ugui.js?v=20261010a"></script>
+<script src="js/view/audio.js?v=20261010a"></script>
+<script src="js/view/postfx.js?v=20261010a"></script>
+<script src="js/view/camera.js?v=20261010a"></script>
+<script src="js/view/track.js?v=20261010a"></script>
+<script src="js/view/karts.js?v=20261010a"></script>
+<script src="js/view/fx.js?v=20261010a"></script>
+<script src="js/view/podium.js?v=20261010a"></script>
+<script src="js/view/items.js?v=20261010a"></script>
+<script src="js/view/practice.js?v=20261010a"></script>
+<script src="js/input.js?v=20261010a"></script>
+<script src="js/ui/hud.js?v=20261010a"></script>
+<script src="js/ui/menu.js?v=20261010a"></script>
+<script src="js/ui/lobby.js?v=20261010a"></script>
+<script src="js/ui/garage.js?v=20261010a"></script>
+<script src="js/ui/ranked.js?v=20261010a"></script>
+<script src="js/main.js?v=20261010a"></script>
 </body>
 </html>

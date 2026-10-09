@@ -14,7 +14,10 @@ import zs, UnityPy  # noqa: E402
 OUT = os.path.join(HERE, '..', 'data', 'tracks.js')
 
 # Tên hiển thị: tìm trong Localization_VN_Base ("Thành Phố 11"); Troy giữ tên gốc; Phố Tàu là tên chọn.
-NAMES = {'11citynew': 'Thành Phố 11', 'troycity': 'Thành Troy', 'chinatown': 'Phố Tàu'}
+# Các tên sau Phố Tàu: Localization_VN_Base không có tên đường (đã tìm theo chữ Hán) → chọn, dịch nghĩa tên thư mục map.
+NAMES = {'11citynew': 'Thành Phố 11', 'troycity': 'Thành Troy', 'chinatown': 'Phố Tàu',
+         'winterolympic01': 'Thế Vận Hội Mùa Đông', 'xintianebao': 'Lâu Đài Thiên Nga Mới',
+         'troypalace': 'Cung Điện Troy'}
 LINE_STEP = 3.0  # m, giãn đường chạy chuẩn (gốc ~1 m)
 
 
@@ -26,9 +29,11 @@ def P(p):
     return r3(p['x']), r3(p['y']), r3(-p['z'])
 
 
-def load_mb(query, name):
+def load_mb(query, name, optional=False):
     rs = zs.find(query)
     if not rs:
+        if optional:
+            return None
         sys.exit('bundle not found: ' + query)
     env = UnityPy.load(os.path.join(zs.IFS, rs[0]['f']))
     for o in env.objects:
@@ -40,6 +45,8 @@ def load_mb(query, name):
             n = None
         if n == name:
             return o.read_typetree()
+    if optional:
+        return None
     sys.exit('asset %s not found in %s' % (name, rs[0]['f']))
 
 
@@ -126,7 +133,14 @@ def export(env_name, tid):
         laps = max(1, min(3, round(150 * 55 / cfg['MainCurveLength'])))
         laps_src = 'chọn: MainCurveLength %.0f m' % cfg['MainCurveLength']
 
-    return {
+    # Hàng hộp đạo cụ: propspointconfig chỉ có ở một số map (59/165); không có thì nhánh đạo cụ tự rải.
+    boxes = None
+    pp = load_mb('/' + env_name.lower() + '/model/pick/propspointconfig', 'PropsPointConfig', optional=True)
+    if pp and pp['Rows']:
+        boxes = [{'s': r3(r['TrackDistance']), 'pts': [list(P(q['Position'])) for q in r['Points']]}
+                 for r in sorted(pp['Rows'], key=lambda r: r['TrackDistance'])]
+
+    out = {
         'id': tid, 'name': NAMES.get(tid, tid.capitalize()), 'mapId': mid, 'env': env_name.lower(),
         'laps': laps, 'lapsSrc': laps_src, 'gravity': r3(g), 'length': r3(cfg['MainCurveLength']),
         'art': 'art/tracks/%s/track.glb' % tid,
@@ -135,6 +149,9 @@ def export(env_name, tid):
         'start': {'x': sx, 'y': sy, 'z': sz, 'fx': r3(sf['x']), 'fy': r3(sf['y']), 'fz': r3(-sf['z'])},
         'line': line,
     }
+    if boxes:
+        out['boxes'] = boxes
+    return out
 
 
 def main():
@@ -154,6 +171,7 @@ def main():
     print('%s: %d pts, %d cps, %d resets, line %s, laps %d (%s), name %s' % (
         t['id'], len(t['pts']['x']), len(t['cps']), len(t['resets']),
         len(t['line']['x']) if t['line'] else 0, t['laps'], t['lapsSrc'], t['name']))
+    print('  boxes: %s' % ('%d hàng' % len(t['boxes']) if 'boxes' in t else 'không có propspointconfig'))
 
 
 if __name__ == '__main__':

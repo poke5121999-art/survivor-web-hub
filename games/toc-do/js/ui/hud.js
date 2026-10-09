@@ -5,7 +5,7 @@
 // Trên máy tính (không cảm ứng) ẩn cụm nút, giữ đồng hồ tốc độ, thanh nitro, hạng, vòng, bản đồ nhỏ.
 (function (TD) {
   'use strict';
-  const H = { inst: null, cd: null, finish: null, canvas: null, ctx: null, w: 0, h: 0, dpr: 1, touch: false, mm: null, lay: null };
+  const H = { over: {}, inst: null, cd: null, finish: null, canvas: null, ctx: null, w: 0, h: 0, dpr: 1, touch: false, mm: null, lay: null };
   const SN = 'DynamicUI/AnchorButtom/IG_SigleSpeedNitrogen/';
   const MM = 'StaticUI/AnchorTopRight/Offset/IG_MiniMapContainer/';
   const TL = 'HalfDyanamicUI/HangingView/AnchorTopLeft/';
@@ -37,6 +37,7 @@
     MM + 'LimitRallyRoot'];
 
   function q(p) { return H.inst && H.inst.q(p); }
+  H.q = q;
   function setOff(p, off) { const n = q(p); if (n) n.off = off; }
 
   // Bảng xếp hạng sống góc trên trái: dựng sẵn 8 hàng `rankitem` + 1 hàng `myrankitem` rồi mỗi khung gán theo hạng.
@@ -56,6 +57,7 @@
     H.rows = []; for (let i = 0; i < 8; i++) H.rows.push(mk('rankitem'));
     H.myRow = mk('myrankitem');
   }
+  const TEAM_TINT = [[1, .45, .42], [.45, .72, 1]];   // Đội Đỏ / Đội Xanh (TD.TEAMS)
   const TINT = [[1, .62, .55], [.6, .85, 1], [.7, 1, .65], [1, .9, .5], [.85, .7, 1], [1, .75, .9], [.75, 1, 1], [1, .85, .7]];
   function updateRankList(race, me) {
     if (!H.rows) return;
@@ -68,12 +70,12 @@
       if (!r) continue;
       const h = mine ? MY_H : ROW_H;
       r.n.off = 0; r.n.p = [mine ? 34 : 42, -(y + h / 2)]; y += h;
-      if (r.bg && r.bg.img) r.bg.img.c = mine ? [0.12, 0.44, 0.97, 0.78] : [0.03, 0.05, 0.1, 0.5];
+      if (r.bg && r.bg.img) r.bg.img.c = mine ? [0.12, 0.44, 0.97, 0.78] : k.team === 0 ? [0.45, 0.06, 0.06, 0.6] : k.team === 1 ? [0.05, 0.18, 0.45, 0.6] : [0.03, 0.05, 0.1, 0.5];
       if (r.name && r.name.txt) { r.name.off = 0; r.name.txt.s = k.name; if (!mine) r.name.txt.fs = 18; }
       if (r.head) {
         r.head.off = 0;
         const t = r.head.k && r.head.k[0];
-        if (t && t.img) t.img.c = (mine ? [1, 1, 1] : TINT[k.id % TINT.length]).concat(1);
+        if (t && t.img) t.img.c = (mine ? [1, 1, 1] : k.team != null ? TEAM_TINT[k.team] : TINT[k.id % TINT.length]).concat(1);
       }
     }
   }
@@ -102,7 +104,7 @@
     const run = race.goT != null;
     const t = k.finishT != null ? k.finishT : run ? race.t - race.goT : 0;
     if (T.big) T.big.txt.s = fmt(t);
-    const best = TD.save && TD.save.d.best[race.trackId];
+    const best = H.over.rec ? H.over.rec(race) : TD.save && TD.save.d.best[race.trackId];
     if (T.rec) T.rec.txt.s = fmt(best);
     if (T.lap) T.lap.txt.s = fmt(k.lapStartT != null && k.finishT == null ? race.t - k.lapStartT : run ? t : 0);
   }
@@ -194,6 +196,8 @@
       const w = Math.max(44, r.w), h = Math.max(44, r.h);
       out.push({ id, x: r.x - (w - r.w) / 2, y: r.y - (h - r.h) / 2, w, h });
     }
+    // Nút của plugin (ô đạo cụ, cờ luyện tập): mỗi plugin trả [{ id, x, y, w, h }] theo pixel CSS.
+    for (const p of TD.racePlugins || []) if (p.rects) { try { out.push(...p.rects(H)); } catch (e) { console.error(e); } }
     return out;
   };
 
@@ -221,6 +225,8 @@
     buildMinimap(race.T);
     const tot = q(MM + 'Turns/FGLap/Label_Nums'); if (tot && tot.txt) tot.txt.s = String(race.laps);
     H.lastCd = null; H.goT = 0; H.lab = null;
+    // Plugin ghi đè được: over.rec(race) → thời gian "Kỷ lục" riêng (vd vòng nhanh nhất luyện tập). Dọn mỗi trận.
+    H.over = {};
   };
 
   H.update = function (race, k, dt) {
@@ -279,6 +285,7 @@
     g.setTransform(H.dpr, 0, 0, H.dpr, 0, 0);
     H.inst.draw(g, H.w, H.h);
     drawStatus(g);
+    if (TD.main && TD.main.plug) TD.main.plug('draw', g, H);
     // bản đồ nhỏ vào ô MiniMapTexture
     const r = H.inst.rectOf(MM + 'MiniMapRoot/MiniMapTexture', H.w, H.h);
     if (r && H.mm) {

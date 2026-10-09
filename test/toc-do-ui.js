@@ -11,9 +11,13 @@ async function lobby(page) {
   await page.waitForFunction(() => window.TD && TD.main && TD.main.state === 'lobby', null, { timeout: 60000 });
   await page.waitForTimeout(800);
 }
-async function toRace(page, track) {
+// Sảnh → Xuất Phát → Tốc Độ-Đơn → Ghép phòng (đợi ghép đủ người) → trận. Đường đặt thẳng vào bản lưu trước khi mở màn chọn.
+async function toRace(page, track, touch) {
+  const tap = (s) => (touch ? page.tap(s) : page.click(s));
   await page.evaluate((t) => { TD.save.d.track = t; }, track);
-  await page.click('.go');
+  if (!(await page.$('.lb-pick'))) await tap('[data-act="start"]');
+  await tap('[data-mode="speed"]');
+  await tap('.lb-go');
   await page.waitForFunction(() => TD.main.state === 'race', null, { timeout: 120000 });
 }
 const kart = (page) => page.evaluate(() => { const k = TD.main.me, R = TD.main.race;
@@ -32,12 +36,12 @@ async function desktop(br, base) {
   console.log('1366×650, phím');
   const { page, problems } = await T.open(br, base, 'index.html', { width: 1366, height: 650 });
   await lobby(page);
-  T.check('sảnh hiện 8 xe, 3 đường đua', await page.evaluate(() => document.querySelectorAll('.card').length === 8 && Object.keys(TD.TRACKS).length === 3));
-  await page.click('.card[data-car="55"]');
-  T.check('bấm thẻ xe đổi xe đang chọn', await page.evaluate(() => TD.save.d.car === '55'));
-  await page.click('.arrow[data-track="1"]');
-  T.check('mũi tên đổi đường đua', await page.evaluate(() => TD.save.d.track !== '11citynew'));
+  T.check('sảnh hiện 5 ô chế độ và thanh dưới', await page.evaluate(() => document.querySelectorAll('.lb-home .lb-tile').length === 5 && document.querySelectorAll('.lb-bar .lb-bt').length === 5));
   await T.shot(page, 'ui-lobby-1366');
+  await page.click('[data-act="start"]');
+  T.check('Xuất Phát mở chọn chế độ với ô chọn mọi đường', await page.evaluate(() => document.querySelectorAll('.lb-th').length === Object.keys(TD.TRACKS).length));
+  await page.click('.lb-th:not(.on)');
+  T.check('bấm ô đường đổi đường đua', await page.evaluate(() => TD.save.d.track !== '11citynew'));
   await toRace(page, '11citynew');
   T.check('vào trận với 6 xe đã nạp xong', await page.evaluate(() => TD.main.views.length === 6 && TD.main.views.every((v) => v.ready)));
   await waitGo(page);
@@ -75,10 +79,9 @@ async function phone(br, base) {
   const { page, problems } = await T.open(br, base, 'index.html', { width: 844, height: 390 }, { hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
   await lobby(page);
   await T.shot(page, 'ui-lobby-844');
-  const over = await page.evaluate(() => [...document.querySelectorAll('.lobby button:not(.card)')].filter((b) => { const r = b.getBoundingClientRect(); return r.right > innerWidth + 1 || r.bottom > innerHeight + 1 || Math.min(r.width, r.height) < 30; }).map((b) => b.className + ' ' + Math.round(b.getBoundingClientRect().width) + 'x' + Math.round(b.getBoundingClientRect().height)));
+  const over = await page.evaluate(() => [...document.querySelectorAll('.lb-home button')].filter((b) => { const r = b.getBoundingClientRect(); return r.right > innerWidth + 1 || r.bottom > innerHeight + 1 || Math.min(r.width, r.height) < 30; }).map((b) => b.className + ' ' + Math.round(b.getBoundingClientRect().width) + 'x' + Math.round(b.getBoundingClientRect().height)));
   T.check('nút sảnh nằm trong màn và không quá nhỏ', over.length === 0, over.join(', '));
-  await page.tap('.go');
-  await page.waitForFunction(() => TD.main.state === 'race', null, { timeout: 120000 });
+  await toRace(page, '11citynew', true);
   await waitGo(page);
   const rects = await page.evaluate(() => TD.hud.rects());
   const ids = new Set(rects.map((r) => r.id));

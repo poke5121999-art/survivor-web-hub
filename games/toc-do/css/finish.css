@@ -104,3 +104,19 @@
   .fin-card { gap: 2px; }
   .fin-strip { bottom: 6%; }
 }
+
+/* Đua đội: hàng của Đội Đỏ / Đội Xanh có vạch màu bên trái; tiêu đề ghi điểm hai đội. */
+.result .row.team0 { box-shadow: inset 5px 0 0 #ff4b4b; }
+.result .row.team1 { box-shadow: inset 5px 0 0 #3c9bff; }
+.fin-team i { font-style: normal; font-weight: 700; }
+.fin-team i.team0 { color: #ff7a7a; }
+.fin-team i.team1 { color: #7fc0ff; }
+
+/* Nhiều thẻ thưởng (XP, xu, sao xếp hạng, nhiệm vụ, thành tựu, bóng kỷ lục): xuống dòng giữa màn thay vì tràn ngang. */
+.fin-cards { flex-wrap: wrap; justify-content: center; max-width: 96vw; }
+.fin-cards:has(.fin-card:nth-child(4)) .fin-card { width: clamp(140px, 21vw, 230px); }
+@media (max-height: 460px) {
+  .fin-cardlayer { justify-content: flex-start; overflow-y: auto; padding: 6px 0 10px; }
+  .fin-cards:has(.fin-card:nth-child(4)) .fin-card { width: clamp(130px, 22vw, 190px); padding: 6px 8px; }
+  .fin-congrats { font-size: 28px; }
+}

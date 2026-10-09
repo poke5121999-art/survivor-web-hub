@@ -6,6 +6,7 @@
 (function (G) {
   var TD = G.TD = G.TD || {};
   var D2R = Math.PI / 180;
+  var NOINPUT = { steer: 0, throttle: 0, brake: 0, drift: false, nitro: false };
 
   function curve(c, x) {
     if (x <= c[0][0]) return c[0][1];
@@ -37,6 +38,7 @@
       handling: 0.94 + 0.12 * norm01(s.handling),                   // chọn: ±6% tốc độ quay
       drift: 0.9 + 0.2 * norm01(s.drift),                           // chọn: ±10% nạp bình khi drift
       nitro: 0.97 + 0.06 * norm01(s.nitro),                         // chọn: ±3% trần nitro
+      mini: 1,                                                      // sức mạnh phun nhỏ; kỹ năng Mini Boost (js/ui/garage.js) nâng
     };
   }
 
@@ -52,6 +54,10 @@
       p: carParams(o.carId), topScale: 1, compKmh: 0, compAcc: 0,
       vyaw: 0, ghostT: 0, respawnT: 0, airT: 0, wallCool: 0, wrongT: 0, stuckT: 0, loc: null,
       miniKmh: 0, miniDur: 0, chain: 0, chainT: 0, _nitroPrev: false, _thrPrev: false, _thrPressT: -1e9, _airEv: false,
+      team: o.team != null ? o.team : null,
+      // Hiệu ứng từ ngoài (đạo cụ): stunT = mất lái và hãm theo decay (1/s), kind cho lớp vẽ biết kiểu (spin, lift, squash...);
+      // slowT/slowMul = nhân trần tốc độ. Ai gây hiệu ứng thì đặt các trường này, kart.step chỉ thi hành.
+      fx: { stunT: 0, kind: null, decay: 3, slowT: 0, slowMul: 1 },
     };
     return k;
   }
@@ -66,7 +72,7 @@
     var U = TD.TUNING;
     var coef = U.stackCoef[Math.min(k.chain, U.stackCoef.length - 1)];
     k.chain++; k.chainT = 2.5;
-    var add = kmh * coef;
+    var add = kmh * coef * (k.p.mini || 1);
     k.miniKmh = Math.max(k.miniKmh * (k.nitro.miniT / (k.miniDur || 1)), 0) + add;
     k.nitro.miniT = k.miniDur = dur;
     k.speed = Math.max(k.speed, Math.min(k.speed + add / 3.6 * U.miniKick, k.p.top * k.topScale * U.nitroMul));
@@ -94,11 +100,14 @@
     if (k.st === 'respawn') {
       k.respawnT -= dt;
       k.speed = 0; k.vx = k.vz = 0; k.vy = 0;
-      if (k.respawnT <= 0) k.st = 'drive';
+      if (k.respawnT <= 0) k.st = k.done ? 'finish' : 'drive';
       k._nitroPrev = inp.nitro;
       return;
     }
-    var top = p.top * k.topScale + k.compKmh / 3.6;
+    var fx = k.fx, stun = fx.stunT > 0;
+    if (stun) { fx.stunT -= dt; if (fx.stunT <= 0) { fx.stunT = 0; fx.kind = null; } inp = NOINPUT; }
+    if (fx.slowT > 0) { fx.slowT -= dt; if (fx.slowT <= 0) { fx.slowT = 0; fx.slowMul = 1; } }
+    var top = (p.top * k.topScale + k.compKmh / 3.6) * (fx.slowT > 0 ? fx.slowMul : 1);
     var nitroPress = inp.nitro && !k._nitroPrev;
     k._nitroPrev = inp.nitro;
 
@@ -142,7 +151,8 @@
       ev(R, k, 'drift_start', { dir: k.drift.dir });
     }
     var drifting = k.st === 'drift';
-    if (drifting && (!inp.drift)) { endDrift(R, k, 'release'); drifting = false; }
+    if (drifting && stun) { endDrift(R, k, 'hit'); drifting = false; }
+    else if (drifting && (!inp.drift)) { endDrift(R, k, 'release'); drifting = false; }
     else if (drifting && (kmh < U.driftMinKmh * 0.6 || !k.grounded)) { endDrift(R, k, 'slow'); drifting = false; }
 
     // --- dọc ---
@@ -168,6 +178,7 @@
     if (ns > cap) ns = Math.max(cap, ns - U.overTopKmhS / 3.6 * dt);
     if (spd > 0 && ns < 0 && !(inp.brake > 0)) ns = 0;
     if (spd < 0 && ns > 0) ns = 0;
+    if (stun) ns = spd * Math.exp(-fx.decay * dt);
     spd = ns; v = Math.abs(spd); kmh = v * 3.6;
 
     // --- quay ---
