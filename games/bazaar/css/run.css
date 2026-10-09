@@ -4,7 +4,6 @@
   --pn-shop: #d8c626; --pn-shop-d: #8a661e; --pn-event: #23aebb; --pn-event-d: #0d5f6a; --pn-fight: #c2361a; --pn-fight-d: #6e1406;
   --pn-ped: #8f4fd6; --pn-ped-d: #3a1458; --xp: #63ceec; --panel: #2a1e12; --panel2: #362a12;
 }
-#bz-stage.m-run { background: #1a0f08; }
 .rs-btn { font: inherit; border: 0; cursor: pointer; }
 
 /* ---------- ẩn/hiện theo chế độ ---------- */
@@ -90,18 +89,12 @@
 .m-run.stash-open .rs-cards .bz-card.top, .m-run.stash-open .rs-hint, .m-run.stash-open .rs-choices { opacity: 0; pointer-events: none; transition: opacity .3s; }
 
 /* ---------- màu dải theo loại màn (clip: thương nhân = dải tím viền vàng; sự kiện = băng-rôn kem; loot = khung vàng neon; bệ = ngọc lam; bàn tay = thảm xanh ngọc) ---------- */
-.m-run.lane-merchant .bz-board.top { background: linear-gradient(180deg, #54397f, #7656ab 45%, #54397f);
-  box-shadow: inset 0 0 0 2px #3b2466, inset 0 0 26px rgba(30,10,60,.6), 0 0 0 3px #b8873a, 0 0 0 5px #f0cf7a; }
-.m-run.lane-event .bz-board.top { background: linear-gradient(180deg, #d9cc9a, #efe3b4 45%, #d9cc9a);
-  box-shadow: inset 0 0 0 2px #8a7a3a, inset 0 0 26px rgba(120,90,20,.35), 0 0 0 3px #6d9a3a, 0 0 0 5px #e8d27a; }
-.m-run.lane-loot .bz-board.top { background: linear-gradient(180deg, #2f3320, #3d3f26 45%, #2f3320);
-  box-shadow: inset 0 0 26px rgba(0,0,0,.7), 0 0 0 3px #f5d021, 0 0 22px rgba(255,214,60,.75); }
-.m-run.lane-pedestal .bz-board.top { background: linear-gradient(180deg, #17566a, #2a8ba3 45%, #17566a);
-  box-shadow: inset 0 0 26px rgba(0,30,50,.6), 0 0 0 3px #49c4ff, 0 0 18px rgba(73,196,255,.6); }
-.m-run:not(.m-fight) .bz-board.bot { background: linear-gradient(180deg, #4f9a8e, #7cc1b4 45%, #4f9a8e);
-  box-shadow: inset 0 0 0 2px #2a6b64, inset 0 0 26px rgba(10,60,56,.55), 0 0 0 3px #7c4a24, 0 0 0 5px #caa064; }
+.m-run.lane-merchant .bz-board.top { background: rgba(96,62,150,.34); box-shadow: inset 0 0 0 2px rgba(240,207,122,.55), inset 0 0 26px rgba(30,10,60,.35); }
+.m-run.lane-event .bz-board.top { background: rgba(236,224,170,.30); box-shadow: inset 0 0 0 2px rgba(232,210,122,.6), inset 0 0 26px rgba(120,90,20,.2); }
+.m-run.lane-loot .bz-board.top { background: rgba(40,44,24,.38); box-shadow: inset 0 0 0 2px rgba(245,208,33,.75), 0 0 18px rgba(255,214,60,.5); }
+.m-run.lane-pedestal .bz-board.top { background: rgba(24,120,150,.34); box-shadow: inset 0 0 0 2px rgba(73,196,255,.7), 0 0 16px rgba(73,196,255,.45); }
+.m-run:not(.m-fight) .bz-board.bot { background: rgba(70,160,146,.24); box-shadow: inset 0 0 0 1px rgba(200,255,240,.3), inset 0 0 22px rgba(10,60,56,.25); }
 .m-run:not(.m-fight) .rs-sock.locked { background: repeating-linear-gradient(135deg, rgba(40,52,24,.55) 0 10px, rgba(30,40,16,.42) 10px 20px); box-shadow: inset 0 0 0 1px rgba(20,30,10,.55); }
-.rs-map.levelup { box-shadow: 0 18px 50px rgba(20,8,0,.6), inset 0 0 0 6px #6d3f1d, inset 0 0 0 9px #f5d021, inset 0 0 90px rgba(80,40,5,.7), 0 0 24px rgba(245,208,33,.6); }
 
 /* ---------- vùng bán ---------- */
 .rs-sellzone { position: absolute; left: 392px; top: 300px; width: 1136px; height: 242px; border-radius: 10px; pointer-events: none; opacity: 0;
@@ -200,9 +193,12 @@
 /* ---------- vùng trên: bản đồ, khung gặp gỡ ---------- */
 .rs-top { position: absolute; inset: 0; pointer-events: none; }
 .rs-top > * { pointer-events: auto; }
-.rs-map { position: absolute; left: 378px; top: 74px; width: 1164px; height: 466px; border-radius: 26px; overflow: hidden; background-size: 512px 512px;
-  box-shadow: 0 18px 50px rgba(20,8,0,.6), inset 0 0 0 6px #6d3f1d, inset 0 0 0 9px #e0b25a, inset 0 0 90px rgba(80,40,5,.7); animation: rs-fade .35s ease-out; }
-.rs-map .lines { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* tấm phủ vùng trên: không còn giấy bản đồ có khung, chỉ vệt tối mềm để khung gặp gỡ/chữ nổi lên trên ảnh bàn */
+.rs-map { position: absolute; left: 392px; top: 120px; width: 1136px; height: 425px; border-radius: 40px; overflow: hidden; pointer-events: none;
+  background: radial-gradient(ellipse 62% 62% at 50% 50%, rgba(28,16,6,.58), rgba(28,16,6,.30) 62%, rgba(28,16,6,0) 100%); animation: rs-fade .35s ease-out; }
+.rs-map { background-image: radial-gradient(ellipse 62% 62% at 50% 50%, rgba(28,16,6,.58), rgba(28,16,6,.30) 62%, rgba(28,16,6,0) 100%) !important; }
+.rs-map.carpet, .rs-map.levelup, .rs-map.fates { background-image: none !important; }
+.rs-map .lines, .rs-map .ray { display: none; }
 .rs-map .ray { position: absolute; left: -10%; top: -40%; width: 60%; height: 180%; transform: rotate(-28deg); pointer-events: none;
   background: linear-gradient(90deg, transparent, rgba(255,240,190,.20), transparent); animation: rs-ray 7s ease-in-out infinite alternate; }
 @keyframes rs-ray { from { opacity: .5; } to { opacity: 1; transform: rotate(-24deg); } }
@@ -210,9 +206,9 @@
   background-image: radial-gradient(circle, #ffd76a 0 1.5px, transparent 2.5px), radial-gradient(circle, #ffe9a8 0 1px, transparent 2px);
   background-size: 140px 120px, 90px 150px; background-position: 0 0, 40px 60px; animation: rs-dust 14s linear infinite; }
 @keyframes rs-dust { to { background-position: 140px -240px, 130px -300px; } }
-.rs-map.carpet { background: radial-gradient(ellipse at 50% 60%, #2f6a3a, #183a20 80%); }
+.rs-map.carpet { background: radial-gradient(ellipse 62% 62% at 50% 50%, rgba(20,50,28,.62), rgba(20,50,28,.3) 62%, rgba(20,50,28,0) 100%); }
 .rs-map.carpet .lines { opacity: .2; }
-.rs-map.levelup { background-color: #2a2f4a; background-blend-mode: multiply; }
+.rs-map.levelup { background: radial-gradient(ellipse 62% 62% at 50% 50%, rgba(30,40,80,.62), rgba(30,40,80,.3) 62%, rgba(30,40,80,0) 100%); }
 .rs-map-title { position: absolute; left: 28px; bottom: 18px; max-width: 470px; pointer-events: none; }
 .rs-map.carpet .rs-map-title { left: 0; right: 0; top: 18px; bottom: auto; text-align: center; }
 .rs-map-title h2 { margin: 0; font: 900 40px/1 var(--f-title); color: #fbe1b7; text-shadow: 0 3px 0 #4a2208, 0 0 18px rgba(0,0,0,.6); }
@@ -594,5 +590,5 @@
 @keyframes rs-portal { 0% { transform: scale(.1) rotate(0); opacity: 0; } 25% { opacity: 1; } 100% { transform: scale(7.5, 2.6) rotate(120deg); opacity: 0; } }
 /* Số phận */
 .rs-fates-dim { position: absolute; inset: 0; z-index: 4; pointer-events: none; background: radial-gradient(ellipse at 50% 40%, rgba(20,6,30,.55), rgba(4,0,10,.88)); animation: rs-fade 1s ease-out; }
-.rs-map.fates { background: radial-gradient(ellipse at 50% 40%, #3a1a52, #12061e 80%); }
+.rs-map.fates { background: radial-gradient(ellipse 62% 62% at 50% 50%, rgba(58,26,82,.7), rgba(18,6,30,.4) 62%, rgba(18,6,30,0) 100%); }
 .rs-map.fates .rs-map-title h2 { color: #f1c8ff; text-shadow: 0 3px 0 #2a0a48, 0 0 30px rgba(190,90,255,.8); }

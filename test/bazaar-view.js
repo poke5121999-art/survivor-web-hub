@@ -134,7 +134,8 @@ async function desktop(browser, base) {
   // băng-rôn giữ ~1,5 s (clip heZSYG0dD_c ?t=1828) rồi mờ đi: cuối trận (3,2 s sau) đã không còn hiện
   const bEnd = await bannerOf();
   check('băng-rôn kết quả đã mờ sau thời gian giữ (~1,5 s), không treo tới hết trận', !/show/.test(bEnd.cls), bEnd.cls + ' op=' + bEnd.op);
-  await page.evaluate(ms => window.BZ_DEBUG.seek(ms), end + 350 + 750 + 100); // phát 3×: 150 ms thật = 450 ms trận
+  // Dừng phát rồi mới tua: trước đây tua xong chờ 150 ms ở 3×, máy chậm (chạy trên Pages) trôi quá 1,5 s giữ → trượt chập chờn
+  await page.evaluate(ms => { window.BZReplay.pause(true); window.BZ_DEBUG.seek(ms); }, end + 350 + 750 + 100);
   await sleep(150);
   const banner = await bannerOf();
   check('băng-rôn kết quả "' + want + '" đang hiện giữa thời gian giữ', banner.h === want && /show/.test(banner.cls), banner.h + ' ' + banner.cls + ' op=' + banner.op);

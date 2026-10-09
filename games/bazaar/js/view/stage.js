@@ -21,12 +21,9 @@
     R.root = host;
     var st = R.stage = el('div', '', host); st.id = 'bz-stage';
     var wd = R.world = el('div', '', st); wd.id = 'bz-world';
-    el('div', 'bz-bg', wd);
-    el('div', 'bz-canal l', wd); el('div', 'bz-canal r', wd);
-    el('div', 'bz-canal-rim l', wd); el('div', 'bz-canal-rim r', wd);
-    // sân gạch + cây chậu + bụi cây bên bờ nước: dựng lại cảnh 3D gốc bằng ảnh phẳng nhẹ (art/env, tools không đụng) [ĐỀ XUẤT]
-    ['bz-shrub r', 'bz-shrub l', 'bz-plant tl', 'bz-plant tr', 'bz-plant bl', 'bz-plant br'].forEach(function (c) { el('div', c, wd); });
-    el('div', 'bz-table', wd);
+    // nền sân = ảnh bàn gốc (art/env, data/env.js) theo hero; ảnh đã có thảm, kênh nước, bệ hero, đồ trang trí
+    R.bg = el('div', 'bz-bg', wd);
+    V.setEnv(null);
     R.boards = [el('div', 'bz-board bot', wd), el('div', 'bz-board top', wd)];
     R.cardLayer = el('div', '', wd); R.cardLayer.style.cssText = 'position:absolute;inset:0;';
     R.sides = [];
@@ -58,6 +55,13 @@
     root.addEventListener('resize', V.fit);
     root.addEventListener('orientationchange', function () { setTimeout(V.fit, 120); });
     return R;
+  };
+  // setEnv(hero): chọn ảnh bàn theo hero (BZ_ENV.byHero), không có thì bàn mặc định (defaultKey)
+  V.setEnv = function (hero) {
+    var E = root.BZ_ENV, key = E && ((hero && E.byHero && E.byHero[hero]) || E.defaultKey), d = E && (E[key] || E[E.defaultKey]);
+    if (!d || !R.bg || V.envKey === key) return;
+    V.envKey = key; V.env = d;
+    R.bg.style.backgroundImage = 'url("' + d.src + REV() + '")';
   };
   V.fit = function () {
     var w = root.innerWidth, h = root.innerHeight, s = Math.min(w / W, h / H);
@@ -106,6 +110,7 @@
   // info: {name, level, tier, char, bg, skills:[{uid,id,tier,art}], rewards:{gold,xp}}
   V.setupHero = function (side, info) {
     var hero = R.heroes[side];
+    if (side === 0) V.setEnv(info.name); // bên dưới là hero thì lấy bàn của hero, không thì bàn mặc định
     hero.innerHTML = '';
     var pf = el('div', 'bz-portrait', hero);
     var F = root.BZ_FRAMES && root.BZ_FRAMES.encounter && root.BZ_FRAMES.encounter[info.tier || 'Bronze'];
