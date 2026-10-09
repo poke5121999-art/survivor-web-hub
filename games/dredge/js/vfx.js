@@ -143,6 +143,8 @@
     scene.add(mesh);
     initSmoke();
     if (root.DRTentacle) root.DRTentacle.init(scene); // V14: xúc tu đỏ của sự kiện TentacleAttack (js/tentacle.js)
+    if (root.DRGhostRocks) root.DRGhostRocks.init(scene); // R7 U2: đá ma (js/ghostrocks.js)
+    if (root.DRPhantomShark) root.DRPhantomShark.init(scene); // U10 (seam, thêm): cá mập ma của sự kiện PhantomShark (js/phantomshark.js)
   }
 
   function reset() {
@@ -150,6 +152,8 @@
     if (mesh) mesh.count = 0;
     for (const c of columns) c.init = false;
     if (root.DRTentacle) root.DRTentacle.finish();
+    if (root.DRGhostRocks) root.DRGhostRocks.reset(); // R7 U2: đá ma tồn tại độc lập với thuyền, chỉ bỏ cờ va chạm
+    if (root.DRPhantomShark) root.DRPhantomShark.finish(); // U10 (seam, thêm)
   }
 
   // ma trận emitter = Player (bob) × vị trí cục bộ của BoatTrailParticles
@@ -194,6 +198,7 @@
   let foamLin = [1, 1, 1];
   function update(dt, env) {
     if (root.DRTentacle) root.DRTentacle.update(dt);
+    if (root.DRGhostRocks) root.DRGhostRocks.update(dt); // R7 U2
     if (!mesh) return;
     const D = root.DR, b = D.s && D.s.boat;
     if (!b) return;

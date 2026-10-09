@@ -228,7 +228,8 @@ def main():
     mat = list(yaml.load(io.open(mat_path, encoding='utf-8').read().split('\n', 3)[3], Loader=CL).values())[0]['m_SavedProperties']
     tex = {}
     size = 0
-    for k, nm in (('Texture2D_23e21d2602df45a9921e7c096a6a9432', 'albedo'), ('Texture2D_f4d8f19682674cb985d212562826db7c', 'emission')):
+    # tên thuộc tính Shader Graph không nói vai trò: 23e21d… trỏ AttackingTentacle_Emission.png, f4d8f1… trỏ AttackingTentacle_Texture.png
+    for k, nm in (('Texture2D_23e21d2602df45a9921e7c096a6a9432', 'emission'), ('Texture2D_f4d8f19682674cb985d212562826db7c', 'albedo')):
         src = guid_path('Texture2D', mat['m_TexEnvs'][k]['m_Texture']['guid'])
         tex[nm], n = save_tex(src, nm)
         size += n

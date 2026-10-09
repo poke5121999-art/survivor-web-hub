@@ -320,3 +320,26 @@ Gỡ nhanh nếu bị yêu cầu: xoá `art/`, `audio/`, và mọi tệp `data/*
   - `DockLabel.dockData.id` = khoá chuỗi (`dock.greater-marrow`), trùng id bến của web và cờ `has-visited-dock-<id>`.
   - `Encyclopedia.allFish` có 230 cá kể cả DLC; web bỏ cá cần DLC_1 / DLC_2 (còn 151), nên sách hiện "x/151" chứ không phải "x/128" của bản demo trong video.
   - Danh sách vùng trong ô "vùng" là cách vẽ của bản demo (video t=360); bản 1.5.3 dùng ảnh `zone-img-*`. Web vẽ danh sách.
+
+## ghosts.py — thuyền ma GhostBoat_* và FogGhost tĩnh (U4: js/ghosts.js) [ĐO TRONG REPO, 2026-10-10]
+- Chạy: `python -I games/dredge/tools/ghosts.py` (~30 giây: nạp scene qua `world.py`, trạng thái pass của shader qua `particles.py`). Ghi `data/ghosts.js` (`window.DR_GHOSTS`) + `art/vfx/ghosts/meshes.bin` (350 KB) + `emission.webp`; ra đúng từng byte.
+- Đọc: 4 prefab `GhostBoat_*` (số của `GhostBoatWorldEvent`, `NavMeshAgent`, `AudioSource` còi; mỗi thuyền có thời gian còi / cao độ riêng), 15 `FogGhosts/*` trong scene (`FogGhost`: seenMaxDistanceThreshold, manuallyFadeOutIfCloserThanSeenDistance), clip `FogGhost_FadeIn/Out` (đường cong float `Opacity`, tiếp tuyến 0 = smoothstep).
+- `meshes.bin`: mỗi mesh = vị trí int16 (lượng tử theo hộp bao `bb`), uv int16 (`uvb`), màu đỉnh uint8 nếu có, chỉ số uint16; đệm bội 4 byte. `js/ghosts.js` nạp một lần bằng `fetch`.
+- Bẫy:
+  - `[BẪY ĐÃ SẬP]` Mesh ma không có pháp tuyến dùng: shader `FogGhost_Shader` chỉ đọc vị trí, uv, màu đỉnh. Bỏ pháp tuyến rồi hàn đỉnh trùng (vị trí + uv + màu) làm `ghost_containership` từ 13.731 xuống 4.530 đỉnh.
+  - Mesh không có kênh COLOR thì màu đỉnh là trắng; alpha màu đỉnh nhân vào độ mờ (mesh đảo/nhà ma dùng nó để mờ phần chân).
+  - Biến thể shader dùng là biến thể KHÔNG keyword: `BOOLEAN_367D..._ON` ghi trong `.mat` không phải biến thể có thật (disassembly báo "không có biến thể").
+  - `GhostBoatWorldEvent.PickDestination` có vòng `while` không tăng bộ đếm và `LookRotation(destination)` nhận toạ độ đích chứ không phải hiệu vector: web chặn 10 lần thử và bắt chước hướng khởi đầu từ gốc thế giới (agent quay về hướng chạy ngay sau đó).
+  - FogGhost kết thúc sự kiện NGAY khi kích hoạt, vật vẫn sống tới khi "thấy rồi ra khỏi khung hình"; nên `js/ghosts.js` tự chạy vòng `requestAnimationFrame` cho vật tĩnh thay vì trông vào `handle.update` của DREvents.
+- Kiểm: `node test/dredge-m3ghosts.js`.
+
+## angler.py — Night Angler (MarrowMonster, MONSTERS.md §2.1, U1) [ĐO TRONG REPO, 2026-10-10]
+- Chạy: `python -I games/dredge/tools/angler.py` (~5 s; đọc Game.unity 168 MB một lần, chỉ parse khối cần; ra đúng từng byte, đã kiểm md5 hai lần). Thêm `--dis`: rã DXBC `Monster_Shader` + `FogGhost_Shader` (bundle gamescene) vào `D:/dredge-ref/cache/angler/shaders/`.
+- Ghi `data/angler.js` (`DR_ANGLER`: MonsterData, trường MarrowMonster/VariablePlayerDamager/NavMeshAgent/BuoyantObject/RangeSensor/AudioSource, hai đường 10 điểm của Logic/MonsterManager, cây 43 nút, skin `monster_marrow`, vỏ `GhostBoat1_0`, ba clip, hai AnimatorController, vật liệu; ~315 KB) và `art/vfx/angler/*.webp` (~3 KB). Dùng: `js/angler.js`. Kiểm: `node test/dredge-m2angler.js`.
+- Bẫy:
+  - Mesh mã hoá base64 (Int16 vị trí theo hộp bao, Uint16 uv/chỉ số, Uint8 xương/trọng số/màu đỉnh); không ghi pháp tuyến vì hai shader (DXBC) không đọc NORMAL ở pixel shader.
+  - Clip `MarrowMonster_Swim` dùng `m_EulerCurves` (độ, thứ tự ZXY = three `'YXZ'`; lật z: đảo dấu góc x, y).
+  - `attackSFX` là AssetReference: tra `catalog.json` (cách giải của `boat.py guid_path`), không có trong `.meta` của AssetRipper.
+  - Tên GameObject chỉ có số (điểm đường `1`..`10`) bị PyYAML đọc thành int: ép `str`.
+  - `Monster_Shader`: `Texture2D_f4d8…` = "Texture" (màu), `Texture2D_23e2…` = "Emission" (theo Properties); `tentacle.py` đang đặt ngược hai tên này.
+  - `[BẪY ĐÃ SẬP]` three r140 không cập nhật uniform `cameraPosition` cho `MeshBasicMaterial` (chỉ ShaderMaterial/Phong/Toon/Standard hoặc có envMap): nó đứng yên ở (0,0,0). FogGhost tính khoảng cách camera từ `viewMatrix`. `drEnvFogColor` của `js/sky.js` cũng dùng `cameraPosition`.

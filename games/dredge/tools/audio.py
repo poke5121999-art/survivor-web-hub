@@ -21,6 +21,7 @@ DR = sys.argv[3] if len(sys.argv) > 3 else os.path.dirname(HERE)
 OUT = os.path.join(REF, "audio")
 REPO_AUDIO = os.path.join(DR, "audio")
 FFMPEG = shutil.which("ffmpeg")
+RIPPED_CLIPS = os.path.join(REF, "ripped", "ExportedProject", "Assets", "AudioClip")
 GROUPS = ["gameaudio", "vocals", "commonaudio", "titleaudio", "gamescene", "player"]
 PREFIX = {"gamescene": "gamescene_scenes_all", "player": "player_assets_all"}
 
@@ -245,6 +246,41 @@ add("monster.dolphin.call", "monsters", "SFX/World Event/Dolphin/Dolphin Pod - C
 
 # vocals: the 30 'vocal.<npc>.n' keys had no caller (dialogue plays art/portraits/vox, built by yarn.py): dropped, SFX-23.
 
+
+# ======================================================================================================
+# Vòng 7 (S2 seams-data): tiếng cho các mối đe doạ ở The Marrows (MONSTERS.md §3.1). Khoá tra được cả bằng tên clip gốc.
+# RIP = clip không nằm trong 6 bundle tiếng (gắn thẳng vào prefab Waterspout) nên đọc từ AssetRipper: Assets/AudioClip/<tên>.wav
+# ======================================================================================================
+GROUP[0] = "r7-threats"
+RIP = []   # (khoá, loại, tên tệp trong Assets/AudioClip, loop, vol, prof)
+for k, n in [("marrow.call3", "Marrow Monster - Call 3"), ("marrow.aggroCall2", "Marrow Monster - Aggro Call 2"),
+             ("marrow.aggroCall3", "Marrow Monster - Aggro Call 3")]:
+    add("monster." + k, "monsters", n, False, 0.8)          # clip của scene (MarrowMonster.cs: Call 1-3 / Aggro Call 1-3)
+for i in (2, 3):
+    add("monster.generic.attackSmall%d" % i, "monsters", "SFX/monster-attack-small-%d" % i, False, 0.7)  # RavenWorldEvent
+W = "SFX/World Event/"
+for k, n, loop, prof, cap in [
+        ("eyes", "Eyes/World Event - Eyes", False, "amb32", None),
+        ("ghostWind", "Ghost Wind/World Event - Ghost Wind", False, "amb32", 20),
+        ("flicker", "Flicker Lights/Flickering Lights", False, None, None),
+        ("leviathan.distant", "Leviathan/Leviathan Distant Call", False, None, None),
+        ("waterspout.strike", "Waterspout/Waterspout Strike Player", False, None, None),
+        ("waterspout.corruptStrike", "Waterspout/Waterspout Corrupt Strike Player", False, None, None),
+        ("ray.swim", "MonsterRay/Monster Ray - Swim_Loop", True, "amb32", 15),
+        ("ray.dissolve", "MonsterRay/Monster Ray - Dissolve_1", False, None, None),
+        ("ray.chomp1", "MonsterRay/Monster Ray - Chomp 1_1", False, None, None),
+        ("ray.chomp2", "MonsterRay/Monster Ray - Chomp 2_1", False, None, None),
+        ("ray.chomp3", "MonsterRay/Monster Ray - Chomp 3_1", False, None, None),
+        ("ray.tail1", "MonsterRay/Monster Ray -Tail Swipe 1_1", False, None, None),
+        ("ray.tail2", "MonsterRay/Monster Ray -Tail Swipe 2_1", False, None, None),
+        ("ray.tail3", "MonsterRay/Monster Ray -Tail Swipe 3_1", False, None, None),
+        ("shark.appear", "PhantomShark/Phantom Shark - Appear", False, None, None),
+        ("shark.loop", "PhantomShark/Phantom Shark - Movement Loop", True, "amb32", 15),
+        ("shark.impact", "PhantomShark/Phantom Shark - Impact", False, None, None)]:
+    add("event." + k, "monsters", W + n, loop, 0.8 if not loop else 0.7, prof=prof, cap=cap)
+RIP += [("event.waterspout.normal", "monsters", "Waterspout Normal.wav", True, 0.7, "amb32"),
+        ("event.waterspout.corrupt", "monsters", "Waterspout Corrupt.wav", True, 0.7, "amb32")]
+GROUP[0] = "base"
 
 # ======================================================================================================
 # Vòng 2 (chủ tiếng): clip mà mã web gọi bằng TÊN GỐC (DRAudio.play('Dog - Pick Up 1')) hoặc mà js/sfx.js cần.
@@ -474,6 +510,23 @@ def main():
                               orig=r["container"] or n)
             if bus:
                 audio[key]["bus"] = bus
+    for key, cat, fn, loop, vol, prof in RIP:
+        src = os.path.join(RIPPED_CLIPS, fn)
+        if not os.path.exists(src):
+            problems.append("missing ripped clip for %s: %s" % (key, fn))
+            continue
+        stem = safe(os.path.splitext(fn)[0])
+        raw = io.open(src, "rb").read()
+        w = wave.open(io.BytesIO(raw))
+        dur = w.getnframes() / float(w.getframerate())
+        enc, cap = list(PROF[prof][0]), PROF[prof][1]
+        enc += ["-t", str(cap), "-af", "afade=t=in:d=0.3,afade=t=out:st=%s:d=1.5" % (cap - 1.5)] if cap and dur > cap + 1 else []
+        os.makedirs(os.path.join(REPO_AUDIO, cat), exist_ok=True)
+        dst = os.path.join(REPO_AUDIO, cat, stem + ".mp3")
+        ffenc(raw, dst, ["-c:a", "libmp3lame"] + enc)
+        cost["r7-threats"] = cost.get("r7-threats", 0) + os.path.getsize(dst)
+        audio[key] = dict(src="audio/%s/%s.mp3" % (cat, stem), loop=loop, vol=vol, dur=round(min(dur, cap) if cap else dur, 2),
+                          orig=os.path.splitext(fn)[0])
     cat_rows.sort(key=lambda t: (GROUPS.index(t[0]), t[1], t[2]))
     with io.open(os.path.join(OUT, "catalog.tsv"), "w", encoding="utf-8", newline="\n") as fh:
         fh.write("group\tcontainer\tname\tduration_s\tchannels\trate\tloop_hint\n")

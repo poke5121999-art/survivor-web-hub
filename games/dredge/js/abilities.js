@@ -151,7 +151,7 @@
   // Ability (Ability.cs): Activate phát castSFX (bản cải tiến nếu có) trừ khi vừa thả trong sfxRepeatThreshold giây,
   // Deactivate phát deactivateSFX; persistAbilityToggle thì lưu trạng thái.
   class Ability {
-    constructor(id) { this.id = id; this.d = DATA[id]; this.isActive = false; this.lastRelease = -1e9; }
+    constructor(id) { this.id = id; this.d = DATA[id]; this.isActive = false; this.lastRelease = -1e9; this.locked = false; } // locked = Ability.Locked (FlickerLights khoá đèn)
     get data() { return this.d; }
     activate() { return false; }
     deactivate() { this.baseDeactivate(); }
@@ -179,12 +179,14 @@
   // LightAbility.cs: bấm để bật/tắt; bật = SetLightStrength(4) + container đèn + nón sáng + vùng chống hoảng loạn
   class Lights extends Ability {
     activate() {
+      if (this.locked) return false;                              // LightAbility.Activate: if (Locked) return false
       if (this.isActive) { this.deactivate(); return false; }
       this.isActive = true;
       root.DRBoat.setLights(true);
       return this.baseActivate();
     }
     deactivate() {
+      if (this.locked) return;                                    // LightAbility.Deactivate: if (Locked) return
       if (this.isActive) root.DRBoat.setLights(false);
       this.baseDeactivate();
     }
@@ -1019,7 +1021,7 @@
   // trạng thái từ sổ lưu (ván mới / nạp): Ability.Init + AbilityRadial.Start
   function fromSave() {
     if (!save()) return;
-    for (const a of Object.values(ABILITIES)) { a.isActive = false; a.lastRelease = -1e9; }
+    for (const a of Object.values(ABILITIES)) { a.isActive = false; a.lastRelease = -1e9; a.locked = false; }
     ABILITIES.lights.isActive = !!S().lightsOn;                    // persistAbilityToggle: đèn giữ trạng thái đã lưu
     ABILITIES.haste.raw = ABILITIES.haste.prop = 0; ABILITIES.haste.onCd = false; ABILITIES.haste.fov = 0; ABILITIES.haste.fovT = 1;
     if (root.DRCamera) { DRCamera.fovAdd = 0; if (DRCamera.override === camOverride) DRCamera.override = null; }
@@ -1074,7 +1076,9 @@
     get radialOpen() { return radial.open; },
     get spyglassActive() { return ABILITIES.spyglass.isActive; },
     selected: () => selId, select: id => { if (unlocked(id)) select(id); }, isActive: id => !!(abilityOf(id) && abilityOf(id).isActive),
-    unlock, register, Ability, data: id => DATA[id], hasteHeat: () => ABILITIES.haste.prop, indexForAngle, wedges: () => WEDGES.map(w => w.ability),
+    unlock, register, Ability, data: id => DATA[id],
+    // S1 (MONSTERS.md): sự kiện thế giới cầm đối tượng năng lực và cờ Locked (FlickerLightsWorldEvent.cs:23-42)
+    ability: id => abilityOf(id) || null, lock: (id, on) => { const a = abilityOf(id); if (a) a.locked = !!on; return !!a; }, locked: id => !!(abilityOf(id) && abilityOf(id).locked), hasteHeat: () => ABILITIES.haste.prop, indexForAngle, wedges: () => WEDGES.map(w => w.ability),
     missingSounds: () => [...MISSING],
     debug() {
       const h = ABILITIES.haste, sg = ABILITIES.spyglass, f = ABILITIES.foghorn;

@@ -12,6 +12,12 @@
  *   caught    { <fish id>: số con } (caughtFishCounts)
  *   abilities { lights: true, ... }; lightsOn
  *
+ * Sổ lưu theo ô (SaveManager.cs: activeSaveSlot, GetFilePath(slot)): DR.slot = ô đang dùng (mặc định 0).
+ *   DR.saveKey(slot)  khoá localStorage của ô; ô 0 giữ khoá cũ 'dredge.save.v1' để sổ đã có vẫn đọc được, ô n > 0 là 'dredge.save.v1.s<n>'.
+ *   DR.save(slot) / DR.load(slot) / DR.hasSave(slot) / DR.wipe(slot)  bỏ slot = DR.slot.
+ *   DR.s.forbidSave   SaveData.ForbidSave (DoFinalePreparations đặt true, DredgeDialogueRunner.cs:795): DR.save() trả false, không ghi
+ *                     (SaveManager.cs:186). Cờ không bao giờ vào sổ vì từ lúc bật thì chẳng lần lưu nào chạy nữa.
+ *
  * Chế độ (DR.mode) là máy trạng thái, mỗi lúc đúng một:
  *   title → sail ⇄ harvest ; sail ⇄ dock ; sail|dock ⇄ cargo ; * → over
  * Đổi chế độ chỉ qua DR.setMode để mọi module nghe được sự kiện 'mode'.
@@ -116,14 +122,19 @@
     return DR.s;
   };
 
-  DR.save = function () {
-    try { localStorage.setItem(KEY, JSON.stringify(DR.s, (k, v) => k === 'cells' ? undefined : v)); return true; }
+  // W0: ô lưu (SaveManager.activeSaveSlot); ô 0 = khoá cũ
+  DR.slot = 0;
+  DR.saveKey = slot => { const n = slot == null ? DR.slot : slot | 0; return n === 0 ? KEY : KEY + '.s' + n; };
+  DR.save = function (slot) {
+    if (!DR.s) return false;
+    if (DR.s.forbidSave) { console.info('[DR] save skipped: forbidSave is set (finale voyage)'); return false; }   // SaveManager.cs:186
+    try { localStorage.setItem(DR.saveKey(slot), JSON.stringify(DR.s, (k, v) => k === 'cells' || k === 'forbidSave' ? undefined : v)); return true; }
     catch (e) { console.warn('[DR] save failed:', e.message); return false; }
   };
-  DR.hasSave = () => { try { return !!localStorage.getItem(KEY); } catch (e) { return false; } };
-  DR.load = function () {
+  DR.hasSave = slot => { try { return !!localStorage.getItem(DR.saveKey(slot)); } catch (e) { return false; } };
+  DR.load = function (slot) {
     let raw = null;
-    try { raw = localStorage.getItem(KEY); } catch (e) { /* private mode */ }
+    try { raw = localStorage.getItem(DR.saveKey(slot)); } catch (e) { /* private mode */ }
     if (!raw) return null;
     try { DR.s = JSON.parse(raw); }
     catch (e) { console.warn('[DR] save unreadable, starting fresh:', e.message); return null; }
@@ -131,7 +142,7 @@
     DR.emit('load');
     return DR.s;
   };
-  DR.wipe = () => { try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ } };
+  DR.wipe = slot => { try { localStorage.removeItem(DR.saveKey(slot)); } catch (e) { /* ignore */ } };
 
   // Thêm đồ vào khoang theo FindPositionForObject; trả về instance hoặc null khi đầy.
   DR.give = function (id, extra, key) {

@@ -180,7 +180,7 @@
   }
 
   function makeSystem(eff, node, idx) {
-    const m = node.main, N = Math.max(1, Math.min(m.maxN || 1, 4000));
+    const m = node.main, N = Math.max(1, Math.min((eff.opts && eff.opts.maxN != null ? eff.opts.maxN : m.maxN) || 1, 4000)); // opts.maxN: sức chứa do người gọi đặt (EyeParticles main.maxParticles 0 trong prefab, EyeParticlesWorldEvent.cs:44-110 gán lúc chạy) [U6 seam]
     const f = n => new Float32Array(n);
     const s = {
       eff, node, idx, N, n: 0, time: 0, delay: m.delay ? ev(m.delay, 0, Math.random()) : 0, playing: !!m.play, emitting: !!m.play,
@@ -218,6 +218,7 @@
       name, systems: eff.systems, get alive() { return eff.alive; },
       stop() { eff.stopped = true; for (const s of eff.systems) s.emitting = false; },
       setRate(k) { eff.rate = Math.max(0, +k || 0); },
+      setMaxParticles(n) { const s = eff.systems[0]; if (s) s.cap = Math.max(0, Math.min(s.N, Math.floor(+n || 0))); },   // ParticleSystem.MainModule.maxParticles [U6 seam]
       setRateOverTime(r) { eff.rateAbs = r == null ? null : Math.max(0, +r || 0); },
       setSimulationSpeed(v) { eff.simAbs = v == null ? null : Math.max(0, +v || 0); },
       setSubEmitProbability(i, p) { const s = eff.systems[0], sub = s && s.subs[i]; if (sub) sub.p = p == null ? null : Math.min(1, Math.max(0, +p || 0)); },
@@ -363,7 +364,7 @@
     const nd = s.node, m = nd.main, t01 = Math.min(1, s.time / (m.dur || 1));
     const world = m.space === 1;
     for (let k = 0; k < n; k++) {
-      if (s.n >= s.N) return;
+      if (s.n >= (s.cap != null ? s.cap : s.N)) return;   // s.cap = main.maxParticles gán lúc chạy (handle.setMaxParticles) [U6 seam]
       const i = s.n++;
       stat.emitted++; s.emitted = (s.emitted || 0) + 1;
       const r0 = Math.random(), r1 = Math.random(), r2 = Math.random(), r3 = Math.random();
@@ -795,7 +796,7 @@ ${'#'}include <encodings_fragment>
     }
     b = { key, matId, mat, kind, F, cap: 0, g, mesh: null, data: null, n: 0, order: [], depth: null };
     b.material = makeMaterial(mat, mapId, kind);
-    grow(b, 64);
+    grow(b, 1024);   // U8 (m3spout): trước đây 64. Lô tăng cỡ GIỮA khung (nhiều hệ chung một lô: Waterspout = LocalBottomSplashes + WorldBottomSplashes + Tornado, 237 hạt) làm mất phần lớn hạt của hệ vẽ sau; cỡ đủ lớn từ đầu thì không tăng nữa [ĐỀ XUẤT: chưa dò ra nguyên nhân trong grow()]
     const mesh = new T.Mesh(g, b.material);
     mesh.frustumCulled = false;
     const q = mat.queue >= 0 ? mat.queue : (mat.sq || 3000);

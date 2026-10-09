@@ -9,6 +9,12 @@
  *   opts = [{ index, id, text, meta, available }]
  *   DRYarn.visited(node)  DRYarn.lineText(id)  DRYarn.commands / DRYarn.functions (sổ đăng ký)  DRYarn.missing (lệnh chưa có hệ thống)
  *
+ * Đăng ký lệnh / hàm từ tệp khác (W0 seam; tệp của đơn vị nạp sau yarn.js, ghi đè stub cùng tên, không cần sửa tệp này):
+ *   DRYarn.command(name, f, opts)  f(args: string[], runner, resume) chạy khi gặp <<name ...>>; trả 'wait' thì tự gọi resume() khi xong,
+ *                                   không thì máy chạy tiếp ngay. Ghi đè vào DRYarn.commands[name] = { f, ...opts } (bỏ cờ stub).
+ *   DRYarn.fn(name, f)             f(...args) → giá trị Yarn (số / chuỗi / bool), như AddFunction; ghi vào DRYarn.functions[name].
+ *   DRYarn.stubs()                 tên các lệnh còn là stub.
+ *
  * Sổ lưu: DR.s.visitedNodes (SaveData.visitedNodes: tên node xong + id lựa chọn đã bấm), DR.s.yarnVars (InMemoryVariableStorage),
  * DR.s.temporalMarkers {id: timeAndDay}, DR.s.shopHistories {id: {visits, visitDays[], transactionDays[], total}},
  * DR.s.itemTransactions {id: {sold, bought}}, DR.s.availableDestinations[], DR.s.availableSpeakers[], DR.s.vars (bool/int của SaveData).
@@ -555,7 +561,7 @@
   cmd('AddMapMarker', a => { const m = S().mapMarkers = S().mapMarkers || []; if (!m.includes(a[0])) m.push(a[0]); info('AddMapMarker', 'saved ' + a[0] + ', no map screen yet'); });
   cmd('RemoveMapMarker', a => { S().mapMarkers = (S().mapMarkers || []).filter(x => x !== a[0]); });
   cmd('wait', (a, r, resume) => { setTimeout(resume, num(a[0]) * 1000); return 'wait'; });
-  cmd('ToggleFreezeTime', a => { S().vars['time-frozen'] = bool(a[0]); info('ToggleFreezeTime', 'saved flag only; clock in sky.js does not read it'); });
+  cmd('ToggleFreezeTime', a => { S().vars['time-frozen'] = bool(a[0]); });   // js/sky.js giữ nguyên DR.s.time khi cờ bật (W0)
   stub('MakeBait', 'bait grids (BAIT_INPUT/OUTPUT) not built');
   stub('ConstructBuildingTier', 'Iron Rig buildings not built');
   stub('DetonateExplosives', 'ExplosivePOI not built');
@@ -687,7 +693,7 @@
   }
 
   root.DRYarn = {
-    run, Runner, visited, markVisited, lineText, parseLine, split, commands: C, functions: F, missing,
+    run, Runner, visited, markVisited, lineText, parseLine, split, commands: C, functions: F, missing, command: cmd, fn,   // W0: command/fn
     recordShopVisit, recordShopTransaction, recordItemTransaction, sellInsts, addItem, ensure,
     current: () => current, hasNode: n => !!(Y && Y.nodes[n]),
     stubs: () => Object.keys(C).filter(k => C[k].stub)

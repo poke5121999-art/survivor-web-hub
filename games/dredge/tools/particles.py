@@ -864,10 +864,34 @@ NAMED = [
     ('SonarPulseEffect', PLAYER, 'PlayerContainer/Player/Abilities/FoghornAbility/SonarPulseEffect', 'Player'),
     ('BanishEffect', PLAYER, 'PlayerContainer/Player/Abilities/BanishAbility/BanishEffect', 'Player'),
     ('TeleportEffect', PLAYER, 'PlayerContainer/Player/PlayerTeleport/TeleportEffect', 'Player'),
+    # ---- vòng 7 (S2 seams-data, MONSTERS.md §3.1): hệ hạt của các mối đe doạ ở The Marrows. att 'Parent' = vị trí/góc so với GameObject cha gốc
+    # (scene) để đơn vị dùng nó tự đặt; các prefab sự kiện giữ nguyên vị trí gốc của prefab (att None).
+    ('Ravens', 'GameObject/Ravens.prefab', 'Ravens', None),                                           # RavenWorldEvent: SwirlingRavens + RavenRotater/Impactfx
+    ('SplashWorldEvent', 'GameObject/SplashWorldEvent.prefab', 'SplashWorldEvent', None),             # SplashWorldEvent.cs
+    ('ParasiteWorldEvent', 'GameObject/ParasiteWorldEvent.prefab', 'ParasiteWorldEvent', None),       # ParasiteWorldEvent.cs (cùng thân với Splash)
+    ('Waterspout', 'GameObject/Waterspout.prefab', 'Waterspout', None),
+    ('Waterspout_Corrupt', 'GameObject/Waterspout_Corrupt.prefab', 'Waterspout_Corrupt', None),
+    ('WaterspoutImpactfx', 'GameObject/WaterspoutImpactfx.prefab', 'WaterspoutImpactfx', None),
+    ('GhostWindEvent', 'GameObject/GhostWindEvent.prefab', 'GhostWindEvent', None),                   # DirectionalWindEffect (chỉ về POI)
+    ('DestinationWindEffect', 'GameObject/DestinationWindEffect.prefab', 'DestinationWindEffect', None),
+    ('MarrowMonsterWake', 'GameObject/MarrowMonster.prefab', 'MarrowMonster/Monster/Model/marrow_swim/root_jnt/feeler1_jnt/BoatTrailParticles', 'Parent'),
+    ('MarrowMonsterAttackSplash', 'GameObject/MarrowMonster.prefab', 'MarrowMonster/Monster/Model/marrow_swim/root_jnt/AttackSplash', 'Parent'),
+    ('MarrowMonsterBoatDamageFX', 'GameObject/MarrowMonster.prefab', 'MarrowMonster/BoatDamageFX', 'Parent'),  # hitVFX của MarrowMonster.cs
+    ('MonsterRayBoatDamageFX', 'GameObject/MonsterRayAttack1.prefab', 'MonsterRayAttack1/BoatDamageFX', 'Parent'),  # BoatDamageFX của cá đuối (cùng cây ở Attack2/Follow)
+    ('PhantomSharkAppear', 'GameObject/PhantomSharkWorldEvent.prefab', 'PhantomSharkWorldEvent/AppearParticles', 'Parent'),
+    ('PhantomSharkDisappear', 'GameObject/PhantomSharkWorldEvent.prefab', 'PhantomSharkWorldEvent/DisappearParticles', 'Parent'),
+    ('PhantomSharkWake', 'GameObject/PhantomSharkWorldEvent.prefab', 'PhantomSharkWorldEvent/BoatTrailParticles', 'Parent'),
+    ('TentacleTipParticles', 'GameObject/TentacleAttack.prefab',
+     'TentacleAttack/TentacleAttack/Armature/Bone/Bone.001/Bone.002/Bone.003/Bone.004/Bone.005/Bone.006/Bone.007/Bone.008/Bone.009/TentacleTipParticles', 'Parent'),
+    ('TentacleBaseParticles', 'GameObject/TentacleAttack.prefab', 'TentacleAttack/TentacleAttack/Armature/Bone/Bone.001/Bone.002/TentacleBaseParticles', 'Parent'),
+    ('TentacleBigSplash', 'GameObject/TentacleAttack.prefab', 'TentacleAttack/TentacleAttack/BigSplashParticles', 'Parent'),
+    ('FogDevilParticles', SCENE, 'FogDevilContainer/FogDevil/Particles', 'Parent'),                    # FogDevil.cs: Particles + AggroParticles (khói sương + 15 hạt giận)
+    ('FogDevilAggroParticles', SCENE, 'FogDevilContainer/FogDevil/AggroParticles', 'Parent'),
 ]
 # Hệ theo camera/thuyền trong Game.unity (luồng môi trường gọi): (tên, đường dẫn, follow)
 FOLLOW = [('Rain', 'FollowCamera/Rain', 'camera'), ('Snow', 'FollowPlayer/Snow', 'player'),
-          ('Lightning', 'FollowPlayer/Lightning', 'player')]
+          ('Lightning', 'FollowPlayer/Lightning', 'player'),
+          ('EyeParticles', 'FollowPlayer/EyeParticles', 'player')]  # EyeParticlesWorldEvent.cs: bật/tắt, đổi maxParticles theo hoảng loạn
 DLC = ('DLC1/', 'DLC2/')
 
 
@@ -939,7 +963,7 @@ def main():
         doc = doc_of(rel)
         root = doc.find(rpath)[0]
         nodes, gos = system(doc, conv, root, managed=('__all__',))
-        stop = player if att == 'Player' else None
+        stop = player if att == 'Player' else (doc.parent(root) if att == 'Parent' else None)
         systems[name] = {'src': rel + ':' + rpath, 'attach': dict(placement(doc, root, stop=stop), to=att or 'root'), 'nodes': nodes}
         census.append((name, rel, rpath, len(nodes)))
     # biến thể theo thân thuyền BoatN

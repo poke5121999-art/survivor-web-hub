@@ -4,18 +4,20 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>DREDGE — Biển Mù</title>
-<link rel="stylesheet" href="css/ui.css?v=20261010a">
-<link rel="stylesheet" href="css/story.css?v=20261010a">
-<link rel="stylesheet" href="css/title.css?v=20261010a">
-<link rel="stylesheet" href="css/banner.css?v=20261010a">
-<link rel="stylesheet" href="css/abilities.css?v=20261010a">
-<link rel="stylesheet" href="css/upgrade.css?v=20261010a">
-<link rel="stylesheet" href="css/shop.css?v=20261010a">
-<link rel="stylesheet" href="css/passtime.css?v=20261010a">
-<link rel="stylesheet" href="css/tutorial.css?v=20261010a">
-<link rel="stylesheet" href="css/deploy.css?v=20261010a">
-<link rel="stylesheet" href="css/book.css?v=20261010a">
-<link rel="stylesheet" href="css/poi.css?v=20261010a">
+<link rel="stylesheet" href="css/ui.css?v=20261010b">
+<link rel="stylesheet" href="css/story.css?v=20261010b">
+<link rel="stylesheet" href="css/title.css?v=20261010b">
+<link rel="stylesheet" href="css/banner.css?v=20261010b">
+<link rel="stylesheet" href="css/abilities.css?v=20261010b">
+<link rel="stylesheet" href="css/upgrade.css?v=20261010b">
+<link rel="stylesheet" href="css/shop.css?v=20261010b">
+<link rel="stylesheet" href="css/passtime.css?v=20261010b">
+<link rel="stylesheet" href="css/tutorial.css?v=20261010b">
+<link rel="stylesheet" href="css/deploy.css?v=20261010b">
+<link rel="stylesheet" href="css/book.css?v=20261010b">
+<link rel="stylesheet" href="css/poi.css?v=20261010b">
+<link rel="stylesheet" href="css/research.css?v=20261010b">
+<link rel="stylesheet" href="css/menus.css?v=20261010b">
 <style>
 html, body { margin: 0; height: 100%; overflow: hidden; background: #0b1416; color: #efe3c8; touch-action: none;
   font-family: "Signika", "Segoe UI", Roboto, sans-serif; -webkit-user-select: none; user-select: none; }
@@ -73,12 +75,12 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #0b1416; col
 <body>
 <canvas id="dr-canvas" tabindex="0"></canvas>
 <div id="dr-loading" class="eng-screen">
-  <img class="logo" src="art/ui/sprites/Dredge_Title.webp?v=20261010a" alt="DREDGE">
+  <img class="logo" src="art/ui/sprites/Dredge_Title.webp?v=20261010b" alt="DREDGE">
   <div class="bar"><i></i></div>
   <div class="msg">Đang tải biển…</div>
 </div>
 <div id="dr-title" class="eng-screen" hidden>
-  <img class="logo" src="art/ui/sprites/Dredge_Title.webp?v=20261010a" alt="DREDGE">
+  <img class="logo" src="art/ui/sprites/Dredge_Title.webp?v=20261010b" alt="DREDGE">
   <div class="menu">
     <button class="tt-bar" id="btn-continue" hidden>Tiếp tục</button>
     <button class="tt-bar" id="btn-new">Ván mới</button><!-- New Game -->
@@ -117,76 +119,134 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #0b1416; col
 <div id="dr-fade"></div>
 <div id="dr-touch"></div>
 
-<script src="vendor/three-r140.min.js?v=20261010a"></script>
-<script src="vendor/GLTFLoader-r140.js?v=20261010a"></script>
-<script src="vendor/meshopt_decoder.js?v=20261010a"></script>
-<script src="data/config.js?v=20261010a"></script>
-<script src="data/items.js?v=20261010a"></script>
-<script src="data/strings.js?v=20261010a"></script>
-<script src="data/grids.js?v=20261010a"></script>
-<script src="data/upgrades.js?v=20261010a"></script>
-<script src="data/upgrade_ui.js?v=20261010a"></script>
-<script src="data/world_data.js?v=20261010a"></script>
-<script src="data/audio.js?v=20261010a"></script>
-<script src="data/sfx.js?v=20261010a"></script>
-<script src="data/boat.js?v=20261010a"></script>
-<script src="data/vfx.js?v=20261010a"></script>
-<script src="data/ui.js?v=20261010a"></script>
-<script src="data/quests.js?v=20261010a"></script>
-<script src="data/yarn.js?v=20261010a"></script>
-<script src="data/animlib.js?v=20261010a"></script>
-<script src="data/weather.js?v=20261010a"></script>
-<script src="data/env.js?v=20261010a"></script>
-<script src="data/particles.js?v=20261010a"></script>
-<script src="data/tentacle.js?v=20261010a"></script>
-<script src="data/worldevents.js?v=20261010a"></script>
-<script src="data/deploy.js?v=20261010a"></script>
-<script src="data/shop_ui.js?v=20261010a"></script>
-<script src="data/encyclopedia.js?v=20261010a"></script>
-<script src="data/poi.js?v=20261010a"></script>
-<script src="js/grid.js?v=20261010a"></script>
-<script src="js/rules.js?v=20261010a"></script>
-<script src="js/state.js?v=20261010a"></script>
-<script src="js/audio.js?v=20261010a"></script>
-<script src="js/hud.js?v=20261010a"></script>
-<script src="js/tutorial.js?v=20261010a"></script>
-<script src="js/quests.js?v=20261010a"></script>
-<script src="js/yarn.js?v=20261010a"></script>
-<script src="js/anim.js?v=20261010a"></script>
-<script src="js/dialogue.js?v=20261010a"></script>
-<script src="art/ui/minigame/harvest_ui.js?v=20261010a"></script>
-<script src="js/minigame.js?v=20261010a"></script>
-<script src="art/ui/cargo/cargo_fx.js?v=20261010a"></script>
-<script src="js/cargo.js?v=20261010a"></script>
-<script src="js/dock.js?v=20261010a"></script>
-<script src="js/passtime.js?v=20261010a"></script>
-<script src="js/shop.js?v=20261010a"></script>
-<script src="js/upgrade.js?v=20261010a"></script>
-<script src="js/input.js?v=20261010a"></script>
-<script src="js/water.js?v=20261010a"></script>
-<script src="js/world.js?v=20261010a"></script>
-<script src="js/sky.js?v=20261010a"></script>
-<script src="js/vfx.js?v=20261010a"></script>
-<script src="js/particles.js?v=20261010a"></script>
-<script src="js/tentacle.js?v=20261010a"></script>
-<script src="js/boat.js?v=20261010a"></script>
-<script src="js/camera.js?v=20261010a"></script>
-<script src="js/spots.js?v=20261010a"></script>
-<script src="art/ui/banner/banner_ui.js?v=20261010a"></script>
-<script src="js/banner.js?v=20261010a"></script>
-<script src="js/docks.js?v=20261010a"></script>
-<script src="js/sfx.js?v=20261010a"></script>
-<script src="js/title.js?v=20261010a"></script>
-<script src="js/intro.js?v=20261010a"></script>
-<script src="js/abilities.js?v=20261010a"></script>
-<script src="js/deploy.js?v=20261010a"></script>
-<script src="js/spells.js?v=20261010a"></script>
-<script src="js/book_kit.js?v=20261010a"></script>
-<script src="js/map.js?v=20261010a"></script>
-<script src="js/encyclopedia.js?v=20261010a"></script>
-<script src="js/messages.js?v=20261010a"></script>
-<script src="js/poi.js?v=20261010a"></script>
-<script src="js/books.js?v=20261010a"></script>
-<script src="js/main.js?v=20261010a"></script>
+<script src="vendor/three-r140.min.js?v=20261010b"></script>
+<script src="vendor/GLTFLoader-r140.js?v=20261010b"></script>
+<script src="vendor/meshopt_decoder.js?v=20261010b"></script>
+<script src="data/config.js?v=20261010b"></script>
+<script src="data/items.js?v=20261010b"></script>
+<script src="data/strings.js?v=20261010b"></script>
+<script src="data/grids.js?v=20261010b"></script>
+<script src="data/upgrades.js?v=20261010b"></script>
+<script src="data/upgrade_ui.js?v=20261010b"></script>
+<script src="data/world_data.js?v=20261010b"></script>
+<script src="data/audio.js?v=20261010b"></script>
+<script src="data/sfx.js?v=20261010b"></script>
+<script src="data/boat.js?v=20261010b"></script>
+<script src="data/vfx.js?v=20261010b"></script>
+<script src="data/ui.js?v=20261010b"></script>
+<script src="data/quests.js?v=20261010b"></script>
+<script src="data/yarn.js?v=20261010b"></script>
+<script src="data/animlib.js?v=20261010b"></script>
+<script src="data/weather.js?v=20261010b"></script>
+<script src="data/env.js?v=20261010b"></script>
+<script src="data/particles.js?v=20261010b"></script>
+<script src="data/tentacle.js?v=20261010b"></script>
+<script src="data/safezones.js?v=20261010b"></script>
+<script src="data/worldevents.js?v=20261010b"></script>
+<script src="data/angler.js?v=20261010b"></script>
+<script src="data/ghostrocks.js?v=20261010b"></script>
+<script src="data/miasma.js?v=20261010b"></script>
+<script src="data/ghosts.js?v=20261010b"></script>
+<script src="data/ravens.js?v=20261010b"></script>
+<script src="data/waterspout.js?v=20261010b"></script>
+<script src="data/ray.js?v=20261010b"></script>
+<script src="data/phantomshark.js?v=20261010b"></script>
+<script src="data/deploy.js?v=20261010b"></script>
+<script src="data/shop_ui.js?v=20261010b"></script>
+<script src="data/encyclopedia.js?v=20261010b"></script>
+<script src="data/poi.js?v=20261010b"></script>
+<!-- W0: dữ liệu stub cho đơn vị W/R của WORLD-GAPS.md §6 -->
+<script src="data/research_ui.js?v=20261010b"></script>
+<script src="data/explosives.js?v=20261010b"></script>
+<script src="data/questobj.js?v=20261010b"></script>
+<script src="data/finale.js?v=20261010b"></script>
+<script src="data/credits.js?v=20261010b"></script>
+<script src="data/serpent.js?v=20261010b"></script>
+<script src="data/sbcreature.js?v=20261010b"></script>
+<script src="data/jelly.js?v=20261010b"></script>
+<script src="data/mindsucker.js?v=20261010b"></script>
+<script src="data/tshazards.js?v=20261010b"></script>
+<script src="data/piranha.js?v=20261010b"></script>
+<script src="data/leviathan.js?v=20261010b"></script>
+<script src="data/greatwhite.js?v=20261010b"></script>
+<script src="data/cetaceans.js?v=20261010b"></script>
+<script src="js/grid.js?v=20261010b"></script>
+<script src="js/rules.js?v=20261010b"></script>
+<script src="js/state.js?v=20261010b"></script>
+<script src="js/audio.js?v=20261010b"></script>
+<script src="js/hud.js?v=20261010b"></script>
+<script src="js/tutorial.js?v=20261010b"></script>
+<script src="js/quests.js?v=20261010b"></script>
+<script src="js/yarn.js?v=20261010b"></script>
+<script src="js/anim.js?v=20261010b"></script>
+<script src="js/dialogue.js?v=20261010b"></script>
+<script src="art/ui/minigame/harvest_ui.js?v=20261010b"></script>
+<script src="js/minigame.js?v=20261010b"></script>
+<script src="art/ui/cargo/cargo_fx.js?v=20261010b"></script>
+<script src="js/cargo.js?v=20261010b"></script>
+<script src="js/dock.js?v=20261010b"></script>
+<script src="js/passtime.js?v=20261010b"></script>
+<script src="js/shop.js?v=20261010b"></script>
+<script src="js/upgrade.js?v=20261010b"></script>
+<script src="js/input.js?v=20261010b"></script>
+<script src="js/water.js?v=20261010b"></script>
+<script src="js/world.js?v=20261010b"></script>
+<script src="js/nav.js?v=20261010b"></script>
+<script src="js/sky.js?v=20261010b"></script>
+<script src="js/vfx.js?v=20261010b"></script>
+<script src="js/particles.js?v=20261010b"></script>
+<script src="js/events.js?v=20261010b"></script>
+<script src="js/tentacle.js?v=20261010b"></script>
+<script src="js/boat.js?v=20261010b"></script>
+<script src="js/camera.js?v=20261010b"></script>
+<script src="js/spots.js?v=20261010b"></script>
+<script src="art/ui/banner/banner_ui.js?v=20261010b"></script>
+<script src="js/banner.js?v=20261010b"></script>
+<script src="js/docks.js?v=20261010b"></script>
+<script src="js/sfx.js?v=20261010b"></script>
+<script src="js/title.js?v=20261010b"></script>
+<script src="js/intro.js?v=20261010b"></script>
+<script src="js/abilities.js?v=20261010b"></script>
+<script src="js/deploy.js?v=20261010b"></script>
+<script src="js/spells.js?v=20261010b"></script>
+<script src="js/book_kit.js?v=20261010b"></script>
+<script src="js/map.js?v=20261010b"></script>
+<script src="js/encyclopedia.js?v=20261010b"></script>
+<script src="js/messages.js?v=20261010b"></script>
+<script src="js/poi.js?v=20261010b"></script>
+<script src="js/books.js?v=20261010b"></script>
+<script src="js/angler.js?v=20261010b"></script>
+<script src="js/ghostrocks.js?v=20261010b"></script>
+<script src="js/miasma.js?v=20261010b"></script>
+<script src="js/ghosts.js?v=20261010b"></script>
+<script src="js/ravens.js?v=20261010b"></script>
+<script src="js/scares.js?v=20261010b"></script>
+<script src="js/infection.js?v=20261010b"></script>
+<script src="js/waterspout.js?v=20261010b"></script>
+<script src="js/ray.js?v=20261010b"></script>
+<script src="js/phantomshark.js?v=20261010b"></script>
+<!-- W0: tiến trình theo ngày + stub cho đơn vị W/R của WORLD-GAPS.md §6 -->
+<script src="js/progress.js?v=20261010b"></script>
+<script src="js/research.js?v=20261010b"></script>
+<script src="js/overflow.js?v=20261010b"></script>
+<script src="js/explosives.js?v=20261010b"></script>
+<script src="js/questcmds.js?v=20261010b"></script>
+<script src="js/finale.js?v=20261010b"></script>
+<script src="js/finale_cut.js?v=20261010b"></script>
+<script src="js/menus.js?v=20261010b"></script>
+<script src="js/paint.js?v=20261010b"></script>
+<script src="js/photo.js?v=20261010b"></script>
+<script src="js/serpent.js?v=20261010b"></script>
+<script src="js/sbcreature.js?v=20261010b"></script>
+<script src="js/jelly.js?v=20261010b"></script>
+<script src="js/mindsucker.js?v=20261010b"></script>
+<script src="js/tshazards.js?v=20261010b"></script>
+<script src="js/piranha.js?v=20261010b"></script>
+<script src="js/mimic.js?v=20261010b"></script>
+<script src="js/statues.js?v=20261010b"></script>
+<script src="js/leviathan.js?v=20261010b"></script>
+<script src="js/greatwhite.js?v=20261010b"></script>
+<script src="js/cetaceans.js?v=20261010b"></script>
+<script src="js/main.js?v=20261010b"></script>
 </body>
 </html>

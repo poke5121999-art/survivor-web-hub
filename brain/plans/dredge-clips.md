@@ -46,3 +46,11 @@ Nước giữa trưa vẫn sáng hơn clip khoảng 1,2 lần; thân dưới thu
 - Bẫy: `dredge-vhud` từng chạy WebGL phần mềm (`--use-gl=swiftshader`); sau vài bộ nặng thì mất context lúc biên dịch shader. Mọi test DREDGE dùng `--use-angle=d3d11`.
 
 **Còn mở sau đợt 2:** V16 quái (pha 4), chai thư, thư Messages, sách đọc theo giờ, nước sáng/tối lệch khoảng 1,2-1,4 lần theo giờ.
+
+## Đợt 3 và quái vùng Marrows (2026-10-10), rev `20261010a` → `20261010b`
+
+- Đợt 3 (rev a): chai thư + Thư tín (w3msg), đọc sách theo giờ (w3books), độ sáng nước theo giờ khớp clip trong 15% theo dải (w3water).
+- Quái (rev b): spec `D:\dredge-ref\notes\MONSTERS.md`. Phần nền S1 (`js/events.js` theo `WorldEventManager.cs`), S2 (NavMesh gốc giải mã, vùng an toàn, hạt, tiếng). 10 phần U1-U10: Angler, đá ma, Miasma, thuyền ma + FogGhost, quạ, sự kiện dọa, lây nhiễm, vòi rồng, cá đuối, cá mập ma.
+- W0 (kế hoạch `D:\dredge-ref\notes\WORLD-GAPS.md`): cờ `can-catch-aberrations` bật đúng ngày như `AberrationEnabler.cs` (trước đây kẹt ở pha 0), `DRYarn.command`, `DRDock.registerDest`, 3 ô lưu, ẩn bến DLC trừ `?dlc=1`.
+- Sửa chung: `uDrCamPos` thay `cameraPosition` (three r140 không nạp cho Lambert/Basic); `tools/tentacle.py` đảo albedo/emission.
+- Còn mở: gốc lỗi mất hạt khi lô nới giữa khung (`particles.js` grow, đang né bằng sức chứa 1024); hiệu ứng hậu kỳ MonsterProfile (viền đỏ, quang sai) đang là lớp CSS; tiếp theo là W1-W9 và R1-R8 theo WORLD-GAPS.md §6.

@@ -17,6 +17,9 @@
  *     Chèn bằng cách bọc renderer.render cho đúng (scene, màn hình); các lần render khác (render target) đi thẳng.
  *
  *   DRSky.init(scene, world)  DRSky.update(dt, ctx)  DRSky.passTime(hours, reason)
+ *   Đồng hồ (W0): DR.s.vars['time-frozen'] (ToggleFreezeTime, TimeController.cs:199-202) giữ nguyên DR.s.time; thời gian ép (ngủ) vẫn
+ *                  đếm lùi như gốc. Ngày đổi: DR.emit('dayChanged', ngày) khi floor(time) vượt ngày đã báo (TimeController.cs:216-219);
+ *                  mốc _lastDay về 0 mỗi lần vào ván / tải sổ, nên tải sổ ngày 3 thì khung đầu báo dayChanged(3) như bản gốc.
  *   DRSky.env      { isDay, night, dayK, sunDir, sunColor[], ambientColor[], fogColor[] (sRGB như gradient), fogColorLinear (THREE.Color),
  *                    fogDensityRaw (_FogDensity), fogHeight, fogCenter, fogFar, sceneLights, sceneLightness, cloudiness, wind, ... }
  *   DRSky.uniforms uniform dùng chung (uDrFogC, uDrFogD, uDrSunDir, uDrSunCol, uDrAmb, ...) — ai tự viết ShaderMaterial có fog
@@ -51,7 +54,8 @@
     uDrSunDir: { value: new T.Vector3(0, 1, 0) }, uDrSunCol: { value: new T.Color() }, uDrAmb: { value: new T.Color() },
     uDrMask: { value: null }, uDrCloud: { value: null }, uDrCloudy: { value: 0.4 }, uDrWind: { value: E.wind }, uDrTime: { value: 0 },
     uDrNightL: { value: 0 }, uDrFlick: { value: null }, uDrTint: { value: new T.Color(0, 0, 0) }, uDrTintK: { value: 0 },
-    uDrLP: { value: v4() }, uDrLC: { value: v4() }, uDrLD: { value: v4() }, uDrLN: { value: 0 }
+    uDrLP: { value: v4() }, uDrLC: { value: v4() }, uDrLD: { value: v4() }, uDrLN: { value: 0 },
+    uDrCamPos: { value: new T.Vector3() }
   };
   const f6 = x => Number(x).toFixed(6);
   const GLSL_ENV = `
@@ -62,6 +66,9 @@ uniform vec3 uDrSunDir; uniform vec3 uDrSunCol; uniform vec3 uDrAmb;
 uniform sampler2D uDrMask; uniform sampler2D uDrCloud; uniform float uDrCloudy; uniform float uDrWind; uniform float uDrTime;
 uniform float uDrNightL; uniform sampler2D uDrFlick; uniform vec3 uDrTint; uniform float uDrTintK;
 uniform vec4 uDrLP[${MAXL}]; uniform vec4 uDrLC[${MAXL}]; uniform vec4 uDrLD[${MAXL}]; uniform int uDrLN;
+// three r140 chỉ nạp cameraPosition cho ShaderMaterial / Phong / Toon / Standard; Lambert và Basic (thế giới, thuyền) đọc (0,0,0)
+uniform vec3 uDrCamPos;
+#define cameraPosition uDrCamPos
 vec3 drS2L(vec3 c) { return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c)); }
 float drS2L(float c) { return c < 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4); }
 // WaveMask.b (Lit_Shader: t1.z ở xz/_WorldSize + 0,5; ngoài thế giới coi như 1)
@@ -509,7 +516,19 @@ void main(){
     // LightAbility bật SanityModifier con của thuyền; VariableSanityModifier ghi PlayerStats.SanityModifier vào giá trị đêm.
     // [ĐỀ XUẤT] chỉ ghi giá trị đêm (cờ affectsNightValue/affectsDayValue nằm ở prefab, chưa bóc)
     if (lightsOn && !day && st) sum += st.lightSanity;
+    for (const m of movingSanity) if (m.on !== false) sum += R.sanityVolume(m.f, Math.hypot(x - m.x, z - m.z), day);   // S1: SanityModifier di động
     return sum;
+  }
+  // S1 (MONSTERS.md §0.3): SanityModifier gắn trên quái di động (FogDevil, MonsterRay…): SanityModifier.GetModifierValueForPoint —
+  // trong r0 = giá trị đầy (day/night), r0..r1 lerp về min, ngoài r1 = 0. Trả về nguồn { x, z, on, remove() }; quái tự ghi x, z mỗi khung.
+  const movingSanity = [];
+  function addSanitySource(o) {
+    const mn = Array.isArray(o.min) ? o.min : [o.min || 0, o.min || 0];
+    const src = { x: o.x || 0, z: o.z || 0, on: true,
+      f: { fullValueDay: o.day || 0, fullValueNight: o.night || 0, fullValueRadius: o.r0 || 0, partialValueMinDay: mn[0], partialValueMinNight: mn[1], partialValueRadius: o.r1 || 0 },
+      remove() { const i = movingSanity.indexOf(src); if (i >= 0) movingSanity.splice(i, 1); } };
+    movingSanity.push(src);
+    return src;
   }
 
   // ---------------------------------------------------------------- thời tiết
@@ -812,6 +831,8 @@ void main(){
   }
   if (pin0) wx.pinned = W.pinned = pin0[1];   // chuẩn hoá tên ở init() khi đã có DR_WEATHER
 
+  let lastDay = 0;   // TimeController._lastDay: không lưu, về 0 mỗi lần vào ván
+  if (root.DR && root.DR.on) { root.DR.on('newgame', () => { lastDay = 0; }); root.DR.on('load', () => { lastDay = 0; }); }
   function update(dt, ctx) {
     const D = root.DR, s = D.s;
     const playing = s && D.mode !== 'title' && !ctx.paused;
@@ -819,9 +840,11 @@ void main(){
     if (playing) {
       [mode, input] = timeMode(ctx);
       const before = s.time;
-      s.time = R.advance(CFG, s.time, dt, mode, input);
+      const next = R.advance(CFG, s.time, dt, mode, input);
+      // W0: ToggleFreezeTime: num = 0 sau khi đã trừ thời gian ép (TimeController.cs:190-202)
+      if (!(s.vars && s.vars['time-frozen'])) s.time = next;
       if (S.forced) {
-        S.forced.left -= s.time - before;
+        S.forced.left -= next - before;
         if (S.forced.left <= 0) {
           const reason = S.forced.reason; S.forced = null;
           const f = document.getElementById('dr-fade');
@@ -830,6 +853,11 @@ void main(){
           D.emit('passTimeDone', reason);
         }
       }
+    }
+    // W0: TimeController.Update: _lastDay < Day → TriggerDayChanged(Day)
+    if (s && D.mode !== 'title') {
+      const day = R.dayOf(s.time);
+      if (lastDay < day) { lastDay = day; D.emit('dayChanged', day); }
     }
     const tmod = R.timeModifier(CFG, mode, input);
     const env = S.env;
@@ -897,7 +925,7 @@ void main(){
     const u = dome.material.uniforms;
     u.uFogLin.value.copy(env.fogColorLinear);
     u.uTOD.value = t; u.uAurora.value = L.auroraAmount || 0; u.uCloudDark.value = L.cloudDarkness;
-    if (ctx.cam) dome.position.copy(ctx.cam);
+    if (ctx.cam) { dome.position.copy(ctx.cam); U.uDrCamPos.value.copy(ctx.cam); }
 
     updateLights(ctx.x, ctx.z);
     updatePostVolumes(ctx.cam || env.fogCenter, s ? s.sanity : 1);
@@ -905,7 +933,7 @@ void main(){
     if (root.DRWorld.updateAmbient) root.DRWorld.updateAmbient(dt, ctx, env);
   }
 
-  Object.assign(S, { init, update, passTime, gradient, curve });
+  Object.assign(S, { init, update, passTime, gradient, curve, addSanitySource });
   Object.defineProperty(S, 'sun', { get: () => sun });
   Object.defineProperty(S, 'ambient', { get: () => amb });
 })(window);
