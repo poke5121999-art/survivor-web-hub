@@ -1,13 +1,14 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Game Hub</title>
-  <meta name="description" content="A local, no-backend web game hub. Pick a game and play — everything runs in your browser." />
+  <meta name="description" content="Kho game chơi ngay trên trình duyệt: không cài đặt, không quảng cáo." />
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/style.css?v=20261009h" />
   <link rel="stylesheet" href="css/auth.css" />
+  <script src="js/i18n.js?v=20261009h"></script>
 
   <!-- Entry gate: no session (neither member nor guest) → bounce to the login
        screen BEFORE the hub renders, so a signed-out visitor never sees the grid
@@ -30,24 +31,34 @@
 <body>
   <header class="hub-header">
     <div class="hub-header__inner hub-header__inner--account">
-      <div>
-        <h1 class="hub-title">Game Hub</h1>
-        <p class="hub-subtitle">Pick a game — everything runs locally in your browser. No ads.</p>
+      <div class="hub-brand">
+        <span class="hub-brand__mark" aria-hidden="true">🎮</span>
+        <div>
+          <h1 class="hub-title">Game Hub</h1>
+          <p class="hub-subtitle" id="hub-subtitle">Chơi ngay trên trình duyệt. Không cài đặt, không quảng cáo.</p>
+        </div>
       </div>
-      <a class="hub-refresh hub-feedback-link" href="feedback.html">🐞 Báo lỗi / góp ý</a>
-      <!-- Account chip: filled by hub.js from the current session. -->
-      <div class="hub-account" id="hub-account"></div>
+      <div class="hub-header__side">
+        <a class="hub-refresh hub-feedback-link" id="hub-feedback" href="feedback.html">🐞 Báo lỗi / góp ý</a>
+        <!-- Language switch and account chip: filled by hub.js. -->
+        <div class="hub-lang" id="hub-lang" role="group"></div>
+        <div class="hub-account" id="hub-account"></div>
+      </div>
     </div>
   </header>
 
   <main class="hub-main">
-    <!-- Cards are rendered here by js/hub.js from window.HUB_GAMES (data/games.js). -->
-    <section id="game-grid" class="game-grid" aria-label="Available games"></section>
+    <!-- Hero, genre filter and cards are rendered by js/hub.js from window.HUB_GAMES (data/games.js). -->
+    <section id="hub-hero" class="hero" hidden></section>
+    <nav id="genre-filter" class="genre-filter" aria-label="Lọc theo thể loại"></nav>
+    <section id="game-grid" class="game-grid" aria-label="Danh sách game"></section>
   </main>
+
+  <dialog id="game-detail" class="detail" aria-labelledby="detail-title"></dialog>
 
   <footer class="hub-footer">
     <div class="hub-footer__row">
-      <p>Local web game hub &middot; no backend &middot; add a game by editing <code>data/games.js</code></p>
+      <p id="hub-footer-text">Mọi game chạy ngay trong trình duyệt của bạn. Tiến độ lưu trên máy, hoặc theo tài khoản nếu đã đăng nhập.</p>
       <button class="hub-refresh" id="hub-refresh" type="button">&#8635; Tải lại bản mới</button>
     </div>
     <p class="hub-note" id="hub-refresh-note">Bản game trên máy chủ đổi rồi mà trong máy vẫn là bản cũ? Bấm nút này. Nó nạp lại toàn bộ file của hub và của từng game — <b>không đụng vào tiến độ chơi đã lưu</b>.</p>
@@ -55,10 +66,10 @@
 
   <!-- Registry is loaded as a plain script (sets window.HUB_GAMES) rather than fetched, so the
        page also works when opened directly via file:// where fetch() of local files is blocked. -->
-  <script src="data/games.js"></script>
-  <script src="js/hub.js"></script>
+  <script src="data/games.js?v=20261009h"></script>
+  <script src="js/hub.js?v=20261009h"></script>
   <!-- Nút "Tải lại bản mới" ở chân trang. Nạp sau data/games.js vì nó cần HUB_GAMES
        để biết phải nạp lại file của những game nào. -->
-  <script src="js/cache-bust.js"></script>
+  <script src="js/cache-bust.js?v=20261009h"></script>
 </body>
 </html>

@@ -49,23 +49,27 @@ Any static server works (`npx serve`, VS Code Live Server, etc.).
    {
      id: "my-game",
      title: "My Game",
-     tagline: "One-line pitch.",
-     thumbnail: "assets/thumbnails/my-game.svg",
+     tagline: "Một câu móc, tối đa 80 ký tự.",
+     desc: "Hai tới bốn câu cho bảng Giới thiệu.",
+     genre: "hanh-dong",             // một khoá trong GENRES của js/hub.js
+     accent: "#f59e0b",
+     thumbnail: "assets/thumbnails/my-game.png",
      path: "games/my-game/index.html",
      status: "available",            // or "build-pending" / "coming-soon"
      tags: ["Puzzle"]
    }
    ```
 2. Create `games/my-game/` and drop the game's build there (its `index.html` is the entry point).
-3. Add `assets/thumbnails/my-game.svg` (or `.png`) — keep it local, no external URL.
+3. Chụp ảnh thẻ 640x360 từ trận thật: viết `games/my-game/tools/thumb.js` dựa trên `tools/thumb-lib.js`
+   (mẫu: `games/chuyen-tau/tools/thumb.js`), chạy nó, mở ảnh ra xem. Ảnh để trong repo, không dùng URL ngoài.
+4. `node test/hub-ui.js` kiểm độ dài tagline/desc, khoá genre, bộ lọc và bảng Giới thiệu.
 
 No change to `index.html`, `hub.js`, or `style.css` is needed.
 
 **Status values**
 - `available` — clickable, launches the build.
-- `build-pending` — clickable, launches a placeholder page; shows a "Cần thả build" badge (use while the
-  build folder is not populated yet).
-- `coming-soon` — shown disabled, not clickable.
+- `build-pending` — hidden on the hub, listed on admin.html (use while the build folder is not populated yet).
+- `coming-soon` — hidden on the hub, a teaser tracked on admin.html.
 
 ## Drop the Survivor WebGL build
 

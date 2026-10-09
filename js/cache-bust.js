@@ -26,7 +26,7 @@
   var note = document.getElementById('hub-refresh-note');
   if (!btn) return;
 
-  var GOC = note ? note.textContent : '';
+  var t = window.HubI18n ? window.HubI18n.t : function (k) { return k; };
   var SONG_SONG = 6;       // số file nạp cùng lúc — đủ nhanh mà không ép trình duyệt
 
   function noi(s) { if (note) note.textContent = s; }
@@ -40,7 +40,7 @@
      'css/style.css', 'css/auth.css',
      'data/games.js',
      'js/session.js', 'js/supabase-config.js', 'js/supabase-auth.js',
-     'js/save-sync.js', 'js/hub-profile.js', 'js/hub.js', 'js/cache-bust.js'
+     'js/save-sync.js', 'js/hub-profile.js', 'js/i18n.js', 'js/hub.js', 'js/cache-bust.js'
     ].forEach(function (u) { ds.push(u); });
     (root.HUB_GAMES || []).forEach(function (g) { if (g && g.path) ds.push(g.path); });
     return ds;
@@ -86,7 +86,7 @@
 
     // Mở bằng file:// thì không có cache HTTP để dọn, và fetch() cũng bị chặn.
     if (location.protocol === 'file:') {
-      noi('Đang mở bằng file:// — không có cache của máy chủ để dọn. Nạp lại trang…');
+      noi(t('refresh.file'));
       setTimeout(function () { location.reload(); }, 600);
       return;
     }
@@ -99,7 +99,7 @@
       } catch (e) {}
     });
 
-    noi('Đang nạp lại ' + hang.length + ' file…');
+    noi(t('refresh.loading', hang.length));
 
     // 1) Dọn Cache Storage và mọi service worker, nếu có. Hub hiện không dùng cái
     //    nào, nhưng nếu sau này có thì nút này vẫn phải đúng nghĩa.
@@ -135,12 +135,12 @@
       // 3) Nạp lại đám file con vừa moi được (js, css, ảnh của từng game).
       .then(function (them) {
         if (!them.length) return 0;
-        noi('Đang nạp lại thêm ' + them.length + ' file của các game…');
+        noi(t('refresh.games', them.length));
         return theoTung(them, napLai);
       })
       .then(function (n) {
         var tong = Object.keys(daXem).length;
-        noi('Xong — đã nạp lại ' + tong + ' file. Đang khởi động lại…');
+        noi(t('refresh.done', tong));
         // Trang đang mở đã có bản mới trong cache ở bước 2, nên reload() thường là đủ.
         // Vẫn gắn thêm dấu thời gian: nếu máy chủ trung gian nào đó còn giữ bản cũ
         // thì một địa chỉ chưa từng thấy là cách chắc chắn nhất để đi vòng qua nó.
@@ -151,8 +151,7 @@
       })
       .catch(function (e) {
         btn.disabled = false;
-        noi('Không nạp lại được (' + (e && e.message ? e.message : 'lỗi mạng') +
-            '). Thử lại, hoặc tắt hẳn tab rồi mở lại. ' + GOC);
+        noi(t('refresh.failed', e && e.message ? e.message : t('refresh.network')));
       });
   });
 })(window);

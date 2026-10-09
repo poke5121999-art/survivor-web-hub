@@ -14,12 +14,19 @@
  *   {
  *     id:        stable slug (folder name under games/)          e.g. "survivor"
  *     title:     display name
- *     tagline:   one-line pitch
- *     thumbnail: relative path to a committed image (no external URL)
+ *     tagline:   one-line hook on the card, ≤ 80 chars
+ *     desc:      2-4 sentences in the "Giới thiệu" dialog, ≤ 330 chars
+ *     genre:     filter chip key, one of GENRES in js/hub.js
+ *                ("hanh-dong" | "kinh-di" | "nhap-vai" | "chien-thuat" | "thu-gian" | "khac")
+ *     accent:    card glow / border colour, e.g. "#f59e0b"
+ *     thumbnail: relative path to a committed 640x360 image (no external URL);
+ *                capture it from the real game with games/<id>/tools/thumb.js (tools/thumb-lib.js)
  *     path:      relative launch path                            e.g. "games/survivor/index.html"
+ *     rev:       "YYYYMMDD<letter>" cache-bust stamp; the newest one is the hub's featured game
  *     status:    "available" | "build-pending" | "coming-soon"
- *     tags:      string[]
+ *     tags:      string[] (the card shows the first 3)
  *   }
+ * test/hub-ui.js checks the tagline/desc lengths and genre keys.
  *
  * status controls WHO sees the game:
  *   - "available"     → shown on the public hub (index.html). Use ONLY when a real
@@ -37,7 +44,11 @@ window.HUB_GAMES = [
   {
     id: "dragonproj",
     title: "Săn Rồng",
-    tagline: "Bắn từ trên xuống, một ngón. Sáu lớp vũ khí — súng trường, súng săn, bắn tỉa, cung nạp lực, gậy phép, súng phóng — mỗi lớp giỏi nhất đúng một thứ và tệ nhất hai thứ. Kéo để chạy, chạm để bắn, giữ để rải/nạp/ghì súng, vẩy để né. Gacha ra NHÂN VẬT kiểu White Cat: 43 người, mỗi người gắn cứng một lớp và một hệ. Mang ba người vào ải, đổi qua lại giữa trận. 38 ải solo, dọn quái rồi hạ Behemoth cuối ải.",
+    tagline: "Săn quái một ngón: kéo để chạy, chạm để bắn, vẩy để né.",
+    desc: "Mang ba thợ săn vào ải và đổi qua lại ngay giữa trận. Sáu lớp vũ khí, từ súng săn cận chiến tới cung nạp lực, mỗi lớp mạnh đúng một kiểu. 38 ải, cuối mỗi ải là một con Behemoth. Gacha ra 43 nhân vật.",
+    genre: "hanh-dong",
+    accent: "#f59e0b",
+    en: { title: "Dragon Hunt", tagline: "One-finger monster hunting: drag to run, tap to shoot, flick to dodge.", desc: "Take three hunters into each stage and swap between them mid-fight. Six weapon classes, from close-range shotguns to charged bows, each best at one thing. 38 stages, each ending with a Behemoth. The gacha pulls from 43 characters." },
     thumbnail: "assets/thumbnails/dragonproj.png",
     path: "games/dragonproj/index.html",
     rev: "20260901a",
@@ -132,19 +143,27 @@ window.HUB_GAMES = [
   {
     id: "survivor",
     title: "Survivor",
-    tagline: "Vampire-Survivors-style auto-shooter. Move to dodge, weapons fire themselves, survive escalating waves.",
+    tagline: "Chỉ việc chạy né, vũ khí tự bắn. Sống sót qua từng đợt quái.",
+    desc: "Kiểu Vampire Survivors. Bạn chỉ lo hướng chạy, mọi vũ khí tự khai hoả. Quái kéo tới từng đợt, đợt sau đông và khó hơn đợt trước.",
+    genre: "hanh-dong",
+    accent: "#a78bfa",
+    en: { title: "Survivor", tagline: "Just run and dodge, your weapons fire themselves. Survive wave after wave.", desc: "In the style of Vampire Survivors. You only steer, every weapon fires on its own. Enemies come in waves, each one bigger and harder than the last." },
     thumbnail: "assets/thumbnails/survivor.svg",
     path: "games/survivor/index.html",
     // available since 2026-07-30: a real WebGL build (68 MB) lives in
     // web-hub/games/survivor/ and was play-tested end-to-end in a browser with no
     // backend. See docs/plans/roadmap.md Phase 1.1 / 5.2.
     status: "available",
-    tags: ["Action", "Roguelite", "Solo"]
+    tags: ["Roguelite", "Tự bắn", "Solo"]
   },
   {
     id: "kingfall",
     title: "Kingfall: The Last Citadel TD",
-    tagline: "Tower-defense siege: raise the citadel, place your defenders, and hold the last gate against waves of mobs and bosses.",
+    tagline: "Thủ thành: dựng thành, đặt quân, giữ cổng cuối trước quái và trùm.",
+    desc: "Thủ thành kiểu tower defense. Xây toà thành, đặt quân phòng thủ và giữ cánh cổng cuối cùng qua từng đợt quái, xen giữa là trùm.",
+    genre: "chien-thuat",
+    accent: "#fb923c",
+    en: { title: "Kingfall: The Last Citadel TD", tagline: "Raise the citadel, place defenders, hold the last gate against mobs and bosses.", desc: "Tower defense siege. Build the citadel, place your defenders and hold the final gate through wave after wave of mobs, with bosses in between." },
     thumbnail: "assets/thumbnails/kingfall.svg",
     path: "games/kingfall/index.html",
     // available since 2026-08-05: a real WebGL build sits in web-hub/games/kingfall/
@@ -155,7 +174,7 @@ window.HUB_GAMES = [
     // NOT yet eyes-on verified: the two-generation editor jump can break rendering
     // (shaders, particles, lighting) without breaking the build.
     status: "available",
-    tags: ["Tower Defense", "Strategy", "Solo"]
+    tags: ["Thủ thành", "Đánh trùm", "Solo"]
   },
   {
     id: "mmorpg",
@@ -163,7 +182,11 @@ window.HUB_GAMES = [
     // (mmorpg_survivor) is settled. Change `title` here when they do; `id` is the
     // folder under games/ and should stay put.
     title: "Survivor MMO",
-    tagline: "A persistent world with the same auto-shooter combat: walk up an arena corridor, clear mob camps that hold their ground and respawn on their own timers, and leave whenever you have farmed enough.",
+    tagline: "Thế giới mở với lối đánh tự bắn của Survivor. Cày bãi quái, về lúc nào tuỳ bạn.",
+    desc: "Cùng lối đánh tự bắn của Survivor, nhưng trong một thế giới được lưu lại. Đi dọc hành lang đấu trường, dọn các bãi quái tự hồi sinh theo giờ riêng, cày đủ thì rời đi.",
+    genre: "nhap-vai",
+    accent: "#818cf8",
+    en: { title: "Survivor MMO", tagline: "Survivor's auto-shooter combat in a persistent world. Farm camps, leave anytime.", desc: "The same auto-shooter combat as Survivor, in a world that remembers. Walk up the arena corridor, clear mob camps that respawn on their own timers, and leave once you have farmed enough." },
     thumbnail: "assets/thumbnails/mmorpg.svg",
     path: "games/mmorpg/index.html",
     // available since 2026-08-08: a real WebGL build (69 MB, Unity 6000.0.59f2) built from
@@ -174,12 +197,16 @@ window.HUB_GAMES = [
     // green compile plus 905 passing unit tests, which is exactly the evidence that has
     // missed build-only breakage on this hub before (see Kingfall, patch-16).
     status: "available",
-    tags: ["MMORPG", "Action", "Solo"]
+    tags: ["MMORPG", "Tự bắn", "Cày quái"]
   },
   {
     id: "rung-toi",
     title: "Rừng Tối",
-    tagline: "Kinh dị sinh tồn nhìn từ trên xuống: bạn chỉ thấy thứ trước mặt, tường và cây chặn tầm nhìn, và đêm xuống thì cái đèn pin vừa cứu vừa bán đứng bạn.",
+    tagline: "Kinh dị nhìn từ trên xuống. Chỉ thấy thứ trước mặt, và đèn pin làm lộ bạn.",
+    desc: "Sinh tồn trong rừng đêm. Tường và cây chặn tầm nhìn nên bạn chỉ thấy thứ ở trước mặt. Đêm xuống, cái đèn pin vừa cứu bạn vừa bán đứng bạn.",
+    genre: "kinh-di",
+    accent: "#84cc16",
+    en: { title: "Dark Forest", tagline: "Top-down horror. You only see what is in front of you, and your flashlight gives you away.", desc: "Survive a forest at night. Walls and trees block your view, so you only see what is ahead. After dark, your flashlight both saves you and betrays you." },
     thumbnail: "assets/thumbnails/rung-toi.svg",
     path: "games/rung-toi/index.html",
     // available since 2026-08-16. NOT a Unity build — a single 41 KB HTML page of plain
@@ -214,7 +241,11 @@ window.HUB_GAMES = [
   {
     id: "repo2d-unity",
     title: "Ca Trực Đêm: Biệt Đội",
-    tagline: "Bản Unity, dịch nguyên từ bản web. Tổ năm người, 14 xác, gacha, trang bị, 9 màn — và Co-op Ca vô tận: năm người thật, mỗi người mang xác của mình, không chọn map, chơi tới khi cả tổ gục.",
+    tagline: "Kinh dị co-op năm người. Trực ca vô tận tới khi cả tổ gục.",
+    desc: "Bản Unity của Ca Trực Đêm. Tổ năm người, 14 nhân vật, gacha, trang bị và 9 màn. Chế độ Co-op Ca vô tận cho năm người thật, mỗi người mang nhân vật của mình vào, chơi tới khi cả tổ gục.",
+    genre: "kinh-di",
+    accent: "#2dd4bf",
+    en: { title: "Night Shift: Squad", tagline: "Five-player co-op horror. Work the endless shift until the whole crew falls.", desc: "The Unity build of Night Shift. A five-person crew, 14 characters, gacha, gear and 9 levels. Endless Co-op Shift is for five real players, each bringing their own character, playing until the whole crew falls." },
     thumbnail: "assets/thumbnails/repo2d-unity.svg",
     path: "games/repo2d-unity/index.html",
     // The UNITY build of the same design, kept BESIDE the plain-JS one rather than replacing it:
@@ -265,7 +296,11 @@ window.HUB_GAMES = [
   {
     id: "stardew",
     title: "Quần Đảo Sao Rơi",
-    tagline: "Ông ngoại để lại một hòn đảo. Biển quanh đây còn hai mươi bốn hòn nữa — mua từng hòn một, và trong đám cỏ cao trên vài hòn có thứ đang trốn.",
+    tagline: "Ông ngoại để lại một hòn đảo. Còn 24 hòn nữa đang chờ bạn mua.",
+    desc: "Làm nông, khám phá và bắt quái. Biển quanh đảo của bạn còn hai mươi bốn hòn nữa để mua dần từng hòn. Trong đám cỏ cao trên vài hòn có thứ đang trốn.",
+    genre: "thu-gian",
+    accent: "#4ade80",
+    en: { title: "Fallen Star Isles", tagline: "Grandpa left you an island. 24 more are waiting for you to buy them.", desc: "Farm, explore and catch monsters. The sea around your island holds twenty-four more to buy one at a time. Something hides in the tall grass on a few of them." },
     thumbnail: "assets/thumbnails/stardew.png",
     path: "games/stardew/index.html",
     // Bumped on every redeploy. js/hub.js appends it to the card's href so the
@@ -319,7 +354,11 @@ window.HUB_GAMES = [
   {
     id: "hic",
     title: "Hắn Đang Tới",
-    tagline: "Ba ngày để nhặt đồ, rồi hắn tới. Bạn không bấm được gì trong trận — thắng hay thua đã nằm trong đống đồ bạn chọn lúc còn sáng.",
+    tagline: "Ba ngày nhặt đồ, rồi hắn tới. Trận đánh tự diễn theo đồ bạn chọn.",
+    desc: "Roguelite auto-battler. Bạn có ba ngày để nhặt đồ. Khi hắn tới thì không bấm được gì nữa, thắng hay thua đã nằm trong đống đồ bạn chọn lúc trời còn sáng.",
+    genre: "chien-thuat",
+    accent: "#ef4444",
+    en: { title: "He Is Coming", tagline: "Three days to scavenge, then he arrives. The fight plays out from the gear you picked.", desc: "Roguelite auto-battler. You have three days to gather gear. Once he arrives you cannot press anything, the win or loss was decided by what you packed while it was still light." },
     thumbnail: "assets/thumbnails/hic.png",
     path: "games/hic/index.html",
     // available since 2026-08-23. Plain canvas/JS, no engine: 9 files plus one
@@ -378,7 +417,11 @@ window.HUB_GAMES = [
   {
     id: "voiddiver",
     title: "Void Diver",
-    tagline: "Tiệm đồ cổ Balusha cử Diver xuống hầm ngục giữa thành phố nhặt cổ vật. Chém, bắn, lướt dưới ánh đèn pin sắp cạn pin; căng thẳng càng cao thì bóng tối càng sinh quái. Mang đồ về bốt điện thoại, bán, chế, học kỹ năng rồi lặn tiếp. Bốn Diver: Gayoung, Noah, Mio, Raven.",
+    tagline: "Lặn xuống hầm ngục giữa thành phố, nhặt cổ vật trước khi đèn pin cạn.",
+    desc: "Tiệm đồ cổ Balusha cử bạn xuống hầm ngục nhặt cổ vật. Chém, bắn, lướt dưới ánh đèn pin sắp cạn, càng căng thẳng thì bóng tối càng sinh quái. Mang đồ về bốt điện thoại để bán, chế đồ và học kỹ năng. Bốn Diver để chọn.",
+    genre: "hanh-dong",
+    accent: "#c084fc",
+    en: { title: "Void Diver", tagline: "Dive into the dungeon under the city and grab relics before your flashlight dies.", desc: "The Balusha antique shop sends you into the dungeon to collect relics. Slash, shoot and dash under a dying flashlight, and the higher the tension, the more monsters the dark spawns. Bring loot back to the phone booth to sell, craft and learn skills. Four Divers to choose from." },
     thumbnail: "assets/thumbnails/voiddiver.png",
     path: "games/voiddiver/index.html",
     rev: "20260929b",
@@ -396,7 +439,11 @@ window.HUB_GAMES = [
   {
     id: "orbit",
     title: "Quỹ Đạo — Mốc 1",
-    tagline: "Bản dựng thử, không phải game. Cùng một dây chuyền, hai cách vận chuyển: bản A nối máy với máy bằng hai cú chạm, bản B là kho chung kiểu Deep Town. Chơi cả hai trong 3 phút rồi so bằng ngón cái.",
+    tagline: "Bản dựng thử: so hai cách chở hàng trên cùng một dây chuyền.",
+    desc: "Chưa phải game hoàn chỉnh. Bản A nối máy với máy bằng hai cú chạm, bản B dùng kho chung kiểu Deep Town. Chơi cả hai trong 3 phút rồi xem bản nào vừa tay hơn.",
+    genre: "khac",
+    accent: "#94a3b8",
+    en: { title: "Orbit — Milestone 1", tagline: "A prototype comparing two ways to move goods on one production line.", desc: "Not a full game yet. Version A links machine to machine with two taps, version B uses a shared store like Deep Town. Play both for 3 minutes and see which feels better." },
     thumbnail: "assets/thumbnails/orbit.svg",
     path: "games/orbit/index.html",
     // 2026-08-31. Dụng cụ đo cho games/orbit/RESEARCH.md muc 9 (Moc 1) - the question is
@@ -412,7 +459,11 @@ window.HUB_GAMES = [
   {
     id: "slimeclash",
     title: "SlimeClash",
-    tagline: "Một lưới 6×6, một con quái to. Ba bước mỗi lượt: kéo quân như game merge, xếp 3 con cùng loại cùng cấp thành hàng để gộp lên cấp — và nó đổi hình luôn. Hết bước thì cả sân bắn vào quái, rồi quái nện xuống một cột nó đã báo trước. Mười ngày một chương, boss ở ngày 5 và ngày 10. Thắng thua nằm ở chỗ có đủ sát thương trong ngần ấy lượt hay không, chứ không ở chỗ né được hay không.",
+    tagline: "Ghép slime trên lưới 6×6, gộp lên cấp và bắn hạ con quái khổng lồ.",
+    desc: "Mỗi lượt ba bước kéo quân. Xếp ba con cùng loại cùng cấp thành hàng để gộp lên cấp. Hết bước, cả sân bắn vào quái, rồi quái nện xuống cột nó đã báo trước. Mười ngày một chương, trùm ở ngày 5 và ngày 10.",
+    genre: "chien-thuat",
+    accent: "#34d399",
+    en: { title: "SlimeClash", tagline: "Merge slimes on a 6×6 grid, level them up and blast a giant monster.", desc: "Three moves per turn. Line up three slimes of the same kind and level to merge them up. Then the whole board fires at the monster, and it slams the column it warned you about. Ten days per chapter, bosses on day 5 and day 10." },
     thumbnail: "assets/thumbnails/slimeclash.png",
     path: "games/slimeclash/index.html",
     // Cơ chế GỘP + tiến trình + kinh tế của Slime Legion (Perfeggs, 2023), bỏ hẳn pha thủ
@@ -465,7 +516,11 @@ window.HUB_GAMES = [
   {
     id: "chuyen-tau",
     title: "Chuyến Tàu Cuối",
-    tagline: "Bắn từ trên xuống, màn hình ngang. Một đoàn tàu hơi nước chạy qua sa mạc Viễn Tây đầy xác sống: tàu chạy thì bạn đi trên nóc toa mà thủ, tàu dừng ga thì xuống lục soát nhà với một cái đồng hồ đếm ngược trên đầu — và tàu chạy tiếp dù có bạn hay không. Ngày không có một con quái nào, đêm mới đổ ra, và có bốn loại đêm khác nhau. Gacha ra NGƯỜI: mười nhân vật, mỗi người một chiêu bấm được không ai trùng ai — chặn đạn, húc, móc kéo, vách chắn, thời gian chậm, gom quái, tàng hình hai bước, quay ngược bốn giây, tiêm hồi máu bấm được cả khi đang choáng, thả chó ghim quái. Ngoài ván thì nâng trang bị, nâng toa tàu, tiến hoá. Chín chuyến, ba tới năm chặng mỗi chuyến.",
+    tagline: "Giữ đoàn tàu hơi nước sống sót qua sa mạc Viễn Tây đầy xác sống.",
+    desc: "Tàu chạy thì bạn đứng trên nóc toa mà thủ. Tàu dừng ga thì xuống lục nhà với đồng hồ đếm ngược trên đầu, và tàu chạy tiếp dù có bạn hay không. Mười nhân vật, mỗi người một chiêu riêng. Chín chuyến, bốn kiểu đêm.",
+    genre: "hanh-dong",
+    accent: "#fbbf24",
+    en: { title: "The Last Train", tagline: "Keep a steam train alive across a Wild West desert full of zombies.", desc: "While the train runs you defend from the roof. At a station you search houses with a countdown overhead, and the train leaves with or without you. Ten characters, each with a unique ability. Nine journeys, four kinds of night." },
     thumbnail: "assets/thumbnails/chuyen-tau.png",
     path: "games/chuyen-tau/index.html",
     rev: "20260907e",
@@ -516,7 +571,11 @@ window.HUB_GAMES = [
   {
     id: "deepcore",
     title: "Lõi Sâu",
-    tagline: "Đào hầm nhìn từ trên xuống, màn hình dọc, một cần gạt. Bạn KHÔNG tự đánh: mỗi món mang theo là một con linh thú tự đi, tự chọn mục tiêu, tự đánh — mười con, mỗi con một luật ngắm in thẳng lên thẻ. Việc của bạn là đi, đào, và đứng đúng chỗ. Một ván là MỘT TẦNG khoảng mười phút: nhận nhiệm vụ, đục đá tìm quặng, sống qua mấy đợt bầy có báo trước, hạ chủ hang rồi chạy về khoang thoát trong lúc cả hang đổ ra chặn đầu. Đèn là một ô trang bị riêng vì ngoài quầng sáng là đen đặc. Ngoài ván: hai loại tiền, quay trứng linh thú, nâng bậc, sáu ô trang bị — mũ, áo, quần đổi luôn hình nhân vật.",
+    tagline: "Đào sâu xuống hang, để mười linh thú tự đánh thay bạn.",
+    desc: "Một cần gạt, màn hình dọc. Bạn không tự đánh, mỗi món mang theo là một linh thú tự chọn mục tiêu. Việc của bạn là đi, đào và đứng đúng chỗ. Mỗi ván một tầng khoảng mười phút, hạ chủ hang rồi chạy về khoang thoát.",
+    genre: "hanh-dong",
+    accent: "#f472b6",
+    en: { title: "Deep Core", tagline: "Dig deep into the caves and let ten companion beasts fight for you.", desc: "One joystick, portrait screen. You never attack, every item you carry is a beast that picks its own targets. Your job is to move, dig and stand in the right place. Each run is one floor of about ten minutes: beat the cave boss, then race to the escape pod." },
     thumbnail: "assets/thumbnails/deepcore.png",
     path: "games/deepcore/index.html",
     rev: "20260907f",
@@ -574,7 +633,11 @@ window.HUB_GAMES = [
   {
     id: "ghe-nong",
     title: "Ghế Nóng",
-    tagline: "Quản lý đội tuyển esport. Nuôi huấn luyện viên kiểu Uma Musume: 5 giáo án CƠ/BỀN/LỰC/LÌ/NÃO, thể lực, tâm trạng, tỉ lệ hỏng hiện sẵn, thân thiết tới 80 thì nổ cầu vồng. Vào ca chọn 1 huấn luyện viên + 5 tuyển thủ + 2 cựu huấn luyện viên để kế thừa, nuôi thẻ tuyển thủ bằng xu và bằng kinh nghiệm chạy mùa. Một mùa 24 lượt: 5 ngày tập rồi 1 giải, tới chung kết thế giới thì 1 ngày tập 1 trận. 24 đội máy có tên, có ngôi sao, có bảng xếp hạng chạy song song và bản tin sinh từ chính chuyện đang xảy ra — kết quả gây sốc, chuỗi thắng, chuyển nhượng làm đổi sức đội thật. Thi đấu là cấm/chọn 20 tướng — mỗi tướng có ảnh, kèm hai nhãn thông thạo TA/ĐỊCH để biết mà cấm đúng tủ đối thủ — rồi xem trận 5v5 tự đánh trên bản đồ 5v5 thật của Teamfight Manager 2: ba đường, tường đá phải đi vòng, bụi rậm, rồng, chúa hang. Trụ, lính, quái rừng, viên đạn, hiệu ứng chiêu và cả hai mươi món đồ đều có art thật, bốn mức zoom và camera bám theo người mình chọn. Xem trận chậm lại còn ba lần thật và có nội suy, nên nhìn ra được từng động tác: ai cũng CẦM VŨ KHÍ trên tay — lính cận thọc thương, lính xa bắn súng thấy rõ đạn, kiếm rìu búa vung một cung, giáo thì thọc — quái rừng đánh trả chứ không đứng im, và bốn mươi chiêu của hai mươi tướng mỗi chiêu một bộ mặt riêng kèm TÊN CHIÊU hiện trên đầu người vừa bung. Kỹ năng riêng của huấn luyện viên cũng nổ ra thành hào quang phủ cả đội đúng lúc điều kiện bật lên. Menu dựng theo đúng màn Home của Uma: thanh NĂM nút ở đáy, ba nút tròn, và một nút CAREER lớn đứng riêng — vì một ca huấn luyện là MỘT CHẾ ĐỘ RIÊNG, không phải một tab. Vào ca đi qua đúng bốn bước như Uma (thể thức → huấn luyện viên → cựu huấn luyện viên → đội hình), và bảng xếp hạng sống chỉ tồn tại bên trong ca đang chạy: mỗi ca là một mùa riêng, hết ca là bảng ấy khép lại, ca sau bốc lịch mới. Trong ca thì sáu nút chính như Uma, bấm Tập mới mở ra năm sân. Nuôi thẻ dựng theo màn Enhance của Uma: ba tab đúng ba kho, và quay trúng người đã có thì bản trùng thành MỘT MẢNH nằm chờ trong kho chứ không tự cộng — mang mảnh vào mà mở trần, bốn bậc, mỗi bậc một mảnh và nới trần cấp thêm năm, bảng bốn bậc luôn hiện kể cả lúc đang tiêu xu lên cấp; với huấn luyện viên thì bậc hai và bậc bốn còn làm kỹ năng riêng mạnh thêm 15% rồi 20%. Trận đấu đã được soi lại bằng một bộ đo riêng cho BỘ NÃO trong trận: trụ giờ là chỗ nguy hiểm thật — đòn trụ đi thang sát thương riêng và LEO THANG theo số phát liên tiếp vào cùng một người, nên lao vào một mình là chết còn cả đội xúm vào thì trụ vẫn đổ trong mươi giây; năm người bàn nhau đẩy CHUNG một đường thay vì mỗi người một nơi, tập trung hoả lực vào kẻ sắp chết, rút thì vừa chạy vừa đánh chứ không đứng lì, và khi địch gãy quá nửa đội thì cả đội vào thẳng nhà. Đo bằng máy trên 200 trận: 23 mạng một trận thay vì 93, trận dài 19 phút, và 76% số trận kết thúc bằng việc phá được lõi chứ không phải hết giờ chia điểm; thời gian một người đứng lì dưới trụ địch rơi từ 276 giây xuống 60, số mạng rơi lúc đang rút từ 79% xuống 32%. Cả hai mươi tướng vẫn cân trong ngưỡng 12%, và đường cong tám giải của mùa đầu vẫn đúng chỗ cũ: thắng 79% giải mở màn, 23% vô địch thế giới.",
+    tagline: "Làm huấn luyện viên esport: tập luyện, cấm chọn tướng, xem đội đánh 5v5.",
+    desc: "Nuôi tuyển thủ kiểu Uma Musume qua một mùa 24 lượt, có thể lực, tâm trạng và độ thân thiết. Vào giải thì cấm chọn trong 20 tướng, rồi xem trận 5v5 tự đánh trên bản đồ của Teamfight Manager 2. 24 đội máy tranh hạng song song tới chung kết thế giới.",
+    genre: "chien-thuat",
+    accent: "#f43f5e",
+    en: { title: "Hot Seat", tagline: "Coach an esports team: train players, draft heroes, watch your team fight 5v5.", desc: "Raise players Uma Musume style over a 24-turn season, with stamina, mood and bonds. At tournaments you ban and pick from 20 heroes, then watch the 5v5 play out on the Teamfight Manager 2 map. 24 AI teams climb the ladder alongside you up to the world finals." },
     thumbnail: "assets/thumbnails/ghe-nong.png",
     path: "games/ghe-nong/index.html",
     rev: "20260925l",
@@ -624,7 +687,11 @@ window.HUB_GAMES = [
   {
     id: "xuoi-dong",
     title: "Xuôi Dòng",
-    tagline: "Lái chiếc nhà thuyền đỏ xuôi từ hẻm đá, qua rừng thông, đầm lầy, hang đá rồi ra biển. Ngày nối đêm, có mưa có giông, đêm xuống thì cửa sổ cabin sáng đèn và đom đóm bay dọc bờ. Kéo lưới ở mũi thuyền qua bóng cá để bắt, vớt thùng gỗ trôi, hú còi cho chim bay. Chín loài cá ghi vào sổ, loài hiếm ra về đêm. Không có thua.",
+    tagline: "Lái nhà thuyền xuôi dòng ra biển, câu cá và ngắm ngày đêm. Không có thua.",
+    desc: "Xuôi từ hẻm đá qua rừng thông, đầm lầy, hang đá rồi ra biển. Có mưa có giông, đêm xuống thì cabin sáng đèn và đom đóm bay dọc bờ. Kéo lưới bắt cá, vớt thùng trôi, chín loài cá ghi vào sổ.",
+    genre: "thu-gian",
+    accent: "#fb7185",
+    en: { title: "Downstream", tagline: "Pilot a houseboat down the river to the sea, fish and watch day turn to night. No losing.", desc: "Drift from a rocky gorge through pine forest, swamp and caves out to the sea. Rain and storms come and go, at night the cabin windows glow and fireflies line the banks. Net fish, salvage floating crates, and log nine species in your book." },
     thumbnail: "assets/thumbnails/xuoi-dong.png",
     path: "games/xuoi-dong/index.html",
     rev: "20260924a",
@@ -645,7 +712,11 @@ window.HUB_GAMES = [
   {
     id: "ho-xanh",
     title: "Hố Xanh",
-    tagline: "Lặn xuống Hố Xanh bắt cá bằng súng xiên, như trong Dave the Diver. Ngắm bằng chuột, tay cầm súng xoay theo hướng ngắm, bắn trúng thì dây kéo cá về; cá to còn vùng vẫy thì bấm liên tục để kéo co. Dưỡng khí vừa là máu: tụt theo thời gian, tụt nhanh khi tăng tốc hay bị cá hung cắn, mở rương oxy trên mỏm đá để nạp lại. Bơi lên mặt nước hay vào khoang cứu hộ là mang cả túi về, ngất dưới đáy thì chỉ giữ được một con. Lặn một mạch từ vùng nông xuống tầng giữa rồi vực sâu 250 m, ghép từ 16 bản đồ gốc với san hô đặt tay; mỗi lượt đổi chủ đề: ban ngày, rừng tảo, chiều tà, mưa, lặn đêm đèn đội đầu. 65 loài cá. Trọn một ngày như bản gốc: sắm đồ và chọn một trong sáu khẩu súng trên app iDiver, cano Nodens 68 tự chạy ra Hố Xanh, lặn, rồi về quán Bancho làm sushi từ cá bắt được, bưng món và rót trà cho khách, lấy tiền nâng cấp bản thân và quán.",
+    tagline: "Lặn bắt cá bằng súng xiên như Dave the Diver, tối về mở quán sushi.",
+    desc: "Ngắm bằng chuột, bắn trúng thì dây kéo cá về, cá to thì bấm liên tục để kéo co. Dưỡng khí vừa là máu. Lặn từ vùng nông xuống vực sâu 250 m với 65 loài cá, rồi về quán Bancho làm sushi và lấy tiền nâng cấp.",
+    genre: "thu-gian",
+    accent: "#38bdf8",
+    en: { title: "Blue Hole", tagline: "Harpoon fishing like Dave the Diver, then run a sushi bar at night.", desc: "Aim with the mouse, hit a fish and the line reels it in, big ones need rapid clicks to win the tug of war. Oxygen is your health. Dive from the shallows to a 250 m abyss with 65 species, then head to Bancho to serve sushi and earn upgrades." },
     thumbnail: "assets/thumbnails/ho-xanh.png",
     path: "games/ho-xanh/index.html",
     rev: "20260925e",
@@ -665,7 +736,11 @@ window.HUB_GAMES = [
   {
     id: "biet-doi-lan",
     title: "Biệt Đội Lặn",
-    tagline: "Dave the Diver ghép R.E.P.O.: một ca là năm chuyến lặn ở năm vùng biển, mỗi chuyến sâu hơn và chỉ tiêu cao hơn. Độ sâu chia theo tầng như phòng của REPO. Bắn móc vào đồ cổ bỏ hoang dưới đáy rồi vừa bơi vừa kéo dây lên cano; va đập là mất giá, kéo nặng quá thì dây căng rồi đứt. Săn cá đầy túi thì lên thuyền xả. Cá mập và cá dữ mang não quái REPO: ngủ, nghe tiếng động, rượt, hồi sinh; giết được thì kéo xác lên bán, mỗi loài tối đa ba lần. Đủ chỉ tiêu thì vào khoang lái đếm ngược chạy về quán Bancho, giờ là trạm mua súng, bom, đồ cận chiến, bình O₂ và nâng cấp. O₂ là máu, thể lực để tăng tốc, R để tung kỹ năng của crew. Sảnh, gacha, nạp giả, nhiệm vụ như Biệt Đội.",
+    tagline: "Dave the Diver gặp R.E.P.O.: kéo đồ cổ từ đáy biển lên cho đủ chỉ tiêu.",
+    desc: "Mỗi ca là năm chuyến lặn, chuyến sau sâu hơn và chỉ tiêu cao hơn. Bắn móc vào đồ cổ rồi vừa bơi vừa kéo lên cano, va đập là mất giá, kéo nặng quá thì đứt dây. Cá mập ngủ, nghe tiếng động rồi rượt theo bạn.",
+    genre: "hanh-dong",
+    accent: "#22d3ee",
+    en: { title: "Dive Squad", tagline: "Dave the Diver meets R.E.P.O.: haul relics up from the seabed to hit your quota.", desc: "Each shift is five dives, each deeper with a higher quota. Hook a relic and swim it up to the boat, bumps lower its value and too much weight snaps the line. Sharks sleep, hear noise, then come after you." },
     thumbnail: "assets/thumbnails/biet-doi-lan.png",
     path: "games/biet-doi-lan/index.html",
     rev: "20261002d",
@@ -683,7 +758,11 @@ window.HUB_GAMES = [
   {
     id: "pokeone",
     title: "PokéOne",
-    tagline: "Pokémon 2D chơi solo bám theo PRO (Pokémon Revolution Online): bản đồ dựng lại theo ảnh bản đồ PRO thật, bảng gặp Pokémon của PRO. Tạo nhân vật bằng sprite nhiều lớp, thức dậy ở Pallet Town, nhận Pokémon đầu từ Giáo sư Oak, đi theo ô qua Route 1 tới Viridian City. Trận đấu 2D với sprite, nền và hoạt ảnh chiêu gốc của PRO, luật Gen 7 chạy trên Pokémon Showdown. Chat toàn cục để khoe Pokémon và dán mã phòng boss; chỉ khi đánh boss (chủ gym, Tứ Thiên Vương, Nhà vô địch như PRO) mới lập đội được, tối đa 3 người đứng chung một sân như co-op của PokéOne, thắng xong chia đồ Cần/Tham/Bỏ. Chợ trời đấu giá Pokémon với người chơi khác (cần đăng nhập hub).",
+    tagline: "Bắt Pokémon từ Pallet Town, đi theo ô và đấu theo lượt như PRO.",
+    desc: "Tạo nhân vật, nhận Pokémon đầu tiên từ Giáo sư Oak rồi đi qua Route 1 tới Viridian City. Trận đấu chạy luật Gen 7 trên Pokémon Showdown. Lập đội tối đa 3 người để đánh chủ gym, đấu giá Pokémon ở chợ trời.",
+    genre: "nhap-vai",
+    accent: "#facc15",
+    en: { title: "PokéOne", tagline: "Catch Pokémon from Pallet Town, walk the grid and battle turn by turn like PRO.", desc: "Create your trainer, get your first Pokémon from Professor Oak and head through Route 1 to Viridian City. Battles run Gen 7 rules on Pokémon Showdown. Team up with up to 3 players for gym leaders, and auction Pokémon at the marketplace." },
     thumbnail: "assets/thumbnails/pokeone.png",
     path: "games/pokeone/index.html",
     rev: "20260928b",
@@ -703,7 +782,11 @@ window.HUB_GAMES = [
   {
     id: "soulknight",
     title: "Hiệp Sĩ Linh Hồn",
-    tagline: "Soul Knight dựng lại trên web: bắn tự ngắm, phòng khoá cửa, quái ra theo đợt, trùm cuối mỗi tầng. Chế độ thường 1-1 → 3-5 qua Rừng, Lâu Đài, Núi Lửa. 42 nhân vật với kỹ năng riêng (mở bằng đá quý; nhân vật trả phí thì mua giả), 361 vũ khí, 12 trùm, lái buôn, tượng, chọn buff. Có Chế độ mùa giải (Thoát khỏi Monkia): căn cứ, ra Ngoại ô căn cứ đánh khỉ, nhặt đồ, sơ tán về kho. Chỉ số, hoạt ảnh, hiệu ứng, tiếng và mẫu phòng lấy thẳng từ dữ liệu Soul Knight 8.6.",
+    tagline: "Soul Knight trên web: bắn tự ngắm, dọn phòng, hạ trùm cuối mỗi tầng.",
+    desc: "Qua Rừng, Lâu Đài, Núi Lửa từ 1-1 tới 3-5. 42 nhân vật có kỹ năng riêng, 361 vũ khí, 12 trùm, lái buôn, tượng và buff. Thêm chế độ mùa giải Thoát khỏi Monkia. Số liệu lấy thẳng từ Soul Knight 8.6.",
+    genre: "hanh-dong",
+    accent: "#60a5fa",
+    en: { title: "Soul Knight", tagline: "Soul Knight on the web: auto-aim shooting, room clearing, a boss on every floor.", desc: "Fight from 1-1 to 3-5 through the Forest, Castle and Volcano. 42 characters with their own skills, 361 weapons, 12 bosses, merchants, statues and buffs. Includes the Escape from Monkia season mode. Stats come straight from Soul Knight 8.6." },
     thumbnail: "assets/thumbnails/soulknight.png",
     path: "games/soulknight/index.html",
     rev: "20260930f",
@@ -720,7 +803,11 @@ window.HUB_GAMES = [
   {
     id: "diablo2",
     title: "Ác Quỷ II",
-    tagline: "Diablo II làm lại trên web bằng hình, tiếng, bản đồ và số liệu gốc của Diablo II. Đủ 5 act với 131 khu dựng từ bản đồ thật, sinh ngẫu nhiên mỗi lần vào, từ Rogue Encampment tới Worldstone Chamber. Bảy lớp nhân vật với đủ cây kỹ năng, triệu hồi và biến hình; nhân vật đổi hình theo đồ mặc. Có lính đánh thuê, waypoint, rương, nhiệm vụ, trùm của cả 5 act và ba độ khó Normal, Nightmare, Hell. Chuột trái đi/đánh, chuột phải dùng kỹ năng; điện thoại xoay ngang có cần điều khiển.",
+    tagline: "Diablo II làm lại trên web: đủ 5 act, bảy lớp nhân vật, ba độ khó.",
+    desc: "Dùng hình, tiếng, bản đồ và số liệu gốc. 131 khu sinh ngẫu nhiên mỗi lần vào, từ Rogue Encampment tới Worldstone Chamber, có lính đánh thuê, waypoint và trùm cả 5 act. Chuột trái đi và đánh, chuột phải dùng kỹ năng. Điện thoại xoay ngang có cần điều khiển.",
+    genre: "nhap-vai",
+    accent: "#dc2626",
+    en: { title: "Diablo II", tagline: "Diablo II remade for the web: all 5 acts, seven classes, three difficulties.", desc: "Built from the original art, sound, maps and numbers. 131 areas generated fresh each visit, from the Rogue Encampment to the Worldstone Chamber, with mercenaries, waypoints and every act boss. Left click to move and attack, right click for skills. Phones in landscape get a joystick." },
     thumbnail: "assets/thumbnails/diablo2.png",
     path: "games/diablo2/index.html",
     rev: "20261009a",
@@ -735,7 +822,11 @@ window.HUB_GAMES = [
   {
     id: "gia-pha",
     title: "Cây Gia Phả",
-    tagline: "Dựng gia phả dòng họ ngay trên trình duyệt. Bấm quanh thẻ để thêm con, vợ/chồng, cha/mẹ; kéo một thẻ thả lên người khác để chuyển cả nhánh, thả vào mép anh chị em để đổi thứ tự. Thu/mở từng nhánh, chỉ hiện tới đời thứ mấy, hoặc xem riêng một nhánh. Mỗi người có ghi chú soạn như Word (tiêu đề, màu, danh sách, bảng, chèn ảnh, nhập .docx) và kho tài liệu nhận mọi loại tệp: ảnh, tiếng, phim, PDF, Word, kèm ghi âm lời kể ngay trong trang. Tìm không cần gõ dấu, hoàn tác mọi thao tác, xuất ra tệp để chép sang máy khác.",
+    tagline: "Dựng cây gia phả dòng họ, kéo thả nhánh, đính kèm ảnh và lời kể.",
+    desc: "Bấm quanh thẻ để thêm con, vợ chồng, cha mẹ, kéo thả để chuyển cả nhánh. Mỗi người có ghi chú soạn như Word và kho tài liệu nhận ảnh, tiếng, phim, PDF, kèm ghi âm. Tìm không cần gõ dấu, xuất ra tệp để chép sang máy khác.",
+    genre: "khac",
+    accent: "#d4a373",
+    en: { title: "Family Tree", tagline: "Build your family tree, drag whole branches, attach photos and recorded stories.", desc: "Tap around a card to add children, spouses or parents, and drag to move a whole branch. Everyone gets Word-style notes and a file store for photos, audio, video and PDFs, plus voice recording. Search without accents and export to a file for another device." },
     thumbnail: "assets/thumbnails/gia-pha.svg",
     path: "games/gia-pha/index.html",
     rev: "20261001c",
@@ -751,7 +842,11 @@ window.HUB_GAMES = [
   {
     id: "tron-tim",
     title: "Trốn Tìm",
-    tagline: "Trốn tìm 10 người trên bản đồ ghép ngẫu nhiên 3x3: 7 người trốn, 3 người tìm, chơi solo với 9 bot. Người tìm đóng giả người trốn 5 giây đầu rồi mới lộ mặt. Bo co dần qua 4 vòng, hết giờ thì cổng mở ở vòng cuối, một người trốn chạy tới cổng là cả đội thắng; bị bắt thì đồng đội đứng yên 3 giây để cứu. Núp trong bụi, nhảy qua thùng, nhặt hộp buff, radar quét lộ vị trí mỗi 45 giây. Tám nhân vật Soul Knight, mỗi người một kỹ năng: tàng hình, mồi nhử, lộn né, cầu nguyện, EMP, nhảy vồ, dịch chuyển, hố đen.",
+    tagline: "Trốn tìm 10 người với bot: núp bụi, né bo, chạy ra cổng cùng đồng đội.",
+    desc: "7 người trốn, 3 người tìm trên bản đồ ghép ngẫu nhiên. Người tìm đóng giả người trốn trong 5 giây đầu. Bo co qua 4 vòng, cuối cùng cổng mở. Tám nhân vật Soul Knight, mỗi người một kỹ năng như tàng hình, mồi nhử, dịch chuyển.",
+    genre: "hanh-dong",
+    accent: "#a3e635",
+    en: { title: "Hide & Seek", tagline: "10-player hide and seek with bots: hide in bushes, beat the zone, reach the gate together.", desc: "7 hiders and 3 seekers on a randomly stitched map. Seekers pose as hiders for the first 5 seconds. The zone shrinks over 4 rounds, then the gate opens. Eight Soul Knight characters, each with a skill like invisibility, decoys or teleport." },
     thumbnail: "assets/thumbnails/tron-tim.png",
     path: "games/tron-tim/index.html",
     rev: "20261006a",
@@ -767,7 +862,11 @@ window.HUB_GAMES = [
   {
     id: "dredge",
     title: "Biển Mù",
-    tagline: "Làm lại DREDGE trên web: ngư dân đâm thuyền vào đá ở ngọn hải đăng, Mayor của Greater Marrow cho mượn chiếc thuyền cũ của thị trấn kèm món nợ $50. Từ đó câu cá ở những vùng nước động quanh quần đảo The Marrows, bán cho người buôn cá, nói chuyện với dân làng và theo nhiệm vụ chạy bằng đúng kịch bản Yarn của bản gốc. Giờ chỉ trôi khi thuyền chạy hoặc khi đang câu. Trời tối thì sương dày lên, nỗi hoảng loạn tăng dần, phải bật đèn hoặc về bến. Mỗi loài cá có minigame riêng: vòng quay, con lắc, hứng bóng, kim cương, xoắn ốc. Cá nằm trong khoang theo đúng hình dáng của nó, phải xoay xếp cho vừa. Đâm đá thì hỏng một ô khoang. Thế giới, thuyền, cá, giá, tiếng và giao diện đều bóc từ bản gốc.",
+    tagline: "Câu cá trên quần đảo sương mù. Đừng ở ngoài khơi khi trời tối.",
+    desc: "Làm lại DREDGE trên web. Mượn chiếc thuyền cũ kèm món nợ $50, câu cá quanh The Marrows và bán cho người buôn. Mỗi loài cá có minigame riêng, xếp cá vào khoang theo đúng hình dáng. Trời tối thì sương dày lên và nỗi hoảng loạn tăng dần.",
+    genre: "kinh-di",
+    accent: "#93c5fd",
+    en: { title: "Fogbound", tagline: "Fish the islands in the fog. Do not stay out after dark.", desc: "DREDGE remade for the web. Borrow an old boat along with a $50 debt, fish around The Marrows and sell to the fishmonger. Every species has its own minigame, and fish fill the hold in their real shapes. After dark the fog thickens and panic sets in." },
     thumbnail: "assets/thumbnails/dredge.png",
     path: "games/dredge/index.html",
     rev: "20261009b",
@@ -789,7 +888,11 @@ window.HUB_GAMES = [
   {
     id: "vuc-san",
     title: "Vực Săn",
-    tagline: "Dave the Diver đối kháng: 4 thợ lặn đấu 2 cá mập trong vực tối. Chọn phe khi ghép trận, bot lấp các ghế còn lại, mỗi trận bốc ngẫu nhiên một trong sáu bản đồ gốc Dave the Diver. Thợ lặn chỉ thấy chỗ đèn pin soi, vách đá chặn sáng. Họ nhặt đồ cổ mang về khoang cứu hộ cho đủ chỉ tiêu trước khi hết 4 phút, dưỡng khí vừa là máu, đồng đội gục thì đứng cạnh để cứu. Cá mập thấy thợ lặn đang bật đèn từ xa và ngửi được người sắp cạn dưỡng khí, lao tới ngoạm, nhưng không chui được khe hẹp và không lại gần khoang cứu hộ. 12 loài cá mập, mỗi loài một kỹ năng: lách khe, ẩn đáy, tốc biến, nuốt chửng, hút nước. 10 thợ lặn với pháo sáng, bom mực, lồng thép, mìn, máy dưỡng khí. Gacha có banner thợ lặn và banner cá mập, đếm bảo hiểm riêng. Chơi được bằng cảm ứng.",
+    tagline: "4 thợ lặn đấu 2 cá mập trong vực tối. Chọn phe, soi đèn, sống sót.",
+    desc: "Thợ lặn chỉ thấy chỗ đèn pin soi và phải mang đồ cổ về khoang cứu hộ trước khi hết 4 phút. Cá mập thấy người bật đèn từ xa nhưng không chui được khe hẹp. 12 loài cá mập, 10 thợ lặn, mỗi người một kỹ năng. Bot lấp ghế trống, chơi được bằng cảm ứng.",
+    genre: "hanh-dong",
+    accent: "#06b6d4",
+    en: { title: "The Hunting Deep", tagline: "4 divers versus 2 sharks in a dark abyss. Pick a side, light the way, survive.", desc: "Divers only see what their flashlight hits and must bring relics back to the rescue pod within 4 minutes. Sharks spot lit divers from afar but cannot squeeze through narrow gaps. 12 sharks and 10 divers, each with a skill. Bots fill empty seats, and touch controls work." },
     thumbnail: "assets/thumbnails/vuc-san.png",
     path: "games/vuc-san/index.html",
     rev: "20261008a",

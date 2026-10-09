@@ -35,8 +35,13 @@
         id: g.id || "",
         title: g.title || "",
         tagline: g.tagline || "",
+        desc: g.desc || "",
+        genre: g.genre || "",
+        accent: g.accent || "",
+        en: g.en || null,
         thumbnail: g.thumbnail || "",
         path: g.path || ("games/" + (g.id || "") + "/index.html"),
+        rev: g.rev || "",
         status: STATUSES.indexOf(g.status) >= 0 ? g.status : "build-pending",
         tags: Array.isArray(g.tags) ? g.tags.slice() : []
       };
@@ -256,18 +261,13 @@
 
   // Serialize one entry with unquoted keys (matches the hand-written style) and
   // JSON.stringify per value for correct escaping.
+  // Optional fields (desc, genre, accent, en, rev) are written only when set.
   function serializeEntry(g) {
-    var lines = [
-      "  {",
-      "    id: " + JSON.stringify(g.id) + ",",
-      "    title: " + JSON.stringify(g.title) + ",",
-      "    tagline: " + JSON.stringify(g.tagline) + ",",
-      "    thumbnail: " + JSON.stringify(g.thumbnail) + ",",
-      "    path: " + JSON.stringify(g.path) + ",",
-      "    status: " + JSON.stringify(g.status) + ",",
-      "    tags: " + JSON.stringify(g.tags),
-      "  }"
-    ];
+    var lines = ["  {"];
+    ["id", "title", "tagline", "desc", "genre", "accent", "en", "thumbnail", "path", "rev", "status"].forEach(function (k) {
+      if (g[k]) lines.push("    " + k + ": " + JSON.stringify(g[k]) + ",");
+    });
+    lines.push("    tags: " + JSON.stringify(g.tags), "  }");
     return lines.join("\n");
   }
 
