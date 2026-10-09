@@ -375,7 +375,7 @@
     var cfg = (root.BZSim && root.BZSim.SANDSTORM) || { countdownStart: 25000, countdown: 5000 };
     var storm = t >= cfg.countdownStart + cfg.countdown && S.info.sandstorm !== false && t <= S.endMs + RP.LAG_HERO;
     if (S.phase.storm !== storm) { S.phase.storm = storm; V().sand(storm); }
-    V().sandLevel(storm ? Math.min(1, 0.15 + (t - cfg.countdownStart - cfg.countdown) / 40000) : 0); // viền cồn cát dày dần (~40 s)
+    V().sandLevel(storm ? Math.min(1, 0.5 + (t - cfg.countdownStart - cfg.countdown) / 40000) : 0); // viền cồn cát dày dần (~40 s)
     FXc().ambient('sand', 'sand', { x: 0, y: 60, w: 1920, h: 960 }, storm ? Math.min(1, 0.3 + (t - cfg.countdownStart - cfg.countdown) / 30000) : 0);
     V().dial(Math.min(t, S.endMs), cfg);
   };

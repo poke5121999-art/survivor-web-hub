@@ -32,6 +32,9 @@
   }
   function choiceArt(c) {
     if (c.kind === 'step') return U.art(c.id);
+    if (c.kind === 'event' || c.kind === 'merchant') return U.art(c.id + '_char') || U.art(c.id + '_bg');
+    if (c.kind === 'combat') return U.art(c.id + '_char') || U.art(c.id + '_bg');
+    if (c.card) return U.art(c.card.id);
     if (c.kind === 'generic') return c.key === 'gold' ? U.ICON.coins : c.key === 'xp' ? U.ICON.xpBig : U.ICON.chest;
     return null;
   }
@@ -39,10 +42,13 @@
   U.SCREENS.event = {
     enter: function (run, prev) {
       var ph = run.phase;
-      if (ph.eventId === 'start') { U.top.base(run, {}); U.sfx('board.pickerAppear'); return; }
+      if (ph.eventId === 'start') { this._eid = 'start|'; U.top.base(run, {}); U.sfx('board.pickerAppear'); return; }
       U.top.base(run, { hero: true, sides: true, board: true, lane: 'event' });
-      var e = root.BZ_ENCOUNTERS.events[ph.eventId] || {};
-      var side = U.top.portrait(ph.name, e.StartingTier || 'Bronze', U.top.artOf({ type: 'event', id: ph.eventId }), U.top.nameBlock('Sự kiện', ph.name, ph.desc));
+      this._eid = ph.eventId + '|' + (ph.stepId || '');
+      // bước dẫn tiếp (Then: chuỗi Gumball, ba điều ước của Rit): eventId null, stepId = bước vừa chọn → ảnh + bậc của bước
+      var E = root.BZ_ENCOUNTERS, e = (ph.eventId && E.events[ph.eventId]) || (ph.stepId && E.steps[ph.stepId]) || {};
+      var art = ph.eventId ? U.top.artOf({ type: 'event', id: ph.eventId }) : { bg: U.art(ph.stepId), char: null };
+      var side = U.top.portrait(ph.name, e.StartingTier || 'Bronze', art, U.top.nameBlock(ph.eventId ? 'Sự kiện' : 'Tiếp theo', ph.name, ph.desc));
       if (ph.canExit) U.bigButton(side.r, 'brown', 'Rời đi', 'Bỏ qua sự kiện', function () { U.dispatch({ t: 'leave' }); }).classList.add('leave');
       else U.el('div', 'rs-side-note', side.r, 'Chọn một');
       var mon = (ph.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -50,8 +56,10 @@
     },
     render: function (run) {
       var ph = run.phase;
+      // sự kiện → sự kiện (chuỗi Then, sự kiện con): cùng màn nên go() không gọi enter; dựng lại chân dung ở đây
+      if (ph.eventId !== 'start' && this._eid != null && this._eid !== ph.eventId + '|' + (ph.stepId || '')) { U.top.clear(); this._key = null; this.enter(run, null); }
       U.cards.render(run);
-      var key = ph.eventId + ':' + JSON.stringify(ph.choices);
+      var key = ph.eventId + ':' + (ph.stepId || '') + ':' + JSON.stringify(ph.choices);
       if (key === this._key && U.top.layer().children.length) return;
       this._key = key;
       if (ph.eventId === 'start') { U.top.clear(); startScreen(run); return; }
@@ -68,7 +76,7 @@
         t.addEventListener('click', function () { if (U.state.busy) return; U.sfx('spell.select'); t.classList.add('chosen'); U.dispatch({ t: 'choose', i: i }, { fromRect: U.rectOf(t) }); });
       });
     },
-    exit: function () { this._key = null; U.top.clear(); }
+    exit: function () { this._key = null; this._eid = null; U.top.clear(); }
   };
 
   // ---------- loot: chọn 1 (hoặc nhiều) thẻ miễn phí ----------
@@ -141,7 +149,9 @@
         U.top.base(run, {});
         if (o.dramatic) {
           var st = V().refs.stage;
-          this._dim = U.el('div', 'rs-fates-dim', st);
+          // tối nền sân (sau các lớp của run: khung lựa chọn, thẻ, HUD vẫn sáng)
+          this._dim = U.el('div', 'rs-fates-dim'); this._dim.style.zIndex = 'auto';
+          V().refs.world.insertBefore(this._dim, V().refs.runSockets);
           U.sfx('trans.defeatIn', { vol: 0.5 });
           setTimeout(function () { if (U.hud && U.hud.refillCrown) U.hud.refillCrown(); }, 500);
         }

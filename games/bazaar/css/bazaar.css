@@ -197,26 +197,47 @@ button { font: inherit; color: inherit; }
 @keyframes bz-crown { 0% { opacity: 0; transform: translateY(-40px) scale(.4); } 100% { opacity: 1; transform: none; } }
 
 #bz-fx { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; pointer-events: none; }
+/* bão cát: dựng lại từ prefab FX_SandStorm (texture Sandstorm_EdgesMask = khói cát lan từ mép TRÊN và DƯỚI màn hình, nhiều bộ hạt Dust/Swirl/Smoke/Parallax)
+   — KHÔNG phải viền cồn cát vàng: ảnh "sandstorm/b" cũ thực ra là lớp phủ KHIÊN. --sk = 0..1 mức độ dày dần */
 .bz-sand { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 1.2s; --sk: 0;
-  background: radial-gradient(ellipse at 50% 50%, rgba(214,150,70,calc(.04 + .1 * var(--sk))) 25%, rgba(170,100,35,calc(.25 + .5 * var(--sk))) 100%);
-  box-shadow: inset 0 0 calc(30px + 110px * var(--sk)) calc(6px + 40px * var(--sk)) rgba(224,170,70,calc(.45 + .4 * var(--sk))); }
+  background: radial-gradient(ellipse at 50% 50%, rgba(196,138,66,calc(.03 + .05 * var(--sk))) 30%, rgba(150,96,38,calc(.14 + .22 * var(--sk))) 100%); }
 .bz-sand.on { opacity: 1; }
-.bz-sand .dune { position: absolute; left: 0; right: 0; bottom: 0; height: calc(34px + 110px * var(--sk));
-  background: radial-gradient(ellipse 90px 70% at 50% 100%, #e2b04e 0 66%, transparent 68%) 0 100% / 150px 100% repeat-x, linear-gradient(0deg, #c8923a, transparent);
-  filter: drop-shadow(0 -4px 6px rgba(120,70,10,.5)); }
-.bz-sand::before, .bz-sand::after { content: ""; position: absolute; top: 0; bottom: 0; width: calc(30px + 120px * var(--sk));
-  background: linear-gradient(90deg, rgba(226,176,78,.85), transparent); }
-.bz-sand::after { right: 0; transform: scaleX(-1); }
+.bz-sand .edge { position: absolute; left: -10%; right: -10%; top: 0; height: 52%; opacity: calc(.6 + .4 * var(--sk));
+  background: linear-gradient(180deg, #e4b66a, #c98e42);
+  -webkit-mask: url(../art/vfx/sandedge.webp) 0 0 / 33.34% 200% repeat-x; mask: url(../art/vfx/sandedge.webp) 0 0 / 33.34% 200% repeat-x;
+  transform: translateY(calc(-28% * (1 - var(--sk)))); animation: bz-sand-drift 14s linear infinite; }
+.bz-sand .edge.b { top: auto; bottom: 0; background: linear-gradient(0deg, #e4b66a, #c98e42);
+  -webkit-mask-position: 0 100%; mask-position: 0 100%; transform: translateY(calc(28% * (1 - var(--sk)))); animation-name: bz-sand-drift-b; animation-duration: 21s; animation-direction: reverse; }
+@keyframes bz-sand-drift { from { -webkit-mask-position: 0 0; mask-position: 0 0; } to { -webkit-mask-position: 640px 0; mask-position: 640px 0; } }
+@keyframes bz-sand-drift-b { from { -webkit-mask-position: 0 100%; mask-position: 0 100%; } to { -webkit-mask-position: 640px 100%; mask-position: 640px 100%; } }
 
-/* nộ: khung đỏ nhấp nháy ở đáy bàn của bên nộ, ~1 s sau mới phủ vành tối đỏ toàn sân (REF enrage) */
-.bz-enr-frame { position: absolute; left: 392px; width: 1136px; height: 242px; border-radius: 10px; pointer-events: none; opacity: 0; }
-.bz-enr-frame.top { top: 300px; } .bz-enr-frame.bot { top: 548px; }
-.bz-enr-frame.on { opacity: 1; box-shadow: inset 0 -26px 40px -14px rgba(255,30,40,.85), 0 0 0 3px rgba(255,60,60,.9), 0 0 36px rgba(255,20,30,.8); animation: bz-enr-pulse .45s ease-in-out infinite alternate; }
-@keyframes bz-enr-pulse { from { filter: brightness(.7); } to { filter: brightness(1.35); } }
-.bz-enr-vig { position: absolute; inset: 0; pointer-events: none; opacity: 0;
-  background: radial-gradient(ellipse at 50% 50%, transparent 38%, rgba(80,0,8,.55) 75%, rgba(60,0,6,.85) 100%); }
-.bz-enr-vig.on { animation: bz-enr-vig 1.2s 1s ease-out forwards; }
+/* nộ (REF enrage, ): ~1 s khung đỏ khói nhấp nháy quanh hàng chân dung của bên nộ, rồi vành TỐI đỏ-đen có khói đỏ và vài vệt chém; không phủ đỏ sáng */
+.bz-enr-frame { position: absolute; left: 400px; width: 1120px; height: 210px; border-radius: 14px; pointer-events: none; opacity: 0; }
+.bz-enr-frame.top { top: 62px; } .bz-enr-frame.bot { top: 816px; }
+.bz-enr-frame.on { opacity: 1; box-shadow: 0 0 0 4px rgba(214,22,48,.95), 0 0 18px 6px rgba(230,20,50,.9), 0 0 46px 14px rgba(170,0,30,.75), inset 0 0 26px 8px rgba(214,22,48,.7); animation: bz-enr-pulse .4s ease-in-out infinite alternate; }
+@keyframes bz-enr-pulse { from { filter: brightness(.7); } to { filter: brightness(1.3); } }
+.bz-enr-vig { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .5s ease-in;
+  background:
+    linear-gradient(112deg, transparent 38.6%, rgba(190,10,36,.4) 39%, transparent 39.5%),
+    linear-gradient(-68deg, transparent 63.6%, rgba(190,10,36,.35) 64%, transparent 64.5%),
+    radial-gradient(ellipse at 50% 50%, rgba(12,0,4,.28) 0, rgba(12,0,4,.38) 34%, rgba(46,0,10,.72) 68%, rgba(14,0,4,.94) 100%); }
+.bz-enr-vig::before, .bz-enr-vig::after { content: ""; position: absolute; left: -10%; right: -10%; bottom: -8%; height: 46%; filter: blur(30px); opacity: .6;
+  background: radial-gradient(ellipse 22% 55% at 18% 80%, rgba(150,8,34,.8), transparent), radial-gradient(ellipse 26% 60% at 50% 95%, rgba(130,4,28,.85), transparent), radial-gradient(ellipse 20% 50% at 84% 85%, rgba(150,8,34,.75), transparent);
+  animation: bz-enr-smoke 2.4s ease-in-out infinite alternate; }
+.bz-enr-vig::after { bottom: auto; top: -10%; height: 32%; animation-duration: 3.1s; opacity: .45; transform: scaleY(-1); }
+@keyframes bz-enr-smoke { from { transform: translateX(-3%) scale(1.02); } to { transform: translateX(3%) scale(1.12); } }
+.bz-enr-vig.on { animation: bz-enr-vig 1s 1s ease-out forwards; }
 @keyframes bz-enr-vig { from { opacity: 0; } to { opacity: 1; } }
+.bz-sh-frame { position: absolute; left: 392px; width: 1136px; height: 214px; border-radius: 16px; pointer-events: none; opacity: 0; transition: opacity .25s; --sh: 0;
+  padding: calc(8px + 22px * var(--sh)); box-sizing: border-box; }
+.bz-sh-frame.top { top: 60px; } .bz-sh-frame.bot { top: 816px; }
+.bz-sh-frame.on { opacity: 1; }
+/* khiên (REF shield, sandstorm/b thật ra là cái này): viền lưới thoi vàng quanh cả hàng chân dung, dày theo khiên/máu tối đa */
+.bz-sh-frame::before { content: ""; position: absolute; inset: 0; border-radius: inherit; box-sizing: border-box; padding: inherit;
+  background: repeating-linear-gradient(45deg, rgba(255,232,96,.95) 0 3px, rgba(255,214,40,.15) 3px 19px), repeating-linear-gradient(-45deg, rgba(255,232,96,.95) 0 3px, rgba(255,214,40,.15) 3px 19px), linear-gradient(180deg, rgba(255,226,70,.75), rgba(244,190,20,.7));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  box-shadow: inset 0 0 0 3px #ffe45a, 0 0 22px 4px rgba(255,214,40,.8); filter: drop-shadow(0 0 6px rgba(255,200,30,.9)); }
+.bz-sh-frame::after { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 calc(8px + 22px * var(--sh)) rgba(255,214,40,.12), 0 0 30px 6px rgba(255,210,40,.55); }
 .bz-rowglow { position: absolute; left: 586px; width: 748px; height: 196px; border-radius: 10px; pointer-events: none; opacity: 0;
   box-shadow: inset 0 0 0 4px var(--rg), inset 0 0 40px var(--rg), 0 0 36px var(--rg);
   background: repeating-linear-gradient(45deg, transparent 0 14px, rgba(252,220,44,.16) 14px 16px), repeating-linear-gradient(-45deg, transparent 0 14px, rgba(252,220,44,.16) 14px 16px);

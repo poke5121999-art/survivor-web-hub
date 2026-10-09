@@ -8,7 +8,20 @@
   var R = root.BZRun = root.BZRun || {};
   var T = function () { return R.TUNING; };
 
+  // ---------- bàn tốt nhất cho màn hết run: chụp lúc thắng một trận PvP (số trận thắng tăng; cùng số thắng thì cấp cao hơn) ----------
+  // Chưa thắng trận nào: chụp lúc hết run.
+  // run.best = {wins, level, day, hour, hero, healthMax, prestige, gold, income, board: {hand, stash, skills}} (thẻ dạng run.board)
+  R.updateBest = function (ctx) {
+    var run = ctx.run, b = run.best;
+    if (b && (run.wins < b.wins || (run.wins === b.wins && run.level <= b.level))) return false;
+    run.best = { wins: run.wins, level: run.level, day: run.day, hour: run.hour, hero: run.hero, healthMax: run.healthMax,
+      prestige: run.prestige, gold: run.gold, income: run.income, board: R.clone(run.board) };
+    R.emit(ctx, { type: 'best', wins: run.wins, level: run.level, day: run.day });
+    return true;
+  };
+
   R.end = function (ctx, reason) {
+    if (!ctx.run.best) R.updateBest(ctx);
     ctx.run.phase = { kind: 'end', reason: reason };
     R.emit(ctx, { type: 'end', reason: reason });
     R.log(ctx, { t: 'end', reason: reason });
@@ -23,6 +36,9 @@
 
   // Kết thúc một gặp gỡ: after = 'endHour' (gặp gỡ thường) hoặc 'beginHour' (lên cấp, mở màn: không tốn giờ)
   R.finish = function (ctx, after) {
+    var ph = ctx.run.phase, E = R.enc(), rec = ph.merchantId ? E.events[ph.merchantId] : ph.pedestalId ? E.pedestals[ph.pedestalId]
+      : ph.eventId && ph.eventId !== 'start' ? E.events[ph.eventId] : null;
+    if (rec) R.ooc.fire(ctx, 'TTriggerOnEncounterExited', { enc: rec }); // Coupon / Dreampearl / Galactic Translator: hết lượt ở thương nhân
     if (after === 'beginHour') R.beginHour(ctx); else R.endHour(ctx);
   };
 
@@ -66,7 +82,7 @@
     var E = R.enc(), out = { merchant: [], event: [] }, id, e;
     for (id in E.events) {
       e = E.events[id];
-      if (e.LevelUp || T().ENCOUNTER_EXCLUDE.test(e.InternalName || '')) continue;
+      if (e.LevelUp || (e.Parents && e.Parents.length) || T().ENCOUNTER_EXCLUDE.test(e.InternalName || '')) continue;
       if (e.Kind === 'merchant') out.merchant.push(ref('merchant', e));
       else if (T().EVENT_KINDS_IN_POOL[e.Kind]) out.event.push(ref('event', e));
     }
@@ -122,8 +138,23 @@
     return out;
   }
   function recAny(r) { var E = R.enc(); return r.type === 'pedestal' ? E.pedestals[r.id] : r.type === 'step' ? E.steps[r.id] : E.events[r.id]; }
+  // Bể lên cấp theo hero (data/heroes.js levelUp: pile/teacher/step/pedestal [{id, tier}]); không có thì bể chung ở trên
+  var luHero = {};
+  function heroLevelUpPool(hero) {
+    var H = R.heroData(hero), L = H && H.levelUp;
+    if (!L) return null;
+    if (luHero[hero]) return luHero[hero];
+    var E = R.enc(), out = { pile: [], teacher: [], other: [] };
+    var add = function (slot, list, type, map) {
+      (list || []).forEach(function (x) { var e = map[x.id]; if (e && e.Kind !== 'unknown' && e.Kind !== 'merchant') out[slot].push(ref(type, e)); });
+    };
+    add('pile', L.pile, 'event', E.events); add('teacher', L.teacher, 'event', E.events);
+    add('other', L.step, 'step', E.steps); add('other', L.pedestal, 'pedestal', E.pedestals);
+    luHero[hero] = out;
+    return out;
+  }
   R.levelUpOptions = function (run) {
-    var P = levelUpPool(), band = R.tierIndex(R.bandTier(run)), out = [];
+    var P = heroLevelUpPool(run.hero) || levelUpPool(), band = R.tierIndex(R.bandTier(run)), out = [];
     T().LEVELUP_SLOTS.forEach(function (slot) {
       var cands = P[slot].filter(function (r) { return heroOk(recAny(r), run) && dayOk(recAny(r), run); });
       // đúng dải trước, rồi thấp dần, rồi cao dần

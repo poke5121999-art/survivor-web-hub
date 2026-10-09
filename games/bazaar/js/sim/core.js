@@ -17,7 +17,8 @@
   BZ.CRIT_PCT = 200;         // [ĐỀ XUẤT] CritPercentMultiplier (TGameMode.cs:46): tooltip "doubling"
   BZ.BURN_DECAY = 0.03;      // [ĐỀ XUẤT] BurnDecrementByAsPercentage (TGameMode.cs:64): tooltip "decreases by 3%"
   BZ.HEAL_CLEANSE = 0.05;    // [ĐỀ XUẤT] tooltip Heal "Cleanses 5% Poison and Burn"
-  BZ.ENRAGE_CD = 0.9;        // [ĐỀ XUẤT] tooltip Rage "item cooldowns are reduced by 10%"
+  // Enrage giảm 10 % cooldown KHÔNG còn là hằng số ở đây: đến từ aura của hiệu ứng người chơi "Base Rage Effect"
+  // (BZ_HEROES.effects, PercentCooldownReduction += Custom_0 = 10 khi Enraged > 0) — xem engine.js boardEffects.
   BZ.MIN_COOLDOWN = 1000;    // [ĐỀ XUẤT] sàn = trần 1/20 CooldownMax mỗi khung của bản legacy (BazaarCardDealer.cs:4414)
   BZ.RAGE_MAX = 100;         // tooltip Rage "Reach 100 Rage"
   BZ.ENRAGE_MS = 5000;       // [ĐỀ XUẤT] EnragedDurationMax mặc định: mọi quái có trường này đều để 5000 (monsters.json)
@@ -97,7 +98,10 @@
     var c = BZ.extraCards && BZ.extraCards[id];
     if (c) return c;
     var all = root.BZ_CARDS;
-    return all ? all[id] : undefined;
+    if (all && all[id]) return all[id];
+    // TCardSocketEffect (Stove/Cooler) và TCardPlayerEffect (Base Rage Effect…) nằm trong BZ_HEROES.effects, không ở BZ_CARDS
+    var fx = root.BZ_HEROES && root.BZ_HEROES.effects;
+    return fx ? fx[id] : undefined;
   };
   BZ.tierIndex = function (t) { var i = BZ.TIERS.indexOf(t); return i < 0 ? 0 : i; };
   // Legendary đọc như Diamond (TCardItem.cs:30) nếu thẻ có khối Diamond

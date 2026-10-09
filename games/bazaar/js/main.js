@@ -4,7 +4,7 @@
    Móc kiểm thử: window.BZ_DEBUG = {fight, fightBoards, seek, speed, state, perf}. */
 (function (root) {
   'use strict';
-  root.BZ_REV = root.BZ_REV || '20261009d';
+  root.BZ_REV = root.BZ_REV || '20261010a';
   var BZ = root.BZSim, V = root.BZView, RP = root.BZReplay, AU = root.BZAudio;
   var cur = null; // {a, b, seed, res, boards, info}
   var MON = [];

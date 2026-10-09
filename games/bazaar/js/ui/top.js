@@ -48,6 +48,9 @@
   // ảnh của một tham chiếu gặp gỡ {type, id}
   T.artOf = function (r) {
     if (r.type === 'step') return { bg: U.art(r.id), char: null };
+    if (r.card) return { bg: U.art(r.card.id), char: null }; // Số phận "Golden Gift", lựa chọn kèm thẻ
+    // Số phận: nội dung gốc bị xoá khỏi bản demo → ảnh phần thưởng gần nghĩa [ĐỀ XUẤT]
+    if (r.type === 'fate') return { bg: { legacy: 'art/ui/rewards/Reward_Rewind_D.webp', vitality: 'art/ui/rewards/Reward_SmallBuff_D.webp', income: U.ICON.coins }[r.id] || U.ICON.chest, char: null };
     if (r.type === 'combat') return { bg: U.art(r.id + '_bg'), char: U.art(r.id + '_char') };
     return { bg: U.art(r.id + '_bg'), char: U.art(r.id + '_char') };
   };

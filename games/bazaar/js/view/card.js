@@ -118,9 +118,9 @@
     else { B.tag.classList.add('css'); B.tag.style.backgroundImage = ''; }
     B.tag.style.fontSize = Math.round(th * 0.62) + 'px';
     var am = A.ammo; B.ammoA = { x: am.x * k, y: am.y * k, w: am.w * k, h: am.h * k, pip: am.pip * k };
-    place(B.ammo, am.x * k - am.w * k / 2, am.y * k - am.h * k / 2, am.w * k, am.h * k);
-    B.ammo.style.backgroundImage = parts && parts.ammoBar ? 'url("' + parts.ammoBar.src + REV() + '")' : '';
-    B.ammo.style.backgroundSize = '100% 100%';
+    // viên thuốc tối treo ở mép đáy thẻ, thu nhỏ theo số đạn còn (REF ammo), không dùng thanh nâu cũ
+    place(B.ammo, am.x * k - am.w * k / 2, (am.y + 38) * k - am.h * k / 2, am.w * k, am.h * k);
+    B.ammo.style.backgroundImage = '';
     C.setAttrs(e, B.attrs, true);
     B.pips = []; B.ammo.innerHTML = ''; B.s.ammo = undefined;
     C.update(e, B.s.last || {}, true);
@@ -191,12 +191,9 @@
       if (B.pips.length !== am) buildPips(B, am);
       for (var i = 0; i < B.pips.length; i++) {
         var off = i >= s.ammo, pp = B.pips[i];
-        if (pp.classList.contains('off') !== off) {
-          pp.classList.toggle('off', off);
-          if (parts && parts.pipFull) pp.style.backgroundImage = 'url("' + (off ? parts.pipEmpty : parts.pipFull).src + REV() + '")';
-          if (off && !force && o.ammo != null) { pp.classList.remove('spent'); void pp.offsetWidth; pp.classList.add('spent'); } // đạn vừa tiêu: chớp cam rồi tắt
-        }
+        if (pp.classList.contains('off') !== off) pp.classList.toggle('off', off); // đạn tiêu: lục giác biến mất ngay, viên thuốc co lại
       }
+      B.cap.style.display = s.ammo > 0 ? '' : 'none';
       o.ammo = s.ammo;
     }
   };
@@ -204,13 +201,12 @@
   function txt(n, o, k, v) { if (o[k] !== v) { o[k] = v; n.textContent = v; } }
   function buildPips(B, n) {
     B.ammo.innerHTML = ''; B.pips = [];
-    var parts = root.BZ_FRAMES && root.BZ_FRAMES.parts;
-    var A = B.ammoA, size = Math.min(A.pip * 1.1, (A.w * 0.92) / n - 1);
+    var A = B.ammoA, size = Math.min(A.pip * 1.15, (A.w * 0.9) / n - 2);
+    var cap = B.cap = el('div', 'cap', B.ammo);
+    cap.style.padding = Math.round(size * 0.42) + 'px ' + Math.round(size * 0.55) + 'px'; cap.style.gap = Math.max(1, Math.round(size * 0.14)) + 'px';
     for (var i = 0; i < n; i++) {
-      var p = el('div', 'pip', B.ammo);
+      var p = el('div', 'pip css', cap);
       p.style.width = p.style.height = size + 'px';
-      if (parts && parts.pipFull) { p.style.backgroundImage = 'url("' + parts.pipFull.src + REV() + '")'; }
-      else p.classList.add('css');
       B.pips.push(p);
     }
   }

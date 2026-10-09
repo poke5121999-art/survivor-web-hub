@@ -483,6 +483,22 @@ def slug(s):
     return re.sub(r"[^a-z0-9]+", "_", s.lower()).strip("_")
 
 
+NEW_HEROES = [("mak", "VO_Heroes_Mak", "mak"), ("stelle", "VO_Heroes_Stelle", "stelle"), ("jules", "VO_Heroes_Jules", "jules"),
+              ("karnok", "VO_Heroes_Karnok", "karnok"), ("dragons", "VO_Heroes_TheDragons", "dragons")]
+# (khoá hook, regex khớp toàn bộ thân tên clip sau khi bỏ tên hero/số/hậu tố AB|ALT, số clip tối đa)
+HERO_VO_RULES = [("idle", r"idle", 3), ("multiclick", r"multiclick", 2), ("lastlife", r"lastlife", 2), ("levelup", r"(slot)?levelup|slotunlocked", 2),
+                 ("upgrade", r"upgrade", 2), ("critdamage", r"hitreact", 2), ("nobuygold", r"nobuygold", 2), ("nobuyspace", r"nobuyspace", 2),
+                 ("pvpintro", r"pvpintro", 3), ("pvpvictory", r"pvpvictory", 3), ("pvpdefeat", r"pvpdefeat", 3),
+                 ("pvevictory", r"p[vc]evictory", 2), ("pvedefeat", r"p[vc]edefeat", 2),
+                 ("runvictory", r"runvictory|endofrunhigh", 2), ("rundefeat", r"rundefeat|endofrunlow", 2), ("runperfect", r"runperfect", 2)]
+# board -> hero cho nền môi trường + nhạc combat. vanessa/pygmalien/dooley đã có từ trước (tier 1); 5 hero mới tier 2
+BOARD_HERO = {"board_van": "vanessa", "board_pyg": "pygmalien", "board_doo": "dooley", "board_mak": "mak", "board_ste": "stelle",
+              "board_jul": "jules", "board_karnok": "karnok", "board_dragons": "dragons"}
+ENV_FOLDER = {"vanessa": "Vanessa", "pygmalien": "Pyg", "dooley": "Dooley", "mak": "Mak", "stelle": "Stelle", "jules": "Jules",
+              "karnok": "Karnok", "dragons": "Dragons"}
+NEW_KEYS = ("mak", "stelle", "jules", "karnok", "dragons")
+
+
 def build_jobs():
     """Danh sách việc render: dict(key, path, group, takes, maxsec, params?, tier).
     tier 1 = bắt buộc, 2 = nên có, 3 = thừa thì bỏ khi vượt ngân sách."""
@@ -601,9 +617,7 @@ def build_jobs():
     add("music.endrun.lose", "event:/Music/Music_EndRun_Lose", "music", 1, 14, 1)
     # ---- VO: event VO/* đều là stream=1 và NRT làm lặp mẫu ngắn => lấy thẳng clip trong FSB, ghép bằng tên mẫu.
     # Hero: hook (CardAudio SO) -> thân tên clip; nhãn tham số (Victory/Defeat/Left/Right) chọn thân khác.
-    for so, hero, t in [("VanessaAudioSO", "vanessa", 1), ("PygAudioSO", "pygmalien", 1), ("DooleyAudioSO", "dooley", 1),
-                        ("JulesAudioSO", "jules", 3), ("KarnokAudioSO", "karnok", 3), ("MakAudioSO", "mak", 3),
-                        ("StelleAudioSO", "stelle", 3), ("TheDragonsAudioSO", "dragons", 3)]:
+    for so, hero, t in [("VanessaAudioSO", "vanessa", 1), ("PygAudioSO", "pygmalien", 1), ("DooleyAudioSO", "dooley", 1)]:
         c = chain["cardaudio"].get(so)
         if not c:
             print("  thiếu CardAudio", so)
@@ -624,6 +638,10 @@ def build_jobs():
             else:
                 J.append(dict(kind="clip", key="vo.%s.%s" % (hero, slug(h["type"][2:])), bank=c["bank"],
                               stem=stem, group="vo", tier=t, max=3 if t == 1 else 2))
+    # 5 hero còn lại (Pha 4 nhánh A): tên clip lệch với tên hook (EndofRunHigh/Low, SlotLevelup, PcE...) nên khớp bằng HERO_VO_RULES
+    for hero, bank, word in NEW_HEROES:
+        for hk, rx, mx in HERO_VO_RULES:
+            J.append(dict(kind="clip", key="vo.%s.%s" % (hero, hk), bank=bank, rx=rx, hero_word=word, group="vo", tier=2, max=mx))
     for so, c in sorted(chain["cardaudio"].items()):
         nm = slug(so.replace("AudioSO", ""))
         if c["group"] == "merchants":
@@ -639,13 +657,13 @@ def build_jobs():
             J.append(dict(kind="clip", key="vo.monster.%s" % nm, bank=c["bank"], stem="" if nvb else "enter",
                           group="vo", tier=3, max=2))
     # ---- môi trường theo board (boardEnvAudio là nền lặp; pvpCombatMusic là nhạc combat) — chỉ Vanessa/Pyg/Dooley
-    bmap = {"board_van": "vanessa", "board_pyg": "pygmalien", "board_doo": "dooley"}
-    for b, hero in bmap.items():
+    for b, hero in BOARD_HERO.items():
         d = chain["boards"].get(b)
+        old = hero in ("vanessa", "pygmalien", "dooley")
         if d:
-            add("ambience." + hero, d["boardEnvAudio"], "ambience", 1, 30, 1)
-            add("music.battle." + hero, d["pvpCombatMusic"], "music", 1, 82, 1)
-    for hero, folder in (("vanessa", "Vanessa"), ("pygmalien", "Pyg"), ("dooley", "Dooley")):
+            add("ambience." + hero, d["boardEnvAudio"], "ambience", 1, 30, 1 if old else 2)
+            add("music.battle." + hero, d["pvpCombatMusic"], "music", 1, 82 if old else 70, 1 if old else 2)
+    for hero, folder in ENV_FOLDER.items():
         for p, e in sorted(ev.items()):
             if p.startswith("event:/SFX/Environment/%s/" % folder) and 0 < e["len"] < 6000:
                 add("env.%s.%s" % (hero, slug(p.rsplit("/", 1)[1].replace("Env_", ""))), p, "env", 1, 6, 3)
@@ -780,7 +798,7 @@ def stage_render(only=None, chunk=120):
 
 
 # ---------------------------------------------------------------- 6. export: cắt lặng, chuẩn mức, mã hoá ogg, ghi audio.js
-BUDGET_MB = 32.0
+BUDGET_MB = 46.0
 GROUP_VOL = {"music": 0.55, "ambience": 0.5, "env": 0.8, "vo": 1.0}      # âm lượng gợi ý (đã chuẩn hoá từng nhóm)
 
 
@@ -845,11 +863,11 @@ def write_wav16(fn, a, sr):
     w.close()
 
 
-def encode(a, sr, out, music=False):
+def encode(a, sr, out, music=False, br=None):
     tmp = RENDER + "/_enc.wav"
     write_wav16(tmp, a, sr)
     os.makedirs(os.path.dirname(out), exist_ok=True)
-    br = "96k" if music else "64k"
+    br = br or ("96k" if music else "64k")
     r = subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", tmp, "-ac", str(a.shape[1]), "-c:a", "libvorbis",
                         "-b:a", br, out], capture_output=True)
     if r.returncode:
@@ -884,6 +902,22 @@ def clip_files(bank, stem):
 CLIP_MATCH = {"idle": "idl?e$", "enter": "enter", "exit": "exit"}      # AilaIde (gõ sai trong dữ liệu gốc), PlayerEnterXShop
 
 
+def clip_files_rx(bank, rx, word):
+    """Clip hero khớp regex (toàn bộ thân tên đã bỏ tên hero, số, ký tự lẻ, hậu tố AB/ALT/V)."""
+    d = CLIPS + "\\" + bank
+    out = []
+    for fn in sorted(os.listdir(d)):
+        if not fn.endswith(".wav"):
+            continue
+        n = re.sub(r"[^a-z]", "", fn[:-4].lower())
+        if n.startswith(word):
+            n = n[len(word):]
+        n = re.sub(r"(alt|ab|v)$", "", re.sub(r"(alt|ab|v)$", "", n))
+        if re.fullmatch(rx, n):
+            out.append(d + "\\" + fn)
+    return out
+
+
 def pick(files, k):
     if len(files) <= k:
         return files
@@ -893,8 +927,10 @@ def pick(files, k):
 
 MUSIC_PICK = {          # soundtrack SO -> các bài chọn (chỉ số trong playlist)
     "vanessa": [0, 1, 2, 3, 4, 5], "pyg": [0, 1, 2, 3], "dooley": [0, 1, 2, 3],
+    "mak": [0, 1], "stelle": [0, 1], "jules": [0, 1], "karnok": [0, 1], "dragons": [0, 1],      # bài 1 tier 2, bài 2 tier 3 (theo ngân sách)
 }
-HERO_MUSIC_KEY = {"vanessa": "vanessa", "pyg": "pygmalien", "dooley": "dooley"}
+HERO_MUSIC_KEY = {"vanessa": "vanessa", "pyg": "pygmalien", "dooley": "dooley", "mak": "mak", "stelle": "stelle", "jules": "jules",
+                  "karnok": "karnok", "dragons": "dragons"}
 
 
 def stage_export():
@@ -917,7 +953,7 @@ def stage_export():
     for j in jobs:
         if j.get("kind") != "clip":
             continue
-        fl = pick(clip_files(j["bank"], j["stem"]), j["max"])
+        fl = pick(clip_files_rx(j["bank"], j["rx"], j["hero_word"]) if j.get("rx") else clip_files(j["bank"], j["stem"]), j["max"])
         if not fl:
             continue
         srcs = [read_wav(f) for f in fl]
@@ -936,7 +972,8 @@ def stage_export():
                 continue
             a, sr = read_wav(fl[0])
             items.append(dict(key="music.%s.%d" % (HERO_MUSIC_KEY[hero], ti + 1), group="music",
-                              tier=1 if ti < (3 if hero == "vanessa" else 2) else 3, srcs=[(a, sr)],
+                              tier=(1 if ti < (3 if hero == "vanessa" else 2) else 3) if hero not in NEW_KEYS else (2 if ti == 0 else 3),
+                              srcs=[(a, sr)],
                               event=t["event"], loop=False, music=True, track=t["name"], playlist=True))
     # --- xử lý: mono/trim/loop
     out = []
@@ -987,7 +1024,12 @@ def stage_export():
             pk = [float(np.abs(a).max()) for i in its for a, sr in i["proc"]]
             ref = float(np.percentile(pk, 90))
             gains[g] = min(0.55 / max(ref, 1e-4), 24.0)
+    sf = META + r"\export_stats.json"
+    if os.path.exists(sf) and not os.environ.get("REGAIN"):
+        gains.update(json.load(open(sf)).get("gains", {}))      # đóng băng mức đã dùng: thêm khoá mới không làm đổi mức tệp cũ
     for it in items:
+        if it["music"] and any(p in NEW_KEYS for p in it["key"].split(".")[1:]):
+            it["br"] = "80k"                                    # nhạc hero mới nén 80 kbps để vừa ngân sách
         g = gains[it["group"]]
         for k, (a, sr) in enumerate(it["proc"]):
             a = a * g
@@ -997,22 +1039,23 @@ def stage_export():
             it["proc"][k] = (a, sr)
     # --- ngân sách: tier 3 rồi giảm biến thể
     def est(it):
-        return sum(len(a) / float(sr) * (12000.0 if it["music"] else 8000.0) + 4500 for a, sr in it["proc"])
+        mb = 10000.0 if it.get("br") == "80k" else 12000.0
+        return sum(len(a) / float(sr) * (mb if it["music"] else 8000.0) + 4500 for a, sr in it["proc"])
+    prior = set(re.findall(r'^  "([^"]+)":', open(OUT_JS, encoding="utf-8").read(), re.M)) if os.path.exists(OUT_JS) else set()
     # tier 1+2 luôn lấy; tier 3 thêm dần theo ưu tiên (board/thẻ -> nền môi trường -> nhạc phụ -> VO phụ) tới hết ngân sách
-    PRIO = {"env": 1, "vo": 2, "music": 3}
-    keep = [i for i in items if i["tier"] < 3]
+    PRIO = {"vo": 1, "env": 2, "music": 3}
+    keep = [i for i in items if i["tier"] < 3 or i["key"] in prior]
     used = sum(est(i) for i in keep)
     cap = BUDGET_MB * 1048576 * 0.97
-    for it in sorted([i for i in items if i["tier"] >= 3], key=lambda i: (PRIO.get(i["key"].split(".")[0], 0), est(i))):
+    for it in sorted([i for i in items if i["tier"] >= 3 and i["key"] not in prior], key=lambda i: (PRIO.get(i["key"].split(".")[0], 0), est(i))):
         if used + est(it) <= cap:
             keep.append(it)
             used += est(it)
     items = keep
     print("export: %d khoá, ước tính %.1f MB" % (len(items), sum(est(i) for i in items) / 1048576.0))
     # --- ghi tệp
-    if os.path.isdir(OUT_AUDIO):
-        shutil.rmtree(OUT_AUDIO)
-    os.makedirs(OUT_AUDIO)
+    os.makedirs(OUT_AUDIO, exist_ok=True)
+    nwritten = [0]
     table = {}
     total = 0
     for it in sorted(items, key=lambda x: x["key"]):
@@ -1022,7 +1065,12 @@ def stage_export():
         for k, (a, sr) in enumerate(it["proc"]):
             nm = rest if len(it["proc"]) == 1 else "%s_%d" % (rest, k + 1)
             rel = "audio/%s/%s.ogg" % (grp, nm)
-            sz = encode(a, sr, os.path.join(REPO, rel), it["music"])
+            fp = os.path.join(REPO, rel)
+            if os.path.exists(fp) and not os.environ.get("FORCE"):
+                sz = os.path.getsize(fp)          # CỘNG THÊM: tệp đã có thì giữ nguyên (encoder ghi byte khác dù PCM y hệt)
+            else:
+                sz = encode(a, sr, fp, it["music"], it.get("br"))
+                nwritten[0] += 1
             total += sz
             files.append(rel)
             durs.append(round(len(a) / float(sr), 2))
@@ -1035,7 +1083,7 @@ def stage_export():
         if it.get("clips"):
             e["clips"] = it["clips"]
         table[it["key"]] = e
-    print("export: %d tệp ogg, %.2f MB" % (sum(len(v["src"]) for v in table.values()), total / 1048576.0))
+    print("export: %d tệp ogg, %.2f MB (ghi mới %d tệp)" % (sum(len(v["src"]) for v in table.values()), total / 1048576.0, nwritten[0]))
     write_audio_js(table, chain)
     json.dump(dict(total_bytes=total, keys=len(table), gains=gains), open(META + r"\export_stats.json", "w"))
 
@@ -1099,6 +1147,8 @@ def write_audio_js(table, chain):
           "music.board.vanessa": "music.vanessa.1", "music.board.pygmalien": "music.pygmalien.1",
           "music.board.dooley": "music.dooley.1", "music.vanessa": "music.vanessa.1", "music.pygmalien": "music.pygmalien.1",
           "music.dooley": "music.dooley.1"}
+    for h in NEW_KEYS:           # hero mới: cùng quy ước music.<hero> / music.board.<hero> -> bài 1 của playlist
+        AL["music." + h] = AL["music.board." + h] = "music.%s.1" % h
     AL = {k: v for k, v in AL.items() if v in table and k != v}
     # AudioKey -> CardAudio SO -> khoá âm đã xuất (thương nhân: enter/buy/idle; quái: một khoá chung)
     voice = {}

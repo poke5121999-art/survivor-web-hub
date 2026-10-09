@@ -12,7 +12,7 @@
   function stockList(run) {
     var ph = run.phase, seen = {};
     return ph.stock.map(function (s, i) {
-      var k = s.card.id + s.card.tier; seen[k] = (seen[k] || 0) + 1;
+      var k = s.card.id; seen[k] = (seen[k] || 0) + 1; // không gồm bậc: hàng lên bậc tại chỗ (sự kiện stock) giữ phần tử, cards.setTop dựng lại
       return { key: ph.merchantId + ':' + ph.rerolls + ':' + k + ':' + seen[k], card: s.card, price: s.price, discount: !!s.discount, kind: 'stock', i: i };
     });
   }

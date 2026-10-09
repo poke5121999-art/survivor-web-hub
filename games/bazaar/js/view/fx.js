@@ -117,7 +117,7 @@
   };
   // CRIT -294 (REF-combat-core: đỏ đặc #e44434 bật ra → trắng #fcf4f4 viền/quầng đỏ, vệt đỏ-cam kéo sang trái, tổng ~1,1 s)
   NT.crit = { neg: true, crit: true, face: '#fcf4f4', tint: '#e44434', amt: lin([[0, 1], [0.1, 1], [0.24, 0], [1, 0]]), outline: '#b01818', glow: 'rgba(228,52,40,.65)', gs: [3.2, 1.9],
-    off: [-0.5, 0.3, 0.9], offC: [-0.5, 0.3, 0.9], travel: [-0.9, 0, 0.3], total: 1100, fin: 30, fout: 320, s: 4.0, sL: 4.0, sC: 4.0, streak: true,
+    off: [-1.8, -1.2, 0.9], offC: [-1.8, -1.2, 0.9], travel: [-0.9, 0, 0.3], total: 1100, fin: 30, fout: 320, s: 5.85, sL: 5.85, sC: 5.85, streak: true,
     dist: curve([[0, 0, 3], [0.15, 0.5, 0.6], [1, 1, 0.1]]), sc: curve([[0, 1.35, -3], [0.09, 1, 0], [0.7, 1, 0], [1, 0.7, -0.8]]) };
   NT.sand = Object.assign({}, NT.damage, { face: '#ff5a48', tint: '#ff1a10', outline: '#5a0000', glow: 'rgba(200,30,20,.55)', total: 900 });
   NT.regen = Object.assign({}, NT.heal);
@@ -301,7 +301,7 @@
     shield: { c: '#fed800', c2: '#fff6b0', travel: 400, ease: function (t) { return t; }, size: 1 },
     regen: { c: '#8fe930', c2: '#eaffc0', travel: 200, ease: curve([[0, 0, 0.4], [1, 1, 2]]), size: 0.8 },
     freeze: { c: '#3ec8f8', c2: '#e6fbff', travel: 300, ease: function (t) { return t; }, size: 0.9 },
-    slow: { c: '#cca06e', c2: '#ffe2b8', travel: 400, ease: curve([[0, 0, 0.4], [1, 1, 2]]), size: 0.85 },
+    slow: { c: '#68f8f8', c2: '#e2ffff', travel: 400, ease: curve([[0, 0, 0.4], [1, 1, 2]]), size: 0.85 },
     haste: { c: '#00eac2', c2: '#d0fff6', travel: 200, ease: function (t) { return t; }, size: 0.85 },
     charge: { c: '#00eac2', c2: '#ffffff', travel: 200, ease: curve([[0, 0, 0.4], [1, 1, 2]]), size: 0.8 },
     reload: { c: '#fe8e00', c2: '#ffe0a0', travel: 200, ease: curve([[0, 0, 0.4], [1, 1, 2]]), size: 0.8 },
@@ -463,9 +463,9 @@
           life: rnd(250, 450), s0: rnd(14, 26), s1: 4, a0: 1, a1: 0, frame: Math.floor(Math.random() * 12), add: false, rot: rnd(0, 6), vr: rnd(-8, 8), t0: t0 }); }
         break;
       case 'slow':
-        for (i = 0; i < 10; i++) spawn({ tex: 'dot', color: '#e8b070', x: x + rnd(-40, 40), y: y + rnd(0, 60), vx: rnd(-30, 30), vy: rnd(10, 80), drag: 0.5,
+        for (i = 0; i < 10; i++) spawn({ tex: 'dot', color: '#9cffff', x: x + rnd(-40, 40), y: y + rnd(-60, 0), vx: rnd(-20, 20), vy: rnd(60, 200), drag: 0.5,
           life: rnd(400, 900), s0: rnd(8, 14), s1: 2, a0: 0.9, a1: 0, stretch: 0.25, t0: t0 });
-        spawn({ tex: 'glow', color: '#cca06e', x: x, y: y, vx: 0, vy: 0, life: 380, s0: 90, s1: 140, a0: 0.7, a1: 0, t0: t0 });
+        spawn({ tex: 'glow', color: '#68f8f8', x: x, y: y, vx: 0, vy: 0, life: 380, s0: 90, s1: 140, a0: 0.7, a1: 0, t0: t0 });
         break;
       case 'haste': case 'charge':
         spawn({ tex: 'glow', color: '#00eac2', x: x, y: y, vx: 0, vy: 0, life: 320, s0: 90, s1: 150, a0: 0.8, a1: 0, t0: t0 });

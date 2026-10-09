@@ -133,4 +133,61 @@
     }, 300);
   };
   A.pick = function () { U.sfx('board.encounterClick'); };
+
+  // ---------- pha 4: xếp chỗ, quest, hàng đổi giá, rương, bàn tốt nhất ----------
+  // move: thẻ tự trượt về ô mới (cards.render, 160 ms nảy); thẻ BỊ ĐẨY thêm tia CardBumps khi chạm ô + tiếng card.socket
+  A.move = function (e, ctx) {
+    if (!e.pushed) return;
+    setTimeout(function () {
+      var el = U.cards.ownEl(e.uid); if (!el) return;
+      var r = U.rectOf(el); if (r) FX().burst('land', r.x + r.w / 2, r.y + r.h / 2, { w: r.w, h: r.h });
+      U.sfx(e.to.section === 'stash' ? 'card.land.storage' : 'card.socket', { vol: 0.6, gap: 60 });
+    }, 170);
+  };
+  A.swap = function (e) {
+    U.sfx('card.slide', { vol: 0.5 });
+    [e.a, e.b].forEach(function (uid, i) {
+      setTimeout(function () { var el = U.cards.ownEl(uid); if (el) { root.BZCard.flash(el, U.now(), '#9be8ff'); el.classList.remove('swapped'); void el.offsetWidth; el.classList.add('swapped'); } }, 150 + i * 60);
+    });
+  };
+  // quest: chip tiến độ trên thẻ nảy + số "+n"; xong: loé vàng, chữ "Hoàn thành!", tia thưởng (combat.questcomplete_shot)
+  A.quest = function (e) {
+    var el = U.cards.ownEl(e.uid); if (!el) return;
+    U.cards.questChip(el, U.state.run, true);
+    var r = U.rectOf(el); if (r) U.float(r.x + r.w / 2, r.y + 18, e.progress + '/' + e.goal, 'quest');
+  };
+  A.questDone = function (e) {
+    setTimeout(function () {
+      var el = U.cards.ownEl(e.uid); if (!el) return;
+      root.BZCard.flash(el, U.now(), '#ffd36b'); root.BZCard.buffText(el, 'Hoàn thành nhiệm vụ!', '#ffd36b');
+      el.classList.remove('questdone'); void el.offsetWidth; el.classList.add('questdone');
+      var r = U.rectOf(el); if (r) { FX().burst('victory', r.x + r.w / 2, r.y + r.h / 2, { big: 0.7 }); FX().burst('buff', r.x + r.w / 2, r.y + r.h / 2); }
+      U.sfx('combat.questcomplete_shot'); U.sfx('board.trophyGain', { vol: 0.5 });
+      var ci = U.state.run && root.BZRun.findCard(U.state.run, e.uid);
+      if (e.reward) U.toast('Nhiệm vụ xong: ' + root.BZTooltip.format(ci ? U.cards.questReward(ci, e.key, e.reward) : e.reward).html.replace(/<[^>]+>/g, ''));
+    }, 260);
+  };
+  // stock: hàng đang bày đổi giá / lên bậc / được yểm (Lucky Clover, Coupon, Galactic Translator, Dreampearl...)
+  A.stock = function (e, ctx) {
+    var entering = !ctx.prev || ctx.prev.phase.kind !== 'merchant' || (ctx.cmd && ctx.cmd.t === 'reroll');
+    setTimeout(function () {
+      var el = U.cards.stockEl(e.i); if (!el) return;
+      var r = U.rectOf(el), cx = r ? r.x + r.w / 2 : 960, cy = r ? r.y + r.h / 2 : 420;
+      if (e.why === 'price') {
+        var pt = el.querySelector('.rs-price'); if (pt) { pt.classList.remove('bump'); void pt.offsetWidth; pt.classList.add('bump'); }
+        U.sfx('board.priceTagChange'); FX().burst('shield', cx, r ? r.y + r.h - 20 : cy, { big: 0.4 });
+      } else if (e.why === 'upgrade') {
+        root.BZCard.flash(el, U.now(), '#b3e4e5'); root.BZCard.buffText(el, 'Lên ' + (U.TIER_VI[e.card.tier] || e.card.tier) + '!', '#b3e4e5');
+        FX().burst('buff', cx, cy); U.sfx('card.upgrade.' + String(e.card.tier).toLowerCase());
+      } else if (e.why === 'enchant') {
+        var col = root.BZCard.ENCH_COL[e.card.ench] || '#be47ff';
+        root.BZCard.flash(el, U.now(), col); root.BZCard.buffText(el, e.card.ench, col);
+        el.classList.remove('enchanting'); void el.offsetWidth; el.classList.add('enchanting');
+        FX().burst('charge', cx, cy); U.sfx('card.enchant.' + String(e.card.ench || 'tiny').toLowerCase());
+      }
+    }, entering ? 1500 + e.i * 120 : 120);
+  };
+  A.best = function () { /* màn hết run đọc run.best; không diễn gì giữa run */ };
+  A.chest = function () { /* màn rương (screens/chest.js) tự diễn rơi → rung → mở */ };
+  A.fates = function () { U.sfx('fates.appear_build'); setTimeout(function () { U.sfx('fates.appear_impact'); }, 700); };
 })(window);

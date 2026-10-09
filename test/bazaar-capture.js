@@ -14,7 +14,8 @@
  * cách lấy mẫu mỗi 20 ms trạng thái trong trang (BZFX.counts, DOM) và trạng thái sim (Node, BZSim.run cùng seed = cùng trận).
  * Run (chơi) được dựng sẵn bằng reducer ở Node (BZRun) rồi nạp qua localStorage `bz.run.v1` → trang tiếp tục đúng chỗ; "kích hoạt" là một lệnh
  * (BZ_DEBUG.cmd) hoặc chuột thật. Hạt/tia dùng Math.random nên hình chi tiết khác nhau giữa các lần chạy, thời điểm thì không.
- * Cắt khung (crop) theo D:\bazaar-ref\ref\<moment>\meta.json nếu có: [x,y,w,h] tính trên khung 1024x576 (hoặc tỉ lệ 0..1).
+ * Cắt khung (crop) theo D:\bazaar-ref\ref\<moment>\meta.json chỉ khi crop là tỉ lệ 0..1 hoặc có crop_frame [w,h] (cỡ video nguồn);
+ * không thì chụp nguyên sân khấu (hoặc vùng riêng của từng khoảnh khắc).
  */
 'use strict';
 const path = require('path'), http = require('http'), fs = require('fs');
@@ -176,7 +177,11 @@ function refInfo(id) {
 function clipFromRef(meta) {
   const c = meta && meta.crop;
   if (!Array.isArray(c) || c.length !== 4) return null;
-  const fr = c.every(v => v <= 1.0001), W = fr ? 1 : 1024, H = fr ? 1 : 576;
+  // [BẪY ĐÃ SẬP] crop của ref là pixel của video NGUỒN (720p, 1080p hay 4K tuỳ clip) và meta không ghi cỡ nguồn;
+  // đọc như khung 1024x576 làm khung web bị cắt lệch. Chỉ dùng khi ref ghi tỉ lệ 0..1 hoặc kèm crop_frame [w,h].
+  const fr = c.every(v => v <= 1.0001), cf = Array.isArray(meta.crop_frame) ? meta.crop_frame : null;
+  if (!fr && !cf) return null;
+  const W = fr ? 1 : cf[0], H = fr ? 1 : cf[1];
   const x = Math.max(0, c[0] / W * VW), y = Math.max(0, c[1] / H * VH);
   return { x: Math.round(x), y: Math.round(y), width: Math.round(Math.min(VW - x, c[2] / W * VW)), height: Math.round(Math.min(VH - y, c[3] / H * VH)) };
 }
@@ -223,6 +228,7 @@ async function record(page, id, o) {
 async function combat(id, spec) {
   const seed = spec.seed || 1;
   const b0 = mkBoard('a', 'Phe ta', spec.ours, spec.hpA || 1000), b1 = mkBoard('b', 'Đối thủ', spec.theirs || [], spec.hpB || 1000);
+  if (spec.attrsA) Object.assign(b0.attrs, spec.attrsA); // thuộc tính người chơi (vd RageMax) cho cảnh cần ép
   const res = simRun([b0, b1], seed), evs = allEvents(res);
   const start = Math.max(0, Math.round(spec.start(evs, res)));
   const page = await openPage('?view=1&moment=' + id);
@@ -344,7 +350,7 @@ H['flying'] = () => {
 H['enrage'] = () => {
   const r = pickCard('rage', { own: false, tiers: ['Bronze', 'Silver', 'Gold'], maxT: 40000 });
   if (!r) throw new Error('no card with rage events');
-  return combat('enrage', { ours: [{ id: r.id }, NAR()], theirs: [NAR()], seed: 1, frames: 40, notes: MOMENT_NOTE(r, 'thanh giận dữ đầy dần → nổi giận (nếu đủ)'),
+  return combat('enrage', { ours: [{ id: r.id }, NAR()], theirs: [NAR()], seed: 1, frames: 40, attrsA: { RageMax: 20 }, notes: MOMENT_NOTE(r, 'thanh giận dữ đầy dần → nổi giận → hết giận (RageMax hạ xuống 20 để thấy đủ chu kỳ)'),
     start: evs => (evFirst(evs, e => e.type === 'enrage' && e.on) || evFirst(evs, e => e.type === 'rage')).t - 800 });
 };
 H['sandstorm'] = () => combat('sandstorm', { ours: [NAR()], theirs: [NAR()], seed: 1, frames: 70, notes: 'hai Narwhal đấu lâu: bão cát đếm ngược (25 s) → nổi (30 s) → trừ máu',

@@ -58,8 +58,12 @@
       case 'AbsoluteOpponentHandAndStash': return list(B.hand.concat(B.stash), filter);
       case 'SelfNeighbors': return card ? BZ.neighbors(S, card, filter) : [];
       case 'TriggerSourceNeighbors': return ev && ev.src ? BZ.neighbors(S, ev.src, filter) : [];
-      case 'SelectionSet': case 'SelfSocketEffects': case 'OpponentSocketEffects': case 'AllSocketEffects':
-      case 'AbsolutePlayerSocketEffects': return []; // ngoài trận / chưa có hiệu ứng ô
+      // Ô hiệu ứng (TargetSystem.cs:473-507): All = đối thủ của người chơi tuyệt đối trước, rồi người chơi
+      case 'SelfSocketEffects': return list(P0.sockets || [], filter);
+      case 'OpponentSocketEffects': return list(P1.sockets || [], filter);
+      case 'AllSocketEffects': return list((B.sockets || []).concat(A.sockets || []), filter);
+      case 'AbsolutePlayerSocketEffects': return list(A.sockets || [], filter);
+      case 'SelectionSet': return []; // món đang bày bán: ngoài trận
     }
     BZ.noteUnknown(name, 'section');
     return [];
@@ -225,7 +229,9 @@
   C.TCardConditionalTag = { test: function (c, x, ctx) { if (ctx.S.dirty && !ctx.S.computing) BZ.recompute(ctx.S); return tagOp(c.Operator, c.Tags || [], x.tags); } };
   C.TCardConditionalHiddenTag = { test: function (c, x, ctx) { if (ctx.S.dirty && !ctx.S.computing) BZ.recompute(ctx.S); return tagOp(c.Operator, c.Tags || [], x.hidden); } };
   C.TCardConditionalCanCrit = { test: function (c, x, ctx) { return isNot(c, BZ.canCrit(ctx.S, x)); } };
-  C.TCardConditionalId = { test: function (c, x) { return isNot(c, x.id === c.Id); } };
+  // Thẻ đã xong quest mang id mẫu dẫn xuất `<id gốc>~q…` (js/run/core.js R.baseId): so theo id gốc, không thì
+  // điều kiện "đúng thẻ X" bỏ sót thẻ đó.
+  C.TCardConditionalId = { test: function (c, x) { var id = String(x.id || ''), k = id.indexOf('~q'); return isNot(c, (k < 0 ? id : id.slice(0, k)) === c.Id); } };
   C.TCardConditionalSize = { test: function (c, x) { return isNot(c, (c.Sizes || []).indexOf(x.sizeName) >= 0); } };
   C.TCardConditionalTier = { test: function (c, x) { return isNot(c, (c.Tiers || []).indexOf(x.tier) >= 0); } };
   C.TCardConditionalType = { test: function (c, x) { return isNot(c, x.type === (c.CardType || 'Item')); } };
@@ -375,7 +381,20 @@
     if (t.ExcludeSelf && s === ctx.card) return [];
     return select(ctx, count, prios, BZ.filterCards(t.Conditions, [s], ctx));
   };
-  T.TTargetCardOccupying = function () { return []; }; // hiệu ứng ô (socket effect) chưa có trong trận web
+  // TTargetCardOccupying.cs:15-33: chỉ cho thẻ ô hiệu ứng; các thẻ trên tay chủ nó phủ ô [LeftSocketId, LeftSocketId+Size)
+  T.TTargetCardOccupying = function (t, ctx, count, prios, filter) {
+    var c = ctx.card;
+    if (!c || c.type !== 'SocketEffect' || !alive(c, filter)) return [];
+    var hand = ctx.S.players[c.owner].hand, out = [];
+    for (var s = c.socket; s < c.socket + (c.size || 1); s++) {
+      for (var i = 0; i < hand.length; i++) {
+        var o = hand[i];
+        if (s >= o.socket && s < o.socket + o.size && out.indexOf(o) < 0) out.push(o);
+      }
+    }
+    // Sockets.Skip().Take().Distinct().OfType<ICard>(): bộ lọc trạng thái chỉ xét thẻ ô, không xét thẻ phủ ô
+    return select(ctx, count, prios, BZ.filterCards(t.Conditions, out, ctx));
+  };
   function pfilter(t, pls, ctx) {
     if (!t.Conditions) return pls;
     return pls.filter(function (pl) { return BZ.condTest(t.Conditions, pl, ctx); });

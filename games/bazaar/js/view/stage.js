@@ -45,8 +45,9 @@
     R.dialLabel = el('div', 'bz-dial-label', wd, 'Bão cát sau 30 giây');
     R.enrFrame = [el('div', 'bz-enr-frame bot', wd), el('div', 'bz-enr-frame top', wd)];
     R.enrVig = el('div', 'bz-enr-vig', wd);
+    R.shFrame = [el('div', 'bz-sh-frame bot', wd), el('div', 'bz-sh-frame top', wd)]; // lưới vàng quanh hàng chân dung khi khiên > 0 (REF shield)
     R.sand = el('div', 'bz-sand', wd);
-    el('div', 'dune', R.sand);
+    el('div', 'edge', R.sand); el('div', 'edge b', R.sand);
     R.fx = el('canvas', '', wd); R.fx.id = 'bz-fx';
     R.banner = el('div', 'bz-banner', st, '<div class="in"><h2></h2><p></p></div>');
     R.ui = el('div', '', st); R.ui.style.cssText = 'position:absolute;inset:0;pointer-events:none;';
@@ -215,6 +216,8 @@
       h.shield.style.transform = 'scaleX(' + Math.min(1, o.shield / mx).toFixed(4) + ')';
       h.shield.style.display = o.shield > 0 ? '' : 'none';
       h.textS.textContent = o.shield > 0 ? o.shield : '';
+      var sf = R.shFrame && R.shFrame[side];
+      if (sf) { sf.classList.toggle('on', o.shield > 0); sf.style.setProperty('--sh', Math.min(1, o.shield / mx).toFixed(3)); }
       h.tint.style.opacity = '';
     }
     var regen = v.regen || 0;

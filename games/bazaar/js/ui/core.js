@@ -20,7 +20,9 @@
     var e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; if (parent) parent.appendChild(e); return e;
   };
   U.esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
-  U.art = function (key) { var m = root.BZ_ARTMAP || (root.BZ_ART && root.BZ_ART.map); return (m && key && m[key]) || null; };
+  // id thẻ đã xong quest `<id>~q0.0` (BZRun.questTplId) dùng art / tên của thẻ gốc
+  U.baseId = function (id) { return R() && R().baseId ? R().baseId(id) : String(id || ''); };
+  U.art = function (key) { var m = root.BZ_ARTMAP || (root.BZ_ART && root.BZ_ART.map); if (!m || !key) return null; return m[key] || m[U.baseId(key)] || null; };
   U.sfx = function (key, o) { var A = AU(); if (A) return A.play(key, o); return false; };
   U.TIER_VI = { Bronze: 'Đồng', Silver: 'Bạc', Gold: 'Vàng', Diamond: 'Kim cương', Legendary: 'Huyền thoại' };
   U.UI = 'art/ui/';
@@ -32,19 +34,36 @@
     chest: 'art/ui/ui_sprite_atlas/Tooltip_Reward_Icon_Chest_TUI.webp', stash: 'art/encounters/Event_TreasureChest_QuestData_char.webp',
     prize: 'art/ui/purchases/Chest_Purchase_Artwork_1_TUI.webp', carpet: 'art/ui/ui_sprite_atlas/Tooltip_Reward_Icon_Carpet_TUI1.webp'
   };
-  // Ba hero chơi được (BZRun.HEROES_PLAYABLE). Tagline gốc tiếng Anh (WIKI §4), mô tả tiếng Việt.
+  // Hero của sảnh (BZ_HEROES.order: 7 chơi được + The Dragons khoá). Tagline gốc tiếng Anh (WIKI §4: Mobalytics/Game8),
+  // màu nhấn HeroColorSO (WIKI §2.4), mô tả tiếng Việt theo cơ chế riêng của hero (WIKI §3-4).
   U.HEROES = {
-    Vanessa: { code: 'VAN', color: '#c71f0f', tag: 'Seafaring Rogue', portrait: 'art/heroes/skin_van_01/Skin_VAN_01a_Portrait.webp',
+    Vanessa: { code: 'VAN', vo: 'vanessa', color: '#c02121', tag: 'Seafaring Rogue', portrait: 'art/heroes/skin_van_01/Skin_VAN_01a_Portrait.webp',
       store: 'art/heroes/skin_van_01/Skin_VAN_01a_StoreImage.webp', btn: 'art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_heroes/Btn_VAN_TUI.webp',
       desc: 'Nữ hải tặc sống bằng sát thương: dàn Vũ khí bắn liên hồi hoặc một khẩu súng thật lớn; khống chế đối thủ bằng Làm chậm, Độc và đồ dưới nước.' },
-    Pygmalien: { code: 'PYG', color: '#292ea3', tag: 'Entre-Pig-Neur', portrait: 'art/heroes/skin_pyg_01/Skin_PYG_01a_Portrait.webp',
+    Pygmalien: { code: 'PYG', vo: 'pygmalien', color: '#2767c0', tag: 'Entre-Pig-Neur', portrait: 'art/heroes/skin_pyg_01/Skin_PYG_01a_Portrait.webp',
       store: 'art/heroes/skin_pyg_01/Skin_PYG_01a_StoreImage.webp', btn: 'art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_heroes/Btn_PYG_TUI.webp',
       desc: 'Ông chủ heo trâu bò: Hồi máu và Khiên dày cộp, máu tối đa tăng dần; làm giàu bằng Thu nhập, Vàng và bất động sản.' },
-    Dooley: { code: 'DOO', color: '#ed6e29', tag: 'Cute AI-Liberating Robot', portrait: 'art/heroes/skin_doo_01/Skin_DOO_01a_Portrait.webp',
+    Dooley: { code: 'DOO', vo: 'dooley', color: '#e19a08', tag: 'Cute AI-Liberating Robot', portrait: 'art/heroes/skin_doo_01/Skin_DOO_01a_Portrait.webp',
       store: 'art/heroes/skin_doo_01/Skin_DOO_01a_StoreImage.webp', btn: 'art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_heroes/Btn_DOO_TUI.webp',
-      desc: 'Robot nhỏ giải phóng AI: các Lõi tạo phản ứng dây chuyền, thẻ bên trái sạc cho thẻ bên phải; mạnh dần nhờ Bạn bè và Công nghệ.' }
+      desc: 'Robot nhỏ giải phóng AI: các Lõi tạo phản ứng dây chuyền, thẻ bên trái sạc cho thẻ bên phải; mạnh dần nhờ Bạn bè và Công nghệ.' },
+    Mak: { code: 'MAK', vo: 'mak', color: '#bee65b', tag: 'Alchemical Immortalist', portrait: 'art/heroes/skin_mak_01/Skin_MAK_01a_Portrait.webp',
+      store: 'art/heroes/skin_mak_01/Skin_MAK_01a_StoreImage.webp', btn: 'art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_heroes/Btn_MAK_TUI.webp',
+      desc: 'Nhà giả kim bất tử: Thuốc và Nguyên liệu, Bỏng, Độc, Hồi phục; Chất xúc tác biến đổi nguyên liệu, thuốc ít đạn phải Nạp lại; đồ chơi gọi Bão cát sớm.' },
+    Stelle: { code: 'STE', vo: 'stelle', color: '#ffeb18', tag: 'Bright Aeronaut', portrait: 'art/heroes/skin_ste_01/Skin_STE_01a_Portrait.webp',
+      store: 'art/heroes/skin_ste_01/Skin_STE_01a_StoreImage_TUI.webp', btn: 'art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_heroes/Btn_STE_TUI.webp',
+      desc: 'Nữ phi công rạng rỡ: phương tiện và đồ Bay. Món đang Bay chỉ chịu một nửa thời gian Làm chậm và Đóng băng.' },
+    Jules: { code: 'JUL', vo: 'jules', color: '#b434ec', tag: 'Chef of the Deeps', portrait: 'art/heroes/skin_jul_01/Skin_JUL_01a_Portrait.webp',
+      store: 'art/heroes/skin_jul_01/Skin_JUL_01a_StoreImage.webp', btn: 'art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_heroes/Btn_JUL_TUI.webp',
+      desc: 'Đầu bếp dưới đáy biển: Đồ ăn tăng sức cho mình và hại đối thủ; ô bếp Nóng và Lạnh làm món đặt lên đó đổi tính.' },
+    Karnok: { code: 'KAR', vo: 'karnok', color: '#3b889c', tag: 'Monstrous Hunter', portrait: 'art/heroes/skin_kar_01/Skin_KAR_01a_Portrait.webp',
+      store: 'art/heroes/skin_kar_01/Skin_KAR_01a_StoreImage.webp', btn: null,
+      desc: 'Thợ săn quái vật: mỗi lần dùng đồ tích Cuồng nộ, đủ 100 thì Nổi điên, xoá Làm chậm và Đóng băng, giảm 10% hồi chiêu trong 5 giây.' },
+    TheDragons: { code: 'DRA', vo: 'dragons', color: '#9db7f3', tag: 'Roughtown Rockstars', portrait: 'art/heroes/skin_dra_01/Skin_DRA_01a_Portrait.webp',
+      store: 'art/heroes/skin_dra_01/Skin_DRA_01a_StoreImage_TUI.webp', btn: null,
+      desc: 'Ban nhạc rock của Roughtown: nhạc cụ, nốt C-G-A-B và tài nguyên Nhịp.' }
   };
-  U.heroVo = function (kind) { var r = S.run; if (!r || !r.hero) return false; return U.sfx('vo.' + r.hero.toLowerCase() + '.' + kind, { gap: 2500 }); };
+  U.voOf = function (hero) { var h = U.HEROES[hero]; return h ? h.vo : String(hero || '').toLowerCase(); };
+  U.heroVo = function (kind) { var r = S.run; if (!r || !r.hero) return false; return U.sfx('vo.' + U.voOf(r.hero) + '.' + kind, { gap: 2500 }); };
   U.now = function () { return performance.now(); };
   U.wait = function (ms) { return new Promise(function (res) { setTimeout(res, ms); }); };
   U.after = function (ms, fn) { return setTimeout(fn, ms); };
@@ -145,9 +164,27 @@
 
   // ---------- lệnh ----------
   // dispatch(cmd, ctx) → {ok, reason}. ctx: gợi ý cho hoạt ảnh (dropAt: {x,y} toạ độ sân khấu nơi thả thẻ, from: rect nguồn...)
+  // Lệnh có thể chia thẻ / dựng bàn đối thủ: chờ đủ thẻ mọi hero + bóng PvP (js/ui/loader.js)
+  var GATED = { pick: 1, choose: 1, next: 1, leave: 1, reroll: 1 };
+  function gate(run, cmd) {
+    var D = U.data; if (!D) return null;
+    if (cmd.t === 'pickHero' && !D.heroLoaded(cmd.hero)) return D.loadHero(cmd.hero);
+    if (GATED[cmd.t] && !D.ready()) return D.loadAll(run.hero);
+    return null;
+  }
   U.dispatch = function (cmd, ctx) {
     var run = S.run;
     if (!run) return { ok: false, reason: 'no run' };
+    var wait = gate(run, cmd);
+    if (wait) {
+      if (S.pending) return { ok: false, reason: 'loading', pending: true };
+      S.pending = cmd;
+      U.data.wait(wait, cmd.t === 'pickHero' ? 'Đang tải thẻ của ' + cmd.hero + '…' : 'Đang tải thẻ các hero…', function () {
+        S.pending = null;
+        if (S.run === run) U.dispatch(cmd, ctx);
+      });
+      return { ok: false, reason: 'loading', pending: true };
+    }
     if (U.transitions && U.transitions.dayActive()) U.transitions.cancelDay(true); // lệnh mới = người chơi đã đi tiếp: bỏ thẻ ngày đang chạy (thẻ gốc kéo dài ~6 s)
     var r = R().apply(run, cmd);
     if (!r.ok) {
@@ -159,6 +196,7 @@
     var prev = run;
     S.run = r.run;
     U.save();
+    if (cmd.t === 'pickHero' && U.data) U.data.loadAll(cmd.hero); // các hero còn lại + bóng: nạp ngầm ngay khi run bắt đầu
     ctx = ctx || {};
     ctx.prev = prev; ctx.cmd = cmd; ctx.events = r.events;
     var pk = prev.phase.kind, nk = S.run.phase.kind;
@@ -196,7 +234,14 @@
     U.save();
     U.go('heroSelect');
   };
-  U.resume = function (run) { S.run = run; U.go(run.phase.kind); };
+  // chơi tiếp run đã lưu: nạp đủ thẻ trước (bàn đã đấu / bóng / hàng có thể là thẻ của hero khác), rồi đọc lại để
+  // đăng ký mẫu thẻ đã xong quest (BZRun.deserialize)
+  U.resume = function (run) {
+    S.run = run;
+    var go = function () { try { S.run = R().deserialize(R().serialize(S.run)); } catch (e) { console.warn(e); } U.go(S.run.phase.kind); };
+    if (!U.data || U.data.ready()) { go(); return Promise.resolve(); }
+    return U.data.wait(U.data.loadAll(run.hero), 'Đang tải thẻ…', go);
+  };
 
   // ---------- vòng lặp ----------
   var last = 0;
@@ -228,7 +273,9 @@
     return q.has('view') || (q.has('a') && q.has('b'));
   }
   U.start = function () {
-    if (viewerMode()) { root.BZViewer.start(); return; } // trang xem trận giữ BZ_DEBUG riêng của nó (test/bazaar-view.js)
+    patchArt();
+    // trang xem trận giữ BZ_DEBUG riêng của nó (test/bazaar-view.js); bàn quái chỉ cần thẻ chung nhưng bàn tuỳ ý có thể có thẻ hero
+    if (viewerMode()) { (U.data ? U.data.loadAll(null, { ghosts: false }) : Promise.resolve()).then(function () { root.BZViewer.start(); }); return; }
     root.BZ_DEBUG = DEBUG;
     var host = document.getElementById('bz-root');
     V().build(host);
@@ -244,15 +291,21 @@
     loadFrames(function () {
       var saved = U.loadSaved(), q = new URLSearchParams(root.location.search);
       if (q.has('new')) saved = null;
-      if (saved && saved.phase.kind !== 'heroSelect') U.resume(saved);
-      else U.go('title');
-      root.BZ_READY = true;
+      var fin = function () { root.BZ_READY = true; };
+      if (saved && saved.phase.kind !== 'heroSelect') U.resume(saved).then(fin);
+      else { U.go('title'); fin(); }
       if (AU()) AU().preload(['ui.hover', 'ui.click', 'card.raise', 'card.lower', 'card.pickup', 'card.land.player', 'card.land.storage', 'card.drop',
         'board.attrGold', 'board.reroll', 'board.encounterClick', 'board.portraitHover', 'board.levelUp', 'card.revealFlipBronze', 'board.stashFlip']);
     });
     requestAnimationFrame(loop);
     keys();
   };
+  // art thẻ trong js/view/card.js tra BZ_ART theo id: id dẫn xuất của quest → id gốc
+  function patchArt() {
+    var C = root.BZCard; if (!C || C._baseArt) return;
+    var orig = C.artSrc; C._baseArt = true;
+    C.artSrc = function (id) { return orig(id) || orig(U.baseId(id)); };
+  }
   function keys() {
     root.addEventListener('keydown', function (e) {
       if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
@@ -276,7 +329,12 @@
     // toạ độ client (px của cửa sổ) để test kéo bằng chuột thật
     rect: function (sel) { var e = document.querySelector(sel); if (!e) return null; var b = e.getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height, cx: b.left + b.width / 2, cy: b.top + b.height / 2 }; },
     socketRect: function (section, s) { return U.cards ? U.cards.socketClientRect(section, s) : null; },
-    combat: function () { return U.combat ? U.combat.info() : null; }
+    combat: function () { return U.combat ? U.combat.info() : null; },
+    cardsReady: function () { return !!(U.data && U.data.ready()); },
+    cardsProgress: function () { return U.data ? U.data.progress() : null; },
+    pending: function () { return S.pending || null; },
+    // nạp một trạng thái run tuỳ ý (test: rương, quest...) rồi vẽ màn của phase
+    load: function (run) { var r = R().deserialize(JSON.parse(JSON.stringify(run))); S.run = r; U.save(); U.go(r.phase.kind); return r.phase.kind; }
   };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', U.start); else U.start();

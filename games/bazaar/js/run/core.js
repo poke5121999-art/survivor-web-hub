@@ -91,9 +91,57 @@
     return { uid: 'p' + run.uidN, id: id, tier: tier || tpl.StartingTier || 'Bronze', ench: ench || null, socket: 0,
       size: R.isSkill(tpl) ? 1 : (R.SIZE[tpl.Size] || 1), section: R.isSkill(tpl) ? 'skills' : 'hand', mods: {} };
   };
+  // ---------- quest trên thẻ (TCardItem.Quests: List<TQuestGroup>, Domain.Cards.Quests\*.cs) ----------
+  // Tiến độ lưu trên inst: ci.qp = {'g.e': số}, ci.qd = ['g.e', ...] (mục đã xong). Phần thưởng (TQuestReward: Abilities, Auras,
+  // Tags, HiddenTags, Attributes, Tiers[t].Attributes, Localization) phủ lên thẻ như một enchantment. Sim chỉ đọc mẫu thẻ theo id
+  // nên thẻ đã xong quest dùng một MẪU DẪN XUẤT đăng ký vào BZSim.extraCards với id `<id gốc>~q<g.e>+<g.e>` (chỉ ở bàn đưa vào
+  // sim: R.simCard / R.playerBoard / phase.boards; run.board giữ id gốc). R.baseId(id) bỏ hậu tố.
+  R.baseId = function (id) { var s = String(id || ''), k = s.indexOf('~q'); return k < 0 ? s : s.slice(0, k); };
+  // Đăng ký lại mẫu dẫn xuất từ id (bàn đã lưu trong phase.boards sau khi nạp run): trả về id dùng được với BZSim.tpl
+  R.ensureTpl = function (id) {
+    var s = String(id || ''), k = s.indexOf('~q');
+    if (k < 0) return s;
+    return R.questTplId({ id: s.slice(0, k), qd: s.slice(k + 2).split('+') });
+  };
+  R.questTplId = function (ci) {
+    if (!ci || !ci.qd || !ci.qd.length) return ci && ci.id;
+    var keys = ci.qd.slice().sort(), did = ci.id + '~q' + keys.join('+'), BZ0 = BZ();
+    BZ0.extraCards = BZ0.extraCards || {};
+    if (BZ0.extraCards[did]) return did;
+    var base = BZ0.tpl(ci.id);
+    if (!base || !base.Quests) return ci.id;
+    var t = R.clone(base), tierKeys = Object.keys(t.Tiers || {});
+    t.Abilities = t.Abilities || {}; t.Auras = t.Auras || {}; t.Tags = (t.Tags || []).slice(); t.HiddenTags = (t.HiddenTags || []).slice();
+    t.Localization = t.Localization || {}; t.Localization.Tooltips = (t.Localization.Tooltips || []).slice();
+    keys.forEach(function (key) {
+      var p = key.split('.'), g = base.Quests[+p[0]], e = g && g.Entries && g.Entries[+p[1]], rw = e && e.Reward;
+      if (!rw) return;
+      var k, nid;
+      for (k in (rw.Abilities || {})) { nid = 'Q' + key + ':' + k; t.Abilities[nid] = rw.Abilities[k]; tierKeys.forEach(function (tk) { (t.Tiers[tk].AbilityIds = t.Tiers[tk].AbilityIds || []).push(nid); }); }
+      for (k in (rw.Auras || {})) { nid = 'Q' + key + ':' + k; t.Auras[nid] = rw.Auras[k]; tierKeys.forEach(function (tk) { (t.Tiers[tk].AuraIds = t.Tiers[tk].AuraIds || []).push(nid); }); }
+      (rw.Tags || []).forEach(function (x) { if (t.Tags.indexOf(x) < 0) t.Tags.push(x); });
+      (rw.HiddenTags || []).forEach(function (x) { if (t.HiddenTags.indexOf(x) < 0) t.HiddenTags.push(x); });
+      tierKeys.forEach(function (tk) {
+        var A = t.Tiers[tk].Attributes = t.Tiers[tk].Attributes || {};
+        for (k in (rw.Attributes || {})) A[k] = rw.Attributes[k];
+        var rt = rw.Tiers && rw.Tiers[tk];
+        for (k in ((rt && rt.Attributes) || {})) A[k] = rt.Attributes[k];
+      });
+      ((rw.Localization && rw.Localization.Tooltips) || []).forEach(function (tip) {
+        var idx = t.Localization.Tooltips.length;
+        t.Localization.Tooltips.push(tip);
+        tierKeys.forEach(function (tk) { if (t.Tiers[tk].TooltipIds) t.Tiers[tk].TooltipIds.push(idx); });
+      });
+    });
+    t.BaseId = ci.id;
+    BZ0.extraCards[did] = t;
+    return did;
+  };
+
   // Thẻ cho sim: thuộc tính tuyệt đối = bậc (+ enchantment) + mods; luôn có SellPrice/BuyPrice để aura "Value" (Golden ×2) tính đúng
   R.simCard = function (ci) {
-    var tpl = R.tpl(ci.id), out = { uid: ci.uid, id: ci.id, tier: ci.tier, ench: ci.ench || null, socket: ci.socket, size: ci.size, section: ci.section };
+    var tpl = R.tpl(ci.id), out = { uid: ci.uid, id: R.questTplId(ci), tier: ci.tier, ench: ci.ench || null, socket: ci.socket, size: ci.size, section: ci.section };
+    if (out.id !== ci.id) out.baseId = ci.id;
     if (!tpl) return out;
     var base = BZ().tierAttrs(tpl, ci.tier), E = ci.ench && tpl.Enchantments ? tpl.Enchantments[ci.ench] : null, k;
     if (E && E.Attributes) for (k in E.Attributes) base[k] = E.Attributes[k];

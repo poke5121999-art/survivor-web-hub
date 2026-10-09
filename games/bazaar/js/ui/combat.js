@@ -12,8 +12,17 @@
   var SPEED_LS = 'bz.fightSpeed';
 
   C.active = function () { return !!(cur && cur.playing); };
+  // tên hiển thị của đối thủ: bóng → "Bóng ma của <tên>"
+  U.oppName = function (opp) {
+    if (!opp) return '';
+    if (opp.kind === 'ghost') return 'Bóng ma của ' + String(opp.name || '').replace(/^Ghost of /, '');
+    return opp.name || '';
+  };
   function monById(id) { return (root.BZ_MONSTERS || []).filter(function (m) { return m.Id === id; })[0] || null; }
+  // Bóng PvP từ bộ dữ liệu (opp.source 'dataset', opp.hero): chân dung của hero đó; bóng dựng từ quái: ảnh quái
   C.opponentArt = function (opp) {
+    var H = opp.hero && U.HEROES[opp.hero];
+    if (opp.source === 'dataset' && H) return { bg: null, char: H.portrait, store: H.store, hero: opp.hero };
     var encId = opp.combatId || null;
     if (!encId && opp.monsterId) { var m = monById(opp.monsterId); encId = m && m.Encounters && m.Encounters[0] && m.Encounters[0].Id; }
     return { bg: U.art(encId + '_bg'), char: U.art(encId + '_char') };
@@ -52,18 +61,19 @@
         rec.el = el; lists[c.owner].push({ uid: c.uid, el: el, size: c.size, socket: c.socket });
       } else if (c.section === 'skills') skills[c.owner].push({ uid: c.uid, id: c.id, tier: c.tier, art: U.art(c.id) });
     });
-    var M = U.HEROES[run.hero] || {}, opp = ph.opponent, oa = C.opponentArt(opp);
+    var M = U.HEROES[run.hero] || {}, opp = ph.opponent, oa = C.opponentArt(opp), oname = U.oppName(opp);
     V().setupHero(0, { name: run.hero, level: run.level, tier: 'Gold', char: M.portrait, skills: skills[0], hpMax: res.players[0].healthMax,
       rewards: ph.combatType === 'PVE' ? { gold: 0, xp: 0 } : {} });
     var h0 = V().hero(0); if (h0) h0.art.classList.add('hero-art');
-    V().setupHero(1, { name: opp.name, level: (boards[1] && boards[1].level) || 1, tier: (ph.opponent.tier) || 'Silver', char: oa.char, bg: oa.bg, skills: skills[1],
+    V().setupHero(1, { name: oname, level: (boards[1] && boards[1].level) || 1, tier: (ph.opponent.tier) || 'Silver', char: oa.char, bg: oa.bg, skills: skills[1],
       rewards: ph.rewards || {}, hpMax: res.players[1].healthMax });
+    var h1 = V().hero(1); if (h1) h1.art.classList.toggle('hero-art', !!oa.hero);
     V().layoutBoard(0, lists[0]); V().layoutBoard(1, lists[1]);
     // ô phải của phe ta: vàng + thu nhập hiện tại (thay ô phần thưởng của trang xem trận)
     V().refs.sides[0].r.innerHTML = '<div class="bz-sublabel">Túi vàng</div><div class="bz-reward"><img alt="" src="' + U.url(U.ICON.coin) + '"><span>' + run.gold + '</span></div>' +
       '<div class="bz-sublabel" style="margin-top:4px">+' + run.income + ' mỗi ngày · ' + res.players[0].healthMax + ' máu</div>';
-    res.players[0].name = run.hero; res.players[1].name = opp.name;
-    info.sides = [{ name: run.hero }, { name: opp.name }];
+    res.players[0].name = run.hero; res.players[1].name = oname;
+    info.sides = [{ name: run.hero }, { name: oname }];
     U.cards.show(false); U.hud.show(false);
     V().refs.stage.classList.add('m-fight');
     root.BZFX.clear();

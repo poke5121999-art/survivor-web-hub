@@ -92,13 +92,17 @@
     var st = stage(), M = U.HEROES[run.hero] || {}, art = U.combat.opponentArt(opp);
     var el = U.el('div', 'rs-vs', st,
       '<div class="shade"></div>' + edge('l') + edge('r') + '<div class="side l"><div class="img"></div></div><div class="side r"><div class="img"></div></div>' +
-      '<div class="plate l"><small>Thương nhân tập sự</small><b></b></div><div class="plate r"><small>Bóng ma · ngày ' + run.day + '</small><b></b></div>' +
+      '<div class="plate l"><small>Thương nhân tập sự</small><b></b></div><div class="plate r"><small></small><b></b></div>' +
       '<div class="mid">' + swords() + '<span>VS</span></div><div class="flash"></div><small class="skip">Bấm để bỏ qua</small>');
     el.querySelector('.side.l .img').style.backgroundImage = U.bg(M.store || M.portrait);
-    el.querySelector('.side.r .img').style.backgroundImage = U.bg(art.char || art.bg);
-    el.querySelector('.plate.l b').textContent = run.hero;
-    el.querySelector('.plate.r b').textContent = opp.name;
-    if (String(opp.name).length > 14) el.querySelector('.plate.r b').classList.add('long');
+    // bóng từ bộ dữ liệu: ảnh lớn của hero của bóng (BZ_GHOSTS: name, hero), như màn VS gốc (hero trái, bóng phải)
+    el.querySelector('.side.r .img').style.backgroundImage = U.bg(art.store || art.char || art.bg);
+    if (art.hero) el.querySelector('.side.r').classList.add('hero');
+    var HH = root.BZ_HEROES && root.BZ_HEROES.heroes, oname = U.oppName(opp);
+    el.querySelector('.plate.l b').textContent = (HH && HH[run.hero] && HH[run.hero].title) || run.hero;
+    el.querySelector('.plate.r b').textContent = oname;
+    el.querySelector('.plate.r small').textContent = (opp.hero ? ((HH && HH[opp.hero] && HH[opp.hero].title) || opp.hero) + ' · ' : 'Bóng ma · ') + 'ngày ' + run.day;
+    if (oname.length > 14) el.querySelector('.plate.r b').classList.add('long');
     if (String(run.hero).length > 14) el.querySelector('.plate.l b').classList.add('long');
     vs = { el: el, ids: [], done: false, cb: done };
     T.vsScreens++;

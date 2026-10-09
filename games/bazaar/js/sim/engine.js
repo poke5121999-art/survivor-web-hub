@@ -2,7 +2,16 @@
    Thứ tự trong một khung bám bản legacy (CODE-COMBAT §1.2, BazaarCardDealer.cs:4073-4380):
    hạn tác dụng tạm → (t=0: OnFightStarted) → lượt thẻ (đếm lùi Haste/Slow/Freeze, nạp cooldown, bắn) → độc/hồi (1 s)
    → bỏng (0,5 s) → nộ (Enrage) → bão cát → hàng đợi ưu tiên → kiểm chết (đối thủ trước) → chụp khung.
-   BZSim.run({boards, seed, maxMs}) chạy trọn trận ngay, trả bản phát lại {winner, endMs, frames, ...}. */
+   BZSim.run({boards, seed, maxMs}) chạy trọn trận ngay, trả bản phát lại {winner, endMs, frames, ...}.
+   Hình dạng một bàn (boards[i]):
+     {name, hero, level, healthMax, attrs: {thuộc tính người chơi thêm}, cards: [{uid, id, tier, ench, socket, size, section, attrs}],
+      sockets: [{socket, effectId}]  ô hiệu ứng trên tay (TCardSocketEffect: Stove → Heated, Cooler → Chilled; id trong
+                                     BZ_HEROES.effects). Thẻ tay phủ ô `socket` nhận aura của ô (TTargetCardOccupying.cs:15-33).
+                                     Quái: boardFromMonster đọc Player.Socket.Effects.
+      effects: [effectId]            hiệu ứng người chơi (TCardPlayerEffect, vd Karnok "Base Rage Effect"). Bỏ trống → lấy
+                                     BZ_HEROES.heroes[hero].start.playerEffects; bàn không hero mà có Rage → Base Rage Effect [ĐỀ XUẤT]}.
+   Ô hiệu ứng và hiệu ứng người chơi là thẻ trong S.fx (khu 'sockets' / 'effects'), không nằm trong S.cards → bố cục khung
+   và result.cards không đổi; result.sockets / result.effects liệt kê chúng. */
 (function (root) {
   'use strict';
   var BZ = root.BZSim = root.BZSim || {};
@@ -17,6 +26,8 @@
 
   // ---------- dựng trạng thái ----------
   function sectionOf(ci, tpl) {
+    if (tpl.$type === 'TCardSocketEffect') return 'sockets';
+    if (tpl.$type === 'TCardPlayerEffect') return 'effects';
     if (ci.section) return ci.section;
     return (tpl.$type === 'TCardSkill' || tpl.Type === 'Skill') ? 'skills' : 'hand';
   }
@@ -82,15 +93,38 @@
   BZ.auraReads = function (S) {
     if (S.reads) return S.reads;
     var r = {};
-    S.cards.forEach(function (C) { C.auras.forEach(function (au) { var x = auraReadNames(au); for (var k in x) r[k] = 1; }); });
+    S.cards.concat(S.fx).forEach(function (C) { C.auras.forEach(function (au) { var x = auraReadNames(au); for (var k in x) r[k] = 1; }); });
     S.reads = r;
     return r;
   };
   BZ.canCrit = function (S, C) { return C.critCapable || BZ.hasHidden(S, C, 'CanCrit'); }; // TCardConditionalCanCrit.cs:29-50
 
+  // Hiệu ứng người chơi của một bàn: board.effects nếu có; không thì hiệu ứng nền của hero (BZ_HEROES); bàn không hero
+  // (quái, bóng ma dạng quái — monsters.json để Player.Effects rỗng kể cả PVE_Karnok_D6_001) mà có cơ chế Rage
+  // (RageMax/EnragedDurationMax hoặc thẻ cộng Rage) → "Base Rage Effect" [ĐỀ XUẤT: tooltip Rage là luật chung].
+  var rageCache = new WeakMap();
+  function usesRage(tpl) {
+    var r = rageCache.get(tpl);
+    if (r == null) { r = /TActionPlayerRageApply|"AttributeType":"Rage"/.test(JSON.stringify(tpl)); rageCache.set(tpl, r); }
+    return r;
+  }
+  BZ.baseRageEffects = function () {
+    var H = root.BZ_HEROES, o = [];
+    if (!H || !H.effects) return o;
+    for (var id in H.effects) if (H.effects[id].InternalName === 'Base Rage Effect') o.push(id);
+    return o;
+  };
+  function boardEffects(b) {
+    if (Array.isArray(b.effects)) return b.effects;
+    var H = root.BZ_HEROES, h = b.hero && H && H.heroes && H.heroes[b.hero];
+    if (h) return (h.start && h.start.playerEffects) || [];
+    var a = b.attrs || {};
+    var rage = a.RageMax != null || a.EnragedDurationMax != null || (b.cards || []).some(function (ci) { var t = BZ.tpl(ci.id); return t && usesRage(t); });
+    return rage ? BZ.baseRageEffects() : [];
+  }
   BZ.makeState = function (opts) {
     var S = {
-      t: 0, rng: BZ.rng(opts.seed == null ? 1 : opts.seed), players: [], cards: [], dirty: true, computing: false,
+      t: 0, rng: BZ.rng(opts.seed == null ? 1 : opts.seed), players: [], cards: [], fx: [], dirty: true, computing: false,
       queue: { Highest: [], High: [], Medium: [], Low: [], Lowest: [] }, incoming: [], frameEv: [], depth: 0,
       combatType: opts.combatType || 'PVE', day: opts.day || 1, hour: opts.hour || 1, timed: [], errors: [],
       overflow: 0, listeners: null, reads: null,
@@ -106,11 +140,24 @@
       var k, extra = b.attrs || {};
       for (k in extra) base[k] = extra[k];
       if (b.healthMax) base.HealthMax = b.healthMax;
-      var P = { idx: side, name: b.name || ('P' + side), hero: b.hero || null, hand: [], stash: [], skills: [],
+      var P = { idx: side, name: b.name || ('P' + side), hero: b.hero || null, hand: [], stash: [], skills: [], sockets: [], effects: [],
         base: base, attrs: {}, un: {}, deathDone: false, prevMax: null };
+      (b.sockets || []).forEach(function (s) {
+        var id = s.effectId || s.id, C = id ? BZ.makeCard(S, { uid: 's' + side + '_' + s.socket, id: id, socket: s.socket || 0 }, side) : null;
+        if (!C || C.section !== 'sockets') { if (C) BZ.noteUnknown(C.tpl.$type, 'socketeffect'); return; }
+        P.sockets.push(C);
+      });
+      boardEffects(b).forEach(function (id, i) {
+        var C = BZ.makeCard(S, { uid: 'e' + side + '_' + i, id: id }, side);
+        if (!C || C.section !== 'effects') { if (C) BZ.noteUnknown(C.tpl.$type, 'playereffect'); return; }
+        P.effects.push(C);
+      });
+      P.sockets.sort(function (a, b2) { return a.socket - b2.socket; });
+      S.fx = S.fx.concat(P.sockets, P.effects);
       (b.cards || []).forEach(function (ci) {
         var C = BZ.makeCard(S, ci, side);
         if (!C) return;
+        if (C.section === 'sockets' || C.section === 'effects') { P[C.section].push(C); S.fx.push(C); return; } // lỡ đưa qua cards
         if (C.uid == null) C.uid = 'c' + side + '_' + S.cards.length;
         if (seen[C.uid]) C.uid = C.uid + '#' + side; // trùng uid giữa hai bàn (vd quái đánh chính nó)
         seen[C.uid] = 1;
@@ -121,7 +168,7 @@
       P.stash.sort(function (a, b2) { return a.socket - b2.socket; });
       S.players.push(P);
     });
-    while (S.players.length < 2) S.players.push({ idx: S.players.length, name: 'empty', hero: null, hand: [], stash: [], skills: [],
+    while (S.players.length < 2) S.players.push({ idx: S.players.length, name: 'empty', hero: null, hand: [], stash: [], skills: [], sockets: [], effects: [],
       base: { Health: 1, HealthMax: 1 }, attrs: {}, un: {}, deathDone: false, prevMax: null });
     S.players.forEach(function (P) { S.cards = S.cards.concat(P.hand, P.skills, P.stash); });
     return S;
@@ -130,7 +177,9 @@
   // ---------- aura: tính lại mọi thuộc tính ----------
   function activeIn(C, ai) { // EEffectActiveIn; kỹ năng (skills) luôn tính như trên tay
     ai = ai || 'HandOnly';
-    if (C.section === 'skills') return ai !== 'StashOnly';
+    // kỹ năng, ô hiệu ứng, hiệu ứng người chơi: luôn như trên tay [ĐỀ XUẤT: không tìm thấy chỗ server xét ActiveIn cho
+    // TCardSocketEffect/TCardPlayerEffect; Stove/Cooler ghi HandOnly, Base Rage Effect ghi HandAndStash]
+    if (C.section === 'skills' || C.section === 'sockets' || C.section === 'effects') return ai !== 'StashOnly';
     if (C.section === 'hand') return ai === 'HandOnly' || ai === 'HandAndStash';
     if (C.section === 'stash') return ai === 'StashOnly' || ai === 'HandAndStash';
     return false;
@@ -171,7 +220,7 @@
     if (S.computing) return;
     S.computing = true;
     try {
-      var cards = S.cards, i, j, C, n;
+      var cards = S.fx.length ? S.cards.concat(S.fx) : S.cards, i, j, C, n;
       for (i = 0; i < cards.length; i++) {
         C = cards[i];
         var b = {};
@@ -243,7 +292,7 @@
     if (S.listeners) return S.listeners;
     var L = [{}, {}];
     S.players.forEach(function (P) {
-      P.hand.concat(P.skills, P.stash).forEach(function (C) {
+      P.hand.concat(P.skills, P.stash, P.sockets, P.effects).forEach(function (C) {
         C.abilities.forEach(function (A) {
           if (A.WorksIn === 'OutOfCombatOnly') return;
           BZ.triggerKinds(A.Trigger).forEach(function (k) {
@@ -298,12 +347,11 @@
 
   // ---------- bắn (CODE-COMBAT §1.4, BazaarCardDealer.cs:1168-1248) ----------
   BZ.isAmmo = function (S, C) { return ('Ammo' in C.rt) && (BZ.cattr(S, C, 'AmmoMax') || 0) > 0; };
-  BZ.effCooldown = function (S, C) { // [ĐỀ XUẤT §1.3]
+  BZ.effCooldown = function (S, C) { // [ĐỀ XUẤT §1.3]; Enrage −10 % đến qua PercentCooldownReduction (aura Base Rage Effect)
     var m = BZ.cattr(S, C, 'CooldownMax') || 0;
     if (m <= 0) return 0;
     var flat = BZ.cattr(S, C, 'FlatCooldownReduction') || 0, pct = BZ.cattr(S, C, 'PercentCooldownReduction') || 0;
-    var enr = (S.players[C.owner].base.Enraged || 0) > 0 ? BZ.ENRAGE_CD : 1;
-    return Math.max(BZ.MIN_COOLDOWN, Math.round((m - flat) * (1 - pct / 100) * enr));
+    return Math.max(BZ.MIN_COOLDOWN, Math.round((m - flat) * (1 - pct / 100)));
   };
   BZ.fire = function (S, C, forced) {
     if (C.section !== 'hand' || C.state !== 'Alive') return false;
@@ -432,7 +480,7 @@
     P.base.Enraged = 1;
     P.base.EnragedDuration = BZ.pattr(S, P, 'EnragedDurationMax') || BZ.ENRAGE_MS;
     BZ.changePlayer(S, P, 'Rage', -(P.base.Rage || 0), src);
-    P.hand.forEach(function (C) { C.rt.Slow = 0; C.rt.Freeze = 0; }); // tooltip Rage: "removing Slow and Freeze"
+    // Xoá Slow/Freeze ("removing Slow and Freeze") và −10 % cooldown không làm ở đây: là ability/aura của Base Rage Effect
     S.dirty = true;
     BZ.log(S, { type: 'enrage', on: true, src: src ? src.uid : null, target: pid(P), ms: P.base.EnragedDuration });
     BZ.emit(S, 'TTriggerOnPlayerEnraged', { player: P, side: P.idx, src: src || null, causer: src || null });
@@ -585,6 +633,8 @@
       winner: winner, endMs: endMs, frames: frames, seed: opts.seed, layout: BZ.FRAME_LAYOUT,
       cards: S.cards.map(function (C) { return { uid: C.uid, id: C.id, tier: C.tier, ench: C.ench, owner: C.owner, section: C.section, socket: C.socket, size: C.size }; }),
       players: S.players.map(function (P) { return { name: P.name, hero: P.hero, healthMax: P.attrs.HealthMax, health: P.base.Health }; }),
+      sockets: S.fx.filter(function (C) { return C.section === 'sockets'; }).map(function (C) { return { uid: C.uid, id: C.id, owner: C.owner, socket: C.socket }; }),
+      effects: S.fx.filter(function (C) { return C.section === 'effects'; }).map(function (C) { return { uid: C.uid, id: C.id, owner: C.owner }; }),
       errors: S.errors, fatal: S.fatal || null, overflow: S.overflow
     };
   };
@@ -609,11 +659,12 @@
     ((p.Hand || {}).Items || []).forEach(function (it) { push(it, 'hand', sock(it.SocketId)); });
     ((p.Stash || {}).Items || []).forEach(function (it) { push(it, 'stash', sock(it.SocketId)); });
     (p.Skills || []).forEach(function (it, i) { push(it, 'skills', i); });
+    var sockets = ((p.Socket || {}).Effects || []).map(function (e) { return { socket: sock(e.SocketId), effectId: e.TemplateId }; });
     var extra = {};
     for (var k in a) if (k !== 'HealthMax' && k !== 'Level' && k !== 'Prestige') extra[k] = a[k];
     var enc = (m.Encounters || [])[0];
     return { name: (enc && enc.Title) || m.InternalName, hero: null, level: a.Level || 1, healthMax: a.HealthMax || 100,
-      cards: cards, attrs: extra, monsterId: m.Id };
+      cards: cards, sockets: sockets, attrs: extra, monsterId: m.Id };
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = BZ;

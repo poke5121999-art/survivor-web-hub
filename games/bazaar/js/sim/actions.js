@@ -306,8 +306,21 @@
   };
   A.TActionCardBeginSandstorm = function (act, ctx) { if (!ctx.S.storm.active) ctx.S.storm.force = true; }; // "The Sandstorm Begins!"
   A.TActionAnd = function (act, ctx) { (act.Actions || []).forEach(function (a) { BZ.runAction(a, ctx); }); };
-  A.TActionCardHeat = function (act, ctx) { cards(act, ctx, null).forEach(function (T) { BZ.changeCard(ctx.S, T, 'Heated', 'Add', 1, ctx.card); }); };
-  A.TActionCardChill = function (act, ctx) { cards(act, ctx, null).forEach(function (T) { BZ.changeCard(ctx.S, T, 'Chilled', 'Add', 1, ctx.card); }); };
+  // TActionCardHeat.cs / TActionCardChill.cs: Value (mặc định TFixedValue.One), Operation, Duration, TargetCount.
+  // Dữ liệu demo không dùng hai hành động này (0 lần trong cards.json); Heated/Chilled thật đến từ aura ô Stove/Cooler.
+  function heatChill(n, evType) {
+    return function (act, ctx) {
+      var S = ctx.S, C = ctx.card, v = act.Value == null ? 1 : BZ.value(act.Value, ctx);
+      cards(act, ctx, null).forEach(function (T) {
+        var d = BZ.changeCard(S, T, n, act.Operation || 'Add', v, C);
+        if (!d) return;
+        BZ.log(S, { type: evType, src: uid(C), target: T.uid, amt: d, cur: BZ.cattr(S, T, n) });
+        timed(ctx, act, function () { BZ.changeCard(S, T, n, 'Add', -d, C); });
+      });
+    };
+  }
+  A.TActionCardHeat = heatChill('Heated', 'heat');
+  A.TActionCardChill = heatChill('Chilled', 'chill');
   // Hành động của vòng chơi / cửa hàng: không có nghĩa trong trận (CODE-COMBAT §3.10)
   ['TActionGameSpawnCards', 'TActionGameDealCards', 'TActionGameReroll', 'TActionExitReplacementSet',
     'TActionPlayerPortraitNext', 'TActionPlayerPortraitReset', 'TActionGameAddToExclusionSet',

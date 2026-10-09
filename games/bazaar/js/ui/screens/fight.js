@@ -8,14 +8,36 @@
   var U = root.BZUI = root.BZUI || {};
   var V = function () { return root.BZView; }, R = function () { return root.BZRun; };
 
+  // Tự bắt đầu trận ~3 s sau khi vào cảnh (REF-run-flow fight-start: tiếng đầu tiên ~3000 ms sau lúc chọn); nút vẫn là "bắt đầu ngay"
+  // Pha 4: pha fight nhận sell/move/swap (xếp lại sau khi xem bàn đối thủ). Người chơi chạm vào bàn (kéo / bán / xếp) thì thôi tự
+  // đánh: trận chỉ bắt đầu khi bấm "Chiến đấu!" (hoặc Enter).
+  var AUTO_MS = 3000, autoT = 0, manual = false;
+  function armAuto(ms) {
+    clearTimeout(autoT);
+    if (manual) return;
+    autoT = setTimeout(function () {
+      autoT = 0; var r = U.state && U.state.run;
+      if (manual || !r || !r.phase || r.phase.kind !== 'fight') return;
+      if (U.drag && U.drag.active()) { armAuto(800); return; }
+      U.dispatch({ t: 'fight' });
+    }, ms);
+  }
+  function goManual() {
+    if (manual) return;
+    manual = true; clearTimeout(autoT); autoT = 0;
+    var h = document.querySelector('.rs-fightgo .note'); if (h) h.textContent = 'Xếp lại xong thì bấm Chiến đấu!';
+  }
   U.SCREENS.fight = {
     enter: function (run, prev) {
       var ph = run.phase, opp = ph.opponent, b = opp.board;
       U.top.base(run, { hero: true, hp: true, sides: true, board: true });
       var skills = b.cards.filter(function (c) { return c.section === 'skills'; }).map(function (c) { return { uid: 'ops' + c.uid, id: c.id, tier: c.tier, art: U.art(c.id) }; });
-      var side = U.top.portrait(opp.name, opp.tier || 'Silver', U.combat.opponentArt(opp),
-        U.top.nameBlock(ph.combatType === 'PVP' ? 'Đấu người chơi (bóng)' : 'Quái vật', opp.name, ''),
+      manual = false;
+      var oart = U.combat.opponentArt(opp), oname = U.oppName(opp);
+      var kick = ph.combatType === 'PVP' ? (opp.source === 'dataset' && opp.hero ? 'Bóng ma · ' + ((root.BZ_HEROES && root.BZ_HEROES.heroes[opp.hero] || {}).title || opp.hero) + (opp.wins ? ' · ' + opp.wins + ' thắng' : '') : 'Đấu người chơi (bóng)') : 'Quái vật';
+      var side = U.top.portrait(oname, opp.tier || 'Silver', oart, U.top.nameBlock(kick, oname, ''),
         { hpMax: b.healthMax, skills: skills, level: b.level || 1 });
+      var h1 = V().hero(1); if (h1) h1.art.classList.toggle('hero-art', !!oart.hero);
       var rw = opp.rewards || {};
       if (ph.combatType === 'PVE') {
         side.r.innerHTML = '<div class="rs-side-name"><small>Phần thưởng</small></div><div class="rs-rw"><i style="background-image:' + U.bg(U.ICON.coin) + '"></i><b>' + (rw.gold || 0) +
@@ -28,24 +50,27 @@
       });
       var els = U.cards.setTop(list, { gap: 0 });
       var go = U.el('div', 'rs-fightgo', U.top.layer());
-      U.bigButton(go, 'red', 'Chiến đấu!', 'Bắt đầu trận', function () { U.dispatch({ t: 'fight' }); }).classList.add('play');
+      U.bigButton(go, 'red', 'Chiến đấu!', 'Bắt đầu ngay (tự bắt đầu sau 3 giây nếu không xếp lại bàn)', function () { clearTimeout(autoT); U.dispatch({ t: 'fight' }); }).classList.add('play');
+      U.el('div', 'note', go, 'Kéo đồ để xếp lại hoặc bán trước khi đánh');
       if (ph.combatType === 'PVP') {
         // chớp trắng → màn VS → thẻ của bóng úp rồi lật (clip https://youtu.be/wUzq6Q4u9Jc?t=702 .. ?t=710)
         go.classList.add('wait');
         U.transitions.facedown(els);
         U.transitions.vsScreen(run, opp, function () {
           U.heroVo('pvpintro');
-          U.transitions.flipAll(els, function () { go.classList.remove('wait'); });
+          U.transitions.flipAll(els, function () { go.classList.remove('wait'); armAuto(AUTO_MS); });
         });
       } else {
         U.sfx('trans.pvpSwords', { vol: 0.6 });
+        armAuto(AUTO_MS);
         U.sfx('vo.monster.' + String(opp.name || '').toLowerCase().replace(/[^a-z0-9]/g, ''), { gap: 3000, vol: 0.8 });
       }
     },
     render: function (run) { U.cards.render(run); },
-    exit: function () { U.transitions.cancelVs(); U.top.clear(); },
-    canDrag: function () { return false; }, // pha fight chỉ nhận lệnh fight (reducer): xếp lại bàn trước khi tới giờ đánh
-    key: function (e) { if (e.key === 'Enter') { U.dispatch({ t: 'fight' }); return true; } }
+    exit: function () { clearTimeout(autoT); autoT = 0; U.transitions.cancelVs(); U.top.clear(); },
+    canDrag: function (el) { if (el._rs.kind !== 'own') return false; goManual(); return true; },
+    onCardClick: function (el) { if (el._rs.kind === 'own') goManual(); return false; },
+    key: function (e) { if (e.key === 'Enter') { clearTimeout(autoT); U.dispatch({ t: 'fight' }); return true; } }
   };
 
   var panel = null, panelT = 0;

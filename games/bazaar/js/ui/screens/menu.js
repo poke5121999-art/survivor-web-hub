@@ -98,51 +98,114 @@
     exit: function () { M.overlayOff(); }
   };
 
-  // ---------- chọn hero ----------
-  var selHero = 'Vanessa';
-  var HEX_POS = [[56, 330], [236, 300], [130, 560], [310, 540]]; // hai cột so le như sảnh gốc (hero-select: lục giác ở góc trái trên)
+  // ---------- chọn hero (sảnh, clip hero-select B ?t=28: lục giác hai cột so le góc trái, hero đang chọn to hơn có bảng tên) ----------
+  // Đủ 8 hero theo BZ_HEROES.order; The Dragons playable:false → khoá, bấm vào thì hiện lý do. Bảng phải: tagline, cơ chế,
+  // khởi đầu thật của hero (BZ_HEROES.heroes[h].start: vàng/thu nhập nền, ba lựa chọn mở màn, kỹ năng có sẵn, hiệu ứng), cỡ bể thẻ.
+  // Giọng: chọn = vo.<hero>.idle, bấm lại hero đang chọn = vo.<hero>.multiclick, đứng yên 14 s = idle lần nữa.
+  var selHero = 'Vanessa', idleT = 0;
+  var START_ICON = { income: 'art/ui/rewards/Reward_PersonalTest_GoldStart_D.webp', item: 'art/ui/rewards/Reward_PersonalTest_EnchantedStart_D.webp',
+    skill: 'art/ui/rewards/Reward_PersonalTest_SkillStart_D.webp' };
+  // 4 hàng × 2 cột, hàng lẻ dịch phải nửa ô (sảnh gốc: Pyg/Mak, Vanessa/Jules, Dooley/Stelle; thêm Karnok/The Dragons)
+  var HEX_ORDER = ['Pygmalien', 'Mak', 'Vanessa', 'Jules', 'Dooley', 'Stelle', 'Karnok', 'TheDragons'];
+  function hexPos(i) { var r = Math.floor(i / 2), c = i % 2; return [40 + (r % 2) * 96 + c * 192, 150 + r * 172]; }
+  M.heroList = function () {
+    var H = root.BZ_HEROES, order = (H && H.order) || R().HEROES_ALL || [];
+    var all = HEX_ORDER.filter(function (h) { return order.indexOf(h) >= 0; });
+    order.forEach(function (h) { if (all.indexOf(h) < 0) all.push(h); });
+    return all.map(function (h) {
+      var d = (H && H.heroes && H.heroes[h]) || {};
+      return { id: h, title: d.title || h, playable: R().HEROES_PLAYABLE.indexOf(h) >= 0, data: d, ui: U.HEROES[h] || {} };
+    });
+  };
+  function effName(id) {
+    var e = root.BZ_HEROES && root.BZ_HEROES.effects && root.BZ_HEROES.effects[id];
+    var t = (e && e.Localization && e.Localization.Title && e.Localization.Title.Text) || (e && e.InternalName) || (R().tpl(id) && R().title(R().tpl(id)));
+    return t || null;
+  }
+  function startHtml(h) {
+    var st = h.data.start || {}, p = h.data.pool || {}, out = '';
+    out += '<div class="sec"><small>Khởi đầu</small><div class="eco"><span><i style="background-image:' + U.bg(U.ICON.coin) + '"></i><b>' + (st.baseGold != null ? st.baseGold : 8) +
+      '</b> vàng</span><span><i style="background-image:' + U.bg(U.ICON.coin) + '"></i><b>+' + (st.baseIncome != null ? st.baseIncome : 5) + '</b> thu nhập / ngày</span></div>';
+    var opts = st.options || [];
+    if (opts.length) {
+      out += '<div class="opts">' + opts.map(function (o) {
+        var lb = o.key === 'income' ? '+' + o.gold + ' vàng, +' + o.income + ' thu nhập' : o.key === 'item' ? 'Vật phẩm ' + (o.size === 'Small' ? 'nhỏ ' : '') + (U.TIER_VI[o.tier] || o.tier || '') + (o.enchanted ? ' yểm bùa' : '')
+          : 'Kỹ năng ' + (U.TIER_VI[o.tier] || o.tier || '');
+        return '<span class="o"><i style="background-image:' + U.bg(START_ICON[o.key] || START_ICON.income) + '"></i>' + U.esc(lb) + '</span>';
+      }).join('') + '</div>';
+    }
+    out += '</div>';
+    var innate = (st.fixedSkills || []).map(function (id) {
+      var t = R().tpl(id); return t ? '<span class="sk"><i style="background-image:' + U.bg(U.art(id)) + '"></i>' + U.esc(R().title(t)) + '</span>' : '';
+    }).join('');
+    var eff = (st.playerEffects || []).concat(st.socketEffects || []).map(effName).filter(function (n, i, a) { return n && a.indexOf(n) === i; });
+    if (innate || eff.length) out += '<div class="sec"><small>Có sẵn</small><div class="innate">' + innate + eff.map(function (n) { return '<span class="ef">' + U.esc(n) + '</span>'; }).join('') + '</div></div>';
+    if (p.items) out += '<div class="pool">Bể thẻ: ' + p.items + ' vật phẩm · ' + p.skills + ' kỹ năng</div>';
+    return out;
+  }
   U.SCREENS.heroSelect = {
     enter: function () {
       U.music('music.mainMenu', 1.5);
       var s = M.overlayOn('herosel');
       var bg = U.el('div', 'bgart', s);
       var col = U.el('div', 'col', s), big = U.el('div', 'big', s), info = U.el('div', 'info', s);
-      var list = R().HEROES_PLAYABLE;
-      var btns = {};
+      var list = M.heroList(), btns = {}, ready = null;
+      function arm() { clearTimeout(idleT); idleT = setTimeout(function () { U.sfx('vo.' + U.voOf(selHero) + '.idle', { gap: 6000 }); arm(); }, 14000); }
       function pick(h, silent) {
+        var again = h === selHero;
         selHero = h;
-        var Hh = U.HEROES[h];
+        var x = list.filter(function (y) { return y.id === h; })[0] || list[0], Hh = x.ui;
         Object.keys(btns).forEach(function (k) { btns[k].classList.toggle('sel', k === h); });
-        big.style.backgroundImage = U.bg(Hh.store); big.classList.remove('in'); void big.offsetWidth; big.classList.add('in');
-        bg.style.background = 'radial-gradient(ellipse 60% 70% at 62% 45%, ' + Hh.color + '66, transparent 70%)';
-        info.innerHTML = '<h2>' + U.esc(h) + '</h2><div class="tag">' + U.esc(Hh.tag) + '</div><p>' + U.esc(Hh.desc) + '</p>';
-        if (!silent) U.sfx('vo.' + h.toLowerCase() + '.idle', { gap: 1500 }) || U.sfx('ui.equip');
+        big.style.backgroundImage = U.bg(Hh.store || Hh.portrait); big.classList.remove('in'); void big.offsetWidth; big.classList.add('in');
+        big.classList.toggle('locked', !x.playable);
+        bg.style.background = 'radial-gradient(ellipse 60% 70% at 62% 45%, ' + (Hh.color || '#888') + '55, transparent 70%)';
+        info.style.setProperty('--hc', Hh.color || '#ffd36b');
+        info.innerHTML = '<h2>' + U.esc(x.title) + '</h2><div class="tag">' + U.esc(Hh.tag || '') + '</div><p>' + U.esc(Hh.desc || '') + '</p>' +
+          (x.playable ? startHtml(x) : '<div class="lockmsg"><b>Chưa chơi được</b>' + U.esc(x.data.reason || 'Bản demo không có thẻ của hero này.') + '</div>');
+        info.classList.remove('in'); void info.offsetWidth; info.classList.add('in');
+        if (ready) { ready.classList.toggle('off', !x.playable); ready.title = x.playable ? 'Bắt đầu run với ' + x.title : x.title + ' chưa chơi được'; }
+        if (!silent) U.sfx('vo.' + U.voOf(h) + (again ? '.multiclick' : '.idle'), { gap: 900 }) || U.sfx('ui.equip');
+        arm();
       }
-      list.forEach(function (h) {
-        var b = U.el('button', 'hex', col); b.type = 'button';
-        b.setAttribute('aria-label', h); b.title = h; b.dataset.hero = h;
+      M.pickHero = pick;
+      list.forEach(function (x, i) {
+        var h = x.id, b = U.el('button', 'hex' + (x.ui.btn ? '' : ' made') + (x.playable ? '' : ' locked'), col); b.type = 'button';
+        b.setAttribute('aria-label', x.title + (x.playable ? '' : ' (khoá)')); b.title = x.title; b.dataset.hero = h;
         U.el('i', 'glow', b).style.backgroundImage = U.bg('art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_heroes/UI_HeroSelected.webp');
-        U.el('i', 'art', b).style.backgroundImage = U.bg(U.HEROES[h].btn);
-        U.el('span', 'plate', b, U.esc(h.toUpperCase()));
+        var art = U.el('i', 'art', b);
+        if (x.ui.btn) art.style.backgroundImage = U.bg(x.ui.btn);
+        else U.el('b', '', art).style.backgroundImage = U.bg(x.ui.portrait); // không có Btn_*_TUI: lục giác dựng bằng CSS quanh chân dung
+        if (!x.playable) U.el('i', 'lk', b, '<svg viewBox="0 0 24 24"><path d="M7 10V7a5 5 0 0 1 10 0v3h1.5v11h-13V10zm2 0h6V7a3 3 0 0 0-6 0z"/></svg>');
+        U.el('span', 'plate', b, U.esc(x.title.toUpperCase()));
         b.addEventListener('click', function () { U.sfx('ui.click'); pick(h); });
         b.addEventListener('pointerenter', function () { U.sfx('ui.hover', { vol: 0.5 }); });
-        var hp = HEX_POS[list.indexOf(h)] || HEX_POS[0]; b.style.left = hp[0] + 'px'; b.style.top = hp[1] + 'px';
+        var hp = hexPos(i); b.style.left = hp[0] + 'px'; b.style.top = hp[1] + 'px';
+        b.style.animationDelay = (i * 45) + 'ms';
         btns[h] = b;
       });
       // thanh dưới của sảnh (clip hero-select): nút Quay lại tròn, nút Ready xanh giữa, hai thẻ XẾP HẠNG / THƯỜNG hai bên
       var bar = U.el('div', 'bar', s);
       U.el('div', 'mode l', bar, '<b>XẾP HẠNG</b><small>Có giải thưởng</small>');
       U.el('div', 'mode r on', bar, '<b>THƯỜNG</b><small>Chơi tự do</small>');
-      U.bigButton(bar, 'blue', 'Sẵn sàng', 'Bắt đầu run với hero đang chọn', function () {
+      ready = U.bigButton(bar, 'blue', 'Sẵn sàng', 'Bắt đầu run với hero đang chọn', function () {
+        var x = list.filter(function (y) { return y.id === selHero; })[0];
+        if (!x || !x.playable) { U.sfx('ui.noSpace'); U.toast((x ? x.title : selHero) + ' chưa chơi được trong bản demo'); return; }
         U.state.run = U.state.run && U.state.run.phase.kind === 'heroSelect' ? U.state.run : R().newRun({ seed: 1 + Math.floor(Math.random() * 2147483000) });
         U.dispatch({ t: 'pickHero', hero: selHero });
-      }).classList.add('play');
+      });
+      ready.classList.add('play');
       U.button(s, 'back', '<svg viewBox="0 0 24 24"><path d="M15 4 7 12l8 8 2-2-6-6 6-6z"/></svg>', 'Về màn tiêu đề', function () { U.go('title'); }).classList.add('rs-back');
       U.el('div', 'title', s, '<small>Sảnh</small><h1>Chọn nhân vật</h1>');
-      pick(list.indexOf(selHero) >= 0 ? selHero : list[0], true);
+      var ids = list.map(function (x) { return x.id; });
+      pick(ids.indexOf(selHero) >= 0 ? selHero : ids[0], true);
+      this._ids = ids;
     },
-    exit: function () { M.overlayOff(); },
-    key: function (e) { if (e.key === 'Enter') { var b = document.querySelector('.herosel .play'); if (b) b.click(); return true; } }
+    exit: function () { clearTimeout(idleT); M.overlayOff(); },
+    key: function (e) {
+      if (e.key === 'Enter') { var b = document.querySelector('.herosel .play'); if (b) b.click(); return true; }
+      var d = { ArrowRight: 1, ArrowDown: 2, ArrowLeft: -1, ArrowUp: -2 }[e.key];
+      if (d && this._ids) { var i = (this._ids.indexOf(selHero) + d + this._ids.length) % this._ids.length; U.sfx('ui.click'); M.pickHero(this._ids[i]); return true; }
+    }
   };
 
   // ---------- hết run ----------
@@ -166,14 +229,35 @@
       [['Máu tối đa', String(run.healthMax), U.ICON.health, 'hp'], ['Uy tín', String(run.prestige), U.ICON.prestige, 'pr'], ['Cấp', String(run.level), U.ICON.xp, 'lv'], ['Thu nhập', String(run.income), U.ICON.coin, 'in'], ['Vàng', String(run.gold), U.ICON.coin, 'go']]
         .forEach(function (x) { U.el('div', 'st ' + x[3], st, '<span>' + x[0] + '</span><b><i style="background-image:' + U.bg(x[2]) + '"></i>' + x[1] + '</b>'); });
       var chests = U.el('div', 'chests', s);
-      [4, 7, 10].forEach(function (n, i) { U.el('div', 'ch' + (run.wins >= n ? ' on' : ''), chests, '<i style="background-image:' + U.bg(U.ICON.prize) + '"></i><b>+' + [2, 4, 6][i] + '</b><span>' + n + ' thắng</span>'); });
+      // mốc rương (TUNING.CHESTS: 4 Đồng, 7 Bạc, 10 Vàng)
+      [[4, 'Đồng'], [7, 'Bạc'], [10, 'Vàng']].forEach(function (x) { U.el('div', 'ch' + (run.wins >= x[0] ? ' on' : ''), chests, '<i style="background-image:' + U.bg(U.ICON.prize) + '"></i><b>' + x[1] + '</b><span>' + x[0] + ' thắng</span>'); });
+      // bàn tốt nhất của run (run.best: chụp lúc thắng PvP nhiều nhất / cấp cao nhất; chưa thắng thì bàn lúc hết run)
+      var best = run.best || null, bb = best && best.board ? best : { board: run.board, level: run.level, wins: run.wins, day: run.day, healthMax: run.healthMax };
+      var brun = Object.assign({}, run, { board: bb.board, level: bb.level || run.level, healthMax: bb.healthMax || run.healthMax });
+      U.el('div', 'bestlbl', s, '<small>Bàn tốt nhất</small><b>' + (bb.wins || 0) + ' thắng · ngày ' + (bb.day || run.day) + ' · cấp ' + (bb.level || run.level) + '</b>');
       var bd = U.el('div', 'board', s);
-      var info = U.boardInfo(run), n = run.board.hand.length, ch = n > 8 ? 150 : 190;
-      run.board.hand.slice().sort(function (a, b) { return a.socket - b.socket; }).forEach(function (c) {
+      var info = U.boardInfo(brun), hand = bb.board.hand || [], n = 0;
+      hand.forEach(function (c) { n += c.size || 1; });
+      var ch = n > 8 ? 150 : 190;
+      hand.slice().sort(function (a, b) { return a.socket - b.socket; }).forEach(function (c, i) {
         var el = root.BZCard.create({ uid: 'end' + c.uid, id: c.id, tier: c.tier, size: c.size, ench: c.ench, type: 'Item' }, { h: ch, attrs: (info[c.uid] || {}).attrs || {} });
-        el.style.position = 'relative'; bd.appendChild(el);
+        el.style.position = 'relative'; el.style.animationDelay = (pre + 400 + i * 90) + 'ms'; el.classList.add('endpop');
+        el._rs = { kind: 'end', card: c, run: brun };
+        bd.appendChild(el);
       });
-      if (!run.board.hand.length) U.el('p', 'empty', bd, 'Bàn trống');
+      if (!hand.length) U.el('p', 'empty', bd, 'Bàn trống');
+      var sks = U.el('div', 'skills', s);
+      (bb.board.skills || []).forEach(function (c, i) {
+        var t = R().tpl(c.id), m = U.el('i', 'sk t-' + c.tier, sks);
+        m.style.backgroundImage = U.bg(U.art(c.id)); m.title = t ? R().title(t) : ''; m.style.animationDelay = (pre + 900 + i * 110) + 'ms';
+      });
+      // rê thẻ bàn tốt nhất: tooltip như trong run
+      bd.addEventListener('pointerover', function (ev) {
+        var el = ev.target.closest && ev.target.closest('.bz-card'); if (!el || !el._rs) return;
+        var c = el._rs.card, bi = info[c.uid] || {}, tip = U.tipInfo(c, bi.attrs || {}, bi.boards);
+        if (tip) { var r = U.rectOf(el); root.BZTooltip.show(tip, { x: r.x, y: r.y - 10, w: r.w, h: r.h }); }
+      });
+      bd.addEventListener('pointerout', function (ev) { if (!(ev.relatedTarget && bd.contains(ev.relatedTarget))) root.BZTooltip.hide(); });
       var b = U.el('div', 'btns', s);
       U.bigButton(b, 'brown', 'Về menu', 'Về màn tiêu đề', function () { U.state.run = null; U.go('title'); });
       U.bigButton(b, 'blue', 'Chơi lại', 'Bắt đầu run mới', function () { U.newRun(); }).classList.add('play');

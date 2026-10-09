@@ -97,10 +97,46 @@
     // chỉ có mô tả: thay bằng phần thưởng chung theo dải ngày (vàng ≈ "Cache of Riches" 3/5/... của data).
     GENERIC_GOLD_BY_BAND: { Bronze: 3, Silver: 5, Gold: 8, Diamond: 12, Legendary: 15 },
     GENERIC_XP: 2,            // "Study (Default Option) Gain 2 XP" (encounters.js) — mức XP sự kiện chung
-    // Các loại sự kiện được bày ở giờ tự do. "unknown" (bước con không nối được theo tên) bị loại.
-    EVENT_KINDS_IN_POOL: { pile: 1, instant: 1, choice: 1 },
+    // Các loại sự kiện được bày ở giờ tự do. "unknown" (bước con không nối được theo tên) bị loại; sự kiện con (có `Parents`)
+    // chỉ tới được qua sự kiện cha.
+    EVENT_KINDS_IN_POOL: { pile: 1, instant: 1, choice: 1, fight: 1, chain: 1 },
+    // "Fight a Monster" (Epic Battle / Deadly Duel: FightTier, thẻ trận cụ thể bị xoá) [ĐỀ XUẤT]: quái đúng bậc FightTier,
+    // cấp mẫu trong [ngày + lo, ngày + hi] như ô Vàng+ của giờ PvE.
+    FIGHT_EVENT_LEVEL: { lo: 1, hi: 3 },
     // Tên nội bộ không đưa vào bể giờ tự do (sự kiện con / tiếp diễn của chuỗi sự kiện khác)
     ENCOUNTER_EXCLUDE: /Return|Rewards?$|^Greenheart|^Dungeon|^Fierce Competition|^Furry|Financial District - |Futura|Magic Mirror|The Cult|Chest$/,
+
+    // ---- rương mốc thắng 4 / 7 / 10 ----
+    // [ĐO TRÊN CLIP] https://youtu.be/PSP75k4R4Pk?t=300 "4 wins bronze, 7 silver, 10 gold" — rương thật là phần thưởng tài khoản
+    // (skin + gem, CompleteRunResult) nên bản web [ĐỀ XUẤT] đổi thành phần thưởng TRONG run: mở rương = chạy sự kiện
+    // "<Bậc> Loot (Level Up)" của dữ liệu (encounters.js: "+N Gold" bằng ability 0, "a <Bậc>-tier Loot item") và bày
+    // CHEST_PICKS thẻ Loot bậc đó để chọn 1. Thiếu sự kiện trong dữ liệu thì chia thẻ tag Loot đúng bậc.
+    CHESTS: [
+      { wins: 4, tier: 'Bronze', loot: 'Bronze Loot (Level Up)' },
+      { wins: 7, tier: 'Silver', loot: 'Silver Loot (Level Up)' },
+      { wins: 10, tier: 'Gold', loot: 'Gold Loot (Level Up)' }
+    ],
+    CHEST_PICKS: 3,           // [ĐỀ XUẤT] như LOOT_PICKS: chọn 1 trong 3
+
+    // ---- thương nhân mua đồ giá cao ("Buys your X items at +N Value") ----
+    // Aura "3" của Quixel 323e2c05 / Midsworth b8f55bb0 / Barkun 8f0aea10 trong cards.json [ĐO TRONG REPO]:
+    // TAuraActionCardModifyAttribute SellPrice Add N, đích AbsolutePlayerHandAndStash lọc theo cỡ. data/encounters.js chưa
+    // chở `Auras` của thẻ gặp gỡ nên chép lại đây; khi encounters.js có `Auras` thì đọc thẳng từ đó.
+    MERCHANT_SELL_AURAS: {
+      Quixel: [{ AttributeType: 'SellPrice', Operation: 'Add', Value: 3, Sizes: ['Large'] }],
+      Midsworth: [{ AttributeType: 'SellPrice', Operation: 'Add', Value: 2, Sizes: ['Medium'] }],
+      Barkun: [{ AttributeType: 'SellPrice', Operation: 'Add', Value: 1, Sizes: ['Small'] }]
+    },
+
+    // ---- hiệu ứng "get a ..." của vật phẩm (Spawn/Deal; SpawnContext bị xoá) ----
+    // [ĐỀ XUẤT] thẻ sinh ra theo bậc của thẻ nguồn (TSpawnBehaviorInheritTier có trong Domain.Spawning, giá trị bị xoá);
+    // bậc đó không có trong thang của thẻ đích thì lùi xuống bậc gần nhất.
+    SPAWN_INHERIT_TIER: true,
+
+    // ---- hero chơi được khi chưa có danh sách hero (BZ_HEROES) ----
+    // [ĐỀ XUẤT] hero có ít nhất chừng này vật phẩm trong data/cards.js = bể thẻ đã nạp đủ (bể đủ: 119-159 món, CODE-RUN §4.1;
+    // hero chỉ có thẻ nằm trên bàn quái: ≤ 60 món).
+    HERO_MIN_ITEMS: 90,
 
     // ---- giới hạn bàn ----
     SKILL_SLOTS: 4,           // BazaarBoard.cs:113 (legacy) [ĐO TRONG REPO]

@@ -53,11 +53,12 @@
     var abs = selectedAbilities(e), deals = [], ran = 0;
     if (!abs.length) return { deals: deals, ran: 0 };
     var filter = R.parseFilter(e.Desc || e.Title || '');
+    if (R.filterEmpty(filter)) filter = R.phraseFilter(e.Desc || '', null) || filter; // "Get a Gumball" → Red/Blue/... Gumball
     R.ooc.withState(ctx, function (S) {
       var sim = root.BZSim, card = R.ooc.encounterCard(S, e), ev = { kind: 'TTriggerOnCardSelected', side: 0, src: card, card: card };
       abs.forEach(function (A) {
         if (!sim.prereqsOk(A.Prerequisites, { S: S, card: card, ev: ev })) return;
-        var x = { S: S, card: card, ev: ev, source: { name: e.InternalName }, out: { deals: deals }, filter: filter, isEncounter: true };
+        var x = { S: S, card: card, ev: ev, source: { name: e.InternalName, desc: e.Desc || '' }, out: { deals: deals }, filter: filter, isEncounter: true };
         R.ooc.runAction(A.Action, ctx, x);
         ran++;
       });
@@ -80,6 +81,14 @@
     var res = St.runAbilities(ctx, e);
     if (!res.ran && !textReward(ctx, e.Desc)) R.genericReward(ctx, 'gold');
     if (ctx.run.phase.kind === 'end') return;
+    // Bước dẫn tiếp (encounters.js Then: chuỗi Gumball, ba điều ước của Rit): Deal của bước chính là bày bộ kế tiếp này
+    // (SpawnContext bị xoá) → bày Then thay cho Deal; được rời [ĐỀ XUẤT]
+    var Ev = R.ENCOUNTERS.event, then = (e.Then || []).filter(function (o) { return Ev.optionOk(o, ctx.run); });
+    if (then.length) {
+      ctx.run.phase = { kind: 'event', eventId: null, stepId: e.Id, name: e.Title || e.InternalName, desc: e.Desc || '',
+        choices: then.map(Ev.optionChoice), canExit: true, after: after };
+      return;
+    }
     var d = res.deals[0]; // một bước chỉ bày một lựa chọn (bước có nhiều Deal: lấy cái đầu) [ĐỀ XUẤT]
     if (d) { R.enterLoot(ctx, R.deal(ctx.run, d.filter, Math.max(1, d.n), { tierMode: 'band' }), 1, after, e.Id); return; }
     R.finish(ctx, after);

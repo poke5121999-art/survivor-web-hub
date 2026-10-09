@@ -38,14 +38,26 @@
       R.log(ctx, { t: 'event', id: e.Id, name: e.InternalName });
       return;
     }
+    if (e.Kind === 'fight' && !(e.Options && e.Options.length)) { // "Fight a Monster": quái bậc FightTier theo ngày
+      R.gainXp(ctx, e.Xp || 0, 'select');
+      var fl = T().FIGHT_EVENT_LEVEL, mc = R.ENCOUNTERS.combat.pickFor(run, { tiers: [e.FightTier || e.StartingTier || 'Gold'], lo: fl.lo, hi: fl.hi });
+      R.log(ctx, { t: 'event', id: e.Id, name: e.InternalName });
+      if (mc) { R.ENCOUNTERS.combat.enter(ctx, { id: mc.Id }, after); return; }
+    }
     R.gainXp(ctx, e.Xp || 0, 'select');
     var choices;
-    if (e.Kind === 'choice') {
-      var steps = (e.Steps || []).filter(function (id) { return heroOk(R.enc().steps[id], run); });
-      var n2 = Math.min(steps.length, limitOf(run, e.Limit, 3)), pool = steps.slice(), pickIds = [];
-      while (pickIds.length < n2) pickIds.push(pool.splice(R.randInt(run, pool.length), 1)[0]);
-      pickIds.sort(function (a, b) { return steps.indexOf(a) - steps.indexOf(b); });
-      choices = pickIds.map(function (id) { var s = R.enc().steps[id]; return { kind: 'step', id: id, name: s.Title || s.InternalName, desc: s.Desc || '' }; });
+    if (e.Kind === 'choice' || e.Kind === 'chain' || e.Kind === 'fight') {
+      // Options (bước / sự kiện con / trận, theo thứ tự dữ liệu) nếu có, không thì Steps; bày Limit cái lọc theo hero
+      var opts = (e.Options || (e.Steps || []).map(function (id) { return { t: 'step', id: id }; })).filter(function (o) { return Ev.optionOk(o, run); });
+      var n2 = Math.min(opts.length, limitOf(run, e.Limit, 3)), pool = opts.slice(), picked = [];
+      while (picked.length < n2) picked.push(pool.splice(R.randInt(run, pool.length), 1)[0]);
+      picked.sort(function (a, b) { return opts.indexOf(a) - opts.indexOf(b); });
+      choices = picked.map(Ev.optionChoice);
+      if (picked.length === 1 && picked[0].t === 'combat' && e.Kind === 'fight') { // "Treasure Chest (Mimic)": vào trận luôn
+        R.log(ctx, { t: 'event', id: e.Id, name: e.InternalName });
+        R.ENCOUNTERS.combat.enter(ctx, { id: picked[0].id }, after);
+        return;
+      }
     }
     if (!choices || !choices.length) { // [ĐỀ XUẤT] sự kiện không đọc được nội dung: ba phần thưởng chung
       choices = [{ kind: 'generic', key: 'gold', name: 'Vàng', desc: '+' + (T().GENERIC_GOLD_BY_BAND[R.bandTier(run)] || 3) + ' Gold' },
@@ -57,21 +69,56 @@
     R.log(ctx, { t: 'event', id: e.Id, name: e.InternalName });
   };
 
+  // Lựa chọn trỏ tới bước / sự kiện con / trận (encounters.js Options, Then)
+  function recOf(o) { var E = R.enc(); return o.t === 'step' ? E.steps[o.id] : o.t === 'combat' ? E.combats[o.id] : E.events[o.id]; }
+  Ev.optionOk = function (o, run) { var x = recOf(o); return !!x && (o.t === 'combat' || heroOk(x, run)); };
+  Ev.optionChoice = function (o) {
+    var x = recOf(o);
+    return { kind: o.t, id: o.id, name: x.Title || x.InternalName, desc: x.Desc || '' };
+  };
+
   // Mở màn [WIKI §1.1 start-of-run guide]: nền 8 vàng + 5 thu nhập; chọn +12 vàng/+2 thu nhập, hoặc 1 vật phẩm Small
   // bậc Đồng yểm bùa ngẫu nhiên, hoặc 1 kỹ năng ngẫu nhiên (bậc Đồng [ĐỀ XUẤT]).
+  // Có data/heroes.js: dùng start.options của hero ({key:'income', gold, income} / {key:'item', size, tier, enchanted} /
+  // {key:'skill', tier}); lựa chọn kỹ năng thành một bước "(Start Skill)" thật của hero nếu có start.skillSteps ("Burn Training:
+  // Choose a free Burn Skill" → bày 3-4 kỹ năng Burn để chọn 1), gieo một bước bằng run.rng.
   Ev.enterStart = function (ctx) {
-    var run = ctx.run, o = T().START_INCOME_OPTION;
-    var item = R.deal(run, { kind: 'item', tiers: ['Bronze'], sizes: [T().START_ITEM_SIZE], any: [], not: [], names: [], enchanted: true }, 1, {})[0];
-    var skill = R.deal(run, { kind: 'skill', tiers: ['Bronze'], any: [], not: [], names: [] }, 1, {})[0];
-    var choices = [{ kind: 'start', key: 'income', name: 'Thu nhập', desc: '+' + o.gold + ' Gold, +' + o.income + ' Income', gold: o.gold, income: o.income }];
-    if (item) choices.push({ kind: 'start', key: 'item', name: 'Vật phẩm yểm bùa', card: item });
-    if (skill) choices.push({ kind: 'start', key: 'skill', name: 'Kỹ năng', card: skill });
-    run.phase = { kind: 'event', eventId: 'start', name: 'Khởi đầu', desc: '', choices: choices, canExit: false, after: 'beginHour' };
+    var run = ctx.run, o = T().START_INCOME_OPTION, st = (R.heroData(run.hero) || {}).start || {};
+    var opts = st.options || [{ key: 'income', gold: o.gold, income: o.income }, { key: 'item', size: T().START_ITEM_SIZE, tier: 'Bronze', enchanted: true },
+      { key: 'skill', tier: 'Bronze' }];
+    var choices = [];
+    opts.forEach(function (op) {
+      if (op.key === 'income') { choices.push({ kind: 'start', key: 'income', name: 'Thu nhập', desc: '+' + (op.gold || 0) + ' Gold, +' + (op.income || 0) + ' Income', gold: op.gold || 0, income: op.income || 0 }); return; }
+      if (op.key === 'item') {
+        var item = R.deal(run, { kind: 'item', tiers: [op.tier || 'Bronze'], sizes: op.size ? [op.size] : null, any: [], not: [], names: [], enchanted: !!op.enchanted }, 1, {})[0];
+        if (item) choices.push({ kind: 'start', key: 'item', name: 'Vật phẩm yểm bùa', card: item });
+        return;
+      }
+      if (op.key === 'skill') {
+        var steps = (st.skillSteps || []).filter(function (id) { return R.enc().steps[id]; });
+        if (steps.length) {
+          var sid = steps[R.randInt(run, steps.length)], s = R.enc().steps[sid];
+          choices.push({ kind: 'start', key: 'skill', name: s.Title || s.InternalName, desc: s.Desc || '', stepId: sid });
+          return;
+        }
+        var skill = R.deal(run, { kind: 'skill', tiers: [op.tier || 'Bronze'], any: [], not: [], names: [] }, 1, {})[0];
+        if (skill) choices.push({ kind: 'start', key: 'skill', name: 'Kỹ năng', card: skill });
+      }
+    });
+    // Thẻ mở màn của hero (BZ_ENCOUNTERS.starts, vai 'run'): tên + ArtKey cho màn; lựa chọn bên trong bị xoá nên dùng options
+    var SS = R.enc().starts || {}, sev = (st.events || []).map(function (id) { return SS[id]; }).filter(function (x) { return x && x.Role !== 'skill'; })[0];
+    run.phase = { kind: 'event', eventId: 'start', startId: sev ? sev.Id : null, name: sev ? (sev.Title || sev.InternalName) : 'Khởi đầu',
+      desc: sev ? sev.Desc || '' : '', artKey: sev ? sev.ArtKey || null : null, choices: choices, canExit: false, after: 'beginHour' };
   };
 
   Ev.choose = function (ctx, cmd) {
     var run = ctx.run, ph = run.phase, c = ph.choices[cmd.i];
     if (!c) return 'choice ' + cmd.i + ' does not exist';
+    if (c.kind === 'start' && c.stepId) {
+      R.log(ctx, { t: 'start', key: c.key, step: c.stepId });
+      R.ENCOUNTERS.step.resolve(ctx, R.enc().steps[c.stepId], ph.after); // Deal → pha loot (chọn 1 kỹ năng), rồi vào giờ 0
+      return;
+    }
     if (c.kind === 'start') {
       if (c.card && !R.gainCard(ctx, c.card, null, null, 'start')) return 'no space for ' + c.card.id;
       R.gold(ctx, c.gold || 0, 'start'); R.income(ctx, c.income || 0);
@@ -80,6 +127,8 @@
       return;
     }
     if (c.kind === 'step') { R.ENCOUNTERS.step.resolve(ctx, R.enc().steps[c.id], ph.after); return; }
+    if (c.kind === 'event') { R.log(ctx, { t: 'eventPick', id: c.id }); Ev.enter(ctx, { id: c.id }, ph.after); return; }
+    if (c.kind === 'combat') { R.ENCOUNTERS.combat.enter(ctx, { id: c.id }, ph.after); return; }
     if (c.kind === 'generic') { R.genericReward(ctx, c.key); R.finish(ctx, ph.after); return; }
     return 'choice kind ' + c.kind + ' has no handler';
   };

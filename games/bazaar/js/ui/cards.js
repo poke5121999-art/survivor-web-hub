@@ -99,6 +99,7 @@
         }
         if (el.classList.contains('fresh')) { el.style.left = left + 'px'; el.style.top = tp + 'px'; }
         else { el.style.left = left.toFixed(1) + 'px'; el.style.top = tp + 'px'; }
+        C.questChip(el, run);
         el.classList.toggle('eligible', !!(opts.eligible && opts.eligible[c.uid]));
         el.classList.toggle('dim', !!(opts.eligible && !opts.eligible[c.uid]));
         el._tip = null;
@@ -129,6 +130,17 @@
     list.forEach(function (it, n) {
       seen[it.key] = 1;
       var el = top[it.key];
+      // cùng ô hàng nhưng đổi bậc / yểm (sự kiện stock: Lucky Clover, Dreampearl): dựng lại tại chỗ, không chia lại
+      if (el && (el._bz.inst.tier !== it.card.tier || (el._bz.inst.ench || null) !== (it.card.ench || null))) {
+        var old = el, tpl0 = R().tpl(it.card.id), sz0 = old._rs.size;
+        el = BC().create({ uid: 'top:' + it.key, id: it.card.id, tier: it.card.tier, size: sz0, ench: it.card.ench || null, type: U.typeOf(tpl0) },
+          { h: old._bz.h, attrs: U.looseAttrs(it.card), side: 1 });
+        el._rs = old._rs; if (old.dataset.drag) el.dataset.drag = '1';
+        el.className = old.className.split(' ').filter(function (c) { return c !== 'deal'; }).join(' '); el.style.left = old.style.left; el.style.top = old.style.top;
+        if (old === hovered) setHovered(null);
+        if (old.parentNode) old.parentNode.replaceChild(el, old);
+        top[it.key] = el;
+      }
       if (!el) {
         var tpl = R().tpl(it.card.id), sz = R().isSkill(tpl) ? 1 : (R().SIZE[tpl.Size] || 1);
         el = BC().create({ uid: 'top:' + it.key, id: it.card.id, tier: it.card.tier, size: sz, ench: it.card.ench || null, type: U.typeOf(tpl) },
@@ -146,7 +158,8 @@
       var pt = el.querySelector('.rs-price');
       if (it.price != null) {
         if (!pt) pt = U.el('div', 'rs-price', el._bz.cb);
-        pt.innerHTML = '<i style="background-image:' + U.bg(U.ICON.coin) + '"></i><b>' + it.price + '</b>' + (it.discount ? '<s>' + Math.round(it.price / 0.75) + '</s>' : '');
+        var base = it.kind === 'stock' ? R().price(it.card, it.card.tier).buy : it.price;
+        pt.innerHTML = '<i style="background-image:' + U.bg(U.ICON.coin) + '"></i><b>' + it.price + '</b>' + (it.price < base ? '<s>' + base + '</s>' : it.discount ? '<s>' + Math.round(it.price / 0.75) + '</s>' : '');
         pt.classList.toggle('disc', !!it.discount);
         pt.classList.toggle('poor', it.price > (U.state.run ? U.state.run.gold : 0));
       } else if (pt) pt.remove();
@@ -173,6 +186,51 @@
     return els;
   };
   C.topEl = function (key) { return top[key] || null; };
+  C.stockEl = function (i) { for (var k in top) if (top[k]._rs.kind === 'stock' && top[k]._rs.i === i) return top[k]; return null; };
+
+  // ---------- quest trên thẻ (BZRun.quests.status) ----------
+  // chip trên đỉnh thẻ: biểu tượng cuộn giấy + "tiến độ/đích" + vạch đầy; xong hết thì chip vàng có dấu tích.
+  // [ĐỀ XUẤT] bản demo không có prefab chip quest đọc được: dựng theo màu tooltip quest (vàng #ffd36b trên nền nâu).
+  function questOf(c) { var Q = R().quests; return Q && Q.status ? Q.status(c) : []; }
+  // chữ thưởng gốc có chỗ trống ({aura.q1}): đọc số thật từ mẫu dẫn xuất của chính mục đó (BZRun.questTplId + BZSim.cardText)
+  var rwCache = {};
+  C.questReward = function (c, key, raw) {
+    if (!raw || raw.indexOf('{') < 0) return raw || '';
+    var base = U.baseId(c.id), k = base + '|' + (c.tier || '') + '|' + key;
+    if (k in rwCache) return rwCache[k];
+    var out = raw;
+    try {
+      var did = R().questTplId({ id: base, qd: [key] });
+      var lines = root.BZSim.cardText({ uid: 'x', id: did, tier: c.tier || 'Bronze', ench: null, socket: 0, size: 1, section: 'hand' }, null) || [];
+      lines.forEach(function (l) { if (l && l.raw === raw && l.text) out = l.text; });
+    } catch (e) { out = raw; }
+    rwCache[k] = out;
+    return out;
+  };
+  C.questChip = function (el, run, pulse) {
+    var c = el._rs && el._rs.kind === 'own' && run ? R().findCard(run, el._rs.uid) : null;
+    var st = c ? questOf(c) : [], chip = el.querySelector('.rs-quest');
+    if (!st.length) { if (chip) chip.remove(); return; }
+    var open = st.filter(function (q) { return !q.done && !q.closed; }), cur = open[0] || st.filter(function (q) { return q.done; }).pop() || st[0];
+    var done = !open.length;
+    if (!chip) chip = U.el('div', 'rs-quest', el._bz.cb, '<i></i><b></b><u><s></s></u>');
+    chip.classList.toggle('done', done);
+    chip.querySelector('b').textContent = done ? '✓' : cur.progress + '/' + cur.goal;
+    chip.querySelector('s').style.width = (done ? 100 : Math.round(100 * cur.progress / Math.max(1, cur.goal))) + '%';
+    chip.title = (cur.text || 'Nhiệm vụ') + (cur.reward ? ' → ' + C.questReward(c, cur.key, cur.reward) : '');
+    if (pulse) { chip.classList.remove('pop'); void chip.offsetWidth; chip.classList.add('pop'); }
+  };
+  // khối "Nhiệm vụ" ở chân tooltip: mỗi mục một dòng (chữ gốc + thưởng + vạch tiến độ)
+  function questTip(box, c) {
+    var old = box.querySelector('.rs-questtip'); if (old) old.remove();
+    var st = questOf(c); if (!st.length) return;
+    var F = root.BZTooltip.format, d = U.el('div', 'rs-questtip', box.querySelector('.box') || box, '<h5>Nhiệm vụ</h5>');
+    st.forEach(function (q) {
+      var row = U.el('div', 'q' + (q.done ? ' done' : '') + (q.closed ? ' closed' : ''), d);
+      row.innerHTML = '<p>' + F(q.text || '').html + '</p>' + (q.reward ? '<p class="rw">' + F(C.questReward(c, q.key, q.reward)).html + '</p>' : '') +
+        '<div class="bar"><s style="width:' + Math.round(100 * q.progress / Math.max(1, q.goal)) + '%"></s><b>' + (q.done ? 'Xong' : q.progress + '/' + q.goal) + '</b></div>';
+    });
+  }
   C.topEls = function () { return top; };
   C.clearTop = function (instant) {
     Object.keys(top).forEach(function (k) {
@@ -241,10 +299,15 @@
     // giá bán ở chân tooltip ("Sells for")
     var box = root.BZTooltip.el();
     if (box && el._rs.kind === 'own' && U.state.run) {
+      var oc = R().findCard(U.state.run, el._rs.uid);
+      if (oc) questTip(box, oc);
       var sp = R().sellPrice(U.state.run, el._rs.uid), f = box.querySelector('.rs-sellfor');
       if (!f) f = U.el('div', 'rs-sellfor', box);
+      else box.appendChild(f);
       f.innerHTML = 'Bán được <i style="background-image:' + U.bg(U.ICON.coin) + '"></i><b>' + sp + '</b>';
-    }
+    } else if (box && el._rs.card) questTip(box, { id: el._rs.card.id, tier: el._rs.card.tier, qp: {}, qd: [] });
+    // phần thêm làm tooltip cao hơn: đặt lại vị trí (cùng info → BZTooltip không vẽ lại nội dung)
+    if (box && box.querySelector('.rs-questtip, .rs-sellfor')) root.BZTooltip.show(info, { x: r.x, y: r.y - 10, w: r.w, h: r.h });
   };
   C.hideTip = function () { setHovered(null); root.BZTooltip.hide(); };
   // chạm (điện thoại): chạm một lần mở tooltip, chạm lần nữa đóng

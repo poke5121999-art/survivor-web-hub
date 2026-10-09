@@ -13,7 +13,55 @@
   // Thẻ mẫu / gỡ lỗi / vé thám hiểm không bao giờ được chia
   var JUNK = /^\[|TEMPLATE|DEBUG|Debug|effectdata|Test Subject|Art Test/;
   var HEROES = ['Vanessa', 'Pygmalien', 'Dooley', 'Mak', 'Stelle', 'Jules', 'Karnok'];
-  R.HEROES_PLAYABLE = ['Vanessa', 'Pygmalien', 'Dooley']; // data/cards.js chỉ chở đủ bể thẻ của ba hero này (tools/data.py HEROES)
+  R.heroData = function (hero) { var H = root.BZ_HEROES; return (H && H.heroes && H.heroes[hero]) || null; };
+  // Hero chơi được: BZ_HEROES.heroes[h].playable nếu có data/heroes.js (tools/data.py),
+  // không thì mọi hero có bể vật phẩm đủ trong data/cards.js (TUNING.HERO_MIN_ITEMS) [ĐỀ XUẤT]. Tính lại mỗi lần đọc vì
+  // thẻ có thể nạp theo hero sau khi trang mở.
+  var heroCount = { n: -1, list: null };
+  function heroesPlayable() {
+    var H = root.BZ_HEROES;
+    if (H && H.heroes) { // data/heroes.js: {order: [...], heroes: {Vanessa: {playable, start, levelUp, ...}}}
+      return (H.order || Object.keys(H.heroes)).filter(function (h) { return H.heroes[h] && H.heroes[h].playable && HEROES.indexOf(h) >= 0; });
+    }
+    var C = root.BZ_CARDS || {}, ids = Object.keys(C);
+    if (heroCount.n === ids.length && heroCount.list) return heroCount.list;
+    var cnt = {};
+    ids.forEach(function (id) {
+      var t = C[id];
+      if (JUNK.test(t.InternalName || '') || R.isSkill(t)) return;
+      (t.Heroes || []).forEach(function (h) { cnt[h] = (cnt[h] || 0) + 1; });
+    });
+    heroCount = { n: ids.length, list: HEROES.filter(function (h) { return (cnt[h] || 0) >= T().HERO_MIN_ITEMS; }) };
+    return heroCount.list;
+  }
+  Object.defineProperty(R, 'HEROES_PLAYABLE', { get: heroesPlayable, enumerable: true, configurable: true });
+  R.HEROES_ALL = HEROES;
+
+  // Tên thẻ khớp một cụm chữ không trùng hẳn tên nào ("get a Premium Piggle" → Premium Green/Red/... Piggles): mọi từ của cụm
+  // phải có trong tên (bỏ số nhiều -s), trừ thẻ excludeId. Trả về danh sách tên (cùng khoá với vocab.titles).
+  // Bộ lọc có đọc ra gì không (tên, tag, kỹ năng, hero, cỡ, bậc, bản sao)
+  R.filterEmpty = function (f) {
+    return !(f.names.length || f.any.length || f.kind === 'skill' || f.hero || (f.sizes && f.sizes.length) || (f.tiers && f.tiers.length) || f.copy);
+  };
+  // "get a Premium Piggle" / "Get a Gumball": cụm sau "get a|an|another|N" → các tên thẻ chứa mọi từ của cụm (R.findTitles)
+  R.phraseFilter = function (text, excludeId) {
+    var s = String(text || '').replace(/\{[^}]*\}/g, ' ').replace(/\[[^\]]*\]/g, ' ');
+    var m = /\bget (?:a|an|another|\d+)\s+([A-Za-z' ]+?)(?=\s+(?:from|and|to|for|with)\b|[.,;!]|\s*$)/i.exec(s);
+    var names = m ? R.findTitles(m[1], excludeId) : [];
+    return names.length ? { kind: 'item', tiers: null, sizes: null, any: [], not: [], hero: null, names: names, enchanted: false, copy: false } : null;
+  };
+  R.findTitles = function (phrase, excludeId) {
+    freshCaches();
+    var V = vocab || buildVocab(), stem = function (w) { return w.toLowerCase().replace(/([^s])s$/, '$1'); };
+    var same = function (a, b) { return a === b || a === b + 'e' || b === a + 'e'; };
+    var words = String(phrase || '').split(/[^A-Za-z']+/).filter(function (w) { return w.length >= 3 && !/^(the|and|from|any|item|items)$/i.test(w); }).map(stem);
+    if (!words.length) return [];
+    return Object.keys(V.titles).filter(function (n) {
+      if (excludeId && V.titles[n].indexOf(excludeId) >= 0) return false;
+      var tw = n.split(/[^A-Za-z']+/).map(stem);
+      return words.every(function (w) { return tw.some(function (x) { return same(x, w); }); });
+    });
+  };
 
   var vocab = null;
   function buildVocab() {
@@ -47,6 +95,7 @@
   // Đọc chữ → bộ lọc {kind, tiers, sizes, any, not, hero, names, enchanted, copy, unparsed}
   var parseCache = {};
   R.parseFilter = function (desc, opts) {
+    freshCaches();
     var key = (desc || '') + '|' + ((opts && opts.hero) || '');
     if (parseCache[key]) return R.clone(parseCache[key]);
     var V = vocab || buildVocab(), f = { kind: null, tiers: null, sizes: null, any: [], not: [], hero: null, names: [], enchanted: false, copy: false };
@@ -54,7 +103,9 @@
     if (/copy of any item on your board/i.test(s)) f.copy = true;
     // tên thẻ cụ thể ("Get a Bronze-tier Sharpening Stone (+Damage), Extract (+Poison) and Cinders (+Burn)")
     V.tnames.forEach(function (n) {
-      var re = new RegExp('\\b' + esc(n) + '(e?s)?\\b', 'i');
+      // tên số nhiều cũng khớp số ít ("Gumballs" ← "Get a Gumball")
+      var stemN = n.length > 4 && /[^s]s$/.test(n) ? n.slice(0, -1) : n;
+      var re = new RegExp('\\b' + esc(stemN) + '(e?s)?\\b', 'i');
       if (re.test(s)) { f.names.push(n); s = s.replace(re, ' '); }
     });
     s = s.replace(/\([^)]*\)/g, ' ');
@@ -91,8 +142,14 @@
   };
 
   // ---------- bể theo hero ----------
-  var poolCache = {};
+  // Bộ đệm tính lại khi số thẻ đã nạp đổi (data/cards-<hero>.js nạp sau)
+  var poolCache = {}, cacheN = -1;
+  function freshCaches() {
+    var P = root.BZ_CARDS_PARTS, n = P ? Object.keys(P).join() : Object.keys(root.BZ_CARDS || {}).length; // phần thẻ đã nạp (data/cards-*.js)
+    if (n !== cacheN) { cacheN = n; poolCache = {}; vocab = null; parseCache = {}; }
+  }
   R.pool = function (kind) {
+    freshCaches();
     if (poolCache[kind]) return poolCache[kind];
     var C = root.BZ_CARDS, out = [];
     for (var id in C) {

@@ -71,6 +71,24 @@ Vòng 1 (rev 20261009f): thẻ (cooldown kiểu gốc: phần trên xám mờ, v
 theo hành động), 6 tiếng còn thiếu, màn vòng chơi theo clip. Còn lệch: nền sân (gốc mỗi hero một bàn riêng, web dùng chung), số
 crit nhỏ hơn gốc (~130 so với ~190 px), `enrage` chưa chụp được trận thật, `slow/charge/flying` chưa có tham chiếu clip.
 
+## Pha 4: game đầy đủ (chủ dự án 2026-10-09 "làm full game hết nha")
+
+Phạm vi "đầy đủ" = mọi thứ một run thật có, trừ thứ cần tiền thật (cửa hàng gem, skin trả phí, battle pass).
+
+| Nhánh | Nội dung | Tệp sở hữu |
+|---|---|---|
+| D dữ liệu | thẻ cả 8 hero (Mak, Stelle, Jules, Karnok, The Dragons), nạp theo hero để giữ tải trang nhẹ; nối 60 sự kiện bị bỏ (bước con theo tên); quét sim mọi thẻ mới | `tools/data.py`, `data/*` (trừ audio/vfxmap/env/art/frames), `test/bazaar-sim.js` |
+| R luật | rương thưởng 4/7/10 thắng; quest trên thẻ; trigger OnEncounterCardsDealt/Entered/Exited; sinh thẻ Premium Piggles/Book of Secrets; lệnh `swap`; xếp lại bàn ở pha `fight`; `run.best`; khởi đầu riêng từng hero | `js/run/*`, `test/bazaar-run.js` |
+| A tiếng | giọng + nhạc đủ 8 hero | `tools/audio.py`, `data/audio.js`, `audio/**` |
+| U giao diện | sảnh 8 hero (Spine nếu được), rương thưởng, quest, kéo đổi chỗ, xếp lại khi xem đối thủ, màn hết run bàn tốt nhất | `js/ui/**`, `css/run.css` (sau khi vòng 3 xong) |
+| G bóng PvP | chủ dự án chốt: KHÔNG dùng Supabase, sinh sẵn "người chơi khác" bằng bot. `tools/ghosts.js` cho bot chơi nhiều run, chụp bàn trước PvP mỗi ngày, giữ 12-20 bàn/ngày thắng quái ≥ 50% → `data/ghosts.js` (`BZ_GHOSTS.byDay`); luật chọn từ đó, thiếu thì quay về bóng quái | `tools/ghosts.js`, `data/ghosts.js` |
+
+Kết quả pha 4 (rev 20261010a): 7 hero chơi được (The Dragons khoá: GameData.db không có thẻ của hero này); 50/60 sự kiện bị bỏ đã nối lại;
+rương 4/7/10, quest, swap/đẩy thẻ, xếp lại trước trận, `run.best`, trigger ngoài trận, khởi đầu theo hero; ô Stove/Cooler và hiệu ứng gốc
+hero trong sim; giọng + nhạc 8 hero; `data/ghosts.js` 16 bóng/ngày từ 700 run bot; thẻ nạp theo hero (`js/ui/loader.js`).
+Kiểm: sim micro 36/0 + sockets 27/0, run rules 114/0 (đủ: 127/0 với 7 hero × 200 run), play 49/0, view 19/0.
+Còn lệch: bóng ngày 1-2 yếu, ngày 8-10 mạnh (bot thắng 25-31%); clip charge và bão cát thật chưa có.
+
 ## Việc mở sau pha 2
 
 - Luật: lệnh `swap` khi kéo vào ô đã có đồ; cho `move`/`sell` ở pha `fight` (xếp lại sau khi xem đối thủ); lưu `run.best` cho màn hết run.

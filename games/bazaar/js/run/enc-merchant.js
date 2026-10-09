@@ -41,6 +41,26 @@
       rerollStep: rr ? rr.CostIncrease || 0 : 0, rerollMax: rr && rr.CostMax != null ? rr.CostMax : null,
       dealt: stock.map(function (s) { return s.card.id; }), after: after || 'endHour'
     };
+    R.ooc.fire(ctx, 'TTriggerOnEncounterCardsDealt', { enc: e }); // Lucky Clover, Galactic Translator (đích SelectionSet = hàng vừa bày)
+  };
+
+  // "Buys your Large items at +3 Value" (Quixel/Midsworth/Barkun): aura SellPrice của thẻ thương nhân. Đọc e.Auras nếu dữ liệu
+  // có, không thì TUNING.MERCHANT_SELL_AURAS (chép từ cards.json). Trả về phần cộng thêm khi bán thẻ C (sim) ở thương nhân này.
+  M.sellBonus = function (e, S, C) {
+    if (!e) return 0;
+    var sim = root.BZSim, add = 0, list = [];
+    if (e.Auras) {
+      Object.keys(e.Auras).forEach(function (k) {
+        var a = e.Auras[k].Action || {};
+        if (a.AttributeType === 'SellPrice' && (a.Operation || 'Add') === 'Add') list.push({ value: sim.value(a.Value, { S: S, card: C, ev: null }), cond: a.Target && a.Target.Conditions });
+      });
+    } else {
+      (T().MERCHANT_SELL_AURAS[e.InternalName] || []).forEach(function (a) {
+        list.push({ value: a.Value, cond: { $type: 'TCardConditionalSize', Sizes: a.Sizes, IsNot: false } });
+      });
+    }
+    list.forEach(function (a) { if (!a.cond || sim.filterCards(a.cond, [C], { S: S, card: C, ev: null }).length) add += a.value || 0; });
+    return Math.round(add);
   };
 
   M.buy = function (ctx, cmd) {
@@ -68,6 +88,7 @@
     if (ph.rerollMax != null) ph.rerollCost = Math.min(ph.rerollMax, ph.rerollCost);
     R.emit(ctx, { type: 'reroll' });
     R.log(ctx, { t: 'reroll' });
+    R.ooc.fire(ctx, 'TTriggerOnEncounterCardsDealt', { enc: e });
   };
   M.leave = function (ctx) { R.finish(ctx, ctx.run.phase.after); };
 
