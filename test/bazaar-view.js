@@ -130,7 +130,7 @@ async function desktop(browser, base) {
     'xử lý TB ' + perf.avgWorkMs.toFixed(2) + ' ms, max ' + perf.maxWorkMs.toFixed(1) + ' ms, khung TB ' + perf.avgFrameMs.toFixed(2) + ' ms, ' + perf.frames + ' khung');
   await sleep(500);
   const banner = await page.evaluate(() => { const b = document.querySelector('.bz-banner'); return { cls: b.className, h: b.querySelector('h2').textContent, op: getComputedStyle(b).opacity }; });
-  const want = NODE.winner === 'draw' ? 'HOÀ' : 'CHIẾN THẮNG';
+  const want = NODE.winner === 'draw' ? 'HOÀ' : NODE.winner === 0 ? 'CHIẾN THẮNG' : 'THẤT BẠI'; // bàn 0 = phe ta (dưới)
   check('băng-rôn kết quả "' + want + '"', banner.h === want && /show/.test(banner.cls), banner.h + ' ' + banner.cls + ' op=' + banner.op);
   await page.screenshot({ path: path.join(SHOTS, 'victory-1280.png') });
 

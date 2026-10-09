@@ -202,6 +202,7 @@ button { font: inherit; color: inherit; }
 .bz-banner p { margin: 8px 0 0; font: 700 30px/1.2 var(--f-text); color: var(--cream); }
 .bz-banner.storm h2 { color: #ffc27a; font-size: 72px; }
 .bz-banner.draw h2 { color: #d8e2ff; text-shadow: 0 4px 0 #22305a, 0 0 30px rgba(140,170,255,.6); }
+.bz-banner.lose h2 { color: #ff8a7a; text-shadow: 0 4px 0 #4a1410, 0 0 30px rgba(255,90,70,.55); }
 .bz-banner.show { animation: bz-banner-in .5s cubic-bezier(.2,1.4,.4,1) forwards; }
 .bz-banner.hide { animation: bz-banner-out .4s ease-in forwards; }
 @keyframes bz-banner-in { 0% { opacity: 0; transform: scale(1.6); } 100% { opacity: 1; transform: scale(1); } }

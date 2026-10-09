@@ -308,8 +308,8 @@
       if (bannerOn) {
         var sec = (S.endMs / 1000).toFixed(1);
         if (w === 'draw') V().banner('HOÀ', 'Hết giờ sau ' + sec + ' giây', 'draw');
-        else V().banner('CHIẾN THẮNG', (res.players[w].name || '') + ' hạ gục ' + (res.players[1 - w].name || '') + ' sau ' + sec + ' giây', '');
-        if (live) { var A = AU(); if (A) { A.stopMusic(1.2); A.play('trans.victoryIn'); } }
+        else V().banner(w === 0 ? 'CHIẾN THẮNG' : 'THẤT BẠI', (res.players[w].name || '') + ' hạ gục ' + (res.players[1 - w].name || '') + ' sau ' + sec + ' giây', w === 0 ? '' : 'lose');
+        if (live) { var A = AU(); if (A) { A.stopMusic(1.2); A.play(w === 1 ? 'trans.defeatIn' : 'trans.victoryIn'); } }
       } else V().hideBanner(true);
     }
     S.done = t >= S.duration - 1;

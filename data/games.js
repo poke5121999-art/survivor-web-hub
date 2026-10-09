@@ -810,7 +810,7 @@ window.HUB_GAMES = [
     tagline: "Làm lại The Bazaar trên web. Mỗi bên dàn tối đa 10 ô vật phẩm trên tấm thảm, món nào cũng tự kích hoạt theo cooldown riêng: chém, bắn, dựng khiên, đốt, tẩm độc, hồi máu, làm chậm hay đóng băng đồ của đối thủ. Bản đầu tiên là màn xem trận: chọn hai trong 166 quái của game gốc rồi xem chúng đấu nhau, có đạn bay, số nổi, rung màn hình, bão cát sau 30 giây và tooltip đủ chữ của từng thẻ. Luật combat chép từ mã C# dịch ngược; thẻ, quái, art, khung bậc và tiếng bóc thẳng từ bản demo trên Steam.",
     thumbnail: "assets/thumbnails/bazaar.png",
     path: "games/bazaar/index.html",
-    rev: "20261009a",
+    rev: "20261009b",
     // Plain JS, không bước build. Dựng lại The Bazaar (Tempo Storm) theo yêu cầu của chủ dự án ngày 2026-10-09,
     // từ bản The Bazaar Demo trên Steam (D:\bazaar-ref). Dữ liệu thẻ/quái lấy từ GameData.db (SQLite, mỗi dòng là JSON),
     // sim combat thông dịch DSL thẻ theo $type (games/bazaar/js/sim, luật ở D:\bazaar-ref\notes\CODE-COMBAT.md).
