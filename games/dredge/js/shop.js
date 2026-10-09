@@ -46,11 +46,12 @@
   const BULK_VN = { 'notification.sell-fish-bulk': n => 'Đã bán ' + n + ' con cá', 'notification.sell-trinkets-bulk': n => 'Đã bán ' + n + ' món lặt vặt' };
 
   // ---------------------------------------------------------------- giá (ItemManager.GetItemValue, ResearchedBarteringModifier = 1: bản web chưa có nghiên cứu)
-  const buyPrice = def => DRRules.buyPrice(def, 1);
+  const barter = () => root.DRBooks ? DRBooks.barter() : 1;   // ResearchedBarteringModifier (js/books.js)
+  const buyPrice = def => DRRules.buyPrice(def, barter());
   function sellPrice(inst, mod) {
     const def = DR.item(inst.id);
-    if (isFish(def)) return DRRules.sellPrice(cfg(), def, inst, mod, 1);         // cá: value x max(1, mod) x cỡ x tươi
-    let v = (def.hasSellOverride ? +def.sellOverrideValue : +def.value || 0) * mod;   // còn lại: value x mod (x0,5 ở xưởng tàu)
+    if (isFish(def)) return DRRules.sellPrice(cfg(), def, inst, mod, barter());         // cá: value x max(1, mod) x cỡ x tươi
+    let v = (def.hasSellOverride ? +def.sellOverrideValue : +def.value || 0) * mod * barter();   // còn lại: value x mod (x0,5 ở xưởng tàu)
     if (def.damageMode === 'DURABILITY' && def.maxDurabilityDays) {
       const d = inst.dur == null ? def.maxDurabilityDays : inst.dur;
       v *= Math.min(1, Math.max(0.1, d / def.maxDurabilityDays));

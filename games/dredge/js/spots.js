@@ -827,7 +827,9 @@ void main() {
     // BannersUI.OnItemSeen xét GetCaughtCountById(id) == 0 TRƯỚC IncrementCaughtCounterById (ItemManager.SetItemSeen) -> loài mới
     const wasNew = !(S.caught[id] > 0);
     // POIDataModel: kho −1 cho mỗi lần thu hoạch (chưa có nghiên cứu Fishing Sustain ở pha 1)
-    if (id !== 'research-item') { const r = rec(sp); r.stock = Math.max(0, r.stock - 1); }
+    // HarvestMinigameView.cs:377: món affectedByFishingSustain không trừ kho khi Random.value <= ResearchedFishingSustainModifier (sách đọc xong)
+    const keepStock = item.affectedByFishingSustain && !(Math.random() > (root.DRBooks ? DRBooks.mod('FISHING_SUSTAIN') : 0));
+    if (id !== 'research-item' && !keepStock) { const r = rec(sp); r.stock = Math.max(0, r.stock - 1); }
     if (isFish) {
       S.caught[id] = (S.caught[id] || 0) + 1;
       if (!cur.dredge) {

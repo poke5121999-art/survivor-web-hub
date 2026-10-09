@@ -14,7 +14,7 @@
   // ---- Chỉ số thuyền suy ra từ khoang (PlayerStats.cs) ----
   // Đồ nằm trên ô hỏng bị tắt khỏi mọi phép cộng.
   function stats(cfg, inv, items, research) {
-    research = research || {};
+    research = research || (root.DRBooks && root.DRBooks.benefits()) || {};   // sách đã đọc xong (js/books.js, PlayerStats.CalculateResearchedBenefits)
     const live = sub => inv.items.filter(i => {
       const d = items[i.id];
       return d && (G.subOf(d) & sub) && (G.typeOf(d) & G.TYPE.EQUIPMENT) && !G.onDamaged(inv, i);

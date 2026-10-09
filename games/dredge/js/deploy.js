@@ -36,7 +36,7 @@
   const toast = t => { if (root.DRHud && DRHud.toast) DRHud.toast(t); };
   const clamp01 = v => v < 0 ? 0 : v > 1 ? 1 : v;
   const num = v => typeof v === 'number' ? v : parseFloat(v) || 0;
-  const MAINTENANCE = 0;   // [ĐỀ XUẤT] ResearchedEquipmentMaintenanceModifier: web chưa có nghiên cứu bảo trì nên = 0
+  const maintenance = () => root.DRBooks ? DRBooks.mod('EQUIPMENT_MAINTENANCE') : 0;   // ResearchedEquipmentMaintenanceModifier (js/books.js)
   const LISTENER_R = B.colliderSize.spheres.find(s => s.node === 'POIInteractionListener').radius;   // 1,5 m
   const sfx = (k, v) => { try { if (k && root.DRAudio && DRAudio.resolve(k)) DRAudio.play(k, v == null ? 1 : v); } catch (e) { /* tiếng là phần phụ */ } };
 
@@ -320,7 +320,7 @@
     const moving = D.mode === 'sail' && root.DRBoat && DRBoat.moved;
     const dt = moving ? change : 0;
     // SpatialItemInstance.ChangeDurability: kẹp [0, maxDurabilityDays]
-    if (moving && change) NET.inst.dur = Math.max(0, Math.min(num(ITEMS[NET.inst.id].maxDurabilityDays), NET.inst.dur - change * (1 - MAINTENANCE)));
+    if (moving && change) NET.inst.dur = Math.max(0, Math.min(num(ITEMS[NET.inst.id].maxDurabilityDays), NET.inst.dur - change * (1 - maintenance())));
     if (NET.inst.dur > 0) {
       if (NET.mode === 'TRAWL' || NET.mode === 'TRAWL_MATERIAL') {
         NET.roll -= dt;
@@ -403,7 +403,7 @@
     const had = p.durability > 0;
     const d = now - p.lastUpdate;
     p.lastUpdate = now;
-    p.durability = Math.max(0, Math.min(num(ITEMS[p.deployableItemId].maxDurabilityDays), p.durability - d * (1 - MAINTENANCE)));
+    p.durability = Math.max(0, Math.min(num(ITEMS[p.deployableItemId].maxDurabilityDays), p.durability - d * (1 - maintenance())));
     return p.durability <= 0 && had;
   }
   // PlacedHarvestPOI.AdjustStockLevels: quăng trước (theo now − lastUpdate) rồi trừ độ bền (cập nhật lastUpdate)
