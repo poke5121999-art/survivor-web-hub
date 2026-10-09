@@ -4,7 +4,7 @@
    Móc kiểm thử: window.BZ_DEBUG = {fight, seek, speed, state, perf}. */
 (function (root) {
   'use strict';
-  root.BZ_REV = root.BZ_REV || '20261009a';
+  root.BZ_REV = root.BZ_REV || '20261009d';
   var BZ = root.BZSim, V = root.BZView, RP = root.BZReplay, AU = root.BZAudio;
   var cur = null; // {a, b, seed, res, boards, info}
   var MON = [];
@@ -139,6 +139,7 @@
     var ui = V.refs.ui;
     var top = V.el('div', 'bz-topbar', ui, '<h1>Chợ Phiên</h1><p id="bz-sub">Xem trận</p>');
     var pick = btn(ui, 'bz-pick-btn', 'Chọn trận', 'Chọn hai quái để đấu', openPicker); pick.style.pointerEvents = 'auto';
+    var home = btn(ui, 'bz-home-btn', 'Về chợ', 'Về màn tiêu đề của Chợ Phiên', function () { root.location.href = 'index.html'; }); home.style.pointerEvents = 'auto';
     var seed = V.el('div', 'bz-seed', ui); seed.id = 'bz-seed';
     var dock = V.el('div', 'bz-dock', ui); dock.style.pointerEvents = 'auto';
     var r1 = V.el('div', 'row', dock);
@@ -366,5 +367,6 @@
     monsters: function () { return MON.map(function (m) { return { id: m.Id, name: monTitle(m), level: monLevel(m) }; }); }
   };
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+  // khởi động do js/ui/core.js gọi khi URL có ?view hoặc ?a&b (trang xem trận / Đấu thử)
+  root.BZViewer = { start: start };
 })(window);
