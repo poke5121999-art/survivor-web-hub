@@ -20,5 +20,5 @@ window.SUPABASE_CONFIG = {
   anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2ZGd1YWVjbmxsZWpkbWd5dGlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUyNDM3MTAsImV4cCI6MjEwMDgxOTcxMH0.oo1rodkh8_c7tBa-jptqHfemxmY9h8Q_r8DYrUYL9AI",
   // Emails allowed into admin.html once the service is configured. Empty => any
   // signed-in member may open admin. Set to ["you@example.com"] to lock it to yourself.
-  adminEmails: ["poke5121999@gmail.com"]
+  adminEmails: ["poke5121999@gmail.com", "thuongbui@hlo.vn"]
 };
