@@ -133,19 +133,33 @@
   };
 
   // ---------- lên cấp: ba phần thưởng dạng khung gặp gỡ ----------
-  U.SCREENS.levelUp = {
-    enter: function (run) { U.top.base(run, {}); },
-    render: function (run) {
-      var ph = run.phase;
-      U.cards.render(run);
-      var key = ph.level + ':' + JSON.stringify(ph.choices);
-      if (key === this._key && U.top.layer().children.length) return;
-      this._key = key;
-      U.top.clear();
-      var m = U.top.map('Lên cấp ' + ph.level + '!', 'Chọn một phần thưởng lên cấp');
-      m.classList.add('levelup');
-      U.top.frames(ph.choices, function (i) { U.dispatch({ t: 'choose', i: i }); }, { pennant: function () { return 'levelup'; }, dy: 20 });
-    },
-    exit: function () { this._key = null; U.top.clear(); }
-  };
+  // Số phận (phase 'fates', luật do js/run thêm): choices CÙNG DẠNG với levelUp, lệnh {t:'choose', i}. Dùng lại màn lên cấp
+  // với tiêu đề khác; vào màn thì tối sân khấu + thanh vương miện đầy lại về 1. Không có phase này thì màn không bao giờ chạy.
+  function choiceScreen(o) {
+    return {
+      enter: function (run) {
+        U.top.base(run, {});
+        if (o.dramatic) {
+          var st = V().refs.stage;
+          this._dim = U.el('div', 'rs-fates-dim', st);
+          U.sfx('trans.defeatIn', { vol: 0.5 });
+          setTimeout(function () { if (U.hud && U.hud.refillCrown) U.hud.refillCrown(); }, 500);
+        }
+      },
+      render: function (run) {
+        var ph = run.phase, ch = ph.choices || [];
+        U.cards.render(run);
+        var key = ph.kind + ':' + (ph.level || 0) + ':' + JSON.stringify(ch);
+        if (key === this._key && U.top.layer().children.length) return;
+        this._key = key;
+        U.top.clear();
+        var m = U.top.map(o.title(ph), o.sub(ph));
+        m.classList.add(o.dramatic ? 'fates' : 'levelup');
+        U.top.frames(ch, function (i) { U.dispatch({ t: 'choose', i: i }); }, { pennant: function () { return o.dramatic ? 'pedestal' : 'levelup'; }, dy: 20 });
+      },
+      exit: function () { this._key = null; if (this._dim) { this._dim.remove(); this._dim = null; } U.top.clear(); }
+    };
+  }
+  U.SCREENS.levelUp = choiceScreen({ title: function (ph) { return 'Lên cấp ' + ph.level + '!'; }, sub: function () { return 'Chọn một phần thưởng lên cấp'; } });
+  U.SCREENS.fates = choiceScreen({ dramatic: true, title: function () { return 'Số phận'; }, sub: function () { return 'Uy tín cạn — chọn một ân huệ để chơi tiếp'; } });
 })(window);

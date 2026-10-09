@@ -43,6 +43,19 @@ Mọi pha chỉ coi là xong khi chạy được trên `https://poke5121999-art.
 | 2a luật vòng chơi | xong 2026-10-09 | reducer thuần `js/run/*`, máy trạng thái theo `phase.kind`, số server giấu gom vào `js/run/tuning.js`; `node test/bazaar-run.js` 67/0 |
 | 2b giao diện vòng chơi | xong trên Pages 2026-10-09, rev 20261009d | `js/ui/*`, `SCREENS[kind]`; `BZ_URL=… node test/bazaar-play.js` 20/0 và `bazaar-view.js` 18/0 trên Pages. Chủ dự án chưa chơi thử |
 
+## Đối chiếu clip YouTube (2026-10-09, skill `watch-game-clips`)
+
+Ghi chú có mốc giờ ở `D:\bazaar-ref\notes\clips\<id>.md`, khung hình ở `D:\bazaar-ref\shots\clips\<id>\`.
+
+| Clip | Dùng cho |
+|---|---|
+| `PSP75k4R4Pk` hướng dẫn 7 phút | máu cấp 1 = 300, Fates (uy tín về 0 lần đầu → 1 + chọn ân huệ), 8 vàng + 5 thu nhập |
+| `oVtvrCdqHEE` Kripp giải thích | thua quái vẫn giữ vàng theo phần máu đã đánh; XP chỉ khi thắng |
+| `wUzq6Q4u9Jc` Vanessa 10 thắng | máu bóng PvP theo ngày (`GHOST_HP_BY_DAY`), thẻ "Ngày N", màn VS, cổng thương nhân |
+| `heZSYG0dD_c` closed beta 2024 | nhịp combat; chỗ nào trái prefab bản demo hiện tại thì giữ prefab |
+
+Rev 20261009e: bot thắng PvP 40,1% (trước 29,3% với cùng đường máu và `GHOST_LEVEL_OFFSET` 1).
+
 ## Việc mở sau pha 2
 
 - Luật: lệnh `swap` khi kéo vào ô đã có đồ; cho `move`/`sell` ở pha `fight` (xếp lại sau khi xem đối thủ); lưu `run.best` cho màn hết run.

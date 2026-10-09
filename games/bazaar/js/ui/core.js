@@ -130,6 +130,7 @@
     var cur = S.screen && U.SCREENS[S.screen];
     if (cur && cur.exit) { try { cur.exit(name); } catch (e) { console.error(e); } }
     S.screen = name;
+    if (U.transitions && (name === 'title' || name === 'heroSelect' || name === 'end')) U.transitions.cancel();
     var stg = V().refs.stage;
     stg.dataset.screen = name;
     var sc = U.SCREENS[name];
@@ -254,6 +255,7 @@
   function keys() {
     root.addEventListener('keydown', function (e) {
       if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
+      if ((e.code === 'Space' || e.key === 'Enter' || e.key === 'Escape') && U.transitions && U.transitions.skipAny()) { e.preventDefault(); return; }
       var sc = U.SCREENS[S.screen];
       if (sc && sc.key && sc.key(e) === true) { e.preventDefault(); return; }
       if (e.code === 'Space' && S.run && U.cards && S.screen !== 'title' && S.screen !== 'heroSelect' && S.screen !== 'end') { e.preventDefault(); U.cards.toggleStash(); }

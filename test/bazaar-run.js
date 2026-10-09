@@ -6,7 +6,7 @@
  * Số kỳ vọng tính tay từ dữ liệu:
  * - giá: game_modes.json StandardPrices (Small Bronze 2/1, Medium Silver 8/4, Large Gold 24/12, Small Legendary 24/12,
  *   kỹ năng Gold 20/10); bán = SellPrice của thẻ (bảng, không ghi đè).
- * - run mới: 8 vàng + 5 thu nhập [WIKI], 20 uy tín, 500 máu [ĐỀ XUẤT], ô tay mở 3,4,5,6.
+ * - run mới: 8 vàng + 5 thu nhập [WIKI], 20 uy tín, 300 máu [clip PSP75k4R4Pk?t=123], ô tay mở 3,4,5,6.
  * - lên cấp ở 8 XP: máu +100 (level_ups Level 1), mở thêm ô 2 và 7 (BazaarDeckTools.cs:1170-1230).
  * - thua PvP ngày 4: uy tín 20 → 16.
  */
@@ -67,7 +67,8 @@ function rules() {
   // run mới
   let run = baseRun('Vanessa');
   eq('run mới: số khởi đầu', [run.v, run.hero, run.day, run.hour, run.gold, run.income, run.level, run.xp, run.prestige, run.wins, run.losses, run.healthMax],
-    [1, 'Vanessa', 1, 0, 8, 5, 1, 0, 20, 0, 0, 500]);
+    [1, 'Vanessa', 1, 0, 8, 5, 1, 0, 20, 0, 0, 300]);
+  eq('máu cấp 1 = 300 (clip PSP75k4R4Pk?t=123); cấp 2,3,5,7,9 cộng dồn level_ups', [1, 2, 3, 5, 7, 9].map(R.hpAtLevel), [300, 400, 550, 1000, 1650, 2600]);
   eq('run mới: pha mở màn 3 lựa chọn, không thoát', [run.phase.kind, run.phase.choices.map(c => c.key), run.phase.canExit], ['event', ['income', 'item', 'skill'], false]);
   eq('run mới: ô tay mở 3..6', R.unlockedSockets(1).map((b, i) => b ? i : -1).filter(i => i >= 0), [3, 4, 5, 6]);
   eq('heroSelect không truyền hero', R.newRun({ seed: 1 }).phase.kind, 'heroSelect');
@@ -150,14 +151,14 @@ function rules() {
   // lên cấp ở 8 XP: rời thương nhân → hết giờ +1 XP
   run = baseRun(); run.xp = 7; run.phase = merchantPhase([]);
   r = R.apply(run, { t: 'leave' });
-  eq('8 XP: cấp 2, máu 500+100, ô mở 2..7', [r.run.level, r.run.healthMax, R.unlockedSockets(r.run.level).map((b, i) => b ? i : -1).filter(i => i >= 0)],
-    [2, 600, [2, 3, 4, 5, 6, 7]]);
+  eq('8 XP: cấp 2, máu 300+100, ô mở 2..7', [r.run.level, r.run.healthMax, R.unlockedSockets(r.run.level).map((b, i) => b ? i : -1).filter(i => i >= 0)],
+    [2, 400, [2, 3, 4, 5, 6, 7]]);
   eq('8 XP: sự kiện levelUp, pha lên cấp chen vào đầu giờ 1', [types(r).indexOf('levelUp') >= 0, r.run.phase.kind, r.run.hour, r.run.phase.choices.length > 0],
     [true, 'levelUp', 1, true]);
   eq('ô mở cấp 3 / 4', [R.unlockedSockets(3).filter(Boolean).length, R.unlockedSockets(4).filter(Boolean).length, R.unlockedSockets(9).filter(Boolean).length], [8, 10, 10]);
   run.xp = 15; run.level = 1;
   r = R.apply(run, { t: 'leave' });
-  eq('16 XP từ cấp 1: lên 2 cấp, +100 +150 máu, 2 phần thưởng chờ', [r.run.level, r.run.healthMax, r.run.pendingLevelUps], [3, 750, 2]);
+  eq('16 XP từ cấp 1: lên 2 cấp, +100 +150 máu, 2 phần thưởng chờ', [r.run.level, r.run.healthMax, r.run.pendingLevelUps], [3, 550, 2]);
   const lu = R.apply(r.run, { t: 'choose', i: 0 });
   check('chọn phần thưởng lên cấp không tốn giờ', lu.ok && lu.run.hour === 1 && lu.run.pendingLevelUps === 1, { ok: lu.ok, hour: lu.run.hour, p: lu.run.pendingLevelUps, ev: lu.events });
 
@@ -174,7 +175,33 @@ function rules() {
   eq('thắng PvP: 4 trận thắng, uy tín giữ', [r.run.wins, r.run.prestige], [4, 20]);
   // hết run theo ba cách
   eq('hết run: trận thắng thứ 10', [pvp(true, 7, 20, 9).run.phase.kind, pvp(true, 7, 20, 9).run.phase.reason], ['end', 'victory']);
-  eq('hết run: uy tín về 0 (3 − ngày 4)', [pvp(false, 4, 3, 2).run.phase.kind, pvp(false, 4, 3, 2).run.phase.reason, pvp(false, 4, 3, 2).run.prestige], ['end', 'prestige', 0]);
+  // Fates: lần đầu uy tín về <= 0 → về 1, pha 'fates' 3 lựa chọn (hình như lên cấp); lần hai → hết run
+  r = pvp(false, 4, 3, 2);
+  eq('Fates: uy tín 3 − 4 → 1, ghi fatesUsed, pha qua giờ kế là fates', [r.run.prestige, r.run.fatesUsed, r.run.phase.kind, r.run.day], [1, true, 'fates', 5]);
+  eq('Fates: 3 lựa chọn cùng hình lên cấp, sự kiện fates', [r.run.phase.choices.length, r.run.phase.choices.map(c => [c.type, c.kind, c.tier, typeof c.id, typeof c.name, typeof c.desc].join()).every(x => /^fate,fate,Legendary,string,string,string$/.test(x)), types(r).indexOf('fates') >= 0],
+    [3, true, true]);
+  const fa = R.apply(r.run, { t: 'choose', i: 0 });
+  eq('Fates: chọn xong chạy tiếp (giờ 0 ngày 5), uy tín giữ 1', [fa.ok, fa.run.phase.kind, fa.run.day, fa.run.hour, fa.run.prestige], [true, 'choose', 5, 0, 1]);
+  const fh = R.apply(r.run, { t: 'choose', i: 1 });
+  eq('Fates "Second Wind": +50 máu × cấp 1', [fh.run.healthMax - r.run.healthMax], [50]);
+  eq('Fates: lệnh sai bị từ chối', [R.apply(r.run, { t: 'choose', i: 9 }).ok, R.apply(r.run, { t: 'leave' }).ok], [false, false]);
+  const f2 = baseRun(); f2.day = 5; f2.hour = 5; f2.prestige = 1; f2.fatesUsed = true;
+  f2.phase = { kind: 'fightResult', combatType: 'PVP', winner: 'opponent', won: false, endMs: 1, seed: 1, rewards: {}, opponent: { kind: 'ghost', name: 'g' }, after: 'endHour' };
+  r = R.apply(f2, { t: 'next' });
+  eq('Fates lần hai: uy tín về 0 → hết run "prestige"', [r.run.phase.kind, r.run.phase.reason, r.run.prestige], ['end', 'prestige', 0]);
+  const lg = baseRun(); lg.prestige = 1; lg.fatesUsed = true; inst(lg, 'tSmall', 'hand', 4, 'Bronze'); inst(lg, 'tSmall', 'hand', 5, 'Silver'); inst(lg, 'tSmall', 'stash', 0, 'Gold');
+  const lc = { run: lg, events: [] }; R.enterFates(lc);
+  const lr = R.apply(lc.run, { t: 'choose', i: 0 });
+  eq('Fates "Fate Legacy": Bronze/Silver → Gold', lr.run.board.hand.concat(lr.run.board.stash).map(c => c.tier), ['Gold', 'Gold', 'Gold']);
+  // thua quái giữ vàng theo máu quái đã trừ: mỗi HealthMax/(vàng+1) = +1 vàng (CODE-COMBAT §1.12; clip oVtvrCdqHEE?t=297)
+  eq('lossGold: 5 vàng, quái 600 máu: còn 250 → 3; còn 0 → 5; còn 600 → 0; còn 599 → 0', [R.lossGold(5, 600, 250), R.lossGold(5, 600, 0), R.lossGold(5, 600, 600), R.lossGold(5, 600, 599)], [3, 5, 0, 0]);
+  const lf = baseRun(); lf.hour = 2; inst(lf, Object.values(globalThis.BZ_CARDS).find(t => t.InternalName === 'Basilisk Fang').Id, 'hand', 3);
+  lf.phase = { kind: 'fight', combatType: 'PVE', seed: 7, after: 'endHour', opponent: { kind: 'monster', name: 'dummy', monsterId: null, combatId: null, rewards: { gold: 9, xp: 3 }, board: { name: 'dummy', healthMax: 1000, cards: [] } } };
+  r = R.apply(lf, { t: 'fight' });
+  eq('thua quái (cọc 1000 máu, thưởng 9 vàng, bị bão cát hạ khi còn 578): vàng thua = floor(422/100) = 4, không XP', [r.run.phase.won, r.run.phase.rewards], [false, { gold: 4 }]);
+  r = R.apply(r.run, { t: 'next' });
+  eq('thua quái: nhận 4 vàng, chỉ 1 XP của giờ (không 3 XP quái), sang giờ 3', [r.run.gold, r.run.xp, r.run.hour], [8 + 4, 1, 3]);
+
   r = pvp(true, 10, 20, 5);
   eq('hết run: qua ngày 10', [r.run.phase.kind, r.run.phase.reason], ['end', 'days']);
   eq('pha end không nhận lệnh', R.apply(r.run, { t: 'next' }).ok, false);

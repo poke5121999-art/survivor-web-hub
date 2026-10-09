@@ -460,3 +460,75 @@
 .bz-home-btn { position: absolute; right: 230px; top: 22px; height: 64px; padding: 0 22px; font: 700 24px/1 var(--f-text); }
 .m-run .bz-tip { z-index: 85; }
 .rs-hud > .rs-sellzone { pointer-events: none; }
+
+/* ---------- chuyển cảnh (js/ui/transitions.js; clip wUzq6Q4u9Jc) ---------- */
+.m-run.card-hold .rs-top { display: none; }
+/* thẻ ngày: nền tím tinh vân, hero trái, "Ngày N" phải; N lăn sang N+1 vàng (?t=1322 → ?t=1324) */
+.rs-daycard { position: absolute; inset: 0; z-index: 88; cursor: pointer; overflow: hidden; animation: rs-day-in .35s ease-out;
+  background: radial-gradient(ellipse at 28% 55%, #f0a64a 0%, #b4478a 26%, #4a2a86 52%, #1b1246 100%); }
+.rs-daycard.out { animation: rs-day-out .38s ease-in forwards; }
+@keyframes rs-day-in { from { opacity: 0; transform: scale(1.06); } to { opacity: 1; transform: none; } }
+@keyframes rs-day-out { to { opacity: 0; transform: scale(1.12); filter: brightness(1.8); } }
+.rs-daycard .ring { position: absolute; border-radius: 50%; border: 8px solid rgba(255,214,120,.8); box-shadow: 0 0 40px rgba(255,200,90,.5), inset 0 0 40px rgba(255,200,90,.3); }
+.rs-daycard .r1 { left: 1060px; top: 250px; width: 700px; height: 700px; animation: rs-ring 6s linear infinite; }
+.rs-daycard .r2 { left: 80px; top: 100px; width: 960px; height: 960px; border-color: rgba(255,170,90,.45); animation: rs-ring 9s linear infinite reverse; }
+@keyframes rs-ring { to { transform: rotate(360deg) scale(1.03); } }
+.rs-daycard .hero { position: absolute; left: 120px; bottom: -40px; width: 760px; height: 1040px; background: center bottom/contain no-repeat; filter: drop-shadow(0 20px 30px rgba(0,0,0,.5)); animation: rs-pop .6s cubic-bezier(.2,1.3,.4,1) backwards; }
+.rs-daycard .txt { position: absolute; left: 1060px; width: 700px; top: 470px; display: flex; justify-content: center; align-items: center; gap: 26px;
+  font: 900 150px/1 var(--f-title); color: #ffe9a8; text-shadow: 0 6px 0 #6a3200, 0 0 40px rgba(255,190,80,.6); }
+.rs-daycard .num { position: relative; display: inline-block; width: 1.1em; height: 1.1em; text-align: center; }
+.rs-daycard .num b { position: absolute; left: 0; right: 0; top: 0; font-weight: 900; }
+.rs-daycard .num .new { opacity: 0; transform: translateY(70px) scale(.7); color: #ffc93a; text-shadow: 0 6px 0 #7a3a00, 0 0 60px rgba(255,200,60,.95), 0 0 120px rgba(255,160,40,.7); }
+.rs-daycard.roll .num .old { animation: rs-num-out .45s ease-in forwards; }
+.rs-daycard.roll .num .new { animation: rs-num-in .6s .2s cubic-bezier(.2,1.5,.4,1) forwards; }
+@keyframes rs-num-out { to { opacity: 0; transform: translateY(-70px) scale(.7); } }
+@keyframes rs-num-in { to { opacity: 1; transform: none; } }
+.rs-daycard .orb { position: absolute; width: 130px; height: 130px; border-radius: 50%; border: 5px solid #fff; box-shadow: 0 0 30px #c88bff, inset 0 0 24px #c88bff; animation: rs-orb 2.4s ease-in-out infinite alternate; }
+.rs-daycard .o1 { left: 1230px; top: 300px; } .rs-daycard .o2 { left: 1500px; top: 720px; animation-delay: -1s; }
+@keyframes rs-orb { from { transform: translate(0, 0) scale(.9); opacity: .7; } to { transform: translate(14px, -18px) scale(1.08); opacity: 1; } }
+.rs-daycard small, .rs-vs .skip { position: absolute; right: 40px; bottom: 28px; font: 600 20px/1 var(--f-text); color: rgba(255,240,210,.55); }
+/* màn VS: hero trái, bóng phải, thanh tên, gradient đỏ đáy (?t=708). Chớp trắng chạy trước, nội dung hiện khi .show */
+.rs-vs { position: absolute; inset: 0; z-index: 88; cursor: pointer; overflow: hidden; }
+.rs-vs.out { animation: rs-day-out .26s ease-in forwards; }
+.rs-vs .shade { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 40%, #6a4a22 0%, #2a160c 55%, #140a08 100%); }
+.rs-vs .shade::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(190,30,20,.55) 100%); }
+.rs-vs .side { position: absolute; top: 0; bottom: 0; width: 50%; overflow: hidden; }
+.rs-vs .side.l { left: 0; } .rs-vs .side.r { right: 0; }
+.rs-vs .side .img { position: absolute; inset: 40px 80px 0; background: center bottom/contain no-repeat; filter: drop-shadow(0 20px 30px rgba(0,0,0,.6)); }
+.rs-vs .side.l .img { animation: rs-vs-l .5s cubic-bezier(.2,1.2,.4,1) backwards; }
+.rs-vs .side.r .img { transform: scaleX(-1); animation: rs-vs-r .5s cubic-bezier(.2,1.2,.4,1) backwards; }
+@keyframes rs-vs-l { from { transform: translateX(-160px); opacity: 0; } }
+@keyframes rs-vs-r { from { transform: scaleX(-1) translateX(-160px); opacity: 0; } }
+.rs-vs .plate { position: absolute; bottom: 120px; min-width: 520px; padding: 14px 40px 16px; background: linear-gradient(180deg, #4a3420, #2a1a0e); box-shadow: inset 0 0 0 3px #b8873a, 0 6px 14px rgba(0,0,0,.6); text-align: center; }
+.rs-vs .plate.l { left: 90px; } .rs-vs .plate.r { right: 90px; }
+.rs-vs .plate small { display: block; font: 700 20px/1.2 var(--f-title); letter-spacing: .1em; text-transform: uppercase; color: #e9c783; }
+.rs-vs .plate b { display: block; font: 900 56px/1.1 var(--f-title); color: #fff3d6; text-shadow: 0 3px 0 #3a1a08; }
+.rs-vs .mid { position: absolute; left: 50%; top: 42%; width: 240px; height: 240px; margin: -120px 0 0 -120px; animation: rs-pop .5s .15s cubic-bezier(.2,1.6,.4,1) backwards; }
+.rs-vs .mid svg { width: 100%; height: 100%; filter: drop-shadow(0 0 24px rgba(255,190,70,.8)); }
+.rs-vs .mid span { position: absolute; left: 0; right: 0; bottom: -64px; text-align: center; font: 900 84px/1 var(--f-title); color: #ffd36b; text-shadow: 0 5px 0 #6a3200, 0 0 30px rgba(255,170,60,.8); }
+.rs-vs .flash { position: absolute; inset: 0; background: #fff6d6; animation: rs-vs-flash .6s ease-out forwards; pointer-events: none; }
+@keyframes rs-vs-flash { 0% { opacity: 0; } 25% { opacity: 1; } 100% { opacity: 0; } }
+.rs-vs .side, .rs-vs .plate, .rs-vs .mid, .rs-vs .shade { visibility: hidden; }
+.rs-vs.show .side, .rs-vs.show .plate, .rs-vs.show .mid, .rs-vs.show .shade { visibility: visible; }
+.rs-vs:not(.show) { background: transparent; }
+.rs-fightgo { transition: opacity .3s; }
+.rs-fightgo.wait { opacity: 0; pointer-events: none; }
+.rs-fightgo.wait .rs-big { pointer-events: none; }
+/* thẻ úp: lưng xanh chevron (?t=710) rồi lật 0,4 s */
+.bz-card .rs-back { position: absolute; inset: 0; border-radius: 10px; z-index: 6; pointer-events: none; display: grid; place-items: center;
+  background: linear-gradient(160deg, #1f4a78, #0e2a4a 60%, #173a66); box-shadow: inset 0 0 0 4px #5f86b8, inset 0 0 0 6px #0b1d33; }
+.bz-card .rs-back svg { width: 50%; height: 50%; }
+.bz-card.flip { animation: rs-flip .4s ease-in-out !important; }
+.bz-card.flip .rs-back { animation: rs-backvis .4s steps(1) forwards; }
+@keyframes rs-flip { 0% { scale: 1 1; } 50% { scale: 0 1; filter: brightness(1.8); } 100% { scale: 1 1; } }
+@keyframes rs-backvis { 0% { opacity: 1; } 50%, 100% { opacity: 0; } }
+/* cổng xanh quét hàng thương nhân (?t=1344) */
+.rs-portal { position: absolute; left: 378px; top: 290px; width: 1164px; height: 262px; pointer-events: none; z-index: 9; overflow: hidden; border-radius: 24px; }
+.rs-portal i { position: absolute; left: 50%; top: 50%; width: 220px; height: 220px; margin: -110px 0 0 -110px; border-radius: 50%;
+  background: radial-gradient(circle, #e6fbff 0%, #5fd0ff 32%, rgba(40,110,255,.7) 58%, rgba(40,110,255,0) 72%); animation: rs-portal .9s ease-out forwards; }
+.rs-portal i.b { animation-delay: .1s; filter: hue-rotate(40deg); }
+@keyframes rs-portal { 0% { transform: scale(.1) rotate(0); opacity: 0; } 25% { opacity: 1; } 100% { transform: scale(7.5, 2.6) rotate(120deg); opacity: 0; } }
+/* Số phận */
+.rs-fates-dim { position: absolute; inset: 0; z-index: 4; pointer-events: none; background: radial-gradient(ellipse at 50% 40%, rgba(20,6,30,.55), rgba(4,0,10,.88)); animation: rs-fade 1s ease-out; }
+.rs-map.fates { background: radial-gradient(ellipse at 50% 40%, #3a1a52, #12061e 80%); }
+.rs-map.fates .rs-map-title h2 { color: #f1c8ff; text-shadow: 0 3px 0 #2a0a48, 0 0 30px rgba(190,90,255,.8); }

@@ -249,15 +249,48 @@ async function desktop(browser, base) {
   if (d.ok) { await sleep(1000); await shot(page, '17-levelup'); }
   d = await drive(page, r => r.phase.kind === 'fight' && r.phase.combatType === 'PVP', 600);
   if (d.ok) {
-    await sleep(1500); await shot(page, '18-pvp-preview');
+    // màn VS hiện ngay khi vào trận PvP: chớp trắng → VS → thẻ úp → lật (clip wUzq6Q4u9Jc ?t=702..710)
+    let vsSeen = true;
+    try { await page.waitForSelector('.rs-vs', { timeout: 1500 }); } catch (e) { vsSeen = false; }
+    check('PvP: màn VS hiện trước trận', vsSeen);
+    await sleep(900); await shot(page, '18a-pvp-vs');
+    const vsTxt = await page.evaluate(() => { const v = document.querySelector('.rs-vs'); return v ? v.querySelector('.plate.r b').textContent + ' | ' + v.querySelector('.plate.l b').textContent : ''; });
+    check('màn VS có tên hero và tên bóng', /Vanessa/.test(vsTxt) && /Ghost/.test(vsTxt), vsTxt);
+    const backs0 = await page.evaluate(() => document.querySelectorAll('.rs-cards .bz-card .rs-back').length);
+    check('thẻ của bóng đang úp trong lúc VS (' + backs0 + ' thẻ)', backs0 > 0);
+    await page.waitForFunction(() => !document.querySelector('.rs-vs'), null, { timeout: 5000 });
+    await sleep(350); await shot(page, '18b-pvp-flip');
+    await page.waitForFunction(() => !document.querySelector('.rs-fightgo.wait'), null, { timeout: 5000 });
+    const backs1 = await page.evaluate(() => document.querySelectorAll('.rs-cards .bz-card .rs-back').length);
+    check('thẻ của bóng lật hết trước khi hiện nút Chiến đấu', backs1 === 0, 'còn úp ' + backs1);
+    await sleep(300); await shot(page, '18-pvp-preview');
     await page.click('.rs-fightgo .rs-big'); await sleep(2000); await shot(page, '19-pvp-combat');
     await page.click('.rs-fightdock .skip');
     await page.waitForSelector('.rs-result .rs-big.play', { timeout: 20000 }); await sleep(600);
     await shot(page, '20-pvp-result');
-    await page.click('.rs-result .rs-big.play'); await sleep(1500);
+    const dayB = (await run(page)).day;
+    await page.click('.rs-result .rs-big.play'); await sleep(700);
+    const rDay = await run(page);
+    if (rDay.day > dayB) {
+      // thẻ ngày: "Ngày N" lăn sang N+1 vàng, ba khung bật ra sau đó (clip ?t=1322, ?t=63)
+      const card0 = await page.evaluate(() => { const c = document.querySelector('.rs-daycard'); return c ? { old: c.querySelector('.old').textContent, nw: c.querySelector('.new').textContent, hidden: getComputedStyle(document.querySelector('.rs-top')).display } : null; });
+      check('đổi ngày: thẻ ngày hiện (Ngày ' + dayB + ' → ' + rDay.day + ') và che ba khung', !!card0 && +card0.old === dayB && +card0.nw === rDay.day && card0.hidden === 'none', JSON.stringify(card0));
+      await shot(page, '21a-day-card');
+      await sleep(1400); await shot(page, '21b-day-card-roll');
+      const rolled = await page.evaluate(() => !!document.querySelector('.rs-daycard.roll'));
+      check('thẻ ngày lăn sang số mới sau ~1,3 s', rolled);
+      await page.click('.rs-daycard');
+      await page.waitForFunction(() => !document.querySelector('.rs-daycard'), null, { timeout: 3000 });
+      await sleep(250); await shot(page, '21c-choices-pop');
+      await sleep(900);
+      const nEnc = await page.evaluate(() => document.querySelectorAll('.rs-top .rs-enc').length);
+      check('bấm bỏ qua thẻ ngày: ba khung gặp gỡ hiện', nEnc === 3 || rDay.phase.kind !== 'choose', 'khung ' + nEnc + ', phase ' + rDay.phase.kind);
+    } else check('PvP xong chưa qua ngày (run kết thúc / thua)', true, 'ngày ' + rDay.day);
+    await sleep(500);
     await shot(page, '21-after-pvp');
   }
   check('tới trận PvP bóng (giờ 5)', d.ok, JSON.stringify(d));
+  check('màn Số phận (phase fates) đã đăng ký, dùng lại màn lên cấp', await page.evaluate(() => { const f = window.BZUI.SCREENS.fates, l = window.BZUI.SCREENS.levelUp; return !!f && typeof f.enter === 'function' && typeof f.render === 'function' && f !== l; }));
   // đổi stash: mở kho
   await page.keyboard.press('Space'); await sleep(700); await shot(page, '22-stash'); await page.keyboard.press('Space'); await sleep(300);
   d = await drive(page, r => r.phase.kind === 'end', 4000);

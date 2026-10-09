@@ -74,6 +74,7 @@
     pedestal: { commands: withBoard({ choose: function (c, x) { return E('pedestal').choose(c, x); }, leave: function (c) { return E('pedestal').leave(c); } }) },
     loot: { commands: withBoard({ choose: function (c, x) { return R.lootChoose(c, x); }, leave: function (c) { return R.lootLeave(c); } }) },
     levelUp: { commands: withBoard({ choose: levelUpChoose }) },
+    fates: { commands: withBoard({ choose: function (c, x) { return R.fatesChoose(c, x); } }) },
     fight: { commands: { fight: function (c) { return E('combat').fight(c); } } },
     fightResult: { commands: { next: function (c) { return E('combat').next(c); } } },
     end: { commands: {} }
@@ -86,7 +87,7 @@
     var run = { v: 1, seed: seed, rng: seed || 1, hero: null, day: 1, hour: 0, gold: T().START_GOLD, income: T().START_INCOME,
       level: 1, xp: 0, prestige: m.Prestige.PrestigeInitial, wins: 0, losses: 0, healthMax: T().START_HP,
       board: { hand: [], skills: [], stash: [] }, phase: { kind: 'heroSelect' }, log: [],
-      uidN: 0, pendingLevelUps: 0, pattrs: {}, prev: [] };
+      uidN: 0, pendingLevelUps: 0, fatesUsed: false, fatesPending: false, pattrs: {}, prev: [] };
     if (opts.hero) {
       var r = R.apply(run, { t: 'pickHero', hero: opts.hero });
       if (!r.ok) throw new Error(r.events[0].reason);
@@ -127,7 +128,7 @@
         ph.picks.forEach(function (p, k) { if (R.canGain(run, p.card)) out.push({ t: 'choose', i: k }); });
         out.push({ t: 'leave' }); boardCmds(); break;
       case 'pedestal': ph.eligible.forEach(function (u, k) { out.push({ t: 'choose', i: k }); }); out.push({ t: 'leave' }); boardCmds(); break;
-      case 'levelUp': ph.choices.forEach(function (c, k) { out.push({ t: 'choose', i: k }); }); boardCmds(); break;
+      case 'levelUp': case 'fates': ph.choices.forEach(function (c, k) { out.push({ t: 'choose', i: k }); }); boardCmds(); break;
       case 'fight': out.push({ t: 'fight' }); break;
       case 'fightResult': out.push({ t: 'next' }); break;
     }

@@ -137,7 +137,7 @@
         if (it.kind !== 'preview') el.dataset.drag = '1';
         if (R().isSkill(tpl)) el.classList.add('is-skill');
         el.classList.add('top', 'deal');
-        el.style.animationDelay = (n * 70) + 'ms';
+        el.style.animationDelay = ((C.dealDelay || 0) + n * 70) + 'ms';
         layer.appendChild(el);
         top[it.key] = el;
         if (it.kind === 'stock') U.sfx('card.revealFlipBronze', { vol: 0.5, gap: 60 });

@@ -283,7 +283,7 @@
         h._punching = true;
       } else if (h._punching) { h._punching = false; h.pf.style.transform = ''; }
       var fe = t - h.flashT;
-      var fo = fe >= 0 && fe < 160 ? 0.75 * (1 - fe / 160) : 0;
+      var fo = fe >= 0 && fe < 300 ? 0.75 * (1 - fe / 300) : 0;
       if (h._fo !== fo) { h._fo = fo; h.flash.style.opacity = fo.toFixed(3); }
     }
   };

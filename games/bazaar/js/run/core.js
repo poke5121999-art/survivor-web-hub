@@ -62,8 +62,10 @@
   };
   R.prestige = function (ctx, delta) {
     if (!delta) return;
-    var run = ctx.run, max = R.mode().Prestige.PrestigeMax, before = run.prestige;
-    run.prestige = Math.max(0, Math.min(max, run.prestige + delta));
+    var run = ctx.run, max = R.mode().Prestige.PrestigeMax, before = run.prestige, next = Math.min(max, run.prestige + delta);
+    // Lần đầu về <= 0: về FATES_PRESTIGE_AFTER và hẹn pha Fates ở đầu giờ kế (https://youtu.be/PSP75k4R4Pk?t=245); lần hai: về 0, hết run
+    if (next <= 0 && !run.fatesUsed) { run.fatesUsed = true; run.fatesPending = true; next = T().FATES_PRESTIGE_AFTER; }
+    run.prestige = Math.max(0, next);
     if (run.prestige !== before) R.emit(ctx, { type: 'prestige', delta: run.prestige - before });
   };
 
@@ -214,6 +216,11 @@
     var hp = T().START_HP, ups = root.BZ_MODE.levelUps;
     for (var L = 1; L < level; L++) { var row = ups.filter(function (r) { return r.Level === L; })[0]; hp += row ? row.HealthIncrease : 0; }
     return hp;
+  };
+  // Máu bóng PvP theo ngày (TUNING.GHOST_HP_BY_DAY, clip wUzq6Q4u9Jc); quá bảng thì cộng GHOST_HP_STEP_AFTER mỗi ngày
+  R.ghostHp = function (day) {
+    var t = T().GHOST_HP_BY_DAY, d = Math.max(1, Math.floor(day));
+    return d <= t.length ? t[d - 1] : t[t.length - 1] + (d - t.length) * T().GHOST_HP_STEP_AFTER;
   };
   R.gainXp = function (ctx, n, why) {
     if (!n) return;

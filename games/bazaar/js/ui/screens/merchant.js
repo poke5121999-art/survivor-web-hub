@@ -34,7 +34,7 @@
       rr.querySelector('.tag i').style.backgroundImage = U.bg(U.ICON.coin);
       U.bigButton(rb, 'brown', 'Rời đi', 'Rời thương nhân (sang giờ kế)', function () { U.dispatch({ t: 'leave' }); }).classList.add('leave');
       this._rr = rr;
-      if (prev) { U.sfx(voKey(ph.name) + '.enter', { gap: 2000 }) || U.sfx(voKey(ph.name) + '.idle', { gap: 2000 }); U.sfx('trans.boardIn', { vol: 0.6 }); }
+      if (prev) { U.cards.dealDelay = 300; setTimeout(function () { U.cards.dealDelay = 0; }, 0); U.transitions.portal(); U.sfx(voKey(ph.name) + '.enter', { gap: 2000 }) || U.sfx(voKey(ph.name) + '.idle', { gap: 2000 }); U.sfx('trans.boardIn', { vol: 0.6 }); }
       U.top.layer().appendChild(U.el('div', 'rs-hint', null, 'Kéo hàng xuống bàn để mua · kéo đồ của bạn lên đây để bán'));
     },
     render: function (run) {

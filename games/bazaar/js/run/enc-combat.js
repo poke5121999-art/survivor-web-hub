@@ -83,9 +83,9 @@
       m = near[R.randInt(run, near.length)];
       board = root.BZSim.boardFromMonster(m, 'g');
       name = 'Ghost of ' + board.name;
-      board.healthMax = R.hpAtLevel(level); // bóng là ảnh chụp người chơi cùng cấp → máu của người chơi cấp đó
       board.level = level;
     }
+    board.healthMax = R.ghostHp(run.day); // đường cong máu bóng đo từ clip (TUNING.GHOST_HP_BY_DAY)
     board.name = name;
     return { kind: 'ghost', name: name, board: board, monsterId: m.Id, level: board.level, rewards: {} };
   };
@@ -98,6 +98,19 @@
     return [R.playerBoard(run), R.clone(ph.opponent.board)];
   };
 
+  // Thua quái vẫn giữ vàng theo phần máu đã làm mất: mỗi HealthMax/(vàng+1) máu quái bị trừ = +1 vàng (luật legacy, CODE-COMBAT §1.12,
+  // BazaarCardDealer.cs:4044-4048, 4297-4311); Kripp "kept even if you lose" https://youtu.be/oVtvrCdqHEE?t=297. XP chỉ khi thắng.
+  R.lossGold = function (gold, healthMax, health) {
+    if (!gold || !(healthMax > 0)) return 0;
+    var step = healthMax / (gold + 1), n = Math.floor((healthMax - Math.max(0, health)) / step + 1e-9);
+    return Math.max(0, Math.min(gold, n));
+  };
+  function lossRewards(ph, r) {
+    if (ph.combatType === 'PVP' || !ph.opponent.rewards) return {};
+    var o = r.players && r.players[1];
+    return o ? { gold: R.lossGold(ph.opponent.rewards.gold, o.healthMax, o.health) } : {};
+  }
+
   Cb.fight = function (ctx) {
     var run = ctx.run, ph = run.phase, boards = R.fightBoards(run);
     // simOpts + boards: giao diện gọi BZSim.run(Object.assign({boards: phase.boards}, phase.simOpts)) để phát lại đúng trận
@@ -107,7 +120,7 @@
     run.phase = { kind: 'fightResult', combatType: ph.combatType, winner: r.winner === 0 ? 'player' : r.winner === 1 ? 'opponent' : 'draw',
       won: won, endMs: r.endMs, seed: ph.seed, simOpts: simOpts, boards: boards, opponent: { kind: ph.opponent.kind, name: ph.opponent.name,
         monsterId: ph.opponent.monsterId, combatId: ph.opponent.combatId || null },
-      rewards: won ? ph.opponent.rewards : {}, after: ph.after };
+      rewards: won ? ph.opponent.rewards : lossRewards(ph, r), after: ph.after };
     R.emit(ctx, { type: 'fight', won: won, winner: run.phase.winner, endMs: r.endMs, seed: ph.seed, combatType: ph.combatType });
     R.log(ctx, { t: 'fight', type: ph.combatType, vs: ph.opponent.name, won: won, ms: r.endMs });
     R.ooc.fire(ctx, 'TTriggerOnFightEnded', { combatType: ph.combatType, outcome: won ? 'Win' : 'Loss' });
@@ -126,8 +139,8 @@
       R.finish(ctx, ph.after);
       return;
     }
+    R.gold(ctx, ph.rewards.gold || 0, 'combat'); // thắng: đủ vàng; thua: phần theo máu quái đã trừ (lossRewards)
     if (!ph.won) { R.finish(ctx, ph.after); return; }
-    R.gold(ctx, ph.rewards.gold || 0, 'combat');
     R.gainXp(ctx, ph.rewards.xp || 0, 'combat');
     var m = monster(ph.opponent.monsterId), picks = [];
     if (m) {

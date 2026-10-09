@@ -117,7 +117,8 @@
 
   // ---------- giờ, ngày, cấp ----------
   A.hour = function () { U.hud.pulse('clock'); };
-  A.day = function (e) { V().banner('Ngày ' + e.day, 'Thu nhập về túi, chợ mở hàng mới', 'day', 1600); U.sfx('trans.newDay'); };
+  // thẻ ngày lăn N-1 → N màu vàng ~3 s rồi ba khung bật ra (clip https://youtu.be/wUzq6Q4u9Jc?t=1322, ?t=63)
+  A.day = function (e) { U.transitions.dayCard(U.state.run, e.day); U.sfx('trans.newDay'); };
   A.levelUp = function (e) {
     V().banner('Lên cấp ' + e.level + '!', '+' + e.health + ' máu tối đa', 'level', 1700);
     U.sfx('board.levelUp'); U.heroVo('levelup'); U.hud.pulse('level');

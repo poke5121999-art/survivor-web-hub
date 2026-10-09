@@ -26,19 +26,24 @@
       var list = b.cards.filter(function (c) { return c.section === 'hand'; }).map(function (c, i) {
         return { key: 'opp:' + c.uid, card: { id: c.id, tier: c.tier, ench: c.ench }, kind: 'preview', i: i };
       });
-      U.cards.setTop(list, { gap: 0 });
+      var els = U.cards.setTop(list, { gap: 0 });
       var go = U.el('div', 'rs-fightgo', U.top.layer());
       U.bigButton(go, 'red', 'Chiến đấu!', 'Bắt đầu trận', function () { U.dispatch({ t: 'fight' }); }).classList.add('play');
       if (ph.combatType === 'PVP') {
-        V().banner('Bóng ma', opp.name + ' · ngày ' + run.day, 'pvp', 1800);
-        U.sfx('trans.pvp'); setTimeout(function () { U.heroVo('pvpintro'); }, 600);
+        // chớp trắng → màn VS → thẻ của bóng úp rồi lật (clip https://youtu.be/wUzq6Q4u9Jc?t=702 .. ?t=710)
+        go.classList.add('wait');
+        U.transitions.facedown(els);
+        U.transitions.vsScreen(run, opp, function () {
+          U.heroVo('pvpintro');
+          U.transitions.flipAll(els, function () { go.classList.remove('wait'); });
+        });
       } else {
         U.sfx('trans.pvpSwords', { vol: 0.6 });
         U.sfx('vo.monster.' + String(opp.name || '').toLowerCase().replace(/[^a-z0-9]/g, ''), { gap: 3000, vol: 0.8 });
       }
     },
     render: function (run) { U.cards.render(run); },
-    exit: function () { U.top.clear(); },
+    exit: function () { U.transitions.cancelVs(); U.top.clear(); },
     canDrag: function () { return false; }, // pha fight chỉ nhận lệnh fight (reducer): xếp lại bàn trước khi tới giờ đánh
     key: function (e) { if (e.key === 'Enter') { U.dispatch({ t: 'fight' }); return true; } }
   };

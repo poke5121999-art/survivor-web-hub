@@ -11,7 +11,9 @@
     // ---- khởi đầu ----
     START_GOLD: 8,            // [WIKI §1.1] "base is 8 Gold + 5 Income for every hero" (mobalytics start-of-run guide)
     START_INCOME: 5,          // [WIKI §1.1]
-    START_HP: 500,            // [ĐỀ XUẤT] CODE-RUN §2.4: bóng ngày 6 cấp 7 có 1800-1950 máu = khởi đầu + 1350 (cộng dồn level_ups) → ~450-600
+    // Cấp 1 = 300 máu [ĐO TRÊN CLIP] https://youtu.be/PSP75k4R4Pk?t=123 ("Health is 300 at level 1"); mỗi cấp cộng theo BZ_MODE.levelUps
+    // (bản demo; clip cũ https://youtu.be/wUzq6Q4u9Jc đầu ngày: C2 350, C3 450, C5 800, C7 1350, C9 2100 — bản vá khác, KHÔNG ép khớp).
+    START_HP: 300,
     // Lựa chọn mở màn (thay cho "Start Run" của từng hero: bể thẻ bị xoá) [WIKI §1.1 start-of-run guide]
     START_INCOME_OPTION: { gold: 12, income: 2 },   // "+12 Gold, +2 Income" trên nền 8/5
     START_ITEM_SIZE: 'Small', // "Enchanted Start: one random Small, Bronze-start item enchanted, from the hero pool"
@@ -64,11 +66,26 @@
     // Bóng = bàn của một quái có cấp mẫu ≈ cấp người chơi mong đợi ở ngày đó; máu = máu của một người chơi cùng cấp
     // (START_HP + cộng dồn level_ups) vì bóng thật là ảnh chụp bàn người chơi. Cấp mong đợi: ~9-10 XP/ngày (5 giờ + 1 PvP + 3 PvE)
     // → +1,2 cấp/ngày → ngày d ≈ cấp d+1 (khớp bóng ngày 6 cấp 7 trong monsters.json).
-    GHOST_LEVEL_OFFSET: 1,
+    // Đo bằng quét bot (3x200 run): offset 1 → PvP thắng 29,3% (1497/5106); offset 0 → 40,1% (2109/5260) [ĐO TRONG REPO]
+    GHOST_LEVEL_OFFSET: 0,
+    // Máu bóng theo ngày [ĐO TRÊN CLIP] https://youtu.be/wUzq6Q4u9Jc?t=337 (ngày 2) ... ?t=2685 (ngày 11): đối thủ ngày 2..11 =
+    // 400, 450, 700, 1025, 1500, 1850, 2330, 3120, 3365, 4062. Ngày 1 ngoại suy [ĐỀ XUẤT] 350 (lùi 50 như bước ngày 2→3);
+    // sau ngày 11 cộng thêm mỗi ngày [ĐỀ XUẤT] 700 (bước trung bình hai ngày cuối).
+    GHOST_HP_BY_DAY: [350, 400, 450, 700, 1025, 1500, 1850, 2330, 3120, 3365, 4062],
+    GHOST_HP_STEP_AFTER: 700,
     // Ngày 6-7 ưu tiên ba bàn hero thật PVE_{Stelle,Jules,Karnok}_D6_001 (monsters.json, L7) [ĐỀ XUẤT CODE-RUN §1.4]
     GHOST_HERO_BOARDS: { days: [6, 7], match: /^PVE_(\w+)_D6_001$/ },
     // Hết giờ (hoà) tính là thua cho người chơi [ĐỀ XUẤT: legacy BazaarCardDealer bàn 0 thua khi hết giờ, CODE-COMBAT §1.12]
     DRAW_IS_LOSS: true,
+
+    // ---- Fates (Futura aef5e7d8, CODE-RUN §1.5): uy tín về <= 0 lần đầu → về 1 rồi chọn 1 trong 3 phần thưởng mạnh ----
+    // [ĐO TRÊN CLIP] https://youtu.be/PSP75k4R4Pk?t=245 ("first time it hits 0 it resets to 1 ... 3 powerful choices"),
+    // https://youtu.be/oVtvrCdqHEE?t=765 (hồi sinh một lần, về 1 prestige, chọn 1 trong 3 buff, có thể enchant);
+    // lần thứ hai về 0 thì hết run. Nội dung ba lựa chọn bị máy chủ xoá (Futura Kind 'unknown', không có bước con).
+    FATES_PRESTIGE_AFTER: 1,
+    // 1) "Fate's Legacy: Upgrade your Bronze-tier and Silver-tier items to gold." https://youtu.be/PSP75k4R4Pk?t=83 [ĐO TRÊN CLIP]
+    // 2) +máu tối đa mỗi cấp đã đạt [ĐỀ XUẤT] 3) một vật phẩm bậc Vàng của hero [ĐỀ XUẤT] (hết chỗ/bể rỗng: +5 thu nhập)
+    FATES_HP_PER_LEVEL: 50,
 
     // ---- lên cấp [ĐỀ XUẤT CODE-RUN §3.6] ----
     // TLevelUp.Rewards bị xoá: mỗi lần lên cấp bày 3 lựa chọn: 1 đống đồ (sự kiện "(Level Up)" "Get ..."),

@@ -137,6 +137,13 @@
   H.chestRect = function () { return rectOf(E.chest) || { cx: 494, cy: 900 }; };
   H.clockRect = function () { return rectOf(E.clock); };
   H.crownRect = function () { return rectOf(E.crown); };
+  // thanh vương miện đầy lại về 1 (màn Số phận); lần update kế tiếp trả về số thật
+  H.refillCrown = function () {
+    E.prest.style.transition = 'transform 1.3s cubic-bezier(.2,.8,.3,1)';
+    E.prest.style.transform = 'scaleX(1)';
+    H.pulse('crown');
+    setTimeout(function () { E.prest.style.transition = ''; }, 1500);
+  };
   H.arcRect = function (i) { return rectOf(E.wins[Math.max(0, Math.min(9, i))]); };
   function rectOf(el) {
     if (!el) return null;

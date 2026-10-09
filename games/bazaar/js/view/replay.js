@@ -9,6 +9,7 @@
   var RP = root.BZReplay = {};
   var V = function () { return root.BZView; }, FXc = function () { return root.BZFX; }, AU = function () { return root.BZAudio; };
   RP.LAG_HERO = 350; RP.LAG_CARD = 250; RP.END_HOLD = 3200;
+  RP.BANNER_HOLD = 1500; // băng-rôn Chiến thắng giữ ~1,2-1,5 s (clip heZSYG0dD_c ?t=1828; wUzq6Q4u9Jc ?t=212), trước đây giữ tới hết trận
   RP.FX = {}; RP.APPLY = {};
   var S = null, warned = {};
   RP.state = function () { return S; };
@@ -293,7 +294,7 @@
   function endPhases(t, live) {
     var res = S.res, base = S.endMs + RP.LAG_HERO;
     var w = res.winner, ph = S.phase;
-    var deadOn = t >= base + 60, crownOn = t >= base + 650, bannerOn = t >= base + 750;
+    var deadOn = t >= base + 60, crownOn = t >= base + 650, bannerOn = t >= base + 750 && t < base + 750 + RP.BANNER_HOLD, bannerPast = t >= base + 750 + RP.BANNER_HOLD;
     if (ph.dead !== deadOn) {
       ph.dead = deadOn;
       if (!live || !deadOn) { [0, 1].forEach(function (s) { V().setDead(s, deadOn && (w === 'draw' ? false : s !== w) && res.players[s].health <= 0); }); }
@@ -310,7 +311,7 @@
         if (w === 'draw') V().banner('HOÀ', 'Hết giờ sau ' + sec + ' giây', 'draw');
         else V().banner(w === 0 ? 'CHIẾN THẮNG' : 'THẤT BẠI', (res.players[w].name || '') + ' hạ gục ' + (res.players[1 - w].name || '') + ' sau ' + sec + ' giây', w === 0 ? '' : 'lose');
         if (live) { var A = AU(); if (A) { A.stopMusic(1.2); A.play(w === 1 ? 'trans.defeatIn' : 'trans.victoryIn'); } }
-      } else V().hideBanner(true);
+      } else V().hideBanner(!bannerPast); // qua hạn giữ: mờ dần; tua về trước băng-rôn: gỡ ngay
     }
     S.done = t >= S.duration - 1;
   }

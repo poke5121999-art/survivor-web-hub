@@ -29,6 +29,7 @@
   R.beginHour = function (ctx) {
     var run = ctx.run;
     if (R.checkEnd(ctx)) return;
+    if (run.fatesPending) { R.enterFates(ctx); return; }
     if (run.pendingLevelUps > 0) { R.enterLevelUp(ctx); return; }
     if (run.hour === T().PVP_HOUR) { R.ENCOUNTERS.combat.enterPvp(ctx); return; }
     var options = run.hour === T().PVE_HOUR ? R.ENCOUNTERS.combat.options(ctx.run) : R.hourOptions(ctx.run);
@@ -138,6 +139,40 @@
     var run = ctx.run;
     run.phase = { kind: 'levelUp', level: run.level - run.pendingLevelUps + 1, choices: R.levelUpOptions(run) };
     R.emit(ctx, { type: 'levelUpChoice', level: run.phase.level });
+  };
+
+  // ---------- Fates: 3 lựa chọn cùng hình với lựa chọn lên cấp ({type,id,name,tier,desc,kind}) để giao diện dùng lại màn đó ----------
+  // Nội dung gốc (Futura aef5e7d8) bị xoá khỏi bản demo: Fate's Legacy lấy từ clip PSP75k4R4Pk?t=83, hai lựa chọn còn lại [ĐỀ XUẤT].
+  R.enterFates = function (ctx) {
+    var run = ctx.run, hp = T().FATES_HP_PER_LEVEL * run.level;
+    var card = R.deal(run, { kind: 'item', tiers: ['Gold'], any: [], not: [], names: [] }, 1, {})[0] || null;
+    var choices = [
+      { type: 'fate', id: 'legacy', name: "Fate's Legacy", tier: 'Legendary', kind: 'fate',
+        desc: 'Upgrade your Bronze-tier and Silver-tier items to Gold.' },
+      { type: 'fate', id: 'vitality', name: 'Second Wind', tier: 'Legendary', kind: 'fate', hp: hp,
+        desc: '+' + hp + ' max Health (' + T().FATES_HP_PER_LEVEL + ' per level).' }
+    ];
+    choices.push(card ? { type: 'fate', id: 'item', name: 'Golden Gift', tier: 'Legendary', kind: 'fate', card: card,
+        desc: 'Get a Gold-tier item: ' + R.title(R.tpl(card.id)) + '.' }
+      : { type: 'fate', id: 'income', name: 'Windfall', tier: 'Legendary', kind: 'fate', income: 5, desc: '+5 Income.' });
+    run.fatesPending = false;
+    run.phase = { kind: 'fates', level: run.level, choices: choices };
+    R.emit(ctx, { type: 'fates' });
+    R.log(ctx, { t: 'fates' });
+  };
+  R.fatesChoose = function (ctx, cmd) {
+    var run = ctx.run, c = run.phase.choices[cmd.i];
+    if (!c) return 'choice ' + cmd.i + ' does not exist';
+    if (c.id === 'item' && !R.canGain(run, c.card)) return 'no space for ' + c.card.id;
+    if (c.id === 'legacy') {
+      run.board.hand.concat(run.board.stash).forEach(function (ci) {
+        while (R.tierIndex(ci.tier) < 2 && R.upgradeInst(ctx, ci, 'fates')) { /* Bronze/Silver → Gold */ }
+      });
+    } else if (c.id === 'vitality') { run.healthMax += c.hp; R.emit(ctx, { type: 'healthMax', delta: c.hp }); }
+    else if (c.id === 'item') R.gainCard(ctx, c.card, null, null, 'fates');
+    else if (c.id === 'income') R.income(ctx, c.income);
+    R.log(ctx, { t: 'fatesPick', id: c.id });
+    R.beginHour(ctx);
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = R;
