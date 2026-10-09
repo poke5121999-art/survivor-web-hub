@@ -343,7 +343,7 @@
   const CABIN_BTN = {
     JournalButton: { vi: 'Sổ nhiệm vụ', key: 'J', open: () => { if (!root.DRHud) return false; DRHud.journal(true); return DRHud.journalOpen(); }, isOpen: () => root.DRHud && DRHud.journalOpen() },
     MapButton: { vi: 'Bản đồ', key: 'M', open: () => root.DRBook && DRBook.openMap(), isOpen: () => root.DRBook && DRBook.isOpen() },
-    MessagesButton: { vi: 'Thư tín', key: 'I', open: null, why: 'Cửa sổ Thư tín (MessagesWindow) chưa có trong Biển Mù' },   // 21 MessageItemData đã có trong data/items.js nhưng chưa có cửa sổ đọc
+    MessagesButton: { vi: 'Thư tín', key: 'I', open: () => root.DRMessages && DRMessages.open(), isOpen: () => root.DRMessages && DRMessages.isOpen() },   // w3msg: js/messages.js
     EncyclopediaButton: { vi: 'Bách khoa', key: 'L', open: () => root.DRBook && DRBook.openEncyclopedia(), isOpen: () => root.DRBook && DRBook.isOpen() }
   };
   function cabinGo(b) {
@@ -1684,7 +1684,7 @@
       e.preventDefault(); e.stopImmediatePropagation();
       return;
     }
-    if ((e.code === 'Tab' || e.code === 'KeyI') && root.DR && DR.s && DR.mode === 'sail' && !e.repeat) {
+    if (e.code === 'Tab' && root.DR && DR.s && DR.mode === 'sail' && !e.repeat) {   // w3msg: KeyI giờ mở Thư tín (OpenMessages, DredgeControlBindings.cs:371)
       e.preventDefault(); e.stopImmediatePropagation();
       open({ keys: ['INVENTORY'], title: 'Khoang thuyền' });
     }

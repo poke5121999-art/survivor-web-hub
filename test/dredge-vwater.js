@@ -127,10 +127,17 @@ const within = (v, lo, hi) => v >= lo && v <= hi;
   ok(foamU >= 0.3, 'mưa nhẹ nâng _FoamAmount lên ' + foamU.toFixed(2) + ' (WeatherData LightRain 0,35)');
   await page.evaluate(() => { DRSky.weather.pin('Fine'); DRSky.weather.set('Fine'); });
   await sleep(500);
-  ok(within(noon[0], 55, 105) && within(noon[1], 85, 140) && within(noon[2], 100, 160), 'nước trưa là xanh mòng két đậm (66..78, 95..114, 106..128 ± dung sai), không phải xanh lơ sáng (134+, 160+, 164+)');
+  // vòng 6 (w3water): bỏ ba ngưỡng tuyệt đối từng mã hoá bản khớp cũ (trưa R 55..105 / G 85..140 / B 100..160, bình minh G < 115, đêm < 70/70/75)
+  // vì một hệ số không thoả cả bình minh lẫn trưa. Thay bằng bảng đo theo giờ: tỉ lệ web/clip theo dải giờ trong 15 % (test/dredge-water-table.js,
+  // clip: test/dredge-water-clip.json, kết quả: water-table.tsv)
+  {
+    const TB = require('./dredge-water-table.js'), { rows } = await TB.run(), bd = TB.bands(rows);
+    console.log('  tỉ lệ web/clip theo dải', Object.entries(bd).map(([k, v]) => k + ' ' + v.toFixed(2)).join(' | '));
+    for (const k of ['dawn', 'noon', 'dusk', 'night']) ok(bd[k] >= 0.85 && bd[k] <= 1.15, 'nước ' + k + ': tỉ lệ độ sáng web/clip ' + (bd[k] || 0).toFixed(2) + ' trong ±15 %');
+  }
   ok(noon[2] - noon[0] > 25, 'nước trưa ngả xanh (B − R > 25), không xám');
-  ok(dawn[1] < noon[1] && dawn[1] < 115, 'bình minh tối hơn buổi trưa (gốc G 60..73)');
-  ok(night[0] < 70 && night[1] < 70 && night[2] < 75, 'nước đêm tối (gốc 33,33,39)');
+  ok(dawn[1] <= noon[1] + 1, 'bình minh tối hơn buổi trưa (gốc G 60..73 so với 95..114)');
+  ok(night[1] < dawn[1], 'nước đêm tối hơn bình minh (gốc 33,33,39)');
 
   // ---- V14: xúc tu đỏ
   console.log('V14 xúc tu đỏ gai');

@@ -104,7 +104,7 @@ async function run(browser, base, W, H, full) {
   await sleep(500);
   eq(tag + ' E: sang tab CABIN', (await dbg(page)).tab, 'CABIN');
   const btn = await page.evaluate(() => [...document.querySelectorAll('.cg-cbtn')].map(b => ({ id: b.dataset.btn, key: b.querySelector('.cg-cbk').textContent, off: b.classList.contains('off'), text: b.textContent.replace(/[A-Z]$/, '') })));
-  eq(tag + ' bốn nút CabinPanel và phím', btn.map(b => [b.id, b.key, b.off]), [['JournalButton', 'J', false], ['MapButton', 'M', false], ['MessagesButton', 'I', true], ['EncyclopediaButton', 'L', false]]);
+  eq(tag + ' bốn nút CabinPanel và phím', btn.map(b => [b.id, b.key, b.off]), [['JournalButton', 'J', false], ['MapButton', 'M', false], ['MessagesButton', 'I', false], ['EncyclopediaButton', 'L', false]]);
   const sh = await shelf(page);
   eq(tag + ' giá sách: sách đang đọc lên đầu', sh.map(b => b.id), ['book-speed-1', 'book-ecology-1']);
   eq(tag + ' sách đang đọc: màu WARNING, "(Đang đọc - 0% xong)"', [sh[0].color, sh[0].st, sh[0].act], ['#ff9a3b', '(Đang đọc - 0% xong)', true]);
@@ -151,10 +151,13 @@ async function run(browser, base, W, H, full) {
     await page.keyboard.press('Escape');
     await page.waitForFunction(() => DRCargo.isOpen(), null, { timeout: 5000 });
     eq(tag + ' đóng sổ: khoang mở lại ở CABIN', (await dbg(page)).tab, 'CABIN');
-    // ---- Messages tắt: bấm không làm gì
+    // ---- nút Messages (w3msg): đóng khoang, mở Thư tín; Esc đóng thì khoang mở lại ở tab CABIN
     await page.click('[data-btn="MessagesButton"]');
-    await sleep(300);
-    eq(tag + ' Messages chưa có: bấm không đóng khoang', await dbg(page), { tab: 'CABIN', tabs: ['INVENTORY', 'CABIN'], mode: 'cargo' });
+    await sleep(500);
+    eq(tag + ' bấm Messages: Thư tín mở, khoang đóng', await page.evaluate(() => [DRMessages.isOpen(), DRCargo.isOpen()]), [true, false]);
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => DRCargo.isOpen(), null, { timeout: 5000 });
+    eq(tag + ' đóng Thư tín: khoang mở lại ở CABIN', await dbg(page), { tab: 'CABIN', tabs: ['INVENTORY', 'CABIN'], mode: 'cargo' });
     // ---- Tab đóng khoang, lần sau mở lại vẫn ở tab Khoang
     await page.keyboard.press('Tab'); await sleep(400);
     eq(tag + ' Tab đóng khoang, về chế độ lái', await page.evaluate(() => [DRCargo.isOpen(), DR.mode]), [false, 'sail']);

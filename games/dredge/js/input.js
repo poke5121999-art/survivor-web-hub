@@ -27,7 +27,7 @@
     switch (e.code) {
       case 'Space': case 'KeyF': e.preventDefault(); fire('interact'); break;       // V13: bản gốc dùng F (Fish F / Dock F / Inspect F); giữ Space
       case 'KeyE': if (AB()) AB().radialDown(); break;
-      case 'Tab': case 'KeyI': if (!uiOpen()) { e.preventDefault(); fire('cargo'); } break;
+      case 'Tab': if (!uiOpen()) { e.preventDefault(); fire('cargo'); } break;
       case 'Escape': if (!uiOpen() && !(AB() && AB().back())) fire('pause'); break;
       case 'KeyM': fire('mute'); break;
     }

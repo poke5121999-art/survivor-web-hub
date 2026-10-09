@@ -1,0 +1,33 @@
+/* Cửa sổ Thư tín (js/messages.js): MessagesWindow gốc, đo bố cục trên clip ObBBFGMem5U t=1622 / t=2070 (khung 640x360).
+   --u = 1 đơn vị khung 640x360 → px màn hình. Màu giấy/viền [ĐỀ XUẤT] đo bằng mắt trên khung clip. */
+#dr-msg { position: fixed; inset: 0; z-index: 58; display: none; --u: calc(min(100vh, 56.25vw) / 360); background: rgba(0, 0, 0, .985); color: #e8e0d0;
+  font-family: "Signika", sans-serif; opacity: 0; transition: opacity .25s linear; user-select: none; }
+#dr-msg.on { display: block; }
+#dr-msg.show { opacity: 1; }
+#dr-msg .mg-panel { position: absolute; left: 50%; top: calc(14 * var(--u)); width: calc(264 * var(--u)); height: calc(268 * var(--u)); transform: translateX(-50%);
+  border: calc(1.2 * var(--u)) solid #5a5852; background: rgba(8, 8, 8, .6); }
+#dr-msg .mg-title { position: absolute; left: 50%; top: calc(-9 * var(--u)); transform: translateX(-50%); padding: 0 calc(14 * var(--u)); background: #000; white-space: nowrap;
+  font: 400 calc(17 * var(--u)) / 1 "Front Page Neue", "Signika", sans-serif; color: #d8d0bd; letter-spacing: .02em; }
+#dr-msg .mg-count { position: absolute; right: calc(-3 * var(--u)); top: calc(-8 * var(--u)); min-width: calc(30 * var(--u)); padding: calc(2 * var(--u)) calc(4 * var(--u)); text-align: center;
+  background: #000; border: calc(1 * var(--u)) solid #5a5852; font: 400 calc(9 * var(--u)) / 1.2 "Front Page Neue", "Signika", sans-serif; color: #d8d0bd; }
+#dr-msg .mg-tabs { position: absolute; left: calc(6 * var(--u)); top: calc(-8 * var(--u)); display: flex; gap: calc(3 * var(--u)); }
+#dr-msg .mg-tabs button { font: 400 calc(8 * var(--u)) / 1 "Front Page Neue", "Signika", sans-serif; padding: calc(3 * var(--u)) calc(6 * var(--u)); color: #8d8778; background: #000;
+  border: calc(1 * var(--u)) solid #3f3d38; cursor: pointer; }
+#dr-msg .mg-tabs button.on { color: #e8e0d0; border-color: #8d8778; }
+#dr-msg .mg-list { position: absolute; left: calc(6 * var(--u)); right: calc(6 * var(--u)); top: calc(10 * var(--u)); height: calc(58 * var(--u)); overflow-y: auto; scrollbar-width: thin; scrollbar-color: #5a5852 transparent; }
+#dr-msg .mg-ent { position: relative; margin-bottom: calc(3 * var(--u)); padding: calc(4 * var(--u)) calc(7 * var(--u)) calc(4 * var(--u)) calc(9 * var(--u)); cursor: pointer;
+  background: #2b2a28; border: calc(1 * var(--u)) solid #4a4842; color: #aaa396; }
+#dr-msg .mg-ent.sel { background: #3a3835; border-color: #8d8778; color: #e8e0d0; }
+#dr-msg .mg-ent b { display: block; font: 600 calc(9 * var(--u)) / 1.3 "Hahmlet", "Signika", serif; color: #d8d0bd; }
+#dr-msg .mg-ent span { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 400 calc(6.5 * var(--u)) / 1.5 "Signika", sans-serif; }
+#dr-msg .mg-ent i.new { position: absolute; left: calc(2 * var(--u)); top: calc(5 * var(--u)); width: calc(4 * var(--u)); height: calc(4 * var(--u)); border-radius: 50%; background: #e9b44c; }
+#dr-msg .mg-empty { padding: calc(10 * var(--u)); text-align: center; font-size: calc(8 * var(--u)); color: #8d8778; }
+#dr-msg .mg-card { position: absolute; left: calc(5 * var(--u)); right: calc(5 * var(--u)); top: calc(76 * var(--u)); max-height: calc(186 * var(--u)); overflow-y: auto; box-sizing: border-box;
+  padding: calc(6 * var(--u)) calc(9 * var(--u)) calc(9 * var(--u)); background: #e6d6bf; color: #231d17; border: calc(1.2 * var(--u)) solid #f3ece0; box-shadow: 0 0 calc(10 * var(--u)) rgba(0, 0, 0, .6);
+  scrollbar-width: thin; scrollbar-color: #8d7a60 transparent; }
+#dr-msg .mg-card h2 { margin: 0 0 calc(5 * var(--u)); text-align: right; font: 600 calc(10.5 * var(--u)) / 1.2 "Hahmlet", "Signika", serif; color: #1a140f; }
+#dr-msg .mg-card p { margin: 0 0 calc(7 * var(--u)); white-space: pre-wrap; font: 400 calc(6.6 * var(--u)) / 1.45 "Signika", sans-serif; text-align: left; }
+#dr-msg .mg-card.none { display: none; }
+#dr-msg .mg-back { position: absolute; right: calc(10 * var(--u)); bottom: calc(8 * var(--u)); display: flex; align-items: center; gap: calc(4 * var(--u)); cursor: pointer;
+  font: 400 calc(8 * var(--u)) / 1 "Front Page Neue", "Signika", sans-serif; color: #e8e0d0; }
+#dr-msg .mg-back kbd { font: 400 calc(6.5 * var(--u)) / 1 "Front Page Neue", "Signika", sans-serif; padding: calc(2 * var(--u)) calc(3 * var(--u)); border-radius: calc(2 * var(--u)); background: #d8d0bd; color: #000; }

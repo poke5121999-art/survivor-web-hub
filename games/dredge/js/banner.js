@@ -180,6 +180,9 @@
     else if (L.kind === 'trophy') {
       setText(TITLE, T['notification.trophy-fish.title'], C.NEUTRAL);
       setText(SUB, '<i class="bn-ico" style="--k:url(' + spr('TrophyIcon') + ');--c:' + C.TROPHY + '"></i>' + fmtSize(it, L.size));
+    } else if (L.kind === 'book') {                                   // BannerUI.ShowBook: tên sách NEUTRAL + notification.book-complete.subtitle, ảnh bookSprite
+      IMG.el.style.backgroundImage = 'url(' + URLB('art/ui/sprites/BookIcon.webp') + ')'; IMG.s.sx = IMG.s.sy = 1; apply(IMG);
+      setText(TITLE, esc(it.name), C.NEUTRAL); setText(SUB, 'Đọc xong. Xem trong khoang để biết phần thưởng.');   // "Reading complete. Check cabin for bonuses."
     } else if (L.kind === 'relic') { setText(TITLE, T['notification.relic-discovered.title'], C.CRITICAL); setText(SUB, T['notification.relic-discovered.subtitle']); }
   }
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

@@ -267,6 +267,22 @@ const STATES = [
       await page.waitForFunction(() => DRDialogue.isOpen(), null, { timeout: 4000 });
       await sleep(2200);
     } },
+  { key: 'bottle', go: async (page) => {                  // chai thư message-3 (82,5; -59,7): dấu "?" + "Nhặt F" (w3msg: ItemPOI trong js/poi.js)
+      await seaAt(page, 0.5);
+      await ev(page, () => DR_DEBUG.teleport(80, -59.7, 0));
+      await page.waitForFunction(() => DRPoi._debug().near === '112', null, { timeout: 6000 });
+      await sleep(1400);
+    } },
+  { key: 'messages', go: async (page) => {                // cửa sổ Thư tín (phím I) với 3 thư, thư 20 tháng 8 chọn (clip t=2070) (w3msg: js/messages.js)
+      await seaAt(page, 0.5);
+      await ev(page, () => { for (const id of ['message-4', 'message-3', 'message-1']) DRYarn.addItem(id); });
+      await sleep(4500);                                 // chờ các hộp "Nhận được" tan
+      await page.keyboard.press('KeyI');
+      await page.waitForFunction(() => DRMessages.isOpen(), null, { timeout: 4000 });
+      await sleep(700);
+      await page.keyboard.press('ArrowDown');
+      await sleep(600);
+    } },
   { key: 'wreck-items', go: async (page) => {             // xác tàu GM_ShoreCache1: lưới "Found Items" bên trái + khoang bên phải (clip t=2360)
       await seaAt(page, 0.5);
       await ev(page, () => DR_DEBUG.teleport(-20, -36, 0));

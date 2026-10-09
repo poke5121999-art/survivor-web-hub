@@ -19,7 +19,7 @@
  *     V04 (clip ObBBFGMem5U; nước vịnh Marrows lúc 10:55 đo (66..78, 95..114, 106..128), điểm câu 14:40 (60, 75, 85), 07:12 (52..62, 60..73,
  *     63..74), đêm (33,33,39); web trước (134..148, 160..165, 164..169)): mọi đo đều ra màu nước ≈ 0,4× của công thức bản rã (nắng·mây + ambient +
  *     (1 − mask.b)) × albedo — bọt trắng gốc lại sáng đầy, nên chỉ phần nước tối. Chưa tìm ra số hạng DXBC nào lệch (đã thử hoán đổi cb0[126]/[127]:
- *     ra đúng clip nhưng đen ở gog_01 nước 9 m, bỏ). [ĐỀ XUẤT] hai hệ số đo thẳng: WATER_LIT = 0,65 nhân albedo nước (không nhân bọt, không nhân
+ *     ra đúng clip nhưng đen ở gog_01 nước 9 m, bỏ). [ĐỀ XUẤT] hai hệ số đo thẳng: WATER_LIT = 0,65 nhân albedo nước (vòng 6: thêm trọng số nắng theo độ cao mặt trời và độ giảm ban đêm, xem SUN_LOW / WATER_NIGHT) (không nhân bọt, không nhân
  *     màu trời xa), và SEE_K = 0,15 che phần nhìn xuyên xuống đáy cát (đáy trong clip tối, đáy web sáng). Giữa vịnh ra (76..82, 113..120, 119..131) / bình minh
  *     (69..71, 91..93, 86..90) / đêm (35,43,45). HULL_FOAM_K = 3 co dải bọt chạm quanh vỏ (hộp va chạm to hơn lưới vỏ; clip chỉ có vòng gợn mảnh); gog_01 hoàng hôn vẫn trong ±15 của test/dredge-water.js (vì thế không hạ thêm). Vỏ thuyền dưới nước vẫn nhìn xuyên đủ (depSea − dep).
  *     Rồi lerp tới lerp(SkyBlue, màu sương, _FogDensity²) theo f10·(f10 + sat(mờ·(1 − dốc)(5·dốc + h))),
@@ -65,7 +65,14 @@
     w.dx = Math.cos(a); w.dz = -Math.sin(a);
     w.k = Math.PI * 2 / w.len;
   }
-  const SEE_K = 0.15, WATER_LIT = 0.63, HULL_FOAM_K = 3, LIT_DEPTH = 0.5; // [ĐỀ XUẤT] V04, xem chú thích đầu tệp
+  // [ĐỀ XUẤT] V04 vòng 6 (w3water, bảng đo water-table.tsv): một hệ số WATER_LIT cố định làm nước ngày sáng 1,3× clip còn bình minh 0,8×.
+  // Đo theo giờ cho thấy phần sai nằm ở nắng chứ không ở ambient: ban ngày (sunDir.y > 0,7) nắng trực tiếp chỉ đóng góp ~0,15 so với công thức
+  // rã (nước vịnh trong clip chỉ sáng hơn lúc 06:30 ~1,2×, không 2×), còn lúc nắng thấp (sunDir.y < 0,1) đóng góp đủ 1. Chưa tìm được số hạng DXBC
+  // tương ứng (cb0 bị bỏ tên), nên đo thẳng: trọng số nắng lên nước = lerp(SUN_LOW, SUN_HIGH, smoothstep(0,1; (sunDir.y − 0,1)/0,6)).
+  // WATER_NIGHT: ban đêm clip tối hơn công thức ~25 % (19:37 web G 56 / clip 34..48; 20:17 web 44 / clip 33..35) khi mật độ sương gốc
+  // (FogController.defaultFogDensityOverDay: 0,5 lúc 18:30 → 1,0 từ 19:55) lên; hệ số nước sâu giảm tới 30 % theo smoothstep(0,5; 1; mật độ).
+  const WATER_NIGHT = 0.3, SUN_LOW = 1, SUN_HIGH = 0.15;
+  const SEE_K = 0.15, WATER_LIT = 0.65, HULL_FOAM_K = 3, LIT_DEPTH = 0.5; // [ĐỀ XUẤT] V04, xem chú thích đầu tệp
   const SEABED_MAX = 100; // m; texture sâu đáy mã hoá sqrt(sâu/100): đáy địa hình sâu tới 100 m, Stellar Basin có _Depth 12 m
 
   const uniforms = {
@@ -76,7 +83,7 @@
     uLandBox: { value: new T.Vector4(0, 0, 1, 1) }, // x0, z0, 1/w, 1/h (m)
     uNight: { value: 0 },
     uFoam: { value: 0.2 }, // _FoamAmount (WeatherController.cs:447), Fine.foamAmount
-    uSeeK: { value: SEE_K }, uHullFoamK: { value: HULL_FOAM_K }, uWaterLit: { value: WATER_LIT }, uLitDepth: { value: LIT_DEPTH }, uShallow: { value: new T.Color() }, uShallowA: { value: 0.35 }, uDeep: { value: new T.Color() }, uDeepA: { value: 0 },
+    uSeeK: { value: SEE_K }, uHullFoamK: { value: HULL_FOAM_K }, uWaterLit: { value: WATER_LIT }, uWaterSun: { value: SUN_LOW }, uWaterNight: { value: WATER_NIGHT }, uLitDepth: { value: LIT_DEPTH }, uShallow: { value: new T.Color() }, uShallowA: { value: 0.35 }, uDeep: { value: new T.Color() }, uDeepA: { value: 0 },
     uFoamCol: { value: new T.Color() }, uWaterDepth: { value: 1 },
     uSky: { value: new T.Color() }, uNormalTex: { value: null }, uFoamTex: { value: null },
     uSeabed: { value: null }, uSeabedBox: { value: new T.Vector4(0, 0, 1, 1) },
@@ -198,7 +205,7 @@ void main() {
 #include <common>
 ${GLSL_WAVE}
 uniform float uFoam;
-uniform float uSeeK; uniform float uWaterLit; uniform float uLitDepth; uniform float uHullFoamK; uniform vec3 uShallow; uniform float uShallowA; uniform vec3 uDeep; uniform float uDeepA; uniform vec3 uFoamCol; uniform float uWaterDepth;
+uniform float uSeeK; uniform float uWaterLit; uniform float uWaterSun; uniform float uWaterNight; uniform float uLitDepth; uniform float uHullFoamK; uniform vec3 uShallow; uniform float uShallowA; uniform vec3 uDeep; uniform float uDeepA; uniform vec3 uFoamCol; uniform float uWaterDepth;
 uniform vec3 uSky; uniform sampler2D uNormalTex; uniform sampler2D uFoamTex;
 uniform sampler2D uSeabed; uniform vec4 uSeabedBox; uniform vec4 uHull; uniform vec3 uHullSize;
 varying vec3 vWPos;
@@ -238,7 +245,7 @@ void main() {
   float kS = min(1.0, exp(-dep * zK / max(0.01, uWaterDepth)));
   // [ĐỀ XUẤT] V04: clip cho nước nông sát bến sáng (06:01 (66..75, 95..104, 91..104); 12:35 (109..118, 146..158, 156..166)) còn nước vịnh sâu tối hơn
   // ~0,65× (xem WATER_LIT) ⇒ hệ số 0,65 chỉ áp cho nước sâu, nước nông về 1 theo độ sâu z của đáy (cùng thang với kS)
-  float litK = mix(uWaterLit, 1.0, exp(-depSea * zK / uLitDepth));
+  float litK = mix(uWaterLit * (1.0 - uWaterNight * smoothstep(0.5, 1.0, uDrFogD)), 1.0, exp(-depSea * zK / uLitDepth));
   vec3 col = mix(uShallow, uDeep, kS) * litK;
 
   float f10 = pow(1.0 - clamp(V.y, 0.0, 1.0), 10.0);
@@ -266,7 +273,7 @@ void main() {
   // ánh sáng toon (không N·L) như Lit_Shader; mây che nắng không tối quá 0,25
   vec3 Ls = drEnvLights(wp);
   float mb = drEnvMaskB(wp.xz);
-  col *= uDrSunCol * max(0.25, drEnvCloud(wp)) + Ls + uDrAmb + (1.0 - mb) + vec3(uDrTintK, 0.0, 0.0);
+  col *= uDrSunCol * (max(0.25, drEnvCloud(wp)) * uWaterSun) + Ls + uDrAmb + (1.0 - mb) + vec3(uDrTintK, 0.0, 0.0);
   // lấp lánh: phản xạ nắng trên mặt phẳng, chỉ lọt qua lỗ của texture bọt và ô Voronoi nghiêng của DistortionNormal
   vec2 nn = drS2L(texture2D(uNormalTex, uxz * ${f6(WM.DistortionUVTiling * 0.01)} + uGameTime * ${f6(WM.DistortionScrollSpeed)}).rgb).rg * 2.0 - 1.0;
   float nz = sqrt(1.0 - min(dot(nn, nn), 1.0));
@@ -415,6 +422,7 @@ void main() {
     // WeatherController.cs:445-447: _WaveSteepness (cũng là WaveController.Steepness của thuyền) và _FoamAmount của thời tiết hiện tại
     if (env.waveSteepness != null) uniforms.uWaveSteep.value = env.waveSteepness;
     if (env.foamAmount != null) uniforms.uFoam.value = env.foamAmount;
+    if (env.sunDir) { const k = Math.min(1, Math.max(0, (env.sunDir.y - 0.1) / 0.6)); uniforms.uWaterSun.value = SUN_LOW + (SUN_HIGH - SUN_LOW) * k * k * (3 - 2 * k); }
     updateHull();
     propT -= dt;
     if (propT <= 0 || !boat) { propT = 0.1; updateProps(boat ? boat.x : cx, boat ? boat.z : cz); }

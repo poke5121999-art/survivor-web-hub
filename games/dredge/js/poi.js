@@ -29,6 +29,10 @@
     const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = base('css/poi.css'); document.head.appendChild(l);
   }
   const P = (root.DR_POI && root.DR_POI.points) || [];
+  // ItemPOI (chai thư, ItemPOIHandler): dấu "?" như điểm kiểm tra, gợi ý "Nhặt F" (prompt.collect-item), F thêm đồ vào sổ thư và chai biến mất hẳn
+  // (ItemPOI.OnHarvested trừ kho 1 → poiCollider tắt). Đã nhặt lưu ở DR.s.itemPoiTaken { <id>: 1 }.
+  const BOTTLES = ((root.DR_POI && root.DR_POI.items) || []).map(b => Object.assign({ bottle: true }, b));
+  const taken = b => !!(root.DR && DR.s && ((DR.s.itemPoiTaken || {})[b.id] || (DR.s.itemsOwned || []).includes(b.item)));
   const BOAT_R = 1.5;            // [ĐỀ XUẤT] nửa bề ngang thân thuyền: collider của người chơi chạm cầu tương tác sớm hơn tâm thuyền
   const FADE = 0.75;             // InteractPointUI.fadeDurationSec
   const APPEAR_Y = 2, DISAPPEAR_Y = -0.25;
@@ -46,6 +50,7 @@
 
   // ConversationPOI.RefreshStatus
   function enabled(p) {
+    if (p.bottle) return !taken(p);
     if (p.once && visited(p.node)) return false;
     if (p.needs.length && !p.needs.every(visited)) return false;
     if (p.hideAfter.some(visited)) return false;
@@ -62,7 +67,7 @@
     document.body.appendChild(host);
     // gợi ý như HUD (cùng kiểu .hud-prompt, nằm trong #dr-hud để dùng chung --hu)
     prompt = document.createElement('div'); prompt.className = 'hud-prompt poi-prompt';
-    prompt.innerHTML = '<b data-orig="' + ((root.DR_STR && DR_STR['prompt.inspect']) || 'Inspect') + '">Kiểm tra <kbd>F</kbd></b>';
+    promptKind = '';
     prompt.onclick = () => start(near);
     (document.getElementById('dr-hud') || document.body).appendChild(prompt);
   }
@@ -75,7 +80,7 @@
     const v = DR.view || {}, sp = v.nearSpot;
     if ((sp && (!sp.status || sp.status === 'ok')) || v.nearDock) return null;      // flag2 / flag3 thắng flag5
     let best = null, bd = 1e9;
-    for (const p of P) {
+    for (const p of P.concat(BOTTLES)) {
       const d = dist(p);
       if (d > p.r + BOAT_R || d >= bd || !enabled(p)) continue;
       best = p; bd = d;
@@ -85,12 +90,26 @@
 
   function start(p) {
     if (!p || p !== near || !idle() || !root.DRDialogue) return false;
+    if (p.bottle) return collect(p);
     active = p;
     DR.emit('poiInspect', p.id, p.node);                                    // người nghe âm thanh / thống kê (chưa ai dùng)
     const done = () => { active = null; lockUntil = performance.now() + REENABLE * 1000; };
     let r = null;
     try { r = DRDialogue.start(p.node, { onEnd: done }); } catch (e) { console.warn('[poi] dialogue failed:', e.message); }
     if (!r && active && !DRDialogue.isOpen()) done();                       // node rỗng: DRYarn.run đã gọi onEnd, hoặc lỗi
+    return true;
+  }
+
+  // ItemPOIHandler.OnPressComplete: AddItemById(itemPOI.Harvestable.GetFirstItem().id) rồi OnHarvested(deductFromStock: true)
+  function collect(b) {
+    if (!root.DRYarn || !DRYarn.addItem || taken(b)) return false;
+    DRYarn.addItem(b.item);
+    (DR.s.itemPoiTaken = DR.s.itemPoiTaken || {})[b.id] = 1;
+    if (root.DRAudio) { try { DRAudio.play('Organic Item - Pick up', 0.8); } catch (e) { /* âm thanh không bắt buộc */ } }
+    DR.emit('poiCollect', b.id, b.item);
+    if (DR.save) DR.save();
+    lockUntil = performance.now() + REENABLE * 1000;
+    near = null;
     return true;
   }
 
@@ -135,7 +154,7 @@
     const dt = Math.min(0.1, last ? (now - last) / 1000 : 0.016); last = now;
     if (!host || !root.DR || !DR.s) return;
     const want = idle() ? pick() : null;
-    if (want !== near) { near = want; if (near) shown = near; }
+    if (want !== near) { near = want; if (near) { shown = near; setPrompt(near); } }
     const target = near ? 1 : 0;
     if (target !== to) { to = target; from = prop; tw = 0; }
     if (prop !== to) {
@@ -147,6 +166,15 @@
     const on = !!near && !hudOn;
     if (prompt.classList.contains('on') !== on) prompt.classList.toggle('on', on);
     renderMarker();
+  }
+
+  let promptKind = '';
+  function setPrompt(p) {
+    const k = p.bottle ? 'collect' : 'inspect';
+    if (k === promptKind) return;
+    promptKind = k;
+    prompt.innerHTML = k === 'collect' ? '<b data-orig="' + ((root.DR_STR && DR_STR['prompt.collect-item']) || 'Collect Item') + '">Nhặt <kbd>F</kbd></b>'
+      : '<b data-orig="' + ((root.DR_STR && DR_STR['prompt.inspect']) || 'Inspect') + '">Kiểm tra <kbd>F</kbd></b>';
   }
 
   function renderMarker() {
@@ -171,9 +199,9 @@
 
   root.DRPoi = {
     start: id => start(P.find(p => p.id === id)),
-    enabled, points: P,
+    enabled, points: P, bottles: BOTTLES, collect: id => collect(BOTTLES.find(b => b.id === String(id))),
     _debug: () => ({ near: near && near.id, shown: shown && shown.id, prop: +prop.toFixed(3), active: active && active.id, prompt: !!prompt && prompt.classList.contains('on'),
       marker: mk ? { opacity: +mk.style.opacity || 0, w: parseFloat(mk.style.width) || 0 } : null, points: P.length,
-      enabledNow: root.DR && DR.s ? P.filter(enabled).map(p => p.id) : [] })
+      enabledNow: root.DR && DR.s ? P.filter(enabled).map(p => p.id) : [], bottlesLeft: root.DR && DR.s ? BOTTLES.filter(enabled).map(b => b.id) : [] })
   };
 })(window);

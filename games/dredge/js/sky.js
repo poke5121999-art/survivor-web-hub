@@ -846,7 +846,7 @@ void main(){
       const st = root.DRBoat && DRBoat.stats;
       const local = localSanity(ctx.x, ctx.z, day, s.lightsOn, st);
       const sleeping = !!(S.forced && S.forced.sleep);
-      const rate = R.sanityRate(CFG, day, local, 0, sleeping, 0);
+      const rate = R.sanityRate(CFG, day, local, 0, sleeping, root.DRBooks ? DRBooks.mod('SANITY_RESILIENCE') : 0);   // ResearchedSanityModifier
       s.sanity = R.stepSanity(s.sanity, rate, dt, tmod);
     }
 
