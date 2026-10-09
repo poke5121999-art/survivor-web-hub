@@ -73,7 +73,8 @@ $$;
 create table if not exists public.hub_feedback_admins (email text primary key check (email = lower(email)));
 alter table public.hub_feedback_admins enable row level security;
 revoke all on public.hub_feedback_admins from anon, authenticated;
-insert into public.hub_feedback_admins (email) values ('poke5121999@gmail.com'), ('thuongbui.hlo@gmail.com') on conflict do nothing;
+insert into public.hub_feedback_admins (email) values ('poke5121999@gmail.com'), ('thuongbui.hlo@gmail.com'), ('tamphan@gmail.com')
+  on conflict do nothing;
 
 -- Email lấy từ auth.users theo auth.uid() chứ không từ claim trong JWT, để chỉ tài khoản có thật mới khớp.
 create or replace function public.fb_can_manage(p_key text)
