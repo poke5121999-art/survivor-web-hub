@@ -23,6 +23,7 @@ module.exports = h => {
       h.check('yinyang Quyền (L): lao + nổ diện rộng ' + cf.skill0DashDamage + ', quái có phù kích thêm nhát tổ hợp ' + cf.skill0ComboDamage + ' và làm mới hồi chiêu Dương [ĐO]; Âm −10, Dương +10', ys.length > 0 && ys.every(d => d === cf.skill0DashDamage || d === cf.skill0DashDamage * 2) && yc.length > 0 && yc.every(d => d === cf.skill0ComboDamage || d === cf.skill0ComboDamage * 2) && yy1.yin === 50 && yy1.yang === 50 && yy1.cd === 0, 'đòn ' + ys.join(',') + ' · tổ hợp ' + yc.join(',') + ' · ' + JSON.stringify(yy1));
       // Âm đầy (100): lần dùng Phù kế tiếp thu phù thành bão, Âm +10 vượt 100 nên cả hai về 50 [ĐO UpdateYinYangValue].
       await p.evaluate(() => { const pl = SK.G.player; pl._yy.yin = 100; pl._yy.yang = 0; pl.skillCd = 0; });
+      await h.standNear(p, 30);   // Quyền lao xuyên qua hàng quái: dựng lại thế đứng; bão quét bán kính 40 px quanh người nên đứng 30 px
       await h.resetDmg(p);
       await h.pressK(p); await h.sleep(500);
       const st = await p.evaluate(() => ({ yin: SK.G.player._yy.yin, yang: SK.G.player._yy.yang, storm: !!SK.G.player._yy.storm, recall: SK.G.player._yy.fus.filter(f => f.st === 'recall').length }));

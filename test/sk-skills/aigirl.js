@@ -7,6 +7,8 @@ module.exports = h => {
       const r = await h.real(p, 'aigirl', 'iridescent_resonance');
       const cf = await p.evaluate(() => SK_SKILLS86.heroes.aigirl.ctrlFields);
       await tough(p); await h.standNear(p, 70);
+      // Quái cách nhau ≥ 56 px: tên lửa nổ lan chỉ trúng con mình nhắm (số lần trúng = số quả).
+      await p.evaluate(() => { const G = SK.G, pl = G.player, es = G.enemies.filter(e => e.st !== 'dead'), ux = Math.cos(pl.aim), uy = Math.sin(pl.aim); es.sort((a, b) => Math.hypot(a.x - pl.x, a.y - pl.y) - Math.hypot(b.x - pl.x, b.y - pl.y)); es.forEach((e, i) => { const x = pl.x + ux * (70 + 56 * i), y = pl.y + uy * (70 + 56 * i); if (!SK.world.solidAt(G.map, x, y) && !SK.world.solidAt(G.map, x, y - 5)) { e.x = x; e.y = y; } }); });
       // Dưới 1 ô điện: chỉ tên lửa, không tốn điện.
       await p.evaluate(() => { SK.G.player._ai = { bat: 10, ph: null, beam: null }; });
       await h.pressK(p); await h.sleep(1700);
@@ -40,6 +42,9 @@ module.exports = h => {
       const bm = await p.evaluate(() => { const b = SK.G.player._ai.beam; return b ? { addDmg: b.addDmg, spent: b.spent, bat: SK.G.player._ai.bat } : null; });
       const lz2 = h.hitsOf(await h.snap(p), 'laser');
       h.check('aigirl laser: sát thương +1 mỗi ' + cf.laserAddDamage + ' điện đã tiêu [ĐO UpdateLaser.MoveNext]', bm && bm.addDmg >= 1 && h.near(bm.addDmg * cf.laserAddDamage + bm.spent, 100 - bm.bat, 0.01) && lz2.some(x => x === cf.laserBaseDamage + 1), JSON.stringify(bm) + ' · tia ' + lz2.slice(-6).join(','));
+      // Hoãn nhịp tên lửa tự nhiên (đồng hồ chạy theo thời gian thật của ca) rồi chờ đàn đã bay hạ cánh, để số quả nổ chỉ là của lần ép dưới đây.
+      await p.evaluate(() => { SK.G.player._ai.beam.missT = -20; });
+      await h.sleep(1500);
       await h.resetDmg(p);
       await p.evaluate(() => { SK.G.player._ai.beam.missT = 2.45; });
       await h.sleep(900);

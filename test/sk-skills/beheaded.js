@@ -24,7 +24,7 @@ module.exports = h => {
   const setup = (p, L, a, b) => p.evaluate(([L, a, b]) => {
     const G = SK.G, pl = G.player, es = G.enemies.filter(e => e.st !== 'dead' && e.st !== 'spawn');
     pl.x = L.x; pl.y = L.y; pl.aim = L.a; pl.face = Math.cos(L.a) >= 0 ? 1 : -1; pl.skillCd = 0; pl.skillT = 0; pl.invulT = 0;
-    const put = (e, d) => { e.x = L.x + Math.cos(L.a) * d; e.y = L.y + Math.sin(L.a) * d; e.st = 'stun'; e.stT = 99; e._stunT = 99; e.cd = 99; };
+    const put = (e, d) => { e.x = L.x + Math.cos(L.a) * d; e.y = L.y + Math.sin(L.a) * d; e.st = 'stun'; e.stT = 99; e._stunT = 99; e.cd = 99; e.hp = e.hpMax = 900; };   // máu cao: đòn chí mạng không giết A giữa chừng bay
     G.enemies.forEach(e => { e._role = ''; });
     es.forEach(e => { e.x = -300; e.y = -300; e.st = 'idle'; e.stT = 99; e.cd = 99; });   // quái thừa đứng ngoài bản đồ để khỏi chắn làn
     put(es[0], a); es[0]._role = 'A';

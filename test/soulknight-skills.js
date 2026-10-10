@@ -45,6 +45,32 @@ async function standNear(p, dist) {
     const es = G.enemies.filter(e => e.st !== 'dead' && e.st !== 'spawn');
     if (!es.length) return false;
     es.sort((a, b) => Math.hypot(a.x - pl.x, a.y - pl.y) - Math.hypot(b.x - pl.x, b.y - pl.y));
+    // Hiện trường cố định: người chơi đứng yên tại chỗ, các quái dàn hàng ngang trước mặt (con đầu cách `d` px trên trục nhắm, các con sau lệch 36/72 px hai bên), thử 4 hướng theo thứ tự cố định; quái đứng yên. Không phụ thuộc chỗ sinh / AI ngẫu nhiên.
+    const row = es.slice().sort((a, b) => (a.id || 0) - (b.id || 0) || String(a.type || a.id).localeCompare(String(b.type || b.id)));
+    const free = (x, y) => !(W.solidAt(G.map, x, y) || W.solidAt(G.map, x - 6, y) || W.solidAt(G.map, x + 6, y) || W.solidAt(G.map, x, y - 5));
+    const base = es[0];
+    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    // Hướng bắt đầu từ hướng quái gần nhất đang ở (tránh dời người chơi xa), rồi tới các hướng còn lại.
+    const spots = [];
+    for (const [ux, uy] of dirs) for (const [cx, cy] of [[base.x, base.y], [pl.x, pl.y]]) spots.push([ux, uy, cx, cy]);
+    for (const [ux, uy, cx, cy] of spots) {
+      // người chơi ở (cx,cy) lùi về phía sau hàng quái
+      const px = cx - ux * d, py = cy - uy * d;
+      if (!free(px, py)) continue;
+      // đường đạn thoáng: dải rộng ±12 px từ người tới 90 px sau con đầu, không chạm tường (đạn/tia đặt sát tường bị mất, kết quả đổi theo chỗ đứng)
+      let clear = true;
+      for (let t = -12; t <= d + 90 && clear; t += 6) for (const w of [-12, 0, 12]) if (!free(px + ux * t - uy * w, py + uy * t + ux * w)) { clear = false; break; }
+      if (!clear) continue;
+      // con 0 trên trục nhắm cách d; con 1 ngay sau nó (22 px, cho tia xuyên); con 2, 3 lệch 36 px hai bên, ngoài đường đạn
+      const ax = [0, 22, 10, 10], lt = [0, 0, 36, -36];
+      const pos = row.map((e, i) => [cx + ux * ax[i % 4] - uy * lt[i % 4], cy + uy * ax[i % 4] + ux * lt[i % 4]]);
+      if (!pos.every(([x, y]) => free(x, y) && W.los(G.map, px, py - 6, x, y - 6))) continue;
+      pl.x = px; pl.y = py; pl.face = ux < 0 ? -1 : 1; pl.aim = Math.atan2(uy, ux);
+      row.forEach((e, i) => { e.x = pos[i][0]; e.y = pos[i][1]; });
+      for (const q of G.enemies) { q.cd = 99; if (q.st !== 'spawn' && q.st !== 'dead') { q.st = 'idle'; q.stT = 99; } }
+      SK_GAME.debug.seed(20260929);
+      return true;
+    }
     for (const e of es) {
       for (const [dx, dy] of [[-d, 0], [d, 0], [0, d], [0, -d], [-d * 0.7, d * 0.7], [d * 0.7, d * 0.7]]) {
         const x = e.x + dx, y = e.y + dy;
@@ -76,14 +102,29 @@ const resetDmg = p => p.evaluate(() => { window._skDmg = 0; window._skHits = [];
 async function enterBattle(p, folder, slot) {
   await p.evaluate(([f, s]) => { SK_GAME.debug.seed(20260929); SK.setSkillSlot(f, s); SK.startRun(f); SK_GAME.debug.god(true); SK_GAME.debug.pet(false); }, [folder, slot]);
   await until(p, () => SK_GAME.state === 'stage', null, 3000);
-  await p.evaluate(() => SK_GAME.debug.teleportTo('battle'));
+  // Phòng thử dùng bộ quái mẫu cố định (bộ mà seed 20260929 sinh ra khi các ca kiểm được đo, rev 20261010h): ca kiểm không trôi
+  // theo cách game bốc quái (seed theo phòng, nội dung phòng mới...).
+  await p.evaluate(() => {
+    const G = SK.G, base = G.buildWaves;
+    G.buildWaves = r => r.type === 'battle' ? [['e_boar02', 'e_fire_sacrifice', 'e_orc01', 'e_boar01']] : base(r);
+    SK_GAME.debug.teleportTo('battle');
+  });
   const ok = await until(p, () => SK_GAME.room != null && SK_GAME.rooms[SK_GAME.room].state === 'locked' && SK.G.enemies.some(e => e.st !== 'spawn' && e.st !== 'dead'), null, 5000);
   await sleep(250);
   await resetDmg(p);
+  // Thử phá luật nội tại: SK_BREAK=_hitBullet giấu viên đạn trúng quái khỏi bộ nghe enemyHit (nội tại cộng năng lượng của Thương Thủ không còn cộng).
+  if ((process.env.SK_BREAK || '').split(',').includes('_hitBullet')) await p.evaluate(() => { Object.defineProperty(SK.G, '_hitBullet', { get() { return null; }, set() {}, configurable: true }); });
   return ok;
 }
 
-async function pressK(p) { await p.keyboard.down('KeyK'); await sleep(40); await p.keyboard.up('KeyK'); }
+// Giữ phím tới khi trò chơi chạy được ≥ 2 khung (G.t tiến ≥ 0.03 s), tối thiểu 40 ms: máy tải cao mà khung treo quá 40 ms thì nhấn-nhả lọt giữa hai khung và bị mất.
+async function tap(p, code) {
+  const t0 = await p.evaluate(() => (window.SK && SK.G && SK.G.t) || 0);
+  await p.keyboard.down(code); await sleep(40);
+  await until(p, t => ((window.SK && SK.G && SK.G.t) || 0) - t >= 0.03, t0, 600);
+  await p.keyboard.up(code);
+}
+async function pressK(p) { await tap(p, 'KeyK'); }
 // Trạng thái ngay sau start() của kỹ năng đang cầm (lần bấm K kế tiếp): skillT, cd tay hai... — đọc sau khi bấm thì đồng hồ đã chạy.
 const armStart = p => p.evaluate(() => {
   const pl = SK.G.player, sd = SK.SKILLS[pl.h.skill.id], f = sd.start;
@@ -583,7 +624,7 @@ const CASES = {
 };
 
 // Ca kiểm của từng nhân vật khác: test/sk-skills/<thư mục>.js xuất (h) => ({ 'thư mục/ô': async (p, id) => {...} }).
-const H = { check, sleep, until, near, standNear, snap, resetDmg, pressK, seq, real, mb, hitsOf };
+const H = { tap, check, sleep, until, near, standNear, snap, resetDmg, pressK, seq, real, mb, hitsOf };
 const XDIR = path.join(__dirname, 'sk-skills');
 if (fs.existsSync(XDIR)) for (const f of fs.readdirSync(XDIR).sort()) if (/\.js$/.test(f)) Object.assign(CASES, require(path.join(XDIR, f))(H));
 
@@ -602,6 +643,8 @@ if (fs.existsSync(XDIR)) for (const f of fs.readdirSync(XDIR).sort()) if (/\.js$
     await p.evaluate(() => SK.skills86Apply());
   }
   await p.evaluate(() => SK.on('enemyHit', (G, e, d) => { window._skDmg = (window._skDmg || 0) + d; (window._skHits = window._skHits || []).push([d, G._skHit || 'weapon']); for (const k in (e._db || {})) (window._skDb = window._skDb || {})[k] = 1; }));
+  // Chứng minh ca không rỗng: SK_BREAK=id1,id2 làm hỏng luật các kỹ năng đó (start rỗng) — ca tương ứng phải HỎNG.
+  if (process.env.SK_BREAK) await p.evaluate(ids => { for (const id of ids.split(',')) if (SK.SKILLS[id]) SK.SKILLS[id].start = () => {}; }, process.env.SK_BREAK);
   const only = process.argv.slice(2);
   for (const [key, fn] of Object.entries(CASES)) {
     const [folder, slot] = key.split('/');

@@ -5,7 +5,7 @@ module.exports = h => {
   const poke = p => p.evaluate(() => { const pl = SK.G.player; pl.invulT = 0; return SK.hurtPlayer(SK.G, 3); });
   const has = (arr, v) => arr.some(d => d === v || d === v * 2);   // trừ chí mạng
   const C = (p, f) => p.evaluate(f => SK_SKILLS86.heroes.lancer.ctrlFields[f], f);
-  const pressL = async p => { await p.keyboard.down('KeyL'); await new Promise(r => setTimeout(r, 40)); await p.keyboard.up('KeyL'); };
+  const pressL = p => h.tap(p, 'KeyL');
   // Ghi mọi debuff đã gán (enemyHit chỉ thấy debuff có sẵn lúc trúng đòn nên bỏ lỡ cảm điện gán ngay sau đòn).
   const watchDb = p => p.evaluate(() => { const K = SK.skillKit; if (!K._dbWrapped) { const o = K.debuff; K.debuff = function (G, e, kind, ...r) { (window._dbApp = window._dbApp || {})[kind] = 1; return o.call(this, G, e, kind, ...r); }; K._dbWrapped = 1; } window._dbApp = {}; });
   const applied = (p, k) => p.evaluate(k => !!(window._dbApp && window._dbApp[k]), k);
@@ -41,7 +41,11 @@ module.exports = h => {
       check('lancer dragon_lance 2 Loạn Vô Song: chạy nhanh x1.2 [ĐO RotateAddSpeed], thương xoay ' + rd + ' + gió ' + wd + ' [ĐO], ' + r.dur + ' s', near(s2.move, 1.2, 0.01) && has(hitsOf(s2b, 'skill'), rd) && has(hitsOf(s2b, 'skill'), wd) && s2.skillT > 0.5, 'move ' + s2.move + ' · đòn ' + hitsOf(s2b, 'skill').join(',') + ' · skillT ' + s2.skillT.toFixed(2));
       await standNear(p, 28); await resetDmg(p);
       await p.evaluate(() => { const pl = SK.G.player; pl.buffs = []; pl._ln.energy = 0; });
-      await pressK(p); await sleep(200);
+      await pressK(p);
+      // Hai thương phụ xoè ±20° quanh hướng chém [ĐO ThrowSpearAngle] và bay ra lúc 0,25 s: ngay sau khi bấm, xếp ba con ở -20°/0°/+20° quanh đúng hướng
+      // chém đã chốt (tính từ tâm thân, cách 60/28/60 px) để mỗi thương phụ bay trúng một con (không phụ thuộc cách nhắm tự động chọn mục tiêu).
+      await p.evaluate(() => { const G = SK.G, pl = G.player, a0 = pl._dl && pl._dl.ang; if (a0 == null) return; const cx = pl.x, cy = pl.y - 7; const es = G.enemies.filter(e => e.st !== 'dead'); [[0, 28], [20, 60], [-20, 60]].forEach(([deg, d], i) => { const e = es[i]; if (!e) return; const a = a0 + deg * Math.PI / 180; e.x = cx + Math.cos(a) * d; e.y = cy + Math.sin(a) * d + e.hb.off[1] * e.scale; e.hp = e.hpMax = 900; e.st = 'idle'; e.stT = 99; }); });
+      await sleep(200);
       await seq(p, 'lancer_0c', 6, 60);
       await sleep(400);
       const s3 = await snap(p);
@@ -139,9 +143,11 @@ module.exports = h => {
       await pressK(p); await sleep(200);
       await p.evaluate(() => {
         const G = SK.G, pl = G.player, a = pl._ld.ang;
-        G.bullets.push({ side: 'p', kind: 'pb', x: pl.x + Math.cos(a) * 30, y: pl.y - 7 + Math.sin(a) * 30, vx: 0, vy: 0, h: 7, dmg: 5, r: 2, life: 1, ang: a, pierce: 0 });
+        // đặt đạn thử ở chỗ trống nhất trên trục trận (đạn đặt trong tường bị xoá ngay)
+        const W = SK.world, d = [30, 26, 34, 22, 38, 18, 42].find(d => !W.solidAt(G.map, pl.x + Math.cos(a) * d, pl.y + Math.sin(a) * d) && !W.solidAt(G.map, pl.x + Math.cos(a) * d, pl.y - 7 + Math.sin(a) * d)) || 30;
+        G.bullets.push({ side: 'p', kind: 'pb', x: pl.x + Math.cos(a) * d, y: pl.y - 7 + Math.sin(a) * d, vx: 0, vy: 0, h: 7, dmg: 5, r: 2, life: 3, ang: a, pierce: 0 });
       });
-      await sleep(120);
+      await until(p, () => SK.G.bullets.some(q => q._ld3), null, 1500);   // chờ theo điều kiện: máy tải cao thì khung hình thưa
       const bd = await p.evaluate(() => { const b = SK.G.bullets.find(q => q._ld3); return b ? b.dmg : null; });
       await seq(p, 'lancer_2d', 6, 100);
       await until(p, () => SK.G.player.skillT <= 0, null, 3000);

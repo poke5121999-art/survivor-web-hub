@@ -26,6 +26,9 @@ module.exports = h => ({
     const r = await h.real(p, 'doctor', 'he_electric_orb');
     await p.evaluate(() => { for (const e of SK.G.enemies) e.hp = e.hpMax = 900; });
     await h.standNear(p, 70);
+    // Tia bắn từ cầu bay cao 22 px trên người chơi, song song hướng nhắm: nâng hàng quái lên để tâm chúng nằm trên đường tia (hiện trường cố định).
+    // Cả bốn con nằm một hàng thẳng trên trục tia (nhắm tự động cũng chỉ thấy hàng đó).
+    await p.evaluate(() => { const es = SK.G.enemies.filter(e => e.st !== 'dead'), x0 = Math.min(...es.map(e => e.x)), y0 = Math.min(...es.map(e => e.y)); es.forEach((e, i) => { e.x = x0 + 22 * i; e.y = y0 - 15; }); });
     await h.pressK(p); await h.sleep(900);
     const s = await h.snap(p);
     const o = await p.evaluate(() => { const pl = SK.G.player, o = pl._orb; return o ? { balls: o.balls.length, shields: o.shields } : null; });

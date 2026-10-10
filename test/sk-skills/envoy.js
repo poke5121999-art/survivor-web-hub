@@ -5,8 +5,10 @@ module.exports = h => {
   const fresh = async p => {
     await p.evaluate(() => { SK_GAME.debug.seed(20260930); SK.setSkillSlot('envoy', 0); SK.startRun('envoy'); SK_GAME.debug.god(true); SK_GAME.debug.pet(false); });
     await h.until(p, () => SK_GAME.state === 'stage', null, 3000);
-    await p.evaluate(() => SK_GAME.debug.teleportTo('battle'));
+    // Bộ quái mẫu cố định như enterBattle của bộ kiểm chính.
+    await p.evaluate(() => { const G = SK.G, base = G.buildWaves; G.buildWaves = r => r.type === 'battle' ? [['e_boar02', 'e_fire_sacrifice', 'e_orc01', 'e_boar01']] : base(r); SK_GAME.debug.teleportTo('battle'); });
     await h.until(p, () => SK_GAME.room != null && SK_GAME.rooms[SK_GAME.room].state === 'locked' && SK.G.enemies.filter(e => e.st !== 'spawn' && e.st !== 'dead').length >= 3, null, 5000);
+    await p.evaluate(() => { for (const e of SK.G.enemies) e.hp = e.hpMax = 900; });   // quái trâu: lửa/cháy của các ca trước không giết hết quái
     await h.sleep(250); await h.resetDmg(p);
   };
   const cast = async (p, kind) => {
@@ -33,6 +35,7 @@ module.exports = h => {
         EL.fire.count === 12 && EL.fire.speed === 15 * 16 && EL.fire.jumps === 2 && EL.fire.first === 6 && hitsOf(f, 'fireball').length >= 1 && hitsOf(f, 'fireball').every(d => d === 6) && f.dbEver.indexOf('fire') >= 0 && hitsOf(f, 'dot').length >= 1 && hitsOf(f, 'dot').every(d => d === 2),
         'cầu ' + hitsOf(f, 'fireball').join(',') + ' · dot ' + hitsOf(f, 'dot').join(',') + ' · db ' + f.dbEver.join(','));
       // Đòn vũ khí thật lúc đang duy trì: cứ 0,2 s một quả bay từ người tới quái vừa trúng.
+      await standNear(p, 60);   // phím ↑ chọn nguyên tố làm người trôi vài px theo độ trễ khung: dựng lại thế đứng thẳng hàng trước khi bắn
       await resetDmg(p); await fireFor(p, 500); await sleep(600);
       const fw = await snap(p);
       check('envoy elemental_affinity: đòn vũ khí trúng thì quái cháy và một cầu lửa ' + EL.fire.first + ' bay tới (cách ≥ ' + EL.fire.gap + ' s) [ĐO OnPlayerBulletHitEnemyHandler, fireBulletInterval]',

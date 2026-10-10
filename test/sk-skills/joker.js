@@ -58,7 +58,8 @@ module.exports = h => {
       await until(p, () => SK.G.player.skillT === 0, null, 3000);
       const s2 = await snap(p);
       const armor2 = await poke(p);
-      await sleep(500);
+      const tg = await p.evaluate(() => SK.G.t);
+      await until(p, t => SK.G.t - t >= 0.55, tg, 4000);   // 0,5 s của ĐỒNG HỒ TRÒ CHƠI (máy tải thì khung thưa, 500 ms thật chưa đủ)
       const armor3 = await poke(p);
       const s2b = await snap(p);
       await seq(p, 'joker_1', 6, 60);

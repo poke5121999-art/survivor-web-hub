@@ -70,3 +70,4 @@ ts	phase	decision	why	evidence	result
 2026-10-10T08:25:17Z	ship	đẩy 16935261 rev 20261010s, kiểm trên Pages	xong = kiểm trên bản thật	SK_URL=Pages: defence 26/0 smoke 16/0	VERIFIED
 2026-10-10T08:43:46Z	dnpc	Lò Đúc Lại, Lò Khởi Nguyên, Lò Luyện Dung Hợp, Thầy Huấn Luyện (agent); script đẩy chung tools/ship.sh	INVENTORY mục 7	test/soulknight-dnpc.js
 2026-10-10T08:43:46Z	ship	đẩy 2cfca363 rev 20261010t, kiểm trên Pages	xong = kiểm trên bản thật	SK_URL=Pages: dnpc 41/0 rooms 69/0 smoke 16/0	VERIFIED
+2026-10-10T08:45:10Z	skills-test	bộ skills tự dựng hiện trường (agent): standNear seed + quái cố định, pressK giữ ≥2 khung, sửa 11 tệp ca	skills hỏng ~15 sau rev i do trận ngẫu nhiên; seed theo phòng đã làm ở game	test/soulknight-skills.js 479/1 hai lần (1 = alchemist sẵn có); SK_BREAK làm hỏng đúng ca

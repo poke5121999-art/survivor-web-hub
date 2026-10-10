@@ -7,7 +7,7 @@ module.exports = h => {
     const G = SK.G, pl = G.player, W = SK.world;
     // hướng còn trống trong 60 px (đạn chạm tường là mất)
     let th = 0;
-    for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; if ([10, 25, 40, 52, 60].every(d => !W.solidAt(G.map, pl.x + Math.cos(a) * d, pl.y - 7 + Math.sin(a) * d + 8))) { th = a; break; } }
+    for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; if ([10, 25, 40, 52, 60].every(d => !W.solidAt(G.map, pl.x + Math.cos(a) * d, pl.y - 7 + Math.sin(a) * d + 8)) && [10, 14, 25, 40, 52].every(d => G.enemies.every(e => e.st === 'dead' || Math.hypot(e.x - (pl.x + Math.cos(a) * d), e.y - (pl.y + Math.sin(a) * d)) > 16))) { th = a; break; } }
     G.bullets.push({ side, kind: 'orb', x: pl.x + Math.cos(th) * dx, y: pl.y - 7 + Math.sin(th) * dx, h: 8, vx: 1.5, vy: 0, ang: 0, dmg: side === 'e' ? 2 : 25, repel: 0, r: 3, life: 9, [tag]: 1, hits: [], pierce: 0 });
   }, [side, dx, tag]);
   const emitHit = (p, dmg) => p.evaluate(d => SK.emit('enemyHit', SK.G, SK.G.enemies.find(e => e.st !== 'dead'), d || 1, false), dmg);
@@ -137,7 +137,7 @@ module.exports = h => {
     h.check('warliege dark_sovereign: Sục Sôi lần 3 nhảy, đáp đất vòng 12 + nhát 4 [ĐO skill2CircleDamage, skill2JumpSlashDamage]', h.hitsOf(s6).some(d => d === 12 || d === 24) && h.hitsOf(s6).some(d => d === 4 || d === 8), 'đòn ' + h.hitsOf(s6).join(','));
     // mỗi đòn đánh thường chạy chuỗi Trảm Kích bay: dashCount vừa đặt useCount 3 nên chuỗi kế là lần ≥ 3: nhát bay 3 + 3 = 6, vòng 12 + 3 = 15
     await h.until(p, () => SK.G.player.skillT <= 0, null, 3000);
-    await tank(p); await h.standNear(p, 20); await h.resetDmg(p);
+    await tank(p); await h.standNear(p, 8); await h.resetDmg(p);   // gần sát (8 px): nhát bay đẩy quái ra, để vòng xoay (bán kính 27 px) vẫn với tới
     await p.evaluate(() => { const G = SK.G, pl = G.player; pl._dsAtk = 0; pl._dsFly = null; pl._dsUse = 3; pl._fs.en = 20; SK.emit('fire', G, pl, pl.weapons[pl.cur]); });
     await h.sleep(900);
     const s7 = await h.snap(p);

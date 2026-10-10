@@ -97,6 +97,7 @@ module.exports = h => {
       const r = await real(p, 'miner', 'sandworm_storm');
       const gmax = await ctrl(p, 'skill2MaxPassiveEnergy'), gd = await ctrl(p, 'giantWormDamage'), add = await ctrl(p, 'giantWormDamageAddPerRelease');
       const hyperAdd = await ctrl(p, 'skill3HyperMoveSpeedAdd');
+      await p.evaluate(() => { for (const e of SK.G.enemies) e.hp = e.hpMax = 900; });   // quái trâu: sâu nhỏ 3,3 s không giết hết quái trước khi sâu khổng lồ trồi
       await standNear(p, 45);
       await p.evaluate(() => { SK.G.player.energy = SK.G.player.energyMax; });
       const en0 = (await snap(p)).en;
@@ -127,9 +128,11 @@ module.exports = h => {
       const dist = Math.hypot(l.px - a.px, l.py - a.py);
       check('miner sandworm_storm: đứng ngay tâm sâu thì bị hất bay 4 đơn vị (64 px, ngắn hơn nếu vướng tường), bất tử khi bay [ĐO _giantWormLaunchMinDistance 4, duration 0,5]', fly === 1 && imm === false && dist > 24 && dist <= 4 * 16 + 4, 'bay ' + fly + ' · đi ' + dist.toFixed(0) + ' px');
       // Hết chế độ (xả về 0 trong 6 s) rồi vào lại: lần hai +5.
+      await p.evaluate(() => { SK.G.player._sw.spawnT = 99; SK.G.player._sw.giantT = 99; });   // quái trâu còn sống: ngừng gọi sâu, chờ sâu đang trồi cắn hết lúc còn Khổng Lồ (khi đó không cộng thanh)
+      await sleep(600);
       await p.evaluate(() => { SK.G.player._sw.hyperT = 0.01; });
-      await sleep(300);
-      const off = await p.evaluate(() => { const st = SK.G.player._sw; return { hyper: st.hyper, g: st.gauge, mv: SK.G.player.moveMul || 1 }; });
+      // đọc ngay trong khung hình đầu tiên sau khi hết chế độ (trong trang, không qua độ trễ của bộ kiểm); sâu nhỏ cắn quái còn sống sau đó cộng lại thanh
+      const off = await p.evaluate(() => new Promise(res => { const t0 = performance.now(), f = () => { const st = SK.G.player._sw; if (!st.hyper || performance.now() - t0 > 3000) res({ hyper: st.hyper, g: st.gauge, mv: SK.G.player.moveMul || 1 }); else requestAnimationFrame(f); }; f(); }));
       await p.evaluate(g => { const pl = SK.G.player; pl._sw.gauge = g; pl._sw.spawnT = 99; pl._sw.fly = null; }, gmax);
       await sleep(100);
       const has = await standNear(p, 45);

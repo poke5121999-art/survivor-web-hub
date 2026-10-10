@@ -64,6 +64,10 @@ module.exports = h => {
       const nw = h.hitsOf(s1, 'wheel').length, nx = h.hitsOf(s1, 'wheelx').length;
       h.check('astrologist rota_fortunae: mỗi lần bánh trúng +1 Tinh Năng, mỗi đòn thêm +1 [ĐO Skill2HitEnemy, CreateAstrolabeBullet]', nw >= 1 && en >= nw && en <= nw + nx, 'Tinh Năng ' + en + ' · đòn bánh ' + nw + ' · đòn thêm ' + nx);
       // đủ 3 lượt nguyền bằng Bánh Xe: bánh thêm ×1,1, quay +60, bay thêm 0,125 s, gây thêm 12
+      // Bánh mới (quái đã xếp ra xa đường bay) để chỉ có 3 đòn ép tay làm bánh to ra, không lẫn các nhát chạm tự nhiên của lượt trước.
+      await p.evaluate(() => { const G = SK.G, pl = G.player; SK.endSkill(G, pl); pl.skillCd = 0; if (pl._ch) pl._ch.n = pl._ch.max; G.enemies.forEach(e => { e._curse = null; e._keep = [e.x, e.y]; e.x = pl.x + 900; e.y = pl.y; }); });
+      await h.pressK(p); await h.sleep(300);
+      await p.evaluate(() => { const G = SK.G; G.enemies.forEach(e => { if (e._keep) { e.x = e._keep[0]; e.y = e._keep[1]; } }); });
       await h.resetDmg(p);
       await p.evaluate(() => { const G = SK.G; G.enemies.forEach(e => { e._curse = null; }); });
       const before = await p.evaluate(() => { const w = SK.G.player._wheel; return { scale: w.scale, rot: w.rot, fly: w.fly, en: SK.G.player._as.en }; });
