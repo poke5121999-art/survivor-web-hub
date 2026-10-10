@@ -63,3 +63,8 @@ Nước giữa trưa vẫn sáng hơn clip khoảng 1,2 lần; thân dưới thu
 - Bẫy: hàm bọc API dùng chung phải chuyển đủ tham số; tay cầm giả trong test phải cùng hình dạng tay cầm thật (`systems: []`); nhiều quái phát `threatBanished` nên test lọc theo `source`.
 - Còn mở: R7 (Leviathan, biên thế giới, cá mập trắng) đang làm; hậu kỳ MonsterProfile còn là CSS; CPU khung tăng ~1 ms gần quái nhiều skinned mesh (R2, R3, R5) chưa tối ưu; thành tựu (Phase C), DLC sau cùng.
 - Rev e: R7 (Leviathan ở biên 1800/2000 m, chết trừ khi Hiện thân; cá mập trắng chỉ ở OPEN_OCEAN), C1 thành tựu (40 gốc, danh sách trong menu tạm dừng/màn đầu), sổ nhiệm vụ gộp bước nhiệm vụ con vào nhiệm vụ cha (`QuestDetailWindow.Init`). Pages rev d: 61/61 sau khi chạy riêng các bộ chập chờn.
+
+**Việc còn dở (ghi lúc hạn mức phiên 89%, 2026-10-10 03:45 UTC):**
+- Agent `paudit` đang chạy trong `D:\dredge-wt\paudit` (base `_base15`): bảng `D:\dredge-ref\notes\PROGRESS-AUDIT.md`, `tools/progress_audit.py`, `test/dredge-paudit.js`, sửa chỗ chặn nhỏ. Xong thì gộp bằng `python -I D:/dredge-ref/notes/merge_copy.py paudit _base15`.
+- Kiểm Pages rev `20261010e`: kết quả ở scratchpad `dr-pages7.txt`; bộ đỏ chạy riêng lại với `DR_URL`.
+- Tiếp theo: đợt clip 3 so các vùng Gale Cliffs / Stellar Basin / Twisted Strand / Devil's Spine và quái mới với clip thật; đo CPU khung gần quái nhiều skinned mesh (R2, R3, R5); DLC chỉ khi chủ dự án nói.
