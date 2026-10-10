@@ -199,27 +199,37 @@
     const v = (D().s.vars || {})[k] != null ? D().s.vars[k] : (D().s.vars || {})['_' + k];
     return v != null ? String(v) : '0';
   });
-  const title = id => fill((QUESTS[id] || {}).titleKey || id);
+  // nhiệm vụ ẩn (vd Quest_RelicSub1, SetQuestStartedSilent) không có titleKey: trả '' chứ không lộ id thô
+  const title = id => fill((QUESTS[id] || {}).titleKey || '');
   function stepText(stepId, kind) {
     const s = STEPS[stepId] || {};
     return fill(kind === 'done' ? s.completedKey : kind === 'long' ? (s.longActiveKey || s.shortActiveKey) : (s.shortActiveKey || s.longActiveKey));
   }
-  // Sổ nhiệm vụ: JournalWindow/QuestEntryUI — đang làm trước, xong sau
+  // Sổ nhiệm vụ: JournalWindow/QuestEntryUI — đang làm trước, xong sau. Nhiệm vụ con (QuestData.subquests, vd Quest_RelicSub1..5) không có dòng
+  // riêng: QuestDetailWindow.Init hiện bước của nó ngay dưới bước của nhiệm vụ cha (ShowQuestData cho cha rồi subquests.ForEach)
+  const isSub = {};
+  for (const q of Object.values(QUESTS)) for (const c of q.subquests || []) isSub[c] = true;
+  function stepsOf(id) {
+    const q = QUESTS[id], e = entries()[id], steps = [];
+    if (!q || !e || (e.state !== 'STARTED' && e.state !== 'COMPLETED')) return steps;
+    for (const sid of q.steps) {
+      const s = STEPS[sid] || {};
+      const done = e.completedStepIds.includes(sid);
+      if (done && s.hiddenWhenComplete) continue;
+      if (!done && sid !== e.activeStepId) continue;
+      if (!done && s.hiddenWhenActive) continue;
+      if (s.hideIfThisStepIsComplete && e.completedStepIds.includes(s.hideIfThisStepIsComplete)) continue;
+      steps.push({ id: sid, done, text: stepText(sid, done ? 'done' : 'long'), short: stepText(sid, 'short') });
+    }
+    return steps;
+  }
   function list() {
     const out = [];
     for (const e of Object.values(entries())) {
       const q = QUESTS[e.id];
-      if (!q || (e.state !== 'STARTED' && e.state !== 'COMPLETED')) continue;
-      const steps = [];
-      for (const sid of q.steps) {
-        const s = STEPS[sid] || {};
-        const done = e.completedStepIds.includes(sid);
-        if (done && s.hiddenWhenComplete) continue;
-        if (!done && sid !== e.activeStepId) continue;
-        if (!done && s.hiddenWhenActive) continue;
-        if (s.hideIfThisStepIsComplete && e.completedStepIds.includes(s.hideIfThisStepIsComplete)) continue;
-        steps.push({ id: sid, done, text: stepText(sid, done ? 'done' : 'long'), short: stepText(sid, 'short') });
-      }
+      if (!q || isSub[e.id] || (e.state !== 'STARTED' && e.state !== 'COMPLETED')) continue;
+      const steps = stepsOf(e.id);
+      for (const c of q.subquests || []) steps.push(...stepsOf(c));
       out.push({
         id: e.id, title: title(e.id), summary: fill(q.summaryKey), state: e.state, unseen: !!e.hasUnseenUpdate,
         resolution: e.state === 'COMPLETED' && q.resolutionKeys && q.resolutionKeys.length ? fill(q.resolutionKeys[e.resolutionIndex || 0]) : null,
