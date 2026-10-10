@@ -25,6 +25,9 @@
  *    prefab bị ghi đè bởi Activate), autoBraking (vòi thường) giảm tốc ở cuối đường theo √(2·a·dặm còn lại). Cỡ cú trúng = hộp bao thân thuyền như tentacle.js.
  *    Vật nhận vào khoang cỡ cá: size 0,5 và độ tươi đầy như js/yarn.js AddItemById.
  *
+ * Waterspout_Static (R6, chỉ Gale Cliffs: forbiddenZones loại 5 vùng kia): STATIC = đứng yên (agent tắt), sinh (0,0,30) cục bộ, sống 15 s, hay chạm 1 lần
+ * như các vòi khác; itemPool = blackmouth-salmon / oceanic-perch / black-sea-bass. Hạt + tiếng y hệt Waterspout.
+ *
  *   DRWaterspout.debug → { state(), speed(name), force(name), items() }
  */
 (function (root) {
@@ -33,7 +36,7 @@
   if (!T || !W || !EV) { root.DRWaterspout = null; return; }
   const BASEMOD = () => ((root.DR_CONFIG && DR_CONFIG.baseMovementSpeedModifier) || 10);   // GameConfigData.BaseMovementSpeedModifier
   const moveMod = () => (root.DRRules && root.DR && DR.s ? DRRules.stats(root.DR_CONFIG, DR.grid('INVENTORY'), root.DR_ITEMS).moveMod : 1);   // PlayerStats.MovementSpeedModifier (như boat.js refresh)
-  const NAME = { Waterspout: 'Waterspout', Waterspout_Corrupt: 'Waterspout_Corrupt' };
+  const NAME = { Waterspout: 'Waterspout', Waterspout_Corrupt: 'Waterspout_Corrupt', Waterspout_Static: 'Waterspout_Static' };
   const live = new Set();
   const PC = (root.DR_BOAT && DR_BOAT.colliderSize && DR_BOAT.colliderSize.player) || { center: [0, 0.376, 0], size: [1.216, 0.648, 2.529] };
 
@@ -148,7 +151,8 @@
     if (!snap) { I.done = true; I.aborted = false; return I; }                       // lịch sử vẫn ghi (không OnEventSpawnAborted)
     I.x = snap.x; I.z = snap.z;
     I.node.position.set(I.x, 0, I.z);
-    I.fx = fx(P.mode === 'CHASING' ? 'Waterspout_Corrupt' : 'Waterspout', { parent: I.node, loop: true });
+    I.fx = fx(P.mode === 'CHASING' ? 'Waterspout_Corrupt' : 'Waterspout',   // STATIC dùng hạt Waterspout (prefab Waterspout_Static trùng hệ hạt từng dòng)
+      { parent: I.node, loop: true });
     // Waterspout.prefab: GameObject GlowVortex và ConeVortex có m_IsActive 0 (chỉ bản Corrupt bật); data/particles.js (S2) vẫn chép cả hai nên tắt ở đây
     if (I.fx && P.mode !== 'CHASING') for (const s of I.fx.systems) if (s.node.name === 'GlowVortex' || s.node.name === 'ConeVortex') { s.emitting = false; s.playing = false; }
     I.voice = loopVoice(P.mode === 'CHASING' ? 'event.waterspout.corrupt' : 'event.waterspout.normal', P, I.x, I.z);
@@ -156,6 +160,7 @@
     I.free = freeSpeed(name); I.speed = I.free; I.accel = I.free * P.accelerationFactor;
     if (P.mode === 'MOVING') pickDestination(I);
     else if (P.mode === 'CHASING') seekPlayer(I);
+    // STATIC (Activate :139): navMeshAgent.enabled = false, đứng yên tại điểm navmesh gần nhất; hết 15 s (durationSec) hoặc chạm thuyền thì tắt
     live.add(I);
     return I;
   }
@@ -189,7 +194,7 @@
     }
     if (I.age > I.dur || Math.hypot(I.x - I.dest.x, I.z - I.dest.z) < 1) { requestFinish(I); return; }
     if (I.P.mode === 'CHASING') { I.repath -= dt; if (I.repath <= 0) { I.repath = I.P.repathToPlayerInterval; seekPlayer(I); } }
-    stepAgent(I, dt);
+    if (I.P.mode !== 'STATIC') stepAgent(I, dt);
     I.node.position.set(I.x, 0, I.z);
     if (I.voice && I.voice.pos) I.voice.pos(I.x, 0, I.z);
     if (!I.hit && dt > 0 && touching(I)) onHit(I);
@@ -209,7 +214,7 @@
       }
     });
   }
-  if (root.DREvents) { register('Waterspout'); register('Waterspout_Corrupt'); }
+  if (root.DREvents) { register('Waterspout'); register('Waterspout_Corrupt'); if (W.Waterspout_Static) register('Waterspout_Static'); }
 
   root.DRWaterspout = {
     debug: {

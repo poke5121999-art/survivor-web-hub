@@ -796,7 +796,7 @@ ${'#'}include <encodings_fragment>
     }
     b = { key, matId, mat, kind, F, cap: 0, g, mesh: null, data: null, n: 0, order: [], depth: null };
     b.material = makeMaterial(mat, mapId, kind);
-    grow(b, 1024);   // U8 (m3spout): trước đây 64. Lô tăng cỡ GIỮA khung (nhiều hệ chung một lô: Waterspout = LocalBottomSplashes + WorldBottomSplashes + Tornado, 237 hạt) làm mất phần lớn hạt của hệ vẽ sau; cỡ đủ lớn từ đầu thì không tăng nữa [ĐỀ XUẤT: chưa dò ra nguyên nhân trong grow()]
+    grow(b, 64);
     const mesh = new T.Mesh(g, b.material);
     mesh.frustumCulled = false;
     const q = mat.queue >= 0 ? mat.queue : (mat.sq || 3000);
@@ -820,6 +820,8 @@ ${'#'}include <encodings_fragment>
     if (b.kind === 'quad') { A('iPos', 3, 0); A('iSize', 2, 3); A('iRot', 1, 5); A('iMode', 1, 6); A('iDir', 3, 7); A('iCol', 4, 10); A('iUV', 4, 14); A('iMax', 1, 18); }
     else { A('iPos', 3, 0); A('iQ', 4, 3); A('iS', 3, 7); A('iCol', 4, 10); A('iUV', 4, 14); }
     b.data = data; b.ib = ib; b.cap = cap;
+    // three r140 chỉ gán _maxInstanceCount một lần (lần vẽ đầu, theo cỡ bộ đệm lúc đó) rồi vẽ min(instanceCount, nó): không xoá thì lô đã tăng cỡ vẫn bị cắt ở cỡ cũ
+    b.g._maxInstanceCount = undefined;
   }
 
   const MODE = { billboard: 0, stretched: 1, horizontal: 2, vertical: 3 };
@@ -884,7 +886,9 @@ ${'#'}include <encodings_fragment>
         euler(s.rx[i], s.ry[i], s.rz[i], qa);
         if (R.align === 2) qmul(s.q, qa, qa);
         D[o + 3] = -qa[0]; D[o + 4] = -qa[1]; D[o + 5] = qa[2]; D[o + 6] = qa[3];
-        D[o + 7] = w; D[o + 8] = nd.main.size3 ? h : w; D[o + 9] = nd.main.size3 ? dpt : w;
+        // cỡ theo từng trục = startSize (1 số hoặc 3D) × SizeOverLifetime từng trục khi separateAxes, kể cả lúc startSize3D tắt
+        // (SmallSplash/EndSplash của cá heo: startSize 0,5 một số, sizeOL y lên 1 ở 14 % đời còn x/z lớn dần) [pmesh]
+        D[o + 7] = w; D[o + 8] = h; D[o + 9] = dpt;
         D[o + 10] = cr; D[o + 11] = cg; D[o + 12] = cb; D[o + 13] = ca;
         D[o + 14] = u0; D[o + 15] = v0; D[o + 16] = u1; D[o + 17] = v1;
       }
@@ -990,7 +994,10 @@ ${'#'}include <encodings_fragment>
   function stats() {
     const by = {};
     for (const e of effects) { const k = e.name; by[k] = by[k] || { n: 0, particles: 0, systems: e.systems.length }; by[k].n++; by[k].particles += e.systems.reduce((a, s) => a + s.n, 0); }
-    return Object.assign({}, stat, { byName: by, ambientOn: ambient.filter(a => a.h).length, ambient: ambient.length, drawCalls: stat.batches });
+    // drawn: số hạt three vẽ thật = min(instanceCount, _maxInstanceCount) như WebGLRenderer r140
+    let drawn = 0;
+    for (const b of batches.values()) if (b.mesh.visible) drawn += Math.min(b.g.instanceCount, b.g._maxInstanceCount == null ? Infinity : b.g._maxInstanceCount);
+    return Object.assign({}, stat, { byName: by, ambientOn: ambient.filter(a => a.h).length, ambient: ambient.length, drawCalls: stat.batches, drawn });
   }
   function setGate(name, on) { gates[name] = !!on; }
   root.DRParticles = { init, update, spawn, has, names, stats, setGate, get effects() { return effects; }, get ambient() { return ambient; },

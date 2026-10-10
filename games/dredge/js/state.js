@@ -40,6 +40,13 @@
   DR.on = (ev, fn) => { (bus[ev] = bus[ev] || []).push(fn); };
   DR.emit = (ev, a, b) => { for (const fn of bus[ev] || []) fn(a, b); };
 
+  // Time.timeScale: mỗi nguồn giữ một mức (vòng chọn năng lực 0,3; cửa sổ Bản đồ/Bách khoa/chụp ảnh ~0), giờ game chạy theo mức nhỏ nhất.
+  // Chỉ đọc: trước đây ba module cùng ghi DR.timeScale và ghi đè nhau theo thứ tự rAF, có khung giờ vẫn chạy khi cửa sổ đang mở.
+  const timeHolds = new Map();
+  DR.holdTime = (id, scale) => { timeHolds.set(id, scale); };
+  DR.releaseTime = id => { timeHolds.delete(id); };
+  Object.defineProperty(DR, 'timeScale', { enumerable: true, get() { let m = 1; for (const v of timeHolds.values()) if (v < m) m = v; return m; } });
+
   DR.mode = 'title';
   DR.setMode = function (next, info) {
     if (next === DR.mode) return true;

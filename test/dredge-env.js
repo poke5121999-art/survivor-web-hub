@@ -115,7 +115,7 @@ async function round2(page, H) {
     DR.on('lightning', e => __fx.lightning.push(Object.assign({ t: performance.now() }, e)));
     DRParticles.spawn = (name, opts) => {
       __fx.spawn.push([name, JSON.parse(JSON.stringify(opts || {}))]);
-      return { alive: true, stop() { __fx.stop.push(name); }, setRate(k) { __fx.rate[name] = k; }, setRateOverTime(r) { __fx.rate[name] = r / (name === 'Rain' ? 2000 : 1000); __fx.abs[name] = r; } };
+      return { alive: true, systems: [], stop() { __fx.stop.push(name); }, setRate(k) { __fx.rate[name] = k; }, setRateOverTime(r) { __fx.rate[name] = r / (name === 'Rain' ? 2000 : 1000); __fx.abs[name] = r; } };
     };
     DRSky.weather.pin(null);
     DRSky.weather.set('Fine');

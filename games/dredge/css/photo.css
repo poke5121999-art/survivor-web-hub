@@ -1,0 +1,55 @@
+/* Chế độ chụp ảnh (js/photo.js). PhotoModeCanvas (Game.unity): khung 4 góc + lưới chia ba, lưới chuẩn 1920×1080 theo chiều cao (1 px chuẩn = 1/1080 vh). */
+/* Game canvas tắt (CameraAbility.Activate: ToggleGameCanvasShow(false)): ẩn mọi lớp DOM của HUD, chỉ chừa canvas biển và lớp chụp ảnh */
+body.dr-photo > *:not(#dr-canvas):not(#dr-photo):not(script):not(style):not(link),
+body.dr-photo > *:not(#dr-canvas):not(#dr-photo):not(script):not(style):not(link) * { visibility: hidden !important; }
+
+#dr-photo { position: fixed; inset: 0; z-index: 60; pointer-events: none; font-family: "Signika", "Segoe UI", Roboto, sans-serif; }
+#dr-photo[hidden] { display: none; }
+#dr-photo .ph-pad { position: absolute; inset: 0; pointer-events: auto; touch-action: none; cursor: none; }
+
+#dr-photo .ph-frame { position: absolute; inset: 0; transition: opacity .12s linear; }
+#dr-photo .ph-frame.off { opacity: 0; }
+#dr-photo .ph-c { position: absolute; width: 16.6667vh; height: 16.6667vh; background: url("../art/ui/sprites/Corner.webp") 0 0 / 100% 100% no-repeat; transform-origin: 0 0; }
+#dr-photo .ph-c0 { left: .9259vh; top: .9259vh; }
+#dr-photo .ph-c1 { left: calc(100% - .9259vh); top: .9259vh; transform: rotate(90deg); }
+#dr-photo .ph-c2 { left: calc(100% - .9259vh); top: calc(100% - .9259vh); transform: rotate(180deg); }
+#dr-photo .ph-c3 { left: .9259vh; top: calc(100% - .9259vh); transform: rotate(-90deg); }
+#dr-photo .ph-l { position: absolute; background-repeat: no-repeat; background-size: 100% 100%; }
+#dr-photo .ph-v1, #dr-photo .ph-v2 { top: 0; bottom: 0; width: max(1px, .3704vh); margin-left: calc(max(1px, .3704vh) / -2); background-image: url("../art/ui/sprites/Line.webp"); }
+#dr-photo .ph-v1 { left: 33.3333%; }
+#dr-photo .ph-v2 { left: 66.6667%; }
+#dr-photo .ph-h1, #dr-photo .ph-h2 { left: 0; right: 0; height: max(1px, .3704vh); margin-top: calc(max(1px, .3704vh) / -2); background-image: url("../art/ui/sprites/Line_Horizontal.webp"); }
+#dr-photo .ph-h1 { top: 33.3333%; }
+#dr-photo .ph-h2 { top: 66.6667%; }
+
+#dr-photo .ph-flash { position: absolute; inset: 0; background: #fff; opacity: 0; }
+#dr-photo .ph-flash.go { animation: ph-flash .35s ease-out; }
+@keyframes ph-flash { 0% { opacity: .85; } 100% { opacity: 0; } }
+#dr-photo.shooting .ph-bar { opacity: 0; }
+
+#dr-photo .ph-toast { position: absolute; left: 50%; top: 5vh; transform: translate(-50%, -8px); padding: 6px 16px; border-radius: 3px; opacity: 0; transition: opacity .2s, transform .2s;
+  font: 600 15px "Hahmlet", Georgia, serif; color: #efe3c8; background: rgba(27, 20, 16, .86); border: 1px solid rgba(226, 184, 102, .55); white-space: nowrap; max-width: 92vw; overflow: hidden; text-overflow: ellipsis; }
+#dr-photo .ph-toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+/* hàng gợi ý phím (ControlArea: showInControlArea) */
+#dr-photo .ph-bar { position: absolute; left: 0; right: 0; bottom: max(14px, 2.6vh); display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px 18px;
+  padding: 0 16px; pointer-events: none; transition: opacity .08s; }
+#dr-photo .ph-chip { display: flex; align-items: center; gap: 7px; padding: 5px 11px 5px 7px; border-radius: 4px; background: rgba(15, 11, 9, .62); border: 1px solid rgba(226, 184, 102, .28); pointer-events: auto; }
+#dr-photo .ph-chip.act { border-color: rgba(226, 184, 102, .6); }
+#dr-photo .ph-chip.on { background: rgba(60, 44, 24, .8); border-color: #e2b866; }
+#dr-photo .ph-caps { display: flex; gap: 3px; }
+#dr-photo .ph-key { min-width: 28px; height: 28px; padding: 0 6px; font: 700 14px "Hahmlet", Georgia, serif; color: #1b1410; background: #e8dcc0; border: 0; border-radius: 3px; cursor: pointer;
+  box-shadow: 0 2px 0 #8d7a52; touch-action: none; -webkit-tap-highlight-color: transparent; }
+#dr-photo .ph-key.wide { min-width: 40px; cursor: default; }
+#dr-photo .ph-key.on { background: #e2b866; transform: translateY(1px); box-shadow: 0 1px 0 #8d7a52; }
+#dr-photo .ph-exit .ph-key, #dr-photo .ph-chip.exit .ph-key { cursor: pointer; }
+#dr-photo .ph-lab { font: 600 14px/1.1 "Signika", "Segoe UI", sans-serif; color: #efe3c8; white-space: nowrap; text-shadow: 0 1px 2px rgba(0, 0, 0, .8); }
+
+@media (max-height: 480px), (max-width: 900px) {
+  #dr-photo .ph-bar { gap: 5px 8px; bottom: 8px; padding: 0 8px; }
+  #dr-photo .ph-chip { gap: 4px; padding: 3px 7px 3px 4px; }
+  #dr-photo .ph-key { min-width: 24px; height: 24px; font-size: 12px; padding: 0 4px; }
+  #dr-photo .ph-key.wide { min-width: 34px; }
+  #dr-photo .ph-lab { font-size: 11px; }
+  #dr-photo .ph-chip.mouse { display: none; }
+}

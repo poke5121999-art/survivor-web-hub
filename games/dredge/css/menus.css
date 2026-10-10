@@ -59,7 +59,7 @@
 #dr-credits .nm { font: 400 calc(38px * var(--s)) "Poltawski Nowy", Georgia, serif; line-height: 1.25; }
 #dr-credits .rl { font: 400 calc(28px * var(--s)) "Signika", sans-serif; color: #b9ab8e; margin-bottom: calc(10px * var(--s)); }
 #dr-credits .grid { display: grid; text-align: center; margin: 0 auto; }
-#dr-credits .grid span { font: 400 calc(34px * var(--s)) "Poltawski Nowy", Georgia, serif; display: flex; align-items: center; justify-content: center; }
+#dr-credits .grid span { font: 400 calc(22px * var(--s)) "Poltawski Nowy", Georgia, serif; display: flex; align-items: center; justify-content: center; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1; }
 #dr-credits .end { height: calc(300px * var(--s)); font: 400 calc(30px * var(--s)) "Oswald", sans-serif; letter-spacing: .2em; color: #b9ab8e; padding-top: calc(120px * var(--s)); }
 #dr-credits .skip { position: absolute; right: 24px; bottom: 18px; display: flex; align-items: center; gap: 10px; opacity: 0; transition: opacity .3s; font: 400 15px "Oswald", sans-serif; letter-spacing: .06em; color: #efe3c8; }
 #dr-credits .skip.on { opacity: .9; }

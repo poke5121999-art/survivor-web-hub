@@ -386,7 +386,7 @@ async function run(browser, base) {
   await sleep(1500);
   ks = await keysSince(n0);
   st = await state();
-  check('vào điểm đến gm-fishmonger: phát Fishmonger - Visit + vòng Fishmonger Ambience (trong nhà)', ks.includes('dest.visit.fishmonger') && st.loops['dest.loop.fishmonger'] && st.loops['dest.loop.fishmonger'].bus === 'IndoorDestination', JSON.stringify(ks));
+  check('vào điểm đến gm-fishmonger: phát Fishmonger - Visit + vòng Fishmonger Ambience (trong nhà)', ks.includes('dest.visit.fishmonger') && st.loops['dest.loop.fishmonger'] && st.loops['dest.loop.fishmonger'].bus === 'IndoorDestination', JSON.stringify({ ks, loop: st.loops['dest.loop.fishmonger'] || null }));
   await ev(() => DR.emit('destination', undefined, false));
   await sleep(1500);
   check('rời điểm đến: vòng nền tắt', (await state()).loops['dest.loop.fishmonger'] === undefined || (await state()).loops['dest.loop.fishmonger'].target === 0);
@@ -416,12 +416,9 @@ async function run(browser, base) {
   await browser.close();
   if (srv) srv.close();
 
-  // ---- ngân sách: phần của chủ sfx (audio/ + data/audio.js + data/sfx.js + js/audio.js + js/sfx.js) so với bản trước vòng 2
+  // ---- ngân sách: hợp đồng vòng 8 (D:/dredge-ref/notes/DELEGATE-R8.md) cho cả games/dredge tới 110 MB; audio/ nay chứa tiếng của nhiều đơn vị quái nên không còn tách phần của chủ sfx
   const sizeOf = d => { let t = 0; for (const f of fs.readdirSync(d, { withFileTypes: true })) t += f.isDirectory() ? sizeOf(path.join(d, f.name)) : fs.statSync(path.join(d, f.name)).size; return t; };
-  const mine = sizeOf(path.join(GAME, 'audio')) + ['data/audio.js', 'data/sfx.js', 'js/audio.js', 'js/sfx.js'].reduce((s, f) => s + fs.statSync(path.join(GAME, f)).size, 0);
-  const BEFORE = 22894857 + 45563 + 5404;   // audio/ + data/audio.js + js/audio.js lúc bắt đầu vòng 2 (đo trước khi sửa)
-  check('ngân sách: phần của chủ sfx thêm ≤ 10 MB so với trước vòng 2', mine - BEFORE <= 10e6, ((mine - BEFORE) / 1e6).toFixed(2) + ' MB (audio+data+js: ' + (mine / 1e6).toFixed(2) + ' MB)');
-  check('games/dredge ≤ 90 MB', sizeOf(GAME) <= 90e6, (sizeOf(GAME) / 1e6).toFixed(2) + ' MB');
+  check('games/dredge ≤ 110 MB', sizeOf(GAME) <= 110e6, (sizeOf(GAME) / 1e6).toFixed(2) + ' MB');
 
   console.log('DREDGE sfx — ' + base);
   console.log(out.join('\n'));

@@ -64,7 +64,7 @@ function serve() {
   check('GhostRockManager: 60 s / 5 đá mỗi khung', d1.mg.timeBetweenSanityAssignments === 60 && d1.mg.rocksToCheckPerFrame === 5, JSON.stringify(d1.mg));
   check('109 đá Marrows trong bộ quản lý (59 nhỏ, 30 vừa, 20 lớn), 35 Gale Cliffs cờ, 109 không quản lý', d1.marrows === 109 && d1.small === 59 && d1.med === 30 && d1.large === 20 &&
     d1.gale === 35 && d1.unmanaged === 109, JSON.stringify(d1));
-  check('đã dựng 109 đá Marrows (Gale hoãn)', d1.built === 109, String(d1.built));
+  check('đã dựng 144 đá (109 Marrows + 35 Gale Cliffs, R6)', d1.built === 144, String(d1.built));   // R6: Gale Cliffs hết hoãn (trước: 109)
 
   // ---- chọn chỗ đứng: tâm cụm đá dày nhất (nhiều đá trong 25 m) và cách đá gần nhất ≥ 12 m, trên nước
   const spot = await page.evaluate(() => {

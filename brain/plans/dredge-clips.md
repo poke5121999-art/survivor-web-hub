@@ -54,3 +54,11 @@ Nước giữa trưa vẫn sáng hơn clip khoảng 1,2 lần; thân dưới thu
 - W0 (kế hoạch `D:\dredge-ref\notes\WORLD-GAPS.md`): cờ `can-catch-aberrations` bật đúng ngày như `AberrationEnabler.cs` (trước đây kẹt ở pha 0), `DRYarn.command`, `DRDock.registerDest`, 3 ô lưu, ẩn bến DLC trừ `?dlc=1`.
 - Sửa chung: `uDrCamPos` thay `cameraPosition` (three r140 không nạp cho Lambert/Basic); `tools/tentacle.py` đảo albedo/emission.
 - Còn mở: gốc lỗi mất hạt khi lô nới giữa khung (`particles.js` grow, đang né bằng sức chứa 1024); hiệu ứng hậu kỳ MonsterProfile (viền đỏ, quang sai) đang là lớp CSS; tiếp theo là W1-W9 và R1-R8 theo WORLD-GAPS.md §6.
+
+## Cốt truyện, quái các vùng, cảnh kết (2026-10-10), rev `20261010c` → `20261010d`
+
+- Rev c: W1-W5, W7, W8 (nghiên cứu, kho tràn, điểm hội thoại, đá nổ mìn, lệnh nhiệm vụ Yarn, menu, sơn thuyền).
+- Rev d: W6a + W6b (cảnh kết xấu/tốt theo `FinaleCutscene_*.playable`, `DestroyGreaterMarrow`), W9 (chụp ảnh), R1 rắn Gale Cliffs, R2 quái Stellar Basin + sứa, R3 Mind Sucker, R4 hiểm hoạ Twisted Strand (tường rễ, nấm nổ, dây leo), R5 piranha + Mẹ, R6 cua giả, tượng mắt, đá ma GC, vòi rồng đứng, R8 cá voi/cá heo.
+- Sửa gốc: `particles.js` grow (three r140 chỉ gán `_maxInstanceCount` một lần; mưa bão trước vẽ 147/2275 hạt); `DR.timeScale` thành chỉ đọc = mức nhỏ nhất của `DR.holdTime(id, k)` (ba module từng ghi đè nhau theo thứ tự rAF); bọt vệt thuyền nghiêng (ma trận T·Rz·S → T·S·Rz); hàm bọc `DRAudio.loop` của `finale.js` làm rơi tham số bus.
+- Bẫy: hàm bọc API dùng chung phải chuyển đủ tham số; tay cầm giả trong test phải cùng hình dạng tay cầm thật (`systems: []`); nhiều quái phát `threatBanished` nên test lọc theo `source`.
+- Còn mở: R7 (Leviathan, biên thế giới, cá mập trắng) đang làm; hậu kỳ MonsterProfile còn là CSS; CPU khung tăng ~1 ms gần quái nhiều skinned mesh (R2, R3, R5) chưa tối ưu; thành tựu (Phase C), DLC sau cùng.

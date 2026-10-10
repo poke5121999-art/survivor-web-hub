@@ -142,6 +142,54 @@ async function main() {
   check('khói ống khói SmokePuffs phát khi DRVfx.smokeBoost = 1', hull.chimney > 0, 'hạt ' + hull.chimney);
   await page.evaluate(() => window.__relic.stop());
 
+  // ---- hạt mesh (pmesh): cỡ từng trục = startSize × SizeOverLifetime từng trục khi separateAxes, kể cả lúc startSize3D tắt.
+  // DolphinPod/SmallSplash (data/cetaceans.js): startSize 0,5 (một số), sizeOL sep: y lên 1 ở 13,7 % đời, x/z lớn dần 0 → 1.
+  const meshSz = await page.evaluate(async () => {
+    const b = DR.s.boat, h = DRParticles.spawn('Cet_dolphin_SmallSplash', { pos: [b.x - Math.sin(b.yaw) * 8, 1, b.z - Math.cos(b.yaw) * 8] });
+    const s = h.systems[0], SO = s.node.sizeOL, cv = DRParticles._curve;
+    let o = DRBoat.root; while (o.parent) o = o.parent;
+    let bm = null; o.traverse(m => { if (m.name === 'particles FloatingParticles_Mat_0|Splash_Texture|SplachCylinder') bm = m; });
+    for (let k = 0; k < 20 && !(s.n && bm && bm.geometry.instanceCount === s.n && s.age[0] / s.life[0] > 0.03); k++) {
+      await new Promise(r => requestAnimationFrame(r));
+      if (!bm) o.traverse(m => { if (m.name === 'particles FloatingParticles_Mat_0|Splash_Texture|SplachCylinder') bm = m; });
+    }
+    if (!bm || !s.n) return { n: s.n, batch: !!bm };
+    const S = bm.geometry.attributes.iS, out = [];
+    for (let i = 0; i < Math.min(s.n, S.count); i++) {
+      const t = s.age[i] / s.life[i], z0 = s.sx[i];
+      out.push({ t: +t.toFixed(3), got: [S.getX(i), S.getY(i), S.getZ(i)].map(v => +v.toFixed(4)),
+        want: [z0 * cv(SO.x.curve, t) * SO.x.k, z0 * cv(SO.y.curve, t) * SO.y.k, z0 * cv(SO.z.curve, t) * SO.z.k].map(v => +v.toFixed(4)) });
+    }
+    h.stop();
+    return { n: s.n, batch: true, sep: SO.sep, size3: !!s.node.main.size3, out };
+  });
+  const szErr = meshSz.out ? Math.max(...meshSz.out.map(p => Math.max(...p.got.map((g, j) => Math.abs(g - p.want[j]))))) : Infinity;
+  check('SplachCylinder (SmallSplash): cỡ mesh x/y/z = 0,5 × sizeOL từng trục (startSize3D tắt, separateAxes bật)',
+    meshSz.out && meshSz.out.length > 0 && !meshSz.size3 && meshSz.sep && szErr < 0.01, 'lệch ' + szErr.toFixed(4) + ' ' + JSON.stringify(meshSz).slice(0, 400));
+
+  // ---- bọt vệt thuyền (js/vfx.js, pmesh): cầu SphereLowPoly_2 dẹt PUFF_Y theo trục y THẾ GIỚI; startRotation 2D quay quanh z
+  // không được làm nghiêng đĩa (cầu gốc đều cỡ). Ma trận tuyến tính L của hạt: L·Lᵀ = diag(z0², (z0·PUFF_Y)², z0²) ⇒ góc nghiêng 0.
+  await page.evaluate(() => DR_DEBUG.teleport(60, -40, 1.2));
+  await page.keyboard.down('KeyW'); await sleep(1800);
+  const foam = await page.evaluate(() => {
+    let o = DRBoat.root; while (o.parent) o = o.parent;
+    let m = null; o.traverse(c => { if (c.name === 'BoatTrailParticles' && c.isInstancedMesh) m = c; });
+    if (!m) return { n: -1 };
+    const M = new THREE.Matrix4(), e = M.elements;
+    let tilt = 0, thinY = true;
+    for (let i = 0; i < m.count; i++) {
+      m.getMatrixAt(i, M);
+      const r = k => [e[k], e[k + 4], e[k + 8]], dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+      const X = r(0), Y = r(1), Z = r(2), axx = dot(X, X), ayy = dot(Y, Y), axy = dot(X, Y), azz = dot(Z, Z);
+      tilt = Math.max(tilt, Math.abs(0.5 * Math.atan2(2 * axy, axx - ayy)) * 180 / Math.PI);
+      if (!(ayy < axx && ayy < azz)) thinY = false;
+    }
+    return { n: m.count, tilt: +tilt.toFixed(2), thinY };
+  });
+  await page.keyboard.up('KeyW');
+  check('bọt vệt thuyền: đĩa dẹt nằm ngang (trục mỏng = y thế giới, nghiêng < 1°) dù startRotation quay z 0–360°',
+    foam.n > 5 && foam.tilt < 1 && foam.thinY, JSON.stringify(foam));
+
   // ---- mưa bám camera (FollowCamera/Rain y +8), lái thuyền bằng phím thật
   await page.evaluate(() => { DR_DEBUG.setTime(0.42); DR_DEBUG.teleport(30, -80, 0.6); window.__rain = DRParticles.spawn('Rain', { follow: 'camera' }); });
   await page.keyboard.down('KeyW'); await sleep(2000);
@@ -194,7 +242,7 @@ async function main() {
     h.setRateOverTime(2000); h.setSimulationSpeed(1.4); h.setSubEmitProbability(0, 0.3);
     await wait(2500);
     const d = h.systems[0], sp = h.systems[1];
-    const r = { live: d.n, maxN: d.N };
+    const st = DRParticles.stats(), r = { live: d.n, maxN: d.N, particles: st.particles, drawn: st.drawn };
     const ratio = async () => { const d0 = d.emitted, s0 = sp.emitted; await wait(2000); return (sp.emitted - s0) / Math.max(1, d.emitted - d0); };
     h.setRateOverTime(300); await wait(1200); r.ratio03 = await ratio();
     h.setSubEmitProbability(0, null); await wait(1200); r.ratio1 = await ratio();
@@ -205,6 +253,7 @@ async function main() {
     return r;
   });
   check('HeavyStorm: setRateOverTime(2000) → giọt sống ≥ 1900, ≤ maxN 2000', storm.live >= 1900 && storm.live <= 2000 && storm.maxN === 2000, JSON.stringify(storm));
+  check('HeavyStorm: lô hạt tăng cỡ quá 64 vẫn vẽ đủ mọi hạt sống', storm.drawn === storm.particles && storm.drawn >= 1900, 'vẽ ' + storm.drawn + ' / sống ' + storm.particles);
   // ảnh mưa bão ngoài biển (HeavyStorm) để ghép với gog_13 (hẻm đá dưới mưa)
   await page.evaluate(() => { const h = window.__storm = DRParticles.spawn('Rain', { follow: 'camera', loop: true }); h.setRateOverTime(2000); h.setSimulationSpeed(1.4); h.setSubEmitProbability(0, 0.3); });
   await sleep(2500); await shot('rain-storm-sea');

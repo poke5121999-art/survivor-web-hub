@@ -708,7 +708,7 @@
     if (radial.open || !baseLayer()) return;
     radial.open = true;
     radial.t = 0;                                                  // DOScale 0 → 1
-    D.timeScale = TIME_SCALE;
+    D.holdTime('radial', TIME_SCALE);
     // GameEvents.ToggleRadialMenuShowing(true): năng lực có deactivateOnInputLayerChanged tắt ngay
     for (const ab of Object.values(ABILITIES)) if (ab.isActive && ab.d.deactivateOnInputLayerChanged) ab.deactivate();
     abilityUp();
@@ -722,7 +722,7 @@
     if (!radial.open) return;
     radial.open = false;
     radial.el.classList.remove('on');
-    if (!paused()) D.timeScale = 1;
+    D.releaseTime('radial');
     sfx('Radial Menu - Disappear');                                // closeSFX (AbilityRadial, guid fe02b600…)
     bar.dirty = true;
   }
@@ -986,7 +986,7 @@
     requestAnimationFrame(frame);
     const realDt = Math.min(0.1, last ? (now - last) / 1000 : 0.016); last = now;
     if (!rootEl || !S()) return;
-    const ts = D.timeScale == null ? 1 : D.timeScale;
+    const ts = D.timeScale;
     const running = D.mode !== 'title' && !paused();
     const dt = running ? realDt * ts : 0;
     gameT += dt;
@@ -997,7 +997,6 @@
       if (act.down) abilityUp();
       if (radial.open) hideRadial();
     }
-    if (!radial.open && D.timeScale !== 1 && !paused()) D.timeScale = 1;
     // nút giữ castTime (DredgePlayerActionHold: thời gian thật, nhả thì tụt dần)
     const ab = cur();
     if (ab && !ab.d.isContinuous && ab.d.castTime > 0 && running) {

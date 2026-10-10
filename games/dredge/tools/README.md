@@ -343,3 +343,24 @@ Gỡ nhanh nếu bị yêu cầu: xoá `art/`, `audio/`, và mọi tệp `data/*
   - Tên GameObject chỉ có số (điểm đường `1`..`10`) bị PyYAML đọc thành int: ép `str`.
   - `Monster_Shader`: `Texture2D_f4d8…` = "Texture" (màu), `Texture2D_23e2…` = "Emission" (theo Properties); `tentacle.py` đang đặt ngược hai tên này.
   - `[BẪY ĐÃ SẬP]` three r140 không cập nhật uniform `cameraPosition` cho `MeshBasicMaterial` (chỉ ShaderMaterial/Phong/Toon/Standard hoặc có envMap): nó đứng yên ở (0,0,0). FogGhost tính khoảng cách camera từ `viewMatrix`. `drEnvFogColor` của `js/sky.js` cũng dùng `cameraPosition`.
+
+## mindsucker.py — Mind Sucker (TSMonster) + bẫy cối Twisted Strand (WORLD-GAPS.md R3, r3mind) [ĐO TRONG REPO, 2026-10-10]
+- Chạy: `python -I games/dredge/tools/mindsucker.py` (~20 s; đọc Game.unity một lần qua `angler.Scene`, mượn `tentacle.read_skinned_mesh` và `ray.pack_mesh`; cần ffmpeg). Ra đúng từng byte (đã so md5 hai lần).
+- Ghi `data/mindsucker.js` (`DR_MINDSUCKER`, ~820 KB: 14 hộp kích hoạt + 20 điểm sinh, cấu hình TSMonster/NavMeshAgent/Eye/InsanityEffector, 21 xương + polySurface341, 13 clip lấy mẫu 15 khung/giây, 3 bẫy, clip TwistedStrandTrapActivate, mesh bẫy sống/vỡ/mồi), `art/vfx/mindsucker/*.webp` (~12 KB), `audio/monsters/mindsucker/*.mp3` (17 clip, ~970 KB; tự đăng ký vào `DR_AUDIO` lúc chạy như `questcmds.js`). Dùng: `js/mindsucker.js`. Kiểm: `node test/dredge-r3mind.js`.
+- Bẫy:
+  - Không có prefab: mọi thứ nằm trong `Game.unity` (`TwistedStrand/Monsters/*`, `TwistedStrand/Traps/Trap1..3`, `Logic/MonsterManager/TwistedStrandMonsterManager`). Tìm MonoBehaviour bằng guid script (`.cs.meta`), không bằng tên.
+  - `vineAttackData` (Vines) nằm ở `Assets/Data/WorldEvent/`, không ở `MonoBehaviour/`.
+  - Clip TSM_* bake cả nút `*_ctrl` lẫn `*_jnt`; chỉ `*_jnt` là xương skin. `TwistedStrandTrapActivate` dùng `m_EulerCurves` (ZXY) cho nút `TSMonster` (đổi sang quaternion trước khi lật z). Đường dẫn dạng số (`2306843298`) / `path_0x…` là nút đã xoá: bỏ qua.
+  - `InsanityEffector` chỉ bật bởi `m_IsActive` của clip `TSM_DrainIdleRW` (tắt ở `TSM_BanishRW`); SanityModifier `ignoreTimescale = 1` nên hút theo giây thật cả khi thuyền đứng.
+  - Nguồn relic4 (WORLD-GAPS §7.1): `Relic4Pickup` là GridConfiguration của lưới `SoldierRelic`, Yarn `Soldier_DeliverTrophy3` mở nó; relic5 tương tự qua lưới `DSPyre` (`Relic5Pickup`). Không có POI nhặt riêng.
+
+## finale.py — hai cảnh kết theo timeline gốc (WORLD-GAPS.md §6 W6b, w6bcut) [ĐO TRONG REPO, 2026-10-10]
+- Chạy: `python -I games/dredge/tools/finale.py` (~40 s; đọc Game.unity một lần qua `angler.Scene`, mượn `mindsucker.read_mesh_raw`/`herm`; cần ffmpeg). Sau đó `particles.py` (khối "vòng 8 W6b" của `NAMED`: 9 hệ hạt trong hai timeline + `GMRuinedTown`).
+- Ghi `data/finale.js` (`DR_FINALE`, ~86 KB: 171 nút của `InspectPOIs/Finale_Inspect` + `CinematicCameraRigs/Credits`, 2 timeline với track/clip/mốc, 21 clip lấy mẫu, vật liệu, tiếng, cây `GM_RuinedTown`, chỉ số instance cần ẩn), `art/finale/cut.bin` (~1,1 MB: mesh + mẫu Int16), `ruins.bin` (~0,8 MB), `*.webp` (20, ~170 KB), `audio/*.mp3` (6 clip mới, ~590 KB; 4 clip dùng lại mp3 đã có theo trường `orig` của `data/audio.js`). Dùng: `js/finale_cut.js` (W6a gọi `DRFinaleCut.play`). Kiểm: `node test/dredge-w6bcut.js` (+ `dredge-w6finale.js`).
+- Bẫy:
+  - Một `PlayableDirector` (&122906) giữ binding của CẢ HAI timeline: khoá `m_SceneBindings` là (guid của .playable, fileID của track). Có khoá cũ trỏ vào clip chứ không phải track: bỏ.
+  - `[BẪY ĐÃ SẬP]` Animation Track (3) của Good (Circle/Chomp của vòng thân Leviathan) gắn vào Animator của `Credits_VCam`, nên bản gốc không chạy clip đó; vòng thân nằm dưới nước (đỉnh y −18 m) => không xuất (tiết kiệm ~2,5 MB). Tool assert điều này.
+  - Marker của Bad là `SignalEmitter` ở tệp riêng `MonoBehaviour/*.asset` (track `Markers`), của Good nằm trong .playable (Signal Track).
+  - Offset của `AnimationPlayableAsset` (`m_Position`, `m_EulerAngles`, Euler ZXY) áp cho nút gốc của clip TRƯỚC khi đổi hệ toạ độ; mẫu đã nướng sẵn. Clip vòng lặp biến `kind` trong vòng for: đừng gán lại biến lặp (lỗi đã sập: đường cong Euler thứ hai bị lưu nguyên 3 thành phần).
+  - Thuộc tính vật liệu trong clip bị AssetRipper ghi `material.path_0x…_xxx` (không phải CRC32 của tên): không giải được, coi theo nghĩa đoán `[ĐỀ XUẤT]` ở JS.
+  - Vật ở xa (Masstrocity ~1000 m, cực quang ~2000 m) vượt `camera.far` ~425 m của main.js: JS nới far trong cảnh kết (bọc `DRWorld.cull`).

@@ -18,6 +18,12 @@ for (const f of ['data/audio.js', 'js/audio.js', 'data/particles.js']) {
   if (fs.existsSync(p)) vm.runInContext(fs.readFileSync(p, 'utf8'), box, { filename: f });
 }
 const AUDIO = box.DR_AUDIO || {}, PARTS = box.DR_PARTICLES || {};
+// Hệ hạt do mô-đun riêng góp vào DR_PARTICLES lúc chạy (data/sbcreature.js, data/jelly.js: particles.systems)
+for (const f of ['data/sbcreature.js', 'data/jelly.js']) {
+  const p = path.join(G, f);
+  if (fs.existsSync(p)) vm.runInContext(fs.readFileSync(p, 'utf8'), box, { filename: f });
+}
+for (const k of ['DR_SBCREATURE', 'DR_JELLY']) if (box[k] && box[k].particles && box[k].particles.systems) for (const n of Object.keys(box[k].particles.systems)) PARTS[n] = PARTS[n] || box[k].particles.systems[n];
 const resolve = k => (box.DRAudio && box.DRAudio.resolve ? box.DRAudio.resolve(k) : (AUDIO[k] ? k : null));
 
 // Bỏ chú thích (giữ nguyên số dòng) để ví dụ trong phần mô tả không bị tính là lời gọi.

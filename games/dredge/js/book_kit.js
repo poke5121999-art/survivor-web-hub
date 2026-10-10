@@ -190,11 +190,10 @@
   const rect = b => { const q = b.getBoundingClientRect(); return { x: q.left, y: q.top, w: q.width, h: q.height }; };
 
   // ================================================================ cửa sổ chung: DRBook
-  // Một cửa sổ mở một lúc (Bản đồ / Bách khoa). Giống Time.timeScale = 0 của PopupWindow (pauseGame): DR.timeScale ép gần 0 mỗi khung
-  // (js/abilities.js đặt lại 1 khi vòng chọn đóng), nuốt phím lái, Esc / X đóng. Phím M / L mở, bấm lại thì đóng.
+  // Một cửa sổ mở một lúc (Bản đồ / Bách khoa). Giống Time.timeScale = 0 của PopupWindow (pauseGame): DR.holdTime('book', ~0), nuốt phím lái, Esc / X đóng. Phím M / L mở, bấm lại thì đóng.
   //   DRBook.openMap()  DRBook.openEncyclopedia()  DRBook.isOpen()  DRBook.busy()  DRBook.modalOn(id, closeFn, keyFn)  DRBook.modalOff(id)
   const TS_FROZEN = 0.0001;                       // [ĐỀ XUẤT] 0 làm particles.js / camera.js chia cho dt = 0; 1e-4 đứng yên mà không chia 0
-  let M = null, ts0 = 1;
+  let M = null;
   const D = () => root.DR;
   const typing = e => { const t = e.target; return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable); };
   function busy() {
@@ -209,23 +208,16 @@
     const p = document.getElementById('dr-pause'); if (p && !p.hidden) return true;
     return false;
   }
-  function freeze() {
-    if (!M) return;
-    const d = D(); if (d) d.timeScale = TS_FROZEN;
-    root.requestAnimationFrame(freeze);
-  }
   function modalOn(id, closeFn, keyFn) {
     M = { id, close: closeFn, key: keyFn || null };
-    const d = D();
-    ts0 = d.timeScale == null || d.timeScale <= TS_FROZEN ? 1 : d.timeScale;
+    D().holdTime('book', TS_FROZEN);
     if (root.DRInput && DRInput.keys) DRInput.keys.clear();         // thả phím đang giữ: thuyền không chạy tiếp khi cửa sổ mở
     document.body.classList.add('bk-open');
-    freeze();
   }
   function modalOff(id) {
     if (!M || M.id !== id) return;
     M = null;
-    const d = D(); if (d) d.timeScale = ts0 === 0.3 ? 1 : ts0;
+    D().releaseTime('book');
     document.body.classList.remove('bk-open');
   }
   root.addEventListener('keydown', e => {

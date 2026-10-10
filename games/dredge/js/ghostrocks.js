@@ -10,7 +10,8 @@
  * rockMeshObject (layer 7 CollidesWithPlayer, MeshCollider không lồi, mặc định tắt) bật cùng lúc: là vật cản thật, PlayerCollider.OnCollisionEnter →
  * ProcessHit (không phải SafeCollider) → DRBoat.processHit (1 ô hỏng, miễn 1,5 s).
  *
- * Gale Cliffs (35 đá) có trong dữ liệu nhưng chưa dựng (hoãn: MONSTERS.md §2.3). 109 đá "GhostRocks (1)" của scene không nằm trong
+ * Gale Cliffs (35 đá, R6): dựng như Marrows, cùng bộ quản lý (GhostRockManager.allGhostRocks gồm cả 144), vật liệu GaleCliffsGhostRocks_Mat
+ * (Albedo GaleCliffs_Rocks_Texture, Color_9a80 = trắng; data.materialGC). 109 đá "GhostRocks (1)" của scene không nằm trong
  * allGhostRocks của bộ quản lý nên không bao giờ hiện: không dựng.
  *
  * [ĐỀ XUẤT] va chạm: thân đá = bao lồi (trong mặt phẳng XZ) của phần mesh nằm trong lát y ∈ [0,052; 0,700] (hộp collider Player của thuyền,
@@ -29,16 +30,16 @@
   if (!T || !D || !D.rocks || !D.rocks.length) { root.DRGhostRocks = null; return; }
   const C = D.config, MG = D.manager;
   const HY0 = 0.052, HY1 = 0.700;                      // lát y của collider Player (DR_BOAT.colliderSize.player: tâm 0,3764 ± 0,324)
-  let scene = null, group = null, mat = null, geoms = null, rocks = null, clock = 0, lastAssign = -Infinity, checkIdx = 0;
+  let scene = null, group = null, mats = null, geoms = null, rocks = null, clock = 0, lastAssign = -Infinity, checkIdx = 0;
   const log = { popped: [], hits: 0, shown: 0 };       // popped: khoảng cách lúc hiện của mỗi lần bật (kiểm "không bật khi < 10 m")
 
   // ---------------------------------------------------------------- vật liệu
-  function material() {
-    const tex = new T.TextureLoader().load(D.material.albedo);
+  function material(M, key) {
+    const tex = new T.TextureLoader().load(M.albedo);
     tex.wrapS = tex.wrapT = T.RepeatWrapping;
     tex.encoding = T.sRGBEncoding;
     const m = new T.MeshBasicMaterial({ map: tex });
-    const col = D.material.tint;
+    const col = M.tint;
     m.onBeforeCompile = sh => {
       sh.uniforms.uGhostTint = { value: new T.Vector3(col[0], col[1], col[2]) };
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uGhostTint;')
@@ -47,7 +48,7 @@
   vec3 litG = diffuseColor.rgb * (drEnvLights(wpG) + uDrAmb * clamp(-wpG.y, 0.0, 1.0) + uGhostTint + (1.0 - drEnvMaskB(wpG.xz)) + vec3(uDrTintK, 0.0, 0.0));
   gl_FragColor = vec4(litG, 1.0);`);
     };
-    m.customProgramCacheKey = () => 'drGhostRock';
+    m.customProgramCacheKey = () => key;
     return m;
   }
   function geometries() {
@@ -125,12 +126,13 @@
 
   // ---------------------------------------------------------------- dựng đá
   function build() {
-    mat = material(); geoms = geometries();
+    mats = { THE_MARROWS: material(D.material, 'drGhostRock'), GALE_CLIFFS: material(D.materialGC || D.material, 'drGhostRockGC') };   // R6: GaleCliffsGhostRocks_Mat
+    geoms = geometries();
     group = new T.Group(); group.name = 'GhostRocks';
     rocks = [];
     for (const d of D.rocks) {
-      if (d.zone !== 'THE_MARROWS' || !geoms[d.mesh]) continue;          // Gale Cliffs hoãn
-      const mesh = new T.Mesh(geoms[d.mesh], mat);
+      if (!geoms[d.mesh] || !mats[d.zone]) continue;                         // R6: cả 35 đá Gale Cliffs
+      const mesh = new T.Mesh(geoms[d.mesh], mats[d.zone]);
       mesh.position.fromArray(d.p); mesh.quaternion.fromArray(d.q); mesh.scale.fromArray(d.s);
       mesh.updateMatrix(); mesh.updateMatrixWorld(true);
       mesh.matrixAutoUpdate = false;

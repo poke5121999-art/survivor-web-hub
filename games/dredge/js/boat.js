@@ -347,7 +347,7 @@ void main() { vec4 t = texture2D(tMap, vUv); float f = pow(clamp(dot(normalize(v
     Bt.moved = Math.abs(x) > 1e-6 || Math.abs(y) > 1e-6;
     let force = 0, torque = 0;
     if (allowed && st) {
-      const num2 = st.speed;
+      const num2 = root.DRPiranha ? root.DRPiranha.moveSpeed(st) : st.speed;   // R5 (seam, thêm): max(AttachedMonsterMovementSpeedFactor·MovementSpeedModifier, BasePlayerSpeed)·baseMovementModifier (PlayerController.cs:180)
       // tiến: y · num2 · AbilitySpeedModifier (Tăng tốc); lùi không nhân (PlayerController.cs:182-189)
       force = y > 0 ? y * num2 * Bt.abilitySpeed : y < 0 ? y * num2 * st.reverse : 0;
       torque = x * st.turn;
@@ -544,6 +544,7 @@ void main() { vec4 t = texture2D(tMap, vUv); float f = pow(clamp(dot(normalize(v
     Bt.shake = Math.max(0, Bt.shake - dt * 1.5);
     if (root.DREvents) DREvents.update(dt);   // S1: lịch sự kiện thế giới (js/events.js) chạy theo khung của thuyền, dt = 0 khi tạm dừng
     if (root.DRAngler) DRAngler.update(dt);   // U1: Night Angler (js/angler.js) — MonsterManager không phải sự kiện thế giới nên cần nhịp riêng
+    if (root.DRSerpent) DRSerpent.update(dt);   // R1: rắn Gale Cliffs (js/serpent.js, GCMonsterManager) — seam một dòng, nhịp riêng như angler
     if (root.DRVfx) DRVfx.update(dt, env);
     if (root.DRAudio) audio();
   }

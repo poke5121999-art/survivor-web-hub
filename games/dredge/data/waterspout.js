@@ -73,6 +73,41 @@ window.DR_WATERSPOUT = {
    "max": 75.0
   }
  },
+ "Waterspout_Static": {
+  "mode": "STATIC",
+  "moveSpeedScalar": 0.0,
+  "moveSpeedProportionalToPlayer": 0.0,
+  "accelerationFactor": 0.0,
+  "maxSpeed": 0.0,
+  "repathToPlayerInterval": 0.0,
+  "capSpeedWhenHarvesting": false,
+  "maxTravelDistance": 100.0,
+  "itemAddChance": 0.25,
+  "itemPool": [
+   "blackmouth-salmon",
+   "oceanic-perch",
+   "black-sea-bass"
+  ],
+  "forbiddenSpawnLayers": 50364544,
+  "finishDelaySec": 2.0,
+  "hitRadius": 0.5,
+  "hitCenter": [
+   0.0,
+   0.0,
+   0.0
+  ],
+  "agent": {
+   "radius": 0.5,
+   "speed": 0.0,
+   "acceleration": 0.0,
+   "angularSpeed": 0.0,
+   "autoBraking": false
+  },
+  "audio": {
+   "min": 5.0,
+   "max": 75.0
+  }
+ },
  "strikeRolloff": [
   50.0,
   100.0

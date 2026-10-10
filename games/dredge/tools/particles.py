@@ -887,6 +887,21 @@ NAMED = [
     ('TentacleBigSplash', 'GameObject/TentacleAttack.prefab', 'TentacleAttack/TentacleAttack/BigSplashParticles', 'Parent'),
     ('FogDevilParticles', SCENE, 'FogDevilContainer/FogDevil/Particles', 'Parent'),                    # FogDevil.cs: Particles + AggroParticles (khói sương + 15 hạt giận)
     ('FogDevilAggroParticles', SCENE, 'FogDevilContainer/FogDevil/AggroParticles', 'Parent'),
+    # ---- vòng 8 (W6a finale, js/finale.js): cột sáng ở Finale_Inspect, FinalePOIEnabler.badEnableObjects bật khi EnableBadFinalePOI
+    ('BadEndingBeam', SCENE, 'InspectPOIs/Finale_Inspect/BadEndingBeam', 'Parent'),
+    # ---- vòng 8 (R4 tshazards, js/tshazards.js): bào tử + loé + nước bắn khi nấm nổ (ExplodingMushrooms.OnExplode instantiate explodeVFX)
+    ('MushroomSporeEffect', 'GameObject/MushroomSporeEffect.prefab', 'MushroomSporeEffect', None),
+    # ---- vòng 8 (W6b cảnh kết, js/finale_cut.js): hệ hạt trong hai timeline (bật theo Activation track / cây cảnh) + lửa khói GM_RuinedTown
+    ('FinaleFlashes', SCENE, 'InspectPOIs/Finale_Inspect/BadEndingCutsceneContainer/Flashes', 'Parent'),
+    ('FinaleJulieEmbers', SCENE, 'InspectPOIs/Finale_Inspect/BadEndingCutsceneContainer/Julie/Embers', 'Parent'),
+    ('FinaleJulieFoam', SCENE, 'InspectPOIs/Finale_Inspect/BadEndingCutsceneContainer/Julie/JulieFoamParticles', 'Parent'),
+    ('FinaleMusicBoxEmbers', SCENE, 'InspectPOIs/Finale_Inspect/BadEndingCutsceneContainer/BuoyantMusicBoxContaner/MusicBox/EmberParticles', 'Parent'),
+    ('FinaleSplashFX', SCENE, 'InspectPOIs/Finale_Inspect/BadEndingCutsceneContainer/BuoyantMusicBoxContaner/SplashFX', 'Parent'),
+    ('FinaleRingBurst', SCENE, 'InspectPOIs/Finale_Inspect/GoodEndingCutsceneContainer/RingBurstEffect', 'Parent'),
+    ('FinaleEmergeSplash', SCENE, 'InspectPOIs/Finale_Inspect/GoodEndingCutsceneContainer/EmergeSplash', 'Parent'),
+    ('FinaleChinSplash', SCENE, 'InspectPOIs/Finale_Inspect/GoodEndingCutsceneContainer/ChinSplash', 'Parent'),
+    ('FinaleChinParticles', SCENE, 'InspectPOIs/Finale_Inspect/GoodEndingCutsceneContainer/Cinematic_Leviathan/Cinematic_LeviathanHead/root/headroot_jnt/jaw_jnt/ChinParticles', 'Parent'),
+    ('GMRuinedTown', 'GameObject/GM_RuinedTown.prefab', 'GM_RuinedTown', None),
 ]
 # Hệ theo camera/thuyền trong Game.unity (luồng môi trường gọi): (tên, đường dẫn, follow)
 FOLLOW = [('Rain', 'FollowCamera/Rain', 'camera'), ('Snow', 'FollowPlayer/Snow', 'player'),

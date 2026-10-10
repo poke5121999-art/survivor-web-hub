@@ -145,6 +145,7 @@
     if (root.DRTentacle) root.DRTentacle.init(scene); // V14: xúc tu đỏ của sự kiện TentacleAttack (js/tentacle.js)
     if (root.DRGhostRocks) root.DRGhostRocks.init(scene); // R7 U2: đá ma (js/ghostrocks.js)
     if (root.DRPhantomShark) root.DRPhantomShark.init(scene); // U10 (seam, thêm): cá mập ma của sự kiện PhantomShark (js/phantomshark.js)
+    if (root.DRPiranha) root.DRPiranha.init(scene); // R5 (seam, thêm): cá piranha + Mẹ Không Mắt của Devil's Spine (js/piranha.js)
   }
 
   function reset() {
@@ -199,6 +200,7 @@
   function update(dt, env) {
     if (root.DRTentacle) root.DRTentacle.update(dt);
     if (root.DRGhostRocks) root.DRGhostRocks.update(dt); // R7 U2
+    if (root.DRPiranha) root.DRPiranha.update(dt); // R5 (seam, thêm)
     if (!mesh) return;
     const D = root.DR, b = D.s && D.s.boat;
     if (!b) return;
@@ -286,6 +288,7 @@
   }
 
   const cg = [1, 1, 1];
+  const trR = new T.Matrix4(), trM = new T.Matrix4(); // (pmesh) ma trận hạt bọt T·S·Rz
   function write() {
     const SO = SYS.sizeOverLifetime, CO = SYS.colorOverLifetime;
     const al = aAlpha.array;
@@ -294,13 +297,13 @@
       const t = age[i] / life[i];
       const sz = size0[i] * (SO ? mmc(SO.curve, t, 0) : 1);
       if (sz > mx) mx = sz;
-      dummy.position.set(px[i], py[i], pz[i]);
       // startRotation (2D) quay quanh trục z của hạt; RenderAlignment World
-      dummy.rotation.set(0, 0, -rot[i]);
       // [ĐỀ XUẤT] dẹt theo trục y (PUFF_Y): clip gốc chỉ thấy gợn mảnh sát mặt nước, không có cục nổi cao cạnh thân tàu
-      const z0 = Math.max(1e-4, sz); dummy.scale.set(z0, z0 * PUFF_Y, z0);
-      dummy.updateMatrix();
-      mesh.setMatrixAt(i, dummy.matrix);
+      // (pmesh, seam sửa) dẹt theo trục y THẾ GIỚI sau khi quay: M = T·S·Rz. Gốc là cầu đều cỡ (size3D 0) nên quay z không
+      // làm nghiêng hình; T·Rz·S cũ quay cả đĩa đã dẹt → thấu kính nghiêng 0–90° quanh thuyền.
+      const z0 = Math.max(1e-4, sz);
+      trR.makeRotationZ(-rot[i]); trM.makeScale(z0, z0 * PUFF_Y, z0).multiply(trR).setPosition(px[i], py[i], pz[i]);
+      mesh.setMatrixAt(i, trM);
       if (CO) gradColor(CO.gradient, t, cg);
       col.setRGB(foamLin[0] * tint[i] * cg[0], foamLin[1] * tint[i] * cg[1], foamLin[2] * tint[i] * cg[2]);
       mesh.setColorAt(i, col);

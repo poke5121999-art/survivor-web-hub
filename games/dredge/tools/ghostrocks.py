@@ -200,13 +200,8 @@ def main():
     for r in rocks:
         r['mesh'] = mnames.index(r['mesh'])
     meshes, nv = {}, {}
-    used = {mnames[r['mesh']] for r in rocks if r['zone'] == 'THE_MARROWS'}
-    for nm in mnames:
-        if nm in used:  # Gale Cliffs hoãn (MONSTERS.md §2.3): giữ toạ độ + cờ zone, chưa cần mesh
-            meshes[nm], nv[nm] = read_mesh(guid_path('Mesh', mesh_names[nm]))
-        else:
-            meshes[nm], nv[nm] = None, 0
-    # vật liệu: chỉ Marrows cần texture (Gale Cliffs dời sau)
+    for nm in mnames:  # R6: Gale Cliffs 35 đá dựng ở js/ghostrocks.js nên mesh GaleCliffsRock2/3/4_LOD0 cũng xuất
+        meshes[nm], nv[nm] = read_mesh(guid_path('Mesh', mesh_names[nm]))
     mm = list(yaml.load(open(os.path.join(ASSETS, 'Material', 'MarrowsGhostRock_Mat.mat'), 'rb').read().split(b'\n', 3)[3], Loader=CL).values())[0]['m_SavedProperties']
     alb = guid_path('Texture2D', mm['m_TexEnvs']['Texture2D_9aa7ba2263944b48bbf43c218dc48459']['m_Texture']['guid'])
     im = Image.open(alb).convert('RGB')
@@ -216,6 +211,16 @@ def main():
     os.makedirs(OUT_ART, exist_ok=True)
     tp = os.path.join(OUT_ART, 'albedo.webp')
     im.save(tp, 'WEBP', quality=80, method=6)
+    # R6: GaleCliffsGhostRocks_Mat (cùng GhostObject_Shader): Albedo guid 02718bc3..., Color_9a80 = (1,1,1), không có mặt nạ thứ hai
+    gm = list(yaml.load(open(os.path.join(ASSETS, 'Material', 'GaleCliffsGhostRocks_Mat.mat'), 'rb').read().split(chr(10).encode(), 3)[3], Loader=CL).values())[0]['m_SavedProperties']
+    galb = guid_path('Texture2D', gm['m_TexEnvs']['Texture2D_9aa7ba2263944b48bbf43c218dc48459']['m_Texture']['guid'])
+    gim = Image.open(galb).convert('RGB')
+    s2 = TEX_MAX / max(gim.size)
+    if s2 < 1:
+        gim = gim.resize((round(gim.width * s2), round(gim.height * s2)), Image.LANCZOS)
+    gp = os.path.join(OUT_ART, 'albedo_gc.webp')
+    gim.save(gp, 'WEBP', quality=80, method=6)
+    gc = gm['m_Colors']['Color_9a80436dfae54f168ee3b031d4a7bfcb']
     c = mm['m_Colors']['Color_9a80436dfae54f168ee3b031d4a7bfcb']
     data = {
         'src': 'Scenes/Game.unity (GhostRockManager.allGhostRocks: %d GhostRock), MonoBehaviour/GhostRockConfig.asset, Material/MarrowsGhostRock_Mat.mat' % len(rocks),
@@ -223,6 +228,7 @@ def main():
                    'spawnEndTime': cfg['spawnEndTime'], 'minDistanceThreshold': cfg['minDistanceThreshold'], 'maxDistanceThreshold': cfg['maxDistanceThreshold']},
         'manager': mgr_cfg,
         'material': {'name': 'MarrowsGhostRock_Mat', 'shader': 'GhostObject_Shader', 'tint': rnd([c['r'], c['g'], c['b']], 5), 'albedo': 'art/vfx/ghostrocks/albedo.webp'},
+        'materialGC': {'name': 'GaleCliffsGhostRocks_Mat', 'shader': 'GhostObject_Shader', 'tint': rnd([gc['r'], gc['g'], gc['b']], 5), 'albedo': 'art/vfx/ghostrocks/albedo_gc.webp'},
         'meshNames': mnames, 'meshes': [meshes[n] for n in mnames],
         'unmanaged': {'count': sum(1 for g in gr if g[0] not in set(mgr)), 'note': 'TheMarrows/GhostRocks (1): 109 GhostRock trùng vị trí từng cái với TheMarrows/GhostRocks nhưng KHÔNG nằm trong GhostRockManager.allGhostRocks => mesh luôn tắt, không bao giờ hiện (MONSTERS.md đếm 218 = 2 x 109)'},
         'rocks': rocks,
