@@ -50,8 +50,14 @@ Icon buff (`ui_buff_*`) và prefab tượng/lái buôn/xu đi qua `tools/extra/r
 - Dựa lại số máy: `tools/config86/arm_method.py` dừng ở lệnh `pop pc` đầu tiên; hàm có khối ngoài dòng (như `GetReward`) cần bản
   không dừng (`D:\sk86-ref\work\buffs\arm_full.py`, chỉ bỏ điều kiện dừng).
 
+## Thiên phú bổ sung (js/rooms.js, khối "THIÊN PHÚ BỔ SUNG")
+
+BuffId 17, 23, 38, 39, 40, 41, 1015..1018, 1020, 1024, 2105, 2108, 2118, 2145, 2146 có luật; số lấy từ Lua (`values`) hoặc wiki, thiếu thì
+`[ƯỚC LƯỢNG]` ngay cạnh hằng số `TL`. `tools/buffs/talents86.py` thêm 1015..1018 và 3001..3007 (tên/mô tả từ loc, icon `ui_buff_x` vì atlas
+không có) vào `SK_BUFFS86`; chạy trực tiếp khi không có thư mục luban/lua (`SK86_DEC=~/sk86-ref/decoded`). Kiểm: `test/soulknight-talents.js`.
+Bể bốc theo cấp không chứa 38, 39, 41, 1020, 1024, 2145, 2146, 1015..1018: cấp bằng `SK_ROOMS.takeBuff`; 40 có ở Lái Buôn Thiện Lương.
+
 ## Buff chưa dùng được (có trong bể thật, không đưa lên bảng chọn)
 
-Thợ Mỏ Đá Quý (đá quý), Bạn Tốt Nhất và Thời Gian Party (thú cưng/tùy tùng), Khiên Băng Giá (đóng băng), Luân Chuyển Nguyên Tố và
-Bảo Hộ Linh Hồn (trạng thái nguyên tố), Liên Kích Mưa (vũ khí liên kích), Âm Dương Lưu Chuyển (riêng một nhân vật),
-Nhà Mỹ Thực (nguyên liệu). Lý do nằm ở `OFF` trong `js/rooms.js`; bỏ khỏi `OFF` và viết luật là được đưa lên bảng.
+Thợ Mỏ Đá Quý (đá quý), Liên Kích Mưa (vũ khí liên kích), Âm Dương Lưu Chuyển (riêng một nhân vật), Nhà Mỹ Thực (nguyên liệu).
+Lý do nằm ở `OFF` trong `js/rooms.js`; bỏ khỏi `OFF` và viết luật là được đưa lên bảng.

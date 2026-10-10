@@ -425,72 +425,75 @@ Cây trồng: **51** tên [LOC plant_*]; hạt giống/bản vẽ: LOC `items/se
 
 ## 7. Thiên phú (buff), tượng thần, NPC trong hầm
 
-Thiên phú: **62** term tên [LOC Buff_name_N; còn 163 term Buff_info_N không có tên; Buff_upgrade_N 46]. Web: dữ liệu 54 buff [WEB SK_BUFFS86.buffs], có luật chạy `def(id)` cho **34** [WEB js/rooms.js; id 1..36,2101,2102,2103,2106]. Thiếu (chưa có dữ liệu): 13; có dữ liệu chưa có luật: 20.
+Thiên phú: **62** term tên [LOC Buff_name_N; còn 163 term Buff_info_N không có tên; Buff_upgrade_N 46]. Web: dữ liệu 63 buff [WEB SK_BUFFS86.buffs, đã gồm 1015..1018 và 3001..3007 từ talents86.py], có luật chạy `def(id)` cho **51** [WEB js/rooms.js]. Chưa có luật: 15, 31, 1023, 1025 (lý do ở cột cuối) và 3001..3007 (cần chế độ Xâm Nhập Hư Không).
+
+**Id ở bảng là BuffId** (tên ở `Buff_name_<BuffId-1>` khi BuffId < 1000; bản bảng cũ ghi tên theo chỉ số loc nên lệch một ô, ví dụ "15 Tim Dũng Sĩ" thật ra là BuffId 16). Buff 26/27 là bản cũ của 40 (Bạo Phép Thuật), không tính. Bể bốc theo cấp (`groups`) chỉ chứa 1..36, 1023, 1025, 2101..2108, 2118; các buff 38, 39, 40, 41, 1020, 1024, 2145, 2146 và 1015..1018 không nằm nhóm nào (40 bán ở Lái Buôn Thiện Lương cùng 8, 9, 23; còn lại cấp bằng `SK_ROOMS.takeBuff`).
 
 | id | tên Việt | web dữ liệu | web luật |
 |---|---|---|---|
-| 0 | Rãnh Xuyên Tâm | THIẾU | chưa |
-| 1 | Tia Năng Lượng Cao | có | có |
-| 2 | Siêu Bom | có | có |
-| 3 | Kiếm Phản Kích | có | có |
-| 4 | Tụ Lực Nhanh | có | có |
-| 5 | Khiên Kiên Cường | có | có |
-| 6 | Khiên Gai | có | có |
-| 7 | Khiên Chống Độc | có | có |
-| 8 | Khiên Lửa | có | có |
-| 9 | Giảm Nửa Giá! | có | có |
-| 10 | Hút Sinh Lực | có | có |
-| 11 | Cường Hóa Hồi Phục | có | có |
-| 12 | Hút Năng Lượng | có | có |
-| 13 | Trì Hoãn Thời Không | có | có |
-| 14 | Thợ Mỏ Đá Quý | có | có |
-| 15 | Tim Dũng Sĩ | có | chưa |
-| 16 | Bạn Tốt Nhất | có | có |
-| 17 | Khiên Xung Kích | có | chưa |
-| 18 | Người Nhặt Phế Liệu | có | có |
-| 19 | Đòn Chính Xác | có | có |
-| 20 | Giảm Hồi Chiêu | có | có |
-| 21 | Tượng Nhân Đôi | có | có |
-| 22 | Khiên Băng Giá | có | có |
-| 23 | Đạn Nảy | có | chưa |
-| 24 | Mở Rộng Túi | có | có |
-| 27 | Đá Tảng Rắn | có | chưa |
-| 28 | Kiếm Thuật Sư | có | có |
-| 29 | Từ Điển Phép | có | có |
-| 30 | Liên Kích Mưa | có | có |
-| 31 | Ép Xung | có | chưa |
-| 32 | Xác Dễ Nổ | có | có |
-| 33 | Giáp Vàng | có | có |
-| 34 | Bạo Kích Mất Máu | có | có |
-| 35 | Giáp Đi Nhanh | có | có |
-| 37 | Khiên Khẩn Cấp | THIẾU | chưa |
-| 38 | Bí Quyết Luyện Khí | có | chưa |
-| 39 | Bạo Phép Thuật | có | chưa |
-| 40 | Dòng Điện Từ | có | chưa |
-| 1015 | Băng Kích | THIẾU | chưa |
-| 1016 | Tượng Băng Nổ | THIẾU | chưa |
-| 1017 | Vòng Sương Băng | THIẾU | chưa |
-| 1018 | Ảo Ảnh Rừng | THIẾU | chưa |
-| 1020 | Thời Khắc Tập Trung | có | chưa |
-| 1023 | Âm Dương Lưu Chuyển | có | chưa |
-| 1024 | Âm Vang Súng Đạn | có | chưa |
-| 1025 | Nhà Mỹ Thực Ngục Tối | có | chưa |
+| 1 | Rãnh Xuyên Tâm | có | có |
+| 2 | Tia Năng Lượng Cao | có | có |
+| 3 | Siêu Bom | có | có |
+| 4 | Kiếm Phản Kích | có | có |
+| 5 | Tụ Lực Nhanh | có | có |
+| 6 | Khiên Kiên Cường | có | có |
+| 7 | Khiên Gai | có | có |
+| 8 | Khiên Chống Độc | có | có |
+| 9 | Khiên Lửa | có | có |
+| 10 | Giảm Nửa Giá! | có | có |
+| 11 | Hút Sinh Lực | có | có |
+| 12 | Cường Hóa Hồi Phục | có | có |
+| 13 | Hút Năng Lượng | có | có |
+| 14 | Trì Hoãn Thời Không | có | có |
+| 15 | Thợ Mỏ Đá Quý | có | chưa: web không có đá quý cuối ván |
+| 16 | Tim Dũng Sĩ | có | có |
+| 17 | Bạn Tốt Nhất | có | có |
+| 18 | Khiên Xung Kích | có | có |
+| 19 | Người Nhặt Phế Liệu | có | có |
+| 20 | Đòn Chính Xác | có | có |
+| 21 | Giảm Hồi Chiêu | có | có |
+| 22 | Tượng Nhân Đôi | có | có |
+| 23 | Khiên Băng Giá | có | có |
+| 24 | Đạn Nảy | có | có |
+| 25 | Mở Rộng Túi | có | có |
+| 28 | Đá Tảng Rắn | có | có |
+| 29 | Kiếm Thuật Sư | có | có |
+| 30 | Từ Điển Phép | có | có |
+| 31 | Liên Kích Mưa | có | chưa: chưa có vũ khí đánh liên kích |
+| 32 | Ép Xung | có | có |
+| 33 | Xác Dễ Nổ | có | có |
+| 34 | Giáp Vàng | có | có |
+| 35 | Bạo Kích Mất Máu | có | có |
+| 36 | Giáp Đi Nhanh | có | có |
+| 38 | Khiên Khẩn Cấp | có | có |
+| 39 | Bí Quyết Luyện Khí | có | có |
+| 40 | Bạo Phép Thuật | có | có |
+| 41 | Dòng Điện Từ | có | có |
+| 1015 | Băng Kích | có | có |
+| 1016 | Tượng Băng Nổ | có | có |
+| 1017 | Vòng Sương Băng | có | có |
+| 1018 | Ảo Ảnh Rừng | có | có |
+| 1020 | Thời Khắc Tập Trung | có | có |
+| 1023 | Âm Dương Lưu Chuyển | có | chưa: chỉ dành riêng một nhân vật |
+| 1024 | Âm Vang Súng Đạn | có | có |
+| 1025 | Nhà Mỹ Thực Ngục Tối | có | chưa: chưa có nguyên liệu thực phẩm |
 | 2101 | Trảm Lốc Xoáy | có | có |
 | 2102 | Đạn Phân Tách | có | có |
 | 2103 | Tập Kích | có | có |
-| 2105 | Luân Chuyển Nguyên Tố | có | chưa |
+| 2105 | Luân Chuyển Nguyên Tố | có | có |
 | 2106 | Đòn Động Năng | có | có |
-| 2108 | Thời Gian Party! | có | chưa |
-| 2118 | Bảo Hộ Linh Hồn | có | chưa |
-| 2145 | Gan góc dũng cảm | có | chưa |
-| 2146 | Hồn Giác Đấu | có | chưa |
-| 3001 | Tay Hư Không | THIẾU | chưa |
-| 3002 | Thể Chất Hư Không | THIẾU | chưa |
-| 3003 | Lệnh Truy Sát Hư Không | THIẾU | chưa |
-| 3004 | Khiên Hư Không | THIẾU | chưa |
-| 3005 | Hư Không Che Chở | THIẾU | chưa |
-| 3006 | Hư Không Cộng Tế | THIẾU | chưa |
-| 3007 | Tàn Tượng Hư Không | THIẾU | chưa |
+| 2108 | Thời Gian Party! | có | có |
+| 2118 | Bảo Hộ Linh Hồn | có | có |
+| 2134 | (không có tên trong loc) | có | chưa: loc không có tên, mô tả nói về vùng nguyên tố (web chưa có vùng nguyên tố đứng được) |
+| 2145 | Gan góc dũng cảm | có | có |
+| 2146 | Hồn Giác Đấu | có | có |
+| 3001 | Tay Hư Không | có | chưa (chế độ Xâm Nhập Hư Không chưa có; chỉ có tên/mô tả) |
+| 3002 | Thể Chất Hư Không | có | chưa (chế độ Xâm Nhập Hư Không chưa có; chỉ có tên/mô tả) |
+| 3003 | Lệnh Truy Sát Hư Không | có | chưa (chế độ Xâm Nhập Hư Không chưa có; chỉ có tên/mô tả) |
+| 3004 | Khiên Hư Không | có | chưa (chế độ Xâm Nhập Hư Không chưa có; chỉ có tên/mô tả) |
+| 3005 | Hư Không Che Chở | có | chưa (chế độ Xâm Nhập Hư Không chưa có; chỉ có tên/mô tả) |
+| 3006 | Hư Không Cộng Tế | có | chưa (chế độ Xâm Nhập Hư Không chưa có; chỉ có tên/mô tả) |
+| 3007 | Tàn Tượng Hư Không | có | chưa (chế độ Xâm Nhập Hư Không chưa có; chỉ có tên/mô tả) |
 
 Tượng thần: **11** tên [LOC statue_*_name]: Tượng Thích Khách, Tượng Kỹ Sư, Tượng Kỵ Sĩ, Tượng Mục Sư, Tượng Kỵ Sĩ Thánh, Tượng Thỏ, Tượng Tinh Linh Ngọc Quân, Tượng Trộm Cướp, Tượng Phù Thủy, Tượng Berserker, Tượng Người Sói; thông tin hiệu ứng có 10 [LOC statue/info/1..10]. Web: **10** [WEB SK_BUFFS86.statues]; thiếu: Tượng Thỏ / Tượng Người Sói nếu bản 11 tên khác bản 10 hiệu ứng (chưa đối chiếu từng tượng; phỏng đoán).
 

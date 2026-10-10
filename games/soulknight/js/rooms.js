@@ -212,6 +212,25 @@
   const DEF = ROOMS.DEF = {};
   const def = (id, o) => { DEF[id] = Object.assign({ active: true }, o); };
 
+  // Số của các thiên phú bổ sung. [ĐO] = đọc từ Lua 8.6 trong SK_BUFFS86.values; [WIKI] = trang riêng của buff; [ƯỚC LƯỢNG] = không có nguồn.
+  const VC = () => V.courage || { damage_factor_per_stack: 0.1, duration: 5, max_stack: 5 };
+  const VE = () => V.elementalCycle || { cycle_duration: 5, missile_trigger_probability: 0.5, elemental_damage_factor: 0.5 };
+  const VP = () => V.partyTime || { attack_speed_addition: 1, move_speed_addition: 1 };
+  const TL = {
+    emerg: { cd: 60, frac: 0.5 },                                   // [WIKI Armor Resilience] hồi 50% giáp (làm tròn xuống), 60 s
+    qi: { cost: 2, dmg: 3, range: 7, half: 0.5 },                   // [WIKI Secret of Qi-gong] 3 sát thương, 2 năng lượng, 7 ô; nửa góc 0,5 rad [ƯỚC LƯỢNG]
+    zap: { crit: 10, dmg: 4, cd: 1, chain: 2, reach: 4 },           // [WIKI Electric Pulse] +10% bạo kích, sét 4 sát thương, hồi 1 s, 2 mục tiêu lân cận; tầm 4 ô [ƯỚC LƯỢNG]
+    focus: { rate: 0.05, crit: 5, spread: 2, max: 4, dur: 10 },     // [WIKI Stay Focused]
+    echo: { dur: 1, cd: 2.5, dmg: 0.5, cdPer: 0.1, cdMin: 1, pool: 10 },   // [WIKI Arms Alignment]; cdPer/cdMin [ƯỚC LƯỢNG]
+    spirit: { stacks: 10, stackDur: 5, dur: 5, range: 0.3, crit: 30 },     // [WIKI Martial Spirit] 10 tầng 5 s; dur/range/crit [ƯỚC LƯỢNG]
+    pet: { dmg: 2, size: 1.5 },                                     // [WIKI Best Buddy] +100% sát thương, +50% cỡ (máu: thú cưng web không có máu)
+    spike: { n: 3, dmg: 1 },                                        // [WIKI Icicle Spike]
+    sculpt: { chance: 0.5, dmg: 12, r: 2, life: 8, spd: 70 },       // [WIKI Ice Sculpture]; tốc đuổi [ƯỚC LƯỢNG]
+    nova: { chance: 0.4, dmg: 1, r: 2.5, life: 3, tick: 0.5 },      // [WIKI Frost Nova] 1 sát thương; r/life/tick [ƯỚC LƯỢNG]
+    clone: { every: 8, dur: 4, dmg: 0.5 },                          // Ảo Ảnh Rừng: số không có nguồn [ƯỚC LƯỢNG]
+    iceExtra: 1                                                     // Khiên Băng Giá: cộng thêm 1 s đóng băng [ƯỚC LƯỢNG]
+  };
+
   def(1, { note: 'Đạn bạo kích xuyên qua địch [WIKI Piercing Crit]; lõi chỉ tung bạo kích một lần khi bắn (không tung lại mỗi lần xuyên) [ƯỚC LƯỢNG]' });
   def(2, { note: 'Súng laser +1 sát thương [WIKI Heightened Beams]; bề rộng tia không đổi' });
   def(3, { note: 'Súng chùm +2 viên [WIKI Shotgun Barrage]; tượng Phù Thủy/Thích Khách cũng +2' });
@@ -248,11 +267,9 @@
   def(2106, { nums: [3], note: 'Tích động năng khi đi, đòn kế tiếp cộng tối đa 3 sát thương; đầy thì bạo kích + choáng 1 s [WIKI + ĐO kineticstrike.lua charge_distance 6]' });
   // Có trong bể thật nhưng chưa dùng được ở bản web: không đưa lên bảng chọn (lý do ở note).
   const OFF = {
-    15: 'Thợ Mỏ Đá Quý: bản web không có đá quý', 17: 'Bạn Tốt Nhất: chưa có thú cưng/tùy tùng', 23: 'Khiên Băng Giá: chưa có nguồn đóng băng',
-    26: 'Bạo Phép Thuật (bản cũ): 8.6 không còn tên riêng', 27: 'Bạo Phép Thuật (bản cũ): 8.6 không còn tên riêng',
+    15: 'Thợ Mỏ Đá Quý: bản web không có đá quý cuối ván', 26: 'Bạo Phép Thuật (bản cũ): 8.6 không còn tên riêng', 27: 'Bạo Phép Thuật (bản cũ): 8.6 không còn tên riêng',
     31: 'Liên Kích Mưa: chưa có vũ khí đánh liên kích', 1023: 'Âm Dương Lưu Chuyển: chỉ dành riêng một nhân vật',
-    1025: 'Nhà Mỹ Thực Ngục Tối: chưa có nguyên liệu', 2105: 'Luân Chuyển Nguyên Tố: chưa có đóng băng/cảm điện',
-    2108: 'Thời Gian Party: chưa có thú cưng/tùy tùng', 2118: 'Bảo Hộ Linh Hồn: chưa có nguồn trạng thái xấu do buff'
+    1025: 'Nhà Mỹ Thực Ngục Tối: chưa có nguyên liệu thực phẩm'
   };
   for (const id in OFF) def(+id, { active: false, note: OFF[id] });
 
@@ -276,10 +293,12 @@
       const cut = Math.min(10, d.spread || 0);
       d.spread = (d.spread || 0) - cut; d.crit = (d.crit || 0) + (10 - cut);
     }
+    if (has(1020) && d.kind !== 'melee' && p && p.bm && p.bm.focusN) d.spread = Math.max(0, (d.spread || 0) - TL.focus.spread * p.bm.focusN);
     if (d.kind === 'melee') {
       let m = 1;
       if (has(29)) m += 0.2;
       if (p && p.bm && p.bm.wolfT > 0) m += 0.2;
+      if (p && p.bm && p.bm.spiritT > 0) m += TL.spirit.range;
       if (m !== 1) d.range = (d.range || 24) * m;
     }
     if (has(5) && d.charge > 0) d.charge *= 0.5;
@@ -531,6 +550,300 @@
     });
   }
 
+  // ---------------------------------------------------------------- THIÊN PHÚ BỔ SUNG (id theo BuffId; số ở TL)
+  // Mô tả chính thức (info.vi) là luật. Web chưa có đạn mang nguyên tố trên vũ khí nên "đang chịu nguyên tố/đóng băng" nghĩa là
+  // quái đang có trạng thái từ kỹ năng, tượng hay Luân Chuyển Nguyên Tố (SK.skillKit.debuff, rooms.js applyStatus).
+  def(17, { nums: [50, 100], note: 'Thú cưng +50% cỡ, +100% sát thương [WIKI Best Buddy]; máu thú cưng: bản web không có máu thú cưng nên chưa làm' });
+  def(23, { note: 'Quái bị đóng băng thêm 1 s [ƯỚC LƯỢNG]; người chơi chưa có nguồn đóng băng nên miễn dịch chỉ là hình thức' });
+  def(38, { note: 'Giáp vỡ thì hồi ngay 50% giáp tối đa (làm tròn xuống), 60 s một lần [WIKI Armor Resilience]' });
+  def(39, { note: 'Tay không (Đấu Khí Quyền, Cú Đấm Thiên Địa, Nắm Tay Thứ Nguyên) tung sóng khí công hình quạt 7 ô, 3 sát thương, 2 năng lượng, xoá đạn địch [WIKI Secret of Qi-gong]' });
+  def(40, { note: 'Bạo kích lên quái đang chịu nguyên tố gây gấp đôi [mô tả chính thức]; phần "Gậy mạnh hơn": không có số nên chưa làm' });
+  def(41, { nums: [TL.zap.crit], apply(p) { p.crit += TL.zap.crit; }, note: 'Bạo kích +10%; dùng kỹ năng hoặc bạo kích thì sét 4 sát thương lên mục tiêu và 2 quái gần, hồi 1 s [WIKI Electric Pulse]' });
+  def(1015, { nums: [TL.spike.n], note: 'Bạo kích lên quái đang đóng băng bắn 3 mũi băng xuyên, mỗi mũi 1 sát thương [WIKI Icicle Spike]' });
+  def(1016, { nums: ['50%', TL.sculpt.r, TL.sculpt.dmg], note: 'Quái chết khi đang đóng băng 50% thành tượng băng đuổi quái, nổ 12 sát thương bán kính 2 ô, sống 8 s [WIKI Ice Sculpture]' });
+  def(1017, { nums: ['40%'], note: 'Quái chết khi đang đóng băng 40% nở vòng sương băng 1 sát thương [WIKI Frost Nova]; thời gian, bán kính [ƯỚC LƯỢNG]' });
+  def(1018, { nums: [TL.clone.every], note: 'Mỗi 8 s (trong trận) sinh ảo ảnh bắn tự động 4 s, nửa sát thương: toàn bộ số [ƯỚC LƯỢNG]' });
+  def(1020, { nums: [TL.focus.rate * 100, TL.focus.crit, TL.focus.spread, TL.focus.max, TL.focus.dur], note: 'Mỗi quái hạ: tốc bắn +5%, bạo kích +5%, độ lệch −2, tối đa 4 tầng, 10 s [WIKI Stay Focused]' });
+  def(1024, { note: 'Sau một đòn đánh, một vũ khí tầm xa đã nhặt (tối đa 10) bắn thêm 1 s nửa sát thương, không tốn năng lượng, nghỉ 2,5 s giảm dần theo số súng [WIKI Arms Alignment]' });
+  def(2105, { nums: () => [VE().cycle_duration, VE().missile_trigger_probability * 100, VE().elemental_damage_factor * 100], note: 'Đổi Thiêu Đốt, Đóng Băng, Trúng Độc, Cảm Điện mỗi 5 s; đòn trúng 50% gây hiệu ứng, sát thương theo thời gian của nó +50% [ĐO elementalcycle.lua]' });
+  def(2108, { nums: () => [VP().attack_speed_addition * 100, VP().move_speed_addition * 100], note: 'Trong trận thú cưng đánh nhanh và chạy nhanh gấp đôi [ĐO partytime.lua addition 1 = +100%, cách đọc đơn vị ƯỚC LƯỢNG]' });
+  def(2118, { nums: [25, 1], note: 'Gây trạng thái xấu lên quái: 25% hồi 1 giáp [WIKI Elemental Blessing]' });
+  def(2145, { nums: () => [VC().damage_factor_per_stack * 100, VC().max_stack], note: 'Mỗi lần dùng kỹ năng +10% sát thương, tối đa 5 tầng 5 s; máu còn 1 thì đầy tầng [ĐO courage.lua + WIKI Hero\'s Valor]' });
+  def(2146, { nums: [TL.spirit.stackDur, TL.spirit.stacks, TL.spirit.dur], note: 'Mỗi đòn trúng +1 Đấu Chí 5 s, đủ 10 tầng thì Hồn Giác Đấu 5 s: tầm cận chiến +30%, bạo kích +30% [WIKI Martial Spirit; số Hồn Giác Đấu ƯỚC LƯỢNG]' });
+
+  const BARE = /^(GunInitFighter|WeaponInitAirbender|GunInitTranscendent)$/;
+  const dotHit = () => G._skHit === 'dot';
+  const dbOn = (e, k) => !!(e._db && e._db[k] && e._db[k].t > 0);
+  const iced = e => dbOn(e, 'ice');
+  function elemOf(e) {
+    if (e._db) for (const k in e._db) if (e._db[k] && e._db[k].t > 0 && k !== 'dizzy' && k.indexOf('gas') !== 0) return k;
+    if (e._bmSt) for (const k in e._bmSt) return k;
+    return null;
+  }
+  const bmOf = p => p.bm || (p.bm = {});
+  const kit = () => SK.skillKit || {};
+  function bolt(a, b, dur) { const K = kit(); if (K.boltProp) K.boltProp(G, a, b, dur); }
+
+  // Khiên Khẩn Cấp (38)
+  const prevHurtP = SK.hurtPlayer;
+  SK.hurtPlayer = function (G2, dmg, ...rest) {
+    const p = G2.player, before = p ? p.armor : 0;
+    const hit = prevHurtP.call(this, G2, dmg, ...rest);
+    if (hit && p && has(38) && before > 0 && p.armor <= 0 && !(bmOf(p).armCd > 0)) {
+      const n = Math.floor(p.armorMax * TL.emerg.frac);
+      if (n > 0) {
+        p.armor = n; bmOf(p).armCd = TL.emerg.cd;
+        SK.num(G2, p.x, p.y - 30, '+' + n, '#c9d2df'); vfx('effect_health_green', p.x, p.y - 8, { follow: p, dy: -8, scale: 0.8 });
+        snd(clipOf('buff_statue_5', 'fire') || 'fx_skill_ploy', 0.4);
+      }
+    }
+    return hit;
+  };
+
+  // Bạo Phép Thuật (40) và Gan Góc Dũng Cảm (2145): chỉnh sát thương trước khi trừ máu
+  const prevHurtE = SK.hurtEnemy;
+  SK.hurtEnemy = function (G2, e, dmg, crit, ang, repel, ...rest) {
+    const p = G2.player;
+    if (!G2._bmInner && p && p.buffs && p.buffs.length && e && targetable(e) && !dotHit()) {
+      const bm = bmOf(p);
+      if (has(40) && crit && elemOf(e)) dmg *= 2;
+      if (has(2145) && bm.valorN > 0) dmg = Math.round(dmg * (1 + VC().damage_factor_per_stack * bm.valorN));
+    }
+    return prevHurtE.call(this, G2, e, dmg, crit, ang, repel, ...rest);
+  };
+
+  function zap(e) {
+    const p = G.player, bm = bmOf(p);
+    if (!e || !targetable(e) || bm.zapCd > 0) return;
+    bm.zapCd = TL.zap.cd;
+    const [x, y] = enemyMid(e), list = [e];
+    for (const q of G.enemies) {
+      if (list.length > TL.zap.chain) break;
+      if (q === e || !targetable(q)) continue;
+      const [qx, qy] = enemyMid(q);
+      if (Math.hypot(qx - x, qy - y) < TL.zap.reach * T) list.push(q);
+    }
+    snd('fx_skill_ploy', 0.3);
+    for (const q of list) {
+      const [qx, qy] = enemyMid(q);
+      bolt([qx, qy - 90], [qx, qy], 0.25);
+      vfx('effect_shock1', qx, qy, { scale: 0.8 });
+      hurtE(q, TL.zap.dmg, false, Math.atan2(qy - y, qx - x), 0);
+    }
+  }
+  function iceFx(x, y, r, dur) {
+    G.props.push({ x, y: -1e9, t: 0, update(G2, pr, dt) { pr.t += dt; if (pr.t >= dur) pr.gone = true; },
+      draw(ctx, G2, pr) { const k = pr.t / dur; ctx.save(); ctx.globalAlpha = 0.5 * (1 - k); ctx.fillStyle = '#a8e6ff'; ctx.beginPath(); ctx.arc(x, y, r * (0.3 + 0.7 * k), 0, 6.283); ctx.fill(); ctx.restore(); } });
+  }
+  function iceSpikes(e) {
+    const [x, y] = enemyMid(e), a0 = SK.rand() * 6.283;
+    for (let i = 0; i < TL.spike.n; i++) {
+      const a = a0 + i * 6.283 / TL.spike.n;
+      const s = shot({ x, y, vx: Math.cos(a) * 150, vy: Math.sin(a) * 150, dmg: TL.spike.dmg, r: 2, life: 0.7, canCrit: false, pierce: 1, spike: true });
+      s.draw = (ctx, G2, pr) => { ctx.fillStyle = '#b9efff'; ctx.fillRect(Math.round(pr.x) - 1, Math.round(pr.y) - 1, 3, 3); };
+    }
+  }
+  function iceSculpture(e) {
+    const S = TL.sculpt, me = { x: e.x, y: e.y - 6, t: 0, life: S.life, sculpt: true };
+    const boom = () => {
+      me.gone = true; const R = S.r * T;
+      ring(me.x, me.y, R, [0.6, 0.9, 1], 0.4); iceFx(me.x, me.y, R, 0.4); snd('fx_box_destroy', 0.4);
+      for (const q of G.enemies) {
+        if (!targetable(q)) continue;
+        const [qx, qy] = enemyMid(q);
+        if (Math.hypot(qx - me.x, qy - me.y) < R) { hurtE(q, S.dmg, false, Math.atan2(qy - me.y, qx - me.x), 2); if (kit().debuff) kit().debuff(G, q, 'ice'); }
+      }
+    };
+    G.props.push(Object.assign(me, {
+      update(G2, pr, dt) {
+        pr.t += dt; pr.life -= dt;
+        const q = nearestEnemy(pr.x, pr.y, 220);
+        if (q) {
+          const [qx, qy] = enemyMid(q), d = Math.hypot(qx - pr.x, qy - pr.y);
+          if (d < 10) { boom(); return; }
+          const s = Math.min(d, S.spd * dt); pr.x += (qx - pr.x) / d * s; pr.y += (qy - pr.y) / d * s;
+        }
+        if (pr.life <= 0) boom();
+      },
+      draw(ctx, G2, pr) { ctx.fillStyle = '#d6f6ff'; ctx.fillRect(Math.round(pr.x) - 4, Math.round(pr.y) - 8 + Math.sin(pr.t * 6), 8, 12); ctx.fillStyle = '#7fcfee'; ctx.fillRect(Math.round(pr.x) - 2, Math.round(pr.y) - 6, 4, 8); }
+    }));
+  }
+  function frostNova(x, y) {
+    const N = TL.nova, R = N.r * T;
+    G.props.push({ x, y: -1e9, t: 0, k: 0, nova: true, update(G2, pr, dt) {
+      pr.t += dt; pr.k -= dt;
+      if (pr.k <= 0) {
+        pr.k += N.tick;
+        for (const q of G.enemies) { if (!targetable(q)) continue; const [qx, qy] = enemyMid(q); if (Math.hypot(qx - x, qy - y) < R) hurtE(q, N.dmg, false, 0, 0); }
+      }
+      if (pr.t >= N.life) pr.gone = true;
+    }, draw(ctx, G2, pr) { ctx.save(); ctx.globalAlpha = 0.3 * (1 - pr.t / N.life * 0.6); ctx.fillStyle = '#a8e6ff'; ctx.beginPath(); ctx.arc(x, y, R, 0, 6.283); ctx.fill(); ctx.restore(); } });
+  }
+  function qiWave(p) {
+    const Q = TL.qi, a = p.aim, x = p.x, y = p.y - 8, R = Q.range * T;
+    const inCone = (px, py) => Math.hypot(px - x, py - y) < R && Math.abs(Math.atan2(Math.sin(Math.atan2(py - y, px - x) - a), Math.cos(Math.atan2(py - y, px - x) - a))) < Q.half;
+    G.props.push({ x, y: -1e9, t: 0, update(G2, pr, dt) { pr.t += dt; if (pr.t > 0.3) pr.gone = true; },
+      draw(ctx, G2, pr) { const k = pr.t / 0.3; ctx.save(); ctx.globalAlpha = 0.45 * (1 - k); ctx.fillStyle = '#bfe3ff'; ctx.beginPath(); ctx.moveTo(x, y); ctx.arc(x, y, R * (0.2 + 0.8 * k), a - Q.half, a + Q.half); ctx.closePath(); ctx.fill(); ctx.restore(); } });
+    for (const q of G.enemies) {
+      if (!targetable(q)) continue;
+      const [qx, qy] = enemyMid(q);
+      if (inCone(qx, qy)) hurtE(q, Q.dmg, false, a, 1);
+    }
+    for (const b of G.bullets) if (b.side === 'e' && !b.dead && inCone(b.x, b.y)) { if (has(4)) reflect(b); else b.dead = true; }
+  }
+
+  // Bắn thêm một khẩu vũ khí bằng WEAPON_KINDS (không tốn năng lượng, không phát sự kiện 'fire'); đạn mới giảm sát thương theo k.
+  function extraFire(w, ang, x, y) {
+    const p = G.player, d = w && w.def; if (!d) return;
+    try { (SK.WEAPON_KINDS[d.kind] || SK.WEAPON_KINDS.gun).fire(G, p, w, { x: x + Math.cos(ang) * 8, y: y + Math.sin(ang) * 8, ang, side: 1, charge: 1 }); }
+    catch (err) { SK.warnOnce('xfire', 'bắn thêm: ' + err.message); }
+  }
+  function scaleNew(n0, k) {
+    for (let i = n0; i < G.bullets.length; i++) { const b = G.bullets[i]; if (b.side === 'p') { b._bm = 1; b._xtra = 1; b.dmg = Math.max(1, Math.round(b.dmg * k)); } }
+  }
+  function drainQ(w, dt) {
+    if (!w || !w.q || !w.q.length) return;
+    for (const q of w.q) q.t -= dt;
+    const due = w.q.filter(q => q.t <= 0); w.q = w.q.filter(q => q.t > 0);
+    for (const q of due) q.fn();
+  }
+  const xPeriod = w => { const f = w.def && w.def.w86 && w.def.w86.fire; return Math.min(0.6, Math.max(0.15, (f && f.period) || 0.33)); };
+  const rangedPool = bm => (bm.echoPool || []).filter(id => DS.weapons[id] && DS.weapons[id].kind !== 'melee');
+
+  function echoTick(p, bm, dt) {
+    const pool = bm.echoPool || (bm.echoPool = []);
+    for (const w of [p.weapons[0], p.weapons[1], p.extraW, p.dual]) if (w && w.id && DS.weapons[w.id] && pool.indexOf(w.id) < 0) { pool.push(w.id); if (pool.length > TL.echo.pool) pool.shift(); }
+    if (bm.echoCd > 0) bm.echoCd -= dt;
+    if (!(bm.echoT > 0)) return;
+    const w = bm.echoW; if (!w) { bm.echoT = 0; return; }
+    bm.echoT -= dt; bm.echoNext -= dt;
+    const n0 = G.bullets.length;
+    drainQ(w, dt);
+    if (bm.echoNext <= 0) { bm.echoNext += xPeriod(w); extraFire(w, p.aim, p.x, p.y - 8); }
+    scaleNew(n0, TL.echo.dmg);
+    if (bm.echoT <= 0) { bm.echoW = null; bm.echoCd = Math.max(TL.echo.cdMin, TL.echo.cd - TL.echo.cdPer * (pool.length - 1)); }
+  }
+  function cloneTick(p, bm, dt) {
+    const C = TL.clone;
+    if (bm.cloneT > 0) {
+      bm.cloneT -= dt; bm.cloneNext -= dt;
+      const c = bm.clone; c.x = p.x - p.face * 14; c.y = p.y + 3;
+      const w = bm.cloneW, n0 = G.bullets.length;
+      drainQ(w, dt);
+      if (w && bm.cloneNext <= 0) {
+        const e = nearestEnemy(c.x, c.y - 8, 200);
+        if (e) { const [ex, ey] = enemyMid(e); extraFire(w, Math.atan2(ey - (c.y - 8), ex - c.x), c.x, c.y - 8); bm.cloneNext = Math.max(0.3, xPeriod(w)); }
+      }
+      scaleNew(n0, C.dmg);
+      if (bm.cloneT <= 0) { c.gone = true; bm.clone = null; bm.cloneW = null; bm.cloneCd = C.every; }
+    } else if (G.room && G.room.state === 'locked') {
+      bm.cloneCd = (bm.cloneCd == null ? 1 : bm.cloneCd) - dt;
+      const cw = p.weapons[p.cur];
+      if (bm.cloneCd <= 0 && cw && cw.def && cw.def.kind !== 'melee') {
+        bm.cloneW = SK.makeWeapon(cw.id); bm.cloneT = C.dur; bm.cloneNext = 0.2;
+        bm.clone = { x: p.x, y: p.y, t: 0, update(G2, pr, d2) { pr.t += d2; }, draw(ctx, G2, pr) {
+          const fr = p.anims && SK.animFrame(p.anims.idle, pr.t);
+          if (fr) SK.drawTinted(ctx, fr, pr.x, pr.y, [0.35, 0.8, 0.45, 1], { alpha: 0.6, flip: p.face < 0 });
+        } };
+        G.props.push(bm.clone);
+      } else if (bm.cloneCd <= 0) bm.cloneCd = 1;
+    }
+  }
+  function petTick(p) {
+    const a = G.pet; if (!a || !a.k) return;
+    const b = a._tl || (a._tl = { dmg: a.k.dmg, cd: a.k.cd, spd: a.k.spd, scale: a.scale == null ? 1 : a.scale });
+    let dm = 1, sz = 1, as = 1, ms = 1;
+    if (has(17)) { dm = TL.pet.dmg; sz = TL.pet.size; }
+    if (has(2108) && G.room && G.room.state === 'locked') { as = 1 + VP().attack_speed_addition; ms = 1 + VP().move_speed_addition; }
+    a.k.dmg = b.dmg * dm; a.scale = b.scale * sz; a.k.cd = b.cd / as; a.k.spd = b.spd * ms;
+  }
+  function armorOnDebuff(p) {
+    if (!SK.chance(0.25) || p.armor >= p.armorMax) return;
+    p.armor++; SK.num(G, p.x, p.y - 30, '+1', '#c9d2df'); vfx('effect_health_green', p.x, p.y - 8, { follow: p, dy: -8, scale: 0.6 });
+  }
+  function talentTick(p, bm, dt) {
+    if (bm.zapCd > 0) bm.zapCd -= dt;
+    if (bm.armCd > 0) bm.armCd -= dt;
+    if (has(2145)) {
+      if (p.hp <= 1 && p.hp > 0) { bm.valorN = VC().max_stack; bm.valorT = VC().duration; }
+      if (bm.valorT > 0 && (bm.valorT -= dt) <= 0) bm.valorN = 0;
+    }
+    if (has(1020)) {
+      if (bm.focusT > 0 && (bm.focusT -= dt) <= 0) bm.focusN = 0;
+      const n = bm.focusN || 0;
+      setMul(p, 'focus', 1 + TL.focus.rate * n); setCrit(p, 'focus', TL.focus.crit * n);
+      if (n !== bm.focusApplied) { bm.focusApplied = n; refreshWeapons(p); }
+    }
+    if (has(2146)) {
+      const on = bm.spiritT > 0;
+      if (on) bm.spiritT -= dt;
+      const now = bm.spiritT > 0;
+      setCrit(p, 'spirit', now ? TL.spirit.crit : 0);
+      if (on && !now) refreshWeapons(p);
+    }
+    if (has(2105)) bm.cycT = (bm.cycT || 0) + dt;
+    if (has(2118) || has(23)) {
+      for (const e of G.enemies) {
+        if (!targetable(e)) continue;
+        if (e._db) for (const k in e._db) {
+          const b = e._db[k]; if (!b || b._tl) continue;
+          b._tl = 1;
+          if (k === 'ice' && has(23)) { b.t += TL.iceExtra; if (kit().stun) kit().stun(e, b.t); }
+          if (has(2118)) armorOnDebuff(p);
+        }
+        if (e._bmSt) for (const k in e._bmSt) { const b = e._bmSt[k]; if (b && !b._tl) { b._tl = 1; if (has(2118)) armorOnDebuff(p); } }
+      }
+    }
+    if (has(1024)) echoTick(p, bm, dt);
+    if (has(1018)) cloneTick(p, bm, dt);
+    if (has(17) || has(2108)) petTick(p);
+  }
+  function cycleKind(bm) { const K = ['fire', 'ice', 'poison', 'ele']; return K[Math.floor((bm.cycT || 0) / VE().cycle_duration) % 4]; }
+  ROOMS.cycleKind = () => cycleKind(bmOf(G.player));
+
+  SK.on('skill', (G2, p) => {
+    if (!p.buffs || !p.buffs.length) return;
+    const bm = bmOf(p);
+    if (has(2145)) { bm.valorN = Math.min(VC().max_stack, (bm.valorN || 0) + 1); bm.valorT = VC().duration; }
+    if (has(41)) zap(nearestEnemy(p.x, p.y - 8, 160));
+  });
+  SK.on('fire', (G2, p, w) => {
+    if (!p.buffs || !p.buffs.length || !w || !w.def) return;
+    const bm = bmOf(p);
+    if (has(39) && w.def.w86 && BARE.test(w.def.w86.cls) && p.energy >= TL.qi.cost) { p.energy -= TL.qi.cost; qiWave(p); }
+    if (has(1024) && !(bm.echoCd > 0) && !(bm.echoT > 0)) {
+      const ids = rangedPool(bm);
+      if (ids.length) { bm.echoW = SK.makeWeapon(ids[Math.floor(SK.rand() * ids.length)]); bm.echoT = TL.echo.dur; bm.echoNext = 0; }
+    }
+  });
+  SK.on('enemyHit', (G2, e, dmg, crit) => {
+    const p = G2.player;
+    if (!p || !p.buffs || !p.buffs.length || G2._bmInner || dotHit()) return;
+    const bm = bmOf(p);
+    if (has(41) && crit) zap(e);
+    if (has(1015) && crit && iced(e)) iceSpikes(e);
+    if (has(2146)) {
+      const now = G2.t;
+      if (!(bm.spiritT > 0)) {
+        bm.will = (bm.will || []).filter(t => t > now); bm.will.push(now + TL.spirit.stackDur);
+        if (bm.will.length >= TL.spirit.stacks) { bm.will = []; bm.spiritT = TL.spirit.dur; setCrit(p, 'spirit', TL.spirit.crit); refreshWeapons(p); }
+      }
+    }
+    if (has(2105) && e.st !== 'dead' && SK.chance(VE().missile_trigger_probability) && kit().debuff) {
+      const k = cycleKind(bm), b = kit().debuff(G, e, k);
+      if (b && b.dmg && !b._cyc) { b.dmg *= 1 + VE().elemental_damage_factor; b._cyc = 1; }
+    }
+  });
+  SK.on('enemyKill', (G2, e) => {
+    const p = G2.player; if (!p || !p.buffs || !p.buffs.length) return;
+    const bm = bmOf(p);
+    if (has(1020)) { bm.focusN = Math.min(TL.focus.max, (bm.focusN || 0) + 1); bm.focusT = TL.focus.dur; }
+    if (iced(e)) {
+      if (has(1016) && SK.chance(TL.sculpt.chance)) iceSculpture(e);
+      if (has(1017) && SK.chance(TL.nova.chance)) frostNova(e.x, e.y - 6);
+    }
+  });
+
   // ---------------------------------------------------------------- BUFF: bộ điều khiển chạy mỗi bước (prop vô hình dưới chân)
   let lastCur = 0, lastPos = null;
   function tick(G2, pr, dt) {
@@ -561,6 +874,7 @@
       }
     }
     if (!p.buffs || !p.buffs.length) { lastCur = p.cur; return; }
+    talentTick(p, bm, dt);
     // Ép Xung
     if (has(32)) {
       if (bm.rapidT > 0) bm.rapidT -= dt;

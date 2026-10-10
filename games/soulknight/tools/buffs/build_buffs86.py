@@ -4,7 +4,7 @@
 #   PYTHONIOENCODING=utf-8 python games/soulknight/tools/buffs/build_buffs86.py
 import io, json, os, re, sys, time
 
-DEC = r'D:\sk86-ref\decoded'
+DEC = os.path.expanduser(os.environ.get('SK86_DEC', r'D:\sk86-ref\decoded'))
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'data', 'sk-buffs86.js')
 
 
@@ -65,6 +65,10 @@ for k in ('MasterElementCritic', 'MasterStaff'):
     b = buffs[str(key_id[k])]
     b['name'] = buffs['40']['name']; b['info'] = buffs['40']['info']; b['upg'] = buffs['40']['upg']; b['icon'] = 'ui_buff_26'
     b['alias'] = 'ElementalStaff'
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from talents86 import extra_buffs
+buffs.update(extra_buffs(loc))   # 1015..1018, 3001..3007: ngoài bảng nhóm bốc
 
 groups = {g['TalentGroupId']: [[key_id[u['Id']], u['Weight']] for u in g['TalentUnit']] for g in TG}
 # 1-1..1-5 = cấp 1..5; 2-x = 6..10; 3-x = 11..15 [ĐO pseudorandom_tbnooblevels: LevelId "<cấp>_<nhánh>"].

@@ -256,7 +256,7 @@ const IGNORE = /bosses86|theme|lib|colour/;
     await ev(() => { SK.G.player.armor = 5; SK.G.player.buffs = []; });
     await useLabel('đổi 1 giáp');
     const hb = await ev(() => ({ armor: SK.G.player.armor, buffs: SK.G.player.buffs.slice() }));
-    check('mua buff của Thiện Lương: trừ 1 giáp, nhận buff (Khiên Chống Độc hoặc Khiên Lửa)', hb.armor === 4 && hb.buffs.length === 1 && (hb.buffs[0] === 8 || hb.buffs[0] === 9), JSON.stringify(hb));
+    check('mua buff của Thiện Lương: trừ 1 giáp, nhận một buff trong kho Thiện Lương (8, 9, 23, 40)', hb.armor === 4 && hb.buffs.length === 1 && [8, 9, 23, 40].indexOf(hb.buffs[0]) >= 0, JSON.stringify(hb));
 
     // ================================================================ chọn buff ở cổng
     async function walkIntoPortal(label) {
@@ -299,7 +299,7 @@ const IGNORE = /bosses86|theme|lib|colour/;
       'l1=' + pools.l1.length + ' l6=' + pools.l6.length);
     const act = await ev(() => Object.keys(SK_ROOMS.DEF).filter(k => SK_ROOMS.DEF[k].active).length);
     const offered = await ev(() => { const seen = {}; for (let i = 0; i < 300; i++) for (const id of SK_ROOMS.offerIds(3)) seen[id] = 1; return Object.keys(seen).map(Number); });
-    check('chỉ đưa lên bảng những buff đã có luật chạy (không có Thợ Mỏ Đá Quý, Bạn Tốt Nhất, Thời Gian Party...)', offered.length > 20 && [15, 17, 23, 2108, 2105].every(i => offered.indexOf(i) < 0) && act >= 30, 'đã thấy ' + offered.length + ' loại / ' + act + ' buff active');
+    check('chỉ đưa lên bảng những buff đã có luật chạy (không có Thợ Mỏ Đá Quý, Liên Kích Mưa, Âm Dương Lưu Chuyển, Nhà Mỹ Thực...)', offered.length > 20 && [15, 31, 1023, 1025].every(i => offered.indexOf(i) < 0) && act >= 30, 'đã thấy ' + offered.length + ' loại / ' + act + ' buff active');
 
     // ================================================================ hiệu ứng buff (số thật)
     async function fresh(buffs) {
