@@ -684,7 +684,26 @@
       for (const it of ((tpl.grids || {}).INVENTORY || {}).spatialItems || []) if (!s.itemsOwned.includes(it.id)) s.itemsOwned.push(it.id);
       if (s.vars['gm-debt'] == null) s.vars['gm-debt'] = root.DR_CONFIG.greaterMarrowDebt;
     });
-    DR().on('load', () => ensure());
+    DR().on('load', () => { ensure(); healDestinations(); });
+  }
+  // Sổ lưu cũ (rev trước khi lệnh SetDestinationAvailable chạy đúng) có thể đã qua Mayor_Intro_1_Fish mà chưa mở Người buôn cá: không bao giờ mở lại
+  // được vì nút đó chỉ chạy một lần. Giống bản vá SaveData.cs:819 của gốc (lm-painter): nút đã thăm có SetDestinationAvailable <id> true thì mở <id>,
+  // chỉ với điểm đến không có lệnh tắt nào trong Yarn (điểm đến bật/tắt theo nhiệm vụ để nguyên)
+  let healMap = null;
+  function healDestinations() {
+    if (!healMap) {
+      const on = {}, off = new Set();
+      for (const [k, n] of Object.entries(Y.nodes || {})) {
+        const t = JSON.stringify(n);
+        for (const m of t.matchAll(/SetDestinationAvailable ([\w.-]+) (true|false)/g)) {
+          if (m[2] === 'false') off.add(m[1]); else (on[k] = on[k] || []).push(m[1]);
+        }
+      }
+      healMap = {};
+      for (const k in on) { const ids = on[k].filter(id => !off.has(id)); if (ids.length) healMap[k] = ids; }
+    }
+    const s = ensure(), L = s.availableDestinations;
+    for (const k of s.visitedNodes || []) for (const id of healMap[k] || []) if (!L.includes(id)) L.push(id);
   }
   wire();
 
