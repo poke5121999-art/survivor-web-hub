@@ -79,14 +79,14 @@ const want = id => !ONLY.length || ONLY.indexOf(id) >= 0;
     const D = await ev(() => {
       const B = SK_BUFFS86.buffs, ids = [1015, 1016, 1017, 1018, 3001, 3002, 3003, 3004, 3005, 3006, 3007];
       return { names: ids.map(i => B[i] && B[i].name && B[i].name.vi), info1016: B[1016].info.vi, desc1016: SK_ROOMS.buffDesc(1016), desc41: SK_ROOMS.buffDesc(41),
-        active: [38, 39, 40, 41, 1015, 1016, 1017, 1018, 1020, 1024, 17, 23, 2105, 2108, 2118, 2145, 2146].map(i => !!(SK_ROOMS.DEF[i] && SK_ROOMS.DEF[i].active)),
-        off: [15, 31, 1023, 1025, 3001].map(i => !!(SK_ROOMS.DEF[i] && SK_ROOMS.DEF[i].active)),
+        active: [38, 39, 40, 41, 1015, 1016, 1017, 1018, 1020, 1024, 17, 23, 2105, 2108, 2118, 2145, 2146, 15].map(i => !!(SK_ROOMS.DEF[i] && SK_ROOMS.DEF[i].active)),
+        off: [31, 1023, 1025, 3001].map(i => !!(SK_ROOMS.DEF[i] && SK_ROOMS.DEF[i].active)),
         offered: (() => { const s = {}; for (const [lv, th] of [[2, 'forest'], [6, 'castle'], [11, 'volcano']]) for (const x of SK_ROOMS.poolFor(lv, th).pool) s[x[0]] = 1; return Object.keys(s).map(Number); })(),
         honest: [8, 9, 23, 40].map(i => !!(SK_ROOMS.DEF[i] && SK_ROOMS.DEF[i].active)) };
     });
     check('dữ liệu tên 1015..1018 và 3001..3007 từ localization (không còn thiếu)', D.names.every(Boolean) && D.names[0] === 'Băng Kích' && D.names[3] === 'Ảo Ảnh Rừng', D.names.join(', '));
     check('mô tả điền số: Tượng Băng Nổ "50% … bán kính 2 … 12 DMG", Dòng Điện Từ "Tăng Bạo Kích 10%"', /50%/.test(D.desc1016) && /bán kính 2/.test(D.desc1016) && /12 DMG/.test(D.desc1016) && /10%/.test(D.desc41), D.desc1016.slice(0, 90));
-    check('17 thiên phú đã có luật active; Thợ Mỏ Đá Quý, Liên Kích Mưa, Âm Dương, Nhà Mỹ Thực, 3001 chưa active', D.active.every(Boolean) && D.off.every(x => !x), JSON.stringify(D.active) + ' ' + JSON.stringify(D.off));
+    check('18 thiên phú đã có luật active (có Thợ Mỏ Đá Quý, số đo ở soulknight-gem-statue.js); Liên Kích Mưa, Âm Dương, Nhà Mỹ Thực, 3001 chưa active', D.active.every(Boolean) && D.off.every(x => !x), JSON.stringify(D.active) + ' ' + JSON.stringify(D.off));
     check('bể bốc theo cấp (nhóm gốc) có 17, 23, 2105, 2108 từ ải đầu và 2118 từ cấp 11; 38, 39, 41, 1020, 1024, 2145, 2146 và Lê Băng không nằm trong nhóm nào', [17, 23, 2105, 2108, 2118].every(i => D.offered.indexOf(i) >= 0) && [38, 39, 41, 1020, 1024, 2145, 2146, 1015, 1016, 1017, 1018].every(i => D.offered.indexOf(i) < 0), D.offered.length + ' loại');
     check('Lái Buôn Thiện Lương (8, 9, 23, 40) có đủ bốn buff chạy được', D.honest.every(Boolean), JSON.stringify(D.honest));
 

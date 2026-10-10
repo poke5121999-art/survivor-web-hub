@@ -96,7 +96,7 @@ async function useSlot(p, slot) {
     check('hồ sơ trắng: thư chào "Huấn luyện đạt", kho/két/thống kê rỗng',
       f.mail.length === 1 && f.mail[0].title === 'Huấn luyện đạt' && !Object.keys(f.items).length && f.safe.level === 0 && f.stats.kills === 0 && f.stats.best === 0 && f.box.length === 0,
       JSON.stringify({ mail: f.mail.map(m => m.title), safe: f.safe.level }));
-    const zones = await p.evaluate(() => SK.hall.zones());
+    const zones = (await p.evaluate(() => SK.hall.zones())).filter(z => !/^garden_/.test(z.slot));   // ô vườn (bước 6) có bộ kiểm riêng: test/soulknight-garden.js
     const names = zones.map(z => z.slot + '=' + z.name);
     check('có 21 món tương tác với tên Việt (gồm Máy Đổi, Máy Game, Bàn Rèn, Bàn Thiết Kế)', zones.length === 21 && zones.some(z => z.slot === 'token_machine') && zones.some(z => z.slot === 'arcade_machine'), names.join(', '));
     // Két Sắt khoá (chưa qua 2-2)

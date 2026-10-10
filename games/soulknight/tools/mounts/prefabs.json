@@ -1,0 +1,899 @@
+{
+ "m_mech_0": {
+  "critical": 0,
+  "defence": 1,
+  "hp": 7,
+  "itemValue": 12,
+  "speed": 6.5,
+  "speedRate": -0.20000000298023224,
+  "weapons": [
+   {
+    "consume": 1,
+    "critic": 10,
+    "damage": 3,
+    "itemValue": 36,
+    "name": "m_mech_0_1",
+    "speed": 1.0,
+    "weapon_type": 1
+   },
+   {
+    "consume": 0,
+    "critic": 10,
+    "damage": 3,
+    "itemValue": 36,
+    "name": "missle_left",
+    "speed": 1.0,
+    "weapon_type": 1
+   },
+   {
+    "consume": 0,
+    "critic": 0,
+    "damage": 50,
+    "itemValue": 20,
+    "name": "m_mech_0_2",
+    "speed": 1.0,
+    "weapon_type": 0
+   }
+  ]
+ },
+ "m_mech_1": {
+  "critical": 0,
+  "defence": 1,
+  "hp": 10,
+  "itemValue": 12,
+  "speed": 6.5,
+  "speedRate": -0.20000000298023224,
+  "weapons": [
+   {
+    "consume": 0,
+    "critic": 20,
+    "damage": 10,
+    "itemValue": 0,
+    "name": "mech_1_1",
+    "speed": 1.0,
+    "weapon_type": 5
+   },
+   {
+    "consume": 0,
+    "critic": 20,
+    "damage": 10,
+    "itemValue": 0,
+    "name": "mech_1_1",
+    "speed": 1.0,
+    "weapon_type": 5
+   },
+   {
+    "consume": 0,
+    "critic": 15,
+    "damage": 12,
+    "itemValue": 19,
+    "name": "mech_1_2",
+    "speed": 0.800000011920929,
+    "weapon_type": 4
+   },
+   {
+    "consume": 0,
+    "critic": 15,
+    "damage": 12,
+    "itemValue": 19,
+    "name": "mech_1_2",
+    "speed": 0.800000011920929,
+    "weapon_type": 4
+   }
+  ]
+ },
+ "m_mech_2": {
+  "critical": 0,
+  "defence": 1,
+  "hp": 8,
+  "itemValue": 20,
+  "speed": 6.5,
+  "speedRate": -0.20000000298023224,
+  "weapons": [
+   {
+    "consume": 1,
+    "critic": 0,
+    "damage": 3,
+    "itemValue": 20,
+    "name": "mech_2_1",
+    "speed": 1.0,
+    "weapon_type": 0
+   },
+   {
+    "consume": 0,
+    "critic": 0,
+    "damage": 0,
+    "itemValue": 20,
+    "name": "poly_creator",
+    "speed": 1.0,
+    "weapon_type": 0
+   }
+  ]
+ },
+ "m_mech_3": {
+  "critical": 0,
+  "defence": 2,
+  "hp": 12,
+  "itemValue": 40,
+  "speed": 6.5,
+  "speedRate": -0.20000000298023224,
+  "weapons": [
+   {
+    "consume": 3,
+    "critic": 0,
+    "damage": 12,
+    "itemValue": 20,
+    "name": "mech_3_1",
+    "speed": 1.0,
+    "weapon_type": 0
+   },
+   {
+    "consume": 3,
+    "critic": 0,
+    "damage": 12,
+    "itemValue": 20,
+    "name": "mech_3_1",
+    "speed": 1.0,
+    "weapon_type": 0
+   },
+   {
+    "consume": 10,
+    "critic": 0,
+    "damage": 2,
+    "itemValue": 35,
+    "name": "weapon_902",
+    "speed": 1.0,
+    "weapon_type": 13
+   }
+  ]
+ },
+ "m_mech_4": {
+  "critical": 0,
+  "defence": 0,
+  "hp": 16,
+  "itemValue": 40,
+  "speed": 6.5,
+  "speedRate": 0.0,
+  "weapons": [
+   {
+    "consume": 1,
+    "critic": 50,
+    "damage": 4,
+    "itemValue": 25,
+    "name": "ffp_laser",
+    "speed": 1.0,
+    "weapon_type": 11
+   },
+   {
+    "consume": 1,
+    "critic": 40,
+    "damage": 4,
+    "itemValue": 25,
+    "name": "ffp_left",
+    "speed": 1.0,
+    "weapon_type": 11
+   },
+   {
+    "consume": 1,
+    "critic": 40,
+    "damage": 4,
+    "itemValue": 25,
+    "name": "ffp_right",
+    "speed": 1.0,
+    "weapon_type": 11
+   }
+  ]
+ },
+ "m_mech_5": {
+  "critical": 0,
+  "defence": 1,
+  "hp": 8,
+  "itemValue": 20,
+  "speed": 6.5,
+  "speedRate": -0.20000000298023224,
+  "weapons": [
+   {
+    "consume": 0,
+    "critic": 20,
+    "damage": 10,
+    "itemValue": 0,
+    "name": "bite",
+    "speed": 1.0,
+    "weapon_type": 3
+   },
+   {
+    "consume": 4,
+    "critic": 0,
+    "damage": 12,
+    "itemValue": 20,
+    "name": "weapon_903",
+    "speed": 1.0,
+    "weapon_type": 0
+   },
+   {
+    "consume": 4,
+    "critic": 0,
+    "damage": 12,
+    "itemValue": 20,
+    "name": "missle_left",
+    "speed": 1.0,
+    "weapon_type": 0
+   }
+  ]
+ },
+ "m_mech_6": {
+  "critical": 0,
+  "defence": 1,
+  "hp": 7,
+  "itemValue": 40,
+  "speed": 6.5,
+  "speedRate": 0.6000000238418579,
+  "weapons": [
+   {
+    "consume": 4,
+    "critic": 20,
+    "damage": 2,
+    "itemValue": 20,
+    "name": "gun_right",
+    "speed": 1.0,
+    "weapon_type": 1
+   },
+   {
+    "consume": 0,
+    "critic": 20,
+    "damage": 2,
+    "itemValue": 20,
+    "name": "gun_left",
+    "speed": 1.0,
+    "weapon_type": 1
+   }
+  ]
+ },
+ "m_mech_7": {
+  "critical": 0,
+  "defence": 1,
+  "hp": 7,
+  "itemValue": 50,
+  "speed": 6.5,
+  "speedRate": 0.6000000238418579,
+  "weapons": [
+   {
+    "consume": 2,
+    "critic": 10,
+    "damage": 8,
+    "itemValue": 28,
+    "name": "gun",
+    "speed": 1.0,
+    "weapon_type": 9
+   }
+  ]
+ },
+ "m_mech_9": {
+  "critical": 0,
+  "defence": 1,
+  "hp": 12,
+  "itemValue": 50,
+  "speed": 4.5,
+  "speedRate": -0.20000000298023224,
+  "weapons": [
+   {
+    "consume": 0,
+    "critic": 20,
+    "damage": 15,
+    "itemValue": 20,
+    "name": "gun",
+    "speed": 1.0,
+    "weapon_type": 3
+   },
+   {
+    "consume": 3,
+    "critic": 20,
+    "damage": 10,
+    "itemValue": 20,
+    "name": "gun",
+    "speed": 1.0,
+    "weapon_type": 11
+   }
+  ]
+ },
+ "m_mech_coin": {
+  "critical": 0,
+  "defence": 0,
+  "hp": 20,
+  "itemValue": 12,
+  "speed": 6.5,
+  "speedRate": 0.0,
+  "weapons": [
+   {
+    "consume": 1,
+    "critic": 10,
+    "damage": 2,
+    "itemValue": 36,
+    "name": "m_mech_0_1",
+    "speed": 1.0,
+    "weapon_type": 1
+   }
+  ]
+ },
+ "m_mech_engineer": {
+  "critical": 0,
+  "defence": 1,
+  "hp": 7,
+  "itemValue": 15,
+  "speed": 6.5,
+  "speedRate": 0.0,
+  "weapons": [
+   {
+    "consume": 1,
+    "critic": 10,
+    "damage": 3,
+    "itemValue": 36,
+    "name": "m_mech_0_1",
+    "speed": 1.0,
+    "weapon_type": 1
+   },
+   {
+    "consume": 1,
+    "critic": 10,
+    "damage": 3,
+    "itemValue": 36,
+    "name": "missle_left",
+    "speed": 1.0,
+    "weapon_type": 1
+   },
+   {
+    "consume": 0,
+    "critic": 0,
+    "damage": 199,
+    "itemValue": 20,
+    "name": "m_mech_0_2",
+    "speed": 1.0,
+    "weapon_type": 0
+   }
+  ]
+ },
+ "m_mecha_normal_2s": {
+  "critical": 0,
+  "defence": 2,
+  "hp": 13,
+  "itemValue": 50,
+  "speed": 6.5,
+  "speedRate": -0.20000000298023224,
+  "weapons": [
+   {
+    "consume": 4,
+    "critic": 15,
+    "damage": 8,
+    "itemValue": 20,
+    "name": "arm_eliminator_plus",
+    "speed": 1.0,
+    "weapon_type": 8
+   },
+   {
+    "consume": 4,
+    "critic": 15,
+    "damage": 8,
+    "itemValue": 20,
+    "name": "arm_eliminator_plus",
+    "speed": 1.0,
+    "weapon_type": 8
+   }
+  ]
+ },
+ "m_mecha_normal_b": {
+  "critical": 0,
+  "defence": 1,
+  "hp": 12,
+  "itemValue": 40,
+  "speed": 6.5,
+  "speedRate": -0.20000000298023224,
+  "weapons": [
+   {
+    "consume": 2,
+    "critic": 0,
+    "damage": 8,
+    "itemValue": 20,
+    "name": "arm_bazooka",
+    "speed": 1.0,
+    "weapon_type": 0
+   },
+   {
+    "consume": 2,
+    "critic": 0,
+    "damage": 8,
+    "itemValue": 20,
+    "name": "arm_bazooka",
+    "speed": 1.0,
+    "weapon_type": 0
+   }
+  ]
+ },
+ "m_mecha_normal_d": {
+  "critical": 0,
+  "defence": 1,
+  "hp": 13,
+  "itemValue": 40,
+  "speed": 6.5,
+  "speedRate": -0.10000000149011612,
+  "weapons": [
+   {
+    "consume": 2,
+    "critic": 0,
+    "damage": 3,
+    "itemValue": 20,
+    "name": "arm_pengpeng",
+    "speed": 1.0,
+    "weapon_type": 2
+   },
+   {
+    "consume": 2,
+    "critic": 0,
+    "damage": 3,
+    "itemValue": 20,
+    "name": "arm_pengpeng",
+    "speed": 1.0,
+    "weapon_type": 2
+   }
+  ]
+ },
+ "m_mecha_normal_e": {
+  "critical": 0,
+  "defence": 1,
+  "hp": 14,
+  "itemValue": 40,
+  "speed": 6.5,
+  "speedRate": -0.20000000298023224,
+  "weapons": [
+   {
+    "consume": 1,
+    "critic": 0,
+    "damage": 4,
+    "itemValue": 20,
+    "name": "arm_normal_turbulence",
+    "speed": 1.5,
+    "weapon_type": 0
+   },
+   {
+    "consume": 1,
+    "critic": 0,
+    "damage": 4,
+    "itemValue": 20,
+    "name": "arm_normal_turbulence",
+    "speed": 1.5,
+    "weapon_type": 0
+   }
+  ]
+ },
+ "m_morph": {
+  "collider_damage": 6,
+  "critical": 0,
+  "defence": 0,
+  "hp": 8,
+  "itemValue": 15,
+  "speed": 6.5,
+  "speedRate": 0.10000000149011612,
+  "weapons": []
+ },
+ "mbear": {
+  "atk_cd": 2.5,
+  "critical": 0,
+  "defence": 0,
+  "hp": 30,
+  "itemValue": 30,
+  "max_follow_distance": 20.0,
+  "min_follow_distance": 2.0,
+  "speed": 6.5,
+  "speedRate": 0.20000000298023224,
+  "weapons": []
+ },
+ "mboar": {
+  "critical": 0,
+  "defence": 0,
+  "hp": 10,
+  "itemValue": 15,
+  "speed": 6.5,
+  "speedRate": 0.20000000298023224,
+  "weapons": []
+ },
+ "mboar2": {
+  "critical": 0,
+  "defence": 0,
+  "hp": 14,
+  "itemValue": 15,
+  "speed": 6.5,
+  "speedRate": 0.20000000298023224,
+  "weapons": [
+   {
+    "consume": 1,
+    "critic": 0,
+    "damage": 4,
+    "itemValue": 20,
+    "name": "mboar2",
+    "speed": 1.0,
+    "weapon_type": 5
+   }
+  ]
+ },
+ "mcloud": {
+  "critical": 0,
+  "defence": 0,
+  "hp": 0,
+  "itemValue": 15,
+  "speed": 6.5,
+  "speedRate": 1.0,
+  "weapons": []
+ },
+ "mcristal": {
+  "critical": 0,
+  "defence": 0,
+  "hp": 12,
+  "itemValue": 15,
+  "speed": 6.5,
+  "speedRate": 0.10000000149011612,
+  "weapons": [
+   {
+    "consume": 5,
+    "critic": 50,
+    "damage": 3,
+    "itemValue": 30,
+    "name": "mcristal",
+    "speed": 0.800000011920929,
+    "weapon_type": 7
+   }
+  ]
+ },
+ "mcristal_gold": {
+  "critical": 0,
+  "defence": 0,
+  "hp": 12,
+  "itemValue": 15,
+  "speed": 6.5,
+  "speedRate": 0.10000000149011612,
+  "weapons": [
+   {
+    "consume": 5,
+    "critic": 50,
+    "damage": 3,
+    "itemValue": 30,
+    "name": "mcristal",
+    "speed": 0.800000011920929,
+    "weapon_type": 7
+   }
+  ]
+ },
+ "mdungbeetle": {
+  "critical": 0,
+  "defence": 0,
+  "hp": 20,
+  "itemValue": 20,
+  "speed": 4.5,
+  "speedRate": 0.20000000298023224,
+  "weapons": []
+ },
+ "mhorse": {
+  "critical": 0,
+  "defence": 0,
+  "hp": 10,
+  "itemValue": 15,
+  "speed": 6.5,
+  "speedRate": 0.20000000298023224,
+  "weapons": []
+ },
+ "micemonkey": {
+  "critical": 0,
+  "defence": 0,
+  "hp": 20,
+  "itemValue": 20,
+  "speed": 4.5,
+  "speedRate": 0.20000000298023224,
+  "weapons": []
+ },
+ "mspider": {
+  "critical": 0,
+  "defence": 0,
+  "hp": 12,
+  "itemValue": 15,
+  "speed": 6.5,
+  "speedRate": 0.10000000149011612,
+  "weapons": [
+   {
+    "consume": 3,
+    "critic": 0,
+    "damage": 10,
+    "itemValue": 30,
+    "name": "mspider",
+    "speed": 0.699999988079071,
+    "weapon_type": 11
+   }
+  ]
+ },
+ "msword": {
+  "critical": 0,
+  "defence": 0,
+  "hp": 0,
+  "itemValue": 15,
+  "speed": 6.5,
+  "speedRate": 0.5,
+  "weapons": []
+ },
+ "mtao_sword": {
+  "critical": 0,
+  "defence": 0,
+  "hp": 0,
+  "itemValue": 15,
+  "speed": 6.5,
+  "speedRate": 2.2200000286102295,
+  "weapons": []
+ },
+ "mvaken": {
+  "critical": 0,
+  "defence": 0,
+  "hp": 16,
+  "itemValue": 15,
+  "speed": 6.5,
+  "speedRate": 0.10000000149011612,
+  "weapons": [
+   {
+    "consume": 0,
+    "critic": 50,
+    "damage": 1,
+    "itemValue": 20,
+    "name": "e_worm01",
+    "speed": 0.699999988079071,
+    "weapon_type": 2
+   }
+  ]
+ },
+ "npc_01": {
+  "atk_cd": 2.0,
+  "critical": 0,
+  "hp": 70,
+  "max_follow_distance": 20.0,
+  "min_follow_distance": 2.0,
+  "speed": 6.0,
+  "talk_item_value": 15,
+  "weapons": [
+   {
+    "consume": 0,
+    "critic": 0,
+    "damage": 4,
+    "itemValue": 14,
+    "name": "weapon_pet_1",
+    "speed": 1.2000000476837158,
+    "weapon_type": 3
+   }
+  ]
+ },
+ "npc_02": {
+  "atk_cd": 2.200000047683716,
+  "critical": 0,
+  "hp": 50,
+  "max_follow_distance": 20.0,
+  "min_follow_distance": 2.0,
+  "speed": 6.0,
+  "talk_item_value": 15,
+  "weapons": [
+   {
+    "consume": 1,
+    "critic": 0,
+    "damage": 3,
+    "itemValue": 15,
+    "name": "weapon_pet_2",
+    "speed": 1.0,
+    "weapon_type": 1
+   }
+  ]
+ },
+ "npc_03": {
+  "atk_cd": 2.200000047683716,
+  "critical": 0,
+  "hp": 60,
+  "max_follow_distance": 20.0,
+  "min_follow_distance": 2.0,
+  "speed": 6.0,
+  "talk_item_value": 15,
+  "weapons": [
+   {
+    "consume": 1,
+    "critic": 0,
+    "damage": 3,
+    "itemValue": 16,
+    "name": "weapon_pet_3",
+    "speed": 1.0,
+    "weapon_type": 2
+   }
+  ]
+ },
+ "npc_04": {
+  "atk_cd": 2.0,
+  "critical": 0,
+  "hp": 55,
+  "max_follow_distance": 20.0,
+  "min_follow_distance": 2.0,
+  "speed": 6.0,
+  "talk_item_value": 15,
+  "weapons": [
+   {
+    "consume": 2,
+    "critic": 10,
+    "damage": 4,
+    "itemValue": 20,
+    "name": "weapon_pet_4",
+    "speed": 1.2000000476837158,
+    "weapon_type": 7
+   }
+  ]
+ },
+ "npc_05": {
+  "atk_cd": 1.7000000476837158,
+  "critical": 5,
+  "hp": 65,
+  "max_follow_distance": 20.0,
+  "min_follow_distance": 2.0,
+  "speed": 6.0,
+  "talk_item_value": 15,
+  "weapons": [
+   {
+    "consume": 0,
+    "critic": 10,
+    "damage": 4,
+    "itemValue": 10,
+    "name": "weapon_pet_5",
+    "speed": 1.0,
+    "weapon_type": 4
+   }
+  ]
+ },
+ "npc_06": {
+  "atk_cd": 2.75,
+  "critical": 5,
+  "hp": 55,
+  "max_follow_distance": 20.0,
+  "min_follow_distance": 2.0,
+  "speed": 6.0,
+  "talk_item_value": 15,
+  "weapons": [
+   {
+    "consume": 2,
+    "critic": 33,
+    "damage": 7,
+    "itemValue": 15,
+    "name": "weapon_pet_6",
+    "speed": 1.0,
+    "weapon_type": 11
+   }
+  ]
+ },
+ "npc_07": {
+  "atk_cd": 2.0,
+  "critical": 5,
+  "hp": 55,
+  "max_follow_distance": 20.0,
+  "min_follow_distance": 2.0,
+  "speed": 6.0,
+  "talk_item_value": 0,
+  "weapons": [
+   {
+    "consume": 0,
+    "critic": 5,
+    "damage": 8,
+    "itemValue": 16,
+    "name": "weapon_pet_7",
+    "speed": 1.0,
+    "weapon_type": 11
+   }
+  ]
+ },
+ "npc_07_mad": {
+  "critical": 5,
+  "hp": 55,
+  "speed": 6.0,
+  "weapons": [
+   {
+    "damage": 4,
+    "name": "weapon",
+    "weapon_type": 0
+   }
+  ]
+ },
+ "npc_08": {
+  "atk_cd": 1.75,
+  "critical": 5,
+  "hp": 80,
+  "max_follow_distance": 20.0,
+  "min_follow_distance": 2.0,
+  "speed": 12.0,
+  "talk_item_value": 20,
+  "weapons": [
+   {
+    "consume": 0,
+    "critic": 20,
+    "damage": 10,
+    "itemValue": 20,
+    "name": "weapon_pet_8",
+    "speed": 0.75,
+    "weapon_type": 5
+   }
+  ]
+ },
+ "npc_09": {
+  "atk_cd": 2.25,
+  "critical": 5,
+  "hp": 60,
+  "max_follow_distance": 20.0,
+  "min_follow_distance": 2.0,
+  "speed": 5.0,
+  "talk_item_value": 15,
+  "weapons": [
+   {
+    "consume": 6,
+    "critic": 0,
+    "damage": 8,
+    "itemValue": 21,
+    "name": "weapon_pet_9",
+    "speed": 1.0,
+    "weapon_type": 12
+   }
+  ]
+ },
+ "npc_10": {
+  "atk_cd": 3.5,
+  "critical": 5,
+  "hp": 60,
+  "max_follow_distance": 20.0,
+  "min_follow_distance": 2.0,
+  "speed": 8.0,
+  "talk_item_value": 10,
+  "weapons": []
+ },
+ "npc_11": {
+  "atk_cd": 15.0,
+  "critical": 5,
+  "hp": 55,
+  "max_follow_distance": 20.0,
+  "min_follow_distance": 2.0,
+  "speed": 5.0,
+  "talk_item_value": 20,
+  "weapons": [
+   {
+    "consume": 10,
+    "critic": 0,
+    "damage": 0,
+    "itemValue": 20,
+    "name": "weapon_pet_11",
+    "speed": 1.0,
+    "weapon_type": 11
+   }
+  ]
+ },
+ "npc_12": {
+  "atk_cd": 2.0,
+  "critical": 5,
+  "hp": 100,
+  "max_follow_distance": 20.0,
+  "min_follow_distance": 2.0,
+  "speed": 5.0,
+  "talk_item_value": 1,
+  "weapons": [
+   {
+    "consume": 0,
+    "critic": 0,
+    "damage": 8,
+    "itemValue": 10,
+    "name": "weapon_pet_12",
+    "speed": 0.800000011920929,
+    "weapon_type": 3
+   }
+  ]
+ },
+ "npc_13": {
+  "atk_cd": 2.0,
+  "critical": 5,
+  "hp": 50,
+  "max_follow_distance": 20.0,
+  "min_follow_distance": 2.0,
+  "speed": 6.0,
+  "talk_item_value": 15,
+  "weapons": []
+ }
+}

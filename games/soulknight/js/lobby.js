@@ -62,8 +62,23 @@
   P.fed = cleanMap(P.fed);
   P.stats = Object.assign({ kills: 0, boss: 0, pass: 0, dead: 0, best: 0 }, isObj(P.stats) ? P.stats : {});
   for (const k of Object.keys(P.stats)) P.stats[k] = Math.max(0, Math.floor(+P.stats[k] || 0));
+  // Vườn (js/garden.js): 8 ô trồng {seed, stage, watered, fert}, ô đã mở, chỉ số ngày đã xử lý, sản phẩm chờ vào ván kế (thiên phú, ô thiên phú,
+  // thức uống, thú cưng). Hồ sơ cũ thiếu trường thì mặc định: 3 ô đầu mở sẵn, vườn trống.
+  const GARDEN_PLOTS = 8;
+  if (!isObj(P.garden)) P.garden = {};
+  P.garden.open = Array.from({ length: GARDEN_PLOTS }, (_, i) => (Array.isArray(P.garden.open) ? !!P.garden.open[i] : false) || i < 3);
+  P.garden.plots = Array.from({ length: GARDEN_PLOTS }, (_, i) => {
+    const q = Array.isArray(P.garden.plots) && isObj(P.garden.plots[i]) ? P.garden.plots[i] : null;
+    return q && typeof q.seed === 'string' ? { seed: q.seed, stage: Math.max(0, Math.floor(+q.stage || 0)), watered: !!q.watered, fert: !!q.fert } : { seed: null, stage: 0, watered: false, fert: false };
+  });
+  P.garden.day = Number.isFinite(+P.garden.day) && P.garden.day != null ? Math.floor(+P.garden.day) : null;
+  P.garden.buffs = Array.isArray(P.garden.buffs) ? P.garden.buffs.map(Number).filter(n => n > 0) : [];
+  P.garden.slots = Math.max(0, Math.floor(+P.garden.slots || 0));
+  P.garden.drink = isObj(P.garden.drink) ? { hp: Math.max(0, +P.garden.drink.hp | 0), energy: Math.max(0, +P.garden.drink.energy | 0) } : { hp: 0, energy: 0 };
+  P.garden.pets = Array.isArray(P.garden.pets) ? P.garden.pets.filter(k => typeof k === 'string') : [];
   const two = n => (n < 10 ? '0' : '') + n;
-  const todayStr = () => { const d = new Date(); return d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d.getDate()); };
+  let dayShift = 0;   // móc kiểm thử: lùi/tiến ngày của hồ sơ (shiftDay)
+  const todayStr = () => { const d = new Date(Date.now() + dayShift * 864e5); return d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d.getDate()); };
   function rollDay() { const t = todayStr(); if (P.day !== t) { P.day = t; P.daily = {}; save(); } }
   let mailSeq = 0;
   const mailId = () => 'm' + Date.now().toString(36) + (mailSeq++).toString(36);
@@ -192,6 +207,11 @@
       if (d && this.petOwned(id)) P.aff[id] = Math.min(d.affMax, (P.aff[id] | 0) + PET_RUN_AFF);
       P.fed = {}; save();
     },
+    // ---- Vườn: đối tượng sống P.garden (js/garden.js đọc/ghi rồi gọi gardenSave), chỉ số ngày liên tục, móc kiểm thử đổi ngày
+    garden() { return P.garden; },
+    gardenSave() { save(); },
+    get dayIndex() { rollDay(); const m = /^(\d+)-(\d+)-(\d+)$/.exec(P.day); return Math.round(Date.UTC(+m[1], +m[2] - 1, +m[3]) / 864e5); },
+    shiftDay(n) { dayShift += Math.floor(n); rollDay(); return P.day; },
     dailyCount(name) { rollDay(); return P.daily[name] | 0; },
     bumpDaily(name, n) { rollDay(); P.daily[name] = (P.daily[name] | 0) + (n == null ? 1 : n); save(); return P.daily[name]; },
     // ---- ngày + việc hằng ngày
@@ -960,7 +980,10 @@
     const bad = !!G2.badass, firstBad = bad && r.won && !Object.keys(P.wonBadass).length;
     const runGems = Math.round((r.kills + cleared * 10 + (r.won ? 100 : 0)) * (bad ? DS.badass.gemMul : 1)) + (firstBad ? DS.badass.firstWinGems : 0);
     // Vàng còn lại đổi thành đá [LOC I_tip_10] (GOLD_GEM: ước lượng), cộng thống kê hồ sơ.
-    const goldGems = Math.floor(Math.max(0, r.gold | 0) * GOLD_GEM), gems = runGems + goldGems;
+    const goldGems = Math.floor(Math.max(0, r.gold | 0) * GOLD_GEM), base = runGems + goldGems;
+    // Thợ Mỏ Đá Quý: rooms.js (bộ runEnd chạy trước) gắn r.gemMul = 1,25 [WIKI Gem Generosity].
+    const gemExtra = Math.floor(base * ((r.gemMul || 1) - 1)), gems = base + gemExtra;
+    if (gemExtra > 0) r.gemExtra = gemExtra;
     const hero = G2.player ? G2.player.hero : P.selected;
     P.gems += gems;
     SK.profile.petRunEnd(SK.profile.pet());
@@ -970,7 +993,7 @@
     if (r.won) P.won[hero] = 1;
     if (r.won && bad) P.wonBadass[hero] = 1;
     save();
-    pending = { hero, stage: r.stage, kills: r.kills, gold: r.gold, won: r.won, cleared, gems, goldGems, bad, firstBad, factors: (G2.factors || []).slice() };
+    pending = { hero, stage: r.stage, kills: r.kills, gold: r.gold, won: r.won, cleared, gems, goldGems, gemExtra, bad, firstBad, factors: (G2.factors || []).slice() };
   });
   function showSummary() {
     const s = pending; pending = null;
@@ -980,6 +1003,7 @@
       (s.factors && s.factors.length ? '<p>Nhân Tố Thử Thách: ' + s.factors.map(k => esc(SK.FACTORS && SK.FACTORS[k] ? SK.FACTORS[k].vi : k)).join(', ') + '</p>' : '') +
       '<p>Hạ ' + s.kills + ' quái · ' + s.gold + ' vàng</p>' +
       (s.goldGems ? '<p>Vàng còn lại quy đổi: +' + fmt(s.goldGems) + ' đá (1 vàng = 1 đá, tỉ lệ ước lượng)</p>' : '') +
+      (s.gemExtra ? '<p>Thợ Mỏ Đá Quý: +' + fmt(s.gemExtra) + ' đá</p>' : '') +
       '<p class="hs-price">+' + fmt(s.gems) + ' ' + gemImg + '</p>' +
       '<p class="hs-note">Đá quý = số quái hạ + 10 mỗi màn qua (+100 khi thắng) + vàng còn lại — công thức ước lượng.</p>',
     [{ label: 'Nhận', id: 'hs-claim', cls: 'ok' }]);

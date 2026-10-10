@@ -208,5 +208,199 @@ Tổng: 65 nhân tố chính + 8 khiêu chiến + 6 nhân tố Tà Vương trong
 4. Kết hợp với Khu Thí Luyện: mang nhân tố thì không được Thuần Túy [LOC bossrush_intro_tips4].
 5. Hiển thị cuối ván: dòng "Nhân Tố Thử Thách" liệt kê đã mang [LOC ui_certificate_challenge].
 
+## 2d. Mê Trận Tà Vương (looptravel, "Matrix of the Lord of Evil")
+
+Nhãn thêm: [WIKI Matrix] = soul-knight.fandom.com/wiki/Matrix_of_the_Lord_of_Evil, [WIKI Loop] = trang Loop_Mode (bản cũ 2.7.0-3.0.0), [WIKI SV] = trang Sir_Verdant, [WIKI buff N] = trang riêng của thiên phú id N. Wiki lấy được bằng API `api.php?action=parse` (web chính bị 402 nhưng API trả 200) [ĐO 2026-10-10].
+
+### Là gì
+Chế độ Ải vô tận: vẫn 5 ải mỗi tầng, nhưng qua 3-5 không dừng mà lặp lại dãy tầng cũ cho tới khi người chơi chết [LOC guide/mode_loop/guide01-05; WIKI Matrix "Loop Travel"]. Cùng dãy vùng đất lặp lại (4-1 là Rừng, 5-1 là Lâu Đài...) [WIKI Matrix, WIKI Loop]. Có hai độ khó Thường/Lợi Hại [WIKI Matrix "Access"]. Tên: gamemode/looptravel "Mê Trận Tà Vương", thẻ vào ui/game_entry_xiewang_desc "Mạnh hay không, đại nhân Tà Vương vĩ đại sẽ tự mình phán xét!" [LOC]. Không phải Khu Thí Luyện Vô Tận: chế độ Vô Tận của Khu Thí Luyện là một thống kê riêng "Số ải cao nhất của Du Lịch Vô Tận (Khu Thí Luyện)" [LOC statistics/max_loop_level_boss_rush].
+
+Cách vào: mở khoá ngay khi Khu Phép Thuật mở; một người chơi vào bằng "Cửa Dịch Chuyển Mê Trận" (item/gate_modeloop; hỏi "Vào Mê Trận Tà Vương" modeloop/enter_tips) ở Khu Phép Thuật [WIKI Matrix, LOC]. Nhiều người: chủ phòng bật công tắc góc trên trái [WIKI Matrix]. Hạn chế: không chọn anh hùng huyền thoại [LOC tips/mode_cant_select_hero]; không tự chọn Nhân Tố Thử Thách (Tà Vương ban) [LOC tips/mode_cant_use_factor]; "không thể dùng bất kỳ thứ gì mang từ thế giới này" [LOC guide/mode_loop/guide11]; Kẻ Vượt Ranh Giới không xuất hiện nên không có tầng 4 [WIKI idt]. Không có 3-6: cổng 3-5 đi thẳng sang tầng kế [WIKI Matrix, suy từ "continues beyond 3-5"].
+
+### Cấp Uy Áp (Pressure Level, P)
+- P = 0 lúc vào; tăng 1 mỗi lần clear một tầng và vào tầng kế. Nhãn thành tựu: P = 20 là "21-1" [WIKI Matrix; LOC ac/desc_87 "Uy Áp Tà Vương đạt 20 tầng"; CFG achievements.87 achievementType 71, targetInt 20]. Nên P = số tầng đã vượt = tầng hiện tại - 1.
+- HP quái và trùm = HP gốc x (1 + 0,15 x P), làm tròn (24 HP ở P=3 thành 34,8 thành 35) [WIKI Matrix]. Trùm bản Tinh Anh nhân thêm 1,25; điều kiện Hai Lãnh Chúa nhân 0,75. Ví dụ wiki: 2 UFO Laser Tinh Anh ở P=20 có 1200 x (1+0,15x20) x 1,25 x 0,75 = 4500 HP mỗi con [WIKI Matrix]. Tháp pháo của Phòng Súng, Mỏ Pha Lê, Mỏ Vàng cũng nhân theo; riêng Phòng Súng còn +15 HP gốc sau mỗi tầng nên mọc nhanh hơn cả trùm [WIKI Matrix].
+- Sát thương quái đánh người chơi (và thú cưng, tuỳ tùng) +1 mỗi 3 cấp P (sau mỗi vòng 3 tầng): 7-X mạnh hơn 1-X đúng 2 sát thương [WIKI Matrix]. Tức +floor(P/3).
+- Kháng khống chế của quái tăng theo P; tỉ lệ Tinh Anh và quái đột biến (Quái Gen) cũng tăng theo P [WIKI Matrix, LOC guide12]. KHÔNG có số gốc. Bản Vô Tận cũ: thời gian trạng thái xấu lên quái giảm một nửa mỗi vòng, Tinh Anh nhiều hơn mỗi vòng, quái đông hơn và hung hăng hơn mỗi vòng [WIKI Loop] (cũ, dùng làm gợi ý [SUY]).
+- Cấp vũ khí (Weapon Level, số xanh trên nút vũ khí, mỗi khẩu một cấp): vũ khí thấp cấp càng đánh yếu khi P tăng: thấp hơn 2 cấp thì mất 1 sát thương, cộng dồn; áp cả cho phụ kiện và vũ khí của phân thân Sát Thủ. Miễn: Khiên, Serenity, Death Note, Gậy Anubis [WIKI Matrix]. Tên trong game: "Cấp Uy Áp", "Độ bền" (mode_loop/pressure_level, mode_loop/toughness "Resistance") [LOC]. Cấp khởi đầu của một khẩu vũ khí và "thấp hơn cái gì" (so với P?) KHÔNG có nguồn; (phỏng đoán) trừ floor(max(0, P - w.lvl) / 2) sát thương mỗi phát (tối thiểu 1), w.lvl bắt đầu 0 và tăng bằng NPC.
+
+### Thanh Uy Áp và phán quyết của Tà Vương
+- Thanh gồm thanh tiến độ (xanh lơ) tăng khi hạ quái và vạch mốc (xanh lục) trượt dần sang phải. Khi bước vào cổng tầng kế (x-5), Tà Vương chấm điểm: tiến độ vượt mốc = "Thưởng", ngược lại = "Phạt". Vạch luôn vượt thanh nếu ở lại tầng quá lâu. Vào tầng mới cả hai về 0 [WIKI Matrix; LOC guide/mode_loop/guide06-09].
+- Thưởng: 70% Nhân Tố tích cực, 30% trung tính. Phạt: 40% tiêu cực, 60% trung tính [WIKI Matrix]. Lời Tà Vương: thưởng mode_loop/good01-04 ("Làm tốt lắm", "Thú vị...", "Yo~", "Thú vị"), phạt mode_loop/justsoso01-04 ("Không ổn lắm...", "Cái này à?", "Hả? ...", "Xem ra không chịu nổi?"); mode_loop/you_are_lazy "Thích lười biếng?" (khi vạch mốc vượt vì ở lại quá lâu [SUY]); mode_loop/end_title "Có vậy thôi sao" (màn kết khi chết [SUY]) [LOC]. Thành tựu "Matrix Racer" = 5 lần liên tiếp "Well Done!" (ac/name_89 "Chạy đua thời gian") [WIKI Matrix; LOC].
+- Tốc độ vạch mốc, lượng tiến độ mỗi quái: KHÔNG có nguồn. (phỏng đoán) tiến độ = số quái đã hạ / số quái dự kiến của tầng (tổng ngân sách đợt quái); vạch = giây đã qua / 360 (đầy sau 6 phút/tầng); đặt hằng số ở data/sk-matrix.js.
+- Ngân Hàng Nhân Tố (bể bốc), phân loại [WIKI Matrix]; cột "web" = khoá đã có trong SK.FACTORS (js/factors.js):
+
+| Loại | Nhân tố (khoá LOC) | Web có |
+|---|---|---|
+| Tích cực (10 chung) | Thiên Giáng Thần Binh GainWeapon, CD Giảm Nửa HalfCd, Dao Găm Điên Cuồng Cruel, May mắn GoodLuck, Càng đánh càng hăng MoreBrave, Thuật Hồi HP Tenacious, Đèn Thần FullHouse, Bậc Thầy Phụ Kiện WeaponEquip, Biến To Pet HugePet, Thuần Thú Sư GainMount | 4/10 (HalfCd, Cruel, MoreBrave, Tenacious) |
+| Trung tính (5) | Biến To Huge, Biến Nhỏ Tiny, Tốc độ dòng chảy thời gian không ổn định TimeDistortion, Giác quan Dejavu, Thiết lập lỗi WrongConfig | 2/5 (Huge, Tiny) |
+| Tiêu cực (19 chung) | Kẻ Địch Hoang Dã AggressiveEnemy, Kẻ Địch Kiên Cuồng EnemyDefence, Chiến Thuật Biển Người Intensive, Kẻ Địch Tinh Thần EnemyBuffImmune (mô tả: thời gian debuff lên quái -50%), Kẻ Địch Phấn Khởi FastEnemyBullet, Hai Lãnh Chúa DoubleBoss, Vận xui BadLuck, Kẻ Địch Chạy FastEnemy, Cảnh Giác Toàn Diện ExEnemy, Mở Rộng Nhà Ngục LongMap, Vũ khí quá nóng WeaponOverheating, Thuốc chất lượng kém InferiorMedicine, Nhân Đôi Niềm Vui EnemyDoubleHp, Kẻ Địch Chớp Nhoáng EnemyFlash, Nguyên Tố Bất Thường Exception, Vỏ Cứng Bảo Vệ HardShield, CD Gấp Bội DoubleCd, Dũng Sĩ Cô Độc AllAlone, Tăng Giá Inflation | 13/19 (thiếu EnemyBuffImmune, BadLuck, LongMap, WeaponOverheating, EnemyFlash, Exception) |
+| 6 của Tà Vương (tối đa 10 lần mỗi cái, trừ Hồi Sinh) | xem bên dưới | 0/6 |
+
+"Một số Nhân Tố hay gặp không bốc được theo cách này" [WIKI Matrix] (danh sách loại trừ không có). Không trùng khoá chung (LOC I_factor_repeat); 6 nhân tố Tà Vương có trần 10 lần.
+
+### 6 nhân tố Tà Vương dùng thế nào (số từ LOC task/<khoá>_desc, loại từ WIKI Matrix)
+| Khoá | Loại | Luật chạy (stack n, n <= 10) | Móc trong web |
+|---|---|---|---|
+| ReduceEnemyBuffImmune "Thuật Suy Yếu" | Tích cực | Triệt tiêu n cấp Uy Áp khỏi phần kháng khống chế (P hiệu dụng cho kháng = P - n; không đổi HP/sát thương) | G.mods.pressureCtlCut += 1 |
+| ReduceEnemyMoveSpeed "Thuật Chậm Chạp" | Tích cực | Tốc độ quái -1% mỗi lần | enemySpeedMul *= 0,99 (factors.js đã có enemySpeedMul) |
+| KillEnemyRebornTeammate "Thuật Hồi Sinh" | Tích cực | Hạ quái có xác suất hồi sinh đồng đội; chỉ gặp ở nhiều người, và là cần thiết cho thành tựu "World Savior" (cứu 3 đồng đội một lượt, ac/desc_88) [WIKI Matrix] | BỎ ở bản một người |
+| MoreGeneEnemy "Đột Biến Gen" | Tiêu cực | Tỉ lệ Quái Gen +2% mỗi lần ("quái có hiệu ứng đặc biệt như trong Thần Điện": Origin/Enemies #Mutations) | G.mods.mutateRate += 0.02; cần hệ Quái Gen (không có ở web) |
+| ExtraHurtDamage "Kiếm Hai Lưỡi" | Tiêu cực | Người chơi chịu +1, quái chịu +2 sát thương mỗi lần | hurtPlayer (actors.js:1409) cộng n; chỗ trừ phòng thủ enemyDef (actors.js:1820) cộng 2n; giữ cả hai ở G.mods.playerHurtAdd, enemyHurtAdd |
+| IncreaseEnemyBuffImmune "Gen Miễn Dịch" | Tiêu cực | Quái kháng khống chế thêm n cấp (P hiệu dụng cho kháng = P + n) | G.mods.pressureCtlCut -= 1 |
+Nhân tố chung kéo theo: EnemyBuffImmune (Kẻ Địch Tinh Thần) = thời gian debuff trên quái -50% ("Enemy debuff time -50%" LOC task/EnemyBuffImmune_desc) dùng làm bậc kháng chuẩn: hệ số thời gian trạng thái = 0,5^(Peff/3) [SUY, theo bản cũ "giảm một nửa mỗi vòng"].
+Quái Gen (tên chính thức LOC fire/gene_name_*, mô tả fire/gene_*; số liệu từ WIKI Enemies#Mutations): 11 kiểu: Sức Mạnh (+50% cỡ/HP/sát thương, -33,33% tốc độ), Nhanh Nhẹn (-33,33% cỡ/HP/sát thương, +50% tốc độ), Thần Thánh (giảm 20% sát thương, miễn trạng thái và tử thần), Ác Ma (giảm 60% sát thương trừ khi đang dính trạng thái), Phản Xạ (sóng chấn khi bị đánh), Khiên (chặn đạn tầm xa tới khi phá khiên), Tàng Hình (HP giảm nửa, không khoá mục tiêu), Hao Tổn Năng Lượng (mỗi đòn trừ 5% năng lượng tối đa), Hút HP (hút dần HP tối đa), Suy Yếu (dây nối quái, chạm vào giảm mạnh tốc độ; chính là "Chaining"), Bắn Lan (2-4 đợt bọt độc 4 sát thương). Tàng Hình và Suy Yếu KHÔNG có trong Mê Trận [WIKI Matrix, Trivia; bản 7.4.0 thêm 3 kiểu mới nhưng bỏ Chaining khỏi chế độ này, không rõ phiên bản]. Tỉ lệ cơ bản KHÔNG có nguồn.
+
+### Thiên phú Tà Vương và ô thiên phú
+- 38 ô thiên phú; chọn 1 trong 3 sau ải x-2 và x-5; thiên phú đã chọn không hiện lại trong ván [WIKI Matrix "Exclusive Content"]. (Web: BUFF_SLOTS = 7, BUFF_AFTER = 1-1, 1-3, 1-5, 2-3, 2-5, 3-5 trong js/rooms.js:1505.) Số cấp "Giới hạn thiên phú" là thống kê cuối ván (mode_loop/buff_max) [LOC].
+- Thiên phú riêng (Matrix Buffs, id 2001-2007 + 2117) [LOC Buff_info_*, WIKI buff N]:
+
+| id | Tên (wiki) | Luật |
+|---|---|---|
+| 2001 | Matrix Health Restoration | Vào ải kế: hồi 10% HP tối đa, tối thiểu 1; Hiệu Quả Thuốc không ảnh hưởng |
+| 2002 | Matrix Energy Restoration | Vào ải kế: hồi 30% năng lượng tối đa |
+| 2003 | Matrix Lightning Hit | Đánh trúng có xác suất tạo sét 3 sát thương, nảy tối đa 4 quái, xác suất choáng 2 giây |
+| 2004 | Matrix Ice Hit | Đánh trúng bắn 12 gai băng xung quanh, có xác suất đóng băng |
+| 2005 | "Xin Tà Vương bớt giận" | Triệt tiêu 1 cấp Uy Áp (kháng khống chế) [LOC Buff_info_2005: "Tăng triệt tiêu Uy Áp 1 lần"]; nói Tà Vương châm chọc mode_loop/beg01-02 |
+| 2006 | "Xin Tà Vương bớt giận" (2) | Gỡ Nhân Tố xấu vừa nhận [LOC Buff_info_2006] |
+| 2007 | Matrix Energy | Năng lượng tối đa +20, cộng dồn 10 lần |
+| 2117 | Elemental Block | Chặn 1 hiệu ứng nguyên tố mỗi 8 giây (id 2117, cd 8); nay chỉ còn ở Mê Trận [WIKI buff 2117] |
+
+Web chưa có 2001-2007 trong SK_BUFFS86.buffs (chỉ có 2101-2106, 2108, 2118, 2134, 2145, 2146, 1015-1025, 3001-3007) [ĐO data/sk-buffs86.js]; tools/buffs/talents86.py thêm được bằng cách thêm id vào danh sách; icon ui_buff_x như 3001-3007. Phần bể bốc (Tà Vương trộn thiên phú thường + riêng, xác suất xin tha) KHÔNG có nguồn.
+
+### Tay sai Tà Vương (NPC)
+Xuất hiện ở ải x-1 của mỗi tầng sau 1-5 (phòng khởi đầu r_start_looptravel_npc, weight 2, điều kiện loại 2 và loại 3) [WIKI Matrix; CFG map_levels.map_level_base.StartRooms]. Bể random_objects.start_loop_travel_npc gồm 3 NPC mỗi NPC weight 10; Thầy Bói chỉ khi chỉ số ải >= 15 (4-1 trở đi, tính 1-1 = 0) và điều kiện loại 12 > 0 (không rõ nghĩa) [CFG random_objects.start_loop_travel_npc]. Mỗi người chơi tương tác 1 lần.
+- Con Bạc (Gambler): tốn một nửa vàng, 50% thành công: tăng độ bền vũ khí thêm 1; thất bại cho 1 Thuốc viên (Pill) an ủi [WIKI Matrix]. LOC: "Tốn {0} thử không?" (consume_coin), "May mắn đấy!", "Thử càng nhiều, cơ hội càng nhiều!".
+- Thương Nhân (Merchant): 1-3 Pha Lê Tà Vương, 100% tăng độ bền vũ khí thêm 1 [WIKI Matrix]. LOC consume_crystal "Có {0} Pha Lê Tà Vương, tiêu {1}?"; câu "Bảo đảm thành công, chỉ cần nói cần hay không thôi?".
+- Thầy Bói (Prophet): 1 Pha Lê, cấm 1 Nhân Tố tiêu cực trong 5 ải (từ ải kế) [WIKI Matrix]. Câu "Thả lỏng đi nào!".
+
+### Pha Lê Tà Vương và phần thưởng
+- Mỗi lần Uy Áp tăng nhận 4 Pha Lê (Lợi Hại: 5). Hạ Tước Sĩ Lục (Sir Verdant, bản wiki: "boss tuỳ chọn mỗi 15 ải/3 tầng", không gặp khi trùm chính là Iron Will Wavebreaker 3C vì bị dịch chuyển lên đảo cô lập) rơi 3 Pha Lê (Lợi Hại: 4) và giảm 30% thanh Uy Áp [WIKI Matrix, WIKI SV]. Sir Verdant bản Tinh Anh HP 3600 (cả Thường lẫn Lợi Hại) [WIKI SV]; trong config enemies không có khoá riêng cho Mê Trận (chỉ boss_bossrush_final*) [CFG enemies].
+- Cuối ván mỗi Pha Lê đổi lấy phần thưởng [WIKI Matrix; số lượt tung mỗi viên KHÔNG ghi]: đá quý 100 (15%), 200 (15%), 500 (17,5%), 1000 (2,5%) = 50%, và Mê Trận là nguồn đá quý DUY NHẤT của chế độ (không có thưởng đá trực tiếp); nguyên liệu pin/sắt/gỗ/linh kiện/chất hữu cơ 28%, 7 mảnh phép thuật 6%, Phân Bón 1%; hạt giống 6% (tối đa 2); phiếu Nhân Tố 4% (tối đa 4), phiếu phụ kiện vũ khí 2% (tối đa 3), Vé dùng thử miễn phí 1%. Tổng 98% (wiki ghi chú ngoài dòng phiếu Anh Hùng Huyền Thoại 2% đã gạch), 2% còn thiếu KHÔNG rõ.
+- Vật rơi: "Pha Lê Tà Vương" (mode_loop/item/reward_box); Bundle mode_loop.ab chứa crystal_broken_effect, demon_crystal (RGPrefab/LevelBuff/pixkable), ui_random_factors, ui_demon_countdown, panel_pause_mode_looptravel, grid_root, open_crystal_good/normal.wav [AB mode_loop.manifest]. "ui_demon_countdown" là đồng hồ Tà Vương (chức năng KHÔNG rõ; (phỏng đoán) đếm vạch mốc).
+- Thống kê: "Số ải cao nhất Du Lịch Vô Tận" (statistics/max_loop_level), thành tựu Stress Beater (P=20), World Savior (nhiều người), Matrix Racer (5 "Well Done!") [LOC ac/desc_87-89].
+
+### Kết thúc
+Chơi tới khi chết; không có chiến thắng. Hồi sinh: không có nguồn riêng (Thần Điện: 3 lần miễn phí, lần 4 là 200 đá [WIKI Origin], không rõ áp cho Mê Trận). Phiên bản cũ (2.7-3.0): vượt 3-5 tính là thắng và vũ khí khung bạc/vàng [WIKI Loop]; bản 8.6 không ghi.
+
+### Thứ đã có ở web dùng lại
+- game.js STAGES/buildStages: danh sách tĩnh 15 ải theo DS.run; rooms.js offerIds/giá cửa hàng đọc SK.STAGES nên Mê Trận cần STAGES động (nối thêm 5 ải mỗi tầng khi qua cổng ải cuối của tầng) và rooms.js nắm chỉ số ải không giới hạn (giá gốc: cấp = chỉ số ải; công thức f = (cấp-2) x 0,12, gốc <= 198 [tools/buffs/README]).
+- game.js startRun(heroId, mode, factors): G.mode chỉ nhận 'level'|'bossrush', thêm 'matrix'. lobby.js MODES (dòng 829-846): thêm thẻ; launch() (dòng 941-953) bỏ vàng két sắt và vũ khí mang theo như bossrush (đúng "không dùng đồ ngoài thế giới").
+- factors.js: G.mods (enemyHpMul, enemySpeedMul, enemyDef, bossHpMul, doubleBoss, buffSlots, buffChoices, priceMul, eliteRate, spawnMul) đã đủ cho 13/19 nhân tố tiêu cực; SK.factorsOn(G) dựng LẠI toàn bộ từ G.factors và SK.factorsPlayer(G,p) không idempotent (cộng hpAdd vào hpMax) nên Tà Vương cần SK.factorsAdd(G,key) chỉ chạy on() của khoá mới và áp phần delta lên người chơi.
+- actors.js: hurtPlayer (dòng 1409-1411) đã có móc `if (G.badass) dmg += DS.badass.dmgAdd`; SK.makeEnemy (dòng 1487-1490) gọi SK.factorsEnemy nhân HP lúc sinh; bosses.js dòng 1624 nhân HP trùm với HP_FACTOR 1,2 và badass.bossHp 1,5 (CHÚ Ý: Mê Trận wiki dùng công thức riêng 1+0,15P; chọn quy tắc nhân hay thay, xem kế hoạch).
+- rooms.js: openChoice(ids), G.hold, sự kiện 'portalEnter' (dòng 1591) cho màn chọn thiên phú và màn phán quyết; BUFF_AFTER/BUFF_SLOTS/buffSlots()/buffChoices().
+- boss_bossrush_final(.js) đã có AI Tước Sĩ: gần với Tước Sĩ Lục? KHÔNG (khác khoá); Sir Verdant chưa có AI/rig.
+
+### Kế hoạch làm (tệp, dữ liệu, bộ kiểm)
+1. data/sk-matrix.js (sinh bởi tools/matrix/build_matrix.py từ localization_en_vi.json; không sửa tay): hằng số {hpPerP 0.15, dmgEveryP 3, crystalPerP 4, crystalPerPBad 5, verdantCrystals 3/4, verdantBarCut 0.3, rewardPos 0.7/neu 0.3, penaltyNeg 0.4/neu 0.6, buffSlots 38, buffAfter [2,5], factorCap 10}; bảng thưởng Pha Lê; 6 nhân tố; chuỗi LOC mode_loop/*, guide/mode_loop/*, Buff_info_2001-2007.
+2. js/matrix.js (mới): G.matrix = {P, crystals, bar, marker, weaponLvl}; hàm P-theo-tầng; SK.matrixEnemy(G,e) nhân HP theo 1+0,15*P (trùm: x1,25 nếu Tinh Anh, x0,75 nếu Hai Lãnh Chúa); móc hurtPlayer thêm floor(P/3); thanh Uy Áp (HUD canvas, js/hud.js); phán quyết ở 'portalEnter' của ải x-5 (G.hold); bốc nhân tố theo 70/30 và 40/60; NPC Con Bạc/Thương Nhân/Thầy Bói qua G.props ở ải x-1 (x >= 2).
+3. game.js: buildStages('matrix') + SK.matrixNextFloor() để thêm 5 ải; bỏ nhánh 'victory' khi mode matrix; chủ đề của tầng k = chủ đề tầng ((k-1) mod 3)+1 đã bốc lúc vào (dãy lặp). debug.stage(label) cần nhận nhãn lặp "4-1"...
+4. factors.js: thêm 6 khoá Tà Vương (khoá LOC ở bảng trên) + SK.factorsAdd; rooms.js: nhận buffSlots/buffAfter theo mode, bể bốc thêm 2001-2007, 2117; tools/buffs/talents86.py thêm id 2001-2007.
+5. lobby.js: thẻ 'matrix' ("Mê Trận Tà Vương", đã có tệp art/lobby/mode_loop.png 2199 byte do phiên khác thêm, chưa kiểm hình; build_lobby_art.py chưa có khoá cho nó), điều kiện mở "Khu Phép Thuật" = web chưa có khu này: tạm mở sau lượt thắng đầu như Lợi Hại (nêu ở GAPS).
+6. Bộ kiểm test/soulknight-matrix.js (Playwright như test/soulknight-modes.js, dùng SK_GAME.debug), số cụ thể:
+   - P theo tầng: vào tầng 1,2,3,4 thì G.matrix.P = 0,1,2,3.
+   - HP quái gốc 16: P=0 giữ 16; P=3 ra 23 (16 x 1,45 = 23,2); P=20 ra 64. HP gốc 24, P=3 ra 35 (khớp ví dụ wiki).
+   - Trùm 1200, P=20: thường 4800; Tinh Anh 6000; Tinh Anh + Hai Lãnh Chúa 4500 (khớp wiki).
+   - Sát thương cộng thêm của quái: P=0..2 cộng 0; P=3,4,5 cộng 1; P=6 cộng 2; P=20 cộng 6; bản Lợi Hại cộng thêm 1 của badass.
+   - Nhân tố Tà Vương: Kiếm Hai Lưỡi n=1 người chơi chịu +1, quái chịu +2; n=10 thì +10 và +20, n=11 bị chặn ở 10; Thuật Chậm Chạp n=10 thì tốc độ quái x0,9.
+   - Phán quyết mô phỏng 20000 lần: Thưởng cho tích cực 70% +-1,5%, trung tính 30%; Phạt cho tiêu cực 40% +-1,5%, trung tính 60%.
+   - Pha Lê: vào mỗi tầng mới +4 (Lợi Hại +5): sau clear 5 tầng được 20 (25); hạ Verdant +3 (+4) và thanh Uy Áp x0,7.
+   - Ô thiên phú: 38; chỉ hiện thẻ ở ải 2 và 5 của mỗi tầng; thẻ đã chọn không hiện lại.
+   - Cổng 3-5 không phát hành 'victory': state vẫn 'stage', nhãn ải kế là "4-1" và chủ đề trùng tầng 1.
+   - Không mang vàng két sắt/vũ khí mang theo vào ván.
+7. Rủi ro/việc sau: Quái Gen (hệ riêng, 11 kiểu), Sir Verdant (AI + bundle), cấp vũ khí (cần w.lvl và HUD số xanh), hồi sinh nhân vật nhiều người.
+
+### Nguồn không có (không đoán trong mã; nếu cần phải chốt bằng clip)
+- Tốc độ vạch mốc Uy Áp, lượng tiến độ mỗi quái; xác suất bốc thiên phú Tà Vương/thiên phú xin tha trong 3 thẻ; thời lượng chính xác của hiệu ứng Thuật Suy Yếu lên kháng khống chế; xác suất Tinh Anh và Quái Gen cơ bản và hệ số tăng theo P; thời gian trạng thái xấu theo P; cấp vũ khí khởi đầu và đối chiếu với P; số lượt tung mỗi Pha Lê, 2% xác suất còn thiếu; ý nghĩa điều kiện loại 3 và loại 12 của start_loop_travel_npc; số HP/chiêu Sir Verdant (chỉ có HP Tinh Anh 3600 từ wiki); luật hồi sinh; tên trang wiki "Matrix Buffs" chỉ liệt kê 6 buff (2001-2004, 2007, 2117) và không có nội dung buff 2005/2006 ngoài chuỗi LOC.
+
+## 2e. Xâm Nhập Hư Không (Void Invasion), độ 1 "Lần Đầu Vào Hư Không" (Primordial Void)
+
+Nhãn thêm: [WIKI VI] = trang Void_Invasion, [WIKI Void] = trang The_Void, [WIKI buff N] = trang buff id N, [WIKI mod] = Template:Void_Mode_Weapon_Modifiers_Table, [AB difficulty] = AssetBundles/level/difficulty.manifest (132 asset; chỉ đọc manifest). Config `enemies.json` có đủ khoá e_void_* / boss_void* nhưng Hp = 0 cho mọi quái Hư Không (số máu nằm trong prefab/Lua, không giải mã được) nên mọi số máu dưới đây lấy từ wiki [CFG enemies; ĐO 2026-10-10].
+
+### Là gì
+Một độ khó mới của Chế độ Ải (không phải chế độ riêng): "Hầm ngục quen thuộc đã bị sức mạnh Hư Không xâm chiếm" [LOC void_invasion/tip_0, guide_0]. Ba độ: Lần Đầu Vào Hư Không / Hư Không Hỗn Độn / Hư Không Hủy Diệt (mode/void_invasion_0..2); thêm ở bản 7.5.0 (độ 1), 8.0.0 (độ 2), 8.4.0 (độ 3) [WIKI VI; WIKI Update 7.5.0]. Vào ở màn chọn chế độ, không có vật riêng ở Sảnh; KHÔNG chơi được cùng Lợi Hại; thắng độ 1 cho khung bạc, độ 2-3 cho khung vàng [WIKI VI]. Điều kiện mở khoá KHÔNG có nguồn (LOC chỉ có "Chế độ ải độ khó mới Xâm Nhập Hư Không đã mở khóa" void_invasion/guide_0).
+
+### Luật chung của độ 1
+- Bỏ phụ kiện vũ khí, bỏ Thợ Thủ Công, Kỵ Sĩ Nghỉ Hưu và mọi NPC nhận phụ kiện; nhân tố Bậc Thầy Phụ Kiện và phụ kiện mang từ ngoài ván không dùng được [LOC void_invasion/tip_7-8]. Thay bằng "dòng thuộc tính vũ khí" (modifier): vũ khí (trừ Thần Thoại) có 0-3 dòng, đổi/thêm/nâng ở Thương Nhân Rãnh Nứt; hết ván là mất [LOC tip_4-5; WIKI VI "Weapon Modifiers"].
+- Mọi thiên phú thường có mặt; phần lớn nâng cấp được ở Thương Nhân Hư Không bằng 30 Xu Ám Tinh (chọn 1 trong 3 phương án ngẫu nhiên) [LOC tip_1-3, tip_5; WIKI VI "Upgradable Buffs"]. Có 51 chuỗi Buff_upgrade_* trong LOC (vd Buff_upgrade_1 "Đạn Bạo Kích xuyên thấu + Chảy Máu", _7 Kim Thép, _18 Sóng Xung Kích...); danh sách "kỳ này nâng cấp được" nằm ở void_invasion/tip_3 nhưng chỉ có tiêu đề, danh sách do mã sinh [LOC].
+- Rơi nhiều Mảnh Tiến Hóa Vũ Khí hơn [LOC tip_6]. Quái và trùm tăng HP (không có số) [WIKI VI "Enemies & Bosses"]. Quái thường có thể xuất hiện ở mọi ải không bó buộc theo ải (kể cả Lõi Mỏng manh ở phòng Đảo Đất Sét) [WIKI VI]. Quái đột biến có xác suất sinh (không có số) và rơi Xu Ám Tinh khi chết [LOC tip_9; WIKI VI].
+- Các Rãnh Nứt Hư Không xuất hiện ngẫu nhiên trong lúc đánh rồi đóng sau một quãng; không đánh được, không chạm được; bước vào mất 1 sát thương ở độ 1 (2 ở độ 2) [LOC tip_11; WIKI VI "Void Rift"; CFG: prefab VoidRift.prefab trong AB difficulty]. Pet/Tuỳ tùng: không có nguồn.
+- Phòng chứa quái Hư Không hiện có thể gồm rương kép (lỗi đã sửa ở 8.4.0) [WIKI VI Trivia].
+
+### Tiền tệ
+- Xu Ám Tinh (void_invasion/coin, "Darkstar Coin"): rơi từ quái Hư Không và quái đột biến; tiêu ở Thương Nhân Hư Không, Thương Nhân Rãnh Nứt, Nhà Ngân Hàng [WIKI VI "Currencies"].
+- Mắt Hư Không (coin_void_eye, "Void Crystal"): rơi từ Tinh Anh Hư Không và Hư Không; tiêu ở Nhà Ngân Hàng, Nhà Sưu Tầm, Tiên Tri [WIKI VI]. Thống kê cuối ván: "Số lượng Xu Ám Tinh nhận được", "Số lượng kẻ địch Hư Không đã đánh bại" (void_invasion/coin_count, kill_count) [LOC]. Thành tựu: tích luỹ tiêu 10000 Xu Ám Tinh (ac/desc_145) [LOC].
+
+### Tinh Anh Hư Không và Khiên Hư Không (cốt lõi của độ 1)
+Nguyên tắc [WIKI VI "Void Enemies"]:
+- Mọi quái Hư Không trừ Đạo Tặc, Vật Tổ, Rãnh Nứt là Tinh Anh Hư Không: 3 tầng Khiên Hư Không. Đầu ván bốc 3 Tinh Anh hợp lệ (không tính Đạo Tặc); chỉ 3 loại này và Đạo Tặc gặp suốt ván; sinh ngẫu nhiên từ ải 1-2 tới 3-5. Mỗi Tinh Anh chết là không xuất hiện lại cả ván.
+- Mỗi tầng khiên có 80 HP ở độ 1 (120 ở độ 2, 160 ở độ 3). Khi khiên còn, MỌI lần bị đánh chỉ tính 1 sát thương vào khiên, nên không phá được bằng đạn thường; mỗi loại có cách phá riêng (xem bảng). Số tầng khiên giữ qua các lần gặp.
+- Hạ hết quái nhỏ trong phòng mà Tinh Anh còn khiên thì nó bỏ chạy và rơi 5 Xu Ám Tinh (trừ khi có thiên phú Lệnh Truy Sát 3003, chỉ độ 2-3). Phá được 1 tầng khiên thì nó mở cổng rút lui và rơi 30 Xu Ám Tinh. Hết khiên thì đánh bình thường; chết rơi 50 Xu Ám Tinh + 1 Mắt Hư Không.
+- Ở độ 1 chỉ Hộ Vệ, Ảnh Vệ, Linh Vệ có số máu (các loại khác ghi NA) nên danh sách ứng viên độ 1 gồm đúng 3 loại này (suy ra từ "NA" ở độ 1: Huyết Vệ, Tế Tư, Cấm Vệ xuất hiện từ độ 2; Thiền Vệ Trượng/Châu, Triệu Hồi Sư, Hộ Pháp, Đao Phủ từ độ 3; LOC ui/void_invasion_enemy_debut "Xuất hiện ở độ khó {0} trở lên") [SUY, khớp bảng wiki].
+
+| Quái (khoá config) | HP độ 1/2/3 (wiki) | Đòn | Cách phá khiên [LOC ui/void_invasion_enemy_short_guide_N] |
+|---|---|---|---|
+| Hư Không Thủ Vệ e_void_guard | 250/350/350 | Lao tới, thỉnh thoảng đấm 2 lần (4 sát thương mỗi đòn) | Khi khiên tím biến mất lúc lao (guide_2), đánh trúng đúng lúc đó |
+| Hư Không Ảnh Vệ e_void_assassin | 200/300/? | Gọi 2 phân thân 30 HP, cả 3 lao theo vệt chữ nhật tím; chỉ 1 bản thật tính là hạ | Đánh trúng đúng lúc khiên biến mất trước khi lao (guide_1) |
+| Hư Không Linh Vệ e_void_mage | 200/300/? | Đặt súng bắn hình chữ thập; thiên thạch (vòng đỏ bám theo rồi đứng yên) | Dẫn Cầu Lửa Hư Không về chính nó, hoặc thiên thạch trúng khiên thì vỡ ngay (guide_0) |
+| Hư Không Đạo Tặc e_void_thief | 100/100/100 | Ném phi tiêu hình quạt, biến mất sau 20 giây | Không có khiên; hạ bình thường: rơi 100 Xu Ám Tinh + 1 Mắt Hư Không |
+(Từ độ 2: Huyết Vệ, Tế Tư, Cấm Vệ, Vật Tổ; độ 3: Thiền Vệ Trượng/Châu, Triệu Hồi Sư, Hộ Pháp, Đao Phủ; chi tiết ở LOC ui/void_invasion_enemy_guide_0-10 và WIKI VI, ngoài phạm vi độ 1.)
+
+Dữ liệu dựng: bundle level/difficulty.ab có prefab e_void_assassin/guard/mage/thief, VoidShield.prefab, VoidShield_RGEController, shield_bar.prefab, VoidRift.prefab, void_gate.prefab, void_effect_pot/water_dispenser, VoidEyeEffect(_UI), boss_void.prefab + 3 controller final/0..2, boss_void_origin [AB difficulty]. Các AI của Hộ Vệ/Ảnh Vệ/Linh Vệ nằm trong IL2CPP: viết lại từ tên state, đạn prefab, mô tả (như đã làm cho 22 trùm mới [tools/polish/GAPS.md]).
+
+### Trùm "Hư Không" (boss_void)
+Đồng hành mọi trùm trước tầng 4 [WIKI Void]: ở ải 1-5 và 2-5 xuất hiện cạnh trùm chính với thanh máu riêng (độ 1: 600 và 1200 HP), không bắt buộc hạ; nếu trùm chính chết trước thì Hư Không bỏ chạy, rơi 40 Xu Ám Tinh (một dòng chú thích ghi 35, mâu thuẫn); hạ nó rơi 120 Xu Ám Tinh. Ở 3-5 nó chỉ xuất hiện sau khi trùm chính chết: 1800 HP ở độ 1 (2400 độ 2, 3000 độ 3), cầm Eternal Night (độ 1) / Nether Lantern (độ 2), hạ xong rơi 1 Mắt Hư Không và nhiều Xu Ám Tinh, mở cổng miễn phí sang 3-6 và 4-1; rương phụ cạnh rương chính có thể có Eternal Night/Nether Lantern; Hai Lãnh Chúa chỉ nhân 0,75 máu (độ 1: 450/900/1430) không thêm trùm; Toàn Cảnh Giác (Full Alert) thành Tinh Anh. Băng nhạc "Hư Không Giáng Lâm" (material_tape_boss_void) rơi hiếm [WIKI Void; LOC]. Config: enemies.boss_void Hp 0 (không có số), boss_void_origin Hp 2000 BossRoom r_boss_void_origin.prefab (đó là Bản Tướng độ 3).
+
+### NPC (độ 1) [WIKI VI "NPCs"; LOC npc/*, npc_void_merchant]
+| NPC | Chỗ xuất hiện | Chức năng và giá |
+|---|---|---|
+| Thương Nhân Hư Không (npc_void_merchant) | Góc dưới-trái phòng khởi đầu của mọi ải x-3 và x-5 | 30 Xu Ám Tinh: bốc 3 thiên phú ngẫu nhiên có thể nâng, chọn 1; "Hết Xu thì không bán" |
+| Thương Nhân Rãnh Nứt | Góc dưới-phải phòng khởi đầu của x-1, x-3, x-5 trừ 1-1 | Đổi dòng 20 Xu; chuyển dòng sang vũ khí khác 20 Xu; thêm dòng 100 Xu (từ 2-1); nâng cấp 30/50/80 Xu theo độ hiếm xanh/tím/cam; Huyền Thoại (đỏ) chỉ đổi. Số thao tác mỗi lần gặp: 2 (độ 1), 4 (độ 2), 6 (độ 3), làm mới ở lần gặp sau |
+| Nhà Ngân Hàng Hư Không (npc/void_banker) | Phòng đặc biệt, có 6 biển 2 hàng x 3 | 55 vàng = 25 Xu Ám Tinh; 25 Xu = 50 vàng; 1 Mắt = 100 vàng; 110 vàng = 1 Mắt; 55 Xu = 1 Mắt; 1 Mắt = 50 Xu |
+| Đại Hiệp Con Thoi Thời Không (npc/void_child) | Phòng đặc biệt (cũng có Cổng tím) | Nhận lời thì biến đi rồi xuất hiện ở phòng kế có quái Hư Không, đánh bằng kiếm laser tím (Laser Sword Purple), thành tuỳ tùng nếu Tinh Anh chết; dẫn về cho Thương Nhân Rãnh Nứt thì cha con nói chuyện, Rãnh Nứt +2 lượt tối đa (thành tựu "Lost Wanderer") |
+| Tiên Tri Hư Không | Phòng rương phụ; không có ở tầng 1 và tầng 4 | 1 Mắt Hư Không: chọn vùng đất của ải kế (branch_select, điều kiện chỉ số ải 5-14 [CFG random_objects.void_invasion]) |
+| Nhà Sưu Tầm Hư Không (npc/void_collector) | Ải 4-6 (nếu web chưa có tầng 4 thì đặt ở 3-6 [SUY]) | 3 món trên bàn, mỗi món 1 Mắt; chắc chắn có 1/2/3 bản vẽ hoặc mảnh tiến hóa ở độ 1/2/3 tới khi lấy hết; làm mới tốn 1 Mắt. Bể 51 món weight 100 đều: 17 bản thiết kế vũ khí, 4 bản thiết kế trang trí phòng, 7 mảnh phép thuật, 21 hạt giống, phân bón, Vé [CFG random_objects.void_collector_0] |
+| Kẻ Vượt Ranh Giới (NPC) | Phòng đặc biệt nếu không đang chơi nhân vật này | 100 đá quý: hiện bản đồ theo số Mắt đang có (1 = phòng Tinh Anh/Vật Tổ, 2 = cổng và phòng trùm, 3 = mọi phòng) [LOC npc/void_eye_tip_0-2] |
+Cấu hình phòng: `r_void_invasion.prefab` weight 80 trong SpecialRooms của map_level_base, điều kiện loại 29 > 0 (nghĩa KHÔNG rõ); random_objects.void_invasion: void_bank 100, teach_void_eye 150 (cần void_eye_mastery > 1), branch_select 100, void_child 50 (cần accept_void_child_help > 1) [CFG]. Prefab NPC: npc_void_banker, npc_void_child, npc_void_prophet, sell_void_collector, void_child, void_bank, teach_void_eye, npc_void_child_mercenary [AB levelcommon]; Thương Nhân Hư Không/Rãnh Nứt: tên prefab KHÔNG tìm thấy trong manifest (chỉ có chuỗi LOC) .
+
+### Dòng thuộc tính vũ khí (weapon modifiers)
+LOC có 75 tên level/weapon_affix_<id>_name (id 10010-10750, một phần thuộc chế độ Đảo Hương Thảo) và _desc; wiki bảng độ 1 liệt kê ~50 dòng với 4 bậc hiếm (xanh/lam/tím/cam) và Huyền Thoại đỏ [WIKI mod; LOC]. Ví dụ [WIKI mod]: Lan (nổ lan 25/50/75/100%), Nhanh (tốc đạn +10/15/20/30%), Nhạy (tốc đánh +10/20/35/50%), Bạo (bạo kích +10/15/25/40%), Của Trời Rơi (quái đột biến/Hư Không rơi thêm 1/2/3/4 Xu Ám Tinh), Hư Không-Tịch Diệt 10630 (đánh được Rãnh Nứt, phá thì nổ), Hư Không-Luyện Hóa 10640 (20 quái đột biến thì dòng này thành 1 Mắt) [LOC]. Giai đoạn 1 chỉ nên làm 6-8 dòng cắm gọn vào móc sẵn có (Lan, Nhanh, Nhạy, Bạo, Theo, Gai Nhọn, Ống Hút, Của Trời Rơi).
+
+### 7 thiên phú Hư Không 3001-3007 trong độ 1: KHÔNG dùng
+Bảng độ khó áp dụng [WIKI buff N; data/sk-buffs86.js đã có tên/mô tả, icon ui_buff_x, pool null]:
+| id | Tên (VI/EN) | Độ khó có | Luật + số | Số {n} trong LOC |
+|---|---|---|---|---|
+| 3001 | Tay Hư Không / Void Grip | Hỗn Độn, Hủy Diệt | Tay không gây 2 sát thương lên Khiên Hư Không (20 lên khiên đỏ) | {0} = 1 thêm |
+| 3002 | Thể Chất Hư Không / Void Affinity | Hỗn Độn, Hủy Diệt | Miễn sát thương Rãnh Nứt (cả rãnh lớn của Hư Không, Bản Tướng) | không có |
+| 3003 | Lệnh Truy Sát Hư Không / Void Bounty | Hỗn Độn, Hủy Diệt | Hạ hết quái nhỏ thì Tinh Anh Hư Không KHÔNG bỏ chạy, cửa phòng đóng tới khi phá khiên/giết; lỗi: bốc từ Thương Nhân Thần Bí hoặc Gian Thương ở 2-5 làm hỏng 1 ải | không có |
+| 3004 | Khiên Hư Không / Void Shield | Hủy Diệt | Vào ván có 12 tầng; mỗi sát thương trừ 1 tầng thay HP/Giáp; hết tầng thì đếm ngược Huỷ Diệt rồi chết bất kể bất tử; hồi tầng: vào ải kế +1, phá khiên Tinh Anh +3, nước uống 1/2/3/4 (tầng 1-4), Vật Tổ +1 mỗi khiên phá, Bình HP/Phục Hồi +1 (lớn +2), hạ Hư Không/Bản Tướng +5; hồi HP/Giáp dư đổi thành bất tử ngắn; Áo Giáp Vàng +1 tầng tối đa mỗi 100 vàng (tối đa 3) | không có (12 tầng từ wiki) |
+| 3005 | Hư Không Che Chở / Void Blessing | Hủy Diệt | Còn khiên thì khung bất tử sau khi trúng đòn dài thêm 1 giây | không có |
+| 3006 | Hư Không Cộng Tế / Void Support | Hủy Diệt | Lập tức hồi 3 tầng khiên; mỗi lần tương tác Nhân Vật hỗ trợ ở ải sau hồi 1 tầng | {0}=3, {1}=1 |
+| 3007 | Tàn Tượng Hư Không / Void Afterimage | Hủy Diệt | Còn khiên: dùng kỹ năng thì tàng hình + bất tử ngắn và để lại Tàn Tượng đánh bằng vũ khí hiện tại | CD {0} giây: wiki ghi "??s", KHÔNG có số |
+Ở độ 1: không có Khiên Hư Không của người chơi (3004), không bóc 3001-3003 vào bể chọn. Chỉ làm dữ liệu và móc rỗng `SK.voidTier >= 2/3` để dành cho độ sau; Đại Hiệp Con Thoi chỉ tặng thiên phú ở độ 3 (void_invasion_tier3/tip_5; độ 2 tip_3: "3 thiên phú riêng"). 3 thiên phú riêng của độ 2 khớp với 3001-3003 [SUY]. Bonus độ 3 trong LOC `Buff_void_*`: 33, 17, 34, 11, 05, 2145 (6 chuỗi) và Buff_upgrade_*_void (6, 7, 18, 2145, bản Hủy Diệt) [LOC].
+
+### Phạm vi mã độ 1 và thứ đã có ở web
+- Có thể dùng lại: STAGES 15 ải (3 tầng) với mode 'void'; G.mods (enemyHpMul, bossHpMul, buffChoices) cho "quái và trùm tăng HP"; khóa Lợi Hại: setBadass phải chặn khi chọn Hư Không (như wiki); rooms.js openChoice(ids) và SK_BUFFS86 để dựng "Thương Nhân Hư Không: 3 thiên phú nâng cấp, chọn 1" (cần dữ liệu nâng cấp: 51 Buff_upgrade_*; web hiện đã có đúng luật cho 1015-1018, 2101-2146, 38-41... theo tools/buffs/README, nâng cấp riêng thì chưa); boss registry SK.bosses và bosses/*.js cho "Hư Không" (đòn mới); G.props cho NPC; SK.on('enemyKill') để thả Xu Ám Tinh (drops.js).
+- Phải làm mới: Khiên Hư Không trên quái (e.vshield = {stacks, hp}) vào đường sát thương actors.js; 3 Tinh Anh + Đạo Tặc + Rãnh Nứt; tiền tệ Xu Ám Tinh/Mắt Hư Không trong HUD (hud.js) và hồ sơ; Thương Nhân Hư Không/Rãnh Nứt/Ngân Hàng/Con Thoi/Tiên Tri/Sưu Tầm; bảng dòng thuộc tính vũ khí (cắm vào p.weapons[i].mods); trùm Hư Không 3 dạng.
+- Tầng 4 liên quan: cổng miễn phí sang 4-1 và Nhà Sưu Tầm ở 4-6 phụ thuộc FLOOR4.md; giai đoạn 1 bỏ tầng 4 (kết 3-6 có Nhà Sưu Tầm).
+
+### Kế hoạch làm (tệp, dữ liệu, bộ kiểm)
+1. tools/void/build_void.py (mới): đọc localization_en_vi.json + config/random_objects.json, sinh data/sk-void.js {coins, npcs, collectorPool[51], tiers, eliteRoster, strings void_invasion/*, npc/*, ui/void_invasion_enemy_*}; wiki số liệu gõ tay có nhãn [WIKI].
+2. js/void.js (mới): G.void = {tier:0, dc, vc, elites:[3 loại], thief}; SK.on('stageEnter') bốc Tinh Anh theo ải; Khiên Hư Không; rơi Xu; NPC; trùm Hư Không; hook 'runEnd' ghi thống kê.
+3. js/design.js: DS.void = {shieldHp:80, stacks:3, dmgToShield:1, flee:5, shatter:30, kill:50, thief:100, rift:1, voidBoss:{f1:600,f2:1200,f3:1800}, trader:30, collector:{refresh:1,guaranteed:1}}. game.js: G.mode 'void'; lobby.js thẻ mới (img: tên khoá ui_game_entry_* chưa có; xem tools/hall hoặc ui_game_entry_void* nếu có trong ui.ab).
+4. Bộ kiểm test/soulknight-void.js (Playwright), số cụ thể:
+   - Tinh Anh độ 1 chỉ thuộc {guard, assassin, mage}, đủ 3 loại không trùng; mỗi ván có tối đa 1 Đạo Tặc.
+   - Đánh 100 phát 10 sát thương vào Tinh Anh còn khiên: HP Tinh Anh giữ nguyên 100%; mỗi phát chỉ trừ tối đa 1 vào khiên (luật "mọi lần bị đánh cố định 1"); số tầng khiên không đổi trừ khi dùng cách phá riêng của loại đó.
+   - Phá khiên bằng cách riêng: rơi 30 Xu Ám Tinh; bỏ chạy khi hạ hết quái nhỏ rơi 5; chết rơi 50 và 1 Mắt; Đạo Tặc chết rơi 100 và 1 Mắt.
+   - Thương Nhân Hư Không: 30 Xu -> 3 lựa chọn, chọn 1; dưới 30 Xu bị từ chối ("Xu Ám Tinh không đủ").
+   - Thương Nhân Rãnh Nứt: tối đa 2 thao tác mỗi lần gặp ở độ 1; đổi 20, thêm 100, nâng 30/50/80.
+   - Nhà Ngân Hàng: 6 phép đổi đúng bảng (55 vàng -> 25 Xu ...).
+   - Rãnh Nứt: chạm 1 sát thương (chưa có 3002).
+   - Trùm Hư Không: 600 (1-5), 1200 (2-5), 1800 (3-5, sau trùm chính); Hai Lãnh Chúa x0,75 -> 450/900/1350 [wiki ghi 1430 ở độ 1 mà 1800x0,75 = 1350: lệch, chọn 1350 và ghi chú]; hạ ở 3-5 rơi 1 Mắt, mở cổng.
+   - Hồ sơ: thắng độ 1 cho khung bạc; không chọn được khi bật Lợi Hại.
+
+### Nguồn không có
+- Khiên 80 HP mỗi tầng có bị đạn thường mài mòn (mỗi phát 1) hay chỉ phá bằng cách riêng: wiki nói cả hai ("80/120/160 máu mỗi tầng" và "mọi sát thương cố định 1") nhưng không nói rõ; hệ số HP quái/trùm tăng ở độ 1; xác suất và loại quái đột biến; xác suất/vị trí xuất hiện Tinh Anh theo ải, số phòng; số lượng Xu Ám Tinh quái đột biến thường rơi; danh sách thiên phú nâng cấp được ở độ 1 và bậc hiếm chi tiết; kiểm soát của điều kiện loại 29 (r_void_invasion) và cấu hình Thương Nhân Hư Không/Rãnh Nứt (không thấy trong random_objects/enemies/npc config; có thể trong luban đã mã hoá); CD của 3007; thời gian đếm ngược Hủy Diệt; điều kiện mở khoá chế độ; hai số chú thích mâu thuẫn (35 hay 40 Xu khi Hư Không bỏ chạy; Hai Lãnh Chúa độ 1 3-5 ghi 1430 so với 1800 x 0,75 = 1350); số HP quái độ 2-3 dấu "?" trong wiki.
+
 ## 3. Điểm cần xác minh thêm (nguồn không có)
 - Hệ số HP/ST/tốc độ/mật độ/Tinh Anh chính xác của Lợi Hại; số trận và hồi máu của Khu Thí Luyện; số Lông Vũ/lượt/ngày; thưởng Nhân Tố; id số factor (105/1003/1010) -> tên. Cách lấy: clip gameplay (skill watch-game-clips) hoặc giải mã bảng cấu hình còn lại (ngoài 17 bảng; luban_config trong bundle config/luban_config).

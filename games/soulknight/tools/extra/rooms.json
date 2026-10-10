@@ -50,7 +50,29 @@
     "npc_knight_01",
     "bullet_statue_thief",
     "explode_blast_out",
-    "whirl_wind"
+    "npc_02",
+    "npc_03",
+    "npc_04",
+    "npc_05",
+    "npc_06",
+    "npc_07",
+    "npc_08",
+    "npc_09",
+    "npc_10",
+    "npc_11",
+    "npc_12",
+    "npc_13",
+    "cage_obj",
+    "whirl_wind",
+    "mboar",
+    "mboar2",
+    "mcristal",
+    "mspider",
+    "mvaken",
+    "mhorse",
+    "micemonkey",
+    "mdungbeetle",
+    "m_morph"
   ],
   "sprites": [
     "^bullet_tnt_immediately$",
@@ -123,6 +145,11 @@
     }
   },
   "bundles": [
-    "bullet"
+    "bullet",
+    "mount/boar",
+    "mount/boar2",
+    "mount/mcristal",
+    "mount/spider",
+    "mount/varkolyn"
   ]
 }

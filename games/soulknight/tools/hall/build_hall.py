@@ -28,6 +28,10 @@ from PIL import Image  # noqa: E402
 
 BUNDLE = 'hero_room/hall/skin_0'
 TOP = '/hall_0_normal'
+# Khu Vườn (bên trái sảnh): hero_room/garden/skin_0 › garden_0_normal dùng cùng toạ độ thế giới với sảnh (sàn vườn x -70..-23,
+# sảnh bắt đầu từ x -22), nên ghép thẳng: nền = sàn/tường/cây của vườn + sảnh, nội thất vườn (ô trồng, bình tưới, xẻng, phân bón) vẽ lúc chạy.
+G_BUNDLE = 'hero_room/garden/skin_0'
+G_TOP = '/garden_0_normal'
 OUT_PNG = os.path.join(GAME, 'art', 'hall', 'hall_0.png')
 OUT_TOP = os.path.join(GAME, 'art', 'hall', 'hall_0_top.png')
 OUT_JS = os.path.join(GAME, 'data', 'sk-hall.js')
@@ -51,7 +55,7 @@ def point_in_poly(x, y, pts):
 
 def main():
     ET.TOP = TOP
-    ET.r = Rip(bundles=[BUNDLE])
+    ET.r = hall_r = Rip(bundles=[BUNDLE])
     cab = ET.r.loaded[BUNDLE + '.ab'][0]
     nodes, roots = ET.build_graph(cab)
     objs = ET.objects_json(cab, nodes, roots)
@@ -74,6 +78,37 @@ def main():
         wx, wy = o['world']
         for path in c['fields']['m_Points']['m_Paths']:
             solids.append([[round(p['x'] + wx, 3), round(p['y'] + wy, 3)] for p in path])
+
+    # ---- Khu Vườn: nạp bundle vườn (ET.r/ET.TOP là biến toàn cục của extract_terrain nên nạp sau khi đã xong phần sảnh)
+    main = (minx, miny, maxx, maxy)
+    hall_cab, hall_nodes, hall_tms = cab, nodes, tms
+    ET.TOP = G_TOP
+    ET.r = Rip(bundles=[G_BUNDLE])
+    gcab = ET.r.loaded[G_BUNDLE + '.ab'][0]
+    gnodes, groots = ET.build_graph(gcab)
+    gobjs = ET.objects_json(gcab, gnodes, groots)
+    gby = {o['path']: o for o in gobjs if o['canonical']}
+    gtms = ET.tilemaps_json(gcab, gnodes)
+    gfloor = next(t for t in gtms if t['name'] == 'floor_garden')
+    ggx, ggy = gfloor['gridWorld']
+    gcells = {(ggx + c[0], ggy + c[1]) for c in gfloor['cells']}
+    # Tường vườn là BoxCollider2D xoay chéo; mặt nạ đi được của vườn lấy theo ô sàn floor_garden (tường nằm ngoài sàn).
+    gminx = min(x for x, _ in gcells) - PAD
+    gmaxx = max(x for x, _ in gcells) + 1 + PAD
+    gminy = min(y for _, y in gcells) - PAD
+    gmaxy = max(y for _, y in gcells) + 1 + PAD_TOP
+    gb = (gminx, gminy, gmaxx, gmaxy)
+    garden = {'plots': [list(gby[G_TOP + '/function/plant_pot_slots/slot_%d' % i]['world']) for i in range(8)]}
+    for key, nm in (('can', 'weapon_shower'), ('shovel', 'weapon_shovel'), ('fert', 'object_fertilize')):
+        garden[key] = list(gby[G_TOP + '/function/stuffs_slot/' + nm]['world'])
+    # Nhân vật/bù nhìn/giếng của vườn (dưới /function/) chưa có ở web: không vẽ vào nền; nội thất vườn vẽ lúc chạy từ prefab.
+    for n in gnodes.values():
+        if n.path.startswith(G_TOP + '/function/') or n.path == G_TOP + '/function':
+            n.canon = False
+    cells |= gcells
+    minx, miny = min(minx, gminx), min(miny, gminy)
+    maxx, maxy = max(maxx, gmaxx), max(maxy, gmaxy)
+    bounds = (minx, miny, maxx, maxy)
 
     w, h = int((maxx - minx) * MASK), int((maxy - miny) * MASK)
     rows = []
@@ -100,9 +135,23 @@ def main():
     deco = {o['name']: o['world'] for o in objs if o['canonical'] and o['path'].startswith(TOP + '/objects/') and o['depth'] == 2}
 
     # Hai lớp: sàn + tường (tilemap) rồi đồ trang trí (SpriteRenderer, nền trong suốt); thảm và đồ nằm sàn vẽ chen giữa.
-    bounds = (minx, miny, maxx, maxy)
-    canvas = ET.render(cab, nodes, tms, {}, bounds, {'sr': False})
-    deco_img = ET.render(cab, nodes, tms, {}, bounds, {'tiles': False, 'bg': (0, 0, 0, 0)})
+    BG = (24, 28, 34, 255)
+    W_, H_ = int((maxx - minx) * PX), int((maxy - miny) * PX)
+    canvas = Image.new('RGBA', (W_, H_), BG)
+    deco_img = Image.new('RGBA', (W_, H_), (0, 0, 0, 0))
+
+    def put(dst, src, b, alpha):
+        pos = (int(round((b[0] - minx) * PX)), int(round((maxy - b[3]) * PX)))
+        if alpha:
+            dst.alpha_composite(src, pos)
+        else:
+            dst.paste(src, pos)
+    # vườn trước (nền đặc), sảnh sau (nền trong suốt để cột đệm của sảnh không che sàn vườn)
+    put(canvas, ET.render(gcab, gnodes, gtms, {}, gb, {'sr': False}), gb, False)
+    put(deco_img, ET.render(gcab, gnodes, gtms, {}, gb, {'tiles': False, 'bg': (0, 0, 0, 0)}), gb, True)
+    ET.r = hall_r
+    put(canvas, ET.render(hall_cab, hall_nodes, hall_tms, {}, main, {'sr': False, 'bg': (0, 0, 0, 0)}), main, True)
+    put(deco_img, ET.render(hall_cab, hall_nodes, hall_tms, {}, main, {'tiles': False, 'bg': (0, 0, 0, 0)}), main, True)
     os.makedirs(os.path.dirname(OUT_PNG), exist_ok=True)
     canvas.save(OUT_PNG, optimize=True)
     deco_img.save(OUT_TOP, optimize=True)
@@ -112,7 +161,7 @@ def main():
         'ppu': PX, 'bounds': [minx, miny, maxx, maxy], 'img': 'art/hall/hall_0.png', 'top': 'art/hall/hall_0_top.png', 'v': v, 'mask': MASK, 'walk': rows,
         'door': {'x': round(door['world'][0] + dc['offset'][0], 3), 'y': round(door['world'][1] + dc['offset'][1], 3),
                  'w': dc['size'][0], 'h': dc['size'][1]},
-        'slots': slots, 'deco': deco, 'solids': solids,
+        'slots': slots, 'deco': deco, 'solids': solids, 'main': list(main), 'garden': garden,
     }
     with io.open(OUT_JS, 'w', encoding='utf-8', newline='\n') as f:
         f.write('// SINH TỰ ĐỘNG bởi tools/hall/build_hall.py — không sửa tay.\n')

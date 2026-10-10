@@ -1,0 +1,1181 @@
+{
+ "plant_banboo": {
+  "cls": "PlantWeapon",
+  "f": {
+   "angle": 90,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 1,
+   "repeat": 0,
+   "restartState": 2,
+   "usableState": 3
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_0"
+   ],
+   "1": [
+    "weapons2_112"
+   ],
+   "2": [
+    "weapons2_112"
+   ],
+   "3": [
+    "weapons2_112"
+   ],
+   "4": [
+    "weapons2_112"
+   ]
+  },
+  "states": 5
+ },
+ "plant_binary_tree": {
+  "cls": "PlantBuff",
+  "f": {
+   "IsRandomBuff": 0,
+   "buff": 3,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 0,
+   "repeat": 0,
+   "restartState": 2,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_0"
+   ],
+   "1": [
+    "objects_plants_28"
+   ]
+  },
+  "states": 2
+ },
+ "plant_blackrose": {
+  "cls": "PlantBuff",
+  "f": {
+   "IsRandomBuff": 0,
+   "buff": 2181,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 0,
+   "repeat": 0,
+   "restartState": 2,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_37"
+   ],
+   "1": [
+    "legendary_plant_blackrose"
+   ]
+  },
+  "states": 2
+ },
+ "plant_cactus": {
+  "cls": "PlantBuff",
+  "f": {
+   "IsRandomBuff": 0,
+   "buff": 7,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 1,
+   "repeat": 0,
+   "restartState": 2,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_0"
+   ],
+   "1": [
+    "objects_plants_4"
+   ],
+   "2": [
+    "objects_plants_4"
+   ],
+   "3": [
+    "objects_plants_5"
+   ]
+  },
+  "states": 4
+ },
+ "plant_carrot": {
+  "cls": "PlantWeapon",
+  "f": {
+   "angle": 270,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 0,
+   "repeat": 0,
+   "restartState": 1,
+   "usableState": 1
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_0"
+   ],
+   "1": [
+    "weapons2_101"
+   ],
+   "2": [
+    "weapons2_101"
+   ]
+  },
+  "states": 3
+ },
+ "plant_clivia": {
+  "cls": "PlantBuff",
+  "f": {
+   "IsRandomBuff": 0,
+   "buff": 2177,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 0,
+   "repeat": 0,
+   "restartState": 2,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_37"
+   ],
+   "1": [
+    "plant6_0"
+   ]
+  },
+  "states": 2
+ },
+ "plant_datura": {
+  "cls": "PlantPet",
+  "f": {
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 1,
+   "petName": "",
+   "plantDesc": "plant/info/pet_datura",
+   "repeat": 0,
+   "restartState": 6,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_0"
+   ],
+   "1": [
+    "objects_plants_2"
+   ],
+   "2": [
+    "objects_plants_2"
+   ],
+   "3": [
+    "objects_plants_2"
+   ],
+   "4": [
+    "objects_plants_2"
+   ],
+   "5": [
+    "objects_plants_2"
+   ],
+   "6": [
+    "objects_plants_2"
+   ],
+   "7": [
+    "objects_plants_2",
+    "pet_datura_0",
+    "shadow3",
+    "shadow_lock",
+    "biaoqing_11"
+   ]
+  },
+  "states": 8
+ },
+ "plant_defend_flower": {
+  "cls": "PlantBuff",
+  "f": {
+   "IsRandomBuff": 0,
+   "buff": 6,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 0,
+   "repeat": 0,
+   "restartState": 2,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_0"
+   ],
+   "1": [
+    "objects_plants_25"
+   ]
+  },
+  "states": 2
+ },
+ "plant_dragon_tree": {
+  "cls": "PlantBuff",
+  "f": {
+   "IsRandomBuff": 0,
+   "buff": 9,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 1,
+   "repeat": 0,
+   "restartState": 3,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_0"
+   ],
+   "1": [
+    "objects_plants_6"
+   ],
+   "2": [
+    "objects_plants_6"
+   ],
+   "3": [
+    "objects_plants_6"
+   ],
+   "4": [
+    "objects_plants_7"
+   ]
+  },
+  "states": 5
+ },
+ "plant_eator": {
+  "cls": "PlantPet",
+  "f": {
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 0,
+   "petName": "",
+   "plantDesc": "plant/info/pet_eater",
+   "repeat": 0,
+   "restartState": 2,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_0"
+   ],
+   "1": [
+    "pet_eater_0",
+    "christmas_hat",
+    "antlers",
+    "shadow3"
+   ]
+  },
+  "states": 2
+ },
+ "plant_fantastic_flower": {
+  "cls": "PlantBuff",
+  "f": {
+   "IsRandomBuff": 1,
+   "buff": 0,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 0,
+   "repeat": 0,
+   "restartState": 2,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_0"
+   ],
+   "1": [
+    "objects_plants_26"
+   ]
+  },
+  "states": 2
+ },
+ "plant_firecracker": {
+  "cls": "PlantBuff",
+  "f": {
+   "IsRandomBuff": 0,
+   "buff": 2178,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 0,
+   "repeat": 0,
+   "restartState": 2,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_0"
+   ],
+   "1": [
+    "firework_0"
+   ]
+  },
+  "states": 2
+ },
+ "plant_flatpeach": {
+  "cls": "PlantBuff",
+  "f": {
+   "IsRandomBuff": 0,
+   "buff": 2184,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 0,
+   "repeat": 0,
+   "restartState": 2,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_37"
+   ],
+   "1": [
+    "legendary_plant_flatpeach"
+   ]
+  },
+  "states": 2
+ },
+ "plant_gear_flower": {
+  "cls": "PlantMaterial",
+  "f": {
+   "count": 4,
+   "item_name": "",
+   "item_value": 100,
+   "label_height": 2.5,
+   "material": "material_gear",
+   "permanent": 0,
+   "randomMaterial": 0,
+   "repeat": 0,
+   "restartState": 1,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_0"
+   ],
+   "1": [
+    "objects_plants_11"
+   ]
+  },
+  "states": 2
+ },
+ "plant_gem_flower": {
+  "cls": "PlantMaterial",
+  "f": {
+   "count": 288,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "material": "material_gem",
+   "permanent": 0,
+   "randomMaterial": 0,
+   "repeat": 0,
+   "restartState": 3,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_0"
+   ],
+   "1": [
+    "objects_plants_10"
+   ]
+  },
+  "states": 2
+ },
+ "plant_gem_tree": {
+  "cls": "PlantMaterial",
+  "f": {
+   "count": 222,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "material": "material_gem",
+   "permanent": 1,
+   "randomMaterial": 0,
+   "repeat": 0,
+   "restartState": 3,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_0"
+   ],
+   "1": [
+    "objects_plants_12"
+   ],
+   "2": [
+    "objects_plants_12"
+   ],
+   "3": [
+    "objects_plants_12"
+   ],
+   "4": [
+    "objects_plants_13"
+   ]
+  },
+  "states": 5
+ },
+ "plant_ginseng": {
+  "cls": "PlantBuff",
+  "f": {
+   "IsRandomBuff": 0,
+   "buff": 2180,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 0,
+   "repeat": 0,
+   "restartState": 2,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_37"
+   ],
+   "1": [
+    "legendary_plant_ginseng"
+   ]
+  },
+  "states": 2
+ },
+ "plant_heptacolor": {
+  "cls": "PlantBuff",
+  "f": {
+   "IsRandomBuff": 0,
+   "buff": 0,
+   "item_name": "plant_heptacolor",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 0,
+   "repeat": 0,
+   "restartState": 0,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_0"
+   ],
+   "1": [
+    "objects_plants_9"
+   ]
+  },
+  "states": 2
+ },
+ "plant_iron_tree": {
+  "cls": "PlantMaterial",
+  "f": {
+   "count": 4,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "material": "material_iron",
+   "permanent": 0,
+   "randomMaterial": 0,
+   "repeat": 0,
+   "restartState": 1,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_0"
+   ],
+   "1": [
+    "objects_plants_16"
+   ]
+  },
+  "states": 2
+ },
+ "plant_lavender": {
+  "cls": "PlantBuff",
+  "f": {
+   "IsRandomBuff": 0,
+   "buff": 2171,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 0,
+   "repeat": 0,
+   "restartState": 2,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_37"
+   ],
+   "1": [
+    "plant1_2"
+   ]
+  },
+  "states": 2
+ },
+ "plant_lithiumflower": {
+  "cls": "PlantBuff",
+  "f": {
+   "IsRandomBuff": 0,
+   "buff": 2179,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 0,
+   "repeat": 0,
+   "restartState": 2,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_37"
+   ],
+   "1": [
+    "legendary_plant_lithiumflower"
+   ]
+  },
+  "states": 2
+ },
+ "plant_lotus": {
+  "cls": "PlantDrink",
+  "f": {
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 0,
+   "repeat": 0,
+   "restartState": 1,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_0"
+   ],
+   "1": [
+    "objects_plants_34"
+   ]
+  },
+  "states": 2
+ },
+ "plant_lycoris": {
+  "cls": "PlantBuff",
+  "f": {
+   "IsRandomBuff": 0,
+   "buff": 17,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 0,
+   "repeat": 0,
+   "restartState": 2,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_0"
+   ],
+   "1": [
+    "objects_plants_33"
+   ]
+  },
+  "states": 2
+ },
+ "plant_magic_flower": {
+  "cls": "PlantBuff",
+  "f": {
+   "IsRandomBuff": 0,
+   "buff": 13,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 1,
+   "repeat": 0,
+   "restartState": 2,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_0"
+   ],
+   "1": [
+    "objects_plants_15"
+   ],
+   "2": [
+    "objects_plants_15"
+   ],
+   "3": [
+    "objects_plants_14"
+   ]
+  },
+  "states": 4
+ },
+ "plant_mandrake": {
+  "cls": "PlantBuff",
+  "f": {
+   "IsRandomBuff": 0,
+   "buff": 8,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 1,
+   "repeat": 0,
+   "restartState": 1,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_0"
+   ],
+   "1": [
+    "objects_plants_18"
+   ],
+   "2": [
+    "objects_plants_8"
+   ]
+  },
+  "states": 3
+ },
+ "plant_mirror_plane_flower": {
+  "cls": "PlantBuff",
+  "f": {
+   "IsRandomBuff": 0,
+   "buff": 24,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 0,
+   "repeat": 0,
+   "restartState": 2,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_0"
+   ],
+   "1": [
+    "objects_plants_24"
+   ]
+  },
+  "states": 2
+ },
+ "plant_monotropa": {
+  "cls": "PlantBuff",
+  "f": {
+   "IsRandomBuff": 0,
+   "buff": 2183,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 0,
+   "repeat": 0,
+   "restartState": 2,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_37"
+   ],
+   "1": [
+    "legendary_plant_monotropa"
+   ]
+  },
+  "states": 2
+ },
+ "plant_mushroom": {
+  "cls": "PlantBuff",
+  "f": {
+   "IsRandomBuff": 0,
+   "buff": 15,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 1,
+   "repeat": 0,
+   "restartState": 1,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_0"
+   ],
+   "1": [
+    "objects_plants_22"
+   ],
+   "2": [
+    "objects_plants_21"
+   ]
+  },
+  "states": 3
+ },
+ "plant_mushroom_gold": {
+  "cls": "PlantBuff",
+  "f": {
+   "IsRandomBuff": 0,
+   "buff": 10,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 1,
+   "repeat": 0,
+   "restartState": 1,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_0"
+   ],
+   "1": [
+    "objects_plants_36"
+   ],
+   "2": [
+    "objects_plants_32"
+   ]
+  },
+  "states": 3
+ },
+ "plant_nepenthes": {
+  "cls": "PlantBuff",
+  "f": {
+   "IsRandomBuff": 0,
+   "buff": 2182,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 0,
+   "repeat": 0,
+   "restartState": 2,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_37"
+   ],
+   "1": [
+    "legendary_plant_nepenthes"
+   ]
+  },
+  "states": 2
+ },
+ "plant_pumpkin": {
+  "cls": "PlantGrowItem",
+  "f": {
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 1,
+   "randomItem": 0,
+   "repeat": 0,
+   "restartState": 0,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_0"
+   ],
+   "1": [
+    "pumpkin_0"
+   ]
+  },
+  "states": 2
+ },
+ "plant_qilixiang": {
+  "cls": "PlantBuff",
+  "f": {
+   "IsRandomBuff": 0,
+   "buff": 2174,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 0,
+   "repeat": 0,
+   "restartState": 2,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_37"
+   ],
+   "1": [
+    "plant4_0"
+   ]
+  },
+  "states": 2
+ },
+ "plant_radar": {
+  "cls": "PlantBuff",
+  "f": {
+   "IsRandomBuff": 0,
+   "buff": 2,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 0,
+   "repeat": 0,
+   "restartState": 2,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_0"
+   ],
+   "1": [
+    "radar16x16_8",
+    "radar16x16_0",
+    "radar16x16_8"
+   ]
+  },
+  "states": 2
+ },
+ "plant_rainbow_grass": {
+  "cls": "PlantBuff",
+  "f": {
+   "IsRandomBuff": 0,
+   "buff": 2175,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 0,
+   "repeat": 0,
+   "restartState": 2,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_37"
+   ],
+   "1": [
+    "plant5_0"
+   ]
+  },
+  "states": 2
+ },
+ "plant_roselle": {
+  "cls": "PlantBuff",
+  "f": {
+   "IsRandomBuff": 0,
+   "buff": 2173,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 0,
+   "repeat": 0,
+   "restartState": 2,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_37"
+   ],
+   "1": [
+    "plant3_3"
+   ]
+  },
+  "states": 2
+ },
+ "plant_rosemary": {
+  "cls": "PlantBuff",
+  "f": {
+   "IsRandomBuff": 0,
+   "buff": 2170,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 0,
+   "repeat": 0,
+   "restartState": 2,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_37"
+   ],
+   "1": [
+    "plant0_0"
+   ]
+  },
+  "states": 2
+ },
+ "plant_shallot": {
+  "cls": "PlantWeapon",
+  "f": {
+   "angle": 90,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 0,
+   "repeat": 0,
+   "restartState": 1,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_0"
+   ],
+   "1": [
+    "weapons_97"
+   ]
+  },
+  "states": 2
+ },
+ "plant_silver_poplar": {
+  "cls": "PlantBuff",
+  "f": {
+   "IsRandomBuff": 0,
+   "buff": 2172,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 0,
+   "repeat": 0,
+   "restartState": 2,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_37"
+   ],
+   "1": [
+    "plant2_0"
+   ]
+  },
+  "states": 2
+ },
+ "plant_strange_flower": {
+  "cls": "PlantMaterial",
+  "f": {
+   "count": 1,
+   "item_name": "",
+   "item_value": 100,
+   "label_height": 2.5,
+   "material": "material_gear",
+   "permanent": 0,
+   "randomMaterial": 1,
+   "repeat": 0,
+   "restartState": 1,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_0"
+   ],
+   "1": [
+    "objects_plants_23"
+   ]
+  },
+  "states": 2
+ },
+ "plant_toxicmushroom": {
+  "cls": "PlantBuff",
+  "f": {
+   "IsRandomBuff": 0,
+   "buff": 2181,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 0,
+   "repeat": 0,
+   "restartState": 2,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_37"
+   ],
+   "1": [
+    "legendary_plant_toxicmushroom"
+   ]
+  },
+  "states": 2
+ },
+ "plant_tree": {
+  "cls": "PlantMaterial",
+  "f": {
+   "count": 10,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "material": "material_wood",
+   "permanent": 0,
+   "randomMaterial": 0,
+   "repeat": 0,
+   "restartState": 1,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_0"
+   ],
+   "1": [
+    "objects_plants_17"
+   ],
+   "2": [
+    "objects_plants_17"
+   ],
+   "3": [
+    "objects_plants_17"
+   ]
+  },
+  "states": 4
+ },
+ "plant_trumpet": {
+  "cls": "PlantMaterial",
+  "f": {
+   "count": 4,
+   "item_name": "plant_trumpet",
+   "item_value": 0,
+   "label_height": 2.5,
+   "material": "material_cell",
+   "permanent": 0,
+   "randomMaterial": 0,
+   "repeat": 0,
+   "restartState": 0,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_0"
+   ],
+   "1": [
+    "succulent"
+   ]
+  },
+  "states": 2
+ },
+ "plant_vine": {
+  "cls": "PlantWeapon",
+  "f": {
+   "angle": 90,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 0,
+   "repeat": 0,
+   "restartState": 1,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_0"
+   ],
+   "1": [
+    "weapons2_109"
+   ]
+  },
+  "states": 2
+ },
+ "plant_watermelon": {
+  "cls": "PlantBuff",
+  "f": {
+   "IsRandomBuff": 0,
+   "buff": 5,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 0,
+   "repeat": 0,
+   "restartState": 2,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_0"
+   ],
+   "1": [
+    "objects_plants_27"
+   ]
+  },
+  "states": 2
+ },
+ "plant_worm": {
+  "cls": "PlantBuff",
+  "f": {
+   "IsRandomBuff": 0,
+   "buff": 16,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 1,
+   "repeat": 0,
+   "restartState": 2,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_0"
+   ],
+   "1": [
+    "objects_plants_20"
+   ],
+   "2": [
+    "objects_plants_20"
+   ],
+   "3": [
+    "objects_plants_19"
+   ]
+  },
+  "states": 4
+ },
+ "plant_xmas": {
+  "cls": "PlantWeapon",
+  "f": {
+   "angle": 90,
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 0,
+   "repeat": 0,
+   "restartState": 1,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_0"
+   ],
+   "1": [
+    "weapons2_82"
+   ],
+   "2": [
+    "weapons2_82"
+   ]
+  },
+  "states": 3
+ },
+ "plant_zongzi": {
+  "cls": "PlantPet",
+  "f": {
+   "item_name": "",
+   "item_value": 0,
+   "label_height": 2.5,
+   "permanent": 0,
+   "petName": "pet41",
+   "plantDesc": "npc/npc_zongzi_activity",
+   "repeat": 0,
+   "restartState": 2,
+   "usableState": 0
+  },
+  "stateSprites": {
+   "0": [
+    "objects_plants_0"
+   ],
+   "1": [
+    "plant_zongzi_leaves",
+    "weapon_383",
+    "bullet_4",
+    "npc_zongzi_0",
+    "shadow3",
+    "shadow_lock",
+    "biaoqing_11"
+   ]
+  },
+  "states": 2
+ }
+}

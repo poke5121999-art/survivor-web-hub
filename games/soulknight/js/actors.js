@@ -792,6 +792,83 @@
     if (!e && dp > 2 * U) allyWalk(G, a, p.x, p.y, spd, dt);
   }
 
+  // ---------------------------------------------------------------- lính thuê (13, data/sk-mercs.js; prefab npc_NN)
+  // Dùng lại addWeaponAlly/allyFollow/allyDie: nhận đạn địch, theo chủ 2–20 đv, chết thì biến mất kèm vũ khí. HP/tốc/chí mạng/atk_cd/giá
+  // đọc từ prefab [ĐO npc_NN]; sát thương = damage đạn của vũ khí mặc định [ĐO bulletsInfo]. Cách đánh (cận chiến/bắn, loạt 3 phát)
+  // theo loại vũ khí wiki [ƯỚC LƯỢNG: AI "đánh từng đợt cố định rồi nghỉ" không có số].
+  // G.mercs = danh sách lính còn sống (hired = thuê ở phòng đặc biệt, chặn phòng lính thuê tầng sau; lồng nhốt thì không).
+  // Mỗi mục: kind, spd (px/s trước nhân), pf (đạn), n (số phát mỗi đợt), melee, heal.
+  const MERC_ATK = {
+    npc_01: { melee: 1 }, npc_02: { pf: 'bullet_1', spd: 36, n: 3 }, npc_03: { pf: 'bullet_1', spd: 20, n: 3, fan: 3 },
+    npc_04: { pf: 'bullet_13', spd: 14, n: 2 }, npc_05: { melee: 1 }, npc_06: { pf: 'bullet_1', spd: 12, n: 2 },
+    npc_07: { pf: 'bullet_2', spd: 40, n: 3 }, npc_08: { melee: 1 }, npc_09: { pf: 'bullet_13', spd: 14, n: 1 },
+    npc_10: { pf: 'bullet_2', spd: 50, n: 2 }, npc_11: { heal: 1 }, npc_12: { melee: 1 }, npc_13: { pf: 'bullet_1', spd: 30, n: 3 }
+  };
+  SK.MERC_ATK = MERC_ATK;
+  const MERC_ART = { npc_01: 'npc_knight_01' };   // prefab npc_01 trùng tên với một prefab UI; wiki: hiệp sĩ tượng dùng chung hình Kỵ Sĩ Hoàng Gia
+  function livingMercs(G) { return (G.mercs = (G.mercs || []).filter(a => !a.dead && !a.gone)); }
+  SK.livingMercs = livingMercs;
+  // opt: {hired, armed (false = tay không, lồng nhốt), hpBonus}
+  SK.addMercenary = function (G, p, id, x, y, opt) {
+    const M = window.SK_MERCS && window.SK_MERCS.mercs[id]; if (!M) return null;
+    opt = opt || {};
+    const pf = SK.prefab(MERC_ART[id] || id), anims = (pf && pf[0] && pf[0].a) || {}, A = MERC_ATK[id] || {};
+    const hpMax = M.hp + (opt.hpBonus || 0);
+    const a = addWeaponAlly(G, {
+      merc: id, M, hired: !!opt.hired, armed: opt.armed !== false, x, y: Math.max(y, p.y - 2), hp: opt.hp != null ? opt.hp : hpMax, hpMax, cd: 1, owner: p, hpBonus: opt.hpBonus || 0,
+      update(G2, a, dt) {
+        a.moving = false; a.cd -= dt;
+        if (a.armed && A.heal) {                       // Kỵ Sĩ Hy Vọng: hồi chậm cho chủ (atk_cd 15 s) [ĐO npc_11 atk_cd 15]
+          if (a.cd <= 0 && p.st !== 'dead' && p.hp < p.hpMax) { a.cd = M.atkCd; p.hp = Math.min(p.hpMax, p.hp + 1); vfx(G2, 'effect_health', p.x, p.y - 8, { follow: p, dy: -8, scale: 0.7 }); }
+          else if (a.cd <= 0) a.cd = 0.5;
+        }
+        const e = nearestEnemy(G2, a.x, a.y - 7, 12 * U);
+        const spd = M.speed * U * 1.0;
+        allyFollow(G2, a, p, dt, spd, e);
+        if (!e || A.heal) return;
+        const ey = e.y - e.hb.off[1] * e.scale, d = Math.hypot(e.x - a.x, ey - (a.y - 7));
+        a.face = e.x >= a.x ? 1 : -1;
+        const melee = A.melee || !a.armed;
+        if (melee && d > 2 * U) { allyWalk(G2, a, e.x, e.y, spd, dt); return; }
+        if (a.cd > 0) return;
+        a.cd = M.atkCd;
+        const ang = Math.atan2(ey - (a.y - 7), e.x - a.x);
+        if (melee) {
+          const crit = SK.rand() * 100 < M.crit, dmg = a.armed ? M.damage : 1;
+          SK.hurtEnemy(G2, e, dmg * (crit ? CM() : 1), crit, ang, 2);
+          return;
+        }
+        const n = A.n || 1, fan = A.fan || 1;
+        for (let i = 0; i < n; i++) {
+          for (let j = 0; j < fan; j++) {
+            const crit = SK.rand() * 100 < M.crit, aj = ang + (fan > 1 ? (j - (fan - 1) / 2) * 0.18 : 0) + (SK.rand() - 0.5) * 0.12;
+            SK.spawnBullet86(G2, 'p', A.pf, a.x + Math.cos(ang) * 6, a.y - 7 + Math.sin(ang) * 6, aj, { dmg: M.damage * (crit ? CM() : 1), crit, repel: 2, owner: a, h: 7, spd: A.spd });
+          }
+        }
+      },
+      onDie(G2, a) { a.gone = true; G2.mercs = (G2.mercs || []).filter(q => q !== a); SK.emit('mercDie', G2, a); },
+      draw(ctx, G2, a) {
+        const key = a.moving ? (anims.run || anims.npc_run || Object.values(anims).find(v => /run|walk/.test(v))) : (anims.idle || Object.values(anims).find(v => /ide|idle|stand/.test(v)) || Object.values(anims)[0]);
+        const fr = key && SK.animFrame(key, a.t);
+        if (!fr || !SK.draw(ctx, fr, a.x, a.y, { flip: a.face < 0, pages: a.flash > 0 ? SK.pagesWhite : null })) {
+          ctx.fillStyle = '#9fd2ff'; ctx.fillRect(a.x - 4, a.y - 12, 8, 12);
+        }
+      }
+    });
+    (G.mercs = G.mercs || []).push(a);
+    return a;
+  };
+  // Qua cổng: lính còn sống về đầy máu [WIKI Followers "vào tầng mới hồi đầy"] và đứng cạnh chủ; lính lồng nhốt cầm vũ khí mặc định.
+  SK.on('runStart', G => { G.mercs = []; });
+  SK.on('stageEnter', (G, stage) => {
+    const p = G.player, old = livingMercs(G);
+    G.mercs = [];
+    old.forEach((m, i) => {
+      m.gone = true;
+      SK.addMercenary(G, p, m.merc, p.x - p.face * (8 + i * 6), p.y, { hired: m.hired, armed: true, hpBonus: m.hpBonus });
+    });
+  });
+
   // ---------------------------------------------------------------- vũ khí lớp tự viết (CUSTOM_FIRE[cls](G, p, w, o))
   // Gọi thay cho WEAPON_KINDS ở sự kiện Attack; trả false = không làm gì (fireEvent hoàn năng lượng).
   const CUSTOM_FIRE = {}, CUSTOM_HOLD = {};

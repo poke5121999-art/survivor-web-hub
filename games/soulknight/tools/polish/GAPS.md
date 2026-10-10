@@ -53,3 +53,34 @@ Nhật ký quyết định: `decisions.tsv` cùng thư mục.
 | Kỹ năng thú cưng còn số ước lượng | `js/pets/petN.js` nhãn `[ƯỚC LƯỢNG]` | wiki chỉ cho hồi chiêu; bán kính, thời lượng nhiều con vẫn đặt tay |
 | Bộ kiểm `soulknight-season-world.js` treo ở `#hs-back` | nút bị bỏ từ `292d316b` (màn chọn nhân vật dựng từ prefab); worktree HEAD cũng treo | nợ bộ kiểm, chưa sửa |
 | Bộ kiểm `skills`: `alchemist concoction` hỏng | hỏng y hệt ở HEAD trước đợt 1 | lỗi có sẵn, chưa sửa |
+
+## Mê Trận Tà Vương (lõi: js/matrix.js, STAGES động trong game.js, SK.factorsAdd)
+
+| Phần | Tình trạng |
+|---|---|
+| Quái Gen (11 kiểu), nhân tố Đột Biến Gen | chưa có hệ Quái Gen; không làm đợt này |
+| Cấp vũ khí (w.lvl, số xanh trên nút vũ khí, trừ sát thương khi cấp thấp) | chưa có w.lvl và HUD; không làm đợt này |
+| Thiên phú 2001-2007 và 2117 | chưa có trong data/sk-buffs86.js; thiên phú sau x-2/x-5 chưa gắn (rooms.js BUFF_AFTER chỉ có 1-1..3-5 nên sau tầng 3 không còn thẻ chọn) |
+| 6 nhân tố riêng của Tà Vương (Thuật Suy Yếu, Thuật Chậm Chạp, Đột Biến Gen, Kiếm Hai Lưỡi, Gen Miễn Dịch, Thuật Hồi Sinh) | chưa có; cần cộng dồn n lần (factorsAdd hiện chặn trùng khoá) và móc enemyHurtAdd ở actors.js |
+| Thanh Uy Áp (HUD), NPC Con Bạc/Thương Nhân/Thầy Bói, Tước Sĩ Lục, đổi Pha Lê cuối ván | chưa có; Pha Lê mới đếm ở G.matrix.crystals |
+| Trùm Tinh Anh x1,25 và Hai Lãnh Chúa x0,75 theo wiki | web dùng sẵn badass.bossHp 1,5 và DoubleBoss x0,7; matrix.js chỉ nhân thêm (1 + 0,15 P) |
+| Tiến độ/vạch mốc của phán quyết | [ƯỚC LƯỢNG] tiến độ = quái hạ / quái đã sinh trong tầng, vạch = giây / 360 |
+
+## Vườn + 47 cây trồng (sảnh bước 6: js/garden.js, data/sk-garden.js, test/soulknight-garden.js)
+
+Làm được: 8 ô trồng (prefab gốc plant_pot_0_summer) + Bình Nước + Phân Bón + Xẻng đặt ở Khu Vườn bên trái sảnh (sàn/tường/cây của hero_room/garden/skin_0 ghép
+thẳng vào nền sảnh, cùng toạ độ thế giới); trồng, tưới, bón phân, bỏ, thu hoạch, mở ô; sản phẩm vật liệu/đá/vũ khí/thiên phú/ô thiên phú/thức uống/thú cưng.
+
+| Thiếu | Lý do / cách xử lý |
+|---|---|
+| 14 cây thiên phú chưa có luật ở bản web: Hương Thảo (2170 Tân Tinh Thần Thánh), Oải Hương (2171), Dương Bạc (2172), Hoa Hồng (2173), Thất Lý Hương (2174), Cỏ Cầu Vồng (2175), Quân Tử Lan (2177), Pháo (2178), Hoa Ly (2179), Nhân Sâm (2180), Hoa Đồng Đen (2181), Cây Nắp Ấm (2182), Cây Lan Pha Lê (2183), Đào Tiên (2184) | không có trong data/sk-buffs86.js và rooms.js DEF; cây trồng được, đến lúc thu báo "Thiên phú này chưa có ở bản web" và giữ nguyên cây (không mất). Tên/mô tả Việt lấy từ Buff_info_<id> |
+| Nấm Pha Lê (thiên phú 15 Thợ Mỏ Đá Quý) | rooms.js đang tắt (OFF 15: web không có đá quý cuối ván), thu báo như trên |
+| Lê Băng (plant_icepear) | không có prefab trong common.ab; dùng hình Hương Thảo và luật wiki (một trong Băng Kích / Tượng Băng Nổ / Vòng Sương Băng, id 1015-1017) |
+| Thú cưng thứ hai | pets.js chỉ giữ một thú cưng chính (G.pet, spawn đóng kín) nên thú cưng cây (Hoa Mandala, Hoa Ăn Thịt, Bánh Ú Con) là bạn đồng hành riêng trong garden.js: bám chủ, cắn quái gần (3 / 5 / 2 sát thương, wiki); chưa có 3 viên đạn hình quạt + độc của Hoa Mandala, chưa có máu / hồi máu, chưa nhận kỹ năng pet |
+| Chín Nhanh (Instant Grow) | chưa làm; giới hạn lần mỗi ô [LOC ui/one_click_plant_limit_tip] chưa rõ |
+| Ô 7 (thành tựu "Tường Than Thở") | web chưa có Thần Điện Thủ Hộ và hệ thành tựu: ô khoá, ghi điều kiện |
+| Ô 5, 6, 8 | thanh toán giả (fakePay), không trừ tiền thật |
+| Bí Đỏ "vật phẩm ngẫu nhiên" | web không có kho thuốc/bom ở sảnh: 40% vũ khí vào hòm, còn lại đá quý [ƯỚC LƯỢNG] |
+| Sen Tuyết (+1 máu tối đa, +40 năng lượng tối đa) | áp một ván; chưa tính vào hạn mức thức uống vì web chưa có Máy Bán Nước Uống |
+| NPC trong khu vườn gốc: Kỵ Sĩ Nghỉ Hưu, bù nhìn, giếng ước, thú hoang | không vẽ, không có tương tác (HALL.md #39); tường vườn là BoxCollider2D xoay chéo nên mặt nạ đi được của vườn lấy theo ô sàn floor_garden |
+| Ngày | ngày thật (SK.profile.dayIndex); cây chỉ lớn khi ghé lại / đổi ngày, tối đa 30 đêm cộng dồn; SK.profile.shiftDay + SK.garden.debugNextDay là móc kiểm thử |

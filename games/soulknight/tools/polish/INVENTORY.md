@@ -495,7 +495,7 @@ Thiên phú: **62** term tên [LOC Buff_name_N; còn 163 term Buff_info_N không
 | 3006 | Hư Không Cộng Tế | có | chưa (chế độ Xâm Nhập Hư Không chưa có; chỉ có tên/mô tả) |
 | 3007 | Tàn Tượng Hư Không | có | chưa (chế độ Xâm Nhập Hư Không chưa có; chỉ có tên/mô tả) |
 
-Tượng thần: **11** tên [LOC statue_*_name]: Tượng Thích Khách, Tượng Kỹ Sư, Tượng Kỵ Sĩ, Tượng Mục Sư, Tượng Kỵ Sĩ Thánh, Tượng Thỏ, Tượng Tinh Linh Ngọc Quân, Tượng Trộm Cướp, Tượng Phù Thủy, Tượng Berserker, Tượng Người Sói; thông tin hiệu ứng có 10 [LOC statue/info/1..10]. Web: **10** [WEB SK_BUFFS86.statues]; thiếu: Tượng Thỏ / Tượng Người Sói nếu bản 11 tên khác bản 10 hiệu ứng (chưa đối chiếu từng tượng; phỏng đoán).
+Tượng thần: **11** tên [LOC statue_*_name]: Tượng Thích Khách, Tượng Kỹ Sư, Tượng Kỵ Sĩ, Tượng Mục Sư, Tượng Kỵ Sĩ Thánh, Tượng Thỏ, Tượng Tinh Linh Ngọc Quân, Tượng Trộm Cướp, Tượng Phù Thủy, Tượng Berserker, Tượng Người Sói; thông tin hiệu ứng có 10 [LOC statue/info/1..10]. Web: **10** [WEB SK_BUFFS86.statues]; đã đối chiếu: 11 tên nhưng chỉ 10 mô tả [LOC statue_*_info, statue/info/1..10], 10 prefab statue_01..10 và 10 mục `random_objects.statue`; tên thừa là **Tượng Thỏ** (`statue_rabbit_name`, không có mô tả/prefab). [WIKI Statue_of_the_Knight] đó là bản cũ (Update 1.7.0) của Tượng Kỵ Sĩ, đã thay từ 6.6.0: không có tượng thứ 11 đang chạy. Kiểm: test/soulknight-gem-statue.js.
 
 NPC trong hầm/sảnh:
 

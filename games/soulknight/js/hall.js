@@ -11,6 +11,8 @@
   SK.QUICK = /[?&]quick=1\b/.test(location.search);
   if (!H) return;
   const [X0, Y0, X1, Y1] = H.bounds;
+  // Phòng chính (khung nhìn chế độ chọn, chỗ đặt nhân vật); H.bounds còn gồm Khu Vườn bên trái (tools/hall/build_hall.py).
+  const [MX0, MY0, MX1, MY1] = H.main || H.bounds;
   const img = new Image(), top = new Image();
   img.src = H.img + '?v=' + H.v;
   top.src = H.top + '?v=' + H.v;
@@ -62,8 +64,9 @@
   const WORKSHOP = { forge: { pf: 'forge', at: [[-3.2, -7.6], [-3.2, -6.6]] }, station: { pf: 'station', at: [[3.2, -8.2], [3.2, -7.2]] },
     token_machine: { pf: 'token_machine', at: [[6.6, -8.2], [6.6, -7.2], [7.6, -8.2]] } };
   const zones = [];
-  function addZone(slot, x, y, pf) {
-    const nm = NAME[slot], parts = D.prefabs[pf || slot + '_0_normal'] || [];
+  // extra: mô tả do module khác thêm (js/garden.js): name (có thể là getter), loc, use(z), draw(ctx, px, py, t), tag... — chép nguyên vào vùng.
+  function addZone(slot, x, y, pf, extra) {
+    const nm = NAME[slot] || [extra && extra.name, extra && extra.loc || 'ext'], parts = D.prefabs[pf || slot + '_0_normal'] || [];
     let box = null;
     for (const p of parts) {
       if (p.ia || !p.col) continue;
@@ -71,7 +74,9 @@
       if (c) { const cx = x + (p.at[0] + c.off[0]) / U, cy = y + (p.at[1] + c.off[1]) / U, w = c.size[0] / U, h = c.size[1] / U; box = [cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2]; break; }
     }
     if (!box) box = [x - 1, y - 1, x + 1, y + 1];   // chưa có prefab/trigger: 2 × 2 đv quanh gốc ô [ƯỚC LƯỢNG]
-    zones.push({ slot, name: nm[0], loc: nm[1], x, y, box, parts: pf && parts.length ? parts : null, kiosk: !(pf && parts.length) && KIOSK[slot] || null });
+    const z = { slot, name: nm[0], loc: nm[1], x, y, box, parts: pf && parts.length ? parts : null, kiosk: !(pf && parts.length) && KIOSK[slot] || null };
+    if (extra) Object.defineProperties(z, Object.getOwnPropertyDescriptors(extra));
+    zones.push(z);
     if (pf) for (const p of parts) for (const c of Object.values(p.col || {})) {   // khối chặn của prefab Xưởng
       if (c.trig) continue;
       const cx = x + (p.at[0] + c.off[0]) / U, cy = y + (p.at[1] + c.off[1]) / U, hw = (c.size ? c.size[0] / 2 : c.r) / U, hh = (c.size ? c.size[1] / 2 : c.r) / U;
@@ -103,7 +108,7 @@
     if (!z || !SK.lobby || !SK.lobby.dialog) return;
     SK.setOverlay('sk-lobby');
     lobbyEl().classList.add('only-modes');
-    const fn = SK.HALL_USE[z.slot];
+    const fn = z.use || SK.HALL_USE[z.slot];
     if (fn) fn(z); else notYet(z);
     if (!SK.lobby.dialogOpen) modesClosed();
     else setTimeout(() => { const b = document.querySelector('#hs-dlg .hs-btn.ok:not([disabled])') || document.querySelector('#hs-dlg .hs-btn:not([disabled])'); if (b && document.activeElement !== b && !document.querySelector('#hs-dlg :focus')) b.focus(); }, 0);
@@ -115,8 +120,8 @@
   // Ô trống cho nhân vật không có đồ trang trí riêng: lưới 2,5 đv, cách nội thất ≥ 2 đv, cách cửa ≥ 4 đv [ƯỚC LƯỢNG].
   function freeSpots() {
     const out = [];
-    for (let y = Y1 - 3; y > Y0 + 1; y -= 2.5) {
-      for (let x = X0 + 2; x < X1 - 1; x += 2.5) {
+    for (let y = MY1 - 3; y > MY0 + 1; y -= 2.5) {
+      for (let x = MX0 + 2; x < MX1 - 1; x += 2.5) {
         if (!walkable(x, y) || !walkable(x - 0.5, y) || !walkable(x + 0.5, y)) continue;
         if (H.slots.some(s => Math.hypot(s.x - x, s.y - y) < 2) || zones.some(q => q.parts && Math.hypot(q.x - x, q.y - y) < 5)) continue;
         if (Object.values(H.deco).some(d => Math.hypot(d[0] - x, d[1] - y) < 2)) continue;
@@ -225,8 +230,8 @@
     const ctx = SK.hudCtx, W = ctx.canvas.width, Hh = ctx.canvas.height, v = SK.view;
     const iw = (X1 - X0) * U, ih = (Y1 - Y0) * U;
     if (hall.mode === 'select') {
-      const bar = Hh * 0.075, z = Math.min(W / iw, (Hh - bar) / ih);
-      return { z, ox: (W - iw * z) / 2, oy: bar + (Hh - bar - ih * z) / 2, bar };
+      const mw = (MX1 - MX0) * U, mh = (MY1 - MY0) * U, bar = Hh * 0.075, z = Math.min(W / mw, (Hh - bar) / mh);
+      return { z, ox: (W - mw * z) / 2 - (MX0 - X0) * U * z, oy: bar + (Hh - bar - mh * z) / 2 - (Y1 - MY1) * U * z, bar };
     }
     const z = v.scale * v.dpr, me = hall.me;
     const cx = SK.clamp((me.x - X0) * U * z - W / 2, Math.min(0, iw * z - W), Math.max(0, iw * z - W));
@@ -282,6 +287,9 @@
     ctx.fillStyle = '#0b0d12'; ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     ctx.imageSmoothingEnabled = false;
     ctx.setTransform(z, 0, 0, z, ox, oy);
+    // Chế độ chọn chỉ thấy phòng chính: cắt bỏ Khu Vườn nằm ngoài khung.
+    ctx.save();
+    if (hall.mode === 'select') { ctx.beginPath(); ctx.rect((MX0 + 1 - X0) * U, (Y1 - MY1) * U, (MX1 - MX0 - 1) * U, (MY1 - MY0) * U); ctx.clip(); }   // cột đệm trái của phòng chính nằm sát sàn vườn: bỏ
     if (img.complete && img.naturalWidth) ctx.drawImage(img, 0, 0);
     const drawF = f => { const [x, y] = px(f.s.x, f.s.y); SK.drawPrefab(ctx, f.parts, x, y, { t: hall.t, skip: skipIa }); };
     for (const f of furniture) if (FLAT[f.s.slot]) drawF(f);
@@ -289,7 +297,8 @@
     const list = furniture.filter(f => !FLAT[f.s.slot]).map(f => ({ y: f.s.y, fn: () => drawF(f) }));
     for (const n of hall.npcs) list.push({ y: n.y, fn: () => drawHero(ctx, n.id, n.x, n.y, n.face, false, hall.t + n.x) });
     for (const z of zones) {
-      if (z.kiosk) list.push({ y: z.y, fn: () => drawKiosk(ctx, z) });
+      if (z.draw) list.push({ y: z.y, fn: () => { const [x, y] = px(z.x, z.y); z.draw(ctx, x, y, hall.t, z); } });
+      else if (z.kiosk) list.push({ y: z.y, fn: () => drawKiosk(ctx, z) });
       else if (z.parts) list.push({ y: z.y, fn: () => { const [x, y] = px(z.x, z.y); SK.drawPrefab(ctx, z.parts, x, y, { t: hall.t, state: 'closed' }); } });
     }
     const me = hall.me;
@@ -298,6 +307,7 @@
     if (pt && petParts) list.push({ y: pt.y, fn: () => { const [x, y] = px(pt.x, pt.y); SK.drawPrefab(ctx, petParts, x, y, { state: pt.st, t: pt.t, flip: pt.face < 0 }); } });
     list.sort((a, b) => b.y - a.y);
     for (const e of list) e.fn();
+    ctx.restore();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     labelBox = null;
     if (hall.mode === 'walk' && hall.me) {
@@ -360,7 +370,9 @@
       return { x: r.left + (x * z + ox) / dpr, y: r.top + (y * z + oy) / dpr };
     },
     // Móc kiểm thử: vùng tương tác của từng món, món đang gần, dùng thẳng một món, bật nhãn mọi món, toạ độ CSS của nhãn.
-    zones: () => zones.map(q => ({ slot: q.slot, name: q.name, loc: q.loc, x: q.x, y: q.y, box: q.box.slice(), kiosk: !!q.kiosk })),
+    zones: () => zones.map(q => ({ slot: q.slot, name: q.name, loc: q.loc, x: q.x, y: q.y, box: q.box.slice(), kiosk: !!q.kiosk, idx: q.idx })),
+    // Thêm món nội thất từ module khác (Khu Vườn): addZone(slot, x, y, prefab?, {name, loc, use(z), draw(ctx, px, py, t, z), ...}).
+    addZone, px, bounds: H.bounds,
     near: () => hall.near && { slot: hall.near.slot, name: hall.near.name },
     petPos: () => hall.pet && { x: hall.pet.x, y: hall.pet.y },
     nearAt: (x, y) => { const q = nearest(x, y); return q && q.slot; },

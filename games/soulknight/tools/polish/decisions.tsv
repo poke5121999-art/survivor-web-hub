@@ -44,3 +44,5 @@ ts	phase	decision	why	evidence	result
 2026-10-10T03:24:55Z	ship	đẩy 5366fa18 rev 20261010f, kiểm trên Pages	xong = kiểm trên bản thật	SK_URL=Pages: pets 7/0 hall3 50/0 smoke 16/0 petskills-a 36/0 petskills-e 14/0; hall2 hỏng 3 bước giao diện + chụp ảnh quá giờ khi load 44–47 (cục bộ cùng mã 46/0)	VERIFIED (hall2 chập chờn do tải)
 2026-10-10T03:36:31Z	petsel	chọn/mua/cho ăn/thân mật thú cưng (agent, js/hall_pet.js)	wiki Pets: 50% thân mật mở kỹ năng, 7 lần ăn/ván	test/soulknight-petsel.js
 2026-10-10T03:36:31Z	ship	đẩy 76b14813 rev 20261010g, kiểm trên Pages	xong = kiểm trên bản thật	SK_URL=Pages: petsel 23/0 pets 7/0 smoke 16/0 lobby 25/0	VERIFIED
+2026-10-10T03:44:44Z	talents	luật 17 thiên phú + 1015–1018 (agent); id theo BuffId, sửa bảng INVENTORY lệch 1	thứ tự lời chủ dự án: thiên phú sau cây trồng (vườn chạy song song)	test/soulknight-talents.js
+2026-10-10T03:44:44Z	ship	đẩy 851eb268 rev 20261010h, kiểm trên Pages	xong = kiểm trên bản thật	SK_URL=Pages: talents 30/0 rooms 69/0 smoke 16/0	VERIFIED

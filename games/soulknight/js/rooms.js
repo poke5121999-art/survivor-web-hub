@@ -216,6 +216,7 @@
   const VC = () => V.courage || { damage_factor_per_stack: 0.1, duration: 5, max_stack: 5 };
   const VE = () => V.elementalCycle || { cycle_duration: 5, missile_trigger_probability: 0.5, elemental_damage_factor: 0.5 };
   const VP = () => V.partyTime || { attack_speed_addition: 1, move_speed_addition: 1 };
+  const GEM_MUL = 1.25;                                              // [WIKI Gem Generosity] ×1,25 đá quý cuối ván
   const TL = {
     emerg: { cd: 60, frac: 0.5 },                                   // [WIKI Armor Resilience] hồi 50% giáp (làm tròn xuống), 60 s
     qi: { cost: 2, dmg: 3, range: 7, half: 0.5 },                   // [WIKI Secret of Qi-gong] 3 sát thương, 2 năng lượng, 7 ô; nửa góc 0,5 rad [ƯỚC LƯỢNG]
@@ -245,6 +246,9 @@
   def(12, { nums: () => [(V.potion && V.potion.healPowerFactor || 1) * 100], note: 'Hồi phục gấp đôi (+100%) [ĐO potionenhancement.lua heal_power_factor 1]' });
   def(13, { note: 'Quái chết ~17% rơi cầu 8 năng lượng [WIKI Mana Harvest]' });
   def(14, { note: 'Đạn địch chậm 10%; tầm hút vàng 6→15, năng lượng 5→13 ô [WIKI Warping Touch]' });
+  // Thợ Mỏ Đá Quý (ExpertGem): cuối ván đá quý ×1,25 [WIKI Gem Generosity]. Có trong bể TG_level2/3 (trọng số 10, không có ở TG_level1) [ĐO].
+  // Cờ: runEnd gắn r.gemMul và G.gemBonus; js/lobby.js nhân hệ số khi đổi quái/vàng thành đá.
+  def(15, { nums: [125], note: 'Cuối ván nhận đá quý ×1,25 [WIKI Gem Generosity]' });
   def(16, { note: 'Máu tối đa +4 và hồi 4 [WIKI Brave Heart]', apply(p) { p.hpMax += 4; p.hp += 4; } });
   def(18, { note: 'Bán kính 3 ô, xoá đạn địch khi giáp trúng đòn [WIKI Shield Blast]' });
   def(19, { note: 'Thùng vỡ: 3% bình máu, năng lượng 10%→12% [WIKI Looting Luck]' });
@@ -267,7 +271,7 @@
   def(2106, { nums: [3], note: 'Tích động năng khi đi, đòn kế tiếp cộng tối đa 3 sát thương; đầy thì bạo kích + choáng 1 s [WIKI + ĐO kineticstrike.lua charge_distance 6]' });
   // Có trong bể thật nhưng chưa dùng được ở bản web: không đưa lên bảng chọn (lý do ở note).
   const OFF = {
-    15: 'Thợ Mỏ Đá Quý: bản web không có đá quý cuối ván', 26: 'Bạo Phép Thuật (bản cũ): 8.6 không còn tên riêng', 27: 'Bạo Phép Thuật (bản cũ): 8.6 không còn tên riêng',
+    26: 'Bạo Phép Thuật (bản cũ): 8.6 không còn tên riêng', 27: 'Bạo Phép Thuật (bản cũ): 8.6 không còn tên riêng',
     31: 'Liên Kích Mưa: chưa có vũ khí đánh liên kích', 1023: 'Âm Dương Lưu Chuyển: chỉ dành riêng một nhân vật',
     1025: 'Nhà Mỹ Thực Ngục Tối: chưa có nguyên liệu thực phẩm'
   };
@@ -1434,13 +1438,126 @@
     return true;
   }
 
+  // ---------------------------------------------------------------- LÍNH THUÊ (phòng đặc biệt r_mercenary, lồng nhốt cage_obj)
+  // [ĐO map_level_base.SpecialRooms] r_mercenary trọng số 75, chỉ hiện khi không có lính thuê đã thuê còn sống [WIKI Followers].
+  // Lời thoại [LOC mercenary1_*]. Giá: gốc prefab (15; Don Quixote và Kỵ Sĩ Hy Vọng 20), tăng theo tầng 15→30 như tượng [WIKI Followers;
+  // công thức tầng ƯỚC LƯỢNG = công thức tượng]. Robot Vệ Sĩ: một nửa vàng đang có; Pharaoh: trừ 1 máu tối đa; Kep Freeman: miễn phí (prefab không có giá).
+  // Buff Thú Cưng (17): +35 máu [WIKI Followers].
+  const MERC = () => window.SK_MERCS || { order: [], mercs: {}, rules: { talk: {} } };
+  const MERC_ROOM = ['npc_01', 'npc_02', 'npc_03', 'npc_04', 'npc_05', 'npc_06', 'npc_07', 'npc_08', 'npc_09', 'npc_10', 'npc_11', 'npc_12'];
+  const mercTalk = k => (MERC().rules.talk || {})[k] || '';
+  const hiredAlive = () => (SK.livingMercs ? SK.livingMercs(G) : []).some(a => a.hired);
+  ROOMS.mercRoomAllowed = () => !hiredAlive();
+  function mercPrice(id) {
+    const M = MERC().mercs[id], p = G.player;
+    if (!M) return 0;
+    if (M.priceKind === 'half_gold') return Math.floor(p.gold / 2);
+    if (M.priceKind === 'maxhp') return 1;
+    if (M.priceKind === 'none') return 0;
+    return statuePrice(M.price);
+  }
+  ROOMS.mercPrice = mercPrice;
+  function pickMerc(kind) {
+    const M = MERC(), ids = (kind === 'cage' ? M.order.filter(i => M.mercs[i].weight.cage > 0) : MERC_ROOM.filter(i => M.mercs[i]));
+    const w = i => (kind === 'cage' ? M.mercs[i].weight.cage : M.mercs[i].weight.random);
+    return ROOMS.force.merc || weighted(ids, w);
+  }
+  function mercSpot(pf, x, y, id, caged) {
+    const anims = (pf && pf[0] && pf[0].a) || {}, key = Object.values(anims).find(v => /ide|idle|stand/.test(v)) || Object.values(anims)[0];
+    const npc = { x, y: y + 2, t: SK.rand() * 2, mercNpc: id, draw(ctx, G3, pr) {
+      const fr = key && SK.animFrame(key, G.t + pr.t);
+      if (!fr || !SK.draw(ctx, fr, x, y)) { ctx.fillStyle = '#9fd2ff'; ctx.fillRect(x - 4, y - 12, 8, 12); }
+      if (caged) {
+        const cg = SK.prefab('cage_obj');
+        if (cg) SK.drawPrefab(ctx, cg, x, y, { skip: q => /broken|\/tab|something/.test(q.n) });
+        else { ctx.strokeStyle = '#8a8f99'; ctx.lineWidth = 1; for (let i = -8; i <= 8; i += 4) { ctx.beginPath(); ctx.moveTo(x + i, y - 18); ctx.lineTo(x + i, y); ctx.stroke(); } }
+      }
+    } };
+    G.props.push(npc);
+    return npc;
+  }
+  function hireMerc(id, o) {
+    const p = G.player, M = MERC().mercs[id];
+    return SK.addMercenary(G, p, id, o.x, o.y, { hired: !!o.hired, armed: o.armed !== false, hpBonus: has(17) ? 35 : 0 });
+  }
+  function fillMerc(G2, r, c) {
+    if (!SK.addMercenary || !MERC().order.length || !ROOMS.mercRoomAllowed()) return false;
+    const id = pickMerc('room'), M = MERC().mercs[id];
+    if (!M) return false;
+    const [x, y] = [c[0], c[1] + 8], pf = SK.prefab(id === 'npc_01' ? 'npc_knight_01' : id);
+    const npc = mercSpot(pf, x, y, id, false);
+    blockRect(G.map, x - 8, y - 12, x + 8, y + 2);
+    G.interactables.push({
+      x, y: y + 6, r: 26, labelY: 44,
+      get gone() { return npc.gone; },
+      get label() {
+        const n = mercPrice(id), kind = M.priceKind;
+        return M.vi + ' — ' + (kind === 'maxhp' ? 'đổi 1 máu tối đa' : kind === 'none' ? 'thuê miễn phí' : 'thuê ' + n + ' vàng');
+      },
+      use() {
+        const p = G.player;
+        if (npc.gone) return;
+        if (hiredAlive()) { G.toast('Đã có người đi cùng rồi.'); return; }
+        const kind = M.priceKind, n = mercPrice(id);
+        if (kind === 'maxhp') {
+          if (p.hpMax <= 1) { G.toast(mercTalk('refuse')); snd('fx_error', 0.6); return; }
+          p.hpMax -= 1; p.hp = Math.min(p.hp, p.hpMax);
+        } else if (n > 0 && !freeBuy()) {
+          if (p.gold < n) { G.toast(mercTalk('refuse')); snd('fx_error', 0.6); return; }
+          p.gold -= n;
+        }
+        npc.gone = true;
+        hireMerc(id, { x, y: y + 4, hired: true });
+        snd(evClip('shop') || 'fx_buy', 0.7);
+        vfx('effect_smoke', x, y - 8, {});
+        G.toast(M.vi + ': ' + mercTalk('accept'), 2.5);
+        SK.emit('mercHire', G, id, n);
+      }
+    });
+    r.fill = 'merc'; r.merc = id;
+    return true;
+  }
+  // Lồng nhốt: miễn phí nhưng tay không [WIKI Followers]; qua tầng thì nhận vũ khí mặc định (stageEnter trong actors.js).
+  function fillCage(G2, r, c) {
+    if (!SK.addMercenary || !MERC().order.length) return false;
+    const id = pickMerc('cage'), M = MERC().mercs[id];
+    if (!M) return false;
+    const [x, y] = [c[0], c[1] + 8], pf = SK.prefab(id === 'npc_01' ? 'npc_knight_01' : id);
+    const npc = mercSpot(pf, x, y, id, true);
+    blockRect(G.map, x - 10, y - 14, x + 10, y + 2);
+    G.interactables.push({
+      x, y: y + 6, r: 26, labelY: 44, get gone() { return npc.gone; },
+      get label() { return M.vi + ' — mở lồng'; },
+      use() {
+        if (npc.gone) return;
+        npc.gone = true;
+        hireMerc(id, { x, y: y + 4, hired: false, armed: false });
+        snd(evClip('shop') || 'fx_buy', 0.7);
+        G.toast(M.vi + ': ' + mercTalk('accept'), 2.5);
+        SK.emit('mercFree', G, id);
+      }
+    });
+    r.fill = 'cage'; r.merc = id;
+    return true;
+  }
+
   const baseSpecial = SK.ROOM_FILL.special;
   SK.ROOM_FILL.special = function (G2, r, c) {
     const f = ROOMS.force.special;
-    // [ĐO map_level_base.SpecialRooms] r_statue 100 : r_weapon_provider 150, trong đó giếng ước 1 trên ~11 trọng số hợp lệ ≈ 13,6
-    // (các phòng khác của bể — mỏ, lính đánh thuê, thú cưỡi, máy đánh bạc... — chưa có ở bản web).
-    const kind = f || (SK.chance(100 / 113.6) ? 'statue' : 'well');
+    // [ĐO map_level_base.SpecialRooms] r_statue 100 : r_weapon_provider 150, trong đó giếng ước 1 trên ~11 trọng số hợp lệ ≈ 13,6;
+    // r_mercenary 75 (khi chưa có lính thuê đã thuê còn sống); lồng nhốt 25 [ƯỚC LƯỢNG: nó nằm ở bể cage_npc, không phải SpecialRooms].
+    // (mỏ, thú cưỡi, máy đánh bạc... chưa có ở bản web).
+    let kind = f;
+    if (!kind) {
+      const tab = [['statue', 100], ['well', 13.6], ['cage', 25]];
+      if (ROOMS.mercRoomAllowed()) tab.push(['merc', 75]);
+      let t = SK.rand() * tab.reduce((a, q) => a + q[1], 0);
+      kind = tab[tab.length - 1][0];
+      for (const q of tab) { if ((t -= q[1]) < 0) { kind = q[0]; break; } }
+    }
     if (kind === 'well' && fillWell(G2, r, c)) return;
+    if (kind === 'merc' && fillMerc(G2, r, c)) return;
+    if (kind === 'cage' && fillCage(G2, r, c)) return;
     if (fillStatue(G2, r, c)) return;
     baseSpecial(G2, r, c);
   };
@@ -1576,7 +1693,12 @@
   });
 
   SK.on('runStart', G2 => { closeChoice(); choice.rerolls = 2; G2.player.buffs = []; G2.player.bm = {}; G2.player.statues = []; G2.player.statueCds = {}; lastPos = null; lastCur = 0; });
-  SK.on('runEnd', () => closeChoice());
+  SK.on('runEnd', (G2, r) => {
+    closeChoice();
+    G2.gemBonus = has(15) ? GEM_MUL : 1;                 // Thợ Mỏ Đá Quý
+    if (!r || G2.gemBonus <= 1) return;
+    r.gemMul = G2.gemBonus;                            // js/lobby.js nhân hệ số này khi đổi quái/vàng thành đá
+  });
   SK.on('stageEnter', (G2, stage) => {
     const p = G2.player;
     p.buffs = p.buffs || []; p.bm = p.bm || {}; p.statues = p.statues || []; p.statueCds = p.statueCds || {};
