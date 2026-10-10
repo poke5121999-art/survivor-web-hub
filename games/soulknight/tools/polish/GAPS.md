@@ -89,19 +89,19 @@ thẳng vào nền sảnh, cùng toạ độ thế giới); trồng, tưới, b�
 
 ## Sổ Tay + 154 thành tựu (sảnh bước 8, js/ach.js, data/sk-ach.js, tools/achievements/build_ach.py)
 
-Có: ô Hầm (phím E) mở Sổ Tay với tab Thành Tựu (lưới icon, tiến độ, thưởng, nút Nhận / Nhận tất cả) và tab Thống kê. 40 / 154 thành tựu tính được
+Có: ô Hầm (phím E) mở Sổ Tay với tab Thành Tựu (lưới icon, tiến độ, thưởng, nút Nhận / Nhận tất cả) và tab Thống kê. 64 / 154 thành tựu tính được (đợt 2: xem dòng 90 thành tựu khoá bên dưới; bộ đếm đọc sự kiện bounty, defenceWaveClear, towerPham, matrixVerdict, voidShieldBreak, stageEnter, roomLock, fire, mercTrain và runEnd). Trước đó 40 mục
 (loại 1, 2, 3, 4, 7, 10, 13, 14, 16-22, 29-32, 49, 50, 53, 62, 65, 78, 79, 82, 90, 96, 102, 117, 121, 122). Thú cưng mở bằng thành tựu: pet36 (id 106),
 pet28 (id 86), pet13 (id 37), pet11 (id 38); ô vườn 7 (id 42).
 
 | Thiếu | Lý do / cách xử lý |
 |---|---|
-| 114 thành tựu khoá ("Chưa có ở bản web") | cần chế độ / cơ chế web chưa có: treo thưởng (5), nối máy (33, 45-48, 80, 81, 138), Thần Điện Thủ Hộ (36, 56-60, 69, 97), câu cá (54, 55), Hư Không (123-129, 140), ải 4 và ải ẩn (44, 83, 85-88, 92, 103), hồ dâng hiến, câu đố, sự kiện / emoji (74, 104, 110), Mê Trận (71-73), thí luyện nhân vật lấy skin (24-26, 35), nhiệm vụ riêng của vũ khí / nhân vật (loại 6, 8, 11, 85, 86, 89, 91, 93, 99-101, 105-109, 111-115...) |
+| 90 thành tựu còn khoá ("Chưa có ở bản web"); 24 mục đã mở đợt 2 (id 9-11 treo thưởng, 28-31 thí luyện nhân vật Berserker / Robot và không bắn, 39 Ku, 40-42 chặn 8/16/24 đợt, 74 tháp tối đa, 87 Uy Áp 20, 89 5 lần làm tốt lắm, 99 vào ải 4, 124 tùy tùng cấp tối đa, 125 cưỡi thú vượt ải, 126 tùy tùng + thú cưng 6, 140-142 / 145 / 146 / 157 Hư Không) | còn thiếu: nối máy (33, 45-48, 80, 81, 138: web không có nhiều người chơi); Thần Điện Thủ Hộ thiếu mỏ vàng, cường hóa vũ khí Đỏ +15, Tàu Ngoài Hành Tinh, kết giao Khí Tông, đấu Kiếm Tông (36 loại 33, 72, 73, 75, 76, 85, 113); Mê Trận thiếu cứu đồng đội (88); Hư Không thiếu nâng thiên phú, thay dòng thuộc tính, Con Thoi, Đạo Tặc... (143, 144, 147); câu cá / vớt rác (54, 55); ải 4 thiếu Sâu Băng, Gai Băng, phòng ẩn, Bao Tay Bão, phòng thí luyện ẩn, Hành Lang Chiến Trường Cổ (44, 48, 101, 103, 108, 120, 152); ải đáy biển thiếu oxy (128, 129 loại đáy biển); hồ dâng hiến, câu đố, ải ẩn, emoji, tuần, Khu Thí Luyện Thuần Túy (92, 93); nhiệm vụ riêng của vũ khí / nhân vật cần cơ chế riêng (6, 8, 11, 12, 13, 15, 19, 27, 77, 91, 100, 102, 105, 107, 109-111, 114-116, 118, 121, 122, 130-137, 148-156) |
 | Loại 63 / 64 (mèo / chó thân mật) | cần phân loài thú cưng; chỉ làm loại 62, 65 (số pet thân mật tối đa) |
 | Loại 7 (800 vàng trong một lần) | tính theo vàng đang giữ nhiều nhất trong ván (đo ở lúc nhặt vàng và cuối ván), không có sự kiện "nhận vàng" riêng |
-| Loại 27/28/76/77 (vượt không vũ khí) | game không phát sự kiện "ván không dùng vũ khí"; để khoá |
+| Loại 27/28 (vượt không vũ khí, id 30/31) | mở: ván thắng mà sự kiện 'fire' của người chơi chưa phát lần nào (kỹ năng, thú, tùy tùng vẫn được dùng); loại 76/77 (Thí Luyện Thuần Túy) vẫn khoá |
 | Loại 17-20 (hạ 500 quái mở thú cưỡi) | tiến độ đếm đúng; mở thú cưỡi do js/mounts.js, chưa nối vào thành tựu |
 | Loại 0 (Eagle lover id 38, Bug id 37, boss12 id 20, AdvToturial id 43) | cần danh sách vũ khí Chim Ưng / sự kiện riêng; pet11, pet13 vẫn khoá |
-| Thưởng skin (awardType 2), vé theo extraInfo (token_weapon_weapon_*, token_factor_*), bản vẽ cá, băng từ, chậu cây 3 | web chưa có đích nhận: Sổ Tay hiện "(chưa có ở bản web)", không cộng |
+| Thưởng skin nhân vật (awardType 2: id 10, 46, 75, 127...), vé theo extraInfo (token_weapon_weapon_*, token_factor_*), bản vẽ cá, băng từ, chậu cây 3 | web chưa có đích nhận: Sổ Tay hiện "(chưa có ở bản web)", không cộng |
 | Thưởng thư | thưởng nhận trong Sổ Tay, không đẩy vào Hộp Thư; thông báo khi đạt chỉ là dòng nổi trên màn |
 
 

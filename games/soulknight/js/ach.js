@@ -17,8 +17,10 @@
   if (!A.c) A.c = { kills: P.stats.kills | 0, wins: P.stats.pass | 0 };   // hồ sơ đã chơi trước khi có thành tựu: lấy số thống kê sẵn có làm vốn
   const C = A.c;
   for (const k of ['kills', 'wins', 'winsN', 'winsB', 'fastN', 'fastB', 'brN', 'brB', 'brFastN', 'brFastB', 'brClean', 'brBoss', 'noSkillB',
-    'boss', 'shop', 'egg', 'forge', 'tv', 'bestFast', 'maxGold', 'runs']) C[k] = Math.max(0, Math.floor(+C[k] || 0));
-  for (const k of ['by', 'skill', 'buffs', 'fac', 'plants']) if (!C[k] || typeof C[k] !== 'object') C[k] = {};
+    'boss', 'shop', 'egg', 'forge', 'tv', 'bestFast', 'maxGold', 'runs',
+  'bounty', 'defWaves', 'defTowers', 'mxP', 'mxGood', 'stage4', 'noWpN', 'noWpB', 'mercMax', 'army6', 'mountWin', 'voidBreak', 'voidW1', 'voidW2',
+  'thief', 'monks', 'xuSpent']) C[k] = Math.max(0, Math.floor(+C[k] || 0));
+  for (const k of ['by', 'skill', 'buffs', 'fac', 'plants', 'fl']) if (!C[k] || typeof C[k] !== 'object') C[k] = {};
   const save = () => P.achSave();
 
   // Chỉ số hero (D.heroes[id].s0.index) -> id nhân vật, để đối chiếu targetHero.
@@ -57,6 +59,22 @@
     121: { cur: () => C.forge },                        // lần rèn vũ khí
     122: { cur: () => C.noSkillB, max: 1 }              // vượt Ải-Lợi Hại không dùng kỹ năng
   };
+  // Nhóm mở ở đợt 2 (cơ chế web có từ Thần Điện Thủ Hộ, Mê Trận, Hư Không, Cảnh Sát treo thưởng, thuê tùy tùng, thú cưỡi, ải 4, thí luyện nhân vật).
+  const flag = k => ({ cur: a => (C.fl[k + ':' + a.hero] ? 1 : 0), max: 1 });   // cờ theo nhân vật targetHero (ván thắng do đúng nhân vật đó đạt điều kiện)
+  Object.assign(IMPL, {
+    5: { cur: () => C.bounty },                         // nhận thưởng nhiệm vụ treo thưởng của Cảnh Sát (sự kiện 'bounty')
+    25: flag('t25'), 26: flag('t26'), 35: flag('t35'),  // thí luyện nhân vật: Berserker mọi Thủ Lĩnh <= 90 giây / Robot không mất HP / Kỵ Sĩ Thánh có Nhân Tố, Khu Thí Luyện
+    27: { cur: () => C.noWpN, max: 1 }, 28: { cur: () => C.noWpB, max: 1 },   // vượt Ải-Thường / Lợi Hại mà không phát tiếng bắn nào
+    36: { cur: () => C.defWaves },                      // Thần Điện Thủ Hộ: số đợt chặn được trong một ván
+    58: { cur: () => C.defTowers },                     // Thần Điện Thủ Hộ: số tháp đạt Phẩm tối đa và sao tối đa
+    71: { cur: () => C.mxP }, 73: { cur: () => C.mxGood },   // Mê Trận: Uy Áp cao nhất / chuỗi "làm tốt lắm" dài nhất trong một ván
+    83: { cur: () => C.stage4, max: 1 },                // vào ải 4 chế độ Ải
+    107: { cur: () => C.mercMax, max: 1 },              // tùy tùng được Thầy Huấn Luyện nâng tới cấp tối đa
+    108: { cur: () => C.mountWin, max: 1 },             // vượt ải khi đang cưỡi thú (không phải cơ giáp)
+    109: { cur: () => C.army6, max: 1 },                // tùy tùng + thú cưng đạt 6
+    123: { cur: () => C.voidBreak, max: 1 }, 124: { cur: () => C.voidW1, max: 1 }, 125: { cur: () => C.thief, max: 1 },
+    128: { cur: () => C.xuSpent }, 129: { cur: () => C.voidW2, max: 1 }, 140: { cur: () => C.monks, max: 1 }
+  });
   for (const t of [17, 18, 19, 20]) IMPL[t] = { cur: a => C.by[a.str] | 0 };   // hạ 500 quái loại targetStr (mở thú cưỡi do js/mounts.js)
   const impl = a => IMPL[a.type] || null;
   const maxOf = a => { const m = impl(a); if (!m) return Math.max(1, a.target); if (m.fixedMax) return m.fixedMax; return typeof m.max === 'function' ? m.max(a) : (m.max || Math.max(1, a.target)); };
@@ -101,11 +119,15 @@
   function after() { save(); check(); }
 
   // ---------------------------------------------------------------- sự kiện ván
-  let R = { hurt: 0, hurtRoom: 0, skill: 0, lastClear: -99, fast: 0 };
-  SK.on('runStart', () => { R = { hurt: 0, hurtRoom: 0, skill: 0, lastClear: -99, fast: 0 }; C.runs++; save(); });
+  const newR = () => ({ hurt: 0, hurtRoom: 0, skill: 0, lastClear: -99, fast: 0, fire: 0, bossT: -1, bossN: 0, bossSlow: false, monk: 0, mxStreak: 0 });
+  let R = newR();
+  SK.on('runStart', () => { R = newR(); C.runs++; save(); });
   SK.on('enemyKill', (G, e) => {
     count('kills');
     const k = norm(e.id); C.by[k] = (C.by[k] | 0) + 1;
+    if (e.voidKind === 'thief' || e.id === 'e_void_thief') C.thief = 1;                 // Hư Không Đạo Tặc (js/void.js)
+    if (e.id === 'e_void_staffmonk') R.monk |= 1; else if (e.id === 'e_void_beadsmonk') R.monk |= 2;   // Thiền Vệ Trượng + Châu (js/void2.js)
+    if (R.monk === 3) C.monks = 1;
     if (isBoss(e)) {
       count('boss');   // thống kê hồ sơ P.stats.boss do js/drops.js cộng
       if (G.mode === 'bossrush' && !R.hurtRoom) C.brBoss = 1;
@@ -124,14 +146,51 @@
   SK.on('buffTake', (G, id) => { C.buffs[id] = 1; after(); });
   SK.on('shopBuy', () => { count('shop'); after(); });
   SK.on('plant', (seed) => { C.plants[seed] = 1; after(); });
-  SK.on('roomClear', G => { R.lastClear = G.t; });
+  SK.on('roomClear', (G, r) => {
+    R.lastClear = G.t;
+    if (r && r.type === 'boss' && R.bossT >= 0) { R.bossN++; if (G.t - R.bossT > 90) R.bossSlow = true; R.bossT = -1; }
+  });
+  SK.on('roomLock', (G, r) => { if (r && r.type === 'boss') R.bossT = G.t; });
+  SK.on('fire', () => { R.fire++; });
+  SK.on('bounty', () => { count('bounty'); after(); });                       // js/hall_ext.js: nhận thưởng treo thưởng của Cảnh Sát
+  SK.on('voidShieldBreak', () => { C.voidBreak = 1; after(); });             // phá một tầng khiên Tinh Anh Hư Không
+  SK.on('matrixVerdict', (G, rec) => { R.mxStreak = rec && rec.reward ? R.mxStreak + 1 : 0; C.mxGood = Math.max(C.mxGood, R.mxStreak); after(); });
+  SK.on('stageEnter', (G, st) => {
+    if (G.mode === 'level' && st && st.level === 4) { C.stage4 = 1; after(); }
+    if (G.mode === 'matrix' && st && st.floor) { C.mxP = Math.max(C.mxP, st.floor - 1); after(); }   // Uy Áp = số tầng đã vượt (js/matrix.js đặt cùng giá trị, handler đó có thể chạy sau)
+    armyScan(G);
+  });
+  // Thần Điện Thủ Hộ: số đợt đã chặn trong ván này và số tháp đạt Phẩm + sao tối đa (quét mỗi lần dọn đợt / nâng Phẩm).
+  function defScan(G) {
+    const d = G && G.defence, Dc = SK.DEFENCE; if (!d || !Dc) return;
+    C.defWaves = Math.max(C.defWaves, d.stats.waves | 0);
+    C.defTowers = Math.max(C.defTowers, d.towers.filter(t => t.pham >= Dc.phamMax && t.star >= Dc.starExp.length).length);
+    after();
+  }
+  SK.on('defenceWaveClear', defScan); SK.on('towerPham', defScan);
+  // Tùy tùng + thú cưng (thú ở ván + thú vườn): đạt 6; tùy tùng được nâng tới cấp tối đa (Thầy Huấn Luyện, js/dnpc.js).
+  function armyScan(G) {
+    if (!G || G.mode !== 'level' || !G.player) return;
+    const n = (SK.livingMercs ? SK.livingMercs(G).length : 0) + (G.pet ? 1 : 0) + ((G.player._gardenPets || []).length);
+    if (n >= 6) { C.army6 = 1; after(); }
+  }
+  SK.on('mercHire', armyScan); SK.on('mercFree', armyScan); SK.on('roomEnter', armyScan);
+  SK.on('mercTrain', G => {
+    const R2 = SK.ROOMS && SK.ROOMS.dnpc, ms = SK.livingMercs ? SK.livingMercs(G) : [];
+    if (R2 && ms.length && ms.every(a => R2.rankOf(a) >= R2.TRAIN_MAX)) { C.mercMax = 1; after(); }
+  });
   SK.on('roomEnter', G => {   // vào phòng kế trong 2,5 giây sau khi trận chiến kết thúc
     if (G.t - R.lastClear <= 2.5) { R.fast++; C.bestFast = Math.max(C.bestFast, R.fast); R.lastClear = -99; after(); }
   });
   SK.on('runEnd', (G, r) => {
     const bad = !!G.badass, mins = (G.t || 0) / 60;
     if (G.player) C.maxGold = Math.max(C.maxGold, G.player.gold | 0);
+    const hi = G.heroId && D.heroes[G.heroId] ? D.heroes[G.heroId].s0.index : -1;
     if (r.won && G.mode === 'level') {
+      if (!R.fire) C[bad ? 'noWpB' : 'noWpN'] = 1;
+      if (!R.hurt) C.fl['t26:' + hi] = 1;
+      if (R.bossN > 0 && !R.bossSlow) C.fl['t25:' + hi] = 1;
+      if (G.player && G.player.mount && !G.player.mount.mech) C.mountWin = 1;
       count('wins'); count(bad ? 'winsB' : 'winsN');
       if (!bad && mins <= 20) C.fastN = 1;
       if (bad && mins <= 23) C.fastB = 1;
@@ -143,7 +202,14 @@
       if (!bad && mins <= 10) C.brFastN = 1;
       if (bad && mins <= 15) C.brFastB = 1;
       if (!R.hurt) C.brClean = 1;
+      if ((G.factors || []).length) C.fl['t35:' + hi] = 1;
     }
+    if (G.mode === 'void' && G.void) {
+      C.xuSpent += G.void.xuSpent | 0;
+      if (r.won && G.void.tier === 1) C.voidW1 = 1;
+      if (r.won && G.void.tier === 2) C.voidW2 = 1;
+    }
+    if (G.mode === 'matrix' && G.matrix) C.mxP = Math.max(C.mxP, G.matrix.P | 0);
     after();
   });
 

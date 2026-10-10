@@ -200,6 +200,233 @@ const fakeG = (o) => Object.assign({ mode: 'level', badass: false, t: 600, facto
     r = await ach(p);
     check('dùng kỹ năng thật được đếm theo nhân vật (knight = chỉ số 0)', r.c.skill['0'] === 1, JSON.stringify(r.c.skill));
     await p.context().close();
+
+    // ============ 6. đợt 2: thành tựu mở nhờ cơ chế đã có (mọi sự kiện do hàm game sinh ra, không tự SK.emit)
+    const NEW = [9, 10, 11, 28, 29, 30, 31, 39, 40, 41, 42, 74, 87, 89, 99, 124, 125, 126, 140, 141, 142, 145, 146, 157];
+    p = await boot({ welcomed: 1, gems: 0, unlocked: ['knight'] });
+    const impl6 = await p.evaluate(ids => ({ on: ids.filter(id => SK.ach.impl(id)).length, lockedKeep: [65, 66, 143, 144, 147, 75, 76, 12, 36].filter(id => !SK.ach.impl(id)).length }), NEW);
+    check('24 thành tựu đợt 2 tính được, các mục còn thiếu cơ chế (câu cá, nâng thiên phú Hư Không, Tàu Ngoài Hành Tinh...) vẫn khoá', impl6.on === 24 && impl6.lockedKeep === 9, JSON.stringify(impl6));
+    const D6 = (id) => p.evaluate(i => SK.ach.done(i), id);
+    const doneOf = ids => p.evaluate(l => l.filter(i => SK.ach.done(i)), ids);
+    const prog = id => p.evaluate(i => SK.ach.progress(i), id);
+
+    // ---- 6a. Cảnh Sát treo thưởng: nhận qua hàm quest.claim thật (phát 'bounty'), 1 / 10 lần
+    await p.evaluate(() => { const Q = SK.hallExt.quest; Q.sync(); Q.accept(0); Q.sync(); SK.hallExt.quest.sync(); });
+    const bounty1 = await p.evaluate(() => {
+      const Q = SK.hallExt.quest, q = Q.sync(); q.active.done = true; const r = Q.claim();
+      return { ok: !!r, done9: SK.ach.done(9), done10: SK.ach.done(10), c: SK.ach.counters().bounty };
+    });
+    check('treo thưởng: nhận thưởng 1 lần mở "Thợ Săn Tiền Thưởng Nhỏ Bé" (id 9), chưa mở id 10', bounty1.ok && bounty1.done9 && !bounty1.done10 && bounty1.c === 1, JSON.stringify(bounty1));
+    const bounty10 = await p.evaluate(() => {
+      const Q = SK.hallExt.quest;
+      for (let i = 0; i < 9; i++) { const q = Q.sync(); if (!q.active) Q.accept(0); Q.sync().active.done = true; Q.claim(); }
+      return { done10: SK.ach.done(10), done11: SK.ach.done(11), c: SK.ach.counters().bounty, pg: SK.ach.progress(11) };
+    });
+    check('10 lần nhận: mở id 10, chưa mở id 11 (100 lần), tiến độ 10/100', bounty10.done10 && !bounty10.done11 && bounty10.c === 10 && bounty10.pg.cur === 10 && bounty10.pg.max === 100, JSON.stringify(bounty10));
+    const rw9 = await p.evaluate(() => { const r = SK.ach.claim(9); return { ok: r.ok, seed: SK.profile.items().plant_banboo_seed | 0 }; });
+    check('thưởng id 9 (hạt giống tre) cộng thật vào kho', rw9.ok && rw9.seed === 1, JSON.stringify(rw9));
+    const rw10 = await p.evaluate(() => { const r = SK.ach.claim(10); return { r, seed: SK.profile.items().plant_magic_flower_seed | 0 }; });
+    check('thưởng id 10: hạt giống cộng thật, skin nhân vật chưa có đích nhận thì bỏ qua đúng 1 phần (không cộng giả)', rw10.r.ok && rw10.seed === 1 && rw10.r.skipped === 1, JSON.stringify(rw10));
+    await p.context().close();
+
+    // ---- helpers ván thật
+    async function launch(p, hero, mode, setup) {
+      await p.evaluate(([h, m]) => { try { SK.lobby.enter(); } catch (e) { /* đã ở sảnh */ } SK_GAME.debug.seed(31); SK.lobby.launch(h, m, []); }, [hero, mode]);
+      const ok = await until(p, () => SK_GAME.state === 'stage' && SK_GAME.phase === 'play' && !!SK.G.player, null, 12000);
+      await p.evaluate(() => { SK_GAME.debug.god(true); SK_GAME.debug.pet(false); });
+      return ok;
+    }
+    // thắng thật: tới ải cuối, vào phòng Thủ Lĩnh, dọn phòng, bước vào cổng (hold -> chọn buff 1)
+    async function winReal(p, slowSecs) {
+      await p.evaluate(() => { SK_GAME.debug.god(true); SK_GAME.debug.stage(SK.STAGES[SK.STAGES.length - 1].label); });
+      await until(p, () => SK_GAME.phase === 'play', null, 8000);
+      await p.evaluate(() => { SK_GAME.debug.god(true); SK_GAME.debug.teleportTo('boss'); });
+      await until(p, () => SK_GAME.rooms.some(r => r.type === 'boss' && r.state === 'locked'), null, 8000);
+      if (slowSecs) await p.evaluate(s => { SK.G.t += s; }, slowSecs);
+      await p.evaluate(() => SK_GAME.debug.clearRoom());
+      await until(p, () => !!SK.G.portal, null, 8000);
+      await p.evaluate(() => { const G = SK.G; G.player.x = G.portal.x; G.player.y = G.portal.y; });
+      for (let i = 0; i < 80; i++) {
+        if (await p.evaluate(() => SK.G.hold && SK_ROOMS.pick(0))) await sleep(50);
+        if (await p.evaluate(() => SK_GAME.state === 'victory')) return true;
+        await sleep(120);
+      }
+      return false;
+    }
+    const heroByIdx = i => p.evaluate(i => Object.keys(SK.D.heroes).find(k => SK.D.heroes[k].s0.index === i), i);
+
+    // ---- 6b. thí luyện nhân vật + không dùng vũ khí + thú cưỡi, qua ván thắng thật
+    p = await boot({ welcomed: 1, gems: 0, unlocked: ['knight'] });
+    const H = { robot: await heroByIdx(12), bers: await heroByIdx(13), holy: await heroByIdx(7) };
+    check('tìm được nhân vật theo chỉ số (Robot 12, Berserker 13, Kỵ Sĩ Thánh 7)', !!(H.robot && H.bers && H.holy), JSON.stringify(H));
+    check('ván Robot mở được', await launch(p, H.robot, 'level'));
+    await p.evaluate(() => { const G = SK.G; SK.mountOn(G, G.player, 'm_mech_0'); });   // cơ giáp không tính là "thú cưỡi" của id 125
+    check('ván Robot thắng thật, runEnd báo won', await winReal(p) && await p.evaluate(() => SK.G.state === 'victory'));
+    let d6 = await doneOf(NEW);
+    check('Robot thắng Ải-Thường không mất HP, không bắn: mở 29 (Thí Luyện Nhanh Nhẹn) và 30 (Trảm Vô Hình); không mở 28, 31 (sai nhân vật / Lợi Hại), 125 (cưỡi cơ giáp)',
+      d6.includes(29) && d6.includes(30) && !d6.includes(28) && !d6.includes(31) && !d6.includes(125), JSON.stringify(d6));
+
+    check('ván Berserker (Lợi Hại, Thủ Lĩnh chậm hơn 90 giây, cưỡi heo rừng) mở được', await launch(p, H.bers, 'level'));
+    await p.evaluate(() => { const G = SK.G; G.badass = true; SK.mountOn(G, G.player, 'mboar'); });
+    check('ván Berserker thắng thật', await winReal(p, 100));
+    d6 = await doneOf(NEW);
+    check('Thủ Lĩnh quá 90 giây: không mở 28; Lợi Hại không bắn: mở 31 (Trảm! Thứ! Nguyên!); cưỡi heo rừng vượt ải: mở 125 (Thúc Ngựa Phi)',
+      !d6.includes(28) && d6.includes(31) && d6.includes(125), JSON.stringify(d6));
+    await p.evaluate(() => SK.G.mercs && 0);
+
+    check('ván Berserker nhanh mở được', await launch(p, H.bers, 'level'));
+    check('ván Berserker nhanh thắng thật', await winReal(p));
+    d6 = await doneOf(NEW);
+    check('Thủ Lĩnh trong 90 giây: mở 28 (Thí Luyện Tốc Độ)', d6.includes(28), JSON.stringify(d6));
+
+    // Khu Thí Luyện + Nhân Tố + Kỵ Sĩ Thánh
+    await p.evaluate(h => { try { SK.lobby.enter(); } catch (e) { /* sảnh */ } SK_GAME.debug.seed(31); SK.lobby.launch(h, 'bossrush', ['Tiny']); }, H.holy);
+    check('ván Khu Thí Luyện (Kỵ Sĩ Thánh + Nhân Tố) mở được', await until(p, () => SK_GAME.state === 'stage' && SK_GAME.phase === 'play' && SK.G.mode === 'bossrush' && (SK.G.factors || []).length > 0, null, 12000));
+    await p.evaluate(() => SK_GAME.debug.god(true));
+    check('Khu Thí Luyện thắng thật', await winReal(p));
+    d6 = await doneOf(NEW);
+    check('Kỵ Sĩ Thánh có Nhân Tố vượt Khu Thí Luyện không chết: mở 39 (Ku)', d6.includes(39), JSON.stringify(d6));
+    await p.context().close();
+
+    // ---- 6c. tầng 4 (id 99): vào ải 4 thật qua cổng tím của Kẻ Vượt Ranh Giới: dùng enterStage thật tới 4-1
+    p = await boot({ welcomed: 1, gems: 0, unlocked: ['knight'] });
+    check('ván Ải mở được', await launch(p, 'knight', 'level'));
+    const f4a = await p.evaluate(() => { SK.floor4.extend(SK.STAGES); SK_GAME.debug.stage('3-5'); return SK.ach.done(99); });
+    check('3-5 chưa mở id 99', !f4a);
+    await p.evaluate(() => SK_GAME.debug.stage('4-1'));
+    await until(p, () => SK_GAME.stage === '4-1', null, 6000);
+    check('vào ải 4-1 (stageEnter của game): mở "Thế giới mới!" (id 99)', await D6(99));
+
+    // ---- 6d. tùy tùng: Thầy Huấn Luyện nâng đủ bậc (id 124), tùy tùng + thú cưng = 6 (id 126)
+    await p.evaluate(() => { Object.assign(SK_ROOMS.force, { chest: null, special: 'trainer', statue: null, merc: null }); SK_GAME.debug.stage('1-3'); });
+    await until(p, () => SK_GAME.phase === 'play', null, 6000);
+    await p.evaluate(() => { SK_GAME.debug.god(true); SK_GAME.debug.teleportTo('special'); });
+    await sleep(350);
+    await p.evaluate(() => { const G = SK.G, pl = G.player; SK.addMercenary(G, pl, 'npc_02', pl.x - 8, pl.y, { hired: true, armed: true, hpBonus: 0 }); });
+    for (let k = 1; k <= 5; k++) {
+      await p.evaluate(() => { SK.G.player.gold = 9999; });
+      const i = await p.evaluate(() => SK.G.interactables.findIndex(o => /^Thầy Huấn Luyện/.test(o.label)));
+      if (i < 0) { check('có Thầy Huấn Luyện trong phòng', false); break; }
+      await p.evaluate(k2 => { const o = SK.G.interactables[k2], pl = SK.G.player; pl.x = o.x; pl.y = o.y + 2; }, i);
+      await sleep(150);
+      await p.keyboard.press('KeyE'); await sleep(200);
+      if (k === 4) check('mới 4 bậc: chưa mở "Chủ Thuê Tuyệt Vời" (id 124)', !await D6(124));
+    }
+    check('đủ 5 bậc (Thầy Huấn Luyện thật): mở "Chủ Thuê Tuyệt Vời" (id 124)', await D6(124), JSON.stringify(await p.evaluate(() => SK.ach.progress(124))));
+    const army = await p.evaluate(() => {
+      const G = SK.G, pl = G.player, pets = (G.pet ? 1 : 0) + (pl._gardenPets || []).length, have = SK.livingMercs(G).length, out = { pets, have };
+      for (let i = have + pets; i < 5; i++) SK.addMercenary(G, pl, 'npc_02', pl.x - 8, pl.y, { hired: false, armed: false });
+      SK_GAME.debug.stage('1-4'); return out;
+    });
+    await until(p, () => SK_GAME.stage === '1-4' && SK_GAME.phase === 'play', null, 6000);
+    check('5 tùy tùng + thú cưng chưa đủ 6: chưa mở id 126', !await D6(126) || army.pets + army.have >= 6, JSON.stringify(army));
+    await p.evaluate(() => { const G = SK.G, pl = G.player; SK.addMercenary(G, pl, 'npc_02', pl.x - 8, pl.y, { hired: false, armed: false }); if (!SK.G.pet) { /* đủ nhờ tùy tùng */ } SK.addMercenary(G, pl, 'npc_02', pl.x - 8, pl.y, { hired: false, armed: false }); SK_GAME.debug.stage('1-5'); });
+    await until(p, () => SK_GAME.stage === '1-5' && SK_GAME.phase === 'play', null, 6000);
+    check('tùy tùng + thú cưng đạt 6 khi sang ải kế: mở "Người đông sức mạnh" (id 126)', await D6(126), JSON.stringify(await p.evaluate(() => ({ m: SK.livingMercs(SK.G).length, pet: !!SK.G.pet }))));
+    await p.context().close();
+
+    // ---- 6e. Thần Điện Thủ Hộ: 8 / 16 / 24 đợt (id 40, 41, 42) và tháp đạt Phẩm + sao tối đa (id 74)
+    p = await boot({ welcomed: 1, gems: 0, unlocked: ['knight'] });
+    check('vào Thần Điện Thủ Hộ', await p.evaluate(() => { SK_GAME.debug.seed(31); SK_GAME.debug.defence('knight'); return true; }) && await until(p, () => SK_GAME.state === 'stage' && SK.G.defence && SK_GAME.phase === 'play', null, 12000));
+    await p.evaluate(() => SK_GAME.debug.god(true));
+    async function waves(n) {   // dọn n đợt bằng đường của game: quái hết, hàng đợi rỗng, updateWaves tự đếm và phát defenceWaveClear
+      for (let i = 0; i < n; i++) {
+        const w0 = await p.evaluate(() => { const d = SK.G.defence; if (d.won || d.lost) return -1; for (const e of SK.G.enemies) { e.dwave = false; e.st = 'dead'; e.hp = 0; } d.queue = []; d.phase = 'fight'; d.stone.hp = d.stone.max; return d.stats.waves; });
+        if (w0 < 0) return false;
+        if (!await until(p, w => SK.G.defence.stats.waves > w, w0, 3000)) return false;
+      }
+      return true;
+    }
+    check('chặn 7 đợt: chưa mở 40', await waves(7) && !await D6(40) && (await prog(40)).cur === 7, JSON.stringify(await prog(40)));
+    check('chặn đợt thứ 8: mở "Vệ Binh" (id 40), chưa mở 41', await waves(1) && await D6(40) && !await D6(41));
+    check('chặn tới đợt 16: mở "Thủ Hộ Thần Điện" (id 41)', await waves(8) && await D6(41) && !await D6(42));
+    // tháp: 3 tháp tối đa -> tiến độ 3; đủ mọi loại -> id 74
+    const nt = await p.evaluate(() => SK.DEFENCE.ids.length);
+    const maxTowers = k => p.evaluate(n => {
+      const G = SK.G, d = G.defence, Df = SK.defence, C = SK.DEFENCE;
+      d.coins = 1e7;
+      for (const id of C.ids.slice(0, n)) {
+        if (!d.towers.some(t => t.id === id)) { const pad = d.pads.findIndex(q => !q.tower); Df.place(G, pad, id); }
+        const t = d.towers.find(q => q.id === id), pi = d.pads.findIndex(q => q.tower === t);
+        while (t.pham < C.phamMax) Df.upgrade(G, pi);
+      }
+      Df.giveExp(G, 1e8 * n);
+      return d.towers.filter(t => t.pham >= C.phamMax && t.star >= C.starExp.length).length;
+    }, k);
+    const m3 = await maxTowers(3);
+    check('3 tháp đạt Phẩm 6 + sao tối đa (nâng bằng Df.place / Df.upgrade / Df.giveExp thật)', m3 === 3, String(m3));
+    await waves(1);
+    const pg74 = await prog(74);
+    check('qua đợt kế: tiến độ id 74 = 3/11, chưa mở', pg74.cur === 3 && pg74.max === 11 && !await D6(74) && nt >= 11, JSON.stringify(pg74) + ' loại tháp ' + nt);
+    const mAll = await maxTowers(nt);
+    await waves(1);
+    check('đủ ' + nt + ' loại tháp đạt Phẩm + sao tối đa: mở "Vững Như Thành Đồng" (id 74)', mAll === nt && await D6(74), mAll + ' ' + JSON.stringify(await prog(74)));
+    check('chặn tới đợt 24: mở "Tường Than Thở" (id 42), ô vườn 7 mở theo', await waves(6) && await D6(42) && await p.evaluate(() => SK.garden.state().open[6] === true), JSON.stringify(await prog(42)));
+    const rw42 = await p.evaluate(() => { const r = SK.ach.claim(42); return { r }; });
+    check('nhận thưởng id 42: đá cộng thật, chậu cây / băng từ chưa có đích nhận thì bỏ qua đúng 2 phần', rw42.r.ok && rw42.r.gems > 0 && rw42.r.skipped === 2, JSON.stringify(rw42));
+    await p.context().close();
+
+    // ---- 6f. Mê Trận: Uy Áp 20 (id 87), 5 lần "làm tốt lắm" liên tiếp (id 89)
+    p = await boot({ welcomed: 1, gems: 0, unlocked: ['knight'] });
+    check('vào Mê Trận', await p.evaluate(() => { SK_GAME.debug.seed(31); SK_GAME.debug.matrix('knight'); return true; }) && await until(p, () => SK_GAME.state === 'stage' && SK.G.mode === 'matrix' && SK_GAME.phase === 'play', null, 12000));
+    await p.evaluate(() => SK_GAME.debug.god(true));
+    const judgeAt = async (f, reward) => {
+      await p.evaluate(f2 => { while (SK.STAGES[SK.STAGES.length - 1].floor < f2 + 1) SK.matrixNextFloor(); SK_GAME.debug.stage(f2 + '-5'); }, f);
+      await until(p, l => SK_GAME.stage === l && SK_GAME.phase === 'play', f + '-5', 6000);
+      return p.evaluate(rw => !!SK.matrix.judge(SK.G, { reward: rw }), reward);
+    };
+    for (let f = 1; f <= 3; f++) await judgeAt(f, true);
+    await judgeAt(4, false);
+    check('3 lần Thưởng rồi 1 lần Phạt: chuỗi đứt, chưa mở 89', (await prog(89)).cur === 3 && !await D6(89), JSON.stringify(await prog(89)));
+    for (let f = 5; f <= 8; f++) await judgeAt(f, true);
+    check('4 lần liên tiếp: chưa mở 89', !await D6(89) && (await prog(89)).cur === 4, JSON.stringify(await prog(89)));
+    await judgeAt(9, true);
+    check('5 lần "làm tốt lắm" liên tiếp: mở "Chạy đua thời gian" (id 89)', await D6(89), JSON.stringify(await prog(89)));
+    await p.evaluate(() => { while (SK.STAGES[SK.STAGES.length - 1].floor < 21) SK.matrixNextFloor(); SK_GAME.debug.stage('20-1'); });
+    await until(p, () => SK_GAME.stage === '20-1' && SK_GAME.phase === 'play', null, 6000);
+    check('Uy Áp 19 (tầng 20): chưa mở 87', !await D6(87) && (await prog(87)).cur === 19, JSON.stringify(await prog(87)));
+    await p.evaluate(() => SK_GAME.debug.stage('21-1'));
+    await until(p, () => SK_GAME.stage === '21-1' && SK_GAME.phase === 'play', null, 6000);
+    check('Uy Áp 20 (tầng 21): mở "Núi áp lực" (id 87)', await until(p, () => SK.ach.done(87), null, 4000), JSON.stringify(await prog(87)));
+    await p.context().close();
+
+    // ---- 6g. Hư Không: khiên vỡ (140), Đạo Tặc (142), Thiền Vệ đôi (157), Xu tiêu 10.000 (145), vượt độ 1 (141), độ 2 (146)
+    p = await boot({ welcomed: 1, gems: 0, unlocked: ['knight'] });
+    const voidRun = async tier => {
+      await p.evaluate(t => { try { SK.lobby.enter(); } catch (e) { /* sảnh */ } SK_GAME.debug.seed(31); SK.voidMode.start('knight', t); }, tier);
+      return until(p, () => SK_GAME.state === 'stage' && SK.G.mode === 'void' && SK_GAME.phase === 'play', null, 12000);
+    };
+    const kill = id => p.evaluate(id2 => { const G = SK.G, pl = G.player, e = SK.makeEnemy(G, id2, pl.x + 24, pl.y, G.room); e.vs = null; e.st = 'idle'; e.stT = 0; G.enemies.push(e); SK.hurtEnemy(G, e, 99999, false, 0, 0); return true; }, id);
+    check('vào Hư Không độ 1', await voidRun(1));
+    await p.evaluate(() => SK_GAME.debug.god(true));
+    check('chưa đánh gì: id 140, 142, 157 đều chưa mở', (await doneOf([140, 142, 157])).length === 0);
+    await p.evaluate(() => { const G = SK.G, pl = G.player, e = SK.makeEnemy(G, 'e_void_guard', pl.x + 24, pl.y, G.room); G.enemies.push(e); SK.voidMode.breakLayer(G, e, 'wear'); });
+    check('phá một tầng khiên Tinh Anh (V.breakLayer): mở "Đánh tan!" (id 140)', await D6(140));
+    await kill('e_void_thief');
+    check('hạ Hư Không Đạo Tặc: mở "Bắt trộm" (id 142)', await D6(142));
+    await kill('e_void_staffmonk');
+    check('hạ một Thiền Vệ (Trượng): chưa mở id 157', !await D6(157));
+    await kill('e_void_beadsmonk');
+    check('hạ cả Thiền Vệ Châu trong cùng ván: mở "Bồ Đề Minh Kính" (id 157)', await D6(157));
+    const xu = await p.evaluate(() => { const G = SK.G, v = G.void; v.xu = 10000; let n = 0; while (v.xu >= 25 && n++ < 1000) SK.voidMode.exchange(G, 'xuToGold'); return { spent: v.xuSpent, xu: v.xu }; });
+    check('Nhà Ngân Hàng đổi hết 10.000 Xu Ám Tinh (V.exchange thật): xuSpent = 10000', xu.spent === 10000, JSON.stringify(xu));
+    check('xuSpent tính vào bộ đếm khi hết ván: chưa mở id 145 trước khi ván kết thúc', !await D6(145));
+    check('vượt Hư Không độ 1 thật (3-5)', await winReal(p));
+    d6 = await doneOf(NEW);
+    check('thắng độ 1: mở "Lần đầu chạm mặt Hư Không" (id 141) và "Khách quen Hư Không" (id 145); chưa mở 146 (độ 2)', d6.includes(141) && d6.includes(145) && !d6.includes(146), JSON.stringify(d6));
+    check('vào Hư Không độ 2', await voidRun(2));
+    await p.evaluate(() => SK_GAME.debug.god(true));
+    check('vượt Hư Không Hỗn Độn thật', await winReal(p));
+    check('thắng độ 2: mở "Tái Thám Hiểm Hư Không" (id 146)', await D6(146));
+    const rw146 = await p.evaluate(() => { const r = SK.ach.claim(146); return { ok: r.ok, err: r.err, gems: r.gems, box: SK.profile.box.length }; });
+    check('thưởng id 146: đá cộng thật và vũ khí vào hòm', rw146.ok && rw146.gems > 0, JSON.stringify(rw146));
+    await p.context().close();
+
+    // ---- 6h. Sổ Tay: nhãn khoá còn ở mục chưa có cơ chế, mục mới mở hiện tiến độ
+    p = await boot({ welcomed: 1, gems: 0, unlocked: ['knight'] });
+    const lab = await p.evaluate(() => { SK.ach.open({}); const q = id => { document.querySelector('#sk-ach [data-id="' + id + '"]').click(); return document.getElementById('sk-ach-det').innerText; }; return { a: q(9), b: q(65) }; });
+    check('Sổ Tay: id 9 hiện tiến độ 0/1, id 65 (câu cá) hiện "Chưa có ở bản web"', /Tiến độ:\s*0\/1/.test(lab.a) && !/Chưa có ở bản web\.$/m.test(lab.a.split('Thưởng')[0]) && /Chưa có ở bản web/.test(lab.b), lab.a.replace(/\n/g, ' | ') + ' // ' + lab.b.replace(/\n/g, ' | '));
+    await p.context().close();
   } catch (e) { check('chạy bộ kiểm không lỗi', false, e && e.stack ? e.stack.split('\n').slice(0, 3).join(' / ') : String(e)); }
   await browser.close();
   console.log(out.join('\n'));
