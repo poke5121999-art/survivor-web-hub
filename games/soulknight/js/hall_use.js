@@ -237,4 +237,6 @@
   const ARCADE = ['Máy Game đang bảo trì, xin hãy chờ!', 'Các kỹ sư đang nghiên cứu, xin hãy chờ!', 'Đang viết code game, xin hãy chờ!', 'Đang vẽ đồ họa, xin hãy chờ!'];
   let arcadeN = 0;
   USE.arcade_machine = () => msg('Máy Game', '<p id="sk-arcade-talk">' + esc(ARCADE[arcadeN++ % ARCADE.length]) + '</p>');
+  // Tiện ích dùng chung cho js/hall_forge.js, js/hall_egg.js (nạp sau tệp này).
+  SK.HALL_UI = { dlg, msg, icon, itemName, itemOf, wName, CLOSE, DB };
 })();

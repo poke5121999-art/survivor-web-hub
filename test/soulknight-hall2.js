@@ -98,7 +98,7 @@ async function useSlot(p, slot) {
       JSON.stringify({ mail: f.mail.map(m => m.title), safe: f.safe.level }));
     const zones = await p.evaluate(() => SK.hall.zones());
     const names = zones.map(z => z.slot + '=' + z.name);
-    check('có 19 món tương tác với tên Việt (gồm Máy Đổi, Máy Game)', zones.length === 19 && zones.some(z => z.slot === 'token_machine') && zones.some(z => z.slot === 'arcade_machine'), names.join(', '));
+    check('có 21 món tương tác với tên Việt (gồm Máy Đổi, Máy Game, Bàn Rèn, Bàn Thiết Kế)', zones.length === 21 && zones.some(z => z.slot === 'token_machine') && zones.some(z => z.slot === 'arcade_machine'), names.join(', '));
     // Két Sắt khoá (chưa qua 2-2)
     let t = await useSlot(p, 'safe');
     check('Két Sắt khoá khi chưa qua ải 2-2, không có nút Nâng cấp', t && /Két Sắt/.test(t) && await p.evaluate(() => !!document.getElementById('sk-safe-lock') && !document.getElementById('sk-safe-up')), t && t.slice(0, 90));
@@ -310,10 +310,11 @@ async function useSlot(p, slot) {
     await p.evaluate(() => { const G = SK.G, pl = G.player; for (const k of G.pickups) if (k.kind === 'material') { k.t = 1; k.x = pl.x; k.y = pl.y - 6; k.z = 0; } SK.updatePickups(G, 0.016); });
 
     // nhặt vũ khí → picked
-    const wid = await p.evaluate(() => { const id = SK.DS.weaponGrades[2][0]; SK.G.items.push({ id, x: SK.G.player.x, y: SK.G.player.y + 4, t: 0 }); return id; });
+    const { wid, pk0 } = await p.evaluate(() => { const id = SK.DS.weaponGrades[2][0]; SK.G.items.push({ id, x: SK.G.player.x, y: SK.G.player.y + 4, t: 0 }); return { wid: id, pk0: SK.profile.picked(id) }; });
     await sleep(200);
-    await p.keyboard.press('KeyE'); await sleep(200);
-    check('nhặt vũ khí: SK.profile.picked(id) = 1', await p.evaluate(id => SK.profile.picked(id) === 1, wid), wid);
+    let pk1 = pk0;   // máy chậm có thể nuốt lần nhấn E giữa hai khung hình: bấm lại tới khi game nhận (tối đa 5)
+    for (let i = 0; i < 5 && pk1 === pk0; i++) { await p.keyboard.press('KeyE'); await sleep(300); pk1 = await p.evaluate(id => SK.profile.picked(id), wid); }
+    check('nhặt vũ khí: SK.profile.picked(id) tăng đúng 1', pk1 === pk0 + 1, wid + ' ' + pk0 + ' → ' + pk1);
 
     // cuối ván: vàng còn → đá; thống kê; vật liệu không mất khi chết
     const pre = await p.evaluate(() => { const pl = SK.G.player; pl.gold = 37; pl.god = false; return { gems: SK.profile.gems, kills: SK_GAME.kills, wood: SK.profile.item('material_wood'), st: SK.profile.stats }; });

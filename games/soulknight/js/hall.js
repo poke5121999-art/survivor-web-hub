@@ -51,29 +51,39 @@
     tv: ['Xem tivi', 'Object_tv'], postman: ['Nhân Viên Chuyển Phát', 'Object_postman'], egg_machine: ['Máy Quay Trứng', 'object/gashapon_machines'],
     pet_food: ['Thức Ăn Mèo', 'Object_petfood'], handbook_entry: ['Hầm', 'Object_cellar'], arcade_machine: ['Máy Game', 'arcade_machine/name'],
     drink_seller: ['Máy Bán Nước Uống Tự Động', 'object/drink_seller'], fish_bowl: ['Hồ Cá', 'object/fishbowl'],
-    token_machine: ['Máy Đổi', 'object/token_machine']
+    token_machine: ['Máy Đổi', 'object/token_machine'], forge: ['Bàn Rèn', 'object/forge'], station: ['Bàn Thiết Kế', 'object/weapon_station']
   };
   const REACH = 1.0;      // đứng cách vùng trigger tới 1 đv vẫn dùng được (≈ 2 đv tính từ tâm món nhỏ) [ƯỚC LƯỢNG]
   const LABEL_H = 2.5;    // nhãn cao 2,5 đv trên gốc ô [ĐO mbs Item*.label_height, hall_0_normal prefabs]
   // Máy Đổi nằm ở khu Xưởng gốc (chưa có ở web): đặt ở sàn trống, Máy Game không có prefab: cả hai vẽ khối giữ chỗ [ƯỚC LƯỢNG].
-  const KIOSK = { token_machine: { at: [[1.5, -8.2], [0.5, -8.2], [2.5, -8.2], [1.5, -7.2]], col: '#2f7a5a', screen: '#9dffcb' },
-    arcade_machine: { col: '#5b3f94', screen: '#7ff0ff' } };
+  const KIOSK = { token_machine: { col: '#2f7a5a', screen: '#9dffcb' }, arcade_machine: { col: '#5b3f94', screen: '#7ff0ff' } };
+  // Khu Xưởng gốc (bên phải) chưa có ở web: Bàn Rèn, Bàn Thiết Kế, Máy Đổi là prefab gốc hero_room/common (workshop/common/*.prefab)
+  // đặt ở hàng sàn dưới của phòng chính; vị trí [ƯỚC LƯỢNG], thử lần lượt tới chỗ đi được.
+  const WORKSHOP = { forge: { pf: 'forge', at: [[-3.2, -7.6], [-3.2, -6.6]] }, station: { pf: 'station', at: [[3.2, -8.2], [3.2, -7.2]] },
+    token_machine: { pf: 'token_machine', at: [[6.6, -8.2], [6.6, -7.2], [7.6, -8.2]] } };
   const zones = [];
-  function addZone(slot, x, y) {
-    const nm = NAME[slot];
+  function addZone(slot, x, y, pf) {
+    const nm = NAME[slot], parts = D.prefabs[pf || slot + '_0_normal'] || [];
     let box = null;
-    for (const p of D.prefabs[slot + '_0_normal'] || []) {
+    for (const p of parts) {
       if (p.ia || !p.col) continue;
       const c = Object.values(p.col).find(q => q.trig && q.size);
       if (c) { const cx = x + (p.at[0] + c.off[0]) / U, cy = y + (p.at[1] + c.off[1]) / U, w = c.size[0] / U, h = c.size[1] / U; box = [cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2]; break; }
     }
     if (!box) box = [x - 1, y - 1, x + 1, y + 1];   // chưa có prefab/trigger: 2 × 2 đv quanh gốc ô [ƯỚC LƯỢNG]
-    zones.push({ slot, name: nm[0], loc: nm[1], x, y, box, kiosk: KIOSK[slot] || null });
+    zones.push({ slot, name: nm[0], loc: nm[1], x, y, box, parts: pf && parts.length ? parts : null, kiosk: !(pf && parts.length) && KIOSK[slot] || null });
+    if (pf) for (const p of parts) for (const c of Object.values(p.col || {})) {   // khối chặn của prefab Xưởng
+      if (c.trig) continue;
+      const cx = x + (p.at[0] + c.off[0]) / U, cy = y + (p.at[1] + c.off[1]) / U, hw = (c.size ? c.size[0] / 2 : c.r) / U, hh = (c.size ? c.size[1] / 2 : c.r) / U;
+      blocks.push([cx - hw, cy - hh, cx + hw, cy + hh]);
+    }
   }
   for (const s of H.slots) if (NAME[s.slot]) addZone(s.slot, s.x, s.y);
-  function addToken() {
-    const k = KIOSK.token_machine, at = k.at.find(([x, y]) => walkable(x, y) && walkable(x + 1, y) && walkable(x - 1, y)) || k.at[0];
-    addZone('token_machine', at[0], at[1]);
+  function addWorkshop() {
+    for (const [slot, w] of Object.entries(WORKSHOP)) {
+      const at = w.at.find(([x, y]) => walkable(x, y) && walkable(x + 1, y) && walkable(x - 1, y)) || w.at[0];
+      addZone(slot, at[0], at[1], w.pf);
+    }
   }
   const rectDist = (z, x, y) => Math.hypot(Math.max(z.box[0] - x, 0, x - z.box[2]), Math.max(z.box[1] - y, 0, y - z.box[3]));
   // Món gần nhất trong tầm, theo khoảng cách tới vùng trigger rồi tới tâm vùng.
@@ -108,7 +118,7 @@
     for (let y = Y1 - 3; y > Y0 + 1; y -= 2.5) {
       for (let x = X0 + 2; x < X1 - 1; x += 2.5) {
         if (!walkable(x, y) || !walkable(x - 0.5, y) || !walkable(x + 0.5, y)) continue;
-        if (H.slots.some(s => Math.hypot(s.x - x, s.y - y) < 2)) continue;
+        if (H.slots.some(s => Math.hypot(s.x - x, s.y - y) < 2) || zones.some(q => q.parts && Math.hypot(q.x - x, q.y - y) < 5)) continue;
         if (Object.values(H.deco).some(d => Math.hypot(d[0] - x, d[1] - y) < 2)) continue;
         if (Math.hypot(H.door.x - x, H.door.y - y) < 4) continue;
         out.push([x, y]);
@@ -127,7 +137,7 @@
     });
   }
 
-  addToken();
+  addWorkshop();
 
   function enter(mode, id) {
     const G = SK.G;
@@ -272,7 +282,10 @@
     if (top.complete && top.naturalWidth) ctx.drawImage(top, 0, 0);
     const list = furniture.filter(f => !FLAT[f.s.slot]).map(f => ({ y: f.s.y, fn: () => drawF(f) }));
     for (const n of hall.npcs) list.push({ y: n.y, fn: () => drawHero(ctx, n.id, n.x, n.y, n.face, false, hall.t + n.x) });
-    for (const z of zones) if (z.kiosk) list.push({ y: z.y, fn: () => drawKiosk(ctx, z) });
+    for (const z of zones) {
+      if (z.kiosk) list.push({ y: z.y, fn: () => drawKiosk(ctx, z) });
+      else if (z.parts) list.push({ y: z.y, fn: () => { const [x, y] = px(z.x, z.y); SK.drawPrefab(ctx, z.parts, x, y, { t: hall.t, state: 'closed' }); } });
+    }
     const me = hall.me;
     if (me) list.push({ y: me.y, fn: () => drawHero(ctx, me.id, me.x, me.y, me.face, me.moving, hall.t) });
     const pt = hall.pet, petParts = D.prefabs.pet0;

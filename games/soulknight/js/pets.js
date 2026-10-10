@@ -1,4 +1,7 @@
-// Thú cưng đi theo người chơi: prefab pet0..pet5 trong common.ab (tools/extra/pets.json).
+// Thú cưng đi theo người chơi: prefab pet0..pet56 trong common.ab (tools/extra/pets.json), tên + kỹ năng ở data/sk-pets.js.
+// Kỹ năng riêng từng con ở js/pets/<petN>.js: SK.petRegister(petN, def) với các móc (đều tuỳ chọn):
+//   init(G, a), tick(G, a, dt) -> true thì bỏ bước mặc định, bite(G, a, e, dmg) -> sát thương cắn,
+//   playerHurt(G, a, dmg) -> sát thương người chơi nhận, draw(ctx, G, a) vẽ thêm, stage(G, a) mỗi lần vào ải.
 // pet = {id, x, y, face, st: 'ide'|'run'|'atk'|'action', stT, cd, scan, target}
 (function () {
   'use strict';
@@ -10,9 +13,13 @@
   const BITE = 1.2 * U;    // cự li cắn [ƯỚC LƯỢNG]
   const BITE_AT = 0.15;    // giây vào clip atk thì gây sát thương [ƯỚC LƯỢNG]
 
+  const SKILLS = SK.PET_SKILLS = {};
+  SK.petRegister = (id, def) => { SKILLS[id] = def; return true; };
+  SK.petInfo = id => (window.SK_PETS && SK_PETS.pets[id]) || null;
+
   function cfg(id) {
     const root = (D.prefabs[id] || [])[0], m = (root && root.mbs) || {};
-    const c = Object.keys(m).filter(k => /^Pet\d+Controller$/.test(k)).map(k => m[k])[0] || {};
+    const c = Object.keys(m).filter(k => /^Pet\w*Controller$/.test(k)).map(k => m[k])[0] || {};
     const ra = m.RoleAttributePet || {};
     return {
       dmg: c.damage || 3, cd: c.atk_cd || 2, scan: c.scout_rate || 0.5,
@@ -52,7 +59,8 @@
       const e = a.target;
       if (!a.bit && a.stT >= BITE_AT && e && e.st !== 'dead' && Math.hypot(e.x - a.x, e.y - a.y) <= BITE * 1.5) {
         a.bit = true;
-        SK.hurtEnemy(G, e, k.dmg, false, Math.atan2(e.y - a.y, e.x - a.x), 1);
+        const dmg = a.def.bite ? a.def.bite(G, a, e, k.dmg) : k.dmg;
+        if (dmg > 0) SK.hurtEnemy(G, e, dmg, false, Math.atan2(e.y - a.y, e.x - a.x), 1);
       }
       if (a.stT < SK.animLen(a.anim.atk)) return;
       a.target = null; setSt(a, 'ide');
@@ -73,21 +81,44 @@
   }
 
   function spawn(G) {
-    const id = SK.profile && SK.profile.pet ? SK.profile.pet() : 'pet0', parts = D.prefabs[id], p = G.player;
+    const id = SK.petForce || (SK.profile && SK.profile.pet ? SK.profile.pet() : 'pet0'), parts = D.prefabs[id], p = G.player;
     if (G.mods && G.mods.noPet) { G.pet = null; return; }   // Dũng Sĩ Cô Độc
     if (!parts || !p || G.petOff) return;
     const anim = parts[0].a || {};
-    const a = { id, parts, anim, k: cfg(id), x: p.x - 10, y: p.y + 2, face: 1, st: 'ide', stT: 0, cd: 1, scan: 0, target: null };
+    const a = { id, parts, anim, k: cfg(id), x: p.x - 10, y: p.y + 2, face: 1, st: 'ide', stT: 0, cd: 1, scan: 0, target: null,
+      def: SKILLS[id] || {}, info: SK.petInfo(id) };
     G.pet = a;
+    if (a.def.init) a.def.init(G, a);
     G.props.push({
       x: a.x, y: a.y, pet: a,
       update(G2, q, dt) {
         if (G2.petOff) { q.gone = true; G2.pet = null; return; }
-        step(G2, a, dt); q.x = a.x; q.y = a.y;
+        if (!(a.def.tick && a.def.tick(G2, a, dt))) step(G2, a, dt);
+        q.x = a.x; q.y = a.y;
       },
-      draw(ctx) { SK.drawPrefab(ctx, a.parts, a.x, a.y, { state: a.st, t: a.stT, flip: a.face < 0 }); }
+      draw(ctx, G2) {
+        if (!a.hidden) SK.drawPrefab(ctx, a.parts, a.x, a.y, { state: a.st, t: a.stT, flip: a.face < 0, scale: a.scale });
+        if (a.def.draw) a.def.draw(ctx, G2, a);
+      }
     });
   }
 
-  SK.on('stageEnter', G => spawn(G));
+  SK.on('stageEnter', G => { spawn(G); if (G.pet && G.pet.def.stage) G.pet.def.stage(G, G.pet); });
+  // Rào phòng dâng lúc pet còn ở hành lang thì pet bị nhốt ngoài cả trận (chưa đủ xa để tự dịch chuyển): kéo vào cạnh chủ.
+  SK.on('roomLock', (G, r) => {
+    const a = G.pet, p = G.player, T = SK.TILE;
+    if (!a || !p) return;
+    if (a.x < (r.x0 + 1) * T || a.x > r.x1 * T || a.y < (r.y0 + 1) * T + 4 || a.y > (r.y1 + 1) * T - 4) {
+      a.x = SK.clamp(p.x - p.face * 10, (r.x0 + 1) * T, r.x1 * T); a.y = SK.clamp(p.y + 2, (r.y0 + 1) * T + 4, (r.y1 + 1) * T - 4); a.target = null;
+    }
+  });
+  // Kỹ năng đỡ đòn cho chủ (Giáp, khiên...): móc vào SK.hurtPlayer giống buff trong rooms.js.
+  const baseHurt = SK.hurtPlayer;
+  SK.hurtPlayer = function (G, dmg, ...rest) {
+    const a = G.pet;
+    if (a && a.def.playerHurt && dmg > 0 && G.player && G.player.st !== 'dead' && !(G.player.invulT > 0)) dmg = a.def.playerHurt(G, a, dmg);
+    return baseHurt(G, dmg, ...rest);
+  };
+  // Móc kiểm thử: đổi thú cưng giữa trận.
+  SK.petDebug = { spawn: id => { const G = SK.G; SK.petForce = id; if (G.pet) G.props = G.props.filter(q => q.pet !== G.pet); spawn(G); return G.pet; } };
 })();

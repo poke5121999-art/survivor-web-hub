@@ -47,6 +47,9 @@ Nhật ký quyết định: `decisions.tsv` cùng thư mục.
 | Cột sáng rơi xuống nhân vật lúc vào ải | [THẤY] https://youtu.be/LyMmXTQFcq8?t=5 | chưa tìm ra hiệu ứng (`fx_landing`, `effect_reborn` đều không phải) |
 | Thoại NPC sau trùm, nút SKIP | [AGENT] https://youtu.be/B9Gb2Y26Cow?t=890 | chưa kiểm khung |
 | Trùm nổi giận ~40% máu | [AGENT] https://youtu.be/rNUWLt51lmA?t=50 | chưa kiểm |
-| Chọn thú cưng ở sảnh | — | web luôn dùng `pet0` (mèo đen) |
+| Chọn thú cưng ở sảnh | [WIKI Pets] đổi ở sảnh trước khi chọn nhân vật | web luôn dùng `pet0`; đang làm (mua bằng đá/Cá Khô, cho ăn, thân mật 50% mở kỹ năng) |
+| HP thú cưng | [WIKI Pets] 10 HP, về 1 HP thì nghỉ cạnh chủ, hồi đầy 14–16 s | chưa có hệ chung; pet7/8/14/26/49 giữ `a.hp` riêng trong tệp |
+| pet17, pet44 | pet44 có thể là "Full Of Fortune" (chỉ máy chủ Trung Quốc) [WIKI Pets] (phỏng đoán) | không có tên/kỹ năng trong LOC, chưa dùng |
+| Kỹ năng thú cưng còn số ước lượng | `js/pets/petN.js` nhãn `[ƯỚC LƯỢNG]` | wiki chỉ cho hồi chiêu; bán kính, thời lượng nhiều con vẫn đặt tay |
 | Bộ kiểm `soulknight-season-world.js` treo ở `#hs-back` | nút bị bỏ từ `292d316b` (màn chọn nhân vật dựng từ prefab); worktree HEAD cũng treo | nợ bộ kiểm, chưa sửa |
 | Bộ kiểm `skills`: `alchemist concoction` hỏng | hỏng y hệt ở HEAD trước đợt 1 | lỗi có sẵn, chưa sửa |

@@ -49,6 +49,12 @@
   P.mail = Array.isArray(P.mail) ? P.mail.filter(m => m && m.id && m.title) : [];   // [{id, title, body, reward:{gems?, items?}}]
   P.safe = Math.max(0, Math.min(5, Math.floor(+P.safe || 0)));   // cấp Két Sắt 0..5
   P.box = Array.isArray(P.box) ? P.box.filter(id => DS.weapons[id]) : [];   // hòm vũ khí chờ mang vào ván (bưu kiện, Máy Đổi)
+  // Bàn Thiết Kế / Bàn Rèn / Rương / Máy Quay Trứng / Mèo Chiêu Tài (HALL.md bước 4-5).
+  P.devd = cleanMap(P.devd);                     // {khoá bản vẽ: 1} đã nghiên cứu
+  P.forged = Array.isArray(P.forged) ? P.forged.filter(id => DS.weapons[id]).slice(0, 4) : [];   // đồ rèn chờ mang vào ván (tối đa 4 [WIKI touchtapplay forge])
+  P.carry = isObj(P.carry) && DS.weapons[P.carry.id] && (P.carry.from === 'box' || P.carry.from === 'forged') ? { id: P.carry.id, from: P.carry.from } : null;   // vũ khí mang vào ván kế (ô thứ 2)
+  P.eggPity = Math.max(0, Math.floor(+P.eggPity || 0));   // số lượt quay liên tiếp chưa ra mảnh skin (bảo đảm lượt 20)
+  P.fish = Math.max(0, Math.floor(+P.fish || 0));         // Cá Khô (tiền của tiệm Mèo Chiêu Tài)
   P.stats = Object.assign({ kills: 0, boss: 0, pass: 0, dead: 0, best: 0 }, isObj(P.stats) ? P.stats : {});
   for (const k of Object.keys(P.stats)) P.stats[k] = Math.max(0, Math.floor(+P.stats[k] || 0));
   const two = n => (n < 10 ? '0' : '') + n;
@@ -114,6 +120,34 @@
     get boxFull() { return P.box.length >= BOX_MAX; },
     addBox(id) { if (!DS.weapons[id] || P.box.length >= BOX_MAX) return false; P.box.push(id); save(); return true; },
     dropBox(id) { const i = P.box.indexOf(id); if (i < 0) return false; P.box.splice(i, 1); save(); return true; },
+    // ---- nghiên cứu bản vẽ (Bàn Thiết Kế), đồ rèn (Bàn Rèn), vũ khí mang vào ván (Rương)
+    devd: key => !!P.devd[key],
+    get devdAll() { return Object.assign({}, P.devd); },
+    markDevd(key) { P.devd[key] = 1; save(); },
+    get forged() { return P.forged.slice(); },
+    get forgedFull() { return P.forged.length >= FORGED_MAX; },
+    addForged(id) { if (!DS.weapons[id] || P.forged.length >= FORGED_MAX) return false; P.forged.push(id); save(); return true; },
+    get carry() { return P.carry && Object.assign({}, P.carry); },
+    setCarry(id, from) {
+      if (id == null) { P.carry = null; save(); return true; }
+      const src = from === 'forged' ? P.forged : P.box;
+      if (!DS.weapons[id] || src.indexOf(id) < 0) return false;
+      P.carry = { id, from: from === 'forged' ? 'forged' : 'box' }; save(); return true;
+    },
+    // Dùng món mang theo: đồ rèn bỏ khỏi danh sách (dùng một ván), vũ khí trong hòm vẫn còn ("1 vũ khí miễn phí cho mỗi lượt").
+    takeCarry() {
+      const c = P.carry; if (!c) return null;
+      P.carry = null;
+      if (c.from === 'forged') { const i = P.forged.indexOf(c.id); if (i >= 0) P.forged.splice(i, 1); }
+      save(); return c.id;
+    },
+    get eggPity() { return P.eggPity; },
+    setEggPity(n) { P.eggPity = Math.max(0, Math.floor(n)); save(); },
+    get fish() { return P.fish; },
+    addFish(n) { P.fish = Math.max(0, P.fish + Math.floor(n)); save(); return P.fish; },
+    spendFish(n) { if (P.fish < n) return false; P.fish -= n; save(); return true; },
+    dailyCount(name) { rollDay(); return P.daily[name] | 0; },
+    bumpDaily(name, n) { rollDay(); P.daily[name] = (P.daily[name] | 0) + (n == null ? 1 : n); save(); return P.daily[name]; },
     // ---- ngày + việc hằng ngày
     get day() { rollDay(); return P.day; },
     dailyDone(name) { rollDay(); return !!P.daily[name]; },
@@ -162,6 +196,7 @@
     reset() { try { localStorage.removeItem(KEY); } catch (_) { /* bỏ qua */ } }
   };
   const isUnlocked = SK.profile.isUnlocked;
+  const FORGED_MAX = 4;
   const BOX_MAX = 8;   // chỗ hòm vũ khí [ƯỚC LƯỢNG]; Bàn Rèn gốc giữ tối đa 4 món rèn [WIKI touchtapplay forge]
 
   // ---------------------------------------------------------------- giá
@@ -867,6 +902,9 @@
     p.hpMax += b.hp; p.hp += b.hp; p.armorMax += b.armor; p.armor += b.armor; p.energyMax += b.energy; p.energy += b.energy;
     // Két Sắt: vàng khởi đầu mỗi ván [LOC Object_safe_info "Vàng ban đầu"]; Khu Thí Luyện không có vàng nên bỏ.
     if (G2.mode !== 'bossrush') p.gold += SK.profile.safe.gold;
+    // Rương: vũ khí đã chọn (hòm hoặc đồ rèn) vào ô thứ hai; chế độ một vũ khí / Khu Thí Luyện không nhận, giữ lại cho ván sau.
+    const c = SK.profile.carry;
+    if (c && G2.mode !== 'bossrush' && !(G2.mods && G2.mods.oneWeapon) && !p.weapons[1]) { SK.profile.takeCarry(); p.weapons[1] = SK.makeWeapon(c.id); G2.carried = c.id; }
   });
 
   // Đá quý cuối lượt: theo số quái hạ + số màn đã qua [ƯỚC LƯỢNG]; SK gốc cũng trả theo quái hạ + tầng đạt được.

@@ -52,9 +52,14 @@ async function until(p, fn, arg, ms) {
     const s2 = await pet();
     check('bị bỏ xa quá 20 đv thì bay về chủ', s2.d < 3 * 16, 'cách ' + s2.d.toFixed(1) + ' px');
 
-    await p.evaluate(() => SK_GAME.debug.teleportTo('battle', 0));
+    await p.evaluate(() => { SK_GAME.debug.teleportTo('battle', 0); const pl = SK.G.player, a = SK.G.pet; a.x = pl.x - 12 * 16; a.y = pl.y; });
     await p.keyboard.down('KeyD'); await sleep(250); await p.keyboard.up('KeyD');
     await until(p, () => SK_GAME.enemyCount > 0, null, 5000);
+    const inR = await p.evaluate(() => {
+      const r = SK.G.room, a = SK.G.pet, T = SK.TILE;
+      return { lock: r.state, inside: a.x >= (r.x0 + 1) * T && a.x <= r.x1 * T && a.y >= (r.y0 + 1) * T + 4 && a.y <= (r.y1 + 1) * T - 4 };
+    });
+    check('rào phòng quái dâng lúc thú cưng còn ngoài hành lang thì nó được kéo vào trong', inR.lock === 'locked' && inR.inside, JSON.stringify(inR));
     const sawAtk = await p.evaluate(() => new Promise(res => {
       const hp0 = SK_GAME.enemyHp, t0 = performance.now();
       let atk = false;

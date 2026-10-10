@@ -1,0 +1,625 @@
+{
+ "pet0": {
+  "en": "Chilly",
+  "unlock": "Unlocked by default",
+  "gems": null,
+  "food": "Seafood",
+  "skill": "Feeling Good",
+  "desc": "When Chilly is by your side, you can restore energy once in a while.",
+  "notes": [
+   "When the player is within 3 tiles radius from Chilly, restores 1, 3, or 5 energy.",
+   "Cooldown: 8 seconds"
+  ]
+ },
+ "pet1": {
+  "en": "Buddy",
+  "unlock": "1,000 Gems",
+  "gems": 1000,
+  "food": "Meat",
+  "skill": "Lucky Dog",
+  "desc": "Extra coins are occasionally found in battle.",
+  "notes": [
+   "Buddy's attack has 20% chance to cause the target to drop a golden coin, which worths 5 coins.",
+   "Cooldown: 10 seconds"
+  ]
+ },
+ "pet2": {
+  "en": "Hamm",
+  "unlock": "1,000 Gems",
+  "gems": 1000,
+  "food": "Vegetables",
+  "skill": "Hearty Eater",
+  "desc": "If you consume an energy potion when your energy is full, your HP restores by 1.",
+  "notes": [
+   "Hamm restores 1 health to the player when they consume either Energy Pot or Energy Pot L while at full energy.",
+   "Using Restoration Potion, Restoration Potion L, Reusable Energy Pot, or Reusable Restoration Potion will not trigger the skill.",
+   "The Potion Effectiveness buff has no effect on this skill.",
+   "Cooldown: 0 seconds"
+  ]
+ },
+ "pet3": {
+  "en": "Blue",
+  "unlock": "1,000 Gems",
+  "gems": 1000,
+  "food": "Vegetables",
+  "skill": "Split Up!",
+  "desc": "The slime splits in 2 once it is attacked. It can split up to 2 times. The attack damage of a split is reduced to 1.",
+  "notes": [
+   "Cooldown: 0 seconds"
+  ]
+ },
+ "pet4": {
+  "en": "Robo",
+  "unlock": "1,000 Gems",
+  "gems": 1000,
+  "food": "Mechanical",
+  "skill": "Extra Battery",
+  "desc": "Robo can enhance your armor mount. The max HP of your armor mount increases by 2.",
+  "notes": [
+   "Cooldown: 0 seconds"
+  ]
+ },
+ "pet5": {
+  "en": "Panda",
+  "unlock": "Fish Chips",
+  "gems": null,
+  "food": "Bamboo, Millennia Bamboo",
+  "skill": "Awwww!",
+  "desc": "Monsters find the pet too adorable to attack and so target you instead.",
+  "notes": [
+   "Enemies will not target the pet.",
+   "Cooldown: 0 seconds"
+  ]
+ },
+ "pet6": {
+  "en": "BonBon",
+  "unlock": "1,000 Gems",
+  "gems": 1000,
+  "food": "Vegetables",
+  "skill": "Fluffy",
+  "desc": "Fluffy BonBon calms you down. When it is by your side, your weapon accuracy +5.",
+  "notes": [
+   "Cooldown: 0 seconds"
+  ]
+ },
+ "pet7": {
+  "en": "Can'bellied Pig",
+  "unlock": "1,000 Gems",
+  "gems": 1000,
+  "food": "Vegetables",
+  "skill": "Iron Armor",
+  "desc": "The pet's HP +2.",
+  "notes": [
+   "Cooldown: 0 seconds"
+  ]
+ },
+ "pet8": {
+  "en": "Tap",
+  "unlock": "Unavailable",
+  "gems": null,
+  "food": null,
+  "skill": "Tap Tap",
+  "desc": "Pet's current HP +1 when clicked.",
+  "notes": [
+   "Cooldown: 0 seconds"
+  ]
+ },
+ "pet9": {
+  "en": "Douwa",
+  "unlock": "Unavailable",
+  "gems": null,
+  "food": "Vegetables",
+  "skill": "Owooooo!!",
+  "desc": "Douwa grows big and keeps attacking for a short duration.",
+  "notes": [
+   "Cooldown: 10 seconds"
+  ]
+ },
+ "pet10": {
+  "en": "Pigeon",
+  "unlock": "6,666 Gems",
+  "gems": 6666,
+  "food": "None",
+  "skill": "Pigeoff",
+  "desc": "It can dodge attacks from time to time.",
+  "notes": [
+   "The pet's sprite will become invisible with a white outline when doing so.",
+   "Cooldown: 0 seconds"
+  ]
+ },
+ "pet11": {
+  "en": "Flutter",
+  "unlock": "Achievement pet",
+  "gems": null,
+  "food": "None",
+  "skill": "Distance Attack",
+  "desc": "It always attacks the enemy furthest from you.",
+  "notes": [
+   "Cooldown: 0 seconds"
+  ]
+ },
+ "pet12": {
+  "en": "Baby Seal",
+  "unlock": "8,888 Gems",
+  "gems": 8888,
+  "food": "Seafood",
+  "skill": "Wake Up!",
+  "desc": "Baby Seal pats on its belly to remove 1 abnormal status applied to you.",
+  "notes": [
+   "Cooldown: 20 seconds"
+  ]
+ },
+ "pet13": {
+  "en": "Inherited Bug",
+  "unlock": "Achievement pet",
+  "gems": null,
+  "food": "Meat, Vegetables, Seafood, Misc, Fertilizer",
+  "skill": "Eww. Disgusting.",
+  "desc": "Enemies are terrified! The bug weakens their desire to attack and the speed of their projectiles.",
+  "notes": [
+   "Reduce enemies' projectiles' velocity by 5 speed units."
+  ]
+ },
+ "pet14": {
+  "en": "Wayne",
+  "unlock": "Event pet",
+  "gems": null,
+  "food": "Meat",
+  "skill": "Lifesteal",
+  "desc": "The pet restores its own HP a bit every time it attacks an enemy.",
+  "notes": [
+   "Cooldown: 0 seconds"
+  ]
+ },
+ "pet15": {
+  "en": "Pinko Hippo",
+  "unlock": "5 Fish Chips",
+  "gems": null,
+  "food": "Vegetables, Seafood, Candied Hawberries",
+  "skill": "Slippery Poo-poo",
+  "desc": "Pinko Hippo poops every 8 seconds. Enemies who slip on its poo-poo will take 2 damage.",
+  "notes": [
+   "Cooldown: 8 seconds"
+  ]
+ },
+ "pet16": {
+  "en": "Mini Tengu",
+  "unlock": "Unavailable",
+  "gems": null,
+  "food": "Meat, Grilled Carrot, Grilled Fish, Grilled Green Onion",
+  "skill": "Great Tengu",
+  "desc": "Mini Tengu will transform into Great Tengu every once in a while and throw a punch real hard!",
+  "notes": [
+   "Cooldown: 16 seconds"
+  ]
+ },
+ "pet18": {
+  "en": "Peanut",
+  "unlock": "5 Fish Chips",
+  "gems": null,
+  "food": "Meat",
+  "skill": "Hey! Move!",
+  "desc": "Peanut will deal 1 collision damage to the enemy when it is by your side.",
+  "notes": [
+   "Cooldown: 0 seconds"
+  ]
+ },
+ "pet19": {
+  "en": "Max",
+  "unlock": "Event pet",
+  "gems": null,
+  "food": "Meat",
+  "skill": "Assist",
+  "desc": "Your charge speed increases by 5%.",
+  "notes": [
+   "Cooldown: 0 seconds"
+  ]
+ },
+ "pet20": {
+  "en": "Smokey",
+  "unlock": "5 Fish Chips",
+  "gems": null,
+  "food": "Seafood",
+  "skill": "Go Away!",
+  "desc": "Enemies that try to approach you will stop moving due to the threats of Smokey.",
+  "notes": [
+   "Cooldown: 10 seconds"
+  ]
+ },
+ "pet21": {
+  "en": "Snow",
+  "unlock": "3,000 Gems",
+  "gems": 3000,
+  "food": "Seafood",
+  "skill": "Soothing",
+  "desc": "When Snow is by your side, you are immune to freeze for a short time.",
+  "notes": [
+   "Cooldown: 10 seconds"
+  ]
+ },
+ "pet22": {
+  "en": "Papa",
+  "unlock": "2,500 Gems",
+  "gems": 2500,
+  "food": "Vegetables",
+  "skill": "Secret Angel",
+  "desc": "With every 20 or more points of energy you have used, Papa restores 0-5 points of energy for you.",
+  "notes": [
+   "Cooldown: 0 seconds"
+  ]
+ },
+ "pet23": {
+  "en": "Cowboi",
+  "unlock": "5 Fish Chips",
+  "gems": null,
+  "food": "Vegetables",
+  "skill": null,
+  "desc": "If you consume a health potion when your HP is full, your energy increases by 10.",
+  "notes": [
+   "Maximum energy isn't increases, instead it restores 10 energy.",
+   "Cooldown: 0 seconds"
+  ]
+ },
+ "pet24": {
+  "en": "Officer Chilly",
+  "unlock": "Season reward",
+  "gems": null,
+  "food": "Seafood",
+  "skill": "Lash",
+  "desc": "You are under the close supervision of Captain Chilly! When it is by your side, your crit hit rate +5.",
+  "notes": [
+   "Cooldown: 0 seconds"
+  ]
+ },
+ "pet25": {
+  "en": "Blani",
+  "unlock": "Unavailable",
+  "gems": null,
+  "food": "Vegetables",
+  "skill": "Burned Land",
+  "desc": "Blani burns anywhere that it stays.",
+  "notes": [
+   "Cooldown: 0 seconds"
+  ]
+ },
+ "pet26": {
+  "en": "Speedy",
+  "unlock": "Fishing pet",
+  "gems": null,
+  "food": "Vegetables",
+  "skill": "Defensive",
+  "desc": "When Speedy's HP is 0, it will shrink into its shell and enter the defense state. In the defense state, Speedy will block any attack like a wall.",
+  "notes": [
+   "Defense state can block allies and enemies projectiles.",
+   "Cooldown: 0 seconds"
+  ]
+ },
+ "pet27": {
+  "en": "Serenade",
+  "unlock": "Unlocked by default",
+  "gems": null,
+  "food": "None",
+  "skill": "Cell Seeker",
+  "desc": "The pet can find cells when it is fighting with the character.",
+  "notes": [
+   "Cooldown: 0 seconds"
+  ]
+ },
+ "pet28": {
+  "en": "Taro",
+  "unlock": "Achievement pet",
+  "gems": null,
+  "food": "Meat",
+  "skill": "Backpack",
+  "desc": "The pet helps you pick up materials nearby.",
+  "notes": [
+   "The pet can also help to pick up seeds.",
+   "Food preference: Seafood"
+  ]
+ },
+ "pet29": {
+  "en": "Pudding",
+  "unlock": "3,000 Gems",
+  "gems": 3000,
+  "food": "Seafood",
+  "skill": "Drumstick",
+  "desc": "When Pudding is by your side, your movement speed increases for a short duration.",
+  "notes": [
+   "Movement speed +25% for 2 seconds.",
+   "Cooldown: 8 seconds"
+  ]
+ },
+ "pet30": {
+  "en": "Purpur",
+  "unlock": "5 Fish Chips",
+  "gems": null,
+  "food": "Seafood",
+  "skill": "Focus",
+  "desc": "When Purpur is by your side, you charge much faster.",
+  "notes": [
+   "Charge speed increase by 5%",
+   "Cooldown: 3 seconds"
+  ]
+ },
+ "pet31": {
+  "en": "Pochi",
+  "unlock": "5 Fish Chips",
+  "gems": null,
+  "food": "Meat",
+  "skill": "Intimidate",
+  "desc": "The pet inflicts damage to enemies in the circle while knocking them back.",
+  "notes": [
+   "Cooldown: 8 seconds"
+  ]
+ },
+ "pet32": {
+  "en": "Chestnut",
+  "unlock": "5 Fish Chips",
+  "gems": null,
+  "food": "Meat",
+  "skill": "Protect",
+  "desc": "When your armor is broken, Chestnut will block the projectiles from enemies.",
+  "notes": [
+   "Cooldown: 60 seconds"
+  ]
+ },
+ "pet33": {
+  "en": "Yanyan",
+  "unlock": "5 Fish Chips",
+  "gems": null,
+  "food": "Meat",
+  "skill": "Dragon Fire",
+  "desc": "It breathes mid-range flame.",
+  "notes": [
+   "Cooldown: 10 seconds"
+  ]
+ },
+ "pet34": {
+  "en": "Pepper",
+  "unlock": "Unavailable",
+  "gems": null,
+  "food": "Meat, Vegetables, Seafood, Misc",
+  "skill": "Behemoth",
+  "desc": "The pet leaps forward from time to time to create a shockwave.",
+  "notes": [
+   "Cooldown: 7 seconds"
+  ]
+ },
+ "pet35": {
+  "en": "Rosemary Cat",
+  "unlock": "Season reward",
+  "gems": null,
+  "food": "Vegetables",
+  "skill": null,
+  "desc": "After you cast a skill, Rosemary Cat takes a different form and helps you regain energy or armor.",
+  "notes": [
+   "Skeleton form restores 1 armor.",
+   "Ghost form restores 5 energy.",
+   "Cooldown: 3 seconds"
+  ]
+ },
+ "pet36": {
+  "en": "10% Off",
+  "unlock": "Achievement pet",
+  "gems": null,
+  "food": "Mechanical",
+  "skill": "Discount",
+  "desc": "Purchasing any item with coins in the Level Mode returns 10% of the coins spent.",
+  "notes": [
+   "Cooldown: 0 seconds"
+  ]
+ },
+ "pet37": {
+  "en": "Quacky",
+  "unlock": "9,999 Gems",
+  "gems": 9999,
+  "food": "None",
+  "skill": "Formation",
+  "desc": "Quacky and little ducklings line up and charge at the nearest enemy.",
+  "notes": [
+   "Little ducklings spawn inside the room covered by bubbles, they will pop and follow Quacky when it is nearby.",
+   "Each little ducklings cannot be targeted and deals 1 damage each. They will reset after each level but not after clearing each room in that level.",
+   "Cooldown: 0 seconds"
+  ]
+ },
+ "pet38": {
+  "en": "Sacasaca",
+  "unlock": "Event pet",
+  "gems": null,
+  "food": "None",
+  "skill": "Torpedo",
+  "desc": "Sacasaca charges at enemies like a torpedo and ricochets 3 times.",
+  "notes": [
+   "Cooldown: 15 seconds"
+  ]
+ },
+ "pet39": {
+  "en": "Zhaocai",
+  "unlock": "5 Fish Chips",
+  "gems": null,
+  "food": "Seafood",
+  "skill": "Windfall",
+  "desc": "Mark a random enemy. When defeated within the time limit, the marked enemy randomly drops coins.",
+  "notes": [
+   "Cooldown: 30 seconds"
+  ]
+ },
+ "pet40": {
+  "en": "Hammery",
+  "unlock": "Event pet",
+  "gems": null,
+  "food": "None",
+  "skill": "Hammer Hammer!",
+  "desc": "Attacks have a chance to stun enemies.",
+  "notes": [
+   "Cooldown: 5 seconds"
+  ]
+ },
+ "pet41": {
+  "en": "Zongzi Junior",
+  "unlock": "Event pet",
+  "gems": null,
+  "food": "None",
+  "skill": "Wrap It Up!",
+  "desc": "At the start of each game, Zongzi Junior gains a random flavor, each offering him a unique effect (for that particular run).Red Bean Delight: Defense +1, HP +2, size increased by 1 time.Salty Egg Surprise: Each attack launches 1 extra projectiles.Meat Feast: Crit hit rate +25%, attack speed +25%, movement speed +25%.Mushroom Magic: Attacks have a 25% chance to trigger a random elemental effect.",
+  "notes": [
+   "Cooldown: 0 seconds"
+  ]
+ },
+ "pet42": {
+  "en": "Director Pepper",
+  "unlock": "Season reward",
+  "gems": null,
+  "food": "Seafood",
+  "skill": "Inspiration",
+  "desc": "Director Pepper inspires creativity and produces unexpected items during battles.",
+  "notes": [
+   "The items produced can be Carrot, Pill, Retouch-free Camera, Umbrella, poison crates, explosive crates, ice crates, knife crates, 1 energy orb, a bomb (doesn't destroy terrain) and Boar (Mount).",
+   "The items can be produced outside battles and in the lobby.",
+   "Cooldown: 8 seconds"
+  ]
+ },
+ "pet43": {
+  "en": "Glitchy Roachy",
+  "unlock": "Event pet",
+  "gems": null,
+  "food": "Meat, Vegetables, Seafood, Misc, Fertilizer",
+  "skill": "Bugs Be Gone!",
+  "desc": "Pull out a laptop and quickly fix bugs. A successful attempt grants buffs, while a failed one inflicts debuffs.",
+  "notes": [
+   "Cooldown: 25 seconds"
+  ]
+ },
+ "pet45": {
+  "en": "Meower",
+  "unlock": "Event pet",
+  "gems": null,
+  "food": "None",
+  "skill": "Open Fire",
+  "desc": "Gains bonus to attack speed and movement speed, and fire more projectiles.",
+  "notes": [
+   "Cooldown: 60 seconds"
+  ]
+ },
+ "pet46": {
+  "en": "Slimy",
+  "unlock": "Event pet",
+  "gems": null,
+  "food": "None",
+  "skill": "Slime Thrive",
+  "desc": "Expands into a medium-sized slime, attacking enemies within a larger area and burning nearby enemies.",
+  "notes": [
+   "Cooldown: 20 seconds"
+  ]
+ },
+ "pet47": {
+  "en": "Zongzi Bro",
+  "unlock": "Event pet",
+  "gems": null,
+  "food": "None",
+  "skill": "Hail to Salty Zongzi",
+  "desc": "Enters a berserk state, wielding dual AK-47 rifles, gaining a substantial boost to critical hit rate, attack speed, and movement speed.",
+  "notes": [
+   "Cooldown: 40 seconds"
+  ]
+ },
+ "pet48": {
+  "en": "Mahhmot",
+  "unlock": "Community Event pet",
+  "gems": null,
+  "food": "None",
+  "skill": "Ahh!",
+  "desc": "Unleash a wild scream, blasting out a shockwave that damages and knocks back all enemies within its area.",
+  "notes": [
+   "Cooldown: 30 seconds"
+  ]
+ },
+ "pet49": {
+  "en": "Kapikapi",
+  "unlock": "Community Event pet",
+  "gems": null,
+  "food": "None",
+  "skill": "Nap",
+  "desc": "Kapikapi approaches enemies, entering a napping state and taunting nearby enemies in melee range. After taking multiple hits, it enters an enraged state, gaining increased attack speed, movement speed, and critical hit rate.",
+  "notes": [
+   "Cooldown: 30 seconds"
+  ]
+ },
+ "pet50": {
+  "en": "Milktea Monitor Tower",
+  "unlock": "Event pet",
+  "gems": null,
+  "food": "None",
+  "skill": "Laser Show",
+  "desc": "Switch to turret mode every 30s, rotating to fire a sweeping laser.",
+  "notes": [
+   "Cooldown: 30 seconds"
+  ]
+ },
+ "pet51": {
+  "en": "Lil Drillmaster",
+  "unlock": "10 Fish Chips",
+  "gems": null,
+  "food": "None",
+  "skill": null,
+  "desc": "When your armor is depleted, the Little Drillmaster will pull out his worn bazooka and attack nearby enemies for 5s.",
+  "notes": [
+   "Cooldown: 20 seconds"
+  ]
+ },
+ "pet52": {
+  "en": "Toastie",
+  "unlock": "Event pet",
+  "gems": null,
+  "food": "None",
+  "skill": "Burning Out",
+  "desc": "Toastie ignites itself to launch a barrage of snowballs in all directions, draining health over time until depleted. Snowballs have a chance to freeze enemies.",
+  "notes": [
+   "Cooldown: 30 seconds"
+  ]
+ },
+ "pet53": {
+  "en": "Chilly Cube",
+  "unlock": "Event pet",
+  "gems": null,
+  "food": "None",
+  "skill": "Magic Marble Go!",
+  "desc": "Armed with the Marble Blaster, Chilly Cube draws strength from friends to safeguard the Magic Stone.",
+  "notes": [
+   "Cooldown: 40 seconds"
+  ]
+ },
+ "pet54": {
+  "en": "Lai Cai",
+  "unlock": "Event pet",
+  "gems": null,
+  "food": "Meat",
+  "skill": "True Form",
+  "desc": "When facing powerful foes, Lai Cai will briefly awaken its primal powers, revealing its true form.",
+  "notes": [
+   "Cooldown: 40 seconds"
+  ]
+ },
+ "pet55": {
+  "en": "Mecha Chilly",
+  "unlock": "Event pet",
+  "gems": null,
+  "food": "Mechanical",
+  "skill": "Mecha Fusion",
+  "desc": "Chilly merges with the summoned mecha to enter an enhanced form. While active, Chilly's movement speed, damage, and size are significantly increased.",
+  "notes": [
+   "Cooldown: 40 seconds"
+  ]
+ },
+ "pet56": {
+  "en": "Mad Monki",
+  "unlock": "Season Reward",
+  "gems": null,
+  "food": "Vegetables",
+  "skill": "Monkey Business",
+  "desc": "Occasionally takes out the sniper rifle Soul Calibre to attack enemies during combat.",
+  "notes": [
+   "Cooldown: 20 seconds"
+  ]
+ }
+}
