@@ -1,5 +1,5 @@
 /*
- * Xâm Nhập Hư Không độ 1 (games/soulknight/js/void.js, MODES.md mục 2e).
+ * Xâm Nhập Hư Không độ 1-3 (games/soulknight/js/void.js, js/void2.js, MODES.md mục 2e).
  * Chạy: python -m http.server 8811 (ở gốc repo) rồi  node test/soulknight-void.js
  *
  * 1. Vào chế độ bằng SK_GAME.debug.void(): mode 'void', 15 ải, 3 loại Tinh Anh, không Lợi Hại.
@@ -10,6 +10,10 @@
  * 4. Hạ hết quái nhỏ mà khiên còn: bỏ chạy +5 Xu. Đạo Tặc: 100 HP, không khiên, hạ rơi 100 Xu + 1 Mắt, 20 giây thì biến mất.
  * 5. Trùm Hư Không 600/1200/1800 (Hai Lãnh Chúa 450/900/1350); 1-5 chính chết trước thì bỏ chạy +40 Xu; 3-5 chỉ ra sau trùm chính.
  * 6. Qua hết 15 ải ra màn chiến thắng có dòng Xu Ám Tinh đúng.
+ * 7. Độ 2 Hỗn Độn (js/void2.js): nút độ khó khoá/mở theo hồ sơ voidWon; khiên 120/tầng; Rãnh Nứt -2; người chơi +1 sát thương mọi nguồn;
+ *    bể Tinh Anh theo độ; Huyết Vệ (huyết trì 3/giây to dần), Tế Tư (nối quái, cầu đen 9), Cấm Vệ (khiên đỏ, 5/5/5/7); thiên phú 3001-3003.
+ * 8. Độ 3 Hủy Diệt: khiên 160/tầng; Khiên Hư Không người chơi 12 tầng (3004) + hồi tầng + đếm ngược; 3005-3007; Thiền Vệ Trượng/Châu,
+ *    Triệu Hồi Sư, Hộ Pháp, Đao Phủ (4-x); trùm 1000/2000/3000.
  */
 const PW = process.env.PLAYWRIGHT_PATH ||
   'C:/Users/tamph/AppData/Roaming/npm/node_modules/@playwright/cli/node_modules/playwright';
@@ -385,6 +389,526 @@ async function until(p, fn, arg, ms) {
   check('qua đủ 15 ải 1-1..3-5 theo thứ tự rồi ra màn chiến thắng', reached.length === 15 && fin.st === 'victory' && !fin.hidden, reached.join(',') + ' ' + JSON.stringify(fin));
   check('màn kết thúc ghi số Xu Ám Tinh nhận được và số kẻ địch Hư Không đã hạ đúng',
     fin.text.indexOf('Xu Ám Tinh nhận được ' + fin.tot) > 0 && fin.text.indexOf('Hạ ' + fin.kills + ' kẻ địch Hư Không') > 0, fin.text);
+
+
+  // =====================================================================================================
+  // Độ 2 "Hư Không Hỗn Độn" (G.void.tier 2): khiên 120/tầng, Rãnh Nứt -2, Huyết Vệ / Tế Tư / Cấm Vệ, thiên phú 3001-3003.
+  // =====================================================================================================
+  const lob = async (prof) => {
+    await p.evaluate(pr => { localStorage.setItem('sk.profile.v1', JSON.stringify(pr)); }, prof);
+    await p.reload();
+    await p.waitForSelector('#sk-start', { state: 'visible', timeout: 10000 });
+    await p.evaluate(() => SK.lobby.openModes());
+    return p.evaluate(() => {
+      const o = {};
+      for (const b of document.querySelectorAll('#hs-mode-diff button')) o[b.dataset.d] = { dis: b.disabled, sel: b.classList.contains('sel'), t: b.textContent };
+      return o;
+    });
+  };
+  let lb = await lob({ won: { knight: 1 }, gems: 0 });
+  check('nút độ khó: có đủ 3 nút Hư Không (Lần Đầu / Hỗn Độn / Hủy Diệt), chưa vượt độ nào thì chỉ độ 1 mở, setDiff khoá bị từ chối',
+    lb.void && lb.void2 && lb.void3 && !lb.void.dis && lb.void2.dis && lb.void3.dis && /Hỗn Độn/.test(lb.void2.t) && /Hủy Diệt/.test(lb.void3.t) &&
+    await p.evaluate(() => !SK.profile.setDiff('void2') && !SK.profile.setDiff('void3') && SK.profile.voidTier === 1), JSON.stringify(lb));
+  lb = await lob({ won: { knight: 1 }, voidWon: { 1: 1 }, gems: 0 });
+  check('vượt độ 1 thì mở Hỗn Độn, Hủy Diệt vẫn khoá; chọn Hỗn Độn rồi vào ván là G.void.tier 2',
+    !lb.void2.dis && lb.void3.dis && await p.evaluate(async () => {
+      document.querySelector('#hs-mode-diff button[data-d="void2"]').click();
+      const sel = document.querySelector('#hs-mode-diff button.sel').dataset.d, vt = SK.profile.voidTier;
+      document.getElementById('hs-modes').hidden = true; SK.lobby.launch('knight', SK.profile.voidDiff ? 'void' : undefined, []);
+      return sel === 'void2' && vt === 2 && SK.G.mode === 'void' && SK.G.void.tier === 2 && !SK.G.badass;
+    }), JSON.stringify(lb));
+  r = await p.evaluate(() => {
+    SK.emit('runEnd', SK.G, { won: true, stage: '3-5', kills: 1, gold: 0 });
+    return SK.profile.voidWon();
+  });
+  lb = await lob({ won: { knight: 1 }, voidWon: r, gems: 0 });
+  check('thắng một ván độ 2 thì ghi hồ sơ voidWon[2] và mở Hủy Diệt; chọn được, vào ván là tier 3',
+    r['2'] === 1 && !lb.void3.dis && await p.evaluate(() => { document.querySelector('#hs-mode-diff button[data-d="void3"]').click(); return SK.profile.voidTier === 3 && SK.profile.setDiff('void'); }), JSON.stringify([r, lb]));
+
+  const startTier = async (t) => {
+    await p.evaluate(tt => { SK_GAME.debug.seed(7); SK.voidMode.start('knight', tt); }, t);
+    await until(p, () => SK_GAME.state === 'stage' && SK_GAME.phase === 'play', null, 8000);
+    await p.evaluate(() => {
+      SK_GAME.debug.god(true); SK_GAME.debug.pet(false);
+      const G = SK.G;
+      window.T = {
+        log: [], loss: [],
+        mk(kind, off, quiet) {
+          const V = SK.voidMode, pl = G.player, room = G.map.rooms[0];
+          const [x, y] = SK.freeNear([pl.x + (off == null ? 60 : off), pl.y]);
+          const e = SK.makeEnemy(G, V.KINDS[kind].id, x, y, room);
+          e.st = 'idle'; e.stT = 0; e.age = -1e6;
+          if (quiet !== false) e.cd = 1e9;
+          G.enemies.push(e);
+          return e;
+        },
+        hit(e, dmg) { return SK.hurtEnemy(G, e, dmg == null ? 50 : dmg, false, 0, 0); },
+        clear() { G.enemies = []; G.void.keep = {}; G.void.defeated = []; G.void.xu = 0; G.void.eyes = 0; G.void.kills = 0; G.void.fled = 0; G.void.rifts = []; G.void.slowOn = false; G.void.slowT = 0; G.player.moveMul = 1; T.log = []; T.loss = []; },
+        fresh() { const pl = G.player; pl.armor = 0; pl.armorMax = 0; pl.hpMax = pl.hp = 60; pl.invulT = 0; },
+        W(fn, ms) { return new Promise(res => { const t0 = performance.now(); const iv = setInterval(() => { if (fn() || performance.now() - t0 > ms) { clearInterval(iv); res(!!fn()); } }, 25); }); },
+        sleep(ms) { return new Promise(res => setTimeout(res, ms)); }
+      };
+      if (window.__hw) return;
+      window.__hw = 1;
+      const h = SK.hurtPlayer;   // nhật ký sát thương thô (trước +1 của độ 2) của mọi lời gọi
+      SK.hurtPlayer = function (g, d, ...rest) { const q = g.player, b = q.hp + q.armor, r0 = h.call(this, g, d, ...rest); T.log.push(d); T.loss.push(b - (q.hp + q.armor)); return r0; };   // god hồi máu theo khung nên đo mất máu ngay tại lời gọi
+    });
+  };
+  await startTier(2);
+  r = await p.evaluate(() => {
+    const V = SK.voidMode, o = {};
+    o.tier = SK.G.void.tier; o.n = SK.STAGES.length; o.roster = SK.G.void.roster.slice();
+    o.e1 = V.eligible(1).join(','); o.e2 = V.eligible(2).join(','); o.e3 = V.eligible(3).join(','); o.e3f = V.eligible(3, true).join(',');
+    const seen2 = {}, seen1 = {}; let bad2 = 0, bad1 = 0;
+    for (let i = 0; i < 60; i++) {
+      V.pendTier = 2; const r2 = V.init().roster;
+      if (new Set(r2).size !== 3 || r2.some(k => V.eligible(2).indexOf(k) < 0)) bad2++;
+      for (const k of r2) seen2[k] = 1;
+      V.pendTier = 1; const r1 = V.init().roster;
+      if (r1.join(',') !== 'guard,assassin,mage') bad1++;
+    }
+    o.seen2 = Object.keys(seen2).sort().join(','); o.bad2 = bad2; o.bad1 = bad1;
+    return o;
+  });
+  check('độ 2: G.void.tier 2, 15 ải, bể Tinh Anh = 3 loại độ 1 + Huyết Vệ / Tế Tư / Cấm Vệ (độ 1 chỉ 3 loại cũ, độ 3 mới thêm Thiền Vệ / Triệu Hồi Sư / Hộ Pháp)',
+    r.tier === 2 && r.n === 15 && r.e1 === 'guard,assassin,mage' && r.e2 === 'guard,assassin,mage,blood,priest,sentinel' &&
+    r.e3 === 'guard,assassin,mage,blood,priest,sentinel,zentinel,summoner,warden' && /killer/.test(r.e3f) && r.roster.length === 3, JSON.stringify(r));
+  check('60 lần bốc đầu ván: độ 2 luôn 3 loại không trùng thuộc bể độ 2 (đủ cả 3 loại mới từng xuất hiện, không loại độ 3), độ 1 luôn Thủ Vệ/Ảnh Vệ/Linh Vệ',
+    r.bad2 === 0 && r.bad1 === 0 && ['blood', 'priest', 'sentinel'].every(k => r.seen2.indexOf(k) >= 0) && !/zentinel|summoner|warden|killer/.test(r.seen2), JSON.stringify(r));
+
+  // khiên 120 mỗi tầng, máu quái theo độ 2
+  r = await p.evaluate(() => {
+    T.clear(); const o = {};
+    for (const [k, hp] of [['guard', 350], ['assassin', 300], ['mage', 300], ['blood', 350], ['priest', 300], ['sentinel', 350]]) {
+      const e = T.mk(k); o[k] = { hp: e.hp, want: hp, st: e.vs.stacks, sh: e.vs.hp, mx: e.vs.hpMax };
+    }
+    const g = T.mk('guard'); T.hit(g, 50); T.hit(g, 50); o.hit = { sh: g.vs.hp, hp: g.hp };
+    return o;
+  });
+  check('độ 2: 6 loại Tinh Anh đúng máu (Thủ Vệ 350, Ảnh Vệ 300, Linh Vệ 300, Huyết Vệ 350, Tế Tư 300, Cấm Vệ 350), mỗi loại 3 tầng khiên × 120',
+    Object.keys(r).filter(k => k !== 'hit').every(k => r[k].hp === r[k].want && r[k].st === 3 && r[k].sh === 120 && r[k].mx === 120) && r.hit.sh === 118 && r.hit.hp === 350, JSON.stringify(r));
+
+  // Rãnh Nứt -2, +1 sát thương mọi nguồn
+  r = await p.evaluate(async () => {
+    T.clear(); T.fresh(); const o = {}, pl = SK.G.player, V = SK.voidMode;
+    const rift = V.spawnRift(SK.G, pl.x + 200, pl.y, 8);
+    rift.age = 0.6; rift.x = pl.x; rift.y = pl.y;
+    await T.W(() => rift.hits > 0, 1500);
+    o.rift = { loss: T.loss[0], hits: rift.hits, raw: T.log.slice(), dmg: V.riftDmg(SK.G) };
+    T.fresh(); T.log = []; T.loss = [];
+    SK.hurtPlayer(SK.G, 3); o.hit3 = { loss: T.loss[0], raw: T.log.slice() };
+    return o;
+  });
+  check('độ 2: Rãnh Nứt mất đúng 2 máu (gọi sát thương thô 2, không cộng +1), mọi nguồn khác +1 (đòn 3 mất 4)',
+    r.rift.loss === 2 && r.rift.hits === 1 && r.rift.dmg === 2 && r.hit3.loss === 4 && r.hit3.raw.join() === '3', JSON.stringify(r));
+
+  // trùm Hư Không theo độ
+  r = await p.evaluate(() => {
+    const G = SK.G, o = {}, room = G.map.rooms[0];
+    for (const lab of ['1-5', '2-5', '3-5']) {
+      SK_GAME.debug.stage(lab);
+      o[lab] = SK.makeEnemy(G, 'boss_void', 100, 100, room).hpMax;
+      G.mods = G.mods || {}; G.mods.doubleBoss = true;
+      o[lab + 'x'] = SK.makeEnemy(G, 'boss_void', 100, 100, room).hpMax; G.mods.doubleBoss = false;
+    }
+    return o;
+  });
+  check('độ 2: trùm Hư Không 800 / 1600 / 2400 ở 1-5 / 2-5 / 3-5 (3-5 theo wiki 2400); Hai Lãnh Chúa ×0,75 = 600 / 1200 / 1800',
+    r['1-5'] === 800 && r['2-5'] === 1600 && r['3-5'] === 2400 && r['1-5x'] === 600 && r['2-5x'] === 1200 && r['3-5x'] === 1800, JSON.stringify(r));
+  await p.evaluate(() => { SK_GAME.debug.stage('1-1'); SK_GAME.debug.god(true); });
+  await until(p, () => SK_GAME.stage === '1-1' && SK_GAME.phase === 'play', null, 8000);
+
+  // ---- Huyết Vệ
+  r = await p.evaluate(async () => {
+    const G = SK.G, pl = G.player, o = {};
+    T.clear(); T.fresh();
+    let e = T.mk('blood', 60, false); e.cd = 0.1;
+    await T.W(() => e.act === 'wind', 2500);
+    await T.sleep(60);
+    o.wind = { act: e.act, open: e.vs.open, still: !!e.still };
+    const x0 = G.void.xu; T.hit(e, 50);
+    o.brk = { stacks: e.vs.stacks, xu: G.void.xu - x0, st: e.st, leave: !!e.leave };
+    T.clear(); T.fresh();
+    e = T.mk('blood', 40, false); e.cd = 0.1;
+    await T.W(() => e.fx.some(f => f.kind === 'pool' && f.rd >= 30), 5000);
+    const f = e.fx.find(q => q.kind === 'pool');
+    o.pool1 = f ? { rd: f.rd, rt: f.rt } : null;
+    pl.x = e.x + 6; pl.y = e.y;   // đứng trong huyết trì
+    T.log = []; T.loss = []; T.fresh();
+    await T.W(() => T.log.indexOf(3) >= 0, 2500);
+    o.tick = { loss: T.loss[T.log.indexOf(3)], raw: T.log.filter(d => d === 3).length };
+    await T.W(() => e.nAtk >= 2 && f.rd >= 44, 9000);
+    o.pool2 = { rd: f.rd, rt: f.rt, n: e.nAtk, moved: Math.hypot(e.x - f.x, e.y - f.y) };
+    return o;
+  });
+  check('Huyết Vệ: khiên tắt lúc đánh (đứng yên khi đã đánh): trúng lúc đó vỡ 1 tầng +30 Xu và rút lui',
+    r.wind.act === 'wind' && r.wind.open && r.wind.still && r.brk.stacks === 2 && r.brk.xu === 30 && r.brk.st === 'dead' && r.brk.leave, JSON.stringify(r));
+  check('Huyết Vệ: huyết trì đòn 1 bán kính 30, trong vòng mất 3/giây (sát thương thô 3, thực mất 4 vì độ 2 +1); đòn 2 to thành 44; Huyết Vệ không rời chỗ',
+    r.pool1 && r.pool1.rd === 30 && r.tick.loss === 4 && r.tick.raw >= 1 && r.pool2.rd === 44 && r.pool2.n === 2 && r.pool2.moved < 1, JSON.stringify(r));
+
+  // ---- Tế Tư
+  r = await p.evaluate(async () => {
+    const G = SK.G, pl = G.player, o = {};
+    T.clear(); T.fresh();
+    let e = T.mk('priest', 80, true);
+    const t1 = T.mk('thief', 30, true), t2 = T.mk('thief', 110, true);
+    SK.voidMode.priestLink(G, e, [t1, t2]);
+    await T.sleep(120);
+    o.chan = { act: e.act, open: e.vs.open, link: e.fx.some(f => f.kind === 'link') };
+    t1.st = t2.st = 'dead'; t1.hp = t2.hp = 0;
+    await T.W(() => e.st === 'dead', 1500);
+    o.cut = { stacks: e.vs.stacks, xu: G.void.xu, st: e.st, leave: !!e.leave };
+    T.clear(); T.fresh();
+    e = T.mk('priest', 90, true);
+    const t3 = T.mk('thief', 20, true);
+    SK.voidMode.priestLink(G, e, [t3]);
+    await T.W(() => e.fx.some(f => f.kind === 'ball'), 5000);
+    o.ball = e.fx.some(f => f.kind === 'ball');
+    pl.x = e.x - 70; pl.y = e.y; T.log = []; T.loss = [];
+    await T.W(() => T.log.indexOf(9) >= 0, 7000);
+    o.hit9 = T.log.indexOf(9) >= 0;
+    T.clear(); T.fresh();
+    e = T.mk('priest', 90, true);
+    const b = SK.voidMode.ballFx(e); b.spd = 0; e.fx.push(b);
+    await T.W(() => e.vs.stacks < 3, 2500);
+    o.self = { stacks: e.vs.stacks, xu: G.void.xu, leave: !!e.leave };
+    return o;
+  });
+  check('Tế Tư: niệm phép nối quái khiên tắt ngắn; quái bị nối chết hết khi đang niệm thì mất 1 tầng (+30 Xu) và bỏ đi',
+    r.chan.act === 'chan' && r.chan.open && r.chan.link && r.cut.stacks === 2 && r.cut.xu === 30 && r.cut.st === 'dead' && r.cut.leave, JSON.stringify(r));
+  check('Tế Tư: niệm đủ 3 giây thì thả cầu đen, cầu đuổi người chơi gây 9 sát thương; cầu chạm khiên chính nó thì vỡ 1 tầng (+30 Xu)',
+    r.ball && r.hit9 && r.self.stacks === 2 && r.self.xu === 30 && r.self.leave, JSON.stringify(r));
+
+  // ---- Cấm Vệ
+  r = await p.evaluate(async () => {
+    const G = SK.G, pl = G.player, V = SK.voidMode, o = {};
+    T.clear(); T.fresh();
+    let e = T.mk('sentinel', 16, true); pl.x = e.x - 16; pl.y = e.y;
+    V.sentinelCombo(G, e, ['pommel', 'slash']);
+    await T.sleep(100);
+    o.red = e.vs.red;
+    T.hit(e, 50); o.nearHit = e.vs.hp;                    // cận chiến lúc khiên đỏ: ×10
+    const px = pl.x; pl.x -= 100; T.hit(e, 50); o.farHit = e.vs.hp; pl.x = px;   // từ xa: 1
+    await T.W(() => e.act === 'rest', 4000);
+    o.log = T.log.slice();
+    await T.sleep(200);
+    T.hit(e, 50); o.nearRed2 = e.vs.hp;                   // khiên còn đỏ thêm 1 giây sau đòn
+    await T.W(() => !e.vs.red, 3000);
+    const h0 = e.vs.hp; T.hit(e, 50); o.after = { red: e.vs.red, drop: h0 - e.vs.hp };
+    T.clear(); T.fresh();
+    e = T.mk('sentinel', 30, true); pl.x = e.x - 30; pl.y = e.y; T.log = []; T.loss = []; T.loss = [];
+    V.sentinelCombo(G, e, ['lunge']);
+    await T.W(() => e.act === 'rest', 3000);
+    o.lunge = T.log.slice();
+    return o;
+  });
+  check('Cấm Vệ: đòn pommel+slash gây 5 / 5 / 5 / 7 (chuôi, chém lên, chém xuống, sóng xung kích); lao kiếm gây 5',
+    r.log.join() === '5,5,5,7' && r.lunge.join() === '5', JSON.stringify(r));
+  check('Cấm Vệ: khiên đỏ khi đánh, cận chiến lúc đỏ trừ 10 khiên-HP (120 -> 110), từ xa 1, hết đỏ thì cận chiến chỉ còn 1',
+    r.red && r.nearHit === 110 && r.farHit === 109 && r.after.red === false && r.after.drop === 1, JSON.stringify(r));
+
+  // ---- thiên phú 3001-3003
+  r = await p.evaluate(async () => {
+    const G = SK.G, pl = G.player, V = SK.voidMode, R = SK_ROOMS, o = {};
+    pl.buffs = (pl.buffs || []).filter(x => x < 3000);
+    T.clear(); T.fresh();
+    const bare = fn => { const w = pl.weapons[pl.cur]; pl.weapons[pl.cur] = null; try { return fn(); } finally { pl.weapons[pl.cur] = w; } };
+    let e = T.mk('guard', 200); bare(() => T.hit(e, 50)); o.bare0 = e.vs.hp;
+    o.take = [R.takeBuff(3001), R.takeBuff(3002), R.takeBuff(3003)];
+    e = T.mk('guard', 200); bare(() => T.hit(e, 50)); o.bare1 = e.vs.hp;       // tay không + 3001: 2
+    e = T.mk('guard', 200); T.hit(e, 50); o.armed1 = e.vs.hp;                   // có vũ khí: vẫn 1
+    e = T.mk('sentinel', 16, true); pl.x = e.x - 16; pl.y = e.y; V.sentinelCombo(G, e, ['pommel']); await T.sleep(100);
+    bare(() => T.hit(e, 50)); o.red3001 = e.vs.hp;                               // tay không + 3001 + khiên đỏ: 20
+    // 3002: miễn Rãnh Nứt
+    T.clear(); T.fresh();
+    const rift = V.spawnRift(G, pl.x, pl.y, 6); rift.age = 0.6;
+    await T.sleep(400);
+    o.rift = { loss: T.log.length, hits: rift.hits };
+    // 3003: hạ hết quái nhỏ mà Tinh Anh không bỏ chạy
+    T.clear(); T.fresh();
+    e = T.mk('guard', 200); e.age = 5; await T.sleep(300);
+    o.stay = { st: e.st, stacks: e.vs.stacks, xu: G.void.xu, leave: !!e.leave };
+    pl.buffs = pl.buffs.filter(x => x !== 3003);
+    T.clear(); e = T.mk('guard', 200); e.age = 5; await T.sleep(300);
+    o.flee = { st: e.st, leave: !!e.leave, xu: G.void.xu };
+    // Thương Nhân Hư Không độ 2 bốc thêm một thiên phú riêng chưa có
+    pl.buffs = pl.buffs.filter(x => x < 3000);
+    const ids = V.offerIds(G);
+    o.offer = { n: ids.length, ex: ids.filter(i => i >= 3001 && i <= 3003).length, uniq: new Set(ids).size === ids.length };
+    return o;
+  });
+  check('Tay Hư Không 3001: tay không lên khiên 1 -> 2 (118), có vũ khí vẫn 1; tay không lên khiên đỏ 20 (120 -> 100)',
+    r.take[0] && r.bare0 === 119 && r.bare1 === 118 && r.armed1 === 119 && r.red3001 === 100, JSON.stringify(r));
+  check('Thể Chất Hư Không 3002: bước vào Rãnh Nứt không mất máu (chạm rãnh 0 lần mất máu)', r.take[1] && r.rift.loss === 0, JSON.stringify(r.rift));
+  check('Lệnh Truy Sát 3003: hạ hết quái nhỏ mà Tinh Anh không bỏ chạy; không có 3003 thì bỏ chạy (+5 Xu)',
+    r.take[2] && r.stay.st !== 'dead' && r.stay.stacks === 3 && r.stay.xu === 0 && r.flee.st === 'dead' && r.flee.leave && r.flee.xu === 5, JSON.stringify([r.stay, r.flee]));
+  check('Thương Nhân Hư Không độ 2: bộ 3 thẻ có đúng 1 thiên phú riêng (3001-3003) chưa sở hữu, không trùng', r.offer.n === 3 && r.offer.ex === 1 && r.offer.uniq, JSON.stringify(r.offer));
+
+
+  // ---- bốc quái vào phòng theo độ: mọi loại hợp lệ xuất hiện đúng độ (độ 2 không có loại độ 3, độ 3 không có Đao Phủ ngoài ải 4-x)
+  r = await p.evaluate(() => {
+    const G = SK.G, V = SK.voidMode, o = {};
+    const battle = () => G.map.rooms.find(x => x.type === 'battle');
+    const ids = Object.values(V.KINDS).map(k => k.id);
+    SK_GAME.debug.stage('1-2');
+    const scan = (roster, n) => {
+      G.void.roster = roster.slice(); G.void.defeated = []; G.void.thiefSeen = true;
+      const found = {};
+      for (let i = 0; i < n; i++) for (const w of G.buildWaves(battle())) for (const id of w) if (ids.indexOf(id) >= 0 && id !== 'boss_void') found[id] = (found[id] || 0) + 1;
+      return Object.keys(found).sort().join(',');
+    };
+    o.t2 = scan(V.eligible(2), 400);
+    return o;
+  });
+  check('độ 2: phòng quái chỉ bốc Thủ Vệ / Ảnh Vệ / Linh Vệ / Huyết Vệ / Tế Tư / Cấm Vệ (đủ 6 loại, không loại độ 3)',
+    r.t2 === 'e_void_assassin,e_void_blood,e_void_guard,e_void_imperial,e_void_mage,e_void_priest', JSON.stringify(r));
+
+  // =====================================================================================================
+  // Độ 3 "Hư Không Hủy Diệt" (G.void.tier 3): khiên 160/tầng, Khiên Hư Không 12 tầng của người chơi, Thiền Vệ / Triệu Hồi Sư / Hộ Pháp / Đao Phủ,
+  // thiên phú 3004-3007.
+  // =====================================================================================================
+  await startTier(3);
+  r = await p.evaluate(() => {
+    const G = SK.G, V = SK.voidMode, pl = G.player, o = {};
+    o.tier = G.void.tier; o.buffs = pl.buffs.filter(x => x > 3000); o.vsh = pl.vsh && [pl.vsh.stacks, pl.vsh.max];
+    o.slots = SK_ROOMS.buffSlots();
+    const seen = {}; let bad = 0;
+    for (let i = 0; i < 80; i++) { V.pendTier = 3; const r3 = V.init().roster; if (new Set(r3).size !== 3 || r3.some(k => V.eligible(3).indexOf(k) < 0)) bad++; for (const k of r3) seen[k] = 1; }
+    o.seen = Object.keys(seen).sort().join(','); o.bad = bad;
+    const battle = G.map.rooms.find(x => x.type === 'battle');
+    const ids = Object.values(V.KINDS).map(k => k.id);
+    SK_GAME.debug.stage('1-2');
+    G.void.roster = V.eligible(3).slice(); G.void.defeated = []; G.void.thiefSeen = true;
+    const found = {}, pair = { n: 0, both: 0 };
+    for (let i = 0; i < 500; i++) for (const w of G.buildWaves(G.map.rooms.find(x => x.type === 'battle'))) {
+      for (const id of w) if (ids.indexOf(id) >= 0 && id !== 'boss_void') found[id] = (found[id] || 0) + 1;
+      if (w.indexOf('e_void_staffmonk') >= 0 || w.indexOf('e_void_beadsmonk') >= 0) { pair.n++; if (w.indexOf('e_void_staffmonk') >= 0 && w.indexOf('e_void_beadsmonk') >= 0) pair.both++; }
+    }
+    o.found = Object.keys(found).sort().join(','); o.pair = pair;
+    return o;
+  });
+  check('độ 3: G.void.tier 3, người chơi vào ván có Khiên Hư Không 12/12 (3004) và Lệnh Truy Sát (3003), hai thiên phú đó không chiếm ô',
+    r.tier === 3 && r.buffs.indexOf(3004) >= 0 && r.buffs.indexOf(3003) >= 0 && r.vsh[0] === 12 && r.vsh[1] === 12 && r.slots === 9, JSON.stringify(r));
+  check('độ 3: 80 lần bốc đầu ván luôn 3 loại không trùng thuộc bể độ 3 (đủ Thiền Vệ / Triệu Hồi Sư / Hộ Pháp từng xuất hiện, không bao giờ Đao Phủ); phòng quái bốc đủ 9 loại độ 3 (hai Thiền Vệ luôn đi cặp)',
+    r.bad === 0 && /zentinel/.test(r.seen) && /summoner/.test(r.seen) && /warden/.test(r.seen) && !/killer/.test(r.seen) &&
+    r.found === 'e_void_assassin,e_void_beadsmonk,e_void_blood,e_void_guard,e_void_imperial,e_void_mage,e_void_priest,e_void_staffmonk,e_void_summoner,e_void_sentinel'.split(',').sort().join(',') && r.pair.n > 0 && r.pair.both === r.pair.n, JSON.stringify(r));
+
+  r = await p.evaluate(() => {
+    T.clear(); const o = {};
+    for (const [k, hp] of [['guard', 350], ['assassin', 300], ['mage', 300], ['blood', 350], ['priest', 300], ['sentinel', 350], ['staff', 300], ['bead', 300], ['summoner', 300], ['warden', 300], ['killer', 300]]) {
+      const e = T.mk(k); o[k] = { hp: e.hp, want: hp, st: e.vs.stacks, sh: e.vs.hp, mx: e.vs.hpMax };
+    }
+    const g = T.mk('guard'); T.hit(g, 50); T.hit(g, 50); o.hit = { sh: g.vs.hp, hp: g.hp };
+    const G = SK.G, room = G.map.rooms[0];
+    for (const lab of ['1-5', '2-5', '3-5']) {
+      SK_GAME.debug.stage(lab);
+      o[lab] = SK.makeEnemy(G, 'boss_void', 100, 100, room).hpMax;
+      G.mods.doubleBoss = true; o[lab + 'x'] = SK.makeEnemy(G, 'boss_void', 100, 100, room).hpMax; G.mods.doubleBoss = false;
+    }
+    return o;
+  });
+  check('độ 3: 11 loại Tinh Anh đúng máu, mỗi loại 3 tầng khiên × 160 (đòn 50 chỉ trừ 1: 160 -> 158)',
+    Object.keys(r).filter(k => /^[a-z]+$/.test(k) && k !== 'hit').every(k => r[k].hp === r[k].want && r[k].st === 3 && r[k].sh === 160 && r[k].mx === 160) && r.hit.sh === 158 && r.hit.hp === 350, JSON.stringify(r));
+  check('độ 3: trùm Hư Không 1000 / 2000 / 3000 (3-5 theo wiki 3000); Hai Lãnh Chúa ×0,75 = 750 / 1500 / 2250',
+    r['1-5'] === 1000 && r['2-5'] === 2000 && r['3-5'] === 3000 && r['1-5x'] === 750 && r['2-5x'] === 1500 && r['3-5x'] === 2250, JSON.stringify(r));
+  await p.evaluate(() => { SK_GAME.debug.stage('1-1'); SK_GAME.debug.god(true); });
+  await until(p, () => SK_GAME.stage === '1-1' && SK_GAME.phase === 'play', null, 8000);
+
+  // ---- Khiên Hư Không của người chơi (3004), 3005, 3006
+  r = await p.evaluate(async () => {
+    const G = SK.G, pl = G.player, V = SK.voidMode, R = SK_ROOMS, o = {};
+    T.clear(); T.fresh();
+    pl.vsh.stacks = 12; pl.vsh.cd = null;
+    const hp0 = pl.hp, a = SK.hurtPlayer(G, 7);
+    o.hit = { ok: a, stacks: pl.vsh.stacks, hp: pl.hp, inv: pl.invulT };
+    const b = SK.hurtPlayer(G, 7);
+    o.hit2 = { stacks: pl.vsh.stacks };                    // đang bất tử: không trừ thêm
+    pl.invulT = 0; pl.vsh.stacks = 12;
+    // hồi tầng
+    pl.vsh.stacks = 5; SK.emit('pickup', G, 'hp_pot'); o.pot = pl.vsh.stacks;
+    SK.emit('pickup', G, 'hp_pot_big'); o.big = pl.vsh.stacks;
+    let e = T.mk('guard', 200); e.vs.hp = 1; pl.vsh.stacks = 4; T.hit(e, 50); o.breakGain = pl.vsh.stacks;    // phá khiên Tinh Anh +3
+    pl.vsh.stacks = 10; e = T.mk('guard', 200); e.vs.hp = 1; T.hit(e, 50); o.cap = pl.vsh.stacks;          // trần 12
+    pl.vsh.stacks = 5; SK_GAME.debug.stage('1-2'); o.stage = pl.vsh.stacks;                                  // vào ải kế +1
+    return o;
+  });
+  await until(p, () => SK_GAME.stage === '1-2' && SK_GAME.phase === 'play', null, 8000);
+  check('Khiên Hư Không 3004: đòn 7 sát thương chỉ trừ 1 tầng (12 -> 11), không mất máu; trong khung bất tử không trừ thêm',
+    r.hit.ok === true && r.hit.stacks === 11 && r.hit.hp === 60 && r.hit.inv > 0.7 && r.hit.inv < 0.9 && r.hit2.stacks === 11, JSON.stringify(r));
+  check('Khiên Hư Không 3004 hồi tầng: Bình HP +1, bình lớn +2, phá khiên Tinh Anh +3 (4 -> 7), trần 12, vào ải kế +1 (5 -> 6)',
+    r.pot === 6 && r.big === 8 && r.breakGain === 7 && r.cap === 12 && r.stage === 6, JSON.stringify(r));
+  r = await p.evaluate(async () => {
+    const G = SK.G, pl = G.player, V = SK.voidMode, R = SK_ROOMS, o = {};
+    T.clear(); T.fresh();
+    // 3005: bất tử sau khi trúng đòn dài thêm 1 giây
+    pl.vsh.stacks = 6; pl.invulT = 0; SK.hurtPlayer(G, 3); o.inv0 = pl.invulT;
+    o.take5 = R.takeBuff(3005); pl.invulT = 0; SK.hurtPlayer(G, 3); o.inv5 = pl.invulT;
+    // 3006: hồi 3 tầng ngay, mỗi lần tương tác Nhân Vật hỗ trợ +1 (một lần mỗi NPC mỗi ải)
+    pl.vsh.stacks = 5; o.take6 = R.takeBuff(3006); o.now = pl.vsh.stacks;
+    V.placeMerchant(G, pl.x + 4, pl.y); const it = G.interactables[G.interactables.length - 1];
+    G.void.xu = 0; it.use(); o.sup1 = pl.vsh.stacks; it.use(); o.sup2 = pl.vsh.stacks;
+    // hết khiên: đếm ngược Hủy Diệt, hồi lại thì dừng
+    pl.invulT = 0; pl.vsh.stacks = 1; pl.vsh.cd = null; SK.hurtPlayer(G, 2);
+    o.zero = { stacks: pl.vsh.stacks, cd: pl.vsh.cd };
+    pl.invulT = 0; const hp1 = pl.hp; SK.hurtPlayer(G, 2); o.noShield = pl.hp < hp1;   // hết khiên thì mất máu thật
+    V.vshGain(G, 1); o.stop = pl.vsh.cd;
+    return o;
+  });
+  check('Hư Không Che Chở 3005: bất tử sau khi trúng đòn 0,8 giây -> 1,8 giây (dài thêm 1 giây)', r.inv0 > 0.7 && r.inv0 < 0.9 && r.take5 && r.inv5 > 1.7 && r.inv5 < 1.9, JSON.stringify(r));
+  check('Hư Không Cộng Tế 3006: nhận thì hồi ngay 3 tầng (5 -> 8); tương tác NPC hỗ trợ +1 một lần mỗi NPC mỗi ải (8 -> 9 -> 9)', r.take6 && r.now === 8 && r.sup1 === 9 && r.sup2 === 9, JSON.stringify(r));
+  check('hết Khiên Hư Không: stacks 0, bắt đầu đếm ngược Hủy Diệt 10 giây, hết khiên thì mất máu thật, hồi tầng lại thì đếm ngược dừng',
+    r.zero.stacks === 0 && r.zero.cd === 10 && r.noShield && r.stop === null, JSON.stringify(r));
+
+  // Rãnh Nứt độ 3 và Tàn Tượng 3007
+  r = await p.evaluate(async () => {
+    const G = SK.G, pl = G.player, V = SK.voidMode, R = SK_ROOMS, o = {};
+    T.clear(); T.fresh(); pl.vsh.stacks = 8; pl.vsh.cd = null; pl.invulT = 0;
+    const rift = V.spawnRift(G, pl.x, pl.y, 6); rift.age = 0.6;
+    await T.W(() => rift.hits > 0, 1500);
+    o.rift = { raw: T.log.slice(), stacks: pl.vsh.stacks, hp: pl.hp };
+    // 3007
+    T.clear(); T.fresh(); pl.vsh.stacks = 8; pl.invulT = 0;
+    const th = T.mk('thief', 40, true); th.life = 1e6;
+    o.take = R.takeBuff(3007);
+    SK.emit('skill', G, pl);
+    o.cast = { hidden: !!pl.hidden, inv: pl.invulT, img: !!G.void.afterimage, cd: pl.vsh.imgCd };
+    await T.W(() => G.void.afterimage && G.void.afterimage.hits >= 2, 3000);
+    const im = G.void.afterimage;
+    o.hits = { n: im.hits, dmg: im.dmg, hp: th.hp, want: 100 - im.hits * im.dmg };
+    SK.emit('skill', G, pl); o.second = G.void.afterimage === im;            // còn hồi chiêu: không tạo thêm
+    await T.sleep(1800); o.back = { hidden: !!pl.hidden };
+    pl.vsh.stacks = 0; pl.vsh.imgCd = 0; const im0 = G.void.afterimage; SK.emit('skill', G, pl); o.noShield = G.void.afterimage === im0;   // hết khiên: không có Tàn Tượng
+    pl.vsh.stacks = 8;
+    return o;
+  });
+  check('độ 3: Rãnh Nứt gọi sát thương 2 nhưng có Khiên Hư Không thì chỉ trừ 1 tầng (8 -> 7), không mất máu', r.rift.raw.join() === '2' && r.rift.stacks === 7 && r.rift.hp === 60, JSON.stringify(r.rift));
+  check('Tàn Tượng Hư Không 3007: dùng kỹ năng thì tàng hình + bất tử ≥ 1,5 giây, Tàn Tượng đánh quái bằng vũ khí (≥ 2 phát, máu quái giảm đúng tổng); chưa hết hồi chiêu / hết khiên thì không tạo thêm, tàng hình hết sau 1,5 giây',
+    r.take && r.cast.hidden && r.cast.inv >= 1.4 && r.cast.img && r.cast.cd === 15 && r.hits.n >= 2 && r.hits.hp === r.hits.want && r.second && !r.back.hidden && r.noShield, JSON.stringify(r));
+
+  // ---- Thiền Vệ Trượng + Châu
+  r = await p.evaluate(async () => {
+    const G = SK.G, pl = G.player, V = SK.voidMode, o = {};
+    T.clear(); T.fresh(); pl.vsh.stacks = 12;
+    pl.x -= 250;
+    const bead = T.mk('bead', 300, false); bead.cd = 0.05;
+    const staff = T.mk('staff', 300 + 40 * Math.cos(Math.PI / 8), true); staff.y = bead.y + 40 * Math.sin(Math.PI / 8);
+    await T.W(() => bead.fx.filter(f => f.kind === 'bead').length === 8, 3000);
+    o.beads = bead.fx.filter(f => f.kind === 'bead').length;
+    await T.W(() => staff.vs.open, 2500);
+    o.open = { open: staff.vs.open, t: +staff.vs.openT.toFixed(1) };
+    T.hit(staff, 50); o.brk = { stacks: staff.vs.stacks, st: staff.st };
+    // thường: không tự mở
+    T.clear(); T.fresh();
+    const s2 = T.mk('staff', 300, true), b2 = T.mk('bead', 330, true);
+    o.shut = [s2.vs.open, b2.vs.open]; T.hit(s2, 50); T.hit(b2, 50); o.shutHp = [s2.vs.hp, b2.vs.hp, s2.hp, b2.hp];
+    // Trượng nhảy đập xuống chỗ Châu thì khiên Châu tắt, rồi trúng Châu thì vỡ
+    s2.cd = 0.05; s2.n = 1; pl.x = b2.x + 6; pl.y = b2.y;          // lượt đánh kế của Trượng là nhảy đập xuống chỗ người chơi (cạnh Châu)
+    await T.W(() => s2.vs.red, 2500);
+    o.red = !!s2.vs.red;
+    await T.W(() => b2.vs.open, 2500);
+    o.quake = { open: b2.vs.open, red: o.red }; T.hit(b2, 50); o.brk2 = { stacks: b2.vs.stacks, st: b2.st };
+    return o;
+  });
+  check('Thiền Vệ Châu phóng 8 châu theo 8 hướng; châu trúng Trượng thì khiên Trượng tắt 2,5 giây, trúng lúc đó vỡ 1 tầng (+rút lui)',
+    r.beads === 8 && r.open.open && r.open.t > 1 && r.brk.stacks === 2 && r.brk.st === 'dead', JSON.stringify(r));
+  check('Thiền Vệ: hai người không tự mở khiên (đòn thường chỉ 1: 160 -> 159); đòn đập đất của Trượng làm khiên Châu tắt, khiên Trượng đỏ khi đánh',
+    r.shut[0] === false && r.shut[1] === false && r.shutHp.join() === '159,159,300,300' && r.quake.open && r.quake.red && r.brk2.stacks === 2 && r.brk2.st === 'dead', JSON.stringify(r));
+
+  // ---- Triệu Hồi Sư
+  r = await p.evaluate(async () => {
+    const G = SK.G, pl = G.player, V = SK.voidMode, o = {};
+    T.clear(); T.fresh(); pl.vsh.stacks = 12; pl.x -= 250; pl.moveMul = 1;
+    const e = T.mk('summoner', 280, false); e.cd = 0.05;
+    const gr = () => G.enemies.filter(x => x.grasp && x.owner === e && x.st !== 'dead');
+    await T.W(() => gr().length === 3, 3500);
+    o.grasps = { n: gr().length, hp: gr().map(x => x.hp).join(), sh: gr().some(x => x.vs) };
+    await T.W(() => e.fx.filter(f => f.kind === 'slowpool').length === 3, 6000);
+    o.pools = e.fx.filter(f => f.kind === 'slowpool').length;
+    // ném Bàn Tay về chủ
+    e.cd = 1e9; e.act = null;
+    const g0 = gr()[0]; G.void.xu = 0;
+    SK.hurtEnemy(G, g0, 5, false, 0, 0);
+    o.thrown = !!g0.thrown;
+    await T.W(() => e.vs.open, 3000);
+    o.open = { open: e.vs.open, t: +e.vs.openT.toFixed(1) };
+    T.hit(e, 50); o.brk = { stacks: e.vs.stacks, st: e.st, xu: G.void.xu };
+    return o;
+  });
+  check('Triệu Hồi Sư: gọi 3 Bàn Tay 12 máu (không khiên), ném nốt đạn tạo 3 vũng chậm; đánh trúng Bàn Tay thì nó bị ném về chủ, khiên chủ tắt ~3 giây, trúng lúc đó vỡ 1 tầng (+30 Xu)',
+    r.grasps.n === 3 && r.grasps.hp === '12,12,12' && !r.grasps.sh && r.pools === 3 && r.thrown && r.open.open && r.open.t > 1.5 && r.brk.stacks === 2 && r.brk.st === 'dead' && r.brk.xu === 30, JSON.stringify(r));
+  r = await p.evaluate(async () => {
+    const G = SK.G, pl = G.player, V = SK.voidMode, o = {};
+    T.clear(); T.fresh(); pl.vsh.stacks = 12; pl.invulT = 0; pl.moveMul = 1; G.void.slowOn = false; G.void.slowT = 0;
+    const e = T.mk('summoner', 200, true); e.vs.stacks = 3;
+    const c = V.spawnGrasp(G, e, pl.x + 2, pl.y);
+    await T.W(() => T.log.length > 0, 1500);
+    await T.sleep(80);
+    o.touch = { raw: T.log.slice(), mm: pl.moveMul, stacks: pl.vsh.stacks };
+    c.thrown = true;
+    await T.W(() => pl.moveMul === 1, 2500);
+    o.back = pl.moveMul;
+    return o;
+  });
+  check('Bàn Tay Hư Không chạm người: sát thương 2 và làm chậm (tốc ×0,5) ~1,2 giây rồi trả lại 1', r.touch.raw.join() === '2' && r.touch.mm === 0.5 && r.back === 1, JSON.stringify(r));
+
+  // ---- Hộ Pháp
+  r = await p.evaluate(async () => {
+    const G = SK.G, pl = G.player, V = SK.voidMode, o = {};
+    T.clear(); T.fresh(); pl.vsh.stacks = 12; pl.skillCd = 0; pl.skillT = 0; pl.x -= 250;   // Hộ Pháp ở xa để vũ khí tự động của người chơi không đánh trúng
+    const e = T.mk('warden', 200, true);
+    SK.emit('skill', G, pl);
+    o.c1 = { orbs: e.orbs, openT: e.vs.openT, circles: G.void.circles.length, at: [Math.round(G.void.circles[0].x - pl.x), Math.round(G.void.circles[0].y - pl.y)] };
+    pl.skillT = 5; pl.skillCd = 0;
+    await T.W(() => !(pl.skillT > 0), 2500);
+    o.cut = { skillT: pl.skillT, cd: pl.skillCd };
+    SK.emit('skill', G, pl); SK.emit('skill', G, pl); o.c3 = { orbs: e.orbs, circles: G.void.circles.length };
+    await T.sleep(60);
+    T.hit(e, 50); o.hitOpen = { stacks: e.vs.stacks };                                   // vừa mở vòng: khiên tắt, trúng thì vỡ
+    SK.emit('skill', G, pl); o.c4 = { orbs: e.orbs, circles: G.void.circles.length };   // hết cầu
+    pl.skillCd = 0; await T.sleep(800); o.locked = pl.skillCd > 0;                       // trong vòng cấm không dùng được kỹ năng
+    pl.x += 200; pl.skillCd = 0; await T.sleep(200); o.free = pl.skillCd === 0;
+    return o;
+  });
+  check('Hộ Pháp: mỗi lần dùng kỹ năng bay 1 trong 3 pháp cầu tới chỗ người chơi mở vòng cấm, khiên Hộ Pháp tắt 1,5 giây (trúng lúc đó vỡ 1 tầng); hết cầu thì không mở vòng nữa',
+    r.c1.orbs === 2 && r.c1.openT === 1.5 && r.c1.circles === 1 && r.c1.at.join() === '0,0' && r.c3.orbs === 0 && r.c3.circles === 3 && r.c4.circles === 3 && r.hitOpen.stacks === 2, JSON.stringify(r));
+  check('Hộ Pháp: trong vòng cấm kỹ năng đang chạy bị cắt ngay và không dùng được kỹ năng; ra khỏi vòng thì dùng lại được', r.cut.skillT <= 0 && r.locked && r.free, JSON.stringify(r));
+
+  // ---- Đao Phủ (chỉ ải 4-x: web chưa có tầng 4 trong chế độ này nên kiểm bằng cách dựng thẳng)
+  r = await p.evaluate(async () => {
+    const G = SK.G, pl = G.player, V = SK.voidMode, o = {};
+    o.elig = V.eligible(3).indexOf('killer') < 0 && V.eligible(3, true).indexOf('killer') >= 0;
+    T.clear(); T.fresh(); pl.vsh.stacks = 12;
+    const e = T.mk('killer', 120, false); e.cd = 0.05;
+    await T.W(() => e.act === 'mark' && e.hidden, 2000);
+    o.mark = { hidden: !!e.hidden, mk: e.fx.some(f => f.kind === 'mark'), hurt: SK.hurtEnemy(G, e, 50, false, 0, 0) };
+    await T.W(() => e.daggers && e.daggers.length === 3, 3000);
+    o.dag = { n: e.daggers.length, hidden: !!e.hidden };
+    T.log = []; T.loss = [];
+    pl.x = e.daggers[0].x; pl.y = e.daggers[0].y;
+    await T.W(() => e.di >= 1, 3000);
+    await T.sleep(50);
+    o.pick = { di: e.di, strike: T.log.indexOf(4) >= 0, open: e.vs.open };
+    await T.W(() => e.act === 'throw' || e.act === 'rest', 6000);
+    o.after = e.act;
+    e.life = 0.05; await T.sleep(300); o.gone = { st: e.st, leave: !!e.leave };
+    return o;
+  });
+  check('Đao Phủ (4-x): chỉ vào bể khi có ải 4; hiện dấu săn trước và ẩn không đánh được; rải 3 dao găm, nhặt dao thì xoay chém 4 sát thương và khiên tắt, nhặt hết thì ném dao; hết 40 giây thì biến mất',
+    r.elig && r.mark.hidden && r.mark.mk && r.mark.hurt === false && r.dag.n === 3 && !r.dag.hidden && r.pick.di >= 1 && r.pick.strike && (r.after === 'throw' || r.after === 'rest') && r.gone.st === 'dead' && r.gone.leave, JSON.stringify(r));
+
+  // ---- Thương Nhân độ 3 mời thiên phú riêng; hết khiên đếm ngược thì chết bất kể bất tử
+  r = await p.evaluate(async () => {
+    const G = SK.G, pl = G.player, V = SK.voidMode, o = {};
+    const ids = V.offerIds(G);
+    o.offer = { n: ids.length, ex: ids.filter(i => i >= 3001 && i <= 3007).filter(i => V.EXCLUSIVE[3].indexOf(i) >= 0 && !V.has(G, i)).length };
+    T.clear(); T.fresh(); G.player.invulT = 0;
+    pl.vsh.stacks = 0; pl.vsh.cd = 0.4; pl.god = true;
+    await T.W(() => pl.st === 'dead', 2000);
+    o.dead = { st: pl.st, hp: pl.hp, cd: pl.vsh.cd };
+    return o;
+  });
+  check('Thương Nhân Hư Không độ 3: bộ 3 thẻ có 1 thiên phú riêng chưa sở hữu (3001/3002/3005/3006/3007)', r.offer.n === 3 && r.offer.ex === 1, JSON.stringify(r.offer));
+  check('đếm ngược Hủy Diệt về 0 thì người chơi ngã xuống dù bật bất tử', r.dead.st === 'dead' && r.dead.hp === 0, JSON.stringify(r.dead));
 
   check('không lỗi JS trong trang', errs.length === 0, errs.slice(0, 3).join(' | '));
 

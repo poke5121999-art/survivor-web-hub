@@ -20,9 +20,11 @@
   const SK = window.SK, G = SK.G;
   const K = SK.BOSS_KIT;
   const C = {
-    tier: 1, shieldHp: 80, stacks: 3, dmgToShield: 1,
+    tier: 1, shieldHp: 80, shieldHps: { 1: 80, 2: 120, 3: 160 }, stacks: 3, dmgToShield: 1,   // 80/120/160 mỗi tầng theo độ [WIKI VI "Void Enemies"]
     xuFlee: 5, xuShatter: 30, xuKill: 50, xuThief: 100, xuBossFlee: 40, xuBossKill: 120, xuFinal: 200,   // xuFinal: wiki chỉ ghi "nhiều" [ƯỚC LƯỢNG]
-    bossHp: { 1: 600, 2: 1200, 3: 1800 }, doubleLord: 0.75, thiefLife: 20, cloneHp: 30,
+    bossHp: { 1: 600, 2: 1200, 3: 1800 }, bossTierMul: { 1: 1, 2: 4 / 3, 3: 5 / 3 },   // 3-5: 1800/2400/3000 [WIKI Void]; hệ số này áp cho 1-5/2-5 ở độ 2-3 [ƯỚC LƯỢNG]
+    meleeR: 42, redMul: 10, bareBonus: 1,   // khiên đỏ: đòn cận chiến gấp 10 [WIKI VI Sentinel]; cận chiến = người chơi cách quái <42 px [ƯỚC LƯỢNG]
+    doubleLord: 0.75, thiefLife: 20, cloneHp: 30,
     riftDmg: 1, riftR: 13, riftLife: 6, riftEvery: [5, 9], riftMax: 2,   // [ƯỚC LƯỢNG] nhịp và tuổi Rãnh Nứt
     merchantXu: 30, bank: { goldToXu: [55, 25], xuToGold: [25, 50], eyeToGold: [1, 100], goldToEye: [110, 1], xuToEye: [55, 1], eyeToXu: [1, 50] },
     collectorEye: 1, collectorSlots: 3,
@@ -30,22 +32,29 @@
   };
   // id config, máu [WIKI VI]; hình hộp trúng lấy từ prefab
   const KINDS = {
-    guard: { id: 'e_void_guard', hp: 250, name: 'Hư Không Thủ Vệ' },
-    assassin: { id: 'e_void_assassin', hp: 200, name: 'Hư Không Ảnh Vệ' },
-    mage: { id: 'e_void_mage', hp: 200, name: 'Hư Không Linh Vệ' },
+    guard: { id: 'e_void_guard', hp: [250, 350], name: 'Hư Không Thủ Vệ' },   // máu theo độ 1/2/3 [WIKI VI]; mảng ngắn hơn 3 thì giữ số cuối
+    assassin: { id: 'e_void_assassin', hp: [200, 300], name: 'Hư Không Ảnh Vệ' },   // độ 3 wiki ghi "???": giữ 300 [ƯỚC LƯỢNG]
+    mage: { id: 'e_void_mage', hp: [200, 300], name: 'Hư Không Linh Vệ' },
     thief: { id: 'e_void_thief', hp: 100, name: 'Hư Không Đạo Tặc' },
     voidboss: { id: 'boss_void', hp: 600, name: 'Hư Không' }
   };
-  const ELITES = ['guard', 'assassin', 'mage'];
-  const V = SK.voidMode = { C, KINDS };
+  const ELITES = ['guard', 'assassin', 'mage'];   // danh sách Tinh Anh độ 1; độ 2-3 thêm loại mới ở js/void2.js
+  const V = SK.voidMode = { C, KINDS, ELITES, pendTier: 0 };
+  const hpOf = (K0, t) => { const a = [].concat(K0.hp); return a[Math.min(t || 1, a.length) - 1]; };
+  V.hpOf = hpOf;
+  V.members = k => (V.GROUPS && V.GROUPS[k]) || [k];   // Thiền Vệ Trượng + Châu chung một ô Tinh Anh
+  V.has = (g, id) => !!(g && g.player && g.player.buffs && g.player.buffs.indexOf(id) >= 0);
+  V.shieldHp = g => C.shieldHps[(g && g.void && g.void.tier) || 1] || C.shieldHp;
   const on = g => g && g.mode === 'void' && g.void;
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const angTo = (a, b) => Math.atan2(b.y - a.y, b.x - a.x);
 
+  // tier: độ khó 1..3 (Lần Đầu / Hỗn Độn / Hủy Diệt); lấy từ V.pendTier do lối vào đặt (lobby.js hoặc V.start)
   V.init = function () {
-    return { tier: C.tier, roster: ELITES.slice(), defeated: [], keep: {}, thiefSeen: false, xu: 0, eyes: 0, xuTotal: 0, kills: 0, fled: 0, finalSpawned: false, rifts: [], riftT: 6, xuSpent: 0, eyesSpent: 0, collector: null };
+    const tier = Math.max(1, Math.min(3, V.pendTier || C.tier)); V.pendTier = 0;
+    return { tier, roster: V.pickRoster ? V.pickRoster(tier) : ELITES.slice(), defeated: [], keep: {}, thiefSeen: false, xu: 0, eyes: 0, xuTotal: 0, kills: 0, fled: 0, finalSpawned: false, rifts: [], riftT: 6, xuSpent: 0, eyesSpent: 0, collector: null };
   };
-  V.start = hero => SK.startRun(hero || 'knight', 'void', []);
+  V.start = (hero, tier) => { V.pendTier = tier || 1; return SK.startRun(hero || 'knight', 'void', []); };
   V.endText = g => ' · Xu Ám Tinh nhận được ' + g.void.xuTotal + ' · Hạ ' + g.void.kills + ' kẻ địch Hư Không';
 
   V.addXu = function (g, n, x, y) {
@@ -59,7 +68,7 @@
     o = o || {};
     const K0 = KINDS[kind], pf = SK.prefab(K0.id), box = pf[0].col.box;
     const v = g.void;
-    const hp = o.hp != null ? o.hp : K0.hp;
+    const hp = o.hp != null ? o.hp : hpOf(K0, v && v.tier);
     const e = {
       id: K0.id, voidKind: kind, isVoid: true, clone: !!o.clone, hb: { size: [box.size[0], box.size[1]], off: [box.off[0], box.off[1]] },
       d: { shadow: null, shadowOff: [0, 1e5], speed: 3 }, p: { kinematic: 1, reward_rate: 0, reward_value: [0, 0, 0, 0] },
@@ -68,9 +77,9 @@
       arena: { objs: [], tracked: [], done: false },   // K.fire ghi đạn vào e.arena.tracked
       draw: drawVoid, as: 'idle', at: 0, age: 0, act: null, actT: 0, fx: [], noReward: !!o.clone
     };
-    if (ELITES.indexOf(kind) >= 0 && !o.clone) {
+    if (K0.elite !== false && (ELITES.indexOf(kind) >= 0 || K0.elite) && !o.clone) {
       const st = v && v.keep[kind] != null ? v.keep[kind] : C.stacks;   // số tầng khiên giữ qua các lần gặp [WIKI VI]
-      e.vs = { stacks: st, hp: C.shieldHp, open: false, max: C.stacks };
+      e.vs = { stacks: st, hp: V.shieldHp(g), hpMax: V.shieldHp(g), open: false, max: C.stacks, red: false };
     }
     if (kind === 'thief') e.life = C.thiefLife;
     return e;
@@ -78,7 +87,7 @@
   for (const k of ['guard', 'assassin', 'mage', 'thief']) SK.CUSTOM_ENEMIES[KINDS[k].id] = (g, x, y, room) => make(g, k, x, y, room);
   SK.CUSTOM_ENEMIES.boss_void = (g, x, y, room) => {
     const lvl = (g.stage && g.stage.level) || 1;
-    let hp = C.bossHp[lvl] || C.bossHp[1];
+    let hp = Math.round((C.bossHp[lvl] || C.bossHp[1]) * (C.bossTierMul[g.void && g.void.tier] || 1));
     if (g.mods && g.mods.doubleBoss) hp = Math.round(hp * C.doubleLord);
     const e = make(g, 'voidboss', x, y, room, { hp });
     e.final = lvl === 3;
@@ -89,18 +98,22 @@
   // ---------------------------------------------------------------- khiên
   // Đòn thường: chỉ 1 vào khiên. Hết 80 thì vỡ một tầng như phá riêng.
   V.hitShield = function (g, e) {
-    const s = e.vs;
+    const s = e.vs, p = g.player;
     e.flash = 0.08;
-    SK.num(g, e.x, e.y - e.hb.off[1] - e.hb.size[1] * 0.5 - 4, C.dmgToShield, '#b57bff', false);
-    if (s.open) return V.breakLayer(g, e, 'open') || true;
-    s.hp -= C.dmgToShield;
+    if (s.open) { SK.num(g, e.x, e.y - e.hb.off[1] - e.hb.size[1] * 0.5 - 4, '!', '#e8d4ff', false); return V.breakLayer(g, e, 'open') || true; }
+    let d = C.dmgToShield;
+    const bare = !!p && !p.weapons[p.cur];   // tay không (không cầm vũ khí)
+    if (bare && V.has && V.has(g, 3001)) d += C.bareBonus;   // Tay Hư Không 3001: tay không gây 2 lên khiên [WIKI buff 3001]
+    if (s.red && p && (bare || dist(p, e) < C.meleeR)) d *= C.redMul;   // khiên đỏ: cận chiến gấp 10 (20 với 3001)
+    SK.num(g, e.x, e.y - e.hb.off[1] - e.hb.size[1] * 0.5 - 4, d, s.red ? '#ff6a5a' : '#b57bff', false);
+    s.hp -= d;
     if (s.hp <= 0) V.breakLayer(g, e, 'wear');
     return true;
   };
   V.breakLayer = function (g, e, how) {
     const s = e.vs, v = g.void;
     if (!s || s.stacks <= 0) return false;
-    s.stacks--; s.hp = C.shieldHp; s.open = false;
+    s.stacks--; s.hp = s.hpMax || C.shieldHp; s.open = false; s.openT = 0; s.red = false; s.redT = 0;
     e.flash = 0.2; g.shake = Math.max(g.shake, 3);
     V.addXu(g, C.xuShatter, e.x, e.y);
     v.keep[e.voidKind] = s.stacks;
@@ -170,8 +183,8 @@
       return waves;
     }
     if (r.type !== 'battle' || st.label === '1-1') return waves;   // tinh anh sinh từ ải 1-2 tới 3-5 [WIKI VI]
-    const free = v.roster.filter(k => v.defeated.indexOf(k) < 0);
-    if (free.length && SK.chance(C.eliteRate)) waves[waves.length - 1].push(KINDS[SK.pick(free)].id);
+    const free = v.roster.filter(k => V.members(k).some(m => v.defeated.indexOf(m) < 0));
+    if (free.length && SK.chance(C.eliteRate)) for (const m of V.members(SK.pick(free))) if (v.defeated.indexOf(m) < 0) waves[waves.length - 1].push(KINDS[m].id);
     if (!v.thiefSeen && SK.chance(C.thiefRate)) { v.thiefSeen = true; waves[0].push(KINDS.thief.id); }
     return waves;
   };
@@ -246,8 +259,6 @@
     },
     mage(g, e, dt) {
       const p = g.player;
-      for (const f of e.fx) f.update(g, e, f, dt);
-      e.fx = e.fx.filter(f => !f.done);
       if (e.act === 'cast') {
         e.actT -= dt;
         if (e.cast && e.actT <= e.cast.at) { const f = e.cast; e.cast = null; f.go(); }
@@ -291,17 +302,26 @@
       }
     }
   };
+  Object.assign(V, { AI, make, move, shoot, setAct, dash, lockDir, others, dist, angTo, on });
   SK.AI.SKVoid = function (g, e, dt) {
     e.age += dt; e.at += dt;
     if (e.arena.tracked.length > 40) e.arena.tracked = e.arena.tracked.filter(b => !b.dead);
     if (g.player.st === 'dead') return;
+    if (e.grasp) { AI.grasp(g, e, dt); return; }
     if (e.clone) {
       if (!e.owner || e.owner.st === 'dead' || e.act === 'rest') { e.st = 'dead'; e.stT = 0; e.leave = true; return; }   // phân thân tan sau cú lao
       AI.assassin(g, e, dt); return;
     }
-    if (e.vs && e.vs.stacks > 0 && e.age > 2 && !others(g, e)) {   // hạ hết quái nhỏ mà khiên còn: bỏ chạy, rơi 5 Xu [WIKI VI]
+    if (e.vs && e.vs.stacks > 0 && e.age > 2 && !others(g, e) && !V.has(g, 3003)) {   // Lệnh Truy Sát 3003: không bỏ chạy   // hạ hết quái nhỏ mà khiên còn: bỏ chạy, rơi 5 Xu [WIKI VI]
       V.leave(g, e); V.addXu(g, C.xuFlee, e.x, e.y); return;
     }
+    const s = e.vs;
+    if (s) {   // cửa sổ khiên mở / khiên đỏ có hạn giờ (loại mới ở void2.js)
+      if (s.openT > 0) { s.openT -= dt; s.open = s.openT > 0; }
+      if (s.redT > 0) { s.redT -= dt; s.red = s.redT > 0; }
+    }
+    for (const f of e.fx) f.update(g, e, f, dt);
+    e.fx = e.fx.filter(f => !f.done);
     AI[e.voidKind](g, e, dt);
   };
 
@@ -341,6 +361,7 @@
   // ---------------------------------------------------------------- vẽ
   function drawVoid(ctx, g, e) {
     if (e.st === 'spawn') return;
+    if (e.hidden) { drawFx(ctx, g, e); return; }   // Đao Phủ ẩn: chỉ vẽ dấu săn
     const dead = e.st === 'dead';
     let alpha = 1;
     if (dead && e.leave) { alpha = 1 - e.stT / 0.8; if (alpha <= 0) return; }
@@ -354,13 +375,13 @@
       ctx.save();
       for (let i = 0; i < s.stacks; i++) {
         ctx.globalAlpha = s.open ? 0.25 : 0.45 + 0.2 * pulse - i * 0.08;
-        ctx.strokeStyle = s.open ? '#e8d4ff' : '#8a3cff'; ctx.lineWidth = 1.5;
+        ctx.strokeStyle = s.open ? '#e8d4ff' : s.red ? '#ff3a3a' : '#8a3cff'; ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.ellipse(e.x, cy, e.hb.size[0] * 0.75 + i * 2.5, e.hb.size[1] * 0.62 + i * 2.5, 0, 0, Math.PI * 2); ctx.stroke();
       }
       ctx.globalAlpha = 1;
       const bw = 22, bx = e.x - bw / 2, by = e.y - e.hb.size[1] - 10;   // thanh khiên: tầng hiện tại + số tầng
       ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(bx - 1, by - 1, bw + 2, 5);
-      ctx.fillStyle = '#9a4dff'; ctx.fillRect(bx, by, bw * s.hp / C.shieldHp, 3);
+      ctx.fillStyle = '#9a4dff'; ctx.fillRect(bx, by, bw * Math.max(0, s.hp) / (s.hpMax || C.shieldHp), 3);
       for (let i = 0; i < s.max; i++) { ctx.fillStyle = i < s.stacks ? '#cfa8ff' : '#3a2a55'; ctx.fillRect(bx + i * 8, by + 5, 6, 2); }
       ctx.restore();
     } else if (!e.clone) {
@@ -368,14 +389,18 @@
       ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(bx - 1, by - 1, bw + 2, 4);
       ctx.fillStyle = '#e0453a'; ctx.fillRect(bx, by, bw * Math.max(0, e.hp) / e.hpMax, 2);
     }
-    if (e.act === 'wind' && e.voidKind !== 'mage') {   // vệt lao tím báo trước
+    if (e.act === 'wind' && (e.voidKind === 'guard' || e.voidKind === 'assassin')) {   // vệt lao tím báo trước
       const a = angTo(e, g.player);
       ctx.save(); ctx.globalAlpha = 0.35; ctx.strokeStyle = '#b06bff'; ctx.lineWidth = 8;
       ctx.beginPath(); ctx.moveTo(e.x, e.y - 6); ctx.lineTo(e.x + Math.cos(a) * 80, e.y - 6 + Math.sin(a) * 80); ctx.stroke(); ctx.restore();
     }
+    drawFx(ctx, g, e);
+  }
+  function drawFx(ctx, g, e) {
     for (const f of e.fx) {
       ctx.save();
-      if (f.kind === 'meteor') {
+      if (f.draw) f.draw(ctx, g, f, e);
+      else if (f.kind === 'meteor') {
         ctx.globalAlpha = 0.55; ctx.strokeStyle = f.t >= f.track ? '#ff3030' : '#ff8080'; ctx.fillStyle = 'rgba(255,40,40,0.18)'; ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.ellipse(f.x, f.y, f.rad, f.rad * 0.7, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
       } else {
@@ -401,8 +426,12 @@
       r.age += dt;
       if (r.age >= r.life + 0.5) { r.gone = true; continue; }
       const open = r.age >= 0.5 && r.age < r.life;   // 0,5 s mở ra, 0,5 s đóng lại: lúc đó chưa/hết gây hại
-      const near = open && p && p.st !== 'dead' && Math.hypot(p.x - r.x, p.y - r.y) < C.riftR;
-      if (near && !r.inside && SK.hurtPlayer(g, V.riftDmg(g), r.x, r.y)) { r.inside = true; r.hits++; SK.emit('voidRiftHit', g, r); }
+      const near = open && p && p.st !== 'dead' && !V.has(g, 3002) &&   // Thể Chất Hư Không 3002: miễn Rãnh Nứt
+         Math.hypot(p.x - r.x, p.y - r.y) < C.riftR;
+      v.riftHit = true;
+      const hurt = near && !r.inside && SK.hurtPlayer(g, V.riftDmg(g), r.x, r.y);
+      v.riftHit = false;
+      if (hurt) { r.inside = true; r.hits++; SK.emit('voidRiftHit', g, r); }
       else if (!near && r.inside) r.inside = false;
     }
     const room = g.room;
@@ -440,7 +469,11 @@
   const SAY = { poor: 'Xu Ám Tinh không đủ.', eyePoor: 'Mắt Hư Không không đủ.', goldPoor: 'Vàng không đủ.', full: 'Hết ô thiên phú.' };
   function npc(g, o) {
     g.props.push({ x: o.x, y: o.y, npc: o.kind, draw(ctx, g2, pr) { robe(ctx, o.x, o.y, o.c1, o.c2, g2); } });
-    for (const it of o.acts) g.interactables.push(Object.assign({ x: o.x + (it.dx || 0), y: o.y + 6 + (it.py || 0), r: 22, labelY: 44 + (it.dy || 0), npcKind: o.kind }, it));
+    for (const it of o.acts) {
+      const ia = Object.assign({ x: o.x + (it.dx || 0), y: o.y + 6 + (it.py || 0), r: 22, labelY: 44 + (it.dy || 0), npcKind: o.kind }, it), use = ia.use;
+      ia.use = function (...a) { if (V.supportUse) V.supportUse(g, o.kind); return use.apply(this, a); };   // 3006: tương tác Nhân Vật hỗ trợ hồi 1 tầng khiên (void2.js)
+      g.interactables.push(ia);
+    }
   }
   V.price = () => C.merchantXu;
   // Thương Nhân Hư Không: 30 Xu Ám Tinh bốc 3 thiên phú ngẫu nhiên, chọn 1 [LOC tip_1-3; WIKI VI].
@@ -449,7 +482,7 @@
     const v = g.void, R = SK.ROOMS;
     if (v.xu < C.merchantXu) { g.toast(SAY.poor, 1.6); return false; }
     if ((g.player.buffs || []).length >= R.buffSlots()) { g.toast(SAY.full, 1.6); return false; }
-    if (R.choice.open || !R.openChoice()) return false;
+    if (R.choice.open || !R.openChoice(V.offerIds ? V.offerIds(g) : undefined)) return false;
     g.hold = true;
     v.xu -= C.merchantXu; v.xuSpent += C.merchantXu;
     return true;

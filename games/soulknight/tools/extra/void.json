@@ -1,4 +1,23 @@
 {
- "bundles": ["level/difficulty", "common"],
- "prefabs": ["e_void_guard", "e_void_assassin", "e_void_mage", "e_void_thief", "boss_void", "coin_void", "coin_void_eye"]
+ "bundles": [
+  "level/difficulty",
+  "common"
+ ],
+ "prefabs": [
+  "e_void_guard",
+  "e_void_assassin",
+  "e_void_mage",
+  "e_void_thief",
+  "boss_void",
+  "coin_void",
+  "coin_void_eye",
+  "e_void_blood",
+  "e_void_priest",
+  "e_void_imperial",
+  "e_void_staffmonk",
+  "e_void_beadsmonk",
+  "e_void_summoner",
+  "e_void_sentinel",
+  "e_void_killer"
+ ]
 }
