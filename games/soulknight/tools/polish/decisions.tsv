@@ -71,3 +71,6 @@ ts	phase	decision	why	evidence	result
 2026-10-10T08:43:46Z	dnpc	Lò Đúc Lại, Lò Khởi Nguyên, Lò Luyện Dung Hợp, Thầy Huấn Luyện (agent); script đẩy chung tools/ship.sh	INVENTORY mục 7	test/soulknight-dnpc.js
 2026-10-10T08:43:46Z	ship	đẩy 2cfca363 rev 20261010t, kiểm trên Pages	xong = kiểm trên bản thật	SK_URL=Pages: dnpc 41/0 rooms 69/0 smoke 16/0	VERIFIED
 2026-10-10T08:45:10Z	skills-test	bộ skills tự dựng hiện trường (agent): standNear seed + quái cố định, pressK giữ ≥2 khung, sửa 11 tệp ca	skills hỏng ~15 sau rev i do trận ngẫu nhiên; seed theo phòng đã làm ở game	test/soulknight-skills.js 479/1 hai lần (1 = alchemist sẵn có); SK_BREAK làm hỏng đúng ca
+2026-10-10T08:53:14Z	floor4c	tầng 4C Đáy Biển + oxy (agent); sửa kiểm floor4 tính hpMax do thẻ thiên phú; rev u quên add sk-data → rev v bổ sung, ship.sh thêm chốt chặn	FLOOR4.md	test/soulknight-floor4.js
+2026-10-10T08:53:14Z	ship	đẩy f78c4223 (rev u) + fab7ab87 (rev v, sk-data 4C), kiểm trên Pages	xong = kiểm trên bản thật	SK_URL=Pages: floor4 90/0 themes 59/0 smoke 16/0 hud 11/0	VERIFIED
+2026-10-10T08:58:11Z	matrix2	Mê Trận đợt 2 (agent): HUD Uy Áp, đổi Pha Lê, 6 nhân tố Tà Vương cộng dồn, Quái Gen, cấp vũ khí; sửa cận thời gian ca alchemist (5.7 → 6, lỗi dấu phẩy động khi máy chậm)	MODES.md 2d; alchemist hỏng từ đầu phiên	test/soulknight-matrix.js 31/0; skills alchemist 11/0

@@ -4,7 +4,8 @@
 //   HP quái và trùm sinh ra = HP × (1 + 0,15 × P) làm tròn; quái đánh người chơi +floor(P/3) sát thương.
 //   Mỗi lần P tăng nhận 4 Pha Lê (Lợi Hại 5). Vào cổng x-5 Tà Vương chấm điểm: Thưởng 70% nhân tố tích cực / 30% trung tính,
 //   Phạt 40% tiêu cực / 60% trung tính; nhân tố áp bằng SK.factorsAdd (không trùng, mỗi tầng một lần).
-// Chưa làm (xem tools/polish/GAPS.md): thanh Uy Áp trên HUD, Quái Gen, cấp vũ khí, 6 nhân tố riêng của Tà Vương, tay sai, Tước Sĩ Lục.
+// Đợt 2 ở js/matrix2.js: thanh Uy Áp HUD, đổi Pha Lê cuối ván, Quái Gen, cấp vũ khí, móc của 6 nhân tố Tà Vương.
+// Chưa làm (xem tools/polish/GAPS.md): tay sai, Tước Sĩ Lục.
 (function () {
   'use strict';
   const SK = window.SK;
@@ -15,10 +16,11 @@
   };
   // Bể bốc: khoá nhân tố đã có ở SK.FACTORS, phân loại theo wiki.
   const POOL = {
-    pos: ['HalfCd', 'Cruel', 'MoreBrave', 'Tenacious'],
+    pos: ['HalfCd', 'Cruel', 'MoreBrave', 'Tenacious', 'ReduceEnemyBuffImmune', 'ReduceEnemyMoveSpeed'],
     neu: ['Huge', 'Tiny'],
     neg: ['EnemyDefence', 'AggressiveEnemy', 'Intensive', 'FastEnemyBullet', 'DoubleBoss', 'FastEnemy', 'ExEnemy',
-      'InferiorMedicine', 'EnemyDoubleHp', 'HardShield', 'DoubleCd', 'AllAlone', 'Inflation']
+      'InferiorMedicine', 'EnemyDoubleHp', 'HardShield', 'DoubleCd', 'AllAlone', 'Inflation',
+      'MoreGeneEnemy', 'ExtraHurtDamage', 'IncreaseEnemyBuffImmune']   // 3 nhân tố cuối của Tà Vương: cộng dồn tới 10 lần
   };
   const GOOD = ['Làm tốt lắm', 'Thú vị...', 'Yo~', 'Thú vị'];
   const BAD = ['Không ổn lắm...', 'Cái này à?', 'Hả? ...', 'Xem ra không chịu nổi?'];
@@ -84,7 +86,7 @@
     const reward = opts.reward != null ? !!opts.reward : M.progress(G) > M.marker(G);
     let kind = M.pickKind(reward, SK.rand());
     const owned = G.factors || [];
-    const free = k => POOL[k].filter(f => SK.FACTORS[f] && owned.indexOf(f) < 0);
+    const free = k => POOL[k].filter(f => SK.FACTORS[f] && (SK.FACTORS[f].stack ? SK.factorStack(G, f) < SK.FACTORS[f].stack : owned.indexOf(f) < 0));
     let pool = free(kind);
     if (!pool.length) { kind = 'neu'; pool = free('neu'); }
     const key = pool.length ? SK.pick(pool) : null;

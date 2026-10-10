@@ -19,7 +19,9 @@
     skillCdMul: 1, critRateMul: 1, critDmgMul: 1, critAdd: 0, fireRateMul: 1, weaponDmgMul: 1, healMul: 1,
     priceMul: 1, freeBuys: 0, buffSlots: 0, buffChoices: 0, noPet: false, oneWeapon: false, meleeOnly: false,
     sizeMul: 1, moveMul: 1, regenBelowHalf: false, armorNoRegen: false, darkVision: false, brave: false,
-    doubleBoss: false, bossHpMul: 1
+    doubleBoss: false, bossHpMul: 1,
+    // Tà Vương (Mê Trận): cộng dồn n lần; số đọc từ G.factorStack (SK.factorsAdd), mã móc ở js/matrix.js và js/matrix2.js
+    playerHurtAdd: 0, enemyHurtAdd: 0, mutateRate: 0, ctlCut: 0, ctlAdd: 0, enemySlow: 0, rebornTeam: false
   });
 
   const F = SK.FACTORS = {};
@@ -27,7 +29,10 @@
   const mul = (G, k, v) => { G.mods[k] *= v; };
   const add = (G, k, v) => { G.mods[k] += v; };
   const set = (G, k, v) => { G.mods[k] = v; };
-  function def(key, vi, desc, tier, on) { F[key] = { vi, desc, tier, on }; }
+  function def(key, vi, desc, tier, on, stack) { F[key] = { vi, desc, tier, on, stack: stack || 0 }; }
+  // Nhân tố cộng dồn (Tà Vương): số lần đã nhận; on() của loại này đặt (không nhân) nên chạy lại bao nhiêu lần cũng ra cùng số.
+  const nOf = (G, k) => Math.max(1, (G.factorStack && G.factorStack[k]) || 1);
+  SK.factorStack = (G, k) => (G.factorStack && G.factorStack[k]) || 0;
 
   // ---- Kẻ địch
   def('EnemyDoubleHp', 'Nhân Đôi Niềm Vui', 'Địch có HP gấp đôi', 'dễ', G => mul(G, 'enemyHpMul', 2));                       // [LOC] +100%
@@ -97,6 +102,20 @@
   def('AllAlone', 'Dũng Sĩ Cô Độc', 'Không thể mang Pet và Lính Thuê', 'dễ', G => set(G, 'noPet', true));                       // lính thuê chưa có ở bản web
   def('Dark', 'Mắt Cận Thị', 'Tầm nhìn bị giới hạn', 'dễ', G => set(G, 'darkVision', true));
 
+  // ---- 6 nhân tố của Mê Trận Tà Vương, tối đa 10 lần mỗi cái [LOC task/<khoá>_desc; WIKI Matrix]. Không nằm trong SK.FACTOR_KEYS (không chọn ở sảnh).
+  const TV = 10;
+  def('ReduceEnemyBuffImmune', 'Thuật Suy Yếu (Tà Vương)', 'Triệt tiêu 1 tầng tăng cường miễn dịch đối với hiệu quả khống chế của Uy Áp (được nhận 10 lần)', 'dễ', G => set(G, 'ctlCut', nOf(G, 'ReduceEnemyBuffImmune')), TV);
+  def('ReduceEnemyMoveSpeed', 'Thuật Chậm Chạp (Tà Vương)', 'Tốc độ di chuyển của quái -1% (được nhận 10 lần)', 'dễ', G => set(G, 'enemySlow', nOf(G, 'ReduceEnemyMoveSpeed')), TV);   // -1% mỗi lần, cộng (không nhân)
+  def('KillEnemyRebornTeammate', 'Thuật Hồi Sinh (Tà Vương)', 'Diệt quái có tỉ lệ hồi sinh toàn bộ đồng đội', 'dễ', G => set(G, 'rebornTeam', true));   // một người chơi: không có đồng đội để hồi sinh, chỉ giữ cờ
+  def('MoreGeneEnemy', 'Đột Biến Gen (Tà Vương)', 'Tỉ lệ Quái Gen xuất hiện +2% (được nhận 10 lần)', 'vừa', G => set(G, 'mutateRate', 0.02 * nOf(G, 'MoreGeneEnemy')), TV);
+  def('ExtraHurtDamage', 'Kiếm Hai Lưỡi (Tà Vương)', 'DMG nhân vật phải chịu +1, DMG quái phải chịu +2 (được nhận 10 lần)', 'vừa', G => {
+    const n = nOf(G, 'ExtraHurtDamage'); set(G, 'playerHurtAdd', n); set(G, 'enemyHurtAdd', 2 * n);
+  }, TV);
+  def('IncreaseEnemyBuffImmune', 'Gen Miễn Dịch (Tà Vương)', 'Tăng tăng cường miễn dịch đối với hiệu quả khống chế của quái (được nhận 10 lần)', 'vừa', G => set(G, 'ctlAdd', nOf(G, 'IncreaseEnemyBuffImmune')), TV);
+  // Ẩn khỏi Object.keys(SK.FACTORS) (bảng chọn ở sảnh và Treo Thưởng duyệt bằng khoá đó); vẫn tra được bằng SK.FACTORS[khoá].
+  for (const k of ['ReduceEnemyBuffImmune', 'ReduceEnemyMoveSpeed', 'KillEnemyRebornTeammate', 'MoreGeneEnemy', 'ExtraHurtDamage', 'IncreaseEnemyBuffImmune']) Object.defineProperty(F, k, { enumerable: false });
+  SK.TV_KEYS = ['ReduceEnemyBuffImmune', 'ReduceEnemyMoveSpeed', 'KillEnemyRebornTeammate', 'MoreGeneEnemy', 'ExtraHurtDamage', 'IncreaseEnemyBuffImmune'];
+
   SK.FACTOR_KEYS = Object.keys(F);
   SK.FACTOR_MAX = 3;   // [ƯỚC LƯỢNG] số nhân tố tối đa chọn một lượt (bản gốc không ghi số)
 
@@ -144,6 +163,15 @@
   SK.factorsAdd = function (G, key) {
     if (!F[key] || !G.mods) return false;
     G.factors = G.factors || [];
+    if (F[key].stack) {   // cộng dồn: n lần tới trần, key vào G.factors lần đầu
+      G.factorStack = G.factorStack || {};
+      const n = G.factorStack[key] || 0;
+      if (n >= F[key].stack) return false;
+      G.factorStack[key] = n + 1;
+      if (G.factors.indexOf(key) < 0) G.factors.push(key);
+      F[key].on(G);
+      return true;
+    }
     if (G.factors.indexOf(key) >= 0) return false;   // [LOC I_factor_repeat]
     const b = Object.assign({}, G.mods);
     G.factors.push(key); F[key].on(G);
@@ -207,7 +235,8 @@
     const boss = !!(e.bossKey || e.boss);
     const hp = M.enemyHpMul * (boss ? M.bossHpMul : 1);
     if (hp !== 1) { e.hp = Math.max(1, Math.round(e.hp * hp)); e.hpMax = Math.max(1, Math.round(e.hpMax * hp)); }
-    if (M.enemySpeedMul !== 1 && !boss) e.moveMul = (e.moveMul || 1) * M.enemySpeedMul;
+    const spd = M.enemySpeedMul * (1 - 0.01 * (M.enemySlow || 0));
+    if (spd !== 1 && !boss) e.moveMul = (e.moveMul || 1) * spd;
     return e;
   };
 

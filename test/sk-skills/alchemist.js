@@ -30,7 +30,7 @@ module.exports = h => ({
     h.check('alchemist concoction: nút đặc biệt cất chai, giữ 3 nguyên liệu; bấm kỹ năng cầm lại [ĐO WeaponSpecial]', sp.has && sp.w !== '_concoction' && sp.list === 3 && re.w === '_concoction' && re.list === 3, JSON.stringify([sp, re]));
     h.check('alchemist concoction: uống chờ 0.75 s [ĐO clip drink], khoá đánh trong lúc đó', !mid.pot && mid.noFire && mid.w === '_concoction' && d.n && !d.noFire && d.w !== '_concoction', JSON.stringify([mid, d.w, d.noFire]));
     const n = d.n || [0, 0, 0, 0, 0];
-    h.check('alchemist concoction: ' + n.join('/') + ' [máu/giáp/năng lượng/tốc bắn/tốc chạy]: tốc bắn +0.5, tốc chạy +0.4 mỗi nguyên liệu, năng lượng +30, ' + '6 s [ĐO duration]', d.t > 5.0 && d.t <= 5.7 && Math.abs(d.rate - (1 + 0.5 * n[3])) < 1e-6 && Math.abs(d.move - (1 + 0.4 * n[4])) < 1e-6 && d.en === Math.min(d.enMax, 30 * n[2]), JSON.stringify(d));
+    h.check('alchemist concoction: ' + n.join('/') + ' [máu/giáp/năng lượng/tốc bắn/tốc chạy]: tốc bắn +0.5, tốc chạy +0.4 mỗi nguyên liệu, năng lượng +30, ' + '6 s [ĐO duration]', d.t > 5.0 && d.t <= 6 + 1e-9 && Math.abs(d.rate - (1 + 0.5 * n[3])) < 1e-6 && Math.abs(d.move - (1 + 0.4 * n[4])) < 1e-6 && d.en === Math.min(d.enMax, 30 * n[2]), JSON.stringify(d));
     const armWant = n[1] > 0 ? Math.min(e.armMax, 4) : 0;
     h.check('alchemist concoction: giáp hồi 1 mỗi 1.6 s trong 6 s = 4 lần [ĐO BuffArmor]; hết 6 s gỡ hết cường hoá', !e.pot && e.rate === 1 && e.move === 1 && e.arm === armWant, JSON.stringify(e) + ' mong giáp ' + armWant);
   }

@@ -58,11 +58,12 @@ Nhật ký quyết định: `decisions.tsv` cùng thư mục.
 
 | Phần | Tình trạng |
 |---|---|
-| Quái Gen (11 kiểu), nhân tố Đột Biến Gen | chưa có hệ Quái Gen; không làm đợt này |
-| Cấp vũ khí (w.lvl, số xanh trên nút vũ khí, trừ sát thương khi cấp thấp) | chưa có w.lvl và HUD; không làm đợt này |
+| Quái Gen (11 kiểu), nhân tố Đột Biến Gen | đã có (js/matrix2.js): 9 kiểu, tỉ lệ [ƯỚC LƯỢNG] 5% + 1%/P (trần 50%) + 2%/lần Đột Biến Gen. Thiếu: Thần Thánh chỉ miễn burn/poison (web chưa có trạng thái khác), Khiên chưa chặn đạn tầm xa (chỉ hấp thụ sát thương 30% HP), Sức Mạnh/Nhanh Nhẹn đổi sát thương chỉ khi nguồn đòn trong 44 px (đạn bay xa không tính), Hút HP chỉ hồi cho quái; không có hình riêng ngoài viền màu dưới chân |
+| Cấp vũ khí (w.lvl, số xanh trên nút vũ khí, trừ sát thương khi cấp thấp) | đã có: w.lvl = P lúc cầm lần đầu, mất floor((P - lvl)/2) sát thương, số cạnh nút vũ khí; [ƯỚC LƯỢNG] cả cấp khởi đầu lẫn công thức. Chưa có NPC nâng cấp (SK.matrix.weaponUp có sẵn, chưa ai gọi) |
 | Thiên phú 2001-2007 và 2117 | chưa có trong data/sk-buffs86.js; thiên phú sau x-2/x-5 chưa gắn (rooms.js BUFF_AFTER chỉ có 1-1..3-5 nên sau tầng 3 không còn thẻ chọn) |
-| 6 nhân tố riêng của Tà Vương (Thuật Suy Yếu, Thuật Chậm Chạp, Đột Biến Gen, Kiếm Hai Lưỡi, Gen Miễn Dịch, Thuật Hồi Sinh) | chưa có; cần cộng dồn n lần (factorsAdd hiện chặn trùng khoá) và móc enemyHurtAdd ở actors.js |
-| Thanh Uy Áp (HUD), NPC Con Bạc/Thương Nhân/Thầy Bói, Tước Sĩ Lục, đổi Pha Lê cuối ván | chưa có; Pha Lê mới đếm ở G.matrix.crystals |
+| 6 nhân tố riêng của Tà Vương | đã có, cộng dồn tối đa 10 (factors.js, ẩn khỏi Object.keys(SK.FACTORS)); Thuật Hồi Sinh chỉ giữ cờ (một người chơi). Thời gian trạng thái ×0,5^(Peff/3) [SUY] chỉ áp cho burn/poison |
+| Thanh Uy Áp (HUD), đổi Pha Lê cuối ván | đã có (matrix2.js); phiếu Nhân Tố/phụ kiện/Vé dùng thử và 2% còn thiếu đổi thành 100 đá, 1 lượt tung mỗi Pha Lê [ƯỚC LƯỢNG]; chữ kết quả nối vào màn thua, hộp tóm tắt ở sảnh (lobby.js) chưa liệt kê phần Pha Lê |
+| NPC Con Bạc/Thương Nhân/Thầy Bói, Tước Sĩ Lục | chưa có |
 | Trùm Tinh Anh x1,25 và Hai Lãnh Chúa x0,75 theo wiki | web dùng sẵn badass.bossHp 1,5 và DoubleBoss x0,7; matrix.js chỉ nhân thêm (1 + 0,15 P) |
 | Tiến độ/vạch mốc của phán quyết | [ƯỚC LƯỢNG] tiến độ = quái hạ / quái đã sinh trong tầng, vạch = giây / 360 |
 
