@@ -62,6 +62,9 @@
   P.fed = cleanMap(P.fed);
   P.stats = Object.assign({ kills: 0, boss: 0, pass: 0, dead: 0, best: 0 }, isObj(P.stats) ? P.stats : {});
   for (const k of Object.keys(P.stats)) P.stats[k] = Math.max(0, Math.floor(+P.stats[k] || 0));
+  // Thành tựu (js/ach.js): done/claimed {id: 1}, c = bộ đếm theo loại điều kiện. Hồ sơ cũ thiếu thì rỗng; ach.js tự điền c.
+  P.ach = isObj(P.ach) ? P.ach : {};
+  P.ach.done = cleanMap(P.ach.done); P.ach.claimed = cleanMap(P.ach.claimed); P.ach.c = isObj(P.ach.c) ? P.ach.c : null;
   // Vườn (js/garden.js): 8 ô trồng {seed, stage, watered, fert}, ô đã mở, chỉ số ngày đã xử lý, sản phẩm chờ vào ván kế (thiên phú, ô thiên phú,
   // thức uống, thú cưng). Hồ sơ cũ thiếu trường thì mặc định: 3 ô đầu mở sẵn, vườn trống.
   const GARDEN_PLOTS = 8;
@@ -171,7 +174,7 @@
     addFish(n) { P.fish = Math.max(0, P.fish + Math.floor(n)); save(); return P.fish; },
     spendFish(n) { if (P.fish < n) return false; P.fish -= n; save(); return true; },
     // ---- thú cưng: sở hữu / chọn / thân mật / cho ăn [WIKI Pets]. Số liệu: data/sk-pets.js (unlock, food, affMax).
-    petOwned: id => { const d = petData(id); return !!d && (d.unlock.kind === 'free' || P.pets.indexOf(id) >= 0); },
+    petOwned: id => { const d = petData(id); return !!d && (d.unlock.kind === 'free' || P.pets.indexOf(id) >= 0 || (d.unlock.kind === 'achievement' && !!SK.ach && SK.ach.petOwned(id))); },
     pet() { return petData(P.petSel) && this.petOwned(P.petSel) ? P.petSel : 'pet0'; },
     setPet(id) { if (!this.petOwned(id)) return false; P.petSel = id; save(); return true; },
     buyPet(id) {
@@ -253,6 +256,9 @@
       P.gems -= s.nextCost; P.safe++; save(); if (built) refresh();
       return { ok: true, level: P.safe, gold: SAFE_GOLD[P.safe - 1], cost: s.nextCost };
     },
+    // ---- thành tựu: đối tượng sống P.ach (js/ach.js đọc/ghi rồi gọi achSave)
+    ach() { return P.ach; },
+    achSave() { save(); },
     // ---- thống kê
     get stats() { return Object.assign({}, P.stats); },
     addStat(k, n) { if (k in P.stats) { P.stats[k] += Math.max(0, Math.floor(n == null ? 1 : n)); save(); } },
@@ -859,6 +865,11 @@
     { id: 'bossrush', name: 'Khu Thí Luyện', img: 'mode_bossrush.png', icon: true, ok: true,
       start: () => { if (SK.G.state === 'hall') launch(P.selected, 'bossrush'); },
       desc: 'Mười lăm ải liền, ải nào cũng là một Lãnh Chúa của vùng đất ngẫu nhiên; giữa các trận có rương và phòng phụ. Chơi một mình.' },
+    // Mê Trận Tà Vương [LOC gamemode/looptravel]: Chế độ Ải không hồi kết (js/matrix.js), Uy Áp tăng mỗi tầng, Tà Vương chấm điểm ở x-5.
+    // Như Khu Thí Luyện: không mang vật phẩm ngoài thế giới [LOC guide/mode_loop] nên bỏ vàng Két Sắt và vũ khí mang theo.
+    { id: 'matrix', name: 'Mê Trận Tà Vương', img: 'mode_loop.png', ok: true,
+      start: () => { if (SK.G.state === 'hall') launch(P.selected, 'matrix', []); },
+      desc: 'Cuộc thám hiểm không có hồi kết: qua mỗi tầng Uy Áp tăng, quái thêm máu và đánh đau hơn; cuối mỗi tầng Tà Vương ban thưởng hoặc trừng phạt. Gom Pha Lê Tà Vương.' },
     { id: 'season', name: 'Chế độ mùa giải', img: 'mode_season.png', isNew: true, ok: true,
       desc: 'Thoát khỏi Monkia: căn cứ giữa rừng thông, qua cổng xoáy ra Ngoại ô căn cứ, đánh khỉ, mở thùng, về điểm rút lui mang đồ về.',
       start: () => SK.SEASON && SK.SEASON.start && SK.SEASON.start(SK.profile.selected || 'knight') },
@@ -967,10 +978,11 @@
     const b = upgradeBonus(p.hero);
     p.hpMax += b.hp; p.hp += b.hp; p.armorMax += b.armor; p.armor += b.armor; p.energyMax += b.energy; p.energy += b.energy;
     // Két Sắt: vàng khởi đầu mỗi ván [LOC Object_safe_info "Vàng ban đầu"]; Khu Thí Luyện không có vàng nên bỏ.
-    if (G2.mode !== 'bossrush') p.gold += SK.profile.safe.gold;
+    const noOutside = G2.mode === 'bossrush' || G2.mode === 'matrix';   // chế độ không mang đồ ngoài thế giới
+    if (!noOutside) p.gold += SK.profile.safe.gold;
     // Rương: vũ khí đã chọn (hòm hoặc đồ rèn) vào ô thứ hai; chế độ một vũ khí / Khu Thí Luyện không nhận, giữ lại cho ván sau.
     const c = SK.profile.carry;
-    if (c && G2.mode !== 'bossrush' && !(G2.mods && G2.mods.oneWeapon) && !p.weapons[1]) { SK.profile.takeCarry(); p.weapons[1] = SK.makeWeapon(c.id); G2.carried = c.id; }
+    if (c && !noOutside && !(G2.mods && G2.mods.oneWeapon) && !p.weapons[1]) { SK.profile.takeCarry(); p.weapons[1] = SK.makeWeapon(c.id); G2.carried = c.id; }
   });
 
   // Đá quý cuối lượt: theo số quái hạ + số màn đã qua [ƯỚC LƯỢNG]; SK gốc cũng trả theo quái hạ + tầng đạt được.

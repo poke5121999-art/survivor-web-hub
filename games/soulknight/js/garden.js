@@ -46,7 +46,7 @@
     if (!q || !S().open[i]) return { ok: false, text: 'Ô này chưa mở' };
     if (q.seed) return { ok: false, text: 'Ô này đã có cây' };
     if (!PL[seed] || !P.spendItem(seed, 1)) return { ok: false, text: GD_NO_SEED };
-    Object.assign(q, { seed, stage: 0, watered: false, fert: false }); save();
+    Object.assign(q, { seed, stage: 0, watered: false, fert: false }); save(); SK.emit('plant', seed);
     return { ok: true, text: 'Hạt Giống trồng xong cần dùng bình nước tưới nước mới có thể sinh trưởng' };   // [LOC teaching/plant_end]
   }
   const GD_NO_SEED = 'Không có đồ có thể trồng';   // [LOC object/plantpot_no_seed]

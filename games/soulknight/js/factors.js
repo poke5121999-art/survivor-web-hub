@@ -111,8 +111,9 @@
   };
 
   // ---------------------------------------------------------------- người chơi
-  SK.factorsPlayer = function (G, p) {
-    const M = G.mods; if (!M || !p) return;
+  SK.factorsPlayer = function (G, p) { applyPlayer(p, G.mods); };
+  function applyPlayer(p, M) {
+    if (!M || !p) return;
     const keep = (a, mx) => Math.max(0, Math.min(a, mx));
     p.hpMax = Math.max(1, p.hpMax + M.hpAdd);
     p.armorMax = Math.max(0, p.armorMax + M.armorAdd);
@@ -136,6 +137,24 @@
       }
     }
     p._fxHp = p.hp; p._fxEn = p.energy;
+  }
+
+  // Thêm MỘT nhân tố giữa ván (Tà Vương ban): chạy on() của khoá mới rồi áp phần chênh lên người chơi; khoá đã có thì không làm gì
+  // (factorsPlayer áp lại cả bộ nên gọi lần hai sẽ cộng hpAdd lần nữa). Trả true nếu vừa thêm.
+  SK.factorsAdd = function (G, key) {
+    if (!F[key] || !G.mods) return false;
+    G.factors = G.factors || [];
+    if (G.factors.indexOf(key) >= 0) return false;   // [LOC I_factor_repeat]
+    const b = Object.assign({}, G.mods);
+    G.factors.push(key); F[key].on(G);
+    const a = G.mods, d = neutral();
+    for (const k of ['hpAdd', 'armorAdd', 'critAdd']) d[k] = a[k] - b[k];
+    for (const k of ['energyMul', 'fireRateMul', 'weaponDmgMul']) d[k] = a[k] / b[k];
+    for (const k of ['playerHpMax', 'playerArmorMax', 'playerEnergyMax']) d[k] = a[k] !== b[k] ? a[k] : 0;
+    d.sizeMul = a.sizeMul !== b.sizeMul ? a.sizeMul : 1;
+    d.meleeOnly = a.meleeOnly && !b.meleeOnly;
+    applyPlayer(G.player, d);
+    return true;
   };
 
   // Người chơi giả gây vài hiệu ứng riêng (Càng đánh càng hăng): hệ số theo khoá để không giẫm lên buff/kỹ năng cùng sửa dmgMul.

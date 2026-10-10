@@ -108,13 +108,15 @@ const near = (a, b, tol) => Math.abs(a - b) <= (tol == null ? 1e-6 : tol);
   async function bulletRatio(keys) {
     await battle(keys, 11);
     await ev(() => { SK.G.player.invulT = 1e9; });
-    await ev(() => { window.__ratios = []; window.__tap = setInterval(() => { for (const bl of SK.G.bullets) if (bl.side === 'e' && bl.t < 0.05 && !bl.__r && bl.owner && bl.owner.w && bl.owner.w.p && bl.owner.w.p.bullet_speed) { bl.__r = 1; window.__ratios.push(Math.hypot(bl.vx, bl.vy) / SK.PPU / bl.owner.w.p.bullet_speed); } }, 16); });
+    // mỗi viên chia cho kỳ vọng min(hệ số, trần tốc đạn / tốc gốc): súng nhanh sát trần (design.js enemyBulletMaxSpeed 30) bị cắt, đó là luật đúng
+    await ev(m => { window.__mul = m; }, keys.length ? 1.3 : 1);
+    await ev(() => { window.__ratios = []; window.__tap = setInterval(() => { for (const bl of SK.G.bullets) if (bl.side === 'e' && bl.t < 0.05 && !bl.__r && bl.owner && bl.owner.w && bl.owner.w.p && bl.owner.w.p.bullet_speed) { bl.__r = 1; const base = bl.owner.w.p.bullet_speed, cap = SK.DS.rules.enemyBulletMaxSpeed; window.__ratios.push(Math.hypot(bl.vx, bl.vy) / SK.PPU / base / Math.min(window.__mul, cap / base)); } }, 16); });
     await until(() => window.__ratios.length >= 4, null, 25000);
     const r = await ev(() => { clearInterval(window.__tap); return window.__ratios.slice().sort((a, c) => a - c); });
     return r.length ? r[Math.floor(r.length / 2)] : null;
   }
   const rc = await bulletRatio([]), rf = await bulletRatio(['FastEnemyBullet']);
-  check('FastEnemyBullet: tốc độ đạn quái ×1,3 so với đối chứng', rc && rf && near(rf / rc, 1.3, 0.04), 'đối chứng ' + (rc && rc.toFixed(3)) + ' · nhân tố ' + (rf && rf.toFixed(3)));
+  check('FastEnemyBullet: tốc độ đạn quái ×1,3 (kẹp ở trần tốc đạn) — tỉ lệ đo / kỳ vọng ≈ 1 ở cả đối chứng và nhân tố', rc && rf && near(rc, 1, 0.04) && near(rf, 1, 0.04), 'đối chứng ' + (rc && rc.toFixed(3)) + ' · nhân tố ' + (rf && rf.toFixed(3)));
 
   // mật độ + tinh anh: lấy mẫu buildWaves của một phòng quái
   async function waves(keys) {

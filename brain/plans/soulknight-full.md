@@ -18,12 +18,12 @@ Thứ tự theo đúng lời chủ dự án. Mỗi mục là một hoặc vài �
 3. [~] Vùng đất và trùm riêng: [x] 22 trùm mới cho 10 vùng đất (rev 20261010b, `js/bosses/<pid>.js`, 7 agent song song,
    mỗi trùm qua `test/soulknight-bosses.js`). [x] vùng 1G Di Tích Máy Móc + boss30 (rev 20261010e), [ ] tầng 4 (4A/4B/4C), 5A.
 4. [~] Chế độ chơi (đặc tả: scratchpad MODES.md → tools/polish/MODES.md): [x] Lợi Hại, [x] Khu Thí Luyện 15 ải (rev 20261010c),
-   [x] Nhân Tố Thử Thách 36 nhân tố, [x] Tước Sĩ Đỏ/Tím ải 3-6 (rev 20261010d), [~] Mê Trận Tà Vương (đặc tả MODES.md 2d; lõi đang làm: STAGES động, Uy Áp, Tà Vương, js/matrix.js; thẻ ở sảnh nối sau vườn),
+   [x] Nhân Tố Thử Thách 36 nhân tố, [x] Tước Sĩ Đỏ/Tím ải 3-6 (rev 20261010d), [x] Mê Trận Tà Vương lõi (rev 20261010j: thẻ ở bảng chế độ, STAGES động, Uy Áp, Tà Vương, Pha Lê; thiếu Quái Gen, cấp vũ khí, HUD Uy Áp, thẻ thiên phú sau tầng 3),
    [ ] Xâm Nhập Hư Không độ 1 (MODES.md 2e: tinh anh 3 tầng khiên), [ ] tầng 4A/4B/4C (FLOOR4.md: cổng tím sau 3-5, làm 4A trước;
    cần dựng sk-data nên làm khi không agent nào dựng), [ ] Thần Điện Thủ Hộ, Chỉ Huy Nhỏ.
    Cũ: Lợi Hại (badass), Khu Thí Luyện (boss rush), Nhân Tố Thử Thách, rồi các chế độ còn lại theo độ khả thi.
    Bỏ qua chế độ online (PVP, nhiều người).
-5. [~] Sảnh — [x] bước 1–3 (rev 20261010e: kho đồ, thư, nhãn + phím E, rơi vật liệu 137 món, két/chuyển phát/máy đổi...) (đặc tả 43 tiện ích + kinh tế + 9 bước: tools/polish/HALL.md; bước 1 kho đồ/thư/tương tác → 2 rơi vật liệu →
+5. [~] Sảnh — [x] bước 8 Sổ Tay + 154 thành tựu (40 chạy được, rev 20261010j); [x] bước 4–6; [x] bước 1–3 (rev 20261010e: kho đồ, thư, nhãn + phím E, rơi vật liệu 137 món, két/chuyển phát/máy đổi...) (đặc tả 43 tiện ích + kinh tế + 9 bước: tools/polish/HALL.md; bước 1 kho đồ/thư/tương tác → 2 rơi vật liệu →
    3 két/chuyển phát/máy đổi → 4 bàn thiết kế + rèn → 5 rương/máy trứng/mèo → 6 vườn → 7 nội thất bản vẽ → 8 sổ tay/thành tựu → 9 xưởng/treo thưởng): tiện ích tương tác (rương, tủ lạnh, két, mèo chiêu tài, máy quay trứng, bàn rèn, lò đúc, luyện kim,
    thầy huấn luyện, cảnh sát, máy Dilili, hầm, xưởng, khu phép thuật), skin sảnh.
 6. [~] Thú cưng: [x] 55 thú cưng + kỹ năng riêng (js/pets/petN.js, số theo wiki tools/wiki/pets.json, rev 20261010f),

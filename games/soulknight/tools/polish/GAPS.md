@@ -78,9 +78,27 @@ thẳng vào nền sảnh, cùng toạ độ thế giới); trồng, tưới, b�
 | Lê Băng (plant_icepear) | không có prefab trong common.ab; dùng hình Hương Thảo và luật wiki (một trong Băng Kích / Tượng Băng Nổ / Vòng Sương Băng, id 1015-1017) |
 | Thú cưng thứ hai | pets.js chỉ giữ một thú cưng chính (G.pet, spawn đóng kín) nên thú cưng cây (Hoa Mandala, Hoa Ăn Thịt, Bánh Ú Con) là bạn đồng hành riêng trong garden.js: bám chủ, cắn quái gần (3 / 5 / 2 sát thương, wiki); chưa có 3 viên đạn hình quạt + độc của Hoa Mandala, chưa có máu / hồi máu, chưa nhận kỹ năng pet |
 | Chín Nhanh (Instant Grow) | chưa làm; giới hạn lần mỗi ô [LOC ui/one_click_plant_limit_tip] chưa rõ |
-| Ô 7 (thành tựu "Tường Than Thở") | web chưa có Thần Điện Thủ Hộ và hệ thành tựu: ô khoá, ghi điều kiện |
+| Ô 7 (thành tựu "Tường Than Thở") | mở khi đạt thành tựu id 42 (js/ach.js); thành tựu này cần Thần Điện Thủ Hộ, web chưa có nên ô vẫn khoá trong chơi thật |
 | Ô 5, 6, 8 | thanh toán giả (fakePay), không trừ tiền thật |
 | Bí Đỏ "vật phẩm ngẫu nhiên" | web không có kho thuốc/bom ở sảnh: 40% vũ khí vào hòm, còn lại đá quý [ƯỚC LƯỢNG] |
 | Sen Tuyết (+1 máu tối đa, +40 năng lượng tối đa) | áp một ván; chưa tính vào hạn mức thức uống vì web chưa có Máy Bán Nước Uống |
 | NPC trong khu vườn gốc: Kỵ Sĩ Nghỉ Hưu, bù nhìn, giếng ước, thú hoang | không vẽ, không có tương tác (HALL.md #39); tường vườn là BoxCollider2D xoay chéo nên mặt nạ đi được của vườn lấy theo ô sàn floor_garden |
 | Ngày | ngày thật (SK.profile.dayIndex); cây chỉ lớn khi ghé lại / đổi ngày, tối đa 30 đêm cộng dồn; SK.profile.shiftDay + SK.garden.debugNextDay là móc kiểm thử |
+
+## Sổ Tay + 154 thành tựu (sảnh bước 8, js/ach.js, data/sk-ach.js, tools/achievements/build_ach.py)
+
+Có: ô Hầm (phím E) mở Sổ Tay với tab Thành Tựu (lưới icon, tiến độ, thưởng, nút Nhận / Nhận tất cả) và tab Thống kê. 40 / 154 thành tựu tính được
+(loại 1, 2, 3, 4, 7, 10, 13, 14, 16-22, 29-32, 49, 50, 53, 62, 65, 78, 79, 82, 90, 96, 102, 117, 121, 122). Thú cưng mở bằng thành tựu: pet36 (id 106),
+pet28 (id 86), pet13 (id 37), pet11 (id 38); ô vườn 7 (id 42).
+
+| Thiếu | Lý do / cách xử lý |
+|---|---|
+| 114 thành tựu khoá ("Chưa có ở bản web") | cần chế độ / cơ chế web chưa có: treo thưởng (5), nối máy (33, 45-48, 80, 81, 138), Thần Điện Thủ Hộ (36, 56-60, 69, 97), câu cá (54, 55), Hư Không (123-129, 140), ải 4 và ải ẩn (44, 83, 85-88, 92, 103), hồ dâng hiến, câu đố, sự kiện / emoji (74, 104, 110), Mê Trận (71-73), thí luyện nhân vật lấy skin (24-26, 35), nhiệm vụ riêng của vũ khí / nhân vật (loại 6, 8, 11, 85, 86, 89, 91, 93, 99-101, 105-109, 111-115...) |
+| Loại 63 / 64 (mèo / chó thân mật) | cần phân loài thú cưng; chỉ làm loại 62, 65 (số pet thân mật tối đa) |
+| Loại 7 (800 vàng trong một lần) | tính theo vàng đang giữ nhiều nhất trong ván (đo ở lúc nhặt vàng và cuối ván), không có sự kiện "nhận vàng" riêng |
+| Loại 27/28/76/77 (vượt không vũ khí) | game không phát sự kiện "ván không dùng vũ khí"; để khoá |
+| Loại 17-20 (hạ 500 quái mở thú cưỡi) | tiến độ đếm đúng; mở thú cưỡi do js/mounts.js, chưa nối vào thành tựu |
+| Loại 0 (Eagle lover id 38, Bug id 37, boss12 id 20, AdvToturial id 43) | cần danh sách vũ khí Chim Ưng / sự kiện riêng; pet11, pet13 vẫn khoá |
+| Thưởng skin (awardType 2), vé theo extraInfo (token_weapon_weapon_*, token_factor_*), bản vẽ cá, băng từ, chậu cây 3 | web chưa có đích nhận: Sổ Tay hiện "(chưa có ở bản web)", không cộng |
+| Thưởng thư | thưởng nhận trong Sổ Tay, không đẩy vào Hộp Thư; thông báo khi đạt chỉ là dòng nổi trên màn |
+

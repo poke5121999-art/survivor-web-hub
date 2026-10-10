@@ -10,6 +10,7 @@
   function buildStages(mode, factors) {
     STAGES.length = 0;
     const br = mode === 'bossrush';
+    if (mode === 'matrix') { addFloor(1); return; }   // Mê Trận Tà Vương: mỗi tầng nối thêm khi qua cổng x-5 (SK.matrixNextFloor)
     for (const [theme, level] of DS.run) for (let i = 1; i <= 5; i++) {
       STAGES.push({ theme, level, n: i, label: level + '-' + i, boss: br || i === 5, br });
     }
@@ -17,6 +18,19 @@
     // Gốc chỉ mở khi "Thí Luyện Thuần Túy" (không mang nhân tố/thiên phú/vũ khí, kịp giờ); web: chỉ cần không mang nhân tố [SUY].
     if (br && !(factors && factors.length)) STAGES.push({ theme: DS.run[2][0], level: 3, n: 6, label: '3-6', boss: true, br, final: true });
   }
+  // Tầng k của Mê Trận: 5 ải k-1..k-5, vùng đất của tầng ((k-1) mod 3)+1 (dãy 3 tầng lặp lại); trùm ở k-5.
+  // Chủ đề mỗi vùng bốc một lần lúc vào chế độ (G.mxThemes), tầng sau dùng lại.
+  function addFloor(k) {
+    const t = (k - 1) % 3, level = DS.run[t][1];
+    const theme = (G.mxThemes && G.mxThemes[t]) || DS.run[t][0];
+    for (let i = 1; i <= 5; i++) STAGES.push({ theme, level, floor: k, n: i, label: k + '-' + i, boss: i === 5, br: false });
+  }
+  SK.matrixNextFloor = function () {
+    if (!G || G.mode !== 'matrix') return false;
+    const k = STAGES[STAGES.length - 1].floor + 1;
+    if (STAGES.some(s => s.floor === k)) return false;   // gọi lại không nối thêm tầng
+    addFloor(k); return true;
+  };
   buildStages('level');
   SK.STAGES = STAGES;
   // Bản gốc: mỗi tầng bốc một chủ đề trong các chủ đề cùng tầng (level/N/*) [THẤY rừng/băng nguyên tầng 1 ở các clip].
@@ -26,6 +40,11 @@
   SK.tierAnchor = level => (DS.run.find(r => r[1] === level) || DS.run[0])[0];
   function rollThemes() {
     const pin = PIN ? PIN.split(',') : null;
+    if (G.mode === 'matrix') {
+      G.mxThemes = DS.run.map(([, level], t) => pin && D.themes[pin[t]] ? pin[t] : SK.pick(SK.tierThemes(level)));
+      for (const st of STAGES) st.theme = G.mxThemes[(st.floor - 1) % 3];
+      return;
+    }
     DS.run.forEach(([, level], t) => {
       const theme = pin && D.themes[pin[t]] ? pin[t] : SK.pick(SK.tierThemes(level));
       for (const st of STAGES) if (st.level === level) st.theme = st.br && !pin ? SK.pick(SK.tierThemes(level)) : theme;
@@ -210,7 +229,9 @@
     G.factors = Array.isArray(factors) ? factors.slice() : [];
     if (SK.factorsOn) SK.factorsOn(G); else G.mods = {};
     G.player = null; G.kills = 0; G.state = 'stage';
-    G.mode = mode === 'bossrush' ? 'bossrush' : 'level'; G.bossSeen = [];
+    G.mode = mode === 'bossrush' || mode === 'matrix' ? mode : 'level'; G.bossSeen = [];
+    if (G.mode === 'matrix') { G.factors = []; if (SK.factorsOn) SK.factorsOn(G); }   // nhân tố do Tà Vương ban, không tự chọn
+    G.matrix = G.mode === 'matrix' && SK.matrix ? SK.matrix.init(G) : null;
     setOverlay(null);
     buildStages(G.mode, G.factors);
     rollThemes();
@@ -259,6 +280,7 @@
     }
     // G.hold: một mô-đun (chọn buff...) giữ người chơi ở cổng tới khi xong việc của nó.
     if (G.phase === 'portal' && G.phaseT > 0.8 && !G.hold) {
+      if (G.mode === 'matrix' && G.stageIdx + 1 >= STAGES.length) SK.matrixNextFloor();   // vô tận: không có chiến thắng
       if (G.stageIdx + 1 >= STAGES.length) { G.state = 'victory'; setOverlay('sk-win'); fillEnd('sk-win-info'); }
       else enterStage(G.stageIdx + 1);
     }
@@ -448,7 +470,8 @@
         if (!DS.weapons[id] || !G.player) return false;
         G.player.weapons[1] = SK.makeWeapon(id); G.player.cur = 1; return true;
       },
-      seed(s) { SK.setSeed(s); }
+      seed(s) { SK.setSeed(s); },
+      matrix(hero) { SK.matrix.start(hero || 'knight'); return true; }
     }
   };
 })();
