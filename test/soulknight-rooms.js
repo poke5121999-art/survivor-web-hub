@@ -131,10 +131,10 @@ const IGNORE = /bosses86|theme|lib|colour/;
     let allOk = true, detail = [];
     for (const it of shop) {
       const price = +/\((\d+) vàng\)/.exec(it.label)[1];
-      const before = await ev(() => { const q = SK.G.player; return { gold: q.gold, hp: q.hp, energy: q.energy, w: q.weapons.join('/') }; });
+      const before = await ev(() => { const q = SK.G.player; return { gold: q.gold, hp: q.hp, energy: q.energy, w: q.weapons.map(x => x && x.id).join("/") }; });
       await ev(() => { const q = SK.G.player; q.hp = 2; q.energy = 10; });
       const shown = await useLabel('^' + it.label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$');
-      const after = await ev(() => { const q = SK.G.player; return { gold: q.gold, hp: q.hp, energy: q.energy, w: q.weapons.join('/') }; });
+      const after = await ev(() => { const q = SK.G.player; return { gold: q.gold, hp: q.hp, energy: q.energy, w: q.weapons.map(x => x && x.id).join("/") }; });
       const got = after.w !== before.w || after.hp > 2 || after.energy > 10;
       if (!(shown === it.label && after.gold === before.gold - price && got)) allOk = false;
       detail.push(it.label + ' ' + before.gold + '→' + after.gold);

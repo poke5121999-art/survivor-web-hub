@@ -172,7 +172,7 @@
   SK.on('enemyKill', (G, e) => {
     if (!on(G) || !e || e.gene !== 'scatter' || !SK.spawnBullet86) return;
     const n = 2 + (Math.floor(SK.rand() * 3));
-    for (let i = 0; i < n; i++) SK.spawnBullet86(G, 'e', 'bullet_0', e.x, e.y - 6, SK.rand() * Math.PI * 2, { dmg: 4, spd: 4, life: 1.6, h: 6 });
+    for (let i = 0; i < n; i++) { const b = SK.spawnBullet86(G, 'e', 'bullet_0', e.x, e.y - 6, SK.rand() * Math.PI * 2, { dmg: 4, spd: 4, life: 1.6, h: 6 }); if (b) b.elem = 'poison'; }   // bọt độc: nguyên tố (thiên phú 2117 chống đỡ)
     e._scatter = n;
   });
   // Viền màu dưới chân quái gen (+ vòng Phản Xạ, khiên)

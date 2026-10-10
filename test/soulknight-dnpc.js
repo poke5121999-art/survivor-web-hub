@@ -258,6 +258,305 @@ const IGNORE = /bosses86|theme|lib|colour/;
     const wt = await ev(() => ({ merc: SK_ROOMS.mercRoomAllowed(), t: SK_ROOMS.extra.trainer.weight() }));
     check('(15) có lính đã thuê còn sống: phòng lính thuê tắt, trọng số thầy huấn luyện = 75', !wt.merc && wt.t === 75, JSON.stringify(wt));
 
+    // ================================================================ đợt 2: Thợ Thủ Công, Người Câu Cá, Đạo Sư, Máy Thử Vận May
+    const D2 = await ev(() => {
+      const R = SK_ROOMS, N = R.dnpc2, WP = 150 / 11;
+      return {
+        pf: ['npc_weapon_item_fish', 'slotmachine', 'npc_skill_update', 'npc_smith'].map(n => !!SK.prefab(n)),
+        extra: ['fishnpc', 'mentor', 'smith', 'slotmachine'].map(k => !!R.extra[k]),
+        w: [R.extra.fishnpc.weight(), R.extra.mentor.weight(), R.extra.smith.weight(), R.extra.slotmachine.weight()], WP
+      };
+    });
+    check('prefab gốc npc_weapon_item_fish, slotmachine, npc_skill_update, npc_smith có trong dữ liệu', D2.pf.every(Boolean), JSON.stringify(D2.pf));
+    check('4 loại phòng đợt 2 đã đăng ký (fishnpc, mentor, smith, slotmachine)', D2.extra.every(Boolean), JSON.stringify(D2.extra));
+    check('trọng số: câu cá 1×150/11, đạo sư 1×150/11, thợ thủ công 4×150/11 (weapon_provider); máy thử vận may 0 ở 1-3 (cần chỉ số ải ≥ 6)',
+      Math.abs(D2.w[0] - D2.WP) < 1e-6 && Math.abs(D2.w[1] - D2.WP) < 1e-6 && Math.abs(D2.w[2] - 4 * D2.WP) < 1e-6 && D2.w[3] === 0, JSON.stringify(D2.w));
+
+    // vũ khí mẫu theo loại
+    const W2 = await ev(() => {
+      const D = SK.DS.weapons, ids = Object.keys(D), ok = d => d.dmg > 0 && (d.grade | 0) <= 5 && d.w86 && d.w86.b && d.w86.b[0].dmg > 0 && /^weapon_\d{3}$/.test(d.prefab || '');
+      const f = (kind, cost) => ids.find(id => D[id].kind === kind && ok(D[id]) && (cost == null || (cost ? D[id].cost > 0 : !(D[id].cost > 0))));
+      return { sword: f('melee'), staff: f('staff', true), laser: f('laser', true), gun: 'ak_47', red: ids.find(id => /^weapon_\d{3}$/.test(D[id].prefab) && D[id].grade === 6 && D[id].dmg > 0) };
+    });
+    const info2 = id => ev(i => { const d = SK.DS.weapons[i]; return { n: d.name, k: d.kind, dmg: d.dmg, cost: d.cost || 0, crit: d.crit || 0, rps: d.rps, bd: d.w86 && d.w86.b && d.w86.b[0].dmg, bc: d.w86 && d.w86.b && d.w86.b[0].crit }; }, id);
+    const wInfo = () => ev(() => { const w = SK.G.player.weapons[SK.G.player.cur]; if (!w) return null; const d = w.def; return { id: w.id, name: d.name, dmg: d.dmg, cost: d.cost || 0, crit: d.crit || 0, rps: d.rps, bd: d.w86 && d.w86.b && d.w86.b[0].dmg, bc: d.w86 && d.w86.b && d.w86.b[0].crit, att: w.att && JSON.stringify(w.att) }; });
+
+    // ---------------------------------------------------------------- Thợ Thủ Công
+    await stage('1-3', 'smith', 'special');
+    check('ép phòng smith: phòng có Thợ Thủ Công, 1 điểm tương tác', (await ev(() => SK.G.map.rooms.filter(x => x.type === 'special')[0].fill)) === 'smith' && (await ev(() => SK.G.interactables.filter(o => /^Thợ Thủ Công/.test(o.label)).length)) === 1);
+    await p.screenshot({ path: path.join(SHOTS, 'smith.png') });
+    await hold([null, null], 500);
+    await ev(() => { SK.G.player.weapons = [null, null]; });
+    await useLabel('^Thợ Thủ Công');
+    s = await state();
+    check('(S1) không cầm vũ khí: bị từ chối, vàng giữ 500', s.gold === 500, JSON.stringify(s));
+    for (const [what, id] of [['vũ khí đỏ', W2.red], ['vũ khí chỉ câu cá (Bladefish)', 'bladefish'], ['Qian-kun Punch', 'weapon_init_airbender']]) {
+      await hold([id, null], 500);
+      await useLabel('^Thợ Thủ Công');
+      s = await state(); const wi = await wInfo();
+      check('(S2) ' + what + ' không gắn được phụ kiện: vàng giữ 500, không có phụ kiện', s.gold === 500 && !wi.att, JSON.stringify(s.gold) + ' ' + (wi.att || 'không phụ kiện'));
+    }
+    await hold([W2.sword, null], 1);
+    await useLabel('^Thợ Thủ Công');
+    s = await state();
+    check('(S3) thiếu vàng (1): không gắn, vàng giữ 1', s.gold === 1 && !(await wInfo()).att, JSON.stringify(s));
+    // gắn thật trên kiếm: trừ đúng giá, def và đạn tăng đúng số trong bảng
+    for (const [kind, id] of [['melee', W2.sword], ['gun', W2.gun], ['laser', W2.laser], ['staff', W2.staff]]) {
+      await hold([id, null], 9999);
+      const b0 = await info2(id);
+      const lab = await useLabel('^Thợ Thủ Công');
+      const pr = priceOf('\\((\\d+) vàng\\)', lab);
+      s = await state();
+      const w1 = await wInfo();
+      const A = w1.att && JSON.parse(w1.att);
+      const eff = await ev(a => { const e = SK_ROOMS.dnpc2.ATT[a.key].eff(a.v); return e; }, A);
+      const want = { dmg: b0.dmg + (eff.dmg || 0), bd: b0.bd + (eff.dmg || 0), crit: b0.crit + (eff.crit || 0), cost: eff.costZero ? 0 : Math.max(0, b0.cost + (eff.cost || 0)) };
+      check('(S4) ' + kind + ' ' + b0.n + ': gắn ' + (A ? A.key + ' ' + A.rar + ' ' + A.v : 'không ra') + ', trừ đúng giá nhãn ' + pr + ', sát thương/bạo kích/năng lượng đổi đúng bảng, tên có ★',
+        !!A && 9999 - s.gold === pr && w1.dmg === want.dmg && w1.bd === want.bd && w1.crit === want.crit && w1.cost === want.cost && /★/.test(w1.name),
+        JSON.stringify({ b0: [b0.dmg, b0.bd, b0.crit, b0.cost], w1: [w1.dmg, w1.bd, w1.crit, w1.cost], A, trừ: 9999 - s.gold }));
+      // dùng lại: đã xong
+      const g1 = s.gold;
+      await useLabel('^Thợ Thủ Công');
+      s = await state();
+      check('(S5) ' + kind + ': mỗi Thợ Thủ Công chỉ làm một phụ kiện, lần hai không trừ vàng', s.gold === g1, 'vàng ' + g1 + ' → ' + s.gold);
+      await ev(() => { const it = SK_ROOMS.dnpc2 && SK.G.props.find(q => q.key === 'smith'); if (it) it.used = false; });
+    }
+    // phụ kiện sống sót qua refreshWeapons (rooms.js đặt lại w.def từ bản gốc) và được đạn thật dùng
+    const real = await ev(() => {
+      const G = SK.G, pl = G.player, id = 'ak_47';
+      pl.weapons = [SK.makeWeapon(id), null]; pl.cur = 0;
+      const w = pl.weapons[0], base = SK.DS.weapons[id];
+      SK_ROOMS.dnpc2.equip(w, { key: 'gauss', rar: 'purple', v: 3 });
+      SK_ROOMS.refreshWeapons(pl);
+      const after = w.def.dmg, bd = w.def.w86.b[0].dmg;
+      pl.crit = 0; pl.dmgMul = 1;
+      const n0 = G.bullets.length;
+      SK.WEAPON_KINDS.gun.fire(G, pl, w, { x: pl.x, y: pl.y, ang: 0, side: 1, fn: 'Attack' });
+      const nb = G.bullets.slice(n0).filter(b => b.side === 'p').map(b => b.dmg);
+      return { base: base.dmg, after, bd, bullets: nb, baseB: base.w86.b[0].dmg };
+    });
+    check('(S6) phụ kiện còn sau refreshWeapons, đạn bắn thật mang sát thương đã cộng (AK47 3 → 6)', real.after === real.base + 3 && real.bullets.length > 0 && real.bullets.every(d => d === real.baseB + 3 || d === (real.baseB + 3) * 2), JSON.stringify(real));
+    // xác suất: AK47 bốc từ gauss/chip/reactor, mỗi loại ~1/3, độ hiếm đều
+    await ev(() => SK_GAME.debug.seed(777));
+    const dist = await ev(() => {
+      const N = SK_ROOMS.dnpc2, d = SK.DS.weapons.ak_47, c = {}, rar = {};
+      for (let i = 0; i < 3000; i++) { const a = N.rollAtt(d, false); c[a.key] = (c[a.key] || 0) + 1; rar[a.rar] = (rar[a.rar] || 0) + 1; }
+      return { c, rar, list: N.attList(d, false) };
+    });
+    const ks = Object.keys(dist.c);
+    check('(S7) 3000 lần bốc cho AK47: chỉ ra phụ kiện hợp (gauss/chip/reactor), mỗi loại 1/3 ± 4%', ks.every(k => ['gauss', 'chip', 'reactor'].indexOf(k) >= 0) && ks.length === 3 && ks.every(k => Math.abs(dist.c[k] / 3000 - 1 / 3) < 0.04), JSON.stringify(dist.c) + ' ' + JSON.stringify(dist.rar));
+
+    // ---------------------------------------------------------------- Người Câu Cá
+    await stage('1-3', 'fishnpc', 'special');
+    check('ép phòng fishnpc: phòng có Người Câu Cá', (await ev(() => SK.G.map.rooms.filter(x => x.type === 'special')[0].fill)) === 'fishnpc');
+    await p.screenshot({ path: path.join(SHOTS, 'fishnpc.png') });
+    await hold([W2.sword, null], 5);
+    await useLabel('^Người Câu Cá');
+    s = await state();
+    check('(F1) thiếu vàng (5): không bán, vàng giữ 5, không phụ kiện', s.gold === 5 && !(await wInfo()).att, JSON.stringify(s));
+    await hold(['bladefish', null], 500);
+    await useLabel('^Người Câu Cá');
+    s = await state();
+    check('(F2) vũ khí chỉ câu cá không gắn được: vàng giữ 500', s.gold === 500 && !(await wInfo()).att, JSON.stringify(s));
+    await hold([W2.sword, null], 9999);
+    const bf = await info2(W2.sword);
+    const labF = await useLabel('^Người Câu Cá');
+    const prF = priceOf('\\((\\d+) vàng\\)', labF);
+    s = await state(); const wf = await wInfo(); const Af = wf.att && JSON.parse(wf.att);
+    check('(F3) kiếm: nhận phụ kiện câu cá (' + (Af ? Af.key : '?') + '), trừ đúng giá nhãn ' + prF + ', sát thương cộng đúng bảng',
+      !!Af && ['barnacle', 'whetstone'].indexOf(Af.key) >= 0 && 9999 - s.gold === prF && wf.dmg === bf.dmg + (Af.key === 'whetstone' ? 2 : 1) && wf.bd === bf.bd + (Af.key === 'whetstone' ? 2 : 1) && (Af.key !== 'barnacle' || Math.abs(wf.rps - bf.rps * 0.95) < 1e-6),
+      JSON.stringify({ bf: [bf.dmg, bf.rps], wf: [wf.dmg, wf.rps], Af, trừ: 9999 - s.gold }));
+    const labF2 = await useLabel('^Người Câu Cá');
+    const gF = (await state()).gold;
+    check('(F4) sau khi bán: nhãn "đừng làm ồn, đi câu đây", lần hai không trừ vàng', /đừng làm ồn/.test(labF2 || '') || /đừng làm ồn/.test(await ev(() => SK.G.interactables.find(q => /^Người Câu Cá/.test(q.label)).label)), String(labF2) + ' vàng ' + gF);
+    await ev(() => SK_GAME.debug.seed(888));
+    const dF = await ev(([sw, st]) => {
+      const N = SK_ROOMS.dnpc2, out = {};
+      for (const [nm, id] of [['sword', sw], ['staff', st], ['ak', 'ak_47']]) { const d = SK.DS.weapons[id], c = {}; for (let i = 0; i < 2000; i++) { const a = N.rollAtt(d, true); c[a.key] = (c[a.key] || 0) + 1; } out[nm] = c; }
+      return out;
+    }, [W2.sword, W2.staff]);
+    check('(F5) 2000 lần bốc: kiếm ra balanus/cá đao 50/50 ± 4%; trượng ra balanus/đá hiền giả 50/50 ± 4%; AK47 chỉ ra balanus',
+      Math.abs(dF.sword.barnacle / 2000 - 0.5) < 0.04 && Math.abs(dF.staff.barnacle / 2000 - 0.5) < 0.04 && dF.staff.sage + dF.staff.barnacle === 2000 && dF.ak.barnacle === 2000, JSON.stringify(dF));
+    await hold([W2.staff, null], 9999);
+    const sI = await info2(W2.staff);
+    await ev(() => { const it = SK.G.props.find(q => q.key === 'fishnpc'); it.used = false; SK_GAME.debug.seed(31337); });
+    // ép Đá Hiền Giả để đo: bốc tới khi ra
+    let sage = null;
+    for (let i = 0; i < 40 && !(sage && sage.att && JSON.parse(sage.att).key === 'sage'); i++) {
+      await hold([W2.staff, null], 9999);
+      await ev(() => { SK.G.props.find(q => q.key === 'fishnpc').used = false; });
+      await useLabel('^Người Câu Cá');
+      sage = await wInfo();
+    }
+    check('(F6) trượng gắn Đá Hiền Giả: tiêu hao năng lượng về 0, sát thương +1', !!sage.att && JSON.parse(sage.att).key === 'sage' && sage.cost === 0 && sage.dmg === sI.dmg + 1, JSON.stringify({ sI, sage }));
+
+    const bar = await ev(() => {
+      const pl = SK.G.player, d0 = SK.DS.weapons.ak_47, w = SK.makeWeapon('ak_47');
+      SK_ROOMS.dnpc2.equip(w, { key: 'barnacle', rar: 'blue', v: 1 });
+      return { dmg: w.def.dmg, bd: w.def.w86.b[0].dmg, rps: w.def.rps, base: [d0.dmg, d0.rps] };
+    });
+    check('(F7) Balanus (AK47): sát thương +1 (cả đạn), tốc đánh nhân 0,95', bar.dmg === bar.base[0] + 1 && bar.bd === bar.base[0] + 1 && Math.abs(bar.rps - bar.base[1] * 0.95) < 1e-9, JSON.stringify(bar));
+
+    // ---------------------------------------------------------------- Đạo Sư
+    await stage('1-3', 'mentor', 'special');
+    check('ép phòng mentor: phòng có Đạo Sư', (await ev(() => SK.G.map.rooms.filter(x => x.type === 'special')[0].fill)) === 'mentor');
+    await p.screenshot({ path: path.join(SHOTS, 'mentor.png') });
+    await hold(['ak_47', null], 3);
+    const mw0 = await ev(() => SK_ROOMS.extra.mentor.weight());
+    await useLabel('^Đạo Sư');
+    s = await state();
+    check('(M1) thiếu vàng (3): không nâng, vàng giữ 3, cấp kỹ năng 0; trọng số 150/11 khi chưa đạt cấp tối đa', s.gold === 3 && (await ev(() => (SK.G.mods.skillLv | 0))) === 0 && Math.abs(mw0 - 150 / 11) < 1e-6, JSON.stringify(s) + ' w=' + mw0);
+    const MP = await ev(() => SK_ROOMS.dnpc2.mentorPrice());
+    await hold(['ak_47', null], 9999);
+    const cd0 = await ev(() => SK.G.mods.skillCdMul);
+    const labM = await useLabel('^Đạo Sư');
+    s = await state();
+    const mv = await ev(() => { const G = SK.G, p = G.player; p.skillT = 0; SK.endSkill(G, p); return { lv: G.mods.skillLv, mul: G.mods.skillCdMul, cd: p.skillCd, base: p.h.skill.cd }; });
+    check('(M2) nâng 1 cấp: trừ ' + MP + ' vàng (đúng nhãn), cấp kỹ năng 1, hồi chiêu kỹ năng thật = cd gốc × 0,94',
+      9999 - s.gold === MP && priceOf('\\((\\d+) vàng\\)', labM) === MP && mv.lv === 1 && Math.abs(mv.mul - cd0 * 0.94) < 1e-9 && Math.abs(mv.cd - mv.base * mv.mul) < 1e-6, JSON.stringify({ trừ: 9999 - s.gold, nhãn: labM, mv }));
+    const g2m = s.gold;
+    await useLabel('^Đạo Sư');
+    s = await state();
+    check('(M3) mỗi Đạo Sư một lần: lần hai không trừ vàng, cấp vẫn 1', s.gold === g2m && (await ev(() => SK.G.mods.skillLv)) === 1, 'vàng ' + g2m + ' → ' + s.gold);
+    const mx = await ev(() => { const G = SK.G; G.mods.skillLv = SK_ROOMS.dnpc2.MENTOR_MAX; return { w: SK_ROOMS.extra.mentor.weight() }; });
+    const labMx = await ev(() => { const it = SK.G.props.find(q => q.key === 'mentor'); it.used = false; return SK.G.interactables.find(q => /^Đạo Sư/.test(q.label)).label; });
+    await hold(['ak_47', null], 9999);
+    await useLabel('^Đạo Sư');
+    s = await state();
+    check('(M4) đạt cấp tối đa 5: trọng số phòng về 0, Đạo Sư "hết gì để dạy", không trừ vàng', mx.w === 0 && /hết gì để dạy/.test(labMx) && s.gold === 9999 && (await ev(() => SK.G.mods.skillLv)) === 5, JSON.stringify(mx) + ' ' + labMx);
+    await ev(() => { SK.G.mods.skillLv = 0; });
+
+    // ---------------------------------------------------------------- Máy Thử Vận May
+    const stg = await ev(() => { for (const l of ['2-3', '2-4', '3-1', '3-2']) { SK_GAME.debug.stage(l); if (SK.G.stageIdx >= 6) return l; } return null; });
+    check('có ải với chỉ số ≥ 6 để thử máy', !!stg, String(stg));
+    await stage(stg, 'slotmachine', 'special');
+    const sw = await ev(() => ({ w: SK_ROOMS.extra.slotmachine.weight(), idx: SK.G.stageIdx, fill: SK.G.map.rooms.filter(x => x.type === 'special')[0].fill }));
+    check('ép phòng slotmachine ở ải ' + stg + ': có Máy Thử Vận May; trọng số = 10 từ chỉ số ải 6', sw.fill === 'slotmachine' && sw.w === 10, JSON.stringify(sw));
+    await p.screenshot({ path: path.join(SHOTS, 'slotmachine.png') });
+    await hold(['ak_47', null], 3);
+    await useLabel('Thử Vận May');
+    s = await state();
+    check('(T1) thiếu vàng (3): không chơi, vàng giữ 3', s.gold === 3 && (await ev(() => SK.G.props.find(q => q.key === 'slotmachine').plays)) === 0, JSON.stringify(s));
+    const SP = await ev(() => SK_ROOMS.dnpc2.slotPrice());
+    await ev(() => { const G = SK.G; G.player.hp = 3; G.player.energy = 10; G.player.armor = 0; });
+    await hold(['ak_47', null], 9999);
+    const labT = await useLabel('Thử Vận May');
+    s = await state();
+    check('(T2) chơi 1 lượt: trừ đúng ' + SP + ' vàng (khớp nhãn "chỉ cần N vàng")', 9999 - s.gold === SP && priceOf('(\\d+) vàng', labT) === SP, labT + ' · trừ ' + (9999 - s.gold));
+    // mô phỏng nhiều lượt có hạt giống: tần suất khớp bảng
+    await ev(() => SK_GAME.debug.seed(424242));
+    const sim = await ev(() => {
+      const G = SK.G, N = SK_ROOMS.dnpc2, it = G.props.find(q => q.key === 'slotmachine'), o = G.interactables.find(q => /Thử Vận May/.test(q.label));
+      const ev = [], off = SK.on('slotPlay', (G2, r) => ev.push(r));
+      const cnt = { hit: 0, a1: 0, a2: 0, a3: 0, a4: 0, a5: 0, p6: 0, p7: 0 }, pots = {}, pl = G.player;
+      let games = 0, jack = 0;
+      for (let m = 0; m < 400; m++) {
+        it.rest = N.SLOT_AWARDS.map(q => q[2]); it.broken = false; it.anim = 0; it.rocket = 0;
+        for (let k = 0; k < 40 && !it.broken; k++) {
+          pl.gold = 1e6; pl.invulT = 0; pl.hp = pl.hpMax; it.anim = 0;
+          o.use(); games++;
+        }
+      }
+      for (const r of ev) {
+        if (r.hit) { cnt.hit++; cnt['a' + r.award]++; if (r.award !== 5) pots[r.pot] = (pots[r.pot] || 0) + 1; } else cnt['p' + r.award]++;
+      }
+      return { games, n: ev.length, cnt, pots, spent: 1e6 * 0 };
+    });
+    const hitRate = sim.cnt.hit / sim.n;
+    check('(T3) mô phỏng ' + sim.n + ' lượt (400 máy, hạt giống 424242): tỉ lệ trúng 40% ± 3%; trượt chia đều cảm ơn/giật điện (1000:1000) ± 4%',
+      Math.abs(hitRate - 0.4) < 0.03 && Math.abs(sim.cnt.p6 / (sim.cnt.p6 + sim.cnt.p7) - 0.5) < 0.04, JSON.stringify(sim.cnt));
+    const lim = await ev(() => {
+      const N = SK_ROOMS.dnpc2, rest = N.SLOT_AWARDS.map(q => q[2]), got = {};
+      for (let i = 0; i < 20000; i++) { const r = N.slotRoll(rest); if (r.hit) got[r.award] = (got[r.award] || 0) + 1; }
+      return got;
+    });
+    check('(T4) lượt còn lại (restCount): 20000 lượt trúng trên một máy ra giải 1 ≤ 3, giải 2 ≤ 3, giải 4 ≤ 10, giải 5 (đặc biệt) đúng 1, giải 3 (không giới hạn) lấp phần còn lại',
+      lim[1] === 3 && lim[2] === 3 && lim[4] === 10 && lim[5] === 1 && lim[3] === Object.values(lim).reduce((x, y) => x + y, 0) - 3 - 3 - 10 - 1, JSON.stringify(lim));
+    const poolShare = await ev(() => {
+      SK_GAME.debug.seed(99);
+      const N = SK_ROOMS.dnpc2, c = {}; let n = 0;
+      for (let i = 0; i < 20000; i++) { const r = N.slotRoll([0, 0, 1e9, 0, 0]); if (r.hit) { c[r.pot] = (c[r.pot] || 0) + 1; n++; } }
+      return { c, n };
+    });
+    const want = { energy_pot: 10, energy_pot_big: 10, health_pot: 10, health_pot_big: 10, restore_pot: 5, restore_pot_big: 5 };
+    check('(T5) bình thưởng theo bể slot_machine (10:10:10:10:5:5), sai số ≤ 3% mỗi loại', Object.keys(want).every(k => Math.abs((poolShare.c[k] || 0) / poolShare.n - want[k] / 50) < 0.03), JSON.stringify(poolShare.c));
+    // phần thưởng thật: bình hồi đúng số (đo trên máy thật)
+    const reward = await ev(() => {
+      const G = SK.G, pl = G.player, N = SK_ROOMS.dnpc2, it = G.props.find(q => q.key === 'slotmachine'), o = G.interactables.find(q => /Thử Vận May/.test(q.label));
+      const rows = [];
+      for (const [pot, hp, en] of [['health_pot', 2, 0], ['health_pot_big', 4, 0], ['energy_pot', 0, 80], ['energy_pot_big', 0, 150], ['restore_pot', 1, 40], ['restore_pot_big', 2, 80]]) {
+        const old = N.slotRoll; // ép kết quả bằng cách đặt hạt giống tìm lượt ra đúng bình
+        let found = false;
+        for (let sd = 1; sd < 4000 && !found; sd++) {
+          SK_GAME.debug.seed(sd);
+          const probe = N.slotRoll([0, 0, 1e9, 0, 0]);
+          if (probe.hit && probe.pot === pot) {
+            SK_GAME.debug.seed(sd);
+            pl.gold = 1e6; pl.hp = 1; pl.energy = 1; pl.hpMax = Math.max(pl.hpMax, 10); pl.energyMax = Math.max(pl.energyMax, 300); it.anim = 0; it.broken = false; it.rest = [0, 0, 1e9, 0, 0];
+            const hit = SK.rand() < 0; // chỉ để đồng bộ: lần gọi thật bên dưới dùng lại cùng hạt giống
+            SK_GAME.debug.seed(sd);
+            const before = [pl.hp, pl.energy];
+            o.use();
+            rows.push({ pot, dhp: pl.hp - before[0], den: pl.energy - before[1], want: [hp, en], seed: sd, last: it.last && it.last.pot });
+            found = true;
+          }
+        }
+      }
+      return rows;
+    });
+    check('(T6) mỗi loại bình trong bể hồi đúng số máu/năng lượng của prefab (6 loại, đo trên máy thật)', reward.length === 6 && reward.every(r => r.dhp === r.want[0] && r.den === r.want[1] && r.last === r.pot), JSON.stringify(reward));
+    // giải đặc biệt: hồi đầy, máy hỏng
+    const jk = await ev(() => {
+      const G = SK.G, pl = G.player, it = G.props.find(q => q.key === 'slotmachine'), o = G.interactables.find(q => /Thử Vận May/.test(q.label)), N = SK_ROOMS.dnpc2;
+      let found = false, out = null;
+      for (let sd = 1; sd < 20000 && !found; sd++) {
+        SK_GAME.debug.seed(sd);
+        const probe = N.slotRoll([0, 0, 0, 0, 1]);
+        if (probe.hit && probe.award === 5) {
+          SK_GAME.debug.seed(sd);
+          pl.gold = 1e6; pl.hp = 1; pl.energy = 1; it.anim = 0; it.broken = false; it.rest = [0, 0, 0, 0, 1];
+          o.use();
+          out = { hp: pl.hp, hpMax: pl.hpMax, en: pl.energy, enMax: pl.energyMax, broken: it.broken, label: o.label, rocket: it.rocket };
+          found = true;
+        }
+      }
+      return out;
+    });
+    check('(T7) giải đặc biệt (hạt nhân): hồi đầy máu và năng lượng, máy hỏng, nhãn "đã hư tổn"', jk && jk.hp === jk.hpMax && jk.en === jk.enMax && jk.broken && /hư tổn/.test(jk.label) && jk.rocket > 0, JSON.stringify(jk));
+    const gB = (await state()).gold;
+    await useLabel('Thử Vận May');
+    check('(T8) máy hỏng không chơi tiếp: vàng không đổi', (await state()).gold === gB);
+    const thunder = await ev(() => {
+      const G = SK.G, pl = G.player, it = G.props.find(q => q.key === 'slotmachine'), o = G.interactables.find(q => /Thử Vận May|hư tổn/.test(q.label)), N = SK_ROOMS.dnpc2;
+      let out = null;
+      for (let sd = 1; sd < 5000 && !out; sd++) {
+        SK_GAME.debug.seed(sd);
+        const probe = N.slotRoll([0, 0, 1e9, 0, 0]);
+        if (!probe.hit && probe.award === 7) {
+          SK_GAME.debug.seed(sd);
+          pl.gold = 1e6; pl.armor = 0; pl.hp = pl.hpMax; pl.invulT = 0; it.anim = 0; it.broken = false; it.rest = [0, 0, 1e9, 0, 0];
+          const hp0 = pl.hp + pl.armor; o.use();
+          out = { dmg: hp0 - (pl.hp + pl.armor), last: it.last.award };
+        }
+      }
+      return out;
+    });
+    check('(T9) trượt kiểu "dòng điện thất thường": người chơi bị giật đúng 1 sát thương', thunder && thunder.last === 7 && thunder.dmg === 1, JSON.stringify(thunder));
+    // vẽ bằng khoá prefab gốc: bốn prefab vẽ ra khung hình thật (không ô trống)
+    const draws = await ev(() => {
+      const out = {};
+      const cv = document.createElement('canvas'); cv.width = 160; cv.height = 160;
+      const ctx = cv.getContext('2d');
+      for (const n of ['npc_weapon_item_fish', 'slotmachine', 'npc_skill_update', 'npc_smith']) {
+        ctx.clearRect(0, 0, 160, 160);
+        const ok = SK.drawPrefab(ctx, SK.prefab(n), 80, 120, { t: 0 });
+        const px = ctx.getImageData(0, 0, 160, 160).data; let c = 0; for (let i = 3; i < px.length; i += 4) if (px[i] > 8) c++;
+        out[n] = [ok, c, SK.prefab(n).filter(q => q.f).length];
+      }
+      return out;
+    });
+    check('(V) vẽ bằng khoá prefab gốc: cả 4 prefab ra điểm ảnh thật (> 300 điểm)', Object.values(draws).every(v => v[0] && v[1] > 300), JSON.stringify(draws));
+
     // ================================================================ xuất hiện tự nhiên theo trọng số
     const tally = await ev(() => {
       const out = {}, G = SK.G;

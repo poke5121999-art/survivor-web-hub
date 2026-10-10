@@ -22,7 +22,7 @@
     staffHit: 5, staffQuake: 6, beadHit: 3, beadQuake: 5, beads: 8, beadBounce: 2,   // Thiền Vệ: 8 châu bật 2 lần [WIKI VI]; sát thương [ƯỚC LƯỢNG]
     graspHp: 12, graspN: 3, graspHit: 2, sumOpen: 3, slowK: 0.5,       // Triệu Hồi Sư: 3 Bàn Tay 12 máu [WIKI VI]
     wardenOrbs: 3, wardenOpen: 1.5, circleR: 28, circleLife: 5, circleWarm: 0.6, orbRegen: 4,   // Hộ Pháp: 3 pháp cầu [LOC guide_7]
-    killerDaggers: 3, killerStrike: 4, killerThrow: 5, killerLife: 40,  // Đao Phủ: 3 dao găm, biến mất sau 40 giây [WIKI VI]
+    killerDaggers: 3, killerStrike: 4, killerThrow: 5, killerLife: 40, killerCollectT: 8,  // Đao Phủ: 3 dao găm, biến mất sau 40 giây [WIKI VI]; nhặt dao quá 8 giây thì bỏ, ném luôn [ƯỚC LƯỢNG]
     vshMax: 12, vshCountdown: 10,      // Khiên Hư Không người chơi 12 tầng [WIKI VI]; đếm ngược Hủy Diệt chưa có số [ƯỚC LƯỢNG 10 s]
     vshBreakGain: 3, vshStageGain: 1, vshBossGain: 5, vshPotion: 1, vshBigPotion: 2,
     blessExtra: 1, supportNow: 3, supportEach: 1,                       // 3005 +1 giây; 3006 hồi 3 rồi 1 mỗi lần tương tác [LOC buff 3006]
@@ -449,14 +449,27 @@
         [e.x, e.y] = SK.freeNear([p.x + Math.cos(a) * 50, p.y + Math.sin(a) * 50]);
         e.hidden = false; e.daggers = [];
         for (let i = 0; i < C2.killerDaggers; i++) {
-          const b = SK.rand() * Math.PI * 2, r = SK.randf(35, 90), [dx, dy] = SK.freeNear([e.x + Math.cos(b) * r, e.y + Math.sin(b) * r]);
+          // Đao Phủ đi thẳng tới dao (move không tìm đường), nên dao chỉ rơi ở chỗ nó nhìn thấy; thử 8 lần rồi mới chấp nhận chỗ khuất
+          // (đứng ở góc chật cả 8 lần đều khuất: kéo dao lùi dần về phía Đao Phủ theo hướng cuối tới khi thấy)
+          let dx, dy, b = 0, r = 0, seen = false;
+          for (let k = 0; k < 8 && !seen; k++) {
+            b = SK.rand() * Math.PI * 2; r = SK.randf(35, 90);
+            [dx, dy] = SK.freeNear([e.x + Math.cos(b) * r, e.y + Math.sin(b) * r]);
+            seen = SK.world.los(g.map, e.x, e.y, dx, dy);
+          }
+          for (; !seen && r > 8; r -= 6) {
+            dx = e.x + Math.cos(b) * r; dy = e.y + Math.sin(b) * r;
+            seen = SK.world.los(g.map, e.x, e.y, dx, dy);
+          }
+          if (!seen) { dx = e.x; dy = e.y; }
           const f = daggerFx(dx, dy); e.fx.push(f); e.daggers.push(f);
         }
-        e.di = 0; setAct(e, 'collect', 99, 'run');
+        e.di = 0; setAct(e, 'collect', C2.killerCollectT, 'run');
       }
     } else if (e.act === 'collect') {
       const f = e.daggers[e.di];
-      if (!f) { setAct(e, 'throw', 0.6, 'skill_3'); return; }
+      e.actT -= dt;
+      if (!f || e.actT <= 0) { setAct(e, 'throw', 0.6, 'skill_3'); return; }
       if (dist(e, f) > 5) move(g, e, f.x - e.x, f.y - e.y, 200, dt);
       else { f.done = true; e.di++; e.as = 'skill_2'; openShield(e, 0.6); e.fx.push(waveFx(e.x, e.y, 26)); strike(g, e, 26, C2.killerStrike); }
     } else if (e.act === 'throw') {

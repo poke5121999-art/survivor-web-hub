@@ -23,3 +23,6 @@
 - **Kiểm input bằng chuột/phím thật (`page.mouse`, `page.keyboard`), đừng chỉ gọi hàm input trong mã** [BẪY ĐÃ SẬP 2026-09-25, Void Diver].
   - Mọi bài kiểm gọi `VD.input.down(...)` nên đều xanh, trong khi lớp phủ HUD toàn màn nuốt cú bấm: chuột trái/phải không ra đòn trên Pages.
   - Kèm một phép thử `document.elementFromPoint` ở vài điểm vùng chơi phải ra đúng canvas. Xem `test/voiddiver-input.js`.
+- **Kiểm sự kiện bằng đường sinh thật, đừng chỉ tự `SK.emit` sự kiện ấy** [BẪY ĐÃ SẬP 2026-10-10, Soul Knight].
+  - `game.js fillEnd('sk-win-info')` so `id === 'sk-win'` nên `runEnd.won` luôn false từ `28b7258a`: thưởng thắng, thành tựu thắng, nhạc thắng chết im.
+  - Bộ ach/modes/void/gem-statue đều tự `SK.emit('runEnd', {won: true})` nên xanh suốt. Ca bắt được nằm ở `test/soulknight-troop.js` (thắng thật 3-5, nghe `runEnd`).

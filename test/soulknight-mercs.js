@@ -156,7 +156,10 @@ const IGNORE = /bosses86|theme|lib|colour/;
     const fight = await ev(async () => {
       const G = SK.G, pl = G.player;
       G.enemies.length = 0;
-      const e = SK.makeEnemy(G, 'e_orc01', pl.x + 60, pl.y - 8, G.room);
+      // chỗ đặt quái phải nhìn thấy được từ người chơi: bố cục phòng đổi theo nội dung hầm nên +60 cố định có lúc rơi sau vật cản
+      const spots = [[60, -8], [-60, -8], [0, -60], [0, 50], [45, 40], [-45, 40], [45, -45], [-45, -45], [90, -8], [-90, -8]];
+      const [dx, dy] = spots.find(([dx, dy]) => SK.world.los(G.map, pl.x, pl.y - 7, pl.x + dx, pl.y + dy - 8)) || spots[0];
+      const e = SK.makeEnemy(G, 'e_orc01', pl.x + dx, pl.y + dy, G.room);
       e.st = 'idle'; e.stT = 1e9; e.hp = e.hpMax = 400; G.enemies.push(e);
       const h0 = e.hp;
       await new Promise(r => setTimeout(r, 6000));

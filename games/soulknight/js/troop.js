@@ -26,7 +26,8 @@
   };
   C.ids = Object.keys(H);
   const heroName = id => (DS.heroes[id] && DS.heroes[id].name) || id;
-  const stat = rec => { const s = H[rec.hero], k = rec.up ? 2 : 1; return { hp: s[0] * k, armor: s[1] * k, crit: s[2] * k }; };
+  // Thức uống (js/troop2.js) cộng vào rec: bHp, bArmor, bCrit, def, rate, cdCut [WIKI LC "Bar"]
+  const stat = rec => { const s = H[rec.hero], k = rec.up ? 2 : 1; return { hp: s[0] * k + (rec.bHp || 0), armor: s[1] * k + (rec.bArmor || 0), crit: s[2] * k + (rec.bCrit || 0), def: rec.def || 0 }; };
 
   // Vũ khí cắn của pet (cận chiến cũ legacyRun/WEAPON_KINDS.melee): 5 sát thương, tầm ngắn [WIKI LC]; nhịp và tầm [ƯỚC LƯỢNG].
   // Không liệt kê (như _claw ở skills.js): vũ khí ẩn, không có sprite, không được vào bể rơi đồ.
@@ -43,7 +44,7 @@
   T.init = function (G) {
     G.petOff = true;   // người chơi LÀ pet: không thêm pet đi theo
     const hero = H[G.heroId] ? G.heroId : 'knight';   // nhân vật chọn ở Phòng Khách là lính đầu tiên (miễn phí) [WIKI LC]
-    const t = { coins: 0, flag: 1, chest: 0, recs: [], stock: [], chestOpen: false, stats: { hired: {}, merged: 0, wins: 0 }, allies: new Map() };
+    const t = { coins: 0, flag: 1, chest: 0, recs: [], stock: [], chestOpen: false, stats: { hired: {}, merged: 0, wins: 0 }, allies: new Map(), gather: false, pack: [], cur: 0 };
     t.recs.push(newRec(hero)); t.stats.hired[hero] = 1;
     return t;
   };
@@ -64,34 +65,42 @@
     return best;
   }
   function spawnAlly(G, rec, x, y) {
-    const t = G.troop, p = G.player, hd = SK.heroSkin(rec.hero, 0) || {}, w = DS.weapons[DS.heroes[rec.hero].weapon] || {};
-    const spd = 7 * U, ranged = w.kind !== 'melee';
+    const t = G.troop, p = G.player, hd = SK.heroSkin(rec.hero, 0) || {};
+    const wOf = () => (rec.weapon && DS.weapons[rec.weapon]) || DS.weapons[DS.heroes[rec.hero].weapon] || {};   // vũ khí pet đưa, không thì vũ khí khởi đầu
+    const spd = 7 * U;
     const a = SK.addWeaponAlly(G, {
       troop: rec, x, y: Math.max(y, p.y - 2), cd: 1, owner: p,
       get hp() { return rec.hp; },
       // giáp trừ trước, HP sau; cộng máu đi thẳng [WIKI LC: lính có HP và giáp riêng]
       set hp(v) {
-        if (v < rec.hp) { let d = rec.hp - v; const ab = Math.min(rec.armor, d); rec.armor -= ab; d -= ab; rec.hp -= d; } else rec.hp = v;
+        if (v < rec.hp) {
+          if (this.shieldT > 0) return;   // khiên kỹ năng (Hiệp Sĩ Thánh / Đạo Sĩ)
+          let d = rec.hp - v; const df = stat(rec).def; if (df) d = Math.max(1, d - df);
+          const ab = Math.min(rec.armor, d); rec.armor -= ab; d -= ab; rec.hp -= d; } else rec.hp = v;
       },
       get hpMax() { return stat(rec).hp; },
       update(G2, a2, dt) {
         a2.moving = false; a2.cd -= dt;
+        const w = wOf(), ranged = w.kind !== 'melee';
         const e = nearest(G2, a2.x, a2.y - 7, 12 * U);
         const dp = Math.hypot(p.x - a2.x, p.y - a2.y);
         if (dp > 20 * U) { a2.x = p.x - p.face * 8; a2.y = p.y; return; }
+        if (T.tickSkill) T.tickSkill(G2, a2, rec, dt, e);   // kỹ năng anh hùng (js/troop2.js)
         const walk = (tx, ty) => {
           const dx = tx - a2.x, dy = ty - a2.y, d = Math.hypot(dx, dy); if (d < 1) return;
           const s = Math.min(d, spd * dt); SK.moveBox(G2.map, a2, dx / d * s, dy / d * s, 4);
           if (Math.abs(dx) > 1) a2.face = dx > 0 ? 1 : -1; a2.moving = true;
         };
         if (!e) { if (dp > 2 * U) walk(p.x, p.y); return; }
+        // Còi "Tập hợp": lính ưu tiên ở cạnh pet, cận chiến không rời pet, tầm xa vừa đi vừa bắn [WIKI Whistle]
+        if (t.gather && dp > 4 * U) { walk(p.x, p.y); if (!ranged) return; }
         const ey = e.y - e.hb.off[1] * e.scale, d = Math.hypot(e.x - a2.x, ey - (a2.y - 7));
         a2.face = e.x >= a2.x ? 1 : -1;
         if (!ranged && d > 2 * U) { walk(e.x, e.y); return; }
         if (a2.cd > 0) return;
-        a2.cd = Math.max(0.45, 1 / (w.rps || 2));
-        const ang = Math.atan2(ey - (a2.y - 7), e.x - a2.x), crit = SK.rand() * 100 < stat(rec).crit;
-        const dmg = (w.dmg || 3) * (crit ? 2 : 1);
+        a2.cd = Math.max(0.45, 1 / ((w.rps || 2) * (rec.rate || 1)));
+        const ang = Math.atan2(ey - (a2.y - 7), e.x - a2.x), crit = SK.rand() * 100 < stat(rec).crit + (a2.critT > 0 ? a2.critBonus || 0 : 0);
+        const dmg = (w.dmg || 3) * (a2.buffT > 0 ? a2.dmgMul || 1 : 1) * (crit ? 2 : 1);
         if (!ranged) { SK.hurtEnemy(G2, e, dmg, crit, ang, 2); return; }
         SK.spawnBullet86(G2, 'p', 'bullet_1', a2.x + Math.cos(ang) * 6, a2.y - 7 + Math.sin(ang) * 6, ang + (SK.rand() - 0.5) * 0.1, { dmg, crit, repel: 1, owner: a2, h: 7, spd: 30 });
       },
@@ -127,7 +136,7 @@
     t.stats.hired[hero] = (t.stats.hired[hero] || 0) + 1;
     if (merge) {
       // rơi hết vũ khí (lính web chỉ cầm vũ khí khởi đầu nên không có gì rơi), nhận bản nâng: HP/giáp/chí mạng gấp đôi
-      for (const r of same.slice(0, C.mergeAt - 1)) t.recs.splice(t.recs.indexOf(r), 1);
+      for (const r of same.slice(0, C.mergeAt - 1)) { t.recs.splice(t.recs.indexOf(r), 1); if (r.weapon && T.addWeapon) T.addWeapon(G, r.weapon); }   // vũ khí pet đưa rơi lại ô pet
       const up = { hero, up: true, hp: 0, armor: 0, dead: false }; fill(up); t.recs.push(up); t.stats.merged++;
       say(G, heroName(hero) + ' hợp nhất thành bản nâng cấp!');
     } else { const r = newRec(hero); t.recs.push(r); say(G, 'Đã thuê ' + heroName(hero)); }
@@ -176,13 +185,16 @@
       if (!on(G)) return;
       if (p.energy < C.healTeam.cost) { G.toast('Hết năng lượng!'); return; }
       p.energy -= C.healTeam.cost;
-      for (const rec of G.troop.recs) {
-        if (rec.dead) continue; const s = stat(rec);
-        rec.hp = Math.min(s.hp, rec.hp + C.healTeam.hp); rec.armor = Math.min(s.armor, rec.armor + C.healTeam.armor);
-        const a = T.allyOf(G, rec); if (a) SK.num(G, a.x, a.y - 24, '+' + C.healTeam.hp, '#6cff8a');
-      }
-      SK.emit('troopHeal', G);
+      T.healTeam(G);
     }
+  };
+  T.healTeam = function (G) {
+    for (const rec of G.troop.recs) {
+      if (rec.dead) continue; const s = stat(rec);
+      rec.hp = Math.min(s.hp, rec.hp + C.healTeam.hp); rec.armor = Math.min(s.armor, rec.armor + C.healTeam.armor);
+      const a = T.allyOf(G, rec); if (a) SK.num(G, a.x, a.y - 24, '+' + C.healTeam.hp, '#6cff8a');
+    }
+    SK.emit('troopHeal', G);
   };
 
   // ---- vào chế độ: người chơi thành pet
@@ -191,9 +203,10 @@
     const p = G.player, pet = SK.profile && SK.profile.pet ? SK.profile.pet() : 'pet0';
     p.hpMax = p.hp = C.pet.hp; p.armorMax = p.armor = C.pet.armor; p.energyMax = p.energy = C.pet.energy;
     p.weapons = [SK.makeWeapon('troop_bite'), null]; p.cur = 0; p.hideHeld = true;
+    G.troop.pack = ['troop_bite', 'troop_heal']; G.troop.cur = 0;   // 5 ô vũ khí pet, Còi không chiếm ô (js/troop2.js)
     p.petId = D.prefabs[pet] ? pet : 'pet0';
     const h2 = {}; for (const k in p.h) h2[k] = p.h[k];   // sao chép đủ cả thuộc tính thừa kế (kiểu skin)
-    h2.skill = Object.assign({}, p.h.skill, { id: 'troop_heal', cd: C.healTeam.cd }); p.h = h2;
+    h2.skill = Object.assign({}, p.h.skill, { id: 'troop_cycle', cd: 0.3 }); p.h = h2;   // nút kỹ năng đổi vũ khí pet, nút đặc biệt đổi Còi
     G._troopOff = true;
   });
   // Pet không nhận sát thương [WIKI LC]; đạn trúng pet đổ lên lính gần chủ nhất [ƯỚC LƯỢNG: wiki không nói đòn của quái rơi vào ai].
@@ -272,7 +285,10 @@
     stand(G, bx + 54, by + 6, 'Thầy Huấn Luyện: làm mới hàng lính (' + C.refresh + ' xu)', g => T.refresh(g),
       (ctx, G2, X, Y) => heroSprite(ctx, 'officer', X, Y, G2.t));
     void f;
+    if (T.extraStands) T.extraStands(G, stand, bx, by);
   }
+  T.stat = stat; T.say = say; T.rebuild = G => rebuild(G); T.stand = stand; T.heroName = heroName; T.heroSprite = heroSprite; T.newRec = newRec;
+  T.base = () => base;
 
   SK.on('stageEnter', G => {
     if (!on(G)) return;
@@ -284,7 +300,7 @@
     rebuild(G);
     // người chơi đứng dưới hàng quầy để thấy cả hàng
     p.y = cy + 28;
-    G.props.push({ tr: 1, x: 0, y: 0, draw() {}, update(G2) {
+    G.props.push({ trw: 1, x: 0, y: 0, draw() {}, update(G2) {   // trw (không phải tr): rebuild() không được xoá
       if (!on(G2) || G2.player.st === 'dead') return;
       if (T.living(G2).length === 0) { G2.toast('Diệt hết', 3); SK.emit('troopWipe', G2); G2.player.hp = 0; G2.player.st = 'dead'; G2.player.stT = 0; }
     } });

@@ -5,7 +5,7 @@
 //   Mỗi lần P tăng nhận 4 Pha Lê (Lợi Hại 5). Vào cổng x-5 Tà Vương chấm điểm: Thưởng 70% nhân tố tích cực / 30% trung tính,
 //   Phạt 40% tiêu cực / 60% trung tính; nhân tố áp bằng SK.factorsAdd (không trùng, mỗi tầng một lần).
 // Đợt 2 ở js/matrix2.js: thanh Uy Áp HUD, đổi Pha Lê cuối ván, Quái Gen, cấp vũ khí, móc của 6 nhân tố Tà Vương.
-// Chưa làm (xem tools/polish/GAPS.md): tay sai, Tước Sĩ Lục.
+// Đợt 3 ở js/matrix3.js: NPC tay sai, thiên phú riêng 2001-2007/2117, HP trùm Tinh Anh/Hai Lãnh Chúa. Chưa làm (GAPS.md): Tước Sĩ Lục.
 (function () {
   'use strict';
   const SK = window.SK;

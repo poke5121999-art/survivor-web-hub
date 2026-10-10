@@ -1,3 +1,3 @@
 {
-  "prefabs": ["furance", "furance_inverse", "furance_fuse", "npc_trainer"]
+  "prefabs": ["furance", "furance_inverse", "furance_fuse", "npc_trainer", "npc_weapon_item_fish", "slotmachine", "npc_skill_update", "npc_smith"]
 }

@@ -306,7 +306,7 @@
 
   function fillEnd(id) {
     const p = G.player;
-    SK.emit('runEnd', G, { won: id === 'sk-win', stage: G.stage.label, kills: G.kills, gold: p.gold });
+    SK.emit('runEnd', G, { won: G.state === 'victory', stage: G.stage.label, kills: G.kills, gold: p.gold });
     document.getElementById(id).textContent = 'Màn ' + G.stage.label + ' · Hạ ' + G.kills + ' quái · ' + p.gold + ' vàng' + (G.void ? SK.voidMode.endText(G) : '');
   }
 

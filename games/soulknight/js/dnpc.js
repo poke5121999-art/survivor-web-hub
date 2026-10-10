@@ -205,7 +205,8 @@
     r.fill = 'trainer';
     return true;
   }
-  R.dnpc = { last: null, resetMats, reforgePrice, REFORGE_BASE, fuseGrade, fusePrice, fusePool, reforgePool, rankOf, trainPrice, TRAIN_MAX, TRAIN_HP };
+  R.dnpc = { last: null, resetMats, reforgePrice, REFORGE_BASE, fuseGrade, fusePrice, fusePool, reforgePool, rankOf, trainPrice, TRAIN_MAX, TRAIN_HP,
+    WP: 150 / 11, say, noGold, deny, cur, wdef, invalidWeapon };   // WP và hàm nhắn cho js/dnpc2.js
 
   // ---------------------------------------------------------------- đăng ký phòng
   // Trọng số: r_weapon_provider 150 chia theo 11 trọng số hợp lệ; thầy huấn luyện dùng chỗ r_mercenary 75 khi đã có lính (phòng lính thuê tắt).

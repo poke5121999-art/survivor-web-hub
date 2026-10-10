@@ -6,13 +6,24 @@
 import io, json, os, re, sys
 
 # icon ui_buff_<id> không có trong atlas ui.ab 8.6 [ĐO sprite_atlas.json] → dùng ô dự phòng ui_buff_x
-EXTRA_IDS = [1015, 1016, 1017, 1018, 3001, 3002, 3003, 3004, 3005, 3006, 3007]
+EXTRA_IDS = [1015, 1016, 1017, 1018, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2117, 3001, 3002, 3003, 3004, 3005, 3006, 3007]
+# Thiên phú riêng Mê Trận Tà Vương: LOC không có Buff_name_* nên tên en lấy theo wiki (alias) và tên vi tự đặt [ƯỚC LƯỢNG]; 2117 info có {0} = cd 8 giây [WIKI buff 2117]
+MATRIX_NAMES = {
+    2001: ('Matrix Health Restoration', 'Hồi Máu Mê Trận'), 2002: ('Matrix Energy Restoration', 'Hồi Năng Lượng Mê Trận'),
+    2003: ('Matrix Lightning Hit', 'Xích Điện Mê Trận'), 2004: ('Matrix Ice Hit', 'Gai Băng Mê Trận'),
+    2005: ('Beg for mercy (Pressure Level -1)', 'Xin Tà Vương Bớt Giận'), 2006: ('Beg for mercy (remove challenge)', 'Xin Tà Vương Bớt Giận (Gỡ Nhân Tố)'),
+    2007: ('Matrix Energy', 'Năng Lượng Mê Trận'), 2117: ('Elemental Block', 'Chống Đỡ Nguyên Tố'),
+}
 
 
 def extra_buffs(loc):
     out = {}
     for bid in EXTRA_IDS:
         nm, info = loc('Buff_name_%d' % bid), loc('Buff_info_%d' % bid)
+        if not nm and bid in MATRIX_NAMES:
+            nm = {'en': MATRIX_NAMES[bid][0], 'vi': MATRIX_NAMES[bid][1]}
+            if info and bid == 2117:
+                info = {k: v.replace('{0}', '8') for k, v in info.items()}
         if not nm:
             continue
         out[str(bid)] = {'key': 'Buff%d' % bid, 'id': bid, 'name': nm, 'info': info, 'upg': loc('Buff_upgrade_%d' % bid),
