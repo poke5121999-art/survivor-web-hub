@@ -27,13 +27,13 @@
     expPerPoint: 2,                  // EXP mỗi điểm ngân sách quái, chia đều cho các tháp [ƯỚC LƯỢNG]
     // Tháp: dmg = sát thương gốc [WIKI ME]; cd/range là [ƯỚC LƯỢNG]
     towers: {
-      rage_gun_tower:      { name: 'Tháp Súng Máy', dmg: 2, cd: 0.25, range: 100, col: '#f0c03a', ch: 'S' },
+      rage_gun_tower:      { name: 'Tháp Súng Máy', dmg: 2, cd: 0.25, range: 100, col: '#f0c03a', ch: 'S', fire: { state: 'm4', dur: 0.25 } },
       chain_laser_tower:   { name: 'Tháp Laser', dmg: 21, cd: 1.4, range: 110, col: '#ff5a7a', ch: 'L' },
-      spike_trap:          { name: 'Bẫy Gai Nhọn', dmg: 8, cd: 2, range: 48, spikes: 4, col: '#b8c0cc', ch: 'G' },
-      hurricane_device:    { name: 'Thiết Bị Gió Lốc', dmg: 10, cd: 1, range: 60, pull: 10, col: '#7ad8ff', ch: 'W' },
+      spike_trap:          { name: 'Bẫy Gai Nhọn', dmg: 8, cd: 2, range: 48, spikes: 4, col: '#b8c0cc', ch: 'G', fire: { state: 'create_spike', dur: 0.67 } },
+      hurricane_device:    { name: 'Thiết Bị Gió Lốc', dmg: 10, cd: 1, range: 60, pull: 10, col: '#7ad8ff', ch: 'W', fire: { state: 'w_sword 0', dur: 0.4 } },
       weather_controller:  { name: 'Máy Điều Khiển Thời Tiết', dmg: 15, cd: 1.6, range: 110, bolts: 2, col: '#b07aff', ch: 'T' },
-      biochemical_device:  { name: 'Thiết Bị Sinh Hóa', dmg: 4, cd: 8, range: 110, pool: 48, dur: 6, tick: 0.5, col: '#6cdc5a', ch: 'B' },
-      airbase:             { name: 'Căn Cứ Không Quân', dmg: 24, cd: 6, range: 120, planes: 4, blast: 24, col: '#ff9a4a', ch: 'A' }
+      biochemical_device:  { name: 'Thiết Bị Sinh Hóa', dmg: 4, cd: 8, range: 110, pool: 48, dur: 6, tick: 0.5, fireDmg: 6, col: '#6cdc5a', ch: 'B', fire: { state: 'bioch_fire', dur: 0.67 } },
+      airbase:             { name: 'Căn Cứ Không Quân', dmg: 24, cd: 6, range: 120, planes: 4, blast: 24, col: '#ff9a4a', ch: 'A', fire: { state: 'airbase_open', dur: 0.25 } }
     }
   };
   C.ids = Object.keys(C.towers);
@@ -77,7 +77,10 @@
       if (Math.hypot(a.x - e.x, a.y - e.y) < 10) {
         e.st = 'attack'; e.face = a.x >= e.x ? 1 : -1;
         e.dcd = (e.dcd || 0) - dt;
-        if (e.dcd <= 0) { e.dcd = 1; a.hp -= C.contactDmg; a.flash = 0.1; SK.num(G, a.x, a.y - 20, C.contactDmg, '#ff4a4a'); if (a.hp <= 0) { a.dead = true; a.onDie(G, a); } }
+        if (e.dcd <= 0) {
+          e.dcd = 1; const dm = Df.shieldAbsorb ? Df.shieldAbsorb(G, a.x, a.y, C.contactDmg) : C.contactDmg; a.flash = 0.1;
+          if (dm > 0) { a.hp -= dm; SK.num(G, a.x, a.y - 20, dm, '#ff4a4a'); if (a.hp <= 0) { a.dead = true; a.onDie(G, a); } }
+        }
         return;
       }
     }
@@ -92,9 +95,10 @@
   }
   // Chạm Đá Phép: quái chết ngay (cả trùm), Đá mất máu theo máu còn lại của quái [WIKI Origin; hệ số ƯỚC LƯỢNG: 1 máu mỗi 10 máu quái]
   function hitStone(G, e) {
-    const dmg = SK.clamp(Math.ceil(e.hp / 10), 1, C.stoneHp);
+    const raw = Df.shieldAbsorb ? Df.shieldAbsorb(G, G.defence.stoneAt.x, G.defence.stoneAt.y, e.hp) : e.hp;   // Tháp Hộ Thuẫn chặn trước [WIKI ME]
+    const dmg = raw > 0 ? SK.clamp(Math.ceil(raw / 10), 1, C.stoneHp) : 0;
     e.st = 'dead'; e.stT = 9; e.hp = 0; e.dwave = false;
-    Df.damageStone(G, dmg);
+    if (dmg > 0) Df.damageStone(G, dmg); else { G.defence.stoneFlash = 0.25; SK.emit('stoneBlocked', G, e); }
   }
   Df.damageStone = function (G, dmg) {
     const d = G.defence; if (!d || d.lost || d.won) return;
@@ -140,6 +144,7 @@
     return out.sort((a, b) => a.d - b.d);
   }
   const hit = (G, e, dmg, ang) => SK.hurtEnemy(G, e, dmg, false, ang || 0, 1);
+  Df.targets = targets; Df.hit = hit;
   const beam = (G, x0, y0, x1, y1, col) => G.defence.shots.push({ k: 'beam', x0, y0, x1, y1, col, t: 0, dur: 0.14 });
   const ATTACK = {
     rage_gun_tower(G, t) {
@@ -150,7 +155,7 @@
     },
     chain_laser_tower(G, t) {
       const c = C.towers[t.id], ts = targets(G, t.x, t.y, c.range); if (!ts.length) return false;
-      const e = ts[0].e; beam(G, t.x, t.y - 10, e.x, e.y - 6, '#ff5a7a'); hit(G, e, Df.dmgOf(t.id, t.star), Math.atan2(e.y - t.y, e.x - t.x)); return true;
+      const e = ts[0].e; G.defence.shots.push({ k: 'beam', x0: t.x, y0: t.y - 10, x1: e.x, y1: e.y - 6, col: '#ff5a7a', t: 0, dur: 0.14, pf: 'chain_laser', part: '/img/bullet' }); hit(G, e, Df.dmgOf(t.id, t.star), Math.atan2(e.y - t.y, e.x - t.x)); return true;
     },
     spike_trap(G, t) {
       const c = C.towers[t.id], ts = targets(G, t.x, t.y, c.range); if (!ts.length) return false;
@@ -179,7 +184,7 @@
     },
     biochemical_device(G, t) {
       const c = C.towers[t.id], ts = targets(G, t.x, t.y, c.range); if (!ts.length) return false;
-      G.defence.pools.push({ x: ts[0].e.x, y: ts[0].e.y, r: c.pool, t: 0, dur: c.dur, tk: 0, id: t.id, star: t.star });
+      G.defence.pools.push({ x: ts[0].e.x, y: ts[0].e.y, r: c.pool, t: 0, dur: c.dur, tk: 0, id: t.id, star: t.star, fire: t.mode === 'fire' });
       return true;
     },
     airbase(G, t) {
@@ -189,6 +194,7 @@
       return true;
     }
   };
+  Df.ATTACK = ATTACK; Df.passive = {}; Df.tickers = [];   // js/defence2.js thêm tháp, nhịp riêng và NPC
   function updateShots(G, dt) {
     const d = G.defence;
     for (const s of d.shots) {
@@ -204,10 +210,10 @@
         for (const q of targets(G, s.x, s.y - 6, C.towers[s.id].blast)) hit(G, q.e, Df.dmgOf(s.id, s.star), 0);
       }
     }
-    d.shots = d.shots.filter(s => s.t < (s.k === 'bullet' ? s.life : s.dur) + 0.1);
+    d.shots = d.shots.filter(s => s.t < (s.k === 'bullet' ? s.life : s.k === 'bomb' ? s.dur + 0.5 : s.dur) + 0.1);
     for (const p of d.pools) {
       p.t += dt; p.tk -= dt;
-      if (p.tk <= 0) { p.tk = C.towers[p.id].tick; for (const q of targets(G, p.x, p.y - 6, p.r)) hit(G, q.e, Df.dmgOf(p.id, p.star), 0); }
+      if (p.tk <= 0) { p.tk = C.towers[p.id].tick; const dm = p.fire ? r1(C.towers[p.id].fireDmg * mul(p.star || 0)) : Df.dmgOf(p.id, p.star); for (const q of targets(G, p.x, p.y - 6, p.r)) hit(G, q.e, dm, 0); }
     }
     d.pools = d.pools.filter(p => p.t < p.dur);
   }
@@ -227,8 +233,12 @@
       tower: t, x: pad.x, y: pad.y, hp: C.towerHp, hpMax: C.towerHp, owner: G.player,
       update(G2, a, dt) {
         t.cd -= dt;
-        if (t.cd > 0 || !on(G2)) return;
-        t.cd = ATTACK[id](G2, t) ? C.towers[id].cd : 0.1;
+        if (!on(G2)) return;
+        if (Df.passive[id]) Df.passive[id](G2, t, dt);
+        if (t.cd > 0) return;
+        const fired = ATTACK[id](G2, t);
+        if (fired) t.fireAt = G2.t;   // tháp chạy clip bắn (drawTower / Df.fireState)
+        t.cd = fired ? (C.towers[id].cdOf ? C.towers[id].cdOf(t) : C.towers[id].cd) : 0.1;
       },
       onDie(G2) { SK.emit('towerBroken', G2, t); },   // hỏng: nền vẫn còn, sửa 5 Xu Sao [WIKI ME]
       draw(ctx, G2, a) { drawTower(ctx, G2, t, a); }
@@ -269,7 +279,7 @@
     const share = exp / d.towers.length;
     for (const t of d.towers) {
       t.exp += share;
-      while (t.star < C.starExp.length && t.exp >= C.starExp[t.star]) { t.exp -= C.starExp[t.star]; t.star++; SK.num(G, t.x, t.y - 26, '★' + t.star, '#ffd84a'); }
+      while (t.star < C.starExp.length && t.exp >= C.starExp[t.star]) { t.exp -= C.starExp[t.star]; t.star++; SK.num(G, t.x, t.y - 26, '★' + t.star, '#ffd84a'); d.shots.push({ k: 'lvl', x: t.x, y: t.y, t: 0, dur: 0.7 }); }
     }
   };
 
@@ -345,8 +355,8 @@
     G.portal = null;   // không có cổng sang ải sau: thắng thua do Đá Phép / đợt quái
     d.stoneAt = { x: cx, y: cy - 6 };
     d.room = r; d.pads = []; d.towers = []; d.shots = []; d.pools = []; d.drops = [];
-    // 8 Nền Tháp quanh Đá Phép [ƯỚC LƯỢNG: số nền]
-    const ring = [[-52, 0], [52, 0], [-36, -30], [36, -30], [-36, 30], [36, 30], [0, -46], [0, 46]];
+    // 12 Nền Tháp quanh Đá Phép [ƯỚC LƯỢNG: số nền, 12 cho 11 loại tháp]
+    const ring = [[-52, 0], [52, 0], [-36, -30], [36, -30], [-36, 30], [36, 30], [0, -46], [0, 46], [-68, -22], [68, -22], [-68, 22], [68, 22]];
     ring.forEach(([ox, oy]) => d.pads.push({ x: cx + ox, y: cy + oy + 8, tower: null }));
     // 3 cổng đỏ: tây, bắc, đông của phòng
     const gate = (tx, ty) => { const x = tx * T + 8, y = ty * T + 12; return W.solidAt(G.map, x, y) ? { x: cx, y: cy - 40 } : { x, y }; };
@@ -377,6 +387,7 @@
       if (!on(G2) || G2.state !== 'stage') return;
       d.stoneFlash = Math.max(0, (d.stoneFlash || 0) - dt);
       updateWaves(G2, dt); updateShots(G2, dt); updateDrops(G2, dt);
+      for (const f of Df.tickers) f(G2, dt);
     } });
     say(G, 'Bảo vệ Đá Phép! Đợt đầu tới sau ' + C.countdown + ' giây (nói chuyện với Đá Phép để gọi sớm)', 4);
   });
@@ -384,7 +395,24 @@
   // ---- vẽ: prefab gốc trong defence.ab (tools/extra/defence.json) qua SK.drawPrefab; món nào thiếu thì vẽ hình khối
   const AS = C.artScale = 0.42;
   const NOSHOW = /body_dead|shadow_lock|dead_tap|\/star/;   // dead_tap = biểu tượng hỏng; sao tháp vẽ riêng
-  const pf = (ctx, name, x, y, o) => { const P = SK.prefab(name); return !!P && SK.drawPrefab(ctx, P, x, y, Object.assign({ scale: AS }, o)); };
+  Df.drawn = {};   // khoá prefab gốc đã vẽ thành công (test kiểm: đạn tháp vẽ bằng prefab gốc)
+  const pf = (ctx, name, x, y, o) => { const P = SK.prefab(name); const ok = !!P && SK.drawPrefab(ctx, P, x, y, Object.assign({ scale: AS }, o)); if (ok) Df.drawn[name] = (Df.drawn[name] || 0) + 1; return ok; };
+  Df.pf = pf;
+  // vẽ khung của một phần prefab (vd. '/img/bullet' của chain_laser) kéo giãn dọc đoạn (x0,y0)->(x1,y1) hoặc phủ hình tròn; ghi khoá vào Df.drawn
+  const partFrame = (name, part) => { const P = SK.prefab(name), q = P && P.find(p => p.n === part); return q && q.f; };
+  Df.partFrame = partFrame;
+  Df.drawBeam = function (ctx, name, part, x0, y0, x1, y1, thick, alpha) {
+    const f = partFrame(name, part); if (!f || !SK.A.f[f]) return false;
+    const w = SK.A.f[f][3], h = SK.A.f[f][4], len = Math.hypot(x1 - x0, y1 - y0) || 1;
+    const ok = SK.draw(ctx, f, x0, y0, { rot: Math.atan2(y1 - y0, x1 - x0), sx: len / w, sy: thick / h, alpha });
+    if (ok) Df.drawn[name] = (Df.drawn[name] || 0) + 1; return ok;
+  };
+  Df.drawDisc = function (ctx, name, part, x, y, rx, ry, alpha, col) {
+    const f = partFrame(name, part); if (!f || !SK.A.f[f]) return false;
+    const w = SK.A.f[f][3], h = SK.A.f[f][4];
+    const ok = SK.drawTinted(ctx, f, x, y, col || null, { sx: rx * 2 / w, sy: ry * 2 / h, alpha });   // khung gốc là hạt trắng: nhân màu độc xanh / lửa cam
+    if (ok) Df.drawn[name] = (Df.drawn[name] || 0) + 1; return ok;
+  };
   Df.artOf = () => ({ stone: !!stoneFrame(), pad: !!SK.prefab('tower_base'), gate: !!SK.prefab('defence_enemy_gate'), coin: !!SK.prefab('coin_star'),
     towers: C.ids.filter(id => SK.prefab(id)) });
   const stoneFrame = () => { const l = D.extra && D.extra.sprites && D.extra.sprites['^magic_stone$']; return l && l[0] && SK.frame(l[0]) ? l[0] : null; };
@@ -414,12 +442,14 @@
     ctx.strokeStyle = 'rgba(122,216,255,0.8)'; ctx.lineWidth = 1; ctx.strokeRect(pad.x - 7 + 0.5, pad.y - 2 + 0.5, 13, 8);
     ctx.fillStyle = 'rgba(122,216,255,0.18)'; ctx.fillRect(pad.x - 7, pad.y - 2, 14, 9);
   }
+  // clip bắn: ngay sau khi bắn (trong dur của clip) trả {state, t: giây từ lúc bắn}, ngoài ra null (chạy clip nhàn)
+  Df.fireState = (G, t) => { const f = C.towers[t.id].fire; if (!f || t.fireAt == null) return null; const e = G.t - t.fireAt; return e >= 0 && e < f.dur ? { state: f.state, t: e } : null; };
   function drawTower(ctx, G, t, a) {
     const c = C.towers[t.id], x = t.x, y = t.y;
     ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(x, y + 4, 8, 3, 0, 0, Math.PI * 2); ctx.fill();
     if (SK.prefab(t.id)) {
-      const dead = a.dead;
-      pf(ctx, t.id, x, y + 4, { t: G.t, skip: p => NOSHOW.test(p.n) && !(dead && /body_dead/.test(p.n)) || (dead && (p.n === '/img/body' || /\/h1/.test(p.n))) || (!dead && /body_dead/.test(p.n)), alpha: a.flash > 0 ? 0.6 : 1 });
+      const dead = a.dead, fs = dead ? null : Df.fireState(G, t);
+      pf(ctx, t.id, x, y + 4, { t: fs ? fs.t : G.t, state: fs ? fs.state : undefined, skip: p => NOSHOW.test(p.n) && !(dead && /body_dead/.test(p.n)) || (dead && (p.n === '/img/body' || /\/h1/.test(p.n))) || (!dead && /body_dead/.test(p.n)), alpha: a.flash > 0 ? 0.6 : 1 });
       if (t.star > 0) SK.text(ctx, '★' + t.star, x, y - 34, 6, '#ffd84a', 'center', 'rgba(0,0,0,0.9)');
       if (!a.dead && a.hp < C.towerHp) { ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(x - 8, y + 6, 16, 2); ctx.fillStyle = '#6cff8a'; ctx.fillRect(x - 8, y + 6, 16 * a.hp / C.towerHp, 2); }
       return;
@@ -443,19 +473,25 @@
       ctx.fillStyle = 'rgba(255,60,60,0.35)'; ctx.beginPath(); ctx.ellipse(g.x, g.y, 9, 5, 0, 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = '#ff4a4a'; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(g.x, g.y, 9, 5, 0, 0, Math.PI * 2); ctx.stroke();
     }
-    for (const p of d.pools) { ctx.fillStyle = 'rgba(108,220,90,0.3)'; ctx.beginPath(); ctx.ellipse(p.x, p.y, p.r, p.r * 0.6, 0, 0, Math.PI * 2); ctx.fill(); }
+    for (const p of d.pools) {
+      const nm = p.fire ? 'biochemical_fire' : 'biochemical_gas', part = p.fire ? '/root/img' : '/img', al = 0.55 * Math.min(1, (p.dur - p.t) * 2);
+      if (Df.drawDisc(ctx, nm, part, p.x, p.y, p.r, p.r * 0.6, al * 0.7, p.fire ? [1, 0.5, 0.15, 1] : [0.4, 0.9, 0.3, 1])) continue;
+      ctx.fillStyle = 'rgba(108,220,90,0.3)'; ctx.beginPath(); ctx.ellipse(p.x, p.y, p.r, p.r * 0.6, 0, 0, Math.PI * 2); ctx.fill();
+    }
     for (const s of d.shots) {
       if (s.t < 0) continue;
-      if (s.k === 'bullet') { ctx.fillStyle = '#ffe066'; ctx.fillRect(s.x - 1, s.y - 1, 3, 3); }
-      else if (s.k === 'beam') { ctx.strokeStyle = s.col; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(s.x0, s.y0); ctx.lineTo(s.x1, s.y1); ctx.stroke(); }
-      else if (s.k === 'spike') { ctx.fillStyle = '#d8dde6'; ctx.fillRect(s.x - 1, s.y - 6 * Math.min(1, s.t * 8), 3, 6); }
+      if (s.k === 'bullet') { const z = 3 * (s.size || 1); ctx.fillStyle = s.amp ? '#ffb0ff' : '#ffe066'; ctx.fillRect(s.x - z / 2, s.y - z / 2, z, z); }
+      else if (s.k === 'beam') { if (s.pf && Df.drawBeam(ctx, s.pf, s.part, s.x0, s.y0, s.x1, s.y1, 5, Math.max(0.2, 1 - s.t / s.dur))) continue; ctx.strokeStyle = s.col; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(s.x0, s.y0); ctx.lineTo(s.x1, s.y1); ctx.stroke(); }
+      else if (s.k === 'spike') { const rise = Math.min(1, s.t * 8); if (!pf(ctx, 'spike_trap_bullet', s.x, s.y, { scale: 0.6 * rise, alpha: Math.max(0.2, 1 - s.t / s.dur) })) { ctx.fillStyle = '#d8dde6'; ctx.fillRect(s.x - 1, s.y - 6 * rise, 3, 6); } }
       else if (s.k === 'ring') { const k = s.t / s.dur; ctx.strokeStyle = s.col; ctx.globalAlpha = Math.max(0, 1 - k); ctx.beginPath(); ctx.ellipse(s.x, s.y, s.r * k, s.r * 0.6 * k, 0, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1; }
+      else if (s.k === 'lvl') { const k = s.t / s.dur; ctx.strokeStyle = 'rgba(255,216,74,' + Math.max(0, 1 - k) + ')'; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(s.x, s.y + 2, 6 + 12 * k, 3 + 6 * k, 0, 0, Math.PI * 2); ctx.stroke(); }   // prefab tower_level_up chỉ có hạt, không có hình
       else if (s.k === 'bomb') {
         const k = s.t / s.dur;
-        if (s.done) { ctx.fillStyle = 'rgba(255,160,60,0.5)'; ctx.beginPath(); ctx.arc(s.x, s.y, 14, 0, Math.PI * 2); ctx.fill(); }
-        else { ctx.fillStyle = '#333'; ctx.fillRect(s.x - 2, s.y - 40 * (1 - k), 4, 5); }
+        if (s.done) { if (!pf(ctx, 'explode', s.x, s.y + 4, { t: s.t - s.dur, state: 'explode_small', scale: 0.7 })) { ctx.fillStyle = 'rgba(255,160,60,0.5)'; ctx.beginPath(); ctx.arc(s.x, s.y, 14, 0, Math.PI * 2); ctx.fill(); } }
+        else if (!pf(ctx, 'warcraft_bomb', s.x, s.y - 40 * (1 - k), { scale: 0.8 })) { ctx.fillStyle = '#333'; ctx.fillRect(s.x - 2, s.y - 40 * (1 - k), 4, 5); }
       }
     }
+    if (Df.drawExtra) Df.drawExtra(ctx, G);
     for (const c of d.drops) {
       const b = Math.sin(c.t * 6) * 1.2;
       if (pf(ctx, 'coin_star', c.x, c.y + b, { t: c.t, state: 'star_coin', scale: 0.5 })) continue;

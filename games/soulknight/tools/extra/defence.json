@@ -21,7 +21,24 @@
   "service_depot",
   "amplification_matrix",
   "defence_tower_master",
-  "defence_door_up"
+  "defence_door_up",
+  "chain_laser",
+  "hurricane_bullet",
+  "biochemical_gas",
+  "biochemical_fire",
+  "warcraft_bomb",
+  "spike_trap_bullet",
+  "defence_chest",
+  "energy_percent",
+  "weather_controller_bullet_ice",
+  "dark_cloud",
+  "defence_seller",
+  "defence_tutor",
+  "defence_weapon_master",
+  "recoverier",
+  "hurricane_atk",
+  "hurricane_skill",
+  "explode"
  ],
  "sprites": [
   "^magic_stone$"
