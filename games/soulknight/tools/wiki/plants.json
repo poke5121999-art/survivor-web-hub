@@ -1,0 +1,472 @@
+{
+ "plant_banboo": {
+  "en": "Bamboo",
+  "rarity": "Orange/Epic",
+  "days": "3-4",
+  "harvest": "Permanent",
+  "ptype": "Weapon",
+  "product": "Bamboo or Millennia Bamboo",
+  "price": null,
+  "usage": "Plant the Bamboo's seed in the Garden and water it daily. After 3 days, it will be ready, giving a Bamboo upon harvesting. The player can water the plant daily to keep harvesting it once per day. However, if the player doesn't harvest it and let the plant grow one more time by watering it again, the next day it'll become a Millennia Bamboo."
+ },
+ "plant_binary_tree": {
+  "en": "Binary Tree",
+  "rarity": "Blue/Rare",
+  "days": 1,
+  "harvest": "Once Time",
+  "ptype": "Buff",
+  "product": "Shotgun",
+  "price": 400,
+  "usage": "Plant the {{PAGENAME}}'s seed in the Garden and water it once. After 1 day, it will be ready, giving the Shotgun Buff upon harvesting. After being harvested, the plant will disappear."
+ },
+ "plant_blackrose": {
+  "en": "Black Rose",
+  "rarity": "Orange/Epic",
+  "days": 1,
+  "harvest": "Once Time",
+  "ptype": "Buff",
+  "product": "Black Rose",
+  "price": null,
+  "usage": "Plant {{PAGENAME}}'s seed in the Garden and water it once. After 1 day, it will be ready, giving the Black Rose Buff upon harvesting. After being harvested, the plant will disappear."
+ },
+ "plant_cactus": {
+  "en": "Cactus",
+  "rarity": "Orange/Epic",
+  "days": 3,
+  "harvest": "Permanent",
+  "ptype": "Material",
+  "product": "Trap",
+  "price": null,
+  "usage": "Plant the {{PAGENAME}}' seed in the Garden and water it daily. After 3 days, it will be ready, giving the Trap Buff upon harvesting. The player can keep watering the plant daily to harvest it once per day."
+ },
+ "plant_carrot": {
+  "en": "Carrot",
+  "rarity": "Green/Uncommon",
+  "days": 0,
+  "harvest": "Once Time",
+  "ptype": "Weapon",
+  "product": "Carrot or Centennial Carrot",
+  "price": 50,
+  "usage": "Plant the Carrot's seed in the Garden and water it. Next time the player enters the game, it will grow once, at this state, the player can harvest carrot. Letting the plant grow one more time by watering it again, the next visit it'll become a Centennial Carrot."
+ },
+ "plant_clivia": {
+  "en": "Bush Lily",
+  "rarity": "Orange/Epic",
+  "days": 1,
+  "harvest": "Once Time",
+  "ptype": "Buff",
+  "product": "Air Reinforcement",
+  "price": null,
+  "usage": "Plant the {{PAGENAME}}' seed in the Garden and water it once. After 1 day, it will be ready, giving the Air Reinforcement Buff upon harvesting. After being harvested, the plant will disappear."
+ },
+ "plant_datura": {
+  "en": "Devil's Snare",
+  "rarity": "Red/Legendary",
+  "days": 7,
+  "harvest": "Permanent",
+  "ptype": "Pet",
+  "product": "Devil's Snare pet",
+  "price": null,
+  "usage": "Plant the Devil's Snare's seed in the Garden and water it daily. After 7 days, it will be ready, giving a Pet upon harvesting. The player can keep watering the plant daily to harvest it once per day. *The pet 40px has 10 base health. The health bar is not visible. **Its health cannot get lower than 1. If its HP is reduced to 1, it will stop fighting and stay close to the player. **It takes 14~16 seconds for it to be fully healed. It can also regenerate health during battle at an unknown rate. *The pet shoots 3 bullets in a cone pattern. Each bullet deals 3 damage and inflicts Poison debuff on critical hits. **Shotgun adds 2 more bullets (for a total of 5). **Poison increases Poison debuff damage. **Accuracy reduces bullet spread angle. **Elemental Staff allows it to deal double damage on critical hits. *The pet can move over blocks and crates. While the pet can stack with other pets, the player can have only one Devil Snare pet each run. If the player attempt to harvest more Devil Snares when they already have one, the plants will do nothing."
+ },
+ "plant_defend_flower": {
+  "en": "Guardian Flower",
+  "rarity": "Purple/Very Rare",
+  "days": 1,
+  "harvest": "Once Time",
+  "ptype": "Buff",
+  "product": "Strong Shield",
+  "price": 999,
+  "usage": "Plant the {{PAGENAME}}'s seed in the Garden and water it once. After 1 day, it will be ready, giving the Strong Shield Buff. After being harvested, the plant will disappear."
+ },
+ "plant_dragon_tree": {
+  "en": "Caterpillar Fungus",
+  "rarity": "Red/Legendary",
+  "days": 3,
+  "harvest": "Permanent",
+  "ptype": "Buff",
+  "product": "Health",
+  "price": null,
+  "usage": "Plant the {{PAGENAME}}' seed in the Garden and water it daily. After 4 days, it will be ready, giving the Health Buff upon harvesting. The player can keep watering the plant daily to harvesting it once per day."
+ },
+ "plant_dragon_tree#Dragon Fruit Tree": {
+  "en": "Dragon Fruit Tree",
+  "rarity": "Red/Legendary",
+  "days": 4,
+  "harvest": "Permanent",
+  "ptype": "Buff",
+  "product": "Fire",
+  "price": null,
+  "usage": "Plant the {{PAGENAME}}'s seed in the Garden and water it daily. After 4 days, it will be ready, giving the Fire Buff upon harvesting. The player can keep watering the plant daily to harvest it once per day."
+ },
+ "plant_dragon_tree#Golden Mushroom": {
+  "en": "Golden Mushroom",
+  "rarity": "Red/Legendary",
+  "days": 2,
+  "harvest": "Permanent",
+  "ptype": "Buff",
+  "product": "Sale",
+  "price": null,
+  "usage": "Plant the {{PAGENAME}}'s seed in the Garden and water it daily. After 2 days, it will be ready, giving the Sale Buff upon harvesting. The player can keep watering the plant daily to harvest it once per day."
+ },
+ "plant_eator": {
+  "en": "Titan Arum",
+  "rarity": "Blue/Rare",
+  "days": 1,
+  "harvest": "Once Time",
+  "ptype": "Pet",
+  "product": "Titan Arum pet",
+  "price": 300,
+  "usage": "Plant the {{PAGENAME}}'s seed in the Garden and water it once. After 1 day, it will be ready, giving this Pet for the current run only. After being harvested, the plant will disappear. *The pet 35px has 15 base health. The health bar is visible. **Its health cannot get lower than 1. If its HP is reduced to 1, it will stop fighting and stay close to the player, the health bar will also turn red. **It takes 14~16 seconds for it to be fully healed. It can also regenerate health during battle at an unknown rate. *The pet bites enemies, deals 5 damage (8 damage on critical hits) each attack. **Pet increases its health by 10 and damage by 3. **The pet is affected by Statue of the Berserker resulting in big munches. While the pet can stack with other pets, the player can have only one Titan Arum pet from garden each run. If the player attempts to harvest more than one {{PAGENAME}}, the plant will do nothing. Other than that, using Cannibal Plant can also summon the same pets. Pets summoned by the weapon don't have number limit, but will disappear soon."
+ },
+ "plant_fantastic_flower": {
+  "en": "Fantastic Flower",
+  "rarity": "Purple/Very Rare",
+  "days": 1,
+  "harvest": "Once Time",
+  "ptype": "Buff",
+  "product": "A random common buff",
+  "price": 400,
+  "usage": "Plant the {{PAGENAME}}'s seed in the Garden and water it once. After 1 day, it will be ready, giving a random Buff upon harvesting (excluding special ones). After being harvested, the plant will disappear."
+ },
+ "plant_firecracker": {
+  "en": "Firecracker",
+  "rarity": "Orange/Epic",
+  "days": 1,
+  "harvest": "Once Time",
+  "ptype": "Buff",
+  "product": "Firecracker",
+  "price": null,
+  "usage": "Plant {{PAGENAME}}'s seed in the Garden and water it once. After 1 day, it will be ready, giving the Firecracker Buff upon harvesting. After being harvested, the plant will disappear."
+ },
+ "plant_gear_flower": {
+  "en": "Gear Flower",
+  "rarity": "White/Common",
+  "days": 1,
+  "harvest": "Once Time",
+  "ptype": "Material",
+  "product": "4 Parts",
+  "price": 75,
+  "usage": "Plant the {{PAGENAME}}'s seed in the Garden and water it once. After 1 day, it will be ready, giving 4 Parts upon harvesting. After being harvested, the plant will disappear."
+ },
+ "plant_gem_flower": {
+  "en": "Gem Flower",
+  "rarity": "White/Common",
+  "days": 1,
+  "harvest": "Once Time",
+  "ptype": "Material",
+  "product": "288 Gems",
+  "price": 100,
+  "usage": "Plant the {{PAGENAME}}'s seed in the Garden and water it once. After 1 day, it will be ready, giving 288 Gems upon harvesting. After being harvested, the plant will disappear."
+ },
+ "plant_gem_tree": {
+  "en": "Gem Tree",
+  "rarity": "Orange/Epic",
+  "days": 4,
+  "harvest": "Permanent",
+  "ptype": "Material",
+  "product": "222 Gems",
+  "price": null,
+  "usage": "Plant the {{PAGENAME}}'s seed in the Garden and water it daily. After 4 days, it will be ready, giving 222 Gems upon harvesting. The player can water it daily to keep harvesting it once per day."
+ },
+ "plant_ghostpipe": {
+  "en": "Ghost Pipe",
+  "rarity": "Orange/Epic",
+  "days": 1,
+  "harvest": "Once Time",
+  "ptype": "Buff",
+  "product": "Weapon Copy",
+  "price": null,
+  "usage": "Plant {{PAGENAME}}'s seed in the Garden and water it once. After 1 day, it will be ready, giving the Weapon Copy Buff upon harvesting. After being harvested, the plant will disappear."
+ },
+ "plant_ginseng": {
+  "en": "Ginseng",
+  "rarity": "Orange/Epic",
+  "days": 1,
+  "harvest": "Once Time",
+  "ptype": "Buff",
+  "product": "Arbitrary Strike",
+  "price": null,
+  "usage": "Plant {{PAGENAME}}'s seed in the Garden and water it once. After 1 day, it will be ready, giving the Arbitrary Strike Buff upon harvesting. After being harvested, the plant will disappear."
+ },
+ "plant_heavenlypeach": {
+  "en": "Heavenly Peach",
+  "rarity": "Orange/Epic",
+  "days": 1,
+  "harvest": "Once Time",
+  "ptype": "Buff",
+  "product": "Monkey Pack",
+  "price": null,
+  "usage": "Plant {{PAGENAME}}'s seed in the Garden and water it once. After 1 day, it will be ready, giving the Monkey Pack Buff upon harvesting. After being harvested, the plant will disappear."
+ },
+ "plant_heptacolor": {
+  "en": "Heptacolor Viola",
+  "rarity": "Purple/Very Rare",
+  "days": 1,
+  "harvest": "Once Time",
+  "ptype": "Buff",
+  "product": "An empty buff slot",
+  "price": 300,
+  "usage": "Plant the {{PAGENAME}}'s seed in the Garden and water it once. After 1 day, it will be ready, giving the player one more empty Buff slot upon harvesting. After being harvested, the plant will disappear. The player can have multiple additional Buff slots by harvesting multiple {{PAGENAME}} in the same run. The extra Buff slots are only available for the current run."
+ },
+ "plant_iron_tree": {
+  "en": "Ironwood",
+  "rarity": "White/Common",
+  "days": 1,
+  "harvest": "Once Time",
+  "ptype": "Material",
+  "product": "4 Ironstone",
+  "price": 75,
+  "usage": "Plant the {{PAGENAME}}'s seed in the Garden and water it once. After 1 day, it will be ready, giving 4 Ironstone upon harvesting. After being harvested, the plant will disappear."
+ },
+ "plant_lavender": {
+  "en": "Lavender",
+  "rarity": "Orange/Epic",
+  "days": 1,
+  "harvest": "Once Time",
+  "ptype": "Buff",
+  "product": "Soul Strike",
+  "price": null,
+  "usage": "Plant the {{PAGENAME}}' seed in the Garden and water it once. After 1 day, it will be ready, giving the Soul Strike Buff upon harvesting. After being harvested, the plant will disappear."
+ },
+ "plant_lithiumflower": {
+  "en": "Lithium Flower",
+  "rarity": "Orange/Epic",
+  "days": 1,
+  "harvest": "Once Time",
+  "ptype": "Buff",
+  "product": "Lightning Bolt",
+  "price": null,
+  "usage": "Plant {{PAGENAME}}'s seed in the Garden and water it once. After 1 day, it will be ready, giving the Lightning Bolt Buff upon harvesting. After being harvested, the plant will disappear."
+ },
+ "plant_lotus": {
+  "en": "Snow Lotus",
+  "rarity": "Purple/Very Rare",
+  "days": 1,
+  "harvest": "Once Time",
+  "ptype": "Misc",
+  "product": "+1 max health+40 max energy",
+  "price": null,
+  "usage": "Plant the {{PAGENAME}}' seed in the Garden and water it once. After one day, it will be ready, giving the player 1+ max health and 40+ max energy upon harvesting. After being harvested, the plant will disappear. Harvested {{PAGENAME}}es count toward the drink limit."
+ },
+ "plant_lycoris": {
+  "en": "Red Spider Lily",
+  "rarity": "Blue/Rare",
+  "days": 1,
+  "harvest": "Once Time",
+  "ptype": "Buff",
+  "product": "Pet",
+  "price": 400,
+  "usage": "Plant the {{PAGENAME}}'s seed in the Garden and water it once. After one day, it will be ready, giving the Pet Buff upon harvesting. After being harvested, the plant will disappear."
+ },
+ "plant_magic_flower": {
+  "en": "Magic Flower",
+  "rarity": "Orange/Epic",
+  "days": 3,
+  "harvest": "Permanent",
+  "ptype": "Buff",
+  "product": "Energy Orb",
+  "price": null,
+  "usage": "Plant the {{PAGENAME}}'s seed in the Garden and water it daily. After 3 days, it will be ready, giving the Energy Orb Buff upon harvesting. The player can keep watering the plant daily to harvest it once per day."
+ },
+ "plant_mandrake": {
+  "en": "Mandrake",
+  "rarity": "Red/Legendary",
+  "days": 2,
+  "harvest": "Permanent",
+  "ptype": "Buff",
+  "product": "Poison",
+  "price": null,
+  "usage": "Plant the {{PAGENAME}}'s seed in the Garden and water it daily. After 2 days, it will be ready, giving the Poison Buff upon harvesting. The player can water it daily to keep harvesting it once per day."
+ },
+ "plant_mirror_plane_flower": {
+  "en": "Mirror Flower",
+  "rarity": "Blue/Rare",
+  "days": 1,
+  "harvest": "Once Time",
+  "ptype": "Buff",
+  "product": "Bounce",
+  "price": 400,
+  "usage": "Plant the {{PAGENAME}}'s seed in the Garden and water it once. After 1 day, it will be ready, giving the Bounce Buff upon harvesting. After being harvested, the plant will disappear."
+ },
+ "plant_monkeycup": {
+  "en": "Monkey Cup",
+  "rarity": "Orange/Epic",
+  "days": 1,
+  "harvest": "Once Time",
+  "ptype": "Buff",
+  "product": "Damage Absorb",
+  "price": null,
+  "usage": "Plant {{PAGENAME}}'s seed in the Garden and water it once. After 1 day, it will be ready, giving the Damage Absorb Buff upon harvesting. After being harvested, the plant will disappear."
+ },
+ "plant_mushroom": {
+  "en": "Crystal Mushroom",
+  "rarity": "Orange/Epic",
+  "days": 2,
+  "harvest": "Permanent",
+  "ptype": "Buff",
+  "product": "Gems",
+  "price": null,
+  "usage": "Plant the {{PAGENAME}}'s seed in the Garden and water it daily. After 2 days, it will be ready, giving the Gems Buff upon harvesting. The player can water the plant daily to keep harvesting it once per day."
+ },
+ "plant_pumpkin": {
+  "en": "Pumpkin",
+  "rarity": "Orange/Epic",
+  "days": 1,
+  "harvest": "Permanent",
+  "ptype": "Misc",
+  "product": "A random item",
+  "price": null,
+  "usage": "Plant the {{PAGENAME}}'s seed in the Garden and water it once. After 1 day, it will be ready, giving a {{PAGENAME}} upon harvesting. The player can keep watering the plant daily to harvest it once per day. *The {{PAGENAME}} works like an Easter Egg. It will give the player a potion, a random weapon, some coins, or a bomb."
+ },
+ "plant_qilixiang": {
+  "en": "Daphne Odera",
+  "rarity": "Orange/Epic",
+  "days": 1,
+  "harvest": "Once Time",
+  "ptype": "Buff",
+  "product": "Tornado",
+  "price": null,
+  "usage": "Plant the {{PAGENAME}}' seed in the Garden and water it once. After 1 day, it will be ready, giving the Tornado Buff upon harvesting. After being harvested, the plant will disappear."
+ },
+ "plant_radar": {
+  "en": "Radar Flower",
+  "rarity": "Blue/Rare",
+  "days": 1,
+  "harvest": "Once Time",
+  "ptype": "Buff",
+  "product": "Laser",
+  "price": 400,
+  "usage": "Plant the {{PAGENAME}}'s seed in the Garden and water it once. After 1 day, it will be ready, giving the Laser Buff. After being harvested, the plant will disappear."
+ },
+ "plant_rainbow_grass": {
+  "en": "Rainbow Grass",
+  "rarity": "Orange/Epic",
+  "days": 1,
+  "harvest": "Once Time",
+  "ptype": "Buff",
+  "product": "Chaos Strike",
+  "price": null,
+  "usage": "Plant the {{PAGENAME}}' seed in the Garden and water it once. After 1 day, it will be ready, giving the Chaos Strike Buff upon harvesting. After being harvested, the plant will disappear."
+ },
+ "plant_roselle": {
+  "en": "Roselle",
+  "rarity": "Orange/Epic",
+  "days": 1,
+  "harvest": "Once Time",
+  "ptype": "Buff",
+  "product": "Dragon Breath",
+  "price": null,
+  "usage": "Plant the {{PAGENAME}}' seed in the Garden and water it once. After 1 day, it will be ready, giving the Dragon Breath Buff upon harvesting. After being harvested, the plant will disappear."
+ },
+ "plant_rosemary": {
+  "en": "Frozen Pear",
+  "rarity": "Orange/Epic",
+  "days": 1,
+  "harvest": "Once Time",
+  "ptype": "Buff",
+  "product": "Icicle Spike or Ice Sculpture or Frost Nova",
+  "price": null,
+  "usage": "Plant {{PAGENAME}}'s seed in the Garden and water it once. After 1 day, it will be ready, giving one of the following buffs upon harvesting. After being harvested, the plant will disappear: * Icicle Spike - Ice-based critical attacks launch 3 ice spikes at all directions. * Ice Sculpture - Enemies killed by ice damage have a 50% chance of turning into ice sculptures, which automatically pursue other enemies and explode, dealing 12 ice damage to enemies within a radius of 2. * Frost Nova - Enemies killed by ice damage have a 40% chance to trigger a frost nova upon death."
+ },
+ "plant_rosemary#Rosemary": {
+  "en": "Rosemary",
+  "rarity": "Orange/Epic",
+  "days": 1,
+  "harvest": "Once Time",
+  "ptype": "Buff",
+  "product": "Holy Nova",
+  "price": null,
+  "usage": "Plant {{PAGENAME}}'s seed in the Garden and water it once. After 1 day, it will be ready, giving the Holy Nova Buff upon harvesting. After being harvested, the plant will disappear."
+ },
+ "plant_shallot": {
+  "en": "Green Onions",
+  "rarity": "White/Common",
+  "days": 0,
+  "harvest": "Once Time",
+  "ptype": "Weapon",
+  "product": "Green Onions",
+  "price": 50,
+  "usage": "Plant the Green Onions' seed in the Garden and water it. Next time the player enters the game, it will be ready, giving a Green Onions upon harvesting. After being harvested, the plant will disappear."
+ },
+ "plant_silver_poplar": {
+  "en": "Abele",
+  "rarity": "Orange/Epic",
+  "days": 1,
+  "harvest": "Once Time",
+  "ptype": "Buff",
+  "product": "Frost Ring",
+  "price": null,
+  "usage": "Plant the {{PAGENAME}}' seed in the Garden and water it once. After 1 day, it will be ready, giving the Frost Ring Buff upon harvesting. After being harvested, the plant will disappear."
+ },
+ "plant_strange_flower": {
+  "en": "Strange Flower",
+  "rarity": "Green/Uncommon",
+  "days": 1,
+  "harvest": "Once Time",
+  "ptype": "Material",
+  "product": "1 random Magic Fragment",
+  "price": 400,
+  "usage": "Plant the {{PAGENAME}}'s seed in the Garden and water it once. After 1 day, it will be ready, giving a random Magic Fragment upon harvesting. After being harvested, the plant will disappear."
+ },
+ "plant_tree": {
+  "en": "Oak Tree",
+  "rarity": "Green/Uncommon",
+  "days": 3,
+  "harvest": "Once Time",
+  "ptype": "Material",
+  "product": "10 Timber",
+  "price": 100,
+  "usage": "Plant the {{PAGENAME}}'s seed in the Garden and water it daily. After 3 days, it will be ready, giving 10 Timber upon harvesting. After being harvested, the plant will disappear."
+ },
+ "plant_trumpet": {
+  "en": "Trumpet Flower",
+  "rarity": "White/Common",
+  "days": 1,
+  "harvest": "Once Time",
+  "ptype": "Material",
+  "product": "4 Organic Matter",
+  "price": 100,
+  "usage": "Plant the Trumpet Flower's seed in the Garden and water it once. After 1 day, it will be ready, giving 4 Organic Matter upon harvesting. After being harvested, the plant will disappear."
+ },
+ "plant_vine": {
+  "en": "Vine",
+  "rarity": "White/Common",
+  "days": 0,
+  "harvest": "Once Time",
+  "ptype": "Weapon",
+  "product": "Vine",
+  "price": 50,
+  "usage": "Plant the Vine's seed in the Garden and water it. Next time the player enters the game, it will be ready, giving a Vine upon harvesting. After being harvested, the plant will disappear."
+ },
+ "plant_watermelon": {
+  "en": "Watermelon",
+  "rarity": "Blue/Rare",
+  "days": 1,
+  "harvest": "Once Time",
+  "ptype": "Buff",
+  "product": "Charge",
+  "price": 400,
+  "usage": "Plant the {{PAGENAME}}'s seed in the Garden and water it once. After 1 day, it will be ready, giving the Charge Buff upon harvesting. After being harvested, the plant will disappear."
+ },
+ "plant_xmas": {
+  "en": "Xmas Tree",
+  "rarity": "Purple/Very Rare",
+  "days": 2,
+  "harvest": "Once Time",
+  "ptype": "Weapon",
+  "product": "Agitated Trunk",
+  "price": null,
+  "usage": "Plant the {{PAGENAME}}'s seed in the Garden and water it daily. After 2 days, it will be ready, giving an Agitated Trunk upon harvesting. After being harvested, the plant will disappear."
+ },
+ "plant_zongzi": {
+  "en": "Zongzi Flower",
+  "rarity": "Blue/Rare",
+  "days": 1,
+  "harvest": "Once Time",
+  "ptype": "Pet",
+  "product": "Zongzi Papa pet",
+  "price": null,
+  "usage": "Plant the {{PAGENAME}}'s seed in the Garden and water it once. After 1 day, it will be ready, giving this Pet for the current run only. After being harvested, the plant will disappear. *The pet 35px has 10 base health. The health bar is not visible. **Its health cannot get lower than 1. If its HP is reduced to 1, it will stop fighting and stay close to the player. **It takes 14~16 seconds for it to be fully healed. It can also regenerate health during battle at an unknown rate. **Being a Garden Pet, it isn't affected by buffs provided by Pet Food upgrades. *The pet uses a 48x32px Zongzi Gun as a weapon. While the pet can stack with other pets, the player can have only one Zongzi Papa pet from garden each run. If the player attempts to harvest more than one {{PAGENAME}}, the plant will do nothing."
+ }
+}

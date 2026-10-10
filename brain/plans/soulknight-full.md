@@ -25,7 +25,7 @@ Thứ tự theo đúng lời chủ dự án. Mỗi mục là một hoặc vài �
    3 két/chuyển phát/máy đổi → 4 bàn thiết kế + rèn → 5 rương/máy trứng/mèo → 6 vườn → 7 nội thất bản vẽ → 8 sổ tay/thành tựu → 9 xưởng/treo thưởng): tiện ích tương tác (rương, tủ lạnh, két, mèo chiêu tài, máy quay trứng, bàn rèn, lò đúc, luyện kim,
    thầy huấn luyện, cảnh sát, máy Dilili, hầm, xưởng, khu phép thuật), skin sảnh.
 6. [~] Thú cưng: [x] 55 thú cưng + kỹ năng riêng (js/pets/petN.js, số theo wiki tools/wiki/pets.json, rev 20261010f),
-   [x] pet được kéo vào phòng khi rào dâng; [ ] chọn/mua/cho ăn/thân mật (brief scratchpad pet-select-brief.md, sau sảnh 4–5);
+   [x] pet được kéo vào phòng khi rào dâng; [x] chọn/mua/cho ăn/thân mật 50% mở kỹ năng (js/hall_pet.js, rev 20261010g);
    [ ] HP chung của pet (wiki: 10 HP, nghỉ ở 1 HP, hồi 14–16 s; pet7/8/14/26/49 đang giữ a.hp riêng); [ ] thú cưỡi 31, tùy tùng.
 7. [ ] Cây trồng: vườn, 51 cây, hạt giống, phân bón, thu hoạch.
 8. [ ] Thiên phú: 13 chưa có dữ liệu + 20 có dữ liệu chưa có luật; tượng thần còn thiếu.

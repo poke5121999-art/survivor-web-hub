@@ -189,6 +189,12 @@
       } else if (pt.st !== 'ide') { pt.st = 'ide'; pt.t = 0; }
     }
     hall.near = nearest(me.x, me.y);
+    // Đến gần thú cưng đang theo chủ thì bấm E mở bảng chọn thú cưng (cùng việc với ô Thức Ăn Mèo, js/hall_pet.js); tầm 1,3 đv [ƯỚC LƯỢNG].
+    // Chỉ khi không có món nội thất trong tầm (thú cưng luôn lẽo đẽo sau chủ, không được giành tương tác của món).
+    if (!hall.near && pt && Math.hypot(pt.x - me.x, pt.y - me.y) < 1.3 && SK.HALL_USE.pet_food) {
+      const pi = SK.petInfo && SK.petInfo(SK.profile.pet());
+      hall.near = { slot: 'pet_food', name: (pi && pi.vi) || 'Thú cưng', x: pt.x, y: pt.y, box: [pt.x - 0.6, pt.y - 0.6, pt.x + 0.6, pt.y + 0.6], pet: true };
+    }
     if ((I.hit('interact') || I.hit('confirm')) && hall.near && useCd <= 0) use(hall.near);
     // Cửa là trigger nằm sát mép tường trên: tới hàng sàn cuối dưới cửa là vào [ĐO door_enter BoxCollider2D].
     const dr = H.door, atDoor = Math.abs(me.x - dr.x) < dr.w / 2 && me.y > dr.y - dr.h / 2 - 1.2;
@@ -288,7 +294,7 @@
     }
     const me = hall.me;
     if (me) list.push({ y: me.y, fn: () => drawHero(ctx, me.id, me.x, me.y, me.face, me.moving, hall.t) });
-    const pt = hall.pet, petParts = D.prefabs.pet0;
+    const pt = hall.pet, petParts = D.prefabs[SK.profile.pet()] || D.prefabs.pet0;
     if (pt && petParts) list.push({ y: pt.y, fn: () => { const [x, y] = px(pt.x, pt.y); SK.drawPrefab(ctx, petParts, x, y, { state: pt.st, t: pt.t, flip: pt.face < 0 }); } });
     list.sort((a, b) => b.y - a.y);
     for (const e of list) e.fn();
@@ -356,6 +362,7 @@
     // Móc kiểm thử: vùng tương tác của từng món, món đang gần, dùng thẳng một món, bật nhãn mọi món, toạ độ CSS của nhãn.
     zones: () => zones.map(q => ({ slot: q.slot, name: q.name, loc: q.loc, x: q.x, y: q.y, box: q.box.slice(), kiosk: !!q.kiosk })),
     near: () => hall.near && { slot: hall.near.slot, name: hall.near.name },
+    petPos: () => hall.pet && { x: hall.pet.x, y: hall.pet.y },
     nearAt: (x, y) => { const q = nearest(x, y); return q && q.slot; },
     use: slot => use(zones.find(q => q.slot === slot)),
     labelsAll: on => { labelsAll = on !== false; },

@@ -55,6 +55,11 @@
   P.carry = isObj(P.carry) && DS.weapons[P.carry.id] && (P.carry.from === 'box' || P.carry.from === 'forged') ? { id: P.carry.id, from: P.carry.from } : null;   // vũ khí mang vào ván kế (ô thứ 2)
   P.eggPity = Math.max(0, Math.floor(+P.eggPity || 0));   // số lượt quay liên tiếp chưa ra mảnh skin (bảo đảm lượt 20)
   P.fish = Math.max(0, Math.floor(+P.fish || 0));         // Cá Khô (tiền của tiệm Mèo Chiêu Tài)
+  // Thú cưng (HALL.md mục 15, js/hall_pet.js): đã mua, đang chọn, độ thân mật, số lần đã cho ăn trong lượt chơi hiện tại.
+  P.pets = Array.isArray(P.pets) ? P.pets.filter(id => typeof id === 'string') : [];
+  P.petSel = typeof P.petSel === 'string' ? P.petSel : 'pet0';
+  P.aff = cleanMap(P.aff);
+  P.fed = cleanMap(P.fed);
   P.stats = Object.assign({ kills: 0, boss: 0, pass: 0, dead: 0, best: 0 }, isObj(P.stats) ? P.stats : {});
   for (const k of Object.keys(P.stats)) P.stats[k] = Math.max(0, Math.floor(+P.stats[k] || 0));
   const two = n => (n < 10 ? '0' : '') + n;
@@ -72,6 +77,10 @@
   const SAFE_COST = [500, 1000, 1500, 2000, 2500], SAFE_GOLD = [2, 4, 6, 8, 10], SAFE_OPEN_BEST = 7;
   // Vàng còn lại cuối ván đổi thành đá [LOC I_tip_10]; tỉ lệ không có trong config → 1 vàng = 1 đá [ƯỚC LƯỢNG].
   const GOLD_GEM = 1;
+  // Thú cưng: Thức ăn cho pet = material_grain +10 [WIKI Pets "Pet Treat 10"]; Phân Bón chỉ cho con có món Fertilizer, 10 [ƯỚC LƯỢNG];
+  // các món khác của wiki (Meat, Fish, Bamboo...) chưa có trong SK_ITEMS nên bỏ. Tối đa 7 lần mỗi ván [WIKI]; +10 khi xong ván [ƯỚC LƯỢNG].
+  const PET_FEED = { material_grain: { pts: 10 }, material_fertilize: { pts: 10, only: 'Fertilizer' } }, PET_FEED_MAX = 7, PET_RUN_AFF = 10;
+  const petData = id => (window.SK_PETS && SK_PETS.pets[id]) || null;
   function save() { try { localStorage.setItem(KEY, JSON.stringify(P)); } catch (_) { /* chế độ riêng tư: chơi tiếp, không lưu */ } }
 
   const HEROES = Object.keys(DS.heroes).filter(id => D.heroes && D.heroes[id])
@@ -146,6 +155,43 @@
     get fish() { return P.fish; },
     addFish(n) { P.fish = Math.max(0, P.fish + Math.floor(n)); save(); return P.fish; },
     spendFish(n) { if (P.fish < n) return false; P.fish -= n; save(); return true; },
+    // ---- thú cưng: sở hữu / chọn / thân mật / cho ăn [WIKI Pets]. Số liệu: data/sk-pets.js (unlock, food, affMax).
+    petOwned: id => { const d = petData(id); return !!d && (d.unlock.kind === 'free' || P.pets.indexOf(id) >= 0); },
+    pet() { return petData(P.petSel) && this.petOwned(P.petSel) ? P.petSel : 'pet0'; },
+    setPet(id) { if (!this.petOwned(id)) return false; P.petSel = id; save(); return true; },
+    buyPet(id) {
+      const d = petData(id), u = d && d.unlock;
+      if (!d) return { ok: false, err: 'không có thú cưng này' };
+      if (this.petOwned(id)) return { ok: false, err: 'đã sở hữu' };
+      if (u.kind === 'gems') { if (!this.spend(u.cost)) return { ok: false, err: 'không đủ đá quý' }; }
+      else if (u.kind === 'fish') { if (!this.spendFish(u.cost)) return { ok: false, err: 'không đủ Cá Khô' }; }
+      else return { ok: false, err: 'không bán' };
+      P.pets.push(id); save(); if (built) refresh();
+      return { ok: true, cost: u.cost, kind: u.kind };
+    },
+    petAff: id => Math.min(P.aff[id] | 0, (petData(id) || { affMax: 240 }).affMax),
+    petAffMax: id => (petData(id) || { affMax: 240 }).affMax,
+    petSkillOn: id => (P.aff[id] | 0) >= (petData(id) || { affMax: 240 }).affMax * 0.5,   // đạt 50% thì mở kỹ năng [WIKI Pets]
+    petFed: id => P.fed[id] | 0,
+    PET_FEED, PET_FEED_MAX,
+    // Cho ăn: tối đa PET_FEED_MAX lần mỗi lượt chơi; điểm theo món (bảng PET_FEED); tốn 1 vật phẩm.
+    feedPet(id, item) {
+      const d = petData(id), pts = (PET_FEED[item] || {}).pts;
+      if (!d || !this.petOwned(id)) return { ok: false, err: 'chưa sở hữu' };
+      if (!pts || (PET_FEED[item].only && d.food.indexOf(PET_FEED[item].only) < 0)) return { ok: false, err: 'món này không dùng được' };
+      if ((P.fed[id] | 0) >= PET_FEED_MAX) return { ok: false, full: true, err: 'No quá rồi. Dẫn tôi đi đánh nhau đi.' };
+      if (this.petAff(id) >= d.affMax) return { ok: false, maxed: true, err: 'độ thân mật đã đầy' };
+      if (!this.spendItem(item, 1)) return { ok: false, err: 'hết món này' };
+      const before = this.petAff(id);
+      P.aff[id] = Math.min(d.affMax, before + pts); P.fed[id] = (P.fed[id] | 0) + 1; save();
+      return { ok: true, pts: P.aff[id] - before, aff: P.aff[id], n: P.fed[id] };
+    },
+    // Xong một ván: thú cưng đang theo +PET_RUN_AFF thân mật, đặt lại số lần cho ăn.
+    petRunEnd(id) {
+      const d = petData(id);
+      if (d && this.petOwned(id)) P.aff[id] = Math.min(d.affMax, (P.aff[id] | 0) + PET_RUN_AFF);
+      P.fed = {}; save();
+    },
     dailyCount(name) { rollDay(); return P.daily[name] | 0; },
     bumpDaily(name, n) { rollDay(); P.daily[name] = (P.daily[name] | 0) + (n == null ? 1 : n); save(); return P.daily[name]; },
     // ---- ngày + việc hằng ngày
@@ -917,6 +963,7 @@
     const goldGems = Math.floor(Math.max(0, r.gold | 0) * GOLD_GEM), gems = runGems + goldGems;
     const hero = G2.player ? G2.player.hero : P.selected;
     P.gems += gems;
+    SK.profile.petRunEnd(SK.profile.pet());
     P.stats.kills += Math.max(0, r.kills | 0);
     if (r.won) P.stats.pass++; else P.stats.dead++;
     if (G2.mode !== 'bossrush') P.stats.best = Math.max(P.stats.best, cleared);

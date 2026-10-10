@@ -86,7 +86,8 @@
     if (!parts || !p || G.petOff) return;
     const anim = parts[0].a || {};
     const a = { id, parts, anim, k: cfg(id), x: p.x - 10, y: p.y + 2, face: 1, st: 'ide', stT: 0, cd: 1, scan: 0, target: null,
-      def: SKILLS[id] || {}, info: SK.petInfo(id) };
+      // Độ thân mật dưới 50% thì chưa có kỹ năng, chỉ cắn mặc định [WIKI Pets]; SK.petForce (móc kiểm thử) bỏ qua ngưỡng.
+      def: (SK.petForce || !SK.profile || !SK.profile.petSkillOn || SK.profile.petSkillOn(id)) ? (SKILLS[id] || {}) : {}, info: SK.petInfo(id) };
     G.pet = a;
     if (a.def.init) a.def.init(G, a);
     G.props.push({
