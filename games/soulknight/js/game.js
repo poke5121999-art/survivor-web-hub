@@ -10,6 +10,7 @@
   function buildStages(mode, factors) {
     STAGES.length = 0;
     const br = mode === 'bossrush';
+    if (mode === 'defence') { STAGES.push({ theme: DS.run[0][0], level: DS.run[0][1], n: 1, label: 'D-1', boss: false, br: false }); return; }   // một phòng Đá Phép (js/defence.js)
     if (mode === 'matrix') { addFloor(1); return; }   // Mê Trận Tà Vương: mỗi tầng nối thêm khi qua cổng x-5 (SK.matrixNextFloor)
     for (const [theme, level] of DS.run) for (let i = 1; i <= 5; i++) {
       STAGES.push({ theme, level, n: i, label: level + '-' + i, boss: br || i === 5, br });
@@ -234,10 +235,11 @@
     G.factors = Array.isArray(factors) ? factors.slice() : [];
     if (SK.factorsOn) SK.factorsOn(G); else G.mods = {};
     G.player = null; G.kills = 0; G.state = 'stage';
-    G.mode = mode === 'bossrush' || mode === 'matrix' || mode === 'void' || mode === 'troop' ? mode : 'level'; G.bossSeen = [];
+    G.mode = mode === 'bossrush' || mode === 'matrix' || mode === 'void' || mode === 'troop' || mode === 'defence' ? mode : 'level'; G.bossSeen = [];
     if (G.mode === 'matrix') { G.factors = []; if (SK.factorsOn) SK.factorsOn(G); }   // nhân tố do Tà Vương ban, không tự chọn
     G.matrix = G.mode === 'matrix' && SK.matrix ? SK.matrix.init(G) : null;
     G.troop = G.mode === 'troop' && SK.troop ? SK.troop.init(G) : null;   // Chỉ Huy Nhỏ: người chơi là pet, thuê anh hùng làm lính (js/troop.js)
+    G.defence = G.mode === 'defence' && SK.defence ? SK.defence.init(G) : null;   // Thần Điện Thủ Hộ: bảo vệ Đá Phép, đặt tháp bằng Xu Sao (js/defence.js)
     G.void = G.mode === 'void' && SK.voidMode ? SK.voidMode.init(G) : null;   // Xâm Nhập Hư Không độ 1: không chơi cùng Lợi Hại [WIKI VI]
     if (G.void) G.badass = false;
     setOverlay(null);

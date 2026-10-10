@@ -878,6 +878,10 @@
     { id: 'troop', name: 'Chỉ Huy Nhỏ', img: 'mode_level.png', ok: true,
       start: () => { if (SK.G.state === 'hall') launch(P.selected, 'troop', []); },
       desc: 'Bạn là một chú thú cưng: không bị thương, chỉ cắn. Dùng Xu Mèo thuê các anh hùng làm lính, nâng cờ để đội thêm quân, hợp nhất ba lính cùng loại thành bản nâng cấp rồi dẫn họ vượt ba tầng.' },
+    // Thần Điện Thủ Hộ [LOC gamemode/defence, MODES.md 2f]: bảo vệ Đá Phép khỏi đợt quái, đặt tháp bằng Xu Sao (js/defence.js; lõi, chặng 1).
+    { id: 'defence', name: 'Thần Điện Thủ Hộ', img: 'mode_defence.png', ok: true,
+      start: () => { if (SK.G.state === 'hall') launch(P.selected, 'defence', []); },
+      desc: 'Bảo vệ Đá Phép Cổ Đại khỏi từng đợt quái lao tới. Hạ quái để lấy Xu Sao, dùng Xu Sao đặt các tháp phòng thủ lên Nền Tháp và nâng sao cho chúng. Đá Phép vỡ là thua; giữ được qua các đợt là thắng.' },
     { id: 'season', name: 'Chế độ mùa giải', img: 'mode_season.png', isNew: true, ok: true,
       desc: 'Thoát khỏi Monkia: căn cứ giữa rừng thông, qua cổng xoáy ra Ngoại ô căn cứ, đánh khỉ, mở thùng, về điểm rút lui mang đồ về.',
       start: () => SK.SEASON && SK.SEASON.start && SK.SEASON.start(SK.profile.selected || 'knight') },

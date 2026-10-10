@@ -164,3 +164,11 @@ Có: bản vẽ nội thất (Máy Nước, Hồ Cá, Giếng Phép Thuật, Tư
 - Ảnh thẻ chế độ: không tìm thấy ảnh Chỉ Huy Nhỏ trong common/ui (regex troop chỉ ra ảnh Đại Đại Chỉ Huy) nên dùng mode_level.png.
 - Chưa làm: kỹ năng riêng của lính (lính chỉ đánh bằng vũ khí khởi đầu của anh hùng, vũ khí rơi khi hợp nhất không có gì để rơi), Pha Lê Đóng Băng / Máy Tạo Lực Trường / Máy Hồi Sức Tim Phổi của pet, Còi Tập hợp/Hành động, 5 ô vũ khí pet và vũ khí đầu rương là Còi, quầy rượu + Mực Xào + Tư Chất Lính Thuê, giới hạn phẩm vũ khí lính, đưa vũ khí cho lính, thùng rác, mục tiêu cúp Đồng/Bạc/Vàng, xu từ mỏ vàng/rương xám/Tinh Anh, phòng ít hơn của chế độ (x-1, x-2 một phòng), quái hung hãn hơn, chỉ số lính theo phẩm chất khác thiên phú.
 - Giá hợp nhất: tính 4 xu như thuê thường; hợp nhất cho phép cả khi đã đầy chỗ vì số lính giảm [ƯỚC LƯỢNG].
+
+## Thần Điện Thủ Hộ (js/defence.js, lõi chặng 1) - còn thiếu
+- Chỉ có chặng 1 (3 đợt, C.lastZone = 1, qua đủ là thắng); chặng 2-12, Đợt Lớn có quái Phi Thuyền, trùm sóng 3-3/6-3/9-3, Tàu Ngoài Hành Tinh 12-3 và thắng bằng xác tàu chưa làm.
+- Bản đồ: dùng phòng khởi đầu của W.generate làm Phòng Đá Phép (3 cổng đỏ tây/bắc/đông, đi thẳng vào Đá Phép); chưa có Hậu Điện, 7 vùng, 39 cứ điểm, hành lang cổng, đợt giới thiệu (0-1) và Robot Tự Nổ. Không sửa world.js.
+- Tháp: mới 7/12 (Súng Máy, Laser, Bẫy Gai, Gió Lốc, Thời Tiết (chỉ Sấm), Sinh Hóa (chỉ vũng), Không Quân (chỉ Oanh tạc)); thiếu Thiết Bị Nạp, Hộ Thuẫn, Bảo Trì, Ma Trận Khuếch Đại, Dị năng, chế độ chuyển, Phẩm 1-6 (mua trùng), chí mạng, bắn đạn địch, Cờ Lê nhấc tháp, Máy Khai Khoáng. Số cd/tầm/máu tháp/EXP mỗi quái là [ƯỚC LƯỢNG].
+- Đá Phép mất máu = ceil(máu quái / 10) tối đa 20 [ƯỚC LƯỢNG: wiki chỉ nói "theo máu còn lại"]; Xu Sao rơi 50% x 2 mỗi quái trong đợt + 15 khởi đầu [ƯỚC LƯỢNG: wiki 10% chỉ cho quái Phi Thuyền, nguồn khác (phòng cứ điểm, trùm, nhiệm vụ) chưa có].
+- Chưa có: Quan Tế EXP/cấp, Thầy Hướng Dẫn, Bậc Thầy Vũ Khí, Thương Nhân, Kho, nhiệm vụ, ngọc thưởng, lượt hồi sinh (thua khi Đá Phép về 0, chưa đòi người chơi hết lượt), đột biến quái, Lợi Hại, rương xanh sau Đợt Lớn, xung đột thành tích đợt đã chọn 8/16/24.
+- Hình: Đá Phép, Nền Tháp, tháp vẽ bằng hình khối (chưa lấy ảnh gốc); thẻ chế độ dùng mode_defence.png có sẵn.
