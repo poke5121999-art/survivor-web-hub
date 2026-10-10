@@ -513,7 +513,7 @@
     const skin = SK.profile && SK.profile.skinOf ? SK.profile.skinOf(heroId) : 0;
     const hd = D.heroes && SK.heroSkin(heroId, skin);
     let h = DS.heroes[heroId];
-    if (hd && D.heroes[heroId].s0 !== hd) h = Object.assign(Object.create(h), { hand: SK.heroHand(heroId, skin), hand2: SK.heroHand(heroId, skin, true) });
+    if (hd && D.heroes[heroId].s0 !== hd) h = Object.assign({}, h, { hand: SK.heroHand(heroId, skin), hand2: SK.heroHand(heroId, skin, true) });   // bản sao đầy đủ (không Object.create): rooms.js sao chép p.h bằng Object.assign nên thuộc tính kế thừa sẽ mất, skin khác 0 lỗi 'body.r'
     return {
       hero: heroId, h, anims: hd || {}, x, y, face: 1, aim: 0, moving: false, t: 0,
       hp: h.hp, hpMax: h.hp, armor: h.armor, armorMax: h.armor, energy: h.energy, energyMax: h.energy,

@@ -33,6 +33,11 @@
   if (!DS.heroes[P.selected]) P.selected = 'knight';
   if (!P.won || typeof P.won !== 'object') P.won = {};
   if (!P.skin || typeof P.skin !== 'object') P.skin = {};
+  // Skin đã mở {hero: [số skin]} (skin 0 và skin miễn phí luôn mở, không ghi). Hồ sơ cũ (trước khi có giá skin) giữ skin đang chọn.
+  const hadOwn = !!P.skinOwn && typeof P.skinOwn === 'object';
+  if (!hadOwn) P.skinOwn = {};
+  for (const h of Object.keys(P.skinOwn)) P.skinOwn[h] = Array.isArray(P.skinOwn[h]) ? P.skinOwn[h].map(Number).filter(n => n > 0) : [];
+  if (!hadOwn) for (const h of Object.keys(P.skin)) if (P.skin[h] > 0) P.skinOwn[h] = [P.skin[h]];
   if (!P.wonBadass || typeof P.wonBadass !== 'object') P.wonBadass = {};
   if (!P.voidWon || typeof P.voidWon !== 'object') P.voidWon = {};   // {độ khó Xâm Nhập Hư Không (1..3): 1} đã vượt
   if (!Array.isArray(P.factors)) P.factors = [];   // khoá Nhân Tố Thử Thách đã chọn (SK.FACTORS, js/factors.js)
@@ -123,6 +128,15 @@
     skillSlot: id => P.slot[id] || 0,
     level: id => P.level[id] || 0,
     skinOf: id => P.skin[id] || 0,
+    // Skin: giá / cách mở theo js/skins2.js. Chỉ skin đã mở mới chọn được; mua trừ đá / Cá Khô, tiền thật qua thanh toán giả.
+    skinPrice: (id, n) => (SK.skin2 ? SK.skin2.price(id, n) : { kind: 'free' }),
+    skinOwned: (id, n) => !n || SK.profile.skinPrice(id, n).kind === 'free' || (P.skinOwn[id] || []).indexOf(n) >= 0,
+    grantSkin(id, n) {
+      if (!(n > 0) || !DS.heroes[id]) return false;
+      const a = P.skinOwn[id] = P.skinOwn[id] || [];
+      if (a.indexOf(n) < 0) a.push(n);
+      save(); if (built) refresh(); return true;
+    },
     get badass() { return P.diff === 'badass' && badassOpen(); },
     // Nhân Tố Thử Thách: khoá hợp lệ, không trùng, tối đa SK.FACTOR_MAX; chỉ dùng khi vào trận từ thẻ "Nhân Tố Thử Thách".
     get factors() { return P.factors.filter((k, i) => SK.FACTORS && SK.FACTORS[k] && P.factors.indexOf(k) === i).slice(0, SK.FACTOR_MAX || 3); },
@@ -298,6 +312,8 @@
     if (u.kind === 'real_money' && u.amount) return { kind: 'money', amount: u.amount };
     return { kind: 'gems', amount: FAKE_HERO_GEMS, orig: (KIND_VI[u.kind] || 'cách khác') + (u.text ? ' (' + u.text + ')' : '') };
   }
+  // Giá trên nút Mở khoá: skin khoá đang giữa thanh trượt (focus) hoặc nhân vật khoá.
+  const unlockPrice = () => (focus != null ? SK.profile.skinPrice(P.selected, focus) : heroPrice(P.selected));
   function skillPrice(id, slot) {
     const byName = LA().skillUnlockByName || {};
     const u = (byName[DS.heroes[id].nameEn] || [])[slot];
@@ -343,7 +359,8 @@
   // ---------------------------------------------------------------- vẽ khung atlas
   // Skin của hero: 0 = mặc định; skin khác vẽ khi gói data/skins/<hero>.js đã nạp (SK.loadPack), chưa nạp thì s0.
   const skinList = id => [0].concat(((window.SK_SKINS && SK_SKINS[id]) || { skins: [] }).skins.map(x => +x[0].slice(1)));
-  const heroAnim = (id, kind, skin) => { const e = SK.heroSkin(id, skin == null ? P.skin[id] : skin); return e && e[kind]; };
+  const viewSkin = id => (focus != null && id === P.selected ? focus : P.skin[id] || 0);
+  const heroAnim = (id, kind, skin) => { const e = SK.heroSkin(id, skin == null ? viewSkin(id) : skin); return e && e[kind]; };
   const heroFrame0 = (id, skin) => { const a = SK.anim(heroAnim(id, 'idle', skin)); return a && a.f[0]; };
   function drawFit(cv, name, o) {
     const ctx = cv.getContext('2d'), f = SK.frame(name);
@@ -371,7 +388,7 @@
   // Tranh skin n (art/lobby/portrait/<hero>_s<n>.png, tools/skins/build_skins.py); skin không có tranh tĩnh thì tranh skin 0.
   function portrait(id) {
     if (!(LA().portraits || {})[id]) return null;
-    const sk = P.skin[id] || 0, ix = window.SK_SKINS && SK_SKINS[id];
+    const sk = viewSkin(id), ix = window.SK_SKINS && SK_SKINS[id];
     const file = sk && ix && ix.d.indexOf(sk) >= 0 ? id + '_s' + sk : id;
     let im = portraits[file];
     if (!im) { im = portraits[file] = new Image(); im.src = ART + 'portrait/' + file + '.png'; }
@@ -436,6 +453,8 @@
   const CURRENCY_P = [-48, -19];
 
   let UI = null, cv = null, cx2 = null, slideAt = 0, detail = null;
+  // Skin khoá đang nằm giữa thanh trượt (xem trước, chưa chọn): null khi skin giữa thanh là skin đã mở.
+  let focus = null;
   const car = { pos: 0, from: 0, to: 0, t0: 0, anim: false, drag: null };
   const now = () => performance.now() / 1000;
   const easeInOutCubic = x => x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
@@ -489,8 +508,8 @@
   // Giá trên nút "Mở khóa" giữa màn: font số bitmap `number` của bản gốc ("g500": g = viên đá) không xuất được,
   // vẽ icon đá quý gốc ui_102 + số bằng pixel_bold.
   function drawPrice(ctx, R) {
-    const pr = heroPrice(P.selected), gem = pr.kind === 'gems';
-    const s = pr.kind === 'money' ? '$' + pr.amount.toFixed(2) : String(pr.amount || 0);
+    const pr = unlockPrice(), gem = pr.kind === 'gems';
+    const s = pr.kind === 'money' ? '$' + pr.amount.toFixed(2) : pr.kind === 'fish' ? pr.amount + ' Cá Khô' : pr.kind === 'lock' ? 'Không bán' : String(pr.amount || 0);
     ctx.font = '40px "skui_pixel_bold", "skui_BeVietnamPro-Regular", monospace';
     ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
     const tw = ctx.measureText(s).width, iw = gem ? 40 : 0, gap = gem ? 8 : 0, x0 = R.x + (R.w - tw - iw - gap) / 2, cy = R.y + R.h / 2;
@@ -529,7 +548,7 @@
     // Nhân vật khoá: nút "Bắt đầu" xám (RefreshConfirmButton gán RGMaterial/ui_gray.mat), hiện nút "Mở khóa" + giá giữa màn.
     UI.q('mask_down/btn_ok').gray = !open;
     const unlock = UI.q('mask_down/center_buttons/btn_unlock');
-    if (open) unlock.off = 1; else { delete unlock.off; unlock.p = [0, 120]; }
+    if (open && focus == null) unlock.off = 1; else { delete unlock.off; unlock.p = [0, 120]; }
     // Nút lưu tranh chỉ hiện khi nhân vật có tranh (ảnh chụp 8.6: tranh pixel của Cassandra không có nút này).
     const saveBtn = UI.q('ui_choose_hero_drawing_buttons/save_drawing_button');
     if ((LA().portraits || {})[id]) delete saveBtn.off; else saveBtn.off = 1;
@@ -630,7 +649,7 @@
     for (let o = -3; o <= 3; o++) {
       const idx = base + o, pos = (idx - car.pos) * CELL_IV + CELL_OFF;
       if (pos < -0.001 || pos > 1.001) continue;
-      const sk = SKS[mod(idx, N)], c = cellOf(P.selected, sk), sel = sk === (P.skin[P.selected] || 0), open = isUnlocked(P.selected);
+      const sk = SKS[mod(idx, N)], c = cellOf(P.selected, sk), sel = sk === viewSkin(P.selected), open = isUnlocked(P.selected) && SK.profile.skinOwned(P.selected, sk);
       SK.ugui.pose(c, clip, pos);
       const part = n => c.k.find(k => k.n === n);
       part('bg').img.sp = sel ? mb.lightBackground : mb.darkBackground;
@@ -656,7 +675,7 @@
   function select(id, instant) {
     if (!DS.heroes[id] || !(D.heroes && D.heroes[id])) return false;
     P.selected = id; save();
-    demoT = 0; detail = null;
+    demoT = 0; detail = null; focus = null;
     SK.loadPack(id);
     car.pos = 0;
     scrollTo(P.skin[id] || 0, true);
@@ -665,12 +684,33 @@
   }
   function selectSkin(sk, instant) {
     if (skinList(P.selected).indexOf(sk) < 0) return false;
-    if (sk) P.skin[P.selected] = sk; else delete P.skin[P.selected];
-    save(); demoT = 0;
+    demoT = 0;
     SK.loadPack(P.selected);
     scrollTo(sk, instant || !UI);
+    if (!SK.profile.skinOwned(P.selected, sk)) { focus = sk; refresh(); return false; }   // skin khoá: chỉ xem trước, chưa chọn
+    focus = null;
+    if (sk) P.skin[P.selected] = sk; else delete P.skin[P.selected];
+    save();
     refresh();
     return true;
+  }
+  // Mua / xem cách mở skin n của nhân vật đang chọn (giá theo SK.skin2.price). Mua xong thì chọn luôn.
+  function buySkin(sk) {
+    const id = P.selected, pr = SK.profile.skinPrice(id, sk);
+    const name = (((window.SK_SKINS && SK_SKINS[id]) || { skins: [] }).skins.find(x => +x[0].slice(1) === sk) || [0, 'Skin ' + sk])[1].trim() || 'Skin ' + sk;
+    const title = 'Mở skin: ' + name + ' (' + heroName(id) + ')';
+    const done = () => { SK.profile.grantSkin(id, sk); selectSkin(sk, true); };
+    if (SK.profile.skinOwned(id, sk)) { selectSkin(sk); return; }
+    if (pr.kind === 'lock') { info(title, '<p>Skin này không bán bằng đá.</p><p class="hs-note">Cách mở ở game gốc: ' + esc(pr.how) + '.</p>'); return; }
+    if (pr.kind === 'fish') {
+      const enough = P.fish >= pr.amount;
+      dialog('<h3>' + esc(title) + '</h3><p class="hs-price">' + fmt(pr.amount) + ' Cá Khô</p><p>Bạn đang có ' + fmt(P.fish) + ' Cá Khô.</p>' +
+        (pr.est ? '<p class="hs-note">Giá ước lượng.</p>' : '') + (enough ? '' : '<p class="hs-bad" id="hs-short">Không đủ Cá Khô — thiếu ' + fmt(pr.amount - P.fish) + '. Mua Cá Khô ở tiệm Mèo Chiêu Tài.</p>'),
+      enough ? [{ id: 'hs-buy', label: 'Mua', cls: 'ok', fn() { if (SK.profile.spendFish(pr.amount)) { done(); toastDlg('Đã mở khoá!', title); } } }, { label: 'Huỷ' }]
+        : [{ id: 'hs-buy', label: 'Mua', disabled: true }, { label: 'Huỷ' }]);
+      return;
+    }
+    buy({ title, price: pr.est ? Object.assign({ orig: 'giá skin chưa rõ' }, pr) : pr, done });
   }
   function step(d) {
     const i = HEROES.indexOf(P.selected);
@@ -721,7 +761,7 @@
   function click(x, y) {
     const inR = p => { const r = rect(p); return r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h; };
     const tap = () => sfx(VIEW.tapClip);
-    if (inR('mask_down/center_buttons/btn_unlock')) { tap(); buyHero(); return; }
+    if (inR('mask_down/center_buttons/btn_unlock')) { tap(); if (focus != null && isUnlocked(P.selected)) buySkin(focus); else buyHero(); return; }
     if (inR('mask_up/btn_back')) { tap(); if (SK.QUICK || !SK.hall) openModes(); else SK.hall.enter('select'); return; }
     if (inR(CUR + 'show_currency_widget')) { tap(); openShop(); return; }
     if (inR('mask_down/ui_left_button/button')) { tap(); step(-1); return; }
@@ -740,7 +780,7 @@
       if (i !== curSlot() && inR('skill:' + i)) { clickSkill(i); return; }
     }
     for (const sk of skinList(P.selected)) {
-      if (inR('skin:' + sk)) { if (sk !== (P.skin[P.selected] || 0)) { tap(); selectSkin(sk); } return; }
+      if (inR('skin:' + sk)) { if (sk !== viewSkin(P.selected)) { tap(); selectSkin(sk); } return; }
     }
     if (detail && !inR('ui_left/panel')) { detail = null; refreshDetail(); }
   }
@@ -777,7 +817,7 @@
       if (d.car) {
         const SKS = skinList(P.selected), idx = Math.round(car.pos), sk = SKS[mod(idx, SKS.length)];
         Object.assign(car, { from: car.pos, to: idx, t0: now(), anim: true });
-        if (sk !== (P.skin[P.selected] || 0)) { if (sk) P.skin[P.selected] = sk; else delete P.skin[P.selected]; save(); demoT = 0; refresh(); sfx(VIEW.tapClip); }
+        if (sk !== viewSkin(P.selected)) { sfx(VIEW.tapClip); selectSkin(sk); }
       }
       void e;
     };
@@ -1068,7 +1108,7 @@
     ctx.beginPath(); ctx.ellipse(x, y, 7, 2.5, 0, 0, Math.PI * 2); ctx.fill();
     SK.draw(ctx, SK.animFrame(key, tt), x, y, { flip: face < 0 });
     const w = DS.weapons[DS.heroes[id].weapon];
-    const hand = SK.heroHand(id, P.skin[id]);
+    const hand = SK.heroHand(id, viewSkin(id));
     if (w && SK.drawGun) SK.drawGun(ctx, w.sprite, x + hand[0] * face, y - hand[1], face > 0 ? 0 : Math.PI, null, {});
   }
 
@@ -1081,7 +1121,7 @@
       $('hs-modes').hidden = true;
       closeDialog();
       $('sk-start').onclick = onStart;
-      detail = null;
+      detail = null; focus = null;
       slideAt = now();
       SK.loadPack(P.selected);
       car.pos = 0;
@@ -1113,7 +1153,7 @@
       if (!pix) { ctx.fillStyle = 'rgba(4,10,18,0.6)'; ctx.fillRect(0, 0, v.w, v.h); }
       drawUI();
     },
-    select, selectSkin, openModes, openShop, refresh, launch,
+    select, selectSkin, buySkin, openModes, openShop, refresh, launch,
     // Dùng chung cho sảnh đi (js/hall.js, js/hall_use.js): hộp thoại DOM của lobby, thanh toán giả, định dạng.
     dialog, closeDialog, toast: toastDlg, fakePay, fmt, esc, gemImg,
     get dialogOpen() { return !$('hs-modal').hidden; },
@@ -1124,6 +1164,7 @@
       startGray: !!(UI && UI.q('mask_down/btn_ok').gray), unlockShown: !!(UI && !UI.q('mask_down/center_buttons/btn_unlock').off),
       view: P.view, demo: P.demo !== false, detail, slot: curSlot(), carousel: car.pos,
       cells: UI ? UI.q(CAR).k.map(c => +c.n.slice(5)) : [], heroes: HEROES.slice(), skills: skillList(P.selected).length,
-      skin: P.skin[P.selected] || 0, skins: skinList(P.selected) })
+      skin: P.skin[P.selected] || 0, skins: skinList(P.selected), focus, owned: skinList(P.selected).filter(n => SK.profile.skinOwned(P.selected, n)),
+      fish: P.fish })
   };
 })();

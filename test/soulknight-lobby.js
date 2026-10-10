@@ -179,6 +179,8 @@ async function desktop(b) {
   await tap(p, 'mask_down/ui_right_button/button');
   const ar = await st(p);
   await sleep(400);
+  // Skin có giá (js/skins2.js): mở trước các skin của nhân vật kế để kéo thanh trượt chọn được.
+  await p.evaluate(() => { const h = SK.lobby.state().selected; for (let n = 1; n <= 40; n++) SK.profile.grantSkin(h, n); });
   const sv = await p.evaluate(() => SK.lobby.rect('mask_down/skin_scroll_view'));
   await p.mouse.move(sv.x + sv.w * 0.7, sv.y + sv.h / 2);
   await p.mouse.down();
@@ -198,6 +200,7 @@ async function desktop(b) {
   check('ô tick "Trình diễn kỹ năng" bật/tắt', d0 !== d1 && (await st(p)).demo === d0, d0 + ' → ' + d1);
 
   await tapHero(p, 'knight');
+  await p.evaluate(() => SK.profile.grantSkin('knight', 1));   // skin 1 Hiệp Sĩ giá 2000 đá (js/skins2.js): mở sẵn để thử chọn
   await tap(p, 'skin:1');
   const skOk = await until(p, () => SK.lobby.state().skin === 1 && SK.lobby.state().cells[2] === 1 && !!SK_DATA.heroes.knight.s1 && !!SK.pages[SK.A.f[SK.anim(SK_DATA.heroes.knight.s1.idle).f[0]][0]], null, 6000);
   const sk1 = await p.evaluate(() => {
