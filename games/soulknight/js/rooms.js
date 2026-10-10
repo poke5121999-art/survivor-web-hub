@@ -17,7 +17,7 @@
     sc.onerror = () => SK.warnOnce('buffs86', 'data/sk-buffs86.js không nạp được: buff/giá dùng dự phòng');
     document.head.appendChild(sc);
   }
-  const ROOMS = SK.ROOMS = { force: { chest: null, special: null }, sndStats: {} };
+  const ROOMS = SK.ROOMS = { force: { chest: null, special: null }, sndStats: {}, extra: {} };
   window.SK_ROOMS = ROOMS;
 
   // ---------------------------------------------------------------- tiện ích chung
@@ -123,6 +123,7 @@
     return Math.min(v, base * 2);
   }
   ROOMS.priced = priced; ROOMS.statuePrice = statuePrice;
+  ROOMS.util = { blockRect, snd, vfx, freeBuy, evClip, prefabPart, has, pay };
   const gradeBase = { 0: 20, 1: 20, 2: 20, 3: 36, 4: 40, 5: 50, 6: 50 };  // [ĐO] trung vị item_value theo hạng khi thiếu giá riêng
   function weaponBase(id) {
     const d = DS.weapons[id] || {}, A = window.SK_AUDIO;
@@ -1610,6 +1611,8 @@
     if (!kind) {
       const tab = [['statue', 100], ['well', 13.6], ['cage', 25], ['mount', 25]];   // thú cưỡi 25 [ƯỚC LƯỢNG: trọng số mount_seller 4 so với 3 loại khác không đọc được]
       if (ROOMS.mercRoomAllowed()) tab.push(['merc', 75]);
+      // Phòng đặc biệt đăng ký từ tệp khác (js/dnpc.js: lò, thầy huấn luyện): weight() trả 0 khi chưa đủ điều kiện.
+      for (const k of Object.keys(ROOMS.extra)) { const w = ROOMS.extra[k].weight(); if (w > 0) tab.push([k, w]); }
       let t = SK.rand() * tab.reduce((a, q) => a + q[1], 0);
       kind = tab[tab.length - 1][0];
       for (const q of tab) { if ((t -= q[1]) < 0) { kind = q[0]; break; } }
@@ -1618,6 +1621,7 @@
     if (kind === 'merc' && fillMerc(G2, r, c)) return;
     if (kind === 'cage' && fillCage(G2, r, c)) return;
     if (kind === 'mount' && fillMount(G2, r, c)) return;
+    if (ROOMS.extra[kind] && ROOMS.extra[kind].fill(G2, r, c)) return;
     if (fillStatue(G2, r, c)) return;
     baseSpecial(G2, r, c);
   };
