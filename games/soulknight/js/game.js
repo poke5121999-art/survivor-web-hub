@@ -175,6 +175,9 @@
   function enterStage(i) {
     G.stageIdx = i; G.stage = STAGES[i];
     G.map = W.generate(G.stage);
+    // Gốc số ngẫu nhiên của tầng: mỗi phòng khi khoá đặt seed theo (gốc, số phòng) nên đợt quái không trôi khi nội dung
+    // các phòng khác đổi (thêm loại phòng đặc biệt, NPC...). Chỉ đọc trạng thái, không rút số: phần dựng tầng giữ nguyên.
+    G.roomSeed = SK.peekSeed();
     G.enemies = []; G.bullets = []; G.pickups = []; G.fx = []; G.nums = []; G.items = []; G.chests = []; G.interactables = []; G.props = [];
     G.room = null; G.banner = null;
     const map = G.map, start = map.rooms[0];
@@ -229,9 +232,11 @@
     G.factors = Array.isArray(factors) ? factors.slice() : [];
     if (SK.factorsOn) SK.factorsOn(G); else G.mods = {};
     G.player = null; G.kills = 0; G.state = 'stage';
-    G.mode = mode === 'bossrush' || mode === 'matrix' ? mode : 'level'; G.bossSeen = [];
+    G.mode = mode === 'bossrush' || mode === 'matrix' || mode === 'void' ? mode : 'level'; G.bossSeen = [];
     if (G.mode === 'matrix') { G.factors = []; if (SK.factorsOn) SK.factorsOn(G); }   // nhân tố do Tà Vương ban, không tự chọn
     G.matrix = G.mode === 'matrix' && SK.matrix ? SK.matrix.init(G) : null;
+    G.void = G.mode === 'void' && SK.voidMode ? SK.voidMode.init(G) : null;   // Xâm Nhập Hư Không độ 1: không chơi cùng Lợi Hại [WIKI VI]
+    if (G.void) G.badass = false;
     setOverlay(null);
     buildStages(G.mode, G.factors);
     rollThemes();
@@ -295,7 +300,7 @@
   function fillEnd(id) {
     const p = G.player;
     SK.emit('runEnd', G, { won: id === 'sk-win', stage: G.stage.label, kills: G.kills, gold: p.gold });
-    document.getElementById(id).textContent = 'Màn ' + G.stage.label + ' · Hạ ' + G.kills + ' quái · ' + p.gold + ' vàng';
+    document.getElementById(id).textContent = 'Màn ' + G.stage.label + ' · Hạ ' + G.kills + ' quái · ' + p.gold + ' vàng' + (G.void ? SK.voidMode.endText(G) : '');
   }
 
   // ---------------------------------------------------------------- camera + vẽ
@@ -471,7 +476,8 @@
         G.player.weapons[1] = SK.makeWeapon(id); G.player.cur = 1; return true;
       },
       seed(s) { SK.setSeed(s); },
-      matrix(hero) { SK.matrix.start(hero || 'knight'); return true; }
+      matrix(hero) { SK.matrix.start(hero || 'knight'); return true; },
+      void(hero) { SK.voidMode.start(hero || 'knight'); return true; }
     }
   };
 })();

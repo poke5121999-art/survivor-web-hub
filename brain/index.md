@@ -8,6 +8,7 @@
 - [[codebase/hub-deploy-rev]]
 - [[codebase/multi-agent-git]]
 - [[codebase/repo-squad-ai-5-nha]]
+- [[codebase/soulknight-rng]]
 - [[codebase/ui-test-gotchas]]
 
 ## Plans

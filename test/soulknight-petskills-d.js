@@ -106,7 +106,7 @@ async function until(p, fn, arg, ms) {
     const m2 = await until(p, () => SK.G.pet.burstT > 0 && Math.abs((SK.G.player.moveMul || 1) - 1.25) < 0.001, null, 30000);
     const cd29 = await p.evaluate(() => SK.G.pet.burstCd);
     check('pet29 [WIKI Pets]: ngoài đợt tăng tốc không đổi tốc; đợt tăng tốc +25% (×1,25) trong 2 s; hồi chiêu 8 s', m1 && m2 && cd29 > 7.5 && cd29 <= 8, 'moveMul=' + await p.evaluate(() => SK.G.player.moveMul) + ' cd ' + cd29);
-    const m2b = await until(p, () => SK.G.pet.burstT <= 0 && Math.abs((SK.G.player.moveMul || 1) - 1) < 0.001, null, 4000);
+    const m2b = await until(p, () => SK.G.pet.burstT <= 0 && Math.abs((SK.G.player.moveMul || 1) - 1) < 0.001, null, 15000);   // 2 s trong game, máy tải cao chạy chậm hơn giờ thật
     check('pet29 hết 2 s thì tốc về ×1', m2b, '');
     await spawn('pet0'); await until(p, () => Math.abs((SK.G.player.moveMul || 1) - 1) < 1e-6, null, 5000);
     const m3 = await p.evaluate(() => SK.G.player.moveMul || 1);

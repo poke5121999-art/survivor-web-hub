@@ -1541,6 +1541,61 @@
     return true;
   }
 
+  // ---------------------------------------------------------------- THƯƠNG NHÂN THÚ CƯỠI (mount_seller → npc_mount_creature)
+  // [ĐO random_objects mount_seller] thương nhân thú cưỡi trọng số 4 (cơ giáp 2: Bước D, chưa có). Danh sách bán [ĐO npc.npc_mount_creature]: 9 con
+  // trọng số 1 mỗi con (bản web chưa có hệ mở khoá thú nên không lọc điều kiện `type 8`). Giá: gốc prefab 15-20, tăng theo tầng như tượng
+  // [ƯỚC LƯỢNG: wiki chỉ nói tối thiểu 15 vàng]. Lời thoại [LOC object/mount_*]. Bày 3 con [ƯỚC LƯỢNG: số ô không có trong dữ liệu đọc được].
+  const MNT = () => window.SK_MOUNTS || { order: [], mounts: {}, sellers: { creature: [] }, rules: {} };
+  const MOUNT_SAY = { sell: 'Cần xe không?', bought: 'Chú ý lái an toàn', refuse: 'Xin lỗi, chúng tôi không cung cấp dịch vụ cho vay' };
+  function mountPrice(id) {
+    const M = MNT().mounts[id];
+    return M ? Math.max(MNT().rules.priceMin ? MNT().rules.priceMin[M.kind] || 0 : 0, statuePrice(M.itemValue)) : 0;
+  }
+  ROOMS.mountPrice = mountPrice;
+  function fillMount(G2, r, c) {
+    const pf = SK.prefab('merchant_honest'), M = MNT();
+    if (!SK.mountOn || !M.sellers.creature.length) return false;
+    const [cx, cy] = c;
+    if (pf) {
+      const body = prefabPart(pf, '/npc01/img/body'), sa = body && body.mbs && body.mbs.SpriteAnimation;
+      const frames = (sa ? sa.sprites.map(q => q.replace(/^@/, '')) : ['merchant_honest_0']).filter(f => SK.frame(f)), fps = sa ? sa.frameRate : 12;
+      G.props.push({ x: cx, y: cy - 6, t: SK.rand() * 2, shop: true, draw(ctx, G3, pr) {
+        if (frames.length) SK.draw(ctx, frames[Math.floor((G.t + pr.t) * fps) % frames.length], cx, cy - 28);
+      } });
+      blockRect(G.map, cx - 10, cy - 18, cx + 10, cy - 4);
+    }
+    const ids = ROOMS.force.mounts || (function () {
+      const pool = M.sellers.creature.slice(), out = [];
+      while (out.length < 3 && pool.length) out.push(pool.splice(Math.floor(SK.rand() * pool.length), 1)[0]);
+      return out;
+    })();
+    ids.forEach((id, i) => {
+      const D = M.mounts[id]; if (!D) return;
+      const px = cx + (i - (ids.length - 1) / 2) * 30, py = cy + 10;
+      const it = { x: px, y: py, t: SK.rand() * 2, sold: false, shopItem: true, price: () => mountPrice(id), draw(ctx, G3, pr) {
+        if (!pr.sold) SK.mountDraw(ctx, id, px, py, G.t + pr.t, {});
+      } };
+      G.props.push(it);
+      G.interactables.push({ x: px, y: py + 4, r: 20, labelY: 40, get gone() { return it.sold; },
+        get label() { return D.vi + ' — ' + mountPrice(id) + ' vàng'; },
+        use() {
+          const p = G.player, n = mountPrice(id);
+          if (it.sold) return;
+          if (!freeBuy()) {
+            if (p.gold < n) { G.toast(MOUNT_SAY.refuse); snd('fx_error', 0.6); return; }
+            p.gold -= n;
+          }
+          it.sold = true;
+          SK.mountOn(G, p, id);
+          snd(evClip('shop') || 'fx_buy', 0.7);
+          G.toast(D.vi + ': ' + MOUNT_SAY.bought, 2.5);
+          SK.emit('mountBuy', G, id, n);
+        } });
+    });
+    r.fill = 'mount'; r.mounts = ids;
+    return true;
+  }
+
   const baseSpecial = SK.ROOM_FILL.special;
   SK.ROOM_FILL.special = function (G2, r, c) {
     const f = ROOMS.force.special;
@@ -1549,7 +1604,7 @@
     // (mỏ, thú cưỡi, máy đánh bạc... chưa có ở bản web).
     let kind = f;
     if (!kind) {
-      const tab = [['statue', 100], ['well', 13.6], ['cage', 25]];
+      const tab = [['statue', 100], ['well', 13.6], ['cage', 25], ['mount', 25]];   // thú cưỡi 25 [ƯỚC LƯỢNG: trọng số mount_seller 4 so với 3 loại khác không đọc được]
       if (ROOMS.mercRoomAllowed()) tab.push(['merc', 75]);
       let t = SK.rand() * tab.reduce((a, q) => a + q[1], 0);
       kind = tab[tab.length - 1][0];
@@ -1558,6 +1613,7 @@
     if (kind === 'well' && fillWell(G2, r, c)) return;
     if (kind === 'merc' && fillMerc(G2, r, c)) return;
     if (kind === 'cage' && fillCage(G2, r, c)) return;
+    if (kind === 'mount' && fillMount(G2, r, c)) return;
     if (fillStatue(G2, r, c)) return;
     baseSpecial(G2, r, c);
   };

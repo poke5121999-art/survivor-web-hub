@@ -75,7 +75,7 @@
       if (!canPay(def.mats)) { station(z, 'Nguyên liệu không đủ'); return; }
       pay(def.mats); P.spendItem(k, 1); P.markDevd(k);
       const rid = def.type === 7 ? toId(def.target) : null, r = rid && RECIPE[rid];
-      const tail = r ? ' Rèn được ' + wName(rid) + ' khi đủ ' + need(r) + ' lần nhận.' : def.type === 3 ? ' Nội thất sẽ dùng được ở bản sau.' : '';
+      const tail = r ? ' Rèn được ' + wName(rid) + ' khi đủ ' + need(r) + ' lần nhận.' : def.type === 3 ? ' Nội thất đã dựng xong, dùng được ngay trong sảnh.' : '';
       station(z, 'Đã nghiên cứu ' + bpName(k) + '.' + tail);
     };
   }

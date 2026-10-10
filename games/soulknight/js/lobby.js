@@ -128,6 +128,9 @@
       this.setFactors(cur); return true;
     },
     setBadass(on) { if (on && !badassOpen()) return false; P.diff = on ? 'badass' : 'normal'; save(); return true; },
+    // Xâm Nhập Hư Không là độ khó thứ ba của Chế độ Ải [MODES.md 2e, LOC mode/void_invasion_0]; mở cùng điều kiện Lợi Hại [ƯỚC LƯỢNG: LOC không ghi].
+    get voidDiff() { return P.diff === 'void' && badassOpen(); },
+    setDiff(d) { if (d !== 'normal' && !badassOpen()) return false; P.diff = d === 'badass' || d === 'void' ? d : 'normal'; save(); return true; },
     badassOpen: () => badassOpen(),
     // ---- kho vật liệu: khoá trong SK_ITEMS.items; n âm = tiêu (không xuống dưới 0)
     item: key => P.inv[key] | 0,
@@ -854,7 +857,7 @@
   // ---------------------------------------------------------------- chọn chế độ (ảnh i)
   const MODES = [
     { id: 'level', name: 'Chế độ màn chơi', img: 'mode_level.png', ok: true,
-      start: () => { if (SK.G.state === 'hall') launch(P.selected); },
+      start: () => { if (SK.G.state === 'hall') launch(P.selected, SK.profile.voidDiff ? 'void' : undefined); },
       desc: 'Ba tầng, mỗi tầng một vùng đất ngẫu nhiên (Rừng Rậm, Băng Nguyên, Lâu Đài, Núi Lửa...), 5 màn, trùm ở màn cuối. Chơi một mình.' },
     // Khu Thí Luyện [LOC gamemode/bossrush]: 15 ải 1-1..3-5, ải nào cũng là một trận trùm (game.js buildStages). Biểu tượng
     // ui_game_entry_icon_shilian (ui.ab). Vé Lông Vũ Valkyrie và trận Tước Sĩ cuối chưa có (GAPS.md).
@@ -906,13 +909,14 @@
     }
     el.hidden = m.id !== 'level' && m.id !== 'bossrush';
     if (el.hidden) return;
-    const open = badassOpen(), bad = SK.profile.badass;
-    // Ảnh thẻ theo độ khó: ui_game_entry_icon_difficulty_1/_2 (ui.ab) cho Chế độ Ải.
-    if (m.id === 'level') $('hs-mode-img').src = ART + (bad ? 'diff_2.png' : 'mode_level.png');
-    el.innerHTML = '<button data-d="normal" class="' + (bad ? '' : 'sel') + '">Độ khó thường</button>' +
-      '<button data-d="badass" class="' + (bad ? 'sel' : '') + '"' + (open ? '' : ' disabled') + '>Độ khó Lợi Hại' +
-      (open ? '' : '<small>Vượt Chế độ Ải một lần để mở</small>') + '</button>';
-    for (const b of el.querySelectorAll('button')) b.onclick = () => { if (SK.profile.setBadass(b.dataset.d === 'badass')) { sfx(VIEW.tapClip); diffUi(m); } };
+    const open = badassOpen(), bad = SK.profile.badass, vd = m.id === 'level' && SK.profile.voidDiff;
+    // Ảnh thẻ theo độ khó: ui_game_entry_icon_difficulty_1/_2/_3 (ui.ab) cho Chế độ Ải; _3 = Xâm Nhập Hư Không.
+    if (m.id === 'level') $('hs-mode-img').src = ART + (vd ? 'diff_3.png' : bad ? 'diff_2.png' : 'mode_level.png');
+    const lock = open ? '' : ' disabled', why = open ? '' : '<small>Vượt Chế độ Ải một lần để mở</small>';
+    el.innerHTML = '<button data-d="normal" class="' + (bad || vd ? '' : 'sel') + '">Độ khó thường</button>' +
+      '<button data-d="badass" class="' + (bad && !vd ? 'sel' : '') + '"' + lock + '>Độ khó Lợi Hại' + why + '</button>' +
+      (m.id === 'level' ? '<button data-d="void" class="' + (vd ? 'sel' : '') + '"' + lock + '>Lần Đầu Vào Hư Không' + why + '</button>' : '');
+    for (const b of el.querySelectorAll('button')) b.onclick = () => { if (SK.profile.setDiff(b.dataset.d)) { sfx(VIEW.tapClip); diffUi(m); } };
   }
 
   // Danh sách Nhân Tố Thử Thách dưới mô tả thẻ "Nhân Tố Thử Thách": bấm để bật/tắt, tối đa SK.FACTOR_MAX; thay cho ảnh thẻ.
@@ -970,7 +974,7 @@
   // và Khu Thí Luyện không có nhân tố).
   function launch(id, mode, factors) {
     if (factors === undefined) factors = modeSel === 'challenge' && mode !== 'bossrush' ? SK.profile.factors : [];
-    applySkillSlot(id); SK.G.badass = SK.profile.badass; SK.startRun(id, mode, factors);
+    applySkillSlot(id); SK.G.badass = mode !== 'void' && SK.profile.badass; SK.startRun(id, mode, factors);
   }
 
   SK.on('runStart', G2 => {

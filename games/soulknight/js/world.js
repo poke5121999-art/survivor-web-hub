@@ -376,6 +376,7 @@
 
   function lockRoom(G, r) {
     r.state = 'locked'; r.doorT = 0; r.wave = -1; r.waveDelay = 0.35;
+    if (G.roomSeed != null) SK.setSeed((G.roomSeed ^ Math.imul(r.id + 1, 0x9E3779B1)) >>> 0);
     r.waves = G.buildWaves(r);
     SK.emit('roomLock', G, r);
     // Không để ai kẹt trong ô cửa khi rào dâng.

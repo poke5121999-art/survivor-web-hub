@@ -144,7 +144,7 @@ async function until(p, fn, arg, ms) {
 
     // ---- pet47: cuồng bạo
     await toBattle('pet47');
-    const s47 = await p.evaluate(() => ({ spd: SK.G.pet.k.spd }));
+    const s47 = await p.evaluate(() => { const a = SK.G.pet; a.skillIn = 999; return { spd: a.k.spd }; });   // máy chậm: chưa cho cuồng bạo (mặc định sau 3 s) để đo phát thường
     await wait(() => SK.G.pet.shots >= 1, null, 15000);
     const n1 = await p.evaluate(() => { const a = SK.G.pet; return { shots: a.shots, dual: a.dual }; });
     check('pet47: thường bắn đơn 1 nòng, đạn phe người chơi', n1.shots >= 1 && n1.dual === 0, JSON.stringify(n1));

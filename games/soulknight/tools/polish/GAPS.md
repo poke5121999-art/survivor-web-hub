@@ -102,3 +102,38 @@ pet28 (id 86), pet13 (id 37), pet11 (id 38); ô vườn 7 (id 42).
 | Thưởng skin (awardType 2), vé theo extraInfo (token_weapon_weapon_*, token_factor_*), bản vẽ cá, băng từ, chậu cây 3 | web chưa có đích nhận: Sổ Tay hiện "(chưa có ở bản web)", không cộng |
 | Thưởng thư | thưởng nhận trong Sổ Tay, không đẩy vào Hộp Thư; thông báo khi đạt chỉ là dòng nổi trên màn |
 
+
+## Thú cưỡi sinh vật (Bước C, js/mounts.js + js/rooms.js fillMount; kiểm: test/soulknight-mounts.js)
+Có: 9 sinh vật bán ở Thương Nhân Thú Cưỡi trong phòng đặc biệt (bày 3 con), p.mount nhận sát thương trước người, vỡ thì gỡ và chặn phần dư, lên/xuống bằng E, kỹ năng bị khoá khi cưỡi, qua tầng hồi floor(hpMax/2) (Kỹ Sư đầy), buff Thú Cưng +50% máu, Badass +2/+3, tốc speedRate, con bỏ lại trên đất cưỡi lại được.
+
+| Thiếu | Lý do / cách xử lý |
+|---|---|
+| Cơ giáp, Thương Nhân Vật Chở (trọng số 2), nâng cấp ★ | Bước D |
+| Hệ mở khoá thú (mboar2, mcristal, mspider, mvaken cần `type 8`) | web chưa có kho mở khoá thú: cả 9 con luôn nằm trong quầy |
+| Vũ khí gắn của thú (Va Đập, Gai Băng, Nổ Tung, Kim Độc; húc của Bazinga bodyDamage 6) | dữ liệu có trong sk-mounts.js nhưng chưa nối đòn; thú chỉ đỡ đòn và tăng tốc |
+| Trọng số phòng thú cưỡi so với tượng / giếng / lồng nhốt (25) và số ô bày (3), giá tăng theo tầng | ƯỚC LƯỢNG: dữ liệu đọc được chỉ có 4 : 2 trong mount_seller |
+| Lồng nhốt thú cưỡi (cage_mount), phòng khởi đầu của Beastmaster | chưa làm |
+| Bình máu và Giao Ước Hồi Sinh hồi cho thú; Hơi Thở Thần Chết không chuyển vào thú | wiki gọi là lỗi thiết kế; chưa làm |
+| "Không lên được khi đang đánh nhau"; kỹ năng bị động vẫn chạy; kỹ năng đang chạy khi lên vẫn còn | chưa chặn lên lúc phòng khoá; kỹ năng chủ động chỉ bị khoá lúc bấm |
+| Buff chặn đòn (Khiên Kỵ Sĩ Thánh...) | thú đỡ trước nên các buff này không kích khi đang cưỡi |
+| Hình mhorse/mIceMonkey/mDungBeetle/m_morph | lấy clip ide/run của prefab; người ngồi nhấc 6 px, chưa chỉnh điểm ngồi theo từng con |
+
+## Xâm Nhập Hư Không độ 1 (js/void.js, rev 20261010k)
+- Đã làm: Tinh Anh 3 tầng khiên × 80 (đòn nào cũng 1), Thủ Vệ/Ảnh Vệ/Linh Vệ với cách phá riêng, Đạo Tặc, trùm Hư Không 600/1200/1800, Xu Ám Tinh + Mắt (cộng thẳng vào G.void, hiện ở góc HUD, không có vật nhặt rơi), màn kết thúc.
+- Hình quái: prefab gốc e_void_guard/assassin/mage/thief + boss_void dựng qua tools/extra/void.json. Khiên và vệt báo vẽ bằng canvas (VoidShield.prefab chưa dựng).
+- Số [ƯỚC LƯỢNG] (wiki không ghi): xác suất phòng có Tinh Anh 50% / Đạo Tặc 18%, thời gian báo trước/lao/nghỉ, khung 0,5 s khiên biến mất của Ảnh Vệ, bán kính thiên thạch 22 px, tốc Cầu Lửa, Xu rơi khi hạ Hư Không 3-5 (200), tầng cuối vỡ thì Tinh Anh ở lại đánh [SUY]. Đòn của trùm Hư Không chỉ là quạt + vòng đạn bullet_e_3.
+- Chưa làm: Rãnh Nứt, Thương Nhân Hư Không/Rãnh Nứt, Ngân Hàng, Con Thoi, Tiên Tri, Nhà Sưu Tầm, dòng thuộc tính vũ khí, "quái thường tăng HP", Hai Lãnh Chúa chỉ nhân máu trùm Hư Không (không đụng trùm chính), khung bạc hồ sơ khi thắng độ 1, thẻ ở bảng chế độ (nối từ lobby.js), thiên phú 3001-3007 (độ 2-3).
+
+
+## Sảnh bước 7 + 9 (js/hall_ext.js; kiểm: test/soulknight-hall4.js)
+Có: bản vẽ nội thất (Máy Nước, Hồ Cá, Giếng Phép Thuật, Tượng) quyết định món dùng được (chưa nghiên cứu: vẽ mờ trong khung "Cần bản vẽ"); Máy Nước (đồ uống 11 loại, tối đa 3 ly mang vào ván); Hồ Cá (câu cá bấm Thu Cần, cá = vũ khí 1 ván); Giếng Phép Thuật ở Vườn (Cầu Năng Lượng 8 -> 9); Tượng Tín Ngưỡng (300 +100/lần, tối đa 1300, kích hoạt khi dùng kỹ năng); Cảnh Sát (treo thưởng đánh bại / thu thập dùng SK.FACTORS, thưởng đá + vật liệu, độ khó "khó" thưởng bản vẽ nội thất). Hồ Cá vốn nằm ngoài tầm với của hàng sàn cuối: kéo vùng tương tác lên sàn (hall.js BOX_FIX).
+
+| Thiếu | Lý do / cách xử lý |
+|---|---|
+| Trang trí sảnh (hall_skin_*; bộ 2 = 5000 đá, bộ 1/3/4/5 mã 15) | hall skin_2 không dựng bằng tilemap như skin_0 (không có floor_lobby: nền là sprite, collider và vị trí món khác): cần bộ dựng nền + mặt nạ đi được + `<ô>_2` riêng; chưa làm, không có UI mua để khỏi bán thứ không đổi hình |
+| Vật liệu dựng nội thất | nghiên cứu bản vẽ ở Bàn Thiết Kế trừ theo [CFG] (3000 đá...); bản wiki cũ (Giếng 300 đá) không trừ thêm lần hai |
+| Nguồn bản vẽ nội thất | gốc chưa rõ; web cho rơi từ treo thưởng "khó" của Cảnh Sát [ƯỚC LƯỢNG] |
+| Số cộng và giá đồ uống, bảng cá, chỉ tiêu và thưởng treo thưởng, 3 việc mỗi ngày | [ƯỚC LƯỢNG] (config không có); đồ uống sảnh "hiệu quả gấp đôi" nên số cộng gấp đôi con số trong ải (Sữa Bò không nhân đôi) |
+| Điều kiện Sữa Bò (Defence > 1) và Nước Ép Tỏi (MaxHp > 1) trong bảng ra | bỏ điều kiện, luôn có trong bể |
+| Nhiệm vụ hộ tống; Nước Lãng Quên; Giếng có Người Ếch (frogManProbability) và điểm câu cá của Giếng | cần NPC hộ tống / hệ thiên phú gần nhất / câu cá ngoài sảnh |
+| Thành tựu "treo thưởng 1/10/100" (ach loại 9-11) | sự kiện `bounty` đã phát (SK.emit('bounty', G, việc)) nhưng js/ach.js chưa đếm |

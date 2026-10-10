@@ -98,7 +98,7 @@ async function useSlot(p, slot) {
       JSON.stringify({ mail: f.mail.map(m => m.title), safe: f.safe.level }));
     const zones = (await p.evaluate(() => SK.hall.zones())).filter(z => !/^garden_/.test(z.slot));   // ô vườn (bước 6) có bộ kiểm riêng: test/soulknight-garden.js
     const names = zones.map(z => z.slot + '=' + z.name);
-    check('có 21 món tương tác với tên Việt (gồm Máy Đổi, Máy Game, Bàn Rèn, Bàn Thiết Kế)', zones.length === 21 && zones.some(z => z.slot === 'token_machine') && zones.some(z => z.slot === 'arcade_machine'), names.join(', '));
+    check('có 24 món tương tác với tên Việt (gồm Máy Đổi, Máy Game, Bàn Rèn, Bàn Thiết Kế, Giếng Phép Thuật, Tượng, Cảnh Sát)', zones.length === 24 && zones.some(z => z.slot === 'token_machine') && zones.some(z => z.slot === 'arcade_machine'), names.join(', '));
     // Két Sắt khoá (chưa qua 2-2)
     let t = await useSlot(p, 'safe');
     check('Két Sắt khoá khi chưa qua ải 2-2, không có nút Nâng cấp', t && /Két Sắt/.test(t) && await p.evaluate(() => !!document.getElementById('sk-safe-lock') && !document.getElementById('sk-safe-up')), t && t.slice(0, 90));

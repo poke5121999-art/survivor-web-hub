@@ -1,0 +1,4 @@
+{
+ "bundles": ["level/difficulty", "common"],
+ "prefabs": ["e_void_guard", "e_void_assassin", "e_void_mage", "e_void_thief", "boss_void", "coin_void", "coin_void_eye"]
+}

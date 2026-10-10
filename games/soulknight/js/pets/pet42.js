@@ -5,7 +5,7 @@
   'use strict';
   if (!window.SK || !SK.petRegister) return;
   const EVERY = 8;                                    // giây giữa hai lần móc [WIKI Pets]
-  const POOL = ['coin', 'coin', 'coin', 'energy', 'energy', 'hp', 'hp_pot', 'en_pot'];   // [ƯỚC LƯỢNG]
+  const POOL = ['coin', 'coin', 'coin', 'energy', 'energy', 'hp_pot', 'hp_pot', 'en_pot'];   // [ƯỚC LƯỢNG] "máu" của mô tả = bình máu (web không có cầu máu)
   const fighting = G => G.enemies.some(e => e.st !== 'dead' && e.st !== 'spawn');
 
   SK.petRegister('pet42', {

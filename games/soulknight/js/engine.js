@@ -12,6 +12,7 @@
   // ---------------------------------------------------------------- rng / toán
   let seed = (Date.now() ^ 0x5eed1234) >>> 0;
   SK.setSeed = s => { seed = (s >>> 0) || 1; };
+  SK.peekSeed = () => seed;   // đọc trạng thái hiện tại, không rút số
   SK.rand = () => {
     seed = (seed + 0x6D2B79F5) >>> 0;
     let t = seed;

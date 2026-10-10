@@ -1392,7 +1392,7 @@
     p.moving = Math.abs(mv.x) + Math.abs(mv.y) > 0.05;
     const pad = W.obstacleAt(G.map, p.x, p.y - 2);
     p.speedMul = pad && pad.kind === 'pad' ? (pad.p.speed_down ? 1 - pad.p.speed_rate : 1 + pad.p.speed_rate) : 1;
-    const spd = p.h.speed * U * p.speedMul * (p.moveMul || 1) * (MODS().moveMul || 1);
+    const spd = p.h.speed * U * p.speedMul * (p.moveMul || 1) * (MODS().moveMul || 1) * (p.mount ? 1 + p.mount.speedRate : 1);
     if (p.lunge) stepPush(G, p, dt);   // đang lao người (forceLerp = 1: phím chạy bị bỏ qua) [ĐO RGController.SetVelocity]
     else if (!(p.weapons[p.cur] && p.weapons[p.cur].dash)) SK.moveBox(G.map, p, mv.x * spd * dt, mv.y * spd * dt, p.h.body.r);
     if (p.moving && Math.random() < dt * 8) SK.fx(G, 'dust', p.x - p.face * 4, p.y, { dur: 0.2 });
@@ -1421,7 +1421,8 @@
     if (want && w) holdMove(G, p, w.def); else releaseMove(p);
     if (G.phase === 'portal') return;
     if (p.skillT > 0) { p.skillT -= dt; const sd = skillDef(p); if (sd.update) sd.update(G, p, dt); if (p.skillT <= 0) SK.endSkill(G, p); }
-    if (I.hit('skill')) {
+    // Đang cưỡi thú: không dùng được kỹ năng nhân vật [WIKI Mounts]; nút bị bỏ qua.
+    if (I.hit('skill') && !p.mount) {
       // Kỹ năng nhiều giai đoạn (bấm lần nữa khi đang chạy: xuống thú, kích nổ...) khai báo press(G, p).
       const sd = skillDef(p);
       if (p.skillT > 0) { if (sd.press) { const n = p._skEnds; sd.press(G, p); if (p.skillT <= 0 && p._skEnds === n) SK.endSkill(G, p); } }
@@ -1448,6 +1449,7 @@
     }
     const wantInteract = I.hit('interact') || (I.touchMode && I.hit('attack') && G.interactTarget);
     if (wantInteract && G.interactTarget) G.interactTarget.use(G);
+    else if (wantInteract && p.mount && SK.mountDismount) SK.mountDismount(G, p);   // đang cưỡi, không có gì để tương tác: xuống thú
   };
 
   // Bảng kỹ năng theo p.h.skill.id. start() đặt p.skillT > 0 nếu kỹ năng kéo dài; không thì hồi chiêu ngay.
@@ -2346,6 +2348,7 @@
     return m && m[field] != null ? m[field] : dflt;
   }
   SK.dropPickup = function (G, kind, x, y, extra) {
+    if (!PICKUP[kind]) { SK.warnOnce('pickup' + kind, 'pickup kind not found: ' + kind); return; }   // loại lạ làm vỡ vòng vẽ mỗi khung
     const a = SK.rand() * Math.PI * 2, s = SK.randf(30, 70);
     G.pickups.push(Object.assign({ kind, x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, t: 0, z: 0, vz: 60 }, extra));
   };

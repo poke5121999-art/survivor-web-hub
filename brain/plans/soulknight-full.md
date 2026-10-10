@@ -19,16 +19,16 @@ Thứ tự theo đúng lời chủ dự án. Mỗi mục là một hoặc vài �
    mỗi trùm qua `test/soulknight-bosses.js`). [x] vùng 1G Di Tích Máy Móc + boss30 (rev 20261010e), [ ] tầng 4 (4A/4B/4C), 5A.
 4. [~] Chế độ chơi (đặc tả: scratchpad MODES.md → tools/polish/MODES.md): [x] Lợi Hại, [x] Khu Thí Luyện 15 ải (rev 20261010c),
    [x] Nhân Tố Thử Thách 36 nhân tố, [x] Tước Sĩ Đỏ/Tím ải 3-6 (rev 20261010d), [x] Mê Trận Tà Vương lõi (rev 20261010j: thẻ ở bảng chế độ, STAGES động, Uy Áp, Tà Vương, Pha Lê; thiếu Quái Gen, cấp vũ khí, HUD Uy Áp, thẻ thiên phú sau tầng 3),
-   [ ] Xâm Nhập Hư Không độ 1 (MODES.md 2e: tinh anh 3 tầng khiên), [ ] tầng 4A/4B/4C (FLOOR4.md: cổng tím sau 3-5, làm 4A trước;
+   [x] Xâm Nhập Hư Không độ 1 (độ khó thứ ba của Chế độ Ải, rev 20261010k; thiếu Rãnh Nứt, NPC Hư Không, độ 2–3), [ ] tầng 4A/4B/4C (FLOOR4.md: cổng tím sau 3-5, làm 4A trước;
    cần dựng sk-data nên làm khi không agent nào dựng), [ ] Thần Điện Thủ Hộ, Chỉ Huy Nhỏ.
    Cũ: Lợi Hại (badass), Khu Thí Luyện (boss rush), Nhân Tố Thử Thách, rồi các chế độ còn lại theo độ khả thi.
    Bỏ qua chế độ online (PVP, nhiều người).
-5. [~] Sảnh — [x] bước 8 Sổ Tay + 154 thành tựu (40 chạy được, rev 20261010j); [x] bước 4–6; [x] bước 1–3 (rev 20261010e: kho đồ, thư, nhãn + phím E, rơi vật liệu 137 món, két/chuyển phát/máy đổi...) (đặc tả 43 tiện ích + kinh tế + 9 bước: tools/polish/HALL.md; bước 1 kho đồ/thư/tương tác → 2 rơi vật liệu →
+5. [~] Sảnh — [x] bước 7 + 9 (giếng, máy nước, tượng, hồ cá, cảnh sát; rev 20261010k; [ ] trang trí sảnh); [x] bước 8 Sổ Tay + 154 thành tựu (40 chạy được, rev 20261010j); [x] bước 4–6; [x] bước 1–3 (rev 20261010e: kho đồ, thư, nhãn + phím E, rơi vật liệu 137 món, két/chuyển phát/máy đổi...) (đặc tả 43 tiện ích + kinh tế + 9 bước: tools/polish/HALL.md; bước 1 kho đồ/thư/tương tác → 2 rơi vật liệu →
    3 két/chuyển phát/máy đổi → 4 bàn thiết kế + rèn → 5 rương/máy trứng/mèo → 6 vườn → 7 nội thất bản vẽ → 8 sổ tay/thành tựu → 9 xưởng/treo thưởng): tiện ích tương tác (rương, tủ lạnh, két, mèo chiêu tài, máy quay trứng, bàn rèn, lò đúc, luyện kim,
    thầy huấn luyện, cảnh sát, máy Dilili, hầm, xưởng, khu phép thuật), skin sảnh.
 6. [~] Thú cưng: [x] 55 thú cưng + kỹ năng riêng (js/pets/petN.js, số theo wiki tools/wiki/pets.json, rev 20261010f),
    [x] pet được kéo vào phòng khi rào dâng; [x] chọn/mua/cho ăn/thân mật 50% mở kỹ năng (js/hall_pet.js, rev 20261010g);
-   [ ] HP chung của pet (wiki: 10 HP, nghỉ ở 1 HP, hồi 14–16 s; pet7/8/14/26/49 đang giữ a.hp riêng); [x] lính thuê 13 + dữ liệu thú cưỡi (rev 20261010i); [ ] thú cưỡi sinh vật + cơ giáp (bước C–D).
+   [ ] HP chung của pet (wiki: 10 HP, nghỉ ở 1 HP, hồi 14–16 s; pet7/8/14/26/49 đang giữ a.hp riêng); [x] lính thuê 13 + dữ liệu thú cưỡi (rev 20261010i); [x] thú cưỡi sinh vật + thương nhân (rev 20261010k); [ ] cơ giáp (bước D).
 7. [~] Cây trồng: [x] Vườn bên trái sảnh, 8 ô, 47 cây, tưới/bón/xẻng/thu hoạch (rev 20261010i); [ ] 14 cây buff chưa có luật, pet cây chỉ đi theo + cắn.
 8. [~] Thiên phú: [x] luật 38,39,40,41,1020,2145,2146,1024,2105,2108,2118,17,23,1015–1018 (rev 20261010h; id = BuffId, bảng INVENTORY
    mục 7 trước đó lệch 1 ô); [ ] 15,31,1023,1025 chưa có cơ chế nền; 3001–3007 thuộc Xâm Nhập Hư Không; tượng thần còn thiếu.

@@ -84,6 +84,10 @@
     }
   }
   for (const s of H.slots) if (NAME[s.slot]) addZone(s.slot, s.x, s.y);
+  // Hồ Cá treo sát tường dưới, vùng trigger của prefab nằm hẳn trong tường (cách hàng sàn cuối 1,5 đv, ngoài tầm với): kéo vùng lên tới sàn
+  // để đứng ở hàng sàn cuối dưới bể là dùng được [ĐO mặt nạ đi được; ƯỚC LƯỢNG chiều cao vùng].
+  const BOX_FIX = { fish_bowl: [11.4, -10.1, 13.6, -8.0] };
+  for (const z of zones) if (BOX_FIX[z.slot]) z.box = BOX_FIX[z.slot].slice();
   function addWorkshop() {
     for (const [slot, w] of Object.entries(WORKSHOP)) {
       const at = w.at.find(([x, y]) => walkable(x, y) && walkable(x + 1, y) && walkable(x - 1, y)) || w.at[0];
@@ -259,6 +263,17 @@
     ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillRect(x - W / 2, y - Hh, W, 1);
     ctx.fillStyle = '#14161c'; ctx.fillRect(x - 4, y - 8, 8, 2); ctx.fillRect(x - 5, y - 5, 3, 2); ctx.fillRect(x + 2, y - 5, 3, 2);
   }
+  // Khung nét đứt quanh vùng món chưa có bản vẽ + chữ "Cần bản vẽ".
+  function drawLock(ctx, z) {
+    if (!z) return;
+    const [x0, y0] = px(z.box[0] - 0.25, z.box[3] + 0.25), [x1, y1] = px(z.box[2] + 0.25, z.box[1] - 0.25);
+    ctx.save();
+    ctx.setLineDash([3, 2]); ctx.lineWidth = 1; ctx.strokeStyle = '#aab2bf'; ctx.fillStyle = 'rgba(40,46,58,0.45)';
+    ctx.fillRect(x0, y0, x1 - x0, y1 - y0); ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
+    ctx.setLineDash([]); ctx.font = '7px "Be Vietnam Pro", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#e6ebf3'; ctx.fillText('Cần bản vẽ', (x0 + x1) / 2, (y0 + y1) / 2);
+    ctx.restore();
+  }
   // Nhãn tên món (điểm ảnh HUD thật): ô tối bo tròn, tên Việt, dòng phím dùng bên dưới; kẹp trong khung hình.
   function drawLabel(ctx, z, z0, ox, oy, main) {
     const [wx, wy] = px(z.x, z.y + LABEL_H), sx = wx * z0 + ox, sy = wy * z0 + oy;
@@ -266,14 +281,15 @@
     ctx.font = fs + 'px "Be Vietnam Pro", sans-serif';
     ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
     const hint = SK.input && SK.input.touchMode ? 'Chạm để dùng' : 'E · Dùng';
-    const tw = ctx.measureText(z.name).width, hw = main ? ctx.measureText(hint).width * 0.8 : 0;
+    const nm = z.name + (SK.HALL_LOCK && SK.HALL_LOCK(z.slot) ? ' (cần bản vẽ)' : '');
+    const tw = ctx.measureText(nm).width, hw = main ? ctx.measureText(hint).width * 0.8 : 0;
     const w = Math.max(tw, hw) + fs, h = fs * (main ? 2.3 : 1.45);
     const x = SK.clamp(sx, w / 2 + 4, W - w / 2 - 4), y = Math.max(h / 2 + 4, sy - h / 2);
     ctx.fillStyle = main ? 'rgba(14,17,24,0.92)' : 'rgba(14,17,24,0.75)';
     ctx.beginPath(); ctx.roundRect(x - w / 2, y - h / 2, w, h, fs * 0.45); ctx.fill();
     if (main) { ctx.strokeStyle = '#ffd452'; ctx.lineWidth = Math.max(1, fs / 12); ctx.stroke(); }
     ctx.fillStyle = main ? '#ffd452' : '#fff';
-    ctx.fillText(z.name, x, y - (main ? fs * 0.45 : 0));
+    ctx.fillText(nm, x, y - (main ? fs * 0.45 : 0));
     if (main) { ctx.font = Math.round(fs * 0.8) + 'px "Be Vietnam Pro", sans-serif'; ctx.fillStyle = '#c9d1dc'; ctx.fillText(hint, x, y + fs * 0.62); }
     return { x: x - w / 2, y: y - h / 2, w, h };
   }
@@ -291,7 +307,13 @@
     ctx.save();
     if (hall.mode === 'select') { ctx.beginPath(); ctx.rect((MX0 + 1 - X0) * U, (Y1 - MY1) * U, (MX1 - MX0 - 1) * U, (MY1 - MY0) * U); ctx.clip(); }   // cột đệm trái của phòng chính nằm sát sàn vườn: bỏ
     if (img.complete && img.naturalWidth) ctx.drawImage(img, 0, 0);
-    const drawF = f => { const [x, y] = px(f.s.x, f.s.y); SK.drawPrefab(ctx, f.parts, x, y, { t: hall.t, skip: skipIa }); };
+    // Nội thất cần bản vẽ (SK.HALL_LOCK(slot) trả chuỗi khoá, js/hall_ext.js) vẽ xám mờ trong khung nét đứt "Cần bản vẽ".
+    const drawF = f => {
+      const [x, y] = px(f.s.x, f.s.y), lk = SK.HALL_LOCK && SK.HALL_LOCK(f.s.slot);
+      if (lk) { ctx.save(); ctx.globalAlpha = 0.3; }
+      SK.drawPrefab(ctx, f.parts, x, y, { t: hall.t, skip: skipIa });
+      if (lk) { ctx.restore(); drawLock(ctx, zones.find(q => q.slot === f.s.slot)); }
+    };
     for (const f of furniture) if (FLAT[f.s.slot]) drawF(f);
     if (top.complete && top.naturalWidth) ctx.drawImage(top, 0, 0);
     const list = furniture.filter(f => !FLAT[f.s.slot]).map(f => ({ y: f.s.y, fn: () => drawF(f) }));
@@ -372,7 +394,7 @@
     // Móc kiểm thử: vùng tương tác của từng món, món đang gần, dùng thẳng một món, bật nhãn mọi món, toạ độ CSS của nhãn.
     zones: () => zones.map(q => ({ slot: q.slot, name: q.name, loc: q.loc, x: q.x, y: q.y, box: q.box.slice(), kiosk: !!q.kiosk, idx: q.idx })),
     // Thêm món nội thất từ module khác (Khu Vườn): addZone(slot, x, y, prefab?, {name, loc, use(z), draw(ctx, px, py, t, z), ...}).
-    addZone, px, bounds: H.bounds,
+    addZone, px, bounds: H.bounds, drawLock,
     near: () => hall.near && { slot: hall.near.slot, name: hall.near.name },
     petPos: () => hall.pet && { x: hall.pet.x, y: hall.pet.y },
     nearAt: (x, y) => { const q = nearest(x, y); return q && q.slot; },
