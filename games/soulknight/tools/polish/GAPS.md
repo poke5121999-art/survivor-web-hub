@@ -137,3 +137,17 @@ Có: bản vẽ nội thất (Máy Nước, Hồ Cá, Giếng Phép Thuật, Tư
 | Điều kiện Sữa Bò (Defence > 1) và Nước Ép Tỏi (MaxHp > 1) trong bảng ra | bỏ điều kiện, luôn có trong bể |
 | Nhiệm vụ hộ tống; Nước Lãng Quên; Giếng có Người Ếch (frogManProbability) và điểm câu cá của Giếng | cần NPC hộ tống / hệ thiên phú gần nhất / câu cá ngoài sảnh |
 | Thành tựu "treo thưởng 1/10/100" (ach loại 9-11) | sự kiện `bounty` đã phát (SK.emit('bounty', G, việc)) nhưng js/ach.js chưa đếm |
+
+## Tầng 4A (ải mở rộng sau 3-5; js/floor4.js, js/bosses/boss_warlord.js, test/soulknight-floor4.js)
+
+Đã làm: Kẻ Vượt Ranh Giới sau trùm 3-5 (trả 100 vàng hoặc 1 HP tối đa, miễn phí khi chơi chính nhân vật transcendent, vắng khi Mộng Du), cổng tím `transfer_gate_extendedLevel`, chủ đề `monolith` (level/4/a: 7 quái e_stone_* + tinh anh, sàn RB_Floor, tường wall_MMR, thư viện vật cản), 5 ải 4-1..4-5 với trọng số quái của map_A16..A20, trùm 4-5 Hulala-Moli (3 con vật, mỗi con 1/3 máu).
+
+| Còn thiếu | Ghi chú |
+|---|---|
+| Trùm `boss_stone_man` (Tổ Tiên) và `boss_stone_dragon` (Vụ Ảnh Long) ở 4-5; `boss_monolith_lower` (Chân Tổ Tiên) ở 4-3 | stone_man/stone_dragon là rig Spine + MeshRenderer (bundle có .skel/.atlas), web không có bộ vẽ Spine; monolith_lower không có Animator. Bể 4-5 hiện chỉ có Hulala (`F4.BOSSES45` tự thêm khi có AI). 4-3 chưa có trùm (stage.boss chỉ ở 4-5) |
+| AI quái 4A viết lại từ mô tả, mượn EnemyAI02/03/04 (p rỗng trong dữ liệu, logic ở IL2CPP) | Chiến Binh không cưỡi quái (cơ chế `mount` chưa có), skill_1..5 của Ngựa/Bò/Xe không chạy; Đá Thô tự phá hồi 60 (Tinh Anh 85) [WIKI] đã làm |
+| 4-1 không có bụi rậm tàng hình, lốc xoáy, dân làng Gilley/Gourley/Harley, cầu giữa phòng, phòng ẩn MMR; sàn/tường ghép đơn giản (4 khung RB_Floor_{1,2}_{9,16} + wall_MMR) | bộ dựng RFloor/RWall/RMountainSubBuilderMMR nằm trong IL2CPP; phòng dùng mẫu của tầng 3 (patternroom không có mẫu level3) [SUY] |
+| Thiên phú sau 4-2 | `BUFF_AFTER` ở js/rooms.js:1678 chỉ tới '3-5': thêm '4-2' vào mảng đó. Cổng tím vẫn phát `portalEnter` của 3-5 nên bốc thiên phú 3-5 chạy như cũ |
+| Ải kết 4-6 (Đá Phép), nhạc tầng 4, Gian Thương ở 4-3/4-5 | hết 4-5 là thắng (như 3-5 trước đây) |
+| Hulala: sát thương/tốc/số viên [ƯỚC LƯỢNG]; Tinh Anh 2250 do hệ số Lợi Hại chung; chưa có bầy ngựa/bò/xe đỗ sẵn ở phòng và cảnh nhảy sang con khác | `ent.hp = 1500` đặt trong boss_warlord.js (config 999999 giữ chỗ), HP_FACTOR 1,2 ra đúng 1800 wiki |
+| 4B Chiến Trường Cổ, 4C Đáy Biển (oxy) | xem FLOOR4.md mục 8 bước 3-4. build_sk.py chưa thêm level/4/b, level/4/c |

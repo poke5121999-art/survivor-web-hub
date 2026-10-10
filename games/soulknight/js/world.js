@@ -66,7 +66,8 @@
 
   function patternsFor(level) {
     const P = D.patterns || {};
-    const re = new RegExp('^group[01]_level' + (level - 1) + '_');
+    // Tầng 4 (ải mở rộng) không có mẫu phòng riêng ngoài r4b_*: dùng mẫu của tầng 3 [SUY; patternroom chỉ có group*_level0..2]
+    const re = new RegExp('^group[01]_level' + (Math.min(level, 3) - 1) + '_');
     return Object.keys(P).filter(k => re.test(k) && P[k].w <= 21 && P[k].h <= 21);
   }
 

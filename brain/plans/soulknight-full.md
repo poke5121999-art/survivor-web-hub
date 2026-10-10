@@ -19,8 +19,7 @@ Thứ tự theo đúng lời chủ dự án. Mỗi mục là một hoặc vài �
    mỗi trùm qua `test/soulknight-bosses.js`). [x] vùng 1G Di Tích Máy Móc + boss30 (rev 20261010e), [ ] tầng 4 (4A/4B/4C), 5A.
 4. [~] Chế độ chơi (đặc tả: scratchpad MODES.md → tools/polish/MODES.md): [x] Lợi Hại, [x] Khu Thí Luyện 15 ải (rev 20261010c),
    [x] Nhân Tố Thử Thách 36 nhân tố, [x] Tước Sĩ Đỏ/Tím ải 3-6 (rev 20261010d), [x] Mê Trận Tà Vương lõi (rev 20261010j: thẻ ở bảng chế độ, STAGES động, Uy Áp, Tà Vương, Pha Lê; thiếu Quái Gen, cấp vũ khí, HUD Uy Áp, thẻ thiên phú sau tầng 3),
-   [x] Xâm Nhập Hư Không độ 1 (độ khó thứ ba của Chế độ Ải, rev 20261010k; thiếu Rãnh Nứt, NPC Hư Không, độ 2–3), [ ] tầng 4A/4B/4C (FLOOR4.md: cổng tím sau 3-5, làm 4A trước;
-   cần dựng sk-data nên làm khi không agent nào dựng), [ ] Thần Điện Thủ Hộ, Chỉ Huy Nhỏ.
+   [x] Xâm Nhập Hư Không độ 1 (độ khó thứ ba của Chế độ Ải, rev 20261010k; thiếu Rãnh Nứt, NPC Hư Không, độ 2–3), [x] tầng 4A (cổng tím Kẻ Vượt Ranh Giới sau 3-5, chủ đề monolith, trùm Hulala-Moli; rev 20261010m) [ ] 3 trùm 4A còn lại (Spine), 4B, 4C, [ ] Thần Điện Thủ Hộ, Chỉ Huy Nhỏ.
    Cũ: Lợi Hại (badass), Khu Thí Luyện (boss rush), Nhân Tố Thử Thách, rồi các chế độ còn lại theo độ khả thi.
    Bỏ qua chế độ online (PVP, nhiều người).
 5. [~] Sảnh — [x] bước 7 + 9 (giếng, máy nước, tượng, hồ cá, cảnh sát; rev 20261010k; [ ] trang trí sảnh); [x] bước 8 Sổ Tay + 154 thành tựu (40 chạy được, rev 20261010j); [x] bước 4–6; [x] bước 1–3 (rev 20261010e: kho đồ, thư, nhãn + phím E, rơi vật liệu 137 món, két/chuyển phát/máy đổi...) (đặc tả 43 tiện ích + kinh tế + 9 bước: tools/polish/HALL.md; bước 1 kho đồ/thư/tương tác → 2 rơi vật liệu →

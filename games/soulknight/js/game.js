@@ -63,7 +63,9 @@
   // ---------------------------------------------------------------- đợt quái
   G.buildWaves = function (r) {
     const th = G.map.th;
-    const roster = th.enemies.filter(id => D.enemies[id]);
+    let roster = th.enemies.filter(id => D.enemies[id]);
+    // Tầng 4A: trọng số theo ải [CFG map_levels.map_A16..A20] (tools/polish/FLOOR4.md); ải weight 0 không ra loại đó.
+    if (G.stage.theme === 'monolith' && SK.floor4) roster = SK.floor4.roster(G.stage.n).filter(id => D.enemies[id]);
     if (r.type === 'boss') {
       const bw = SK.bossWaves(G, r);
       // Nhân tố "doubleBoss": mỗi phòng trùm có hai trùm cùng lúc (trùm thứ hai là bản sao cùng loại).
@@ -285,6 +287,8 @@
     }
     // G.hold: một mô-đun (chọn buff...) giữ người chơi ở cổng tới khi xong việc của nó.
     if (G.phase === 'portal' && G.phaseT > 0.8 && !G.hold) {
+      // Cổng tím của Kẻ Vượt Ranh Giới (js/floor4.js): nối 4-1..4-5 vào lượt rồi sang 4-1; cổng thường vẫn thắng ở 3-5.
+      if (G.extGo && SK.floor4) { G.extGo = false; SK.floor4.extend(STAGES); }
       if (G.mode === 'matrix' && G.stageIdx + 1 >= STAGES.length) SK.matrixNextFloor();   // vô tận: không có chiến thắng
       if (G.stageIdx + 1 >= STAGES.length) { G.state = 'victory'; setOverlay('sk-win'); fillEnd('sk-win-info'); }
       else enterStage(G.stageIdx + 1);

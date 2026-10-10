@@ -29,7 +29,8 @@ OUT_EXTRA = os.path.join(TOOLS, 'extra', 'bosses.json')
 
 # Theme web -> LevelKey của config/enemies (level/1/a = forest ...) [ĐO themes[x].bundle trong sk-data.js]
 THEME_KEY = {'forest': '1A', 'glacier': '1B', 'ruins': '1C', 'zulanruins': '1G', 'castle': '2A', 'graveyard': '2B', 'halloween': '2C',
-             'icecave': '2D', 'swamp': '2E', 'relic': '2F', 'machinery': '2G', 'aliens': '3A', 'volcano': '3B', 'island': '3C'}
+             'icecave': '2D', 'swamp': '2E', 'relic': '2F', 'machinery': '2G', 'aliens': '3A', 'volcano': '3B', 'island': '3C',
+             'monolith': '4A'}
 # Trận cuối Khu Thí Luyện: Tước Sĩ Đỏ (thường) / Tước Sĩ Tím (Lợi Hại) [ĐO enemies.boss_bossrush_final*, Path Level/bossrush];
 # prefab nằm trong levelobjects.ab chứ không có bundle boss/ riêng.
 EXTRA_POOL = {'bossrush_final': ['boss_bossrush_final', 'boss_bossrush_final_badass']}
@@ -37,7 +38,11 @@ BUNDLE_OF = {'boss_bossrush_final': 'levelobjects', 'boss_bossrush_final_badass'
 # Prefab phụ do AI trùm sinh ra (quái con, bia mộ...) cũng cần rig.
 SUB_PREFABS = {'boss20': ['e_slime01_temp'], 'boss18': ['temp_tombstone1', 'temp_tombstone2', 'e_mummy03_temp',
                                                           'e_mummy04_temp', 'e_mummy05_temp'],
-               'boss19': [], 'boss12': ['boss12_1', 'boss12_2']}
+               'boss19': [], 'boss12': ['boss12_1', 'boss12_2'],
+               # Hulala-Moli cưỡi lần lượt Ngựa, Bò, Xe Ngựa đá (mỗi con 1/3 máu) [WIKI Captain Hulala Morley]
+               'boss_warlord': ['boss_warlord_horse', 'boss_warlord_ox', 'boss_warlord_chariot']}
+# Đạn của trùm nằm trong PlayMakerFSM/clip, không có tham chiếu trong MonoBehaviour: ghi tên tay.
+EXTRA_BULLETS = {'boss_warlord': ['boss_warlord_bullet_phone', 'boss_warlord_bullet_hammer', 'boss_warlord_bullet_spear']}
 SKIP_NODES = {'collider', 'shadow_lock', 'dead_tap'}
 BULLET_BUNDLES = ('bullet', 'common', 'levelcommon')
 
@@ -504,7 +509,7 @@ def main():
                 if not ent['ai']:
                     ent['ai'] = next((c for c in ent.get('mbs', {}) if re.match(r'Boss|AI', c)), None)
                 out['bosses'][pid] = ent
-                want_bullets += refs_in(ent.get('mbs', {}), [])
+                want_bullets += refs_in(ent.get('mbs', {}), []) + EXTRA_BULLETS.get(pid, [])
                 for nd in rig['nodes']:
                     want_bullets += refs_in(nd.get('mbs', {}), [])
                 inf, irel = find_root(pid + '_info', [bundle + '.ab'])

@@ -38,6 +38,8 @@ THEMES = {
     'level/2/d.ab': ('icecave', 2), 'level/2/e.ab': ('swamp', 2), 'level/2/f.ab': ('relic', 2),
     'level/2/g.ab': ('machinery', 2),
     'level/3/a.ab': ('aliens', 3), 'level/3/b.ab': ('volcano', 3), 'level/3/c.ab': ('island', 3),
+    # 4A Di Tích Núi Khối, ải mở rộng sau 3-5 (map_A16..A20 "4-1".."4-5") [ĐO config/map_levels; tools/polish/FLOOR4.md]
+    'level/4/a.ab': ('monolith', 4),
 }
 # Họ bundle nạp sẵn. Bundle khác (weapon, bullet, boss/*, ui, sound_effect...) nạp khi một con trỏ chỉ tới
 # hoặc khi tools/extra/*.json ghi tên trong "bundles".
@@ -433,7 +435,8 @@ def extract_theme(cab, theme, level, roots):
             if cls == 'MapManagerLevel' and t.get('level'):
                 th['stages'][t['level']] = {'map_long': t['map_long'], 'chest_level': t['chest_level'],
                                             'roomSpacing': t['roomSpacing']}
-            if cls == 'MapManagerLevel' and not t.get('level'):
+            # 4A: prefab gốc map_A_MonolithicMountainsRuins ghi level "0" (không rỗng như vùng khác)
+            if cls == 'MapManagerLevel' and (not t.get('level') or (theme == 'monolith' and t.get('level') == '0')):
                 c = t['camera_bg']
                 th['bg'] = '#%02x%02x%02x' % (round(c['r'] * 255), round(c['g'] * 255), round(c['b'] * 255))
                 th['libraryKey'] = t.get('elementLibraryKey')
@@ -453,10 +456,23 @@ def extract_theme(cab, theme, level, roots):
             t = rip.tree(cab, o)
             if rip.script_name(cab, t) == 'RoomElementLibrary' and t.get('m_Name') == th.get('libraryKey'):
                 th['lib'] = {it['id']: it['prefabPath'].split('/')[-1][:-7] for it in t['elementItems']}
-    th['tiles'] = {
-        'floor': [p['layers'][0]['f'] for p in th['floors'] if p['layers']],
-        'wall': [{'front': p['layers'][0]['f'], 'top': p['layers'][-1]['f']} for p in th['walls'] if p['layers']],
-    }
+    if theme == 'monolith':
+        # 4A không có MapManagerBR (sàn là RuleTile 4A_RB_FloorTile_1/2, tường do RWallSubBuilderMMR dựng trong IL2CPP):
+        # sàn = các khung trong của luật đầu RB_Floor_{1,2}_{9,16}; tường = prefab wall_MMR [ĐO bundle level/4/a; SUY cách ghép]
+        th['walls'] = [tile_prefab(by_name['wall_MMR'])]
+        sp = bundle_sprites(rip.bundle_of[cab])
+        fl = []
+        for nm in ('RB_Floor_1_9', 'RB_Floor_1_16', 'RB_Floor_2_9', 'RB_Floor_2_16'):
+            hit = sp.get(nm)
+            f = frame_of(*hit) if hit else None
+            if f:
+                fl.append(f)
+        th['tiles'] = {'floor': fl, 'wall': [{'front': p['layers'][0]['f'], 'top': None} for p in th['walls'] if p['layers']]}
+    else:
+        th['tiles'] = {
+            'floor': [p['layers'][0]['f'] for p in th['floors'] if p['layers']],
+            'wall': [{'front': p['layers'][0]['f'], 'top': p['layers'][-1]['f']} for p in th['walls'] if p['layers']],
+        }
     for r in roots:
         if re.match(r'^(e|ex)_', r.name):
             e = extract_enemy(r, theme, level)
