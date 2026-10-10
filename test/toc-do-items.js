@@ -389,7 +389,7 @@ async function fxPart() {
     await simWait(0.2);
     const uu = await page.evaluate(() => window.__use('ufo'));
     check('Đĩa Bay khoá xe hạng 1', uu && uu.target === 1, JSON.stringify(uu));
-    check('Đĩa Bay chạy clip Appear', await until(() => TD.itemsView.debug().rigs.includes('ufo:appear'), null, 20000), JSON.stringify((await dbg()).rigs));
+    check('Đĩa Bay chạy clip Appear', await until(() => TD.itemsView.debug().rigs.includes('ufo:appear'), null, 20000), JSON.stringify(await page.evaluate(() => ({ rigs: TD.itemsView.debug().rigs, played: TD.itemsView.debug().played, inv: TD.main.me.items, st: TD.main.me.st }))));
     await snap('ufo-appear');
     check('Đĩa Bay sà xuống (Attack) rồi treo (Idle) trên mục tiêu', await until(() => TD.itemsView.debug().played['ufo:attack'] >= 1 && TD.main.race.items.proj.some((p) => p.type === 'ufo' && p.phase === 'hover'), null, 30000));
     await simWait(0.5);
@@ -430,7 +430,7 @@ async function fxPart() {
     await simWait(0.6);
     await snap('magnet');
     const d6 = await dbg();
-    check('Nam Châm: vòng từ gốc (tween) + hạt magnet a/b + vòng ngắm', d6.tweens >= 2 && d6.emitted.magnet >= 1 && d6.emitted.magnet_b >= 1 && d6.aim, 'tween ' + d6.tweens);
+    check('Nam Châm: vòng từ gốc (tween) + hạt magnet a/b + vòng ngắm', d6.tweens >= 2 && d6.emitted.magnet >= 1 && d6.emitted.magnet_b >= 1 && d6.aim, JSON.stringify({ tween: d6.tweens, a: d6.emitted.magnet, b: d6.emitted.magnet_b, aim: !!d6.aim }));
 
     // 7. Vỏ Chuối, Mây Mù: xe phía trước thả sau lưng nó (rơi giữa hai xe, camera nhìn thấy), rồi Thiên Sứ, Lá Chắn
     await stage(45);
@@ -441,11 +441,11 @@ async function fxPart() {
     await simWait(0.4);
     await snap('banana-cloud');
     await page.evaluate(() => window.__use('angel'));
-    check('Thiên Sứ: Appear rồi Idle lặp', await until(() => TD.itemsView.debug().rigs.includes('angel:idle'), null, 20000), JSON.stringify((await dbg()).rigs));
+    check('Thiên Sứ: Appear rồi Idle lặp', await until(() => TD.itemsView.debug().rigs.includes('angel:idle'), null, 20000), JSON.stringify(await page.evaluate(() => ({ rigs: TD.itemsView.debug().rigs, played: TD.itemsView.debug().played, inv: TD.main.me.items, st: TD.main.me.st }))));
     await snap('angel');
     await page.evaluate(() => { const R = TD.main.race; R.items.ks[TD.main.me.id].shieldT = 0; R.items.ks[TD.main.me.id].shieldKind = null; window.__use('shield'); });
     await simWait(0.6);
-    check('Lá Chắn Dunpai: clip Open rồi Loop', await until(() => TD.itemsView.debug().rigs.includes('shield:loop'), null, 20000), JSON.stringify((await dbg()).rigs));
+    check('Lá Chắn Dunpai: clip Open rồi Loop', await until(() => TD.itemsView.debug().rigs.includes('shield:loop'), null, 20000), JSON.stringify(await page.evaluate(() => ({ rigs: TD.itemsView.debug().rigs, played: TD.itemsView.debug().played, inv: TD.main.me.items, st: TD.main.me.st }))));
     await snap('shield');
     check('nhặt hộp: burst gốc (propbox_getitem) khi chạy qua hàng hộp', await until(() => TD.itemsView.debug().emitted.pickup >= 1, null, 120000));
     check('không lỗi trang', problems.length === 0, problems.slice(0, 4).join(' | '));
