@@ -109,7 +109,7 @@ Có: 9 sinh vật bán ở Thương Nhân Thú Cưỡi trong phòng đặc biệ
 
 | Thiếu | Lý do / cách xử lý |
 |---|---|
-| Cơ giáp, Thương Nhân Vật Chở (trọng số 2), nâng cấp ★ | Bước D |
+| Nâng cấp ★ cơ giáp ở Thương Nhân Vật Chở | Bước D (còn lại) |
 | Hệ mở khoá thú (mboar2, mcristal, mspider, mvaken cần `type 8`) | web chưa có kho mở khoá thú: cả 9 con luôn nằm trong quầy |
 | Vũ khí gắn của thú (Va Đập, Gai Băng, Nổ Tung, Kim Độc; húc của Bazinga bodyDamage 6) | dữ liệu có trong sk-mounts.js nhưng chưa nối đòn; thú chỉ đỡ đòn và tăng tốc |
 | Trọng số phòng thú cưỡi so với tượng / giếng / lồng nhốt (25) và số ô bày (3), giá tăng theo tầng | ƯỚC LƯỢNG: dữ liệu đọc được chỉ có 4 : 2 trong mount_seller |
@@ -166,11 +166,13 @@ Có: bản vẽ nội thất (Máy Nước, Hồ Cá, Giếng Phép Thuật, Tư
 | HUD riêng của 4B | FLOOR4.md không nêu HUD riêng cho 4B (HUD riêng chỉ có ở 4C: oxy) |
 | Sàn đá lâu đài (4B_RB_FloorTile_1..3) sau hành lang 4-3, nhạc 4B | chỉ dùng sàn cỏ |
 
-## Cơ giáp (Bước D, rev 20261010m)
-- Mới làm m_mech_0 (Thiết Giáp Nguyên Mẫu) và m_mech_1 (Chưởng Thép); 10 cơ giáp còn lại chưa có sprite/vũ khí gắn riêng nên không bày ở quán (SK.mechImpl).
-- `data/sk-forge.js` có bản vẽ m_mech_2..9 nhưng m_mech_0/1 không có bản vẽ (unlock null [ĐO npc_mount_mech]) nên bán thẳng; loại khác sau này lọc qua `SK.profile.devd`.
-- Chưa làm: Tạm Biệt Thế Giới (nút Phụ, nổ 50) của m_mech_0, nâng cấp ★ ở Thương Nhân Vật Chở, đòn đấm đúng clip (Chưởng Thép dùng vũ khí cận chiến web có đạn punch_spear), bố cục sprite chỉnh bằng mắt (không đo từ prefab), tầm nổ 4 ô [ƯỚC LƯỢNG], buff Thú Cưng +50% sát thương nổ.
-- Nhặt vũ khí mới khi đang lái bị ghi đè lại lúc xuống giáp (vũ khí cũ được trả nguyên).
+## Cơ giáp (Bước D, rev 20261010m + 20261010zb)
+- Đã làm cả 14 cơ giáp có prefab trong `common` (m_mech_0..7, 9, coin, engineer, m_mecha_normal_b/d/e/2s): vẽ nguyên prefab gốc (`tools/extra/mech.json`, `js/mechs.js`), HP/giáp/tốc theo `data/sk-mounts.js`, vũ khí gắn thay ô vũ khí, vỡ nổ hpMax, xuống trả vũ khí. 12 giáp bán được vào quán Thương Nhân Vật Chở (giáp có bản vẽ chỉ khi `SK.profile.devd`). m_mech_9/coin/engineer không bán (chỉ qua `SK.mountOn`).
+- Nút Phụ (phím kỹ năng) đã có: Tạm Biệt Thế Giới của m_mech_0 (nổ 50 rồi mất giáp) và m_mech_engineer (199), Vụ Nổ Tròn của m_mech_2 (5 sát thương, xoá đạn địch, hồi 4 s). Tầm nổ 4 ô và 3 ô là [ƯỚC LƯỢNG]; "mất giáp sau Tạm Biệt Thế Giới" suy từ tên, chưa xác nhận.
+- Vũ khí gắn dùng bộ đạn vũ khí web gần nhất (pulse, bazooka, pincer, rocket_fireworks, smg_m2, arbitrator, broadsword, assault_rifle, m4, smg_m3, blaster, assault_sniper_rifle), số dmg/tiêu/crit từ prefab; hình đạn không phải đạn gốc của `arm_*` [ƯỚC LƯỢNG].
+- WiFi Booster (m_mech_4): 3 súng lơ lửng tự bắn quái gần nhất trong 9 ô, 4 sát thương mỗi 0,4 s, miễn năng lượng, giữ vũ khí người chơi [ƯỚC LƯỢNG nhịp bắn]; chưa có đòn đặc biệt nâng cấp.
+- Chưa làm: nâng cấp ★ ở Thương Nhân Vật Chở (prefab `*_update` có, chưa đọc), xuyên vật cản của m_mech_6/7, đòn thứ hai (Lưới Điện Từ, Phân Giải, Missile, Pháo Hoa nút riêng), Hellfire Chariot (m_mech_7 chưa chắc là nó), đòn đấm đúng clip, Tạm Biệt Thế Giới nút Phụ riêng ngoài phím kỹ năng, buff Thú Cưng +50% sát thương nổ, m_mech_8 và m_mech_paladin* (không/chưa có prefab dùng được), giá cơ giáp theo tầng.
+- Độ nhấc người ngồi (`lift`) và bố cục lấy trực tiếp từ prefab; giáp lớn (m_mecha_normal_*) nhấc 26 px chỉnh bằng mắt.
 
 ## Chỉ Huy Nhỏ (lõi: js/troop.js, thẻ chế độ trong lobby.js, kiểm: test/soulknight-troop.js, rev 20261010o)
 - Làm: người chơi là pet (HP 3, giáp 1, NL 160, cắn 5, đạn trúng pet đổ lên lính gần nhất [ƯỚC LƯỢNG]), cờ 5 cấp 2/3/4/5/6 lính và 0/1/3/5/7 xu, thuê 17 anh hùng 4 xu, hợp nhất ở lần thuê thứ 3 cùng loại (bản nâng gấp đôi HP/giáp/chí mạng), rương trắng/nâu/lam/vàng 2/3/4/5 xu (nâng 3/6/9), Mèo May Mắn, Thầy Huấn Luyện làm mới 1 xu, xu dọn phòng 1 / trùm 3, hồi sinh khi dọn phòng (1/10 máu), qua cổng hồi đầy, thua khi hết lính, Túi Chữa Trị thay kỹ năng anh hùng.

@@ -21,7 +21,7 @@
     return hp;
   }
 
-  // ---- Cơ giáp (Bước D). Chỉ làm m_mech_0 và m_mech_1; các loại khác cần sprite riêng (GAPS.md).
+  // ---- Cơ giáp (Bước D). m_mech_0 và m_mech_1 ở đây, 11 cơ giáp còn lại ở js/mechs.js.
   // Bố cục nút lấy từ prefab (/img/body, /img/h1/.../w, shadow); toạ độ Unity y hướng lên nên đảo dấu. Thứ tự vẽ theo `o` của prefab.
   // Vũ khí gắn: cùng bộ đạn với vũ khí web gần nhất, số lấy từ prefab [PF m_mech_0: bullet_6_yellow dmg 3 crit 10 xuyên 10; m_mech_1: punch_spear dmg 10 crit 20].
   const MECH = {
@@ -30,10 +30,22 @@
     m_mech_1: { parts: [['mech_7', 11.2, 15, 0], ['mech_6', 2.4, 9.6, 2], ['mech_5', -12.5, 15, 3]],
                 gun: { melee: true, dmg: 10, crit: 20, thr: 0, cost: 0 }, lift: 14 }
   };
+  // Các cơ giáp còn lại nằm ở js/mechs.js, thêm vào bảng này: {prefab, lift, guns:[{base, dmg, crit, thr, cost, name}], extra}.
+  // `prefab` = vẽ nguyên prefab gốc bằng SK.drawPrefab; `guns` rỗng = giữ vũ khí người chơi (WiFi Booster).
+  SK.mechDefs = MECH;
   const isMech = id => !!MECH[id];
   SK.mechImpl = id => isMech(id);
+  SK.mechDrawn = {};     // id -> khoá đã vẽ lần gần nhất ('prefab:<id>' hoặc 'frames:<id>'), để bộ kiểm biết đang vẽ bằng gì
+  const SKIP_NODE = /^\/(mount_hp|dead_tap|img\/drive_container)|gun_point|rock_fire/;
   function drawMech(ctx, id, x, y, t, o) {
-    const C = MECH[id], fs = o.flip ? -1 : 1, bob = o.moving ? Math.abs(Math.sin(t * 9)) * 1.2 : 0;
+    const C = MECH[id];
+    if (C.prefab) {
+      const pf = SK.prefab(C.prefab);
+      if (pf && SK.drawPrefab(ctx, pf, x, y - (o.moving ? Math.abs(Math.sin(t * 9)) * 1.2 : 0), { flip: o.flip, pages: o.flash ? SK.pagesWhite : null, t, skip: q => SKIP_NODE.test(q.n) })) { SK.mechDrawn[id] = 'prefab:' + C.prefab; return; }
+    }
+    SK.mechDrawn[id] = 'frames:' + id;
+    if (!C.parts) return;
+    const fs = o.flip ? -1 : 1, bob = o.moving ? Math.abs(Math.sin(t * 9)) * 1.2 : 0;
     const pages = o.flash ? SK.pagesWhite : null;
     SK.draw(ctx, 'shadow3', x, y + 1.6, {});
     for (const [fr, px, py] of C.parts.slice().sort((a, b) => a[3] - b[3])) SK.draw(ctx, fr, x + px * fs, y - py - bob, { flip: o.flip, pages });
@@ -68,22 +80,26 @@
   }
 
   // Vũ khí gắn thay ô vũ khí trong lúc lái; xuống thì trả lại vũ khí cũ [WIKI Mounts: cơ giáp thay thế ô vũ khí].
-  function mechWeapon(id) {
-    const C = MECH[id].gun, W = DS.weapons;
+  function mechWeapon(id, i) {
+    const C = MECH[id].gun || MECH[id].guns[i || 0], W = DS.weapons;
     let base = C.base && W[C.base];
     if (C.melee) { const k = Object.keys(W).find(q => W[q].kind === 'melee' && W[q].w86 && W[q].w86.b && W[q].w86.b[0].p === 'punch_spear'); base = W[k]; }
     if (!base) return null;
-    const d = Object.assign({}, base, { cost: C.cost, name: MD().mounts[id].weapon.name });
+    const d = Object.assign({}, base, { cost: C.cost, name: C.name || (MD().mounts[id].weapon || {}).name || base.name, dmg: C.dmg, crit: C.crit });
     if (base.w86) {
       const b0 = Object.assign({}, base.w86.b[0], { dmg: C.dmg, crit: C.crit, thr: C.thr });
       d.w86 = Object.assign({}, base.w86, { cost: C.cost, b: [b0].concat(base.w86.b.slice(1)) });
     }
-    const w = SK.makeWeapon(null); w.def = d; w.id = 'mech:' + id; return w;
+    const w = SK.makeWeapon(null); w.def = d; w.id = 'mech:' + id + (i ? ':' + i : ''); return w;
   }
   function mechEquip(p, id) {
-    const w = mechWeapon(id); if (!w) return;
+    const C = MECH[id], n = C.gun ? 1 : (C.guns || []).length;
+    if (!n) return;                                   // WiFi Booster: giữ vũ khí của người chơi
+    const ws = [];
+    for (let i = 0; i < n; i++) { const w = mechWeapon(id, i); if (w) ws.push(w); }
+    if (!ws.length) return;
     p._mechSaved = { weapons: p.weapons.slice(), cur: p.cur, dual: p.dual };
-    p.weapons = [w, null]; p.cur = 0; p.dual = null;
+    p.weapons = [ws[0], ws[1] || null]; p.cur = 0; p.dual = null;
   }
   function mechRestore(p) {
     const sv = p._mechSaved; if (!sv) return;
@@ -92,8 +108,8 @@
   }
 
   // Cơ giáp vỡ: nổ vùng bằng máu tối đa [WIKI Armor Mounts] (+50% với buff Thú Cưng đã tính trong hpMax? không: wiki ghi riêng, giữ hpMax).
-  function mechBlast(G, p, m) {
-    const U = SK.PPU, dmg = m.hpMax, r = 4 * U;
+  function mechBlast(G, p, m, dmgOver, rTiles) {
+    const U = SK.PPU, dmg = dmgOver != null ? dmgOver : m.hpMax, r = (rTiles || 4) * U;
     if (SK.vfx && SK.vfx.has && SK.vfx.has('explode_hit_enemy')) SK.vfx.spawn(G, 'explode_hit_enemy', p.x, p.y - 6, {});
     G.shake = Math.max(G.shake, 6);
     for (const e of (G.enemies || []).slice()) {
@@ -122,12 +138,16 @@
     SK.emit('mountOff', G, m);
     return true;
   };
-  function mountBreak(G, p) {
+  function mountBreak(G, p, dmgOver) {
     const m = p.mount; p.mount = null;
-    if (m.mech) { mechRestore(p); mechBlast(G, p, m); }
+    if (m.mech) { mechRestore(p); mechBlast(G, p, m, dmgOver); }
     if (SK.vfx && SK.vfx.has && SK.vfx.has('effect_smoke')) SK.vfx.spawn(G, 'effect_smoke', p.x, p.y - 6, {});
     SK.emit('mountBreak', G, m);
   }
+
+  // Nút Phụ "Tạm Biệt Thế Giới": cơ giáp tự nổ với sát thương cho trước rồi mất [WIKI Prototype Armor: nổ 50; Engineer Mech 199 (data)].
+  SK.mechSelfDestruct = (G, p, dmg) => { if (!p || !p.mount || !p.mount.mech) return false; mountBreak(G, p, dmg); return true; };
+  SK.mechBlast = (G, p, dmg, rTiles) => mechBlast(G, p, null, dmg, rTiles);
 
   // Sát thương: thú nhận trước người. Bỏ qua khi người đang bất tử (hurtPlayer gốc cũng từ chối) hoặc đã chết.
   const baseHurt = SK.hurtPlayer;
@@ -135,7 +155,7 @@
     const p = G.player, m = p && p.mount;
     if (!m || p.st === 'dead' || p.invulT > 0 || !(dmg > 0)) return baseHurt.call(this, G, dmg, ...rest);
     if (G.badass) dmg += DS.badass.dmgAdd;
-    const take = m.def > 0 ? Math.max(1, dmg - m.def) : dmg;       // giáp trừ mỗi đòn (sinh vật giáp 0; cơ giáp ở Bước D)
+    const def = m.def + (m.mech && G.badass ? 1 : 0), take = def > 0 ? Math.max(1, dmg - def) : dmg;   // Badass: cơ giáp +1 giáp [WIKI Armor Mounts]       // giáp trừ mỗi đòn (sinh vật giáp 0; cơ giáp ở Bước D)
     m.hp -= take;
     p.invulT = R.hurtInvuln; p.flash = 0.1;
     G.shake = Math.max(G.shake, 2);

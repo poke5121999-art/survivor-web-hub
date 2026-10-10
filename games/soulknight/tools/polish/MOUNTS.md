@@ -165,3 +165,5 @@ Phân phối [CFG random_mercenary]: npc_01..06, 08, 09, 10 (và các id sau) tr
 - HP lính thuê: prefab lệch wiki ở Don Quixote (80 vs 55) và Kiến Tập (60 vs infobox 50); dùng prefab vì là số 8.6 trực tiếp.
 - 25 prefab `m_mech_paladin_sN`: chưa đọc giáp/tốc.
 - Mã hành vi (đúng lúc lên/xuống, nổ, hồi) nằm trong C# không giải; luật mục 2 phần lớn từ wiki.
+
+**Bước D cập nhật (rev 20261010zb):** 14 cơ giáp đã chạy được qua `js/mounts.js` (khung) + `js/mechs.js` (bảng và nút Phụ); vẽ bằng prefab gốc, bộ kiểm `test/soulknight-mech.js`. Chỗ còn thiếu xem mục "Cơ giáp" trong GAPS.md.

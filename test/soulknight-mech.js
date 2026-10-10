@@ -138,6 +138,75 @@ const IGNORE = /bosses86|theme|lib|colour/;
     await sleep(900);
     await p.screenshot({ path: path.join(SHOTS, 'mech-ride0.png') });
 
+    // ---- 13 cơ giáp còn lại (js/mechs.js): mỗi giáp một lượt bày/mua/lái/vẽ/bắn/nhận đòn/vỡ/xuống.
+    const NEW = ['m_mech_2', 'm_mech_3', 'm_mech_4', 'm_mech_5', 'm_mech_6', 'm_mech_7', 'm_mech_9', 'm_mech_coin', 'm_mech_engineer', 'm_mecha_normal_b', 'm_mecha_normal_d', 'm_mecha_normal_e', 'm_mecha_normal_2s'];
+    const NOGUN = { m_mech_4: 1 };            // WiFi Booster giữ vũ khí người chơi, đánh bằng súng lơ lửng
+    const MELEE = { m_mech_5: 1, m_mech_9: 1 };
+    const pool = await ev(() => { const M = window.SK_MOUNTS; const out = {}; for (const id of M.sellers.mech) out[id] = !!SK.mechImpl(id); return out; });
+    check('SK.mechImpl mở đủ 12 cơ giáp bán được trong data', Object.keys(pool).length === 12 && Object.values(pool).every(Boolean), JSON.stringify(pool));
+    for (const id of NEW) {
+      const tag = id + ': ';
+      const dd = await ev(i => { const m = window.SK_MOUNTS.mounts[i]; return { hp: m.hp, def: m.def, sp: m.speedRate, unlock: m.sell && m.sell.unlock }; }, id);
+      await ev(() => { const q = SK.G.player; if (q.mount) SK.mountDismount(SK.G, q); });
+      await stage('1-3', { special: 'mount', mounts: [id, 'mboar'] }, 'special');
+      await ev(() => { SK_GAME.debug.god(false); SK.G.player.gold = 999; SK.G.enemies.length = 0; });
+      const lbl = await ev(i => { const n = SK.mountDef(i).vi; return SK.G.interactables.some(o => !o.gone && o.label && o.label.indexOf(n) >= 0); }, id);
+      const w0n = await ev(() => SK.G.player.weapons.map(w => w && w.id));
+      const name = await ev(i => SK.mountDef(i).vi, id);
+      await useLabel('^' + name.replace(/[()]/g, '.'));
+      const m = await M();
+      check(tag + 'bày ở Thương Nhân Vật Chở và mua được' + (dd.unlock ? ' (đã mở bản vẽ ' + dd.unlock + ')' : ''), lbl && m && m.id === id, JSON.stringify([lbl, m]));
+      check(tag + 'HP/giáp/tốc đúng dữ liệu', m && m.hp === dd.hp && m.hpMax === dd.hp && (await ev(() => SK.G.player.mount.def)) === dd.def && (await ev(() => SK.G.player.mount.speedRate)) === dd.sp, JSON.stringify([m, dd]));
+      await ev(() => { SK.G.interactables.length = 0; SK.G.props.length = 0; SK.G.player.invulT = 0; });
+      await sleep(450);
+      const dr = await ev(i => SK.mechDrawn[i], id);
+      check(tag + 'vẽ bằng khoá prefab gốc', dr === 'prefab:' + id, dr);
+      await p.screenshot({ path: path.join(SHOTS, 'mech-' + id + '.png') });
+      // vũ khí gắn
+      const w1 = await ev(() => SK.G.player.weapons.map(w => w && w.id));
+      if (NOGUN[id]) check(tag + 'giữ vũ khí người chơi', JSON.stringify(w1) === JSON.stringify(w0n), JSON.stringify([w0n, w1]));
+      else check(tag + 'ô vũ khí thay bằng vũ khí gắn', w1[0] === 'mech:' + id, JSON.stringify(w1));
+      // bắn trúng quái: quái ngay trước mặt (gần cho giáp cận chiến) và xa hơn
+      await ev(melee => {
+        const G = SK.G, pl = G.player; G.enemies.length = 0; pl.energy = pl.energyMax; pl.face = 1;
+        for (const dx of (melee ? [22, 34] : [60, 90])) { const e = SK.makeEnemy(G, 'e_orc01', pl.x + dx, pl.y - 2, G.room); e.st = 'idle'; e.stT = 1e9; e.hp = e.hpMax = 5000; G.enemies.push(e); }
+      }, !!MELEE[id]);
+      await p.mouse.move(1000, 330); await p.mouse.down();
+      await until(p, () => SK.G.enemies.some(e => e.hp < 5000), null, 2500);
+      await p.mouse.up();
+      const dmgd = (await hps()).some(h => h < 5000);
+      check(tag + (NOGUN[id] ? 'súng lơ lửng tự bắn trúng quái' : 'vũ khí gắn bắn trúng quái'), dmgd, JSON.stringify(await hps()));
+      // nhận đòn theo giáp
+      await ev(() => { SK.G.enemies.length = 0; SK.G.bullets.length = 0; });
+      await hit(3);
+      const m1 = await M(), ex = dd.hp - Math.max(1, 3 - dd.def);
+      check(tag + 'nhận đòn 3 trừ đúng giáp (' + (dd.hp - ex) + ')', m1 && m1.hp === ex, JSON.stringify([m1, ex]));
+      // vỡ: nổ hpMax lên quái gần, trả vũ khí
+      await ev(() => { const G = SK.G, pl = G.player; const e = SK.makeEnemy(G, 'e_orc01', pl.x + 30, pl.y, G.room); e.st = 'idle'; e.stT = 1e9; e.hp = e.hpMax = 5000; G.enemies.push(e); });
+      await hit(99);
+      const m2 = await M(), h2 = await hps(), w2n = await ev(() => SK.G.player.weapons.map(w => w && w.id));
+      check(tag + 'vỡ: nổ hpMax (' + dd.hp + ') lên quái gần, giáp mất, trả vũ khí cũ', m2 === null && h2[0] === 5000 - dd.hp && JSON.stringify(w2n) === JSON.stringify(w0n), JSON.stringify([m2, h2, w2n]));
+      // xuống: mua lại rồi bấm E xuống
+      await ev(i => { SK.G.enemies.length = 0; SK.mountOn(SK.G, SK.G.player, i); }, id);
+      await ev(() => { SK.G.interactTarget = null; SK.G.interactables.length = 0; });
+      await p.keyboard.press('KeyE'); await sleep(200);
+      const w3n = await ev(() => ({ w: SK.G.player.weapons.map(w => w && w.id), m: !!SK.G.player.mount }));
+      check(tag + 'xuống giáp trả vũ khí cũ', !w3n.m && JSON.stringify(w3n.w) === JSON.stringify(w0n), JSON.stringify(w3n));
+    }
+    // bản vẽ: giáp có bản vẽ chỉ vào quán khi đã nghiên cứu (SK.profile.devd)
+    const bp = await ev(() => { const M = window.SK_MOUNTS, old = SK.profile && SK.profile.devd; const ids = M.sellers.mech.filter(i => M.mounts[i].sell.unlock); const f = () => ids.filter(i => SK.mechImpl(i) && (!M.mounts[i].sell.unlock || (SK.profile && SK.profile.devd && SK.profile.devd(M.mounts[i].sell.unlock)))); SK.profile.devd = () => false; const none = f().length; SK.profile.devd = () => true; const all = f().length; SK.profile.devd = old; return { n: ids.length, none, all }; });
+    check('giáp có bản vẽ: chưa nghiên cứu thì không bày, đã nghiên cứu thì bày đủ', bp.n === 10 && bp.none === 0 && bp.all === 10, JSON.stringify(bp));
+    // nút Phụ: Tạm Biệt Thế Giới (m_mech_0) nổ 50 rồi mất giáp; Vụ Nổ Tròn (m_mech_2) 5 sát thương, giáp còn
+    await stage('1-3', {}, null);
+    await ev(() => { SK.G.props.length = 0; SK.G.interactables.length = 0; SK.G.enemies.length = 0; const pl = SK.G.player; SK.mountOn(SK.G, pl, 'm_mech_0'); const e = SK.makeEnemy(SK.G, 'e_orc01', pl.x + 30, pl.y, SK.G.room); e.st = 'idle'; e.stT = 1e9; e.hp = e.hpMax = 5000; SK.G.enemies.push(e); });
+    await p.keyboard.press('KeyK'); await sleep(250);
+    const x0 = await ev(() => ({ m: !!SK.G.player.mount, h: SK.G.enemies[0].hp, w: SK.G.player.weapons.length }));
+    check('Phụ Tạm Biệt Thế Giới (m_mech_0): nổ 50 lên quái gần, giáp mất', !x0.m && x0.h === 4950, JSON.stringify(x0));
+    await ev(() => { SK.G.enemies.length = 0; const pl = SK.G.player; SK.mountOn(SK.G, pl, 'm_mech_2'); const e = SK.makeEnemy(SK.G, 'e_orc01', pl.x + 30, pl.y, SK.G.room); e.st = 'idle'; e.stT = 1e9; e.hp = e.hpMax = 5000; SK.G.enemies.push(e); });
+    await p.keyboard.press('KeyK'); await sleep(250);
+    const x2 = await ev(() => ({ m: SK.G.player.mount && SK.G.player.mount.id, h: SK.G.enemies[0].hp }));
+    check('Phụ Vụ Nổ Tròn (m_mech_2): 5 sát thương vùng, giáp còn', x2.m === 'm_mech_2' && x2.h === 4995, JSON.stringify(x2));
+
     // thiên phú: x-2 / x-5 (việc thêm: tầng 4A và Mê Trận)
     const B = await ev(() => { const R = SK_ROOMS, lvl = { mode: 'level' }, mx = { mode: 'matrix' }; return { a: R.buffAfter(lvl, '4-2'), b: R.buffAfter(lvl, '1-3'), c: R.buffAfter(lvl, '4-3'), d: R.buffAfter(mx, '5-2'), e: R.buffAfter(mx, '5-3'), f: R.buffAfter(mx, '7-5'), g: R.buffAfter(mx, '6-1') }; });
     check('thẻ thiên phú: tầng 4A có sau 4-2 (4-3 không); Mê Trận 5-2 có, 5-3 không', B.a && !B.c && B.b && B.d && !B.e, JSON.stringify(B));
