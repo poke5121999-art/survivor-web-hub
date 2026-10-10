@@ -205,3 +205,5 @@ Có: bản vẽ nội thất (Máy Nước, Hồ Cá, Giếng Phép Thuật, Tư
 | AI quái 4C viết lại từ mô tả wiki | 001 hiện sau lưng + gai, 002 4 chùm 16 đạn, 003 khí độc 3 ô rồi lao, 004 vuốt + phun đạn/bóng oxy; đạn tròn dùng đạn 'orb' chung, chưa dùng prefab đạn gốc (tam giác nảy, đạn nảy của Kraken) |
 | Bong bóng quái: phân biệt cận chiến theo loại vũ khí đang cầm (không theo nguồn đòn), TTN-004 không nhả bóng đúng tần suất | [ƯỚC LƯỢNG] |
 | Thùng độc tím/thùng băng, sóng nước, ánh sáng/tối Seabed, nhạc bgm_4c, bong bóng cánh quạt của trùm, sàn 4C_RB_FloorTile_1/2 | chỉ dùng một khung sàn |
+
+| Trùm `boss_stone_man` (Tổ Tiên) đã vẽ bằng Spine | `js/spine.js` (spine-canvas 4.2.40, nạp lười từ CDN) + `js/bosses/boss_stone_man.js`; còn lại: `boss_stone_dragon`, Đổng Trác, Thợ Lặn Vực Sâu chưa làm. Số đòn Tổ Tiên (vùng nổ, sát thương) là [ƯỚC LƯỢNG]; không có bản chạy offline của spine-canvas (cần mạng, lỗi thì hình tĩnh) |
