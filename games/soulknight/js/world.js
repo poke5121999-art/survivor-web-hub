@@ -76,9 +76,14 @@
     const th = D.themes[stage.theme];
     const cfg = (th.stages && th.stages[stage.label]) || { map_long: 3, roomSpacing: 35 };
     const G = DS.rooms.grid, S = cfg.roomSpacing || 35, pad = 3;
-    const types = stage.br ? ['start', 'boss', 'end']
+    // 4B 4-3 [WIKI Ancient Battleground; FLOOR4.md 5]: hành lang dài r4b_long rồi phòng vuông r4b_big_*, xếp dọc một cột (phòng dài 120 ô rộng hơn
+    // ô lưới nên hai ô kề hai bên bị chặn). Trùm 4-3 (Lý Thôi/Hoa Hùng) chưa làm (GAPS.md).
+    const b43 = !stage.br && stage.theme === 'battleground' && stage.n === 3 && D.patterns && D.patterns.r4b_long && S >= 60;
+    const types = b43 ? ['start', 'battle', 'battle', 'end'] : stage.br ? ['start', 'boss', 'end']
       : ['start'].concat(Array(cfg.map_long || 3).fill('battle'), stage.boss ? ['boss'] : [], ['end']);
-    const cells = layoutPath(types.length, G);
+    const cells = b43 ? [[2, 0], [2, 1], [2, 2], [2, 3]] : layoutPath(types.length, G);
+    const b43Pats = b43 ? ['r4b_long', 'r4b_big_' + SK.randi(0, 2)] : null;
+    let nBattle = 0;
     const map = {
       theme: stage.theme, th, level: th.level || stage.level, lib: themeLib(th),
       W: G * S + pad * 2, H: G * S + pad * 2, rooms: [], obs: new Map(), doorCells: [],
@@ -93,7 +98,9 @@
       const r = { id: map.rooms.length, type, gx, gy, links: [], doors: [], state: 'idle', wave: -1,
         waves: [], seen: false, visited: false, doorT: 1, pattern: null };
       let w = DS.rooms[type] || 15, h = w;
-      if (type === 'battle' && pats.length) {
+      if (type === 'battle' && b43Pats) {
+        const k = b43Pats[nBattle++]; r.pattern = D.patterns[k]; r.patternId = k; w = r.pattern.w; h = r.pattern.h;
+      } else if (type === 'battle' && pats.length) {
         const k = SK.pick(pats); r.pattern = D.patterns[k]; r.patternId = k; w = r.pattern.w; h = r.pattern.h;
       } else if (type === 'boss' && D.patterns && D.patterns.r_boss) {
         r.pattern = D.patterns.r_boss; r.patternId = 'r_boss'; w = r.pattern.w; h = r.pattern.h;
@@ -109,6 +116,7 @@
 
     // nhánh phụ [WIKI Levels]: mỗi ải một phòng hộp vàng (chest) và một phòng dấu chấm than (special)
     const occupied = new Set(cells.map(c => c + ''));
+    if (b43) { occupied.add('1,1'); occupied.add('3,1'); }
     const sides = ['chest', 'special'];
     for (const type of sides) {
       // Ải Khu Thí Luyện chỉ có khởi đầu → trùm: phòng khởi đầu nằm góc lưới thì nhánh phụ treo vào phòng trùm.

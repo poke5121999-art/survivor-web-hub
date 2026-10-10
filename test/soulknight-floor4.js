@@ -49,6 +49,8 @@ const ALL7 = ['e_origin_stone', 'e_stone_chariot', 'e_stone_dog', 'e_stone_eagle
 // Trùm 4-5 của 4A [CFG map_A20]; máu wiki 1440 / 1800 / 1440 (warlord config giữ chỗ 999999)
 const BOSS45 = { boss_stone_man: 1440, boss_warlord: 1800, boss_stone_dragon: 1440 };
 
+// Vùng ép khi mở cổng tím (SK.floor4.force); 4A mặc định cho các phần cũ.
+let ZONE = 'monolith';
 async function open(b) {
   const p = await b.newPage({ viewport: { width: 1280, height: 720 } });
   const errs = [];
@@ -62,7 +64,7 @@ async function open(b) {
   await p.waitForSelector('#sk-start', { state: 'visible', timeout: 10000 });
   await p.click('#sk-start');
   await until(p, () => SK_GAME.state === 'stage', null, 5000);
-  await p.evaluate(() => { SK_GAME.debug.god(true); SK_GAME.debug.pet(false); });
+  await p.evaluate(z => { SK_GAME.debug.god(true); SK_GAME.debug.pet(false); SK.floor4.force = z; }, ZONE);
   return { p, errs };
 }
 
@@ -144,7 +146,7 @@ async function toBossCleared35(b, tag) {
       check('chủ đề monolith (4A): level 4, 7 quái e_stone_*, 7 bản tinh anh', r.level === 4 && JSON.stringify(r.enemies) === JSON.stringify(ALL7) && r.elites === 7, JSON.stringify(r.enemies));
       check('chủ đề monolith có nền trời + thư viện vật cản của vùng', r.bg === '#68d7de' && r.lib >= 10, r.bg + ' lib ' + r.lib);
       check('lượt mặc định chỉ 15 ải 1-1..3-5 (tầng 4 chỉ nối khi qua cổng tím)', r.n === 15 && r.labels[0] === '1-1' && r.labels[14] === '3-5', r.n + ' ải');
-      check('SK.tierThemes(4) = [monolith]', JSON.stringify(r.lvl4) === '["monolith"]', JSON.stringify(r.lvl4));
+      check('SK.tierThemes(4) gồm monolith (4A) và battleground (4B)', JSON.stringify(r.lvl4.slice().sort()) === '["battleground","monolith"]', JSON.stringify(r.lvl4));
       check('không lỗi trang (chủ đề)', !errs.length, errs.slice(0, 3).join(' | '));
       await p.close();
     }
@@ -279,6 +281,96 @@ async function toBossCleared35(b, tag) {
       const fin = await p.evaluate(() => ({ state: SK_GAME.state, stage: SK.G.stage.label, n: SK.STAGES.length }));
       check('không trả giá → qua cổng thường thắng ở 3-5 như cũ', win && fin.state === 'victory' && fin.stage === '3-5' && fin.n === 15, JSON.stringify(fin));
       check('không lỗi trang (đường không trả)', !errs.length, errs.slice(0, 3).join(' | '));
+      await p.close();
+    }
+
+    // ---- 7. Tầng 4B Chiến Trường Cổ (ép vùng bằng SK.floor4.force)
+    ZONE = 'battleground';
+    {
+      const ROSTER_B = {
+        1: { e_mob0: 85, e_mob2: 5, e_mob4: 10 },
+        2: { e_mob0: 70, e_mob1: 5, e_mob2: 5, e_mob4: 10 },
+        3: { e_mob0: 78, e_mob1: 3, e_mob2: 3, e_mob3: 3, e_mob4: 10, e_mob5: 3 },
+        4: { e_mob0: 78, e_mob1: 3, e_mob2: 3, e_mob3: 3, e_mob4: 10, e_mob5: 3 },
+        5: { e_mob0: 78, e_mob1: 3, e_mob2: 3, e_mob3: 3, e_mob4: 10, e_mob5: 3 }
+      };
+      const { p, errs } = await open(b);
+      const d = await p.evaluate(() => { const th = SK.D.themes.battleground; return { level: th && th.level, en: th && th.enemies.slice().sort(), ex: th && Object.keys(th.elites).length,
+        bg: th && th.bg, fl: th && th.tiles.floor.length, wl: th && th.tiles.wall.length, lib: th && Object.keys(th.lib || {}).length }; });
+      check('chủ đề battleground (4B): level 4, 6 quái e_mob0..5, 6 bản tinh anh, có nền + sàn + tường',
+        d.level === 4 && JSON.stringify([...new Set(d.en)]) === JSON.stringify(['e_mob0', 'e_mob1', 'e_mob2', 'e_mob3', 'e_mob4', 'e_mob5']) && d.ex === 6 && d.fl >= 1 && d.wl >= 1 && d.bg && d.lib >= 5, JSON.stringify(d).slice(0, 200));
+      await p.evaluate(() => { SK_GAME.debug.stage('3-5'); });
+      await until(p, () => SK_GAME.phase === 'play', null, 4000);
+      const kb = await killBoss(p);
+      check('4B: hạ trùm 3-5, phòng mở', kb.spawned && kb.hud && kb.cleared);
+      await p.evaluate(() => { const n = SK.G.f4.npc; SK.G.player.x = n.x + 22; SK.G.player.y = n.y + 4; SK.G.player.gold = 250; });
+      await useOption(p, 'vàng');
+      const at = await enterGate(p);
+      const r = await p.evaluate(() => ({ stage: SK_GAME.stage, theme: SK.G.stage.theme, th: SK.G.map.th === SK.D.themes.battleground, labels: SK.STAGES.slice(15).map(s => s.label), themes: [...new Set(SK.STAGES.slice(15).map(s => s.theme))] }));
+      check('cổng tím ép 4B → 4-1 chủ đề battleground, cả 5 ải cùng vùng', !!at && r.stage === '4-1' && r.theme === 'battleground' && r.th && r.themes.join() === 'battleground' && r.labels.join() === '4-1,4-2,4-3,4-4,4-5', JSON.stringify(r));
+      await until(p, () => SK_GAME.phase === 'play', null, 5000);
+      await p.evaluate(() => SK_GAME.debug.teleportTo('battle', 0));
+      await until(p, () => SK.G.enemies.length > 0, null, 6000);
+      await sleep(1500);
+      await p.screenshot({ path: path.join(SHOTS, '4B-1.png') });
+      const e1 = await p.evaluate(() => SK.G.enemies.map(e => e.id.replace(/^ex_/, 'e_')));
+      const bad = e1.filter(id => !(id in ROSTER_B[1]));
+      check('4B 4-1: quái ngoài đời thật thuộc danh sách map_B16', e1.length > 0 && !bad.length, [...new Set(e1)].join(' ') + (bad.length ? ' LẠ ' + bad : ''));
+      const ai = await p.evaluate(() => [...new Set(SK.G.enemies.map(e => e.rawCls + '>' + e.cls))]);
+      check('4B 4-1: AI quái đã có bản viết lại (không rơi về EnemyAI01)', ai.every(s => { const [raw, to] = s.split('>'); return raw === to; }), ai.join(' '));
+
+      const R = await p.evaluate(() => {
+        const out = {};
+        for (let n = 1; n <= 5; n++) {
+          SK_GAME.debug.stage('4-' + n);
+          const room = SK.G.map.rooms.find(r => r.type === 'battle'), cnt = {};
+          for (let k = 0; k < 150; k++) for (const w of SK.G.buildWaves(room)) for (const id of w) { const b = id.replace(/^ex_/, 'e_'); cnt[b] = (cnt[b] || 0) + 1; }
+          out[n] = cnt;
+        }
+        return out;
+      });
+      for (let n = 1; n <= 5; n++) {
+        const got = Object.keys(R[n]).sort(), want = Object.keys(ROSTER_B[n]).sort();
+        check('4B 4-' + n + ': đợt quái đúng danh sách map_B' + (15 + n), JSON.stringify(got) === JSON.stringify(want) && (R[n].e_mob0 || 0) > (R[n].e_mob4 || 0), got.join(' ') + ' mob0 ' + R[n].e_mob0 + ' mob4 ' + R[n].e_mob4);
+      }
+
+      // 4-3 dùng phòng r4b_*: hành lang dài rồi phòng vuông; kiểm nhiều lần sinh màn
+      const m3 = await p.evaluate(() => {
+        const out = [];
+        for (let k = 0; k < 6; k++) {
+          SK_GAME.debug.stage('4-3');
+          out.push(SK.G.map.rooms.filter(r => r.type === 'battle').map(r => r.patternId));
+        }
+        return out;
+      });
+      check('4B 4-3: hai phòng đánh là r4b_long rồi r4b_big_*', m3.every(a => a.length === 2 && a[0] === 'r4b_long' && /^r4b_big_[012]$/.test(a[1])), JSON.stringify(m3));
+      await until(p, () => SK_GAME.phase === 'play', null, 5000);
+      const ovl = await p.evaluate(() => { const rs = SK.G.map.rooms; let bad = 0; for (const a of rs) for (const c of rs) if (a.id < c.id && a.x0 <= c.x1 && c.x0 <= a.x1 && a.y0 <= c.y1 && c.y0 <= a.y1) bad++; return bad; });
+      check('4B 4-3: các phòng không chồng nhau', ovl === 0, 'chồng ' + ovl);
+      await p.evaluate(() => SK_GAME.debug.teleportTo('battle', 0));
+      await until(p, () => SK.G.enemies.length > 0, null, 6000);
+      await sleep(1200);
+      await p.screenshot({ path: path.join(SHOTS, '4B-3.png') });
+      const e3 = await p.evaluate(() => SK.G.enemies.map(e => e.id.replace(/^ex_/, 'e_')));
+      check('4B 4-3: phòng hành lang sinh quái thuộc map_B18, số lượng hợp lý (< 60)', e3.length > 0 && e3.length < 60 && e3.every(id => id in ROSTER_B[3]), e3.length + ' quái: ' + [...new Set(e3)].join(' '));
+
+      // 4-5: trùm, hạ thì thắng
+      await p.evaluate(() => SK_GAME.debug.stage('4-5'));
+      await until(p, () => SK_GAME.phase === 'play', null, 5000);
+      await p.evaluate(() => SK_GAME.debug.teleportTo('boss'));
+      const sp = await until(p, () => SK.G.enemies.some(e => e.bossKey), null, 8000);
+      const bk = await p.evaluate(() => SK.G.enemies.filter(e => e.bossKey).map(e => [e.bossKey, Math.round(e.hpMax)]));
+      check('4B 4-5: phòng trùm có trùm (mượn trùm 4A)', sp && bk.length === 1 && bk[0][0] in BOSS45, JSON.stringify(bk));
+      await until(p, () => SK.bossHud.visible, null, 9000);
+      await sleep(1200);
+      await p.screenshot({ path: path.join(SHOTS, '4B-boss.png') });
+      await p.evaluate(() => { const e = SK.G.enemies.find(x => x.bossKey); SK.hurtEnemy(SK.G, e, 1e6, false, 0, 0); });
+      const cl = await until(p, () => SK_GAME.rooms.find(r => r.type === 'boss').state === 'cleared', null, 15000);
+      check('4B: hạ trùm 4-5 → phòng mở', cl);
+      const win = await walkPortal(p, st => st.state === 'victory');
+      const fin = await p.evaluate(() => ({ state: SK_GAME.state, stage: SK.G.stage.label }));
+      check('4B: qua cổng sau 4-5 → chiến thắng', win && fin.state === 'victory' && fin.stage === '4-5', JSON.stringify(fin));
+      check('không lỗi trang (4B)', !errs.length, errs.slice(0, 3).join(' | '));
       await p.close();
     }
   } catch (e) {

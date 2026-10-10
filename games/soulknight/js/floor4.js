@@ -1,7 +1,9 @@
 // Tầng 4 = "ải mở rộng" của Chế độ Ải thường (tools/polish/FLOOR4.md). Sau trùm 3-5 Kẻ Vượt Ranh Giới hiện ra, mở cổng tím
 // sang 4-1 nếu trả 100 vàng hoặc 1 HP tối đa; không trả thì 3-5 kết thúc như cũ (thắng ở cổng thường).
 // Làm xong: 4A Di Tích Núi Khối (chủ đề 'monolith', 5 ải 4-1..4-5, 7 quái e_stone_*, 4 trùm trong js/bosses/).
-// Chưa làm (GAPS.md): 4B Chiến Trường Cổ, 4C Đáy Biển (oxy), thiên phú sau 4-2, ải kết 4-6.
+// 4B Chiến Trường Cổ (chủ đề 'battleground', 6 quái e_mob0..5, 4-3 dùng phòng r4b_*): cổng tím bốc 4A hoặc 4B cùng trọng số
+// [FLOOR4.md 9: wiki chỉ nói "có thể là một trong ba vùng", không có bảng trọng số]; trùm 4-5 của 4B mượn Hulala (GAPS.md).
+// Chưa làm (GAPS.md): 4C Đáy Biển (oxy), thiên phú sau 4-2, ải kết 4-6.
 // Nhãn: [LOC khoá] localization_en_vi, [CFG bảng.khoá] config, [WIKI trang], [ĐO] dữ liệu bundle, [SUY] suy luận, [ƯỚC LƯỢNG] tự đặt.
 (function () {
   'use strict';
@@ -26,6 +28,45 @@
     return out;
   };
 
+  // ---------------------------------------------------------------- 4B Chiến Trường Cổ [CFG map_levels.map_B16..B20.Enemies]
+  // Trọng số (mob0 Lính Giáo Dài, mob1 Cung, mob2 Kỵ, mob3 Quạt, mob4 Địa Lôi, mob5 Bắt Lưới); weight 0 hoặc vắng = không ra.
+  const WEIGHTS_B = {
+    1: { e_mob0: 85, e_mob2: 5, e_mob4: 10 },
+    2: { e_mob0: 70, e_mob1: 5, e_mob2: 5, e_mob4: 10 },
+    3: { e_mob0: 78, e_mob1: 3, e_mob2: 3, e_mob3: 3, e_mob4: 10, e_mob5: 3 },
+    4: { e_mob0: 78, e_mob1: 3, e_mob2: 3, e_mob3: 3, e_mob4: 10, e_mob5: 3 },
+    5: { e_mob0: 78, e_mob1: 3, e_mob2: 3, e_mob3: 3, e_mob4: 10, e_mob5: 3 }
+  };
+  F4.WEIGHTS_B = WEIGHTS_B;
+  // Máu quái 4B: config ghi 16 giữ chỗ, dùng số wiki [WIKI Ancient Battleground]: thường / Tinh Anh
+  const HP_B = { 0: [14, 96], 1: [14, 72], 2: [40, 96], 3: [22, 72], 4: [19, 72], 5: [22, 72] };
+  const thB = D.themes.battleground;
+  if (thB) {
+    for (const [k, [n, ex]] of Object.entries(HP_B)) {
+      if (D.enemies['e_mob' + k]) D.enemies['e_mob' + k].hp = n;
+      if (D.enemies['ex_mob' + k]) D.enemies['ex_mob' + k].hp = ex;
+    }
+    // game.js buildWaves đọc th.enemies: trả danh sách có lặp theo trọng số của ải đang chơi (SK.pick ra đúng tỉ lệ), khi ngoài 4B trả danh sách đủ.
+    const base = thB.enemies.slice();
+    Object.defineProperty(thB, 'enemies', { configurable: true, enumerable: true, get() {
+      const st = SK.G && SK.G.stage;
+      if (!st || st.theme !== 'battleground' || !st.n) return base;
+      const w = WEIGHTS_B[st.n] || WEIGHTS_B[5], out = [];
+      for (const [id, k] of Object.entries(w)) for (let i = 0; i < k; i++) out.push(id);
+      return out;
+    } });
+    F4.baseB = base;
+  }
+  // Mẫu phòng 4-3 của 4B ghi pts 35000/40000 (đơn vị gốc, quái đứng sẵn sau rào chứ không bốc theo điểm): web bốc theo điểm nên đặt số hợp lý [ƯỚC LƯỢNG]
+  if (D.patterns) {
+    if (D.patterns.r4b_long) D.patterns.r4b_long.pts = 30;
+    for (let i = 0; i < 3; i++) if (D.patterns['r4b_big_' + i]) D.patterns['r4b_big_' + i].pts = 24;
+  }
+  // AI quái 4B: lớp Unity AIBrain (p rỗng, logic IL2CPP) viết lại theo mô tả wiki, mượn AI có sẵn [ƯỚC LƯỢNG]:
+  //   Lính Giáo Dài: lao vào đâm; Lính Cung: đứng xa bắn; Lính Kỵ: gồng rồi húc; Lính Quạt: bắn nhanh gần; Địa Lôi: lao vào áp sát; Bắt Lưới: bắn chậm.
+  const MOB = { 0: ['EnemyAI02', { shoot_cd: 1.4, atk_range: 2.4 }], 1: ['EnemyAI03', { shoot_cd: 2.2 }], 2: ['EnemyAI04', { shoot_cd: 2.4, sprintForce: 8 }],
+    3: ['EnemyAI03', { shoot_cd: 1.4 }], 4: ['EnemyAI02', { shoot_cd: 1.2, atk_range: 1.6 }], 5: ['EnemyAI03', { shoot_cd: 2.8 }] };
+
   // ---------------------------------------------------------------- AI quái 4A (lớp Unity có p rỗng, logic nằm trong IL2CPP)
   // Viết lại theo mô tả wiki và state của controller, mượn hành vi của AI có sẵn [ƯỚC LƯỢNG]:
   //   Chiến Binh (EnemyRider): đứng xa bắn 5 viên đạn nhỏ; gốc còn cưỡi Ngựa/Bò/Đại Bàng/Xe, web chưa có cơ chế cưỡi.
@@ -41,7 +82,13 @@
   A.EnemyStoneChariot = via('EnemyAI04', { shoot_cd: 2.4, sprintForce: 8 });
   A.EnemyStoneEagle = via('EnemyAI02', { shoot_cd: 1.2, atk_range: 2.2 });
   A.EnemyExStoneEagle = A.EnemyStoneEagle;
-  A.AIBrain = via('EnemyAI02', { shoot_cd: 1.1, atk_range: 2 });
+  const brainOld = via('EnemyAI02', { shoot_cd: 1.1, atk_range: 2 });
+  A.AIBrain = (G, e, dt) => {
+    const m = /^ex?_mob(\d)$/.exec(e.id), k = m && MOB[m[1]];
+    if (!k) return brainOld(G, e, dt);
+    if (!e._f4) { e._f4 = 1; Object.assign(e.p, k[1]); }
+    return A[k[0]](G, e, dt);
+  };
   // Đá Thô: đứng yên; khi có quái bị thương trong 6 ô thì rung 1 giây rồi tự phá, hồi 60 máu (Tinh Anh 85) cho quái quanh nó [WIKI MMR]
   A.EnemyOriginStone = function (G, e, dt) {
     if (e.st !== 'idle') e.st = 'idle';
@@ -70,9 +117,13 @@
   };
   const state = G => (G.f4 = G.f4 || {});
 
+  // Vùng của lượt: bốc 4A hoặc 4B cùng trọng số [SUY]; F4.force ('monolith' | 'battleground') ép vùng cho bộ kiểm.
+  F4.ZONES = ['monolith', 'battleground'].filter(k => D.themes[k]);
+  F4.force = null;
   F4.extend = function (stages) {
     if (stages.some(s => s.ext)) return false;
-    for (let i = 1; i <= 5; i++) stages.push({ theme: 'monolith', level: 4, n: i, label: '4-' + i, boss: i === 5, br: false, ext: true });
+    const zone = F4.force && D.themes[F4.force] ? F4.force : SK.pick(F4.ZONES);
+    for (let i = 1; i <= 5; i++) stages.push({ theme: zone, level: 4, n: i, label: '4-' + i, boss: i === 5, br: false, ext: true });
     return true;
   };
 
@@ -142,7 +193,8 @@
   F4.BOSSES45 = ['boss_stone_man', 'boss_warlord', 'boss_stone_dragon'];
   const bossWaves0 = SK.bossWaves;
   SK.bossWaves = function (G) {
-    if (G.stage && G.stage.theme === 'monolith' && !(SK.bossDebug && SK.bossDebug.force)) {
+    // 4B 4-5: trùm gốc Đổng Trác / Vũ Khí Cuối Cùng 01 chưa có rig bóc (GAPS.md), mượn trùm 4A đã có AI.
+    if (G.stage && (G.stage.theme === 'monolith' || G.stage.theme === 'battleground') && !(SK.bossDebug && SK.bossDebug.force)) {
       const ok = F4.BOSSES45.filter(id => SK.BOSS_AIS && SK.BOSS_AIS[id]);
       if (ok.length) return [[SK.pick(ok)]];
     }

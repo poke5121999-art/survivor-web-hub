@@ -153,6 +153,18 @@ Có: bản vẽ nội thất (Máy Nước, Hồ Cá, Giếng Phép Thuật, Tư
 | Hulala: sát thương/tốc/số viên [ƯỚC LƯỢNG]; Tinh Anh 2250 do hệ số Lợi Hại chung; chưa có bầy ngựa/bò/xe đỗ sẵn ở phòng và cảnh nhảy sang con khác | `ent.hp = 1500` đặt trong boss_warlord.js (config 999999 giữ chỗ), HP_FACTOR 1,2 ra đúng 1800 wiki |
 | 4B Chiến Trường Cổ, 4C Đáy Biển (oxy) | xem FLOOR4.md mục 8 bước 3-4. build_sk.py chưa thêm level/4/b, level/4/c |
 
+## Tầng 4B Chiến Trường Cổ (js/floor4.js, js/world.js b43, test/soulknight-floor4.js mục 7)
+
+Đã làm: chủ đề `battleground` (build_sk.py `level/4/b.ab`; sàn cỏ gr_21/gr_22/RB_Floor_4, tường prefab wall_AB, nền #70822f, 6 quái e_mob0..5 + tinh anh), bốc quái theo trọng số map_B16..B20 (getter `th.enemies` trong floor4.js, game.js không phải sửa), máu quái theo wiki (config 16 giữ chỗ), cổng tím bốc 4A/4B cùng trọng số (`SK.floor4.force` ép vùng cho bộ kiểm), 4-3 dựng r4b_long rồi r4b_big_* xếp dọc một cột (pts 35000/40000 trong dữ liệu đổi thành 30/24 [ƯỚC LƯỢNG]).
+
+| Còn thiếu | Ghi chú |
+|---|---|
+| Trùm 4-5 của 4B (Đổng Trác, Vũ Khí Cuối Cùng 01) và trùm 4-3 (Lý Thôi, Hoa Hùng) | chưa bóc rig vào sk-bosses86 (build_bosses86.py) và chưa viết AI; 4-5 của 4B mượn bể trùm 4A (Hulala) |
+| AI quái 4B viết lại từ mô tả, mượn EnemyAI02/03/04 (AIBrain, p rỗng, logic IL2CPP) | Địa Lôi không nổ mìn, Bắt Lưới không có lưới, Lính Quạt/Cung chưa có đạn riêng, Tinh Anh chưa đổi hình/kèn Trumpet (vẫn phình 1,25) |
+| 4-3 đặc biệt: rào/ô tăng tốc có sẵn trong mẫu nhưng quái chưa đứng nhóm sau rào, 3 hướng sau phòng 2 (Thầy Hướng Dẫn / trùm / Thương Nhân Thần Bí) | web dùng bố cục start-dài-vuông-end chuẩn |
+| HUD riêng của 4B | FLOOR4.md không nêu HUD riêng cho 4B (HUD riêng chỉ có ở 4C: oxy) |
+| Sàn đá lâu đài (4B_RB_FloorTile_1..3) sau hành lang 4-3, nhạc 4B | chỉ dùng sàn cỏ |
+
 ## Cơ giáp (Bước D, rev 20261010m)
 - Mới làm m_mech_0 (Thiết Giáp Nguyên Mẫu) và m_mech_1 (Chưởng Thép); 10 cơ giáp còn lại chưa có sprite/vũ khí gắn riêng nên không bày ở quán (SK.mechImpl).
 - `data/sk-forge.js` có bản vẽ m_mech_2..9 nhưng m_mech_0/1 không có bản vẽ (unlock null [ĐO npc_mount_mech]) nên bán thẳng; loại khác sau này lọc qua `SK.profile.devd`.
