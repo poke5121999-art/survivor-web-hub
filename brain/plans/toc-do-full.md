@@ -26,8 +26,9 @@ Research (ngoài git, scratchpad phiên `c96d80b0…/scratchpad/research/`): `st
 | Nhiệm Vụ ngày, Thành Tựu, Cửa Hàng (mua xe) | 542a5dc2, 3399025b, da2dcda1 | làm: nhánh Gara |
 | Ghép phòng "Đang ghép...", màn tải có thẻ người chơi | 593d5bf3, 34b46227; `ui/#loading/loadingplayer*item` | làm: nhánh Sảnh |
 | Thêm đường đua (Tứ Xuyên, Reno, Polaris...) | screens.md mục 4 | làm: nhánh Đường đua |
-| Cốt Truyện, Khu Giải Trí, Đội Đua (club), Cặp Đôi, Bạn Bè, Thư, chat, PET, thời trang, gacha xe X | | **Không**: cần máy chủ/người chơi thật hoặc nội dung truyện không có trong APK |
-| Đua Xuyên Không, Át Chủ Bài, các mode sự kiện (`ui/gamemode/#*`) | | **Không**: mode sự kiện theo mùa, luật nằm trên máy chủ |
+| Cốt Truyện, Khu Giải Trí, Đội Đua (club), Cặp Đôi, Bạn Bè, Thư, PET, thời trang, Xưởng | | đợt 2: bản chơi đơn, bot thay người thật, lưu HubSave |
+| Chat thế giới, ghép người thật | | **Không**: cần máy chủ |
+| Mode sự kiện (`ui/gamemode/#*`) | | đợt 2: Đua Loại, Săn Xu, Cảnh Sát Bắt Cướp, Đua Giới Hạn (luật chọn) |
 | Giọng đếm ngược, tiếng đạo cụ (bank `DJ`) | items.md mục 4 | **Không có trong APK**: tiếng đạo cụ tổng hợp hoặc mượn |
 
 ## Nền chung (đã dựng, chủ: luồng chính)
@@ -74,12 +75,17 @@ Luồng chính giữ: `index.html`, `js/main.js`, `js/core.js`, `js/sim/{race,ka
 Sáu nhánh xong, gộp ở luồng chính. Bài kiểm riêng từng nhánh: items 55/0, rank 59/0, garage 43/0, practice 49/0, lobby 70/0;
 sim 77/0 (6 đường). Bộ đầy đủ chạy tuần tự bằng `scratchpad/suite.sh` (xem báo cáo cuối phiên).
 
+## Đợt 2 (2026-10-10)
+
+Yêu cầu: làm hết "Còn mở" và làm bản chơi đơn cho danh sách "Không làm". 12 nhánh, kết quả kiểm riêng:
+sprint 62/0 (4 đường A→B), rank 114/0 (Vòng Trong, mùa, Xu Xếp Hạng), items 116/0 (hoạt ảnh + hạt gốc), audio 6/0 (Node),
+perf 6/0 (Phố Tàu 8,7 → 3,0 MB), pet, fashion 44/0, gacha 61/0 (18 xe), story 86/0 (22 ải), events 61/0 + 43/0, social, garage 90/0.
+
 ## Còn mở
 
-- Xếp hạng: chưa có "Vòng Trong" (trận thăng bậc); thang bậc/sao là số chọn (APK không có bảng điểm). Huy hiệu `cs`, `df` chưa dùng.
-- Đạo cụ: mô hình có xương xuất ở tư thế nghỉ (không hoạt ảnh); tiếng mượn; chưa thấy tên lửa đang bay trong ảnh chụp
-  (bài kiểm Node xác nhận trúng). Lốc Xoáy khó thấy trên nền trời sáng.
-- Đường A→B (Tứ Xuyên, Reno, Polaris...) cần luật "về đích ở checkpoint cuối" mới chạy được: chưa làm.
-- Không làm (cần máy chủ hoặc nội dung không có trong APK): Cốt Truyện, Khu Giải Trí, Đội Đua, Cặp Đôi, bạn bè, thư, PET,
-  thời trang, gacha xe X, mode sự kiện.
-- Từ pha trước: Phố Tàu nặng, `NssStandard` thiếu probe, CWW, giọng đếm ngược, chưa ai nghe tiếng bằng tai.
+- Giọng đếm ngược và tiếng đạo cụ gốc: không có trong APK (bank tải sau). Đang dùng bíp/chuông gốc và 17 tiếng mượn.
+- PET không có clip hoạt ảnh trong APK (mô hình tĩnh, lắc lư bằng JS); chỉ 21 PET có mô hình.
+- Mọi bảng số của hệ thống máy chủ (thang sao, giá, tỉ lệ Xưởng, nhiệm vụ, phần thưởng) là số chọn, ghi `// chọn` trong mã.
+- Huy hiệu bậc `cs`, `df` không có chuỗi tương ứng: chưa dùng.
+- `NssStandard` thiếu reflection probe; CWW; chưa ai nghe tiếng bằng tai.
+- Không làm: chat thế giới, ghép người thật (cần máy chủ).

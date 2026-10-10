@@ -421,6 +421,67 @@ def export_lightmaps(O, out):
 
 
 # --- main -----------------------------------------------------------------------------------
+# --- hình học: gộp vào toạ độ thế giới, hoặc giữ cục bộ cho instancing --------------------------
+def geom_world(parts, su, sv, ou, ov, lm, layer2):
+    P, N, U0, U1, C, I = [], [], [], [], [], []
+    base = 0
+    for M, si, world, so in parts:
+        tri = M['subs'][si]
+        used = np.unique(tri)
+        remap = np.full(len(M['pos']), -1, dtype=np.int64)
+        remap[used] = np.arange(len(used))
+        pos = M['pos'][used]
+        p = (world[:3, :3] @ pos.T).T + world[:3, 3]
+        P.append(p * [1, 1, -1])
+        nm = np.linalg.inv(world[:3, :3]).T
+        if M['nrm'] is not None:
+            n = (nm @ M['nrm'][used].T).T
+            n /= np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-9)
+        else:
+            n = np.tile([0.0, 1.0, 0.0], (len(used), 1))
+        N.append(n * [1, 1, -1])
+        uv = M['uv0'][used] if M['uv0'] is not None else np.zeros((len(used), 2))
+        uv = uv * [su, sv] + [ou, ov]
+        U0.append(np.stack([uv[:, 0], 1 - uv[:, 1]], 1))
+        if lm >= 0:
+            l = M['uv1'] if M['uv1'] is not None else M['uv0']
+            l = l[used] if l is not None else np.zeros((len(used), 2))
+            l = l * [so['x'], so['y']] + [so['z'], so['w']]
+            U1.append(np.stack([l[:, 0], 1 - l[:, 1]], 1))
+        if layer2:
+            C.append(M['col'][used] if M['col'] is not None else np.ones((len(used), 4)))
+        t = remap[tri]
+        # Unity->three z flip mirrors the mesh; a mirrored world matrix mirrors it back
+        if np.linalg.det(world[:3, :3]) > 0:
+            t = t[:, [0, 2, 1]]
+        I.append(t + base)
+        base += len(used)
+    cat = lambda a: np.concatenate(a) if a else None
+    return cat(P), cat(N), cat(U0), cat(U1), cat(C), np.concatenate(I)
+
+
+def geom_local(M, si, swap, su, sv, ou, ov, lm):
+    """Mesh cục bộ (đã lật z như geom_world) cho instancing: ma trận mỗi bản F·W·F nằm ở inst.bin.
+    TEXCOORD_1 giữ UV lightmap thô; scale/offset lightmap của từng bản nằm cùng ma trận."""
+    tri = M['subs'][si]
+    used = np.unique(tri)
+    remap = np.full(len(M['pos']), -1, dtype=np.int64)
+    remap[used] = np.arange(len(used))
+    P = M['pos'][used] * [1, 1, -1]
+    n = M['nrm'][used] * [1, 1, -1] if M['nrm'] is not None else np.tile([0.0, 1.0, 0.0], (len(used), 1))
+    uv = M['uv0'][used] if M['uv0'] is not None else np.zeros((len(used), 2))
+    uv = uv * [su, sv] + [ou, ov]
+    U0 = np.stack([uv[:, 0], 1 - uv[:, 1]], 1)
+    U1 = None
+    if lm >= 0:
+        l = M['uv1'] if M['uv1'] is not None else M['uv0']
+        U1 = l[used] if l is not None else np.zeros((len(used), 2))
+    t = remap[tri]
+    if swap:
+        t = t[:, [0, 2, 1]]
+    return P, n, U0, U1, None, t
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith('--')]
     opts = {a.split('=')[0]: (a.split('=') + [''])[1] for a in sys.argv[1:] if a.startswith('--')}
@@ -433,7 +494,7 @@ def main():
     out = os.path.join(GAME, 'art', 'tracks', out_id)
     os.makedirs(out, exist_ok=True)
     for fn in os.listdir(out):
-        if re.match(r'(track\.glb|lm\d+\.png|sky\.webp|meta\.json|export\.log)$', fn):
+        if re.match(r'(track\.glb|lm\d+\.png|sky\.webp|inst\.bin|meta\.json|export\.log)$', fn):
             os.remove(os.path.join(out, fn))
 
     rows = [r for r in zs.find(scene_name) if any(c.endswith('/' + scene_name) for c in r['cont'])]
@@ -540,52 +601,12 @@ def main():
     prims = 0
     used_lm = set()
     sky_info = None
+    inst_defs, inst_bin = [], bytearray()
+    CELL = float(opts.get('--cell') or 160)       # cạnh ô lưới (m) để chia khối cho frustum culling; 0 = không chia
+    MIN_INST = int(opts.get('--min-inst') or 3)   # số lần lặp tối thiểu của cùng mesh+vật liệu để dùng instancing
     for (mk, lm, sky), gr in groups.items():
         mat = gr['mat']
         su, sv, ou, ov = mat.st(mat.albedo_slot) if mat.albedo_slot else (1, 1, 0, 0)
-        P, N, U0, U1, C, I = [], [], [], [], [], []
-        base = 0
-        for M, si, world, so in gr['parts']:
-            tri = M['subs'][si]
-            used = np.unique(tri)
-            remap = np.full(len(M['pos']), -1, dtype=np.int64)
-            remap[used] = np.arange(len(used))
-            pos = M['pos'][used]
-            p = (world[:3, :3] @ pos.T).T + world[:3, 3]
-            P.append(p * [1, 1, -1])
-            nm = np.linalg.inv(world[:3, :3]).T
-            if M['nrm'] is not None:
-                n = (nm @ M['nrm'][used].T).T
-                n /= np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-9)
-            else:
-                n = np.tile([0.0, 1.0, 0.0], (len(used), 1))
-            N.append(n * [1, 1, -1])
-            uv = M['uv0'][used] if M['uv0'] is not None else np.zeros((len(used), 2))
-            uv = uv * [su, sv] + [ou, ov]
-            U0.append(np.stack([uv[:, 0], 1 - uv[:, 1]], 1))
-            if lm >= 0:
-                l = M['uv1'] if M['uv1'] is not None else M['uv0']
-                l = l[used] if l is not None else np.zeros((len(used), 2))
-                l = l * [so['x'], so['y']] + [so['z'], so['w']]
-                U1.append(np.stack([l[:, 0], 1 - l[:, 1]], 1))
-            if mat.layer2:
-                C.append(M['col'][used] if M['col'] is not None else np.ones((len(used), 4)))
-            t = remap[tri]
-            # Unity->three z flip mirrors the mesh; a mirrored world matrix mirrors it back
-            if np.linalg.det(world[:3, :3]) > 0:
-                t = t[:, [0, 2, 1]]
-            I.append(t + base)
-            base += len(used)
-        P = np.concatenate(P).astype(np.float32)
-        attrs = {'POSITION': glb.acc(P, 'VEC3', 34962, True),
-                 'NORMAL': glb.acc(np.concatenate(N).astype(np.float32), 'VEC3', 34962),
-                 'TEXCOORD_0': glb.acc(np.concatenate(U0).astype(np.float32), 'VEC2', 34962)}
-        if lm >= 0:
-            attrs['TEXCOORD_1'] = glb.acc(np.concatenate(U1).astype(np.float32), 'VEC2', 34962)
-            used_lm.add(lm)
-        if C:
-            attrs['COLOR_0'] = glb.acc(np.concatenate(C).astype(np.float32), 'VEC4', 34962)
-        ind = glb.acc(np.concatenate(I).reshape(-1).astype(np.uint32), 'SCALAR', 34963)
 
         gm = {'name': mat.name, 'pbrMetallicRoughness': {
             'baseColorFactor': [mat.tint['r'], mat.tint['g'], mat.tint['b'], 1.0], 'metallicFactor': 0.0, 'roughnessFactor': 1.0}}
@@ -654,12 +675,87 @@ def main():
         glb.j['materials'].append(gm)
         mi = len(glb.j['materials']) - 1
         name = ('sky:' if sky else '') + mat.name + (f'|lm{lm}' if lm >= 0 else '')
-        glb.j['meshes'].append({'name': name, 'primitives': [{'attributes': attrs, 'indices': ind, 'material': mi, 'extras': extras}]})
-        glb.j['nodes'].append({'name': name, 'mesh': len(glb.j['meshes']) - 1, 'extras': extras})
-        glb.j['scenes'][0]['nodes'].append(len(glb.j['nodes']) - 1)
-        prims += 1
-        ntri = sum(len(x) for x in I)
-        log(f'prim {name}: {mat.shader} alpha={mat.alpha} tris={ntri} verts={len(P)} from {sorted(gr["objs"])[:6]}')
+
+        def add_node(nm, attrs, ind, ex, inst=None):
+            glb.j['meshes'].append({'name': nm, 'primitives': [{'attributes': attrs, 'indices': ind, 'material': mi, 'extras': ex}]})
+            nx = dict(ex)
+            if inst is not None:
+                nx['inst'] = inst
+            glb.j['nodes'].append({'name': nm, 'mesh': len(glb.j['meshes']) - 1, 'extras': nx})
+            glb.j['scenes'][0]['nodes'].append(len(glb.j['nodes']) - 1)
+
+        def accs(g):
+            P, N, U0, U1, C, I = g
+            a = {'POSITION': glb.acc(P.astype(np.float32), 'VEC3', 34962, True),
+                 'NORMAL': glb.acc(N.astype(np.float32), 'VEC3', 34962),
+                 'TEXCOORD_0': glb.acc(U0.astype(np.float32), 'VEC2', 34962)}
+            if lm >= 0:
+                a['TEXCOORD_1'] = glb.acc(U1.astype(np.float32), 'VEC2', 34962)
+            if C is not None:
+                a['COLOR_0'] = glb.acc(C.astype(np.float32), 'VEC4', 34962)
+            return a, glb.acc(I.reshape(-1).astype(np.uint32), 'SCALAR', 34963)
+
+        if lm >= 0:
+            used_lm.add(lm)
+        parts = gr['parts']
+        # instancing: cùng mesh + submesh lặp nhiều lần (cây, bụi, cột) ghi một lần kèm danh sách ma trận + scale/offset lightmap.
+        # Không áp cho lớp 2 (màu đỉnh), trời, hay mesh nhỏ (gộp rẻ hơn thêm draw call).
+        by = collections.defaultdict(list)
+        for pt in parts:
+            by[(id(pt[0]), pt[1])].append(pt)
+        merged = []
+        for key, pts in by.items():
+            M, si = pts[0][0], pts[0][1]
+            if sky or mat.layer2 or len(pts) < MIN_INST or len(M['subs'][si]) < 100:
+                merged += pts
+                continue
+            for sign in (1, -1):
+                ps = [q for q in pts if (np.linalg.det(q[2][:3, :3]) > 0) == (sign > 0)]
+                if not ps:
+                    continue
+                g = geom_local(M, si, sign > 0, su, sv, ou, ov, lm)
+                attrs, ind = accs(g)
+                F = np.diag([1.0, 1.0, -1.0])
+                rows = []
+                for _, _, world, so in ps:
+                    Im = F @ world[:3, :4] @ np.diag([1, 1, -1, 1.0])  # F·W·F (3x4)
+                    st = [so['x'], so['y'], so['z'], so['w']] if lm >= 0 else [1, 0, 0, 0]
+                    cen = Im[:, :3] @ ((g[0].min(0) + g[0].max(0)) / 2) + Im[:, 3]
+                    rows.append((Im, st, cen))
+                rad = float(np.linalg.norm(g[0] - (g[0].min(0) + g[0].max(0)) / 2, axis=1).max())
+                cells = collections.defaultdict(list)
+                for r in rows:
+                    cells[(int(r[2][0] // CELL), int(r[2][2] // CELL)) if CELL > 0 else 0].append(r)
+                chunks = []
+                for _, rs in sorted(cells.items(), key=lambda kv: str(kv[0])):
+                    off = len(inst_bin) // 80
+                    for Im, st, cen in rs:
+                        m4 = np.vstack([Im, [0, 0, 0, 1.0]])
+                        inst_bin += m4.T.astype('<f4').tobytes() + np.array(st, dtype='<f4').tobytes()
+                    cs = np.array([r[2] for r in rs])
+                    c = (cs.min(0) + cs.max(0)) / 2
+                    sc = max(float(np.linalg.svd(r[0][:, :3], compute_uv=False)[0]) for r in rs)
+                    chunks.append({'off': off, 'n': len(rs), 'c': [round(float(x), 2) for x in c],
+                                   'r': round(float(np.linalg.norm(cs - c, axis=1).max() + rad * sc), 2)})
+                inst_defs.append({'chunks': chunks})
+                nm = f'inst:{M["name"]}:{mat.name}' + (f'|lm{lm}' if lm >= 0 else '')
+                add_node(nm, attrs, ind, extras, len(inst_defs) - 1)
+                prims += 1
+                log(f'inst {nm}: {len(ps)} instances in {len(chunks)} chunks, tris each={len(g[5])} verts={len(g[0])}')
+        # phần còn lại: gộp vào hình cố định, chia theo ô lưới để three cắt khối ngoài khung nhìn
+        cells = collections.defaultdict(list)
+        for pt in merged:
+            M, si, world, so = pt
+            c = world[:3, :3] @ ((M['pos'].min(0) + M['pos'].max(0)) / 2) + world[:3, 3]
+            cells[(int(c[0] // CELL), int(c[2] // CELL)) if CELL > 0 and not sky else 0].append(pt)
+        for ck, cp in sorted(cells.items(), key=lambda kv: str(kv[0])):
+            g = geom_world(cp, su, sv, ou, ov, lm, mat.layer2)
+            attrs, ind = accs(g)
+            nm = name + (f'@{ck[0]},{ck[1]}' if ck != 0 else '')
+            add_node(nm, attrs, ind, extras)
+            prims += 1
+            P = g[0]
+            log(f'prim {nm}: {mat.shader} alpha={mat.alpha} tris={len(g[5])} verts={len(P)} from {sorted({q[0]["name"] for q in cp})[:6]}')
         if sky:
             c = (P.min(0) + P.max(0)) / 2
             sky_info = {'type': 'mesh', 'node': name, 'shader': mat.shader,
@@ -680,6 +776,9 @@ def main():
         else:
             os.remove(raw)
 
+    if inst_defs:
+        with open(os.path.join(out, 'inst.bin'), 'wb') as f:
+            f.write(inst_bin)
     log('lightmaps used by primitives: ' + str(sorted(used_lm)))
 
     rs = next(o.read_typetree() for o in O.values() if o.type.name == 'RenderSettings')
@@ -706,6 +805,7 @@ def main():
     meta = {'id': out_id, 'scene': scene_name, 'logic': logic, 'glb': 'track.glb', 'primitives': prims,
             'colorSpace': 'gamma', 'fog': fog, 'ambient': ambient, 'sun': sun, 'sky': sky_info,
             'lightmaps': lm_meta, 'startPose': pose,
+            **({'instances': {'file': 'inst.bin', 'stride': 20, 'list': inst_defs}} if inst_defs else {}),
             'shading': 'gamma space, textures not sRGB-decoded: lit = albedo*(lm.rgb*rgbScale + sun.color*sun.intensity*max(dot(N,-sun.dir),0)*lm.a) + emissive; '
                        'no lightmap: albedo*(ambient.sky + sun term) ; sky/unlit: albedo',
             'trackPoints': [[round(v, 2) for v in q] for q in pts] if pts else None}

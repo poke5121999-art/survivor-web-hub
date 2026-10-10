@@ -57,7 +57,8 @@
     H.rows = []; for (let i = 0; i < 8; i++) H.rows.push(mk('rankitem'));
     H.myRow = mk('myrankitem');
   }
-  const TEAM_TINT = [[1, .45, .42], [.45, .72, 1]];   // Đội Đỏ / Đội Xanh (TD.TEAMS)
+  const TEAM_BG = [[0.45, 0.06, 0.06, 0.6], [0.05, 0.18, 0.45, 0.6], [0.45, 0.36, 0.04, 0.6]];
+  const TEAM_TINT = [[1, .45, .42], [.45, .72, 1], [1, .85, .35]];   // Đội Đỏ / Xanh / Vàng (TD.TEAMS)
   const TINT = [[1, .62, .55], [.6, .85, 1], [.7, 1, .65], [1, .9, .5], [.85, .7, 1], [1, .75, .9], [.75, 1, 1], [1, .85, .7]];
   function updateRankList(race, me) {
     if (!H.rows) return;
@@ -70,7 +71,7 @@
       if (!r) continue;
       const h = mine ? MY_H : ROW_H;
       r.n.off = 0; r.n.p = [mine ? 34 : 42, -(y + h / 2)]; y += h;
-      if (r.bg && r.bg.img) r.bg.img.c = mine ? [0.12, 0.44, 0.97, 0.78] : k.team === 0 ? [0.45, 0.06, 0.06, 0.6] : k.team === 1 ? [0.05, 0.18, 0.45, 0.6] : [0.03, 0.05, 0.1, 0.5];
+      if (r.bg && r.bg.img) r.bg.img.c = mine ? [0.12, 0.44, 0.97, 0.78] : k.team != null ? TEAM_BG[k.team] : [0.03, 0.05, 0.1, 0.5];
       if (r.name && r.name.txt) { r.name.off = 0; r.name.txt.s = k.name; if (!mine) r.name.txt.fs = 18; }
       if (r.head) {
         r.head.off = 0;
@@ -218,6 +219,11 @@
     }
     const c0 = T.cps[T.startCp], s = [pad + (c0.x - x0) * k + ((S - pad * 2) - (x1 - x0) * k) / 2, pad + (c0.z - z0) * k + ((S - pad * 2) - (z1 - z0) * k) / 2];
     g.fillStyle = '#ffd34a'; g.fillRect(s[0] - 5, s[1] - 2, 10, 4);
+    // Đường A→B: vạch đích riêng ở checkpoint cuối, ô caro đen trắng.
+    if (!T.loop) {
+      const e = T.cps[T.endCp], ex = pad + (e.x - x0) * k + ((S - pad * 2) - (x1 - x0) * k) / 2, ez = pad + (e.z - z0) * k + ((S - pad * 2) - (z1 - z0) * k) / 2;
+      for (let i = 0; i < 4; i++) for (let j = 0; j < 2; j++) { g.fillStyle = (i + j) % 2 ? '#111' : '#fff'; g.fillRect(ex - 8 + i * 4, ez - 4 + j * 4, 4, 4); }
+    }
     H.mm = { c, k, x0, z0, x1, z1, S, pad, map: (x, z) => [pad + (x - x0) * k + ((S - pad * 2) - (x1 - x0) * k) / 2, pad + (z - z0) * k + ((S - pad * 2) - (z1 - z0) * k) / 2] };
   }
 

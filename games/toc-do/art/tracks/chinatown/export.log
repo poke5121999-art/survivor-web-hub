@@ -19,68 +19,89 @@ shader QF_PBR/Env/NssTerrain2Layer: texture slots ['_BaseMap', '_BaseMap2', '_He
   tex E_Leisure2023_Syk01 2048x512 -> 1024x256 rgb 12 KB
 prim sky:Skybox_Common: QF/Env/Sky_Generic_Diffuse alpha=OPAQUE tris=2432 verts=1335 from ['SkyBox_Common']
   tex C_Shu_01_D@RGBAC 256x256 -> 256x256 rgba 11 KB
-prim C_GuanMu_03|lm0: QF_PBR/Env/NssStandardPlantOneSide alpha=MASK tris=41820 verts=83640 from ['C_GuanMu_01_LOD0']
+inst inst:C_GuanMu_01_LOD0:C_GuanMu_03|lm0: 205 instances in 33 chunks, tris each=204 verts=408
   tex C_Shu_ChinaTown_New_01_color 512x512 -> 512x512 rgba 31 KB
-prim C_Shu_ChinaTown_New_01|lm0: QF_PBR/Env/NssStandardPlantOneSide alpha=MASK tris=40170 verts=80490 from ['C_Shu_ChinaTown_New_01_LOD0']
+inst inst:C_Shu_ChinaTown_New_01_LOD0:C_Shu_ChinaTown_New_01|lm0: 15 instances in 13 chunks, tris each=2678 verts=5366
   tex C_Shu_ChinaTown_New_02_color 256x512 -> 256x512 rgba 57 KB
-prim C_Shu_ChinaTown_New_02|lm0: QF_PBR/Env/NssStandardPlantOneSide alpha=MASK tris=5572 verts=7056 from ['C_Shu_ChinaTown_New_01_LOD0']
+inst inst:C_Shu_ChinaTown_New_01_LOD0:C_Shu_ChinaTown_New_02|lm0: 28 instances in 20 chunks, tris each=199 verts=252
   tex E_Yinghuashu_01 512x256 -> 512x256 rgba 33 KB
-prim C_Yinghuashu_01|lm0: QF_PBR/Env/NssStandardPlantOneSide alpha=MASK tris=15706 verts=25455 from ['E_Yinghuashu_01', 'E_Yinghuashu_03']
+inst inst:E_Yinghuashu_03:C_Yinghuashu_01|lm0: 3 instances in 3 chunks, tris each=1810 verts=3105
+inst inst:E_Yinghuashu_01:C_Yinghuashu_01|lm0: 4 instances in 4 chunks, tris each=2569 verts=4035
   tex C_Shu_ChinaTown_New_03_color 512x512 -> 512x512 rgba 30 KB
-prim C_Shu_ChinaTown_New_03|lm0: QF_PBR/Env/NssStandardPlantOneSide alpha=MASK tris=34814 verts=69758 from ['C_Shu_ChinaTown_New_01_LOD0']
+inst inst:C_Shu_ChinaTown_New_01_LOD0:C_Shu_ChinaTown_New_03|lm0: 13 instances in 13 chunks, tris each=2678 verts=5366
   tex E_ChinaTown_New_Building_01_B 256x256 -> 256x256 rgb 12 KB
   tex E_ChinaTown_New_Building_01_Glow 256x256 -> 256x256 rgb 4 KB
-prim E_ChinaTown_New_Building_01_NoAO|lm0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=37314 verts=39714 from ['E_ChinaTown_New_Building_04', 'E_ChinaTown_New_Door_01', 'E_ChinaTown_New_Thing_01', 'E_ChinaTown_New_Thing_02', 'E_ChinaTown_New_Thing_04', 'E_ChinaTown_New_Thing_05']
+prim E_ChinaTown_New_Building_01_NoAO|lm0@-1,-2: QF_PBR/Env/NssStandard alpha=OPAQUE tris=5422 verts=6619 from ['E_ChinaTown_New_Door_01', 'E_ChinaTown_New_Thing_01']
+prim E_ChinaTown_New_Building_01_NoAO|lm0@-3,-2: QF_PBR/Env/NssStandard alpha=OPAQUE tris=12765 verts=12393 from ['E_ChinaTown_New_Thing_02']
+prim E_ChinaTown_New_Building_01_NoAO|lm0@-4,-1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=8597 verts=8155 from ['E_ChinaTown_New_Thing_04']
+prim E_ChinaTown_New_Building_01_NoAO|lm0@-4,0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1462 verts=1683 from ['E_ChinaTown_New_Door_01']
+prim E_ChinaTown_New_Building_01_NoAO|lm0@1,-2: QF_PBR/Env/NssStandard alpha=OPAQUE tris=5002 verts=6326 from ['E_ChinaTown_New_Thing_05']
+prim E_ChinaTown_New_Building_01_NoAO|lm0@2,-1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=4066 verts=4538 from ['E_ChinaTown_New_Building_04']
   tex E_ChinaTown_New_Lujie_02_B 256x256 -> 256x256 rgb 3 KB
-prim E_ChinaTown_New_Lujie_06|lm0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=38 verts=78 from ['E_ChinaTown_New_Thing_05']
+prim E_ChinaTown_New_Lujie_06|lm0@1,-2: QF_PBR/Env/NssStandard alpha=OPAQUE tris=38 verts=78 from ['E_ChinaTown_New_Thing_05']
   tex E_ChinaTown_New_Building_03_B 256x256 -> 256x256 rgba 22 KB
   tex E_ChinaTown_New_Building_03_B 256x256 -> 256x256 rgb 8 KB
-prim E_ChinaTown_New_Building_03|lm0: QF_PBR/Env/NssStandard alpha=MASK tris=2452 verts=4696 from ['E_ChinaTown_New_Building_02', 'E_ChinaTown_New_Building_04', 'E_ChinaTown_New_Thing_02', 'E_ChinaTown_New_Thing_03', 'E_ChinaTown_New_Thing_05']
+prim E_ChinaTown_New_Building_03|lm0@-2,1: QF_PBR/Env/NssStandard alpha=MASK tris=499 verts=974 from ['E_ChinaTown_New_Building_02']
+prim E_ChinaTown_New_Building_03|lm0@-3,-2: QF_PBR/Env/NssStandard alpha=MASK tris=455 verts=940 from ['E_ChinaTown_New_Thing_02']
+prim E_ChinaTown_New_Building_03|lm0@-3,1: QF_PBR/Env/NssStandard alpha=MASK tris=182 verts=376 from ['E_ChinaTown_New_Thing_03']
+prim E_ChinaTown_New_Building_03|lm0@1,-2: QF_PBR/Env/NssStandard alpha=MASK tris=281 verts=580 from ['E_ChinaTown_New_Thing_05']
+prim E_ChinaTown_New_Building_03|lm0@2,-1: QF_PBR/Env/NssStandard alpha=MASK tris=1035 verts=1826 from ['E_ChinaTown_New_Building_04']
   tex C_Zhuzi_01_D@RGBAC 1024x1024 -> 512x512 rgba 68 KB
-prim C_Zhuzi_01|lm0: QF_PBR/Env/NssStandardPlantOneSide alpha=MASK tris=57559 verts=58905 from ['C_Zhuzi_01_LOD0', 'C_Zhuzi_02_LOD0']
-prim E_ChinaTown_New_Building_01|lm0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=11178 verts=13019 from ['E_ChinaTown_New_Building_01', 'E_ChinaTown_New_Building_01a', 'E_ChinaTown_New_Thing_03']
+inst inst:C_Zhuzi_01_LOD0:C_Zhuzi_01|lm0: 11 instances in 7 chunks, tris each=3065 verts=3135
+inst inst:C_Zhuzi_02_LOD0:C_Zhuzi_01|lm0: 12 instances in 7 chunks, tris each=1987 verts=2035
+prim E_ChinaTown_New_Building_01|lm0@-3,1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=3070 verts=3887 from ['E_ChinaTown_New_Thing_03']
+prim E_ChinaTown_New_Building_01|lm0@0,1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=8108 verts=9132 from ['E_ChinaTown_New_Building_01', 'E_ChinaTown_New_Building_01a']
   tex E_ChinaTown_New_Building_02_B 256x256 -> 256x256 rgb 14 KB
-prim E_ChinaTown_New_Building_02NoAO|lm0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=3792 verts=2376 from ['E_ChinaTown_New_Thing_02', 'E_ChinaTown_New_Thing_04']
+prim E_ChinaTown_New_Building_02NoAO|lm0@-3,-2: QF_PBR/Env/NssStandard alpha=OPAQUE tris=2585 verts=1629 from ['E_ChinaTown_New_Thing_02']
+prim E_ChinaTown_New_Building_02NoAO|lm0@-4,-1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1207 verts=747 from ['E_ChinaTown_New_Thing_04']
   tex E_ChinaTown_New_Building_02_B 256x256 -> 256x256 rgb 14 KB
-prim E_ChinaTown_New_Building_05|lm0: QF/Env/Basic_Plant_Wind alpha=MASK tris=156 verts=180 from ['E_ChinaTown_New_Building_03']
-prim E_ChinaTown_New_Building_02|lm0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=27741 verts=32955 from ['E_ChinaTown_New_Building_02', 'E_ChinaTown_New_Building_03', 'E_ChinaTown_New_Building_04', 'E_ChinaTown_New_Building_05', 'E_ChinaTown_New_Thing_03']
-prim E_ChinaTown_New_Building_06|lm0: QF_PBR/Env/NssStandard alpha=MASK tris=32 verts=40 from ['E_ChinaTown_New_Thing_02']
+prim E_ChinaTown_New_Building_05|lm0@-2,1: QF/Env/Basic_Plant_Wind alpha=MASK tris=156 verts=180 from ['E_ChinaTown_New_Building_03']
+prim E_ChinaTown_New_Building_02|lm0@-2,1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=15769 verts=21399 from ['E_ChinaTown_New_Building_02', 'E_ChinaTown_New_Building_03']
+prim E_ChinaTown_New_Building_02|lm0@-3,1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=4962 verts=3850 from ['E_ChinaTown_New_Thing_03']
+prim E_ChinaTown_New_Building_02|lm0@2,-1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=4535 verts=5419 from ['E_ChinaTown_New_Building_04']
+prim E_ChinaTown_New_Building_02|lm0@2,-2: QF_PBR/Env/NssStandard alpha=OPAQUE tris=2475 verts=2287 from ['E_ChinaTown_New_Building_05']
+prim E_ChinaTown_New_Building_06|lm0@-3,-2: QF_PBR/Env/NssStandard alpha=MASK tris=32 verts=40 from ['E_ChinaTown_New_Thing_02']
   tex E_ChinaTown_New_Rock_02_basecolor 256x256 -> 256x256 rgb 2 KB
   tex E_ChinaTown_New_Grass_01_B 256x256 -> 256x256 rgb 1 KB
-prim E_ChinaTown_New_Grass_04|lm1: QF_PBR/Env/NssTerrain2Layer alpha=OPAQUE tris=1803 verts=1162 from ['E_ChinaTown_New_Dixing_01']
-prim E_ChinaTown_New_Grass_01|lm1: QF_PBR/Env/NssTerrain2Layer alpha=OPAQUE tris=5541 verts=3563 from ['E_ChinaTown_New_Dixing_01']
+prim E_ChinaTown_New_Grass_04|lm1@0,1: QF_PBR/Env/NssTerrain2Layer alpha=OPAQUE tris=1803 verts=1162 from ['E_ChinaTown_New_Dixing_01']
+prim E_ChinaTown_New_Grass_01|lm1@0,1: QF_PBR/Env/NssTerrain2Layer alpha=OPAQUE tris=5541 verts=3563 from ['E_ChinaTown_New_Dixing_01']
   tex E_ChinaTown_New_Flower_01_B 256x256 -> 256x256 rgba 6 KB
-prim E_ChinaTown_New_Grass_03|lm0: QF_PBR/Env/NssStandard alpha=MASK tris=2942 verts=8450 from ['E_ChinaTown_New_Grass_02', 'E_ChinaTown_New_Grass_03', 'E_ChinaTown_New_Grass_04', 'E_ChinaTown_New_Grass_05', 'E_ChinaTown_New_Grass_06']
+prim E_ChinaTown_New_Grass_03|lm0@-1,-1: QF_PBR/Env/NssStandard alpha=MASK tris=420 verts=1243 from ['E_ChinaTown_New_Grass_06']
+prim E_ChinaTown_New_Grass_03|lm0@-3,-2: QF_PBR/Env/NssStandard alpha=MASK tris=411 verts=1172 from ['E_ChinaTown_New_Grass_05']
+prim E_ChinaTown_New_Grass_03|lm0@1,-2: QF_PBR/Env/NssStandard alpha=MASK tris=849 verts=2547 from ['E_ChinaTown_New_Grass_04']
+prim E_ChinaTown_New_Grass_03|lm0@2,1: QF_PBR/Env/NssStandard alpha=MASK tris=840 verts=2284 from ['E_ChinaTown_New_Grass_02']
+prim E_ChinaTown_New_Grass_03|lm0@3,-1: QF_PBR/Env/NssStandard alpha=MASK tris=422 verts=1204 from ['E_ChinaTown_New_Grass_03']
   tex C_Zhuzi_01_D@RGBAC 1024x1024 -> 512x512 rgba 68 KB
   tex C_Zhuzi_01_D@RGBAC 1024x1024 -> 512x512 rgb 17 KB
-prim E_ChinaTown_New_Zhuzi_01|lm0: QF_PBR/Env/NssStandard alpha=MASK tris=2695 verts=2678 from ['E_ChinaTown_New_zhuzi_01']
-prim E_ChinaTown_New_Grass_05|lm0: QF_PBR/Env/NssStandard alpha=MASK tris=1045 verts=2786 from ['E_ChinaTown_New_Grass_01']
-prim E_ChinaTown_New_Building_07|lm0: QF_PBR/Env/NssStandard alpha=BLEND tris=176 verts=280 from ['E_ChinaTown_New_Building_04']
-prim E_ChinaTown_New_Water_01: QF/Env/0_MeshOcean/MeshOcean_Transparent alpha=BLEND tris=22 verts=28 from ['E_ChinaTown_New_Water_01']
-prim E_ChinaTown_New_Lujie_05|lm0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=535 verts=635 from ['E_ChinaTown_New_Building_02']
-prim E_ChinaTown_New_Building_04|lm0: QF_PBR/Env/NssStandard alpha=BLEND tris=360 verts=486 from ['E_ChinaTown_New_Building_02']
+prim E_ChinaTown_New_Zhuzi_01|lm0@-3,-1: QF_PBR/Env/NssStandard alpha=MASK tris=2695 verts=2678 from ['E_ChinaTown_New_zhuzi_01']
+prim E_ChinaTown_New_Grass_05|lm0@-1,1: QF_PBR/Env/NssStandard alpha=MASK tris=1045 verts=2786 from ['E_ChinaTown_New_Grass_01']
+prim E_ChinaTown_New_Building_07|lm0@2,-1: QF_PBR/Env/NssStandard alpha=BLEND tris=176 verts=280 from ['E_ChinaTown_New_Building_04']
+prim E_ChinaTown_New_Water_01@-3,1: QF/Env/0_MeshOcean/MeshOcean_Transparent alpha=BLEND tris=22 verts=28 from ['E_ChinaTown_New_Water_01']
+prim E_ChinaTown_New_Lujie_05|lm0@-2,1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=535 verts=635 from ['E_ChinaTown_New_Building_02']
+prim E_ChinaTown_New_Building_04|lm0@-2,1: QF_PBR/Env/NssStandard alpha=BLEND tris=360 verts=486 from ['E_ChinaTown_New_Building_02']
   tex E_ChinaTown_New_Grass_01_B 256x256 -> 256x256 rgb 1 KB
   tex E_ChinaTown_New_Road_01_B 256x256 -> 256x256 rgb 2 KB
   tex E_ChinaTown_New_Road_01_M 256x256 -> 256x256 rgb 2 KB
-prim E_ChinaTown_New_Road_01|lm0: QF_PBR/Env/NssTerrain2Layer alpha=OPAQUE tris=654 verts=451 from ['E_ChinaTown_New_Road_01']
+prim E_ChinaTown_New_Road_01|lm0@0,-1: QF_PBR/Env/NssTerrain2Layer alpha=OPAQUE tris=654 verts=451 from ['E_ChinaTown_New_Road_01']
   tex E_ChinaTown_New_Lujie_01_B 128x256 -> 128x256 rgb 4 KB
   tex E_ChinaTown_New_Lujie_01_E 128x256 -> 128x256 rgb 1 KB
-prim E_ChinaTown_New_Lujie_01|lm0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1532 verts=2073 from ['E_ChinaTown_New_Road_01']
+prim E_ChinaTown_New_Lujie_01|lm0@0,-1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1532 verts=2073 from ['E_ChinaTown_New_Road_01']
   tex E_ChinaTown_New_Road_02_B 256x256 -> 256x256 rgb 3 KB
   tex E_ChinaTown_New_Road_03_B 256x256 -> 256x256 rgb 4 KB
-prim E_ChinaTown_New_Road_02|lm0: QF_PBR/Env/NssTerrain2Layer alpha=OPAQUE tris=61 verts=73 from ['E_ChinaTown_New_Road_01']
+prim E_ChinaTown_New_Road_02|lm0@0,-1: QF_PBR/Env/NssTerrain2Layer alpha=OPAQUE tris=61 verts=73 from ['E_ChinaTown_New_Road_01']
   tex E_ChinaTown_New_Jiantou_01_B 128x64 -> 128x64 rgba 4 KB
-prim E_ChinaTown_New_Jiantou_01: QF/Env/Ink/Diffuse alpha=BLEND tris=48 verts=82 from ['E_ChinaTown_New_Jiantou_01']
+prim E_ChinaTown_New_Jiantou_01@0,-1: QF/Env/Ink/Diffuse alpha=BLEND tris=48 verts=82 from ['E_ChinaTown_New_Jiantou_01']
   tex C_AddPSeed_D 256x256 -> 256x256 rgb 8 KB
-prim C_AddPSeed04: QF_Gamma/Env/Transparent/Basic_AlphaBlendScrollBG alpha=BLEND tris=12 verts=16 from ['E_ChinaTown_New_AddSpeed_01']
+prim C_AddPSeed04@0,1: QF_Gamma/Env/Transparent/Basic_AlphaBlendScrollBG alpha=BLEND tris=12 verts=16 from ['E_ChinaTown_New_AddSpeed_01']
   tex E_ChinaTown_New_Rock_2_basecolor 256x256 -> 256x256 rgb 2 KB
-prim E_ChinaTown_New_Grass_02: QF_PBR/Env/NssTerrain2Layer alpha=OPAQUE tris=1723 verts=1221 from ['E_ChinaTown_New_Dixing_02']
+prim E_ChinaTown_New_Grass_02@2,1: QF_PBR/Env/NssTerrain2Layer alpha=OPAQUE tris=1723 verts=1221 from ['E_ChinaTown_New_Dixing_02']
   tex C_Shu_Big_01_D@RGBAC 256x256 -> 256x256 rgba 11 KB
-prim C_GuanMu_Big_01|lm0: QF_PBR/Env/NssStandardPlantOneSide alpha=MASK tris=7714 verts=12908 from ['C_GuanMu_Big_01_LOD0']
+inst inst:C_GuanMu_Big_01_LOD0:C_GuanMu_Big_01|lm0: 7 instances in 7 chunks, tris each=1102 verts=1844
   tex C_Songshu_02_01_D@RGBAC 512x256 -> 512x256 rgba 21 KB
-prim C_Songshu_02_1|lm0: QF_PBR/Env/NssStandardPlantOneSide alpha=MASK tris=36252 verts=61848 from ['C_Songshu_02_LOD0']
+inst inst:C_Songshu_02_LOD0:C_Songshu_02_1|lm0: 9 instances in 9 chunks, tris each=4028 verts=6872
   tex C_liushu_03_D@RGBAC 512x512 -> 512x512 rgba 52 KB
-prim C_Liushu_03: QF_PBR/Env/NssStandardPlantOneSide alpha=MASK tris=6146 verts=12462 from ['C_liushu_03_LOD0']
+prim C_Liushu_03@-3,1: QF_PBR/Env/NssStandardPlantOneSide alpha=MASK tris=3073 verts=6231 from ['C_liushu_03_LOD0']
+prim C_Liushu_03@-3,2: QF_PBR/Env/NssStandardPlantOneSide alpha=MASK tris=3073 verts=6231 from ['C_liushu_03_LOD0']
 lightmaps used by primitives: [0, 1]
 note: RenderSettings has a skybox material; only the sky mesh is exported
-done: 33 primitives, 32 textures (0.55 MB webp), 2 lightmaps, folder 8.89 MB
+done: 54 primitives, 32 textures (0.55 MB webp), 2 lightmaps, folder 3.11 MB

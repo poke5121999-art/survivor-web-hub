@@ -139,3 +139,13 @@
   .loading .ld-head b { font-size: 22px; }
   .loading .lbox { padding-top: 12px; padding-bottom: 10px; }
 }
+
+/* Mục do module khác đăng ký (TD.lobby.add): thanh dưới nhiều nút thì xếp biểu tượng trên chữ và cuộn ngang được. */
+.lb-bar.many { justify-content: flex-start; overflow-x: auto; scrollbar-width: none; gap: 0; padding-left: calc(var(--u) * 12); }
+.lb-bar.many::-webkit-scrollbar { display: none; }
+.lb-bar.many .lb-bt { flex: 0 0 auto; flex-direction: column; justify-content: center; gap: 2px; min-width: 56px; padding: 0 calc(var(--u) * 14);
+  font-size: max(11px, calc(var(--u) * 19)); }
+.lb-bar.many .lb-quest { position: sticky; right: 0; margin-left: auto; }
+.lb-top { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 44px; min-height: 44px;
+  font-size: max(10px, calc(var(--u) * 16)); color: #eaf4ff; text-shadow: 0 1px 2px #000; }
+.lb-top img { height: max(26px, calc(var(--u) * 48)); }

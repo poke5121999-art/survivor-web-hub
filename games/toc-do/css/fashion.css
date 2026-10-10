@@ -1,0 +1,51 @@
+/* Thời Trang (js/ui/fashion.js): cột mục trái, lưới thẻ 3 cột, tay đua 3D bên phải như Cửa Hàng 2018. Mọi quy tắc dưới .fs. */
+.fs { position: absolute; inset: 0; pointer-events: none; --tw: clamp(92px, 9vw, 120px); --gw: clamp(330px, 44vw, 560px); }
+.fs button, .fs .fs-grid, .fs .fs-top { pointer-events: auto; }
+.fs button { font-family: Cafeta, sans-serif; color: var(--ink); cursor: pointer; }
+.fs button:disabled { cursor: default; }
+
+.fs-top { position: absolute; left: 0; right: 0; top: 0; height: 56px; display: flex; align-items: center; gap: 10px;
+  padding: 4px max(10px, env(safe-area-inset-right)) 4px max(8px, env(safe-area-inset-left)); background: linear-gradient(rgba(4, 16, 40, .92), rgba(4, 16, 40, .5)); }
+.fs-back { flex: 0 0 auto; width: 64px; height: 44px; padding: 0; border: 0; background: none; }
+.fs-back img { width: 100%; height: 100%; object-fit: contain; }
+.fs-title { font-weight: normal; font-size: 22px; color: #fff; text-shadow: 0 2px 0 #061d48; white-space: nowrap; }
+.fs-sex { display: flex; gap: 4px; margin-left: auto; padding: 3px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); }
+.fs-sex button { min-width: 56px; height: 44px; border: 0; border-radius: 9px; background: none; font-size: 16px; }
+.fs-sex button.on { background: linear-gradient(#ff8fc8, #d9468f); }
+.fs-sex button[data-g="nam"].on { background: linear-gradient(#3d9bff, #1a5fd0); }
+.fs-coins { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px 0 6px; border-radius: 999px; background: var(--panel);
+  border: 1px solid var(--line); font: 20px TDNum, Cafeta, sans-serif; color: var(--gold); }
+.fs-coins img { width: 26px; height: 26px; }
+.fs-coins b { font-weight: normal; }
+
+/* cột mục: nút dọc như cột Đề xuất / Xe Đua / Thời Trang của cửa hàng gốc */
+.fs-tabs { position: absolute; left: max(8px, env(safe-area-inset-left)); top: 64px; width: var(--tw); display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
+.fs-tabs button { min-height: 48px; border-radius: 0 12px 12px 0; border: 1px solid var(--line); border-left: 4px solid transparent; background: var(--panel); font-size: 17px; }
+.fs-tabs button.on { background: linear-gradient(90deg, #1f6fe0, #2f8cff); border-left-color: var(--gold); color: #fff; text-shadow: 0 1px 0 #062048; }
+
+.fs-grid { position: absolute; left: calc(max(8px, env(safe-area-inset-left)) + var(--tw) + 8px); top: 64px; bottom: 8px; width: var(--gw);
+  display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: max-content; gap: 8px; overflow-y: auto; padding-right: 4px; scrollbar-width: thin; }
+.fs-card { position: relative; display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 6px; border-radius: 10px;
+  background: linear-gradient(180deg, rgba(20, 60, 120, .92), rgba(8, 26, 56, .92)); border: 1px solid var(--line); }
+.fs-card.on { border-color: var(--gold); box-shadow: 0 0 12px rgba(255, 210, 58, .5); }
+.fs-card.worn::after { content: ''; position: absolute; top: 6px; right: 6px; width: 12px; height: 12px; border-radius: 50%; background: #3ddc84; box-shadow: 0 0 6px #3ddc84; }
+.fs-pick { height: clamp(96px, 22vh, 150px); padding: 0; border: 0; border-radius: 8px; background: radial-gradient(circle at 50% 40%, rgba(120, 200, 255, .35), rgba(0, 0, 0, 0) 70%); }
+.fs-pick img { width: 100%; height: 100%; object-fit: contain; }
+.fs-card b { font-weight: normal; font-size: 14px; line-height: 1.15; text-align: center; min-height: 2.3em; display: flex; align-items: center; justify-content: center; }
+.fs-btn { min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 4px; border: 0; border-radius: 9px; font-size: 16px; box-shadow: 0 3px 0 rgba(0, 0, 0, .35); }
+.fs-btn img { width: 18px; height: 18px; }
+.fs-btn.gold { background: linear-gradient(#ffd84a, #f5a300); color: #4a2400; font-family: TDNum, Cafeta, sans-serif; }
+.fs-btn.blue { background: linear-gradient(#3d9bff, #1a5fd0); }
+.fs-btn.gray { background: linear-gradient(#6b7b92, #4a586c); opacity: .8; }
+.fs-btn:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0, 0, 0, .35); }
+
+.fs-toast { position: absolute; left: 70%; top: 22%; transform: translateX(-50%); padding: 10px 26px; border-radius: 22px; background: rgba(4, 14, 34, .88);
+  border: 1px solid var(--line); color: #fff; font: 18px Cafeta, sans-serif; white-space: nowrap; pointer-events: none; }
+
+/* điện thoại ngang: chữ thẻ nhỏ hơn để ba cột vừa */
+@media (max-height: 430px) {
+  .fs-title { font-size: 18px; }
+  .fs-card { padding: 4px; }
+  .fs-card b { font-size: 12px; }
+  .fs-btn { font-size: 14px; }
+}

@@ -30,6 +30,18 @@ CARS = {
     '00284': dict(tier=4, name='Xe Hổ Bơm Hơi'),
     '00254': dict(tier=5, name='Xe Thể Thao Tím'),
     '00055': dict(tier=6, name='Xe Siêu Tốc Đỏ'),
+    '00080': dict(tier=3, name='Xe Hổ Vàng'),
+    '00055_skin_00001': dict(tier=6, name='Siêu Tốc Đỏ Bản Đặc Biệt', tweak=dict(drift=-1)),
+    # Xe dựng từ LOD giữa (mncar_*_skin_*): APK chỉ có prefab hncar cho 15 xe, phần còn lại tải sau nên không nằm trong APK.
+    # Mỗi mncar là một lưới duy nhất (bánh dính thân), nên không có bánh quay.
+    '00272_skin_00019': dict(tier=2, name='Xe Thể Thao Cam', mid=True),
+    '00447_skin_00004': dict(tier=3, name='Xe Lốc Xoáy', mid=True),
+    '00507_skin_00017': dict(tier=4, name='Xe Phản Lực', mid=True),
+    '00524_skin_00002': dict(tier=1, name='Xe Bọ Cánh Cứng', mid=True),
+    '00547_skin_00002': dict(tier=5, name='Xe Vệ Binh', mid=True),
+    '00564_skin_00001': dict(tier=4, name='Xe Thiết Giáp', mid=True),
+    '00499_skin_00013': dict(tier=5, name='Xe Đại Bàng', mid=True),
+    '00500_skin_00001': dict(tier=6, name='Xe Hỏa Long', mid=True, tweak=dict(nitro=-1)),
 }
 TIERS = {  # tier -> carparams asset names (real assets in dump/carparams)
     0: dict(engine='CarEngine_00', steer='CarSteer_00', driftExt='CarDriftExt_00', turbo='CarTurbo_00'),
@@ -318,6 +330,12 @@ def add_paint(g, p, notes):
     return len(g.materials) - 1
 
 
+def out_id(cid):
+    """'00055' -> '55'; '00272_skin_00019' -> '272s19' (id trong TD.CARS và tên tệp art/cars)."""
+    m = re.match(r'(\d+)_skin_(\d+)$', cid)
+    return '%ds%d' % (int(m.group(1)), int(m.group(2))) if m else cid.lstrip('0').rjust(2, '0')
+
+
 def export_paint_maps(p, cid, notes):
     """Bản gốc đổi màu sơn bằng _paintColor1/2 nhân qua mặt nạ (R: màu 1, G: màu 2). Glb chỉ chứa ảnh đã nướng màu gốc,
     nên xuất thêm ảnh nền chưa nhuộm + mặt nạ để game nhuộm lại lúc chạy (js/view/karts.js)."""
@@ -328,7 +346,7 @@ def export_paint_maps(p, cid, notes):
         notes.append('no paint mask: palette picker disabled')
         return None
     size = main.size
-    base = os.path.join(OUT, 'art', 'cars', cid.lstrip('0').rjust(2, '0'))
+    base = os.path.join(OUT, 'art', 'cars', out_id(cid))
     to_im(arr(main)[..., :3]).save(base + '_base.jpg', 'JPEG', quality=88, optimize=True)
     to_im(arr(mask, size)[..., :3]).save(base + '_mask.jpg', 'JPEG', quality=92, optimize=True)
     rel = 'art/cars/' + os.path.basename(base)
@@ -430,7 +448,7 @@ def renderer_of(go):
 def find_wheel(env_names, cid):
     """-> (prefab key, id) for the kart's wheel."""
     ids = [int(m.group(1)) for n in env_names for m in [re.search(r'wheel_(\d+)', n.lower())] if m]
-    ids = ids + [int(cid)]
+    ids = ids + [int(cid.split('_')[0])]
     for i in dict.fromkeys(ids):
         rs = zs.find('vehicles/wheels/wheel_%03d/hwheel_%03d.prefab' % (i, i))
         if rs:
@@ -445,7 +463,9 @@ def find_wheel(env_names, cid):
 # ---------------------------------------------------------------- per kart
 def export_car(cid, spec):
     notes = []
-    r = zs.find('ncar_%s/hncar_%s.prefab' % (cid, cid))[0]
+    if spec.get('mid'):
+        return export_mid(cid, spec)
+    r = [x for x in zs.find('/hncar_%s.prefab' % cid) if not any('preview' in c.lower() for c in x['cont'])][0]
     env = load([r['f']])
     root = prefab_root(env, r, '/hncar_%s.prefab' % cid)
     tr = [c.read() for c in root.m_Components if c.read().object_reader.type.name == 'Transform'][0]
@@ -499,7 +519,7 @@ def export_car(cid, spec):
         raise RuntimeError('no usable paint material (textures missing from the APK)')
     pmaps = export_paint_maps(paint_props, cid, notes)
     if os.environ.get('PAINT_ONLY'):  # chỉ xuất ảnh sơn, không động tới glb
-        return {'id': cid.lstrip('0').rjust(2, '0'), 'paintMaps': pmaps}, notes
+        return {'id': out_id(cid), 'paintMaps': pmaps}, notes
     prims = [g.primitive(p[0], p[1], p[2], p[3], m) for p, m in body_prims]
     g.meshes.append({'name': 'body', 'primitives': prims})
     g.nodes.append({'name': 'body', 'mesh': 0})
@@ -576,13 +596,13 @@ def export_car(cid, spec):
 
     root_n = {'name': 'kart_' + cid, 'children': list(range(len(g.nodes)))}
     g.nodes.append(root_n)
-    out = os.path.join(OUT, 'art', 'cars', cid.lstrip('0').rjust(2, '0') + '.glb')
+    out = os.path.join(OUT, 'art', 'cars', out_id(cid) + '.glb')
     os.makedirs(os.path.dirname(out), exist_ok=True)
     g.write(out, [len(g.nodes) - 1], {'source': 'ncar_' + cid, 'wheel': wsuffix, 'log': log['orig']})
     shrink(out)
     fz = float(np.mean([w['z'] for w in wheels if w['front']]) - np.mean([w['z'] for w in wheels if not w['front']]))
     info = {
-        'id': cid.lstrip('0').rjust(2, '0'), 'glb': 'art/cars/' + os.path.basename(out),
+        'id': out_id(cid), 'glb': 'art/cars/' + os.path.basename(out),
         'wheels': wheels, 'forward': [0, 0, -1 if fz < 0 else 1],
         'size': {'l': round(float(hi[2] - lo[2]), 3), 'w': round(float(hi[0] - lo[0]), 3), 'h': round(float(hi[1] - lo[1]), 3)},
         'driverMount': [round(float(x), 4) for x in seat] if seat is not None else None,
@@ -590,6 +610,70 @@ def export_car(cid, spec):
         'paint': [[round(float(x), 3) for x in color(paint_props, k)] for k in ('_paintColor1', '_paintColor2')],
         'bytes': os.path.getsize(out), 'wheelSource': wsuffix,
     }
+    if pmaps:
+        info['paintMaps'] = pmaps
+    return info, notes
+
+
+def export_mid(cid, spec):
+    """Xe từ mncar_<id>_skin_<n>: một lưới LOD2 + một vật liệu sơn. Prefab không có Car_Seat / bánh / ống xả nên các điểm
+    gắn được ước từ khung bao theo tỉ lệ các xe hncar (bánh ±0.25 chiều dài, ghế cao 0.2 m)."""
+    notes = []
+    r = [x for x in zs.find('/mncar_%s.prefab' % cid) if not any('preview' in c.lower() for c in x['cont'])][0]
+    env = load([r['f']])
+    root = prefab_root(env, r, '/mncar_%s.prefab' % cid)
+    tr = [c.read() for c in root.m_Components if c.read().object_reader.type.name == 'Transform'][0]
+    g, body, paint_props = Glb(), [], None
+    for name, w, go, _t in walk(tr):
+        mesh, mr = renderer_of(go)
+        if mesh is None:
+            continue
+        v, n, uv, subs = mesh_data(mesh, w)
+        for si, tris in enumerate(subs):
+            md = rd(mr.m_Materials[si]) if si < len(mr.m_Materials) else None
+            p = props(md) if md else None
+            mi = None
+            if p is not None and '_MainTex' in p[0]:
+                paint_props = paint_props or p
+                mi = add_paint(g, p, notes)
+            if mi is None:
+                mi = add_plain(g, (0.35, 0.35, 0.38), 'fallback')
+                notes.append('fallback grey slot %d' % si)
+            body.append((to_three(v, n, uv, tris), mi))
+    if paint_props is None:
+        raise RuntimeError('no paint material')
+    pmaps = export_paint_maps(paint_props, cid, notes)
+    g.meshes.append({'name': 'body', 'primitives': [g.primitive(p[0], p[1], p[2], p[3], m) for p, m in body]})
+    g.nodes.append({'name': 'body', 'mesh': 0})
+    allv = np.concatenate([p[0][0] for p in body])
+    lo, hi = allv.min(0), allv.max(0)
+    ctr, L, W = (lo + hi) / 2, float(hi[2] - lo[2]), float(hi[0] - lo[0])
+    scene, wheels = [0], []
+    rad = 0.33
+    for k, sx, fz in (('fl', -1, -1), ('fr', 1, -1), ('rl', -1, 1), ('rr', 1, 1)):
+        pos = [round(float(ctr[0] + sx * 0.37 * W), 5), rad, round(float(ctr[2] + fz * 0.25 * L), 5)]
+        g.nodes.append({'name': 'wheel_' + k, 'translation': pos})
+        scene.append(len(g.nodes) - 1)
+        wheels.append({'x': pos[0], 'y': pos[1], 'z': pos[2], 'r': rad, 'front': k[0] == 'f'})
+    seat = [0.0, 0.2, round(float(ctr[2] + 0.1 * L), 4)]
+    g.nodes.append({'name': 'driver_mount', 'translation': seat})
+    scene.append(len(g.nodes) - 1)
+    exhaust = []
+    for nm, sx in (('exhaust_l', -1), ('exhaust_r', 1)):
+        t = [round(sx * 0.18 * W, 5), 0.4, round(float(hi[2]) - 0.05, 5)]
+        g.nodes.append({'name': nm, 'translation': t})
+        scene.append(len(g.nodes) - 1)
+        exhaust.append(t)
+    g.nodes.append({'name': 'kart_' + cid, 'children': list(range(len(g.nodes)))})
+    oid = out_id(cid)
+    out = os.path.join(OUT, 'art', 'cars', oid + '.glb')
+    g.write(out, [len(g.nodes) - 1], {'source': 'mncar_' + cid, 'markers': 'estimated from bounds'})
+    shrink(out)
+    info = {'id': oid, 'glb': 'art/cars/' + oid + '.glb', 'wheels': wheels, 'forward': [0, 0, -1],
+            'size': {'l': round(L, 3), 'w': round(W, 3), 'h': round(float(hi[1] - lo[1]), 3)},
+            'driverMount': seat, 'exhaust': exhaust,
+            'paint': [[round(float(x), 3) for x in color(paint_props, k)] for k in ('_paintColor1', '_paintColor2')],
+            'bytes': os.path.getsize(out), 'wheelSource': 'baked into the body mesh'}
     if pmaps:
         info['paintMaps'] = pmaps
     return info, notes
@@ -612,7 +696,7 @@ def norm(v, lo, hi):
     return int(round(1 + 9 * (v - lo) / (hi - lo)))
 
 
-def stats_for(tier):
+def stats_for(tier, tweak={}):
     P = json.load
     dp = os.path.join(zs.REF, 'dump', 'carparams')
     d = {k: P(open(os.path.join(dp, v + '.json'))) for k, v in TIERS[tier].items()}
@@ -623,6 +707,8 @@ def stats_for(tier):
     s = dict(handling=norm(steer, 82, 93), drift=norm(drift, 175, 200), nitro=norm(nitro, 50, 75))
     s['speed'] = min(10, 4 + tier)  # no per-kart speed asset exists; follows the assigned tier
     s['accel'] = min(10, 3 + tier)
+    for k, d in tweak.items():
+        s[k] = max(1, min(10, s[k] + d))
     return {k: s[k] for k in ('speed', 'accel', 'handling', 'drift', 'nitro')}, TIERS[tier]
 
 
@@ -638,7 +724,7 @@ def main():
                 print(cid, info['paintMaps'], '; '.join(notes))
                 continue
             info['name'] = spec['name']
-            info['stats'], info['params'] = stats_for(spec['tier'])
+            info['stats'], info['params'] = stats_for(spec['tier'], spec.get('tweak', {}))
             res[info['id']] = info
             print(cid, info['bytes'], 'bytes', info['size'], info['forward'], '; '.join(notes))
         except Exception as e:

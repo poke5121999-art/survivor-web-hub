@@ -1,8 +1,11 @@
 /*
  * Tốc Độ: đạo cụ (Đạo Cụ-Đơn / Đạo Cụ-Đội / Khu Luyện Tập Đạo Cụ).
  * Phần Node: luật trong js/sim/items.js (hộp, nhặt, tên lửa, lá chắn, vỏ chuối, đĩa bay, sấm sét, mực, nam châm, bot dùng).
- * Phần trình duyệt: vào trận đạo cụ, ô đạo cụ có icon, phím E dùng đạo cụ, chạm vào ô dùng đạo cụ, ảnh 1366×650 và 844×390.
- *   node test/toc-do-items.js            node test/toc-do-items.js --node (chỉ phần Node)
+ * Phần Node (tài nguyên): glb có xương mang đủ clip gốc (appear/idle/attack/hited/disappear), glb hiệu ứng mang tween gốc.
+ * Phần trình duyệt: vào trận đạo cụ, ô đạo cụ có icon, phím E dùng đạo cụ, chạm vào ô dùng đạo cụ, ảnh 1366×650 và 844×390;
+ *   dàn cảnh từng đạo cụ ở tốc độ thật (timeScale 1): tên lửa đang bay + vòng ngắm, Đĩa Bay, Lốc Xoáy, Sấm Sét, Mực, Nam Châm,
+ *   Vỏ Chuối, Mây Mù, Thiên Sứ, Lá Chắn; mỗi cảnh một ảnh items-fx-<đạo cụ>.png để so với research/frames-items.
+ *   node test/toc-do-items.js            node test/toc-do-items.js --node (chỉ phần Node)   --fx (chỉ dàn cảnh)
  *   TD_URL=<gốc> node test/toc-do-items.js
  */
 'use strict';
@@ -66,8 +69,9 @@ function nodePart() {
     const src = TD.TRACKS[id].boxes, rows = R.items.rows;
     const ok = src && src.length ? rows.length === src.length : rows.length >= 5 && rows.every((r) => r.length >= 3 && r.length <= 6);
     check(id + ': có hàng hộp đạo cụ', ok && R.items.boxes.length >= 15, rows.length + ' hàng, ' + R.items.boxes.length + ' hộp' + (src ? ' (propspointconfig)' : ' (tự sinh mỗi ~400 m)'));
-    // hộp gốc (propspointconfig) có hộp sát mép: chỉ đòi tâm hộp không vượt mép ruy băng quá 3 m (đo: xa nhất 2,51 m, Xintiane Bao hàng 14)
-    const off = R.items.boxes.filter((b) => { const l = TD.Track.locate(R.T, b.x, b.y + 1, b.z, null); return Math.max(l.d - l.lw, -l.d - l.rw) > 3 || Math.abs(l.y - b.y) > 0.5; }).length;
+    // hộp gốc (propspointconfig) có hộp sát mép: chỉ đòi tâm hộp không vượt mép ruy băng quá 4,5 m (đo: xa nhất 4,22 m,
+    // Hoàng Hà hộp 34 nơi ruy băng trái chỉ rộng 3,6 m; Xintiane Bao 2,51 m)
+    const off = R.items.boxes.filter((b) => { const l = TD.Track.locate(R.T, b.x, b.y + 1, b.z, null); return Math.max(l.d - l.lw, -l.d - l.rw) > 4.5 || Math.abs(l.y - b.y) > 0.5; }).length;
     check(id + ': mọi hộp nằm trên mặt đường', off === 0, off + ' hộp ngoài đường');
   }
   check('chế độ tốc độ không có hộp', TD.Race.create({ trackId: '11citynew', seed: 1 }).items === null);
@@ -212,6 +216,41 @@ function nodePart() {
     const resp = R.karts.reduce((a, k) => a + k.stats.respawns, 0);
     check(id + ': đạo cụ không làm xe văng khỏi đường hàng loạt', resp <= 6, resp + ' lần hồi sinh');
   }
+  // 13. glb đạo cụ: lưới có xương mang đủ clip gốc, glb hiệu ứng mang tween gốc
+  const glbJson = (rel) => { const b = fs.readFileSync(path.join(GAME, rel)), n = b.readUInt32LE(12); return JSON.parse(b.slice(20, 20 + n)); };
+  const WANT = { ufo: 'appear,attack,defend,disappear,idle', squid: 'appear,attack,disappear,hited', angel: 'appear,hited,idle', shield: 'close,loop,open',
+    cloud: 'appear,attack,disappear', banana: 'appear', missile_shelf: 'appear' };
+  for (const [m, want] of Object.entries(WANT)) {
+    const A = TD.ITEM_ART.models[m], j = A && glbJson(A.glb);
+    const names = j ? (j.animations || []).map((a) => a.name).sort().join() : '';
+    const moving = j ? j.animations.filter((a) => a.channels.length >= 4).length : 0;
+    check(m + '.glb: lưới có xương + clip gốc ' + want, j && j.skins && j.skins.length && names === want && moving === want.split(',').length &&
+      Object.keys(A.clips).sort().join() === want, names + ', ' + (j ? j.skins.length : 0) + ' skin');
+  }
+  for (const [m, key] of [['tornado', 'tw'], ['tornado_ring', 'fxc'], ['tornado_hit', 'tw'], ['ufo_disturb', 'tcc']]) {
+    const j = glbJson(TD.ITEM_ART.models[m].glb), ex = j.nodes.filter((n) => n.extras && n.extras[key]);
+    check(m + '.glb: node hiệu ứng mang đường cong gốc ' + key, ex.length >= 1, ex.map((n) => n.name).join());
+  }
+  check('vòng ngắm gốc nướng thành ảnh aim_0/aim_1', ['aim_0', 'aim_1'].every((k) => TD.ITEM_ART.icons[k] && fs.existsSync(path.join(GAME, TD.ITEM_ART.icons[k]))));
+  for (const r of ['pickup', 'missile_trail', 'missile_hit', 'lightning', 'lightning_idle', 'cloud_flash', 'ufo', 'ufo_hit', 'magnet', 'magnet_b', 'smog', 'banana_hit', 'squid_hit']) {
+    const F = TD.ITEM_FX[r], n = F ? F.layers.filter((L) => L.kind === 'ps').length : 0;
+    check('hạt gốc ' + r + ' (' + (F ? F.src : '-') + ')', n >= 1 && F.layers.every((L) => fs.existsSync(path.join(GAME, L.tex))), n + ' lớp hạt');
+  }
+  const sub = Object.entries(TD.AUDIO).filter(([k, v]) => k.startsWith('Play_DJ_'));
+  check('tiếng đạo cụ: ' + sub.length + ' event DJ có tệp mượn từ bank có mặt', sub.length >= 17 && sub.every(([k, v]) => fs.existsSync(path.join(GAME, v.files[0]))),
+    sub.map(([k, v]) => k.replace('Play_DJ_', '') + '←' + (v.subst || 'gốc')).join(' '));
+
+  // 14. đường A→B (T.loop false): trận đạo cụ 60 s không lỗi, hàng hộp tự sinh không vượt checkpoint đích
+  for (const id of Object.keys(TD.TRACKS).filter((i) => TD.TRACKS[i].loop === false)) {
+    let err = null, evs = [];
+    const R = TD.Race.create({ trackId: id, seed: 9, mode: TD.MODES.item });
+    try { evs = run(R, TD.TUNING.countdown + 60); } catch (e) { err = e; }
+    const T = R.T, s0 = T.cps[T.startCp].s, sEnd = T.cps[T.endCp].s;
+    const past = R.items.boxes.filter((b) => b.s != null && (b.s < s0 - 1 || b.s > sEnd)).length;
+    check(id + ' (A→B): trận đạo cụ chạy 60 s không lỗi, hộp không vượt đích', !err && past === 0 && evs.some((e) => e.type === 'item_use'),
+      err ? String(err).slice(0, 120) : 'dùng ' + evs.filter((e) => e.type === 'item_use').length + ', hộp quá đích ' + past);
+  }
+
   // 12. rút theo hạng: hạng 1 không có Đĩa Bay, hạng cuối nhiều tên lửa/nam châm hơn hạng 1
   {
     const R = TD.Race.create({ trackId: '11citynew', seed: 4, mode: TD.MODES.item });
@@ -277,8 +316,149 @@ async function browserPart() {
   await br.close(); srv.close();
 }
 
+// ---------- dàn cảnh từng đạo cụ ở tốc độ thật ----------
+async function fxPart() {
+  console.log('\n# Trình duyệt: hiệu ứng từng đạo cụ (timeScale 1)');
+  fs.mkdirSync(SHOTS, { recursive: true });
+  const srv = await serve();
+  const br = await browser();
+  try {
+    const { page, problems } = await open(br, srv.base, 'index.html', { width: 1366, height: 650 });
+    // chờ theo trạng thái trận; hạn chót rộng vì swiftshader trên máy bận chỉ chạy ~0,05 s trận mỗi giây thật
+    const until = async (fn, arg, ms) => { try { await page.waitForFunction(fn, arg, { timeout: Math.max(ms || 0, 240000) * SLOW, polling: 100 }); return true; } catch (e) { return false; } };
+    const dbg = () => page.evaluate(() => TD.itemsView.debug());
+    const snap = (name) => page.screenshot({ path: path.join(SHOTS, 'items-fx-' + name + '.png'), timeout: 60000 * SLOW });
+    check('sảnh mở', await until(() => window.TD && TD.main && TD.main.state === 'lobby', null, 90000));
+    await page.evaluate(() => { TD.save.d.track = '11citynew'; TD.main.startRace({ mode: 'item' }); });
+    check('vào trận Đạo Cụ-Đơn', await until(() => TD.main.state === 'race' && TD.main.race && TD.main.race.items, null, 120000));
+    await page.evaluate(() => { TD.main.introT = 99; TD.main.timeScale = 4; });
+    await until(() => TD.main.race.phase === 'race' && TD.main.race.t - TD.main.race.goT > 3, null, 90000);
+    // mình tự lái; dàn cảnh: mục tiêu (xe 1) đứng trước `ahead` m, mọi xe khác lùi sau 40+ m, xoá đạo cụ/khiên của bot
+    await page.evaluate(() => {
+      const R = TD.main.race, me = TD.main.me;
+      me.ctrl = 'bot'; TD.Bot.init(me, R, 0.9);
+      window.__stage = (ahead, lane) => {
+        const T = R.T;
+        R.karts.forEach((k, i) => {
+          if (k === me) return;
+          // quãng s theo vòng: lùi qua vạch xuất phát thì thuộc vòng trước (không thì xe sau thành xe dẫn đầu)
+          let s = me.loc.s + (i === 1 ? ahead : -40 - i * 12), lap = me.lap;
+          if (s < 0) { s += T.L; lap--; } else if (s >= T.L) { s -= T.L; lap++; }
+          const c = TD.Items.at(R, s, i === 1 ? (lane || 0) : (i % 2 ? 3 : -3));
+          k.x = k.px = c.x; k.z = k.pz = c.z; k.loc = TD.Track.locate(T, c.x, c.y + 1, c.z, null); k.y = k.loc.y;
+          k.yaw = k.vyaw = Math.atan2(c.fx, c.fz); k.speed = me.speed; k.lap = lap;
+          k.lastCp = T.src.pts.cp[k.loc.tp]; k.cpNext = T.cps[k.lastCp].next[0];
+          const st = R.items.ks[k.id]; st.slots = [null, null]; st.shieldT = 0; st.shieldKind = null;
+          k.fx.stunT = 0;
+        });
+        R.items.proj.length = 0; R.items.hz.length = 0;
+        const st = R.items.ks[me.id]; st.slots = [null, null]; st.shieldT = 0; st.magnet = null;
+        TD.main.timeScale = 1;
+      };
+      // bot không dùng đạo cụ trong lúc dàn cảnh (ảnh chỉ có hiệu ứng của cảnh đang chụp)
+      TD.racePlugins.push({ update(dt, ctx) { if (ctx.R === R) R.karts.forEach((k) => { if (k !== me) R.items.ks[k.id].slots = [null, null]; }); } });
+      window.__use = (id, who) => { const k = who != null ? R.karts[who] : me; TD.Items.give(R, k, id); return TD.Items.use(R, k, R.items.ks[k.id].slots.indexOf(id)); };
+    });
+    // chờ theo giờ trận (swiftshader vài khung/giây: chờ theo giờ thật thì trận gần như chưa chạy)
+    const simWait = async (sec) => { const t0 = await page.evaluate(() => TD.main.race.t); await until((a) => TD.main.race.t - a[0] >= a[1], [t0, sec]); };
+    const stage = async (ahead, lane) => { await page.evaluate(([a, l]) => window.__stage(a, l), [ahead, lane || 0]); await simWait(0.2); };
+
+    // 1. Tên Lửa: thấy được giữa đường bay (trước mặt camera, trong khung hình), có hạt đuôi, vòng ngắm trên mục tiêu
+    await stage(110);
+    const u = await page.evaluate(() => window.__use('missile'));
+    check('tên lửa khoá xe phía trước', u && u.target === 1, JSON.stringify(u));
+    await until(() => { const m = TD.main.race.items.proj.find((p) => p.type === 'missile'); return m && m.t > 0.45; }, null, 30000);
+    const mid = await page.evaluate(() => {
+      const m = TD.main.race.items.proj.find((p) => p.type === 'missile'), cam = TD.itemsView.ctx.M.camera;
+      if (!m) return null;
+      const v = new THREE.Vector3(m.x, m.y, m.z).project(cam), me = TD.main.me;
+      return { t: +m.t.toFixed(2), sx: Math.round((v.x + 1) / 2 * innerWidth), sy: Math.round((1 - v.y) / 2 * innerHeight), front: v.z < 1, dist: +Math.hypot(m.x - me.x, m.z - me.z).toFixed(1), ts: TD.main.timeScale };
+    });
+    await snap('missile');
+    const alive = await page.evaluate(() => TD.main.race.items.proj.some((p) => p.type === 'missile'));
+    const d1 = await dbg();
+    check('tên lửa đang bay lúc chụp (timeScale 1), nằm trong khung hình trước camera', mid && alive && mid.ts === 1 && mid.front && mid.sx > 0 && mid.sx < 1366 && mid.sy > 0 && mid.sy < 650 && mid.dist > 4, JSON.stringify(mid));
+    check('tên lửa có hạt đuôi gốc (missile_trail) đang vẽ', d1.emitted.missile_trail >= 1 && d1.particles > 5, 'hạt ' + d1.particles);
+    check('vòng ngắm đỏ (props_item_aiming_red) trên xe bị khoá', d1.aim && d1.aim.target === 1 && d1.aim.size >= 90, JSON.stringify(d1.aim));
+    check('giá phóng tên lửa chạy clip Appear', d1.played['missile_shelf:appear'] >= 1, JSON.stringify(d1.played));
+    check('bíp khoá mục tiêu tổng hợp (không có trong APK)', d1.synth >= 2, 'bíp ' + d1.synth);
+    check('tên lửa nổ trúng xe (hạt missile_hit)', await until(() => TD.itemsView.debug().emitted.missile_hit >= 1, null, 30000));
+
+    // 2. Đĩa Bay: Appear trên xe mình, Attack sà xuống xe hạng 1, Idle treo, radar quấy nhiễu
+    await stage(70);
+    await simWait(0.2);
+    const uu = await page.evaluate(() => window.__use('ufo'));
+    check('Đĩa Bay khoá xe hạng 1', uu && uu.target === 1, JSON.stringify(uu));
+    check('Đĩa Bay chạy clip Appear', await until(() => TD.itemsView.debug().rigs.includes('ufo:appear'), null, 20000), JSON.stringify((await dbg()).rigs));
+    await snap('ufo-appear');
+    check('Đĩa Bay sà xuống (Attack) rồi treo (Idle) trên mục tiêu', await until(() => TD.itemsView.debug().played['ufo:attack'] >= 1 && TD.main.race.items.proj.some((p) => p.type === 'ufo' && p.phase === 'hover'), null, 30000));
+    await simWait(0.5);
+    await snap('ufo-hover');
+    const d2 = await dbg();
+    check('radar Đĩa Bay (ufodisturb) chạy tween gốc', d2.tweens >= 1 && d2.emitted.ufo >= 1, 'tween ' + d2.tweens);
+    check('Đĩa Bay bay đi (Disappear) khi hết giờ', await until(() => TD.itemsView.debug().played['ufo:disappear'] >= 1, null, 30000));
+
+    // 3. Lốc Xoáy: phễu gốc đặt 70 m trước mặt, thấy rõ
+    await stage(200);
+    await page.evaluate(() => window.__use('tornado'));
+    await simWait(0.9);
+    await snap('tornado');
+    const d3 = await dbg();
+    check('Lốc Xoáy vẽ phễu + vòng chân lốc (2 lưới tween gốc)', d3.tweens >= 2 && d3.objects >= 1, 'tween ' + d3.tweens);
+    check('xe chạy vào lốc bị cuốn (vòng tornado_hit)', await until(() => TD.itemsView.debug().seen.item_hit >= 1 && TD.main.race.items.ks[TD.main.me.id] && TD.itemsView.debug().tweens >= 1, null, 30000));
+
+    // 4. Sấm Sét: mây giông Wuyun (clip Attack) trên xe phía trước + sét
+    await stage(35);
+    await page.evaluate(() => window.__use('lightning'));
+    check('Sấm Sét: mây giông chạy clip Attack', await until(() => TD.itemsView.debug().rigs.includes('cloud:attack'), null, 20000));
+    await simWait(0.7);
+    await snap('lightning');
+    const d4 = await dbg();
+    check('Sấm Sét: hạt sét gốc (flash_hited, flash_idle, chớp mây)', d4.emitted.lightning >= 1 && d4.emitted.lightning_idle >= 1 && d4.emitted.cloud_flash >= 1);
+
+    // 5. Mực: mực phóng lên từ xe mình (Attack), rơi xuống xe trúng (Appear → Hited → Disappear)
+    await stage(30);
+    await page.evaluate(() => window.__use('ink'));
+    check('Mực: clip Attack trên xe mình và Appear trên xe trúng', await until(() => { const p = TD.itemsView.debug().played; return p['squid:attack'] >= 1 && p['squid:appear'] >= 1; }, null, 20000));
+    await simWait(0.8);
+    await snap('ink');
+    check('Mực: clip Hited rồi Disappear', await until(() => { const p = TD.itemsView.debug().played; return p['squid:hited'] >= 1 && p['squid:disappear'] >= 1; }, null, 20000));
+
+    // 6. Nam Châm: vòng từ trên hai xe + tia hạt
+    await stage(30);
+    await page.evaluate(() => window.__use('magnet'));
+    await simWait(0.6);
+    await snap('magnet');
+    const d6 = await dbg();
+    check('Nam Châm: vòng từ gốc (tween) + hạt magnet a/b + vòng ngắm', d6.tweens >= 2 && d6.emitted.magnet >= 1 && d6.emitted.magnet_b >= 1 && d6.aim, 'tween ' + d6.tweens);
+
+    // 7. Vỏ Chuối, Mây Mù: xe phía trước thả sau lưng nó (rơi giữa hai xe, camera nhìn thấy), rồi Thiên Sứ, Lá Chắn
+    await stage(45);
+    await page.evaluate(() => { TD.main.me.speed = 12; window.__use('banana', 1); });   // mình chậm lại để chụp kịp trước khi cán
+    check('Vỏ Chuối: clip Appear', await until(() => TD.itemsView.debug().played['banana:appear'] >= 1, null, 20000));
+    await page.evaluate(() => window.__use('cloud', 1));
+    check('Mây Mù: mảng sương gốc (fx_props_item_cloud_a)', await until(() => TD.itemsView.debug().emitted.smog >= 1, null, 20000));
+    await simWait(0.4);
+    await snap('banana-cloud');
+    await page.evaluate(() => window.__use('angel'));
+    check('Thiên Sứ: Appear rồi Idle lặp', await until(() => TD.itemsView.debug().rigs.includes('angel:idle'), null, 20000), JSON.stringify((await dbg()).rigs));
+    await snap('angel');
+    await page.evaluate(() => { const R = TD.main.race; R.items.ks[TD.main.me.id].shieldT = 0; R.items.ks[TD.main.me.id].shieldKind = null; window.__use('shield'); });
+    await simWait(0.6);
+    check('Lá Chắn Dunpai: clip Open rồi Loop', await until(() => TD.itemsView.debug().rigs.includes('shield:loop'), null, 20000), JSON.stringify((await dbg()).rigs));
+    await snap('shield');
+    check('nhặt hộp: burst gốc (propbox_getitem) khi chạy qua hàng hộp', await until(() => TD.itemsView.debug().emitted.pickup >= 1, null, 120000));
+    check('không lỗi trang', problems.length === 0, problems.slice(0, 4).join(' | '));
+    await page.context().close();
+  } finally {
+    await br.close(); srv.close();
+  }
+}
+
 (async () => {
-  nodePart();
-  if (!process.argv.includes('--node')) await browserPart();
+  const only = process.argv.includes('--fx');
+  if (!only) nodePart();
+  if (!process.argv.includes('--node') && !only) await browserPart();
+  if (!process.argv.includes('--node')) await fxPart();
   done();
 })().catch((e) => { console.error(e); process.exitCode = 1; });

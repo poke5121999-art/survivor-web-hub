@@ -13,7 +13,8 @@
   function mainPath(T) {
     if (T._itemPath) return T._itemPath;
     var ids = [], seen = {}, i = 0;
-    while (!seen[i]) { seen[i] = 1; ids.push(i); i = T.next[i][0]; }
+    // đường A→B (T.loop false): điểm cuối không có điểm kế tiếp
+    while (i != null && !seen[i]) { seen[i] = 1; ids.push(i); i = T.next[i] && T.next[i].length ? T.next[i][0] : null; }
     ids.sort(function (a, b) { return T.s[a] - T.s[b]; });
     return (T._itemPath = { ids: ids, s: ids.map(function (q) { return T.s[q]; }) });
   }
@@ -21,7 +22,7 @@
   // Điểm tâm đường ở quãng s (bọc theo chiều dài vòng) lệch ngang d (+ trái): { x, y, z, fx, fz, lw, rw }.
   function at(R, s, d) {
     var T = R.T, P = mainPath(T), L = T.L, n = P.ids.length;
-    s = ((s % L) + L) % L;
+    s = T.loop === false ? Math.min(Math.max(s, P.s[0]), P.s[n - 1] - 1e-6) : ((s % L) + L) % L;   // A→B: kẹp, không bọc
     var lo = 0, hi = n - 1;
     if (s < P.s[0] || s >= P.s[n - 1]) { lo = n - 1; hi = 0; }
     else { while (hi - lo > 1) { var m = (lo + hi) >> 1; if (P.s[m] <= s) lo = m; else hi = m; } }
@@ -47,8 +48,9 @@
       });
       return rows;
     }
-    var s0 = T.cps[T.startCp].s;
-    for (var s = RU.rowFirst; s < T.L - RU.rowEndGap; s += RU.rowGap) {
+    // đường A→B: hàng cuối dừng trước checkpoint đích, không bọc qua đầu đường
+    var s0 = T.cps[T.startCp].s, end = T.loop === false ? T.cps[T.endCp].s - s0 : T.L;
+    for (var s = RU.rowFirst; s < end - RU.rowEndGap; s += RU.rowGap) {
       var c = at(R, s0 + s, 0), w = c.lw + c.rw - 2.5;
       var n = Math.max(3, Math.min(RU.rowMax, Math.floor(w / RU.boxGap) + 1));
       var gap = Math.min(RU.boxGap, w / (n - 1)), mid = (c.lw - c.rw) / 2, row = [];
@@ -265,7 +267,7 @@
       } else {
         m.p += v;
         if (tg) m.d += Math.max(-v * 0.15, Math.min(v * 0.15, (tg.loc ? tg.loc.d : 0) - m.d));
-        var c = at(R, m.p - (Math.floor(m.p / T.L) * T.L), m.d), y = c.y + 1;
+        var c = at(R, T.loop === false ? m.p : m.p - (Math.floor(m.p / T.L) * T.L), m.d), y = c.y + 1;
         m.vx = c.x - m.x; m.vy = y - m.y; m.vz = c.z - m.z;
         var l = Math.hypot(m.vx, m.vy, m.vz) || 1; m.vx /= l; m.vy /= l; m.vz /= l;
         m.x = c.x; m.y = y; m.z = c.z;

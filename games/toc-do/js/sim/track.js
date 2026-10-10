@@ -1,9 +1,11 @@
 // Truy vấn ruy băng đường (TD.TRACKS[id]). Thuần JS.
 //   TD.Track.get(id)                 → bản đã chuẩn bị (cache)
-//   TD.Track.locate(T, x, y, z, hint) → { seg, tp, a, b, t, s, d, y, normal:[x,y,z], fx, fz, lw, rw, inside, score }
+//   TD.Track.locate(T, x, y, z, hint) → { seg, tp, a, b, t, s, d, y, normal:[x,y,z], fx, fz, lw, rw, inside, score, tOut, under }
+//        tOut: m vượt quá đầu/cuối đoạn; under: phạt lệch cao độ (dưới mặt đường nặng, trên nhẹ)
 //        d: lệch ngang có dấu, + là bên trái theo chiều chạy. lw/rw: bề rộng trái/phải (dương). hint: seg của lần trước.
 //   TD.Track.resetFor(T, kart)      → điểm hồi sinh phía sau xe, trong vùng checkpoint đã qua
 //   TD.Track.lineNearest(T, x, y, z, hint) → chỉ số gần nhất trên đường chạy chuẩn T.line
+// T.loop = false: đường A→B (src.loop false, về đích ở T.endCp). s không bọc theo T.L, đường chạy chuẩn hở hai đầu (ln.open).
 // Quy ước: tiến = (dx, dz) của điểm ruy băng; trái = (fz, -fx) (y lên, hệ tay phải).
 (function (G) {
   var TD = G.TD = G.TD || {};
@@ -14,24 +16,28 @@
     var T = { src: src, id: src.id, n: n, L: src.length, laps: src.laps, gravity: src.gravity,
       x: p.x, y: p.y, z: p.z, s: p.s, lw: p.lw, rw: p.rw, next: p.next, prev: p.prev,
       fx: new Float64Array(n), fz: new Float64Array(n), m: new Float64Array(n),
-      segs: [], segFrom: [], segTo: [], cps: src.cps, resets: src.resets, line: src.line, startCp: src.startCp || 0 };
+      segs: [], segFrom: [], segTo: [], cps: src.cps, resets: src.resets, line: src.line, startCp: src.startCp || 0,
+      loop: src.loop !== false, endCp: src.endCp != null ? src.endCp : src.startCp || 0 };
     for (var i = 0; i < n; i++) {
       var h = Math.hypot(p.dx[i], p.dz[i]) || 1;
       T.fx[i] = p.dx[i] / h; T.fz[i] = p.dz[i] / h; T.m[i] = p.dy[i] / h;
       T.segFrom.push([]); T.segTo.push([]);
     }
     fillJunctions(T);
-    // điểm gấp khúc có bề rộng tụt một điểm (vd 1.45 m giữa hai điểm 18 m): lấy theo láng giềng
-    [T.lw, T.rw].forEach(function (w) {
+    // điểm gấp khúc có bề rộng tụt một điểm (vd 1.45 m giữa hai điểm 18 m): lấy theo láng giềng.
+    // A→B: cầu hẹp thật trên đường khác tầng (Polaris s≈2640, 4630) thì giữ nguyên, nới ra là xe lơ lửng trên đường dưới.
+    [T.lw, T.rw].forEach(function (w, side) {
+      var keep = function (q, m) { return !T.loop && levelUnder(T, q, side ? -m : m); };
       for (var q = 0; q < n; q++) {
         var a = T.prev[q][0], b = T.next[q][0];
         if (a == null || b == null) continue;
         var m = Math.min(w[a], w[b]);
-        if (w[q] < m * 0.5) w[q] = m;
+        if (w[q] < m * 0.5 && !keep(q, m)) w[q] = m;
       }
       // bề rộng 0 (đoạn bay qua khe nhảy): lấy bề rộng gần nhất dọc đường
       for (q = 0; q < n; q++) {
         if (w[q] >= 2) continue;
+        if (keep(q, 8)) { w[q] = 2; continue; }
         var f = q, bk = q, best = 0;
         for (var h = 0; h < 8 && !best; h++) {
           f = f == null ? null : T.next[f][0]; bk = bk == null ? null : T.prev[bk][0];
@@ -44,7 +50,7 @@
       for (var k = 0; k < p.next[i].length; k++) {
         var j = p.next[i][k];
         var sb = p.s[j];
-        if (sb < p.s[i] - 1) sb += T.L;   // nối vòng
+        if (T.loop && sb < p.s[i] - 1) sb += T.L;   // nối vòng
         var sg = { id: T.segs.length, a: i, b: j, len: Math.hypot(p.x[j] - p.x[i], p.z[j] - p.z[i]) || 1, sa: p.s[i], sb: sb };
         T.segs.push(sg); T.segFrom[i].push(sg.id); T.segTo[j].push(sg.id);
       }
@@ -95,15 +101,34 @@
     });
     T.resets.forEach(function (r) { r.yaw = Math.atan2(r.fx, r.fz); });
     if (T.line) {
-      var ln = T.line, m = ln.x.length;
-      ln.n = m; ln.yaw = new Float64Array(m); ln.curv = new Float64Array(m);
-      for (i = 0; i < m; i++) {
-        var a = (i + m - 1) % m, b = (i + 1) % m;
-        ln.yaw[i] = Math.atan2(ln.x[b] - ln.x[a], ln.z[b] - ln.z[a]);
+      lineYaw(T.line, !T.loop);
+      // A→B: đường chuẩn có chỗ người chạy gốc nhảy tắt qua khoảng trống (Polaris s≈6200: cắt ngang cua tay áo, rơi 10 m)
+      // mà ruy băng không phủ. Đánh dấu điểm ngoài ruy băng để bot bám tâm ruy băng ở đó.
+      if (!T.loop) {
+        var ln = T.line, hint = -1;
+        ln.off = new Uint8Array(ln.n);
+        for (i = 0; i < ln.n; i++) {
+          var r = locate(T, ln.x[i], ln.y[i], ln.z[i], hint);
+          ln.off[i] = r.inside ? 0 : 1;
+          hint = r.seg;
+        }
       }
     }
     return T;
   }
+
+  // Hướng mỗi điểm của đường chạy chuẩn; đường hở thì hai đầu lấy hiệu một phía thay vì nối vòng.
+  function lineYaw(ln, open) {
+    var m = ln.x.length;
+    ln.n = m; ln.open = open; ln.yaw = new Float64Array(m);
+    for (var i = 0; i < m; i++) {
+      var a = open ? Math.max(0, i - 1) : (i + m - 1) % m, b = open ? Math.min(m - 1, i + 1) : (i + 1) % m;
+      ln.yaw[i] = Math.atan2(ln.x[b] - ln.x[a], ln.z[b] - ln.z[a]);
+    }
+    return ln;
+  }
+  // Chỉ số i trên đường chạy chuẩn: vòng thì bọc, hở thì kẹp vào hai đầu.
+  function lineAt(ln, i) { return ln.open ? (i < 0 ? 0 : i >= ln.n ? ln.n - 1 : i) : ((i % ln.n) + ln.n) % ln.n; }
 
   // Chỗ tách/nhập nhánh: nới bề rộng phía nhánh kia tới tâm của nó để lấp khe giữa hai dải.
   function fillJunctions(T) {
@@ -144,6 +169,21 @@
     return false;
   }
 
+  // Dải từ tâm điểm a ra dq mét ngang (+ trái) có nằm trên/dưới mặt đường khác tầng (lệch > 6 m) không?
+  function levelUnder(T, a, dq) {
+    for (var f = 0.25; f <= 1; f += 0.25) {
+      var mx = T.x[a] + T.fz[a] * dq * f, mz = T.z[a] - T.fx[a] * dq * f;
+      for (var c = 0; c < T.n; c++) {
+        if (Math.abs(T.y[c] - T.y[a]) <= 6) continue;
+        var dx = mx - T.x[c], dz = mz - T.z[c];
+        if (Math.abs(dx * T.fx[c] + dz * T.fz[c]) > 6) continue;
+        var lat = dx * T.fz[c] - dz * T.fx[c];
+        if (lat <= T.lw[c] && -lat <= T.rw[c]) return true;
+      }
+    }
+    return false;
+  }
+
   function evalSeg(T, sg, x, y, z, out) {
     var a = sg.a, b = sg.b;
     var da = (x - T.x[a]) * T.fx[a] + (z - T.z[a]) * T.fz[a];
@@ -171,9 +211,12 @@
     var up = y - yg;   // xe trên mặt đường (bay) được nới; dưới mặt đường thì phạt nặng
     out.seg = sg.id; out.a = a; out.b = b; out.t = tc; out.tp = tc < 0.5 ? a : b;
     out.s = sg.sa + (sg.sb - sg.sa) * tc; out.d = d; out.y = yg; out.slope = slope;
-    out.fx = fx; out.fz = fz; out.lw = lw; out.rw = rw;
+    out.fx = fx; out.fz = fz; out.lw = lw; out.rw = rw; out.tOut = tOut;
     out.inside = tOut < 5 && over === 0 && up > -3 && up < 40;   // nới 5 m dọc ở chỗ gấp khúc
-    out.score = tOut * 3 + over + (up < -1.5 ? (-up - 1.5) * 4 : up > 2.5 ? (up - 2.5) * 0.3 : 0);
+    // A→B: vượt dọc nhẹ cân hơn để trong cua tay áo có dốc (Hoàng Hà s≈1960) xe ở chỗ hở nối đoạn bằng phẳng không bị gán
+    // vào nhánh dốc phía trên (rồi bị coi là chui dưới mặt đường).
+    out.under = up < -1.5 ? (-up - 1.5) * 4 : up > 2.5 ? (up - 2.5) * 0.3 : 0;
+    out.score = tOut * (T.loop ? 3 : 1) + over + out.under;
     return out;
   }
 
@@ -201,8 +244,9 @@
       if (ids && ok) {
         var s0 = ok.s;
         ids = ids.filter(function (id) {
-          var ds = Math.abs(T.segs[id].sa - s0) % T.L;
-          return Math.min(ds, T.L - ds) < 150;
+          var ds = Math.abs(T.segs[id].sa - s0);
+          if (T.loop) { ds %= T.L; ds = Math.min(ds, T.L - ds); }
+          return ds < 150;
         });
       }
       var g = ids && ids.length ? bestOf(T, ids, x, y, z, {}) : null;
@@ -224,7 +268,7 @@
     for (var i = 0; i < T.resets.length; i++) {
       var r = T.resets[i];
       var ds = r.s - sK;
-      if (ds > T.L / 2) ds -= T.L; else if (ds < -T.L / 2) ds += T.L;
+      if (T.loop) { if (ds > T.L / 2) ds -= T.L; else if (ds < -T.L / 2) ds += T.L; }
       var dist = Math.hypot(r.x - k.x, r.z - k.z);
       var sc = dist + (cps[r.cp] ? 0 : 500) + (ds > 2 ? 300 + ds : 0);
       if (sc < bs) { bs = sc; best = r; }
@@ -235,8 +279,8 @@
   function lineNearest(T, x, y, z, hint) {
     var ln = T.line, n = ln.n, best = -1, bd = 1e18, i, j;
     if (hint != null && hint >= 0) {
-      for (j = -4; j <= 24; j++) {
-        i = (hint + j + n) % n;
+      for (j = -4; j <= 10; j++) {   // chỉ nhìn ~30 m tới: ở cua tay áo (Hoàng Hà s≈4850) nhánh về nằm cách 25 m, nhìn xa thì nhảy cóc qua đỉnh cua
+        i = lineAt(ln, hint + j);
         var d = (ln.x[i] - x) * (ln.x[i] - x) + (ln.z[i] - z) * (ln.z[i] - z) + (ln.y[i] - y) * (ln.y[i] - y) * 6;
         if (d < bd) { bd = d; best = i; }
       }
@@ -255,6 +299,6 @@
       if (!src) throw new Error('track not found: ' + id);
       return src._prep || (src._prep = prep(src));
     },
-    locate: locate, resetFor: resetFor, lineNearest: lineNearest,
+    locate: locate, resetFor: resetFor, lineNearest: lineNearest, lineYaw: lineYaw, lineAt: lineAt,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

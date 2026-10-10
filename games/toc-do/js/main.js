@@ -147,8 +147,8 @@
     // Kỹ năng bot: xếp hạng theo bậc (TD.RANK.botSkill), khu luyện đạo cụ dễ, còn lại ngẫu nhiên 0,45–0,9.
     const skill = () => mode.ranked && TD.RANK ? TD.RANK.botSkill(d, rng) : mode.practice ? 0.3 + rng() * 0.2 : 0.45 + rng() * 0.45;
     for (let i = 0; i < n; i++) {
-      // Đội: người chơi luôn Đội Xanh (1), xe xen kẽ đội theo ô xuất phát.
-      const team = mode.teams ? ((slot - i) % 2 === 0 ? 1 : 0) : undefined;
+      // Đội: người chơi luôn đội 1 (Đội Xanh), xe xen kẽ đội theo ô xuất phát.
+      const team = mode.teams ? TD.teamOf(i, slot, mode.teams) : undefined;
       if (i === slot) karts.push({ carId: d.car, driverId: d.driver, name: d.name, ctrl: 'human', team });
       else karts.push({ carId: cars[(rng() * cars.length) | 0], driverId: drivers[(rng() * drivers.length) | 0], name: names[i], ctrl: 'bot', skill: skill(), team });
     }
@@ -192,7 +192,7 @@
       if (TD.fx && k) TD.fx.onEvent(e, k, v, mine);
       plug('event', e, mine, M.ctx);
       switch (e.type) {
-        case 'countdown': TD.audio.play('Play_BGM_CountDown'); break;
+        case 'countdown': TD.audio.play(e.n === 1 ? 'Play_BGM_CountDown_Final' : 'Play_BGM_CountDown'); break;
         case 'go':
           TD.audio.play('Play_BGM_Go');
           TD.audio.music(pick(['Play_QQfeiche_BGM', 'Play_Music_Race2']));

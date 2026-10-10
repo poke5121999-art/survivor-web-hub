@@ -45,7 +45,7 @@
     if (!$('.loading', UI.root)) {
       const mode = TD.MODES[TD.save.d.mode] || TD.MODES.speed;
       show(`<div class="loading" style="background-image:url('art/maps/${T.id}.jpg')">
-        <div class="ld-head"><small>${esc(mode.name)}</small><b>${esc(T.name)}</b><span>${T.laps} vòng · ${(T.length / 1000).toFixed(1)} km</span></div>
+        <div class="ld-head"><small>${esc(mode.name)}</small><b>${esc(T.name)}</b><span>${(mode.laps || T.laps) >= 99 ? 'Chạy tự do' : (mode.laps || T.laps) + ' vòng'} · ${(T.length / 1000).toFixed(1)} km</span></div>
         ${TD.lobby ? TD.lobby.loadingCards(mode) : ''}
         <div class="lbox"><div class="bar"><i></i></div><small>Mẹo: thả drift rồi bấm phun ngay để có phun nhỏ. Drift đúng góc 35–50° ra "Hoàn hảo".</small>
         <small class="ld-keys">${TD.input.isTouch() ? 'Nút trái/phải để lái · DRIFT để trượt · nút lửa để phun' : '←/→ lái · Shift drift · Space phun · ↓ phanh · R về đường · Esc dừng'}</small></div></div>`);
@@ -148,7 +148,8 @@
     const list = R.karts.slice().sort((a, b) => (a.place || 9) - (b.place || 9));
     return list.map((k) => {
       // k.st có thể rời 'finish' (xe đứng sau về đích bị hồi sinh); finishT mới là dấu hiệu đã về.
-      const time = k.finishT != null && !k.dnf ? TD.fmtTime(k.finishT) : '<em class="dnf">Chưa về</em>';
+      // k.out: bị loại ở mode sự kiện (js/sim/events.js), "Đã bị loại" 8a06bc8e.
+      const time = k.finishT != null && !k.dnf ? TD.fmtTime(k.finishT) : `<em class="dnf">${k.out ? 'Đã bị loại' : 'Chưa về'}</em>`;
       const st = k.stats, mine = k === me;
       const rankImg = k.place <= 3 ? `<img src="art/ui/rank_big_${k.place}.png" alt="${k.place}">` : `<b class="n">${k.place}</b>`;
       const rec = mine && F && F.newRecord ? '<img class="newrec" src="art/ui/result_new_record.png" alt="Kỷ lục mới">' : '';
@@ -186,7 +187,7 @@
     <div class="fin-hint">Chạm để tiếp tục</div>
   </div>
   <div class="fin-table panel">
-    <div class="fin-title"><b>${esc(T.name)}</b>${F.team ? `<span class="fin-team">${TD.TEAMS.map((t, i) => `<i class="team${i}">${t.name} ${F.team.pts[i]}</i>`).join(' · ')} · <em>${F.team.win === me.team ? 'ĐỘI THẮNG' : 'ĐỘI THUA'}</em></span>` : ''}<span>${F.dnf ? 'Hết giờ' : 'Hạng ' + F.place + ' · ' + TD.fmtTime(me.finishT)}${F.newRecord ? ' · <em>KỶ LỤC MỚI</em>' : ''}${F.levelUp ? ' · <em>LEVEL UP Lv.' + la.lv + '</em>' : ''}</span></div>
+    <div class="fin-title"><b>${esc(T.name)}</b>${F.team ? `<span class="fin-team">${F.team.pts.map((p, i) => `<i class="team${i}">${TD.TEAMS[i].name} ${p}</i>`).join(' · ')} · <em>${F.team.win === me.team ? 'ĐỘI THẮNG' : 'ĐỘI THUA'}</em></span>` : ''}<span>${F.dnf ? 'Hết giờ' : 'Hạng ' + F.place + ' · ' + TD.fmtTime(me.finishT)}${F.newRecord ? ' · <em>KỶ LỤC MỚI</em>' : ''}${F.levelUp ? ' · <em>LEVEL UP Lv.' + la.lv + '</em>' : ''}</span></div>
     <div class="fin-cols"><span>Hạng</span><span>Tên</span><span>Thời gian</span><span>Drift</span><span>Phun</span><span>Va chạm</span></div>
     <div class="rows">${rows(R, me)}</div>
     <div class="acts"><button class="btn yellow" data-r="again">ĐUA LẠI</button><button class="btn blue" data-r="lobby">VỀ SẢNH</button></div>

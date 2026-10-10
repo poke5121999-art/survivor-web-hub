@@ -185,6 +185,7 @@ Q = 'longest'
 CURATED = [
  # đếm lùi / còi
  ('Play_BGM_CountDown',        'Play_UI_ATM_countdown',                 'sfx',   False, None,        None, 'bíp đếm 3-2-1 (0.47 s), dùng 3 lần'),
+ ('Play_BGM_CountDown_Final',  'Play_XH_Ready',                         'sfx',   False, (0, 0.6),    None, 'nhịp "1" cao hơn (chuông 1160 Hz thay cho 1000 Hz), như Play_taotai_countdown_final của InGameBase; main.js cần phát khi e.n === 1'),
  ('Play_BGM_Go',               'Play_XH_Go',                            'sfx',   False, (0, 2.0),    None, 'còi xuất phát: cắt 2 s đầu của jingle XH_Go'),
  # vạch đích, vòng
  ('Play_Race_Lap',             'Play_Mode_Dajiangsai_UI_Change_Prompt', 'sfx',   False, None,        None, 'báo qua vòng (không có giọng)'),
@@ -229,7 +230,7 @@ MISSING = [
  ('Play_Tire_friction', 'tiếng lốp rít khi drift: không có thay thế'), ('Play_Car_dahua', 'drift start'),
  ('Play_DriftOrOverSteerEnd', 'hết drift'), ('Play_Engine_brake_light', 'phanh'), ('Play_Engine_brake_heavy', 'phanh gấp'),
  ('Play_Engine_reverse', 'lùi'), ('Play_BoostEnd', 'hết tăng tốc'), ('Play_Collision_lianxu', 'va chạm liên tiếp'),
- ('Play_VO_Countdown_3_2_1_Go', 'giọng đếm lùi (InGameBase.bnk / vo bank lõi)'),
+ ('Play_VO_Countdown_3_2_1_Go', 'giọng đếm lùi: không bank nào trong APK có (đã dò 110 bank, 1.266 event, 8.383 tên trong AndroidEventsInfoVN; các event giọng 321/readygo/countdown/NewRecord nằm ở InGameBase, Lobby, XXQ, GlobalStructure đều không có trong APK). Bank có mặt chỉ có chuông/jingle: UI_ATM_countdown, Spray_UI_Countdown, XH_Ready, XH_Go'),
  ('Play_VO_Lap_FinalLap_Finish', 'giọng báo vòng / về đích'), ('Play_VO_Position', 'giọng báo thứ hạng'),
  ('Play_TireOn*', 'tiếng lốp theo mặt đường'),
  ('Play_ElevenCity_*', 'bank SaiDao_ElevenCity.bnk (11City) không có trong APK'),

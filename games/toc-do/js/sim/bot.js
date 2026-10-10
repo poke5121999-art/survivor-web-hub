@@ -1,24 +1,21 @@
 // AI bot: bám đường chạy chuẩn gốc (T.line, <MapId>_StandardData), drift ở đoạn Drift=1, phun nhỏ sau drift theo kỹ năng,
 // nitro ở đoạn thẳng, kẹt thì lùi. Không có T.line thì bám tâm ruy băng (nhánh chính).
+// Đường A→B: đường chạy hở (ln.open), chỉ số kẹp ở hai đầu thay vì bọc; về đích rồi thì phanh dừng trên đường thoát.
 (function (G) {
   var TD = G.TD = G.TD || {};
 
   function centerLine(T) {
-    // dựng đường tạm từ tâm ruy băng, đi theo next[0]
-    var x = [], y = [], z = [], drift = [], i = 0, seen = {};
-    while (!seen[i]) {
+    // dựng đường tạm từ tâm ruy băng, đi theo next[0] (đường hở: từ điểm không có prev tới điểm cụt)
+    var x = [], y = [], z = [], drift = [], i = T.loop ? 0 : T.prev.findIndex(function (p) { return !p.length; }), seen = {};
+    while (i != null && !seen[i]) {
       seen[i] = 1;
       x.push(T.x[i]); y.push(T.y[i]); z.push(T.z[i]); drift.push(0);
       i = T.next[i][0];
     }
-    var ln = { x: x, y: y, z: z, drift: drift, n: x.length, yaw: new Float64Array(x.length) };
+    var ln = TD.Track.lineYaw({ x: x, y: y, z: z, drift: drift }, !T.loop), at = TD.Track.lineAt;
     for (var k = 0; k < ln.n; k++) {
-      var a = (k + ln.n - 1) % ln.n, b = (k + 1) % ln.n;
-      ln.yaw[k] = Math.atan2(x[b] - x[a], z[b] - z[a]);
-    }
-    for (k = 0; k < ln.n; k++) {
-      var t = TD.Kart.wrap(ln.yaw[(k + 3) % ln.n] - ln.yaw[k]);
-      if (Math.abs(t) > 0.5) for (var q = -1; q <= 3; q++) ln.drift[(k + q + ln.n) % ln.n] = 1;
+      var t = TD.Kart.wrap(ln.yaw[at(ln, k + 3)] - ln.yaw[k]);
+      if (Math.abs(t) > 0.5) for (var q = -1; q <= 3; q++) ln.drift[at(ln, k + q)] = 1;
     }
     return ln;
   }
@@ -49,6 +46,7 @@
 
   function think(k, R, dt) {
     var b = k.bot, inp = k.input, T = R.T, ln = T.line, n = ln.n, wrap = TD.Kart.wrap;
+    var at = function (i) { return TD.Track.lineAt(ln, i); };
     inp.nitro = false; inp.brake = 0; inp.drift = false;
     if (R.phase === 'countdown') {
       inp.throttle = -R.countdown >= b.startAt ? 1 : 0;
@@ -59,11 +57,11 @@
     b.li = TD.Track.lineNearest(T, k.x, k.y, k.z, b.li);
     var v = Math.abs(k.speed), kmh = v * 3.6, li = b.li;
     var Ld = 7 + v * 0.32, steps = Math.max(2, Math.round(Ld / 3.75));
-    var ti = (li + steps) % n;
+    var ti = at(li + steps);
     var ly = ln.yaw[ti], lane = b.lane * (ln.drift[ti] ? 0.3 : 1);
     var tx = ln.x[ti] + Math.cos(ly) * lane, tz = ln.z[ti] - Math.sin(ly) * lane;
-    if (k.loc && Math.abs(ln.y[ti] - k.loc.y) > 5) {
-      // đường chuẩn rời ruy băng (nhảy/cầu không có trong dữ liệu mặt đường): bám tâm ruy băng phía trước
+    if (k.loc && (Math.abs(ln.y[ti] - k.loc.y) > 5 || (ln.off && ln.off[ti]))) {
+      // đường chuẩn rời ruy băng (nhảy/cầu không có trong dữ liệu mặt đường, đường tắt A→B): bám tâm ruy băng phía trước
       var tp = k.loc.b;
       for (var q = 0; q < steps; q++) tp = T.next[tp][0];
       tx = T.x[tp]; tz = T.z[tp];
@@ -84,15 +82,14 @@
       return;
     }
 
-    var di = (li + Math.round((3 + v * 0.1) / 3.75)) % n;
-    var turn = wrap(ln.yaw[(li + 10) % n] - ln.yaw[li]);
-    var dir = wrap(ln.yaw[(li + 12) % n] - ln.yaw[(li + 2) % n]) > 0 ? -1 : 1;
+    var di = at(li + Math.round((3 + v * 0.1) / 3.75));
+    var dir = wrap(ln.yaw[at(li + 12)] - ln.yaw[at(li + 2)]) > 0 ? -1 : 1;
     var finished = k.st === 'finish';
     if (k.st === 'drift') {
       var dd = k.drift.dir, U = TD.TUNING, D2R = Math.PI / 180;
       // vận tốc quay ≈ c·VD (c ≈ 3.5/s) → VD cần; đầu xe đi trước vận tốc VD về phía cua
       var vdNeed = Math.max(0.25, Math.min(0.85, Math.abs(wv) / (3.5 * U.driftVelLerpScale) + 0.1 * b.skill));
-      var exitYaw = ln.yaw[(b.driftEnd + 2) % n];
+      var exitYaw = ln.yaw[at(b.driftEnd + 2)];
       var uExit = wrap(exitYaw - k.vyaw) * -dd;                 // còn phải quay bao nhiêu tới hướng ra cua
       var H = k.vyaw - dd * Math.min(vdNeed, Math.max(0, uExit + 0.03));   // đầu xe không vượt hướng ra cua
       var wh = wv + 6 * wrap(H - k.yaw);                         // rad/s mong muốn của đầu xe
@@ -112,20 +109,25 @@
       var used = b.driftEnd >= 0 && ((b.driftEnd - li + n) % n) < 40;
       if (!used) { b.driftEnd = -1; b.retry = 1; }
       else if (b.retry > 0 && k.drift.lastEnd === 'wall' && ln.drift[li] && !inp.drift && !k._driftBlock) { b.retry--; used = false; }   // drift bị tường cắt: thử lại một lần
-      var turnNear = wrap(ln.yaw[(li + 8) % n] - ln.yaw[(li + 2) % n]);
+      var turnNear = wrap(ln.yaw[at(li + 8)] - ln.yaw[at(li + 2)]);
       if (ln.drift[di] && !used && kmh > 80 && k.grounded && Math.abs(turnNear) > 0.16 && !finished) {
         inp.drift = true; inp.steer = dir;
         var e = di;
-        while (ln.drift[e % n] && e - di < 60) e++;
-        b.driftEnd = e % n;          // không drift lại trong cùng đoạn
+        while (ln.drift[at(e)] && e - di < 60) e++;
+        b.driftEnd = at(e);          // không drift lại trong cùng đoạn
       } else if (Math.abs(alpha) > 0.8 && kmh > 70) { inp.throttle = 0.2; }
+      // cua tay áo (đường chuẩn quay > 70° trong ~24 m tới, Hoàng Hà s≈4760, Polaris s≈6280): phanh xuống 90 km/h
+      else if (kmh > 90 && Math.abs(wrap(ln.yaw[at(li + 8)] - ln.yaw[li])) > 1.2) { inp.throttle = 0; inp.brake = 1; }
     }
 
     // tránh tường
     var loc = k.loc, room = 2.5;
     if (loc && loc.d > loc.lw - room) inp.steer = Math.min(1, inp.steer + (loc.d - loc.lw + room) * 0.25);
     else if (loc && -loc.d > loc.rw - room) inp.steer = Math.max(-1, inp.steer - (-loc.d - loc.rw + room) * 0.25);
-    if (finished) return;
+    if (finished) {
+      if (!T.loop) { inp.throttle = 0; inp.brake = v > 1 ? 0.6 : 0; }   // A→B: phanh dừng trên đường thoát sau vạch
+      return;
+    }
     // phun nhỏ / phun đôi sau drift
     var nt = k.nitro;
     if (nt.miniWindowT > 0 && !b.planned) {
@@ -145,7 +147,7 @@
     // nitro ở đoạn thẳng
     if (nt.charges > 0 && nt.boostT <= 0 && nt.miniWindowT <= 0 && b.pressAt < 0 && kmh > 140) {
       var look = nt.charges >= TD.TUNING.maxCharges ? 12 : 30, clear = true;
-      for (var q = 1; q <= look; q++) if (ln.drift[(li + q) % n]) { clear = false; break; }
+      for (var q = 1; q <= look; q++) if (ln.drift[at(li + q)]) { clear = false; break; }
       if (clear) {
         if (b.nitroHold > 0) b.nitroHold -= dt;
         else { inp.nitro = true; b.nitroHold = R.rng.range(0, 1.5) * (1 - b.skill); }

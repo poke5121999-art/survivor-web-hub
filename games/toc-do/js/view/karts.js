@@ -97,6 +97,11 @@
     });
   };
   // Sảnh đổi màu xong: tô lại xe người chơi đang hiện (xe trưng bày được main.js giữ lại theo cặp xe/tay đua).
+  // Hook trang trí (js/ui/fashion.js, pet.js…): driverGlb(kart, drv) → url glb tay đua thay thế (cùng bộ xương) hoặc null;
+  // ready(v) sau khi xe + tay đua đã nạp (gắn PET, phụ kiện); update(v, dt) mỗi khung. Hook lỗi không làm hỏng xe.
+  V.hooks = { driverGlb: [], ready: [], update: [] };
+  const first = (name, ...a) => { for (const f of V.hooks[name]) { try { const r = f(...a); if (r) return r; } catch (e) { console.error(e); } } return null; };
+  const each = (name, ...a) => { for (const f of V.hooks[name]) { try { f(...a); } catch (e) { console.error(e); } } };
   V.repaintHuman = function () { for (const v of V.list) if (v.kart.ctrl === 'human') V.applyPaint(v); };
 
   V.create = function (scene, kart) {
@@ -127,7 +132,7 @@
       V.applyPaint(v);
       return m;
     });
-    const pDrv = drv ? parse(drv.glb) : Promise.resolve(null);
+    const pDrv = drv ? parse(first('driverGlb', kart, drv) || drv.glb) : Promise.resolve(null);
     v.loading = Promise.all([pCar, pDrv]).then(([m, dg]) => {
       if (dg) {
         const seat = m.getObjectByName(drv.source && drv.source.gender === 'female' ? 'Car_Seat' : 'Car_Seat_M') || m.getObjectByName('driver_mount') || m;
@@ -146,6 +151,7 @@
         for (const p of v.blend) if (v.acts[p[0]]) { v.acts[p[0]].play(); v.acts[p[0]].setEffectiveWeight(0); }
       }
       v.ready = true;
+      each('ready', v);
     });
     return v;
   };
@@ -183,6 +189,7 @@
 
   V.update = function (v, dt, T) {
     const k = v.kart, U = TD.TUNING;
+    if (V.hooks.update.length) each('update', v, dt);
     v.root.position.set(k.x, k.y, k.z);
     v.root.rotation.set(0, k.yaw, 0);
     const n = k.loc && k.loc.normal;

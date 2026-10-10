@@ -743,5 +743,935 @@ TD.CARS = {
    "base": "art/cars/55_base.jpg",
    "mask": "art/cars/55_mask.jpg"
   }
+ },
+ "80": {
+  "id": "80",
+  "glb": "art/cars/80.glb",
+  "wheels": [
+   {
+    "x": -0.8377,
+    "y": 0.3284,
+    "z": -0.849,
+    "r": 0.3516,
+    "front": true
+   },
+   {
+    "x": 0.838,
+    "y": 0.3279,
+    "z": -0.849,
+    "r": 0.3516,
+    "front": true
+   },
+   {
+    "x": -0.9189,
+    "y": 0.3556,
+    "z": 1.1681,
+    "r": 0.3819,
+    "front": false
+   },
+   {
+    "x": 0.919,
+    "y": 0.3551,
+    "z": 1.168,
+    "r": 0.3819,
+    "front": false
+   }
+  ],
+  "forward": [
+   0,
+   0,
+   -1
+  ],
+  "size": {
+   "l": 3.96,
+   "w": 2.13,
+   "h": 1.425
+  },
+  "driverMount": [
+   0.0,
+   0.039,
+   0.5752
+  ],
+  "exhaust": [
+   [
+    -0.3408,
+    0.4056,
+    1.9504
+   ],
+   [
+    0.3408,
+    0.4056,
+    1.9504
+   ]
+  ],
+  "paint": [
+   [
+    1.0,
+    0.742,
+    0.339
+   ],
+   [
+    0.946,
+    0.946,
+    0.946
+   ]
+  ],
+  "bytes": 1507984,
+  "wheelSource": "hwheel_00303_skin_001.prefab",
+  "paintMaps": {
+   "base": "art/cars/80_base.jpg",
+   "mask": "art/cars/80_mask.jpg"
+  },
+  "name": "Xe Hổ Vàng",
+  "stats": {
+   "speed": 7,
+   "accel": 6,
+   "handling": 7,
+   "drift": 6,
+   "nitro": 4
+  },
+  "params": {
+   "engine": "CarEngine_00",
+   "steer": "CarSteer_04",
+   "driftExt": "CarDriftExt_04",
+   "turbo": "CarTurbo_02"
+  }
+ },
+ "272s19": {
+  "id": "272s19",
+  "glb": "art/cars/272s19.glb",
+  "wheels": [
+   {
+    "x": -1.00667,
+    "y": 0.33,
+    "z": -1.18853,
+    "r": 0.33,
+    "front": true
+   },
+   {
+    "x": 1.00667,
+    "y": 0.33,
+    "z": -1.18853,
+    "r": 0.33,
+    "front": true
+   },
+   {
+    "x": -1.00667,
+    "y": 0.33,
+    "z": 1.25722,
+    "r": 0.33,
+    "front": false
+   },
+   {
+    "x": 1.00667,
+    "y": 0.33,
+    "z": 1.25722,
+    "r": 0.33,
+    "front": false
+   }
+  ],
+  "forward": [
+   0,
+   0,
+   -1
+  ],
+  "size": {
+   "l": 4.891,
+   "w": 2.721,
+   "h": 1.091
+  },
+  "driverMount": [
+   0.0,
+   0.2,
+   0.5235
+  ],
+  "exhaust": [
+   [
+    -0.48973,
+    0.4,
+    2.4301
+   ],
+   [
+    0.48973,
+    0.4,
+    2.4301
+   ]
+  ],
+  "paint": [
+   [
+    0.565,
+    0.689,
+    0.686
+   ],
+   [
+    0.369,
+    0.889,
+    0.953
+   ]
+  ],
+  "bytes": 229784,
+  "wheelSource": "baked into the body mesh",
+  "paintMaps": {
+   "base": "art/cars/272s19_base.jpg",
+   "mask": "art/cars/272s19_mask.jpg"
+  },
+  "name": "Xe Thể Thao Cam",
+  "stats": {
+   "speed": 6,
+   "accel": 5,
+   "handling": 5,
+   "drift": 5,
+   "nitro": 3
+  },
+  "params": {
+   "engine": "CarEngine_00",
+   "steer": "CarSteer_03",
+   "driftExt": "CarDriftExt_03",
+   "turbo": "CarTurbo_015"
+  }
+ },
+ "447s4": {
+  "id": "447s4",
+  "glb": "art/cars/447s4.glb",
+  "wheels": [
+   {
+    "x": -0.76834,
+    "y": 0.33,
+    "z": -1.37971,
+    "r": 0.33,
+    "front": true
+   },
+   {
+    "x": 0.76834,
+    "y": 0.33,
+    "z": -1.37971,
+    "r": 0.33,
+    "front": true
+   },
+   {
+    "x": -0.76834,
+    "y": 0.33,
+    "z": 0.99006,
+    "r": 0.33,
+    "front": false
+   },
+   {
+    "x": 0.76834,
+    "y": 0.33,
+    "z": 0.99006,
+    "r": 0.33,
+    "front": false
+   }
+  ],
+  "forward": [
+   0,
+   0,
+   -1
+  ],
+  "size": {
+   "l": 4.74,
+   "w": 2.077,
+   "h": 1.01
+  },
+  "driverMount": [
+   0.0,
+   0.2,
+   0.2791
+  ],
+  "exhaust": [
+   [
+    -0.37379,
+    0.4,
+    2.12495
+   ],
+   [
+    0.37379,
+    0.4,
+    2.12495
+   ]
+  ],
+  "paint": [
+   [
+    0.565,
+    0.575,
+    0.887
+   ],
+   [
+    0.07,
+    0.0,
+    0.528
+   ]
+  ],
+  "bytes": 226356,
+  "wheelSource": "baked into the body mesh",
+  "paintMaps": {
+   "base": "art/cars/447s4_base.jpg",
+   "mask": "art/cars/447s4_mask.jpg"
+  },
+  "name": "Xe Lốc Xoáy",
+  "stats": {
+   "speed": 7,
+   "accel": 6,
+   "handling": 7,
+   "drift": 6,
+   "nitro": 4
+  },
+  "params": {
+   "engine": "CarEngine_00",
+   "steer": "CarSteer_04",
+   "driftExt": "CarDriftExt_04",
+   "turbo": "CarTurbo_02"
+  }
+ },
+ "507s17": {
+  "id": "507s17",
+  "glb": "art/cars/507s17.glb",
+  "wheels": [
+   {
+    "x": -0.99816,
+    "y": 0.33,
+    "z": -0.97558,
+    "r": 0.33,
+    "front": true
+   },
+   {
+    "x": 0.99816,
+    "y": 0.33,
+    "z": -0.97558,
+    "r": 0.33,
+    "front": true
+   },
+   {
+    "x": -0.99816,
+    "y": 0.33,
+    "z": 1.18947,
+    "r": 0.33,
+    "front": false
+   },
+   {
+    "x": 0.99816,
+    "y": 0.33,
+    "z": 1.18947,
+    "r": 0.33,
+    "front": false
+   }
+  ],
+  "forward": [
+   0,
+   0,
+   -1
+  ],
+  "size": {
+   "l": 4.33,
+   "w": 2.698,
+   "h": 1.245
+  },
+  "driverMount": [
+   0.0,
+   0.2,
+   0.54
+  ],
+  "exhaust": [
+   [
+    -0.48559,
+    0.4,
+    2.222
+   ],
+   [
+    0.48559,
+    0.4,
+    2.222
+   ]
+  ],
+  "paint": [
+   [
+    1.0,
+    1.0,
+    1.0
+   ],
+   [
+    0.726,
+    0.726,
+    0.726
+   ]
+  ],
+  "bytes": 255672,
+  "wheelSource": "baked into the body mesh",
+  "paintMaps": {
+   "base": "art/cars/507s17_base.jpg",
+   "mask": "art/cars/507s17_mask.jpg"
+  },
+  "name": "Xe Phản Lực",
+  "stats": {
+   "speed": 8,
+   "accel": 7,
+   "handling": 9,
+   "drift": 8,
+   "nitro": 5
+  },
+  "params": {
+   "engine": "CarEngine_00",
+   "steer": "CarSteer_05",
+   "driftExt": "CarDriftExt_05",
+   "turbo": "CarTurbo_03"
+  }
+ },
+ "524s2": {
+  "id": "524s2",
+  "glb": "art/cars/524s2.glb",
+  "wheels": [
+   {
+    "x": -0.86018,
+    "y": 0.33,
+    "z": -0.9678,
+    "r": 0.33,
+    "front": true
+   },
+   {
+    "x": 0.86018,
+    "y": 0.33,
+    "z": -0.9678,
+    "r": 0.33,
+    "front": true
+   },
+   {
+    "x": -0.86018,
+    "y": 0.33,
+    "z": 0.91016,
+    "r": 0.33,
+    "front": false
+   },
+   {
+    "x": 0.86018,
+    "y": 0.33,
+    "z": 0.91016,
+    "r": 0.33,
+    "front": false
+   }
+  ],
+  "forward": [
+   0,
+   0,
+   -1
+  ],
+  "size": {
+   "l": 3.756,
+   "w": 2.325,
+   "h": 1.371
+  },
+  "driverMount": [
+   0.0,
+   0.2,
+   0.3468
+  ],
+  "exhaust": [
+   [
+    -0.41847,
+    0.4,
+    1.79915
+   ],
+   [
+    0.41847,
+    0.4,
+    1.79915
+   ]
+  ],
+  "paint": [
+   [
+    0.0,
+    0.8,
+    0.453
+   ],
+   [
+    0.188,
+    0.395,
+    0.443
+   ]
+  ],
+  "bytes": 268676,
+  "wheelSource": "baked into the body mesh",
+  "paintMaps": {
+   "base": "art/cars/524s2_base.jpg",
+   "mask": "art/cars/524s2_mask.jpg"
+  },
+  "name": "Xe Bọ Cánh Cứng",
+  "stats": {
+   "speed": 5,
+   "accel": 4,
+   "handling": 3,
+   "drift": 3,
+   "nitro": 2
+  },
+  "params": {
+   "engine": "CarEngine_00",
+   "steer": "CarSteer_02",
+   "driftExt": "CarDriftExt_02",
+   "turbo": "CarTurbo_01"
+  }
+ },
+ "547s2": {
+  "id": "547s2",
+  "glb": "art/cars/547s2.glb",
+  "wheels": [
+   {
+    "x": -1.05154,
+    "y": 0.33,
+    "z": -1.18457,
+    "r": 0.33,
+    "front": true
+   },
+   {
+    "x": 1.05154,
+    "y": 0.33,
+    "z": -1.18457,
+    "r": 0.33,
+    "front": true
+   },
+   {
+    "x": -1.05154,
+    "y": 0.33,
+    "z": 1.17227,
+    "r": 0.33,
+    "front": false
+   },
+   {
+    "x": 1.05154,
+    "y": 0.33,
+    "z": 1.17227,
+    "r": 0.33,
+    "front": false
+   }
+  ],
+  "forward": [
+   0,
+   0,
+   -1
+  ],
+  "size": {
+   "l": 4.714,
+   "w": 2.842,
+   "h": 1.616
+  },
+  "driverMount": [
+   0.0,
+   0.2,
+   0.4652
+  ],
+  "exhaust": [
+   [
+    -0.51156,
+    0.4,
+    2.3007
+   ],
+   [
+    0.51156,
+    0.4,
+    2.3007
+   ]
+  ],
+  "paint": [
+   [
+    0.65,
+    0.617,
+    0.617
+   ],
+   [
+    1.0,
+    0.94,
+    0.968
+   ]
+  ],
+  "bytes": 294804,
+  "wheelSource": "baked into the body mesh",
+  "paintMaps": {
+   "base": "art/cars/547s2_base.jpg",
+   "mask": "art/cars/547s2_mask.jpg"
+  },
+  "name": "Xe Vệ Binh",
+  "stats": {
+   "speed": 9,
+   "accel": 8,
+   "handling": 9,
+   "drift": 10,
+   "nitro": 7
+  },
+  "params": {
+   "engine": "CarEngine_00",
+   "steer": "CarSteer_057",
+   "driftExt": "CarDriftExt_06",
+   "turbo": "CarTurbo_04"
+  }
+ },
+ "564s1": {
+  "id": "564s1",
+  "glb": "art/cars/564s1.glb",
+  "wheels": [
+   {
+    "x": -1.12201,
+    "y": 0.33,
+    "z": -1.01078,
+    "r": 0.33,
+    "front": true
+   },
+   {
+    "x": 1.12148,
+    "y": 0.33,
+    "z": -1.01078,
+    "r": 0.33,
+    "front": true
+   },
+   {
+    "x": -1.12201,
+    "y": 0.33,
+    "z": 1.13617,
+    "r": 0.33,
+    "front": false
+   },
+   {
+    "x": 1.12148,
+    "y": 0.33,
+    "z": 1.13617,
+    "r": 0.33,
+    "front": false
+   }
+  ],
+  "forward": [
+   0,
+   0,
+   -1
+  ],
+  "size": {
+   "l": 4.294,
+   "w": 3.032,
+   "h": 1.511
+  },
+  "driverMount": [
+   0.0,
+   0.2,
+   0.4921
+  ],
+  "exhaust": [
+   [
+    -0.54571,
+    0.4,
+    2.15965
+   ],
+   [
+    0.54571,
+    0.4,
+    2.15965
+   ]
+  ],
+  "paint": [
+   [
+    0.624,
+    0.722,
+    0.745
+   ],
+   [
+    0.533,
+    0.552,
+    0.597
+   ]
+  ],
+  "bytes": 266684,
+  "wheelSource": "baked into the body mesh",
+  "paintMaps": {
+   "base": "art/cars/564s1_base.jpg",
+   "mask": "art/cars/564s1_mask.jpg"
+  },
+  "name": "Xe Thiết Giáp",
+  "stats": {
+   "speed": 8,
+   "accel": 7,
+   "handling": 9,
+   "drift": 8,
+   "nitro": 5
+  },
+  "params": {
+   "engine": "CarEngine_00",
+   "steer": "CarSteer_05",
+   "driftExt": "CarDriftExt_05",
+   "turbo": "CarTurbo_03"
+  }
+ },
+ "499s13": {
+  "id": "499s13",
+  "glb": "art/cars/499s13.glb",
+  "wheels": [
+   {
+    "x": -1.39381,
+    "y": 0.33,
+    "z": -1.1507,
+    "r": 0.33,
+    "front": true
+   },
+   {
+    "x": 1.39081,
+    "y": 0.33,
+    "z": -1.1507,
+    "r": 0.33,
+    "front": true
+   },
+   {
+    "x": -1.39381,
+    "y": 0.33,
+    "z": 1.3789,
+    "r": 0.33,
+    "front": false
+   },
+   {
+    "x": 1.39081,
+    "y": 0.33,
+    "z": 1.3789,
+    "r": 0.33,
+    "front": false
+   }
+  ],
+  "forward": [
+   0,
+   0,
+   -1
+  ],
+  "size": {
+   "l": 5.059,
+   "w": 3.763,
+   "h": 1.565
+  },
+  "driverMount": [
+   0.0,
+   0.2,
+   0.62
+  ],
+  "exhaust": [
+   [
+    -0.67734,
+    0.4,
+    2.5937
+   ],
+   [
+    0.67734,
+    0.4,
+    2.5937
+   ]
+  ],
+  "paint": [
+   [
+    0.968,
+    0.935,
+    0.981
+   ],
+   [
+    0.358,
+    0.358,
+    0.358
+   ]
+  ],
+  "bytes": 382108,
+  "wheelSource": "baked into the body mesh",
+  "paintMaps": {
+   "base": "art/cars/499s13_base.jpg",
+   "mask": "art/cars/499s13_mask.jpg"
+  },
+  "name": "Xe Đại Bàng",
+  "stats": {
+   "speed": 9,
+   "accel": 8,
+   "handling": 9,
+   "drift": 10,
+   "nitro": 7
+  },
+  "params": {
+   "engine": "CarEngine_00",
+   "steer": "CarSteer_057",
+   "driftExt": "CarDriftExt_06",
+   "turbo": "CarTurbo_04"
+  }
+ },
+ "500s1": {
+  "id": "500s1",
+  "glb": "art/cars/500s1.glb",
+  "wheels": [
+   {
+    "x": -1.3334,
+    "y": 0.33,
+    "z": -1.06186,
+    "r": 0.33,
+    "front": true
+   },
+   {
+    "x": 1.3334,
+    "y": 0.33,
+    "z": -1.06186,
+    "r": 0.33,
+    "front": true
+   },
+   {
+    "x": -1.3334,
+    "y": 0.33,
+    "z": 1.49687,
+    "r": 0.33,
+    "front": false
+   },
+   {
+    "x": 1.3334,
+    "y": 0.33,
+    "z": 1.49687,
+    "r": 0.33,
+    "front": false
+   }
+  ],
+  "forward": [
+   0,
+   0,
+   -1
+  ],
+  "size": {
+   "l": 5.117,
+   "w": 3.604,
+   "h": 1.485
+  },
+  "driverMount": [
+   0.0,
+   0.2,
+   0.7293
+  ],
+  "exhaust": [
+   [
+    -0.64868,
+    0.4,
+    2.72624
+   ],
+   [
+    0.64868,
+    0.4,
+    2.72624
+   ]
+  ],
+  "paint": [
+   [
+    2.0,
+    2.0,
+    2.0
+   ],
+   [
+    1.757,
+    1.757,
+    1.757
+   ]
+  ],
+  "bytes": 312948,
+  "wheelSource": "baked into the body mesh",
+  "paintMaps": {
+   "base": "art/cars/500s1_base.jpg",
+   "mask": "art/cars/500s1_mask.jpg"
+  },
+  "name": "Xe Hỏa Long",
+  "stats": {
+   "speed": 10,
+   "accel": 9,
+   "handling": 10,
+   "drift": 10,
+   "nitro": 9
+  },
+  "params": {
+   "engine": "CarEngine_00",
+   "steer": "CarSteer_06",
+   "driftExt": "CarDriftExt_06",
+   "turbo": "CarTurbo_06"
+  }
+ },
+ "55s1": {
+  "id": "55s1",
+  "glb": "art/cars/55s1.glb",
+  "wheels": [
+   {
+    "x": -0.9362,
+    "y": 0.3181,
+    "z": -1.0178,
+    "r": 0.3516,
+    "front": true
+   },
+   {
+    "x": 0.9362,
+    "y": 0.3181,
+    "z": -1.0178,
+    "r": 0.3516,
+    "front": true
+   },
+   {
+    "x": -0.936,
+    "y": 0.3664,
+    "z": 1.2449,
+    "r": 0.4077,
+    "front": false
+   },
+   {
+    "x": 0.936,
+    "y": 0.3664,
+    "z": 1.2449,
+    "r": 0.4077,
+    "front": false
+   }
+  ],
+  "forward": [
+   0,
+   0,
+   -1
+  ],
+  "size": {
+   "l": 4.693,
+   "w": 2.937,
+   "h": 1.512
+  },
+  "driverMount": [
+   0.0,
+   0.0871,
+   0.4819
+  ],
+  "exhaust": [
+   [
+    -0.4699,
+    0.4164,
+    2.2362
+   ],
+   [
+    0.4699,
+    0.4164,
+    2.2362
+   ]
+  ],
+  "paint": [
+   [
+    0.799,
+    0.813,
+    0.896
+   ],
+   [
+    0.833,
+    0.842,
+    0.906
+   ]
+  ],
+  "bytes": 615764,
+  "wheelSource": "hwheel_00303_skin_001.prefab",
+  "paintMaps": {
+   "base": "art/cars/55s1_base.jpg",
+   "mask": "art/cars/55s1_mask.jpg"
+  },
+  "name": "Siêu Tốc Đỏ Bản Đặc Biệt",
+  "stats": {
+   "speed": 10,
+   "accel": 9,
+   "handling": 10,
+   "drift": 9,
+   "nitro": 10
+  },
+  "params": {
+   "engine": "CarEngine_00",
+   "steer": "CarSteer_06",
+   "driftExt": "CarDriftExt_06",
+   "turbo": "CarTurbo_06"
+  }
  }
 };

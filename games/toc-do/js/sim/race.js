@@ -2,8 +2,11 @@
 //   var R = TD.Race.create({ trackId, seed, mode?, laps?, karts: [{ id?, carId, driverId, name, ctrl: 'human'|'bot', skill?, team? }], finishGrace? })
 //   mode = một mục của TD.MODES (mặc định speed). Có mode.items và TD.Items thì R.items = TD.Items.init(R), mỗi bước gọi TD.Items.step.
 //   TD.Race.step(R, dt)   — dt bất kỳ (giây thật), bên trong chạy bước cố định 1/120 s.
+//   TD.Race.finish(R, k, timeout) — cho xe về đích ngay (mode sự kiện: loại xe cuối, hết giờ); timeout = về đích không tính giờ.
 // Sự kiện: R.events[] = { t, type, kart, ... }. Lớp vẽ/âm thanh đọc rồi tự xoá mỗi khung: `R.events.length = 0`.
 // Người chơi: ghi R.karts[i].input mỗi khung trước khi gọi step.
+// Đường A→B (T.loop false): 1 vòng, về đích khi vào vùng checkpoint T.endCp; mode ép nhiều vòng (luyện tập tự do) thì
+// tới đích tính một vòng rồi đưa xe về ô xuất phát.
 (function (G) {
   var TD = G.TD = G.TD || {};
 
@@ -22,7 +25,7 @@
     var T = TD.Track.get(o.trackId);
     var mode = o.mode || (TD.MODES && TD.MODES.speed) || { id: 'speed' };
     var R = {
-      trackId: T.id, mode: mode, t: 0, phase: 'countdown', countdown: U.countdown, laps: o.laps || mode.laps || T.laps, karts: [], order: [], events: [], items: null,
+      trackId: T.id, mode: mode, t: 0, phase: 'countdown', countdown: U.countdown, laps: T.loop ? o.laps || mode.laps || T.laps : mode.laps || 1, karts: [], order: [], events: [], items: null,
       seed: o.seed >>> 0, rng: TD.RNG(o.seed), T: T, goT: null, finishDeadline: null, finishGrace: o.finishGrace != null ? o.finishGrace : U.finishGrace,
       leaderProgress: 0, _acc: 0, _cdShown: Math.ceil(U.countdown) + 1, nFinished: 0,
     };
@@ -47,35 +50,61 @@
 
   // Checkpoint theo vùng: mỗi điểm ruy băng thuộc vùng LocatedCheckPointID (cổng vừa qua). Vào vùng nằm trong
   // cpAllowed[lastCp] (≤ 3 bước tới) → đã qua cổng đó; lùi về vùng cha của lastCp → trả lại (không ăn gian vòng).
+  // A→B: vào vùng vạch đích khi đã qua vạch xuất phát (lap ≥ 1) → về đích; lùi qua vạch xuất phát thì lap về 0, không về đích được.
   function gates(R, k) {
     var T = R.T, loc = k.loc, S = T.startCp, A = T.cpAllowed;
     if (!loc || !loc.inside) return;
     var r = T.src.pts.cp[loc.t < 0.5 ? loc.a : loc.b];
     var was = k.lastCp;
     if (r === was) return;
-    var over = function (from, to) { return to === S || (A[from].indexOf(S) >= 0 && A[S].indexOf(to) >= 0); };
+    var over = function (from, to, c) { return to === c || (A[from].indexOf(c) >= 0 && A[c].indexOf(to) >= 0); };
     if (A[was].indexOf(r) >= 0) {
       k.lastCp = r;
-      if (over(was, r)) passLine(R, k);
+      if (over(was, r, S)) passLine(R, k);
+      else if (!T.loop && k.lap >= 1 && over(was, r, T.endCp)) passEnd(R, k);
     } else if (A[r].indexOf(was) >= 0) {
       k.lastCp = r;
-      if (was === S || over(r, was)) { k.lap--; k._lapBack = true; }
+      if (was === S || over(r, was, S)) { k.lap--; k._lapBack = true; }
     }
     k.cpNext = T.cps[k.lastCp].next[0];
   }
 
   function passLine(R, k) {
-    var T = R.T;
     if (k._lapBack) { k._lapBack = false; k.lap++; return; }   // vượt lại vạch sau khi lùi: chỉ trả lại vòng cũ
+    if (!R.T.loop) {
+      // A→B: vạch xuất phát chỉ bắt đầu vòng; lần đầu (hoặc sau khi được đưa về ô xuất phát) mới bấm giờ
+      if (k.lap === 0) k.lap = 1;
+      if (k.lapStartT == null) k.lapStartT = R.t;
+      return;
+    }
     k.lap++;
     if (k.lap === 1) { k.lapStartT = R.t; return; }
+    lapDone(R, k);
+  }
+
+  // Xong một vòng (k.lap đã tăng sang vòng mới): ghi giờ vòng, về đích nếu đủ vòng.
+  function lapDone(R, k) {
     var lt = R.t - k.lapStartT;
     k.lapStartT = R.t;
     k.stats.lapTimes.push(lt);
     if (k.stats.bestLap == null || lt < k.stats.bestLap) k.stats.bestLap = lt;
-    if (k.lap > R.laps) { finish(R, k, false); return; }
+    if (k.lap > R.laps) { finish(R, k, false); return true; }
     ev(R, k, 'lap', { lap: k.lap - 1, time: lt });
     if (k.lap === R.laps) ev(R, k, 'final_lap');
+    return false;
+  }
+
+  function passEnd(R, k) {
+    if (k.lapStartT == null) k.lapStartT = R.goT;
+    k.lap++;
+    if (lapDone(R, k)) return;
+    // còn vòng (luyện tập tự do): về ô xuất phát đầu, bấm giờ lại khi qua vạch
+    var T = R.T, g = gridSlot(T, 0);
+    respawn(R, k, 'lap', { x: g.x, y: T.cps[T.startCp].y, z: g.z, yaw: g.yaw });
+    k.stats.respawns--;   // đưa về đầu đường không phải lỗi lái
+    k.lastCp = T.cps[T.startCp].prev[0];
+    k.cpNext = T.startCp;
+    k.lapStartT = null;
   }
 
   // k.done giữ dấu đã về đích kể cả khi xe (bot lái tiếp sau vạch) bị hồi sinh làm k.st rời 'finish'.
@@ -96,6 +125,7 @@
     var T = R.T, L = T.L;
     R.karts.forEach(function (k) {
       if (k.done) return;
+      if (!T.loop) { k.progress = Math.max(0, k.lap - 1) * L + (k.loc ? k.loc.s : T.cps[k.lastCp].s); return; }   // s không bọc
       var base = T.cps[k.lastCp].s, ds = (k.loc ? k.loc.s : base) - base;
       while (ds > L / 2) ds -= L;
       while (ds < -L / 2) ds += L;
@@ -173,7 +203,10 @@
   function checks(R, k, h) {
     var U = TD.TUNING, loc = k.loc;
     if (k.st === 'respawn' || k.st === 'grid') return;
-    var off = loc.inside ? 0 : Math.max(0, loc.d - loc.lw, -loc.d - loc.rw, loc.score - 4);
+    // A→B: ruy băng có quảng trường, cua tay áo rộng 20–40 m mà điểm cách 10 m → hở ở chỗ nối đoạn; bề rộng tụt bậc
+    // (Hoàng Hà s≈1640: 22 m → 7 m) thì tường đẩy xe vào. Chỉ tính lệch ngang sau khi tường đẩy, dưới mặt đường, vượt dọc quá 15 m.
+    var off = loc.inside ? 0 : R.T.loop ? Math.max(0, loc.d - loc.lw, -loc.d - loc.rw, loc.score - 4)
+      : Math.max(0, loc.d - loc.lw, -loc.d - loc.rw, loc.tOut - 15, loc.under - 4);
     if (off > U.offRoad || k.y < loc.y - U.fallDepth) return respawn(R, k, 'off');
     var v = Math.hypot(k.vx, k.vz);
     if (v > 3 && (k.vx * loc.fx + k.vz * loc.fz) < -0.5 * v) k.wrongT += h; else k.wrongT = Math.max(0, k.wrongT - h);
@@ -240,12 +273,15 @@
     R.t += h;
   }
 
+  // Luật thêm của chế độ (js/sim/events.js…): mỗi hàm f(R) chạy sau mỗi lần step, tự lọc theo R.mode.
+  var after = [];
   function step(R, dt) {
     var h = TD.TUNING.dt;
     R._acc += Math.min(Math.max(dt, 0), 0.25);
     while (R._acc >= h - 1e-12) { fixed(R, h); R._acc -= h; }
+    for (var i = 0; i < after.length; i++) after[i](R);
     return R;
   }
 
-  TD.Race = { create: create, step: step, respawn: respawn };
+  TD.Race = { create: create, step: step, respawn: respawn, finish: finish, after: after };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -36,7 +36,7 @@ async function desktop(br, base) {
   console.log('1366×650, phím');
   const { page, problems } = await T.open(br, base, 'index.html', { width: 1366, height: 650 });
   await lobby(page);
-  T.check('sảnh hiện 5 ô chế độ và thanh dưới', await page.evaluate(() => document.querySelectorAll('.lb-home .lb-tile').length === 5 && document.querySelectorAll('.lb-bar .lb-bt').length === 5));
+  T.check('sảnh hiện 5 ô chế độ và thanh dưới', await page.evaluate(() => document.querySelectorAll('.lb-home .lb-tile').length === 5 && document.querySelectorAll('.lb-bar .lb-bt[data-tab]').length === 5 && document.querySelectorAll('.lb-bar .lb-bt[data-entry]').length === 5));
   await T.shot(page, 'ui-lobby-1366');
   await page.click('[data-act="start"]');
   T.check('Xuất Phát mở chọn chế độ với ô chọn mọi đường', await page.evaluate(() => document.querySelectorAll('.lb-th').length === Object.keys(TD.TRACKS).length));

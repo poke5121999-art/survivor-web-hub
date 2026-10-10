@@ -120,3 +120,5 @@
   .fin-cards:has(.fin-card:nth-child(4)) .fin-card { width: clamp(130px, 22vw, 190px); padding: 6px 8px; }
   .fin-congrats { font-size: 28px; }
 }
+.result .row.team2 { box-shadow: inset 5px 0 0 #ffc83c; }
+.fin-team i.team2 { color: #ffd76a; }

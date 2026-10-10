@@ -1,6 +1,6 @@
 /*
  * Tốc Độ: sảnh chính, chọn chế độ, ghép phòng, màn tải, Huấn Luyện (js/ui/lobby.js) ở 1366×650 (chuột) và 844×390 (chạm).
- * - Sảnh: mọi ô và nút thanh dưới nằm trong màn, elementFromPoint ở tâm trúng đúng nút, ô khoá báo "Chưa mở".
+ * - Sảnh: mọi ô và nút thanh dưới nằm trong màn, elementFromPoint ở tâm trúng đúng nút, ô Cốt Truyện mở bản đồ chương.
  * - Xuất Phát → Tốc Độ-Đội → đổi đường → Ghép phòng: 6 thẻ (3 xanh, 3 đỏ) → màn tải có thẻ + tên chế độ → trận đúng chế độ,
  *   đúng đường, tên bot theo danh sách đã ghép. Hủy ghép quay về chọn chế độ, không vào trận.
  * - Tạm dừng → Về sảnh: canvas HUD đã xoá. Huấn Luyện → Bắt đầu: vào Huấn luyện tự do.
@@ -44,8 +44,9 @@ async function run(br, base, w, h, touch) {
   const tiles = await page.evaluate(() => [...document.querySelectorAll('.lb-tile .lb-tl')].map((e) => e.textContent));
   T.check('sảnh có 5 ô: Giải Đấu, Xuất Phát, Huấn Luyện, Cốt Truyện, Khu Giải Trí',
     tiles.join('|') === 'Giải Đấu|Xuất Phát|Huấn Luyện|Cốt Truyện|Khu Giải Trí', tiles.join('|'));
-  const bar = await page.evaluate(() => [...document.querySelectorAll('.lb-bar .lb-bt')].map((e) => e.dataset.tab + ':' + e.querySelector('span').textContent));
-  T.check('thanh dưới: Gara, Kỹ Năng, Thành Tựu, Cửa Hàng, Nhiệm Vụ', bar.join(',') === 'cars:Gara,skills:Kỹ Năng,ach:Thành Tựu,shop:Cửa Hàng,quests:Nhiệm Vụ', bar.join(','));
+  const bar = await page.evaluate(() => [...document.querySelectorAll('.lb-bar .lb-bt')].map((e) => (e.dataset.tab || e.dataset.entry) + ':' + e.querySelector('span').textContent));
+  T.check('thanh dưới: PET, Đội Đua, Cặp Đôi, Thời Trang, Xưởng, Gara, Kỹ Năng, Thành Tựu, Cửa Hàng, Nhiệm Vụ',
+    bar.join(',') === 'pet:PET,club:Đội Đua,couple:Cặp Đôi,fashion:Thời Trang,gacha:Xưởng,cars:Gara,skills:Kỹ Năng,ach:Thành Tựu,shop:Cửa Hàng,quests:Nhiệm Vụ', bar.join(','));
   report('ô sảnh, thanh dưới, cài đặt: trong màn, ≥ 44 px, tâm trúng nút', await hitCheck(page, '.lb-home button'));
   const me = await page.evaluate(() => ({ lv: document.querySelector('.lb-lv em').textContent, want: String(TD.LEVEL.of(TD.save.d.xp).lv), coins: document.querySelector('.lb-coins b').textContent }));
   T.check('góc trên: cấp theo XP, xu theo bản lưu', me.lv === me.want && me.coins === '0', JSON.stringify(me));
@@ -53,13 +54,15 @@ async function run(br, base, w, h, touch) {
   T.check('xe 3D nằm nửa trái màn', cam > 0.15 && cam < 0.4, 'x = ' + (cam * 100).toFixed(0) + '%');
   await shot(page, `lobby-home-${w}`);
   await tap(page, '.t-story', touch);
-  T.check('ô Cốt Truyện báo "Chưa mở"', await wait(page, () => { const t = document.querySelector('.lb-toast'); return t && t.textContent === 'Chưa mở'; }, null, 5000));
+  T.check('ô Cốt Truyện mở bản đồ chương', await wait(page, () => !!document.querySelector('.st .st-ctitle'), null, 5000));
+  await tap(page, '.st-back', touch);
+  T.check('"Về sảnh" từ Cốt Truyện', await wait(page, () => !!document.querySelector('.lb-home'), null, 5000));
 
   // ---------- chọn chế độ ----------
   await tap(page, '[data-act="start"]', touch);
   T.check('Xuất Phát mở "Chọn kiểu phòng đua"', await wait(page, () => document.querySelector('.lb-pick .lb-title b') && document.querySelector('.lb-title b').textContent === 'Chọn kiểu phòng đua', null, 5000));
   const modes = await page.evaluate(() => [...document.querySelectorAll('.lb-mode span')].map((e) => e.textContent));
-  T.check('4 kiểu phòng: Tốc Độ-Đơn, Tốc Độ-Đội, Đạo Cụ-Đơn, Đạo Cụ-Đội', modes.join('|') === 'Tốc Độ-Đơn|Tốc Độ-Đội|Đạo Cụ-Đơn|Đạo Cụ-Đội', modes.join('|'));
+  T.check('5 kiểu phòng: Tốc Độ-Đơn, Tốc Độ-Đội, Đạo Cụ-Đơn, Đạo Cụ-Đội, Đua Đạo Cụ-Đôi', modes.join('|') === 'Tốc Độ-Đơn|Tốc Độ-Đội|Đạo Cụ-Đơn|Đạo Cụ-Đội|Đua Đạo Cụ-Đôi', modes.join('|'));
   T.check('đủ ô chọn đường cho mọi đường trong TD.TRACKS', await page.evaluate(() => document.querySelectorAll('.lb-th').length === Object.keys(TD.TRACKS).length));
   await tap(page, '[data-mode="speedTeam"]', touch);
   await tap(page, `[data-track="${tracks[1]}"]`, touch);

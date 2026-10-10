@@ -47,6 +47,12 @@ Unity là hệ tay trái (x phải, y lên, z tới), three.js tay phải. **Đ�
 | `tools/export_lobby_ui.py` → `art/lobby/` (`--stage`: `stage.glb`) | ô sảnh, thẻ chế độ, thẻ ghép phòng, sân khấu `Lobby_L_Art.unity` | nhánh Sảnh |
 | `tools/export_garage_ui.py` → `art/garage/` | biểu tượng kỹ năng bằng lái `id_talent/talent_icon*` | nhánh Gara |
 | `tools/export_flag.py` → `art/practice/` | cờ caro luyện tập (APK không có, dựng hình đơn giản) + `icon_flag` gốc | nhánh Luyện tập |
+| `tools/export_pets.py` → `art/pets/` | 8 PET gốc (mô hình tĩnh: APK không có clip PET) | đợt 2 |
+| `tools/export_outfits.py` → `art/outfits/` | 16 bộ đồ + tóc cùng bộ xương tay đua (gọi `export_driver.py`) | đợt 2 |
+| `tools/export_gacha.py` → `art/gacha/` | hiệu ứng Xưởng `og_unrealgaragedlg_v36` | đợt 2 |
+| `tools/export_story.py` → `art/story/` | bản đồ chương, ghim ải, chân dung NPC | đợt 2 |
+| `tools/export_events.py` → `art/events/` | xu `props_item_goldcoin`, biểu tượng mode sự kiện | đợt 2 |
+| `tools/export_social_ui.py` → `art/social/` | biểu tượng bạn bè, cặp đôi, quà, BXH, đội đua | đợt 2 |
 | `js/sim/modes.js`, `rank.js`, `items.js`, `ghost.js` | chế độ, bậc xếp hạng, đạo cụ, bóng kỷ lục (thuần JS) | pha 3 |
 | `js/ui/lobby.js`, `garage.js`, `ranked.js`, `js/view/items.js`, `practice.js` | sảnh, gara/kỹ năng/nhiệm vụ, xếp hạng, đạo cụ, luyện tập | pha 3 |
 | `tools/export_cars.py` (`PAINT_ONLY=1`) → `art/cars/*_base.jpg`, `*_mask.jpg` | ảnh nền chưa tô và mặt nạ sơn | tay |
@@ -65,6 +71,8 @@ TD.TRACKS[id] = {
   pts: { x[], y[], z[], dx[], dy[], dz[], lw[], rw[], s[], next[][], prev[][] },  // TrackPointDataList, mỗi ~10 m
   cps: [{ id, s, x, y, z, lx, lz, rx, rz, next[] }],                              // CheckPointDataList
   resets: [{ x, y, z, qx, qy, qz, qw, cp }],
+  loop?, endCp?, laps,                      // loop false = đường A→B, về đích ở cps[endCp]
+  boxes?: [{ s, pts: [[x, y, z]] }],        // hàng hộp đạo cụ (propspointconfig)
   start: { x, y, z, fx, fy, fz },
 }
 TD.CARS[id] = { id, name, glb, wheels: [{ x, y, z, r, front }], stats: { speed, accel, handling, drift, nitro } }
@@ -115,7 +123,12 @@ type ∈ countdown | go | drift_start | drift_end | miniboost | nitro_start | ni
 - Màu đường: game gốc là dự án Unity không gian tuyến tính. `NssTerrain2Layer` (Phố Tàu) tính theo công thức tuyến tính của
   shader gốc; `NssStandard` vẫn theo công thức gamma vì chưa có reflection probe (chuyển sang thì đường 11citynew tối hẳn).
 - Bài kiểm trình duyệt chờ trạng thái bằng `until(...)`, không chờ cứng: trên swiftshader bấm tạm dừng mất ~600 ms.
-- Đường đua mới phải là đường vòng (`RaceStartCheckPointIndex == RaceEndCheckPointIndex`): Tứ Xuyên, Reno, Polaris, Hoàng Hà
-  là đường A→B, mô phỏng chỉ đếm vòng qua checkpoint xuất phát nên không bao giờ về đích.
+- Đường A→B (`RaceStartCheckPointIndex != RaceEndCheckPointIndex`: Tứ Xuyên, Reno, Polaris, Hoàng Hà): `loop: false`, `endCp`,
+  `laps: 1`; về đích khi vào vùng checkpoint cuối sau khi đã qua vạch xuất phát; progress không bọc theo chiều dài. Bộ xuất
+  thêm 45–150 m đường sau vạch xuất phát và 150 m đường thoát sau đích. Mã nào bọc `s` theo `T.L` phải xét `T.loop`.
 - Hộp "?" cổ điển không có prefab riêng: `propsbox_huge` là bảng 4,5 m; hộp lấy từ hàng hộp mẫu trong scene `Level_TrainTrack_B`.
-- Bank tiếng đạo cụ `DJ` không có trong APK: 15 tiếng mượn từ bank khác (`data/items.js`), chỉ `Play_DJ_wind` là gốc.
+- Bank tiếng đạo cụ `DJ` không có trong APK: 17 tiếng mượn từ bank khác (`data/items.js`) + bíp khoá mục tiêu tổng hợp, chỉ `Play_DJ_wind` là gốc.
+- Giọng đếm ngược "3-2-1" không có trong APK: mọi event giọng đếm ngược nằm ở bank tải sau (InGameBase, Lobby…); dùng bíp
+  `Play_UI_ATM_countdown` và chuông cao `Play_XH_Ready` ở nhịp "1" (`Play_BGM_CountDown_Final`).
+- Luật thêm của chế độ chạy qua `TD.Race.after` (hàm f(R) sau mỗi step); đừng bọc `TD.Race.step`.
+- Mục sảnh: `TD.lobby.add`; trang trí xe: `TD.kartView.hooks`; bản lưu: `TD.save.norms`.

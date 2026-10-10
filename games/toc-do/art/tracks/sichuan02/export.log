@@ -1,0 +1,256 @@
+scene Level_Sichuan02_Art.unity: bundle AssetBundles/9e/9e7120f754c2a70fa3af388b772a063e
+bundles loaded: 77; unresolved externals: ['cab-0006cf558a2b2dfaba4f7ca666101a55', 'cab-0aa6a471fb33bc8ff259100b0c977344', 'cab-146ea372bf0a13e6a4ea63e4a3c5e6bf', 'cab-151dfdce3c15f5e9a20aab4c8489d1b9', 'cab-cd1d29782da210e3960a6d457624c657', 'cab-f3e172233fa19193a1a32d3ffe375ac8', 'unity default resources', 'unity_builtin_extra']
+lightmap 0: Level_Sichuan02_Art_LM0_LS 256x256 fmt=48 colorSpace=1 rgb mean=0.322 max=1.000 alpha mean=0.303
+lightmap 1: Level_Sichuan02_Art_LMA1_LS 256x256 fmt=48 colorSpace=1 rgb mean=0.308 max=0.957 alpha mean=0.193
+lightmap 2: Level_Sichuan02_Art_LMA2_LS 256x256 fmt=48 colorSpace=1 rgb mean=0.276 max=1.000 alpha mean=0.152
+lightmapsMode=0 useShadowmask=True
+skip [skinned] /Artist/PVS/Low/Caidan01/E_Sichuan02_Caidan_03/E_Sichuan02_Caidan_03
+skip [skinned] /Artist/PVS/Low/Jisi_02/E_Sichuan02_Taiyang_01 (1)/E_Sichuan02_Taiyang_01
+skip [skinned] /Artist/PVS/Low/Jisi_03/E_Sichuan02_LRX_MJ/E_Sichuan02_LRX_MJ
+skip [skinned] /Artist/PVS/Low/Jisi_03/TaiYL/E_Sichuan02_TYL
+skip [skinned] /Artist/PVS/Low/BWG_Shinei_03/E_Sichuan02_Shinei_yan_003/E_Sichuan02_Shinei_Yan_003
+note: /Artist/PVS/Low/ZD02/E_Sichuan02_ZD_Wujian_01 material Lit (Universal Render Pipeline/Lit) has no albedo texture; tint only
+note: /Artist/PVS/Low/ZD01/E_Sichuan02_ZD_Terrain_01 material Lit (Universal Render Pipeline/Lit) has no albedo texture; tint only
+note: /Artist/PVS/Low/Jisi_01_A/E_Sichuan02_Jisi_01_A material Lit (Universal Render Pipeline/Lit) has no albedo texture; tint only
+note: /Artist/PVS/Low/Jisi_03_A/E_Sichuan02_BWG02_Jisi_01 material Lit (Universal Render Pipeline/Lit) has no albedo texture; tint only
+skipped: skinned=5, inactive=2, lod>0=25
+shader QF/Env/Terrian_Water: texture slots ['_BumpMap', '_BumpMap2', '_Cube', '_MainTex']
+shader QF/Env/Transparent/Basic_AlphaBlend_Double_no LM: texture slots ['_AlphaTex', '_MainTex']
+shader QF/EnvStandard/EnvStandard: texture slots ['_AlphaTex', '_BaseMap', '_BumpMap', '_EmissionMap', '_ParamMap']
+shader QF_Gamma/Env/0_Lobby/Reflection_Transparent: texture slots ['_EnvCubemap', '_MainTex']
+shader QF_Gamma/Env/0_Lobby/Sky_Lobby: texture slots ['_CloudMask', '_CloudTex', '_MainTex']
+shader QF_Gamma/Env/Basic_Diffuse_2ScrollLayers: texture slots ['_BackGroundTex', '_MainTex']
+shader QF_Gamma/Env/Basic_SepcularCubeNormal_AlphaBlend_GroundSplash: texture slots ['_MainTex', '_MaskTex', '_ReflectMap', '_SplashTex']
+shader QF_Gamma/Env/Transparent/Basic_AlphaBlendScroll: texture slots ['_AlphaTex', '_MainTex']
+shader QF_Gamma/Env/Water/Water_Opaque_OneSide_High: texture slots ['_Cubemap', '_MainTex', '_NormalMap', '_NormalMap2']
+shader QF_PBR/Env/NssStandardPlantOneSide: texture slots ['_BaseMap', '_NormalMRMap']
+shader Universal Render Pipeline/Lit: texture slots []
+  tex C_Songshu_small_leaf_01_D@RGBAC 512x256 -> 512x256 rgba 26 KB
+prim C_Songshu_small_leaf_01|lm0: QF_PBR/Env/NssStandardPlantOneSide alpha=MASK tris=736 verts=1048 from ['C_Songshu_small_01_LOD0']
+  tex E_Sichuan02_Tree_01 256x256 -> 256x256 rgba 27 KB
+prim E_Sichuan02_Hua_01: QF/EnvStandard/EnvStandard alpha=MASK tris=2804 verts=5547 from ['E_Sichuan02_Jisi_Niao_03', 'E_Sichuan02_Tree_01', 'E_Sichuan02_Tree_02', 'E_Sichuan02_ZD_Tree_03']
+  tex E_Sichuan02_Jiasu_01 128x128 -> 128x128 rgb 1 KB
+prim E_Sichuan02_Jiasu 1: QF_Gamma/Env/Transparent/Basic_AlphaBlendScroll alpha=BLEND tris=108 verts=120 from ['E_Sichuan02_Jiasu_01', 'E_Sichuan02_Jiasu_03', 'E_Sichuan02_Jisi_Deng_01']
+  tex E_Sichuan02_Taijie_02_basecolor 256x256 -> 256x256 rgb 3 KB
+prim E_Sichuan02_Taijie_02|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=226 verts=326 from ['E_Sichuan02_BWG_Xiepo', 'E_Sichuan02_Shinei_03zhuanxiangbiao', 'E_Sichuan02_Taijie_02']
+  tex E_Sichuan02_Zhutai_02 256x256 -> 256x256 rgba 13 KB
+prim E_Sichuan02_Zhutai_02|lm1: QF/EnvStandard/EnvStandard alpha=MASK tris=673 verts=988 from ['E_Sichuan02_Jisi_Wujian_01']
+  tex E_Sichuan02_Shinei_01_H 256x256 -> 256x256 rgb 1 KB
+prim E_Sichuan02_Shinei_01_H|lm2: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=2037 verts=3627 from ['E_Sichuan02_Lujie_03']
+  tex E_Sichuan02_Shinei_01 256x256 -> 256x256 rgb 2 KB
+prim E_Sichuan02_Shinei_01|lm2: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=328 verts=400 from ['E_Sichuan02_Lujie_03']
+  tex E_Sichuan02_Lianpai_02_B 256x256 -> 256x256 rgba 16 KB
+prim E_Sichuan02_Lianpai_02_B: QF_Gamma/Env/Transparent/Basic_AlphaBlendScroll alpha=BLEND tris=678 verts=1146 from ['E_Sichuan02_JS_Lianpai_01', 'E_Sichuan02_JS_Lianpai_02', 'E_Sichuan02_Lianpai_02', 'E_Sichuan02_Lianpai_02_C', 'E_Sichuan02_Lianpai_02_D', 'E_Sichuan02_Lianpai_02_E']
+  tex E_Sichuan02_Zhuanxiang_04 128x128 -> 128x128 rgba 2 KB
+prim E_Sichuan02_Zhuanxiang_04: QF/EnvStandard/EnvStandard alpha=BLEND tris=220 verts=348 from ['E_Sichuan02_Zhuanxiang_03_A', 'E_Sichuan02_Zhuanxiang_04_A']
+prim E_Sichuan02_Zhutai_02|lm0: QF/EnvStandard/EnvStandard alpha=MASK tris=512 verts=748 from ['E_Sichuan02_Jisi_Wujian_03']
+  tex E_Sichuan02_Shinei_Diaoxiang_01_D 256x256 -> 256x256 rgb 8 KB
+prim E_Sichuan02_Jisi_Niao_02|lm2: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=1385 verts=1467 from ['E_Sichuan02_JS_BSX', 'E_Sichuan02_Shinei_Niao_01']
+  tex E_Sichuan02_She_01 256x256 -> 256x256 rgb 6 KB
+prim E_Sichuan02_She_01|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=4231 verts=3075 from ['E_Sichuan02_She_01', 'E_Sichuan02_She_02']
+  tex E_Sichuan02_Lujie_01 256x256 -> 256x256 rgb 2 KB
+prim E_Sicuan02_Lujie_05|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=3623 verts=6274 from ['E_Sichuan02_Lujie_05', 'E_Sichuan02_She_01', 'E_Sichuan02_ZD_Terrain_01']
+  tex C_Sea 256x256 -> 256x256 rgb 7 KB
+prim C_Sea06: QF/Env/Terrian_Water alpha=OPAQUE tris=38 verts=52 from ['E_Sichuan02_ZD_Water_01']
+  tex E_Sicuan02_JS_Building_02 128x128 -> 128x128 rgb 0 KB
+prim E_Sicuan02_JS_Building_02|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=598 verts=1188 from ['E_Sichuan02_JS_Road_02', 'E_Sichuan02_ZD_Wujian_01']
+prim Lit|lm0: Universal Render Pipeline/Lit alpha=OPAQUE tris=702 verts=536 from ['E_Sichuan02_Jisi_01_A', 'E_Sichuan02_ZD_Wujian_01']
+  tex E_Sichuan02_L 32x32 -> 32x32 rgba 0 KB
+prim E_Sichuan02_Jisi_A_Wu: QF/Env/Transparent/Basic_AlphaBlend_Double_no LM alpha=BLEND tris=34 verts=38 from ['E_Sichuan02_Jisi_A_Wu']
+  tex E_Sichuan02_Sky_02 256x256 -> 256x256 rgb 1 KB
+prim sky:E_Sichuan02_Sky_02: QF_Gamma/Env/0_Lobby/Sky_Lobby alpha=OPAQUE tris=332 verts=279 from ['E_Sichuan02_Sky_02']
+  tex E_Sichuan02_Yan_01_D 256x256 -> 256x256 rgb 9 KB
+prim E_Sichuan02_Yan_01|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=477 verts=612 from ['E_Sichuan02_Yan_01']
+  tex E_Sichuan02_BWG_02 128x128 -> 128x128 rgb 0 KB
+prim E_Sichuan02_BWG_02|lm2: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=313 verts=393 from ['E_Sichuan02_BWG_01', 'E_Sichuan02_BWG_04']
+  tex E_Sichuan02_Qiang_01_diffuse 256x256 -> 256x256 rgb 2 KB
+prim E_Sichuan02_Qiang_01|lm2: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=1192 verts=1296 from ['E_Sichuan02_BWG_01', 'E_Sichuan02_BWG_04']
+  tex E_Sichuan02_ZD_Tree_02 128x128 -> 128x128 rgba 5 KB
+prim E_Sichuan02_ZD_Tree_02: QF/EnvStandard/EnvStandard alpha=MASK tris=2672 verts=5506 from ['E_Sichuan02_ZD_Tree_02']
+  tex E_Sichuan02_Tree_02 256x256 -> 256x256 rgba 30 KB
+prim E_Sichuan02_Tree_02: QF/EnvStandard/EnvStandard alpha=MASK tris=466 verts=932 from ['E_Sichuan02_Tree_01', 'E_Sichuan02_ZD_Tree_01']
+prim E_Sichuan02_Tree_03: QF/EnvStandard/EnvStandard alpha=BLEND tris=1668 verts=3338 from ['E_Sichuan02_Tree_01', 'E_Sichuan02_ZD_Tree_01']
+  tex E_Sichuan02_Jiasu_02 128x128 -> 128x128 rgb 1 KB
+prim E_Sichuan02_Jiasu: QF_Gamma/Env/Transparent/Basic_AlphaBlendScroll alpha=BLEND tris=28 verts=41 from ['E_Sichuan02_Jiasu_03', 'E_Sichuan02_Jiasu_04']
+  tex E_Sichuan02_Yuzhang_01 128x128 -> 128x128 rgb 2 KB
+prim E_Sichuan02_Yuzhang_01|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=101 verts=149 from ['E_Sichuan02_Yuzhang_01']
+  tex E_Sichuan02_Dibiao_01_basecolor 256x256 -> 256x256 rgb 2 KB
+prim E_Sichuan02_Dibiao_02|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=154 verts=161 from ['E_Sichuan02_Road_01', 'E_Sichuan02_ZD_Road_01']
+  tex E_Sichuan02_BWG_01 1024x1024 -> 512x512 rgb 17 KB
+prim E_Sichuan02_BWG_01|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=2405 verts=2876 from ['E_Sichuan02_Jisi_Guizi_02', 'E_Sichuan02_ZD_Road_01']
+  tex E_Sichuan02_Lianpai_02 256x256 -> 256x256 rgb 6 KB
+prim E_Sichuan02_Lianpai_02_A|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=8572 verts=13534 from ['E_Sichuan02_Lianpai_02_A', 'E_Sichuan02_Lianpai_02_B']
+  tex E_Sichuan02_Qiang_05_D 256x256 -> 256x256 rgb 11 KB
+prim E_Sichuan02_Qiang_05|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=1948 verts=2166 from ['E_Sichuan02_Qiang_05']
+  tex E_Sichuan02_Shinei_03dimian 128x128 -> 128x128 rgb 0 KB
+prim E_Sichuan02_Shinei_04|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=77 verts=88 from ['E_Sichuan02_Shinei_03dimian']
+  tex E_Sichuan02_An 32x32 -> 32x32 rgb 0 KB
+prim E_Sichuan02_Glass_02: QF_Gamma/Env/0_Lobby/Reflection_Transparent alpha=BLEND tris=275 verts=437 from ['E_Sichuan02_Jisi_Guizi_01', 'E_Sichuan02_Jisi_Guizi_03', 'E_Sichuan02_Shinei_01_B']
+  tex E_Sichuan02_Jisi_Deng_02 128x128 -> 128x128 rgba 2 KB
+prim E_Sichuan02_Mask_02: QF/EnvStandard/EnvStandard alpha=BLEND tris=340 verts=682 from ['E_Sichuan02_JS_Deng_01', 'E_Sichuan02_Jisi_Deng_02', 'E_Sichuan02_Shinei_01_B']
+  tex E_Sicuan02_Lumian 256x256 -> 256x256 rgb 0 KB
+prim E_Sicuan02_Lumian_A|lm2: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=330 verts=327 from ['E_Sichuan02_Road_02_A']
+  tex E_Sicuan02_Lujie 256x256 -> 256x256 rgb 2 KB
+prim E_Sicuan02_Lujie_A|lm2: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=480 verts=740 from ['E_Sichuan02_Road_02_A']
+  tex E_Sicuan02_JS_billboard 128x128 -> 128x128 rgb 3 KB
+prim E_Sicuan02_JS_billboard|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=164 verts=212 from ['E_Sichuan02_JS_GG_01']
+  tex E_Sichuan02_Shinei_02_B 128x128 -> 128x128 rgb 0 KB
+prim E_Sichuan02_Shinei_02_B|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=553 verts=552 from ['E_Sichuan02_Shinei_02']
+  tex E_Sichuan02_Shinei_02 256x256 -> 256x256 rgb 1 KB
+prim E_Sichuan02_Jisi_01|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=564 verts=872 from ['E_Sichuan02_Shinei_02']
+  tex E_Sichuan02_JS_Shinei_02 256x256 -> 256x256 rgb 8 KB
+prim E_Sichuan02_JS_Shinei_02|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=237 verts=208 from ['E_Sichuan02_JS_Shinei_05']
+  tex E_Sichuan02_TG_01 256x256 -> 256x256 rgb 10 KB
+prim E_Sichuan02_TG_02|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=525 verts=590 from ['E_Sichuan02_JS_GZ_01', 'E_Sichuan02_Jisi_Wujian_02']
+  tex E_Sicuan02_Road_01 256x256 -> 256x256 rgb 2 KB
+prim E_Sicuan02_Road_01|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=640 verts=564 from ['E_Sichuan02_JS_Road_02']
+  tex E_Lobby_Glass_01_V16_NoMip 32x32 -> 32x32 rgb 0 KB
+prim E_Sichuan02_Glass_01|lm0: QF_Gamma/Env/0_Lobby/Reflection_Transparent alpha=BLEND tris=144 verts=260 from ['E_Sichuan02_JS_Shinei_04']
+  tex E_Sichuan02_Zhuzi_01 256x256 -> 256x256 rgb 7 KB
+prim E_Sichuan02_Zhuzi_01|lm2: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=2020 verts=1294 from ['E_Sichuan02_Qiang_08']
+  tex E_Sichuan02_JS_Men 256x256 -> 256x256 rgb 2 KB
+prim E_Sichuan02_JS_Men|lm2: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=426 verts=824 from ['E_Sichuan02_JS_Men']
+  tex E_Sichuan02_Sky_01 256x256 -> 256x256 rgb 0 KB
+prim sky:E_Sichuan02_Sky_01: QF_Gamma/Env/0_Lobby/Sky_Lobby alpha=OPAQUE tris=332 verts=283 from ['E_Sichuan02_Sky_01']
+  tex Base Color 256x256 -> 256x256 rgb 9 KB
+prim E_Sichuan02_LRX_01|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=723 verts=849 from ['E_Sichuan02_LRX_03']
+  tex C_Water_05 256x256 -> 256x256 rgb 10 KB
+prim E_SunnyCrush_Terrain_Water_01: QF_Gamma/Env/Water/Water_Opaque_OneSide_High alpha=OPAQUE tris=44 verts=39 from ['E_Sichuan02_Water_01']
+  tex E_Sichuan02_Dibiao_03 256x256 -> 256x256 rgb 2 KB
+prim E_Sichuan02_Dibiao_03|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=479 verts=561 from ['E_Sichuan02_Road_03']
+  tex E_Sichuan02_Jiasu_03 128x128 -> 128x128 rgb 2 KB
+prim E_Sichuan02_Jiasu 2: QF_Gamma/Env/Transparent/Basic_AlphaBlendScroll alpha=BLEND tris=4 verts=6 from ['E_Sichuan02_Jiasu_02']
+prim E_Sichuan02_TG_01|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=138 verts=199 from ['E_Sichuan02_TG_01']
+  tex E_Sichuan02_Jisi_03_D 256x256 -> 256x256 rgb 8 KB
+prim E_Sichuan02_Jisi_04|lm2: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=812 verts=1451 from ['E_Sichuan02_Jisi_04']
+  tex E_Sichuan02_BWG_GGP_01 256x256 -> 256x256 rgb 7 KB
+prim E_Sichuan02_BWG_GGP_01: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=70 verts=70 from ['E_Sichuan02_BWG_GGP_01']
+  tex E_Sichuan02_Caidan_02 128x128 -> 128x128 rgb 0 KB
+prim E_Sichuan02_Caidan_02: QF_Gamma/Env/Basic_SepcularCubeNormal_AlphaBlend_GroundSplash alpha=BLEND tris=170 verts=183 from ['E_Sichuan02_Caidan_02']
+prim E_Sichuan02_BWG_01|lm2: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=4297 verts=5879 from ['E_Sichuan02_BWG_02', 'E_Sichuan02_BWG_04', 'E_Sichuan02_Shinei_01_A']
+prim E_Sicuan02_Lujie_05|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=2249 verts=3789 from ['E_Sichuan02_Lianpai_01', 'E_Sichuan02_Lujie_01', 'E_Sichuan02_Lujie_02']
+  tex E_Sichuan02_Jisi_Jianzhu01 256x256 -> 256x256 rgba 28 KB
+prim E_Sichuan02_Jisi_Jianzhu01: QF/EnvStandard/EnvStandard alpha=BLEND tris=614 verts=1137 from ['E_Sichuan02_Jisi_05']
+  tex E_Sichuan02_Shinei_03 256x256 -> 256x256 rgb 5 KB
+prim E_Sichuan02_Shinei_03|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=360 verts=602 from ['E_Sichuan02_Shinei_03lujie']
+prim E_Sichuan02_BWG_02|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=284 verts=470 from ['E_Sichuan02_BWG_03']
+prim E_Sichuan02_Shinei_02_A|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=94 verts=129 from ['E_Sichuan02_Jisi_Qiang_A']
+  tex E_Sichuan02_Jisi_Dimian_03 256x256 -> 256x256 rgb 1 KB
+prim E_Sichuan02_Jisi_Dimian_03|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=1151 verts=1048 from ['E_Sichuan02_Jisi_01', 'E_Sichuan02_Lujie_02']
+  tex E_Sichuan02_Qts_01 256x256 -> 256x256 rgba 14 KB
+prim E_Sichuan02_Qts_01|lm2: QF/EnvStandard/EnvStandard alpha=MASK tris=2194 verts=3434 from ['E_Sichuan02_Qts_01']
+  tex E_Sichuan02_Jisi_Jianzhu02 256x256 -> 256x256 rgb 7 KB
+prim E_Sichuan02_Jisi_Jianzhu02|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=1678 verts=2644 from ['E_Sichuan02_Jisi_Jianzhu_02']
+prim E_Sichuan02_Jisi_Dimian_03|lm2: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=614 verts=908 from ['E_Sichuan02_ZD_Building_01']
+  tex E_Sichuan02_Shinei_01_F 256x256 -> 256x256 rgb 0 KB
+prim E_Sichuan02_Shinei_01_F|lm2: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=172 verts=178 from ['E_Sichuan02_ZD_Building_01']
+  tex E_Sichuan02_Qiang_08 256x256 -> 256x256 rgb 2 KB
+prim E_Sichuan02_Qiang_08|lm2: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=1591 verts=2427 from ['E_Sichuan02_Qiang_07']
+  tex E_Sichuan02_Jisi_Dimian_02 256x256 -> 256x256 rgb 2 KB
+prim E_Sichuan02_Jisi_Dimian_02|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=809 verts=658 from ['E_Sichuan02_Jisi_01']
+  tex E_Sichuan02_Jisi_04_D 256x256 -> 256x256 rgb 9 KB
+prim E_Sichuan02_Jisi_03|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=635 verts=1067 from ['E_Sichuan02_Jisi_01']
+  tex E_Sichuan02_XY_D 128x128 -> 128x128 rgb 1 KB
+prim E_Sichuan02_XY|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=402 verts=501 from ['E_Sichuan02_JS_XY_01', 'E_Sichuan02_XY_01']
+prim E_Sichuan02_Shinei_03|lm2: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=3971 verts=4931 from ['E_Sichuan02_Shinei_03']
+  tex E_Sichuan02_BWG_04 128x128 -> 128x128 rgb 1 KB
+prim E_Sichuan02_BWG_04|lm2: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=2288 verts=2548 from ['E_Sichuan02_BWG_04']
+  tex E_Sichuan02_Ground_03_basecolor 128x128 -> 128x128 rgb 3 KB
+prim E_Sichuan02_Ground_03|lm2: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=40 verts=46 from ['E_Sichuan02_BWG_04']
+  tex E_Sichuan02_Jisi_Niao_01_D 256x256 -> 256x256 rgb 6 KB
+prim E_Sichuan02_Jisi_Niao_01|lm2: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=538 verts=712 from ['E_Sichuan02_Jisi_Niao_01']
+  tex E_Sichuan02_JS_Zhuangxiang 128x128 -> 128x128 rgb 1 KB
+prim E_Sichuan02_JS_Zhuangxiang|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=1347 verts=2027 from ['E_Sichuan02_JS_Zhuangxiang']
+  tex E_Sichuan02_Shinei_03lumian 256x256 -> 256x256 rgb 3 KB
+prim E_Sichuan02_Shinei_02Dimian|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=984 verts=845 from ['E_Sichuan02_Shinei_03lumian']
+prim E_Sichuan02_Jisi_Niao_01|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=726 verts=1013 from ['E_Sichuan02_Jisi_Niao_02']
+  tex E_Sichuan02_Qiang_07 256x256 -> 256x256 rgb 2 KB
+prim E_Sichuan02_Qiang_07|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=288 verts=499 from ['E_Sichuan02_Qiang_06']
+  tex E_Sichuan02_BWG_DX_01 256x256 -> 256x256 rgb 11 KB
+prim E_Sichuan02_BWG_DX_01|lm2: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=8158 verts=7347 from ['E_Sichuan02_BWG_DX_01']
+prim E_Sichuan02_Lianpai_02_A|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=8976 verts=16039 from ['E_Sichuan02_Zhuanxiang_04']
+  tex E_Sichuan02_Shinei_Road_01 256x256 -> 256x256 rgb 0 KB
+prim E_Sichuan02_Shinei_02Dimian 1|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=202 verts=197 from ['E_Sichuan02_JS_Road_01']
+  tex E_Sichuan02_JS_Shinei_01 256x256 -> 256x256 rgb 5 KB
+prim E_Sichuan02_JS_Shinei_01|lm2: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=1467 verts=2431 from ['E_Sichuan02_JS_Shinei_01', 'E_Sichuan02_JS_Shinei_02']
+prim E_Sichuan02_JS_Shinei_02|lm2: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=206 verts=283 from ['E_Sichuan02_JS_Shinei_01']
+  tex E_Sicuan02_JS_Tu_01 128x128 -> 128x128 rgb 0 KB
+prim E_Sicuan02_JS_Tu_01|lm2: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=741 verts=969 from ['E_Sichuan02_JS_Shinei_01']
+  tex E_Sichuan02_JS_Shinei_03 256x256 -> 256x256 rgb 1 KB
+prim E_Sichuan02_JS_Shinei_03|lm2: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=83 verts=117 from ['E_Sichuan02_JS_Shinei_01']
+  tex E_Sicuan02_JS_Tianhua_02 128x128 -> 128x128 rgba 3 KB
+prim E_Sicuan02_JS_Tianhua_02: QF/EnvStandard/EnvStandard alpha=BLEND tris=76 verts=120 from ['E_Sichuan02_JS_Building_02']
+  tex E_Sicuan02_JS_Building_01 128x128 -> 128x128 rgb 0 KB
+prim E_Sicuan02_JS_Building_01|lm2: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=148 verts=166 from ['E_Sichuan02_ZD_Building_02']
+  tex E_Sicuan02_JS_Tianhua_01 128x128 -> 128x128 rgba 1 KB
+prim E_Sicuan02_JS_Tianhua_01|lm2: QF/EnvStandard/EnvStandard alpha=BLEND tris=256 verts=464 from ['E_Sichuan02_ZD_Building_02']
+  tex E_Sicuan02_JS_Boli_02 128x128 -> 128x128 rgba 1 KB
+prim E_Sicuan02_Boli_02|lm2: QF/EnvStandard/EnvStandard alpha=BLEND tris=48 verts=56 from ['E_Sichuan02_ZD_Building_02']
+prim E_Sichuan02_Jisi_lumian03|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=1117 verts=799 from ['E_Sichuan02_Terrain_01']
+  tex E_Sichuan02_Jisi_lumian01 128x128 -> 128x128 rgb 1 KB
+prim E_Sichuan02_Jisi_lumian01|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=140 verts=158 from ['E_Sichuan02_Terrain_01']
+  tex E_Sichuan02_Jisi_lumian02 128x128 -> 128x128 rgb 1 KB
+prim E_Sichuan02_Jisi_lumian02|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=612 verts=670 from ['E_Sichuan02_Terrain_01']
+prim E_Sichuan02_Ground_03|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=1536 verts=1201 from ['E_Sichuan02_Dimian_01', 'E_Sichuan02_ZD_Terrain_01']
+prim E_Sichuan02_Jisi_Dimian_03|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=735 verts=808 from ['E_Sichuan02_Dimian_01', 'E_Sichuan02_ZD_Terrain_01']
+prim E_Sichuan02_LRX_01|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=1134 verts=863 from ['E_Sichuan02_LRX_02']
+  tex E_Sichuan02_JS_Lujie_01 128x128 -> 128x128 rgb 0 KB
+prim E_Sichuan02_JS_Lujie_01|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=324 verts=573 from ['E_Sichuan02_JS_Lujie_01']
+  tex E_Sichuan02_QTN_01_D1 256x256 -> 256x256 rgb 9 KB
+prim E_Sichuan02_Jisi_Deng_02|lm2: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=903 verts=779 from ['E_Sichuan02_Mask_02']
+prim E_Sichuan02_Zhutai_02|lm2: QF/EnvStandard/EnvStandard alpha=MASK tris=652 verts=744 from ['E_Sichuan02_Zhutai_02']
+  tex E_Sichuan02_Shinei_02_D 256x256 -> 256x256 rgba 30 KB
+prim E_Sichuan02_Shinei_02_D: QF/EnvStandard/EnvStandard alpha=BLEND tris=99 verts=117 from ['E_Sichuan02_Jisi_Guizi_03', 'E_Sichuan02_Wen_01']
+prim E_Sicuan02_JS_Tu_01|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=2481 verts=2593 from ['E_Sichuan02_JS_Tu_01']
+  tex E_Sicuan02_JS_Tu_02 128x128 -> 128x128 rgb 0 KB
+prim E_Sicuan02_JS_Tu_02|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=2533 verts=3275 from ['E_Sichuan02_JS_Tu_01']
+prim E_Sichuan02_Zhuzi_01|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=7061 verts=5817 from ['E_Sichuan02_Jisi_Zhuzi_01']
+prim E_Sichuan02_Qiang_08|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=384 verts=322 from ['E_Sichuan02_Jisi_Zhuzi_01']
+prim E_Sichuan02_Hua_01|lm1: QF/EnvStandard/EnvStandard alpha=MASK tris=128 verts=256 from ['E_Sichuan02_Jisi_Zhuzi_01', 'E_Sichuan02_Zhuzi_01']
+prim E_Sicuan02_JS_Building_02|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=4148 verts=8013 from ['E_Sichuan02_JS_Building_01']
+  tex E_Sicuan02_Road_02 128x128 -> 128x128 rgb 0 KB
+prim E_Sicuan02_Road_02|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=2797 verts=3374 from ['E_Sichuan02_JS_Building_01']
+  tex E_Sicuan02_JS_Building_04 128x128 -> 128x128 rgb 0 KB
+prim E_Sicuan02_JS_Building_04|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=995 verts=1527 from ['E_Sichuan02_JS_Building_01']
+  tex E_Sicuan02_JS_Building_03 128x128 -> 128x128 rgb 1 KB
+prim E_Sicuan02_JS_Building_03|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=1508 verts=2814 from ['E_Sichuan02_JS_Building_01']
+prim E_Sicuan02_JS_Building_01|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=247 verts=292 from ['E_Sichuan02_JS_Building_01']
+prim E_Sicuan02_Boli_02|lm1: QF/EnvStandard/EnvStandard alpha=BLEND tris=1270 verts=2288 from ['E_Sichuan02_JS_Building_01']
+prim E_Sicuan02_JS_Tianhua_01|lm1: QF/EnvStandard/EnvStandard alpha=BLEND tris=1052 verts=1866 from ['E_Sichuan02_JS_Building_01']
+  tex E_Sicuan02_JS_Building_05 128x128 -> 128x128 rgb 0 KB
+prim E_Sicuan02_JS_Building_05|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=170 verts=232 from ['E_Sichuan02_JS_Building_01']
+  tex E_Sicuan02_JS_Boli_01 128x128 -> 128x128 rgba 2 KB
+prim E_Sicuan02_JS_Boli_01|lm1: QF/EnvStandard/EnvStandard alpha=BLEND tris=56 verts=60 from ['E_Sichuan02_JS_Building_01']
+prim Lit|lm1: Universal Render Pipeline/Lit alpha=OPAQUE tris=32 verts=36 from ['E_Sichuan02_ZD_Terrain_01']
+  tex E_Sichuan02_Toutie_01_A 256x256 -> 256x256 rgba 25 KB
+prim E_Sichuan02_Toutie_01_A: QF/EnvStandard/EnvStandard alpha=BLEND tris=14 verts=28 from ['E_Sichuan02_Toutie_01_A']
+prim E_Sichuan02_JS_Shinei_01: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=422 verts=1156 from ['E_Sichuan02_JS_Langan_01']
+prim E_Sicuan02_Lujie_A|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=2600 verts=3605 from ['E_Sichuan02_Jisi_01_A']
+  tex E_Sichuan02_Jisi_Dimian_01 256x256 -> 256x256 rgb 1 KB
+prim E_Sicuan02_Qiang_B|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=329 verts=331 from ['E_Sichuan02_Jisi_01_A']
+  tex E_Sicuan02_Qiang 256x256 -> 256x256 rgb 4 KB
+prim E_Sicuan02_Qiang_A|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=233 verts=382 from ['E_Sichuan02_Jisi_01_A']
+prim E_Sicuan02_JS_Tu_03|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=111 verts=120 from ['E_Sichuan02_JS_Shinei_03']
+prim E_Sichuan02_Zhuzi_Animation|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=704 verts=667 from ['E_Sichuan02_Zhuzi_01']
+prim E_Sichuan02_Qiang_Animation|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=379 verts=276 from ['E_Sichuan02_Zhuzi_01']
+  tex E_Sichuan02_BWG02_Jisi_01_D 256x256 -> 256x256 rgb 3 KB
+prim E_Sichuan02_BWG02_Jisi_01|lm2: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=1565 verts=2002 from ['E_Sichuan02_BWG02_Jisi_01']
+prim Lit|lm2: Universal Render Pipeline/Lit alpha=OPAQUE tris=3 verts=7 from ['E_Sichuan02_BWG02_Jisi_01']
+prim E_Sichuan02_Shinei_02_B|lm2: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=454 verts=894 from ['E_Sichuan02_Shinei_02_A']
+  tex E_Sichuan02_Caidan_01 256x256 -> 256x256 rgb 2 KB
+prim E_Sichuan02_Caidan_01: QF_Gamma/Env/Basic_Diffuse_2ScrollLayers alpha=OPAQUE tris=218 verts=162 from ['E_Sichuan02_Caidan_01']
+prim E_Sichuan02_Dibiao_02|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=209 verts=246 from ['E_Sichuan02_Road_02']
+  tex E_Sichuan02_Lujie_01_basecolor 256x256 -> 256x256 rgb 2 KB
+prim E_Sichuan02_Lujie_01|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=2477 verts=3236 from ['E_Sichuan02_Road_02']
+prim E_Sichuan02_Jisi_04|lm0: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=231 verts=200 from ['E_Sichuan02_Jisi_02']
+  tex E_Sichuan02_Shinei_01_D 256x256 -> 256x256 rgb 0 KB
+prim E_Sichuan02_Shinei_01_D|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=611 verts=730 from ['E_Sichuan02_Shinei_01']
+prim E_Sichuan02_Caidan_03|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=35 verts=37 from ['E_Sichuan02_Shinei_01']
+  tex E_Sichuan02_Shinei_01_E 256x256 -> 256x256 rgb 0 KB
+prim E_Sichuan02_Shinei_01_E|lm1: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=263 verts=348 from ['E_Sichuan02_Shinei_01']
+  tex C_Shu_01_Autumn_D@RGBAC 256x256 -> 256x256 rgba 13 KB
+prim C_GuanMu_01_Autumn|lm0: QF_PBR/Env/NssStandardPlantOneSide alpha=MASK tris=18195 verts=22909 from ['C_Fenglin_Tree_01_LOD0', 'C_Winter_Tree_01_LOD0']
+  tex E_SunnyCrush_Stars 128x128 -> 128x128 rgb 1 KB
+prim E_Sichuan02_Star: QF/EnvStandard/EnvStandard alpha=OPAQUE tris=330 verts=456 from ['E_Sichuan02_Stars']
+lightmaps used by primitives: [0, 1, 2]
+done: 132 primitives, 95 textures (0.54 MB webp), 3 lightmaps, folder 3.99 MB

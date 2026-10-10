@@ -79,8 +79,11 @@ for (const id of TRACKS) {
   const places = R.karts.map((k) => k.place).sort();
   check('thứ hạng là hoán vị 1..6', places.join() === '1,2,3,4,5,6', places.join());
   // Phố Tàu chỉ có 3 đoạn drift/vòng → bình nitro có thể chưa đầy; nitro chỉ đòi ở đường nhiều cua
-  const need = ['countdown', 'go', 'drift_start', 'drift_end', 'miniboost', 'lap', 'final_lap', 'finish'].concat(id === '11citynew' ? ['nitro_start', 'nitro_end', 'gauge_full', 'wall', 'bump'] : []);
+  // Đường A→B (loop false) chỉ 1 vòng: không có sự kiện lap / final_lap (test/toc-do-sprint.js kiểm luật về đích riêng).
+  const need = ['countdown', 'go', 'drift_start', 'drift_end', 'miniboost', 'finish'].concat(T.loop ? ['lap', 'final_lap'] : [])
+    .concat(id === '11citynew' ? ['nitro_start', 'nitro_end', 'gauge_full', 'wall', 'bump'] : []);
   check('phát đủ sự kiện chính', need.every((t) => ev[t] > 0), Object.keys(ev).sort().join(','));
+  if (!T.loop) check('A→B: 1 vòng, không phát lap / final_lap', R.laps === 1 && !ev.lap && !ev.final_lap, R.laps + ' vòng, lap ' + (ev.lap || 0));
   if (T.line) {
     const segs = T.line.drift.filter((d, i, a) => d && !a[(i - 1 + a.length) % a.length]).length;
     const per = R.karts.map((k) => k.stats.drifts / R.laps);

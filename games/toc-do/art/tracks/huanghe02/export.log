@@ -1,0 +1,198 @@
+scene Level_Huanghe02_Art.unity: bundle AssetBundles/10/1051f7df8695cdda948d98a8b930f292
+bundles loaded: 71; unresolved externals: ['cab-0006cf558a2b2dfaba4f7ca666101a55', 'cab-0aa6a471fb33bc8ff259100b0c977344', 'cab-146ea372bf0a13e6a4ea63e4a3c5e6bf', 'cab-151dfdce3c15f5e9a20aab4c8489d1b9', 'cab-cd1d29782da210e3960a6d457624c657', 'cab-f3e172233fa19193a1a32d3ffe375ac8', 'unity default resources', 'unity_builtin_extra']
+lightmap 0: Level_Huanghe02_Art_LM0_LS 256x256 fmt=48 colorSpace=1 rgb mean=0.159 max=1.000 alpha mean=1.000
+lightmap 1: Level_Huanghe02_Art_LMA1_LS 256x256 fmt=48 colorSpace=1 rgb mean=0.138 max=0.902 alpha mean=1.000
+lightmapsMode=0 useShadowmask=False
+skip [skinned] /Artist/PVS/Mid/C_AniObj@dance/E_Huanghe02_Wunv
+skip [mesh unresolved] /Artist/PVS/Low/shu (1)/C_Huanghe_Tree_02_LODGroup/C_Huanghe_Tree_02_LOD0 (PPtr can't deref with m_PathID == 0!)
+skip [mesh unresolved] /Artist/PVS/Low/shu (1)/C_Huanghe_Tree_02_LODGroup (6)/C_Huanghe_Tree_02_LOD0 (PPtr can't deref with m_PathID == 0!)
+skip [mesh unresolved] /Artist/PVS/Low/shu (1)/C_Huanghe_Tree_02_LODGroup (8)/C_Huanghe_Tree_02_LOD0 (PPtr can't deref with m_PathID == 0!)
+skip [mesh unresolved] /Artist/PVS/Low/shu (1)/C_Huanghe_Tree_02_LODGroup (5)/C_Huanghe_Tree_02_LOD0 (PPtr can't deref with m_PathID == 0!)
+skip [mesh unresolved] /Artist/PVS/Low/shu (1)/C_Huanghe_Tree_02_LODGroup (7)/C_Huanghe_Tree_02_LOD0 (PPtr can't deref with m_PathID == 0!)
+skip [mesh unresolved] /Artist/PVS/Low/shu (1)/C_Huanghe_Tree_02_LODGroup (2)/C_Huanghe_Tree_02_LOD0 (PPtr can't deref with m_PathID == 0!)
+skip [mesh unresolved] /Artist/PVS/Low/shu (1)/C_Huanghe_Tree_02_LODGroup (1)/C_Huanghe_Tree_02_LOD0 (PPtr can't deref with m_PathID == 0!)
+skip [mesh unresolved] /Artist/PVS/Low/shu (1)/C_Huanghe_Tree_02_LODGroup (3)/C_Huanghe_Tree_02_LOD0 (PPtr can't deref with m_PathID == 0!)
+skip [mesh unresolved] /Artist/PVS/Low/shu (1)/C_Huanghe_Tree_02_LODGroup (4)/C_Huanghe_Tree_02_LOD0 (PPtr can't deref with m_PathID == 0!)
+skipped: skinned=1, inactive=1, lod>0=55, mesh unresolved=9
+shader QF/Env/Sky_Diffuse_AlphaBlend_no fog: texture slots ['_MainTex']
+shader QF_Gamma/Env/Sky_Diffuse_no fog: texture slots ['_MainTex']
+shader QF_Gamma/Env/Transparent/Basic_AlphaBlendScroll: texture slots ['_MainTex']
+shader QF_Gamma/Env/Water/Terrian_WaterAdvanced(Transparent)Middle: texture slots ['_Cubemap', '_MainTex', '_NormalMap']
+shader QF_PBR/Env/NssStandard: texture slots ['_BaseMap', '_BaseMap2', '_EmissionMap', '_NormalMRMap', '_NormalMRMap2']
+shader QF_PBR/Env/NssStandardPlantOneSide: texture slots ['_BaseMap', '_NormalMRMap']
+  tex E_Huanghe02_Sky_01 256x256 -> 256x256 rgb 0 KB
+prim sky:E_Huanghe02_Sky_01: QF_Gamma/Env/Sky_Diffuse_no fog alpha=OPAQUE tris=126 verts=133 from ['E_Jingfei_Sky_01']
+  tex C_Shu_01_D@RGBAC 256x256 -> 256x256 rgba 11 KB
+inst inst:C_Shu_01_LOD0:C_Shu_01|lm0: 8 instances in 2 chunks, tris each=1674 verts=2809
+  tex C_LiuShu_01_D@RGBAC 256x256 -> 256x256 rgba 20 KB
+inst inst:C_Huanghe_Liushu_01:C_Liushu_01|lm0: 8 instances in 7 chunks, tris each=1511 verts=1991
+  tex C_Huanghe02Shu_01_D@RGBAC 256x256 -> 256x256 rgba 14 KB
+inst inst:C_Fenglin_Tree_01_LOD0:C_Huangheshu_01|lm0: 29 instances in 26 chunks, tris each=835 verts=1093
+  tex E_Huanghe02_Thing_1_basecolor 256x128 -> 256x128 rgb 6 KB
+  tex E_Huanghe02_Thing_1_G 256x128 -> 256x128 rgb 1 KB
+prim E_Huanghe02_Thing_1|lm0@-1,-5: QF_PBR/Env/NssStandard alpha=OPAQUE tris=10 verts=28 from ['E_Huanghe02_Tingzi_01_B']
+prim E_Huanghe02_Thing_1|lm0@-1,3: QF_PBR/Env/NssStandard alpha=OPAQUE tris=2607 verts=5657 from ['E_Huanghe02_Deng_01', 'E_Huanghe02_Shinei_01']
+prim E_Huanghe02_Thing_1|lm0@-1,6: QF_PBR/Env/NssStandard alpha=OPAQUE tris=312 verts=647 from ['E_Huanghe02_DengShinei_01']
+prim E_Huanghe02_Thing_1|lm0@-13,-4: QF_PBR/Env/NssStandard alpha=OPAQUE tris=848 verts=1756 from ['E_Huanghe02_Deng_05']
+prim E_Huanghe02_Thing_1|lm0@-4,5: QF_PBR/Env/NssStandard alpha=OPAQUE tris=4251 verts=9327 from ['E_Huanghe02_Deng_06']
+prim E_Huanghe02_Thing_1|lm0@-4,6: QF_PBR/Env/NssStandard alpha=OPAQUE tris=2773 verts=4942 from ['E_Huanghe02_Building_05']
+prim E_Huanghe02_Thing_1|lm0@-5,7: QF_PBR/Env/NssStandard alpha=OPAQUE tris=93 verts=199 from ['E_Huanghe02_Building_01']
+prim E_Huanghe02_Thing_1|lm0@-6,4: QF_PBR/Env/NssStandard alpha=OPAQUE tris=166 verts=344 from ['E_Huanghe02_Deng_02']
+prim E_Huanghe02_Thing_1|lm0@-7,-2: QF_PBR/Env/NssStandard alpha=OPAQUE tris=2477 verts=4888 from ['E_Huanghe02_Longmen_07', 'E_Huanghe02_Shaolin_02', 'E_Huanghe02_Tingzi_01']
+prim E_Huanghe02_Thing_1|lm0@-7,-4: QF_PBR/Env/NssStandard alpha=OPAQUE tris=118 verts=209 from ['E_Huanghe02_Shaolin_01']
+prim E_Huanghe02_Thing_1|lm0@-7,6: QF_PBR/Env/NssStandard alpha=OPAQUE tris=69 verts=117 from ['E_Huanghe02_Mingtang_01']
+prim E_Huanghe02_Thing_1|lm0@-8,0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1310 verts=2856 from ['E_Huanghe02_Deng_04']
+prim E_Huanghe02_Thing_1|lm0@0,2: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1122 verts=2028 from ['E_Huanghe02_Lujie_01']
+prim E_Huanghe02_Thing_1|lm0@0,5: QF_PBR/Env/NssStandard alpha=OPAQUE tris=105 verts=174 from ['E_Huanghe02_Building_01_B']
+prim E_Huanghe02_Thing_1|lm0@3,5: QF_PBR/Env/NssStandard alpha=OPAQUE tris=123 verts=279 from ['E_Huanghe02_Building_03']
+  tex E_Huanghe02_Chuan_03_basecolor 256x256 -> 256x256 rgb 3 KB
+prim E_Huanghe02_Chuan_03|lm0@-8,5: QF_PBR/Env/NssStandard alpha=OPAQUE tris=202 verts=293 from ['E_Huanghe02_Chuan_02']
+prim E_Huanghe02_Chuan_03|lm0@0,2: QF_PBR/Env/NssStandard alpha=OPAQUE tris=276 verts=375 from ['E_Huanghe02_Chuan_01']
+  tex E_Huanghe02_Chuan_02_basecolor 256x256 -> 256x256 rgb 2 KB
+prim E_Huanghe02_Chuan_02|lm0@-8,5: QF_PBR/Env/NssStandard alpha=OPAQUE tris=20 verts=40 from ['E_Huanghe02_Chuan_02']
+prim E_Huanghe02_Chuan_02|lm0@0,2: QF_PBR/Env/NssStandard alpha=OPAQUE tris=23 verts=31 from ['E_Huanghe02_Chuan_01']
+  tex E_Huanghe02_Chuan_01_basecolor 256x256 -> 256x256 rgb 8 KB
+  tex E_Huanghe02_Chuan_01_emissive 128x128 -> 128x128 rgb 1 KB
+prim E_Huanghe02_Chuan_01|lm0@-8,5: QF_PBR/Env/NssStandard alpha=OPAQUE tris=363 verts=636 from ['E_Huanghe02_Chuan_02']
+prim E_Huanghe02_Chuan_01|lm0@0,2: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1609 verts=2397 from ['E_Huanghe02_Chuan_01']
+  tex E_Huanghe02_Toutie_04_basecolor 256x256 -> 256x256 rgba 9 KB
+  tex E_Huanghe02_Toutie_04_G 256x256 -> 256x256 rgb 3 KB
+prim E_Huanghe02_Toutie_04@-1,6: QF_PBR/Env/NssStandard alpha=BLEND tris=32 verts=64 from ['E_Huanghe02_Shinei_02']
+  tex E_Huanghe02_Chuan_04_basecolor 128x128 -> 128x128 rgba 5 KB
+  tex E_Huanghe02_Chuan_04_emissive 128x128 -> 128x128 rgb 2 KB
+prim E_Huanghe02_Chuan_04|lm0@0,2: QF_PBR/Env/NssStandard alpha=MASK tris=1068 verts=1436 from ['E_Huanghe02_Chuan_01']
+  tex E_Huanghe02_Hehua_01_sRGB@RGBAC 128x128 -> 128x128 rgba 3 KB
+  tex E_Huanghe02_Hehua_01_G 128x128 -> 128x128 rgb 1 KB
+prim E_Huanghe02_Hehua_01@-12,-3: QF_PBR/Env/NssStandard alpha=MASK tris=804 verts=1179 from ['E_Huanghe02_Hehua_02']
+prim E_Huanghe02_Hehua_01@-8,1: QF_PBR/Env/NssStandard alpha=MASK tris=1347 verts=1898 from ['E_Huanghe02_Hehua_01']
+  tex E_Huanghe02_Lujie_1_basecolor 64x256 -> 64x256 rgb 2 KB
+  tex E_Huanghe02_Lujie_1_G 64x256 -> 64x256 rgb 0 KB
+prim E_Huanghe02_Lujie_3|lm0@-1,-5: QF_PBR/Env/NssStandard alpha=OPAQUE tris=433 verts=885 from ['E_Huanghe02_Tingzi_01_B']
+prim E_Huanghe02_Lujie_3|lm0@-1,3: QF_PBR/Env/NssStandard alpha=OPAQUE tris=499 verts=673 from ['E_Huanghe02_Shinei_01']
+prim E_Huanghe02_Lujie_3|lm0@-1,5: QF_PBR/Env/NssStandard alpha=OPAQUE tris=495 verts=1015 from ['E_Huanghe02_Building_04']
+prim E_Huanghe02_Lujie_3|lm0@-4,6: QF_PBR/Env/NssStandard alpha=OPAQUE tris=3331 verts=5797 from ['E_Huanghe02_Building_05']
+prim E_Huanghe02_Lujie_3|lm0@-5,7: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1608 verts=3060 from ['E_Huanghe02_Building_01']
+prim E_Huanghe02_Lujie_3|lm0@-7,-2: QF_PBR/Env/NssStandard alpha=OPAQUE tris=7944 verts=12912 from ['E_Huanghe02_Longmen_07', 'E_Huanghe02_Shaolin_02', 'E_Huanghe02_Tingzi_01']
+prim E_Huanghe02_Lujie_3|lm0@-7,-4: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1184 verts=2314 from ['E_Huanghe02_Shaolin_01']
+prim E_Huanghe02_Lujie_3|lm0@-7,6: QF_PBR/Env/NssStandard alpha=OPAQUE tris=2771 verts=4757 from ['E_Huanghe02_Mingtang_01']
+prim E_Huanghe02_Lujie_3|lm0@0,2: QF_PBR/Env/NssStandard alpha=OPAQUE tris=2567 verts=3171 from ['E_Huanghe02_Lujie_01']
+prim E_Huanghe02_Lujie_3|lm0@0,5: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1539 verts=2856 from ['E_Huanghe02_Building_01_B']
+prim E_Huanghe02_Lujie_3|lm0@3,5: QF_PBR/Env/NssStandard alpha=OPAQUE tris=886 verts=1819 from ['E_Huanghe02_Building_03']
+  tex E_Huanghe02_Grass02 128x128 -> 128x128 rgb 1 KB
+prim E_Huanghe02_Grass_02|lm0@-4,6: QF_PBR/Env/NssStandard alpha=OPAQUE tris=129 verts=120 from ['E_Huanghe02_Building_05']
+prim E_Huanghe02_Grass_02|lm0@-7,-2: QF_PBR/Env/NssStandard alpha=OPAQUE tris=37 verts=75 from ['E_Huanghe02_Tingzi_01']
+  tex E_Huanghe02_Wall_02_basecolor 256x256 -> 256x256 rgb 5 KB
+prim E_Huanghe02_Wall_02|lm0@-1,-5: QF_PBR/Env/NssStandard alpha=OPAQUE tris=79 verts=149 from ['E_Huanghe02_Tingzi_01_B']
+prim E_Huanghe02_Wall_02|lm0@-1,5: QF_PBR/Env/NssStandard alpha=OPAQUE tris=106 verts=206 from ['E_Huanghe02_Building_04']
+prim E_Huanghe02_Wall_02|lm0@-4,6: QF_PBR/Env/NssStandard alpha=OPAQUE tris=199 verts=351 from ['E_Huanghe02_Building_05']
+prim E_Huanghe02_Wall_02|lm0@-5,7: QF_PBR/Env/NssStandard alpha=OPAQUE tris=107 verts=207 from ['E_Huanghe02_Building_01']
+prim E_Huanghe02_Wall_02|lm0@-7,-2: QF_PBR/Env/NssStandard alpha=OPAQUE tris=345 verts=667 from ['E_Huanghe02_Tingzi_01']
+prim E_Huanghe02_Wall_02|lm0@-7,6: QF_PBR/Env/NssStandard alpha=OPAQUE tris=96 verts=166 from ['E_Huanghe02_Mingtang_01']
+prim E_Huanghe02_Wall_02|lm0@0,5: QF_PBR/Env/NssStandard alpha=OPAQUE tris=83 verts=165 from ['E_Huanghe02_Building_01_B']
+prim E_Huanghe02_Wall_02|lm0@3,5: QF_PBR/Env/NssStandard alpha=OPAQUE tris=153 verts=269 from ['E_Huanghe02_Building_03']
+  tex E_Huanghe02_Lujie_2_basecolor 64x256 -> 64x256 rgb 2 KB
+prim E_Huanghe02_Lujie_2|lm0@-1,3: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1764 verts=3297 from ['E_Huanghe02_Shinei_01']
+prim E_Huanghe02_Lujie_2|lm0@-4,6: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1450 verts=2790 from ['E_Huanghe02_Building_05']
+prim E_Huanghe02_Lujie_2|lm0@-7,-4: QF_PBR/Env/NssStandard alpha=OPAQUE tris=9 verts=19 from ['E_Huanghe02_Shaolin_01']
+prim E_Huanghe02_Lujie_2|lm0@-7,6: QF_PBR/Env/NssStandard alpha=OPAQUE tris=94 verts=134 from ['E_Huanghe02_Mingtang_01']
+  tex E_Huanghe02_Guanggao_01 256x256 -> 256x256 rgb 4 KB
+prim E_Huanghe02_Guanggao_01|lm0@-4,6: QF_PBR/Env/NssStandard alpha=OPAQUE tris=13 verts=27 from ['E_Huanghe02_Building_05']
+  tex E_Huanghe02_Toutie_03_basecolor 256x256 -> 256x256 rgba 20 KB
+  tex E_Huanghe02_Toutie_03_G 256x256 -> 256x256 rgb 0 KB
+prim E_Huanghe02_Toutie_03|lm0@-10,-2: QF_PBR/Env/NssStandard alpha=BLEND tris=89 verts=173 from ['E_Huanghe02_Longmen_03']
+prim E_Huanghe02_Toutie_03|lm0@-11,-2: QF_PBR/Env/NssStandard alpha=BLEND tris=64 verts=86 from ['E_Huanghe02_Longmen_08']
+  tex E_Huanghe02_Toutie_02_basecolor 256x256 -> 256x256 rgba 16 KB
+  tex E_Huanghe02_Toutie_02_G 128x128 -> 128x128 rgb 0 KB
+prim E_Huanghe02_Toutie_02|lm0@-1,6: QF_PBR/Env/NssStandard alpha=MASK tris=28 verts=56 from ['E_Huanghe02_Shinei_03']
+prim E_Huanghe02_Toutie_02|lm0@-11,-2: QF_PBR/Env/NssStandard alpha=MASK tris=25 verts=35 from ['E_Huanghe02_Longmen_08']
+prim E_Huanghe02_Toutie_02|lm0@-7,-4: QF_PBR/Env/NssStandard alpha=MASK tris=5 verts=11 from ['E_Huanghe02_Shaolin_01']
+prim E_Huanghe02_Toutie_02|lm0@-7,6: QF_PBR/Env/NssStandard alpha=MASK tris=21 verts=43 from ['E_Huanghe02_Mingtang_01']
+  tex E_Huanghe02_guanmu 128x256 -> 128x256 rgba 9 KB
+  tex E_Huanghe02_guanmu 128x256 -> 128x256 rgb 2 KB
+prim E_Huanghe02_Guanmu_02@-13,-4: QF_PBR/Env/NssStandard alpha=MASK tris=82 verts=164 from ['E_Huanghe02_guanmu_03']
+prim E_Huanghe02_Guanmu_02@-3,5: QF_PBR/Env/NssStandard alpha=MASK tris=536 verts=1072 from ['E_Huanghe02_luoye_01']
+prim E_Huanghe02_Guanmu_02@-8,0: QF_PBR/Env/NssStandard alpha=MASK tris=192 verts=384 from ['E_Huanghe02_guanmu_02']
+prim E_Huanghe02_Guanmu_02@0,3: QF_PBR/Env/NssStandard alpha=MASK tris=148 verts=296 from ['E_Huanghe02_guanmu_01']
+  tex E_Huanghe02_Rock_01_basecolor 256x256 -> 256x256 rgb 2 KB
+  tex E_Huanghe02_Grass_01_basecolor 128x128 -> 128x128 rgb 2 KB
+prim E_Huanghe02_Rock_02|lm0@-11,-3: QF_PBR/Env/NssStandard alpha=OPAQUE tris=583 verts=548 from ['E_Huanghe02_Longmen_02']
+prim E_Huanghe02_Rock_02|lm0@-14,-3: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1669 verts=1630 from ['E_Huanghe02_Hill_01']
+  tex E_Huanghe02_Rock_03_basecolor 256x256 -> 256x256 rgb 1 KB
+prim E_Huanghe02_Rock_01|lm0@-11,-3: QF_PBR/Env/NssStandard alpha=OPAQUE tris=423 verts=514 from ['E_Huanghe02_Longmen_02']
+prim E_Huanghe02_Rock_01|lm0@-7,-2: QF_PBR/Env/NssStandard alpha=OPAQUE tris=3437 verts=2337 from ['E_Huanghe02_Longmen_07']
+  tex E_Huanghe02_longmen_01_D 256x256 -> 256x256 rgb 9 KB
+prim E_Huanghe02_Rock_03|lm0@-11,-2: QF_PBR/Env/NssStandard alpha=OPAQUE tris=3056 verts=4795 from ['E_Huanghe02_Longmen_01']
+prim E_Huanghe02_Rock_03|lm0@-12,-3: QF_PBR/Env/NssStandard alpha=OPAQUE tris=3698 verts=4006 from ['E_Huanghe02_Longmen_05']
+  tex E_Huanghe02_Toutie_05_basecolor 128x256 -> 128x256 rgba 6 KB
+prim sky:E_Huanghe02_Toutie_05: QF/Env/Sky_Diffuse_AlphaBlend_no fog alpha=BLEND tris=112 verts=140 from ['E_Huanghe02_Toutie_05', 'E_Huanghe02_Toutie_06']
+prim E_Huanghe02_Thing_1|lm1@-10,-1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=2935 verts=5582 from ['E_Huanghe02_Tingzi_01_A']
+prim E_Huanghe02_Thing_1|lm1@-2,2: QF_PBR/Env/NssStandard alpha=OPAQUE tris=560 verts=1048 from ['E_Huanghe02_Building_01_A']
+prim E_Huanghe02_Thing_1|lm1@-2,6: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1204 verts=2242 from ['E_Huanghe02_Building_02']
+  tex E_Huanghe02_Ground_03_basecolor 128x128 -> 128x128 rgb 0 KB
+prim E_Huanghe02_Rock_04|lm0@-7,-2: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1102 verts=1379 from ['E_Huanghe02_Longmen_07']
+  tex E_Huanghe02_Road_1_basecolor 256x128 -> 256x128 rgb 2 KB
+  tex E_Huanghe02_Road_1_G 256x128 -> 256x128 rgb 0 KB
+prim E_Huanghe02_Road_1|lm0@-7,-2: QF_PBR/Env/NssStandard alpha=OPAQUE tris=270 verts=252 from ['E_Huanghe02_Longmen_07', 'E_Huanghe02_Shaolin_02']
+prim E_Huanghe02_Lujie_3|lm1@-2,2: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1705 verts=3133 from ['E_Huanghe02_Building_01_A']
+prim E_Huanghe02_Lujie_3|lm1@-2,6: QF_PBR/Env/NssStandard alpha=OPAQUE tris=3929 verts=6804 from ['E_Huanghe02_Building_02']
+prim E_Huanghe02_Wall_02|lm1@-2,2: QF_PBR/Env/NssStandard alpha=OPAQUE tris=411 verts=667 from ['E_Huanghe02_Building_01_A']
+prim E_Huanghe02_Wall_02|lm1@-2,6: QF_PBR/Env/NssStandard alpha=OPAQUE tris=151 verts=271 from ['E_Huanghe02_Building_02']
+prim E_Huanghe02_Lujie_2|lm1@-2,6: QF_PBR/Env/NssStandard alpha=OPAQUE tris=65 verts=121 from ['E_Huanghe02_Building_02']
+  tex E_Huanghe02_Toutie_01_basecolor 256x256 -> 256x256 rgba 7 KB
+prim E_Huanghe02_Toutie_01|lm1@-2,2: QF_PBR/Env/NssStandard alpha=MASK tris=16 verts=32 from ['E_Huanghe02_Building_01_A']
+prim E_Huanghe02_Toutie_01|lm1@-2,6: QF_PBR/Env/NssStandard alpha=MASK tris=51 verts=95 from ['E_Huanghe02_Building_02']
+prim E_Huanghe02_Grass_02|lm1@-2,6: QF_PBR/Env/NssStandard alpha=OPAQUE tris=17 verts=35 from ['E_Huanghe02_Building_02']
+prim E_Huanghe02_Chuan_02|lm1@-2,6: QF_PBR/Env/NssStandard alpha=OPAQUE tris=11 verts=21 from ['E_Huanghe02_Building_02']
+  tex E_Huanghe02_Addspeed_01_basecolor 128x128 -> 128x128 rgb 1 KB
+prim E_Huanghe02_Addspeed_3@-5,4: QF_Gamma/Env/Transparent/Basic_AlphaBlendScroll alpha=BLEND tris=2 verts=4 from ['E_Huanghe02_Addspeed_01']
+prim E_Huanghe02_Toutie_02|lm1@-2,2: QF_PBR/Env/NssStandard alpha=MASK tris=2 verts=4 from ['E_Huanghe02_Building_01_A']
+  tex E_Huanghe02_RockAlpha_01_basecolor 128x128 -> 128x128 rgba 5 KB
+prim E_Huanghe02_RockAlpha_01_basecolor|lm0@-12,-3: QF_PBR/Env/NssStandard alpha=BLEND tris=396 verts=373 from ['E_Huanghe02_Longmen_06']
+  tex E_Huanghe02_Ground_03_basecolor 128x128 -> 128x128 rgb 0 KB
+prim E_Huanghe02_Ground_03|lm0@-7,-4: QF_PBR/Env/NssStandard alpha=OPAQUE tris=26 verts=48 from ['E_Huanghe02_Shaolin_01']
+prim E_Huanghe02_Ground_03|lm0@-8,0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=224 verts=206 from ['E_Huanghe02_Island_02']
+  tex E_Huanghe02_Yanshi_01_sRGB 128x128 -> 128x128 rgb 1 KB
+prim E_Huanghe02_Rock_05|lm0@-8,0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=437 verts=558 from ['E_Huanghe02_Island_02']
+prim E_Huanghe02_Ground_03|lm1@1,4: QF_PBR/Env/NssStandard alpha=OPAQUE tris=171 verts=140 from ['E_Huanghe02_Island_01']
+  tex E_Huanghe02_Road_03_basecolor_1 128x256 -> 128x256 rgb 1 KB
+prim E_Huanghe02_Road_03|lm0@-1,3: QF_PBR/Env/NssStandard alpha=OPAQUE tris=39 verts=60 from ['E_Huanghe02_Shinei_01']
+  tex E_Huanghe02_Wood_02_basecolor 64x128 -> 64x128 rgb 0 KB
+prim E_Huanghe02_Wood_02|lm0@-1,3: QF_PBR/Env/NssStandard alpha=OPAQUE tris=23 verts=45 from ['E_Huanghe02_Shinei_01']
+  tex E_Huanghe02_Wood_01_basecolor 128x128 -> 128x128 rgb 0 KB
+prim E_Huanghe02_Wood_01|lm0@-1,3: QF_PBR/Env/NssStandard alpha=OPAQUE tris=571 verts=726 from ['E_Huanghe02_Shinei_01']
+  tex E_Huanghe02_Ground_02_basecolor 128x128 -> 128x128 rgb 0 KB
+prim E_Huanghe02_Ground_02|lm0@-1,3: QF_PBR/Env/NssStandard alpha=OPAQUE tris=19 verts=30 from ['E_Huanghe02_Shinei_01']
+prim E_Huanghe02_Ground_02|lm0@-5,7: QF_PBR/Env/NssStandard alpha=OPAQUE tris=63 verts=82 from ['E_Huanghe02_Building_01']
+prim E_Huanghe02_Ground_02|lm0@-7,-2: QF_PBR/Env/NssStandard alpha=OPAQUE tris=30 verts=35 from ['E_Huanghe02_Tingzi_01']
+prim E_Huanghe02_Ground_02|lm0@-7,-4: QF_PBR/Env/NssStandard alpha=OPAQUE tris=119 verts=122 from ['E_Huanghe02_Shaolin_01']
+prim E_Huanghe02_Ground_02|lm0@0,5: QF_PBR/Env/NssStandard alpha=OPAQUE tris=36 verts=42 from ['E_Huanghe02_Building_01_B']
+prim E_Huanghe02_Ground_02|lm0@3,5: QF_PBR/Env/NssStandard alpha=OPAQUE tris=19 verts=29 from ['E_Huanghe02_Building_03']
+prim E_Huanghe02_Toutie_01|lm0@-5,7: QF_PBR/Env/NssStandard alpha=MASK tris=71 verts=143 from ['E_Huanghe02_Building_01']
+prim E_Huanghe02_Toutie_01|lm0@-7,-2: QF_PBR/Env/NssStandard alpha=MASK tris=147 verts=293 from ['E_Huanghe02_Tingzi_01']
+prim E_Huanghe02_Toutie_01|lm0@-7,-4: QF_PBR/Env/NssStandard alpha=MASK tris=129 verts=259 from ['E_Huanghe02_Shaolin_01']
+prim E_Huanghe02_Toutie_01|lm0@-7,6: QF_PBR/Env/NssStandard alpha=MASK tris=107 verts=147 from ['E_Huanghe02_Mingtang_01']
+prim E_Huanghe02_Toutie_01|lm0@0,5: QF_PBR/Env/NssStandard alpha=MASK tris=51 verts=101 from ['E_Huanghe02_Building_01_B']
+  tex E_Huanghe02_Ground_01_basecolor 128x128 -> 128x128 rgb 1 KB
+prim E_Huanghe02_Ground_01|lm0@-5,7: QF_PBR/Env/NssStandard alpha=OPAQUE tris=67 verts=87 from ['E_Huanghe02_Building_01']
+prim E_Huanghe02_Ground_01|lm0@-7,-2: QF_PBR/Env/NssStandard alpha=OPAQUE tris=110 verts=117 from ['E_Huanghe02_Tingzi_01']
+  tex E_Huanghe02_shizi_01_D 128x128 -> 128x128 rgb 2 KB
+prim E_Huanghe02_Shizi_01|lm0@-13,-4: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1166 verts=2114 from ['E_Huanghe02_shizi_01']
+  tex C_Sea 256x256 -> 256x256 rgb 7 KB
+prim E_Huanghe02_Sea_01@-1,1: QF_Gamma/Env/Water/Terrian_WaterAdvanced(Transparent)Middle alpha=BLEND tris=180 verts=116 from ['E_Huanghe02_Sea_01']
+prim E_Huanghe02_Toutie_04|lm0@-7,-2: QF_PBR/Env/NssStandard alpha=BLEND tris=17 verts=35 from ['E_Huanghe02_Tingzi_01']
+prim E_Huanghe02_Sea_02@-12,-3: QF_Gamma/Env/Water/Terrian_WaterAdvanced(Transparent)Middle alpha=BLEND tris=3 verts=7 from ['E_Huanghe02_Sea_02']
+prim E_Huanghe02_Rock_02|lm1@-18,-2: QF_PBR/Env/NssStandard alpha=OPAQUE tris=688 verts=735 from ['E_Huanghe02_Hill_02']
+prim E_Huanghe02_Road_1|lm1@-5,1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=2229 verts=1517 from ['E_Huanghe02_Road_01']
+  tex E_Huanghe02_Step_01_basecolor 128x128 -> 128x128 rgb 1 KB
+prim E_Huanghe02_Step_01|lm1@-5,1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=349 verts=681 from ['E_Huanghe02_Road_01']
+  tex E_Huanghe02_Road_05_basecolor 256x256 -> 256x256 rgb 4 KB
+prim E_Huanghe02_Road_05|lm0@-7,-4: QF_PBR/Env/NssStandard alpha=OPAQUE tris=85 verts=159 from ['E_Huanghe02_Shaolin_01']
+  tex E_Huanghe02_Wapian_02_basecolor 128x128 -> 128x128 rgb 1 KB
+prim E_Huanghe02_Wapian_02|lm0@-7,-4: QF_PBR/Env/NssStandard alpha=OPAQUE tris=212 verts=341 from ['E_Huanghe02_Shaolin_01']
+  tex E_Huanghe02_Wall_04_basecolor 128x128 -> 128x128 rgb 1 KB
+prim E_Huanghe02_Wall_04|lm0@-7,-4: QF_PBR/Env/NssStandard alpha=OPAQUE tris=153 verts=281 from ['E_Huanghe02_Shaolin_01']
+  tex E_Huanghe02_Wall_05_basecolor 128x128 -> 128x128 rgb 1 KB
+prim E_Huanghe02_Wall_05|lm0@-7,-4: QF_PBR/Env/NssStandard alpha=OPAQUE tris=147 verts=253 from ['E_Huanghe02_Shaolin_01']
+prim E_Huanghe02_Step_01|lm0@-7,-4: QF_PBR/Env/NssStandard alpha=OPAQUE tris=99 verts=197 from ['E_Huanghe02_Shaolin_01']
+lightmaps used by primitives: [0, 1]
+done: 121 primitives, 53 textures (0.24 MB webp), 2 lightmaps, folder 2.81 MB

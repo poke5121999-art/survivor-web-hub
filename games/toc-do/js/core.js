@@ -20,7 +20,7 @@
     { name: 'Đen', c: [[0.08, 0.08, 0.1], [1, 0.8, 0.1]] },
   ];
   TD.PAINTS.forEach((p, i) => { TD.PAINTS[i] = p.c; TD.PAINTS[i].name = p.name; });
-  const S = { d: DEF() };
+  const S = { d: DEF(), norms: [] };
   // Bản lưu là chuỗi sửa được bằng devtools và bản đám mây có thể cũ: bù khoá thiếu, vứt id lạ.
   function norm(d) {
     const o = Object.assign(DEF(), d, { settings: Object.assign(DEF().settings, d.settings) });
@@ -32,6 +32,8 @@
     for (const k of ['skills', 'ach']) if (!o[k] || typeof o[k] !== 'object') o[k] = {};
     if (Array.isArray(o.owned)) o.owned = o.owned.filter((id) => TD.CARS[id]); else o.owned = null;
     if (!TD.MODES || !TD.MODES[o.mode]) o.mode = 'speed';
+    // Module tự thêm khoá của mình (pets, outfits, story, social…) và tự sửa bản lưu cũ/hỏng: TD.save.norms.push((o) => {…}).
+    for (const f of S.norms) { try { f(o); } catch (e) { console.error(e); } }
     o.ver = o.ver | 0; o.at = Number(o.at) || 0;
     o.xp = Math.max(0, Math.floor(Number(o.xp) || 0));   // bản lưu cũ không có xp
     if (!TD.CARS[o.car]) o.car = Object.keys(TD.CARS)[0];

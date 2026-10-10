@@ -27,7 +27,10 @@ const { check, done, serve, browser, open, shot } = require('./toc-do-lib.js');
         return { mode: R.mode.id, n: R.karts.length, want: M.karts, teams: R.karts.map((k) => k.team), items: !!R.items, wantItems: !!M.items };
       }, id);
       check(id + ': đúng chế độ và số xe', info.mode === id && info.n === info.want, JSON.stringify({ mode: info.mode, n: info.n }));
-      if (info.teams[0] != null) check(id + ': chia đủ hai đội', info.teams.filter((t) => t === 0).length === info.n / 2, info.teams.join(''));
+      if (info.teams[0] != null) {
+        const nt = Math.max(...info.teams) + 1;
+        check(id + ': chia đều ' + nt + ' đội', [...Array(nt).keys()].every((t) => info.teams.filter((x) => x === t).length === info.n / nt), info.teams.join(''));
+      }
       check(id + ': hộp đạo cụ theo chế độ', info.items === info.wantItems || !info.wantItems, 'items=' + info.items);
       // Ảo Ảnh chưa có bóng thì hỏi trước khi đua: chọn "Đua không có bóng".
       if (await until(() => document.querySelector('[data-practice="noghost"]'), null, 5000)) await page.click('[data-practice="noghost"] [data-p="go"]');

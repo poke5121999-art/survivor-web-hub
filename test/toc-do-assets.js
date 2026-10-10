@@ -24,6 +24,7 @@ for (const id in TD.TRACKS) {
   if (!exists(t.art)) miss.push(t.art);
   const meta = JSON.parse(fs.readFileSync(path.join(G, dir, 'meta.json'), 'utf8'));
   for (const l of meta.lightmaps) if (!exists(dir + l.file)) miss.push(dir + l.file);
+  if (meta.instances && !exists(dir + meta.instances.file)) miss.push(dir + meta.instances.file);   // cây lặp (InstancedMesh)
   if (!exists('art/maps/' + id + '.jpg')) miss.push('art/maps/' + id + '.jpg');
 }
 for (const id in TD.CARS) if (!exists(TD.CARS[id].glb)) miss.push(TD.CARS[id].glb);
@@ -34,7 +35,7 @@ for (const k in TD.UI) if (!exists(TD.UI[k].src)) miss.push(TD.UI[k].src);
 if (!exists(TD.UGUI.sheet)) miss.push(TD.UGUI.sheet);
 for (const k in TD.UGUI.fonts) if (TD.UGUI.fonts[k] && !exists(TD.UGUI.fonts[k])) miss.push(TD.UGUI.fonts[k]);
 T.check('mọi tệp được trỏ tới đều có', miss.length === 0, miss.slice(0, 8).join(', ') || 'đủ');
-T.check('6 đường đua, 8 xe, 2 tay đua', Object.keys(TD.TRACKS).length === 6 && Object.keys(TD.CARS).length === 8 && Object.keys(TD.DRIVERS).length === 2);
+T.check('≥ 6 đường đua, ≥ 8 xe (Xưởng thêm xe), 2 tay đua', Object.keys(TD.TRACKS).length >= 6 && Object.keys(TD.CARS).length >= 8 && Object.keys(TD.DRIVERS).length === 2);
 const clips = ['drive', 'left', 'right', 'drift_l', 'drift_r', 'boost', 'land', 'crash_l', 'crash_r', 'win', 'lose', 'idle1'];
 T.check('tay đua có đủ clip mà karts.js gọi', Object.values(TD.DRIVERS).every((d) => clips.every((c) => d.clips[c])));
 T.check('xe nào cũng có 4 bánh và chỗ ngồi', Object.values(TD.CARS).every((c) => c.wheels.length === 4 && c.driverMount));

@@ -13,12 +13,22 @@
   const TV = { root: null, meta: null, skies: [] };
 const VS = `
     attribute vec2 uv2; attribute vec4 vcol;
+    #ifdef USE_INSTANCING
+    attribute vec4 lmST; // scale/offset lightmap riêng của từng bản instance (UV lightmap của mesh để thô)
+    #endif
     varying vec2 vUv; varying vec2 vUv2; varying vec3 vN; varying vec4 vCol;
     #include <fog_pars_vertex>
     void main() {
-      vUv = uv; vUv2 = uv2; vCol = vcol;
-      vN = normalize(mat3(modelMatrix) * normal);
-      vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+      vUv = uv; vCol = vcol;
+      #ifdef USE_INSTANCING
+      mat4 mdl = modelMatrix * instanceMatrix;
+      vUv2 = vec2(uv2.x * lmST.x + lmST.z, 1.0 - (uv2.y * lmST.y + lmST.w));
+      #else
+      mat4 mdl = modelMatrix;
+      vUv2 = uv2;
+      #endif
+      vN = normalize(mat3(mdl) * normal);
+      vec4 mvPosition = viewMatrix * mdl * vec4(position, 1.0);
       gl_Position = projectionMatrix * mvPosition;
       #include <fog_vertex>
     }`;
@@ -106,8 +116,11 @@ const VS = `
     const loader = new THREE.GLTFLoader();
     loader.setMeshoptDecoder(window.MeshoptDecoder);
     const gltf = await new Promise((res, rej) => loader.load(BASE + meta.glb + V, res, (e) => onProgress && e.total && onProgress(e.loaded / e.total), rej));
-    const stats = { meshes: 0, tris: 0, noMap: [], lmMissing: [], pbr: 0 };
-  gltf.scene.traverse((o) => {
+    const stats = { meshes: 0, tris: 0, noMap: [], lmMissing: [], pbr: 0, instances: 0 };
+    // meta.instances (tuỳ chọn): mesh lặp ghi một lần trong glb (node extras.inst), ma trận + lightmap từng bản ở inst.bin.
+    const instBuf = meta.instances ? await (await fetch(BASE + meta.instances.file + V)).arrayBuffer() : null;
+    const instNodes = [];
+    gltf.scene.traverse((o) => {
       if (!o.isMesh) return;
       const m = o.material, x = m.userData || {};
       // GLTFLoader đánh dấu sRGB, và three r140 trên WebGL2 khi đó tải texture dạng SRGB8_ALPHA8: GPU tự giải về tuyến
@@ -162,8 +175,36 @@ const VS = `
       for (const t of [m.map, m.emissiveMap]) if (t) t.anisotropy = maxAniso;
       o.material = sm;
       stats.meshes++;
-      stats.tris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3;
+      if (instBuf && o.userData.inst != null) instNodes.push(o);
+      else stats.tris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3;
     });
+    // Mỗi khối ô lưới là một InstancedMesh riêng; three r140 chỉ cắt theo hình cầu của mesh nên tự cắt khối trong update().
+    TV.chunks = [];
+    const STRIDE = meta.instances ? meta.instances.stride : 20;
+    const tmp = new THREE.Matrix4();
+    for (const o of instNodes) {
+      o.updateMatrixWorld(true);
+      const tri = o.geometry.index.count / 3;
+      for (const c of meta.instances.list[o.userData.inst].chunks) {
+        const f = new Float32Array(instBuf, c.off * STRIDE * 4, c.n * STRIDE);
+        const g = new THREE.BufferGeometry();   // chung bộ đệm đỉnh, riêng lmST của khối
+        for (const k in o.geometry.attributes) g.setAttribute(k, o.geometry.attributes[k]);
+        g.setIndex(o.geometry.index);
+        const im = new THREE.InstancedMesh(g, o.material, c.n);
+        const st = new Float32Array(c.n * 4);
+        for (let i = 0; i < c.n; i++) {
+          tmp.fromArray(f, i * STRIDE).multiply(o.matrixWorld); // ma trận bản · phép giải lượng tử hoá của node
+          im.setMatrixAt(i, tmp);
+          st.set(f.subarray(i * STRIDE + 16, i * STRIDE + 20), i * 4);
+        }
+        g.setAttribute('lmST', new THREE.InstancedBufferAttribute(st, 4));
+        im.frustumCulled = false;
+        gltf.scene.add(im);
+        TV.chunks.push({ mesh: im, sphere: new THREE.Sphere(vec(c.c), c.r) });
+        stats.tris += tri * c.n; stats.instances += c.n;
+      }
+      o.visible = false;
+    }
     TV.skies = [];
     gltf.scene.traverse((o) => { if (o.isMesh && o.userData.sky) TV.skies.push([o, o.position.clone(), o.scale.x]); });
     TV.skyC = meta.sky ? vec(meta.sky.center) : new THREE.Vector3(); TV.skyR = meta.sky ? meta.sky.radius : 1;
@@ -175,7 +216,14 @@ const VS = `
   };
 
   // Vòm trời rộng hơn 20 km: co về quanh camera để mọi hướng vẫn như cũ mà nằm gọn trong far.
+  const fr = new THREE.Frustum(), pm = new THREE.Matrix4();
   TV.update = function (camera) {
+    if (TV.chunks && TV.chunks.length) {
+      camera.updateMatrixWorld();   // camera.js vừa đặt vị trí, ma trận thế giới chưa cập nhật: không cập nhật thì cắt khối trễ một khung
+      pm.multiplyMatrices(camera.projectionMatrix, pm.copy(camera.matrixWorld).invert());
+      fr.setFromProjectionMatrix(pm);
+      for (const c of TV.chunks) c.mesh.visible = fr.intersectsSphere(c.sphere);
+    }
     for (const [o, p0, s0] of TV.skies) {
       const k = Math.min(1, 0.9 * camera.far / (TV.skyR + camera.position.distanceTo(TV.skyC)));
       o.scale.setScalar(s0 * k);

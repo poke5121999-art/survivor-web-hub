@@ -75,16 +75,19 @@
   };
 
   // Tay đua đứng: cùng glb tay đua của trận (không gắn vào xe) + clip ranking_0N của bản gốc (art/podium/rank_<id>.glb, cùng bộ xương).
-  function stand(driverId, place, slot, yaw) {
-    const id = TD.DRIVERS[driverId] ? driverId : Object.keys(TD.DRIVERS)[0];
+  // k: xe của tay đua (đồ đang mặc, tóc riêng qua js/ui/fashion.js).
+  function stand(k, place, slot, yaw) {
+    const id = TD.DRIVERS[k.driverId] ? k.driverId : Object.keys(TD.DRIVERS)[0];
     const drv = TD.DRIVERS[id];
     const a = { group: new THREE.Group(), mixer: null, ready: false };
     a.group.position.set(slot[0], slot[1], slot[2]);
     a.group.rotation.y = yaw;
     P.scene.add(a.group);
-    a.loading = Promise.all([parse(drv.glb), parse('art/podium/rank_' + id + '.glb')]).then(([g, r]) => {
+    const url = (TD.fashion && TD.fashion.glbFor(k, drv)) || drv.glb;
+    a.loading = Promise.all([parse(url), parse('art/podium/rank_' + id + '.glb')]).then(([g, r]) => {
       g.scene.traverse((o) => { if (o.isMesh) o.frustumCulled = false; });
       a.group.add(g.scene);
+      if (TD.fashion) TD.fashion.applyHair(k, g.scene);
       a.mixer = new THREE.AnimationMixer(g.scene);
       const want = 'ranking_0' + Math.min(6, place);
       const clip = r.animations.find((c) => c.name === want) || r.animations[0];
@@ -105,7 +108,7 @@
       // xương nhân vật gốc lệch; kéo về phía camera (−z) 0,45 m cho đứng giữa mặt bục.
       const s = i < 3 ? [pos[SLOT[i]][0], pos[SLOT[i]][1], pos[SLOT[i]][2] - 0.45] : pos[SLOT[i]];
       // Camera ở z âm nhìn về +z, tay đua quay mặt về −z; glb tay đua đã nhìn về −z nên giữ yaw 0.
-      const a = stand(k.driverId, i + 1, s, 0);
+      const a = stand(k, i + 1, s, 0);
       a.kart = k;
       P.actors.push(a);
     });

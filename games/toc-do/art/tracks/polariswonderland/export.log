@@ -1,0 +1,167 @@
+scene Level_PolarisWonderland_Art.unity: bundle AssetBundles/b3/b3661a926520538d7b5df6bd275746c1
+bundles loaded: 68; unresolved externals: ['cab-0006cf558a2b2dfaba4f7ca666101a55', 'cab-0aa6a471fb33bc8ff259100b0c977344', 'cab-146ea372bf0a13e6a4ea63e4a3c5e6bf', 'cab-8f653efccc55b86392d1a871bbaea46f', 'cab-cd1d29782da210e3960a6d457624c657', 'cab-f3e172233fa19193a1a32d3ffe375ac8', 'unity default resources', 'unity_builtin_extra']
+lightmap 0: Level_PolarisWonderland_Art_LM0_LS 256x256 fmt=48 colorSpace=1 rgb mean=0.220 max=1.000 alpha mean=0.395
+lightmap 1: Level_PolarisWonderland_Art_LMA1_LS 256x256 fmt=48 colorSpace=1 rgb mean=0.216 max=0.788 alpha mean=0.068
+lightmap 2: Level_PolarisWonderland_Art_LMA2_LS 128x128 fmt=48 colorSpace=1 rgb mean=0.267 max=0.800 alpha mean=0.238
+lightmapsMode=0 useShadowmask=True
+skip [skinned] /Artist/PVS/Low/D3_B/C_AniObj@Fengshan/E_PolarisWonderland_Fengshan_03
+skip [skinned] /Artist/PVS/High/D5_Hight/C_AniObj@Sky/E_PolarisWonderland_Sky_03
+skip [skinned] /Artist/PVS/Low/D4/C_AniObj@JXB/E_PolarisWonderland_SYS_JXB_01
+skip [skinned] /Artist/PVS/Low/D2/C_AniObj@Box/E_PolarisWonderland_Box_A
+skip [skinned] /Artist/PVS/Low/D5_A/C_AniObj@Statue/E_PolarisWonderland_Statue_01
+skip [skinned] /Artist/PVS/Low/D3_B/C_AniObj@Xiong/E_PolarisWonderland_Xiong_01
+skip [skinned] /Artist/PVS/Low/D1/C_AniObj@Guang/E_PolarisWonderland_Guang_02
+skip [skinned] /Artist/PVS/Low/D5_A/C_AniObj@Chengbao/E_PolarisWonderland_Chengbao_01
+skip [skinned] /Artist/PVS/Low/D2/C_AniObj@Box (1)/E_PolarisWonderland_Box_A
+skip [skinned] /Artist/PVS/Low/D2/C_AniObj@Box (2)/E_PolarisWonderland_Box_A
+skip [skinned] /Artist/PVS/Low/D4_B/C_AniObj@Men/E_PolarisWonderland_Men_03
+note: /Artist/PVS/Low/D3/E_PolarisWonderland_Boli_02 material E_PolarisWonderland_Boli_02 (QF_PBR/Env/NssStandard) has no albedo texture; tint only
+note: /Artist/PVS/Low/D1/E_PolarisWonderland_Lujie_01_A material E_PolarisWonderland_Lujie_01_A (QF_PBR/Env/NssStandard) has no albedo texture; tint only
+note: /Artist/PVS/Low/D4/E_PolarisWonderland_Hei_01 material E_PolarisWonderland_Hei (QF_PBR/Env/NssStandard) has no albedo texture; tint only
+skipped: skinned=11, inactive=3
+shader QF/Env/SkyBoxSwitch_fog: texture slots ['_FogMask', '_MainTex']
+shader QF/Env/Water/Terrian_WaterAdvanced(Opaque)Middle: texture slots ['_MainTex', '_NormalMap']
+shader QF/EnvStandard/EnvStandard_FX: texture slots ['_AlphaTex', '_BaseMap', '_BaseMap2', '_MaskTexture', '_Noise01', '_Ramp']
+shader QF_Gamma/Env/0Env_bak/Basic_AlphaBlendScrollBG2: texture slots ['_AlphaTex', '_MainTex', '_RollTex']
+shader QF_Gamma/Env/Sky_Diffuse_no fog: texture slots ['_MainTex']
+shader QF_Gamma/Env/Transparent/Basic_AlphaBlendScroll: texture slots ['_AlphaTex', '_MainTex']
+shader QF_Gamma/Env/Transparent/Basic_AlphaBlendScrollBG: texture slots ['_BackGroundTex', '_MainTex']
+shader QF_Gamma/Env/Transparent/Basic_AlphaTest_LMRatio: texture slots ['_AlphaTex', '_MainTex']
+shader QF_PBR/Env/NssStandard: texture slots ['_BaseMap', '_BaseMap2', '_EmissionMap', '_NormalMRMap', '_NormalMRMap2', '_OcclusionMap']
+shader QF_PBR/Env/NssStandard_FX: texture slots ['_BaseMap', '_BaseMap2', '_EmissionMap', '_EmissionMap2', '_MaskTexture', '_Noise01', '_NormalMRMap', '_NormalMRMap2', '_Ramp']
+  tex E_PolarisWonderland_Lianpai_02_basecolor 256x256 -> 256x256 rgba 11 KB
+prim E_PolarisWonderland_SYS_Lianpai_01@6,12: QF_Gamma/Env/Transparent/Basic_AlphaBlendScroll alpha=BLEND tris=30 verts=34 from ['E_PolarisWonderland_SYS_Lianpai_01']
+  tex E_PolarisWonderland_Posui_02_basecolor 256x256 -> 256x256 rgb 5 KB
+prim E_PolarisWonderland_Posui_01|lm0@4,10: QF_PBR/Env/NssStandard alpha=OPAQUE tris=525 verts=946 from ['E_PolarisWonderland_Fengshan_01']
+prim E_PolarisWonderland_Posui_01|lm0@9,17: QF_PBR/Env/NssStandard alpha=OPAQUE tris=182 verts=238 from ['E_PolarisWonderland_Road_04']
+  tex E_PolarisWonderland_Qiang_03_basecolor 256x256 -> 256x256 rgb 4 KB
+prim E_PolarisWonderland_Qiang_03|lm0@4,10: QF_PBR/Env/NssStandard alpha=OPAQUE tris=908 verts=1151 from ['E_PolarisWonderland_Fengshan_01']
+  tex E_PolarisWonderland_Road_03_basecolor 256x256 -> 256x256 rgb 1 KB
+prim E_PolarisWonderland_Road_03|lm2@6,11: QF_PBR/Env/NssStandard alpha=OPAQUE tris=2893 verts=1878 from ['E_PolarisWonderland_Road_03']
+  tex E_PolarisWonderland_SYS_01_basecolor 256x256 -> 256x256 rgb 2 KB
+prim E_PolarisWonderland_SYS_01|lm2@6,11: QF_PBR/Env/NssStandard alpha=OPAQUE tris=899 verts=980 from ['E_PolarisWonderland_Road_03']
+prim E_PolarisWonderland_SYS_01|lm0@6,11: QF_PBR/Env/NssStandard alpha=OPAQUE tris=2013 verts=2355 from ['E_PolarisWonderland_SYS_02']
+  tex E_PolarisWonderland_Beijing_01 256x256 -> 256x256 rgb 8 KB
+prim E_PolarisWonderland_Building_02@-2,2: QF_PBR/Env/NssStandard alpha=OPAQUE tris=18 verts=38 from ['E_PolarisWonderland_Guanggao_01']
+  tex E_PolarisWonderland_Boli_01_M  256x256 -> 256x256 rgba 1 KB
+prim E_PolarisWonderland_Boli_01|lm1@-2,1: QF_PBR/Env/NssStandard alpha=BLEND tris=453 verts=483 from ['E_PolarisWonderland_Boli_01']
+  tex E_PolarisWonderland_Sand_01_basecolor 256x256 -> 256x256 rgb 0 KB
+  tex E_PolarisWonderland_Grass_01_basecolor 256x256 -> 256x256 rgb 9 KB
+prim E_PolarisWonderland_Glass_01|lm0@30,26: QF_PBR/Env/NssStandard_FX alpha=OPAQUE tris=8488 verts=5173 from ['E_PolarisWonderland_Shamo_01']
+  tex E_PolarisWonderland_Lianpai_03_basecolor_1 256x256 -> 256x256 rgb 3 KB
+  tex E_PolarisWonderland_Lianpai_03_G 128x128 -> 128x128 rgb 0 KB
+  tex E_PolarisWonderland_Lianpai_04_basecolor_1 256x256 -> 256x256 rgb 5 KB
+prim E_PolarisWonderland_Lianpai_03|lm0@10,14: QF_PBR/Env/NssStandard_FX alpha=OPAQUE tris=7231 verts=5334 from ['E_PolarisWonderland_Lianpai_05']
+  tex E_PolarisWonderland_Box_01_basecolor 256x256 -> 256x256 rgb 4 KB
+prim E_PolarisWonderland_Box_03|lm0@8,12: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1117 verts=2259 from ['E_PolarisWonderland_Men_03']
+  tex E_PolarisWonderland_Zhiwu_01_basecolor_1 256x256 -> 256x256 rgba 11 KB
+  tex E_PolarisWonderland_Zhiwu_01_basecolor_1 256x256 -> 256x256 rgb 2 KB
+prim E_PolarisWonderland_Zhiwu_02@-2,1: QF_PBR/Env/NssStandard alpha=BLEND tris=197 verts=299 from ['E_PolarisWonderland_Guang_01']
+  tex E_PolarisWonderland_Lujie_01_basecolor 256x256 -> 256x256 rgb 3 KB
+  tex E_PolarisWonderland_Lujie_01_M 128x128 -> 128x128 rgb 1 KB
+prim E_PolarisWonderland_Lujie_02|lm1@0,7: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1636 verts=1153 from ['E_PolarisWonderland_Lujie_02']
+prim E_PolarisWonderland_Lujie_02|lm1@3,9: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1332 verts=1178 from ['E_PolarisWonderland_Lujie_03']
+  tex E_PolarisWonderland_Qiang_01_basecolor_1 256x256 -> 256x256 rgb 2 KB
+prim E_PolarisWonderland_Deng_01|lm0@-2,1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=114 verts=141 from ['E_PolarisWonderland_Tianhua_01']
+  tex C_Water_04 128x128 -> 128x128 rgb 2 KB
+prim E_PolarisWonderland_Water_01@24,25: QF/Env/Water/Terrian_WaterAdvanced(Opaque)Middle alpha=OPAQUE tris=13 verts=17 from ['E_PolarisWonderland_Water_01']
+prim E_PolarisWonderland_Zhiwu_01|lm0@-2,2: QF_PBR/Env/NssStandard alpha=MASK tris=3108 verts=3612 from ['E_PolarisWonderland_Tree_02']
+  tex E_PolarisWonderland_Road_04_basecolor 256x256 -> 256x256 rgb 3 KB
+  tex E_PolarisWonderland_Road_05_basecolor 256x256 -> 256x256 rgb 3 KB
+prim E_PolarisWonderland_Road_04|lm0@9,17: QF_PBR/Env/NssStandard_FX alpha=OPAQUE tris=3500 verts=2535 from ['E_PolarisWonderland_Road_04']
+  tex E_PolarisWonderland_Road_06_basecolor 256x256 -> 256x256 rgb 4 KB
+prim E_PolarisWonderland_Road_06|lm0@9,17: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1238 verts=1145 from ['E_PolarisWonderland_Road_04']
+  tex E_PolarisWonderland_Lianpai_01_basecolor 512x512 -> 512x512 rgb 12 KB
+  tex E_PolarisWonderland_Lianpai_01_G 128x128 -> 128x128 rgb 0 KB
+prim E_PolarisWonderland_Lianpai_02|lm0@-2,0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1217 verts=1444 from ['E_PolarisWonderland_Lianpai_01', 'E_PolarisWonderland_Lujie_01']
+prim E_PolarisWonderland_Lianpai_02|lm0@-2,2: QF_PBR/Env/NssStandard alpha=OPAQUE tris=52 verts=88 from ['E_PolarisWonderland_Men_01']
+  tex E_PolarisWonderland_ZXB_01_basecolor 256x256 -> 256x256 rgb 0 KB
+  tex E_PolarisWonderland_ZXB_01_G 128x128 -> 128x128 rgb 0 KB
+prim E_PolarisWonderland_ZXB_01|lm0@-2,0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=481 verts=849 from ['E_PolarisWonderland_Lianpai_01']
+prim E_PolarisWonderland_ZXB_01|lm0@0,5: QF_PBR/Env/NssStandard alpha=OPAQUE tris=796 verts=1290 from ['E_PolarisWonderland_Lianpai_02']
+prim E_PolarisWonderland_ZXB_01|lm0@2,5: QF_PBR/Env/NssStandard alpha=OPAQUE tris=531 verts=922 from ['E_PolarisWonderland_Lianpai_03']
+  tex E_PolarisWonderland_Box_01_M 256x256 -> 256x256 rgb 1 KB
+prim E_PolarisWonderland_Box_01|lm0@-1,5: QF_PBR/Env/NssStandard alpha=OPAQUE tris=3693 verts=6517 from ['E_PolarisWonderland_Box_01']
+prim E_PolarisWonderland_Box_01|lm0@0,5: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1250 verts=1453 from ['E_PolarisWonderland_Lianpai_02']
+prim E_PolarisWonderland_Box_01|lm0@2,5: QF_PBR/Env/NssStandard alpha=OPAQUE tris=617 verts=746 from ['E_PolarisWonderland_Lianpai_03']
+prim E_PolarisWonderland_Box_01|lm0@3,10: QF_PBR/Env/NssStandard alpha=OPAQUE tris=963 verts=1621 from ['E_PolarisWonderland_Box_02']
+prim E_PolarisWonderland_Box_01|lm0@3,5: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1381 verts=2681 from ['E_PolarisWonderland_Building_01']
+prim E_PolarisWonderland_Lujie_02|lm0@-1,5: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1 verts=3 from ['E_PolarisWonderland_Box_01']
+prim E_PolarisWonderland_Boli_02@2,10: QF_PBR/Env/NssStandard alpha=BLEND tris=22 verts=44 from ['E_PolarisWonderland_Boli_02']
+  tex E_PolarisWonderland_Road_01_basecolor 256x256 -> 256x256 rgb 4 KB
+  tex E_PolarisWonderland_Road_01__G 256x256 -> 256x256 rgb 1 KB
+prim E_PolarisWonderland_Diban_01|lm1@-2,0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=2710 verts=1766 from ['E_PolarisWonderland_Road_01']
+prim E_PolarisWonderland_Lianpai_02|lm1@-2,0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=13 verts=17 from ['E_PolarisWonderland_Road_01']
+  tex E_PolarisWonderland_Zhuzi_01_basecolor 256x256 -> 256x256 rgb 1 KB
+  tex E_PolarisWonderland_Zhuzi_01_M 256x256 -> 256x256 rgb 0 KB
+prim E_PolarisWonderland_Zhuzi_01|lm0@-7,23: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1526 verts=3311 from ['E_PolarisWonderland_Zhuzi_01']
+prim E_PolarisWonderland_Lujie_01|lm0@-2,0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=3108 verts=3375 from ['E_PolarisWonderland_Lujie_01']
+  tex E_PolarisWonderland_Flood_01_basecolor 256x256 -> 256x256 rgb 3 KB
+note: E_PolarisWonderland_Diban_02 emission tiling (1.0, 1.0, 0.0, 0.0) differs from albedo; emission uses albedo UVs
+prim E_PolarisWonderland_Diban_02|lm0@-2,0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=697 verts=609 from ['E_PolarisWonderland_Lujie_01']
+  tex E_PolarisWonderland_Qiang_02_basecolor 256x256 -> 256x256 rgb 5 KB
+prim E_PolarisWonderland_Qiang_02|lm0@-2,0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=83 verts=89 from ['E_PolarisWonderland_Lujie_01']
+prim E_PolarisWonderland_Caodi_01|lm0@-2,0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=475 verts=490 from ['E_PolarisWonderland_Lujie_01']
+  tex E_PolarisWonderland_JSD_01_M_1 256x128 -> 256x128 rgb 1 KB
+prim E_PolarisWonderland_JSD_01@3,8: QF_Gamma/Env/Transparent/Basic_AlphaBlendScrollBG alpha=BLEND tris=339 verts=359 from ['E_PolarisWonderland_JSD_01']
+  tex E_PolarisWonderland_SYS_03_basecolor 256x256 -> 256x256 rgb 1 KB
+prim E_PolarisWonderland_SYS_04|lm0@6,11: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1667 verts=1794 from ['E_PolarisWonderland_SYS_Tong_01']
+  tex E_PolarisWonderland_Lianpai_02_basecolor 256x256 -> 256x256 rgba 7 KB
+  tex E_PolarisWonderland_Lianpai_02_basecolor 256x256 -> 256x256 rgb 2 KB
+prim E_PolarisWonderland_SYS_Lianpai_03|lm0@6,11: QF_PBR/Env/NssStandard alpha=BLEND tris=235 verts=287 from ['E_PolarisWonderland_SYS_Tong_01']
+prim E_PolarisWonderland_Qiang_01|lm1@-2,0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=932 verts=1351 from ['E_PolarisWonderland_Dating_01']
+  tex E_PolarisWonderland_CJL_01_basecolor 32x32 -> 32x32 rgb 0 KB
+prim E_PolarisWonderland_CJL_01|lm1@-2,0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=73 verts=141 from ['E_PolarisWonderland_Dating_01']
+prim E_PolarisWonderland_CJL_02|lm1@-2,0: QF_PBR/Env/NssStandard alpha=OPAQUE tris=25 verts=35 from ['E_PolarisWonderland_Dating_01']
+  tex C_Wave_01_M_CopyColor 256x256 -> 256x256 rgba 47 KB
+prim C_Wave_04@20,22: QF_Gamma/Env/0Env_bak/Basic_AlphaBlendScrollBG2 alpha=BLEND tris=174 verts=205 from ['E_PolarisWonderland_Bolang_01']
+prim E_PolarisWonderland_Road_01_A|lm0@-1,2: QF_PBR/Env/NssStandard alpha=OPAQUE tris=46 verts=65 from ['E_PolarisWonderland_Road_01_A']
+prim E_PolarisWonderland_SYS_02|lm0@-1,2: QF_PBR/Env/NssStandard alpha=OPAQUE tris=139 verts=141 from ['E_PolarisWonderland_Road_01_A']
+  tex E_PolarisWonderland_City_01@S2048 1024x512 -> 1024x512 rgb 48 KB
+prim sky:E_PolarisWonderland_Sky_01: QF_Gamma/Env/Sky_Diffuse_no fog alpha=OPAQUE tris=136 verts=161 from ['E_PolarisWonderland_Sky_01']
+prim E_PolarisWonderland_Building_01|lm0@-2,3: QF_PBR/Env/NssStandard alpha=OPAQUE tris=2176 verts=2750 from ['E_PolarisWonderland_Beijing_01']
+  tex E_PolarisWonderland_Bowen_01_basecolor 256x256 -> 256x256 rgba 9 KB
+prim E_PolarisWonderland_Guang_03@-2,0: QF_PBR/Env/NssStandard alpha=BLEND tris=186 verts=306 from ['E_PolarisWonderland_Guang_03']
+  tex E_PolarisWonderland_Tree_01 128x128 -> 128x128 rgba 5 KB
+prim E_PolarisWonderland_Tree_01|lm0@-1,-1: QF_Gamma/Env/Transparent/Basic_AlphaTest_LMRatio alpha=MASK tris=2648 verts=5110 from ['E_PolarisWonderland_Tree_01']
+  tex E_PolarisWonderland_Road_02_A_basecolor 256x256 -> 256x256 rgb 1 KB
+  tex E_PolarisWonderland_Road_02_A_basecolor 256x256 -> 256x256 rgb 1 KB
+prim E_PolarisWonderland_Road_02_A|lm2@2,5: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1639 verts=1148 from ['E_PolarisWonderland_Road_02_A']
+prim E_PolarisWonderland_Box_01|lm2@0,5: QF_PBR/Env/NssStandard alpha=OPAQUE tris=92 verts=98 from ['E_PolarisWonderland_Road_02']
+prim E_PolarisWonderland_Box_01|lm2@2,5: QF_PBR/Env/NssStandard alpha=OPAQUE tris=84 verts=87 from ['E_PolarisWonderland_Road_02_A']
+  tex E_PolarisWonderland_Mu_01_basecolor 256x256 -> 256x256 rgb 2 KB
+  tex E_PolarisWonderland_Mu_01_G 128x128 -> 128x128 rgb 0 KB
+prim E_PolarisWonderland_Mu_01|lm2@2,5: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1638 verts=2499 from ['E_PolarisWonderland_Road_02_A']
+prim E_PolarisWonderland_CJL_01|lm0@-2,1: QF_PBR/Env/NssStandard alpha=OPAQUE tris=3691 verts=10461 from ['E_PolarisWonderland_CJL_01']
+prim E_PolarisWonderland_Mu_01|lm0@3,5: QF_PBR/Env/NssStandard alpha=OPAQUE tris=727 verts=1317 from ['E_PolarisWonderland_Building_01']
+  tex E_PolarisWonderland_Wuding_01_basecolor 128x128 -> 128x128 rgb 1 KB
+prim E_PolarisWonderland_Wuding_01|lm0@3,5: QF_PBR/Env/NssStandard alpha=OPAQUE tris=348 verts=497 from ['E_PolarisWonderland_Building_01']
+  tex E_PolarisWonderland_Chuang 256x256 -> 256x256 rgb 1 KB
+prim E_PolarisWonderland_Chuang|lm0@3,5: QF_PBR/Env/NssStandard alpha=OPAQUE tris=682 verts=1190 from ['E_PolarisWonderland_Building_01']
+  tex E_PolarisWonderland_Qiang_04_basecolor 256x256 -> 256x256 rgb 1 KB
+prim E_PolarisWonderland_Qiang_04|lm0@3,5: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1320 verts=1730 from ['E_PolarisWonderland_Building_01']
+  tex E_PolarisWonderland_Hua_01 256x256 -> 256x256 rgba 20 KB
+prim E_PolarisWonderland_Hua_01@12,17: QF/EnvStandard/EnvStandard_FX alpha=BLEND tris=284 verts=568 from ['E_PolarisWonderland_Hua_01']
+  tex E_PolarisWonderland_FengShan_01_basecolor 128x128 -> 128x128 rgb 0 KB
+prim E_PolarisWonderland_FengShan_02|lm0@4,10: QF_PBR/Env/NssStandard alpha=OPAQUE tris=144 verts=203 from ['E_PolarisWonderland_Fengshan_02']
+  tex E_PolarisWonderland_Road_02_B_basecolor 256x256 -> 256x256 rgba 8 KB
+  tex E_PolarisWonderland_Road_02_B_basecolor 256x256 -> 256x256 rgb 2 KB
+prim E_PolarisWonderland_Road_02_B|lm0@3,9: QF_PBR/Env/NssStandard alpha=BLEND tris=195 verts=227 from ['E_PolarisWonderland_Road_02_B']
+prim E_PolarisWonderland_SYS_03|lm1@6,11: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1659 verts=1129 from ['E_PolarisWonderland_Lujie_04']
+prim E_PolarisWonderland_SYS_01|lm1@6,11: QF_PBR/Env/NssStandard alpha=OPAQUE tris=522 verts=546 from ['E_PolarisWonderland_Lujie_04']
+  tex E_PolarisWonderland_AAA_NRM 128x128 -> 128x128 rgb 0 KB
+prim E_PolarisWonderland_Lujie_01_A@-2,2: QF_PBR/Env/NssStandard alpha=OPAQUE tris=168 verts=180 from ['E_PolarisWonderland_Lujie_01_A']
+prim E_PolarisWonderland_SYS_Lianpai@6,12: QF_Gamma/Env/Transparent/Basic_AlphaBlendScroll alpha=BLEND tris=30 verts=32 from ['E_PolarisWonderland_SYS_Lianpai']
+  tex E_PolarisWonderland_Stone_02_basecolor 256x256 -> 256x256 rgb 1 KB
+prim E_PolarisWonderland_Stone_02|lm0@15,18: QF_PBR/Env/NssStandard alpha=OPAQUE tris=1533 verts=1468 from ['E_PolarisWonderland_Stone_02']
+  tex E_PolarisWonderland_Suidao_01_basecolor 256x256 -> 256x256 rgb 0 KB
+  tex E_PolarisWonderland_Suidao_01_M 256x256 -> 256x256 rgb 0 KB
+prim E_PolarisWonderland_Suidao_01|lm0@-2,4: QF_PBR/Env/NssStandard alpha=OPAQUE tris=19 verts=37 from ['E_PolarisWonderland_Suidao_01']
+prim E_PolarisWonderland_Qiang_01|lm0@-2,2: QF_PBR/Env/NssStandard alpha=OPAQUE tris=27 verts=33 from ['E_PolarisWonderland_Men_01']
+  tex E_PolarisWonderland_Road_02_basecolor 256x256 -> 256x256 rgb 3 KB
+prim E_PolarisWonderland_Road_02|lm2@0,5: QF_PBR/Env/NssStandard alpha=OPAQUE tris=738 verts=774 from ['E_PolarisWonderland_Road_02']
+prim E_PolarisWonderland_Hei|lm0@6,11: QF_PBR/Env/NssStandard alpha=OPAQUE tris=497 verts=310 from ['E_PolarisWonderland_Hei_01']
+  tex E_PolarisWonderland_Sky_02 256x128 -> 256x128 rgb 1 KB
+prim sky:E_PolarisWonderland_Sky_02: QF/Env/SkyBoxSwitch_fog alpha=OPAQUE tris=870 verts=542 from ['E_PolarisWonderland_Sky_02']
+lightmaps used by primitives: [0, 1, 2]
+done: 74 primitives, 59 textures (0.31 MB webp), 3 lightmaps, folder 2.06 MB

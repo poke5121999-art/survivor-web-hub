@@ -22,8 +22,7 @@
     itemPractice: { bg: 'mode_item', ic: 'icon_item' },
     shadow: { bg: 'mode_speed', ic: 'icon_speed', ghost: true },
   };
-  const MATCH_IDS = ['speed', 'speedTeam', 'item', 'itemTeam'];
-  const matchModes = () => MATCH_IDS.map((id) => TD.MODES[id]).filter(Boolean);
+  const matchModes = () => Object.values(TD.MODES).filter((m) => m.match);
   const practiceModes = () => Object.values(TD.MODES).filter((m) => m.practice);
   // src: uitextures/id_thing/id_car/01ncar/ncar_<id>; xe thêm sau mà chưa xuất biểu tượng thì thẻ không có hình xe.
   const CAR_ICONS = ['04', '06', '16', '55', '175', '254', '284', '297'];
@@ -98,6 +97,20 @@
   }
   const dot = (n) => (n > 0 ? `<i class="lb-dot">${n}</i>` : '');
 
+  // Mục sảnh do module khác đăng ký (PET, thời trang, xưởng, bạn bè, thư, cốt truyện, sự kiện…):
+  //   TD.lobby.add({ id, where: 'bar' | 'top' | 'tile', label, icon, order, open(), badge?() })
+  // where 'tile' với id 'story' / 'events' mở ô Cốt Truyện / Khu Giải Trí (khoá khi chưa có ai đăng ký).
+  L.entries = [];
+  L.add = function (e) { L.entries = L.entries.filter((x) => x.id !== e.id).concat(e).sort((a, b) => (a.order || 0) - (b.order || 0)); };
+  const entry = (id) => L.entries.find((e) => e.id === id);
+  const badgeOf = (e) => { try { return e.badge ? e.badge() | 0 : 0; } catch (err) { console.error(err); return 0; } };
+  const entryBtn = (e, cls) => `<button class="${cls}" data-entry="${e.id}"><img src="${e.icon}" alt=""><span>${esc(e.label)}</span>${dot(badgeOf(e))}</button>`;
+  function tile(id, cls, img, label) {
+    const e = entry(id);
+    return e ? `<button class="lb-tile ${cls}" data-entry="${id}"><img class="bg" src="${A}${img}" alt="">${dot(badgeOf(e))}<span class="lb-tl">${label}</span></button>`
+      : `<button class="lb-tile ${cls} off" data-act="locked"><img class="bg" src="${A}${img}" alt=""><img class="lk" src="${A}lock.webp" alt=""><span class="lb-tl">${label}</span></button>`;
+  }
+
   L.show = function () {
     const d = TD.save.d, lv = TD.LEVEL.of(d.xp);
     const b = TD.garage && TD.garage.badges ? TD.garage.badges() : { quests: 0, ach: 0 };
@@ -112,6 +125,7 @@
     </div>
   </div>
   <div class="lb-tr">
+    ${L.entries.filter((e) => e.where === 'top').map((e) => entryBtn(e, 'lb-top')).join('')}
     <div class="lb-coins"><img src="${A}coin.webp" alt=""><b>${fmt(d.coins)}</b></div>
     <button class="lb-gear" data-act="settings" aria-label="Thiết lập"><img src="${A}gear.webp" alt=""></button>
   </div>
@@ -119,17 +133,19 @@
     <button class="lb-tile t-rank" data-act="ranked"><img class="bg" src="${A}tile_rank.webp" alt="">${rankInfo()}<span class="lb-tl">Giải Đấu</span></button>
     <button class="lb-tile t-start" data-act="start"><img class="bg" src="${A}tile_start.webp" alt=""><span class="lb-tl">Xuất Phát</span></button>
     <button class="lb-tile t-train" data-act="practice"><img class="bg" src="${A}tile_training.webp" alt=""><span class="lb-tl">Huấn Luyện</span></button>
-    <button class="lb-tile t-story off" data-act="locked"><img class="bg" src="${A}tile_story.webp" alt=""><img class="lk" src="${A}lock.webp" alt=""><span class="lb-tl">Cốt Truyện</span></button>
-    <button class="lb-tile t-leisure off" data-act="locked"><img class="bg" src="${A}tile_leisure.webp" alt=""><img class="lk" src="${A}lock.webp" alt=""><span class="lb-tl">Khu Giải Trí</span></button>
+    ${tile('story', 't-story', 'tile_story.webp', 'Cốt Truyện')}
+    ${tile('events', 't-leisure', 'tile_leisure.webp', 'Khu Giải Trí')}
   </div>
-  <nav class="lb-bar">
+  <nav class="lb-bar${L.entries.some((e) => e.where === 'bar') ? ' many' : ''}">
+    ${L.entries.filter((e) => e.where === 'bar').map((e) => entryBtn(e, 'lb-bt')).join('')}
     ${bar.map(([t, ic, n]) => `<button class="lb-bt" data-tab="${t}"><img src="${A}${ic}.webp" alt=""><span>${n}</span>${dot(t === 'ach' ? b.ach : 0)}</button>`).join('')}
     <button class="lb-bt lb-quest" data-tab="quests"><img src="${A}bar_quests.webp" alt=""><span>Nhiệm Vụ</span>${dot(b.quests)}</button>
   </nav>
 </div>`, (bt) => {
       sfx('Play_UI_Click');
-      const act = bt.dataset.act, tab = bt.dataset.tab;
-      if (tab) { if (TD.garage && TD.garage.open) { L.screen = null; TD.garage.open(tab); } else toast('Chưa mở'); }
+      const act = bt.dataset.act, tab = bt.dataset.tab, en = bt.dataset.entry && entry(bt.dataset.entry);
+      if (en) { L.screen = null; TD.main.lobbyCam = null; en.open(); }
+      else if (tab) { if (TD.garage && TD.garage.open) { L.screen = null; TD.garage.open(tab); } else toast('Chưa mở'); }
       else if (act === 'start') L.modes();
       else if (act === 'practice') L.practice();
       else if (act === 'ranked') { if (TD.ranked && TD.ranked.show) { L.screen = null; TD.main.lobbyCam = null; TD.ranked.show(); } else toast('Chưa mở'); }
@@ -195,7 +211,7 @@
     const names = TD.BOT_NAMES.slice().sort(() => Math.random() - 0.5);
     const list = [];
     for (let i = 0; i < n; i++) {
-      const team = mode.teams ? ((slot - i) % 2 === 0 ? 1 : 0) : null;
+      const team = mode.teams ? TD.teamOf(i, slot, mode.teams) : null;
       if (i === slot) list.push({ me: true, name: d.name, lv: me, av: d.driver === 'nu' ? 'nu' : 'nam', car: d.car, team });
       // chọn: bot cùng tầm cấp người chơi ±6, ảnh đại diện nam/nữ ngẫu nhiên
       else list.push({ name: names[i % names.length], lv: Math.max(1, Math.min(99, me + Math.round(Math.random() * 12 - 6))), av: Math.random() < 0.5 ? 'nam' : 'nu', car: null, team });
@@ -209,16 +225,19 @@
 
   // Thẻ người chơi: mình vàng (loadingplayeryellowitem), Đội Xanh xanh (blue), Đội Đỏ đỏ (red); đua đơn bot xanh.
   function card(p, i, hidden) {
-    const col = p.me ? 'gold' : p.team === 0 ? 'red' : 'blue';
+    const col = p.me ? 'gold' : p.team === 1 || p.team == null ? 'blue' : 'red';
     return `<div class="lb-card ${col}${hidden ? ' wait' : ''}" data-k="${i}"><img class="lb-cbg" src="${A}card_${col}.webp" alt="">
       <img class="lb-cav" src="${A}avatar_${p.av}.webp" alt=""><b>${esc(p.name)}</b><small>Lv.${p.lv}</small>${p.car ? carImg(p.car) : '<i class="lb-ccar"></i>'}</div>`;
   }
-  // Hai cột: đội Xanh | đội Đỏ, hoặc chia đôi khi đua đơn. Trả HTML; thẻ ẩn (đang chờ) có lớp wait.
+  // Mỗi đội một cột (đội mình trước), hoặc chia đôi khi đua đơn. Trả HTML; thẻ ẩn (đang chờ) có lớp wait.
   function rosterHTML(r, hidden) {
     const idx = r.list.map((p, i) => i);
     const me = r.list.length - 1;
     let cols;
-    if (r.list[0].team != null) cols = [1, 0].map((t) => idx.filter((i) => r.list[i].team === t).sort((a, b) => (b === me) - (a === me)));
+    if (r.list[0].team != null) {
+      const n = Math.max(...r.list.map((p) => p.team)) + 1, order = [1].concat([...Array(n).keys()].filter((t) => t !== 1));
+      cols = order.map((t) => idx.filter((i) => r.list[i].team === t).sort((a, b) => (b === me) - (a === me)));
+    }
     else { const o = [me].concat(idx.filter((i) => i !== me)), h = Math.ceil(o.length / 2); cols = [o.slice(0, h), o.slice(h)]; }
     return cols.map((c, ci) => `<div class="lb-col c${ci}">${c.map((i) => card(r.list[i], i, hidden && hidden.has(i))).join('')}</div>`).join('');
   }
