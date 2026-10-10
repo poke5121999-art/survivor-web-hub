@@ -822,22 +822,22 @@ window.HUB_GAMES = [
   {
     id: "gia-pha",
     title: "Cây Gia Phả",
-    tagline: "Dựng cây gia phả dòng họ, kéo thả nhánh, đính kèm ảnh và lời kể.",
-    desc: "Bấm quanh thẻ để thêm con, vợ chồng, cha mẹ, kéo thả để chuyển cả nhánh. Mỗi người có ghi chú soạn như Word và kho tài liệu nhận ảnh, tiếng, phim, PDF, kèm ghi âm. Tìm không cần gõ dấu, xuất ra tệp để chép sang máy khác.",
+    tagline: "Dựng cây gia phả dòng họ, có nhạc nền, tủ truyện gia đình và chế độ cây tự kể chuyện.",
+    desc: "Bấm quanh thẻ để thêm con, vợ chồng, cha mẹ, kéo thả để chuyển cả nhánh. Tải lên chuyện nhà (Word, văn bản, PDF, ảnh xưa, băng ghi âm) và gắn với người được kể tới. Có sẵn một bài ru làm nhạc nền, tải thêm nhạc của mình; nhạc phát thì nhánh cây có nhựa sống chảy. Xuất ra tệp để chép sang máy khác.",
     genre: "khac",
     accent: "#d4a373",
-    en: { title: "Family Tree", tagline: "Build your family tree, drag whole branches, attach photos and recorded stories.", desc: "Tap around a card to add children, spouses or parents, and drag to move a whole branch. Everyone gets Word-style notes and a file store for photos, audio, video and PDFs, plus voice recording. Search without accents and export to a file for another device." },
+    en: { title: "Family Tree", tagline: "Build your family tree with background music, a family story shelf, and a guided story tour.", desc: "Tap around a card to add children, spouses or parents, and drag to move a whole branch. Upload family stories (Word, text, PDF, old photos, voice recordings) and tag the people they are about. A lullaby plays by default and you can upload your own playlist; while music plays, light flows down the branches. Export to a file for another device." },
     thumbnail: "assets/thumbnails/gia-pha.svg",
     path: "games/gia-pha/index.html",
-    rev: "20261001c",
+    rev: "20261011a",
     // Plain DOM + SVG, không engine, không bước build. Dữ liệu (người, cặp vợ chồng, ghi chú) và tài liệu
     // đính kèm (Blob) nằm trong IndexedDB của máy người dùng, không lên máy chủ nào. Đọc .docx bằng
     // mammoth 1.8.0 (BSD-2) vendor ở games/gia-pha/vendor, chỉ tải khi cần. Mô hình và bất biến:
     // games/gia-pha/README.md.
     //
-    // Kiểm: node test/gia-pha-suite.js
+    // Kiểm: node test/gia-pha-suite.js && node test/gia-pha-truyen-nhac.js
     status: "available",
-    tags: ["Công cụ", "Gia phả", "Ghi chú", "Tài liệu", "Kéo thả"]
+    tags: ["Công cụ", "Gia phả", "Truyện", "Nhạc nền", "Kéo thả"]
   },
   {
     id: "tron-tim",

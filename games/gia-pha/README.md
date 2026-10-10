@@ -3,7 +3,7 @@
 Dựng và gìn giữ gia phả dòng họ trên trình duyệt. Không engine, không bước build, không máy chủ.
 
 - Chạy: mở `games/gia-pha/index.html` (qua HTTP hay `file://` đều được).
-- Kiểm: `node test/gia-pha-suite.js`. Kiểm bản trên Pages: `GP_URL=https://poke5121999-art.github.io/survivor-web-hub/games/gia-pha/index.html node test/gia-pha-suite.js`.
+- Kiểm: `node test/gia-pha-suite.js` (cây, kéo thả, ghi chú, tài liệu) và `node test/gia-pha-truyen-nhac.js` (nhạc nền, tủ truyện, kể chuyện). Máy không có Playwright cài toàn cục thì đặt `PLAYWRIGHT_PATH` tới gói `playwright`, và `PW_CHANNEL=chrome` để dùng Chrome đã cài. Kiểm bản trên Pages: `GP_URL=https://poke5121999-art.github.io/survivor-web-hub/games/gia-pha/index.html node test/gia-pha-suite.js`.
 
 ## Tệp
 
@@ -14,6 +14,8 @@ Dựng và gìn giữ gia phả dòng họ trên trình duyệt. Không engine, 
 | `js/store.js` | IndexedDB (cây + tệp Blob), hoàn tác/làm lại, lưu chậm, xuất/nhập, dọn tệp mồ côi. |
 | `js/view.js` | Khung cây: thẻ DOM, dây SVG, tween vị trí, camera, kéo thả thẻ, thả tệp lên thẻ. |
 | `js/panel.js` | Bảng chi tiết: thông tin, ghi chú kiểu Word, tài liệu, ghi âm. |
+| `js/music.js` | Nhạc nền: bài ru mặc định tổng hợp trong trình duyệt, danh sách nhạc tải lên, đo độ to cho `--beat`. |
+| `js/stories.js` | Tủ truyện (tải lên, viết, gắn người), trang đọc, và "Kể chuyện cả cây". |
 | `js/app.js` | Vỏ: thanh trên, menu, tìm, hộp thoại, thông báo, trình xem tệp, hiệu ứng, phím tắt. |
 | `vendor/mammoth.browser.min.js` | mammoth 1.8.0 (BSD-2), đọc `.docx` ra HTML. Chỉ tải khi xem hoặc nhập tệp Word. |
 
@@ -22,8 +24,21 @@ Dựng và gìn giữ gia phả dòng họ trên trình duyệt. Không engine, 
 ```
 Person = { id, name, gender:'m'|'f', born, died, place, note(html), photo(fileId|null), files:[fileId], parentUnion }
 Union  = { id, a(người trong dòng), b(vợ/chồng|null), children:[personId] }
+Story  = { id, title, body(html), people:[personId], files:[fileId], cover(fileId|null), created }
+doc.storyOrder = [storyId]   // mới nhất đầu
+doc.playlist   = [fileId]    // nhạc người dùng tải lên; bài mặc định không nằm ở đây
 view   = { collapsed:{id:true}, focus, cam }   // không vào hoàn tác
 ```
+
+Truyện thuộc về cây, không thuộc về một người, vì một chuyện nhà thường kể về nhiều người. Xoá người thì tên họ tự gỡ khỏi truyện. Truyện và danh sách nhạc nằm trong ảnh chụp hoàn tác, trong `fileRefs` (để `gc()` không dọn mất và để xuất tệp mang theo), và đi qua `normalize()`.
+
+## Nhạc nền
+
+Bài mặc định "Ru con" là điệu ngũ cung tổng hợp bằng `OfflineAudioContext` lúc mở trang (khoảng 58 giây, tiếng gảy kiểu đàn tranh, nền đệm và vang), đóng thành WAV rồi phát qua cùng một thẻ `<audio>` với nhạc tải lên. Không có tệp nhạc nào phải tải về hay xin bản quyền.
+
+Trình duyệt không cho phát tiếng trước cú chạm đầu tiên, nên nhạc bắt đầu ở cú chạm đầu tiên vào trang (trừ cú chạm vào chính nút ♪). Bật/tắt, âm lượng, trộn bài là sở thích của người xem, nằm trong `localStorage` (`gia-pha.music`), không nằm trong cây. Bấm dừng thì tải lại trang không tự phát nữa.
+
+Độ to đo bằng `AnalyserNode`, ghi vào biến CSS `--beat`: đốm "nhựa sống" chạy dọc nhánh (trễ theo đời nên lan từ cụ tổ xuống), vòng sáng quanh ảnh đại diện, lá rơi nhanh hơn. Nghe băng ghi âm trong truyện thì nhạc nền tự nhường rồi trở lại.
 
 Bất biến, mọi phép đổi trong `model.js` giữ nguyên:
 

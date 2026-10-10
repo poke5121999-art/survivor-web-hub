@@ -108,7 +108,10 @@
       this.gc().catch(() => {});
     },
 
-    snap() { const d = this.doc; return JSON.stringify({ name: d.name, people: d.people, unions: d.unions, rootOrder: d.rootOrder }); },
+    snap() {
+      const d = this.doc;
+      return JSON.stringify({ name: d.name, people: d.people, unions: d.unions, rootOrder: d.rootOrder, stories: d.stories, storyOrder: d.storyOrder, playlist: d.playlist });
+    },
 
     // merge: các lần đổi liên tiếp cùng khoá (gõ ghi chú, gõ tên) gộp chung một bước hoàn tác.
     // opts.pop: bên gọi tự render để thẻ mới có hiệu ứng mọc ra, nên bỏ qua render mặc định.

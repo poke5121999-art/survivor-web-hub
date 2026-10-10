@@ -96,11 +96,13 @@
       g.setTransform(d, 0, 0, d, 0, 0);
       g.clearRect(0, 0, innerWidth, innerHeight);
       if (this.on && !document.hidden) {
+        // Nhạc càng to thì lá rơi càng nhanh, chao càng mạnh.
+        const beat = GP.music ? GP.music.level : 0, sp = 1 + beat * 1.6;
         for (let i = 0; i < this.leaves.length; i++) {
           const L = this.leaves[i];
-          L.y += L.vy; L.x += Math.sin(t / 1400 + L.ph) * 0.45; L.r += L.vr;
+          L.y += L.vy * sp; L.x += Math.sin(t / 1400 + L.ph) * 0.45 * sp; L.r += L.vr * sp;
           if (L.y > innerHeight + 20) this.leaves[i] = this.leaf(false);
-          g.save(); g.translate(L.x, L.y); g.rotate(L.r); g.globalAlpha = 0.42; g.fillStyle = L.c;
+          g.save(); g.translate(L.x, L.y); g.rotate(L.r); g.globalAlpha = 0.42 + beat * 0.3; g.fillStyle = L.c;
           g.beginPath();
           if (L.petal) { g.ellipse(0, 0, L.sz * 0.7, L.sz * 0.55, 0, 0, 6.28); }
           else { g.moveTo(-L.sz, 0); g.quadraticCurveTo(0, -L.sz * 0.7, L.sz, 0); g.quadraticCurveTo(0, L.sz * 0.7, -L.sz, 0); }
@@ -403,6 +405,8 @@
     for (let g = 1; g < Math.min(maxGen, 9); g++) gens.push({ icon: '≡', label: 'Hiện tới đời ' + g, run: () => collapseToGen(g + 1) });
     menu(btn, [
       { head: 'Hiển thị' },
+      { icon: '▶', label: 'Kể chuyện cả cây (tự đi qua từng người)', run: () => GP.stories.tourStart() },
+      '-',
       { icon: '⤢', label: 'Mở hết các nhánh', run: () => collapseToGen(0) },
       ...gens,
       '-',
@@ -470,6 +474,7 @@
     $('#redo').title = S.redoStack.length ? 'Làm lại: ' + S.redoStack[S.redoStack.length - 1].label + ' (Ctrl+Y)' : 'Làm lại (Ctrl+Y)';
     $('#empty').classList.toggle('show', n === 0);
     renderCrumbs();
+    GP.stories.badge();
   }
 
   // ---------- điều hướng bằng phím mũi tên ----------
@@ -500,6 +505,7 @@
     if (e.key === 'Escape') {
       if ($('#viewer').classList.contains('open')) { viewer.close(); return; }
       if (app.pop) { closePop(); return; }
+      if (document.querySelector('#mu-menu')) { GP.music.closeMenu(); return; }
       if ($('#help').classList.contains('open')) { $('#help').classList.remove('open'); return; }
       if (document.querySelector('[data-pane="note"].full')) { $('[data-cmd="full"]').click(); return; }
       if (typing()) { document.activeElement.blur(); return; }
@@ -509,6 +515,7 @@
     if ($('#viewer').classList.contains('open')) { if (e.key === 'ArrowLeft') viewer.step(-1); if (e.key === 'ArrowRight') viewer.step(1); return; }
     if (typing() || mod || app.pop) return;
     const sel = V.sel;
+    if (e.key === 'm' || e.key === 'M') { GP.music.playing ? GP.music.pause() : GP.music.play(); return; }
     if (e.key === '/') { e.preventDefault(); $('#search').focus(); }
     else if (e.key === 'f' || e.key === 'F') V.fit();
     else if (e.key === '?') $('#help').classList.add('open');
@@ -546,6 +553,8 @@
       viewer.init();
       fx.init();
       initSearch();
+      GP.stories.init();
+      GP.music.init();
       await S.boot();
       if (!S.persistent) $('#warn').classList.add('show');
 

@@ -11,7 +11,7 @@
 <meta name="theme-color" content="#f6efe2">
 <title>Cây Gia Phả</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='11' r='9' fill='%237fa36b'/><rect x='14' y='16' width='4' height='13' rx='1' fill='%238a5a33'/><circle cx='10' cy='9' r='2' fill='%23e8a0a8'/><circle cx='21' cy='13' r='2' fill='%23e8a0a8'/></svg>">
-<link rel="stylesheet" href="css/style.css?v=20261001c">
+<link rel="stylesheet" href="css/style.css?v=20261011a">
 </head>
 <body>
 <header id="top">
@@ -26,7 +26,9 @@
   <div class="tools">
     <button id="undo" class="icon-btn" title="Hoàn tác (Ctrl+Z)" disabled>↶</button>
     <button id="redo" class="icon-btn" title="Làm lại (Ctrl+Y)" disabled>↷</button>
-    <button id="view-btn" class="icon-btn" title="Hiển thị: thu/mở theo đời">☰</button>
+    <button id="stories-btn" class="icon-btn stories-btn" title="Tủ truyện gia đình">📖<b id="stories-n"></b></button>
+    <button id="music-btn" class="icon-btn music-btn" title="Nhạc nền"><span class="eq"><i></i><i></i><i></i></span><span class="note">♪</span></button>
+    <button id="view-btn" class="icon-btn" title="Hiển thị: thu/mở theo đời, kể chuyện">☰</button>
     <button id="help-btn" class="icon-btn" title="Hướng dẫn (?)">?</button>
     <span id="saved" class="saved" title="Đã lưu vào trình duyệt"><i></i></span>
   </div>
@@ -86,6 +88,9 @@
       <div><h4>Kéo thả</h4>
         <p><b>Kéo một thẻ</b> thả lên người khác để chuyển cả nhánh thành con của họ. Thả vào <b>mép trái/phải</b> của anh chị em để đổi thứ tự. Trên điện thoại: <b>giữ</b> thẻ rồi kéo.</p>
         <p>Kéo <b>tệp từ máy</b> thả lên thẻ để đính kèm cho người đó.</p></div>
+      <div><h4>Truyện và nhạc</h4>
+        <p>Nút <b>📖</b> mở <b>Tủ truyện</b>: viết, hoặc tải lên chuyện nhà (Word, văn bản, PDF, ảnh xưa, băng ghi âm) rồi gắn với những người được kể tới. Menu <b>☰</b> › <b>Kể chuyện cả cây</b> để cây tự kể từng người.</p>
+        <p>Nút <b>♪</b> là nhạc nền: có sẵn một bài ru, bạn tải thêm nhạc của mình. Nhạc phát thì nhánh cây có nhựa sống chảy. Phím <kbd>M</kbd> bật/tắt nhạc.</p></div>
       <div><h4>Ghi chú và tài liệu</h4>
         <p>Thẻ <b>Ghi chú</b> soạn như Word: tiêu đề, đậm nghiêng, màu, danh sách, bảng, chèn ảnh, nhập tệp .docx. Nút ⛶ mở thành trang giấy.</p>
         <p>Thẻ <b>Tài liệu</b> nhận mọi loại tệp, xem trước ảnh, tiếng, phim, PDF, Word. Có <b>ghi âm</b> lời kể ngay trong trang.</p></div>
@@ -95,13 +100,27 @@
   </div>
 </div>
 
+<div id="stories" class="stories" aria-label="Tủ truyện"></div>
+<div id="reader" class="reader" aria-label="Đọc truyện"></div>
+<div id="tour" class="tour no-pan">
+  <div id="tour-card" class="tour-card"></div>
+  <div class="tour-ctl">
+    <button class="icon-btn" id="tour-pv" title="Người trước (←)">⏮</button><button class="icon-btn" id="tour-pp" title="Dừng / tiếp (Space)">⏸</button><button class="icon-btn" id="tour-nx" title="Người sau (→)">⏭</button>
+    <span id="tour-pos" class="tour-pos"></span><button class="icon-btn" id="tour-x" title="Thôi kể (Esc)">✕</button>
+  </div>
+  <div id="tour-bar" class="tour-bar"><i></i></div>
+</div>
+<audio id="bgm" preload="none"></audio>
+
 <input type="file" id="import-file" accept=".json,application/json" hidden>
 
-<script src="js/model.js?v=20261001c"></script>
-<script src="js/layout.js?v=20261001c"></script>
-<script src="js/store.js?v=20261001c"></script>
-<script src="js/view.js?v=20261001c"></script>
-<script src="js/panel.js?v=20261001c"></script>
-<script src="js/app.js?v=20261001c"></script>
+<script src="js/model.js?v=20261011a"></script>
+<script src="js/layout.js?v=20261011a"></script>
+<script src="js/store.js?v=20261011a"></script>
+<script src="js/view.js?v=20261011a"></script>
+<script src="js/panel.js?v=20261011a"></script>
+<script src="js/music.js?v=20261011a"></script>
+<script src="js/stories.js?v=20261011a"></script>
+<script src="js/app.js?v=20261011a"></script>
 </body>
 </html>

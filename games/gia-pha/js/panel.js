@@ -85,6 +85,7 @@
           '</div>' +
           '<label class="fld"><span>Quê quán / nơi ở</span><input id="pn-place" placeholder="vd Làng Phù Lưu, Bắc Ninh"></label>' +
           '<div class="rel" id="pn-rel"></div>' +
+          '<div class="pn-st" id="pn-st"></div>' +
           '<div class="pn-actions" id="pn-actions"></div>' +
         '</section>' +
         '<section data-pane="note">' +
@@ -483,6 +484,11 @@
       '<div class="rrow muted">Chưa có quan hệ nào. Dùng các nút bên dưới để thêm.</div>';
     const isRoot = !spouse && !p.parentUnion;
     const focused = doc.view.focus === p.id;
+    const sts = M.storiesOf(doc, p.id);
+    $('#pn-st', el).innerHTML = '<div class="pn-st-h"><span>Câu chuyện' + (sts.length ? ' (' + sts.length + ')' : '') + '</span>' +
+      '<button class="link" data-pa="story-add">＋ Thêm truyện về ' + esc((p.name || 'người này').split(/\s+/).pop()) + '</button></div>' +
+      (sts.length ? sts.map((k) => '<button class="pn-st-row" data-story="' + k + '"><span class="ic">📖</span><span>' + (esc(doc.stories[k].title) || '<i>Chưa đặt tên</i>') + '</span></button>').join('')
+        : '<p class="muted small">Chưa có truyện nào. Chuyện ông bà kể, ảnh xưa, băng ghi âm… tải lên ở Tủ truyện.</p>');
     $('#pn-actions', el).innerHTML =
       '<div class="act-row">' +
         '<button class="btn" data-pa="add-child">＋ Con</button>' +
@@ -499,10 +505,13 @@
   function onInfoClick(e) {
     const go = e.target.closest('[data-go]');
     if (go) { GP.app.reveal(go.dataset.go); return; }
+    const st = e.target.closest('[data-story]');
+    if (st) { GP.stories.read(st.dataset.story); return; }
     const a = e.target.closest('[data-pa]');
     if (!a) return;
     const id = P.id, act = a.dataset.pa;
-    if (act === 'focus') GP.app.focusBranch(S.doc.view.focus === id ? null : id);
+    if (act === 'story-add') GP.stories.openLibrary(id);
+    else if (act === 'focus') GP.app.focusBranch(S.doc.view.focus === id ? null : id);
     else if (act === 'center') { GP.view.centerOn(id); GP.view.pulse(id); }
     else if (act === 'remove') GP.app.removeFlow(id);
     else GP.app.addFlow(act.replace('add-', ''), id, a);

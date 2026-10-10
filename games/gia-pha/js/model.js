@@ -5,6 +5,8 @@
  *   Person  = { id, name, gender:'m'|'f', born, died, place, note(html), photo(fileId|null),
  *               files:[fileId], parentUnion(unionId|null) }
  *   Union   = { id, a(personId, người trong dòng), b(personId|null, vợ/chồng), children:[personId] }
+ *   Story   = { id, title, body(html), people:[personId], files:[fileId], cover(fileId|null), created }
+ *   playlist = [fileId]  nhạc nền người dùng tải lên; bài mặc định không nằm ở đây vì nó được tổng hợp lúc chạy
  *   view    = { collapsed:{id:true}, focus:id|null, cam:{x,y,k}|null }  (không vào hoàn tác)
  *
  * Gia phả đi theo dòng: người trong dòng (blood) là con của một Union; vợ/chồng chỉ có mặt
@@ -23,7 +25,7 @@
   function newDoc(name) {
     const t = Date.now();
     return { v: 1, id: uid('t'), name: name || 'Cây gia phả', created: t, updated: t,
-      people: {}, unions: {}, rootOrder: [], view: { collapsed: {}, focus: null, cam: null } };
+      people: {}, unions: {}, rootOrder: [], stories: {}, storyOrder: [], playlist: [], view: { collapsed: {}, focus: null, cam: null } };
   }
 
   function ix(t) {
@@ -156,6 +158,11 @@
 
   // mode 'branch': xoá cả con cháu. mode 'keep': con cháu ở lại, theo vợ/chồng còn lại hoặc thành gốc riêng.
   function removePerson(t, pid, mode) {
+    const gone = removePersonOnly(t, pid, mode);
+    for (const k in t.stories) t.stories[k].people = t.stories[k].people.filter((id) => t.people[id]);
+    return gone;
+  }
+  function removePersonOnly(t, pid, mode) {
     const x = ix(t);
     const p = t.people[pid];
     if (!p) return [];
@@ -227,6 +234,35 @@
     if (t.people[pid]) Object.assign(t.people[pid], patch);
   }
 
+  // ---------- truyện ----------
+
+  function addStory(t, f) {
+    const s = { id: uid('s'), title: '', body: '', people: [], files: [], cover: null, created: Date.now() };
+    Object.assign(s, f || {}, { id: s.id });
+    s.people = (s.people || []).filter((id) => t.people[id]);
+    s.files = (s.files || []).slice();
+    t.stories[s.id] = s;
+    t.storyOrder.unshift(s.id);
+    return s;
+  }
+  function updateStory(t, sid, patch) {
+    if (!t.stories[sid]) return false;
+    Object.assign(t.stories[sid], patch);
+    if (patch.people) t.stories[sid].people = patch.people.filter((id, i, a) => t.people[id] && a.indexOf(id) === i);
+  }
+  function removeStory(t, sid) {
+    if (!t.stories[sid]) return false;
+    delete t.stories[sid];
+    t.storyOrder = t.storyOrder.filter((k) => k !== sid);
+  }
+  const storyList = (t) => t.storyOrder.filter((k) => t.stories[k]);
+  const storiesOf = (t, pid) => storyList(t).filter((k) => t.stories[k].people.includes(pid));
+  function storyCounts(t) {
+    const n = {};
+    for (const k in t.stories) for (const id of t.stories[k].people) n[id] = (n[id] || 0) + 1;
+    return n;
+  }
+
   // ---------- ranh giới: dữ liệu từ IndexedDB hay tệp nhập vào đều qua đây ----------
 
   function normalize(raw) {
@@ -281,6 +317,16 @@
     }
     for (const k in d.unions) if (!d.unions[k].b && !d.unions[k].children.length) delete d.unions[k];
     d.rootOrder = Array.isArray(raw && raw.rootOrder) ? raw.rootOrder.filter((r) => d.people[r]) : [];
+    const ids = (a) => (Array.isArray(a) ? a.filter((x) => typeof x === 'string') : []);
+    for (const k in (raw && raw.stories) || {}) {
+      const r = raw.stories[k];
+      if (!r || typeof r !== 'object') continue;
+      d.stories[k] = { id: k, title: str(r.title), body: str(r.body), people: ids(r.people).filter((id, i, a) => d.people[id] && a.indexOf(id) === i),
+        files: ids(r.files), cover: typeof r.cover === 'string' ? r.cover : null, created: +r.created || d.created };
+    }
+    d.storyOrder = ids(raw && raw.storyOrder).filter((k, i, a) => d.stories[k] && a.indexOf(k) === i);
+    for (const k in d.stories) if (!d.storyOrder.includes(k)) d.storyOrder.push(k);
+    d.playlist = ids(raw && raw.playlist);
     const v = (raw && raw.view) || {};
     for (const k in v.collapsed || {}) if (d.people[k]) d.view.collapsed[k] = true;
     d.view.focus = d.people[v.focus] ? v.focus : null;
@@ -291,14 +337,24 @@
   // Mọi id tệp mà cây còn tham chiếu: ảnh đại diện, tài liệu đính kèm, ảnh chèn trong ghi chú.
   function fileRefs(t) {
     const out = new Set();
+    const inHTML = (html) => {
+      const re = /data-fid="([^"]+)"/g;
+      let m;
+      while ((m = re.exec(html))) out.add(m[1]);
+    };
     for (const id in t.people) {
       const p = t.people[id];
       if (p.photo) out.add(p.photo);
       for (const f of p.files) out.add(f);
-      const re = /data-fid="([^"]+)"/g;
-      let m;
-      while ((m = re.exec(p.note))) out.add(m[1]);
+      inHTML(p.note);
     }
+    for (const k in t.stories || {}) {
+      const s = t.stories[k];
+      if (s.cover) out.add(s.cover);
+      for (const f of s.files) out.add(f);
+      inHTML(s.body);
+    }
+    for (const f of t.playlist || []) out.add(f);
     return out;
   }
 
@@ -308,7 +364,7 @@
     const P = (f) => f;
     const r = addRoot(t, P({ name: 'Nguyễn Văn Phúc', gender: 'm', born: '1898', died: '1971', place: 'Làng Phù Lưu, Bắc Ninh',
       note: '<h2>Cụ Tổ đời thứ nhất</h2><p>Cụ là người <b>khai cơ lập nghiệp</b> ở làng Phù Lưu. Thuở nhỏ theo học chữ Nho, sau làm nghề <i>bốc thuốc nam</i>, nổi tiếng hiền hậu.</p><ul><li>Giỗ: ngày 12 tháng Chạp (âm lịch)</li><li>Mộ phần: nghĩa trang làng, khu B</li></ul><blockquote>"Cây có cội, nước có nguồn."</blockquote>' }));
-    addSpouse(t, r.id, { name: 'Trần Thị Nhàn', gender: 'f', born: '1902', died: '1980' });
+    const nhan = addSpouse(t, r.id, { name: 'Trần Thị Nhàn', gender: 'f', born: '1902', died: '1980' });
     const a = addChild(t, r.id, { name: 'Nguyễn Văn Hiếu', gender: 'm', born: '1925', died: '1999' });
     const b = addChild(t, r.id, { name: 'Nguyễn Thị Lan', gender: 'f', born: '1929', died: '2010' });
     const c = addChild(t, r.id, { name: 'Nguyễn Văn Thành', gender: 'm', born: '1934', died: '2018' });
@@ -334,12 +390,16 @@
     addChild(t, c1.id, { name: 'Nguyễn Đức Duy', gender: 'm', born: '1995' });
     addSpouse(t, k1.id, { name: 'Trịnh Quốc Bảo', gender: 'm', born: '1988' });
     addChild(t, k1.id, { name: 'Trịnh Bảo An', gender: 'f', born: '2018' });
+    addStory(t, { title: 'Gánh thuốc nam của cụ Phúc', people: [r.id, nhan.id],
+      body: '<p>Năm làng Phù Lưu mất mùa, cụ Phúc gánh thuốc đi bộ ba ngày sang tận Đông Triều. Ai nghèo thì cụ cho, ai có thì trả bằng thóc.</p>' +
+        '<p>Bà Nhàn ở nhà sao thuốc, phơi lá trên mái rạ. Con cháu sau này vẫn kể mùi ngải cứu khô là mùi của nhà ông bà.</p>' +
+        '<blockquote>"Thuốc đắng dã tật, lời thật mất lòng, nhưng lòng tốt thì không bao giờ mất."</blockquote>' });
     return t;
   }
 
   GP.model = {
     uid, newDoc, ix, isSpouse, anchorOf, kidsOf, spousesOf, parentsOf, descendants, ancestors, generation, roots,
     siblingsList, addPerson, addRoot, addChild, addSpouse, addParent, removePerson, moveBlocker, moveUnder, reorder,
-    update, normalize, fileRefs, sample,
+    update, normalize, fileRefs, sample, addStory, updateStory, removeStory, storyList, storiesOf, storyCounts,
   };
 })(typeof window !== 'undefined' ? (window.GP = window.GP || {}) : (module.exports = {}));

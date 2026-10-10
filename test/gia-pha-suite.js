@@ -79,7 +79,7 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEklEQVR
 async function main() {
   const srv = process.env.GP_URL ? null : await serve();
   const URL0 = process.env.GP_URL || 'http://127.0.0.1:' + srv.address().port + '/games/gia-pha/index.html';
-  const browser = await chromium.launch();
+  const browser = await chromium.launch(process.env.PW_CHANNEL ? { channel: process.env.PW_CHANNEL } : {});
   const ctx = await browser.newContext({ viewport: { width: 1366, height: 768 }, acceptDownloads: true });
   const page = await ctx.newPage();
   const errs = [];

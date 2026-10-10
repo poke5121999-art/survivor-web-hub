@@ -36,7 +36,7 @@
 
   // ---------- thẻ ----------
 
-  function cardHTML(c, p, doc) {
+  function cardHTML(c, p, doc, nStory) {
     const dead = !!p.died;
     const nfile = p.files.length;
     const hasNote = p.note && p.note.replace(/<[^>]*>/g, '').trim().length > 0;
@@ -46,6 +46,7 @@
       '<div class="yr">' + esc(years(p)) + (dead ? ' <span class="dead-mark" title="Đã mất">✿</span>' : '') + '</div>' +
       '<div class="mt"><span class="gen">Đời ' + c.gen + '</span>' +
       (nfile ? '<span class="chip" title="Tài liệu">📎' + nfile + '</span>' : '') +
+      (nStory ? '<span class="chip st" title="Câu chuyện">📖' + nStory + '</span>' : '') +
       (hasNote ? '<span class="chip" title="Có ghi chú">✎</span>' : '') + '</div></div>' +
       (c.blood && c.kids ? '<button class="tog" data-act="toggle" title="' + (c.collapsed ? 'Mở nhánh' : 'Thu nhánh') + '">' +
         (c.collapsed ? '+' + c.hidden : '−') + '</button>' : '') +
@@ -91,8 +92,9 @@
     const L = GP.layout(doc, doc.view);
     const prevDoc = V.doc;
     V.L = L; V.doc = doc;
-    const target = {};
-    for (const c of L.cards) target[c.id] = { x: c.x, y: c.y, o: 1, s: 1 };
+    const target = {}, genOf = {};
+    const nStory = M.storyCounts(doc);
+    for (const c of L.cards) { target[c.id] = { x: c.x, y: c.y, o: 1, s: 1 }; genOf[c.id] = c.gen; }
 
     for (const c of L.cards) {
       const p = doc.people[c.id];
@@ -110,8 +112,8 @@
       el.className = 'card ' + (p.gender === 'f' ? 'f' : 'm') + (c.blood ? '' : ' spouse') + (p.died ? ' dead' : '') +
         (V.sel === c.id ? ' sel' : '') + (el.classList.contains('born') ? ' born' : '');
       delete el.dataset.dying;
-      const sig = JSON.stringify([p.name, p.gender, p.born, p.died, p.photo, p.files.length, !!p.note, c.gen, c.kids, c.hidden, c.collapsed, c.blood, p.parentUnion ? 1 : 0]);
-      if (V.sig[c.id] !== sig) { V.sig[c.id] = sig; el.innerHTML = cardHTML(c, p, doc); fillPhotos(el); }
+      const sig = JSON.stringify([p.name, p.gender, p.born, p.died, p.photo, p.files.length, !!p.note, c.gen, c.kids, c.hidden, c.collapsed, c.blood, p.parentUnion ? 1 : 0, nStory[c.id] || 0]);
+      if (V.sig[c.id] !== sig) { V.sig[c.id] = sig; el.innerHTML = cardHTML(c, p, doc, nStory[c.id] || 0); fillPhotos(el); }
     }
 
     for (const id in V.els) {
@@ -133,6 +135,15 @@
         const path = document.createElementNS(SVGNS, 'path');
         path.setAttribute('pathLength', '1');
         g.appendChild(path);
+        if (l.type !== 'm') {
+          // Nhựa sống: một đốm sáng chạy dọc nhánh từ cha mẹ xuống con khi nhạc phát; trễ theo đời nên
+          // ánh sáng lan dần từ cụ tổ xuống cháu chắt.
+          const sap = document.createElementNS(SVGNS, 'path');
+          sap.setAttribute('class', 'sap');
+          sap.setAttribute('pathLength', '1');
+          sap.style.animationDelay = ((genOf[l.a] || 1) * 0.55) + 's';
+          g.appendChild(sap);
+        }
         if (l.type === 'm') {
           const h = document.createElementNS(SVGNS, 'path');
           h.setAttribute('class', 'heart');
@@ -205,7 +216,9 @@
         } else { sx = a.x + 40; sy = a.y + H + 12; }
         const ex = c.x + W / 2, ey = c.y;
         const my = sy + (ey - sy) * 0.55;
-        path.setAttribute('d', 'M' + sx + ',' + sy + ' C' + sx + ',' + my + ' ' + ex + ',' + (ey - (ey - sy) * 0.45) + ' ' + ex + ',' + ey);
+        const d = 'M' + sx + ',' + sy + ' C' + sx + ',' + my + ' ' + ex + ',' + (ey - (ey - sy) * 0.45) + ' ' + ex + ',' + ey;
+        path.setAttribute('d', d);
+        if (g.lastChild !== path) g.lastChild.setAttribute('d', d);
         g.style.opacity = Math.min(a.o, c.o) * (V.drag && V.drag.sub.has(l.c) ? 0.35 : 1);
       }
     }
