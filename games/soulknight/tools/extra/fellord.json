@@ -1,0 +1,28 @@
+{
+ "bundles": [
+  "levelobjects",
+  "bullet",
+  "sprite_atlas",
+  "common"
+ ],
+ "prefabs": [
+  "boss_fel_lord",
+  "fel_lord_clone1",
+  "fel_lord_clone2",
+  "bullet_fel_bolt",
+  "bullet_soul_bolt",
+  "bullet_soul_bolt_with_crystal",
+  "bullet_summon_fel_lord_clone1",
+  "bullet_summon_fel_lord_clone2",
+  "bullet_surround_fel_fireball",
+  "bullet_surround_fel_block",
+  "soul_bolt_explode",
+  "fel_lord_FireGas",
+  "fel_lord_fabric_FireGas",
+  "furious_crystal",
+  "bullet_green_fireball"
+ ],
+ "sprites": [
+  "^(fel_lord_.*|clone[12]_[0-9]+|fel_bolt|soul_bolt|fel_fabric_trail|boss_fel_lord)$"
+ ]
+}

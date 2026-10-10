@@ -1,7 +1,7 @@
 // Mê Trận Tà Vương đợt 3 (G.mode === 'matrix'): Tay Sai Tà Vương (Con Bạc, Thương Nhân, Thầy Bói), thiên phú riêng 2001-2007 + 2117.
 // Nguồn: WIKI Matrix "NPCs", LOC mode_loop/npc/*, mode_loop/question/*, Buff_info_2001-2007/2117, WIKI buff 2003/2004/2117,
 // config random_objects.start_loop_travel_npc + map_levels.StartRooms (r_start_looptravel_npc trọng số 2), prefab npc_gambler/seller/prophet (tools/extra/matrix.json).
-// Chỗ không có số gốc ghi [ƯỚC LƯỢNG].
+// Chỗ không có số gốc ghi [ƯỚC LƯỢNG]. Cuối tệp: Tước Sĩ Lục (js/bosses/boss_fel_lord.js) làm trùm tuỳ chọn ở x-5 của tầng 3, 6, 9...
 (function () {
   'use strict';
   const SK = window.SK, M = SK.matrix;
@@ -312,6 +312,35 @@
   }
   if (R && R.pick) { const pk = R.pick; R.pick = function (i) { stackPick(i); return pk.apply(this, arguments); }; }
   addEventListener('keydown', e => { const m = /^(?:Digit|Numpad)([1-9])$/.exec(e.code); if (m) stackPick(+m[1] - 1); }, true);
+
+
+  // ---------------------------------------------------------------- Tước Sĩ Lục (Sir Verdant, boss_fel_lord)
+  // Trùm tuỳ chọn: "mỗi 15 ải / 3 tầng" có cơ hội xuất hiện [WIKI Sir Verdant; MODES.md dòng 279]. Web: ở ải x-5 của tầng 3, 6, 9... bốc
+  // Tước Sĩ Lục thay trùm thường với xác suất verdantChance [ƯỚC LƯỢNG]. Gốc không gặp khi trùm chính là Iron Will Wavebreaker (3C; web chưa có trùm này,
+  // verdantSkip giữ chỗ). Hạ ông: +3 Pha Lê (Lợi Hại +4) và thanh Uy Áp x0,7 (vạch mốc giảm 30%) [WIKI Matrix, WIKI SV].
+  Object.assign(C, { verdantEvery: 3, verdantChance: 0.5, verdantCrystals: 3, verdantCrystalsBad: 4, verdantBarCut: 0.3, verdantSkip: /wavebreaker/i });
+  const ID_FEL = 'boss_fel_lord';
+  const bossWaves3 = SK.bossWaves;
+  SK.bossWaves = function (g) {
+    const w = bossWaves3.apply(this, arguments), m = on(g), st = g && g.stage;
+    if (!m || !st || st.n !== 5 || !st.floor || st.floor % C.verdantEvery) return w;
+    if (!SK.CUSTOM_ENEMIES[ID_FEL] || (w[0] && w[0].some(id => C.verdantSkip.test(id)))) return w;
+    if (!(M.verdantForce || SK.rand() < C.verdantChance)) return w;
+    M.verdantSeen = (M.verdantSeen || 0) + 1;
+    return [[ID_FEL]];
+  };
+  M.verdantReward = g => (g.badass ? C.verdantCrystalsBad : C.verdantCrystals);
+  SK.on('enemyKill', (g, e) => {
+    const m = on(g);
+    if (!m || !e || e.id !== ID_FEL || e._m3paid) return;
+    e._m3paid = true;
+    const n = M.verdantReward(g);
+    m.crystals += n;
+    m.t0 = g.t - (g.t - m.t0) * (1 - C.verdantBarCut);   // vạch mốc về 70%
+    m.verdants = (m.verdants || 0) + 1;
+    g.toast('Hừm, thú vị đấy, nhưng lần sau ngươi không thắng nổi đâu! +' + n + ' Pha Lê Tà Vương, Uy Áp giảm 30%', 4);
+    SK.emit('matrixVerdant', g, n);
+  });
 
   // đồng hồ chống đỡ trống thì không cần tick: so g.t. Đặt lại khi vào ván mới
   SK.on('runStart', g => { if (g.player) { g.player._m3blk = 0; g.player._m3zap = 0; g.player._m3ice = 0; } });
