@@ -102,6 +102,7 @@
   }
   Df.damageStone = function (G, dmg) {
     const d = G.defence; if (!d || d.lost || d.won) return;
+    if (d.intro && d.intro.on) { d.stoneFlash = 0.25; return; }   // đợt giới thiệu 0-1 không thua được dù Đá Phép bị đánh [WIKI Origin "Wave Defense"]
     d.stone.hp = Math.max(0, d.stone.hp - dmg); d.stoneFlash = 0.25; G.shake = 4;
     SK.num(G, d.stoneAt.x, d.stoneAt.y - 26, '-' + dmg, '#ff4a4a', true);
     say(G, 'Đá Phép bị tấn công!', 1.2);
@@ -115,8 +116,9 @@
     G.state = won ? 'victory' : 'dead';
     SK.setOverlay(won ? 'sk-win' : 'sk-over');
     const p = G.player, id = won ? 'sk-win-info' : 'sk-over-info';
+    const extra = Df.endReward ? Df.endReward(G, won) : '';   // ngọc thưởng cuối ván (js/defence3.js)
     SK.emit('runEnd', G, { won, stage: 'Thủ Hộ ' + d.zone, kills: G.kills, gold: p.gold });
-    document.getElementById(id).textContent = (won ? 'Thắng chặng ' + d.zone + ' · ' : 'Đá Phép đã vỡ · ') + 'Hạ ' + G.kills + ' quái · ' + d.stats.placed + ' tháp';
+    document.getElementById(id).textContent = (won ? 'Thắng chặng ' + d.zone + ' · ' : 'Đá Phép đã vỡ · ') + 'Hạ ' + G.kills + ' quái · ' + d.stats.placed + ' tháp' + extra;
   }
   function lose(G) { say(G, 'Đá Phép đã vỡ!', 3); finish(G, false); }
 
@@ -331,6 +333,7 @@
     // đợt dọn xong
     d.stats.waves++; SK.emit('defenceWaveClear', G, d.zone, d.wave);
     for (const t of d.towers) if (!t.ally.dead) t.ally.hp = Math.min(C.towerHp, t.ally.hp + C.towerHp * C.towerHeal);   // tháp hồi một phần sau mỗi đợt [LOC tips]
+    if (Df.introClear && Df.introClear(G)) return;   // hết đợt giới thiệu 0-1: Robot Tự Nổ (js/defence3.js)
     d.wave++;
     if (d.wave >= C.wavesPerZone) {
       SK.emit('defenceZoneClear', G, d.zone);
@@ -375,11 +378,11 @@
     d.pads.forEach((pad, i) => {
       G.interactables.push({ df: 1, x: pad.x, y: pad.y + 2, r: 11, labelY: 28,
         get label() {
-          const t = pad.tower;
+          const t = pad.tower, hl = Df.padLabel && Df.padLabel(d, pad, i); if (hl) return hl;   // Cờ Lê / tháp có sẵn của đợt giới thiệu (js/defence3.js)
           if (!t) return d.sel ? 'Đặt ' + C.towers[d.sel].name + ' (' + C.towerCost + ' Xu Sao)' : 'Nền Tháp trống';
           return t.ally.dead ? 'Sửa ' + C.towers[t.id].name + ' (' + C.repair + ' Xu Sao)' : C.towers[t.id].name + ' ★' + t.star + ' · Phẩm ' + t.pham + (t.pham < C.phamMax ? ' (nâng ' + C.towerCost + ' Xu Sao)' : '');
         },
-        use: g => { if (!pad.tower) Df.place(g, i); else if (pad.tower.ally.dead) Df.repair(g, i); else Df.upgrade(g, i); } });
+        use: g => { if (Df.padHook && Df.padHook(g, i)) return; if (!pad.tower) Df.place(g, i); else if (pad.tower.ally.dead) Df.repair(g, i); else Df.upgrade(g, i); } });
       G.props.push({ df: 1, x: pad.x, y: pad.y - 8, draw(ctx, G2) { if (!pad.tower) drawPad(ctx, pad, G2); } });
     });
     G.props.push({ df: 1, x: d.stoneAt.x, y: d.stoneAt.y + 10, draw(ctx, G2) { drawStone(ctx, G2); } });

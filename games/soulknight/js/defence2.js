@@ -135,7 +135,7 @@
   SK.on('enemyKill', (G, e) => {
     if (!on(G) || e.dz == null || !e.dpts) return;
     Df.addPlayerExp(G, e.dpts * C.playerExpPerPoint);
-    if (e.dboss) { G.defence.revive++; G.defence.revives++; say(G, 'Hạ trùm sóng: thêm 1 lượt hồi sinh', 2.5); }
+    if (e.dboss) { G.defence.revive++; G.defence.revives++; say(G, 'Hạ trùm sóng: thêm 1 lượt hồi sinh', 2.5); if (G.defence.downed) Df.reviveNow(G, false); }
   });
 
   // ---- Thương Nhân (sau đợt 1-3) và Cờ Lê
@@ -163,20 +163,34 @@
     say(G, 'Đã dời ' + C.towers[t.id].name); return { ok: true };
   };
 
-  // ---- hồi sinh: người chơi chết thì dùng 1 lượt (hồi đầy máu); hết lượt thì thua
+  // ---- hồi sinh: người chơi chết thì dùng 1 lượt (hồi đầy máu). Hết lượt mà Đá Phép chưa vỡ thì chưa thua: người chơi ngã gục tại chỗ, tháp
+  // vẫn đánh; thua khi Đá Phép vỡ [WIKI Origin "Gameplay": thua khi chết hết lượt VÀ Đá Phép vỡ]; hạ trùm sóng được thêm lượt thì đứng dậy
+  Df.reviveNow = function (G, free) {
+    const d = G.defence, p = G.player;
+    if (!free) d.revive--;
+    d.downed = false; p.hp = p.hpMax; p.st = 'idle'; p.stT = 0; p.armor = p.armorMax || 0; p.invulT = 1.5; G.hurtT = 0;
+    say(G, 'Hồi sinh! Còn ' + d.revive + ' lượt', 2.5); SK.emit('defenceRevive', G, d.revive);
+  };
   function hookDeath(G) {
     if (G.onPlayerDead.dhook) return;
     const o = G.onPlayerDead;
     G.onPlayerDead = function () {
       const d = G.defence;
-      if (on(G) && d.revive > 0 && !d.won && !d.lost) {
-        d.revive--; const p = G.player; p.hp = p.hpMax; p.st = 'idle'; p.stT = 0; p.armor = p.armorMax || 0; G.hurtT = 0;
-        say(G, 'Hồi sinh! Còn ' + d.revive + ' lượt', 2.5); SK.emit('defenceRevive', G, d.revive); return;
+      if (on(G) && !d.won && !d.lost) {
+        if (d.intro && d.intro.on) { Df.reviveNow(G, true); return; }   // đợt giới thiệu không thua được, không tốn lượt
+        if (d.revive > 0) { Df.reviveNow(G, false); return; }
+        if (!d.downed) { d.downed = true; say(G, 'Bạn đã ngã gục! Giữ Đá Phép, hạ trùm sóng để được hồi sinh', 3.5); SK.emit('defenceDowned', G); }
+        return;
       }
       return o.apply(this, arguments);
     };
     G.onPlayerDead.dhook = true;
   }
+  // người chơi ngã gục: giữ trạng thái chết nhưng không kết thúc ván (game.js kết thúc khi stT > 1.3)
+  Df.tickers.push(function downed(G, dt) {
+    const d = G.defence, p = G.player;
+    if (d.downed && !d.lost && !d.won) { p.st = 'dead'; p.stT = 0.6; p.hp = 0; }
+  });
 
   // ---- rương xanh sau Đợt Lớn (X-3 dọn xong)
   SK.on('defenceWaveClear', (G, zone, wave) => {

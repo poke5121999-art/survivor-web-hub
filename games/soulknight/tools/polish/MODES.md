@@ -467,6 +467,9 @@ Chế độ thủ thành (tower defense) vào qua Cửa Dịch Chuyển Cổ Đ�
 ### Thưởng cuối ván [WIKI Origin "Rewards"]
 Ngọc = 50 x số đợt đánh lui + floor(Xu Sao còn / 100) + floor(quái giết / 4) + 850 nếu hạ Tàu. Thường: tối đa 3500 (thiên phú Ngọc x1,25, trần 4375). Lợi Hại: tối đa 7500, mặc định có thiên phú Ngọc, x1,75 (Lợi Hại) rồi x1,25. Rương xanh: ngọc, nguyên liệu, hạt giống. Thành tích: 8/16/24 đợt (Trung Thành Hộ Vệ: 3 đá đen/lam/lục + 1000 ngọc; 2000 ngọc + đá cam/tím/đỏ; Bức Tường Cuối + ô vườn + băng Cho Đến Tận Cùng Bình Minh + 5000 ngọc), hạ Tàu (Last Defender: skin Elf), hạ Tàu ở Lợi Hại (5000 ngọc + phiếu), Bức Tường Vĩ Đại (mọi tháp lên Phẩm đỏ và 18 sao), Khí Tông, Taro [CFG achievements 40-42 targetInt 8/16/24, 72-76; LOC ac/*]. XUNG ĐỘT NGUỒN: wiki ghi 16/31/46 đợt cho ba mốc đầu, config 8.6 ghi 8/16/24 (loại điều kiện 36) và LOC vi cũng 8/16/24; chọn 8/16/24 (config mới hơn) và 36 đợt vẫn là tổng đợt của wiki; chưa rõ "đợt đánh lui" ở config đếm từng đợt X-n hay theo cách khác.
 
+### Đã làm đợt 4 (js/defence3.js)
+Xem GAPS.md mục Thần Điện: đợt giới thiệu + Robot Tự Nổ, thiên phú Quan Tế, Thầy Hướng Dẫn, Bậc Thầy Vũ Khí, Kho, nhiệm vụ, ngọc thưởng, hồi sinh theo luật gốc, Cờ Lê. Kiểm: test/soulknight-defence.js.
+
 ### Thứ đã có ở web dùng lại
 - Quái: toàn bộ quái 13 vùng, 35 trùm trong data/sk-bosses86.js (có Đĩa Nổi Laser hp 1000, Di Tích Zulan hp 600, Thủ Lĩnh Wackern hp 800; KHÔNG có Tàu Ngoài Hành Tinh, Zulan Khổng Lồ như Zulan Colossus cần kiểm tên), quái Phi Thuyền e_alien01-03, e_ufo [data/sk-data.js; js/bosses.js]. Quái đột biến: chưa có (GAPS.md đã ghi Quái Gen ở Mê Trận).
 - Pháp/đạn: SK.spawnBullet86, SK.hurtEnemy, vfx; pet/lính theo chủ: addWeaponAlly (js/actors.js 743) cho máy bay của Căn Cứ Không Quân/Trung Tâm Bảo Trì; SK.addMercenary dùng được nguyên cho "lính thuê mang vào".

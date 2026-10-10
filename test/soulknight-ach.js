@@ -327,7 +327,7 @@ const fakeG = (o) => Object.assign({ mode: 'level', badass: false, t: 600, facto
 
     // ---- 6e. Thần Điện Thủ Hộ: 8 / 16 / 24 đợt (id 40, 41, 42) và tháp đạt Phẩm + sao tối đa (id 74)
     p = await boot({ welcomed: 1, gems: 0, unlocked: ['knight'] });
-    check('vào Thần Điện Thủ Hộ', await p.evaluate(() => { SK_GAME.debug.seed(31); SK_GAME.debug.defence('knight'); return true; }) && await until(p, () => SK_GAME.state === 'stage' && SK.G.defence && SK_GAME.phase === 'play', null, 12000));
+    check('vào Thần Điện Thủ Hộ', await p.evaluate(() => { SK_GAME.debug.seed(31); SK.defence.skipPlot = true; SK_GAME.debug.defence('knight'); return true; }) && await until(p, () => SK_GAME.state === 'stage' && SK.G.defence && SK_GAME.phase === 'play', null, 12000));
     await p.evaluate(() => SK_GAME.debug.god(true));
     async function waves(n) {   // dọn n đợt bằng đường của game: quái hết, hàng đợi rỗng, updateWaves tự đếm và phát defenceWaveClear
       for (let i = 0; i < n; i++) {
