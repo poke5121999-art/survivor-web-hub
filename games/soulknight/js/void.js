@@ -23,7 +23,7 @@
     tier: 1, shieldHp: 80, shieldHps: { 1: 80, 2: 120, 3: 160 }, stacks: 3, dmgToShield: 1,   // 80/120/160 mỗi tầng theo độ [WIKI VI "Void Enemies"]
     xuFlee: 5, xuShatter: 30, xuKill: 50, xuThief: 100, xuBossFlee: 40, xuBossKill: 120, xuFinal: 200,   // xuFinal: wiki chỉ ghi "nhiều" [ƯỚC LƯỢNG]
     bossHp: { 1: 600, 2: 1200, 3: 1800 }, bossTierMul: { 1: 1, 2: 4 / 3, 3: 5 / 3 },   // 3-5: 1800/2400/3000 [WIKI Void]; hệ số này áp cho 1-5/2-5 ở độ 2-3 [ƯỚC LƯỢNG]
-    meleeR: 42, redMul: 10, bareBonus: 1,   // khiên đỏ: đòn cận chiến gấp 10 [WIKI VI Sentinel]; cận chiến = người chơi cách quái <42 px [ƯỚC LƯỢNG]
+    meleeR: 42, meleeCap: 90, chaoticXuMul: 38 / 30, redMul: 10, bareBonus: 1,   // khiên đỏ: đòn cận chiến gấp 10 [WIKI VI Sentinel]; cận chiến = người chơi cách quái <42 px [ƯỚC LƯỢNG]
     doubleLord: 0.75, thiefLife: 20, cloneHp: 30,
     riftDmg: 1, riftR: 13, riftLife: 6, riftEvery: [5, 9], riftMax: 2,   // [ƯỚC LƯỢNG] nhịp và tuổi Rãnh Nứt
     merchantXu: 30, bank: { goldToXu: [55, 25], xuToGold: [25, 50], eyeToGold: [1, 100], goldToEye: [110, 1], xuToEye: [55, 1], eyeToXu: [1, 50] },
@@ -57,8 +57,12 @@
   V.start = (hero, tier) => { V.pendTier = tier || 1; return SK.startRun(hero || 'knight', 'void', []); };
   V.endText = g => ' · Xu Ám Tinh nhận được ' + g.void.xuTotal + ' · Hạ ' + g.void.kills + ' kẻ địch Hư Không';
 
-  V.addXu = function (g, n, x, y) {
-    const v = g.void; v.xu += n; v.xuTotal += n;
+  // Độ 2: Xu Ám Tinh rơi nhiều hơn [WIKI VI Currencies: "increased in Chaotic Void", không có số; hệ số = 38/30 từ Vật Tổ 38 (Hỗn Độn) so với 30 (Hủy Diệt) [SUY]].
+  // raw = true: số đã là số của độ đó (Vật Tổ), không nhân thêm.
+  V.addXu = function (g, n, x, y, raw) {
+    const v = g.void;
+    if (!raw && v.tier === 2 && C.chaoticXuMul) n = Math.round(n * C.chaoticXuMul);
+    v.xu += n; v.xuTotal += n;
     SK.num(g, x, y - 14, '+' + n, '#b57bff', false);
   };
   V.addEye = function (g, x, y) { g.void.eyes++; SK.num(g, x, y - 24, '+1 Mắt', '#ff7ad9', false); };
@@ -66,7 +70,7 @@
   // ---------------------------------------------------------------- dựng quái
   function make(g, kind, x, y, room, o) {
     o = o || {};
-    const K0 = KINDS[kind], pf = SK.prefab(K0.id), box = pf[0].col.box;
+    const K0 = KINDS[kind], pf = SK.prefab(K0.id), box = pf && pf[0] ? pf[0].col.box : { size: [14, 22], off: [0, 11] };   // Vật Tổ chưa có prefab: hộp tự đặt [ƯỚC LƯỢNG]
     const v = g.void;
     const hp = o.hp != null ? o.hp : hpOf(K0, v && v.tier);
     const e = {
@@ -104,7 +108,7 @@
     let d = C.dmgToShield;
     const bare = !!p && !p.weapons[p.cur];   // tay không (không cầm vũ khí)
     if (bare && V.has && V.has(g, 3001)) d += C.bareBonus;   // Tay Hư Không 3001: tay không gây 2 lên khiên [WIKI buff 3001]
-    if (s.red && p && (bare || dist(p, e) < C.meleeR)) d *= C.redMul;   // khiên đỏ: cận chiến gấp 10 (20 với 3001)
+    if (s.red && p && (V.isMelee ? V.isMelee(g, e) : (bare || dist(p, e) < C.meleeR))) d *= C.redMul;   // khiên đỏ: cận chiến gấp 10 (20 với 3001)
     SK.num(g, e.x, e.y - e.hb.off[1] - e.hb.size[1] * 0.5 - 4, d, s.red ? '#ff6a5a' : '#b57bff', false);
     s.hp -= d;
     if (s.hp <= 0) V.breakLayer(g, e, 'wear');
@@ -144,6 +148,7 @@
       if (e.clone) return;
       v.kills++; e.deadByKill = true;
       if (e.voidKind === 'thief') { V.addXu(g, C.xuThief, e.x, e.y); V.addEye(g, e.x, e.y); }
+      else if (e.voidKind === 'totem') V.addXu(g, V.totemXu ? V.totemXu(g) : 30, e.x, e.y, true);   // Vật Tổ: 38 (Hỗn Độn) / 30 (Hủy Diệt) Xu, không có Mắt, không tính Tinh Anh
       else if (e.voidKind === 'voidboss') { V.addXu(g, e.final ? C.xuFinal : C.xuBossKill, e.x, e.y); V.addEye(g, e.x, e.y); }
       else {
         V.addXu(g, C.xuKill, e.x, e.y); V.addEye(g, e.x, e.y);
@@ -162,7 +167,7 @@
         if (o.st === 'dead') { o.leave = true; o.as = 'leave'; o.stT = 0; o.hp = o.hpMax; o.fx = []; g.void.fled++; } else V.leave(g, o);
         V.addXu(g, C.xuBossFlee, o.x, o.y);
       }
-    } else if (!v.finalSpawned) {
+    } else if (g.stage.level === 3 && !v.finalSpawned) {   // chỉ 3-5: trùm 4-5 (tầng 4) không kéo Hư Không theo
       // 3-5: Hư Không chỉ xuất hiện sau khi trùm chính chết, thêm vào ngay trong lúc phòng còn khoá
       v.finalSpawned = true;
       const o = SK.makeEnemy(g, 'boss_void', e.x, e.y, e.room);
@@ -302,7 +307,7 @@
       }
     }
   };
-  Object.assign(V, { AI, make, move, shoot, setAct, dash, lockDir, others, dist, angTo, on });
+  Object.assign(V, { AI, make, move, shoot, setAct, dash, lockDir, others, dist, angTo, on, npc });
   SK.AI.SKVoid = function (g, e, dt) {
     e.age += dt; e.at += dt;
     if (e.arena.tracked.length > 40) e.arena.tracked = e.arena.tracked.filter(b => !b.dead);
@@ -467,6 +472,7 @@
     ctx.fillStyle = c2; ctx.fillRect(x - 3, y - 21, 6, 2);
   };
   const SAY = { poor: 'Xu Ám Tinh không đủ.', eyePoor: 'Mắt Hư Không không đủ.', goldPoor: 'Vàng không đủ.', full: 'Hết ô thiên phú.' };
+  V.robe = robe;
   function npc(g, o) {
     g.props.push({ x: o.x, y: o.y, npc: o.kind, draw(ctx, g2, pr) { robe(ctx, o.x, o.y, o.c1, o.c2, g2); } });
     for (const it of o.acts) {
@@ -558,6 +564,7 @@
     const T = 16, cx = r.cx * T + 8, cy = r.cy * T + 8;
     return SK.freeNear([cx + sx * (r.w / 2 - 2) * T, cy + (r.h / 2 - 2) * T]);
   };
+  V.corner = corner;
   SK.on('stageEnter', (g, st) => {
     if (!on(g)) return;
     const v = g.void; v.rifts = []; v.riftT = SK.randf(C.riftEvery[0], C.riftEvery[1]); v.collector = null;
@@ -566,7 +573,7 @@
     const r0 = g.map.rooms[0], m = /^(\d+)-(\d+)$/.exec(st.label || '');
     if (!m) return;
     if (m[2] === '3' || m[2] === '5') { const [x, y] = corner(g, r0, -1); V.placeMerchant(g, x, y); }
-    if (st.label === '3-5') { const [x, y] = corner(g, r0, 1); V.placeCollector(g, x, y); }
+    if (st.label === '3-5') { const [x, y] = corner(g, r0, 0); V.placeCollector(g, x, y); }   // giữa đáy phòng: góc dưới-phải dành cho Thương Nhân Rãnh Nứt (void3.js)
     const sp = g.map.rooms.find(r => r.type === 'special' && !r.fill);
     if (sp) { const c = [sp.cx * 16 + 8, sp.cy * 16 + 8]; const [x, y] = SK.freeNear([c[0], c[1] - 10]); V.placeBanker(g, x, y); sp.fill = 'void_bank'; }
   });

@@ -79,7 +79,7 @@ async function until(p, fn, arg, ms) {
         return e;
       },
       hit(e, dmg) { return SK.hurtEnemy(SK.G, e, dmg == null ? 50 : dmg, false, 0, 0); },
-      clear() { const G = SK.G; G.enemies = []; G.void.keep = {}; G.void.defeated = []; G.void.xu = 0; G.void.eyes = 0; G.void.kills = 0; G.void.fled = 0; },
+      clear() { const G = SK.G; if (SK.voidMode.C3) SK.voidMode.C3.modRate = [1, 0, 0, 0]; for (const w of G.player.weapons) if (w) w.mods = []; G.enemies = []; G.void.keep = {}; G.void.defeated = []; G.void.xu = 0; G.void.eyes = 0; G.void.kills = 0; G.void.fled = 0; },
       st() { const v = SK.G.void; return { xu: v.xu, eyes: v.eyes, keep: JSON.stringify(v.keep), def: v.defeated.join(',') }; }
     };
   });
@@ -210,7 +210,7 @@ async function until(p, fn, arg, ms) {
   r = await p.evaluate(() => {
     const G = SK.G, o = {}, V = SK.voidMode;
     const battle = () => G.map.rooms.find(x => x.type === 'battle');
-    const ids = Object.values(V.KINDS).map(k => k.id);
+    const ids = Object.values(V.KINDS).map(k => k.id).filter(id => id !== 'e_void_totem');   // Vật Tổ kiểm riêng ở phần đợt 4
     const scan = (lab, n) => {
       SK_GAME.debug.stage(lab); T.clear(); G.void.thiefSeen = false;
       const found = {}; let thieves = 0, other = 0;
@@ -443,7 +443,7 @@ async function until(p, fn, arg, ms) {
           return e;
         },
         hit(e, dmg) { return SK.hurtEnemy(G, e, dmg == null ? 50 : dmg, false, 0, 0); },
-        clear() { G.enemies = []; G.void.keep = {}; G.void.defeated = []; G.void.xu = 0; G.void.eyes = 0; G.void.kills = 0; G.void.fled = 0; G.void.rifts = []; G.void.slowOn = false; G.void.slowT = 0; G.player.moveMul = 1; T.log = []; T.loss = []; },
+        clear() { SK.voidMode.C3.modRate = [1, 0, 0, 0]; for (const w of G.player.weapons) if (w) w.mods = []; G.enemies = []; G.void.keep = {}; G.void.defeated = []; G.void.xu = 0; G.void.eyes = 0; G.void.kills = 0; G.void.fled = 0; G.void.rifts = []; G.void.slowOn = false; G.void.slowT = 0; G.player.moveMul = 1; T.log = []; T.loss = []; },
         fresh() { const pl = G.player; pl.armor = 0; pl.armorMax = 0; pl.hpMax = pl.hp = 60; pl.invulT = 0; },
         W(fn, ms) { return new Promise(res => { const t0 = performance.now(); const iv = setInterval(() => { if (fn() || performance.now() - t0 > ms) { clearInterval(iv); res(!!fn()); } }, 25); }); },
         sleep(ms) { return new Promise(res => setTimeout(res, ms)); }
@@ -542,7 +542,7 @@ async function until(p, fn, arg, ms) {
     return o;
   });
   check('Huyết Vệ: khiên tắt lúc đánh (đứng yên khi đã đánh): trúng lúc đó vỡ 1 tầng +30 Xu và rút lui',
-    r.wind.act === 'wind' && r.wind.open && r.wind.still && r.brk.stacks === 2 && r.brk.xu === 30 && r.brk.st === 'dead' && r.brk.leave, JSON.stringify(r));
+    r.wind.act === 'wind' && r.wind.open && r.wind.still && r.brk.stacks === 2 && r.brk.xu === 38 && r.brk.st === 'dead' && r.brk.leave, JSON.stringify(r));
   check('Huyết Vệ: huyết trì đòn 1 bán kính 30, trong vòng mất 3/giây (sát thương thô 3, thực mất 4 vì độ 2 +1); đòn 2 to thành 44; Huyết Vệ không rời chỗ',
     r.pool1 && r.pool1.rd === 30 && r.tick.loss === 4 && r.tick.raw >= 1 && r.pool2.rd === 44 && r.pool2.n === 2 && r.pool2.moved < 1, JSON.stringify(r));
 
@@ -575,9 +575,9 @@ async function until(p, fn, arg, ms) {
     return o;
   });
   check('Tế Tư: niệm phép nối quái khiên tắt ngắn; quái bị nối chết hết khi đang niệm thì mất 1 tầng (+30 Xu) và bỏ đi',
-    r.chan.act === 'chan' && r.chan.open && r.chan.link && r.cut.stacks === 2 && r.cut.xu === 30 && r.cut.st === 'dead' && r.cut.leave, JSON.stringify(r));
+    r.chan.act === 'chan' && r.chan.open && r.chan.link && r.cut.stacks === 2 && r.cut.xu === 38 && r.cut.st === 'dead' && r.cut.leave, JSON.stringify(r));
   check('Tế Tư: niệm đủ 3 giây thì thả cầu đen, cầu đuổi người chơi gây 9 sát thương; cầu chạm khiên chính nó thì vỡ 1 tầng (+30 Xu)',
-    r.ball && r.hit9 && r.self.stacks === 2 && r.self.xu === 30 && r.self.leave, JSON.stringify(r));
+    r.ball && r.hit9 && r.self.stacks === 2 && r.self.xu === 38 && r.self.leave, JSON.stringify(r));
 
   // ---- Cấm Vệ
   r = await p.evaluate(async () => {
@@ -587,8 +587,14 @@ async function until(p, fn, arg, ms) {
     V.sentinelCombo(G, e, ['pommel', 'slash']);
     await T.sleep(100);
     o.red = e.vs.red;
+    // cận chiến = đang cầm vũ khí kind 'melee' (đọc ở hook trúng đòn, không còn tính theo khoảng cách)
+    const gun = pl.weapons[pl.cur], melId = Object.keys(SK.DS.weapons).find(id => SK.DS.weapons[id].kind === 'melee');
+    o.gunKind = gun && gun.def.kind;
+    const h00 = e.vs.hp; T.hit(e, 50); o.gunNear = h00 - e.vs.hp;   // súng đứng sát: vẫn 1
+    pl.weapons[pl.cur] = SK.makeWeapon(melId); pl.weapons[pl.cur].mods = [];
     T.hit(e, 50); o.nearHit = e.vs.hp;                    // cận chiến lúc khiên đỏ: ×10
-    const px = pl.x; pl.x -= 100; T.hit(e, 50); o.farHit = e.vs.hp; pl.x = px;   // từ xa: 1
+    const px = pl.x; pl.x -= 100; T.hit(e, 50); o.farHit = e.vs.hp; pl.x = px;   // vũ khí cận chiến nhưng ngoài tầm với: 1
+    pl.weapons[pl.cur] = gun;   // trả súng cho các phần sau
     await T.W(() => e.act === 'rest', 4000);
     o.log = T.log.slice();
     await T.sleep(200);
@@ -604,8 +610,8 @@ async function until(p, fn, arg, ms) {
   });
   check('Cấm Vệ: đòn pommel+slash gây 5 / 5 / 5 / 7 (chuôi, chém lên, chém xuống, sóng xung kích); lao kiếm gây 5',
     r.log.join() === '5,5,5,7' && r.lunge.join() === '5', JSON.stringify(r));
-  check('Cấm Vệ: khiên đỏ khi đánh, cận chiến lúc đỏ trừ 10 khiên-HP (120 -> 110), từ xa 1, hết đỏ thì cận chiến chỉ còn 1',
-    r.red && r.nearHit === 110 && r.farHit === 109 && r.after.red === false && r.after.drop === 1, JSON.stringify(r));
+  check('Cấm Vệ: khiên đỏ khi đánh, cận chiến (cầm vũ khí melee, trong tầm) lúc đỏ trừ 10 khiên-HP, súng đứng sát hoặc melee ngoài tầm chỉ 1, hết đỏ thì cận chiến chỉ còn 1',
+    r.red && r.gunKind !== 'melee' && r.gunNear === 1 && r.nearHit === 109 && r.farHit === 108 && r.after.red === false && r.after.drop === 1, JSON.stringify(r));
 
   // ---- thiên phú 3001-3003
   r = await p.evaluate(async () => {
@@ -641,7 +647,7 @@ async function until(p, fn, arg, ms) {
     r.take[0] && r.bare0 === 119 && r.bare1 === 118 && r.armed1 === 119 && r.red3001 === 100, JSON.stringify(r));
   check('Thể Chất Hư Không 3002: bước vào Rãnh Nứt không mất máu (chạm rãnh 0 lần mất máu)', r.take[1] && r.rift.loss === 0, JSON.stringify(r.rift));
   check('Lệnh Truy Sát 3003: hạ hết quái nhỏ mà Tinh Anh không bỏ chạy; không có 3003 thì bỏ chạy (+5 Xu)',
-    r.take[2] && r.stay.st !== 'dead' && r.stay.stacks === 3 && r.stay.xu === 0 && r.flee.st === 'dead' && r.flee.leave && r.flee.xu === 5, JSON.stringify([r.stay, r.flee]));
+    r.take[2] && r.stay.st !== 'dead' && r.stay.stacks === 3 && r.stay.xu === 0 && r.flee.st === 'dead' && r.flee.leave && r.flee.xu === 6, JSON.stringify([r.stay, r.flee]));   // độ 2: Xu ×38/30 (5 -> 6)
   check('Thương Nhân Hư Không độ 2: bộ 3 thẻ có đúng 1 thiên phú riêng (3001-3003) chưa sở hữu, không trùng', r.offer.n === 3 && r.offer.ex === 1 && r.offer.uniq, JSON.stringify(r.offer));
 
 
@@ -649,7 +655,7 @@ async function until(p, fn, arg, ms) {
   r = await p.evaluate(() => {
     const G = SK.G, V = SK.voidMode, o = {};
     const battle = () => G.map.rooms.find(x => x.type === 'battle');
-    const ids = Object.values(V.KINDS).map(k => k.id);
+    const ids = Object.values(V.KINDS).map(k => k.id).filter(id => id !== 'e_void_totem');   // Vật Tổ kiểm riêng ở phần đợt 4
     SK_GAME.debug.stage('1-2');
     const scan = (roster, n) => {
       G.void.roster = roster.slice(); G.void.defeated = []; G.void.thiefSeen = true;
@@ -676,7 +682,7 @@ async function until(p, fn, arg, ms) {
     for (let i = 0; i < 80; i++) { V.pendTier = 3; const r3 = V.init().roster; if (new Set(r3).size !== 3 || r3.some(k => V.eligible(3).indexOf(k) < 0)) bad++; for (const k of r3) seen[k] = 1; }
     o.seen = Object.keys(seen).sort().join(','); o.bad = bad;
     const battle = G.map.rooms.find(x => x.type === 'battle');
-    const ids = Object.values(V.KINDS).map(k => k.id);
+    const ids = Object.values(V.KINDS).map(k => k.id).filter(id => id !== 'e_void_totem');   // Vật Tổ kiểm riêng ở phần đợt 4
     SK_GAME.debug.stage('1-2');
     G.void.roster = V.eligible(3).slice(); G.void.defeated = []; G.void.thiefSeen = true;
     const found = {}, pair = { n: 0, both: 0 };
@@ -909,6 +915,348 @@ async function until(p, fn, arg, ms) {
   });
   check('Thương Nhân Hư Không độ 3: bộ 3 thẻ có 1 thiên phú riêng chưa sở hữu (3001/3002/3005/3006/3007)', r.offer.n === 3 && r.offer.ex === 1, JSON.stringify(r.offer));
   check('đếm ngược Hủy Diệt về 0 thì người chơi ngã xuống dù bật bất tử', r.dead.st === 'dead' && r.dead.hp === 0, JSON.stringify(r.dead));
+
+  // =====================================================================================================
+  // Đợt 4 (js/void3.js): đi tới tầng 4 theo đường thật, Vật Tổ, Thương Nhân Rãnh Nứt + dòng vũ khí, Nhà Sưu Tầm theo bể gốc,
+  // nước uống, Giáp Vàng, hồi dư đổi bất tử, Xu Ám Tinh độ 2.
+  // =====================================================================================================
+  await startTier(3);
+  // ---- 9. 3-5 -> 4-1 bằng đường thật: trùm chính chết, Hư Không giáng lâm, hạ Hư Không thì cổng tím mở, bước vào là qua 4-1
+  ok = await bossRoom('3-5');
+  r = await p.evaluate(() => {
+    const G = SK.G, o = { n0: SK.STAGES.length, gate0: !!G.void.gate };
+    const m = G.enemies.find(e => e.bossKey);
+    SK.hurtEnemy(G, m, 99999, false, 0, 0);
+    const vb = G.enemies.find(e => e.voidKind === 'voidboss');
+    o.afterMain = { vb: !!vb, gate: !!G.void.gate };
+    if (vb) { vb.st = 'idle'; vb.stT = 0; SK.hurtEnemy(G, vb, 99999, false, 0, 0); }
+    o.afterVoid = { gate: !!G.void.gate, inProps: G.props.some(q => q.voidGate), n: SK.STAGES.length };
+    return o;
+  });
+  check('3-5: chưa có cổng tím trước khi hạ Hư Không (kể cả khi trùm chính đã chết); hạ Hư Không thì cổng tím mở miễn phí, lượt vẫn 15 ải',
+    ok && r.n0 === 15 && !r.gate0 && r.afterMain.vb && !r.afterMain.gate && r.afterVoid.gate && r.afterVoid.inProps && r.afterVoid.n === 15, JSON.stringify(r));
+  await p.evaluate(() => { const G = SK.G, g = G.void.gate; G.player.x = g.x; G.player.y = g.y; });
+  let at41 = false;
+  for (let i = 0; i < 90 && !at41; i++) {
+    if (await p.evaluate(() => SK.G.hold && SK_ROOMS.pick(0))) await sleep(50);
+    at41 = await p.evaluate(() => SK_GAME.stage === '4-1' && SK_GAME.phase === 'play');
+    if (!at41) await sleep(120);
+  }
+  r = await p.evaluate(() => {
+    const G = SK.G;
+    return { mode: SK_GAME.mode, tier: G.void.tier, n: SK.STAGES.length, last: SK.STAGES[SK.STAGES.length - 1].label, ext: !!G.stage.ext, level: G.stage.level, theme: G.stage.theme,
+      roster: G.void.roster.slice() };
+  });
+  check('bước vào cổng tím: sang 4-1 trong cùng ván Hư Không (mode void, độ 3, 20 ải, 4-1..4-5 là ải mở rộng tầng 4); Đao Phủ vào danh sách Tinh Anh',
+    at41 && r.mode === 'void' && r.tier === 3 && r.n === 20 && r.last === '4-5' && r.ext && r.level === 4 && r.roster.indexOf('killer') >= 0 && r.roster.length === 4, JSON.stringify(r));
+
+  // Đao Phủ ra ở 4-x qua bể thật (G.buildWaves) và qua phòng quái thật
+  r = await p.evaluate(() => {
+    const G = SK.G, V = SK.voidMode, o = {};
+    const battle = () => G.map.rooms.find(x => x.type === 'battle');
+    const scan = n => { let k = 0; for (let i = 0; i < n; i++) for (const w of G.buildWaves(battle())) for (const id of w) if (id === 'e_void_killer') k++; return k; };
+    V.C.eliteRate = 1; G.void.defeated = []; G.void.thiefSeen = true;
+    o.at4 = scan(300);
+    return o;
+  });
+  check('Đao Phủ: ở 4-1 phòng quái bốc ra e_void_killer qua G.buildWaves thật', r.at4 > 0, JSON.stringify(r));
+  r = await p.evaluate(() => { const V = SK.voidMode; return { e3: V.eligible(3).indexOf('killer'), e3f4: V.eligible(3, true).indexOf('killer') }; });
+  check('Đao Phủ chỉ hợp lệ khi có ải 4 (eligible(3) không có, eligible(3, true) có)', r.e3 < 0 && r.e3f4 >= 0, JSON.stringify(r));
+  await p.evaluate(() => { SK.G.void.defeated = []; SK.G.void.thiefSeen = true; SK.voidMode.C.eliteRate = 1; SK_GAME.debug.stage('4-2'); });   // dựng lại ải: phòng quái bốc qua bể thật
+  await until(p, () => SK_GAME.stage === '4-2' && SK_GAME.phase === 'play', null, 6000);
+  await p.evaluate(() => { SK_GAME.debug.god(true); SK.G.void.roster = ['killer']; SK_GAME.debug.stage('4-3'); });
+  await until(p, () => SK_GAME.stage === '4-3' && SK_GAME.phase === 'play', null, 6000);
+  await p.evaluate(() => { SK_GAME.debug.god(true); });
+  // phòng quái dựng đợt quái lúc người chơi vào phòng (world.js: r.waves = G.buildWaves(r)): ghi lại mọi đợt do đường thật dựng
+  await p.evaluate(() => {
+    const G = SK.G, b0 = G.buildWaves; window.__bw = [];
+    G.buildWaves = function (r) { const w = b0.call(G, r); window.__bw.push(JSON.stringify(w)); return w; };
+    window.__bwRestore = () => { G.buildWaves = b0; };
+    SK_GAME.debug.teleportTo('battle', 0);
+  });
+  await until(p, () => window.__bw.length > 0, null, 6000);
+  r = await p.evaluate(() => { const o = { stage: SK_GAME.stage, built: window.__bw.length, killers: window.__bw.join().split('e_void_killer').length - 1 }; window.__bwRestore(); return o; });
+  check('Đao Phủ: vào phòng quái thật ở 4-3 (độ 3) thì G.buildWaves dựng đợt cuối có Đao Phủ (roster có Đao Phủ, không dựng thẳng)', r.stage === '4-3' && r.built > 0 && r.killers > 0, JSON.stringify(r));
+  await p.evaluate(() => { SK.voidMode.C.eliteRate = 0.5; });
+
+  // 4-5: trùm tầng 4 không kéo Hư Không theo; qua cổng thường ở 4-5 là thắng; Nhà Sưu Tầm đặt ở 4-5
+  await p.evaluate(() => { SK.bossDebug.force = null; SK_GAME.debug.stage('4-5'); });
+  await until(p, () => SK_GAME.stage === '4-5' && SK_GAME.phase === 'play', null, 6000);
+  r = await p.evaluate(() => ({ coll: SK.G.interactables.filter(i => /Nhà Sưu Tầm/.test(i.label)).length, merchant: SK.G.props.some(q => q.npc === 'merchant'), rift: SK.G.interactables.some(i => /Rãnh Nứt/.test(i.label)) }));
+  check('4-5: có Nhà Sưu Tầm (3 món + làm mới), Thương Nhân Hư Không và Thương Nhân Rãnh Nứt', r.coll === 4 && r.merchant && r.rift, JSON.stringify(r));
+  await p.evaluate(() => { SK_GAME.debug.god(true); SK_GAME.debug.teleportTo('boss'); });
+  const bspawn = await until(p, () => SK.G.enemies.some(e => e.bossKey && e.st !== 'spawn'), null, 10000);
+  r = await p.evaluate(async () => {
+    const G = SK.G, o = {};
+    for (const e of G.enemies) if (e.bossKey) SK.hurtEnemy(G, e, 1e7, false, 0, 0);
+    await new Promise(res => setTimeout(res, 600));
+    o.voidBoss = G.enemies.some(e => e.voidKind === 'voidboss'); o.gate = !!G.void.gate;
+    return o;
+  });
+  check('4-5: hạ trùm tầng 4 không gọi Hư Không giáng lâm và không mở cổng tím mới', bspawn && !r.voidBoss && !r.gate, JSON.stringify(r));
+  await p.evaluate(() => { const G = SK.G; G.player.x = G.portal.x; G.player.y = G.portal.y; });
+  await until(p, () => SK_GAME.state === 'victory', null, 12000);
+  r = await p.evaluate(() => ({ st: SK_GAME.state, text: document.getElementById('sk-win-info').textContent }));
+  check('qua cổng thường ở 4-5 thì thắng ván Hư Không (màn kết thúc ghi 4-5 và Xu Ám Tinh)', r.st === 'victory' && /Màn 4-5/.test(r.text) && /Xu Ám Tinh nhận được/.test(r.text), r.text);
+
+  // ---- 10. Vật Tổ Hư Không
+  await startTier(3);
+  await p.evaluate(() => { SK_GAME.debug.stage('2-3'); });
+  await until(p, () => SK_GAME.stage === '2-3' && SK_GAME.phase === 'play', null, 6000);
+  r = await p.evaluate(async () => {
+    const G = SK.G, pl = G.player, o = {};
+    T.clear(); T.fresh(); pl.vsh.stacks = 5; pl.vsh.cd = null;
+    const room = G.map.rooms[0];
+    const tot = SK.makeEnemy(G, 'e_void_totem', pl.x + 40, pl.y, room);
+    tot.st = 'idle'; tot.stT = 0; G.enemies.push(tot);
+    const id = Object.keys(SK.D.enemies).find(k => /^e_/.test(k) && !/void|boss/.test(k));
+    const m = SK.makeEnemy(G, id, pl.x + 70, pl.y, room); m.st = 'idle'; m.stT = 0; m.cd = 1e9; G.enemies.push(m);
+    const far = SK.makeEnemy(G, id, pl.x + 400, pl.y, room); far.st = 'idle'; far.stT = 0; far.cd = 1e9; G.enemies.push(far);
+    o.tot = { hp: tot.hp, hpMax: tot.hpMax, kind: tot.voidKind, vs: !!tot.vs };
+    await T.W(() => m.tsh, 1500);
+    o.sh = { near: m.tsh && m.tsh.hp, far: !!far.tsh, self: !!tot.tsh };
+    const hp0 = m.hp;
+    T.hit(m, 50); o.h1 = { sh: m.tsh && m.tsh.hp, hp: m.hp - hp0 };
+    const st0 = pl.vsh.stacks;
+    T.hit(m, 50); o.h2 = { sh: !!m.tsh, broken: !!m.tshBroken, vsh: pl.vsh.stacks - st0, hp: m.hp - hp0 };
+    await T.sleep(700);
+    o.again = !!m.tsh;                      // khiên vỡ rồi không phủ lại
+    T.hit(m, 5); o.h3 = m.hp - hp0;
+    const m2 = SK.makeEnemy(G, id, pl.x + 70, pl.y + 10, room); m2.st = 'idle'; m2.stT = 0; m2.cd = 1e9; G.enemies.push(m2);
+    await T.W(() => m2.tsh, 1500);
+    o.m2 = !!m2.tsh;
+    G.void.xu = 0; G.void.eyes = 0;
+    tot.st = 'idle'; SK.hurtEnemy(G, tot, 1e5, false, 0, 0);
+    o.dead = { st: tot.st, xu: G.void.xu, eyes: G.void.eyes, clear: !m2.tsh, defeated: G.void.defeated.indexOf('totem') };
+    return o;
+  });
+  check('Vật Tổ (độ 3, tầng 2): 300 máu, không khiên Tinh Anh; phủ khiên 70 lên quái gần, không phủ quái ở xa',
+    r.tot.hp === 300 && r.tot.hpMax === 300 && r.tot.kind === 'totem' && !r.tot.vs && r.sh.near === 70 && !r.sh.far && !r.sh.self, JSON.stringify(r));
+  check('khiên Vật Tổ hấp thụ sát thương (50 -> còn 20, máu quái giữ), vỡ thì hồi đúng 1 tầng Khiên Hư Không, vỡ rồi không phủ lại và quái chịu đòn bình thường',
+    r.h1.sh === 20 && r.h1.hp === 0 && !r.h2.sh && r.h2.broken && r.h2.vsh === 1 && r.h2.hp === 0 && !r.again && r.h3 === -5, JSON.stringify(r));
+  check('Vật Tổ chết: rơi 30 Xu (độ 3) không có Mắt, không tính là Tinh Anh đã hạ, khiên đang phủ trên quái biến mất', r.dead.st === 'dead' && r.dead.xu === 30 && r.dead.eyes === 0 && r.dead.clear && r.dead.defeated < 0 && r.m2, JSON.stringify(r.dead));
+  // độ 2: 100/200/300/300 máu, khiên 50, 38 Xu (không nhân thêm)
+  await startTier(2);
+  r = await p.evaluate(async () => {
+    const G = SK.G, pl = G.player, o = {};
+    T.clear(); T.fresh();
+    const hp = [];
+    for (const lab of ['1-3', '2-3', '3-3']) { SK_GAME.debug.stage(lab); hp.push(SK.makeEnemy(G, 'e_void_totem', 100, 100, G.map.rooms[0]).hpMax); }
+    o.hp = hp;
+    SK_GAME.debug.stage('1-3');
+    const tot = SK.makeEnemy(G, 'e_void_totem', pl.x + 40, pl.y, G.map.rooms[0]); tot.st = 'idle'; tot.stT = 0; G.enemies.push(tot);
+    const id = Object.keys(SK.D.enemies).find(k => /^e_/.test(k) && !/void|boss/.test(k));
+    const m = SK.makeEnemy(G, id, pl.x + 70, pl.y, G.map.rooms[0]); m.st = 'idle'; m.stT = 0; m.cd = 1e9; G.enemies.push(m);
+    await T.W(() => m.tsh, 1500);
+    o.sh = m.tsh && m.tsh.hp;
+    G.void.xu = 0; SK.hurtEnemy(G, tot, 1e5, false, 0, 0); o.xu = G.void.xu;
+    return o;
+  });
+  check('Vật Tổ độ 2: máu 100 / 200 / 300 ở tầng 1 / 2 / 3, khiên 50, rơi 38 Xu', r.hp.join() === '100,200,300' && r.sh === 50 && r.xu === 38, JSON.stringify(r));
+  r = await p.evaluate(() => {
+    const G = SK.G, o = {};
+    const battle = () => G.map.rooms.find(x => x.type === 'battle');
+    const cnt = (tier, lab) => { G.void.tier = tier; SK_GAME.debug.stage(lab); G.void.tier = tier; let k = 0; for (let i = 0; i < 600; i++) for (const w of G.buildWaves(battle())) for (const id of w) if (id === 'e_void_totem') k++; return k; };
+    o.t1 = cnt(1, '2-2'); o.t2 = cnt(2, '2-2'); o.t3 = cnt(3, '2-2'); o.first = cnt(2, '1-1');
+    G.void.tier = 2;
+    return o;
+  });
+  check('phòng quái bốc Vật Tổ ở độ 2-3 (từ ải 1-2), độ 1 không có, ải 1-1 không có', r.t1 === 0 && r.t2 > 60 && r.t3 > 60 && r.first === 0, JSON.stringify(r));
+
+  // ---- 11. Xu Ám Tinh tăng ở độ 2
+  r = await p.evaluate(() => {
+    const G = SK.G, V = SK.voidMode, o = {};
+    const add = tier => { G.void.tier = tier; G.void.xu = 0; V.addXu(G, 30, 0, 0); return G.void.xu; };
+    o.t1 = add(1); o.t2 = add(2); o.t3 = add(3);
+    G.void.tier = 2; G.void.xu = 0; V.addXu(G, 38, 0, 0, true); o.raw = G.void.xu;
+    G.void.xu = 55; V.exchange(G, 'xuToEye'); o.bank = { xu: G.void.xu, eyes: G.void.eyes };   // đổi tiền không bị nhân
+    return o;
+  });
+  check('Xu Ám Tinh rơi nhiều hơn ở độ 2 (30 -> 38), độ 1 và 3 giữ 30, số "raw" không nhân thêm, quầy đổi tiền không bị nhân', r.t1 === 30 && r.t2 === 38 && r.t3 === 30 && r.raw === 38 && r.bank.xu === 0, JSON.stringify(r));
+
+  // ---- 12. Nhà Sưu Tầm theo bể gốc
+  await startTier(2);
+  r = await p.evaluate(() => {
+    const G = SK.G, V = SK.voidMode, P = SK.profile, o = { pool: V.COLLECTOR_POOL.length, uniq: new Set(V.COLLECTOR_POOL).size };
+    const bp = k => /^blueprint_/.test(k);
+    for (const k of V.COLLECTOR_POOL.filter(bp)) P.addItem(k, -P.item(k));
+    const run = tier => { G.void.tier = tier; let min = 9, bad = 0, dup = 0; for (let i = 0; i < 60; i++) { const s = V.collectorStock(G); const n = s.filter(x => bp(x.key)).length; min = Math.min(min, n); if (s.length !== 3) bad++; if (new Set(s.map(x => x.key)).size !== s.length) dup++; } return { min, bad, dup }; };
+    o.t1 = run(1); o.t2 = run(2); o.t3 = run(3);
+    for (const k of V.COLLECTOR_POOL.filter(bp)) P.addItem(k, 1);   // có hết bản vẽ thì không còn bảo đảm
+    G.void.tier = 3; let any = 0; for (let i = 0; i < 60; i++) any += V.collectorStock(G).filter(x => bp(x.key)).length;
+    o.allOwned = any;
+    for (const k of V.COLLECTOR_POOL.filter(bp)) P.addItem(k, -P.item(k));
+    return o;
+  });
+  check('Nhà Sưu Tầm: bể 50 món khác nhau theo config (vé không có ở kho web), mỗi lần 3 món khác nhau; bảo đảm ≥ 1 / 2 / 3 bản vẽ chưa có theo độ 1 / 2 / 3',
+    r.pool === 50 && r.uniq === 50 && r.t1.min >= 1 && r.t2.min >= 2 && r.t3.min >= 3 && !r.t1.bad && !r.t2.bad && !r.t3.bad && !r.t1.dup && !r.t2.dup && !r.t3.dup, JSON.stringify(r));
+  await p.evaluate(() => { SK.voidMode.C3.modRate = [1, 0, 0, 0]; SK_GAME.debug.stage('3-5'); });
+  await until(p, () => SK_GAME.stage === '3-5' && SK_GAME.phase === 'play', null, 6000);
+  r = await p.evaluate(() => {
+    const G = SK.G, V = SK.voidMode, P = SK.profile, o = {};
+    G.void.tier = 2; G.void.eyes = 0; G.void.collector.stock = V.collectorStock(G);
+    const acts = G.interactables.filter(i => /Nhà Sưu Tầm/.test(i.label));
+    o.n = acts.length;
+    const it0 = G.void.collector.stock[0], key = it0.key, n0 = P.item(key);
+    acts[0].use(); o.poor = { sold: !!it0.sold, item: P.item(key) - n0 };
+    G.void.eyes = 3; const stock0 = G.void.collector.stock.map(x => x.key).join();
+    acts[0].use(); o.buy = { sold: !!it0.sold, item: P.item(key) - n0, eyes: G.void.eyes };
+    acts[0].use(); o.again = { item: P.item(key) - n0, eyes: G.void.eyes };   // bàn trống không bán lại
+    const ref = acts[acts.length - 1]; ref.use();
+    o.refresh = { eyes: G.void.eyes, n: G.void.collector.stock.length, sold: G.void.collector.stock.filter(x => x.sold).length, same: stock0 === G.void.collector.stock.map(x => x.key).join() };
+    P.addItem(key, -(P.item(key) - n0));
+    return o;
+  });
+  check('Nhà Sưu Tầm: 3 món + làm mới; thiếu Mắt không bán; mua tốn 1 Mắt và thêm đúng 1 món vào kho hồ sơ; bàn đã bán không bán lại; làm mới tốn 1 Mắt và bốc lại 3 món',
+    r.n === 4 && !r.poor.sold && r.poor.item === 0 && r.buy.sold && r.buy.item === 1 && r.buy.eyes === 2 && r.again.item === 1 && r.again.eyes === 2 && r.refresh.eyes === 1 && r.refresh.n === 3 && r.refresh.sold === 0, JSON.stringify(r));
+
+  // ---- 13. Thương Nhân Rãnh Nứt + dòng thuộc tính vũ khí
+  const riftAt = async (tier, lab) => {
+    await startTier(tier);
+    await p.evaluate(l => { SK_GAME.debug.stage(l); }, lab);
+    await until(p, l => SK_GAME.stage === l && SK_GAME.phase === 'play', lab, 6000);
+    await p.evaluate(() => { SK.voidMode.C3.modRate = [1, 0, 0, 0]; T.clear(); for (const w of SK.G.player.weapons) if (w) w.mods = []; });
+  };
+  const riftLabels = () => p.evaluate(() => SK.G.interactables.filter(i => /Rãnh Nứt/.test(i.label)).length);
+  const where = {};
+  for (const lab of ['1-1', '1-2', '1-3', '2-1', '2-5', '3-4']) { await riftAt(1, lab); where[lab] = await riftLabels(); }
+  check('Thương Nhân Rãnh Nứt: có ở x-1 / x-3 / x-5 (5 nút), không ở 1-1 và các ải x-2 / x-4', where['1-1'] === 0 && where['1-2'] === 0 && where['1-3'] === 5 && where['2-1'] === 5 && where['2-5'] === 5 && where['3-4'] === 0, JSON.stringify(where));
+  const opsBy = {};
+  for (const t of [1, 2, 3]) { await riftAt(t, '2-1'); opsBy[t] = await p.evaluate(() => SK.voidMode.riftOpsLeft(SK.G)); }
+  check('số thao tác mỗi lần gặp: 2 / 4 / 6 theo độ 1 / 2 / 3', opsBy[1] === 2 && opsBy[2] === 4 && opsBy[3] === 6, JSON.stringify(opsBy));
+  await riftAt(3, '2-1');
+  r = await p.evaluate(() => {
+    const G = SK.G, pl = G.player, o = {};
+    const use = re => G.interactables.find(i => re.test(i.label)).use();
+    const w0 = pl.weapons[pl.cur]; w0.mods = [{ k: 'crit', r: 0 }];
+    G.void.xu = 500; G.void.riftOps = 6;
+    use(/đổi dòng/); o.swap = { xu: G.void.xu, ops: G.void.riftOps, mods: w0.mods.length, changed: w0.mods[0].k !== 'crit' };
+    w0.mods = [{ k: 'crit', r: 0 }];
+    G.void.xu = 10; use(/đổi dòng/); o.poor = { xu: G.void.xu, ops: G.void.riftOps, same: w0.mods[0].k === 'crit' };
+    G.void.xu = 500;
+    use(/thêm dòng/); o.add = { mods: w0.mods.length, xu: G.void.xu, ops: G.void.riftOps };
+    use(/thêm dòng/); use(/thêm dòng/); o.full = { mods: w0.mods.length, xu: G.void.xu };
+    // nâng bậc: 30 / 50 / 80 theo bậc đích
+    w0.mods = [{ k: 'splash', r: 0 }]; G.void.riftSel = 0; G.void.riftOps = 6; G.void.xu = 500;
+    const up = []; for (let i = 0; i < 4; i++) { const x0 = G.void.xu; use(/nâng bậc/); up.push(x0 - G.void.xu); }
+    o.up = up; o.upR = w0.mods[0].r;
+    // chuyển sang vũ khí kia
+    pl.weapons[1 - pl.cur] = SK.makeWeapon(Object.keys(SK.DS.weapons).find(id => SK.DS.weapons[id].kind === 'melee')); const w1 = pl.weapons[1 - pl.cur]; w1.mods = [];
+    w0.mods = [{ k: 'agility', r: 2 }, { k: 'splash', r: 1 }]; G.void.riftSel = 1; G.void.xu = 500; G.void.riftOps = 6;
+    use(/chuyển dòng/); o.move = { from: w0.mods.map(m => m.k).join(), to: w1.mods.map(m => m.k).join(), xu: G.void.xu };
+    w0.mods = [{ k: 'agility', r: 2 }, { k: 'crit', r: 1 }]; G.void.riftSel = 0; use(/chọn dòng/); o.sel = G.void.riftSel;   // chọn dòng vòng tiếp
+    G.void.riftOps = 0; const x1 = G.void.xu; use(/đổi dòng/); o.noOps = x1 - G.void.xu;
+    return o;
+  });
+  check('Rãnh Nứt: đổi dòng 20 Xu thay bằng dòng khác (tốn 1 lượt), thiếu Xu thì không đổi; thêm dòng 100 Xu từ ải 2-1 tới tối đa 3 dòng',
+    r.swap.xu === 480 && r.swap.ops === 5 && r.swap.mods === 1 && r.swap.changed && r.poor.xu === 10 && r.poor.ops === 5 && r.poor.same && r.add.mods === 2 && r.add.xu === 400 && r.add.ops === 4 && r.full.mods === 3 && r.full.xu === 300, JSON.stringify(r));
+  check('Rãnh Nứt: nâng bậc tốn 30 / 50 / 80 Xu theo bậc đích (lam / tím / cam), bậc cam không nâng nữa; chuyển dòng sang vũ khí kia 20 Xu; chọn dòng vòng tiếp; hết lượt thì từ chối',
+    r.up.join() === '30,50,80,0' && r.upR === 3 && r.move.from === 'agility' && r.move.to === 'splash' && r.move.xu === 480 && r.sel === 1 && r.noOps === 0, JSON.stringify(r));
+  await riftAt(3, '1-3');
+  r = await p.evaluate(() => {
+    const G = SK.G, pl = G.player, w0 = pl.weapons[pl.cur], o = {};
+    w0.mods = []; G.void.xu = 500; G.void.riftOps = 6;
+    G.interactables.find(i => /thêm dòng/.test(i.label)).use();
+    o.early = { mods: w0.mods.length, xu: G.void.xu };
+    return o;
+  });
+  check('Rãnh Nứt: ở ải 1-3 (tầng 1) chưa cho thêm dòng', r.early.mods === 0 && r.early.xu === 500, JSON.stringify(r));
+  // tác dụng của từng dòng
+  await riftAt(3, '2-3');
+  r = await p.evaluate(async () => {
+    const G = SK.G, pl = G.player, o = {};
+    const w = pl.weapons[pl.cur];
+    // Lan: bậc cam nổ lan 100% lên quái trong 40 px
+    w.mods = [{ k: 'splash', r: 3 }];
+    const a = T.mk('thief', 40, true), b = T.mk('thief', 40, true); a.life = b.life = 1e6; b.x = a.x + 20; b.y = a.y;
+    T.hit(a, 30); o.splash = { a: 100 - a.hp, b: 100 - b.hp };
+    w.mods = [{ k: 'splash', r: 0 }]; const b0 = b.hp; T.hit(a, 40); o.splashG = b0 - b.hp;   // xanh lá 25% của 40 = 10
+    // Trảm: dưới 20% máu (cam) thì kết liễu; trên thì không; bậc xanh lá không có
+    T.clear(); w.mods = [{ k: 'execute', r: 3 }];
+    const c = T.mk('thief', 40, true); c.life = 1e6; c.hp = 22; T.hit(c, 1); o.execHigh = c.st;                  // còn 21/100 = 21%: chưa dưới 20
+    c.hp = 20; T.hit(c, 1); o.execLow = c.st;                                                                  // 19% < 20%
+    w.mods = [{ k: 'execute', r: 0 }]; const d = T.mk('thief', 40, true); d.life = 1e6; d.hp = 3; T.hit(d, 1); o.execGreen = d.st;
+    // Của Trời Rơi: bậc cam +4 Xu khi hạ quái Hư Không
+    T.clear(); w.mods = [{ k: 'bonanza', r: 3 }];
+    const e = T.mk('thief', 40, true); e.life = 1e6; G.void.xu = 0; T.hit(e, 1000); o.bonanza = G.void.xu;     // 100 + 4
+    T.clear(); w.mods = [];
+    const f = T.mk('thief', 40, true); f.life = 1e6; G.void.xu = 0; T.hit(f, 1000); o.noMod = G.void.xu;
+    // Bạo: tỉ lệ bạo kích thêm 40% (cam) ở hurtEnemy
+    let crits = 0; SK.on('enemyHit', (g2, en, dmg, cr) => { if (cr) crits++; });
+    T.clear(); w.mods = [{ k: 'crit', r: 3 }]; const h = T.mk('thief', 40, true); h.life = 1e6; h.hp = h.hpMax = 1e7;
+    for (let i = 0; i < 400; i++) T.hit(h, 1);
+    o.crits = crits;
+    w.mods = []; crits = 0; for (let i = 0; i < 400; i++) T.hit(h, 1); o.crits0 = crits;
+    // Nhạy: cd tụt nhanh hơn (cam +50%)
+    w.mods = [{ k: 'agility', r: 3 }]; w.cd = 1; await T.sleep(500); o.cdMod = w.cd;
+    w.mods = []; w.cd = 1; await T.sleep(500); o.cdNone = w.cd;
+    return o;
+  });
+  check('Lan: cam 100% lên quái cạnh bên (30 -> 30), xanh lá 25% (40 -> 10); Trảm: bậc cam kết liễu quái dưới 20% máu, không kết liễu trên ngưỡng, bậc xanh lá không có Trảm',
+    r.splash.a === 30 && r.splash.b === 30 && r.splashG === 10 && r.execHigh !== 'dead' && r.execLow === 'dead' && r.execGreen !== 'dead', JSON.stringify(r));
+  check('Của Trời Rơi: bậc cam hạ quái Hư Không rơi thêm 4 Xu (104 thay vì 100); Bạo: bậc cam bạo kích khoảng 40% (không dòng: 0); Nhạy: cam +50% tốc độ hồi chiêu vũ khí',
+    r.bonanza === 104 && r.noMod === 100 && r.crits > 110 && r.crits < 210 && r.crits0 === 0 && r.cdNone > r.cdMod + 0.15, JSON.stringify(r));
+  r = await p.evaluate(() => {
+    const C3 = SK.voidMode.C3, o = { n: {} };
+    C3.modRate = [0, 0, 0, 1]; const w3 = SK.makeWeapon('bad_pistol'); o.three = (w3.mods || []).map(m => m.k).sort().join(',');
+    o.uniq = new Set(w3.mods.map(m => m.k)).size === w3.mods.length;
+    C3.modRate = [0.25, 0.25, 0.25, 0.25];
+    for (let i = 0; i < 300; i++) { const n = (SK.makeWeapon('bad_pistol').mods || []).length; o.n[n] = (o.n[n] || 0) + 1; }
+    C3.modRate = [1, 0, 0, 0];
+    return o;
+  });
+  check('vũ khí nhận trong ván Hư Không có 0-3 dòng không trùng (ép 3 dòng: ra đủ 3 loại khác nhau; bốc thường ra đủ 0 / 1 / 2 / 3 dòng)', r.three.split(',').length === 3 && r.uniq && [0, 1, 2, 3].every(n => r.n[n] > 20), JSON.stringify(r));
+
+  // ---- 14. nước uống, Giáp Vàng, hồi dư đổi bất tử, Hiệu Quả Bình Thuốc (độ 3)
+  await startTier(3);
+  const waterAt = async lab => { await p.evaluate(l => SK_GAME.debug.stage(l), lab); await until(p, l => SK_GAME.stage === l && SK_GAME.phase === 'play', lab, 6000); await p.evaluate(() => T.clear()); return p.evaluate(() => SK.G.interactables.filter(i => /Máy nước/.test(i.label)).length); };
+  const wat = {}; for (const lab of ['1-1', '1-2', '1-3', '1-4', '3-4']) wat[lab] = await waterAt(lab);
+  check('Máy nước uống (độ 3): có ở x-2 và x-4, không ở x-1 / x-3', wat['1-1'] === 0 && wat['1-2'] === 1 && wat['1-3'] === 0 && wat['1-4'] === 1 && wat['3-4'] === 1, JSON.stringify(wat));
+  await waterAt('2-2');
+  r = await p.evaluate(() => {
+    const G = SK.G, V = SK.voidMode, pl = G.player, o = {};
+    o.gain = [1, 2, 3, 4].map(l => { const st = G.stage; G.stage = Object.assign({}, st, { level: l }); const n = V.waterGain(G); G.stage = st; return n; });
+    pl.vsh.stacks = 4; pl.vsh.cd = null;
+    const it = G.interactables.find(i => /Máy nước/.test(i.label));
+    it.use(); o.use1 = pl.vsh.stacks;            // tầng 2: +2
+    it.use(); o.use2 = pl.vsh.stacks;            // dùng rồi không hồi nữa
+    o.label = G.interactables.find(i => /Máy nước/.test(i.label)).label;
+    return o;
+  });
+  check('Máy nước uống hồi 1 / 2 / 3 / 4 tầng Khiên Hư Không theo tầng; ở tầng 2 hồi 2 (4 -> 6), chỉ dùng một lần', r.gain.join() === '1,2,3,4' && r.use1 === 6 && r.use2 === 6 && /đã dùng/.test(r.label), JSON.stringify(r));
+  r = await p.evaluate(async () => {
+    const G = SK.G, V = SK.voidMode, pl = G.player, R = SK_ROOMS, o = {};
+    pl.buffs = (pl.buffs || []).filter(x => x !== 34 && x !== 12);
+    pl.gold = 250; await T.sleep(150); o.noBuff = pl.vsh.max;
+    R.takeBuff(34); pl.gold = 99; await T.sleep(150); o.g99 = pl.vsh.max;
+    pl.gold = 250; await T.sleep(150); o.g250 = pl.vsh.max;
+    pl.gold = 5000; await T.sleep(150); o.g5000 = pl.vsh.max;
+    pl.vsh.stacks = 12; V.vshGain(G, 5); o.cap = pl.vsh.stacks;
+    pl.gold = 0; await T.sleep(150); o.back = pl.vsh.max;
+    return o;
+  });
+  check('Giáp Vàng (34) với Khiên Hư Không: tối đa +1 mỗi 100 vàng, tối đa +3 (12 -> 14 ở 250 vàng, 15 ở 5000), không có thiên phú thì giữ 12, hồi không vượt tối đa mới',
+    r.noBuff === 12 && r.g99 === 12 && r.g250 === 14 && r.g5000 === 15 && r.cap === 15 && r.back === 12, JSON.stringify(r));
+  r = await p.evaluate(async () => {
+    const G = SK.G, pl = G.player, o = {};
+    pl.buffs = (pl.buffs || []).filter(x => x !== 12); pl.god = false;
+    T.fresh(); pl.hpMax = 60; pl.hp = 30; pl.vsh.stacks = 5; pl.vsh.cd = null; pl.invulT = 0;
+    await T.sleep(100);
+    pl.hp += 10; await T.sleep(100);
+    o.heal = { hp: pl.hp, inv: pl.invulT };
+    pl.invulT = 0; pl.hpMax += 4; pl.hp += 4; await T.sleep(100); o.maxUp = pl.hp;   // tăng máu tối đa không bị coi là hồi
+    pl.buffs.push(12); pl.hp = 30; await T.sleep(100); pl.invulT = 0; pl.hp += 10; await T.sleep(100);
+    o.heal12 = { hp: pl.hp, inv: pl.invulT };
+    pl.vsh.stacks = 5; const s0 = pl.vsh.stacks; SK.emit('pickup', G, 'hp_pot'); o.pot = pl.vsh.stacks - s0;     // 1 + 1 (Hiệu Quả Bình Thuốc)
+    pl.buffs = pl.buffs.filter(x => x !== 12); pl.vsh.stacks = 5; SK.emit('pickup', G, 'hp_pot'); o.pot0 = pl.vsh.stacks - 5;
+    pl.vsh.stacks = 0; pl.vsh.cd = null; pl.invulT = 0; pl.hp = 30; await T.sleep(100); pl.hp += 10; await T.sleep(100);
+    o.noShield = { hp: pl.hp, inv: pl.invulT };   // hết khiên: hồi HP bình thường
+    pl.vsh.stacks = 12; pl.god = true;
+    return o;
+  });
+  check('hồi HP khi còn Khiên Hư Không: HP không tăng, đổi thành bất tử ngắn (1,5 giây; 3 giây với Hiệu Quả Bình Thuốc); tăng máu tối đa vẫn nhận; hết khiên thì hồi bình thường',
+    r.heal.hp === 30 && r.heal.inv >= 1.2 && r.maxUp === 34 && r.heal12.hp === 30 && r.heal12.inv >= 2.7 && r.noShield.hp === 40 && r.noShield.inv < 0.5, JSON.stringify(r));
+  check('Hiệu Quả Bình Thuốc (12): bình hồi 2 tầng thay vì 1', r.pot === 2 && r.pot0 === 1, JSON.stringify(r));
 
   check('không lỗi JS trong trang', errs.length === 0, errs.slice(0, 3).join(' | '));
 

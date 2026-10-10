@@ -414,7 +414,7 @@ Bảng độ khó áp dụng [WIKI buff N; data/sk-buffs86.js đã có tên/mô 
 ### Phạm vi mã độ 1 và thứ đã có ở web
 - Có thể dùng lại: STAGES 15 ải (3 tầng) với mode 'void'; G.mods (enemyHpMul, bossHpMul, buffChoices) cho "quái và trùm tăng HP"; khóa Lợi Hại: setBadass phải chặn khi chọn Hư Không (như wiki); rooms.js openChoice(ids) và SK_BUFFS86 để dựng "Thương Nhân Hư Không: 3 thiên phú nâng cấp, chọn 1" (cần dữ liệu nâng cấp: 51 Buff_upgrade_*; web hiện đã có đúng luật cho 1015-1018, 2101-2146, 38-41... theo tools/buffs/README, nâng cấp riêng thì chưa); boss registry SK.bosses và bosses/*.js cho "Hư Không" (đòn mới); G.props cho NPC; SK.on('enemyKill') để thả Xu Ám Tinh (drops.js).
 - Phải làm mới: Khiên Hư Không trên quái (e.vshield = {stacks, hp}) vào đường sát thương actors.js; 3 Tinh Anh + Đạo Tặc + Rãnh Nứt; tiền tệ Xu Ám Tinh/Mắt Hư Không trong HUD (hud.js) và hồ sơ; Thương Nhân Hư Không/Rãnh Nứt/Ngân Hàng/Con Thoi/Tiên Tri/Sưu Tầm; bảng dòng thuộc tính vũ khí (cắm vào p.weapons[i].mods); trùm Hư Không 3 dạng.
-- Tầng 4 liên quan: cổng miễn phí sang 4-1 và Nhà Sưu Tầm ở 4-6 phụ thuộc FLOOR4.md; giai đoạn 1 bỏ tầng 4 (kết 3-6 có Nhà Sưu Tầm).
+- Tầng 4 liên quan: cổng miễn phí sang 4-1 và Nhà Sưu Tầm ở 4-6 phụ thuộc FLOOR4.md; giai đoạn 1 bỏ tầng 4 (kết 3-6 có Nhà Sưu Tầm). Đợt 4 (js/void3.js) đã nối tầng 4: hạ Hư Không 3-5 mở cổng tím miễn phí sang 4-1, Nhà Sưu Tầm thêm ở 4-5.
 
 ### Kế hoạch làm (tệp, dữ liệu, bộ kiểm)
 1. tools/void/build_void.py (mới): đọc localization_en_vi.json + config/random_objects.json, sinh data/sk-void.js {coins, npcs, collectorPool[51], tiers, eliteRoster, strings void_invasion/*, npc/*, ui/void_invasion_enemy_*}; wiki số liệu gõ tay có nhãn [WIKI].
