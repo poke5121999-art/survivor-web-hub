@@ -29,8 +29,10 @@
   const stat = rec => { const s = H[rec.hero], k = rec.up ? 2 : 1; return { hp: s[0] * k, armor: s[1] * k, crit: s[2] * k }; };
 
   // Vũ khí cắn của pet (cận chiến cũ legacyRun/WEAPON_KINDS.melee): 5 sát thương, tầm ngắn [WIKI LC]; nhịp và tầm [ƯỚC LƯỢNG].
-  DS.weapons.troop_bite = { name: 'Cắn', nameEn: 'Bite', kind: 'melee', dmg: C.pet.bite, crit: 0, range: 22, arc: 150, repel: 3, rps: 2.5, cost: 0,
-    grade: 1, rarity: 'White', sprite: null, moveMod: 0 };
+  // Không liệt kê (như _claw ở skills.js): vũ khí ẩn, không có sprite, không được vào bể rơi đồ.
+  Object.defineProperty(DS.weapons, 'troop_bite', { configurable: true, writable: true, enumerable: false, value: {
+    name: 'Cắn', nameEn: 'Bite', kind: 'melee', dmg: C.pet.bite, crit: 0, range: 22, arc: 150, repel: 3, rps: 2.5, cost: 0,
+    grade: 1, rarity: 'White', sprite: null, moveMod: 0 } });
 
   const T = SK.troop = { C };
   const on = G => G && G.mode === 'troop' && G.troop;

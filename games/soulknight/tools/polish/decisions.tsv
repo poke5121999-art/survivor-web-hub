@@ -78,3 +78,5 @@ ts	phase	decision	why	evidence	result
 2026-10-10T09:11:12Z	spine	vẽ rig Spine 4.2.40 bằng spine-canvas từ CDN, nạp lười khi trùm sinh (agent); Trùm Tổ Tiên 2 pha vào bể 4-5 của 4A	thử nghiệm: 5 trùm tầng 4 kẹt ở rig Spine	test/soulknight-spine.js 26/0
 2026-10-10T09:17:39Z	ship	đẩy e98dfb12 rev 20261010y, kiểm trên Pages	xong = kiểm trên bản thật	SK_URL=Pages: spine 26/0 floor4 88/0 (số kiểm thay đổi theo trùm 4-5 bốc được) smoke 16/0	VERIFIED
 2026-10-10T09:22:15Z	void3	Hư Không độ 2 Hỗn Độn + độ 3 Hủy Diệt (agent): 8 vệ binh mới, thiên phú 3001–3007, 2 nút độ khó; Đao Phủ chỉ ở 4-x mà chế độ Hư Không chưa nối tầng 4	MODES.md 2e	test/soulknight-void.js 69/0
+2026-10-10T09:28:40Z	ship	đẩy 9d7ee2fd rev 20261010z, kiểm trên Pages	xong = kiểm trên bản thật	SK_URL=Pages: void 69/0 modes 12/0 lobby 25/0 smoke 16/0	VERIFIED
+2026-10-10T09:46:13Z	wskin	Skin vũ khí (agent): 354 skin của 40 nhân vật, 50 đá mỗi skin [CFG Price, đơn vị ƯỚC LƯỢNG]; troop_bite chuyển thành thuộc tính không liệt kê như _claw để không vào danh sách vũ khí chung	GAPS mục Skin vũ khí	test/soulknight-wskin.js 26/0; weapons 48/0 (trước 47/1 cả ở Pages); troop 34/0

@@ -129,7 +129,7 @@
     A[0] * B[4] + A[2] * B[5] + A[4], A[1] * B[4] + A[3] * B[5] + A[5]];
   // Tư thế rig ở trạng thái Animator hiện tại của vũ khí -> [{M (Unity, theo gốc súng), f, show, a, n}]
   function pose(w) {
-    const e = w.def.w86, rig = e.rig, SM = e.SM;
+    const e = (w.wskin && SK.wskinW86(w)) || w.def.w86, rig = e.rig, SM = e.SM;   // skin vũ khí khởi đầu (js/hall_wskin.js)
     let clip = null, ct = 0;
     if (SM) {
       const s = SM.st[w.st == null ? SM.def : w.st];
@@ -517,7 +517,7 @@
     return {
       hero: heroId, h, anims: hd || {}, x, y, face: 1, aim: 0, moving: false, t: 0,
       hp: h.hp, hpMax: h.hp, armor: h.armor, armorMax: h.armor, energy: h.energy, energyMax: h.energy,
-      crit: h.crit || 0, gold: 0, weapons: [SK.makeWeapon(h.weapon), null], cur: 0,
+      crit: h.crit || 0, gold: 0, weapons: [SK.wskinDress ? SK.wskinDress(SK.makeWeapon(h.weapon), heroId) : SK.makeWeapon(h.weapon), null], cur: 0,   // skin vũ khí đã chọn (js/hall_wskin.js): chỉ đổi hình
       st: 'alive', stT: 0, invulT: 0, armorT: 0, armorTick: 0, flash: 0,
       skillCd: 0, skillT: 0, dual: null, target: null, god: false, speedMul: 1,
       // Layer >= 1 của controller skin gốc (L1.char_hit khi trúng đòn), chạy bằng SK.smStep.
@@ -1533,7 +1533,7 @@
     if (w.def.w86) { drawRig(ctx, w, hx, hy, p.aim); return; }
     let ang = p.aim;
     if (w.def.kind === 'melee') ang += (w.swing > 0 ? (1 - w.swing / 0.16) * 2.2 - 1.1 : -0.6) * (Math.cos(p.aim) < 0 ? -1 : 1);
-    SK.drawGun(ctx, w.def.sprite, hx, hy, ang, null, { kick: w.kick });
+    SK.drawGun(ctx, (w.wskin && SK.wskinSprite(w)) || w.def.sprite, hx, hy, ang, null, { kick: w.kick });
   }
 
   // ---------------------------------------------------------------- quái
