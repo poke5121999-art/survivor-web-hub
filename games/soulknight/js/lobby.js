@@ -873,6 +873,11 @@
     { id: 'matrix', name: 'Mê Trận Tà Vương', img: 'mode_loop.png', ok: true,
       start: () => { if (SK.G.state === 'hall') launch(P.selected, 'matrix', []); },
       desc: 'Cuộc thám hiểm không có hồi kết: qua mỗi tầng Uy Áp tăng, quái thêm máu và đánh đau hơn; cuối mỗi tầng Tà Vương ban thưởng hoặc trừng phạt. Gom Pha Lê Tà Vương.' },
+    // Chỉ Huy Nhỏ [LOC season/Troop, MODES.md 2g]: Chế độ Ải mà người chơi điều khiển pet, thuê anh hùng làm lính (js/troop.js).
+    // Ảnh thẻ gốc không có trong ui/common (cont.py regex troop chỉ ra ảnh của Đại Đại Chỉ Huy) nên dùng ảnh Chế độ Ải (GAPS.md).
+    { id: 'troop', name: 'Chỉ Huy Nhỏ', img: 'mode_level.png', ok: true,
+      start: () => { if (SK.G.state === 'hall') launch(P.selected, 'troop', []); },
+      desc: 'Bạn là một chú thú cưng: không bị thương, chỉ cắn. Dùng Xu Mèo thuê các anh hùng làm lính, nâng cờ để đội thêm quân, hợp nhất ba lính cùng loại thành bản nâng cấp rồi dẫn họ vượt ba tầng.' },
     { id: 'season', name: 'Chế độ mùa giải', img: 'mode_season.png', isNew: true, ok: true,
       desc: 'Thoát khỏi Monkia: căn cứ giữa rừng thông, qua cổng xoáy ra Ngoại ô căn cứ, đánh khỉ, mở thùng, về điểm rút lui mang đồ về.',
       start: () => SK.SEASON && SK.SEASON.start && SK.SEASON.start(SK.profile.selected || 'knight') },

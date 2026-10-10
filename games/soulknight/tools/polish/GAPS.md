@@ -158,3 +158,9 @@ Có: bản vẽ nội thất (Máy Nước, Hồ Cá, Giếng Phép Thuật, Tư
 - `data/sk-forge.js` có bản vẽ m_mech_2..9 nhưng m_mech_0/1 không có bản vẽ (unlock null [ĐO npc_mount_mech]) nên bán thẳng; loại khác sau này lọc qua `SK.profile.devd`.
 - Chưa làm: Tạm Biệt Thế Giới (nút Phụ, nổ 50) của m_mech_0, nâng cấp ★ ở Thương Nhân Vật Chở, đòn đấm đúng clip (Chưởng Thép dùng vũ khí cận chiến web có đạn punch_spear), bố cục sprite chỉnh bằng mắt (không đo từ prefab), tầm nổ 4 ô [ƯỚC LƯỢNG], buff Thú Cưng +50% sát thương nổ.
 - Nhặt vũ khí mới khi đang lái bị ghi đè lại lúc xuống giáp (vũ khí cũ được trả nguyên).
+
+## Chỉ Huy Nhỏ (lõi: js/troop.js, thẻ chế độ trong lobby.js, kiểm: test/soulknight-troop.js, rev 20261010o)
+- Làm: người chơi là pet (HP 3, giáp 1, NL 160, cắn 5, đạn trúng pet đổ lên lính gần nhất [ƯỚC LƯỢNG]), cờ 5 cấp 2/3/4/5/6 lính và 0/1/3/5/7 xu, thuê 17 anh hùng 4 xu, hợp nhất ở lần thuê thứ 3 cùng loại (bản nâng gấp đôi HP/giáp/chí mạng), rương trắng/nâu/lam/vàng 2/3/4/5 xu (nâng 3/6/9), Mèo May Mắn, Thầy Huấn Luyện làm mới 1 xu, xu dọn phòng 1 / trùm 3, hồi sinh khi dọn phòng (1/10 máu), qua cổng hồi đầy, thua khi hết lính, Túi Chữa Trị thay kỹ năng anh hùng.
+- Ảnh thẻ chế độ: không tìm thấy ảnh Chỉ Huy Nhỏ trong common/ui (regex troop chỉ ra ảnh Đại Đại Chỉ Huy) nên dùng mode_level.png.
+- Chưa làm: kỹ năng riêng của lính (lính chỉ đánh bằng vũ khí khởi đầu của anh hùng, vũ khí rơi khi hợp nhất không có gì để rơi), Pha Lê Đóng Băng / Máy Tạo Lực Trường / Máy Hồi Sức Tim Phổi của pet, Còi Tập hợp/Hành động, 5 ô vũ khí pet và vũ khí đầu rương là Còi, quầy rượu + Mực Xào + Tư Chất Lính Thuê, giới hạn phẩm vũ khí lính, đưa vũ khí cho lính, thùng rác, mục tiêu cúp Đồng/Bạc/Vàng, xu từ mỏ vàng/rương xám/Tinh Anh, phòng ít hơn của chế độ (x-1, x-2 một phòng), quái hung hãn hơn, chỉ số lính theo phẩm chất khác thiên phú.
+- Giá hợp nhất: tính 4 xu như thuê thường; hợp nhất cho phép cả khi đã đầy chỗ vì số lính giảm [ƯỚC LƯỢNG].

@@ -740,6 +740,7 @@
   // a = {x, y, hp, hpMax, face, t, dead, gone, life, update(G, a, dt), draw(ctx, G, a)}. Đạn địch trúng hộp 10×14 thì mất máu.
   function weaponAllies(G) { return (G._wAllies = (G._wAllies || []).filter(a => !a.gone)); }
   SK.weaponAllies = weaponAllies;
+  SK.addWeaponAlly = (G, a) => addWeaponAlly(G, a);   // js/troop.js dựng lính anh hùng của Chỉ Huy Nhỏ trên khung này
   function addWeaponAlly(G, a) {
     a.t = 0; a.flash = 0; a.face = a.face || 1;
     G.props.push({

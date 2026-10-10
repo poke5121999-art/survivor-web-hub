@@ -234,9 +234,10 @@
     G.factors = Array.isArray(factors) ? factors.slice() : [];
     if (SK.factorsOn) SK.factorsOn(G); else G.mods = {};
     G.player = null; G.kills = 0; G.state = 'stage';
-    G.mode = mode === 'bossrush' || mode === 'matrix' || mode === 'void' ? mode : 'level'; G.bossSeen = [];
+    G.mode = mode === 'bossrush' || mode === 'matrix' || mode === 'void' || mode === 'troop' ? mode : 'level'; G.bossSeen = [];
     if (G.mode === 'matrix') { G.factors = []; if (SK.factorsOn) SK.factorsOn(G); }   // nhân tố do Tà Vương ban, không tự chọn
     G.matrix = G.mode === 'matrix' && SK.matrix ? SK.matrix.init(G) : null;
+    G.troop = G.mode === 'troop' && SK.troop ? SK.troop.init(G) : null;   // Chỉ Huy Nhỏ: người chơi là pet, thuê anh hùng làm lính (js/troop.js)
     G.void = G.mode === 'void' && SK.voidMode ? SK.voidMode.init(G) : null;   // Xâm Nhập Hư Không độ 1: không chơi cùng Lợi Hại [WIKI VI]
     if (G.void) G.badass = false;
     setOverlay(null);
