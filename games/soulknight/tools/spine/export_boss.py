@@ -7,7 +7,7 @@ import collections, hashlib, io, json, os, re, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, '..', 'bosses')); sys.path.insert(0, os.path.join(HERE, '..'))
 import build_bosses86 as B
-OUT_EXTRA = os.path.join(HERE, '..', 'extra', 'spine2.json')
+OUT_EXTRA = os.environ.get('SK_EXTRA') or os.path.join(HERE, '..', 'extra', 'spine2.json')   # SK_EXTRA: tệp extra riêng (vd tools/extra/spine4b.json)
 enemies = B.jload('config', 'enemies.json'); loc = B.jload('localization_en_vi.json')
 out = {'bosses': {}, 'bullets': {}, 'info': {}}
 want = []

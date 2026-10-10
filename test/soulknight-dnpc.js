@@ -272,6 +272,8 @@ const IGNORE = /bosses86|theme|lib|colour/;
     check('trọng số: câu cá 1×150/11, đạo sư 1×150/11, thợ thủ công 4×150/11 (weapon_provider); máy thử vận may 0 ở 1-3 (cần chỉ số ải ≥ 6)',
       Math.abs(D2.w[0] - D2.WP) < 1e-6 && Math.abs(D2.w[1] - D2.WP) < 1e-6 && Math.abs(D2.w[2] - 4 * D2.WP) < 1e-6 && D2.w[3] === 0, JSON.stringify(D2.w));
 
+    // Các ca S/F dưới đây đo nhóm phụ kiện Chỉ số: tắt cơ hội bốc nhóm Đặc biệt/Nâng cấp (đợt 5, mục P bên dưới bật lại).
+    await ev(() => { SK_ROOMS.dnpc2.CFG5.special = 0; });
     // vũ khí mẫu theo loại
     const W2 = await ev(() => {
       const D = SK.DS.weapons, ids = Object.keys(D), ok = d => d.dmg > 0 && (d.grade | 0) <= 5 && d.w86 && d.w86.b && d.w86.b[0].dmg > 0 && /^weapon_\d{3}$/.test(d.prefab || '');
@@ -396,6 +398,162 @@ const IGNORE = /bosses86|theme|lib|colour/;
       return { dmg: w.def.dmg, bd: w.def.w86.b[0].dmg, rps: w.def.rps, base: [d0.dmg, d0.rps] };
     });
     check('(F7) Balanus (AK47): sát thương +1 (cả đạn), tốc đánh nhân 0,95', bar.dmg === bar.base[0] + 1 && bar.bd === bar.base[0] + 1 && Math.abs(bar.rps - bar.base[1] * 0.95) < 1e-9, JSON.stringify(bar));
+
+
+    // ---------------------------------------------------------------- Phụ kiện nhóm Đặc biệt / Nâng cấp (đợt 5) [WIKI Attachments]
+    // P1 tương thích, P2 vào bể của Thợ Thủ Công/Người Câu Cá, P3.. tác dụng đo bằng số.
+    await ev(() => { SK_ROOMS.dnpc2.CFG5.special = 1; SK_ROOMS.dnpc2.CFG5.proc = 1; });
+    const P5 = await ev(() => {
+      const N = SK_ROOMS.dnpc2, D = SK.DS.weapons, byPf = pf => Object.keys(D).find(id => D[id].prefab === pf);
+      const laser = Object.keys(D).find(id => D[id].w86 && D[id].w86.fam === 'laser' && D[id].dmg > 0 && /^weapon_\d{3}$/.test(D[id].prefab) && (D[id].grade | 0) <= 5 && !N.blocked(D[id]));
+      const sword = Object.keys(D).find(id => D[id].kind === 'melee' && D[id].w86 && D[id].w86.fam === 'sword' && !/Laser/i.test(D[id].nameEn) && D[id].dmg > 0 && /^weapon_\d{3}$/.test(D[id].prefab) && (D[id].grade | 0) <= 5 && !N.blocked(D[id]));
+      const lsRed = Object.keys(D).find(id => /^Laser Sword Red$/i.test(D[id].nameEn || '')), lsGold = Object.keys(D).find(id => /^Laser Sword Gold$/i.test(D[id].nameEn || ''));
+      const gun = 'ak_47';
+      const L = (id, fish) => N.attList(D[id], fish);
+      return { laser, sword, lsRed, lsGold, gun, w152: byPf('weapon_152'), w032: byPf('weapon_032'), w010: byPf('weapon_010'), w257: byPf('weapon_257'),
+        lLaser: L(laser, false), fLaser: L(laser, true), lSword: L(sword, false), fSword: L(sword, true), lGun: L(gun, false), fGun: L(gun, true), lOld: byPf('weapon_152') ? L(byPf('weapon_152'), false) : [], lDE: L(byPf('weapon_010'), false) };
+    });
+    check('(P1) tương thích: laser có Gương Phản Chiếu/Sứa Hai Tua(câu cá); kiếm có Cán Kiếm Tụ Năng + Kiếm Hải Tinh(câu cá); AK47 có Đầu Đạn Cường Hóa + Cá Viên Đạn(câu cá); mọi vũ khí có Đá Năng Lượng; Laser/kiếm không có Cá Viên Đạn',
+      P5.lLaser.includes('mirror') && P5.fLaser.includes('jellyfish') && !P5.fLaser.includes('starfish') && !P5.lLaser.includes('hilt') && P5.lSword.includes('hilt') && P5.fSword.includes('starfish') && !P5.fSword.includes('bulletfish') && !P5.lSword.includes('mirror') &&
+      P5.lGun.includes('enhanced') && P5.fGun.includes('bulletfish') && P5.fGun.includes('starfish') && P5.lLaser.includes('energystone') && P5.lSword.includes('energystone') && P5.lGun.includes('energystone'), JSON.stringify({ lLaser: P5.lLaser, fLaser: P5.fLaser, lSword: P5.lSword, fSword: P5.fSword, lGun: P5.lGun, fGun: P5.fGun }));
+    check('(P2) Nâng cấp: vũ khí cổ (weapon_152) có Máy Thời Gian, Desert Eagle có Sơn Phun Màu Vàng; AK47 có Sơn Phun Màu Vàng nhưng không có Máy Thời Gian; Bậc Thầy Phụ Kiện (roll) không bao giờ ra Nâng cấp',
+      P5.lOld.includes('timegadget') && P5.lDE.includes('goldpaint') && P5.lGun.includes('goldpaint') && !P5.lGun.includes('timegadget') &&
+      await ev(() => { const N = SK_ROOMS.dnpc.attach, D = SK.DS.weapons, dd = D[Object.keys(D).find(i => D[i].prefab === 'weapon_152')]; for (let i = 0; i < 400; i++) { const a = N.roll(dd, false); if (a && /timegadget|goldpaint/.test(a.key)) return false; } return true; }), 'lOld ' + JSON.stringify(P5.lOld));
+
+    // gắn qua NPC thật: Thợ Thủ Công làm ra phụ kiện Đặc biệt (CFG5.special = 1), Người Câu Cá làm phụ kiện câu cá Đặc biệt
+    await stage('1-3', 'smith', 'special');
+    let sp = null, spKeys = {};
+    for (let i = 0; i < 25; i++) {
+      await hold([P5.laser, null], 9999);
+      await ev(() => { const it = SK.G.props.find(q => q.key === 'smith'); it.used = false; });
+      await useLabel('^Thợ Thủ Công');
+      sp = await wInfo(); const a = sp.att && JSON.parse(sp.att); if (a) spKeys[a.key] = 1;
+    }
+    check('(P3) Thợ Thủ Công + laser (25 lần, nhóm Đặc biệt bật): chỉ ra Gương Phản Chiếu hoặc Đá Năng Lượng, tên có ★', Object.keys(spKeys).every(k => ['mirror', 'energystone'].includes(k)) && Object.keys(spKeys).length > 0 && /★/.test(sp.name), JSON.stringify(spKeys));
+    await stage('1-3', 'fishnpc', 'special');
+    const fkeys = {};
+    for (let i = 0; i < 25; i++) {
+      await hold([P5.laser, null], 9999);
+      await ev(() => { const it = SK.G.props.find(q => q.key === 'fishnpc'); it.used = false; });
+      await useLabel('^Người Câu Cá');
+      const wi = await wInfo(); const a = wi.att && JSON.parse(wi.att); if (a) fkeys[a.key] = 1;
+    }
+    check('(P4) Người Câu Cá + laser: chỉ ra Sứa Hai Tua (nhóm Đặc biệt) hoặc phụ kiện câu cá hợp laser', Object.keys(fkeys).length > 0 && Object.keys(fkeys).every(k => ['jellyfish', 'barnacle'].includes(k)) && fkeys.jellyfish, JSON.stringify(fkeys));
+    // Nâng cấp thật qua Thợ Thủ Công: vũ khí cổ -> bản hiện đại, tiêu hao phụ kiện (không còn att), trừ vàng
+    await stage('1-3', 'smith', 'special');
+    let up = null;
+    for (let i = 0; i < 40 && !(up && up.id !== P5.w152); i++) {
+      await hold([P5.w152, null], 9999);
+      await ev(() => { const it = SK.G.props.find(q => q.key === 'smith'); it.used = false; });
+      await useLabel('^Thợ Thủ Công');
+      up = await wInfo();
+    }
+    const s5 = await state();
+    check('(P5) Máy Thời Gian: weapon_152 (Súng bắn tỉa cổ) -> weapon_032 (Súng bắn tỉa), không còn phụ kiện trên vũ khí mới, trừ vàng', up && up.id === P5.w032 && !up.att && s5.gold < 9999, JSON.stringify({ id: up && up.id, att: up && up.att, gold: s5.gold }));
+    let up2 = null;
+    for (let i = 0; i < 40 && !(up2 && up2.id !== (await ev(() => Object.keys(SK.DS.weapons).find(k => SK.DS.weapons[k].prefab === 'weapon_010')))); i++) {
+      await hold([await ev(() => Object.keys(SK.DS.weapons).find(k => SK.DS.weapons[k].prefab === 'weapon_010')), null], 9999);
+      await ev(() => { const it = SK.G.props.find(q => q.key === 'smith'); it.used = false; });
+      await useLabel('^Thợ Thủ Công');
+      up2 = await wInfo();
+    }
+    check('(P6) Sơn Phun Màu Vàng: Desert Eagle -> Desert Eagle Gold (weapon_257)', up2 && up2.id === P5.w257 && !up2.att, JSON.stringify(up2 && { id: up2.id, att: up2.att }));
+
+    // ---- tác dụng đo bằng số
+    // Dựng cảnh: điểm quanh người chơi cách tường bên phải 60..250 px (phản xạ thẳng về trái), đường tới tường thoáng; quái giả có hb, hurtEnemy ghi lại.
+    const find = kind => ev(kind => {
+      const G = SK.G, pl = G.player, W = SK.world, h = Math.max(2, pl.y - SK.handPos(pl, 1)[1]), out = [];
+      window.__hurt = []; if (!window.__hurt0) window.__hurt0 = SK.hurtEnemy;
+      SK.hurtEnemy = (G2, e, dmg) => { window.__hurt.push([e.tag, dmg]); };
+      for (let dy = -240; dy <= 240 && !out.length; dy += 6) for (let dx = -400; dx <= 400 && !out.length; dx += 6) {
+        const x = pl.x + dx, y = pl.y + dy;
+        if (W.solidAt(G.map, x, y)) continue;
+        let l = 0; while (l < 400) { l += 2; if (W.solidAt(G.map, x + l, y)) break; }
+        let ok = true;
+        if (kind === 'mirror') { if (l < 60 || l > 250) continue; for (let k = 0; k < l; k += 2) if (W.solidAt(G.map, x + k, y)) ok = false; }
+        else { for (let k = 0; k < 64; k += 2) if (W.solidAt(G.map, x + k, y)) ok = false; for (let k = 0; k < 100; k += 2) for (const sg of [-1, 1]) if (W.solidAt(G.map, x + 54 + Math.cos(0.61) * k, y + sg * Math.sin(0.61) * k )) ok = false; }
+        if (ok) out.push({ x, y, wall: x + l });
+      }
+      return out[0] || null;
+    }, kind);
+    const SC = await find('mirror'), SJ = await find('jelly');
+    check('dựng được cảnh đo tia (Gương: tường 60..250 px; Sứa: khoảng thoáng quanh điểm chạm)', !!SC && !!SJ, JSON.stringify([SC, SJ]));
+    if (SC && SJ) {
+      // dựng cảnh + bắn + dọn quái giả trong MỘT lượt chạy đồng bộ (quái giả không có cls, vòng cập nhật của game không được thấy chúng)
+      const shoot = (id, att, extra, SC) => ev(([id, att, SC, extra]) => {
+        const G = SK.G, pl = G.player, w = SK.makeWeapon(id), old = G.enemies;
+        if (att) SK_ROOMS.dnpc2.equip(w, att);
+        pl.weapons = [w, null]; pl.cur = 0; pl.x = SC.x; pl.y = SC.y; pl.face = 1; pl.aim = 0; pl.dmgMul = 1; pl.crit = 0;
+        window.__hurt = [];
+        const my = SK.handPos(pl, 1)[1];
+        G.enemies = (extra || []).map(e => ({ tag: e.tag, st: 'idle', hp: 100, x: e.x, y: my + (e.dy || 0), hb: { size: [8, 8], off: [0, 0] }, scale: 1, face: 1 }));
+        try { SK.emit('fire', G, pl, w); } finally { G.enemies = old; }
+        return { hurt: window.__hurt.slice() };
+      }, [id, att, SC, extra]);
+      const bd = id => ev(id => { const d = SK.DS.weapons[id], b = d.w86.b.find(q => q.p); return Math.max(1, Math.round(b.dmg * (d.w86.dmf || 1))); }, id);
+      const midX = SC.wall - 24;   // tia dài 320 px tính cả đoạn tới tường: quái cách tường 24 px nằm trong đoạn nảy
+      // Gương: quái cách tường 24 px bị tia phản xạ đánh đúng sát thương tia; không gắn thì không bị; quái ngoài đường tia không bị
+      const dm = await bd(P5.laser);
+      let r1 = await shoot(P5.laser, { key: 'mirror', rar: 'white', v: 1 }, [{ tag: 'on', x: midX }, { tag: 'off', x: midX, dy: 60 }], SC);
+      check('(P7) Gương Phản Chiếu: tia chạm tường nảy lại, quái nằm trên đường nảy ăn đúng sát thương tia (' + dm + '), quái lệch 60 px không ăn', r1.hurt.length === 1 && r1.hurt[0][0] === 'on' && r1.hurt[0][1] === dm, JSON.stringify(r1.hurt) + ' dm ' + dm);
+      r1 = await shoot(P5.laser, null, [{ tag: 'on', x: midX }], SC);
+      check('(P7b) cùng cảnh không gắn Gương: không có tia nảy, 0 lần trúng', r1.hurt.length === 0, JSON.stringify(r1.hurt));
+      // Sứa Hai Tua: tia chạm quái đầu tiên thì tách 2 tia ±35°, mỗi tia ceil(50%) sát thương; quái đầu không bị tia tách
+      const cx = SJ.x + 60, a35 = 0.61, ex = 50;
+      r1 = await shoot(P5.laser, { key: 'jellyfish', rar: 'orange', v: 50 }, [{ tag: 'first', x: cx }, { tag: 'up', x: cx - 6 + Math.cos(a35) * ex, dy: Math.sin(a35) * ex }, { tag: 'down', x: cx - 6 + Math.cos(a35) * ex, dy: -Math.sin(a35) * ex }, { tag: 'far', x: cx - 6 + 300 }], SJ);
+      const half = Math.ceil(dm / 2);
+      check('(P8) Sứa Hai Tua: tách 2 tia, 2 quái ở hai nhánh ±35° ăn ceil(' + dm + '/2) = ' + half + ', quái đầu tiên và quái xa không bị tia tách', r1.hurt.length === 2 && r1.hurt.every(h => h[1] === half && (h[0] === 'up' || h[0] === 'down')) && new Set(r1.hurt.map(h => h[0])).size === 2, JSON.stringify(r1.hurt));
+      await ev(() => { SK.hurtEnemy = window.__hurt0; SK.G.enemies = []; });
+    }
+    // Cán Kiếm Tụ Năng: mỗi đòn một vệt trăng, sát thương/cỡ/xuyên theo độ hiếm; kiếm laser đỏ 2 vệt, vàng 3 vệt
+    for (const [rar, dmg, size, thr] of [['green', 2, 1, 0], ['blue', 2, 1.4, 99], ['purple', 3, 1.7, 99]]) {
+      const h = await ev(([id, rar, dmg]) => {
+        const G = SK.G, pl = G.player, w = SK.makeWeapon(id); SK_ROOMS.dnpc2.equip(w, { key: 'hilt', rar, v: dmg }); pl.weapons = [w, null]; pl.cur = 0; pl.aim = 0; pl.x = pl.x || 100;
+        const n0 = G.bullets.length; SK.emit('fire', G, pl, w);
+        return G.bullets.slice(n0).filter(b => b.hilt).map(b => ({ dmg: b.dmg, size: b.size, thr: b.pierce, side: b.side }));
+      }, [P5.sword, rar, dmg]);
+      check('(P9) Cán Kiếm Tụ Năng ' + rar + ': 1 vệt trăng, sát thương ' + dmg + ', cỡ ' + size + ', xuyên ' + (thr ? 'có' : 'không'), h.length === 1 && h[0].dmg === dmg && h[0].size === size && h[0].thr === thr && h[0].side === 'p', JSON.stringify(h));
+    }
+    for (const [nm, id, n] of [['đỏ', P5.lsRed, 2], ['vàng', P5.lsGold, 3]]) {
+      if (!id) { check('(P10) Kiếm Laser ' + nm + ' có trong dữ liệu', false, 'thiếu'); continue; }
+      const c = await ev(id => { const G = SK.G, pl = G.player, w = SK.makeWeapon(id); SK_ROOMS.dnpc2.equip(w, { key: 'hilt', rar: 'purple', v: 3 }); pl.weapons = [w, null]; pl.cur = 0; pl.aim = 0; const n0 = G.bullets.length; SK.emit('fire', G, pl, w); return G.bullets.slice(n0).filter(b => b.hilt).length; }, id);
+      check('(P10) Cán Kiếm Tụ Năng + Kiếm Laser ' + nm + ': ' + n + ' vệt mỗi đòn', c === n, 'ra ' + c);
+    }
+    // Cá Viên Đạn / Kiếm Hải Tinh / Đạn Cường Hóa / Đá Năng Lượng (proc = 1 để đo chắc)
+    const FB = await ev(id => {
+      const G = SK.G, pl = G.player, w = SK.makeWeapon(id); SK_ROOMS.dnpc2.equip(w, { key: 'bulletfish', rar: 'purple', v: 10 }); pl.weapons = [w, null]; pl.cur = 0; pl.aim = 0; pl.dmgMul = 1;
+      G.bullets = []; SK.WEAPON_KINDS.gun.fire(G, pl, w, { x: pl.x, y: pl.y, ang: 0, side: 1, fn: 'Attack' }); const nPlain = G.bullets.filter(b => b.side === 'p').length;
+      G.bullets = []; SK.WEAPON_KINDS.gun.fire(G, pl, w, { x: pl.x, y: pl.y, ang: 0, side: 1, fn: 'Attack' }); SK.emit('fire', G, pl, w);
+      const live = G.bullets.filter(b => b.side === 'p' && !b.dead), fish = live.filter(b => b.fish);
+      return { nPlain, live: live.length, fish: fish.map(b => ({ dmg: b.dmg, thr: b.pierce, ang: b.ang })) };
+    }, P5.gun);
+    check('(P11) Cá Viên Đạn (AK47, proc 100%): thay đúng 1 viên bằng Cá Viên Đạn 10 sát thương, xuyên, bay thẳng; số viên không đổi', FB.fish.length === 1 && FB.fish[0].dmg === 10 && FB.fish[0].thr > 0 && FB.fish[0].ang === 0 && FB.live === FB.nPlain, JSON.stringify(FB));
+    const SF = await ev(id => {
+      const G = SK.G, pl = G.player, w = SK.makeWeapon(id); SK_ROOMS.dnpc2.equip(w, { key: 'starfish', rar: 'blue', v: 5 }); pl.weapons = [w, null]; pl.cur = 0; pl.aim = 0; pl.dmgMul = 1;
+      G.bullets = []; SK.WEAPON_KINDS.gun.fire(G, pl, w, { x: pl.x, y: pl.y, ang: 0, side: 1, fn: 'Attack' }); const n0 = G.bullets.length;
+      SK.emit('fire', G, pl, w);
+      const live = G.bullets.filter(b => b.side === 'p' && !b.dead);
+      return { n0, live: live.map(b => ({ star: !!b.star, dmg: b.dmg })) };
+    }, P5.gun);
+    check('(P12) Kiếm Hải Tinh (proc 100%): đòn bắn bị thay hoàn toàn bằng đúng 1 sao biển 5 sát thương', SF.live.length === 1 && SF.live[0].star && SF.live[0].dmg === 5, JSON.stringify(SF));
+    const EB = await ev(id => {
+      const G = SK.G, pl = G.player, w = SK.makeWeapon(id); pl.weapons = [w, null]; pl.cur = 0; pl.aim = 0;
+      const run = att => { if (att) SK_ROOMS.dnpc2.equip(w, att); else w.att = null; G.bullets = []; SK.WEAPON_KINDS.gun.fire(G, pl, w, { x: pl.x, y: pl.y, ang: 0, side: 1, fn: 'Attack' }); SK.emit('fire', G, pl, w); return G.bullets.filter(b => b.side === 'p').map(b => b.pierce | 0); };
+      const a = run(null), b = run({ key: 'enhanced', rar: 'green', v: 1 });
+      pl.energy = 10; pl.energyMax = 100; w.att = null; SK_ROOMS.dnpc2.equip(w, { key: 'energystone', rar: 'blue', v: 2 }); SK.emit('fire', G, pl, w);
+      return { a, b, en: pl.energy };
+    }, P5.gun);
+    check('(P13) Đầu Đạn Cường Hóa: mọi viên đạn xuyên thêm đúng 1; (P14) Đá Năng Lượng (proc 100%): +2 năng lượng mỗi đòn', EB.a.length > 0 && EB.a.length === EB.b.length && EB.b.every((v, i) => v === EB.a[i] + 1) && EB.en === 12, JSON.stringify(EB));
+    // đường chạy thật: giữ phím J, Cán Kiếm Tụ Năng (blue) tung vệt trăng thật qua máy trạng thái vũ khí
+    const real5 = await ev(id => {
+      const G = SK.G, pl = G.player, w = SK.makeWeapon(id); SK_ROOMS.dnpc2.equip(w, { key: 'hilt', rar: 'blue', v: 2 }); pl.weapons = [w, null]; pl.cur = 0; pl.aim = 0; pl.energy = pl.energyMax;
+      window.__hb = []; const H0 = SK_ROOMS.dnpc2.HOOK.hilt; SK_ROOMS.dnpc2.HOOK.hilt = function (G3, p3, w3, a3) { const n = G3.bullets.length; H0(G3, p3, w3, a3); for (const b of G3.bullets.slice(n)) window.__hb.push(b); }; window.__h5restore = () => { SK_ROOMS.dnpc2.HOOK.hilt = H0; };
+      return true;
+    }, P5.sword);
+    await p.keyboard.down('KeyJ'); await sleep(900); await p.keyboard.up('KeyJ');
+    const h5 = await ev(() => { window.__h5restore(); return window.__hb.filter(b => b.hilt && b.side === 'p').length; });
+    check('(P15) chạy thật (giữ J 0,9 s): Cán Kiếm Tụ Năng tung vệt trăng qua đòn chém thật (đếm đạn hilt > 0)', real5 && h5 > 0, 'vệt ' + h5);
+    await ev(() => { SK_ROOMS.dnpc2.CFG5.special = 0.5; SK_ROOMS.dnpc2.CFG5.proc = 0.25; });
 
     // ---------------------------------------------------------------- Đạo Sư
     await stage('1-3', 'mentor', 'special');

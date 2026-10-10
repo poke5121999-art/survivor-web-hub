@@ -62,7 +62,7 @@
   // Khu Xưởng gốc (bên phải) chưa có ở web: Bàn Rèn, Bàn Thiết Kế, Máy Đổi là prefab gốc hero_room/common (workshop/common/*.prefab)
   // đặt ở hàng sàn dưới của phòng chính; vị trí [ƯỚC LƯỢNG], thử lần lượt tới chỗ đi được.
   const WORKSHOP = { forge: { pf: 'forge', at: [[-3.2, -7.6], [-3.2, -6.6]] }, station: { pf: 'station', at: [[3.2, -8.2], [3.2, -7.2]] },
-    token_machine: { pf: 'token_machine', at: [[6.6, -8.2], [6.6, -7.2], [7.6, -8.2]] } };
+    token_machine: { pf: 'token_machine', at: [[6.6, -8.9], [6.6, -8.2], [6.6, -7.2], [7.6, -8.2]] } };   // hàng thấp nhất trước: vùng dùng không đè vùng Máy Game (prefab gốc)
   const zones = [];
   // extra: mô tả do module khác thêm (js/garden.js): name (có thể là getter), loc, use(z), draw(ctx, px, py, t), tag... — chép nguyên vào vùng.
   function addZone(slot, x, y, pf, extra) {
@@ -83,7 +83,8 @@
       blocks.push([cx - hw, cy - hh, cx + hw, cy + hh]);
     }
   }
-  for (const s of H.slots) if (NAME[s.slot]) addZone(s.slot, s.x, s.y);
+  // Máy Game là prefab gốc hero_room/common hall/common/arcade_machine (tools/extra/hall5.json).
+  for (const s of H.slots) if (NAME[s.slot]) addZone(s.slot, s.x, s.y, s.slot === 'arcade_machine' && D.prefabs.arcade_machine ? 'arcade_machine' : undefined);
   // Hồ Cá treo sát tường dưới, vùng trigger của prefab nằm hẳn trong tường (cách hàng sàn cuối 1,5 đv, ngoài tầm với): kéo vùng lên tới sàn
   // để đứng ở hàng sàn cuối dưới bể là dùng được [ĐO mặt nạ đi được; ƯỚC LƯỢNG chiều cao vùng].
   const BOX_FIX = { fish_bowl: [11.4, -10.1, 13.6, -8.0] };
@@ -141,7 +142,8 @@
     hall.npcs = SK.profile.unlocked.filter(id => DS.heroes[id] && D.heroes[id]).map(id => {
       if (SK.profile.skinOf(id)) SK.loadPack(id);
       const d = H.deco[DECO[id]];
-      const [x, y] = d ? [d[0], d[1] - 1.2] : (spots.shift() || [0, 0]);
+      // Bảng đứng cố định theo nhân vật (js/hall5.js) thay cho ô trống theo thứ tự mở khoá; hết bảng mới rơi về ô trống.
+      const tp = SK.HALL_POS && SK.HALL_POS[id], [x, y] = d ? [d[0], d[1] - 1.2] : (tp ? [tp[0], tp[1]] : (spots.shift() || [0, 0]));
       return { id, x, y, face: x > 0 ? -1 : 1 };
     });
   }
@@ -406,6 +408,6 @@
       const ctx = SK.hudCtx, r = ctx.canvas.getBoundingClientRect(), dpr = ctx.canvas.width / r.width;
       return { x: r.left + (labelBox.x + labelBox.w / 2) / dpr, y: r.top + (labelBox.y + labelBox.h / 2) / dpr };
     },
-    get state() { return { mode: hall.mode, me: hall.me && Object.assign({}, hall.me), npcs: hall.npcs.map(n => n.id), door: H.door, near: hall.near && hall.near.slot }; }
+    get state() { return { mode: hall.mode, me: hall.me && Object.assign({}, hall.me), npcs: hall.npcs.map(n => n.id), npcPos: hall.npcs.map(n => [n.id, n.x, n.y]), door: H.door, near: hall.near && hall.near.slot }; }
   };
 })();

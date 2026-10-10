@@ -359,13 +359,23 @@ async function toBossCleared35(b, tag) {
       const e3 = await p.evaluate(() => SK.G.enemies.map(e => e.id.replace(/^ex_/, 'e_')));
       check('4B 4-3: phòng hành lang sinh quái thuộc map_B18, số lượng hợp lý (< 60)', e3.length > 0 && e3.length < 60 && e3.every(id => id in ROSTER_B[3]), e3.length + ' quái: ' + [...new Set(e3)].join(' '));
 
+      // 4-3: phòng vuông có trùm ở đợt cuối: Hoa Hùng (1440) hoặc Lý Thôi (1320)
+      await p.evaluate(() => SK_GAME.debug.stage('4-3'));
+      await until(p, () => SK_GAME.phase === 'play', null, 5000);
+      await p.evaluate(() => SK_GAME.debug.teleportTo('battle', 1));
+      await until(p, () => SK.G.room && SK.G.room.state === 'locked', null, 6000);
+      const nw = await p.evaluate(() => { const r = SK.G.room, n = r.waves.length, last = r.waves[n - 1].slice(); r.waves.splice(0, n - 1); r.wave = -1; r.waveDelay = 0.2; for (const e of SK.G.enemies) { e.st = 'dead'; e.hp = 0; e.stT = 9; } return { n, last }; });
+      const sp3 = await until(p, () => SK.G.enemies.some(e => e.bossKey), null, 15000);
+      const bk3 = await p.evaluate(() => SK.G.enemies.filter(e => e.bossKey).map(e => [e.bossKey, Math.round(e.hpMax)]));
+      check('4B 4-3: đợt cuối phòng vuông là Hoa Hùng (1440) hoặc Lý Thôi (1320)', sp3 && nw.n >= 2 && bk3.length === 1 && ((bk3[0][0] === 'boss_huaxiong' && bk3[0][1] === 1440) || (bk3[0][0] === 'boss_lijue' && bk3[0][1] === 1320)), JSON.stringify([nw, bk3]));
+
       // 4-5: trùm, hạ thì thắng
       await p.evaluate(() => SK_GAME.debug.stage('4-5'));
       await until(p, () => SK_GAME.phase === 'play', null, 5000);
       await p.evaluate(() => SK_GAME.debug.teleportTo('boss'));
       const sp = await until(p, () => SK.G.enemies.some(e => e.bossKey), null, 8000);
       const bk = await p.evaluate(() => SK.G.enemies.filter(e => e.bossKey).map(e => [e.bossKey, Math.round(e.hpMax)]));
-      check('4B 4-5: phòng trùm có trùm (mượn trùm 4A)', sp && bk.length === 1 && bk[0][0] in BOSS45, JSON.stringify(bk));
+      check('4B 4-5: phòng trùm có Đổng Trác (2160) hoặc Vũ Khí 01 (1800)', sp && bk.length === 1 && ((bk[0][0] === 'boss_dongzhuo' && bk[0][1] === 2160) || (bk[0][0] === 'boss_lvbu' && bk[0][1] === 1800)), JSON.stringify(bk));
       await until(p, () => SK.bossHud.visible, null, 9000);
       await sleep(1200);
       await p.screenshot({ path: path.join(SHOTS, '4B-boss.png') });

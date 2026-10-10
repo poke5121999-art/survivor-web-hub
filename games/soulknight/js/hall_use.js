@@ -140,13 +140,16 @@
   // ---------------------------------------------------------------- Máy Đổi: Vé Đổi -> vũ khí / hạt giống theo ItemLevel
   // [CFG items.TokenTicket: TokenType 1 vũ khí, 3 hạt giống; ItemLevel = độ hiếm 0..5]. Vé skin/anh hùng/bản vẽ/phụ kiện: chưa có
   // đích đổi ở web nên báo "Không có vật phẩm có thể đổi" [LOC item/token_machine_nothing].
-  const tokenKind = k => (/^token_(weapon|seed)_/.exec(k) || [])[1] || null;
+  const tokenKind = k => (/^token_(weapon|seed|blueprint)_/.exec(k) || [])[1] || null;
+  // Vé bản vẽ [CFG items TokenType 4]: ra một bản vẽ chưa có và chưa nghiên cứu (bản vẽ web đều hạng 0, nên mọi hạng vé cùng bể) [ƯỚC LƯỢNG].
+  const bpLeft = () => Object.keys(DB.items).filter(s => DB.items[s].t === 'bp' && P.item(s) < 1 && !P.devd(s));
   function redeemTarget(k) {
     const lv = (itemOf(k) || {}).level | 0, kind = tokenKind(k);
     if (kind === 'weapon') {
       const g = DS.weaponGrades || {}, grade = Math.min(5, lv + 1);
       return (g[grade] || []).length ? { kind, grade } : null;
     }
+    if (kind === 'blueprint') return bpLeft().length ? { kind } : null;
     if (kind === 'seed') return Object.keys(DB.items).some(s => DB.items[s].t === 'seed' && DB.items[s].level === lv) ? { kind, lv } : null;
     return null;
   }
@@ -159,6 +162,12 @@
       const id = SK.pick(DS.weaponGrades[t.grade]);
       P.addBox(id);
       return { text: wName(id) + ' (cất vào hòm vũ khí)' };
+    }
+    if (t.kind === 'blueprint') {
+      P.spendItem(k, 1);
+      const bp = SK.pick(bpLeft());
+      P.addItem(bp, 1);
+      return { text: itemName(bp) };
     }
     P.spendItem(k, 1);
     const seed = SK.pick(Object.keys(DB.items).filter(s => DB.items[s].t === 'seed' && DB.items[s].level === t.lv));

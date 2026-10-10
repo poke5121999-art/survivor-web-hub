@@ -128,3 +128,6 @@ Bộ kiểm cụ thể (test/soulknight-floor4.js, Playwright, dùng SK_GAME.deb
 - Hp thật của quái 4B/4C (config = 16 giữ chỗ) chỉ có số wiki (có thể lệch bản 8.6).
 - Giải mã luban (bể rương WG_level*, trọng số vùng) chưa có khoá [GAPS.md]; nên mọi "bể rương tầng 4" của web là (phỏng đoán) dùng weaponPool theo cấp 4.
 - 4-6: cấu hình kết thúc (map_GameOver nhãn 3-6) không có nhãn 4-6; wiki chỉ mô tả.
+
+## 4B: trùm đã làm (js/bosses/boss_{lijue,huaxiong,dongzhuo,lvbu}.js, rev 20261010zn)
+- 4-3: Hoa Hùng (wiki 1440) hoặc Lý Thôi (1320), bốc đều; ra ở đợt cuối của phòng vuông r4b_big_* (js/floor4.js bọc G.buildWaves). 4-5: Đổng Trác (2160) hoặc Vũ Khí 01 (1800). Rig sprite (không phải Spine), dữ liệu bóc bằng tools/spine/export_boss.py (SK_EXTRA=tools/extra/spine4b.json). Kiểm: test/soulknight-spine4b.js + test/soulknight-floor4.js. Chi tiết số [ƯỚC LƯỢNG] và phần thiếu: GAPS.md.

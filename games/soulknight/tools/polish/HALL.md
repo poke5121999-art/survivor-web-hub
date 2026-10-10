@@ -221,3 +221,9 @@ Phụ thuộc: tương tác sảnh + kho đồ -> rơi vật liệu -> tiêu (k�
 - Không có trong config tải về: công thức Két Sắt, xác suất Máy Quay Trứng, giá đồ uống ở sảnh, chu kỳ và sản lượng cây, tỉ lệ Kỵ Sĩ Nghỉ Hưu, ngưỡng Sổ Tay, hiệu ứng Tủ Lạnh. Mọi số tương ứng là (phỏng đoán) hoặc [WIKI] bản cũ.
 - Cần kiểm chứng bằng clip YouTube (skill watch-game-clips): Két Sắt, Vườn, Máy Quay Trứng, Tủ Lạnh.
 - `hire_board`, `Object_book`, `alchemy` chỉ có tên: không đủ để đặc tả.
+
+
+## Đợt 5 (rev 20261010zm)
+- Máy Game: prefab gốc hero_room/common hall/common/arcade_machine (thân, màn hình 4 khung, ghế), dựng qua tools/extra/hall5.json; dùng = 4 câu bảo trì [LOC arcade_machine/talk_0..3].
+- Máy Đổi: prefab gốc workshop/common/token_machine; thêm Vé Bản Vẽ (ra 1 bản vẽ chưa có và chưa nghiên cứu); dời xuống hàng sàn thấp để vùng dùng không đè Máy Game.
+- Vị trí nhân vật: js/hall5.js SK.HALL_POS (xem GAPS.md). Kiểm: test/soulknight-hall5.js.

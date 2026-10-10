@@ -2,7 +2,7 @@
 // sang 4-1 nếu trả 100 vàng hoặc 1 HP tối đa; không trả thì 3-5 kết thúc như cũ (thắng ở cổng thường).
 // Làm xong: 4A Di Tích Núi Khối (chủ đề 'monolith', 5 ải 4-1..4-5, 7 quái e_stone_*, 4 trùm trong js/bosses/).
 // 4B Chiến Trường Cổ (chủ đề 'battleground', 6 quái e_mob0..5, 4-3 dùng phòng r4b_*): cổng tím bốc 4A hoặc 4B cùng trọng số
-// [FLOOR4.md 9: wiki chỉ nói "có thể là một trong ba vùng", không có bảng trọng số]; trùm 4-5 của 4B mượn Hulala (GAPS.md).
+// [FLOOR4.md 9: wiki chỉ nói "có thể là một trong ba vùng", không có bảng trọng số]; 4-3 và 4-5 của 4B dùng trùm riêng (js/bosses/boss_lijue.js...), chỉ mượn trùm 4A nếu chưa đăng ký.
 // Chưa làm (GAPS.md): 4C Đáy Biển (oxy), thiên phú sau 4-2, ải kết 4-6.
 // Nhãn: [LOC khoá] localization_en_vi, [CFG bảng.khoá] config, [WIKI trang], [ĐO] dữ liệu bundle, [SUY] suy luận, [ƯỚC LƯỢNG] tự đặt.
 (function () {
@@ -191,15 +191,40 @@
   // Trùm 4-5 của 4A: stone_man, warlord, stone_dragon [CFG map_levels.map_A20.Boss]; chỉ bốc trong số trùm đã có AI trong web.
   // (stone_man và stone_dragon là rig Spine/mesh: web chưa có bộ vẽ, xem GAPS.md.)
   F4.BOSSES45 = ['boss_stone_man', 'boss_warlord', 'boss_stone_dragon'];
+  // 4B: trùm 4-3 {Hoa Hùng, Lý Thôi} và 4-5 {Đổng Trác, Vũ Khí Cuối Cùng 01} [CFG map_B18, map_B20]; chỉ bốc trong số trùm đã có AI.
+  F4.BOSSES43_B = ['boss_huaxiong', 'boss_lijue'];
+  F4.BOSSES45_B = ['boss_dongzhuo', 'boss_lvbu'];
   const bossWaves0 = SK.bossWaves;
   SK.bossWaves = function (G) {
-    // 4B 4-5: trùm gốc Đổng Trác / Vũ Khí Cuối Cùng 01 chưa có rig bóc (GAPS.md), mượn trùm 4A đã có AI.
-    if (G.stage && (G.stage.theme === 'monolith' || G.stage.theme === 'battleground') && !(SK.bossDebug && SK.bossDebug.force)) {
-      const ok = F4.BOSSES45.filter(id => SK.BOSS_AIS && SK.BOSS_AIS[id]);
-      if (ok.length) return [[SK.pick(ok)]];
+    const forced = SK.bossDebug && SK.bossDebug.force;
+    if (G.stage && !forced) {
+      if (G.stage.theme === 'battleground') {
+        const own = (G.stage.n === 3 ? F4.BOSSES43_B : F4.BOSSES45_B).filter(id => SK.BOSS_AIS && SK.BOSS_AIS[id]);
+        if (own.length) return [[SK.pick(own)]];
+      }
+      if (G.stage.theme === 'monolith' || G.stage.theme === 'battleground') {
+        // 4B chưa có trùm riêng nào đăng ký thì mượn trùm 4A đã có AI (GAPS.md).
+        const ok = F4.BOSSES45.filter(id => SK.BOSS_AIS && SK.BOSS_AIS[id]);
+        if (ok.length) return [[SK.pick(ok)]];
+      }
     }
     return bossWaves0.apply(this, arguments);
   };
+  // 4B 4-3: web không dựng phòng trùm riêng (world.js dựng hành lang + phòng vuông + cổng); trùm Lý Thôi/Hoa Hùng ra ở đợt cuối của phòng vuông (GAPS.md).
+  let wrapped = false;
+  SK.on('stageEnter', G => {
+    if (wrapped) return;
+    wrapped = true;
+    const bw = G.buildWaves;
+    G.buildWaves = function (r) {
+      const waves = bw.apply(this, arguments);
+      if (r.type === 'battle' && /^r4b_big/.test(r.patternId || '') && this.stage && this.stage.theme === 'battleground' && this.stage.n === 3 && !this.stage.br) {
+        const b = SK.bossWaves(this, r)[0];
+        if (b && b.length) waves.push(b);
+      }
+      return waves;
+    };
+  });
 
   SK.on('roomClear', (G, r) => { if (r.type === 'boss' && available(G)) spawnNpc(G, r); });
   SK.on('stageEnter', G => { G.f4 = null; G.extGo = false; });

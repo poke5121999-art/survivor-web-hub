@@ -824,12 +824,12 @@ async function until(p, fn, arg, ms) {
     const [id2, off2] = a, G = SK.G, e = G.enemies.find(q => q.bossKey === 'boss_alien_ship'), sh = e.ship, p = G.player; G.bullets.forEach(b => { b.dead = true; });
     sh.coreCd = 99; sh.bomb = null; e.hidden = false; e.y = (e.room.y0 + 5.5) * SK.TILE; const y0 = e.y, x0 = e.x;
     SK_GAME.debug.god(false); p.god = false; p.hp = p.hpMax = 9999; p.armor = p.armorMax = 0; p.invT = 0;
-    const n0 = sh.log.length, objs0 = e.arena.objs.length;
+    const n0 = sh.log.length, objs0 = new Set(e.arena.objs);   // đếm vật mới sinh: vật của đòn trước tan giữa chừng làm hiệu số độ dài về 0
     SK.SHIP.start(id2, G, e);
     let maxB = 0, maxO = 0, y1 = y0, hid = false, hpMin = 9999;
     for (let i = 0; i < 70; i++) {
       await new Promise(r => setTimeout(r, 60));
-      maxB = Math.max(maxB, G.bullets.length); maxO = Math.max(maxO, e.arena.objs.length - objs0); y1 = Math.max(y1, e.y); hid = hid || e.hidden;
+      maxB = Math.max(maxB, G.bullets.length); maxO = Math.max(maxO, e.arena.objs.filter(o => !objs0.has(o)).length); y1 = Math.max(y1, e.y); hid = hid || e.hidden;
       if (id2 === 'eye') { p.x = e.x; p.y = e.y + 70; }
       if (id2 === 'bombard') { p.x = x0 + off2; p.y = y0 + 90; }
       if (id2 === 'sphere' || id2 === 'missiles') { p.x = e.x + 300; p.y = e.y + 150; }   // đứng xa: chỉ đếm đạn
