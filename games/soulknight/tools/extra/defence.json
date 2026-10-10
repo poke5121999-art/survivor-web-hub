@@ -1,5 +1,6 @@
 {
  "bundles": [
+  "common",
   "defence"
  ],
  "prefabs": [
@@ -41,6 +42,8 @@
   "explode"
  ],
  "sprites": [
-  "^magic_stone$"
+  "^magic_stone$",
+  "^(biaoqing_14|bullet_107|bullet_18|bullet_29|bullet_37|bullet_85|bullet_91|bullet_93|bullet_96|effect04_13|effect04_14|effect04_15|effect04_16|effect04_17|effect04_18|effect_explode_0|effect_explode_1|effect_explode_2|effect_explode_3|effect_explode_4|effect_explode_5|effect_explode_6|effect_explode_7|effect_explode_8|effect_explode_9|effect_nuclear_explode_0|effect_nuclear_explode_1|effect_nuclear_explode_10|effect_nuclear_explode_2|effect_nuclear_explode_3|effect_nuclear_explode_4|effect_nuclear_explode_5|effect_nuclear_explode_6|effect_nuclear_explode_7|effect_nuclear_explode_8|effect_nuclear_explode_9|texiao_01|texture_c2)$",
+  "^(biaoqing_11|effect04_0|最终boss_r10_c19|最终boss_r12_c26|最终boss_r15_c13|最终boss_r16_c25|最终boss_r19_c10|最终boss_r19_c16|最终boss_r20_c30|最终boss_r23_c28|最终boss_r24_c9|最终boss_r25_c20|最终boss_r29_c2|最终boss_r2_c24|最终boss_r2_c3|最终boss_r32_c5|最终boss_r3_c17_0|最终boss_r3_c17_1|最终boss_r4_c12|最终boss_r5_c22|最终boss_r8_c11)$"
  ]
 }

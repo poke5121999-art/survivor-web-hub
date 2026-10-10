@@ -161,6 +161,7 @@
   }
   function openChest(c) {
     c.open = true; c.openT = 0;
+    if (SK.factorsChest && SK.factorsChest(G, c)) return;   // Rương Bom (js/factors2.js)
     if (c.kind === 'weapon') {
       const own = G.player.weapons.filter(Boolean).map(w => w.id);
       const all = SK.weaponPool(G.stage.level, 'chest');

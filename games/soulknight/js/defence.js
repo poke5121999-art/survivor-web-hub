@@ -14,7 +14,10 @@
     // điểm ngân sách quái mỗi đợt X-1 / X-2 / X-3 [ƯỚC LƯỢNG: wiki chỉ nói Nhỏ / Vừa / Lớn]
     pts: [8, 14, 22],
     budgetGrow: 0.25, hpGrow: 0.1,   // mỗi chặng thêm 25% ngân sách quái và 10% máu quái [ƯỚC LƯỢNG: wiki chỉ nói đợt sau mạnh hơn, không có số]
-    bossZones: { 3: 300, 6: 600, 9: 900, 12: 1200 },   // trùm sóng ở đợt X-3 của chặng 3/6/9/12 [WIKI Origin]; máu [ƯỚC LƯỢNG]; rơi 8 Xu Sao [WIKI Origin]
+    // trùm sóng ở đợt X-3 của chặng 3/6/9/12 [WIKI Origin]: Đĩa Nổi Laser 1200, Zulan Khổng Lồ 960, Thủ Lĩnh Wackern 960 (máu trùm thường [WIKI]), Tàu Ngoài Hành Tinh
+    // 500.000 [WIKI]; rơi 8 Xu Sao [WIKI Origin]; AI trùm và Tàu nằm ở js/defence4.js
+    bossZones: { 3: 1200, 6: 960, 9: 960, 12: 500000 },
+    bossAdvance: 0.25,               // trùm sóng tiến về Đá Phép bằng 1/4 tốc đi thường, đứng yên khi đang đánh [ƯỚC LƯỢNG: web chỉ có một phòng, không có hành lang dài]
     bossCoins: 8, alienDrop: 0.1,    // quái Phi Thuyền trong sóng rơi 10% [WIKI Origin "Great Wall"]
     phamMax: 6, spikesBase: 4, spikesStep: 2,   // Phẩm 1-6 mua trùng 15 Xu Sao mỗi bản; Bẫy Gai 4 gai rồi +2 mỗi Phẩm (6, 8, ... 14) [WIKI ME]
     spawnGap: 0.7,
@@ -70,6 +73,7 @@
   }
   function rush(G, e, dt) {
     const d = G.defence, s = d.stoneAt;
+    if (e.bossKey && (e.atk || e.busy > 0 || e.dashing)) return;   // trùm sóng đứng yên khi đang ra đòn (js/defence4.js)
     const dx = s.x - e.x, dy = s.y - e.y, dist = Math.hypot(dx, dy);
     if (dist < 11) { hitStone(G, e); return; }
     for (const t of d.towers) {   // đánh mọi thứ chặn đường
@@ -84,7 +88,7 @@
         return;
       }
     }
-    const sp = Math.min(dist, (e.d.speed || 3) * U * 0.7 * (e.moveMul || 1) * dt);
+    const sp = Math.min(dist, (e.d.speed || 3) * U * 0.7 * (e.moveMul || 1) * (e.bossKey ? C.bossAdvance : 1) * dt);
     let ux = dx / dist, uy = dy / dist;
     if (e.dstuck > 0.4) { const sg = e.dside || (e.dside = SK.chance(0.5) ? 1 : -1); const ox = ux; ux = -uy * sg; uy = ox * sg; }
     const px = e.x, py = e.y;

@@ -228,5 +228,6 @@
     update: (it, dt) => { if (it.rocket > 0) it.rocket = Math.max(0, it.rocket - dt); },
     label: it => it.broken ? 'Thử Vận May — đã hư tổn' : 'Thử Vận May bài “Dilili” — chỉ cần ' + slotPrice() + ' vàng, không thử sao?', use: usePlay, draw: drawSlot }) };
 
+  N.attach = { roll: rollAtt, equip, text: attText };   // Bậc Thầy Phụ Kiện (js/factors2.js) gắn phụ kiện cho vũ khí mới
   R.dnpc2 = { ATT, attList, rollAtt, withAtt, equip, blocked, smithPrice, FISH_PRICE, MENTOR_MAX, MENTOR_CD, mentorPrice, slotRoll, slotPrice, SLOT_PRICE, SLOT_HIT, SLOT_AWARDS, SLOT_PUNISH, SLOT_POOL };
 })();

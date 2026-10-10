@@ -117,7 +117,7 @@
     // nhánh phụ [WIKI Levels]: mỗi ải một phòng hộp vàng (chest) và một phòng dấu chấm than (special)
     const occupied = new Set(cells.map(c => c + ''));
     if (b43) { occupied.add('1,1'); occupied.add('3,1'); }
-    const sides = ['chest', 'special'];
+    const sides = ['chest', 'special'].concat(stage.sideRooms || []);   // sideRooms: phòng phụ thêm (js/factors2.js: Mở Rộng Nhà Ngục, Đèn Thần)
     for (const type of sides) {
       // Ải Khu Thí Luyện chỉ có khởi đầu → trùm: phòng khởi đầu nằm góc lưới thì nhánh phụ treo vào phòng trùm.
       const hosts = SK.shuffle(path.filter(r => r.type === 'battle' || r.type === 'start'))

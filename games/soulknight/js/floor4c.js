@@ -43,6 +43,7 @@
   SK.bossWaves = function (G) {
     // 4-5 của 4C: trùm gốc Thợ Lặn Vực Sâu (rig Spine, chưa vẽ được) → mượn trùm 4A đã có AI; 4C không có phòng trùm ở 4-3 [FLOOR4.md mục 1]
     if (G.stage && G.stage.theme === 'seabed' && !(SK.bossDebug && SK.bossDebug.force)) {
+      if (SK.BOSS_AIS && SK.BOSS_AIS.boss_abyssal_submariner) return [['boss_abyssal_submariner']];   // trùm gốc 4C (Spine, js/bosses/boss_abyssal_submariner.js)
       const ok = F4.BOSSES45.filter(id => SK.BOSS_AIS && SK.BOSS_AIS[id]);
       if (ok.length) return [[SK.pick(ok)]];
     }

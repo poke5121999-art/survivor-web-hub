@@ -532,7 +532,7 @@ async function toBossCleared35(b, tag) {
       await p.evaluate(() => SK_GAME.debug.teleportTo('boss'));
       const sp = await until(p, () => SK.G.enemies.some(e => e.bossKey), null, 8000);
       const bk = await p.evaluate(() => SK.G.enemies.filter(e => e.bossKey).map(e => [e.bossKey, Math.round(e.hpMax)]));
-      check('4C 4-5: phòng trùm có trùm (mượn trùm 4A)', sp && bk.length === 1 && bk[0][0] in BOSS45, JSON.stringify(bk));
+      check('4C 4-5: phòng trùm có trùm gốc Thợ Lặn Vực Sâu (Spine, 2760 máu)', sp && bk.length === 1 && bk[0][0] === 'boss_abyssal_submariner' && bk[0][1] === 2760, JSON.stringify(bk));
       await until(p, () => SK.bossHud.visible, null, 9000);
       await sleep(1200);
       await p.screenshot({ path: path.join(SHOTS, '4C-boss.png') });

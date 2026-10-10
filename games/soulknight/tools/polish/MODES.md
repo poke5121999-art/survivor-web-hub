@@ -209,6 +209,37 @@ Tổng: 65 nhân tố chính + 8 khiêu chiến + 6 nhân tố Tà Vương trong
 4. Kết hợp với Khu Thí Luyện: mang nhân tố thì không được Thuần Túy [LOC bossrush_intro_tips4].
 5. Hiển thị cuối ván: dòng "Nhân Tố Thử Thách" liệt kê đã mang [LOC ui_certificate_challenge].
 
+### 29 nhân tố đã làm thêm trên web (js/factors2.js; bộ kiểm test/soulknight-factors.js)
+Nguồn số: wiki API trang `Challenge_Conditions` [WIKI] (trang `Challenger's_Seal`/`Factors` không tồn tại), mô tả LOC `task/<khoá>_desc` [LOC]; chỗ nguồn không nói số ghi [ƯỚC LƯỢNG]. Số gom ở `SK.factorsCfg`.
+| khoá | Tác dụng theo nguồn | Hệ web dùng | Cách làm / số |
+|---|---|---|---|
+| GoodLuck / BadLuck | bể vũ khí bậc tốt hơn / thấp hơn [WIKI] | SK.weaponPool | bể cấp ±1 (kẹp 1..3) [ƯỚC LƯỢNG mức lệch] |
+| SuperFactor | "tăng cường nhân tố khác" (LOC mô tả "-") | G.mods | độ lệch của số khác ×1,5, số nguyên làm tròn lên [ƯỚC LƯỢNG] |
+| Painless | máu, giáp, năng lượng, vàng hiện "???" [WIKI] | sự kiện hud | che 4 ô chữ bằng "???" |
+| BlackFog | trong sương tàng hình, +1 tầng/0,5 s, ngoài -3 tầng/0,5 s, đủ 10 tầng mất 2 HP/s [WIKI] | p.hidden, hurtPlayer | 2 vùng sương bán kính 3 ô mỗi ải [ƯỚC LƯỢNG số vùng/cỡ] |
+| BombGift | rương phòng quái thường chỉ Vàng hoặc Bom; mở là nổ, 2 sát thương, không cháy [WIKI/LOC] | G.onRoomCleared + game.js openChest | 50% bom [ƯỚC LƯỢNG] |
+| BoxMutation | thùng đột biến cho độc, băng, bom, năng lượng, vàng... [WIKI] | vật cản kind 'box', obstacleBreak, skillKit.debuff | 40% thùng, bảng trọng số [ƯỚC LƯỢNG] |
+| Dejavu | bố cục + nội dung ải lặp 2-4 lần, trừ ải trùm [WIKI] | world.generate bọc, SK.setSeed | 50% dựng lại đúng hạt giống + nhãn của một ải đã qua cùng tầng [ƯỚC LƯỢNG] |
+| LongMap / FullHouse | thêm phòng đánh (xác suất) / thêm phòng đặc biệt mỗi ải [LOC, WIKI] | world.js đọc stage.sideRooms | LongMap 50%/ải [ƯỚC LƯỢNG]; FullHouse mọi ải (loại có thể trùng loại phòng đặc biệt thứ nhất, wiki bắt khác loại) |
+| WrongConfig | mỗi phòng một loại quái, tinh anh thì cả phòng [WIKI] | G.buildWaves bọc | giữ tổng điểm đợt, đổi hết sang một loại |
+| SleepWalking | thứ tự ải xáo, 1-1 đứng đầu [WIKI] | SK.STAGES | xáo 14 ải sau (trừ ải cuối Khu Thí Luyện) |
+| GainMount / GainWeapon | vào cảnh mới nhận 1 thú cưỡi / 1 vũ khí dưới chân [LOC, WIKI] | SK.mountOn, G.items | "cảnh mới" = ải n-1 của mỗi tầng; thú cưỡi thường hoặc cơ giáp đã làm |
+| ReforgeWeapon | đầu mỗi ải đúc lại vũ khí đang cầm [LOC, WIKI] | R.dnpc.reforgePool (lò đúc) | cùng nhóm đúc lại, trừ vũ khí không vào lò được |
+| WeaponEquip | mọi vũ khí tự có 1 phụ kiện [LOC, WIKI] | R.dnpc.attach (dnpc2.js) | gắn lúc SK.makeWeapon và đầu mỗi ải |
+| RandomCharactor | vào tầng kế đổi nhân vật, giữ tỉ lệ máu/năng lượng làm tròn lên [WIKI] | SK.makePlayer | đổi hero (trừ envoy), giữ vũ khí, thiên phú, vàng |
+| RebornTwice | số lần hồi sinh +1 [LOC] | G.onPlayerDead bọc | ải thường chưa có hồi sinh nên cho đúng 1 lần miễn phí [ƯỚC LƯỢNG], đầy máu giáp, bất tử 2,5 s |
+| MultiStatue | giữ nhiều hiệu quả Tượng [WIKI] | sự kiện statueBuy | không đẩy tượng cũ ra |
+| HugePet | pet cỡ ×2, sát thương +400%, hung hăng hơn [WIKI] | G.pet.scale, G.pet.k | cỡ ×2, sát thương ×5, hồi chiêu cắn ×0,7 [ƯỚC LƯỢNG]; chỉ nhát cắn mặc định (kỹ năng riêng của pet giữ nguyên) |
+| EnemyFlash | bị trúng đòn có thể dịch chuyển trong phòng [WIKI] | sự kiện enemyHit | 50%/đòn [ƯỚC LƯỢNG], bỏ trùm |
+| EnemySplit | quái thường dưới 50% máu tách 2 con, mỗi con 50% máu gốc [WIKI] | SK.hurtEnemy bọc | bản gốc biến mất không tính hạ; con mới không tách nữa; chưa tách khi một đòn giết luôn |
+| EnemyReborn | quái chết có xác suất hồi sinh [LOC] | sự kiện enemyKill | 20%, một lần, nửa máu [ƯỚC LƯỢNG], bỏ trùm |
+| EnemyBuffImmune | thời gian chịu hiệu quả bất lợi của địch giảm nửa [LOC "Vigorous Enemies" -50%] | quái e._db (skills.js) + e._bmSt (rooms.js) | rút ngắn lúc gây/gia hạn, kể cả choáng/băng |
+| Exception | bị đánh thì dính trạng thái bất thường ngẫu nhiên, chờ 5 s [LOC] | sự kiện playerHurt | cháy, độc, băng, tê liệt; số liệu từng trạng thái [ƯỚC LƯỢNG] |
+| WeaponOverheating | vũ khí bắn bắn liên tục thì tốc đánh còn một nửa [WIKI] | sự kiện fire | gun/launcher/laser, 12 phát liên tiếp, nguội sau 0,7 s nghỉ [ƯỚC LƯỢNG số phát] |
+| MelleWeaken | cận chiến không tiêu hủy đạn địch [LOC] | WEAPON_KINDS.melee.fire, SK.updateBullets bọc | khôi phục đạn bị vệt chém/quạt chém tan (vệt chém 8.6 có thể để lại hiệu ứng nổ nếu đạn có) |
+| TimeDistortion | tốc độ hành động lúc nhanh lúc chậm, viền xanh/đỏ [WIKI] | p.moveMul, e.moveMul, hud | hệ số 0,6..1,5 mỗi 2-4 s [ƯỚC LƯỢNG]; người chơi và từng quái riêng |
+| TrackingLaser | laser định kỳ bám người chơi 2 s rồi tia 2 s, gây 2 sát thương cả người và quái [WIKI] | G.props | tia xuất phát từ mép trên phòng đang khoá, 6 s sau khi khoá rồi mỗi 10 s [ƯỚC LƯỢNG], quét chậm 0,9 rad/s |
+
 ## 2d. Mê Trận Tà Vương (looptravel, "Matrix of the Lord of Evil")
 
 Nhãn thêm: [WIKI Matrix] = soul-knight.fandom.com/wiki/Matrix_of_the_Lord_of_Evil, [WIKI Loop] = trang Loop_Mode (bản cũ 2.7.0-3.0.0), [WIKI SV] = trang Sir_Verdant, [WIKI buff N] = trang riêng của thiên phú id N. Wiki lấy được bằng API `api.php?action=parse` (web chính bị 402 nhưng API trả 200) [ĐO 2026-10-10].
@@ -503,6 +534,11 @@ Mức đề xuất: lõi tối thiểu chơi được trước (KHÔNG làm 7 v�
 - Số máu/ST của Robot Tự Nổ đợt mở đầu; số liệu đòn Tàu (9 đòn); EXP người chơi mỗi quái.
 - Lý do config thành tích ghi 8/16/24 mà wiki 16/31/46 (xem Thưởng).
 - Loại tháp trong LOC mà wiki không ghi: Lỗ Đen (black_hole_tower), Máy tính (defence/computer).
+
+### Đợt 5: trùm sóng thật + Tàu Ngoài Hành Tinh (js/defence4.js, js/bosses/boss_alien_ship.js, data/sk-ship.js; kiểm test/soulknight-defence.js mục "ĐỢT 5")
+- Trùm sóng: 3-3 boss21 (1200), 6-3 boss06 (960), 9-3 boss05 (960) sinh ở cổng đỏ bằng AI trùm thường; tiến về Đá Phép bằng 1/4 tốc, chạm Đá thì chết và Đá mất ceil(máu/10) tối đa 20 [ƯỚC LƯỢNG hệ số tiến]. Hạ trùm rơi 8 Xu Sao + 1 lượt hồi sinh.
+- Tàu 12-3 (boss_alien_ship): thân 500.000 + 4 bộ phận x 85.000 [WIKI]; prefab alien_carrier_root + đạn gốc cắt bằng tools/defence/export_ship.py (vẽ x0,42). Đòn và số theo wiki Alien_Aircraft_Carrier/Tactics; mỗi bộ phận vỡ: mất đòn của nó, gọi 3/4/5/5 quái Tàu Vũ Trụ; còn bộ phận thì thân bất khả xâm phạm; hạ thân thì Tàu rơi xuống Đá Phép rồi chết thật, ván thắng.
+- Số [ƯỚC LƯỢNG]: nhịp nghỉ, tốc đạn / quay, khiên bộ phận, thời gian rơi, vệt oanh tạc. Còn thiếu: GAPS.md mục Thần Điện.
 
 ## 2g. Chỉ Huy Nhỏ (Little Commander, Mode/Troop, season/Troop)
 

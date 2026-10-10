@@ -1,0 +1,34 @@
+{
+ "bundles": [
+  "boss/boss_abyssal_submariner",
+  "bullet",
+  "common"
+ ],
+ "sprites": [
+  "^(ShadowStroke|b_naval_mine|b_torpedo|e_seabed_mob0_0|e_seabed_mob0_1|e_seabed_mob0_10|e_seabed_mob0_11|e_seabed_mob0_12|e_seabed_mob0_13|e_seabed_mob0_14|e_seabed_mob0_15|e_seabed_mob0_16|e_seabed_mob0_2|e_seabed_mob0_3|e_seabed_mob0_4|e_seabed_mob0_5|e_seabed_mob0_6|e_seabed_mob0_7|e_seabed_mob0_8|e_seabed_mob0_9|e_seabed_mob1_0|e_seabed_mob1_1|e_seabed_mob1_10|e_seabed_mob1_11|e_seabed_mob1_12|e_seabed_mob1_13|e_seabed_mob1_14|e_seabed_mob1_15|e_seabed_mob1_16|e_seabed_mob1_2|e_seabed_mob1_3|e_seabed_mob1_4|e_seabed_mob1_5|e_seabed_mob1_6|e_seabed_mob1_7|e_seabed_mob1_8|e_seabed_mob1_9|effect04_20|sonar_lock_icon|summone_seabed_mob0_weapon|summone_seabed_mob1_weapon)$",
+  "^(biaoqing_14|bullet_107|bullet_109|bullet_26|bullet_29|bullet_35|bullet_85|bullet_93|bullet_96|bullet_97|effect04_0|effect04_13|effect04_14|effect04_15|effect04_16|effect04_17|effect04_18|effect_explode_0|effect_explode_1|effect_explode_2|effect_explode_3|effect_explode_4|effect_explode_5|effect_explode_6|effect_explode_7|effect_explode_8|effect_explode_9|effect_nuclear_explode_0|effect_nuclear_explode_1|effect_nuclear_explode_10|effect_nuclear_explode_2|effect_nuclear_explode_3|effect_nuclear_explode_4|effect_nuclear_explode_5|effect_nuclear_explode_6|effect_nuclear_explode_7|effect_nuclear_explode_8|effect_nuclear_explode_9|shadow3|texiao_01|texture_c4)$",
+  "^(biaoqing_19)$"
+ ],
+ "png_anims": {
+  "bossui_boss_abyssal_submariner_img": {
+   "dir": "boss/boss_abyssal_submariner",
+   "frames": [
+    "boss_abyssal_submariner_img"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
+  },
+  "bossui_ui_12": {
+   "dir": "ui",
+   "frames": [
+    "ui_12"
+   ],
+   "fps": 1,
+   "loop": false,
+   "anchor": "center",
+   "register": false
+  }
+ }
+}

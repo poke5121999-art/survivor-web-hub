@@ -6,7 +6,7 @@
 //   SK.factorsTick(G,p,dt) mỗi nhịp updatePlayer: năng lượng vô hạn, hồi HP dưới nửa, hồi phục -50%, Càng đánh càng hăng.
 //   SK.factorsEnemyTick(G,e,dt) mỗi nhịp updateEnemy: địch hăng (hồi chiêu nhanh), thỉnh thoảng choáng.
 // Con số lấy từ mô tả gốc ("gấp đôi", "-50%", "+1") ghi [LOC task/<khoá>_desc]; chỗ mô tả không nói số ghi [ƯỚC LƯỢNG].
-// Nhân tố gốc chưa làm (cần đối tượng/phòng mới, không có bản web): xem GAPS ở cuối tệp — không có trong danh sách chọn.
+// 29 nhân tố cần hệ thống riêng (may mắn, phòng thêm, thú cưỡi, hồi sinh...) đăng ký thêm ở js/factors2.js.
 (function () {
   'use strict';
   const SK = window.SK, DS = SK.DS;
@@ -240,9 +240,5 @@
     return e;
   };
 
-  // ---------------------------------------------------------------- GAPS: nhân tố gốc chưa làm
-  // Cần đối tượng/phòng/hệ thống mới, chưa có ở web: AggressiveEnemy dùng tạm hồi chiêu; còn lại BadLuck/GoodLuck (không có điểm may mắn),
-  // BlackFog, BombGift, BoxMutation, Dejavu, SleepWalking, EnemyBuffImmune (không có hệ debuff lên quái), EnemyFlash, EnemyReborn,
-  // EnemySplit, Exception, FullHouse, LongMap, WrongConfig, GainMount, GainWeapon, WeaponEquip, ReforgeWeapon, HugePet, MultiStatue,
-  // MelleWeaken, Painless, RandomCharactor, RebornTwice, TimeDistortion, TrackingLaser, WeaponOverheating, SuperFactor.
+  // 29 nhân tố gốc còn lại (may mắn, khí độc, phòng thêm, thú cưỡi, hồi sinh...) nằm ở js/factors2.js; chỗ làm gần đúng ghi ở tools/polish/GAPS.md.
 })();

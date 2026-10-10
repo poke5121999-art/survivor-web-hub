@@ -67,6 +67,15 @@
     };
     // Sau animation hiện tại chạy tiếp `name` (vòng lặp nếu loop)
     I.queue = function (name, loop) { st.addAnimation(0, name, !!loop, 0); };
+    // Lớp phụ (Animator nhiều layer của Unity): chạy `name` trên track `tr` (>=1) đè lên track 0, timeScale = speed của state
+    I.playOn = function (tr, name, loop, scale) {
+      if (!data.findAnimation(name)) { if (SK.warnOnce) SK.warnOnce('spa' + name, 'spine animation ' + name + ' missing'); return null; }
+      const t = st.setAnimation(tr, name, !!loop);
+      if (scale) t.timeScale = scale;
+      return t;
+    };
+    I.doneOn = tr => { const t = st.getCurrent(tr); return !t || (!t.loop && t.isComplete()); };
+    I.clearTrack = tr => st.clearTrack(tr);
     I.time = () => { const t = st.getCurrent(0); return t ? t.trackTime : 0; };
     I.done = () => { const t = st.getCurrent(0); return !t || (!t.loop && t.isComplete()); };
     I.update = function (dt) {

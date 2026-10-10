@@ -219,7 +219,7 @@ async function until(p, fn, arg, ms) {
     const l33 = SK.defence.waveList(G, 3, 2), l32 = SK.defence.waveList(G, 3, 1), l66 = SK.defence.waveList(G, 6, 2), l43 = SK.defence.waveList(G, 4, 2);
     return { b33: l33.filter(q => q.boss).length, b32: l32.filter(q => q.boss).length, b63: l66.filter(q => q.boss).length, b43: l43.filter(q => q.boss).length, al: l43.filter(q => q.alien).length, hp: [3, 6, 9, 12].map(z => SK.DEFENCE.bossZones[z]).join(',') };
   });
-  check('Đợt BOSS 3-3 / 6-3 có trùm sóng, 3-2 / 4-3 không; Đợt Lớn có quái Phi Thuyền', boss.b33 === 1 && boss.b63 === 1 && boss.b32 === 0 && boss.b43 === 0 && boss.al >= 1 && boss.hp === '300,600,900,1200', JSON.stringify(boss));
+  check('Đợt BOSS 3-3 / 6-3 có trùm sóng, 3-2 / 4-3 không; Đợt Lớn có quái Phi Thuyền', boss.b33 === 1 && boss.b63 === 1 && boss.b32 === 0 && boss.b43 === 0 && boss.al >= 1 && boss.hp === '1200,960,960,500000', JSON.stringify(boss));
   const win = await ev(async () => {
     const G = SK.G, d = G.defence;
     for (const e of G.enemies) { e.dwave = false; e.st = 'dead'; e.hp = 0; }
@@ -715,6 +715,177 @@ async function until(p, fn, arg, ms) {
   await sleep(300);
   const ls2 = await ev(() => ({ state: SK_GAME.state, over: !document.getElementById('sk-over').hidden, text: document.getElementById('sk-over-info').textContent }));
   check('ngã gục (hết lượt) rồi quái thật chạm Đá Phép: Đá vỡ -> thua, hiện màn thua kèm thưởng ngọc', ls.before === 'stage' && ls.downed && ls.lost && ls2.state === 'dead' && ls2.over && /Đá Phép đã vỡ/.test(ls2.text) && /ngọc/.test(ls2.text), JSON.stringify([ls, ls2]));
+
+  // ================= ĐỢT 5: trùm sóng thật 3-3 / 6-3 / 9-3 và Tàu Ngoài Hành Tinh 12-3 =================
+  // Ép chặng bằng d.zone / d.wave / d.phase (như các mục trên), rồi để lõi tự đếm ngược, bốc danh sách, sinh trùm ở cổng đỏ.
+  const toBoss = async (seed, zone) => {
+    await fresh(seed, true);
+    await ev(z => { const G = SK.G, d = G.defence, p = G.player; SK_GAME.debug.god(true); p.hp = p.hpMax = 9999; p.armor = p.armorMax = 999; d.zone = z; d.wave = 2; d.phase = 'wait'; d.timer = 0.1; }, zone);
+    await until(p, () => SK.G.defence.phase === 'fight', null, 8000);
+    await ev(() => { const d = SK.G.defence; d.queue = d.queue.filter(q => q.boss); });
+    await until(p, () => SK.G.enemies.some(e => e.bossKey && e.dboss), null, 8000);
+    await ev(() => { const G = SK.G, d = G.defence; for (const q of G.enemies) if (q.dwave && !q.bossKey && q.st !== 'dead') { q.st = 'dead'; q.hp = 0; q.dwave = false; } d.stone.hp = d.stone.max; });
+  };
+  const WB = { 3: ['boss21', 'Đĩa Nổi Laser', 1200], 6: ['boss06', 'Zulan', 960], 9: ['boss05', 'Wackern', 960] };
+  const wbRes = [];
+  for (const z of [3, 6, 9]) {
+    await toBoss(50 + z, z);
+    const r = await ev(() => {
+      const G = SK.G, d = G.defence, e = G.enemies.find(q => q.bossKey && q.dboss), g = d.gates.map(q => Math.hypot(q.x - e.x, q.y - e.y));
+      const list = SK.defence.waveList(G, d.zone, 2).filter(q => q.boss).map(q => q.id);
+      return { id: e.id, hp: e.hpMax, cur: e.hp, dwave: e.dwave, near: Math.min(...g), walk: e.def.walk, zone: d.zone, list: list.join(','), adv: SK.DEFENCE.bossAdvance, n: G.enemies.filter(q => q.bossKey).length };
+    });
+    wbRes.push(z + ':' + r.id);
+    check('chặng ' + z + '-3: trùm sóng đúng loại ' + WB[z][0] + ' (' + WB[z][1] + '), máu ' + WB[z][2] + ' [WIKI], sinh ở cổng đỏ, danh sách đợt ghi đúng trùm, chỉ 1 trùm',
+      r.id === WB[z][0] && r.hp === WB[z][2] && r.cur === WB[z][2] && r.dwave && r.near < 20 && r.walk === false && r.list === WB[z][0] && r.n === 1, JSON.stringify(r));
+    if (z === 3) {
+      // trùm tự đánh (đạn thật của AI trùm) và tiến dần về Đá Phép, đứng yên khi ra đòn
+      const m0 = await ev(() => { const e = SK.G.enemies.find(q => q.bossKey); return { x: e.x, y: e.y, d: Math.hypot(e.x - SK.G.defence.stoneAt.x, e.y - SK.G.defence.stoneAt.y) }; });
+      await sleep(3500);
+      const m1 = await ev(() => { const G = SK.G, e = G.enemies.find(q => q.bossKey); return { d: Math.hypot(e.x - G.defence.stoneAt.x, e.y - G.defence.stoneAt.y), used: Object.keys(e.used).length, atk: e.atk, intro: e.arena.introT, stone: G.defence.stone.hp }; });
+      check('trùm sóng đi về phía Đá Phép (cách ' + Math.round(m0.d) + ' -> ' + Math.round(m1.d) + ' px) và dùng đòn thật của AI trùm, Đá Phép chưa mất máu', m1.d < m0.d - 5 && m1.used >= 1 && m1.stone === 20, JSON.stringify([m0, m1]));
+      await p.screenshot({ path: path.join(SHOTS, '18-wave-boss-ufo.png') });
+      // hạ trùm: đường thật (SK.hurtEnemy -> enemyKill) rơi 8 Xu Sao, hết đợt sang chặng 4
+      const kd = await ev(async () => {
+        const G = SK.G, d = G.defence, e = G.enemies.find(q => q.bossKey), c0 = d.drops.length, r0 = d.revives;
+        SK.hurtEnemy(G, e, 1e6, false, 0, 1);
+        await new Promise(r => setTimeout(r, 400));
+        const v = d.drops.slice(c0).map(q => q.v);
+        return { dead: e.st === 'dead', v: v.join(','), zone: d.zone, wave: d.wave, revives: d.revives - r0 };
+      });
+      check('hạ trùm sóng 3-3: rơi 8 Xu Sao, thêm 1 lượt hồi sinh, hết đợt thì sang chặng 4', kd.dead && kd.v === '8' && kd.zone === 4 && kd.wave === 0 && kd.revives === 1, JSON.stringify(kd));
+    }
+  }
+  check('3 chặng trùm sóng bốc ba trùm khác nhau theo thứ tự UFO -> Zulan -> Wackern', wbRes.join(' ') === '3:boss21 6:boss06 9:boss05', wbRes.join(' '));
+
+  // ---- Tàu Ngoài Hành Tinh 12-3: 4 bộ phận, máu [WIKI] 500.000 + 4 x 85.000, mỗi bộ phận vỡ đổi hành vi, hạ Tàu thì thắng
+  await ev(() => { window.__re = null; SK.on('runEnd', (g, info) => { window.__re = info; }); });
+  await toBoss(61, 12);
+  const sh0 = await ev(() => {
+    const G = SK.G, e = G.enemies.find(q => q.bossKey === 'boss_alien_ship'), S = SK.SHIP, P = e.parts;
+    const hit = SK.hurtEnemy(G, e, 1e7, false, 0, 1);
+    return { n: P.length, hp: P.map(q => q.hpMax).join(','), body: e.hpMax, cur: e.hp, hit, wave: e.dboss && e.dwave, keys: P.map(q => q.spec.key).join(','), in: G.enemies.filter(q => q.shipPart).length,
+      atk: S.attacks(e).map(a => a.id + '@' + a.src).join(','), room: e.room === G.map.rooms[0], hold: e.hold, tbl: [S.bodyHp, S.partHp].join(',') };
+  });
+  check('12-3: sinh Tàu Ngoài Hành Tinh (boss_alien_ship) với 4 bộ phận, thân 500000, mỗi bộ phận 85000 [WIKI], thân không ăn sát thương khi còn bộ phận',
+    sh0.n === 4 && sh0.hp === '85000,85000,85000,85000' && sh0.body === 500000 && sh0.cur === 500000 && sh0.hit === false && sh0.wave && sh0.in === 4 && sh0.keys === 'lg,rg,ll,rl' && sh0.tbl === '500000,85000', JSON.stringify(sh0));
+  check('đủ 4 bộ phận: có đòn lõi (4), súng trái (2), súng phải (2), laser bên từ 2 tháp', sh0.atk === 'eye@core,missiles@core,sphere@core,bombard@core,concentric@lg,spiral@lg,streams@rg,cone@rg,side@ll,side@rl', sh0.atk);
+  await sleep(900);
+  await p.screenshot({ path: path.join(SHOTS, '19-ship.png') });
+  // khiên bộ phận: sát thương trừ vào khiên trước
+  const shd = await ev(() => {
+    const G = SK.G, e = G.enemies.find(q => q.bossKey === 'boss_alien_ship'), q = e.parts[0];
+    q.shield = 1000; SK.hurtEnemy(G, q, 400, false, 0, 1); const a = { sh: q.shield, hp: q.hp };
+    SK.hurtEnemy(G, q, 700, false, 0, 1); const b = { sh: q.shield, hp: q.hp, br: e.ship.shieldBroken };
+    SK.hurtEnemy(G, q, 1000, false, 0, 1); return { a, b, hp2: q.hp };
+  });
+  check('khiên bộ phận: 400 trừ khiên (1000 -> 600), 700 phá khiên mà không chạm máu, rồi mới trừ máu (84000)', shd.a.sh === 600 && shd.a.hp === 85000 && shd.b.sh === 0 && shd.b.hp === 85000 && shd.b.br === 1 && shd.hp2 === 84000, JSON.stringify(shd));
+  // mỗi bộ phận vỡ: mất đòn của nó, gọi 3/4/5/5 quái; đòn có thật chạy được trước khi vỡ
+  const seq = [];
+  const kill = async key => {
+    const before = await ev(k => {
+      const G = SK.G, e = G.enemies.find(q => q.bossKey === 'boss_alien_ship'), sh = e.ship; G.bullets.forEach(b => { b.dead = true; });
+      sh.log.length = 0; sh.gcd = { lg: 0, rg: 0 }; sh.sideCd = 0; sh.coreCd = 99; sh.busy = {};
+      return { n: G.enemies.filter(q => q.shipSummon && q.st !== 'dead').length };
+    }, key);
+    await sleep(900);
+    const ran = await ev(() => SK.G.enemies.find(q => q.bossKey === 'boss_alien_ship').ship.log.slice());
+    const r = await ev(k => {
+      const G = SK.G, e = G.enemies.find(q => q.bossKey === 'boss_alien_ship'), sh = e.ship, q = e.parts.find(x => x.spec.key === k);
+      q.shield = 0; const sm0 = sh.summonLog.length, mn = G.enemies.filter(x => x.shipSummon).length;
+      SK.hurtEnemy(G, q, 1e6, false, 0, 1);
+      sh.log.length = 0; sh.gcd = { lg: 0, rg: 0 }; sh.sideCd = 0; sh.busy = {}; G.bullets.forEach(b => { b.dead = true; });
+      const res = { dead: q.partDead, st: q.st, att: SK.SHIP.attacks(e).map(a => a.id + '@' + a.src).join(','), sum: sh.summonLog.slice(sm0).join(','), mn: G.enemies.filter(x => x.shipSummon).length - mn,
+        ov: !!e.R.ov[e.nodes[q.spec.node + '/img/body']], all: sh.allDown };
+      G.enemies.filter(x => x.shipSummon).forEach(x => { x.st = 'dead'; x.hp = 0; x.dwave = false; });   // dọn quái gọi để chúng không chạy tới làm vỡ Đá Phép giữa bài thử
+      return res;
+    }, key);
+    await sleep(1100);
+    const after = await ev(() => SK.G.enemies.find(q => q.bossKey === 'boss_alien_ship').ship.log.slice());
+    seq.push([key, ran, after, r]);
+    return { ran, after, r };
+  };
+  const s5k1 = await kill('lg');
+  check('vỡ súng trái: gọi 3 quái Tàu Vũ Trụ, hình bộ phận đổi sang hình hỏng, mất vòng sóng + xoắn ốc (trước đó có chạy: ' + s5k1.ran.join('/') + ')',
+    s5k1.r.dead && s5k1.r.st === 'dead' && s5k1.r.sum === '3' && s5k1.r.mn === 3 && s5k1.r.ov && !/concentric|spiral/.test(s5k1.r.att) && /streams@rg,cone@rg,side@ll,side@rl/.test(s5k1.r.att) && s5k1.ran.some(x => /concentric|spiral/.test(x)) && !s5k1.after.some(x => /concentric|spiral/.test(x)), JSON.stringify(s5k1));
+  const s5k2 = await kill('rg');
+  check('vỡ súng phải: gọi 4 quái, mất luồng đạn vuông + hình quạt 120° (trước đó có chạy: ' + s5k2.ran.join('/') + ')',
+    s5k2.r.dead && s5k2.r.sum === '4' && s5k2.r.mn === 4 && !/streams|cone/.test(s5k2.r.att) && /side@ll,side@rl/.test(s5k2.r.att) && s5k2.ran.some(x => /streams|cone/.test(x)) && !s5k2.after.some(x => /streams|cone/.test(x)), JSON.stringify(s5k2));
+  const s5k3 = await kill('ll');
+  check('vỡ tháp laser trái: gọi 5 quái, laser bên bên trái bắn từ cổng thân thay tháp (laser bên vẫn còn trong pha đầu)',
+    s5k3.r.dead && s5k3.r.sum === '5' && s5k3.r.mn === 5 && /side@chassis-l,side@rl/.test(s5k3.r.att) && s5k3.ran.includes('side') && s5k3.after.includes('side') && !s5k3.r.all, JSON.stringify(s5k3));
+  const s5k4 = await kill('rl');
+  check('vỡ tháp laser phải (bộ phận cuối): gọi tối đa 5 quái, hết laser bên, chỉ còn 4 đòn lõi, thân lộ ra',
+    s5k4.r.dead && s5k4.r.sum === '5' && s5k4.r.mn === 5 && s5k4.r.att === 'eye@core,missiles@core,sphere@core,bombard@core' && !s5k4.after.includes('side') && s5k4.r.all, JSON.stringify(s5k4));
+  await ev(() => { const G = SK.G; G.enemies.filter(q => q.shipSummon).forEach(q => { q.st = 'dead'; q.hp = 0; q.dwave = false; }); });
+  await p.screenshot({ path: path.join(SHOTS, '20-ship-open.png') });
+  // 4 đòn lõi chạy thật, từng đòn; đo sát thương lên người chơi thật (tắt bất tử)
+  const coreRun = (id, off) => ev(async a => {
+    const [id2, off2] = a, G = SK.G, e = G.enemies.find(q => q.bossKey === 'boss_alien_ship'), sh = e.ship, p = G.player; G.bullets.forEach(b => { b.dead = true; });
+    sh.coreCd = 99; sh.bomb = null; e.hidden = false; e.y = (e.room.y0 + 5.5) * SK.TILE; const y0 = e.y, x0 = e.x;
+    SK_GAME.debug.god(false); p.god = false; p.hp = p.hpMax = 9999; p.armor = p.armorMax = 0; p.invT = 0;
+    const n0 = sh.log.length, objs0 = e.arena.objs.length;
+    SK.SHIP.start(id2, G, e);
+    let maxB = 0, maxO = 0, y1 = y0, hid = false, hpMin = 9999;
+    for (let i = 0; i < 70; i++) {
+      await new Promise(r => setTimeout(r, 60));
+      maxB = Math.max(maxB, G.bullets.length); maxO = Math.max(maxO, e.arena.objs.length - objs0); y1 = Math.max(y1, e.y); hid = hid || e.hidden;
+      if (id2 === 'eye') { p.x = e.x; p.y = e.y + 70; }
+      if (id2 === 'bombard') { p.x = x0 + off2; p.y = y0 + 90; }
+      if (id2 === 'sphere' || id2 === 'missiles') { p.x = e.x + 300; p.y = e.y + 150; }   // đứng xa: chỉ đếm đạn
+      hpMin = Math.min(hpMin, p.hp); p.invT = 0;
+    }
+    const out = { logged: sh.log.slice(n0).join(','), maxB, maxO, dy: Math.round(y1 - y0), hid, lost: 9999 - hpMin };
+    SK_GAME.debug.god(true); p.hp = p.hpMax = 9999; G.bullets.forEach(b => { b.dead = true; });
+    return out;
+  }, [id, off]);
+  const core = { eye: await coreRun('eye', 0), missiles: await coreRun('missiles', 0), sphere: await coreRun('sphere', 0) };
+  await until(p, () => { const e = SK.G.enemies.find(q => q.bossKey === 'boss_alien_ship'); return e && !e.ship.bomb && !e.hidden && e.ship.busy.eye <= 0 && !(e.ship.busy.sphere > 0); }, null, 15000);
+  core.bombLane = await coreRun('bombard', 0);
+  await until(p, () => { const e = SK.G.enemies.find(q => q.bossKey === 'boss_alien_ship'); return e && !e.ship.bomb && !e.hidden; }, null, 15000);
+  core.bombSafe = await coreRun('bombard', 36);
+  check('laser mắt chạy thật: có tia (vật sàn đấu), đứng dưới tia thì mất máu (' + core.eye.lost + ')', core.eye.logged === 'eye' && core.eye.maxO >= 2 && core.eye.lost > 0, JSON.stringify(core.eye));
+  check('6 tên lửa tầm nhiệt (đạn thật, >= 6 đạn) và cầu mở rộng (28 viên)', core.missiles.logged === 'missiles' && core.missiles.maxB >= 6 && core.sphere.logged === 'sphere' && core.sphere.maxB >= 28, JSON.stringify([core.missiles, core.sphere]));
+  check('oanh tạc: tàu bay ra khỏi bản đồ rồi quay lại; đứng giữa vệt nổ thì trúng, đứng ở vệt đỏ an toàn thì không',
+    core.bombLane.logged === 'bombard' && core.bombLane.dy > 100 && core.bombLane.hid && core.bombLane.lost > 0 && core.bombSafe.hid && core.bombSafe.lost === 0, JSON.stringify([core.bombLane, core.bombSafe]));
+  await ev(() => { const G = SK.G, e = G.enemies.find(q => q.bossKey === 'boss_alien_ship'); G.bullets.forEach(b => { b.dead = true; }); e.ship.cancelAll = true; e.ship.busy = {}; });
+  await until(p, () => { const e = SK.G.enemies.find(q => q.bossKey === 'boss_alien_ship'); return e && !e.ship.bomb && !e.hidden; }, null, 12000);
+  // dưới 50% máu thân lần đầu: +400 năng lượng
+  const en = await ev(async () => {
+    const G = SK.G, e = G.enemies.find(q => q.bossKey === 'boss_alien_ship'), pl = G.player; e.ship.coreCd = 99; G.bullets.forEach(b => { b.dead = true; });
+    pl.energyMax = 1000; pl.energy = 10; e.hp = e.hpMax * 0.49; await new Promise(r => setTimeout(r, 300));
+    const a = pl.energy; e.hp = e.hpMax * 0.45; await new Promise(r => setTimeout(r, 300));
+    return { a, b: pl.energy };
+  });
+  check('thân dưới 50% máu lần đầu: người chơi +400 năng lượng (10 -> 410), chỉ một lần', en.a === 410 && en.b === 410, JSON.stringify(en));
+  // hạ Tàu: rơi xuống Đá Phép rồi chết thật; đi qua đường thắng thật (runEnd.won)
+  const dn1 = await ev(async () => {
+    const G = SK.G, e = G.enemies.find(q => q.bossKey === 'boss_alien_ship'), d = G.defence;
+    e.ship.coreCd = 99; G.bullets.forEach(b => { b.dead = true; });
+    const before = { state: G.state, won: d.won };
+    SK.hurtEnemy(G, e, 1e7, false, 0, 1);
+    await new Promise(r => setTimeout(r, 700));
+    return { before, crash: !!e.ship.crash, hp: e.hp, dead: e.st === 'dead', state: G.state, re: window.__re };
+  });
+  check('hạ thân Tàu: Tàu rơi xuống Đá Phép (chưa chết ngay, chưa thắng ngay)', dn1.crash && dn1.hp === 1 && !dn1.dead && dn1.state === 'stage' && dn1.re === null, JSON.stringify(dn1));
+  await p.screenshot({ path: path.join(SHOTS, '21-ship-crash.png') });
+  await until(p, () => SK_GAME.state === 'victory', null, 9000);
+  const dn2 = await ev(() => { const G = SK.G, d = G.defence, e = G.enemies.find(q => q.bossKey === 'boss_alien_ship'); return { state: G.state, won: d.won, re: window.__re, win: !document.getElementById('sk-win').hidden, dead: e.st === 'dead', coin8: d.drops.some(q => q.v === 8), zone: d.zone, text: document.getElementById('sk-win-info').textContent }; });
+  check('Tàu chết thật thì thắng qua đường thắng của Thần Điện: runEnd.won === true, màn thắng hiện, thưởng ngọc có +850 hạ Tàu',
+    dn2.state === 'victory' && dn2.won && dn2.re && dn2.re.won === true && dn2.win && dn2.dead && dn2.zone === 12 && /ngọc/.test(dn2.text), JSON.stringify(dn2));
+  await p.screenshot({ path: path.join(SHOTS, '22-ship-win.png') });
+  // tháp bị đòn của trùm: đạn trùm (fire() ghi b.boss) và nổ trúng tháp
+  await toBoss(62, 3);
+  const tw = await ev(async () => {
+    const G = SK.G, d = G.defence, e = G.enemies.find(q => q.bossKey);
+    const r = SK.defence.place(G, 0, 'rage_gun_tower'); const a = d.towers[0].ally; const hp0 = a.hp;
+    G.bullets.forEach(b => { b.dead = true; }); e.hold = true; e.x = a.x; e.y = a.y - 40;
+    SK.BOSS_KIT.fire(G, e, 'bullet_e_72', a.x, a.y - 4, 0, { spd: 0, dmg: 6, life: 3, h: 4 });
+    await new Promise(r2 => setTimeout(r2, 300));
+    const hp1 = a.hp; SK.defence.hurtTowersIn(G, a.x, a.y, 10, 5);
+    return { ok: r.ok, hp0, hp1, hp2: a.hp };
+  });
+  check('đạn của trùm sóng trúng tháp thì tháp mất máu (60 -> ' + tw.hp1 + '); nổ / tia gọi hurtTowersIn cũng trừ máu (-> ' + tw.hp2 + ')', tw.ok && tw.hp1 < tw.hp0 && tw.hp2 === tw.hp1 - 5, JSON.stringify(tw));
 
   }
 
