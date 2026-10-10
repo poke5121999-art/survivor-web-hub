@@ -78,6 +78,7 @@
   }
 
   SK.petRegister('pet3', {
+    keep: true,   // đạn lọt qua con slime (không bị chặn); máu trừ ở hệ chung SK.petHp
     init(G, a) { a.lvl = 0; a.inv = 0; a.units = [a]; },
     tick(G, a, dt) {
       a.inv -= dt;

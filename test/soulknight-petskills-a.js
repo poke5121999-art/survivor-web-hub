@@ -98,7 +98,7 @@ const CASES = {
     await sleep(300);
     await shoot(p, 2); await sleep(300);
     const r = await p.evaluate(() => { const a = SK.G.pet; return { decoy: a.decoy, hp: a.hp, dmg: a.k.dmg, def: !!SK.PET_SKILLS.pet5 }; });
-    check('pet5 Dễ Thương Bùng Nổ: đã đăng ký, đánh dấu mồi, đạn quái không trừ HP thú (không có HP), cắn 2', r.decoy === true && r.hp === undefined && r.dmg === 2 && r.def, JSON.stringify(r));
+    check('pet5 Dễ Thương Bùng Nổ: đã đăng ký, đánh dấu mồi, đạn quái trúng thì trừ HP ở hệ máu chung (10 - 2 = 8), cắn 2', r.decoy === true && r.hp === 8 && r.dmg === 2 && r.def, JSON.stringify(r));
   },
   async pet6(p) {
     const r = await p.evaluate(() => {
@@ -122,11 +122,11 @@ const CASES = {
     const a1 = await p.evaluate(() => SK.G.pet.hp);
     check('pet7: trúng đạn 3 thì HP 12 -> 9', a1 === 9, 'hp ' + a1);
     for (let i = 0; i < 3; i++) { await shoot(p, 3); await sleep(120); }
-    const a2 = await p.evaluate(() => ({ hp: SK.G.pet.hp, hidden: SK.G.pet.hidden }));
-    check('pet7: hết HP thì nằm nghỉ', a2.hp === 0 && a2.hidden === true, JSON.stringify(a2));
+    const a2 = await p.evaluate(() => ({ hp: SK.G.pet.hp, rest: SK.G.pet.rest > 0 }));
+    check('pet7: máu về sàn 1 thì nằm nghỉ (hệ máu chung 14~16 s)', a2.hp === 1 && a2.rest === true, JSON.stringify(a2));
     await p.evaluate(() => SK_GAME.debug.stage('1-2')); await sleep(500);
-    const a3 = await p.evaluate(() => ({ hp: SK.G.pet.hp, hidden: !!SK.G.pet.hidden }));
-    check('pet7: sang ải mới hồi đầy 12', a3.hp === 12 && !a3.hidden, JSON.stringify(a3));
+    const a3 = await p.evaluate(() => ({ hp: SK.G.pet.hp, hidden: !!SK.G.pet.hidden, rest: SK.G.pet.rest }));
+    check('pet7: sang ải mới hồi đầy 12, hết nghỉ', a3.hp === 12 && !a3.hidden && a3.rest === 0, JSON.stringify(a3));
   }
 };
 

@@ -12,6 +12,7 @@
   SK.petRegister('pet9', {
     init(G, a) { a.baseCd = a.k.cd; a.big = false; a.bigT = 0; a.skillCd = 3; a.bites = 0; a.casts = 0; },
     stage(G, a) { if (a.big) end(a); },
+    onRest(G, a) { if (a.big) end(a); },   // nghỉ (hệ máu chung SK.petHp): thôi to, thu nhỏ về như cũ
     tick(G, a, dt) {
       if (a.big) {
         a.bigT -= dt;

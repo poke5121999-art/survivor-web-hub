@@ -16,6 +16,7 @@
   });
 
   SK.petRegister('pet52', {
+    ownHp: true,   // a.hp là nhiên liệu cháy của riêng pet này, không phải máu hệ chung
     init(G, a) {
       const c = a.info.ctl;
       a.hpMax = a.hp = a.info.attr.max_hp || 20; a.burn = false; a.burnCd = 0; a.shootT = 0; a.spin = 0; a.balls = 0; a.frozen = 0;

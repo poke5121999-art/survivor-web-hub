@@ -70,7 +70,7 @@ async function until(p, fn, arg, ms) {
     }));
     check('pet49: ngủ thì chế giễu, đạn địch quanh heo quay về phía heo (vx < 0)', r.vx < 0 && r.taunted, JSON.stringify(r));
     r = await p.evaluate(() => new Promise(res => {
-      const G = SK.G, a = G.pet; a.sleepT = 0; const k0 = { spd: a.k.spd, cd: a.k.cd };
+      const G = SK.G, a = G.pet; a.sleepT = 0; a.rest = 0; a.hp = a.hpMax; a.hits = 0; const k0 = { spd: a.k.spd, cd: a.k.cd };
       for (let i = 0; i < 8; i++) SK.spawnBullet86(G, 'e', 'bullet_e_1', a.x, a.y - 7, 0, { dmg: 1, spd: 0, life: 3, h: 6 });
       setTimeout(() => res({ angry: a.angry, hits: a.hits, hp: a.hp, spd0: k0.spd, spd: a.k.spd, cd0: k0.cd, cd: a.k.cd }), 200);
     }));

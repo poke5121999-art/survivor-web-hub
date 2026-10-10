@@ -57,20 +57,21 @@ async function until(p, fn, arg, ms) {
     const shoot = (dmg) => p.evaluate(dmg => new Promise(res => {
       const a = SK.G.pet, b = { side: 'e', kind: 'orb', x: a.x, y: a.y - 4, h: 2, vx: 0, vy: 0, ang: 0, dmg, repel: 0, r: 3, life: 5 };
       SK.G.bullets.push(b);
-      const hp0 = a.hp, def0 = a.defT;
-      requestAnimationFrame(() => requestAnimationFrame(() => res({ gone: !SK.G.bullets.includes(b) || b.dead, hp0, hp: a.hp, def0, def: a.defT, st: a.st })));
+      const hp0 = a.hp;
+      requestAnimationFrame(() => requestAnimationFrame(() => res({ gone: !SK.G.bullets.includes(b) || b.dead, hp0, hp: a.hp, rest: a.restFor, st: a.st })));
     }), dmg);
-    const s0 = await p.evaluate(() => { const a = SK.G.pet; a.hp = 3; return { hp: a.hp, max: a.hpMax }; });
+    const s0 = await p.evaluate(() => { const a = SK.G.pet; a.rest = 0; a.hp = 5; a.cd = 1e9; return { hp: a.hp, max: a.hpMax }; });
     check('pet26 HP gốc = attr.max_hp 10', s0.max === 10, JSON.stringify(s0));
     const r1 = await shoot(2);
-    check('pet26 trúng đạn 2: HP 3 → 1, đạn biến mất, chưa rút mai', r1.gone && r1.hp === 1 && r1.def === 0, JSON.stringify(r1));
-    const r2 = await shoot(2);
-    check('pet26 HP về 0 thì vào tư thế defense', r2.gone && r2.hp === 0 && r2.def > 4 && r2.st === 'defense', JSON.stringify(r2));
+    check('pet26 trúng đạn 2: HP 5 → 3, đạn biến mất, chưa rút mai', r1.gone && r1.hp === 3 && !(r1.rest > 0) && r1.st !== 'defense', JSON.stringify(r1));
+    const r2 = await shoot(9);
+    check('pet26 trúng đạn mạnh: máu về sàn 1 (không về 0) thì vào tư thế defense nghỉ 14~16 s', r2.gone && r2.hp === 1 && r2.rest >= 14 && r2.rest <= 16 && r2.st === 'defense', JSON.stringify(r2));
     const r3 = await shoot(9);
-    check('pet26 đang rút mai: chặn đạn mạnh 9, HP không đổi', r3.gone && r3.hp === 0 && r3.st === 'defense', JSON.stringify(r3));
-    await until(p, () => SK.G.pet.defT <= 0, null, 20000);
-    const r4 = await p.evaluate(() => ({ hp: SK.G.pet.hp, def: SK.G.pet.defT, st: SK.G.pet.st }));
-    check('pet26 hết giờ (5 s trò chơi) thì ra khỏi mai, HP đầy lại', r4.def <= 0 && r4.hp === 10 && r4.st !== 'defense', JSON.stringify(r4));
+    check('pet26 đang rút mai: chặn đạn mạnh 9, HP không đổi', r3.gone && r3.hp === 1 && r3.st === 'defense', JSON.stringify(r3));
+    await p.evaluate(() => { SK.G.pet.rest = 0.3; });
+    await until(p, () => !(SK.G.pet.rest > 0), null, 20000);
+    const r4 = await p.evaluate(() => ({ hp: SK.G.pet.hp, rest: SK.G.pet.rest, st: SK.G.pet.st }));
+    check('pet26 hết giờ nghỉ thì ra khỏi mai, HP đầy lại', !(r4.rest > 0) && r4.hp === 10 && r4.st !== 'defense', JSON.stringify(r4));
 
     // ---- pet27: tìm Tế Bào (material_cell)
     check('pet27 vào trận', await spawn('pet27'));

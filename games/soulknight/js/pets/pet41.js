@@ -2,7 +2,7 @@
 // riêng suốt ván: Đậu Đỏ (Thủ, HP, Thể Hình), Trứng Muối (cắn kèm bắn thêm đạn), Nhân Thịt (bạo kích, công tốc, tốc chạy),
 // Nấm Hương (cắn có xác suất gây hiệu ứng nguyên tố ngẫu nhiên). Mô tả gốc để trống các số {0}..{7} (bảng số nằm trong
 // prefab/skill chưa đọc được) nên mọi con số dưới đây là [ƯỚC LƯỢNG]; còn dmg 2, atk_cd 3, max_hp 10 là [ĐO ctl / attr].
-// Pet chưa có hệ máu/phòng thủ trong web nên a.hp/a.hpMax/a.armor chỉ là số liệu riêng của tệp này (thể hình thì vẽ to thật).
+// Máu nhận đòn qua hệ chung SK.petHp (js/pets.js); a.armor trừ vào mỗi đòn (thể hình thì vẽ to thật).
 (function () {
   'use strict';
   if (!window.SK || !SK.petRegister) return;
@@ -53,6 +53,7 @@
       if (a.flavor === 'mushroom' && SK.rand() < K.elemChance) elem(G, e, ['fire', 'poison', 'ice', 'ele'][Math.floor(SK.rand() * 4)]);
       return dmg;
     },
+    hurt(G, a, dmg) { return Math.max(1, dmg - (a.armor || 0)); },   // Thủ của vị Đậu Đỏ trừ vào mỗi đòn nhận (không dưới 1)
     stage(G, a) { a.scale = a.flavor === 'bean' ? K.size : undefined; }
   });
 })();

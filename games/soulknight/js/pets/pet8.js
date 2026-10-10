@@ -1,6 +1,5 @@
 // Thú cưng pet8 (Tap): "Nhấp Nhấp" — khi bị nhấp vào, HP hiện tại của Pet +1 [LOC pet_8_skill_0_desc].
-// HP riêng của pet: a.hp / a.hpMax (hpMax = [ĐO RoleAttributePet.max_hp] 10). Web chưa có sát thương lên pet nên HP chỉ tăng;
-// mô tả không nói trần nên +1 không bị chặn ở hpMax [ƯỚC LƯỢNG]. Nhấp = pointerdown trên màn chơi trúng hộp thân pet.
+// HP: a.hp / a.hpMax của hệ máu chung SK.petHp (hpMax = [ĐO RoleAttributePet.max_hp] 10); nhấp chỉ cộng thêm. Mô tả không nói trần nên +1 không bị chặn ở hpMax [ƯỚC LƯỢNG]. Nhấp = pointerdown trên màn chơi trúng hộp thân pet.
 (function () {
   'use strict';
   const SK = window.SK;
@@ -30,8 +29,7 @@
 
   SK.petRegister('pet8', {
     init(G, a) {
-      const at = (a.info && a.info.attr) || {};
-      a.hpMax = at.max_hp || 10; a.hp = a.hpMax; a.taps = 0;
+      a.taps = 0;
       bind();
     },
     tick(G, a, dt) { if (a.tapT > 0) a.tapT -= dt; return false; },

@@ -165,37 +165,86 @@
     spawnPets(G2);
   });
 
-  // Thú cưng từ cây: pets.js chỉ giữ một thú cưng chính (G.pet) nên con này là bạn đồng hành riêng, bám chủ cách một khoảng và cắn quái gần.
-  // Zongzi dùng prefab pet41; Hoa Mandala / Hoa Ăn Thịt dùng hình thân của prefab cây (số liệu sát thương từ wiki: 3 / 5 [WIKI]).
-  const COMP = { plant_datura: { dmg: 3, cd: 2, body: 'pet_datura_0' }, plant_eator: { dmg: 5, cd: 2, body: 'pet_eater_0' }, plant_zongzi: { dmg: 2, cd: 2, prefab: 'pet41' } };
+  // Thú cưng từ cây: pets.js chỉ giữ một thú cưng chính (G.pet) nên con này là bạn đồng hành riêng, bám chủ cách một khoảng; máu và nghỉ
+  // dùng chung hệ SK.petHp của pets.js [WIKI Pets / trang từng cây]. Số liệu wiki:
+  //   Hoa Mandala (Devil's Snare): 10 HP, bắn 3 viên hình quạt, mỗi viên 3 sát thương, gây Trúng Độc khi bạo kích; qua được khối / thùng.
+  //   Hoa Ăn Thịt (Titan Arum): 15 HP (thanh máu hiện, đỏ khi nghỉ), cắn 5 sát thương (8 khi bạo kích).
+  //   Bánh Ú Con (Zongzi Flower): 10 HP, dùng Súng Bánh Ú: loạt 3 lá, mỗi lá 3 sát thương, cách 0,1 s, nghỉ 0,25 s giữa loạt (0,5 s mỗi loạt; web: loạt 0,2 s + chờ 0,3 s).
+  // Hồi chiêu 2 s của pet [WIKI Pets]. [ƯỚC LƯỢNG]: xác suất bạo kích 20%, góc quạt 0,3 rad, tầm bắn 6 đv, tốc đạn 14 đv/s, tầm cắn 1,2 đv.
+  // Chưa làm: màu lá Súng Bánh Ú (đốt / điện / băng), Pet Buff, Gigantic Pet (GAPS).
+  const COMP = {
+    plant_datura: { hp: 10, cd: 2, body: 'pet_datura_0', shots: 3, fan: 0.3, dmg: 3, crit: 0.2, poison: true, range: 6 * U },
+    plant_eator: { hp: 15, cd: 2, body: 'pet_eater_0', dmg: 5, critDmg: 8, crit: 0.2, bar: true },
+    plant_zongzi: { hp: 10, cd: 0.3, prefab: 'pet41', shots: 3, burst: 3, gap: 0.1, dmg: 3, crit: 0, range: 6 * U }
+  };
+  const SHOT_SPD = 14;
   function spawnPets(G2) {
     const p = G2.player;
     if (!p || !p._gardenPets) return;
     p._gardenPets.forEach((pl, n) => {
       const c = COMP[pl]; if (!c) return;
-      const a = { x: p.x - 22 - n * 8, y: p.y + 6, face: 1, st: 'ide', t: 0, cd: 1.2, tgt: null, comp: c, plant: pl };
+      const a = { x: p.x - 22 - n * 8, y: p.y + 6, face: 1, st: 'ide', t: 0, cd: 1.2, tgt: null, comp: Object.assign({}, c), plant: pl, def: {}, bursts: 0, shotsLeft: 0, shotT: 0 };
+      SK.petHp.init(a, c.hp);
       G2.props.push({ x: a.x, y: a.y, gardenPet: a, update(G3, q, dt) { stepPet(G3, a, dt); q.x = a.x; q.y = a.y; }, draw(ctx) {
         if (c.prefab && D.prefabs[c.prefab]) SK.drawPrefab(ctx, D.prefabs[c.prefab], a.x, a.y, { state: a.st, t: a.t, flip: a.face < 0 });
         else SK.draw(ctx, c.body, a.x, a.y, { flip: a.face < 0 });
+        if (c.bar) {   // Hoa Ăn Thịt: thanh máu hiện, đỏ khi nghỉ
+          const w = 14, x = a.x - w / 2, y = a.y - 22;
+          ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(x - 1, y - 1, w + 2, 4);
+          ctx.fillStyle = a.rest > 0 ? '#e02020' : '#5fd35f'; ctx.fillRect(x, y, w * a.hp / a.hpMax, 2);
+        }
+        if (a.rest > 0) SK.text(ctx, 'z z', a.x + 4, a.y - 24, 7, '#cfe6ff', 'center', 'rgba(0,0,0,0.9)');
       } });
     });
   }
   SK.on('stageEnter', G2 => { if (G2.player && G2.player._gardenPets) spawnPets(G2); });
+  // Đạn của Hoa Mandala mang độc: chỉ khi bạo kích [WIKI]; Trúng Độc dùng debuff của skills.js (BuffPoison)
+  SK.on('enemyHit', (G2, e, dmg, crit) => {
+    const b = G2._hitBullet;
+    if (b && b.gdPoison && crit && SK.skillKit && SK.skillKit.debuff) { SK.skillKit.debuff(G2, e, 'poison'); b.gdPoisoned = true; }
+  });
+  function shoot(G3, a, e, n) {
+    const c = a.comp, base = Math.atan2(e.y - 4 - (a.y - 8), e.x - a.x), crit = SK.rand() < c.crit;
+    for (let i = 0; i < n; i++) {
+      const o = n > 1 ? (i - (n - 1) / 2) * c.fan : 0;
+      const b = SK.spawnBullet86(G3, 'p', 'bullet_0', a.x + a.face * 4, a.y - 8, base + o, { dmg: c.dmg, crit, repel: 1, spd: SHOT_SPD, h: 8, owner: a });
+      if (b && c.poison) b.gdPoison = true;
+    }
+    a.shots = (a.shots || 0) + n; a.volleys = (a.volleys || 0) + 1;
+  }
   function stepPet(G3, a, dt) {
-    const p = G3.player;
+    const p = G3.player, c = a.comp;
     a.t += dt; a.cd -= dt;
     if (!p || p.st === 'dead') { a.st = 'ide'; return; }
+    SK.petHp.scan(G3, a);
+    const resting = SK.petHp.tick(G3, a, dt);
     const dp = Math.hypot(p.x - a.x, p.y - a.y);
     if (dp > 20 * U) { a.x = p.x - 22; a.y = p.y + 6; a.tgt = null; return; }
-    let e = a.tgt;
+    let e = resting ? null : a.tgt;
+    if (resting) { a.tgt = null; a.shotsLeft = 0; }
     if (e && (e.st === 'dead' || dp > 10 * U)) e = a.tgt = null;
-    if (!e && a.cd <= 0) {
+    if (!e) a.shotsLeft = 0;
+    if (!e && !resting && a.cd <= 0) {
       let bd = 7 * U;
       for (const m of G3.enemies) { if (m.st === 'spawn' || m.st === 'dead') continue; const d = Math.hypot(m.x - a.x, m.y - a.y); if (d < bd) { bd = d; e = m; } }
       a.tgt = e;
     }
     const goal = e ? { x: e.x, y: e.y } : { x: p.x - p.face * 22, y: p.y + 6 }, dx = goal.x - a.x, dy = goal.y - a.y, d = Math.hypot(dx, dy);
-    if (e && d <= 1.2 * U) { a.cd = a.comp.cd; G3._skHit = 'pet'; SK.hurtEnemy(G3, e, a.comp.dmg, false, Math.atan2(dy, dx), 1); G3._skHit = null; a.tgt = null; a.st = 'ide'; return; }
+    if (e && c.range) {   // pet bắn: đứng cách mục tiêu, bắn quạt / loạt
+      if (Math.abs(dx) > 1) a.face = dx > 0 ? 1 : -1;
+      if (d <= c.range) {
+        a.st = 'ide';
+        if (a.shotsLeft > 0) { a.shotT -= dt; if (a.shotT <= 0) { shoot(G3, a, e, 1); a.shotsLeft--; a.shotT = c.gap; if (a.shotsLeft <= 0) { a.cd = c.cd; a.tgt = null; } } return; }
+        if (a.cd <= 0) {
+          if (c.burst) { a.shotsLeft = c.burst; a.shotT = 0; } else { shoot(G3, a, e, c.shots); a.cd = c.cd; a.tgt = null; }
+          return;
+        }
+        return;
+      }
+    } else if (e && d <= 1.2 * U) {
+      const crit = SK.rand() < c.crit;
+      a.cd = c.cd; G3._skHit = 'pet'; SK.hurtEnemy(G3, e, crit && c.critDmg ? c.critDmg : c.dmg, crit, Math.atan2(dy, dx), 1); G3._skHit = null; a.bites = (a.bites || 0) + 1; a.tgt = null; a.st = 'ide'; return;
+    }
     if (d > (e ? 1 : 2 * U)) { const s = Math.min(d, 8 * U * dt); SK.moveBox(G3.map, a, dx / d * s, dy / d * s, 3); a.st = 'run'; if (Math.abs(dx) > 1) a.face = dx > 0 ? 1 : -1; } else a.st = 'ide';
   }
 

@@ -55,6 +55,7 @@ async function until(p, fn, arg, ms) {
 
     // ---- pet9: hạt đậu khổng lồ, cắn dồn trong một lúc rồi thu nhỏ
     await spawn('pet9');
+    await ev(() => { const a = SK.G.pet; a.def = Object.assign({}, a.def, { hurt: () => 0 }); });   // quái bắn trúng pet thì pet nghỉ (hệ máu chung); thử này cần pet không bị đánh gục
     await ev(() => { const a = SK.G.pet; a.skillCd = 0; a.k.dmg = 3; });
     const ok9 = await until(p, () => SK.G.pet.big, null, 15000);
     const g9 = await ev(() => { const a = SK.G.pet; return { scale: a.scale, cd: a.k.cd, base: a.baseCd, casts: a.casts }; });
@@ -168,10 +169,11 @@ async function until(p, fn, arg, ms) {
     await ev(() => SK_GAME.debug.teleportTo('battle', 0));
     await until(p, () => SK_GAME.enemyCount > 0, null, 5000);
     await spawn('pet14');
-    await ev(() => { SK.G.pet.hp = 4; });
+    await ev(() => { const a = SK.G.pet; a.def = Object.assign({}, a.def, { hurt: () => 0 }); a.hp = 4; });   // quái bắn trúng pet sẽ làm số HP lệch: thử hồi máu cần pet không bị đánh
     const r14 = await ev(() => new Promise(res => {
       const G = SK.G, a = G.pet, t0 = performance.now();
-      (function poll() { if (a.healed >= 2 || performance.now() - t0 > 25000) return res({ hp: a.hp, healed: a.healed, max: a.hpMax }); requestAnimationFrame(poll); })();
+      (function poll() { const e = G.enemies.find(q => q.st !== 'dead' && q.st !== 'spawn'); if (e) { e.x = a.x + 14; e.y = a.y; e.kx = e.ky = 0; e.hp = e.hpMax = 1e6; }   // kẻ địch đứng sát để pet có mồi cắn (ổn định, không đợi quái tự lại gần)
+        if (a.healed >= 2 || performance.now() - t0 > 25000) return res({ hp: a.hp, healed: a.healed, max: a.hpMax, rest: a.rest, st: a.st, hurts: a.hurts, en: G.enemies.filter(e => e.st !== 'dead' && e.st !== 'spawn').length }); requestAnimationFrame(poll); })();
     }));
     check('pet14 mỗi cú cắn trúng hồi +1 HP cho pet (4 -> 4 + số lần cắn)', r14.healed >= 2 && r14.hp === 4 + r14.healed && r14.max === 10, JSON.stringify(r14));
     await ev(() => { SK.G.pet.hp = SK.G.pet.hpMax; SK.G.pet.healed = 0; });

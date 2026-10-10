@@ -3,7 +3,7 @@
 // Con số: số đòn để nổi giận 8 [ĐO ctl.skillGetHurtTarget], HP 15 [ĐO attr.max_hp], sát thương cắn 5 [ĐO ctl.damage],
 // hệ số bạo kích 2 [ĐO ctl.criticalFactor]. Chưa có trong ctl nên là [ƯỚC LƯỢNG]: ngủ 2 s, hồi ngủ 30 s [WIKI Pets], tầm chế giễu 8 đv, nổi giận
 // 10 s (đi ×1,5, hồi chiêu cắn ÷1,5, 30% bạo kích). Kẻ địch web chỉ nhắm chủ nên "chế giễu" = kéo đạn địch đang bay quanh heo về phía heo;
-// heo nhận sát thương từ đạn địch trúng nó (HP riêng a.hp, không chết: giữ tối thiểu 1).
+// heo nhận sát thương từ đạn địch trúng nó qua hệ máu chung SK.petHp (không chết: giữ tối thiểu 1, về 1 HP thì nghỉ).
 (function () {
   'use strict';
   const SK = window.SK;
@@ -18,20 +18,17 @@
 
   SK.petRegister('pet49', {
     init(G, a) {
-      a.hpMax = a.hp = (a.info && a.info.attr.max_hp) || 15;
       a.hits = 0; a.sleepT = 0; a.napCd = 0; a.angry = false; a.rageT = 0; a.naps = 0;
       a.base = { spd: a.k.spd, cd: a.k.cd };
     },
+    // đạn địch trúng heo (máu trừ ở hệ chung SK.petHp): đếm số đòn, đủ thì nổi giận
+    hurt(G, a, dmg) {
+      a.hits++;
+      if (a.hits >= HITS && !a.angry) rage(a, true);
+      return dmg;
+    },
     tick(G, a, dt) {
       a.napCd -= dt;
-      // đạn địch trúng heo: mất máu, đếm số đòn
-      for (const b of G.bullets) {
-        if (b.side !== 'e' || b.dead) continue;
-        if (Math.abs(b.x - a.x) > 6 + (b.r || 2) || Math.abs(b.y - (a.y - 7)) > 7 + (b.r || 2)) continue;
-        b.dead = true; a.hp = Math.max(1, a.hp - (b.dmg || 1)); a.hits++;
-        SK.num(G, a.x, a.y - 22, b.dmg || 1, '#ff9a4a');
-        if (a.hits >= HITS && !a.angry) rage(a, true);
-      }
       if (a.angry) { a.rageT -= dt; if (a.rageT <= 0) { rage(a, false); a.hits = 0; } }
       if (a.sleepT > 0) {
         a.sleepT -= dt; a.stT += dt; a.st = 'action idle';

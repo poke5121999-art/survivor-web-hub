@@ -17,6 +17,55 @@
   SK.petRegister = (id, def) => { SKILLS[id] = def; return true; };
   SK.petInfo = id => (window.SK_PETS && SK_PETS.pets[id]) || null;
 
+  // ---- Hệ máu chung [WIKI Pets]: 10 HP gốc (max_hp riêng theo prefab), máu không xuống dưới 1; về 1 HP thì pet thôi đánh, nằm
+  // cạnh chủ và hồi đầy sau 14~16 giây. Hồi dần trong trận "tốc độ không rõ" nên chưa làm (GAPS). Quái web chỉ nhắm chủ nên pet chịu
+  // đòn qua đạn quái bay trúng nó (hộp 6 x 7 px quanh thân); cận chiến / vùng nổ của quái chưa tính vào pet.
+  // Móc tuỳ chọn trong def: keep (đạn không bị chặn, pet vẫn mất máu: slime tách theo đạn lọt vào), hurt(G, a, dmg, b) -> sát thương thật (0 = miễn), guard (đang nghỉ vẫn chặn đạn: rùa), ownHp (tự quản HP),
+  // onRest(G, a), onWake(G, a).
+  const REST_MIN = 14, REST_MAX = 16, HIT_X = 6, HIT_Y = 7;
+  const HP = SK.petHp = {
+    REST_MIN, REST_MAX,
+    init(a, max) { a.hpMax = max; a.hp = max; a.rest = 0; a.restFor = 0; a.hurts = 0; },
+    hurt(G, a, dmg, b) {
+      const d = a.def || {};
+      if (a.rest > 0 && !d.guard) return 0;
+      if (d.hurt) dmg = d.hurt(G, a, dmg, b);
+      if (!(dmg > 0)) return 0;
+      const was = a.hp;
+      a.hp = Math.max(1, a.hp - dmg); a.hurts = (a.hurts || 0) + 1;
+      SK.num(G, a.x, a.y - 20, '-' + dmg, '#ff9a4a');
+      if (a.hp <= 1) HP.rest(G, a);
+      return was - a.hp;
+    },
+    rest(G, a) {
+      if (a.rest > 0) return;
+      a.rest = a.restFor = REST_MIN + SK.rand() * (REST_MAX - REST_MIN); a.target = a.tgt = null;
+      if (a.def && a.def.onRest) a.def.onRest(G, a);
+    },
+    heal(G, a) { a.hp = a.hpMax; a.rest = 0; },
+    // true nếu đang nghỉ; hết giờ nghỉ thì đầy máu
+    tick(G, a, dt) {
+      if (!(a.rest > 0)) return false;
+      a.rest -= dt;
+      if (a.rest > 0) return true;
+      a.rest = 0; a.hp = a.hpMax;
+      if (a.def && a.def.onWake) a.def.onWake(G, a);
+      return false;
+    },
+    // đạn quái chạm hộp thân: trừ máu, đạn biến mất (đạn xuyên / vùng nổ đứng yên chỉ tính một lần, không bị xoá)
+    scan(G, a) {
+      if (a.def && a.def.ownHp) return;
+      for (const b of G.bullets) {
+        if (b.side !== 'e' || b.dead || b.melee || b.orbit || b._petHit === a) continue;
+        if (Math.abs(b.x - a.x) > HIT_X + (b.r || 2) || Math.abs(b.y - (a.y - 7)) > HIT_Y + (b.r || 2)) continue;
+        if (a.rest > 0 && !(a.def && a.def.guard)) continue;
+        b._petHit = a;
+        if (!(b.pierce > 0) && !b.area && !(a.def && a.def.keep)) { if (b.fxh && b.fxh.stop) b.fxh.stop(); b.dead = true; }
+        HP.hurt(G, a, Math.max(1, Math.round(b.dmg || 1)), b);
+      }
+    }
+  };
+
   function cfg(id) {
     const root = (D.prefabs[id] || [])[0], m = (root && root.mbs) || {};
     const c = Object.keys(m).filter(k => /^Pet\w*Controller$/.test(k)).map(k => m[k])[0] || {};
@@ -55,6 +104,11 @@
     if (!p || p.st === 'dead') { setSt(a, 'ide'); return; }
     const dp = Math.hypot(p.x - a.x, p.y - a.y);
     if (dp > k.far) { a.x = p.x - p.face * 10; a.y = p.y + 2; a.target = null; setSt(a, 'ide'); return; }
+    if (a.rest > 0) {   // nghỉ: không đánh, ở cạnh chủ
+      a.target = null; a.bit = true;
+      if (dp > k.near) { walk(G, a, p.x - p.face * 6, p.y + 2, dt); setSt(a, 'run'); } else setSt(a, 'ide');
+      return;
+    }
     if (a.st === 'atk') {
       const e = a.target;
       if (!a.bit && a.stT >= BITE_AT && e && e.st !== 'dead' && Math.hypot(e.x - a.x, e.y - a.y) <= BITE * 1.5) {
@@ -88,18 +142,22 @@
     const a = { id, parts, anim, k: cfg(id), x: p.x - 10, y: p.y + 2, face: 1, st: 'ide', stT: 0, cd: 1, scan: 0, target: null,
       // Độ thân mật dưới 50% thì chưa có kỹ năng, chỉ cắn mặc định [WIKI Pets]; SK.petForce (móc kiểm thử) bỏ qua ngưỡng.
       def: (SK.petForce || !SK.profile || !SK.profile.petSkillOn || SK.profile.petSkillOn(id)) ? (SKILLS[id] || {}) : {}, info: SK.petInfo(id) };
-    G.pet = a;
+    G.pet = a; HP.init(a, (a.info && a.info.attr && a.info.attr.max_hp) || 10);
     if (a.def.init) a.def.init(G, a);
     G.props.push({
       x: a.x, y: a.y, pet: a,
       update(G2, q, dt) {
         if (G2.petOff) { q.gone = true; G2.pet = null; return; }
-        if (!(a.def.tick && a.def.tick(G2, a, dt))) step(G2, a, dt);
+        HP.scan(G2, a);
+        const resting = HP.tick(G2, a, dt);
+        if (resting && a.def.guard) { a.st = 'defense'; a.stT += dt; }
+        else if (resting || !(a.def.tick && a.def.tick(G2, a, dt))) step(G2, a, dt);
         q.x = a.x; q.y = a.y;
       },
       draw(ctx, G2) {
         if (!a.hidden) SK.drawPrefab(ctx, a.parts, a.x, a.y, { state: a.st, t: a.stT, flip: a.face < 0, scale: a.scale });
         if (a.def.draw) a.def.draw(ctx, G2, a);
+        if (a.rest > 0 && !a.hidden) SK.text(ctx, 'z z', a.x + 4, a.y - 22 - Math.sin(a.rest * 3) * 1.5, 7, '#cfe6ff', 'center', 'rgba(0,0,0,0.9)');
       }
     });
   }

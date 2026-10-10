@@ -165,7 +165,7 @@ async function until(p, fn, arg, ms) {
     // pet40 Búa Nhỏ: cắn có xác suất choáng
     await setup('pet40', true);
     const r40 = await p.evaluate(() => new Promise(res => {
-      const a = SK.G.pet, t0 = performance.now(); a.chance = 1; let sawStun = false, ds = [], cdMax = 0;
+      const a = SK.G.pet, t0 = performance.now(); a.chance = 1; a.def = Object.assign({}, a.def, { hurt: () => 0 }); let sawStun = false, ds = [], cdMax = 0;
       for (const e of SK.G.enemies) if (e.st !== 'dead') e.hp = e.hpMax = 9999;   // đòn búa 12 không được giết quái trước khi kịp thấy choáng
       SK.on('enemyHit', (G, e, d) => { if (G.pet === a && a.st === 'atk') ds.push(d); });
       (function poll() {
