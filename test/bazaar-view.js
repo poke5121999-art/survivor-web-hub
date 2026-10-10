@@ -15,6 +15,12 @@
  *  4. Rê chuột lên thẻ: tooltip hiện, có số đã giải, không còn "{ability".
  *  5. Thời gian xử lý mỗi khung ở 1280×720 trung bình < 16 ms (in ra cả khoảng cách giữa hai khung).
  *  6. Sau cú nhấp đầu (mở khoá âm thanh) có tiếng phát ra, không tệp tiếng nào thiếu.
+ *  7. (P0 review VFX) khựng hình: một lần ≤ 250 ms, trận Infernal Envoy đấu Training Dummy (sát thương thừa 15 vào 2 máu) không đứng hình
+ *     > 400 ms; mọi lần khựng trùng lúc một đòn Damage chạm (bỏng/độc/bão cát không khựng).
+ *  8. (P0) blend cộng trên canvas trong suốt: vẽ đạn của 12 ActionType mặc định + chớp trúng hồi máu/hồi phục/khiên, đọc điểm ảnh canvas:
+ *     0 điểm "tối mà đặc" (alpha > 0,7, max RGB < 40) — trước đây khiên là ô vuông đen, hồi máu là ô xám; FX_Star_01_T đã nướng alpha.
+ *  9. (P0) khung khiên/nộ: có bật giữa trận, tắt khi trận ngã ngũ, BZView.clearCards() (ui/combat.js dỡ trận) gỡ sạch.
+ * 10. (MOBILE P0) tooltip ở 844×390: chữ dòng hiệu ứng ≥ 12 px thật.
  * Chromium chạy có GPU (cờ ANGLE d3d11); BZ_SOFT=1 để chạy dựng hình phần mềm (khung chậm hơn nhiều, chỉ số xử lý JS không đổi).
  */
 'use strict';
@@ -120,7 +126,8 @@ async function desktop(browser, base) {
   const perf = await page.evaluate(() => window.BZ_DEBUG.perf());
   const evs = await page.evaluate(() => window.BZ_DEBUG.events());
   const main = evs.filter(e => (e.type === 'damage' || e.type === 'heal' || e.type === 'shield') && e.amt > 0);
-  const withSrc = evs.filter(e => e.src != null && ((e.type === 'damage' && e.kind === 'Damage') || (e.type === 'heal' && e.kind !== 'Regen') || e.type === 'shield'));
+  // hồi 0 máu (đầy máu) không còn bắn đạn (VFX-24)
+  const withSrc = evs.filter(e => e.src != null && ((e.type === 'damage' && e.kind === 'Damage') || (e.type === 'heal' && e.kind !== 'Regen' && e.amt > 0) || (e.type === 'shield' && e.amt > 0)));
   check('phát lại 3× chạy tới hết', st.done === true, 't=' + Math.round(st.t) + '/' + st.duration);
   check('số bay chính = ' + main.length + ' sự kiện damage/heal/shield (amt > 0)', st.fx.numbers === main.length, 'đã bay ' + st.fx.numbers + ', phụ ' + st.fx.numbersAux);
   check('số đạn = ' + withSrc.length + ' sự kiện damage/heal/shield có thẻ nguồn', st.fx.projectiles === withSrc.length, 'đã bắn ' + st.fx.projectiles);
@@ -153,6 +160,97 @@ async function desktop(browser, base) {
   await page.close();
 }
 
+// ---------- P0 của review VFX (D:\bazaar-ref\review\VFX.md): khựng hình, ô vuông blend, khung còn sót sau trận ----------
+async function p0(browser, base) {
+  out.push('\n[P0 review VFX, 1280x720]');
+  const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+  const errors = watch(page);
+  await page.goto(base + '/games/bazaar/index.html?view=1&a=3f3d11c5&b=1d95020b&seed=5&speed=1', { waitUntil: 'load' });
+  await ready(page);
+  // 7a. VFX-1: Infernal Envoy đánh Training Dummy 15 vào 2 máu còn lại → trước đây t đứng yên 27,7 s
+  const hs = await page.evaluate(async () => {
+    window.BZ_DEBUG.fight('3f3d11c5', '1d95020b', 5); window.BZ_DEBUG.speed(1);
+    const t0 = performance.now(); let lastT = -1, lastChange = t0, maxStall = 0, at = 0;
+    await new Promise(res => {
+      function f(n) {
+        const s = window.BZ_DEBUG.state();
+        if (s.t !== lastT) { if (lastT > 0 && n - lastChange > maxStall) { maxStall = n - lastChange; at = lastT; } lastT = s.t; lastChange = n; }
+        if (s.done || n - t0 > 30000) res(); else requestAnimationFrame(f);
+      }
+      requestAnimationFrame(f);
+    });
+    return { maxStall: Math.round(maxStall), at: Math.round(at), real: Math.round(performance.now() - t0), endMs: window.BZ_DEBUG.state().endMs, hsMax: window.BZReplay.stats.hitStopMax };
+  });
+  check('khựng hình mỗi lần ≤ 250 ms và có xảy ra (đòn kết liễu 100 % máu)', hs.hsMax > 0 && hs.hsMax <= 250, 'max ' + hs.hsMax + ' ms');
+  check('trận kết liễu bằng sát thương thừa không đứng hình > 400 ms (cũ 27,7 s)', hs.maxStall < 400, JSON.stringify(hs));
+  // 7b. bỏng/độc/bão cát không khựng: mọi lần gọi hitStop trùng lúc một đòn Damage chạm chân dung (e.t + 350 + trễ Multicast)
+  const dot = await page.evaluate(async () => {
+    window.BZ_DEBUG.fight('2b6ec186', '8cda08b2', 5);
+    const RP = window.BZReplay, calls = [], orig = RP.hitStop;
+    RP.hitStop = function (ms) { calls.push(RP.state().t); return orig.apply(RP, arguments); };
+    window.BZ_DEBUG.speed(3);
+    const t0 = performance.now();
+    await new Promise(res => { function f(n) { if (window.BZ_DEBUG.state().done || n - t0 > 60000) res(); else requestAnimationFrame(f); } requestAnimationFrame(f); });
+    RP.hitStop = orig;
+    const S = RP.state(), hits = [];
+    S.evs.forEach((e, i) => { if (e.type === 'damage' && (e.kind || 'Damage') === 'Damage') hits.push(e.t + RP.LAG_HERO + (S.delay[i] || 0)); });
+    const ticks = S.evs.filter(e => e.type === 'damage' && e.kind !== 'Damage' && e.hp > 0).length;
+    const stray = calls.filter(tc => !hits.some(h => tc >= h - 1 && tc <= h + 250));
+    return { calls: calls.length, ticks, stray: stray.map(Math.round).slice(0, 5) };
+  });
+  check('bỏng/độc/bão cát không gây khựng hình (' + dot.ticks + ' nhịp DoT, ' + dot.calls + ' lần khựng đều trùng đòn Damage)', dot.ticks > 0 && dot.stray.length === 0, JSON.stringify(dot));
+
+  // 8. VFX-2/7/8: đọc điểm ảnh canvas FX sau khi vẽ đạn + chớp trúng
+  const bl = await page.evaluate(async () => {
+    window.BZ_DEBUG.pause(true);
+    const F = window.BZFX, M = window.BZ_VFXMAP, ids = new Set(['glow', 'flash', 'dot', 'star', 'arrow', 'heroWave', 'tri', 'shield', 'dots', 'heart']);
+    const KIND = { PlayerDamage: 'damage', PlayerBurnApply: 'burn', PlayerPoisonApply: 'poison', PlayerHeal: 'heal', PlayerRegenApply: 'regen', PlayerShieldApply: 'shield',
+      CardFreeze: 'freeze', CardSlow: 'slow', CardHaste: 'haste', CardCharge: 'charge', CardReload: 'reload', CardDestroy: 'destroy' };
+    Object.keys(KIND).forEach(a => { const E = M.defaults[a]; ['projectile', 'impact', 'buildup'].forEach(k => { if (E[k]) { const id = F.mapSprite(E[k]); if (id) ids.add(id); } }); });
+    const w0 = performance.now();
+    while (performance.now() - w0 < 20000 && [...ids].some(id => !F.texInfo(id))) await new Promise(r => setTimeout(r, 100));
+    const missing = [...ids].filter(id => !F.texInfo(id));
+    const cv = document.getElementById('bz-fx'), g = cv.getContext('2d');
+    let dark = 0, lit = 0, worst = {};
+    function count(tag) {
+      const d = g.getImageData(0, 0, cv.width, cv.height).data;
+      let dk = 0;
+      for (let i = 0; i < d.length; i += 8) { const a = d[i + 3]; if (a > 50) lit++; if (a > 180 && Math.max(d[i], d[i + 1], d[i + 2]) < 40) dk++; }
+      if (dk) worst[tag] = dk;
+      dark += dk;
+    }
+    for (const a of Object.keys(KIND)) for (const f of [0.15, 0.4, 0.65, 0.9]) {
+      F.clear(); F.frame(5000, 0);
+      const E = M.defaults[a], tr = E.visualTravelMs || E.travelMs || 350;
+      F.projectile({ from: { x: 500, y: 540 }, to: { x: 1400, y: 540 }, kind: KIND[a], t0: 5000, travel: tr, entry: E, arc: 0 });
+      F.frame(5000 + tr * f, 16); count(a + '@' + f);
+    }
+    for (const [k, a] of [['heal', 'PlayerHeal'], ['regen', 'PlayerRegenApply'], ['shield', 'PlayerShieldApply']]) for (const dt of [0, 100, 200, 350]) {
+      F.clear(); F.frame(5000, 0); F.burst(k, 960, 540, { t0: 5000, entry: M.defaults[a] }); F.frame(5000 + dt, 16); count(k + '+' + dt);
+    }
+    F.clear();
+    return { dark, lit, worst, missing, star: F.texInfo('m:FX_Star_01_T'), swoosh: F.texInfo('m:FX_Heal_Swoosh_Atlas_T'), glow01: F.texInfo('m:FX_Glow_01_T') };
+  });
+  check('texture nạp đủ để đo (' + (bl.missing.length ? 'thiếu ' + bl.missing.join(',') : 'đủ') + ') và có vẽ', bl.missing.length === 0 && bl.lit > 1000, 'điểm sáng ' + bl.lit);
+  check('FX_Star_01_T / FX_Heal_Swoosh_Atlas_T (nền đen, gói kênh) đã nướng alpha', !!bl.star && bl.star.packed && !!bl.swoosh && bl.swoosh.packed, JSON.stringify({ star: bl.star, swoosh: bl.swoosh }));
+  check('0 điểm ảnh "tối mà đặc" trên canvas FX (ô vuông đen/xám của blend cộng)', bl.dark === 0, JSON.stringify(bl.worst));
+
+  // 9. VFX-3: khung khiên bật giữa trận (Harkuvian đấu Mad Diver có khiên từ ~2,5 s), tắt khi trận ngã ngũ, clearCards gỡ sạch
+  const fr = await page.evaluate(async () => {
+    window.BZ_DEBUG.fight('aa372e93', '40e83ce1', 5); window.BZ_DEBUG.speed(3);
+    const q = () => document.querySelectorAll('.bz-sh-frame.on, .bz-enr-frame.on, .bz-enr-vig.on, .bz-rowglow.go').length;
+    let mid = 0; const t0 = performance.now();
+    await new Promise(res => { function f(n) { const s = window.BZ_DEBUG.state(); if (!s.done && s.t < s.endMs) mid = Math.max(mid, document.querySelectorAll('.bz-sh-frame.on').length); if (s.done || n - t0 > 60000) res(); else requestAnimationFrame(f); } requestAnimationFrame(f); });
+    const atEnd = document.querySelectorAll('.bz-sh-frame.on, .bz-enr-frame.on, .bz-enr-vig.on').length;
+    window.BZView.clearCards();
+    return { mid, atEnd, afterClear: q() };
+  });
+  check('khung khiên có bật giữa trận', fr.mid > 0, JSON.stringify(fr));
+  check('khung khiên/nộ tắt khi trận ngã ngũ, clearCards() (dỡ trận) gỡ sạch', fr.atEnd === 0 && fr.afterClear === 0, JSON.stringify(fr));
+  check('P0 không lỗi', errors.length === 0, errors.slice(0, 5).join(' || '));
+  await page.close();
+}
+
 async function phone(browser, base) {
   out.push('\n[844x390 điện thoại ngang]');
   const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
@@ -171,6 +269,12 @@ async function phone(browser, base) {
   await page.screenshot({ path: path.join(SHOTS, 'phone-844x390.png') });
   const fit = await page.evaluate(() => { const r = document.getElementById('bz-stage').getBoundingClientRect(); return { w: r.width, h: r.height, x: r.left, y: r.top }; });
   check('sân khấu vừa khít màn 844×390 (letterbox)', fit.w <= 845 && fit.h <= 391 && fit.x >= -1 && fit.y >= -1, JSON.stringify(fit));
+  // MOBILE-2: chữ tooltip 23 px sân khấu × scale 0,36 = 8 px → tooltip phóng theo 1/scale
+  const tipPx = await page.evaluate(() => { const ln = document.querySelector('.bz-tip .ln'); if (!ln) return null;
+    return { px: parseFloat(getComputedStyle(ln).fontSize) * window.BZView.scale * (window.BZTooltip.lastScale || 1), k: window.BZTooltip.lastScale, s: window.BZView.scale,
+      r: (() => { const b = document.querySelector('.bz-tip').getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height }; })() }; });
+  check('tooltip điện thoại: chữ dòng hiệu ứng ≥ 12 px thật (MOBILE-2)', !!tipPx && tipPx.px >= 12, JSON.stringify(tipPx));
+  check('tooltip điện thoại nằm trong màn', !!tipPx && tipPx.r.x >= -1 && tipPx.r.y >= -1 && tipPx.r.x + tipPx.r.w <= 845 && tipPx.r.y + tipPx.r.h <= 391, tipPx && JSON.stringify(tipPx.r));
   check('844×390 không lỗi', errors.length === 0, errors.slice(0, 5).join(' || '));
   await ctx.close();
 }
@@ -184,6 +288,7 @@ async function phone(browser, base) {
   const browser = await chromium.launch({ args });
   try {
     await desktop(browser, base);
+    await p0(browser, base);
     await phone(browser, base);
   } catch (e) {
     check('chạy hết bộ kiểm', false, e && e.stack ? e.stack.split('\n').slice(0, 3).join(' | ') : String(e));

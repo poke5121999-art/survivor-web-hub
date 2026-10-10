@@ -63,7 +63,9 @@
       desc: 'Ban nhạc rock của Roughtown: nhạc cụ, nốt C-G-A-B và tài nguyên Nhịp.' }
   };
   U.voOf = function (hero) { var h = U.HEROES[hero]; return h ? h.vo : String(hero || '').toLowerCase(); };
-  U.heroVo = function (kind) { var r = S.run; if (!r || !r.hero) return false; return U.sfx('vo.' + U.voOf(r.hero) + '.' + kind, { gap: 2500 }); };
+  // giọng hero: mỗi loại câu có khoảng nghỉ riêng — câu "hết chỗ / thiếu vàng" không lặp liên tục khi người chơi thử lại (FLOW-24)
+  var VO_GAP = { nobuyspace: 20000, nobuygold: 9000, levelup: 6000 };
+  U.heroVo = function (kind) { var r = S.run; if (!r || !r.hero) return false; return U.sfx('vo.' + U.voOf(r.hero) + '.' + kind, { gap: VO_GAP[kind] || 2500 }); };
   U.now = function () { return performance.now(); };
   U.wait = function (ms) { return new Promise(function (res) { setTimeout(res, ms); }); };
   U.after = function (ms, fn) { return setTimeout(fn, ms); };
@@ -147,6 +149,12 @@
   // go(name, prev): đổi màn (exit màn cũ, enter màn mới). name = phase.kind hoặc 'title'.
   U.go = function (name, prev) {
     var cur = S.screen && U.SCREENS[S.screen];
+    // đổi màn: huỷ kéo dở (thẻ không trôi lơ lửng sang màn sau, INTERACT-2), đóng kho (FLOW-1: kho do bệ mở không được che khung
+    // gặp gỡ của giờ sau), bỏ thẻ đang chọn + bảng giải thích, tắt vùng bán tạm của màn phần thưởng
+    if (U.drag) U.drag.cancel();
+    if (U.cards) { U.cards.clearTap(); if (U.cards.trayIsOpen()) U.cards.toggleStash(false, { silent: true }); }
+    if (V().refs.tip2) U.panelTip(null);
+    S.sellOpen = false;
     if (cur && cur.exit) { try { cur.exit(name); } catch (e) { console.error(e); } }
     S.screen = name;
     if (U.transitions && (name === 'title' || name === 'heroSelect' || name === 'end')) U.transitions.cancel();
@@ -196,6 +204,7 @@
     var prev = run;
     S.run = r.run;
     U.save();
+    if (U.cards && !/^(move|swap|sell)$/.test(cmd.t)) U.cards.clearTap(); // đổi hàng / mua / chọn: tooltip cũ không đè lên hàng mới (MOBILE-15)
     if (cmd.t === 'pickHero' && U.data) U.data.loadAll(cmd.hero); // các hero còn lại + bóng: nạp ngầm ngay khi run bắt đầu
     ctx = ctx || {};
     ctx.prev = prev; ctx.cmd = cmd; ctx.events = r.events;
@@ -213,25 +222,73 @@
     });
     return { ok: true, events: r.events };
   };
+  // lý do từ chối → lời cho người chơi. Đuôi lý do "(skillsFull|skillOwned|boardFull)" do js/run gắn (FIXES-RULES "New commands").
+  // Phần thưởng (loot / rương / lên cấp / sự kiện) bị từ chối vì hết chỗ: mở vùng bán tạm thời trên dải trên (S.sellOpen) và nói
+  // cách gỡ — bán một món rồi lấy lại phần thưởng (FLOW-9).
+  var REWARD_SCREENS = { loot: 1, chest: 1, levelUp: 1, event: 1, fates: 1 };
   U.reject = function (reason, cmd) {
     reason = reason || '';
+    var why = (/\((\w+)\)\s*$/.exec(reason) || [])[1] || '';
     if (/not enough gold/.test(reason)) { U.sfx('ui.noGold'); U.heroVo('nobuygold'); if (U.hud) U.hud.flashGold(); U.toast('Không đủ vàng'); }
-    else if (/no space|locked or occupied/.test(reason)) { U.sfx('ui.noSpace'); if (/no space/.test(reason)) { U.heroVo('nobuyspace'); U.toast('Hết chỗ trống'); } }
+    else if (/no space/.test(reason)) {
+      U.sfx('ui.noSpace'); U.heroVo('nobuyspace');
+      if (why === 'skillsFull') U.toast('Đã đủ ' + ((R().TUNING && R().TUNING.SKILL_SLOTS) || 6) + ' kỹ năng', 2600);
+      else if (why === 'skillOwned') U.toast('Bạn đã có kỹ năng này', 2200);
+      else if (REWARD_SCREENS[S.screen] && S.run && S.run.hero) {
+        S.sellOpen = true;
+        var sc = U.SCREENS[S.screen]; if (sc && sc.boardFull) sc.boardFull();
+        U.toast('Hết chỗ: kéo một món lên dải trên để bán, rồi lấy lại', 3200);
+      } else U.toast('Hết chỗ trống', 2000);
+    }
+    else if (/locked socket/.test(reason)) { U.sfx('ui.noSpace'); U.toast('Ô đang khoá — lên cấp để mở thêm ô', 2200); }
+    else if (/stash full/.test(reason)) { U.sfx('ui.noSpace'); U.toast('Kho đã đầy', 1800); }
+    else if (/not eligible/.test(reason)) { U.sfx('ui.noSpace'); U.toast('Món này không hợp với bệ', 1800); }
+    else if (/locked or occupied/.test(reason)) { U.sfx('ui.noSpace'); U.toast('Không đặt vừa chỗ này', 1600); }
     else if (/no rerolls/.test(reason)) { U.sfx('ui.noGold'); U.toast('Hết lượt đổi hàng'); }
     else U.sfx('ui.noSpace');
   };
   var toastT = null;
-  U.toast = function (text) {
+  U.toast = function (text, ms) {
     var t = V().refs.toast; if (!t) return;
-    t.textContent = text; t.classList.remove('show'); void t.offsetWidth; t.classList.add('show');
-    clearTimeout(toastT); toastT = setTimeout(function () { t.classList.remove('show'); }, 1500);
+    ms = ms || 1500;
+    t.textContent = text; t.classList.remove('show'); void t.offsetWidth;
+    t.style.animationDuration = ms + 'ms'; t.classList.add('show');
+    clearTimeout(toastT); toastT = setTimeout(function () { t.classList.remove('show'); }, ms);
+  };
+
+  // ---------- hộp xác nhận (việc không lấy lại được: bỏ run, chơi mới, bỏ phần thưởng — INTERACT-13) ----------
+  // U.confirm({title, body, yes, no, danger}, onYes). Esc / bấm nền = không; Enter = có. Nuốt mọi phím khác (core keys()).
+  U.confirm = function (o, onYes) {
+    if (U.confirmBox) U.confirmBox.close(false);
+    var st = V().refs.stage, wrap = U.el('div', 'rs-confirm', st), box = U.el('div', 'box', wrap);
+    U.el('h3', '', box, o.title || 'Chắc chưa?');
+    if (o.body) U.el('p', '', box, o.body);
+    var row = U.el('div', 'btns', box);
+    var api = {
+      close: function (yes) {
+        if (U.confirmBox !== api) return;
+        U.confirmBox = null; wrap.remove();
+        if (yes && onYes) onYes();
+      },
+      key: function (e) {
+        if (e.key === 'Escape') { api.close(false); return true; }
+        if (e.key === 'Enter') { api.close(true); return true; }
+        return true;
+      }
+    };
+    U.bigButton(row, 'brown', o.no || 'Thôi', 'Không (Esc)', function () { api.close(false); });
+    U.bigButton(row, o.danger ? 'red' : 'blue', o.yes || 'Đồng ý', 'Có (Enter)', function () { api.close(true); }).classList.add('yes');
+    wrap.addEventListener('pointerdown', function (e) { e.stopPropagation(); if (e.target === wrap) api.close(false); });
+    U.confirmBox = api;
+    U.sfx('ui.panelOpenClose.open');
+    return api;
   };
 
   // ---------- run mới / chơi tiếp ----------
+  // run mới chỉ ghi đè bản lưu khi đã chọn hero (lệnh pickHero → U.save): bấm "Chơi mới" rồi Quay lại thì run cũ vẫn còn (INTERACT-13)
   U.newRun = function (seed) {
     if (seed == null) { var q = +new URLSearchParams(root.location.search).get('seed'); seed = q > 0 ? q : 1 + Math.floor(Math.random() * 2147483000); }
     S.run = R().newRun({ seed: seed });
-    U.save();
     U.go('heroSelect');
   };
   // chơi tiếp run đã lưu: nạp đủ thẻ trước (bàn đã đấu / bóng / hàng có thể là thẻ của hero khác), rồi đọc lại để
@@ -296,24 +353,78 @@
       else { U.go('title'); fin(); }
       if (AU()) AU().preload(['ui.hover', 'ui.click', 'card.raise', 'card.lower', 'card.pickup', 'card.land.player', 'card.land.storage', 'card.drop',
         'board.attrGold', 'board.reroll', 'board.encounterClick', 'board.portraitHover', 'board.levelUp', 'card.revealFlipBronze', 'board.stashFlip']);
+      // ảnh rương + loé nổ: nạp sẵn, rương đầu tiên không trống > 1,5 s (INTERACT-18)
+      ['art/ui/purchases/Chest_Purchase_Artwork_1_TUI.webp', 'art/vfx/FX_ChestExplosion_01.webp'].forEach(function (p) { var im = new Image(); im.src = U.url(p); });
     });
     requestAnimationFrame(loop);
     keys();
+    touchUx(st);
   };
+  // tiếng trận: nạp trước khi trận bắt đầu (màn trước trận gọi), lần dùng đầu không bị rơi vì tệp tới muộn (VFX-32; cùng bộ của trang xem trận)
+  U.preloadCombat = function (run) {
+    // tiếng riêng của từng thẻ hai bên (BZReplay.preloadSounds, nhánh VFX) ngay ở màn trước trận, sớm hơn RP.load
+    var RP = root.BZReplay, ph = run && run.phase;
+    if (RP && RP.preloadSounds && ph && ph.opponent) {
+      try {
+        var cards = {}, add = function (c, p) { cards[p + c.uid] = { inst: { uid: p + c.uid, id: c.id, tier: c.tier }, kind: 'damage' }; };
+        run.board.hand.forEach(function (c) { add(c, 'a'); });
+        ((ph.opponent.board && ph.opponent.board.cards) || []).forEach(function (c) { add(c, 'b'); });
+        RP.preloadSounds({ cards: cards });
+      } catch (e) { console.info('combat sound preload skipped: ' + e.message); }
+    }
+    if (AU()) AU().preload(['board.crit', 'board.tickBurn', 'board.tickPoison', 'board.tickRegen', 'combat.general_shot', 'combat.general_impact', 'combat.heal_shot',
+      'combat.shield_shot', 'combat.shield_impact', 'combat.hitStun', 'combat.fireball_shot', 'combat.poison_shot', 'card.statBuff', 'trans.victoryIn', 'trans.defeatIn', 'trans.combat']);
+  };
+  // ---------- cảm ứng + điện thoại ----------
+  function touchUx(st) {
+    // không mở menu chuột phải / chú thích nhấn giữ trên bàn (INTERACT-28, MOBILE-19)
+    st.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+    // chạm chỗ trống: đóng tooltip thẻ, bảng giải thích, khung gặp gỡ đang "chọn", kho (INTERACT-12, MOBILE-3, MOBILE-21)
+    st.addEventListener('pointerdown', function (e) {
+      if (e.pointerType !== 'touch') return;
+      var t = e.target, on = function (sel) { return !!(t.closest && t.closest(sel)); };
+      if (on('.bz-card') || on('.rs-confirm') || on('.rs-panel')) return;
+      U.cards.clearTap();
+      if (!on('.rs-enc') && !on('.rs-orb') && !on('.rs-tipsrc')) {
+        U.panelTip(null);
+        Array.prototype.forEach.call(document.querySelectorAll('.rs-enc.armed, .rs-orb.armed'), function (b) { b.classList.remove('armed'); });
+        if (U.choosePreviewHide) U.choosePreviewHide();
+      }
+      if (U.cards.trayIsOpen() && !on('.rs-tray') && !on('.rs-chest') && !on('button')) U.cards.toggleStash(false);
+    }, true);
+    // màn nhỏ (điện thoại ngang): chữ / nút to hơn trong css/run.css (.rs-small), INTERACT-9/10, MOBILE-8/9
+    function size() { var k = V().scale || 1; st.classList.toggle('rs-small', k < 0.62); }
+    root.addEventListener('resize', function () { requestAnimationFrame(size); });
+    size();
+    // điện thoại dọc: lời nhắc xoay ngang (MOBILE-10); chỉ hiện bằng CSS khi (orientation: portrait) + màn hẹp
+    U.el('div', 'rs-rotate', document.body, '<div><i></i><b>Xoay ngang điện thoại</b><span>Chợ Phiên chơi ở màn hình ngang</span></div>');
+  }
+  U.portrait = function () { try { return root.matchMedia('(orientation: portrait) and (max-width: 900px)').matches; } catch (e) { return false; } };
   // art thẻ trong js/view/card.js tra BZ_ART theo id: id dẫn xuất của quest → id gốc
   function patchArt() {
     var C = root.BZCard; if (!C || C._baseArt) return;
     var orig = C.artSrc; C._baseArt = true;
     C.artSrc = function (id) { return orig(id) || orig(U.baseId(id)); };
   }
+  // Phím: hộp xác nhận > bảng tạm nghỉ (modal: chỉ Esc đóng, M tắt tiếng) > Esc huỷ kéo > bỏ qua thẻ ngày / VS > phím của màn >
+  // Esc mở bảng tạm nghỉ > Space (trận: tạm dừng; ngoài trận: kho). INTERACT-2/3/7/31.
+  function inRun() { return !!(S.run && S.run.hero) && S.screen !== 'title' && S.screen !== 'heroSelect' && S.screen !== 'end'; }
   function keys() {
     root.addEventListener('keydown', function (e) {
-      if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
+      if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName) && e.key !== 'Escape') return;
+      if (U.confirmBox) { if (U.confirmBox.key(e)) e.preventDefault(); return; }
+      if (e.key === 'm' || e.key === 'M') { if (AU()) AU().toggleMute(); if (U.menu) U.menu.refreshSound(); return; }
+      if (U.menu && U.menu.panelOpen()) { if (e.key === 'Escape') U.menu.closePanel(); e.preventDefault(); return; }
+      if (e.key === 'Escape' && U.drag && U.drag.active()) { U.drag.cancel(); e.preventDefault(); return; }
       if ((e.code === 'Space' || e.key === 'Enter' || e.key === 'Escape') && U.transitions && U.transitions.skipAny()) { e.preventDefault(); return; }
       var sc = U.SCREENS[S.screen];
       if (sc && sc.key && sc.key(e) === true) { e.preventDefault(); return; }
-      if (e.code === 'Space' && S.run && U.cards && S.screen !== 'title' && S.screen !== 'heroSelect' && S.screen !== 'end') { e.preventDefault(); U.cards.toggleStash(); }
-      else if (e.key === 'm' || e.key === 'M') { if (AU()) AU().toggleMute(); if (U.menu) U.menu.refreshSound(); }
+      if (e.key === 'Escape' && inRun() && U.menu) { e.preventDefault(); U.menu.openPanel(); return; }
+      if (e.code === 'Space' && inRun() && U.cards) {
+        e.preventDefault();
+        if (U.combat && U.combat.active()) U.combat.pause();
+        else if (S.screen !== 'fightResult' && !(U.drag && U.drag.active())) U.cards.toggleStash();
+      }
     });
   }
 

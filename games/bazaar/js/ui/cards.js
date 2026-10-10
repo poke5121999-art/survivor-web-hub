@@ -14,9 +14,14 @@
     topRow: { cx: 960, top: 305, h: 232, pitch: 109.6, gap: 16 }
   };
   var own = {};      // uid → el
+  // hoạt ảnh chia bài / bày phần thưởng (rs-deal, rs-prize) chỉ chạy MỘT lần: xong thì bỏ lớp + độ trễ, để khi phần tử bị gắn lại
+  // (nhấc lên lớp kéo, bay về chỗ cũ) trình duyệt không chạy lại hoạt ảnh — thẻ không tàng hình 0,9 s rồi lật lại (INTERACT-1)
+  var ONCE = { 'rs-deal': 'deal', 'rs-prize': 'prize' };
+  C.settle = function (el) { el.classList.remove('deal', 'prize'); el.style.animationDelay = ''; };
+  function onceEnd(e) { var c = ONCE[e.animationName]; if (c && e.target === this) { this.classList.remove(c); this.style.animationDelay = ''; } }
   var top = {};      // key → el
   var sockEls = [], traySock = [], trayOpen = false;
-  var hovered = null, touchTip = null;
+  var hovered = null, touchTip = null, tapHint = null;
 
   C.build = function () {
     var Rf = V().refs;
@@ -127,6 +132,12 @@
   C.setTop = function (list, opts) {
     opts = opts || {};
     var layer = V().refs.runCards, seen = {}, els = [];
+    // hàng dài (thương nhân 10 món, FLOW-6): thu nhỏ thẻ để cả hàng nằm gọn trong dải trên (392..1528, chừa lề 24 px mỗi bên)
+    var P0 = G.topRow, gap0 = opts.gap == null ? P0.gap : opts.gap, span0 = 0;
+    list.forEach(function (it) { var t = R().tpl(it.card.id); span0 += (R().isSkill(t) ? 1 : (R().SIZE[t.Size] || 1)) * P0.pitch * ((it.h || P0.h) / P0.h); });
+    span0 += gap0 * Math.max(0, list.length - 1);
+    var fitK = span0 > C.LANE_W ? C.LANE_W / span0 : 1;
+    if (fitK < 1) list = list.map(function (it) { var o = {}, k; for (k in it) o[k] = it[k]; o.h = Math.floor((it.h || P0.h) * fitK); return o; });
     list.forEach(function (it, n) {
       seen[it.key] = 1;
       var el = top[it.key];
@@ -150,6 +161,7 @@
         if (R().isSkill(tpl)) el.classList.add('is-skill');
         el.classList.add('top', 'deal');
         el.style.animationDelay = ((C.dealDelay || 0) + n * 70) + 'ms';
+        el.addEventListener('animationend', onceEnd);
         layer.appendChild(el);
         top[it.key] = el;
         if (it.kind === 'stock') U.sfx('card.revealFlipBronze', { vol: 0.5, gap: 60 });
@@ -173,7 +185,7 @@
       el.classList.add('despawn'); setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 420);
     });
     // xếp giữa vùng trên
-    var P = G.topRow, gap = opts.gap == null ? P.gap : opts.gap, total = 0;
+    var P = G.topRow, gap = (opts.gap == null ? P.gap : opts.gap) * fitK, total = 0;
     els.forEach(function (el) { total += el._rs.size * P.pitch * ((el._bz.h) / P.h); });
     total += gap * Math.max(0, els.length - 1);
     var x = (opts.cx || P.cx) - total / 2, y = opts.top == null ? P.top : opts.top;
@@ -185,6 +197,7 @@
     });
     return els;
   };
+  C.LANE_W = 1088;
   C.topEl = function (key) { return top[key] || null; };
   C.stockEl = function (i) { for (var k in top) if (top[k]._rs.kind === 'stock' && top[k]._rs.i === i) return top[k]; return null; };
 
@@ -242,10 +255,12 @@
   };
 
   // ---------- kho ----------
-  C.toggleStash = function (on) {
+  // toggleStash(on, opts): opts.silent = không tiếng (đóng tự động khi đổi màn)
+  C.toggleStash = function (on, opts) {
     if (on == null) on = !trayOpen;
     if (on === trayOpen) return;
     trayOpen = on;
+    if (opts && opts.silent) { V().refs.tray.classList.toggle('open', on); V().refs.stage.classList.toggle('stash-open', on); return; }
     V().refs.tray.classList.toggle('open', on);
     V().refs.stage.classList.toggle('stash-open', on);
     U.sfx('board.stashFlip');
@@ -281,7 +296,10 @@
   };
   function setHovered(el, ev) {
     var now = U.now();
-    if (hovered && hovered !== el) { BC().setHover(hovered, false, now); U.sfx('card.lower', { vol: 0.4 }); root.BZTooltip.hide(); }
+    if (hovered && hovered !== el) {
+      BC().setHover(hovered, false, now); U.sfx('card.lower', { vol: 0.4 }); root.BZTooltip.hide();
+      if (touchTip === hovered) { touchTip = null; tapHint = null; } // chuột rời thẻ đang chọn: bỏ chọn (lần bấm sau lại chỉ là chọn)
+    }
     if (el && hovered !== el) U.sfx('card.raise', { vol: 0.5 });
     hovered = el || null;
     if (!el) return;
@@ -305,19 +323,33 @@
       if (!f) f = U.el('div', 'rs-sellfor', box);
       else box.appendChild(f);
       f.innerHTML = 'Bán được <i style="background-image:' + U.bg(U.ICON.coin) + '"></i><b>' + sp + '</b>';
-    } else if (box && el._rs.card) questTip(box, { id: el._rs.card.id, tier: el._rs.card.tier, qp: {}, qd: [] });
+    } else if (box && el._rs.card) {
+      questTip(box, { id: el._rs.card.id, tier: el._rs.card.tier, qp: {}, qd: [] });
+      // hàng của thương nhân: "Bán lại được N" như dòng "Sells for N" của tooltip gốc (FLOW-4/19); kỹ năng không bán được
+      var f2 = box.querySelector('.rs-sellfor');
+      if (el._rs.kind === 'stock' && !el.classList.contains('is-skill')) {
+        var sp2 = R().price(el._rs.card, el._rs.card.tier).sell || 0;
+        if (!f2) f2 = U.el('div', 'rs-sellfor', box); else box.appendChild(f2);
+        f2.innerHTML = 'Bán lại được <i style="background-image:' + U.bg(U.ICON.coin) + '"></i><b>' + sp2 + '</b>';
+      } else if (f2) f2.remove();
+    }
     // phần thêm làm tooltip cao hơn: đặt lại vị trí (cùng info → BZTooltip không vẽ lại nội dung)
-    if (box && box.querySelector('.rs-questtip, .rs-sellfor')) root.BZTooltip.show(info, { x: r.x, y: r.y - 10, w: r.w, h: r.h });
+    // thẻ đang được chọn (chạm / bấm lần 1): dòng nhắc "chạm lần nữa để mua" (MOBILE-4, INTERACT-14)
+    var oldH = box && box.querySelector('.rs-taphint'); if (oldH) oldH.remove();
+    if (box && touchTip === el && tapHint) U.el('div', 'rs-taphint', box.querySelector('.box') || box, tapHint);
+    if (box && box.querySelector('.rs-questtip, .rs-sellfor, .rs-taphint')) root.BZTooltip.show(info, { x: r.x, y: r.y - 10, w: r.w, h: r.h });
   };
   C.hideTip = function () { setHovered(null); root.BZTooltip.hide(); };
-  // chạm (điện thoại): chạm một lần mở tooltip, chạm lần nữa đóng
-  C.tapTip = function (el) {
-    if (touchTip === el) { touchTip = null; root.BZTooltip.hide(); BC().setHover(el, false, U.now()); return false; }
-    if (touchTip) BC().setHover(touchTip, false, U.now());
-    touchTip = el; BC().setHover(el, true, U.now()); C.showTip(el);
+  // chạm (điện thoại) / bấm (máy tính, hàng thương nhân): lần 1 chọn + mở tooltip (kèm dòng nhắc `hint`), lần 2 trên CÙNG thẻ trả false
+  // (màn gọi lệnh: mua / lấy). Chạm chỗ khác (core.js tapAway) hoặc rời chuột khỏi thẻ thì bỏ chọn.
+  C.tapTip = function (el, hint) {
+    if (touchTip === el) { touchTip = null; tapHint = null; root.BZTooltip.hide(); BC().setHover(el, false, U.now()); return false; }
+    if (touchTip && touchTip !== hovered) BC().setHover(touchTip, false, U.now());
+    touchTip = el; tapHint = hint || null; BC().setHover(el, true, U.now()); C.showTip(el);
     return true;
   };
-  C.clearTap = function () { if (touchTip) BC().setHover(touchTip, false, U.now()); touchTip = null; root.BZTooltip.hide(); };
+  C.armed = function () { return touchTip; };
+  C.clearTap = function () { if (touchTip && touchTip !== hovered) BC().setHover(touchTip, false, U.now()); touchTip = null; tapHint = null; root.BZTooltip.hide(); };
 
   C.tick = function (now, dt) {
     var f = function (el) { var B = el._bz; if (B && (B.dirty || B.hoverTo || B.hover > 0.001)) BC().tick(el, now, now, dt); };

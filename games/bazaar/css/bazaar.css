@@ -15,7 +15,7 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: #120c08; color: var(--cream); overflow: hidden;
   font-family: var(--f-text); -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
-body { touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+body { touch-action: pan-x pan-y; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; } /* MOBILE-18/19: không chụm-phóng trang, không menu nhấn giữ */
 button { font: inherit; color: inherit; }
 
 #bz-root { position: fixed; inset: 0; overflow: hidden; background:
@@ -63,9 +63,12 @@ button { font: inherit; color: inherit; }
 .bz-portrait .pf-char { background-size: auto 112%; background-position: 50% 0%; }
 .bz-portrait .pf-frame { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .bz-portrait .pf-tint { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .25s; }
-.bz-portrait .pf-flash { position: absolute; inset: 0; pointer-events: none; opacity: 0; background: #fff; will-change: opacity; }
+.bz-portrait .pf-flash { position: absolute; inset: 0; pointer-events: none; opacity: 0; background: #fff; will-change: opacity; mix-blend-mode: screen; }
 .bz-portrait.dead .pf-art { filter: grayscale(1) brightness(.45) contrast(1.1); transition: filter .6s; }
 .bz-portrait.enraged .pf-art { animation: bz-enrage .5s ease-in-out infinite alternate; }
+/* VFX-29: ~1 s sau khung nộ, chân dung chuyển bóng đỏ-hồng (REF enrage) [ĐỀ XUẤT: lọc màu thay cho bộ chân dung "berserk" không có trong bản demo] */
+.bz-portrait.enraged .pf-char { animation: bz-berserk .6s 1s ease-out forwards; }
+@keyframes bz-berserk { to { filter: brightness(.7) sepia(1) saturate(7) hue-rotate(-38deg) contrast(1.15); } }
 @keyframes bz-enrage { from { filter: saturate(1.2); } to { filter: saturate(1.8) brightness(1.2) hue-rotate(-12deg); } }
 .bz-enrage-ring { position: absolute; left: 50%; top: 50%; width: 120px; height: 120px; margin: -60px 0 0 -60px; pointer-events: none;
   border-radius: 50%; opacity: 0; transition: opacity .2s; }
@@ -101,7 +104,7 @@ button { font: inherit; color: inherit; }
 .bz-hp .hp-end { position: absolute; top: -6px; width: 34px; height: 52px; background: url(../art/ui/board_ui/HealthBar_End_TUI.webp) center/contain no-repeat; }
 .bz-hp .hp-end.l { left: 2px; } .bz-hp .hp-end.r { right: 2px; transform: scaleX(-1); }
 .bz-hp .hp-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 10px; pointer-events: none;
-  font: 800 34px/1 var(--f-num); color: #fff; letter-spacing: .01em;
+  font: 800 calc(34px * min(var(--uik, 1), 1.35))/1 var(--f-num); color: #fff; letter-spacing: .01em;
   text-shadow: 0 0 2px #0a3d07, 0 2px 0 #0a3d07, 2px 0 0 #0a3d07, -2px 0 0 #0a3d07, 0 -2px 0 #0a3d07; }
 .bz-hp .hp-text .sh { color: #ffe36d; text-shadow: 0 0 2px #4a2c00, 0 2px 0 #4a2c00, 2px 0 0 #4a2c00, -2px 0 0 #4a2c00; }
 .bz-hp .hp-text .rg { color: #b8f56a; font-size: 26px; }
@@ -133,7 +136,7 @@ button { font: inherit; color: inherit; }
 .bz-dial .storm i { position: absolute; inset: 0; transform-origin: 0 50%; background: linear-gradient(90deg, #e8b04a, #ff7a2a); }
 .bz-dial.storming .ring { animation: bz-storm-ring .6s linear infinite alternate; }
 @keyframes bz-storm-ring { from { filter: brightness(1); } to { filter: brightness(1.6); } }
-.bz-dial-label { position: absolute; left: 190px; top: 642px; width: 190px; text-align: center; font: 700 16px/1.2 var(--f-text);
+.bz-dial-label { position: absolute; left: 165px; top: 642px; width: 240px; text-align: center; font: 700 16px/1.2 var(--f-text); white-space: nowrap;
   color: var(--cream); text-shadow: 0 2px 2px #000; letter-spacing: .06em; }
 
 /* ---------- cột điều khiển ---------- */
@@ -165,30 +168,41 @@ button { font: inherit; color: inherit; }
 .bz-pick-btn { position: absolute; right: 24px; top: 22px; height: 64px; padding: 0 24px; font: 700 24px/1 var(--f-text); }
 .bz-seed { position: absolute; right: 30px; top: 96px; font: 600 16px/1 var(--f-text); color: #ffe9c8; text-shadow: 0 1px 2px #000; opacity: .85; }
 
-/* ---------- băng-rôn: cuộn giấy vàng cuộn từ trái 700 ms (thua 500), giữ, rồi cuộn lại bay lên góc phải 300 ms (REF death-victory) ---------- */
-.bz-banner { position: absolute; left: 0; right: 0; top: 446px; height: 190px; display: flex; align-items: center; justify-content: center;
-  pointer-events: none; opacity: 0; --bn-in: 700ms; }
-.bz-banner .in { position: relative; padding: 18px 120px; text-align: center; min-width: 760px;
-  background: linear-gradient(180deg, #3b78d0, #1f4c9c 55%, #163878);
-  border-top: 5px solid #f0c85a; border-bottom: 5px solid #f0c85a; box-shadow: 0 10px 30px rgba(0,0,0,.5), inset 0 0 40px rgba(120,180,255,.35); }
-.bz-banner .in::before, .bz-banner .in::after { content: ""; position: absolute; top: -12px; bottom: -12px; width: 34px; border-radius: 17px;
-  background: linear-gradient(90deg, #8a5a14, #f6d878 40%, #b8841f); box-shadow: 0 4px 8px rgba(0,0,0,.5); }
-.bz-banner .in::before { left: -17px; } .bz-banner .in::after { right: -17px; }
-.bz-banner h2 { margin: 0; font: 900 96px/1 var(--f-title); letter-spacing: .04em; color: #fff;
-  text-shadow: 0 4px 0 #0e2a66, 0 0 26px rgba(120,190,255,.8); }
-.bz-banner p { margin: 8px 0 0; font: 700 30px/1.2 var(--f-text); color: #e8f1ff; }
-.bz-banner.storm { --bn-in: 450ms; }
-.bz-banner.storm .in { background: linear-gradient(180deg, #d89a48, #a8651f 55%, #7c4410); box-shadow: 0 10px 30px rgba(0,0,0,.5), inset 0 0 40px rgba(255,210,120,.35); }
-.bz-banner.storm h2 { color: #fff0cc; font-size: 72px; text-shadow: 0 4px 0 #5a2c00, 0 0 24px rgba(255,190,90,.8); }
-.bz-banner.draw .in { background: linear-gradient(180deg, #7a88b8, #4a5688 55%, #2e386a); }
-.bz-banner.draw h2 { text-shadow: 0 4px 0 #22305a, 0 0 30px rgba(140,170,255,.6); }
-.bz-banner.lose { --bn-in: 500ms; }
-.bz-banner.lose .in { background: linear-gradient(180deg, #c03a36, #8c1e22 55%, #5e1018); box-shadow: 0 10px 30px rgba(0,0,0,.55), inset 0 0 50px rgba(0,60,60,.45); }
-.bz-banner.lose h2 { color: #ffe2dc; text-shadow: 0 4px 0 #3a0608, 0 0 28px rgba(255,90,70,.7); }
-.bz-banner.lose .in::before, .bz-banner.lose .in::after { background: linear-gradient(90deg, #4a4a44, #b8b2a0 40%, #6a665a); }
-.bz-banner.show { animation: bz-banner-in var(--bn-in) cubic-bezier(.25,.8,.3,1) forwards; }
-.bz-banner.hide { animation: bz-banner-out .3s ease-in forwards; }
-@keyframes bz-banner-in { 0% { opacity: 1; clip-path: inset(0 100% 0 0); transform: translateX(-80px); } 100% { opacity: 1; clip-path: inset(-30px 0 -30px 0); transform: none; } }
+/* ---------- băng-rôn kết trận (REF fight-result 10-19, death-victory; VFX-13): dải lụa xanh viền vàng = Victory_BannerCenter_01_TUI
+   xoay ngang (cắt bỏ hoa văn đuôi), hai đuôi lụa Victory_BannerLeft/Right_01_TUI; ống cuộn vàng chạy từ trái mở dải ra trong 600 ms,
+   giữ 1,4 s, rồi cuộn lại bay lên góc phải 400 ms. Thua: dải đỏ (xoay màu) + khói xanh-đen (BZFX bannerLose). [ĐỀ XUẤT: dải thẳng, gốc là
+   lụa uốn cong 3D] ---------- */
+.bz-banner { position: absolute; left: 0; right: 0; top: 440px; height: 200px; display: flex; align-items: center; justify-content: center;
+  pointer-events: none; opacity: 0; z-index: 30; --bn-in: 600ms; }
+.bz-banner .rib { position: relative; width: 960px; height: 200px; }
+.bz-banner .tail { position: absolute; top: -140px; width: 326px; height: 384px; background: center / 100% 100% no-repeat;
+  filter: drop-shadow(0 8px 10px rgba(0,0,0,.45)); }
+.bz-banner .tail.l { left: -286px; background-image: url(../art/ui/ui_sprite_atlas/Victory_BannerLeft_01_TUI.webp); }
+.bz-banner .tail.r { right: -286px; background-image: url(../art/ui/ui_sprite_atlas/Victory_BannerRight_01_TUI.webp); }
+.bz-banner .band { position: absolute; left: 0; right: 0; top: 25px; height: 150px; overflow: hidden; border-radius: 4px;
+  box-shadow: 0 12px 24px rgba(0,0,0,.5); }
+.bz-banner .cloth { position: absolute; left: 50%; top: 50%; width: 150px; height: 960px; margin: -480px 0 0 -75px; transform: rotate(-90deg);
+  background: url(../art/ui/ui_sprite_atlas/Victory_BannerCenter_01_TUI.webp) top / 100% 118% no-repeat; }
+.bz-banner .in { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.bz-banner h2 { margin: 0; font: 900 84px/1 var(--f-title); letter-spacing: .03em; color: #fff;
+  text-shadow: 0 4px 0 #0b2252, 0 0 2px #0b2252, 0 0 24px rgba(130,200,255,.75); }
+.bz-banner p { margin: 6px 0 0; font: 700 26px/1.2 var(--f-text); color: #f6e7b8; text-shadow: 0 2px 2px rgba(0,0,0,.75); }
+.bz-banner .roll { position: absolute; top: 4px; left: 0; width: 46px; height: 192px; margin-left: -23px; border-radius: 23px; opacity: 0;
+  background: linear-gradient(90deg, #6a3e0c, #d9a640 22%, #fff6c8 48%, #f0cf6a 62%, #7a4a10);
+  box-shadow: 0 0 22px rgba(255,210,100,.85), 0 6px 10px rgba(0,0,0,.5); }
+.bz-banner.lose .tail, .bz-banner.lose .cloth { filter: hue-rotate(150deg) saturate(1.2) brightness(.86); }
+.bz-banner.lose h2 { text-shadow: 0 4px 0 #3a0608, 0 0 2px #3a0608, 0 0 26px rgba(255,90,70,.7); }
+.bz-banner.draw .tail, .bz-banner.draw .cloth { filter: saturate(.25) brightness(.95); }
+.bz-banner.storm { --bn-in: 420ms; }
+.bz-banner.storm .rib { scale: .78; }
+.bz-banner.storm .tail, .bz-banner.storm .cloth { filter: hue-rotate(185deg) saturate(.9) brightness(1.05); }
+.bz-banner.storm h2 { font-size: 72px; color: #fff0cc; text-shadow: 0 4px 0 #5a2c00, 0 0 24px rgba(255,190,90,.8); }
+.bz-banner.show { opacity: 1; }
+.bz-banner.show .rib { animation: bz-rib-in var(--bn-in) cubic-bezier(.3,.7,.3,1) both; }
+.bz-banner.show .roll { animation: bz-roll var(--bn-in) cubic-bezier(.3,.7,.3,1) both; }
+.bz-banner.hide { opacity: 1; animation: bz-banner-out .4s ease-in forwards; }
+@keyframes bz-rib-in { 0% { clip-path: inset(-170px 100% -170px -330px); transform: translateX(-80px); } 100% { clip-path: inset(-170px -330px -170px -330px); transform: none; } }
+@keyframes bz-roll { 0% { left: 0; opacity: 1; } 88% { left: 100%; opacity: 1; } 100% { left: 100%; opacity: 0; } }
 @keyframes bz-banner-out { 0% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translate(620px, -380px) scale(.25, .5); } }
 .bz-crown { position: absolute; left: 50%; width: 92px; height: 72px; margin-left: -46px; pointer-events: none; opacity: 0;
   background: url(../art/ui/ui_sprite_atlas/Portrait_WinBanner_TUI.webp) center/contain no-repeat; filter: drop-shadow(0 4px 8px rgba(0,0,0,.6)); }
@@ -196,17 +210,19 @@ button { font: inherit; color: inherit; }
 .bz-crown.on { animation: bz-crown 0.7s cubic-bezier(.2,1.5,.4,1) forwards; }
 @keyframes bz-crown { 0% { opacity: 0; transform: translateY(-40px) scale(.4); } 100% { opacity: 1; transform: none; } }
 
-#bz-fx { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; pointer-events: none; }
+/* z-index 25: thẻ có z-index 1 (rê chuột 20) nên canvas z auto bị thẻ che — mọi chớp/hạt trên thẻ (bắn, Haste, Freeze, cất cánh...) từng vô hình */
+#bz-fx { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; pointer-events: none; z-index: 25; }
 /* bão cát: dựng lại từ prefab FX_SandStorm (texture Sandstorm_EdgesMask = khói cát lan từ mép TRÊN và DƯỚI màn hình, nhiều bộ hạt Dust/Swirl/Smoke/Parallax)
    — KHÔNG phải viền cồn cát vàng: ảnh "sandstorm/b" cũ thực ra là lớp phủ KHIÊN. --sk = 0..1 mức độ dày dần */
 .bz-sand { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 1.2s; --sk: 0;
-  background: radial-gradient(ellipse at 50% 50%, rgba(196,138,66,calc(.03 + .05 * var(--sk))) 30%, rgba(150,96,38,calc(.14 + .22 * var(--sk))) 100%); }
+  background: linear-gradient(90deg, rgba(150,96,38,calc(.22 + .22 * var(--sk))) 0, rgba(150,96,38,0) 20%, rgba(150,96,38,0) 80%, rgba(150,96,38,calc(.22 + .22 * var(--sk))) 100%); }
+/* VFX-11: trước đây mép trên cao 52 % đặc #e4b66a phủ vàng cả hàng đối thủ và thanh máu; giờ mép trên mỏng, cồn cát dưới đáy, khói hai bên */
 .bz-sand.on { opacity: 1; }
-.bz-sand .edge { position: absolute; left: -10%; right: -10%; top: 0; height: 52%; opacity: calc(.6 + .4 * var(--sk));
+.bz-sand .edge { position: absolute; left: -10%; right: -10%; top: 0; height: 12%; opacity: calc(.22 + .2 * var(--sk));
   background: linear-gradient(180deg, #e4b66a, #c98e42);
   -webkit-mask: url(../art/vfx/sandedge.webp) 0 0 / 33.34% 200% repeat-x; mask: url(../art/vfx/sandedge.webp) 0 0 / 33.34% 200% repeat-x;
   transform: translateY(calc(-28% * (1 - var(--sk)))); animation: bz-sand-drift 14s linear infinite; }
-.bz-sand .edge.b { top: auto; bottom: 0; background: linear-gradient(0deg, #e4b66a, #c98e42);
+.bz-sand .edge.b { top: auto; bottom: 0; height: 17%; opacity: calc(.45 + .35 * var(--sk)); background: linear-gradient(0deg, #e4b66a, #c98e42);
   -webkit-mask-position: 0 100%; mask-position: 0 100%; transform: translateY(calc(28% * (1 - var(--sk)))); animation-name: bz-sand-drift-b; animation-duration: 21s; animation-direction: reverse; }
 @keyframes bz-sand-drift { from { -webkit-mask-position: 0 0; mask-position: 0 0; } to { -webkit-mask-position: 640px 0; mask-position: 640px 0; } }
 @keyframes bz-sand-drift-b { from { -webkit-mask-position: 0 100%; mask-position: 0 100%; } to { -webkit-mask-position: 640px 100%; mask-position: 640px 100%; } }
@@ -228,9 +244,10 @@ button { font: inherit; color: inherit; }
 @keyframes bz-enr-smoke { from { transform: translateX(-3%) scale(1.02); } to { transform: translateX(3%) scale(1.12); } }
 .bz-enr-vig.on { animation: bz-enr-vig 1s 1s ease-out forwards; }
 @keyframes bz-enr-vig { from { opacity: 0; } to { opacity: 1; } }
-.bz-sh-frame { position: absolute; left: 392px; width: 1136px; height: 214px; border-radius: 16px; pointer-events: none; opacity: 0; transition: opacity .25s; --sh: 0;
-  padding: calc(8px + 22px * var(--sh)); box-sizing: border-box; }
-.bz-sh-frame.top { top: 60px; } .bz-sh-frame.bot { top: 816px; }
+.bz-sh-frame { position: absolute; left: 598px; width: 724px; height: 182px; border-radius: 16px; pointer-events: none; opacity: 0; transition: opacity .25s; --sh: 0;
+  padding: calc(5px + 12px * var(--sh)); box-sizing: border-box; }
+/* VFX-9: chỉ ôm khối hero (chân dung + kỹ năng 598..1322), dừng ngay trên thanh máu (top 258) / dưới thanh máu (bot 834) */
+.bz-sh-frame.top { top: 74px; height: 182px; } .bz-sh-frame.bot { top: 834px; height: 182px; }
 .bz-sh-frame.on { opacity: 1; }
 /* khiên (REF shield, sandstorm/b thật ra là cái này): viền lưới thoi vàng quanh cả hàng chân dung, dày theo khiên/máu tối đa */
 .bz-sh-frame::before { content: ""; position: absolute; inset: 0; border-radius: inherit; box-sizing: border-box; padding: inherit;
@@ -238,15 +255,16 @@ button { font: inherit; color: inherit; }
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
   box-shadow: inset 0 0 0 3px #ffe45a, 0 0 22px 4px rgba(255,214,40,.8); filter: drop-shadow(0 0 6px rgba(255,200,30,.9)); }
 .bz-sh-frame::after { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 calc(8px + 22px * var(--sh)) rgba(255,214,40,.12), 0 0 30px 6px rgba(255,210,40,.55); }
-.bz-rowglow { position: absolute; left: 586px; width: 748px; height: 196px; border-radius: 10px; pointer-events: none; opacity: 0;
+.bz-rowglow { position: absolute; left: 598px; width: 724px; height: 182px; border-radius: 10px; pointer-events: none; opacity: 0;
   box-shadow: inset 0 0 0 4px var(--rg), inset 0 0 40px var(--rg), 0 0 36px var(--rg);
   background: repeating-linear-gradient(45deg, transparent 0 14px, rgba(252,220,44,.16) 14px 16px), repeating-linear-gradient(-45deg, transparent 0 14px, rgba(252,220,44,.16) 14px 16px);
-  animation: bz-rowglow 1.2s ease-out forwards; }
-.bz-rowglow.top { top: 70px; } .bz-rowglow.bot { top: 824px; }
+  }
+.bz-rowglow.go { animation: bz-rowglow 1.2s ease-out forwards; }
+.bz-rowglow.top { top: 74px; } .bz-rowglow.bot { top: 834px; }
 @keyframes bz-rowglow { 0% { opacity: 0; } 12% { opacity: 1; } 70% { opacity: .8; } 100% { opacity: 0; } }
 
 /* ---------- chọn trận ---------- */
-.bz-picker { position: absolute; inset: 0; z-index: 50; display: none; background: rgba(10,6,3,.72); backdrop-filter: blur(3px); }
+.bz-picker { position: absolute; inset: 0; z-index: 50; display: none; background: rgba(10,6,3,.84); } /* INTERACT-17: bỏ backdrop-filter (Chromium vẽ đôi/lộn ngược khi tổ tiên có scale) */
 .bz-picker.open { display: block; animation: bz-fade .18s ease-out; }
 @keyframes bz-fade { from { opacity: 0; } to { opacity: 1; } }
 .bz-picker .panel { position: absolute; left: 110px; top: 60px; right: 110px; bottom: 60px; border-radius: 22px; padding: 26px 30px;
@@ -277,3 +295,26 @@ button { font: inherit; color: inherit; }
 
 .bz-hint { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); font: 600 18px/1 var(--f-text); color: #ffe9c8;
   text-shadow: 0 1px 3px #000; opacity: .75; pointer-events: none; white-space: nowrap; }
+
+/* VFX-30: bỏng/độc/hồi/nộ là SỐ màu trong dòng máu (REF combat-status), không còn viên thuốc nền tối */
+.bz-chip { background: none; box-shadow: none; padding: 0 2px; gap: 1px; }
+.bz-chip img { width: 26px; height: 26px; filter: drop-shadow(0 1px 1px rgba(0,0,0,.8)); }
+.bz-chip b { color: inherit; font-size: 32px; text-shadow: 0 0 2px #120800, 0 2px 0 #120800, 2px 0 0 #120800, -2px 0 0 #120800, 0 -2px 0 #120800; }
+
+/* VFX-16: mở trận — sân tối mờ dần 450 ms, vệt sáng xanh quét ngang 600 ms, chân dung + thanh máu nở ra, thẻ bay vào lần lượt (REF fight-start);
+   stage.js V.intro() gắn/gỡ lớp bz-intro, đồng hồ trận giữ RP.INTRO_MS */
+#bz-stage.bz-intro #bz-world::before { content: ""; position: absolute; inset: 0; z-index: 40; pointer-events: none; background: #0a0603;
+  animation: bz-intro-dark .45s ease-out forwards; }
+#bz-stage.bz-intro #bz-world::after { content: ""; position: absolute; inset: 0; z-index: 41; pointer-events: none; opacity: 0;
+  background: linear-gradient(105deg, transparent 35%, rgba(70,150,255,.32) 44%, rgba(190,225,255,.7) 50%, rgba(70,150,255,.32) 56%, transparent 65%) 0 0 / 300% 100% no-repeat;
+  animation: bz-intro-sweep .6s .25s ease-in-out forwards; }
+@keyframes bz-intro-dark { from { opacity: 1; } to { opacity: 0; } }
+@keyframes bz-intro-sweep { 0% { opacity: 1; background-position: 100% 0; } 100% { opacity: 1; background-position: 0 0; } }
+#bz-stage.bz-intro .bz-card { animation: bz-card-in .5s cubic-bezier(.2,.9,.3,1.12) backwards; animation-delay: calc(.22s + var(--ci, 0) * 50ms); }
+@keyframes bz-card-in { from { translate: 0 var(--fy, 170px); opacity: 0; } }
+#bz-stage.bz-intro .bz-hero, #bz-stage.bz-intro .bz-hp { animation: bz-hero-in .5s .12s cubic-bezier(.2,.9,.3,1.1) backwards; }
+@keyframes bz-hero-in { from { opacity: 0; scale: .86; } }
+
+/* VFX-14/27: tạm dừng phát lại thì dừng luôn hoạt ảnh CSS trên sân (băng-rôn, khung khiên, sọc Haste, mưa Slow, nhịp nộ) */
+#bz-stage.bz-paused #bz-world *, #bz-stage.bz-paused #bz-world *::before, #bz-stage.bz-paused #bz-world *::after,
+#bz-stage.bz-paused .bz-banner, #bz-stage.bz-paused .bz-banner * { animation-play-state: paused !important; }

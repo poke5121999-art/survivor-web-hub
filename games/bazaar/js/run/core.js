@@ -13,6 +13,9 @@
   R.tierIndex = function (t) { var i = R.TIERS.indexOf(t); return i < 0 ? 0 : i; };
 
   // ---------- dữ liệu ----------
+  // Ngày dùng để tra bảng dữ liệu: run KHÔNG dừng ở ngày NumberOfDays (đến 10 trận thắng hoặc hết uy tín mới hết), ngày > 10 dùng dữ liệu
+  // ngày 10 (Dealer:2329-2332, 3531-3534 kẹp ngày về 10; CODE-RUN §0). Uy tín mất theo ngày THẬT, máu bóng ngoại suy theo ngày thật.
+  R.dataDay = function (day) { return Math.min(Math.max(1, Math.floor(day)), R.mode().NumberOfDays); };
   R.mode = function () { return root.BZ_MODE.mode; };
   R.tpl = function (id) { return BZ().tpl(id); };
   R.enc = function () { return root.BZ_ENCOUNTERS; };
@@ -39,6 +42,18 @@
     return weights.length - 1;
   };
   R.clone = function (o) { return JSON.parse(JSON.stringify(o)); };
+
+  // Chữ mô tả của thẻ gặp gỡ đã thay `{ability.N}` / `{aura.N}` bằng số thật (giao diện hiện thẳng, không tự giải).
+  // Số aura của thương nhân "Buys your X items at +N Value" lấy từ TUNING (data/encounters.js chưa chở Auras).
+  R.encText = function (run, e, text) {
+    text = text == null ? '' : String(text);
+    if (text.indexOf('{') < 0) return text;
+    var sim = root.BZSim, S = R.readState(run), card = R.ooc.encounterCard(S, e), auras = {}, ms = T().MERCHANT_SELL_AURAS[e.InternalName];
+    if (ms && ms[0]) auras[3] = ms[0].Value;
+    var ea = T().ENCOUNTER_AURA_VALUES[e.InternalName];
+    if (ea) for (var k in ea) auras[k] = ea[k];
+    return sim.encounterText(S, card, e, text, auras);
+  };
 
   // ---------- sự kiện cho giao diện + nhật ký ----------
   R.emit = function (ctx, e) { ctx.events.push(e); return e; };
@@ -249,6 +264,14 @@
     var tpl = R.tpl(card.id);
     return !!R.autoPlace(run, { id: card.id, size: R.isSkill(tpl) ? 1 : (R.SIZE[tpl.Size] || 1) });
   };
+  // Vì sao không nhận được thẻ: 'skillOwned' (đã có kỹ năng này) | 'skillsFull' (hết ô kỹ năng) | 'boardFull' (tay + kho đầy / không vừa cỡ).
+  // Chuỗi lỗi "no space for <id> (<why>)" để giao diện nói rõ lý do và gợi ý bán thẻ [FLOW-8, FLOW-9]
+  R.noSpaceWhy = function (run, card) {
+    var tpl = R.tpl(card.id);
+    if (R.isSkill(tpl)) return run.board.skills.some(function (c) { return c.id === card.id; }) ? 'skillOwned' : 'skillsFull';
+    return 'boardFull';
+  };
+  R.noSpaceReason = function (run, card) { return 'no space for ' + card.id + ' (' + R.noSpaceWhy(run, card) + ')'; };
   R.upgradeInst = function (ctx, ci, why) {
     var nt = BZ().nextTier(R.tpl(ci.id), ci.tier);
     if (!nt) return false;

@@ -31,6 +31,7 @@
   };
 
   // bảng tooltip hai dải (prestige-1.png): tiêu đề serif + thân chữ
+  // rect.row = {x0, x1, y1}: hàng khung không được che; bảng không vừa hai bên thì xuống dưới hàng (điện thoại, MOBILE-25)
   U.panelTip = function (rect, title, body) {
     var t = V().refs.tip2;
     if (!rect) { t.classList.remove('show'); return; }
@@ -39,17 +40,29 @@
     var w = t.offsetWidth, h = t.offsetHeight, x = rect.x + rect.w + 18;
     if (x + w > 1908) x = rect.x - w - 18;
     var y = Math.max(10, Math.min(1070 - h, rect.y + rect.h / 2 - h / 2));
+    var rw = rect.row;
+    if (rw && (x < 12 || (x < rw.x1 && x + w > rw.x0))) { x = Math.max(12, Math.min(1908 - w, rect.x + rect.w / 2 - w / 2)); y = Math.min(1070 - h, rw.y1 + 12); }
     t.style.left = Math.round(x) + 'px'; t.style.top = Math.round(y) + 'px';
     t.classList.remove('show'); void t.offsetWidth; t.classList.add('show');
   };
-  function hoverTip(el, fn) {
-    el.addEventListener('pointerenter', function (e) {
-      if (e.pointerType === 'touch') return;
+  // bảng giải thích của HUD: chuột rê vào thì hiện; cảm ứng chạm thì hiện, chạm lại / chạm chỗ khác thì tắt (INTERACT-30, MOBILE-5).
+  // opts.touch === false: chạm không mở bảng (rương: chạm = mở kho)
+  var touchOpen = null;
+  function hoverTip(el, fn, opts) {
+    el.classList.add('rs-tipsrc');
+    function open() {
       var b = el.getBoundingClientRect(), p = V().toStage(b.left, b.top), r = fn();
       U.panelTip({ x: p.x, y: p.y, w: b.width / V().scale, h: b.height / V().scale }, r[0], r[1]);
       if (r[2]) U.sfx(r[2], { vol: 0.6 });
+    }
+    el.addEventListener('pointerenter', function (e) { if (e.pointerType !== 'touch') open(); });
+    el.addEventListener('pointerleave', function (e) { if (e.pointerType !== 'touch') U.panelTip(null); });
+    if (opts && opts.touch === false) return;
+    el.addEventListener('pointerup', function (e) {
+      if (e.pointerType !== 'touch') return;
+      if (touchOpen === el && V().refs.tip2.classList.contains('show')) { touchOpen = null; U.panelTip(null); return; }
+      touchOpen = el; open();
     });
-    el.addEventListener('pointerleave', function () { U.panelTip(null); });
   }
 
   H.build = function () {
@@ -111,6 +124,10 @@
     var h = V().hero(0);
     if (h) { h.art.classList.add('hero-art'); }
     V().updateHero(0, { health: run.healthMax, healthMax: run.healthMax }, U.now());
+    H.mountSides(run);
+  };
+  // hai ô cạnh dưới (rương kho, vàng + thu nhập): dựng lại cả sau BZView.setupHero của trận (combat.js) — HUD giữ nguyên bố cục
+  H.mountSides = function (run) {
     var S = V().refs.sides[0];
     // ô trái: rương kho
     S.l.innerHTML = '';
@@ -119,8 +136,8 @@
     ch.querySelector('.ico').style.backgroundImage = U.bg(U.ICON.stash);
     E.chestBar = ch.querySelector('.bar'); E.chestN = ch.querySelector('.lb b');
     for (var i = 0; i < 10; i++) U.el('i', '', E.chestBar);
-    ch.addEventListener('click', function () { if (U.cards) U.cards.toggleStash(); });
-    hoverTip(ch, function () { return ['Kho đồ', 'Bấm (hoặc phím Space) để mở kho. Kéo thẻ thả vào rương để cất. Đồ trong kho không đánh nhưng hiệu ứng ngoài trận vẫn chạy.', 'board.hoverChest']; });
+    ch.addEventListener('click', function () { if (U.cards && !V().refs.stage.classList.contains('m-fight')) U.cards.toggleStash(); });
+    hoverTip(ch, function () { return ['Kho đồ', 'Bấm (hoặc phím Space) để mở kho. Kéo thẻ thả vào rương để cất. Đồ trong kho không đánh nhưng hiệu ứng ngoài trận vẫn chạy.', 'board.hoverChest']; }, { touch: false });
     // ô phải: vàng + thu nhập
     S.r.innerHTML = '';
     var g = E.goldPanel = U.el('div', 'rs-gold', S.r);
@@ -135,12 +152,16 @@
   H.goldRect = function () { return rectOf(E.goldPanel && E.goldPanel.querySelector('.gd i')) || { x: 1400, y: 840, w: 40, h: 40, cx: 1420, cy: 860 }; };
   H.xpRect = function () { return rectOf(E.xp) || { cx: 960, cy: 1020 }; };
   H.chestRect = function () { return rectOf(E.chest) || { cx: 494, cy: 900 }; };
+  H.chestEl = function () { return E.chest || null; };
   H.clockRect = function () { return rectOf(E.clock); };
   H.crownRect = function () { return rectOf(E.crown); };
-  // thanh vương miện đầy lại về 1 (màn Số phận); lần update kế tiếp trả về số thật
+  // màn Số phận: thanh vương miện chạy lên số uy tín thật sau Số phận (FATES_PRESTIGE_AFTER = 1), không vờ đầy rồi tụt (FLOW-23)
   H.refillCrown = function () {
+    var r = U.state.run; if (!r || !E.prest) return;
+    var pm = R().mode().Prestige.PrestigeMax, after = (R().TUNING && R().TUNING.FATES_PRESTIGE_AFTER) || Math.max(1, r.prestige);
     E.prest.style.transition = 'transform 1.3s cubic-bezier(.2,.8,.3,1)';
-    E.prest.style.transform = 'scaleX(1)';
+    E.prest.style.transform = 'scaleX(' + Math.max(0, Math.min(1, after / pm)).toFixed(3) + ')';
+    E.prestTxt.textContent = after;
     H.pulse('crown');
     setTimeout(function () { E.prest.style.transition = ''; }, 1500);
   };

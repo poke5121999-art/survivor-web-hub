@@ -32,7 +32,7 @@
     var ph = ctx.run.phase, p = ph.picks[cmd.i];
     if (!p) return 'loot slot ' + cmd.i + ' is empty';
     var ci = R.gainCard(ctx, p.card, cmd.section || null, cmd.socket == null ? null : cmd.socket, 'loot');
-    if (!ci) return 'no space for ' + p.card.id;
+    if (!ci) return R.noSpaceReason(ctx.run, p.card);
     R.log(ctx, { t: 'loot', id: p.card.id, tier: p.card.tier });
     ph.picks.splice(cmd.i, 1);
     ph.taken++;
@@ -85,8 +85,8 @@
     // (SpawnContext bị xoá) → bày Then thay cho Deal; được rời [ĐỀ XUẤT]
     var Ev = R.ENCOUNTERS.event, then = (e.Then || []).filter(function (o) { return Ev.optionOk(o, ctx.run); });
     if (then.length) {
-      ctx.run.phase = { kind: 'event', eventId: null, stepId: e.Id, name: e.Title || e.InternalName, desc: e.Desc || '',
-        choices: then.map(Ev.optionChoice), canExit: true, after: after };
+      ctx.run.phase = { kind: 'event', eventId: null, stepId: e.Id, name: e.Title || e.InternalName, desc: R.encText(ctx.run, e, e.Desc || ''),
+        choices: then.map(function (o) { return Ev.optionChoice(o, ctx.run); }), canExit: true, after: after };
       return;
     }
     var d = res.deals[0]; // một bước chỉ bày một lựa chọn (bước có nhiều Deal: lấy cái đầu) [ĐỀ XUẤT]

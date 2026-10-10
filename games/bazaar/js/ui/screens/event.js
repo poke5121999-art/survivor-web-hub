@@ -12,6 +12,8 @@
     var tpl = R().tpl(c.id);
     return '<b class="w">' + U.esc(R().title(tpl)) + '</b> <span class="o">(' + (U.TIER_VI[c.tier] || c.tier) + (c.ench ? ', ' + U.esc(c.ench) : '') + ')</span>';
   }
+  // Quả cầu mở màn: rê chuột (hoặc chạm lần 1) hiện bảng "Bắt đầu với" + tooltip thẻ thật nếu lựa chọn là một thẻ; lựa chọn kỹ năng
+  // theo bước "(Start Skill)" của hero hiện mô tả của bước (INTERACT-15). Cảm ứng: chạm lần 2 mới chọn (INTERACT-11).
   function startScreen(run) {
     var ph = run.phase, layer = U.top.layer();
     var m = U.top.map('Bắt đầu với', 'Chọn một khởi đầu cho ' + run.hero);
@@ -24,10 +26,27 @@
       U.el('div', 'shine', o);
       U.el('div', 'nm', o, U.esc(c.name));
       var body = c.key === 'income' ? '+<i class="ci" style="background-image:' + U.bg(U.ICON.coin) + '"></i><b class="g">' + c.gold + '</b> Vàng<br>+<i class="ci" style="background-image:' + U.bg(U.ICON.coin) + '"></i><b class="g">' + c.income + '</b> Thu nhập'
-        : c.card ? (c.key === 'item' ? 'Một vật phẩm nhỏ yểm bùa:<br>' : 'Một kỹ năng:<br>') + cardLine(c.card) : '';
-      o.addEventListener('pointerenter', function () { U.sfx('ui.hover', { vol: 0.5 }); U.panelTip(U.rectOf(o), 'Bắt đầu với', body); if (c.card) { var info = U.tipInfo(c.card, U.looseAttrs(c.card), null); } });
-      o.addEventListener('pointerleave', function () { U.panelTip(null); });
-      o.addEventListener('click', function () { if (U.state.busy) return; U.panelTip(null); U.sfx('spell.select'); o.classList.add('chosen'); U.dispatch({ t: 'choose', i: i }, { fromRect: U.rectOf(o) }); });
+        : c.card ? (c.key === 'item' ? 'Một vật phẩm nhỏ yểm bùa:<br>' : 'Một kỹ năng:<br>') + cardLine(c.card)
+        : c.desc ? root.BZTooltip.format(c.desc).html : (c.key === 'skill' ? 'Một kỹ năng khởi đầu của ' + U.esc(run.hero) : '');
+      function show(touch) {
+        var r = U.rectOf(o);
+        U.panelTip(r, 'Bắt đầu với', body + (touch ? '<br><span class="o">Chạm lần nữa để chọn</span>' : ''));
+        // lựa chọn là một thẻ: tooltip đầy đủ của thẻ (chỉ số, chữ) ở phía bên kia quả cầu
+        if (c.card) { var info = U.tipInfo(c.card, U.looseAttrs(c.card), null); if (info) root.BZTooltip.show(info, { x: r.x, y: r.y - 10, w: r.w, h: r.h }); }
+      }
+      function hide() { U.panelTip(null); root.BZTooltip.hide(); }
+      var lastPt = 'mouse';
+      o.addEventListener('pointerdown', function (e) { lastPt = e.pointerType; });
+      o.addEventListener('pointerenter', function (e) { if (e.pointerType === 'touch') return; U.sfx('ui.hover', { vol: 0.5 }); show(false); });
+      o.addEventListener('pointerleave', function (e) { if (e.pointerType !== 'touch') hide(); });
+      o.addEventListener('click', function () {
+        if (U.state.busy) return;
+        if (lastPt === 'touch' && !o.classList.contains('armed')) {
+          Array.prototype.forEach.call(row.querySelectorAll('.rs-orb.armed'), function (b) { b.classList.remove('armed'); });
+          o.classList.add('armed'); U.sfx('ui.hover', { vol: 0.5 }); show(true); return;
+        }
+        hide(); U.sfx('spell.select'); o.classList.add('chosen'); U.dispatch({ t: 'choose', i: i }, { fromRect: U.rectOf(o) });
+      });
     });
   }
   function choiceArt(c) {
@@ -72,11 +91,18 @@
         if (a) img.style.backgroundImage = U.bg(a);
         U.el('h4', '', t, U.esc(c.name));
         U.el('p', '', t, root.BZTooltip.format(c.desc || '').html);
+        // chữ dài: thu ảnh + cỡ chữ để không bị cắt (INTERACT-16; bản gốc TMP auto-size 18-39)
+        var len = String(c.name || '').length + String(c.desc || '').length;
+        if (len > 150) t.classList.add('xlong'); else if (len > 80) t.classList.add('long');
         t.addEventListener('pointerenter', function () { U.sfx('ui.hover', { vol: 0.5 }); });
         t.addEventListener('click', function () { if (U.state.busy) return; U.sfx('spell.select'); t.classList.add('chosen'); U.dispatch({ t: 'choose', i: i }, { fromRect: U.rectOf(t) }); });
       });
     },
-    exit: function () { this._key = null; this._eid = null; U.top.clear(); }
+    exit: function () { this._key = null; this._eid = null; U.top.clear(); },
+    boardFull: function () {
+      if (!U.top.layer().querySelector('.rs-hint')) U.top.layer().appendChild(U.el('div', 'rs-hint', null, ''));
+      U.boardFullHint();
+    }
   };
 
   // ---------- loot: chọn 1 (hoặc nhiều) thẻ miễn phí ----------
@@ -90,10 +116,11 @@
       else if (src && enc.steps[src]) { name = enc.steps[src].Title; tier = enc.steps[src].StartingTier; art = { bg: U.art(src) }; }
       var side = U.top.portrait(name, tier, art, U.top.nameBlock('Chiến lợi phẩm', name, ''));
       this._note = U.el('div', 'rs-side-note', side.r, '');
-      U.bigButton(side.r, 'brown', 'Bỏ qua', 'Không lấy gì, đi tiếp', function () { U.dispatch({ t: 'leave' }); }).classList.add('leave');
-      U.top.layer().appendChild(U.el('div', 'rs-hint', null, 'Bấm hoặc kéo một thẻ xuống bàn để lấy (miễn phí)'));
+      U.bigButton(side.r, 'brown', 'Bỏ qua', 'Không lấy gì, đi tiếp', function () { U.skipReward(); }).classList.add('leave');
+      U.top.layer().appendChild(U.el('div', 'rs-hint', null, U.rewardHint()));
       U.sfx('card.revealLiftStandard');
     },
+    boardFull: function () { U.boardFullHint(); },
     render: function (run) {
       var ph = run.phase;
       U.cards.render(run);
@@ -111,14 +138,32 @@
     }
   };
 
-  // ---------- bệ: chọn vật phẩm của mình để yểm / nâng bậc ----------
+  // gợi ý ở dải phần thưởng (loot, rương): chuột "bấm hoặc kéo", cảm ứng "chạm xem, chạm lần nữa để lấy" (MOBILE-4)
+  U.rewardHint = function () {
+    var c = false; try { c = root.matchMedia('(pointer: coarse)').matches; } catch (e) { c = false; }
+    return c ? 'Chạm một thẻ để xem, chạm lần nữa (hoặc kéo xuống bàn) để lấy · miễn phí' : 'Bấm hoặc kéo một thẻ xuống bàn để lấy (miễn phí)';
+  };
+  // phần thưởng bị từ chối vì hết chỗ (core.js U.reject → screen.boardFull): gợi ý bán ngay trên dải (FLOW-9)
+  U.boardFullHint = function () {
+    var h = U.top.layer().querySelector('.rs-hint');
+    if (h) { h.textContent = 'Hết chỗ — kéo một món của bạn lên dải này để bán, rồi lấy phần thưởng'; h.classList.add('warn'); }
+  };
+  // "Bỏ qua" khi còn phần thưởng chưa lấy = mất phần thưởng: hỏi lại (FLOW-9, INTERACT-13)
+  U.skipReward = function () {
+    var ph = U.state.run && U.state.run.phase, left = ph ? (ph.take || 1) - (ph.taken || 0) : 0;
+    if (!ph || left <= 0) { U.dispatch({ t: 'leave' }); return; }
+    U.confirm({ title: 'Bỏ phần thưởng?', body: 'Còn ' + left + ' phần thưởng chưa lấy. Bỏ qua thì mất luôn.' + (U.state.sellOpen ? '<br>Có thể bán một món để lấy chỗ.' : ''), yes: 'Bỏ qua', no: 'Ở lại', danger: true },
+      function () { U.dispatch({ t: 'leave' }); });
+  };
+
+  // ---------- bệ: kéo vật phẩm của mình lên bệ (lệnh commit, CommitToPedestalCommand) hoặc bấm vật phẩm đang sáng ----------
   U.SCREENS.pedestal = {
     enter: function (run) {
       var ph = run.phase, e = root.BZ_ENCOUNTERS.pedestals[ph.pedestalId] || {};
       U.top.base(run, { hero: true, sides: true, board: true, lane: 'pedestal' });
       var side = U.top.portrait(ph.name, e.StartingTier || 'Gold', U.top.artOf({ type: 'pedestal', id: ph.pedestalId }), U.top.nameBlock('Bệ thờ', ph.name, ph.desc));
       U.bigButton(side.r, 'brown', 'Rời đi', 'Không dùng bệ', function () { U.dispatch({ t: 'leave' }); }).classList.add('leave');
-      var msg = ph.eligible.length ? (ph.behavior.type === 'upgrade' ? 'Bấm một vật phẩm đang sáng để nâng bậc' : 'Bấm một vật phẩm đang sáng để yểm bùa' + (ph.behavior.ench ? ' ' + ph.behavior.ench : ''))
+      var msg = ph.eligible.length ? (ph.behavior.type === 'upgrade' ? 'Kéo một vật phẩm đang sáng lên bệ (hoặc bấm vào nó) để nâng bậc' : 'Kéo một vật phẩm đang sáng lên bệ (hoặc bấm vào nó) để yểm bùa' + (ph.behavior.ench ? ' ' + ph.behavior.ench : ''))
         : 'Bạn không có vật phẩm nào hợp với bệ này';
       var pl = U.el('div', 'rs-pedestal', U.top.layer(), '<div class="orb"></div><p>' + U.esc(msg) + '</p>');
       U.sfx('pedestal.lightpulse');
@@ -132,10 +177,9 @@
     onCardClick: function (el) {
       var ph = U.state.run.phase;
       if (el._rs.kind !== 'own') return false;
-      var i = ph.eligible.indexOf(el._rs.uid);
-      if (i < 0) { U.sfx('ui.noSpace'); return true; }
+      if (ph.eligible.indexOf(el._rs.uid) < 0) { U.reject('not eligible for this pedestal'); return true; }
       U.sfx('pedestal.item_enchant_start');
-      U.dispatch({ t: 'choose', i: i });
+      U.dispatch({ t: 'commit', uid: el._rs.uid });
       return true;
     }
   };
@@ -165,7 +209,11 @@
         U.top.clear();
         var m = U.top.map(o.title(ph), o.sub(ph));
         m.classList.add(o.dramatic ? 'fates' : 'levelup');
-        U.top.frames(ch, function (i) { U.dispatch({ t: 'choose', i: i }); }, { pennant: function () { return o.dramatic ? 'pedestal' : 'levelup'; }, dy: 20 });
+        U.top.frames(ch, function (i) { U.dispatch({ t: 'choose', i: i }); }, { pennant: function () { return o.dramatic ? 'pedestal' : 'levelup'; }, dy: 20, kicker: o.dramatic ? 'Ân huệ' : 'Phần thưởng lên cấp' });
+      },
+      boardFull: function () {
+        if (U.top.layer().querySelector('.rs-hint')) U.boardFullHint();
+        else { U.top.layer().appendChild(U.el('div', 'rs-hint', null, '')); U.boardFullHint(); }
       },
       exit: function () { this._key = null; if (this._dim) { this._dim.remove(); this._dim = null; } U.top.clear(); }
     };

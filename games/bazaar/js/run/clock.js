@@ -2,7 +2,7 @@
    - giờ 0..5 mỗi ngày; giờ PVE_HOUR chọn 1 trong 3 quái, giờ PVP_HOUR đấu bóng (TUNING, theo WIKI §1.2);
    - hết mỗi giờ +ExperiencePerHour XP (Dealer:2516-2520), sang ngày mới +Income vàng (Dealer:2491) rồi OnDayStarted;
    - phần thưởng lên cấp chen vào đầu giờ kế (DayManagerOverrideQueue, Dealer:4720-4757), không tốn giờ;
-   - hết run: đủ VictoriesToWin trận PvP thắng, uy tín về 0, hoặc qua ngày NumberOfDays. */
+   - hết run: đủ VictoriesToWin trận PvP thắng, uy tín về 0, hoặc hết uy tín. KHÔNG có hạn ngày: NumberOfDays chỉ là số ngày có dữ liệu riêng, qua ngày đó dùng dữ liệu ngày cuối (CODE-RUN §0, Dealer:2329-2332). */
 (function (root) {
   'use strict';
   var R = root.BZRun = root.BZRun || {};
@@ -30,7 +30,6 @@
     var run = ctx.run, m = R.mode();
     if (run.wins >= m.VictoriesToWin) { R.end(ctx, 'victory'); return true; }
     if (run.prestige <= 0) { R.end(ctx, 'prestige'); return true; }
-    if (run.day > m.NumberOfDays) { R.end(ctx, 'days'); return true; }
     return false;
   };
 
@@ -60,7 +59,6 @@
     run.hour++;
     if (run.hour >= m.HoursInADay) {
       run.day++; run.hour = 0;
-      if (run.day > m.NumberOfDays) { R.checkEnd(ctx); return; }
       R.emit(ctx, { type: 'day', day: run.day });
       R.gold(ctx, run.income, 'income');
       R.ooc.fire(ctx, 'TTriggerOnDayStarted', {});
@@ -71,11 +69,27 @@
 
   // ---------- bày thẻ gặp gỡ cho giờ tự do ----------
   function heroOk(e, run) { var h = e.Heroes || []; return !h.length || h.indexOf('Common') >= 0 || h.indexOf(run.hero) >= 0; }
-  function dayOk(e, run) { return !e.Days || (run.day >= e.Days[0] && run.day <= e.Days[1]); }
+  function dayOk(e, run) {
+    var d = R.dataDay(run.day);
+    if (e.Days && (d < e.Days[0] || d > e.Days[1])) return false;
+    // Sự kiện kết thúc bằng một trận cố định ("Treasure Chest (Mimic)" = Mimic cấp 11, mô tả chỉ ghi "Get an item"): chỉ bày khi quái
+    // không quá sức so với ngày (cấp mẫu ≤ ngày + EVENT_FIGHT_LEVEL_SLACK) [FLOW-10]
+    if (e.Kind === 'fight' && e.Options && e.Options.length && e.Options.every(function (o) { return o.t === 'combat'; })) {
+      var lv = Math.min.apply(null, e.Options.map(function (o) { return R.ENCOUNTERS.combat.levelOf(o.id); }));
+      if (lv > d + T().EVENT_FIGHT_LEVEL_SLACK) return false;
+    }
+    return true;
+  }
   function ref(type, e) {
     return { type: type, id: e.Id, name: e.Title || e.InternalName, tier: e.StartingTier, desc: e.Desc || '', kind: e.Kind || type };
   }
   R.encounterRef = ref;
+  // Bản sao thẻ gặp gỡ đưa cho người chơi: chữ mô tả đã thay `{ability.N}` / `{aura.N}` bằng số thật
+  function dealt(run, r) {
+    var c = R.clone(r), e = r.type === 'pedestal' ? R.enc().pedestals[r.id] : r.type === 'step' ? R.enc().steps[r.id] : R.enc().events[r.id];
+    if (e && c.desc) c.desc = R.encText(run, e, c.desc);
+    return c;
+  }
   var poolCache = null;
   function hourPool() {
     if (poolCache) return poolCache;
@@ -115,7 +129,7 @@
       var cands = base.filter(function (r) { return ok(r) && !prev[r.id]; });
       if (!cands.length) cands = base.filter(ok); // "not dealt last hour unless that empties the list" (Dealer:4938-4949)
       var r = pickByTier(run, cands);
-      if (r) { taken[r.id] = 1; out.push(R.clone(r)); }
+      if (r) { taken[r.id] = 1; out.push(dealt(run, r)); }
     });
     return out;
   };
@@ -161,7 +175,7 @@
       var order = [band]; for (var d = band - 1; d >= 0; d--) order.push(d); for (var u = band + 1; u < R.TIERS.length; u++) order.push(u);
       for (var k = 0; k < order.length; k++) {
         var sub = cands.filter(function (r) { return R.tierIndex(r.tier) === order[k]; });
-        if (sub.length) { out.push(R.clone(sub[R.randInt(run, sub.length)])); break; }
+        if (sub.length) { out.push(dealt(run, sub[R.randInt(run, sub.length)])); break; }
       }
     });
     return out;
@@ -194,7 +208,7 @@
   R.fatesChoose = function (ctx, cmd) {
     var run = ctx.run, c = run.phase.choices[cmd.i];
     if (!c) return 'choice ' + cmd.i + ' does not exist';
-    if (c.id === 'item' && !R.canGain(run, c.card)) return 'no space for ' + c.card.id;
+    if (c.id === 'item' && !R.canGain(run, c.card)) return R.noSpaceReason(run, c.card);
     if (c.id === 'legacy') {
       run.board.hand.concat(run.board.stash).forEach(function (ci) {
         while (R.tierIndex(ci.tier) < 2 && R.upgradeInst(ctx, ci, 'fates')) { /* Bronze/Silver → Gold */ }

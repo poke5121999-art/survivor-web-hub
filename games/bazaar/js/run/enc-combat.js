@@ -39,7 +39,7 @@
     usedMon = usedMon || {};
     var cands = [];
     for (var w = 0; w <= T().PVE_MAX_LEVEL_WIDEN && !cands.length; w++) {
-      var lo = run.day + slot.lo - w, hi = run.day + slot.hi + w;
+      var lo = R.dataDay(run.day) + slot.lo - w, hi = R.dataDay(run.day) + slot.hi + w;
       cands = pool().filter(function (c) {
         var L = tplLevel(monster(c.Monster));
         return slot.tiers.indexOf(c.StartingTier) >= 0 && L >= lo && L <= hi && !usedMon[c.Monster];
@@ -49,13 +49,15 @@
     return cands[R.randInt(run, cands.length)] || null;
   };
   Cb.ref = function (c) { return ref(c); };
+  // Cấp mẫu của quái mà thẻ trận dẫn tới (để chặn sự kiện "Fight" quá sức so với ngày)
+  Cb.levelOf = function (combatId) { var c = R.enc().combats[combatId], m = c && monster(c.Monster); return m ? tplLevel(m) : 0; };
   // Ba quái: một Đồng, một Bạc, một Vàng trở lên (WIKI §1.5), cấp mẫu quanh số ngày (TUNING.PVE_SLOTS)
   Cb.options = function (run) {
     var out = [], usedMon = {};
     T().PVE_SLOTS.forEach(function (slot) {
       var cands = [];
       for (var w = 0; w <= T().PVE_MAX_LEVEL_WIDEN && !cands.length; w++) {
-        var lo = run.day + slot.lo - w, hi = run.day + slot.hi + w;
+        var lo = R.dataDay(run.day) + slot.lo - w, hi = R.dataDay(run.day) + slot.hi + w;
         cands = pool().filter(function (c) {
           var L = tplLevel(monster(c.Monster));
           return slot.tiers.indexOf(c.StartingTier) >= 0 && L >= lo && L <= hi && !usedMon[c.Monster];
@@ -86,7 +88,7 @@
   Cb.datasetGhost = function (run) {
     var G = root.BZ_GHOSTS, by = G && G.byDay, d, list = null, day = null;
     if (!by) return null;
-    for (d = Math.floor(run.day); d >= 1 && !list; d--) {
+    for (d = Math.floor(run.day); d >= 1 && !list; d--) { // ngày > 10 không có bóng riêng: đi xuống tới ngày gần nhất có dữ liệu
       var l = (by[String(d)] || []).filter(function (g) { return g && g.cards && g.cards.length; });
       if (l.length) { list = l; day = d; }
     }
@@ -100,7 +102,7 @@
       cards.push({ uid: 'g-' + i, id: id, tier: c.tier || tpl.StartingTier, ench: c.ench || null, socket: c.socket || 0,
         size: c.size || (R.isSkill(tpl) ? 1 : R.SIZE[tpl.Size] || 1), section: c.section || (R.isSkill(tpl) ? 'skills' : 'hand'), attrs: c.attrs });
     });
-    var board = { name: g.name, hero: g.hero || null, level: g.level || run.day, healthMax: R.ghostHp(run.day), cards: cards };
+    var board = { name: g.name, hero: g.hero || null, level: g.level || R.dataDay(run.day), healthMax: R.ghostHp(run.day), cards: cards };
     return { kind: 'ghost', source: 'dataset', name: g.name, hero: g.hero || null, board: board, monsterId: null, level: board.level,
       wins: g.wins || 0, day: day, rewards: {} };
   };
@@ -109,8 +111,8 @@
   Cb.ghost = function (run) {
     var fromData = Cb.datasetGhost(run);
     if (fromData) return fromData;
-    var level = run.day + T().GHOST_LEVEL_OFFSET, G = T().GHOST_HERO_BOARDS, mons = root.BZ_MONSTERS || [], m = null, name;
-    if (G.days.indexOf(run.day) >= 0) {
+    var level = R.dataDay(run.day) + T().GHOST_LEVEL_OFFSET, G = T().GHOST_HERO_BOARDS, mons = root.BZ_MONSTERS || [], m = null, name;
+    if (G.days.indexOf(R.dataDay(run.day)) >= 0) {
       var heroes = mons.filter(function (x) { return G.match.test(x.InternalName || ''); });
       if (heroes.length) m = heroes[R.randInt(run, heroes.length)];
     }
@@ -196,7 +198,7 @@
     var ph = ctx.run.phase, p = ph.picks[cmd.i];
     if (!p) return 'chest slot ' + cmd.i + ' is empty';
     var ci = R.gainCard(ctx, p.card, cmd.section || null, cmd.socket == null ? null : cmd.socket, 'chest');
-    if (!ci) return 'no space for ' + p.card.id;
+    if (!ci) return R.noSpaceReason(ctx.run, p.card);
     R.log(ctx, { t: 'chestPick', id: p.card.id, tier: p.card.tier });
     ph.picks.splice(cmd.i, 1);
     ph.taken++;

@@ -19,6 +19,10 @@
  *  7. Nạp lại trang → run tiếp đúng chỗ, BZRun.serialize trước = sau.
  *  8. Lái phần còn lại bằng BZ_DEBUG.cmd tới màn hết run, không lỗi.
  *  9. Điện thoại 844×390 có cảm ứng: kéo mua bằng chạm (CDP touch) → vàng giảm đúng giá, thẻ lên bàn.
+ * 10. Sửa theo review (D:\bazaar-ref\review\FIXES-UI.md), bằng chuột / chạm thật: INTERACT-1 (nhấc hàng lúc đang chia không tàng hình),
+ *     INTERACT-2 (Esc lúc kéo = huỷ kéo, không rời thương nhân), INTERACT-3 (bảng tạm nghỉ chặn phím), INTERACT-4 (kéo lên bệ = nâng bậc,
+ *     không bán), FLOW-1 (kho do bệ mở đóng khi rời), MOBILE-1 (tooltip trong trận còn sau khi nhấc ngón), cùng INTERACT-5/6/7/8/10/12/13/14/23,
+ *     MOBILE-3/9/10/23.
  */
 'use strict';
 const path = require('path'), http = require('http'), fs = require('fs'), os = require('os');
@@ -278,7 +282,7 @@ async function desktop(browser, base) {
   if (d.ok) {
     // màn VS hiện ngay khi vào trận PvP: chớp trắng → VS → thẻ úp → lật (clip wUzq6Q4u9Jc ?t=702..710)
     let vsSeen = true;
-    try { await page.waitForSelector('.rs-vs', { timeout: 1500 }); } catch (e) { vsSeen = false; }
+    try { await page.waitForSelector('.rs-vs', { timeout: 4000 }); } catch (e) { vsSeen = false; }
     check('PvP: màn VS hiện trước trận', vsSeen);
     await sleep(900); await shot(page, '18a-pvp-vs');
     const vsTxt = await page.evaluate(() => { const v = document.querySelector('.rs-vs'); return v ? v.querySelector('.plate.r b').textContent + ' | ' + v.querySelector('.plate.l b').textContent : ''; });
@@ -423,10 +427,10 @@ async function phase4(browser, base) {
   check('rương Đồng: màn rương, chưa mở ở 0,7 s', ch0.screen === 'chest' && ch0.rev && !ch0.opened, JSON.stringify(ch0));
   await sleep(1800); await shot(page, '45-chest-open');
   await sleep(1500); await shot(page, '46-chest-prizes');
-  const ch1 = await page.evaluate(() => ({ opened: !!document.querySelector('.rs-chestrev.opened.settled'), picks: document.querySelectorAll('.rs-cards .bz-card.top.prize').length, want: window.BZ_DEBUG.run().phase.picks.length }));
+  const ch1 = await page.evaluate(() => ({ opened: !!document.querySelector('.rs-chestrev.opened.settled'), picks: Array.from(document.querySelectorAll('.rs-cards .bz-card.top')).filter(e => e._rs && e._rs.kind === 'loot' && !e.classList.contains('despawn')).length, want: window.BZ_DEBUG.run().phase.picks.length }));
   check('rương mở sau 2,3 s, bày đủ phần thưởng', ch1.opened && ch1.picks === ch1.want && ch1.want > 0, JSON.stringify(ch1));
   const n0 = await page.evaluate(() => window.BZRun.allCards(window.BZ_DEBUG.run()).length);
-  await page.click('.rs-cards .bz-card.top.prize'); await sleep(900);
+  await page.click('.rs-cards .bz-card.top:not(.despawn)'); await sleep(900);
   const ch2 = await page.evaluate(() => ({ n: window.BZRun.allCards(window.BZ_DEBUG.run()).length, kind: window.BZ_DEBUG.run().phase.kind }));
   check('bấm phần thưởng rương: thẻ vào bàn, rời màn rương', ch2.n === n0 + 1 && ch2.kind !== 'chest', JSON.stringify(ch2));
   // rương Vàng (10 thắng) để so màu bậc
@@ -436,7 +440,7 @@ async function phase4(browser, base) {
     window.BZ_DEBUG.load(cx.run);
   });
   await sleep(2700); await shot(page, '47-chest-gold-open');
-  await page.click('.rs-cards .bz-card.top.prize').catch(() => {}); await sleep(700);
+  await page.click('.rs-cards .bz-card.top:not(.despawn)').catch(() => {}); await sleep(700);
 
   // ---- Số phận (fates): 3 khung lựa chọn, chọn được ----
   await page.evaluate(() => { const R = window.BZRun, cx = { run: R.clone(window.BZ_DEBUG.run()), events: [] }; R.enterFates(cx); window.BZ_DEBUG.load(cx.run); });
@@ -481,6 +485,9 @@ async function phone(browser, base) {
   const pick = st.find(s => s.price <= r0.gold && R.tpl(s.id).Size !== 'Large');
   const size = R.SIZE[R.tpl(pick.id).Size];
   const to = await handTarget(page, 4, size);
+  // cảm ứng: thẻ được nhấc lên trên ngón (đáy thẻ cách đầu ngón 12 px, MOBILE-12) nên ngón đặt dưới ô một khoảng = nửa thẻ + 12 px
+  const halfCard = await page.evaluate(() => window.BZ_DEBUG.socketRect('hand', 0).h / 2 + 12);
+  to.y += halfCard;
   const cdp = await ctx.newCDPSession(page);
   const tp = (x, y) => [{ x, y, id: 1, radiusX: 4, radiusY: 4, force: 1 }];
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: tp(pick.x, pick.y) });
@@ -497,15 +504,245 @@ async function phone(browser, base) {
   await ctx.close();
 }
 
+// ---------- sửa theo review (nhánh UI, D:\bazaar-ref\review\FIXES-UI.md): P0 + vài P1 bằng chuột / chạm thật ----------
+// dựng nhanh: run mới (seed 7, Vanessa, khởi đầu 0) tới màn chọn giờ đầu
+async function freshRun(page, hero) {
+  await page.evaluate(([seed, h]) => { window.BZUI.newRun(seed); window.BZ_DEBUG.cmd({ t: 'pickHero', hero: h }); }, [SEED, hero || 'Vanessa']);
+  await page.waitForFunction(h => window.BZ_DEBUG.run().hero === h && window.BZ_DEBUG.cardsReady(), hero || 'Vanessa', { timeout: 30000 });
+  await page.evaluate(() => window.BZ_DEBUG.cmd({ t: 'choose', i: 0 }));
+  await waitScreen(page, 'choose'); await sleep(500);
+}
+const center = (page, sel) => page.evaluate(s => { const e = document.querySelector(s); if (!e) return null; const b = e.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2, w: b.width, h: b.height }; }, sel);
+const ownCenter = (page, uid) => page.evaluate(u => { const e = window.BZUI.cards.ownEl(u); if (!e) return null; const b = e.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; }, uid);
+// lấy mẫu độ mờ của thẻ đang kéo mỗi khung trong ms mili-giây
+const sampleDrag = (page, ms) => page.evaluate(ms => new Promise(res => {
+  const out = [], t0 = performance.now();
+  (function f() { const e = document.querySelector('.rs-drag .bz-card'); if (e) { const cs = getComputedStyle(e); out.push({ o: +cs.opacity, a: cs.animationName }); } if (performance.now() - t0 < ms) requestAnimationFrame(f); else res(out); })();
+}), ms);
+
+async function reviewFixes(browser, base) {
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  const page = await ctx.newPage();
+  const errors = watch(page);
+  await page.goto(base + '/games/bazaar/index.html?seed=' + SEED + '&new=1', { waitUntil: 'load' });
+  await ready(page); await sleep(400);
+  await freshRun(page);
+  let r = await run(page);
+  const mi = r.phase.options.findIndex(o => o.type === 'merchant');
+  await page.evaluate(i => window.BZ_DEBUG.cmd({ t: 'pick', i }), mi < 0 ? 0 : mi);
+  await waitScreen(page, 'merchant'); await sleep(250);
+
+  // INTERACT-1: nhấc hàng ngay lúc đang chia (độ trễ 0,9 s): thẻ hiện đủ từ khung đầu, không chạy lại rs-deal
+  let st = await stockRects(page);
+  await page.mouse.move(st[0].x, st[0].y); await page.mouse.down();
+  await page.mouse.move(st[0].x + 6, st[0].y - 6); await page.mouse.move(st[0].x + 12, st[0].y - 12);
+  const s1 = await sampleDrag(page, 450);
+  const min1 = s1.length ? Math.min.apply(null, s1.map(x => x.o)) : -1;
+  check('INTERACT-1: nhấc hàng lúc đang chia: thẻ hiện ngay (độ mờ nhỏ nhất ' + min1.toFixed(2) + ', ' + s1.length + ' khung), không chạy rs-deal', s1.length > 5 && min1 > 0.99 && s1.every(x => x.a !== 'rs-deal'), JSON.stringify(s1.slice(0, 3)));
+  // thả hỏng (giữa không trung) → bay về chỗ cũ, không chia lại
+  await page.mouse.move(st[0].x + 20, st[0].y - 120, { steps: 4 }); await page.mouse.up();
+  const back = await page.evaluate(() => new Promise(res => { const out = []; const t0 = performance.now(); (function f() { const e = Array.from(document.querySelectorAll('.rs-cards .bz-card.top')).find(x => x._rs && x._rs.i === 0 && x._rs.kind === 'stock'); if (e) out.push(+getComputedStyle(e).opacity); if (performance.now() - t0 < 600) requestAnimationFrame(f); else res(out); })(); }));
+  check('INTERACT-1: thả hỏng → thẻ bay về, không tàng hình / lật lại (độ mờ nhỏ nhất ' + Math.min.apply(null, back.concat([1])).toFixed(2) + ')', back.length > 0 && Math.min.apply(null, back) > 0.99);
+  await sleep(1200);
+
+  // INTERACT-14: một cú bấm vào hàng chỉ chọn (tooltip "Bấm lần nữa để mua"), bấm lần hai mới mua
+  r = await run(page); st = await stockRects(page);
+  const g0 = r.gold, it = st.find(s => s.price <= r.gold);
+  await page.mouse.click(it.x, it.y); await sleep(350);
+  const sel = await page.evaluate(() => ({ gold: window.BZ_DEBUG.run().gold, hint: (document.querySelector('.bz-tip .rs-taphint') || {}).textContent || '' }));
+  await page.mouse.click(it.x, it.y); await sleep(700);
+  const g2 = (await run(page)).gold;
+  check('INTERACT-14: bấm 1 lần không mua (vàng ' + g0 + ' → ' + sel.gold + ', tooltip "' + sel.hint + '"), bấm lần 2 mua (vàng → ' + g2 + ')', sel.gold === g0 && /lần nữa để mua/.test(sel.hint) && g2 === g0 - it.price);
+
+  // INTERACT-2: Esc trong lúc kéo hàng: huỷ kéo, vẫn ở thương nhân, không còn thẻ lơ lửng; Esc lần nữa mở bảng tạm nghỉ (không rời)
+  st = await stockRects(page);
+  await page.mouse.move(st[0].x, st[0].y); await page.mouse.down();
+  for (let i = 1; i <= 6; i++) { await page.mouse.move(st[0].x, st[0].y + i * 30); await sleep(16); }
+  await page.keyboard.press('Escape'); await sleep(350);
+  const e1 = await page.evaluate(() => ({ screen: window.BZ_DEBUG.screen(), floating: document.querySelectorAll('.rs-drag .bz-card').length, panel: !!document.querySelector('.rs-panel') }));
+  await page.mouse.up(); await sleep(200);
+  await page.keyboard.press('Escape'); await sleep(300);
+  const e2 = await page.evaluate(() => ({ screen: window.BZ_DEBUG.screen(), panel: !!document.querySelector('.rs-panel') }));
+  check('INTERACT-2: Esc lúc kéo = huỷ kéo (còn ở thương nhân, 0 thẻ lơ lửng); Esc lần 2 = bảng tạm nghỉ, không rời', e1.screen === 'merchant' && e1.floating === 0 && !e1.panel && e2.screen === 'merchant' && e2.panel, JSON.stringify([e1, e2]));
+
+  // INTERACT-3: bảng tạm nghỉ chặn phím: Space / R / Enter không đụng bàn; Esc đóng bảng
+  const before3 = await page.evaluate(() => ({ rr: window.BZ_DEBUG.run().phase.rerolls, gold: window.BZ_DEBUG.run().gold }));
+  for (const k of ['Space', 'r', 'Enter', 'Space']) { await page.keyboard.press(k); await sleep(120); }
+  const mid3 = await page.evaluate(() => ({ rr: window.BZ_DEBUG.run().phase.rerolls, gold: window.BZ_DEBUG.run().gold, tray: window.BZUI.cards.trayIsOpen(), screen: window.BZ_DEBUG.screen(), panel: !!document.querySelector('.rs-panel') }));
+  await page.keyboard.press('Escape'); await sleep(250);
+  const after3 = await page.evaluate(() => ({ panel: !!document.querySelector('.rs-panel'), screen: window.BZ_DEBUG.screen() }));
+  check('INTERACT-3: bảng mở: Space/R/Enter không đổi hàng, không mở kho, không rời; Esc đóng bảng', mid3.rr === before3.rr && mid3.gold === before3.gold && !mid3.tray && mid3.screen === 'merchant' && mid3.panel && !after3.panel && after3.screen === 'merchant', JSON.stringify([before3, mid3, after3]));
+  await shot(page, '50-review-merchant');
+
+  // INTERACT-6: kéo thẻ của mình thả lên rương → vào kho (ô trống đầu)
+  r = await run(page);
+  const mine = r.board.hand[0];
+  const chestC = await center(page, '.rs-chest');
+  const from6 = await ownCenter(page, mine.uid);
+  await mouseDrag(page, from6, chestC); await sleep(700);
+  const c6 = (await run(page)).board.stash.find(c => c.uid === mine.uid);
+  check('INTERACT-6: thả thẻ lên rương → thẻ vào kho', !!c6, c6 ? 'stash:' + c6.socket : 'không vào kho');
+  // kho do kéo mở ra: thả xong thì đóng (INTERACT-19 thuộc cùng luồng)
+  await page.keyboard.press('Space'); await sleep(450);
+  // INTERACT-5: rời thương nhân → màn chọn giờ: kéo thẻ lên dải trên KHÔNG bán
+  if (await page.evaluate(() => window.BZUI.cards.trayIsOpen())) { await page.keyboard.press('Space'); await sleep(400); }
+  await page.evaluate(() => { const D = window.BZ_DEBUG, r = D.run(); if (!r.board.hand.length && r.board.stash.length) D.cmd({ t: 'move', uid: r.board.stash[0].uid, section: 'hand', socket: 4 }); });
+  await page.click('.rs-merchant-ctl .leave'); await waitScreen(page, 'choose'); await sleep(900);
+  r = await run(page);
+  const own5 = r.board.hand[0], g5 = r.gold;
+  const f5 = await ownCenter(page, own5.uid);
+  await mouseDrag(page, f5, { x: f5.x, y: f5.y - 230 }); await sleep(600);
+  const r5 = await run(page);
+  check('INTERACT-5: màn chọn giờ: kéo thẻ lên dải trên không bán (vàng ' + g5 + ' → ' + r5.gold + ')', r5.gold === g5 && R.allCards(r5).some(c => c.uid === own5.uid));
+
+  // INTERACT-4: bệ "Upgrade a Bronze-tier item": kéo thẻ sáng lên bệ → lên bậc, không bán
+  const ped = await page.evaluate(() => {
+    const R = window.BZRun, E = window.BZ_ENCOUNTERS, run = window.BZ_DEBUG.run();
+    const pid = Object.keys(E.pedestals).find(id => /Upgrade a Bronze/i.test(E.pedestals[id].Desc || ''));
+    const cx = { run: R.clone(run), events: [] };
+    R.ENCOUNTERS.pedestal.enter(cx, { id: pid }, 'endHour');
+    window.BZ_DEBUG.load(cx.run);
+    const ph = window.BZ_DEBUG.run().phase;
+    return { pid, eligible: ph.eligible, kind: ph.kind };
+  });
+  await sleep(700);
+  const pu = ped.eligible[0], pc0 = (await run(page)), card0 = R.allCards(pc0).find(c => c.uid === pu);
+  const fp = await ownCenter(page, pu), orb = await center(page, '.rs-pedestal .orb');
+  await mouseDrag(page, fp, orb); await sleep(900);
+  const pc1 = await run(page), card1 = R.allCards(pc1).find(c => c.uid === pu);
+  check('INTERACT-4: kéo ' + (card0 ? card0.tier : '?') + ' lên bệ → nâng bậc (' + (card1 ? card1.tier : 'mất thẻ') + '), vàng không đổi, rời bệ', ped.kind === 'pedestal' && !!card1 && card1.tier !== card0.tier && pc1.gold === pc0.gold && pc1.phase.kind !== 'pedestal', JSON.stringify({ ped, gold: [pc0.gold, pc1.gold] }));
+  await shot(page, '51-review-pedestal-after');
+
+  // FLOW-1: bệ mở kho (món hợp lệ chỉ ở kho) → Rời đi → kho đóng, khung gặp gỡ bấm được
+  const f1 = await page.evaluate(() => {
+    const R = window.BZRun, E = window.BZ_ENCOUNTERS, run = window.BZ_DEBUG.run();
+    const pid = Object.keys(E.pedestals).find(id => /Upgrade a Bronze/i.test(E.pedestals[id].Desc || ''));
+    const b = run.board.hand.find(c => c.tier === 'Bronze') || run.board.hand[0];
+    run.board.hand = run.board.hand.filter(c => c !== b); b.tier = 'Bronze'; b.section = 'stash'; b.socket = 0; run.board.stash = [b];
+    run.phase = { kind: 'choose', options: [] };
+    const cx = { run: R.clone(run), events: [] };
+    R.ENCOUNTERS.pedestal.enter(cx, { id: pid }, 'endHour');
+    return window.BZ_DEBUG.load(cx.run);
+  });
+  await sleep(700);
+  const trayAtPed = await page.evaluate(() => window.BZUI.cards.trayIsOpen());
+  await page.click('.bz-side-in .leave'); await sleep(1500);
+  const after1 = await page.evaluate(() => {
+    const scr = window.BZ_DEBUG.screen(), enc = document.querySelector('.rs-top .rs-enc .fr');
+    let hit = null; if (enc) { const b = enc.getBoundingClientRect(); const e = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2); hit = !!(e && e.closest('.rs-enc')); }
+    return { scr, tray: window.BZUI.cards.trayIsOpen(), hit };
+  });
+  check('FLOW-1: bệ mở kho → Rời đi → kho đóng, khung gặp gỡ nhận bấm', f1 === 'pedestal' && trayAtPed && !after1.tray && (after1.scr !== 'choose' || after1.hit === true), JSON.stringify({ f1, trayAtPed, after1 }));
+
+  // INTERACT-7/8: trận: Space = tạm dừng (không mở kho), bánh răng có trong trận, mở bảng thì trận dừng
+  let d = await drive(page, r => r.phase.kind === 'choose' && r.hour === 2, 300);
+  await sleep(900);
+  await page.evaluate(() => window.BZ_DEBUG.cmd({ t: 'pick', i: 0 }));
+  await waitScreen(page, 'fight'); await sleep(600);
+  await page.click('.rs-fightgo .rs-big');
+  await waitScreen(page, 'fightResult'); await sleep(1500);
+  await page.keyboard.press('Space'); await sleep(150);
+  const t1 = (await page.evaluate(() => window.BZ_DEBUG.combat())).t; await sleep(500);
+  const p7 = await page.evaluate(() => ({ t: window.BZ_DEBUG.combat().t, tray: window.BZUI.cards.trayIsOpen(), gear: getComputedStyle(document.querySelector('.rs-gear')).display, hud: getComputedStyle(document.querySelector('.rs-hud')).display, chest: !!document.querySelector('.bz-side-in .rs-chest') }));
+  check('INTERACT-7: Space trong trận = tạm dừng (t đứng ' + t1.toFixed(0) + ' → ' + p7.t.toFixed(0) + '), kho không mở', d.ok && Math.abs(p7.t - t1) < 1 && !p7.tray, JSON.stringify(p7));
+  check('INTERACT-8 / FLOW-13: bánh răng + HUD run (rương kho) có trong trận', p7.gear !== 'none' && p7.hud !== 'none' && p7.chest, JSON.stringify(p7));
+  await page.keyboard.press('Space'); await sleep(300);
+  await page.click('.rs-gear'); await sleep(200);
+  const t2 = (await page.evaluate(() => window.BZ_DEBUG.combat())).t; await sleep(500);
+  const t3 = (await page.evaluate(() => window.BZ_DEBUG.combat())).t;
+  await page.keyboard.press('Escape'); await sleep(500);
+  const t4 = (await page.evaluate(() => window.BZ_DEBUG.combat())).t;
+  check('INTERACT-8: mở bảng trong trận → trận dừng; đóng → chạy tiếp', Math.abs(t3 - t2) < 1 && t4 > t3, [t2, t3, t4].map(x => x.toFixed(0)).join(' → '));
+  await shot(page, '52-review-combat');
+  // VFX-15 / INTERACT-23: bấm "Tới kết quả" → Tiếp tục hiện ngay (≤ 1,2 s)
+  const tSkip = Date.now();
+  await page.click('.rs-fightdock .skip');
+  await page.waitForSelector('.rs-result .rs-big.play', { state: 'visible', timeout: 10000 });
+  const skipMs = Date.now() - tSkip;
+  check('INTERACT-23: Tới kết quả → Tiếp tục bấm được sau ' + skipMs + ' ms', skipMs < 1500);
+  const dockGone = await page.evaluate(() => getComputedStyle(document.querySelector('.rs-fightdock')).display === 'none');
+  check('MOBILE-23: xong trận thì dock tốc độ ẩn', dockGone);
+
+  // INTERACT-13: Bỏ run này phải xác nhận; "Thôi" giữ run
+  await page.click('.rs-gear'); await sleep(250);
+  await page.click('.rs-panel .rs-big.c-red'); await sleep(250);
+  const cf = await page.evaluate(() => ({ box: !!document.querySelector('.rs-confirm'), saved: !!window.BZ_DEBUG.saved() }));
+  await page.keyboard.press('Escape'); await sleep(200);
+  const cf2 = await page.evaluate(() => ({ box: !!document.querySelector('.rs-confirm'), saved: !!window.BZ_DEBUG.saved(), run: !!window.BZUI.state.run }));
+  check('INTERACT-13: "Bỏ run này" hỏi lại; Esc = giữ run', cf.box && cf.saved && !cf2.box && cf2.saved && cf2.run, JSON.stringify([cf, cf2]));
+  await page.keyboard.press('Escape'); await sleep(200);
+  check('sửa theo review (máy tính): 0 lỗi trang / console / HTTP', errors.length === 0, errors.slice(0, 5).join(' | '));
+  await ctx.close();
+}
+
+async function reviewPhone(browser, base) {
+  const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
+  const page = await ctx.newPage();
+  const errors = watch(page);
+  await page.goto(base + '/games/bazaar/index.html?seed=' + SEED + '&new=1', { waitUntil: 'load' });
+  await ready(page); await sleep(400);
+  await freshRun(page);
+  // INTERACT-12 / MOBILE-3: chạm hàng → tooltip; chạm nền → tắt; chạm lại hàng KHÔNG mua (chỉ xem lại)
+  let r = await run(page);
+  const mi = r.phase.options.findIndex(o => o.type === 'merchant');
+  await page.evaluate(i => window.BZ_DEBUG.cmd({ t: 'pick', i }), mi < 0 ? 0 : mi);
+  await waitScreen(page, 'merchant'); await sleep(2600);
+  const st = await stockRects(page), g0 = (await run(page)).gold;
+  await page.touchscreen.tap(st[0].x, st[0].y); await sleep(300);
+  const tip1 = await page.evaluate(() => window.BZTooltip.visible());
+  const bgPt = await page.evaluate(() => { const b = window.BZView.refs.stage.getBoundingClientRect(), k = window.BZView.scale; return { x: b.left + 250 * k, y: b.top + 160 * k }; });
+  await page.touchscreen.tap(bgPt.x, bgPt.y); await sleep(300);
+  const tip2 = await page.evaluate(() => window.BZTooltip.visible());
+  await page.touchscreen.tap(st[0].x, st[0].y); await sleep(400);
+  const g1 = (await run(page)).gold;
+  check('INTERACT-12 / MOBILE-3: chạm hàng mở tooltip, chạm nền tắt, chạm lại hàng chỉ xem (vàng ' + g0 + ' → ' + g1 + ')', tip1 && !tip2 && g1 === g0, JSON.stringify({ tip1, tip2 }));
+  await page.touchscreen.tap(bgPt.x, bgPt.y); await sleep(200);
+  // INTERACT-10 / MOBILE-8: vùng chạm ≥ 44 px màn hình: chạm lệch 18 px khỏi tâm vẫn trúng (Rời đi, bánh răng)
+  const hits = await page.evaluate(() => ['.rs-merchant-ctl .leave', '.rs-gear'].map(sel => {
+    const e = document.querySelector(sel), b = e.getBoundingClientRect(), cx = b.left + b.width / 2, cy = b.top + b.height / 2;
+    const ok = [[0, 20], [0, -20], [20, 0], [-20, 0]].every(([dx, dy]) => { const h = document.elementFromPoint(cx + dx, cy + dy); return !!(h && (h === e || e.contains(h))); });
+    return sel + ' ' + Math.round(b.width) + '×' + Math.round(b.height) + (ok ? ' ok' : ' TRƯỢT');
+  }));
+  check('INTERACT-10: chạm lệch 20 px quanh tâm vẫn trúng nút (vùng chạm ≥ 40 px)', hits.every(h => / ok$/.test(h)), hits.join(' | '));
+  // MOBILE-9: chữ gợi ý ≥ 10 px màn hình
+  const fs = await page.evaluate(() => { const k = window.BZView.scale; return ['.rs-hint', '.rs-side-name small', '.rs-side-name h3', '.rs-big span'].map(s => { const e = document.querySelector(s); return s + ' ' + (e ? (parseFloat(getComputedStyle(e).fontSize) * k).toFixed(1) : '-'); }); });
+  check('MOBILE-9: chữ gợi ý / nhãn / nút ≥ 9 px màn hình ở 844×390', fs.every(x => parseFloat(x.split(' ').pop()) >= 9), fs.join(' | '));
+  await shot(page, '53-review-phone-merchant');
+  // MOBILE-1: trận: chạm thẻ → tooltip ở lại sau khi nhấc tay
+  await page.click('.rs-merchant-ctl .leave').catch(() => {});
+  let d = await drive(page, r => r.phase.kind === 'choose' && r.hour === 2, 300);
+  await sleep(900);
+  await page.evaluate(() => window.BZ_DEBUG.cmd({ t: 'pick', i: 0 }));
+  await waitScreen(page, 'fight'); await sleep(500);
+  await page.evaluate(() => window.BZ_DEBUG.cmd({ t: 'fight' }));
+  await waitScreen(page, 'fightResult'); await sleep(1200);
+  await page.evaluate(() => window.BZUI.combat.pause(true));
+  const cc = await page.evaluate(() => { const cs = window.BZView.cards(); const k = Object.keys(cs).map(u => cs[u].el || cs[u]).filter(e => e && e.getBoundingClientRect).map(e => e.getBoundingClientRect()).filter(b => b.width > 0).sort((a, b) => b.top - a.top)[0]; return k ? { x: k.left + k.width / 2, y: k.top + k.height / 2 } : null; });
+  if (cc) { await page.touchscreen.tap(cc.x, cc.y); await sleep(600); }
+  const tipF = await page.evaluate(() => window.BZTooltip.visible());
+  check('MOBILE-1: trận: chạm thẻ → tooltip còn sau 600 ms', d.ok && !!cc && tipF, JSON.stringify({ d, cc, tipF }));
+  await shot(page, '54-review-phone-fight-tip');
+  // MOBILE-10: máy dọc → lời nhắc xoay ngang
+  await page.setViewportSize({ width: 390, height: 844 }); await sleep(400);
+  const rot = await page.evaluate(() => getComputedStyle(document.querySelector('.rs-rotate')).display);
+  check('MOBILE-10: máy dọc hiện "Xoay ngang điện thoại"', rot !== 'none', rot);
+  await shot(page, '55-review-phone-portrait');
+  check('sửa theo review (điện thoại): 0 lỗi', errors.length === 0, errors.slice(0, 5).join(' | '));
+  await ctx.close();
+}
+
 (async () => {
   let srv = null, base = process.env.BZ_URL;
   if (!base) { srv = await serve(); base = 'http://localhost:' + srv.address().port; }
   base = base.replace(/\/$/, '');
   const browser = await chromium.launch({ args: ['--use-angle=d3d11', '--autoplay-policy=no-user-gesture-required'] });
   const t0 = Date.now();
-  try { await desktop(browser, base); } catch (e) { check('máy tính: chạy hết kịch bản', false, e.stack.split('\n').slice(0, 3).join(' ')); }
-  try { await phase4(browser, base); } catch (e) { check('pha 4: chạy hết kịch bản', false, e.stack.split('\n').slice(0, 3).join(' ')); }
-  try { await phone(browser, base); } catch (e) { check('điện thoại: chạy hết kịch bản', false, e.stack.split('\n').slice(0, 3).join(' ')); }
+  const ONLY = process.env.ONLY || ''; // ONLY=review: chỉ chạy phần sửa theo review
+  if (!ONLY) try { await desktop(browser, base); } catch (e) { check('máy tính: chạy hết kịch bản', false, e.stack.split('\n').slice(0, 3).join(' ')); }
+  if (!ONLY) try { await phase4(browser, base); } catch (e) { check('pha 4: chạy hết kịch bản', false, e.stack.split('\n').slice(0, 3).join(' ')); }
+  if (!ONLY) try { await phone(browser, base); } catch (e) { check('điện thoại: chạy hết kịch bản', false, e.stack.split('\n').slice(0, 3).join(' ')); }
+  try { await reviewFixes(browser, base); } catch (e) { check('sửa theo review (máy tính): chạy hết kịch bản', false, e.stack.split('\n').slice(0, 3).join(' ')); }
+  try { await reviewPhone(browser, base); } catch (e) { check('sửa theo review (điện thoại): chạy hết kịch bản', false, e.stack.split('\n').slice(0, 3).join(' ')); }
   await browser.close();
   if (srv) srv.close();
   console.log('\nChợ Phiên — chơi thử (' + base + '): ' + pass + ' đạt, ' + fail + ' trượt, ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s. Ảnh: ' + SHOTS);

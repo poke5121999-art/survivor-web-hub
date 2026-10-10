@@ -32,8 +32,10 @@
       var sk = b.cards.filter(function (c) { return c.section === 'skills'; });
       if (sk.length) { var sr = U.el('div', 'skills', p); sk.forEach(function (c) { var a = U.art(c.id); U.el('i', '', sr).style.backgroundImage = a ? U.bg(a) : ''; }); }
     }
-    var r = U.rectOf(box);
-    var left = r.x + r.w + 16; if (left + 560 > 1900) left = r.x - 560 - 16;
+    // ngoài hàng khung: khung đầu → bên trái hàng, khung khác → bên phải khung cuối (không che khung bên cạnh, MOBILE-25)
+    var r = U.rectOf(box), all = U.top.layer().querySelectorAll('.rs-enc'), isFirst = all[0] === box, last = U.rectOf(all[all.length - 1]);
+    var left = isFirst && all.length > 1 ? r.x - 560 - 16 : (last ? last.x + last.w : r.x + r.w) + 16;
+    if (left + 560 > 1900) left = r.x - 560 - 16;
     p.style.left = left + 'px'; p.style.top = Math.max(80, r.y) + 'px';
     var mon = (o.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     U.sfx('vo.monster.' + mon, { gap: 4000, vol: 0.7 });
@@ -52,7 +54,7 @@
       if (key === this._key && U.top.layer().children.length) return; // bán / xếp đồ: giữ nguyên khung
       this._key = key;
       U.top.clear(); hidePreview();
-      U.top.map(pve ? 'Chọn đối thủ' : 'Giờ ' + run.hour + ' · Ngày ' + run.day, pve ? 'Thắng quái để lấy vàng, XP và một món đồ của nó' : 'Chọn một nơi ghé: thương nhân, sự kiện hay phần thưởng');
+      U.top.map(pve ? 'Chọn đối thủ' : 'Giờ ' + run.hour + ' · Ngày ' + run.day, pve ? 'Thắng quái để lấy vàng, XP và một món đồ' : 'Thương nhân, sự kiện hay phần thưởng');
       var special = -1;
       if (!pve) { ph.options.forEach(function (o, i) { if (special < 0 && o.type === 'merchant' && R().tierIndex(o.tier) >= 1) special = i; }); }
       else special = 1;

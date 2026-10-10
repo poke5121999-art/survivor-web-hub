@@ -268,13 +268,13 @@
     var a = 1 - Math.exp(-10 * dt / 1000); // Quaternion.Lerp(cur, target, dt*10)
     B.rx += (B.trx - B.rx) * a; B.ry += (B.try_ - B.ry) * a;
     var dir = B.side === 1 ? -1 : 1; // bàn trên (đối thủ) giật ngược lên (Card_Kickback_A_Mirrored)
-    var sc = (1 + 0.15 * B.hover) * (1 + kz * 0.06) * (1 + ky * 0.22);
+    var sc = (1 + 0.08 * B.hover) * (1 + kz * 0.06) * (1 + ky * 0.22); // INTERACT-26: nhấc ~1,08 (VISUAL §1 gợi ý 1,06-1,1), cũ 1,15 che dòng gợi ý + thẻ bên
     var pu = t - B.punchT, punch = pu > 0 && pu < 220 ? Math.sin(pu / 220 * Math.PI * 3) * (1 - pu / 220) * 7 : 0;
-    var ty = -22 * B.hover + dir * (-kz * 18) + punch;
+    var ty = -14 * B.hover + dir * (-kz * 18) + punch;
     var tr = 'translate3d(0,' + ty.toFixed(2) + 'px,0) scale(' + sc.toFixed(4) + ')';
     if (B.hover > 0.01) tr += ' rotateX(' + (B.rx * B.hover).toFixed(2) + 'deg) rotateY(' + (B.ry * B.hover).toFixed(2) + 'deg)';
     B.cb.style.transform = tr;
-    var fl = t - B.flashT, fo = fl >= 0 && fl < 500 ? (fl < 60 ? fl / 60 : 1 - (fl - 60) / 440) : 0; // FrameGlow 0,5 s
+    var fl = t - B.flashT, fo = fl >= 0 && fl < 320 ? (fl < 50 ? fl / 50 : 1 - (fl - 50) / 270) : 0; // FrameGlow ~0,3 s (VFX-26: REF viền ~200 ms, cũ 0,5 s)
     B.fglow.style.opacity = fo.toFixed(3);
     var ht = t - B.hitT, ho = ht >= 0 && ht < 140 ? 0.7 * (1 - ht / 140) : 0;
     B.hit.style.opacity = ho.toFixed(3);

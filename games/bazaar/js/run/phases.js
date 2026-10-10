@@ -1,6 +1,6 @@
 /* Chợ Phiên — máy trạng thái của run: bảng PHASES[kind].commands[t] = handler(ctx, cmd) → undefined (xong) | chuỗi lỗi.
    BZRun.apply(run, cmd) sao chép run rồi chạy handler; lỗi thì trả lại run cũ + sự kiện {type:'rejected'}.
-   Lệnh: pickHero, pick (chọn gặp gỡ), buy, sell, move, swap, reroll, leave, choose (sự kiện/lên cấp/loot/bệ/rương), fight, next.
+   Lệnh: pickHero, pick (chọn gặp gỡ), buy, sell, move, swap, reroll, leave, choose (sự kiện/lên cấp/loot/bệ/rương), commit (kéo thẻ lên bệ), fight, next.
    sell/move/swap dùng được ở mọi pha có bàn, kể cả `fight` (xếp lại sau khi xem bàn đối thủ, trước lệnh fight). */
 (function (root) {
   'use strict';
@@ -166,7 +166,7 @@
     merchant: { commands: withBoard({ buy: function (c, x) { return E('merchant').buy(c, x); }, reroll: function (c) { return E('merchant').reroll(c); },
       leave: function (c) { return E('merchant').leave(c); } }) },
     event: { commands: withBoard({ choose: function (c, x) { return E('event').choose(c, x); }, leave: function (c) { return E('event').leave(c); } }) },
-    pedestal: { commands: withBoard({ choose: function (c, x) { return E('pedestal').choose(c, x); }, leave: function (c) { return E('pedestal').leave(c); } }) },
+    pedestal: { commands: withBoard({ choose: function (c, x) { return E('pedestal').choose(c, x); }, commit: function (c, x) { return E('pedestal').choose(c, x); }, leave: function (c) { return E('pedestal').leave(c); } }) },
     loot: { commands: withBoard({ choose: function (c, x) { return R.lootChoose(c, x); }, leave: function (c) { return R.lootLeave(c); } }) },
     levelUp: { commands: withBoard({ choose: levelUpChoose }) },
     fates: { commands: withBoard({ choose: function (c, x) { return R.fatesChoose(c, x); } }) },

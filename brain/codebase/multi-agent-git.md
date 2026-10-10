@@ -36,3 +36,6 @@
   - `[BẪY ĐÃ SẬP]` `git apply` nhiều tệp là nguyên tử: một tệp hỏng thì không tệp nào được áp. Áp từng tệp; tệp nào lệch thì sửa tay.
 - `[BẪY ĐÃ SẬP]` Lệnh `( … ) &` trong công cụ Bash không chết khi lệnh trả về [ĐO TRONG REPO, 2026-10-09]: nó chạy song song với lượt
   `run_in_background` gọi sau, hai lượt ghi chung log và chung thư mục ảnh, ra trượt giả (`sbs.py` đọc ảnh đang ghi dở). Chỉ dùng `run_in_background`.
+- `[BẪY ĐÃ SẬP]` Diệt tiến trình theo tên [ĐO TRONG REPO, 2026-10-10, Chợ Phiên]:
+  - Một agent chạy `taskkill /IM node.exe` để dừng việc chậm của chính nó, giết luôn mọi server/test node của agent khác trên máy.
+  - Chỉ diệt đúng PID mình khởi động (giữ PID từ `spawn` hoặc `Start-Process -PassThru`). Ghi luật này vào hợp đồng giao việc cho subagent.

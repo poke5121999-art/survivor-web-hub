@@ -7,6 +7,10 @@
  * rồi ghi games/bazaar/data/ghosts.js:  window.BZ_GHOSTS = { v:1, byDay: { "1": [ghost...], ... "10": [...] } }
  * ghost = { name, hero, level, day, wins, healthMax, cards:[{id,tier,ench,socket,size,section}] }  (hình thẻ của sim)
  *
+ * Chọn bóng (2026-10-10 v2): "thắng quái ≥ 50%" không đo thứ cần đo. Mỗi ứng viên đấu một mẫu bàn bot KHÁC cùng ngày (quần thể,
+ * mọi hero, SEEDS hạt giống, bóng mang máu GHOST_HP_BY_DAY như luật thật) ⇒ pG = tỉ lệ bóng thắng quần thể. Giữ bóng sao cho trung bình
+ * pG ≈ TARGET (0.5) mỗi ngày ⇒ bot thắng bộ bóng 45-55% ở MỌI ngày, vẫn chia đều hero/kiểu bàn. Số báo cáo đo trên mẫu ĐỘC LẬP (holdout).
+ *
  * Chạy lại:  node games/bazaar/tools/ghosts.js            (cùng dữ liệu + cùng tham số ⇒ cùng tệp ra, tất định)
  *   RUNS=100   số run mỗi hero (mặc định 100)      PER_DAY=16   số bóng giữ mỗi ngày (12-20)
  *   SEED=7     hạt giống gốc                        MIN_WIN=0.5  ngưỡng thắng quái (nới dần nếu thiếu)
@@ -27,6 +31,12 @@ const PER_DAY = Math.max(12, Math.min(20, +(process.env.PER_DAY || 16)));
 const SEED = +(process.env.SEED || 7);
 const MIN_WIN = +(process.env.MIN_WIN || 0.5);
 const DRY = !!process.env.DRY;
+const TARGET = +(process.env.TARGET || 0.5);       // tỉ lệ bóng thắng quần thể mong muốn (bot thắng bóng = 1 - TARGET)
+const SAMPLE = +(process.env.SAMPLE || 30);        // số bàn quần thể mỗi mẫu (mẫu chọn và mẫu kiểm độc lập)
+const SEEDS = +(process.env.SEEDS || 1);           // số hạt giống mỗi cặp
+const BEFORE = process.env.BEFORE;                 // (dev) tệp ghosts.js cũ để in bảng "trước"
+const EVALCH = 4;
+const CANDCAP = +(process.env.CANDCAP || 100);     // số ứng viên/ngày đem đo với quần thể (rải đều; mỗi trận sim tốn ~0,1-0,3 s)
 const MAX_BYTES = 600 * 1024;
 
 // ---------- số ngẫu nhiên tất định ----------
@@ -356,22 +366,60 @@ function archetype(g) {
 }
 
 // ---------- chính ----------
+function uniqOf(pool) {
+  const seen = {};
+  return pool.filter(g => { const k = g.hero + JSON.stringify(g.cards.map(c => [c.id, c.tier, c.ench, c.socket])); if (seen[k]) return false; seen[k] = 1; return true; });
+}
+// Hai mẫu quần thể rời nhau (chọn 3*SAMPLE bàn / kiểm SAMPLE bàn), rải đều theo chỉ số: các run xếp theo hero nên mẫu có đủ hero
+function samples(uniq) {
+  const n = uniq.length, S = [], H = [], step = n / (4 * SAMPLE), at = k => uniq[Math.min(n - 1, Math.floor(step * k))];
+  for (let k = 0; k < SAMPLE; k++) { S.push(at(4 * k), at(4 * k + 1), at(4 * k + 2)); H.push(at(4 * k + 3)); } // chọn: 3*SAMPLE bàn; kiểm: SAMPLE bàn khác hẳn
+  return { S, H };
+}
+const toBoard = (g, pre, hp) => { const b = ghostBoard(g, pre); if (hp) b.healthMax = hp; return b; };
+// Tỉ lệ bóng g (máu bóng theo ngày) thắng các bàn quần thể pop
+function ghostWinRate(g, pop, day) {
+  const hp = R.ghostHp(day); let w = 0, n = 0;
+  pop.forEach((b, bi) => {
+    if (b === g || (b.hero === g.hero && b.cards.length === g.cards.length && b.i === g.i)) return;
+    for (let s = 0; s < SEEDS; s++) {
+      const r = BZ.run({ boards: [toBoard(b, 'b'), toBoard(g, 'g', hp)], seed: 1200 + bi * 7 + s, combatType: 'PVP', day, hour: 5, frames: false });
+      n++; if (r.winner === 1) w++;
+    }
+  });
+  return n ? w / n : 0;
+}
 function main() {
   const t0 = Date.now(), heroes = R.HEROES_PLAYABLE.slice();
   console.log('hero chơi được: ' + heroes.join(', ') + ' | ' + RUNS + ' run/hero, hạt giống ' + SEED);
   const cand = {}; for (let d = 1; d <= 10; d++) cand[d] = [];
-  let runs = 0, errors = 0;
-  // các run độc lập ⇒ chia cho tiến trình con (kết quả gom lại theo thứ tự công việc nên vẫn tất định)
   const jobs = [], CH = 10;
-  heroes.forEach((hero, hi) => { for (let a = 0; a < RUNS; a += CH) jobs.push({ hero, hi, from: a, to: Math.min(RUNS, a + CH) }); });
-  const CACHE = process.env.CACHE; // đường dẫn tệp tạm: lưu/đọc ứng viên để chỉnh khâu chọn mà khỏi chơi lại (chỉ để dev)
-  if (CACHE && fs.existsSync(CACHE)) { const c = JSON.parse(fs.readFileSync(CACHE, 'utf8')); console.log('  đọc ứng viên từ ' + CACHE); return Promise.resolve(c.results).then(results => proceed(results)); }
-  return runJobs(jobs).then(results => { if (CACHE) fs.writeFileSync(CACHE, JSON.stringify({ results })); return proceed(results); });
-  function proceed(results) {
+  heroes.forEach((hero, hi) => { for (let a = 0; a < RUNS; a += CH) jobs.push({ kind: 'play', hero, hi, from: a, to: Math.min(RUNS, a + CH) }); });
+  const CACHE = process.env.CACHE; // đường dẫn tệp tạm: lưu/đọc kết quả để chỉnh khâu chọn mà khỏi chơi/đo lại (chỉ để dev)
+  const cached = CACHE && fs.existsSync(CACHE) ? JSON.parse(fs.readFileSync(CACHE, 'utf8')) : null;
+  if (cached) console.log('  đọc từ ' + CACHE);
+  return (cached ? Promise.resolve(cached.results) : runJobs(jobs)).then(results => {
+    let runs = 0, errors = 0;
     results.forEach(res => { runs += res.runs; errors += res.errors; res.errs.forEach(m => console.log('  lỗi ' + m)); res.snaps.forEach(s => { if (s.day >= 1 && s.day <= 10) cand[s.day].push(s); }); });
     console.log('  chơi xong (' + ((Date.now() - t0) / 1000).toFixed(0) + ' s)');
-    finish(heroes, cand, runs, errors, t0);
-  }
+    // đo từng ứng viên với mẫu quần thể
+    const ev = [], U = {}, SM = {};
+    for (let d = 1; d <= 10; d++) {
+      const full = uniqOf(cand[d]); full.forEach((g, i) => { g.i = i; }); SM[d] = samples(full);
+      const cap = d === 10 ? Math.max(CANDCAP, 300) : CANDCAP, st = Math.max(1, full.length / cap); U[d] = []; for (let k = 0; k < full.length && U[d].length < cap; k += st) U[d].push(full[Math.floor(k)]);
+      for (let a = 0; a < U[d].length; a += EVALCH) ev.push({ kind: 'eval', d, from: a, to: Math.min(U[d].length, a + EVALCH), ghosts: U[d].slice(a, a + EVALCH), pop: SM[d].S });
+    }
+    if (CACHE && !cached) fs.writeFileSync(CACHE, JSON.stringify({ results }));
+    const PGC = CACHE ? CACHE + '.pg4' : null, pgc = PGC && fs.existsSync(PGC) ? JSON.parse(fs.readFileSync(PGC, 'utf8')) : {};
+    const keyOf = j => j.d + ':' + j.pop.length + ':' + j.ghosts.map(g => g.i).join(',');
+    const todo = ev.filter(j => !pgc[keyOf(j)]);
+    const evP = (todo.length ? runJobs(todo) : Promise.resolve([])).then(out => { todo.forEach((j, k) => { pgc[keyOf(j)] = out[k]; }); if (PGC) fs.writeFileSync(PGC, JSON.stringify(pgc)); return ev.map(j => pgc[keyOf(j)]); });
+    return evP.then(pg => {
+      pg.forEach((arr, k) => { arr.forEach((p, j) => { U[ev[k].d][ev[k].from + j].pg = p; }); });
+      console.log('  đo quần thể xong (' + ((Date.now() - t0) / 1000).toFixed(0) + ' s)');
+      finish(heroes, cand, U, SM, runs, errors, t0);
+    });
+  });
 }
 function runJobs(jobs) {
   const cp = require('child_process'), N = Math.max(1, Math.min(10, require('os').cpus().length - 2)), out = new Array(jobs.length);
@@ -386,6 +434,8 @@ function runJobs(jobs) {
   });
 }
 function doJob(job) {
+  if (job.kind === 'hold') return botVs(job.ghosts, job.pop, job.d);
+  if (job.kind === 'eval') return job.ghosts.map(g => ghostWinRate(g, job.pop, job.d));
   const res = { runs: 0, errors: 0, errs: [], snaps: [] };
   for (let i = job.from; i < job.to; i++) {
     try { const r = playRun(job.hero, SEED * 100000 + job.hi * 1000 + i + 1); res.runs++;
@@ -394,49 +444,60 @@ function doJob(job) {
   }
   return res;
 }
-function finish(heroes, cand, runs, errors, t0) {
-  const byDay = {}, rep = [], used = {}, nameR = rng(SEED * 17 + 3);
-  let totalBytes = 0;
-  for (let d = 1; d <= 10; d++) {
-    const pool = cand[d];
-    pool.forEach((g, i) => { g.i = i; });
-    // loại trùng bàn y hệt
-    const seen = {}, uniq = pool.filter(g => { const k = g.hero + JSON.stringify(g.cards.map(c => [c.id, c.tier, c.ench, c.socket])); if (seen[k]) return false; seen[k] = 1; return true; });
-    // "tạm được" = thắng quái ≥ ngưỡng, nhưng bỏ nhóm mạnh nhất (trên phân vị 65 của ngày): bóng phải ngang người chơi thường, không phải bàn tối ưu
-    const ws = uniq.map(g => g.win).sort((a, b) => a - b), cap = Math.max(MIN_WIN, ws[Math.floor(ws.length * 0.65)] || 1);
-    let thr = MIN_WIN, ok = uniq.filter(g => g.win >= thr && g.win <= cap);
-    while (ok.length < PER_DAY && thr > 0.2) { thr -= 0.05; ok = uniq.filter(g => g.win >= thr && g.win <= cap); }
-    if (ok.length < PER_DAY) ok = uniq.filter(g => g.win >= thr);
-    if (ok.length < PER_DAY) ok = uniq.slice().sort((a, b) => b.win - a.win).slice(0, Math.max(PER_DAY, 12));
-    // chọn đa dạng: lần lượt lấy bóng làm ít hero/kiểu đã có nhất, hoà thì thắng quái nhiều hơn rồi chỉ số
-    const hc = {}, ac = {}, kept = [], left = ok.slice().sort((a, b) => a.i - b.i);
-    while (kept.length < PER_DAY && left.length) {
-      let bi = 0, bs = Infinity;
-      left.forEach((g, i) => { const sc = (hc[g.hero] || 0) * 10 + (ac[g.arch] || 0) * 3 + Math.abs(g.win - 0.55) * 4 + g.i * 1e-6; if (sc < bs) { bs = sc; bi = i; } });
-      const g = left.splice(bi, 1)[0]; kept.push(g); hc[g.hero] = (hc[g.hero] || 0) + 1; ac[g.arch] = (ac[g.arch] || 0) + 1;
-    }
-    kept.sort((a, b) => a.i - b.i);
-    byDay[d] = kept.map(g => ({ name: makeName(nameR, used), hero: g.hero, level: g.level, day: g.day, wins: g.wins, healthMax: g.healthMax, cards: g.cards }));
-    // thống kê
-    const olds = oldGhosts(d, 4), keptNew = byDay[d];
-    let vsOldKept = 0, nOld = 0, botVsKept = 0, nBot = 0, winM = 0;
-    keptNew.forEach((g, ki) => {
-      winM += kept[ki].win;
-      olds.forEach((ob, oi) => { const o = JSON.parse(JSON.stringify(ob)); o.cards.forEach((c, i) => { c.uid = 'o' + i; }); vsOldKept += duel(ghostBoard(g, 'g'), o, d, 900 + oi); nOld++; });
-    });
-    // "bot" = toàn bộ ứng viên (quần thể người chơi bot) đấu bóng đã giữ
-    const sample = uniq.filter((_, i) => i % Math.max(1, Math.floor(uniq.length / 20)) === 0).slice(0, 20);
-    keptNew.forEach((g, ki) => sample.forEach((b, bi) => { if (b !== kept[ki]) { botVsKept += duel(ghostBoard(b, 'b'), ghostBoard(g, 'g'), d, 1200 + bi); nBot++; } }));
-    const per = {}; keptNew.forEach(g => { per[g.hero] = (per[g.hero] || 0) + 1; });
-    rep.push({ d, cand: pool.length, uniq: uniq.length, thr, kept: keptNew.length, per, winM: winM / Math.max(1, keptNew.length), vsOld: vsOldKept / Math.max(1, nOld), botVsNew: botVsKept / Math.max(1, nBot),
-      beatOld: pool.reduce((s, g) => s + (g.beatOld ? 1 : 0), 0) / Math.max(1, pool.length), arch: Object.keys(ac).length });
+// Chọn PER_DAY bóng: đa dạng hero/kiểu, rồi hoán đổi cùng hero để trung bình pG sát TARGET
+function selectDay(uniq) {
+  let ok = uniq.filter(g => g.win >= 0.25);
+  if (ok.length < 4 * PER_DAY) ok = uniq.slice();
+  const hc = {}, ac = {}, kept = [], left = ok.slice().sort((a, b) => a.i - b.i);
+  while (kept.length < PER_DAY && left.length) {
+    let bi = 0, bs = Infinity;
+    left.forEach((g, i) => { const sc = (hc[g.hero] || 0) * 10 + (ac[g.arch] || 0) * 2 + Math.abs(g.pg - TARGET) * 30 + g.i * 1e-6; if (sc < bs) { bs = sc; bi = i; } });
+    const g = left.splice(bi, 1)[0]; kept.push(g); hc[g.hero] = (hc[g.hero] || 0) + 1; ac[g.arch] = (ac[g.arch] || 0) + 1;
   }
+  const mean = () => kept.reduce((s, g) => s + g.pg, 0) / kept.length;
+  for (let it = 0; it < 200 && Math.abs(mean() - TARGET) > 0.01; it++) {
+    const m = mean(), want = TARGET - m; let bk = -1, bg = null, bd = Math.abs(want);
+    kept.forEach((k, ki) => left.forEach(g => {
+      if (g.hero !== k.hero) return;
+      const dm = (g.pg - k.pg) / kept.length, e = Math.abs(want - dm);
+      if (e < bd - 1e-9 && (g.arch === k.arch || (ac[g.arch] || 0) < 3)) { bd = e; bk = ki; bg = g; }
+    }));
+    if (bk < 0) break;
+    const old = kept[bk]; ac[old.arch]--; ac[bg.arch] = (ac[bg.arch] || 0) + 1; left.splice(left.indexOf(bg), 1); left.push(old); kept[bk] = bg;
+  }
+  return kept;
+}
+// Tỉ lệ bot (quần thể mẫu kiểm) thắng một bộ bóng
+function botVs(ghosts, pop, day) {
+  const hp = R.ghostHp(day); let w = 0, n = 0;
+  ghosts.forEach(g => pop.forEach((b, bi) => {
+    for (let s = 0; s < SEEDS; s++) { const r = BZ.run({ boards: [toBoard(b, 'b'), toBoard(g, 'g', hp)], seed: 5000 + bi * 7 + s, combatType: 'PVP', day, hour: 5, frames: false }); n++; if (r.winner === 0) w++; }
+  }));
+  return n ? w / n : 0;
+}
+function loadBefore() {
+  if (!BEFORE || !fs.existsSync(BEFORE)) return null;
+  const g = {}; new Function('window', 'globalThis', fs.readFileSync(BEFORE, 'utf8') + '')(g, g); return (g.BZ_GHOSTS || {}).byDay || null;
+}
+function finish(heroes, cand, U, SM, runs, errors, t0) {
+  const byDay = {}, rep = [], used = {}, nameR = rng(SEED * 17 + 3), before = loadBefore(), hj = [], KEPT = {};
+  for (let d = 1; d <= 10; d++) {
+    const uniq = U[d], kept = selectDay(uniq).sort((a, b) => a.i - b.i);
+    byDay[d] = kept.map(g => ({ name: makeName(nameR, used), hero: g.hero, level: g.level, day: g.day, wins: g.wins, healthMax: g.healthMax, cards: g.cards }));
+    const per = {}, ac = {}; kept.forEach(g => { per[g.hero] = (per[g.hero] || 0) + 1; ac[g.arch] = 1; });
+    const pop = SM[d].H, sel = 1 - kept.reduce((s, g) => s + g.pg, 0) / kept.length;
+    hj.push({ kind: 'hold', d, ghosts: byDay[d], pop, tag: 'a' }); if (before && before[d]) hj.push({ kind: 'hold', d, ghosts: before[d], pop, tag: 'b' });
+    rep.push({ d, cand: cand[d].length, uniq: uniq.length, kept: kept.length, per, sel, bBefore: NaN, bAfter: NaN, arch: Object.keys(ac).length, hp: R.ghostHp(d) });
+  }
+  return runJobs(hj).then(out => { hj.forEach((j, k) => { rep[j.d - 1][j.tag === 'a' ? 'bAfter' : 'bBefore'] = out[k]; }); report(heroes, cand, rep, byDay, runs, errors, t0); });
+}
+function report(heroes, cand, rep, byDay, runs, errors, t0) {
   const json = JSON.stringify({ v: 1, byDay });
-  const body = '/* generated by games/bazaar/tools/ghosts.js (bot thông minh chơi luật thật, lọc bằng sim) - do not edit.\n   Bóng PvP mặc định thay máy chủ: ' + heroes.join(', ') + '; ' + RUNS + ' run/hero, hạt giống ' + SEED + '.\n   Rerun: node games/bazaar/tools/ghosts.js */\n(function(g){g.BZ_GHOSTS=' + json + ';})(typeof window!==\'undefined\'?window:globalThis);\n';
-  totalBytes = Buffer.byteLength(body);
+  const body = '/* generated by games/bazaar/tools/ghosts.js (bot thông minh chơi luật thật, lọc bằng sim đấu quần thể) - do not edit.\n   Bóng PvP mặc định thay máy chủ: ' + heroes.join(', ') + '; ' + RUNS + ' run/hero, hạt giống ' + SEED + '.\n   Rerun: node games/bazaar/tools/ghosts.js */\n(function(g){g.BZ_GHOSTS=' + json + ';})(typeof window!==\'undefined\'?window:globalThis);\n';
+  const totalBytes = Buffer.byteLength(body);
   console.log('\nrun đã chơi: ' + runs + ' (lỗi ' + errors + '), ứng viên: ' + Object.keys(cand).map(d => cand[d].length).reduce((a, b) => a + b, 0) + ', ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s');
-  console.log('ngày | ứng viên | giữ | ngưỡng | thắng quái TB | bot ngày đó thắng bóng cũ(quái) | bóng mới thắng bóng cũ | bot thắng bóng mới | kiểu | hero');
-  rep.forEach(r => console.log([r.d, r.cand, r.kept, r.thr.toFixed(2), (r.winM * 100).toFixed(0) + '%', (r.beatOld * 100).toFixed(0) + '%', (r.vsOld * 100).toFixed(0) + '%', (r.botVsNew * 100).toFixed(0) + '%', r.arch, JSON.stringify(r.per)].join(' | ')));
+  console.log('ngày | ứng viên | duy nhất | giữ | máu bóng | bot thắng TRƯỚC (holdout) | bot thắng SAU (holdout) | (SAU trên mẫu chọn) | kiểu | hero');
+  rep.forEach(r => console.log([r.d, r.cand, r.uniq, r.kept, r.hp, isNaN(r.bBefore) ? '-' : (r.bBefore * 100).toFixed(0) + '%', (r.bAfter * 100).toFixed(0) + '%', (r.sel * 100).toFixed(0) + '%', r.arch, JSON.stringify(r.per)].join(' | ')));
   console.log('kích thước: ' + (totalBytes / 1024).toFixed(0) + ' KB' + (totalBytes > MAX_BYTES ? '  VƯỢT 600 KB!' : ''));
   console.log('sim errors: ' + BZ.errors.length);
   if (totalBytes > MAX_BYTES) process.exit(2);

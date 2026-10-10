@@ -45,11 +45,18 @@
     R.dialLabel = el('div', 'bz-dial-label', wd, 'Bão cát sau 30 giây');
     R.enrFrame = [el('div', 'bz-enr-frame bot', wd), el('div', 'bz-enr-frame top', wd)];
     R.enrVig = el('div', 'bz-enr-vig', wd);
-    R.shFrame = [el('div', 'bz-sh-frame bot', wd), el('div', 'bz-sh-frame top', wd)]; // lưới vàng quanh hàng chân dung khi khiên > 0 (REF shield)
+    // lưới vàng quanh khối chân dung khi khiên > 0 (REF shield) — VFX-9: chỉ ôm khối hero (không trùm hai ô cạnh) và nằm DƯỚI thanh máu
+    // trong thứ tự DOM, nên số máu/khiên luôn rõ; một ô vầng sáng cố định mỗi bên (trước đây mỗi lần nhận khiên thêm một div + setTimeout)
+    R.shFrame = [el('div', 'bz-sh-frame bot', wd), el('div', 'bz-sh-frame top', wd)];
+    R.rowGlow = [el('div', 'bz-rowglow bot', wd), el('div', 'bz-rowglow top', wd)];
+    R.hp.forEach(function (h) { wd.appendChild(h); }); R.crowns.forEach(function (c) { wd.appendChild(c); });
     R.sand = el('div', 'bz-sand', wd);
     el('div', 'edge', R.sand); el('div', 'edge b', R.sand);
     R.fx = el('canvas', '', wd); R.fx.id = 'bz-fx';
-    R.banner = el('div', 'bz-banner', st, '<div class="in"><h2></h2><p></p></div>');
+    // băng-rôn kết trận (REF fight-result / death-victory): dải lụa xanh viền vàng (Victory_BannerCenter_01_TUI xoay ngang) + hai đuôi
+    // (Victory_BannerLeft/Right_01_TUI), cuộn từ trái sang theo một ống cuộn vàng, giữ, rồi cuộn lại bay lên góc phải; thua = đỏ + khói
+    R.banner = el('div', 'bz-banner', st, '<div class="rib"><i class="tail l"></i><i class="tail r"></i><div class="band"><i class="cloth"></i>' +
+      '<div class="in"><h2></h2><p></p></div></div><i class="roll"></i></div>');
     R.ui = el('div', '', st); R.ui.style.cssText = 'position:absolute;inset:0;pointer-events:none;';
     root.BZTooltip.init(st, W, H);
     V.fit();
@@ -64,10 +71,26 @@
     V.envKey = key; V.env = d;
     R.bg.style.backgroundImage = 'url("' + d.src + REV() + '")';
   };
+  // MOBILE-20: chừa vùng an toàn (tai thỏ, góc bo, thanh cử chỉ) — đọc env(safe-area-inset-*) qua một phần tử dò
+  var safeProbe = null;
+  function safeInsets() {
+    try {
+      if (!safeProbe) {
+        safeProbe = document.createElement('div');
+        safeProbe.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;' +
+          'padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);';
+        document.body.appendChild(safeProbe);
+      }
+      var cs = getComputedStyle(safeProbe);
+      return { t: parseFloat(cs.paddingTop) || 0, r: parseFloat(cs.paddingRight) || 0, b: parseFloat(cs.paddingBottom) || 0, l: parseFloat(cs.paddingLeft) || 0 };
+    } catch (e) { return { t: 0, r: 0, b: 0, l: 0 }; }
+  }
   V.fit = function () {
-    var w = root.innerWidth, h = root.innerHeight, s = Math.min(w / W, h / H);
+    var ins = safeInsets(), w = root.innerWidth - ins.l - ins.r, h = root.innerHeight - ins.t - ins.b, s = Math.min(w / W, h / H);
     V.scale = s;
-    R.stage.style.transform = 'translate(' + Math.round((w - W * s) / 2) + 'px,' + Math.round((h - H * s) / 2) + 'px) scale(' + s + ')';
+    R.stage.style.transform = 'translate(' + Math.round(ins.l + (w - W * s) / 2) + 'px,' + Math.round(ins.t + (h - H * s) / 2) + 'px) scale(' + s + ')';
+    // MOBILE-2/VFX-33: hệ số phóng chữ cho màn nhỏ (tooltip, số máu): ≥ 1, đạt ~12 px thật cho chữ 23 px sân khấu
+    R.stage.style.setProperty('--uik', Math.max(1, Math.min(1.8, 0.5 / s)).toFixed(3));
     if (root.BZFX && R.fx) root.BZFX.resize(s, Math.min(2, root.devicePixelRatio || 1));
   };
   // toạ độ client → toạ độ sân khấu
@@ -77,14 +100,33 @@
   };
 
   // ---------- thẻ ----------
-  V.clearCards = function () { R.cardLayer.innerHTML = ''; cards = {}; };
+  V.clearCards = function () { R.cardLayer.innerHTML = ''; cards = {}; V.clearCombat(); };
+  // VFX-3: dỡ mọi lớp riêng của trận (khung khiên/nộ, viền tối nộ, vầng khiên, bão cát, băng-rôn, tạm dừng CSS) —
+  // ui/combat.js gọi clearCards() khi dỡ trận nên màn chiến lợi phẩm / lên cấp không còn khung vàng
+  V.clearCombat = function () {
+    if (!R.stage) return;
+    V.fightOver(true); R.over = false;
+    R.rowGlow.forEach(function (d) { d.classList.remove('go'); });
+    V.sand(false); V.hideBanner(true);
+    R.stage.classList.remove('bz-paused', 'bz-intro');
+  };
+  // fightOver(on): trận đã ngã ngũ → tắt khung khiên/nộ + viền tối (khiên còn lại không còn nghĩa); off (tua lại) → tính lại từ trạng thái hero
+  V.fightOver = function (on) {
+    R.over = !!on;
+    if (on) {
+      R.shFrame.forEach(function (f) { f.classList.remove('on'); });
+      R.enrFrame.forEach(function (f) { f.classList.remove('on'); });
+      R.enrVig.classList.remove('on');
+    } else heroes.forEach(function (h) { if (h) { h.v.shield = -1; h.v.enr = null; } });
+  };
   // layoutBoard(side, [{uid, el, size, socket}]) — xếp theo socket, cả nhóm canh giữa bàn (bàn gốc dồn thẻ vào giữa)
   V.layoutBoard = function (side, list) {
     var B = V.BOARD, sorted = list.slice().sort(function (a, b) { return a.socket - b.socket; });
     var total = 0; sorted.forEach(function (c) { total += c.size; });
     var x = B.x + B.w / 2 - total * B.pitch / 2, y = B.top[side];
-    sorted.forEach(function (c) {
+    sorted.forEach(function (c, ci) {
       var span = c.size * B.pitch, w = c.el._bz.w;
+      c.el.style.setProperty('--ci', ci); c.el.style.setProperty('--fy', side ? '-170px' : '170px'); // thứ tự + hướng bay vào lúc mở trận (VFX-16)
       var left = x + (span - w) / 2;
       c.el.style.left = left.toFixed(1) + 'px'; c.el.style.top = y + 'px';
       c.rect = { x: left, y: y, w: w, h: B.cardH };
@@ -193,6 +235,8 @@
       v: { shield: -1 }, ghostV: 1, fillV: 1, gainT: -1e9, lossT: -1e9, punchT: -1e9, punchPct: 0, flashT: -1e9, dead: false
     };
     R.crowns[side].classList.remove('on');
+    R.shFrame[side].classList.remove('on'); R.enrFrame[side].classList.remove('on'); R.rowGlow[side].classList.remove('go');
+    R.enrVig.classList.toggle('on', R.enrFrame.some(function (x) { return x.classList.contains('on'); }));
   };
   V.skillEl = function (side, uid) { var h = heroes[side]; return h ? h.skillEls[uid] : null; };
   V.hero = function (side) { return heroes[side]; };
@@ -217,7 +261,7 @@
       h.shield.style.display = o.shield > 0 ? '' : 'none';
       h.textS.textContent = o.shield > 0 ? o.shield : '';
       var sf = R.shFrame && R.shFrame[side];
-      if (sf) { sf.classList.toggle('on', o.shield > 0); sf.style.setProperty('--sh', Math.min(1, o.shield / mx).toFixed(3)); }
+      if (sf) { sf.classList.toggle('on', o.shield > 0 && !R.over); sf.style.setProperty('--sh', Math.min(1, o.shield / mx).toFixed(3)); }
       h.tint.style.opacity = '';
     }
     var regen = v.regen || 0;
@@ -232,7 +276,7 @@
     if (o.enr !== enr) {
       o.enr = enr; h.pf.classList.toggle('enraged', enr);
       // nộ: khung đỏ nhấp nháy ở đáy bàn, ~1 s sau mới phủ vành tối đỏ (REF enrage)
-      var ef = R.enrFrame[side], on = enr;
+      var ef = R.enrFrame[side], on = enr && !R.over;
       if (ef) { ef.classList.remove('on'); if (on) { void ef.offsetWidth; ef.classList.add('on'); } }
       var any = R.enrFrame.some(function (x) { return x.classList.contains('on'); });
       R.enrVig.classList.toggle('on', any);
@@ -264,7 +308,12 @@
     if (v > 0 && up) { c.el.classList.remove('bump'); void c.el.offsetWidth; c.el.classList.add('bump'); }
   }
   V.heroPunch = function (side, t, pct) { var h = heroes[side]; if (!h) return; h.punchT = t; h.punchPct = Math.max(0.06, Math.min(1, pct)); h.punchSign = Math.random() < 0.5 ? -1 : 1; };
-  V.heroFlash = function (side, t, color) { var h = heroes[side]; if (!h) return; h.flashT = t; h.flash.style.background = color || '#fff'; };
+  // VFX-28: chớp chân dung là quầng tròn hoà "screen" (art vẫn thấy), không phải tấm phẳng 75 % che mất mặt
+  V.heroFlash = function (side, t, color) {
+    var h = heroes[side]; if (!h) return; h.flashT = t;
+    var c = color || '#ffffff';
+    if (h._fc !== c) { h._fc = c; h.flash.style.background = 'radial-gradient(ellipse 70% 65% at 50% 55%, ' + c + ' 0%, ' + c + 'aa 35%, transparent 75%)'; }
+  };
   V.setDead = function (side, on) { var h = heroes[side]; if (!h) return; h.dead = on; h.pf.classList.toggle('dead', on); };
   V.crown = function (side, on) { R.crowns[side].classList.toggle('on', !!on); };
   V.skillPulse = function (side, uid) { var e = V.skillEl(side, uid); if (!e) return; e.classList.remove('pulse'); void e.offsetWidth; e.classList.add('pulse'); };
@@ -303,7 +352,7 @@
         h._punching = true;
       } else if (h._punching) { h._punching = false; h.pf.style.transform = ''; }
       var fe = t - h.flashT;
-      var fo = fe >= 0 && fe < 300 ? 0.75 * (1 - fe / 300) : 0;
+      var fo = fe >= 0 && fe < 300 ? 0.6 * (1 - fe / 300) : 0;
       if (h._fo !== fo) { h._fo = fo; h.flash.style.opacity = fo.toFixed(3); }
     }
   };
@@ -323,30 +372,41 @@
         'conic-gradient(' + (sec >= cfg.countdownStart / 1000 ? '#ff9a3a' : '#e0b25a') + ' ' + (p * 360).toFixed(1) + 'deg, rgba(0,0,0,.35) 0)';
       R.dialStorm.style.transform = 'scaleX(' + p.toFixed(3) + ')';
       R.dial.classList.toggle('storming', storming);
-      R.dialLabel.textContent = storming ? 'Bão cát đang hoành hành' : ('Bão cát sau ' + Math.max(0, Math.ceil(start - sec)) + ' giây');
+      R.dialLabel.textContent = storming ? 'Bão cát đang nổi' : ('Bão cát sau ' + Math.max(0, Math.ceil(start - sec)) + ' giây');
     }
   };
   V.sand = function (on) { R.sand.classList.toggle('on', !!on); };
   V.sandLevel = function (k) { var q = Math.round(Math.max(0, Math.min(1, k)) * 50) / 50; if (R._sk !== q) { R._sk = q; R.sand.style.setProperty('--sk', q); } };
-  // vầng vàng quanh hàng chân dung khi nhận khiên (REF shield: viền hàng chuyển lưới vàng ~1,2 s)
+  // vầng vàng quanh khối chân dung khi nhận khiên (REF shield: viền chuyển lưới vàng ~1,2 s) — một ô cố định mỗi bên, chạy lại hoạt ảnh
   V.rowGlow = function (side, color, ms) {
-    var d = el('div', 'bz-rowglow ' + (side ? 'top' : 'bot'), R.world);
+    var d = R.rowGlow && R.rowGlow[side]; if (!d) return;
     d.style.setProperty('--rg', color || '#fcdc2c'); d.style.animationDuration = (ms || 1200) + 'ms';
-    setTimeout(function () { if (d.parentNode) d.parentNode.removeChild(d); }, (ms || 1200) + 60);
+    d.classList.remove('go'); void d.offsetWidth; d.classList.add('go');
   };
-  var bannerTimer = null;
-  V.banner = function (title, sub, cls, holdMs) {
+  var bannerTimer = null, introTimer = null;
+  // banner(title, sub, cls 'win'|'lose'|'draw'|'storm', holdMs?, live?) — live: thêm tia vàng (thắng) / khói xanh-đen (thua) trên canvas FX
+  V.banner = function (title, sub, cls, holdMs, live) {
     var b = R.banner;
     b.querySelector('h2').textContent = title; b.querySelector('p').textContent = sub || '';
     b.className = 'bz-banner ' + (cls || '');
     void b.offsetWidth; b.classList.add('show');
     clearTimeout(bannerTimer);
     if (holdMs) bannerTimer = setTimeout(V.hideBanner, holdMs);
+    if (live && root.BZFX && cls !== 'storm') root.BZFX.burst(cls === 'lose' ? 'bannerLose' : cls === 'draw' ? 'bannerDraw' : 'bannerWin', W / 2, 540, {});
   };
+  V.bannerSub = function (sub) { R.banner.querySelector('p').textContent = sub || ''; };
   V.hideBanner = function (instant) {
     clearTimeout(bannerTimer);
     var b = R.banner;
     if (instant) { b.className = 'bz-banner'; return; }
     if (b.classList.contains('show')) { b.classList.remove('show'); b.classList.add('hide'); }
+  };
+  // VFX-16: mở trận — sân tối mờ dần (400 ms), vệt sáng xanh quét ngang (600 ms), chân dung + thẻ bay vào (REF fight-start); hoạt ảnh CSS
+  // theo đồng hồ thật, đồng hồ trận giữ RP.INTRO_MS cho khớp
+  V.intro = function (ms) {
+    var st = R.stage; if (!st) return;
+    st.classList.remove('bz-intro'); void st.offsetWidth; st.classList.add('bz-intro');
+    clearTimeout(introTimer);
+    introTimer = setTimeout(function () { st.classList.remove('bz-intro'); }, (ms || 650) + 900);
   };
 })(window);

@@ -108,24 +108,33 @@
   T.TIER_VI = TIER_VI;
 
   var cur = null;
+  T.MIN_PX = 12.5; // cỡ chữ dòng hiệu ứng tối thiểu (px thật trên màn) cho điện thoại
   // show(info, rect {x,y,w,h} trên sân 1920×1080, prefer 'right'|'left')
   T.show = function (info, rect) {
     if (!box) return;
     var showing = box.classList.contains('show');
     if (cur !== info) { box.innerHTML = T.render(info); cur = info; }
     box.className = 'bz-tip t-' + (info.tier || 'Bronze') + (showing ? ' show' : '');
-    box.style.display = 'block';
-    var w = box.offsetWidth, h = box.offsetHeight;
+    box.style.display = 'block'; box.style.scale = '';
+    var w0 = box.offsetWidth, h0 = box.offsetHeight;
+    // MOBILE-2: sân 1920×1080 co theo màn (0,36 ở 844×390) làm chữ 23 px còn ~8 px thật → phóng tooltip để dòng chữ ≥ ~12 px thật,
+    // tối đa 2,2× và không quá khổ sân (chừa 24 px mỗi bên)
+    var vs = (root.BZView && root.BZView.scale) || 1, k = Math.max(1, Math.min(2.2, T.MIN_PX / (23 * vs)));
+    k = Math.max(1, Math.min(k, (stageW - 24) / w0, (stageH - 24) / h0));
+    var w = w0 * k, h = h0 * k;
     // clip UBBAzdzXo8g: thẻ ở hàng dưới → tooltip nằm TRÊN thẻ, mép trái lệch ~20 px; hàng trên → bên phải thẻ (lật trái khi hết chỗ)
     var gap = 26, x = rect.x + rect.w + gap, left = false, y = rect.y + rect.h / 2 - h / 2;
     if (rect.y + rect.h / 2 > stageH * 0.5 && rect.y - h - 14 >= 12) { x = rect.x - 20; y = rect.y - h - 14; }
     else if (x + w > stageW - 12) { x = rect.x - gap - w; left = true; }
     x = Math.max(12, Math.min(stageW - w - 12, x));
     y = Math.max(12, Math.min(stageH - h - 12, y));
+    // phóng quanh góc trên-trái để (x, y, w, h) đúng là hộp nhìn thấy; hoạt ảnh hiện vẫn nở từ mép gần thẻ khi không phóng
+    if (k > 1.001) { box.style.transformOrigin = '0 0'; box.style.scale = k.toFixed(3); }
+    else box.style.transformOrigin = (left ? '100%' : '0') + ' 50%';
     box.style.left = Math.round(x) + 'px'; box.style.top = Math.round(y) + 'px';
-    box.style.transformOrigin = (left ? '100%' : '0') + ' 50%';
+    T.lastScale = k;
     var ks = box.querySelector('.keys');
-    if (ks) { ks.style.left = Math.round(24 - x) + 'px'; ks.style.top = Math.round(stageH - 24 - ks.offsetHeight - y) + 'px'; }
+    if (ks) { ks.style.left = Math.round((24 - x) / k) + 'px'; ks.style.top = Math.round((stageH - 24 - ks.offsetHeight * k - y) / k) + 'px'; }
     if (!box.classList.contains('show')) { void box.offsetWidth; box.classList.add('show'); }
   };
   T.hide = function () { if (!box) return; box.classList.remove('show'); box.style.display = 'none'; cur = null; };

@@ -251,6 +251,8 @@
           for (var li = 0; li < list.length; li++) {
             var id = list[li];
             if (used[id] || !tierOk(R.tpl(id), tiers[ti][0], tiers[ti][1])) continue;
+            // Hàng thương nhân: bỏ thẻ giá mua 0 ở bậc đó (Nanobot, Blue Piggles R...: thẻ chỉ sinh ra từ hiệu ứng, bản gốc không bán) [FLOW-7]
+            if (opts.priced && R.price(R.tpl(id), tiers[ti][0]).buy <= 0) continue;
             cands.push({ id: id, tier: tiers[ti][0] });
           }
         }

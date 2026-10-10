@@ -89,6 +89,15 @@ hero trong sim; giọng + nhạc 8 hero; `data/ghosts.js` 16 bóng/ngày từ 70
 Kiểm: sim micro 36/0 + sockets 27/0, run rules 114/0 (đủ: 127/0 với 7 hero × 200 run), play 49/0, view 19/0.
 Còn lệch: bóng ngày 1-2 yếu, ngày 8-10 mạnh (bot thắng 25-31%); clip charge và bão cát thật chưa có.
 
+## Pha 5: tự rà như người chơi (2026-10-10, rev 20261010b)
+
+Chủ dự án chơi thử và nói còn nhiều chỗ cần chỉnh, nhất là tương tác, VFX, hiệu ứng. 4 agent chơi bằng chuột/chạm thật
+(hợp đồng `D:\bazaar-ref\notes\REVIEW.md`) → 120 lỗi, 11 P0 ở `D:\bazaar-ref\review\{FLOW,INTERACT,MOBILE,VFX}.md`.
+Sửa theo 3 nhánh tệp (`review\TRIAGE.md`), mỗi lỗi một dòng ở `review\FIXES-{RULES,UI,VFX}.md`.
+Đáng nhớ: run không giới hạn 10 ngày (hết khi 10 thắng hoặc hết uy tín); hit-stop kẹp ≤ 250 ms; canvas FX phải nằm trên thẻ (z 25);
+mua cần chọn rồi bấm lần hai; kéo lên bệ là `commit` (nâng bậc), không bán. Bóng PvP chọn lại cho bot thắng 43-57% mỗi ngày.
+Kiểm: sim 36/0, run rules 154/0 (đủ 167/0), play 71/0, view 30/0.
+
 ## Việc mở sau pha 2
 
 - Luật: lệnh `swap` khi kéo vào ô đã có đồ; cho `move`/`sell` ở pha `fight` (xếp lại sau khi xem đối thủ); lưu `run.best` cho màn hết run.

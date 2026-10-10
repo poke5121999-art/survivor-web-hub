@@ -103,6 +103,8 @@
     // "Fight a Monster" (Epic Battle / Deadly Duel: FightTier, thẻ trận cụ thể bị xoá) [ĐỀ XUẤT]: quái đúng bậc FightTier,
     // cấp mẫu trong [ngày + lo, ngày + hi] như ô Vàng+ của giờ PvE.
     FIGHT_EVENT_LEVEL: { lo: 1, hi: 3 },
+    // Sự kiện có trận cố định (Treasure Chest (Mimic) L11) chỉ bày khi cấp quái ≤ ngày + chừng này [ĐỀ XUẤT: Mimic L11 vào ngày 7+]
+    EVENT_FIGHT_LEVEL_SLACK: 4,
     // Tên nội bộ không đưa vào bể giờ tự do (sự kiện con / tiếp diễn của chuỗi sự kiện khác)
     ENCOUNTER_EXCLUDE: /Return|Rewards?$|^Greenheart|^Dungeon|^Fierce Competition|^Furry|Financial District - |Futura|Magic Mirror|The Cult|Chest$/,
 
@@ -128,6 +130,14 @@
       Barkun: [{ AttributeType: 'SellPrice', Operation: 'Add', Value: 1, Sizes: ['Small'] }]
     },
 
+    // Số aura trong chữ của thẻ gặp gỡ mà dữ liệu chưa chở (Auras): "Pick a Chest containing up to {aura.9} XP/Gold" của Shrouded Figure
+    // = thuộc tính Custom_0 của chính bước đó (cards.json `Attributes.Custom_0`: Knowledge 3, Wealth 30) [ĐO TRONG REPO].
+    // Tỉ số Bex ({aura.3}/{aura.4}/{aura.5}) là biến chạy của trò chơi nhỏ, không có số tĩnh: hiện "?".
+    ENCOUNTER_AURA_VALUES: {
+      '[Shrouded Figure] Choose Knowledge': { 9: 3 },
+      '[Shrouded Figure] Choose Wealth': { 9: 30 }
+    },
+
     // ---- hiệu ứng "get a ..." của vật phẩm (Spawn/Deal; SpawnContext bị xoá) ----
     // [ĐỀ XUẤT] thẻ sinh ra theo bậc của thẻ nguồn (TSpawnBehaviorInheritTier có trong Domain.Spawning, giá trị bị xoá);
     // bậc đó không có trong thang của thẻ đích thì lùi xuống bậc gần nhất.
@@ -139,7 +149,9 @@
     HERO_MIN_ITEMS: 90,
 
     // ---- giới hạn bàn ----
-    SKILL_SLOTS: 4,           // BazaarBoard.cs:113 (legacy) [ĐO TRONG REPO]
+    // 6 ô kỹ năng quanh chân dung [ĐO TRÊN CLIP] https://youtu.be/PSP75k4R4Pk?t=110 ("skill slots as 6 round sockets around portrait") và thẻ hết run
+    // 6 huy hiệu kỹ năng (wUzq6Q4u9Jc?t=2724); bản legacy BazaarBoard.cs:113 chỉ có 4 [FLOW-8]
+    SKILL_SLOTS: 6,
     STASH_SLOTS: 10,          // BazaarBoard.cs:107; mở hết [ĐỀ XUẤT CODE-RUN §2.6: PlayerStorageHand không có mảng khoá]
     LOG_MAX: 400              // nhật ký run giữ tối đa chừng này dòng (localStorage)
   };

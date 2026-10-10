@@ -37,13 +37,16 @@
   };
   P.enter = function (ctx, r, after) {
     var run = ctx.run, e = R.enc().pedestals[r.id], b = P.behavior(e);
-    run.phase = { kind: 'pedestal', pedestalId: e.Id, name: e.Title || e.InternalName, desc: e.Desc || '', behavior: b,
+    run.phase = { kind: 'pedestal', pedestalId: e.Id, name: e.Title || e.InternalName, desc: R.encText(run, e, e.Desc || ''), behavior: b,
       eligible: P.eligible(run, e, b), after: after || 'endHour' };
   };
   P.choose = function (ctx, cmd) {
-    var run = ctx.run, ph = run.phase, uid = ph.eligible[cmd.i], e = R.enc().pedestals[ph.pedestalId];
+    var run = ctx.run, ph = run.phase, e = R.enc().pedestals[ph.pedestalId];
+    // {t:'commit', uid}: kéo một thẻ của mình lên bệ (CommitToPedestalCommand của bản gốc); {t:'choose', i}: theo chỉ số trong `eligible`
+    var uid = cmd.uid != null ? cmd.uid : ph.eligible[cmd.i];
+    if (cmd.uid != null && ph.eligible.indexOf(cmd.uid) < 0) return 'card ' + cmd.uid + ' is not eligible for this pedestal';
     var ci = uid && R.findCard(run, uid);
-    if (!ci) return 'eligible slot ' + cmd.i + ' is empty';
+    if (!ci) return cmd.uid != null ? 'card ' + cmd.uid + ' not found' : 'eligible slot ' + cmd.i + ' is empty';
     var b = ph.behavior, tpl = R.tpl(ci.id);
     if (b.type === 'upgrade') R.upgradeInst(ctx, ci, 'pedestal');
     else {

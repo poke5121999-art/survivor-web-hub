@@ -28,6 +28,13 @@
     var A = root.BZAudio; if (!A) return;
     if (key) A.music(key, fade || 1.5); else A.stopMusic(1);
   };
+  // nhạc bàn của hero: đổi bài theo ngày trong danh sách của hero (music.<hero>.1..3, AUDIO.md) thay vì luôn bài 1 (FLOW-15, một phần:
+  // phát tiếp từ chỗ dừng sau trận cần BZAudio.music nhận vị trí — xin nhánh VFX)
+  T.boardTrack = function (run) {
+    var h = run.hero.toLowerCase(), A = root.BZAudio, n = 1;
+    while (A && A.has && A.has('music.' + h + '.' + (n + 1))) n++;
+    return 'music.' + h + '.' + (1 + ((Math.max(1, run.day) - 1) % n));
+  };
   // nền chung cho mọi màn trong run: tắt lớp phủ toàn màn, hiện HUD + bàn, nhạc của hero
   T.base = function (run, topMode) {
     var st = V().refs.stage;
@@ -36,7 +43,7 @@
     U.cards.show(true); U.hud.show(true);
     T.clear();
     T.mode(topMode || {});
-    if (run && run.hero) { U.hud.mountHero(run); U.hud.update(run); U.cards.render(run); U.music('music.' + run.hero.toLowerCase() + '.1'); }
+    if (run && run.hero) { U.hud.mountHero(run); U.hud.update(run); U.cards.render(run); U.music(T.boardTrack(run)); }
     if (U.menu) U.menu.gear(true);
   };
   // nút lớn kiểu gốc (Btn_Rct_*): màu 'brown' | 'blue' | 'yellow' | 'red' | 'purple'
@@ -97,7 +104,7 @@
   var XS = [713, 960, 1207], YS = [219, 285, 221], FH = 176;
   T.frames = function (options, onPick, opts) {
     opts = opts || {};
-    var layer = T.layer(), out = [];
+    var layer = T.layer(), out = [], born = U.now();
     var n = options.length, xs = n === 3 ? XS : n === 2 ? [830, 1090] : [960];
     options.forEach(function (o, i) {
       var tier = o.tier || 'Bronze', F = root.BZ_FRAMES && root.BZ_FRAMES.encounter && (root.BZ_FRAMES.encounter[tier] || root.BZ_FRAMES.encounter.Bronze);
@@ -120,21 +127,29 @@
       var pt = opts.pennant ? opts.pennant(o) : T.pennantType(o);
       var pn = U.el('div', 'pennant p-' + pt, box, ICONS[pt] || ICONS.event); pn.style.top = (H - 8) + 'px'; box.classList.add('k-' + pt);
       U.el('div', 'nm', box, U.esc(o.name));
+      // bảng giải thích đặt ngoài hàng khung (bên trái khung đầu / bên phải khung cuối) để không che khung bên cạnh (MOBILE-25);
+      // màn lên cấp: tiêu đề bảng là nhãn chung, không lặp tên đã hiện trên khung (FLOW-25)
+      function tip(extra) {
+        var r = U.rectOf(fr), title = opts.kicker ? U.esc(opts.kicker) : U.esc(o.name), body = (opts.kicker ? '<b class="w">' + U.esc(o.name) + '</b><br>' : '') + U.esc(o.desc || '') + (extra || '');
+        U.panelTip(anchor(i, r), title, body);
+      }
       box.addEventListener('pointerenter', function (e) {
+        if (e.pointerType === 'touch') return;
         U.sfx('board.portraitHover', { vol: 0.6 });
-        if (opts.onHover) opts.onHover(o, box, e);
-        else { var r = U.rectOf(fr); U.panelTip(r, U.esc(o.name), U.esc(o.desc || '')); }
+        if (opts.onHover) opts.onHover(o, box, e); else tip('');
       });
-      box.addEventListener('pointerleave', function () { U.sfx('board.portraitUnhover', { vol: 0.4 }); U.panelTip(null); if (opts.onLeave) opts.onLeave(); });
+      box.addEventListener('pointerleave', function (e) { if (e.pointerType === 'touch') return; U.sfx('board.portraitUnhover', { vol: 0.4 }); U.panelTip(null); if (opts.onLeave) opts.onLeave(); });
       var lastPt = 'mouse';
       box.addEventListener('pointerdown', function (e) { lastPt = e.pointerType; });
       box.addEventListener('click', function () {
-        if (U.state.busy) return;
+        // khung vừa bật ra (< 0,45 s): bỏ qua cú bấm "xuyên" từ màn trước (bấm đúp quả cầu mở màn / nút Tiếp tục)
+        if (U.state.busy || U.now() - born < 450) return;
         // chạm: lần 1 xem (tooltip / bàn quái), lần 2 chọn
         if (lastPt === 'touch' && !box.classList.contains('armed')) {
           Array.prototype.forEach.call(layer.querySelectorAll('.rs-enc.armed'), function (b) { b.classList.remove('armed'); });
           box.classList.add('armed');
-          if (opts.onHover) opts.onHover(o, box); else U.panelTip(U.rectOf(fr), U.esc(o.name), U.esc(o.desc || '') + '<br><span class="o">Chạm lần nữa để chọn</span>');
+          U.sfx('board.portraitHover', { vol: 0.6 });
+          if (opts.onHover) opts.onHover(o, box); else tip('<br><span class="o">Chạm lần nữa để chọn</span>');
           return;
         }
         U.state.busy = true;
@@ -146,6 +161,15 @@
       });
       out.push(box);
     });
+    // điểm neo của bảng: khung trái → bảng nằm bên trái hàng; khung khác → bảng nằm bên phải khung cuối
+    function anchor(i, r) {
+      var first = U.rectOf(out[0].querySelector('.fr')), last = U.rectOf(out[out.length - 1].querySelector('.fr'));
+      if (!first || !last || out.length < 2) return r;
+      var row = { x0: first.x, x1: last.x + last.w, y1: Math.max(first.y + first.h, last.y + last.h, r.y + r.h) + 70 };
+      var tw = V().refs.tip2.offsetWidth || 470;
+      if (i === 0) return { x: first.x - tw - 36, y: r.y, w: 0, h: r.h, row: row };
+      return { x: last.x, y: r.y, w: last.w, h: r.h, row: row };
+    }
     return out;
   };
 })(window);

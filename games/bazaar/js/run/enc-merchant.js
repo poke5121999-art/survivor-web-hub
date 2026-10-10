@@ -21,7 +21,7 @@
   };
   M.dealStock = function (run, e, exclude) {
     var free = !!(e.Rules && e.Rules.SelectionIsFree);
-    var cards = R.deal(run, M.filter(e), limitOf(run, e), { exclude: exclude || {} });
+    var cards = R.deal(run, M.filter(e), limitOf(run, e), { exclude: exclude || {}, priced: !free });
     var stock = cards.map(function (c) { return { card: c, price: free ? 0 : R.price(c, c.tier).buy }; });
     var always = /always sells discounted/i.test(e.Desc || '');
     var hasRoll = JSON.stringify(e.Abilities || {}).indexOf('"BuyPrice"') >= 0;
@@ -36,7 +36,7 @@
     var run = ctx.run, e = R.enc().events[r.id], rr = (e.Rules && e.Rules.RerollRules) || null;
     var stock = M.dealStock(run, e);
     run.phase = {
-      kind: 'merchant', merchantId: e.Id, name: e.Title || e.InternalName, desc: e.Desc || '', stock: stock,
+      kind: 'merchant', merchantId: e.Id, name: e.Title || e.InternalName, desc: R.encText(run, e, e.Desc || ''), stock: stock,
       rerolls: rr ? rr.TotalAllowedRerolls || 0 : T().DEFAULT_REROLLS, rerollCost: rr ? rr.StartingCost || 0 : 0,
       rerollStep: rr ? rr.CostIncrease || 0 : 0, rerollMax: rr && rr.CostMax != null ? rr.CostMax : null,
       dealt: stock.map(function (s) { return s.card.id; }), after: after || 'endHour'
@@ -68,7 +68,7 @@
     if (!s) return 'stock slot ' + cmd.i + ' is empty';
     if (run.gold < s.price) return 'not enough gold (' + run.gold + ' < ' + s.price + ')';
     var ci = R.gainCard(ctx, s.card, cmd.section || null, cmd.socket == null ? null : cmd.socket, 'buy');
-    if (!ci) return 'no space for ' + s.card.id + (cmd.section ? ' at ' + cmd.section + ':' + cmd.socket : '');
+    if (!ci) return R.noSpaceReason(run, s.card) + (cmd.section ? ' at ' + cmd.section + ':' + cmd.socket : '');
     ph.stock.splice(cmd.i, 1);
     R.gold(ctx, -s.price, 'buy');
     R.emit(ctx, { type: 'buy', uid: ci.uid, id: ci.id, price: s.price });

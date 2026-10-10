@@ -1,7 +1,10 @@
 /* Chợ Phiên — phát lại trận của run trên chính sân khấu xem trận (BZView + BZReplay, pha 1b).
    Reducer đã chạy trận (lệnh `fight`) và lưu boards + simOpts trong pha fightResult; ở đây chạy lại
    BZSim.run(Object.assign({boards}, simOpts)) có khung hình (frames) — cùng seed nên cùng kết quả — rồi phát lại.
-   Không bao giờ đổi trạng thái run: xong trận chỉ gọi onDone để màn kết quả hiện ra. */
+   Không bao giờ đổi trạng thái run: xong trận chỉ gọi onDone để màn kết quả hiện ra.
+   HUD của run ở lại trong trận (FLOW-13, ref fight-start): rương kho, túi vàng + thu nhập, cấp + XP, bánh răng; chỉ mặt đồng hồ
+   giờ/ngày nhường chỗ cho đồng hồ trận (giây + bão cát). Dock: tạm dừng (Space), 1×/2×/3×, tới kết quả (INTERACT-8, MOBILE-7).
+   Bảng cài đặt mở trong trận thì trận dừng, đóng thì chạy tiếp. */
 (function (root) {
   'use strict';
   var U = root.BZUI = root.BZUI || {};
@@ -69,18 +72,20 @@
       rewards: ph.rewards || {}, hpMax: res.players[1].healthMax });
     var h1 = V().hero(1); if (h1) h1.art.classList.toggle('hero-art', !!oa.hero);
     V().layoutBoard(0, lists[0]); V().layoutBoard(1, lists[1]);
-    // ô phải của phe ta: vàng + thu nhập hiện tại (thay ô phần thưởng của trang xem trận)
-    V().refs.sides[0].r.innerHTML = '<div class="bz-sublabel">Túi vàng</div><div class="bz-reward"><img alt="" src="' + U.url(U.ICON.coin) + '"><span>' + run.gold + '</span></div>' +
-      '<div class="bz-sublabel" style="margin-top:4px">+' + run.income + ' mỗi ngày · ' + res.players[0].healthMax + ' máu</div>';
+    // hai ô cạnh dưới giữ như ngoài trận: rương kho + túi vàng / thu nhập (không đổi sang bố cục trang xem trận)
+    U.hud.mountSides(run);
     res.players[0].name = run.hero; res.players[1].name = oname;
     info.sides = [{ name: run.hero }, { name: oname }];
-    U.cards.show(false); U.hud.show(false);
+    U.cards.show(false); U.cards.clearTap();
     V().refs.stage.classList.add('m-fight');
+    // vào trận: tối rồi sáng lại 0,45 s thay vì cắt cụt (VFX-16, ref fight-start "fade 400")
+    var fin = U.el('div', 'rs-fightin', V().refs.overlay); setTimeout(function () { fin.remove(); }, 600);
     root.BZFX.clear();
     RP().load(res, info);
     var sp = 1; try { sp = +root.localStorage.getItem(SPEED_LS) || 1; } catch (e) { sp = 1; }
     RP().setSpeed(Math.max(1, Math.min(3, sp)));
     RP().pause(false);
+    RP().onChange = refreshDock;
     cur = { res: res, info: info, onDone: onDone, notified: false, playing: true, expect: ph.winner, got: gotWinner };
     var A = root.BZAudio; if (A) A.music(ph.combatType === 'PVP' ? 'music.battle.' + String(run.hero).toLowerCase() : 'music.pve', 1);
     U.sfx('trans.combat');
@@ -93,16 +98,23 @@
     var S = RP().state();
     if (S && S.done && !cur.notified) { cur.notified = true; refreshDock(); if (cur.onDone) cur.onDone(); }
   };
-  C.restart = function () { if (cur) { cur.notified = false; RP().restart(); } };
-  C.skip = function () { if (cur && cur.playing) RP().skip(); };
+  C.restart = function () { if (cur) { cur.notified = false; RP().restart(); if (dock) dock.classList.remove('done'); refreshDock(); } };
+  C.skip = function () { if (cur && cur.playing) { RP().pause(false); RP().skip(); } };
+  // tạm dừng / chạy tiếp (Space, nút dock, bảng cài đặt). on: true/false/undefined = đảo
+  C.paused = function () { var S = RP().state(); return !!(cur && S && S.paused); };
+  C.pause = function (on) { if (!cur) return false; var S = RP().state(); if (!S || S.done) return false; RP().pause(on); refreshDock(); return true; };
   // stop(): dỡ trận, trả sân cho run
   C.stop = function () {
     if (!cur) return;
     cur.playing = false; cur = null;
     V().clearCards(); root.BZFX.clear(); root.BZTooltip.hide();
+    // khung khiên vàng / khung + viền nộ của trận không được ở lại sang loot, lên cấp, thương nhân (VFX-3): đưa khiên + nộ về 0 qua updateHero
+    [0, 1].forEach(function (s) { var h = V().hero(s); if (h && h.v) V().updateHero(s, { health: h.v.health || 1, healthMax: h.v.healthMax || 1, shield: 0, enragedMs: 0 }, U.now()); });
     V().hideBanner(true); [0, 1].forEach(function (s) { V().setDead(s, false); V().crown(s, false); }); V().sand(false);
+    if (hovered) { hovered = null; }
     V().refs.stage.classList.remove('m-fight');
-    if (dock) dock.style.display = 'none';
+    if (dock) { dock.style.display = 'none'; dock.classList.remove('done'); }
+    RP().onChange = null;
     U.cards.show(true); U.hud.show(true);
     U.hud.mountHero(U.state.run, true);
   };
@@ -111,26 +123,30 @@
     return { active: C.active(), t: S ? S.t : 0, endMs: S ? S.endMs : 0, done: S ? S.done : false, got: cur ? cur.got : null, expect: cur ? cur.expect : null };
   };
 
+  var PLAY = '<svg viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg>', PAUSE = '<svg viewBox="0 0 24 24"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>';
   function buildDock() {
     if (dock) return;
     dock = U.el('div', 'rs-fightdock', V().refs.overlay);
+    U.button(dock, 'pz', PAUSE, 'Tạm dừng / chạy tiếp (Space)', function () { C.pause(); });
     [1, 2, 3].forEach(function (x) {
       var b = U.button(dock, 'sp', x + '×', 'Tốc độ ' + x + '×', function () { RP().setSpeed(x); RP().pause(false); try { root.localStorage.setItem(SPEED_LS, x); } catch (e) { /* bỏ qua */ } refreshDock(); });
       b.dataset.sp = x;
     });
-    U.button(dock, 'skip', '<svg viewBox="0 0 24 24"><path d="M4 5v14l9-7zM13 5v14l9-7z"/></svg><span>Tới kết quả</span>', 'Bỏ qua tới kết quả', function () { C.skip(); });
+    U.button(dock, 'skip', '<svg viewBox="0 0 24 24"><path d="M4 5v14l9-7zM13 5v14l9-7z"/></svg><span>Tới kết quả</span>', 'Bỏ qua tới kết quả (End)', function () { C.skip(); });
     // hover thẻ trong trận: tooltip như trang xem trận
     var layer = V().refs.cardLayer;
     layer.addEventListener('pointermove', function (ev) {
       if (!cur || ev.pointerType === 'touch') return;
       var el = ev.target.closest && ev.target.closest('.bz-card'); setHov(el);
     });
-    layer.addEventListener('pointerleave', function () { setHov(null); });
+    // cảm ứng: Chromium bắn pointerleave ngay sau pointerup → không được tắt tooltip vừa chạm mở (MOBILE-1)
+    layer.addEventListener('pointerleave', function (ev) { if (ev.pointerType !== 'touch') setHov(null); });
     layer.addEventListener('pointerdown', function (ev) {
       if (!cur || ev.pointerType !== 'touch') return;
       var el = ev.target.closest && ev.target.closest('.bz-card'); setHov(el === hovered ? null : el);
     });
   }
+  C.clearHover = function () { setHov(null); };
   function setHov(el) {
     var now = U.now();
     if (hovered && hovered !== el) { root.BZCard.setHover(hovered, false, now); root.BZTooltip.hide(); }
@@ -143,5 +159,9 @@
   function refreshDock() {
     var S = RP().state(); if (!dock || !S) return;
     Array.prototype.forEach.call(dock.querySelectorAll('.sp'), function (b) { b.classList.toggle('on', +b.dataset.sp === S.speed); });
+    var pz = dock.querySelector('.pz'); if (pz) { pz.innerHTML = S.paused ? PLAY : PAUSE; pz.classList.toggle('on', !!S.paused); }
+    dock.classList.toggle('paused', !!S.paused);
+    // trận xong: ẩn dock (MOBILE-23); "Xem lại" bật lại
+    dock.classList.toggle('done', !!(S.done && cur && cur.notified));
   }
 })(window);

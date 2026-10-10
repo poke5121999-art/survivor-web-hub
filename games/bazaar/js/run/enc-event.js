@@ -52,7 +52,7 @@
       var n2 = Math.min(opts.length, limitOf(run, e.Limit, 3)), pool = opts.slice(), picked = [];
       while (picked.length < n2) picked.push(pool.splice(R.randInt(run, pool.length), 1)[0]);
       picked.sort(function (a, b) { return opts.indexOf(a) - opts.indexOf(b); });
-      choices = picked.map(Ev.optionChoice);
+      choices = picked.map(function (o) { return Ev.optionChoice(o, run); });
       if (picked.length === 1 && picked[0].t === 'combat' && e.Kind === 'fight') { // "Treasure Chest (Mimic)": vào trận luôn
         R.log(ctx, { t: 'event', id: e.Id, name: e.InternalName });
         R.ENCOUNTERS.combat.enter(ctx, { id: picked[0].id }, after);
@@ -64,7 +64,7 @@
         { kind: 'generic', key: 'xp', name: 'Kinh nghiệm', desc: '+' + T().GENERIC_XP + ' XP' },
         { kind: 'generic', key: 'item', name: 'Vật phẩm', desc: R.bandTier(run) + ' item' }];
     }
-    run.phase = { kind: 'event', eventId: e.Id, name: e.Title || e.InternalName, desc: e.Desc || '', choices: choices,
+    run.phase = { kind: 'event', eventId: e.Id, name: e.Title || e.InternalName, desc: R.encText(run, e, e.Desc || ''), choices: choices,
       canExit: !e.Rules || e.Rules.CanExit !== false, after: after };
     R.log(ctx, { t: 'event', id: e.Id, name: e.InternalName });
   };
@@ -72,9 +72,9 @@
   // Lựa chọn trỏ tới bước / sự kiện con / trận (encounters.js Options, Then)
   function recOf(o) { var E = R.enc(); return o.t === 'step' ? E.steps[o.id] : o.t === 'combat' ? E.combats[o.id] : E.events[o.id]; }
   Ev.optionOk = function (o, run) { var x = recOf(o); return !!x && (o.t === 'combat' || heroOk(x, run)); };
-  Ev.optionChoice = function (o) {
+  Ev.optionChoice = function (o, run) {
     var x = recOf(o);
-    return { kind: o.t, id: o.id, name: x.Title || x.InternalName, desc: x.Desc || '' };
+    return { kind: o.t, id: o.id, name: x.Title || x.InternalName, desc: run ? R.encText(run, x, x.Desc || '') : (x.Desc || '') };
   };
 
   // Mở màn [WIKI §1.1 start-of-run guide]: nền 8 vàng + 5 thu nhập; chọn +12 vàng/+2 thu nhập, hoặc 1 vật phẩm Small
@@ -98,7 +98,7 @@
         var steps = (st.skillSteps || []).filter(function (id) { return R.enc().steps[id]; });
         if (steps.length) {
           var sid = steps[R.randInt(run, steps.length)], s = R.enc().steps[sid];
-          choices.push({ kind: 'start', key: 'skill', name: s.Title || s.InternalName, desc: s.Desc || '', stepId: sid });
+          choices.push({ kind: 'start', key: 'skill', name: s.Title || s.InternalName, desc: R.encText(run, s, s.Desc || ''), stepId: sid });
           return;
         }
         var skill = R.deal(run, { kind: 'skill', tiers: [op.tier || 'Bronze'], any: [], not: [], names: [] }, 1, {})[0];
@@ -120,7 +120,7 @@
       return;
     }
     if (c.kind === 'start') {
-      if (c.card && !R.gainCard(ctx, c.card, null, null, 'start')) return 'no space for ' + c.card.id;
+      if (c.card && !R.gainCard(ctx, c.card, null, null, 'start')) return R.noSpaceReason(run, c.card);
       R.gold(ctx, c.gold || 0, 'start'); R.income(ctx, c.income || 0);
       R.log(ctx, { t: 'start', key: c.key, id: c.card ? c.card.id : null });
       R.finish(ctx, ph.after);

@@ -14,6 +14,7 @@
   T.DAY = { wipe: 800, in: 500, hold: 2600, roll: 600, hold2: 900, dissolve: 1000 };
   T.VS = { flash: 500, hold: 4400, flip: 400, stagger: 170 }; // chớp trắng 0,8 s; VS giữ ~4,4 s; lật mỗi thẻ 0,4 s
   T.PORTAL = 900;                                            // lấp lánh xanh quét hàng thương nhân (clip merchant-enter: 500 + bật hàng 600)
+  T.GHOST_MS = 1200;                                         // thẻ bóng ma giữa dải trước VS (ref pvp-vs giữ ~3,2 s; rút ngắn) [ĐỀ XUẤT]
 
   var day = null, vs = null, timers = [];
   function later(ms, fn) { var id = setTimeout(function () { var i = timers.indexOf(id); if (i >= 0) timers.splice(i, 1); fn(); }, ms); timers.push(id); return id; }
@@ -27,7 +28,7 @@
     var el = U.el('div', 'rs-daycard', st,
       '<div class="ring r2"></div><div class="ring r1"></div><div class="hero"></div>' +
       '<div class="txt"><span class="lbl">Ngày</span><span class="num"><b class="old">' + (d - 1) + '</b><b class="new">' + d + '</b></span></div>' +
-      '<i class="orb o1"></i><i class="orb o2"></i><small>Bấm để tiếp tục</small>');
+      '<i class="orb o1"></i><i class="orb o2"></i><small class="skip">Bấm (hoặc Space) để tiếp tục</small>');
     if (M.store) el.querySelector('.hero').style.backgroundImage = U.bg(M.store);
     el.style.animationDelay = D.wipe + 'ms';
     st.classList.add('card-hold');
@@ -90,10 +91,14 @@
   T.vsScreen = function (run, opp, done) {
     T.cancelVs();
     var st = stage(), M = U.HEROES[run.hero] || {}, art = U.combat.opponentArt(opp);
+    // nền: phố chợ mờ (ảnh sảnh herosel_bg) + gradient đỏ đáy; cả hai hero đủ màu; thanh tên có huy hiệu + số trận thắng (FLOW-11/28)
     var el = U.el('div', 'rs-vs', st,
-      '<div class="shade"></div>' + edge('l') + edge('r') + '<div class="side l"><div class="img"></div></div><div class="side r"><div class="img"></div></div>' +
-      '<div class="plate l"><small>Thương nhân tập sự</small><b></b></div><div class="plate r"><small></small><b></b></div>' +
-      '<div class="mid">' + swords() + '<span>VS</span></div><div class="flash"></div><small class="skip">Bấm để bỏ qua</small>');
+      '<div class="sky"></div><div class="shade"></div>' + edge('l') + edge('r') + '<div class="side l"><div class="img"></div></div><div class="side r"><div class="img"></div></div>' +
+      '<div class="plate l"><i class="crest"></i><small></small><b></b></div><div class="plate r"><i class="crest"></i><small></small><b></b></div>' +
+      '<div class="mid">' + swords() + '<span>VS</span></div><div class="flash"></div><small class="skip">Bấm (hoặc Space) để bỏ qua</small>');
+    el.querySelector('.sky').style.backgroundImage = U.bg('art/ui/herosel_bg.webp');
+    el.querySelector('.plate.l small').textContent = 'Ngày ' + run.day + ' · ' + run.wins + ' thắng';
+    el.querySelectorAll('.crest').forEach(function (c) { c.style.backgroundImage = U.bg('art/ui/clock/UI_VictoriesIcon_T_Temp.webp'); });
     el.querySelector('.side.l .img').style.backgroundImage = U.bg(M.store || M.portrait);
     // bóng từ bộ dữ liệu: ảnh lớn của hero của bóng (BZ_GHOSTS: name, hero), như màn VS gốc (hero trái, bóng phải)
     el.querySelector('.side.r .img').style.backgroundImage = U.bg(art.store || art.char || art.bg);
@@ -101,7 +106,7 @@
     var HH = root.BZ_HEROES && root.BZ_HEROES.heroes, oname = U.oppName(opp);
     el.querySelector('.plate.l b').textContent = (HH && HH[run.hero] && HH[run.hero].title) || run.hero;
     el.querySelector('.plate.r b').textContent = oname;
-    el.querySelector('.plate.r small').textContent = (opp.hero ? ((HH && HH[opp.hero] && HH[opp.hero].title) || opp.hero) + ' · ' : 'Bóng ma · ') + 'ngày ' + run.day;
+    el.querySelector('.plate.r small').textContent = (opp.hero ? ((HH && HH[opp.hero] && HH[opp.hero].title) || opp.hero) + ' · ' : 'Bóng ma · ') + (opp.wins || 0) + ' thắng';
     if (oname.length > 14) el.querySelector('.plate.r b').classList.add('long');
     if (String(run.hero).length > 14) el.querySelector('.plate.l b').classList.add('long');
     vs = { el: el, ids: [], done: false, cb: done };

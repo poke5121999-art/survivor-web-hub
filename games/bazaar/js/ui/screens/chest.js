@@ -5,7 +5,9 @@
      → ChestPrize_Reveal_A 0,667 s mỗi phần thưởng (scale 0 → 1,038 ở 250 ms → 1 ở 483 ms), nối nhau 120 ms [ĐỀ XUẤT khoảng cách].
    Bản demo chỉ có ảnh rương Chest_Purchase_Artwork_1 (một ảnh, không có nắp rời) nên "nắp bật" = rương nảy lên + loé + tia sáng
    [ĐỀ XUẤT]. Bậc tô màu bằng màu khung tooltip đo từ sprite (VISUAL §15). Bấm / Space / Enter để bỏ qua màn mở.
-   Lấy thẻ: bấm hoặc kéo xuống bàn như loot (lệnh choose {i, section?, socket?}); "Bỏ qua" = leave. */
+   Rương cầm kéo được trong lúc rơi / rung (ChestController: kéo theo con trỏ, nghiêng tới 25° theo tốc độ kéo, VISUAL §13), thả ra
+   thì bật mở tại chỗ (INTERACT-18) [ĐỀ XUẤT: bản gốc thả vào vùng mở; ở đây thả đâu cũng mở].
+   Lấy thẻ: bấm hoặc kéo xuống bàn như loot (lệnh choose {i, section?, socket?}); "Bỏ qua" = leave (còn phần thưởng thì hỏi lại). */
 (function (root) {
   'use strict';
   var U = root.BZUI = root.BZUI || {};
@@ -40,7 +42,32 @@
     el.style.setProperty('--shake', CH.shake[tier] + 'ms');
     rev = { el: el, ids: [], done: false };
     V().refs.stage.classList.add('chest-hold');
-    el.addEventListener('pointerdown', function (e) { if (!rev || rev.done) return; e.stopPropagation(); finishReveal(true); });
+    el.addEventListener('pointerdown', function (e) {
+      if (!rev || rev.done) return;
+      e.stopPropagation();
+      var box = el.querySelector('.chest');
+      if (!(e.target.closest && e.target.closest('.chest'))) { finishReveal(true); return; }
+      // cầm rương: bám con trỏ (dragSmoothTime 0,3 s → làm mượt 30 %/khung), nghiêng theo tốc độ ngang, tối đa 25°
+      e.preventDefault();
+      var p0 = V().toStage(e.clientX, e.clientY), cur = { x: 0, y: 0, tilt: 0 }, want = { x: 0, y: 0 }, lastX = p0.x, raf = 0, moved = 0;
+      el.classList.add('held');
+      function step() { cur.x += (want.x - cur.x) * 0.3; cur.y += (want.y - cur.y) * 0.3; cur.tilt *= 0.85;
+        box.style.transform = 'translate(' + cur.x.toFixed(1) + 'px,' + cur.y.toFixed(1) + 'px) rotate(' + cur.tilt.toFixed(1) + 'deg)'; raf = requestAnimationFrame(step); }
+      function mv(ev) { var p = V().toStage(ev.clientX, ev.clientY); want.x = p.x - p0.x; want.y = p.y - p0.y; moved = Math.max(moved, Math.abs(want.x) + Math.abs(want.y));
+        cur.tilt = Math.max(-25, Math.min(25, cur.tilt + (p.x - lastX) * 0.6)); lastX = p.x; }
+      function upFn() {
+        root.removeEventListener('pointermove', mv); root.removeEventListener('pointerup', upFn); root.removeEventListener('pointercancel', upFn);
+        cancelAnimationFrame(raf);
+        var r = U.rectOf(box);
+        el.classList.remove('held'); box.style.transform = '';
+        if (r && root.BZFX) { root.BZFX.burst('victory', r.x + r.w / 2, r.y + r.h * 0.4, { big: 0.9 }); }
+        if (moved > 20) U.sfx('card.drop');
+        finishReveal(true);
+      }
+      root.addEventListener('pointermove', mv); root.addEventListener('pointerup', upFn); root.addEventListener('pointercancel', upFn);
+      step();
+      U.sfx('card.pickup');
+    });
     U.sfx('card.spinChest', { vol: 0.9 });
     later(CH.fall, function () {
       U.sfx('card.drop'); U.sfx('board.material.wood', { vol: 0.7 });
@@ -69,8 +96,8 @@
       var nm = 'Rương ' + (U.TIER_VI[tier] || tier);
       var side = U.top.portrait(nm, tier, { bg: CH.art, char: null }, U.top.nameBlock('Mốc ' + ph.wins + ' trận thắng', nm, ph.name || ''));
       this._note = U.el('div', 'rs-side-note', side.r, '');
-      U.bigButton(side.r, 'brown', 'Bỏ qua', 'Không lấy gì, đi tiếp', function () { U.dispatch({ t: 'leave' }); }).classList.add('leave');
-      U.top.layer().appendChild(U.el('div', 'rs-hint', null, 'Bấm hoặc kéo một thẻ xuống bàn để lấy (miễn phí)'));
+      U.bigButton(side.r, 'brown', 'Bỏ qua', 'Không lấy gì, đi tiếp', function () { U.skipReward(); }).classList.add('leave');
+      U.top.layer().appendChild(U.el('div', 'rs-hint', null, U.rewardHint()));
       this._first = true;
       reveal(run);
     },
@@ -95,6 +122,7 @@
       return true;
     },
     key: function (e) { if ((e.code === 'Space' || e.key === 'Enter') && rev && !rev.done) { finishReveal(true); return true; } },
-    revealing: function () { return !!(rev && !rev.done); }
+    revealing: function () { return !!(rev && !rev.done); },
+    boardFull: function () { U.boardFullHint(); }
   };
 })(window);
