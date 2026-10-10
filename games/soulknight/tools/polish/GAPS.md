@@ -192,3 +192,15 @@ Có: bản vẽ nội thất (Máy Nước, Hồ Cá, Giếng Phép Thuật, Tư
 - Giá gốc [ƯỚC LƯỢNG] (không có trong prefab/config): Đúc Lại 20, Dung Hợp 30, Huấn Luyện 20 (qua priced()); Lò Khởi Nguyên miễn phí. Bể đúc lại = mọi vũ khí weapon_NNN có sát thương, không khởi đầu; không loại được vũ khí "chỉ ghép" vì dữ liệu không đánh dấu. Điều kiện của furance_inverse (loại 10 > 70, loại 13) không rõ nghĩa nên coi là luôn hợp lệ. "Hung hãn hơn" của lính sau huấn luyện = hồi chiêu ngắn thêm 6%/bậc [ƯỚC LƯỢNG].
 - Chưa làm (random_objects.weapon_provider, 4/11 trọng số hợp lệ + 1 + 1): Thợ Thủ Công npc_smith (cần hệ phụ kiện vũ khí, web chưa có), npc_skill_update, câu cá npc_weapon_item_fish, Lão Thiết npc_smith_fusion (sự kiện, điều kiện loại 28). Thầy Huấn Luyện trong lồng nhốt, phòng có "vật liệu huấn luyện", giảm 50% giá khi cứu từ lồng, vũ khí tốt hơn theo bậc huấn luyện (lính web cầm vũ khí cố định), Thợ Thủ Công/Bánh Quay/Ngân hàng trong lồng (cage_npc). Máy đánh bạc r_slotmachine (trọng số 10 từ chỉ số ải >= 6) cũng chưa có.
 - Không có trong hầm: Bàn Luyện Kim (alchemy), Máy Quay Trứng (gashapon), Họa Sĩ (map_drawer), Robot Hỏng (robot), Lái Buôn Thần Bí (bossshop) và Bàn Rèn chỉ có tên trong LOC, không nằm trong random_objects/map_levels/prefab levelcommon: là đồ vật của Xưởng/Sảnh (đã nằm ở js/hall*.js) hoặc sự kiện, nên không đặt vào phòng đặc biệt.
+
+## Tầng 4C Đáy Biển (js/floor4c.js, build_sk.py `level/4/c.ab`, test/soulknight-floor4.js mục 8, rev 20261010s)
+
+Đã làm: chủ đề `seabed` (sàn RB_Floor_0, tường prefab wall_seabed), 6 quái e_seabed_mob0..5 bốc theo map_C16..C20, máu theo wiki, cổng tím bốc 4A/4B/4C cùng trọng số [SUY], 4-3 không có trùm, oxy (đầy 100, tụt 1,25/s, hết thì 1 sát thương/giây qua hurtPlayer nên giáp trước máu, thú cưỡi trước, Lợi Hại thành 2), bong bóng sàn (+30/s, chạy x1,15), Người Hầu Kraken hút 5/s, bong bóng quái 10 máu cho 001-003 (tầm xa 1 sát thương, cận chiến vỡ ngay, vỡ trong 8 ô thì +15 oxy), HUD oxy dưới giữa (sự kiện `hud`, hud.js không sửa).
+
+| Còn thiếu | Ghi chú |
+|---|---|
+| Số oxy: thời lượng đầy, tốc tụt, tốc hồi, lượng bóng quái, nhịp sát thương 1 s | wiki/config không ghi, IL2CPP; toàn bộ [ƯỚC LƯỢNG] trong `SK.floor4.OXY` |
+| Trùm 4-5 Thợ Lặn Vực Sâu | rig là Spine (`spine_export/abyssal submariner.skel.bytes`), không có Animator để vẽ; 4-5 mượn bể trùm 4A (Hulala...) |
+| AI quái 4C viết lại từ mô tả wiki | 001 hiện sau lưng + gai, 002 4 chùm 16 đạn, 003 khí độc 3 ô rồi lao, 004 vuốt + phun đạn/bóng oxy; đạn tròn dùng đạn 'orb' chung, chưa dùng prefab đạn gốc (tam giác nảy, đạn nảy của Kraken) |
+| Bong bóng quái: phân biệt cận chiến theo loại vũ khí đang cầm (không theo nguồn đòn), TTN-004 không nhả bóng đúng tần suất | [ƯỚC LƯỢNG] |
+| Thùng độc tím/thùng băng, sóng nước, ánh sáng/tối Seabed, nhạc bgm_4c, bong bóng cánh quạt của trùm, sàn 4C_RB_FloorTile_1/2 | chỉ dùng một khung sàn |

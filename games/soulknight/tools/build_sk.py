@@ -42,6 +42,8 @@ THEMES = {
     'level/4/a.ab': ('monolith', 4),
     # 4B Chiến Trường Cổ (map_B16..B20, quái e_mob0..5) [ĐO config/map_levels; tools/polish/FLOOR4.md]
     'level/4/b.ab': ('battleground', 4),
+    # 4C Đáy Biển (map_C16..C20, quái e_seabed_mob0..5, HUD oxy) [ĐO config/map_levels; tools/polish/FLOOR4.md]
+    'level/4/c.ab': ('seabed', 4),
 }
 # Họ bundle nạp sẵn. Bundle khác (weapon, bullet, boss/*, ui, sound_effect...) nạp khi một con trỏ chỉ tới
 # hoặc khi tools/extra/*.json ghi tên trong "bundles".
@@ -438,7 +440,7 @@ def extract_theme(cab, theme, level, roots):
                 th['stages'][t['level']] = {'map_long': t['map_long'], 'chest_level': t['chest_level'],
                                             'roomSpacing': t['roomSpacing']}
             # 4A: prefab gốc map_A_MonolithicMountainsRuins ghi level "0" (không rỗng như vùng khác)
-            if cls == 'MapManagerLevel' and (not t.get('level') or (theme in ('monolith', 'battleground') and t.get('level') == '0')):
+            if cls == 'MapManagerLevel' and (not t.get('level') or (theme in ('monolith', 'battleground', 'seabed') and t.get('level') == '0')):
                 c = t['camera_bg']
                 th['bg'] = '#%02x%02x%02x' % (round(c['r'] * 255), round(c['g'] * 255), round(c['b'] * 255))
                 th['libraryKey'] = t.get('elementLibraryKey')
@@ -476,6 +478,17 @@ def extract_theme(cab, theme, level, roots):
         sp = bundle_sprites(rip.bundle_of[cab])
         fl = []
         for nm in ('gr_21', 'gr_22', 'RB_Floor_4'):   # RuleTile 4B_RB_FloorTile_0 (bãi cỏ)
+            hit = sp.get(nm)
+            f = frame_of(*hit) if hit else None
+            if f:
+                fl.append(f)
+        th['tiles'] = {'floor': fl, 'wall': [{'front': p['layers'][0]['f'], 'top': None} for p in th['walls'] if p['layers']]}
+    elif theme == 'seabed':
+        # 4C: sàn là RuleTile 4C_RB_FloorTile_0..2 (RB_Floor_0..2), tường dựng trong IL2CPP: dùng prefab wall_seabed [ĐO bundle level/4/c; SUY cách ghép]
+        th['walls'] = [tile_prefab(next(r for n, r in by_name.items() if n.lower() == 'wall_seabed'))]
+        sp = bundle_sprites(rip.bundle_of[cab])
+        fl = []
+        for nm in ('RB_Floor_0', 'RB_Floor_1', 'RB_Floor_2'):
             hit = sp.get(nm)
             f = frame_of(*hit) if hit else None
             if f:
