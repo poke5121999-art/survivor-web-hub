@@ -275,6 +275,97 @@ async function until(p, fn, arg, ms) {
   check('3-5: Hư Không chỉ ra sau khi trùm chính chết (1800 HP), phòng vẫn khoá; hạ rơi 1 Mắt + Xu',
     ok && r.before === false && r.after && r.hp === 1800 && r.state === 'locked' && r.kill.eyes === 1 && r.kill.xu >= 100, JSON.stringify(r));
 
+  // ---- 5b. Rãnh Nứt Hư Không
+  await p.evaluate(() => { SK_GAME.debug.stage('1-1'); SK_GAME.debug.god(false); });
+  await until(p, () => SK_GAME.stage === '1-1' && SK_GAME.phase === 'play', null, 8000);
+  r = await p.evaluate(async () => {
+    const G = SK.G, V = SK.voidMode, pl = G.player, o = {};
+    T.clear(); pl.god = false; pl.armor = 0; pl.invulT = 0; pl.hp = pl.hpMax;
+    o.hp0 = pl.hp; pl.armorT = 99; const far = SK.freeNear([pl.x + 80, pl.y]);
+    const rf = V.spawnRift(G, far[0], far[1], 3);
+    o.n0 = G.void.rifts.length;
+    await new Promise(res => { const t0 = performance.now(); (function f() { if (rf.age >= 0.8 || performance.now() - t0 > 6000) return res(); requestAnimationFrame(f); })(); });
+    o.openHp = pl.hp; o.openAge = rf.age >= 0.8;   // đang mở, người chơi đứng xa: không mất máu
+    pl.x = rf.x; pl.y = rf.y; pl.invulT = 0;
+    pl.armor = 0; pl.armorT = 99; const hp0 = pl.hp + pl.armor;   // giáp hồi theo thời gian nên khoá hồi giáp rồi tính cả giáp
+    await new Promise(res => { const t0 = performance.now(); (function f() { if (rf.hits || performance.now() - t0 > 4000) return res(); requestAnimationFrame(f); })(); });
+    o.stood = hp0 - pl.hp - pl.armor;   // đứng trong rãnh: đúng 1 máu
+    pl.invulT = 0;
+    const a1 = rf.age; await new Promise(res => { const t0 = performance.now(); (function f() { if (rf.age > a1 + 0.4 || performance.now() - t0 > 4000) return res(); requestAnimationFrame(f); })(); });
+    o.stood2 = hp0 - pl.hp - pl.armor;   // đứng tiếp: không bị trừ lặp
+    await new Promise(res => { const t0 = performance.now(); (function f() { if (!G.void.rifts.length || performance.now() - t0 > 8000) return res(); requestAnimationFrame(f); })(); });
+    o.closed = G.void.rifts.length;
+    return o;
+  });
+  check('Rãnh Nứt: xuất hiện rồi đóng sau vài giây (không còn trong danh sách)', r.n0 === 1 && r.closed === 0, JSON.stringify(r));
+  check('Rãnh Nứt: đứng xa không mất máu; bước vào mất đúng 1 máu (độ 1), đứng tiếp không bị trừ lặp', r.openAge && r.openHp === r.hp0 && r.stood === 1 && r.stood2 === 1, JSON.stringify(r));
+  // tự xuất hiện khi đang đánh (phòng khoá)
+  r = await p.evaluate(async () => {
+    const G = SK.G; SK_GAME.debug.god(true);
+    SK_GAME.debug.teleportTo('battle', 0);
+    await new Promise(res => { const t0 = performance.now(); (function f() { if (G.room && G.room.state === 'locked' || performance.now() - t0 > 6000) return res(); requestAnimationFrame(f); })(); });
+    const locked = !!(G.room && G.room.state === 'locked');
+    G.void.riftT = 0; G.void.rifts = [];
+    await new Promise(res => { const t0 = performance.now(); (function f() { if (G.void.rifts.length || performance.now() - t0 > 3000) return res(); requestAnimationFrame(f); })(); });
+    return { locked, n: G.void.rifts.length };
+  });
+  check('Rãnh Nứt tự xuất hiện khi đang đánh trong phòng khoá', r.locked && r.n >= 1, JSON.stringify(r));
+  await p.evaluate(() => { SK_GAME.debug.clearRoom(); SK.G.void.rifts = []; });
+
+  // ---- 5c. NPC tiêu Xu Ám Tinh
+  await p.evaluate(() => { SK_GAME.debug.stage('1-3'); SK_GAME.debug.god(true); });
+  await until(p, () => SK_GAME.stage === '1-3' && SK_GAME.phase === 'play', null, 8000);
+  r = await p.evaluate(() => {
+    const G = SK.G, V = SK.voidMode, pl = G.player, R = SK_ROOMS, o = {};
+    o.npcs = G.props.filter(q => q.npc).map(q => q.npc).join(',');
+    o.acts = G.interactables.filter(q => q.npcKind === 'merchant').length;
+    const act = G.interactables.find(q => q.npcKind === 'merchant');
+    G.void.xu = 29; const n0 = pl.buffs.length;
+    act.use(G, act); o.poor = { open: R.choice.open, xu: G.void.xu };
+    G.void.xu = 100;
+    act.use(G, act); o.paid = { open: R.choice.open, xu: G.void.xu, cards: R.choice.cards.length, hold: G.hold };
+    const id = R.choice.cards[1];
+    R.pick(1);
+    o.got = { has: pl.buffs.indexOf(id) >= 0, n: pl.buffs.length - n0, open: R.choice.open };
+    return o;
+  });
+  check('ải 1-3: có Thương Nhân Hư Không ở phòng khởi đầu', /merchant/.test(r.npcs) && r.acts === 1, JSON.stringify(r));
+  check('Thương Nhân Hư Không: dưới 30 Xu bị từ chối, đủ thì trừ đúng 30 Xu, bốc 3 thiên phú, chọn 1 nhận đúng món',
+    !r.poor.open && r.poor.xu === 29 && r.paid.open && r.paid.xu === 70 && r.paid.cards === 3 && r.paid.hold && r.got.has && r.got.n === 1 && !r.got.open, JSON.stringify(r));
+
+  r = await p.evaluate(() => {
+    const G = SK.G, V = SK.voidMode, pl = G.player, v = G.void, o = {};
+    V.placeBanker(G, pl.x, pl.y);
+    const row = k => V.exchange(G, k);
+    pl.gold = 110; v.xu = 0; v.eyes = 0;
+    o.a = [row('goldToXu'), pl.gold, v.xu];       // 55 vàng = 25 Xu
+    o.b = [row('xuToGold'), pl.gold, v.xu];       // 25 Xu = 50 vàng
+    v.eyes = 1; o.c = [row('eyeToGold'), pl.gold, v.eyes];   // 1 Mắt = 100 vàng
+    o.d = [row('goldToEye'), pl.gold, v.eyes];    // 110 vàng = 1 Mắt
+    v.xu = 55; o.e = [row('xuToEye'), v.xu, v.eyes];
+    o.f = [row('eyeToXu'), v.xu, v.eyes];
+    pl.gold = 50; o.g = [row('goldToXu'), pl.gold];             // không đủ vàng
+    return o;
+  });
+  check('Nhà Ngân Hàng: 55 vàng -> 25 Xu; 25 Xu -> 50 vàng; 1 Mắt -> 100 vàng; 110 vàng -> 1 Mắt; 55 Xu -> 1 Mắt; 1 Mắt -> 50 Xu; thiếu thì từ chối',
+    r.a[0] && r.a[1] === 55 && r.a[2] === 25 && r.b[1] === 105 && r.b[2] === 0 && r.c[1] === 205 && r.c[2] === 0 && r.d[1] === 95 && r.d[2] === 1 &&
+    r.e[1] === 0 && r.e[2] === 2 && r.f[1] === 50 && r.f[2] === 1 && r.g[0] === false && r.g[1] === 50, JSON.stringify(r));
+
+  await p.evaluate(() => { SK_GAME.debug.stage('3-5'); SK_GAME.debug.god(true); });
+  await until(p, () => SK_GAME.stage === '3-5' && SK_GAME.phase === 'play', null, 8000);
+  r = await p.evaluate(() => {
+    const G = SK.G, V = SK.voidMode, v = G.void, pl = G.player, o = {};
+    o.has = !!v.collector && v.collector.stock.length === 3;
+    v.eyes = 0; o.poor = V.collectorBuy(G, 0);
+    v.eyes = 3; const it = v.collector.stock[0], n0 = G.items.length;
+    o.buy = { ok: V.collectorBuy(G, 0), eyes: v.eyes, sold: it.sold, kind: it.kind, gain: G.items.length - n0 };
+    o.again = V.collectorBuy(G, 0);
+    const old = v.collector.stock; o.refresh = [V.collectorRefresh(G), v.eyes, v.collector.stock !== old];
+    return o;
+  });
+  check('Nhà Sưu Tầm ở 3-5: 3 món, thiếu Mắt bị từ chối; mua trừ đúng 1 Mắt và nhận món; làm mới 1 Mắt',
+    r.has && r.poor === false && r.buy.ok && r.buy.eyes === 2 && r.buy.sold && r.again === false && r.refresh[0] && r.refresh[1] === 1 && r.refresh[2], JSON.stringify(r));
+
   // ---- 6. qua hết ải ra màn kết thúc
   await p.evaluate(() => { SK.bossDebug.force = null; SK_GAME.debug.stage('1-1'); SK_GAME.debug.god(true); T.clear(); SK.G.void.xu = 0; SK.G.void.xuTotal = 123; SK.G.void.kills = 7; });
   const labels = await p.evaluate(() => SK.STAGES.map(s => s.label));

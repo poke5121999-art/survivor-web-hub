@@ -9,7 +9,12 @@
 //   còn: bỏ chạy + 5 Xu; hết khiên rồi hạ: 50 Xu + 1 Mắt Hư Không. Đạo Tặc (100 HP, không khiên, 20 giây): hạ rơi 100 Xu + 1 Mắt.
 //   Trùm Hư Không: 600 (1-5) / 1200 (2-5) cạnh trùm chính; chính chết trước thì bỏ chạy +40 Xu; hạ rơi 120 Xu. 3-5: xuất hiện sau
 //   khi trùm chính chết, 1800 HP, hạ rơi 1 Mắt + Xu. Hai Lãnh Chúa nhân 0,75 máu (450/900/1350).
-// Chưa làm (tools/polish/GAPS.md): Rãnh Nứt, Thương Nhân/Ngân Hàng/..., dòng thuộc tính vũ khí, thiên phú 3001-3007, khung bạc hồ sơ.
+//   Rãnh Nứt [LOC tip_11; WIKI VI "Void Rift"]: xuất hiện ngẫu nhiên khi đang đánh rồi đóng; không đánh được, không chặn đạn;
+//   bước vào mất 1 máu ở độ 1 (2 ở độ 2). Nhịp xuất hiện/tồn tại là [ƯỚC LƯỢNG] (wiki không ghi).
+//   NPC tiêu Xu Ám Tinh / Mắt Hư Không [WIKI VI "NPCs"]: Thương Nhân Hư Không (30 Xu bốc 3 thiên phú chọn 1, ở x-3 và x-5),
+//   Nhà Ngân Hàng (55 vàng = 25 Xu; 25 Xu = 50 vàng; 1 Mắt = 100 vàng; 110 vàng = 1 Mắt; 55 Xu = 1 Mắt; 1 Mắt = 50 Xu),
+//   Nhà Sưu Tầm (3 món, mỗi món 1 Mắt; làm mới 1 Mắt). Hình NPC vẽ bằng canvas (prefab NPC Hư Không chưa dựng).
+// Chưa làm (tools/polish/GAPS.md): Thương Nhân Rãnh Nứt, Con Thoi, Tiên Tri, dòng thuộc tính vũ khí, thiên phú 3001-3007, khung bạc hồ sơ.
 (function () {
   'use strict';
   const SK = window.SK, G = SK.G;
@@ -18,6 +23,9 @@
     tier: 1, shieldHp: 80, stacks: 3, dmgToShield: 1,
     xuFlee: 5, xuShatter: 30, xuKill: 50, xuThief: 100, xuBossFlee: 40, xuBossKill: 120, xuFinal: 200,   // xuFinal: wiki chỉ ghi "nhiều" [ƯỚC LƯỢNG]
     bossHp: { 1: 600, 2: 1200, 3: 1800 }, doubleLord: 0.75, thiefLife: 20, cloneHp: 30,
+    riftDmg: 1, riftR: 13, riftLife: 6, riftEvery: [5, 9], riftMax: 2,   // [ƯỚC LƯỢNG] nhịp và tuổi Rãnh Nứt
+    merchantXu: 30, bank: { goldToXu: [55, 25], xuToGold: [25, 50], eyeToGold: [1, 100], goldToEye: [110, 1], xuToEye: [55, 1], eyeToXu: [1, 50] },
+    collectorEye: 1, collectorSlots: 3,
     eliteRate: 0.5, thiefRate: 0.18      // [ƯỚC LƯỢNG] xác suất một phòng quái có Tinh Anh / Đạo Tặc (wiki không ghi)
   };
   // id config, máu [WIKI VI]; hình hộp trúng lấy từ prefab
@@ -35,7 +43,7 @@
   const angTo = (a, b) => Math.atan2(b.y - a.y, b.x - a.x);
 
   V.init = function () {
-    return { tier: C.tier, roster: ELITES.slice(), defeated: [], keep: {}, thiefSeen: false, xu: 0, eyes: 0, xuTotal: 0, kills: 0, fled: 0, finalSpawned: false };
+    return { tier: C.tier, roster: ELITES.slice(), defeated: [], keep: {}, thiefSeen: false, xu: 0, eyes: 0, xuTotal: 0, kills: 0, fled: 0, finalSpawned: false, rifts: [], riftT: 6, xuSpent: 0, eyesSpent: 0, collector: null };
   };
   V.start = hero => SK.startRun(hero || 'knight', 'void', []);
   V.endText = g => ' · Xu Ám Tinh nhận được ' + g.void.xuTotal + ' · Hạ ' + g.void.kills + ' kẻ địch Hư Không';
@@ -377,6 +385,158 @@
       ctx.restore();
     }
   }
+
+  // ---------------------------------------------------------------- Rãnh Nứt Hư Không
+  V.spawnRift = function (g, x, y, life) {
+    const v = g.void;
+    const r = { x, y, age: 0, life: life != null ? life : C.riftLife, inside: false, gone: false, hits: 0 };
+    v.rifts.push(r);
+    return r;
+  };
+  V.riftDmg = g => C.riftDmg * (g.void && g.void.tier >= 2 ? 2 : 1);
+  function riftTick(g, dt) {
+    const v = g.void, p = g.player;
+    v.rifts = v.rifts.filter(r => !r.gone);
+    for (const r of v.rifts) {
+      r.age += dt;
+      if (r.age >= r.life + 0.5) { r.gone = true; continue; }
+      const open = r.age >= 0.5 && r.age < r.life;   // 0,5 s mở ra, 0,5 s đóng lại: lúc đó chưa/hết gây hại
+      const near = open && p && p.st !== 'dead' && Math.hypot(p.x - r.x, p.y - r.y) < C.riftR;
+      if (near && !r.inside && SK.hurtPlayer(g, V.riftDmg(g), r.x, r.y)) { r.inside = true; r.hits++; SK.emit('voidRiftHit', g, r); }
+      else if (!near && r.inside) r.inside = false;
+    }
+    const room = g.room;
+    if (!room || room.state !== 'locked' || !p || p.st === 'dead') return;
+    v.riftT -= dt;
+    if (v.riftT > 0) return;
+    v.riftT = SK.randf(C.riftEvery[0], C.riftEvery[1]);
+    if (v.rifts.length >= C.riftMax) return;
+    const a = SK.rand() * Math.PI * 2, d = SK.randf(30, 90);
+    const [x, y] = SK.freeNear([p.x + Math.cos(a) * d, p.y + Math.sin(a) * d]);
+    V.spawnRift(g, x, y - 4);
+  }
+  function drawRift(ctx, g, r) {
+    const open = Math.min(1, r.age / 0.5, Math.max(0, (r.life + 0.5 - r.age) / 0.5));
+    if (open <= 0) return;
+    const rx = C.riftR * open, ry = rx * 0.55, t = g.t;
+    ctx.save();
+    ctx.globalAlpha = 0.85 * open;
+    ctx.fillStyle = '#12001f'; ctx.beginPath(); ctx.ellipse(r.x, r.y, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#b06bff'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.strokeStyle = '#e8d4ff'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i < 5; i++) { const a = i * 1.257 + t * 0.6; ctx.moveTo(r.x, r.y); ctx.lineTo(r.x + Math.cos(a) * rx * 0.9, r.y + Math.sin(a) * ry * 0.9); }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // ---------------------------------------------------------------- NPC tiêu Xu Ám Tinh / Mắt Hư Không
+  const robe = (ctx, x, y, c1, c2, g) => {
+    ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(x, y, 8, 3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = c1; ctx.beginPath(); ctx.moveTo(x - 7, y); ctx.lineTo(x - 4, y - 16); ctx.lineTo(x + 4, y - 16); ctx.lineTo(x + 7, y); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#d9c8f0'; ctx.beginPath(); ctx.arc(x, y - 20 + Math.sin(g.t * 2 + x) * 0.6, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = c2; ctx.fillRect(x - 3, y - 21, 6, 2);
+  };
+  const SAY = { poor: 'Xu Ám Tinh không đủ.', eyePoor: 'Mắt Hư Không không đủ.', goldPoor: 'Vàng không đủ.', full: 'Hết ô thiên phú.' };
+  function npc(g, o) {
+    g.props.push({ x: o.x, y: o.y, npc: o.kind, draw(ctx, g2, pr) { robe(ctx, o.x, o.y, o.c1, o.c2, g2); } });
+    for (const it of o.acts) g.interactables.push(Object.assign({ x: o.x + (it.dx || 0), y: o.y + 6 + (it.py || 0), r: 22, labelY: 44 + (it.dy || 0), npcKind: o.kind }, it));
+  }
+  V.price = () => C.merchantXu;
+  // Thương Nhân Hư Không: 30 Xu Ám Tinh bốc 3 thiên phú ngẫu nhiên, chọn 1 [LOC tip_1-3; WIKI VI].
+  // Danh sách "nâng cấp được" do mã gốc sinh nên bể là bể thiên phú thường của ải kế [SUY]; nhận thẳng bản thường, chưa có bản nâng cấp riêng.
+  V.merchantBuy = function (g) {
+    const v = g.void, R = SK.ROOMS;
+    if (v.xu < C.merchantXu) { g.toast(SAY.poor, 1.6); return false; }
+    if ((g.player.buffs || []).length >= R.buffSlots()) { g.toast(SAY.full, 1.6); return false; }
+    if (R.choice.open || !R.openChoice()) return false;
+    g.hold = true;
+    v.xu -= C.merchantXu; v.xuSpent += C.merchantXu;
+    return true;
+  };
+  V.placeMerchant = (g, x, y) => npc(g, { kind: 'merchant', x, y, c1: '#4b2b86', c2: '#ff7ad9', acts: [{
+    get label() { return 'Thương Nhân Hư Không — ' + C.merchantXu + ' Xu Ám Tinh: chọn 1 trong 3 thiên phú'; },
+    use() { V.merchantBuy(g); } }] });
+  // Nhà Ngân Hàng: sáu phép đổi [WIKI VI "NPCs"]
+  V.exchange = function (g, key) {
+    const v = g.void, p = g.player, b = C.bank[key];
+    const [from, to] = key.split(/To/).map(s => s.toLowerCase());
+    const have = { gold: p.gold, xu: v.xu, eye: v.eyes };
+    const set = (k, d) => { if (k === 'gold') p.gold += d; else if (k === 'xu') { v.xu += d; if (d < 0) v.xuSpent -= d; } else v.eyes += d; };
+    if (have[from] < b[0]) { g.toast(from === 'gold' ? SAY.goldPoor : from === 'xu' ? SAY.poor : SAY.eyePoor, 1.6); return false; }
+    set(from, -b[0]); set(to, b[1]);
+    SK.num(g, p.x, p.y - 30, '+' + b[1], '#b57bff', false);
+    return true;
+  };
+  const BANK_ROWS = [['goldToXu', '55 vàng = 25 Xu Ám Tinh'], ['xuToGold', '25 Xu Ám Tinh = 50 vàng'], ['eyeToGold', '1 Mắt Hư Không = 100 vàng'],
+    ['goldToEye', '110 vàng = 1 Mắt Hư Không'], ['xuToEye', '55 Xu Ám Tinh = 1 Mắt Hư Không'], ['eyeToXu', '1 Mắt Hư Không = 50 Xu Ám Tinh']];
+  V.placeBanker = (g, x, y) => npc(g, { kind: 'banker', x, y, c1: '#1f5a6b', c2: '#ffd24a',
+    acts: BANK_ROWS.map((r, i) => ({ dx: (i % 3 - 1) * 24, py: Math.floor(i / 3) * 16, dy: Math.floor(i / 3) * -0, label: 'Nhà Ngân Hàng Hư Không — ' + r[1], use() { V.exchange(g, r[0]); } })) });
+  // Nhà Sưu Tầm: 3 món mỗi món 1 Mắt; làm mới 1 Mắt. Bản vẽ / mảnh tiến hóa / hạt giống chưa có ở web nên bể là vũ khí, đá quý, bình [SUY].
+  V.collectorStock = function (g) {
+    const out = [], lvl = (g.stage && g.stage.level) || 1, DS = SK.DS || {};
+    let pool = [];
+    try { pool = (SK.weaponPool ? SK.weaponPool(lvl, 'shop') : []) || []; } catch (e) { pool = []; }
+    pool = pool.map(x => typeof x === 'string' ? x : x && x.id).filter(id => id && (!DS.weapons || DS.weapons[id]));
+    const own = g.player.weapons.filter(Boolean).map(w => w.id);
+    const wl = pool.filter(id => own.indexOf(id) < 0);
+    const kinds = ['weapon', 'gems', 'potion'];
+    for (let i = 0; i < C.collectorSlots; i++) {
+      const k = i === 0 && wl.length ? 'weapon' : SK.pick(kinds.filter(q => q !== 'weapon' || wl.length));
+      if (k === 'weapon') { const id = SK.pick(wl.filter(w => !out.some(o => o.id === w))) || wl[0]; out.push({ kind: 'weapon', id, name: DS.weapons && DS.weapons[id] ? DS.weapons[id].name : id }); }
+      else if (k === 'gems') out.push({ kind: 'gems', n: 20, name: '20 đá quý' });
+      else out.push({ kind: 'potion', name: 'Bình máu và bình năng lượng' });
+    }
+    return out;
+  };
+  V.collectorBuy = function (g, i) {
+    const v = g.void, c = v.collector, it = c && c.stock[i], p = g.player;
+    if (!it || it.sold) return false;
+    if (v.eyes < C.collectorEye) { g.toast(SAY.eyePoor, 1.6); return false; }
+    v.eyes -= C.collectorEye; v.eyesSpent += C.collectorEye; it.sold = true;
+    if (it.kind === 'weapon') g.items.push({ id: it.id, x: p.x, y: p.y + 6, t: 0 });
+    else if (it.kind === 'gems') { if (SK.profile && SK.profile.addGems) SK.profile.addGems(it.n); }
+    else { SK.dropPickup(g, 'hp_pot', p.x - 8, p.y + 8); SK.dropPickup(g, 'en_pot', p.x + 8, p.y + 8); }
+    SK.emit('voidCollectorBuy', g, it);
+    return true;
+  };
+  V.collectorRefresh = function (g) {
+    const v = g.void;
+    if (v.eyes < C.collectorEye) { g.toast(SAY.eyePoor, 1.6); return false; }
+    v.eyes -= C.collectorEye; v.eyesSpent += C.collectorEye;
+    v.collector.stock = V.collectorStock(g);
+    return true;
+  };
+  V.placeCollector = function (g, x, y) {
+    const v = g.void;
+    v.collector = { stock: V.collectorStock(g) };
+    const acts = [];
+    for (let i = 0; i < C.collectorSlots; i++) acts.push({ dx: (i - 1) * 22, dy: 0,
+      get gone() { return !v.collector.stock[i] || v.collector.stock[i].sold; },
+      get label() { const it = v.collector.stock[i]; return it ? 'Nhà Sưu Tầm — ' + it.name + ' (' + C.collectorEye + ' Mắt Hư Không)' : ''; },
+      use() { V.collectorBuy(g, i); } });
+    acts.push({ dx: 0, py: 14, label: 'Nhà Sưu Tầm — làm mới (' + C.collectorEye + ' Mắt Hư Không)', use() { V.collectorRefresh(g); } });
+    npc(g, { kind: 'collector', x, y, c1: '#6b2b5a', c2: '#7dffd0', acts });
+  };
+
+  // Đặt NPC khi vào ải: Thương Nhân ở góc dưới-trái phòng khởi đầu của x-3 và x-5; Nhà Sưu Tầm ở 3-5 (web chưa có 4-6 nên dời về cuối ải 3 [SUY]);
+  // Nhà Ngân Hàng ở phòng đặc biệt còn trống.
+  const corner = (g, r, sx) => {
+    const T = 16, cx = r.cx * T + 8, cy = r.cy * T + 8;
+    return SK.freeNear([cx + sx * (r.w / 2 - 2) * T, cy + (r.h / 2 - 2) * T]);
+  };
+  SK.on('stageEnter', (g, st) => {
+    if (!on(g)) return;
+    const v = g.void; v.rifts = []; v.riftT = SK.randf(C.riftEvery[0], C.riftEvery[1]); v.collector = null;
+    g.props.push({ x: 0, y: 0, ctl: true, update: (g2, pr, dt) => riftTick(g2, dt), draw() {} });
+    g.props.push({ x: 0, y: 1e5, rifts: true, draw: ctx => { for (const r of v.rifts) drawRift(ctx, g, r); } });
+    const r0 = g.map.rooms[0], m = /^(\d+)-(\d+)$/.exec(st.label || '');
+    if (!m) return;
+    if (m[2] === '3' || m[2] === '5') { const [x, y] = corner(g, r0, -1); V.placeMerchant(g, x, y); }
+    if (st.label === '3-5') { const [x, y] = corner(g, r0, 1); V.placeCollector(g, x, y); }
+    const sp = g.map.rooms.find(r => r.type === 'special' && !r.fill);
+    if (sp) { const c = [sp.cx * 16 + 8, sp.cy * 16 + 8]; const [x, y] = SK.freeNear([c[0], c[1] - 10]); V.placeBanker(g, x, y); sp.fill = 'void_bank'; }
+  });
 
   // ---------------------------------------------------------------- HUD: Xu Ám Tinh và Mắt Hư Không
   const render0 = SK.hud.render;

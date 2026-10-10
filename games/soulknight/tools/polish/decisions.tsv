@@ -56,3 +56,5 @@ ts	phase	decision	why	evidence	result
 2026-10-10T07:29:25Z	ship	đẩy 5820e9d8 rev 20261010l, kiểm trên Pages	xong = kiểm trên bản thật	SK_URL=Pages: plantbuff 64/0 garden 43/0 smoke 16/0	VERIFIED
 2026-10-10T07:31:13Z	floor4	tầng 4A (agent): Kẻ Vượt Ranh Giới, cổng tím, chủ đề monolith, trùm Hulala-Moli; đẩy trong khoá flock để sk-data và atlas khớp nhau	FLOOR4.md làm 4A trước	test/soulknight-floor4.js
 2026-10-10T07:31:13Z	ship	đẩy a3539e6b rev 20261010m, kiểm trên Pages	xong = kiểm trên bản thật	SK_URL=Pages: floor4 41/1 rồi 42/0 (lần 1 hpMax 9 thay vì 8 sau cổng: nghi thẻ thiên phú sau 3-5 cộng máu, sửa khi BUFF_AFTER thành hàm) themes 59/0 smoke 16/0	VERIFIED
+2026-10-10T07:38:02Z	mech	cơ giáp m_mech_0/1 + Thương Nhân Vật Chở + BUFF_AFTER thành hàm buffAfter (4-2, Mê Trận x-2/x-5 mọi tầng) (agent)	MOUNTS.md bước D; FLOOR4.md thiên phú sau 4-2; MODES.md 2d	test/soulknight-mech.js
+2026-10-10T07:38:02Z	ship	đẩy da88948f rev 20261010n, kiểm trên Pages	xong = kiểm trên bản thật	SK_URL=Pages: mech 14/0 mounts 14/0 floor4 42/0 smoke 16/0 matrix 13/1 (ERR_CONNECTION_RESET) rồi chạy lại	VERIFIED
