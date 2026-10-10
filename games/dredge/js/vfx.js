@@ -8,7 +8,8 @@
  *    - trọng lực × 0,5, cản (LimitVelocity drag 0,5 × |v|), VelocityOverLifetime: y +0,5 (cục bộ), toả ra 2 m/s (radial)
  *    - mỗi hạt là mesh SphereLowPoly_2 cỡ 0,6–1,1 m, SizeOverLifetime (0 → 0,54 ở 11 % → 1), màu trắng/xám 0,79, alpha 0,78
  *      × ColorOverLifetime (1 → 0,7 ở 94 % → 0), vật liệu FoamParticle_Mat (FoamColoured ⇒ màu _FoamColor của WaterController)
- *    - hạt chìm dần nên chỉ phần chỏm nổi trên mặt nước hiện ra (nước ghi chiều sâu, bọt vẽ sau: hàng đợi 3000 < 3020)
+ *    - vẽ: FloatingParticle_Shader (dẹp phần chìm lên mặt nước, không N·L, cắt alpha 0,5, ghi chiều sâu + Less) và hình vòng bọt quanh mớn nước
+ *      của quả cầu theo số hạng bọt chạm của Water_Shader — xem foamMaterial(); hạt vẽ sau nước (hàng đợi 3000 < 3020)
  * 2. Cột khói ống khói = LineRenderer 3 điểm + SmokeColumn.cs: điểm i bám theo đích T + (gió + lên)·i·spacing với tốc
  *    Lerp(12, 500, (1 − i/n)^20) nên cột khói ngả về sau khi thuyền chạy; rộng 1,5 × đường cong, đen alpha 0,39 → 0 ở 60 %.
  *
@@ -23,7 +24,6 @@
   const SYS = V.systems.boatTrail;
   const MAX = SYS.maxParticles;
   const G = 9.81;
-  const PUFF_Y = 0.35;
 
   // ---------- đường cong / gradient Unity ----------
   // AnimationCurve Hermite giữa hai khoá [t, v, inSlope, outSlope]
@@ -110,6 +110,88 @@
   const dummy = new T.Object3D(), col = new T.Color();
   let hasPrev = false;
 
+  // FloatingParticle_Shader, biến thể FoamColoured (BOOLEAN_692E…_ON) của FoamParticle_Mat_0 — rã DXBC (tools/particles.py --dis,
+  // D:/dredge-ref/cache/particles/shaders/FloatingParticle_Shader.txt):
+  //   đỉnh: y = max(y, sóng(x, z) + 0,03) — phần cầu dưới mặt nước bị DẸP lên mặt nước (cùng hàm Gerstner của nước), phần nổi giữ nguyên;
+  //   điểm ảnh: albedo = sRGB→tuyến tính(cb0[126]) × màu hạt; KHÔNG N·L, ánh sáng = (sat(đèn phụ) + _MainLightColor + SH.w + tint + (1 − WaveMask.b)),
+  //   rồi pha sương; alpha = _MainTex.a (trắng) × alpha hạt, bỏ điểm khi < 0,5 (mad r0.y, r0.w, v5.w, −0,5; discard).
+  //   cb0[126] = màu bọt _FoamColor: bố cục $Globals mỗi shader một khác (FloatingParticle: _WorldSize ở c128, Water_Shader: c132 — đọc bằng
+  //   m_NameIndices + m_CommonParameters của pass, tools/shader_cbuf.py), nên "cb0[126] = _ShallowColor như Water_Shader" ở bản trước là suy nhầm.
+  //   Tên công tắc là FoamColoured, và màu viền bọt trong clip (t = 1980: (170..180, 190..200, 200..210) trên nước (70, 92, 110)) khớp
+  //   _FoamColor (0,68; 0,74; 0,76) × ánh sáng ~1,1.
+  // Trạng thái vẽ: hạt ở lớp Water (layer 4) nên đi qua RenderObjects "Water" của ForwardRenderer (MonoBehaviour/Water.asset:
+  // overrideDepthState 1, depthCompareFunction 2 = Less, enableWrite 1) ⇒ GHI chiều sâu, so sánh Less; trộn SrcAlpha/OneMinusSrcAlpha, Cull Back.
+  //
+  // [ĐỀ XUẤT] hình dạng trên mặt nước. Clip (t = 165, 1980; 15 khung/giây) cho thấy mỗi hạt KHÔNG là đĩa đặc mà là vòng bọt trắng mảnh ôm sát
+  // đường mớn nước của quả cầu, giữa thủng (thấy màu nước), quanh vòng có quầng xanh nhạt mờ; cầu chìm sâu dần thì vòng teo lại rồi mất.
+  // Đó chính là các số hạng "vật nằm sát dưới mặt nước" của Water_Shader (rã _REFLECTIONS): bọt chạm (1 − sat(Δsâu·0,25))^25 (có bọt khi ≥ 0,2,
+  // phủ clamp(v; 0,5; 1)) và màu nông kS = exp(−sâu/_Depth), độ trong (1 − _ShallowColor.a). Đường ống URP làm nước "thấy" hạt không đọc lại
+  // được từ dữ liệu, nên ở đây tính giải tích cho từng hạt: tại điểm (x, z) của đĩa đã dẹp, mặt trên quả cầu nằm dưới mặt nước bao sâu (s):
+  //   chỏm cầu nổi trên nước (s < 0) → bỏ (lỗ giữa vòng); s nhỏ → bọt (_FoamColor); sâu hơn → bỏ. Quầng màu nông exp(−s/_Depth) của số hạng
+  //   kS đã thử (vòng 9 wfx) và thành các đĩa xanh đặc mà clip không có (khung 1980,3–1980,7), nên không vẽ.
+  function foamMaterial() {
+    const W = root.DRWater;
+    const m = new T.ShaderMaterial({
+      uniforms: Object.assign({ fogColor: { value: new T.Color() }, fogNear: { value: 1 }, fogFar: { value: 1000 }, fogDensity: { value: 0 } },
+        W ? { uGameTime: W.uniforms.uGameTime, uWaveSteep: W.uniforms.uWaveSteep, uMask: W.uniforms.uMask, uLand: W.uniforms.uLand,
+          uLandBox: W.uniforms.uLandBox, uFoamCol: W.uniforms.uFoamCol }
+          : { uFoamCol: { value: new T.Color(0.42, 0.51, 0.54) } }),
+      vertexShader: `
+#include <common>
+${W ? W.GLSL_WAVE + W.GLSL_HEIGHT : 'float drHeightAt(vec2 xz) { return 0.0; }'}
+attribute float aAlpha;
+varying float vAlpha;
+varying vec3 vTint;
+varying vec3 vWp;
+varying float vHw;
+varying vec4 vSph;
+#include <fog_pars_vertex>
+void main() {
+  mat4 M = modelMatrix * instanceMatrix;
+  vec4 wp = M * vec4(position, 1.0);
+  float hw = drHeightAt(wp.xz);
+  wp.y = max(wp.y, hw + 0.03);
+  vWp = wp.xyz; vHw = hw; vAlpha = aAlpha;
+  vSph = vec4(M[3].xyz, 0.5 * length(M[0].xyz)); // tâm + bán kính quả cầu (SphereLowPoly_2 bán kính 0,5)
+#ifdef USE_INSTANCING_COLOR
+  vTint = instanceColor;
+#else
+  vTint = vec3(1.0);
+#endif
+  vec4 mvPosition = viewMatrix * wp;
+  gl_Position = projectionMatrix * mvPosition;
+  #include <fog_vertex>
+}`,
+      fragmentShader: `
+uniform vec3 uFoamCol;
+varying float vAlpha;
+varying vec3 vTint;
+varying vec3 vWp;
+varying float vHw;
+varying vec4 vSph;
+#include <fog_pars_fragment>
+void main() {
+  if (vAlpha < 0.5) discard;
+  vec2 dq = vWp.xz - vSph.xz;
+  float s = vHw - (vSph.y + sqrt(max(vSph.w * vSph.w - dot(dq, dq), 0.0))); // mặt trên quả cầu nằm dưới mặt nước bao sâu (m)
+  if (s < 0.0) discard;                                                     // chỏm cầu nổi: lỗ giữa vòng
+  vec3 V = normalize(cameraPosition - vWp);
+  float v = pow(1.0 - clamp(s / max(V.y, 0.05) * 0.25, 0.0, 1.0), 25.0);   // bọt chạm của Water_Shader (Δsâu dọc tia nhìn)
+  if (v < 0.2) discard;                                                     // ngoài dải bọt: nước bình thường (clip không có đĩa xanh đặc)
+  vec3 alb = uFoamCol; float a = vAlpha * clamp(v, 0.5, 1.0);
+  vec3 L = drEnvLights(vWp);
+  float mb = drEnvMaskB(vWp.xz);
+  vec3 c = alb * vTint * (clamp(L, 0.0, 1.0) + uDrSunCol + uDrAmb + vec3(uDrTintK, 0.0, 0.0) + (1.0 - mb));
+  c = mix(c, drEnvFogColor(vWp), clamp(drEnvFogAmount(vWp, L, mb), 0.0, 1.0));
+  gl_FragColor = vec4(c, a);
+  #include <encodings_fragment>
+}`,
+      fog: true, transparent: true, depthWrite: true, depthFunc: T.LessDepth, side: T.FrontSide
+    });
+    m.defines = { DR_OWN_FOG: '' };
+    return m;
+  }
+
   function init(sc) {
     scene = sc;
     const SM = V.meshes[SYS.renderer.mesh];
@@ -120,18 +202,7 @@
     aAlpha = new T.InstancedBufferAttribute(new Float32Array(MAX), 1);
     aAlpha.setUsage(T.DynamicDrawUsage);
     g.setAttribute('aAlpha', aAlpha);
-    // FloatingParticle_Shader (FoamColoured): màu bọt × màu hạt; [ĐỀ XUẤT] thân shader bị bỏ khi xuất, dùng phong phẳng
-    // không bóng để mặt cầu thấp đa giác có mặt sáng/tối theo nắng như ảnh chụp bản gốc
-    foamMat = new T.MeshPhongMaterial({ color: 0xffffff, specular: 0x000000, shininess: 0, flatShading: true,
-      transparent: true, depthWrite: false });
-    foamMat.onBeforeCompile = sh => {
-      sh.vertexShader = sh.vertexShader
-        .replace('#include <common>', '#include <common>\nattribute float aAlpha;\nvarying float vAlpha;')
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvAlpha = aAlpha;');
-      sh.fragmentShader = sh.fragmentShader
-        .replace('#include <common>', '#include <common>\nvarying float vAlpha;')
-        .replace('vec4 diffuseColor = vec4( diffuse, opacity );', 'vec4 diffuseColor = vec4( diffuse, opacity * vAlpha );');
-    };
+    foamMat = foamMaterial();
     mesh = new T.InstancedMesh(g, foamMat, MAX);
     mesh.instanceMatrix.setUsage(T.DynamicDrawUsage);
     mesh.setColorAt(0, col.setRGB(1, 1, 1));
@@ -196,7 +267,6 @@
     }
   }
 
-  let foamLin = [1, 1, 1];
   function update(dt, env) {
     if (root.DRTentacle) root.DRTentacle.update(dt);
     if (root.DRGhostRocks) root.DRGhostRocks.update(dt); // R7 U2
@@ -225,12 +295,7 @@
       simulate(dt, M);
     }
     emPrev.copy(emPos);
-    // màu bọt: WaterController._FoamColor (sRGB → tuyến tính)
-    const wp = root.DRWater && DRWater.props ? DRWater.props() : null;
-    // V04/halo: bản rã FloatingParticle_Shader (biến thể BOOLEAN_692E…_ON của FoamParticle_Mat) nhân albedo với cb0[126] — màu NƯỚC chứ không phải cb0[128]
-    // (_FoamColor của Water_Shader) — nên bọt thuyền cùng tông nước (xanh nhạt) chứ không trắng loang; clip gốc không có cục trắng cạnh thuyền
-    const fc = wp ? wp.shallowColor : V.waterController.default.shallowColor;
-    foamLin = [srgb2lin(fc[0]), srgb2lin(fc[1]), srgb2lin(fc[2])];
+    // màu bọt: shader đọc thẳng uFoamCol / uShallow của js/water.js (WaterController._FoamColor, _ShallowColor tại thuyền, sRGB → tuyến tính)
     write();
     updateSmoke(dt);
     updateChimney();
@@ -301,11 +366,14 @@
       // [ĐỀ XUẤT] dẹt theo trục y (PUFF_Y): clip gốc chỉ thấy gợn mảnh sát mặt nước, không có cục nổi cao cạnh thân tàu
       // (pmesh, seam sửa) dẹt theo trục y THẾ GIỚI sau khi quay: M = T·S·Rz. Gốc là cầu đều cỡ (size3D 0) nên quay z không
       // làm nghiêng hình; T·Rz·S cũ quay cả đĩa đã dẹt → thấu kính nghiêng 0–90° quanh thuyền.
+      // cầu tròn đều (size3D 0) quay quanh trục z; phần chìm được shader dẹp lên mặt nước (không còn ép dẹt bằng ma trận)
       const z0 = Math.max(1e-4, sz);
-      trR.makeRotationZ(-rot[i]); trM.makeScale(z0, z0 * PUFF_Y, z0).multiply(trR).setPosition(px[i], py[i], pz[i]);
+      trM.makeRotationZ(-rot[i]).scale(tmp.set(z0, z0, z0)).setPosition(px[i], py[i], pz[i]);
       mesh.setMatrixAt(i, trM);
       if (CO) gradColor(CO.gradient, t, cg);
-      col.setRGB(foamLin[0] * tint[i] * cg[0], foamLin[1] * tint[i] * cg[1], foamLin[2] * tint[i] * cg[2]);
+      // màu hạt (startColor 0,79..1 xám) theo m_ApplyActiveColorSpace 1: Unity đổi sRGB → tuyến tính trước khi nhân albedo
+      const tl = srgb2lin(tint[i]);
+      col.setRGB(tl * srgb2lin(cg[0]), tl * srgb2lin(cg[1]), tl * srgb2lin(cg[2]));
       mesh.setColorAt(i, col);
       al[i] = alpha0[i] * (CO ? gradAlpha(CO.gradient, t) : 1);
     }
@@ -427,7 +495,9 @@ void main() { float a = texture2D(uTex, vec2(vUv.x - uDist, vUv.y)).a * vCol.a; 
         if (top > maxUp) maxUp = top;
       }
     }
-    return { alive, emitted, maxSize: lastSize, ahead, behind, maxBack, maxSide, maxTop: maxUp, visible: !!(mesh && mesh.visible && mesh.count > 0),
+    const ys = [];
+    for (let i = 0; i < alive; i++) ys.push(+py[i].toFixed(2));
+    return { alive, emitted, maxSize: lastSize, ys, ahead, behind, maxBack, maxSide, maxTop: maxUp, visible: !!(mesh && mesh.visible && mesh.count > 0),
       smoke: columns.map(c => c.pts.map(p => [p.x, p.y, p.z])) };
   }
 

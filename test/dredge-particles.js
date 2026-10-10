@@ -167,8 +167,8 @@ async function main() {
   check('SplachCylinder (SmallSplash): cỡ mesh x/y/z = 0,5 × sizeOL từng trục (startSize3D tắt, separateAxes bật)',
     meshSz.out && meshSz.out.length > 0 && !meshSz.size3 && meshSz.sep && szErr < 0.01, 'lệch ' + szErr.toFixed(4) + ' ' + JSON.stringify(meshSz).slice(0, 400));
 
-  // ---- bọt vệt thuyền (js/vfx.js, pmesh): cầu SphereLowPoly_2 dẹt PUFF_Y theo trục y THẾ GIỚI; startRotation 2D quay quanh z
-  // không được làm nghiêng đĩa (cầu gốc đều cỡ). Ma trận tuyến tính L của hạt: L·Lᵀ = diag(z0², (z0·PUFF_Y)², z0²) ⇒ góc nghiêng 0.
+  // ---- bọt vệt thuyền (js/vfx.js): cầu SphereLowPoly_2 ĐỀU cỡ (size3D 0) trong ma trận hạt; phần chìm do FloatingParticle_Shader dẹp lên
+  // mặt nước trong shader đỉnh (vòng 9 wfx thay PUFF_Y ép dẹt bằng ma trận). L·Lᵀ = z0²·I ⇒ ba trục bằng nhau, startRotation không làm méo.
   await page.evaluate(() => DR_DEBUG.teleport(60, -40, 1.2));
   await page.keyboard.down('KeyW'); await sleep(1800);
   const foam = await page.evaluate(() => {
@@ -176,19 +176,19 @@ async function main() {
     let m = null; o.traverse(c => { if (c.name === 'BoatTrailParticles' && c.isInstancedMesh) m = c; });
     if (!m) return { n: -1 };
     const M = new THREE.Matrix4(), e = M.elements;
-    let tilt = 0, thinY = true;
+    let tilt = 0, round = true;
     for (let i = 0; i < m.count; i++) {
       m.getMatrixAt(i, M);
       const r = k => [e[k], e[k + 4], e[k + 8]], dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
       const X = r(0), Y = r(1), Z = r(2), axx = dot(X, X), ayy = dot(Y, Y), axy = dot(X, Y), azz = dot(Z, Z);
       tilt = Math.max(tilt, Math.abs(0.5 * Math.atan2(2 * axy, axx - ayy)) * 180 / Math.PI);
-      if (!(ayy < axx && ayy < azz)) thinY = false;
+      if (Math.abs(ayy - axx) > 1e-4 * axx || Math.abs(azz - axx) > 1e-4 * axx) round = false;
     }
-    return { n: m.count, tilt: +tilt.toFixed(2), thinY };
+    return { n: m.count, tilt: +tilt.toFixed(2), round, flat: m.material.vertexShader.includes('max(wp.y, hw + 0.03)') };
   });
   await page.keyboard.up('KeyW');
-  check('bọt vệt thuyền: đĩa dẹt nằm ngang (trục mỏng = y thế giới, nghiêng < 1°) dù startRotation quay z 0–360°',
-    foam.n > 5 && foam.tilt < 1 && foam.thinY, JSON.stringify(foam));
+  check('bọt vệt thuyền: cầu đều cỡ (size3D 0) dù startRotation quay z 0–360°, phần chìm dẹp lên mặt nước trong shader (y = max(y, sóng + 0,03))',
+    foam.n > 5 && foam.round && foam.flat, JSON.stringify(foam));
 
   // ---- mưa bám camera (FollowCamera/Rain y +8), lái thuyền bằng phím thật
   await page.evaluate(() => { DR_DEBUG.setTime(0.42); DR_DEBUG.teleport(30, -80, 0.6); window.__rain = DRParticles.spawn('Rain', { follow: 'camera' }); });
