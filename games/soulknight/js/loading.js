@@ -23,6 +23,8 @@
     const RB = 'ui_buff_bar/body/safe_area/reroll_btn/';
     L.q(RB + 'ad_icon').off = 1; L.q(RB + 'free_icon').off = 0;
     L.q(RB + 'name').txt.s = U.terms['uiloading/reroll'];
+    // Dòng mẹo: gốc ở 92% chiều cao [THẤY https://youtu.be/LyMmXTQFcq8?t=2, 266/288]; nút Tip neo đáy cao 150, chữ giữa ô, nên đáy ô = 58 - 75 = -17 (trên khung 720).
+    L.q('Tip').p = [0, -17];
     CARD = L.q('ui_buff_bar/body/grid').k;
     // Nhân tố Thiên Phú Tự Chọn (+2 thẻ) cần tới 5 thẻ: nhân bản thẻ đầu vào cùng lưới; thẻ thừa tự tắt (off) khi không có buff.
     while (CARD.length < 5) CARD.push(SK.ugui.clone(CARD[0]));
@@ -73,6 +75,21 @@
     L.q('Tip').txt.s = choosing ? '' : ld.tip;
   }
 
+  // Kim cương quay ở góc phải dưới [THẤY https://youtu.be/LyMmXTQFcq8?t=2]: tâm 95% x 86% màn, rộng ~12% chiều cao. Không có sprite gốc trong
+  // ui/common/loading (ui_103 là xoáy của thẻ đồng đội), nên vẽ bằng canvas: ô vuông trắng xoay 45 độ, vân xám ngang bên trong [ƯỚC LƯỢNG].
+  ld.diamond = { x: 0, y: 0, s: 0, rot: 0, drawn: 0 };
+  function spinner(ctx, W, H) {
+    const s = H * 0.085, x = W * 0.95, y = H * 0.86, rot = Math.PI / 4 + Math.sin(ld.t * 2.2) * 0.12, sq = Math.abs(Math.cos(ld.t * 1.6)) * 0.12 + 0.88;
+    ctx.save();
+    ctx.translate(x, y); ctx.rotate(rot); ctx.scale(sq, 1);
+    ctx.imageSmoothingEnabled = false;
+    ctx.fillStyle = '#fff'; ctx.fillRect(-s / 2, -s / 2, s, s);
+    ctx.fillStyle = '#9a9a9a';
+    for (let i = 0; i < 4; i++) ctx.fillRect(-s * 0.32, -s * 0.28 + i * s * 0.17, s * 0.64, s * 0.07);
+    ctx.restore();
+    const d = ld.diamond; d.x = x; d.y = y; d.s = s; d.rot = rot; d.drawn++;
+  }
+
   function show() {
     ld.on = true; ld.t = 0; ld.outT = -1;
     ld.tip = U.tips && U.tips.length ? U.tips[Math.floor(Math.random() * U.tips.length)] : '';
@@ -108,6 +125,7 @@
       SK.drawPrefab(ctx, SK.art.object('portal'), W / 2, H * 0.5, { t: ld.t, state: 'transfer_gate', scale: 0.5 * k });
     }
     if (ui()) { refresh(G); L.tick(dt); L.draw(ctx, W, H); }
+    if (!choosing) spinner(ctx, W, H);
     ctx.restore();
   });
 
@@ -131,5 +149,6 @@
     const R = L.rectOf('ui_buff_bar/body/grid/card' + i, hud.width, hud.height);
     return R && { x: r.left + R.x / dpr, y: r.top + R.y / dpr, w: R.w / dpr, h: R.h / dpr };
   };
+  ld.rect = path => { if (!ui()) return null; const hud = SK.hudCtx.canvas; return L.rectOf(path, hud.width, hud.height); };
   ld.text = path => { const n = ui() && L.q(path); return n && n.txt ? String(n.txt.s) : null; };
 })();
