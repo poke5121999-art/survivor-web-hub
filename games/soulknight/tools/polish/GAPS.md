@@ -151,3 +151,9 @@ Có: bản vẽ nội thất (Máy Nước, Hồ Cá, Giếng Phép Thuật, Tư
 | Ải kết 4-6 (Đá Phép), nhạc tầng 4, Gian Thương ở 4-3/4-5 | hết 4-5 là thắng (như 3-5 trước đây) |
 | Hulala: sát thương/tốc/số viên [ƯỚC LƯỢNG]; Tinh Anh 2250 do hệ số Lợi Hại chung; chưa có bầy ngựa/bò/xe đỗ sẵn ở phòng và cảnh nhảy sang con khác | `ent.hp = 1500` đặt trong boss_warlord.js (config 999999 giữ chỗ), HP_FACTOR 1,2 ra đúng 1800 wiki |
 | 4B Chiến Trường Cổ, 4C Đáy Biển (oxy) | xem FLOOR4.md mục 8 bước 3-4. build_sk.py chưa thêm level/4/b, level/4/c |
+
+## Cơ giáp (Bước D, rev 20261010m)
+- Mới làm m_mech_0 (Thiết Giáp Nguyên Mẫu) và m_mech_1 (Chưởng Thép); 10 cơ giáp còn lại chưa có sprite/vũ khí gắn riêng nên không bày ở quán (SK.mechImpl).
+- `data/sk-forge.js` có bản vẽ m_mech_2..9 nhưng m_mech_0/1 không có bản vẽ (unlock null [ĐO npc_mount_mech]) nên bán thẳng; loại khác sau này lọc qua `SK.profile.devd`.
+- Chưa làm: Tạm Biệt Thế Giới (nút Phụ, nổ 50) của m_mech_0, nâng cấp ★ ở Thương Nhân Vật Chở, đòn đấm đúng clip (Chưởng Thép dùng vũ khí cận chiến web có đạn punch_spear), bố cục sprite chỉnh bằng mắt (không đo từ prefab), tầm nổ 4 ô [ƯỚC LƯỢNG], buff Thú Cưng +50% sát thương nổ.
+- Nhặt vũ khí mới khi đang lái bị ghi đè lại lúc xuống giáp (vũ khí cũ được trả nguyên).

@@ -1565,7 +1565,11 @@
       blockRect(G.map, cx - 10, cy - 18, cx + 10, cy - 4);
     }
     const ids = ROOMS.force.mounts || (function () {
-      const pool = M.sellers.creature.slice(), out = [];
+      // Thương nhân Vật Chở (mech) trọng số 2 : thú cưỡi 4 [ĐO random_objects mount_seller]. Chỉ bày cơ giáp đã làm (SK.mechImpl) và đã mở:
+      // bản vẽ nghiên cứu (`devd`) nếu có bản vẽ trong data/sk-forge.js; m_mech_0/1 không cần bản vẽ [ĐO npc_mount_mech unlock null].
+      const mechPool = (M.sellers.mech || []).filter(id => SK.mechImpl && SK.mechImpl(id) && (!M.mounts[id].sell.unlock || (SK.profile && SK.profile.devd && SK.profile.devd(M.mounts[id].sell.unlock))));
+      const mech = mechPool.length && SK.rand() * 6 >= 4;
+      const pool = (mech ? mechPool : M.sellers.creature).slice(), out = [];
       while (out.length < 3 && pool.length) out.push(pool.splice(Math.floor(SK.rand() * pool.length), 1)[0]);
       return out;
     })();
@@ -1592,7 +1596,7 @@
           SK.emit('mountBuy', G, id, n);
         } });
     });
-    r.fill = 'mount'; r.mounts = ids;
+    r.fill = 'mount'; r.mounts = ids; r.mountShop = ids.length && M.mounts[ids[0]] && M.mounts[ids[0]].kind === 'mech' ? 'mech' : 'creature';
     return true;
   }
 
@@ -1675,7 +1679,12 @@
   // [WIKI Buffs] 7 ô, chọn 1 trong 3 sau 1-1, 1-3, 1-5, 2-3, 2-5, 3-5 (tools/wiki/levels.json buff_at_end).
   // Bể theo cấp [ĐO pseudorandom_tbtalentgroups TG_level1/2/3(_volcano/_alien) + tbnooblevels]: cấp 1..5 → TG_level1,
   // 6..10 → TG_level2, 11..15 → TG_level3 (nhánh núi lửa cho ShieldFire ×10). Cấp lấy theo ải sắp vào [ƯỚC LƯỢNG].
-  const BUFF_AFTER = ['1-1', '1-3', '1-5', '2-3', '2-5', '3-5'];
+  const BUFF_AFTER = ['1-1', '1-3', '1-5', '2-3', '2-5', '3-5', '4-2'];   // 4-2: tầng 4A [FLOOR4.md thiên phú sau ải 4-2]
+  // Mê Trận Tà Vương: thẻ thiên phú sau x-2 và x-5 ở mọi tầng, tầng nối vô hạn (4-1, 5-1...) [MODES.md 2d]; chế độ khác theo danh sách.
+  function buffAfter(G, label) {
+    if (G && G.mode === 'matrix') return /^\d+-[25]$/.test(String(label));
+    return BUFF_AFTER.indexOf(label) >= 0;
+  }
   const BUFF_SLOTS = 7;
   function groupFor(nextLevel, theme) {
     const lv = B.levels[String(Math.min(15, nextLevel))] || B.levels['15'] || {};
@@ -1741,7 +1750,7 @@
   }
   ROOMS.pick = pickChoice;
   ROOMS.openChoice = openChoice;
-  ROOMS.BUFF_AFTER = BUFF_AFTER; ROOMS.BUFF_SLOTS = BUFF_SLOTS; ROOMS.buffSlots = buffSlots; ROOMS.buffChoices = buffChoices; ROOMS.pay = pay;
+  ROOMS.BUFF_AFTER = BUFF_AFTER; ROOMS.buffAfter = buffAfter; ROOMS.BUFF_SLOTS = BUFF_SLOTS; ROOMS.buffSlots = buffSlots; ROOMS.buffChoices = buffChoices; ROOMS.pay = pay;
   addEventListener('keydown', e => {
     if (!choice.open) return;
     const m = /^(?:Digit|Numpad)([1-9])$/.exec(e.code);
@@ -1768,7 +1777,7 @@
   });
   SK.on('portalEnter', (G2, stage) => {
     const p = G2.player;
-    if (BUFF_AFTER.indexOf(stage.label) < 0 || !p.buffs || p.buffs.length >= buffSlots()) return;
+    if (!buffAfter(G2, stage.label) || !p.buffs || p.buffs.length >= buffSlots()) return;
     if (openChoice()) G2.hold = true;
   });
 

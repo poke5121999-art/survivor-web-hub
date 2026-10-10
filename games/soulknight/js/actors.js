@@ -1521,7 +1521,7 @@
     if (!fr || !SK.draw(ctx, fr, p.x + xf.dx * fs, p.y + xf.dy, { flip: p.face < 0, pages, sx: xf.sx, sy: xf.sy, rot: xf.rot * fs })) {
       ctx.fillStyle = '#9aa4b5'; ctx.fillRect(p.x - 6, p.y - 16, 12, 16);
     }
-    if (p.st !== 'dead' && w) drawHeld(ctx, p, w, 1, hoff);
+    if (p.st !== 'dead' && w && !p.hideHeld) drawHeld(ctx, p, w, 1, hoff);
     // Súng thứ hai (Song Thủ) ở tay h2 trước mặt, vẽ SAU thân và súng chính nên nằm trên cùng [ĐO hero.ab img/h2 x > 0].
     if (p.st !== 'dead' && p.dual) drawHeld(ctx, p, p.dual, 2, hoff);
     ctx.restore();

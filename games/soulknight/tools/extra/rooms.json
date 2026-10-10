@@ -72,7 +72,9 @@
     "mhorse",
     "mIceMonkey",
     "mDungBeetle",
-    "m_morph"
+    "m_morph",
+    "m_mech_0",
+    "m_mech_1"
   ],
   "sprites": [
     "^bullet_tnt_immediately$",

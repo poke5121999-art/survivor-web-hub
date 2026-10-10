@@ -46,7 +46,7 @@
   // Số ải tới lần chọn thiên phú kế (đếm từ ải sắp vào); 0 = không còn lần nào.
   function stagesToBuff(G) {
     const after = (SK.ROOMS && SK.ROOMS.BUFF_AFTER) || [];
-    for (let i = G.stageIdx + 1; i < SK.STAGES.length; i++) if (after.indexOf(SK.STAGES[i].label) >= 0) return i - G.stageIdx;
+    for (let i = G.stageIdx + 1; i < SK.STAGES.length; i++) if (SK.ROOMS && SK.ROOMS.buffAfter ? SK.ROOMS.buffAfter(G, SK.STAGES[i].label) : after.indexOf(SK.STAGES[i].label) >= 0) return i - G.stageIdx;
     return 0;
   }
 
