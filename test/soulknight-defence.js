@@ -129,25 +129,105 @@ async function until(p, fn, arg, ms) {
   await ev(() => { SK.G.defence.towers.forEach(t => { t.star = 0; t.exp = 0; }); });
   await ev(() => { const G = SK.G; for (const e of G.enemies) { e.st = 'dead'; e.hp = 0; } });
 
-  // ---- 6. qua đủ 3 đợt chặng 1: thắng chặng
-  const win = await ev(async () => {
-    const G = SK.G, d = G.defence, waves = [];
+  // ---- 5b. tháp / Đá / Nền / cổng / Xu Sao vẽ bằng prefab gốc (defence.ab), không phải hình khối
+  const art = await ev(() => {
+    const G = SK.G, d = G.defence, A = SK.defence.artOf();
+    const need = ['tower_base', 'defence_enemy_gate', 'coin_star'].concat(SK.DEFENCE.ids);
+    const per = need.map(n => [n, SK.prefab(n) !== null && SK.prefab(n).length > 0]);
+    const cv = document.createElement('canvas'); cv.width = cv.height = 120; const cx = cv.getContext('2d');
+    const drew = SK.DEFENCE.ids.map(id => SK.drawPrefab(cx, SK.prefab(id), 60, 90, { scale: 0.5, t: 0 }));
+    const stoneF = SK.D.extra.sprites['^magic_stone$'];
+    return { per, A, drew, stone: !!(stoneF && stoneF[0] && SK.frame(stoneF[0])), towers: d.towers.length };
+  });
+  check('Đá Phép, Nền Tháp, cổng đỏ, Xu Sao và cả 7 loại tháp đã dựng có prefab gốc (SK.prefab khác null) và SK.drawPrefab vẽ được',
+    art.per.every(x => x[1]) && art.drew.every(Boolean) && art.stone && art.A.pad && art.A.gate && art.A.coin && art.A.towers.length === 7 && art.towers === 7, JSON.stringify(art));
+  await p.screenshot({ path: path.join(SHOTS, '2b-art.png') });
+
+  // ---- 5c. Phẩm: mua trùng 15 Xu Sao mỗi bản, 6 Phẩm; Bẫy Gai 4 gai Phẩm 1 -> 14 gai Phẩm 6; sao x1,26 mỗi bậc
+  const pham = await ev(() => {
+    const G = SK.G, d = G.defence, Df = SK.defence, i = d.pads.findIndex(pd => pd.tower && pd.tower.id === 'spike_trap'), t = d.pads[i].tower;
+    d.coins = 200; const c0 = d.coins, k0 = Df.spikesOf(t.pham), ph0 = t.pham;
+    const dmg0 = Df.dmgOf(t.id, t.star); t.star = 1; const dmg1 = Df.dmgOf(t.id, t.star); t.star = 0;
+    const seq = []; for (let n = 0; n < 6; n++) { const r = Df.upgrade(G, i); seq.push(r.ok ? 1 : 0); }
+    return { ph0, ph: t.pham, k0, k6: Df.spikesOf(t.pham), spent: c0 - d.coins, seq: seq.join(''), dmg0, dmg1 };
+  });
+  check('mua trùng: 5 lần nâng Phẩm 1 -> 6 trừ đúng 75 Xu Sao, lần thứ 6 bị từ chối (đủ Phẩm); Bẫy Gai 4 gai -> 14 gai',
+    pham.ph0 === 1 && pham.ph === 6 && pham.spent === 75 && pham.seq === '111110' && pham.k0 === 4 && pham.k6 === 14, JSON.stringify(pham));
+  check('nâng 1 sao: sát thương x1,26 (Bẫy Gai 8 -> 10,1)', pham.dmg0 === 8 && pham.dmg1 === 10.1, JSON.stringify(pham));
+  const star = await ev(() => {
+    const d = SK.G.defence, t = d.towers[0]; t.star = 0; t.exp = 0; d.coins = 100;
+    const c0 = d.coins, r = SK.defence.giveExp(SK.G, 7 * SK.DEFENCE.starExp[0]);
+    const s1 = d.towers.map(q => q.star).join(''); d.towers.forEach(q => { q.star = 0; q.exp = 0; });
+    return { s1, coins: d.coins - c0 };
+  });
+  check('lên sao bằng EXP không tốn Xu Sao (wiki: sao theo EXP, không có giá Xu Sao)', star.s1 === '1111111' && star.coins === 0, JSON.stringify(star));
+
+  // ---- 6. qua chặng 1 (3 đợt) thì sang chặng 2 cùng phòng; đợt 4 (2-1) mạnh hơn đợt 1 theo bảng
+  const w1 = await ev(async () => {
+    const G = SK.G, d = G.defence, C = SK.DEFENCE, waves = [];
     SK.on('defenceWaveClear', (G2, z, w) => waves.push(z + '-' + (w + 1)));
-    G.player.x = d.stoneAt.x; G.player.y = d.stoneAt.y + 44;
+    G.player.x = d.stoneAt.x; G.player.y = d.stoneAt.y + 24;
+    const hp1 = [], hpMulFirst = [];
     for (let w = 0; w < 3; w++) {
       SK.defence.skip(G);
       const t0 = Date.now();
       while (Date.now() - t0 < 90000 && G.state === 'stage' && d.stats.waves <= w) {
-        for (const e of G.enemies) if (e.dwave && e.st !== 'dead') G.player.god = true;   // người chơi trụ lại, tháp tự lo
+        for (const e of G.enemies) if (e.dwave && e.st !== 'dead') G.player.god = true;
         await new Promise(r => setTimeout(r, 150));
       }
       if (G.state !== 'stage') break;
     }
-    await new Promise(r => setTimeout(r, 300));
-    return { state: G.state, waves, stone: d.stone.hp, won: d.won, kills: d.stats.kills, overlay: !document.getElementById('sk-win').hidden, text: document.getElementById('sk-win-info').textContent, towers: d.towers.length };
+    return { state: G.state, waves, zone: d.zone, wave: d.wave, stone: d.stone.hp, kills: d.stats.kills, phase: d.phase, won: d.won, room: d.room === G.map.rooms[0],
+      b: [C.pts[0], C.pts[1], C.pts[2]].map((p, i) => SK.defence.budget(1, i)), b4: SK.defence.budget(2, 0), hm1: SK.defence.hpMul(1), hm2: SK.defence.hpMul(2) };
   });
-  check('qua đủ 3 đợt chặng 1 (1-1, 1-2, 1-3): thắng chặng, hiện màn thắng', win.state === 'victory' && win.won && win.waves.join(',') === '1-1,1-2,1-3' && win.overlay, JSON.stringify(win));
-  check('Đá Phép còn sống khi thắng; ba đợt có quái bị hạ', win.stone > 0 && win.kills > 0, 'đá ' + win.stone + ' · hạ ' + win.kills);
+  check('qua đủ 3 đợt chặng 1 (1-1, 1-2, 1-3): sang chặng 2 cùng phòng, chưa thắng, Đá Phép còn sống',
+    w1.state === 'stage' && w1.waves.join(',') === '1-1,1-2,1-3' && w1.zone === 2 && w1.wave === 0 && w1.phase === 'wait' && !w1.won && w1.room && w1.stone > 0 && w1.kills > 0, JSON.stringify(w1));
+  check('bảng độ mạnh: đợt 4 (2-1) ngân sách ' + w1.b4 + ' > đợt 1 (' + w1.b[0] + '), máu quái x' + w1.hm2 + ' > x' + w1.hm1, w1.b4 > w1.b[0] && w1.hm2 > w1.hm1 && w1.b[0] < w1.b[1] && w1.b[1] < w1.b[2], JSON.stringify(w1));
+  const w4 = await ev(async () => {
+    const G = SK.G, d = G.defence;
+    for (const e of G.enemies) { e.dwave = false; e.st = 'dead'; e.hp = 0; }
+    const base = SK.D.enemies[G.map.th.enemies[0]].hp;
+    d.towers.forEach(t => { t.ally.dead = true; });   // tháp tạm ngưng để quái đứng yên đo máu
+    SK.defence.startWave(G);
+    d.queue.length = 0; const id = G.map.th.enemies.filter(i => SK.D.enemies[i])[0];
+    const mk = zone => { d.zone = zone; return SK.defence.hpMul(zone) * SK.D.enemies[id].hp; };
+    const z2 = SK.defence.waveList(G, 2, 0), z1 = SK.defence.waveList(G, 1, 0);
+    const sum = l => l.reduce((a, q) => a + (SK.D.enemies[q.id].ai[0].p.consume || 1), 0);
+    return { n1: z1.length, n2: z2.length, s1: sum(z1), s2: sum(z2), b1: SK.defence.budget(1, 0), b2: SK.defence.budget(2, 0), hp2: Math.round(mk(2)), hp1: Math.round(mk(1)), zone: d.zone };
+  });
+  check('danh sách quái đợt 2-1 không vượt ngân sách 2-1 và ngân sách lớn hơn 1-1', w4.s1 <= w4.b1 && w4.s2 <= w4.b2 && w4.b2 > w4.b1 && w4.hp2 >= w4.hp1, JSON.stringify(w4));
+  await ev(() => { const G = SK.G, d = G.defence; d.towers.forEach(t => { t.ally.dead = false; t.ally.hp = SK.DEFENCE.towerHp; }); for (const e of G.enemies) { e.dwave = false; e.st = 'dead'; e.hp = 0; } d.queue = []; d.phase = 'wait'; d.timer = 110; d.zone = 2; d.wave = 0; });
+  // quái đợt 2-1 thật sự có máu x hpMul(2)
+  const real = await ev(async () => {
+    const G = SK.G, d = G.defence; d.queue = [{ id: G.map.th.enemies.filter(i => SK.D.enemies[i])[0] }]; d.phase = 'fight'; d.spawnT = 0; d.routes = [0]; d.rr = 0;
+    d.towers.forEach(t => { t.ally.dead = true; });
+    const base = SK.D.enemies[d.queue[0].id].hp;
+    for (let i = 0; i < 20 && !G.enemies.some(e => e.dz === 2); i++) await new Promise(r => setTimeout(r, 100));
+    const e = G.enemies.find(e => e.dz === 2);
+    const out = { base, hp: e && e.hpMax, want: Math.round(base * SK.defence.hpMul(2)) };
+    if (e) { e.hold = true; e.dwave = false; e.st = 'dead'; e.hp = 0; }
+    return out;
+  });
+  check('quái sinh ở chặng 2 có máu = máu gốc x1,1 (đợt 4 mạnh hơn đợt 1)', real.hp === real.want && real.hp >= real.base, JSON.stringify(real));
+  await p.screenshot({ path: path.join(SHOTS, '3-zone2.png') });
+
+  // ---- 6b. tuyến theo chặng, trùm sóng 3-3, thắng ở chặng 12
+  const rt = await ev(() => { const C = SK.DEFENCE; return [1, 3, 4, 9, 10, 12].map(z => C.routesOf(z)).join(','); });
+  check('số tuyến vào: chặng 1-3 một, 4-9 hai, 10-12 ba', rt === '1,1,2,2,3,3', rt);
+  const boss = await ev(() => {
+    const G = SK.G, d = G.defence;
+    const l33 = SK.defence.waveList(G, 3, 2), l32 = SK.defence.waveList(G, 3, 1), l66 = SK.defence.waveList(G, 6, 2), l43 = SK.defence.waveList(G, 4, 2);
+    return { b33: l33.filter(q => q.boss).length, b32: l32.filter(q => q.boss).length, b63: l66.filter(q => q.boss).length, b43: l43.filter(q => q.boss).length, al: l43.filter(q => q.alien).length, hp: [3, 6, 9, 12].map(z => SK.DEFENCE.bossZones[z]).join(',') };
+  });
+  check('Đợt BOSS 3-3 / 6-3 có trùm sóng, 3-2 / 4-3 không; Đợt Lớn có quái Phi Thuyền', boss.b33 === 1 && boss.b63 === 1 && boss.b32 === 0 && boss.b43 === 0 && boss.al >= 1 && boss.hp === '300,600,900,1200', JSON.stringify(boss));
+  const win = await ev(async () => {
+    const G = SK.G, d = G.defence;
+    for (const e of G.enemies) { e.dwave = false; e.st = 'dead'; e.hp = 0; }
+    d.zone = 12; d.wave = 2; d.queue = []; d.phase = 'fight';
+    await new Promise(r => setTimeout(r, 600));
+    return { state: G.state, won: d.won, zone: d.zone, overlay: !document.getElementById('sk-win').hidden, text: document.getElementById('sk-win-info').textContent };
+  });
+  check('qua chặng 12 (đợt 12-3 dọn xong): thắng, hiện màn thắng', win.state === 'victory' && win.won && win.overlay && /chặng 12/.test(win.text), JSON.stringify(win));
   await p.screenshot({ path: path.join(SHOTS, '3-win.png') });
 
   // ---- 7. Đá Phép về 0 thì thua

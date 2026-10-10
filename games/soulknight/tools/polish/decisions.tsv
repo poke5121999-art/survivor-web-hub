@@ -62,3 +62,7 @@ ts	phase	decision	why	evidence	result
 2026-10-10T07:51:39Z	ship	đẩy a8465990 rev 20261010o, kiểm trên Pages	xong = kiểm trên bản thật	SK_URL=Pages: void 30/0 smoke 16/0	VERIFIED
 2026-10-10T07:57:31Z	troop	Chỉ Huy Nhỏ lõi (agent): pet điều khiển, cờ, thuê/hợp nhất 17 lính, xu	MODES.md 2g, nên làm trước Thần Điện	test/soulknight-troop.js
 2026-10-10T07:57:31Z	ship	đẩy 7cee0987 rev 20261010p, kiểm trên Pages	xong = kiểm trên bản thật	SK_URL=Pages: troop 34/0 modes 12/0 lobby 25/0 smoke 16/0	VERIFIED
+2026-10-10T08:11:28Z	defence	Thần Điện Thủ Hộ lõi (agent): Đá Phép, đợt quái, Xu Sao, 7 tháp, chặng 1; tháp vẽ hình khối (đợt 2 đang thay prefab)	MODES.md 2f	test/soulknight-defence.js
+2026-10-10T08:11:28Z	ship	đẩy f5bbdca9 rev 20261010q, kiểm trên Pages	xong = kiểm trên bản thật	SK_URL=Pages: defence 17/0 modes 12/0 smoke 16/0	VERIFIED
+2026-10-10T08:20:29Z	floor4b	tầng 4B battleground (agent), 4-3 ghép r4b_*, trùm mượn Hulala	FLOOR4.md	test/soulknight-floor4.js
+2026-10-10T08:20:29Z	ship	đẩy 1ed5cc4c rev 20261010r, kiểm trên Pages	xong = kiểm trên bản thật	SK_URL=Pages: floor4 59/0 themes 59/0 smoke 16/0 rooms 69/0	VERIFIED

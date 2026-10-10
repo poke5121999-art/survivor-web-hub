@@ -1,0 +1,29 @@
+{
+ "bundles": [
+  "defence"
+ ],
+ "prefabs": [
+  "tower_base",
+  "tower_container",
+  "magic_stone_shield",
+  "defence_enemy_gate",
+  "coin_star",
+  "tower_level_up",
+  "rage_gun_tower",
+  "chain_laser_tower",
+  "spike_trap",
+  "hurricane_device",
+  "weather_controller",
+  "biochemical_device",
+  "airbase",
+  "energy_device",
+  "shield_tower",
+  "service_depot",
+  "amplification_matrix",
+  "defence_tower_master",
+  "defence_door_up"
+ ],
+ "sprites": [
+  "^magic_stone$"
+ ]
+}

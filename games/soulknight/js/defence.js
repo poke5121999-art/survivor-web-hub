@@ -10,9 +10,13 @@
     stoneHp: 20,                     // Đá Phép chịu tối đa 20 máu [WIKI Origin "Magic Stone"]
     countdown: 110,                  // đếm ngược mở đầu mỗi đợt [WIKI Origin "Great Wall"]
     skipTo: 3,                       // đối thoại với Đá Phép: đợt kế tới sau 3 giây [WIKI Origin; LOC defence/magic_stone_talk]
-    zones: 12, wavesPerZone: 3, lastZone: 1,   // lõi: chỉ chặng 1 (qua đủ 3 đợt là thắng); 12 chặng chưa làm
+    zones: 12, wavesPerZone: 3, lastZone: 12,   // 12 chặng x 3 đợt; thắng khi qua chặng 12 [WIKI Origin "Wave Defense"]; Tàu Ngoài Hành Tinh ở 12-3 chưa làm: GAPS.md
     // điểm ngân sách quái mỗi đợt X-1 / X-2 / X-3 [ƯỚC LƯỢNG: wiki chỉ nói Nhỏ / Vừa / Lớn]
     pts: [8, 14, 22],
+    budgetGrow: 0.25, hpGrow: 0.1,   // mỗi chặng thêm 25% ngân sách quái và 10% máu quái [ƯỚC LƯỢNG: wiki chỉ nói đợt sau mạnh hơn, không có số]
+    bossZones: { 3: 300, 6: 600, 9: 900, 12: 1200 },   // trùm sóng ở đợt X-3 của chặng 3/6/9/12 [WIKI Origin]; máu [ƯỚC LƯỢNG]; rơi 8 Xu Sao [WIKI Origin]
+    bossCoins: 8, alienDrop: 0.1,    // quái Phi Thuyền trong sóng rơi 10% [WIKI Origin "Great Wall"]
+    phamMax: 6, spikesBase: 4, spikesStep: 2,   // Phẩm 1-6 mua trùng 15 Xu Sao mỗi bản; Bẫy Gai 4 gai rồi +2 mỗi Phẩm (6, 8, ... 14) [WIKI ME]
     spawnGap: 0.7,
     startCoins: 15,                  // [ƯỚC LƯỢNG] một tháp đầu tiên, vì lõi chưa có phòng cứ điểm/trùm rơi Xu Sao
     dropRate: 0.5, dropValue: 2,     // Xu Sao rơi khi hạ quái trong đợt [ƯỚC LƯỢNG: wiki 10% cho quái Phi Thuyền, quái vùng khác bỏ]
@@ -33,6 +37,8 @@
     }
   };
   C.ids = Object.keys(C.towers);
+  // routes theo chặng: 1-3 một tuyến, 4-9 hai, 10-12 ba [WIKI Origin "Wave Defense"]
+  C.routesOf = z => z <= 3 ? 1 : z <= 9 ? 2 : 3;
 
   const Df = SK.defence = { C };
   const on = G => G && G.mode === 'defence' && G.defence;
@@ -43,9 +49,12 @@
 
   Df.init = function () {
     return { stone: { hp: C.stoneHp, max: C.stoneHp }, coins: C.startCoins, pads: [], towers: [], sel: C.ids[0], zone: 1, wave: 0, phase: 'wait',
-      timer: C.countdown, queue: [], spawnT: 0, route: 0, gates: [], drops: [], shots: [], pools: [], won: false, lost: false, stats: { placed: 0, kills: 0, waves: 0 } };
+      timer: C.countdown, queue: [], spawnT: 0, routes: [0], rr: 0, gates: [], drops: [], shots: [], pools: [], won: false, lost: false, stats: { placed: 0, kills: 0, waves: 0 } };
   };
   Df.dmgOf = (id, star) => r1(C.towers[id].dmg * mul(star || 0));
+  Df.spikesOf = pham => C.spikesBase + C.spikesStep * (Math.max(1, pham || 1) - 1);
+  Df.budget = (zone, wave) => C.pts[wave] * (1 + (zone - 1) * C.budgetGrow);
+  Df.hpMul = zone => 1 + (zone - 1) * C.hpGrow;
 
   // ---- quái trong đợt: bỏ AI riêng, lao thẳng vào Đá Phép, chạm tháp thì đánh tháp [WIKI Origin "Wave Defense"]
   function wrapAI() {
@@ -145,7 +154,7 @@
     },
     spike_trap(G, t) {
       const c = C.towers[t.id], ts = targets(G, t.x, t.y, c.range); if (!ts.length) return false;
-      for (let i = 0; i < c.spikes; i++) {
+      for (let i = 0, n = Df.spikesOf(t.pham); i < n; i++) {
         const e = ts[i % ts.length].e, sx = e.x + SK.randf(-4, 4), sy = e.y + SK.randf(-3, 3);
         G.defence.shots.push({ k: 'spike', x: sx, y: sy, t: 0, dur: 0.35 });
         for (const q of targets(G, sx, sy - 6, 9)) hit(G, q.e, Df.dmgOf(t.id, t.star), 0);
@@ -163,7 +172,7 @@
     },
     weather_controller(G, t) {
       const c = C.towers[t.id], ts = targets(G, t.x, t.y, c.range); if (!ts.length) return false;
-      for (let i = 0; i < c.bolts; i++) {
+      for (let i = 0, n = Math.min(7, c.bolts + (t.pham || 1) - 1); i < n; i++) {
         const e = ts[i % ts.length].e; beam(G, e.x, e.y - 60, e.x, e.y - 6, '#d8b8ff'); hit(G, e, Df.dmgOf(t.id, t.star), 0);
       }
       return true;
@@ -176,7 +185,7 @@
     airbase(G, t) {
       const c = C.towers[t.id], ts = targets(G, t.x, t.y, c.range); if (!ts.length) return false;
       const tx = ts[0].e.x, ty = ts[0].e.y;
-      for (let i = 0; i < c.planes; i++) G.defence.shots.push({ k: 'bomb', x: tx + SK.randf(-8, 8), y: ty + SK.randf(-6, 6), t: -i * 0.15, dur: 0.5, id: t.id, star: t.star, done: false });
+      for (let i = 0, n = Math.min(7, c.planes + Math.floor(((t.pham || 1) - 1) / 2)); i < n; i++) G.defence.shots.push({ k: 'bomb', x: tx + SK.randf(-8, 8), y: ty + SK.randf(-6, 6), t: -i * 0.15, dur: 0.5, id: t.id, star: t.star, done: false });
       return true;
     }
   };
@@ -213,7 +222,7 @@
     if (d.towers.some(t => t.id === id)) return { ok: false, why: say(G, 'Đã có ' + c.name) };
     if (d.coins < C.towerCost) return { ok: false, why: say(G, 'Không đủ Xu Sao') };
     d.coins -= C.towerCost;
-    const t = { id, star: 0, exp: 0, x: pad.x, y: pad.y, cd: 0.3, pad: padIdx };
+    const t = { id, star: 0, pham: 1, exp: 0, x: pad.x, y: pad.y, cd: 0.3, pad: padIdx };
     t.ally = SK.addWeaponAlly(G, {
       tower: t, x: pad.x, y: pad.y, hp: C.towerHp, hpMax: C.towerHp, owner: G.player,
       update(G2, a, dt) {
@@ -236,6 +245,16 @@
     if (d.coins < C.repair) return { ok: false, why: say(G, 'Không đủ Xu Sao') };
     d.coins -= C.repair; t.ally.dead = false; t.ally.hp = C.towerHp; say(G, 'Đã sửa tháp'); return { ok: true };
   };
+  // Mua trùng loại tháp đã có: nâng Phẩm 1-6, mỗi bản 15 Xu Sao (6 bản = 90) [WIKI ME]. Sao tăng bằng EXP, không bằng Xu Sao.
+  Df.upgrade = function (G, padIdx) {
+    const d = G.defence, t = d && d.pads[padIdx] && d.pads[padIdx].tower;
+    if (!t || t.ally.dead) return { ok: false, why: 'no tower' };
+    if (t.pham >= C.phamMax) return { ok: false, why: say(G, 'Đã tới Phẩm tối đa') };
+    if (d.coins < C.towerCost) return { ok: false, why: say(G, 'Không đủ Xu Sao') };
+    d.coins -= C.towerCost; t.pham++;
+    SK.num(G, t.x, t.y - 30, 'Phẩm ' + t.pham, '#ffd84a'); say(G, C.towers[t.id].name + ' lên Phẩm ' + t.pham);
+    SK.emit('towerPham', G, t); return { ok: true, pham: t.pham };
+  };
   function pickSel(G) {
     const d = G.defence, free = C.ids.filter(id => !d.towers.some(t => t.id === id)); d.sel = free[0] || null;
   }
@@ -255,20 +274,35 @@
   };
 
   // ---- đợt quái
+  // Quái từ chặng 4 lấy từ mọi vùng nối được qua cổng, chặng 1-3 chỉ vùng của bản đồ [WIKI Origin "Wave Defense"]
+  function rosterOf(G, zone) {
+    let ids = G.map.th.enemies.slice();
+    if (zone >= 4) for (const th of Object.values(D.themes || {})) if (th && th.enemies) ids = ids.concat(th.enemies);
+    return Array.from(new Set(ids)).filter(id => D.enemies[id] && !/^ex_/.test(id) && !D.enemies[id].boss);
+  }
+  const ALIENS = ['e_alien01', 'e_alien02', 'e_alien03', 'e_ufo'];
+  // Danh sách {id, boss?, alien?}: ngân sách theo bảng pts x chặng; Đợt Lớn thêm vài quái Phi Thuyền, X-3 của chặng 3/6/9/12 có trùm sóng
   Df.waveList = function (G, zone, wave) {
-    const roster = G.map.th.enemies.filter(id => D.enemies[id]);
-    let budget = C.pts[wave] * (1 + (zone - 1) * 0.4); const list = [];
+    const roster = rosterOf(G, zone);
+    let budget = Df.budget(zone, wave); const list = [];
     while (budget > 0) {
       const cand = roster.filter(id => consume(id) <= budget); if (!cand.length) break;
-      const id = SK.pick(cand); budget -= consume(id); list.push(id);
+      const id = SK.pick(cand); budget -= consume(id); list.push({ id });
     }
-    return list.length ? list : [roster[0]];
+    if (!list.length) list.push({ id: roster[0] });
+    if (wave === 2 && zone >= 2) {
+      const al = ALIENS.filter(id => D.enemies[id]);
+      for (let i = 0, n = Math.min(4, 1 + Math.floor(zone / 3)); al.length && i < n; i++) list.push({ id: SK.pick(al), alien: true });
+    }
+    if (wave === 2 && C.bossZones[zone] && D.enemies.e_alien03) list.push({ id: 'e_alien03', boss: true });
+    return list;
   };
   Df.startWave = function (G) {
     const d = G.defence;
-    d.queue = Df.waveList(G, d.zone, d.wave); d.phase = 'fight'; d.spawnT = 0;
-    d.route = SK.randi(0, 2);   // một tuyến ở chặng 1-3: Rừng / Băng / Núi Lửa theo cổng [WIKI Origin]
-    say(G, ['Đợt quái nhỏ', 'Đợt quái vừa', 'Đợt quái lớn'][d.wave] + ' ' + d.zone + '-' + (d.wave + 1) + ' xuất hiện!', 2.5);
+    d.queue = Df.waveList(G, d.zone, d.wave); d.phase = 'fight'; d.spawnT = 0; d.rr = 0;
+    const n = C.routesOf(d.zone), all = [0, 1, 2].sort(() => SK.rand() - 0.5);
+    d.routes = all.slice(0, n);   // số tuyến vào theo chặng: 1 / 2 / 3 [WIKI Origin]
+    say(G, ['Đợt quái nhỏ', 'Đợt quái vừa', 'Đợt quái lớn'][d.wave] + ' ' + d.zone + '-' + (d.wave + 1) + (d.queue.some(q => q.boss) ? ' · TRÙM!' : '') + ' xuất hiện!', 2.5);
     SK.emit('defenceWave', G, d.zone, d.wave);
   };
   Df.skip = function (G) { const d = G.defence; if (d && d.phase === 'wait') d.timer = Math.min(d.timer, C.skipTo); };
@@ -278,9 +312,10 @@
     if (d.phase !== 'fight') return;
     d.spawnT -= dt;
     while (d.queue.length && d.spawnT <= 0) {
-      const g = d.gates[d.route] || d.gates[0], id = d.queue.shift();
+      const q = d.queue.shift(), id = q.id, g = d.gates[d.routes[d.rr++ % d.routes.length]] || d.gates[0];
       const e = SK.makeEnemy(G, id, g.x + SK.randf(-6, 6), g.y + SK.randf(-6, 6), G.map.rooms[0]);
-      e.dwave = true; e.dpts = consume(id); G.enemies.push(e); d.spawnT += C.spawnGap;
+      e.hpMax = e.hp = q.boss ? C.bossZones[d.zone] : Math.round(e.hp * Df.hpMul(d.zone)); e.dz = d.zone; e.dboss = !!q.boss; e.dalien = !!q.alien;
+      e.dwave = true; e.dpts = q.boss ? 10 : consume(id); G.enemies.push(e); d.spawnT += C.spawnGap;
     }
     if (d.queue.length || G.enemies.some(e => e.dwave && e.st !== 'dead')) return;
     // đợt dọn xong
@@ -290,7 +325,7 @@
     if (d.wave >= C.wavesPerZone) {
       SK.emit('defenceZoneClear', G, d.zone);
       if (d.zone >= C.lastZone) { say(G, 'Thắng chặng ' + d.zone + '!', 3); finish(G, true); return; }
-      d.zone++; d.wave = 0;
+      d.zone++; d.wave = 0; say(G, 'Qua chặng ' + (d.zone - 1) + '! Sang chặng ' + d.zone, 3);
     }
     d.phase = 'wait'; d.timer = C.countdown;
   }
@@ -298,7 +333,8 @@
     if (!on(G) || !e.dwave) return;
     const d = G.defence; d.stats.kills++; e.dwave = false;
     Df.giveExp(G, (e.dpts || 1) * C.expPerPoint);
-    if (SK.rand() < C.dropRate) Df.dropCoin(G, e.x, e.y - 2);
+    if (e.dboss) Df.dropCoin(G, e.x, e.y - 2, C.bossCoins);
+    else if (SK.rand() < C.dropRate) Df.dropCoin(G, e.x, e.y - 2);
   });
 
   // ---- dựng Phòng Đá Phép khi vào ván
@@ -310,18 +346,18 @@
     d.stoneAt = { x: cx, y: cy - 6 };
     d.room = r; d.pads = []; d.towers = []; d.shots = []; d.pools = []; d.drops = [];
     // 8 Nền Tháp quanh Đá Phép [ƯỚC LƯỢNG: số nền]
-    const ring = [[-34, -4], [34, -4], [-24, -26], [24, -26], [-24, 18], [24, 18], [0, -34], [0, 30]];
+    const ring = [[-52, 0], [52, 0], [-36, -30], [36, -30], [-36, 30], [36, 30], [0, -46], [0, 46]];
     ring.forEach(([ox, oy]) => d.pads.push({ x: cx + ox, y: cy + oy + 8, tower: null }));
     // 3 cổng đỏ: tây, bắc, đông của phòng
     const gate = (tx, ty) => { const x = tx * T + 8, y = ty * T + 12; return W.solidAt(G.map, x, y) ? { x: cx, y: cy - 40 } : { x, y }; };
     d.gates = [gate(r.x0 + 1, r.cy), gate(r.cx, r.y0 + 2), gate(r.x1 - 1, r.cy)];
-    G.player.x = cx; G.player.y = cy + 44;
+    G.player.x = cx; G.player.y = cy + 18;
     // Đá Phép: nói chuyện thì đợt kế tới sau 3 giây
     G.interactables.push({ df: 1, x: d.stoneAt.x, y: d.stoneAt.y + 12, r: 18, labelY: 34,
       get label() { return d.phase === 'wait' ? 'Đá Phép: gọi đợt kế (sau ' + C.skipTo + ' giây)' : 'Đá Phép ' + d.stone.hp + '/' + d.stone.max; },
       use: g => Df.skip(g) });
     // Bậc Thầy Robot: chọn loại tháp chờ đặt
-    const ex = cx - 62, ey = cy + 36;
+    const ex = cx - 76, ey = cy + 30;
     G.interactables.push({ df: 1, x: ex, y: ey + 4, r: 16, labelY: 34,
       get label() { return d.sel ? 'Bậc Thầy Robot: đổi tháp (đang chờ ' + C.towers[d.sel].name + ')' : 'Bậc Thầy Robot: đủ các loại tháp'; },
       use: g => Df.cycleSel(g) });
@@ -331,10 +367,10 @@
         get label() {
           const t = pad.tower;
           if (!t) return d.sel ? 'Đặt ' + C.towers[d.sel].name + ' (' + C.towerCost + ' Xu Sao)' : 'Nền Tháp trống';
-          return t.ally.dead ? 'Sửa ' + C.towers[t.id].name + ' (' + C.repair + ' Xu Sao)' : C.towers[t.id].name + ' ★' + t.star;
+          return t.ally.dead ? 'Sửa ' + C.towers[t.id].name + ' (' + C.repair + ' Xu Sao)' : C.towers[t.id].name + ' ★' + t.star + ' · Phẩm ' + t.pham + (t.pham < C.phamMax ? ' (nâng ' + C.towerCost + ' Xu Sao)' : '');
         },
-        use: g => { if (!pad.tower) Df.place(g, i); else if (pad.tower.ally.dead) Df.repair(g, i); } });
-      G.props.push({ df: 1, x: pad.x, y: pad.y - 8, draw(ctx) { if (!pad.tower) drawPad(ctx, pad); } });
+        use: g => { if (!pad.tower) Df.place(g, i); else if (pad.tower.ally.dead) Df.repair(g, i); else Df.upgrade(g, i); } });
+      G.props.push({ df: 1, x: pad.x, y: pad.y - 8, draw(ctx, G2) { if (!pad.tower) drawPad(ctx, pad, G2); } });
     });
     G.props.push({ df: 1, x: d.stoneAt.x, y: d.stoneAt.y + 10, draw(ctx, G2) { drawStone(ctx, G2); } });
     G.props.push({ df: 1, x: cx, y: cy + 60, draw(ctx, G2) { drawLayer(ctx, G2); }, update(G2, q, dt) {
@@ -345,9 +381,24 @@
     say(G, 'Bảo vệ Đá Phép! Đợt đầu tới sau ' + C.countdown + ' giây (nói chuyện với Đá Phép để gọi sớm)', 4);
   });
 
-  // ---- vẽ [vẽ tạm bằng hình khối; không có ảnh gốc: GAPS.md]
+  // ---- vẽ: prefab gốc trong defence.ab (tools/extra/defence.json) qua SK.drawPrefab; món nào thiếu thì vẽ hình khối
+  const AS = C.artScale = 0.42;
+  const NOSHOW = /body_dead|shadow_lock|dead_tap|\/star/;   // dead_tap = biểu tượng hỏng; sao tháp vẽ riêng
+  const pf = (ctx, name, x, y, o) => { const P = SK.prefab(name); return !!P && SK.drawPrefab(ctx, P, x, y, Object.assign({ scale: AS }, o)); };
+  Df.artOf = () => ({ stone: !!stoneFrame(), pad: !!SK.prefab('tower_base'), gate: !!SK.prefab('defence_enemy_gate'), coin: !!SK.prefab('coin_star'),
+    towers: C.ids.filter(id => SK.prefab(id)) });
+  const stoneFrame = () => { const l = D.extra && D.extra.sprites && D.extra.sprites['^magic_stone$']; return l && l[0] && SK.frame(l[0]) ? l[0] : null; };
   function drawStone(ctx, G) {
-    const d = G.defence, s = d.stoneAt, f = d.stoneFlash > 0, t = G.t;
+    const d = G.defence, s = d.stoneAt, f = d.stoneFlash > 0, t = G.t, sf = stoneFrame();
+    if (sf) {
+      ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(s.x, s.y + 10, 14, 4, 0, 0, Math.PI * 2); ctx.fill();
+      SK.draw(ctx, sf, s.x, s.y + 10, { sx: 0.8, sy: 0.8, alpha: f ? 0.6 + 0.4 * Math.sin(t * 40) : 1 });
+      if (f) pf(ctx, 'magic_stone_shield', s.x, s.y + 10, { t: 0.5 - d.stoneFlash * 2, scale: 0.7 });
+      const w = 28, k = d.stone.hp / d.stone.max;
+      ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(s.x - w / 2, s.y - 30, w, 4);
+      ctx.fillStyle = k > 0.4 ? '#a85cf0' : '#ff4a4a'; ctx.fillRect(s.x - w / 2 + 1, s.y - 29, (w - 2) * k, 2);
+      return;
+    }
     ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(s.x, s.y + 10, 14, 4, 0, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#4a3a66'; ctx.fillRect(s.x - 11, s.y + 4, 22, 6);
     const pulse = 0.5 + 0.5 * Math.sin(t * 2.4);
@@ -358,13 +409,21 @@
     ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(s.x - w / 2, s.y - 30, w, 4);
     ctx.fillStyle = k > 0.4 ? '#a85cf0' : '#ff4a4a'; ctx.fillRect(s.x - w / 2 + 1, s.y - 29, (w - 2) * k, 2);
   }
-  function drawPad(ctx, pad) {
+  function drawPad(ctx, pad, G) {
+    if (pf(ctx, 'tower_base', pad.x, pad.y + 4, { skip: p => /star/.test(p.n) })) return;
     ctx.strokeStyle = 'rgba(122,216,255,0.8)'; ctx.lineWidth = 1; ctx.strokeRect(pad.x - 7 + 0.5, pad.y - 2 + 0.5, 13, 8);
     ctx.fillStyle = 'rgba(122,216,255,0.18)'; ctx.fillRect(pad.x - 7, pad.y - 2, 14, 9);
   }
   function drawTower(ctx, G, t, a) {
     const c = C.towers[t.id], x = t.x, y = t.y;
     ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(x, y + 4, 8, 3, 0, 0, Math.PI * 2); ctx.fill();
+    if (SK.prefab(t.id)) {
+      const dead = a.dead;
+      pf(ctx, t.id, x, y + 4, { t: G.t, skip: p => NOSHOW.test(p.n) && !(dead && /body_dead/.test(p.n)) || (dead && (p.n === '/img/body' || /\/h1/.test(p.n))) || (!dead && /body_dead/.test(p.n)), alpha: a.flash > 0 ? 0.6 : 1 });
+      if (t.star > 0) SK.text(ctx, '★' + t.star, x, y - 34, 6, '#ffd84a', 'center', 'rgba(0,0,0,0.9)');
+      if (!a.dead && a.hp < C.towerHp) { ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(x - 8, y + 6, 16, 2); ctx.fillStyle = '#6cff8a'; ctx.fillRect(x - 8, y + 6, 16 * a.hp / C.towerHp, 2); }
+      return;
+    }
     ctx.fillStyle = a.dead ? '#444' : '#2c3442'; ctx.fillRect(x - 7, y - 6, 14, 10);
     ctx.fillStyle = a.dead ? '#666' : (a.flash > 0 ? '#fff' : c.col); ctx.fillRect(x - 5, y - 14, 10, 9);
     SK.text(ctx, a.dead ? 'x' : c.ch, x, y - 6, 7, '#101018', 'center');
@@ -380,6 +439,7 @@
   function drawLayer(ctx, G) {
     const d = G.defence;
     for (const g of d.gates) {
+      if (pf(ctx, 'defence_enemy_gate', g.x, g.y, { t: G.t, state: 'transfer_gate', scale: 0.5 })) continue;
       ctx.fillStyle = 'rgba(255,60,60,0.35)'; ctx.beginPath(); ctx.ellipse(g.x, g.y, 9, 5, 0, 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = '#ff4a4a'; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(g.x, g.y, 9, 5, 0, 0, Math.PI * 2); ctx.stroke();
     }
@@ -398,6 +458,7 @@
     }
     for (const c of d.drops) {
       const b = Math.sin(c.t * 6) * 1.2;
+      if (pf(ctx, 'coin_star', c.x, c.y + b, { t: c.t, state: 'star_coin', scale: 0.5 })) continue;
       ctx.fillStyle = '#7ad8ff'; ctx.beginPath(); ctx.moveTo(c.x, c.y - 5 + b); ctx.lineTo(c.x + 3, c.y - 2 + b); ctx.lineTo(c.x, c.y + 1 + b); ctx.lineTo(c.x - 3, c.y - 2 + b); ctx.fill();
     }
   }
