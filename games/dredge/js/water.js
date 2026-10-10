@@ -16,12 +16,15 @@
  *     _ShallowColor của vùng (0,17; 0,11; 0,11) chứ không ô liu như _DeepColor; gog_20 thấy rõ vỏ thuyền dưới nước (độ trong cao
  *     sát vật) trong màu tím đen của _DeepColor. ⇒ cb0[127] = _ShallowColor (xa vật dưới nước), cb0[126] = _DeepColor (sát vật),
  *     độ trong = 1 − _DeepColor.a (mặc định a = 0: sát vỏ/đáy nông thấy rõ vật bên dưới; Twisted Strand, Devil's Spine a = 1: đục).
+ *     [SỬA vòng 9 wfx] Tên cbuffer ĐỌC ĐƯỢC (tools/shader_cbuf.py): cb0[126] = _ShallowColor, cb0[127] = _DeepColor, cb0[128] = _FoamColor,
+ *     độ trong dùng 1 − _ShallowColor.a — suy luận hoán vị ở trên là nhầm. Nước xa/đáy biển vẫn giữ bộ hệ số đã đo theo clip (V04, chưa đụng tới);
+ *     riêng vật sát dưới mặt nước (thân thuyền, qua uBoatZ) đã theo đúng tên: về _ShallowColor, độ trong (1 − _ShallowColor.a).
  *     V04 (clip ObBBFGMem5U; nước vịnh Marrows lúc 10:55 đo (66..78, 95..114, 106..128), điểm câu 14:40 (60, 75, 85), 07:12 (52..62, 60..73,
  *     63..74), đêm (33,33,39); web trước (134..148, 160..165, 164..169)): mọi đo đều ra màu nước ≈ 0,4× của công thức bản rã (nắng·mây + ambient +
  *     (1 − mask.b)) × albedo — bọt trắng gốc lại sáng đầy, nên chỉ phần nước tối. Chưa tìm ra số hạng DXBC nào lệch (đã thử hoán đổi cb0[126]/[127]:
  *     ra đúng clip nhưng đen ở gog_01 nước 9 m, bỏ). [ĐỀ XUẤT] hai hệ số đo thẳng: WATER_LIT = 0,65 nhân albedo nước (vòng 6: thêm trọng số nắng theo độ cao mặt trời và độ giảm ban đêm, xem SUN_LOW / WATER_NIGHT) (không nhân bọt, không nhân
  *     màu trời xa), và SEE_K = 0,15 che phần nhìn xuyên xuống đáy cát (đáy trong clip tối, đáy web sáng). Giữa vịnh ra (76..82, 113..120, 119..131) / bình minh
- *     (69..71, 91..93, 86..90) / đêm (35,43,45). HULL_FOAM_K = 3 co dải bọt chạm quanh vỏ (hộp va chạm to hơn lưới vỏ; clip chỉ có vòng gợn mảnh); gog_01 hoàng hôn vẫn trong ±15 của test/dredge-water.js (vì thế không hạ thêm). Vỏ thuyền dưới nước vẫn nhìn xuyên đủ (depSea − dep).
+ *     (69..71, 91..93, 86..90) / đêm (35,43,45). Thân thuyền (vòng 9 wfx): bỏ hộp va chạm bo góc + HULL_FOAM_K; quầng nông, độ trong và bọt chạm quanh vỏ lấy từ chiều sâu thật của mesh thân (uBoatZ).
  *     Rồi lerp tới lerp(SkyBlue, màu sương, _FogDensity²) theo f10·(f10 + sat(mờ·(1 − dốc)(5·dốc + h))),
  *     f10 = (1 − V.y)^10, mờ = 1 − 0,004·(1 + độ sâu nhìn), h = độ dời đỉnh.
  *   - bọt: F = sat(WaveMask.r·(sat(h) + _FoamAmount)·mờ) + sọc bờ sat((sin 2π(0,2t − 100(r − EdgeFoamOffset)) − 2000(r − EdgeFoamOffset)²)·3);
@@ -72,7 +75,7 @@
   // WATER_NIGHT: ban đêm clip tối hơn công thức ~25 % (19:37 web G 56 / clip 34..48; 20:17 web 44 / clip 33..35) khi mật độ sương gốc
   // (FogController.defaultFogDensityOverDay: 0,5 lúc 18:30 → 1,0 từ 19:55) lên; hệ số nước sâu giảm tới 30 % theo smoothstep(0,5; 1; mật độ).
   const WATER_NIGHT = 0.3, SUN_LOW = 1, SUN_HIGH = 0.15;
-  const SEE_K = 0.15, WATER_LIT = 0.65, HULL_FOAM_K = 3, LIT_DEPTH = 0.5; // [ĐỀ XUẤT] V04, xem chú thích đầu tệp
+  const SEE_K = 0.15, WATER_LIT = 0.65, LIT_DEPTH = 0.5; // [ĐỀ XUẤT] V04, xem chú thích đầu tệp
   const SEABED_MAX = 100; // m; texture sâu đáy mã hoá sqrt(sâu/100): đáy địa hình sâu tới 100 m, Stellar Basin có _Depth 12 m
 
   const uniforms = {
@@ -83,11 +86,12 @@
     uLandBox: { value: new T.Vector4(0, 0, 1, 1) }, // x0, z0, 1/w, 1/h (m)
     uNight: { value: 0 },
     uFoam: { value: 0.2 }, // _FoamAmount (WeatherController.cs:447), Fine.foamAmount
-    uSeeK: { value: SEE_K }, uHullFoamK: { value: HULL_FOAM_K }, uWaterLit: { value: WATER_LIT }, uWaterSun: { value: SUN_LOW }, uWaterNight: { value: WATER_NIGHT }, uLitDepth: { value: LIT_DEPTH }, uShallow: { value: new T.Color() }, uShallowA: { value: 0.35 }, uDeep: { value: new T.Color() }, uDeepA: { value: 0 },
+    uSeeK: { value: SEE_K }, uWaterLit: { value: WATER_LIT }, uWaterSun: { value: SUN_LOW }, uWaterNight: { value: WATER_NIGHT }, uLitDepth: { value: LIT_DEPTH }, uShallow: { value: new T.Color() }, uShallowA: { value: 0.35 }, uDeep: { value: new T.Color() }, uDeepA: { value: 0 },
     uFoamCol: { value: new T.Color() }, uWaterDepth: { value: 1 },
     uSky: { value: new T.Color() }, uNormalTex: { value: null }, uFoamTex: { value: null },
     uSeabed: { value: null }, uSeabedBox: { value: new T.Vector4(0, 0, 1, 1) },
-    uHull: { value: new T.Vector4(0, 0, 1, 0) }, uHullSize: { value: new T.Vector3(0, 0, -1) }
+    // chiều sâu thật của thân thuyền (1 − eye z / 256 gói RGBA, 0 = không có) — bản gốc đọc _CameraDepthTexture; xem hullDepthPass()
+    uBoatZ: { value: null }, uBoatZRes: { value: new T.Vector2(1, 1) }, uBoatZOn: { value: 0 }
   };
 
   const GLSL_WAVE = `
@@ -176,6 +180,14 @@ ${WAVES.map(w => `  { float f = ${w.k.toFixed(6)} * (dot(vec2(${w.dx.toFixed(6)}
   }
 
   const f6 = x => Number(x).toFixed(6);
+  // y mặt nước vẽ ra: bờ nông tắt sóng (đáy cao nhất y = −0,2 m) và xa camera tắt dời đỉnh — cùng số với DRWater.surface().
+  // Xuất ra (GLSL_HEIGHT) để hạt bọt FloatingParticle_Shader (js/vfx.js) dán đỉnh xuống đúng mặt nước đang vẽ.
+  const GLSL_HEIGHT = `
+float drHeightAt(vec2 xz) {
+  float fadeV = smoothstep(0.5, 6.0, drLandDist(xz)) * (1.0 - smoothstep(70.0, 160.0, distance(xz, cameraPosition.xz)));
+  return drWave(xz, drSteepAt(xz) * uWaveSteep * fadeV).x;
+}
+`;
   const VERT = `
 #include <common>
 ${GLSL_WAVE}
@@ -184,11 +196,7 @@ varying vec3 vWPos;
 varying float vH;
 varying float vViewZ;
 #include <fog_pars_vertex>
-// y mặt nước vẽ ra: bờ nông tắt sóng (đáy cao nhất y = −0,2 m) và xa camera tắt dời đỉnh — cùng số với DRWater.surface()
-float drHeightAt(vec2 xz) {
-  float fadeV = smoothstep(0.5, 6.0, drLandDist(xz)) * (1.0 - smoothstep(70.0, 160.0, distance(xz, cameraPosition.xz)));
-  return drWave(xz, drSteepAt(xz) * uWaveSteep * fadeV).x;
-}
+${GLSL_HEIGHT}
 void main() {
   vec3 wp0 = (modelMatrix * vec4(position, 1.0)).xyz;
   float hy = drHeightAt(wp0.xz);
@@ -203,11 +211,13 @@ void main() {
 
   const FRAG = `
 #include <common>
+#include <packing>
 ${GLSL_WAVE}
 uniform float uFoam;
-uniform float uSeeK; uniform float uWaterLit; uniform float uWaterSun; uniform float uWaterNight; uniform float uLitDepth; uniform float uHullFoamK; uniform vec3 uShallow; uniform float uShallowA; uniform vec3 uDeep; uniform float uDeepA; uniform vec3 uFoamCol; uniform float uWaterDepth;
+uniform float uSeeK; uniform float uWaterLit; uniform float uWaterSun; uniform float uWaterNight; uniform float uLitDepth; uniform vec3 uShallow; uniform float uShallowA; uniform vec3 uDeep; uniform float uDeepA; uniform vec3 uFoamCol; uniform float uWaterDepth;
 uniform vec3 uSky; uniform sampler2D uNormalTex; uniform sampler2D uFoamTex;
-uniform sampler2D uSeabed; uniform vec4 uSeabedBox; uniform vec4 uHull; uniform vec3 uHullSize;
+uniform sampler2D uSeabed; uniform vec4 uSeabedBox;
+uniform sampler2D uBoatZ; uniform vec2 uBoatZRes; uniform float uBoatZOn;
 varying vec3 vWPos;
 varying float vH;
 varying float vViewZ;
@@ -226,19 +236,9 @@ void main() {
   vec2 muv = (wp.xz + 750.0) / 1500.0;
   vec4 mk = (muv.x < 0.0 || muv.y < 0.0 || muv.x > 1.0 || muv.y > 1.0) ? vec4(1.0) : min(texture2D(uMask, muv), vec4(1.0));
   float steep = uWaveSteep;
-  // [ĐỀ XUẤT] không có bộ đệm sâu của cảnh: "vật bên dưới" = đáy biển (lưới đáy) hoặc đáy vỏ thuyền (hộp va chạm bo góc,
-  // đáy = điểm thấp nhất của thân thuyền); ngoài mép vỏ độ sâu tăng 4 m mỗi m để quầng sáng chỉ ôm sát vỏ như ảnh gốc
+  // "vật bên dưới" = đáy biển (lưới đáy js/world.js) cho độ sâu nước; thân thuyền đi riêng qua uBoatZ (chiều sâu thật, xem hullDepthPass)
   float dep = max(0.0, wp.y + drSeabedDepth(wp.xz));
   float depSea = dep;
-  float hullD = 1000.0;
-  if (uHullSize.x > 0.0) {
-    vec2 d = wp.xz - uHull.xy;
-    vec2 l = vec2(uHull.z * d.x - uHull.w * d.y, uHull.w * d.x + uHull.z * d.y);
-    float rr = uHullSize.x * 0.6;
-    vec2 q = abs(l) - (uHullSize.xy - rr);
-    hullD = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - rr;
-    dep = min(dep, max(0.0, wp.y - uHullSize.z) + max(hullD, 0.0) * 4.0);
-  }
   // _Depth đo trên bộ đệm sâu: hiệu độ sâu eye-space (z) giữa đáy và mặt nước dọc TIA NHÌN, không phải độ sâu thẳng đứng
   // (V04 bến Greater Marrow: camera nghiêng nên độ sâu z gấp ~1,5–2× độ sâu thẳng đứng; nước nông phải ngả về _ShallowColor)
   float zK = sqrt(clamp(vViewZ / max(distance(wp, cameraPosition), 0.01), 0.3, 1.0) / max(V.y, 0.1)); // [ĐỀ XUẤT] căn bậc hai: ép tỉ lệ về nửa để nước vịnh không sáng quá clip
@@ -247,6 +247,20 @@ void main() {
   // ~0,65× (xem WATER_LIT) ⇒ hệ số 0,65 chỉ áp cho nước sâu, nước nông về 1 theo độ sâu z của đáy (cùng thang với kS)
   float litK = mix(uWaterLit * (1.0 - uWaterNight * smoothstep(0.5, 1.0, uDrFogD)), 1.0, exp(-depSea * zK / uLitDepth));
   vec3 col = mix(uShallow, uDeep, kS) * litK;
+  // Vật sát dưới mặt nước (vỏ thuyền): bản rã lấy albedo = lerp(cb0[127], cb0[126], kS) với cb0[126] = _ShallowColor,
+  // cb0[127] = _DeepColor (tên lấy từ m_NameIndices + m_CommonParameters của pass Universal Forward, tools/shader_cbuf.py), tức là SÁT VẬT
+  // thì về _ShallowColor (xanh nhạt sáng), độ trong (1 − _ShallowColor.a). Nước xa / đáy biển giữ hệ số đã đo ở trên (V04); chỉ phần
+  // "vật sát mặt nước" theo đúng bản gốc: đây là quầng xanh nhạt quanh vỏ chìm (clip t = 165, gog_01).
+  float kHull = 0.0, ddB = 1000.0;
+  if (uBoatZOn > 0.5) {
+    float zb = (1.0 - unpackRGBAToDepth(texture2D(uBoatZ, gl_FragCoord.xy * uBoatZRes))) * 256.0;
+    if (zb < 254.0 && zb > vViewZ) {   // thân thuyền nằm sau mặt nước trên cùng tia nhìn: dựng điểm thân như bản gốc dựng từ bộ đệm sâu
+      float yb = cameraPosition.y + (wp.y - cameraPosition.y) * (zb / max(vViewZ, 0.01));
+      kHull = min(1.0, exp(-(wp.y - yb) / max(0.01, uWaterDepth)));   // kS = min(1, exp(−(y nước − y vật)/_Depth))
+      ddB = zb - vViewZ;                                                // Δ eye z cho bọt chạm (mép nước ôm vỏ)
+    }
+  }
+  col = mix(col, uShallow, kHull);
 
   float f10 = pow(1.0 - clamp(V.y, 0.0, 1.0), 10.0);
   float fadeD = 1.0 - 0.004 * (1.0 + vViewZ);
@@ -263,8 +277,7 @@ void main() {
   F += clamp((sin(6.283186 * (uGameTime * 0.2 - dR * 100.0)) - dR * dR * 2000.0) * 3.0, 0.0, 1.0);
   // [ĐỀ XUẤT] bọt chạm (gốc: chênh độ sâu cảnh − mặt nước dọc tia nhìn): tia xuống gặp đáy sau sâu/V.y, đi ngang gặp vỏ thuyền sau
   // khoảng cách/√(1 − V.y²). Không dùng landmask: hộp va chạm của đá to hơn lưới đá nên bọt chạm theo nó trắng loang ngoài đá
-  float vh = max(sqrt(max(0.0, 1.0 - V.y * V.y)), 0.05);
-  float dd = min(dep / max(V.y, 0.05), max(hullD, 0.0) * uHullFoamK / vh);
+  float dd = min(dep / max(V.y, 0.05), ddB);
   float q = F * 2.0 * s2;
   float v = mix(s1, q, q) * q + pow(1.0 - clamp(dd * 0.25, 0.0, 1.0), 25.0);
   float foamA = step(0.2, clamp(v, 0.0, 1.0)) * clamp(v, 0.5, 1.0);
@@ -280,7 +293,7 @@ void main() {
   vec3 Lr = vec3(-uDrSunDir.x, uDrSunDir.y, -uDrSunDir.z);
   col += uDrSunCol * clamp(pow(clamp(dot(Lr, V), 0.0, 1.0), 64.0) * f10 - (2.0 * s2 + s1 + nz), 0.0, 1.0) * 50.0;
 
-  float Tr = clamp((kS - foamA) * (1.0 - uDeepA) - f10, 0.0, 1.0);
+  float Tr = mix(clamp((kS - foamA) * (1.0 - uDeepA) - f10, 0.0, 1.0), clamp((kHull - foamA) * (1.0 - uShallowA) - f10, 0.0, 1.0), kHull);
   // phản chiếu phẳng: [ĐỀ XUẤT] không vẽ cảnh lật; gần chân trời ảnh lật là trời = màu sương + quầng nắng (như Sky_Shader)
   float camD = distance(wp, cameraPosition);
   float wR = (1.0 - clamp((camD + 5.0) * ${f6(0.005 * WM.ReflectionDistanceFade)}, 0.0, 1.0))
@@ -293,7 +306,7 @@ void main() {
   float fog = clamp(drEnvFogAmount(wp, Ls, mb), 0.0, 1.0);
   vec3 fogC = drEnvFogColor(wp);
   // trộn kiểu nhân sẵn alpha: phần còn lại (Tr) là cảnh phía sau mặt nước (đáy, vỏ thuyền dưới nước)
-  float tS = (1.0 - fog) * (1.0 - wR) * Tr * mix(uSeeK, 1.0, clamp((depSea - dep) * 2.0, 0.0, 1.0)); // đáy biển nhìn xuyên ×uSeeK, vỏ thuyền thì nguyên (V04)
+  float tS = (1.0 - fog) * (1.0 - wR) * Tr * mix(uSeeK, 1.0, kHull); // đáy biển nhìn xuyên ×uSeeK, vỏ thuyền thì nguyên (V04)
   vec3 rgb = (1.0 - fog) * ((1.0 - wR) * (1.0 - Tr) * col + wR * Rf) + fog * fogC;
   gl_FragColor = vec4(rgb, 1.0 - tS);
   #include <encodings_fragment>
@@ -382,6 +395,7 @@ void main() {
     mesh.frustumCulled = false;
     mesh.renderOrder = 1;
     mesh.name = 'water';
+    mesh.onBeforeRender = hullDepthPass;
     scene.add(mesh);
   }
 
@@ -397,21 +411,55 @@ void main() {
     return wave(x, z, steep * fade)[0];
   }
 
-  // vỏ thuyền dưới nước cho quầng nông quanh thân: hộp va chạm (DRBoat.half) + đáy thấp nhất của mô hình, đo lại khi đổi thân
-  const _box = new T.Box3();
-  let hullModel = null, hullBottom = -1;
-  function updateHull() {
-    const B = root.DRBoat, r = B && B.root, H = uniforms.uHullSize.value;
-    if (!r || !B.model || !B.half || !(root.DR && root.DR.s) || root.DR.mode === 'title') { H.x = 0; return; }
-    if (hullModel !== B.model) {
-      hullModel = B.model;
-      r.updateMatrixWorld(true);
-      _box.setFromObject(B.model);
-      hullBottom = _box.isEmpty() ? -1 : _box.min.y - r.position.y;
+  // ---- chiều sâu thân thuyền cho quầng nước nông quanh vỏ chìm ----
+  // Water_Shader gốc lấy "vật dưới nước" từ _CameraDepthTexture (thân thuyền là vật đục, có trong bộ đệm sâu): sát vỏ kS → 1 nên màu nước về
+  // _ShallowColor và độ trong (1 − _ShallowColor.a) cho thấy vỏ chìm qua nước (clip t = 165, gog_01: quầng xanh nhạt dưới đuôi/mạn).
+  // Bản web không có bộ đệm sâu của cảnh: vẽ riêng các mesh đang hiện của thuyền (bản sao dùng chung geometry, ma trận chép từ bản gốc mỗi
+  // khung) vào một render target nửa độ phân giải, ghi eye z; shader nước dựng lại y của thân trên cùng tia nhìn như bản gốc.
+  let bzRT = null, bzScene = null, bzModel = null, bzPairs = [];
+  const bzMat = new T.ShaderMaterial({
+    vertexShader: `varying float vZ;
+void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); vZ = -mv.z; gl_Position = projectionMatrix * mv; }`,
+    fragmentShader: `#include <packing>
+varying float vZ;
+void main() { gl_FragColor = packDepthToRGBA(clamp(1.0 - vZ / 256.0, 0.004, 0.996)); }`,
+    side: T.DoubleSide
+  });
+  const _bsz = new T.Vector2(), _bcc = new T.Color();
+  const shown = o => { for (let p = o; p; p = p.parent) if (!p.visible) return false; return true; };
+  function hullDepthPass(renderer, sc, camera) {
+    const B = root.DRBoat, model = B && B.model;
+    const on = !!(model && root.DR && root.DR.s && root.DR.mode !== 'title');
+    uniforms.uBoatZOn.value = on ? 1 : 0;
+    if (!on) return;
+    if (bzModel !== model) {
+      bzModel = model; bzPairs = [];
+      bzScene = new T.Scene();
+      model.traverse(o => {
+        // bỏ mặt nạ chiều sâu (WaterMask/FoamMask) và chùm đèn trong suốt: chỉ vật đục vào bộ đệm sâu
+        if (!o.isMesh || o.userData.mask || (o.material && (o.material.transparent || o.material.colorWrite === false))) return;
+        const c = new T.Mesh(o.geometry, bzMat);
+        c.matrixAutoUpdate = false; c.frustumCulled = false;
+        bzScene.add(c); bzPairs.push([o, c]);
+      });
     }
-    const y = r.rotation.y;
-    uniforms.uHull.value.set(r.position.x, r.position.z, Math.cos(y), Math.sin(y));
-    H.set(B.half[0], B.half[1], r.position.y + hullBottom);
+    if (!bzRT) bzRT = new T.WebGLRenderTarget(4, 4, { depthBuffer: true, stencilBuffer: false, minFilter: T.NearestFilter, magFilter: T.NearestFilter });
+    for (const [o, c] of bzPairs) { c.visible = shown(o); if (c.visible) c.matrix.copy(o.matrixWorld); c.matrixWorld.copy(o.matrixWorld); }
+    renderer.getDrawingBufferSize(_bsz);
+    const w = Math.max(1, _bsz.x >> 1), h = Math.max(1, _bsz.y >> 1);
+    if (bzRT.width !== w || bzRT.height !== h) bzRT.setSize(w, h);
+    uniforms.uBoatZ.value = bzRT.texture;
+    uniforms.uBoatZRes.value.set(1 / _bsz.x, 1 / _bsz.y);
+    const prevRT = renderer.getRenderTarget(), prevA = renderer.getClearAlpha();
+    renderer.getClearColor(_bcc);
+    renderer.setRenderTarget(bzRT);
+    renderer.setClearColor(0x000000, 0);
+    // vật vẽ ngay trước nước có thể là mặt nạ colorWrite = false (WaterMask): gl.clear tôn trọng colorMask/depthMask nên mở lại
+    renderer.state.buffers.color.setMask(true); renderer.state.buffers.depth.setMask(true);
+    renderer.clear(true, true, false);
+    renderer.render(bzScene, camera);
+    renderer.setRenderTarget(prevRT);
+    renderer.setClearColor(_bcc, prevA);
   }
 
   let propT = 0;
@@ -423,11 +471,10 @@ void main() {
     if (env.waveSteepness != null) uniforms.uWaveSteep.value = env.waveSteepness;
     if (env.foamAmount != null) uniforms.uFoam.value = env.foamAmount;
     if (env.sunDir) { const k = Math.min(1, Math.max(0, (env.sunDir.y - 0.1) / 0.6)); uniforms.uWaterSun.value = SUN_LOW + (SUN_HIGH - SUN_LOW) * k * k * (3 - 2 * k); }
-    updateHull();
     propT -= dt;
     if (propT <= 0 || !boat) { propT = 0.1; updateProps(boat ? boat.x : cx, boat ? boat.z : cz); }
   }
   function syncFog() { /* vệt cũ đã bỏ; giữ hàm cho nơi gọi cũ */ }
 
-  root.DRWater = { init, update, wave, surface, syncFog, props, uniforms, GLSL_WAVE, WAVES, RINGS, get mesh() { return mesh; } };
+  root.DRWater = { get bzRT() { return bzRT; }, init, update, wave, surface, syncFog, props, uniforms, GLSL_WAVE, GLSL_HEIGHT, WAVES, RINGS, get mesh() { return mesh; } };
 })(window);

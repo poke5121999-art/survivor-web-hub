@@ -364,3 +364,11 @@ Gỡ nhanh nếu bị yêu cầu: xoá `art/`, `audio/`, và mọi tệp `data/*
   - Offset của `AnimationPlayableAsset` (`m_Position`, `m_EulerAngles`, Euler ZXY) áp cho nút gốc của clip TRƯỚC khi đổi hệ toạ độ; mẫu đã nướng sẵn. Clip vòng lặp biến `kind` trong vòng for: đừng gán lại biến lặp (lỗi đã sập: đường cong Euler thứ hai bị lưu nguyên 3 thành phần).
   - Thuộc tính vật liệu trong clip bị AssetRipper ghi `material.path_0x…_xxx` (không phải CRC32 của tên): không giải được, coi theo nghĩa đoán `[ĐỀ XUẤT]` ở JS.
   - Vật ở xa (Masstrocity ~1000 m, cực quang ~2000 m) vượt `camera.far` ~425 m của main.js: JS nới far trong cảnh kết (bọc `DRWorld.cull`).
+
+## shader_cbuf.py — tên cbuffer của shader đã tuần tự hoá (vòng 9 wfx, mặt nước + vệt) [ĐO TRONG REPO, 2026-10-10]
+- Chạy: `python -I games/dredge/tools/shader_cbuf.py [Tên_Shader ...]` (mặc định `Water_Shader FloatingParticle_Shader`, ~2 phút). Ra `D:/dredge-ref/cache/particles/shaders/<Tên>.cbuf.txt`: mỗi dòng `cN.k tên` của `$Globals`/`UnityPerDraw`..., đọc kèm bản rã DXBC (`env.py --dis`, `particles.py --dis`) để biết `cb0[N]` là biến nào. Không ghi gì vào repo.
+- Bẫy:
+  - `[BẪY ĐÃ SẬP]` bố cục `$Globals` mỗi shader một khác: Water_Shader `_ShallowColor` c126, `_DeepColor` c127, `_FoamColor` c128, `_WorldSize` c132; FloatingParticle_Shader `_WorldSize` c128. Vòng V04 đoán hoán vị c126/c127 của nước và vòng trước suy "cb0[126] của hạt bọt = màu nước" — cả hai sai.
+  - `m_CommonParameters` chỉ có tham số chung mọi biến thể; tham số riêng một biến thể (màu FoamColoured c126 của FloatingParticle) không có tên trong bản 1.5.3 (`m_Parameters` của subprogram rỗng, DXBC đã bỏ RDEF): suy từ tên công tắc + đo ảnh, ghi `[ĐỀ XUẤT]`.
+  - Hạt `BoatTrailParticles` dùng `FoamParticle_Mat_0` (không phải `FoamParticle_Mat`), shader cùng thân. Hạt ở lớp Water (4): ForwardRenderer loại lớp 4 khỏi pass đục/trong suốt, vẽ qua RenderObjects `Water.asset` (ghi chiều sâu, Less) — xem `js/vfx.js foamMaterial`.
+  - Mặt nước gốc là ô `WaterPlane_LOD0` 128 m lưới 2,67 m (LOD1 5,3 m), không phải 1 m như web.
