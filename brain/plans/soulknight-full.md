@@ -29,7 +29,7 @@ Thứ tự theo đúng lời chủ dự án. Mỗi mục là một hoặc vài �
 6. [~] Thú cưng: [x] 55 thú cưng + kỹ năng riêng (js/pets/petN.js, số theo wiki tools/wiki/pets.json, rev 20261010f),
    [x] pet được kéo vào phòng khi rào dâng; [x] chọn/mua/cho ăn/thân mật 50% mở kỹ năng (js/hall_pet.js, rev 20261010g);
    [ ] HP chung của pet (wiki: 10 HP, nghỉ ở 1 HP, hồi 14–16 s; pet7/8/14/26/49 đang giữ a.hp riêng); [x] lính thuê 13 + dữ liệu thú cưỡi (rev 20261010i); [x] thú cưỡi sinh vật + thương nhân (rev 20261010k); [ ] cơ giáp (bước D).
-7. [~] Cây trồng: [x] Vườn bên trái sảnh, 8 ô, 47 cây, tưới/bón/xẻng/thu hoạch (rev 20261010i); [ ] 14 cây buff chưa có luật, pet cây chỉ đi theo + cắn.
+7. [~] Cây trồng: [x] Vườn bên trái sảnh, 8 ô, 47 cây, tưới/bón/xẻng/thu hoạch (rev 20261010i); [x] 14 cây buff có luật (js/plantbuff.js, rev 20261010l); [ ] pet cây chỉ đi theo + cắn.
 8. [~] Thiên phú: [x] luật 38,39,40,41,1020,2145,2146,1024,2105,2108,2118,17,23,1015–1018 (rev 20261010h; id = BuffId, bảng INVENTORY
    mục 7 trước đó lệch 1 ô); [ ] 15,31,1023,1025 chưa có cơ chế nền; 3001–3007 thuộc Xâm Nhập Hư Không; tượng thần còn thiếu.
 9. [ ] Còn lại: NPC trong hầm (13), lính thuê (13), vật liệu (162), thành tựu (155), thống kê.

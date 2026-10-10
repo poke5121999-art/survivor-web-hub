@@ -195,7 +195,7 @@
       a.tgt = e;
     }
     const goal = e ? { x: e.x, y: e.y } : { x: p.x - p.face * 22, y: p.y + 6 }, dx = goal.x - a.x, dy = goal.y - a.y, d = Math.hypot(dx, dy);
-    if (e && d <= 1.2 * U) { a.cd = a.comp.cd; SK.hurtEnemy(G3, e, a.comp.dmg, false, Math.atan2(dy, dx), 1); a.tgt = null; a.st = 'ide'; return; }
+    if (e && d <= 1.2 * U) { a.cd = a.comp.cd; G3._skHit = 'pet'; SK.hurtEnemy(G3, e, a.comp.dmg, false, Math.atan2(dy, dx), 1); G3._skHit = null; a.tgt = null; a.st = 'ide'; return; }
     if (d > (e ? 1 : 2 * U)) { const s = Math.min(d, 8 * U * dt); SK.moveBox(G3.map, a, dx / d * s, dy / d * s, 3); a.st = 'run'; if (Math.abs(dx) > 1) a.face = dx > 0 ? 1 : -1; } else a.st = 'ide';
   }
 

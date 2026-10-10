@@ -273,12 +273,12 @@ const dayWith = async (p, i) => { await p.evaluate(i => { SK.garden.water(i); SK
     g = await G(p); v = await inv(p);
     check('Bỏ cây: ô trống, hạt không hoàn lại', g.plots[1].seed === null && (v.items.plant_vine_seed | 0) === 0, JSON.stringify({ p1: g.plots[1], vine: v.items.plant_vine_seed }));
     await closeDlg(p);
-    // thiên phú chưa có luật ở bản web (Hương Thảo / Holy Nova): cây chín nhưng không thu, không mất cây
-    await p.evaluate(() => { SK.garden.plant(1, 'plant_rosemary_seed'); SK.garden.water(1); SK.garden.debugNextDay(); });
+    // thiên phú chưa có luật ở bản web (cả 47 cây hiện đều có luật: 14 cây 2170-2184 từ plantbuff.js, Nấm Pha Lê từ rooms.js; tắt tạm id 15 để thử nhánh): cây chín nhưng không thu, không mất cây
+    await p.evaluate(() => { SK.ROOMS.DEF[15].active = false; SK.garden.plant(1, 'plant_mushroom_seed'); SK.garden.water(1); SK.garden.debugNextDay(); SK.garden.water(1); SK.garden.debugNextDay(); });   // mọi cây buff đã có luật nên tắt tạm Thợ Mỏ Đá Quý để thử nhánh "chưa có"
     t = await useSlot(p, 'garden_plot_1');
     await click(p, '#sk-gd-harvest');
     g = await G(p);
-    check('Hương Thảo (thiên phú chưa có luật): báo "chưa có ở bản web", cây giữ nguyên', /chưa có ở bản web/.test(await dlgText(p) || '') && g.plots[1].seed === 'plant_rosemary_seed' && !g.buffs.length, flat(await dlgText(p)).slice(-80));
+    check('Nấm Pha Lê (thiên phú chưa có luật): báo "chưa có ở bản web", cây giữ nguyên', /chưa có ở bản web/.test(await dlgText(p) || '') && g.plots[1].seed === 'plant_mushroom_seed' && !g.buffs.length, flat(await dlgText(p)).slice(-80));
     await closeDlg(p);
     // thú cưng đi kèm: Hoa Bánh Ú
     await p.evaluate(() => { SK.garden.plant(2, 'plant_zongzi_seed'); SK.garden.water(2); SK.garden.debugNextDay(); });
