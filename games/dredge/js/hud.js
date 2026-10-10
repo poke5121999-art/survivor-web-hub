@@ -175,7 +175,9 @@
     const orig = (root.DR_STR && DR_STR[QSTR[kind]]) || '';
     n.innerHTML = '<i class="ic"></i><div><b></b><span></span><small></small></div>';
     n.querySelector('b').textContent = QVI[kind] || kind;
-    n.querySelector('span').textContent = Q ? Q.title(id) : id;
+    const t = Q ? Q.title(id) : '';
+    n.querySelector('span').textContent = t;
+    n.querySelector('span').hidden = !t;   // thông báo gốc chỉ có notification.quest-*, không có tên nhiệm vụ
     n.querySelector('small').textContent = orig;
     while (notes.children.length > 3) notes.firstChild.remove();
     try { if (root.DRAudio) DRAudio.play(kind === 'completed' ? 'ui.pursuit.complete' : 'ui.pursuit.update'); } catch (e) { /* tiếng không bắt buộc */ }

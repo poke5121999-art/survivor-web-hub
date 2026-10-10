@@ -174,14 +174,15 @@ async function findSea(page) {
   check('... rồi biến mất sau 2 s', (await ev(() => DREvents.current)) === null);
   await ev(() => DR.emit('banish', false));
   await clear(); await home();
-  await ev(() => { DREvents.debug.force('Waterspout_Corrupt'); });
-  await sleep(300);
+  // đếm và gài Random trước khi gọi vòi: máy tải nặng có khi vòi chạm thuyền ngay trong lúc chờ, chạm chỉ một lần
   const ab0 = await ev(() => DR.grid('INVENTORY').items.filter(i => /-ab-/.test(i.id)).length);
-  await ev(() => { window.__rnd0 = window.__rnd0 || Math.random; Math.random = () => 0.05; const I = DREvents.current.handle.inst, b = DR.s.boat; I.x = b.x; I.z = b.z; });
+  await ev(() => { window.__rnd0 = window.__rnd0 || Math.random; Math.random = () => 0.05; DREvents.debug.force('Waterspout_Corrupt'); });
+  await sleep(300);
+  await ev(() => { const I = DREvents.current.handle.inst, b = DR.s.boat; I.x = b.x; I.z = b.z; });
   await sleep(500);
   await ev(() => { Math.random = window.__rnd0; });
   const ab = await ev(() => DR.grid('INVENTORY').items.filter(i => /-ab-/.test(i.id)).map(i => i.id));
-  check('vòi hỏng + Random 0,05: nhận một cá dị biến (Mackerel/Cod Aberration)', ab.length === ab0 + 1 && /^(mackerel|cod)-ab-[123]$/.test(ab[ab.length - 1]), JSON.stringify(ab));
+  check('vòi hỏng + Random 0,05: nhận một cá dị biến (Mackerel/Cod Aberration)', ab.length === ab0 + 1 && /^(mackerel|cod)-ab-[123]$/.test(ab[ab.length - 1]), JSON.stringify({ ab0, ab }));
 
   // ---------------------------------------------------------------- 5. ảnh
   console.log('U8 ảnh');
