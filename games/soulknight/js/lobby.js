@@ -918,7 +918,7 @@
       start: () => { if (SK.G.state === 'hall') launch(P.selected, 'level'); },
       desc: 'Chế độ Ải kèm vài nhân tố thử thách: mỗi nhân tố đổi một luật của lượt chơi. Chọn tối đa ba, không trùng nhau.' },
     { id: 'bossrush', name: 'Khu Thí Luyện', img: 'mode_bossrush.png', icon: true, ok: true,
-      start: () => { if (SK.G.state === 'hall') launch(P.selected, 'bossrush'); },
+      start: () => { if (SK.G.state === 'hall') { const go = () => launch(P.selected, 'bossrush'); if (SK.bossrush2) SK.bossrush2.ask(go); else go(); } },   // vé Lông Vũ + Thuần Túy: js/bossrush2.js
       desc: 'Mười lăm ải liền, ải nào cũng là một Lãnh Chúa của vùng đất ngẫu nhiên; giữa các trận có rương và phòng phụ. Chơi một mình.' },
     // Mê Trận Tà Vương [LOC gamemode/looptravel]: Chế độ Ải không hồi kết (js/matrix.js), Uy Áp tăng mỗi tầng, Tà Vương chấm điểm ở x-5.
     // Như Khu Thí Luyện: không mang vật phẩm ngoài thế giới [LOC guide/mode_loop] nên bỏ vàng Két Sắt và vũ khí mang theo.
