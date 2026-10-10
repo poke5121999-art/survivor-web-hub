@@ -23,7 +23,7 @@ Ký hiệu khả thi: A = làm được gần như hoàn toàn bằng thứ đã
 | Mode/Troop (season/Troop, Troop2) | Chỉ Huy Nhỏ | "Chiêu mộ diễn viên và bồi dưỡng cho họ, tiêu diệt thủ lĩnh để quay ra những thước phim đẹp đẽ!" [Troop2/guidance/desc_0]; chợ, liên kết, kỹ năng chỉ huy [desc_1-11]; mùa giải có Lính Thuê [season/lc_txt*]; map_troop2, map_troop_base | C |
 | Mode/Artifacts | Thần Khí Lục Địa Cổ | mùa giải Thần Khí (season/Artifacts_Bronze/Silver/Gold, artifact/*); AB artifacts2 | C |
 | (mùa giải hiện tại) | Mùa giải | "Chế độ Mùa Giải có quy tắc riêng... vũ khí mùa giải, thiên phú mùa giải... chế độ Vô Tận đã được thêm vào vòng quay" [season/introduce] | Web đã có bản "Thoát khỏi Monkia" (một phần) |
-| mode/MonsterRise | Quái Thú Trỗi Dậy | 712 term monsrise/* (kỹ năng quái, khả năng); AB monster_rise, scene_monsterrise | C |
+| mode/MonsterRise | Quái Thú Trỗi Dậy | 714 term monsrise/* (kỹ năng quái, khả năng, sự kiện); AB monster_rise (38 prefab quái M_*), scene_monsterrise | ĐÃ LÀM LÕI (mục 2i, js/monsterrise.js + monsterrise2.js): tự đánh trên làn, 30 quái, bản đồ 3 tầng, 12 huy hiệu; còn thiếu xem GAPS.md |
 | mode/void_invasion | Xâm Nhập Hư Không (3 độ: Lần Đầu Vào Hư Không / Hư Không Hỗn Độn / Hư Không Hủy Diệt) | "Hầm ngục quen thuộc đã bị sức mạnh Hư Không xâm chiếm, mang đến những thử thách lẫn cơ hội" [void_invasion/tip_0]; Xu Ám Tinh, Mắt Hư Không, quái Hư Không, Rãnh Nứt, Khiên Hư Không ở độ 3 [void_invasion/tip_1-14, void_invasion_tier3/tip_0-12]. Là độ khó mới của chế độ Ải [void_invasion/guide_0] | B/C (ải thủ tục + biến thể quái; nhiều hệ thống con) |
 | gamemode/pvz | Bảo Vệ Hoa Viên (sự kiện "Thủ Vệ Sân Vườn: Cây Cỏ Thành Binh") | [activity/pvz/title, desc0-4]: quái xếp hàng, trồng cây từ chậu hoa; AB statements_pvz, map_pvz | D (sự kiện) / C |
 | (Hố Treo / escape) | Thoát khỏi Hố Treo (irontide, escape) | irontide/* 345 term; AB escape*, statements_iron, season_iron_common; web đã có tương đương "Thoát khỏi Monkia" | ĐÃ CÓ một phần |
@@ -609,6 +609,47 @@ Wiki ghi hiện "không còn", đã thay bằng Thần Khí Lục Địa Cổ [W
 - Hệ số "máu quái tăng nhiều / tốc bắn tăng" của Chỉ Huy Nhỏ; cấu trúc phòng "ít hơn" (số phòng đã có nhưng bố cục không).
 - Xu rương xám / mỏ có đổi theo Lợi Hại hay không; "Tư Chất Lính Thuê" tăng phẩm tối đa lên mức nào.
 - Điều kiện mở (LOC không có chuỗi mở khoá Chỉ Huy Nhỏ): "Gold Trophy yêu cầu" chỉ nói ở mục Rewards.
+
+## 2i. Quái Thú Trỗi Dậy (Monster Rise, mode/MonsterRise, monsrise/*)
+
+Nhãn nguồn: [WIKI RoM] = trang Rise_of_Monsters (trang đang gắn {{WIP}}, bảng quái, bảng kỹ năng, 37 huy hiệu), [LOC] = localization_en_vi.json khoá `monsrise/*` (714 khoá: ability 297, ev 148, monster 45, stat 30, buff 18, attr 15, pvp 15...), [AB] = monster_rise.ab / scene_monsterrise.ab (liệt kê container; ĐO 2026-10-10). Config `~/sk86-ref/decoded/config/*.json` KHÔNG có bảng nào của chế độ này (grep monsrise / monster_rise ra rỗng): chỉ số quái, kỹ năng, bản đồ nằm trong Lua/Luban bundle chưa giải mã. Số không có nguồn ghi [ƯỚC LƯỢNG].
+
+### Là gì
+Chế độ một người mở bằng Máy Game (Arcade) tầng 2 Phòng Khách; mở khoá khi vượt Chế độ Ải tới 1-5 ít nhất một lần [WIKI RoM]. Người chơi là Quan Chỉ Huy ("HP Quan Chỉ Huy" [LOC player_hp]) dẫn đội quái thú chạy khỏi màn sương đang lan: "Sương mù bí ẩn đang lan rộng, dẫn đám quái vật trốn khỏi màn sương" / "Chiêu mộ quái vật mở rộng đội ngũ" / "Trang bị huy hiệu cho quái" [LOC gameplay_desc_0..2]. Ba tầng (Rừng Rậm, Đầm Lầy [LOC level_name_0/1], tầng 3 chưa có tên) và trận cuối ở cổng cuối; thắng hoặc thua đều được Ngọc [WIKI RoM "General"]. Cũng có chế độ Đấu Trường PvP (đội hình đấu đội hình, 15 khoá pvp_*) [LOC] và các độ khó (select_difficulty), danh sách huy chương mở khoá nội dung / skin giới hạn [LOC unlockcontent, limited_skin]: không làm.
+
+### Vòng chơi
+1. Mở đầu: chọn quái xuất phát từ 3 quái ngẫu nhiên [WIKI RoM "General": chọn 1 con; LOC ev_start_desc ghi "chọn {0} quái thú"; web chọn 2 [ƯỚC LƯỢNG]]. Có "Quái Thú Ban Đầu" mở khoá bằng huy chương [LOC unlock_init_monster]: không làm.
+2. Bản đồ nhiều đường, mỗi điểm dừng là một trong: Chiến đấu / Giao dịch / Sự kiện / Nghi lễ / Nghỉ ngơi (Start / End là hai đầu) [LOC ev_room_fight|shop|event|ritual|rest, ev_room_start|end]. Tới cổng cuối là sang tầng kế; qua cả 3 tầng thì đánh trận cuối với đội quán quân kỳ trước [WIKI RoM; LOC ev_final_desc, last_champion_formation]; thắng thì "bạn đã giành chức vô địch" và được chọn đăng ký đội hình [LOC ev_final_win, ev_final_win_accept|reject].
+3. Chiến đấu theo làn kiểu thủ thành [WIKI RoM "Battle"]: giai đoạn chuẩn bị đặt quái lên ô của nửa sân bên trái, nửa phải hiện quân địch; bấm nút bắt đầu thì địch lao vào, đánh liên tục tới khi chết hết một bên; xong trận nhận EXP trận + vàng [WIKI RoM; LOC monster_exp]. Quái tự thi triển kỹ năng khi đầy năng lượng [LOC tips_mana]. Chiến đấu tốn thức ăn: mỗi quái xuất trận cần món theo "tiêu hao" của nó; hết thức ăn thì dính "Chết Đói" (quái phe ta gây ít sát thương) [LOC food_*, tips_food, starving, Starving_Buff_desc]. Sương mù: quái ta tiếp tục chịu sát thương khi đánh trong sương [LOC battle_in_mist].
+4. Quái chết thì mất ("{0} tử trận" [LOC monster_die]); Bảo hiểm tử trận đền vàng, Vật hồi sinh cả đội [LOC item_insurance_desc, item_reborn_desc]. Quy mô đội: mỗi quái tốn một lượng cố định, nâng quy mô bằng Thử Thách Anh Hùng [LOC tips_capacity, ev_heroic_trail]. Chiêu mộ quái đã có = lên cấp, quái nhận thiên phú mới [LOC tips_levelup]. Không đủ chỗ: "Không thể chiêu mộ thêm quái" [LOC team_full].
+
+### Tài nguyên
+- Vàng: thu sau mỗi điểm dừng, dùng mua quái, huy hiệu, bình máu, hoặc trong sự kiện [WIKI RoM "General"]. Thức ăn (Food), Vỏ Sò (Shell, tiền tệ meta thống kê [LOC stat_shell, get_medal]), Huy chương (mở khoá nội dung giữa các ván) [LOC unlockcontent, possessed_medal]. Điểm cuối ván: Điểm chiến đấu / tài nguyên / quái thú / tổng [LOC stat_*].
+- Quy mô đội (Squad Size), cost mỗi quái 1 / 2 / 4 [WIKI RoM cột Cost].
+
+### Quái thú, kỹ năng, huy hiệu
+- 30 quái ở bảng wiki (Goblin 6, Con Người 6, Người Lùn 4, Á Nhân 9, Slime 3, Ác Ma 2) cùng chỉ số: cost, HP, tấn công, tốc đánh, tầm (ô), bạo 10% / 150% (Slime và Ác Ma 0% / 100%), tốc chạy 2,5 (Xu Hoạt Hóa 4) [WIKI RoM "Monsters"]. Vai: Tank / Chiến Sĩ / Xạ Thủ / Hỗ Trợ / Pháp Sư / Thích Khách [LOC role_*]. LOC còn các quái chưa có ở bảng wiki: Kỵ Thủ Đào Vàng (Nugget Rider), Heo Rừng Vua, Bát Giới, Hoa Ăn Thịt, Hoa Phun, Cua Pha Lê, Ác Mộng Rừng Rậm, Khỉ Bàn Tay Vàng (triệu hồi) [LOC monster_*].
+- Mỗi quái có 1 kỹ năng riêng (hồi chiêu hoặc đầu trận) với 2 nâng cấp thiên phú, số ở bảng "skill" của wiki (Đại Tư Tế sét 342~722 tối đa 3 địch; Bắn Tỉa đòn kế 825; Bùa Chú pháo đầu trận 975 + 130 mỗi quái sau; Xẻng Đào hồi 500...) [WIKI RoM].
+- 37 huy hiệu (Thành Lũy +1000 HP, Đề Phòng 12 Khiên, Hút HP 1,5%, Phá Thủ +25%...) [WIKI RoM "Badges"]; LOC có 297 khoá `ability_*` (tên + mô tả với {0},{1}) cho chúng và thiên phú, cùng 7 món ăn (drink1..7: bạo, kháng vật lý, công tốc, HP tối đa, tốc chạy, cường độ nguyên tố, tấn công vật lý) [LOC drink*_desc], 6 kỹ năng Chỉ Huy (Ký Sinh Trùng, Laser Quỹ Đạo, Hố Đen, Mưa Axit, Chất Kích Thích, Máy Bay Y Tế) [LOC cmdskl/*], 9 hiệu ứng (hồi, chảy máu, thiêu, độc, choáng, lạnh, ẩn thân, cô lập, kích hoạt) [LOC buff_*].
+- Sự kiện: 40+ loại trên bản đồ (Tế Đàn Kỳ Dị, Suối Nữ Thần, Thử Thách Anh Hùng, Phù Thủy Rừng, Thị Trấn Sương, Chợ Đen, Đấu Trường, truy đuổi / hộ tống / cướp đường / phục kích / bệ thờ lửa / cứu bệnh / bức tượng lạ / bán huy hiệu / tàn tích giao tranh / lửa trại / đầm lầy / doanh trại / mỏ / bộ lạc) [LOC ev_*].
+
+### Thắng thua và thưởng
+- Thắng: hạ đội quán quân kỳ trước ở cổng cuối tầng 3 [WIKI RoM; LOC ev_final_*]. Thua: thua một trận chiến [WIKI RoM "General": "losing to a battle"; LOC ev_battle_lose, fight_defeat]. Thưởng: Ngọc cuối ván (thắng hoặc thua) [WIKI RoM]; Huy chương, quái và thiên phú nhận được hiện ở màn kết quả [LOC get_medal|get_trait|get_monster]. Số Ngọc không có.
+
+### Thứ đã có ở web dùng lại
+- Hình quái: 38 prefab `M_*` trong monster_rise.ab qua tools/extra/monsterrise.json -> `SK.prefab('M_Goblin_Warrior')` có khung `spriteSets` (SpriteAnimationProxy) idle / đi; web vẽ trực tiếp từ các khung này (chỉ lấy 16 khung đầu mỗi quái).
+- `SK.MODES` (cách Season đăng ký trạng thái riêng), `SK.makePlayer` (người chơi giả cho runEnd), `runEnd` -> Ngọc ở js/lobby.js, màn `sk-win` / `sk-over`, thẻ ở bảng Chế độ (js/lobby.js MODES).
+
+### Đã làm ở web (js/monsterrise.js lõi thuần + js/monsterrise2.js giao diện/vẽ; bộ kiểm test/soulknight-monsterrise.js)
+- Thẻ "Quái Thú Trỗi Dậy" ở bảng Chế độ (ảnh Chế độ Ải tạm); trạng thái riêng `G.state = 'monsterrise'`, lớp DOM phủ màn hình + canvas riêng cho sân 12x5 ô (nửa trái 6 cột đặt quái ta).
+- 30 quái đúng bảng wiki; 3 tầng, mỗi tầng 4 cột điểm dừng (2-3 điểm, nhiều đường) + trùm (Ác Mộng Rừng Rậm tầng 1, Hoa Ăn Thịt tầng 2, đội quán quân tầng 3 [ƯỚC LƯỢNG: chỉ số trùm]).
+- Mô phỏng trận: di chuyển tới mục tiêu gần nhất, đánh theo công tốc, bạo, Khiên (nhận ít hơn 50%, mất 1 Khiên [ƯỚC LƯỢNG 50%]), 5 hiệu ứng (choáng, thiêu, chảy máu, độc, lạnh), Chết Đói (-30% [ƯỚC LƯỢNG]), Sương Mù sau 120 giây (-2% HP/giây [ƯỚC LƯỢNG]), triệu hồi.
+- 25 kỹ năng quái đúng số wiki, đủ mọi quái ở bảng trừ Slime / Thương Nhân / Xu (18 kỹ năng hồi chiêu + 7 kỹ năng đầu trận hoặc nội tại gắn đòn thường như Bậc Thầy Nổ Phá, Cầu Phúc); bản gốc của kỹ năng, chưa có 2 bậc nâng cấp; 12 huy hiệu (Thành Lũy, Đề Phòng, Hút HP, Nạp Lực, Đội Hình - Công, Sói Cô Đơn - Công, Phá Thủ, Giả Chết, Vòng Chữa Lành, Hiền Giả, Đầu Bếp, Đạn Phân Tán).
+- Giao dịch (3 quái, 2 huy hiệu, bình máu, thức ăn, hồi sinh), Nghỉ ngơi (30% / bữa ăn 60%), Nghi lễ (hi sinh 1 quái, quái kia nhận huy hiệu), 4 sự kiện (Cướp Đường, Bức Tượng Lạ, Đống Lửa Trại, Dấu Vết Giao Tranh); gộp quái cùng loại lên cấp (HP/tấn công x1,3, tối đa cấp 3), quy mô đội 6 (+2 mỗi tầng), quái chết mất hẳn, thức ăn xuất trận, thắng/thua qua `runEnd` thật.
+- Cân bằng đo bằng bot đơn giản (ngoài repo, 200 ván): thắng ~14%; số quái địch/giá/hồi máu đều [ƯỚC LƯỢNG].
+
+### Chưa làm / không đoán (đã ghi tools/polish/GAPS.md)
+- Chỉ số trùm và quái Ác Ma/Cua/Heo; hồi chiêu kỹ năng chính xác sau nâng cấp; 2 bậc thiên phú nâng cấp của từng kỹ năng; 25 huy hiệu còn lại; kỹ năng Chỉ Huy, Món Ăn, Đấu Trường PvP, Huy chương/mở khoá, hơn 30 sự kiện bản đồ; ảnh thẻ gốc và giao diện gốc (canvas_monster_rise).
 
 ## 3. Điểm cần xác minh thêm (nguồn không có)
 - Hệ số HP/ST/tốc độ/mật độ/Tinh Anh chính xác của Lợi Hại; số trận và hồi máu của Khu Thí Luyện; số Lông Vũ/lượt/ngày; thưởng Nhân Tố; id số factor (105/1003/1010) -> tên. Cách lấy: clip gameplay (skill watch-game-clips) hoặc giải mã bảng cấu hình còn lại (ngoài 17 bảng; luban_config trong bundle config/luban_config).

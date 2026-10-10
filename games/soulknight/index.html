@@ -52,7 +52,7 @@
   #sk-lobby .hs-modes h2{left:calc(var(--u)*25);top:calc(var(--u)*2);font-size:calc(var(--u)*5.5);text-shadow:0 2px 0 #000}
   .hs-x{right:calc(var(--u)*3);top:calc(var(--u)*2);width:calc(var(--u)*7);height:calc(var(--u)*7);padding:0;background:#d8262b;border:2px solid #6d0f12;
     font-size:calc(var(--u)*5)!important;line-height:1}
-  .hs-mode-list{left:calc(var(--u)*11);top:calc(var(--u)*13);display:flex;flex-direction:column;gap:calc(var(--u)*2)}
+  .hs-mode-list{left:calc(var(--u)*11);top:calc(var(--u)*13);display:flex;flex-direction:column;gap:calc(var(--u)*2);max-height:calc(var(--u)*104);overflow-y:auto;scrollbar-width:thin}   /* nhiều thẻ chế độ: cuộn thay vì tràn khỏi màn */
   .hs-mode{position:relative;width:calc(var(--u)*28);height:calc(var(--u)*12);padding:0;background:#1a3a5a center/cover no-repeat;
     border:calc(var(--u)*.5) solid #0d0f12;image-rendering:pixelated;display:flex;align-items:flex-end;justify-content:center}
   .hs-mode span{font-size:calc(var(--u)*3.2);text-shadow:0 0 3px #000,0 2px 0 #000;padding-bottom:calc(var(--u)*.4)}
@@ -167,7 +167,7 @@
   <h2 style="color:var(--gold)">Chiến thắng!</h2><p id="sk-win-info"></p>
   <button id="sk-win-retry" class="sk-btn">Chơi lại</button>
 </div>
-<script src="data/sk-data.js?v=20261010zm"></script>
+<script src="data/sk-data.js?v=20261010zo"></script>
 <script src="data/skins/index.js?v=20261010zf"></script>
 <script src="data/skins/econ.js?v=20261010zf"></script>
 <script src="data/sk-wiki.js?v=20260929b"></script>
@@ -342,13 +342,15 @@
 <script src="js/void2.js?v=20261010zd"></script>
 <script src="js/void3.js?v=20261010zn"></script>
 <script src="js/bossrush2.js?v=20261010zh"></script>
-<script src="js/lobby.js?v=20261010zh"></script>
+<script src="js/lobby.js?v=20261010zo"></script>
 <script src="js/troop.js?v=20261010zd"></script>
 <script src="js/troop2.js?v=20261010zd"></script>
 <script src="js/defence.js?v=20261010zl"></script>
 <script src="js/defence2.js?v=20261010zi"></script>
 <script src="js/defence3.js?v=20261010zi"></script>
 <script src="js/defence4.js?v=20261010zl"></script>
+<script src="js/monsterrise.js?v=20261010zo"></script>
+<script src="js/monsterrise2.js?v=20261010zo"></script>
 <script src="js/polish3.js?v=20261010zk"></script>
 <script src="data/sk-hall.js?v=20261010i"></script>
 <script src="js/hall5.js?v=20261010zm"></script>

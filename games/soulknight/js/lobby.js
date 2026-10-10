@@ -934,6 +934,11 @@
     { id: 'defence', name: 'Thần Điện Thủ Hộ', img: 'mode_defence.png', ok: true,
       start: () => { if (SK.G.state === 'hall') launch(P.selected, 'defence', []); },
       desc: 'Bảo vệ Đá Phép Cổ Đại khỏi từng đợt quái lao tới. Hạ quái để lấy Xu Sao, dùng Xu Sao đặt các tháp phòng thủ lên Nền Tháp và nâng sao cho chúng. Đá Phép vỡ là thua; giữ được qua các đợt là thắng.' },
+    // Quái Thú Trỗi Dậy [LOC monsrise/*, MODES.md 2i]: Máy Game (Arcade) tầng 2 Phòng Khách; tự đánh trên làn, dẫn đội quái thú qua bản đồ (js/monsterrise.js, monsterrise2.js).
+    // Ảnh thẻ gốc chưa tìm thấy (GAPS.md) nên dùng ảnh Chế độ Ải.
+    { id: 'monsterrise', name: 'Quái Thú Trỗi Dậy', img: 'mode_level.png', ok: true,
+      start: () => { if (SK.monsterrise && SK.monsterrise.start) SK.monsterrise.start(P.selected); },
+      desc: 'Sương mù bí ẩn đang lan rộng. Chọn một quái thú xuất phát, chiêu mộ thêm quái, trang bị huy hiệu rồi dẫn đội qua bản đồ nhiều đường: đặt quái lên sân, bấm bắt đầu và xem chúng tự đánh. Qua ba tầng và hạ đội quán quân kỳ trước để vô địch.' },
     { id: 'season', name: 'Chế độ mùa giải', img: 'mode_season.png', isNew: true, ok: true,
       desc: 'Thoát khỏi Monkia: căn cứ giữa rừng thông, qua cổng xoáy ra Ngoại ô căn cứ, đánh khỉ, mở thùng, về điểm rút lui mang đồ về.',
       start: () => SK.SEASON && SK.SEASON.start && SK.SEASON.start(SK.profile.selected || 'knight') },

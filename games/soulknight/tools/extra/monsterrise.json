@@ -1,0 +1,50 @@
+{
+ "bundles": [
+  "common",
+  "monster_rise"
+ ],
+ "prefabs": [
+  "M_Monkey_Assassin_Pirate",
+  "M_Goblin_Support",
+  "M_Knight_Tank_Defender",
+  "M_Slime_Red",
+  "M_Knight_Shooter",
+  "M_Goblin_Shooter",
+  "M_Slime_Gray",
+  "M_Miner_Mage",
+  "M_Boar_Warrior",
+  "M_ForestNightmare",
+  "M_Knight_Warrior",
+  "M_Dark_Merchant",
+  "M_Monkey_Warrior",
+  "M_Slime_Green",
+  "M_SpitPlant",
+  "M_Knight_Tank_Paladin",
+  "M_Monkey_MaskFighter",
+  "M_Knight_Mage",
+  "M_Goblin_Warrior",
+  "M_Knight_Savior",
+  "M_Goblin_Mage_Sorcerer",
+  "M_Miner_Warrior",
+  "M_Monkey_Shooter_Pitcher",
+  "M_Monkey_Armor",
+  "M_Monkey_Shooter_Uzi",
+  "M_Goblin_Executor",
+  "M_Cannibal",
+  "M_Monkey_Monk",
+  "M_Goblin_Mage_Royal",
+  "M_Snowman_Shooter",
+  "M_Miner_Tank",
+  "M_Miner_Shooter",
+  "M_Boar_Support",
+  "M_Miner_Assassin",
+  "M_Monkey_Assassin_Sorcerer",
+  "M_Goldmon",
+  "M_Snowman_Warrior",
+  "M_MistFlower",
+  "monster_rise_portal"
+ ],
+ "sprites": [
+  "^M_[A-Za-z_]+_([0-9]|1[0-5])$"
+ ]
+}
