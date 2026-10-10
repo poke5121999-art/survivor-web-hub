@@ -199,8 +199,10 @@ async function shoreRects(page) {
 }
 
 // bản đồ bọt (StylisedWater_Tex) đen: tắt hết bọt ở cả bản cũ lẫn bản mới, chỉ còn phần tô bóng của mặt nước
-const NO_FOAM = () => { const t = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1); t.needsUpdate = true; window.__foamTex = DRWater.uniforms.uFoamTex.value; DRWater.uniforms.uFoamTex.value = t; };
-const FOAM_BACK = () => { DRWater.uniforms.uFoamTex.value = window.__foamTex; };
+// wfx vòng 10: tắt cả ảnh phản chiếu phẳng (window.DR_REFL_OFF, js/water.js) — phép đo "mịn" nhắm vào ô đa giác của tô bóng mặt nước;
+// phản chiếu mây/đá bị DistortionNormal làm gợn là chi tiết thật của bản gốc (clip t = 164–166), không phải low poly
+const NO_FOAM = () => { const t = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1); t.needsUpdate = true; window.__foamTex = DRWater.uniforms.uFoamTex.value; DRWater.uniforms.uFoamTex.value = t; window.DR_REFL_OFF = 1; };
+const FOAM_BACK = () => { DRWater.uniforms.uFoamTex.value = window.__foamTex; window.DR_REFL_OFF = 0; };
 
 function sbs(web, real, name) {
   const outp = path.join(SHOTS, 'sbs-' + name + '.png');
