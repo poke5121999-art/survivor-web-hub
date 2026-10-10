@@ -19,6 +19,12 @@
  *     [SỬA vòng 9 wfx] Tên cbuffer ĐỌC ĐƯỢC (tools/shader_cbuf.py): cb0[126] = _ShallowColor, cb0[127] = _DeepColor, cb0[128] = _FoamColor,
  *     độ trong dùng 1 − _ShallowColor.a — suy luận hoán vị ở trên là nhầm. Nước xa/đáy biển vẫn giữ bộ hệ số đã đo theo clip (V04, chưa đụng tới);
  *     riêng vật sát dưới mặt nước (thân thuyền, qua uBoatZ) đã theo đúng tên: về _ShallowColor, độ trong (1 − _ShallowColor.a).
+ *     [ĐO vòng 10 wfx] Công thức đúng tên cho nước xa (albedo = lerp(_DeepColor, _ShallowColor, min(1, exp(−sâu/_Depth))), độ trong
+ *     (1 − _ShallowColor.a), nắng không hệ số, đáy nhìn xuyên nguyên) bật bằng ?waterorig=1. Tỉ lệ độ sáng web/clip theo dải giờ
+ *     (test/dredge-water-table.js): bình minh 0,38 | trưa 0,59 | hoàng hôn 0,40 | đêm 0,68 — tối hẳn vì nước vịnh sâu ra _DeepColor tím đen.
+ *     Ép kS = 1 (mọi nơi như sát vật): 1,17 | 1,66 | 1,30 | 1,53. Không kS cố định nào đưa cả bốn dải vào ±15 % (cần kS 0,78 bình minh, 0,38 trưa)
+ *     ⇒ phần lệch nằm ở đầu vào chứ không ở tên ô: bộ đệm sâu gốc (_CameraDepthTexture) và độ mạnh nắng theo giờ lên nước, cả hai không dựng lại
+ *     được từ dữ liệu. Vì vậy nước xa giữ bộ hệ số V04 (0,92 | 1,00 | 0,95 | 1,07), các kiểm tra màu của dredge-water/vwater không đổi.
  *     V04 (clip ObBBFGMem5U; nước vịnh Marrows lúc 10:55 đo (66..78, 95..114, 106..128), điểm câu 14:40 (60, 75, 85), 07:12 (52..62, 60..73,
  *     63..74), đêm (33,33,39); web trước (134..148, 160..165, 164..169)): mọi đo đều ra màu nước ≈ 0,4× của công thức bản rã (nắng·mây + ambient +
  *     (1 − mask.b)) × albedo — bọt trắng gốc lại sáng đầy, nên chỉ phần nước tối. Chưa tìm ra số hạng DXBC nào lệch (đã thử hoán đổi cb0[126]/[127]:
@@ -86,12 +92,14 @@
     uLandBox: { value: new T.Vector4(0, 0, 1, 1) }, // x0, z0, 1/w, 1/h (m)
     uNight: { value: 0 },
     uFoam: { value: 0.2 }, // _FoamAmount (WeatherController.cs:447), Fine.foamAmount
-    uSeeK: { value: SEE_K }, uWaterLit: { value: WATER_LIT }, uWaterSun: { value: SUN_LOW }, uWaterNight: { value: WATER_NIGHT }, uLitDepth: { value: LIT_DEPTH }, uShallow: { value: new T.Color() }, uShallowA: { value: 0.35 }, uDeep: { value: new T.Color() }, uDeepA: { value: 0 },
+    uSeeK: { value: SEE_K }, uOrig: { value: /[?&]waterorig=1/.test(root.location.search) ? 1 : 0 }, uWaterLit: { value: WATER_LIT }, uWaterSun: { value: SUN_LOW }, uWaterNight: { value: WATER_NIGHT }, uLitDepth: { value: LIT_DEPTH }, uShallow: { value: new T.Color() }, uShallowA: { value: 0.35 }, uDeep: { value: new T.Color() }, uDeepA: { value: 0 },
     uFoamCol: { value: new T.Color() }, uWaterDepth: { value: 1 },
     uSky: { value: new T.Color() }, uNormalTex: { value: null }, uFoamTex: { value: null },
     uSeabed: { value: null }, uSeabedBox: { value: new T.Vector4(0, 0, 1, 1) },
     // chiều sâu thật của thân thuyền (1 − eye z / 256 gói RGBA, 0 = không có) — bản gốc đọc _CameraDepthTexture; xem hullDepthPass()
-    uBoatZ: { value: null }, uBoatZRes: { value: new T.Vector2(1, 1) }, uBoatZOn: { value: 0 }
+    uBoatZ: { value: null }, uBoatZRes: { value: new T.Vector2(1, 1) }, uBoatZOn: { value: 0 },
+    // ảnh phản chiếu phẳng (_PlanarReflectionTexture) + ma trận chiếu toạ độ thế giới → uv của nó; xem reflectionPass()
+    uRefl: { value: null }, uReflMat: { value: new T.Matrix4() }, uReflOn: { value: 0 }
   };
 
   const GLSL_WAVE = `
@@ -214,10 +222,11 @@ void main() {
 #include <packing>
 ${GLSL_WAVE}
 uniform float uFoam;
-uniform float uSeeK; uniform float uWaterLit; uniform float uWaterSun; uniform float uWaterNight; uniform float uLitDepth; uniform vec3 uShallow; uniform float uShallowA; uniform vec3 uDeep; uniform float uDeepA; uniform vec3 uFoamCol; uniform float uWaterDepth;
+uniform float uSeeK; uniform float uOrig; uniform float uWaterLit; uniform float uWaterSun; uniform float uWaterNight; uniform float uLitDepth; uniform vec3 uShallow; uniform float uShallowA; uniform vec3 uDeep; uniform float uDeepA; uniform vec3 uFoamCol; uniform float uWaterDepth;
 uniform vec3 uSky; uniform sampler2D uNormalTex; uniform sampler2D uFoamTex;
 uniform sampler2D uSeabed; uniform vec4 uSeabedBox;
 uniform sampler2D uBoatZ; uniform vec2 uBoatZRes; uniform float uBoatZOn;
+uniform sampler2D uRefl; uniform mat4 uReflMat; uniform float uReflOn;
 varying vec3 vWPos;
 varying float vH;
 varying float vViewZ;
@@ -247,6 +256,8 @@ void main() {
   // ~0,65× (xem WATER_LIT) ⇒ hệ số 0,65 chỉ áp cho nước sâu, nước nông về 1 theo độ sâu z của đáy (cùng thang với kS)
   float litK = mix(uWaterLit * (1.0 - uWaterNight * smoothstep(0.5, 1.0, uDrFogD)), 1.0, exp(-depSea * zK / uLitDepth));
   vec3 col = mix(uShallow, uDeep, kS) * litK;
+  float kSo = min(1.0, exp(-dep / max(0.01, uWaterDepth)));   // bản rã đúng tên: độ sâu thẳng đứng, không hệ số
+  if (uOrig > 0.5) col = mix(uDeep, uShallow, kSo);
   // Vật sát dưới mặt nước (vỏ thuyền): bản rã lấy albedo = lerp(cb0[127], cb0[126], kS) với cb0[126] = _ShallowColor,
   // cb0[127] = _DeepColor (tên lấy từ m_NameIndices + m_CommonParameters của pass Universal Forward, tools/shader_cbuf.py), tức là SÁT VẬT
   // thì về _ShallowColor (xanh nhạt sáng), độ trong (1 − _ShallowColor.a). Nước xa / đáy biển giữ hệ số đã đo ở trên (V04); chỉ phần
@@ -286,14 +297,14 @@ void main() {
   // ánh sáng toon (không N·L) như Lit_Shader; mây che nắng không tối quá 0,25
   vec3 Ls = drEnvLights(wp);
   float mb = drEnvMaskB(wp.xz);
-  col *= uDrSunCol * (max(0.25, drEnvCloud(wp)) * uWaterSun) + Ls + uDrAmb + (1.0 - mb) + vec3(uDrTintK, 0.0, 0.0);
+  col *= uDrSunCol * (max(0.25, drEnvCloud(wp)) * mix(uWaterSun, 1.0, uOrig)) + Ls + uDrAmb + (1.0 - mb) + vec3(uDrTintK, 0.0, 0.0);
   // lấp lánh: phản xạ nắng trên mặt phẳng, chỉ lọt qua lỗ của texture bọt và ô Voronoi nghiêng của DistortionNormal
   vec2 nn = drS2L(texture2D(uNormalTex, uxz * ${f6(WM.DistortionUVTiling * 0.01)} + uGameTime * ${f6(WM.DistortionScrollSpeed)}).rgb).rg * 2.0 - 1.0;
   float nz = sqrt(1.0 - min(dot(nn, nn), 1.0));
   vec3 Lr = vec3(-uDrSunDir.x, uDrSunDir.y, -uDrSunDir.z);
   col += uDrSunCol * clamp(pow(clamp(dot(Lr, V), 0.0, 1.0), 64.0) * f10 - (2.0 * s2 + s1 + nz), 0.0, 1.0) * 50.0;
 
-  float Tr = mix(clamp((kS - foamA) * (1.0 - uDeepA) - f10, 0.0, 1.0), clamp((kHull - foamA) * (1.0 - uShallowA) - f10, 0.0, 1.0), kHull);
+  float Tr = mix(uOrig > 0.5 ? clamp((kSo - foamA) * (1.0 - uShallowA) - f10, 0.0, 1.0) : clamp((kS - foamA) * (1.0 - uDeepA) - f10, 0.0, 1.0), clamp((kHull - foamA) * (1.0 - uShallowA) - f10, 0.0, 1.0), kHull);
   // phản chiếu phẳng: [ĐỀ XUẤT] không vẽ cảnh lật; gần chân trời ảnh lật là trời = màu sương + quầng nắng (như Sky_Shader)
   float camD = distance(wp, cameraPosition);
   float wR = (1.0 - clamp((camD + 5.0) * ${f6(0.005 * WM.ReflectionDistanceFade)}, 0.0, 1.0))
@@ -302,11 +313,19 @@ void main() {
   float g = clamp(dot(rd, uDrSunDir), 0.0, 1.0);
   g = g * g * max(0.0, 1.0 - abs(uDrSunDir.y) + min(2.0 * uDrSunDir.y, 0.0));
   vec3 Rf = mix(fogColor, mix(fogColor, vec3(${E_GLOW()}), 0.5), g);
+  // PlanarReflections: ảnh camera lật qua y = 0 (đá/đảo lớp CollidesWithPlayer + bầu trời), lấy mẫu theo toạ độ màn hình đã lệch bởi
+  // DistortionNormal như số hạng khúc xạ (độ lệch × DistortionStrength·0,05, nhân (1 + ReflectionDistanceDistortionAdjustment) theo bản rã:
+  // uv = uvKhúcXạ + min(d, −w)·(uvMànHình − uvKhúcXạ)); [ĐỀ XUẤT] w = −ReflectionDistanceDistortionAdjustment (ô c9.w không có tên).
+  if (uReflOn > 0.5) {
+    vec4 rp = uReflMat * vec4(wp, 1.0);
+    vec2 ruv = rp.xy / rp.w + nn * ${f6(WM.DistortionStrength * 0.05 * (1 + (WM.ReflectionDistanceDistortionAdjustment || 0)))} * clamp(camD - 3.0, 0.0, 1.0);
+    Rf = clamp(texture2D(uRefl, ruv).rgb, 0.0, 1.0);
+  }
 
   float fog = clamp(drEnvFogAmount(wp, Ls, mb), 0.0, 1.0);
   vec3 fogC = drEnvFogColor(wp);
   // trộn kiểu nhân sẵn alpha: phần còn lại (Tr) là cảnh phía sau mặt nước (đáy, vỏ thuyền dưới nước)
-  float tS = (1.0 - fog) * (1.0 - wR) * Tr * mix(uSeeK, 1.0, kHull); // đáy biển nhìn xuyên ×uSeeK, vỏ thuyền thì nguyên (V04)
+  float tS = (1.0 - fog) * (1.0 - wR) * Tr * mix(mix(uSeeK, 1.0, uOrig), 1.0, kHull); // đáy biển nhìn xuyên ×uSeeK, vỏ thuyền thì nguyên (V04)
   vec3 rgb = (1.0 - fog) * ((1.0 - wR) * (1.0 - Tr) * col + wR * Rf) + fog * fogC;
   gl_FragColor = vec4(rgb, 1.0 - tS);
   #include <encodings_fragment>
@@ -395,7 +414,7 @@ void main() {
     mesh.frustumCulled = false;
     mesh.renderOrder = 1;
     mesh.name = 'water';
-    mesh.onBeforeRender = hullDepthPass;
+    mesh.onBeforeRender = (r, sc, cam) => { hullDepthPass(r, sc, cam); reflectionPass(r, sc, cam); };
     scene.add(mesh);
   }
 
@@ -460,6 +479,84 @@ void main() { gl_FragColor = packDepthToRGBA(clamp(1.0 - vZ / 256.0, 0.004, 0.99
     renderer.render(bzScene, camera);
     renderer.setRenderTarget(prevRT);
     renderer.setClearColor(_bcc, prevA);
+  }
+
+  // ---- phản chiếu phẳng (PlanarReflections.cs, data/reflect.js do tools/reflect.py sinh) ----
+  // Gốc (Manager.unity): renderScale 0,5; reflectionLayer = CollidesWithPlayer (đá, đảo, cột, phao); reflectSkybox 1; mặt phẳng y = 0;
+  // mặt cắt xiên ở y = −0,1; không bóng; sương riêng của game vẫn chạy (RenderSettings.fog chỉ tắt sương dựng sẵn của Unity). Bật mặc định
+  // (SettingsSaveDataTemplate.reflections = 1). Web: mỗi InstancedMesh của ô thế giới bật layer REFL nếu đa số instance của nó thuộc lớp đó
+  // (instanceBits), cầu trời cũng bật; camera ảo theo cách của THREE.Reflector, vẽ cả cảnh chỉ với layer REFL vào RT nửa độ phân giải.
+  const REFL = 7, RF = root.DR_REFLECT || null;
+  const reflBits = RF ? Uint8Array.from(atob(RF.instanceBits), c => c.charCodeAt(0)) : null;
+  const reflDone = new WeakSet();
+  let reflRT = null, reflCam = null, reflTagT = 0, reflDome = null;
+  const _rp = new T.Vector3(), _rc = new T.Vector3(), _rn = new T.Vector3(0, 1, 0), _rv = new T.Vector3(), _rt = new T.Vector3(),
+    _rl = new T.Vector3(), _rr = new T.Matrix4(), _rpl = new T.Plane(), _rcl = new T.Vector4(), _rq = new T.Vector4(), _rsz = new T.Vector2();
+  function reflTag(sc) {
+    const W = root.DRWorld;
+    if (W && W.cells) for (const k of W.loaded || []) {
+      const g = W.cells[k] && W.cells[k].group;
+      if (!g) continue;
+      for (const im of g.children) {
+        if (reflDone.has(im)) continue;
+        reflDone.add(im);
+        if (!im.isInstancedMesh || im.userData.off === undefined) continue;
+        let on = 0;
+        for (let i = 0; i < im.count; i++) { const j = im.userData.off + i; on += reflBits[j >> 3] >> (j & 7) & 1; }
+        if (on * 2 > im.count) im.layers.enable(REFL);
+      }
+    }
+    if (!reflDome && RF.reflectSkybox) sc.traverse(o => { if (!reflDome && o.isMesh && o.material && o.material.side === T.BackSide && /vD = position/.test(o.material.vertexShader || '')) reflDome = o; });
+    if (reflDome) reflDome.layers.enable(REFL);
+  }
+  function reflectionPass(renderer, sc, camera) {
+    const on = !!(RF && RF.defaultSetting && reflBits && root.DR && root.DR.mode !== 'title' && !root.DR_REFL_OFF); // DR_REFL_OFF: móc kiểm thử
+    uniforms.uReflOn.value = on ? 1 : 0;
+    if (!on) return;
+    if ((reflTagT = (reflTagT + 1) % 30) === 1) reflTag(sc);
+    renderer.getDrawingBufferSize(_rsz);
+    const w = Math.max(1, Math.floor(_rsz.x * RF.renderScale)), h = Math.max(1, Math.floor(_rsz.y * RF.renderScale));
+    if (!reflRT) {
+      // GetDescriptor: useMipMap + autoGenerateMips (mặt nước xa lấy mẫu mức mip cao ⇒ ảnh phản chiếu nhoè dần theo khoảng cách)
+      reflRT = new T.WebGLRenderTarget(w, h, { type: T.HalfFloatType, depthBuffer: true, stencilBuffer: false, generateMipmaps: true, minFilter: T.LinearMipmapLinearFilter });
+      reflCam = new T.PerspectiveCamera();
+      reflCam.layers.set(REFL);
+    }
+    if (reflRT.width !== w || reflRT.height !== h) reflRT.setSize(w, h);
+    // camera ảo (THREE.Reflector): vị trí, hướng nhìn và trục lên lật qua mặt phẳng y = 0 (reflectionTarget y 0, offset 0)
+    _rc.setFromMatrixPosition(camera.matrixWorld);
+    _rp.set(_rc.x, RF.reflectionPlaneOffset || 0, _rc.z);
+    _rv.subVectors(_rp, _rc);
+    if (_rv.dot(_rn) > 0) { uniforms.uReflOn.value = 0; return; }
+    _rv.reflect(_rn).negate().add(_rp);
+    _rr.extractRotation(camera.matrixWorld);
+    _rl.set(0, 0, -1).applyMatrix4(_rr).add(_rc);
+    _rt.subVectors(_rp, _rl).reflect(_rn).negate().add(_rp);
+    reflCam.position.copy(_rv);
+    reflCam.up.set(0, 1, 0).applyMatrix4(_rr).reflect(_rn);
+    reflCam.lookAt(_rt);
+    reflCam.far = camera.far; reflCam.near = camera.near;
+    reflCam.updateMatrixWorld();
+    reflCam.projectionMatrix.copy(camera.projectionMatrix);
+    // ma trận uv cho shader nước
+    uniforms.uReflMat.value.set(0.5, 0, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0, 0.5, 0.5, 0, 0, 0, 1)
+      .multiply(reflCam.projectionMatrix).multiply(reflCam.matrixWorldInverse);
+    // mặt cắt xiên (CalculateObliqueMatrix) ở y = −0,1 (PlanarReflections.cs: vector − up·0,1)
+    _rpl.setFromNormalAndCoplanarPoint(_rn, _rt.set(_rp.x, _rp.y - 0.1, _rp.z)).applyMatrix4(reflCam.matrixWorldInverse);
+    _rcl.set(_rpl.normal.x, _rpl.normal.y, _rpl.normal.z, _rpl.constant);
+    const pm = reflCam.projectionMatrix.elements;
+    _rq.set((Math.sign(_rcl.x) + pm[8]) / pm[0], (Math.sign(_rcl.y) + pm[9]) / pm[5], -1, (1 + pm[10]) / pm[14]);
+    _rcl.multiplyScalar(2 / _rcl.dot(_rq));
+    pm[2] = _rcl.x; pm[6] = _rcl.y; pm[10] = _rcl.z + 1; pm[14] = _rcl.w;
+    const prevRT = renderer.getRenderTarget(), autoReset = renderer.info.autoReset, shadow = renderer.shadowMap.autoUpdate;
+    renderer.info.autoReset = false; renderer.shadowMap.autoUpdate = false;   // không bóng (renderShadows = false)
+    renderer.setRenderTarget(reflRT);
+    renderer.state.buffers.color.setMask(true); renderer.state.buffers.depth.setMask(true);
+    renderer.clear(true, true, false);
+    renderer.render(sc, reflCam);
+    renderer.setRenderTarget(prevRT);
+    renderer.info.autoReset = autoReset; renderer.shadowMap.autoUpdate = shadow;
+    uniforms.uRefl.value = reflRT.texture;
   }
 
   let propT = 0;

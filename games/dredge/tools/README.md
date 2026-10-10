@@ -372,3 +372,10 @@ Gỡ nhanh nếu bị yêu cầu: xoá `art/`, `audio/`, và mọi tệp `data/*
   - `m_CommonParameters` chỉ có tham số chung mọi biến thể; tham số riêng một biến thể (màu FoamColoured c126 của FloatingParticle) không có tên trong bản 1.5.3 (`m_Parameters` của subprogram rỗng, DXBC đã bỏ RDEF): suy từ tên công tắc + đo ảnh, ghi `[ĐỀ XUẤT]`.
   - Hạt `BoatTrailParticles` dùng `FoamParticle_Mat_0` (không phải `FoamParticle_Mat`), shader cùng thân. Hạt ở lớp Water (4): ForwardRenderer loại lớp 4 khỏi pass đục/trong suốt, vẽ qua RenderObjects `Water.asset` (ghi chiều sâu, Less) — xem `js/vfx.js foamMaterial`.
   - Mặt nước gốc là ô `WaterPlane_LOD0` 128 m lưới 2,67 m (LOD1 5,3 m), không phải 1 m như web.
+
+## reflect.py — phản chiếu phẳng của mặt nước (vòng 10 wfx) [ĐO TRONG REPO, 2026-10-10]
+- Chạy: `python -I games/dredge/tools/reflect.py` (~25 s, sau `world.py` vì đọc `art/world/instances.bin`). Ghi `data/reflect.js` (`DR_REFLECT`, ~2,6 KB): cấu hình PlanarReflections của `Scenes/Manager.unity` (renderScale 0,5; reflectionLayer = CollidesWithPlayer; reflectSkybox 1; mặt phẳng y 0), mặc định bật (`SettingsSaveDataTemplate.reflections = 1`) và `instanceBits` (bit i = instance i thuộc lớp phản chiếu). Dùng: `js/water.js reflectionPass()`. Kiểm: `node test/dredge-wfx.js`.
+- Bẫy:
+  - Lớp lấy theo GameObject chứ không theo mesh: so vị trí thế giới (cộng Transform cha trong Game.unity) với vị trí instance, làm tròn 1 cm (819/8550 instance). Đá/đảo phần lớn là "Combined Mesh" (static batching) nên không dò được bằng tên mesh.
+  - `RenderSettings.fog = false` trong PlanarReflections chỉ tắt sương dựng sẵn của Unity; sương của game là shader riêng nên ảnh phản chiếu vẫn có sương.
+  - Ảnh phản chiếu có mipmap (GetDescriptor useMipMap): không có thì mặt nước xa gợn sần (dredge-water "mịn, spyglass" lên 0,41).

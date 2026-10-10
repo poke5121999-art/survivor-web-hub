@@ -5,7 +5,8 @@
  *        DR_ROOT=D:/dredge-wt/_base16 node test/dredge-wfx.js   (đo bản trước để thấy các kiểm tra trượt)
  * Kiểm (thuyền chạy thẳng 3 s lúc 10:48, camera đuổi, 1280x720):
  *   1. vệt bọt BoatTrailParticles là VÒNG bọt trắng mảnh (FloatingParticle_Shader dẹp cầu lên mặt nước + bọt chạm của Water_Shader),
- *      không phải đĩa xanh đặc: trong hộp quanh thuyền có điểm gần trắng của bọt, và số điểm "đĩa xanh" (lam nhạt bão hoà) ít.
+ *      không phải đĩa xanh đặc. Đo RIÊNG vệt: giờ game đóng băng, chụp có/không mesh hạt cùng khung, trung vị 7 lần (wakeFoam).
+ *      Bản cũ đếm điểm trắng trong một ảnh: lẫn bọt bờ khi thuyền tới gần bờ và đổi 30..2000 theo pha sóng của khung chụp (Pages rev g: 30/465/180).
  *   2. vỏ chìm sáng qua nước: dải nước ngay dưới đuôi thuyền sáng hơn nước thoáng cùng hàng (quầng _ShallowColor + độ trong 1 − a).
  *   3. trạng thái vẽ của hạt theo dữ liệu: ghi chiều sâu, so sánh Less (RenderObjects "Water"), màu = _FoamColor của WaterController.
  *   4. đứng yên thì không có vòng bọt (rateOverDistance) — ảnh nước quanh thuyền không có điểm trắng của vệt.
@@ -97,8 +98,33 @@ async function stats(page, png, c) {
   }, [png.toString('base64'), c]);
 }
 
+// điểm bọt của RIÊNG vệt hạt: đóng băng giờ game (DR.holdTime), chụp có/không có mesh BoatTrailParticles cùng một khung, đếm điểm ảnh
+// sáng lên ≥ 40 (độ sáng) và gần trắng trong hộp 420x260 quanh thuyền — không lẫn bọt bờ/sóng, không phụ thuộc pha sóng của khung chụp
+async function wakeFoam(page) {
+  await page.evaluate(() => DR.holdTime('wfx-test', 0));
+  await sleep(120);
+  const c = await boatBox(page);
+  const a = await page.screenshot();
+  await page.evaluate(() => { DRVfx.mesh.visible = false; });
+  await sleep(120);
+  const b = await page.screenshot();
+  await page.evaluate(() => { DRVfx.mesh.visible = true; DR.releaseTime('wfx-test'); });
+  return page.evaluate(async ([A, B, c]) => {
+    const load = async b64 => { const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
+      const cv = document.createElement('canvas'); cv.width = img.width; cv.height = img.height; const g = cv.getContext('2d'); g.drawImage(img, 0, 0);
+      return g.getImageData(Math.round(c.x - 210), Math.round(c.y - 160), 420, 260).data; };
+    const da = await load(A), db = await load(B);
+    let n = 0;
+    for (let i = 0; i < da.length; i += 4) {
+      const la = 0.2126 * da[i] + 0.7152 * da[i + 1] + 0.0722 * da[i + 2], lb = 0.2126 * db[i] + 0.7152 * db[i + 1] + 0.0722 * db[i + 2];
+      if (la - lb >= 40 && da[i] > 140 && da[i + 2] > 160) n++;
+    }
+    return n;
+  }, [a.toString('base64'), b.toString('base64'), c]);
+}
+
 (async () => {
-  const srv = await serve(), base = 'http://localhost:' + srv.address().port;
+  const srv = process.env.DR_URL ? null : await serve(), base = process.env.DR_URL || 'http://localhost:' + srv.address().port;
   const browser = await chromium.launch({ args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist', '--disable-gpu-vsync', '--disable-frame-rate-limit'] });
   const errors = [];
   const tag = process.env.DR_ROOT ? 'before-' : '';
@@ -115,6 +141,13 @@ async function stats(page, png, c) {
     // chạy thẳng 3 s
     await page.keyboard.down('KeyW');
     await sleep(3000);
+    // thuyền phải đang chạy đủ tốc trước khi đo (vệt phát theo quãng đường, LifetimeByEmitterSpeed); chờ tối đa 4 s
+    await page.waitForFunction(() => Math.hypot(DR.s.boat.vx, DR.s.boat.vz) > 3 && DRVfx.stats().alive >= 30, null, { timeout: 4000 }).catch(() => {});
+    // trung vị của 7 lần đo cách nhau 0,4 s (vòng bọt đổi theo pha sóng của từng hạt)
+    const wf = [];
+    for (let k = 0; k < 7; k++) { wf.push(await wakeFoam(page)); await sleep(400); }
+    const wakeMed = wf.slice().sort((x, y) => x - y)[3];
+    console.log('  bọt riêng của vệt (7 lần):', wf.join(','), 'trung vị', wakeMed);
     const perf = await page.evaluate(() => DR_DEBUG.perf());
     const c1 = await boatBox(page);
     const p1 = await page.screenshot({ path: path.join(OUT, tag + 'run.png') });
@@ -123,9 +156,32 @@ async function stats(page, png, c) {
     const vfx = await page.evaluate(() => { const s = DRVfx.stats(); return { alive: s.alive }; });
     console.log('  chạy 3 s:', JSON.stringify(s1), 'hạt', vfx.alive, 'perf', perf.avgMs.toFixed(2), 'ms/khung, cpu', perf.cpuMs.toFixed(2), 'ms');
     ok(vfx.alive >= 30, 'đang chạy có ≥ 30 hạt vệt (' + vfx.alive + ')');
-    ok(s1.white >= 120, 'vệt bọt: ≥ 120 điểm bọt trắng quanh thuyền đang chạy (' + s1.white + ')');
+    ok(wakeMed >= 300, 'vệt bọt: trung vị điểm bọt riêng của vệt (có/không mesh hạt, giờ đóng băng) ≥ 300 (' + wakeMed + '; bản đĩa xanh cũ ≈ 0)');
     ok(s1.disc < 1500, 'vệt bọt không thành đĩa xanh đặc: < 1500 điểm lam nhạt bão hoà (' + s1.disc + ')');
     ok(s1.under > s1.open * 1.25, 'vỏ chìm sáng qua nước: sau đuôi ' + s1.under.toFixed(1) + ' > 1,25 × nước thoáng ' + s1.open.toFixed(1));
+    // 5. phản chiếu phẳng (PlanarReflections, Manager.unity): RT = 0,5 × khung, lớp CollidesWithPlayer (đá/đảo), có bầu trời; đổi mặt nước xa
+    // (V.y nhỏ: (1 − V.y)^14 · 0,5) mà gần như không đổi nước sát thuyền. Đo cùng một khung đóng băng: bật/tắt ảnh phản chiếu.
+    const rf = await page.evaluate(() => {
+      const U = DRWater.uniforms, t = U.uRefl && U.uRefl.value, R = window.DR_REFLECT;
+      let tagged = 0; DRWorld && Object.values(DRWorld.cells).forEach(c => c.group && c.group.children.forEach(o => { if (o.layers.test({ mask: 1 << 7 })) tagged++; }));
+      const sz = DR_DEBUG.renderer.getDrawingBufferSize(new THREE.Vector2());
+      return { on: U.uReflOn ? U.uReflOn.value : -1, w: t && t.image ? t.image.width : 0, bw: sz.x, layers: R ? R.reflectionLayerNames : null, tagged };
+    });
+    const band = async () => { const p = await page.screenshot(); return page.evaluate(async b64 => {
+      const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
+      const cv = document.createElement('canvas'); cv.width = img.width; cv.height = img.height; const g = cv.getContext('2d'); g.drawImage(img, 0, 0);
+      return [Array.from(g.getImageData(0, 330, 1280, 40).data), Array.from(g.getImageData(300, 640, 680, 60).data)]; }, p.toString('base64')); };
+    await page.evaluate(() => DR.holdTime('wfx-refl', 0)); await sleep(150);
+    const A = await band();
+    await page.evaluate(() => { window.DR_REFL_OFF = 1; }); await sleep(150);
+    const B = await band();
+    await page.evaluate(() => { window.DR_REFL_OFF = 0; DR.releaseTime('wfx-refl'); });
+    const mad = (x, y) => { let s = 0; for (let i = 0; i < x.length; i += 4) s += Math.abs(x[i] - y[i]) + Math.abs(x[i + 1] - y[i + 1]) + Math.abs(x[i + 2] - y[i + 2]); return s / (x.length / 4) / 3; };
+    const far = mad(A[0], B[0]), near = mad(A[1], B[1]);
+    console.log('  phản chiếu:', JSON.stringify(rf), 'lệch TB dải xa', far.toFixed(2), 'dải gần', near.toFixed(2));
+    ok(rf.on === 1 && rf.w === Math.floor(rf.bw * 0.5) && rf.layers && rf.layers.join() === 'CollidesWithPlayer' && rf.tagged > 0,
+      'phản chiếu phẳng bật: RT ' + rf.w + ' = 0,5 × ' + rf.bw + ', lớp ' + (rf.layers || []).join() + ', ' + rf.tagged + ' mesh đá/đảo được vẽ');
+    ok(far >= 3 && near < far, 'phản chiếu đổi nước xa (lệch TB ' + far.toFixed(2) + ' ≥ 3 mức; tắt/bật cùng khung, nhiễu ~1,2) nhiều hơn nước gần (' + near.toFixed(2) + ')');
     // 3. trạng thái vẽ (dữ liệu gốc)
     const st = await page.evaluate(() => {
       const m = DRVfx.mesh.material, fc = DRWater.props().foamColor, u = m.uniforms && m.uniforms.uFoamCol;
@@ -140,6 +196,6 @@ async function stats(page, png, c) {
   } catch (e) { fail++; console.log('  FAIL lỗi chạy: ' + e.message.split('\n')[0]); }
   ok(errors.length === 0, 'không lỗi trang/console/HTTP' + (errors.length ? ': ' + [...new Set(errors)].slice(0, 3).join(' ; ') : ''));
   console.log('dredge-wfx: ' + pass + ' pass, ' + fail + ' fail  -> ' + OUT);
-  await browser.close(); srv.close();
+  await browser.close(); if (srv) srv.close();
   process.exit(fail ? 1 : 0);
 })();

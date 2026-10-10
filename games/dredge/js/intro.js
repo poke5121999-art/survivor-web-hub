@@ -132,7 +132,7 @@
     // Bỏ qua: Bloom 1,5 (ngưỡng 1, cần HDR), ChromaticAberration 0,1, MotionBlur [ĐỀ XUẤT].
     const rt = new T.WebGLRenderTarget(4, 4, { samples: 4, minFilter: T.LinearFilter, magFilter: T.LinearFilter });
     rt.texture.encoding = T.sRGBEncoding;
-    const lutTex = new T.TextureLoader().load('art/ui/intro/LUT_0.png?v=20261010g');
+    const lutTex = new T.TextureLoader().load('art/ui/intro/LUT_0.png?v=20261010h');
     lutTex.minFilter = lutTex.magFilter = T.LinearFilter; lutTex.generateMipmaps = false;
     const post = new T.Scene(), postCam = new T.OrthographicCamera(-1, 1, 1, -1, 0, 1);
     const postMat = new T.ShaderMaterial({
