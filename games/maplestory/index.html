@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Maple Web</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #000; overflow: hidden; touch-action: none; overscroll-behavior: none; -webkit-user-select: none; user-select: none; }
+    #game { position: fixed; inset: 0; }
+    #game canvas { display: block; }
+    #ui { position: fixed; inset: 0; pointer-events: none; }
+    #ui > * { pointer-events: auto; }
+    #fade { position: fixed; inset: 0; background: #000; opacity: 0; transition: opacity .35s; pointer-events: none; }
+    #fade.on { opacity: 1; }
+    #loading { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); color: #fff; font: 14px/1.4 monospace; background: rgba(0,0,0,.7); padding: 10px 16px; border-radius: 6px; display: none; }
+    #loading.on { display: block; }
+    #touch { position: fixed; inset: 0; display: none; pointer-events: none; }
+    #touch.on { display: block; }
+    #touch .stick { position: absolute; left: 24px; bottom: 24px; width: 120px; height: 120px; border-radius: 50%; background: rgba(0,0,0,.28); border: 2px solid rgba(255,255,255,.7); box-shadow: 0 0 6px rgba(0,0,0,.5); pointer-events: auto; touch-action: none; }
+    #touch .knob { position: absolute; left: 36px; top: 36px; width: 48px; height: 48px; border-radius: 50%; background: rgba(255,255,255,.75); box-shadow: 0 0 4px rgba(0,0,0,.6); }
+    #touch .buttons { position: absolute; right: 20px; bottom: 20px; width: 220px; height: 160px; pointer-events: none; }
+    #touch .btn { position: absolute; width: 60px; height: 60px; border-radius: 50%; background: rgba(0,0,0,.32); border: 2px solid rgba(255,255,255,.75); box-shadow: 0 0 6px rgba(0,0,0,.5); text-shadow: 0 1px 2px #000; color: #fff; font: bold 12px/60px sans-serif; text-align: center; pointer-events: auto; touch-action: none; }
+    #touch .btn.on { background: rgba(255,255,255,.55); }
+    #touch .btn.attack { right: 0; bottom: 60px; width: 72px; height: 72px; line-height: 72px; }
+    #touch .btn.jump { right: 84px; bottom: 0; }
+    #touch .btn.pickup { right: 150px; bottom: 56px; width: 52px; height: 52px; line-height: 52px; }
+    #touch .btn.skill1 { right: 90px; bottom: 96px; width: 52px; height: 52px; line-height: 52px; }
+    #touch .btn.skill2 { right: 10px; bottom: 140px; width: 52px; height: 52px; line-height: 52px; }
+    html:not(.ui-phone) #touch .stick { bottom: 100px; }
+    html:not(.ui-phone) #touch .buttons { bottom: 96px; }
+    body.ui-covers-touch #touch .stick, body.ui-covers-touch #touch .btn { pointer-events: none; opacity: .25; }
+  </style>
+  <script type="module" crossorigin src="./bundle/main-CCns0xfN.js"></script>
+</head>
+<body>
+  <div id="game"></div>
+  <div id="ui"></div>
+  <div id="touch">
+    <div class="stick"><div class="knob"></div></div>
+    <div class="buttons">
+      <div class="btn attack" data-action="attack">ATK</div>
+      <div class="btn jump" data-action="jump">JUMP</div>
+      <div class="btn pickup" data-action="pickup">PICK</div>
+      <div class="btn skill1" data-skill="0">S1</div>
+      <div class="btn skill2" data-skill="1">S2</div>
+    </div>
+  </div>
+  <div id="fade"></div>
+  <div id="loading">loading</div>
+</body>
+</html>

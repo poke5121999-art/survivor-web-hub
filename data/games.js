@@ -950,5 +950,25 @@ window.HUB_GAMES = [
     // Kiểm: node test/toc-do-sim.js, node test/toc-do-assets.js (Node); node test/toc-do-ui.js (TD_URL để chạy trên Pages).
     status: "available",
     tags: ["Đua xe", "Drift", "Kart", "Phun nitro", "Bot", "3D", "Màn ngang"]
+  },
+  {
+    id: "maplestory",
+    title: "MapleStory",
+    tagline: "MapleStory v83 chơi một mình trên trình duyệt: Henesys, quái, kỹ năng, nhiệm vụ.",
+    desc: "Bản v83 dựng lại cho web, dữ liệu gốc của game. Tạo nhân vật trên đảo Maple, đánh quái, nhặt đồ, lên cấp, chuyển nghề ở Henesys, Ellinia, Perion, Kerning. Kỹ năng nghề 1 và 2, nhiệm vụ qua NPC, cửa hàng, taxi. Chơi bằng phím hoặc cảm ứng, lưu trong trình duyệt.",
+    genre: "nhap-vai",
+    accent: "#f7a325",
+    en: { title: "MapleStory", tagline: "MapleStory v83 solo in the browser: Henesys, monsters, skills and quests.", desc: "The v83 game rebuilt for the web from its original data. Make a character on Maple Island, hunt, loot, level up and take your job advancement in Henesys, Ellinia, Perion or Kerning. 1st and 2nd job skills, NPC quests, shops and taxis. Keyboard or touch, saved in the browser." },
+    thumbnail: "assets/thumbnails/maplestory.png",
+    path: "games/maplestory/index.html",
+    rev: "20261011b",
+    // Vite build of D:/MapleStoryLocal/web (own repo, outside git here), copied from its dist-hub/ by `npx vite build --mode hub`.
+    // The 1.8 GB of decoded WZ assets lives in three Pages sites, poke5121999-art/maple-assets-1..3, routed by
+    // top-level folder in web/.env.hub. Solo world in the tab (Cosmic server rules, no backend); online seam is
+    // web/src/protocol.ts. Art and sound are Nexon's.
+    //
+    // Kiểm: python verify/game/play.py <url> in D:/MapleStoryLocal/web
+    status: "available",
+    tags: ["MMORPG", "Nhập vai", "Màn ngang", "Kỹ năng", "Solo"]
   }
 ];
