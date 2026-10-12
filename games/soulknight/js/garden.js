@@ -171,9 +171,12 @@
   //   Hoa Ăn Thịt (Titan Arum): 15 HP (thanh máu hiện, đỏ khi nghỉ), cắn 5 sát thương (8 khi bạo kích).
   //   Bánh Ú Con (Zongzi Flower): 10 HP, dùng Súng Bánh Ú: loạt 3 lá, mỗi lá 3 sát thương, cách 0,1 s, nghỉ 0,25 s giữa loạt (0,5 s mỗi loạt; web: loạt 0,2 s + chờ 0,3 s).
   // Hồi chiêu 2 s của pet [WIKI Pets]. [ƯỚC LƯỢNG]: xác suất bạo kích 20%, góc quạt 0,3 rad, tầm bắn 6 đv, tốc đạn 14 đv/s, tầm cắn 1,2 đv.
-  // Chưa làm: màu lá Súng Bánh Ú (đốt / điện / băng), Pet Buff, Gigantic Pet (GAPS).
+  // Lá Súng Bánh Ú: mỗi lá ngẫu nhiên 1 trong 4 màu; bạo kích: xanh lá x2 sát thương, đỏ Cháy, vàng Điện giật, xanh dương Đóng băng; ba lá cùng màu (jackpot)
+  // thì lá thứ ba: đỏ nổ 8 sát thương (có thể Cháy 2 s), vàng Điện giật 5 s, xanh dương vũng băng 5 s [WIKI Zongzi Gun]. Bán kính nổ 2 đv, vũng 2 đv, nhịp 0,5 s,
+  // xác suất Cháy 50% [ƯỚC LƯỢNG]. Hoa Mandala bay qua khối / thùng [WIKI Devil's Snare (Plant)], không qua tường / hố; buff Shotgun (+2 viên), Chính Xác (góc quạt một nửa [ƯỚC LƯỢNG]),
+  // Độc (sát thương Độc +1 [ƯỚC LƯỢNG]), Nguyên Tố (bạo kích x2 sát thương) tác dụng lên Mandala. Pet Buff: js/pets3.js. Chưa làm: màu lá chưa nhuộm đạn, Gigantic Pet (GAPS).
   const COMP = {
-    plant_datura: { hp: 10, cd: 2, body: 'pet_datura_0', shots: 3, fan: 0.3, dmg: 3, crit: 0.2, poison: true, range: 6 * U },
+    plant_datura: { hp: 10, cd: 2, body: 'pet_datura_0', shots: 3, fan: 0.3, dmg: 3, crit: 0.2, poison: true, fly: true, range: 6 * U },
     plant_eator: { hp: 15, cd: 2, body: 'pet_eater_0', dmg: 5, critDmg: 8, crit: 0.2, bar: true },
     plant_zongzi: { hp: 10, cd: 0.3, prefab: 'pet41', shots: 3, burst: 3, gap: 0.1, dmg: 3, crit: 0, range: 6 * U }
   };
@@ -201,17 +204,85 @@
   // Đạn của Hoa Mandala mang độc: chỉ khi bạo kích [WIKI]; Trúng Độc dùng debuff của skills.js (BuffPoison)
   SK.on('enemyHit', (G2, e, dmg, crit) => {
     const b = G2._hitBullet;
-    if (b && b.gdPoison && crit && SK.skillKit && SK.skillKit.debuff) { SK.skillKit.debuff(G2, e, 'poison'); b.gdPoisoned = true; }
+    if (b && b.gdPoison && crit && SK.skillKit && SK.skillKit.debuff) {
+      const K = SK.skillKit;
+      K.debuff(G2, e, 'poison', b.gdPoisonUp && K.DEBUFF ? { dmg: K.DEBUFF.poison().dmg + 1 } : undefined); b.gdPoisoned = true;
+    }
+    if (b && b.zc) leafHit(G2, e, b, crit);
   });
+  const hasBuff = (G3, id) => { const q = G3.player; return !!(q && q.buffs && q.buffs.indexOf(id) >= 0); };
+  const LEAF = ['green', 'red', 'yellow', 'blue'];
   function shoot(G3, a, e, n) {
     const c = a.comp, base = Math.atan2(e.y - 4 - (a.y - 8), e.x - a.x), crit = SK.rand() < c.crit;
+    let fan = c.fan;
+    if (c.poison) { if (n > 1 && hasBuff(G3, 3)) n += 2; if (hasBuff(G3, 20)) fan *= 0.5; }   // Shotgun +2 viên, Chính Xác giảm góc quạt
+    let col = null, jack = false;
+    if (c.burst) {   // Súng Bánh Ú: màu ngẫu nhiên từng lá, ba lá cùng màu thì lá cuối là jackpot
+      a.cols = a.cols || []; col = SK.pick(LEAF); a.cols.push(col);
+      jack = a.cols.length === c.burst && a.cols.every(x => x === col);
+    }
     for (let i = 0; i < n; i++) {
-      const o = n > 1 ? (i - (n - 1) / 2) * c.fan : 0;
-      const b = SK.spawnBullet86(G3, 'p', 'bullet_0', a.x + a.face * 4, a.y - 8, base + o, { dmg: c.dmg, crit, repel: 1, spd: SHOT_SPD, h: 8, owner: a });
-      if (b && c.poison) b.gdPoison = true;
+      const o = n > 1 ? (i - (n - 1) / 2) * fan : 0;
+      let dmg = c.dmg;
+      if (crit && ((c.poison && (hasBuff(G3, 40) || hasBuff(G3, 27))) || col === 'green')) dmg *= 2;
+      const b = SK.spawnBullet86(G3, 'p', 'bullet_0', a.x + a.face * 4, a.y - 8, base + o, { dmg, crit, repel: 1, spd: SHOT_SPD, h: 8, owner: a });
+      if (b && c.poison) { b.gdPoison = true; if (hasBuff(G3, 8)) b.gdPoisonUp = true; }
+      if (b && col) { b.zc = col; b.zj = jack; }
     }
     a.shots = (a.shots || 0) + n; a.volleys = (a.volleys || 0) + 1;
   }
+  // hiệu ứng lá màu khi trúng quái (bạo kích hoặc jackpot)
+  function leafHit(G2, e, b, crit) {
+    const K = SK.skillKit || {}, dbf = K.debuff;
+    if (!dbf) return;
+    const col = b.zc;
+    if (crit && col === 'red') dbf(G2, e, 'fire');
+    if (crit && col === 'yellow') dbf(G2, e, 'ele');
+    if (crit && col === 'blue') dbf(G2, e, 'ice');
+    if (!b.zj) return;
+    b.zj = false;   // một lần (đòn nổ bên dưới lại phát sự kiện enemyHit với cùng viên đạn)
+    if (col === 'red') {
+      SK.fx(G2, 'ring', e.x, e.y - 6, { dur: 0.3, color: '#ff6a3a' });
+      for (const m of G2.enemies) {
+        if (m.st === 'spawn' || m.st === 'dead' || Math.hypot(m.x - e.x, m.y - e.y) > 2 * U) continue;
+        const hb = G2._hitBullet; G2._hitBullet = null; G2._skHit = 'pet'; SK.hurtEnemy(G2, m, 8, false, Math.atan2(m.y - e.y, m.x - e.x), 2); G2._skHit = null; G2._hitBullet = hb;
+        if (SK.rand() < 0.5) dbf(G2, m, 'fire');
+      }
+    } else if (col === 'yellow') dbf(G2, e, 'ele', { t: 5 });
+    else if (col === 'blue') {
+      const px = e.x, py = e.y; let t = 5, tk = 0;
+      SK.fx(G2, 'ring', px, py - 4, { dur: 0.4, color: '#7fd6ff' });
+      G2.props.push({ x: px, y: py, icePool: true, update(G3, q, dt) {
+        t -= dt; tk -= dt;
+        if (tk <= 0) { tk = 0.5; for (const m of G3.enemies) if (m.st !== 'spawn' && m.st !== 'dead' && Math.hypot(m.x - px, m.y - py) <= 2 * U) dbf(G3, m, 'ice'); }
+        if (t <= 0) q.gone = true;
+      }, draw(ctx) { ctx.save(); ctx.globalAlpha = 0.35; ctx.fillStyle = '#7fd6ff'; ctx.beginPath(); ctx.ellipse(px, py, 2 * U, U, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); } });
+    }
+  }
+  // Bay qua khối / thùng (ô OBST) nhưng không qua tường, hố, cửa đóng
+  function flyBlocked(map, x, y, r) {
+    const W2 = SK.world, T = SK.TILE;
+    for (let ty = Math.floor((y - r) / T); ty <= Math.floor((y - 0.01) / T); ty++)
+      for (let tx = Math.floor((x - r) / T); tx <= Math.floor((x + r - 0.01) / T); tx++) {
+        if (tx >= 0 && ty >= 0 && tx < map.W && ty < map.H && map.tiles[ty * map.W + tx] === W2.OBST) continue;
+        if (W2.solidTile(map, tx, ty)) return true;
+      }
+    return false;
+  }
+  function flyMove(map, a, dx, dy, r) {
+    let hit = false;
+    const stepAxis = (d, ax) => {
+      let rem = d;
+      while (Math.abs(rem) > 1e-6) {
+        const s = Math.abs(rem) > 1 ? Math.sign(rem) : rem, nx = ax ? a.x + s : a.x, ny = ax ? a.y : a.y + s;
+        if (flyBlocked(map, nx, ny, r)) { hit = true; return; }
+        a.x = nx; a.y = ny; rem -= s;
+      }
+    };
+    stepAxis(dx, true); stepAxis(dy, false);
+    return hit;
+  }
+  const moveOf = a => a.comp && a.comp.fly ? flyMove : SK.moveBox;
   function stepPet(G3, a, dt) {
     const p = G3.player, c = a.comp;
     a.t += dt; a.cd -= dt;
@@ -236,7 +307,7 @@
         a.st = 'ide';
         if (a.shotsLeft > 0) { a.shotT -= dt; if (a.shotT <= 0) { shoot(G3, a, e, 1); a.shotsLeft--; a.shotT = c.gap; if (a.shotsLeft <= 0) { a.cd = c.cd; a.tgt = null; } } return; }
         if (a.cd <= 0) {
-          if (c.burst) { a.shotsLeft = c.burst; a.shotT = 0; } else { shoot(G3, a, e, c.shots); a.cd = c.cd; a.tgt = null; }
+          if (c.burst) { a.shotsLeft = c.burst; a.shotT = 0; a.cols = []; } else { shoot(G3, a, e, c.shots); a.cd = c.cd; a.tgt = null; }
           return;
         }
         return;
@@ -245,7 +316,7 @@
       const crit = SK.rand() < c.crit;
       a.cd = c.cd; G3._skHit = 'pet'; SK.hurtEnemy(G3, e, crit && c.critDmg ? c.critDmg : c.dmg, crit, Math.atan2(dy, dx), 1); G3._skHit = null; a.bites = (a.bites || 0) + 1; a.tgt = null; a.st = 'ide'; return;
     }
-    if (d > (e ? 1 : 2 * U)) { const s = Math.min(d, 8 * U * dt); SK.moveBox(G3.map, a, dx / d * s, dy / d * s, 3); a.st = 'run'; if (Math.abs(dx) > 1) a.face = dx > 0 ? 1 : -1; } else a.st = 'ide';
+    if (d > (e ? 1 : 2 * U)) { const s = Math.min(d, 8 * U * dt); moveOf(a)(G3.map, a, dx / d * s, dy / d * s, 3); a.st = 'run'; if (Math.abs(dx) > 1) a.face = dx > 0 ? 1 : -1; } else a.st = 'ide';
   }
 
   // ---------------------------------------------------------------- hộp thoại

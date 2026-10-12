@@ -43,6 +43,8 @@ async function until(p, fn, arg, ms) {
     await p.evaluate(() => { SK_GAME.debug.seed(20261009); SK_GAME.start(); });
     await until(p, () => SK_GAME.state === 'stage', null, 3000);
     await p.evaluate(() => SK_GAME.debug.god(true));
+    // quái nhắm pet (js/pets3.js) làm pet nghỉ / hút đạn về quanh chủ; ca kỹ năng thử cơ chế riêng của pet nên tắt móc ấy (cùng cách soulknight-pethp.js)
+    await p.evaluate(() => { SK.pets3.off = true; });
     await p.evaluate(() => SK_GAME.debug.teleportTo('battle', 0));
     await p.keyboard.down('KeyD'); await sleep(250); await p.keyboard.up('KeyD');
     const got = await until(p, () => SK_GAME.enemyCount > 0, null, 5000);
@@ -101,7 +103,7 @@ async function until(p, fn, arg, ms) {
       const t0 = performance.now(), hp0 = SK_GAME.enemyHp;
       (function poll() {
         const pb = G.bullets.filter(q => q.side === 'p' && q.v86 === 'bullet_mouse_gun!').length;
-        if (performance.now() - t0 > 5500 || a.shots >= 5) { out.shots = a.shots; out.pb = pb; out.hpDrop = hp0 - SK_GAME.enemyHp; return res(out); }
+        if (performance.now() - t0 > 14000 || (a.shots >= 5 && hp0 - SK_GAME.enemyHp > 0)) { out.shots = a.shots; out.pb = pb; out.hpDrop = hp0 - SK_GAME.enemyHp; return res(out); }
         requestAnimationFrame(poll);
       })();
     }));
@@ -114,9 +116,10 @@ async function until(p, fn, arg, ms) {
     await spawn('pet52'); await gather();
     r = await p.evaluate(() => new Promise(res => {
       const G = SK.G, a = G.pet, hp0 = a.hp; const t0 = performance.now(); let burnSeen = false, minHp = hp0, maxP = 0, snow = 0;
+      // đo HP sau từng nhịp tick, không theo khung hình: lúc máy chậm một khung chạy nhiều nhịp và lần lấy mẫu bỏ lỡ đúng nhịp HP về 0 (nhịp sau đã hồi 2/s)
+      const tk = a.def.tick; a.def = Object.assign({}, a.def, { tick(G2, a2, dt) { const r = tk.call(this, G2, a2, dt); minHp = Math.min(minHp, a2.hp); return r; } });
       (function poll() {
         if (a.burn) burnSeen = true;
-        minHp = Math.min(minHp, a.hp);
         maxP = Math.max(maxP, G.bullets.filter(q => q.side === 'p' && q.pet52).length);
         if (performance.now() - t0 > 9000 || (burnSeen && !a.burn)) return res({ burnSeen, hp0, minHp, maxP, balls: a.balls, frozen: a.frozen, burn: a.burn, burnCd: a.burnCd });
         requestAnimationFrame(poll);
@@ -153,7 +156,7 @@ async function until(p, fn, arg, ms) {
     await until(p, () => SK.G.pet.form > 0, null, 3000);
     r = await p.evaluate(() => { const a = SK.G.pet; return { form: a.form, scale: a.scale, dmg: a.k.dmg, base: a.base.dmg, spd: a.k.spd, spd0: a.base.spd }; });
     check('pet54: gặp tinh anh thì lộ chân thân: thân ×1,5, cắn ×4, tốc ×1,5', r.form > 0 && r.scale === 1.5 && r.dmg === r.base * 4 && Math.abs(r.spd - r.spd0 * 1.5) < 1e-6, JSON.stringify(r));
-    r = await p.evaluate(() => new Promise(res => { const a = SK.G.pet; a.form = 0.05; setTimeout(() => res({ form: a.form, scale: a.scale || 1, dmg: a.k.dmg, base: a.base.dmg, fCd: a.fCd }), 300); }));
+    r = await p.evaluate(() => new Promise(res => { const a = SK.G.pet; a.form = 0.05; const t0 = performance.now(); (function poll() { if (a.form <= 0 || performance.now() - t0 > 5000) return res({ form: a.form, scale: a.scale || 1, dmg: a.k.dmg, base: a.base.dmg, fCd: a.fCd }); requestAnimationFrame(poll); })(); }));   // chờ tới khi form hết, không đợi cố định 300 ms: máy chậm thì 300 ms chưa đủ 0,05 s của game
     check('pet54: hết thời gian thì trở lại thân thường và vào hồi chiêu 40 s [WIKI Pets]', r.scale === 1 && r.dmg === r.base && r.fCd > 35 && r.fCd <= 40, JSON.stringify(r));
 
     // ---- pet55: xung phong + hợp thể

@@ -44,6 +44,8 @@ async function until(p, fn, arg, ms) {
     await p.evaluate(() => { SK_GAME.debug.seed(20261009); SK_GAME.start(); });
     await until(p, () => SK_GAME.state === 'stage', null, 3000);
     await p.evaluate(() => SK_GAME.debug.god(true));
+    // quái nhắm pet (js/pets3.js) làm pet nghỉ / hút đạn về quanh chủ; ca kỹ năng thử cơ chế riêng của pet nên tắt móc ấy (cùng cách soulknight-pethp.js)
+    await p.evaluate(() => { SK.pets3.off = true; });
     const reg = await p.evaluate(() => ['pet41', 'pet42', 'pet43', 'pet45', 'pet46', 'pet47', 'pet48'].map(i => !!SK.PET_SKILLS[i]));
     check('7 thú cưng đã đăng ký kỹ năng', reg.every(Boolean), JSON.stringify(reg));
 
@@ -87,7 +89,7 @@ async function until(p, fn, arg, ms) {
     }));
     check('pet42: trong trận móc ra vật phẩm', d42.pulled >= 2, JSON.stringify(d42));
     // vật phẩm sinh đúng 1 mỗi lần: số lần móc = số lần gọi dropPickup
-    const cnt = await p.evaluate(() => { const a = SK.G.pet, c0 = a.pulled; let n = 0; const o = SK.dropPickup; SK.dropPickup = (...x) => { n++; return o(...x); }; a.pull = 0; return new Promise(r => setTimeout(() => { SK.dropPickup = o; r({ n, dp: a.pulled - c0, pull: a.pull }); }, 400)); });
+    const cnt = await p.evaluate(() => { const a = SK.G.pet, c0 = a.pulled; let n = 0; const o = SK.dropPickup; SK.dropPickup = (...x) => { n++; return o(...x); }; a.pull = 0; return new Promise(r => { const t0 = performance.now(); (function poll() { if (a.pulled > c0 || performance.now() - t0 > 6000) { SK.dropPickup = o; return r({ n, dp: a.pulled - c0, pull: a.pull }); } requestAnimationFrame(poll); })(); }); });   // chờ tới lần móc kế, không ngủ cố định: máy chậm thì 400 ms chưa tới nhịp nào
     check('pet42: mỗi lần móc đúng 1 vật phẩm qua SK.dropPickup, hồi 8 s [WIKI Pets]', cnt.n === 1 && cnt.dp === 1 && cnt.pull > 7 && cnt.pull <= 8, JSON.stringify(cnt));
 
     // ---- pet43: sửa lỗi thắng / thua

@@ -43,6 +43,8 @@ async function until(p, fn, arg, ms) {
     await p.evaluate(() => { SK_GAME.debug.seed(20261009); SK_GAME.start(); });
     await until(p, () => SK_GAME.state === 'stage', null, 3000);
     await p.evaluate(() => SK_GAME.debug.god(true));
+    // quái nhắm pet (js/pets3.js) làm pet nghỉ / hút đạn về quanh chủ; ca kỹ năng thử cơ chế riêng của pet nên tắt móc ấy (cùng cách soulknight-pethp.js)
+    await p.evaluate(() => { SK.pets3.off = true; });
 
     // pet33 Lửa Rồng: bắn đạn phe 'p' do pet tạo
     await setup('pet33', true);
@@ -108,6 +110,7 @@ async function until(p, fn, arg, ms) {
     const r37 = await p.evaluate(() => new Promise(res => {
       const a = SK.G.pet, t0 = performance.now(); a.chCd = 0;
       (function poll() {
+        const foe = SK.G.enemies.find(q => q.st !== 'dead' && q.st !== 'spawn'); if (foe && Math.hypot(foe.x - a.x, foe.y - a.y) > 60) { foe.x = a.x + 24; foe.y = a.y; foe.kx = foe.ky = 0; }   // quái xa quá 60 px thì kéo lại sát pet như ca pet40
         if (performance.now() - t0 > 30000 || a.duckHits >= 2) return res({ ducks: a.ducks.length, charges: a.charges, hits: a.duckHits, dmg: a.dmg });
         if (a.chCd > 1 && !(a.chT > 0)) a.chCd = 0;
         requestAnimationFrame(poll);
@@ -121,7 +124,8 @@ async function until(p, fn, arg, ms) {
       const a = SK.G.pet, t0 = performance.now(); a.tCd = 99; const ds = [];
       SK.on('enemyHit', (G, e, d) => { if (a.tT > 0) ds.push(d); });
       (function poll() {
-        if (performance.now() - t0 > 15000 || a.hits >= 4) return res({ runs: a.runs, hits: a.hits, imp: a.imp, ds: ds.slice(0, 4), sd: a.skillDmg });
+        const foe = SK.G.enemies.find(q => q.st !== 'dead' && q.st !== 'spawn'); if (foe && !(a.tT > 0)) { foe.x = a.x + 24; foe.y = a.y; foe.kx = foe.ky = 0; foe.hp = foe.hpMax = 1e6; }   // quái thật đôi lúc đứng ngoài tầm với của pet (kẹt sau khối / cửa) làm pet không có mồi suốt 15~40 s: kéo một con sát pet (ca pet38: mỗi lần chuẩn bị lao, hp lớn để 4 cú va không giết nó) để phép đo chỉ phụ thuộc vào đòn của pet
+        if (performance.now() - t0 > 40000 || a.hits >= 4) return res({ runs: a.runs, hits: a.hits, imp: a.imp, ds: ds.slice(0, 4), sd: a.skillDmg });
         const pl = SK.G.player, near = Math.hypot(pl.x - a.x, pl.y - a.y) < 48;   // chờ pet vào phòng cùng chủ (cửa đóng có thể nhốt pet ở ngoài)
         if (near && a.tCd > 1 && !(a.tT > 0)) a.tCd = 0;
         requestAnimationFrame(poll);
@@ -169,6 +173,7 @@ async function until(p, fn, arg, ms) {
       for (const e of SK.G.enemies) if (e.st !== 'dead') e.hp = e.hpMax = 9999;   // đòn búa 12 không được giết quái trước khi kịp thấy choáng
       SK.on('enemyHit', (G, e, d) => { if (G.pet === a && a.st === 'atk') ds.push(d); });
       (function poll() {
+        const foe = SK.G.enemies.find(q => q.st !== 'dead' && q.st !== 'spawn'); if (foe && Math.hypot(foe.x - a.x, foe.y - a.y) > 60) { foe.x = a.x + 24; foe.y = a.y; foe.kx = foe.ky = 0; }   // quái xa quá 60 px thì kéo lại sát pet (không ghim mỗi khung: pet đuổi theo con mồi đang bị dịch đi thì không bao giờ cắn tới)
         if (a.hamCd > 0) { cdMax = Math.max(cdMax, a.hamCd); a.hamCd = 0; }   // bỏ hồi chiêu 5 s để thử nhiều lần
         if (a.stunE && a.stunE.st === 'stun' && a.stunList.some(z => z.e === a.stunE)) sawStun = true;
         if (performance.now() - t0 > 40000 || (sawStun && a.bites >= 2)) return res({ bites: a.bites, stuns: a.stuns, sawStun, sd: a.skillDmg, cdMax, ds: ds.slice(0, 6) });

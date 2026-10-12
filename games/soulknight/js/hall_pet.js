@@ -56,8 +56,16 @@
     } else if (cond.price) {
       html += '<p class="hs-price" id="sk-pet-price">' + cond.price + '</p>';
     } else html += '<p class="hs-bad" id="sk-pet-lock">' + esc(cond.lock) + '</p>';
+    // Thức Ăn Mèo nâng cấp bằng đá quý (5 cấp, 500 -> 2500): thú cưng chính +HP tối đa, +sát thương [WIKI Living Room "Pet Food", Pets]; thú cưng cây không nhận
+    const PF = SK.petFood, lv = PF ? PF.level() : 0;
+    if (PF) html += '<p class="hs-note" id="sk-pet-foodlv">Thức Ăn Mèo cấp <b>' + lv + '/' + PF.MAX + '</b> · thú cưng +' + PF.hp() + ' HP tối đa, +' + PF.dmg() + ' sát thương' +
+      (lv < PF.MAX ? ' · cấp sau ' + gemImg + ' ' + fmt(PF.nextCost()) : ' · đã tối đa') + '</p>';
     if (note) html += '<p id="sk-pet-note">' + esc(note) + '</p>';
     const btns = [];
+    if (PF) btns.push({ id: 'sk-pet-foodup', label: lv < PF.MAX ? 'Nâng Thức Ăn · ' + fmt(PF.nextCost()) : 'Thức Ăn tối đa', disabled: lv >= PF.MAX || P.gems < PF.nextCost(), fn() {
+      const r = PF.upgrade();
+      panel(z, r.ok ? 'Thức Ăn Mèo lên cấp ' + r.level + '.' : 'Không nâng được: ' + r.err + '.');
+    } });
     if (owned) {
       btns.push({ id: 'sk-pet-pick', label: cur ? 'Đã chọn' : 'Chọn', cls: 'ok', disabled: cur, fn() { P.setPet(sel); panel(z, 'Đã chọn ' + d.vi + '.'); } });
       btns.push({ id: 'sk-pet-feed', label: 'Cho ăn [' + grain + ']', fn() {

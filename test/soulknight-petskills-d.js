@@ -33,6 +33,8 @@ async function until(p, fn, arg, ms) {
     await p.evaluate(() => { SK_GAME.debug.seed(20261009); SK_GAME.start(); });
     await until(p, () => SK_GAME.state === 'stage', null, 3000);
     await p.evaluate(() => SK_GAME.debug.god(true));
+    // quái nhắm pet (js/pets3.js) làm pet nghỉ / hút đạn về quanh chủ; ca kỹ năng thử cơ chế riêng của pet nên tắt móc ấy (cùng cách soulknight-pethp.js)
+    await p.evaluate(() => { SK.pets3.off = true; });
     await p.evaluate(() => SK_GAME.debug.teleportTo('battle', 0));
     await p.keyboard.down('KeyD'); await sleep(250); await p.keyboard.up('KeyD');
     check('vào phòng có quái', await until(p, () => SK.G.enemies.some(e => e.st !== 'spawn' && e.st !== 'dead'), null, 8000));
@@ -152,13 +154,18 @@ async function until(p, fn, arg, ms) {
     const t32 = async armor => p.evaluate(async armor => {
       const G = SK.G, pl = G.player, U = SK.PPU;
       pl.armor = armor === 'full' ? pl.armorMax : 0;
+      for (const q of G.bullets) if (q.side === 'e') q.dead = true;   // đạn thật của quái bay ngang chủ cũng bị pet32 xoá và cộng vào cleared: đếm riêng viên thử
+      for (const q of G.enemies) q.cd = 1e9;
       const b = { side: 'e', kind: 'orb', x: pl.x + 2 * U, y: pl.y - 6, h: 2, vx: 0, vy: 0, ang: 0, dmg: 1, repel: 0, r: 3, life: 5 };
       G.bullets.push(b);
-      const c0 = G.pet.cleared;
-      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const a = G.pet, c0 = a.cleared;
+      if (!a.ticks && a.ticks !== 0) { const tk = a.def.tick; a.ticks = 0; a.def = Object.assign({}, a.def, { tick(...r) { a.ticks++; return tk.apply(this, r); } }); }
+      // chờ pet chạy đủ 2 nhịp thật (không đếm khung hình: máy chậm thì khung hình không kéo theo nhịp của pet)
+      const n0 = a.ticks;
+      for (let i = 0; i < 300 && a.ticks < n0 + 2; i++) await new Promise(r => requestAnimationFrame(r));
       const gone = !G.bullets.includes(b) || b.dead;
       b.dead = true; pl.armor = pl.armorMax;
-      return { gone, cleared: G.pet.cleared - c0, armorMax: pl.armorMax };
+      return { gone, cleared: a.cleared - c0, armorMax: pl.armorMax, ticks: a.ticks - n0 };
     }, armor);
     const full = await t32('full'), broken = await t32('broken');
     check('pet32 giáp còn thì không can thiệp', !full.gone && full.cleared === 0 && full.armorMax > 0, JSON.stringify(full));

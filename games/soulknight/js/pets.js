@@ -18,34 +18,53 @@
   SK.petInfo = id => (window.SK_PETS && SK_PETS.pets[id]) || null;
 
   // ---- Hệ máu chung [WIKI Pets]: 10 HP gốc (max_hp riêng theo prefab), máu không xuống dưới 1; về 1 HP thì pet thôi đánh, nằm
-  // cạnh chủ và hồi đầy sau 14~16 giây. Hồi dần trong trận "tốc độ không rõ" nên chưa làm (GAPS). Quái web chỉ nhắm chủ nên pet chịu
-  // đòn qua đạn quái bay trúng nó (hộp 6 x 7 px quanh thân); cận chiến / vùng nổ của quái chưa tính vào pet.
+  // cạnh chủ và hồi đầy sau 14~16 giây. Hồi dần trong trận: wiki "tốc độ không rõ" nên REGEN_* là [ƯỚC LƯỢNG] (sau 2 s không trúng đòn,
+  // đầy máu trong 30 s = nửa tốc độ lúc nghỉ; Pet Buff nhân đôi tốc độ hồi và giảm nửa thời gian nghỉ [WIKI Pet Buff / Pets]).
+  // Quái nhắm thú cưng ở js/pets3.js; pet chịu đòn qua đạn quái bay trúng nó (hộp 6 x 7 px quanh thân), vệt chém cận chiến (dưới đây)
+  // và vùng nổ (pets3.js).
   // Móc tuỳ chọn trong def: keep (đạn không bị chặn, pet vẫn mất máu: slime tách theo đạn lọt vào), hurt(G, a, dmg, b) -> sát thương thật (0 = miễn), guard (đang nghỉ vẫn chặn đạn: rùa), ownHp (tự quản HP),
   // onRest(G, a), onWake(G, a).
-  const REST_MIN = 14, REST_MAX = 16, HIT_X = 6, HIT_Y = 7;
+  const REST_MIN = 14, REST_MAX = 16, HIT_X = 6, HIT_Y = 7, REGEN_DELAY = 2, REGEN_FULL = 30, MELEE_ACTIVE = 0.2;
+  // hộp va chạm vệt chém (cùng công thức inBox của actors.js: toạ độ cục bộ theo góc / cỡ / lật của vệt)
+  function meleeHits(b, x, y, pad) {
+    const col = b.B && b.B.col, box = col && col.box, k = U * (b.size || 1);
+    const dx = x - b.x, dy = y - b.y, c = Math.cos(b.ang || 0), s = Math.sin(b.ang || 0);
+    const X = (c * dx + s * dy) / k; let Y = (s * dx - c * dy) / k; if (b.flip) Y = -Y;
+    const pd = pad / k;
+    if (!box) return col && col.r ? Math.hypot(X - col.off[0], Y - col.off[1]) < col.r + pd : Math.hypot(X, Y) < 1 + pd;
+    return Math.abs(X - box[0]) <= box[2] / 2 + pd && Math.abs(Y - box[1]) <= box[3] / 2 + pd;
+  }
   const HP = SK.petHp = {
-    REST_MIN, REST_MAX,
-    init(a, max) { a.hpMax = max; a.hp = max; a.rest = 0; a.restFor = 0; a.hurts = 0; },
+    REST_MIN, REST_MAX, REGEN_DELAY, REGEN_FULL,
+    init(a, max) { a.hpMax = max; a.hp = max; a.rest = 0; a.restFor = 0; a.hurts = 0; a.sinceHit = 99; a.regen = 0; a.restMul = 1; a.regenMul = 1; },
     hurt(G, a, dmg, b) {
       const d = a.def || {};
       if (a.rest > 0 && !d.guard) return 0;
       if (d.hurt) dmg = d.hurt(G, a, dmg, b);
       if (!(dmg > 0)) return 0;
       const was = a.hp;
-      a.hp = Math.max(1, a.hp - dmg); a.hurts = (a.hurts || 0) + 1;
+      a.hp = Math.max(1, a.hp - dmg); a.hurts = (a.hurts || 0) + 1; a.sinceHit = 0; a.regen = 0;
       SK.num(G, a.x, a.y - 20, '-' + dmg, '#ff9a4a');
       if (a.hp <= 1) HP.rest(G, a);
       return was - a.hp;
     },
     rest(G, a) {
       if (a.rest > 0) return;
-      a.rest = a.restFor = REST_MIN + SK.rand() * (REST_MAX - REST_MIN); a.target = a.tgt = null;
+      a.rest = a.restFor = (REST_MIN + SK.rand() * (REST_MAX - REST_MIN)) * (a.restMul || 1); a.target = a.tgt = null;
       if (a.def && a.def.onRest) a.def.onRest(G, a);
     },
     heal(G, a) { a.hp = a.hpMax; a.rest = 0; },
     // true nếu đang nghỉ; hết giờ nghỉ thì đầy máu
     tick(G, a, dt) {
-      if (!(a.rest > 0)) return false;
+      if (!(a.rest > 0)) {   // hồi dần trong trận
+        a.sinceHit = (a.sinceHit == null ? 99 : a.sinceHit) + dt;
+        if (a.hp < a.hpMax && a.sinceHit >= REGEN_DELAY && !(a.def && a.def.ownHp)) {
+          a.regen = (a.regen || 0) + dt * a.hpMax / REGEN_FULL * (a.regenMul || 1);
+          while (a.regen >= 1 && a.hp < a.hpMax) { a.hp++; a.regen--; }
+          if (a.hp >= a.hpMax) a.regen = 0;
+        }
+        return false;
+      }
       a.rest -= dt;
       if (a.rest > 0) return true;
       a.rest = 0; a.hp = a.hpMax;
@@ -56,6 +75,10 @@
     scan(G, a) {
       if (a.def && a.def.ownHp) return;
       for (const b of G.bullets) {
+        if (b.side === 'e' && !b.dead && b.melee && b.t <= MELEE_ACTIVE && b._petHit !== a && !(a.rest > 0 && !(a.def && a.def.guard)) && meleeHits(b, a.x, a.y - 7, 4)) {
+          b._petHit = a; HP.hurt(G, a, Math.max(1, Math.round(b.dmg || 1)), b);   // vệt chém cận chiến của quái: một lần mỗi vệt
+          continue;
+        }
         if (b.side !== 'e' || b.dead || b.melee || b.orbit || b._petHit === a) continue;
         if (Math.abs(b.x - a.x) > HIT_X + (b.r || 2) || Math.abs(b.y - (a.y - 7)) > HIT_Y + (b.r || 2)) continue;
         if (a.rest > 0 && !(a.def && a.def.guard)) continue;
@@ -63,6 +86,25 @@
         if (!(b.pierce > 0) && !b.area && !(a.def && a.def.keep)) { if (b.fxh && b.fxh.stop) b.fxh.stop(); b.dead = true; }
         HP.hurt(G, a, Math.max(1, Math.round(b.dmg || 1)), b);
       }
+    }
+  };
+
+  // ---- Thức Ăn Mèo (Pet Food, vật trong sảnh): nâng 5 lần bằng đá quý 500 / 1000 / ... / 2500 (tổng 7500); đủ cấp thì mọi thú cưng +10 HP tối đa
+  // và +2 sát thương [WIKI Living Room "Pet Food", Pets]. Cấp giữa +2 HP mỗi cấp, sát thương +0/+1/+1/+2/+2 [ƯỚC LƯỢNG: nội suy].
+  // Lưu riêng ở localStorage (hồ sơ lobby.js không có chỗ cho cấp này).
+  const PF_KEY = 'sk_petfood_lv', PF_COST = [500, 1000, 1500, 2000, 2500], PF_DMG = [0, 0, 1, 1, 2, 2];
+  const PF = SK.petFood = {
+    MAX: PF_COST.length, COST: PF_COST,
+    level() { try { return Math.max(0, Math.min(PF_COST.length, parseInt(localStorage.getItem(PF_KEY), 10) || 0)); } catch (_) { return PF._mem | 0; } },
+    set(n) { n = Math.max(0, Math.min(PF_COST.length, n | 0)); PF._mem = n; try { localStorage.setItem(PF_KEY, String(n)); } catch (_) { /* chế độ riêng tư */ } return n; },
+    hp() { return PF.level() * 2; },
+    dmg() { return PF_DMG[PF.level()]; },
+    nextCost() { const l = PF.level(); return l >= PF_COST.length ? 0 : PF_COST[l]; },
+    upgrade() {
+      const l = PF.level(), P = SK.profile;
+      if (l >= PF_COST.length) return { ok: false, err: 'đã nâng tối đa' };
+      if (!P || !P.spend(PF_COST[l])) return { ok: false, err: 'không đủ đá quý' };
+      return { ok: true, level: PF.set(l + 1), cost: PF_COST[l] };
     }
   };
 
@@ -144,6 +186,8 @@
       def: (SK.petForce || !SK.profile || !SK.profile.petSkillOn || SK.profile.petSkillOn(id)) ? (SKILLS[id] || {}) : {}, info: SK.petInfo(id) };
     G.pet = a; HP.init(a, (a.info && a.info.attr && a.info.attr.max_hp) || 10);
     if (a.def.init) a.def.init(G, a);
+    // Thức Ăn Mèo nâng cấp ở sảnh: +HP tối đa, +sát thương cắn [WIKI Pets / Living Room]; thú cưng cây không nhận (wiki Zongzi Flower)
+    a.hpMax += PF.hp(); a.hp = a.hpMax; a.k.dmg += PF.dmg();
     G.props.push({
       x: a.x, y: a.y, pet: a,
       update(G2, q, dt) {

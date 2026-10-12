@@ -33,6 +33,8 @@ async function until(p, fn, arg, ms) {
     await ev(() => { SK_GAME.debug.seed(20261009); SK_GAME.start(); });
     await until(p, () => SK_GAME.state === 'stage', null, 3000);
     await ev(() => SK_GAME.debug.god(true));
+    // quái nhắm pet (js/pets3.js) làm pet nghỉ / hút đạn về quanh chủ; ca kỹ năng thử cơ chế riêng của pet nên tắt móc ấy (cùng cách soulknight-pethp.js)
+    await ev(() => { SK.pets3.off = true; });
     await ev(() => SK_GAME.debug.teleportTo('battle', 0));
     await p.keyboard.down('KeyD'); await sleep(250); await p.keyboard.up('KeyD');
     await until(p, () => SK_GAME.enemyCount > 0, null, 5000);
@@ -169,7 +171,7 @@ async function until(p, fn, arg, ms) {
     await ev(() => SK_GAME.debug.teleportTo('battle', 0));
     await until(p, () => SK_GAME.enemyCount > 0, null, 5000);
     await spawn('pet14');
-    await ev(() => { const a = SK.G.pet; a.def = Object.assign({}, a.def, { hurt: () => 0 }); a.hp = 4; });   // quái bắn trúng pet sẽ làm số HP lệch: thử hồi máu cần pet không bị đánh
+    await ev(() => { const a = SK.G.pet; a.def = Object.assign({}, a.def, { hurt: () => 0 }); a.hp = 4; a.sinceHit = -1e9; });   // quái bắn trúng pet sẽ làm số HP lệch, hồi dần trong trận (SK.petHp.tick, sau REGEN_DELAY không trúng đòn) cũng cộng HP: thử hồi máu của cú cắn cần cả hai tắt
     const r14 = await ev(() => new Promise(res => {
       const G = SK.G, a = G.pet, t0 = performance.now();
       (function poll() { const e = G.enemies.find(q => q.st !== 'dead' && q.st !== 'spawn'); if (e) { e.x = a.x + 14; e.y = a.y; e.kx = e.ky = 0; e.hp = e.hpMax = 1e6; }   // kẻ địch đứng sát để pet có mồi cắn (ổn định, không đợi quái tự lại gần)

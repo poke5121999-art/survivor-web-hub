@@ -36,6 +36,8 @@ async function until(p, fn, arg, ms) {
     await p.evaluate(() => { SK_GAME.debug.seed(20261009); SK_GAME.start(); });
     await until(p, () => SK_GAME.state === 'stage', null, 3000);
     await p.evaluate(() => SK_GAME.debug.god(true));
+    // quái nhắm pet (js/pets3.js) làm pet nghỉ / hút đạn về quanh chủ; ca kỹ năng thử cơ chế riêng của pet nên tắt móc ấy (cùng cách soulknight-pethp.js)
+    await p.evaluate(() => { SK.pets3.off = true; });
 
     // pet16: hoá Đại Thiên Cẩu rồi đấm; hồi chiêu 16 s [WIKI Pets]
     check('pet16 vào phòng có quái', await battle('pet16'));
@@ -144,7 +146,7 @@ async function until(p, fn, arg, ms) {
       G.pickups.push({ kind: 'hp_pot', x: pl.x, y: pl.y, vx: 0, vy: 0, t: 1, z: 0, vz: 0 });
       return pl.energy;
     });
-    for (let i = 0; i < 10; i++) { await p.evaluate(() => { const pl = SK.G.player; pl.hp = pl.hpMax; }); await sleep(50); }   // quái trong phòng có thể làm chủ mất máu
+    for (let i = 0; i < 120; i++) { if (await p.evaluate(() => { const pl = SK.G.player; pl.hp = pl.hpMax; return !SK.G.pickups.some(k => k.kind === 'hp_pot' && !k.gone); })) break; await sleep(50); }   // quái trong phòng có thể làm chủ mất máu; chờ tới khi bình bị uống chứ không đếm 10 lần: máy chậm thì 0,5 s chưa có nhịp pet nào
     const r23b = await p.evaluate(() => ({ en: SK.G.player.energy, pots: SK.G.pickups.filter(k => k.kind === 'hp_pot' && !k.gone).length, w: SK.G.pet.wasted }));
     check('pet23 đầy HP uống bình máu: năng lượng 50 -> 60, bình biến mất', r23 === 50 && r23b.en === 60 && r23b.pots === 0 && r23b.w === 1, JSON.stringify(r23b));
     const r23c = await p.evaluate(() => {
@@ -168,7 +170,7 @@ async function until(p, fn, arg, ms) {
     });
     check('pet24 ở cạnh: crit +5, không cộng dồn, ở xa/đổi thú thì gỡ', r24.near === r24.c0 + 5 && r24.twice === r24.near && r24.far === r24.c0 && r24.swapped === r24.c0, JSON.stringify(r24));
     await p.evaluate(() => SK.petDebug.spawn('pet24'));
-    await sleep(600);
+    await until(p, c0 => SK.G.player.crit === c0 + 5, r24.c0, 6000);   // chờ vòng lặp thật tick pet, không ngủ cố định: máy chậm thì 600 ms chưa tới nhịp nào
     check('pet24 sau khi sinh lại, qua vòng lặp thật: crit = gốc + 5', await p.evaluate(c0 => SK.G.player.crit === c0 + 5, r24.c0), String(await p.evaluate(() => SK.G.player.crit)));
   } catch (e) {
     check('chạy trọn', false, e.message.split('\n')[0]);
