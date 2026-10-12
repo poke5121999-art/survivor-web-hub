@@ -1,0 +1,23 @@
+{
+ "bundles": [
+  "troop2"
+ ],
+ "prefabs": [
+  "commander_0",
+  "commander_1",
+  "commander_2",
+  "commander_3",
+  "commander_4",
+  "commander_5",
+  "mercenary",
+  "commander_ability_start",
+  "commander_gain_coin",
+  "commander_gain_coin_1",
+  "commander_gain_energy",
+  "commanderabilityhaste",
+  "commanderabilityhealing",
+  "get_healing",
+  "explode_fx_cyan",
+  "aether_church_resurrect"
+ ]
+}

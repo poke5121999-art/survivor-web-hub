@@ -10,6 +10,7 @@
   function buildStages(mode, factors) {
     STAGES.length = 0;
     const br = mode === 'bossrush';
+    if (mode === 'troopgc') { STAGES.push({ theme: DS.run[0][0], level: DS.run[0][1], n: 1, label: 'GC', boss: false, br: false }); return; }   // một sân khấu: 15 vòng chạy trong js/troopgc.js
     if (mode === 'defence') { STAGES.push({ theme: DS.run[0][0], level: DS.run[0][1], n: 1, label: 'D-1', boss: false, br: false }); return; }   // một phòng Đá Phép (js/defence.js)
     if (mode === 'matrix') { addFloor(1); return; }   // Mê Trận Tà Vương: mỗi tầng nối thêm khi qua cổng x-5 (SK.matrixNextFloor)
     for (const [theme, level] of DS.run) for (let i = 1; i <= 5; i++) {
@@ -18,6 +19,7 @@
     // Trận cuối Khu Thí Luyện: anh hồn Tước Sĩ Đỏ (thường) / Tím (Lợi Hại) [LOC bossrush_intro_tips6, enemies.boss_bossrush_final*].
     // Gốc chỉ mở khi "Thí Luyện Thuần Túy" (không mang nhân tố/thiên phú/vũ khí, kịp giờ); web: chỉ cần không mang nhân tố [SUY].
     if (br && !(factors && factors.length)) STAGES.push({ theme: DS.run[2][0], level: 3, n: 6, label: '3-6', boss: true, br, final: true });
+    if (mode === 'artifacts') STAGES.push({ theme: DS.run[2][0], level: 3, n: 6, label: '3-6', boss: true, br: true, final: true });   // Thần Khí Lục Địa Cổ: ải trùm cuối 3-6 [WIKI Sacred Weapons] (js/artifacts.js)
   }
   // Tầng k của Mê Trận: 5 ải k-1..k-5, vùng đất của tầng ((k-1) mod 3)+1 (dãy 3 tầng lặp lại); trùm ở k-5.
   // Chủ đề mỗi vùng bốc một lần lúc vào chế độ (G.mxThemes), tầng sau dùng lại.
@@ -236,10 +238,12 @@
     G.factors = Array.isArray(factors) ? factors.slice() : [];
     if (SK.factorsOn) SK.factorsOn(G); else G.mods = {};
     G.player = null; G.kills = 0; G.state = 'stage';
-    G.mode = mode === 'bossrush' || mode === 'matrix' || mode === 'void' || mode === 'troop' || mode === 'defence' ? mode : 'level'; G.bossSeen = [];
+    G.mode = mode === 'bossrush' || mode === 'matrix' || mode === 'void' || mode === 'troop' || mode === 'troopgc' || mode === 'defence' || mode === 'artifacts' ? mode : 'level'; G.bossSeen = [];
     if (G.mode === 'matrix') { G.factors = []; if (SK.factorsOn) SK.factorsOn(G); }   // nhân tố do Tà Vương ban, không tự chọn
     G.matrix = G.mode === 'matrix' && SK.matrix ? SK.matrix.init(G) : null;
     G.troop = G.mode === 'troop' && SK.troop ? SK.troop.init(G) : null;   // Chỉ Huy Nhỏ: người chơi là pet, thuê anh hùng làm lính (js/troop.js)
+    G.artifacts = G.mode === 'artifacts' && SK.artifacts ? SK.artifacts.init(G) : null;   // Thần Khí Lục Địa Cổ (js/artifacts.js)
+    G.tgc = G.mode === 'troopgc' && SK.tgc ? SK.tgc.init(G) : null;   // Đại Đại Chỉ Huy: mèo đạo diễn thuê diễn viên tự đánh 15 vòng (js/troopgc.js)
     G.defence = G.mode === 'defence' && SK.defence ? SK.defence.init(G) : null;   // Thần Điện Thủ Hộ: bảo vệ Đá Phép, đặt tháp bằng Xu Sao (js/defence.js)
     G.void = G.mode === 'void' && SK.voidMode ? SK.voidMode.init(G) : null;   // Xâm Nhập Hư Không độ 1: không chơi cùng Lợi Hại [WIKI VI]
     if (G.void) G.badass = false;

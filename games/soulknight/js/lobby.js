@@ -930,10 +930,20 @@
     { id: 'troop', name: 'Chỉ Huy Nhỏ', img: 'mode_level.png', ok: true,
       start: () => { if (SK.G.state === 'hall') launch(P.selected, 'troop', []); },
       desc: 'Bạn là một chú thú cưng: không bị thương, chỉ cắn. Dùng Xu Mèo thuê các anh hùng làm lính, nâng cờ để đội thêm quân, hợp nhất ba lính cùng loại thành bản nâng cấp rồi dẫn họ vượt ba tầng.' },
+    // Đại Đại Chỉ Huy [LOC Troop2/*, I_season_Troop2, MODES.md 2j]: Đạo Diễn Tiêu Đen thuê diễn viên ở chợ, 15 vòng, diễn viên tự đánh (js/troopgc.js).
+    // Ảnh thẻ gốc không có trong ui/common nên dùng ảnh Chế độ Ải (GAPS.md).
+    { id: 'troopgc', name: 'Đại Đại Chỉ Huy', img: 'mode_level.png', ok: true,
+      start: () => { if (SK.G.state === 'hall') launch(P.selected, 'troopgc', []); },
+      desc: 'Bạn là Đạo Diễn Tiêu Đen, chú mèo chỉ huy đoàn diễn: thuê diễn viên và mua vũ khí, thiên phú, thức uống ở chợ, ghép ba diễn viên giống nhau lên sao, kích hoạt liên kết rồi để họ tự đánh. Mười lăm vòng, thua thì mất điểm nổi tiếng, hạ Vua Ti Vi ở vòng cuối là thắng.' },
     // Thần Điện Thủ Hộ [LOC gamemode/defence, MODES.md 2f]: bảo vệ Đá Phép khỏi đợt quái, đặt tháp bằng Xu Sao (js/defence.js; lõi, chặng 1).
     { id: 'defence', name: 'Thần Điện Thủ Hộ', img: 'mode_defence.png', ok: true,
       start: () => { if (SK.G.state === 'hall') launch(P.selected, 'defence', []); },
       desc: 'Bảo vệ Đá Phép Cổ Đại khỏi từng đợt quái lao tới. Hạ quái để lấy Xu Sao, dùng Xu Sao đặt các tháp phòng thủ lên Nền Tháp và nâng sao cho chúng. Đá Phép vỡ là thua; giữ được qua các đợt là thắng.' },
+    // Thần Khí Lục Địa Cổ [LOC Mode/Artifacts, MODES.md 2h]: Chế độ Ải chỉ dùng Thần Khí ráp từ ba bộ phận (js/artifacts.js, artifacts2.js).
+    // Ảnh thẻ gốc chưa tìm thấy trong ui/common nên dùng ảnh Chế độ Ải (GAPS.md).
+    { id: 'artifacts', name: 'Thần Khí Lục Địa Cổ', img: 'mode_level.png', ok: true,
+      start: () => { if (SK.G.state === 'hall') launch(P.selected, 'artifacts', []); },
+      desc: 'Vũ khí thường biến mất: bạn chọn một Thần Khí (đao kiếm, gậy hoặc cung) rồi ráp từ ba bộ phận nhặt trong hầm ngục. Mỗi bộ phận có phẩm chất, thuộc tính và nguyên tố riêng; ba nguyên tố quyết định Thần Uy. Bà Lão Ngàn Tuổi giúp tiến cấp, tăng cấp và đúc lại. Quái trâu hơn nhiều, kỹ năng nhân vật hồi chậm.' },
     // Quái Thú Trỗi Dậy [LOC monsrise/*, MODES.md 2i]: Máy Game (Arcade) tầng 2 Phòng Khách; tự đánh trên làn, dẫn đội quái thú qua bản đồ (js/monsterrise.js, monsterrise2.js).
     // Ảnh thẻ gốc chưa tìm thấy (GAPS.md) nên dùng ảnh Chế độ Ải.
     { id: 'monsterrise', name: 'Quái Thú Trỗi Dậy', img: 'mode_level.png', ok: true,
