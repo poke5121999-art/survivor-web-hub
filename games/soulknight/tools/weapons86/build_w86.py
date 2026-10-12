@@ -694,6 +694,14 @@ def main():
     enemy_b = read_enemy_bullets()
     for n in enemy_b:
         want.setdefault(n, 'bullet')
+    # Đạn gốc của mô-đun khác (cơ giáp...): tools/extra/*.json khoá "w86_bullets" = [tên prefab đạn]
+    for fn in sorted(os.listdir(os.path.dirname(EXTRA_JSON))):
+        if fn.endswith('.json') and fn != 'weapons.json':
+            try:
+                for n in json.load(io.open(os.path.join(os.path.dirname(EXTRA_JSON), fn), encoding='utf-8')).get('w86_bullets', []):
+                    want.setdefault(n, 'bullet')
+            except ValueError:
+                pass
     bullets, fx, explodes = {}, {}, {}
     for bi, (n, bb) in enumerate(want.items()):
         if bi % 25 == 0:

@@ -1,4 +1,49 @@
 {
- "bundles": ["common"],
- "prefabs": ["m_mech_2","m_mech_3","m_mech_4","m_mech_5","m_mech_6","m_mech_7","m_mech_9","m_mech_coin","m_mech_engineer","m_mecha_normal_b","m_mecha_normal_d","m_mecha_normal_e","m_mecha_normal_2s"]
+ "bundles": [
+  "common"
+ ],
+ "prefabs": [
+  "m_mech_2",
+  "m_mech_3",
+  "m_mech_4",
+  "m_mech_5",
+  "m_mech_6",
+  "m_mech_7",
+  "m_mech_9",
+  "m_mech_coin",
+  "m_mech_engineer",
+  "m_mecha_normal_b",
+  "m_mecha_normal_d",
+  "m_mecha_normal_e",
+  "m_mecha_normal_2s",
+  "m_mech_1_update",
+  "m_mech_2_update",
+  "m_mech_3_update",
+  "m_mech_4_update",
+  "m_mech_6_update",
+  "m_mech_7_update",
+  "m_mecha_normal_b_update",
+  "m_mecha_normal_d_update",
+  "m_mecha_normal_e_update",
+  "m_mecha_normal_2s_update"
+ ],
+ "w86_bullets": [
+  "bullet_mage_thunder",
+  "bullet_202_invisible",
+  "bullet_mech_vc",
+  "bullet_mech_vc_child",
+  "bullet_mech_4_2",
+  "bullet_mech_4_2_child",
+  "sword_bit_lion",
+  "bullet_202_lion",
+  "bullet_little_plane",
+  "bullet_little_plane_rocket",
+  "bullet_herculesbeetle",
+  "thunder",
+  "bullet_coin_mech",
+  "normal_bullet_eliminator_plus",
+  "normal_bullet_pengpeng",
+  "normal_bullet_turbulence",
+  "explode_blast_out"
+ ]
 }

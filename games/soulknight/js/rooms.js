@@ -1597,6 +1597,10 @@
           SK.emit('mountBuy', G, id, n);
         } });
     });
+    // Nâng cấp ★ giáp đang lái ở Thương Nhân Vật Chở (js/mechs.js SK.mechUpgradeNpc; giá = 0,5 x giá giáp [PF mountPriceUpdateFactor])
+    if (SK.mechUpgradeNpc && ids.length && M.mounts[ids[0]] && M.mounts[ids[0]].kind === 'mech') {
+      SK.mechUpgradeNpc(G, cx, cy, { pay(n) { const p = G.player; if (freeBuy()) return true; if (p.gold < n) { snd('fx_error', 0.6); return false; } p.gold -= n; return true; }, sound() { snd(evClip('shop') || 'fx_buy', 0.7); } });
+    }
     r.fill = 'mount'; r.mounts = ids; r.mountShop = ids.length && M.mounts[ids[0]] && M.mounts[ids[0]].kind === 'mech' ? 'mech' : 'creature';
     return true;
   }

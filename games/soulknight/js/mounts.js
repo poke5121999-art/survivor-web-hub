@@ -26,9 +26,10 @@
   // Vũ khí gắn: cùng bộ đạn với vũ khí web gần nhất, số lấy từ prefab [PF m_mech_0: bullet_6_yellow dmg 3 crit 10 xuyên 10; m_mech_1: punch_spear dmg 10 crit 20].
   const MECH = {
     m_mech_0: { parts: [['mech_2', 11.2, 14, 0], ['weapons3_90', 0, 22, 1], ['mech_1', 1.6, 8, 2], ['mech_0', -12.5, 14, 3]],
-                gun: { base: 'm4', dmg: 3, crit: 10, thr: 10, cost: 1 }, lift: 12 },
+                guns: [{ base: 'm4', bullet: 'bullet_6_yellow', spd: 36, dmg: 3, crit: 10, thr: 10, cost: 1 }], lift: 12 },
     m_mech_1: { parts: [['mech_7', 11.2, 15, 0], ['mech_6', 2.4, 9.6, 2], ['mech_5', -12.5, 15, 3]],
-                gun: { melee: true, dmg: 10, crit: 20, thr: 0, cost: 0 }, lift: 14 }
+                // Cánh Tay Robot-Chưởng (đấm thẳng 10, tiêu 0) + Cánh Tay Robot-Búa (đập 12, nhịp 0,8, trừ tốc khi giữ) [PF h1 mech_1_1, h2 mech_1_2]. Cả hai tiêu 0 NL.
+                guns: [{ melee: true, dmg: 10, crit: 20, thr: 0, cost: 0 }, { base: 'mace', bullet: 'bullet_hammer', spd: 0, dmg: 12, crit: 15, thr: 0, cost: 0, ws: 0.8, name: 'Cánh Tay Robot-Búa' }], lift: 14 }
   };
   // Các cơ giáp còn lại nằm ở js/mechs.js, thêm vào bảng này: {prefab, lift, guns:[{base, dmg, crit, thr, cost, name}], extra}.
   // `prefab` = vẽ nguyên prefab gốc bằng SK.drawPrefab; `guns` rỗng = giữ vũ khí người chơi (WiFi Booster).
@@ -38,12 +39,12 @@
   SK.mechDrawn = {};     // id -> khoá đã vẽ lần gần nhất ('prefab:<id>' hoặc 'frames:<id>'), để bộ kiểm biết đang vẽ bằng gì
   const SKIP_NODE = /^\/(mount_hp|dead_tap|img\/drive_container)|gun_point|rock_fire/;
   function drawMech(ctx, id, x, y, t, o) {
-    const C = MECH[id];
-    if (C.prefab) {
-      const pf = SK.prefab(C.prefab);
-      if (pf && SK.drawPrefab(ctx, pf, x, y - (o.moving ? Math.abs(Math.sin(t * 9)) * 1.2 : 0), { flip: o.flip, pages: o.flash ? SK.pagesWhite : null, t, skip: q => SKIP_NODE.test(q.n) })) { SK.mechDrawn[id] = 'prefab:' + C.prefab; return; }
+    const C = MECH[id], upId = o.up && C.upg && C.upg.prefab && SK.prefab(C.upg.prefab) ? C.upg.prefab : null;
+    if (C.prefab || upId) {
+      const pf = SK.prefab(upId || C.prefab);
+      if (pf && SK.drawPrefab(ctx, pf, x, y - (o.moving ? Math.abs(Math.sin(t * 9)) * 1.2 : 0), { flip: o.flip, pages: o.flash ? SK.pagesWhite : null, t, skip: q => SKIP_NODE.test(q.n) })) { SK.mechDrawn[id + (upId ? '★' : '')] = 'prefab:' + (upId || C.prefab); return; }
     }
-    SK.mechDrawn[id] = 'frames:' + id;
+    SK.mechDrawn[id + (o.up ? '★' : '')] = 'frames:' + id;
     if (!C.parts) return;
     const fs = o.flip ? -1 : 1, bob = o.moving ? Math.abs(Math.sin(t * 9)) * 1.2 : 0;
     const pages = o.flash ? SK.pagesWhite : null;
@@ -68,38 +69,64 @@
   function dropMount(G, m, x, y) {
     const M = SK.mountDef(m.id), prop = { x, y, t: SK.rand() * 2, gone: false, draw(ctx, G2, pr) {
       if (pr.gone) return;
-      SK.mountDraw(ctx, m.id, x, y, G.t + pr.t, { flip: false });
+      SK.mountDraw(ctx, m.id, x, y, G.t + pr.t, { flip: false, up: !!m.up });
     } };
     G.props.push(prop);
     G.interactables.push({
       x, y: y + 4, r: 22, labelY: 40, get gone() { return prop.gone; },
-      get label() { return 'Cưỡi ' + (M ? M.vi : m.id); },
-      use() { if (prop.gone) return; prop.gone = true; SK.mountOn(G, G.player, m.id, { hp: m.hp, hpMax: m.hpMax }); }
+      get label() { return 'Cưỡi ' + (M ? M.vi : m.id) + (m.up ? ' ★' : ''); },
+      use() { if (prop.gone) return; prop.gone = true; SK.mountOn(G, G.player, m.id, { hp: m.hp, hpMax: m.hpMax, up: m.up }); }
     });
     return prop;
   }
 
   // Vũ khí gắn thay ô vũ khí trong lúc lái; xuống thì trả lại vũ khí cũ [WIKI Mounts: cơ giáp thay thế ô vũ khí].
-  function mechWeapon(id, i) {
-    const C = MECH[id].gun || MECH[id].guns[i || 0], W = DS.weapons;
+  // Danh sách súng của một giáp: bản thường, hoặc bản ★ (C.upg.patch = chỉnh súng có sẵn theo chỉ số, C.upg.add = súng thêm) [PF *_update].
+  function mechGunList(id, up) {
+    const C = MECH[id];
+    let gs = (C.guns || (C.gun ? [C.gun] : [])).slice();
+    if (up && C.upg) {
+      gs = gs.map((g, i) => (C.upg.patch && C.upg.patch[i]) ? Object.assign({}, g, C.upg.patch[i]) : g);
+      gs = gs.concat(C.upg.add || []);
+    }
+    return gs;
+  }
+  SK.mechGunList = mechGunList;
+  // Súng dùng đạn gốc của prefab cơ giáp: g.bl = [[prefab đạn, sát thương, tốc?]...] (nhiều đạn thì bắn ngẫu nhiên một trong số đó như mech_2_1),
+  // g.ws = nhân nhịp bắn (stdCooldown của arm_* ngắn lại khi nâng ★). Súng đặc biệt (g.mechx) do js/mechs.js tự chạy, không đi qua fireW86.
+  function mechWeapon(id, i, up) {
+    const C = mechGunList(id, up)[i || 0], W = DS.weapons;
+    if (!C) return null;
+    const tag = 'mech:' + id + (i ? ':' + i : '');
+    if (C.mechx) {
+      const sp = W[C.base] || W.m4 || {};
+      const d = { name: C.name, kind: 'mechx', mechx: C.mechx, dmg: C.dmg || 0, crit: C.crit || 0, cost: C.cost || 0, rps: 1, sprite: sp.sprite, spread: 0, moveMod: 0, grade: 1, cfg: C };
+      const w = SK.makeWeapon(null); w.def = d; w.id = tag; return w;
+    }
     let base = C.base && W[C.base];
     if (C.melee) { const k = Object.keys(W).find(q => W[q].kind === 'melee' && W[q].w86 && W[q].w86.b && W[q].w86.b[0].p === 'punch_spear'); base = W[k]; }
     if (!base) return null;
     const d = Object.assign({}, base, { cost: C.cost, name: C.name || (MD().mounts[id].weapon || {}).name || base.name, dmg: C.dmg, crit: C.crit });
     if (base.w86) {
-      const b0 = Object.assign({}, base.w86.b[0], { dmg: C.dmg, crit: C.crit, thr: C.thr });
-      d.w86 = Object.assign({}, base.w86, { cost: C.cost, b: [b0].concat(base.w86.b.slice(1)) });
+      const b00 = base.w86.b[0];
+      let bl = C.bl ? C.bl.map(q => Object.assign({}, b00, { p: q[0], dmg: q[1], spd: q[2] != null ? q[2] : (C.spd != null ? C.spd : b00.spd), crit: C.crit, thr: C.thr, size: C.size != null ? C.size : 1 }))
+        : [Object.assign({}, b00, { dmg: C.dmg, crit: C.crit, thr: C.thr }, C.bullet ? { p: C.bullet, spd: C.spd != null ? C.spd : b00.spd, size: C.size != null ? C.size : 1 } : {})];
+      const w86 = Object.assign({}, base.w86, { cost: C.cost, b: C.bl ? bl : bl.concat(base.w86.b.slice(1)) });
+      if (C.bl && C.bl.length > 1) w86.x = Object.assign({}, base.w86.x, { randomBullet: 1 });
+      if (C.ws) w86.ws = (base.w86.ws || 1) * C.ws;
+      d.w86 = w86;
+      if (C.bullet || C.bl) d.bullet = bl[0].p;
     }
-    const w = SK.makeWeapon(null); w.def = d; w.id = 'mech:' + id + (i ? ':' + i : ''); return w;
+    const w = SK.makeWeapon(null); w.def = d; w.id = tag; return w;
   }
-  function mechEquip(p, id) {
-    const C = MECH[id], n = C.gun ? 1 : (C.guns || []).length;
+  function mechEquip(p, id, up) {
+    const gs = mechGunList(id, up), n = gs.length;
     if (!n) return;                                   // WiFi Booster: giữ vũ khí của người chơi
     const ws = [];
-    for (let i = 0; i < n; i++) { const w = mechWeapon(id, i); if (w) ws.push(w); }
+    for (let i = 0; i < n && ws.length < 2; i++) { const w = mechWeapon(id, i, up); if (w) ws.push(w); }
     if (!ws.length) return;
-    p._mechSaved = { weapons: p.weapons.slice(), cur: p.cur, dual: p.dual };
-    p.weapons = [ws[0], ws[1] || null]; p.cur = 0; p.dual = null;
+    if (!p._mechSaved) p._mechSaved = { weapons: p.weapons.slice(), cur: p.cur, dual: p.dual };
+    p.weapons = [ws[0], ws[1] || null]; p.cur = Math.min(p.cur || 0, ws[1] ? 1 : 0); p.dual = null;
   }
   function mechRestore(p) {
     const sv = p._mechSaved; if (!sv) return;
@@ -125,10 +152,24 @@
     opt = opt || {};
     if (p.mount) { if (p.mount.mech) mechRestore(p); dropMount(G, p.mount, p.x - p.face * 14, p.y); }     // đã cưỡi con khác: con cũ bỏ lại mặt đất [WIKI]
     const hpMax = opt.hpMax != null ? opt.hpMax : hpOf(G, M);
-    p.mount = { id, hp: opt.hp != null ? opt.hp : hpMax, hpMax, def: M.def || 0, speedRate: M.speedRate || 0, kind: M.kind, mech: isMech(id) };
-    if (p.mount.mech) mechEquip(p, id);
+    p.mount = { id, hp: opt.hp != null ? opt.hp : hpMax, hpMax, def: M.def || 0, speedRate: M.speedRate || 0, kind: M.kind, mech: isMech(id), up: !!opt.up };
+    if (opt.up) { p.mount.speedRate = (MECH[id].upg && MECH[id].upg.speedRate != null) ? MECH[id].upg.speedRate : p.mount.speedRate; }
+    if (p.mount.mech) { p.cur = 0; mechEquip(p, id, !!opt.up); }
     SK.emit('mountOn', G, p.mount);
     return p.mount;
+  };
+  // Nâng cấp ★ ở Thương Nhân Vật Chở [WIKI Armor Merchant; PF m_mech_N_update; npc_mount_mech.mountPriceUpdateFactor 0,5]:
+  // giáp đổi sang chỉ số của prefab *_update (máu tối đa, tốc, sát thương/nhịp súng, súng/đòn thêm); máu hiện tại tăng bằng phần máu tối đa tăng.
+  SK.mechCanUpgrade = m => !!(m && m.mech && !m.up && MECH[m.id] && MECH[m.id].upg);
+  SK.mechUpgrade = function (G, p) {
+    const m = p && p.mount; if (!SK.mechCanUpgrade(m)) return false;
+    const U2 = MECH[m.id].upg;
+    m.up = true;
+    if (U2.hp != null && U2.hp > m.hpMax) { m.hp += U2.hp - m.hpMax; m.hpMax = U2.hp; }
+    if (U2.speedRate != null) m.speedRate = U2.speedRate;
+    mechEquip(p, m.id, true);
+    SK.emit('mountUpgrade', G, m);
+    return true;
   };
   SK.mountDismount = function (G, p) {
     const m = p && p.mount; if (!m) return false;
@@ -138,15 +179,15 @@
     SK.emit('mountOff', G, m);
     return true;
   };
-  function mountBreak(G, p, dmgOver) {
+  function mountBreak(G, p, dmgOver, rTiles) {
     const m = p.mount; p.mount = null;
-    if (m.mech) { mechRestore(p); mechBlast(G, p, m, dmgOver); }
+    if (m.mech) { mechRestore(p); mechBlast(G, p, m, dmgOver, rTiles); }
     if (SK.vfx && SK.vfx.has && SK.vfx.has('effect_smoke')) SK.vfx.spawn(G, 'effect_smoke', p.x, p.y - 6, {});
     SK.emit('mountBreak', G, m);
   }
 
   // Nút Phụ "Tạm Biệt Thế Giới": cơ giáp tự nổ với sát thương cho trước rồi mất [WIKI Prototype Armor: nổ 50; Engineer Mech 199 (data)].
-  SK.mechSelfDestruct = (G, p, dmg) => { if (!p || !p.mount || !p.mount.mech) return false; mountBreak(G, p, dmg); return true; };
+  SK.mechSelfDestruct = (G, p, dmg, rTiles) => { if (!p || !p.mount || !p.mount.mech) return false; mountBreak(G, p, dmg, rTiles); return true; };
   SK.mechBlast = (G, p, dmg, rTiles) => mechBlast(G, p, null, dmg, rTiles);
 
   // Sát thương: thú nhận trước người. Bỏ qua khi người đang bất tử (hurtPlayer gốc cũng từ chối) hoặc đã chết.
@@ -177,7 +218,7 @@
   SK.drawPlayer = function (ctx, G) {
     const p = G.player, m = p && p.mount;
     if (!m || p.st === 'dead') return baseDraw.call(this, ctx, G);
-    const alpha = G.phase === 'portal' ? Math.max(0, 1 - G.phaseT / 0.6) : 1, o = { moving: p.moving, flip: p.face < 0, flash: p.flash > 0 };
+    const alpha = G.phase === 'portal' ? Math.max(0, 1 - G.phaseT / 0.6) : 1, o = { moving: p.moving, flip: p.face < 0, flash: p.flash > 0, up: !!m.up };
     if (m.mech) {
       // Người ngồi trong giáp: vẽ người trước (nhô đầu lên), giáp đè lên; vũ khí gắn là cánh tay của giáp nên không vẽ súng cầm tay.
       ctx.save(); ctx.globalAlpha = alpha; ctx.translate(0, -SK.mechLift(m.id)); p.hideHeld = true;

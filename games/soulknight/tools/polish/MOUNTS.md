@@ -50,7 +50,7 @@ HP/giáp/tốc/damage từ [PF common:rgprefab/mount/*] đối chiếu [WIKI t�
 | m_mech_4 | WiFi Booster / Máy Khuếch Đại Tín Hiệu | 16 | 0 (1 ở Badass) | 0 | 2 Súng Lơ Lửng + 1 Laser Lơ Lửng (damage 4, tiêu 1); **cho dùng vũ khí thường** | 1 | có bản vẽ + cấp màn >= 6 |
 | m_mech_5 | Dragon Dance Armor / Thiết Giáp Múa Lân | 8 | 1 | -20% | Cắn (10) + Pháo Hoa (12, tiêu 4) | 3 | có bản vẽ + cấp màn >= 6 |
 | m_mech_6 | Swift Shuttle Jet / Máy Bay Chiến Đấu | 7 | 1 | +60% | 2 súng (2, tiêu 4) | 3 | có bản vẽ |
-| m_mech_7 | (Hellfire Chariot / wiki) | 7 | 1 (prefab; wiki 0) | +60% (prefab; wiki +120) | 1 súng (8, tiêu 2) | 3 | có bản vẽ. LƯU Ý: wiki Hellfire Chariot tốc 120, prefab m_mech_7 speedRate 0,6; chưa chắc m_mech_7 là Hellfire |
+| m_mech_7 | Floating 51 / Đĩa Nổi 51 (đã xác nhận đợt 3; KHÔNG phải Hellfire Chariot = m_mech_8) | 7 | 1 | +60% | 1 súng laser (8, tiêu 2), ★ +2 máu và tự phóng điện | 3 | có bản vẽ. Wiki Floating 51 khớp prefab từng số (máu 7, giáp 1, tốc +60%, laser 8 tiêu 2, xuyên vật cản); Hellfire Chariot máu 7, giáp 0, tốc 120, [LOC] m_mech_8, prefab không có trong bundle |
 | m_mecha_normal_b | Garboil Warmech (suy ra từ HP 12) | 12 | 1 | -20% | arm_bazooka (8, tiêu 2) | 3 | có bản vẽ |
 | m_mecha_normal_d | Raid Battlesuit (suy ra từ HP 13, tốc -10%, Pong Pong) | 13 | 1 | -10% | arm_pengpeng (3, tiêu 2) | 3 | có bản vẽ |
 | m_mecha_normal_e | Guerrilla Combatant (Turbulence) | 14 | 1 | -20% | arm_normal_turbulence (4, tiêu 1) | 3 | có bản vẽ |
@@ -161,9 +161,11 @@ Phân phối [CFG random_mercenary]: npc_01..06, 08, 09, 10 (và các id sau) tr
 - Điều kiện mở khoá `type 8` và `type 0 >= 3 / 6` trong `npc_mount_mech`: số `>= 3`, `>= 6` có thể là cấp màn (wiki không nói rõ) (suy ra).
 - Bảng Thuê (`hire_board`): không có chuỗi, không có trang wiki, không có prefab tìm được. Không rõ nó có bán lính thuê không.
 - Công thức giá lính thuê theo tầng (15-30): chỉ có câu wiki, không có bảng. Số lượng tối đa mỗi tầng ngoài luật "một người/lồng nhốt không giới hạn": chưa thấy tham số trong prefab.
-- Bảng nâng cấp ★ của từng cơ giáp: wiki mô tả, prefab `*_update` chưa đọc (có 11 tệp `_update`).
+- Bảng nâng cấp ★: đã đọc (đợt 3) từ 10 prefab `*_update` (m_mech_1/2/3/4/6/7, m_mecha_normal_b/d/e/2s); m_mech_5 và m_mech_0 không có bản ★. Giá nâng = 0,5 x giá giáp [PF npc_mount_mech.mountPriceUpdateFactor]; `updatedSecondaryWeaponMechList` = m_mech_2, m_mech_3 (gợi ý "Đổi vũ khí thử xem" vì ★ thêm vũ khí ô 2).
 - HP lính thuê: prefab lệch wiki ở Don Quixote (80 vs 55) và Kiến Tập (60 vs infobox 50); dùng prefab vì là số 8.6 trực tiếp.
-- 25 prefab `m_mech_paladin_sN`: chưa đọc giáp/tốc.
+- `m_mech_paladin` + 24 skin `_sN` (đợt 3 đã đọc bản gốc): máu 10, giáp 0, tốc 0, vũ khí `weapon_225` cận chiến 10 sát thương, crit 10, nhịp 0,5; không bán, là giáp của kỹ năng nhân vật; chưa nối vào web.
 - Mã hành vi (đúng lúc lên/xuống, nổ, hồi) nằm trong C# không giải; luật mục 2 phần lớn từ wiki.
+
+**Bước D đợt 3 (rev 20261012a):** nâng ★ ở Thương Nhân Vật Chở, đòn thứ hai, xuyên vật cản của m_mech_6/7 và đạn gốc: xem mục "Cơ giáp" trong GAPS.md.
 
 **Bước D cập nhật (rev 20261010zb):** 14 cơ giáp đã chạy được qua `js/mounts.js` (khung) + `js/mechs.js` (bảng và nút Phụ); vẽ bằng prefab gốc, bộ kiểm `test/soulknight-mech.js`. Chỗ còn thiếu xem mục "Cơ giáp" trong GAPS.md.
