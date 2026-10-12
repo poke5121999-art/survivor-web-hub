@@ -39,3 +39,5 @@
 - `[BẪY ĐÃ SẬP]` Diệt tiến trình theo tên [ĐO TRONG REPO, 2026-10-10, Chợ Phiên]:
   - Một agent chạy `taskkill /IM node.exe` để dừng việc chậm của chính nó, giết luôn mọi server/test node của agent khác trên máy.
   - Chỉ diệt đúng PID mình khởi động (giữ PID từ `spawn` hoặc `Start-Process -PassThru`). Ghi luật này vào hợp đồng giao việc cho subagent.
+- `[BẪY ĐÃ SẬP]` `git stash` chạy trong một worktree phụ [ĐO TRONG REPO, 2026-10-12]: `refs/stash` là của chung cả repo, nên mục stash hiện ra
+  ở `git stash list` của cây chính, và agent khác `stash pop` là nhận nhầm. Worktree tạm thì xoá thẳng bằng `git worktree remove --force`, đừng stash.
