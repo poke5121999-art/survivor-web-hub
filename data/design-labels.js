@@ -52,7 +52,13 @@
         "skill.heal": { label: "Hồi máu mỗi giây", unit: "máu", min: 0 },
         "skill.dmg": { label: "Sát thương kỹ năng", min: 0 },
         "skill.stun": { label: "Thời gian choáng", unit: "giây", min: 0 },
-        "skill.dist": { label: "Quãng dịch chuyển", unit: "ô", min: 0 }
+        "skill.dist": { label: "Quãng dịch chuyển", unit: "ô", min: 0 },
+        "skill.lightR": { label: "Bán kính quầng sáng", unit: "ô", min: 0, help: "Chói Loà: quầng sáng đi theo người bấm và từng đồng đội trong bán kính kỹ năng." },
+        "skill.lightDur": { label: "Thời gian quầng sáng", unit: "giây", min: 0, help: "Chói Loà." },
+        "skill.camZoom": { label: "Độ thu camera", min: 0.4, max: 1, help: "Thấu Thị: 0,74 = camera lùi ra, thấy rộng hơn khoảng 35% mỗi chiều. 1 = không đổi." },
+        "skill.mapZoom": { label: "Độ mở bản đồ nhỏ", min: 1, max: 3, help: "Thấu Thị: bản đồ nhỏ thấy gấp bấy nhiêu lần số ô." },
+        "skill.pullSpd": { label: "Tốc độ kéo đầu", unit: "ô/giây", min: 1, help: "Kéo Về: đầu đồng đội bị móc bay về người bấm với tốc độ này, xuyên tường." },
+        "skill.flySpd": { label: "Tốc độ đồ bay", unit: "ô/giây", min: 1, help: "Kéo Đồ: đồ lơ lửng bay thẳng về bệ với tốc độ này, xuyên tường." }
       }
     },
 
