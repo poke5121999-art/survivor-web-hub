@@ -258,7 +258,11 @@
         "lootGoldRate": { label: "Vàng theo giá trị đồ giao", pct: true, min: 0, help: "55% = nhận vàng bằng 55% tổng giá trị đồ đã giao." },
         "coopGemPerStep": { label: "Ngọc co-op mỗi chặng", unit: "ngọc", min: 0, int: true, help: "Ca co-op: nhận bấy nhiêu ngọc cho mỗi chặng tầng đã qua." },
         "coopFloorsPerStep": { label: "Số tầng mỗi chặng ngọc co-op", min: 1, int: true },
-        "coopTierFloors": { label: "Số tầng mỗi bậc co-op", min: 1, int: true, help: "Bậc = số tầng chia số này; chỉ để hiện, không đổi thưởng." }
+        "coopTierFloors": { label: "Số tầng mỗi bậc co-op", min: 1, int: true, help: "Bậc = số tầng chia số này; chỉ để hiện, không đổi thưởng." },
+        "lootCapSlack": { label: "Hệ số trần đồ mỗi nhà (chống gian lận)", min: 1, help: "Server không trả quá trần đồ loot_cap của các nhà mà giờ chơi cho phép, nhân số này. 2 = gấp đôi trần đặt đồ, chừa két, rương và món cuối." },
+        "maxKillsPerFloor": { label: "Trần số quái giết mỗi nhà", min: 1, int: true, help: "Bộ đếm quest giết quái của một ca không vượt số này nhân số nhà giờ chơi cho phép." },
+        "maxSkillsPerFloor": { label: "Trần số lần dùng kỹ năng mỗi nhà", min: 1, int: true, help: "Bộ đếm quest dùng kỹ năng, cùng cách kẹp như trên." },
+        "maxRevivesPerFloor": { label: "Trần số lần hồi sinh mỗi nhà", min: 1, int: true, help: "Bộ đếm quest hồi sinh đồng đội, cùng cách kẹp như trên." }
       }
     },
 
