@@ -8,7 +8,7 @@ export const KNOWN = [
   "loot_items", "safes_chests", "station_upgrades", "station_gear", "station_healthpacks",
   "station_vehicles", "station_rules", "gacha_wheel", "foes", "run_timers",
   "endless_rules", "rank_rewards", "endless_seasons",
-  "coop_rules", "modes",
+  "coop_rules", "modes", "decor_lights",
 ];
 
 const MAX_BODY_BYTES = 400 * 1024;
@@ -138,7 +138,21 @@ const NET_BACKENDS = ["ngo", "rtd", "steam"];
 
 const MODE_IDS = ["coop", "pvp", "endless_solo", "endless_coop"];
 
+const DECOR_CURVES = ["noise", "surge", "pattern", "pulse", "heartbeat", "glitch"];
+
+// Same rules the client applies (RemoteTablesRun.DecorLights): a doc that breaks one is dropped there, so refuse it here.
+function decorLightRule(d) {
+  const id = `Kiểu sáng "${d._id}"`;
+  if (typeof d.color !== "string" || !/^#[0-9a-fA-F]{6}$/.test(d.color)) return `${id}: màu ${JSON.stringify(d.color)} phải có dạng #rrggbb.`;
+  if (!DECOR_CURVES.includes(d.curve)) return `${id}: kiểu nhấp nháy ${JSON.stringify(d.curve)} không hợp lệ, chỉ nhận ${DECOR_CURVES.join(", ")}.`;
+  if (d.pattern !== undefined && (typeof d.pattern !== "string" || !/^[a-z]*$/.test(d.pattern))) return `${id}: chuỗi tắt bật chỉ nhận chữ thường a đến z.`;
+  if (d.curve === "pattern" && !d.pattern) return `${id}: kiểu Chuỗi tắt bật cần một chuỗi, ví dụ mmamammm.`;
+  if (!Array.isArray(d.decors) || !d.decors.length || d.decors.some((n) => typeof n !== "string" || !n)) return `${id}: danh sách decor trống hoặc có tên rỗng.`;
+  return null;
+}
+
 const TABLE_RULES = {
+  decor_lights: decorLightRule,
   coop_rules: (d) => (NET_BACKENDS.includes(d.netBackend) ? null
     : `Mạng co-op "${d.netBackend}" không hợp lệ, chỉ nhận ngo, rtd hoặc steam.`),
   modes: (d) => (!MODE_IDS.includes(d._id) ? `Chế độ "${d._id}" không hợp lệ, chỉ nhận ${MODE_IDS.join(", ")}.`

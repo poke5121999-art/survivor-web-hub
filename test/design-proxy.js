@@ -30,7 +30,7 @@ function shuffleKeys(v) {
 
   const list = await act({ action: "list" });
   const names = Object.keys(list.json.tables || {});
-  check("list names", list.status === 200 && names.length === 35 && names.every((n, i) => n === KNOWN[i]) && KNOWN.length === 35,
+  check("list names", list.status === 200 && names.length === 36 && names.every((n, i) => n === KNOWN[i]) && KNOWN.length === 36,
     `status ${list.status}, ${names.length} tables`);
   check("list quests.exists", list.json.tables.quests.exists === true, `exists=${list.json.tables.quests.exists}`);
 
@@ -63,7 +63,14 @@ function shuffleKeys(v) {
     ["modes _id lạ", { table: "modes", docs: [{ _id: "arena", open: true }] }],
     ["modes open không phải boolean", { table: "modes", docs: [{ _id: "coop", open: "yes" }] }],
     ["coop_rules netBackend lạ", { table: "coop_rules", docs: [{ _id: "default", netBackend: "udp" }] }],
+    ["decor_lights màu sai", { table: "decor_lights", docs: [{ ...{ _id: "candle", color: "#ffa040", curve: "noise", pattern: "", decors: ["candlestick_triple"] }, color: "orange" }] }],
+    ["decor_lights kiểu nhấp nháy lạ", { table: "decor_lights", docs: [{ ...{ _id: "candle", color: "#ffa040", curve: "noise", pattern: "", decors: ["candlestick_triple"] }, curve: "strobe" }] }],
+    ["decor_lights pattern thiếu chuỗi", { table: "decor_lights", docs: [{ ...{ _id: "candle", color: "#ffa040", curve: "noise", pattern: "", decors: ["candlestick_triple"] }, curve: "pattern" }] }],
+    ["decor_lights decors rỗng", { table: "decor_lights", docs: [{ ...{ _id: "candle", color: "#ffa040", curve: "noise", pattern: "", decors: ["candlestick_triple"] }, decors: [] }] }],
   ];
+  const okDecor = await act({ action: "save", baseHash: (await act({ action: "get", table: "decor_lights" })).json.hash, dryRun: true, table: "decor_lights",
+    docs: JSON.parse(fs.readFileSync(path.resolve(__dirname, "../../REPO_Meta/gamespark-config/decor_lights.json"), "utf8")) });
+  check("decor_lights seed qua được luật kiểm", okDecor.status === 200, `status ${okDecor.status}, ${okDecor.json.error && okDecor.json.error.message}`);
   for (const [n, b] of invalid) {
     const r = await act({ action: "save", baseHash: h, dryRun: true, ...b });
     check("INVALID " + n, r.status === 400 && r.json.error.code === "INVALID", `status ${r.status}, ${r.json.error && r.json.error.message}`);
@@ -71,7 +78,7 @@ function shuffleKeys(v) {
 
   const listed = await act({ action: "list" });
   const gone = KNOWN.find((t) => !listed.json.tables[t].exists);
-  if (!gone) console.log("ℹ dryRun missing table — bỏ qua: cả 35 bảng đều đã có trên DEV");
+  if (!gone) console.log("ℹ dryRun missing table — bỏ qua: cả 36 bảng đều đã có trên DEV");
   else {
     const want = JSON.parse(fs.readFileSync(`D:/REPO_Meta/gamespark-config/${gone}.json`, "utf8"));
     const dm = await act({ action: "save", table: gone, docs: want, baseHash: listed.json.tables[gone].hash, dryRun: true });

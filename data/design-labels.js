@@ -342,7 +342,9 @@
         "fireRange": { label: "Tầm tia lửa", unit: "ô", min: 1 },
         "fireRangeMax": { label: "Tầm tia lửa tối đa (phòng rộng)", unit: "ô", min: 1 },
         "gasRange": { label: "Tầm khí độc", unit: "ô", min: 1 },
-        "gasRangeMax": { label: "Tầm khí độc tối đa (phòng rộng)", unit: "ô", min: 1 }
+        "gasRangeMax": { label: "Tầm khí độc tối đa (phòng rộng)", unit: "ô", min: 1 },
+        "decorLightFadeIn": { label: "Ánh sáng decor: hiện ra trong", unit: "giây", min: 0, help: "Đèn pin soi trúng decor phát sáng thì vòng sáng của nó hiện dần trong ngần này giây." },
+        "decorLightFadeOut": { label: "Ánh sáng decor: tắt dần trong", unit: "giây", min: 0, help: "Đèn pin rời khỏi decor thì vòng sáng tắt dần trong ngần này giây." }
       }
     },
 
@@ -594,6 +596,32 @@
         "truckHeal.late": { label: "Nhà 5 trở đi", unit: "máu", min: 0 },
         "truckHeal.patch": { label: "Máu tối thiểu khi vào nhà mới", unit: "máu", min: 0, help: "Sàn an toàn: không ai bước vào nhà mới dưới ngần này máu." },
         "reviveHp": { label: "Máu khi được đỡ dậy", unit: "máu", min: 1 }
+      }
+    },
+
+    decor_lights: {
+      title: "Ánh sáng decor",
+      blurb: "Mỗi dòng là một kiểu ánh sáng của decor (nến, bếp lửa, ống thí nghiệm, đèn chập chờn...): màu, bán kính, nhịp nhấp nháy và các decor dùng kiểu đó. Vòng sáng chỉ hiện khi đèn pin của người chơi soi trúng decor; thời gian hiện và tắt chỉnh ở Luật ải. Chỉ là hình, không đổi luật chơi.",
+      effect: RUN,
+      fields: {
+        "_id": { label: "Mã kiểu sáng", help: "Giữ nguyên." },
+        "color": { label: "Màu", help: "Mã màu dạng #rrggbb, ví dụ #ffa040 là cam nến." },
+        "radiusTiles": { label: "Bán kính", unit: "ô", min: 0.5, max: 8, help: "Decor to hơn 2 ô nên đặt bán kính bằng nửa bề rộng decor cộng 1 đến 1,5 ô." },
+        "intensity": { label: "Độ sáng ở tâm", pct: true, min: 0, max: 1 },
+        "scaleAmp": { label: "Bán kính dao động", pct: true, min: 0, max: 0.3, help: "6% = vòng sáng phình co trong khoảng ±6% bán kính. Trên 15% trông như phồng xẹp." },
+        "intensityAmp": { label: "Độ sáng dao động", pct: true, min: 0, max: 0.5 },
+        "curve": { label: "Kiểu nhấp nháy", choices: [
+          { v: "noise", label: "Nến: lay ngẫu nhiên" },
+          { v: "surge", label: "Bếp lửa: bùng rồi lắng" },
+          { v: "pattern", label: "Chuỗi tắt bật (đèn hỏng)" },
+          { v: "pulse", label: "Thở đều" },
+          { v: "heartbeat", label: "Nhịp tim" },
+          { v: "glitch", label: "Màn hình: thỉnh thoảng nhiễu" }
+        ] },
+        "hz": { label: "Nhịp", unit: "lần/giây", min: 0, help: "Chỉ dùng cho Thở đều và Nhịp tim. 0,7 = máy thở đều; 0,25 = pha lê thở chậm; 1 = nhịp tim." },
+        "pattern": { label: "Chuỗi tắt bật", help: "Chỉ dùng cho kiểu Chuỗi tắt bật. Đọc 10 chữ mỗi giây: a = tắt hẳn, m = sáng bình thường, z = sáng gấp đôi." },
+        "decors": { label: "Decor dùng kiểu này", help: "Tên prefab decor trong game, ví dụ candlestick_triple. Sửa được tên; chưa thêm hay bớt ô được." },
+        "decors.*": { label: "Decor" }
       }
     },
 

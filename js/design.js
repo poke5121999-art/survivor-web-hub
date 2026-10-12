@@ -10,7 +10,7 @@
     "shop_packs", "shop_rules", "shop_exchange", "loadout", "quests", "maps", "run_reward", "rank_rewards", "endless_seasons", "coop_rules", "modes"];
   var IN_RUN = ["stage_houses", "stage_rules", "extract_quota", "loot_cap", "loot_sizes", "loot_materials",
     "loot_items", "safes_chests", "station_upgrades", "station_gear", "station_healthpacks", "station_vehicles",
-    "station_rules", "gacha_wheel", "foes", "run_timers", "endless_rules"];
+    "station_rules", "gacha_wheel", "foes", "run_timers", "endless_rules", "decor_lights"];
   var GROUPS = [["Ngoài ca", OUT_RUN], ["Trong ca", IN_RUN]];
   var ALL = OUT_RUN.concat(IN_RUN);
 
