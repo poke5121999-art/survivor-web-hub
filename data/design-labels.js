@@ -702,7 +702,8 @@
         "poseBurstSeconds": { label: "Giây đi dồn được sau lag", unit: "giây", min: 0, help: "Sau một lúc mạng chậm, gói tư thế dồn lại vẫn được nhận tối đa chừng này giây đường đi." },
         "poseRoundPx": { label: "Sai số làm tròn toạ độ", unit: "px", min: 0, help: "Khoảng cộng thêm vào trần quãng đi để không bắt nhầm do làm tròn toạ độ." },
         "intentPerSecond": { label: "Số thao tác mỗi giây của khách", min: 1, int: true, help: "Chủ phòng bỏ thao tác (đánh, dùng đồ…) vượt số này mỗi giây; người bấm nhanh khoảng 10 lần/giây." },
-        "intentBurst": { label: "Số thao tác dồn tối đa", min: 1, int: true, help: "Bấm dồn một lúc tối đa chừng này thao tác trước khi bị bỏ." }
+        "intentBurst": { label: "Số thao tác dồn tối đa", min: 1, int: true, help: "Bấm dồn một lúc tối đa chừng này thao tác trước khi bị bỏ." },
+        "keyEvery": { label: "Nhịp ảnh chụp đầy đủ", unit: "tick", min: 0, int: true, help: "Cứ chừng này ảnh chụp (15 ảnh/giây) chủ phòng gửi mỗi khách một ảnh đầy đủ để sửa sai lệch; các khách được so le để không dồn cùng lúc. 450 = 30 giây. 0 = tắt." }
       }
     },
 
