@@ -397,7 +397,16 @@ async function skillDraw(br, base, vp, tag, problemsAll) {
       [a.x, a.y, 5, 4], min, (st) => kind === 'lightOff' || st.ov.indexOf(id + ':' + want) >= 0);
   }
   // chảy máu (cá mập) là hạt: hạt tăng
-  await drawCase('hiệu ứng bleed', async () => { await page.evaluate(() => VS_LAB.addEffect(5, 'bleed', 30, 4)); await step(0.5); }, [X - 6, Y + 3, 5, 4], 0, (st, dp) => dp > 0);
+  // hạt nền (bong bóng) sinh và tắt liên tục nên hiệu tổng số hạt nhiễu; đếm đúng lượt sinh hạt 'blood'
+  await page.evaluate(() => {
+    const fx = VS.view.debug.state().fx, spawn = fx.spawn;
+    window.__blood = 0;
+    fx.spawn = function (kind) { if (kind === 'blood') window.__blood++; return spawn.apply(this, arguments); };
+  });
+  await drawCase('hiệu ứng bleed', async () => { await page.evaluate(() => { window.__blood = 0; VS_LAB.addEffect(5, 'bleed', 30, 4); }); await step(0.5); }, [X - 6, Y + 3, 5, 4], 0,
+    () => true);
+  const blood = await page.evaluate(() => window.__blood);
+  T.check('(l) ' + tag + ' cá mập chảy máu (bleed 4) sinh giọt máu trong 0,5 s', blood >= 1, blood + ' giọt');
 
   // --- vùng kỹ năng ---
   const Z = { bait: 'lua-bay', o2gen: 'may-o2', mine: 'min-cam-bien', flare: 'phao-sang', ink: 'bom-muc', cage: 'long-thep' };
