@@ -799,31 +799,104 @@ def hull(pts):
     return lo[:-1] + up[:-1]
 
 
-def clip_above(tri):
-    """Part of a 3D triangle with y >= 0 as a polygon of (x, z) points."""
-    out = []
-    n = len(tri)
-    for i in range(n):
-        a, b = tri[i], tri[(i + 1) % n]
-        ina, inb = a[1] >= 0, b[1] >= 0
-        if ina:
-            out.append((a[0], a[2]))
-        if ina != inb:
-            t = (0 - a[1]) / (b[1] - a[1])
-            out.append((a[0] + t * (b[0] - a[0]), a[2] + t * (b[2] - a[2])))
-    return out
+# World-y band the boat's solid hull collider occupies on calm water. The landmask keeps only collider
+# parts inside it, so cave roofs and overhangs above the boat stay water (oarfish cave, HarvestPOI 183).
+# - Hull: MeshCollider on Boat1..Boat5 (PlayerContainer.prefab, identity transforms under Player); mesh
+#   bounds y = 0.0524..0.7004 (Boat1), 0.0333..0.7119 (Boat2-5) -> union 0.033..0.712 (data/boat.js colliderSize).
+# - Rest height: BuoyantObject.cs:84-92 pulls each of the 4 effectors (y 0.07 in Player space) with
+#   gravity/4 * gravityModifier 7 and pushes with g * depth / objectDepth 0.2 * strength 1.6; with Rigidbody
+#   gravity on, 8g = 4 * 8g * depth -> effectors 0.25 m under the surface, Player y = -0.32 on water y 0.
+# - So the hull spans y -0.287..0.392. Waves are left out: the mask is static and calm water is the common case.
+BOAT_BAND = (0.033 - 0.32, 0.712 - 0.32)
+
+
+def clip_band(tri, lo=BOAT_BAND[0], hi=BOAT_BAND[1]):
+    """Part of a 3D polygon (Unity x, y, z) with lo <= y <= hi, as (x, y, z) points (Sutherland-Hodgman)."""
+    pts = [tuple(p) for p in tri]
+    for keep, edge in ((lambda y: y >= lo, lo), (lambda y: y <= hi, hi)):
+        out = []
+        n = len(pts)
+        for i in range(n):
+            a, b = pts[i], pts[(i + 1) % n]
+            ina, inb = keep(a[1]), keep(b[1])
+            if ina:
+                out.append(a)
+            if ina != inb:
+                t = (edge - a[1]) / (b[1] - a[1])
+                out.append((a[0] + t * (b[0] - a[0]), edge, a[2] + t * (b[2] - a[2])))
+        pts = out
+        if not pts:
+            break
+    return pts
+
+
+def band_polys(tv, lo=BOAT_BAND[0], hi=BOAT_BAND[1]):
+    """Triangles (n, 3, 3) in Unity world space -> their parts inside the boat band, projected to three.js
+    (x, z) polygons. Only the walls of a closed shape fall in the band: Mask.piece fills the inside."""
+    ymin, ymax = tv[:, :, 1].min(1), tv[:, :, 1].max(1)
+    polys = [[(x, -z) for x, _, z in tri] for tri in tv[(ymin >= lo) & (ymax <= hi)]]
+    for tri in tv[(ymin < hi) & (ymax > lo) & ~((ymin >= lo) & (ymax <= hi))]:
+        p = clip_band(tri, lo, hi)
+        if len(p) >= 3:
+            polys.append([(x, -z) for x, _, z in p])
+    return polys
+
+
+def box_tris(W, c, sz):
+    """BoxCollider (centre c, size sz, local->world W) as 12 world-space triangles."""
+    v = np.array([(W @ [c[0] + ix * sz[0], c[1] + iy * sz[1], c[2] + iz * sz[2], 1])[:3]
+                  for ix in (-.5, .5) for iy in (-.5, .5) for iz in (-.5, .5)])
+    quads = ((0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3))
+    return np.array([[v[q[0]], v[q[i]], v[q[i + 1]]] for q in quads for i in (1, 2)])
+
+
+def band_radius(y, r, lo=BOAT_BAND[0], hi=BOAT_BAND[1]):
+    """Largest radius a sphere (centre height y, radius r) has inside the band, 0 when it misses it."""
+    d = 0.0 if lo <= y <= hi else min(abs(y - lo), abs(y - hi))
+    return math.sqrt(r * r - d * d) if d < r else 0.0
+
+
+def filled_cells(polys, x0, z0, res):
+    """Rasterise one collider's band polygons on the landmask grid and fill what they enclose (a rock's
+    band slice is only its outer wall). Returns (col0, row0, bool array) or None. A polygon thinner than
+    about two pixels (a steep wall seen from above) is also outlined: PIL's fill alone drops pixels of
+    such slivers and the ring would leak. Wider polygons are filled only, as before."""
+    pts = [((x - x0) / res, (z - z0) / res) for p in polys for x, z in p]
+    if not pts:
+        return None
+    ox = int(math.floor(min(p[0] for p in pts))) - 2
+    oy = int(math.floor(min(p[1] for p in pts))) - 2
+    w = int(math.ceil(max(p[0] for p in pts))) - ox + 3
+    h = int(math.ceil(max(p[1] for p in pts))) - oy + 3
+    img = Image.new('L', (w, h), 0)
+    dr = ImageDraw.Draw(img)
+    for p in polys:
+        if len(p) >= 3:
+            q = [((x - x0) / res - ox, (z - z0) / res - oy) for x, z in p]
+            dr.polygon(q, fill=255)
+            area = abs(sum(q[i][0] * q[i - 1][1] - q[i - 1][0] * q[i][1] for i in range(len(q)))) / 2
+            perim = sum(math.dist(q[i], q[i - 1]) for i in range(len(q)))
+            if area < perim:  # mean width 2 * area / perimeter < 2 px: draw its long axis
+                dr.line(max(((a, b) for a in q for b in q), key=lambda e: math.dist(*e)), fill=255)
+    ImageDraw.floodfill(img, (0, 0), 1)  # border is padding, so (0, 0) is outside every ring
+    return ox, oy, np.asarray(img) != 1
 
 
 class Mask:
     def __init__(self, x0, z0, x1, z1, res):
         self.x0, self.z0, self.res = x0, z0, res
         self.w, self.h = int(math.ceil((x1 - x0) / res)), int(math.ceil((z1 - z0) / res))
-        self.img = Image.new('L', (self.w, self.h), 0)
-        self.dr = ImageDraw.Draw(self.img)
+        self.a = np.zeros((self.h, self.w), bool)
 
-    def poly(self, pts):  # pts in three.js (x, z)
-        if len(pts) >= 3:
-            self.dr.polygon([((x - self.x0) / self.res, (z - self.z0) / self.res) for x, z in pts], fill=255)
+    def piece(self, polys):  # one collider's band polygons in three.js (x, z)
+        f = filled_cells(polys, self.x0, self.z0, self.res)
+        if f is None:
+            return
+        ox, oy, a = f
+        j0, i0 = max(oy, 0), max(ox, 0)
+        j1, i1 = min(oy + a.shape[0], self.h), min(ox + a.shape[1], self.w)
+        if j0 < j1 and i0 < i1:
+            self.a[j0:j1, i0:i1] |= a[j0 - oy:j1 - oy, i0 - ox:i1 - ox]
 
 
 def boat_solid_layers():
@@ -843,8 +916,9 @@ def boat_solid_layers():
 
 
 def collect_colliders(S, M, mask_roots, solid):
-    """Draw every solid collider crossing y=0 under the static roots into a list of footprints.
-    Returns (footprints per collider kind counts, list of (kind, polygons))."""
+    """Footprint of every solid collider under the static roots inside the boat band (BOAT_BAND).
+    Returns (counts per collider kind, list of (kind, path, polygons)); each entry is one collider, which
+    Mask.piece rasterises and fills on its own."""
     main = S.af
     stats = collections.Counter()
     shapes = []
@@ -871,27 +945,15 @@ def collect_colliders(S, M, mask_roots, solid):
                         continue
                     if t == 'BoxCollider':
                         c, sz = d['m_Center'], d['m_Size']
-                        corners = []
-                        for ix in (-.5, .5):
-                            for iy in (-.5, .5):
-                                for iz in (-.5, .5):
-                                    corners.append(W @ [c['x'] + ix * sz['x'], c['y'] + iy * sz['y'],
-                                                        c['z'] + iz * sz['z'], 1])
-                        corners = np.array(corners)[:, :3]
-                        if not (corners[:, 1].min() <= 0 < corners[:, 1].max()):
-                            stats['box_not_crossing'] += 1
-                            continue
-                        shapes.append(('box', [hull([(x, -z) for x, _, z in corners])]))
+                        polys = band_polys(box_tris(W, (c['x'], c['y'], c['z']), (sz['x'], sz['y'], sz['z'])))
+                        kind = 'box'
                     elif t == 'SphereCollider':
                         c = d['m_Center']
                         p = W @ [c['x'], c['y'], c['z'], 1]
-                        r = d['m_Radius'] * sx.max()
-                        if abs(p[1]) >= r:
-                            stats['sphere_not_crossing'] += 1
-                            continue
-                        r0 = math.sqrt(r * r - p[1] * p[1])
-                        shapes.append(('sphere', [[(p[0] + r0 * math.cos(a), -p[2] + r0 * math.sin(a))
-                                                   for a in np.linspace(0, 2 * math.pi, 24, endpoint=False)]]))
+                        r0 = band_radius(p[1], d['m_Radius'] * sx.max())
+                        polys = [[(p[0] + r0 * math.cos(a), -p[2] + r0 * math.sin(a))
+                                  for a in np.linspace(0, 2 * math.pi, 24, endpoint=False)]] if r0 > 0 else []
+                        kind = 'sphere'
                     elif t == 'CapsuleCollider':
                         c, ax = d['m_Center'], d['m_Direction']
                         hgt = d['m_Height']
@@ -899,15 +961,16 @@ def collect_colliders(S, M, mask_roots, solid):
                         half = max(hgt * sx[ax] / 2 - r, 0)
                         axis = W[:3, ax] / (np.linalg.norm(W[:3, ax]) or 1)
                         p = (W @ [c['x'], c['y'], c['z'], 1])[:3]
-                        e0, e1 = p - axis * half, p + axis * half
-                        if not (min(e0[1], e1[1]) - r < 0 < max(e0[1], e1[1]) + r):
-                            stats['capsule_not_crossing'] += 1
-                            continue
+                        # spine points every <= 0.25 m, each a circle of its band radius; hull of all of them
                         pts = []
-                        for e in (e0, e1):
-                            for a in np.linspace(0, 2 * math.pi, 16, endpoint=False):
-                                pts.append((e[0] + r * math.cos(a), -e[2] + r * math.sin(a)))
-                        shapes.append(('capsule', [hull(pts)]))
+                        for s in np.linspace(-half, half, max(2, int(math.ceil(2 * half / 0.25)) + 1)):
+                            e = p + axis * s
+                            r0 = band_radius(e[1], r)
+                            if r0 > 0:
+                                pts += [(e[0] + r0 * math.cos(a), -e[2] + r0 * math.sin(a))
+                                        for a in np.linspace(0, 2 * math.pi, 16, endpoint=False)]
+                        polys = [hull(pts)] if pts else []
+                        kind = 'capsule'
                     else:
                         mo = S.deref(main, d['m_Mesh'])
                         if mo is None:
@@ -919,20 +982,13 @@ def collect_colliders(S, M, mask_roots, solid):
                             stats['mesh_unreadable'] += 1
                             continue
                         v = (np.c_[me['pos'], np.ones(len(me['pos']))] @ W.T)[:, :3]
-                        if not (v[:, 1].min() <= 0 < v[:, 1].max()):
-                            stats['mesh_not_crossing'] += 1
-                            continue
-                        polys = []
-                        for sub in me['subs']:
-                            tv = v[sub]  # (n, 3, 3)
-                            ymin, ymax = tv[:, :, 1].min(1), tv[:, :, 1].max(1)
-                            full = tv[ymin >= 0]
-                            for tri in full:
-                                polys.append([(x, -z) for x, _, z in tri])
-                            for tri in tv[(ymin < 0) & (ymax >= 0)]:
-                                polys.append([(x, -z) for x, z in clip_above(tri)])
-                        shapes.append(('mesh', polys))
-                    stats[shapes[-1][0]] += 1
+                        polys = [q for sub in me['subs'] for q in band_polys(v[sub])]
+                        kind = 'mesh'
+                    if not polys:
+                        stats[kind + '_outside_band'] += 1
+                        continue
+                    shapes.append((kind, S.path(g), polys))
+                    stats[kind] += 1
     return stats, shapes
 
 
@@ -1527,24 +1583,14 @@ def main():
     log('boat collides with layers', hit, '-> solid', sorted(solid))
     cstats, shapes = collect_colliders(S, M, STATIC_ROOTS, solid)
     log('colliders', dict(cstats))
-    for kind, polys in shapes:
-        for p in polys:
-            mask.poly(p)
-    land_cells = 0
-    if heights.max() > 0:
-        hh = heights[::-1]
-        ys, xs = np.nonzero(hh > 0)
-        for y, x in zip(ys, xs):
-            mx = (tx0 + x * terrain['sampleSpacing'] - x0) / MASK_RES
-            mz = (tz0 + y * terrain['sampleSpacing'] - z0) / MASK_RES
-            mask.dr.rectangle([mx - 1, mz - 1, mx + 1, mz + 1], fill=255)
-            land_cells += 1
-    mask.img.point(lambda v: 255 if v else 0).convert('1').save(os.path.join(OUT, 'landmask.png'), optimize=True)
-    white = float((np.asarray(mask.img) > 0).mean())
+    for kind, path, polys in shapes:
+        mask.piece(polys)
+    # The seabed Terrain sits on layer Default, which the Player layer does not collide with
+    # (boat_solid_layers), and its highest sample is y -0.2: it never adds land.
+    Image.fromarray(mask.a).save(os.path.join(OUT, 'landmask.png'), optimize=True)
+    white = float(mask.a.mean())
     log('landmask %dx%d, %.1f%% solid' % (mask.w, mask.h, white * 100))
 
-    for k in ('x0', 'z0'):
-        pass
     world = {
         'version': 1, 'units': 'unity metres',
         'handedness': 'three.js right-handed. Converted from Unity left-handed: position/vertex z -> -z, '
@@ -1566,12 +1612,15 @@ def main():
         'landmask': {'file': 'landmask.png', 'x0': x0, 'z0': z0, 'metresPerPixel': MASK_RES,
                      'width': mask.w, 'height': mask.h, 'white': 'solid: boat cannot pass',
                      'pixel': 'pixel (i,j) covers x in [x0+i*res, +res), z in [z0+j*res, +res) (three.js); row 0 = min z',
-                     'source': {'colliders': dict(cstats), 'terrainAbove0Samples': land_cells,
+                     'source': {'colliders': dict(sorted(cstats.items())),
                                 'solidLayers': {str(k): v for k, v in sorted(hit.items()) if k in solid},
+                                'boatBand': [round(BOAT_BAND[0], 3), round(BOAT_BAND[1], 3)],
                                 'method': 'non-trigger Mesh/Box/Sphere/Capsule colliders under the static roots (docks '
-                                          'included) on layers the Player layer collides with (CollidesWithPlayer*, Ice) '
-                                          'that straddle y=0; mesh colliders: union of the parts of their triangles at '
-                                          'y>=0 projected to XZ. Ice blocks only stop a boat without the Icebreaker.'}},
+                                          'included) on layers the Player layer collides with (CollidesWithPlayer*, Ice), '
+                                          'cut to the world-y band the boat hull collider occupies (boatBand, see '
+                                          'world.py BOAT_BAND) and projected to XZ; each collider is rasterised on its own '
+                                          'and the area its band slice encloses is filled. Roofs and overhangs above the '
+                                          'band stay water. Ice blocks only stop a boat without the Icebreaker.'}},
     }
     jdump('world.json', world)
     tot = 0

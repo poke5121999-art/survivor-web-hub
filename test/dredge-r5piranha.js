@@ -95,8 +95,8 @@ async function newSea(browser, base, errors, vw, vh) {
     return t;
   }, [s1.home.x, s1.home.z]);
   ok(times.length === 3 && times[0] <= 0.6 && times.every((v, i) => i === 0 || v - times[i - 1] >= 0.45 && v - times[i - 1] <= 0.65), 'cá xuất hiện lần lượt cách nhau 0,5 s, tối đa 3 con ở spawner 1: ' + JSON.stringify(times));
-  // xa hơn 90 m: Despawn (ignoreIfChasing); các con đang IDLE bị huỷ
-  await E(([x, z]) => { DR_DEBUG.teleport(x + 100, z, 0); DRPiranha.debug.simulate(1.0); }, [s1.home.x, s1.home.z]);
+  // xa hơn 90 m: Despawn (ignoreIfChasing); các con đang IDLE bị huỷ. Đích phải là nước: dịch lên đất thì place() đẩy thuyền về chỗ nước gần nhất, có thể lọt lại trong 80 m
+  await E(([x, z]) => { DR_DEBUG.teleport(x - 100, z, 0); DRPiranha.debug.simulate(1.0); }, [s1.home.x, s1.home.z]);
   ok((await E(() => DRPiranha.debug.state().littles.filter(m => m.sp === '1').every(m => m.state === 'DESPAWNING'))), 'thuyền cách 100 m > 90: cá IDLE của spawner 1 chuyển DESPAWNING');
   await E(() => DRPiranha.debug.simulate(2.2));
   ok((await E(() => DRPiranha.debug.state().littles.filter(m => m.sp === '1').length)) === 0, 'hoạt ảnh Despawn 2 s xong thì cá biến mất');

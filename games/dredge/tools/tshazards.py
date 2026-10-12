@@ -172,7 +172,7 @@ def scene_part(S, snd):
                 for c in S.of_type(x, 65):
                     p = EX.collider_polys(S, x, c, mesh_of)
                     if p:
-                        polys.extend(p)
+                        polys.append(p)  # một mục cho mỗi collider: EX.footprint tô + lấp kín từng cái (landband)
         fp = EX.footprint(polys, L)
         px = sum(r[2] for r in fp)
         white = sum(int(land[j, i:i + n].sum()) for j, i, n in fp if 0 <= j < land.shape[0])

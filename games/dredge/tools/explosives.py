@@ -15,10 +15,12 @@ Rerunnable: cung dau vao ra cung dau ra.
 import io, json, math, os, re, sys
 import numpy as np
 import yaml
-from PIL import Image, ImageDraw
+from PIL import Image
 
 sys.stdout.reconfigure(encoding='utf-8')
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+import world as WT  # noqa: E402  (BOAT_BAND, band_polys, box_tris, band_radius, filled_cells: cung phep voi landmask)
 GAME = os.path.dirname(HERE)
 ASSETS = r'D:\dredge-ref\ripped\ExportedProject\Assets'
 SCENE = os.path.join(ASSETS, 'Scenes', 'Game.unity')
@@ -169,41 +171,9 @@ def read_mesh(path):
     return pos, uv[:, :2], idx.reshape(-1, 3)
 
 
-def clip_above(tri):
-    out = []
-    n = len(tri)
-    for i in range(n):
-        a, b = tri[i], tri[(i + 1) % n]
-        ina, inb = a[1] >= 0, b[1] >= 0
-        if ina:
-            out.append((a[0], a[2]))
-        if ina != inb:
-            t = (0 - a[1]) / (b[1] - a[1])
-            out.append((a[0] + t * (b[0] - a[0]), a[2] + t * (b[2] - a[2])))
-    return out
-
-
-def hull(pts):
-    pts = sorted(set(map(tuple, pts)))
-    if len(pts) < 3:
-        return pts
-
-    def cross(o, a, b):
-        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
-    lo, up = [], []
-    for p in pts:
-        while len(lo) >= 2 and cross(lo[-2], lo[-1], p) <= 0:
-            lo.pop()
-        lo.append(p)
-    for p in reversed(pts):
-        while len(up) >= 2 and cross(up[-2], up[-1], p) <= 0:
-            up.pop()
-        up.append(p)
-    return lo[:-1] + up[:-1]
-
-
 def collider_polys(S, g, c, mesh_of):
-    """Da giac (three.js x, z) ma world.py collect_colliders ve cho mot collider (hoac None neu khong cat y=0)."""
+    """Da giac (three.js x, z) ma world.py collect_colliders ve cho mot collider: phan nam trong dai cao cua than thuyen
+    (world.BOAT_BAND), hoac None neu collider khong cham dai do."""
     ty, body = S.docs[c]
     d = lambda k: re.search(r'\b%s: ([^\n]*)' % k, body).group(1)
     if d('m_IsTrigger') == '1' or d('m_Enabled') == '0':
@@ -212,17 +182,13 @@ def collider_polys(S, g, c, mesh_of):
     sx = np.linalg.norm(W[:3, :3], axis=0)
     if ty == 65:
         cc, sz = vec(re.search(r'm_Center: (\{[^}]*\})', body).group(1)), vec(re.search(r'm_Size: (\{[^}]*\})', body).group(1))
-        corners = np.array([(W @ [cc[0] + ix * sz[0], cc[1] + iy * sz[1], cc[2] + iz * sz[2], 1])[:3] for ix in (-.5, .5) for iy in (-.5, .5) for iz in (-.5, .5)])
-        if not (corners[:, 1].min() <= 0 < corners[:, 1].max()):
-            return None
-        return [hull([(x, -z) for x, _, z in corners])]
+        return WT.band_polys(WT.box_tris(W, cc, sz)) or None
     if ty == 135:
         cc = vec(re.search(r'm_Center: (\{[^}]*\})', body).group(1))
         p = W @ [cc[0], cc[1], cc[2], 1]
-        r = float(d('m_Radius')) * sx.max()
-        if abs(p[1]) >= r:
+        r0 = WT.band_radius(p[1], float(d('m_Radius')) * sx.max())
+        if r0 <= 0:
             return None
-        r0 = math.sqrt(r * r - p[1] * p[1])
         return [[(p[0] + r0 * math.cos(a), -p[2] + r0 * math.sin(a)) for a in np.linspace(0, 2 * math.pi, 24, endpoint=False)]]
     if ty == 64:
         mg = re.search(r'm_Mesh: \{[^}]*guid: (\w+)', body)
@@ -230,44 +196,28 @@ def collider_polys(S, g, c, mesh_of):
             return None
         pos, _, idx = mesh_of(mg.group(1))
         v = (np.c_[pos, np.ones(len(pos))] @ W.T)[:, :3]
-        if not (v[:, 1].min() <= 0 < v[:, 1].max()):
-            return None
-        tv = v[idx]
-        ymin, ymax = tv[:, :, 1].min(1), tv[:, :, 1].max(1)
-        polys = [[(x, -z) for x, _, z in tri] for tri in tv[ymin >= 0]]
-        for tri in tv[(ymin < 0) & (ymax >= 0)]:
-            polys.append([(x, -z) for x, z in clip_above(tri)])
-        return polys
+        return WT.band_polys(v[idx]) or None
     raise SystemExit('collider kieu %d chua ho tro (%s)' % (ty, S.path(g)))
 
 
-def footprint(polys, L):
-    """Cac doan [j, i, n] cua o landmask ma polys ve ra (cung PIL polygon nhu world.py Mask.poly)."""
+def footprint(pieces, L):
+    """Cac doan [j, i, n] cua o landmask ma cac collider ve ra; pieces = danh sach da giac cua tung collider (collider_polys).
+    Moi collider to va lap kin rieng bang world.filled_cells, nhu world.py Mask.piece, nen fp trung tung o voi landmask."""
     x0, z0, res = L['x0'], L['z0'], L['metresPerPixel']
-    pts = [((x - x0) / res, (z - z0) / res) for poly in polys for x, z in poly]
-    if not pts:
-        return []
-    ox, oy = int(math.floor(min(p[0] for p in pts))) - 2, int(math.floor(min(p[1] for p in pts))) - 2
-    w, h = int(math.ceil(max(p[0] for p in pts))) - ox + 3, int(math.ceil(max(p[1] for p in pts))) - oy + 3
-    img = Image.new('L', (w, h), 0)
-    dr = ImageDraw.Draw(img)
-    for poly in polys:
-        if len(poly) >= 3:
-            dr.polygon([((x - x0) / res - ox, (z - z0) / res - oy) for x, z in poly], fill=255)
-    a = np.asarray(img) > 0
+    cells = set()
+    for polys in pieces:
+        f = WT.filled_cells(polys, x0, z0, res)
+        if f is None:
+            continue
+        ox, oy, a = f
+        for j, i in zip(*np.nonzero(a)):
+            cells.add((int(j) + oy, int(i) + ox))
     runs = []
-    for j in range(h):
-        row = a[j]
-        i = 0
-        while i < w:
-            if row[i]:
-                k = i
-                while k < w and row[k]:
-                    k += 1
-                runs.append([j + oy, i + ox, k - i])
-                i = k
-            else:
-                i += 1
+    for j, i in sorted(cells):
+        if runs and runs[-1][0] == j and runs[-1][1] + runs[-1][2] == i:
+            runs[-1][2] += 1
+        else:
+            runs.append([j, i, 1])
     return runs
 
 
@@ -350,7 +300,7 @@ def main():
                     for c in S.of_type(x, 65) + S.of_type(x, 64) + S.of_type(x, 135):
                         p = collider_polys(S, x, c, mesh_of)
                         if p:
-                            polys.extend(p)
+                            polys.append(p)
                             stats['col'] += 1
                             stats['colPoly'] += len(p)
                 if S.of_type(x, 33) and S.of_type(x, 23):
