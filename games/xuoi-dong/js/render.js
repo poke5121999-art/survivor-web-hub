@@ -9,7 +9,7 @@
   'use strict';
   var AT = window.XD_ATLAS, T = XD.TUNE, U = XD.util;
   var R = XD.render = {};
-  var IMG = R.IMG = {}, light, lctx, buf, bctx, vign, pat, TINT = {}, SIL = {};
+  var IMG = R.IMG = {}, light, lctx, buf, bctx, front, fctx, fmask, fmctx, boatC, boatX, boatM, boatMX, vign, pat, TINT = {}, SIL = {}, FOAMF = [];
   var STARS = [];
   (function () {
     var s = 7;
@@ -27,7 +27,7 @@
       var im = new Image();
       im.onload = function () { if (--left === 0) { prep(); done(); } };
       im.onerror = function () { throw new Error('image not loaded: ' + it[1]); };
-      im.src = it[1] + '?v=20260924a';
+      im.src = it[1] + '?v=20260924b';
       IMG[it[0]] = im;
     });
   };
@@ -40,6 +40,14 @@
     TINT.warm = radial('255,196,107');
     TINT.soft = radial('255,226,176');
     TINT.green = radial('201,255,142');
+    // Hạt bọt gốc có startRotation = π: xoay nửa vòng, tức lật cả hai trục.
+    XD.FOAM.frames.forEach(function (n) {
+      var f = AT.frames[n], c2 = document.createElement('canvas'), x = c2.getContext('2d');
+      c2.width = f.w; c2.height = f.h;
+      x.translate(f.w, f.h); x.scale(-1, -1);
+      x.drawImage(IMG.atlas, f.x, f.y, f.w, f.h, 0, 0, f.w, f.h);
+      FOAMF.push(c2);
+    });
   }
 
   function radial(rgb) {
@@ -66,10 +74,13 @@
     return SIL[k];
   }
 
+  function canvas(w, h) { var c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
   R.resize = function (v) {
-    buf = document.createElement('canvas');
-    buf.width = v.w; buf.height = v.h;
-    bctx = buf.getContext('2d');
+    buf = canvas(v.w, v.h); bctx = buf.getContext('2d');
+    front = canvas(v.w, v.h); fctx = front.getContext('2d');
+    fmask = canvas(BB[2] - BB[0] + 4, BB[3] - BB[1] + 4); fmctx = fmask.getContext('2d');
+    boatC = canvas(BB[2] - BB[0], BB[3] - BB[1]); boatX = boatC.getContext('2d');
+    boatM = canvas(boatC.width, boatC.height); boatMX = boatM.getContext('2d');
     light = document.createElement('canvas');
     light.width = v.w; light.height = v.h;
     lctx = light.getContext('2d');
@@ -210,12 +221,7 @@
     G.fx.forEach(function (p) {
       if (p.delay > 0) return;
       var x = sx(G, p.x), y = v.cy + p.y + oy, k = p.t / p.life;
-      if (p.kind === 'foam') {
-        ctx.globalAlpha = 0.55 * (1 - k); ctx.fillStyle = '#c8fbff';
-        ctx.fillRect(Math.round(x), Math.round(y), p.s, 1);
-      } else if (p.kind === 'blob') {
-        ctx.globalAlpha = 0.32 * (1 - k); spr(ctx, 'WaterSplash_' + (1 + p.f), x, y);
-      } else if (p.kind === 'ring') {
+      if (p.kind === 'ring') {
         ctx.globalAlpha = 1 - k; spr(ctx, 'SplashAnim_' + (4 + Math.min(1, (k * 2) | 0)), x, y);
       } else if (p.kind === 'ripple') {
         ctx.globalAlpha = 0.7 * (1 - k); spr(ctx, 'Raindrops_' + (1 + Math.min(3, (k * 4) | 0)), x, y);
@@ -228,27 +234,119 @@
     });
   }
 
-  function boatFrames(G) { return XD.animFrames(XD.BOATS[G.boatKey].anim); }
+  // Khung bao quanh mốc neo thuyền (px ảo): thân 180×153, bóng lệch (+6,+8), bọt mũi khi tăng tốc.
+  var BB = [-100, -156, 124, 54];
+  R.BB = BB;
 
-  function drawBoat(ctx, G, v, oy, swell) {
-    var P = XD.BOAT_PTS, fr = boatFrames(G);
-    var name = fr[Math.floor(G.time * 6) % fr.length];
-    var x = v.bx + (G.bumpT > 0 ? Math.round((Math.random() - 0.5) * 3) : 0);
-    var y = v.cy + G.boatY + oy + Math.round(Math.sin(G.time * 1.4) + Math.sin(G.time * 0.8) * 3 * swell);
-    ctx.globalAlpha = 0.32;
-    sil(ctx, name, x + 6, y + 8, '#061a33');
-    ctx.globalAlpha = 1;
+  // Tư thế thuyền, số thực (px ảo). Khung đổi theo đồng hồ 30 Hz như clip gốc, gốc thuyền trôi
+  // theo đường cong drift của clip, cộng nhấp nhô sóng và độ chúi khi lái.
+  function boatPose(G, v, ox, oy) {
+    var B = XD.BOATS[G.boatKey], fr = XD.animFrames(B.anim), ticks = B.ticks;
+    var total = 0, i = 0, acc = 0;
+    ticks.forEach(function (t) { total += t; });
+    var tick = (G.time * 30) % total;
+    while (i < ticks.length - 1 && tick >= acc + ticks[i]) { acc += ticks[i]; i++; }
+    var d = B.drift, k = 0;
+    while (k < d.length - 2 && tick >= d[k + 1][0]) k++;
+    var a = d[k], b = d[k + 1], f = U.smooth(U.clamp((tick - a[0]) / (b[0] - a[0]), 0, 1));
+    var swell = XD.mixNum(XD.bandAt(G.x + v.bx), 'swell', 0);
+    var bob = Math.sin(G.time * 1.4) * 0.8 + Math.sin(G.time * 0.8) * 3 * swell;
+    var jolt = G.bumpT > 0 ? Math.sin(G.time * 70) * 1.5 * G.bumpT / 0.6 : 0;
+    return {
+      name: fr[i], lean: U.clamp(G.boatVY / T.steer, -1, 1) * 2.5,
+      x: v.bx + ox + U.lerp(a[1], b[1], f) + jolt,
+      y: v.cy + G.boatY + oy + U.lerp(a[2], b[2], f) + bob,
+    };
+  }
+  R.boatPose = boatPose;
+
+  // Thuyền đi hai bước. (1) Dựng và chiếu sáng ở độ phân giải ẢO trong một canvas nhỏ đúng khung
+  // bao BB (mốc neo ở toạ độ nguyên), nên mọi lượt nhân sáng/tông màu chỉ tốn ~47 nghìn pixel.
+  // (2) Dán lên canvas hiển thị SAU khi phóng cảnh, vị trí làm tròn tới pixel THẬT chứ không tới
+  // pixel ảo: nhấp nhô 1 px ảo và đoạn lái chậm dần trượt mượt thay vì nhảy từng S px. Dán theo
+  // cột 12 px để chúi mũi khi lái (lệch dọc theo khoảng cách tới mốc neo) mà không phải xoay ảnh.
+  function drawBoatLayer(out, G, v, pose, L) {
+    var S = v.S, P = XD.BOAT_PTS, c = boatX, W = boatC.width, H = boatC.height;
+    var px0 = -BB[0], py0 = -BB[1];
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.globalCompositeOperation = 'source-over';
+    c.imageSmoothingEnabled = false;
+    c.clearRect(0, 0, W, H);
     var sp = G.speed / T.cruise;
-    if (sp > 1.15) {
-      ctx.globalAlpha = Math.min(1, (sp - 1.15) * 1.5);
-      spr(ctx, 'SplashAnim_' + (1 + (Math.floor(G.time * 12) % 3)), x + P.net[0] + 12, y + 8);
-      ctx.globalAlpha = 1;
+    if (G.boostT > 0 || sp > 1.5) {
+      c.globalAlpha = Math.min(1, Math.max(G.boostT, sp - 1.5));
+      spr(c, 'SplashAnim_' + (1 + (Math.floor(G.time * 12) % 3)), px0 + P.net[0] + 14, py0 + 8);
+      c.globalAlpha = 1;
     }
-    spr(ctx, name, x, y);
+    c.globalAlpha = 0.32;
+    sil(c, pose.name, px0 + 6, py0 + 8, '#061a33');
+    c.globalAlpha = 1;
+    spr(c, pose.name, px0, py0);
     var wf = XD.animFrames('BoatWhistle');
     var wi = G.hornT >= 0 ? Math.min(wf.length - 1, Math.floor(G.hornT / 0.75 * wf.length)) : 0;
-    spr(ctx, wf[wi], x + P.chimney[0], y + P.chimney[1]);
-    return { x: x, y: y, name: name };
+    spr(c, wf[wi], px0 + P.chimney[0], py0 + P.chimney[1]);
+    var ax = Math.round(pose.x), ay = Math.round(pose.y);
+    litInPlace(c, boatMX, boatM, 0, 0, W, H, ax + BB[0], ay + BB[1], W, H, L);
+
+    var X0 = Math.round((pose.x + BB[0]) * S), Y0 = Math.round((pose.y + BB[1]) * S);
+    out.imageSmoothingEnabled = false;
+    pasteBoat(out, pose, S, 1);
+    out.imageSmoothingEnabled = true;
+    out.globalCompositeOperation = 'lighter';
+    glow(out, 'warm', (pose.x + P.window[0]) * S, (pose.y + P.window[1]) * S, 26 * S, 0.55 * L.lamp);
+    glow(out, 'warm', (pose.x + P.deckLamp[0]) * S, (pose.y + P.deckLamp[1] + 6) * S, 40 * S, 0.18 * L.lamp);
+    out.globalCompositeOperation = 'source-over';
+    out.imageSmoothingEnabled = false;
+    return { X0: X0, Y0: Y0 };
+  }
+  function pasteBoat(out, pose, S, alpha) {
+    var W = boatC.width, H = boatC.height;
+    out.globalAlpha = alpha;
+    if (Math.abs(pose.lean) < 0.15) {
+      out.drawImage(boatC, Math.round((pose.x + BB[0]) * S), Math.round((pose.y + BB[1]) * S), W * S, H * S);
+      out.globalAlpha = 1;
+      return;
+    }
+    for (var sx0 = 0; sx0 < W; sx0 += 12) {
+      var sw = Math.min(12, W - sx0), rel = sx0 + sw / 2 + BB[0];
+      out.drawImage(boatC, sx0, 0, sw, H,
+        Math.round((pose.x + BB[0] + sx0) * S), Math.round((pose.y + BB[1] + pose.lean * rel / 90) * S), sw * S, H * S);
+    }
+    out.globalAlpha = 1;
+  }
+
+  // Nhân mảnh bộ đệm sáng (lx,ly,lw,lh px ảo) lên vùng (x,y,w,h) của c, phủ tông màu, rồi cắt lại
+  // theo hình đã vẽ (mask = bản sao trước khi nhân) để phần trong suốt vẫn trong suốt.
+  function litInPlace(c, mx, mcv, x, y, w, h, lx, ly, lw, lh, L) {
+    mx.setTransform(1, 0, 0, 1, 0, 0);
+    mx.globalCompositeOperation = 'copy';
+    mx.drawImage(c.canvas, x, y, w, h, 0, 0, w, h);
+    c.imageSmoothingEnabled = true;
+    c.globalCompositeOperation = 'multiply';
+    c.drawImage(light, lx, ly, lw, lh, x, y, w, h);
+    c.globalCompositeOperation = 'destination-in';
+    c.drawImage(mcv, 0, 0, w, h, x, y, w, h);
+    if (L.tone) {
+      c.globalCompositeOperation = 'screen';
+      c.fillStyle = L.tone;
+      c.fillRect(x, y, w, h);
+      c.globalCompositeOperation = 'destination-in';
+      c.drawImage(mcv, 0, 0, w, h, x, y, w, h);
+    }
+    c.globalCompositeOperation = 'source-over';
+    c.imageSmoothingEnabled = false;
+  }
+
+  // Bọt sau thuyền (XD.FOAM, chép từ hai ParticleSystem gốc): nằm dưới thân thuyền.
+  function drawFoam(ctx, G, v, oy) {
+    var F = XD.FOAM;
+    G.foam.forEach(function (p) {
+      var k = p.t / p.life, i = Math.min(3, (k * 4) | 0), f = AT.frames[F.frames[i]];
+      var nx = Math.sin(p.t * 9 + p.ph) * F.noise, ny = Math.cos(p.t * 7 + p.ph * 1.7) * F.noise;
+      ctx.globalAlpha = 1 - k;
+      ctx.drawImage(FOAMF[i], Math.round(p.sx + nx - (f.w - f.px)), Math.round(v.cy + p.y + oy + ny - (f.h - f.py)));
+    });
+    ctx.globalAlpha = 1;
   }
 
   function drawThing(ctx, G, v, e, oy) {
@@ -279,11 +377,11 @@
     spr(ctx, name, x, y + bob);
   }
 
-  function drawAir(ctx, G, v, day, oy) {
+  function drawAir(ctx, G, v, day, oy, overBoat) {
     var sun = (1 - day.stars) * (1 - G.wp.dim * 1.2);
     // Bóng mây lướt trên mặt nước và bờ.
     var cl = ['Cloud_vfx_sheet_0', 'Cloud_vfx_sheet_2', 'Cloud_vfx_sheet_5', 'Cloud_vfx_sheet_8'];
-    var ca = 0.13 * G.wp.clouds * Math.max(0.2, sun);
+    var ca = overBoat ? 0 : 0.13 * G.wp.clouds * Math.max(0.2, sun);
     if (ca > 0.01) {
       var span = 820, base = Math.floor((G.x + G.time * 9) / span);
       for (var i = -1; i < v.w / span + 2; i++) {
@@ -295,7 +393,7 @@
       ctx.globalAlpha = 1;
     }
     // Tia nắng trôi chậm, cộng sáng.
-    var gr = day.godray * (1 - G.wp.dim * 2.2) * (1 - XD.mixNum(XD.bandAt(G.x + v.bx), 'dark', 0) * 2);
+    var gr = overBoat ? 0 : day.godray * (1 - G.wp.dim * 2.2) * (1 - XD.mixNum(XD.bandAt(G.x + v.bx), 'dark', 0) * 2);
     if (gr > 0.01) {
       ctx.globalCompositeOperation = 'lighter';
       var gs = 560, gb = Math.floor(G.x * 0.6 / gs);
@@ -360,7 +458,8 @@
   }
 
   // ---------------------------------------------------------------- ánh sáng
-  function drawLight(ctx, G, v, day, boat) {
+  // Bộ đệm sáng (px ảo): màu giờ trong ngày × thời tiết, cộng đèn cabin + đom đóm, nhân viền tối.
+  function buildLight(G, v, day, pose) {
     var dark = XD.mixNum(XD.bandAt(G.x + v.bx), 'dark', 0), dim = G.wp.dim;
     var g = day.grade.map(function (c) { return c; });
     var avg = (g[0] + g[1] + g[2]) / 3;
@@ -372,28 +471,34 @@
     lctx.fillRect(0, 0, v.w, v.h);
     lctx.globalCompositeOperation = 'lighter';
     var P = XD.BOAT_PTS;
-    glow(lctx, 'warm', boat.x + P.window[0], boat.y + P.window[1], 95, 0.75 * lamp);
-    glow(lctx, 'soft', boat.x + P.deckLamp[0], boat.y + P.deckLamp[1], 120, 0.45 * lamp);
+    glow(lctx, 'warm', pose.x + P.window[0], pose.y + P.window[1], 95, 0.75 * lamp);
+    glow(lctx, 'soft', pose.x + P.deckLamp[0], pose.y + P.deckLamp[1], 120, 0.45 * lamp);
     G.fx.forEach(function (p) {
       if (p.kind !== 'firefly') return;
       glow(lctx, 'green', sx(G, p.x), v.cy + p.y, 16, ffA(p, G) * 0.6);
     });
+    lctx.globalCompositeOperation = 'source-over';
+    lctx.drawImage(vign, 0, 0);
+    var tn = day.tone, ta = tn[3] * (1 - dim * 0.6);
+    return {
+      lamp: lamp,
+      tone: ta > 0.004 ? 'rgba(' + Math.round(tn[0]) + ',' + Math.round(tn[1]) + ',' + Math.round(tn[2]) + ',' + ta.toFixed(3) + ')' : null,
+    };
+  }
+
+  function drawLight(ctx, G, v, L) {
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.imageSmoothingEnabled = true;
     ctx.globalCompositeOperation = 'multiply';
     ctx.drawImage(light, 0, 0);
-    var tn = day.tone, ta = tn[3] * (1 - dim * 0.6);
-    if (ta > 0.004) {
+    if (L.tone) {
       ctx.globalCompositeOperation = 'screen';
-      ctx.fillStyle = 'rgba(' + Math.round(tn[0]) + ',' + Math.round(tn[1]) + ',' + Math.round(tn[2]) + ',' + ta.toFixed(3) + ')';
+      ctx.fillStyle = L.tone;
       ctx.fillRect(0, 0, v.w, v.h);
     }
     ctx.restore();
     ctx.imageSmoothingEnabled = true;
     ctx.globalCompositeOperation = 'lighter';
-    glow(ctx, 'warm', boat.x + P.window[0], boat.y + P.window[1], 26, 0.55 * lamp);
-    glow(ctx, 'warm', boat.x + P.deckLamp[0], boat.y + P.deckLamp[1] + 6, 40, 0.18 * lamp);
     G.fx.forEach(function (p) {
       if (p.kind !== 'firefly') return;
       var a = ffA(p, G);
@@ -416,9 +521,11 @@
     ctx.textBaseline = 'middle';
     ctx.font = '700 10px "Segoe UI", system-ui, -apple-system, Roboto, sans-serif';
     ctx.lineJoin = 'round';
-    G.popups.forEach(function (p) {
+    // Xếp chồng lúc vẽ, mới nhất ở dưới cùng: bắt hai con liền nhau thì chữ không đè lên nhau.
+    var n = G.popups.length;
+    G.popups.forEach(function (p, idx) {
       var k = p.t / p.life, a = Math.min(1, p.t * 6, (1 - k) * 4);
-      var x = U.clamp(boat.x + 10, 70, v.w - 70), y = Math.max(46, boat.y - 138) - p.dy - p.t * 12;
+      var x = U.clamp(boat.x + 10, 70, v.w - 70), y = Math.max(46 + (n - 1) * 13, boat.y - 138) - (n - 1 - idx) * 13 - Math.min(1, p.t * 5) * 4;
       ctx.globalAlpha = a;
       var w = ctx.measureText(p.text).width;
       if (p.icon) spr(ctx, p.icon, x - w / 2 - 12, y + 2);
@@ -431,40 +538,84 @@
   }
 
   // ---------------------------------------------------------------- khung hình
-  // Cả cảnh vẽ ở độ phân giải ảo vào buf rồi phóng một lần với hệ số nguyên: mọi lượt
-  // phủ toàn màn (ánh sáng, tông màu, viền tối) tốn theo số pixel ảo chứ không theo pixel thật.
+  // Cảnh (trừ thuyền) vẽ ở độ phân giải ảo vào buf rồi phóng một lần với hệ số nguyên: mọi lượt
+  // phủ toàn màn tốn theo số pixel ảo. Thuyền vẽ riêng ở pixel thật (drawBoatLayer). Những thứ
+  // đứng TRƯỚC thuyền (vật thể thấp hơn, bờ dưới, mây, chim, mưa) được vẽ lại một lần nữa, chỉ
+  // trong khung bao thuyền, rồi đè lên thuyền: thứ tự trước/sau giữ đúng như khi còn một lớp.
+  function drawFront(ctx, G, v, day, segs, list, i, oy, overBoat) {
+    for (; i < list.length; i++) drawThing(ctx, G, v, list[i], oy);
+    drawBanks(ctx, G, v, segs, 'bot', 0, oy);
+    drawAir(ctx, G, v, day, oy, overBoat);
+  }
+
+  // Có thứ gì của lớp trước chạm khung bao thuyền không? Không thì khỏi vẽ lại lớp trước.
+  function frontTouches(G, v, list, i, box) {
+    function hit(x, y, w, h) { return x + w > box[0] && x - w < box[2] && y + h > box[1] && y - h < box[3]; }
+    if (G.wp.rain > 0.02) return true;
+    if (v.cy + XD.edges(G.x + v.bx).bot - 48 < G.boatY + v.cy + 40) return true;
+    for (; i < list.length; i++) if (hit(list[i].x - G.x, v.cy + list[i].y, 60, 60)) return true;
+    for (var k = 0; k < G.ents.length; k++) {
+      var e = G.ents[k];
+      if (e.kind === 'bird' && e.state === 'fly' && hit(e.x - G.x, v.cy + e.y - 10 - e.alt, 30, 30)) return true;
+    }
+    for (var j = 0; j < G.fx.length; j++) {
+      var p = G.fx[j];
+      if (p.kind === 'firefly' || p.kind === 'ripple' || p.kind === 'bubble' || p.kind === 'ring' || p.kind === 'glint') continue;
+      if (hit(p.x - G.x, v.cy + p.y - (p.alt || 0), 40, 40)) return true;
+    }
+    return false;
+  }
+
   R.draw = function (out, G) {
-    var v = G.view, day = XD.dayAt(G.t), ctx = bctx;
+    var v = G.view, day = XD.dayAt(G.t), ctx = bctx, S = v.S;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.imageSmoothingEnabled = false;
     var ox = 0, oy = 0;
     if (G.shake > 0) { ox = Math.round((Math.random() - 0.5) * 6 * G.shake / 0.4); oy = Math.round((Math.random() - 0.5) * 4 * G.shake / 0.4); }
+    var pose = boatPose(G, v, ox, oy);
+    R.pose = pose;
     ctx.translate(ox, 0);
-    var segs = segments(G, v), swell = XD.mixNum(XD.bandAt(G.x + v.bx), 'swell', 0);
+    var segs = segments(G, v);
     drawWater(ctx, G, v, segs, day, 0, oy);
     drawUnder(ctx, G, v, oy);
     drawBanks(ctx, G, v, segs, 'top', 0, oy);
     var list = G.ents.filter(function (e) { var K = XD.KINDS[e.kind]; return !K.under && !(e.kind === 'fish' && e.jt < 0) && !(e.kind === 'bird' && e.state === 'fly'); });
     list.sort(function (a, b) { return a.y - b.y; });
-    var boat = null, i = 0;
+    var i = 0;
     for (; i < list.length && list[i].y < G.boatY; i++) drawThing(ctx, G, v, list[i], oy);
-    boat = drawBoat(ctx, G, v, oy, swell);
-    for (; i < list.length; i++) drawThing(ctx, G, v, list[i], oy);
-    drawBanks(ctx, G, v, segs, 'bot', 0, oy);
-    // Cây bờ gần che mất thuyền khi lái sát bờ dưới: vẽ lại thuyền mờ lên trên để vẫn thấy lưới.
-    var near = G.boatY - (XD.edges(G.x + v.bx).bot - 100);
-    if (near > 0) { ctx.globalAlpha = Math.min(0.4, near / 100); spr(ctx, boat.name, boat.x, boat.y); ctx.globalAlpha = 1; }
-    drawAir(ctx, G, v, day, oy);
+    drawFoam(ctx, G, v, oy);
+    var firstFront = i;
+    drawFront(ctx, G, v, day, segs, list, firstFront, oy, false);
     ctx.translate(-ox, 0);
-    drawLight(ctx, G, v, day, boat);
-    ctx.drawImage(vign, 0, 0);
+    var L = buildLight(G, v, day, pose);
+    drawLight(ctx, G, v, L);
     if (G.flash > 0) { ctx.fillStyle = 'rgba(230,240,255,' + (G.flash * 0.35).toFixed(3) + ')'; ctx.fillRect(0, 0, v.w, v.h); }
     out.setTransform(1, 0, 0, 1, 0, 0);
     out.imageSmoothingEnabled = false;
-    out.drawImage(buf, 0, 0, v.w * v.S, v.h * v.S);
+    out.drawImage(buf, 0, 0, v.w * S, v.h * S);
+
+    var b = drawBoatLayer(out, G, v, pose, L);
+    R.boatPx = b;
+    var fx0 = Math.max(0, Math.floor(pose.x + BB[0]) - 1), fy0 = Math.max(0, Math.floor(pose.y + BB[1]) - 1);
+    var fw = Math.min(v.w - fx0, BB[2] - BB[0] + 3), fh = Math.min(v.h - fy0, BB[3] - BB[1] + 3);
+    if (fw > 0 && fh > 0 && frontTouches(G, v, list, firstFront, [fx0, fy0, fx0 + fw, fy0 + fh])) {
+      fctx.setTransform(1, 0, 0, 1, 0, 0);
+      fctx.imageSmoothingEnabled = false;
+      fctx.clearRect(fx0, fy0, fw, fh);
+      fctx.save();
+      fctx.beginPath(); fctx.rect(fx0, fy0, fw, fh); fctx.clip();
+      fctx.translate(ox, 0);
+      drawFront(fctx, G, v, day, segs, list, firstFront, oy, true);
+      fctx.restore();
+      litInPlace(fctx, fmctx, fmask, fx0, fy0, fw, fh, fx0, fy0, fw, fh, L);
+      out.drawImage(front, fx0, fy0, fw, fh, fx0 * S, fy0 * S, fw * S, fh * S);
+    }
+    // Lái sát bờ dưới thì cây gần che thuyền: hiện lại thuyền mờ lên trên để vẫn thấy lưới.
+    var near = G.boatY - (XD.edges(G.x + v.bx).bot - 100);
+    if (near > 0) pasteBoat(out, pose, S, Math.min(0.4, near / 100));
     if (G.mode === 'play') {
-      out.setTransform(v.S, 0, 0, v.S, 0, 0);
-      drawPopups(out, G, v, boat);
+      out.setTransform(S, 0, 0, S, 0, 0);
+      drawPopups(out, G, v, pose);
     }
   };
 })(window.XD = window.XD || {});

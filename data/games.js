@@ -694,7 +694,7 @@ window.HUB_GAMES = [
     en: { title: "Downstream", tagline: "Pilot a houseboat down the river to the sea, fish and watch day turn to night. No losing.", desc: "Drift from a rocky gorge through pine forest, swamp and caves out to the sea. Rain and storms come and go, at night the cabin windows glow and fireflies line the banks. Net fish, salvage floating crates, and log nine species in your book." },
     thumbnail: "assets/thumbnails/xuoi-dong.png",
     path: "games/xuoi-dong/index.html",
-    rev: "20260924a",
+    rev: "20260924b",
     // Plain canvas/JS, không engine, mở được từ file:// (khi đó im tiếng vì fetch bị chặn).
     // ART + ÂM THANH: toàn bộ lấy từ Farming Camp Demo (Innerfire Studios / SOEDESCO), rút
     // thẳng từ bản cài Steam trên máy chủ dự án bằng games/xuoi-dong/tools/rip.py (UnityPy +

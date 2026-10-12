@@ -35,7 +35,7 @@
 
   function load() {
     Object.keys(window.XD_AUDIO || {}).forEach(function (key) {
-      fetch('audio/' + key + '.mp3?v=20260924a')
+      fetch('audio/' + key + '.mp3?v=20260924b')
         .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
         .then(function (buf) { return new Promise(function (res, rej) { A.ctx.decodeAudioData(buf, res, rej); }); })
         .then(function (b) { A.buffers[key] = b; A.loaded++; })
@@ -51,7 +51,7 @@
 
   // Một lớp lặp: target là âm lượng mong muốn, đổi mượt bằng setTargetAtTime.
   function Loop(key, bus) {
-    this.key = key; this.bus = bus; this.target = 0; this.out = null; this.next = 0; this.voices = [];
+    this.key = key; this.bus = bus; this.target = 0; this.out = null; this.next = 0; this.voices = []; this.fade = 1.2;
   }
   Loop.prototype.tick = function (now) {
     var b = A.buffers[this.key];
@@ -60,10 +60,10 @@
       this.out = A.ctx.createGain(); this.out.gain.value = 0; this.out.connect(A.buses[this.bus]);
       this.next = now + 0.05;
     }
-    this.out.gain.setTargetAtTime(this.target, now, 1.2);
+    this.out.gain.setTargetAtTime(this.target, now, this.fade);
     if (this.target < 0.001) {
       if (!this.quietSince) this.quietSince = now;
-      if (now - this.quietSince > 7 && this.voices.length) this.stop();
+      if (now - this.quietSince > this.fade * 6 && this.voices.length) this.stop();
       if (!this.voices.length) return;
     } else this.quietSince = 0;
     if (now > this.next - 0.6) {
@@ -91,16 +91,18 @@
     return A.loops[key] || (A.loops[key] = new Loop(key, bus));
   }
 
-  // mix = { music: 'day', beds: {water: 0.6, ...} } — gọi mỗi khung.
+  // mix = { music: 'mus_day', musicGain, beds: {water: 0.6, ...} } — gọi mỗi khung.
   A.update = function (mix) {
     if (!A.ok || !A.ctx) return;
-    var now = A.ctx.currentTime;
-    var mk = XD.MIX.music_keys[mix.music];
-    Object.keys(XD.MIX.music_keys).forEach(function (k) {
-      var key = XD.MIX.music_keys[k];
-      loop(key, 'music').target = key === mk ? mix.musicGain : 0;
+    var now = A.ctx.currentTime, sets = XD.MIX.music_sets;
+    Object.keys(sets).forEach(function (k) {
+      sets[k].forEach(function (key) {
+        var l = loop(key, 'music');
+        l.fade = XD.MIX.music_fade;
+        l.target = key === mix.music ? mix.musicGain : 0;
+      });
     });
-    A.musicKey = mk;
+    A.musicKey = mix.music;
     Object.keys(XD.MIX.beds).forEach(function (name) {
       var d = XD.MIX.beds[name];
       loop(d.key, 'amb').target = (mix.beds[name] || 0) * d.gain;

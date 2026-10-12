@@ -52,7 +52,9 @@
   // ---------------------------------------------------------------- trạng thái
   var seed = parseInt(Q.get('seed'), 10) || ((Math.random() * 1e9) | 0);
   var G = XD.game = {
-    mode: 'title', seed: seed, rand: mulberry(seed),
+    // srand chỉ dùng để rải vật thể: hiệu ứng lặt vặt rút số từ rand theo nhịp khung hình, nên
+    // tách riêng thì cùng một seed luôn ra cùng một dòng sông.
+    mode: 'title', seed: seed, rand: mulberry(seed), srand: mulberry(seed ^ 0x5bd1e995),
     x: 0, speed: T.cruise, boatY: 0, boatVY: 0, time: 0,
     t: T.startT, freeze: false,
     wx: { state: 'clear', left: 120 }, wp: { dim: 0, rain: 0, clouds: 0.35, wind: 0.15, thunder: 0 },
@@ -62,7 +64,7 @@
     shake: 0, bumpT: 0, boostT: 0, hornT: -1, hornCd: 0,
     boatKey: 'solo', frameI: 0,
     input: { up: 0, down: 0, left: 0, right: 0, touchY: null },
-    spawnX: 0, fishX: 0, flockIn: 8, lastBiome: null,
+    spawnX: 0, fishX: 0, obsX: 0, pickX: 0, obsList: [], flockIn: 8, lastBiome: null, dayN: 0, foam: [],
     view: { w: 640, h: 360, S: 2, cy: 194, K: 160, bx: 180 },
     stats: { bumps: 0, scoops: 0, boosts: 0 },
     journal: {},
@@ -131,10 +133,10 @@
 
   // ---------------------------------------------------------------- sinh vật thể
   function spawnEnt(kind, x, y, extra) {
-    var K = XD.KINDS[kind], e = { kind: kind, x: x, y: y, vx: 0, vy: 0, t: G.rand() * 10, state: 'idle', v: 0, cd: 0 };
-    if (K.anims) e.v = (G.rand() * K.anims.length) | 0;
-    if (K.frames) e.v = (G.rand() * K.frames.length) | 0;
-    if (K.drift) e.vx = K.drift * (0.7 + G.rand() * 0.6);
+    var R = G.srand, K = XD.KINDS[kind], e = { kind: kind, x: x, y: y, vx: 0, vy: 0, t: R() * 10, state: 'idle', v: 0, cd: 0 };
+    if (K.anims) e.v = (R() * K.anims.length) | 0;
+    if (K.frames) e.v = (R() * K.frames.length) | 0;
+    if (K.drift) e.vx = K.drift * (0.7 + R() * 0.6);
     if (extra) Object.keys(extra).forEach(function (k) { e[k] = extra[k]; });
     G.ents.push(e);
     return e;
@@ -156,36 +158,61 @@
     return [e.x - f.w * K.hit[0], e.y - f.h * K.hit[1], e.x + f.w * K.hit[0], e.y + f.h * K.hit[1]];
   }
 
+  // Bốn lịch rải độc lập: vật cản (thưa, cách nhau T.obstacleGap), đồ vớt và mũi tên (T.pickupGap,
+  // tránh T.clearAfter px quanh mỗi vật cản), vật nổi trang trí (dày), cá (T.fishGap).
+  function kindsOf(biome, test) {
+    var t = {};
+    Object.keys(biome.spawn).forEach(function (k) { if (test(XD.KINDS[k])) t[k] = biome.spawn[k]; });
+    return Object.keys(t).length ? t : null;
+  }
+  function isObstacle(K) { return !!K.obstacle; }
+  function isPickup(K) { return K.touch === 'scoop' || K.touch === 'boost'; }
+  function isDecor(K) { return !K.obstacle && !isPickup(K); }
+  function nearObstacle(x) {
+    return G.obsList.some(function (o) { return x > o - 150 && x < o + T.clearAfter; });
+  }
+
   function spawnAhead() {
-    var ahead = G.x + G.view.w + 160;
-    while (G.spawnX < ahead) {
-      G.spawnX += 70 + G.rand() * 90;
-      var x = G.spawnX, ed = edges(x), b = ed.band;
-      var biome = XD.BIOMES[G.rand() < b.t ? b.b : b.a];
-      var kind = pickWeighted(biome.spawn, G.rand());
-      var K = XD.KINDS[kind];
-      var margin = K.obstacle ? 30 : 16;
-      var y = lerp(ed.top + margin, ed.bot - margin, G.rand());
-      if (K.obstacle && G.rand() < 0.35) continue;      // thưa bớt: sông thoáng mới chill
-      var e = spawnEnt(kind, x, y);
-      if (K.perch && G.rand() < K.perch * biome.birds) {
-        var bi = (G.rand() * XD.BIRDS.length) | 0;
-        spawnEnt('bird', x + (G.rand() - 0.5) * 10, y - 8, { owner: e, sp: bi, dx: (G.rand() - 0.5) * 12, dy: -frame(entFrame(e)).h * 0.3 });
-      }
-      if (kind === 'lily' && G.rand() < 0.3) {
-        spawnEnt('frog', x, y - 4, { owner: e, dx: 0, dy: -4 });
+    var R = G.srand, ahead = G.x + G.view.w + 160;
+    while (G.obsX < ahead) {
+      G.obsX += lerp(T.obstacleGap[0], T.obstacleGap[1], R());
+      var ox = G.obsX, oe = edges(ox), ob = oe.band;
+      var obm = XD.BIOMES[R() < ob.t ? ob.b : ob.a], table = kindsOf(obm, isObstacle);
+      if (!table) continue;
+      var ok = pickWeighted(table, R()), oy = lerp(oe.top + 30, oe.bot - 30, R());
+      var oEnt = spawnEnt(ok, ox, oy);
+      G.obsList.push(ox);
+      if (G.obsList.length > 4) G.obsList.shift();
+      if (XD.KINDS[ok].perch && R() < XD.KINDS[ok].perch * obm.birds) {
+        spawnEnt('bird', ox + (R() - 0.5) * 10, oy - 8, { owner: oEnt, sp: (R() * XD.BIRDS.length) | 0, dx: (R() - 0.5) * 12, dy: -frame(entFrame(oEnt)).h * 0.3 });
       }
     }
+    while (G.pickX < ahead) {
+      G.pickX += lerp(T.pickupGap[0], T.pickupGap[1], R());
+      var qx = G.pickX, qe = edges(qx), qb = qe.band;
+      var qt = kindsOf(XD.BIOMES[R() < qb.t ? qb.b : qb.a], isPickup);
+      if (!qt || nearObstacle(qx)) continue;
+      spawnEnt(pickWeighted(qt, R()), qx, lerp(qe.top + 20, qe.bot - 20, R()));
+    }
+    while (G.spawnX < ahead) {
+      G.spawnX += 70 + R() * 90;
+      var x = G.spawnX, ed = edges(x), b = ed.band;
+      var dt = kindsOf(XD.BIOMES[R() < b.t ? b.b : b.a], isDecor);
+      if (!dt) continue;
+      var kind = pickWeighted(dt, R()), y = lerp(ed.top + 16, ed.bot - 16, R());
+      var e = spawnEnt(kind, x, y);
+      if (kind === 'lily' && R() < 0.3) spawnEnt('frog', x, y - 4, { owner: e, dx: 0, dy: -4 });
+    }
     while (G.fishX < ahead) {
-      G.fishX += 90 + G.rand() * 110;
+      G.fishX += lerp(T.fishGap[0], T.fishGap[1], R());
       var fx = G.fishX, fe = edges(fx), fb = fe.band;
-      var fbiome = XD.BIOMES[G.rand() < fb.t ? fb.b : fb.a];
+      var fbiome = XD.BIOMES[R() < fb.t ? fb.b : fb.a];
       var night = dayAt(G.t).stars;
-      var table = {};
-      Object.keys(fbiome.fish).forEach(function (s) { table[s] = fbiome.fish[s] * lerp(1, XD.FISH[s].night, night); });
-      var sp = pickWeighted(table, G.rand());
-      spawnEnt('fish', fx, lerp(fe.top + 26, fe.bot - 16, G.rand()), {
-        sp: sp, vx: (G.rand() - 0.5) * 30, jumpIn: 2 + G.rand() * 6, jt: -1, wob: G.rand() * 6,
+      var ftable = {};
+      Object.keys(fbiome.fish).forEach(function (s) { ftable[s] = fbiome.fish[s] * lerp(1, XD.FISH[s].night, night); });
+      var sp = pickWeighted(ftable, R());
+      spawnEnt('fish', fx, lerp(fe.top + 26, fe.bot - 16, R()), {
+        sp: sp, vx: (R() - 0.5) * 30, jumpIn: 2 + R() * 6, jt: -1, wob: R() * 6,
       });
     }
   }
@@ -199,7 +226,8 @@
   }
   XD.fx = fx;
   function popup(text, o) {
-    G.popups.push({ text: text, t: 0, life: 2.2, color: (o && o.color) || '#fff', icon: o && o.icon, dy: G.popups.filter(function (p) { return p.t < 0.6; }).length * 12 });
+    if (G.popups.length > 3) G.popups.shift();
+    G.popups.push({ text: text, t: 0, life: 2.2, color: (o && o.color) || '#fff', icon: o && o.icon });
   }
   function splash(x, y, big) {
     fx('splash', x, y, { life: 0.5, big: big });
@@ -310,7 +338,11 @@
   function step(dt) {
     var inp = G.input, auto = G.mode === 'title';
     G.time += dt;
-    if (!G.freeze) G.t = mod(G.t + dt / T.dayLen, 1);
+    if (!G.freeze) {
+      var nt = G.t + dt / T.dayLen;
+      if (nt >= 1) G.dayN++;
+      G.t = mod(nt, 1);
+    }
     stepWeather(dt);
 
     var target = T.cruise;
@@ -435,17 +467,26 @@
     G.popups = G.popups.filter(function (p) { return p.t < p.life; });
   }
 
-  var wakeAcc = 0;
+  // Bọt sau thuyền theo XD.FOAM: hạt sống trong toạ độ màn hình (camera luôn đi cùng thuyền theo
+  // chiều ngang) và toạ độ sông theo chiều dọc, nên lái lên xuống thì vệt cũ ở lại chỗ cũ.
+  var foamAcc = [0, 0];
   function wake(dt) {
-    var bx = boatWX(), sp = G.speed / T.cruise;
-    wakeAcc += dt * (6 + sp * 10);
-    while (wakeAcc > 1) {
-      wakeAcc -= 1;
-      var side = Math.random() < 0.5 ? -1 : 1;
-      fx('foam', bx - 70 + Math.random() * 20, G.boatY + 8 + side * (6 + Math.random() * 6), { vy: side * (4 + sp * 6), life: 1.2 + sp * 0.8, s: Math.random() < 0.3 ? 2 : 1 });
-      if (Math.random() < 0.25 * sp) fx('blob', bx - 78, G.boatY + 6 + (Math.random() - 0.5) * 16, { life: 1.1, f: (Math.random() * 4) | 0 });
-      if (Math.random() < 0.18 * sp) fx('foam', bx + 76 + Math.random() * 10, G.boatY + 6 + (Math.random() - 0.5) * 20, { vy: (Math.random() - 0.5) * 20, life: 0.8, s: 1 });
+    var F = XD.FOAM, k = clamp(G.speed / T.cruise, 0.3, 1.8), bx = G.view.bx;
+    F.emitters.forEach(function (em, j) {
+      foamAcc[j] += F.rate * k * dt;
+      while (foamAcc[j] >= 1) {
+        foamAcc[j] -= 1;
+        G.foam.push({
+          sx: bx + em.at[0] + (Math.random() - 0.5) * F.box[0], y: G.boatY + em.at[1] + (Math.random() - 0.5) * F.box[1],
+          vy: em.vy, t: Math.random() * dt, life: F.life * (0.8 + 0.2 * k), ph: Math.random() * 6.28,
+        });
+      }
+    });
+    for (var i = 0; i < G.foam.length; i++) {
+      var p = G.foam[i];
+      p.t += dt; p.sx += F.vx * dt; p.y += p.vy * dt;
     }
+    G.foam = G.foam.filter(function (p) { return p.t < p.life; });
   }
 
   function ambientLife(dt) {
@@ -508,7 +549,7 @@
     var d = dayAt(G.t), b = bandAt(boatWX()), sea = mixNum(b, 'sea', 0), birds = mixNum(b, 'birds', 1);
     var r = Math.min(1, G.wp.rain);
     return {
-      music: d.music,
+      music: XD.MIX.music_sets[d.music][G.dayN % XD.MIX.music_sets[d.music].length],
       musicGain: G.mode === 'play' ? 1 : G.mode === 'pause' ? 0.35 : 0.8,
       beds: {
         water: 1 - sea * 0.6,
@@ -609,6 +650,8 @@
     }
     // Rải sẵn cả khúc đang nhìn thấy: mở game ra không phải một dòng sông trống.
     G.spawnX = G.fishX = G.x - 200;
+    G.obsX = G.x;
+    G.pickX = G.x - 600;
     spawnAhead();
     var bx = boatWX();
     G.ents = G.ents.filter(function (e) { return !(XD.KINDS[e.kind].obstacle && e.x > bx - 150 && e.x < bx + 420); });

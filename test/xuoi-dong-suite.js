@@ -25,13 +25,22 @@ function check(name, ok, detail) {
   else { fail++; out.push('  ✘ ' + name + (detail ? '  — ' + detail : '')); }
 }
 
+// /__old/<tệp> phục vụ bản của commit OLD_REV (đọc thẳng từ git) để đo "trước" và "sau" cùng một cách.
+const OLD_REV = '4249ade';
+const { execFileSync } = require('child_process');
 function serve() {
   return new Promise(res => {
     const srv = http.createServer((q, r) => {
-      const f = path.join(ROOT, decodeURIComponent(q.url.split('?')[0]));
-      fs.readFile(f, (e, b) => {
+      const u = decodeURIComponent(q.url.split('?')[0]);
+      const type = { 'Content-Type': MIME[path.extname(u)] || 'application/octet-stream' };
+      if (u.startsWith('/__old/')) {
+        try { const b = execFileSync('git', ['show', OLD_REV + ':' + u.slice(7)], { cwd: ROOT, maxBuffer: 1 << 26 }); r.writeHead(200, type); r.end(b); }
+        catch (e) { r.writeHead(404); r.end(); }
+        return;
+      }
+      fs.readFile(path.join(ROOT, u), (e, b) => {
         if (e) { r.writeHead(404); r.end(); return; }
-        r.writeHead(200, { 'Content-Type': MIME[path.extname(f)] || 'application/octet-stream' });
+        r.writeHead(200, type);
         r.end(b);
       });
     }).listen(0, () => res(srv));
@@ -49,6 +58,41 @@ const LITERAL_FRAMES = [].concat(
   [].concat.apply([], [0, 1, 2, 3, 4].map(r => [0, 1].map(f => 'Butterfly' + r + '_' + f))),
   [0, 1, 2, 3, 4, 5, 6, 7, 8].map(i => 'Frog_' + i)
 );
+
+
+// Tua nhanh 20 lần ở màn đầu (thuyền tự lái, va chạm không trừ gì) qua MINUTES phút đường
+// đi theo tốc độ thả trôi của chính bản đó, đếm mọi vật cản và thùng/hòm từng được sinh ra.
+async function spawnRate(browser, port, prefix, minutes) {
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  const page = await ctx.newPage();
+  await page.goto(`http://localhost:${port}/${prefix}games/xuoi-dong/index.html?seed=5&t=0.4&weather=clear`);
+  await page.waitForFunction(() => window.XD && XD.game && XD.game.time > 0.3, null, { timeout: 10000 });
+  const r = await page.evaluate((minutes) => new Promise(res => {
+    const G = XD.game, T = XD.TUNE, cruise = T.cruise, x0 = G.x, goal = cruise * 60 * minutes;
+    T.cruise = cruise * 20;
+    const obs = [], junk = { n: 0 }, most = { n: 0 };
+    (function poll() {
+      G.speed = T.cruise;
+      G.ents.forEach(e => {
+        if (e.__c) return;
+        e.__c = 1;
+        if (XD.KINDS[e.kind].obstacle) obs.push(e.x);
+        if (e.kind === 'barrel' || e.kind === 'crate') junk.n++;
+      });
+      const on = G.ents.filter(e => XD.KINDS[e.kind].obstacle && e.x > G.x - 60 && e.x < G.x + G.view.w + 60).length;
+      most.n = Math.max(most.n, on);
+      if (G.x - x0 < goal) requestAnimationFrame(poll);
+      else {
+        obs.sort((a, b) => a - b);
+        let gap = Infinity;
+        for (let i = 1; i < obs.length; i++) gap = Math.min(gap, obs[i] - obs[i - 1]);
+        res({ perMin: obs.length / minutes, junkPerMin: junk.n / minutes, minGap: Math.round(gap), maxOnScreen: most.n, cruise });
+      }
+    })();
+  }), minutes);
+  await ctx.close();
+  return r;
+}
 
 async function open(browser, port, query, vp, opts) {
   const ctx = await browser.newContext(Object.assign({ viewport: vp || { width: 1280, height: 720 }, deviceScaleFactor: 1 }, opts || {}));
@@ -243,6 +287,103 @@ async function suiteFile(browser) {
   await ctx.close();
 }
 
+async function suiteRate(browser, port) {
+  out.push('\n[6] Mật độ vật cản: bản ' + OLD_REV + ' so với bản này (tua nhanh 5 phút đường đi, seed 5)');
+  const before = await spawnRate(browser, port, '__old/', 5);
+  const after = await spawnRate(browser, port, '', 5);
+  out.push(`    trước: ${before.perMin.toFixed(1)} vật cản/phút, ${before.junkPerMin.toFixed(1)} thùng+hòm/phút, cùng lúc trên màn tối đa ${before.maxOnScreen}, khoảng cách nhỏ nhất ${before.minGap}px (thả trôi ${before.cruise}px/s)`);
+  out.push(`    sau:   ${after.perMin.toFixed(1)} vật cản/phút, ${after.junkPerMin.toFixed(1)} thùng+hòm/phút, cùng lúc trên màn tối đa ${after.maxOnScreen}, khoảng cách nhỏ nhất ${after.minGap}px (thả trôi ${after.cruise}px/s)`);
+  check('vật cản thưa: 4–5 cái mỗi phút (một cái mỗi 12–15 giây)', after.perMin >= 4 && after.perMin <= 5, after.perMin.toFixed(2) + '/phút');
+  check('không bao giờ hai vật cản cùng lúc trên màn (1280x720)', after.maxOnScreen === 1, 'tối đa ' + after.maxOnScreen);
+  check('hai vật cản liền nhau cách nhau ít nhất 1300px', after.minGap >= 1300, after.minGap + 'px');
+  check('thùng + hòm còn khoảng một nửa so với trước', after.junkPerMin <= before.junkPerMin * 0.6 && after.junkPerMin >= before.junkPerMin * 0.3, before.junkPerMin.toFixed(1) + ' → ' + after.junkPerMin.toFixed(1) + '/phút');
+}
+
+// Lấy vị trí thật mà thuyền được vẽ ra (gốc lớp thuyền, pixel thiết bị) ở từng khung hình, kèm
+// số khung 60 Hz đã trôi qua: máy chậm lỡ một khung thì bước đó chia đôi, để bài đo "có bị bậc
+// thang không" không lẫn với bài đo "có kịp 60 khung không" (bài sau đo riêng bằng trung vị).
+function sampleBoat(page, frames) {
+  return page.evaluate((n) => new Promise(res => {
+    const out = []; let last = performance.now();
+    (function f(t) { out.push([Math.max(1, Math.round((t - last) / 16.67)), XD.render.boatPx.Y0]); last = t; if (out.length < n) requestAnimationFrame(f); else res(out); })(last);
+  }), frames);
+}
+function steps(s) { const o = []; for (let i = 1; i < s.length; i++) o.push(Math.round(Math.abs(s[i][1] - s[i - 1][1]) / s[i][0])); return o; }
+
+async function filmstrip(page, file) {
+  const url = await page.evaluate(() => new Promise(res => {
+    const c = document.getElementById('scene'), S = XD.game.view.S, B = XD.render.BB;
+    const w = (B[2] - B[0]) * S, h = (B[3] - B[1] - 20) * S, cols = 4, rows = 3;
+    const out = document.createElement('canvas'); out.width = w * cols; out.height = h * rows;
+    const o = out.getContext('2d');
+    let i = 0;
+    (function f() {
+      const b = XD.render.boatPx;
+      o.drawImage(c, b.X0, b.Y0 + 20 * S, w, h, (i % cols) * w, ((i / cols) | 0) * h, w, h);
+      if (++i < cols * rows) requestAnimationFrame(f); else res(out.toDataURL('image/png'));
+    })();
+  }));
+  fs.writeFileSync(file, Buffer.from(url.split(',')[1], 'base64'));
+}
+
+async function suiteMotion(browser, port) {
+  out.push('\n[7] Thuyền chuyển động mượt, vệt bọt, ngày đêm nhanh gấp ba, nhạc theo bộ ngày/đêm');
+  for (const [w, h, dpr] of [[1280, 720, 1], [844, 390, 3]]) {
+    const { ctx, page, errs } = await open(browser, port, 't=0.45&biome=canyon&weather=clear&seed=3&freeze=1&play=1', { width: w, height: h }, { deviceScaleFactor: dpr });
+    try {
+      await page.waitForTimeout(600);
+      await page.evaluate(() => { const G = XD.game; G.ents = []; G.boostT = 0; G.obsX = G.pickX = G.x + 1e6; G.boatY = -40; });
+      await page.waitForTimeout(400);
+      const S = await page.evaluate(() => XD.game.view.S);
+      const idle = steps(await sampleBoat(page, 120));
+      check(`${w}x${h} dpr${dpr} (S=${S}): đứng yên, thuyền nhích tối đa 1 px thật mỗi khung`, Math.max(...idle) <= 1, 'bước lớn nhất ' + Math.max(...idle) + ' px');
+      await page.keyboard.down('ArrowDown');
+      await page.waitForTimeout(250);
+      const run = steps(await sampleBoat(page, 24));
+      await page.keyboard.up('ArrowDown');
+      const hist = {}; run.forEach(x => hist[x] = (hist[x] || 0) + 1);
+      check(`${w}x${h} dpr${dpr}: đang lái, mỗi khung dịch đều (chênh lệch giữa các bước ≤ ${S} px, không khung nào đứng im)`,
+        Math.max(...run) - Math.min(...run) <= S && Math.min(...run) >= 1, 'các bước ' + JSON.stringify(hist));
+      await page.waitForTimeout(400);
+      await filmstrip(page, path.join(SHOTS, `filmstrip-${w}x${h}-dpr${dpr}.png`));
+      const perf = await page.evaluate(() => new Promise(res => {
+        const ts = []; const t0 = performance.now();
+        (function f(t) { ts.push(t); if (t - t0 < 3000) requestAnimationFrame(f); else { const d = ts.slice(1).map((x, i) => x - ts[i]).sort((a, b) => a - b); res(d[d.length >> 1]); } })(t0);
+      }));
+      check(`${w}x${h} dpr${dpr}: một khung vẽ xong trong 16,7 ms (trung vị)`, perf <= 17.2, perf.toFixed(1) + ' ms');
+      const foam = await page.evaluate(() => {
+        const G = XD.game, bx = G.view.bx;
+        return { n: G.foam.length, behind: G.foam.filter(p => p.sx < bx - 90).length, far: G.foam.filter(p => p.y < G.boatY - 20).length };
+      });
+      check(`${w}x${h}: vệt bọt hai dải (trên ~100 hạt/s mỗi dải, sống 0,59 s), kéo ra sau đuôi thuyền`, foam.n >= 90 && foam.n <= 150 && foam.behind > 20 && foam.far > 30, JSON.stringify(foam));
+      check(`${w}x${h}: không lỗi`, errs.length === 0, errs.join(' | '));
+    } finally { await ctx.close(); }
+  }
+
+  const { ctx, page, errs } = await open(browser, port, 't=0.40&biome=canyon&seed=3');
+  try {
+    await page.click('#start');
+    const t0 = await page.evaluate(() => XD.game.t);
+    await page.waitForTimeout(2800);
+    const t1 = await page.evaluate(() => XD.game.t);
+    const secsPerDay = 2.8 / (t1 - t0);
+    check('một ngày đêm dài 140 giây (nhanh gấp ba 420 giây)', Math.abs(secsPerDay - 140) < 12, secsPerDay.toFixed(0) + ' giây');
+    const mus = await page.evaluate(async () => {
+      const G = XD.game, r = {};
+      const at = t => { G.t = t; return XD.debug.audioMix().music; };
+      r.morning = at(0.30); r.golden = at(0.70); r.dusk = at(0.76); r.midnight = at(0.05);
+      G.dayN++; r.nextDay = at(0.40); G.dayN--;
+      return r;
+    });
+    check('nhạc chỉ đổi giữa bộ ngày và bộ đêm: sáng và nắng vàng cùng một bài', mus.morning === 'mus_day' && mus.golden === 'mus_day', JSON.stringify(mus));
+    check('chạng vạng và nửa đêm là bài đêm', mus.dusk === 'mus_night' && mus.midnight === 'mus_night', JSON.stringify(mus));
+    check('sang ngày mới thì bộ ngày chuyển bài kế tiếp (Sail On 2)', mus.nextDay === 'mus_golden', mus.nextDay);
+    const tune = await page.evaluate(() => [XD.TUNE.cruise, XD.TUNE.slow, XD.TUNE.fast, XD.TUNE.boost]);
+    check('tốc độ thả trôi 115 px/s (72 × 1,6), chậm 54, nhanh 205, tăng tốc 300', JSON.stringify(tune) === '[115,54,205,300]', JSON.stringify(tune));
+    check('không lỗi', errs.length === 0, errs.join(' | '));
+  } finally { await ctx.close(); }
+}
+
 async function thumb(browser, port) {
   const { ctx, page } = await open(browser, port, 't=0.44&biome=canyon&weather=clear&seed=11&freeze=1&shot=1', { width: 640, height: 360 });
   await page.waitForTimeout(2500);
@@ -257,11 +398,15 @@ async function thumb(browser, port) {
   const port = srv.address().port;
   const browser = await chromium.launch();
   try {
-    await suiteData(browser, port);
-    await suitePlay(browser, port);
-    await suiteTouch(browser, port);
-    await suiteFile(browser);
-    await suiteShots(browser, port);
+    const only = (process.argv.find(a => a.startsWith('--only=')) || '').slice(7);
+    const run = k => !only || only.split(',').includes(k);
+    if (run('data')) await suiteData(browser, port);
+    if (run('play')) await suitePlay(browser, port);
+    if (run('touch')) await suiteTouch(browser, port);
+    if (run('file')) await suiteFile(browser);
+    if (run('rate')) await suiteRate(browser, port);
+    if (run('motion')) await suiteMotion(browser, port);
+    if (run('shots')) await suiteShots(browser, port);
     if (process.argv.includes('--thumb')) await thumb(browser, port);
   } catch (e) {
     fail++; out.push('  ✘ ném lỗi: ' + (e.stack || e));
