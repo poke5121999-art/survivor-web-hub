@@ -691,7 +691,12 @@
           { v: "ngo", label: "Netcode + Relay (đang chạy)" },
           { v: "rtd", label: "Engine RTD (repo-topdown) — chưa chạy được game này" },
           { v: "steam", label: "Steam (chưa có)" }
-        ], help: "Phòng đang mở giữ hệ thống mạng lúc tạo; chỉ phòng tạo sau khi đổi mới dùng giá trị này. Chọn hệ thống chưa chạy được thì phòng mới sẽ không vào được." }
+        ], help: "Phòng đang mở giữ hệ thống mạng lúc tạo; chỉ phòng tạo sau khi đổi mới dùng giá trị này. Chọn hệ thống chưa chạy được thì phòng mới sẽ không vào được." },
+        "poseSpeedMul": { label: "Hệ số tốc độ tối đa của khách (chống gian lận)", min: 1, help: "Chủ phòng không cho khách đi nhanh hơn tốc chạy tối đa nhân số này; vượt thì kéo về, không đá khỏi phòng. 1,1 = chừa 10% sai số khung hình." },
+        "poseBurstSeconds": { label: "Giây đi dồn được sau lag", unit: "giây", min: 0, help: "Sau một lúc mạng chậm, gói tư thế dồn lại vẫn được nhận tối đa chừng này giây đường đi." },
+        "poseRoundPx": { label: "Sai số làm tròn toạ độ", unit: "px", min: 0, help: "Khoảng cộng thêm vào trần quãng đi để không bắt nhầm do làm tròn toạ độ." },
+        "intentPerSecond": { label: "Số thao tác mỗi giây của khách", min: 1, int: true, help: "Chủ phòng bỏ thao tác (đánh, dùng đồ…) vượt số này mỗi giây; người bấm nhanh khoảng 10 lần/giây." },
+        "intentBurst": { label: "Số thao tác dồn tối đa", min: 1, int: true, help: "Bấm dồn một lúc tối đa chừng này thao tác trước khi bị bỏ." }
       }
     },
 
