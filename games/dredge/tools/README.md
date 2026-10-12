@@ -46,6 +46,7 @@ Gỡ nhanh nếu bị yêu cầu: xoá `art/`, `audio/`, và mọi tệp `data/*
   - `SaveDataTemplate` vẫn hỏng theo cách đó nên phải đọc tay.
 - `[BẪY ĐÃ SẬP]` Lọc landmask (chỗ thuyền không đi được). Lấy mọi collider cắt mặt nước y=0 thì quả cầu của các khối vùng (zone volume) bôi trắng nửa bản đồ.
   - Chỉ giữ collider thuộc layer va chạm với Player: `CollidesWithPlayer`, `CollidesWithPlayerAndCamera`, `CollidesWithPlayerAndMonster`, `Ice`.
+- `[BẪY ĐÃ SẬP]` Lấy mọi phần collider có y ≥ 0 thì mái hang biến thành đất (hang cá mái chèo ở Gale Cliffs). `world.py` chỉ giữ phần collider nằm trong `BOAT_BAND` (y −0,287..0,392: MeshCollider thân thuyền 0,033..0,712 trong `PlayerContainer.prefab`, chìm 0,32 m khi đứng yên theo BuoyantObject.cs:84-92), rồi tô kín bên trong vòng tường của từng collider để lõi đá vẫn đặc. `explosives.py` và `tshazards.py` dùng cùng dải này.
 - `[BẪY ĐÃ SẬP]` 5.440 renderer được static-batch: mesh của chúng là `Combined Mesh` toạ độ thế giới. `world.py` nhân ngược ma trận của từng renderer rồi gộp trùng theo hình.
 - 325 instance bị lật gương (scale âm). Chúng dùng biến thể mesh đã lật sẵn trục x vì `instances.bin` chỉ chứa scale dương.
 - `[BẪY ĐÃ SẬP]` Ghi trùng bản đồ độ sâu: `data.py` và `world.py` cùng xuất `waveHeightMask` (2,2 MB hai lần). Giờ chỉ `world.py` ghi.
@@ -364,6 +365,18 @@ Gỡ nhanh nếu bị yêu cầu: xoá `art/`, `audio/`, và mọi tệp `data/*
   - Offset của `AnimationPlayableAsset` (`m_Position`, `m_EulerAngles`, Euler ZXY) áp cho nút gốc của clip TRƯỚC khi đổi hệ toạ độ; mẫu đã nướng sẵn. Clip vòng lặp biến `kind` trong vòng for: đừng gán lại biến lặp (lỗi đã sập: đường cong Euler thứ hai bị lưu nguyên 3 thành phần).
   - Thuộc tính vật liệu trong clip bị AssetRipper ghi `material.path_0x…_xxx` (không phải CRC32 của tên): không giải được, coi theo nghĩa đoán `[ĐỀ XUẤT]` ở JS.
   - Vật ở xa (Masstrocity ~1000 m, cực quang ~2000 m) vượt `camera.far` ~425 m của main.js: JS nới far trong cảnh kết (bọc `DRWorld.cull`).
+
+## progress_audit.py — kiểm tiến trình (paudit)
+- `python -I games/dredge/tools/progress_audit.py [ra.md]` → `D:/dredge-ref/notes/PROGRESS-AUDIT.md`: một dòng mỗi bước của 41 nhiệm vụ gốc (bỏ thư mục `QuestData/DLC*`) + 3 cảnh kết, OK / BLOCKED kèm lý do. `DR_GAME=<cây games/dredge khác>` để lấy số "trước" (vd `_base15`); `PA_WHY=oarfish` in nguồn của món.
+- Xét: lối vào web (node gốc bến, người nói, điểm đến, bước showAtDock/showAtSpeaker, POI, điểm nổ) → RunNode; lệnh/hàm Yarn đã đăng ký và không phải stub trong tệp mà index.html nạp; lưới nhiệm vụ có hệ thống; món kiếm được; HarvestPOI phải tới được bằng thuyền trên `landmask.png` (ô nước có 8 ô nước quanh, nối biển, dấu chân mảng đá nổ tính là nước).
+- `[BẪY ĐÃ SẬP]` Hàm `...ById` trong node chỉ là hỏi thăm (một node của Merchant hỏi cả 4 cá hiếm): tính vào "món cần" thì một món thiếu chặn oan mọi bước. Chỉ tính món bị tiêu (RemoveItemById, lưới) và món canh NGAY trước lệnh (`<<if GetHasEverOwnedItem("oarfish")>> <<SetQuestStepCompleted ...>>`).
+- `[BẪY ĐÃ SẬP]` Toạ độ markers.json và landmask cùng hệ three.js (z đã đảo); điểm ngoài khung mặt nạ là biển khơi, không phải đất.
+- Đo 2026-10-10: oarfish (HarvestPOI 183, (582, 516)) nằm sâu 19 m trong đất của landmask (vách Gale Cliffs che hang: `world.py` lấy mọi phần tam giác collider có y ≥ 0), nước gần nhất 21 m → RareFishSub1/RareFishMain không xong được trên web. Đã sửa bằng `BOAT_BAND` (xem mục world.py): kiểm tĩnh còn OK 102 / BLOCKED 0, điểm 183 mở, điểm 198 (metal) nằm sau mảng đá nổ `cave-west`/`cave-east` như bản gốc.
+
+## worldstate.py — WorldStateChanger
+- `python -I games/dredge/tools/worldstate.py` → `data/worldstate.js` (9 cấu hình); `js/worldstate.js` xét lại mỗi lần cập / rời bến như `WorldStateChanger.cs`.
+- Hành động nằm trong `SerializedBytes` Odin: chuỗi UTF-16 `boolName` = 0x01 + int32 độ dài + ký tự; `enabledIfMet` = 1 byte ngay sau tên. GameObjectToggle chỉ đếm.
+- `[BẪY ĐÃ SẬP]` Thiếu OldMayorDockEnabler ("old-mayor-available") thì OldMayor_Intro không bao giờ chạy → Lighthouse Keeper không hỏi sách → kết tốt bị chặn. Grep chuỗi trong YAML không thấy vì nằm trong byte Odin.
 
 ## shader_cbuf.py — tên cbuffer của shader đã tuần tự hoá (vòng 9 wfx, mặt nước + vệt) [ĐO TRONG REPO, 2026-10-10]
 - Chạy: `python -I games/dredge/tools/shader_cbuf.py [Tên_Shader ...]` (mặc định `Water_Shader FloatingParticle_Shader`, ~2 phút). Ra `D:/dredge-ref/cache/particles/shaders/<Tên>.cbuf.txt`: mỗi dòng `cN.k tên` của `$Globals`/`UnityPerDraw`..., đọc kèm bản rã DXBC (`env.py --dis`, `particles.py --dis`) để biết `cb0[N]` là biến nào. Không ghi gì vào repo.
