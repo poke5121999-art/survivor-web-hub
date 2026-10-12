@@ -18,3 +18,8 @@
   - `admin.css` có sẵn `.btn`/`.btn--ghost`; class chung kiểu `.btn` thêm vào style.css sẽ đè nút admin. Nút của hub tên `.hub-btn`.
 - Lời giới thiệu thẻ (tagline/desc/genre/accent/en) ghi bằng `node tools/hub-copy.js`; ảnh thẻ chụp bằng `games/<id>/tools/thumb.js` dựa trên `tools/thumb-lib.js`.
   - Kiểm: `node test/hub-ui.js`. Ảnh mới phải mở ra so với ảnh cũ ở cỡ thẻ ~340px; game màn dọc cần cắt vùng + `scale: 2`, chụp cả màn thì nhân vật chỉ còn vài pixel.
+- Trang của hub (không riêng game) cũng dính đệm 10 phút [BẪY ĐÃ SẬP 2026-10-09, feedback-admin.html trắng trơn]:
+  - HTML mới chạy với JS cũ còn trong đệm ẩn hết các khối mà không ném lỗi.
+  - `feedback.html`, `feedback-admin.html`, `login.html` gắn `?v=` cho file riêng của chúng; `test/feedback-ui.js` đỏ nếu thiếu hoặc lệch số.
+- Cây làm việc có việc dở của agent khác đụng tệp mà `origin/main` vừa đổi (vd `data/games.js`): không pull.
+  - Dựng commit trên `origin/main` bằng `GIT_INDEX_FILE` tạm (`read-tree origin/main`, `hash-object -w --path`, `commit-tree -p origin/main`), rồi `git push origin <sha>:refs/heads/main`.
