@@ -1,6 +1,10 @@
 # Bẫy khi kiểm giao diện bằng Playwright
 
 - Playwright: `require('C:/Users/tamph/AppData/Roaming/npm/node_modules/@playwright/cli/node_modules/playwright')`. Node ở `/d/NodeJs/node`.
+  - Máy Linux: test `soulknight-*.js` mặc định trỏ đường Windows ấy nên phải đặt
+    `PLAYWRIGHT_PATH=/home/bui-thanh-thuong/.cache/pw-node/node_modules/playwright-core` [ĐO TRONG REPO, 2026-10-12].
+- Chạy quá 4 bộ Soul Knight cùng lúc (tải máy 25-35) làm `pethp`/`petskills-*` báo hỏng giả: chụp màn quá hạn, pet chưa kịp tick
+  [ĐO TRONG REPO, 2026-10-12]. Chạy lượt 4 bộ. `petskills-c` pet23 chập chờn cả trên HEAD cũ; so với worktree HEAD sạch trước khi kết luận hồi quy.
 - **Luôn kiểm thêm một khung nhỏ hơn khung thiết kế** (ví dụ 844×390 và 1366×650).
   - Ghế Nóng chụp ở 1280×760 thì hệ số co `k = 1`, nên lỗi khung lệch khi co không bao giờ lộ.
 - `page.goto(url + '#hash')` khi URL chỉ khác phần hash thì **không tải lại trang**. Phải `goto('about:blank')` trước.
