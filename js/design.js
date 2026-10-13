@@ -21,7 +21,7 @@
     relay: { main: ["capUsd", "reserve"], price: ["perGiB", "freeGiBPerCcu", "freeGiBCap", "perCcu", "freeCcu", "overheadBytes", "bytesFactor"] },
     vivox: { main: ["capUsd", "reserve"], price: ["freePcu", "stepPcu", "perStep"] }
   };
-  // Shown when a service has no doc yet; saving creates it. Same numbers as the seed in gamespark-config/cost_guard.json.
+  // Shown when a service has no doc yet; saving creates it. Same numbers as the seed in gamespark-config/runtime/cost_guard.json.
   var GUARD_SEED = {
     relay: { capUsd: 50, forceClosed: false, reserve: 20, perGiB: 0.16, freeGiBPerCcu: 3, freeGiBCap: 150, perCcu: 0.16, freeCcu: 50, overheadBytes: 40, bytesFactor: 1 },
     vivox: { capUsd: 0, forceClosed: false, reserve: 250, freePcu: 5000, stepPcu: 5000, perStep: 2000 }
