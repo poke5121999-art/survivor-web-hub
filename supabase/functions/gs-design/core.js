@@ -216,16 +216,73 @@ async function doSave(call, body) {
   };
 }
 
+// Cost guard lives in runtime collections (cd_*), not md_ tables: an emergency switch must bite on LIVE at once,
+// while md_ content only changes through a DEV edit plus deploy. Fields per service, one table for the check.
+const GUARD_FIELDS = {
+  relay: ["capUsd", "forceClosed", "reserve", "perGiB", "freeGiBPerCcu", "freeGiBCap", "perCcu", "freeCcu", "overheadBytes", "bytesFactor"],
+  vivox: ["capUsd", "forceClosed", "reserve", "freePcu", "stepPcu", "perStep"],
+};
+
+function checkGuardDoc(d) {
+  if (!isPlain(d)) return "doc không phải object";
+  const fields = GUARD_FIELDS[d._id];
+  if (!fields) return `Dịch vụ "${d._id}" không hợp lệ, chỉ nhận ${Object.keys(GUARD_FIELDS).join(", ")}.`;
+  for (const k of Object.keys(d)) {
+    if (k !== "_id" && !fields.includes(k)) return `Dịch vụ "${d._id}" không có trường "${k}".`;
+  }
+  for (const k of fields) {
+    const v = d[k];
+    if (v === undefined) return `Dịch vụ "${d._id}" thiếu trường "${k}".`;
+    if (k === "forceClosed") {
+      if (typeof v !== "boolean") return `forceClosed của "${d._id}" là ${JSON.stringify(v)}, phải là true hoặc false.`;
+    } else if (typeof v !== "number" || !Number.isFinite(v) || v < 0) {
+      return `${k} của "${d._id}" là ${JSON.stringify(v)}, phải là số từ 0 trở lên.`;
+    }
+  }
+  return null;
+}
+
+const monthId = (d) => d.toISOString().slice(0, 7);
+
+async function readGuard(call) {
+  const now = new Date();
+  const month = monthId(now);
+  const prevMonth = monthId(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)));
+  const [g, m] = await Promise.all([
+    call("/data/query", { collection: "cd_cost_guard", limit: QUERY_LIMIT }),
+    call("/data/query", { collection: "cd_cost_meter", filter: { _id: { $in: [month, prevMonth] } }, limit: QUERY_LIMIT }),
+  ]);
+  const rows = normalize(g.docs || []).filter((d) => GUARD_FIELDS[d._id]).map(({ _createdAt, _updatedAt, ...rest }) => rest);
+  const meters = { [month]: null, [prevMonth]: null };
+  for (const d of normalize(m.docs || [])) if (d._id in meters) meters[d._id] = d;
+  return { rows, meters, month, prevMonth };
+}
+
+async function saveGuard(call, doc) {
+  const bad = checkGuardDoc(doc);
+  if (bad) return fail(400, "INVALID", bad);
+  const { _id, ...set } = doc;
+  try {
+    await call("/data/update", { collection: "cd_cost_guard", filter: { _id }, set });
+  } catch (e) {
+    if (!(e instanceof UpstreamError) || e.status !== 404) throw e;
+    await call("/data/insert", { collection: "cd_cost_guard", doc });
+  }
+  return { status: 200, json: { ok: true, ...(await readGuard(call)) } };
+}
+
 export async function handleAction(body, env, fetchImpl = fetch) {
   if (!isPlain(body)) return fail(400, "INVALID", "body không phải object JSON");
-  if (!["list", "get", "save"].includes(body.action)) {
+  if (!["list", "get", "save", "guard", "guard_save"].includes(body.action)) {
     return fail(400, "INVALID", `action "${body.action}" không hợp lệ`);
   }
-  if (body.action !== "list" && !KNOWN.includes(body.table)) {
+  if (!body.action.startsWith("guard") && body.action !== "list" && !KNOWN.includes(body.table)) {
     return fail(400, "INVALID", `bảng "${body.table}" không nằm trong danh sách`);
   }
   const call = makeClient(env, fetchImpl);
   try {
+    if (body.action === "guard") return { status: 200, json: { ok: true, ...(await readGuard(call)) } };
+    if (body.action === "guard_save") return await saveGuard(call, body.doc);
     if (body.action === "list") {
       const rows = await Promise.all(KNOWN.map((t) => readTable(call, t)));
       const tables = {};

@@ -206,3 +206,27 @@
 .dz-addrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 14px; }
 .dz-addrow .dz-input { width: 9rem; }
 .dz-addrow .dz-help, .dz-addrow .dz-cell__err { flex-basis: 100%; margin: 0; }
+
+/* ---- cost guard ---- */
+.dz-guards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 16px; align-items: start; }
+.dz-guard { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; min-width: 0; }
+.dz-guard__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.dz-guard__title { margin: 0; font-size: 17px; }
+.dz-guard__cost { margin: 8px 0 6px; font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.dz-guard__muted, .dz-guard__note { margin: 6px 0; font-size: 13px; color: var(--text-dim); }
+.dz-guard__stale { margin: 6px 0; font-size: 13px; color: var(--warn); }
+.dz-guard__err { margin: 8px 0 0; font-size: 13px; color: var(--danger); }
+.dz-guard__actions { margin-top: 12px; }
+.dz-guard__prices { margin-top: 8px; }
+.dz-guard__prices summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-dim); padding: 6px 0; }
+.dz-pill { padding: 2px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 700; border: 1px solid var(--border); white-space: nowrap; }
+.dz-pill--open { color: #1a7f37; border-color: #1a7f37; }
+.dz-pill--closed { color: var(--danger); border-color: var(--danger); }
+.dz-pill--idle { color: var(--text-dim); }
+.dz-meter { height: 10px; border-radius: 999px; background: var(--border); overflow: hidden; }
+.dz-meter__fill { height: 100%; background: #1a7f37; }
+.dz-meter.is-near .dz-meter__fill { background: var(--warn); }
+.dz-meter.is-over .dz-meter__fill { background: var(--danger); }
+.dz-stats { display: flex; flex-wrap: wrap; gap: 8px 24px; margin: 12px 0 4px; }
+.dz-stats__item dt { font-size: 12px; color: var(--text-dim); }
+.dz-stats__item dd { margin: 0; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }

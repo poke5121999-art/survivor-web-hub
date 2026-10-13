@@ -92,6 +92,27 @@ function shuffleKeys(v) {
   check("loot_items đọc đủ qua nhiều trang (server cắt 50 dòng mỗi lần)", li.status === 200 && li.json.docs.length === liFile.length && li.json.hash === await hashDocs(liFile),
     `status ${li.status}, ${li.json.docs && li.json.docs.length} dòng, khớp file=${li.json.hash === await hashDocs(liFile)}`);
 
+  // Cost guard: read is live and read-only; every guard_save below is refused before any write.
+  const g = await act({ action: "guard" });
+  const mNow = new Date().toISOString().slice(0, 7);
+  check("guard đọc được", g.status === 200 && Array.isArray(g.json.rows) && g.json.rows.every((r) => r._id === "relay" || r._id === "vivox") &&
+    g.json.month === mNow && mNow in g.json.meters && g.json.prevMonth in g.json.meters,
+    `status ${g.status}, rows=${g.json.rows && g.json.rows.length}, months=${Object.keys(g.json.meters || {})}`);
+  const relay = { _id: "relay", capUsd: 50, forceClosed: false, reserve: 20, perGiB: 0.16, freeGiBPerCcu: 3, freeGiBCap: 150, perCcu: 0.16, freeCcu: 50, overheadBytes: 40, bytesFactor: 1 };
+  const badGuard = [
+    ["_id lạ", { ...relay, _id: "unity" }],
+    ["số âm", { ...relay, capUsd: -1 }],
+    ["số là chuỗi", { ...relay, reserve: "20" }],
+    ["forceClosed không phải boolean", { ...relay, forceClosed: 1 }],
+    ["trường lạ", { ...relay, freePcu: 5000 }],
+    ["thiếu trường", (({ perCcu, ...rest }) => rest)(relay)],
+    ["vivox mang trường của relay", { _id: "vivox", capUsd: 0, forceClosed: false, reserve: 250, freePcu: 5000, stepPcu: 5000, perStep: 2000, perGiB: 1 }],
+  ];
+  for (const [n, doc] of badGuard) {
+    const r = await act({ action: "guard_save", doc });
+    check("guard_save INVALID " + n, r.status === 400 && r.json.error.code === "INVALID", `status ${r.status}, ${r.json.error && r.json.error.message}`);
+  }
+
   console.log(failed ? `FAIL (${failed} check(s) failed)` : "PASS");
   process.exit(failed ? 1 : 0);
 })().catch((e) => { console.log("✘ exception — " + e.message); console.log("FAIL"); process.exit(1); });

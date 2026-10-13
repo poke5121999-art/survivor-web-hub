@@ -716,6 +716,36 @@
         "_id": ID,
         "open": { label: "Mở cho người chơi", help: "Tắt = thẻ hiện COMING SOON, không vào được." }
       }
+    },
+    // Not an md_ table: runtime collection cd_cost_guard, one doc per paid service, saved through gs-design "guard_save".
+    cost_guard: {
+      title: "Chi phí dịch vụ",
+      blurb: "Đặt mức chi tối đa mỗi tháng (USD) cho dịch vụ trả tiền theo lượng dùng. Ước tính vượt mức thì người chơi mới không vào được tính năng dùng dịch vụ đó.",
+      effect: "Ngay trên cả DEV lẫn LIVE ở lượt hỏi cổng kế tiếp của người chơi, không cần deploy. Bảng chưa có dòng nào thì dịch vụ đó không bị canh (luôn mở).",
+      note: "Đóng khi ước tính vượt ngưỡng; phòng đang chơi vẫn chạy tiếp nên hoá đơn có thể nhỉnh hơn ngưỡng.",
+      noMeter: "chưa có số đo tháng này",
+      stale: "chưa có người dùng gần đây hoặc bộ đếm đứng",
+      why: { forced: "đóng tay", cap: "chạm ngưỡng" },
+      services: {
+        relay: { title: "Unity Relay", blocks: "Chặn tạo / tìm trận / vào phòng co-op mọi chế độ. Người đang trong phòng và Rejoin không bị chặn." },
+        vivox: { title: "Vivox", blocks: "Chặn đăng nhập Vivox (chat chữ và voice co-op). Người đã đăng nhập giữ nguyên." }
+      },
+      fields: {
+        capUsd: { label: "Ngưỡng đóng (USD / tháng)", help: "Ước tính tháng này vượt số này thì đóng. 0 = đóng ngay khi vượt phần miễn phí." },
+        forceClosed: { label: "Đóng tay", help: "Bật = đóng dịch vụ ngay, bất kể chi phí." },
+        reserve: { label: "Dự phòng (người)", help: "Cộng thêm vào lượng đang dùng khi xét cổng, bù độ trễ đo 1 đến 2 phút." },
+        perGiB: { label: "Giá mỗi GiB (USD)" },
+        freeGiBPerCcu: { label: "GiB miễn phí mỗi CCU" },
+        freeGiBCap: { label: "Trần GiB miễn phí" },
+        perCcu: { label: "Giá mỗi CCU (USD)" },
+        freeCcu: { label: "CCU miễn phí" },
+        overheadBytes: { label: "Byte đệm mỗi gói", help: "Cộng vào mỗi gói nhận để bù phần đầu gói mà client không thấy." },
+        bytesFactor: { label: "Hệ số byte", help: "Nhân với tổng byte đo được; 1 = đo sao dùng vậy." },
+        freePcu: { label: "PCU miễn phí" },
+        stepPcu: { label: "Số PCU mỗi bậc" },
+        perStep: { label: "Giá mỗi bậc (USD)" }
+      },
+      price: "Giá đơn vị (theo bảng giá nhà cung cấp)"
     }
   };
 })();

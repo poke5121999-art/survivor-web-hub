@@ -13,6 +13,20 @@
     "station_rules", "gacha_wheel", "foes", "run_timers", "endless_rules", "decor_lights"];
   var GROUPS = [["Ngoài ca", OUT_RUN], ["Trong ca", IN_RUN]];
   var ALL = OUT_RUN.concat(IN_RUN);
+  // Not an md_ table: runtime collection cd_cost_guard with its own pane and its own save button.
+  var GUARD = "cost_guard";
+  var GUARD_SERVICES = ["relay", "vivox"];
+  // Main fields first, unit prices after (collapsed). Order is the form order; the proxy keeps the same list.
+  var GUARD_FIELDS = {
+    relay: { main: ["capUsd", "reserve"], price: ["perGiB", "freeGiBPerCcu", "freeGiBCap", "perCcu", "freeCcu", "overheadBytes", "bytesFactor"] },
+    vivox: { main: ["capUsd", "reserve"], price: ["freePcu", "stepPcu", "perStep"] }
+  };
+  // Shown when a service has no doc yet; saving creates it. Same numbers as the seed in gamespark-config/cost_guard.json.
+  var GUARD_SEED = {
+    relay: { capUsd: 50, forceClosed: false, reserve: 20, perGiB: 0.16, freeGiBPerCcu: 3, freeGiBCap: 150, perCcu: 0.16, freeCcu: 50, overheadBytes: 40, bytesFactor: 1 },
+    vivox: { capUsd: 0, forceClosed: false, reserve: 250, freePcu: 5000, stepPcu: 5000, perStep: 2000 }
+  };
+  var STALE_MS = 5 * 60 * 1000;
 
   var LABELS = window.DESIGN_LABELS || {};
   var DEFAULTS = (window.DESIGN_DEFAULTS && window.DESIGN_DEFAULTS.tables) || {};
@@ -122,7 +136,8 @@
 
   // ---------- model ----------
 
-  var S = { tables: {}, current: null, loaded: false, conflict: {}, errors: {}, search: {}, open: {}, banner: null };
+  var S = { tables: {}, current: null, loaded: false, conflict: {}, errors: {}, search: {}, open: {}, banner: null,
+    guard: { loaded: false, rows: [], meters: {}, month: "", edited: false } };
   var session = window.HubSession ? window.HubSession.get() : null;
 
   function tableTitle(n) { return (LABELS[n] || {}).title || n; }
@@ -215,11 +230,13 @@
       else if (k.slice(0, 2) === "on") el.addEventListener(k.slice(2), v);
       else el.setAttribute(k, v === true ? "" : v);
     });
-    for (var i = 2; i < arguments.length; i++) {
-      var c = arguments[i];
-      if (c == null || c === false) continue;
-      el.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
-    }
+    (function add(list) {
+      list.forEach(function (c) {
+        if (c == null || c === false) return;
+        if (Array.isArray(c)) add(c);
+        else el.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+      });
+    })([].slice.call(arguments, 2));
     return el;
   }
 
@@ -260,10 +277,20 @@
       });
       sel.appendChild(og);
     });
+    nav.appendChild(h("h2", { class: "dz-nav__group", text: "Vận hành" }));
+    var gb = h("button", { class: "dz-nav__item", type: "button", "data-table": GUARD, onclick: function () { openTable(GUARD); } },
+      h("span", { class: "dz-nav__title", text: tableTitle(GUARD) }));
+    nav.appendChild(gb);
+    var go = h("optgroup", { label: "Vận hành" });
+    var gopt = h("option", { value: GUARD, text: tableTitle(GUARD) });
+    go.appendChild(gopt);
+    sel.appendChild(go);
+    navRefs[GUARD] = { btn: gb, opt: gopt };
     sel.onchange = function () { openTable(sel.value); };
   }
 
   function updateNav() {
+    navRefs[GUARD].btn.classList.toggle("is-active", S.current === GUARD);
     ALL.forEach(function (n) {
       var r = navRefs[n], t = S.tables[n];
       if (!r) return;
@@ -439,6 +466,7 @@
     var n = S.current, pane = $("dz-pane");
     pane.textContent = "";
     if (!n) return;
+    if (n === GUARD) { renderGuard(pane); return; }
     var t = S.tables[n];
     if (!t || !t.remote) { pane.appendChild(h("p", { class: "dz-loading", text: "Đang tải…" })); return; }
     var L = LABELS[n] || {};
@@ -626,6 +654,7 @@
 
   function updateBar() {
     var n = S.current, bar = $("dz-bar");
+    if (n === GUARD) { bar.hidden = true; return; }
     if (!n || !S.tables[n] || !S.tables[n].remote) { bar.hidden = true; return; }
     var c = changes(n).length, e = errCount(n), missing = isMissing(n);
     var clean = !c && !e && !missing;
@@ -646,6 +675,7 @@
   function openTable(n) {
     S.current = n;
     try { history.replaceState(null, "", location.search + "#" + n); } catch (e) { /* file:// */ }
+    if (n === GUARD) { S.guard.edited = false; loadGuard(); }
     renderMain();
     updateBar();
     updateNav();
@@ -702,7 +732,8 @@
       S.loaded = true;
       if (!S.current) {
         var want = (location.hash || "").slice(1);
-        S.current = ALL.indexOf(want) >= 0 ? want : ALL[0];
+        S.current = ALL.indexOf(want) >= 0 || want === GUARD ? want : ALL[0];
+        if (S.current === GUARD) loadGuard();
       }
       if (!$("dz-pane").querySelector(".dz-pane__head")) renderMain();
       updateBar(); updateNav();
@@ -712,9 +743,164 @@
   function poll() {
     var n = S.current;
     if (document.visibilityState !== "visible" || !n || !S.loaded) return;
+    if (n === GUARD) { if (!S.guard.edited) loadGuard(); return; }
     call({ action: "get", table: n }).then(function (j) {
       onRemote(n, { exists: j.exists, docs: j.docs, hash: j.hash });
     }, function () { /* a missed poll is not worth a banner; focus/list will surface real failures */ });
+  }
+
+  // ---------- cost guard ----------
+
+  function GL() { return LABELS[GUARD] || {}; }
+  function GFIELD(k) { return (GL().fields || {})[k] || { label: k }; }
+  function usd(n) { return "$" + trimNum(+Number(n).toFixed(2)); }
+
+  function loadGuard() {
+    return call({ action: "guard" }).then(function (j) {
+      showBanner(null);
+      setGuard(j);
+      if (S.current === GUARD) renderMain();
+    }, function (e) { showBanner(errText(e), loadGuard); });
+  }
+
+  function setGuard(j) {
+    S.guard.rows = j.rows || [];
+    S.guard.meters = j.meters || {};
+    S.guard.month = j.month || "";
+    S.guard.loaded = true;
+  }
+
+  function guardRow(id) {
+    var r = S.guard.rows.filter(function (x) { return x._id === id; })[0];
+    return r ? { row: r, exists: true } : { row: Object.assign({ _id: id }, GUARD_SEED[id]), exists: false };
+  }
+
+  function guardCard(id) {
+    var L = GL(), SL = (L.services || {})[id] || {}, info = guardRow(id), row = info.row;
+    var meter = S.guard.meters[S.guard.month] || null;
+    var sm = meter && meter[id] || null;
+    var gate = meter && meter.gate && meter.gate[id] || null;
+    var fresh = !!(meter && meter.at && Date.now() - meter.at <= STALE_MS);
+
+    var status;
+    if (!info.exists) status = ["Không canh", "dz-pill--idle"];
+    else if (!gate) status = ["Chưa rõ", "dz-pill--idle"];
+    else if (gate.open) status = ["Mở", "dz-pill--open"];
+    else status = ["Đóng" + ((L.why || {})[gate.why] ? " (" + L.why[gate.why] + ")" : ""), "dz-pill--closed"];
+
+    var body = [];
+    if (!info.exists) {
+      body.push(h("p", { class: "dz-guard__note", text: "Chưa có dòng điều khiển cho dịch vụ này nên không bị canh (luôn mở). Số đang hiện là số gợi ý, bấm Lưu để bắt đầu canh." }));
+    }
+    if (!sm) {
+      var nm = L.noMeter || "chưa có số đo tháng này";
+      body.push(h("p", { class: "dz-guard__muted", "data-role": "nometer", text: nm.charAt(0).toUpperCase() + nm.slice(1) + "." }));
+    } else {
+      var cost = Number(sm.costUsd) || 0, cap = Number(row.capUsd) || 0;
+      var pct = cap > 0 ? Math.min(100, cost / cap * 100) : (cost > 0 ? 100 : 0);
+      var bar = h("div", { class: "dz-meter" + (pct >= 100 ? " is-over" : pct >= 80 ? " is-near" : ""), role: "progressbar",
+        "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": String(Math.round(pct)) },
+        h("div", { class: "dz-meter__fill", style: "width:" + pct + "%" }));
+      var live = meter.live && meter.live[id];
+      var stats = [
+        ["Đang dùng", live == null ? "—" : String(live)],
+        ["Cao nhất tháng", sm.peak == null ? "—" : String(sm.peak)]
+      ];
+      if (id === "relay") stats.push(["Đã dùng (GiB)", sm.bytes == null ? "—" : trimNum(+(sm.bytes / 1073741824).toFixed(2))]);
+      body.push(h("p", { class: "dz-guard__cost", "data-role": "cost", text: "≈ " + usd(cost) + " / ngưỡng " + usd(cap) }), bar,
+        h("dl", { class: "dz-stats" }, stats.map(function (p) {
+          return h("div", { class: "dz-stats__item" }, h("dt", { text: p[0] }), h("dd", { text: p[1] }));
+        })),
+        h("p", { class: "dz-guard__muted", "data-role": "at", text: meter.at ? "đo lúc " + new Date(meter.at).toLocaleString("vi-VN") : "chưa có thời điểm đo" }));
+      if (!fresh) body.push(h("p", { class: "dz-guard__stale", "data-role": "stale", text: "Số đo cũ hơn 5 phút: " + L.stale + "." }));
+    }
+    if (SL.blocks) body.push(h("p", { class: "dz-guard__muted", text: SL.blocks }));
+    body.push(guardForm(id, row));
+    return h("article", { class: "dz-guard", id: "guard-" + id },
+      h("header", { class: "dz-guard__head" },
+        h("h3", { class: "dz-guard__title", text: SL.title || id }),
+        h("span", { class: "dz-pill " + status[1], "data-role": "status", text: status[0] })),
+      body);
+  }
+
+  function guardForm(id, row) {
+    var inputs = {};
+    var errEl = h("p", { class: "dz-guard__err", id: "guard-" + id + "-err", role: "alert", hidden: true });
+    var saveBtn = h("button", { class: "btn btn--primary", id: "guard-" + id + "-save", type: "button", text: "Lưu" });
+    var f = GUARD_FIELDS[id];
+
+    function fld(k) {
+      var meta = GFIELD(k);
+      var inp = h("input", { class: "dz-input dz-input--num", id: "guard-" + id + "-" + k, type: "text", inputmode: "decimal", value: trimNum(row[k]) });
+      inp.addEventListener("input", function () { S.guard.edited = true; check(); });
+      inputs[k] = inp;
+      return h("div", { class: "dz-fld" },
+        h("label", { class: "dz-fld__label", for: inp.id, text: meta.label }),
+        h("div", { class: "dz-fld__ctl" }, inp, meta.help ? h("p", { class: "dz-help", text: meta.help }) : null));
+    }
+
+    var fc = h("input", { type: "checkbox", id: "guard-" + id + "-forceClosed" });
+    fc.checked = !!row.forceClosed;
+    fc.addEventListener("change", function () { S.guard.edited = true; check(); });
+    var fcMeta = GFIELD("forceClosed");
+    var fcFld = h("div", { class: "dz-fld" },
+      h("span", { class: "dz-fld__label", text: fcMeta.label }),
+      h("div", { class: "dz-fld__ctl" },
+        h("label", { class: "dz-switch" }, fc, h("span", { class: "dz-switch__text", text: "Đóng ngay" })),
+        fcMeta.help ? h("p", { class: "dz-help", text: fcMeta.help }) : null));
+
+    var mainFlds = [fld(f.main[0]), fcFld].concat(f.main.slice(1).map(fld));
+    var priceFlds = f.price.map(fld);
+
+    // Client pre-check so a typo never costs a round trip; the proxy repeats the same rule.
+    function values() {
+      var out = { _id: id, forceClosed: fc.checked }, bad = null;
+      f.main.concat(f.price).forEach(function (k) {
+        var t = inputs[k].value.trim().replace(",", "."), n = t === "" ? NaN : Number(t);
+        var ok = isFinite(n) && n >= 0;
+        if (ok) out[k] = n; else bad = bad || GFIELD(k).label + ": nhập một số từ 0 trở lên.";
+        inputs[k].classList.toggle("is-invalid", !ok);
+      });
+      return { doc: out, bad: bad };
+    }
+    function check() {
+      var v = values();
+      errEl.hidden = !v.bad;
+      errEl.textContent = v.bad || "";
+      saveBtn.disabled = !!v.bad;
+    }
+    saveBtn.addEventListener("click", function () {
+      var v = values();
+      if (v.bad) { check(); return; }
+      saveBtn.disabled = true;
+      call({ action: "guard_save", doc: v.doc }).then(function (j) {
+        S.guard.edited = false;
+        setGuard(j);
+        toast("Đã lưu " + (((GL().services || {})[id] || {}).title || id));
+        if (S.current === GUARD) renderMain();
+      }, function (e) {
+        errEl.hidden = false;
+        errEl.textContent = errText(e);
+        saveBtn.disabled = false;
+      });
+    });
+
+    return h("div", { class: "dz-guard__form" },
+      h("div", { class: "dz-form" }, mainFlds),
+      h("details", { class: "dz-guard__prices" }, h("summary", { text: GL().price || "Giá đơn vị" }),
+        h("div", { class: "dz-form" }, priceFlds)),
+      h("div", { class: "dz-guard__actions" }, saveBtn), errEl);
+  }
+
+  function renderGuard(pane) {
+    var L = GL();
+    pane.appendChild(h("header", { class: "dz-pane__head" },
+      h("h2", { class: "dz-pane__title", text: tableTitle(GUARD) }),
+      L.blurb ? h("p", { class: "dz-pane__blurb", text: L.blurb }) : null,
+      L.effect ? h("p", { class: "dz-pane__effect" }, h("strong", { text: "Có hiệu lực: " }), L.effect) : null));
+    if (!S.guard.loaded) { pane.appendChild(h("p", { class: "dz-loading", text: "Đang tải…" })); return; }
+    if (L.note) pane.appendChild(h("div", { class: "dz-notice", id: "guard-note" }, h("span", { text: L.note })));
+    pane.appendChild(h("div", { class: "dz-guards" }, GUARD_SERVICES.map(guardCard)));
   }
 
   // ---------- review & save ----------

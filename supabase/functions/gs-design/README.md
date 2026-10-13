@@ -35,3 +35,7 @@ node supabase/functions/gs-design/dev-server.mjs
 - `node test/design-editor.js`: giao diện với proxy giả trong bộ nhớ, không chạm mạng.
 
 Khoá MCP tạo được bảng metadata nhưng KHÔNG xoá được (`data/collections/drop` trả 403, chỉ mở cho phiên đăng nhập người). Bảng tạo nhầm phải xoá tay ở Data Explorer.
+
+## Chi phí dịch vụ
+
+Hai action `guard` (đọc `cd_cost_guard` và `cd_cost_meter` tháng này, tháng trước) và `guard_save` (kiểm rồi ghi một doc `cd_cost_guard` bằng `/data/update`, chưa có doc thì `/data/insert`). Không nằm trong `KNOWN` vì là collection runtime, không phải bảng `md_*`.

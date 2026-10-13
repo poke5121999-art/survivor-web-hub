@@ -24,6 +24,10 @@ const sandbox = { window: {} };
 vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'data/design-defaults.js'), 'utf8'), sandbox);
 const DEFAULTS = sandbox.window.DESIGN_DEFAULTS.tables;
 
+// Cost guard copy is checked as shipped, so it comes from the real label file.
+const realLabels = { window: {} };
+vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'data/design-labels.js'), 'utf8'), realLabels);
+
 const LABELS_JS = 'window.DESIGN_LABELS = ' + JSON.stringify({
   quests: { title: 'Nhiệm vụ', blurb: 'Nhiệm vụ ngày.', effect: 'Từ lần gọi API kế tiếp.',
     fields: { pick: { label: 'Số nhiệm vụ mỗi ngày', int: true, min: 1, unit: 'nhiệm vụ' },
@@ -49,6 +53,7 @@ const LABELS_JS = 'window.DESIGN_LABELS = ' + JSON.stringify({
   crew: { title: 'Nhân vật', blurb: 'Chỉ số từng nhân vật.', effect: 'Từ ca kế tiếp.', rowTitle: 'name',
     fields: { name: { label: 'Tên' }, hp: { label: 'Máu', int: true, min: 1 }, atk: { label: 'Sát thương', min: 0 },
       spd: { label: 'Tốc độ', min: 0 }, carry: { label: 'Sức mang', int: true }, 'skill.cd': { label: 'Hồi chiêu', unit: 'giây' } } },
+  cost_guard: realLabels.window.DESIGN_LABELS.cost_guard,
 }) + ';';
 
 function hashDocs(docs) {
@@ -62,6 +67,14 @@ const fake = {
   tables: { quests: JSON.parse(fs.readFileSync('D:/REPO_Meta/gamespark-config/quests.json', 'utf8')),
     stage_houses: JSON.parse(JSON.stringify(DEFAULTS.stage_houses)), stage_rules: JSON.parse(JSON.stringify(DEFAULTS.stage_rules)) },
   saves: [],
+  guardSaves: [],
+  guardReject: null,
+  month: new Date().toISOString().slice(0, 7),
+  guardRows: [
+    { _id: 'relay', capUsd: 50, forceClosed: false, reserve: 20, perGiB: 0.16, freeGiBPerCcu: 3, freeGiBCap: 150, perCcu: 0.16, freeCcu: 50, overheadBytes: 40, bytesFactor: 1 },
+    { _id: 'vivox', capUsd: 0, forceClosed: false, reserve: 250, freePcu: 5000, stepPcu: 5000, perStep: 2000 }],
+  guardMeters: {},
+  guardView() { return { ok: true, rows: this.guardRows, meters: this.guardMeters, month: this.month }; },
   view(n) { const d = this.tables[n]; return { exists: !!d, docs: d || [], hash: hashDocs(d || []) }; },
   mutate(n, fn) { fn(this.tables[n]); },
   handle(body, auth) {
@@ -69,6 +82,14 @@ const fake = {
     if (body.action === 'list') {
       const tables = {}; KNOWN.forEach(n => { tables[n] = this.view(n); });
       return [200, { ok: true, project: 'repo-2d-topdown', env: 'dev', tables }];
+    }
+    if (body.action === 'guard') return [200, this.guardView()];
+    if (body.action === 'guard_save') {
+      this.guardSaves.push(body);
+      if (this.guardReject) return [400, { ok: false, error: { code: 'INVALID', message: this.guardReject } }];
+      const i = this.guardRows.findIndex(r => r._id === body.doc._id);
+      if (i >= 0) this.guardRows[i] = body.doc; else this.guardRows.push(body.doc);
+      return [200, this.guardView()];
     }
     if (!KNOWN.includes(body.table)) return [400, { ok: false, error: { code: 'INVALID', message: 'bảng lạ' } }];
     if (body.action === 'get') return [200, Object.assign({ ok: true, table: body.table }, this.view(body.table))];
@@ -146,7 +167,8 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
   const items = await p.$$eval('#dz-nav .dz-nav__item', els => els.length);
   const chipQ = await txt('#dz-nav [data-table="quests"] .dz-chip');
   const chipF = await txt('#dz-nav [data-table="foes"] .dz-chip');
-  check('sidebar liệt kê 36 bảng', items === 36, String(items));
+  check('sidebar liệt kê 36 bảng + mục Chi phí dịch vụ', items === 37 &&
+    (await txt('#dz-nav [data-table="cost_guard"]')) === 'Chi phí dịch vụ', String(items));
   check('quests là "Trên GameSpark"', chipQ === 'Trên GameSpark', chipQ);
   check('foes là "Chưa dán · số gốc"', chipF === 'Chưa dán · số gốc', chipF);
 
@@ -292,6 +314,79 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
   const noteOff = await txt('.dz-section:nth-of-type(3) .dz-section__note');
   check('ghi chú theme đổi khi shuffleThemes tắt', noteOff === 'NOTE-TẮT', noteOff);
   await p.screenshot({ path: SHOTS + '/houses-split.png', fullPage: true });
+
+  // 4) tab Chi phí dịch vụ
+  fake.guardMeters[fake.month] = {
+    _id: fake.month, at: Date.now(),
+    relay: { bytes: 5 * 1073741824, peak: 12, costUsd: 12.5 }, vivox: { peak: 5100, costUsd: 2000 },
+    live: { relay: 4, vivox: 5100 },
+    gate: { relay: { open: true, why: null }, vivox: { open: false, why: 'cap' } } };
+  await open('cost_guard');
+  await p.waitForSelector('#guard-relay');
+  check('nút lưu của bảng khác ẩn khi ở tab chi phí', await p.$eval('#dz-bar', e => e.hidden), '');
+  const cards = await p.$$eval('.dz-guard', els => els.length);
+  const relayCost = await txt('#guard-relay [data-role="cost"]');
+  const relayStatus = await txt('#guard-relay [data-role="status"]');
+  const vivoxStatus = await txt('#guard-vivox [data-role="status"]');
+  const relayStats = await txt('#guard-relay .dz-stats');
+  check('hai thẻ relay và vivox', cards === 2, String(cards));
+  check('relay: ≈ $12.5 / ngưỡng $50, Mở', relayCost === '≈ $12.5 / ngưỡng $50' && relayStatus === 'Mở', relayCost + ' / ' + relayStatus);
+  check('relay hiện GiB, đang dùng, cao nhất', relayStats.includes('Đang dùng4') && relayStats.includes('Cao nhất tháng12') && relayStats.includes('Đã dùng (GiB)5'), relayStats);
+  check('vivox: Đóng (chạm ngưỡng)', vivoxStatus === 'Đóng (chạm ngưỡng)', vivoxStatus);
+  check('số đo mới: không có ghi chú cũ', (await p.$$('#guard-relay [data-role="stale"]')).length === 0, '');
+  check('ghi chú "Đóng khi ước tính vượt ngưỡng"', /^Đóng khi ước tính vượt ngưỡng/.test(await txt('#guard-note')), '');
+  check('giá đơn vị thu gọn mặc định', await p.$eval('#guard-relay .dz-guard__prices', e => !e.open), '');
+
+  // số đo cũ hơn 5 phút -> ghi chú; thiếu hẳn -> "chưa có số đo"
+  fake.guardMeters[fake.month].at = Date.now() - 10 * 60e3;
+  await open('quests'); await open('cost_guard');
+  await p.waitForSelector('#guard-relay [data-role="stale"]');
+  check('số đo cũ > 5 phút hiện ghi chú đứng', /chưa có người dùng gần đây hoặc bộ đếm đứng/.test(await txt('#guard-relay [data-role="stale"]')), '');
+  const savedMeters = fake.guardMeters; fake.guardMeters = {};
+  await open('quests'); await open('cost_guard');
+  await p.waitForSelector('#guard-relay [data-role="nometer"]');
+  check('thiếu doc tháng: "Chưa có số đo tháng này"', /^Chưa có số đo tháng này/.test(await txt('#guard-relay [data-role="nometer"]')), '');
+  fake.guardMeters = savedMeters;
+  await open('quests'); await open('cost_guard');
+  await p.waitForSelector('#guard-relay [data-role="cost"]');
+
+  // lưu ngưỡng relay 50 -> 80
+  await p.fill('#guard-relay-capUsd', '80');
+  await p.click('#guard-relay-save');
+  await p.waitForFunction(() => document.querySelector('#guard-relay [data-role="cost"]').textContent.includes('ngưỡng $80'));
+  const sent = fake.guardSaves[fake.guardSaves.length - 1];
+  check('lưu ngưỡng: gửi guard_save đủ trường, capUsd 80',
+    sent.action === 'guard_save' && sent.doc._id === 'relay' && sent.doc.capUsd === 80 && sent.doc.forceClosed === false &&
+    sent.doc.perGiB === 0.16 && Object.keys(sent.doc).length === 11, JSON.stringify(sent.doc));
+  check('fake đã ghi capUsd 80', fake.guardRows.find(r => r._id === 'relay').capUsd === 80, '');
+
+  // đóng tay vivox
+  await p.click('#guard-vivox .dz-switch');
+  await p.click('#guard-vivox-save');
+  await p.waitForTimeout(300);
+  
+  check('đóng tay vivox được gửi', fake.guardRows.find(r => r._id === 'vivox').forceClosed === true, '');
+
+  // số sai: chặn ở máy khách, không gọi API
+  const before = fake.guardSaves.length;
+  await p.fill('#guard-relay-capUsd', '-5');
+  const clientErr = await txt('#guard-relay-err');
+  check('số âm bị chặn ở máy khách, nút lưu tắt', clientErr.startsWith('Ngưỡng đóng (USD / tháng): nhập một số từ 0 trở lên') &&
+    await p.$eval('#guard-relay-save', e => e.disabled) && fake.guardSaves.length === before, clientErr);
+  await p.fill('#guard-relay-capUsd', '80');
+
+  // máy chủ trả 400: hiện đúng thông báo
+  fake.guardReject = 'capUsd của "relay" là 1e999, phải là số từ 0 trở lên.';
+  await p.fill('#guard-relay-capUsd', '90');
+  await p.click('#guard-relay-save');
+  await p.waitForFunction(() => !document.getElementById('guard-relay-err').hidden);
+  const serverErr = await txt('#guard-relay-err');
+  check('400 từ máy chủ hiện thông báo nguyên văn', serverErr === 'Dữ liệu không hợp lệ (INVALID): ' + fake.guardReject, serverErr);
+  check('sau 400 nút lưu bật lại', await p.$eval('#guard-relay-save', e => !e.disabled), '');
+  fake.guardReject = null;
+  // The browser logs the deliberate 400 above; drop only that line.
+  for (let i = errs.length - 1; i >= 0; i--) if (/status of 400/.test(errs[i])) errs.splice(i, 1);
+  await p.screenshot({ path: SHOTS + '/cost-guard.png', fullPage: true });
 
   const e = errs.filter(x => !/favicon|404/.test(x));
   check('không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
