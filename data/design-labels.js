@@ -694,7 +694,7 @@
       fields: {
         "_id": CFG_ID,
         "netBackend": { label: "Mạng co-op cho phòng MỚI", choices: [
-          { v: "ngo", label: "Netcode + Relay (đang chạy)" },
+          { v: "ngo", label: "Relay Unity (đang chạy; bản game từ plan 08 phase 26 chạy Unity Transport, bản cũ chạy Netcode)" },
           { v: "rtd", label: "Engine RTD (repo-topdown) — chưa chạy được game này" },
           { v: "steam", label: "Steam (chưa có)" }
         ], help: "Phòng đang mở giữ hệ thống mạng lúc tạo; chỉ phòng tạo sau khi đổi mới dùng giá trị này. Chọn hệ thống chưa chạy được thì phòng mới sẽ không vào được." },
