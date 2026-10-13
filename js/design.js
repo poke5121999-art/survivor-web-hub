@@ -806,7 +806,9 @@
         ["Đang dùng", live == null ? "—" : String(live)],
         ["Cao nhất tháng", sm.peak == null ? "—" : String(sm.peak)]
       ];
-      if (id === "relay") stats.push(["Đã dùng (GiB)", sm.bytes == null ? "—" : trimNum(+(sm.bytes / 1073741824).toFixed(2))]);
+      if (id === "relay") stats.push(["Đã dùng (GiB)", sm.bytes == null ? "—" : trimNum(+(sm.bytes / 1073741824).toFixed(3))]);
+      // Vivox bills by peak logins in steps, so "$0 / ngưỡng $0" alone hides how far the free tier still reaches.
+      if (id === "vivox" && row.freePcu != null) stats.push(["Miễn phí tới (người)", String(row.freePcu)]);
       body.push(h("p", { class: "dz-guard__cost", "data-role": "cost", text: "≈ " + usd(cost) + " / ngưỡng " + usd(cap) }), bar,
         h("dl", { class: "dz-stats" }, stats.map(function (p) {
           return h("div", { class: "dz-stats__item" }, h("dt", { text: p[0] }), h("dd", { text: p[1] }));

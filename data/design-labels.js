@@ -721,7 +721,7 @@
     cost_guard: {
       title: "Chi phí dịch vụ",
       blurb: "Đặt mức chi tối đa mỗi tháng (USD) cho dịch vụ trả tiền theo lượng dùng. Ước tính vượt mức thì người chơi mới không vào được tính năng dùng dịch vụ đó.",
-      effect: "Ngay trên cả DEV lẫn LIVE ở lượt hỏi cổng kế tiếp của người chơi, không cần deploy. Bảng chưa có dòng nào thì dịch vụ đó không bị canh (luôn mở).",
+      effect: "Ngay ở lượt hỏi cổng kế tiếp của người chơi, không cần deploy (trang này sửa GameSpark DEV). Bảng chưa có dòng nào thì dịch vụ đó không bị canh (luôn mở).",
       note: "Đóng khi ước tính vượt ngưỡng; phòng đang chơi vẫn chạy tiếp nên hoá đơn có thể nhỉnh hơn ngưỡng.",
       noMeter: "chưa có số đo tháng này",
       stale: "chưa có người dùng gần đây hoặc bộ đếm đứng",
