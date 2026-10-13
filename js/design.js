@@ -23,7 +23,7 @@
   };
   // Shown when a service has no doc yet; saving creates it. Same numbers as the seed in gamespark-config/runtime/cost_guard.json.
   var GUARD_SEED = {
-    relay: { capUsd: 50, forceClosed: false, perGiB: 0.16, freeGiBPerCcu: 3, freeGiBCap: 150, perCcu: 0.16, freeCcu: 50, overheadBytes: 40, bytesFactor: 1 },
+    relay: { capUsd: 50, forceClosed: false, perGiB: 0.16, freeGiBPerCcu: 3, freeGiBCap: 150, perCcu: 0.16, freeCcu: 50, overheadBytes: 80, bytesFactor: 1 },
     vivox: { capUsd: 0, forceClosed: false, reserve: 250, freePcu: 5000, stepPcu: 5000, perStep: 2000 }
   };
   var STALE_MS = 5 * 60 * 1000;
