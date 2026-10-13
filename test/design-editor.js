@@ -71,7 +71,7 @@ const fake = {
   guardReject: null,
   month: new Date().toISOString().slice(0, 7),
   guardRows: [
-    { _id: 'relay', capUsd: 50, forceClosed: false, reserve: 20, perGiB: 0.16, freeGiBPerCcu: 3, freeGiBCap: 150, perCcu: 0.16, freeCcu: 50, overheadBytes: 40, bytesFactor: 1 },
+    { _id: 'relay', capUsd: 50, forceClosed: false, perGiB: 0.16, freeGiBPerCcu: 3, freeGiBCap: 150, perCcu: 0.16, freeCcu: 50, overheadBytes: 40, bytesFactor: 1 },
     { _id: 'vivox', capUsd: 0, forceClosed: false, reserve: 250, freePcu: 5000, stepPcu: 5000, perStep: 2000 }],
   guardMeters: {},
   guardView() { return { ok: true, rows: this.guardRows, meters: this.guardMeters, month: this.month }; },
@@ -318,7 +318,7 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
   // 4) tab Chi phí dịch vụ
   fake.guardMeters[fake.month] = {
     _id: fake.month, at: Date.now(),
-    relay: { bytes: 5 * 1073741824, peak: 12, costUsd: 12.5 }, vivox: { peak: 5100, costUsd: 2000 },
+    relay: { bytes: 5 * 1073741824, minutes: 864000, peak: 12, costUsd: 12.5 }, vivox: { peak: 5100, costUsd: 2000 },
     live: { relay: 4, vivox: 5100 },
     gate: { relay: { open: true, why: null }, vivox: { open: false, why: 'cap' } } };
   await open('cost_guard');
@@ -331,7 +331,7 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
   const relayStats = await txt('#guard-relay .dz-stats');
   check('hai thẻ relay và vivox', cards === 2, String(cards));
   check('relay: ≈ $12.5 / ngưỡng $50, Mở', relayCost === '≈ $12.5 / ngưỡng $50' && relayStatus === 'Mở', relayCost + ' / ' + relayStatus);
-  check('relay hiện GiB, đang dùng, cao nhất', relayStats.includes('Đang dùng4') && relayStats.includes('Cao nhất tháng12') && relayStats.includes('Đã dùng (GiB)5'), relayStats);
+  check('relay hiện GiB, đang dùng, cao nhất', relayStats.includes('Đang dùng4') && relayStats.includes('Cao nhất tháng12') && relayStats.includes('CCU trung bình tháng20') && relayStats.includes('Đã dùng (GiB)5'), relayStats);
   check('vivox: Đóng (chạm ngưỡng)', vivoxStatus === 'Đóng (chạm ngưỡng)', vivoxStatus);
   check('số đo mới: không có ghi chú cũ', (await p.$$('#guard-relay [data-role="stale"]')).length === 0, '');
   check('ghi chú "Đóng khi ước tính vượt ngưỡng"', /^Đóng khi ước tính vượt ngưỡng/.test(await txt('#guard-note')), '');
@@ -357,7 +357,7 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
   const sent = fake.guardSaves[fake.guardSaves.length - 1];
   check('lưu ngưỡng: gửi guard_save đủ trường, capUsd 80',
     sent.action === 'guard_save' && sent.doc._id === 'relay' && sent.doc.capUsd === 80 && sent.doc.forceClosed === false &&
-    sent.doc.perGiB === 0.16 && Object.keys(sent.doc).length === 11, JSON.stringify(sent.doc));
+    sent.doc.perGiB === 0.16 && Object.keys(sent.doc).length === 10 && !("reserve" in sent.doc), JSON.stringify(sent.doc));
   check('fake đã ghi capUsd 80', fake.guardRows.find(r => r._id === 'relay').capUsd === 80, '');
 
   // đóng tay vivox

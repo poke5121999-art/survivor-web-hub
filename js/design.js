@@ -18,12 +18,12 @@
   var GUARD_SERVICES = ["relay", "vivox"];
   // Main fields first, unit prices after (collapsed). Order is the form order; the proxy keeps the same list.
   var GUARD_FIELDS = {
-    relay: { main: ["capUsd", "reserve"], price: ["perGiB", "freeGiBPerCcu", "freeGiBCap", "perCcu", "freeCcu", "overheadBytes", "bytesFactor"] },
+    relay: { main: ["capUsd"], price: ["perGiB", "freeGiBPerCcu", "freeGiBCap", "perCcu", "freeCcu", "overheadBytes", "bytesFactor"] },
     vivox: { main: ["capUsd", "reserve"], price: ["freePcu", "stepPcu", "perStep"] }
   };
   // Shown when a service has no doc yet; saving creates it. Same numbers as the seed in gamespark-config/runtime/cost_guard.json.
   var GUARD_SEED = {
-    relay: { capUsd: 50, forceClosed: false, reserve: 20, perGiB: 0.16, freeGiBPerCcu: 3, freeGiBCap: 150, perCcu: 0.16, freeCcu: 50, overheadBytes: 40, bytesFactor: 1 },
+    relay: { capUsd: 50, forceClosed: false, perGiB: 0.16, freeGiBPerCcu: 3, freeGiBCap: 150, perCcu: 0.16, freeCcu: 50, overheadBytes: 40, bytesFactor: 1 },
     vivox: { capUsd: 0, forceClosed: false, reserve: 250, freePcu: 5000, stepPcu: 5000, perStep: 2000 }
   };
   var STALE_MS = 5 * 60 * 1000;
@@ -806,6 +806,8 @@
         ["Đang dùng", live == null ? "—" : String(live)],
         ["Cao nhất tháng", sm.peak == null ? "—" : String(sm.peak)]
       ];
+      // Unity bills Relay by the month's AVERAGE CCU (connection minutes / 43,200), so the peak alone overstates it.
+      if (id === "relay") stats.push(["CCU trung bình tháng", trimNum(+((Number(sm.minutes) || 0) / 43200).toFixed(2))]);
       if (id === "relay") stats.push(["Đã dùng (GiB)", sm.bytes == null ? "—" : trimNum(+(sm.bytes / 1073741824).toFixed(3))]);
       // Vivox bills by peak logins in steps, so "$0 / ngưỡng $0" alone hides how far the free tier still reaches.
       if (id === "vivox" && row.freePcu != null) stats.push(["Miễn phí tới (người)", String(row.freePcu)]);

@@ -219,7 +219,7 @@ async function doSave(call, body) {
 // Cost guard lives in runtime collections (cd_*), not md_ tables: an emergency switch must bite on LIVE at once,
 // while md_ content only changes through a DEV edit plus deploy. Fields per service, one table for the check.
 const GUARD_FIELDS = {
-  relay: ["capUsd", "forceClosed", "reserve", "perGiB", "freeGiBPerCcu", "freeGiBCap", "perCcu", "freeCcu", "overheadBytes", "bytesFactor"],
+  relay: ["capUsd", "forceClosed", "perGiB", "freeGiBPerCcu", "freeGiBCap", "perCcu", "freeCcu", "overheadBytes", "bytesFactor"],
   vivox: ["capUsd", "forceClosed", "reserve", "freePcu", "stepPcu", "perStep"],
 };
 

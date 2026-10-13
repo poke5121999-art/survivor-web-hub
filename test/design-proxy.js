@@ -98,11 +98,12 @@ function shuffleKeys(v) {
   check("guard đọc được", g.status === 200 && Array.isArray(g.json.rows) && g.json.rows.every((r) => r._id === "relay" || r._id === "vivox") &&
     g.json.month === mNow && mNow in g.json.meters && g.json.prevMonth in g.json.meters,
     `status ${g.status}, rows=${g.json.rows && g.json.rows.length}, months=${Object.keys(g.json.meters || {})}`);
-  const relay = { _id: "relay", capUsd: 50, forceClosed: false, reserve: 20, perGiB: 0.16, freeGiBPerCcu: 3, freeGiBCap: 150, perCcu: 0.16, freeCcu: 50, overheadBytes: 40, bytesFactor: 1 };
+  const relay = { _id: "relay", capUsd: 50, forceClosed: false, perGiB: 0.16, freeGiBPerCcu: 3, freeGiBCap: 150, perCcu: 0.16, freeCcu: 50, overheadBytes: 40, bytesFactor: 1 };
   const badGuard = [
     ["_id lạ", { ...relay, _id: "unity" }],
     ["số âm", { ...relay, capUsd: -1 }],
-    ["số là chuỗi", { ...relay, reserve: "20" }],
+    ["số là chuỗi", { ...relay, capUsd: "20" }],
+    ["relay mang reserve (chỉ vivox có)", { ...relay, reserve: 20 }],
     ["forceClosed không phải boolean", { ...relay, forceClosed: 1 }],
     ["trường lạ", { ...relay, freePcu: 5000 }],
     ["thiếu trường", (({ perCcu, ...rest }) => rest)(relay)],
