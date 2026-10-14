@@ -31,6 +31,11 @@ OUT_EXTRA = os.path.join(TOOLS, 'extra', 'bosses.json')
 THEME_KEY = {'forest': '1A', 'glacier': '1B', 'ruins': '1C', 'zulanruins': '1G', 'castle': '2A', 'graveyard': '2B', 'halloween': '2C',
              'icecave': '2D', 'swamp': '2E', 'relic': '2F', 'machinery': '2G', 'aliens': '3A', 'volcano': '3B', 'island': '3C',
              'monolith': '4A'}
+# Theme web -> map trong config/map_levels có EndRooms là bể trùm (x-5 thường; tầng 4 có hai map) [ĐO map_levels.json]
+THEME_MAPS = {'forest': ['map_A5'], 'glacier': ['map_B5'], 'ruins': ['map_C5'], 'zulanruins': ['map_G5'], 'castle': ['map_A10'],
+              'graveyard': ['map_B10'], 'halloween': ['map_C10'], 'icecave': ['map_D10'], 'swamp': ['map_E10'],
+              'relic': ['map_F10'], 'machinery': ['map_G10'], 'aliens': ['map_A15'], 'volcano': ['map_B15'],
+              'island': ['map_C15'], 'monolith': ['map_A18', 'map_A20']}
 # Trận cuối Khu Thí Luyện: Tước Sĩ Đỏ (thường) / Tước Sĩ Tím (Lợi Hại) [ĐO enemies.boss_bossrush_final*, Path Level/bossrush];
 # prefab nằm trong levelobjects.ab chứ không có bundle boss/ riêng.
 EXTRA_POOL = {'bossrush_final': ['boss_bossrush_final', 'boss_bossrush_final_badass']}
@@ -469,10 +474,19 @@ def main():
     # bosses.json (tên + lớp AI) của bộ giải cũ không còn: tên lấy localization theo id, lớp AI là MB tên Boss*.
     bosses_tbl = jload('bosses.json') if os.path.exists(os.path.join(DEC, 'bosses.json')) else {}
     pool = {}
+    maps = jload('config', 'map_levels.json')
     for theme, key in THEME_KEY.items():
         subs = {v['SubspeciesBoss'] for v in enemies.values() if v.get('SubspeciesBoss')}
+        # Bể thật = EndRooms của map_levels (map_A5, map_B5, ...), không phải enemies.LevelKey: LevelKey còn nhận trùm
+        # mà màn không xếp (vd boss25 ở 1A, vắng trong map_A5 EndRooms) [ĐO map_levels.json]. Điều kiện của phòng
+        # (IsBanBoss, IsMultiGame...) là điều kiện lúc chạy nên bỏ qua; trùm nào có phòng trong EndRooms thì giữ.
+        in_maps = set()
+        for mk in THEME_MAPS[theme]:
+            for r in maps[mk]['EndRooms']:
+                bid = r['data']['gameObject'].split('/')[-2].lower()
+                in_maps.add(bid if bid in enemies else bid + '_parent')
         ids = [k for k, v in enemies.items() if v.get('IsBoss') and v.get('LevelKey') == key and k not in subs
-               and not re.match(r'.*_(horse|\d)$', k) and v.get('Path', '').startswith('Level/')]
+               and not re.match(r'.*_(horse|\d)$', k) and v.get('Path', '').startswith('Level/') and k in in_maps]
         pool[theme] = ids
     pool.update(EXTRA_POOL)
     print('pool', pool)
