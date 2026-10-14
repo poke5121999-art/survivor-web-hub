@@ -25,6 +25,7 @@
 - [[plans/pokeone-2d-pro]]
 - [[plans/soulknight-full]]
 - [[plans/soulknight-normal-mode]]
+- [[plans/soulknight-walkthrough]]
 - [[plans/toc-do]]
 - [[plans/toc-do-con-lai]]
 - [[plans/toc-do-full]]

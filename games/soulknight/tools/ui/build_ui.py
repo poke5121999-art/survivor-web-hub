@@ -6,6 +6,7 @@ Chay: PYTHONIOENCODING=utf-8 python tools/ui/build_ui.py   (tu games/soulknight)
 Moi prefab trong PREFABS thanh mot cay nut rut gon (xem README.md cung thu muc). Sprite duoc cat tu
 texture/atlas goc bang skrip.Rip.sprite, xep vao mot trang PNG, giu nguyen diem anh.
 """
+import hashlib
 import io
 import json
 import math
@@ -460,7 +461,7 @@ def main():
             fonts[name] = 'art/ui/fonts/' + fn
         else:
             fonts[name] = None
-    data = {'ref': [1280, 720], 'match': 1, 'sheet': 'art/ui/ui0.png', 'frames': frames, 'fonts': fonts,
+    data = {'ref': [1280, 720], 'match': 1, 'sheet': 'art/ui/ui0.png?v=' + hashlib.md5(open(OUT_PNG, 'rb').read()).hexdigest()[:8], 'frames': frames, 'fonts': fonts,
             'fallback': [f for f in EXTRA_FONTS if fonts.get(f)],
             'fontLH': b.font_lh,
             'terms': {t: (b.loc[t][1] or b.loc[t][0]) for t in EXTRA_TERMS},
