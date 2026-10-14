@@ -139,7 +139,7 @@
     }
     for (const it of G.items) {
       const d = Math.hypot(it.x - p.x, it.y - p.y);
-      if (d < bd) { bd = d; best = { x: it.x, y: it.y - 14, label: 'Nhặt ' + DS.weapons[it.id].name, use: () => pickWeapon(it) }; }
+      if (d < bd) { bd = d; best = { x: it.x, y: it.y - 14, label: 'Nhặt ' + DS.weapons[it.id].name, weaponId: it.id, use: () => pickWeapon(it) }; }
     }
     for (const c of G.chests) {
       if (c.open) continue;
@@ -159,7 +159,8 @@
       G.items.push({ id: old.id, x: p.x, y: p.y + 4, t: 0 });
     }
     if (p.skillT > 0 && p.dual) SK.endSkill(G, p);
-    G.toast(DS.weapons[it.id].name);
+    // Tên vũ khí bay lên trên đầu nhân vật như bản gốc (js/hud.js vẽ G.nameFloat), không dùng dòng thông báo đáy màn.
+    G.nameFloat = { text: DS.weapons[it.id].name, t: 0 };
   }
   function openChest(c) {
     c.open = true; c.openT = 0;
@@ -267,6 +268,7 @@
     if (G.state === 'lobby') { SK.lobby.update(dt); return; }
     if (G.state !== 'stage' && G.state !== 'dead') return;
     G.phaseT += dt;
+    if (G.nameFloat && (G.nameFloat.t += dt) > 1.4) G.nameFloat = null;
     G.toastT -= dt; G.hurtT = Math.max(0, G.hurtT - dt); G.shake = Math.max(0, G.shake - dt * 12);
     if (G.banner) G.banner.t += dt;
     const p = G.player;

@@ -8,7 +8,7 @@
   const HIDE = ['btn_season_prize', 'btn_season_gear', 'control/btn_emoticon', 'control/btn_fishing',
     'control/btn_special', 'info_bar/show_currency_group_widget', 'info_bar/token_coin', 'info_bar/net_info',
     'info_bar/vertical_bar', 're_read_guild_info', 'ui_chose', 'btn_rec', 'btn_ktplay', 'level_buff_info',
-    'item_info', 'setting_bar', 'window_pause', 'text_gems', 'temp_ui', 'curtain',
+    'setting_bar', 'window_pause', 'text_gems', 'temp_ui', 'curtain',
     'state_bar/actAndFactorGroup', 'state_bar/btnGroup', 'state_bar/vertical_bar_left',
     'control/btn_weapon/weaponLeftBottomText', 'control/btn_weapon/pressureLv', 'control/btn_skill/skill_count',
     'control/btn_skill/cd_ok'];
@@ -26,11 +26,22 @@
     UI.q('control/btn_weapon/img').draw = (ctx, R) => fitSprite(ctx, weaponSprite, R);
     // Ô tròn nhỏ dưới nút vũ khí là vũ khí dự phòng; prefab để sprite giữ chỗ objects_pickable_18.
     UI.q('control/btn_weapon/weapon_slot/0').draw = (ctx, R) => fitSprite(ctx, spareSprite, R);
+    // Dải thông tin món đồ (item_info) gốc: chỉ dùng hàng weapon_default với 4 chỉ số; sáu ô giá trị, ô loại súng và
+    // ô tuỳ biến còn lại tắt. Prefab lưu ở trạng thái ẩn nên phát hide_item_info trước.
+    for (const p of ['value5', 'value6', 'custom_icon']) UI.q(INFO + 'weapon_default/params/' + p).off = 1;
+    INFO_DESC.forEach((d, i) => { UI.q(INFO + 'weapon_default/params/value' + (i + 1) + '/Desc').txt.s = d; });
+    // [SUY] Mã gốc giãn ô giá trị theo chữ lúc chạy; ở đây cho mỗi ô rộng 88 để số và nhãn tiếng Việt không đè nhau.
+    for (let i = 1; i <= 4; i++) {
+      const v = UI.q(INFO + 'weapon_default/params/value' + i);
+      v.sz[0] = 88; UI.q(INFO + 'weapon_default/params/value' + i + '/Desc').sz[0] = 176;
+    }
+    UI.play('', 'hide_item_info');
     pauseInit();
     return UI;
   }
 
-  let weaponSprite = null, spareSprite = null;
+  const INFO = 'item_info/wrapper/', INFO_DESC = ['Sát thương', 'Năng lượng', 'Chí mạng', 'Độ lệch'];
+  let infoId = null, weaponSprite = null, spareSprite = null;
   function fitSprite(ctx, name, R) {
     const f = SK.frame(name);
     if (!f) return;
@@ -144,6 +155,23 @@
       UI.q('state_bar/' + node + '/Text').txt.s = Math.ceil(p[cur]) + '/' + p[max];
     }
   }
+
+  // Đứng cạnh vũ khí dưới đất thì hiện dải item_info (clip show_item_info), rời đi thì phát hide_item_info.
+  // [ĐO] UIItemInfo gốc có bốn ô giá trị: sát thương, năng lượng, chí mạng, độ lệch (spread).
+  function itemInfo(G) {
+    const t = G.interactTarget, id = t && t.weaponId || null;
+    if (id === infoId) return;
+    infoId = id;
+    if (!id) { UI.play('', 'hide_item_info'); return; }
+    const d = SK.DS.weapons[id];
+    [d.dmg, d.cost, d.crit, d.spread].forEach((v, i) => {
+      UI.q(INFO + 'weapon_default/params/value' + (i + 1) + '/Text').txt.s = String(Math.round(v || 0));
+    });
+    UI.play('', 'show_item_info');
+    // [SUY] Clip show_item_info đặt item_info.y = 2 (tâm), nên đáy wrapper tụt 48px khỏi màn; mã gốc chắc chỉnh cao lúc chạy.
+  }
+  hud.itemInfoShown = () => infoId;
+  hud.node = path => ui() && UI.q(path);   // cho bộ kiểm đọc chữ của một nút HUD
 
   function controls(G, dt) {
     const p = G.player, w = p.weapons[p.cur];
@@ -259,8 +287,22 @@
   function worldText(ctx, G) {
     const cam = G.view || G.cam;
     for (const n of G.nums) damageNumber(ctx, n, cam);
+    const nf = G.nameFloat, pl = G.player;
+    if (nf && pl) {
+      // Nhặt/đổi súng: tên bay lên trên đầu nhân vật rồi mờ dần. [SUY] Độ cao 14px và thời gian 1,4 s ước theo clip gốc.
+      ctx.save(); ctx.globalAlpha = Math.min(1, (1.4 - nf.t) * 3);
+      SK.text(ctx, nf.text, pl.x - cam.x, pl.y - cam.y - 26 - Math.min(1, nf.t / 0.5) * 14, 8, '#ffffff', 'center', 'rgba(0,0,0,0.9)');
+      ctx.restore();
+    }
     const it = G.interactTarget;
-    if (it) SK.text(ctx, (SK.input.touchMode ? '' : '[E] ') + it.label, it.x - cam.x, it.y - cam.y, 8, '#ffe06a', 'center', 'rgba(0,0,0,0.9)');
+    if (it && it.weaponId) {
+      // Vũ khí dưới đất: tên trắng + mũi tên chỉ xuống, như bản gốc (phím E ghi nhỏ bên dưới trên máy có bàn phím).
+      const x = it.x - cam.x, y = it.y - cam.y;
+      SK.text(ctx, SK.DS.weapons[it.weaponId].name, x, y - 4, 8, '#ffffff', 'center', 'rgba(0,0,0,0.9)');
+      ctx.fillStyle = '#000'; ctx.beginPath(); ctx.moveTo(x - 4, y + 1); ctx.lineTo(x + 4, y + 1); ctx.lineTo(x, y + 7); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(x - 3, y + 1.5); ctx.lineTo(x + 3, y + 1.5); ctx.lineTo(x, y + 6); ctx.fill();
+      if (!SK.input.touchMode) SK.text(ctx, '[E]', x, y + 14, 6, '#cfcfcf', 'center', 'rgba(0,0,0,0.9)');
+    } else if (it) SK.text(ctx, (SK.input.touchMode ? '' : '[E] ') + it.label, it.x - cam.x, it.y - cam.y, 8, '#ffe06a', 'center', 'rgba(0,0,0,0.9)');
   }
 
   function overlays(ctx, G) {
@@ -302,10 +344,12 @@
     if (ui()) {
       const dt = Math.min(0.1, (G.t || 0) - (hud.lastT || 0)); hud.lastT = G.t || 0;
       statusBars(G.player);
+      itemInfo(G);
       controls(G, dt);
       levelBanner(G, dt);
       minimap(G);
       UI.tick(Math.max(0, dt));
+      if (infoId) UI.q('item_info').p[1] = 50;   // sau tick vì clip show_item_info ghi lại y = 2 mỗi khung
       ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
       UI.draw(ctx, ctx.canvas.width, ctx.canvas.height);
       ctx.restore();
