@@ -126,6 +126,17 @@ Text: xuống dòng ở khoảng trắng khi quá bề ngang (trừ khi `ho`), h
 - [SUY] Tiêu đề `text_name` dùng font `m04` chỉ có ASCII; chữ Việt của `I_gameover` ("Trò chơi kết thúc") rơi sang font
   dự phòng và đè ô đá quý, nên dùng chữ tiếng Anh in hoa ("GAME OVER", "VICTORY") qua `SK_UI.termsEn`.
 
+- [ĐO] Nút bắn đổi ảnh khi có vật tương tác (`UICanvas.SwitchAtkBtn`): `control/btn_atk/Image` từ `ui_joy_1` (tâm ngắm) sang
+  `ButtonEventImageNormal` = `SpriteMap.commonSprite["event_normal"]`. Khoá nằm trong ScriptableObject Odin nên không đọc
+  được qua UnityPy; sprite là `ui_joy_6` (160×140, ppu 128, dấu "!!"), cắt bằng `tools/ui/extract_event_icon.py` ra
+  `art/ui/event_normal.png` (không nằm trong ui0.png vì prefab không dùng). Ảnh co vừa khung 93,75 giữ tỉ lệ [SUY: chụp
+  tay thấy "!!" rộng ~0,49 nút, khớp].
+- [ĐO] Cổng: hiệu ứng `transfer_gate` của sk-vfx có node `tap` (mũi tên chỉ xuống, tắt sẵn) bật khi đứng gần; tên cổng là
+  term `Object_transfer_gate` ("Portal" / "Cửa Dịch Chuyển"). `main` và `innerWhirl` là quad `UISprite` chạy shader xoáy,
+  vẽ kiểu sprite ra mảng trắng nên bản web bỏ chúng: còn thiếu vòng xoáy xanh của bản gốc (cần dựng lại shader).
+- [SUY] Bảng tạm dừng: prefab lưu 820×550 với `factor_list` (tắt) chiếm chỗ trên `buff_list`; bản web kéo `buff_list` lên chỗ đó
+  và thu bảng còn 820×360. Nền tối là node `mask` (alpha 0 trong prefab) đặt đen 0,55. Ô buff trống là dấu + (`ui_buff_00`).
+
 ## Bẫy
 
 - Clip UI có track `m_Enabled`: nó bật/tắt component Image hoặc Text, không phải GameObject.

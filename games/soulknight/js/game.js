@@ -148,7 +148,37 @@
       const d = Math.hypot(c.x - p.x, c.y - p.y);
       if (d < bd + 8) { bd = d; best = { x: c.x, y: c.y - 30, label: c.kind === 'weapon' ? 'Mở rương vũ khí' : 'Mở rương', use: () => openChest(c) }; }
     }
+    // Cổng: đứng gần thì hiện tên cổng + nút "!!" như bản gốc; chạm nút (hoặc E) vào cổng, bước thẳng vào cũng vào.
+    const pt = G.portal;
+    if (pt && G.phase !== 'portal') {
+      const d = Math.hypot(pt.x - p.x, pt.y - p.y);
+      // [ĐO] localization Object_transfer_gate: "Portal" / "Cửa Dịch Chuyển". Chữ nằm trên mũi tên chỉ xuống (node tap, 2,5 đơn vị).
+      if (d < PORTAL_NEAR && (!best || d < bd)) best = { x: pt.x, y: pt.y - 56, label: 'Cửa Dịch Chuyển', portal: true, use: () => enterPortal() };
+    }
     return best;
+  }
+  const PORTAL_NEAR = 40;   // [SUY] cổng trong ảnh gốc hiện tên khi nhân vật cách ~ 2 ô
+  function enterPortal() {
+    if (!G.portal || G.phase === 'portal' || G.player.st === 'dead') return;
+    G.phase = 'portal'; G.phaseT = 0;
+    SK.emit('portalEnter', G, G.stage);
+  }
+  // Cổng vẽ bằng hiệu ứng thật transfer_gate của sk-vfx (xoáy, quầng sáng cộng, hạt, mũi tên chỉ xuống `tap`); trước đây
+  // chỉ khung transfer_gate của sk-data (không có quầng/hạt, quad UISprite bị bỏ) nên chỉ thấy vòng dự phòng.
+  function syncPortalFx() {
+    const pt = G.portal, V = SK.vfx;
+    let h = G._portalFx;
+    if (h && (!pt || h.portalOf !== pt || h.dead || !(G.vfx || []).includes(h))) { h.kill(); G._portalFx = h = null; }
+    if (pt && !h && V && V.has('transfer_gate')) {
+      h = V.spawn(G, 'transfer_gate', pt.x, pt.y, { state: 'create_gate' });
+      if (h) {
+        h.portalOf = pt; h.tapNode = h.nodes.find(n => n.d.n === 'tap'); G._portalFx = h;
+        // main và innerWhirl là quad UISprite trắng chạy bằng shader xoáy của Unity (tools/README: UISprite là quad màu trơn);
+        // vẽ kiểu sprite thành hai mảng trắng, nên bỏ như engine.js bỏ GLOW_FRAMES. Quầng light_01, lỗ portal_center, hạt giữ nguyên.
+        for (const n of h.nodes) if (n.spr === 'UISprite') n.en = false;
+      }
+    }
+    if (h && h.tapNode) h.tapNode.on = !!(G.interactTarget && G.interactTarget.portal);
   }
   function pickWeapon(it) {
     const p = G.player;
@@ -291,12 +321,10 @@
 
     if (G.state === 'dead') return;
     if (G.phase === 'enter' && G.phaseT > 1.8) { G.phase = 'play'; G.phaseT = 0; }
+    syncPortalFx();
     if (G.portal) {
       G.portal.t += dt;
-      if (G.phase !== 'portal' && p.st !== 'dead' && Math.hypot(p.x - G.portal.x, p.y - G.portal.y) < 14) {
-        G.phase = 'portal'; G.phaseT = 0;
-        SK.emit('portalEnter', G, G.stage);
-      }
+      if (G.phase !== 'portal' && p.st !== 'dead' && Math.hypot(p.x - G.portal.x, p.y - G.portal.y) < 14) enterPortal();
     }
     // G.hold: một mô-đun (chọn buff...) giữ người chơi ở cổng tới khi xong việc của nó.
     if (G.phase === 'portal' && G.phaseT > 0.8 && !G.hold) {
@@ -357,7 +385,7 @@
     ctx.translate(-cx, -cy);
     const cam = { x: cx, y: cy };
     W.drawFloor(ctx, G.map, cam, v.w, v.h);
-    if (G.portal) drawPortalGlow(ctx, G.portal);
+    if (G.portal && !G._portalFx) drawPortalGlow(ctx, G.portal);
     SK.drawFx(ctx, G, true);
 
     const p = G.player;
@@ -372,7 +400,7 @@
     for (const c of G.chests) list.push({ y: c.y, fn: drawChest, a: G, b: c });
     // G.props: vật do mô-đun khác đặt (lái buôn, tượng, trụ súng...): {x, y, draw(ctx, G, pr), update?, gone?}
     for (const pr of G.props) list.push({ y: pr.y, fn: (c, a, b) => b.draw(c, a, b), a: G, b: pr });
-    if (G.portal) list.push({ y: G.portal.y - 30, fn: drawPortal, a: G, b: G.portal });
+    if (G.portal && !G._portalFx) list.push({ y: G.portal.y - 30, fn: drawPortal, a: G, b: G.portal });
     list.push({ y: p.y, fn: (c, a) => SK.drawPlayer(c, a), a: G, b: null });
     list.sort((a, b) => a.y - b.y);
     for (const it of list) it.fn(ctx, it.a, it.b);

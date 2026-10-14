@@ -24,6 +24,12 @@
     // [SUY] Ảnh hồi chiêu gốc dùng material xám (MaterialListMono); ở đây nhân màu xám đậm.
     UI.q('control/btn_skill/mask_style_1/cooldown').img.c = [0.3, 0.3, 0.3, 1];
     UI.q('control/btn_weapon/img').draw = (ctx, R) => fitSprite(ctx, weaponSprite, R);
+    // [ĐO] UICanvas.SwitchAtkBtn: đứng cạnh vật tương tác thì control/btn_atk/Image đổi từ tâm ngắm (ui_joy_1) sang ảnh
+    // "!!" (ButtonEventImageNormal = event_normal, tệp art/ui/event_normal.png); rời đi thì đổi lại.
+    UI.q('control/btn_atk/Image').draw = (ctx, R) => {
+      if (SK.G.interactTarget && EVT.ok) fitImage(ctx, EVT.img, R);
+      else SK.ugui.drawFrame(ctx, 'ui_joy_1', R);
+    };
     // Ô tròn nhỏ dưới nút vũ khí là vũ khí dự phòng; prefab để sprite giữ chỗ objects_pickable_18.
     UI.q('control/btn_weapon/weapon_slot/0').draw = (ctx, R) => fitSprite(ctx, spareSprite, R);
     // Dải thông tin món đồ (item_info) gốc: chỉ dùng hàng weapon_default với 4 chỉ số; sáu ô giá trị, ô loại súng và
@@ -38,6 +44,14 @@
     return UI;
   }
 
+  const EVT = { img: new Image(), ok: false };
+  EVT.img.onload = () => { EVT.ok = true; };
+  EVT.img.src = 'art/ui/event_normal.png';
+  hud.eventIconReady = () => EVT.ok;
+  function fitImage(ctx, img, R) {
+    const sc = Math.min(R.w / img.width, R.h / img.height), w = img.width * sc, h = img.height * sc;
+    ctx.drawImage(img, R.x + (R.w - w) / 2, R.y + (R.h - h) / 2, w, h);
+  }
   const INFO = 'item_info/wrapper/', INFO_DESC = ['ATK', 'MP', 'CRIT', 'Độ lệch'];
   // [ĐO] Nhãn theo term gốc: ui/weapon_info_desc_5 (ATK), _3 (MP), _4 (CRIT) và combogun/attr/deviation (Độ lệch); bản vi của ba term đầu giữ nguyên ATK/MP/CRIT.
   let infoId = null, weaponSprite = null, spareSprite = null;
@@ -50,11 +64,21 @@
 
   // ---------------------------------------------------------------- tạm dừng: window_pause gốc
   const PAUSE_HIDE = ['factor_list', 'hopperTicket', 'feedbackBtn', 'questionnaireBtn', 'mode_background',
-    'btn_entry_im', 'img_hero/rebornCard', 'buff_info/factorBanBg'];
+    'btn_entry_im', 'img_hero/rebornCard', 'buff_info/factorBanBg', 'buff_list/Scrollbar Horizontal'];
+  // [SUY] Prefab lưu bảng 820x550 với factor_list (160 cao, y -115) nằm trên buff_list (y -280); factor_list tắt thì chỗ
+  // của nó thành khoảng trống nên bản web kéo buff_list lên và thu bảng cho vừa hàng nút. Ảnh chụp 2019 cũng chỉ có
+  // dòng tiêu đề, hàng buff và hàng nút.
+  const PAUSE_H = 360, BUFF_ROW_H = 120, BUFF_SLOTS = 5;
   let buffSel = -1;
   function pauseInit() {
     const w = 'window_pause/';
     for (const p of PAUSE_HIDE) UI.q(w + p).off = 1;
+    UI.q('window_pause').sz[1] = PAUSE_H;
+    const bl = UI.q(w + 'buff_list');
+    bl.p[1] = UI.q(w + 'factor_list').p[1]; bl.sz[1] = BUFF_ROW_H;
+    // Nền làm tối: node mask (Image 'Background', 1000x1000 quanh bảng) alpha 0 trong prefab; mã gốc chắc đặt lúc mở.
+    // [SUY] Đen 0,55 theo ảnh chụp 2019 (nền sau bảng tối đi rõ).
+    UI.q(w + 'mask').img.c = [0, 0, 0, 0.55];
     UI.q(w + 'img_hero/mask/Image').draw = (ctx, R) => {
       const p = SK.G.player;
       fitSprite(ctx, p && SK.animFrame(p.anims.idle, 0), R);
@@ -64,13 +88,20 @@
   }
   const curBuffs = () => (SK.G.player && SK.G.player.buffs) || [];
   const BUFF_CELL = 110;
+  // Ô gốc (BuffGrid): nền ui3_58, icon buff; ô trống mang dấu + (ui_buff_00, sprite mặc định của BuffGrid/icon).
   function drawBuffRow(ctx, R) {
-    curBuffs().forEach((id, i) => {
+    const ids = curBuffs();
+    for (let i = 0; i < Math.max(BUFF_SLOTS, ids.length); i++) {
       const x = R.x + 20 + i * BUFF_CELL, cell = { x, y: R.y + (R.h - 90) / 2, w: 90, h: 90 };
-      if (i === buffSel) { ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(cell.x - 6, cell.y - 6, 102, 102); }
-      fitSprite(ctx, SK.ROOMS.buffIcon(id), cell);
-    });
+      SK.ugui.drawFrame(ctx, 'ui3_58', cell);
+      if (i < ids.length) {
+        if (i === buffSel) { ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(cell.x - 6, cell.y - 6, 102, 102); }
+        fitSprite(ctx, SK.ROOMS.buffIcon(ids[i]), cell);
+      } else SK.ugui.drawFrame(ctx, 'ui_buff_00', { x: cell.x + 25, y: cell.y + 25, w: 40, h: 40 });
+    }
+    drawn.buffCells = Math.max(BUFF_SLOTS, ids.length); drawn.buffIcons = ids.length;
   }
+  const drawn = hud.drawn = { buffCells: 0, buffIcons: 0 };   // cho bộ kiểm đếm số ô đã vẽ
   // Ô mô tả nằm đè lên hàng nút ở đáy khung: chỉ hiện khi đang chọn một buff.
   function refreshBuffInfo() {
     const ids = curBuffs(), info = UI.q('window_pause/buff_info');
@@ -300,6 +331,9 @@
       const x = it.x - cam.x, y = it.y - cam.y;
       SK.text(ctx, SK.DS.weapons[it.weaponId].name, x, y - 4, 8, '#ffffff', 'center', 'rgba(0,0,0,0.9)');
       if (!SK.input.touchMode) SK.text(ctx, '[E]', x, y + 6, 6, '#cfcfcf', 'center', 'rgba(0,0,0,0.9)');
+    } else if (it && it.portal) {
+      // [THẤY ảnh chụp bản gốc đứng cạnh cổng] Cổng: chữ trắng tên cổng ngay trên mũi tên chỉ xuống.
+      SK.text(ctx, it.label, it.x - cam.x, it.y - cam.y, 8, '#ffffff', 'center', 'rgba(0,0,0,0.9)');
     } else if (it) SK.text(ctx, (SK.input.touchMode ? '' : '[E] ') + it.label, it.x - cam.x, it.y - cam.y, 8, '#ffe06a', 'center', 'rgba(0,0,0,0.9)');
   }
 
