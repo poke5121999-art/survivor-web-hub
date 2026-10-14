@@ -15,6 +15,7 @@
   var ALL = OUT_RUN.concat(IN_RUN);
   // Not an md_ table: runtime collection cd_cost_guard with its own pane and its own save button.
   var GUARD = "cost_guard";
+  var MODES = "modes";
   var GUARD_SERVICES = ["relay", "vivox"];
   // Main fields first, unit prices after (collapsed). Order is the form order; the proxy keeps the same list.
   var GUARD_FIELDS = {
@@ -579,6 +580,8 @@
       var moreTd = h("td", { class: "dz-grid__more" });
       tr.appendChild(moreTd);
       tbody.appendChild(tr);
+      var reach = table === MODES && !sec && (LABELS[MODES].reach || {}).row === doc._id ? reachRow(table, doc, cols.length + 2) : null;
+      if (reach) { tr._reach = reach; tbody.appendChild(reach); }
       if (rest.length) {
         var detail = h("tr", { class: "dz-detail", hidden: !S.open[openKey] });
         var inner = h("div", { class: "dz-form dz-form--detail" });
@@ -601,6 +604,42 @@
     wrap.appendChild(h("div", { class: "dz-grid__wrap" }, h("table", { class: "dz-grid" }, h("thead", null, head), tbody)));
     setTimeout(applySearch, 0);
     return wrap;
+  }
+
+  // Online / Local under the coop row. Local is md_modes.coop.localOpen (missing = open) and saves with the table.
+  // Online is cd_cost_guard/relay.forceClosed inverted, saved at once through guard_save: one source of truth with the cost tab.
+  function reachRow(table, doc, span) {
+    var R = LABELS[MODES].reach;
+    var localMeta = Object.assign({}, fieldMeta(table, ["localOpen"]), { label: R.local.label });
+    var localCell = cell(table, doc._id, doc, ["localOpen"], doc.localOpen !== false, localMeta);
+
+    var on = h("input", { type: "checkbox", class: "dz-switch", role: "switch", id: "reach-online", "aria-label": R.online.label });
+    var txt = h("span", { class: "dz-switch__text", id: "reach-online-text" });
+    var err = h("p", { class: "dz-cell__err", id: "reach-online-err", role: "alert", hidden: true });
+    var info = guardRow("relay");
+    function paint(closed) { on.checked = !closed; txt.textContent = closed ? "Tắt" : "Bật"; }
+    if (!S.guard.loaded) { on.disabled = true; txt.textContent = R.loading; }
+    else paint(!!info.row.forceClosed);
+    on.addEventListener("change", function () {
+      var want = on.checked, doc2 = Object.assign({}, guardRow("relay").row, { forceClosed: !want });
+      S.reachBusy = true; on.disabled = true; err.hidden = true;
+      call({ action: "guard_save", doc: doc2 }).then(function (j) {
+        S.reachBusy = false; setGuard(j); paint(!want); on.disabled = false;
+        toast(R.saved + ": " + (want ? "bật" : "tắt"));
+      }, function (e) {
+        S.reachBusy = false; paint(!!guardRow("relay").row.forceClosed); on.disabled = false;
+        err.hidden = false; err.textContent = errText(e);
+      });
+    });
+
+    var inner = h("div", { class: "dz-form dz-form--detail dz-reach" },
+      h("div", { class: "dz-fld" },
+        h("label", { class: "dz-fld__label", for: "reach-online", text: R.online.label }),
+        h("div", { class: "dz-fld__ctl" }, h("div", { class: "dz-cell__box" }, on, txt), err, h("p", { class: "dz-help", text: R.online.help }))),
+      h("div", { class: "dz-fld" },
+        h("label", { class: "dz-fld__label", text: R.local.label }),
+        h("div", { class: "dz-fld__ctl" }, localCell, h("p", { class: "dz-help", text: R.local.help }))));
+    return h("tr", { class: "dz-detail dz-reach-row", "data-reach": doc._id }, h("td", { colspan: String(span) }, inner));
   }
 
   function applySearch() {
@@ -676,6 +715,7 @@
     S.current = n;
     try { history.replaceState(null, "", location.search + "#" + n); } catch (e) { /* file:// */ }
     if (n === GUARD) { S.guard.edited = false; loadGuard(); }
+    else if (n === MODES) loadGuard();
     renderMain();
     updateBar();
     updateNav();
@@ -744,6 +784,7 @@
     var n = S.current;
     if (document.visibilityState !== "visible" || !n || !S.loaded) return;
     if (n === GUARD) { if (!S.guard.edited) loadGuard(); return; }
+    if (n === MODES) loadGuard();
     call({ action: "get", table: n }).then(function (j) {
       onRemote(n, { exists: j.exists, docs: j.docs, hash: j.hash });
     }, function () { /* a missed poll is not worth a banner; focus/list will surface real failures */ });
@@ -759,7 +800,7 @@
     return call({ action: "guard" }).then(function (j) {
       showBanner(null);
       setGuard(j);
-      if (S.current === GUARD) renderMain();
+      if (S.current === GUARD || (S.current === MODES && !S.reachBusy)) renderMain();
     }, function (e) { showBanner(errText(e), loadGuard); });
   }
 

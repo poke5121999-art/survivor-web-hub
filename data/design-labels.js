@@ -717,7 +717,16 @@
       rowLabels: { coop: "Chơi với bạn", pvp: "Đấu đội 5v5", endless_solo: "Vô tận một mình", endless_coop: "Vô tận cùng bạn" },
       fields: {
         "_id": ID,
-        "open": { label: "Mở cho người chơi", help: "Tắt = thẻ hiện COMING SOON, không vào được." }
+        "open": { label: "Mở cho người chơi", help: "Tắt = thẻ hiện COMING SOON, không vào được." },
+        "localOpen": { label: "Local (cùng Wi-Fi)", help: "Chỉ có ở Chơi với bạn. Tắt = người chơi không chọn được Local; Online vẫn theo công tắc Online. Thiếu trường = mở." }
+      },
+      // Extra switches under the coop row. Online is not an md_modes field: it is cd_cost_guard/relay.forceClosed, inverted.
+      reach: {
+        row: "coop",
+        online: { label: "Online", help: "Qua Unity Relay (tốn tiền). Tắt cũng đóng Đấu đội 5v5 và Vô tận cùng bạn; có hiệu lực sau khoảng 20 giây. Lưu ngay khi bấm, cùng dữ liệu với tab Chi phí dịch vụ." },
+        local: { label: "Local", help: "Cùng Wi-Fi, qua WebRTC, không dùng Relay hay Vivox. Bấm Lưu như các ô khác." },
+        loading: "Đang tải Online…",
+        saved: "Đã lưu Online"
       }
     },
     // Not an md_ table: runtime collection cd_cost_guard, one doc per paid service, saved through gs-design "guard_save".

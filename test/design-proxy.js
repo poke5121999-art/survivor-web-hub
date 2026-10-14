@@ -62,6 +62,8 @@ function shuffleKeys(v) {
     ["non-array docs", { table: "quests", docs: { _id: "a" } }],
     ["modes _id lạ", { table: "modes", docs: [{ _id: "arena", open: true }] }],
     ["modes open không phải boolean", { table: "modes", docs: [{ _id: "coop", open: "yes" }] }],
+    ["modes localOpen không phải boolean", { table: "modes", docs: [{ _id: "coop", open: true, localOpen: "yes" }] }],
+    ["modes localOpen ngoài coop", { table: "modes", docs: [{ _id: "pvp", open: true, localOpen: true }] }],
     ["coop_rules netBackend lạ", { table: "coop_rules", docs: [{ _id: "default", netBackend: "udp" }] }],
     ["decor_lights màu sai", { table: "decor_lights", docs: [{ ...{ _id: "candle", color: "#ffa040", curve: "noise", pattern: "", decors: ["candlestick_triple"] }, color: "orange" }] }],
     ["decor_lights kiểu nhấp nháy lạ", { table: "decor_lights", docs: [{ ...{ _id: "candle", color: "#ffa040", curve: "noise", pattern: "", decors: ["candlestick_triple"] }, curve: "strobe" }] }],
