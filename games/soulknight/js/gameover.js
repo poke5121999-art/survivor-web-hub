@@ -26,8 +26,9 @@
   const ST_HIDE = ['info/detial/scrollview', 'info/detial/stone_base', 'info/detial/tombstone', 'info/detial/stone_base_old',
     'info/map/cartons', 'info/map/boss1', 'info/map/boss2', 'info/map/boss3'];
 
-  // counter: giây đếm ngược của trang 1 (bộ kiểm có thể kéo dài để chụp ảnh không bị tự sang trang).
-  const go = SK.gameover = { active: false, phase: null, t: 0, page: 0, counter: COUNTER };
+  // hold: móc kiểm thử, dừng đồng hồ của bảng tổng kết (đếm ngược, số đếm lên) trong lúc bộ kiểm chụp ảnh.
+  // autoT: thời điểm (go.t) trang 1 tự sang trang 2 khi đếm ngược về 0.
+  const go = SK.gameover = { active: false, phase: null, t: 0, page: 0, hold: false, autoT: null };
   let R = null, S = null, run = null, res = null;
 
   go.handles = G => G.mode === 'level' && !!(SK.ugui && SK.ugui.ok);
@@ -149,7 +150,7 @@
     S.q('info/detial/coin/Text').txt.s = String(run.gold);
     S.q('info/detial/kill/Text').txt.s = String(run.kills);
     S.q(OK_BTN + '/normal').off = 1; S.q(OK_BTN + '/counter').off = 0;
-    go.active = true; go.phase = 'statement'; go.page = 0; go.t = 0; go.pageT = 0;
+    go.active = true; go.phase = 'statement'; go.page = 0; go.t = 0; go.pageT = 0; go.autoT = null;
     flush();
   };
 
@@ -160,7 +161,7 @@
       const g = Math.round(run.gemsStage * k);
       S.q('gem/Text').txt.s = '+' + g;
       S.q('text_gems/Text').txt.s = String(run.before + g);
-      S.q(OK_BTN + '/counter/Text').txt.s = Math.max(0, Math.ceil(go.counter - t)) + 's';
+      S.q(OK_BTN + '/counter/Text').txt.s = Math.max(0, Math.ceil(COUNTER - t)) + 's';
     } else {
       const pt = go.pageT, s = Math.min(1, pt / FADE), c = Math.min(1, Math.max(0, pt - FADE) / COUNT);
       S.q('info/map/player').p[0] = run.x1;
@@ -185,7 +186,7 @@
 
   // ---------------------------------------------------------------- vòng lặp (gọi từ step của game.js)
   go.step = function (G, dt) {
-    go.t += dt;
+    if (!(go.hold && go.phase === 'statement')) go.t += dt;
     const I = SK.input, ready = go.t > INPUT_DELAY;
     if (go.phase === 'reborn') {
       R.q('window_reborn').p[1] = HIDE_Y * Math.max(0, 1 - go.t / FADE);
@@ -195,8 +196,8 @@
       R.q('window_reborn').p[1] = HIDE_Y * Math.min(1, go.t / FADE);
       if (go.t >= FADE) { go.active = false; go.phase = null; R = null; S = null; }
     } else if (go.phase === 'statement') {
-      if (go.page === 1) go.pageT += dt;
-      if (go.page === 0 && go.t >= go.counter) okBtn(G);
+      if (go.page === 1 && !go.hold) go.pageT += dt;
+      if (go.page === 0 && go.t >= COUNTER) { go.autoT = go.t; okBtn(G); }
       flush();
       if (ready && I.hit('confirm')) okBtn(G);
     }
@@ -251,6 +252,7 @@
     title: S && go.phase === 'statement' ? S.q('mask_up/text_name').txt.s : null,
     label: S && go.phase === 'statement' ? S.q('info/map/player/Text').txt.s : null,
     gemText: S && S.q('gem/Text') ? S.q('gem/Text').txt.s : null,
+    counter: S && go.phase === 'statement' ? S.q(OK_BTN + '/counter/Text').txt.s : null, autoT: go.autoT,
     total: S ? S.q('text_gems/Text').txt.s : null,
     run: run && Object.assign({}, run)
   });

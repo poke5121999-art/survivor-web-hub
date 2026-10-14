@@ -137,7 +137,7 @@ Text: xuống dòng ở khoảng trắng khi quá bề ngang (trừ khi `ho`), h
 - Thêm prefab là xếp lại toàn bộ trang `ui0.png`: mọi khung đổi toạ độ trong `frames` (nội dung giữ nguyên). Không mã nào
   được ghi cứng toạ độ trong trang.
 - Bộ kiểm bảng tổng kết: đếm ngược 5 s chạy theo thời gian game; chụp ảnh chậm có thể để trang 1 tự sang trang 2 trước cú
-  bấm ▶. `SK.gameover.counter` đổi được số giây này.
+  bấm ▶. Bộ kiểm đặt `SK.gameover.hold = true` (dừng đồng hồ của bảng) trong lúc chụp, rồi trả lại `false`.
 - Nút đang tắt vẫn có rect. `rectOf` phải trả null cho nút (hoặc cha) đang tắt, không thì nút ẩn chồng chỗ bắt mất cú
   bấm: nút cài đặt của hàng nút thường từng nuốt cú bấm "có" của hộp xác nhận về sảnh.
 - Mask có `m_ShowMaskGraphic = 0` thì Unity không vẽ ảnh của chính nút đó. Build đánh dấu ảnh ấy `off`.
