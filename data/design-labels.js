@@ -703,7 +703,10 @@
         "poseRoundPx": { label: "Sai số làm tròn toạ độ", unit: "px", min: 0, help: "Khoảng cộng thêm vào trần quãng đi để không bắt nhầm do làm tròn toạ độ." },
         "intentPerSecond": { label: "Số thao tác mỗi giây của khách", min: 1, int: true, help: "Chủ phòng bỏ thao tác (đánh, dùng đồ…) vượt số này mỗi giây; người bấm nhanh khoảng 10 lần/giây." },
         "intentBurst": { label: "Số thao tác dồn tối đa", min: 1, int: true, help: "Bấm dồn một lúc tối đa chừng này thao tác trước khi bị bỏ." },
-        "keyEvery": { label: "Nhịp ảnh chụp đầy đủ", unit: "tick", min: 0, int: true, help: "Cứ chừng này ảnh chụp (15 ảnh/giây) chủ phòng gửi mỗi khách một ảnh đầy đủ để sửa sai lệch; các khách được so le để không dồn cùng lúc. 450 = 30 giây. 0 = tắt." }
+        "keyEvery": { label: "Nhịp ảnh chụp đầy đủ", unit: "tick", min: 0, int: true, help: "Cứ chừng này ảnh chụp (15 ảnh/giây) chủ phòng gửi mỗi khách một ảnh đầy đủ để sửa sai lệch; các khách được so le để không dồn cùng lúc. 450 = 30 giây. 0 = tắt." },
+        "localStun": { label: "Máy STUN để nhận ra cùng mạng (Local)", help: "Địa chỉ STUN để máy hỏi IP công cộng của mình, dùng nhận ra những máy cùng mạng khi liệt kê phòng Local. Nhiều địa chỉ cách nhau dấu phẩy, ví dụ stun:stun.l.google.com:19302. Để trống = không lọc cùng mạng, chỉ vào được bằng mã phòng." },
+        "localIce": { label: "Máy ICE cho kết nối Local web, trống = chỉ cùng mạng", help: "Các địa chỉ ICE (STUN/TURN) cho phòng Local trên web, cách nhau dấu phẩy. Trống = chỉ nối được các máy cùng mạng; có địa chỉ thì web nối được cả máy khác mạng nhưng có thể tốn băng thông TURN." },
+        "localPort": { label: "Cổng UDP phòng Local trên app", unit: "cổng", int: true, min: 1024, max: 65535, help: "Cổng UDP chủ phòng Local trên app mở để khách trong mạng nối vào. Mặc định 47770." }
       }
     },
 
