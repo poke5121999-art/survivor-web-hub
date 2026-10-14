@@ -30,17 +30,16 @@
     // ô tuỳ biến còn lại tắt. Prefab lưu ở trạng thái ẩn nên phát hide_item_info trước.
     for (const p of ['value5', 'value6', 'custom_icon']) UI.q(INFO + 'weapon_default/params/' + p).off = 1;
     INFO_DESC.forEach((d, i) => { UI.q(INFO + 'weapon_default/params/value' + (i + 1) + '/Desc').txt.s = d; });
-    // [SUY] Mã gốc giãn ô giá trị theo chữ lúc chạy; ở đây cho mỗi ô rộng 88 để số và nhãn tiếng Việt không đè nhau.
-    for (let i = 1; i <= 4; i++) {
-      const v = UI.q(INFO + 'weapon_default/params/value' + i);
-      v.sz[0] = 88; UI.q(INFO + 'weapon_default/params/value' + i + '/Desc').sz[0] = 176;
-    }
+    // [SUY] Ô giá trị gốc rộng 37,5 nên số đè lên biểu tượng ô kế; mã gốc chắc giãn ô theo chữ lúc chạy. Ở đây đặt 70
+    // (= bề rộng Desc của prefab, 140 × 0,5) cho số khỏi đè nhau; Desc giữ nguyên cỡ chữ và bề rộng của prefab.
+    for (let i = 1; i <= 4; i++) UI.q(INFO + 'weapon_default/params/value' + i).sz[0] = 70;
     UI.play('', 'hide_item_info');
     pauseInit();
     return UI;
   }
 
-  const INFO = 'item_info/wrapper/', INFO_DESC = ['Sát thương', 'Năng lượng', 'Chí mạng', 'Độ lệch'];
+  const INFO = 'item_info/wrapper/', INFO_DESC = ['ATK', 'MP', 'CRIT', 'Độ lệch'];
+  // [ĐO] Nhãn theo term gốc: ui/weapon_info_desc_5 (ATK), _3 (MP), _4 (CRIT) và combogun/attr/deviation (Độ lệch); bản vi của ba term đầu giữ nguyên ATK/MP/CRIT.
   let infoId = null, weaponSprite = null, spareSprite = null;
   function fitSprite(ctx, name, R) {
     const f = SK.frame(name);
@@ -296,12 +295,11 @@
     }
     const it = G.interactTarget;
     if (it && it.weaponId) {
-      // Vũ khí dưới đất: tên trắng + mũi tên chỉ xuống, như bản gốc (phím E ghi nhỏ bên dưới trên máy có bàn phím).
+      // Vũ khí dưới đất: chỉ tên màu trắng (phím E ghi nhỏ bên dưới trên máy có bàn phím). Mũi tên chỉ xuống của bản gốc
+      // chưa tìm được sprite đúng nên bỏ, không tự vẽ.
       const x = it.x - cam.x, y = it.y - cam.y;
       SK.text(ctx, SK.DS.weapons[it.weaponId].name, x, y - 4, 8, '#ffffff', 'center', 'rgba(0,0,0,0.9)');
-      ctx.fillStyle = '#000'; ctx.beginPath(); ctx.moveTo(x - 4, y + 1); ctx.lineTo(x + 4, y + 1); ctx.lineTo(x, y + 7); ctx.fill();
-      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(x - 3, y + 1.5); ctx.lineTo(x + 3, y + 1.5); ctx.lineTo(x, y + 6); ctx.fill();
-      if (!SK.input.touchMode) SK.text(ctx, '[E]', x, y + 14, 6, '#cfcfcf', 'center', 'rgba(0,0,0,0.9)');
+      if (!SK.input.touchMode) SK.text(ctx, '[E]', x, y + 6, 6, '#cfcfcf', 'center', 'rgba(0,0,0,0.9)');
     } else if (it) SK.text(ctx, (SK.input.touchMode ? '' : '[E] ') + it.label, it.x - cam.x, it.y - cam.y, 8, '#ffe06a', 'center', 'rgba(0,0,0,0.9)');
   }
 
