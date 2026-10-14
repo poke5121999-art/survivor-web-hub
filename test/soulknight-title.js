@@ -60,6 +60,24 @@ async function grab(p) {
     check('Spine chuyển động (hai ảnh vùng hiệp sĩ khác nhau)', diff > 200, diff + ' điểm ảnh khác');
     await p.screenshot({ path: path.join(SHOTS, 'title-2.png') });
 
+    // Khe sáng giữa các tam giác lưới: đếm điểm sáng mảnh (sáng hơn cả hai láng giềng ngang hoặc dọc > 40) ở khúc khăn, tắt/bật nở tam giác.
+    const seams = async nd => {
+      await p.evaluate(v => { SK.title.noDilate = v; }, nd);
+      await sleep(300);
+      return p.evaluate(() => {
+        const c = document.getElementById('sk-title'), k = c.width / 1280, x0 = Math.round(560 * k), y0 = Math.round(60 * k), w = Math.round(480 * k), h = Math.round(300 * k);
+        const d = c.getContext('2d').getImageData(x0, y0, w, h).data, L = i => d[i] + d[i + 1] + d[i + 2];
+        let n = 0;
+        for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+          const i = (y * w + x) * 4, v = L(i);
+          if ((v - L(i - 4) > 40 && v - L(i + 4) > 40) || (v - L(i - w * 4) > 40 && v - L(i + w * 4) > 40)) n++;
+        }
+        return n;
+      });
+    };
+    const before = await seams(true), after = await seams(false);
+    check('nở tam giác làm hết khe sáng (ít hơn 40% so với khi tắt)', after < before * 0.4, 'trước ' + before + ' → sau ' + after);
+
     await p.keyboard.press('Enter');
     const inHall = await until(p, () => SK_GAME.state === 'hall', null, 4000);
     check('Enter → vào sảnh (SK_GAME.state === hall)', inHall);

@@ -10,7 +10,7 @@
   const SK = window.SK;
   const DIR = 'art/title/', ANIM = 'movement_ide';
   const REF_W = 1280, REF_H = 720, POS = [-20, 513];
-  const FADE = 0.35;
+  const FADE = 0.35, DILATE = 1.5;   // nở mỗi tam giác ~1,5 điểm ảnh màn để hết khe hở giữa các mảnh lưới
   const T = SK.title = { on: false, t: 0, out: -1, ready: false, rigs: null };
 
   T.want = function () {
@@ -25,6 +25,22 @@
   const image = u => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error(u + ' image failed')); i.src = u; });
 
   // Atlas nhiều trang: tên trang trong .atlas.txt trùng tên .png cạnh nó.
+
+  // spine-canvas vẽ lưới bằng clip từng tam giác, mép khử răng cưa để lộ khe sáng giữa hai tam giác kề nhau. Bản này giống drawTriangle gốc
+  // (4.2.40) nhưng đường clip nở `dil` đơn vị Spine ra khỏi trọng tâm; ánh xạ ảnh vẫn theo đỉnh gốc nên không méo.
+  function drawTriangle(img, x0, y0, u0, v0, x1, y1, u1, v1, x2, y2, u2, v2) {
+    const ctx = this.ctx, dil = this.dil || 0;
+    u0 *= img.width; v0 *= img.height; u1 *= img.width; v1 *= img.height; u2 *= img.width; v2 *= img.height;
+    const gx = (x0 + x1 + x2) / 3, gy = (y0 + y1 + y2) / 3;
+    const grow = (x, y) => { const dx = x - gx, dy = y - gy, l = Math.hypot(dx, dy) || 1; return [x + dx / l * dil, y + dy / l * dil]; };
+    const a0 = grow(x0, y0), a1 = grow(x1, y1), a2 = grow(x2, y2);
+    ctx.beginPath(); ctx.moveTo(a0[0], a0[1]); ctx.lineTo(a1[0], a1[1]); ctx.lineTo(a2[0], a2[1]); ctx.closePath();
+    x1 -= x0; y1 -= y0; x2 -= x0; y2 -= y0; u1 -= u0; v1 -= v0; u2 -= u0; v2 -= v0;
+    const det = 1 / (u1 * v2 - u2 * v1), a = (v2 * x1 - v1 * x2) * det, b = (v2 * y1 - v1 * y2) * det, c = (u1 * x2 - u2 * x1) * det, d = (u1 * y2 - u2 * y1) * det,
+      e = x0 - a * u0 - c * v0, f = y0 - b * u0 - d * v0;
+    ctx.save(); ctx.transform(a, b, c, d, e, f); ctx.clip(); ctx.drawImage(img, 0, 0); ctx.restore();
+  }
+
   function loadRig(name) {
     const sp = window.spine;
     return Promise.all([fetchBuf(DIR + name + '.skel.bytes'), fetchTxt(DIR + name + '.atlas.txt')]).then(([bin, atxt]) => {
@@ -34,7 +50,7 @@
         const skel = new sp.Skeleton(data), st = new sp.AnimationState(new sp.AnimationStateData(data));
         if (data.findAnimation(ANIM)) st.setAnimation(0, ANIM, true);
         st.update(0); st.apply(skel); skel.updateWorldTransform(sp.Physics.update);
-        return { skel, st, anims: data.animations.map(a => a.name), renderer: Object.assign(new sp.SkeletonRenderer(null), { triangleRendering: true }) };   // lưới (mesh) chỉ vẽ khi bật triangleRendering
+        return { skel, st, anims: data.animations.map(a => a.name), renderer: Object.assign(new sp.SkeletonRenderer(null), { triangleRendering: true, drawTriangle }) };   // lưới (mesh) chỉ vẽ khi bật triangleRendering
       });
     });
   }
@@ -100,7 +116,7 @@
     for (const key of ['bg', 'kn']) {
       const r = T.rigs[key];
       if (T.hide && T.hide[key]) continue;   // móc dò bố cục
-      r.renderer.ctx = cx;
+      r.renderer.ctx = cx; r.renderer.dil = T.noDilate ? 0 : DILATE / k;
       cx.save(); cx.translate(ox, oy); cx.scale(k, -k);
       r.renderer.draw(r.skel);
       cx.restore();
