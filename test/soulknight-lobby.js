@@ -116,17 +116,22 @@ async function desktop(b) {
   await sleep(600);
   await p.screenshot({ path: path.join(SHOTS, 'run-mage.png') });
 
-  // ---- chết → về sảnh, bảng kết quả, có thưởng đá quý
+  // ---- chết → hộp hồi sinh → thoát → bảng tổng kết gốc (js/gameover.js) có thưởng đá quý → về sảnh
   await p.evaluate(() => { SK.G.kills = 7; SK.G.player.invulT = 0; SK.G.player.armor = 0; SK.hurtPlayer(SK.G, 99); });
-  await until(p, () => SK_GAME.state === 'dead' && !document.getElementById('sk-over').hidden, null, 4000);
-  await p.click('#sk-retry');
-  await until(p, () => SK_GAME.state === 'lobby', null, 2000);
-  const sum = await p.evaluate(() => ({ dlg: document.getElementById('hs-dlg').textContent, gems: SK.profile.gems,
-    start: !document.getElementById('sk-start').closest('[hidden]') }));
+  await until(p, () => { const s = SK.gameover.state(); return SK_GAME.state === 'dead' && s.phase === 'reborn' && s.t > 0.5; }, null, 6000);
+  await p.keyboard.press('Escape');
+  await until(p, () => { const s = SK.gameover.state(); return s.phase === 'statement' && s.t > 0.5; }, null, 3000);
+  const stmt = await p.evaluate(() => SK.gameover.state());
   await p.screenshot({ path: path.join(SHOTS, 'summary.png') });
-  check('chết → về sảnh, bảng kết quả + thưởng đá quý (≥ số quái hạ)', /Kết quả/.test(sum.dlg) && sum.gems >= 2007 && sum.start,
-    'đá quý ' + sum.gems + ' · ' + sum.dlg.replace(/\s+/g, ' ').slice(0, 70));
-  await p.click('#hs-claim');
+  await p.keyboard.press('Enter');
+  await until(p, () => SK.gameover.state().page === 1, null, 3000);
+  await p.keyboard.press('Enter');
+  await until(p, () => SK_GAME.state === 'lobby', null, 3000);
+  const sum = await p.evaluate(() => ({ dlg: !document.getElementById('hs-modal').hidden, gems: SK.profile.gems,
+    start: !document.getElementById('sk-start').closest('[hidden]') }));
+  check('chết → bảng tổng kết + thưởng đá quý (≥ số quái hạ) → về sảnh, không mở thêm hộp kết quả',
+    stmt.phase === 'statement' && stmt.run.gems >= 7 && sum.gems >= 2007 && sum.start && !sum.dlg,
+    'đá quý ' + sum.gems + ' · thưởng ' + stmt.run.gems);
 
   // ---- mua giả lập nhân vật $0.99
   await tapHero(p, 'engineer');

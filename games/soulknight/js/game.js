@@ -264,6 +264,7 @@
 
   function step(dt) {
     G.t += dt;
+    if (SK.gameover && SK.gameover.active) SK.gameover.step(G, dt);   // hộp hồi sinh / bảng tổng kết (js/gameover.js)
     if (SK.MODES[G.state]) { SK.MODES[G.state].step(dt); return; }
     if (G.state === 'lobby') { SK.lobby.update(dt); return; }
     if (G.state !== 'stage' && G.state !== 'dead') return;
@@ -300,10 +301,18 @@
       // Cổng tím của Kẻ Vượt Ranh Giới (js/floor4.js): nối 4-1..4-5 vào lượt rồi sang 4-1; cổng thường vẫn thắng ở 3-5.
       if (G.extGo && SK.floor4) { G.extGo = false; SK.floor4.extend(STAGES); }
       if (G.mode === 'matrix' && G.stageIdx + 1 >= STAGES.length) SK.matrixNextFloor();   // vô tận: không có chiến thắng
-      if (G.stageIdx + 1 >= STAGES.length) { G.state = 'victory'; setOverlay('sk-win'); fillEnd('sk-win-info'); }
-      else enterStage(G.stageIdx + 1);
+      if (G.stageIdx + 1 >= STAGES.length) {
+        G.state = 'victory';
+        if (SK.gameover && SK.gameover.handles(G)) SK.gameover.statement(G);
+        else { setOverlay('sk-win'); fillEnd('sk-win-info'); }
+      } else enterStage(G.stageIdx + 1);
     }
-    if (p.st === 'dead' && p.stT > 1.3) { G.state = 'dead'; setOverlay('sk-over'); fillEnd('sk-over-info'); }
+    // Chế độ Ải: hộp hồi sinh window_reborn rồi bảng tổng kết Statements (js/gameover.js); chế độ khác giữ lớp phủ #sk-over.
+    if (p.st === 'dead' && p.stT > 1.3) {
+      G.state = 'dead';
+      if (SK.gameover && SK.gameover.handles(G)) SK.gameover.dead(G);
+      else { setOverlay('sk-over'); fillEnd('sk-over-info'); }
+    }
   }
 
   function stingTraps() {
@@ -311,11 +320,16 @@
     if (o && o.kind === 'sting' && o.up) SK.hurtPlayer(G, (o.p && o.p.damage) || 2);
   }
 
+  // Phát runEnd (các bộ nghe cộng đá quý, thống kê...) rồi ghi dòng tóm tắt vào lớp phủ `id`. Không có id: chỉ phát,
+  // trả object kết quả để bảng tổng kết đọc lại số đá quý mà js/lobby.js gắn vào (r.gems, r.gemsStage).
   function fillEnd(id) {
     const p = G.player;
-    SK.emit('runEnd', G, { won: G.state === 'victory', stage: G.stage.label, kills: G.kills, gold: p.gold });
-    document.getElementById(id).textContent = 'Màn ' + G.stage.label + ' · Hạ ' + G.kills + ' quái · ' + p.gold + ' vàng' + (G.void ? SK.voidMode.endText(G) : '');
+    const r = { won: G.state === 'victory', stage: G.stage.label, kills: G.kills, gold: p.gold, statement: !id };
+    SK.emit('runEnd', G, r);
+    if (id) document.getElementById(id).textContent = 'Màn ' + G.stage.label + ' · Hạ ' + G.kills + ' quái · ' + p.gold + ' vàng' + (G.void ? SK.voidMode.endText(G) : '');
+    return r;
   }
+  SK.endRun = () => fillEnd(null);
 
   // ---------------------------------------------------------------- camera + vẽ
   function camTarget() {

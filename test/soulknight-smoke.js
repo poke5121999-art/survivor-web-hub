@@ -144,14 +144,19 @@ async function mainRun(b) {
     s2.pl.hp >= pre.hp && s2.pl.energy >= pre.energy && s2.pl.gold === pre.gold && s2.pl.weapons.join() === pre.weapons.join(),
     'máu ' + s2.pl.hp + ' · nl ' + s2.pl.energy + ' · vàng ' + s2.pl.gold + ' · ' + s2.pl.weapons.join('/'));
 
-  // ---- gục ngã → màn hình "Chơi lại" → về sảnh
+  // ---- gục ngã → hộp hồi sinh gốc → Esc (thoát) → bảng tổng kết → Enter, Enter → về sảnh (js/gameover.js)
   await p.evaluate(() => { SK_GAME.debug.god(false); SK.G.player.invulT = 0; SK.G.player.armor = 0; SK.hurtPlayer(SK.G, 99); });
-  const over = await until(p, () => SK_GAME.state === 'dead' && !document.getElementById('sk-over').hidden, null, 4000);
+  const over = await until(p, () => { const s = SK.gameover.state(); return SK_GAME.state === 'dead' && s.phase === 'reborn' && s.t > 0.5; }, null, 6000);
   await p.screenshot({ path: path.join(SHOTS, 'gameover.png') });
-  check('hết máu → màn "Bạn đã gục ngã"', over, await p.evaluate(() => document.getElementById('sk-over-info').textContent));
-  await p.click('#sk-retry');
-  const back = await until(p, () => SK_GAME.state === 'lobby' && !document.getElementById('sk-lobby').hidden, null, 2000);
-  check('"Chơi lại" → về sảnh', back);
+  check('hết máu → hộp hồi sinh (window_reborn)', over, JSON.stringify(await p.evaluate(() => SK.gameover.state().gemCost)));
+  await p.keyboard.press('Escape');
+  const stmt = await until(p, () => { const s = SK.gameover.state(); return s.phase === 'statement' && s.t > 0.5; }, null, 3000);
+  check('Esc → bảng tổng kết', stmt, JSON.stringify(await p.evaluate(() => SK.gameover.state().label)));
+  await p.keyboard.press('Enter');
+  await until(p, () => SK.gameover.state().page === 1, null, 3000);
+  await p.keyboard.press('Enter');
+  const back = await until(p, () => SK_GAME.state === 'lobby' && !document.getElementById('sk-lobby').hidden, null, 3000);
+  check('▶ (Enter) ở trang 2 → về sảnh', back);
 
   check('không lỗi trang / console / HTTP (http)', errs.length === 0, errs.slice(0, 3).join(' | '));
   await ctx.close();

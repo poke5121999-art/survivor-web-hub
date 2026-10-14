@@ -1093,7 +1093,11 @@
     if (r.won && bad) P.wonBadass[hero] = 1;
     if (r.won && G2.void) P.voidWon[G2.void.tier || 1] = 1;   // mở độ Xâm Nhập Hư Không kế tiếp
     save();
-    pending = { hero, stage: r.stage, kills: r.kills, gold: r.gold, won: r.won, cleared, gems, goldGems, gemExtra, bad, firstBad, factors: (G2.factors || []).slice() };
+    // Bảng tổng kết gốc (js/gameover.js) đọc lại số đá: trang 1 hiện phần theo tiến độ (màn qua, thắng), trang 2 hiện tổng.
+    r.gems = gems;
+    r.gemsStage = Math.min(gems, Math.round((cleared * 10 + (r.won ? 100 : 0)) * (bad ? DS.badass.gemMul : 1)));
+    // Đã có bảng tổng kết thì không mở thêm hộp "Kết quả lượt chơi" khi về sảnh.
+    pending = r.statement ? null : { hero, stage: r.stage, kills: r.kills, gold: r.gold, won: r.won, cleared, gems, goldGems, gemExtra, bad, firstBad, factors: (G2.factors || []).slice() };
   });
   function showSummary() {
     const s = pending; pending = null;

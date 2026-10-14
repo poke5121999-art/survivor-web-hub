@@ -25,6 +25,8 @@ Muốn thêm prefab thì ghi vào `PREFABS` trong `build_ui.py` theo dạng `kho
 | `other/scene_object/minimap/*.prefab` | `levelcommon` | bản đồ nhỏ, ô phòng, hành lang |
 | `rgprefab/ui/hall/uiherolist/window_hero_list.prefab` | `ui` | danh sách nhân vật |
 | `rgprefab/other/scene_object/choosehero/ui_choose_hero.prefab` | `common` | màn chọn nhân vật (`js/lobby.js`) |
+| `rgprefab/ui/window_reborn.prefab` | `common` | hộp hồi sinh khi gục (`js/gameover.js`) |
+| scene `Statements.unity`, gốc `Canvas` | `statements` | bảng tổng kết cuối ván (`js/gameover.js`) |
 
 Prefab con không có trong `m_Container` mà chỉ được một MonoBehaviour trỏ tới (ví dụ ô `skin_cell` của thanh trượt nhân
 vật, trỏ từ `SkinScrollView.cellPrefab`) thì ghi vào `REF_PREFABS`: `khoá: (prefab chứa, đường dẫn nút, lớp, trường)`.
@@ -38,6 +40,7 @@ vật, trỏ từ `SkinScrollView.cellPrefab`) thì ghi vào `REF_PREFABS`: `kho
   fonts: { tên: 'art/ui/fonts/x.ttf' | null },
   fontLH: { tên: m_LineSpacing / m_FontSize },   // chiều cao dòng của font gốc, Text dùng × lineSpacing
   terms: { term: 'chữ vi' },                      // EXTRA_TERMS: chữ mã gốc ghép lúc chạy
+  termsEn: { term: 'chữ en' },                    // EN_TERMS: nút có font gốc chỉ ASCII (tiêu đề bảng tổng kết)
   prefabs: { khoá: nút } }
 nút = { n, off?, a: [minX, minY, maxX, maxY], pv, p (anchoredPosition), sz (sizeDelta), sc?, rz?,
         img?: { sp, c: [r,g,b,a], t (0 thường, 1 chín mảnh, 3 tô đầy), fm, fo, fa, cw, pa, pm, off? },
@@ -46,6 +49,10 @@ nút = { n, off?, a: [minX, minY, maxX, maxY], pv, p (anchoredPosition), sz (siz
         an?: { clip: { len, tracks: [{ path, type, prop, keys: [[t, v], ...] }] } },
         mbd?: { lớp: dữ liệu MonoBehaviour trong MB_KEEP }, cls?: [lớp MonoBehaviour riêng của game], k?: [nút con] }
 ```
+
+Prefab cửa sổ có Animator trên chính gốc (`window_reborn`): `SK.ugui.inst('reborn', { wrap: true })` bọc gốc trong nút
+rỗng để vị trí gốc có tác dụng; đường dẫn khi đó bắt đầu bằng `window_reborn/`. `SK.ugui.layoutExtent(nút)` trả cỡ ưa
+thích của nút có layout group (ContentSizeFitter), ugui.js không tự áp.
 
 Lúc chạy: `const H = SK.ugui.inst('hud')`, rồi `H.q('state_bar/hp_bar/img').sz[0] = ...`,
 `H.play('message_bar', 'show_message')`, `H.tick(dt)`, `H.draw(ctx, rộngPx, caoPx)`, `H.rectOf(đường, rộngPx, caoPx)`.
@@ -98,13 +105,39 @@ Text: xuống dòng ở khoảng trắng khi quá bề ngang (trừ khi `ho`), h
 - [SUY] Ảnh chụp 8.6 của chủ dự án có bảng trái lệch phải ~90 đơn vị: `LimitCanvas` né tai thỏ của máy đó, bản web
   không bắt chước.
 
+- [ĐO] Gục ngã và tổng kết (`js/gameover.js`, kiểm bằng `node test/soulknight-gameover.js`):
+  - `window_reborn` (UIWindowReborn): nút `btn_gem` ghi "200", `btn_close` icon cửa ra; các nút quảng cáo / thẻ / miễn
+    phí tắt sẵn. Controller `sample_window`: `show_window` y = 0, `hide_window` y = 1500, chuyển trạng thái 0,25 s.
+    `img_bg` và `btn_bg` rộng theo ContentSizeFitter (420 và 388), prefab lưu 0 nên gameover.js tự gán.
+  - Bảng tổng kết là scene, không phải prefab: `statements.ab` › `Assets/_RGScene/Statements.unity`, gốc `Canvas` (lớp
+    UIStatement). Biến thể theo chế độ nằm ở `statements_{iron,pvp,pvz,...}.ab`, chưa xuất.
+  - Controller `ui_horizontal_switch` (trên `info`): tham số int `switch` 0/1/2 → `info.x` = 0 / −1280 / −2560, chuyển 0,25 s.
+  - Thước `mode1`: Image1 = home + lv1..lv4, Image2 = lv5..lv9, Image3 = lv10..lv14, Image4 = lv15 (nhãn lv_Text 1-1..3-5).
+    Scene lưu lv của mode1 chưa xếp (p = 0); mode3 lưu sẵn kết quả HorizontalLayoutGroup childForceExpandWidth (ô đều nhau,
+    con ở mép trái ô). ugui.js chưa chia phần dư này nên gameover.js xếp tay theo đúng cách đó.
+  - `btn_ok`: `counter` (▶ + chữ "5s", TimeCounter) và `normal` (▶ trơn, tắt sẵn).
+- [SUY] Trong scene 8.6, các ô của trang chi tiết (`info/detial/time|coin|kill`, x lưu −1573…−1226 dưới cha x = 1265) và
+  ô `gem` nằm ngay dưới thước, tức bản 8.6 có thể hiện thước và số liệu trên cùng một trang; clip trượt sang −1280 khi đó
+  đẩy cả hai ra ngoài. Bản web theo hai trang của clip 2019 (https://youtu.be/jFHCVBZEYDU?t=422, ?t=426): đẩy `detial`
+  thêm +1280 để clip trượt đưa nó về đúng chỗ lưu. Chưa đọc `UIStatement.OnBtnClick` để xác nhận.
+- [SUY] `boss1..3` của scene là chân dung trùm (`enemy_list_*`, chỉ `enemy_list_99` có trong trang UI), mã gốc gán lúc
+  chạy; bản web tắt chúng và mượn `boss_icon` (ui5_27, đầu lâu) của thước `mode2` đặt lên vạch 1-5 và 2-5. `cartons`
+  (hộp giấy, có `cartons_open`) chưa rõ ý nghĩa nên tắt.
+- [SUY] Tiêu đề `text_name` dùng font `m04` chỉ có ASCII; chữ Việt của `I_gameover` ("Trò chơi kết thúc") rơi sang font
+  dự phòng và đè ô đá quý, nên dùng chữ tiếng Anh in hoa ("GAME OVER", "VICTORY") qua `SK_UI.termsEn`.
+
 ## Bẫy
 
 - Clip UI có track `m_Enabled`: nó bật/tắt component Image hoặc Text, không phải GameObject.
 - Image không có sprite vẫn được Unity vẽ thành ô màu đặc. Bỏ qua loại này thì băng rôn mất nền.
 - Nút anchor theo mép phải mà có `p.x` dương (ví dụ `btn_weapon` = 136) sẽ nằm ngoài màn. Gặp trường hợp này thì mã
   gốc có đặt lại vị trí, phải tra trong `dump.cs` (`D:\sk86-ref\runtime\dump`) trước khi sửa tay.
-- `zpix.ttf` (font CJK, 4,7 MB) không được xuất ra web.
+- `zpix.ttf` (font CJK, 4,7 MB) không được xuất ra web. Chữ "Hồi sinh" trên dải đỏ của `window_reborn` vì thế vẽ bằng
+  font dự phòng BeVietnamPro.
+- Thêm prefab là xếp lại toàn bộ trang `ui0.png`: mọi khung đổi toạ độ trong `frames` (nội dung giữ nguyên). Không mã nào
+  được ghi cứng toạ độ trong trang.
+- Bộ kiểm bảng tổng kết: đếm ngược 5 s chạy theo thời gian game; chụp ảnh chậm có thể để trang 1 tự sang trang 2 trước cú
+  bấm ▶. `SK.gameover.counter` đổi được số giây này.
 - Nút đang tắt vẫn có rect. `rectOf` phải trả null cho nút (hoặc cha) đang tắt, không thì nút ẩn chồng chỗ bắt mất cú
   bấm: nút cài đặt của hàng nút thường từng nuốt cú bấm "có" của hộp xác nhận về sảnh.
 - Mask có `m_ShowMaskGraphic = 0` thì Unity không vẽ ảnh của chính nút đó. Build đánh dấu ảnh ấy `off`.

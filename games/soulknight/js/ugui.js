@@ -39,8 +39,11 @@
   ug.clone = clone;
 
   // Một bản dựng của prefab. q('state_bar/hp_bar/img') trả nút để mã game đổi off/sz/img.sp/img.fa/txt.s.
-  ug.inst = function (key) {
-    const root = clone(U.prefabs[key]);
+  // opt.wrap: bọc gốc prefab trong một nút rỗng để chính gốc cũng được đặt chỗ và chạy clip (prefab cửa sổ có Animator
+  // trên gốc, như window_reborn); đường dẫn khi đó bắt đầu bằng tên gốc.
+  ug.inst = function (key, opt) {
+    let root = clone(U.prefabs[key]);
+    if (opt && opt.wrap) root = { n: '', k: [root] };
     const idx = {};
     const playing = new Map();
     function walk(n, path) {
@@ -154,6 +157,9 @@
     if (n.lay && n.fit) return layoutExtent(n);
     return n.sz ? [Math.max(0, n.sz[0]), Math.max(0, n.sz[1])] : [0, 0];
   }
+
+  // Cỡ ưa thích của nút có layout group (ContentSizeFitter PreferredSize): mã game gán vào sz khi cần.
+  ug.layoutExtent = n => layoutExtent(n);
 
   function activeKids(n) { return (n.k || []).filter(c => !c.off && !(c.le && c.le.IgnoreLayout)); }
 

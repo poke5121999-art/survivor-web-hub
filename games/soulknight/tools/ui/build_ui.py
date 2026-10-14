@@ -38,6 +38,10 @@ PREFABS = {
     'buff_tpl3': ('common', 'assets/rgprefab/ui/common/buff_tpl3.prefab', []),
     # Màn chọn thú cưng ở sảnh (ChoosePetView).
     'choose_pet': ('common', 'assets/rgprefab/other/scene_object/ui_choose_pet.prefab', []),
+    # Bảng tổng kết cuối ván (UIStatement): gốc Canvas của scene Assets/_RGScene/Statements.unity trong statements.ab.
+    'statement': ('statements', 'scene:Canvas', []),
+    # Hộp hồi sinh khi gục ngã (UIWindowReborn): nút Ngọc 200 và nút thoát.
+    'reborn': ('common', 'assets/rgprefab/ui/window_reborn.prefab', []),
 }
 
 # Prefab con khong co trong m_Container, chi duoc tro toi tu mot MonoBehaviour cua prefab khac:
@@ -81,7 +85,11 @@ RUNTIME_TERMS = {
 # RefreshUnlockArea: tips/unlock_character_first, I_ComingSoon.
 EXTRA_TERMS = ['tips/skill_1', 'tips/skill_2', 'tips/skill_3', 'tips/iap_unlock', 'tips/gem_unlock',
                'multi_room_skin_ui_using', 'UNLOCK', 'skill_cd_description', 'tips/unlock_character_first',
-               'I_ComingSoon', 'tips/unlock_char', 'ui_loading_new_when_buff_popup', 'ui_loading_new_title', 'uiloading/reroll']
+               'I_ComingSoon', 'tips/unlock_char', 'ui_loading_new_when_buff_popup', 'ui_loading_new_title', 'uiloading/reroll',
+               'I_gameover', 'I_victory']
+# Term can ca chu tieng Anh (SK_UI.termsEn): font goc cua nut khong co dau tieng Viet.
+# [SUY] UIStatement.title_text: thua = I_gameover, qua het ai = I_victory; text_name dung font m04 (chi ASCII).
+EN_TERMS = ['I_gameover', 'I_victory']
 # [SUY] Meo man tai: moi term I_tip_<so> (UILoading chon ngau nhien; I_tip_00 'Hay chon 1 thien phu' khong phai meo).
 
 # Font du phong cho dau tieng Viet (font pixel goc chi co ASCII); ban goc cung mang font nay trong common.ab.
@@ -456,6 +464,7 @@ def main():
             'fallback': [f for f in EXTRA_FONTS if fonts.get(f)],
             'fontLH': b.font_lh,
             'terms': {t: (b.loc[t][1] or b.loc[t][0]) for t in EXTRA_TERMS},
+            'termsEn': {t: b.loc[t][0] for t in EN_TERMS},
             'tips': [b.loc[t][1] or b.loc[t][0] for t in sorted(b.loc) if re.match(r'^I_tip_\d+$', t) and t != 'I_tip_00'],
             'prefabs': prefabs}
     js = '// Sinh boi tools/ui/build_ui.py tu prefab uGUI goc. Khong sua tay.\nwindow.SK_UI = ' + \
