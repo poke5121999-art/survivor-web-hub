@@ -32,7 +32,7 @@ Trùm có `IsBoss`, `LevelKey` theo theme, `Path` bắt đầu bằng `Level/`, 
 
 | theme | trùm |
 |---|---|
-| forest (1-5) | boss07 Hoa Ma, boss08 Thầy Tế Goblin, boss14 Người Cây Giáng Sinh, boss19 Thỏ Trứng Màu, boss25 Thầy Tế (ma ám) |
+| forest (1-5) | boss07 Hoa Ma, boss08 Thầy Tế Goblin, boss14 Người Cây Giáng Sinh, boss19 Thỏ Trứng Màu |
 | castle (2-5) | boss01 Kỵ Sĩ Lớn (+ biến thể boss01_2), boss02 Phù Thủy Lớn, boss20 Slime Lớn |
 | volcano (3-5) | boss11 Sâu Cát Núi Lửa, boss12_parent (boss12_1 + boss12_2, cặp rồng), boss18 Anubis |
 | glacier (1-5) | boss09 Vua Vượn Núi Tuyết, boss10 Cua Pha Lê (+ biến thể boss10_2), boss13 Vua Người Tuyết |
@@ -46,6 +46,7 @@ Trùm có `IsBoss`, `LevelKey` theo theme, `Path` bắt đầu bằng `Level/`, 
 | aliens (3-5) | boss05 Thủ Lĩnh Wackern, boss06 Zulan The Colossus, boss21 Đĩa Nổi Laser |
 | island (3-5) | boss28 Cướp Biển Sắt "Cấp Vua", boss29 Kẻ Phá Sóng |
 
+- [ĐO] Bể thật nằm ở `config/map_levels.json` (`EndRooms` của map_A5/B5/...), không phải `enemies.LevelKey`: LevelKey còn nhận boss25 (Thầy Tế ma ám) cho 1-5 mà map_A5 không hề xếp. boss19 có trong map_A5, không điều kiện (điều kiện loại boss14 là `IsBanBoss`). Bể trong `sk-bosses86.js` đã bỏ boss25 (sửa tay, chưa sinh lại bằng lever).
 - [ĐO] Biến thể (`SubspeciesBoss`) ra với tỉ lệ 30%: `BossCreator.GetSubspeciesBossPrefab` so `RGRandom.Range(0,100) < 0x1e`.
 - [ƯỚC LƯỢNG] Chọn đều trong danh sách; trọng số thật chưa tìm thấy.
 - [ĐO] Máu = `enemies.Hp × 1.2` (khớp wiki 480/600/720/960).

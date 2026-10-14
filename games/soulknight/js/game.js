@@ -369,7 +369,8 @@
   function camTarget() {
     const p = G.player, v = SK.view;
     const lead = p.target ? 14 : 6;
-    return [p.x - v.w / 2 + Math.cos(p.aim) * lead, p.y - 10 - v.h / 2 + Math.sin(p.aim) * lead];
+    const t = [p.x - v.w / 2 + Math.cos(p.aim) * lead, p.y - 10 - v.h / 2 + Math.sin(p.aim) * lead];
+    return SK.bossCamera ? SK.bossCamera(G, t[0], t[1]) : t;
   }
   function snapCamera() { const [x, y] = camTarget(); G.cam.x = x; G.cam.y = y; }
 

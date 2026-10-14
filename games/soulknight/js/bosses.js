@@ -1724,6 +1724,27 @@
     G.cam.x = (dx - 0.18 * tx) / 0.82; G.cam.y = (dy - 0.18 * ty) / 0.82;
   }
 
+  // Camera trận trùm: kéo khung hình lên phía trùm để thân trùm (và các trùm cùng nhóm) không bị cắt mép trên
+  // khi người chơi đứng thấp trong phòng 21×21 ô (336 px) mà khung nhìn chỉ cao 240 px.
+  // Gốc [ĐO dump.cs CameraFollow]: chỉ theo người chơi, có CameraLimitDistance; không thấy mã riêng cho phòng trùm,
+  // nên biên độ dưới đây là [ƯỚC LƯỢNG]: trùm cao ~BOSS_UP px trên chân, chừa BOSS_TOP cho thanh máu, người chơi giữ BOSS_FOOT.
+  const CAM_BOSS_UP = 64, CAM_BOSS_TOP = 26, CAM_BOSS_SIDE = 40, CAM_PLAYER_FOOT = 14;
+  SK.bossCamera = function (G, tx, ty) {
+    const v = SK.view, p = G.player, list = roomBosses(G).filter(b => !b.deathDone && b.arena.introT >= INTRO_LEN);
+    if (!list.length) return [tx, ty];
+    let top = Infinity, l = Infinity, r = -Infinity, bot = -Infinity;
+    for (const b of list) {
+      top = Math.min(top, b.y - CAM_BOSS_UP); bot = Math.max(bot, b.y + 6);
+      l = Math.min(l, b.x - CAM_BOSS_SIDE); r = Math.max(r, b.x + CAM_BOSS_SIDE);
+    }
+    // Trục dọc: đỉnh khung ≤ đỉnh trùm − thanh máu; đáy khung ≥ chân người chơi (nếu không vừa cả hai thì ưu tiên trùm)
+    const hi = top - CAM_BOSS_TOP, lo = Math.max(p.y + CAM_PLAYER_FOOT, bot) - v.h;
+    const ny = ty > hi ? hi : (ty < lo ? Math.min(lo, hi) : ty);
+    const hx = l - 8, lx = r + 8 - v.w;
+    const nx = tx > hx ? hx : (tx < lx ? Math.min(lx, hx) : tx);
+    return [nx, ny];
+  };
+
   // Canvas UI thật: tham chiếu 1280×720, khớp theo chiều cao [ĐO CanvasScaler scene_game].
   function uiNodeRect(v, n, P) {
     const k = v.h / 720, W0 = v.w / k;

@@ -126,13 +126,23 @@ async function fight(p, label, key) {
   });
   await p.keyboard.down('KeyJ');
   const t0 = Date.now();
-  let mid = false, dead = false, hudSeen = false, barShot = false;
+  let mid = false, dead = false, hudSeen = false, barShot = false, camN = 0, camBad = 0, camWorst = 0;
   while (Date.now() - t0 < 80000) {
     const s = await p.evaluate(() => {
       const bs = SK.G.enemies.filter(e => e.bossKey && e.room === SK.G.room);
       SK.G.player.energy = SK.G.player.energyMax;
-      return { dead: bs.every(b => b.st === 'dead'), hud: SK.bossHud.visible };
+      // Camera: thân trùm (x ± 20, từ đỉnh ước lượng 56 px trên chân tới chân) phải nằm trong khung nhìn đang vẽ
+      let bad = null;
+      if (SK.bossHud.visible && SK.G.view) {
+        const v = SK.view, c = SK.G.view;
+        for (const b of bs) if (b.st !== 'dead' && !b.deathDone) {
+          const m = Math.min(b.x - 20 - c.x, c.x + v.w - (b.x + 20), b.y - 56 - c.y, c.y + v.h - b.y);
+          if (bad == null || m < bad) bad = m;
+        }
+      }
+      return { dead: bs.every(b => b.st === 'dead'), hud: SK.bossHud.visible, cam: bad };
     });
+    if (s.cam != null) { camN++; if (s.cam < -1) camBad++; camWorst = Math.min(camWorst, s.cam); }
     hudSeen = hudSeen || s.hud;
     if (s.hud && !barShot) { barShot = true; await p.screenshot({ path: path.join(SHOTS, key + '-bar.png'), clip: { x: 300, y: 0, width: 680, height: 90 } }); }
     if (!mid && Date.now() - t0 > 5500) { mid = true; await p.screenshot({ path: path.join(SHOTS, key + '-fight.png') }); }
@@ -148,6 +158,7 @@ async function fight(p, label, key) {
   });
   check(tag + ': màn giới thiệu trùm', introSeen);
   check(tag + ': thanh máu trùm hiện', hudSeen);
+  check(tag + ': camera giữ thân trùm trong khung nhìn', camN >= 5 && camBad <= camN * 0.1, camBad + '/' + camN + ' khung lệch, tệ nhất ' + camWorst.toFixed(1) + ' px');
   const kinds = Object.keys(after.used);
   check(tag + ': dùng ≥2 kiểu đánh', kinds.length >= 2, kinds.map(k => k + '×' + after.used[k]).join(' '));
   check(tag + ': đòn của trùm trúng người chơi', after.hurt > 0, after.hurt + ' lần');
@@ -203,6 +214,14 @@ async function fight(p, label, key) {
     await p.evaluate(() => { SK_GAME.debug.seed(20260929); SK.on('playerHurt', () => { window.__hurt++; }); });
     await p.click('#sk-start');
     await until(p, () => SK_GAME.state === 'stage', null, 3000);
+    // Bể trùm 1-5 chỉ gồm trùm mà config gốc gán cho màn (map_A5 EndRooms: boss07/08/14/19), không trùm khác [ĐO map_levels.json]
+    const pool = await p.evaluate(() => {
+      const seen = {}; SK.bossDebug.force = null;
+      for (let i = 0; i < 200; i++) { SK_GAME.debug.seed(1000 + i * 7); const id = SK.bossWaves(SK.G)[0][0]; seen[id] = (seen[id] || 0) + 1; }
+      return seen;
+    });
+    const okPool = ['boss07', 'boss08', 'boss14', 'boss19'];
+    check('bể trùm 1-5: 200 lần chọn chỉ ra trùm của config gốc', Object.keys(pool).length > 0 && Object.keys(pool).every(k => okPool.indexOf(k) >= 0) && !('boss25' in pool), JSON.stringify(pool));
     for (const [label, key] of FIGHTS) {
       try { await fight(p, label, key); } catch (e) { check(label + ' ' + key + ': chạy trọn', false, e.message.split('\n')[0]); }
     }
