@@ -320,7 +320,7 @@
         "dmgMul": { label: "Hệ số sát thương quái", min: 0 },
         "materials": { label: "Tỉ trọng chất liệu đồ", items: ["Gốm", "Gỗ", "Kim loại"], min: 0, help: "Để trống = chia đều." },
         "giaTriMul": { label: "Hệ số giá đồ", min: 0 },
-        "loot": { label: "Bộ hình loot", help: "vampire, asylum… Để trống = hình chung." },
+        "loot": { label: "Bộ hình loot", help: "vampire, pyramid, spacestation, asylum. Để trống = hình chung." },
         "specialExtract": { label: "Bệ giao nằm trong phòng đặc biệt", help: "Bật = mọi bệ giao nằm trong phòng SpecialExtract." },
         "mediumRatio": { label: "Thiên hướng phòng vừa", min: 0, max: 1, help: "Không phải tỉ lệ chính xác: số càng cao càng hay bốc phòng cỡ vừa." },
         "largeRatio": { label: "Thiên hướng phòng to", min: 0, max: 1 },
@@ -427,7 +427,7 @@
 
     loot_items: {
       title: "Giá từng món đồ",
-      blurb: "Khoảng giá và chỗ rơi của từng món trong các bộ loot riêng (vampire, asylum).",
+      blurb: "Khoảng giá và chỗ rơi của từng món trong các bộ loot riêng (vampire, pyramid, spacestation, asylum).",
       effect: RUN,
       fields: {
         "_id": { label: "Mã", help: "<bộ>/<tên prefab>, chỉ để không trùng. Giữ nguyên." },
