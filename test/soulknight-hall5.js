@@ -1,6 +1,7 @@
 /*
  * Sảnh đợt 5 (games/soulknight/js/hall5.js, hall.js, hall_use.js): Máy Đổi và Máy Game vẽ bằng prefab gốc (tools/extra/hall5.json) và dùng được,
- * mỗi nhân vật đứng đúng toạ độ trong bảng SK.HALL_POS. Chạy: python3 -m http.server 8811 (ở gốc repo) rồi  node test/soulknight-hall5.js
+ * mỗi nhân vật đứng đúng chỗ gốc characters/cNN của cảnh HeroRoom (SK_HALL.heroes) hoặc, người Sảnh 2, theo bảng SK.HALL_POS; chưa mở khoá
+ * thì đứng xám. Chạy: python3 -m http.server 8811 (ở gốc repo) rồi  node test/soulknight-hall5.js
  * Ảnh chụp: $SK_SHOTS hoặc <tmp>/soulknight-hall5/.
  */
 const PW = process.env.PLAYWRIGHT_PATH || '/home/bui-thanh-thuong/.cache/pw-node/node_modules/playwright-core';
@@ -137,22 +138,27 @@ const ALL = ['aigirl', 'airbender', 'alchemist', 'arcaneknight', 'assassin', 'as
     await closeDlg(p);
     await p.context().close();
 
-    // ============ 2. vị trí đứng nhân vật: mỗi người đúng toạ độ trong bảng, mở 40 nhân vật
+    // ============ 2. vị trí đứng nhân vật: chỗ gốc characters/cNN (phòng chính) hoặc bảng SK.HALL_POS (người Sảnh 2), mở hết nhân vật
     p = await boot({ gems: 100, welcomed: 1, won: { knight: 1 }, unlocked: ALL.slice() });
-    const pos = await p.evaluate(() => { SK.hall.enter('select'); return { npcs: SK.hall.state.npcPos, tbl: SK.HALL_POS, deco: SK_HALL.deco }; });
-    const DECO = { mage: 'magic_circle', vampire: 'cofin', engineer: 'toolbox', alchemist: 'tube', airbender: 'decorate_airbender', warlock: 'decorate_warlock' };
-    const want = id => DECO[id] ? [pos.deco[DECO[id]][0], pos.deco[DECO[id]][1] - 1.2] : pos.tbl[id];
+    const pos = await p.evaluate(() => {
+      SK.hall.enter('select');
+      const H = SK_HALL, D = SK.D.heroes, main = Object.keys(D).filter(id => H.heroes[D[id].s0.index] && H.heroes[D[id].s0.index][1] < 15);
+      return { npcs: SK.hall.state.npcPos, gray: SK.hall.state.gray, tbl: SK.HALL_POS, main, at: Object.fromEntries(main.map(id => [id, H.heroes[D[id].s0.index]])) };
+    });
+    const TBL = Object.keys(pos.tbl);
+    const want = id => pos.at[id] ? pos.at[id].slice(0, 2) : pos.tbl[id];
     const heroes = await p.evaluate(() => Object.keys(SK.D.heroes));
     check('đủ nhân vật trong sảnh: mỗi nhân vật dữ liệu có đúng 1 chỗ đứng (' + heroes.length + ')', pos.npcs.length === heroes.length && heroes.every(h => pos.npcs.filter(n => n[0] === h).length === 1), pos.npcs.length + '/' + heroes.length);
     const bad = pos.npcs.filter(n => { const w = want(n[0]); return !w || Math.abs(n[1] - w[0]) > 1e-6 || Math.abs(n[2] - w[1]) > 1e-6; });
-    check('mỗi nhân vật đứng đúng toạ độ trong bảng (6 theo đồ trang trí gốc, ' + (heroes.length - 6) + ' theo bảng cố định)', bad.length === 0, JSON.stringify(bad.slice(0, 5)));
-    const notWalk = await p.evaluate(npcs => npcs.filter(n => !['mage', 'vampire', 'engineer', 'alchemist', 'airbender', 'warlock'].includes(n[0]) && (!SK.hall.walkable(n[1], n[2]) || !SK.hall.walkable(n[1] - 0.5, n[2]) || !SK.hall.walkable(n[1] + 0.5, n[2]))).map(n => n[0]), pos.npcs);
-    check('36 người theo bảng không đứng trong tường hay khối chặn (3 điểm quanh chân đều đi được; 6 người neo đồ gốc giữ nguyên chỗ cũ)', notWalk.length === 0, JSON.stringify(notWalk));
+    check('mỗi nhân vật đứng đúng chỗ (' + pos.main.length + ' theo characters/cNN gốc, ' + TBL.length + ' người Sảnh 2 theo bảng)', bad.length === 0 && pos.main.length + TBL.length === heroes.length, JSON.stringify(bad.slice(0, 5)));
+    check('mở hết thì không ai xám', pos.gray.length === 0, JSON.stringify(pos.gray));
+    const notWalk = await p.evaluate(npcs => npcs.filter(n => SK.HALL_POS[n[0]] && (!SK.hall.walkable(n[1], n[2]) || !SK.hall.walkable(n[1] - 0.5, n[2]) || !SK.hall.walkable(n[1] + 0.5, n[2]))).map(n => n[0]), pos.npcs);
+    check(TBL.length + ' người theo bảng không đứng trong tường hay khối chặn (3 điểm quanh chân đều đi được)', notWalk.length === 0, JSON.stringify(notWalk));
     let near = 99, pair = '';
-    for (const a of pos.npcs) for (const b of pos.npcs) if (a[0] < b[0]) { const d = Math.hypot(a[1] - b[1], a[2] - b[2]); if (d < near) { near = d; pair = a[0] + '/' + b[0]; } }
-    check('không ai đứng đè nhau (cách ≥ 2 đv)', near >= 2, near.toFixed(2) + ' ' + pair);
-    const zn = await p.evaluate(npcs => { let m = 99, w = ''; for (const n of npcs.filter(q => !['mage', 'vampire', 'engineer', 'alchemist', 'airbender', 'warlock'].includes(q[0]))) for (const z of SK.hall.zones()) { const d = Math.hypot(n[1] - z.x, n[2] - z.y); if (d < m) { m = d; w = n[0] + '/' + z.slot; } } return [m, w]; }, pos.npcs);
-    check('không ai đứng đè lên món nội thất (cách tâm ô ≥ 1,4 đv)', zn[0] >= 1.4, JSON.stringify(zn));
+    for (const a of pos.npcs.filter(n => TBL.includes(n[0]))) for (const b of pos.npcs) if (a[0] !== b[0]) { const d = Math.hypot(a[1] - b[1], a[2] - b[2]); if (d < near) { near = d; pair = a[0] + '/' + b[0]; } }
+    check('người theo bảng không đứng đè ai (cách ≥ 2 đv)', near >= 2, near.toFixed(2) + ' ' + pair);
+    const zn = await p.evaluate(npcs => { let m = 99, w = ''; for (const n of npcs.filter(q => SK.HALL_POS[q[0]])) for (const z of SK.hall.zones()) { const d = Math.hypot(n[1] - z.x, n[2] - z.y); if (d < m) { m = d; w = n[0] + '/' + z.slot; } } return [m, w]; }, pos.npcs);
+    check('người theo bảng không đứng đè lên món nội thất (cách tâm ô ≥ 1,4 đv)', zn[0] >= 1.4, JSON.stringify(zn));
     await sleep(500); await shot(p, 'select-all');
     // vị trí không phụ thuộc thứ tự mở khoá
     const again = await p.evaluate(() => { SK.profile.unlocked.reverse(); SK.hall.enter('select'); return SK.hall.state.npcPos; });
@@ -163,7 +169,22 @@ const ALL = ['aigirl', 'airbender', 'alchemist', 'arcaneknight', 'assassin', 'as
     await p.mouse.click(hit.x, hit.y);
     const ok = await until(p, () => !document.getElementById('sk-lobby').hidden, null, 3000);
     const sel = await p.evaluate(() => SK.profile.selected || (SK.profile.sel && SK.profile.sel()) || null).catch(() => null);
-    check('bấm vào chỗ đứng của Ranger (người không neo đồ trang trí) mở màn chọn nhân vật', ok, 'sel ' + JSON.stringify(sel));
+    check('bấm vào chỗ đứng của Ranger mở màn chọn nhân vật', ok, 'sel ' + JSON.stringify(sel));
+    await p.context().close();
+
+    // ============ 3. chỉ mở Hiệp Sĩ: người phòng chính chưa mở vẫn đứng đó nhưng xám, người Sảnh 2 và c19 chưa mở không hiện
+    p = await boot({ gems: 100, welcomed: 1, won: { knight: 1 }, unlocked: ['knight'] });
+    const g = await p.evaluate(() => { SK.hall.enter('select'); return SK.hall.state; });
+    const grayWant = pos.main.filter(id => id !== 'knight' && id !== 'beheaded');
+    check('chưa mở khoá: ' + grayWant.length + ' người phòng chính đứng xám, Hiệp Sĩ có màu, người Sảnh 2 và c19 không hiện',
+      g.gray.length === grayWant.length && grayWant.every(id => g.gray.includes(id)) && g.npcs.length === grayWant.length + 1 && !g.gray.includes('knight') &&
+      !g.npcs.some(id => TBL.includes(id) || id === 'beheaded'), JSON.stringify({ n: g.npcs.length, gray: g.gray.length }));
+    await sleep(500); await shot(p, 'select-gray');
+    const hitG = await p.evaluate(() => SK.hall.npcScreen('paladin'));
+    await p.mouse.click(hitG.x, hitG.y);
+    const okG = await until(p, () => !document.getElementById('sk-lobby').hidden, null, 3000);
+    const selG = await p.evaluate(() => SK.profile.selected);
+    check('bấm người xám (Hiệp Sĩ Thánh) mở màn chọn nhân vật đó', okG && selG === 'paladin', 'sel ' + selG);
     await p.context().close();
 
     const errsReal = errs.filter(e => !/fonts\.(googleapis|gstatic)|bosses86|theme|lib|colour/.test(e));

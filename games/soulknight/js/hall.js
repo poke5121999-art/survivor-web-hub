@@ -1,6 +1,7 @@
-// Sảnh (phòng khách) của Soul Knight: nền + mặt nạ đi được từ tools/hall/build_hall.py (data/sk-hall.js), nội thất là
-// prefab <ô>_0_normal (tools/extra/hall.json). Hai chế độ như bản gốc [THẤY https://youtu.be/rhNuFTPktF4?t=74]:
-//   select: thấy cả phòng, dải "Chọn nhân vật" trên đỉnh, chạm nhân vật → màn chọn nhân vật (SK.lobby).
+// Sảnh (phòng khách) của Soul Knight: nền + mặt nạ đi được từ tools/hall/build_hall.py (data/sk-hall.js, đèn sảnh đã nướng sẵn vào
+// nền), nội thất là prefab <ô>_0_normal (tools/extra/hall.json). Hai chế độ như bản gốc [THẤY https://youtu.be/rhNuFTPktF4?t=74]:
+//   select: camera đứng ở giữa phòng (chỉ thấy một phần sảnh), dải "Chọn nhân vật" trên đỉnh, mọi nhân vật đứng ở chỗ của mình
+//           (chưa mở khoá thì xám), chạm nhân vật → màn chọn nhân vật (SK.lobby).
 //   walk:   điều khiển nhân vật vừa chọn, camera bám theo; bước vào cửa function/door_enter → bảng chế độ chơi.
 //   tương tác (walk): đứng gần món nội thất (vùng trigger của prefab) hiện tên Việt chính thức; E / Enter / chạm để dùng →
 //   SK.HALL_USE[slot](zone) (js/hall_use.js), món chưa làm hiện tên + "Chưa có ở bản web".
@@ -18,11 +19,28 @@
   top.src = H.top + '?v=' + H.v;
   // Đồ nằm sàn vẽ dưới lớp trang trí (bàn ống nghiệm, vòng phép nằm trên thảm như bản gốc).
   const FLAT = { carpet: 1 };
+  // Lớp sắp xếp của thân món [ĐO prefab hero_room/common]: đa số nằm ở lớp Wall (4), luôn dưới nhân vật (lớp Character 5) bất kể y, nên
+  // vẽ trước mọi nhân vật (người ngồi sofa không bị sofa che). Món ở lớp Character thì xếp theo y cùng nhân vật như bản gốc.
+  const CHAR_LAYER = { table: 1, plutus_cat: 1, hostess: 1, forge: 1, station: 1, token_machine: 1 };
   const skipIa = p => !!p.ia;
 
-  // Nhân vật đứng cạnh đồ trang trí mang tên mình trong prefab hall_0_normal [SUY]; lệch xuống 1,2 đv [ƯỚC LƯỢNG].
-  const DECO = { mage: 'magic_circle', vampire: 'cofin', engineer: 'toolbox', alchemist: 'tube', airbender: 'decorate_airbender',
-    warlock: 'decorate_warlock' };
+  // Camera sảnh [ĐO]: Main Camera của cảnh HeroRoom đứng ở H.camera.pos (-3, 1), giữa phòng chính. CameraSizeAdapter gọi
+  // GameUtil.EnlargeCamera (cũng gọi khi bấm xác nhận nhân vật: UIChoseHero.BtnConfirm → HideUI): cỡ trực giao theo tỉ lệ màn hình
+  // r = rộng / cao và RGGameSceneManager.select_hero, nhân GameUtil.sightFactor = 1. select_hero bật khi đã chọn nhân vật [SUY theo tên
+  // trường; chỗ gán không thấy trong mã C#, có lẽ ở Lua]:
+  //   chưa chọn (select): r > 1,65 → 9,5 (EnlargeCameraSelection1) · 1,4 < r ≤ 1,65 → 10,5 · 1 ≤ r ≤ 1,4 → 13 · r < 1 → 9,5
+  //   đã chọn (walk):     1 ≤ r ≤ 1,4 → 9,5 (EnlargeCameraInController2) · còn lại → 7,5
+  // ProCamera2D trên camera: bám mục tiêu cả hai trục, độ mượt 0, không có thành phần Boundaries → walk đặt tâm đúng chân nhân vật, không kẹp mép.
+  const CAM = (H.camera && H.camera.pos) || [(MX0 + MX1) / 2, (MY0 + MY1) / 2];
+  function orthoSize(walk, r) {
+    if (walk) return r >= 1 && r <= 1.4 ? 9.5 : 7.5;
+    return r > 1.65 || r < 1 ? 9.5 : r > 1.4 ? 10.5 : 13;
+  }
+  // Nhân vật số NN đứng ở characters/cNN của cảnh HeroRoom (H.heroes[NN] = [x, y, scaleX, bật]) [ĐO]. Bản gốc dựng mọi nhân vật ở chỗ của
+  // mình (MapManagerHall.CreateHero gắn RGCharGray): chưa mở khoá thì vẫn đứng đó nhưng xám (RGController.GetGray bật từ khoá GRAY_ON của
+  // shader Custom/ShaderHitOutline: màu = dot(rgb, (0,299; 0,587; 0,114))). c19 tắt sẵn, chỉ hiện khi đã mở (ShouldHideLockedBeheadedInHall).
+  // Chỗ có y > 15 thuộc Sảnh 2 (hero_room/second_hall) web chưa có: người ở đó chỉ hiện khi đã mở, đứng theo bảng SK.HALL_POS (js/hall5.js).
+  const SECOND_HALL_Y = 15;
   const hall = { mode: 'select', t: 0, me: null, npcs: [], doorT: 0, near: null };
   SK.hallState = hall;
 
@@ -57,7 +75,7 @@
   };
   const REACH = 1.0;      // đứng cách vùng trigger tới 1 đv vẫn dùng được (≈ 2 đv tính từ tâm món nhỏ) [ƯỚC LƯỢNG]
   const LABEL_H = 2.5;    // nhãn cao 2,5 đv trên gốc ô [ĐO mbs Item*.label_height, hall_0_normal prefabs]
-  // Máy Đổi nằm ở khu Xưởng gốc (chưa có ở web): đặt ở sàn trống, Máy Game không có prefab: cả hai vẽ khối giữ chỗ [ƯỚC LƯỢNG].
+  // Khối giữ chỗ khi thiếu prefab (dữ liệu dựng cũ); Máy Đổi và Máy Game nay đều vẽ bằng prefab gốc (tools/extra/hall5.json).
   const KIOSK = { token_machine: { col: '#2f7a5a', screen: '#9dffcb' }, arcade_machine: { col: '#5b3f94', screen: '#7ff0ff' } };
   // Khu Xưởng gốc (bên phải) chưa có ở web: Bàn Rèn, Bàn Thiết Kế, Máy Đổi là prefab gốc hero_room/common (workshop/common/*.prefab)
   // đặt ở hàng sàn dưới của phòng chính; vị trí [ƯỚC LƯỢNG], thử lần lượt tới chỗ đi được.
@@ -138,14 +156,22 @@
   }
 
   function placeNpcs() {
-    const spots = freeSpots();
-    hall.npcs = SK.profile.unlocked.filter(id => DS.heroes[id] && D.heroes[id]).map(id => {
-      if (SK.profile.skinOf(id)) SK.loadPack(id);
-      const d = H.deco[DECO[id]];
-      // Bảng đứng cố định theo nhân vật (js/hall5.js) thay cho ô trống theo thứ tự mở khoá; hết bảng mới rơi về ô trống.
-      const tp = SK.HALL_POS && SK.HALL_POS[id], [x, y] = d ? [d[0], d[1] - 1.2] : (tp ? [tp[0], tp[1]] : (spots.shift() || [0, 0]));
-      return { id, x, y, face: x > 0 ? -1 : 1 };
-    });
+    const P = SK.profile, spots = freeSpots();
+    hall.npcs = [];
+    for (const id of Object.keys(D.heroes)) {
+      if (!DS.heroes[id]) continue;
+      const open = P.isUnlocked(id), s0 = D.heroes[id].s0, c = H.heroes && s0 && H.heroes[s0.index];
+      let x, y, face;
+      if (c && c[1] < SECOND_HALL_Y && (c[3] || open)) { x = c[0]; y = c[1]; face = c[2] < 0 ? -1 : 1; }
+      else if (open) {
+        // Người của Sảnh 2: bảng cố định theo nhân vật (js/hall5.js), hết bảng mới rơi về ô trống.
+        const tp = SK.HALL_POS && SK.HALL_POS[id];
+        [x, y] = tp ? [tp[0], tp[1]] : (spots.shift() || [0, 0]);
+        face = x > 0 ? -1 : 1;
+      } else continue;
+      if (open && P.skinOf(id)) SK.loadPack(id);
+      hall.npcs.push({ id, x, y, face, gray: !open });
+    }
   }
 
   addWorkshop();
@@ -169,7 +195,8 @@
     hall.t += dt;
     const I = SK.input, me = hall.me;
     if (hall.mode === 'select') {
-      if (I.hit('confirm') && hall.npcs.length) pick(hall.npcs[0].id);
+      const n = hall.npcs.find(q => q.id === SK.profile.selected && !q.gray) || hall.npcs.find(q => !q.gray);
+      if (I.hit('confirm') && n) pick(n.id);
       return;
     }
     const ov = lobbyEl().classList.contains('only-modes'), dlg = !!(SK.lobby && SK.lobby.dialogOpen);
@@ -232,27 +259,39 @@
   }
 
   // ---------------------------------------------------------------- vẽ (trên canvas HUD, điểm ảnh thật)
+  // Camera trực giao như bản gốc (orthoSize, CAM ở trên): z = điểm ảnh màn hình / điểm ảnh sprite, khung cao 2 · cỡ đv.
   function view() {
-    const ctx = SK.hudCtx, W = ctx.canvas.width, Hh = ctx.canvas.height, v = SK.view;
-    const iw = (X1 - X0) * U, ih = (Y1 - Y0) * U;
-    if (hall.mode === 'select') {
-      const mw = (MX1 - MX0) * U, mh = (MY1 - MY0) * U, bar = Hh * 0.075, z = Math.min(W / mw, (Hh - bar) / mh);
-      return { z, ox: (W - mw * z) / 2 - (MX0 - X0) * U * z, oy: bar + (Hh - bar - mh * z) / 2 - (Y1 - MY1) * U * z, bar };
-    }
-    const z = v.scale * v.dpr, me = hall.me;
-    const cx = SK.clamp((me.x - X0) * U * z - W / 2, Math.min(0, iw * z - W), Math.max(0, iw * z - W));
-    const cy = SK.clamp((Y1 - me.y) * U * z - Hh / 2, Math.min(0, ih * z - Hh), Math.max(0, ih * z - Hh));
-    return { z, ox: -cx, oy: -cy, bar: 0 };
+    const ctx = SK.hudCtx, W = ctx.canvas.width, Hh = ctx.canvas.height, me = hall.mode === 'walk' && hall.me;
+    const z = Hh / (2 * orthoSize(!!me, W / Hh) * U), [cx, cy] = me ? [me.x, me.y] : CAM;
+    return { z, ox: W / 2 - (cx - X0) * U * z, oy: Hh / 2 - (Y1 - cy) * U * z, bar: me ? 0 : Hh * 0.075 };
   }
   const px = (x, y) => [(x - X0) * U, (Y1 - y) * U];
 
-  function drawHero(ctx, id, x, y, face, moving, t) {
-    const hd = SK.heroSkin(id, SK.profile.skinOf(id));
+  // Khung xám của nhân vật chưa mở khoá: GRAY_ON của Custom/ShaderHitOutline, màu = dot(rgb, (0,299; 0,587; 0,114)) [ĐO shader]. Mỗi khung tính một lần.
+  const grayCache = {};
+  function grayFrame(name) {
+    if (grayCache[name]) return grayCache[name];
+    const f = SK.frame(name), img = f && SK.pages[f[0]];
+    if (!img) return null;   // trang atlas chưa nạp: thử lại ở khung hình sau
+    const c = document.createElement('canvas'), x = c.getContext('2d');
+    c.width = f[3]; c.height = f[4];
+    x.drawImage(img, f[1], f[2], f[3], f[4], 0, 0, f[3], f[4]);
+    const d = x.getImageData(0, 0, f[3], f[4]), p = d.data;
+    for (let i = 0; i < p.length; i += 4) p[i] = p[i + 1] = p[i + 2] = 0.299 * p[i] + 0.587 * p[i + 1] + 0.114 * p[i + 2];
+    x.putImageData(d, 0, 0);
+    return (grayCache[name] = { c, ax: Math.round(f[5]), ay: Math.round(f[6]) });
+  }
+  function drawHero(ctx, id, x, y, face, moving, t, gray) {
+    const hd = SK.heroSkin(id, gray ? 0 : SK.profile.skinOf(id));
     if (!hd) return;
-    const [hx, hy] = px(x, y);
+    const [hx, hy] = px(x, y), fr = SK.animFrame(moving ? hd.run : hd.idle, t);
     ctx.fillStyle = 'rgba(0,0,0,0.35)';
     ctx.beginPath(); ctx.ellipse(hx, hy, 6, 2.2, 0, 0, Math.PI * 2); ctx.fill();
-    SK.draw(ctx, SK.animFrame(moving ? hd.run : hd.idle, t), hx, hy, { flip: face < 0 });
+    if (!gray) { SK.draw(ctx, fr, hx, hy, { flip: face < 0 }); return; }
+    const g = grayFrame(fr);
+    if (!g) return;
+    ctx.save(); ctx.translate(Math.round(hx), Math.round(hy)); if (face < 0) ctx.scale(-1, 1);
+    ctx.drawImage(g.c, -g.ax, -g.ay); ctx.restore();
   }
 
   // Khối giữ chỗ cho món chưa có prefab (Máy Game, Máy Đổi): thân máy + màn hình sáng, vẽ tay.
@@ -265,16 +304,12 @@
     ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillRect(x - W / 2, y - Hh, W, 1);
     ctx.fillStyle = '#14161c'; ctx.fillRect(x - 4, y - 8, 8, 2); ctx.fillRect(x - 5, y - 5, 3, 2); ctx.fillRect(x + 2, y - 5, 3, 2);
   }
-  // Khung nét đứt quanh vùng món chưa có bản vẽ + chữ "Cần bản vẽ".
-  function drawLock(ctx, z) {
-    if (!z) return;
-    const [x0, y0] = px(z.box[0] - 0.25, z.box[3] + 0.25), [x1, y1] = px(z.box[2] + 0.25, z.box[1] - 0.25);
-    ctx.save();
-    ctx.setLineDash([3, 2]); ctx.lineWidth = 1; ctx.strokeStyle = '#aab2bf'; ctx.fillStyle = 'rgba(40,46,58,0.45)';
-    ctx.fillRect(x0, y0, x1 - x0, y1 - y0); ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
-    ctx.setLineDash([]); ctx.font = '7px "Be Vietnam Pro", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#e6ebf3'; ctx.fillText('Cần bản vẽ', (x0 + x1) / 2, (y0 + y1) / 2);
-    ctx.restore();
+  // Ô nội thất mở bằng bản vẽ mà chưa xây: bản gốc chỉ hiện nút empty của ItemRoomDecorateSlot, tức biển gỗ objects_common_35 trên bóng
+  // shadow3 (H.empty[ô], lệch từ gốc ô) [ĐO prefab hall_0_normal / garden_0_normal]. Tượng không có ô gốc ở sảnh/vườn: dùng hình của Giếng [SUY].
+  function drawEmpty(ctx, slot, x, y) {
+    const parts = H.empty && (H.empty[slot] || H.empty.magic_well);
+    if (!parts) return;
+    for (const [f, dx, dy] of parts.slice().sort((a, b) => a[3] - b[3] || a[4] - b[4])) { const [sx, sy] = px(x + dx, y + dy); SK.draw(ctx, f, sx, sy); }
   }
   // Nhãn tên món (điểm ảnh HUD thật): ô tối bo tròn, tên Việt, dòng phím dùng bên dưới; kẹp trong khung hình.
   function drawLabel(ctx, z, z0, ox, oy, main) {
@@ -309,27 +344,26 @@
     ctx.save();
     if (hall.mode === 'select') { ctx.beginPath(); ctx.rect((MX0 + 1 - X0) * U, (Y1 - MY1) * U, (MX1 - MX0 - 1) * U, (MY1 - MY0) * U); ctx.clip(); }   // cột đệm trái của phòng chính nằm sát sàn vườn: bỏ
     if (img.complete && img.naturalWidth) ctx.drawImage(img, 0, 0);
-    // Nội thất cần bản vẽ (SK.HALL_LOCK(slot) trả chuỗi khoá, js/hall_ext.js) vẽ xám mờ trong khung nét đứt "Cần bản vẽ".
+    // Nội thất cần bản vẽ (SK.HALL_LOCK(slot) trả chuỗi khoá, js/hall_ext.js) chưa xây: chỉ vẽ biển gỗ của ô (drawEmpty).
     const drawF = f => {
-      const [x, y] = px(f.s.x, f.s.y), lk = SK.HALL_LOCK && SK.HALL_LOCK(f.s.slot);
-      if (lk) { ctx.save(); ctx.globalAlpha = 0.3; }
+      if (SK.HALL_LOCK && SK.HALL_LOCK(f.s.slot)) { drawEmpty(ctx, f.s.slot, f.s.x, f.s.y); return; }
+      const [x, y] = px(f.s.x, f.s.y);
       SK.drawPrefab(ctx, f.parts, x, y, { t: hall.t, skip: skipIa });
-      if (lk) { ctx.restore(); drawLock(ctx, zones.find(q => q.slot === f.s.slot)); }
     };
     for (const f of furniture) if (FLAT[f.s.slot]) drawF(f);
     if (top.complete && top.naturalWidth) ctx.drawImage(top, 0, 0);
-    const list = furniture.filter(f => !FLAT[f.s.slot]).map(f => ({ y: f.s.y, fn: () => drawF(f) }));
-    for (const n of hall.npcs) list.push({ y: n.y, fn: () => drawHero(ctx, n.id, n.x, n.y, n.face, false, hall.t + n.x) });
+    const list = furniture.filter(f => !FLAT[f.s.slot]).map(f => ({ y: f.s.y, wall: !CHAR_LAYER[f.s.slot], fn: () => drawF(f) }));
+    for (const n of hall.npcs) list.push({ y: n.y, fn: () => drawHero(ctx, n.id, n.x, n.y, n.face, false, hall.t + n.x, n.gray) });
     for (const z of zones) {
       if (z.draw) list.push({ y: z.y, fn: () => { const [x, y] = px(z.x, z.y); z.draw(ctx, x, y, hall.t, z); } });
       else if (z.kiosk) list.push({ y: z.y, fn: () => drawKiosk(ctx, z) });
-      else if (z.parts) list.push({ y: z.y, fn: () => { const [x, y] = px(z.x, z.y); SK.drawPrefab(ctx, z.parts, x, y, { t: hall.t, state: 'closed' }); } });
+      else if (z.parts) list.push({ y: z.y, wall: !CHAR_LAYER[z.slot], fn: () => { const [x, y] = px(z.x, z.y); SK.drawPrefab(ctx, z.parts, x, y, { t: hall.t, state: 'closed' }); } });
     }
     const me = hall.me;
     if (me) list.push({ y: me.y, fn: () => drawHero(ctx, me.id, me.x, me.y, me.face, me.moving, hall.t) });
     const pt = hall.pet, petParts = D.prefabs[SK.profile.pet()] || D.prefabs.pet0;
     if (pt && petParts) list.push({ y: pt.y, fn: () => { const [x, y] = px(pt.x, pt.y); SK.drawPrefab(ctx, petParts, x, y, { state: pt.st, t: pt.t, flip: pt.face < 0 }); } });
-    list.sort((a, b) => b.y - a.y);
+    list.sort((a, b) => (b.wall ? 1 : 0) - (a.wall ? 1 : 0) || b.y - a.y);
     for (const e of list) e.fn();
     ctx.restore();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -396,7 +430,7 @@
     // Móc kiểm thử: vùng tương tác của từng món, món đang gần, dùng thẳng một món, bật nhãn mọi món, toạ độ CSS của nhãn.
     zones: () => zones.map(q => ({ slot: q.slot, name: q.name, loc: q.loc, x: q.x, y: q.y, box: q.box.slice(), kiosk: !!q.kiosk, idx: q.idx })),
     // Thêm món nội thất từ module khác (Khu Vườn): addZone(slot, x, y, prefab?, {name, loc, use(z), draw(ctx, px, py, t, z), ...}).
-    addZone, px, bounds: H.bounds, drawLock,
+    addZone, px, bounds: H.bounds, drawEmpty: (ctx, z) => drawEmpty(ctx, z.slot, z.x, z.y),
     near: () => hall.near && { slot: hall.near.slot, name: hall.near.name },
     petPos: () => hall.pet && { x: hall.pet.x, y: hall.pet.y },
     nearAt: (x, y) => { const q = nearest(x, y); return q && q.slot; },
@@ -408,6 +442,9 @@
       const ctx = SK.hudCtx, r = ctx.canvas.getBoundingClientRect(), dpr = ctx.canvas.width / r.width;
       return { x: r.left + (labelBox.x + labelBox.w / 2) / dpr, y: r.top + (labelBox.y + labelBox.h / 2) / dpr };
     },
-    get state() { return { mode: hall.mode, me: hall.me && Object.assign({}, hall.me), npcs: hall.npcs.map(n => n.id), npcPos: hall.npcs.map(n => [n.id, n.x, n.y]), door: H.door, near: hall.near && hall.near.slot }; }
+    get state() {
+      return { mode: hall.mode, me: hall.me && Object.assign({}, hall.me), npcs: hall.npcs.map(n => n.id), npcPos: hall.npcs.map(n => [n.id, n.x, n.y]),
+        gray: hall.npcs.filter(n => n.gray).map(n => n.id), door: H.door, near: hall.near && hall.near.slot, view: view() };
+    }
   };
 })();

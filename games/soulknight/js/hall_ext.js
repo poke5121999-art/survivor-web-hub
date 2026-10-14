@@ -1,6 +1,6 @@
 // Sảnh bước 7 + 9 (tools/polish/HALL.md): nội thất mở bằng bản vẽ và Cảnh Sát.
 //   Bản vẽ nội thất (blueprint_room_decorate_*, nghiên cứu ở Bàn Thiết Kế, P.devd) quyết định món có dùng được không: chưa nghiên cứu thì món vẽ
-//   xám trong khung nét đứt "Cần bản vẽ" (SK.HALL_LOCK, js/hall.js), nghiên cứu xong thì dùng được ngay. Vật liệu trừ ở Bàn Thiết Kế theo
+//   như ô chưa xây của bản gốc, chỉ có biển gỗ (SK.HALL_LOCK, SK.hall.drawEmpty ở js/hall.js), nghiên cứu xong thì dùng được ngay. Vật liệu trừ ở Bàn Thiết Kế theo
 //   [CFG items.blueprint_room_decorate_*] (3000 đá...), bản wiki cũ ghi 300 đá nên không trừ thêm lần hai ở món.
 //   Máy Nước (drink_seller)   : mua đồ uống bằng đá, mang vào ván kế (SK.profile.drinks), tối đa 3 ly.
 //   Hồ Cá (fish_bowl)          : câu cá (bấm Thu Cần khi cá trùng nút), cá = vũ khí dùng một ván (vào ô đồ rèn, tự chọn mang theo).
@@ -220,23 +220,28 @@
   // ---------------------------------------------------------------- đặt vào sảnh
   const WELL_AT = [-27.6, 0.9], STATUE_AT = [-16.2, -4.6], OFFICER_AT = [-15.4, 5.6];   // chỗ sàn trống đo bằng mặt nạ đi được (ngoài vùng mọi món khác) [ĐO]
   const locked = slot => !!SK.HALL_LOCK(slot);
+  // Chưa xây: chỉ biển gỗ của ô (SK.hall.drawEmpty), không vẽ món.
   function lockWrap(ctx, z, fn) {
-    if (locked(z.slot)) { ctx.save(); ctx.globalAlpha = 0.3; fn(); ctx.restore(); SK.hall.drawLock(ctx, z); } else fn();
+    if (locked(z.slot)) SK.hall.drawEmpty(ctx, z); else fn();
   }
   SK.hall.addZone('magic_well', WELL_AT[0], WELL_AT[1], 'magic_well_0_normal', {
     name: 'Giếng Phép Thuật', loc: 'object/magic_well', use: gate('magic_well', () => wellDlg()),
     draw(ctx, x, y, t, z) {
       const parts = D.prefabs.magic_well_0_normal;
-      ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(x, y + 1, 12, 4, 0, 0, Math.PI * 2); ctx.fill();
-      lockWrap(ctx, z, () => SK.drawPrefab(ctx, parts, x, y, { t, skip: p => /fishing/.test(p.n) }));
+      lockWrap(ctx, z, () => {
+        ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(x, y + 1, 12, 4, 0, 0, Math.PI * 2); ctx.fill();
+        SK.drawPrefab(ctx, parts, x, y, { t, skip: p => /fishing/.test(p.n) });
+      });
     }
   });
   SK.hall.addZone('statue', STATUE_AT[0], STATUE_AT[1], null, {
     name: 'Tượng Tín Ngưỡng', loc: 'object/mysteriou_statue', use: gate('statue', () => statueDlg()), box: [STATUE_AT[0] - 1, STATUE_AT[1] - 0.8, STATUE_AT[0] + 1, STATUE_AT[1] + 1.2],
     draw(ctx, x, y, t, z) {
       const id = S.statue || 1, pf = SK.prefab('statue_' + (id < 10 ? '0' + id : id));
-      ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(x, y + 1, 12, 4, 0, 0, Math.PI * 2); ctx.fill();
-      if (pf) lockWrap(ctx, z, () => SK.drawPrefab(ctx, pf, x, y, { t }));
+      lockWrap(ctx, z, () => {
+        ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(x, y + 1, 12, 4, 0, 0, Math.PI * 2); ctx.fill();
+        if (pf) SK.drawPrefab(ctx, pf, x, y, { t });
+      });
     }
   });
 

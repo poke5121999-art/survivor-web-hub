@@ -128,7 +128,7 @@ Có: 9 sinh vật bán ở Thương Nhân Thú Cưỡi trong phòng đặc biệ
 
 
 ## Sảnh bước 7 + 9 (js/hall_ext.js; kiểm: test/soulknight-hall4.js)
-Có: bản vẽ nội thất (Máy Nước, Hồ Cá, Giếng Phép Thuật, Tượng) quyết định món dùng được (chưa nghiên cứu: vẽ mờ trong khung "Cần bản vẽ"); Máy Nước (đồ uống 11 loại, tối đa 3 ly mang vào ván); Hồ Cá (câu cá bấm Thu Cần, cá = vũ khí 1 ván); Giếng Phép Thuật ở Vườn (Cầu Năng Lượng 8 -> 9); Tượng Tín Ngưỡng (300 +100/lần, tối đa 1300, kích hoạt khi dùng kỹ năng); Cảnh Sát (treo thưởng đánh bại / thu thập dùng SK.FACTORS, thưởng đá + vật liệu, độ khó "khó" thưởng bản vẽ nội thất). Hồ Cá vốn nằm ngoài tầm với của hàng sàn cuối: kéo vùng tương tác lên sàn (hall.js BOX_FIX).
+Có: bản vẽ nội thất (Máy Nước, Hồ Cá, Giếng Phép Thuật, Tượng) quyết định món dùng được (chưa nghiên cứu: chỉ có biển gỗ của ô chưa xây như bản gốc, SK.hall.drawEmpty); Máy Nước (đồ uống 11 loại, tối đa 3 ly mang vào ván); Hồ Cá (câu cá bấm Thu Cần, cá = vũ khí 1 ván); Giếng Phép Thuật ở Vườn (Cầu Năng Lượng 8 -> 9); Tượng Tín Ngưỡng (300 +100/lần, tối đa 1300, kích hoạt khi dùng kỹ năng); Cảnh Sát (treo thưởng đánh bại / thu thập dùng SK.FACTORS, thưởng đá + vật liệu, độ khó "khó" thưởng bản vẽ nội thất). Hồ Cá vốn nằm ngoài tầm với của hàng sàn cuối: kéo vùng tương tác lên sàn (hall.js BOX_FIX).
 
 | Thiếu | Lý do / cách xử lý |
 |---|---|
