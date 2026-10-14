@@ -99,7 +99,7 @@
   function finish() {
     T.on = false;
     if (cv) cv.style.display = 'none';
-    if (SK.G.state === 'title') SK.hall.enter('select');
+    if (SK.G.state === 'title') SK.enterHome();
   }
 
   function tick(dt) {
