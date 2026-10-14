@@ -700,6 +700,14 @@
     nodeScreen(R, nd.W, S);
     const k = (f[7] || 1) / U, sr = nd.d.sr || {};
     const fx = sr.fx ? -1 : 1, fy = sr.fy ? -1 : 1;
+    // nd.custom: nút do shader riêng của game vẽ (xoáy cổng, js/portalfx.js); chạy trong toạ độ khung, ảnh nguồn không dùng.
+    if (nd.custom) {
+      if (nd.col[3] <= 0.003) return;
+      ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+      setT(ctx, B, S[0] * k * fx, S[3] * k * fx, -S[1] * k * fy, -S[4] * k * fy, S[6], S[7]);
+      nd.custom(ctx, -f[5], -f[6], f[3], f[4], h, nd);
+      return;
+    }
     let c = nd.col;
     const t = h.tint, m = sr.tint; // m: tint vật liệu (shader Particles cổ = 2 × _TintColor, có thể > 1)
     const cr = c[0] * (t ? t[0] : 1) * (m ? m[0] : 1), cg = c[1] * (t ? t[1] : 1) * (m ? m[1] : 1), cb = c[2] * (t ? t[2] : 1) * (m ? m[2] : 1);

@@ -174,8 +174,12 @@
       if (h) {
         h.portalOf = pt; h.tapNode = h.nodes.find(n => n.d.n === 'tap'); G._portalFx = h;
         // main và innerWhirl là quad UISprite trắng chạy bằng shader xoáy của Unity (tools/README: UISprite là quad màu trơn);
-        // vẽ kiểu sprite thành hai mảng trắng, nên bỏ như engine.js bỏ GLOW_FRAMES. Quầng light_01, lỗ portal_center, hạt giữ nguyên.
-        for (const n of h.nodes) if (n.spr === 'UISprite') n.en = false;
+        // vẽ kiểu sprite thành hai mảng trắng.
+        // Có SK.portalFx (js/portalfx.js, shader gốc) thì hai quad do nó vẽ; không có thì bỏ như trước.
+        for (const n of h.nodes) {
+          if (n.spr !== 'UISprite') continue;
+          if (SK.portalFx) n.custom = SK.portalFx.quad(n.d.n === 'main' ? 'outer' : 'inner'); else n.en = false;
+        }
       }
     }
     if (h && h.tapNode) h.tapNode.on = !!(G.interactTarget && G.interactTarget.portal);
