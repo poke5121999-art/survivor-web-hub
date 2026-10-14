@@ -360,7 +360,7 @@
     return hurt0.call(this, G, dmg, ...rest);
   };
   SK.on('runStart', G => {
-    const p = G.player; if (!p || G.mode === 'bossrush') return;
+    const p = G.player; if (!p || G.mode === 'bossrush' || G.mode === 'tutorial') return;
     const run = G.hallRun = { drinks: S.drinks.slice(), well: !!S.well, statue: S.statue };
     for (const k of S.drinks) if (DRINKS[k]) DRINKS[k].on(G, p);
     if (S.drinks.length) toast('Đã uống: ' + S.drinks.map(k => DRINKS[k].vi).join(', '), 3);

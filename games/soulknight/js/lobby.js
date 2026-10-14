@@ -114,7 +114,10 @@
   const HEROES = Object.keys(DS.heroes).filter(id => D.heroes && D.heroes[id])
     .sort((a, b) => D.heroes[a].s0.index - D.heroes[b].s0.index);
 
+  P.flags = isObj(P.flags) ? P.flags : {};   // cờ một lần {tutorialDone: 1, ...} (js/tutorial.js)
   SK.profile = {
+    flag: k => !!P.flags[k],
+    setFlag(k, on) { if (on === false) delete P.flags[k]; else P.flags[k] = 1; save(); },
     get gems() { return P.gems; },
     get unlocked() { return P.unlocked.slice(); },
     get selected() { return P.selected; },
@@ -1065,7 +1068,7 @@
     const b = upgradeBonus(p.hero);
     p.hpMax += b.hp; p.hp += b.hp; p.armorMax += b.armor; p.armor += b.armor; p.energyMax += b.energy; p.energy += b.energy;
     // Két Sắt: vàng khởi đầu mỗi ván [LOC Object_safe_info "Vàng ban đầu"]; Khu Thí Luyện không có vàng nên bỏ.
-    const noOutside = G2.mode === 'bossrush' || G2.mode === 'matrix';   // chế độ không mang đồ ngoài thế giới
+    const noOutside = G2.mode === 'bossrush' || G2.mode === 'matrix' || G2.mode === 'tutorial';   // chế độ không mang đồ ngoài thế giới
     if (!noOutside) p.gold += SK.profile.safe.gold;
     // Rương: vũ khí đã chọn (hòm hoặc đồ rèn) vào ô thứ hai; chế độ một vũ khí / Khu Thí Luyện không nhận, giữ lại cho ván sau.
     const c = SK.profile.carry;

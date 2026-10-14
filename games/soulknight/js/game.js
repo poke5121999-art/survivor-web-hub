@@ -13,6 +13,7 @@
     if (mode === 'troopgc') { STAGES.push({ theme: DS.run[0][0], level: DS.run[0][1], n: 1, label: 'GC', boss: false, br: false }); return; }   // một sân khấu: 15 vòng chạy trong js/troopgc.js
     if (mode === 'defence') { STAGES.push({ theme: DS.run[0][0], level: DS.run[0][1], n: 1, label: 'D-1', boss: false, br: false }); return; }   // một phòng Đá Phép (js/defence.js)
     if (mode === 'matrix') { addFloor(1); return; }   // Mê Trận Tà Vương: mỗi tầng nối thêm khi qua cổng x-5 (SK.matrixNextFloor)
+    if (mode === 'tutorial' && SK.tutorial) { STAGES.push(SK.tutorial.stage()); return; }   // ải hướng dẫn: phòng đặt sẵn (js/tutorial.js)
     for (const [theme, level] of DS.run) for (let i = 1; i <= 5; i++) {
       STAGES.push({ theme, level, n: i, label: level + '-' + i, boss: br || i === 5, br });
     }
@@ -42,6 +43,7 @@
   SK.tierThemes = level => Object.keys(D.themes).filter(k => D.themes[k].level === level);
   SK.tierAnchor = level => (DS.run.find(r => r[1] === level) || DS.run[0])[0];
   function rollThemes() {
+    if (G.mode === 'tutorial') return;   // ải hướng dẫn giữ theme của bundle tutorial (forest)
     const pin = PIN ? PIN.split(',') : null;
     if (G.mode === 'matrix') {
       G.mxThemes = DS.run.map(([, level], t) => pin && D.themes[pin[t]] ? pin[t] : SK.pick(SK.tierThemes(level)));
@@ -239,7 +241,7 @@
     G.factors = Array.isArray(factors) ? factors.slice() : [];
     if (SK.factorsOn) SK.factorsOn(G); else G.mods = {};
     G.player = null; G.kills = 0; G.state = 'stage';
-    G.mode = mode === 'bossrush' || mode === 'matrix' || mode === 'void' || mode === 'troop' || mode === 'troopgc' || mode === 'defence' || mode === 'artifacts' ? mode : 'level'; G.bossSeen = [];
+    G.mode = mode === 'bossrush' || mode === 'matrix' || mode === 'void' || mode === 'troop' || mode === 'troopgc' || mode === 'defence' || mode === 'artifacts' || mode === 'tutorial' ? mode : 'level'; G.bossSeen = [];
     if (G.mode === 'matrix') { G.factors = []; if (SK.factorsOn) SK.factorsOn(G); }   // nhân tố do Tà Vương ban, không tự chọn
     G.matrix = G.mode === 'matrix' && SK.matrix ? SK.matrix.init(G) : null;
     G.troop = G.mode === 'troop' && SK.troop ? SK.troop.init(G) : null;   // Chỉ Huy Nhỏ: người chơi là pet, thuê anh hùng làm lính (js/troop.js)
@@ -439,7 +441,11 @@
     document.getElementById('sk-win-retry').onclick = () => SK.lobby.enter();
     Promise.all([SK.loadArt(), SK.ugui.load ? SK.ugui.load() : null]).then(() => {
       document.body.classList.add('ready');
-      if (SK.QUICK || !SK.hall) SK.lobby.enter(); else if (SK.title && SK.title.want()) SK.title.show(); else SK.hall.enter('select');
+      // Sau màn tựa: lần mở đầu (hồ sơ chưa có cờ tutorialDone) chạy màn kể chuyện + ải hướng dẫn rồi mới vào sảnh (js/tutorial.js).
+      SK.enterHome = () => {
+        if (SK.tutorial && SK.tutorial.auto()) SK.tutorial.start(() => SK.hall.enter('select')); else SK.hall.enter('select');
+      };
+      if (SK.QUICK || !SK.hall) SK.lobby.enter(); else if (SK.title && SK.title.want()) SK.title.show(); else SK.enterHome();
       SK.startLoop(step, render);
     });
   };

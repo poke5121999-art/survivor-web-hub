@@ -154,7 +154,7 @@
   // Thiên phú: lấy qua SK.ROOMS.takeBuff rồi +1 ô thiên phú để buff cây không chiếm ô. Ô thiên phú thêm / thức uống / thú cưng đi kèm cũng áp ở đây.
   SK.on('runStart', G2 => {
     const g = S(), p = G2.player;
-    if (!p || G2.mode === 'bossrush') return;
+    if (!p || G2.mode === 'bossrush' || G2.mode === 'tutorial') return;
     const took = [];
     for (const id of g.buffs) if (R().takeBuff && R().takeBuff(id)) { G2.mods = G2.mods || {}; G2.mods.buffSlots = (G2.mods.buffSlots || 0) + 1; took.push(id); }
     if (g.slots) { G2.mods = G2.mods || {}; G2.mods.buffSlots = (G2.mods.buffSlots || 0) + g.slots; }
