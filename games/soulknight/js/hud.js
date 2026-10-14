@@ -256,7 +256,7 @@
       if (sp) logo.img.sp = sp; else logo.off = 1;
       rooms.k.push(n);
     }
-    UI.q('map_info_root/miniMap/levelText').txt.s = G.stage.label;
+    UI.q('map_info_root/miniMap/levelText').txt.s = G.stage.mini != null ? G.stage.mini : G.stage.label;   // mini: nhãn dưới bản đồ nhỏ (ải hướng dẫn để trống vì tên dài đè lên bản đồ)
   }
 
   // Số sát thương theo UIDamageText gốc (common.ab › register/damage_text.prefab) [ĐO]:

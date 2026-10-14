@@ -34,5 +34,5 @@ nhân vật (tranh nạp chậm ~1 s, không phải lỗi).
 - [x] U1 chết → hồi sinh → GAME OVER (#1): `js/gameover.js`, `test/soulknight-gameover.js` (rev 20261014a)
 - [x] U2 vũ khí trên đất: tên + dải chỉ số (#4): `js/hud.js` item_info, `test/soulknight-floorweapon.js`; mũi tên gốc chưa tìm ra sprite nên bỏ (rev 20261014a)
 - [x] U3 màn tiêu đề (#2): `js/title.js`, `tools/title/build_title.py`, `test/soulknight-title.js`; bố cục [ƯỚC LƯỢNG] vì scene tiêu đề nằm trong data.unity3d (rev 20261014a)
-- [ ] U4 lời mở truyện + ải hướng dẫn (#3)
+- [x] U4 lời mở truyện + ải hướng dẫn (#3): `js/tutorial.js`, `tools/tutorial/build_tutorial.py`, `test/soulknight-tutorial.js`; luồng màn tựa → `SK.enterHome` → hướng dẫn (lần đầu) → sảnh (rev 20261014b). Giản lược: quái hiện khi khoá phòng, chết thì chơi lại ải, chưa có lời nhắc bấm nút kỹ năng
 - [ ] Gộp, tăng rev, đẩy, kiểm trên Pages, chụp cạnh khung clip

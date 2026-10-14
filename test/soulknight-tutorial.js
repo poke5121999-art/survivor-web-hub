@@ -3,7 +3,7 @@
  * mở game (?tutorial=auto: bật luật "lần đầu" cho trình duyệt tự động) → màn kể chuyện 3 câu → ải hướng dẫn → bảng mẹo →
  * mở rương, nhặt Súng Máy → phòng đánh khoá rào, diệt quái (bất tử) → CLEAR → qua cả 7 phòng → cổng → màn tải → sảnh;
  * hồ sơ có cờ tutorialDone, tải lại trang thì vào thẳng sảnh. Đường đi giữa hai điểm tìm bằng BFS trên ô (chỉ để biết bấm phím nào).
- * Chạy: python -m http.server 8824 (ở gốc repo) rồi  node test/soulknight-tutorial.js   (SK_URL để chạy trên Pages)
+ * Chạy: python -m http.server 8811 (ở gốc repo) rồi  node test/soulknight-tutorial.js   (SK_URL để chạy trên Pages)
  */
 const PW = process.env.PLAYWRIGHT_PATH || 'C:/Users/tamph/AppData/Roaming/npm/node_modules/@playwright/cli/node_modules/playwright';
 const { chromium } = require(PW);
@@ -11,7 +11,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
-const BASE = process.env.SK_URL || 'http://localhost:8824/games/soulknight/index.html';
+const BASE = process.env.SK_URL || 'http://localhost:8811/games/soulknight/index.html';
 const URL = BASE + (BASE.indexOf('?') >= 0 ? '&' : '?') + 'tutorial=auto';
 const SHOTS = process.env.SK_SHOTS || path.join(os.tmpdir(), 'soulknight-tutorial');
 fs.mkdirSync(SHOTS, { recursive: true });

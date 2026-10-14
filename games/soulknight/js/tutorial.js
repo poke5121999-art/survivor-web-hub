@@ -96,7 +96,7 @@
       }).filter(e => e[0] !== '=undefined') }
     }));
   }
-  tut.stage = () => ({ theme: TD.theme, level: 1, n: 1, label: TD.label, boss: false, br: false, tutorial: true,
+  tut.stage = () => ({ theme: TD.theme, level: 1, n: 1, label: TD.label, mini: '', boss: false, br: false, tutorial: true,
     layout: layout(), spacing: TD.map.spacing });
 
   // Toạ độ Unity so với tâm phòng (đv, y lên) -> px thế giới web; chân vật ở đáy ô như vật cản của js/world.js.
