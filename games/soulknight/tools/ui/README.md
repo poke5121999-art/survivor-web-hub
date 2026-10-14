@@ -116,6 +116,9 @@ Text: xuống dòng ở khoảng trắng khi quá bề ngang (trừ khi `ho`), h
     Scene lưu lv của mode1 chưa xếp (p = 0); mode3 lưu sẵn kết quả HorizontalLayoutGroup childForceExpandWidth (ô đều nhau,
     con ở mép trái ô). ugui.js chưa chia phần dư này nên gameover.js xếp tay theo đúng cách đó.
   - `btn_ok`: `counter` (▶ + chữ "5s", TimeCounter) và `normal` (▶ trơn, tắt sẵn).
+  - `[BẪY ĐÃ SẬP]` Ở Chế độ Ải, `runEnd` (đá cuối ván, thống kê, nhiệm vụ Cảnh Sát, thân mật thú cưng) chỉ phát khi người chơi
+    bỏ hồi sinh và vào bảng tổng kết, không phát lúc `G.state === 'dead'`. Bộ kiểm cũ chờ `dead` rồi đọc kết quả ngay nên hỏng
+    (hall2, hall4, petsel, 2026-10-14). Sau khi chờ `dead`, chờ `SK.gameover.phase === 'reborn'` rồi bấm Esc.
 - [SUY] Trong scene 8.6, các ô của trang chi tiết (`info/detial/time|coin|kill`, x lưu −1573…−1226 dưới cha x = 1265) và
   ô `gem` nằm ngay dưới thước, tức bản 8.6 có thể hiện thước và số liệu trên cùng một trang; clip trượt sang −1280 khi đó
   đẩy cả hai ra ngoài. Bản web theo hai trang của clip 2019 (https://youtu.be/jFHCVBZEYDU?t=422, ?t=426): đẩy `detial`

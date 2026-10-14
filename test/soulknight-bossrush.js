@@ -254,7 +254,7 @@ async function until(p, fn, arg, ms) {
   const f4id = await ev(() => { const e = SK.G.enemies.find(x => x.bossKey && x.room === SK.G.room); return e ? e.bossKey : null; });
   await sleep(2500);
   await p.screenshot({ path: path.join(SHOTS, 'floor4-boss.png') });
-  check('ải 3-2 vùng tầng 4: trùm là trùm tầng 4 (stone_man / warlord / stone_dragon)', f4b && /^boss_(stone_man|warlord|stone_dragon)$/.test(f4id), String(f4id));
+  check('ải 3-2 vùng tầng 4: trùm là trùm tầng 4 (stone_man / warlord / stone_dragon / abyssal_submariner của 4C)', f4b && /^boss_(stone_man|warlord|stone_dragon|abyssal_submariner)$/.test(f4id), String(f4id));
   await ev(() => { SK.bossrush2.f4Rate = 0; });
 
   check('không lỗi trang', !errs.length, errs.slice(0, 4).join(' | '));

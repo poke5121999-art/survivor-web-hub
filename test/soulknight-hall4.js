@@ -104,7 +104,13 @@ const pl = p => p.evaluate(() => { const q = SK.G.player, m = SK.G.mods || {}; r
   slots: m.buffSlots || 0, cd: m.skillCdMul || 1, move: m.moveMul || 1, milk: q._milk || 0, statues: q.statues && q.statues.slice(), weapons: q.weapons.map(w => w && w.id), factors: SK.G.factors.slice(), gold: q.gold }; });
 async function endRun(p) {   // chết thật: trúng đòn chí mạng, chờ bảng kết quả (SK.emit('runEnd') do game phát)
   await p.evaluate(() => { const q = SK.G.player; q.god = false; for (let i = 0; i < 60 && q.st !== 'dead'; i++) { q.invulT = 0; SK.hurtPlayer(SK.G, 9999); } });   // đòn bị lọc (giáp, bộ lọc kỹ năng) nên đánh tới khi chết thật
-  return until(p, () => SK.G.state === 'dead', null, 60000);
+  const dead = await until(p, () => SK.G.state === 'dead', null, 60000);
+  // Chế độ Ải: gục thì hiện hộp hồi sinh (js/gameover.js); bấm Esc bỏ hồi sinh để vào bảng tổng kết, lúc đó game mới phát runEnd.
+  if (await until(p, () => SK.gameover && SK.gameover.phase === 'reborn', null, 4000)) {
+    await sleep(600); await p.keyboard.press('Escape');
+    await until(p, () => SK.gameover.phase !== 'reborn', null, 4000);
+  }
+  return dead;
 }
 
 (async () => {

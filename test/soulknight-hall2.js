@@ -98,7 +98,7 @@ async function useSlot(p, slot) {
       JSON.stringify({ mail: f.mail.map(m => m.title), safe: f.safe.level }));
     const zones = (await p.evaluate(() => SK.hall.zones())).filter(z => !/^garden_/.test(z.slot));   // ô vườn (bước 6) có bộ kiểm riêng: test/soulknight-garden.js
     const names = zones.map(z => z.slot + '=' + z.name);
-    check('có 24 món tương tác với tên Việt (gồm Máy Đổi, Máy Game, Bàn Rèn, Bàn Thiết Kế, Giếng Phép Thuật, Tượng, Cảnh Sát)', zones.length === 24 && zones.some(z => z.slot === 'token_machine') && zones.some(z => z.slot === 'arcade_machine'), names.join(', '));
+    check('có 25 món tương tác với tên Việt (gồm Máy Đổi, Máy Game, Giá Skin Vũ Khí, Bàn Rèn, Bàn Thiết Kế, Giếng Phép Thuật, Tượng, Cảnh Sát)', zones.length === 25 && zones.some(z => z.slot === 'wskin_rack') && zones.some(z => z.slot === 'token_machine') && zones.some(z => z.slot === 'arcade_machine'), names.join(', '));
     // Két Sắt khoá (chưa qua 2-2)
     let t = await useSlot(p, 'safe');
     check('Két Sắt khoá khi chưa qua ải 2-2, không có nút Nâng cấp', t && /Két Sắt/.test(t) && await p.evaluate(() => !!document.getElementById('sk-safe-lock') && !document.getElementById('sk-safe-up')), t && t.slice(0, 90));
@@ -320,6 +320,11 @@ async function useSlot(p, slot) {
     const pre = await p.evaluate(() => { const pl = SK.G.player; pl.gold = 37; pl.god = false; return { gems: SK.profile.gems, kills: SK_GAME.kills, wood: SK.profile.item('material_wood'), st: SK.profile.stats }; });
     await p.evaluate(() => { const pl = SK.G.player; pl.invulT = 0; pl.armor = 0; SK.hurtPlayer(SK.G, 999); });
     const dead = await until(p, () => SK_GAME.state === 'dead', null, 8000);
+    // Chế độ Ải: gục thì hiện hộp hồi sinh (js/gameover.js); bấm Esc bỏ hồi sinh để vào bảng tổng kết, lúc đó game mới phát runEnd.
+    if (await until(p, () => SK.gameover && SK.gameover.phase === 'reborn', null, 4000)) {
+      await sleep(600); await p.keyboard.press('Escape');
+      await until(p, () => SK.gameover.phase !== 'reborn', null, 4000);
+    }
     await sleep(300);
     const post = await p.evaluate(() => ({ gems: SK.profile.gems, wood: SK.profile.item('material_wood'), st: SK.profile.stats, item: JSON.parse(localStorage.getItem('sk.profile.v1')).inv.material_wood }));
     check('thua ván: vàng còn 37 → +37 đá (cộng quái hạ ' + pre.kills + ')', dead && post.gems - pre.gems === 37 + pre.kills, JSON.stringify({ d: post.gems - pre.gems, kills: pre.kills }));

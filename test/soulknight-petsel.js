@@ -68,7 +68,8 @@ async function startRun(p) {
 }
 // Đứng cạnh thú cưng đang theo chủ (đặt chủ sát thú cưng, đợi nhãn) rồi bấm E thật.
 async function openPanel(p) {
-  await p.evaluate(() => { const s = SK.hallState; s.pet.x = s.me.x - 0.6; s.pet.y = s.me.y - 0.2; });
+  // Hiệp Sĩ đứng chỗ gốc trên ghế sofa sát Standee (js/hall.js); ra khoảng trống trước cửa để món gần nhất là thú cưng.
+  await p.evaluate(() => { const s = SK.hallState, d = SK.hall.state.door; s.me.x = d.x; s.me.y = d.y - 4; s.pet.x = s.me.x - 0.6; s.pet.y = s.me.y - 0.2; });
   const near = await until(p, () => { const n = SK.hall.near(); return n && n.slot === 'pet_food'; }, null, 2000);
   await p.keyboard.press('KeyE');
   if (!await until(p, () => !document.getElementById('hs-modal').hidden, null, 1200)) {
@@ -138,7 +139,13 @@ const card = (p, id) => p.click('#sk-pets [data-id="' + id + '"]').then(() => sl
     check('trong ván G.pet.id === pet1; thân mật 70/240 (<50%): def kỹ năng rỗng (chỉ cắn mặc định)', g.id === 'pet1' && g.keys.length === 0, JSON.stringify(g));
     // xong ván: +10 thân mật, đặt lại số lần cho ăn
     await p.evaluate(() => { const pl = SK.G.player; pl.god = false; pl.invulT = 0; pl.armor = 0; SK.hurtPlayer(SK.G, 999); });
-    await until(p, () => SK_GAME.state === 'dead', null, 8000); await sleep(300);
+    await until(p, () => SK_GAME.state === 'dead', null, 8000);
+    // Chế độ Ải: gục thì hiện hộp hồi sinh (js/gameover.js); Esc bỏ hồi sinh để vào bảng tổng kết, lúc đó game mới phát runEnd.
+    if (await until(p, () => SK.gameover && SK.gameover.phase === 'reborn', null, 4000)) {
+      await sleep(600); await p.keyboard.press('Escape');
+      await until(p, () => SK.gameover.phase !== 'reborn', null, 4000);
+    }
+    await sleep(300);
     f = await pf(p);
     check('xong ván: thân mật +10 (70 → 80), số lần cho ăn đặt lại 0', f.aff1 === 80 && f.fed1 === 0, JSON.stringify({ aff: f.aff1, fed: f.fed1 }));
     await p.context().close();
