@@ -1,0 +1,46 @@
+title_bg_860.png
+size:1024,1024
+filter:Linear,Linear
+pma:true
+scale:0.5
+BG01
+bounds:0,331,750,631
+亮度/对比度 2 拷贝 10
+bounds:0,0,143,140
+offsets:0,1,144,142
+亮度/对比度 2 拷贝 11
+bounds:0,140,190,191
+offsets:1,1,192,192
+亮度/对比度 2 拷贝 4
+bounds:750,814,149,148
+offsets:1,0,151,148
+亮度/对比度 2 拷贝 7
+bounds:899,882,80,80
+offsets:1,1,82,81
+亮度/对比度 2 拷贝 8
+bounds:190,212,118,119
+offsets:1,0,119,120
+亮度/对比度 2 拷贝 9
+bounds:750,725,95,89
+
+title_bg_860_2.png
+size:1024,1024
+filter:Linear,Linear
+pma:true
+scale:0.5
+亮度/对比度 2 拷贝 12
+bounds:0,0,656,655
+offsets:0,1,656,656
+
+title_bg_860_3.png
+size:1024,1024
+filter:Linear,Linear
+pma:true
+scale:0.5
+亮度/对比度 2 拷贝 13
+bounds:0,0,560,593
+offsets:43,2,618,595
+rotate:90
+图层 448
+bounds:0,560,729,434
+offsets:22,90,751,524

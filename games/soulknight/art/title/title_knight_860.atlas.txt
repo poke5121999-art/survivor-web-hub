@@ -1,0 +1,50 @@
+title_knight_860.png
+size:1024,1024
+filter:Linear,Linear
+pma:true
+scale:0.6
+back light0
+bounds:496,14,196,232
+back light1
+bounds:901,874,63,73
+offsets:63,170,275,322
+rotate:90
+back light2
+bounds:939,841,33,34
+offsets:4,4,41,42
+rotate:90
+back light3
+bounds:901,837,38,37
+offsets:3,4,44,44
+back light4
+bounds:974,854,41,41
+offsets:3,3,46,48
+back light5
+bounds:973,821,33,34
+offsets:4,4,41,42
+rotate:90
+back light6
+bounds:1007,841,13,13
+offsets:11,11,35,35
+back light7
+bounds:974,895,42,43
+offsets:3,3,47,50
+rotate:90
+back light8
+bounds:939,812,29,30
+offsets:5,5,39,40
+rotate:90
+body
+bounds:0,0,134,172
+offsets:4,4,141,179
+scarf ori
+bounds:496,246,527,476
+scarf ori 2
+bounds:0,172,550,496
+offsets:24,28,599,548
+rotate:90
+亮度/对比度 2
+bounds:901,937,119,74
+地板01
+bounds:0,722,901,289
+offsets:0,0,901,333

@@ -425,7 +425,7 @@
     document.getElementById('sk-win-retry').onclick = () => SK.lobby.enter();
     Promise.all([SK.loadArt(), SK.ugui.load ? SK.ugui.load() : null]).then(() => {
       document.body.classList.add('ready');
-      if (SK.QUICK || !SK.hall) SK.lobby.enter(); else SK.hall.enter('select');
+      if (SK.QUICK || !SK.hall) SK.lobby.enter(); else if (SK.title && SK.title.want()) SK.title.show(); else SK.hall.enter('select');
       SK.startLoop(step, render);
     });
   };
