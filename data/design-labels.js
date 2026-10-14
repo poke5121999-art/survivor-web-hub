@@ -683,6 +683,8 @@
         "minCoopPlayers": { label: "Số người tối thiểu để chơi Cùng bạn", unit: "người", int: true, min: 1 },
         "maxCoopPlayers": { label: "Số người tối đa để chơi Cùng bạn", unit: "người", int: true, min: 1 },
         "mailDays": { label: "Thư thưởng hết hạn sau … ngày", unit: "ngày", int: true, min: 1, help: "Thư thưởng mùa nằm trong Hộp thư bấy nhiêu ngày rồi hết hạn." },
+        "heldTopN": { label: "Giữ thưởng mùa của top … chờ duyệt (chống gian lận)", unit: "hạng", int: true, min: 0, help: "Thư thưởng mùa của hạng 1 tới hạng này bị giữ: người chơi chưa thấy và chưa nhận được cho tới khi admin thả (AC_MAIL_RELEASE) hoặc tới hạn tự thả bên dưới. 0 = không giữ ai." },
+        "heldDays": { label: "Tự thả thưởng top sau … ngày", unit: "ngày", int: true, min: 0, help: "Không ai thả thì thư thưởng top tự nhận được sau bấy nhiêu ngày kể từ lúc hết mùa (0 giờ ngày 1, giờ VN). Thư bị giữ được cộng thêm bấy nhiêu ngày vào hạn nhận." },
         "rankedUnlockRuns": { label: "Số ca phải chơi để mở Vô Tận xếp hạng", unit: "ca", int: true, min: 1, help: "Người chơi mới phải hoàn tất ngần này ca thì mới vào được Vô Tận xếp hạng." }
       }
     },
