@@ -156,7 +156,6 @@ const TABLE_RULES = {
   coop_rules: (d) => (!NET_BACKENDS.includes(d.netBackend) ? `Mạng co-op "${d.netBackend}" không hợp lệ, chỉ nhận ngo, rtd hoặc steam.`
     : d.localStun !== undefined && typeof d.localStun !== "string" ? `Máy STUN Local ${JSON.stringify(d.localStun)} phải là chuỗi, trống là không lọc cùng mạng.`
     : d.localIce !== undefined && typeof d.localIce !== "string" ? `Máy ICE Local ${JSON.stringify(d.localIce)} phải là chuỗi, trống là chỉ cùng mạng.`
-    : d.localPort !== undefined && !(Number.isInteger(d.localPort) && d.localPort >= 1024 && d.localPort <= 65535) ? `Cổng Local ${JSON.stringify(d.localPort)} phải là số nguyên từ 1024 đến 65535.`
     : null),
   modes: (d) => (!MODE_IDS.includes(d._id) ? `Chế độ "${d._id}" không hợp lệ, chỉ nhận ${MODE_IDS.join(", ")}.`
     : typeof d.open !== "boolean" ? `Giá trị open của "${d._id}" là ${JSON.stringify(d.open)}, phải là true hoặc false.`
