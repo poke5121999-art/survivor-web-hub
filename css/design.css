@@ -110,11 +110,16 @@
 /* ---- sub table (array of objects) ---- */
 .dz-sub { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
 .dz-sub__table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
-.dz-sub__table th { text-align: left; padding: 8px 10px; font-size: 12px; color: var(--text-dim); background: var(--bg-elev); white-space: nowrap; }
+.dz-sub__table th { text-align: left; padding: 8px 10px; font-size: 12px; color: var(--text-dim); background: var(--bg-elev); }
 .dz-sub__table td { padding: 6px 8px; border-top: 1px solid var(--border); vertical-align: top; }
 .dz-sub__table .dz-input { min-width: 90px; }
 .dz-sub__table .dz-input--num { min-width: 70px; }
 .dz-sub__n { width: 32px; color: var(--text-dim); text-align: center !important; }
+.dz-sub__add { padding: 8px 10px; border-top: 1px solid var(--border); }
+.dz-sub__table select.dz-input { min-width: 150px; }
+.dz-sub__table td[data-col="text"] { min-width: 190px; }
+/* The column header already carries the unit. */
+.dz-sub .dz-unit { display: none; }
 
 /* ---- list grid ---- */
 .dz-list__tools { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
@@ -138,6 +143,7 @@
 .dz-detail[hidden], .dz-row[hidden] { display: none; }
 .dz-detail.is-filtered { display: none; }
 .dz-grid .dz-input, .dz-sub .dz-input { width: 100%; min-width: 80px; }
+.dz-sub .dz-input--num { min-width: 64px; }
 .dz-grid .dz-input--num { max-width: 120px; }
 
 /* ---- sticky bar ---- */

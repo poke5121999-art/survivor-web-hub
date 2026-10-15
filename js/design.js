@@ -76,7 +76,21 @@
   }
 
   function getAt(o, path) { return path.reduce(function (c, k) { return c == null ? c : c[k]; }, o); }
-  function setAt(o, path, v) { getAt(o, path.slice(0, -1))[path[path.length - 1]] = v; }
+  function setAt(o, path, v) {
+    var c = o;
+    path.slice(0, -1).forEach(function (k) { if (c[k] == null) c[k] = {}; c = c[k]; });
+    c[path[path.length - 1]] = v;
+  }
+  // Also drops objects the removal leaves empty, so the diff shows one removed value instead of a new "{}".
+  function unsetAt(o, path) {
+    for (var i = path.length; i > 1; i--) {
+      var parent = getAt(o, path.slice(0, i - 1));
+      if (!isObj(parent)) return;
+      delete parent[path[i - 1]];
+      if (Object.keys(parent).length) return;
+    }
+    if (path.length === 1) delete o[path[0]];
+  }
 
   // Label lookup: exact path first, then with array indexes replaced by "*".
   function rawLabel(table, path) {
@@ -101,6 +115,12 @@
       return base;
     }
     return { label: last };
+  }
+
+  // choicesBy picks the choice list by row id (quest metrics differ per scope).
+  function rowMeta(table, docId, path) {
+    var m = fieldMeta(table, path);
+    return m.choicesBy ? Object.assign({}, m, { choices: m.choicesBy[docId] || [] }) : m;
   }
 
   function numText(n, meta) { return meta.pct ? trimNum(n * 100) + "%" : trimNum(n); }
@@ -366,12 +386,15 @@
       box.appendChild(input);
       box.appendChild(h("span", { class: "dz-switch__text", text: value ? "Bật" : "Tắt" }));
       input.addEventListener("change", function () { box.lastChild.textContent = input.checked ? "Bật" : "Tắt"; });
-    } else if (typeof value === "number") {
-      input = h("input", { type: "text", inputmode: "decimal", autocomplete: "off", class: "dz-input dz-input--num", "aria-label": meta.label });
-      input.value = meta.pct ? trimNum(value * 100) : trimNum(value);
+    } else if (typeof value === "number" || (value === undefined && meta.optional)) {
+      // optional: an empty box means the field is absent (a reward the quest does not give).
+      input = h("input", { type: "text", inputmode: "decimal", autocomplete: "off", class: "dz-input dz-input--num", "aria-label": meta.label,
+        placeholder: meta.optional ? "0" : null });
+      input.value = value === undefined ? "" : meta.pct ? trimNum(value * 100) : trimNum(value);
       input.addEventListener("input", function () {
-        var r = parseInput(input.value, meta);
         var errs = S.errors[table];
+        if (meta.optional && !input.value.trim()) { delete errs[key]; unsetAt(doc, path); onEdit(); return; }
+        var r = parseInput(input.value, meta);
         if (r.err) errs[key] = r.err; else { delete errs[key]; setAt(doc, path, r.v); }
         onEdit();
       });
@@ -388,7 +411,11 @@
     } else if (typeof value === "string") {
       input = h("input", { type: "text", autocomplete: "off", class: "dz-input", "aria-label": meta.label });
       input.value = value;
-      input.addEventListener("input", function () { setAt(doc, path, input.value); onEdit(); });
+      input.addEventListener("input", function () {
+        setAt(doc, path, input.value);
+        if (meta.re || meta.unique) checkColumn(table, docId, doc, path);
+        onEdit();
+      });
       box.appendChild(input);
     } else {
       box.appendChild(h("span", { class: "dz-readonly", text: fmtVal(value, meta) }));
@@ -436,29 +463,83 @@
     return h("span");
   }
 
-  // Array of objects → small table; columns are the union of leaf paths across items.
+  // Array of objects → small table. Columns: the label's cols first (so an optional field no item has yet still
+  // gets a column), then any other leaf path found in the items. A label with add gets a button that appends
+  // add.item under a fresh id; rows added since the last save can be dropped again, saved rows cannot.
   function subTable(table, docId, doc, path, items) {
+    var conf = rawLabel(table, path) || {};
     var cols = [], seen = {};
+    (conf.cols || []).forEach(function (k) { var p = k.split("."); seen[p.join(SEP)] = 1; cols.push(p); });
     items.forEach(function (it) {
       var f = flatten(it, [], {});
       Object.keys(f).forEach(function (k) { if (!seen[k]) { seen[k] = 1; cols.push(f[k].path); } });
     });
+    var saved = (getAt(baseDoc(table, docId), path) || []).length;
     var thead = h("tr", null, h("th", { class: "dz-sub__n", text: "#" }));
     cols.forEach(function (c) {
       var m = fieldMeta(table, path.concat("0", c));
       thead.appendChild(h("th", { text: m.label + (m.unit ? " (" + m.unit + ")" : ""), title: m.help || "" }));
     });
+    if (conf.add) thead.appendChild(h("th"));
     var tbody = h("tbody");
     items.forEach(function (it, i) {
       var tr = h("tr", null, h("td", { class: "dz-sub__n", text: String(i + 1) }));
       cols.forEach(function (c) {
-        var v = getAt(it, c), td = h("td");
-        if (v !== undefined) td.appendChild(cell(table, docId, doc, path.concat(String(i), c), v, fieldMeta(table, path.concat(String(i), c))));
+        var p = path.concat(String(i), c), v = getAt(it, c), m = rowMeta(table, docId, p), td = h("td", { "data-col": c.join(".") });
+        if (v !== undefined || m.optional) td.appendChild(cell(table, docId, doc, p, v, m));
         tr.appendChild(td);
       });
+      if (conf.add) {
+        var td = h("td");
+        if (i >= saved) td.appendChild(h("button", { class: "btn btn--sm dz-sub__drop", type: "button", text: "Bỏ",
+          title: "Bỏ dòng mới thêm này (chưa lưu)", onclick: function () { dropItem(table, docId, doc, path, i); } }));
+        tr.appendChild(td);
+      }
       tbody.appendChild(tr);
     });
-    return h("div", { class: "dz-sub" }, h("table", { class: "dz-sub__table" }, h("thead", null, thead), tbody));
+    return h("div", { class: "dz-sub" }, h("table", { class: "dz-sub__table" }, h("thead", null, thead), tbody),
+      conf.add ? h("div", { class: "dz-sub__add" }, h("button", { class: "btn btn--sm", type: "button", text: conf.add.button,
+        "data-add": docId, onclick: function () { addItem(table, docId, doc, path, conf.add); } })) : null);
+  }
+
+  function baseDoc(table, docId) { return baseline(table).filter(function (d) { return d._id === docId; })[0] || {}; }
+
+  function addItem(table, docId, doc, path, add) {
+    var list = getAt(doc, path), prefix = (add.idPrefix || {})[docId] || "";
+    var n = 1;
+    while (list.some(function (it) { return it.id === prefix + "new" + n; })) n++;
+    var item = Object.assign({ id: prefix + "new" + n }, clone(add.item));
+    list.push(item);
+    Object.keys(item).forEach(function (k) {
+      var p = path.concat(String(list.length - 1), k), m = fieldMeta(table, p);
+      if (m.re || m.unique) checkColumn(table, docId, doc, p);
+    });
+    renderMain();
+  }
+
+  function dropItem(table, docId, doc, path, i) {
+    getAt(doc, path).splice(i, 1);
+    var errs = S.errors[table], prefix = docId + SEP + path.join(".") + ".";
+    Object.keys(errs).forEach(function (k) { if (k.indexOf(prefix) === 0) delete errs[k]; });
+    var first = getAt(doc, path)[0] || {};
+    Object.keys(first).forEach(function (k) {
+      var p = path.concat("0", k), m = fieldMeta(table, p);
+      if (m.re || m.unique) checkColumn(table, docId, doc, p);
+    });
+    renderMain();
+  }
+
+  // Validates one column of a list in every item, so fixing one of two duplicates clears both.
+  function checkColumn(table, docId, doc, path) {
+    var listPath = path.slice(0, -2), field = path[path.length - 1], meta = fieldMeta(table, path);
+    var items = getAt(doc, listPath), errs = S.errors[table], count = {};
+    items.forEach(function (it) { count[it[field]] = (count[it[field]] || 0) + 1; });
+    items.forEach(function (it, i) {
+      var key = docId + SEP + listPath.concat(String(i), field).join("."), v = it[field];
+      var err = meta.re && !new RegExp(meta.re).test(v) ? meta.invalid
+        : meta.unique && count[v] > 1 ? "Trùng với một dòng khác trong danh sách." : null;
+      if (err) errs[key] = err; else delete errs[key];
+    });
   }
 
   // ---------- main pane ----------
@@ -583,6 +664,7 @@
       var reach = table === MODES && !sec && (LABELS[MODES].reach || {}).row === doc._id ? reachRow(table, doc, cols.length + 2) : null;
       if (reach) { tr._reach = reach; tbody.appendChild(reach); }
       if (rest.length) {
+        if (S.open[openKey] == null) S.open[openKey] = !!(LABELS[table] || {}).expand;
         var detail = h("tr", { class: "dz-detail", hidden: !S.open[openKey] });
         var inner = h("div", { class: "dz-form dz-form--detail" });
         rest.forEach(function (k) { inner.appendChild(node(table, doc._id, doc, [k], doc[k])); });
@@ -953,10 +1035,15 @@
   function plainChange(n, d) {
     var docs = baseline(n);
     var settings = isSettings(docs);
-    var meta = fieldMeta(n, d.path);
+    var meta = rowMeta(n, d._id, d.path);
     var doc = (S.tables[n].draft.filter(function (x) { return x._id === d._id; })[0]) || { _id: d._id };
     var sec = settings ? null : sectionOfField(n, S.tables[n].draft, d.path[0]);
-    return (settings ? "" : rowTitle(n, doc, sec) + " · ") + meta.label + ": " +
+    // A value inside a list item is named by that item (quest text, else its id), not just by its column.
+    var at = -1;
+    d.path.forEach(function (k, i) { if (at < 0 && isNum(k)) at = i; });
+    var item = at < 0 ? null : getAt(doc, d.path.slice(0, at + 1)) || getAt(baseDoc(n, d._id), d.path.slice(0, at + 1));
+    var itemName = isObj(item) ? (item.text || item.id || "Dòng " + (Number(d.path[at]) + 1)) + " · " : "";
+    return (settings ? "" : rowTitle(n, doc, sec) + " · ") + itemName + meta.label + ": " +
       fmtVal(d.before, meta) + " → " + fmtVal(d.after, meta);
   }
 

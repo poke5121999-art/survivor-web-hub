@@ -219,22 +219,54 @@
 
     quests: {
       title: "Nhiệm vụ",
-      blurb: "Nhiệm vụ ngày, nhiệm vụ tuần và thành tựu: điều kiện và phần thưởng.",
-      effect: SERVER,
+      blurb: "Nhiệm vụ ngày, nhiệm vụ tuần và thành tựu: điều kiện và phần thưởng. Ô thưởng để trống là không thưởng loại đó.",
+      effect: SERVER + " Sửa chữ, số cần đạt và thưởng thì nhiệm vụ đang chạy đổi ngay. Nhiệm vụ ngày/tuần mới thêm chỉ vào từ kỳ sau (ngày/tuần sau); thành tựu mới hiện ngay.",
+      expand: true,
       rowLabels: { daily: "Nhiệm vụ ngày", weekly: "Nhiệm vụ tuần", ach: "Thành tựu" },
       fields: {
         "_id": ID,
         "pick": { label: "Số nhiệm vụ mỗi kỳ", min: 0, int: true, help: "Bốc ngẫu nhiên bấy nhiêu nhiệm vụ từ danh sách. 0 = lấy hết." },
-        "list": { label: "Danh sách" },
+        "list": {
+          label: "Danh sách",
+          cols: ["id", "text", "metric", "need", "reward.gold", "reward.gem", "reward.ticketX"],
+          add: {
+            button: "+ Thêm nhiệm vụ",
+            idPrefix: { daily: "d_", weekly: "w_", ach: "a_" },
+            item: { text: "", metric: "runs", need: 1, reward: { gold: 100 } }
+          }
+        },
         "list.*": { label: "Nhiệm vụ" },
-        "list.*.id": { label: "Mã nhiệm vụ" },
-        "list.*.text": { label: "Mô tả", help: "Chữ người chơi thấy. Đổi số cần đạt thì sửa cả chữ này." },
-        "list.*.metric": { label: "Đếm theo", help: "Mã bộ đếm: runs, loot, skills, kills, floors, pulls, revives, wins, upgrades, squadFull, mapsDone." },
+        "list.*.id": { label: "Mã nhiệm vụ", re: "^[a-z0-9_]{1,40}$", unique: true,
+          invalid: "Mã chỉ gồm chữ thường không dấu, số và dấu _, tối đa 40 ký tự.",
+          help: "Mã riêng của nhiệm vụ, không trùng trong cùng danh sách. Đã lưu rồi thì đừng đổi mã: thành tựu đổi mã thì người đã nhận sẽ nhận lại được lần nữa; nhiệm vụ ngày/tuần đổi mã thì biến mất khỏi kỳ đang chạy." },
+        "list.*.text": { label: "Mô tả", re: "[^ ]", invalid: "Nhập chữ người chơi thấy.", help: "Chữ người chơi thấy. Đổi số cần đạt thì sửa cả chữ này." },
+        "list.*.metric": {
+          label: "Đếm theo",
+          help: "Bộ đếm server tính cho kỳ này. Ngày, tuần và thành tựu đếm được những thứ khác nhau.",
+          choicesBy: {
+            daily: [
+              { v: "runs", label: "Số ca đã đi" }, { v: "loot", label: "Giá trị đồ đã giao" }, { v: "skills", label: "Số lần dùng kỹ năng" },
+              { v: "kills", label: "Số quái đã hạ" }, { v: "floors", label: "Số tầng đã qua" }, { v: "pulls", label: "Số lần quay gacha" },
+              { v: "revives", label: "Số lần đỡ đồng đội" }
+            ],
+            weekly: [
+              { v: "runs", label: "Số ca đã đi" }, { v: "wins", label: "Số ca thắng" }, { v: "loot", label: "Giá trị đồ đã giao" },
+              { v: "kills", label: "Số quái đã hạ" }, { v: "upgrades", label: "Số lần nâng cấp nhân vật" }
+            ],
+            ach: [
+              { v: "runs", label: "Số ca đã đi (cả đời)" }, { v: "wins", label: "Số ca thắng (cả đời)" }, { v: "loot", label: "Giá trị đồ đã giao (cả đời)" },
+              { v: "kills", label: "Số quái đã hạ (cả đời)" }, { v: "skills", label: "Số lần dùng kỹ năng (cả đời)" }, { v: "floors", label: "Số tầng đã qua (cả đời)" },
+              { v: "pulls", label: "Số lần quay gacha (cả đời)" }, { v: "revives", label: "Số lần đỡ đồng đội (cả đời)" },
+              { v: "upgrades", label: "Số lần nâng cấp nhân vật (cả đời)" }, { v: "mapsDone", label: "Số ải đã phá đảo" },
+              { v: "own5", label: "Số nhân vật 5★ đang có" }, { v: "squadFull", label: "Số ô đội hình đã điền" }
+            ]
+          }
+        },
         "list.*.need": { label: "Cần đạt", min: 1, int: true },
         "list.*.reward": { label: "Thưởng" },
-        "list.*.reward.gold": { label: "Vàng", unit: "vàng", min: 0, int: true },
-        "list.*.reward.gem": { label: "Ngọc", unit: "ngọc", min: 0, int: true },
-        "list.*.reward.ticketX": { label: "Vé Xác", unit: "vé", min: 0, int: true }
+        "list.*.reward.gold": { label: "Vàng", unit: "vàng", min: 0, int: true, optional: true },
+        "list.*.reward.gem": { label: "Ngọc", unit: "ngọc", min: 0, int: true, optional: true },
+        "list.*.reward.ticketX": { label: "Vé Xác", unit: "vé", min: 0, int: true, optional: true }
       }
     },
 

@@ -29,11 +29,17 @@ const realLabels = { window: {} };
 vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'data/design-labels.js'), 'utf8'), realLabels);
 
 const LABELS_JS = 'window.DESIGN_LABELS = ' + JSON.stringify({
-  quests: { title: 'Nhiệm vụ', blurb: 'Nhiệm vụ ngày.', effect: 'Từ lần gọi API kế tiếp.',
+  quests: { title: 'Nhiệm vụ', blurb: 'Nhiệm vụ ngày.', effect: 'Từ lần gọi API kế tiếp.', expand: true,
     fields: { pick: { label: 'Số nhiệm vụ mỗi ngày', int: true, min: 1, unit: 'nhiệm vụ' },
-      list: { label: 'Danh sách nhiệm vụ' },
-      'list.*.text': { label: 'Mô tả' }, 'list.*.need': { label: 'Cần đạt', int: true, min: 1 },
-      'list.*.reward.gold': { label: 'Thưởng vàng', unit: 'vàng', int: true }, 'list.*.reward.gem': { label: 'Thưởng gem', int: true } } },
+      list: { label: 'Danh sách nhiệm vụ', cols: ['id', 'text', 'metric', 'need', 'reward.gold', 'reward.gem', 'reward.ticketX'],
+        add: { button: '+ Thêm nhiệm vụ', idPrefix: { daily: 'd_', weekly: 'w_', ach: 'a_' }, item: { text: '', metric: 'runs', need: 1, reward: { gold: 100 } } } },
+      'list.*.id': { label: 'Mã', re: '^[a-z0-9_]{1,40}$', unique: true, invalid: 'Mã sai dạng.' },
+      'list.*.text': { label: 'Mô tả', re: '[^ ]', invalid: 'Nhập chữ người chơi thấy.' },
+      'list.*.metric': { label: 'Đếm theo', choicesBy: realLabels.window.DESIGN_LABELS.quests.fields['list.*.metric'].choicesBy },
+      'list.*.need': { label: 'Cần đạt', int: true, min: 1 },
+      'list.*.reward.gold': { label: 'Thưởng vàng', unit: 'vàng', int: true, optional: true },
+      'list.*.reward.gem': { label: 'Thưởng gem', int: true, optional: true },
+      'list.*.reward.ticketX': { label: 'Vé', int: true, optional: true } } },
   gacha_banners: { title: 'Banner quay', rowLabels: { char: 'Banner nhân vật' },
     fields: { rate5: { label: 'Tỉ lệ 5★', pct: true, min: 0, max: 1, help: '0.006 = 0,6%' } } },
   stage_houses: { title: 'Các nhà trong ải', rowTitle: 'name',
@@ -213,6 +219,60 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
   const er2 = await txt(K('daily', 'pick') + ' .dz-cell__err');
   check('dưới min hiện lỗi tiếng Việt', /Không được nhỏ hơn 1/.test(er2), er2);
   await p.fill(K('daily', 'pick') + ' input', '4');
+  await barGone();
+
+  // 4b) thưởng nhiệm vụ và thêm nhiệm vụ
+  const qBase = JSON.parse(JSON.stringify(fake.tables.quests));
+  const dl = qBase.find(d => d._id === 'daily').list;
+  const iLoot = dl.findIndex(q => q.id === 'd_loot'), iRun = dl.findIndex(q => q.id === 'd_run'), nNew = dl.length;
+  const Q = (i, f) => K('daily', `list.${i}.${f}`);
+  check('bảng nhiệm vụ mở sẵn, ô thưởng thấy ngay', await p.isVisible(Q(iLoot, 'reward.gold') + ' input'), '');
+  const heads = await p.$$eval('.dz-sub:has([data-add="daily"]) thead th', ths => ths.map(t => t.textContent).join('|'));
+  check('cột bảng nhiệm vụ đúng thứ tự, không lặp', heads === '#|Mã|Mô tả|Đếm theo|Cần đạt|Thưởng vàng (vàng)|Thưởng gem|Vé|', heads);
+  const fit = await p.$eval('.dz-sub:has([data-add="daily"])', e => [e.scrollWidth, e.clientWidth, [...e.querySelectorAll('thead th')].map(t => Math.round(t.getBoundingClientRect().width)).join(',')]);
+  check('bảng nhiệm vụ vừa khung ở 1280 px, không phải kéo ngang', fit[0] <= fit[1], fit.join(' / '));
+  check('d_loot chưa có ngọc vẫn có ô ngọc trống', (await p.inputValue(Q(iLoot, 'reward.gem') + ' input')) === '', '');
+  check('dòng đã lưu không có nút Bỏ', (await p.$$('.dz-sub:has([data-add="daily"]) .dz-sub__drop')).length === 0, '');
+  await p.fill(Q(iLoot, 'reward.gem') + ' input', '25');
+  await p.fill(Q(iRun, 'reward.gem') + ' input', '');
+  check('thêm ngọc + bỏ ngọc = 2 thay đổi', (await txt('#dz-bar-count')) === '2 thay đổi', await txt('#dz-bar-count'));
+  await p.click('[data-add="daily"]');
+  const newId = await p.inputValue(Q(nNew, 'id') + ' input');
+  check('dòng mới có mã d_new1', newId === 'd_new1', newId);
+  const textErr = await txt(Q(nNew, 'text') + ' .dz-cell__err');
+  check('dòng mới thiếu mô tả: báo lỗi và chặn lưu', /Nhập chữ người chơi thấy/.test(textErr) && await p.$eval('#btn-review', e => e.disabled), textErr);
+  const opts = await p.$$eval(Q(nNew, 'metric') + ' option', os => os.map(o => o.value).join(','));
+  check('Đếm theo của nhiệm vụ ngày chỉ có bộ đếm ngày', opts === 'runs,loot,skills,kills,floors,pulls,revives', opts);
+  await p.fill(Q(nNew, 'id') + ' input', 'd_run');
+  const dup = await txt(Q(iRun, 'id') + ' .dz-cell__err');
+  check('mã trùng báo lỗi ở cả dòng cũ', /Trùng/.test(dup), dup);
+  await p.fill(Q(nNew, 'id') + ' input', 'd_boss');
+  check('sửa mã hết trùng thì dòng cũ hết lỗi', await p.$eval(Q(iRun, 'id') + ' .dz-cell__err', e => e.hidden), '');
+  await p.fill(Q(nNew, 'text') + ' input', 'Hạ 3 con quái lớn');
+  await p.selectOption(Q(nNew, 'metric') + ' select', 'kills');
+  await p.fill(Q(nNew, 'need') + ' input', '3');
+  await p.fill(Q(nNew, 'reward.gold') + ' input', '200');
+  await p.click('[data-add="daily"]');
+  const drops = await p.$$('.dz-sub:has([data-add="daily"]) .dz-sub__drop');
+  check('hai dòng mới thì có hai nút Bỏ', drops.length === 2, String(drops.length));
+  await drops[1].click();
+  check('Bỏ dòng mới thứ hai: còn một nút Bỏ, không còn lỗi',
+    (await p.$$('.dz-sub:has([data-add="daily"]) .dz-sub__drop')).length === 1 && await p.$eval('#btn-review', e => !e.disabled), '');
+  await p.click('#btn-review');
+  await dryDone();
+  const chgQ = await txt('#dz-changes');
+  check('xem lại gọi tên nhiệm vụ', chgQ.includes('Giao đủ 12.000 giá trị đồ · Thưởng gem: (không có) → 25') &&
+    chgQ.includes('Đi 2 ca bất kỳ · Thưởng gem: 15 → (không có)') && chgQ.includes('Hạ 3 con quái lớn · Mã: (không có) → d_boss'), chgQ);
+  await p.click('#btn-save');
+  await barGone();
+  const savedDaily = fake.tables.quests.find(d => d._id === 'daily').list;
+  check('fake: d_loot có ngọc 25, d_run hết ngọc', JSON.stringify(savedDaily[iLoot].reward) === '{"gold":900,"gem":25}' &&
+    JSON.stringify(savedDaily[iRun].reward) === '{"gold":600}', JSON.stringify([savedDaily[iLoot].reward, savedDaily[iRun].reward]));
+  check('fake: nhiệm vụ mới lưu đúng hình', JSON.stringify(savedDaily[nNew]) ===
+    '{"id":"d_boss","text":"Hạ 3 con quái lớn","metric":"kills","need":3,"reward":{"gold":200}}' && savedDaily.length === nNew + 1,
+    JSON.stringify(savedDaily[nNew]));
+  check('sau lưu: dòng mới thành dòng đã lưu, hết nút Bỏ', (await p.$$('.dz-sub:has([data-add="daily"]) .dz-sub__drop')).length === 0, '');
+  await p.screenshot({ path: SHOTS + '/quests-add.png', fullPage: true });
 
   // 5) phần trăm
   await open('gacha_banners');
