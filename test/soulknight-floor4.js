@@ -150,7 +150,7 @@ async function toBossCleared35(b, tag) {
       });
       check('chủ đề monolith (4A): level 4, 7 quái e_stone_*, 7 bản tinh anh', r.level === 4 && JSON.stringify(r.enemies) === JSON.stringify(ALL7) && r.elites === 7, JSON.stringify(r.enemies));
       check('chủ đề monolith có nền trời + thư viện vật cản của vùng', r.bg === '#68d7de' && r.lib >= 10, r.bg + ' lib ' + r.lib);
-      check('lượt mặc định chỉ 15 ải 1-1..3-5 (tầng 4 chỉ nối khi qua cổng tím)', r.n === 15 && r.labels[0] === '1-1' && r.labels[14] === '3-5', r.n + ' ải');
+      check('lượt mặc định chỉ 16 ải 1-1..3-5 + 3-6 Đá Phép (tầng 4 chỉ nối khi qua cổng tím)', r.n === 16 && r.labels[0] === '1-1' && r.labels[14] === '3-5' && r.labels[15] === '3-6', r.n + ' ải');
       check('SK.tierThemes(4) gồm monolith (4A), battleground (4B) và seabed (4C)', JSON.stringify(r.lvl4.slice().sort()) === '["battleground","monolith","seabed"]', JSON.stringify(r.lvl4));
       check('không lỗi trang (chủ đề)', !errs.length, errs.slice(0, 3).join(' | '));
       await p.close();
@@ -179,10 +179,10 @@ async function toBossCleared35(b, tag) {
       await sleep(900);
       await p.screenshot({ path: path.join(SHOTS, 'gate.png') });
       const at = await enterGate(p);
-      const r = await p.evaluate(() => ({ stage: SK_GAME.stage, theme: SK.G.stage.theme, n: SK.STAGES.length, labels: SK.STAGES.slice(15).map(s => s.label),
+      const r = await p.evaluate(() => ({ stage: SK_GAME.stage, theme: SK.G.stage.theme, n: SK.STAGES.length, labels: SK.STAGES.filter(s => s.ext).map(s => s.label),
         th: SK.G.map.th === SK.D.themes.monolith, gold: SK.G.player.gold, hpMax: SK.G.player.hpMax }));
       check('bước vào cổng tím → 4-1, chủ đề monolith', !!at && r.stage === '4-1' && r.theme === 'monolith' && r.th, JSON.stringify(r));
-      check('lượt thêm đúng 5 ải 4-1..4-5', r.n === 20 && r.labels.join() === '4-1,4-2,4-3,4-4,4-5', r.labels.join());
+      check('lượt thêm đúng 5 ải 4-1..4-5', r.n === 21 && r.labels.join() === '4-1,4-2,4-3,4-4,4-5', r.labels.join());
       check('sang 4-1 không trừ thêm vàng / máu', r.gold === 150 && r.hpMax === hp00 + at.buffHp, JSON.stringify({ gold: r.gold, hpMax: r.hpMax, hp00, buffHp: at.buffHp }));
       await until(p, () => SK_GAME.phase === 'play', null, 5000);
       await p.evaluate(() => SK_GAME.debug.teleportTo('battle', 0));
@@ -282,9 +282,9 @@ async function toBossCleared35(b, tag) {
       const { p, errs } = R;
       const s = await npcState(p);
       check('NPC có mặt nhưng không ai trả: chưa có cổng tím', s.npc && !s.gate);
-      const win = await walkPortal(p, st => st.state === 'victory');
+      const win = await walkPortal(p, st => st.stage === '3-6');
       const fin = await p.evaluate(() => ({ state: SK_GAME.state, stage: SK.G.stage.label, n: SK.STAGES.length }));
-      check('không trả giá → qua cổng thường thắng ở 3-5 như cũ', win && fin.state === 'victory' && fin.stage === '3-5' && fin.n === 15, JSON.stringify(fin));
+      check('không trả giá → qua cổng thường sang 3-6 (Đá Phép), chưa thắng', win && fin.state === 'stage' && fin.stage === '3-6' && fin.n === 16, JSON.stringify(fin));
       check('không lỗi trang (đường không trả)', !errs.length, errs.slice(0, 3).join(' | '));
       await p.close();
     }
@@ -311,7 +311,7 @@ async function toBossCleared35(b, tag) {
       await p.evaluate(() => { const n = SK.G.f4.npc; SK.G.player.x = n.x + 22; SK.G.player.y = n.y + 4; SK.G.player.gold = 250; });
       await useOption(p, 'vàng');
       const at = await enterGate(p);
-      const r = await p.evaluate(() => ({ stage: SK_GAME.stage, theme: SK.G.stage.theme, th: SK.G.map.th === SK.D.themes.battleground, labels: SK.STAGES.slice(15).map(s => s.label), themes: [...new Set(SK.STAGES.slice(15).map(s => s.theme))] }));
+      const r = await p.evaluate(() => ({ stage: SK_GAME.stage, theme: SK.G.stage.theme, th: SK.G.map.th === SK.D.themes.battleground, labels: SK.STAGES.filter(s => s.ext).map(s => s.label), themes: [...new Set(SK.STAGES.filter(s => s.ext).map(s => s.theme))] }));
       check('cổng tím ép 4B → 4-1 chủ đề battleground, cả 5 ải cùng vùng', !!at && r.stage === '4-1' && r.theme === 'battleground' && r.th && r.themes.join() === 'battleground' && r.labels.join() === '4-1,4-2,4-3,4-4,4-5', JSON.stringify(r));
       await until(p, () => SK_GAME.phase === 'play', null, 5000);
       await p.evaluate(() => SK_GAME.debug.teleportTo('battle', 0));
@@ -416,7 +416,7 @@ async function toBossCleared35(b, tag) {
       await p.evaluate(() => { const n = SK.G.f4.npc; SK.G.player.x = n.x + 22; SK.G.player.y = n.y + 4; SK.G.player.gold = 250; });
       await useOption(p, 'vàng');
       const at = await enterGate(p);
-      const r = await p.evaluate(() => ({ stage: SK_GAME.stage, theme: SK.G.stage.theme, th: SK.G.map.th === SK.D.themes.seabed, labels: SK.STAGES.slice(15).map(s => s.label), themes: [...new Set(SK.STAGES.slice(15).map(s => s.theme))] }));
+      const r = await p.evaluate(() => ({ stage: SK_GAME.stage, theme: SK.G.stage.theme, th: SK.G.map.th === SK.D.themes.seabed, labels: SK.STAGES.filter(s => s.ext).map(s => s.label), themes: [...new Set(SK.STAGES.filter(s => s.ext).map(s => s.theme))] }));
       check('cổng tím ép 4C → 4-1 chủ đề seabed, cả 5 ải cùng vùng', !!at && r.stage === '4-1' && r.theme === 'seabed' && r.th && r.themes.join() === 'seabed' && r.labels.join() === '4-1,4-2,4-3,4-4,4-5', JSON.stringify(r));
       await until(p, () => SK_GAME.phase === 'play', null, 5000);
 

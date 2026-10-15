@@ -1786,6 +1786,10 @@
   SK.on('portalEnter', (G2, stage) => {
     const p = G2.player;
     if (!buffAfter(G2, stage.label) || !p.buffs || p.buffs.length >= buffSlots()) return;
+    // Cổng cuối dẫn thẳng tới bảng thắng: không còn ải để dùng thiên phú (3-5 chỉ chọn khi đi cổng tím sang 4-1).
+    // 3-5 → 3-6 (phòng Đá Phép, chỉ còn đoạn kết) cũng không chọn thiên phú [THẤY https://youtu.be/D_stVEklXpI?t=1930].
+    const nx = SK.STAGES[G2.stageIdx + 1];
+    if ((G2.stageIdx + 1 >= SK.STAGES.length || (nx && nx.finale)) && !G2.extGo && G2.mode !== 'matrix') return;
     if (openChoice()) G2.hold = true;
   });
 

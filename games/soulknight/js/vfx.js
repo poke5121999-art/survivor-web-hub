@@ -280,7 +280,11 @@
         ta = h.t - h.endT0 - (e.after || 0);
         if (i == null || ta < 0) continue;
         order = [i];
-      } else if (h.state && a.st && a.st[h.state] != null) order = [a.st[h.state]];
+      } else if (h.state && a.st && a.st[h.state] != null) {
+        // Trạng thái chọn lúc spawn vẫn đi tiếp theo chuỗi exit time của nó (create_gate -> transfer_gate).
+        const i0 = a.st[h.state], k = order ? order.indexOf(i0) : -1;
+        order = k >= 0 ? order.slice(k) : [i0];
+      }
       else if (!order || !order.length) {
         // Trạng thái mặc định rỗng: script gọi Play/SetTrigger. Chạy clip 0 (vd Explode -> explode_small) trừ khi mọi
         // trạng thái của nó là trạng thái kết thúc (buff_ice chỉ có 'disappear': băng phải đứng yên suốt lúc đóng băng).
@@ -291,7 +295,8 @@
       let tt = ta, clip = null, ct = 0;
       for (let i = 0; i < order.length; i++) {
         const c = a.clips[order[i]], sp = c.spd || 1, len = c.len / sp;
-        if (c.loop || i === order.length - 1) {
+        // Clip giữa chuỗi chạy một lượt rồi sang clip sau dù cờ loop bật: seq chỉ nối chuyển trạng thái theo exit time.
+        if (i === order.length - 1) {
           clip = c;
           ct = c.loop && c.len > 0 ? (tt * sp) % c.len : Math.min(tt * sp, c.len);
           break;

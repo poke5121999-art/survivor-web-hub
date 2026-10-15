@@ -238,12 +238,12 @@
   }
 
   // Băng rôn vào ải: message_bar › show_message rồi hide_message, như UIMessageBar gốc.
-  // [SUY] 2 s: thời lượng do nơi gọi UICanvas.ShowLevelMessage(branch, msg, time) truyền vào, chưa đọc được.
+  // [ĐO MapManagerLevel.SetRgRandomSeed] ShowLevelMessage(branch, LevelText, 1.5f), UIMessageBar Invoke("HideMessage", 1.5).
   function levelBanner(G, dt) {
     if (G.phase === 'enter' && lastPhase !== 'enter') {
       UI.q('message_bar/level_text').txt.s = G.stage.label;
       UI.play('message_bar', 'show_message');
-      msgT = 2.0;
+      msgT = 1.5;
     }
     lastPhase = G.phase;
     if (msgT > 0) { msgT -= dt; if (msgT <= 0) UI.play('message_bar', 'hide_message'); }

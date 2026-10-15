@@ -6,7 +6,8 @@
  * Vào 1-1 bằng ?quick=1, cho nhân vật gục: hộp hồi sinh gốc (window_reborn) phải hiện với giá 200 Ngọc; bấm nút Ngọc
  * thì trừ 200, dậy đầy máu. Gục lần nữa: nút Ngọc xám (mỗi ván một lần), bấm thoát → bảng tổng kết trang 1 (thước, nhãn
  * 1-1), bấm ▶ → trang 2 trượt vào (info.x = -1280), bấm ▶ → về sảnh, đá quý hồ sơ tăng đúng số trên bảng.
- * Cuối cùng thử nhánh thắng: qua cổng 3-5 → cùng bảng, tiêu đề "Thắng".
+ * Luật hồi sinh (js/gameover.js reviveCost, REVIVES = 2): lần hai giá ×2 (400), lần ba nút xám.
+ * Cuối cùng thử nhánh thắng: qua cổng 3-5 → 3-6 (không chọn thiên phú) → Đá Phép → thẻ GAME COMPLETE → đóng thẻ → bảng "VICTORY".
  */
 const PW = process.env.PLAYWRIGHT_PATH ||
   'C:/Users/tamph/AppData/Roaming/npm/node_modules/@playwright/cli/node_modules/playwright';
@@ -80,17 +81,27 @@ async function main(b) {
   const gone = await st(p);
   check('hộp hồi sinh trượt ra và tắt', !gone.active, JSON.stringify(gone.phase));
 
-  // ---- sang 1-2 rồi gục lần 2: hết lượt Ngọc, thoát (đã qua 1-1 nên trang 1 có đá theo tiến độ; thêm quái hạ, vàng)
+  // ---- sang 1-2 rồi gục lần 2: giá ×2 (400) vẫn bấm được
   await p.evaluate(() => SK_GAME.debug.stage('1-2'));
   await until(p, () => SK_GAME.stage === '1-2', null, 3000);
   await p.evaluate(() => { SK.G.kills = 7; SK.G.player.gold = 30; });
   await kill(p);
   await until(p, () => { const s = SK.gameover.state(); return s.phase === 'reborn' && s.rebornY === 0 && s.t > 0.5; }, null, 6000);
   const s2 = await st(p);
-  check('gục lần 2: hộp hiện lại, nút Ngọc xám (một lần mỗi ván)', s2.phase === 'reborn' && s2.gemGray === true, JSON.stringify({ gray: s2.gemGray }));
+  check('gục lần 2: hộp hiện lại, giá ×2 = 400, nút Ngọc còn sáng', s2.phase === 'reborn' && s2.gemCost === '400' && s2.gemGray === false, JSON.stringify({ cost: s2.gemCost, gray: s2.gemGray }));
+  await clickNode(p, 'window_reborn/img_bg/btn_bg/btn_gem');
+  await sleep(300);
+  const rv2 = await p.evaluate(() => ({ gems: SK.profile.gems, st: SK_GAME.player.st }));
+  check('hồi sinh lần 2 trừ 400', rv2.gems === g0 - 600 && rv2.st === 'alive', JSON.stringify(rv2));
+  await until(p, () => !SK.gameover.state().active, null, 3000);
+  // ---- gục lần 3: hết lượt (REVIVES = 2), nút xám, thoát
+  await kill(p);
+  await until(p, () => { const s = SK.gameover.state(); return s.phase === 'reborn' && s.rebornY === 0 && s.t > 0.5; }, null, 6000);
+  const s3 = await st(p);
+  check('gục lần 3: hộp hiện lại, nút Ngọc xám (tối đa hai lần hồi sinh)', s3.phase === 'reborn' && s3.gemGray === true, JSON.stringify({ gray: s3.gemGray, cost: s3.gemCost }));
   await clickNode(p, 'window_reborn/img_bg/btn_bg/btn_gem');   // bấm nút xám: không có gì xảy ra
   const still = await p.evaluate(() => ({ gems: SK.profile.gems, ph: SK.gameover.state().phase }));
-  check('bấm nút Ngọc xám không trừ đá, không hồi sinh', still.gems === g0 - 200 && still.ph === 'reborn', JSON.stringify(still));
+  check('bấm nút Ngọc xám không trừ đá, không hồi sinh', still.gems === g0 - 600 && still.ph === 'reborn', JSON.stringify(still));
   await clickNode(p, 'window_reborn/img_bg/btn_bg/btn_close');
   const p1 = await until(p, () => { const s = SK.gameover.state(); return s.phase === 'statement' && s.page === 0; }, null, 3000);
   const c0 = (await st(p)).counter;
@@ -106,8 +117,8 @@ async function main(b) {
   check('đếm ngược trên nút ▶ bắt đầu từ 5s và khớp thời gian bảng', c0 === '5s' && t1.counter === Math.ceil(5 - t1.t) + 's',
     JSON.stringify({ start: c0, now: t1.counter, t: t1.t.toFixed(2) }));
   await p.evaluate(() => { SK.gameover.hold = false; });
-  check('đá quý thưởng đã cộng vào hồ sơ (runEnd của lobby.js)', gAfter === g0 - 200 + t1.run.gems && t1.run.gems > 0,
-    (g0 - 200) + ' + ' + t1.run.gems + ' = ' + gAfter);
+  check('đá quý thưởng đã cộng vào hồ sơ (runEnd của lobby.js)', gAfter === g0 - 600 + t1.run.gems && t1.run.gems > 0,
+    (g0 - 600) + ' + ' + t1.run.gems + ' = ' + gAfter);
 
   // ---- ▶ → trang 2
   await clickNode(p, 'mask_down/btn_ok');
@@ -126,22 +137,41 @@ async function main(b) {
   await sleep(300);
   await p.screenshot({ path: path.join(SHOTS, 'web_back_hall.png') });
   check('▶ trang 2 → về sảnh, không mở thêm hộp "Kết quả" HTML, đá quý tăng so với sau hồi sinh',
-    hall && !fin.dlg && fin.gems > g0 - 200 && fin.gems === gAfter, JSON.stringify(fin));
+    hall && !fin.dlg && fin.gems > g0 - 600 && fin.gems === gAfter, JSON.stringify(fin));
 
-  // ---- nhánh thắng: qua cổng 3-5
+  // ---- nhánh thắng: qua cổng 3-5 → 3-6 (không chọn thiên phú) → Đá Phép → thẻ GAME COMPLETE → bảng VICTORY
   await p.evaluate(() => SK.startRun('knight'));
   await until(p, () => SK_GAME.state === 'stage', null, 3000);
   await p.evaluate(() => { SK_GAME.debug.stage('3-5'); SK_GAME.debug.god(true); });
   await sleep(300);
   await p.evaluate(() => { const G = SK.G; G.hold = false; G.phase = 'portal'; G.phaseT = 5; });
-  const win = await until(p, () => { const s = SK.gameover.state(); return SK_GAME.state === 'victory' && s.phase === 'statement'; }, null, 3000);
+  const in36 = await until(p, () => SK_GAME.state === 'stage' && SK_GAME.stage === '3-6' && SK_GAME.phase !== 'portal', null, 4000);
+  const pick = await p.evaluate(() => ({ open: !!(SK.ROOMS && SK.ROOMS.choice && SK.ROOMS.choice.open), st: SK_GAME.state }));
+  check('qua cổng 3-5 → vào 3-6 (chưa thắng), không mở bảng chọn thiên phú', in36 && !pick.open && pick.st === 'stage', JSON.stringify(pick));
+  await sleep(2200);
+  await p.evaluate(() => { SK_GAME.debug.teleportTo('end', 0); });
+  await sleep(500);
+  await p.screenshot({ path: path.join(SHOTS, 'web_36_stone.png') });
+  await p.keyboard.press('KeyE');
+  const certUp = await until(p, () => SK.finale.state().cert, null, 12000);
+  const fs = await p.evaluate(() => SK.finale.state());
+  await sleep(700);
+  await p.screenshot({ path: path.join(SHOTS, 'web_certificate.png') });
+  const gs = await st(p);
+  check('chạm Đá Phép → sau 7,5 s hiện thẻ GAME COMPLETE phủ trên bảng VICTORY (bảng đứng yên dưới thẻ)',
+    certUp && fs.phase === 'done' && fs.log.some(e => e.ev === 'statement') && gs.modal === true && gs.title === 'VICTORY' && gs.label === '3-6',
+    JSON.stringify({ phase: fs.phase, t: fs.t.toFixed(2), title: gs.title, label: gs.label, modal: gs.modal }));
+  const rc = await p.evaluate(() => SK.finale.rect('window_certificate/btn_close'));
+  await p.mouse.click(rc.x + rc.w / 2, rc.y + rc.h / 2);
+  const closed = await until(p, () => !SK.finale.state().cert && !SK.gameover.state().modal, null, 3000);
   await until(p, () => SK.gameover.state().t > 1.4, null, 4000);
   await p.evaluate(() => { SK.gameover.hold = true; });
   const tw = await st(p);
   await p.screenshot({ path: path.join(SHOTS, 'web_victory.png') });
   await p.evaluate(() => { SK.gameover.hold = false; });
-  check('qua cổng 3-5 → cùng bảng tổng kết, tiêu đề "VICTORY", nhân vật ở vạch 3-5, không hiện #sk-win',
-    win && tw.title === 'VICTORY' && tw.label === '3-5' && await p.evaluate(() => document.getElementById('sk-win').hidden),
+  const win = await p.evaluate(() => SK_GAME.state === 'victory');
+  check('nút quay lại đóng thẻ → bảng VICTORY nhân vật ở 3-6, không hiện #sk-win',
+    closed && win && tw.title === 'VICTORY' && tw.label === '3-6' && await p.evaluate(() => document.getElementById('sk-win').hidden),
     JSON.stringify({ title: tw.title, label: tw.label, gem: tw.gemText }));
   const auto = await until(p, () => { const s = SK.gameover.state(); return s.page === 1 && s.infoX === -1280; }, null, 15000);
   const ta = await st(p);

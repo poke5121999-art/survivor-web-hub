@@ -10,7 +10,10 @@
   if (!U || !U.prefabs.statement || !U.prefabs.reborn) return;
 
   const REVIVE_GEM = 200;   // [ĐO] window_reborn › btn_gem/Text = "200"
-  const REVIVES = 1;        // [SUY] UIWindowReborn.AlreadyRebornTrigger: mỗi ván hồi sinh bằng Ngọc một lần
+  // [ĐO UIWindowReborn.Start] từ chỉ số ải (RGGameProcess.this_index, 1-1 = 0) 6 trở đi: giá + 30 × chỉ số − 150;
+  // lần sau gấp đôi (AdRebornTwice). [THẤY https://youtu.be/D_stVEklXpI?t=1905] gục lần hai hiện giá ×2.
+  const reviveCost = G => (G.stageIdx >= 6 ? REVIVE_GEM + 30 * G.stageIdx - 150 : REVIVE_GEM) * ((G.goRevived || 0) ? 2 : 1);
+  const REVIVES = 2;        // [SUY] clip 7.8 chỉ thấy tới lần hai; lần ba không có bằng chứng
   const FADE = 0.25;        // [ĐO] AnimatorController sample_window và ui_horizontal_switch: chuyển trạng thái 0,25 s
   const PAGE = 1280;        // [ĐO] clip ui_horizontal_switch2 đặt info.x = -1280
   const COUNTER = 5;        // [ĐO] btn_ok/counter/Text = "5s" (TimeCounter)
@@ -28,7 +31,8 @@
 
   // hold: móc kiểm thử, dừng đồng hồ của bảng tổng kết (đếm ngược, số đếm lên) trong lúc bộ kiểm chụp ảnh.
   // autoT: thời điểm (go.t) trang 1 tự sang trang 2 khi đếm ngược về 0.
-  const go = SK.gameover = { active: false, phase: null, t: 0, page: 0, hold: false, autoT: null };
+  // modal: một cửa sổ phủ lên bảng tổng kết (thẻ "GAME COMPLETE" của js/finale.js); đồng hồ bảng đứng yên, nút bảng không nhận chạm.
+  const go = SK.gameover = { active: false, phase: null, t: 0, page: 0, hold: false, autoT: null, modal: false };
   let R = null, S = null, run = null, res = null;
 
   go.handles = G => G.mode === 'level' && !!(SK.ugui && SK.ugui.ok);
@@ -49,12 +53,12 @@
       if (n.fit[0] === 2) n.sz[0] = ext[0];
       if (n.fit[1] === 2) n.sz[1] = ext[1];
     }
-    R.q(GEM_BTN + '/Text').txt.s = String(REVIVE_GEM);
+    R.q(GEM_BTN + '/Text').txt.s = String(reviveCost(G));
     R.q('window_reborn').p[1] = HIDE_Y;
     canRevive(G);
   }
   function canRevive(G) {
-    const ok = (G.goRevived || 0) < REVIVES && SK.profile && SK.profile.gems >= REVIVE_GEM;
+    const ok = (G.goRevived || 0) < REVIVES && SK.profile && SK.profile.gems >= reviveCost(G);
     if (R) R.q(GEM_BTN).gray = !ok;
     return ok;
   }
@@ -74,7 +78,7 @@
   };
 
   function revive(G) {
-    if (!canRevive(G) || !SK.profile.spend(REVIVE_GEM)) return false;
+    if (!canRevive(G) || !SK.profile.spend(reviveCost(G))) return false;
     const p = G.player;
     G.goRevived = (G.goRevived || 0) + 1;
     // [THẤY https://youtu.be/N9FR-oALmvQ?t=725] dậy tại chỗ, đầy máu/giáp/năng lượng; trùm giữ nguyên máu.
@@ -121,6 +125,8 @@
     run = {
       won: !!res.won, stage: res.stage, kills: res.kills | 0, gold: res.gold | 0, time: runTime(G),
       gems: res.gems | 0, gemsStage: res.gemsStage == null ? res.gems | 0 : res.gemsStage | 0, before,
+      // [THẤY https://youtu.be/D_stVEklXpI?t=1964] thắng ở 3-6: nhân vật đứng ở đầu mút thước (vạch thứ 15, thay biểu tượng đá), nhãn "3-6";
+      // thước chỉ có 15 vạch (lv16 của scene tắt sẵn) nên thua ở 3-5 cũng đứng đó.
       idx: Math.min(15, res.won ? SK.STAGES.length : G.stageIdx + 1)
     };
     S = SK.ugui.inst('statement');
@@ -186,6 +192,7 @@
 
   // ---------------------------------------------------------------- vòng lặp (gọi từ step của game.js)
   go.step = function (G, dt) {
+    if (go.modal) { if (SK.finale && SK.finale.certStep) SK.finale.certStep(G, dt); return; }
     if (!(go.hold && go.phase === 'statement')) go.t += dt;
     const I = SK.input, ready = go.t > INPUT_DELAY;
     if (go.phase === 'reborn') {
@@ -222,6 +229,7 @@
   }
   addEventListener('pointerdown', e => {
     if (!go.active || go.phase === 'reborn_out') return;
+    if (go.modal) { e.stopPropagation(); if (SK.finale && SK.finale.certClick) SK.finale.certClick(e); return; }
     const G = SK.G, q = hudPoint(e);
     const inR = (inst, path) => { const r = inst && inst.rectOf(path, q.W, q.H); return r && q.x >= r.x && q.x <= r.x + r.w && q.y >= r.y && q.y <= r.y + r.h; };
     e.stopPropagation();
@@ -245,7 +253,7 @@
     return r && { x: b.left + r.x / dpr, y: b.top + r.y / dpr, w: r.w / dpr, h: r.h / dpr };
   };
   go.state = () => ({
-    active: go.active, phase: go.phase, page: go.page, t: go.t,
+    active: go.active, phase: go.phase, page: go.page, t: go.t, modal: go.modal,
     infoX: S && go.phase === 'statement' ? S.q('info').p[0] : null,
     gemCost: R ? R.q(GEM_BTN + '/Text').txt.s : null, gemGray: R ? !!R.q(GEM_BTN).gray : null,
     rebornY: R ? R.q('window_reborn').p[1] : null,

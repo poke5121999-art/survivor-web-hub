@@ -268,3 +268,22 @@ Clip: 5 phần của Neogaming (1EdlLjGhhEQ, GLG702mUWX8, jFHCVBZEYDU, N9FR-oALm
 | Không có lời mở truyện + ải hướng dẫn | [THẤY] https://youtu.be/1EdlLjGhhEQ?t=3 .. ?t=255 | `js/tutorial.js`, `tools/tutorial/build_tutorial.py`: Scene_Plot + `map_Scene_toturial` 7 phòng, biển mẹo, rương, orc, CLEAR, cổng; `test/soulknight-tutorial.js` | quái hiện khi khoá phòng (gốc đứng sẵn); chết thì chơi lại ải; chưa có lời nhắc bấm nút kỹ năng; bản hướng dẫn có người dẫn của 8.6 và bản A/B chưa làm |
 | Vũ khí dưới đất chỉ có nhãn "[E] Nhặt …" | [THẤY] https://youtu.be/1EdlLjGhhEQ?t=160, ?t=357 | `js/hud.js`: tên trắng trên súng, dải `item_info` ATK/MP/CRIT/Độ lệch, tên bay lên đầu khi nhặt; `test/soulknight-floorweapon.js` | mũi tên chỉ xuống dưới tên: chưa tìm ra sprite gốc gắn với vật nhặt được nên bỏ; ô giá trị rộng 70 [SUY] |
 | Atlas UI xếp lại mà ảnh không có `?v=` | [ĐO] `ugui.js` nạp `U.sheet` trần | `build_ui.py` ghi `ui0.png?v=<md5 8 ký tự>` | — |
+
+## Đoạn kết Chế độ Ải: 3-6 Đá Phép + thẻ GAME COMPLETE (js/finale.js, tools/finale/build_finale.py, test/soulknight-finale.js, rev 20261015a)
+
+Nguồn [ĐO]: `map_GameOver` (Level "3月6日") = phòng `r_start_no_event` 15×15 + `r_end` 19×19 (4 lư `brazier02`, `MagicStoneMaker`), `ObjectMagicStone.ItemTrigger/PlayFlash/StateMents`
+(IL2CPP), controller Canvas HUD (`shutter` → `show_curtain_white`, chuyển 0,5 s), `window_certificate` + `NormalPassCertificate` (`UIWindowCertificate.certificateList[4]`).
+Đính chính brief: `"shutter"` là trigger Animator của Canvas HUD (màn trắng), không phải tên tiếng; tiếng lúc trắng là `flash_clip = fx_magic_stone2`.
+
+| Còn thiếu / lệch | Nhãn | Ghi chú |
+|---|---|---|
+| Thẻ: dòng thú cưng, thức uống, tên skin + hai biểu tượng kỹ năng dưới tên nhân vật, hàng Chế độ/Lợi Hại/Nhân tố | [THẤY https://youtu.be/D_stVEklXpI?t=1957] | ẩn (off), chưa có dữ liệu bóc; thẻ web luôn là bố cục `layout0` (chỉ vũ khí) |
+| Nền thẻ là ảnh màn chơi làm mờ, gốc là nền nhiều màu | [THẤY] | gốc có `CaptureCamera`; không rõ nền gốc nên dùng ảnh chụp [SUY] |
+| Nút chia sẻ tải ảnh PNG của canvas | [SUY] | gốc chia sẻ qua hệ điều hành |
+| Khối Đá Phép cố định `magic_stone_5` (đỏ); gốc bốc theo độ khó | [SUY] | web chưa có độ khó; 7 khối đều đã bóc vào `data/sk-finale.js` |
+| Nhạc: `ItemTrigger` đổi BGM sang `fx_magic_stone` rồi `StopBgm` lúc trắng; web chỉ phát hai clip như tiếng, nhạc nền không dừng | [ĐO] | `js/sfx.js` chọn nhạc theo trạng thái ván, chưa có cổng tắt nhạc |
+| Lư lửa không chặn đường, không đập vỡ được (gốc RGBox hp 4) | [ĐO] | chỉ vẽ |
+| Tường 3-6 sáng hơn gốc (prefab tint 0,735 không áp ở `map.art.walls`) | [ĐO] | |
+| Total Damage đếm từ sự kiện `enemyHit`; gốc có thể cộng cả sát thương không qua SK.hurtEnemy | [ƯỚC LƯỢNG] | |
+| Tầng 4 (cổng tím): 4-5 qua cổng thường thắng ngay, không qua Đá Phép | [SUY] | `STAGES` = 1-1..3-5, 3-6, rồi 4-x nối thêm; `game.js` nhảy thẳng từ 3-5 sang 4-1 |
+| Trang 1 bảng VICTORY thiếu hàng vật phẩm nhặt và bệ Đá Phép bên phải (clip), gem đếm theo công thức web | [THẤY https://youtu.be/D_stVEklXpI?t=1964] | có từ trước, chưa làm |

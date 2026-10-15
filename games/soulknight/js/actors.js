@@ -1373,8 +1373,9 @@
     const p = G.player, I = SK.input;
     p.t += dt;
     SK.smStep(p.sm, dt, fn => SK.emit('animEvent', G, p, fn));
+    p.flash = Math.max(0, p.flash - dt);   // trước nhánh chết: đòn chí mạng không để thân trắng mãi
     if (p.st === 'dead') { p.stT += dt; return; }
-    p.invulT = Math.max(0, p.invulT - dt); p.flash = Math.max(0, p.flash - dt);
+    p.invulT = Math.max(0, p.invulT - dt);
     p.skillCd = Math.max(0, p.skillCd - dt);
     if (SK.factorsTick) SK.factorsTick(G, p, dt);
     for (const w of p.weapons) if (w) { w.cd -= dt; w.kick = Math.max(0, w.kick - dt * 20); w.swing = Math.max(0, (w.swing || 0) - dt); }
@@ -1521,6 +1522,13 @@
     const hoff = [hf.dx * fs, hf.dy];
     if (!fr || !SK.draw(ctx, fr, p.x + xf.dx * fs, p.y + xf.dy, { flip: p.face < 0, pages, sx: xf.sx, sy: xf.sy, rot: xf.rot * fs })) {
       ctx.fillStyle = '#9aa4b5'; ctx.fillRect(p.x - 6, p.y - 16, 12, 16);
+    }
+    // Hồn ma biaoqing_11 ở nút dead_tap (hero.ab: (0,8; 1,2) đv, c09/c12 là (0,8; 0,8)) [THẤY https://youtu.be/D_stVEklXpI?t=1888];
+    // nhịp 0,625..2 s mượn clip L2.char_tap_dead của Animator quái [SUY: Animator nhân vật không bóc được lớp này].
+    if (p.st === 'dead' && p.stT >= 0.625 && p.stT < 2) {
+      // Gốc cNN không trùng chân nhân vật web: trừ (0,3; 0,4) đv cho hồn ma sát mép phải thân như khung clip [THẤY ?t=1889].
+      const ty = (p.anims.index === 8 || p.anims.index === 11 ? 0.8 : 1.2) - 0.4;   // cNN = index + 1
+      SK.draw(ctx, 'biaoqing_11', p.x + 0.5 * SK.PPU * fs, p.y - ty * SK.PPU, { flip: p.face < 0 });
     }
     if (p.st !== 'dead' && w && !p.hideHeld) drawHeld(ctx, p, w, 1, hoff);
     // Súng thứ hai (Song Thủ) ở tay h2 trước mặt, vẽ SAU thân và súng chính nên nằm trên cùng [ĐO hero.ab img/h2 x > 0].

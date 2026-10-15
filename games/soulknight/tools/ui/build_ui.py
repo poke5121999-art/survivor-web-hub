@@ -43,6 +43,8 @@ PREFABS = {
     'statement': ('statements', 'scene:Canvas', []),
     # Hộp hồi sinh khi gục ngã (UIWindowReborn): nút Ngọc 200 và nút thoát.
     'reborn': ('common', 'assets/rgprefab/ui/window_reborn.prefab', []),
+    # Thẻ "GAME COMPLETE" hiện trên bảng tổng kết khi thắng Chế độ Ải (UIWindowCertificate, js/finale.js).
+    'certificate': ('common', 'assets/rgprefab/ui/window_certificate.prefab', []),
 }
 
 # Prefab con khong co trong m_Container, chi duoc tro toi tu mot MonoBehaviour cua prefab khac:
@@ -50,6 +52,8 @@ PREFABS = {
 # [DO] SkinScrollView.cellPrefab = skin_cell (cung CAB voi ui_choose_hero), o thanh truot nhan vat o day man.
 REF_PREFABS = {
     'skin_cell': ('choose_hero', 'mask_down/skin_scroll_view', 'SkinScrollView', 'cellPrefab'),
+    # [ĐO] UIWindowCertificate.certificateList[4] = NormalPassCertificate: thẻ của Chế độ Ải thường (đủ 8 thẻ chế độ).
+    'certificate_card': ('certificate', '', 'UIWindowCertificate', 'certificateList[4]'),
 }
 
 # Prefab gan vao nut cua prefab khac nhu ma goc lam luc chay: (dich, duong dan cha, nguon, vi tri).
@@ -368,7 +372,10 @@ def ref_prefab(rip, root, path, cls, field):
     """GameObject ma truong `field` cua MonoBehaviour `cls` tren nut `path` tro toi."""
     for name, cab, mb in node_at(root, path).mbs():
         if name == cls:
-            r = rip.resolve(mb[field], cab)
+            ptr = mb[field.split('[')[0]]
+            if '[' in field:   # trường mảng: 'certificateList[4]'
+                ptr = ptr[int(field.split('[')[1].rstrip(']'))]
+            r = rip.resolve(ptr, cab)
             if r:
                 return skrip.Node(rip, r[0], r[1])
     raise SystemExit('prefab reference not found: %s.%s at %s' % (cls, field, path))

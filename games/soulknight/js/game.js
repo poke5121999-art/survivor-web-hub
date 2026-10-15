@@ -20,6 +20,11 @@
     // Trận cuối Khu Thí Luyện: anh hồn Tước Sĩ Đỏ (thường) / Tím (Lợi Hại) [LOC bossrush_intro_tips6, enemies.boss_bossrush_final*].
     // Gốc chỉ mở khi "Thí Luyện Thuần Túy" (không mang nhân tố/thiên phú/vũ khí, kịp giờ); web: chỉ cần không mang nhân tố [SUY].
     if (br && !(factors && factors.length)) STAGES.push({ theme: DS.run[2][0], level: 3, n: 6, label: '3-6', boss: true, br, final: true });
+    // Chế độ Ải thường kết ở 3-6: phòng khởi đầu 15×15 rồi phòng Đá Phép 19×19 (r_start_no_event + r_end của map_GameOver,
+    // Level "3月6日" trong config/map_levels) [ĐO]. Không quái, không cổng: chạm Đá Phép là kết thúc (js/finale.js).
+    // final: true để Mộng Du không xáo 3-6 vào giữa; spacing 30 ô: hành lang 13 ô giữa hai phòng [ƯỚC LƯỢNG theo clip].
+    if (mode === 'level') STAGES.push({ theme: DS.run[2][0], level: 3, n: 6, label: '3-6', boss: false, br: false, final: true, finale: true,
+      spacing: 30, layout: [{ type: 'start', cell: [1, 2], w: 15, h: 15 }, { type: 'end', cell: [2, 2], w: 19, h: 19 }] });
     if (mode === 'artifacts') STAGES.push({ theme: DS.run[2][0], level: 3, n: 6, label: '3-6', boss: true, br: true, final: true });   // Thần Khí Lục Địa Cổ: ải trùm cuối 3-6 [WIKI Sacred Weapons] (js/artifacts.js)
   }
   // Tầng k của Mê Trận: 5 ải k-1..k-5, vùng đất của tầng ((k-1) mod 3)+1 (dãy 3 tầng lặp lại); trùm ở k-5.
@@ -52,8 +57,9 @@
     }
     DS.run.forEach(([, level], t) => {
       const theme = pin && D.themes[pin[t]] ? pin[t] : SK.pick(SK.tierThemes(level));
-      for (const st of STAGES) if (st.level === level) st.theme = st.br && !pin ? SK.pick(SK.tierThemes(level)) : theme;
+      for (const st of STAGES) if (st.level === level && !st.finale) st.theme = st.br && !pin ? SK.pick(SK.tierThemes(level)) : theme;
     });
+    for (const st of STAGES) if (st.finale && D.themes.endhall) st.theme = 'endhall';   // sàn/tường riêng của 3-6 (js/finale.js)
   }
 
   const G = SK.G = {
@@ -332,17 +338,19 @@
     }
     // G.hold: một mô-đun (chọn buff...) giữ người chơi ở cổng tới khi xong việc của nó.
     if (G.phase === 'portal' && G.phaseT > 0.8 && !G.hold) {
-      // Cổng tím của Kẻ Vượt Ranh Giới (js/floor4.js): nối 4-1..4-5 vào lượt rồi sang 4-1; cổng thường vẫn thắng ở 3-5.
-      if (G.extGo && SK.floor4) { G.extGo = false; SK.floor4.extend(STAGES); }
+      // Cổng tím của Kẻ Vượt Ranh Giới (js/floor4.js): nối 4-1..4-5 vào lượt rồi sang 4-1; cổng thường ở 3-5 sang 3-6.
+      // 3-6 (Đá Phép) đứng trước dãy 4-x trong STAGES; nhánh tím nhảy thẳng sang 4-1 và kết ở 4-5 bằng cổng thường (không qua Đá Phép) [SUY].
+      let next = G.stageIdx + 1;
+      if (G.extGo && SK.floor4) { G.extGo = false; SK.floor4.extend(STAGES); const e = STAGES.findIndex(s => s.ext); if (e >= 0) next = e; }
       if (G.mode === 'matrix' && G.stageIdx + 1 >= STAGES.length) SK.matrixNextFloor();   // vô tận: không có chiến thắng
-      if (G.stageIdx + 1 >= STAGES.length) {
+      if (next >= STAGES.length) {
         G.state = 'victory';
         if (SK.gameover && SK.gameover.handles(G)) SK.gameover.statement(G);
         else { setOverlay('sk-win'); fillEnd('sk-win-info'); }
-      } else enterStage(G.stageIdx + 1);
+      } else enterStage(next);
     }
     // Chế độ Ải: hộp hồi sinh window_reborn rồi bảng tổng kết Statements (js/gameover.js); chế độ khác giữ lớp phủ #sk-over.
-    if (p.st === 'dead' && p.stT > 1.3) {
+    if (p.st === 'dead' && p.stT > 2.0) {   // [ĐO RGController.Dead] Invoke("Resurrection", 2.0)
       G.state = 'dead';
       if (SK.gameover && SK.gameover.handles(G)) SK.gameover.dead(G);
       else { setOverlay('sk-over'); fillEnd('sk-over-info'); }

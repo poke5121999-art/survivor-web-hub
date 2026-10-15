@@ -238,7 +238,7 @@ const fakeG = (o) => Object.assign({ mode: 'level', badass: false, t: 600, facto
     }
     // thắng thật: tới ải cuối, vào phòng Thủ Lĩnh, dọn phòng, bước vào cổng (hold -> chọn buff 1)
     async function winReal(p, slowSecs) {
-      await p.evaluate(() => { SK_GAME.debug.god(true); SK_GAME.debug.stage(SK.STAGES[SK.STAGES.length - 1].label); });
+      await p.evaluate(() => { SK_GAME.debug.god(true); SK_GAME.debug.stage(SK.STAGES.filter(s => !s.finale).pop().label); });   // 3-5: trùm cuối; 3-6 Đá Phép đi tiếp ở dưới
       await until(p, () => SK_GAME.phase === 'play', null, 8000);
       await p.evaluate(() => { SK_GAME.debug.god(true); SK_GAME.debug.teleportTo('boss'); });
       await until(p, () => SK_GAME.rooms.some(r => r.type === 'boss' && r.state === 'locked'), null, 8000);
@@ -246,9 +246,14 @@ const fakeG = (o) => Object.assign({ mode: 'level', badass: false, t: 600, facto
       await p.evaluate(() => SK_GAME.debug.clearRoom());
       await until(p, () => !!SK.G.portal, null, 8000);
       await p.evaluate(() => { const G = SK.G; G.player.x = G.portal.x; G.player.y = G.portal.y; });
-      for (let i = 0; i < 80; i++) {
+      let touched = false;
+      for (let i = 0; i < 200; i++) {
         if (await p.evaluate(() => SK.G.hold && SK_ROOMS.pick(0))) await sleep(50);
         if (await p.evaluate(() => SK_GAME.state === 'victory')) return true;
+        // 3-6: tới bệ Đá Phép rồi chạm (E); chuỗi 7,5 s kết bằng bảng VICTORY
+        if (!touched && await p.evaluate(() => SK_GAME.stage === '3-6' && SK_GAME.state === 'stage' && SK_GAME.phase === 'play')) {
+          await p.evaluate(() => SK_GAME.debug.teleportTo('end', 0)); await sleep(300); await p.keyboard.press('KeyE'); touched = true;
+        }
         await sleep(120);
       }
       return false;
