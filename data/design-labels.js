@@ -706,6 +706,11 @@
         "intentPerSecond": { label: "Số thao tác mỗi giây của khách", min: 1, int: true, help: "Chủ phòng bỏ thao tác (đánh, dùng đồ…) vượt số này mỗi giây; người bấm nhanh khoảng 10 lần/giây." },
         "intentBurst": { label: "Số thao tác dồn tối đa", min: 1, int: true, help: "Bấm dồn một lúc tối đa chừng này thao tác trước khi bị bỏ." },
         "keyEvery": { label: "Nhịp ảnh chụp đầy đủ", unit: "tick", min: 0, int: true, help: "Cứ chừng này ảnh chụp (15 ảnh/giây) chủ phòng gửi mỗi khách một ảnh đầy đủ để sửa sai lệch; các khách được so le để không dồn cùng lúc. 450 = 30 giây. 0 = tắt." },
+        "chargeSlackSeconds": { label: "Dung sai sạc của khách", unit: "giây", min: 0, help: "Mức sạc khách khai chỉ được nhận tối đa bằng thời gian chủ phòng đếm từ lúc bắt đầu sạc cộng số giây này; bù độ trễ giữa hai thao tác và cú chạm nhanh." },
+        "stamGraceSeconds": { label: "Ân hạn thể lực của khách", unit: "giây", min: 0, help: "Thể lực khách đã cạn quá chừng này giây thì tư thế khai nước rút chỉ được đi tốc độ đi bộ; hai bên tính thể lực lệch nhịp nên cần chừa chút." },
+        "noiseWindowSeconds": { label: "Cửa sổ đo tiếng động", unit: "giây", min: 0, help: "Chủ phòng đo quãng thân khách đã đi trong khoảng này để so với cần gạt khách khai; hai khoảng liền nhau lệch mới tính." },
+        "noiseQuietSeconds": { label: "Giây nghỉ đo tiếng động sau khi bị hất", unit: "giây", min: 0, help: "Sau khi khách bị đau hay hất tung, chừng này giây không đo tiếng động (cú hất đi về khách rồi mới về lại tư thế)." },
+        "buySlackTiles": { label: "Dung sai khoảng cách khi mua", unit: "ô", min: 0, help: "Khách mua hàng chỉ được nhận khi thân khách cách nút thanh toán không quá bán kính bước lên nút cộng chừng này ô." },
         "localStun": { label: "Máy STUN để nhận ra cùng mạng (Local)", help: "Địa chỉ STUN để máy hỏi IP công cộng của mình, dùng nhận ra những máy cùng mạng khi liệt kê phòng Local. Nhiều địa chỉ cách nhau dấu phẩy, ví dụ stun:stun.l.google.com:19302. Để trống = không lọc cùng mạng, chỉ vào được bằng mã phòng." },
         "localIce": { label: "Máy ICE cho kết nối Local, trống = chỉ cùng mạng", help: "Các địa chỉ ICE (STUN/TURN) cho phòng Local (web và app), cách nhau dấu phẩy. Trống = chỉ nối được các máy cùng mạng; có địa chỉ thì nối được cả máy khác mạng nhưng có thể tốn băng thông TURN." }
       }
