@@ -743,6 +743,8 @@
         "noiseWindowSeconds": { label: "Cửa sổ đo tiếng động", unit: "giây", min: 0, help: "Chủ phòng đo quãng thân khách đã đi trong khoảng này để so với cần gạt khách khai; hai khoảng liền nhau lệch mới tính." },
         "noiseQuietSeconds": { label: "Giây nghỉ đo tiếng động sau khi bị hất", unit: "giây", min: 0, help: "Sau khi khách bị đau hay hất tung, chừng này giây không đo tiếng động (cú hất đi về khách rồi mới về lại tư thế)." },
         "buySlackTiles": { label: "Dung sai khoảng cách khi mua", unit: "ô", min: 0, help: "Khách mua hàng chỉ được nhận khi thân khách cách nút thanh toán không quá bán kính bước lên nút cộng chừng này ô." },
+        "relayCapKBPerMin": { label: "Trần byte chủ phòng gửi (KB/phút, 0 = tắt)", unit: "KB/phút", min: 0, max: 100000, int: true, help: "Chủ phòng gửi ảnh chụp cho các khách tối đa bấy nhiêu KB mỗi phút, chia đều cho các khách; vượt trần thì khối ít gấp để nhịp sau và log cảnh báo relay-budget. 1024 = 1 MB/phút. 0 = tắt." },
+        "relayCapBurstSeconds": { label: "Độ dồn cho phép", unit: "giây", min: 0.2, max: 10, help: "Cho dồn tối đa bấy nhiêu giây ngân sách trong một lúc." },
         "localStun": { label: "Máy STUN để nhận ra cùng mạng (Local)", help: "Địa chỉ STUN để máy hỏi IP công cộng của mình, dùng nhận ra những máy cùng mạng khi liệt kê phòng Local. Nhiều địa chỉ cách nhau dấu phẩy, ví dụ stun:stun.l.google.com:19302. Để trống = không lọc cùng mạng, chỉ vào được bằng mã phòng." },
         "localIce": { label: "Máy ICE cho kết nối Local, trống = chỉ cùng mạng", help: "Các địa chỉ ICE (STUN/TURN) cho phòng Local (web và app), cách nhau dấu phẩy. Trống = chỉ nối được các máy cùng mạng; có địa chỉ thì nối được cả máy khác mạng nhưng có thể tốn băng thông TURN." }
       }
