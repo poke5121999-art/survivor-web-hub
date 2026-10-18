@@ -970,5 +970,22 @@ window.HUB_GAMES = [
     // Kiểm: python verify/game/play.py <url> in D:/MapleStoryLocal/web
     status: "available",
     tags: ["MMORPG", "Nhập vai", "Màn ngang", "Kỹ năng", "Solo"]
+  },
+  {
+    id: "casual-farm",
+    title: "Tiệm Nông Sản Mini",
+    tagline: "Hái cà chua và chanh, xếp lên kệ, đứng quầy thu tiền khách.",
+    desc: "Bản web của TA-Casual-Farm, bản làm lại My Mini Mart do CookieNoir viết (giấy phép MIT). Giữ chuột hoặc ngón tay trên mặt đất để đi. Hái rau ở luống, xếp lên kệ, khách tự lấy rồi ra quầy trả tiền. Bấm vào ô giá để mua thêm luống.",
+    genre: "thu-gian",
+    accent: "#8bd450",
+    en: { title: "Mini Produce Shop", tagline: "Pick tomatoes and lemons, stock the shelves, work the till.", desc: "A web build of TA-Casual-Farm, CookieNoir's remake of My Mini Mart (MIT licence). Hold the mouse or a finger on the ground to walk. Pick produce at the beds, stock the shelves, and customers take it to the till to pay. Tap a price tag to buy another bed." },
+    thumbnail: "assets/thumbnails/casual-farm.png",
+    path: "games/casual-farm/index.html",
+    rev: "20261018a",
+    // Unity 2022.1 project from github.com/CookieNoir/TA-Casual-Farm, upgraded to Unity 6000.0.77f1 and built
+    // unmodified except for a portrait page template and a batch build script (local clone D:/ta-casual-farm).
+    // Persists nothing, so no save bridge. Kiểm: python docs/tests/browser/test_casual_farm.py <hub url> (meta-repo).
+    status: "available",
+    tags: ["Nông trại", "Quản lý", "Màn dọc"]
   }
 ];
