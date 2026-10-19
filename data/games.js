@@ -973,18 +973,18 @@ window.HUB_GAMES = [
   },
   {
     id: "casual-farm",
-    title: "Tiệm Nông Sản Mini",
-    tagline: "Hái cà chua và chanh, xếp lên kệ, đứng quầy thu tiền khách.",
-    desc: "Bản web của TA-Casual-Farm, bản làm lại My Mini Mart do CookieNoir viết (giấy phép MIT). Giữ chuột hoặc ngón tay trên mặt đất để đi. Hái rau ở luống, xếp lên kệ, khách tự lấy rồi ra quầy trả tiền. Bấm vào ô giá để mua thêm luống.",
+    title: "My Mini Mart",
+    tagline: "Trồng rau, nuôi gà, xếp kệ, thuê nhân viên và mở thêm cửa hàng mới.",
+    desc: "Bản web đầy đủ của My Mini Mart (Kiseki Games / Supersonic), dựng lại từ bản Android 1.89.5. Kéo để đi. Mở quầy, luống và chuồng bằng tiền, hái hàng xếp lên kệ, đứng quầy thu tiền khách, rồi thuê nhân viên và chuyển sang cửa hàng kế. Quảng cáo trao thưởng ngay, đồ trả phí miễn phí. Lưu trong trình duyệt.",
     genre: "thu-gian",
     accent: "#8bd450",
-    en: { title: "Mini Produce Shop", tagline: "Pick tomatoes and lemons, stock the shelves, work the till.", desc: "A web build of TA-Casual-Farm, CookieNoir's remake of My Mini Mart (MIT licence). Hold the mouse or a finger on the ground to walk. Pick produce at the beds, stock the shelves, and customers take it to the till to pay. Tap a price tag to buy another bed." },
+    en: { title: "My Mini Mart", tagline: "Grow produce, raise animals, stock shelves, hire staff and open new marts.", desc: "The full My Mini Mart (Kiseki Games / Supersonic), rebuilt for the web from the Android 1.89.5 release. Drag to walk. Buy the till, beds and pens, pick produce onto the shelves, ring customers up at the till, then hire staff and move on to the next mart. Ads reward instantly and paid items are free. Saved in the browser." },
     thumbnail: "assets/thumbnails/casual-farm.png",
     path: "games/casual-farm/index.html",
-    rev: "20261018a",
-    // Unity 2022.1 project from github.com/CookieNoir/TA-Casual-Farm, upgraded to Unity 6000.0.77f1 and built
-    // unmodified except for a portrait page template and a batch build script (local clone D:/ta-casual-farm).
-    // Persists nothing, so no save bridge. Kiểm: python docs/tests/browser/test_casual_farm.py <hub url> (meta-repo).
+    rev: "20261019a",
+    // The 150 MB Unity 6 WebGL build lives in its own Pages repo (poke5121999-art/my-mini-mart-web) so the hub
+    // stays under the 1 GB site limit; games/casual-farm/index.html redirects there. Source: D:/minimart-extract
+    // (logic restored from the IL2CPP binary). Kiểm: python docs/tests/browser/test_casual_farm.py <hub url> (meta-repo).
     status: "available",
     tags: ["Nông trại", "Quản lý", "Màn dọc"]
   }
