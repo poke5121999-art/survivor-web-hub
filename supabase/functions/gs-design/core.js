@@ -226,13 +226,28 @@ const GUARD_FIELDS = {
   relay: ["capUsd", "forceClosed", "perGiB", "freeGiBPerCcu", "freeGiBCap", "perCcu", "freeCcu", "overheadBytes", "bytesFactor"],
   vivox: ["capUsd", "forceClosed", "reserve", "freePcu", "stepPcu", "perStep"],
 };
+// Optional fields: cloudcode lib/costguard.js falls back to its own default when one is missing, and the seed
+// (gamespark-config/runtime/cost_guard.json) carries maxBytesPerMin. The Online switch saves the row it read back,
+// so refusing them would break that switch as soon as the seed reaches DEV.
+const GUARD_OPTIONAL = {
+  relay: {
+    maxBytesPerMin: (v) => (typeof v === "number" && Number.isFinite(v) && v >= 1 ? null : "phải là số từ 1 trở lên"),
+    mixEvery: (v) => (Number.isInteger(v) && v >= 1 ? null : "phải là số nguyên từ 1 trở lên"),
+  },
+  vivox: {},
+};
 
-function checkGuardDoc(d) {
+export function checkGuardDoc(d) {
   if (!isPlain(d)) return "doc không phải object";
   const fields = GUARD_FIELDS[d._id];
   if (!fields) return `Dịch vụ "${d._id}" không hợp lệ, chỉ nhận ${Object.keys(GUARD_FIELDS).join(", ")}.`;
+  const optional = GUARD_OPTIONAL[d._id];
   for (const k of Object.keys(d)) {
-    if (k !== "_id" && !fields.includes(k)) return `Dịch vụ "${d._id}" không có trường "${k}".`;
+    if (k === "_id") continue;
+    if (k in optional) {
+      const bad = optional[k](d[k]);
+      if (bad) return `${k} của "${d._id}" là ${JSON.stringify(d[k])}, ${bad}.`;
+    } else if (!fields.includes(k)) return `Dịch vụ "${d._id}" không có trường "${k}".`;
   }
   for (const k of fields) {
     const v = d[k];

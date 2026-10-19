@@ -111,6 +111,14 @@ function shuffleKeys(v) {
     ["thiếu trường", (({ perCcu, ...rest }) => rest)(relay)],
     ["vivox mang trường của relay", { _id: "vivox", capUsd: 0, forceClosed: false, reserve: 250, freePcu: 5000, stepPcu: 5000, perStep: 2000, perGiB: 1 }],
   ];
+  badGuard.push(["maxBytesPerMin 0", { ...relay, maxBytesPerMin: 0 }], ["maxBytesPerMin là chuỗi", { ...relay, maxBytesPerMin: "1048576" }],
+    ["mixEvery số lẻ", { ...relay, mixEvery: 1.5 }], ["vivox mang maxBytesPerMin", { _id: "vivox", capUsd: 0, forceClosed: false, reserve: 250, freePcu: 5000, stepPcu: 5000, perStep: 2000, maxBytesPerMin: 1 }]);
+  // The seed carries relay.maxBytesPerMin; the Online switch saves the row it read back, so the seed must pass as is.
+  const seed = JSON.parse(fs.readFileSync("D:/REPO_Meta/gamespark-config/runtime/cost_guard.json", "utf8"));
+  const seedBad = seed.map((d) => core.checkGuardDoc(d)).filter(Boolean);
+  check("guard: hạt giống cost_guard.json (có maxBytesPerMin) qua được luật kiểm", seedBad.length === 0 && seed[0].maxBytesPerMin > 0,
+    seedBad.join(" | ") || `maxBytesPerMin=${seed[0].maxBytesPerMin}`);
+  check("guard: relay có mixEvery 3 qua được luật kiểm", core.checkGuardDoc({ ...relay, mixEvery: 3 }) === null, "");
   for (const [n, doc] of badGuard) {
     const r = await act({ action: "guard_save", doc });
     check("guard_save INVALID " + n, r.status === 400 && r.json.error.code === "INVALID", `status ${r.status}, ${r.json.error && r.json.error.message}`);
