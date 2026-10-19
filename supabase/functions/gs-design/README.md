@@ -39,3 +39,7 @@ Khoá MCP tạo được bảng metadata nhưng KHÔNG xoá được (`data/coll
 ## Chi phí dịch vụ
 
 Hai action `guard` (đọc `cd_cost_guard` và `cd_cost_meter` tháng này, tháng trước) và `guard_save` (kiểm rồi ghi một doc `cd_cost_guard` bằng `/data/update`, chưa có doc thì `/data/insert`). Không nằm trong `KNOWN` vì là collection runtime, không phải bảng `md_*`.
+
+## Phát hành & bảo trì
+
+Hai action `gate` (đọc doc `default` của `cd_client_gate`; chưa có doc hay thiếu trường thì trả giá trị tắt cổng, kèm `exists`) và `gate_save` (kiểm cả doc: `maintenance.on` boolean, `message` chuỗi tối đa 300 ký tự, `until` null hoặc giờ UTC ISO-8601 có `Z`, `minBuild.webgl/android/ios` số nguyên 0..10^9, `storeUrls.android/ios` trống hoặc link https; thừa hay thiếu trường là 400; rồi `/data/update`, chưa có doc thì `/data/insert`). Trang chặn thêm bản web tối thiểu lớn hơn `build` trong `games/repo2d-unity/version.json` (chưa có file thì bỏ qua); proxy không kiểm điều này.

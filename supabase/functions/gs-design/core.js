@@ -290,18 +290,116 @@ async function saveGuard(call, doc) {
   return { status: 200, json: { ok: true, ...(await readGuard(call)) } };
 }
 
+// Client gate (force update + maintenance): runtime collection cd_client_gate, one doc "default", read by cloudcode
+// with a 30 s cache. A missing doc or field is "gate off", so reads fill the shape with these values.
+const GATE_ID = "default";
+const GATE_PLATFORMS = ["webgl", "android", "ios"];
+const GATE_STORES = ["android", "ios"];
+const GATE_MSG_MAX = 300;
+const GATE_BUILD_MAX = 1e9;
+export const GATE_OFF = Object.freeze({
+  _id: GATE_ID,
+  maintenance: { on: false, message: "", until: null },
+  minBuild: { webgl: 0, android: 0, ios: 0 },
+  storeUrls: { android: "", ios: "" },
+});
+
+// ISO-8601 UTC with Z, minutes at least; the round trip refuses dates V8 would roll over (2026-02-30).
+function isUtcIso(s) {
+  if (typeof s !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?Z$/.test(s)) return false;
+  const t = Date.parse(s);
+  return Number.isFinite(t) && new Date(t).toISOString().slice(0, 16) === s.slice(0, 16);
+}
+
+function isHttpsUrl(s) {
+  if (typeof s !== "string" || s.length > 500 || /\s/.test(s)) return false;
+  try { return new URL(s).protocol === "https:"; } catch { return false; }
+}
+
+const sameKeys = (o, keys) => isPlain(o) && Object.keys(o).length === keys.length && keys.every((k) => k in o);
+
+// The whole doc every time, nothing extra: the client renders exactly these fields.
+export function checkGateDoc(d) {
+  if (!isPlain(d)) return "doc không phải object";
+  if (d._id !== GATE_ID) return `_id là ${JSON.stringify(d._id)}, phải là "${GATE_ID}".`;
+  const top = ["_id", "maintenance", "minBuild", "storeUrls"];
+  for (const k of Object.keys(d)) if (!top.includes(k)) return `Cổng phiên bản không có trường "${k}".`;
+  const m = d.maintenance;
+  if (!sameKeys(m, ["on", "message", "until"])) return "maintenance phải có đúng ba trường on, message, until.";
+  if (typeof m.on !== "boolean") return `Bảo trì (maintenance.on) là ${JSON.stringify(m.on)}, phải là true hoặc false.`;
+  if (typeof m.message !== "string") return `Lời nhắn bảo trì là ${JSON.stringify(m.message)}, phải là chuỗi.`;
+  if (m.message.length > GATE_MSG_MAX) return `Lời nhắn bảo trì dài ${m.message.length} ký tự, tối đa ${GATE_MSG_MAX}.`;
+  if (m.until !== null && !isUtcIso(m.until)) return `Giờ dự kiến xong ${JSON.stringify(m.until)} phải là null hoặc giờ UTC dạng 2026-10-20T03:00:00Z.`;
+  if (!sameKeys(d.minBuild, GATE_PLATFORMS)) return `minBuild phải có đúng các trường ${GATE_PLATFORMS.join(", ")}.`;
+  for (const p of GATE_PLATFORMS) {
+    const v = d.minBuild[p];
+    if (!Number.isInteger(v) || v < 0 || v > GATE_BUILD_MAX) return `Bản tối thiểu ${p} là ${JSON.stringify(v)}, phải là số nguyên từ 0 đến ${GATE_BUILD_MAX}.`;
+  }
+  if (!sameKeys(d.storeUrls, GATE_STORES)) return `storeUrls phải có đúng các trường ${GATE_STORES.join(", ")}.`;
+  for (const p of GATE_STORES) {
+    const v = d.storeUrls[p];
+    if (v !== "" && !isHttpsUrl(v)) return `Link cửa hàng ${p} ${JSON.stringify(v)} phải trống hoặc là link https://.`;
+  }
+  return null;
+}
+
+// Missing or ill-typed fields read as the gate-off value, same as the server treats them.
+function fillGate(raw) {
+  const pick = (v, ok, dflt) => (ok(v) ? v : dflt);
+  const m = isPlain(raw && raw.maintenance) ? raw.maintenance : {};
+  const b = isPlain(raw && raw.minBuild) ? raw.minBuild : {};
+  const u = isPlain(raw && raw.storeUrls) ? raw.storeUrls : {};
+  const doc = {
+    _id: GATE_ID,
+    maintenance: {
+      on: m.on === true,
+      message: pick(m.message, (v) => typeof v === "string", ""),
+      until: pick(m.until, isUtcIso, null),
+    },
+    minBuild: {},
+    storeUrls: {},
+  };
+  for (const p of GATE_PLATFORMS) doc.minBuild[p] = pick(b[p], (v) => Number.isInteger(v) && v >= 0, 0);
+  for (const p of GATE_STORES) doc.storeUrls[p] = pick(u[p], (v) => typeof v === "string", "");
+  return doc;
+}
+
+async function readGate(call) {
+  const r = await call("/data/query", { collection: "cd_client_gate", filter: { _id: GATE_ID }, limit: 1 });
+  const raw = normalize(r.docs || [])[0] || null;
+  return { exists: !!raw, doc: fillGate(raw) };
+}
+
+async function saveGate(call, doc) {
+  const bad = checkGateDoc(doc);
+  if (bad) return fail(400, "INVALID", bad);
+  const { _id, ...set } = doc;
+  try {
+    await call("/data/update", { collection: "cd_client_gate", filter: { _id }, set });
+  } catch (e) {
+    if (!(e instanceof UpstreamError) || e.status !== 404) throw e;
+    await call("/data/insert", { collection: "cd_client_gate", doc });
+  }
+  return { status: 200, json: { ok: true, ...(await readGate(call)) } };
+}
+
+// Runtime (cd_*) actions carry no table name.
+const RUNTIME_ACTIONS = ["guard", "guard_save", "gate", "gate_save"];
+
 export async function handleAction(body, env, fetchImpl = fetch) {
   if (!isPlain(body)) return fail(400, "INVALID", "body không phải object JSON");
-  if (!["list", "get", "save", "guard", "guard_save"].includes(body.action)) {
+  if (!["list", "get", "save", ...RUNTIME_ACTIONS].includes(body.action)) {
     return fail(400, "INVALID", `action "${body.action}" không hợp lệ`);
   }
-  if (!body.action.startsWith("guard") && body.action !== "list" && !KNOWN.includes(body.table)) {
+  if (!RUNTIME_ACTIONS.includes(body.action) && body.action !== "list" && !KNOWN.includes(body.table)) {
     return fail(400, "INVALID", `bảng "${body.table}" không nằm trong danh sách`);
   }
   const call = makeClient(env, fetchImpl);
   try {
     if (body.action === "guard") return { status: 200, json: { ok: true, ...(await readGuard(call)) } };
     if (body.action === "guard_save") return await saveGuard(call, body.doc);
+    if (body.action === "gate") return { status: 200, json: { ok: true, ...(await readGate(call)) } };
+    if (body.action === "gate_save") return await saveGate(call, body.doc);
     if (body.action === "list") {
       const rows = await Promise.all(KNOWN.map((t) => readTable(call, t)));
       const tables = {};

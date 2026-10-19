@@ -124,6 +124,56 @@ function shuffleKeys(v) {
     check("guard_save INVALID " + n, r.status === 400 && r.json.error.code === "INVALID", `status ${r.status}, ${r.json.error && r.json.error.message}`);
   }
 
+  // Client gate: read is live and read-only; every gate_save below is refused before any write.
+  const gate = await act({ action: "gate" });
+  const off = JSON.stringify(core.GATE_OFF);
+  check("gate đọc được, đủ hình doc", gate.status === 200 && typeof gate.json.exists === "boolean" &&
+    Object.keys(gate.json.doc).join() === "_id,maintenance,minBuild,storeUrls" && core.checkGateDoc(gate.json.doc) === null &&
+    (gate.json.exists || JSON.stringify(gate.json.doc) === off),
+    `status ${gate.status}, exists=${gate.json.exists}, doc=${JSON.stringify(gate.json.doc)}`);
+  check("gate: doc tắt cổng qua được luật kiểm", core.checkGateDoc(JSON.parse(off)) === null, off);
+  const gOk = { _id: "default", maintenance: { on: true, message: "x".repeat(300), until: "2026-10-20T01:30:00Z" },
+    minBuild: { webgl: 1234, android: 120, ios: 1e9 }, storeUrls: { android: "https://play.google.com/store/apps/details?id=a", ios: "" } };
+  check("gate: doc đầy đủ hợp lệ qua được luật kiểm", core.checkGateDoc(gOk) === null, core.checkGateDoc(gOk) || "");
+  const seedFile = "D:/REPO_Meta/gamespark-config/runtime/client_gate.json";
+  if (!fs.existsSync(seedFile)) console.log("ℹ gate: chưa có hạt giống runtime/client_gate.json — bỏ qua so khớp");
+  else {
+    const raw = JSON.parse(fs.readFileSync(seedFile, "utf8"));
+    const docs = Array.isArray(raw) ? raw : [raw];
+    check("gate: hạt giống client_gate.json qua được luật kiểm", docs.length === 1 && core.checkGateDoc(docs[0]) === null,
+      docs.map((d) => core.checkGateDoc(d)).filter(Boolean).join(" | ") || JSON.stringify(docs[0]));
+  }
+  const gm = (patch) => ({ ...gOk, ...patch });
+  const badGate = [
+    ["_id lạ", gm({ _id: "live" })],
+    ["trường lạ", gm({ note: "x" })],
+    ["thiếu storeUrls", (({ storeUrls, ...rest }) => rest)(gOk)],
+    ["maintenance.on là chuỗi", gm({ maintenance: { ...gOk.maintenance, on: "true" } })],
+    ["maintenance thiếu until", gm({ maintenance: { on: false, message: "" } })],
+    ["maintenance có trường lạ", gm({ maintenance: { ...gOk.maintenance, by: "a" } })],
+    ["lời nhắn 301 ký tự", gm({ maintenance: { ...gOk.maintenance, message: "x".repeat(301) } })],
+    ["lời nhắn là số", gm({ maintenance: { ...gOk.maintenance, message: 5 } })],
+    ["until không có Z", gm({ maintenance: { ...gOk.maintenance, until: "2026-10-20T08:30:00" } })],
+    ["until +07:00", gm({ maintenance: { ...gOk.maintenance, until: "2026-10-20T08:30:00+07:00" } })],
+    ["until ngày 30/2", gm({ maintenance: { ...gOk.maintenance, until: "2026-02-30T00:00:00Z" } })],
+    ["until là số", gm({ maintenance: { ...gOk.maintenance, until: 1792458000000 } })],
+    ["minBuild số lẻ", gm({ minBuild: { ...gOk.minBuild, android: 1.5 } })],
+    ["minBuild âm", gm({ minBuild: { ...gOk.minBuild, ios: -1 } })],
+    ["minBuild quá 10^9", gm({ minBuild: { ...gOk.minBuild, webgl: 1e9 + 1 } })],
+    ["minBuild là chuỗi", gm({ minBuild: { ...gOk.minBuild, webgl: "5" } })],
+    ["minBuild thiếu ios", gm({ minBuild: { webgl: 0, android: 0 } })],
+    ["minBuild có editor", gm({ minBuild: { ...gOk.minBuild, editor: 0 } })],
+    ["storeUrls http", gm({ storeUrls: { ...gOk.storeUrls, ios: "http://apps.apple.com/app/id1" } })],
+    ["storeUrls không phải link", gm({ storeUrls: { ...gOk.storeUrls, android: "play store" } })],
+    ["storeUrls javascript:", gm({ storeUrls: { ...gOk.storeUrls, android: "javascript:alert(1)" } })],
+    ["storeUrls có trường lạ", gm({ storeUrls: { ...gOk.storeUrls, webgl: "" } })],
+    ["doc không phải object", []],
+  ];
+  for (const [n, doc] of badGate) {
+    const r = await act({ action: "gate_save", doc });
+    check("gate_save INVALID " + n, r.status === 400 && r.json.error.code === "INVALID", `status ${r.status}, ${r.json.error && r.json.error.message}`);
+  }
+
   console.log(failed ? `FAIL (${failed} check(s) failed)` : "PASS");
   process.exit(failed ? 1 : 0);
 })().catch((e) => { console.log("✘ exception — " + e.message); console.log("FAIL"); process.exit(1); });

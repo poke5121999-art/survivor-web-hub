@@ -61,6 +61,7 @@ const LABELS_JS = 'window.DESIGN_LABELS = ' + JSON.stringify({
     fields: { name: { label: 'Tên' }, hp: { label: 'Máu', int: true, min: 1 }, atk: { label: 'Sát thương', min: 0 },
       spd: { label: 'Tốc độ', min: 0 }, carry: { label: 'Sức mang', int: true }, 'skill.cd': { label: 'Hồi chiêu', unit: 'giây' } } },
   cost_guard: realLabels.window.DESIGN_LABELS.cost_guard,
+  client_gate: realLabels.window.DESIGN_LABELS.client_gate,
 }) + ';';
 
 function hashDocs(docs) {
@@ -81,6 +82,14 @@ const fake = {
     { _id: 'relay', capUsd: 50, forceClosed: false, perGiB: 0.16, freeGiBPerCcu: 3, freeGiBCap: 150, perCcu: 0.16, freeCcu: 50, overheadBytes: 40, bytesFactor: 1 },
     { _id: 'vivox', capUsd: 0, forceClosed: false, reserve: 250, freePcu: 5000, stepPcu: 5000, perStep: 2000 }],
   guardMeters: {},
+  // Client gate: null = no doc on GameSpark yet. gate_save runs the proxy's own checkGateDoc (loaded below).
+  gateDoc: null,
+  gateSaves: [],
+  gateReject: null,
+  checkGate: null,
+  gateOff: null,
+  hubBuild: null,
+  gateView() { return { ok: true, exists: !!this.gateDoc, doc: JSON.parse(JSON.stringify(this.gateDoc || this.gateOff)) }; },
   guardView() { return { ok: true, rows: this.guardRows, meters: this.guardMeters, month: this.month }; },
   view(n) { const d = this.tables[n]; return { exists: !!d, docs: d || [], hash: hashDocs(d || []) }; },
   mutate(n, fn) { fn(this.tables[n]); },
@@ -91,6 +100,14 @@ const fake = {
       return [200, { ok: true, project: 'repo-2d-topdown', env: 'dev', tables }];
     }
     if (body.action === 'guard') return [200, this.guardView()];
+    if (body.action === 'gate') return [200, this.gateView()];
+    if (body.action === 'gate_save') {
+      this.gateSaves.push(body);
+      const bad = this.gateReject || this.checkGate(body.doc);
+      if (bad) return [400, { ok: false, error: { code: 'INVALID', message: bad } }];
+      this.gateDoc = JSON.parse(JSON.stringify(body.doc));
+      return [200, this.gateView()];
+    }
     if (body.action === 'guard_save') {
       this.guardSaves.push(body);
       if (this.guardReject) return [400, { ok: false, error: { code: 'INVALID', message: this.guardReject } }];
@@ -136,6 +153,10 @@ function serve(port) {
         });
         return;
       }
+      if (u === '/games/repo2d-unity/version.json') {
+        if (fake.hubBuild == null) { rs.writeHead(404); rs.end('no'); return; }
+        rs.writeHead(200, { 'Content-Type': 'application/json' }); rs.end(JSON.stringify({ build: fake.hubBuild })); return;
+      }
       if (u === '/data/design-labels.js') { rs.writeHead(200, { 'Content-Type': 'text/javascript' }); rs.end(LABELS_JS); return; }
       fs.readFile(path.join(ROOT, u === '/' ? '/index.html' : u), (e, b) => {
         if (e) { rs.writeHead(404); rs.end('no'); return; }
@@ -150,10 +171,14 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
 
 (async () => {
   fs.mkdirSync(SHOTS, { recursive: true });
+  const core = await import(require('url').pathToFileURL(path.join(ROOT, 'supabase/functions/gs-design/core.js')).href);
+  fake.checkGate = core.checkGateDoc;
+  fake.gateOff = core.GATE_OFF;
   const srv = await serve(0);
   const BASE = 'http://127.0.0.1:' + srv.address().port;
   const b = await chromium.launch(process.env.PW_CHANNEL ? { channel: process.env.PW_CHANNEL } : {});
-  const ctx = await b.newContext({ viewport: { width: 1280, height: 900 } });
+  // Fixed zone so the maintenance end time converts the same on every machine (UTC+7, no DST).
+  const ctx = await b.newContext({ viewport: { width: 1280, height: 900 }, timezoneId: 'Asia/Ho_Chi_Minh' });
   await ctx.addInitScript(() => {
     localStorage.setItem('hub.session.v1', JSON.stringify({ kind: 'member', email: 't@x', accessToken: 'tok',
       refreshToken: 'r', expiresAt: Date.now() + 3600e3 }));
@@ -162,7 +187,9 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
   const errs = [];
   p.on('pageerror', e => errs.push('PAGEERROR ' + e.message));
   p.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE ' + m.text()); });
-  p.on('dialog', d => d.accept());
+  let dialogNo = false;
+  const dialogs = [];
+  p.on('dialog', d => { dialogs.push(d.message()); return dialogNo ? d.dismiss() : d.accept(); });
 
   const open = async n => { await p.click(`#dz-nav [data-table="${n}"]`); await p.waitForSelector('.dz-pane__head'); };
   const txt = sel => p.$eval(sel, e => e.textContent.trim());
@@ -174,8 +201,9 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
   const items = await p.$$eval('#dz-nav .dz-nav__item', els => els.length);
   const chipQ = await txt('#dz-nav [data-table="quests"] .dz-chip');
   const chipF = await txt('#dz-nav [data-table="foes"] .dz-chip');
-  check('sidebar liệt kê 36 bảng + mục Chi phí dịch vụ', items === 37 &&
-    (await txt('#dz-nav [data-table="cost_guard"]')) === 'Chi phí dịch vụ', String(items));
+  check('sidebar liệt kê 36 bảng + mục Chi phí dịch vụ + mục Phát hành & bảo trì', items === 38 &&
+    (await txt('#dz-nav [data-table="cost_guard"]')) === 'Chi phí dịch vụ' &&
+    (await txt('#dz-nav [data-table="client_gate"]')) === 'Phát hành & bảo trì', String(items));
   check('quests là "Trên GameSpark"', chipQ === 'Trên GameSpark', chipQ);
   check('foes là "Chưa dán · số gốc"', chipF === 'Chưa dán · số gốc', chipF);
 
@@ -448,6 +476,114 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
   // The browser logs the deliberate 400 above; drop only that line.
   for (let i = errs.length - 1; i >= 0; i--) if (/status of 400/.test(errs[i])) errs.splice(i, 1);
   await p.screenshot({ path: SHOTS + '/cost-guard.png', fullPage: true });
+
+  // 10) tab Phát hành & bảo trì (cd_client_gate)
+  const GL = realLabels.window.DESIGN_LABELS.client_gate;
+  await open('client_gate');
+  await p.waitForSelector('#gate-maint-card');
+  await p.waitForFunction(() => /chưa có/.test(document.getElementById('gate-hub-build').textContent));
+  const g0 = await p.evaluate(() => ({
+    bar: document.getElementById('dz-bar').hidden,
+    missing: !document.getElementById('gate-missing').hidden,
+    onNote: !document.getElementById('gate-on-note').hidden,
+    pill: document.querySelector('#gate-maint-card [data-role="status"]').textContent,
+    sw: document.getElementById('gate-maint').checked,
+    mins: ['webgl', 'android', 'ios'].map(k => document.getElementById('gate-min-' + k).value).join(','),
+    hub: document.getElementById('gate-hub-build').textContent,
+    label: document.querySelector('label[for="gate-min-webgl"]').textContent }));
+  check('chưa có doc: hiện số tắt cổng, ghi chú "chưa có dòng điều khiển", nút lưu chung ẩn',
+    g0.bar && g0.missing && !g0.onNote && g0.pill === 'Mở' && !g0.sw && g0.mins === '0,0,0', JSON.stringify(g0));
+  check('bản web trên hub: "chưa có", bỏ qua kiểm tra', g0.hub === 'Bản web trên hub: chưa có (bỏ qua kiểm tra)', g0.hub);
+  check('nhãn bản tối thiểu nói bằng lời', /Bản thấp hơn số này không vào được game/.test(await txt('#gate-build-card .dz-guard__note')), g0.label);
+  const fitGate = async () => p.evaluate(() => {
+    const d = document.documentElement, pane = document.getElementById('dz-pane');
+    const wide = [...pane.querySelectorAll('*')].filter(e => e.getBoundingClientRect().right > pane.getBoundingClientRect().right + 1).map(e => e.id || e.className);
+    return { ok: d.scrollWidth <= d.clientWidth && pane.scrollWidth <= pane.clientWidth && !wide.length, info: [d.scrollWidth, d.clientWidth, pane.scrollWidth, pane.clientWidth].join('/') + ' ' + wide.slice(0, 3).join(',') };
+  });
+  const fit1280 = await fitGate();
+  check('tab bảo trì vừa khung ở 1280 px, không kéo ngang', fit1280.ok, fit1280.info);
+
+  // bật bảo trì: bấm Huỷ ở hộp hỏi thì không lưu gì
+  dialogNo = true;
+  await p.click('#gate-maint');
+  dialogNo = false;
+  check('bật bảo trì hỏi lại; Huỷ thì không gửi, công tắc về Tắt',
+    dialogs[dialogs.length - 1] === GL.confirmOn && fake.gateSaves.length === 0 && !(await p.$eval('#gate-maint', e => e.checked)), dialogs[dialogs.length - 1]);
+
+  // gõ lời nhắn + giờ (giờ máy UTC+7) rồi bật: lưu ngay cả doc
+  const MSG = 'Bảo trì máy chủ, quay lại sau 30 phút.';
+  await p.fill('#gate-msg', MSG);
+  await p.fill('#gate-until', '2026-10-20T08:30');
+  const utcTxt = await txt('#gate-until-utc');
+  check('giờ máy 08:30 (UTC+7) hiện "Lưu là 2026-10-20 01:30 UTC"', utcTxt === 'Lưu là 2026-10-20 01:30 UTC', utcTxt);
+  check('đếm ký tự lời nhắn', (await txt('#gate-msg-count')) === MSG.length + '/300 ký tự', await txt('#gate-msg-count'));
+  await p.click('#gate-maint');
+  await p.waitForFunction(() => document.querySelector('#gate-maint-card [data-role="status"]').textContent === 'Đang bảo trì');
+  const sOn = fake.gateSaves[fake.gateSaves.length - 1];
+  const wantOn = { _id: 'default', maintenance: { on: true, message: MSG, until: '2026-10-20T01:30:00Z' },
+    minBuild: { webgl: 0, android: 0, ios: 0 }, storeUrls: { android: '', ios: '' } };
+  check('bật bảo trì: gửi gate_save cả doc, until là UTC', fake.gateSaves.length === 1 && sOn.action === 'gate_save' &&
+    JSON.stringify(sOn.doc) === JSON.stringify(wantOn), JSON.stringify(sOn.doc));
+  check('sau khi bật: ghi chú đang bảo trì hiện, ghi chú chưa có doc ẩn', await p.$eval('#gate-on-note', e => !e.hidden) &&
+    await p.$eval('#gate-missing', e => e.hidden) && fake.gateDoc.maintenance.on === true, '');
+
+  // tắt: không hỏi, lưu ngay, giữ lời nhắn
+  const dlgBefore = dialogs.length;
+  await p.click('#gate-maint');
+  await p.waitForFunction(() => document.querySelector('#gate-maint-card [data-role="status"]').textContent === 'Mở');
+  check('tắt bảo trì không hỏi, lưu ngay, giữ lời nhắn', dialogs.length === dlgBefore && fake.gateSaves.length === 2 &&
+    fake.gateDoc.maintenance.on === false && fake.gateDoc.maintenance.message === MSG && await p.$eval('#gate-on-note', e => e.hidden), '');
+
+  // bản tối thiểu: số sai và link sai chặn ở máy khách, không gọi API
+  const nBefore = fake.gateSaves.length;
+  await p.fill('#gate-min-android', '12.5');
+  const eNum = await txt('#gate-build-err');
+  check('bản tối thiểu số lẻ: báo lỗi, nút lưu tắt, không gọi API', eNum === 'Android: nhập số nguyên từ 0 đến 1000000000.' &&
+    await p.$eval('#gate-build-save', e => e.disabled) && fake.gateSaves.length === nBefore, eNum);
+  await p.fill('#gate-min-android', '120');
+  await p.fill('#gate-store-android', 'http://play.google.com/store/apps/details?id=vn.hlo.repo2d');
+  const eUrl = await txt('#gate-build-err');
+  check('link http (không https) bị chặn', eUrl === 'Link Google Play: để trống hoặc dán link bắt đầu bằng https://.' &&
+    await p.$eval('#gate-build-save', e => e.disabled), eUrl);
+  const STORE = 'https://play.google.com/store/apps/details?id=vn.hlo.repo2d';
+  await p.fill('#gate-store-android', STORE);
+  check('sửa đúng thì hết lỗi, nút lưu bật', await p.$eval('#gate-build-err', e => e.hidden) && await p.$eval('#gate-build-save', e => !e.disabled), '');
+  await p.click('#gate-build-save');
+  await p.waitForFunction(() => /Đã lưu bản tối thiểu/.test([...document.querySelectorAll('.dz-toast')].map(e => e.textContent).join('|')));
+  const sB = fake.gateSaves[fake.gateSaves.length - 1];
+  check('lưu bản tối thiểu: android 120 + link, phần bảo trì lấy bản đã lưu', sB.doc.minBuild.android === 120 && sB.doc.minBuild.webgl === 0 &&
+    sB.doc.storeUrls.android === STORE && sB.doc.maintenance.on === false && sB.doc.maintenance.message === MSG, JSON.stringify(sB.doc));
+
+  // máy chủ trả 400: hiện nguyên văn, nút lưu bật lại
+  fake.gateReject = 'Bản tối thiểu ios là 7, thử lỗi máy chủ.';
+  await p.fill('#gate-min-ios', '7');
+  await p.click('#gate-build-save');
+  await p.waitForFunction(() => /INVALID/.test(document.getElementById('gate-build-err').textContent));
+  check('400 từ máy chủ hiện nguyên văn ở thẻ bản tối thiểu', (await txt('#gate-build-err')) === 'Dữ liệu không hợp lệ (INVALID): ' + fake.gateReject &&
+    await p.$eval('#gate-build-save', e => !e.disabled) && fake.gateDoc.minBuild.ios === 0, await txt('#gate-build-err'));
+  fake.gateReject = null;
+  for (let i = errs.length - 1; i >= 0; i--) if (/status of 400/.test(errs[i])) errs.splice(i, 1);
+  await p.fill('#gate-min-ios', '0');
+
+  // có version.json trên hub: chặn bản web tối thiểu lớn hơn bản đang có
+  fake.hubBuild = 1234;
+  await open('quests'); await open('client_gate');
+  await p.waitForFunction(() => /1234/.test(document.getElementById('gate-hub-build').textContent));
+  await p.fill('#gate-min-webgl', '1300');
+  const eHub = await txt('#gate-build-err');
+  check('bản web tối thiểu > bản trên hub (1234): chặn với lời rõ', eHub.startsWith('Web: bản tối thiểu 1300 lớn hơn bản web đang có trên hub (1234)') &&
+    await p.$eval('#gate-build-save', e => e.disabled), eHub);
+  await p.fill('#gate-min-webgl', '1234');
+  await p.click('#gate-build-save');
+  for (let i = 0; i < 60 && fake.gateDoc.minBuild.webgl !== 1234; i++) await p.waitForTimeout(50);
+  check('bản web tối thiểu bằng bản trên hub thì lưu được', fake.gateDoc.minBuild.webgl === 1234, String(fake.gateDoc.minBuild.webgl));
+  await p.screenshot({ path: SHOTS + '/client-gate.png', fullPage: true });
+  await p.setViewportSize({ width: 390, height: 800 });
+  await p.waitForTimeout(150);
+  const fit390 = await fitGate();
+  check('tab bảo trì không kéo ngang ở 390 px', fit390.ok, fit390.info);
+  await p.screenshot({ path: SHOTS + '/client-gate-mobile.png', fullPage: true });
+  await p.setViewportSize({ width: 1280, height: 900 });
 
   const e = errs.filter(x => !/favicon|404/.test(x));
   check('không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));

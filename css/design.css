@@ -236,3 +236,11 @@
 .dz-stats { display: flex; flex-wrap: wrap; gap: 8px 24px; margin: 12px 0 4px; }
 .dz-stats__item dt { font-size: 12px; color: var(--text-dim); }
 .dz-stats__item dd { margin: 0; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* ---- client gate (Phát hành & bảo trì) ---- */
+.dz-gate { display: flex; flex-direction: column; gap: 16px; max-width: 900px; }
+.dz-input--area { display: block; width: 100%; max-width: 560px; min-height: 76px; resize: vertical; line-height: 1.45; }
+.dz-input--when { width: 230px; }
+.dz-gate__row { flex-wrap: wrap; }
+.dz-gate__hub { font-size: 13px; color: var(--text-dim); }
+.dz-gate .dz-input.is-invalid { border-color: var(--danger); }

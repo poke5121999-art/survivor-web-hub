@@ -28,6 +28,15 @@
     vivox: { capUsd: 0, forceClosed: false, reserve: 250, freePcu: 5000, stepPcu: 5000, perStep: 2000 }
   };
   var STALE_MS = 5 * 60 * 1000;
+  // Not an md_ table either: runtime collection cd_client_gate (maintenance + minimum build), saved through gate_save.
+  var GATE = "client_gate";
+  var OPS = [GUARD, GATE];
+  var GATE_PLATFORMS = ["webgl", "android", "ios"];
+  var GATE_STORES = ["android", "ios"];
+  var GATE_MSG_MAX = 300;
+  var GATE_BUILD_MAX = 1e9;
+  // Written by the WebGL client build next to the player ({ "build": <int> }); absent until that build exists.
+  var HUB_VERSION_URL = "games/repo2d-unity/version.json";
 
   var LABELS = window.DESIGN_LABELS || {};
   var DEFAULTS = (window.DESIGN_DEFAULTS && window.DESIGN_DEFAULTS.tables) || {};
@@ -158,7 +167,9 @@
   // ---------- model ----------
 
   var S = { tables: {}, current: null, loaded: false, conflict: {}, errors: {}, search: {}, open: {}, banner: null,
-    guard: { loaded: false, rows: [], meters: {}, month: "", edited: false } };
+    guard: { loaded: false, rows: [], meters: {}, month: "", edited: false },
+    // hubBuild: undefined = not read yet, null = no version.json (check skipped), else the hub WebGL build.
+    gate: { loaded: false, doc: null, exists: false, dirty: { maint: false, build: false }, hubBuild: undefined } };
   var session = window.HubSession ? window.HubSession.get() : null;
 
   function tableTitle(n) { return (LABELS[n] || {}).title || n; }
@@ -299,19 +310,21 @@
       sel.appendChild(og);
     });
     nav.appendChild(h("h2", { class: "dz-nav__group", text: "Vận hành" }));
-    var gb = h("button", { class: "dz-nav__item", type: "button", "data-table": GUARD, onclick: function () { openTable(GUARD); } },
-      h("span", { class: "dz-nav__title", text: tableTitle(GUARD) }));
-    nav.appendChild(gb);
     var go = h("optgroup", { label: "Vận hành" });
-    var gopt = h("option", { value: GUARD, text: tableTitle(GUARD) });
-    go.appendChild(gopt);
+    OPS.forEach(function (n) {
+      var b = h("button", { class: "dz-nav__item", type: "button", "data-table": n, onclick: function () { openTable(n); } },
+        h("span", { class: "dz-nav__title", text: tableTitle(n) }));
+      nav.appendChild(b);
+      var o = h("option", { value: n, text: tableTitle(n) });
+      go.appendChild(o);
+      navRefs[n] = { btn: b, opt: o };
+    });
     sel.appendChild(go);
-    navRefs[GUARD] = { btn: gb, opt: gopt };
     sel.onchange = function () { openTable(sel.value); };
   }
 
   function updateNav() {
-    navRefs[GUARD].btn.classList.toggle("is-active", S.current === GUARD);
+    OPS.forEach(function (n) { navRefs[n].btn.classList.toggle("is-active", S.current === n); });
     ALL.forEach(function (n) {
       var r = navRefs[n], t = S.tables[n];
       if (!r) return;
@@ -549,6 +562,7 @@
     pane.textContent = "";
     if (!n) return;
     if (n === GUARD) { renderGuard(pane); return; }
+    if (n === GATE) { renderGate(pane); return; }
     var t = S.tables[n];
     if (!t || !t.remote) { pane.appendChild(h("p", { class: "dz-loading", text: "Đang tải…" })); return; }
     var L = LABELS[n] || {};
@@ -775,7 +789,7 @@
 
   function updateBar() {
     var n = S.current, bar = $("dz-bar");
-    if (n === GUARD) { bar.hidden = true; return; }
+    if (OPS.indexOf(n) >= 0) { bar.hidden = true; return; }
     if (!n || !S.tables[n] || !S.tables[n].remote) { bar.hidden = true; return; }
     var c = changes(n).length, e = errCount(n), missing = isMissing(n);
     var clean = !c && !e && !missing;
@@ -797,6 +811,7 @@
     S.current = n;
     try { history.replaceState(null, "", location.search + "#" + n); } catch (e) { /* file:// */ }
     if (n === GUARD) { S.guard.edited = false; loadGuard(); }
+    else if (n === GATE) { S.gate.dirty = { maint: false, build: false }; loadGate(); loadHubBuild(); }
     else if (n === MODES) loadGuard();
     renderMain();
     updateBar();
@@ -854,8 +869,9 @@
       S.loaded = true;
       if (!S.current) {
         var want = (location.hash || "").slice(1);
-        S.current = ALL.indexOf(want) >= 0 || want === GUARD ? want : ALL[0];
+        S.current = ALL.indexOf(want) >= 0 || OPS.indexOf(want) >= 0 ? want : ALL[0];
         if (S.current === GUARD) loadGuard();
+        if (S.current === GATE) { loadGate(); loadHubBuild(); }
       }
       if (!$("dz-pane").querySelector(".dz-pane__head")) renderMain();
       updateBar(); updateNav();
@@ -866,6 +882,7 @@
     var n = S.current;
     if (document.visibilityState !== "visible" || !n || !S.loaded) return;
     if (n === GUARD) { if (!S.guard.edited) loadGuard(); return; }
+    if (n === GATE) { if (!S.gate.dirty.maint && !S.gate.dirty.build) loadGate(); return; }
     if (n === MODES) loadGuard();
     call({ action: "get", table: n }).then(function (j) {
       onRemote(n, { exists: j.exists, docs: j.docs, hash: j.hash });
@@ -1028,6 +1045,240 @@
     if (!S.guard.loaded) { pane.appendChild(h("p", { class: "dz-loading", text: "Đang tải…" })); return; }
     if (L.note) pane.appendChild(h("div", { class: "dz-notice", id: "guard-note" }, h("span", { text: L.note })));
     pane.appendChild(h("div", { class: "dz-guards" }, GUARD_SERVICES.map(guardCard)));
+  }
+
+  // ---------- client gate (Phát hành & bảo trì) ----------
+
+  function TL() { return LABELS[GATE] || {}; }
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+  function fill(t, vars) { return String(t || "").replace(/\{(\w+)\}/g, function (_, k) { return vars[k]; }); }
+
+  // datetime-local holds wall time on this machine; the doc holds UTC.
+  function utcToLocalInput(iso) {
+    var d = iso ? new Date(iso) : null;
+    if (!d || isNaN(d)) return "";
+    return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()) + "T" + pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+  }
+  function localInputToUtc(v) {
+    if (!v) return null;
+    var d = new Date(v);
+    return isNaN(d) ? undefined : d.toISOString().replace(/\.\d{3}Z$/, "Z");
+  }
+  function isHttps(s) {
+    if (/\s/.test(s)) return false;
+    try { return new URL(s).protocol === "https:"; } catch (e) { return false; }
+  }
+
+  function loadGate() {
+    return call({ action: "gate" }).then(function (j) {
+      showBanner(null);
+      // Re-render only on change: the poll would otherwise reset focus every 15 s.
+      var before = JSON.stringify([S.gate.loaded, S.gate.exists, S.gate.doc]);
+      setGate(j);
+      if (S.current === GATE && JSON.stringify([true, S.gate.exists, S.gate.doc]) !== before) renderMain();
+    }, function (e) { showBanner(errText(e), loadGate); });
+  }
+
+  function setGate(j) {
+    S.gate.doc = j.doc;
+    S.gate.exists = !!j.exists;
+    S.gate.loaded = true;
+  }
+
+  function loadHubBuild() {
+    return fetch(HUB_VERSION_URL, { cache: "no-store" }).then(function (r) { return r.ok ? r.json() : null; })
+      .catch(function () { return null; })
+      .then(function (j) {
+        S.gate.hubBuild = j && Number.isInteger(j.build) && j.build >= 0 ? j.build : null;
+        if (S.gate.onHubBuild) S.gate.onHubBuild();
+      });
+  }
+
+  // Saves the whole doc: the server copy with one part replaced, so a save never carries the other card's unsaved edits.
+  function saveGateDoc(part) {
+    return call({ action: "gate_save", doc: Object.assign({}, S.gate.doc, part) }).then(function (j) { setGate(j); return j; });
+  }
+
+  function gateField(id, label, help, ctl) {
+    return h("div", { class: "dz-fld" },
+      h("label", { class: "dz-fld__label", for: id, text: label }),
+      h("div", { class: "dz-fld__ctl" }, ctl, help ? h("p", { class: "dz-help", text: help }) : null));
+  }
+
+  function gateMaintCard(paintTop) {
+    var L = TL().maint || {}, m = S.gate.doc.maintenance;
+    var pill = h("span", { class: "dz-pill", "data-role": "status" });
+    var on = h("input", { type: "checkbox", class: "dz-switch", role: "switch", id: "gate-maint", "aria-label": L.on.label });
+    var onText = h("span", { class: "dz-switch__text", id: "gate-maint-text" });
+    var msg = h("textarea", { class: "dz-input dz-input--area", id: "gate-msg", rows: "3", maxlength: String(GATE_MSG_MAX) });
+    msg.value = m.message;
+    var count = h("p", { class: "dz-help", id: "gate-msg-count" });
+    var until = h("input", { type: "datetime-local", class: "dz-input dz-input--when", id: "gate-until" });
+    until.value = utcToLocalInput(m.until);
+    var utc = h("p", { class: "dz-help", id: "gate-until-utc" });
+    var err = h("p", { class: "dz-guard__err", id: "gate-maint-err", role: "alert", hidden: true });
+    var saveBtn = h("button", { class: "btn btn--primary", id: "gate-maint-save", type: "button", text: L.save });
+
+    function paint() {
+      var isOn = S.gate.doc.maintenance.on;
+      on.checked = isOn;
+      onText.textContent = isOn ? "Bật" : "Tắt";
+      pill.textContent = isOn ? L.status.on : L.status.off;
+      pill.className = "dz-pill " + (isOn ? "dz-pill--closed" : "dz-pill--open");
+      paintTop();
+    }
+    function values() {
+      var u = localInputToUtc(until.value), text = msg.value.trim();
+      var bad = text.length > GATE_MSG_MAX ? "Lời nhắn dài " + text.length + " ký tự, tối đa " + GATE_MSG_MAX + "."
+        : u === undefined ? "Giờ dự kiến xong không hợp lệ." : null;
+      return { message: text, until: u === undefined ? null : u, bad: bad };
+    }
+    function check() {
+      var v = values();
+      count.textContent = msg.value.trim().length + "/" + GATE_MSG_MAX + " ký tự";
+      utc.textContent = v.until ? "Lưu là " + v.until.slice(0, 16).replace("T", " ") + " UTC" : "Không đặt giờ";
+      err.hidden = !v.bad;
+      err.textContent = v.bad || "";
+      saveBtn.disabled = !!v.bad;
+      return v;
+    }
+    function edited() { S.gate.dirty.maint = true; check(); }
+    msg.addEventListener("input", edited);
+    until.addEventListener("input", edited);
+    until.addEventListener("change", edited);
+
+    function send(want, done) {
+      var v = check();
+      if (v.bad) { paint(); return; }
+      on.disabled = true; saveBtn.disabled = true;
+      saveGateDoc({ maintenance: { on: want, message: v.message, until: v.until } }).then(function () {
+        S.gate.dirty.maint = false;
+        on.disabled = false;
+        paint(); check();
+        toast(done);
+      }, function (e) {
+        on.disabled = false; saveBtn.disabled = false;
+        paint();
+        err.hidden = false;
+        err.textContent = errText(e);
+      });
+    }
+    // Instant, like the Online switch; turning maintenance ON locks players out, so it asks first.
+    on.addEventListener("change", function () {
+      var want = on.checked;
+      if (want && !confirm(TL().confirmOn)) { paint(); return; }
+      send(want, want ? L.saved.on : L.saved.off);
+    });
+    saveBtn.addEventListener("click", function () { send(S.gate.doc.maintenance.on, L.saved.msg); });
+
+    paint(); check();
+    return h("article", { class: "dz-guard", id: "gate-maint-card" },
+      h("header", { class: "dz-guard__head" }, h("h3", { class: "dz-guard__title", text: L.title }), pill),
+      h("div", { class: "dz-form dz-form--detail" },
+        h("div", { class: "dz-fld" },
+          h("label", { class: "dz-fld__label", for: "gate-maint", text: L.on.label }),
+          h("div", { class: "dz-fld__ctl" }, h("div", { class: "dz-cell__box" }, on, onText), h("p", { class: "dz-help", text: L.on.help }))),
+        gateField("gate-msg", L.message.label, L.message.help, h("div", null, msg, count)),
+        gateField("gate-until", L.until.label, L.until.help, h("div", null, until, utc))),
+      h("div", { class: "dz-guard__actions" }, saveBtn), err);
+  }
+
+  function gateBuildCard() {
+    var L = TL().build || {}, doc = S.gate.doc, inputs = {}, stores = {};
+    var err = h("p", { class: "dz-guard__err", id: "gate-build-err", role: "alert", hidden: true });
+    var saveBtn = h("button", { class: "btn btn--primary", id: "gate-build-save", type: "button", text: L.save });
+    var hub = h("span", { class: "dz-gate__hub", id: "gate-hub-build" });
+
+    function edited() { S.gate.dirty.build = true; check(); }
+    var buildFlds = GATE_PLATFORMS.map(function (p) {
+      var P = L.platforms[p];
+      var inp = h("input", { class: "dz-input dz-input--num", id: "gate-min-" + p, type: "text", inputmode: "numeric", autocomplete: "off" });
+      inp.value = String(doc.minBuild[p]);
+      inp.addEventListener("input", edited);
+      inputs[p] = inp;
+      return gateField(inp.id, P.label, P.help, h("div", { class: "dz-cell__box dz-gate__row" }, inp, p === "webgl" ? hub : null));
+    });
+    var storeFlds = GATE_STORES.map(function (p) {
+      var P = L.stores[p];
+      var inp = h("input", { class: "dz-input", id: "gate-store-" + p, type: "url", autocomplete: "off", placeholder: "https://…" });
+      inp.value = doc.storeUrls[p];
+      inp.addEventListener("input", edited);
+      stores[p] = inp;
+      return gateField(inp.id, P.label, P.help, inp);
+    });
+
+    // Client pre-check so a typo never costs a round trip; the proxy repeats the same rules except the hub build.
+    function values() {
+      var minBuild = {}, storeUrls = {}, bad = null;
+      GATE_PLATFORMS.forEach(function (p) {
+        var t = inputs[p].value.trim(), ok = /^\d+$/.test(t) && Number(t) <= GATE_BUILD_MAX;
+        if (ok) minBuild[p] = Number(t);
+        else bad = bad || L.platforms[p].label + ": nhập số nguyên từ 0 đến " + GATE_BUILD_MAX + ".";
+        inputs[p].classList.toggle("is-invalid", !ok);
+      });
+      var hb = S.gate.hubBuild;
+      if (typeof hb === "number" && minBuild.webgl > hb) {
+        bad = bad || fill(L.overHub, { min: minBuild.webgl, hub: hb });
+        inputs.webgl.classList.add("is-invalid");
+      }
+      GATE_STORES.forEach(function (p) {
+        var t = stores[p].value.trim(), ok = t === "" || isHttps(t);
+        if (ok) storeUrls[p] = t;
+        else bad = bad || L.stores[p].label + ": để trống hoặc dán link bắt đầu bằng https://.";
+        stores[p].classList.toggle("is-invalid", !ok);
+      });
+      return { minBuild: minBuild, storeUrls: storeUrls, bad: bad };
+    }
+    function check() {
+      var hb = S.gate.hubBuild;
+      hub.textContent = L.hub.label + ": " + (hb === undefined ? L.hub.loading : hb === null ? L.hub.none : String(hb));
+      var v = values();
+      err.hidden = !v.bad;
+      err.textContent = v.bad || "";
+      saveBtn.disabled = !!v.bad;
+      return v;
+    }
+    S.gate.onHubBuild = check;
+    saveBtn.addEventListener("click", function () {
+      var v = check();
+      if (v.bad) return;
+      saveBtn.disabled = true;
+      saveGateDoc({ minBuild: v.minBuild, storeUrls: v.storeUrls }).then(function () {
+        S.gate.dirty.build = false;
+        check();
+        toast(L.saved);
+      }, function (e) {
+        err.hidden = false;
+        err.textContent = errText(e);
+        saveBtn.disabled = false;
+      });
+    });
+
+    check();
+    return h("article", { class: "dz-guard", id: "gate-build-card" },
+      h("header", { class: "dz-guard__head" }, h("h3", { class: "dz-guard__title", text: L.title })),
+      h("p", { class: "dz-guard__note", text: L.note }),
+      h("div", { class: "dz-form dz-form--detail" }, buildFlds, storeFlds),
+      h("div", { class: "dz-guard__actions" }, saveBtn), err);
+  }
+
+  function renderGate(pane) {
+    var L = TL();
+    pane.appendChild(h("header", { class: "dz-pane__head" },
+      h("h2", { class: "dz-pane__title", text: tableTitle(GATE) }),
+      L.blurb ? h("p", { class: "dz-pane__blurb", text: L.blurb }) : null,
+      L.effect ? h("p", { class: "dz-pane__effect" }, h("strong", { text: "Có hiệu lực: " }), L.effect) : null));
+    S.gate.onHubBuild = null;
+    if (!S.gate.loaded) { pane.appendChild(h("p", { class: "dz-loading", text: "Đang tải…" })); return; }
+    var missing = h("div", { class: "dz-notice", id: "gate-missing" }, h("span", { text: L.missing }));
+    var onNote = h("div", { class: "dz-notice dz-notice--warn", id: "gate-on-note", role: "status" }, h("span", { text: L.onNote }));
+    function paintTop() {
+      onNote.hidden = !S.gate.doc.maintenance.on;
+      missing.hidden = S.gate.exists;
+    }
+    pane.appendChild(missing);
+    pane.appendChild(onNote);
+    pane.appendChild(h("div", { class: "dz-gate" }, gateMaintCard(paintTop), gateBuildCard()));
   }
 
   // ---------- review & save ----------

@@ -798,6 +798,42 @@
         perStep: { label: "Giá mỗi bậc (USD)" }
       },
       price: "Giá đơn vị (theo bảng giá nhà cung cấp)"
+    },
+    // Not an md_ table: runtime collection cd_client_gate, one doc "default", saved through gs-design "gate_save".
+    client_gate: {
+      title: "Phát hành & bảo trì",
+      blurb: "Bật bảo trì khi cần đóng game, và đặt bản thấp nhất còn được vào game cho từng nền tảng: người chơi bản cũ hơn thấy bảng \"Cập nhật\" và không vào được.",
+      effect: "Trong khoảng 30 giây ở lượt đăng nhập, vào ca hay vào phòng kế tiếp của người chơi, không cần deploy (trang này sửa GameSpark DEV).",
+      missing: "Chưa có dòng điều khiển trên GameSpark nên cổng đang tắt: không bảo trì, bản nào cũng vào được. Lưu lần đầu sẽ tạo nó.",
+      onNote: "Đang bảo trì: người chơi (trừ tester) không đăng nhập, không vào ca, không vào phòng được. Ca đang chơi vẫn chơi hết và lưu được.",
+      confirmOn: "Bật bảo trì? Người chơi (trừ tester) sẽ không vào được game cho tới khi tắt.",
+      maint: {
+        title: "Bảo trì",
+        on: { label: "Bảo trì", help: "Lưu ngay khi bấm, cùng lời nhắn và giờ đang gõ bên dưới. Bật thì hỏi lại trước." },
+        message: { label: "Lời nhắn cho người chơi", help: "Hiện trong bảng bảo trì của game. Tối đa 300 ký tự." },
+        until: { label: "Dự kiến xong lúc", help: "Không bắt buộc, chỉ để hiện cho người chơi; tắt bảo trì vẫn phải bấm tay. Nhập theo giờ máy bạn, lưu dưới dạng UTC." },
+        save: "Lưu lời nhắn",
+        saved: { on: "Đã bật bảo trì", off: "Đã tắt bảo trì", msg: "Đã lưu lời nhắn bảo trì" },
+        status: { on: "Đang bảo trì", off: "Mở" }
+      },
+      build: {
+        title: "Bản tối thiểu",
+        note: "Bản thấp hơn số này không vào được game. 0 = không chặn. Đặt bất kỳ ô nào lớn hơn 0 thì bản game cũ chưa gửi số bản (mọi nền tảng) cũng bị chặn.",
+        min: { label: "Bản thấp hơn số này không vào được game" },
+        platforms: {
+          webgl: { label: "Web (WebGL)", help: "Số bản web = số commit lúc build. Không được lớn hơn bản web đang có trên hub." },
+          android: { label: "Android", help: "Số bản = số pipeline CI (versionCode)." },
+          ios: { label: "iOS", help: "Số bản = số pipeline CI (CFBundleVersion)." }
+        },
+        hub: { label: "Bản web trên hub", none: "chưa có (bỏ qua kiểm tra)", loading: "đang đọc…" },
+        overHub: "Web: bản tối thiểu {min} lớn hơn bản web đang có trên hub ({hub}), mọi người chơi web sẽ bị chặn. Phát hành bản web mới lên hub trước.",
+        stores: {
+          android: { label: "Link Google Play", help: "Nút Cập nhật trên Android mở link này." },
+          ios: { label: "Link App Store", help: "Nút Cập nhật trên iOS mở link này." }
+        },
+        save: "Lưu",
+        saved: "Đã lưu bản tối thiểu"
+      }
     }
   };
 })();
