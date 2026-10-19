@@ -71,7 +71,7 @@ function shuffleKeys(v) {
     ["decor_lights decors rỗng", { table: "decor_lights", docs: [{ ...{ _id: "candle", color: "#ffa040", curve: "noise", pattern: "", decors: ["candlestick_triple"] }, decors: [] }] }],
   ];
   const okDecor = await act({ action: "save", baseHash: (await act({ action: "get", table: "decor_lights" })).json.hash, dryRun: true, table: "decor_lights",
-    docs: JSON.parse(fs.readFileSync(path.resolve(__dirname, "../../REPO_Meta/gamespark-config/decor_lights.json"), "utf8")) });
+    docs: JSON.parse(fs.readFileSync("D:/REPO_Meta/gamespark-config/decor_lights.json", "utf8")) });
   check("decor_lights seed qua được luật kiểm", okDecor.status === 200, `status ${okDecor.status}, ${okDecor.json.error && okDecor.json.error.message}`);
   for (const [n, b] of invalid) {
     const r = await act({ action: "save", baseHash: h, dryRun: true, ...b });

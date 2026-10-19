@@ -4,7 +4,8 @@
  * list/get/save trên các bảng nằm trong bộ nhớ (chỉ quests có sẵn, 29 bảng còn lại "chưa dán").
  * Nhãn (data/design-labels.js) được thay bằng bản cố định ở dưới để phép đo không đổi theo file nhãn thật.
  */
-const PW = 'C:/Users/tamph/AppData/Roaming/npm/node_modules/@playwright/cli/node_modules/playwright';
+// PW / SHOTS / PW_CHANNEL override the author's machine paths (PW_CHANNEL=chrome runs playwright-core on installed Chrome).
+const PW = process.env.PW || 'C:/Users/tamph/AppData/Roaming/npm/node_modules/@playwright/cli/node_modules/playwright';
 const { chromium } = require(PW);
 const http = require('http');
 const fs = require('fs');
@@ -13,7 +14,7 @@ const crypto = require('crypto');
 const vm = require('vm');
 
 const ROOT = path.resolve(__dirname, '..');
-const SHOTS = 'C:/Users/tamph/AppData/Local/Temp/claude/D--REPO-Meta/e97f08e7-4c36-4a2b-a58d-a5dc29bf4f23/scratchpad/shots';
+const SHOTS = process.env.SHOTS || 'C:/Users/tamph/AppData/Local/Temp/claude/D--REPO-Meta/e97f08e7-4c36-4a2b-a58d-a5dc29bf4f23/scratchpad/shots';
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml' };
 const KNOWN = ['wallet_start', 'crew', 'tactics', 'upgrade', 'passives', 'gacha_banners', 'gacha_rules', 'shop_packs',
   'shop_rules', 'shop_exchange', 'loadout', 'quests', 'maps', 'run_reward', 'stage_houses', 'stage_rules',
@@ -151,7 +152,7 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
   fs.mkdirSync(SHOTS, { recursive: true });
   const srv = await serve(0);
   const BASE = 'http://127.0.0.1:' + srv.address().port;
-  const b = await chromium.launch();
+  const b = await chromium.launch(process.env.PW_CHANNEL ? { channel: process.env.PW_CHANNEL } : {});
   const ctx = await b.newContext({ viewport: { width: 1280, height: 900 } });
   await ctx.addInitScript(() => {
     localStorage.setItem('hub.session.v1', JSON.stringify({ kind: 'member', email: 't@x', accessToken: 'tok',
