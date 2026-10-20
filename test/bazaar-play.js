@@ -123,32 +123,35 @@ async function desktop(browser, base) {
   await sleep(700);
   check('mở trang: màn tiêu đề', (await screen(page)) === 'title');
   await shot(page, '01-title');
-  await page.click('.rs-screen.title .rs-big.play');
-  await waitScreen(page, 'heroSelect'); await sleep(500);
-  // ---- sảnh 8 hero (BZ_HEROES.order): 7 chơi được + The Dragons khoá ----
-  const lobby = await page.evaluate(() => Array.from(document.querySelectorAll('.herosel .hex')).map(b => ({ h: b.dataset.hero, locked: b.classList.contains('locked') })));
+  await sleep(500);
+  // ---- sảnh 8 hero (từ UI-02 màn tiêu đề chính là sảnh: không còn bước "Chơi" riêng) (BZ_HEROES.order): 7 chơi được + The Dragons khoá ----
+  const lobby = await page.evaluate(() => Array.from(document.querySelectorAll('.lobby .hex')).map(b => ({ h: b.dataset.hero, locked: b.classList.contains('locked') })));
   check('sảnh: 8 lục giác, 7 hero chơi được, The Dragons khoá', lobby.length === 8 && lobby.filter(x => !x.locked).length === 7 && lobby.some(x => x.h === 'TheDragons' && x.locked),
     lobby.map(x => x.h + (x.locked ? '🔒' : '')).join(','));
+  const lob = await page.evaluate(() => ({ rank: (document.querySelector('.lobby .lb-me small') || {}).textContent, chips: Array.from(document.querySelectorAll('.lobby .lb-wallet .chip b')).map(b => b.textContent).join('/'),
+    pills: Array.from(document.querySelectorAll('.lobby .bar .mode')).map(m => m.dataset.mode).join(','), ready: !!document.querySelector('.lobby .lb-ready'), big: !!document.querySelector('.lobby .big') }));
+  check('UI-02 sảnh: bảng người chơi (bậc đầu "Apprentice Merchant"), ví 0/0, hai thẻ chế độ XẾP HẠNG/THƯỜNG, hero to, nút Sẵn sàng',
+    lob.rank === 'Apprentice Merchant' && lob.chips === '0/0' && lob.pills === 'ranked,normal' && lob.ready && lob.big, JSON.stringify(lob));
   const parts0 = await page.evaluate(() => Object.keys(window.BZ_CARDS_PARTS || {}).join(','));
   check('mở trang chỉ nạp thẻ chung (data/cards-common.js)', parts0 === 'common', parts0);
   const tags = {};
   for (const h of ['Mak', 'Stelle', 'Jules', 'Karnok']) {
-    await page.click('.herosel .hex[data-hero="' + h + '"]'); await sleep(250);
-    tags[h] = await page.evaluate(() => document.querySelector('.herosel .info .tag').textContent + ' | ' + document.querySelectorAll('.herosel .info .opts .o').length);
+    await page.click('.lobby .hex[data-hero="' + h + '"]'); await sleep(250);
+    tags[h] = await page.evaluate(() => document.querySelector('.lobby .info .tag').textContent + ' | ' + document.querySelectorAll('.lobby .info .opts .o').length);
   }
   check('tagline gốc của 4 hero mới (WIKI §4) + 3 lựa chọn mở màn', tags.Mak.startsWith('Alchemical Immortalist') && tags.Stelle.startsWith('Bright Aeronaut') && tags.Jules.startsWith('Chef of the Deeps') && tags.Karnok.startsWith('Monstrous Hunter') && /\| 3$/.test(tags.Karnok), JSON.stringify(tags));
-  const karInnate = await page.evaluate(() => document.querySelector('.herosel .info .innate') ? document.querySelector('.herosel .info .innate').textContent : '');
+  const karInnate = await page.evaluate(() => document.querySelector('.lobby .info .innate') ? document.querySelector('.lobby .info .innate').textContent : '');
   check('Karnok: bảng hero hiện kỹ năng có sẵn Karnok\'s Rage', /Rage/.test(karInnate), karInnate);
   await shot(page, '02a-hero-karnok');
-  await page.click('.herosel .hex[data-hero="TheDragons"]'); await sleep(300);
+  await page.click('.lobby .hex[data-hero="TheDragons"]'); await sleep(300);
   await shot(page, '02b-hero-dragons-locked');
-  await page.click('.herosel .rs-big.play'); await sleep(400);
-  const lockMsg = await page.evaluate(() => (document.querySelector('.herosel .lockmsg') || {}).textContent || '');
-  check('The Dragons: bấm Sẵn sàng không vào run, hiện lý do khoá', (await screen(page)) === 'heroSelect' && /Chưa chơi được/.test(lockMsg), lockMsg.slice(0, 80));
-  await page.click('.herosel .hex[data-hero="Pygmalien"]'); await sleep(300);
-  await page.click('.herosel .hex[data-hero="Vanessa"]'); await sleep(500);
+  await page.click('.lobby .lb-ready'); await sleep(400);
+  const lockMsg = await page.evaluate(() => (document.querySelector('.lobby .lockmsg') || {}).textContent || '');
+  check('The Dragons: bấm Sẵn sàng không vào run, hiện lý do khoá', (await screen(page)) === 'title' && /Chưa chơi được/.test(lockMsg), lockMsg.slice(0, 80));
+  await page.click('.lobby .hex[data-hero="Pygmalien"]'); await sleep(300);
+  await page.click('.lobby .hex[data-hero="Vanessa"]'); await sleep(500);
   await shot(page, '02-hero-select');
-  await page.click('.herosel .rs-big.play');
+  await page.click('.lobby .lb-ready');
   await waitScreen(page, 'event'); await sleep(900);
   let r = await run(page);
   check('chọn Vanessa: hero = Vanessa, mở màn có 3 lựa chọn', r.hero === 'Vanessa' && r.phase.choices.length === 3, r.hero + ' / ' + r.phase.choices.length);
@@ -216,6 +219,24 @@ async function desktop(browser, base) {
   await page.mouse.move(0, 0); await sleep(100);
   const s0 = (await stockRects(page))[0];
   if (s0) { await page.mouse.move(s0.x, s0.y); await sleep(400); await shot(page, '09-tooltip'); }
+  // UI-01: chuột phải ghim tooltip, tối màn, ô chọn cấp / bùa chữ tooltip đổi theo cấp, Esc bỏ ghim
+  if (s0) {
+    await page.mouse.click(s0.x, s0.y, { button: 'right' }); await sleep(400);
+    const lk0 = await page.evaluate(() => { const t = document.querySelector('.bz-tip'), sel = document.querySelector('.bz-tip .sel-tier'); const d = document.querySelector('.bz-tipdim');
+      return { locked: t.classList.contains('locked'), dim: !!d && getComputedStyle(d).backgroundColor, tiers: sel ? Array.from(sel.options).map(o => o.value).join(',') : '', ench: !!document.querySelector('.bz-tip .sel-ench'),
+        tier: (t.querySelector('.head .tier') || {}).textContent, text: (t.querySelector('.lines') || {}).textContent }; });
+    await shot(page, '09b-tooltip-locked');
+    const opts = lk0.tiers.split(',');
+    const other = opts[opts.length - 1];
+    await page.selectOption('.bz-tip .sel-tier', other); await sleep(250);
+    const lk1 = await page.evaluate(() => { const t = document.querySelector('.bz-tip'); return { tier: (t.querySelector('.head .tier') || {}).textContent, text: (t.querySelector('.lines') || {}).textContent, sel: document.querySelector('.bz-tip .sel-tier').value }; });
+    await page.mouse.move(5, 5); await sleep(200);
+    const lk2 = await page.evaluate(() => document.querySelector('.bz-tip').classList.contains('locked'));
+    await page.keyboard.press('Escape'); await sleep(250);
+    const lk3 = await page.evaluate(() => ({ locked: document.querySelector('.bz-tip').classList.contains('locked'), dim: !!document.querySelector('.bz-tipdim') }));
+    check('UI-01 ghim tooltip: chuột phải ghim + màn tối rgba(0,0,0,0.35), có ô chọn cấp (' + lk0.tiers + '), đổi cấp ' + lk0.tier + ' → ' + lk1.tier + ' (chữ đổi), rê chỗ khác vẫn ghim, Esc bỏ ghim',
+      lk0.locked && /rgba\(0, 0, 0, 0\.35\)/.test(lk0.dim) && opts.length >= 2 && lk1.sel === other && lk1.tier !== lk0.tier && lk2 && !lk3.locked && !lk3.dim, JSON.stringify([lk0, lk1, lk2, lk3]));
+  }
   await page.click('.rs-merchant-ctl .leave');
   await sleep(600);
 
@@ -281,12 +302,21 @@ async function desktop(browser, base) {
   d = await drive(page, r => r.phase.kind === 'fight' && r.phase.combatType === 'PVP', 600);
   if (d.ok) {
     // màn VS hiện ngay khi vào trận PvP: chớp trắng → VS → thẻ úp → lật (clip wUzq6Q4u9Jc ?t=702..710)
+    // W-07: thẻ bóng ma giữ tới khi bấm (không còn tự sang VS sau 1,2 s)
+    await page.waitForSelector('.rs-ghostpick', { timeout: 4000 }).catch(() => {});
+    await sleep(1600); await shot(page, '18-pvp-ghost');
+    await page.click('.rs-ghostpick', { timeout: 2000 }).catch(() => {});
     let vsSeen = true;
     try { await page.waitForSelector('.rs-vs', { timeout: 4000 }); } catch (e) { vsSeen = false; }
     check('PvP: màn VS hiện trước trận', vsSeen);
     await sleep(900); await shot(page, '18a-pvp-vs');
     const vsTxt = await page.evaluate(() => { const v = document.querySelector('.rs-vs'); return v ? v.querySelector('.plate.r b').textContent + ' | ' + v.querySelector('.plate.l b').textContent : ''; });
     check('màn VS có tên hero và "Bóng ma của <tên>"', /Vanessa/.test(vsTxt) && /Bóng ma của /.test(vsTxt), vsTxt);
+    const vsRank = await page.evaluate(() => { const v = document.querySelector('.rs-vs'), r = window.BZ_DEBUG.run(), o = r.phase.opponent;
+      return { l: v.querySelector('.plate.l small').textContent, r: v.querySelector('.plate.r small').textContent, wl: r.wins, prl: r.prestige, wr: o.wins || 0, wantL: window.BZUI.rankTitle(r.wins, r.prestige), wantR: window.BZUI.rankTitle(o.wins || 0, 0),
+        crest: (v.querySelector('.plate.l .crest').style.backgroundImage || '').indexOf('Gem_256_') >= 0, swirl: !!v.querySelector('.swirl'), flash: !!v.querySelector('.flash') }; });
+    check('UI-11 màn VS: bảng tên có tên bậc theo thắng/uy tín (trái "' + vsRank.l + '", phải "' + vsRank.r + '"), huy hiệu Gem gốc, xoáy vàng + chớp trắng',
+      vsRank.l === vsRank.wantL && vsRank.r === vsRank.wantR && /^[A-Z][a-z]+( [A-Z][a-z]+)+$/.test(vsRank.l) && vsRank.crest && vsRank.swirl && vsRank.flash, JSON.stringify(vsRank));
     // bóng từ bộ dữ liệu: đủ thẻ như mục trong BZ_GHOSTS (cổng nạp thẻ: không rơi thẻ của hero chưa nạp)
     const gh = await page.evaluate(() => {
       const o = window.BZ_DEBUG.run().phase.opponent, G = window.BZ_GHOSTS, list = (G && G.byDay[String(o.day)]) || [];
@@ -340,10 +370,15 @@ async function desktop(browser, base) {
   await shot(page, '23-end');
   await sleep(3000); await shot(page, '23b-end-card');
   const endB = await page.evaluate(() => { const r = window.BZUI.state.run, b = r && (r.best || {}).board; return { lbl: (document.querySelector('.endrun .bestlbl') || {}).textContent || '', n: document.querySelectorAll('.endrun .board .bz-card').length, want: b ? b.hand.length : -1, best: !!(r && r.best) }; });
+  const endM = await page.evaluate(() => { const r = window.BZUI.state.run, w = r.wins, want = w >= 10 ? 'Gold' : w >= 7 ? 'Silver' : 'Bronze';
+    return { want, medal: ((document.querySelector('.endrun .rib .mdl') || { style: {} }).style.backgroundImage || ''), pre: !!document.querySelector('.endrun .pre .medal'), burst: !!document.querySelector('.endrun .pre .burst'),
+      chests: document.querySelectorAll('.endrun .chests .ch').length, top: document.querySelectorAll('.endrun .chests .ch.top').length, note: (document.querySelector('.endrun .chestnote') || {}).textContent, wins: w }; });
+  check('UI-14 hết run: huy chương cúp ' + endM.want + ' trên thẻ, medal + burst trước thẻ, 3 rương theo mốc, ghi chú rương (' + endM.wins + ' thắng)',
+    endM.medal.indexOf('UI_Profile_Trophy_' + endM.want) >= 0 && endM.pre && endM.burst && endM.chests === 3 && endM.top === (endM.wins >= 4 ? 1 : 0) && !!endM.note, JSON.stringify(endM));
   check('màn hết run: bàn tốt nhất (run.best) hiện đủ thẻ + nhãn', endB.best && endB.n === endB.want && /Bàn tốt nhất/.test(endB.lbl), JSON.stringify(endB));
   // trang xem trận (Đấu thử) vẫn mở được từ tiêu đề
   await page.goto(base + '/games/bazaar/index.html', { waitUntil: 'load' }); await ready(page); await sleep(400);
-  await page.click('.rs-screen.title .rs-big.c-blue');
+  await page.click('.lobby .lb-view');
   await page.waitForFunction(() => window.BZ_READY && window.BZ_DEBUG && typeof window.BZ_DEBUG.state === 'function' && window.BZ_DEBUG.state(), null, { timeout: 30000 });
   check('nút Đấu thử mở trang xem trận (?view=1)', /view=1/.test(page.url()), page.url());
   await sleep(1500); await shot(page, '24-viewer');
@@ -445,9 +480,12 @@ async function phase4(browser, base) {
   // ---- Số phận (fates): 3 khung lựa chọn, chọn được ----
   await page.evaluate(() => { const R = window.BZRun, cx = { run: R.clone(window.BZ_DEBUG.run()), events: [] }; R.enterFates(cx); window.BZ_DEBUG.load(cx.run); });
   await sleep(1200); await shot(page, '48-fates');
-  const fz = await page.evaluate(() => ({ n: document.querySelectorAll('.rs-top .rs-enc').length, title: (document.querySelector('.rs-map-title h2') || {}).textContent }));
+  const fz = await page.evaluate(() => ({ n: document.querySelectorAll('.rs-top .rs-fate-orb').length, want: window.BZ_DEBUG.run().phase.choices.length, day: !!document.querySelector('.rs-daycard') }));
+  await page.hover('.rs-fate-orb[data-i="1"]'); await sleep(300);
+  const fzTip = await page.evaluate(() => (document.querySelector('.rs-tip2') || {}).textContent || '');
+  const fzName = await page.evaluate(() => window.BZ_DEBUG.run().phase.choices[1].name);
   const fz2 = await page.evaluate(() => window.BZ_DEBUG.cmd({ t: 'choose', i: 1 }));
-  check('Số phận: 3 khung + tiêu đề, chọn "Second Wind" đi tiếp', fz.n === 3 && fz.title === 'Số phận' && fz2.ok, JSON.stringify([fz, fz2]));
+  check('Số phận: cầu tím theo dữ liệu phase, không thẻ ngày, tooltip nêu tên bước thật ("' + fzName + '"), chọn đi tiếp', fz.n === 3 && fz.n === fz.want && !fz.day && fzName.length > 3 && fzTip.indexOf(fzName) >= 0 && fz2.ok, JSON.stringify([fz, fzName, fzTip.slice(0, 60), fz2]));
 
   // ---- sự kiện → bước có Then (chuỗi Gumball): cùng màn event nhưng chân dung / lựa chọn đổi theo bước ----
   const ch = await page.evaluate(() => {
@@ -731,18 +769,193 @@ async function reviewPhone(browser, base) {
   await ctx.close();
 }
 
+// ---------- đợt 2 (FIX7, nhánh ui2): pha chọn bùa, đổi thẻ ở loot, nhãn lên cấp, Số phận, lời thương nhân, huy hiệu, thẻ bóng ma, mã chết ----------
+async function wave2(browser, base) {
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  const page = await ctx.newPage();
+  const errors = watch(page);
+  await page.goto(base + '/games/bazaar/index.html?seed=' + SEED + '&new=1', { waitUntil: 'load' });
+  await ready(page); await sleep(400);
+  await freshRun(page);
+
+  // ---- W-01: pha enchantPick ----
+  const w1 = await page.evaluate(() => {
+    const R = window.BZRun, E = window.BZ_ENCOUNTERS, run = R.clone(window.BZ_DEBUG.run()), cx = { run, events: [] };
+    const tpl = Object.values(window.BZ_CARDS).find(t => t.Type === 'Item' && t.Size === 'Small' && (t.Heroes || []).indexOf('Common') >= 0 && Object.keys(t.Enchantments || {}).length >= 4);
+    const ci = R.gainCard(cx, { id: tpl.Id, tier: 'Bronze' }, 'hand', null, 'test');
+    const pid = Object.values(E.pedestals).find(p => p.InternalName === 'The Artist (Level Up)').Id;
+    R.ENCOUNTERS.pedestal.enter(cx, { id: pid }, 'endHour');
+    window.BZ_DEBUG.load(cx.run);
+    return { uid: ci.uid, id: tpl.Id, name: R.title(tpl) };
+  });
+  await sleep(500);
+  const w1c = await page.evaluate(u => window.BZ_DEBUG.cmd({ t: 'commit', uid: u }), w1.uid);
+  await waitScreen(page, 'enchantPick'); await sleep(1400); await shot(page, 'w01-enchantpick');
+  const w1s = await page.evaluate(() => {
+    const ph = window.BZ_DEBUG.run().phase, cards = Array.from(document.querySelectorAll('.rs-cards .bz-card.top')).filter(e => e._rs && !e.classList.contains('despawn'));
+    return { kind: ph.kind, options: ph.options, n: cards.length, names: cards.map(e => (e.querySelector('.rs-enchname') || {}).textContent), enchs: cards.map(e => e._rs.card.ench) };
+  });
+  const tipOf = async i => {
+    const c = await page.evaluate(i => { const e = Array.from(document.querySelectorAll('.rs-cards .bz-card.top'))[i]; const b = e.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; }, i);
+    await page.mouse.move(c.x, c.y - 30); await sleep(100); await page.mouse.move(c.x, c.y); await sleep(350);
+    return page.evaluate(() => (window.BZTooltip.el() || { textContent: '' }).textContent);
+  };
+  const t0 = await tipOf(0), t1 = await tipOf(1);
+  check('W-01 enchantPick: màn riêng, một bản thẻ cho mỗi bùa (' + w1s.options.length + '), nhãn tên bùa, tooltip hai bùa khác chữ',
+    w1c.ok && w1c.phase === 'enchantPick' && w1s.kind === 'enchantPick' && w1s.n === w1s.options.length && w1s.n >= 4 && JSON.stringify(w1s.names) === JSON.stringify(w1s.options) && JSON.stringify(w1s.enchs) === JSON.stringify(w1s.options) && t0.length > 20 && t0 !== t1,
+    JSON.stringify([w1c, w1s, t0.slice(0, 50), t1.slice(0, 50)]));
+  await page.mouse.move(5, 5); await sleep(200);
+  const w1r = await page.evaluate(() => { const cards = Array.from(document.querySelectorAll('.rs-cards .bz-card.top')); const e = cards[1]; const b = e.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; });
+  await page.mouse.click(w1r.x, w1r.y); await sleep(900);
+  const w1d = await page.evaluate(u => { const r = window.BZ_DEBUG.run(), c = window.BZRun.allCards(r).find(x => x.uid === u); return { ench: c && c.ench, kind: r.phase.kind }; }, w1.uid);
+  check('W-01: bấm bùa thứ hai → thẻ mang đúng bùa đó, rời màn chọn bùa', w1d.ench === w1s.options[1] && w1d.kind !== 'enchantPick', JSON.stringify(w1d));
+  check('W-01: màn enchantPick đã đăng ký (bấm thẻ, hết chỗ xử lý như màn phần thưởng)', await page.evaluate(() => !!window.BZUI.SCREENS.enchantPick && typeof window.BZUI.SCREENS.enchantPick.onCardClick === 'function'));
+
+  // ---- W-02: đổi thẻ ở loot (Orlin: 6 vàng, 1 lượt) ----
+  const orlin = (extra) => page.evaluate(ex => { const R = window.BZRun, run = R.clone(window.BZ_DEBUG.run()); run.gold = 30; const cx = { run, events: [] };
+    R.ENCOUNTERS.event.enter(cx, { id: Object.values(window.BZ_ENCOUNTERS.events).find(e => e.InternalName === 'Orlin (Level Up)').Id }, 'beginHour');
+    if (ex) { cx.run.phase.take = 2; cx.run.phase.taken = 1; }
+    window.BZ_DEBUG.load(cx.run); }, !!extra);
+  await orlin(false);
+  await waitScreen(page, 'loot'); await sleep(1500); await shot(page, 'w02-loot-reroll');
+  const w2a = await page.evaluate(() => ({ cost: (document.querySelector('.rs-reroll .tag b') || {}).textContent, off: document.querySelector('.rs-reroll').classList.contains('off'),
+    ids: window.BZ_DEBUG.run().phase.picks.map(p => p.card.id), gold: window.BZ_DEBUG.run().gold, rerolls: window.BZ_DEBUG.run().phase.rerolls }));
+  await page.click('.rs-reroll'); await sleep(900);
+  const w2b = await page.evaluate(() => { const r = window.BZ_DEBUG.run(); return { ids: r.phase.picks.map(p => p.card.id), gold: r.gold, rerolls: r.phase.rerolls, off: document.querySelector('.rs-reroll').classList.contains('off'),
+    shown: Array.from(document.querySelectorAll('.rs-cards .bz-card.top')).filter(e => e._rs && e._rs.kind === 'loot' && !e.classList.contains('despawn')).length }; });
+  check('W-02 loot: nút đổi + thẻ giá ' + w2a.cost + ' vàng; bấm → trừ ' + (w2a.gold - w2b.gold) + ' vàng, 3 thẻ mới khác thẻ cũ, hết lượt thì nút xám',
+    w2a.cost === '6' && !w2a.off && w2a.rerolls === 1 && w2a.gold - w2b.gold === 6 && w2b.rerolls === 0 && w2b.off && w2b.shown === w2b.ids.length && w2b.ids.every(i => w2a.ids.indexOf(i) < 0), JSON.stringify([w2a, w2b]));
+  await page.click('.rs-reroll', { force: true }); await sleep(300); // nút xám mang aria-disabled: ép bấm
+  const w2t = await page.evaluate(() => (document.querySelector('.rs-toast') || {}).textContent);
+  check('W-02: hết lượt vẫn bấm được để nghe lý do ("Hết lượt đổi hàng")', /Hết lượt/.test(w2t), w2t);
+  await orlin(true); await sleep(700);
+  await page.click('.rs-reroll', { force: true }); await sleep(300);
+  const w2l = await page.evaluate(() => ({ off: document.querySelector('.rs-reroll').classList.contains('off'), toast: (document.querySelector('.rs-toast') || {}).textContent, gold: window.BZ_DEBUG.run().gold, direct: window.BZ_DEBUG.cmd({ t: 'reroll' }) }));
+  check('W-02: sau khi đã lấy một thẻ, nút khoá ("Đã lấy thẻ") và lệnh reroll bị từ chối', w2l.off && /Đã lấy thẻ/.test(w2l.toast) && w2l.gold === 30 && !w2l.direct.ok, JSON.stringify(w2l));
+
+  // ---- W-03: nhãn ô lên cấp ----
+  const lv = async (level) => {
+    await page.evaluate(lv => { const R = window.BZRun, run = R.clone(window.BZ_DEBUG.run()); run.level = lv; run.pendingLevelUps = 1; const cx = { run, events: [] }; R.enterLevelUp(cx); window.BZ_DEBUG.load(cx.run); }, level);
+    await sleep(1300);
+    return page.evaluate(() => ({ kind: window.BZ_DEBUG.run().phase.kind, slots: window.BZ_DEBUG.run().phase.choices.map(c => c.slot), labels: Array.from(document.querySelectorAll('.rs-enc .lbl')).map(e => e.textContent), frames: document.querySelectorAll('.rs-enc').length }));
+  };
+  const l2 = await lv(2), l10 = await lv(10); await shot(page, 'w03-levelup-10'); const l19 = await lv(19); await shot(page, 'w03-levelup-19'); const l8 = await lv(8); await shot(page, 'w03-levelup-8');
+  check('W-03 lên cấp: số ô theo cấp (2 → 1, 10 → 2, 19 → 3, 8 → 3), mỗi khung có nhãn theo ô (trước đây không nhãn)',
+    [l2, l10, l19, l8].every(x => x.kind === 'levelUp' && x.labels.length === x.frames) && l2.frames === 1 && l10.frames === 2 && l19.frames === 3 && l8.frames === 3 &&
+    l2.labels[0] === 'Thầy kỹ năng Đồng' && l10.labels.join('|') === 'Địa điểm yểm bùa ngẫu nhiên|Họa sĩ: tự chọn bùa' && l19.labels.every(x => x === 'Địa điểm yểm bùa ngẫu nhiên') && l8.labels.join('|') === 'Thầy kỹ năng Vàng|Thầy kỹ năng ngẫu nhiên|Thầy kỹ năng ngẫu nhiên',
+    JSON.stringify([l2, l10, l19, l8]));
+
+  // ---- W-04: Số phận: ảnh theo id; Crossroads hai bệ ----
+  await page.evaluate(() => { const R = window.BZRun, cx = { run: R.clone(window.BZ_DEBUG.run()), events: [] }; R.enterFates(cx); cx.run.phase.choices = R.fatesChoices(cx.run); window.BZ_DEBUG.load(cx.run); });
+  await sleep(1500); await shot(page, 'w04-fates');
+  const w4 = await page.evaluate(() => {
+    const want = window.BZUI.top.FATE_ART, ch = window.BZ_DEBUG.run().phase.choices;
+    const icos = Array.from(document.querySelectorAll('.rs-fate-orb .ico')).map(e => ({ id: e.dataset.fate, bg: e.style.backgroundImage }));
+    return { ids: ch.map(c => c.id), ok: ch.every(c => icos.some(i => i.id === c.id && i.bg.indexOf(want[c.id]) >= 0)), distinct: new Set(icos.map(i => i.bg)).size, stepIds: ch.every(c => !!c.stepId && 'artKey' in c) };
+  });
+  check('W-04 Số phận: id bounty/crossroads/legacy/fortunes, mỗi quả cầu một ảnh riêng theo id (4 ảnh khác nhau)', w4.ok && w4.distinct === 4 && w4.ids.slice().sort().join() === 'bounty,crossroads,fortunes,legacy' && w4.stepIds, JSON.stringify(w4));
+  const ci = await page.evaluate(() => window.BZ_DEBUG.run().phase.choices.findIndex(c => c.id === 'crossroads'));
+  const w4c = await page.evaluate(i => window.BZ_DEBUG.cmd({ t: 'choose', i }), ci);
+  await waitScreen(page, 'event'); await sleep(1400); await shot(page, 'w04-crossroads');
+  const w4e = await page.evaluate(() => {
+    const ph = window.BZ_DEBUG.run().phase, cs = Array.from(document.querySelectorAll('.rs-choice.k-pedestal'));
+    return { kind: ph.kind, kinds: ph.choices.map(c => c.kind), n: cs.length, imgs: cs.map(e => /url\(/.test(e.querySelector('.img').style.backgroundImage)), slots: cs.map(e => (e.querySelector('.slot') || {}).textContent) };
+  });
+  check('W-04 Crossroads: hai lựa chọn kind "pedestal" có ảnh bệ + nhãn ô (trước đây ảnh trống)', w4c.ok && w4e.kind === 'event' && w4e.n === 2 && w4e.kinds.every(k => k === 'pedestal') && w4e.imgs.every(Boolean) && w4e.slots.join('|') === 'Địa điểm yểm bùa ngẫu nhiên|Họa sĩ: tự chọn bùa', JSON.stringify(w4e));
+
+  // ---- W-05: lời thương nhân ----
+  await page.evaluate(() => { window.__vo = []; const A = window.BZAudio, p = A.play; A.play = function (k) { if (/^vo\.merchant\./.test(k)) window.__vo.push(k); return p.apply(this, arguments); }; window.BZUI.MERCHANT_IDLE_MS = 700; });
+  const merch = async (name, gold) => {
+    await page.evaluate(([n, g]) => { const R = window.BZRun, run = R.clone(window.BZ_DEBUG.run()); run.gold = g; run.phase = { kind: 'choose', options: [] }; const cx = { run, events: [] };
+      R.ENCOUNTERS.merchant.enter(cx, { id: Object.values(window.BZ_ENCOUNTERS.events).find(e => e.InternalName === n || e.Title === n).Id }, 'endHour'); window.BZ_DEBUG.load(cx.run); }, [name, gold]);
+    await waitScreen(page, 'merchant'); await sleep(1300);
+  };
+  const voKey = (so, k) => page.evaluate(([so, k]) => (window.BZ_AUDIO_VOICE[so] || {})[k], [so, k]);
+  await merch("Pearl's Dig Site", 900); await shot(page, 'w05-merchant');
+  const PK = {}; for (const k of ['enter', 'buyitem', 'multiclick', 'idle', 'exit']) PK[k] = await voKey('PearlAudioSO', k);
+  await page.evaluate(() => { window.__vo.length = 0; });
+  await sleep(1600); // idle (700 ms)
+  const vIdle = await page.evaluate(() => window.__vo.slice());
+  for (let n = 0; n < 3; n++) { await page.click('.rs-who'); await sleep(80); }
+  await page.evaluate(() => window.BZ_DEBUG.cmd({ t: 'buy', i: 0 })); await sleep(300);
+  await page.evaluate(() => window.BZ_DEBUG.cmd({ t: 'leave' })); await sleep(300);
+  const vAll = await page.evaluate(() => window.__vo.slice());
+  check('W-05 Pearl Dig Site: lời idle / multiclick (3 cú bấm) / buyitem / buyexit→exit theo khoá BZ_AUDIO_VOICE (khoá theo tệp âm, không theo tên gọi)',
+    !!PK.idle && vIdle.indexOf(PK.idle) >= 0 && vAll.indexOf(PK.multiclick) >= 0 && vAll.indexOf(PK.buyitem) >= 0 && vAll.indexOf('vo.merchant.pearlsdigsite.buyexit') >= 0 && vAll.indexOf(PK.exit) >= 0,
+    JSON.stringify({ PK, vIdle, vAll }));
+  await merch('Aimbot', 900);
+  const AK = { reroll: await voKey('AimbotAudioSO', 'reroll'), buyexit: await voKey('AimbotAudioSO', 'buyexit') };
+  await page.evaluate(() => { window.__vo.length = 0; window.BZUI.MERCHANT_IDLE_MS = 999999; });
+  await page.click('.rs-reroll'); await sleep(500);
+  await page.evaluate(() => window.BZ_DEBUG.cmd({ t: 'buy', i: 0 })); await sleep(300);
+  await page.evaluate(() => window.BZ_DEBUG.cmd({ t: 'leave' })); await sleep(300);
+  const vA = await page.evaluate(() => window.__vo.slice());
+  check('W-05 Aimbot: đổi hàng → reroll; mua rồi rời → buyexit', !!AK.reroll && vA.indexOf(AK.reroll) >= 0 && vA.indexOf(AK.buyexit) >= 0, JSON.stringify({ AK, vA }));
+  await page.evaluate(() => { const R = window.BZRun, cx = { run: R.clone(window.BZ_DEBUG.run()), events: [] };
+    const tpl = Object.values(window.BZ_CARDS).find(t => t.Type === 'Item' && t.Size === 'Large' && (t.Heroes || []).indexOf('Common') >= 0);
+    R.gainCard(cx, { id: tpl.Id, tier: 'Bronze' }, 'stash', null, 'test'); window.BZ_DEBUG.load(cx.run); });
+  await merch('Quixel', 900);
+  const QK = { sellitem: await voKey('QuixelAudioSO', 'sellitem'), sellsized: await voKey('QuixelAudioSO', 'sellsized'), exit: await voKey('QuixelAudioSO', 'exit') };
+  const sl = await page.evaluate(() => { const R = window.BZRun, r = window.BZ_DEBUG.run(), all = R.allCards(r); const sz = c => R.SIZE[(R.tpl(c.id) || {}).Size] || 1;
+    const big = all.find(c => c.section !== 'skills' && sz(c) > 1), small = all.find(c => c.section !== 'skills' && sz(c) === 1); return { big: big && big.uid, small: small && small.uid }; });
+  await page.evaluate(() => { window.__vo.length = 0; window.BZUI.MERCHANT_IDLE_MS = 999999; });
+  if (sl.small) await page.evaluate(u => window.BZ_DEBUG.cmd({ t: 'sell', uid: u }), sl.small);
+  await sleep(200);
+  const vSmall = await page.evaluate(() => window.__vo.slice());
+  if (sl.big) await page.evaluate(u => window.BZ_DEBUG.cmd({ t: 'sell', uid: u }), sl.big);
+  await sleep(200);
+  await page.evaluate(() => window.BZ_DEBUG.cmd({ t: 'leave' })); await sleep(300);
+  const vQ = await page.evaluate(() => window.__vo.slice());
+  check('W-05 Quixel: bán món nhỏ → sellitem; bán món lớn → sellsized; rời không mua → exit (không buyexit)',
+    !!sl.small && !!sl.big && vSmall.indexOf(QK.sellitem) >= 0 && vSmall.indexOf(QK.sellsized) < 0 && vQ.indexOf(QK.sellsized) >= 0 && vQ.indexOf(QK.exit) >= 0 && vQ.indexOf('vo.merchant.quixel.buyexit') < 0, JSON.stringify({ sl, QK, vSmall, vQ }));
+  await page.evaluate(() => { window.BZUI.MERCHANT_IDLE_MS = 20000; });
+
+  // ---- W-06: huy hiệu dưới khung = sprite gốc khi đã bóc ----
+  const hourRun = () => page.evaluate(() => { const R = window.BZRun, run = R.clone(window.BZ_DEBUG.run()); run.phase = { kind: 'choose', options: R.hourOptions(run) }; window.BZ_DEBUG.load(run); });
+  await hourRun(); await sleep(1300);
+  await shot(page, 'w06-banner-sprites');
+  const b1 = await page.evaluate(() => ({ spr: document.querySelectorAll('.rs-enc .pennant.spr').length, svg: document.querySelectorAll('.rs-enc .pennant svg').length, n: document.querySelectorAll('.rs-enc').length,
+    css: (document.querySelector('.rs-enc .pennant.spr') || { style: {} }).style.backgroundImage }));
+  const saved = await page.evaluate(() => { const m = window.BZ_ART.map, o = {}; ['Merchant', 'Monster', 'Quest', 'Skill'].forEach(k => { o[k] = m['ui:Encounter_Banner_' + k + '_P']; delete m['ui:Encounter_Banner_' + k + '_P']; }); return o; });
+  await hourRun(); await sleep(1300);
+  const b0 = await page.evaluate(() => ({ spr: document.querySelectorAll('.rs-enc .pennant.spr').length, svg: document.querySelectorAll('.rs-enc .pennant svg').length, n: document.querySelectorAll('.rs-enc').length }));
+  await page.evaluate(o => { Object.keys(o).forEach(k => { if (o[k]) window.BZ_ART.map['ui:Encounter_Banner_' + k + '_P'] = o[k]; }); }, saved);
+  check('W-06 huy hiệu: chưa có sprite → giữ SVG cũ (' + b0.svg + '/' + b0.n + '); có khoá Encounter_Banner_*_P → dùng sprite, bỏ SVG (' + b1.spr + '/' + b1.n + ')',
+    b0.n === 3 && b0.spr === 0 && b0.svg === 3 && b1.spr === 3 && b1.svg === 0 && /Encounter_Banner_[A-Za-z]+_P[.]webp/.test(b1.css), JSON.stringify([b0, b1]));
+
+  // ---- W-07: thẻ bóng ma chờ cú bấm ----
+  await page.evaluate(() => { const R = window.BZRun, run = R.clone(window.BZ_DEBUG.run()); run.hour = R.TUNING.PVP_HOUR; const cx = { run, events: [] }; R.ENCOUNTERS.combat.enterPvp(cx); window.BZ_DEBUG.load(cx.run); });
+  await waitScreen(page, 'fight'); await sleep(3200); await shot(page, 'w07-ghost-hold');
+  const g0 = await page.evaluate(() => ({ ghost: !!document.querySelector('.rs-ghostpick:not(.out)'), vs: !!document.querySelector('.rs-vs'), screen: window.BZ_DEBUG.screen() }));
+  await page.click('.rs-ghostpick'); await sleep(1500);
+  const g1 = await page.evaluate(() => ({ vs: !!document.querySelector('.rs-vs'), ghostGone: !document.querySelector('.rs-ghostpick:not(.out)') }));
+  check('W-07 PvP: thẻ bóng ma còn nguyên sau 3,2 s (chưa sang VS), bấm vào thẻ → màn VS', g0.ghost && !g0.vs && g0.screen === 'fight' && g1.vs && g1.ghostGone, JSON.stringify([g0, g1]));
+  await page.waitForFunction(() => !document.querySelector('.rs-vs'), null, { timeout: 8000 }).catch(() => {});
+
+  // ---- W-08: mã chết đã gỡ, hành vi không đổi ----
+  const src = await page.evaluate(async () => {
+    const g = u => fetch(u).then(r => r.text());
+    return { ev: await g('js/ui/screens/event.js'), tr: await g('js/ui/transitions.js'), css: await g('css/run.css'), vs: typeof window.BZUI.transitions.vsScreen, fates: window.BZUI.SCREENS.fates !== window.BZUI.SCREENS.levelUp, cv: typeof window.BZUI.transitions.cancelVs };
+  });
+  check('W-08 trừ mã chết: event.js không còn màn fates / choiceScreen, transitions.js không còn vsScreen, run.css không còn .rs-fates-dim / .rs-map.fates / .rs-screen.herosel; vsScreen + fates của fight.js vẫn chạy',
+    !/SCREENS\.fates/.test(src.ev) && !/choiceScreen|dramatic/.test(src.ev) && !/T\.vsScreen\s*=/.test(src.tr) && !/\.rs-fates-dim|\.rs-map\.fates|\.rs-screen\.herosel/.test(src.css) && src.vs === 'function' && src.cv === 'function' && src.fates, JSON.stringify({ vs: src.vs, fates: src.fates }));
+  check('đợt 2 (ui2): 0 lỗi trang / console / HTTP', errors.length === 0, errors.slice(0, 5).join(' | '));
+  await ctx.close();
+}
+
 (async () => {
   let srv = null, base = process.env.BZ_URL;
   if (!base) { srv = await serve(); base = 'http://localhost:' + srv.address().port; }
   base = base.replace(/\/$/, '');
   const browser = await chromium.launch({ args: ['--use-angle=d3d11', '--autoplay-policy=no-user-gesture-required'] });
   const t0 = Date.now();
-  const ONLY = process.env.ONLY || ''; // ONLY=review: chỉ chạy phần sửa theo review
+  const ONLY = process.env.ONLY || ''; // ONLY=review: chỉ chạy phần sửa theo review; ONLY=w2: chỉ đợt 2 (ui2)
   if (!ONLY) try { await desktop(browser, base); } catch (e) { check('máy tính: chạy hết kịch bản', false, e.stack.split('\n').slice(0, 3).join(' ')); }
   if (!ONLY) try { await phase4(browser, base); } catch (e) { check('pha 4: chạy hết kịch bản', false, e.stack.split('\n').slice(0, 3).join(' ')); }
   if (!ONLY) try { await phone(browser, base); } catch (e) { check('điện thoại: chạy hết kịch bản', false, e.stack.split('\n').slice(0, 3).join(' ')); }
-  try { await reviewFixes(browser, base); } catch (e) { check('sửa theo review (máy tính): chạy hết kịch bản', false, e.stack.split('\n').slice(0, 3).join(' ')); }
-  try { await reviewPhone(browser, base); } catch (e) { check('sửa theo review (điện thoại): chạy hết kịch bản', false, e.stack.split('\n').slice(0, 3).join(' ')); }
+  if (!ONLY || ONLY === 'w2') try { await wave2(browser, base); } catch (e) { check('đợt 2 (ui2): chạy hết kịch bản', false, e.stack.split('\n').slice(0, 3).join(' ')); }
+  if (ONLY !== 'w2') try { await reviewFixes(browser, base); } catch (e) { check('sửa theo review (máy tính): chạy hết kịch bản', false, e.stack.split('\n').slice(0, 3).join(' ')); }
+  if (ONLY !== 'w2') try { await reviewPhone(browser, base); } catch (e) { check('sửa theo review (điện thoại): chạy hết kịch bản', false, e.stack.split('\n').slice(0, 3).join(' ')); }
   await browser.close();
   if (srv) srv.close();
   console.log('\nChợ Phiên — chơi thử (' + base + '): ' + pass + ' đạt, ' + fail + ' trượt, ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s. Ảnh: ' + SHOTS);

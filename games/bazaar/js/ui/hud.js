@@ -72,16 +72,15 @@
     c.style.backgroundImage = U.bg('art/ui/clock/Clock_Encounter_Background_TUI.webp');
     E.trophy = U.el('div', 'trophy', c); E.trophy.style.backgroundImage = U.bg('art/ui/clock/UI_VictoriesIcon_T_Temp.webp');
     E.wins = []; var arc = U.el('div', 'arc', c);
-    for (var i = 0; i < 10; i++) { var s = U.el('i', '', arc); s.style.setProperty('--i', i); E.wins.push(s); }
+    for (var i = 0; i < 10; i++) { // mỗi ô thắng là một sprite riêng Clock_Encounter_VictoryFill01..10 (đã nghiêng sẵn theo cung)
+      var s = U.el('i', '', arc); s.style.setProperty('--i', i); s.style.backgroundImage = U.bg('art/ui/clock/Clock_Encounter_VictoryFill' + (i < 9 ? '0' : '') + (i + 1) + '_TUI.webp'); E.wins.push(s);
+    }
     var face = E.face = U.el('div', 'face', c);
     var gear = U.el('div', 'gear', face); gear.style.backgroundImage = U.bg('art/ui/clock/ClockEncounter_Empty_TD.webp');
     E.gear = gear;
     var ring = U.el('div', 'ring', face); ring.style.backgroundImage = U.bg('art/ui/clock/ClockEncounter_Empty_TD.webp');
     E.fill = U.el('div', 'hourfill', face); E.fill.style.backgroundImage = U.bg('art/ui/clock/Clock_Encounter_HourFill_TUI.webp');
-    E.hand = U.el('div', 'hand', face,
-      '<svg viewBox="0 0 40 120"><defs><linearGradient id="rsNd" x1="0" x2="1"><stop offset="0" stop-color="#fff6dc"/><stop offset=".5" stop-color="#d9c79e"/><stop offset="1" stop-color="#9c8458"/></linearGradient></defs>' +
-      '<path d="M20 1 L31 30 L24.5 34 L24.5 92 L29 100 L20 116 L11 100 L15.5 92 L15.5 34 L9 30 Z" fill="url(#rsNd)" stroke="#4a3418" stroke-width="1.8"/>' +
-      '<circle cx="20" cy="60" r="0" fill="none"/></svg><b class="day">1</b>');
+    E.hand = U.el('div', 'hand', face, '<i class="nd"></i><b class="day">1</b>'); // kim = sprite atlas ClockEncounter_Empty_TD (bazaar.css, ASSET-07)
     E.day = E.hand.querySelector('.day');
     U.el('div', 'pin', face);
     E.crown = U.el('div', 'crownbar', c);
@@ -196,6 +195,7 @@
       E.fill.style.setProperty('--f', (frac * 360 + 28).toFixed(1) + 'deg');
       E.fill.classList.toggle('none', run.hour === 0);
       E.day.textContent = run.day;
+      E.day.classList.toggle('act', run.hour >= 6); // ClockViewController.UpdateDots: chấm sáng khi hết 6 giờ của ngày
       if (clockSt.hour >= 0 && ctx) U.sfx('board.dayTick');
       clockSt.hour = run.hour; clockSt.day = run.day;
     }

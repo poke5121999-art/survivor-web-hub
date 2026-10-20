@@ -58,3 +58,18 @@
 .bz-tip .sell { display: inline-flex; align-items: center; gap: 8px; margin: 10px 0 0 40px; padding: 8px 16px; border-radius: 6px;
   background: rgba(22,15,9,.94); font: 700 19px/1 var(--f-text); color: var(--cream); box-shadow: inset 0 0 0 1px rgba(255,205,146,.15); }
 .bz-tip .sell .num { color: var(--gold); }
+/* ghim tooltip (UI-01): tối màn #000 a.0,35 (VISUAL.md §14), ô chọn cấp / bùa dưới tooltip (CardLockVariantPanel.cs) */
+.bz-tipdim { position: absolute; inset: 0; z-index: 84; /* dưới .m-run .bz-tip (85, run.css) */  background: rgba(0,0,0,.35); animation: bz-dim-in .2s ease-out; }
+@keyframes bz-dim-in { from { opacity: 0; } }
+.bz-tip.locked { pointer-events: auto; }
+.bz-tip.locked .box { filter: drop-shadow(0 10px 18px rgba(0,0,0,.55)) drop-shadow(0 0 14px var(--tf, #b17f3e)); }
+.bz-tip .lockpanel { position: absolute; left: 0; top: 100%; margin-top: 10px; display: flex; align-items: center; gap: 14px; padding: 10px 16px;
+  background: rgba(20,14,8,.95); border-radius: 6px; box-shadow: inset 0 0 0 1px rgba(255,205,146,.28), 0 6px 18px rgba(0,0,0,.55);
+  font: 700 17px/1 var(--f-text); color: #e8cfa6; white-space: nowrap; }
+.bz-tip .lockpanel .lbl { letter-spacing: .1em; text-transform: uppercase; font-size: 14px; color: #bfb3a2; }
+.bz-tip .lockpanel label { display: flex; align-items: center; gap: 8px; }
+.bz-tip .lockpanel select { font: 700 17px/1 var(--f-text); color: #fff3d6; background: #2a1e12 url(../art/ui/ui_sprite_atlas/Frame_General_Dropdown_Arrow_TUI.webp) right 8px center/14px no-repeat;
+  border: 1px solid #b17f3e; border-radius: 4px; padding: 6px 28px 6px 10px; appearance: none; -webkit-appearance: none; cursor: pointer; }
+.bz-tip .lockpanel .reset { font: 800 15px/1 var(--f-text); letter-spacing: .08em; text-transform: uppercase; color: #ffe9a8; background: #4a3220; border: 1px solid #b17f3e;
+  border-radius: 4px; padding: 7px 12px; cursor: pointer; }
+.bz-tip .lockpanel .reset:hover, .bz-tip .lockpanel select:hover { filter: brightness(1.2); }

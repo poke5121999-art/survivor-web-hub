@@ -28,7 +28,10 @@ DBJSON = os.path.join(REF, "db", "json")
 REPO = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".."))
 WEB_ART = os.path.join(REPO, "games", "bazaar", "art")
 WEB_DATA = os.path.join(REPO, "games", "bazaar", "data")
-WEB_BUDGET = 60 * 1024 * 1024
+# Chủ dự án muốn art đủ độ phân giải gốc, không bản rút gọn: thẻ và chân dung quái 512 px (ước ~29 + ~28 MB).
+WEB_BUDGET = 110 * 1024 * 1024
+# ArtKey trong cards.json trỏ tên không có trong game; file thật mang tên khác (CONTENT-08).
+ARTKEY_ALIAS = {"icon_skill_frontlinelogistics": "Icon_Skill_VAN_FrontlineLogistics"}
 
 
 def bundle_path(name):
@@ -317,10 +320,18 @@ def plan(index, only):
     for c in cards:
         key = c.get("ArtKey") or ""
         cid, tp = c["Id"], c["$type"]
+        if (not key or key == "Invalid") and c["$type"] == "TCardItem":
+            # ArtKey rỗng: thử tên thẻ -> <TênLiềnNhau>_CardData.asset (đo: chỉ Aged Cask khớp trong 12 vật phẩm rỗng, CONTENT-08)
+            nm = re.sub(r"[^a-z0-9]", "", (c["InternalName"] or "").lower())
+            hit = [(p, v) for p, v in C.items() if p.endswith("_CardData.asset") and "/Heroes/" in p
+                   and re.sub(r"[^a-z0-9]", "", p.rsplit("/", 1)[-1][:-len("_CardData.asset")].lower()) == nm]
+            if len(hit) == 1:
+                key = hit[0][0]
         if not key or key == "Invalid":
             continue
         iid = amap.get(key, key)
         base = iid.rsplit("/", 1)[-1]
+        base = ARTKEY_ALIAS.get(base.lower(), base)
         cands = byname.get(base.lower(), [])
         if not cands and "." not in base:   # tên trần kiểu 'Event_X' -> Event_X_QuestData.asset
             for suf in ("_QuestData.asset", "_CombatData.asset", "_MerchantData.asset", "_CardData.asset"):
@@ -425,12 +436,12 @@ def run_web():
     for cid, m in manifest.items():
         out = m["out"]
         if m["cat"] == "cards":     # RGB: alpha của art thẻ là mặt nạ FX của shader
-            add(cid, 0 if hero_of(out) in PRIORITY else 2, out, out[:-4] + ".webp", 256, 80, "RGB", "cards:" + hero_of(out))
+            add(cid, 0 if hero_of(out) in PRIORITY else 2, out, out[:-4] + ".webp", 512, 82, "RGB", "cards:" + hero_of(out))
         elif m["cat"] in ("skills", "steps"):
             add(cid, 1, out, out[:-4] + ".webp", 256, 82, "RGBA", m["cat"])
         elif m["cat"] == "encounters":
-            add(cid + "_char", 1, out + "_char.png", out + "_char.webp", 384, 80, "RGBA", "encounters")
-            add(cid + "_bg", 1, out + "_bg.png", out + "_bg.webp", 384, 76, "RGB", "encounters")
+            add(cid + "_char", 1, out + "_char.png", out + "_char.webp", 512, 82, "RGBA", "encounters")
+            add(cid + "_bg", 1, out + "_bg.png", out + "_bg.webp", 512, 78, "RGB", "encounters")
     rank = {"icons": 0, "frames": 1, "board": 1, "heroes": 1, "ui": 3}
     for cat in ("icons", "frames", "board", "heroes", "ui"):
         for root, _, fs in os.walk(os.path.join(ART, cat)):
@@ -477,6 +488,8 @@ def run_web():
             bycat[cat.split(":")[0]] += done[dest]
     print("webp:", len(done), "file,", round(total / 1048576, 1), "MB; map", len(amap), "mục; loại vì ngân sách:", dict(excluded), "%.0fs" % (time.time() - t))
     print("MB theo nhóm:", {k: round(v / 1048576, 1) for k, v in bycat.items()})
+    import uiextra          # W-20: sprite/texture bổ sung (art/ui và art.js vừa bị ghi lại)
+    uiextra.run(quiet=True)
 
 
 if __name__ == "__main__":

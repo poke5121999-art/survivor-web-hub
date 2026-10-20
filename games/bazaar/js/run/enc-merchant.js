@@ -19,9 +19,17 @@
   M.filter = function (e) {
     return R.parseFilter(e.Desc, { hero: heroOfName(e.InternalName) });
   };
+  // RUN-07: Grandmaster "Sells Skill upgrades" [ĐỀ XUẤT cách hiểu]: bày kỹ năng bạn đang có ở đúng bậc hiện tại, mua = nhập lên bậc kế
+  // (SkillCard.CanFuseWith). Chưa có kỹ năng nào nhập được thì null → chia kỹ năng thường.
+  M.skillUpgrades = function (run, n, exclude) {
+    var ex = exclude || {}, mine = run.board.skills.filter(function (c) { return R.skillFusable(c) && !ex[c.id]; }), out = [];
+    while (out.length < n && mine.length) { var c = mine.splice(R.randInt(run, mine.length), 1)[0]; out.push({ id: c.id, tier: c.tier, ench: null }); }
+    return out.length ? out : null;
+  };
   M.dealStock = function (run, e, exclude) {
     var free = !!(e.Rules && e.Rules.SelectionIsFree);
-    var cards = R.deal(run, M.filter(e), limitOf(run, e), { exclude: exclude || {}, priced: !free });
+    var cards = /sells skill upgrades/i.test(e.Desc || '') ? M.skillUpgrades(run, limitOf(run, e), exclude) : null;
+    if (!cards) cards = R.deal(run, M.filter(e), limitOf(run, e), { exclude: exclude || {}, priced: !free });
     var stock = cards.map(function (c) { return { card: c, price: free ? 0 : R.price(c, c.tier).buy }; });
     var always = /always sells discounted/i.test(e.Desc || '');
     var hasRoll = JSON.stringify(e.Abilities || {}).indexOf('"BuyPrice"') >= 0;

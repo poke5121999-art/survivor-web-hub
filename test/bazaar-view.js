@@ -21,6 +21,12 @@
  *     0 điểm "tối mà đặc" (alpha > 0,7, max RGB < 40) — trước đây khiên là ô vuông đen, hồi máu là ô xám; FX_Star_01_T đã nướng alpha.
  *  9. (P0) khung khiên/nộ: có bật giữa trận, tắt khi trận ngã ngũ, BZView.clearCards() (ui/combat.js dỡ trận) gỡ sạch.
  * 10. (MOBILE P0) tooltip ở 844×390: chữ dòng hiệu ứng ≥ 12 px thật.
+ * 11. (vòng 7, W-10 P0) Transform giữa trận: Virus / Mirror / 3D Printer / Abducted Cow đổi hình + khung + bậc đúng mốc sự kiện (cả tua và phát thật),
+ *     thẻ sinh ra (spawned) hiện đúng chỗ tại spawnedAt, tua lùi trả về dạng gốc.
+ * 12. (W-11) FX-03 `play:false` không đạn; FX-09 `abilityId` chọn prefab riêng của ability (Rainbow Potion); FX-17 reload không khoá không đạn.
+ * 13. (W-12) rung dài pct×0,04 s; chip hẹn giờ dùng sprite CardTimer_*_BG khi có; tia chớp băng-rôn thua dùng FX_Lighting_03_2x2_T khi có.
+ * 14. (W-13) FX-15 thẻ nguồn nháy khung theo hướng thẻ đích; FX-16 lớp phủ Heated/Chilled bật, tua về 0 thì tắt.
+ * 15. (FX-06) luật cường độ nhạc trận: 0,66 → 1, 0,33 → 2, thấp hơn → 3, không đổi khi đang chạy chậm hay tham số ≥ 4.
  * Chromium chạy có GPU (cờ ANGLE d3d11); BZ_SOFT=1 để chạy dựng hình phần mềm (khung chậm hơn nhiều, chỉ số xử lý JS không đổi).
  */
 'use strict';
@@ -135,6 +141,15 @@ async function desktop(browser, base) {
   check('có tiếng phát ra sau cú nhấp, 0 tệp tiếng thiếu', st.audio && st.audio.played > 0 && st.audio.missing === 0, JSON.stringify(st.audio));
   check('thời gian xử lý khung trung bình < 16 ms ở 1280×720', perf.avgWorkMs < 16,
     'xử lý TB ' + perf.avgWorkMs.toFixed(2) + ' ms, max ' + perf.maxWorkMs.toFixed(1) + ' ms, khung TB ' + perf.avgFrameMs.toFixed(2) + ' ms, ' + perf.frames + ' khung');
+  // FX-01: đòn kết liễu chạy chậm là đồng hồ HIỂN THỊ — hệ số xuống 0,2, giữ 2,5 s thật, hồi 1 s thật; kết quả sim (người thắng, máu) không đổi
+  const sl = await page.evaluate(() => { const S = window.BZReplay.state(), st = window.BZReplay.stats; return { min: st.slowMin, real: Math.round(st.slowRealMs), hp: S.res.players.map(p => p.health), winner: S.res.winner, mode: S.slowMode }; });
+  check('FX-01: hệ số thời gian hạ xuống 0,2 ở đòn kết liễu (min ' + sl.min.toFixed(2) + ')', NODE.winner === 'draw' || (sl.min >= 0.19 && sl.min <= 0.21), JSON.stringify(sl));
+  check('FX-01: chạy chậm kéo dài ≥ 3,0 s thật (giữ 2,5 s + hồi 1 s) rồi về 1×', NODE.winner === 'draw' || (sl.real >= 3000 && sl.real <= 5000 && sl.mode === 4), JSON.stringify(sl));
+  check('FX-01: người thắng + máu cuối giống BZSim.run trong Node (' + NODE.winner + ', ' + NODE.players.map(p => p.health).join('/') + ')', sl.winner === NODE.winner && sl.hp.join() === NODE.players.map(p => p.health).join(), JSON.stringify(sl));
+  // FX-05: số chí mạng ≈ 3,85× số đòn nhỏ (5,0 so với 1,3 — ScrollingTextTypeConfig)
+  const cs = await page.evaluate(() => { const F = window.BZFX; F.clear(); const a = F.number({ x: 600, y: 500, kind: 'damage', value: 24, frac: 0.02, t0: 0, side: 0 });
+    const b = F.number({ x: 600, y: 500, kind: 'damage', value: 24, crit: true, frac: 0.02, t0: 0, side: 1 }); F.clear(); return { small: a.s, crit: b.s, ratio: b.s / a.s }; });
+  check('FX-05: số chí mạng lớn 3,5-4× số đòn nhỏ (' + cs.ratio.toFixed(2) + '×)', cs.ratio >= 3.5 && cs.ratio <= 4.0, JSON.stringify(cs));
   await sleep(500);
   const bannerOf = () => page.evaluate(() => { const b = document.querySelector('.bz-banner'); return { cls: b.className, h: b.querySelector('h2').textContent, op: getComputedStyle(b).opacity }; });
   const want = NODE.winner === 'draw' ? 'HOÀ' : NODE.winner === 0 ? 'CHIẾN THẮNG' : 'THẤT BẠI'; // bàn 0 = phe ta (dưới)
@@ -146,6 +161,7 @@ async function desktop(browser, base) {
   await sleep(150);
   const banner = await bannerOf();
   check('băng-rôn kết quả "' + want + '" đang hiện giữa thời gian giữ', banner.h === want && /show/.test(banner.cls), banner.h + ' ' + banner.cls + ' op=' + banner.op);
+  check('UI-09: băng-rôn kết quả đang hiện khi màn kết quả CHƯA mở (trận chưa done)', banner.h === want && (await page.evaluate(() => window.BZReplay.state().done)) === false, banner.h);
   await page.screenshot({ path: path.join(SHOTS, 'victory-1280.png') });
 
   // tua: lùi về giữa trận rồi tới cuối bằng nút
@@ -251,6 +267,196 @@ async function p0(browser, base) {
   await page.close();
 }
 
+
+// ---------- vòng 7 (W-10..W-13) ----------
+// bàn tuỳ ý cho BZ_DEBUG.fightBoards; thẻ tổng hợp 'killer' (phá món đối thủ mỗi 1 s) đăng ký cả ở Node lẫn trong trang
+const NARWHAL = '00e3a7ff-af5e-47ce-a2c0-2d4ec31ac7d7', RIFLE = '0591d8b4-2632-4c41-9f73-48896237256d';
+const byName = n => Object.keys(globalThis.BZ_CARDS).find(k => globalThis.BZ_CARDS[k].InternalName === n);
+const ID = { Virus: byName('Virus'), Mirror: byName('Mirror'), Printer: byName('3D Printer'), Cow: byName('Abducted Cow'), Jerky: byName('Jerky'), Rainbow: byName('Rainbow Potion') };
+const KILLER = { $type: 'TCardItem', Type: 'Item', Id: 'killer', InternalName: 'killer', StartingTier: 'Bronze', Size: 'Small', Heroes: ['Common'], Tags: [], HiddenTags: [],
+  Localization: { Title: { Text: 'killer' }, Tooltips: [] },
+  Abilities: { 0: { Id: '0', ActiveIn: 'HandOnly', Priority: 'Medium', Trigger: { $type: 'TTriggerOnCardFired' },
+    Action: { $type: 'TActionCardDestroy', Target: { $type: 'TTargetCardSection', TargetSection: 'OpponentHand' } } } }, Auras: {},
+  Tiers: { Bronze: { Attributes: { CooldownMax: 1000, DestroyTargets: 1, Multicast: 1 }, AbilityIds: ['0'], AuraIds: [], TooltipIds: [] } } };
+BZ.extraCards = BZ.extraCards || {}; BZ.extraCards.killer = KILLER;
+let uidN = 0;
+const mk = (id, socket, o) => Object.assign({ uid: 'w' + (uidN++), id, tier: 'Bronze', ench: null, socket, size: 1, owner: 0, section: 'hand' }, o || {});
+const brd = (name, cards) => ({ name, hero: null, level: 1, healthMax: 800, cards });
+const SC = {
+  printer: () => [brd('A', [mk(NARWHAL, 0, { uid: 'g0' }), mk(ID.Printer, 1, { uid: 'pr', size: 3, tier: 'Gold' })]), brd('B', [])],
+  virus: () => [brd('A', [mk(ID.Virus, 0, { uid: 'vir', tier: 'Silver' })]), brd('B', [mk(NARWHAL, 0, { uid: 'o0', owner: 1 }), mk(NARWHAL, 1, { uid: 'o1', owner: 1 })])],
+  mirror: () => [brd('A', [mk(RIFLE, 0, { uid: 'mg', size: 2 }), mk(ID.Mirror, 2, { uid: 'mir', size: 2, tier: 'Gold' })]), brd('B', [])],
+  cow: () => [brd('A', [mk('killer', 0, { uid: 'kl' })]), brd('B', [mk(ID.Cow, 0, { uid: 'cow', size: 2, tier: 'Silver', owner: 1 })])]
+};
+async function startBoards(page, boards, seed) {
+  await page.evaluate(([a, b, sd, ex]) => { window.BZSim.extraCards = window.BZSim.extraCards || {}; window.BZSim.extraCards.killer = ex;
+    const D = window.BZ_DEBUG; D.fightBoards(a, b, sd, {}); D.speed(1); D.pause(true); D.seek(0); }, [boards[0], boards[1], seed, KILLER]);
+}
+// đọc dạng hiện tại của mọi thẻ bàn: {uid: {id, tier, size, shown, left, art}}
+const snap = page => page.evaluate(() => {
+  const out = {}, cs = window.BZView.cards();
+  Object.keys(cs).forEach(u => {
+    const el = cs[u].el, B = el._bz, r = el.getBoundingClientRect();
+    out[u] = { id: B.inst.id, tier: B.inst.tier, size: B.inst.size, cls: el.className, shown: el.style.display !== 'none' && el.isConnected, left: parseFloat(el.style.left),
+      art: (el.querySelector('.art').style.backgroundImage || '').replace(/^url\("?|"?\)$/g, '').replace(/\?v=.*$/, ''), w: Math.round(B.w) };
+  });
+  return out;
+});
+async function wave2(browser, base) {
+  out.push('\n[vòng 7: Transform, FX test, rung, chip, FX-06]');
+  const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+  const errors = watch(page);
+  await page.goto(base + '/games/bazaar/index.html?view=1&speed=1', { waitUntil: 'load' });
+  await ready(page);
+  const artOf = id => page.evaluate(i => (window.BZ_ART.map[i] || ''), id);
+  const seekTo = ms => page.evaluate(m => { window.BZReplay.pause(true); window.BZ_DEBUG.seek(m); }, ms);
+  const tfEv = () => page.evaluate(() => window.BZReplay.state().evs.filter(e => e.type === 'transform').map(e => ({ t: e.t, target: e.target, from: e.from, to: e.to, tier: e.tier, socket: e.socket, size: e.size })));
+  const nodeTf = boards => BZ.run({ boards, seed: 3, sandstorm: true }).frames.reduce((a, f) => a.concat(f.ev.filter(e => e.type === 'transform').map(e => ({ t: e.t, target: e.target, from: e.from, to: e.to, tier: e.tier, socket: e.socket, size: e.size }))), []);
+
+  // ----- 3D Printer: thẻ Large Gold → 3 Narwhal; hai bản sinh ra ở ô 2, 3 -----
+  await startBoards(page, SC.printer(), 3);
+  let tf = await tfEv();
+  check('W-10 3D Printer: 3 sự kiện transform ở t=5000 (trang = Node)', JSON.stringify(tf) === JSON.stringify(nodeTf(SC.printer())) && tf.length === 3 && tf.every(e => e.t === 5000), JSON.stringify(tf));
+  const pr0 = await page.evaluate(() => window.BZReplay.state().res.cards.filter(c => c.spawned).map(c => [c.uid, c.spawnedAt]));
+  check('W-10 3D Printer: result.cards có 2 thẻ spawned, spawnedAt 5000', pr0.length === 2 && pr0.every(c => c[1] === 5000), JSON.stringify(pr0));
+  await seekTo(4900);
+  let sn = await snap(page);
+  const spawnedUids = pr0.map(c => c[0]);
+  check('W-10 trước 5000: máy in còn là máy in (id, bậc Gold, cỡ 3) và 2 thẻ spawned đang ẩn',
+    sn.pr.id === ID.Printer && sn.pr.tier === 'Gold' && sn.pr.size === 3 && spawnedUids.every(u => !sn[u] || !sn[u].shown), JSON.stringify(sn.pr) + ' / ' + JSON.stringify(spawnedUids.map(u => sn[u] && sn[u].shown)));
+  const L0 = { g0: sn.g0.left, pr: sn.pr.left };
+  await seekTo(5300);
+  sn = await snap(page);
+  const NW = await artOf(NARWHAL);
+  check('W-10 sau 5000: thẻ máy in đổi thành Narwhal (id, art, cỡ 1, khung Bronze lớp t-Bronze)', sn.pr.id === NARWHAL && sn.pr.size === 1 && sn.pr.art === NW && /t-Bronze/.test(sn.pr.cls), JSON.stringify(sn.pr));
+  check('W-10 sau 5000: hai thẻ spawned hiện, là Narwhal, ở ô liền kề (cách đúng một bước thẻ)',
+    spawnedUids.length === 2 && spawnedUids.every(u => sn[u] && sn[u].shown && sn[u].id === NARWHAL && sn[u].art === NW) &&
+      Math.abs(sn[spawnedUids[0]].left - sn.pr.left - (await page.evaluate(() => window.BZView.BOARD.pitch))) < 1 && Math.abs(sn[spawnedUids[1]].left - sn[spawnedUids[0]].left - (await page.evaluate(() => window.BZView.BOARD.pitch))) < 1,
+    JSON.stringify(spawnedUids.map(u => sn[u])));
+  check('W-10 bố cục bàn không xê dịch khi thẻ spawned hiện (thẻ g0 đứng yên)', Math.abs(sn.g0.left - L0.g0) < 0.5, sn.g0.left + ' vs ' + L0.g0);
+  await seekTo(2000);
+  sn = await snap(page);
+  check('W-10 tua lùi về 2000: máy in trở lại dạng gốc, spawned ẩn lại', sn.pr.id === ID.Printer && sn.pr.size === 3 && spawnedUids.every(u => !sn[u].shown), JSON.stringify([sn.pr.id, sn.pr.size, spawnedUids.map(u => sn[u].shown)]));
+  // phát thật 3×: chớp (xform/spawn) hiện đúng lúc, trạng thái cuối giống tua
+  const live = await page.evaluate(async () => {
+    window.BZ_DEBUG.seek(0); const seen = { xform: 0, spawn: 0 }, cl = window.BZView.refs.cardLayer;
+    const mo = new MutationObserver(ms => ms.forEach(m => { const c = m.target.classList; if (c.contains('xform')) seen.xform++; if (c.contains('spawn')) seen.spawn++; }));
+    mo.observe(cl, { attributes: true, subtree: true, attributeFilter: ['class'] });
+    window.BZ_DEBUG.speed(3);
+    const t0 = performance.now();
+    await new Promise(res => { function f(n) { const s = window.BZ_DEBUG.state(); if (s.t > 5600 || n - t0 > 20000) res(); else requestAnimationFrame(f); } requestAnimationFrame(f); });
+    await new Promise(r => setTimeout(r, 120));
+    mo.disconnect(); window.BZReplay.pause(true);
+    return { seen, t: Math.round(window.BZ_DEBUG.state().t) };
+  });
+  sn = await snap(page);
+  check('W-10 phát thật: thẻ đổi hình ở mốc 5000 mà không cần tua (chớp xform + spawn có chạy)', live.seen.xform > 0 && live.seen.spawn > 0 && sn.pr.id === NARWHAL && spawnedUids.every(u => sn[u].shown && sn[u].id === NARWHAL), JSON.stringify({ live, pr: sn.pr.id }));
+  await page.screenshot({ path: path.join(SHOTS, 'w10-printer-after.png') });
+  await seekTo(4900); await page.screenshot({ path: path.join(SHOTS, 'w10-printer-before.png') });
+
+  // ----- Virus: món Narwhal của đối thủ thành Virus Silver ở t=8000 -----
+  await startBoards(page, SC.virus(), 3);
+  tf = await tfEv();
+  check('W-10 Virus: transform đầu [t, từ, sang, bậc] = [8000, Narwhal, Virus, Silver] (lần hai ở 16000)', tf.length >= 1 && tf[0].t === 8000 && tf[0].from === NARWHAL && tf[0].to === ID.Virus && tf[0].tier === 'Silver', JSON.stringify(tf));
+  const vt = tf.length ? tf[0].target : null;
+  await seekTo(7900); sn = await snap(page); const pre = sn[vt];
+  await seekTo(8300); sn = await snap(page);
+  check('W-10 Virus: đích đổi id + art + bậc (Silver) sau 8000, trước đó còn Narwhal Bronze',
+    !!pre && pre.id === NARWHAL && pre.tier === 'Bronze' && sn[vt].id === ID.Virus && sn[vt].art === (await artOf(ID.Virus)) && sn[vt].tier === 'Silver' && /t-Silver/.test(sn[vt].cls), JSON.stringify([pre, sn[vt]]));
+  await page.screenshot({ path: path.join(SHOTS, 'w10-virus-after.png') });
+  await seekTo(7900); await page.screenshot({ path: path.join(SHOTS, 'w10-virus-before.png') });
+
+  // ----- Mirror: Medium Gold chép Air-Pressure Rifle bên trái -----
+  await startBoards(page, SC.mirror(), 3);
+  tf = await tfEv();
+  check('W-10 Mirror: 1 transform [t, từ, sang] = [3000, Mirror, Rifle]', tf.length === 1 && tf[0].t === 3000 && tf[0].from === ID.Mirror && tf[0].to === RIFLE, JSON.stringify(tf));
+  await seekTo(3300); sn = await snap(page);
+  check('W-10 Mirror: sau 3000 thẻ Mirror mang art + id của Rifle, cỡ 2', sn.mir.id === RIFLE && sn.mir.art === (await artOf(RIFLE)) && sn.mir.size === 2, JSON.stringify(sn.mir));
+  await seekTo(2900); sn = await snap(page);
+  check('W-10 Mirror: tua lùi trước 3000 còn là Mirror', sn.mir.id === ID.Mirror && sn.mir.tier === 'Gold', JSON.stringify(sn.mir));
+
+  // ----- Abducted Cow: bị phá thành 2 Jerky -----
+  await startBoards(page, SC.cow(), 3);
+  tf = await tfEv();
+  check('W-10 Abducted Cow: thành 2 Jerky Silver, ô [0, 1], cỡ 1', tf.length === 2 && tf.every(e => e.to === ID.Jerky && e.tier === 'Silver' && e.size === 1) && tf[0].socket === 0 && tf[1].socket === 1, JSON.stringify(tf));
+  const cowSp = await page.evaluate(() => window.BZReplay.state().res.cards.filter(c => c.spawned).map(c => c.uid));
+  await seekTo(tf.length ? tf[0].t + 300 : 2000); sn = await snap(page);
+  check('W-10 Abducted Cow: thẻ gốc thành Jerky + 1 thẻ spawned Jerky hiện, thẻ gốc không còn là đống đổ nát',
+    sn.cow.id === ID.Jerky && sn.cow.size === 1 && cowSp.length === 1 && sn[cowSp[0]].shown && sn[cowSp[0]].id === ID.Jerky && !/destroyed/.test(sn.cow.cls), JSON.stringify([sn.cow, sn[cowSp[0]]]));
+
+  // ----- W-11: FX-03 / FX-09 / FX-17 -----
+  await startBoards(page, [brd('A', [mk(ID.Rainbow, 0, { uid: 'rb' }), mk(NARWHAL, 1, { uid: 'nw' })]), brd('B', [mk(NARWHAL, 0, { uid: 'o0', owner: 1 })])], 3);
+  const w11 = await page.evaluate(([rid, nid]) => {
+    const RP = window.BZReplay, F = window.BZFX, M = window.BZ_VFXMAP, r = {};
+    F.clear();
+    const dmg = ab => ({ type: 'damage', src: 'nw', target: 'p1', amt: 5, hp: 5, shield: 0, kind: 'Damage', t: 100, abilityId: ab });
+    const ccard = M.cards[nid] || (M.cards[nid] = { prefab: 'Assets/Test/Narwhal.prefab', action: 'PlayerDamage', projectile: 'FX_Star_01_T', visualTravelMs: 200, travelMs: 200 });
+    const saved = JSON.stringify(ccard);
+    F.clear(); RP.FX.damage(dmg('0'), { d: 0 }); r.dmgBase = F.counts().projs;
+    ccard.abilities = { 0: { action: 'PlayerDamage', play: false } };
+    F.clear(); RP.FX.damage(dmg('0'), { d: 0 }); r.dmgNoPlay = F.counts().projs;
+    delete ccard.abilities; M.cards[nid] = JSON.parse(saved);
+    // FX-09: Rainbow Potion có 4 ability, mỗi cái một prefab; ability '1' (Poison) không được dùng prefab Burn của thẻ
+    const rc = M.cards[rid], burn = rc.prefab;
+    r.e0 = (RP.resolveEntry('rb', 'burn', '0').E || {}).prefab;
+    r.e1 = (RP.resolveEntry('rb', 'poison', '1').E || {}).prefab || null;
+    r.k1 = RP.resolveEntry('rb', 'poison', '1').keyed;
+    r.burn = burn; r.p1 = rc.abilities['1'].prefab;
+    // FX-17: reload không khoá prefab → không đạn; có khoá → đạn
+    const saved2 = M.cards[nid]; M.cards[nid] = { abilities: { 0: { action: 'CardReload' } } };
+    F.clear(); RP.FX.reload({ type: 'reload', src: 'nw', target: 'rb', amt: 1, t: 100, abilityId: '0' }, { d: 0 }); r.reloadKeyless = F.counts().projs;
+    M.cards[nid] = { prefab: 'Assets/X/Reload.prefab', action: 'CardReload', projectile: 'FX_Star_01_T', visualTravelMs: 200, travelMs: 200,
+      abilities: { 0: { action: 'CardReload', key: 'Assets/X/Reload.prefab', prefab: 'Assets/X/Reload.prefab' } } };
+    F.clear(); RP.FX.reload({ type: 'reload', src: 'nw', target: 'rb', amt: 1, t: 100, abilityId: '0' }, { d: 0 }); r.reloadKeyed = F.counts().projs;
+    M.cards[nid] = saved2; F.clear();
+    return r;
+  }, [ID.Rainbow, NARWHAL]);
+  check('W-11 FX-03: ability play:false không bắn đạn (có đạn khi play mặc định)', w11.dmgBase === 1 && w11.dmgNoPlay === 0, JSON.stringify(w11));
+  check('W-11 FX-09: abilityId chọn prefab riêng — ability 0 dùng Burn, ability 1 (Poison) không dùng prefab Burn của thẻ', /Burn/.test(w11.e0 || '') && w11.p1 !== w11.burn && w11.e1 !== w11.burn && w11.k1 === true, JSON.stringify(w11));
+  check('W-11 FX-17: reload không khoá prefab không đạn, có khoá thì có đạn', w11.reloadKeyless === 0 && w11.reloadKeyed === 1, JSON.stringify({ k: w11.reloadKeyless, y: w11.reloadKeyed }));
+
+  // ----- W-12: rung, chip CardTimer, tia chớp băng-rôn -----
+  const w12 = await page.evaluate(() => {
+    const V = window.BZView, r = {};
+    V.shake(1, 0); r.s1 = V.shakeInfo().dur; V.shake(0.5, 0); r.s5 = V.shakeInfo().dur; V.shake(0, 0);
+    const F = window.BZFX, A = window.BZ_ART.map, keep = A['ui:CardTimer_Haste_BG'];
+    const mkcard = () => window.BZCard.create({ uid: 'z', id: 'x', tier: 'Bronze', size: 1 }, { h: 230, attrs: {} });
+    const c = mkcard(); r.chipYes = c._bz.chH.classList.contains('tex'); r.chipBg = c._bz.chH.style.backgroundImage;
+    delete A['ui:CardTimer_Haste_BG']; r.chipNo = mkcard()._bz.chH.classList.contains('tex'); A['ui:CardTimer_Haste_BG'] = keep;
+    const lk = A['fx:FX_Lighting_03_2x2_T']; delete A['fx:FX_Lighting_03_2x2_T'];
+    F.resetStats(); F.burst('bannerLose', 960, 540, {}); r.partsNo = F.stats.particles;
+    A['fx:FX_Lighting_03_2x2_T'] = lk;
+    F.resetStats(); F.burst('bannerLose', 960, 540, {}); r.partsYes = F.stats.particles; F.clear();
+    return r;
+  });
+  check('W-12 FX-18: rung dài pct × 0,04 s (pct 1 → 40 ms, 0,5 → 20 ms)', Math.abs(w12.s1 - 40) < 0.5 && Math.abs(w12.s5 - 20) < 0.5, JSON.stringify(w12));
+  check('W-12 chip hẹn giờ: dùng sprite gốc CardTimer_Haste_BG đã bóc; bỏ khoá thì về viên CSS', w12.chipNo === false && w12.chipYes === true && /CardTimer_Haste_BG\.webp/.test(w12.chipBg), JSON.stringify(w12));
+  check('W-12 băng-rôn thua: 5 tia chớp FX_Lighting_03_2x2_T gốc (khoá fx: trong BZ_ART), bỏ khoá thì không', w12.partsYes - w12.partsNo === 5, JSON.stringify(w12));
+
+  // ----- W-13: FX-15 / FX-16 -----
+  await startBoards(page, [brd('A', [mk(NARWHAL, 0, { uid: 'n0' }), mk(NARWHAL, 1, { uid: 'n1' }), mk(NARWHAL, 2, { uid: 'n2' })]), brd('B', [mk(NARWHAL, 0, { uid: 'o0', owner: 1 })])], 3);
+  const w13 = await page.evaluate(() => {
+    const RP = window.BZReplay, V = window.BZView, r = {}, cls = u => V.cardEl(u).className;
+    RP.neighbourTrigger({ src: 'n0', target: 'n2' }, 0); r.right = /trig-r/.test(cls('n0'));
+    RP.neighbourTrigger({ src: 'n2', target: 'n1' }, 0); r.left = /trig-l/.test(cls('n2'));
+    RP.neighbourTrigger({ src: 'n1', target: 'o0' }, 0); r.cross = /trig-/.test(cls('n1'));
+    RP.APPLY.heat({ target: 'n1', amt: 1, cur: 1 }); r.heated = /heated/.test(cls('n1'));
+    RP.APPLY.attr({ target: 'n2', attr: 'Chilled', amt: 1, cur: 1 }); r.chilled = /chilled/.test(cls('n2'));
+    window.BZ_DEBUG.seek(100); r.reset = !/heated|chilled/.test(cls('n1') + cls('n2'));
+    return r;
+  });
+  check('W-13 FX-15: thẻ nguồn nháy trig-r khi đích ở bên phải, trig-l bên trái, không nháy khi đích là bàn đối thủ', w13.right && w13.left && !w13.cross, JSON.stringify(w13));
+  check('W-13 FX-16: Heated / Chilled bật lớp phủ, tua (seek) về đầu thì tắt', w13.heated && w13.chilled && w13.reset, JSON.stringify(w13));
+  const hc = await page.evaluate(() => { window.BZReplay.APPLY.heat({ target: 'n1', amt: 1, cur: 1 }); const el = window.BZView.cardEl('n1').querySelector('.hc.heat'); const cs = getComputedStyle(el); return { tr: cs.transitionDuration, bg: cs.backgroundImage.slice(0, 20) }; });
+  check('W-13 FX-16: lớp phủ mờ vào 0,333 s', hc.tr === '0.333s', JSON.stringify(hc));
+
+  // ----- FX-06: luật cường độ nhạc -----
+  const mi = await page.evaluate(() => { const f = window.BZReplay.musicIntensity; return [f(1, 0, false), f(0.9, 0, false), f(0.5, 1, false), f(0.2, 2, false), f(0.2, 3, false), f(0.2, 4, false), f(0.2, 1, true), f(0.7, 3, false)]; });
+  check('FX-06: luật cường độ nhạc [1→0, 0,9→1, 0,5→2, 0,2→3, giữ 3, ≥4 giữ, chạy chậm giữ, hồi 0,7 → 1] = [0,1,2,3,3,4,1,1]', JSON.stringify(mi) === JSON.stringify([0, 1, 2, 3, 3, 4, 1, 1]), JSON.stringify(mi));
+  check('vòng 7 không lỗi', errors.length === 0, errors.slice(0, 5).join(' || '));
+  await page.close();
+}
+
 async function phone(browser, base) {
   out.push('\n[844x390 điện thoại ngang]');
   const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
@@ -289,6 +495,7 @@ async function phone(browser, base) {
   try {
     await desktop(browser, base);
     await p0(browser, base);
+    await wave2(browser, base);
     await phone(browser, base);
   } catch (e) {
     check('chạy hết bộ kiểm', false, e && e.stack ? e.stack.split('\n').slice(0, 3).join(' | ') : String(e));

@@ -81,16 +81,68 @@
     // ---- Fates (Futura aef5e7d8, CODE-RUN §1.5): uy tín về <= 0 lần đầu → về 1 rồi chọn 1 trong 3 phần thưởng mạnh ----
     // [ĐO TRÊN CLIP] https://youtu.be/PSP75k4R4Pk?t=245 ("first time it hits 0 it resets to 1 ... 3 powerful choices"),
     // https://youtu.be/oVtvrCdqHEE?t=765 (hồi sinh một lần, về 1 prestige, chọn 1 trong 3 buff, có thể enchant);
-    // lần thứ hai về 0 thì hết run. Nội dung ba lựa chọn bị máy chủ xoá (Futura Kind 'unknown', không có bước con).
+    // lần thứ hai về 0 thì hết run. Nội dung lấy từ DỮ LIỆU: sự kiện Futura (Limit 3, không reroll) có bốn bước thật
+    // "Fate's Bounty" (+20 vàng, +5 XP: ability.1 / ability.0), "Fate's Crossroads" (địa điểm enchant ngẫu nhiên hoặc The Artist),
+    // "Fate's Legacy" (Bronze + Silver → Gold), "Fate's Fortunes" (Transform mọi vật phẩm rồi enchant) [ĐO TRONG REPO cards.json].
+    // Bày FATES_PICKS trong số bốn; số lấy từ chính các ability của bước (không còn con số tự đặt).
     FATES_PRESTIGE_AFTER: 1,
-    // 1) "Fate's Legacy: Upgrade your Bronze-tier and Silver-tier items to gold." https://youtu.be/PSP75k4R4Pk?t=83 [ĐO TRÊN CLIP]
-    // 2) +máu tối đa mỗi cấp đã đạt [ĐỀ XUẤT] 3) một vật phẩm bậc Vàng của hero [ĐỀ XUẤT] (hết chỗ/bể rỗng: +5 thu nhập)
-    FATES_HP_PER_LEVEL: 50,
+    FATES_EVENT: 'Futura',
+    FATES_PICKS: 3,
+    // Khoá giao diện của từng bước Fate (id lựa chọn: giữ 'legacy' như bản cũ để giao diện cũ vẫn ra đúng hình)
+    FATES_KEYS: { "Fate's Bounty": 'bounty', "Fate's Crossroads": 'crossroads', "Fate's Legacy": 'legacy', "Fate's Fortunes": 'fortunes' },
 
-    // ---- lên cấp [ĐỀ XUẤT CODE-RUN §3.6] ----
-    // TLevelUp.Rewards bị xoá: mỗi lần lên cấp bày 3 lựa chọn: 1 đống đồ (sự kiện "(Level Up)" "Get ..."),
-    // 1 thầy dạy kỹ năng ("Teaches ..."), 1 bệ/bước lặt vặt — bậc theo dải ngày BAND_BY_DAY.
-    LEVELUP_SLOTS: ['pile', 'teacher', 'other'],
+    // ---- lên cấp: bảng phần thưởng THEO CẤP (wiki Level_Up, trang ghi WIP: https://thebazaar.wiki.gg/wiki/Level_Up) ----
+    // [ĐO TRONG REPO] hàng cấp 2..29 chép từ audit RUN-01 (đã fetch wiki); cấp > 29 lặp mẫu 26-29. Mỗi phần tử là MỘT lựa chọn
+    // bày cho người chơi, viết `loại[:tham số]`; loại được giải bởi bảng LEVEL_SLOT_KINDS ở clock.js:
+    //   pip|argenta|orlin|adira   thầy kỹ năng theo bậc (LEVEL_SLOT_EVENTS)
+    //   trainer                   "Random Skill Trainer": một thầy chủ đề (Bjorn, Malafang...) hợp hero, không trùng ô khác
+    //   heroTeacher               thầy riêng của hero (Cymon, Mr. Tuskari, Old Zane, Zosima...)
+    //   item:<bậc>  loot:<bậc>    "Get a <bậc> Item / Loot" ('Gold|Diamond' = "Gold or Diamond")
+    //   heroReward:<bậc>          "Random Character Reward": phần thưởng lên cấp riêng của hero theo bậc
+    //   upgrade:<Bronze|Silver|Any>  bệ nâng bậc (B1&B2 / Sterling / Forja)
+    //   enchantRandom             "Random Enchant Option": một địa điểm enchant ngẫu nhiên (bệ Diamond)
+    //   artist                    The Artist: người chơi chọn loại enchant
+    LEVEL_REWARDS: {
+      2: ['pip'],
+      3: ['item:Bronze', 'loot:Bronze', 'heroReward:Bronze'],
+      4: ['upgrade:Bronze', 'pip'],
+      5: ['argenta'],
+      6: ['item:Silver', 'loot:Silver', 'heroReward:Silver'],
+      7: ['upgrade:Silver', 'argenta'],
+      8: ['orlin', 'trainer', 'trainer'],
+      9: ['item:Silver', 'loot:Silver', 'heroReward:Silver'],
+      10: ['enchantRandom', 'artist'],
+      11: ['trainer', 'trainer', 'heroTeacher'],
+      12: ['item:Gold', 'loot:Gold', 'heroReward:Gold'],
+      13: ['upgrade:Any', 'orlin'],
+      14: ['adira', 'trainer', 'trainer'],
+      15: ['item:Gold', 'loot:Gold', 'heroReward:Gold'],
+      16: ['upgrade:Any', 'orlin'],
+      17: ['trainer', 'trainer', 'heroTeacher'],
+      18: ['item:Gold|Diamond', 'loot:Gold|Diamond', 'heroReward:Gold|Diamond'],
+      19: ['enchantRandom', 'enchantRandom', 'enchantRandom'],
+      20: ['trainer', 'trainer', 'trainer'],
+      21: ['item:Gold|Diamond', 'loot:Gold|Diamond', 'heroReward:Gold|Diamond'],
+      22: ['upgrade:Any', 'orlin'],
+      23: ['trainer', 'trainer', 'heroTeacher'],
+      24: ['item:Gold|Diamond', 'loot:Gold|Diamond', 'heroReward:Gold|Diamond'],
+      25: ['upgrade:Any', 'orlin'],
+      26: ['trainer', 'trainer', 'trainer'],
+      27: ['item:Gold|Diamond', 'loot:Gold|Diamond', 'heroReward:Gold|Diamond'],
+      28: ['upgrade:Any', 'orlin'],
+      29: ['trainer', 'trainer', 'heroTeacher']
+    },
+    LEVEL_REWARDS_LOOP: [26, 29],   // cấp > 29 lặp mẫu 26..29 [ĐỀ XUẤT: wiki chỉ liệt kê tới 29]
+    // Thẻ gặp gỡ cố định theo InternalName (encounters.js): [bảng, tên]
+    LEVEL_SLOT_EVENTS: {
+      pip: ['events', 'Pip (Level Up)'], argenta: ['events', 'Argenta (Level Up)'], orlin: ['events', 'Orlin (Level Up)'],
+      adira: ['events', 'Adira (Level Up)'], artist: ['pedestals', 'The Artist (Level Up)'],
+      'upgrade:Bronze': ['pedestals', 'B1&B2 - Upgrade a Bronze-tier item (Level Up)'],
+      'upgrade:Silver': ['pedestals', 'Sterling - Upgrade a Silver item (Level Up)'],
+      'upgrade:Any': ['pedestals', 'Forja - Upgrade an item (Level Up)']
+    },
+    // Chỉ địa điểm enchant bậc Diamond ở "Random Enchant Option"; ba địa điểm Legendary chỉ tới qua giờ tự do muộn [ĐỀ XUẤT]
+    LEVEL_ENCHANT_TIERS: ['Diamond'],
 
     // ---- sự kiện: phương án dự phòng [ĐỀ XUẤT] ----
     // Hành động không mô phỏng được (Transform, ExitReplacementSet, Spawn/Deal mà mô tả không đọc ra bộ lọc...) và sự kiện
@@ -105,8 +157,18 @@
     FIGHT_EVENT_LEVEL: { lo: 1, hi: 3 },
     // Sự kiện có trận cố định (Treasure Chest (Mimic) L11) chỉ bày khi cấp quái ≤ ngày + chừng này [ĐỀ XUẤT: Mimic L11 vào ngày 7+]
     EVENT_FIGHT_LEVEL_SLACK: 4,
+    // [CONTENT-03] Bậc của thẻ gặp gỡ ở giờ tự do, thêm cột Legendary (Freiya, Statia, bệ Yetarian Tomb / Arcane Abyss / Sanguine Valley).
+    // Cột: Bronze, Silver, Gold, Diamond, Legendary. Tỉ lệ thật nằm ở máy chủ [ĐỀ XUẤT]: Legendary chỉ từ ngày 8, 3% → 5% → 8%
+    // (wiki chỉ thấy thương nhân Legendary ở cuối run); bốn cột đầu giữ như TIER_ODDS_BY_DAY.
+    ENCOUNTER_TIER_ODDS_WITH_LEGENDARY: [
+      [100, 0, 0, 0, 0], [80, 20, 0, 0, 0], [55, 40, 5, 0, 0], [25, 55, 20, 0, 0], [10, 50, 35, 5, 0],
+      [5, 35, 45, 15, 0], [0, 20, 50, 30, 0], [0, 10, 45, 45, 3], [0, 5, 35, 60, 5], [0, 0, 25, 67, 8]
+    ],
     // Tên nội bộ không đưa vào bể giờ tự do (sự kiện con / tiếp diễn của chuỗi sự kiện khác)
-    ENCOUNTER_EXCLUDE: /Return|Rewards?$|^Greenheart|^Dungeon|^Fierce Competition|^Furry|Financial District - |Futura|Magic Mirror|The Cult|Chest$/,
+    ENCOUNTER_EXCLUDE: /Return|Rewards?$|^Greenheart|^Dungeon|^Fierce Competition|^Furry|Financial District - |Futura|Magic Mirror|The Cult|Chest$|Travel Agent/,
+    // [CONTENT-02] Travel Agent "Sells Expedition Tickets": chế độ thám hiểm (BZ_ENCOUNTERS.expeditions) chưa có trong bản web, nên thương nhân
+    // chỉ biết bán 3 vật phẩm ngẫu nhiên: loại khỏi bể cho tới khi có thám hiểm. Futura là thẻ Fates (FATES_EVENT), tới qua pha 'fates', không qua giờ tự do.
+    // Magic Mirror cũng loại: "Get a copy of any item on your board" chưa có bản sao chạy đúng ở giờ tự do.
 
     // ---- rương mốc thắng 4 / 7 / 10 ----
     // [ĐO TRÊN CLIP] https://youtu.be/PSP75k4R4Pk?t=300 "4 wins bronze, 7 silver, 10 gold" — rương thật là phần thưởng tài khoản
@@ -132,8 +194,12 @@
 
     // Số aura trong chữ của thẻ gặp gỡ mà dữ liệu chưa chở (Auras): "Pick a Chest containing up to {aura.9} XP/Gold" của Shrouded Figure
     // = thuộc tính Custom_0 của chính bước đó (cards.json `Attributes.Custom_0`: Knowledge 3, Wealth 30) [ĐO TRONG REPO].
-    // Tỉ số Bex ({aura.3}/{aura.4}/{aura.5}) là biến chạy của trò chơi nhỏ, không có số tĩnh: hiện "?".
     ENCOUNTER_AURA_VALUES: {
+      // [CONTENT-12] Trò Bazball của Bex: {aura.3} = điểm Kyvers, {aura.4} = điểm Rogues, {aura.5} = tiền cược (cards.json Custom_2 = 5, TRangeValue 5..5).
+      // Điểm thật là biến chạy 0..10 theo hiệp [ĐỀ XUẤT]: số cố định nhất quán với từng bước (Kyvers dẫn ở hiệp 1-3, thắng 8-5 / thua 5-8).
+      '[Bex] 1st Quarter': { 3: 2, 4: 1 }, '[Bex] 2nd Quarter': { 3: 4, 4: 3 }, '[Bex] 3rd Quarter': { 3: 6, 4: 5 },
+      '[Bex] Wins - Bet': { 3: 8, 4: 5, 5: 5 }, '[Bex] Wins - No Bet': { 3: 8, 4: 5 },
+      '[Bex] Lose - Bet': { 3: 5, 4: 8, 5: 5 }, '[Bex] Lose No Bet': { 3: 5, 4: 8 },
       '[Shrouded Figure] Choose Knowledge': { 9: 3 },
       '[Shrouded Figure] Choose Wealth': { 9: 30 }
     },
@@ -158,4 +224,55 @@
   R.TUNING.ENCOUNTER_TIER_ODDS_BY_DAY = R.TUNING.TIER_ODDS_BY_DAY;
 
   if (typeof module !== 'undefined' && module.exports) module.exports = R;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+/* ---- Khối của nhánh rulesB (PvE theo ngày, XP khi thua, kỹ năng hợp nhất, bể quái muộn) ---- */
+(function (root) {
+  'use strict';
+  var TU = root.BZRun.TUNING;
+  // RUN-02: danh sách quái giờ PvE theo NGÀY, chép nguyên từ wiki Monsters https://thebazaar.wiki.gg/wiki/Monsters (đọc 2026-10-20).
+  // Ngày 1 không có quái Vàng; ô không có quái đúng bậc trong danh sách ngày thì lấy quái bất kỳ còn lại của danh sách đó.
+  TU.PVE_BY_DAY = [
+    ['Banannabal', 'Fanged Inglet', 'Haunted Kimono', 'Kyver Drone', 'Pyro', 'Viper'],
+    ['Coconut Crab', 'Giant Mosquito', 'Covetous Thief', 'Rogue Scrapper', 'Boarrior', 'Ventriloquist'],
+    ['Dabbling Apprentice', 'Tempest Flamedancer', 'Rogue Scrapper', 'Frost Street Challenger', 'Street Gamer', 'Eccentric Etherwright', 'Hooverbike Hooligan'],
+    ['Boilerroom Brawler', 'Outlands Dervish', 'Bloodreef Raider', 'Retiree', 'Hellbilly', 'Ahexa', 'Prince Marianas', 'Flame Juggler'],
+    ['Preening Duelist', 'Sabretooth', 'Flame Juggler', 'Harkuvian Rocket Trooper', 'Infernal Envoy', 'Kyver Commander', 'Gorgon Noble', 'Mod Squad', 'Trashtown Mayor', 'Scovyle'],
+    ['Dire Inglet', 'Dire Mosquito', 'Zookeeper', 'Foreman', 'Trash Golem', 'Enclave Weeper', 'Loan Shark', 'Infernal', 'Lich'],
+    ['Sergeant Suds', 'Viper Tyrant', 'Cosmic Roc', 'Joyful Jack', 'Thug', 'Treasure Turtle', 'Chilly Charles', 'Shock Trooper', 'Ghost Pepper', 'Radiant Corsair'],
+    ['Cosmic Roc', 'Joyful Jack', 'Infernal Frigate', 'Bouncertron', 'Car Conductor', 'Oasis Guardian', 'Burninator Bot', 'Dr. Vortex', 'Wandering Shoal', 'Dragon'],
+    ['Yerdan', 'Bloodreef Captain', 'Oasis Guardian', 'Elite Duelist', 'Roaming Isle', 'Ferros Khan', 'Weapons Platform', 'Enclave Revenant', 'Death Knight Reaper'],
+    ['Boss Harrow', 'Hulking Experiment', 'Master Alchemist', 'Lord of the Wastes', 'Trash Titan', 'Volkas Enforcer', 'Property Baron', 'Frost Street Champion',
+      'Void Colossus', 'Awakened District', 'Void Golem', 'Lord Arken', 'Veteran Octopus']
+  ];
+  // Tên wiki khác tên trong dữ liệu (chính tả / đổi tên giữa bản vá) [ĐỀ XUẤT]: khớp sau khi đổi sang tên dữ liệu
+  TU.PVE_NAME_ALIAS = { 'Banannabal': 'Banannibal', 'Hooverbike Hooligan': 'Hoverbike Hooligan', 'Enclave Weeper': 'Foundation Weeper',
+    'Enclave Revenant': 'Foundation Revenant' };
+  // CONTENT-07: từ ngày 11 (sau bảng wiki, ngày vô hạn) bể quái thêm các quái cấp 15 mà "Day 10+" của wiki không liệt kê [ĐỀ XUẤT]
+  TU.PVE_LATE_FROM_DAY = 11;
+  TU.PVE_LATE_EXTRA = ['Morguloth', 'Void Golem', 'Lord Arken', 'Awakened District', 'Trash Titan'];
+  // RUN-06: DB không có XP thua (RewardDefeat.ExperienceReward = 0 ở 170/170 thẻ trận; LossExperiencePoints chỉ ở bản legacy
+  // BazaarCard.cs:145, mặc định 0). [ĐỀ XUẤT] theo Mobalytics beginner-guide ("even if you lose ... the additional XP is well worth it",
+  // "Dealing enough Damage in a fight grants you additional XP"): thua mà trừ >= 50% máu quái thì nhận nguyên XP thưởng của quái.
+  TU.PVE_LOSS_XP_MIN_DAMAGE = 0.5;
+  // CONTENT-05: thầy dạy cấp (Pip, Argenta...) không có bộ lọc tag đọc ra gì thì chia kỹ năng của hero thuộc dải bậc [ĐỀ XUẤT]
+  TU.SKILL_ORPHAN_FALLBACK = true;
+  TU.SKILL_ANY_CHANCE = 0.2;   // mỗi ô kỹ năng của thầy dạy không khoá bậc: xác suất chia từ MỌI bậc khởi đầu
+  // W-40 / CONTENT-08: thẻ có dữ liệu nhưng KHÔNG có art trong game (không có thư mục thẻ, không ArtKey dùng được) nên bản web
+  // không có hình để vẽ: ẩn khỏi mọi bể (thương nhân, sự kiện, đống đồ, đồ rơi sau trận, thầy dạy). [ĐO TRONG REPO]
+  // D:azaar-refix6data.md CONTENT-08 ("11 items + Virulent Research have no art in game"). Khi có art thì xoá dòng.
+  TU.HIDDEN_CARDS = [
+    { name: 'Cyclops Eye', reason: 'không có art trong game' },
+    { name: 'Sonic Cannon', reason: 'không có art trong game' },
+    { name: 'Holo-Disguise Generator', reason: 'không có art trong game' },
+    { name: 'Old Barrel', reason: 'không có art trong game' },
+    { name: 'Yeti Claw', reason: 'không có art trong game' },
+    { name: 'Acid Sprayer', reason: 'không có art trong game' },
+    { name: 'Pyro Gauntlet', reason: 'không có art trong game' },
+    { name: 'Plasma Whip', reason: 'không có art trong game' },
+    { name: 'Javalin', reason: 'không có art trong game' },
+    { name: 'Poison Blades', reason: 'không có art trong game' },
+    { name: 'Cybernetic Implants', reason: 'không có art trong game' },
+    { name: 'Virulent Research', reason: 'kỹ năng không có art trong game' }
+  ];
 })(typeof window !== 'undefined' ? window : globalThis);

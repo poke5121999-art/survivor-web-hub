@@ -45,6 +45,10 @@
     return C;
   };
   // Nạp lại thuộc tính bậc + enchantment + ability/aura của bậc hiện tại (khi tạo, nâng bậc, yểm/bỏ enchantment)
+  // Khoá của ability trong mẫu thẻ (tpl.Abilities[khoá] / Enchantments[..].Abilities[khoá]): sự kiện do ability gây ra mang nó (FX-09).
+  // Khoá có thể khác `Id` của ability (18 ability trong dữ liệu), nên ghi nhận lúc dựng thẻ.
+  var abKey = new WeakMap();
+  BZ.abilityKey = function (A) { var k = A && abKey.get(A); return k != null ? k : (A && A.Id != null ? String(A.Id) : null); };
   BZ.rebuildCard = function (S, C) {
     var tpl = C.tpl, tb = BZ.tierAttrs(tpl, C.tier), E = C.ench && tpl.Enchantments ? tpl.Enchantments[C.ench] : null, k;
     if (C.ench && !E) C.ench = null;
@@ -52,10 +56,10 @@
     if (C.inst) for (k in C.inst) tb[k] = C.inst[k];
     C.tb = tb;
     var block = BZ.tierBlock(tpl, C.tier), ab = [], au = [];
-    (block.AbilityIds || []).forEach(function (id) { var a = tpl.Abilities && tpl.Abilities[id]; if (a) ab.push(a); });
+    (block.AbilityIds || []).forEach(function (id) { var a = tpl.Abilities && tpl.Abilities[id]; if (a) { abKey.set(a, id); ab.push(a); } });
     (block.AuraIds || []).forEach(function (id) { var a = tpl.Auras && tpl.Auras[id]; if (a) au.push(a); });
     if (E) {
-      for (k in (E.Abilities || {})) ab.push(E.Abilities[k]);
+      for (k in (E.Abilities || {})) { abKey.set(E.Abilities[k], k); ab.push(E.Abilities[k]); }
       for (k in (E.Auras || {})) au.push(E.Auras[k]);
     }
     C.abilities = ab; C.auras = au;
@@ -174,6 +178,45 @@
     return S;
   };
 
+  // ---------- Transform (COMBAT-01): đổi mẫu thẻ tại chỗ đến hết trận ----------
+  // Bậc giữ nếu mẫu mới có (tooltip "Retains tier and Enchantments if able"); không có thì lấy bậc gần nhất trong mẫu mới.
+  BZ.fitTier = function (tpl, tier) {
+    var T = tpl.Tiers || {};
+    if (T[BZ.tierKey(tpl, tier)]) return tier;
+    var have = BZ.TIERS.filter(function (t) { return T[t]; });
+    if (!have.length) return tier;
+    return BZ.tierIndex(tier) < BZ.tierIndex(tpl.StartingTier || have[0]) ? have[0] : have[have.length - 1];
+  };
+  function finishNew(S, C) { // đạn đầy theo mẫu mới; Ammo chỉ có trong rt khi thẻ dùng đạn
+    BZ.recompute(S);
+    var am = C.attrs.AmmoMax || 0;
+    if (am > 0) C.rt.Ammo = am; else delete C.rt.Ammo;
+  }
+  // Thẻ T thành mẫu tpl (bậc/enchantment/thuộc tính riêng của thẻ nguồn nếu chép). Trả id cũ. Hoàn lại lúc hết trận: result.cards ghi T.orig.
+  BZ.swapCard = function (S, T, tpl, tier, ench, inst, size) {
+    if (!T.orig) T.orig = { id: T.id, tier: T.tier, ench: T.ench, size: T.size };
+    var from = T.id;
+    T.id = tpl.Id != null ? tpl.Id : T.id; T.tpl = tpl;
+    T.type = tpl.Type || (tpl.$type === 'TCardSkill' ? 'Skill' : 'Item');
+    T.sizeName = tpl.Size || 'Small'; T.size = size || BZ.SIZE[T.sizeName] || 1;
+    T.tier = tier; T.ench = ench || null; T.inst = inst || null; T.d = {}; T.cd = 0;
+    BZ.rebuildCard(S, T);
+    finishNew(S, T);
+    return from;
+  };
+  // Thẻ mới sinh ra giữa trận (3D Printer, Hacksaw, Abducted Cow...) ở ô `socket` tay của người chơi `owner`.
+  BZ.spawnCard = function (S, owner, tpl, tier, ench, inst, socket, size) {
+    S.spawnN = (S.spawnN || 0) + 1;
+    var C = BZ.makeCard(S, { uid: 'tf' + S.spawnN, id: tpl.Id, tier: tier, ench: ench, socket: socket, size: size || BZ.SIZE[tpl.Size] || 1, section: 'hand', attrs: inst || undefined }, owner);
+    if (!C) return null;
+    C.spawned = true; C.spawnedAt = S.t;
+    var P = S.players[owner];
+    P.hand.push(C); P.hand.sort(function (a, b) { return a.socket - b.socket; });
+    S.cards.push(C);
+    finishNew(S, C);
+    return C;
+  };
+
   // ---------- aura: tính lại mọi thuộc tính ----------
   function activeIn(C, ai) { // EEffectActiveIn; kỹ năng (skills) luôn tính như trên tay
     ai = ai || 'HandOnly';
@@ -279,7 +322,11 @@
   };
 
   // ---------- nhật ký + lỗi ----------
-  BZ.log = function (S, e) { e.t = S.t; S.frameEv.push(e); return e; };
+  BZ.log = function (S, e) { // FX-09: sự kiện sinh ra khi một ability đang chạy mang abilityId (khoá ability trong mẫu thẻ)
+    e.t = S.t;
+    if (S.curAb != null && e.abilityId === undefined) e.abilityId = S.curAb;
+    S.frameEv.push(e); return e;
+  };
   BZ.recordError = function (S, C, type, e) {
     var msg = (C ? C.id + ' ' : '') + type + ': ' + (e && e.message || e);
     S.errors.push(msg); BZ.errors.push(msg);
@@ -333,9 +380,10 @@
 
   BZ.execAbility = function (S, C, A, ev, group) {
     var ctx = { S: S, card: C, ev: ev, crit: group ? group.crit : false, fired: !!group, cache: new Map(), ability: A };
-    var n = 1;
+    var n = 1, prevAb = S.curAb;
     if (group) { n = Math.floor(BZ.cattr(S, C, 'Multicast') || 1); if (n < 1) n = 1; } // §1.5: Multicast chỉ cho hiệu ứng bắn
-    for (var k = 0; k < n; k++) { ctx.cast = k; BZ.runAction(A.Action, ctx); }
+    S.curAb = BZ.abilityKey(A);
+    try { for (var k = 0; k < n; k++) { ctx.cast = k; BZ.runAction(A.Action, ctx); } } finally { S.curAb = prevAb; }
   };
   BZ.runAction = function (act, ctx) {
     if (!act) return;
@@ -459,11 +507,10 @@
     if (P.base.Health >= (BZ.pattr(S, P, 'HealthMax') || 0)) return;
     BZ.heal(S, P, r, null, 'Regen');
   }
-  function burnTick(S, P) { // mỗi 0,5 s; khiên gánh một nửa [ĐỀ XUẤT §2]; rồi giảm 3 % (≥ 1)
+  function burnTick(S, P) { // mỗi 0,5 s; còn Khiên (> 0) thì cả nhịp chỉ còn ceil(b/2) (wiki /Burn, COMBAT-02), khiên trừ trước rồi tới máu; rồi giảm BURN_DECAY (≥ 1)
     var b = P.base.Burn || 0; if (b <= 0) return;
-    var sh = P.base.Shield || 0, ab = 0, hp = b;
-    if (sh > 0) { var half = Math.ceil(b / 2); ab = Math.min(sh, half); hp = (half - ab) * 2; }
-    BZ.log(S, { type: 'damage', kind: 'Burn', src: null, target: pid(P), amt: b, shield: ab, hp: hp });
+    var sh = P.base.Shield || 0, n = sh > 0 ? Math.ceil(b / 2) : b, ab = Math.min(sh, n), hp = n - ab;
+    BZ.log(S, { type: 'damage', kind: 'Burn', src: null, target: pid(P), amt: n, shield: ab, hp: hp });
     if (ab) BZ.changePlayer(S, P, 'Shield', -ab, null);
     if (hp) BZ.changePlayer(S, P, 'Health', -hp, null);
     BZ.changePlayer(S, P, 'Burn', -Math.min(b, Math.max(1, Math.round(b * BZ.BURN_DECAY))), null);
@@ -509,18 +556,12 @@
         st.active = true; st.force = false; st.dmg = cfg.baseDamage; st.acc = 0;
         BZ.log(S, { type: 'sandstorm', phase: 'start' });
         stormHit(S);
-        st.tick = cfg.baseTick - cfg.tickDec;
         BZ.emit(S, 'TTriggerOnSandstorm', { side: 0 });
       }
       return;
     }
     st.acc += FRAME;
-    if (st.acc >= st.tick) {
-      stormHit(S);
-      if (st.tick > cfg.tickFloor) st.tick -= cfg.tickDec;
-      if (st.tick <= cfg.tickFloor) st.dmg += cfg.addScalar;
-      st.acc = 0;
-    }
+    if (st.acc >= cfg.tick) { st.dmg += cfg.addPerTick; stormHit(S); st.acc = 0; }
   }
 
   // ---------- hàng đợi ưu tiên (§3.3, PrioQueue.cs:9-66; CombatSimEffectDelay = 0 [ĐỀ XUẤT]) ----------
@@ -530,7 +571,9 @@
       S.queue[p] = [];
       for (var j = 0; j < b.length; j++) {
         var e = b[j];
-        if (e.C.state === 'Alive' && activeIn(e.C, e.A.ActiveIn)) BZ.execAbility(S, e.C, e.A, e.ev, e.group);
+        // OnBeforeCardDestroyed: thẻ bị phá vẫn chạy ability "khi bị phá" của chính nó (Abducted Cow thành 2 Jerky) dù đã Destroyed lúc ra hàng đợi
+        var dying = e.C.state === 'Destroyed' && e.ev && e.ev.kind === 'TTriggerOnBeforeCardDestroyed' && e.ev.card === e.C;
+        if ((e.C.state === 'Alive' || dying) && activeIn(e.C, e.A.ActiveIn)) BZ.execAbility(S, e.C, e.A, e.ev, e.group);
         if (e.group && --e.group.left === 0) finishFire(S, e.group);
       }
     }
@@ -568,11 +611,12 @@
         if (max <= 0) continue;
         if ((BZ.cattr(S, C, 'CooldownDisabled') || 0) > 0) continue;
         if (BZ.isAmmo(S, C) && rt.Ammo <= 0) { C.cd = 0; continue; }
-        var mult = (rt.Freeze > 0 ? BZ.FREEZE_MULT : 1) * (rt.Haste > 0 ? BZ.HASTE_MULT : 1) * (rt.Slow > 0 ? BZ.SLOW_MULT : 1);
+        var frozen = rt.Freeze > 0; // COMBAT-03: đóng băng = không kích hoạt được (Charge cũng vậy): giữ tiến độ, không bắn
+        var mult = (frozen ? BZ.FREEZE_MULT : 1) * (rt.Haste > 0 ? BZ.HASTE_MULT : 1) * (rt.Slow > 0 ? BZ.SLOW_MULT : 1);
         var delta = Math.ceil(FRAME * mult), cap = Math.floor(max / 20); // :4413-4418
         if (delta > cap) delta = cap;
         C.cd += delta;
-        if (C.cd >= max) { C.cd = 0; BZ.fire(S, C, false); } // phần dư bị bỏ (:4198-4211)
+        if (C.cd >= max && !frozen) { C.cd = 0; BZ.fire(S, C, false); } // phần dư bị bỏ (:4198-4211)
       }
     }
   }
@@ -629,9 +673,16 @@
       S.fatal = String(e && e.stack || e);
     }
     if (winner === null) winner = 'draw'; // hết giờ = hoà [ĐỀ XUẤT §1.12; legacy: bàn 0 thua]
+    // Thẻ sinh ra giữa trận làm S.cards dài thêm: khung cũ chèn ô "đã huỷ" để mọi khung cùng bố cục theo result.cards
+    for (var fi = 0; fi < frames.length; fi++) while (frames[fi].c.length < S.cards.length) frames[fi].c.push([0, -1, 0, 0, 0, 1, 0]);
     return {
       winner: winner, endMs: endMs, frames: frames, seed: opts.seed, layout: BZ.FRAME_LAYOUT,
-      cards: S.cards.map(function (C) { return { uid: C.uid, id: C.id, tier: C.tier, ench: C.ench, owner: C.owner, section: C.section, socket: C.socket, size: C.size }; }),
+      // Transform kéo dài đến hết trận rồi hoàn lại: result.cards luôn ghi thẻ như lúc vào trận (T.orig), thẻ sinh ra có spawned/spawnedAt
+      cards: S.cards.map(function (C) {
+        var o = C.orig || C, r = { uid: C.uid, id: o.id, tier: o.tier, ench: o.ench, owner: C.owner, section: C.section, socket: C.socket, size: o.size };
+        if (C.spawned) { r.spawned = true; r.spawnedAt = C.spawnedAt; r.id = C.id; r.tier = C.tier; r.ench = C.ench; r.size = C.size; }
+        return r;
+      }),
       players: S.players.map(function (P) { return { name: P.name, hero: P.hero, healthMax: P.attrs.HealthMax, health: P.base.Health }; }),
       sockets: S.fx.filter(function (C) { return C.section === 'sockets'; }).map(function (C) { return { uid: C.uid, id: C.id, owner: C.owner, socket: C.socket }; }),
       effects: S.fx.filter(function (C) { return C.section === 'effects'; }).map(function (C) { return { uid: C.uid, id: C.id, owner: C.owner }; }),

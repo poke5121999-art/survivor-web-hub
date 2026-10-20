@@ -4,7 +4,7 @@
 (function (root) {
   'use strict';
   var U = root.BZUI = root.BZUI || {};
-  var V = function () { return root.BZView; }, R = function () { return root.BZRun; };
+  var R = function () { return root.BZRun; };
   var START_ART = { income: 'art/ui/rewards/Reward_PersonalTest_GoldStart_D.webp', item: 'art/ui/rewards/Reward_PersonalTest_EnchantedStart_D.webp',
     skill: 'art/ui/rewards/Reward_PersonalTest_SkillStart_D.webp' };
 
@@ -53,6 +53,7 @@
     if (c.kind === 'step') return U.art(c.id);
     if (c.kind === 'event' || c.kind === 'merchant') return U.art(c.id + '_char') || U.art(c.id + '_bg');
     if (c.kind === 'combat') return U.art(c.id + '_char') || U.art(c.id + '_bg');
+    if (c.kind === 'pedestal') return U.art(c.id + '_bg') || U.art(c.id + '_char'); // Fate's Crossroads: hai bệ yểm bùa (RUN-04)
     if (c.card) return U.art(c.card.id);
     if (c.kind === 'generic') return c.key === 'gold' ? U.ICON.coins : c.key === 'xp' ? U.ICON.xpBig : U.ICON.chest;
     return null;
@@ -89,6 +90,7 @@
         t.style.animationDelay = (i * 90) + 'ms';
         var a = choiceArt(c), img = U.el('div', 'img', t);
         if (a) img.style.backgroundImage = U.bg(a);
+        if (c.slot && U.slotLabel(c.slot)) U.el('small', 'slot', t, U.esc(U.slotLabel(c.slot)));
         U.el('h4', '', t, U.esc(c.name));
         U.el('p', '', t, root.BZTooltip.format(c.desc || '').html);
         // chữ dài: thu ảnh + cỡ chữ để không bị cắt (INTERACT-16; bản gốc TMP auto-size 18-39)
@@ -118,16 +120,31 @@
       this._note = U.el('div', 'rs-side-note', side.r, '');
       U.bigButton(side.r, 'brown', 'Bỏ qua', 'Không lấy gì, đi tiếp', function () { U.skipReward(); }).classList.add('leave');
       U.top.layer().appendChild(U.el('div', 'rs-hint', null, U.rewardHint()));
+      // thầy có RerollRules (Pip, Argenta, Orlin, Adira, Zosima): nút đổi + thẻ giá như thương nhân (W-02)
+      this._rr = null;
+      if (ph.redeal) {
+        var ctl = U.el('div', 'rs-merchant-ctl', U.top.layer());
+        this._rr = U.top.rerollButton(ctl, {
+          title: 'Đổi các thẻ (R)',
+          tip: function () { var p = U.state.run.phase; return 'Chia lại các thẻ của thầy này.' + (p.taken ? '<br><span class="o">Đã lấy thẻ, không đổi được nữa</span>' : p.rerolls > 0 ? '<br><span class="o">Còn ' + p.rerolls + ' lượt</span>' : '<br><span class="o">Hết lượt đổi</span>'); },
+          act: function (rr) {
+            U.cards.dealDelay = 500; var r0 = U.dispatch({ t: 'reroll' }); U.cards.dealDelay = 0;
+            if (r0.ok) { var b = rr.querySelector('.ic'); b.classList.remove('spin'); void b.offsetWidth; b.classList.add('spin'); U.transitions.sparkle(); }
+          }
+        });
+      }
       U.sfx('card.revealLiftStandard');
     },
+    key: function (e) { if ((e.key === 'r' || e.key === 'R') && this._rr) { this._rr.click(); return true; } },
     boardFull: function () { U.boardFullHint(); },
     render: function (run) {
       var ph = run.phase;
       U.cards.render(run);
+      if (this._rr) U.top.rerollSync(this._rr, ph, run, ph.taken > 0 ? 'cannot reroll after taking a card' : null);
       U.cards.setTop(ph.picks.map(function (p, i) { return { key: 'loot:' + (ph.source || '') + ':' + p.card.id + ':' + p.card.tier, card: p.card, kind: 'loot', i: i }; }));
       if (this._note) this._note.innerHTML = 'Lấy <b>' + (ph.take - ph.taken) + '</b> trong ' + ph.picks.length;
     },
-    exit: function () { this._note = null; U.top.clear(); },
+    exit: function () { this._note = null; this._rr = null; U.top.clear(); },
     canDrag: function (el) { return el._rs.kind === 'own' || el._rs.kind === 'loot'; },
     onCardClick: function (el, touch) {
       if (el._rs.kind !== 'loot') return false;
@@ -184,40 +201,78 @@
     }
   };
 
-  // ---------- lên cấp: ba phần thưởng dạng khung gặp gỡ ----------
-  // Số phận (phase 'fates', luật do js/run thêm): choices CÙNG DẠNG với levelUp, lệnh {t:'choose', i}. Dùng lại màn lên cấp
-  // với tiêu đề khác; vào màn thì tối sân khấu + thanh vương miện đầy lại về 1. Không có phase này thì màn không bao giờ chạy.
-  function choiceScreen(o) {
-    return {
-      enter: function (run) {
-        U.top.base(run, {});
-        if (o.dramatic) {
-          var st = V().refs.stage;
-          // tối nền sân (sau các lớp của run: khung lựa chọn, thẻ, HUD vẫn sáng)
-          this._dim = U.el('div', 'rs-fates-dim'); this._dim.style.zIndex = 'auto';
-          V().refs.world.insertBefore(this._dim, V().refs.runSockets);
-          U.sfx('trans.defeatIn', { vol: 0.5 });
-          setTimeout(function () { if (U.hud && U.hud.refillCrown) U.hud.refillCrown(); }, 500);
-        }
-      },
-      render: function (run) {
-        var ph = run.phase, ch = ph.choices || [];
-        U.cards.render(run);
-        var key = ph.kind + ':' + (ph.level || 0) + ':' + JSON.stringify(ch);
-        if (key === this._key && U.top.layer().children.length) return;
-        this._key = key;
-        U.top.clear();
-        var m = U.top.map(o.title(ph), o.sub(ph));
-        m.classList.add(o.dramatic ? 'fates' : 'levelup');
-        U.top.frames(ch, function (i) { U.dispatch({ t: 'choose', i: i }); }, { pennant: function () { return o.dramatic ? 'pedestal' : 'levelup'; }, dy: 20, kicker: o.dramatic ? 'Ân huệ' : 'Phần thưởng lên cấp' });
-      },
-      boardFull: function () {
-        if (U.top.layer().querySelector('.rs-hint')) U.boardFullHint();
-        else { U.top.layer().appendChild(U.el('div', 'rs-hint', null, '')); U.boardFullHint(); }
-      },
-      exit: function () { this._key = null; if (this._dim) { this._dim.remove(); this._dim = null; } U.top.clear(); }
-    };
-  }
-  U.SCREENS.levelUp = choiceScreen({ title: function (ph) { return 'Lên cấp ' + ph.level + '!'; }, sub: function () { return 'Chọn một phần thưởng lên cấp'; } });
-  U.SCREENS.fates = choiceScreen({ dramatic: true, title: function () { return 'Số phận'; }, sub: function () { return 'Uy tín cạn — chọn một ân huệ để chơi tiếp'; } });
+  // ---------- chọn bùa (phase 'enchantPick', The Artist): thẻ đã chọn hiện một bản cho mỗi loại bùa, tooltip đúng chữ của bùa đó ----------
+  // Mỗi ô là chính thẻ gốc mang bùa tương ứng (sprite + khung gốc, BZCard); bấm = choose {ench}; "Chọn thẻ khác" = back.
+  U.SCREENS.enchantPick = {
+    enter: function (run) {
+      var ph = run.phase, e = root.BZ_ENCOUNTERS.pedestals[ph.pedestalId] || {};
+      U.top.base(run, { hero: true, sides: true, board: true, lane: 'pedestal' });
+      var side = U.top.portrait(ph.name, e.StartingTier || 'Gold', U.top.artOf({ type: 'pedestal', id: ph.pedestalId }), U.top.nameBlock('Chọn bùa', ph.name, ph.desc));
+      U.bigButton(side.r, 'brown', 'Chọn thẻ khác', 'Quay lại bệ để chọn món khác', function () { U.dispatch({ t: 'back' }); }).classList.add('leave');
+      U.top.layer().appendChild(U.el('div', 'rs-hint', null, 'Chọn một loại bùa cho ' + U.esc(R().title(R().tpl(ph.cardId))) + ' — rê chuột để xem chữ của bùa'));
+      U.sfx('pedestal.lightpulse');
+    },
+    render: function (run) {
+      var ph = run.phase;
+      U.cards.render(run);
+      var els = U.cards.setTop(ph.options.map(function (k, i) {
+        return { key: 'ench:' + ph.uid + ':' + k, card: { id: ph.cardId, tier: ph.tier, ench: k }, kind: 'loot', i: i };
+      }), { gap: 14 });
+      els.forEach(function (el, i) {
+        el.dataset.drag = '';
+        if (!el.querySelector('.rs-enchname')) U.el('div', 'rs-enchname' + (i % 2 ? ' alt' : ''), el, U.esc(ph.options[i])); // hai hàng so le: tên dài không đè nhau
+      });
+    },
+    exit: function () { U.top.clear(); },
+    canDrag: function () { return false; },
+    onCardClick: function (el, touch) {
+      if (el._rs.kind !== 'loot') return false;
+      if (touch && U.cards.tapTip(el)) return true;
+      U.cards.clearTap();
+      U.dispatch({ t: 'choose', ench: el._rs.card.ench }, { fromRect: U.rectOf(el) });
+      return true;
+    }
+  };
+
+  // nhãn ô phần thưởng lên cấp, theo cách bản gốc gọi (clock.js R.LEVEL_REWARDS: `loại[:tham số]`); bản gốc: "Random Skill Trainer",
+  // "Random Enchant Option", "The Artist", "Random Character Reward", "Get Bronze Item", "Upgrade a Bronze-tier Item" (wiki Level_Up)
+  var SLOT_TIER = { Bronze: 'Đồng', Silver: 'Bạc', Gold: 'Vàng', Diamond: 'Kim cương', Any: 'bất kỳ' };
+  function tierVi(arg) { return String(arg || '').split('|').map(function (t) { return SLOT_TIER[t] || t; }).join(' hoặc '); }
+  var SLOT_LABEL = {
+    pip: function () { return 'Thầy kỹ năng Đồng'; }, argenta: function () { return 'Thầy kỹ năng Bạc'; }, orlin: function () { return 'Thầy kỹ năng Vàng'; },
+    adira: function () { return 'Thầy kỹ năng Kim cương'; },
+    trainer: function () { return 'Thầy kỹ năng ngẫu nhiên'; }, heroTeacher: function () { return 'Thầy riêng của hero'; },
+    heroReward: function () { return 'Phần thưởng riêng của hero'; },
+    item: function (a) { return 'Nhận vật phẩm ' + tierVi(a); }, loot: function (a) { return 'Nhận phần thưởng ' + tierVi(a); },
+    upgrade: function (a) { return 'Nâng bậc vật phẩm ' + tierVi(a); },
+    enchantRandom: function () { return 'Địa điểm yểm bùa ngẫu nhiên'; }, artist: function () { return 'Họa sĩ: tự chọn bùa'; }
+  };
+  U.slotLabel = function (slot) {
+    var kv = String(slot || '').split(':'), f = SLOT_LABEL[kv[0]];
+    return f ? f(kv[1]) : '';
+  };
+
+  // ---------- lên cấp: một đến ba phần thưởng dạng khung gặp gỡ (khung lục giác vàng gốc) ----------
+  // Màn Số phận (phase 'fates') nằm ở js/ui/screens/fight.js.
+  U.SCREENS.levelUp = {
+    enter: function (run) { U.top.base(run, { lane: 'loot' }); }, // dải khung vàng (UI-06)
+    render: function (run) {
+      var ph = run.phase, ch = ph.choices || [];
+      U.cards.render(run);
+      var key = ph.kind + ':' + (ph.level || 0) + ':' + JSON.stringify(ch);
+      if (key === this._key && U.top.layer().children.length) return;
+      this._key = key;
+      U.top.clear();
+      var m = U.top.map('Lên cấp ' + ph.level + '!', 'Chọn một phần thưởng lên cấp');
+      m.classList.add('levelup');
+      U.top.frames(ch, function (i) { U.dispatch({ t: 'choose', i: i }); }, { pennant: function () { return 'levelup'; }, dy: 20, kicker: 'Phần thưởng lên cấp', label: function (o) { return U.slotLabel(o.slot); } });
+      // khung lục giác vàng gốc (Tooltip_Reward_Level_Frame_*) thay khung mái vòm (ASSET-21)
+      Array.prototype.forEach.call(U.top.layer().querySelectorAll('.rs-enc'), function (n) { n.classList.add('lvl'); });
+    },
+    boardFull: function () {
+      if (U.top.layer().querySelector('.rs-hint')) U.boardFullHint();
+      else { U.top.layer().appendChild(U.el('div', 'rs-hint', null, '')); U.boardFullHint(); }
+    },
+    exit: function () { this._key = null; U.top.clear(); }
+  };
 })(window);

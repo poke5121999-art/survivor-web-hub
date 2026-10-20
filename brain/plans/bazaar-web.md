@@ -112,3 +112,19 @@ Kiểm: sim 36/0, run rules 154/0 (đủ 167/0), play 71/0, view 30/0.
 - Khung thẻ là mesh 3D trải UV, không phải ảnh khung phẳng.
 - `[BẪY ĐÃ SẬP]` Art thẻ là ảnh thẻ bị ép vào ô vuông 1024×1024 (cả 1096 ảnh, mọi cỡ S/M/L); mesh kéo giãn lại. Hiện bằng `cover` thì thẻ nhỏ phình ngang, thẻ lớn phình dọc (chủ dự án thấy "art bị kéo dãn"). Đúng là `background-size: 100% 100%`; đã so với ảnh chụp game thật ở thẻ Vanessa_Pearl.
 - Font gốc chỉ có atlas SDF, phủ 21/68 chữ có dấu tiếng Việt: chữ giao diện dùng web font.
+
+## Pha 6: đợt chuẩn gốc theo wiki (2026-10-20)
+
+Chủ dự án: "cần research, wiki, làm thêm cho chuẩn game the bazaar". Nhật ký quyết định: `brain/plans/bazaar-web/decisions.tsv`.
+
+1. Khảo sát 5 mảng song song (hợp đồng `D:\bazaar-ref\notes\AUDIT.md`): RUN, COMBAT, CONTENT, UI, FX → `D:\bazaar-ref\notes\audit\<mảng>.md`, mỗi khác biệt một dòng có mã, nguồn gốc và chỗ trong mã web.
+2. Gộp thành danh sách việc theo P0/P1, chia nhánh theo tệp sở hữu, mỗi nhánh một bản sao `D:\bazaar-wt\<nhánh>`.
+3. Kiến thức đo được (luật, số) ghi vào `games/bazaar/README.md` trong repo, kèm nguồn.
+4. Vị từ xong: mọi P0 và P1 đã sửa hoặc có lý do không làm; `test/bazaar-*.js` xanh với `BZ_URL` trỏ Pages; rev mới đã đẩy.
+
+Kết quả pha 6 (rev 20261020a): 6 báo cáo khảo sát (RUN 12, COMBAT 8, CONTENT 14, UI 14, FX 23, ASSET 30 khác biệt) → 13 nhánh sửa trong hai đợt
+(`D:\bazaar-ref\fix6\*.md`, `D:\bazaar-ref\fix7\*.md`). Khung giao diện tự vẽ bằng CSS đổi sang sprite gốc; art thẻ và chân dung 512 px; Spine hero ở sảnh;
+nhạc combat 4 lớp theo máu; luật lên cấp/quái theo ngày/Fates/hợp nhất kỹ năng/The Artist theo wiki và DB; Transform giữa trận.
+Kiểm trên máy: sim 130/0, luật 184/0, pve 31/0, view 61/0, play 91/0, spine 12/0. Luật và số đã đối chiếu ghi ở `games/bazaar/README.md`.
+Còn mở: băng-rôn lên cấp chưa dùng texture SandRibbon đã bóc; 7 ability có khoá VFX mà prefab không có trong demo; Expeditions chưa làm (Travel Agent bị giấu);
+art 1024 px chờ chủ dự án quyết chỗ chứa (repo ~1,2 GB, quá trần mềm 1 GB của Pages); The Dragons vẫn khoá vì DB demo không có thẻ.

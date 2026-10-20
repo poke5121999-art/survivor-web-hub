@@ -40,12 +40,12 @@ button { font: inherit; color: inherit; }
 .bz-hero { position: absolute; left: 606px; width: 708px; height: 172px; border-radius: 6px; }
 .bz-hero.top { top: 82px; }
 .bz-hero.bot { top: 836px; }
-.bz-side { position: absolute; width: 212px; height: 214px; border-radius: 10px;
-  background: linear-gradient(180deg, #5d7f98, #3c566c 60%, #2f4456);
-  box-shadow: inset 0 0 0 3px #263646, inset 0 0 0 6px #b7894b, inset 0 0 0 8px #3a2817, 0 6px 12px rgba(0,0,0,.45); }
+/* ASSET-03: khung bảng cạnh = Frame_General_TUI (sprite gốc, 9-slice); nền phẳng một màu xanh xám của bảng */
+.bz-side { position: absolute; width: 212px; height: 214px; background: #3f6368; filter: drop-shadow(0 6px 8px rgba(0,0,0,.45));
+  border: 17px solid transparent; border-image: url(../art/ui/ui_sprite_atlas/Frame_General_TUI.webp) 26 / 17px stretch; background-clip: padding-box; }
 .bz-side.top { top: 82px; } .bz-side.bot { top: 800px; }
 .bz-side.l { left: 388px; } .bz-side.r { left: 1320px; }
-.bz-side .bz-side-in { position: absolute; inset: 12px; display: flex; flex-direction: column; align-items: center;
+.bz-side .bz-side-in { position: absolute; inset: -3px; display: flex; flex-direction: column; align-items: center;
   justify-content: center; gap: 6px; text-align: center; }
 .bz-name { font-family: var(--f-title); font-weight: 700; font-size: 25px; line-height: 1.1; color: var(--cream);
   text-shadow: 0 2px 0 #3b1c06, 0 0 8px rgba(0,0,0,.6); max-width: 188px; }
@@ -64,7 +64,8 @@ button { font: inherit; color: inherit; }
 .bz-portrait .pf-frame { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .bz-portrait .pf-tint { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .25s; }
 .bz-portrait .pf-flash { position: absolute; inset: 0; pointer-events: none; opacity: 0; background: #fff; will-change: opacity; mix-blend-mode: screen; }
-.bz-portrait.dead .pf-art { filter: grayscale(1) brightness(.45) contrast(1.1); transition: filter .6s; }
+/* FX-19: người thua giữ màu chân dung, chỉ nhạt 50 % và tối nhẹ (REF death-victory a/32-50), không còn bóng đen */
+.bz-portrait.dead .pf-art { filter: grayscale(.5) brightness(.78); transition: filter .6s; }
 .bz-portrait.enraged .pf-art { animation: bz-enrage .5s ease-in-out infinite alternate; }
 /* VFX-29: ~1 s sau khung nộ, chân dung chuyển bóng đỏ-hồng (REF enrage) [ĐỀ XUẤT: lọc màu thay cho bộ chân dung "berserk" không có trong bản demo] */
 .bz-portrait.enraged .pf-char { animation: bz-berserk .6s 1s ease-out forwards; }
@@ -79,32 +80,35 @@ button { font: inherit; color: inherit; }
 .bz-skill:hover { transform: scale(1.12); }
 .bz-skill .sk-art { position: absolute; border-radius: 50%; background: #20140c center/cover no-repeat; }
 .bz-skill .sk-frame { position: absolute; inset: 0; width: 100%; height: 100%; }
-.bz-skill.empty { opacity: .3; background: radial-gradient(circle, rgba(255,230,190,.25) 0 2px, transparent 3px),
-  radial-gradient(circle, transparent 54%, rgba(255,230,190,.35) 56% 60%, transparent 62%); }
+/* ASSET-05/UI-08: ô kỹ năng trống = một ô tròn cắt từ Board_SkillSlots_TD (atlas bị ép dẹt theo UV, kéo lại thành tròn) */
+.bz-skill.empty { opacity: .85; border-radius: 0; background: url(../art/board/board_common/Board_SkillSlots_TD.webp) -15.2px -452px / 684.5px 874.7px no-repeat; }
 .bz-skill.pulse { animation: bz-skill-pulse .45s ease-out; }
 @keyframes bz-skill-pulse { 0% { transform: scale(1); filter: brightness(1); } 30% { transform: scale(1.22); filter: brightness(1.8); } 100% { transform: scale(1); filter: brightness(1); } }
 
 /* thanh máu: khung + vệt ma (lag) + máu + khiên + bỏng/độc chờ nổ (HealthBarBase.cs) */
 .bz-hp { position: absolute; left: 612px; width: 696px; height: 40px; }
 .bz-hp.top { top: 258px; } .bz-hp.bot { top: 794px; }
-.bz-hp .hp-track { position: absolute; left: 26px; right: 26px; top: 4px; bottom: 4px; border-radius: 4px; overflow: hidden;
-  background: linear-gradient(180deg, #0b1407, #1a2810); box-shadow: inset 0 0 0 2px #0b0602, 0 0 0 2px #d9a74f, 0 0 0 4px #5b3a15; }
+/* ASSET-04: mọi lớp thanh máu là sprite board_ui/HealthBar_*: HealthBar_TUI (dải trắng nhân màu máu), Poison/Shield (hoa văn, nhuộm bỏng bằng xoay màu),
+   Overlay (bóng trong của máng), Gloss, Divider_Small/Large (vạch chia theo HealthBarController.GetPipDistances, stage.js dựng) */
+.bz-hp .hp-track { position: absolute; left: 26px; right: 26px; top: 2px; bottom: 2px; border-radius: 3px; overflow: hidden; background: #0d1609; }
+.bz-hp .hp-track::after { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 5;
+  background: url(../art/ui/board_ui/HealthBar_Overlay_TUI.webp) 0 0 / 100% 100% no-repeat; }
 .bz-hp .hp-ghost, .bz-hp .hp-fill, .bz-hp .hp-shield, .bz-hp .hp-burn, .bz-hp .hp-poison { position: absolute; left: 0; top: 0; bottom: 0; width: 100%;
   transform-origin: 0 50%; will-change: transform; }
 .bz-hp .hp-ghost { background: #ff2a1a; }
 .bz-hp .hp-ghost.gain { background: #c8ff8a; }
-.bz-hp .hp-fill { background: linear-gradient(180deg, #5fe05a 0%, #24b623 35%, #1dac1c 60%, #106b0f 100%); }
-.bz-hp .hp-fill::after { content: ""; position: absolute; inset: 0; background:
-  repeating-linear-gradient(90deg, transparent 0 15px, rgba(0,40,0,.35) 15px 16px); }
-.bz-hp .hp-burn { background: repeating-linear-gradient(135deg, #ff7100 0 6px, #ffb24a 6px 12px); opacity: .9; mix-blend-mode: hard-light; }
-.bz-hp .hp-poison { background: repeating-linear-gradient(135deg, #0ebe4e 0 6px, #4bade6 6px 12px); opacity: .85; mix-blend-mode: hard-light; }
-.bz-hp .hp-shield { background: linear-gradient(180deg, rgba(255,239,140,.95), rgba(244,207,33,.9) 45%, rgba(178,135,0,.9));
-  box-shadow: inset 0 0 0 2px rgba(255,250,200,.7); }
-.bz-hp .hp-gloss { position: absolute; left: 0; right: 0; top: 0; height: 45%; background: linear-gradient(180deg, rgba(255,255,255,.35), transparent); pointer-events: none; }
+.bz-hp .hp-fill { background: #22c021 url(../art/ui/board_ui/HealthBar_TUI.webp) 0 0 / 100% 100% no-repeat; background-blend-mode: multiply; }
+.bz-hp .hp-burn { background: url(../art/ui/board_ui/HealthBar_Poison_TUI.webp) 0 0 / auto 100% repeat-x; filter: hue-rotate(-100deg) saturate(2.4) brightness(1.25); }
+.bz-hp .hp-poison { background: url(../art/ui/board_ui/HealthBar_Poison_TUI.webp) 0 0 / auto 100% repeat-x; filter: saturate(1.5) brightness(1.1); }
+.bz-hp .hp-shield { background: url(../art/ui/board_ui/HealthBar_Shield_TUI.webp) 0 0 / 100% 100% no-repeat; }
+.bz-hp .hp-gloss { position: absolute; left: 4%; right: 4%; top: 0; height: 55%; background: url(../art/ui/board_ui/HealthBar_Gloss_TUI.webp) center / 100% 100% no-repeat; opacity: .55; pointer-events: none; z-index: 4; }
+.bz-hp .hp-div { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+.bz-hp .hp-div i { position: absolute; top: 0; bottom: 0; width: 5px; margin-left: -2px; background: url(../art/ui/board_ui/HealthBar_Divider_Small_TUI.webp) center / 100% 100% no-repeat; opacity: .45; }
+.bz-hp .hp-div i.l { width: 6px; background-image: url(../art/ui/board_ui/HealthBar_Divider_Large_TUI.webp); opacity: .6; }
 .bz-hp .hp-end { position: absolute; top: -6px; width: 34px; height: 52px; background: url(../art/ui/board_ui/HealthBar_End_TUI.webp) center/contain no-repeat; }
 .bz-hp .hp-end.l { left: 2px; } .bz-hp .hp-end.r { right: 2px; transform: scaleX(-1); }
 .bz-hp .hp-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 10px; pointer-events: none;
-  font: 800 calc(34px * min(var(--uik, 1), 1.35))/1 var(--f-num); color: #fff; letter-spacing: .01em;
+  font: 800 calc(30px * min(var(--uik, 1), 1.35))/1 var(--f-num); color: #fff; letter-spacing: .01em;
   text-shadow: 0 0 2px #0a3d07, 0 2px 0 #0a3d07, 2px 0 0 #0a3d07, -2px 0 0 #0a3d07, 0 -2px 0 #0a3d07; }
 .bz-hp .hp-text .sh { color: #ffe36d; text-shadow: 0 0 2px #4a2c00, 0 2px 0 #4a2c00, 2px 0 0 #4a2c00, -2px 0 0 #4a2c00; }
 .bz-hp .hp-text .rg { color: #b8f56a; font-size: 26px; }
@@ -112,8 +116,7 @@ button { font: inherit; color: inherit; }
 @keyframes bz-hp-hit { 0% { filter: brightness(2.2); } 100% { filter: brightness(1); } }
 .bz-status { position: absolute; right: 40px; top: 4px; height: 32px; display: flex; gap: 6px; pointer-events: none; z-index: 2; }
 .bz-status.left { right: auto; left: 40px; }
-.bz-chip { display: flex; align-items: center; gap: 2px; height: 32px; padding: 0 9px 0 2px; border-radius: 16px;
-  font: 800 26px/1 var(--f-num); color: #fff; background: rgba(20,12,6,.82); box-shadow: 0 0 0 2px currentColor inset, 0 3px 8px rgba(0,0,0,.5);
+.bz-chip { display: flex; align-items: center; gap: 1px; height: 32px; padding: 0 2px; font: 800 26px/1 var(--f-num); color: #fff;
   transform: scale(0); transition: transform .18s cubic-bezier(.3,1.6,.5,1); }
 .bz-chip.on { transform: scale(1); }
 .bz-chip img { width: 28px; height: 28px; }
@@ -127,22 +130,23 @@ button { font: inherit; color: inherit; }
 .bz-dial { position: absolute; left: 190px; top: 400px; width: 190px; height: 236px;
   background: url(../art/ui/clock/Clock_Encounter_Background_TUI.webp) center/contain no-repeat; }
 .bz-dial .face { position: absolute; left: 17px; top: 38px; width: 154px; height: 154px; border-radius: 50%; }
-.bz-dial .ring { position: absolute; inset: 0; border-radius: 50%;
-  -webkit-mask: radial-gradient(circle, transparent 58%, #000 60%); mask: radial-gradient(circle, transparent 58%, #000 60%); }
+/* ASSET-07: vòng tiến độ bão cát = Clock_Encounter_HourFill_TUI (sáu đèn + cung cam) cắt theo góc --pd; nền mờ là cùng ảnh tối đi */
+.bz-dial .ring, .bz-dial .face::before { position: absolute; inset: 1%; border-radius: 50%; background: url(../art/ui/clock/Clock_Encounter_HourFill_TUI.webp) center / 100% 100% no-repeat; }
+.bz-dial .face::before { content: ""; filter: grayscale(1) brightness(.35); opacity: .65; }
+.bz-dial .ring { --pd: 0deg; -webkit-mask: conic-gradient(#000 var(--pd), transparent 0); mask: conic-gradient(#000 var(--pd), transparent 0); filter: drop-shadow(0 0 5px #ffa526); }
 .bz-dial .time { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
   font: 800 46px/1 var(--f-num); color: #fff; text-shadow: 0 2px 0 #000, 0 0 10px rgba(0,0,0,.8); }
 .bz-dial .time small { font: 700 14px/1 var(--f-text); letter-spacing: .2em; color: #d99551; margin-top: 2px; }
-.bz-dial .storm { position: absolute; left: 50px; right: 18px; bottom: 21px; height: 14px; border-radius: 7px; overflow: hidden; }
-.bz-dial .storm i { position: absolute; inset: 0; transform-origin: 0 50%; background: linear-gradient(90deg, #e8b04a, #ff7a2a); }
-.bz-dial.storming .ring { animation: bz-storm-ring .6s linear infinite alternate; }
+.bz-dial .storm { position: absolute; left: 50px; right: 18px; bottom: 19px; height: 18px; overflow: hidden; }
+.bz-dial .storm i { position: absolute; inset: 0; transform-origin: 0 50%; background: url(../art/ui/clock/Clock_Encounter_PrestigeFill_TUI.webp) 0 0 / 100% 100% no-repeat; }
+.bz-dial.storming .ring { animation: bz-storm-ring .6s linear infinite alternate; filter: hue-rotate(-18deg) saturate(1.7) drop-shadow(0 0 7px #ff5a1a); }
 @keyframes bz-storm-ring { from { filter: brightness(1); } to { filter: brightness(1.6); } }
 .bz-dial-label { position: absolute; left: 165px; top: 642px; width: 240px; text-align: center; font: 700 16px/1.2 var(--f-text); white-space: nowrap;
   color: var(--cream); text-shadow: 0 2px 2px #000; letter-spacing: .06em; }
 
 /* ---------- cột điều khiển ---------- */
-.bz-dock { position: absolute; left: 1548px; top: 812px; width: 360px; padding: 14px; border-radius: 16px;
-  background: linear-gradient(180deg, rgba(48,30,16,.94), rgba(28,17,9,.94));
-  box-shadow: 0 0 0 2px #7a4a22, 0 0 0 4px #d6a75c, 0 10px 24px rgba(0,0,0,.6); }
+.bz-dock { position: absolute; left: 1548px; top: 812px; width: 360px; padding: 14px; background: rgba(30,20,12,.94); filter: drop-shadow(0 10px 14px rgba(0,0,0,.55));
+  border: 18px solid transparent; border-image: url(../art/ui/ui_sprite_atlas/Frame_General_TUI.webp) 26 / 18px stretch; background-clip: padding-box; }
 .bz-dock .row { display: flex; gap: 8px; justify-content: space-between; }
 .bz-dock .row + .row { margin-top: 10px; }
 .bz-btn { position: relative; min-width: 60px; height: 64px; padding: 0 10px; border: 0; border-radius: 14px; cursor: pointer;
@@ -267,9 +271,9 @@ button { font: inherit; color: inherit; }
 .bz-picker { position: absolute; inset: 0; z-index: 50; display: none; background: rgba(10,6,3,.84); } /* INTERACT-17: bỏ backdrop-filter (Chromium vẽ đôi/lộn ngược khi tổ tiên có scale) */
 .bz-picker.open { display: block; animation: bz-fade .18s ease-out; }
 @keyframes bz-fade { from { opacity: 0; } to { opacity: 1; } }
-.bz-picker .panel { position: absolute; left: 110px; top: 60px; right: 110px; bottom: 60px; border-radius: 22px; padding: 26px 30px;
-  display: flex; flex-direction: column; gap: 16px;
-  background: linear-gradient(180deg, #3a2414, #24160b); box-shadow: 0 0 0 3px #7a4a22, 0 0 0 6px #d6a75c, 0 20px 50px rgba(0,0,0,.7); }
+.bz-picker .panel { position: absolute; left: 110px; top: 60px; right: 110px; bottom: 60px; padding: 26px 30px;
+  display: flex; flex-direction: column; gap: 16px; background: #2e1d10; background-clip: padding-box;
+  border: 30px solid transparent; border-image: url(../art/ui/ui_sprite_atlas/Frame_General_TUI.webp) 26 / 30px stretch; }
 .bz-picker header { display: flex; align-items: center; gap: 18px; }
 .bz-picker header h2 { margin: 0; font: 700 44px/1 var(--f-title); color: var(--cream); flex: 1; }
 .bz-picker .cols { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 22px; min-height: 0; }
@@ -296,8 +300,7 @@ button { font: inherit; color: inherit; }
 .bz-hint { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); font: 600 18px/1 var(--f-text); color: #ffe9c8;
   text-shadow: 0 1px 3px #000; opacity: .75; pointer-events: none; white-space: nowrap; }
 
-/* VFX-30: bỏng/độc/hồi/nộ là SỐ màu trong dòng máu (REF combat-status), không còn viên thuốc nền tối */
-.bz-chip { background: none; box-shadow: none; padding: 0 2px; gap: 1px; }
+/* VFX-30 + ASSET-14: bỏng/độc/hồi/nộ là biểu tượng gốc + SỐ màu trong dòng máu (REF combat-status), không viên thuốc nền */
 .bz-chip img { width: 26px; height: 26px; filter: drop-shadow(0 1px 1px rgba(0,0,0,.8)); }
 .bz-chip b { color: inherit; font-size: 32px; text-shadow: 0 0 2px #120800, 0 2px 0 #120800, 2px 0 0 #120800, -2px 0 0 #120800, 0 -2px 0 #120800; }
 
@@ -318,3 +321,72 @@ button { font: inherit; color: inherit; }
 /* VFX-14/27: tạm dừng phát lại thì dừng luôn hoạt ảnh CSS trên sân (băng-rôn, khung khiên, sọc Haste, mưa Slow, nhịp nộ) */
 #bz-stage.bz-paused #bz-world *, #bz-stage.bz-paused #bz-world *::before, #bz-stage.bz-paused #bz-world *::after,
 #bz-stage.bz-paused .bz-banner, #bz-stage.bz-paused .bz-banner * { animation-play-state: paused !important; }
+
+/* =====================================================================================================================
+   FIX6 chromeA — khung/nút/HUD của bàn dùng sprite gốc trong art/ui thay cho gradient CSS (ASSET-02/05/07/08/09, UI-08).
+   run.css nạp SAU tệp này nên mọi quy tắc ghi đè dùng tiền tố #bz-stage để thắng độ ưu tiên mà không cần !important.
+   Nút nhỏ: Btn_Rct_Brown_S_Center_{Active,Highlighted,Pressed}_TUI (386×107) cắt 9 mảnh bằng border-image; đang bật = Btn_Rct_Blue_S.
+   ===================================================================================================================== */
+.bz-btn, #bz-stage .rs-fightdock .rs-btn, #bz-stage .rs-result .ic .rs-btn, #bz-stage .rs-sound .mute, #bz-stage .rs-tray .head .x,
+#bz-stage .rs-merchant-ctl .rs-big.leave {
+  border: 15px solid transparent; border-image: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_rectangle/Btn_Rct_Brown_S_Center_Active_TUI.webp) 32 44 fill / 15px 22px stretch;
+  border-radius: 0; background: none; box-shadow: none; padding: 0 2px; color: var(--cream); text-shadow: 0 2px 0 rgba(0,0,0,.7); filter: none;
+}
+.bz-btn:hover, #bz-stage .rs-fightdock .rs-btn:hover, #bz-stage .rs-result .ic .rs-btn:hover, #bz-stage .rs-sound .mute:hover, #bz-stage .rs-tray .head .x:hover,
+#bz-stage .rs-merchant-ctl .rs-big.leave:hover { border-image-source: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_rectangle/Btn_Rct_Brown_S_Center_Highlighted_TUI.webp); filter: none; transform: none; }
+.bz-btn:active, #bz-stage .rs-fightdock .rs-btn:active, #bz-stage .rs-result .ic .rs-btn:active, #bz-stage .rs-sound .mute:active, #bz-stage .rs-tray .head .x:active,
+#bz-stage .rs-merchant-ctl .rs-big.leave:active { border-image-source: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_rectangle/Btn_Rct_Brown_S_Center_Pressed_TUI.webp); transform: translateY(1px); box-shadow: none; }
+.bz-btn.on, #bz-stage .rs-fightdock .rs-btn.on { border-image-source: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_rectangle/Btn_Rct_Blue_S_Center_Active_TUI.webp); color: #fff; text-shadow: 0 2px 0 rgba(0,20,60,.8); box-shadow: none; }
+.bz-btn.on:hover, #bz-stage .rs-fightdock .rs-btn.on:hover { border-image-source: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_rectangle/Btn_Rct_Blue_S_Center_Highlighted_TUI.webp); }
+.bz-btn[disabled], #bz-stage .rs-fightdock .rs-btn[disabled] { border-image-source: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_rectangle/Btn_Rct_Blue_S_Center_Disabled_TUI.webp); }
+#bz-stage .rs-fightdock .rs-btn { height: 64px; min-width: 68px; font-size: 28px; }
+#bz-stage .rs-result .ic .rs-btn { height: 66px; }
+#bz-stage .rs-result .ic .rs-btn svg { fill: var(--cream); }
+#bz-stage .rs-merchant-ctl .rs-big.leave { height: 68px; min-width: 150px; font: 700 26px/1 var(--f-text); }
+#bz-stage .rs-fightdock.paused .pz { animation: none; filter: drop-shadow(0 0 8px #ffcf6a); }
+
+/* nút tròn: bánh răng cài đặt + mũi tên quay lại = Btn_Rnd_Center_Filled_* + khung vàng Btn_Rnd_Frame_TUI */
+#bz-stage .rs-gear { border-radius: 0; box-shadow: none; border: 0;
+  background: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_round/Btn_Rnd_Center_Filled_Active_TUI.webp) center / 86% 86% no-repeat; }
+#bz-stage .rs-gear::after { content: ""; position: absolute; inset: -6% -10%; pointer-events: none;
+  background: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_round/Btn_Rnd_Frame_TUI.webp) center / 100% 100% no-repeat; }
+#bz-stage .rs-gear:hover { background-image: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_round/Btn_Rnd_Center_Filled_Highlighted_TUI.webp); }
+#bz-stage .rs-gear:active { background-image: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_round/Btn_Rnd_Center_Filled_Pressed_TUI.webp); }
+
+/* ASSET-05: ô khoá = Loadout_CardPack_Box_Locked_TUI (khoá thoi vàng + bốn góc), thay ổ khoá SVG; ô thường để nền bàn lộ ra */
+#bz-stage .rs-sock { background: none; box-shadow: none; }
+#bz-stage .rs-sock .lock { width: 104px; height: 104px; margin: -52px 0 0 -52px;
+  background: url(../art/ui/ui_sprite_atlas/Loadout_CardPack_Box_Locked_TUI.webp) center / contain no-repeat; }
+#bz-stage .rs-sock.locked, #bz-stage .m-run:not(.m-fight) .rs-sock.locked { background: rgba(10,16,8,.34); box-shadow: none; }
+#bz-stage .rs-sock.locked .lock { opacity: .9; }
+#bz-stage .rs-sock.hint { background: rgba(85,218,255,.14); box-shadow: inset 0 0 0 3px #55daff; }
+#bz-stage .rs-sock.bad { background: rgba(255,90,60,.14); box-shadow: inset 0 0 0 3px #ff7155; }
+
+/* ASSET-07: kim giờ = cây kim vàng cắt từ atlas ClockEncounter_Empty_TD (chỉ lên trên sau khi xoay 45°; vòng tròn ở đuôi là trục),
+   số ngày nằm trên chấm Clock_Encounter_DayDot_{Inactive,Active} ở trục (ClockViewController.UpdateDots: chấm sáng khi hết ngày), cung thắng = VictoryFill01..10,
+   thanh uy tín = Clock_Encounter_PrestigeFill_TUI */
+#bz-stage .rs-clock .hand { left: 50%; top: 50%; width: 0; height: 0; margin: 0; transform-origin: 0 0; }
+#bz-stage .rs-clock .hand .nd { position: absolute; width: 74px; height: 70px; left: -56px; top: -54px; transform: rotate(45deg); transform-origin: 56px 54px;
+  background: url(../art/ui/clock/ClockEncounter_Empty_TD.webp) -0.9px -0.9px / 169px 169px no-repeat; filter: drop-shadow(0 2px 2px rgba(0,0,0,.65)); }
+#bz-stage .rs-clock .hand .day { left: -17px; top: -17px; width: 34px; height: 34px; margin: 0; border-radius: 0; box-shadow: none; font: 800 19px/1 var(--f-num); color: #3a2208;
+  background: url(../art/ui/clock/Clock_Encounter_DayDot_Inactive_TUI.webp) center / 100% 100% no-repeat; text-shadow: none; }
+#bz-stage .rs-clock .hand .day.act { background-image: url(../art/ui/clock/Clock_Encounter_DayDot_Active_TUI.webp); color: #5a2a00; }
+#bz-stage .rs-clock .pin { display: none; }
+#bz-stage .rs-clock .arc i { width: 15px; height: 30px; border-radius: 0; box-shadow: none; transform: none; background: center / contain no-repeat; filter: drop-shadow(0 0 4px #49c4ff); }
+#bz-stage .rs-clock .crownbar { border-radius: 0; }
+#bz-stage .rs-clock .crownbar i { background: url(../art/ui/clock/Clock_Encounter_PrestigeFill_TUI.webp) 0 0 / 100% 100% no-repeat; }
+
+/* ASSET-08: ô thu nhập + vàng = Container_Number_Frame_TUI (nắp vàng bên trái, phần giữa kéo dãn) */
+#bz-stage .rs-gold .row { border-radius: 0; box-shadow: none; background: none; padding: 2px 12px 2px 4px; border: 0; border-left: 17px solid transparent;
+  border-image: url(../art/ui/ui_sprite_atlas/Container_Number_Frame_TUI.webp) 0 0 0 38 fill / 0 0 0 17px stretch; }
+/* kho: máng đồ = Experience_LevelBackdrop_TUI, ô sáng = Experience_Pip_TUI (cùng bộ sprite với thanh XP) */
+#bz-stage .rs-chest .bar { gap: 0; width: 156px; height: 30px; padding: 4px 11px 5px; border-radius: 0; box-shadow: none; background: url(../art/ui/board_ui/Experience_LevelBackdrop_TUI.webp) 0 0 / 100% 100% no-repeat; }
+#bz-stage .rs-chest .bar i { flex: 1; height: 100%; border-radius: 0; background: center / contain no-repeat; opacity: 0; }
+#bz-stage .rs-chest .bar i.on { opacity: 1; background-image: url(../art/ui/board_ui/Experience_Pip_TUI.webp); box-shadow: none; filter: drop-shadow(0 0 3px #49c4ff); }
+
+/* FX-19: sau băng-rôn 1 s, cả bàn có viền ngọc lam (FX_Frame_glow tô màu bằng mask), nửa bàn bên thua tối đi; người thua giữ màu (.dead ở trên) */
+.bz-rim { position: absolute; inset: -4px; pointer-events: none; opacity: 0; z-index: 26; background: #2ee6c8;
+  -webkit-mask-box-image: url(../art/vfx/FX_Frame_glow.webp) 70 / 64px stretch; }
+#bz-stage.bz-victory .bz-rim { animation: bz-rim-in 1.2s 1s ease-out forwards; }
+@keyframes bz-rim-in { from { opacity: 0; } to { opacity: .85; } }
+#bz-stage.bz-won-1 .bz-card.side-bot, #bz-stage.bz-won-0 .bz-card.side-top { filter: saturate(.6) brightness(.72); transition: filter 1s 1s; }

@@ -158,6 +158,30 @@ def write_cards_shim(parts):
 # ------------------------------------------------------------------------------------------------------------------
 # Thẻ gặp gỡ
 # ------------------------------------------------------------------------------------------------------------------
+# CONTENT-04: 7 sự kiện mà máy chủ xoá bước con (không còn lựa chọn nào để nối). Viết tay thành sự kiện tức thì với phần
+# thưởng chung [ĐỀ XUẤT]: vàng theo bậc của thẻ (cùng bảng TUNING.GENERIC_GOLD_BY_BAND của js/run/tuning.js: Bronze 3,
+# Diamond 12), riêng "Seminar" thưởng XP (TUNING.GENERIC_XP = 2) vì mô tả nói "learned a lot". Nội dung thật không còn trong DB.
+HAND_INSTANT_GOLD = {"Bronze": 3, "Silver": 5, "Gold": 8, "Diamond": 12, "Legendary": 15}
+HAND_INSTANT = {
+    "Lost Wallet - Keep - Large": "Gold",
+    "Furry Return - Large - Pet - Mmm": "Gold",
+    "Furry Return - Large - Pet - Purr": "Gold",
+    "Furry Return - Small - Feed - Yum": "Gold",
+    "Furry Return - Small - Pet - Mmm": "Gold",
+    "Family Reunion": "Gold",   # hero event của Stelle: mô tả chỉ có lời kể, không có phần thưởng nào đọc được
+    "Financial District - Economic Seminar - Basic - Reward": "Experience",
+}
+
+
+def hand_instant_ability(attr, tier):
+    val = 2 if attr == "Experience" else HAND_INSTANT_GOLD.get(tier, 3)
+    return {"0": {"Id": "0", "Trigger": {"$type": "TTriggerOnCardSelected"}, "ActiveIn": "HandOnly",
+                  "Action": {"$type": "TActionPlayerModifyAttribute", "AttributeType": attr,
+                             "Value": {"$type": "TFixedValue", "Value": val}, "Operation": "Add",
+                             "Target": {"$type": "TTargetPlayerAbsolute", "TargetMode": "Player"}},
+                  "Priority": "Medium", "WorksIn": "Anywhere"}}
+
+
 ENC_DROP = re.compile(r"DEBUG|Debug|TEMPLATE|Tutorial|DEFUNCT|Internal Only")
 START_RE = re.compile(r"\((Start Run|Start Run 2|Start Skill)\)\s*$")
 EXPEDITION_RE = re.compile(r"Expedition")
@@ -511,6 +535,13 @@ def write_encounters(cards, byid, monster_ids):
         for t, cid in o:
             if t == "event" and cid in events:
                 events[cid].setdefault("Parents", []).append(eid)
+    n_hand = 0
+    for eid, e in events.items():
+        if e["Kind"] == "unknown" and e["InternalName"] in HAND_INSTANT:
+            e["Kind"], e["Link"], e["LinkSrc"] = "instant", "hand", "[ĐỀ XUẤT]"
+            e["Abilities"] = hand_instant_ability(HAND_INSTANT[e["InternalName"]], e["StartingTier"])
+            n_hand += 1
+    print(f"  CONTENT-04 hand-authored instant events: {n_hand}/{len(HAND_INSTANT)}")
     for eid, e in events.items():
         if e["Kind"] == "unknown":
             dropped.append((e["InternalName"], "không nối được lựa chọn nào: bước con và NextEncounterOnSelection bị máy chủ "

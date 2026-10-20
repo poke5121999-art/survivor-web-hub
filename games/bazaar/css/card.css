@@ -21,7 +21,7 @@
   background:
     linear-gradient(180deg, rgba(0,0,0,0) 0, rgba(190,255,225,.95) 40%, #fff 50%, rgba(190,255,225,.95) 60%, rgba(0,0,0,0) 100%) center/100% 6px no-repeat,
     linear-gradient(180deg, rgba(0,207,109,0) 0, rgba(0,207,109,.55) 30%, rgba(0,230,120,.9) 50%, rgba(0,207,109,.55) 70%, rgba(0,207,109,0) 100%);
-  filter: drop-shadow(0 0 5px rgba(0,255,150,.9)); opacity: 0; }
+  filter: drop-shadow(0 0 5px rgba(0,255,150,.9)); opacity: 0; } /* ASSET-13: bản gốc là shader (CardFrame_*_Mask); không có sprite tương ứng, giữ gradient */
 .bz-card.charging .cdline { opacity: 1; }
 .bz-card.chg .cdline { animation: bz-chg .35s ease-out; }
 @keyframes bz-chg { 0% { filter: brightness(3) drop-shadow(0 0 12px #00ffce); } 100% { filter: drop-shadow(0 0 5px rgba(0,255,150,.9)); } }
@@ -36,8 +36,9 @@
 .bz-card.t-Bronze { --tc: #b17f3e; --tc2: #6a4421; } .bz-card.t-Silver { --tc: #e9f0fd; --tc2: #6d7488; }
 .bz-card.t-Gold { --tc: #f9c04c; --tc2: #8a5f1e; } .bz-card.t-Diamond { --tc: #eff7f8; --tc2: #78b0d3; }
 .bz-card.t-Legendary { --tc: #e4975b; --tc2: #dd6826; }
-.bz-card .fglow { position: absolute; left: 5%; right: 5%; top: 7%; bottom: 6%; pointer-events: none; opacity: 0; border-radius: 10px; will-change: opacity;
-  box-shadow: 0 0 14px 3px var(--gc, #00ffa8), inset 0 0 22px 2px var(--gc, #00ffa8), inset 0 0 0 2px rgba(255,255,255,.8); }
+/* ASSET-13: viền chớp khi thẻ kích hoạt = sprite FX_Frame_glow, tô màu --gc bằng mask-box-image (FrameGlow gốc cũng là ảnh trắng nhân màu) */
+.bz-card .fglow { position: absolute; left: 1%; right: 1%; top: 3%; bottom: 2%; pointer-events: none; opacity: 0; will-change: opacity; background: var(--gc, #00ffa8);
+  -webkit-mask-box-image: url(../art/vfx/FX_Frame_glow.webp) 72 / 26px stretch; }
 .bz-card .hit { position: absolute; inset: 0; pointer-events: none; opacity: 0; background: rgba(255,255,255,.9); will-change: opacity; }
 
 .bz-card .gems { position: absolute; display: flex; justify-content: center; gap: 2px; pointer-events: none; }
@@ -56,8 +57,11 @@
 @keyframes bz-mc { 0% { transform: scale(1.7); filter: brightness(2.4) drop-shadow(0 0 6px #fff); } 100% { transform: scale(1); filter: none; } }
 /* ammo (REF ammo): viên thuốc tối dưới thẻ + lục giác vàng; dùng đạn nào thì lục giác đó biến mất ngay, viên thuốc co lại */
 .bz-card .ammo { position: absolute; display: flex; align-items: center; justify-content: center; pointer-events: none; }
-.bz-card .ammo .cap { display: flex; align-items: center; justify-content: center; border-radius: 999px; background: linear-gradient(180deg, #17120d, #2a2118);
+.bz-card .ammo .cap { display: flex; align-items: center; justify-content: center; }
+.bz-card .ammo .cap.spr { background: center / 100% 100% no-repeat; filter: drop-shadow(0 2px 2px rgba(0,0,0,.6)); }
+.bz-card .ammo .cap.css { border-radius: 999px; background: linear-gradient(180deg, #17120d, #2a2118);
   box-shadow: 0 0 0 2px #6b5636, 0 2px 4px rgba(0,0,0,.7), inset 0 1px 2px rgba(0,0,0,.8); }
+.bz-card .pip.spr { background: center / contain no-repeat; border-radius: 50%; }
 .bz-card .pip { flex: 0 0 auto; }
 .bz-card .pip.css { clip-path: polygon(25% 3%, 75% 3%, 100% 50%, 75% 97%, 25% 97%, 0 50%);
   background: linear-gradient(160deg, #fff0b8 0, #e8c060 38%, #c8a050 62%, #9a7430 100%); }
@@ -67,11 +71,11 @@
 
 /* trạng thái (clip G/Q + VISUAL §5): Haste = viền xanh ngọc #00EAC2 phát sáng + tia chạy lên; Slow = viền hổ phách #CCA06E, tia rơi chậm;
    Freeze = băng trắng-lam phủ đục, lấp lánh, số giây còn lại vẫn hiện; hết băng → chớp vỡ 300 ms. */
-.bz-card .ring { position: absolute; pointer-events: none; opacity: 0; transition: opacity .18s; border: 2px solid var(--rc, #3ec8f8);
-  box-shadow: 0 0 12px 3px var(--rg, rgba(62,200,248,.7)), inset 0 0 14px 2px var(--rg, rgba(62,200,248,.5)); }
+.bz-card .ring { position: absolute; pointer-events: none; opacity: 0; transition: opacity .18s; box-sizing: content-box; margin: -13px; padding: 13px;
+  background: var(--rc, #3ec8f8); -webkit-mask-box-image: url(../art/vfx/FX_Frame_glow.webp) 72 / 26px stretch; }
 .bz-card.hover .ring { opacity: 1; --rc: #94c6ff; --rg: rgba(148,198,255,.75); } /* T_FX_Highlight_01 #94C6FF (VISUAL §1) */
 .bz-card.haste .ring { opacity: 1; --rc: #35f2d4; --rg: rgba(0,234,194,.8); animation: bz-ringp .4s ease-in-out infinite alternate; }
-.bz-card.slow:not(.haste) .ring { opacity: 1; border-width: 4px; --rc: #68f8f8; --rg: rgba(104,248,248,.8); } /* REF slow (Mak 2025): khung xanh lơ #68F8F8 dày hơn viền xanh lá thường */
+.bz-card.slow:not(.haste) .ring { opacity: 1; --rc: #68f8f8; --rg: rgba(104,248,248,.8); } /* REF slow (Mak 2025): khung xanh lơ #68F8F8 dày hơn viền xanh lá thường */
 .bz-card.freeze .ring { opacity: 1; --rc: #bff0ff; --rg: rgba(120,215,255,.9); }
 @keyframes bz-ringp { from { filter: brightness(.9); } to { filter: brightness(1.35); } }
 .bz-card .st { position: absolute; pointer-events: none; opacity: 0; transition: opacity .2s; }
@@ -87,11 +91,10 @@
   -webkit-mask: repeating-linear-gradient(180deg, #000 0 26px, rgba(0,0,0,.25) 26px 44px, #000 44px 70px);
   background-size: 100% 100%, 100% 90px, 100% 140px; background-blend-mode: normal; }
 .bz-card .st-freeze { inset: 0; background:
-  radial-gradient(circle at 22% 18%, #fff 0 2px, rgba(255,255,255,0) 4px),
-  radial-gradient(circle at 74% 30%, #fff 0 2px, rgba(255,255,255,0) 4px),
-  radial-gradient(circle at 40% 70%, #fff 0 2px, rgba(255,255,255,0) 4px),
-  radial-gradient(circle at 82% 78%, #fff 0 2px, rgba(255,255,255,0) 4px),
-  linear-gradient(160deg, rgba(244,252,255,.78), rgba(176,222,248,.66) 48%, rgba(236,249,255,.74));
+  url(../art/vfx/ice.webp) -14% -10% / 70% auto no-repeat,
+  url(../art/vfx/ice.webp) 118% 105% / 66% auto no-repeat,
+  url(../art/vfx/FX_Smoke_Icy.webp) center / 140% 140% no-repeat,
+  linear-gradient(160deg, rgba(244,252,255,.62), rgba(176,222,248,.5) 48%, rgba(236,249,255,.58));
   box-shadow: inset 0 0 20px 6px rgba(150,225,255,.9), inset 0 0 0 2px rgba(235,250,255,.95); }
 .bz-card.haste .st-haste, .bz-card.slow .st-slow, .bz-card.freeze .st-freeze { opacity: 1; }
 .bz-card.haste .st-haste { animation: bz-haste .35s linear infinite; }
@@ -118,6 +121,27 @@
 .bz-card .chip.slow { bottom: 26%; box-shadow: 0 0 0 2px #68f8f8, 0 0 8px #68f8f8; }
 .bz-card .chip.freeze { bottom: 18%; color: #0b3a55; background: rgba(240,250,255,.88); text-shadow: none; box-shadow: 0 0 0 2px #3ec8f8, 0 0 10px #8fe0ff; }
 .bz-card.haste .chip.haste, .bz-card.slow .chip.slow, .bz-card.freeze .chip.freeze { transform: translateX(-50%) scale(1); }
+/* W-12: chip dùng sprite gốc CardTimer_*_BG_TUI (alpha 0,84, VISUAL §6) thay viên thuốc CSS */
+.bz-card .chip.tex { background-color: transparent; background-size: 100% 100%; background-position: center; background-repeat: no-repeat; box-shadow: none; min-width: 64px; height: 36px; border-radius: 0; }
+.bz-card .chip.freeze.tex { color: #fff; text-shadow: 0 0 2px #000222, 0 2px 0 rgba(0,2,34,.75); }
+
+/* W-10: Transform / thẻ sinh ra giữa trận */
+.bz-card.xform .cb { animation: bz-xform .5s ease-out; }
+.bz-card.spawn .cb { animation: bz-spawn .55s ease-out backwards; }
+@keyframes bz-xform { 0% { filter: brightness(5) saturate(0); } 35% { filter: brightness(2.2) saturate(.4); } 100% { filter: none; } }
+@keyframes bz-spawn { 0% { opacity: 0; filter: brightness(5) saturate(0); } 40% { opacity: 1; filter: brightness(2.4) saturate(.3); } 100% { opacity: 1; filter: none; } }
+/* FX-15: nháy khung FX_Triggered_{Left,Right,Central} 0,5 s, màu #00ACFF */
+.bz-card .ring::after { content: ""; position: absolute; inset: 0; border-radius: inherit; opacity: 0; pointer-events: none; }
+.bz-card.trig-l .ring::after, .bz-card.trig-r .ring::after, .bz-card.trig-c .ring::after { animation: bz-trig .5s ease-out; }
+.bz-card.trig-l .ring::after { box-shadow: inset 12px 0 14px -6px #00acff, 0 0 0 3px rgba(0,172,255,.9), -8px 0 18px #00acff; }
+.bz-card.trig-r .ring::after { box-shadow: inset -12px 0 14px -6px #00acff, 0 0 0 3px rgba(0,172,255,.9), 8px 0 18px #00acff; }
+.bz-card.trig-c .ring::after { box-shadow: inset 0 0 18px #00acff, 0 0 0 3px rgba(0,172,255,.9), 0 0 18px #00acff; }
+@keyframes bz-trig { 0% { opacity: 1; } 100% { opacity: 0; } }
+/* FX-16: Heated / Chilled — mờ vào-ra 0,333 s */
+.bz-card .win .hc { position: absolute; inset: 0; opacity: 0; pointer-events: none; transition: opacity .333s linear; border-radius: inherit; mix-blend-mode: screen; }
+.bz-card .win .hc.heat { background: radial-gradient(120% 90% at 50% 100%, rgba(255,120,30,.75), rgba(255,60,10,.3) 55%, transparent 80%); }
+.bz-card .win .hc.chill { background: radial-gradient(120% 90% at 50% 100%, rgba(150,225,255,.7), rgba(90,170,255,.28) 55%, transparent 80%), linear-gradient(180deg, rgba(210,240,255,.28), transparent 40%); }
+.bz-card.heated .win .hc.heat, .bz-card.chilled .win .hc.chill { opacity: 1; }
 
 /* thẻ bị phá: đống đổ nát phẳng màu cát, không art, mất gem/tag, khung mờ; ở đến hết trận (clip J6T0 destroy) */
 .bz-card .rub { position: absolute; inset: 0; opacity: 0; pointer-events: none; transition: opacity .25s; background:

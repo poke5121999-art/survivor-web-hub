@@ -503,7 +503,7 @@ H['hero-select'] = async () => {
   const page = await openPage('', { save: null });
   try {
     await sleep(2500); await freeze(page);
-    const b = await rectOf(page, '.rs-screen.title .rs-big.play');
+    const b = await rectOf(page, '.rs-screen.lobby .lb-ready');
     return await record(page, 'hero-select', { frames: 26, notes: 'bấm "Chơi" ở màn tiêu đề → màn chọn nhân vật hiện ra (cột lục giác, hero to, bảng tên)',
       act: async i => { if (i === 0) await page.mouse.click(b.cx, b.cy); } });
   } finally { await page._ctx.close(); }

@@ -172,6 +172,9 @@ def main():
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         import vfxmap
         vfxmap.main()
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import uiextra          # W-20: vfx vừa bị xoá, dựng lại các texture bổ sung
+    uiextra.run(quiet=True)
 
 
 if __name__ == "__main__":

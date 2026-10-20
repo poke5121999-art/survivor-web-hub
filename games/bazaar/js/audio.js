@@ -164,8 +164,45 @@
   // ---------- nhạc ----------
   function heroOfTrack(k) { var m = /^music\.([a-z]+)\.(\d)$/.exec(k || ''); return m ? m[1] : null; }
   function tracksOf(hero) { var out = []; for (var i = 1; i <= 5; i++) if (resolve('music.' + hero + '.' + i) === 'music.' + hero + '.' + i) out.push('music.' + hero + '.' + i); return out; }
+  // Nhạc trận thích ứng (FX-06, W-21): music.battle.<hero>.i1..i4 là bốn lớp cường độ CÙNG độ dài, CÙNG điểm vào (tools/music_layers.py).
+  // Phát cả bốn một lúc, chỉ lớp đang chọn nghe được; setIntensity chéo mờ giữa các lớp mà không mất nhịp.
+  var intensity = 1, LAYER_FADE = 1.4;
+  function layerKeys(k) {
+    var m = /^music\.battle\.([a-z]+)$/.exec(k || ''), out = [];
+    if (!m) return null;
+    for (var i = 1; i <= 4; i++) { var lk = k + '.i' + i; if (root.BZ_AUDIO && root.BZ_AUDIO[lk]) out.push(lk); }
+    return out.length === 4 ? out : null;
+  }
+  function layerGoal(i, vol) { return i === Math.min(Math.max(intensity, 1), 4) - 1 ? vol : 0; }
+  function startLayers(k, lks, fadeIn, token) {
+    var c = ensure(), e = root.BZ_AUDIO[k], vol = e.vol == null ? 0.8 : e.vol;
+    Promise.all(lks.map(function (lk) { return load(root.BZ_AUDIO[lk].src[0]); })).then(function (bufs) {
+      if (music !== token) return;
+      var dur = Math.min.apply(null, bufs.map(function (b) { return b.duration; })) || 1;
+      var off = (resume[k] || 0) % dur, t = c.currentTime + 0.05;
+      var g = c.createGain(); g.gain.value = 0; g.connect(musicGain);
+      g.gain.setTargetAtTime(1, c.currentTime, (fadeIn || 1.2) / 3);
+      token.ns = []; token.lg = [];
+      bufs.forEach(function (b, i) {
+        var n = c.createBufferSource(); n.buffer = b; n.loop = true;
+        var lg = c.createGain(); lg.gain.value = layerGoal(i, vol); lg.connect(g); n.connect(lg);
+        n.start(t, off); token.ns.push(n); token.lg.push(lg);
+      });
+      token.n = token.ns[0]; token.g = g; token.k = k; token.t0 = t; token.off = off; token.dur = dur; token.vol = vol;
+    }).catch(function () {});
+  }
+  A.setIntensity = function (n) {
+    intensity = Math.min(Math.max(Math.round(+n || 1), 1), 4);
+    var m = music;
+    if (!m || m.stopping || !m.lg || !ctx) return intensity;
+    m.lg.forEach(function (lg, i) { lg.gain.setTargetAtTime(layerGoal(i, m.vol), ctx.currentTime, LAYER_FADE / 3); });
+    return intensity;
+  };
+  A.intensity = function () { return intensity; };
   function startTrack(k, fadeIn, token) {
     var e = root.BZ_AUDIO[k], c = ensure(), hero = heroOfTrack(k);
+    var lks = layerKeys(k);
+    if (lks) { startLayers(k, lks, fadeIn, token); return; }
     load(e.src[0]).then(function (buf) {
       if (music !== token) return;
       var off = (resume[k] || 0) % (buf.duration || 1);
@@ -197,6 +234,7 @@
     if (hero) playlist[hero] = k;
     var token = { key: k };
     music = token;
+    if (layerKeys(k)) intensity = 1;                       // trận mới bắt đầu ở lớp nhẹ nhất; ui/combat gọi setIntensity theo diễn biến
     startTrack(k, fadeIn, token);
   };
   A.stopMusic = function (fade) {
@@ -206,7 +244,7 @@
     m.stopping = true;
     if (m.k && m.dur && heroOfTrack(m.k)) resume[m.k] = (m.off + (ctx.currentTime - m.t0)) % m.dur; // nhớ chỗ đang nghe (FLOW-15)
     m.g.gain.setTargetAtTime(0, ctx.currentTime, (fade || 0.6) / 3);
-    setTimeout(function () { try { m.n.stop(); } catch (e) { /* đã dừng */ } }, (fade || 0.6) * 1500);
+    setTimeout(function () { (m.ns || [m.n]).forEach(function (n) { try { n.stop(); } catch (e) { /* đã dừng */ } }); }, (fade || 0.6) * 1500);
   };
   A.musicKey = function () { return music ? (music.k || music.key) : null; };
   A.musicPos = function () { return music && music.n && ctx ? (music.off + ctx.currentTime - music.t0) % (music.dur || 1) : null; }; // giây đang nghe (kiểm FLOW-15)

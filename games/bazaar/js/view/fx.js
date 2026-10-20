@@ -43,7 +43,11 @@
     var id = 'm:' + key;
     if (texImg[id]) return id;
     var M = root.BZ_VFXMAP, sp = M && M.sprites && M.sprites[key];
-    if (!sp || !sp.src) return null;
+    if (!sp || !sp.src) { // texture lẻ do tools/uiextra.py xuất: khoá 'fx:<tên>' trong BZ_ART.map, lưới ô đọc từ đuôi tên kiểu _2x2_
+      var A = root.BZ_ART && root.BZ_ART.map, src = A && A['fx:' + key], g = /_(\d)x(\d)_/.exec(key);
+      if (!src) return null;
+      sp = { src: src, cols: g ? +g[1] : 1, rows: g ? +g[2] : 1 };
+    }
     var im = new Image(); im.decoding = 'async'; im.src = sp.src + '?v=' + (root.BZ_REV || '');
     texImg[id] = { img: im, meta: sp };
     return id;
@@ -184,9 +188,10 @@
       dist: curve([[0, 0, 4.7], [0.119, 0.563, 1.5], [1, 1, 0.09]]), sc: curve([[0, 0.689], [0.075, 1], [0.262, 1], [0.986, 0.498]]) }
   };
   // CRIT (REF-combat-core: chữ số trắng #fcf4f4 viền/quầng đỏ, nhãn CRIT ở trên, vệt đỏ-cam ngắn, tổng ~1,1 s).
-  // VFX-4: cỡ ~0,9 chiều cao chân dung (~85 px ở 1080p) thay vì 1,3× (cũ s 5,85 ≈ 220 px); chỉ đỏ đặc trong ~80 ms đầu.
+  // FX-05: gốc dùng scale 5,0 so với 1,3 của đòn nhỏ = 3,85× (ScrollingTextTypeConfig, VISUAL §6); số chí mạng cao ~43 px trên khung 1024 (clip ref\crit).
+  // Vẫn kẹp trong sân (drawNumber) và giữ chỗ đặt VFX-5. Trước đây s 2,3 = 1,77× đòn nhỏ.
   NT.crit = { neg: true, crit: true, face: '#fcf4f4', tint: '#e44434', amt: lin([[0, 0.7], [0.08, 0], [1, 0]]), outline: '#b01818', glow: 'rgba(228,52,40,.65)', gs: [3.2, 1.9],
-    off: [-3.2, 0.3, 0.5], offC: [-3.2, 0.3, 0.5], travel: [-0.9, 0, 0.3], total: 1100, fin: 30, fout: 320, s: 2.3, sL: 2.3, sC: 2.3, streak: true,
+    off: [-3.2, 1.3, 0.5], offC: [-3.2, 1.3, 0.5], travel: [-0.9, 0, 0.3], total: 1100, fin: 30, fout: 320, s: 5.0, sL: 5.0, sC: 5.0, streak: true,
     dist: curve([[0, 0, 3], [0.15, 0.5, 0.6], [1, 1, 0.1]]), sc: curve([[0, 1.25, -2.4], [0.09, 1, 0], [0.7, 1, 0], [1, 0.7, -0.8]]) };
   NT.sand = Object.assign({}, NT.damage, { face: '#ffffff', tint: '#ff1a10', outline: '#7a0000', glow: 'rgba(200,30,20,.6)', total: 900, s: 1.1, sL: 1.4 });
   NT.regen = Object.assign({}, NT.heal, { off: [3.1, 0.1, 0] });
@@ -332,12 +337,12 @@
       g.lineTo(pxl + pr, pyl + ph); g.arc(pxl + pr, py, pr, Math.PI / 2, Math.PI * 1.5); g.closePath();
       g.fillStyle = ty.pill; g.fill(); g.lineWidth = Math.max(2, ph * 0.06); g.strokeStyle = ty.pillEdge; g.stroke();
     }
-    if (ty.streak && lt < 0.45) { // vệt đỏ-cam ngắn sang trái
-      var sl = w * (0.45 + 0.6 * lt), sa = a * (1 - lt / 0.45) * 0.75, sx0 = px - w * 0.35;
+    if (ty.streak && lt < 0.55) { // FX-05: vệt lửa cam-vàng hình nêm sang trái, cỡ đầy đủ (clip ref\crit: nêm lớn bên trái số)
+      var sl = w * (0.6 + 0.6 * lt), sa = a * (1 - lt / 0.55) * 0.8, sx0 = px - w * 0.05, sh = h * 0.3;
       var gr = g.createLinearGradient(sx0, 0, sx0 - sl, 0);
-      gr.addColorStop(0, 'rgba(255,170,60,' + sa.toFixed(3) + ')'); gr.addColorStop(0.4, 'rgba(240,60,30,' + (sa * 0.8).toFixed(3) + ')'); gr.addColorStop(1, 'rgba(200,20,20,0)');
+      gr.addColorStop(0, 'rgba(255,190,70,' + sa.toFixed(3) + ')'); gr.addColorStop(0.4, 'rgba(240,80,30,' + (sa * 0.8).toFixed(3) + ')'); gr.addColorStop(1, 'rgba(200,20,20,0)');
       g.globalCompositeOperation = 'lighter'; g.globalAlpha = 1; g.fillStyle = gr;
-      g.beginPath(); g.moveTo(sx0, py - h * 0.12); g.lineTo(sx0 - sl, py - h * 0.02); g.lineTo(sx0 - sl, py + h * 0.02); g.lineTo(sx0, py + h * 0.12); g.closePath(); g.fill();
+      g.beginPath(); g.moveTo(sx0, py - sh); g.lineTo(sx0 - sl, py - sh * 0.1); g.lineTo(sx0 - sl, py + sh * 0.1); g.lineTo(sx0, py + sh); g.closePath(); g.fill();
       g.globalCompositeOperation = 'source-over'; g.globalAlpha = a;
     }
     g.drawImage(sp.base, px - w / 2, py - h / 2, w, h);
@@ -423,6 +428,8 @@
     k.c2 = base.c2;
     return k;
   }
+  var BUILDUP = { damage: 1, burn: 1, poison: 1, heal: 1, shield: 1, lifesteal: 1 };
+  var STREAK_MIN = 120, STREAK_MAX = 150; // vệt đuôi 120-150 px (FX-04)
   F.projectile = function (o) {
     var k = PK[o.kind] || PK.damage, E = o.entry || null;
     if (E) k = entryKit(E, k);
@@ -434,8 +441,15 @@
       nx: -dy / L, ny: dx / L, arc: (Math.random() < 0.5 ? -1 : 1) * Math.min(90, L * 0.12) * (o.arc == null ? 1 : o.arc), lastEmit: -1 };
     projs.push(p);
     if (o.count !== false) F.stats.projectiles++;
-    // tụ lực ở thẻ (Slot_BuildUp ~0,2 s)
-    if (!p.melee) {
+    // tụ lực ở thẻ (Slot_BuildUp ~0,2 s). FX-04: sát thương/bỏng/độc/hồi/khiên có quả cầu tụ lực ~1,2× bề rộng thẻ quanh thẻ bắn
+    // (clip fire-damage/a/12-15); không biết cỡ thẻ thì rơi về vầng cũ.
+    p.cw = o.cw > 0 ? o.cw : 0;
+    if (BUILDUP[o.kind] && p.cw) {
+      var D = p.cw * 1.2;
+      spawn({ tex: 'glow', color: k.c, x: p.x0, y: p.y0, vx: 0, vy: 0, life: 200, s0: D * 0.5, s1: D, a0: 0.95, a1: 0.1, t0: p.t0 });
+      spawn({ tex: 'ring', color: k.c2, x: p.x0, y: p.y0, vx: 0, vy: 0, life: 200, s0: D * 1.5, s1: D * 0.55, a0: 0.1, a1: 0.8, t0: p.t0 });
+      spawn({ tex: 'flash', color: k.c2, x: p.x0, y: p.y0, vx: 0, vy: 0, life: 200, s0: D * 0.35, s1: D * 0.85, a0: 0.9, a1: 0, t0: p.t0, rot: Math.random() * 6 });
+    } else if (!p.melee) {
       spawn({ tex: 'glow', color: k.c, x: p.x0, y: p.y0, vx: 0, vy: 0, life: 260, s0: 70 * k.size, s1: 120 * k.size, a0: 0.9, a1: 0, t0: p.t0 });
       spawn({ tex: 'flash', color: k.c2, x: p.x0, y: p.y0, vx: 0, vy: 0, life: 180, s0: 40, s1: 90 * k.size, a0: 1, a1: 0, t0: p.t0, rot: Math.random() * 6 });
     }
@@ -443,6 +457,10 @@
     if (bu) spawn(mapPart(bu, E.color, p.x0, p.y0, Math.min(200, Math.max(60, (E.size && E.size.p || 2) * 28)), 360, p.t0));
     return p;
   };
+  function hexA(c, a) { // '#rrggbb' → rgba (gradient cần màu có alpha)
+    var n = parseInt(String(c).slice(1), 16);
+    return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + Math.max(0, a).toFixed(3) + ')';
+  }
   function projPos(p, u) {
     var e = p.k.ease(Math.max(0, Math.min(1, u)));
     var arc = Math.sin(Math.PI * e) * p.arc;
@@ -466,6 +484,15 @@
     var ang = Math.atan2(head.y - prev.y, head.x - prev.x);
     if (p.melee) return true; // đòn cận chiến: không có đạn, chỉ có chớp trúng
     g.globalCompositeOperation = 'lighter';
+    // FX-04: đầu đạn ~0,35× bề rộng thẻ + vệt dài 120-150 px bám theo hướng bay (đuôi cộng sáng, nhạt dần)
+    var hd = BUILDUP[p.kind] && p.cw ? Math.max(24, p.cw * 0.35) * (p.crit ? 1.25 : 1) : 0;
+    if (hd) {
+      var tail = projPos(p, Math.max(0, u - 0.25)), tl = Math.sqrt((head.x - tail.x) * (head.x - tail.x) + (head.y - tail.y) * (head.y - tail.y));
+      var sl = Math.min(STREAK_MAX, Math.max(STREAK_MIN, tl)), gs = g.createLinearGradient(0, 0, -sl, 0), sa = Math.min(1, u * 6);
+      gs.addColorStop(0, hexA(k.c2, 0.95 * sa)); gs.addColorStop(0.35, hexA(k.c, 0.7 * sa)); gs.addColorStop(1, hexA(k.c, 0));
+      g.save(); g.translate(head.x, head.y); g.rotate(ang); g.globalAlpha = 1; g.fillStyle = gs;
+      g.beginPath(); g.moveTo(0, -hd * 0.42); g.lineTo(-sl, -hd * 0.06); g.lineTo(-sl, hd * 0.06); g.lineTo(0, hd * 0.42); g.closePath(); g.fill(); g.restore();
+    }
     // vệt đuôi: dập nhiều quầng nhỏ dọc đường đã bay
     var gl = tinted('glow', k.c);
     if (gl) {
@@ -476,8 +503,9 @@
         var r = (70 - i * 6) * s;
         g.drawImage(gl, q.x - r / 2, q.y - r / 2, r, r);
       }
-      g.globalAlpha = 1; g.drawImage(gl, head.x - 70 * s, head.y - 70 * s, 140 * s, 140 * s);
-      var gw2 = tinted('glow', k.c2); if (gw2) { g.globalAlpha = 0.9; g.drawImage(gw2, head.x - 30 * s, head.y - 30 * s, 60 * s, 60 * s); }
+      var hr = hd ? hd * 1.7 : 70 * s;
+      g.globalAlpha = 1; g.drawImage(gl, head.x - hr, head.y - hr, hr * 2, hr * 2);
+      var gw2 = tinted('glow', k.c2); if (gw2) { var h2 = hd ? hd * 0.75 : 30 * s; g.globalAlpha = 0.9; g.drawImage(gw2, head.x - h2, head.y - h2, h2 * 2, h2 * 2); }
     }
     var bt = p.body && ready(p.body);
     if (bt) { // thân đạn theo sprite của prefab (đã nướng alpha: không còn ô nền đen/đặc màu)
@@ -496,7 +524,7 @@
       g.globalAlpha = 1; g.drawImage(ar, -14 * s, -30 * s, 110 * s, 60 * s); g.restore();
     }
     var core = tinted('dot', '#ffffff');
-    if (core) { g.globalAlpha = 1; g.drawImage(core, head.x - 20 * s, head.y - 20 * s, 40 * s, 40 * s); }
+    if (core) { var cr = hd ? hd * 0.5 : 20 * s; g.globalAlpha = 1; g.drawImage(core, head.x - cr, head.y - cr, cr * 2, cr * 2); }
     // hạt lấp lánh dọc đường (Sparkles của Slot_Projectile)
     if (T - p.lastEmit > 28) {
       p.lastEmit = T;
@@ -650,6 +678,10 @@
       case 'bannerLose': case 'bannerDraw': // khói xanh-đen + sương lục quanh dải đỏ (REF defeat 09-19)
         for (i = 0; i < 14; i++) spawn({ tex: 'puff', color: i % 3 ? '#16343a' : '#2d5a3a', x: x + rnd(-520, 520), y: y + rnd(-40, 90), vx: rnd(-40, 40), vy: rnd(-60, -10),
           life: rnd(1400, 2200), s0: rnd(120, 180), s1: rnd(240, 340), a0: kind === 'bannerDraw' ? 0.35 : 0.6, a1: 0, anim: true, add: false, t0: t0 + rnd(0, 500), fin: 0.25 });
+        // W-12: tia chớp gốc FX_Lighting_03_2x2_T (4 ô) quanh dải băng-rôn thua; chỉ khi data2 đã xuất sprite vào BZ_VFXMAP.sprites
+        var lt = kind === 'bannerLose' ? F.mapSprite('FX_Lighting_03_2x2_T') : null;
+        if (lt) for (i = 0; i < 5; i++) spawn({ tex: lt, color: '#cfe6ff', x: x + rnd(-420, 420), y: y + rnd(-30, 30), vx: 0, vy: 0, life: rnd(180, 340), s0: rnd(260, 380), s1: rnd(280, 400),
+          a0: 0.9, a1: 0, frame: i % 4, add: true, rot: rnd(-0.3, 0.3), t0: t0 + 150 + i * rnd(160, 330) });
         break;
       case 'victory':
         for (i = 0; i < 40; i++) { var a6 = rnd(-3.0, -0.14), s6 = rnd(300, 800); spawn({ tex: i % 3 ? 'star' : 'dot', color: i % 2 ? '#ffd36b' : '#fff3c8', x: x, y: y,

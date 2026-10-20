@@ -31,7 +31,11 @@ Python 3.8 với UnityPy 1.25 + Pillow + texture2ddecoder. Luôn chạy bằng `
 - **Không có TTF/OTF** trong game, chỉ atlas SDF. Atlas Latin chỉ phủ 21 trên 68 chữ có dấu tiếng Việt, nên web phải dùng font ngoài (Noto Sans) cho chữ.
 - **Windows dùng `spawn`**: mọi hàm chạy trong `Pool` phải ở mức module, và `art.py` phải import được không có tác dụng phụ.
 - **`python -c` qua shim của máy này bị hỏng**: viết script ra file rồi chạy.
-- **Hạn mức web**: `games/bazaar/art` tối đa 60 MB (`WEB_BUDGET`). Thứ tự ưu tiên khi vượt: icon, thẻ Vanessa/Pygmalien/Dooley/Common/Neutral/Adventure, kỹ năng, khung, chân dung quái, thẻ hero còn lại, UI nhỏ trước UI lớn. Phần bị loại được ghi trong `window.BZ_ART.excluded`.
+- **Hạn mức web**: `games/bazaar/art` tối đa 110 MB (`WEB_BUDGET`; thẻ và chân dung quái 512 px webp q82/78, đo 2026-10-20: art 102,5 MB, cả `games/bazaar` 181,6 MB, trần chung 220 MB). Thứ tự ưu tiên khi vượt: icon, thẻ Vanessa/Pygmalien/Dooley/Common/Neutral/Adventure, kỹ năng, khung, chân dung quái, thẻ hero còn lại, UI nhỏ trước UI lớn. Phần bị loại được ghi trong `window.BZ_ART.excluded`.
+
+- `[BẪY ĐÃ SẬP 2026-10-20]` Hai tệp vẽ tay không do tool nào ghi: `art/ui/herosel_bg.webp` (art.py --web xoá cả `art/ui`) và `art/vfx/sandedge.webp` (vfx.py xoá cả `art/vfx`). Chạy tool xong phải chép lại từ git (`git checkout HEAD -- <tệp>` ở gốc repo), nếu không `transitions.js` và `bazaar.css` mất ảnh.
+- ArtKey rỗng hoặc lệch tên: `ARTKEY_ALIAS` (Frontline Logistics -> `Icon_Skill_VAN_FrontlineLogistics`) và nhánh tra tên thẻ `<Tên>_CardData.asset` cho vật phẩm rỗng (chỉ Aged Cask khớp). Còn 11 vật phẩm không có art trong game: Cyclops Eye, Sonic Cannon, Holo-Disguise Generator, Old Barrel, Yeti Claw, Acid Sprayer, Pyro Gauntlet, Plasma Whip, Javalin, Poison Blades, Cybernetic Implants (và kỹ năng Virulent Research).
+- `vfxmap.py` đọc mọi `data/cards-*.js`; mỗi ability ghi `play:false` (VFXShouldPlay) và `missing:true` (khoá VFXOverrideKey không có prefab trong bản demo: game thật không vẽ gì, VFXManager.cs:184-190). Âm thanh: `audio.py export` chỉ thêm khoá mới, không ghi đè tệp có sẵn (xem bẫy trên); `BUDGET_MB` 80.
 
 ## Khung thẻ 2D (`frames.py`)
 
@@ -43,3 +47,8 @@ Chạy: `python -I frames.py` (Python 3.8, Pillow + numpy, không cần UnityPy)
 - Gem `CardGem_*_TD` là ô UV chữ nhật 256x128: cắt bát giác tay (`gem_sprite`). Tag `CardFrame_Tag_01_D` có nền đặc: tách bằng flood fill từ góc.
 - `anchors` (gemTop, tag, ammo, multicast, cooldown) `[ĐỀ XUẤT]`, đo từ ảnh wiki `card-badges-crop-1.png` và `cooldown-uzi-1.jpg`. Game không vẽ mặt đồng hồ trên thẻ (chỉ vạch quét, xem VISUAL.md mục 4), nên `cooldown` chỉ là hình chữ nhật ô art.
 - Bẫy: `ImageDraw.floodfill` trên ảnh mode L của Pillow ở máy này trả về rỗng, script dùng hàm `fill()` riêng.
+
+## Vòng 7: `uiextra.py` và `music_layers.py`
+
+- `uiextra.py` (W-20): banner encounter `Encounter_Banner_*_P` (prefab chỉ là một SpriteRenderer trỏ `Encounter_Banner_{Merchant,Enemy,Event,Skills}_TUI`), `CardTimer_{Haste,Slow,Freeze}_BG`, texture VFX của băng-rôn/level-up/Fates, ra `art/ui/*.webp`, `art/vfx/*.webp`, vá thêm khoá `ui:`/`fx:` vào `data/art.js`. Không xoá gì; `art.py --web` và `vfx.py` gọi nó ở cuối vì hai tool đó xoá `art/ui` / `art/vfx`. Bundle gốc: `textures_fx_assets_all` (CardTimer, SandRibbon, LevelUp_*), `encounterframes_assets_all` (prefab banner). Người kể Fates là Statia: ArtKey của thẻ Futura trỏ `Event_Statia_QuestData`.
+- `music_layers.py` (W-21): event `Music_<Hero>_Battle` có tham số `Music_Battle_Transition` 0..4. 0..3 là bốn lớp cường độ, 4 là đoạn kết (tắt dần). Render thời gian thực (event stream hỏng ở NRT; 4 lớp x ~84 s mỗi hero, chạy 4 tiến trình song song được), cắt chung điểm đầu, vòng lặp 3 s, ogg 72 kbps `audio/music/battle.<hero>.i1..i4.ogg`, khoá `music.battle.<hero>.i1..i4` trong `audio.js` (`audio.py export` gọi `patch_js()`). `[BẪY]` đừng chạy hai lần render cùng hero cùng lúc: tệp wav tạm bị khoá (WinError 32).

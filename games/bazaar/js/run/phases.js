@@ -1,6 +1,7 @@
 /* Chợ Phiên — máy trạng thái của run: bảng PHASES[kind].commands[t] = handler(ctx, cmd) → undefined (xong) | chuỗi lỗi.
    BZRun.apply(run, cmd) sao chép run rồi chạy handler; lỗi thì trả lại run cũ + sự kiện {type:'rejected'}.
-   Lệnh: pickHero, pick (chọn gặp gỡ), buy, sell, move, swap, reroll, leave, choose (sự kiện/lên cấp/loot/bệ/rương), commit (kéo thẻ lên bệ), fight, next.
+   Lệnh: pickHero, pick (chọn gặp gỡ), buy, sell, move, swap, reroll (thương nhân, thầy kỹ năng ở pha loot), leave, choose (sự kiện/lên cấp/loot/bệ/rương/chọn enchant),
+   commit (kéo thẻ lên bệ), back (pha enchantPick về bệ), fight, next.
    sell/move/swap dùng được ở mọi pha có bàn, kể cả `fight` (xếp lại sau khi xem bàn đối thủ, trước lệnh fight). */
 (function (root) {
   'use strict';
@@ -167,7 +168,9 @@
       leave: function (c) { return E('merchant').leave(c); } }) },
     event: { commands: withBoard({ choose: function (c, x) { return E('event').choose(c, x); }, leave: function (c) { return E('event').leave(c); } }) },
     pedestal: { commands: withBoard({ choose: function (c, x) { return E('pedestal').choose(c, x); }, commit: function (c, x) { return E('pedestal').choose(c, x); }, leave: function (c) { return E('pedestal').leave(c); } }) },
-    loot: { commands: withBoard({ choose: function (c, x) { return R.lootChoose(c, x); }, leave: function (c) { return R.lootLeave(c); } }) },
+    loot: { commands: withBoard({ choose: function (c, x) { return R.lootChoose(c, x); }, leave: function (c) { return R.lootLeave(c); },
+      reroll: function (c) { return R.lootReroll(c); } }) },
+    enchantPick: { commands: withBoard({ choose: function (c, x) { return E('pedestal').pick(c, x); }, back: function (c) { return E('pedestal').back(c); } }) },
     levelUp: { commands: withBoard({ choose: levelUpChoose }) },
     fates: { commands: withBoard({ choose: function (c, x) { return R.fatesChoose(c, x); } }) },
     chest: { commands: withBoard({ choose: function (c, x) { return R.chestChoose(c, x); }, leave: function (c) { return R.chestLeave(c); } }) },
@@ -221,8 +224,10 @@
         for (i = 0; i < ph.choices.length; i++) { var c = ph.choices[i]; if (!c.card || R.canGain(run, c.card)) out.push({ t: 'choose', i: i }); }
         if (ph.canExit) out.push({ t: 'leave' });
         boardCmds(); break;
+      case 'enchantPick': ph.options.forEach(function (o, k) { out.push({ t: 'choose', i: k }); }); out.push({ t: 'back' }); boardCmds(); break;
       case 'loot': case 'chest':
         ph.picks.forEach(function (p, k) { if (R.canGain(run, p.card)) out.push({ t: 'choose', i: k }); });
+        if (ph.rerolls > 0 && !ph.taken && run.gold >= ph.rerollCost) out.push({ t: 'reroll' });
         out.push({ t: 'leave' }); boardCmds(); break;
       case 'pedestal': ph.eligible.forEach(function (u, k) { out.push({ t: 'choose', i: k }); }); out.push({ t: 'leave' }); boardCmds(); break;
       case 'levelUp': case 'fates': ph.choices.forEach(function (c, k) { out.push({ t: 'choose', i: k }); }); boardCmds(); break;

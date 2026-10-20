@@ -15,15 +15,19 @@
   BZ.BURN_TICK = 500;        // BazaarCardDealer.cs:4236
   // Số máy chủ đã xoá khỏi dữ liệu (TGameMode [BazaarObfuscate]) — đều là [ĐỀ XUẤT], chỉnh khi chơi thử.
   BZ.CRIT_PCT = 200;         // [ĐỀ XUẤT] CritPercentMultiplier (TGameMode.cs:46): tooltip "doubling"
-  BZ.BURN_DECAY = 0.03;      // [ĐỀ XUẤT] BurnDecrementByAsPercentage (TGameMode.cs:64): tooltip "decreases by 3%"
+  // [ĐỀ XUẤT, COMBAT-07] tooltip "decreases by 3%" nhưng clip đo được 80 > 76 > 73 > 70 > 67 (5X-G7Jf3t5w?t=64): round(b×p) = 4, 3, 3, 3
+  // chỉ khớp khi p ∈ [0,04375; 0,04605) → 0,045. p = 0,03 cho 78, 76, 74; p = 0,04 cho 77, 74, 71 (đều lệch). Dưới Burn 22 mọi p cho −1.
+  BZ.BURN_DECAY = 0.045;
   BZ.HEAL_CLEANSE = 0.05;    // [ĐỀ XUẤT] tooltip Heal "Cleanses 5% Poison and Burn"
   // Enrage giảm 10 % cooldown KHÔNG còn là hằng số ở đây: đến từ aura của hiệu ứng người chơi "Base Rage Effect"
   // (BZ_HEROES.effects, PercentCooldownReduction += Custom_0 = 10 khi Enraged > 0) — xem engine.js boardEffects.
   BZ.MIN_COOLDOWN = 1000;    // [ĐỀ XUẤT] sàn = trần 1/20 CooldownMax mỗi khung của bản legacy (BazaarCardDealer.cs:4414)
   BZ.RAGE_MAX = 100;         // tooltip Rage "Reach 100 Rage"
   BZ.ENRAGE_MS = 5000;       // [ĐỀ XUẤT] EnragedDurationMax mặc định: mọi quái có trường này đều để 5000 (monsters.json)
-  BZ.SANDSTORM = {           // [ĐỀ XUẤT] TGameModeConfigSandstorm bị xoá; công thức BazaarCardDealer.cs:4247-4285
-    countdownStart: 25000, countdown: 5000, baseDamage: 1, baseTick: 1000, tickDec: 100, tickFloor: 200, addScalar: 1
+  // [ĐỀ XUẤT, COMBAT-04] TGameModeConfigSandstorm bị xoá. Clip hV5vwlc_tBE?t=100 (bản cũ ~1.0.2625): hai bên chịu -22, -25, -29, -31, -33, -37
+  // lấy mẫu mỗi 2 s ≈ +1,8/s. Giữ mốc 30 s (25 s + 5 s đếm ngược), nhịp hằng định 1 s, mỗi nhịp +2 (công thức cũ dốc ~+5/s ở cuối).
+  BZ.SANDSTORM = {
+    countdownStart: 25000, countdown: 5000, baseDamage: 1, tick: 1000, addPerTick: 2
   };
 
   BZ.TIERS = ['Bronze', 'Silver', 'Gold', 'Diamond', 'Legendary'];

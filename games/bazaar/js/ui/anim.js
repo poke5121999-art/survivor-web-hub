@@ -31,6 +31,26 @@
   };
   function cardCenter(el) { return center(U.rectOf(el)); }
 
+  // ---------- khoảnh khắc lớn (lên cấp, nâng bậc, yểm bùa): dài như clip gốc, bấm bất kỳ đâu để bỏ qua (FX-11) ----------
+  var moments = [];
+  function finishMoment(m) {
+    if (m.done) return; m.done = true; clearTimeout(m.t);
+    var i = moments.indexOf(m); if (i >= 0) moments.splice(i, 1);
+    try { if (m.end) m.end(); } catch (e) { console.error(e); }
+  }
+  // moment(ms, end): chạy end() sau ms, hoặc ngay khi người chơi bấm; trả về điều khiển {done, finish}
+  U.moment = function (ms, end) {
+    var m = { done: false, end: end, finish: function () { finishMoment(m); } };
+    m.t = setTimeout(m.finish, ms); moments.push(m); return m;
+  };
+  U.skipMoments = function () { moments.slice().forEach(finishMoment); };
+  U.momentsActive = function () { return moments.length; };
+  document.addEventListener('pointerdown', function () { if (moments.length) U.skipMoments(); }, true);
+  // độ dài theo bậc, clip FusionToField_Fused_{Bronze..Legendary} (VISUAL §11): 2,267 / 2,633 / 3,167 / 3,4 / 3,9 s
+  var UPG_MS = { Bronze: 2267, Silver: 2633, Gold: 3167, Diamond: 3400, Legendary: 3900 };
+  U.UPG_MS = UPG_MS; U.ENCH_MS = 3500; // FX_Enchant_Main_A 3,5 s
+  U.LEVELUP_MS = 4200;                 // FX_LevelUp_Animation dài 8,18 s; phần cần chờ ≈ nửa đầu, nửa sau trùng lúc chọn thưởng [ĐỀ XUẤT]
+
   // ---------- vàng / XP / thu nhập ----------
   A.gold = function (e, ctx) {
     var g = U.hud.goldRect(), gc = { x: g.cx, y: g.cy }, n = Math.ceil(Math.abs(e.delta) / 3);
@@ -62,36 +82,72 @@
   };
 
   // ---------- thẻ ----------
+  // Card_Purchase_ToBoard_A 0,533 s: bay từ chỗ mua, nhấc cao, lật đúng một vòng 360°, nảy hai nhịp rồi nằm yên (FX-10)
+  var BUY_MS = 533, STASH_MS = 600;
+  function buyFly(el, dx, dy, k) {
+    var P = 'perspective(900px) ', lift = Math.max(80, Math.min(240, Math.abs(dy) * 0.3 + 100));
+    function T(x, y, sc, ry) { return P + 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px) scale(' + sc.toFixed(3) + ') rotateY(' + ry + 'deg)'; }
+    el.classList.add('buyfly');
+    var an = el.animate([
+      { transform: T(dx, dy, k, 0), offset: 0 },
+      { transform: T(dx * 0.5, dy * 0.5 - lift, 1.1, 150), offset: 0.38 },
+      { transform: T(dx * 0.1, dy * 0.1 - lift * 0.35, 1.08, 300), offset: 0.62 },
+      { transform: T(0, -16, 1.03, 360), offset: 0.76 },
+      { transform: T(0, 0, 1, 360), offset: 0.87 },
+      { transform: T(0, -5, 1, 360), offset: 0.94 },
+      { transform: 'none', offset: 1 }
+    ], { duration: BUY_MS, easing: 'ease-out' });
+    an.onfinish = an.oncancel = function () { el.classList.remove('buyfly'); };
+    return an;
+  }
+  // Card_Purchase_ToStash_A 0,6 s: thẻ co lại chui vào rương (kho đóng thì dùng bản sao bay tới rương)
+  function toChest(el, from) {
+    var ch = U.hud.chestRect(), cl = el.cloneNode(true), ov = V().refs.overlay;
+    cl.classList.remove('nomove', 'flyin', 'fresh'); cl.style.cssText = el.style.cssText; cl.style.position = 'absolute'; cl.style.visibility = 'visible';
+    cl.style.left = from.x + 'px'; cl.style.top = from.y + 'px'; cl.style.pointerEvents = 'none'; cl.style.zIndex = 85;
+    ov.appendChild(cl);
+    var w = from.w || el.offsetWidth, h = from.h || el.offsetHeight;
+    var dx = ch.cx - (from.x + w / 2), dy = ch.cy - (from.y + h / 2);
+    var an = cl.animate([
+      { transform: 'none', opacity: 1, offset: 0 },
+      { transform: 'translate(' + (dx * 0.15).toFixed(1) + 'px,' + (dy * 0.15 - 40).toFixed(1) + 'px) scale(1.06)', opacity: 1, offset: 0.25 },
+      { transform: 'translate(' + dx.toFixed(1) + 'px,' + dy.toFixed(1) + 'px) scale(.12)', opacity: 0.2, offset: 1 }
+    ], { duration: STASH_MS, easing: 'cubic-bezier(.5,0,.8,.5)' });
+    an.onfinish = an.oncancel = function () { cl.remove(); var ce = U.hud.chestEl && U.hud.chestEl(); if (ce) { ce.classList.remove('pulse'); void ce.offsetWidth; ce.classList.add('pulse'); } };
+  }
   A.gain = function (e, ctx) {
     var el = U.cards.ownEl(e.uid);
     if (!el) { V().skillPulse(0, e.uid); U.sfx('skill.reveal_land'); return; }
     var to = U.rectOf(el), from = ctx.dropAt || ctx.fromRect || null;
     if (!from) { from = { x: to.x, y: to.y - 260, w: to.w, h: to.h }; }
     var dx = from.x - to.x, dy = from.y - to.y, s = from.w && to.w ? from.w / to.w : 1;
-    el.classList.add('nomove');
-    el.style.transform = 'translate(' + dx.toFixed(1) + 'px,' + dy.toFixed(1) + 'px) scale(' + s.toFixed(3) + ')';
-    void el.offsetWidth;
-    el.classList.remove('nomove'); el.classList.add('flyin');
-    el.style.transform = '';
-    var big = ctx.dropAt ? 0 : 1;
+    var inStash = e.section === 'stash' && !U.cards.trayIsOpen();
+    if (inStash) toChest(el, from); else buyFly(el, dx, dy, s);
+    var ms = inStash ? STASH_MS : BUY_MS;
     setTimeout(function () {
-      el.classList.remove('flyin');
-      var r = U.rectOf(el); if (r) FX().burst('land', r.x + r.w / 2, r.y + r.h / 2, { w: r.w, h: r.h });
+      var r = U.rectOf(el); if (r && !inStash) FX().burst('land', r.x + r.w / 2, r.y + r.h / 2, { w: r.w, h: r.h });
       U.sfx(e.section === 'stash' ? 'card.land.storage' : 'card.land.player');
       if (e.why === 'loot' || e.why === 'start' || e.why === 'generic' || e.why === 'event') { el.classList.add('reveal'); setTimeout(function () { el.classList.remove('reveal'); }, 900); }
-    }, big ? 520 : 380);
+    }, ms - 20);
   };
   A.sell = { before: function (e, ctx) { var el = U.cards.ownEl(e.uid); if (el && !ctx.dropAt) ctx.sellFrom = cardCenter(el); } };
   A.buy = function (e) {
     var ph = U.state.run.phase, name = (ph && ph.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     U.sfx('vo.merchant.' + name + '.buy', { gap: 3000 });
   };
+  // khoảnh khắc: thẻ nhấc lên, quay, toả sáng rồi hạ xuống theo độ dài clip của bậc; bấm để bỏ qua (FX-11)
+  function cardMoment(el, cls, ms) {
+    el.style.setProperty('--mom', ms + 'ms'); el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls);
+    U.moment(ms, function () { el.classList.remove(cls); });
+  }
   A.upgrade = function (e) {
     var el = U.cards.ownEl(e.uid); if (!el) return;
     setTimeout(function () {
-      var e2 = U.cards.ownEl(e.uid) || el;
+      var e2 = U.cards.ownEl(e.uid) || el, ms = UPG_MS[e.to] || UPG_MS.Silver;
       root.BZCard.flash(e2, U.now(), '#b3e4e5'); root.BZCard.buffText(e2, 'Lên ' + (U.TIER_VI[e.to] || e.to) + '!', '#b3e4e5');
       var r = U.rectOf(e2); if (r) FX().burst('buff', r.x + r.w / 2, r.y + r.h / 2);
+      cardMoment(e2, 'upgrading', ms);
+      setTimeout(function () { var r2 = U.rectOf(e2); if (r2 && e2.classList.contains('upgrading')) FX().burst('victory', r2.x + r2.w / 2, r2.y + r2.h / 2, { big: 0.5 }); }, ms * 0.4);
       U.sfx('card.upgrade.' + String(e.to).toLowerCase()); U.heroVo('upgrade');
     }, 120);
   };
@@ -100,7 +156,7 @@
     setTimeout(function () {
       var e2 = U.cards.ownEl(e.uid) || el, col = root.BZCard.ENCH_COL[e.ench] || '#be47ff';
       root.BZCard.flash(e2, U.now(), col); root.BZCard.buffText(e2, e.ench || 'Yểm bùa', col);
-      e2.classList.add('enchanting'); setTimeout(function () { e2.classList.remove('enchanting'); }, 1400);
+      cardMoment(e2, 'enchanting', U.ENCH_MS);
       var r = U.rectOf(e2); if (r) FX().burst('charge', r.x + r.w / 2, r.y + r.h / 2);
       U.sfx('card.enchant.' + String(e.ench || 'tiny').toLowerCase());
     }, 120);
@@ -120,10 +176,13 @@
   // thẻ ngày lăn N-1 → N màu vàng ~3 s rồi ba khung bật ra (clip https://youtu.be/wUzq6Q4u9Jc?t=1322, ?t=63)
   A.day = function (e) { U.transitions.dayCard(U.state.run, e.day); U.sfx('trans.newDay'); };
   A.levelUp = function (e) {
-    V().banner('Lên cấp ' + e.level + '!', '+' + e.health + ' máu tối đa', 'level', 1700);
+    // chặng 1 (0 s): băng-rôn rơi + tia; chặng 2 (0,9 s): tia lớn lần hai; chặng 3 (2 s): ô vừa mở sáng; hạ băng-rôn ở LEVELUP_MS hoặc khi bấm (FX-11)
+    V().banner('Lên cấp ' + e.level + '!', '+' + e.health + ' máu tối đa', 'level', 0);
     U.sfx('board.levelUp'); U.heroVo('levelup'); U.hud.pulse('level');
     var hr = V().heroRect(0); FX().burst('victory', hr.cx, hr.cy);
-    setTimeout(function () { var socks = document.querySelectorAll('.rs-sockets .rs-sock:not(.locked)'); Array.prototype.forEach.call(socks, function (s) { s.classList.remove('unlock'); void s.offsetWidth; s.classList.add('unlock'); }); }, 300);
+    var m = U.moment(U.LEVELUP_MS, function () { V().hideBanner(); });
+    setTimeout(function () { if (!m.done) FX().burst('victory', hr.cx, hr.cy, { big: 1.4 }); }, 900);
+    setTimeout(function () { if (m.done) return; var socks = document.querySelectorAll('.rs-sockets .rs-sock:not(.locked)'); Array.prototype.forEach.call(socks, function (s) { s.classList.remove('unlock'); void s.offsetWidth; s.classList.add('unlock'); }); }, 2000);
   };
   A.reroll = function () { U.sfx('board.reroll'); };
   A.win = function (e) {
@@ -182,7 +241,7 @@
       } else if (e.why === 'enchant') {
         var col = root.BZCard.ENCH_COL[e.card.ench] || '#be47ff';
         root.BZCard.flash(el, U.now(), col); root.BZCard.buffText(el, e.card.ench, col);
-        el.classList.remove('enchanting'); void el.offsetWidth; el.classList.add('enchanting');
+        cardMoment(el, 'enchanting', U.ENCH_MS);
         FX().burst('charge', cx, cy); U.sfx('card.enchant.' + String(e.card.ench || 'tiny').toLowerCase());
       }
     }, entering ? 1500 + e.i * 120 : 120);

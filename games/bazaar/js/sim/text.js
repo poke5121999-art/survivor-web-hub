@@ -89,12 +89,29 @@
     if (acc === 'ref') return mv ? fmt(BZ.value(mv, ctx, true), refAttr(mv)) : null;
     return mv ? fmt(BZ.value(mv, ctx), refAttr(mv) || Au.Action.AttributeType) : '0';
   }
+  // CONTENT-13: dữ liệu có chữ trỏ nhầm loại / nhầm khoá. Tìm không thấy theo đúng loại thì thử lần lượt:
+  //  - cùng id ở loại kia (Nanobot Orange `{ability.2}` thật ra là aura 2; Immunocompromised `{ability.0}` là aura 0)
+  //  - enchantment chỉ có một ability mà chữ gọi `{ability.e1}` (Pontoon Skimmer Turbo giữ ability e2 nhưng chép chữ của Heavy)
+  //  - thẻ có đúng một mục nhiệm vụ: số lần cần đạt `Target` (thẻ [DEBUG] Quest item `{aura.e2.mod}`)
+  function resolveLoose(S, C, kind, id, acc) {
+    var r = kind === 'ability' ? resolveAura(S, C, id, acc) : resolveAbility(S, C, id, acc);
+    if (r != null) return r;
+    var E = C.ench && C.tpl.Enchantments ? C.tpl.Enchantments[C.ench] : null, keys;
+    if (E && E[kind === 'ability' ? 'Abilities' : 'Auras'] && /^e/.test(id)) {
+      keys = Object.keys(E[kind === 'ability' ? 'Abilities' : 'Auras']);
+      if (keys.length === 1) return (kind === 'ability' ? resolveAbility : resolveAura)(S, C, keys[0], acc);
+    }
+    var entries = [];
+    (C.tpl.Quests || []).forEach(function (g) { (g.Entries || []).forEach(function (e) { entries.push(e); }); });
+    if (entries.length === 1 && entries[0].Target != null) return fmt(entries[0].Target);
+    return null;
+  }
   function resolveToken(S, C, tok) {
     var alts = tok.split('??');
     for (var i = 0; i < alts.length; i++) {
       var p = alts[i].trim().split('.'), r = null;
-      if (p[0] === 'ability') r = resolveAbility(S, C, p[1], p[2]);
-      else if (p[0] === 'aura') r = resolveAura(S, C, p[1], p[2]);
+      if (p[0] === 'ability') { r = resolveAbility(S, C, p[1], p[2]); if (r == null) r = resolveLoose(S, C, 'ability', p[1], p[2]); }
+      else if (p[0] === 'aura') { r = resolveAura(S, C, p[1], p[2]); if (r == null) r = resolveLoose(S, C, 'aura', p[1], p[2]); }
       else if (p.length === 1 && p[0]) { var v = BZ.cattr(S, C, p[0]); r = v == null ? null : fmt(v, p[0]); }
       if (r != null) return r;
     }
@@ -151,6 +168,17 @@
       else if (p[0] === 'aura' && auras && auras[p[1]] != null) r = String(auras[p[1]]);
       return r == null ? '?' : r;
     }).replace(/ {2,}/g, ' ');
+  };
+
+  // Kiểm chữ: các token {...} của thẻ (mọi dòng tooltip của bậc hiện tại + enchantment) mà bộ giải trả chuỗi rỗng.
+  // Trả [{tok, raw}]; rỗng = không còn chỗ trống trong câu (CONTENT-13).
+  BZ.emptyTokens = function (ci, ctx) {
+    var x = stateFor(ci, ctx), C = x.C, out = [];
+    if (!C) return out;
+    BZ.cardText(ci, ctx).forEach(function (l) {
+      String(l.raw || '').replace(/{([^{}]+)}/g, function (m, tok) { if (resolveToken(x.S, C, tok) === '') out.push({ tok: tok, raw: l.raw }); return m; });
+    });
+    return out;
   };
 
   // Dòng tooltip của thẻ: [{text, type ('Active'|'Passive'), raw}] — bậc hiện tại (TooltipIds) + enchantment

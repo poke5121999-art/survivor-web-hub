@@ -111,10 +111,14 @@
   T.MIN_PX = 12.5; // cỡ chữ dòng hiệu ứng tối thiểu (px thật trên màn) cho điện thoại
   // show(info, rect {x,y,w,h} trên sân 1920×1080, prefer 'right'|'left')
   T.show = function (info, rect) {
+    if (lock) return; // đang ghim: rê sang thẻ khác không đổi tooltip
+    showRaw(info, rect);
+  };
+  function showRaw(info, rect) {
     if (!box) return;
     var showing = box.classList.contains('show');
     if (cur !== info) { box.innerHTML = T.render(info); cur = info; }
-    box.className = 'bz-tip t-' + (info.tier || 'Bronze') + (showing ? ' show' : '');
+    box.className = 'bz-tip t-' + (info.tier || 'Bronze') + (showing ? ' show' : '') + (lock ? ' locked' : '');
     box.style.display = 'block'; box.style.scale = '';
     var w0 = box.offsetWidth, h0 = box.offsetHeight;
     // MOBILE-2: sân 1920×1080 co theo màn (0,36 ở 844×390) làm chữ 23 px còn ~8 px thật → phóng tooltip để dòng chữ ≥ ~12 px thật,
@@ -136,6 +140,92 @@
     var ks = box.querySelector('.keys');
     if (ks) { ks.style.left = Math.round((24 - x) / k) + 'px'; ks.style.top = Math.round((stageH - 24 - ks.offsetHeight * k - y) / k) + 'px'; }
     if (!box.classList.contains('show')) { void box.offsetWidth; box.classList.add('show'); }
+  }
+  T.hide = function () { if (!box || lock) return; box.classList.remove('show'); box.style.display = 'none'; cur = null; };
+
+  // ---------- ghim tooltip (UI-01) ----------
+  // Bản gốc: chuột phải = Gameplay/LockTooltip (BindingPersistence.cs:32), tối màn #000 a.0,35, CardLockVariantPanel.cs thêm ô chọn
+  // CẤP + ô chọn BÙA + nút Reset để xem thẻ ở cấp / bùa khác (chỉ xem, không đổi run). Cảm ứng: nhấn giữ. Esc / bấm ngoài = bỏ ghim.
+  var lock = null, LONG_MS = 550, MOVE_PX = 10;
+  var TIER_ORDER = ['Bronze', 'Silver', 'Gold', 'Diamond', 'Legendary'];
+  T.locked = function () { return !!lock; };
+  function UI() { return root.BZUI; }
+  // thẻ dưới con trỏ → {id, tier, ench}; thẻ của run đọc theo uid, thẻ rời (hàng, loot, bàn cuối) theo _rs.card
+  function cardOf(el) {
+    var rs = el && el._rs, U = UI(); if (!rs || !U) return null;
+    var c = null;
+    if (rs.kind === 'own') c = U.state && U.state.run && root.BZRun.findCard(U.state.run, rs.uid);
+    else c = rs.card;
+    return c && c.id ? { id: c.id, tier: c.tier, ench: c.ench || null } : null;
+  }
+  function tiersOf(tpl) {
+    var have = {}; Object.keys(tpl.Tiers || {}).forEach(function (k) { have[k] = 1; }); if (tpl.StartingTier) have[tpl.StartingTier] = 1;
+    return TIER_ORDER.filter(function (k) { return have[k]; });
+  }
+  function drawLocked() {
+    var U = UI(), c = lock.cur, info = U.tipInfo(c, U.looseAttrs(c), null);
+    if (!info) return;
+    showRaw(info, lock.rect);
+    var P = document.createElement('div'); P.className = 'lockpanel';
+    var h = '<span class="lbl">Xem thử ở</span><label>Cấp<select class="sel-tier">';
+    lock.tiers.forEach(function (t) { h += '<option value="' + t + '"' + (t === c.tier ? ' selected' : '') + '>' + TIER_VI[t] + '</option>'; });
+    h += '</select></label>';
+    if (lock.enchs.length) {
+      h += '<label>Bùa<select class="sel-ench"><option value="">Không</option>';
+      lock.enchs.forEach(function (n) { h += '<option value="' + esc(n) + '"' + (n === c.ench ? ' selected' : '') + '>' + esc(n) + '</option>'; });
+      h += '</select></label>';
+    }
+    h += '<button type="button" class="reset">Đặt lại</button>';
+    P.innerHTML = h; box.appendChild(P);
+    // panel nằm dưới tooltip: nếu tràn đáy sân thì đẩy tooltip lên
+    var k = T.lastScale || 1, top = parseFloat(box.style.top) || 0, need = (box.offsetHeight + P.offsetHeight + 12) * k;
+    if (top + need > stageH - 8) box.style.top = Math.max(8, Math.round(stageH - 8 - need)) + 'px';
+    P.querySelector('.sel-tier').addEventListener('change', function (e) { lock.cur.tier = e.target.value; U.sfx('ui.click'); drawLocked(); });
+    var se = P.querySelector('.sel-ench');
+    if (se) se.addEventListener('change', function (e) { lock.cur.ench = e.target.value || null; U.sfx('ui.click'); drawLocked(); });
+    P.querySelector('.reset').addEventListener('click', function () { lock.cur = { id: lock.orig.id, tier: lock.orig.tier, ench: lock.orig.ench }; U.sfx('ui.click'); drawLocked(); });
+  }
+  T.lock = function (el) {
+    var U = UI(), c = cardOf(el); if (!box || lock || !c || !U) return false;
+    var tpl = root.BZRun.tpl(c.id); if (!tpl) return false;
+    var r = U.rectOf(el); if (!r) return false;
+    var dim = document.createElement('div'); dim.className = 'bz-tipdim'; box.parentNode.insertBefore(dim, box);
+    dim.addEventListener('pointerdown', function (e) { e.stopPropagation(); e.preventDefault(); T.unlock(); });
+    dim.addEventListener('contextmenu', function (e) { e.preventDefault(); T.unlock(); });
+    lock = { dim: dim, rect: { x: r.x, y: r.y - 10, w: r.w, h: r.h }, orig: c, cur: { id: c.id, tier: c.tier, ench: c.ench },
+      tiers: tiersOf(tpl), enchs: Object.keys(tpl.Enchantments || {}), screen: U.state.screen };
+    lock.timer = setInterval(function () { if (U.state.screen !== lock.screen) T.unlock(); }, 250);
+    box.classList.add('locked');
+    drawLocked();
+    U.sfx('ui.click', { vol: 0.5 });
+    return true;
   };
-  T.hide = function () { if (!box) return; box.classList.remove('show'); box.style.display = 'none'; cur = null; };
+  T.unlock = function () {
+    if (!lock) return;
+    var l = lock; lock = null; clearInterval(l.timer);
+    if (l.dim.parentNode) l.dim.parentNode.removeChild(l.dim);
+    if (box) { box.classList.remove('locked'); var p = box.querySelector('.lockpanel'); if (p) p.remove(); }
+    T.hide();
+  };
+  // chuột phải trên thẻ; nhấn giữ (cảm ứng); Esc
+  var press = null;
+  document.addEventListener('contextmenu', function (e) {
+    var el = e.target.closest && e.target.closest('.bz-card');
+    if (lock) { if (!(e.target.closest && e.target.closest('.bz-tip'))) { e.preventDefault(); T.unlock(); } return; }
+    if (!el || !cardOf(el)) return;
+    var U = UI(); if (U && U.drag && U.drag.active && U.drag.active()) return;
+    if (T.lock(el)) e.preventDefault();
+  }, true);
+  document.addEventListener('pointerdown', function (e) {
+    if (e.pointerType !== 'touch' || lock) return;
+    var el = e.target.closest && e.target.closest('.bz-card'); if (!el || !cardOf(el)) return;
+    press = { x: e.clientX, y: e.clientY, id: e.pointerId, t: setTimeout(function () { var p = press; press = null; if (p) { T.lock(el); } }, LONG_MS) };
+  }, true);
+  function cancelPress(e) { if (press && (!e || e.pointerId === press.id)) { clearTimeout(press.t); press = null; } }
+  document.addEventListener('pointermove', function (e) { if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) > MOVE_PX) cancelPress(e); }, true);
+  document.addEventListener('pointerup', cancelPress, true);
+  document.addEventListener('pointercancel', cancelPress, true);
+  document.addEventListener('keydown', function (e) {
+    if (lock && e.key === 'Escape') { e.stopImmediatePropagation(); e.preventDefault(); T.unlock(); }
+  }, true);
 })(window);

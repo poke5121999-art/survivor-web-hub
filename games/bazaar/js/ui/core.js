@@ -27,7 +27,7 @@
   U.TIER_VI = { Bronze: 'Đồng', Silver: 'Bạc', Gold: 'Vàng', Diamond: 'Kim cương', Legendary: 'Huyền thoại' };
   U.UI = 'art/ui/';
   U.ICON = {
-    coin: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%2214%22 fill=%22%23f5c518%22 stroke=%22%237a4a00%22 stroke-width=%222.5%22/%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%2210.5%22 fill=%22none%22 stroke=%22%23fff3a0%22 stroke-width=%221.4%22 opacity=%22.8%22/%3E%3Cpath d=%22M16 7.5l6.2 8.5-6.2 8.5-6.2-8.5z%22 fill=%22%237a4a00%22/%3E%3Cpath d=%22M16 11l3.6 5-3.6 5-3.6-5z%22 fill=%22%23ffe36d%22/%3E%3C/svg%3E', // đồng xu kim cương (Icon_Tooltip_Coins_TUI chưa bóc) [ĐỀ XUẤT]
+    coin: 'art/icons/CoinBank.webp', // icon chữ "Coin" gốc (Icon_Tooltip_Coins_TUI chưa bóc, đây là bản gần nhất)
     coinBag: 'art/ui/ui_sprite_atlas/Icon_Stat_Coins_TUI.webp', xp: 'art/ui/ui_sprite_atlas/Icon_Stat_XP_TUI.webp',
     health: 'art/ui/ui_sprite_atlas/Icon_Stat_Health_TUI.webp', prestige: 'art/ui/ui_sprite_atlas/Icon_Stat_Prestige_TUI.webp',
     coins: 'art/ui/ui_sprite_atlas/Tooltip_Reward_Icon_Coins_TUI.webp', xpBig: 'art/ui/ui_sprite_atlas/Tooltip_Reward_Icon_XP_TUI.webp',
@@ -208,6 +208,8 @@
     if (cmd.t === 'pickHero' && U.data) U.data.loadAll(cmd.hero); // các hero còn lại + bóng: nạp ngầm ngay khi run bắt đầu
     ctx = ctx || {};
     ctx.prev = prev; ctx.cmd = cmd; ctx.events = r.events;
+    var curScr = U.SCREENS[S.screen]; // màn hiện tại nhận lệnh trước khi đổi màn (lời thương nhân, W-05)
+    if (curScr && curScr.onCommand) { try { curScr.onCommand(cmd, r.events, prev); } catch (err) { console.warn('onCommand ' + S.screen, err); } }
     var pk = prev.phase.kind, nk = S.run.phase.kind;
     // trước khi vẽ: hoạt ảnh cần đọc vị trí cũ (thẻ hàng sắp mất, thẻ sắp bán)
     r.events.forEach(function (e) { var a = U.ANIM[e.type]; if (a && a.before) { try { a.before(e, ctx); } catch (err) { console.warn('ANIM.before ' + e.type, err); } } });
@@ -225,7 +227,7 @@
   // lý do từ chối → lời cho người chơi. Đuôi lý do "(skillsFull|skillOwned|boardFull)" do js/run gắn (FIXES-RULES "New commands").
   // Phần thưởng (loot / rương / lên cấp / sự kiện) bị từ chối vì hết chỗ: mở vùng bán tạm thời trên dải trên (S.sellOpen) và nói
   // cách gỡ — bán một món rồi lấy lại phần thưởng (FLOW-9).
-  var REWARD_SCREENS = { loot: 1, chest: 1, levelUp: 1, event: 1, fates: 1 };
+  var REWARD_SCREENS = { loot: 1, chest: 1, levelUp: 1, event: 1, fates: 1, enchantPick: 1 };
   U.reject = function (reason, cmd) {
     reason = reason || '';
     var why = (/\((\w+)\)\s*$/.exec(reason) || [])[1] || '';
@@ -245,6 +247,7 @@
     else if (/not eligible/.test(reason)) { U.sfx('ui.noSpace'); U.toast('Món này không hợp với bệ', 1800); }
     else if (/locked or occupied/.test(reason)) { U.sfx('ui.noSpace'); U.toast('Không đặt vừa chỗ này', 1600); }
     else if (/no rerolls/.test(reason)) { U.sfx('ui.noGold'); U.toast('Hết lượt đổi hàng'); }
+    else if (/after taking/.test(reason)) { U.sfx('ui.noGold'); U.toast('Đã lấy thẻ, không đổi được nữa', 1800); }
     else U.sfx('ui.noSpace');
   };
   var toastT = null;

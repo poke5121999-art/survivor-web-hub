@@ -22,11 +22,39 @@
   };
 
   // Pha loot: chọn miễn phí trong `picks`; take = số được lấy (1, hoặc tất cả nếu CanSelectMultiple)
-  R.enterLoot = function (ctx, picks, take, after, source) {
+  // opts (tuỳ chọn) cho thầy có RerollRules: {rr: RerollRules, filter, n, tierMode} → pha mang rerolls / rerollCost / rerollStep / rerollMax
+  // (cùng tên với pha thương nhân), `dealt` = id đã bày (không chia lại), `redeal` = bộ lọc để chia lại. [RUN-05]
+  R.enterLoot = function (ctx, picks, take, after, source, opts) {
     if (!picks.length) { R.finish(ctx, after); return; }
-    ctx.run.phase = { kind: 'loot', source: source || null, picks: picks.map(function (c) { return { card: c }; }),
-      take: take || 1, taken: 0, after: after || 'endHour' };
+    var ph = { kind: 'loot', source: source || null, picks: picks.map(function (c) { return { card: c }; }),
+      take: take || 1, taken: 0, after: after || 'endHour', rerolls: 0, rerollCost: 0, rerollStep: 0, rerollMax: null };
+    var rr = opts && opts.rr;
+    if (rr && rr.TotalAllowedRerolls) {
+      ph.rerolls = rr.TotalAllowedRerolls; ph.rerollCost = rr.StartingCost || 0; ph.rerollStep = rr.CostIncrease || 0;
+      ph.rerollMax = rr.CostMax != null ? rr.CostMax : null;
+      ph.dealt = picks.map(function (c) { return c.id; });
+      ph.redeal = { filter: opts.filter, n: opts.n, tierMode: opts.tierMode };
+    }
+    ctx.run.phase = ph;
     R.emit(ctx, { type: 'loot', n: picks.length });
+  };
+  // reroll: chia lại bằng cùng bộ lọc, loại các thẻ đã bày, trừ vàng [RUN-05]
+  R.lootReroll = function (ctx) {
+    var run = ctx.run, ph = run.phase;
+    if (!ph.redeal || ph.rerolls <= 0) return 'no rerolls left';
+    if (ph.taken > 0) return 'cannot reroll after taking a card';
+    if (run.gold < ph.rerollCost) return 'not enough gold for reroll (' + run.gold + ' < ' + ph.rerollCost + ')';
+    var ex = {}; ph.dealt.forEach(function (id) { ex[id] = 1; });
+    var cards = R.deal(run, ph.redeal.filter, ph.redeal.n, { tierMode: ph.redeal.tierMode, exclude: ex });
+    if (!cards.length) return 'no other cards to deal';
+    R.gold(ctx, -ph.rerollCost, 'reroll');
+    ph.rerolls--;
+    ph.picks = cards.map(function (c) { return { card: c }; });
+    ph.dealt = ph.dealt.concat(cards.map(function (c) { return c.id; }));
+    ph.rerollCost = ph.rerollCost + ph.rerollStep;
+    if (ph.rerollMax != null) ph.rerollCost = Math.min(ph.rerollMax, ph.rerollCost);
+    R.emit(ctx, { type: 'reroll' });
+    R.log(ctx, { t: 'reroll', source: ph.source });
   };
   R.lootChoose = function (ctx, cmd) {
     var ph = ctx.run.phase, p = ph.picks[cmd.i];
@@ -74,10 +102,52 @@
     return hit;
   }
 
+  // ---------- lựa chọn có điều kiện "(if you have a X)" / "(if you are Hero)" [RUN-03] ----------
+  // SelectionRequirements bị xoá khỏi DB: điều kiện nằm ở đầu mô tả. have → thẻ trên tay + kho khớp TÊN hoặc TAG; are → hero.
+  var COND_RE = /^\(if you (have|are) (?:an? )?(.+?)\)/i;
+  St.conditionOf = function (e) {
+    var m = COND_RE.exec((e && e.Desc) || '');
+    return m ? { kind: m[1].toLowerCase(), terms: m[2].split(/\s*,\s*|\s+or\s+/i).map(function (t) { return t.replace(/^(an?|the)\s+/i, '').trim(); }).filter(Boolean) } : null;
+  };
+  function hasTerm(run, term) {
+    var t = term.toLowerCase();
+    return run.board.hand.concat(run.board.stash).some(function (ci) {
+      var tp = R.tpl(ci.id);
+      if (!tp) return false;
+      return R.title(tp).toLowerCase() === t || String(tp.InternalName || '').toLowerCase() === t
+        || (tp.Tags || []).concat(tp.HiddenTags || []).some(function (g) { return String(g).toLowerCase() === t; });
+    });
+  }
+  // null nếu đủ điều kiện (hoặc không có điều kiện); chuỗi mô tả thiếu gì nếu không
+  St.conditionMissing = function (run, e) {
+    var c = St.conditionOf(e);
+    if (!c) return null;
+    var ok = c.kind === 'are' ? c.terms.some(function (h) { return h.toLowerCase() === String(run.hero).toLowerCase(); })
+      : c.terms.some(function (t) { return hasTerm(run, t); });
+    return ok ? null : (c.kind === 'are' ? 'hero is not ' : 'no ') + c.terms.join(' or ') + (c.kind === 'are' ? '' : ' in hand or stash');
+  };
+
+  // Bước đặc biệt theo tên (không đọc ra từ ability): [RUN-04] Fate's Crossroads = chọn địa điểm enchant ngẫu nhiên hoặc The Artist
+  var SPECIAL = {
+    "Fate's Crossroads": function (ctx, e, after) {
+      var run = ctx.run, taken = {}, K = R.LEVEL_SLOT_KINDS, out = [];
+      ['enchantRandom', 'artist'].forEach(function (k) {
+        var c = K[k](run, null, taken);
+        if (!c) return;
+        taken[c.rec.Id] = 1;
+        out.push({ kind: 'pedestal', id: c.rec.Id, name: c.rec.Title || c.rec.InternalName, desc: R.encText(run, c.rec, c.rec.Desc || ''), tier: c.rec.StartingTier, slot: k });
+      });
+      if (!out.length) return false;
+      run.phase = { kind: 'event', eventId: null, stepId: e.Id, name: e.Title || e.InternalName, desc: R.encText(run, e, e.Desc || ''), choices: out, canExit: false, after: after };
+      return true;
+    }
+  };
+
   // Chọn một bước / sự kiện tức thì: XP khi chọn (ExperienceAwardUponSelection), ability, rồi loot hoặc kết thúc
   St.resolve = function (ctx, e, after) {
     R.gainXp(ctx, e.Xp || 0, 'select');
     R.log(ctx, { t: 'step', id: e.Id, name: e.InternalName });
+    if (SPECIAL[e.InternalName] && SPECIAL[e.InternalName](ctx, e, after)) return;
     var res = St.runAbilities(ctx, e);
     if (!res.ran && !textReward(ctx, e.Desc)) R.genericReward(ctx, 'gold');
     if (ctx.run.phase.kind === 'end') return;

@@ -12,6 +12,17 @@
   var HINT = 'Kéo hàng xuống để mua · kéo đồ lên đây để bán';
 
   function voKey(name) { return 'vo.merchant.' + String(name || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
+  // Lời của thương nhân (W-05): khoá theo tên tệp âm của chính thẻ gặp gỡ (BZ_AUDIO_CARDS[id].voice → BZ_AUDIO_VOICE[<Tên>AudioSO][loại]),
+  // không có thì khoá theo tên gọi; loại: enter | idle | multiclick | reroll | buyitem | sellitem | sellsized | exit | buyexit.
+  // Thử lần lượt từng loại trong `kinds`; thương nhân không có lời đó thì im (không báo lỗi).
+  U.merchantVoice = function (ph, kinds, o) {
+    var AC = root.BZ_AUDIO_CARDS || {}, AV = root.BZ_AUDIO_VOICE || {}, so = AC[ph.merchantId] && AC[ph.merchantId].voice, tab = (so && AV[so]) || {};
+    if (typeof kinds === 'string') kinds = [kinds];
+    for (var i = 0; i < kinds.length; i++) if (U.sfx(tab[kinds[i]] || (voKey(ph.name) + '.' + kinds[i]), o || { gap: 2000 })) return kinds[i];
+    return null;
+  };
+  // nhắc khi để yên lâu: [ĐỀ XUẤT] 20 s không bấm gì thì nói một câu "idle", rồi đếm lại (bản gốc không đo được khoảng này)
+  U.MERCHANT_IDLE_MS = 20000;
   function stockList(run) {
     var ph = run.phase, seen = {};
     return ph.stock.map(function (s, i) {
@@ -24,45 +35,70 @@
   U.SCREENS.merchant = {
     enter: function (run, prev) {
       var ph = run.phase;
-      U.top.base(run, { hero: true, sides: true, board: true, lane: 'merchant' });
+      // bản gốc: không có bảng tên; hai nút tròn đứng sát hai bên chân dung (trái = đổi hàng, phải = rời đi), tên + mô tả hiện khi rê chuột (UI-04)
+      U.top.base(run, { hero: true, sides: false, board: true, lane: 'merchant' });
       var e = root.BZ_ENCOUNTERS.events[ph.merchantId] || {};
       side = U.top.portrait(ph.name, e.StartingTier || 'Bronze', U.top.artOf({ type: 'merchant', id: ph.merchantId }),
-        U.top.nameBlock('Thương nhân', ph.name, ph.desc));
-      var r = side.r;
-      var rb = U.el('div', 'rs-merchant-ctl', r);
-      var rr = U.button(rb, 'rs-reroll', '<i class="ic"></i><span class="tag"><i></i><b></b></span><small></small>', 'Đổi hàng (R)', function () {
-        // hết lượt / thiếu vàng: nút vẫn nhận bấm để nói lý do (INTERACT-22)
-        if (rr.classList.contains('off')) { var p = U.state.run.phase; U.reject(p.rerolls > 0 ? 'not enough gold' : 'no rerolls'); return; }
-        // clip reroll: chớp vàng 200 ms, lấp lánh xanh 500 ms, rồi hàng mới bật ra 500 ms (~1,3 s)
-        U.cards.dealDelay = 500; var r0 = U.dispatch({ t: 'reroll' }); U.cards.dealDelay = 0;
-        if (r0.ok) { var b = rr.querySelector('.ic'); b.classList.remove('spin'); void b.offsetWidth; b.classList.add('spin'); U.transitions.sparkle(); }
+        U.top.nameBlock('Thương nhân', ph.name, ph.desc)); // panel tên ẩn (sides:false) nhưng còn trong DOM cho đọc màn hình / kiểm thử
+      // màn nhỏ (điện thoại, không có rê chuột): hai ô bên hiện lại làm chỗ ghi tên + nút chữ "Rời đi" (css .rs-small, MOBILE-8/9); màn lớn ẩn
+      U.bigButton(side.r, 'brown', 'Rời đi', 'Rời thương nhân (sang giờ kế)', function () { U.dispatch({ t: 'leave' }); }).classList.add('leave');
+      var ctl = U.el('div', 'rs-merchant-ctl', U.top.layer());
+      var who = U.el('div', 'rs-who', ctl);
+      who.addEventListener('pointerenter', function (ev) { if (ev.pointerType !== 'touch') U.panelTip({ x: 855, y: 62, w: 210, h: 190 }, U.esc(ph.name), U.esc(ph.desc || '')); });
+      who.addEventListener('pointerleave', function () { U.panelTip(null); });
+      var rr = U.top.rerollButton(ctl, {
+        tip: function () { var p = U.state.run.phase; return 'Đổi hàng của thương nhân này.' + (p.rerolls > 0 ? '<br><span class="o">Còn ' + p.rerolls + ' lượt</span>' : '<br><span class="o">Hết lượt đổi</span>'); },
+        act: function () {
+          // clip reroll: chớp vàng 200 ms, lấp lánh xanh 500 ms, rồi hàng mới bật ra 500 ms (~1,3 s)
+          U.cards.dealDelay = 500; var r0 = U.dispatch({ t: 'reroll' }); U.cards.dealDelay = 0;
+          if (r0.ok) { var b = rr.querySelector('.ic'); b.classList.remove('spin'); void b.offsetWidth; b.classList.add('spin'); U.transitions.sparkle(); }
+        }
       });
-      rr.querySelector('.ic').style.backgroundImage = U.bg('art/ui/ui_sprite_atlas/Btn_Reroll_Active_TUI.webp');
-      rr.querySelector('.tag').style.backgroundImage = U.bg('art/ui/ui_sprite_atlas/Container_PriceTagReroll_TUI.webp');
-      rr.querySelector('.tag i').style.backgroundImage = U.bg(U.ICON.coin);
-      U.bigButton(rb, 'brown', 'Rời đi', 'Rời thương nhân (sang giờ kế)', function () { U.dispatch({ t: 'leave' }); }).classList.add('leave');
+      var ex = U.button(ctl, 'rs-rnd rs-exit leave', '<i class="ic"></i>', 'Rời thương nhân (sang giờ kế)', function () { U.panelTip(null); U.dispatch({ t: 'leave' }); });
+      ex.querySelector('.ic').style.backgroundImage = U.bg('art/ui/ui_sprite_atlas/Frame_Pointer_Arrow_TUI.webp');
+      U.top.tipOn(ex, 'Rời đi', 'Rời thương nhân, sang giờ kế tiếp.');
       this._rr = rr;
+      // lời thương nhân: bấm liên tiếp ≥ 3 lần lên chân dung → multiclick; để yên lâu → idle
+      var self = this, clicks = [];
+      this._bought = false;
+      who.addEventListener('click', function () {
+        var t = U.now(); clicks.push(t); clicks = clicks.filter(function (x) { return t - x < 1500; });
+        if (clicks.length >= 3) { clicks = []; U.merchantVoice(U.state.run.phase, 'multiclick', { gap: 4000 }); }
+      });
+      function armIdle() {
+        clearTimeout(self._idleT);
+        self._idleT = setTimeout(function () { if (U.state.screen === 'merchant' && !U.confirmBox) U.merchantVoice(U.state.run.phase, 'idle', { gap: 4000 }); armIdle(); }, U.MERCHANT_IDLE_MS);
+      }
+      this._armIdle = armIdle; armIdle();
       // sau viền vàng + lấp lánh xanh, hàng bật ra (clip merchant-enter: tổng ~2,6 s)
-      if (prev) { U.cards.dealDelay = 900; setTimeout(function () { U.cards.dealDelay = 0; }, 0); U.transitions.portal(); U.sfx(voKey(ph.name) + '.enter', { gap: 2000 }) || U.sfx(voKey(ph.name) + '.idle', { gap: 2000 }); U.sfx('trans.boardIn', { vol: 0.6 }); }
-      U.top.layer().appendChild(U.el('div', 'rs-hint', null, HINT));
+      if (prev) { U.cards.dealDelay = 900; setTimeout(function () { U.cards.dealDelay = 0; }, 0); U.transitions.portal(); U.merchantVoice(ph, ['enter', 'idle']); U.sfx('trans.boardIn', { vol: 0.6 }); }
+      var hn = U.el('div', 'rs-hint', null, HINT);
+      try { var seen = +root.localStorage.getItem('bz.hint.merchant') || 0; root.localStorage.setItem('bz.hint.merchant', String(seen + 1)); if (seen >= 3) hn.classList.add('quiet'); } catch (e) { /* không lưu được: cứ hiện */ }
+      U.top.layer().appendChild(hn);
     },
     render: function (run) {
       var ph = run.phase;
       U.cards.render(run);
       U.cards.setTop(stockList(run));
       var rr = this._rr; if (!rr) return;
-      var can = ph.rerolls > 0, off = !can || run.gold < ph.rerollCost;
-      rr.classList.toggle('off', off); rr.setAttribute('aria-disabled', off ? 'true' : 'false');
-      rr.classList.toggle('none', !can);
-      rr.querySelector('.ic').style.backgroundImage = U.bg('art/ui/ui_sprite_atlas/' + (off ? 'Btn_Reroll_Disabled_TUI.webp' : 'Btn_Reroll_Active_TUI.webp'));
-      rr.querySelector('.tag b').textContent = ph.rerollCost;
-      rr.querySelector('small').textContent = can ? 'Đổi hàng · còn ' + ph.rerolls + ' lượt' : 'Không đổi hàng';
-      rr.querySelector('.ic').dataset.left = '×' + ph.rerolls; // màn nhỏ: số lượt còn hiện thành huy hiệu trên nút (css .rs-small)
+      U.top.rerollSync(rr, ph, run);
       // gợi ý theo hàng hiện có: đổi hàng xong có hàng lại thì về câu "kéo để mua" (FLOW-5)
       var h = U.top.layer().querySelector('.rs-hint');
-      if (h) h.textContent = ph.stock.length ? HINT : 'Hết hàng · bấm "Rời đi" để sang giờ kế';
+      if (h) { h.textContent = ph.stock.length ? HINT : 'Hết hàng · bấm "Rời đi" để sang giờ kế'; if (!ph.stock.length) h.classList.remove('quiet'); }
     },
-    exit: function () { this._rr = null; U.top.clear(); },
+    exit: function () { this._rr = null; clearTimeout(this._idleT); U.top.clear(); },
+    // lệnh vừa được nhận (trước khi đổi màn): lời thương nhân theo việc người chơi làm (W-05)
+    onCommand: function (cmd, ev, prev) {
+      var ph = prev.phase;
+      if (this._armIdle) this._armIdle();
+      if (cmd.t === 'buy') { this._bought = true; U.merchantVoice(ph, 'buyitem', { gap: 1500 }); }
+      else if (cmd.t === 'sell') {
+        var c = R().findCard(prev, cmd.uid), sz = c && (R().SIZE[(R().tpl(c.id) || {}).Size] || 1);
+        U.merchantVoice(ph, sz > 1 ? ['sellsized', 'sellitem'] : 'sellitem', { gap: 1500 });
+      }
+      else if (cmd.t === 'reroll') U.merchantVoice(ph, 'reroll', { gap: 1500 });
+      else if (cmd.t === 'leave') U.merchantVoice(ph, this._bought ? ['buyexit', 'exit'] : 'exit', { gap: 1500 });
+    },
     canDrag: function (el) { return el._rs.kind === 'own' || el._rs.kind === 'stock'; },
     onCardClick: function (el, touch) {
       if (el._rs.kind !== 'stock') return false;

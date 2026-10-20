@@ -11,7 +11,15 @@
   var T = function () { return R.TUNING; };
 
   // Thẻ mẫu / gỡ lỗi / vé thám hiểm không bao giờ được chia
-  var JUNK = /^\[|TEMPLATE|DEBUG|Debug|effectdata|Test Subject|Art Test/;
+  var JUNK_RE = /^\[|TEMPLATE|DEBUG|Debug|effectdata|Test Subject|Art Test/;
+  // cộng thẻ ẩn vì không có art (TUNING.HIDDEN_CARDS)
+  var hiddenSet = null;
+  var JUNK = { test: function (name) {
+    if (JUNK_RE.test(name)) return true;
+    if (!hiddenSet) { hiddenSet = {}; (T().HIDDEN_CARDS || []).forEach(function (h) { hiddenSet[h.name] = 1; }); }
+    return !!hiddenSet[name];
+  } };
+  R.isJunk = function (tpl) { return !!tpl && JUNK.test(tpl.InternalName || ''); };
   var HEROES = ['Vanessa', 'Pygmalien', 'Dooley', 'Mak', 'Stelle', 'Jules', 'Karnok'];
   R.heroData = function (hero) { var H = root.BZ_HEROES; return (H && H.heroes && H.heroes[hero]) || null; };
   // Hero chơi được: BZ_HEROES.heroes[h].playable nếu có data/heroes.js (tools/data.py),
@@ -193,6 +201,12 @@
     return exact ? st === ti : st <= ti;
   }
   R.ownedSkill = function (run, id) { return run.board.skills.some(function (c) { return c.id === id; }); };
+  // RUN-07: kỹ năng sở hữu còn nhập được (cùng id + cùng bậc, bậc < Diamond, còn bậc kế) — SkillCard.CanFuseWith (Domain.Models.Cards/SkillCard.cs:8)
+  R.skillFusable = function (c) {
+    var tpl = R.tpl(c.id);
+    return !!tpl && R.tierIndex(c.tier) < 3 && !!root.BZSim.nextTier(tpl, c.tier);
+  };
+  R.ownedSkillInst = function (run, id) { return run.board.skills.filter(function (c) { return c.id === id; })[0] || null; };
   R.ownedTier = function (run, id) {
     var best = null;
     run.board.hand.concat(run.board.stash).forEach(function (c) { if (c.id === id && (!best || R.tierIndex(c.tier) > R.tierIndex(best))) best = c.tier; });
@@ -229,7 +243,7 @@
       kinds.forEach(function (kd) {
         R.pool(kd).forEach(function (id) {
           if (ex[id]) return;
-          if (kd === 'skill' && !opts.allowOwnedSkills && R.ownedSkill(run, id)) return;
+          if (kd === 'skill' && !opts.allowOwnedSkills) { var os = R.ownedSkillInst(run, id); if (os && !R.skillFusable(os)) return; }
           if (R.matchTpl(R.tpl(id), relax[r], run)) list.push(id);
         });
       });
@@ -241,6 +255,12 @@
         : (opts.tierMode === 'band' ? R.bandTier(run) : R.rollTier(run));
       var exact = !(f.tiers && f.tiers.length) && R.rand(run) < T().NATIVE_TIER_PROB;
       var cands = [];
+      // CONTENT-05: thầy dạy chia kỹ năng theo dải bậc nên kỹ năng khởi đầu Kim cương không bao giờ ra; thỉnh thoảng chia mọi kỹ năng
+      // khớp bộ lọc ở đúng bậc khởi đầu của nó [ĐỀ XUẤT]. Bộ lọc khoá bậc (Pip/Argenta/Orlin/Adira) giữ nguyên.
+      if (f.kind === 'skill' && opts.tierMode === 'band' && !(f.tiers && f.tiers.length) && T().SKILL_ORPHAN_FALLBACK && R.rand(run) < T().SKILL_ANY_CHANCE) {
+        var anyL = matchedAt(0).filter(function (id) { return !used[id]; });
+        if (anyL.length) { var aid = anyL[R.randInt(run, anyL.length)]; cands.push({ id: aid, tier: R.tpl(aid).StartingTier || 'Bronze' }); }
+      }
       for (var r = 0; r < relax.length && !cands.length; r++) {
         var list = matchedAt(r);
         // bậc: thử bậc gieo, rồi đi xuống, rồi đi lên (RollEncounterTierAndFilter đi tiếp các bậc khi rỗng)
@@ -260,7 +280,8 @@
       if (!cands.length) break;
       var pickc = cands[R.randInt(run, cands.length)], tpl = R.tpl(pickc.id);
       if (!(f.names && f.names.length)) used[pickc.id] = 1; // tên cụ thể ("Get 3 Chocolate Bars"): được trùng
-      var owned = R.ownedTier(run, pickc.id);
+      var ownedSk = R.isSkill(tpl) ? R.ownedSkillInst(run, pickc.id) : null; // kỹ năng đã có: chia đúng bậc bản đó để nhập
+      var owned = ownedSk ? ownedSk.tier : R.ownedTier(run, pickc.id);
       var dealt = owned && R.tierIndex(owned) < 3 && tpl.Tiers[owned] ? owned : pickc.tier; // TierDuplicateCardHandling
       out.push({ id: pickc.id, tier: dealt, ench: f.enchanted ? randomEnchant(run, tpl) : null });
     }

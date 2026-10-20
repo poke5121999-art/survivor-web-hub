@@ -32,8 +32,9 @@
         f.names.forEach(function (nm) { cards = cards.concat(R.deal(run, Object.assign({}, f, { names: [nm] }), 1, { tierMode: 'band' })); });
         R.enterLoot(ctx, cards, e.Rules && e.Rules.CanSelectMultiple ? cards.length : 1, after, e.Id);
       } else {
-        var picks = R.deal(run, f, n, { tierMode: f.kind === 'skill' ? 'band' : 'day' });
-        R.enterLoot(ctx, picks, e.Rules && e.Rules.CanSelectMultiple ? picks.length : 1, after, e.Id);
+        var tm = f.kind === 'skill' ? 'band' : 'day', picks = R.deal(run, f, n, { tierMode: tm });
+        R.enterLoot(ctx, picks, e.Rules && e.Rules.CanSelectMultiple ? picks.length : 1, after, e.Id,
+          { rr: e.Rules && e.Rules.RerollRules, filter: f, n: n, tierMode: tm }); // thầy kỹ năng: reroll theo RerollRules [RUN-05]
       }
       R.log(ctx, { t: 'event', id: e.Id, name: e.InternalName });
       return;
@@ -71,7 +72,12 @@
 
   // Lựa chọn trỏ tới bước / sự kiện con / trận (encounters.js Options, Then)
   function recOf(o) { var E = R.enc(); return o.t === 'step' ? E.steps[o.id] : o.t === 'combat' ? E.combats[o.id] : E.events[o.id]; }
-  Ev.optionOk = function (o, run) { var x = recOf(o); return !!x && (o.t === 'combat' || heroOk(x, run)); };
+  Ev.optionOk = function (o, run) {
+    var x = recOf(o);
+    if (!x) return false;
+    if (o.t === 'combat') return true;
+    return heroOk(x, run) && (o.t !== 'step' || !R.ENCOUNTERS.step.conditionMissing(run, x)); // "(if you have a Food)": ẩn khi thiếu [RUN-03]
+  };
   Ev.optionChoice = function (o, run) {
     var x = recOf(o);
     return { kind: o.t, id: o.id, name: x.Title || x.InternalName, desc: run ? R.encText(run, x, x.Desc || '') : (x.Desc || '') };
@@ -126,7 +132,12 @@
       R.finish(ctx, ph.after);
       return;
     }
-    if (c.kind === 'step') { R.ENCOUNTERS.step.resolve(ctx, R.enc().steps[c.id], ph.after); return; }
+    if (c.kind === 'step') {
+      var miss = R.ENCOUNTERS.step.conditionMissing(run, R.enc().steps[c.id]);
+      if (miss) return 'step condition not met: ' + miss;
+      R.ENCOUNTERS.step.resolve(ctx, R.enc().steps[c.id], ph.after); return;
+    }
+    if (c.kind === 'pedestal') { R.log(ctx, { t: 'eventPick', id: c.id }); R.ENCOUNTERS.pedestal.enter(ctx, { id: c.id }, ph.after); return; }
     if (c.kind === 'event') { R.log(ctx, { t: 'eventPick', id: c.id }); Ev.enter(ctx, { id: c.id }, ph.after); return; }
     if (c.kind === 'combat') { R.ENCOUNTERS.combat.enter(ctx, { id: c.id }, ph.after); return; }
     if (c.kind === 'generic') { R.genericReward(ctx, c.key); R.finish(ctx, ph.after); return; }

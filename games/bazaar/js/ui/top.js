@@ -46,6 +46,34 @@
     if (run && run.hero) { U.hud.mountHero(run); U.hud.update(run); U.cards.render(run); U.music(T.boardTrack(run)); }
     if (U.menu) U.menu.gear(true);
   };
+  // tooltip hai tầng cho một nút (rê chuột; chạm không mở)
+  T.tipOn = function (btn, title, body) {
+    btn.addEventListener('pointerenter', function (ev) { if (ev.pointerType === 'touch') return; var b = btn.getBoundingClientRect(), p0 = V().toStage(b.left, b.top);
+      U.panelTip({ x: p0.x, y: p0.y, w: b.width / V().scale, h: b.height / V().scale }, U.esc(title), typeof body === 'function' ? body() : U.esc(body)); });
+    btn.addEventListener('pointerleave', function () { U.panelTip(null); });
+  };
+  // nút tròn đổi hàng + thẻ giá Container_PriceTagReroll: dùng chung cho thương nhân và pha loot có RerollRules (W-02).
+  // o = {title, tip: function () → html, act: function (rr)}; hết lượt / thiếu vàng / đã lấy thẻ: vẫn nhận bấm để nói lý do (INTERACT-22)
+  T.rerollButton = function (parent, o) {
+    var rr = U.button(parent, 'rs-rnd rs-reroll', '<i class="ic"></i><span class="tag"><i></i><b></b></span>', o.title || 'Đổi hàng (R)', function () {
+      if (rr.classList.contains('off')) { U.reject(rr._why || 'no rerolls'); return; }
+      o.act(rr);
+    });
+    rr.querySelector('.tag').style.backgroundImage = U.bg('art/ui/ui_sprite_atlas/Container_PriceTagReroll_TUI.webp');
+    rr.querySelector('.tag i').style.backgroundImage = U.bg(U.ICON.coin);
+    T.tipOn(rr, 'Đổi hàng', o.tip);
+    return rr;
+  };
+  // đồng bộ nút theo pha (rerolls, rerollCost); lock = lý do khoá thêm (loot: đã lấy thẻ thì không đổi nữa)
+  T.rerollSync = function (rr, ph, run, lock) {
+    var can = ph.rerolls > 0, off = !can || !!lock || run.gold < ph.rerollCost;
+    rr._why = lock || (can ? 'not enough gold' : 'no rerolls');
+    rr.classList.toggle('off', off); rr.setAttribute('aria-disabled', off ? 'true' : 'false');
+    rr.classList.toggle('none', !can);
+    rr.classList.toggle('dis', off);
+    rr.querySelector('.tag b').textContent = ph.rerollCost;
+    rr.querySelector('.ic').dataset.left = '×' + ph.rerolls; // màn nhỏ: số lượt còn hiện thành huy hiệu trên nút (css .rs-small)
+  };
   // nút lớn kiểu gốc (Btn_Rct_*): màu 'brown' | 'blue' | 'yellow' | 'red' | 'purple'
   U.bigButton = function (parent, color, label, title, fn) {
     var b = U.button(parent, 'rs-big c-' + color, '<span>' + label + '</span>', title, fn);
@@ -53,11 +81,13 @@
   };
 
   // ảnh của một tham chiếu gặp gỡ {type, id}
+  T.FATE_ART = { bounty: 'art/ui/rewards/Reward_PileOfCoins_D.webp', crossroads: 'art/ui/rewards/Reward_DoorObsidian_D.webp',
+    legacy: 'art/ui/rewards/Reward_Rewind_D.webp', fortunes: 'art/ui/rewards/Reward_Dice_D.webp' };
   T.artOf = function (r) {
     if (r.type === 'step') return { bg: U.art(r.id), char: null };
     if (r.card) return { bg: U.art(r.card.id), char: null }; // Số phận "Golden Gift", lựa chọn kèm thẻ
-    // Số phận: nội dung gốc bị xoá khỏi bản demo → ảnh phần thưởng gần nghĩa [ĐỀ XUẤT]
-    if (r.type === 'fate') return { bg: { legacy: 'art/ui/rewards/Reward_Rewind_D.webp', vitality: 'art/ui/rewards/Reward_SmallBuff_D.webp', income: U.ICON.coins }[r.id] || U.ICON.chest, char: null };
+    // Số phận: bốn bước thật đều mang ArtKey Reward_Mind_D, nên mỗi id lấy ảnh phần thưởng gần nghĩa riêng [ĐỀ XUẤT: để người chơi phân biệt được]
+    if (r.type === 'fate') return { bg: T.FATE_ART[r.id] || U.art(r.stepId) || U.ICON.chest, char: null };
     if (r.type === 'combat') return { bg: U.art(r.id + '_bg'), char: U.art(r.id + '_char') };
     return { bg: U.art(r.id + '_bg'), char: U.art(r.id + '_char') };
   };
@@ -86,6 +116,9 @@
     levelup: '<svg viewBox="0 0 48 48"><path d="M24 6l14 16h-8v18H18V22h-8z" fill="#e6fbff" stroke="#0b3a55" stroke-width="2.5"/></svg>'
   };
   T.ICONS = ICONS;
+  // Huy hiệu dưới khung: sprite gốc Encounter_Banner_<loại>_P (data2 bóc vào art/ui, khoá cùng tên trong BZ_ART.map); chưa có thì dùng SVG ở trên (W-06)
+  var BANNER = { merchant: 'Merchant', combat: 'Monster', event: 'Quest', pedestal: 'Quest', skill: 'Skill' };
+  T.bannerSprite = function (pt) { var k = BANNER[pt]; return k ? U.art('ui:Encounter_Banner_' + k + '_P') || U.art('Encounter_Banner_' + k + '_P') : null; };
   T.pennantType = function (r) { return r.type === 'combat' ? 'combat' : r.type === 'merchant' ? 'merchant' : r.type === 'pedestal' ? 'pedestal' : 'event'; };
   // map(title): nền giấy bản đồ phủ vùng trên
   T.map = function (title, sub) {
@@ -126,7 +159,11 @@
       U.el('i', 'gem', fr);
       var pt = opts.pennant ? opts.pennant(o) : T.pennantType(o);
       var pn = U.el('div', 'pennant p-' + pt, box, ICONS[pt] || ICONS.event); pn.style.top = (H - 8) + 'px'; box.classList.add('k-' + pt);
+      var spr = T.bannerSprite(pt);
+      if (spr) { pn.classList.add('spr'); pn.innerHTML = ''; pn.style.backgroundImage = U.bg(spr); } // url inline: tính theo trang, không theo css/
       U.el('div', 'nm', box, U.esc(o.name));
+      var lbl = opts.label ? opts.label(o, i) : '';
+      if (lbl) U.el('div', 'lbl', box, U.esc(lbl));
       // bảng giải thích đặt ngoài hàng khung (bên trái khung đầu / bên phải khung cuối) để không che khung bên cạnh (MOBILE-25);
       // màn lên cấp: tiêu đề bảng là nhãn chung, không lặp tên đã hiện trên khung (FLOW-25)
       function tip(extra) {

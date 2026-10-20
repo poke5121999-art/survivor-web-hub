@@ -426,8 +426,11 @@
   var HAS_AMMO = { $type: 'TCardConditionalAttribute', Attribute: 'Ammo', ComparisonOperator: 'GreaterThan', ComparisonValue: 0 };
   var USES_AMMO = { $type: 'TCardConditionalAttribute', Attribute: 'AmmoMax', ComparisonOperator: 'GreaterThan', ComparisonValue: 0 };
   var NOT_AMMO = { $type: 'TCardConditionalAttribute', Attribute: 'AmmoMax', ComparisonOperator: 'Equal', ComparisonValue: 0 };
+  function unaffected(n) { return { $type: 'TCardConditionalAnd', Conditions: [HAS_CD, { $type: 'TCardConditionalAttribute', Attribute: n, ComparisonOperator: 'Equal', ComparisonValue: { $type: 'TFixedValue', Value: 0 } }] }; }
   BZ.PRIO = {
     Status: [HAS_CD, NO_CD],
+    // COMBAT-05 (wiki /Haste, /Slow): món chưa dính trạng thái đó và có cooldown trước; hết món mới chồng lên
+    Haste: [unaffected('Haste'), HAS_CD, NO_CD], Slow: [unaffected('Slow'), HAS_CD, NO_CD], Freeze: [unaffected('Freeze'), HAS_CD, NO_CD],
     Charge: [{ $type: 'TCardConditionalAnd', Conditions: [HAS_CD, { $type: 'TCardConditionalOr', Conditions: [NOT_AMMO, { $type: 'TCardConditionalAnd', Conditions: [HAS_AMMO, USES_AMMO] }] }] }, HAS_CD],
     ForceUse: [{ $type: 'TCardConditionalAttribute', Attribute: 'Freeze', ComparisonOperator: 'LessThanOrEqual', ComparisonValue: 0 }],
     Reload: [{ $type: 'TCardConditionalAttribute', Attribute: 'Ammo', ComparisonOperator: 'LessThan', ComparisonValue: { $type: 'TReferenceValueCardAttribute', AttributeType: 'AmmoMax' } }],

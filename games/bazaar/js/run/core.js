@@ -230,10 +230,16 @@
     run.board[section].push(ci);
     run.board[section].sort(function (a, b) { return a.socket - b.socket; });
   };
-  // Bản sở hữu cùng id + cùng bậc, bậc < Diamond và còn bậc kế → nhập (fuse) thay vì chiếm ô (Dealer:3184-3211)
+  // Vật phẩm: bản sở hữu cùng id + cùng bậc, bậc < Diamond và còn bậc kế → nhập (fuse) thay vì chiếm ô (Dealer:3184-3211).
+  // Kỹ năng: bản đang có cùng bậc và còn nhập được (SkillCard.CanFuseWith). ownedSkillInst/skillFusable ở pool.js, gọi lúc chạy.
   R.fuseTarget = function (run, id, tier) {
     var tpl = R.tpl(id);
-    if (!tpl || R.isSkill(tpl) || R.tierIndex(tier) >= 3 || !BZ().nextTier(tpl, tier)) return null;
+    if (!tpl) return null;
+    if (R.isSkill(tpl)) {
+      var sk = R.ownedSkillInst(run, id);
+      return sk && sk.tier === tier && R.skillFusable(sk) ? sk : null;
+    }
+    if (R.tierIndex(tier) >= 3 || !BZ().nextTier(tpl, tier)) return null;
     var all = run.board.hand.concat(run.board.stash);
     for (var i = 0; i < all.length; i++) if (all[i].id === id && all[i].tier === tier) return all[i];
     return null;

@@ -137,10 +137,11 @@
 
   // ---------- thẻ: trạng thái thời gian ----------
   function cardStatus(n, amountAttr, targetsAttr, redAttr, kind, evType) {
+    var prios = BZ.PRIO[n]; // COMBAT-05: món chưa dính trạng thái này (và có cooldown) trước
     return function (act, ctx) {
       var S = ctx.S, C = ctx.card, v = amount(act, ctx, amountAttr);
       if (v <= 0) return;
-      cards(act, ctx, targetsAttr, BZ.PRIO.Status).forEach(function (T) {
+      cards(act, ctx, targetsAttr, prios).forEach(function (T) {
         var pct = BZ.cattr(S, T, redAttr) || 0;
         var fly = (n !== 'Haste' && T.rt.Flying) ? 0.5 : 1; // tooltip Flying: Freeze/Slow chỉ còn một nửa
         var got = Math.round(v * Math.max(0, 1 - pct / 100) * fly);
@@ -274,18 +275,110 @@
       BZ.log(ctx.S, { type: 'enchant', src: uid(ctx.card), target: T.uid, from: from, to: null });
     });
   };
-  function transform(filter) { // SpawnContext (thẻ biến thành gì) bị máy chủ xoá → chỉ ghi sự kiện, thẻ giữ nguyên [ĐỀ XUẤT]
+  // ---------- Transform (COMBAT-01) ----------
+  // `SpawnContext` (thẻ biến thành gì) bị máy chủ xoá chỉ còn Limit (số bản), nên kết quả suy ra từ tooltip của từng thẻ [ĐỀ XUẤT]:
+  //  - fixed: một thẻ cố định theo tên (Abducted Cow → Jerky); Virus / Blender: id nằm ngay trong điều kiện đích `Id ≠ …` của chính ability
+  //  - pool: ngẫu nhiên (seed của trận) trong các món có thẻ / cỡ đó, "từ bất kỳ Hero" (Drone, Potion, Hacksaw "2 món Small")
+  //  - copy: chép thẻ khác — 'prereq' = đích của tiền đề đếm thẻ của chính ability (món bên trái / ngẫu nhiên Small...), 'trigger' = thẻ vừa bị phá (Grabinator)
+  // Thẻ chỉ chạy ngoài trận (bán, đầu ngày, gặp thương nhân: Catalyst, Echo Crystal, Distillery, Alembic...) không có luật: giữ nguyên, ghi xấp xỉ.
+  var TF_RULES = {
+    'Abducted Cow': { fixed: 'Jerky' },
+    'Drone Crusher': { pool: { tag: 'Drone', size: 'Small' } },
+    'Hacksaw': { pool: { size: 'Small' } },
+    'Recycling Bin': { pool: { tag: 'Potion', sameSize: true } },
+    'Potion Potion': { pool: { tag: 'Potion', size: 'Small' } },
+    'Grabinator': { copy: 'trigger' },
+    'Mirror': { copy: 'prereq' }, '3D Printer': { copy: 'prereq' }, 'Hologram Projector': { copy: 'prereq' }, 'Quicksilver': { copy: 'prereq' }
+  };
+  var tfIndex = null;
+  function tfCatalog() { // theo tên + danh sách món thường (bỏ thẻ [DEBUG], thẻ Legendary)
+    var all = root.BZ_CARDS;
+    if (tfIndex && tfIndex.src === all) return tfIndex;
+    var byName = {}, items = [];
+    for (var id in all) {
+      var t = all[id];
+      if (t.$type !== 'TCardItem' || /^\[/.test(t.InternalName || '')) continue;
+      if (!byName[t.InternalName]) byName[t.InternalName] = t;
+      if (t.StartingTier !== 'Legendary') items.push(t);
+    }
+    tfIndex = { src: all, byName: byName, items: items };
+    return tfIndex;
+  }
+  function excludedId(act) { // điều kiện đích `Id ≠ X`: X là kết quả cố định (Virus, Slushee)
+    var found = null;
+    (function walk(c) {
+      if (!c || found) return;
+      if (c.$type === 'TCardConditionalId' && c.IsNot && c.Id) found = c.Id;
+      (c.Conditions || []).forEach(walk);
+    })(act.Target && act.Target.Conditions);
+    return found;
+  }
+  function copySource(ctx, T, how) {
+    var S = ctx.S, arr;
+    if (how === 'trigger') arr = ctx.ev && ctx.ev.tcard ? [ctx.ev.tcard] : [];
+    else {
+      var pr = ((ctx.ability && ctx.ability.Prerequisites) || []).filter(function (p) { return p.$type === 'TPrerequisiteCardCount' && p.Subject; })[0];
+      arr = pr ? BZ.targets(pr.Subject, ctx) : [];
+    }
+    arr = arr.filter(function (x) { return x !== T && x.tier !== 'Legendary' && x.section === 'hand'; });
+    if (!arr.length) return null;
+    return arr.length > 1 ? arr[S.rng.int(arr.length)] : arr[0];
+  }
+  // Danh sách kết quả [{tpl, tier, ench, inst}] (độ dài = số bản), [] khi không có đích hợp lệ, null khi không có luật
+  function transformResults(act, ctx, T) {
+    var S = ctx.S, cat = tfCatalog(), rule = TF_RULES[ctx.card.tpl.InternalName], n = 1, out = [], i, t;
+    if (act.SpawnContext && act.SpawnContext.Limit) n = Math.max(1, Math.round(BZ.value(act.SpawnContext.Limit, ctx)));
+    var keep = function (tpl) { return { tpl: tpl, tier: BZ.fitTier(tpl, T.tier), ench: tpl.Enchantments && tpl.Enchantments[T.ench] ? T.ench : null, inst: null }; };
+    if (rule && rule.copy) {
+      var src = copySource(ctx, T, rule.copy);
+      if (!src) return [];
+      for (i = 0; i < n; i++) out.push({ tpl: src.tpl, tier: src.tier, ench: src.ench, inst: src.inst });
+      return out;
+    }
+    var fixed = rule && rule.fixed ? cat.byName[rule.fixed] : (rule ? null : (BZ.tpl(excludedId(act)) || null));
+    if (fixed) { for (i = 0; i < n; i++) out.push(keep(fixed)); return out; }
+    if (rule && rule.pool) {
+      var p = rule.pool, size = p.sameSize ? T.sizeName : p.size;
+      var pool = cat.items.filter(function (x) { return (!p.tag || (x.Tags || []).indexOf(p.tag) >= 0) && (!size || x.Size === size); });
+      if (!pool.length) return [];
+      for (i = 0; i < n; i++) { t = pool[S.rng.int(pool.length)]; out.push(keep(t)); }
+      return out;
+    }
+    return null;
+  }
+  function transform(filter, revive) {
     return function (act, ctx) {
-      BZ.noteApprox(act.$type);
+      var S = ctx.S, C = ctx.card;
       cards(act, ctx, 'TransformTargets', null, filter).forEach(function (T) {
-        if (T.tier === 'Legendary') return; // "Legendaries cannot be transformed"
-        BZ.log(ctx.S, { type: 'transform', src: uid(ctx.card), target: T.uid, into: null });
-        BZ.emit(ctx.S, 'TTriggerOnCardTransformed', { card: T, src: T, causer: ctx.card, side: T.owner });
+        if (T.tier === 'Legendary' || T.section !== 'hand') return; // "Legendaries cannot be transformed"
+        var res = transformResults(act, ctx, T);
+        if (res === null) { // không có luật cho thẻ này: chỉ ghi sự kiện, thẻ giữ nguyên
+          BZ.noteApprox(act.$type);
+          BZ.log(S, { type: 'transform', src: uid(C), target: T.uid, from: T.id, to: null, into: null });
+          BZ.emit(S, 'TTriggerOnCardTransformed', { card: T, src: T, causer: C, side: T.owner });
+          return;
+        }
+        if (!res.length) return; // không có nguồn để chép / không có đích hợp lệ
+        var s0 = T.socket, sz0 = T.size, cursor = s0, made = [];
+        for (var i = 0; i < res.length; i++) {
+          var r = res[i], sz = Math.min(BZ.SIZE[r.tpl.Size] || 1, sz0);
+          if (cursor + sz > s0 + sz0) break; // hết ô của thẻ gốc: bản thừa bị bỏ
+          var N, from = null;
+          if (i === 0) { from = BZ.swapCard(S, T, r.tpl, r.tier, r.ench, r.inst, sz); N = T; if (revive) { T.state = 'Alive'; S.dirty = true; } }
+          else N = BZ.spawnCard(S, T.owner, r.tpl, r.tier, r.ench, r.inst, cursor, sz);
+          if (!N) continue;
+          cursor += sz;
+          made.push({ N: N, from: from });
+        }
+        made.forEach(function (m) { // sự kiện cho hình ảnh: từ → sang (từ = null cho thẻ mới sinh), ô và cỡ để vẽ lại
+          BZ.log(S, { type: 'transform', src: uid(C), target: m.N.uid, from: m.from, to: m.N.id, into: m.N.id, tier: m.N.tier, ench: m.N.ench, socket: m.N.socket, size: m.N.size });
+        });
+        made.forEach(function (m) { BZ.emit(S, 'TTriggerOnCardTransformed', { card: m.N, src: m.N, causer: C, side: m.N.owner }); });
       });
     };
   }
   A.TActionCardTransform = transform(null);
-  A.TActionCardTransformDestroyed = transform(['Destroyed']);
+  A.TActionCardTransformDestroyed = transform(['Destroyed'], true);
   A.TActionCardAddTagsList = function (act, ctx) {
     cards(act, ctx, null).forEach(function (T) { (act.Tags || []).forEach(function (t) { T.addTags[t] = 1; }); ctx.S.dirty = true; });
   };

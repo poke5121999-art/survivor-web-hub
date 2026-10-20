@@ -41,7 +41,7 @@
   // create(inst {uid,id,tier,size,ench}, opts {h, attrs, side}) → phần tử .bz-card (chưa đặt left/top)
   C.create = function (inst, opts) {
     opts = opts || {};
-    var root_ = el('div', 'bz-card t-' + (inst.tier || 'Bronze'));
+    var root_ = el('div', 'bz-card t-' + (inst.tier || 'Bronze') + (opts.side ? ' side-top' : ' side-bot')); // FX-19: bên thua tối đi sau trận
     root_.dataset.uid = inst.uid;
     var cb = el('div', 'cb', root_);
     el('div', 'shadow', cb);
@@ -53,8 +53,10 @@
     else art.style.background = veil.style.background = 'linear-gradient(160deg,#4a3324,#24160d)';
     var rub = el('div', 'rub', win); // đống đổ nát màu cát khi thẻ bị phá (clip J6T0 destroy)
     var line = el('div', 'cdline', win);
+    veil.style.display = line.style.display = 'none'; // ngoài trận thẻ luôn sáng; C.update (chỉ replay gọi) mới bật màn hồi chiêu
     var stH = el('div', 'st st-haste', win), stS = el('div', 'st st-slow', win), stF = el('div', 'st st-freeze', win);
     var hit = el('div', 'hit', win);
+    el('div', 'hc heat', win); el('div', 'hc chill', win); // FX-16: lớp phủ Heated / Chilled
     var ench = null;
     if (inst.ench) { ench = el('div', 'ench', win); ench.style.setProperty('--ec', ENCH_COL[inst.ench] || '#be47ff'); }
     var ring = el('div', 'ring', cb); // viền trạng thái ngoài ô art: haste/slow/freeze/hover
@@ -66,6 +68,11 @@
     var tag = el('div', 'cdtag', cb);
     var ammo = el('div', 'ammo', cb);
     var chH = el('div', 'chip haste', cb), chS = el('div', 'chip slow', cb), chF = el('div', 'chip freeze', cb);
+    // W-12: nền chip hẹn giờ là sprite gốc CardTimer_{Haste,Slow,Freeze}_BG (khoá trong BZ_ART.map khi data2 đã xuất); thiếu thì giữ viên thuốc CSS
+    [[chH, 'Haste'], [chS, 'Slow'], [chF, 'Freeze']].forEach(function (p) {
+      var u = C.artSrc('ui:CardTimer_' + p[1] + '_BG') || C.artSrc('CardTimer_' + p[1] + '_BG_TUI') || C.artSrc('CardTimer_' + p[1] + '_BG');
+      if (u) { p[0].classList.add('tex'); p[0].style.backgroundImage = 'url("' + u + REV() + '")'; }
+    });
     var buff = el('div', 'buff', cb);
     var upg = el('div', 'upg', cb), thaw = el('div', 'thaw', cb), fly = el('div', 'flybadge', cb);
     var B = root_._bz = {
@@ -202,10 +209,13 @@
   function buildPips(B, n) {
     B.ammo.innerHTML = ''; B.pips = [];
     var A = B.ammoA, size = Math.min(A.pip * 1.15, (A.w * 0.9) / n - 2);
-    var cap = B.cap = el('div', 'cap', B.ammo);
+    var parts = root.BZ_FRAMES && root.BZ_FRAMES.parts, spr = parts && parts.ammoBar && parts.pipFull; // ASSET-13: máng + viên đạn là sprite gốc Ammo_Bar/Ammo_Pip
+    var cap = B.cap = el('div', 'cap' + (spr ? ' spr' : ' css'), B.ammo);
+    if (spr) cap.style.backgroundImage = 'url("' + parts.ammoBar.src + REV() + '")';
     cap.style.padding = Math.round(size * 0.42) + 'px ' + Math.round(size * 0.55) + 'px'; cap.style.gap = Math.max(1, Math.round(size * 0.14)) + 'px';
     for (var i = 0; i < n; i++) {
-      var p = el('div', 'pip css', cap);
+      var p = el('div', spr ? 'pip spr' : 'pip css', cap);
+      if (spr) p.style.backgroundImage = 'url("' + parts.pipFull.src + REV() + '")';
       p.style.width = p.style.height = size + 'px';
       B.pips.push(p);
     }
@@ -219,6 +229,20 @@
   // tan băng (clip G freeze): chớp trắng-lam + mảnh vỡ ~300 ms
   C.thawFx = function (e) { var t = e._bz.thaw; t.classList.remove('go'); void t.offsetWidth; t.classList.add('go'); };
   // nâng bậc (clip kacCuk6ZOuo upgrade): thẻ chớp trắng, tia vàng-trắng xoè ra, vòng tím-hồng nở, thẻ nảy ~1,1 s
+  // W-10: đổi dạng / sinh ra giữa trận — thẻ chớp sáng rồi hiện về bình thường (animation CSS trên .cb, không đụng transform của tick)
+  C.xformFx = function (e, born) {
+    var cls = born ? 'spawn' : 'xform', B = e._bz;
+    e.classList.remove('xform', 'spawn'); void e.offsetWidth; e.classList.add(cls);
+    clearTimeout(B.xfT); B.xfT = setTimeout(function () { e.classList.remove(cls); }, 750);
+  };
+  // FX-15: thẻ nguồn nháy khung xanh #00ACFF 0,5 s theo hướng thẻ đích (dir -1 trái, 1 phải, 0 giữa) — FX_Triggered_{Left,Right,Central}
+  C.neighbourFlash = function (e, dir) {
+    var cls = dir < 0 ? 'trig-l' : dir > 0 ? 'trig-r' : 'trig-c', B = e._bz;
+    e.classList.remove('trig-l', 'trig-r', 'trig-c'); void e.offsetWidth; e.classList.add(cls);
+    clearTimeout(B.trT); B.trT = setTimeout(function () { e.classList.remove(cls); }, 520);
+  };
+  // FX-16: Heated / Chilled — lớp phủ than hồng / sương băng, mờ vào-ra 0,333 s (ItemVFXController.cs:595-632)
+  C.setHeatChill = function (e, cls, on) { e.classList.toggle(cls, !!on); };
   C.upgradeFx = function (e) {
     var B = e._bz;
     B.upg.classList.remove('go'); e.classList.remove('upgrading'); void B.upg.offsetWidth; B.upg.classList.add('go'); e.classList.add('upgrading');

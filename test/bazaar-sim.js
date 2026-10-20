@@ -122,7 +122,7 @@ function micro() {
   eq('bỏng: máu còn ở t=5950', frameAt(r, 5950).p[1][0], 45);
   // Bỏng gặp khiên: khiên gánh nửa
   r = BZ.run({ boards: [board('A', 1000, [card('burner', 3)]), board('Dummy', 100, [card('shield15', 3)])], seed: 1, sandstorm: false, maxMs: 2600 });
-  eq('bỏng + khiên: [khiên gánh, máu mất]', evs(r, 'damage', e => e.kind === 'Burn').map(e => [e.shield, e.hp]), [[5, 0], [5, 0], [4, 0], [1, 6], [0, 6]]);
+  eq('bỏng + khiên: [khiên gánh, máu mất]', evs(r, 'damage', e => e.kind === 'Burn').map(e => [e.shield, e.hp]), [[5, 0], [5, 0], [4, 0], [1, 3], [0, 6]]);
   // Độc: mỗi 1000 ms, bỏ qua khiên
   r = BZ.run({ boards: [board('A', 1000, [card('poisoner', 3)]), board('Dummy', 100, [card('shield100', 3)])], seed: 1, sandstorm: false, maxMs: 3500 });
   eq('độc: thời điểm nổ', evs(r, 'damage', e => e.kind === 'Poison').map(e => e.t), [1000, 2000, 3000]);
@@ -170,9 +170,9 @@ function micro() {
   // Hết giờ = hoà
   r = BZ.run({ boards: [board('A', 10, []), board('B', 10, [])], seed: 1, sandstorm: false, maxMs: 2000 });
   eq('hết giờ: hoà', [r.winner, r.endMs], ['draw', 2000]);
-  // Bão cát [ĐỀ XUẤT]: 1 sát thương ở t=30000 cho cả hai, nhịp 900, 800 … sàn 200 rồi tăng dần
-  r = BZ.run({ boards: [board('A', 100000, []), board('B', 100000, [])], seed: 1, maxMs: 32000 });
-  eq('bão cát: các lần đánh bàn 0 tới t=32000', evs(r, 'damage', e => e.kind === 'Sandstorm' && e.target === 'p0').map(e => e.t), [30000, 30900, 31700]);
+  // Bão cát [ĐỀ XUẤT, COMBAT-04]: 1 sát thương ở t=30000 cho cả hai, rồi nhịp 1 s hằng định, mỗi nhịp +2 (≈ +1,8/s của clip)
+  r = BZ.run({ boards: [board('A', 100000, []), board('B', 100000, [])], seed: 1, maxMs: 34000 });
+  eq('bão cát: [t, lượng] các lần đánh bàn 0 tới t=34000', evs(r, 'damage', e => e.kind === 'Sandstorm' && e.target === 'p0').map(e => [e.t, e.amt]), [[30000, 1], [31000, 3], [32000, 5], [33000, 7]]);
   // Tất định
   const A = BZ.boardFromMonster(globalThis.BZ_MONSTERS.find(m => m.InternalName === 'Flame Juggler'), 'a');
   const B = BZ.boardFromMonster(globalThis.BZ_MONSTERS.find(m => m.Encounters.length && m.Player.Attributes.Level === 7 && m.InternalName !== 'Flame Juggler'), 'b');
@@ -438,6 +438,152 @@ function socketsAndEffects() {
   const u = Object.keys(BZ.unknownTypes).filter(k => !k.startsWith('template:'));
   check('quét ô: không $type DSL lạ', u.length === 0, u);
 }
+// ---------- 5. Vòng sửa 6 (COMBAT-01..07, CONTENT-13, FX-09): mỗi mục một khẳng định số cụ thể ----------
+function fix6() {
+  console.log('\n# Vòng sửa 6');
+  BZ.resetStats();
+  const byName = n => Object.keys(globalThis.BZ_CARDS).find(k => globalThis.BZ_CARDS[k].InternalName === n);
+  const T = (id, attrs, abilities, extra) => item(id, attrs, abilities, extra);
+  const onSec = sec => ({ $type: 'TTargetCardSection', TargetSection: sec, ExcludeSelf: true });
+  BZ.extraCards.burn100 = T('burn100', { BurnApplyAmount: 100 }, [{ Trigger: START, Action: { $type: 'TActionPlayerBurnApply', Target: OPP } }]);
+  BZ.extraCards.burn80 = T('burn80', { BurnApplyAmount: 80 }, [{ Trigger: START, Action: { $type: 'TActionPlayerBurnApply', Target: OPP } }]);
+  BZ.extraCards.shield1 = T('shield1', { ShieldApplyAmount: 1 }, [{ Trigger: START, Action: { $type: 'TActionPlayerShieldApply', Target: ME } }]);
+  BZ.extraCards.shield50 = T('shield50', { ShieldApplyAmount: 50 }, [{ Trigger: START, Action: { $type: 'TActionPlayerShieldApply', Target: ME } }]);
+  BZ.extraCards.freezer4 = T('freezer4', { FreezeAmount: 4000, FreezeTargets: 1 }, [{ Trigger: START, Action: { $type: 'TActionCardFreeze', Target: { $type: 'TTargetCardSection', TargetSection: 'OpponentHand' } } }]);
+  BZ.extraCards.charger5 = T('charger5', { CooldownMax: 1000, ChargeAmount: 5000, ChargeTargets: 1, Multicast: 1 },
+    [{ Trigger: FIRE, Action: { $type: 'TActionCardCharge', Target: { $type: 'TTargetCardSection', TargetSection: 'OpponentHand' } } }]);
+  // COMBAT-02: Burn gặp khiên — chỉ còn một nửa (làm tròn lên), khiên trừ trước rồi tới máu, không nhân đôi phần dư
+  let r = BZ.run({ boards: [board('A', 5000, [card('burn100', 0)]), board('B', 5000, [card('shield1', 0)])], sandstorm: false, maxMs: 700 });
+  eq('COMBAT-02 Burn 100 vs Shield 1: [amt, khiên, máu] nhịp đầu', evs(r, 'damage', e => e.kind === 'Burn').slice(0, 1).map(e => [e.amt, e.shield, e.hp]), [[50, 1, 49]]);
+  r = BZ.run({ boards: [board('A', 5000, [card('burn100', 0)]), board('B', 5000, [card('shield50', 0)])], sandstorm: false, maxMs: 700 });
+  eq('COMBAT-02 Burn 100 vs Shield 50: [amt, khiên, máu] nhịp đầu', evs(r, 'damage', e => e.kind === 'Burn').slice(0, 1).map(e => [e.amt, e.shield, e.hp]), [[50, 50, 0]]);
+  // COMBAT-07: Burn 80 → 76 → 73 → 70 → 67 (clip 5X-G7Jf3t5w?t=64); round(b×0,045)
+  r = BZ.run({ boards: [board('A', 5000, [card('burn80', 0)]), board('B', 50000, [])], sandstorm: false, maxMs: 2600 });
+  eq('COMBAT-07 Burn 80 giảm theo clip: các nhịp', evs(r, 'damage', e => e.kind === 'Burn').map(e => e.hp), [80, 76, 73, 70, 67]);
+  // COMBAT-03: thẻ đóng băng không bắn dù Charge đã đầy; tiến độ giữ nguyên, hết băng (t=4050) mới bắn
+  {
+    const g = card('gun', 0, { uid: 'frozen-gun' });
+    r = BZ.run({ boards: [board('A', 5000, [card('freezer4', 0), card('charger5', 1)]), board('B', 5000, [g])], seed: 1, sandstorm: false, maxMs: 5100 });
+    eq('COMBAT-03 súng bị đóng băng 4 s + Charge mỗi 1 s: các lần bắn', fireTimes(r, g.uid), [4050, 5050]);
+  }
+  // COMBAT-05: Haste / Slow / Freeze chọn món chưa bị ảnh hưởng trước (có cooldown); khi hết món mới chồng lên món đầu
+  [['Haste', 'haste', 'SelfHand'], ['Slow', 'slow', 'OpponentHand'], ['Freeze', 'freeze', 'OpponentHand']].forEach(([n, evType, sec]) => {
+    BZ.extraCards['status1' + n] = T('status1' + n, { CooldownMax: 1000, Multicast: 1, [n + 'Amount']: 4000, [n + 'Targets']: 1 },
+      [{ Trigger: FIRE, Action: { $type: 'TActionCard' + n, Target: onSec(sec) } }]);
+    const mine = [card('status1' + n, 0), card('gun1500', 1, { uid: n + '-g1' }), card('gun1500', 2, { uid: n + '-g2' })];
+    const opp = [card('gun1500', 1, { uid: n + '-o1' }), card('gun1500', 2, { uid: n + '-o2' })];
+    r = BZ.run({ boards: [board('A', 50000, mine), board('B', 50000, sec === 'SelfHand' ? [] : opp)], seed: 1, sandstorm: false, maxMs: 3100 });
+    eq('COMBAT-05 ' + n + ' liên tiếp: đích lần 1, 2, 3', evs(r, evType).map(e => e.target), sec === 'SelfHand' ? [n + '-g1', n + '-g2', n + '-g1'] : [n + '-o1', n + '-o2', n + '-o1']);
+  });
+  // COMBAT-04 nằm ở bài "bão cát" của phần micro (đã đổi sang [t, lượng])
+
+  // COMBAT-01: Transform thật
+  BZ.resetStats();
+  const ID = { Virus: byName('Virus'), Cow: byName('Abducted Cow'), Crusher: byName('Drone Crusher'), Hacksaw: byName('Hacksaw'),
+    Holo: byName('Hologram Projector'), Printer: byName('3D Printer'), Mirror: byName('Mirror'), QS: byName('Quicksilver'),
+    Grab: byName('Grabinator'), Blender: byName('Blender'), Slushee: byName('Slushee'), Jerky: byName('Jerky') };
+  BZ.extraCards.medgun = T('medgun', { CooldownMax: 5000, DamageAmount: 10, Multicast: 1 }, [{ Trigger: FIRE, Action: { $type: 'TActionPlayerDamage', Target: OPP } }], { Size: 'Medium' });
+  BZ.extraCards.killer = T('killer', { CooldownMax: 1000, DestroyTargets: 1, Multicast: 1 }, [{ Trigger: FIRE, Action: { $type: 'TActionCardDestroy', Target: { $type: 'TTargetCardSection', TargetSection: 'OpponentHand' } } }]);
+  BZ.extraCards.droneX = T('droneX', {}, [], { Tags: ['Drone'] });
+  const tf = (res, extra) => evs(res, 'transform', extra).map(e => [e.t, e.from, e.to, e.tier]);
+  const small = id => globalThis.BZ_CARDS[id] && globalThis.BZ_CARDS[id].Size === 'Small';
+  {
+    // Mirror (Medium, Gold) sao chép món Medium bên trái (Bronze): từ lúc đó nó là medgun, cooldown tính lại từ 0
+    const mir = card(ID.Mirror, 2, { uid: 'mir', size: 2, tier: 'Gold' }), mg = card('medgun', 0, { uid: 'mg', size: 2 });
+    r = BZ.run({ boards: [board('A', 50000, [mg, mir]), board('B', 50000, [])], seed: 1, sandstorm: false, maxMs: 8100 });
+    eq('COMBAT-01 Mirror: [t, từ, sang, bậc]', tf(r), [[3000, ID.Mirror, 'medgun', 'Bronze']]);
+    eq('COMBAT-01 Mirror: sự kiện mang id ability', evs(r, 'transform').map(e => [e.target, e.abilityId]), [['mir', '0']]);
+    eq('COMBAT-01 Mirror: sau đó bắn như medgun, cooldown tính lại từ t=3000 [t, sát thương]', evs(r, 'damage', e => e.src === 'mir').map(e => [e.t, e.amt]), [[8050, 10]]);
+    eq('COMBAT-01 hết trận hoàn lại: result.cards ghi thẻ gốc', r.cards.find(c => c.uid === 'mir').id, ID.Mirror);
+  }
+  {
+    // Virus bắn ở t=7950 (cooldown 8000): một món Small của đối thủ thành Virus (Virus bắt đầu ở Silver → Bronze nâng lên Silver)
+    const vir = card(ID.Virus, 0, { uid: 'vir', tier: 'Silver' });
+    r = BZ.run({ boards: [board('A', 50000, [vir]), board('B', 50000, [card('gun', 0, { uid: 'o0' }), card('gun', 1, { uid: 'o1' })])], seed: 1, sandstorm: false, maxMs: 8100 });
+    const e = evs(r, 'transform');
+    eq('COMBAT-01 Virus: một món đối thủ thành Virus [t, từ, sang, bậc]', tf(r), [[8000, 'gun', ID.Virus, 'Silver']]);
+    check('COMBAT-01 Virus: đích thuộc bàn đối thủ', e.length === 1 && (e[0].target === 'o0' || e[0].target === 'o1'), e);
+  }
+  {
+    // 3D Printer (Large, Gold, ô 1-3) bên phải một súng Small: thành 3 súng, hai bản mới đặt ở ô 2 và 3
+    const pr = card(ID.Printer, 1, { uid: 'pr', size: 3, tier: 'Gold' });
+    r = BZ.run({ boards: [board('A', 50000, [card('gun', 0, { uid: 'g0' }), pr]), board('B', 50000, [])], seed: 1, sandstorm: false, maxMs: 5100 });
+    eq('COMBAT-01 3D Printer: [t, từ, sang]', tf(r).map(x => x.slice(0, 3)), [[5000, ID.Printer, 'gun'], [5000, null, 'gun'], [5000, null, 'gun']]);
+    eq('COMBAT-01 3D Printer: [ô, cỡ] của 3 bản', evs(r, 'transform').map(e => [e.socket, e.size]), [[1, 1], [2, 1], [3, 1]]);
+    eq('COMBAT-01 3D Printer: result.cards thêm 2 thẻ sinh ra, mọi khung cùng độ dài', [r.cards.length, r.cards.filter(c => c.spawned).length, r.frames.every(f => f.c.length === 4)], [4, 2, true]);
+    eq('COMBAT-01 3D Printer: thẻ gốc giữ id máy in', r.cards.find(c => c.uid === 'pr').id, ID.Printer);
+  }
+  {
+    // Hologram Projector (Small, Gold) chép món Small khác ngay khi vào trận (ability chạy khung t=50)
+    const ho = card(ID.Holo, 0, { uid: 'ho', tier: 'Gold' });
+    r = BZ.run({ boards: [board('A', 50000, [ho, card('gun', 1)]), board('B', 50000, [])], seed: 1, sandstorm: false, maxMs: 5200 });
+    eq('COMBAT-01 Hologram: [t, từ, sang, bậc]', tf(r), [[50, ID.Holo, 'gun', 'Bronze']]);
+    eq('COMBAT-01 Hologram: bắn như súng [t, sát thương]', evs(r, 'damage', e => e.src === 'ho').map(e => [e.t, e.amt]), [[5100, 10]]);
+  }
+  {
+    const qs = card(ID.QS, 1, { uid: 'qs', tier: 'Silver' });
+    r = BZ.run({ boards: [board('A', 50000, [card('gun', 0), qs]), board('B', 50000, [])], seed: 1, sandstorm: false, maxMs: 3100 });
+    eq('COMBAT-01 Quicksilver: [t, từ, sang]', tf(r).map(x => x.slice(0, 3)), [[3000, ID.QS, 'gun']]);
+  }
+  {
+    const bl = card(ID.Blender, 1, { uid: 'bl', size: 2, tier: 'Silver' });
+    r = BZ.run({ boards: [board('A', 50000, [card('gun', 0, { uid: 'bg' }), bl]), board('B', 50000, [])], seed: 1, sandstorm: false, maxMs: 4100 });
+    eq('COMBAT-01 Blender: món kề thành Slushee [t, từ, sang, bậc]', tf(r), [[4000, 'gun', ID.Slushee, 'Silver']]);
+  }
+  {
+    const hk = card(ID.Hacksaw, 0, { uid: 'hk', size: 2, tier: 'Gold' });
+    r = BZ.run({ boards: [board('A', 50000, [hk]), board('B', 50000, [card('medgun', 0, { uid: 'om', size: 2 })])], seed: 1, sandstorm: false, maxMs: 8100 });
+    const e = evs(r, 'transform');
+    eq('COMBAT-01 Hacksaw: Medium địch thành 2 món Small [t, từ, ô, cỡ]', e.map(x => [x.t, x.from, x.socket, x.size]), [[8000, 'medgun', 0, 1], [8000, null, 1, 1]]);
+    check('COMBAT-01 Hacksaw: cả hai món mới đều Small', e.every(x => small(x.to)), e.map(x => x.to));
+  }
+  {
+    const gr = card(ID.Grab, 0, { uid: 'gr', size: 2, tier: 'Gold' });
+    r = BZ.run({ boards: [board('A', 50000, [gr]), board('B', 50000, [card('medgun', 0, { uid: 'om', size: 2 })])], seed: 1, sandstorm: false, maxMs: 8100 });
+    eq('COMBAT-01 Grabinator: thành món Medium vừa phá [t, từ, sang]', tf(r).map(x => x.slice(0, 3)), [[8000, ID.Grab, 'medgun']]);
+  }
+  {
+    const cow = card(ID.Cow, 0, { uid: 'cow', size: 2, tier: 'Silver' });
+    r = BZ.run({ boards: [board('A', 50000, [card('killer', 0)]), board('B', 50000, [cow])], seed: 1, sandstorm: false, maxMs: 1100 });
+    eq('COMBAT-01 Abducted Cow bị phá: thành 2 Jerky [t, từ, sang, bậc]', tf(r), [[1050, ID.Cow, ID.Jerky, 'Silver'], [1050, null, ID.Jerky, 'Silver']]);
+    eq('COMBAT-01 Abducted Cow: cờ phá hủy ở t=1050 của thẻ gốc', frameAt(r, 1050).c[r.cards.findIndex(c => c.uid === 'cow')][5], 0);
+  }
+  {
+    const cr = card(ID.Crusher, 0, { uid: 'cr', size: 2, tier: 'Silver' });
+    r = BZ.run({ boards: [board('A', 50000, [cr, card('droneX', 2, { uid: 'dx' })]), board('B', 50000, [])], seed: 1, sandstorm: false, maxMs: 8200 });
+    const e = evs(r, 'transform');
+    check('COMBAT-01 Drone Crusher: món Small bị phá thành một Drone Small', e.length === 1 && e[0].target === 'dx' && e[0].from === 'droneX' &&
+      small(e[0].to) && globalThis.BZ_CARDS[e[0].to].Tags.indexOf('Drone') >= 0, e);
+  }
+  check('COMBAT-01: không còn Transform nào bị coi là xấp xỉ', !BZ.approx.TActionCardTransform && !BZ.approx.TActionCardTransformDestroyed, BZ.approx);
+  check('COMBAT-01: không lỗi giữa trận', BZ.errors.length === 0, BZ.errors.slice(0, 5));
+
+  // FX-09: mọi sự kiện do ability gây ra mang abilityId = khoá ability trong mẫu thẻ
+  BZ.extraCards.twin = T('twin', { CooldownMax: 1000, DamageAmount: 4, ShieldApplyAmount: 3, Multicast: 1 }, [
+    { Trigger: FIRE, Action: { $type: 'TActionPlayerDamage', Target: OPP } }, { Trigger: FIRE, Action: { $type: 'TActionPlayerShieldApply', Target: ME } }]);
+  r = BZ.run({ boards: [board('A', 50000, [card('twin', 0)]), board('B', 50000, [])], seed: 1, sandstorm: false, maxMs: 1100 });
+  eq('FX-09 abilityId: [damage, shield] của thẻ hai ability', [evs(r, 'damage')[0].abilityId, evs(r, 'shield')[0].abilityId], ['0', '1']);
+  eq('FX-09 abilityId: nhịp bỏng (không do ability) không mang abilityId', evs(BZ.run({ boards: [board('A', 5000, [card('burn100', 0)]), board('B', 5000, [])], sandstorm: false, maxMs: 700 }), 'damage', e => e.kind === 'Burn')[0].abilityId, undefined);
+
+  // CONTENT-13: không token nào giải ra rỗng, trên mọi thẻ × bậc + enchantment
+  {
+    let empty = 0; const first = [];
+    for (const id of Object.keys(globalThis.BZ_CARDS)) {
+      const tpl = globalThis.BZ_CARDS[id], size = BZ.SIZE[tpl.Size] || 1, section = tpl.$type === 'TCardSkill' ? 'skills' : 'hand';
+      const combos = Object.keys(tpl.Tiers || {}).map(t => [t, null]).concat(Object.keys(tpl.Enchantments || {}).map(e => [tpl.StartingTier, e]));
+      for (const [tier, ench] of combos) {
+        const miss = BZ.emptyTokens({ uid: 'x', id, tier, ench, socket: 0, size, section });
+        empty += miss.length; if (miss.length && first.length < 5) first.push(tpl.InternalName + ' ' + miss[0].tok);
+      }
+    }
+    eq('CONTENT-13 token rỗng trên mọi thẻ × bậc × enchantment', [empty, first], [0, []]);
+    const no = byName('Nanobot Orange');
+    eq('CONTENT-13 Nanobot Orange dòng 2', BZ.cardText({ uid: 'no', id: no, tier: 'Silver', socket: 0, size: 1, section: 'hand' }).map(l => l.text)[1], "This item's Cooldown is reduced by 1 second for each adjacent Friend");
+    const ps = byName('Pontoon Skimmer');
+    eq('CONTENT-13 Pontoon Skimmer Turbo', BZ.cardText({ uid: 'ps', id: ps, tier: 'Silver', ench: 'Turbo', socket: 0, size: 1, section: 'hand' }).map(l => l.text).pop(), 'When your items start Flying, Haste an item for 1 second(s)');
+  }
+}
+if (!ONLY || ONLY === 'fix6') fix6();
 if (!ONLY || ONLY === 'sockets') socketsAndEffects();
 console.log('\n' + pass + ' đạt, ' + fail + ' trượt');
 process.exit(fail ? 1 : 0);

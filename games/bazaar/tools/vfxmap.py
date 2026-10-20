@@ -565,11 +565,13 @@ def export_textures(X, wanted):
 
 # ------------------------------------------------------------------ chính
 def card_actions():
-    js = ("global.window=global;require(%s);const C=BZ_CARDS,o={};"
+    # Đọc MỌI data/cards-*.js (một tệp mỗi hero + common), không chỉ cards.js: cards.js chỉ là lớp tương thích.
+    files = sorted(glob.glob(os.path.join(GAME, "data", "cards-*.js")))
+    js = ("global.window=global;for(const f of %s)require(f);const C=BZ_CARDS,o={};"
           "for(const id of Object.keys(C)){const c=C[id],ab=[];"
           "for(const [k,a] of Object.entries(c.Abilities||{})){const t=a.Action&&a.Action['$type'];"
-          "ab.push({id:k,type:t,key:(a.VFXConfig&&a.VFXConfig.VFXOverrideKey)||null,play:a.VFXConfig?a.VFXConfig.VFXShouldPlay:true});}"
-          "o[id]={n:c.InternalName,size:c.Size,t:c.Type,ab};}console.log(JSON.stringify(o))" % json.dumps(os.path.join(GAME, "data", "cards.js")))
+          "ab.push({id:k,type:t,key:(a.VFXConfig&&a.VFXConfig.VFXOverrideKey)||null,play:a.VFXConfig?a.VFXConfig.VFXShouldPlay!==false:true});}"
+          "o[id]={n:c.InternalName,size:c.Size,t:c.Type,ab};}console.log(JSON.stringify(o))" % json.dumps(files))
     r = subprocess.run(["node", "-e", js], capture_output=True, check=True)
     return json.loads(r.stdout.decode("utf-8"))
 
@@ -713,6 +715,8 @@ def main():
     miss_override = collections.Counter()
     action_cov = collections.defaultdict(lambda: collections.Counter())
     key_usage = collections.Counter()
+    nokey = {}       # cid -> {abilityId: (action, key)}: khoá VFXOverrideKey không có prefab trong bản demo
+    playfalse = {}   # cid -> {abilityId: action}: VFXShouldPlay == false (VFXManager.cs:152-156)
     for cid, c in cards_in.items():
         res = {}
         kinds = set()
@@ -738,6 +742,8 @@ def main():
                         how_count[how] += 1
                 if not ent:
                     miss_override[key] += 1
+                    # game thật: khoá không giải ra prefab -> InstantiateVFX null -> "Failed to instantiate", không VFX (VFXManager.cs:184-190)
+                    nokey.setdefault(cid, {})[ab["id"]] = (aname, key)
                     kinds.add("override-missing")
                 else:
                     ent["exact"] = True
@@ -754,8 +760,12 @@ def main():
                 else:
                     kinds.add("novfx")
                     action_cov[aname]["ignored" if aname in IGNORED else "unmapped"] += 1
+            if not ab.get("play", True):
+                playfalse.setdefault(cid, {})[ab["id"]] = aname
             if ent:
                 ent["action"] = aname
+                if not ab.get("play", True):
+                    ent["play"] = False
                 res[ab["id"]] = ent
             else:
                 res.setdefault("_defaults", {})[ab["id"]] = aname
@@ -879,11 +889,24 @@ def main():
             for e in sz.values():
                 if e:
                     prefabs[e["prefab"]] = {k: v for k, v in e.items() if k not in ("guid", "overrideKey", "exact", "action", "sizes", "via")}
-        if abil and len(abil) > 1:
-            c["abilities"] = {k: {"action": v.get("action"), "prefab": v.get("prefab"), "key": v.get("overrideKey")} for k, v in abil.items()}
+        c.pop("play", None)
+        if abil and (len(abil) > 1 or cid in playfalse or cid in nokey):
+            c["abilities"] = {k: {"action": v.get("action"), "prefab": v.get("prefab"), "key": v.get("overrideKey"), **({"play": False} if v.get("play") is False else {})} for k, v in abil.items()}
         c.pop("guid", None)
 
-    out = {"defaults": {}, "cards": {}, "sprites": {}, "prefabs": prefabs, "rev": "vfxmap-1"}
+    # play:false cho ability không có entry (không khoá, hành động mặc định): chỉ ghi {action, play:false}
+    for cid, pf in playfalse.items():
+        m = cards.setdefault(cid, {}).setdefault("abilities", {})
+        for abid, aname in pf.items():
+            m.setdefault(abid, {"action": aname})["play"] = False
+    for cid, nk in nokey.items():
+        m = cards.setdefault(cid, {}).setdefault("abilities", {})
+        for abid, (aname, key) in nk.items():
+            e = m.setdefault(abid, {"action": aname})
+            e["key"] = key
+            e["missing"] = True
+
+    out = {"defaults": {}, "cards": {}, "sprites": {}, "prefabs": prefabs, "rev": "vfxmap-2"}
     for a, d in sorted(defaults.items()):
         out["defaults"][a] = d
     out["cards"] = cards
@@ -921,6 +944,9 @@ def main():
     print(json.dumps({k: rep[k] for k in ("cards", "stats", "sprites", "artKB", "jsKB", "keys")}, ensure_ascii=False))
     print("cách khớp override:", rep["howOverride"])
     print("override thiếu:", rep["missingOverride"])
+    print("ability có khoá nhưng không có entry exact:", sum(rep["missingOverride"].values()))
+    print("ability khoá thiếu prefab (missing:true):", {c: v for c, v in ((cards_in[c]["n"], sorted(set(x[1].rsplit("/", 1)[-1] for x in d.values()))) for c, d in nokey.items())})
+    print("ability play:false:", sum(len(v) for v in playfalse.values()), "trên", len(playfalse), "thẻ")
     print("action không default:", {k: v for k, v in rep["actionCov"].items() if v.get("none")})
     print("event thiếu trong BZ_AUDIO:", rep["missingEvents"])
 

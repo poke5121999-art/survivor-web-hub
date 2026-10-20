@@ -111,7 +111,7 @@
   // Gieo bậc theo bảng ngày; rỗng thì đi lên rồi đi xuống (RollEncounterTierAndFilter, Dealer:4975-5041)
   function pickByTier(run, cands) {
     if (!cands.length) return null;
-    var tier = R.rollTier(run, T().ENCOUNTER_TIER_ODDS_BY_DAY), ti = R.tierIndex(tier), order = [ti];
+    var tier = R.rollTier(run, T().ENCOUNTER_TIER_ODDS_WITH_LEGENDARY), ti = R.tierIndex(tier), order = [ti];
     for (var u = ti + 1; u < R.TIERS.length; u++) order.push(u);
     for (var d = ti - 1; d >= 0; d--) order.push(d);
     for (var k = 0; k < order.length; k++) {
@@ -134,72 +134,124 @@
     return out;
   };
 
-  // ---------- lên cấp: 3 lựa chọn từ thẻ "(Level Up)" theo dải ngày [ĐỀ XUẤT CODE-RUN §3.6] ----------
+  // ---------- lên cấp: bảng phần thưởng theo CẤP (TUNING.LEVEL_REWARDS), mỗi ô giải bởi bảng LEVEL_SLOT_KINDS ----------
+  function recAny(r) { var E = R.enc(); return r.type === 'pedestal' ? E.pedestals[r.id] : r.type === 'step' ? E.steps[r.id] : E.events[r.id]; }
+  function byName(table, name) {
+    var m = R.enc()[table], id;
+    for (id in m) if (m[id].InternalName === name) return m[id];
+    return null;
+  }
+  // Mọi thẻ "(Level Up)" gom một lần: events / steps / pedestals
   var luCache = null;
-  function levelUpPool() {
+  function levelUpCards() {
     if (luCache) return luCache;
-    var E = R.enc(), out = { pile: [], teacher: [], other: [] }, id, e;
-    for (id in E.events) {
-      e = E.events[id];
-      if (!e.LevelUp || e.Kind === 'unknown' || e.Kind === 'merchant') continue;
-      if (/^Teaches/i.test(e.Desc || '') || /teaches/i.test(e.Desc || '')) out.teacher.push(ref('event', e));
-      else if (e.Kind === 'pile') out.pile.push(ref('event', e));
-      else out.other.push(ref('event', e));
-    }
-    for (id in E.steps) { e = E.steps[id]; if (e.LevelUp) out.other.push(ref('step', e)); }
-    for (id in E.pedestals) { e = E.pedestals[id]; if (e.LevelUp) out.other.push(ref('pedestal', e)); }
+    var E = R.enc(), out = [], id;
+    [['events', 'event'], ['steps', 'step'], ['pedestals', 'pedestal']].forEach(function (p) {
+      for (id in E[p[0]]) if (E[p[0]][id].LevelUp) out.push({ rec: E[p[0]][id], type: p[1] });
+    });
     luCache = out;
     return out;
   }
-  function recAny(r) { var E = R.enc(); return r.type === 'pedestal' ? E.pedestals[r.id] : r.type === 'step' ? E.steps[r.id] : E.events[r.id]; }
-  // Bể lên cấp theo hero (data/heroes.js levelUp: pile/teacher/step/pedestal [{id, tier}]); không có thì bể chung ở trên
-  var luHero = {};
-  function heroLevelUpPool(hero) {
-    var H = R.heroData(hero), L = H && H.levelUp;
-    if (!L) return null;
-    if (luHero[hero]) return luHero[hero];
-    var E = R.enc(), out = { pile: [], teacher: [], other: [] };
-    var add = function (slot, list, type, map) {
-      (list || []).forEach(function (x) { var e = map[x.id]; if (e && e.Kind !== 'unknown' && e.Kind !== 'merchant') out[slot].push(ref(type, e)); });
-    };
-    add('pile', L.pile, 'event', E.events); add('teacher', L.teacher, 'event', E.events);
-    add('other', L.step, 'step', E.steps); add('other', L.pedestal, 'pedestal', E.pedestals);
-    luHero[hero] = out;
-    return out;
+  function tierSet(arg) { return (arg || '').split('|'); }
+  // cands: [{rec,type}] đã lọc; chọn đúng bậc trước, không có thì lùi xuống rồi đi lên (như bản cũ)
+  function pickNearTier(run, cands, tiers) {
+    if (!cands.length) return null;
+    var idx = tiers.map(R.tierIndex), lo = Math.min.apply(null, idx), hi = Math.max.apply(null, idx), groups = [idx], d, u;
+    for (d = lo - 1; d >= 0; d--) groups.push([d]);
+    for (u = hi + 1; u < R.TIERS.length; u++) groups.push([u]);
+    for (var k = 0; k < groups.length; k++) {
+      var sub = cands.filter(function (c) { return groups[k].indexOf(R.tierIndex(c.rec.StartingTier)) >= 0; });
+      if (sub.length) return sub[R.randInt(run, sub.length)];
+    }
+    return null;
   }
-  R.levelUpOptions = function (run) {
-    var P = heroLevelUpPool(run.hero) || levelUpPool(), band = R.tierIndex(R.bandTier(run)), out = [];
-    T().LEVELUP_SLOTS.forEach(function (slot) {
-      var cands = P[slot].filter(function (r) { return heroOk(recAny(r), run) && dayOk(recAny(r), run); });
-      // đúng dải trước, rồi thấp dần, rồi cao dần
-      var order = [band]; for (var d = band - 1; d >= 0; d--) order.push(d); for (var u = band + 1; u < R.TIERS.length; u++) order.push(u);
-      for (var k = 0; k < order.length; k++) {
-        var sub = cands.filter(function (r) { return R.tierIndex(r.tier) === order[k]; });
-        if (sub.length) { out.push(dealt(run, sub[R.randInt(run, sub.length)])); break; }
-      }
+  function usable(run, c, taken) { return !taken[c.rec.Id] && c.rec.Kind !== 'unknown' && c.rec.Kind !== 'merchant' && heroOk(c.rec, run) && dayOk(c.rec, run); }
+  function isCommon(e) { var h = e.Heroes || []; return !h.length || h.indexOf('Common') >= 0; }
+  function fixedSlot(key) {
+    return function (run, arg, taken) {
+      var spec = T().LEVEL_SLOT_EVENTS[arg ? key + ':' + arg : key], e = spec && byName(spec[0], spec[1]);
+      return e && !taken[e.Id] ? { rec: e, type: spec[0] === 'pedestals' ? 'pedestal' : 'event' } : null;
+    };
+  }
+  function namedByTier(suffix) { // "<Bậc> item (Level Up)" / "<Bậc> Loot (Level Up)"
+    return function (run, arg, taken) {
+      var e = byName('events', tierSet(arg).join(' or ') + ' ' + suffix + ' (Level Up)');
+      return e && !taken[e.Id] ? { rec: e, type: 'event' } : null;
+    };
+  }
+  // Registry: loại ô → (run, tham số, đã bày) → {rec, type} | null
+  R.LEVEL_SLOT_KINDS = {
+    pip: fixedSlot('pip'), argenta: fixedSlot('argenta'), orlin: fixedSlot('orlin'), adira: fixedSlot('adira'),
+    artist: fixedSlot('artist'), upgrade: fixedSlot('upgrade'),
+    item: namedByTier('item'), loot: namedByTier('Loot'),
+    trainer: function (run, arg, taken) { // thầy chủ đề: "Teaches X skills", không nêu bậc, không phải thầy riêng hero
+      var c = levelUpCards().filter(function (x) {
+        var d = x.rec.Desc || '';
+        return x.type === 'event' && x.rec.Kind === 'pile' && /teaches/i.test(d) && !/tier/i.test(d) && !/unique to/i.test(d) && usable(run, x, taken);
+      });
+      return c.length ? c[R.randInt(run, c.length)] : null;
+    },
+    heroTeacher: function (run, arg, taken) {
+      var c = levelUpCards().filter(function (x) {
+        return x.type === 'event' && /unique to/i.test(x.rec.Desc || '') && !isCommon(x.rec) && usable(run, x, taken);
+      });
+      return c.length ? c[R.randInt(run, c.length)] : null;
+    },
+    heroReward: function (run, arg, taken) { // "Random Character Reward": thẻ lên cấp riêng của hero (không Common), không phải thầy / bệ
+      var c = levelUpCards().filter(function (x) {
+        var d = x.rec.Desc || '';
+        return x.type !== 'pedestal' && !isCommon(x.rec) && !/teaches/i.test(d) && usable(run, x, taken);
+      });
+      return pickNearTier(run, c, tierSet(arg));
+    },
+    enchantRandom: function (run, arg, taken) {
+      var c = levelUpCards().filter(function (x) {
+        return x.type === 'pedestal' && /^Enchant an item with/i.test(x.rec.Desc || '') && T().LEVEL_ENCHANT_TIERS.indexOf(x.rec.StartingTier) >= 0 && usable(run, x, taken);
+      });
+      return c.length ? c[R.randInt(run, c.length)] : null;
+    }
+  };
+  // Hàng phần thưởng của một cấp: cấp > 29 lặp mẫu LEVEL_REWARDS_LOOP
+  R.levelRewardRow = function (level) {
+    var t = T(), lp = t.LEVEL_REWARDS_LOOP, L = level;
+    if (!t.LEVEL_REWARDS[L]) L = level > lp[1] ? lp[0] + ((level - lp[0]) % (lp[1] - lp[0] + 1)) : Math.max(2, level);
+    return t.LEVEL_REWARDS[L] || [];
+  };
+  R.levelUpOptions = function (run, level) {
+    if (level == null) level = run.pendingLevelUps > 0 ? run.level - run.pendingLevelUps + 1 : run.level;
+    var out = [], taken = {};
+    R.levelRewardRow(level).forEach(function (slot) {
+      var kv = slot.split(':'), fn = R.LEVEL_SLOT_KINDS[kv[0]], c = fn && fn(run, kv[1], taken);
+      if (!c && kv[0] === 'heroTeacher') c = R.LEVEL_SLOT_KINDS.trainer(run, null, taken); // hero không có thầy riêng (Jules): thêm một thầy chủ đề
+      if (!c) return;
+      taken[c.rec.Id] = 1;
+      var d = dealt(run, ref(c.type, c.rec));
+      d.slot = slot; // loại ô trong LEVEL_REWARDS (giao diện có thể hiện nhãn "Random Skill Trainer", "Random Enchant Option"...)
+      out.push(d);
     });
     return out;
   };
   R.enterLevelUp = function (ctx) {
-    var run = ctx.run;
-    run.phase = { kind: 'levelUp', level: run.level - run.pendingLevelUps + 1, choices: R.levelUpOptions(run) };
-    R.emit(ctx, { type: 'levelUpChoice', level: run.phase.level });
+    var run = ctx.run, level = run.level - run.pendingLevelUps + 1, choices = R.levelUpOptions(run, level);
+    if (!choices.length) { run.pendingLevelUps--; R.beginHour(ctx); return; } // dữ liệu không có thẻ nào cho cấp này: bỏ qua
+    run.phase = { kind: 'levelUp', level: level, choices: choices };
+    R.emit(ctx, { type: 'levelUpChoice', level: level });
   };
 
-  // ---------- Fates: 3 lựa chọn cùng hình với lựa chọn lên cấp ({type,id,name,tier,desc,kind}) để giao diện dùng lại màn đó ----------
-  // Nội dung gốc (Futura aef5e7d8) bị xoá khỏi bản demo: Fate's Legacy lấy từ clip PSP75k4R4Pk?t=83, hai lựa chọn còn lại [ĐỀ XUẤT].
+  // ---------- Fates: bước thật của sự kiện Futura (TUNING.FATES_EVENT), cùng hình với lựa chọn lên cấp ----------
+  // choice = {type:'fate', id: khoá giao diện, stepId, name, tier, kind:'fate', desc, artKey}
+  R.fatesChoices = function (run) {
+    var fe = byName('events', T().FATES_EVENT), E = R.enc();
+    return ((fe && fe.Steps) || []).map(function (sid) {
+      var s = E.steps[sid];
+      if (!s) return null;
+      return { type: 'fate', id: T().FATES_KEYS[s.InternalName] || sid, stepId: sid, name: s.Title || s.InternalName, tier: 'Legendary', kind: 'fate',
+        desc: R.encText(run, s, s.Desc || ''), artKey: s.ArtKey || null };
+    }).filter(Boolean);
+  };
   R.enterFates = function (ctx) {
-    var run = ctx.run, hp = T().FATES_HP_PER_LEVEL * run.level;
-    var card = R.deal(run, { kind: 'item', tiers: ['Gold'], any: [], not: [], names: [] }, 1, {})[0] || null;
-    var choices = [
-      { type: 'fate', id: 'legacy', name: "Fate's Legacy", tier: 'Legendary', kind: 'fate',
-        desc: 'Upgrade your Bronze-tier and Silver-tier items to Gold.' },
-      { type: 'fate', id: 'vitality', name: 'Second Wind', tier: 'Legendary', kind: 'fate', hp: hp,
-        desc: '+' + hp + ' max Health (' + T().FATES_HP_PER_LEVEL + ' per level).' }
-    ];
-    choices.push(card ? { type: 'fate', id: 'item', name: 'Golden Gift', tier: 'Legendary', kind: 'fate', card: card,
-        desc: 'Get a Gold-tier item: ' + R.title(R.tpl(card.id)) + '.' }
-      : { type: 'fate', id: 'income', name: 'Windfall', tier: 'Legendary', kind: 'fate', income: 5, desc: '+5 Income.' });
+    var run = ctx.run, all = R.fatesChoices(run), choices = [];
+    while (choices.length < T().FATES_PICKS && all.length) choices.push(all.splice(R.randInt(run, all.length), 1)[0]);
     run.fatesPending = false;
     run.phase = { kind: 'fates', level: run.level, choices: choices };
     R.emit(ctx, { type: 'fates' });
@@ -208,16 +260,8 @@
   R.fatesChoose = function (ctx, cmd) {
     var run = ctx.run, c = run.phase.choices[cmd.i];
     if (!c) return 'choice ' + cmd.i + ' does not exist';
-    if (c.id === 'item' && !R.canGain(run, c.card)) return R.noSpaceReason(run, c.card);
-    if (c.id === 'legacy') {
-      run.board.hand.concat(run.board.stash).forEach(function (ci) {
-        while (R.tierIndex(ci.tier) < 2 && R.upgradeInst(ctx, ci, 'fates')) { /* Bronze/Silver → Gold */ }
-      });
-    } else if (c.id === 'vitality') { run.healthMax += c.hp; R.emit(ctx, { type: 'healthMax', delta: c.hp }); }
-    else if (c.id === 'item') R.gainCard(ctx, c.card, null, null, 'fates');
-    else if (c.id === 'income') R.income(ctx, c.income);
     R.log(ctx, { t: 'fatesPick', id: c.id });
-    R.beginHour(ctx);
+    R.ENCOUNTERS.step.resolve(ctx, R.enc().steps[c.stepId], 'beginHour'); // ability của bước chạy qua DSL; sau đó vào giờ kế (không tốn giờ)
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = R;

@@ -51,11 +51,35 @@
   Cb.ref = function (c) { return ref(c); };
   // Cấp mẫu của quái mà thẻ trận dẫn tới (để chặn sự kiện "Fight" quá sức so với ngày)
   Cb.levelOf = function (combatId) { var c = R.enc().combats[combatId], m = c && monster(c.Monster); return m ? tplLevel(m) : 0; };
-  // Ba quái: một Đồng, một Bạc, một Vàng trở lên (WIKI §1.5), cấp mẫu quanh số ngày (TUNING.PVE_SLOTS)
+  // Quái của danh sách ngày (TUNING.PVE_BY_DAY, wiki Monsters) ánh xạ sang thẻ trận theo Title/InternalName; ngày > 10 dùng dòng cuối,
+  // từ PVE_LATE_FROM_DAY thêm PVE_LATE_EXTRA. Trả về [] khi bảng không có / không khớp tên nào (dùng cửa sổ cấp thay thế).
+  var titleIdx = null;
+  function norm(s) { return String(s || '').toLowerCase().replace(/\s*\((?:silver|bronze|gold|diamond|legendary|monster)[^)]*\)\s*$/, '').trim(); }
+  function byTitle() {
+    if (titleIdx) return titleIdx;
+    titleIdx = {};
+    pool().forEach(function (c) { [c.Title, c.InternalName].forEach(function (n) { var k = norm(n); if (k) { (titleIdx[k] = titleIdx[k] || []); if (titleIdx[k].indexOf(c) < 0) titleIdx[k].push(c); } }); });
+    return titleIdx;
+  }
+  Cb.dayNames = function (day) {
+    var t = T().PVE_BY_DAY, d = Math.max(1, Math.floor(day)), names = (t && t.length) ? t[Math.min(d, t.length) - 1].slice() : [];
+    if (t && d >= T().PVE_LATE_FROM_DAY) T().PVE_LATE_EXTRA.forEach(function (n) { if (names.indexOf(n) < 0) names.push(n); });
+    return names;
+  };
+  Cb.dayCombats = function (day) {
+    var idx = byTitle(), alias = T().PVE_NAME_ALIAS || {}, out = [];
+    Cb.dayNames(day).forEach(function (n) {
+      (idx[norm(alias[n] || n)] || []).forEach(function (c) { if (out.indexOf(c) < 0) out.push(c); });
+    });
+    return out;
+  };
+  // Ba quái: một Đồng, một Bạc, một Vàng trở lên (WIKI §1.5) lấy từ danh sách quái của NGÀY (RUN-02); ô không có quái đúng bậc
+  // (ngày 1 không có Vàng) lấy quái còn lại của danh sách ngày. Danh sách ngày rỗng: cửa sổ cấp mẫu (TUNING.PVE_SLOTS).
   Cb.options = function (run) {
-    var out = [], usedMon = {};
+    var out = [], usedMon = {}, dayList = Cb.dayCombats(run.day);
     T().PVE_SLOTS.forEach(function (slot) {
-      var cands = [];
+      var cands = dayList.filter(function (c) { return slot.tiers.indexOf(c.StartingTier) >= 0 && !usedMon[c.Monster]; });
+      if (!cands.length) cands = dayList.filter(function (c) { return !usedMon[c.Monster]; });
       for (var w = 0; w <= T().PVE_MAX_LEVEL_WIDEN && !cands.length; w++) {
         var lo = R.dataDay(run.day) + slot.lo - w, hi = R.dataDay(run.day) + slot.hi + w;
         cands = pool().filter(function (c) {
@@ -144,7 +168,7 @@
   };
 
   // Thua quái vẫn giữ vàng theo phần máu đã làm mất: mỗi HealthMax/(vàng+1) máu quái bị trừ = +1 vàng (luật legacy, CODE-COMBAT §1.12,
-  // BazaarCardDealer.cs:4044-4048, 4297-4311); Kripp "kept even if you lose" https://youtu.be/oVtvrCdqHEE?t=297. XP chỉ khi thắng.
+  // BazaarCardDealer.cs:4044-4048, 4297-4311); Kripp "kept even if you lose" https://youtu.be/oVtvrCdqHEE?t=297. XP khi thua: TUNING.PVE_LOSS_XP_MIN_DAMAGE.
   R.lossGold = function (gold, healthMax, health) {
     if (!gold || !(healthMax > 0)) return 0;
     var step = healthMax / (gold + 1), n = Math.floor((healthMax - Math.max(0, health)) / step + 1e-9);
@@ -153,7 +177,10 @@
   function lossRewards(ph, r) {
     if (ph.combatType === 'PVP' || !ph.opponent.rewards) return {};
     var o = r.players && r.players[1];
-    return o ? { gold: R.lossGold(ph.opponent.rewards.gold, o.healthMax, o.health) } : {};
+    if (!o) return {};
+    var lost = o.healthMax > 0 ? (o.healthMax - Math.max(0, o.health)) / o.healthMax : 0; // RUN-06: đủ sát thì còn XP
+    return { gold: R.lossGold(ph.opponent.rewards.gold, o.healthMax, o.health),
+      xp: lost >= T().PVE_LOSS_XP_MIN_DAMAGE ? (ph.opponent.rewards.xp || 0) : 0 };
   }
 
   Cb.fight = function (ctx) {
@@ -222,13 +249,13 @@
       return;
     }
     R.gold(ctx, ph.rewards.gold || 0, 'combat'); // thắng: đủ vàng; thua: phần theo máu quái đã trừ (lossRewards)
+    R.gainXp(ctx, ph.rewards.xp || 0, ph.won ? 'combat' : 'combatLoss');
     if (!ph.won) { R.finish(ctx, ph.after); return; }
-    R.gainXp(ctx, ph.rewards.xp || 0, 'combat');
     var m = monster(ph.opponent.monsterId), picks = [];
     if (m) {
       var cards = root.BZSim.boardFromMonster(m, 'l').cards.filter(function (c) {
         var tpl = R.tpl(c.id);
-        return tpl && !/^\[|TEMPLATE|DEBUG/.test(tpl.InternalName || '') && !(R.isSkill(tpl) && R.ownedSkill(run, c.id));
+        return tpl && !R.isJunk(tpl) && !(R.isSkill(tpl) && R.ownedSkill(run, c.id) && !R.fuseTarget(run, c.id, c.tier));
       });
       var seen = {}; cards = cards.filter(function (c) { if (seen[c.id]) return false; seen[c.id] = 1; return true; });
       while (picks.length < T().LOOT_PICKS && cards.length) {

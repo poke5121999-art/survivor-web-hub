@@ -1,0 +1,6 @@
+date	unit	decision	why	evidence
+2026-10-20	audit	5 nhánh khảo sát song song (RUN, COMBAT, CONTENT, UI, FX), sonnet, chỉ đọc repo	mỗi mảng nguồn khác nhau (src/DB, wiki, clip), không đụng tệp nhau	D:/bazaar-ref/notes/AUDIT.md
+2026-10-20	asset	thêm khảo sát ASSET (gốc vs tự vẽ, độ phân giải, trần Pages) trước khi chia nhánh sửa	chủ dự án: "dùng full asset của game gốc ... sao port lên web nhẹ với toàn art tự vẽ"	D:/bazaar-ref/notes/audit/ASSET.md
+2026-10-20	split	8 nhánh sửa theo tệp sở hữu: chromeA (bàn+HUD), chromeB (màn trong run), chromeC (sảnh/VS/Fates/tooltip), data (tools+art+audio), viewfx, sim, rulesA, rulesB; bản sao D:/bazaar-wt/<nhánh>	mỗi tệp một người viết; gộp bằng so với _base6	D:/bazaar-ref/notes/FIX6.md
+2026-10-20	res	art thẻ 256->512 px, chân dung gặp gỡ 384->512 px, trần games/bazaar 220 MB	chủ dự án muốn full asset; repo đã 1,21 GB (quá trần mềm 1 GB của Pages) nên chưa đẩy 1024 px	D:/bazaar-ref/notes/audit/ASSET.md §4
+2026-10-20	viewfx2	chấp nhận ảnh w10-virus tối: bản trước cũng tối y hệt, là lúc chụp rơi vào màn chuyển cảnh; W-10 kiểm bằng 9 assertion	ảnh before/w10-virus-after.png giống after	D:/bazaar-ref/fix7/viewfx2/

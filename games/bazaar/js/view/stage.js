@@ -11,7 +11,7 @@
   V.BOARD = { x: 392, w: 1136, pitch: 109.6, top: [553, 305], cardH: 232 }; // top[side]
   V.PORTRAIT = { w: 192, h: 166, y: [840, 86] };
   var REV = function () { return '?v=' + (root.BZ_REV || ''); };
-  var R = {}, cards = {}, heroes = [null, null], shakeS = { t0: -1e9, dur: 0, amp: 0 };
+  var R = {}, cards = {}, grid = [null, null], heroes = [null, null], shakeS = { t0: -1e9, dur: 0, amp: 0 };
   V.refs = R;
 
   function el(tag, cls, parent, html) { var e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; if (parent) parent.appendChild(e); return e; }
@@ -50,6 +50,7 @@
     R.shFrame = [el('div', 'bz-sh-frame bot', wd), el('div', 'bz-sh-frame top', wd)];
     R.rowGlow = [el('div', 'bz-rowglow bot', wd), el('div', 'bz-rowglow top', wd)];
     R.hp.forEach(function (h) { wd.appendChild(h); }); R.crowns.forEach(function (c) { wd.appendChild(c); });
+    R.rim = el('div', 'bz-rim', wd); // FX-19: viền ngọc lam khi có người thắng
     R.sand = el('div', 'bz-sand', wd);
     el('div', 'edge', R.sand); el('div', 'edge b', R.sand);
     R.fx = el('canvas', '', wd); R.fx.id = 'bz-fx';
@@ -124,6 +125,7 @@
     var B = V.BOARD, sorted = list.slice().sort(function (a, b) { return a.socket - b.socket; });
     var total = 0; sorted.forEach(function (c) { total += c.size; });
     var x = B.x + B.w / 2 - total * B.pitch / 2, y = B.top[side];
+    if (sorted.length) grid[side] = { x: x, s0: sorted[0].socket }; // thẻ sinh giữa trận đặt theo ô (placeCard)
     sorted.forEach(function (c, ci) {
       var span = c.size * B.pitch, w = c.el._bz.w;
       c.el.style.setProperty('--ci', ci); c.el.style.setProperty('--fy', side ? '-170px' : '170px'); // thứ tự + hướng bay vào lúc mở trận (VFX-16)
@@ -134,6 +136,20 @@
       if (!c.el.parentNode) R.cardLayer.appendChild(c.el);
       x += span;
     });
+  };
+  // placeCard(side, {uid, el, size, socket}) — đặt một thẻ vào đúng ô của lưới đã dựng (layoutBoard); dùng khi thẻ đổi dạng / sinh ra giữa trận (W-10).
+  // Thẻ cũ cùng uid (nếu có phần tử khác) bị gỡ khỏi sân. Thẻ nhỏ hơn ô cũ thì canh giữa trong phần ô nó chiếm.
+  V.placeCard = function (side, c) {
+    var B = V.BOARD, g = grid[side], old = cards[c.uid];
+    if (!g) return false;
+    if (old && old.el !== c.el && old.el.parentNode) old.el.parentNode.removeChild(old.el);
+    var span = c.size * B.pitch, w = c.el._bz.w, y = B.top[side];
+    var left = g.x + (c.socket - g.s0) * B.pitch + (span - w) / 2;
+    c.el.style.left = left.toFixed(1) + 'px'; c.el.style.top = y + 'px';
+    c.rect = { x: left, y: y, w: w, h: B.cardH };
+    cards[c.uid] = c;
+    if (!c.el.parentNode) R.cardLayer.appendChild(c.el);
+    return true;
   };
   V.cardEl = function (uid) { var c = cards[uid]; return c ? c.el : null; };
   V.cardRect = function (uid) {
@@ -210,6 +226,7 @@
     var tr = el('div', 'hp-track', hp);
     var ghost = el('div', 'hp-ghost', tr), fill = el('div', 'hp-fill', tr), burn = el('div', 'hp-burn', tr), poison = el('div', 'hp-poison', tr),
       shield = el('div', 'hp-shield', tr);
+    var divs = el('div', 'hp-div', tr);
     el('div', 'hp-gloss', tr);
     el('div', 'hp-end l', hp); el('div', 'hp-end r', hp);
     var text = el('div', 'hp-text', hp, '<span class="v"></span><span class="sh"></span><span class="rg"></span>');
@@ -230,7 +247,7 @@
       '<div class="bz-reward xp"><img alt="" src="art/ui/ui_sprite_atlas/Icon_Stat_XP_TUI.webp' + REV() + '"><span>' + (rw.xp || 0) + '</span></div>' +
       '<div class="bz-sublabel" style="margin-top:4px">' + (info.hpMax || 0) + ' máu</div>';
     heroes[side] = {
-      pf: pf, art: art, tint: tint, flash: flash, ring: ring, hp: hp, ghost: ghost, fill: fill, burn: burn, poison: poison, shield: shield,
+      divs: divs, pf: pf, art: art, tint: tint, flash: flash, ring: ring, hp: hp, ghost: ghost, fill: fill, burn: burn, poison: poison, shield: shield,
       textV: text.children[0], textS: text.children[1], textR: text.children[2], chips: chips, skillEls: skillEls,
       v: { shield: -1 }, ghostV: 1, fillV: 1, gainT: -1e9, lossT: -1e9, punchT: -1e9, punchPct: 0, flashT: -1e9, dead: false
     };
@@ -253,6 +270,7 @@
       } else { h.fillV = frac; h.ghostV = frac; }
       o.health = v.health; o.healthMax = mx;
       h.textV.textContent = Math.max(0, Math.round(v.health));
+      if (o.divMax !== mx) { o.divMax = mx; buildDividers(h.divs, mx); }
     }
     h.target = frac;
     if ((o.shield || 0) !== (v.shield || 0)) {
@@ -265,7 +283,7 @@
       h.tint.style.opacity = '';
     }
     var regen = v.regen || 0;
-    if (o.regen !== regen) { o.regen = regen; h.textR.textContent = ''; }
+    if (o.regen !== regen) { o.regen = regen; h.textR.textContent = regen > 0 ? Math.round(regen) : ''; } // UI-08: máu | khiên | hồi phục
     chip(h.chips.burn, v.burn || 0); chip(h.chips.poison, v.poison || 0); chip(h.chips.regen, regen); chip(h.chips.rage, v.rage || 0);
     // dải bỏng/độc: phần máu sẽ mất ở lần nổ tới, đặt ở mép phải phần máu
     var bf = Math.min(frac, (v.burn || 0) / mx), pf = Math.min(frac - bf, (v.poison || 0) / mx);
@@ -300,6 +318,18 @@
     }
     h.intens = { burn: ib, poison: ip, shield: ish, regen: regen > 0 ? Math.min(1, regen / (0.02 * mx) + 0.2) : 0, rage: enr ? 1 : 0 };
   };
+  // vạch chia thanh máu: khoảng nhỏ/lớn theo HealthBarController.GetPipDistances (HealthBarController.cs:249-287), chừa 0,25 ô cuối bên phải
+  var DIV_RULES = [[1000000, 0, 0], [500000, 10000, 50000], [100000, 2000, 10000], [50000, 1000, 5000], [10000, 200, 1000], [5000, 100, 500]];
+  function buildDividers(host, mx) {
+    host.innerHTML = '';
+    var sm = 50, lg = 250, i;
+    for (i = 0; i < DIV_RULES.length; i++) if (mx > DIV_RULES[i][0]) { sm = DIV_RULES[i][1]; lg = DIV_RULES[i][2]; break; }
+    if (!sm) return;
+    for (var hp = sm; hp < mx && host.children.length < 60; hp += sm) {
+      if (hp / mx > 0.985) break; // không vạch sát mép phải (EndBarBufferDistance)
+      var d = el('i', hp % lg === 0 ? 'l' : '', host); d.style.left = (hp / mx * 100).toFixed(3) + '%';
+    }
+  }
   function chip(c, v) {
     if (c.v === v) return;
     var up = v > c.v;
@@ -315,12 +345,21 @@
     if (h._fc !== c) { h._fc = c; h.flash.style.background = 'radial-gradient(ellipse 70% 65% at 50% 55%, ' + c + ' 0%, ' + c + 'aa 35%, transparent 75%)'; }
   };
   V.setDead = function (side, on) { var h = heroes[side]; if (!h) return; h.dead = on; h.pf.classList.toggle('dead', on); };
-  V.crown = function (side, on) { R.crowns[side].classList.toggle('on', !!on); };
+  // vương miện cho bên thắng; FX-19: sau băng-rôn 1 s cả bàn có viền ngọc lam, nửa bàn bên thua tối đi
+  V.crown = function (side, on) {
+    R.crowns[side].classList.toggle('on', !!on);
+    if (!R.stage) return;
+    R.stage.classList.toggle('bz-won-' + side, !!on);
+    R.stage.classList.toggle('bz-victory', R.crowns.some(function (c) { return c.classList.contains('on'); }));
+  };
   V.skillPulse = function (side, uid) { var e = V.skillEl(side, uid); if (!e) return; e.classList.remove('pulse'); void e.offsetWidth; e.classList.add('pulse'); };
 
   // ---------- rung + nhịp mỗi khung ----------
-  // shake(pct): HitStunAVFXMod — rung camera khi mất ≥ 20 % máu (biên độ/độ dài phóng to cho màn 2D [ĐỀ XUẤT])
-  V.shake = function (pct, t) { pct = Math.max(0, Math.min(1, pct)); shakeS = { t0: t == null ? V.now : t, dur: 120 + 380 * pct, amp: 6 + 34 * pct }; };
+  // shake(pct): HitStunAVFXMod — rung camera khi mất ≥ 20 % máu. Độ dài = pct × 0,04 s (HitShakeDurationMultiplier, VISUAL §8, W-12/FX-18);
+  // biên độ phóng to cho màn 2D [ĐỀ XUẤT]
+  V.SHAKE_S = 0.04;
+  V.shake = function (pct, t) { pct = Math.max(0, Math.min(1, pct)); shakeS = { t0: t == null ? V.now : t, dur: pct * V.SHAKE_S * 1000, amp: 6 + 34 * pct }; };
+  V.shakeInfo = function () { return { dur: shakeS.dur, amp: shakeS.amp, t0: shakeS.t0 }; };
   V.tick = function (t, dt) {
     V.now = t; dt = Math.max(0, dt || 0);
     var e = t - shakeS.t0;
@@ -368,8 +407,7 @@
     var key = storming ? 's' : (p * 200 | 0);
     if (R._dk !== key) {
       R._dk = key;
-      R.dialRing.style.background = storming ? 'conic-gradient(#ff7a2a, #ffcf6a, #ff7a2a)' :
-        'conic-gradient(' + (sec >= cfg.countdownStart / 1000 ? '#ff9a3a' : '#e0b25a') + ' ' + (p * 360).toFixed(1) + 'deg, rgba(0,0,0,.35) 0)';
+      R.dialRing.style.setProperty('--pd', storming ? '360deg' : (p * 360).toFixed(1) + 'deg'); // ring = sprite HourFill cắt theo góc (ASSET-07)
       R.dialStorm.style.transform = 'scaleX(' + p.toFixed(3) + ')';
       R.dial.classList.toggle('storming', storming);
       R.dialLabel.textContent = storming ? 'Bão cát đang nổi' : ('Bão cát sau ' + Math.max(0, Math.ceil(start - sec)) + ' giây');

@@ -44,7 +44,7 @@
     var res = BZ.run(Object.assign({ boards: R().clone(ph.boards) }, ph.simOpts));
     var gotWinner = res.winner === 0 ? 'player' : res.winner === 1 ? 'opponent' : 'draw';
     if (gotWinner !== ph.winner) console.warn('replay winner ' + gotWinner + ' differs from run result ' + ph.winner);
-    var boards = ph.boards, info = { cards: {}, sandstorm: true, sides: [] }, lists = [[], []], skills = [[], []];
+    var boards = ph.boards, info = { cards: {}, sandstorm: true, sides: [], titleOf: function (tpl) { return R().title(tpl); } }, lists = [[], []], skills = [[], []];
     V().clearCards(); root.BZTooltip.hide();
     res.cards.forEach(function (c) {
       var tpl = BZ.tpl(c.id); if (!tpl) return;
@@ -75,7 +75,8 @@
     // hai ô cạnh dưới giữ như ngoài trận: rương kho + túi vàng / thu nhập (không đổi sang bố cục trang xem trận)
     U.hud.mountSides(run);
     res.players[0].name = run.hero; res.players[1].name = oname;
-    info.sides = [{ name: run.hero }, { name: oname }];
+    // vo: khoá giọng hero mỗi phe (vo.<vo>.critdamage…); quái không có giọng hero nên để trống (FX-07)
+    info.sides = [{ name: run.hero, vo: U.voOf(run.hero) }, { name: oname, vo: opp && opp.source === 'dataset' && opp.hero ? U.voOf(opp.hero) : null }];
     U.cards.show(false); U.cards.clearTap();
     V().refs.stage.classList.add('m-fight');
     // vào trận: tối rồi sáng lại 0,45 s thay vì cắt cụt (VFX-16, ref fight-start "fade 400")
@@ -87,15 +88,40 @@
     RP().pause(false);
     RP().onChange = refreshDock;
     cur = { res: res, info: info, onDone: onDone, notified: false, playing: true, expect: ph.winner, got: gotWinner };
-    var A = root.BZAudio; if (A) A.music(ph.combatType === 'PVP' ? 'music.battle.' + String(run.hero).toLowerCase() : 'music.pve', 1);
+    // FX-20: PvE và PvP cùng bật nhạc trận của hero (SoundManager.cs:788-802); music.pve chỉ là dự phòng khi thiếu bài của hero
+    var A = root.BZAudio; if (A) A.music(C.battleMusic(run.hero), 1);
+    C.intensity = 0; if (A && A.setIntensity) A.setIntensity(0);
+    C.lastLifeVo(run);
     U.sfx('trans.combat');
     buildDock(); dock.style.display = '';
     refreshDock();
   };
+  C.battleMusic = function (hero) {
+    var k = 'music.battle.' + U.voOf(hero), A = root.BZAudio;
+    return A && A.has && A.has(k) ? k : 'music.pve';
+  };
+  // FX-07: OnLastLife — đúng một lần khi uy tín về 1 sau khi đã qua Số phận (SoundEventListener.cs:828-835), phát khi vào trận kế tiếp
+  var lastLifeSaid = null;
+  C.lastLifeVo = function (run) {
+    if (!run || !run.fatesUsed) { lastLifeSaid = null; return; }
+    var id = String(run.seed != null ? run.seed : run.hero) + '|' + run.hero;
+    if (run.prestige !== 1 || lastLifeSaid === id) return;
+    lastLifeSaid = id;
+    setTimeout(function () { U.heroVo('lastlife'); }, 1200);
+  };
+  // FX-06: cường độ nhạc trận theo máu trung bình hai bên (luật gốc ở RP.musicIntensity); BZAudio.setIntensity do nhánh data2 thêm — thiếu thì bỏ qua
+  C.intensity = 0;
+  function pushIntensity(S) {
+    var A = root.BZAudio; if (!A || !A.setIntensity || !S || S.done) return;
+    var f = RP().frameAt(S.t), p0 = f.p[0], p1 = f.p[1], num = ((p0[0] / (p0[7] || 1)) + (p1[0] / (p1[7] || 1))) / 2;
+    var n = RP().musicIntensity(num, C.intensity, S.slowMode > 0 && S.slowMode < 4);
+    if (n !== C.intensity) { C.intensity = n; A.setIntensity(n); }
+  }
   C.step = function (dt, now) {
     if (!cur) return;
     RP().step(dt, now);
     var S = RP().state();
+    pushIntensity(S);
     if (S && S.done && !cur.notified) { cur.notified = true; refreshDock(); if (cur.onDone) cur.onDone(); }
   };
   C.restart = function () { if (cur) { cur.notified = false; RP().restart(); if (dock) dock.classList.remove('done'); refreshDock(); } };

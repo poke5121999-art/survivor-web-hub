@@ -651,6 +651,12 @@ def build_jobs():
                     st = {"OnEnter": "enter", "OnBuy": "exit", "OnIdle": "idle"}[h["type"]]
                     J.append(dict(kind="clip", key="vo.merchant.%s.%s" % (nm, slug(h["type"][2:])), bank=c["bank"],
                                   stem=st, group="vo", tier=t, max=2))
+            # FX-07/08: các hook còn lại của thương nhân (SoundEventListener.cs:735-742 OnExit, 754-757 OnReroll, 683-702 OnSellItem*).
+            # Tên clip: <Tên>FreeExit (rời mà không mua = OnExit), <Tên>BuyExit (rời sau khi mua), MultiClick, Reroll, SellItem,
+            # SellSizedItem, BuyItem. Khoá cũ vo.merchant.<tên>.buy gộp BuyExit + FreeExit: giữ nguyên để không đổi tệp đã phát hành.
+            for k, stem in (("exit", "freeexit"), ("buyexit", "buyexit"), ("multiclick", "multiclick"), ("reroll", "reroll"),
+                            ("sellitem", "sellitem"), ("sellsized", "sellsizeditem"), ("buyitem", "buyitem")):
+                J.append(dict(kind="clip", key="vo.merchant.%s.%s" % (nm, k), bank=c["bank"], stem=stem, group="vo", tier=2, max=2))
         elif c["group"] == "monsters":
             nvb = c["nonverbal"]
             hooks = [h for h in c["hooks"] if h["type"] == "OnEnter"] or [None]
@@ -798,7 +804,7 @@ def stage_render(only=None, chunk=120):
 
 
 # ---------------------------------------------------------------- 6. export: cắt lặng, chuẩn mức, mã hoá ogg, ghi audio.js
-BUDGET_MB = 46.0
+BUDGET_MB = 80.0   # chủ dự án muốn đủ âm thanh gốc: cả games/bazaar còn dưới 220 MB
 GROUP_VOL = {"music": 0.55, "ambience": 0.5, "env": 0.8, "vo": 1.0}      # âm lượng gợi ý (đã chuẩn hoá từng nhóm)
 
 
@@ -1178,6 +1184,8 @@ def write_audio_js(table, chain):
     os.makedirs(os.path.dirname(OUT_JS), exist_ok=True)
     open(OUT_JS, "w", encoding="utf-8").write(js)
     print("audio.js: %d khoá, %d fx, %d thẻ, %.0f KB" % (len(table), len(fx), len(cards), len(js) / 1024.0))
+    import music_layers      # W-21: lớp nhạc chiến đấu thích ứng (audio.js vừa bị ghi lại)
+    music_layers.patch_js()
 
 
 if __name__ == "__main__":
