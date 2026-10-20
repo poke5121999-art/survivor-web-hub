@@ -17,7 +17,7 @@
   var GUARD = "cost_guard";
   var MODES = "modes";
   // md_modes fields drawn in the rows under coop / pvp, never as grid columns or "Chi tiết".
-  var MODES_SIDE = ["localOpen", "fakeOnline", "fake"];
+  var MODES_SIDE = ["localOpen", "fakeOnline", "fake", "score"];
   var GUARD_SERVICES = ["relay", "vivox"];
   // Main fields first, unit prices after (collapsed). Order is the form order; the proxy keeps the same list.
   var GUARD_FIELDS = {
@@ -752,8 +752,11 @@
     var seed = (DEFAULTS[MODES] || []).filter(function (d) { return d._id === doc._id; })[0] || {};
     var group = node(table, doc._id, doc, ["fake"], doc.fake || clone(seed.fake || {}));
     group.addEventListener("input", function () { if (!isObj(doc.fake)) doc.fake = clone(seed.fake || {}); }, true);
+    // Scoreboard weights: same rule, a doc without the block shows the seed and the first edit writes all five.
+    var score = node(table, doc._id, doc, ["score"], doc.score || clone(seed.score || {}));
+    score.addEventListener("input", function () { if (!isObj(doc.score)) doc.score = clone(seed.score || {}); }, true);
     var inner = h("div", { class: "dz-form dz-form--detail" },
-      node(table, doc._id, doc, ["fakeOnline"], doc.fakeOnline === true), group);
+      node(table, doc._id, doc, ["fakeOnline"], doc.fakeOnline === true), group, score);
     return h("tr", { class: "dz-detail dz-fake-row", "data-fake": doc._id }, h("td", { colspan: String(span) }, inner));
   }
 

@@ -57,6 +57,7 @@ function shuffleKeys(v) {
   const h = got.json.hash;
   const modesSeed = JSON.parse(fs.readFileSync("D:/REPO_Meta/gamespark-config/modes.json", "utf8"));
   const pvpFake = modesSeed.find((d) => d._id === "pvp").fake;
+  const pvpScore = modesSeed.find((d) => d._id === "pvp").score;
   const invalid = [
     ["unknown table", { table: "nope", docs: [] }],
     ["duplicate _id", { table: "quests", docs: [{ _id: "a" }, { _id: "a" }] }],
@@ -80,6 +81,13 @@ function shuffleKeys(v) {
     ["modes fake số quá lớn", { table: "modes", docs: [{ _id: "pvp", open: true, fake: { ...pvpFake, queueMax: 1000 } }] }],
     ["modes fake số là chuỗi", { table: "modes", docs: [{ _id: "pvp", open: true, fake: { ...pvpFake, estimate: "8" } }] }],
     ["modes fake names không phải chuỗi", { table: "modes", docs: [{ _id: "pvp", open: true, fake: { ...pvpFake, names: ["An", "Bình"] } }] }],
+    ["modes score ngoài pvp", { table: "modes", docs: [{ _id: "coop", open: true, score: { ...pvpScore } }] }],
+    ["modes score không phải object", { table: "modes", docs: [{ _id: "pvp", open: true, score: 5 }] }],
+    ["modes score kill âm", { table: "modes", docs: [{ _id: "pvp", open: true, score: { ...pvpScore, kill: -1 } }] }],
+    ["modes score death âm", { table: "modes", docs: [{ _id: "pvp", open: true, score: { ...pvpScore, death: -0.5 } }] }],
+    ["modes score assistWindow 0", { table: "modes", docs: [{ _id: "pvp", open: true, score: { ...pvpScore, assistWindow: 0 } }] }],
+    ["modes score assistWindow 61", { table: "modes", docs: [{ _id: "pvp", open: true, score: { ...pvpScore, assistWindow: 61 } }] }],
+    ["modes score số là chuỗi", { table: "modes", docs: [{ _id: "pvp", open: true, score: { ...pvpScore, money: "0.01" } }] }],
     ["coop_rules netBackend lạ", { table: "coop_rules", docs: [{ _id: "default", netBackend: "udp" }] }],
     ["decor_lights màu sai", { table: "decor_lights", docs: [{ ...{ _id: "candle", color: "#ffa040", curve: "noise", pattern: "", decors: ["candlestick_triple"] }, color: "orange" }] }],
     ["decor_lights kiểu nhấp nháy lạ", { table: "decor_lights", docs: [{ ...{ _id: "candle", color: "#ffa040", curve: "noise", pattern: "", decors: ["candlestick_triple"] }, curve: "strobe" }] }],

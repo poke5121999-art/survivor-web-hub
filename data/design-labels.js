@@ -771,7 +771,13 @@
         "fake.pingMax": { label: "Ping cao nhất", unit: "ms", int: true, min: 0, max: 999, help: "Ping hiện cạnh mỗi người là số ngẫu nhiên giữa ping thấp nhất và số này." },
         "fake.levelFloor": { label: "Cấp giữa tối thiểu của bot", unit: "cấp", int: true, min: 1, max: 999, help: "Bot rải quanh cấp người chơi, nhưng người chơi cấp thấp hơn số này thì bot rải quanh số này (người mới không gặp toàn bot cấp 1). Từng bot vẫn có thể lệch xuống dưới, không dưới cấp 1." },
         "fake.levelSpread": { label: "Cấp bot lệch quanh cấp người chơi", unit: "cấp", int: true, min: 0, max: 100, help: "Cấp bot = cấp giữa ± tối đa 1,5 lần số này, dồn về gần cấp giữa." },
-        "fake.names": { label: "Tên bot giả", lines: 4, help: "Các tên cách nhau dấu phẩy, bot lấy ngẫu nhiên trong danh sách này. Để trống = dùng danh sách có sẵn trong game." }
+        "fake.names": { label: "Tên bot giả", lines: 4, help: "Các tên cách nhau dấu phẩy, bot lấy ngẫu nhiên trong danh sách này. Để trống = dùng danh sách có sẵn trong game." },
+        "score": { label: "Bảng xếp hạng cuối trận", help: "Điểm mỗi người = tiền × tiền mang lên bệ + hạ gục × số hạ gục + hỗ trợ × số hỗ trợ − gục × số lần gục. MVP = điểm cao nhất của phe thắng (hoà: cả trận). Thiếu khối này = game dùng số mặc định." },
+        "score.money": { label: "Điểm mỗi 1 tiền mang lên bệ", min: 0, help: "Nhân với tiền mang lên bệ. 0,01 = 100 tiền được 1 điểm." },
+        "score.kill": { label: "Điểm mỗi hạ gục", unit: "điểm", min: 0 },
+        "score.assist": { label: "Điểm mỗi hỗ trợ", unit: "điểm", min: 0 },
+        "score.death": { label: "Điểm trừ mỗi lần gục", unit: "điểm", min: 0, help: "Số dương, game trừ đi. 1 = mỗi lần gục mất 1 điểm." },
+        "score.assistWindow": { label: "Cửa sổ hỗ trợ", unit: "giây", min: 0.1, max: 60, help: "Ai gây đòn lên nạn nhân trong ngần ấy giây trước khi nó gục (mà không phải người hạ) được 1 hỗ trợ. Lớn hơn 0, tối đa 60." }
       },
       // Extra switches under the coop row. Online is not an md_modes field: it is cd_cost_guard/relay.forceClosed, inverted.
       reach: {
@@ -781,7 +787,7 @@
         loading: "Đang tải Online…",
         saved: "Đã lưu Online"
       },
-      // fakeOnline + fake show in their own row under pvp instead of grid columns.
+      // fakeOnline + fake + score show in their own row under pvp instead of grid columns.
       fakeRow: "pvp"
     },
     // Not an md_ table: runtime collection cd_cost_guard, one doc per paid service, saved through gs-design "guard_save".

@@ -159,6 +159,21 @@ function fakeRule(f) {
   return null;
 }
 
+// md_modes.pvp.score: [min, max, min exclusive] per number. A missing field falls back to the game's own value.
+const SCORE_NUMS = { money: [0, Infinity], kill: [0, Infinity], assist: [0, Infinity], death: [0, Infinity], assistWindow: [0, 60, true] };
+
+function scoreRule(s) {
+  if (!isPlain(s)) return `Bảng xếp hạng cuối trận (score) là ${JSON.stringify(s)}, không phải object.`;
+  for (const [k, [lo, hi, open]] of Object.entries(SCORE_NUMS)) {
+    const v = s[k];
+    if (v === undefined) continue;
+    if (typeof v !== "number" || !Number.isFinite(v) || v < lo || v > hi || (open && v <= lo)) {
+      return `score.${k} là ${JSON.stringify(v)}, không phải số ${open ? `lớn hơn ${lo}` : `từ ${lo}`}${Number.isFinite(hi) ? ` đến ${hi}` : " trở lên"}.`;
+    }
+  }
+  return null;
+}
+
 const DECOR_CURVES = ["noise", "surge", "pattern", "pulse", "heartbeat", "glitch"];
 
 // Same rules the client applies (RemoteTablesRun.DecorLights): a doc that breaks one is dropped there, so refuse it here.
@@ -185,7 +200,9 @@ const TABLE_RULES = {
     : d.fakeOnline !== undefined && d._id !== "pvp" ? `Chế độ "${d._id}" không có trường fakeOnline, chỉ "pvp" có.`
     : d.fakeOnline !== undefined && typeof d.fakeOnline !== "boolean" ? `Giá trị fakeOnline là ${JSON.stringify(d.fakeOnline)}, không phải true hoặc false.`
     : d.fake !== undefined && d._id !== "pvp" ? `Chế độ "${d._id}" không có trường fake, chỉ "pvp" có.`
-    : d.fake !== undefined ? fakeRule(d.fake) : null),
+    : d.fake !== undefined ? fakeRule(d.fake)
+    : d.score !== undefined && d._id !== "pvp" ? `Chế độ "${d._id}" không có trường score, chỉ "pvp" có.`
+    : d.score !== undefined ? scoreRule(d.score) : null),
 };
 
 function checkTable(table, docs) {

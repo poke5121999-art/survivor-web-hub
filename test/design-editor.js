@@ -649,6 +649,27 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
   await p.fill(F('pingMax') + ' input', '200');
   check('khối fake đã có: sửa một ô = 1 thay đổi', (await txt('#dz-bar-count')) === '1 thay đổi', await txt('#dz-bar-count'));
   await p.click('#btn-discard');
+  // 12) Bảng xếp hạng cuối trận dưới dòng pvp: doc chưa có khối score hiện số seed, sửa lần đầu ghi cả khối.
+  const seedScore = DEFAULTS.modes.find(d => d._id === 'pvp').score;
+  const S = k => K('pvp', 'score.' + k);
+  const scoreCells = await p.$$eval('[data-fake="pvp"] [data-k^="pvp|score."]', els => els.map(e => e.getAttribute('data-k').slice(10)));
+  check('khung Bảng xếp hạng cuối trận đủ ô theo thứ tự seed', scoreCells.join() === Object.keys(seedScore).join(), scoreCells.join());
+  check('thiếu khối score: ô hiện số seed', (await p.inputValue(S('money') + ' input')) === String(seedScore.money) &&
+    (await p.inputValue(S('assistWindow') + ' input')) === String(seedScore.assistWindow), '');
+  check('chưa sửa score: thanh lưu sạch', /^Chưa sửa gì/.test(await txt('#dz-bar-count')), await txt('#dz-bar-count'));
+  await p.fill(S('kill') + ' input', '4');
+  check('sửa ô score đầu tiên ghi cả khối: ' + Object.keys(seedScore).length + ' thay đổi',
+    (await txt('#dz-bar-count')) === Object.keys(seedScore).length + ' thay đổi', await txt('#dz-bar-count'));
+  await p.fill(S('death') + ' input', '-1');
+  check('điểm trừ âm: lỗi, chặn lưu', /nhỏ hơn 0/.test(await txt(S('death') + ' .dz-cell__err')) && await p.$eval('#btn-review', e => e.disabled), '');
+  await p.fill(S('death') + ' input', '2');
+  await p.click('#btn-review');
+  await dryDone();
+  await p.click('#btn-save');
+  await barGone();
+  const savedScore = fake.tables.modes.find(d => d._id === 'pvp').score;
+  check('score: pvp lưu đủ khối với ô đã sửa', JSON.stringify(savedScore) === JSON.stringify(Object.assign({}, seedScore, { kill: 4, death: 2 })),
+    JSON.stringify(savedScore));
 
   const e = errs.filter(x => !/favicon|404/.test(x));
   check('không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
