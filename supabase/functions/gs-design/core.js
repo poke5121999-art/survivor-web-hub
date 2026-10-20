@@ -200,7 +200,7 @@ const TABLE_RULES = {
     : d.fakeOnline !== undefined && d._id !== "pvp" ? `Chế độ "${d._id}" không có trường fakeOnline, chỉ "pvp" có.`
     : d.fakeOnline !== undefined && typeof d.fakeOnline !== "boolean" ? `Giá trị fakeOnline là ${JSON.stringify(d.fakeOnline)}, không phải true hoặc false.`
     : d.fake !== undefined && d._id !== "pvp" ? `Chế độ "${d._id}" không có trường fake, chỉ "pvp" có.`
-    : d.fake !== undefined ? fakeRule(d.fake)
+    : d.fake !== undefined && fakeRule(d.fake) ? fakeRule(d.fake)
     : d.score !== undefined && d._id !== "pvp" ? `Chế độ "${d._id}" không có trường score, chỉ "pvp" có.`
     : d.score !== undefined ? scoreRule(d.score) : null),
 };

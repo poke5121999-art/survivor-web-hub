@@ -88,6 +88,7 @@ function shuffleKeys(v) {
     ["modes score assistWindow 0", { table: "modes", docs: [{ _id: "pvp", open: true, score: { ...pvpScore, assistWindow: 0 } }] }],
     ["modes score assistWindow 61", { table: "modes", docs: [{ _id: "pvp", open: true, score: { ...pvpScore, assistWindow: 61 } }] }],
     ["modes score số là chuỗi", { table: "modes", docs: [{ _id: "pvp", open: true, score: { ...pvpScore, money: "0.01" } }] }],
+    ["modes score kill âm khi doc có fake hợp lệ", { table: "modes", docs: [{ _id: "pvp", open: true, fakeOnline: true, fake: modesSeed.find((d) => d._id === "pvp").fake, score: { ...pvpScore, kill: -1 } }] }],
     ["coop_rules netBackend lạ", { table: "coop_rules", docs: [{ _id: "default", netBackend: "udp" }] }],
     ["decor_lights màu sai", { table: "decor_lights", docs: [{ ...{ _id: "candle", color: "#ffa040", curve: "noise", pattern: "", decors: ["candlestick_triple"] }, color: "orange" }] }],
     ["decor_lights kiểu nhấp nháy lạ", { table: "decor_lights", docs: [{ ...{ _id: "candle", color: "#ffa040", curve: "noise", pattern: "", decors: ["candlestick_triple"] }, curve: "strobe" }] }],
