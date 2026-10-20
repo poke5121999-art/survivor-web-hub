@@ -53,7 +53,7 @@
     else art.style.background = veil.style.background = 'linear-gradient(160deg,#4a3324,#24160d)';
     var rub = el('div', 'rub', win); // đống đổ nát màu cát khi thẻ bị phá (clip J6T0 destroy)
     var line = el('div', 'cdline', win);
-    veil.style.display = line.style.display = 'none'; // ngoài trận thẻ luôn sáng; C.update (chỉ replay gọi) mới bật màn hồi chiêu
+    veil.style.display = line.style.display = 'none'; // ngoài trận thẻ luôn sáng; chỉ C.update có progress (replay) mới bật màn hồi chiêu
     var stH = el('div', 'st st-haste', win), stS = el('div', 'st st-slow', win), stF = el('div', 'st st-freeze', win);
     var hit = el('div', 'hit', win);
     el('div', 'hc heat', win); el('div', 'hc chill', win); // FX-16: lớp phủ Heated / Chilled
@@ -185,7 +185,7 @@
       B.line.style.transform = 'translateY(' + ((1 - p) * B.winRect.h).toFixed(1) + 'px)';
     }
     if (force || o.charging !== charging) { o.charging = charging; e.classList.toggle('charging', charging); }
-    var hasCd = (B.attrs.CooldownEffective || B.attrs.CooldownMax || 0) > 0;
+    var hasCd = s.progress != null && (B.attrs.CooldownEffective || B.attrs.CooldownMax || 0) > 0; // layout() gọi lại với {} ngoài trận: không có tiến độ thì không phủ xám
     if (force || o.hasCd !== hasCd) { o.hasCd = hasCd; B.veil.style.display = hasCd ? '' : 'none'; B.line.style.display = hasCd ? '' : 'none'; }
     if (o.freeze === true && !(s.freeze > 0)) C.thawFx(e);
     tog(e, o, 'haste', s.haste > 0, force); tog(e, o, 'slow', s.slow > 0, force); tog(e, o, 'freeze', s.freeze > 0, force);

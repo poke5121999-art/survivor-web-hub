@@ -611,6 +611,9 @@ async function reviewFixes(browser, base) {
   const after3 = await page.evaluate(() => ({ panel: !!document.querySelector('.rs-panel'), screen: window.BZ_DEBUG.screen() }));
   check('INTERACT-3: bảng mở: Space/R/Enter không đổi hàng, không mở kho, không rời; Esc đóng bảng', mid3.rr === before3.rr && mid3.gold === before3.gold && !mid3.tray && mid3.screen === 'merchant' && mid3.panel && !after3.panel && after3.screen === 'merchant', JSON.stringify([before3, mid3, after3]));
   await shot(page, '50-review-merchant');
+  await page.evaluate(() => window.dispatchEvent(new Event('resize'))); await sleep(400);
+  const veils = await page.evaluate(() => Array.from(document.querySelectorAll('.bz-card .veil')).filter(v => getComputedStyle(v).display !== 'none').length);
+  check('thẻ ngoài trận không bị phủ xám hồi chiêu, kể cả sau khi đổi cỡ cửa sổ (layout gọi lại C.update với {})', veils === 0, 'veil hiện: ' + veils);
 
   // INTERACT-6: kéo thẻ của mình thả lên rương → vào kho (ô trống đầu)
   r = await run(page);
