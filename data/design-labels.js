@@ -769,8 +769,8 @@
         "fake.countdown": { label: "Đếm ngược màn đối đầu", unit: "giây", int: true, min: 1, max: 10, help: "Màn đối đầu đếm lùi từ số này (3 = 3-2-1) rồi vào trận." },
         "fake.pingMin": { label: "Ping thấp nhất", unit: "ms", int: true, min: 0, max: 999 },
         "fake.pingMax": { label: "Ping cao nhất", unit: "ms", int: true, min: 0, max: 999, help: "Ping hiện cạnh mỗi người là số ngẫu nhiên giữa ping thấp nhất và số này." },
-        "fake.levelFloor": { label: "Cấp bot thấp nhất", unit: "cấp", int: true, min: 1, max: 999, help: "Bot không bao giờ thấp hơn cấp này." },
-        "fake.levelSpread": { label: "Cấp bot lệch quanh cấp người chơi", unit: "cấp", int: true, min: 0, max: 100, help: "Cấp bot rải quanh cấp người chơi, lệch tối đa bấy nhiêu cấp." },
+        "fake.levelFloor": { label: "Cấp giữa tối thiểu của bot", unit: "cấp", int: true, min: 1, max: 999, help: "Bot rải quanh cấp người chơi, nhưng người chơi cấp thấp hơn số này thì bot rải quanh số này (người mới không gặp toàn bot cấp 1). Từng bot vẫn có thể lệch xuống dưới, không dưới cấp 1." },
+        "fake.levelSpread": { label: "Cấp bot lệch quanh cấp người chơi", unit: "cấp", int: true, min: 0, max: 100, help: "Cấp bot = cấp giữa ± tối đa 1,5 lần số này, dồn về gần cấp giữa." },
         "fake.names": { label: "Tên bot giả", lines: 4, help: "Các tên cách nhau dấu phẩy, bot lấy ngẫu nhiên trong danh sách này. Để trống = dùng danh sách có sẵn trong game." }
       },
       // Extra switches under the coop row. Online is not an md_modes field: it is cd_cost_guard/relay.forceClosed, inverted.
