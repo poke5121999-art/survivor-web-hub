@@ -76,7 +76,7 @@
     var buff = el('div', 'buff', cb);
     var upg = el('div', 'upg', cb), thaw = el('div', 'thaw', cb), fly = el('div', 'flybadge', cb);
     var B = root_._bz = {
-      inst: inst, attrs: opts.attrs || {}, side: opts.side || 0, h: opts.h || 230, w: 0,
+      zoom: !!opts.zoom, inst: inst, attrs: opts.attrs || {}, side: opts.side || 0, h: opts.h || 230, w: 0,
       cb: cb, win: win, art: art, veil: veil, rub: rub, ring: ring, upg: upg, thaw: thaw, fly: fly, line: line, stH: stH, stS: stS, stF: stF, hit: hit, frame: frame, cssf: cssf, fglow: fglow,
       gems: gems, mc: mc, tag: tag, ammo: ammo, chH: chH, chS: chS, chF: chF, buff: buff, ench: ench,
       s: {}, gemVals: {}, pips: [],
@@ -95,6 +95,7 @@
     e.style.width = w + 'px'; e.style.height = h + 'px';
     var wn = f.window;
     place(B.win, wn.x * k, wn.y * k, wn.w * k, wn.h * k);
+    var hsrc = C.artSrc(inst.id); if (hsrc && root.BZHires) root.BZHires.apply([B.art, B.veil], hsrc, { h: wn.h * k, zoom: B.zoom }); // bản gốc khi hộp art đủ lớn
     B.win.style.borderRadius = Math.max(4, (wn.r || 10) * k) + 'px';
     B.winRect = { x: wn.x * k, y: wn.y * k, w: wn.w * k, h: wn.h * k };
     place(B.ring, wn.x * k - 3, wn.y * k - 3, wn.w * k + 6, wn.h * k + 6);

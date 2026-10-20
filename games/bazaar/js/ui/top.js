@@ -155,6 +155,7 @@
       var bg = U.el('div', 'bg', art), ch = U.el('div', 'ch', art);
       if (A.bg) bg.style.backgroundImage = U.bg(A.bg);
       if (A.char) ch.style.backgroundImage = U.bg(A.char); else ch.style.display = 'none';
+      if (root.BZHires) { root.BZHires.apply(bg, A.bg, { zoom: opts.zoom }); root.BZHires.apply(ch, A.char, { zoom: opts.zoom }); }
       if (F) { var im = U.el('img', 'frame', fr); im.src = U.url(F.src); im.alt = ''; im.draggable = false; }
       U.el('i', 'gem', fr);
       var pt = opts.pennant ? opts.pennant(o) : T.pennantType(o);

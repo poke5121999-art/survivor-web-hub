@@ -188,6 +188,7 @@
     var bg = el('div', 'pf-bg', art), ch = el('div', 'pf-char', art);
     if (info.bg) bg.style.backgroundImage = 'url("' + info.bg + REV() + '")';
     if (info.char) ch.style.backgroundImage = 'url("' + info.char + REV() + '")';
+    if (root.BZHires) { root.BZHires.apply(bg, info.bg, { zoom: info.zoom }); root.BZHires.apply(ch, info.char, { zoom: info.zoom }); } // bản gốc khi khung đủ lớn
     var tint = el('div', 'pf-tint', art), flash = el('div', 'pf-flash', art);
     var ring = el('div', 'bz-enrage-ring', pf);
     // kỹ năng: 3×2 mỗi bên chân dung (12 chỗ, chỗ trống = sao mờ)
