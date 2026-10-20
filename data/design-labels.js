@@ -637,7 +637,8 @@
         "truckHeal.mid": { label: "Nhà 3–4", unit: "máu", min: 0 },
         "truckHeal.late": { label: "Nhà 5 trở đi", unit: "máu", min: 0 },
         "truckHeal.patch": { label: "Máu tối thiểu khi vào nhà mới", unit: "máu", min: 0, help: "Sàn an toàn: không ai bước vào nhà mới dưới ngần này máu." },
-        "reviveHp": { label: "Máu khi được đỡ dậy", unit: "máu", min: 1 }
+        "reviveHp": { label: "Máu khi được đỡ dậy", unit: "máu", min: 1 },
+        "rideHold": { label: "Giữ nút XUẤT PHÁT trên xe", unit: "giây", min: 0.3, max: 10, help: "Chặng trên xe giữa trạm dịch vụ và nhà sau: phải đè nút này đủ số giây thì xe mới chạy. Nhả giữa chừng là đếm lại." }
       }
     },
 
