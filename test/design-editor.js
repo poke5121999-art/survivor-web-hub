@@ -19,7 +19,7 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
 const KNOWN = ['wallet_start', 'crew', 'tactics', 'upgrade', 'passives', 'gacha_banners', 'gacha_rules', 'shop_packs',
   'shop_rules', 'shop_exchange', 'loadout', 'quests', 'maps', 'run_reward', 'stage_houses', 'stage_rules',
   'extract_quota', 'loot_cap', 'loot_sizes', 'loot_materials', 'loot_items', 'safes_chests', 'station_upgrades',
-  'station_gear', 'station_healthpacks', 'station_vehicles', 'station_rules', 'gacha_wheel', 'foes', 'run_timers'];
+  'station_gear', 'station_healthpacks', 'station_vehicles', 'station_rules', 'gacha_wheel', 'foes', 'run_timers', 'modes'];
 
 const sandbox = { window: {} };
 vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'data/design-defaults.js'), 'utf8'), sandbox);
@@ -62,6 +62,7 @@ const LABELS_JS = 'window.DESIGN_LABELS = ' + JSON.stringify({
       spd: { label: 'Tốc độ', min: 0 }, carry: { label: 'Sức mang', int: true }, 'skill.cd': { label: 'Hồi chiêu', unit: 'giây' } } },
   cost_guard: realLabels.window.DESIGN_LABELS.cost_guard,
   client_gate: realLabels.window.DESIGN_LABELS.client_gate,
+  modes: realLabels.window.DESIGN_LABELS.modes,
 }) + ';';
 
 function hashDocs(docs) {
@@ -73,7 +74,9 @@ function hashDocs(docs) {
 
 const fake = {
   tables: { quests: JSON.parse(fs.readFileSync('D:/REPO_Meta/gamespark-config/quests.json', 'utf8')),
-    stage_houses: JSON.parse(JSON.stringify(DEFAULTS.stage_houses)), stage_rules: JSON.parse(JSON.stringify(DEFAULTS.stage_rules)) },
+    stage_houses: JSON.parse(JSON.stringify(DEFAULTS.stage_houses)), stage_rules: JSON.parse(JSON.stringify(DEFAULTS.stage_rules)),
+    // As on DEV before fake online: pvp has neither fakeOnline nor fake.
+    modes: [{ _id: 'coop', open: true }, { _id: 'pvp', open: false }, { _id: 'endless_solo', open: true }, { _id: 'endless_coop', open: false }] },
   saves: [],
   guardSaves: [],
   guardReject: null,
@@ -584,6 +587,68 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
   check('tab bảo trì không kéo ngang ở 390 px', fit390.ok, fit390.info);
   await p.screenshot({ path: SHOTS + '/client-gate-mobile.png', fullPage: true });
   await p.setViewportSize({ width: 1280, height: 900 });
+  // 11) Bật / tắt chế độ chơi: giả online dưới dòng pvp. DEV chưa có trường nào: hiện số seed, sửa lần đầu ghi cả khối fake.
+  const seedFake = DEFAULTS.modes.find(d => d._id === 'pvp').fake;
+  const F = k => K('pvp', 'fake.' + k);
+  await open('modes');
+  await p.waitForSelector('#reach-online:not([disabled])');
+  const modeHeads = await p.$$eval('.dz-grid > thead th', ths => ths.map(t => t.textContent).join('|'));
+  check('lưới chế độ chỉ có cột Mở, công tắc phụ nằm ở dòng dưới', modeHeads === 'Dòng|Mở cho người chơi|', modeHeads);
+  const sw = await p.$eval(K('pvp', 'fakeOnline') + ' input', e => ({ type: e.type, checked: e.checked, row: e.closest('tr').getAttribute('data-fake') }));
+  check('dòng dưới pvp có công tắc Giả online, thiếu trường = tắt', sw.type === 'checkbox' && !sw.checked && sw.row === 'pvp', JSON.stringify(sw));
+  const fakeCells = await p.$$eval('[data-fake="pvp"] [data-k^="pvp|fake."]', els => els.map(e => e.getAttribute('data-k').slice(9)));
+  check('đủ ô màn tìm trận giả theo thứ tự seed', fakeCells.join() === Object.keys(seedFake).join(), fakeCells.join());
+  check('thiếu khối fake: ô hiện số seed', (await p.inputValue(F('queueMin') + ' input')) === String(seedFake.queueMin) &&
+    (await p.inputValue(F('pingMax') + ' input')) === String(seedFake.pingMax), '');
+  check('Tên bot giả là hộp nhiều dòng chứa danh sách seed', await p.$eval(F('names') + ' textarea', (e, v) => e.value === v, seedFake.names), '');
+  check('chưa sửa gì: thanh lưu sạch', /^Chưa sửa gì/.test(await txt('#dz-bar-count')), await txt('#dz-bar-count'));
+  await p.click(K('pvp', 'fakeOnline') + ' input');
+  check('bật Giả online = 1 thay đổi', (await txt('#dz-bar-count')) === '1 thay đổi', await txt('#dz-bar-count'));
+  await p.fill(F('queueMin') + ' input', '5');
+  check('sửa ô fake đầu tiên ghi cả khối: 1 + ' + Object.keys(seedFake).length + ' thay đổi',
+    (await txt('#dz-bar-count')) === (1 + Object.keys(seedFake).length) + ' thay đổi', await txt('#dz-bar-count'));
+  const oldQ = await txt(F('queueMin') + ' .dz-cell__old');
+  check('ô đã sửa đánh dấu đổi, "trước: (không có)", dòng pvp đánh dấu đổi', oldQ === 'trước: (không có)' &&
+    await p.$eval(F('queueMin'), e => e.classList.contains('is-changed')) &&
+    await p.$eval('.dz-row[data-id="pvp"]', e => e.classList.contains('is-changed')), oldQ);
+  await p.fill(F('countdown') + ' input', '2.5');
+  const cdErr = await txt(F('countdown') + ' .dz-cell__err');
+  check('đếm ngược số lẻ: lỗi số nguyên, chặn lưu', /số nguyên/.test(cdErr) && await p.$eval('#btn-review', e => e.disabled), cdErr);
+  await p.fill(F('countdown') + ' input', '11');
+  const cdErr2 = await txt(F('countdown') + ' .dz-cell__err');
+  check('đếm ngược 11: lỗi trần 10', /Không được lớn hơn 10/.test(cdErr2), cdErr2);
+  await p.fill(F('countdown') + ' input', '4');
+  await p.fill(F('names') + ' textarea', 'An, Bình, Chi');
+  await p.focus(F('pingMax') + ' input');
+  await p.waitForTimeout(1000);
+  check('poll (300 ms) không vẽ lại khung: ô đang gõ giữ focus',
+    await p.evaluate(sel => document.activeElement === document.querySelector(sel + ' input'), F('pingMax')), '');
+  const fitM = await p.evaluate(() => {
+    const w = document.querySelector('#dz-pane .dz-grid__wrap');
+    return [document.documentElement.scrollWidth, document.documentElement.clientWidth, w.scrollWidth, w.clientWidth];
+  });
+  check('chế độ chơi không cuộn ngang ở 1280 px (trang và lưới)', fitM[0] <= fitM[1] && fitM[2] <= fitM[3], fitM.join(' / '));
+  await p.setViewportSize({ width: 390, height: 800 });
+  const fitS = await p.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth]);
+  check('chế độ chơi không cuộn ngang ở 390 px', fitS[0] <= fitS[1], fitS.join(' / '));
+  await p.setViewportSize({ width: 1280, height: 900 });
+  await p.click('#btn-review');
+  await dryDone();
+  const chgM = await txt('#dz-changes');
+  check('xem lại gọi tên dòng và ô', chgM.includes('Đấu đội 5v5 · Giả online (1 người + 9 bot): (không có) → Bật') &&
+    chgM.includes('Đấu đội 5v5 · Đủ người sớm nhất: (không có) → 5 giây'), chgM.slice(0, 160));
+  await p.click('#btn-save');
+  await barGone();
+  const savedPvp = fake.tables.modes.find(d => d._id === 'pvp');
+  check('fake: pvp lưu fakeOnline true và đủ khối fake đã sửa', savedPvp.fakeOnline === true &&
+    JSON.stringify(savedPvp.fake) === JSON.stringify(Object.assign({}, seedFake, { queueMin: 5, countdown: 4, names: 'An, Bình, Chi' })),
+    JSON.stringify(savedPvp).slice(0, 160));
+  check('sau lưu công tắc Giả online bật', await p.$eval(K('pvp', 'fakeOnline') + ' input', e => e.checked), '');
+  await p.waitForFunction(() => !document.querySelector('.dz-toast'), null, { timeout: 8000 }).catch(() => {});
+  await p.screenshot({ path: SHOTS + '/modes-pvp-fake.png', fullPage: true });
+  await p.fill(F('pingMax') + ' input', '200');
+  check('khối fake đã có: sửa một ô = 1 thay đổi', (await txt('#dz-bar-count')) === '1 thay đổi', await txt('#dz-bar-count'));
+  await p.click('#btn-discard');
 
   const e = errs.filter(x => !/favicon|404/.test(x));
   check('không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));

@@ -84,6 +84,8 @@
   color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
 }
 .dz-input--num { width: 140px; max-width: 140px; text-align: right; font-variant-numeric: tabular-nums; }
+.dz-cell--wide { width: 100%; }
+.dz-input--area { width: 100%; max-width: 680px; resize: vertical; line-height: 1.45; }
 .dz-input:focus-visible, .dz-search:focus-visible, .dz-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .dz-unit { font-size: 13px; color: var(--text-dim); white-space: nowrap; }
 .dz-readonly { font-size: 14px; color: var(--text-dim); padding: 7px 0; }

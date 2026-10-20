@@ -55,6 +55,8 @@ function shuffleKeys(v) {
     `status ${wrong.status}, ${wrong.json.error && wrong.json.error.code}`);
 
   const h = got.json.hash;
+  const modesSeed = JSON.parse(fs.readFileSync("D:/REPO_Meta/gamespark-config/modes.json", "utf8"));
+  const pvpFake = modesSeed.find((d) => d._id === "pvp").fake;
   const invalid = [
     ["unknown table", { table: "nope", docs: [] }],
     ["duplicate _id", { table: "quests", docs: [{ _id: "a" }, { _id: "a" }] }],
@@ -64,6 +66,20 @@ function shuffleKeys(v) {
     ["modes open không phải boolean", { table: "modes", docs: [{ _id: "coop", open: "yes" }] }],
     ["modes localOpen không phải boolean", { table: "modes", docs: [{ _id: "coop", open: true, localOpen: "yes" }] }],
     ["modes localOpen ngoài coop", { table: "modes", docs: [{ _id: "pvp", open: true, localOpen: true }] }],
+    ["modes fakeOnline ngoài pvp", { table: "modes", docs: [{ _id: "coop", open: true, fakeOnline: true }] }],
+    ["modes fakeOnline không phải boolean", { table: "modes", docs: [{ _id: "pvp", open: true, fakeOnline: "yes" }] }],
+    ["modes fake ngoài pvp", { table: "modes", docs: [{ _id: "endless_coop", open: false, fake: { ...pvpFake } }] }],
+    ["modes fake không phải object", { table: "modes", docs: [{ _id: "pvp", open: true, fake: 5 }] }],
+    ["modes fake queueMin > queueMax", { table: "modes", docs: [{ _id: "pvp", open: true, fake: { ...pvpFake, queueMin: 20, queueMax: 12 } }] }],
+    ["modes fake pingMin > pingMax", { table: "modes", docs: [{ _id: "pvp", open: true, fake: { ...pvpFake, pingMin: 200, pingMax: 144 } }] }],
+    ["modes fake countdown 0", { table: "modes", docs: [{ _id: "pvp", open: true, fake: { ...pvpFake, countdown: 0 } }] }],
+    ["modes fake countdown 11", { table: "modes", docs: [{ _id: "pvp", open: true, fake: { ...pvpFake, countdown: 11 } }] }],
+    ["modes fake countdown lẻ", { table: "modes", docs: [{ _id: "pvp", open: true, fake: { ...pvpFake, countdown: 2.5 } }] }],
+    ["modes fake ping lẻ", { table: "modes", docs: [{ _id: "pvp", open: true, fake: { ...pvpFake, pingMin: 14.5 } }] }],
+    ["modes fake số âm", { table: "modes", docs: [{ _id: "pvp", open: true, fake: { ...pvpFake, fullHold: -1 } }] }],
+    ["modes fake số quá lớn", { table: "modes", docs: [{ _id: "pvp", open: true, fake: { ...pvpFake, queueMax: 1000 } }] }],
+    ["modes fake số là chuỗi", { table: "modes", docs: [{ _id: "pvp", open: true, fake: { ...pvpFake, estimate: "8" } }] }],
+    ["modes fake names không phải chuỗi", { table: "modes", docs: [{ _id: "pvp", open: true, fake: { ...pvpFake, names: ["An", "Bình"] } }] }],
     ["coop_rules netBackend lạ", { table: "coop_rules", docs: [{ _id: "default", netBackend: "udp" }] }],
     ["decor_lights màu sai", { table: "decor_lights", docs: [{ ...{ _id: "candle", color: "#ffa040", curve: "noise", pattern: "", decors: ["candlestick_triple"] }, color: "orange" }] }],
     ["decor_lights kiểu nhấp nháy lạ", { table: "decor_lights", docs: [{ ...{ _id: "candle", color: "#ffa040", curve: "noise", pattern: "", decors: ["candlestick_triple"] }, curve: "strobe" }] }],
@@ -73,6 +89,9 @@ function shuffleKeys(v) {
   const okDecor = await act({ action: "save", baseHash: (await act({ action: "get", table: "decor_lights" })).json.hash, dryRun: true, table: "decor_lights",
     docs: JSON.parse(fs.readFileSync("D:/REPO_Meta/gamespark-config/decor_lights.json", "utf8")) });
   check("decor_lights seed qua được luật kiểm", okDecor.status === 200, `status ${okDecor.status}, ${okDecor.json.error && okDecor.json.error.message}`);
+  const okModes = await act({ action: "save", baseHash: (await act({ action: "get", table: "modes" })).json.hash, dryRun: true, table: "modes", docs: modesSeed });
+  check("modes seed (pvp giả online) qua được luật kiểm", okModes.status === 200 && okModes.json.applied === false,
+    `status ${okModes.status}, ${okModes.json.error ? okModes.json.error.message : JSON.stringify(okModes.json.counts)}`);
   for (const [n, b] of invalid) {
     const r = await act({ action: "save", baseHash: h, dryRun: true, ...b });
     check("INVALID " + n, r.status === 400 && r.json.error.code === "INVALID", `status ${r.status}, ${r.json.error && r.json.error.message}`);

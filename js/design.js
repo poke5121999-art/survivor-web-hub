@@ -16,6 +16,8 @@
   // Not an md_ table: runtime collection cd_cost_guard with its own pane and its own save button.
   var GUARD = "cost_guard";
   var MODES = "modes";
+  // md_modes fields drawn in the rows under coop / pvp, never as grid columns or "Chi tiết".
+  var MODES_SIDE = ["localOpen", "fakeOnline", "fake"];
   var GUARD_SERVICES = ["relay", "vivox"];
   // Main fields first, unit prices after (collapsed). Order is the form order; the proxy keeps the same list.
   var GUARD_FIELDS = {
@@ -422,7 +424,10 @@
       input.addEventListener("change", function () { setAt(doc, path, input.value); onEdit(); });
       box.appendChild(input);
     } else if (typeof value === "string") {
-      input = h("input", { type: "text", autocomplete: "off", class: "dz-input", "aria-label": meta.label });
+      // lines: a long comma list gets a box that wraps instead of one line that scrolls.
+      input = h(meta.lines ? "textarea" : "input", { type: meta.lines ? null : "text", rows: meta.lines || null, autocomplete: "off",
+        class: "dz-input" + (meta.lines ? " dz-input--area" : ""), "aria-label": meta.label });
+      if (meta.lines) wrap.classList.add("dz-cell--wide");
       input.value = value;
       input.addEventListener("input", function () {
         setAt(doc, path, input.value);
@@ -629,7 +634,9 @@
 
   // sec (optional) restricts the grid to that section's fields, in its order.
   function listGrid(table, docs, sec) {
-    var inSec = function (k) { return k !== "_id" && (!sec || sec.fields.indexOf(k) >= 0); };
+    var inSec = function (k) {
+      return k !== "_id" && !(table === MODES && MODES_SIDE.indexOf(k) >= 0) && (!sec || sec.fields.indexOf(k) >= 0);
+    };
     var cols = [];
     docs.forEach(function (d) {
       Object.keys(d).forEach(function (k) {
@@ -677,6 +684,7 @@
       tbody.appendChild(tr);
       var reach = table === MODES && !sec && (LABELS[MODES].reach || {}).row === doc._id ? reachRow(table, doc, cols.length + 2) : null;
       if (reach) { tr._reach = reach; tbody.appendChild(reach); }
+      if (table === MODES && !sec && LABELS[MODES].fakeRow === doc._id) tbody.appendChild(fakeRow(table, doc, cols.length + 2));
       if (rest.length) {
         if (S.open[openKey] == null) S.open[openKey] = !!(LABELS[table] || {}).expand;
         var detail = h("tr", { class: "dz-detail", hidden: !S.open[openKey] });
@@ -736,6 +744,17 @@
         h("label", { class: "dz-fld__label", text: R.local.label }),
         h("div", { class: "dz-fld__ctl" }, localCell, h("p", { class: "dz-help", text: R.local.help }))));
     return h("tr", { class: "dz-detail dz-reach-row", "data-reach": doc._id }, h("td", { colspan: String(span) }, inner));
+  }
+
+  // Fake online under the pvp row. A doc saved before this option has no fakeOnline (= off) and no fake block
+  // (= the game's own numbers, which the seed copies): show the seed, and the first edit writes the whole block.
+  function fakeRow(table, doc, span) {
+    var seed = (DEFAULTS[MODES] || []).filter(function (d) { return d._id === doc._id; })[0] || {};
+    var group = node(table, doc._id, doc, ["fake"], doc.fake || clone(seed.fake || {}));
+    group.addEventListener("input", function () { if (!isObj(doc.fake)) doc.fake = clone(seed.fake || {}); }, true);
+    var inner = h("div", { class: "dz-form dz-form--detail" },
+      node(table, doc._id, doc, ["fakeOnline"], doc.fakeOnline === true), group);
+    return h("tr", { class: "dz-detail dz-fake-row", "data-fake": doc._id }, h("td", { colspan: String(span) }, inner));
   }
 
   function applySearch() {
@@ -898,8 +917,11 @@
   function loadGuard() {
     return call({ action: "guard" }).then(function (j) {
       showBanner(null);
+      var was = S.guard.loaded ? !!guardRow("relay").row.forceClosed : null;
       setGuard(j);
-      if (S.current === GUARD || (S.current === MODES && !S.reachBusy)) renderMain();
+      // The modes tab only shows relay's Online switch; redrawing it on every poll would drop focus from a box being typed in.
+      var moved = was !== !!guardRow("relay").row.forceClosed;
+      if (S.current === GUARD || (S.current === MODES && !S.reachBusy && moved)) renderMain();
     }, function (e) { showBanner(errText(e), loadGuard); });
   }
 

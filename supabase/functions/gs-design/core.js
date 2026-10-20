@@ -138,6 +138,27 @@ const NET_BACKENDS = ["ngo", "rtd", "steam"];
 
 const MODE_IDS = ["coop", "pvp", "endless_solo", "endless_coop"];
 
+// md_modes.pvp.fake: [min, max, integer] per number. A missing field falls back to the game's own value.
+const FAKE_NUMS = {
+  queueMin: [0, 120], queueMax: [0, 120], estimate: [0, 120], fullHold: [0, 10], countdown: [1, 10, true],
+  pingMin: [0, 999, true], pingMax: [0, 999, true], levelFloor: [1, 999, true], levelSpread: [0, 100, true],
+};
+
+function fakeRule(f) {
+  if (!isPlain(f)) return `Màn tìm trận giả (fake) là ${JSON.stringify(f)}, không phải object.`;
+  for (const [k, [lo, hi, int]] of Object.entries(FAKE_NUMS)) {
+    const v = f[k];
+    if (v === undefined) continue;
+    if (typeof v !== "number" || !Number.isFinite(v) || v < lo || v > hi || (int && !Number.isInteger(v))) {
+      return `fake.${k} là ${JSON.stringify(v)}, không phải số${int ? " nguyên" : ""} từ ${lo} đến ${hi}.`;
+    }
+  }
+  if (f.queueMin > f.queueMax) return `Đủ người sớm nhất (${f.queueMin} giây) lớn hơn muộn nhất (${f.queueMax} giây).`;
+  if (f.pingMin > f.pingMax) return `Ping thấp nhất (${f.pingMin} ms) lớn hơn cao nhất (${f.pingMax} ms).`;
+  if (f.names !== undefined && typeof f.names !== "string") return `Tên bot giả ${JSON.stringify(f.names)} không phải chuỗi.`;
+  return null;
+}
+
 const DECOR_CURVES = ["noise", "surge", "pattern", "pulse", "heartbeat", "glitch"];
 
 // Same rules the client applies (RemoteTablesRun.DecorLights): a doc that breaks one is dropped there, so refuse it here.
@@ -160,7 +181,11 @@ const TABLE_RULES = {
   modes: (d) => (!MODE_IDS.includes(d._id) ? `Chế độ "${d._id}" không hợp lệ, chỉ nhận ${MODE_IDS.join(", ")}.`
     : typeof d.open !== "boolean" ? `Giá trị open của "${d._id}" là ${JSON.stringify(d.open)}, phải là true hoặc false.`
     : d.localOpen !== undefined && d._id !== "coop" ? `Chế độ "${d._id}" không có trường localOpen, chỉ "coop" có.`
-    : d.localOpen !== undefined && typeof d.localOpen !== "boolean" ? `Giá trị localOpen là ${JSON.stringify(d.localOpen)}, phải là true hoặc false.` : null),
+    : d.localOpen !== undefined && typeof d.localOpen !== "boolean" ? `Giá trị localOpen là ${JSON.stringify(d.localOpen)}, phải là true hoặc false.`
+    : d.fakeOnline !== undefined && d._id !== "pvp" ? `Chế độ "${d._id}" không có trường fakeOnline, chỉ "pvp" có.`
+    : d.fakeOnline !== undefined && typeof d.fakeOnline !== "boolean" ? `Giá trị fakeOnline là ${JSON.stringify(d.fakeOnline)}, không phải true hoặc false.`
+    : d.fake !== undefined && d._id !== "pvp" ? `Chế độ "${d._id}" không có trường fake, chỉ "pvp" có.`
+    : d.fake !== undefined ? fakeRule(d.fake) : null),
 };
 
 function checkTable(table, docs) {

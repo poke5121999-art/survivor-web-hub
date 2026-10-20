@@ -759,7 +759,19 @@
       fields: {
         "_id": ID,
         "open": { label: "Mở cho người chơi", help: "Tắt = thẻ hiện COMING SOON, không vào được." },
-        "localOpen": { label: "Local (cùng Wi-Fi)", help: "Chỉ có ở Chơi với bạn. Tắt = người chơi không chọn được Local; Online vẫn theo công tắc Online. Thiếu trường = mở." }
+        "localOpen": { label: "Local (cùng Wi-Fi)", help: "Chỉ có ở Chơi với bạn. Tắt = người chơi không chọn được Local; Online vẫn theo công tắc Online. Thiếu trường = mở." },
+        "fakeOnline": { label: "Giả online (1 người + 9 bot)", help: "Bật = bấm TÌM TRẬN 5v5 hiện màn tìm trận giả rồi vào trận offline với 9 bot; không cần Relay hay UGS, công tắc Online ở Chơi với bạn (và tab Chi phí dịch vụ) không đóng được. Tắt = tìm trận online thật. Chỉ có tác dụng khi Mở cho người chơi đang bật. Bản game cũ hơn bản có tính năng này bỏ qua công tắc." },
+        "fake": { label: "Màn tìm trận giả", help: "Chỉ dùng khi Giả online bật." },
+        "fake.queueMin": { label: "Đủ người sớm nhất", unit: "giây", min: 0, max: 120, help: "Ghế lấp đủ 10/10 vào một lúc ngẫu nhiên giữa số này và số muộn nhất." },
+        "fake.queueMax": { label: "Đủ người muộn nhất", unit: "giây", min: 0, max: 120, help: "Không nhỏ hơn số sớm nhất." },
+        "fake.estimate": { label: "Ước tính hiện ra", unit: "giây", min: 0, max: 120, help: "Số hiện ở dòng \"Ước tính\" trên màn tìm trận." },
+        "fake.fullHold": { label: "Giữ chữ \"Đủ người!\"", unit: "giây", min: 0, max: 10, help: "Đủ 10/10 thì chữ \"Đủ người!\" đứng chừng này giây trước màn đối đầu." },
+        "fake.countdown": { label: "Đếm ngược màn đối đầu", unit: "giây", int: true, min: 1, max: 10, help: "Màn đối đầu đếm lùi từ số này (3 = 3-2-1) rồi vào trận." },
+        "fake.pingMin": { label: "Ping thấp nhất", unit: "ms", int: true, min: 0, max: 999 },
+        "fake.pingMax": { label: "Ping cao nhất", unit: "ms", int: true, min: 0, max: 999, help: "Ping hiện cạnh mỗi người là số ngẫu nhiên giữa ping thấp nhất và số này." },
+        "fake.levelFloor": { label: "Cấp bot thấp nhất", unit: "cấp", int: true, min: 1, max: 999, help: "Bot không bao giờ thấp hơn cấp này." },
+        "fake.levelSpread": { label: "Cấp bot lệch quanh cấp người chơi", unit: "cấp", int: true, min: 0, max: 100, help: "Cấp bot rải quanh cấp người chơi, lệch tối đa bấy nhiêu cấp." },
+        "fake.names": { label: "Tên bot giả", lines: 4, help: "Các tên cách nhau dấu phẩy, bot lấy ngẫu nhiên trong danh sách này. Để trống = dùng danh sách có sẵn trong game." }
       },
       // Extra switches under the coop row. Online is not an md_modes field: it is cd_cost_guard/relay.forceClosed, inverted.
       reach: {
@@ -768,7 +780,9 @@
         local: { label: "Local", help: "Cùng Wi-Fi, qua WebRTC, không dùng Relay hay Vivox. Bấm Lưu như các ô khác." },
         loading: "Đang tải Online…",
         saved: "Đã lưu Online"
-      }
+      },
+      // fakeOnline + fake show in their own row under pvp instead of grid columns.
+      fakeRow: "pvp"
     },
     // Not an md_ table: runtime collection cd_cost_guard, one doc per paid service, saved through gs-design "guard_save".
     cost_guard: {
