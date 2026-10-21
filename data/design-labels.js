@@ -737,6 +737,7 @@
           { v: "eos", label: "EOS của Epic (miễn phí, mặc định)" },
           { v: "utp", label: "Relay Unity như web (tốn tiền relay và Vivox)" }
         ], help: "Chỉ bản app (Android, iOS) đọc; bản web luôn dùng Relay Unity. Chuyển sang Relay Unity khi EOS gặp sự cố: người chơi nhận ở lần mở game sau, phòng đang mở giữ nguyên. Thiếu trường = EOS. Bản app chưa có EOS bỏ qua công tắc này. Phòng EOS và phòng Relay Unity không vào chung được bằng mã." },
+        "hostAwayGrace": { label: "Giây khách chờ chủ phòng app tạm rời", unit: "giây", min: 10, max: 600, int: true, help: "Chủ phòng trên app xuống nền (nghe điện thoại, đổi app) thì khách thấy \"Chủ phòng đang tạm rời\" và chờ tối đa chừng này giây; chủ quay lại kịp thì ca chạy tiếp, quá thì khách rời ca. Chỉ áp cho phòng EOS của bản app. Thiếu trường = 90." },
         "poseSpeedMul": { label: "Hệ số tốc độ tối đa của khách (chống gian lận)", min: 1, help: "Chủ phòng không cho khách đi nhanh hơn tốc chạy tối đa nhân số này; vượt thì kéo về, không đá khỏi phòng. 1,1 = chừa 10% sai số khung hình." },
         "poseBurstSeconds": { label: "Giây đi dồn được sau lag", unit: "giây", min: 0, help: "Sau một lúc mạng chậm, gói tư thế dồn lại vẫn được nhận tối đa chừng này giây đường đi." },
         "poseRoundPx": { label: "Sai số làm tròn toạ độ", unit: "px", min: 0, help: "Khoảng cộng thêm vào trần quãng đi để không bắt nhầm do làm tròn toạ độ." },
