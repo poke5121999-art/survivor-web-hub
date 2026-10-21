@@ -135,6 +135,7 @@ function validateDocs(docs) {
 }
 
 const NET_BACKENDS = ["ngo", "rtd", "steam"];
+const APP_NETS = ["eos", "utp"];
 
 const MODE_IDS = ["coop", "pvp", "endless_solo", "endless_coop"];
 
@@ -190,6 +191,7 @@ function decorLightRule(d) {
 const TABLE_RULES = {
   decor_lights: decorLightRule,
   coop_rules: (d) => (!NET_BACKENDS.includes(d.netBackend) ? `Mạng co-op "${d.netBackend}" không hợp lệ, chỉ nhận ngo, rtd hoặc steam.`
+    : d.appNet !== undefined && !APP_NETS.includes(d.appNet) ? `Mạng co-op của app "${d.appNet}" không hợp lệ, chỉ nhận eos hoặc utp.`
     : d.localStun !== undefined && typeof d.localStun !== "string" ? `Máy STUN Local ${JSON.stringify(d.localStun)} phải là chuỗi, trống là không lọc cùng mạng.`
     : d.localIce !== undefined && typeof d.localIce !== "string" ? `Máy ICE Local ${JSON.stringify(d.localIce)} phải là chuỗi, trống là chỉ cùng mạng.`
     : null),
