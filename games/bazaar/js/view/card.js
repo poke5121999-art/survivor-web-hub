@@ -76,7 +76,7 @@
     var buff = el('div', 'buff', cb);
     var upg = el('div', 'upg', cb), thaw = el('div', 'thaw', cb), fly = el('div', 'flybadge', cb);
     var B = root_._bz = {
-      zoom: !!opts.zoom, inst: inst, attrs: opts.attrs || {}, side: opts.side || 0, h: opts.h || 230, w: 0,
+      zoom: !!opts.zoom, token: !!opts.token, inst: inst, attrs: opts.attrs || {}, side: opts.side || 0, h: opts.h || 230, w: 0,
       cb: cb, win: win, art: art, veil: veil, rub: rub, ring: ring, upg: upg, thaw: thaw, fly: fly, line: line, stH: stH, stS: stS, stF: stF, hit: hit, frame: frame, cssf: cssf, fglow: fglow,
       gems: gems, mc: mc, tag: tag, ammo: ammo, chH: chH, chS: chS, chF: chF, buff: buff, ench: ench,
       s: {}, gemVals: {}, pips: [],
@@ -90,6 +90,7 @@
   // đặt mọi lớp con theo khung (gọi lại khi BZ_FRAMES tới hoặc đổi bậc)
   C.layout = function (e) {
     var B = e._bz, inst = B.inst, fr = C.frameOf(inst.tier || 'Bronze', inst.size || 1), f = fr.f;
+    if (B.token) { tokenLayout(e); return; }
     var h = B.h, k = h / f.h, w = Math.round(f.w * k);
     B.w = w; B.k = k; B.real = fr.real;
     e.style.width = w + 'px'; e.style.height = h + 'px';
@@ -134,9 +135,35 @@
     C.update(e, B.s.last || {}, true);
   };
 
+  // Orb kỹ năng trên làn (SkillController + ParentToken): icon tròn trong khung Skill_Token_{Tier}_P chiếu từ mesh (tools/stall.py,
+  // art/ui/stall/token/). Hộp bao u của từng khung (tools/stall.py in ra); h = đường kính khung Đồng, các bậc khác to hơn theo hộp.
+  // Icon phủ ô tròn trong ~80 % khung Đồng (đo trên ảnh chiếu). Không gem, không tag hồi chiêu (kỹ năng không có trên làn).
+  var TOKEN_BOX = { Bronze: [-0.527, -0.527, 0.527, 0.527], Silver: [-0.618, -0.522, 0.618, 0.522], Gold: [-0.522, -0.519, 0.522, 0.519],
+    Diamond: [-0.632, -0.614, 0.632, 0.614], Legendary: [-0.664, -0.604, 0.661, 0.642] };
+  C.TOKEN_BOX = TOKEN_BOX;
+  function tokenLayout(e) {
+    var B = e._bz, tier = B.inst.tier || 'Bronze', d = B.h, k = d / 1.054, bb = TOKEN_BOX[tier] || TOKEN_BOX.Bronze;
+    B.w = d; B.k = d / 512; B.real = true;
+    e.style.width = d + 'px'; e.style.height = d + 'px';
+    e.classList.add('token');
+    var iw = d * 0.8;
+    place(B.win, (d - iw) / 2, (d - iw) / 2, iw, iw);
+    B.win.style.borderRadius = '50%';
+    B.winRect = { x: (d - iw) / 2, y: (d - iw) / 2, w: iw, h: iw };
+    place(B.ring, (d - iw) / 2 - 3, (d - iw) / 2 - 3, iw + 6, iw + 6); B.ring.style.borderRadius = '50%';
+    place(B.frame, d / 2 + bb[0] * k, d / 2 - bb[3] * k, (bb[2] - bb[0]) * k, (bb[3] - bb[1]) * k);
+    var s = 'art/ui/stall/token/' + tier.toLowerCase() + '.webp' + REV();
+    if (B.frame.getAttribute('src') !== s) B.frame.setAttribute('src', s);
+    B.frame.style.display = ''; B.cssf.style.display = 'none';
+    [B.gems, B.mc, B.tag, B.ammo].forEach(function (x) { x.style.display = 'none'; });
+    B.upg.style.left = d / 2 + 'px'; B.upg.style.top = d / 2 + 'px'; B.upg.style.setProperty('--us', Math.round(d * 1.6) + 'px');
+    B.ammoA = { x: 0, y: 0, w: 0, h: 0, pip: 0 }; B.pips = []; B.gemEls = {}; B.attrs = B.attrs || {};
+  }
+
   // thuộc tính tĩnh: gem số, tag cooldown, multicast, khung đạn
   C.setAttrs = function (e, a, silent) {
     var B = e._bz; B.attrs = a = a || {};
+    if (B.token) { B.gemEls = {}; return; }
     var html = [], key, i, parts = root.BZ_FRAMES && root.BZ_FRAMES.gems;
     B.gems.innerHTML = '';
     B.gemEls = {};

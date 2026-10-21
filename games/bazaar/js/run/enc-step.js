@@ -33,7 +33,7 @@
       ph.rerolls = rr.TotalAllowedRerolls; ph.rerollCost = rr.StartingCost || 0; ph.rerollStep = rr.CostIncrease || 0;
       ph.rerollMax = rr.CostMax != null ? rr.CostMax : null;
       ph.dealt = picks.map(function (c) { return c.id; });
-      ph.redeal = { filter: opts.filter, n: opts.n, tierMode: opts.tierMode };
+      ph.redeal = { filter: opts.filter, n: opts.n, tierMode: opts.tierMode, enc: opts.enc || null };
     }
     ctx.run.phase = ph;
     R.emit(ctx, { type: 'loot', n: picks.length });
@@ -45,7 +45,7 @@
     if (ph.taken > 0) return 'cannot reroll after taking a card';
     if (run.gold < ph.rerollCost) return 'not enough gold for reroll (' + run.gold + ' < ' + ph.rerollCost + ')';
     var ex = {}; ph.dealt.forEach(function (id) { ex[id] = 1; });
-    var cards = R.deal(run, ph.redeal.filter, ph.redeal.n, { tierMode: ph.redeal.tierMode, exclude: ex });
+    var cards = R.dealFor(run, ph.redeal.enc, ph.redeal.filter, ph.redeal.n, { tierMode: ph.redeal.tierMode, exclude: ex, shop: !!(ph.redeal.enc && R.shopRec(ph.redeal.enc)) });
     if (!cards.length) return 'no other cards to deal';
     R.gold(ctx, -ph.rerollCost, 'reroll');
     ph.rerolls--;
@@ -156,7 +156,7 @@
     var Ev = R.ENCOUNTERS.event, then = (e.Then || []).filter(function (o) { return Ev.optionOk(o, ctx.run); });
     if (then.length) {
       ctx.run.phase = { kind: 'event', eventId: null, stepId: e.Id, name: e.Title || e.InternalName, desc: R.encText(ctx.run, e, e.Desc || ''),
-        choices: then.map(function (o) { return Ev.optionChoice(o, ctx.run); }), canExit: true, after: after };
+        choices: then.map(function (o) { return Ev.optionChoice(o, ctx.run, e); }), canExit: true, after: after };
       return;
     }
     var d = res.deals[0]; // một bước chỉ bày một lựa chọn (bước có nhiều Deal: lấy cái đầu) [ĐỀ XUẤT]

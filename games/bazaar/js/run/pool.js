@@ -288,5 +288,81 @@
     return out;
   };
 
+  // ---------- bể thật của bazaardb.gg (data/shops.js, tools/bazaardb.py) ----------
+  // Có bể cho gặp gỡ này thì chia từ đó (đúng như trang bazaardb hiện: hero đang chơi + Common, trừ khi "from any Hero"); không thì
+  // rơi về bộ đọc chữ ở trên và đếm lại (R.shopStats.fallback) để biết còn bao nhiêu thương nhân / thầy chưa có bể.
+  R.shopStats = { pool: 0, fallback: 0, byName: {} };
+  R.shopRec = function (e) {
+    var S = root.BZ_SHOPS;
+    return (S && e && (S.merchants[e.Id] || S.trainers[e.Id])) || null;
+  };
+  // Bảng bậc theo ngày (bazaardb /shop-odds, ngày > 16 dùng hàng cuối): trọng số Đồng/Bạc/Vàng/Kim cương
+  R.shopTierWeights = function (run) {
+    var rows = root.BZ_SHOPS.tierOdds, r = rows[Math.min(rows.length, Math.max(1, Math.floor(run.day))) - 1];
+    return [r.bronze, r.silver, r.gold, r.diamond];
+  };
+  var HERO_MODE = { any: 'any', other: 'other', common: 'Common' };
+  function shopHeroFilter(rec, e, run) {
+    if (rec.hero === 'this') { var m = /^(\w+) \(Hero Merchant\)/.exec((e && e.InternalName) || ''); return { hero: m ? m[1] : run.hero }; }
+    return { hero: HERO_MODE[rec.hero] || null };
+  }
+  // opts: {exclude, priced, tierMode: 'day'|'band', allowOwnedSkills}. Trả về null nếu không có bể dùng được.
+  R.dealShop = function (run, e, n, opts) {
+    var rec = R.shopRec(e);
+    if (!rec || !rec.pool || !rec.pool.length) return null;
+    opts = opts || {};
+    var ex = opts.exclude || {}, hf = shopHeroFilter(rec, e, run), skill = !!(rec.pool.length && R.isSkill(R.tpl(rec.pool[0])));
+    var src = rec.pool, enchant = false;
+    if (rec.enchantedPool && /enchanted/i.test((e && e.Desc) || '')) { src = rec.enchantedPool; enchant = true; }
+    var list = src.filter(function (id) {
+      var t = R.tpl(id);
+      if (!t || R.isJunk(t) || (t.HiddenTags || []).indexOf('Ticket') >= 0 || ex[id] || R.isSkill(t) !== skill || !heroOk(t, hf, run)) return false;
+      if (skill && !opts.allowOwnedSkills) { var os = R.ownedSkillInst(run, id); if (os && !R.skillFusable(os)) return false; }
+      return true;
+    });
+    if (!list.length) return null;
+    var out = [], used = {}, band = opts.tierMode === 'band';
+    for (var k = 0; k < n; k++) {
+      var tier = rec.tiers && rec.tiers.length ? rec.tiers[R.randInt(run, rec.tiers.length)]
+        : band ? R.bandTier(run) : R.TIERS[Math.max(0, R.rollWeights(run, R.shopTierWeights(run)))];
+      var cands = [];
+      // thầy dạy chia kỹ năng theo dải bậc: thỉnh thoảng chia kỹ năng ở đúng bậc khởi đầu (xem R.deal, CONTENT-05)
+      if (skill && band && !(rec.tiers && rec.tiers.length) && T().SKILL_ORPHAN_FALLBACK && R.rand(run) < T().SKILL_ANY_CHANCE) {
+        var anyL = list.filter(function (id) { return !used[R.title(R.tpl(id))]; });
+        if (anyL.length) { var aid = anyL[R.randInt(run, anyL.length)]; cands.push({ id: aid, tier: R.tpl(aid).StartingTier || 'Bronze' }); }
+      }
+      var order = [R.tierIndex(tier)], d, u;
+      for (d = order[0] - 1; d >= 0; d--) order.push(d);
+      for (u = order[0] + 1; u < 4; u++) order.push(u);
+      for (var oi = 0; oi < order.length && !cands.length; oi++) {
+        var tn = R.TIERS[order[oi]];
+        list.forEach(function (id) {
+          var t = R.tpl(id);
+          if (used[R.title(t)] || !tierOk(t, tn, false)) return;
+          if (opts.priced && R.price(t, tn).buy <= 0) return; // thẻ chỉ sinh từ hiệu ứng, bản gốc không bán [FLOW-7]
+          cands.push({ id: id, tier: tn });
+        });
+      }
+      if (!cands.length) break;
+      var pk = cands[R.randInt(run, cands.length)], tpl = R.tpl(pk.id);
+      used[R.title(tpl)] = 1;
+      var ownedSk = skill ? R.ownedSkillInst(run, pk.id) : null, owned = ownedSk ? ownedSk.tier : R.ownedTier(run, pk.id);
+      var dealt = owned && R.tierIndex(owned) < 3 && tpl.Tiers[owned] ? owned : pk.tier; // TierDuplicateCardHandling
+      out.push({ id: pk.id, tier: dealt, ench: enchant ? randomEnchant(run, tpl) : null });
+    }
+    return out.length ? out : null;
+  };
+  // Cửa chung cho thương nhân / thầy: bể bazaardb trước, bộ đọc chữ sau (đếm). opts.shop = true khi gặp gỡ này đáng có bể.
+  R.dealFor = function (run, e, f, n, opts) {
+    var cards = root.BZ_SHOPS ? R.dealShop(run, e, n, opts) : null;
+    if (cards) { R.shopStats.pool++; return cards; }
+    if (root.BZ_SHOPS && opts && opts.shop) {
+      R.shopStats.fallback++;
+      var nm = (e && (e.Title || e.InternalName)) || '?';
+      R.shopStats.byName[nm] = (R.shopStats.byName[nm] || 0) + 1;
+    }
+    return R.deal(run, f, n, opts);
+  };
+
   if (typeof module !== 'undefined' && module.exports) module.exports = R;
 })(typeof window !== 'undefined' ? window : globalThis);

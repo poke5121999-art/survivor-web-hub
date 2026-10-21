@@ -70,8 +70,10 @@
   // ---------- bày thẻ gặp gỡ cho giờ tự do ----------
   function heroOk(e, run) { var h = e.Heroes || []; return !h.length || h.indexOf('Common') >= 0 || h.indexOf(run.hero) >= 0; }
   function dayOk(e, run) {
-    var d = R.dataDay(run.day);
-    if (e.Days && (d < e.Days[0] || d > e.Days[1])) return false;
+    var d = R.dataDay(run.day), S = root.BZ_SHOPS, sr = S && !e.LevelUp && (S.merchants[e.Id] || S.trainers[e.Id] || S.events[e.Id]);
+    // ngày thật có thẻ này (bazaardb days_active, 10 = "10+") thay cho Days của bản demo khi có
+    if (sr && sr.days && sr.days.length) { if (sr.days.indexOf(Math.min(10, run.day)) < 0) return false; }
+    else if (e.Days && (d < e.Days[0] || d > e.Days[1])) return false;
     // Sự kiện kết thúc bằng một trận cố định ("Treasure Chest (Mimic)" = Mimic cấp 11, mô tả chỉ ghi "Get an item"): chỉ bày khi quái
     // không quá sức so với ngày (cấp mẫu ≤ ngày + EVENT_FIGHT_LEVEL_SLACK) [FLOW-10]
     if (e.Kind === 'fight' && e.Options && e.Options.length && e.Options.every(function (o) { return o.t === 'combat'; })) {

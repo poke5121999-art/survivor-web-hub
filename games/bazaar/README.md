@@ -55,3 +55,31 @@ Nhãn dùng trong tệp:
 - `[BẪY ĐÃ SẬP]` Thẻ có hồi chiêu bị phủ xám ở màn thương nhân. Màn hồi chiêu (`.veil`) mặc định hiện, nên thẻ chưa vào trận cũng xám. Nay nó chỉ bật khi replay gọi `C.update` (`js/view/card.js`).
 - `[BẪY ĐÃ SẬP]` Ghi chú cũ trong `tuning.js` nói Fates "không có bước con", nên bản web đã tự chế "Second Wind" và "Golden Gift". DB thật có bốn bước của Futura. Trước khi tự chế, tìm bằng tên trong `cards.json`.
 - `[BẪY ĐÃ SẬP]` `tools/vfxmap.py` chỉ đọc `data/cards.js`, nên thẻ của Mak, Stelle, Jules, Karnok đều bay đạn mặc định. Mỗi lần thêm hero, kiểm lại: số ability có `VFXOverrideKey` mà không có mục trong `vfxmap.js` phải bằng 0 (hiện còn 7, vì prefab không có trong bản demo).
+
+## Nguồn bazaardb
+
+Từ 2026-10-21 shop, thầy kỹ năng và sự kiện đọc cấu hình thật của bazaardb.gg (patch 19.2, nguồn ngoài, suy từ lượt chơi cộng đồng; bản demo 5.0.0 bị xoá bộ lọc sinh thẻ). Thư mục bóc: `D:\bazaar-ref\bazaardb\` (SUMMARY.md). Đổi sang web: `py -3.12 -I games/bazaar/tools/bazaardb.py` ra `data/shops.js` (141 KB; pool là chỉ số vào bảng id, nạp xong bung lại thành id thẻ). Khớp theo tên (hạ chữ thường, bỏ dấu câu). `js/run/pool.js` (`R.dealShop`, `R.dealFor`) chia từ bể này; không có bể thì rơi về bộ đọc chữ cũ và `R.shopStats.fallback` đếm lại.
+
+- Bể: lọc theo hero đang chơi + Common, trừ "from any Hero" (mọi hero), "other Heroes" (hero khác), "this Hero" (chỉ hero đó), "Neutral" (chỉ Common). Aila ngày 1 có 198 thẻ web trong bể; Goldie 888; Valpak 901. [ĐO TRONG REPO]
+- Bậc mỗi ô: tung theo `tierOdds` của ngày (bazaardb /shop-odds: ngày 1 = 97,39/2,61/0/0; ngày 9 = 0,35/34,99/59,57/5,08; ngày > 16 dùng hàng 16), rồi chọn thẻ có StartingTier ≤ bậc đó. Luật bậc riêng của thương nhân đọc từ "X-tier": Goldie toàn Gold, Curio toàn Bronze. Test: 2000 lượt chia của Aila lệch tối đa 0,44 điểm (ngày 1) và 0,82 điểm (ngày 9) so với bảng. Bảng chỉ cho tỉ lệ bậc của đồ đã bày, không cho trọng số trong bể: mỗi thẻ hợp lệ có cơ hội ngang nhau. [ĐỀ XUẤT]
+- Thầy kỹ năng: bể kỹ năng theo hero, bậc theo dải ngày như trước (`BAND_BY_DAY`), vì bazaardb không có bảng bậc cho kỹ năng.
+- Đổi hàng: bazaardb ghi `reroll_count` = 1 cho cả 78 thương nhân và thầy, giá theo bậc thẻ gặp gỡ (Bronze 2, Silver 3, Gold 4, Diamond 8). RerollRules của bản demo cũng 1 lần, `CostIncrease` 0, cùng giá, nên hai nguồn khớp. Lần đổi thứ hai tốn nhiều hơn trong clip không có trong dữ liệu nào: web không bịa. Giá theo dữ liệu bazaardb, riêng Pol thứ hai (Silver 2) bị lẫn với Pol Silver 3 nên lấy thẻ đầu.
+- Giá bán thêm: Barkun Small +1, Midsworth Medium +2, Quixel Large +3 (khớp `MERCHANT_SELL_AURAS` cũ). Laurel (Toys +1) chưa có thẻ trong bản demo. Valpak: cờ `discounted` = luôn một thẻ giảm 25%.
+- Ngày có thẻ: `days_active` của bazaardb thay `Days` của demo khi hiện thẻ ở giờ tự do (Goldie từ ngày 5, Curio ngày 2 đến 5; 10 = "10+"). Chỉ áp cho thẻ không phải Level Up.
+- Sự kiện: lựa chọn nối với bước web theo tên. Lựa chọn có điều kiện ("if you have X") hay riêng hero luôn hiện khi đủ điều kiện (tỉ lệ bazaardb chỉ đo số người chơi đủ điều kiện, không phải xác suất). Chỉ lựa chọn không điều kiện mà tỉ lệ < 100 mới tung: nếu tổng ≈ số nguyên k thì rút đúng k theo trọng số, không thì từng ô một. Thực tế trong số sự kiện khớp được chỉ Shrouded Figure có ô loại này, nên phần lớn lựa chọn vẫn do điều kiện quyết. Mountain Pass, Farai (phần thưởng ngẫu nhiên một trong N) là sự kiện `pile` của web, chưa nối. [ĐO TRONG REPO]
+- Huy hiệu cam (`stamp` trên lựa chọn): lấy `stack_count_guess` của bazaardb (D'flek: Exploit 5, Upgrade 10, Enchant 20; Hire a Teacher 20; Wishing Fountain là giá vàng) hay "[Gumballs Remaining: N]" trong chữ của bước. `stack_count_guess` là phỏng đoán từ số góc thẻ.
+- Giá: 120 dòng mẫu (mua) khớp luật 2 x cỡ x 2^bậc và bảng `StandardPrices` của demo (Small Bronze 2 đến Large Diamond 48): giữ bảng demo. Một lệch: Mystery Flavor Diamond Small bán 0 trên site, bảng demo 8; thẻ này không bán được ở bản gốc, chưa xử lý.
+
+Điều tra không khớp (số đếm, tên đầy đủ ở đầu `data/shops.js`):
+
+| Nhóm | Khớp / tổng | Không khớp tiêu biểu |
+|---|---|---|
+| thương nhân | 48 / 52 | Laurel, Private Pitchfork, The Dragons, Uitar Center (demo không có thẻ) |
+| đồ trong bể thương nhân | 11290 / 12968 | thẻ patch mới: Burnacuda, Sweeper Drone, Hot Pants, RAMPage Module, Hairpins (khoảng 1678, 153 tên) |
+| thầy kỹ năng | 23 / 24 | Mama Bear |
+| kỹ năng trong bể thầy | 1678 / 2049 | Data Transfer, Chilled Delights, Piping Hot, Blight Rage (371) |
+| sự kiện có bảng Options | 40 / 61 | Apothecary, Library, Piano, Wishing Fountain, Aurora Dome, Command Nexus, Concert Hall, Farmer's Market... (21) |
+| lựa chọn của sự kiện | 119 / 167 | Jules' Cafe / Relax, Jungle Ruins / Enjoy the Scenery... (47: tên bước web khác hoặc lựa chọn mới) |
+| thương nhân không có bể | 1 | Serafina (bazaardb không có trang bể; rơi về bộ đọc chữ) |
+
+Ô lựa chọn web không có dữ liệu bazaardb vẫn hiện như cũ (không mất lựa chọn nào).

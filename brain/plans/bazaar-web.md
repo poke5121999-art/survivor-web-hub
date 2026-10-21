@@ -128,3 +128,14 @@ nhạc combat 4 lớp theo máu; luật lên cấp/quái theo ngày/Fates/hợp 
 Kiểm trên máy: sim 130/0, luật 184/0, pve 31/0, view 61/0, play 91/0, spine 12/0. Luật và số đã đối chiếu ghi ở `games/bazaar/README.md`.
 Còn mở: băng-rôn lên cấp chưa dùng texture SandRibbon đã bóc; 7 ability có khoá VFX mà prefab không có trong demo; Expeditions chưa làm (Travel Agent bị giấu);
 art 1024 px chờ chủ dự án quyết chỗ chứa (repo ~1,2 GB, quá trần mềm 1 GB của Pages); The Dragons vẫn khoá vì DB demo không có thẻ.
+
+## Pha 7: thương nhân, sự kiện, thầy kỹ năng theo config thật (2026-10-21, rev 20261021a)
+
+Chủ dự án chê rev 20261020c "nặng, chắp vá, tự vẽ tay; shop, event, skill shop không theo quy chuẩn". Tiền đề sai của các đợt trước: bể hàng suy từ chữ mô tả vì `SpawnContext` demo chỉ còn `Limit`.
+Khảo sát `D:\bazaar-ref\notes\AUDIT2.md` → `audit2\{UI-CONFIG,CLIPS,PERF}.md` + `D:\bazaar-ref\bazaardb\` (cào bazaardb.gg bằng Chrome thật; wiki.gg tắt từ 20/10). Sửa theo `D:\bazaar-ref\notes\FIX8.md`, ba nhánh ui8 / shop8 / perf8, báo cáo `D:\bazaar-ref\fix8\*.md`.
+
+- ui8: khung trên là lều/xe gốc dựng từ mesh (`tools/stall.py`), làn là thảm riêng từng gặp gỡ (`data/carpets.js`), hàng trên lưới 10 ổ rộng 1/2/3 ổ, giá `CardFrame_Tag` góc dưới trái, lựa chọn sự kiện và kỹ năng là orb không chữ, bỏ dòng hướng dẫn tự chế.
+- shop8: `tools/bazaardb.py` → `data/shops.js`: bể hàng thật của thương nhân và thầy, tỉ lệ bậc theo ngày, ngày xuất hiện, hệ số mua lại, tem orb. Không khớp: 1678/12968 món của bản live không có trong demo.
+- perf8: bỏ 10 trường dữ liệu không ai đọc, font tự phục vụ (470 → 122 KB), màn chờ, bỏ tải đôi. Không nhận phần "thẻ rút gọn + nạp theo nhu cầu" (cơ chế lớn cho ~240 KB nạp ngầm sau khi đã vào run).
+- `[BẪY ĐÃ SẬP]` Lều/xe to che chỗ thẻ đang chia bay qua, cú nhấc giữa lúc chia trúng nút đổi hàng: thẻ `.deal` phải nổi trên `.rs-merchant-ctl`.
+- Còn lệch: khung neon làn loot vẫn là viền CSS; nền bàn chung một kiểu chứ không theo hero; orb bệ dùng `Battlepass_Voucher_Orb_TUI`.

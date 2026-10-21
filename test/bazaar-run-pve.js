@@ -7,7 +7,7 @@
 'use strict';
 const path = require('path');
 const ROOT = process.env.BZ_ROOT || path.resolve(__dirname, '..');
-['cards', 'monsters', 'mode', 'encounters'].forEach(f => require(path.join(ROOT, 'games/bazaar/data/' + f + '.js')));
+['cards', 'monsters', 'mode', 'encounters', 'shops'].forEach(f => require(path.join(ROOT, 'games/bazaar/data/' + f + '.js')));
 try { require(path.join(ROOT, 'games/bazaar/data/heroes.js')); } catch (e) { /* khởi đầu chung */ }
 const R = require(path.join(ROOT, 'games/bazaar/js/run/index.js'));
 const BZ = globalThis.BZSim;

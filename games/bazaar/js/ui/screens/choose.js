@@ -6,12 +6,6 @@
   var U = root.BZUI = root.BZUI || {};
   var V = function () { return root.BZView; }, R = function () { return root.BZRun; };
   var prev = null;
-  // dòng hướng dẫn trên dải là của người mới (bản gốc không có): chỉ hiện trong ~hai ngày chơi đầu rồi thôi (UI-12)
-  var HINT_LS = 'bz.hint.choose', HINT_MAX = 12;
-  function hintLeft() {
-    try { var n = +root.localStorage.getItem(HINT_LS) || 0; root.localStorage.setItem(HINT_LS, String(n + 1)); return n < HINT_MAX; } catch (e) { return true; }
-  }
-
   function monsterOf(combatId) {
     var c = root.BZ_ENCOUNTERS.combats[combatId]; if (!c) return null;
     return (root.BZ_MONSTERS || []).filter(function (m) { return m.Id === c.Monster; })[0] || null;
@@ -59,8 +53,8 @@
       if (key === this._key && U.top.layer().children.length) return; // bán / xếp đồ: giữ nguyên khung
       this._key = key;
       U.top.clear(); hidePreview();
-      var showHint = hintLeft();
-      U.top.map(pve ? 'Chọn đối thủ' : 'Giờ ' + run.hour + ' · Ngày ' + run.day, !showHint ? '' : pve ? 'Thắng quái để lấy vàng, XP và một món đồ' : 'Thương nhân, sự kiện hay phần thưởng');
+      // bản gốc không có tiêu đề / dòng hướng dẫn ở màn chọn giờ (ref/hour-choice/24.jpg): giờ và ngày chỉ hiện ở đồng hồ
+      U.top.map('', '');
       var special = -1;
       if (!pve) { ph.options.forEach(function (o, i) { if (special < 0 && o.type === 'merchant' && R().tierIndex(o.tier) >= 1) special = i; }); }
       else special = 1;

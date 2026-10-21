@@ -48,7 +48,11 @@ STEAM_ZIP = r"D:\Steam\steamapps\common\The Bazaar Demo\TheBazaar_Data\Streaming
 HEROES = ["Vanessa", "Pygmalien", "Dooley", "Mak", "Stelle", "Jules", "Karnok"]
 HERO8 = "TheDragons"
 DROP_KEYS = {"InternalDescription", "MigrationData", "TranslationKey", "Version", "TemplateVersion",
-             "HasAbilities", "HasAuras"}
+             "HasAbilities", "HasAuras",
+             # trường không js/ nào đọc (grep -w từng tên trong js/ + test/bazaar-*.js, 2026-10-21): VFX thật lấy từ data/vfxmap.js,
+             # tiếng từ data/audio.js, ô mở khoá/auto-sell/liên kết là của client Unity
+             "VFXConfig", "DurationType", "AudioKey", "TargetPlayer", "WillAutoSellOnExit", "UnlockedSlots", "OtherArtKeys",
+             "ExcludeFusion", "RerollType", "SandstormEnabled"}
 GLOBAL = "(typeof window!=='undefined'?window:globalThis)"
 CARD_TYPES = ("TCardItem", "TCardSkill")
 
@@ -853,7 +857,7 @@ def main():
             "Id": c["Id"], "InternalName": c.get("InternalName"), "Title": loc_text(c, "Title"),
             "StartingTier": c.get("StartingTier"), "Level": ct.get("Level"),
             "RewardCombatGold": c.get("RewardCombatGold"), "RewardCombatXp": c.get("RewardCombatXp"),
-            "SandstormEnabled": c.get("SandstormEnabled"), "ArtKey": c.get("ArtKey"),
+            "ArtKey": c.get("ArtKey"),
         })
     out_mons = []
     for m in monsters:

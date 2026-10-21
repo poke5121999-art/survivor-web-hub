@@ -13,7 +13,7 @@
 'use strict';
 const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
-['cards', 'monsters', 'mode', 'encounters'].forEach(f => require(path.join(ROOT, 'games/bazaar/data/' + f + '.js')));
+['cards', 'monsters', 'mode', 'encounters', 'shops'].forEach(f => require(path.join(ROOT, 'games/bazaar/data/' + f + '.js')));
 // data/heroes.js (khởi đầu + bể lên cấp theo hero, nhánh dữ liệu) nạp nếu có; data/ghosts.js KHÔNG nạp: quét bot dùng bóng quái,
 // phần bóng từ bộ dữ liệu kiểm bằng BZ_GHOSTS nhỏ viết tay bên dưới.
 try { require(path.join(ROOT, 'games/bazaar/data/heroes.js')); } catch (e) { /* chưa có: khởi đầu chung */ }
@@ -757,10 +757,98 @@ function sweep() {
   check('sim không ném lỗi trong quét', BZ.errors.length === 0, BZ.errors.slice(0, 3));
 }
 
+// ---------- fix8: bể, bậc theo ngày, giá bán, tỉ lệ lựa chọn từ bazaardb.gg (data/shops.js) ----------
+function fix8() {
+  console.log('\n# fix8 (bazaardb)');
+  const S = globalThis.BZ_SHOPS, EV = globalThis.BZ_ENCOUNTERS.events;
+  const byName = n => Object.values(EV).find(e => e.InternalName === n);
+  check('data/shops.js nạp được: thương nhân, thầy, sự kiện, bảng bậc 16 ngày', !!S && Object.keys(S.merchants).length > 40 && Object.keys(S.trainers).length > 15 && Object.keys(S.events).length > 30 && S.tierOdds.length === 16,
+    S && [Object.keys(S.merchants).length, Object.keys(S.trainers).length, S.tierOdds.length]);
+  // Aila ngày 1: mọi thẻ chia ra thuộc bể bazaardb của Aila, lọc theo hero (Vanessa + Common)
+  const aila = byName('Aila'), pool = new Set(S.merchants[aila.Id].pool);
+  const run = baseRun('Vanessa'); run.day = 1;
+  let outside = 0, wrongHero = 0, n = 0;
+  for (let i = 0; i < 300; i++) {
+    R.ENCOUNTERS.merchant.dealStock(run, aila).forEach(s => {
+      n++;
+      if (!pool.has(s.card.id)) outside++;
+      const hs = R.tpl(s.card.id).Heroes || [];
+      if (hs.indexOf('Vanessa') < 0 && hs.indexOf('Common') < 0) wrongHero++;
+    });
+  }
+  check('Aila ngày 1: ' + n + ' thẻ đều trong bể bazaardb, 0 thẻ hero khác', n > 600 && outside === 0 && wrongHero === 0, { n, outside, wrongHero });
+  check('Aila chỉ bán Weapon (bể bazaardb "Sells Weapons")', R.ENCOUNTERS.merchant.dealStock(run, aila).every(s => (R.tpl(s.card.id).Tags || []).concat(R.tpl(s.card.id).HiddenTags || []).indexOf('Weapon') >= 0));
+  // phân bố bậc 2000 lượt chia so với tierOdds của ngày 1 và ngày 9 (sai số ≤ 2 điểm phần trăm)
+  [1, 9].forEach(day => {
+    const r2 = baseRun('Vanessa'); r2.day = day;
+    const cnt = { Bronze: 0, Silver: 0, Gold: 0, Diamond: 0 };
+    for (let i = 0; i < 2000; i++) cnt[R.dealShop(r2, aila, 1, {})[0].tier]++;
+    const row = S.tierOdds[day - 1];
+    const worst = Math.max(...['Bronze', 'Silver', 'Gold', 'Diamond'].map(t => Math.abs(cnt[t] / 20 - row[t.toLowerCase()])));
+    check('bậc ngày ' + day + ' lệch tối đa ' + worst.toFixed(2) + ' điểm so với tierOdds ' + JSON.stringify([row.bronze, row.silver, row.gold, row.diamond]), worst <= 2, cnt);
+  });
+  // luật bậc riêng: Goldie toàn Gold, Curio toàn Bronze; thẻ không bao giờ dưới StartingTier
+  const rg = baseRun('Mak'); rg.day = 5;
+  const gold = [].concat(...Array.from({ length: 100 }, () => R.ENCOUNTERS.merchant.dealStock(rg, byName('Goldie'))));
+  check('Goldie: ' + gold.length + ' thẻ đều bậc Gold', gold.length > 100 && gold.every(s => s.card.tier === 'Gold'));
+  const cur = [].concat(...Array.from({ length: 100 }, () => R.ENCOUNTERS.merchant.dealStock(rg, byName('Curio'))));
+  check('Curio: ' + cur.length + ' thẻ đều bậc Bronze và Common', cur.length > 100 && cur.every(s => s.card.tier === 'Bronze' && R.tpl(s.card.id).Heroes.indexOf('Common') >= 0));
+  check('không thẻ nào chia dưới StartingTier', gold.concat(cur).every(s => R.tierIndex(s.card.tier) >= R.tierIndex(R.tpl(s.card.id).StartingTier || 'Bronze')));
+  // Midsworth mua Medium +2, Small và Large không cộng; Barkun Small +1; Quixel Large +3
+  [['Midsworth', 'tMed', 4], ['Midsworth', 'tSmall', 1], ['Midsworth', 'tLarge', 3], ['Barkun', 'tSmall', 2], ['Quixel', 'tLarge', 6]].forEach(([m, id, want]) => {
+    const rs = baseRun(); const ci = inst(rs, id, 'hand', 3);
+    rs.phase = Object.assign(merchantPhase([]), { merchantId: byName(m).Id });
+    eq(m + ' mua ' + id + ' Bronze (giá bán gốc +bonus)', R.sellPrice(rs, ci.uid), want);
+  });
+  // đổi hàng: 1 lần, giá theo bậc thương nhân từ bazaardb (Aila Bronze 2, Goldie Gold 4, Chronos Kim cương 8), không tăng giá
+  [['Aila', 2], ['Goldie', 4], ['Barkun', 3]].forEach(([m, cost]) => {
+    const rm = baseRun(); rm.day = 6; const c = { run: rm, events: [] };
+    R.ENCOUNTERS.merchant.enter(c, { id: byName(m).Id }, 'endHour');
+    eq(m + ': số lần đổi hàng và giá', [rm.phase.rerolls, rm.phase.rerollCost, rm.phase.rerollStep], [1, cost, 0]);
+  });
+  // Valpak luôn có một thẻ giảm giá
+  const rv = baseRun(); rv.day = 3;
+  check('Valpak: mọi lần chia có đúng một thẻ giảm giá', Array.from({ length: 30 }, () => R.ENCOUNTERS.merchant.dealStock(rv, byName('Valpak'))).every(st => st.filter(s => s.discount).length === 1));
+  // ngày có thẻ: Goldie chỉ từ ngày 5, Curio ngày 2..5
+  const seen = {};
+  for (let d = 1; d <= 12; d++) {
+    const rd = baseRun(); rd.day = d;
+    for (let i = 0; i < 80; i++) R.hourOptions(rd).forEach(o => { seen[o.name] = seen[o.name] || new Set(); seen[o.name].add(Math.min(d, 10)); });
+  }
+  const mn = n => Math.min(...seen[n]), mx = n => Math.max(...seen[n]);
+  check('Goldie chỉ hiện từ ngày 5; Curio chỉ ngày 2..5', seen.Goldie && seen.Curio && mn('Goldie') === 5 && mn('Curio') === 2 && mx('Curio') === 5, [seen.Goldie && [...seen.Goldie], seen.Curio && [...seen.Curio]]);
+  // sự kiện: bazaardb chỉ có 1 sự kiện web-khớp-được với ô ngẫu nhiên không điều kiện (Shrouded Figure), còn lại là lựa chọn có điều kiện
+  // "(if you have X)" mà tỉ lệ chỉ đo số người đủ điều kiện → luôn hiện khi đủ. Thử bộ chọn theo tỉ lệ trên The Lost Crate: ô "Open It" đặt tay 30 % (ô kia không có dữ liệu nên luôn hiện).
+  const bex = byName('The Lost Crate'), brec = S.events[bex.Id], saved = JSON.stringify(brec.choices);
+  delete brec.choices[0].cond; brec.choices[0].odds = { all: 30 }; const limit0 = bex.Limit; bex.Limit = 3; // Limit 2 đã đủ chỗ cho hai ô luôn hiện
+  const cnt = {};
+  for (let i = 0; i < 1500; i++) {
+    const re = R.newRun({ hero: 'Vanessa', seed: 100 + i }); re.day = 6; const c = { run: re, events: [] };
+    R.ENCOUNTERS.event.enter(c, { id: bex.Id }, 'endHour');
+    cnt[re.phase.choices.length] = (cnt[re.phase.choices.length] || 0) + 1;
+    re.phase.choices.forEach(ch => { cnt[ch.name] = (cnt[ch.name] || 0) + 1; });
+  }
+  brec.choices = JSON.parse(saved); bex.Limit = limit0;
+  const first = brec.choices[0].title;
+  check('tỉ lệ 30 %: "' + first + '" hiện ≈ 30 % số lần (đo ' + (cnt[first] / 15).toFixed(1) + ' %)', Math.abs(cnt[first] / 15 - 30) < 4, cnt);
+  // lựa chọn có điều kiện vẫn do điều kiện quyết (không tung tỉ lệ): Aerodrome thiếu Billboard / Gatling Gun thì không ra lựa chọn đó
+  const ra = baseRun(); ra.day = 6; R.ENCOUNTERS.event.enter({ run: ra, events: [] }, { id: byName('Aerodrome').Id }, 'endHour');
+  check('Aerodrome không có Billboard / Gatling Gun: lựa chọn điều kiện bị ẩn (' + ra.phase.choices.length + ' lựa chọn)', ra.phase.choices.every(c => !/Billboard|Defense/.test(c.name)), ra.phase.choices.map(c => c.name));
+  // huy hiệu cam (stamp): D'flek Upgrade = 10, Enchant = 20; Gumball "Gumballs Remaining: 5" = 5
+  const df = byName("D'flek"), rf = baseRun(); rf.day = 8; rf.hero = (df.Heroes && df.Heroes[0] !== 'Common' ? df.Heroes[0] : 'Vanessa');
+  R.ENCOUNTERS.event.enter({ run: rf, events: [] }, { id: df.Id }, 'endHour');
+  const st = {}; rf.phase.choices.forEach(c => { st[c.name] = c.stamp; });
+  eq("D'flek: stamp Exploit/Upgrade/Enchant", [st.Exploit, st.Upgrade, st.Enchant, st.Reinforce], [5, 10, 20, undefined]);
+  const gum = Object.values(globalThis.BZ_ENCOUNTERS.steps).find(x => /Gumballs Remaining: 5\]/.test(x.Desc || ''));
+  eq('Gumball: stamp = 5 từ "[Gumballs Remaining: 5]"', R.ENCOUNTERS.event.optionChoice({ t: 'step', id: gum.Id }, rf, null).stamp, 5);
+  console.log('    đếm rơi về bộ đọc chữ: ' + JSON.stringify(R.shopStats));
+}
+
 if (!ONLY || ONLY === 'rules') rules();
 if (!ONLY || ONLY === 'rules' || ONLY === 'pha4') pha4();
 if (!ONLY || ONLY === 'rules' || ONLY === 'pha4') fixes();
 if (!ONLY || ONLY === 'rules' || ONLY === 'pha4' || ONLY === 'fix6') fix6();
+if (!ONLY || ONLY === 'rules' || ONLY === 'pha4' || ONLY === 'fix8') fix8();
 if (!ONLY || ONLY === 'det') determinism();
 if (!ONLY || ONLY === 'sweep') sweep();
 console.log('\n' + pass + ' ok, ' + fail + ' fail');

@@ -13,6 +13,7 @@
 .m-run:not(.m-fight):not(.top-hp) .bz-hp.top,
 .m-run:not(.m-fight):not(.top-sides) .bz-side.top,
 .m-run:not(.m-fight):not(.top-board) .bz-board.top { visibility: hidden; }
+.m-run.top-sides-r:not(.m-fight) .bz-side.top.l { visibility: hidden; }
 .m-run:not(.m-fight) .bz-hero.top .bz-skills { visibility: hidden; }
 .m-run.top-hp .bz-hero.top .bz-skills { visibility: visible; }
 .m-fight .rs-tray, .m-fight .rs-sockets, .m-fight .rs-top, .m-fight .rs-cards, .m-fight .rs-hud > .rs-clock, .m-fight .rs-hud > .rs-sellzone { display: none !important; }
@@ -43,6 +44,8 @@
 /* HoveredMove (VISUAL §2): thẻ sắp bị đẩy nhích 0,25 ô trong 50 ms OutQuad; về chỗ 35 ms */
 .rs-cards .bz-card.nudged, .rs-tray .bz-card.nudged { transition: left .16s cubic-bezier(.3,1.4,.5,1), top .16s cubic-bezier(.3,1.4,.5,1), opacity .2s, translate .05s cubic-bezier(.25,.46,.45,.94); }
 .rs-cards .bz-card.top[data-drag] { cursor: grab; }
+/* thẻ đang chia bay xuống từ ngang lều/xe (translateY -150px): phải nổi trên .rs-merchant-ctl (z 8), không thì cú nhấc giữa lúc chia trúng nút đổi hàng */
+.rs-cards .bz-card.deal { z-index: 9; }
 .rs-cards .bz-card:not([data-drag]) { cursor: default; }
 .bz-card.nomove { transition: none !important; }
 .bz-card.flyin { transition: transform .42s cubic-bezier(.25,1.3,.45,1), left .16s, top .16s !important; z-index: 30; }
@@ -80,14 +83,19 @@
   70% { transform: translateY(-44px) rotateY(360deg) scale(1.12); filter: brightness(1.4) drop-shadow(0 0 20px #b3e4e5); }
   88% { transform: translateY(5px) scale(.98); } 100% { transform: none; filter: none; } }
 
-/* thẻ giá (PriceTags: chữ trắng viền #732A0D) */
-.rs-price { position: absolute; left: 50%; bottom: 9%; transform: translateX(-50%); display: flex; align-items: center; gap: 2px; height: 46px; padding: 0 2px; border: 0 solid transparent; border-width: 0 24px;
-  background: #2a170a; border-image: url(../art/ui/ui_sprite_atlas/Frame_Purchase_Counter_TUI.webp) 0 92 fill / 0 24px stretch; z-index: 3; pointer-events: none;
-  font: 800 30px/1 var(--f-num); color: #fff; text-shadow: 0 0 2px #732a0d, 0 2px 0 #732a0d, 2px 0 0 #732a0d, -2px 0 0 #732a0d, 0 -2px 0 #732a0d; }
-.rs-price i { width: 32px; height: 32px; background: center/contain no-repeat; }
-.rs-price s { font-size: 20px; color: #ffd9c8; margin-left: 4px; text-decoration-thickness: 3px; }
-.rs-price.disc { background: #1f4d14; }
-.rs-price.poor b { color: #ffb0a0; }
+/* thẻ giá CardFrame_Tag_02 / Tag_01 (PriceTagContainer.cs; cards.js C.priceTag): chữ OLD_BazaarNumbers trắng viền #732A0D, giá gốc mờ 0,5 gạch ngang */
+.rs-price { position: absolute; z-index: 4; pointer-events: none; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-left: 14%;
+  background: center/100% 100% no-repeat; font: 800 22px/1 var(--f-num); color: #fff; text-shadow: 0 0 2px #732a0d, 0 2px 0 #732a0d, 2px 0 0 #732a0d, -2px 0 0 #732a0d, 0 -2px 0 #732a0d; }
+.rs-price.mod { padding-left: 10%; }
+.rs-price s { position: relative; text-decoration: none; font-size: .72em; opacity: .5; margin-top: 1px; }
+.rs-price s i { position: absolute; left: -20%; right: -20%; top: 50%; height: 40%; margin-top: -20%; background: center/100% 100% no-repeat; }
+.rs-price.on-token { padding-left: 10%; }
+.rs-price.poor b { color: #ffc2b4; }
+.bz-card.priced .cdtag { display: none !important; }
+/* orb kỹ năng (card.js tokenLayout): icon tròn dưới khung Skill_Token, không bóng thẻ */
+.bz-card.token .win { box-shadow: none; background: #120c08; }
+.bz-card.token .shadow { border-radius: 50%; }
+.bz-card.token .frame { position: absolute; z-index: 2; }
 .bz-card.is-skill { border-radius: 50%; }
 
 /* ---------- kho: dải khung vàng thay chỗ dải trên (clip stash-open: hàng thương nhân rút 0,3 s, dải rương trượt vào 0,4 s) ---------- */
@@ -117,7 +125,16 @@
 .m-run.lane-loot .bz-board.top { background: rgba(40,44,24,.38); box-shadow: inset 0 0 0 2px rgba(245,208,33,.75), 0 0 18px rgba(255,214,60,.5); }
 .m-run.lane-pedestal .bz-board.top { background: rgba(24,120,150,.34); box-shadow: inset 0 0 0 2px rgba(73,196,255,.7), 0 0 16px rgba(73,196,255,.45); }
 .m-run:not(.m-fight) .bz-board.bot { background: rgba(70,160,146,.24); box-shadow: inset 0 0 0 1px rgba(200,255,240,.3), inset 0 0 22px rgba(10,60,56,.25); }
-.m-run:not(.m-fight) .rs-sock.locked { background: repeating-linear-gradient(135deg, rgba(40,52,24,.55) 0 10px, rgba(30,40,16,.42) 10px 20px); box-shadow: inset 0 0 0 1px rgba(20,30,10,.55); }
+/* ô tay đang khoá: bản gốc chỉ làm tối mặt bàn liền một dải (ref/reroll/05.jpg, merchant-enter/30.jpg), không sọc, không biểu tượng;
+   bóng ngang 3 px lấp khe 6 px giữa hai ô để dải tối liền nhau */
+.m-run:not(.m-fight) .rs-sock.locked { border-radius: 0; background: rgba(10,14,6,.42); box-shadow: 3px 0 0 rgba(10,14,6,.42), -3px 0 0 rgba(10,14,6,.42); }
+.m-run .rs-sock.locked .lock { display: none; }
+/* thảm làn (top.js T.carpet): Carpet_*_TD trải từ giữa ra hai bên, thay nền CSS tím / kem / ngọc */
+.rs-carpet { position: absolute; inset: 0; border-radius: 6px; background: center/100% 100% no-repeat; clip-path: inset(0 50% 0 50%); opacity: 0; pointer-events: none; }
+.rs-carpet.show { opacity: 1; animation: rs-unroll .7s cubic-bezier(.3,.9,.4,1) .2s both; }
+@keyframes rs-unroll { from { clip-path: inset(0 50% 0 50%); } to { clip-path: inset(0 0 0 0); } }
+.m-run.has-carpet:not(.lane-loot) .bz-board.top { background: transparent; box-shadow: none; }
+.m-fight .rs-carpet { display: none; }
 
 /* ---------- vùng bán ---------- */
 .rs-sellzone { position: absolute; left: 392px; top: 300px; width: 1136px; height: 242px; pointer-events: none; opacity: 0;
@@ -131,7 +148,7 @@
 .rs-sellzone .lbl b { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 8px; font: 800 52px/1 var(--f-num); color: #ffe36d;
   text-shadow: 0 3px 0 #6a3d0d, 0 0 20px rgba(255,200,60,.6); }
 .rs-sellzone .lbl b i { width: 56px; height: 56px; background: center/contain no-repeat; }
-.rs-sellfor { position: absolute; left: 24px; top: -46px; display: flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 10px;
+.rs-sellfor { position: absolute; left: 24px; bottom: -44px; top: auto; /* clip pyg-hover 17m30: thanh "Sells for" ở ĐÁY tooltip */ display: flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 10px;
   background: #2a1e12; box-shadow: 0 0 0 2px #9b6d38; font: 700 22px/1 var(--f-text); color: var(--cream); }
 .rs-sellfor i { width: 26px; height: 26px; background: center/contain no-repeat; }
 .rs-sellfor b { font: 800 28px/1 var(--f-num); color: #ffe36d; }
@@ -318,6 +335,25 @@
 .bz-side-in .rs-big { min-width: 150px; height: 54px; font-size: 22px; padding: 0 18px; }
 .rs-merchant-ctl { position: absolute; inset: 0; pointer-events: none; z-index: 8; }
 .rs-merchant-ctl .rs-who { position: absolute; left: 855px; top: 62px; width: 210px; height: 190px; pointer-events: auto; }
+/* quầy khung trên (top.js T.stall): tấm đá + lều / xe chiếu từ mesh gốc (tools/stall.py), viền xanh FX_Platform_01/02 khi rê và dùng được */
+.rs-cell { position: absolute; padding: 0; background: none; pointer-events: auto; cursor: pointer; isolation: isolate; }
+.rs-cell > i { position: absolute; display: block; background: center/100% 100% no-repeat; pointer-events: none; }
+.rs-cell .pf.off { opacity: 0; }
+.rs-cell.off .pf.on { opacity: 0; } .rs-cell.off .pf.off { opacity: 1; }
+.rs-cell .glow { inset: 0; opacity: 0; mix-blend-mode: screen; filter: brightness(1.7) saturate(1.2); transition: opacity .25s; }
+.rs-cell:not(.off):hover .glow { opacity: 1; animation: rs-cellglow 1.6s ease-in-out .25s infinite alternate; }
+@keyframes rs-cellglow { from { opacity: 1; } to { opacity: .72; } }
+.rs-cell .mdl { transform-origin: 50% 70%; transition: transform .5s cubic-bezier(.3,1.5,.5,1); filter: drop-shadow(0 6px 6px rgba(0,0,0,.35)); }
+.rs-cell:not(.off):hover .mdl { transform: translateY(-4px) scale(1.025); } /* Merchant_Tent/Cart_01_Split_Hover_A 0,5 s */
+.rs-cell.click .mdl { animation: rs-cellclick .35s ease-out; }
+@keyframes rs-cellclick { 40% { transform: scale(.97); } 100% { transform: none; } }
+.rs-cell.off { cursor: default; }
+.rs-cell .tag { position: absolute; left: 89%; top: 50%; width: 78px; height: 53px; margin: -26px 0 0 -39px; z-index: 3; display: flex; align-items: center; justify-content: center; gap: 1px;
+  background: center/100% 100% no-repeat; padding: 0 8px 3px 2px; font: 800 26px/1 var(--f-num); color: #fff; text-shadow: 0 0 2px #732a0d, 0 2px 0 #732a0d, 2px 0 0 #732a0d, -2px 0 0 #732a0d; }
+.rs-cell .tag i { position: static; width: 24px; height: 24px; background: center/contain no-repeat; }
+.rs-cell.none .tag { display: none; }
+.rs-cell.off:not(.none) .tag { filter: grayscale(.6) brightness(.75); }
+.rs-small .rs-cell .tag { transform: scale(1.4); }
 .rs-rnd { position: absolute; top: 108px; width: 108px; height: 108px; padding: 0; border: 0; background: none; pointer-events: auto; cursor: pointer; isolation: isolate; transition: transform .12s; }
 .rs-rnd.rs-reroll { left: 722px; } .rs-rnd.rs-exit { left: 1090px; }
 .rs-rnd::before { content: ""; position: absolute; inset: -14% -16%; z-index: -1; pointer-events: none; background: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_round/Btn_Rnd_Shadow_Filled_TUI.webp) center/100% 100% no-repeat; }
@@ -868,7 +904,6 @@
 .rs-small .rs-rnd { width: 150px; height: 150px; top: 90px; }
 .rs-small .rs-rnd.rs-reroll { left: 676px; } .rs-small .rs-rnd.rs-exit { left: 1094px; }
 .rs-small .rs-rnd .ic { inset: 16px; }
-.rs-small.m-run.lane-merchant .bz-side.top { visibility: visible !important; }
 .rs-small .rs-rnd .tag { left: 84px; top: 88px; }
 
 /* ---------- đợt 2: huy hiệu sprite (W-06), nhãn ô lên cấp (W-03), chọn bùa (W-01), thẻ bóng ma chờ bấm (W-07) ---------- */
@@ -883,3 +918,34 @@
 .rs-ghostpick .tap { display: block; margin-top: 10px; font: 800 18px/1 var(--f-text); font-style: normal; letter-spacing: .08em; text-transform: uppercase; color: #ffe9a8; animation: rs-tap 1.1s ease-in-out infinite alternate; }
 @keyframes rs-tap { from { opacity: .45; } to { opacity: 1; } }
 .rs-small .rs-enc .lbl { font-size: 24px; }
+
+/* ---------- lựa chọn trên làn (event.js U.laneChoices): orb bước sự kiện, thẻ, khung chân dung; đặt theo ổ, không chữ trên làn ---------- */
+.rs-lanechoices { position: absolute; inset: 0; width: auto; height: auto; display: block; padding: 0; pointer-events: none; z-index: 3; }
+.rs-lanechoices .rs-choice { position: absolute; padding: 0; border: 0; border-image: none; background: none; overflow: visible; pointer-events: auto; cursor: pointer;
+  color: inherit; filter: none; transform: none; z-index: 3; animation: rs-orb-in .55s cubic-bezier(.2,1.4,.4,1) backwards; transition: transform .15s ease-out, opacity .4s; }
+@keyframes rs-orb-in { from { transform: scale(.2); opacity: 0; } 60% { opacity: 1; } to { transform: scale(1); opacity: 1; } }
+.rs-lanechoices .rs-choice:hover, .rs-lanechoices .rs-choice.armed { transform: scale(1.08); border-image: none; filter: none; } /* hoverCameraDistance 18, 150 ms */
+.rs-lanechoices .rs-choice.faded { opacity: 0; transform: scale(.85); pointer-events: none; } /* FX_Reward_Ignored */
+.rs-lanechoices .rs-choice.sh-orb.chosen { visibility: hidden; }
+.rs-lanechoices .rs-choice.sh-card.chosen, .rs-lanechoices .rs-choice.sh-enc.chosen { animation: rs-chosen .35s ease-out forwards; }
+.rs-lanechoices .rs-choice .img { position: absolute; inset: 0; width: auto; height: auto; margin: 0; border-radius: 50%; background: #1a120a center/cover no-repeat; box-shadow: none; transform: none; }
+.rs-lanechoices .rs-choice:hover .img, .rs-lanechoices .rs-choice.armed .img { transform: none; box-shadow: none; }
+.rs-lanechoices .rs-choice > i { position: absolute; display: block; pointer-events: none; }
+.rs-choice.sh-orb .glow { left: -62%; top: -62%; width: 224%; height: 224%; background: center/100% 100% no-repeat; mix-blend-mode: screen; z-index: -1;
+  animation: rs-orbglow 2.4s ease-in-out infinite alternate; }
+@keyframes rs-orbglow { from { opacity: .75; transform: scale(.96); } to { opacity: 1; transform: scale(1.04); } }
+.rs-choice.sh-orb:hover .glow { opacity: 1; animation: none; transform: scale(1.12); } /* FX_Reward_Hover */
+.rs-choice.sh-orb .ring { inset: -8%; background: center/100% 100% no-repeat; mix-blend-mode: screen; }
+.rs-choice.sh-orb .ring.tint { inset: -11%; -webkit-mask: center/100% 100% no-repeat; mask: center/100% 100% no-repeat; filter: blur(3px); mix-blend-mode: normal; }
+.rs-choice.sh-orb .shade { display: none; }
+.rs-choice.sh-orb.rs-orb { width: auto; height: auto; }
+.rs-choice.sh-orb.fly { position: absolute; pointer-events: none; z-index: 90; visibility: visible; animation: none; }
+.rs-choice.sh-enc .fr { position: absolute; inset: 0; filter: drop-shadow(0 8px 10px rgba(30,15,0,.5)); }
+.rs-lanechoices .rs-choice.sh-enc .img { border-radius: 0; background-size: auto 112%, cover; background-position: 50% 0, center; }
+.rs-choice.sh-enc .frame { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.rs-choice.sh-enc .banner { left: 50%; bottom: -34px; width: 58px; height: 64px; margin-left: -29px; background: center/contain no-repeat; }
+.rs-choice .slot { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.rs-choice.sh-card > .bz-card { position: absolute; }
+.rs-choice .stamp { position: absolute; left: 50%; top: -18px; width: 64px; height: 32px; margin-left: -32px; z-index: 4; display: grid; place-items: center; padding-left: 8px;
+  background: center/100% 100% no-repeat; font: 800 22px/1 var(--f-num); color: #fff; text-shadow: 0 0 2px #732a0d, 0 2px 0 #732a0d, 2px 0 0 #732a0d, -2px 0 0 #732a0d; }
+.m-run.stash-open .rs-lanechoices { opacity: 0; pointer-events: none; transition: opacity .3s; }

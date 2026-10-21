@@ -32,9 +32,11 @@
         f.names.forEach(function (nm) { cards = cards.concat(R.deal(run, Object.assign({}, f, { names: [nm] }), 1, { tierMode: 'band' })); });
         R.enterLoot(ctx, cards, e.Rules && e.Rules.CanSelectMultiple ? cards.length : 1, after, e.Id);
       } else {
-        var tm = f.kind === 'skill' ? 'band' : 'day', picks = R.deal(run, f, n, { tierMode: tm });
+        var tm = f.kind === 'skill' ? 'band' : 'day', sh = R.shopRec(e), picks = R.dealFor(run, e, f, n, { tierMode: tm, shop: !!sh });
+        var rr = e.Rules && e.Rules.RerollRules; // thầy kỹ năng: reroll theo RerollRules [RUN-05], bazaardb ghi đè (1 lần, giá theo bậc)
+        if (sh && sh.reroll && sh.reroll.cost != null) rr = { TotalAllowedRerolls: sh.reroll.n, StartingCost: sh.reroll.cost, CostIncrease: 0 };
         R.enterLoot(ctx, picks, e.Rules && e.Rules.CanSelectMultiple ? picks.length : 1, after, e.Id,
-          { rr: e.Rules && e.Rules.RerollRules, filter: f, n: n, tierMode: tm }); // thầy kỹ năng: reroll theo RerollRules [RUN-05]
+          { rr: rr, filter: f, n: n, tierMode: tm, enc: e });
       }
       R.log(ctx, { t: 'event', id: e.Id, name: e.InternalName });
       return;
@@ -50,10 +52,13 @@
     if (e.Kind === 'choice' || e.Kind === 'chain' || e.Kind === 'fight') {
       // Options (bước / sự kiện con / trận, theo thứ tự dữ liệu) nếu có, không thì Steps; bày Limit cái lọc theo hero
       var opts = (e.Options || (e.Steps || []).map(function (id) { return { t: 'step', id: id }; })).filter(function (o) { return Ev.optionOk(o, run); });
-      var n2 = Math.min(opts.length, limitOf(run, e.Limit, 3)), pool = opts.slice(), picked = [];
-      while (picked.length < n2) picked.push(pool.splice(R.randInt(run, pool.length), 1)[0]);
-      picked.sort(function (a, b) { return opts.indexOf(a) - opts.indexOf(b); });
-      choices = picked.map(function (o) { return Ev.optionChoice(o, run); });
+      var n2 = Math.min(opts.length, limitOf(run, e.Limit, 3)), picked = Ev.pickByOdds(run, e, opts, n2);
+      if (!picked) {
+        var pool = opts.slice(); picked = [];
+        while (picked.length < n2) picked.push(pool.splice(R.randInt(run, pool.length), 1)[0]);
+        picked.sort(function (a, b) { return opts.indexOf(a) - opts.indexOf(b); });
+      }
+      choices = picked.map(function (o) { return Ev.optionChoice(o, run, e); });
       if (picked.length === 1 && picked[0].t === 'combat' && e.Kind === 'fight') { // "Treasure Chest (Mimic)": vào trận luôn
         R.log(ctx, { t: 'event', id: e.Id, name: e.InternalName });
         R.ENCOUNTERS.combat.enter(ctx, { id: picked[0].id }, after);
@@ -78,9 +83,47 @@
     if (o.t === 'combat') return true;
     return heroOk(x, run) && (o.t !== 'step' || !R.ENCOUNTERS.step.conditionMissing(run, x)); // "(if you have a Food)": ẩn khi thiếu [RUN-03]
   };
-  Ev.optionChoice = function (o, run) {
-    var x = recOf(o);
-    return { kind: o.t, id: o.id, name: x.Title || x.InternalName, desc: run ? R.encText(run, x, x.Desc || '') : (x.Desc || '') };
+  // Huy hiệu cam trên quả cầu (`stamp`): số bazaardb ghi cho lựa chọn (giá vàng: D'flek 5/10/20, Hire a Teacher 20; hay số lượng), không thì
+  // "[Gumballs Remaining: N]" trong chữ của bước
+  Ev.stampOf = function (e, o, x) {
+    var S = root.BZ_SHOPS, rec = S && e && S.events[e.Id], c = rec && rec.choices.filter(function (k) { return k.stepId === o.id; })[0];
+    if (c && c.stamp != null) return c.stamp;
+    var m = /\[Gumballs Remaining: (\d+)\]/.exec((x && x.Desc) || '');
+    return m ? +m[1] : null;
+  };
+  Ev.optionChoice = function (o, run, e) {
+    var x = recOf(o), c = { kind: o.t, id: o.id, name: x.Title || x.InternalName, desc: run ? R.encText(run, x, x.Desc || '') : (x.Desc || '') };
+    var st = Ev.stampOf(e, o, x);
+    if (st != null) c.stamp = st;
+    return c;
+  };
+  // Chọn lựa chọn hiện ra theo tỉ lệ ngày của bazaardb (events[id].choices[].odds["<ngày 1..10>"], "all" khi ngày đó thiếu mẫu).
+  // Lựa chọn có điều kiện "(if you ...)" hay riêng hero thì tỉ lệ chỉ phản ánh số người chơi đủ điều kiện: điều kiện đã xét ở optionOk, nên
+  // luôn hiện. Lựa chọn không điều kiện mà tỉ lệ < 100 là ô ngẫu nhiên: nếu tổng tỉ lệ ≈ số nguyên k (Aerodrome 21+55+17+6,4 ≈ 1) thì rút
+  // đúng k theo trọng số, không thì mỗi ô tung riêng. Trả về null nếu sự kiện không có dữ liệu (bộ chọn cũ làm tiếp).
+  Ev.pickByOdds = function (run, e, opts, limit) {
+    var S = root.BZ_SHOPS, rec = S && S.events[e.Id];
+    if (!rec) return null;
+    var day = String(Math.min(10, Math.max(1, Math.floor(run.day)))), by = {};
+    rec.choices.forEach(function (c) { by[c.stepId] = c; });
+    var sure = [], part = [];
+    opts.forEach(function (o) {
+      var c = by[o.id], p = c && (c.odds[day] != null ? c.odds[day] : c.odds.all);
+      if (!c || p == null || p >= 99 || c.cond || (c.heroes && c.heroes.length)) sure.push(o); else part.push({ o: o, p: p });
+    });
+    if (!part.length) return null;
+    var tot = part.reduce(function (a, x) { return a + x.p; }, 0) / 100, k = Math.round(tot), got = [];
+    if (k >= 1 && Math.abs(tot - k) < 0.15) {
+      var bag = part.slice();
+      while (got.length < k && bag.length) {
+        var i = R.rollWeights(run, bag.map(function (x) { return x.p; }));
+        got.push(bag.splice(i < 0 ? 0 : i, 1)[0].o);
+      }
+    } else part.forEach(function (x) { if (R.rand(run) * 100 < x.p) got.push(x.o); });
+    var cap = Math.max(limit, sure.length), all = sure.concat(got);
+    if (!all.length) return null;
+    while (all.length > cap) all.splice(sure.length + R.randInt(run, all.length - sure.length), 1);
+    return all.sort(function (a, b) { return opts.indexOf(a) - opts.indexOf(b); });
   };
 
   // Mở màn [WIKI §1.1 start-of-run guide]: nền 8 vàng + 5 thu nhập; chọn +12 vàng/+2 thu nhập, hoặc 1 vật phẩm Small

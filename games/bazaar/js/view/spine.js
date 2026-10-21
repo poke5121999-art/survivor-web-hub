@@ -40,7 +40,8 @@
     var c = document.createElement('canvas');
     c.className = 'bz-spine'; c.setAttribute('aria-hidden', 'true');
     c.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none';
-    var g = c.getContext('webgl2', { alpha: true, premultipliedAlpha: true, antialias: true }) || c.getContext('webgl', { alpha: true, premultipliedAlpha: true, antialias: true });
+    // antialias tắt: hero Spine là ảnh có viền alpha nên MSAA gần như không thấy khác, mà tốn ~40% CPU sảnh trên GPU phần mềm (đo ở đợt fix8)
+    var g = c.getContext('webgl2', { alpha: true, premultipliedAlpha: true, antialias: false }) || c.getContext('webgl', { alpha: true, premultipliedAlpha: true, antialias: false });
     if (!g) throw new Error('không có WebGL');
     canvas = c; gl = g;
     renderer = new root.spine.SceneRenderer(canvas, gl);

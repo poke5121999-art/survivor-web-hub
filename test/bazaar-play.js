@@ -38,7 +38,7 @@ const SEED = 7;
 
 // ---------- Node: cùng reducer để lấy số kỳ vọng ----------
 globalThis.window = globalThis;
-['cards', 'heroes', 'monsters', 'mode', 'encounters'].forEach(f => require(path.join(ROOT, 'games/bazaar/data', f + '.js')));
+['cards', 'heroes', 'monsters', 'mode', 'encounters', 'shops'].forEach(f => require(path.join(ROOT, 'games/bazaar/data', f + '.js')));
 const R = require(path.join(ROOT, 'games/bazaar/js/run/index.js'));
 let nrun = R.apply(R.apply(R.newRun({ seed: SEED }), { t: 'pickHero', hero: 'Vanessa' }).run, { t: 'choose', i: 0 }).run;
 const N_GOLD0 = nrun.gold;
@@ -499,8 +499,8 @@ async function phase4(browser, base) {
   await sleep(700);
   const chr = await page.evaluate(() => window.BZ_DEBUG.cmd({ t: 'choose', i: 0 }));
   await sleep(900); await shot(page, '49-event-chain');
-  const chs = await page.evaluate(() => { const ph = window.BZ_DEBUG.run().phase; return { kind: ph.kind, step: !!ph.stepId, n: document.querySelectorAll('.rs-choices .rs-choice').length, kick: (document.querySelector('.rs-side-name small') || {}).textContent, want: (ph.choices || []).length }; });
-  check('sự kiện → bước có Then: màn vẽ lại chuỗi kế (' + ch.then + ' lựa chọn, nhãn "Tiếp theo")', chr.ok && chs.kind === 'event' && chs.step && chs.n === chs.want && chs.kick === 'Tiếp theo', JSON.stringify([chr, chs]));
+  const chs = await page.evaluate(() => { const ph = window.BZ_DEBUG.run().phase; return { kind: ph.kind, step: !!ph.stepId, n: document.querySelectorAll('.rs-choices .rs-choice').length, kick: !!document.querySelector('.rs-stall .rs-exit') && !document.querySelector('.rs-side-name'), want: (ph.choices || []).length }; });
+  check('sự kiện → bước có Then: màn vẽ lại chuỗi kế (' + ch.then + ' lựa chọn, khung trên là quầy lều/xe, không bảng tên)', chr.ok && chs.kind === 'event' && chs.step && chs.n === chs.want && chs.kick === true, JSON.stringify([chr, chs]));
   check('pha 4: 0 lỗi trang / console / HTTP', errors.length === 0, errors.slice(0, 5).join(' | '));
   await ctx.close();
 }
@@ -667,7 +667,7 @@ async function reviewFixes(browser, base) {
   });
   await sleep(700);
   const trayAtPed = await page.evaluate(() => window.BZUI.cards.trayIsOpen());
-  await page.click('.bz-side-in .leave'); await sleep(1500);
+  await page.click('.rs-merchant-ctl .leave'); await sleep(1500);
   const after1 = await page.evaluate(() => {
     const scr = window.BZ_DEBUG.screen(), enc = document.querySelector('.rs-top .rs-enc .fr');
     let hit = null; if (enc) { const b = enc.getBoundingClientRect(); const e = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2); hit = !!(e && e.closest('.rs-enc')); }
@@ -746,8 +746,8 @@ async function reviewPhone(browser, base) {
   }));
   check('INTERACT-10: chạm lệch 20 px quanh tâm vẫn trúng nút (vùng chạm ≥ 40 px)', hits.every(h => / ok$/.test(h)), hits.join(' | '));
   // MOBILE-9: chữ gợi ý ≥ 10 px màn hình
-  const fs = await page.evaluate(() => { const k = window.BZView.scale; return ['.rs-hint', '.rs-side-name small', '.rs-side-name h3', '.rs-big span'].map(s => { const e = document.querySelector(s); return s + ' ' + (e ? (parseFloat(getComputedStyle(e).fontSize) * k).toFixed(1) : '-'); }); });
-  check('MOBILE-9: chữ gợi ý / nhãn / nút ≥ 9 px màn hình ở 844×390', fs.every(x => parseFloat(x.split(' ').pop()) >= 9), fs.join(' | '));
+  const fs = await page.evaluate(() => { const k = window.BZView.scale; return ['.rs-hint', '.rs-side-name small', '.rs-side-name h3', '.rs-big span', '.rs-cell .tag b', '.rs-price b'].map(s => { const e = document.querySelector(s); return e ? s + ' ' + (parseFloat(getComputedStyle(e).fontSize) * k).toFixed(1) : null; }).filter(Boolean); });
+  check('MOBILE-9: chữ gợi ý / nhãn / nút ≥ 9 px màn hình ở 844×390', fs.length > 0 && fs.every(x => parseFloat(x.split(' ').pop()) >= 9), fs.join(' | '));
   await shot(page, '53-review-phone-merchant');
   // MOBILE-1: trận: chạm thẻ → tooltip ở lại sau khi nhấc tay
   await page.click('.rs-merchant-ctl .leave').catch(() => {});

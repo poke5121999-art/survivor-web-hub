@@ -11,7 +11,7 @@
   var G = C.G = {
     hand: { x0: 412, pitch: 109.6, top: 553, h: 232 },
     tray: { left: 392, top: 300, w: 1136, hgt: 242, x0: 20, pitch: 109.6, y: 5, h: 232 }, // kho nằm đúng chỗ dải trên (clip stash-open)
-    topRow: { cx: 960, top: 305, h: 232, pitch: 109.6, gap: 16 }
+    topRow: { cx: 960, top: 305, h: 232, pitch: 109.6, gap: 16, cy: 422.5, hGrid: 226 } // hGrid: mặt thẻ cao 3,20 u (CardFrame_Item_*_PV)
   };
   var own = {};      // uid → el
   // hoạt ảnh chia bài / bày phần thưởng (rs-deal, rs-prize) chỉ chạy MỘT lần: xong thì bỏ lớp + độ trễ, để khi phần tử bị gắn lại
@@ -134,9 +134,15 @@
     var layer = V().refs.runCards, seen = {}, els = [];
     // hàng dài (thương nhân 10 món, FLOW-6): thu nhỏ thẻ để cả hàng nằm gọn trong dải trên (392..1528, chừa lề 24 px mỗi bên)
     var P0 = G.topRow, gap0 = opts.gap == null ? P0.gap : opts.gap, span0 = 0;
+    // lưới 10 ổ của làn đối thủ (UI-CONFIG §0, A3): hàng thương nhân / loot đặt theo ổ, S/M/L = 1/2/3 ổ, kỹ năng = Medium (2 ổ);
+    // tràn quá 10 ổ (thương nhân hero 10 món) thì về cách cũ: dồn giữa + thu nhỏ
+    var nSock = 0;
+    list.forEach(function (it) { nSock += C.sockOf(it.card.id); });
+    var grid = opts.grid !== false && list.length > 0 && nSock <= 10 && list.every(function (it) { return it.kind === 'stock' || it.kind === 'loot'; });
     list.forEach(function (it) { var t = R().tpl(it.card.id); span0 += (R().isSkill(t) ? 1 : (R().SIZE[t.Size] || 1)) * P0.pitch * ((it.h || P0.h) / P0.h); });
     span0 += gap0 * Math.max(0, list.length - 1);
-    var fitK = span0 > C.LANE_W ? C.LANE_W / span0 : 1;
+    var fitK = !grid && span0 > C.LANE_W ? C.LANE_W / span0 : 1;
+    if (grid) list = list.map(function (it) { var o = {}, k; for (k in it) o[k] = it[k]; o.h = o.h || G.topRow.hGrid; return o; });
     if (fitK < 1) list = list.map(function (it) { var o = {}, k; for (k in it) o[k] = it[k]; o.h = Math.floor((it.h || P0.h) * fitK); return o; });
     list.forEach(function (it, n) {
       seen[it.key] = 1;
@@ -154,8 +160,9 @@
       }
       if (!el) {
         var tpl = R().tpl(it.card.id), sz = R().isSkill(tpl) ? 1 : (R().SIZE[tpl.Size] || 1);
+        var tok = grid && R().isSkill(tpl); // kỹ năng trên làn = orb token (SkillController + ParentToken), không phải thẻ
         el = BC().create({ uid: 'top:' + it.key, id: it.card.id, tier: it.card.tier, size: sz, ench: it.card.ench || null, type: U.typeOf(tpl) },
-          { h: it.h || G.topRow.h, attrs: U.looseAttrs(it.card), side: 1 });
+          { h: tok ? C.TOKEN_D : it.h || G.topRow.h, attrs: U.looseAttrs(it.card), side: 1, token: tok });
         el._rs = { kind: it.kind, i: it.i, key: it.key, size: sz, card: it.card };
         if (it.kind !== 'preview') el.dataset.drag = '1';
         if (R().isSkill(tpl)) el.classList.add('is-skill');
@@ -167,14 +174,7 @@
         if (it.kind === 'stock') U.sfx('card.revealFlipBronze', { vol: 0.5, gap: 60 });
       }
       el._rs.i = it.i; el._rs.price = it.price; el._rs.card = it.card;
-      var pt = el.querySelector('.rs-price');
-      if (it.price != null) {
-        if (!pt) pt = U.el('div', 'rs-price', el._bz.cb);
-        var base = it.kind === 'stock' ? R().price(it.card, it.card.tier).buy : it.price;
-        pt.innerHTML = '<i style="background-image:' + U.bg(U.ICON.coin) + '"></i><b>' + it.price + '</b>' + (it.price < base ? '<s>' + base + '</s>' : it.discount ? '<s>' + Math.round(it.price / 0.75) + '</s>' : '');
-        pt.classList.toggle('disc', !!it.discount);
-        pt.classList.toggle('poor', it.price > (U.state.run ? U.state.run.gold : 0));
-      } else if (pt) pt.remove();
+      C.priceTag(el, it);
       els.push(el);
     });
     Object.keys(top).forEach(function (k) {
@@ -184,6 +184,8 @@
       if (el._keep) return;
       el.classList.add('despawn'); setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 420);
     });
+    if (grid) { C.placeGrid(list, els); return els; }
+    C._gridSock = {};
     // xếp giữa vùng trên
     var P = G.topRow, gap = (opts.gap == null ? P.gap : opts.gap) * fitK, total = 0;
     els.forEach(function (el) { total += el._rs.size * P.pitch * ((el._bz.h) / P.h); });
@@ -198,6 +200,111 @@
     return els;
   };
   C.LANE_W = 1088;
+  // orb kỹ năng trên làn: khung Skill_Token Đồng rộng 1,054 u (tools/stall.py) × ParentToken scale 1,76 (SkillMerchantScale) = 1,86 u
+  // (clip karnok-nufu 13m32 đo orb 95/720 khung = 142 px sân khấu, gần 1,86 u × 70,7 = 131 px; lấy theo clip)
+  C.TOKEN_D = 142;
+  // số ổ một thẻ chiếm trên làn: S/M/L = 1/2/3 (ECardSize), kỹ năng 2 (Size Medium trong cards.json, UI-CONFIG §C)
+  C.sockOf = function (id) { var t = R().tpl(id); return !t ? 1 : R().isSkill(t) ? 2 : (R().SIZE[t.Size] || 1); };
+  // Ổ cho từng thẻ theo thứ tự chia: BazaarDeckTools.GetAvailableSocketFromCenter (thẻ đầu gần giữa: S→4, M→3, L→1; lấp sang trái
+  // rồi sang phải; hết chỗ thì dồn phải) + BalanceCarpetCards sau mỗi lần đặt (BazaarDeckTools.cs:80-131, 842-1060). Trả về [ổ đầu | -1].
+  C.dealSockets = function (sizes) {
+    var arr = [], n, i;
+    for (i = 0; i < 10; i++) arr.push(-1);
+    function fromLeft(st, req) {
+      var num = st;
+      while (num >= 0 && num + req <= 10) {
+        var ok = true;
+        for (var j = 0; j < req; j++) if (arr[num + j] >= 0) { ok = false; num = num + j + 1; break; }
+        if (ok) return num;
+      }
+      return -1;
+    }
+    function fromRight(en, req) {
+      var num = en;
+      while (num >= 0 && num + 1 - req >= 0) {
+        var ok = true;
+        for (var j = 0; j < req; j++) if (arr[num - j] >= 0) { ok = false; num = num - j - 1; break; }
+        if (ok) return num - req + 1;
+      }
+      return -1;
+    }
+    function shift(d) { // d > 0: dồn phải, d < 0: dồn trái
+      var out = [], j;
+      for (j = 0; j < 10; j++) out.push(-1);
+      for (j = 0; j < 10; j++) if (arr[j] >= 0 && j + d >= 0 && j + d < 10) out[j + d] = arr[j];
+      arr = out;
+    }
+    function empty() { var c = 0; for (var j = 0; j < 10; j++) if (arr[j] < 0) c++; return c; }
+    function balance() {
+      if (!empty()) return;
+      var a = 0, b = 9, l = 0, r = 0;
+      while (arr[b] < 0 && a < b) { b--; r++; }
+      while (arr[a] < 0 && a < b) { a++; l++; }
+      var v = Math.abs((l - r) / 2 | 0);
+      if (l > r) shift(-Math.min(v, a)); else if (r > l) shift(Math.min(v, 9 - b));
+    }
+    for (n = 0; n < sizes.length; n++) {
+      var sz = sizes[n], st = ((10 - sz) / 2 | 0) - (sz === 2 ? 1 : sz === 3 ? 2 : 0), s = fromLeft(st, sz);
+      if (s < 0) s = fromRight(st + sz - 1, sz);
+      if (s < 0) {
+        var em = empty(), first = arr.findIndex(function (x) { return x >= 0; });
+        if (em >= sz && first >= 0 && em > first) { shift(em - first); s = fromLeft(st, sz); if (s < 0) s = fromRight(st + sz - 1, sz); }
+      }
+      if (s < 0) continue;
+      for (i = 0; i < sz; i++) arr[s + i] = n;
+      balance();
+    }
+    var pos = sizes.map(function () { return -1; });
+    for (i = 9; i >= 0; i--) if (arr[i] >= 0) pos[arr[i]] = i;
+    return pos;
+  };
+  // đặt hàng theo ổ: hàng mới (đổi hàng / vào quầy) thì chia lại cả hàng; mua đi một món thì chỗ trống giữ nguyên, không dồn lại
+  // (clip ref/reroll/05.jpg: mua 1 trong 3 thẻ M, hai thẻ còn lại đứng yên)
+  C._gridSock = {};
+  C.placeGrid = function (list, els) {
+    var P = G.topRow, keys = list.map(function (it) { return it.key; });
+    if (keys.some(function (k) { return C._gridSock[k] == null; })) {
+      var pos = C.dealSockets(list.map(function (it) { return C.sockOf(it.card.id); }));
+      C._gridSock = {};
+      keys.forEach(function (k, n) { C._gridSock[k] = pos[n]; });
+    }
+    els.forEach(function (el, n) {
+      var s = C._gridSock[keys[n]], sz = C.sockOf(list[n].card.id);
+      if (s == null || s < 0) s = 0;
+      var cx = G.hand.x0 + (s + sz / 2) * P.pitch;
+      el._rs.socket = s; el._rs.size = sz;
+      el.style.left = (cx - el._bz.w / 2).toFixed(1) + 'px';
+      el.style.top = (P.cy - el._bz.h / 2).toFixed(1) + 'px';
+    });
+  };
+  // Thẻ giá (PriceTagContainer.cs): CardFrame_Tag_02 ở góc dưới-trái khi giá = giá chuẩn, CardFrame_Tag_01 kèm giá gốc mờ gạch ngang
+  // (CardFrame_Tag_Strikethrough) khi giá bị đổi (CardController.cs:682-689); không giá (loot, chọn miễn phí) thì không có tag (:610).
+  // Thẻ hàng: tag nằm ở neo `tag` của khung (chỗ tag hồi chiêu, ẩn khi có giá); orb kỹ năng: viên cam trên đỉnh orb
+  // (PriceTagParent scale 0,45 tại (-0,15, 0,78), UI-CONFIG §C; clip karnok-nufu 13m32).
+  C.priceTag = function (el, it) {
+    var pt = el.querySelector('.rs-price');
+    if (it.price == null) { if (pt) pt.remove(); el.classList.remove('priced'); return; }
+    var P = root.BZ_FRAMES && root.BZ_FRAMES.parts, base = it.kind === 'stock' ? R().price(it.card, it.card.tier).buy : it.price;
+    var mod = it.price !== base, src = P && (mod ? P.tag1 : P.tag2), B = el._bz, th;
+    if (!pt) pt = U.el('div', 'rs-price', B.cb);
+    pt.className = 'rs-price' + (mod ? ' mod' : '') + (B.token ? ' on-token' : '') + (it.price > (U.state.run ? U.state.run.gold : 0) ? ' poor' : '');
+    pt.style.backgroundImage = src ? U.bg(src.src) : '';
+    pt.innerHTML = '<b>' + it.price + '</b>' + (mod ? '<s>' + base + '<i style="background-image:' + U.bg('art/frames/cardframes/CardFrame_Tag_Strikethrough.webp') + '"></i></s>' : '');
+    if (B.token) {
+      th = Math.round(B.h * 0.26);
+      pt.style.left = (B.w / 2 - th) + 'px'; pt.style.top = (-th * 0.6) + 'px'; pt.style.width = (th * 2) + 'px'; pt.style.height = th + 'px';
+      pt.style.fontSize = Math.round(th * 0.72) + 'px';
+    } else {
+      // cỡ: PriceTags scale 0,8 của tag ~0,6 u → cao ~0,42 u = 30 px ở thẻ cao 226 px; tâm theo neo tag của khung
+      var t = B.tag.style, h0 = parseFloat(t.height) || 30, w0 = parseFloat(t.width) || 60, cy = (parseFloat(t.top) || 0) + h0 / 2;
+      var hh = B.h * 0.133, ww = hh * 2.03;
+      th = mod ? hh * 1.55 : hh;
+      pt.style.left = ((parseFloat(t.left) || 0) + w0 / 2 - (mod ? th : ww) / 2) + 'px'; pt.style.top = (cy - th / 2) + 'px';
+      pt.style.width = (mod ? th : ww) + 'px'; pt.style.height = th + 'px';
+      pt.style.fontSize = Math.round(hh * 0.86) + 'px';
+    }
+    el.classList.add('priced');
+  };
   C.topEl = function (key) { return top[key] || null; };
   C.stockEl = function (i) { for (var k in top) if (top[k]._rs.kind === 'stock' && top[k]._rs.i === i) return top[k]; return null; };
 
@@ -330,7 +437,7 @@
       if (el._rs.kind === 'stock' && !el.classList.contains('is-skill')) {
         var sp2 = R().price(el._rs.card, el._rs.card.tier).sell || 0;
         if (!f2) f2 = U.el('div', 'rs-sellfor', box); else box.appendChild(f2);
-        f2.innerHTML = 'Bán lại được <i style="background-image:' + U.bg(U.ICON.coin) + '"></i><b>' + sp2 + '</b>';
+        f2.innerHTML = 'Bán được <i style="background-image:' + U.bg(U.ICON.coin) + '"></i><b>' + sp2 + '</b>';
       } else if (f2) f2.remove();
     }
     // phần thêm làm tooltip cao hơn: đặt lại vị trí (cùng info → BZTooltip không vẽ lại nội dung)

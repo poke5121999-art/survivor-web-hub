@@ -29,9 +29,9 @@
   M.dealStock = function (run, e, exclude) {
     var free = !!(e.Rules && e.Rules.SelectionIsFree);
     var cards = /sells skill upgrades/i.test(e.Desc || '') ? M.skillUpgrades(run, limitOf(run, e), exclude) : null;
-    if (!cards) cards = R.deal(run, M.filter(e), limitOf(run, e), { exclude: exclude || {}, priced: !free });
+    if (!cards) cards = R.dealFor(run, e, M.filter(e), limitOf(run, e), { exclude: exclude || {}, priced: !free, shop: true, tierMode: R.shopRec(e) && /teach|skill/i.test(e.Desc || '') ? 'band' : 'day' });
     var stock = cards.map(function (c) { return { card: c, price: free ? 0 : R.price(c, c.tier).buy }; });
-    var always = /always sells discounted/i.test(e.Desc || '');
+    var rec = R.shopRec(e), always = /always sells discounted/i.test(e.Desc || '') || !!(rec && rec.discounted); // Valpak: cờ discounted của bazaardb
     var hasRoll = JSON.stringify(e.Abilities || {}).indexOf('"BuyPrice"') >= 0;
     if (!free && stock.length && (hasRoll || always) && R.rand(run) < (always ? T().ALWAYS_DISCOUNT_CHANCE : T().DISCOUNT_CHANCE)) {
       var s = stock[R.randInt(run, stock.length)];
@@ -41,7 +41,10 @@
   };
 
   M.enter = function (ctx, r, after) {
-    var run = ctx.run, e = R.enc().events[r.id], rr = (e.Rules && e.Rules.RerollRules) || null;
+    var run = ctx.run, e = R.enc().events[r.id], rr = (e.Rules && e.Rules.RerollRules) || null, sh = R.shopRec(e);
+    // bazaardb: mỗi thương nhân đổi hàng đúng reroll.n lần, giá cố định theo bậc (Đồng 2 / Bạc 3 / Vàng 4 / Kim cương 8), không tăng giá
+    // lần sau; khớp RerollRules của bản demo (CostIncrease 0). Bản demo ghi đè khi bazaardb không có thương nhân này.
+    if (sh && sh.reroll && sh.reroll.cost != null) rr = { TotalAllowedRerolls: sh.reroll.n, StartingCost: sh.reroll.cost, CostIncrease: 0 };
     var stock = M.dealStock(run, e);
     run.phase = {
       kind: 'merchant', merchantId: e.Id, name: e.Title || e.InternalName, desc: R.encText(run, e, e.Desc || ''), stock: stock,
@@ -56,7 +59,12 @@
   // có, không thì TUNING.MERCHANT_SELL_AURAS (chép từ cards.json). Trả về phần cộng thêm khi bán thẻ C (sim) ở thương nhân này.
   M.sellBonus = function (e, S, C) {
     if (!e) return 0;
-    var sim = root.BZSim, add = 0, list = [];
+    var sim = root.BZSim, add = 0, list = [], rec = R.shopRec(e);
+    if (rec && rec.sellMod) { // bazaardb sell_price_modifier: Barkun Small +1, Midsworth Medium +2, Quixel Large +3, Laurel Toys +1
+      var tp = R.tpl(C.id), sm = rec.sellMod;
+      if (tp && (sm.size ? tp.Size === sm.size : (tp.Tags || []).concat(tp.HiddenTags || []).indexOf(sm.tag) >= 0)) add = sm.plus;
+      return add;
+    }
     if (e.Auras) {
       Object.keys(e.Auras).forEach(function (k) {
         var a = e.Auras[k].Action || {};

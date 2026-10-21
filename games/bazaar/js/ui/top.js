@@ -15,9 +15,30 @@
     st.classList.toggle('top-hero', !!o.hero);
     st.classList.toggle('top-hp', !!o.hp);
     st.classList.toggle('top-sides', !!o.sides);
+    st.classList.toggle('top-sides-r', o.sides === 'r'); // loot: chỉ ô phải (nút), bản gốc không có bảng tên bên trái
     st.classList.toggle('top-board', !!o.board);
     // màu dải trên theo loại màn (clip: thương nhân = dải tím, sự kiện = băng-rôn kem, loot/kho = khung vàng, bệ = ngọc lam)
     ['merchant', 'event', 'loot', 'pedestal'].forEach(function (k) { st.classList.toggle('lane-' + k, o.lane === k); });
+    T.carpet(o.lane && o.lane !== 'loot' ? o.carpet : null);
+  };
+  // Thảm làn (CarpetController): mỗi thẻ gặp gỡ chọn một thảm Carpet_*_TD (data/carpets.js, tools/stall.py), trải từ giữa ra hai bên
+  // sau revealUnrollDelay 1,0 s (BoardManager.cs:1711-1720). Gặp gỡ không có trong bảng: thảm Green_01, thảm dùng nhiều nhất
+  // (70 thẻ, carpet_by_encounter.tsv) [ĐỀ XUẤT]. Bước nối (eventId null) giữ thảm của gặp gỡ cha. Loot giữ khung vàng neon.
+  T.CARPET_DEFAULT = 'Carpet_Green_01';
+  T.carpetName = function (id) { var M = root.BZ_CARPETS || {}; return (id && M[id]) || null; };
+  T.carpet = function (id) {
+    var lane = V().refs.boards && V().refs.boards[1]; if (!lane) return;
+    var el = lane.querySelector('.rs-carpet');
+    if (id === null || id === false) { if (el) { el.classList.remove('show'); el.dataset.name = ''; } T._carpetId = null; V().refs.stage.classList.remove('has-carpet'); return; }
+    if (id === undefined) id = T._carpetId; // giữ thảm đang trải
+    var name = T.carpetName(id) || T.CARPET_DEFAULT;
+    T._carpetId = id;
+    if (!el) el = U.el('div', 'rs-carpet', lane);
+    V().refs.stage.classList.add('has-carpet');
+    if (el.dataset.name === name && el.classList.contains('show')) return;
+    el.dataset.name = name;
+    el.style.backgroundImage = U.bg('art/board/carpets/' + name + '.webp');
+    el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
   };
   T.clear = function () { V().refs.runTop.innerHTML = ''; U.cards.clearTop(); U.panelTip(null); };
   T.layer = function () { return V().refs.runTop; };
@@ -74,6 +95,79 @@
     rr.querySelector('.tag b').textContent = ph.rerollCost;
     rr.querySelector('.ic').dataset.left = '×' + ph.rerolls; // màn nhỏ: số lượt còn hiện thành huy hiệu trên nút (css .rs-small)
   };
+  // ---------- quầy khung trên (BoardButton_Merchant_Default_P): lều = đổi hàng (trái), xe = rời đi (phải) ----------
+  // Bản gốc là vật thể 3D trên mặt bàn nên quy đổi đơn vị thế giới u ra px sân khấu: bước ổ 1,55 u = 109,6 px (70,7 px/u),
+  // làn đối thủ tâm z 1,72 u = y 422,5 (UI-CONFIG §0). Hộp bao ảnh = số tools/stall.py in ra (STALL_LAYOUT, đơn vị u).
+  var PXU = 109.6 / 1.55, LANE_Z = 1.72, LANE_Y = 422.5;
+  T.wx = function (u) { return 960 + u * PXU; };
+  T.wy = function (z) { return LANE_Y - (z - LANE_Z) * PXU; };
+  var STALL = {
+    platform_tent: [-8.484, 3.599, -1.994, 6.797], tent: [-8.261, 3.554, -2.489, 7.016],
+    platform_cart: [2.002, 3.597, 8.557, 6.827], cart: [2.436, 3.526, 8.328, 7.081],
+    // hộp bấm BoxCollider 6,5 x 3,29 u tâm (-5,27, 5,11) / (5,24, 5,11) (wt.py trên prefab nút); ảnh viền sáng phủ đúng hộp này
+    hitReroll: [-8.52, 3.465, -2.02, 6.755], hitExit: [1.99, 3.465, 8.49, 6.755]
+  };
+  T.STALL = STALL;
+  function boxPx(bb, hit) { // hộp u → {left, top, width, height} px, tương đối so với hộp bấm `hit` nếu có
+    var x = T.wx(bb[0]), y = T.wy(bb[3]), w = (bb[2] - bb[0]) * PXU, h = (bb[3] - bb[1]) * PXU;
+    if (hit) { x -= T.wx(hit[0]); y -= T.wy(hit[3]); }
+    return 'left:' + x.toFixed(1) + 'px;top:' + y.toFixed(1) + 'px;width:' + w.toFixed(1) + 'px;height:' + h.toFixed(1) + 'px';
+  }
+  function cell(parent, cls, hit, plat, model, glow, label) {
+    var b = U.button(parent, 'rs-cell ' + cls, '', null, null);
+    b.setAttribute('aria-label', label);
+    b.style.cssText = boxPx(hit);
+    var base = 'art/ui/stall/';
+    b.innerHTML = '<i class="pf on" style="' + boxPx(STALL[plat], hit) + ';background-image:' + U.bg(base + plat + '.webp') + '"></i>' +
+      '<i class="pf off" style="' + boxPx(STALL[plat], hit) + ';background-image:' + U.bg(base + plat + '_off.webp') + '"></i>' +
+      '<i class="glow" style="background-image:' + U.bg(base + glow + '.webp') + '"></i>' +
+      '<i class="mdl" style="' + boxPx(STALL[model], hit) + ';background-image:' + U.bg(base + model + '.webp') + '"></i>';
+    return b;
+  }
+  // stall(o): o.reroll = {tip(), act(btn)} hoặc null (gặp gỡ không có RerollRules: tấm đá tắt, không thẻ giá),
+  // o.leave = fn, o.canExit (SelectionContextRules.CanExit, ExitButton.cs:21-33), o.name / o.desc cho tooltip chân dung.
+  // Viền xanh chỉ sáng khi rê và nút dùng được (BoardButton.CanInteract); chữ tooltip = tooltips.json Reroll / Exit dịch Việt.
+  T.stall = function (o) {
+    var ctl = U.el('div', 'rs-merchant-ctl rs-stall', T.layer());
+    var who = U.el('div', 'rs-who', ctl);
+    who.addEventListener('pointerenter', function (ev) { if (ev.pointerType !== 'touch' && o.name) U.panelTip({ x: 855, y: 62, w: 210, h: 190 }, U.esc(o.name), U.esc(o.desc || '')); });
+    who.addEventListener('pointerleave', function () { U.panelTip(null); });
+    var rr = cell(ctl, 'rs-reroll', STALL.hitReroll, 'platform_tent', 'tent', 'glow_reroll', 'Đổi hàng (R)');
+    // thẻ giá đổi hàng Tent_Merchant_RerollPriceTag (Container_PriceTagReroll_TUI + <sprite CoinReroll> + giá); vị trí theo clip
+    // ref/merchant-enter/30.jpg, karnok-nufu 13m32: tâm ở 90 % bề ngang, 51 % bề cao ô lều [ĐO TRÊN CLIP]
+    var tag = U.el('span', 'tag', rr, '<i></i><b></b>');
+    tag.style.backgroundImage = U.bg('art/ui/ui_sprite_atlas/Container_PriceTagReroll_TUI.webp');
+    tag.querySelector('i').style.backgroundImage = U.bg('art/icons/CoinReroll.webp');
+    rr.addEventListener('click', function () {
+      if (!o.reroll || rr.classList.contains('off')) { U.reject(rr._why || 'no rerolls'); return; }
+      rr.classList.remove('click'); void rr.offsetWidth; rr.classList.add('click');
+      o.reroll.act(rr);
+    });
+    T.tipOn(rr, 'Đổi hàng', function () { return 'Đổi hàng của thương nhân này.' + (o.reroll && o.reroll.tip ? o.reroll.tip() : ''); });
+    var ex = cell(ctl, 'rs-exit leave', STALL.hitExit, 'platform_cart', 'cart', 'glow_exit', 'Rời gặp gỡ');
+    ex.addEventListener('click', function () {
+      if (ex.classList.contains('off')) { U.reject('cannot exit'); return; }
+      U.panelTip(null); ex.classList.add('click'); o.leave();
+    });
+    T.tipOn(ex, 'Rời gặp gỡ', 'Rời khỏi gặp gỡ này.');
+    var api = { ctl: ctl, who: who, rr: rr, ex: ex };
+    T.stallSync(api, { canExit: o.canExit !== false });
+    if (!o.reroll) T.stallReroll(api, null);
+    return api;
+  };
+  // đồng bộ nút đổi hàng theo pha: ph = {rerolls, rerollCost} hoặc null (không có đổi hàng); lock = lý do khoá thêm
+  T.stallReroll = function (api, ph, run, lock) {
+    var rr = api.rr, can = !!ph && ph.rerolls > 0, off = !can || !!lock || (run && run.gold < ph.rerollCost);
+    rr._why = lock || (!ph ? 'no rerolls' : can ? 'not enough gold' : 'no rerolls');
+    rr.classList.toggle('off', !!off); rr.setAttribute('aria-disabled', off ? 'true' : 'false');
+    rr.classList.toggle('none', !can); // RerollsRemaining == 0: ẩn thẻ giá (RerollButton.cs:136-185)
+    rr.querySelector('.tag b').textContent = ph ? ph.rerollCost : '';
+  };
+  T.stallSync = function (api, o) {
+    var off = o.canExit === false;
+    api.ex.classList.toggle('off', off); api.ex.setAttribute('aria-disabled', off ? 'true' : 'false');
+  };
+
   // nút lớn kiểu gốc (Btn_Rct_*): màu 'brown' | 'blue' | 'yellow' | 'red' | 'purple'
   U.bigButton = function (parent, color, label, title, fn) {
     var b = U.button(parent, 'rs-big c-' + color, '<span>' + label + '</span>', title, fn);

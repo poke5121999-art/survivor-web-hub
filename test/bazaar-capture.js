@@ -34,7 +34,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // ---------- Node: sim + reducer cùng mã với trang ----------
 globalThis.window = globalThis;
-['cards', 'monsters', 'mode', 'encounters'].forEach(f => require(path.join(ROOT, 'games/bazaar/data', f + '.js')));
+['cards', 'monsters', 'mode', 'encounters', 'shops'].forEach(f => require(path.join(ROOT, 'games/bazaar/data', f + '.js')));
 const BZ = require(path.join(ROOT, 'games/bazaar/js/sim/index.js'));
 const R = require(path.join(ROOT, 'games/bazaar/js/run/index.js'));
 const CARDS = Object.values(globalThis.BZ_CARDS);
@@ -601,11 +601,73 @@ H['stash-open'] = async () => {
   } finally { await page._ctx.close(); }
 };
 
+// ---------- khoảnh khắc dựng thẳng bằng BZ_DEBUG.load (FIX8 ui8): quầy, orb sự kiện, thầy kỹ năng ----------
+// Run seed 7 Vanessa (khởi đầu Thu nhập), rồi một hàm trong trang dựng pha cần chụp; khung cuối có rê chuột (hover: selector).
+// Không có trong MOMENTS.md: gọi bằng ONLY=ui8-merchant,... (danh sách chạy nhận cả id có kịch bản mà MOMENTS.md không ghi).
+function stateMoment(id, notes, build, o) {
+  o = o || {};
+  return async () => {
+    const page = await openPage('', { save: null });
+    try {
+      await page.evaluate(() => { const R = window.BZRun; let run = R.apply(R.newRun({ seed: 7 }), { t: 'pickHero', hero: 'Vanessa' }).run; run = R.apply(run, { t: 'choose', i: 0 }).run; window.BZ_DEBUG.load(run); });
+      await page.waitForFunction(() => !window.BZ_DEBUG.cardsReady || window.BZ_DEBUG.cardsReady(), null, { timeout: 30000 }).catch(() => {});
+      await sleep(1500);
+      await page.mouse.move(640, 705);
+      await freeze(page);
+      const n = o.frames || 30;
+      let info = null;
+      return await record(page, id, { frames: n, notes: notes + ' [web: seed 7 Vanessa, dựng bằng BZ_DEBUG.load]',
+        act: async i => {
+          if (i === 0) info = await page.evaluate(build);
+          if (o.hover && i === n - 3) {
+            const b = await rectOf(page, o.hover, o.hoverIdx || 0);
+            if (b) await page.mouse.move(b.cx, b.cy, { steps: 2 });
+          }
+        } }).then(m => { m.state = info; fs.writeFileSync(path.join(OUT, id, 'meta.json'), JSON.stringify(m, null, 1)); return m; });
+    } finally { await page._ctx.close(); }
+  };
+}
+const ENTER = {
+  // thương nhân có đủ S + M + L (Kina, thảm City_3), món giữa giảm giá → tag "đổi giá" có giá gốc gạch ngang
+  merchant: () => {
+    const R = window.BZRun, E = window.BZ_ENCOUNTERS, run = R.clone(window.BZ_DEBUG.run()); run.gold = 30; run.phase = { kind: 'choose', options: [] };
+    const e = Object.values(E.events).find(x => x.Title === 'Kina');
+    const cx = { run, events: [] }; R.ENCOUNTERS.merchant.enter(cx, { id: e.Id }, 'endHour');
+    const C = Object.values(window.BZ_CARDS).filter(t => t.Type === 'Item' && (t.Heroes || []).indexOf('Common') >= 0 && window.BZ_ART && window.BZ_ART.map[t.Id]);
+    const st = ['Small', 'Medium', 'Large'].map((s, i) => { const t = C.find(x => x.Size === s), p = R.price({ id: t.Id }, 'Bronze').buy; return { card: { id: t.Id, tier: 'Bronze', ench: null }, price: i === 1 ? p - 1 : p, discount: i === 1 }; });
+    cx.run.phase.stock = st; cx.run.phase.dealt = st.map(s => s.card.id);
+    window.BZ_DEBUG.load(cx.run); return { merchant: e.Title, carpet: (window.BZ_CARPETS || {})[e.Id], stock: st.map(s => s.card.id + ':' + s.price) };
+  },
+  event: () => {
+    const R = window.BZRun, E = window.BZ_ENCOUNTERS, run = R.clone(window.BZ_DEBUG.run()); run.phase = { kind: 'choose', options: [] };
+    const e = Object.values(E.events).find(x => /Tiny Furry/.test(x.Title || ''));
+    const cx = { run, events: [] }; R.ENCOUNTERS.event.enter(cx, { id: e.Id }, 'endHour');
+    window.BZ_DEBUG.load(cx.run); return { event: e.Title, choices: cx.run.phase.choices.map(c => c.kind + ':' + c.name) };
+  },
+  skill: () => {
+    const R = window.BZRun, E = window.BZ_ENCOUNTERS, run = R.clone(window.BZ_DEBUG.run()); run.gold = 30; run.phase = { kind: 'choose', options: [] };
+    const e = Object.values(E.events).find(x => x.Title === 'Nufu');
+    const cx = { run, events: [] }; R.ENCOUNTERS.merchant.enter(cx, { id: e.Id }, 'endHour');
+    window.BZ_DEBUG.load(cx.run); return { merchant: e.Title, stock: cx.run.phase.stock.map(s => s.card.id + ':' + s.price) };
+  },
+  trainer: () => {
+    const R = window.BZRun, E = window.BZ_ENCOUNTERS, run = R.clone(window.BZ_DEBUG.run()); run.phase = { kind: 'choose', options: [] };
+    const e = Object.values(E.events).find(x => /Teaches .*skills/i.test(x.Desc || '') && x.Kind === 'pile');
+    const cx = { run, events: [] }; R.ENCOUNTERS.event.enter(cx, { id: e.Id }, 'endHour');
+    window.BZ_DEBUG.load(cx.run); return { trainer: e.Title, picks: (cx.run.phase.picks || []).map(p => p.card.id + ':' + p.card.tier) };
+  }
+};
+H['ui8-merchant'] = stateMoment('ui8-merchant', 'thương nhân bày S + M + L trên lưới 10 ổ, thẻ giá góc dưới-trái, quầy lều/xe, thảm City_3; khung cuối rê lên thẻ M', ENTER.merchant, { hover: '.rs-cards .bz-card.top', hoverIdx: 1 });
+H['ui8-merchant-tent'] = stateMoment('ui8-merchant-tent', 'rê chuột lên lều đổi hàng: viền xanh FX_Platform_01 + tooltip Đổi hàng', ENTER.merchant, { hover: '.rs-reroll' });
+H['ui8-event'] = stateMoment('ui8-event', 'sự kiện Tiny Furry Monster: orb Reward_* trên thảm, hiện lần lượt, khung cuối rê lên orb đầu (tooltip phải)', ENTER.event, { hover: '.rs-lanechoices .rs-choice' });
+H['ui8-skill'] = stateMoment('ui8-skill', 'thầy bán kỹ năng Nufu: orb token kỹ năng, giá cam trên đỉnh, thảm Leather_03', ENTER.skill, { hover: '.rs-cards .bz-card.top' });
+H['ui8-trainer'] = stateMoment('ui8-trainer', 'thầy kỹ năng miễn phí (Teaches ... skills): orb token không giá, quầy lều (đổi theo RerollRules) / xe', ENTER.trainer, { hover: '.rs-cards .bz-card.top' });
+
 // ---------- chạy ----------
 (async () => {
   const t0 = Date.now();
   const all = parseMoments();
-  const todo = all.filter(m => !ONLY.length || ONLY.includes(m));
+  const todo = all.filter(m => !ONLY.length || ONLY.includes(m)).concat(ONLY.filter(m => !all.includes(m) && H[m]));
   let srv = null;
   BASE = (process.env.BZ_URL || '').replace(/\/$/, '');
   if (!BASE) { srv = await serve(); BASE = 'http://127.0.0.1:' + srv.address().port; }
