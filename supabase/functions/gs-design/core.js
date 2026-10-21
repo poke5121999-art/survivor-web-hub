@@ -8,7 +8,7 @@ export const KNOWN = [
   "loot_items", "safes_chests", "station_upgrades", "station_gear", "station_healthpacks",
   "station_vehicles", "station_rules", "gacha_wheel", "foes", "run_timers",
   "endless_rules", "rank_rewards", "endless_seasons",
-  "coop_rules", "modes", "decor_lights",
+  "coop_rules", "modes", "decor_lights", "pvp_maps",
 ];
 
 const MAX_BODY_BYTES = 400 * 1024;
@@ -175,6 +175,56 @@ function scoreRule(s) {
   return null;
 }
 
+// md_modes.pvp.bots / arena: [min, max, integer] per number, the ranges RemoteTables clamps to in the game.
+const BOTS_NUMS = {
+  fumblePerSec: [0, 1], regrabDelay: [0, 10], carryDither: [0, 1], swingArc: [1, 180], aimErrDeg: [0, 90], aimLag: [0, 2],
+  strafeFlipMin: [0.05, 30], strafeFlipMax: [0.05, 30], backstepChance: [0, 1], retreatHp: [0, 1], retreatExitHp: [0, 1],
+  retreatMaxT: [0, 60], castReactMin: [0, 10], castReactMax: [0, 10], teamCastGap: [0, 60], lootMemoryT: [0, 600], freeDither: [0, 1],
+  wpPauseMin: [0, 10], wpPauseMax: [0, 10], wpRing: [0, 1], guards: [0, 5, true], coverR: [0, 6], coverChance: [0, 1],
+  chaseCarrierR: [0, 30], idleThink: [0, 5],
+};
+const TRAITS_NUMS = {
+  engageMin: [0.1, 3], engageMax: [0.1, 3], reactMin: [0, 5], reactMax: [0, 5],
+  retreatMin: [0, 5], retreatMax: [0, 5], aimMin: [0, 5], aimMax: [0, 5],
+};
+const REDROP_NUMS = { snap: [0, 120], pad: [0, 120], flee: [0, 120], fight: [0, 120], rescue: [0, 120], down: [0, 120], grab: [0, 120] };
+const ARENA_NUMS = { lootCount: [0, 200, true], respawnDelay: [0, 600], foeCount: [1, 100, true] };
+
+function numsRule(name, o, spec) {
+  if (!isPlain(o)) return `${name} là ${JSON.stringify(o)}, không phải object.`;
+  for (const [k, [lo, hi, int]] of Object.entries(spec)) {
+    const v = o[k];
+    if (v === undefined) continue;
+    if (typeof v !== "number" || !Number.isFinite(v) || v < lo || v > hi || (int && !Number.isInteger(v))) {
+      return `${name}.${k} là ${JSON.stringify(v)}, không phải số${int ? " nguyên" : ""} từ ${lo} đến ${hi}.`;
+    }
+  }
+  return null;
+}
+
+function botsRule(b) {
+  const bad = numsRule("bots", b, BOTS_NUMS);
+  if (bad) return bad;
+  if (b.traits !== undefined) {
+    const t = numsRule("bots.traits", b.traits, TRAITS_NUMS);
+    if (t) return t;
+    for (const [lo, hi] of [["engageMin", "engageMax"], ["reactMin", "reactMax"], ["retreatMin", "retreatMax"], ["aimMin", "aimMax"]]) {
+      if (b.traits[lo] > b.traits[hi]) return `bots.traits.${lo} (${b.traits[lo]}) lớn hơn ${hi} (${b.traits[hi]}).`;
+    }
+  }
+  if (b.redropCooldown !== undefined) {
+    const r = numsRule("bots.redropCooldown", b.redropCooldown, REDROP_NUMS);
+    if (r) return r;
+  }
+  for (const [lo, hi] of [["strafeFlipMin", "strafeFlipMax"], ["castReactMin", "castReactMax"], ["wpPauseMin", "wpPauseMax"]]) {
+    if (b[lo] > b[hi]) return `bots.${lo} (${b[lo]}) lớn hơn ${hi} (${b[hi]}).`;
+  }
+  if (b.retreatExitHp !== undefined && b.retreatHp !== undefined && b.retreatExitHp <= b.retreatHp) {
+    return `Máu thôi rút lui (${b.retreatExitHp}) phải lớn hơn máu bắt đầu rút lui (${b.retreatHp}).`;
+  }
+  return null;
+}
+
 const DECOR_CURVES = ["noise", "surge", "pattern", "pulse", "heartbeat", "glitch"];
 
 // Same rules the client applies (RemoteTablesRun.DecorLights): a doc that breaks one is dropped there, so refuse it here.
@@ -185,6 +235,20 @@ function decorLightRule(d) {
   if (d.pattern !== undefined && (typeof d.pattern !== "string" || !/^[a-z]*$/.test(d.pattern))) return `${id}: chuỗi tắt bật chỉ nhận chữ thường a đến z.`;
   if (d.curve === "pattern" && !d.pattern) return `${id}: kiểu Chuỗi tắt bật cần một chuỗi, ví dụ mmamammm.`;
   if (!Array.isArray(d.decors) || !d.decors.length || d.decors.some((n) => typeof n !== "string" || !n)) return `${id}: danh sách decor trống hoặc có tên rỗng.`;
+  return null;
+}
+
+const PVP_THEMES = ["vampire", "pyramid", "vietnam", "spacestation", "asylum"];
+
+// md_pvp_maps: the hub only flips open and picks themes; rows and legend are read-only there, so just check what it can change.
+function pvpMapRule(d) {
+  const id = `Bố cục "${d._id}"`;
+  if (typeof d.open !== "boolean") return `${id}: open là ${JSON.stringify(d.open)}, phải là true hoặc false.`;
+  if (!Array.isArray(d.themes) || !d.themes.length || d.themes.some((t) => !PVP_THEMES.includes(t))) {
+    return `${id}: themes phải là danh sách không trống, mỗi phần tử một trong ${PVP_THEMES.join(", ")}.`;
+  }
+  if (!Array.isArray(d.rows) || !d.rows.length || d.rows.some((r) => typeof r !== "string")) return `${id}: thiếu rows.`;
+  if (!isPlain(d.legend)) return `${id}: thiếu legend.`;
   return null;
 }
 
@@ -204,7 +268,12 @@ const TABLE_RULES = {
     : d.fake !== undefined && d._id !== "pvp" ? `Chế độ "${d._id}" không có trường fake, chỉ "pvp" có.`
     : d.fake !== undefined && fakeRule(d.fake) ? fakeRule(d.fake)
     : d.score !== undefined && d._id !== "pvp" ? `Chế độ "${d._id}" không có trường score, chỉ "pvp" có.`
-    : d.score !== undefined ? scoreRule(d.score) : null),
+    : d.score !== undefined && scoreRule(d.score) ? scoreRule(d.score)
+    : d.bots !== undefined && d._id !== "pvp" ? `Chế độ "${d._id}" không có trường bots, chỉ "pvp" có.`
+    : d.bots !== undefined && botsRule(d.bots) ? botsRule(d.bots)
+    : d.arena !== undefined && d._id !== "pvp" ? `Chế độ "${d._id}" không có trường arena, chỉ "pvp" có.`
+    : d.arena !== undefined ? numsRule("arena", d.arena, ARENA_NUMS) : null),
+  pvp_maps: pvpMapRule,
 };
 
 function checkTable(table, docs) {

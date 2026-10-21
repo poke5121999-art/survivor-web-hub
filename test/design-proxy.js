@@ -30,7 +30,7 @@ function shuffleKeys(v) {
 
   const list = await act({ action: "list" });
   const names = Object.keys(list.json.tables || {});
-  check("list names", list.status === 200 && names.length === 36 && names.every((n, i) => n === KNOWN[i]) && KNOWN.length === 36,
+  check("list names", list.status === 200 && names.length === 37 && names.every((n, i) => n === KNOWN[i]) && KNOWN.length === 37,
     `status ${list.status}, ${names.length} tables`);
   check("list quests.exists", list.json.tables.quests.exists === true, `exists=${list.json.tables.quests.exists}`);
 
@@ -58,6 +58,9 @@ function shuffleKeys(v) {
   const modesSeed = JSON.parse(fs.readFileSync("D:/REPO_Meta/gamespark-config/modes.json", "utf8"));
   const pvpFake = modesSeed.find((d) => d._id === "pvp").fake;
   const pvpScore = modesSeed.find((d) => d._id === "pvp").score;
+  const pvpBots = modesSeed.find((d) => d._id === "pvp").bots;
+  const pvpArena = modesSeed.find((d) => d._id === "pvp").arena;
+  const mapsSeed = JSON.parse(fs.readFileSync("D:/REPO_Meta/gamespark-config/pvp_maps.json", "utf8"));
   const invalid = [
     ["unknown table", { table: "nope", docs: [] }],
     ["duplicate _id", { table: "quests", docs: [{ _id: "a" }, { _id: "a" }] }],
@@ -89,6 +92,23 @@ function shuffleKeys(v) {
     ["modes score assistWindow 61", { table: "modes", docs: [{ _id: "pvp", open: true, score: { ...pvpScore, assistWindow: 61 } }] }],
     ["modes score số là chuỗi", { table: "modes", docs: [{ _id: "pvp", open: true, score: { ...pvpScore, money: "0.01" } }] }],
     ["modes score kill âm khi doc có fake hợp lệ", { table: "modes", docs: [{ _id: "pvp", open: true, fakeOnline: true, fake: modesSeed.find((d) => d._id === "pvp").fake, score: { ...pvpScore, kill: -1 } }] }],
+    ["modes bots ngoài pvp", { table: "modes", docs: [{ _id: "coop", open: true, bots: { ...pvpBots } }] }],
+    ["modes bots không phải object", { table: "modes", docs: [{ _id: "pvp", open: true, bots: 5 }] }],
+    ["modes bots swingArc 0", { table: "modes", docs: [{ _id: "pvp", open: true, bots: { ...pvpBots, swingArc: 0 } }] }],
+    ["modes bots guards lẻ", { table: "modes", docs: [{ _id: "pvp", open: true, bots: { ...pvpBots, guards: 1.5 } }] }],
+    ["modes bots fumblePerSec 2", { table: "modes", docs: [{ _id: "pvp", open: true, bots: { ...pvpBots, fumblePerSec: 2 } }] }],
+    ["modes bots strafeFlipMin > Max", { table: "modes", docs: [{ _id: "pvp", open: true, bots: { ...pvpBots, strafeFlipMin: 3, strafeFlipMax: 2 } }] }],
+    ["modes bots retreatExitHp <= retreatHp", { table: "modes", docs: [{ _id: "pvp", open: true, bots: { ...pvpBots, retreatExitHp: 0.2 } }] }],
+    ["modes bots traits engageMin > Max", { table: "modes", docs: [{ _id: "pvp", open: true, bots: { ...pvpBots, traits: { ...pvpBots.traits, engageMin: 1.5 } } }] }],
+    ["modes bots traits engageMax 4", { table: "modes", docs: [{ _id: "pvp", open: true, bots: { ...pvpBots, traits: { ...pvpBots.traits, engageMax: 4 } } }] }],
+    ["modes bots redropCooldown âm", { table: "modes", docs: [{ _id: "pvp", open: true, bots: { ...pvpBots, redropCooldown: { ...pvpBots.redropCooldown, pad: -1 } } }] }],
+    ["modes arena ngoài pvp", { table: "modes", docs: [{ _id: "coop", open: true, arena: { ...pvpArena } }] }],
+    ["modes arena lootCount lẻ", { table: "modes", docs: [{ _id: "pvp", open: true, arena: { ...pvpArena, lootCount: 1.5 } }] }],
+    ["modes arena foeCount 0", { table: "modes", docs: [{ _id: "pvp", open: true, arena: { ...pvpArena, foeCount: 0 } }] }],
+    ["modes arena respawnDelay 601", { table: "modes", docs: [{ _id: "pvp", open: true, arena: { ...pvpArena, respawnDelay: 601 } }] }],
+    ["pvp_maps open không phải boolean", { table: "pvp_maps", docs: [{ ...mapsSeed[0], open: "yes" }] }],
+    ["pvp_maps theme lạ", { table: "pvp_maps", docs: [{ ...mapsSeed[0], themes: ["vampire", "moon"] }] }],
+    ["pvp_maps themes rỗng", { table: "pvp_maps", docs: [{ ...mapsSeed[0], themes: [] }] }],
     ["coop_rules netBackend lạ", { table: "coop_rules", docs: [{ _id: "default", netBackend: "udp" }] }],
     ["decor_lights màu sai", { table: "decor_lights", docs: [{ ...{ _id: "candle", color: "#ffa040", curve: "noise", pattern: "", decors: ["candlestick_triple"] }, color: "orange" }] }],
     ["decor_lights kiểu nhấp nháy lạ", { table: "decor_lights", docs: [{ ...{ _id: "candle", color: "#ffa040", curve: "noise", pattern: "", decors: ["candlestick_triple"] }, curve: "strobe" }] }],
@@ -101,6 +121,8 @@ function shuffleKeys(v) {
   const okModes = await act({ action: "save", baseHash: (await act({ action: "get", table: "modes" })).json.hash, dryRun: true, table: "modes", docs: modesSeed });
   check("modes seed (pvp giả online) qua được luật kiểm", okModes.status === 200 && okModes.json.applied === false,
     `status ${okModes.status}, ${okModes.json.error ? okModes.json.error.message : JSON.stringify(okModes.json.counts)}`);
+  const okMaps = await act({ action: "save", baseHash: (await act({ action: "get", table: "pvp_maps" })).json.hash, dryRun: true, table: "pvp_maps", docs: mapsSeed });
+  check("pvp_maps seed qua được luật kiểm", okMaps.status === 200 && okMaps.json.applied === false, `status ${okMaps.status}, ${okMaps.json.error ? okMaps.json.error.message : JSON.stringify(okMaps.json.counts)}`);
   for (const [n, b] of invalid) {
     const r = await act({ action: "save", baseHash: h, dryRun: true, ...b });
     check("INVALID " + n, r.status === 400 && r.json.error.code === "INVALID", `status ${r.status}, ${r.json.error && r.json.error.message}`);
@@ -108,7 +130,7 @@ function shuffleKeys(v) {
 
   const listed = await act({ action: "list" });
   const gone = KNOWN.find((t) => !listed.json.tables[t].exists);
-  if (!gone) console.log("ℹ dryRun missing table — bỏ qua: cả 36 bảng đều đã có trên DEV");
+  if (!gone) console.log("ℹ dryRun missing table — bỏ qua: cả 37 bảng đều đã có trên DEV");
   else {
     const want = JSON.parse(fs.readFileSync(`D:/REPO_Meta/gamespark-config/${gone}.json`, "utf8"));
     const dm = await act({ action: "save", table: gone, docs: want, baseHash: listed.json.tables[gone].hash, dryRun: true });

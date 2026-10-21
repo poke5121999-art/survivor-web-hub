@@ -19,7 +19,7 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
 const KNOWN = ['wallet_start', 'crew', 'tactics', 'upgrade', 'passives', 'gacha_banners', 'gacha_rules', 'shop_packs',
   'shop_rules', 'shop_exchange', 'loadout', 'quests', 'maps', 'run_reward', 'stage_houses', 'stage_rules',
   'extract_quota', 'loot_cap', 'loot_sizes', 'loot_materials', 'loot_items', 'safes_chests', 'station_upgrades',
-  'station_gear', 'station_healthpacks', 'station_vehicles', 'station_rules', 'gacha_wheel', 'foes', 'run_timers', 'modes'];
+  'station_gear', 'station_healthpacks', 'station_vehicles', 'station_rules', 'gacha_wheel', 'foes', 'run_timers', 'modes', 'pvp_maps'];
 
 const sandbox = { window: {} };
 vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'data/design-defaults.js'), 'utf8'), sandbox);
@@ -63,6 +63,7 @@ const LABELS_JS = 'window.DESIGN_LABELS = ' + JSON.stringify({
   cost_guard: realLabels.window.DESIGN_LABELS.cost_guard,
   client_gate: realLabels.window.DESIGN_LABELS.client_gate,
   modes: realLabels.window.DESIGN_LABELS.modes,
+  pvp_maps: realLabels.window.DESIGN_LABELS.pvp_maps,
 }) + ';';
 
 function hashDocs(docs) {
@@ -204,7 +205,7 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
   const items = await p.$$eval('#dz-nav .dz-nav__item', els => els.length);
   const chipQ = await txt('#dz-nav [data-table="quests"] .dz-chip');
   const chipF = await txt('#dz-nav [data-table="foes"] .dz-chip');
-  check('sidebar liệt kê 36 bảng + mục Chi phí dịch vụ + mục Phát hành & bảo trì', items === 38 &&
+  check('sidebar liệt kê 37 bảng + mục Chi phí dịch vụ + mục Phát hành & bảo trì', items === 39 &&
     (await txt('#dz-nav [data-table="cost_guard"]')) === 'Chi phí dịch vụ' &&
     (await txt('#dz-nav [data-table="client_gate"]')) === 'Phát hành & bảo trì', String(items));
   check('quests là "Trên GameSpark"', chipQ === 'Trên GameSpark', chipQ);
@@ -670,6 +671,54 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
   const savedScore = fake.tables.modes.find(d => d._id === 'pvp').score;
   check('score: pvp lưu đủ khối với ô đã sửa', JSON.stringify(savedScore) === JSON.stringify(Object.assign({}, seedScore, { kill: 4, death: 2 })),
     JSON.stringify(savedScore));
+
+  // 13) Số bot và đấu trường dưới dòng pvp: thiếu khối thì hiện số seed, sửa lần đầu ghi cả khối.
+  const seedBots = DEFAULTS.modes.find(d => d._id === 'pvp').bots, seedArena = DEFAULTS.modes.find(d => d._id === 'pvp').arena;
+  const B = k => K('pvp', 'bots.' + k), A = k => K('pvp', 'arena.' + k);
+  const flat = (o, pre) => Object.entries(o).flatMap(([k, v]) => (v && typeof v === 'object') ? flat(v, pre + k + '.') : [pre + k]);
+  const botCells = await p.$$eval('[data-fake="pvp"] [data-k^="pvp|bots."]', els => els.map(e => e.getAttribute('data-k').slice(9)));
+  check('khung Bot đấu đội đủ ô theo thứ tự seed (cả traits, redropCooldown)', botCells.join() === flat(seedBots, '').join() && botCells.length >= 40, botCells.length + ' ô');
+  const arenaCells = await p.$$eval('[data-fake="pvp"] [data-k^="pvp|arena."]', els => els.map(e => e.getAttribute('data-k').slice(10)));
+  check('khung Đấu trường đủ 3 ô', arenaCells.join() === Object.keys(seedArena).join(), arenaCells.join());
+  const rawLabels = await p.evaluate(() => [...document.querySelectorAll('[data-fake="pvp"] [data-k^="pvp|bots."], [data-fake="pvp"] [data-k^="pvp|arena."]')]
+    .map(c => c.closest('.dz-fld')).filter(Boolean).map(f => (f.querySelector('.dz-fld__label') || {}).textContent).filter(t => /^[a-z][A-Za-z]*$/.test(t || '')));
+  check('mọi ô bot / đấu trường có nhãn tiếng Việt, không lộ tên trường', rawLabels.length === 0, rawLabels.join());
+  check('thiếu khối bots: ô hiện số seed', (await p.inputValue(B('swingArc') + ' input')) === String(seedBots.swingArc) &&
+    (await p.inputValue(B('redropCooldown.pad') + ' input')) === String(seedBots.redropCooldown.pad) &&
+    (await p.inputValue(A('lootCount') + ' input')) === String(seedArena.lootCount), '');
+  check('chưa sửa bots: thanh lưu sạch', /^Chưa sửa gì/.test(await txt('#dz-bar-count')), await txt('#dz-bar-count'));
+  await p.fill(B('swingArc') + ' input', '25');
+  check('sửa ô bots đầu tiên ghi cả khối: ' + flat(seedBots, '').length + ' thay đổi', (await txt('#dz-bar-count')) === flat(seedBots, '').length + ' thay đổi', await txt('#dz-bar-count'));
+  await p.fill(B('swingArc') + ' input', '181');
+  check('swingArc 181: lỗi trần 180, chặn lưu', /Không được lớn hơn 180/.test(await txt(B('swingArc') + ' .dz-cell__err')) && await p.$eval('#btn-review', e => e.disabled), '');
+  await p.fill(B('guards') + ' input', '1.5');
+  check('guards lẻ: lỗi số nguyên', /số nguyên/.test(await txt(B('guards') + ' .dz-cell__err')), '');
+  await p.fill(B('swingArc') + ' input', '25');
+  await p.fill(B('guards') + ' input', '2');
+  await p.fill(A('lootCount') + ' input', '20');
+  await p.click('#btn-review');
+  await dryDone();
+  await p.click('#btn-save');
+  await barGone();
+  const savedBots = fake.tables.modes.find(d => d._id === 'pvp');
+  check('bots + arena: pvp lưu đủ hai khối với ô đã sửa', JSON.stringify(savedBots.bots) === JSON.stringify(Object.assign({}, seedBots, { swingArc: 25, guards: 2 })) &&
+    JSON.stringify(savedBots.arena) === JSON.stringify(Object.assign({}, seedArena, { lootCount: 20 })), JSON.stringify(savedBots.bots).slice(0, 100));
+  // 14) Bố cục đấu trường: bảng chưa dán nên hiện số gốc; rows và legend chỉ xem (khối chữ đơn cách), open sửa được.
+  await open('pvp_maps');
+  const navMaps = await txt('#dz-nav [data-table="pvp_maps"]');
+  check('pvp_maps có trong thanh bên với tên tiếng Việt', navMaps.startsWith('Bố cục đấu trường 5v5'), navMaps);
+  const mapRows = await p.$$eval('.dz-row', trs => trs.map(t => t.getAttribute('data-id') + ':' + t.querySelector('.dz-row__title').textContent).join());
+  check('4 bố cục, tên tiếng Việt', mapRows === 'nga_tu:Ngã tư,phao_dai:Pháo đài,ban_co:Bàn cờ,classic:Cổ điển', mapRows);
+  await p.click('.dz-row[data-id="nga_tu"] .dz-more');
+  const seedMaps = DEFAULTS.pvp_maps;
+  const pre = await p.$eval('pre[data-readonly="rows"]', e => ({ n: e.textContent.split('\n').length, w: e.textContent.split('\n')[0].length, ff: getComputedStyle(e).fontFamily }));
+  check('rows là khối chữ đơn cách chỉ xem: ' + seedMaps[0].rows.length + ' hàng x ' + seedMaps[0].rows[0].length + ' cột',
+    pre.n === seedMaps[0].rows.length && pre.w === seedMaps[0].rows[0].length && /mono|Consolas|Courier/i.test(pre.ff), JSON.stringify(pre));
+  check('legend cũng chỉ xem, rows / legend không có ô nhập', await p.$$eval('pre[data-readonly="legend"]', e => e.length) > 0 &&
+    await p.$$eval('[data-k*="|rows"], [data-k*="|legend"]', e => e.length) === 0, '');
+  await p.click('.dz-row[data-id="classic"] input.dz-switch');
+  check('bật / tắt bố cục = 1 thay đổi', (await txt('#dz-bar-count')) === '1 thay đổi', await txt('#dz-bar-count'));
+  await p.click('#btn-discard');
 
   const e = errs.filter(x => !/favicon|404/.test(x));
   check('không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));

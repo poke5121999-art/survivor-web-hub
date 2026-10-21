@@ -89,6 +89,7 @@
 .dz-input:focus-visible, .dz-search:focus-visible, .dz-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .dz-unit { font-size: 13px; color: var(--text-dim); white-space: nowrap; }
 .dz-readonly { font-size: 14px; color: var(--text-dim); padding: 7px 0; }
+.dz-readonly--pre { font-family: ui-monospace, Consolas, monospace; font-size: 12px; line-height: 1.15; margin: 0; padding: 8px 10px; overflow: auto; max-height: 340px; white-space: pre; border: 1px solid rgba(128, 128, 128, .35); border-radius: 6px; }
 .dz-switch { appearance: none; -webkit-appearance: none; flex: 0 0 auto; width: 40px; height: 22px; margin: 0; border-radius: 999px; background: var(--border); position: relative; cursor: pointer; transition: background 0.12s; }
 .dz-switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform 0.12s; }
 .dz-switch:checked { background: var(--accent-strong); }

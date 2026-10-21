@@ -10,14 +10,14 @@
     "shop_packs", "shop_rules", "shop_exchange", "loadout", "quests", "maps", "run_reward", "rank_rewards", "endless_seasons", "coop_rules", "modes"];
   var IN_RUN = ["stage_houses", "stage_rules", "extract_quota", "loot_cap", "loot_sizes", "loot_materials",
     "loot_items", "safes_chests", "station_upgrades", "station_gear", "station_healthpacks", "station_vehicles",
-    "station_rules", "gacha_wheel", "foes", "run_timers", "endless_rules", "decor_lights"];
+    "station_rules", "gacha_wheel", "foes", "run_timers", "endless_rules", "decor_lights", "pvp_maps"];
   var GROUPS = [["Ngoài ca", OUT_RUN], ["Trong ca", IN_RUN]];
   var ALL = OUT_RUN.concat(IN_RUN);
   // Not an md_ table: runtime collection cd_cost_guard with its own pane and its own save button.
   var GUARD = "cost_guard";
   var MODES = "modes";
   // md_modes fields drawn in the rows under coop / pvp, never as grid columns or "Chi tiết".
-  var MODES_SIDE = ["localOpen", "fakeOnline", "fake", "score"];
+  var MODES_SIDE = ["localOpen", "fakeOnline", "fake", "score", "bots", "arena"];
   var GUARD_SERVICES = ["relay", "vivox"];
   // Main fields first, unit prices after (collapsed). Order is the form order; the proxy keeps the same list.
   var GUARD_FIELDS = {
@@ -447,6 +447,14 @@
   // Generic renderer: the value's shape picks the widget.
   function node(table, docId, doc, path, value) {
     var meta = fieldMeta(table, path);
+    // readonly: shown as a monospace block (rows of a map, one char per cell), never an input.
+    if (meta.readonly && !isScalar(value)) {
+      var text = Array.isArray(value) ? value.join("\n") : Object.keys(value).map(function (k) { return k + "  =  " + value[k]; }).join("\n");
+      return h("div", { class: "dz-fld dz-fld--wide" },
+        h("div", { class: "dz-fld__label", text: meta.label }),
+        h("div", { class: "dz-fld__ctl" }, h("pre", { class: "dz-readonly dz-readonly--pre", "data-readonly": path.join("."), text: text }),
+          meta.help ? h("p", { class: "dz-help", text: meta.help }) : null));
+    }
     if (isScalar(value)) {
       return h("div", { class: "dz-fld" },
         h("label", { class: "dz-fld__label", text: meta.label }),
@@ -755,8 +763,13 @@
     // Scoreboard weights: same rule, a doc without the block shows the seed and the first edit writes all five.
     var score = node(table, doc._id, doc, ["score"], doc.score || clone(seed.score || {}));
     score.addEventListener("input", function () { if (!isObj(doc.score)) doc.score = clone(seed.score || {}); }, true);
+    // Bots and arena numbers: same rule again, the seed shows until the first edit writes the whole block.
+    var bots = node(table, doc._id, doc, ["bots"], doc.bots || clone(seed.bots || {}));
+    bots.addEventListener("input", function () { if (!isObj(doc.bots)) doc.bots = clone(seed.bots || {}); }, true);
+    var arena = node(table, doc._id, doc, ["arena"], doc.arena || clone(seed.arena || {}));
+    arena.addEventListener("input", function () { if (!isObj(doc.arena)) doc.arena = clone(seed.arena || {}); }, true);
     var inner = h("div", { class: "dz-form dz-form--detail" },
-      node(table, doc._id, doc, ["fakeOnline"], doc.fakeOnline === true), group, score);
+      node(table, doc._id, doc, ["fakeOnline"], doc.fakeOnline === true), group, score, bots, arena);
     return h("tr", { class: "dz-detail dz-fake-row", "data-fake": doc._id }, h("td", { colspan: String(span) }, inner));
   }
 
