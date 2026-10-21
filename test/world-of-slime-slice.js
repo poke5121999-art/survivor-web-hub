@@ -1,5 +1,5 @@
 /*
- * Thế Giới Slime (games/world-of-slime) — lát cắt đầu: đi bộ 5 s trên PC (phím) và mobile (kéo cần ảo),
+ * Thế Giới Slime (games/world-of-slime) — lát cắt đầu: đi bộ trên PC (phím gốc WASD/LShift/Space) và mobile (kéo cần ảo),
  * kiểm người chơi có đi, có leo cầu thang, không có lỗi trang / console / HTTP >= 400.
  *
  * Chạy cục bộ (gốc repo + repo asset, asset cần header CORS):
@@ -58,15 +58,16 @@ async function main() {
     const s0 = await state(pc.page);
     check('nhãn "bản đồ thử" hiện', s0.dev);
     await shot(pc.page, 'pc_0_start');
-    // đông 2.5 s theo đường đất, chạy (Shift) tới x 33, rồi lên bắc 1.7 s qua cầu thang lên cao nguyên
+    // đông theo đường đất (giữa chừng nhấn LShift = lướt, bảng phím gốc), tới x 33, rồi lên bắc qua cầu thang lên cao nguyên
     await k.down('KeyD'); await pc.page.waitForTimeout(1200);
     const sMid = await state(pc.page); await shot(pc.page, 'pc_1_walk');
     await pc.page.waitForTimeout(1300);
     // chạy tới cột cầu thang (x 31.5..35.5 của bản đồ thử) rồi mới rẽ bắc
     // chờ theo vị trí chứ không theo giờ: máy chung tải nặng thì khung hình chậm (dt bị kẹp 0.05 s)
-    await k.down('ShiftLeft'); await pc.page.waitForTimeout(300); const sRun = await state(pc.page);
-    await pc.page.waitForFunction(() => WOS.P.x >= 33, null, { timeout: 8000 }).catch(() => {});
-    await k.up('ShiftLeft');
+    const d0 = await pc.page.evaluate(() => WOS.P.dashes);
+    await k.press('ShiftLeft'); await pc.page.waitForTimeout(150); const sRun = await state(pc.page);
+    sRun.dashed = (await pc.page.evaluate(() => WOS.P.dashes)) - d0;
+    await pc.page.waitForFunction(() => WOS.P.x >= 33, null, { timeout: 12000 }).catch(() => {});
     await k.up('KeyD'); await k.down('KeyW');
     await pc.page.waitForTimeout(1200);
     await pc.page.waitForFunction(() => WOS.P.z >= 18.3, null, { timeout: 4000 }).catch(() => {});
@@ -74,16 +75,16 @@ async function main() {
     await pc.page.waitForTimeout(700);
     const s1 = await state(pc.page);
     await shot(pc.page, 'pc_2_stair');
-    await pc.page.mouse.click(640, 300); await pc.page.waitForTimeout(250); await shot(pc.page, 'pc_3_attack');
+    await k.press('Space'); await pc.page.waitForTimeout(250); await shot(pc.page, 'pc_3_attack');
     const sA = await state(pc.page);
     check('đi được > 8 m', s1.dist > 8, s1.dist.toFixed(2) + ' m');
     console.log('  giữa: (' + sMid.x.toFixed(1) + ', ' + sMid.z.toFixed(1) + ') chạy: (' + sRun.x.toFixed(1) + ', ' + sRun.z.toFixed(1) + ') cuối: (' + s1.x.toFixed(1) + ', ' + s1.z.toFixed(1) + ')');
     check('đang đi thì chạy clip Walk', sMid.anim === 'Walk', sMid.anim);
-    check('giữ Shift thì chạy clip Run', sRun.anim === 'Run', sRun.anim);
+    check('LShift = lướt (Dash), không có Shift-chạy', sRun.dashed === 1 && sRun.anim !== 'Run', 'dash ' + sRun.dashed + ', ' + sRun.anim);
     check('leo cầu thang: độ cao tăng', s1.y > s0.y + 1, s0.y.toFixed(2) + ' -> ' + s1.y.toFixed(2));
     check('slime theo kịp (< 4 m)', Math.hypot(s1.slime.x - s1.x, s1.slime.z - s1.z) < 4,
       Math.hypot(s1.slime.x - s1.x, s1.slime.z - s1.z).toFixed(2) + ' m');
-    check('chuột trái: clip đánh', sA.anim === 'SlimeAttack' || sA.sanim === 'Attack', sA.anim + '/' + sA.sanim);
+    check('Space: clip đánh', sA.anim === 'SlimeAttack' || sA.sanim === 'Attack', sA.anim + '/' + sA.sanim);
     check('có tiếng bước chân', s1.steps > 0, s1.steps + ' lần; ' + JSON.stringify(s1.audio));
     console.log('  fps PC: ' + s1.fps + ', tải ' + pc.loadS.toFixed(1) + ' s');
     check('PC không lỗi', !pc.problems.length && !s1.errors.length, [...pc.problems, ...s1.errors].slice(0, 5).join(' | '));
@@ -95,11 +96,11 @@ async function main() {
     const m0 = await state(mo.page);
     await shot(mo.page, 'mobile_0_start');
     const cdp = await mo.ctx.newCDPSession(mo.page);
-    const c = await mo.page.evaluate(() => { const r = document.querySelector('.m-joy-bg').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+    const c = await mo.page.evaluate(() => { const r = document.querySelector('[data-hud="joystick"] .u').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
     const touch = (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1 }] });
     await touch('touchStart', c.x, c.y);
     for (let i = 1; i <= 50; i++) {                      // 5 s: kéo sang phải rồi chéo lên
-      const a = i < 25 ? 0 : -Math.PI / 4, r = Math.min(55, i * 6);
+      const a = i < 25 ? 0 : -Math.PI / 4, r = Math.min(40, i * 5);
       await touch('touchMove', c.x + Math.cos(a) * r, c.y + Math.sin(a) * r);
       if (i === 20) await shot(mo.page, 'mobile_1_drag');
       await mo.page.waitForTimeout(100);
@@ -108,7 +109,7 @@ async function main() {
     await mo.page.waitForTimeout(600);
     const m1 = await state(mo.page);
     await shot(mo.page, 'mobile_2_end');
-    const btn = await mo.page.evaluate(() => { const r = document.querySelector('.m-attack').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+    const btn = await mo.page.evaluate(() => { const r = document.querySelector('[data-hud="attack"]').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: btn.x, y: btn.y, id: 2 }] });
     await mo.page.waitForTimeout(120);
     const mA = await state(mo.page);

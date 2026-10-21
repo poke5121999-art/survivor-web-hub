@@ -1,7 +1,7 @@
 // Tải GLB / JSON / ảnh từ repo asset, có bộ đệm. Lỗi tải ghi vào window.__wosErrors để test bắt.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { ASSETS } from './config.js?v=20261021a';
+import { ASSETS } from './config.js?v=20261021b';
 
 const gltfLoader = new GLTFLoader();
 const texLoader = new THREE.TextureLoader();
@@ -11,8 +11,23 @@ const gl = {}, js = {}, tx = {};
 
 export const assetUrl = p => /^https?:/.test(p) ? p : ASSETS + p.replace(/^\//, '');
 
+// Tiến độ tải theo byte cho màn tải. Mỗi GLB: [đã tải, tổng]. Tổng biết trước nhờ expectBytes (map/index.json ghi kb
+// từng GLB), không thì lấy Content-Length từ sự kiện progress. Pages có thể gzip nên đã tải được kẹp <= tổng.
+export const bytes = new Map();
+export function expectBytes(path, n) { const b = bytes.get(path); if (!b) bytes.set(path, [0, n]); else b[1] = Math.max(b[1], n); }
+export function loadProgress() {
+  let l = 0, t = 0;
+  for (const [a, b] of bytes.values()) { l += Math.min(a, b || a); t += b || a; }
+  return { loaded: l, total: t, files: bytes.size };
+}
+
 export function loadGLB(path) {
-  return gl[path] || (gl[path] = gltfLoader.loadAsync(assetUrl(path)).catch(e => {
+  if (!bytes.has(path)) bytes.set(path, [0, 0]);
+  return gl[path] || (gl[path] = gltfLoader.loadAsync(assetUrl(path), ev => {
+    const b = bytes.get(path);
+    if (ev && ev.lengthComputable && ev.total > b[1]) b[1] = ev.total;
+    if (ev && ev.loaded) b[0] = ev.loaded;
+  }).then(g => { const b = bytes.get(path); b[1] = b[1] || b[0]; b[0] = b[1]; return g; }).catch(e => {
     delete gl[path];
     throw new Error('glb load failed: ' + path + ' (' + (e && e.message || e) + ')');
   }));

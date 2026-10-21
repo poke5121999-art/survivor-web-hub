@@ -33,9 +33,9 @@
  */
 import * as THREE from 'three';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
-import { loadGLB, loadJSON, loadTex, assetUrl } from '../assets.js?v=20261021a';
-import { envMaterial } from './envmat.js?v=20261021a';
-import { MOVE } from '../config.js?v=20261021a';
+import { loadGLB, loadJSON, loadTex, assetUrl, expectBytes } from '../assets.js?v=20261021b';
+import { envMaterial } from './envmat.js?v=20261021b';
+import { MOVE } from '../config.js?v=20261021b';
 
 export const LAND = { NONE: -1, GROUND: 0, GRASS: 1, STONE: 2, WATER: 3, SNOW: 4, SAND: 5 };
 const D2R = Math.PI / 180;
@@ -124,6 +124,9 @@ export class GameMap {
       const p = pieceInfo.get(n);
       if (p) glbs.add(p.glb); else this.stats.missing.push(n);
     }
+    // byte dự kiến của từng GLB (map/index.json bundles[].kb) cho thanh tải
+    for (const b of Object.values(idx.bundles || {})) if (glbs.has(b.glb) && b.kb) expectBytes(b.glb, b.kb * 1024);
+    onProgress && onProgress(0, '');   // báo đã biết tổng byte của bản đồ (màn tải mới bắt đầu tính %)
     let done = 0;
     const loaded = {};
     await Promise.all([...glbs].map(async g => {

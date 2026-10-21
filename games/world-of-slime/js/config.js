@@ -1,5 +1,5 @@
 // Hằng số dùng chung. REV phải khớp ?v= trong index.html / mobile.html và mọi import (hub: đổi rev mỗi lần đẩy).
-export const REV = '20261021a';
+export const REV = '20261021b';
 
 const P = new URLSearchParams(location.search);
 // Gốc asset: repo world-of-slime-assets trên Pages. ?assets=<url> để test trỏ vào http.server cục bộ.
@@ -13,7 +13,7 @@ export const LIGHT_DIR = [-0.4, 0.85, 0.35];
 // CODE.md §8. Số m/s không có trong client -> [ĐỀ XUẤT].
 export const MOVE = {
   walk: 3.6,          // [ĐỀ XUẤT] m/s ở speedStep 10
-  run: 5.8,           // [ĐỀ XUẤT] Shift / cần đẩy hết trên mobile không chạy; Shift giữ = chạy
+  // không có tốc độ chạy riêng: game gốc không có phím chạy, tốc độ = walk * speedStep / 10 (PC luôn speedStep 10)
   dirs: 32,           // MainJoystick.FixedUpdate: 11.25 độ
   stepMax: 0.55,      // [ĐỀ XUẤT] bậc cao nhất leo được (m); vách 1 m trở lên chặn
   dash: { dist: 3.2, time: 0.22, cooldown: 0.8 },   // [ĐỀ XUẤT] DashRequest có trong code, số thì không

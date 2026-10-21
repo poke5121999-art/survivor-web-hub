@@ -1,8 +1,8 @@
 // Người chơi (ghép avatar theo player/index.json defaults) và slime đồng hành (slime/index.json variants).
 // Ghép avatar theo SM.Common.Character.CharacterBuilder (EXPORT_PLAYER.md); mã ghép chép từ sheet.html playerCell.
 import * as THREE from 'three';
-import { loadGLB, loadJSON, clipOf } from '../assets.js?v=20261021a';
-import { applyUnitMaterials, decalAt } from './toon.js?v=20261021a';
+import { loadGLB, loadJSON, clipOf } from '../assets.js?v=20261021b';
+import { applyUnitMaterials, decalAt } from './toon.js?v=20261021b';
 
 // Enums.Wwise_Footstep_Event. [ĐỀ XUẤT] có None = 0 ở đầu: SL_Slime_* có wwiseFootstepEvent 7 = slime.
 export const FOOTSTEP_EVENTS = ['', 'Footstep_quad', 'Footstep_default', 'Footstep_giant', 'Footstep_flutter', 'Footstep_hop',

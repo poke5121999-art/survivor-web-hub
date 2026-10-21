@@ -1,10 +1,13 @@
 // Một mô hình ý định chung cho PC và mobile (giống MainJoystick.FixedUpdate: cả hai đường cùng gửi MoveRequest).
-// move: vec2 trên màn hình (x phải, y lên = +z thế giới), độ lớn 0..1. Các nút còn lại là bool, *Pressed bật một khung.
+// move: vec2 trên màn hình (x phải, y lên = +z thế giới), độ lớn 0..1 (PC luôn 0 hoặc 1, cần ảo thì theo độ đẩy).
+// pressed: tên hành động SMActions vừa nhấn trong khung này ('interactAttack', 'attack' (chuột/nút đánh), 'dash',
+// 'slot1'..'slot4', 'equip0'..'equip5', 'switch', 'minimap', 'worldmap', 'inventory', 'slimeindex', 'slimeinventory',
+// 'quest', 'party', 'perk', 'community', 'chat', 'dialogueskip', 'escape', 'combatmode', 'return' (nút huýt sáo)).
 export function makeIntent() {
   return {
-    move: { x: 0, y: 0 }, run: false, attack: false, skill: [false, false, false], dash: false, whistle: false, interact: false,
-    aim: null,              // { x, z } toạ độ Unity điểm chuột chỉ trên mặt đất (PC), null nếu không có
-    pressed: new Set(),     // tên nút vừa nhấn trong khung này: 'attack','dash','whistle','interact','skill0'..
+    move: { x: 0, y: 0 }, attack: false,
+    mouse: null,            // { x, y } px màn hình (PC), để ngắm
+    pressed: new Set(),
     source: 'none',
   };
 }

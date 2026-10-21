@@ -1,27 +1,66 @@
+/* Phông: game gốc dùng TMP SDF chữ CJK (tròn, đậm vừa). Bản web dùng Nunito (Google Fonts, có dấu tiếng Việt)
+   vì nét tròn gần nhất; ghi trong ARCH.md. */
 html, body { margin: 0; height: 100%; overflow: hidden; background: #8fb7c9; color: #fff;
-  font: 13px/1.3 system-ui, -apple-system, "Segoe UI", sans-serif; touch-action: none; user-select: none; -webkit-user-select: none; }
+  font: 13px/1.3 "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif; touch-action: none; user-select: none; -webkit-user-select: none; }
 #game { position: fixed; inset: 0; }
 #game canvas { display: block; }
+[hidden] { display: none !important; }
 #status { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 8px 14px; border-radius: 8px;
-  background: rgba(20, 40, 55, .7); max-width: 80vw; text-align: center; }
-#devlabel { position: fixed; left: 8px; top: 8px; padding: 2px 8px; border-radius: 10px; background: rgba(250, 210, 90, .92);
-  color: #3a2a00; font-weight: 600; font-size: 12px; pointer-events: none; }
-#fps { position: fixed; right: 8px; top: 8px; padding: 1px 6px; border-radius: 6px; background: rgba(0, 0, 0, .35); font: 11px ui-monospace, monospace; pointer-events: none; }
-#help { position: fixed; left: 8px; bottom: 8px; padding: 3px 8px; border-radius: 8px; background: rgba(20, 40, 55, .45); font-size: 11px; pointer-events: none; }
+  background: rgba(20, 40, 55, .7); max-width: 80vw; text-align: center; z-index: 30; }
+#devlabel { position: fixed; left: 50%; top: 6px; transform: translateX(-50%); padding: 1px 8px; border-radius: 10px; background: rgba(250, 210, 90, .85);
+  color: #3a2a00; font-weight: 700; font-size: 11px; pointer-events: none; z-index: 5; }
+#fps { position: fixed; left: 6px; bottom: 4px; padding: 0 5px; border-radius: 6px; background: rgba(0, 0, 0, .3); font: 10px ui-monospace, monospace; pointer-events: none; z-index: 5; }
 
-/* mobile */
-.m-ui { position: fixed; inset: 0; pointer-events: none; }
-.m-ui img { pointer-events: none; -webkit-user-drag: none; }
-.m-joy { position: absolute; left: 0; bottom: 0; width: 45vw; height: 70vh; pointer-events: auto; }
-.m-joy-bg { position: absolute; left: 35px; bottom: 35px; width: 150px; height: 150px; opacity: .85; }
-.m-joy-hd { position: absolute; left: 110px; top: calc(100% - 110px); width: 70px; height: 70px; transform: translate(-50%, -50%); }
-.m-btn { position: absolute; pointer-events: auto; width: 64px; height: 64px; }
-.m-btn img { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
-.m-btn-bg { width: 100%; height: 100%; }
-.m-btn-ic { width: 62%; height: 62%; }
-.m-btn.on { filter: brightness(1.25); transform: scale(.94); }
-.m-attack { right: 26px; bottom: 26px; width: 92px; height: 92px; }
-.m-dash { right: 132px; bottom: 22px; width: 58px; height: 58px; }
-.m-whistle { right: 30px; bottom: 132px; width: 50px; height: 50px; }
-.m-skill { width: 48px; height: 48px; opacity: .9; }
-.m-sk0 { right: 200px; bottom: 28px; } .m-sk1 { right: 196px; bottom: 90px; } .m-sk2 { right: 140px; bottom: 128px; }
+/* ---- HUD: gốc là canvas Unity (đơn vị tham chiếu), scale(s) theo SMUniformCanvasScaler */
+#hud { position: fixed; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; z-index: 4; font-weight: 700; }
+#hud .u { position: absolute; box-sizing: border-box; }
+#hud .f { position: relative; box-sizing: border-box; flex: none; }
+#hud .spr { position: absolute; inset: 0; box-sizing: border-box; pointer-events: none; background-repeat: no-repeat; z-index: -1; }
+#hud .u, #hud .f { isolation: isolate; }
+#hud img.u { display: block; object-fit: contain; pointer-events: none; -webkit-user-drag: none; }
+#hud .row { display: flex; flex-direction: row; align-items: flex-start; }
+#hud .col { display: flex; flex-direction: column; align-items: flex-start; }
+#hud .row.center, #hud .col.center { align-items: center; justify-content: center; }
+#hud .u.center { display: flex; align-items: center; justify-content: center; }
+#hud .txt { white-space: nowrap; line-height: 1.05; letter-spacing: 0.01em; }
+#hud .outline { text-shadow: 0 0 3px rgba(10, 25, 35, .95), 0 2px 2px rgba(10, 25, 35, .8), 0 0 1px #0a1923; }
+#hud .pad { padding: 8px 10px 14px; display: flex; align-items: center; }
+#hud .pad20 { padding: 20px; display: flex; }
+#hud .lvbox { min-width: 44px; justify-content: center; }
+#hud .btn { pointer-events: auto; cursor: pointer; }
+#hud .btn.on { filter: brightness(1.2); }
+#hud .btn.on > .u, #hud .btn.on > .spr { transform-origin: 50% 50%; }
+#hud .keycap { pointer-events: none; }
+#hud .vfill .spr { transition: none; }
+#hud .vfill { clip-path: inset(100% 0 0 0); }
+#hud .spin { animation: wos-spin 6s linear infinite; }
+@keyframes wos-spin { to { transform: rotate(360deg); } }
+#hud .cooldown { border-radius: 50%; pointer-events: none; }
+#hud .thumbmask { -webkit-mask-size: 100% 100%; mask-size: 100% 100%; overflow: hidden; }
+#hud .thumbmask canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+#hud .masked { -webkit-mask-size: 100% 100%; mask-size: 100% 100%; overflow: hidden; }
+#hud .minimap-img { position: absolute; image-rendering: auto; }
+#hud .bigmap { pointer-events: auto; -webkit-mask-size: 100% 100%; overflow: hidden; }
+#hud .questlist { overflow: hidden; }
+#hud .qcontent { position: absolute; right: 0; top: 0; width: 500px; display: flex; flex-direction: column; align-items: flex-end; }
+#hud .qbox { width: 500px; padding: 12px 20px 16px 0; display: flex; flex-direction: column; align-items: flex-end; gap: 0; }
+#hud .qtitle { justify-content: flex-end; }
+#hud .qobj { justify-content: flex-end; gap: 4px; }
+#hud .slot ~ .slot { margin-left: -22px; }
+#hud .slot .norm, #hud .slot .sel { pointer-events: none; }
+#hud .warnpill { padding: 3px 22px 3px 14px; }
+#hud .toast { white-space: nowrap; padding: 18px 34px; }
+#hud .hudtag { pointer-events: none; }
+#hud.mobile .joyarea { pointer-events: auto; }
+
+/* ---- màn tải: login_bg.mp4 + logo + slime "Loading" + thanh Login_Loading_Gauge */
+#loading { position: fixed; inset: 0; z-index: 20; background: #0d2a3a; overflow: hidden; transition: opacity .5s; }
+#loading.done { opacity: 0; pointer-events: none; }
+#loading video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+#loading .lroot { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+#loading .u { position: absolute; box-sizing: border-box; }
+#loading .spr { position: absolute; inset: 0; box-sizing: border-box; background-repeat: no-repeat; }
+#loading .ltxt { position: absolute; left: 0; right: 0; text-align: center; font-weight: 800; color: #fff;
+  text-shadow: 0 2px 3px rgba(10, 25, 35, .8); white-space: nowrap; }
+#help { position: fixed; left: 50%; bottom: 2px; transform: translateX(-50%); padding: 1px 8px; border-radius: 8px; background: rgba(20, 40, 55, .35);
+  font-size: 10px; pointer-events: none; z-index: 5; white-space: nowrap; opacity: .8; }
