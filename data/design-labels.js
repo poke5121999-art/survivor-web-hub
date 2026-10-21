@@ -728,7 +728,7 @@
       effect: SERVER + " Không cần bản build mới.",
       fields: {
         "_id": CFG_ID,
-        "netBackend": { label: "Mạng co-op cho phòng MỚI", choices: [
+        "netBackend": { label: "Mạng co-op Online của bản web (và app khi ô dưới chọn Relay Unity)", choices: [
           { v: "ngo", label: "Relay Unity (đang chạy)" },
           { v: "rtd", label: "Engine RTD (repo-topdown) — chưa chạy được game này" },
           { v: "steam", label: "Steam (chưa có)" }
