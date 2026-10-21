@@ -1,0 +1,110 @@
+// Vật liệu toon cho mảnh bản đồ, xấp xỉ shader MixMaster/Enviroment/{Base, Tile Blend, Transparent, Depth Water}.
+// Tham số đọc từ material.extras (= map/index.json materials[id]): _Color, _HColor, _SColor, _ColorB, _HColorB,
+// _SColorB, texST._BlendTex, WorldUVB, VertexColor. Mã shader gốc chưa dịch ngược (PIPELINE.md), nên:
+// - Tile Blend: trộn _MainTex (UV mảnh) với _BlendTex (UV thế giới XZ * texST) theo vertex colour ALPHA.
+//   A = 1 -> _BlendTex (cỏ), A = 0 -> _MainTex (vách đất). [ĐỀ XUẤT] đo trên mảnh: Cliff_t01-A_2_a_1 (mặt trên)
+//   màu (0,0,0,1), Cliff_t01-A_2_b_1 mặt trên (1,1,1,1) còn vách (1,1,1,0); Water_01-A_0_b_1 bờ cũng vậy.
+//   Dùng R thì mặt trên của mảnh mép ra màu atlas xám. Mảnh không có vertex colour (Path_t01-*) lấy _MainTex.
+// - Ramp: half-Lambert N·L tra _Ramp (giống proto/view.html).
+// - Depth Water: màu _MainTex/_Color, trong suốt một phần, gợn sáng theo thời gian [ĐỀ XUẤT].
+// Chạy được với InstancedMesh (instanceMatrix) và mesh thường.
+import * as THREE from 'three';
+import { LIGHT_DIR } from '../config.js?v=20261021a';
+
+const WHITE = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); WHITE.needsUpdate = true;
+const lin = c => new THREE.Vector4(...new THREE.Color(c[0], c[1], c[2]).convertSRGBToLinear().toArray(), c[3] ?? 1);
+export const envTime = { value: 0 };
+const LIGHT = { value: new THREE.Vector3(...LIGHT_DIR).normalize() };
+
+const VS = `
+#include <common>
+#include <skinning_pars_vertex>
+attribute vec4 _color;
+uniform vec4 st; uniform vec4 stB; uniform float hasVColor;
+varying vec2 vUv; varying vec2 vUvB; varying vec3 vN; varying float vMix; varying vec3 vW;
+void main() {
+  vUv = uv * st.xy + st.zw;
+  #include <beginnormal_vertex>
+  #include <skinbase_vertex>
+  #include <skinnormal_vertex>
+  #include <begin_vertex>
+  #include <skinning_vertex>
+  vec4 p = vec4(transformed, 1.0);
+  vec3 n = objectNormal;
+  #ifdef USE_INSTANCING
+    p = instanceMatrix * p;
+    n = mat3(instanceMatrix) * n;
+  #endif
+  vec4 wp = modelMatrix * p;
+  vN = normalize(mat3(modelMatrix) * n);
+  vW = wp.xyz;
+  // Unity X = -three X: toạ độ thế giới Unity (x, z) = (-wp.x, wp.z)
+  vUvB = vec2(-wp.x, wp.z) * stB.xy + stB.zw;
+  vMix = hasVColor > 0.5 ? 1.0 - _color.a : 1.0;
+  gl_Position = projectionMatrix * viewMatrix * wp;
+}`;
+
+const FS = (mode, cutout) => `
+uniform sampler2D tMain, tBlend, tRamp; uniform float hasRamp, hasBlend, opacity, time;
+uniform vec4 cColor, cH, cS, cColorB, cHB, cSB; uniform vec3 lightDir;
+varying vec2 vUv; varying vec2 vUvB; varying vec3 vN; varying float vMix; varying vec3 vW;
+void main() {
+  vec4 t = texture2D(tMain, vUv);
+  ${cutout ? 'if (t.a < 0.3) discard;' : ''}
+  vec3 a = pow(t.rgb, vec3(2.2)) * cColor.rgb;
+  vec3 hc = cH.rgb, sc = cS.rgb;
+  if (hasBlend > 0.5) {
+    vec3 b = pow(texture2D(tBlend, vUvB).rgb, vec3(2.2)) * cColorB.rgb;
+    float m = clamp(vMix, 0.0, 1.0);
+    a = mix(b, a, m); hc = mix(cHB.rgb, cH.rgb, m); sc = mix(cSB.rgb, cS.rgb, m);
+  }
+  float l = dot(normalize(vN), lightDir) * 0.5 + 0.5;
+  float r = hasRamp > 0.5 ? texture2D(tRamp, vec2(l, 0.5)).r : smoothstep(0.35, 0.6, l);
+  vec3 col = a * mix(sc, hc, r) * 1.22;
+  float alpha = 1.0;
+  ${mode === 'water' ? `
+  float w = sin(vW.x * 1.7 + time * 1.3) * sin(vW.z * 1.9 - time * 1.1);
+  col = mix(col, vec3(1.0), smoothstep(0.82, 0.98, w) * 0.35);
+  alpha = opacity;` : ''}
+  gl_FragColor = vec4(col, alpha);
+  #include <colorspace_fragment>
+}`;
+
+const cache = new Map();
+
+// src: glTF material from GLTFLoader (userData = extras). texFor(uri) gives a texture for map/tex/<hash>.webp.
+export function envMaterial(src, { hasVColor = false, skinned = false, texFor } = {}) {
+  const key = src.uuid + '|' + hasVColor + '|' + skinned;
+  if (cache.has(key)) return cache.get(key);
+  const ex = src.userData || {}, c = ex.colors || {}, f = ex.floats || {}, T = ex.tex || {}, ST = ex.texST || {};
+  const shader = ex.shader || '';
+  const col = (k, d = [1, 1, 1, 1]) => lin(c[k] || d);
+  const texUri = k => (typeof T[k] === 'string' && !T[k].startsWith('(')) ? T[k] : null;
+  let main = src.map || (texUri('_MainTex') && texFor ? texFor(texUri('_MainTex')) : WHITE);
+  if (src.map) src.map.colorSpace = THREE.NoColorSpace;
+  const ramp = texUri('_Ramp') && texFor ? texFor(texUri('_Ramp'), true) : null;
+  const isBlend = /Tile Blend/.test(shader) && texUri('_BlendTex');
+  const blend = isBlend ? texFor(texUri('_BlendTex')) : WHITE;
+  if (isBlend) blend.wrapS = blend.wrapT = THREE.RepeatWrapping;
+  const water = /Water/.test(shader);
+  const transparent = water || /Transparent/.test(shader) || src.transparent;
+  const cutout = !water && (transparent || src.alphaTest > 0 || f._AplhaCutout > 0);
+  const stM = ST._MainTex || [1, 1, 0, 0], stB = ST._BlendTex || [1, 1, 0, 0];
+  const m = new THREE.ShaderMaterial({
+    uniforms: {
+      tMain: { value: main }, tBlend: { value: blend }, tRamp: { value: ramp || WHITE },
+      hasRamp: { value: ramp ? 1 : 0 }, hasBlend: { value: isBlend ? 1 : 0 }, hasVColor: { value: hasVColor ? 1 : 0 },
+      cColor: { value: col('_Color') }, cH: { value: col('_HColor') }, cS: { value: col('_SColor', [.65, .65, .65, 1]) },
+      cColorB: { value: col('_ColorB') }, cHB: { value: col('_HColorB', c._HColor || [1, 1, 1, 1]) },
+      cSB: { value: col('_SColorB', c._SColor || [.65, .65, .65, 1]) },
+      st: { value: new THREE.Vector4(...stM) }, stB: { value: new THREE.Vector4(...stB) },
+      lightDir: LIGHT, time: envTime, opacity: { value: 0.82 },
+    },
+    vertexShader: VS, fragmentShader: FS(water ? 'water' : 'base', cutout),
+    side: THREE.DoubleSide, transparent: water, depthWrite: !water,
+  });
+  m.name = src.name;
+  m.userData.shader = shader;
+  cache.set(key, m);
+  return m;
+}

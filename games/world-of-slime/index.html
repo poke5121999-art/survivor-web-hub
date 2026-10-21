@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thế Giới Slime</title>
+<link rel="stylesheet" href="css/game.css?v=20261021a">
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three.module.min.js?v=20261021a",
+  "three/addons/": "./vendor/addons/"
+} }
+</script>
+</head>
+<body>
+<div id="game"></div>
+<div id="devlabel" hidden>bản đồ thử</div>
+<div id="fps"></div>
+<div id="status">Đang tải…</div>
+<div id="help">WASD đi · giữ Shift chạy · Space lướt · chuột trái đánh · T gọi slime · lăn chuột zoom</div>
+<script type="module">
+import { start } from './js/game.js?v=20261021a';
+start('pc');
+</script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+html, body { margin: 0; height: 100%; overflow: hidden; background: #8fb7c9; color: #fff;
+  font: 13px/1.3 system-ui, -apple-system, "Segoe UI", sans-serif; touch-action: none; user-select: none; -webkit-user-select: none; }
+#game { position: fixed; inset: 0; }
+#game canvas { display: block; }
+#status { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 8px 14px; border-radius: 8px;
+  background: rgba(20, 40, 55, .7); max-width: 80vw; text-align: center; }
+#devlabel { position: fixed; left: 8px; top: 8px; padding: 2px 8px; border-radius: 10px; background: rgba(250, 210, 90, .92);
+  color: #3a2a00; font-weight: 600; font-size: 12px; pointer-events: none; }
+#fps { position: fixed; right: 8px; top: 8px; padding: 1px 6px; border-radius: 6px; background: rgba(0, 0, 0, .35); font: 11px ui-monospace, monospace; pointer-events: none; }
+#help { position: fixed; left: 8px; bottom: 8px; padding: 3px 8px; border-radius: 8px; background: rgba(20, 40, 55, .45); font-size: 11px; pointer-events: none; }
+
+/* mobile */
+.m-ui { position: fixed; inset: 0; pointer-events: none; }
+.m-ui img { pointer-events: none; -webkit-user-drag: none; }
+.m-joy { position: absolute; left: 0; bottom: 0; width: 45vw; height: 70vh; pointer-events: auto; }
+.m-joy-bg { position: absolute; left: 35px; bottom: 35px; width: 150px; height: 150px; opacity: .85; }
+.m-joy-hd { position: absolute; left: 110px; top: calc(100% - 110px); width: 70px; height: 70px; transform: translate(-50%, -50%); }
+.m-btn { position: absolute; pointer-events: auto; width: 64px; height: 64px; }
+.m-btn img { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+.m-btn-bg { width: 100%; height: 100%; }
+.m-btn-ic { width: 62%; height: 62%; }
+.m-btn.on { filter: brightness(1.25); transform: scale(.94); }
+.m-attack { right: 26px; bottom: 26px; width: 92px; height: 92px; }
+.m-dash { right: 132px; bottom: 22px; width: 58px; height: 58px; }
+.m-whistle { right: 30px; bottom: 132px; width: 50px; height: 50px; }
+.m-skill { width: 48px; height: 48px; opacity: .9; }
+.m-sk0 { right: 200px; bottom: 28px; } .m-sk1 { right: 196px; bottom: 90px; } .m-sk2 { right: 140px; bottom: 128px; }
