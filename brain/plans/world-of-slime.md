@@ -35,6 +35,15 @@ không tự vẽ, có hai bản PC và mobile. Asset nặng để ở repo riên
 5. **PC và mobile**: hai bố cục + hai kiểu điều khiển, theo nhánh `IsStandalone()` của code gốc.
 6. **Lên hub**: thẻ trong `data/games.js`, `rev`, kiểm trên Pages.
 
+## Trạng thái 2026-10-22
+
+- Đã lên Pages (`43eeea18`, rev 20261022a): HUD gốc, bảng phím SMActions, ba bản đồ Larus thật (257 quán trọ,
+  110 làng, 478 kho) từ đệm server, 10 bảng meta gốc ở `games/world-of-slime/data/meta/`, cửa + 10 NPC đặt theo ảnh.
+  Kiểm: `test/world-of-slime-{slice,hud,larus}.js` (13, 37, 16 PASS trên Pages).
+- Chủ dự án chọn dừng lấy đệm (phương án C). Chưa có bản đồ ngoài làng; rừng dùng `?map=dev`.
+- Đệm thô ở `D:\wos-ref\server-cache\live`, ảnh chụp game thật ở `D:\wos-ref\pilot` (tool lái game `D:\wos-ref	ools\pilot.py`).
+- Còn thiếu: đồ đạc trong nhà (vật thể server gửi), mặt nước đài phun, thoại + nhiệm vụ, đánh nhau, bắt slime, thẻ hub.
+
 ## Giả định đang dùng
 
 - Bản web chơi một mình. Không có người chơi khác, không PvP, không chat.
