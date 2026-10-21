@@ -106,12 +106,14 @@
     if (!rec) return null;
     var day = String(Math.min(10, Math.max(1, Math.floor(run.day)))), by = {};
     rec.choices.forEach(function (c) { by[c.stepId] = c; });
+    // lựa chọn của demo mà bản live không còn (A Strange Mushroom: "Suprise Mushroom - Stronger" không có art, "Keep it for Luck") thì bỏ
+    opts = opts.filter(function (o) { return by[o.id]; });
+    if (!opts.length) return null;
     var sure = [], part = [];
     opts.forEach(function (o) {
       var c = by[o.id], p = c && (c.odds[day] != null ? c.odds[day] : c.odds.all);
-      if (!c || p == null || p >= 99 || c.cond || (c.heroes && c.heroes.length)) sure.push(o); else part.push({ o: o, p: p });
+      if (p == null || p >= 99 || c.cond || (c.heroes && c.heroes.length)) sure.push(o); else part.push({ o: o, p: p });
     });
-    if (!part.length) return null;
     var tot = part.reduce(function (a, x) { return a + x.p; }, 0) / 100, k = Math.round(tot), got = [];
     if (k >= 1 && Math.abs(tot - k) < 0.15) {
       var bag = part.slice();

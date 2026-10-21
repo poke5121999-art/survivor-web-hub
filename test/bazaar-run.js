@@ -85,6 +85,15 @@ function rules() {
       for (let h = 0; h < 4; h++) R.hourOptions(x).forEach(o => seen.add(o.name));
     }
     eq('giờ tự do không bày gặp gỡ không có art trong game (Claw Game, Big Bad Wolf)', ['Claw Game', 'Big Bad Wolf'].filter(n => seen.has(n)), []);
+    const mush = Object.values(globalThis.BZ_ENCOUNTERS.events).find(e => e.InternalName === 'A Strange Mushroom'), shown = new Set();
+    for (let sd = 1; sd <= 60; sd++) {
+      const x = R.newRun({ hero: 'Vanessa', seed: sd }); x.day = 2;
+      x.phase = { kind: 'choose', options: [R.encounterRef('event', mush)] };
+      const rr = R.apply(x, { t: 'pick', i: 0 });
+      (rr.run.phase.choices || []).forEach(c => shown.add(c.name));
+    }
+    eq('A Strange Mushroom chỉ bày lựa chọn bản live còn (không "Suprise Mushroom - Stronger", "Keep it for Luck"); luôn có Sell It và Trade It',
+      [shown.has('Suprise Mushroom - Stronger'), shown.has('Keep it for Luck'), shown.has('Sell It'), shown.has('Trade It for Something')], [false, false, true, true]);
   }
   check('lệnh sai pha bị từ chối, run không đổi', !R.apply(run, { t: 'fight' }).ok && R.apply(run, { t: 'fight' }).run === run);
 
