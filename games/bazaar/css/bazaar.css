@@ -148,10 +148,10 @@ button { font: inherit; color: inherit; }
 
 /* ---------- đồng hồ trận (thay đồng hồ ngày ở cột trái) ---------- */
 .bz-dial { position: absolute; left: 190px; top: 400px; width: 190px; height: 236px;
-  background: url(../art/ui/clock/Clock_Encounter_Background_TUI.webp?v=20261021a) center/contain no-repeat; }
+  background: url(../art/ui/clock/Clock_Encounter_Background_TUI.webp?v=20261021b) center/contain no-repeat; }
 .bz-dial .face { position: absolute; left: 17px; top: 38px; width: 154px; height: 154px; border-radius: 50%; }
 /* ASSET-07: vòng tiến độ bão cát = Clock_Encounter_HourFill_TUI (sáu đèn + cung cam) cắt theo góc --pd; nền mờ là cùng ảnh tối đi */
-.bz-dial .ring, .bz-dial .face::before { position: absolute; inset: 1%; border-radius: 50%; background: url(../art/ui/clock/Clock_Encounter_HourFill_TUI.webp?v=20261021a) center / 100% 100% no-repeat; }
+.bz-dial .ring, .bz-dial .face::before { position: absolute; inset: 1%; border-radius: 50%; background: url(../art/ui/clock/Clock_Encounter_HourFill_TUI.webp?v=20261021b) center / 100% 100% no-repeat; }
 .bz-dial .face::before { content: ""; filter: grayscale(1) brightness(.35); opacity: .65; }
 .bz-dial .ring { --pd: 0deg; -webkit-mask: conic-gradient(#000 var(--pd), transparent 0); mask: conic-gradient(#000 var(--pd), transparent 0); filter: drop-shadow(0 0 5px #ffa526); }
 .bz-dial .time { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -387,7 +387,7 @@ button { font: inherit; color: inherit; }
    thanh uy tín = Clock_Encounter_PrestigeFill_TUI */
 #bz-stage .rs-clock .hand { left: 50%; top: 50%; width: 0; height: 0; margin: 0; transform-origin: 0 0; }
 #bz-stage .rs-clock .hand .nd { position: absolute; width: 74px; height: 70px; left: -56px; top: -54px; transform: rotate(45deg); transform-origin: 56px 54px;
-  background: url(../art/ui/clock/ClockEncounter_Empty_TD.webp?v=20261021a) -0.9px -0.9px / 169px 169px no-repeat; filter: drop-shadow(0 2px 2px rgba(0,0,0,.65)); }
+  background: url(../art/ui/clock/ClockEncounter_Empty_TD.webp?v=20261021b) -0.9px -0.9px / 169px 169px no-repeat; filter: drop-shadow(0 2px 2px rgba(0,0,0,.65)); }
 #bz-stage .rs-clock .hand .day { left: -17px; top: -17px; width: 34px; height: 34px; margin: 0; border-radius: 0; box-shadow: none; font: 800 19px/1 var(--f-num); color: #3a2208;
   background: url(../art/ui/clock/Clock_Encounter_DayDot_Inactive_TUI.webp) center / 100% 100% no-repeat; text-shadow: none; }
 #bz-stage .rs-clock .hand .day.act { background-image: url(../art/ui/clock/Clock_Encounter_DayDot_Active_TUI.webp); color: #5a2a00; }
@@ -400,7 +400,7 @@ button { font: inherit; color: inherit; }
 #bz-stage .rs-gold .row { border-radius: 0; box-shadow: none; background: none; padding: 2px 12px 2px 4px; border: 0; border-left: 17px solid transparent;
   border-image: url(../art/ui/ui_sprite_atlas/Container_Number_Frame_TUI.webp) 0 0 0 38 fill / 0 0 0 17px stretch; }
 /* kho: máng đồ = Experience_LevelBackdrop_TUI, ô sáng = Experience_Pip_TUI (cùng bộ sprite với thanh XP) */
-#bz-stage .rs-chest .bar { gap: 0; width: 156px; height: 30px; padding: 4px 11px 5px; border-radius: 0; box-shadow: none; background: url(../art/ui/board_ui/Experience_LevelBackdrop_TUI.webp?v=20261021a) 0 0 / 100% 100% no-repeat; }
+#bz-stage .rs-chest .bar { gap: 0; width: 156px; height: 30px; padding: 4px 11px 5px; border-radius: 0; box-shadow: none; background: url(../art/ui/board_ui/Experience_LevelBackdrop_TUI.webp?v=20261021b) 0 0 / 100% 100% no-repeat; }
 #bz-stage .rs-chest .bar i { flex: 1; height: 100%; border-radius: 0; background: center / contain no-repeat; opacity: 0; }
 #bz-stage .rs-chest .bar i.on { opacity: 1; background-image: url(../art/ui/board_ui/Experience_Pip_TUI.webp); box-shadow: none; filter: drop-shadow(0 0 3px #49c4ff); }
 

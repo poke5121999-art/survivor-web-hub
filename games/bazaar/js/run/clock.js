@@ -69,6 +69,8 @@
 
   // ---------- bày thẻ gặp gỡ cho giờ tự do ----------
   function heroOk(e, run) { var h = e.Heroes || []; return !h.length || h.indexOf('Common') >= 0 || h.indexOf(run.hero) >= 0; }
+  // gặp gỡ không có art trong chính game (ArtKey rỗng: Claw Game, Big Bad Wolf) thì không bày, như HIDDEN_CARDS với vật phẩm; không vẽ thay
+  function artOk(e) { return e.ArtKey !== ''; }
   function dayOk(e, run) {
     var d = R.dataDay(run.day), S = root.BZ_SHOPS, sr = S && !e.LevelUp && (S.merchants[e.Id] || S.trainers[e.Id] || S.events[e.Id]);
     // ngày thật có thẻ này (bazaardb days_active, 10 = "10+") thay cho Days của bản demo khi có
@@ -127,7 +129,7 @@
     (run.prev || []).forEach(function (id) { prev[id] = 1; });
     T().HOUR_SLOTS.forEach(function (slot) {
       var base = slot === 'merchant' ? P.merchant : slot === 'event' ? P.event : P.merchant.concat(P.event);
-      var ok = function (r) { var e = recOf(r); return !taken[r.id] && heroOk(e, run) && dayOk(e, run); };
+      var ok = function (r) { var e = recOf(r); return !taken[r.id] && artOk(e) && heroOk(e, run) && dayOk(e, run); };
       var cands = base.filter(function (r) { return ok(r) && !prev[r.id]; });
       if (!cands.length) cands = base.filter(ok); // "not dealt last hour unless that empties the list" (Dealer:4938-4949)
       var r = pickByTier(run, cands);
@@ -167,7 +169,7 @@
     }
     return null;
   }
-  function usable(run, c, taken) { return !taken[c.rec.Id] && c.rec.Kind !== 'unknown' && c.rec.Kind !== 'merchant' && heroOk(c.rec, run) && dayOk(c.rec, run); }
+  function usable(run, c, taken) { return !taken[c.rec.Id] && c.rec.Kind !== 'unknown' && c.rec.Kind !== 'merchant' && artOk(c.rec) && heroOk(c.rec, run) && dayOk(c.rec, run); }
   function isCommon(e) { var h = e.Heroes || []; return !h.length || h.indexOf('Common') >= 0; }
   function fixedSlot(key) {
     return function (run, arg, taken) {

@@ -78,6 +78,14 @@ function rules() {
   check('hero không chơi được bị từ chối', !R.apply(R.newRun({ seed: 1 }), { t: 'pickHero', hero: 'TheDragons' }).ok);
   const r0 = R.apply(run, { t: 'choose', i: 0 });
   eq('mở màn Thu nhập: 8+12 vàng, 5+2 thu nhập, sang giờ 0 chọn gặp gỡ', [r0.run.gold, r0.run.income, r0.run.phase.kind, r0.run.phase.options.length], [20, 7, 'choose', 3]);
+  {
+    const seen = new Set();
+    for (let sd = 1; sd <= 80; sd++) for (let d = 1; d <= 10; d++) {
+      const x = R.newRun({ hero: 'Vanessa', seed: sd }); x.day = d;
+      for (let h = 0; h < 4; h++) R.hourOptions(x).forEach(o => seen.add(o.name));
+    }
+    eq('giờ tự do không bày gặp gỡ không có art trong game (Claw Game, Big Bad Wolf)', ['Claw Game', 'Big Bad Wolf'].filter(n => seen.has(n)), []);
+  }
   check('lệnh sai pha bị từ chối, run không đổi', !R.apply(run, { t: 'fight' }).ok && R.apply(run, { t: 'fight' }).run === run);
 
   // bảng giá

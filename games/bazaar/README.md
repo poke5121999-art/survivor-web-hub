@@ -83,3 +83,5 @@ Từ 2026-10-21 shop, thầy kỹ năng và sự kiện đọc cấu hình thậ
 | thương nhân không có bể | 1 | Serafina (bazaardb không có trang bể; rơi về bộ đọc chữ) |
 
 Ô lựa chọn web không có dữ liệu bazaardb vẫn hiện như cũ (không mất lựa chọn nào).
+- `[BẪY ĐÃ SẬP]` Lều/xe ở khung trên to, che đường thẻ đang chia bay xuống. Nhấc thẻ giữa lúc chia thì trúng nút đổi hàng. Thẻ `.deal` phải nổi trên `.rs-merchant-ctl` (`css/run.css`).
+- `[BẪY ĐÃ SẬP]` Ngày xuất hiện lấy từ bazaardb làm lộ ra Claw Game, một sự kiện bản demo có thẻ nhưng không có art (`ArtKey` rỗng), nên khung chân dung trống. Gặp gỡ có `ArtKey` rỗng không được bày (`artOk` trong `js/run/clock.js`), giống `HIDDEN_CARDS` với vật phẩm.
