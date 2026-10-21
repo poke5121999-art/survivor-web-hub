@@ -41,7 +41,7 @@ không tự vẽ, có hai bản PC và mobile. Asset nặng để ở repo riên
   110 làng, 478 kho) từ đệm server, 10 bảng meta gốc ở `games/world-of-slime/data/meta/`, cửa + 10 NPC đặt theo ảnh.
   Kiểm: `test/world-of-slime-{slice,hud,larus}.js` (13, 37, 16 PASS trên Pages).
 - Chủ dự án chọn dừng lấy đệm (phương án C). Chưa có bản đồ ngoài làng; rừng dùng `?map=dev`.
-- Đệm thô ở `D:\wos-ref\server-cache\live`, ảnh chụp game thật ở `D:\wos-ref\pilot` (tool lái game `D:\wos-ref	ools\pilot.py`).
+- Đệm thô ở `D:\wos-ref\server-cache\live`, ảnh chụp game thật ở `D:\wos-ref\pilot` (tool lái game `D:\wos-ref\tools\pilot.py`).
 - Còn thiếu: đồ đạc trong nhà (vật thể server gửi), mặt nước đài phun, thoại + nhiệm vụ, đánh nhau, bắt slime, thẻ hub.
 
 ## Giả định đang dùng
