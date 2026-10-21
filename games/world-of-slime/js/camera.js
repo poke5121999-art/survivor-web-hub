@@ -2,17 +2,23 @@
 // bám người chơi có vùng chết, tốc độ bám minSpeed..maxSpeed theo khoảng lệch, kẹp theo cameraMoveRect,
 // zoom bằng con lăn / chụm. Số trên prefab chưa đọc -> CAMERA trong config.js ghi [ĐỀ XUẤT].
 import * as THREE from 'three';
-import { CAMERA } from './config.js?v=20261021b';
+import { CAMERA, PARAMS } from './config.js?v=20261022a';
 
 const D2R = Math.PI / 180;
 
 export class FollowCamera {
   constructor(map, aspect) {
+    this.cam = new THREE.PerspectiveCamera(CAMERA.fov, aspect, 5, 600);
+    this.dist = CAMERA.dist; this.pitch = +PARAMS.get('pitch') || CAMERA.pitch;   // ?pitch= để so ảnh
+    this.focus = null;          // điểm bám, toạ độ Unity {x, y, z}
+    this.setMap(map);
+  }
+  // cameraMoveRect của ClientMapData (null ở kho 478 -> cả bản đồ); fov của rect là FOV dọc (8 ở Larus)
+  setMap(map) {
     const rect = map.data.client.cameraMoveRect || {};
     this.rect = { x0: rect.startX ?? 0, z0: rect.startY ?? 0, x1: rect.endX ?? map.width, z1: rect.endY ?? map.height };
-    this.cam = new THREE.PerspectiveCamera(rect.fov || CAMERA.fov, aspect, 5, 600);
-    this.dist = CAMERA.dist; this.pitch = CAMERA.pitch;
-    this.focus = null;          // điểm bám, toạ độ Unity {x, y, z}
+    this.cam.fov = rect.fov || CAMERA.fov; this.cam.updateProjectionMatrix();
+    this.focus = null;
   }
   setAspect(a) { this.cam.aspect = a; this.cam.updateProjectionMatrix(); }
   zoom(f) { this.dist = Math.min(CAMERA.zoomMax, Math.max(CAMERA.zoomMin, this.dist * f)); }
@@ -32,12 +38,12 @@ export class FollowCamera {
     const fit = Math.min((r.x1 - r.x0) / (2 * f1.halfW), (r.z1 - r.z0) / (f1.far - f1.near)) * 0.96;
     return Math.min(this.dist, fit);
   }
+  // cameraMoveRect giới hạn ĐIỂM NHÌN (tâm màn), không giới hạn mép màn: inn1.png người chơi ở x 9.7 vẫn đứng giữa màn
+  // dù rect bắt đầu ở x 0 và màn rộng ~40 m (mép trái thấy nền tối ngoài nhà). [ĐỀ XUẤT] cách đọc
+  // MapFuncHelper.CameraMoveLimitRectToLimitPos (chưa dịch ngược hết).
   clamp(x, z) {
-    const f = this.footprint(), r = this.rect;
-    const cx = (r.x0 + r.x1) / 2, cz = (r.z0 + r.z1) / 2;
-    x = (r.x1 - r.x0) <= 2 * f.halfW ? cx : Math.min(r.x1 - f.halfW, Math.max(r.x0 + f.halfW, x));
-    z = (r.z1 - r.z0) <= f.far - f.near ? cz : Math.min(r.z1 - f.far, Math.max(r.z0 - f.near, z));
-    return { x, z };
+    const r = this.rect;
+    return { x: Math.min(r.x1, Math.max(r.x0, x)), z: Math.min(r.z1, Math.max(r.z0, z)) };
   }
   update(dt, target, snap = false) {
     if (!this.focus || snap) this.focus = { x: target.x, y: target.y, z: target.z };

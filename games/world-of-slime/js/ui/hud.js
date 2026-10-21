@@ -6,10 +6,10 @@
 // bản PC (PlatformPreview.UseStandaloneUIScale) nhân thêm StandaloneScale = 0.8.
 // Vị trí/cỡ nút PC khác mobile: PlaySceneButtonBatch.buttonInfos (standalonePosition/Size vs defaultPosition/Size).
 import * as THREE from 'three';
-import { paint, tinted, uiUrl, used } from './sprites.js?v=20261021b';
-import { assetUrl } from '../assets.js?v=20261021b';
-import { state, on } from '../state.js?v=20261021b';
-import { t } from '../../data/loc_vi.js?v=20261021b';
+import { paint, tinted, uiUrl, used } from './sprites.js?v=20261022a';
+import { assetUrl } from '../assets.js?v=20261022a';
+import { state, on } from '../state.js?v=20261022a';
+import { t } from '../../data/loc_vi.js?v=20261022a';
 
 const C = {                       // màu Image.color / TMP fontColor chép từ prefab
   dark30: [0.078, 0.118, 0.133, 0.298], dark39: [0.078, 0.118, 0.133, 0.392], dark59: [0.078, 0.118, 0.133, 0.588],
@@ -392,9 +392,23 @@ export class Hud {
   drawMinimap() {
     const m = this.map; if (!m) return;
     const cd = m.data.client, W = cd.width, H = cd.height, k = 8;
+    const col = m.collide;
     for (const cv of [this.el.miniCanvas, this.el.bigCanvas]) {
       cv.width = W * k; cv.height = H * k;
       const g = cv.getContext('2d'); g.clearRect(0, 0, cv.width, cv.height);
+      if (col) {
+        // MiniMapLoader.MakeMiniMapFromBytesCollision: ảnh bản đồ nhỏ của game dựng từ chính lưới va chạm (ENABLE = đất,
+        // WATER = nước); màu [ĐỀ XUẤT] (Color truyền vào GetColors nằm trên prefab, chưa đọc)
+        const h = k / 2;
+        for (let z = 0; z < col.height; z++) for (let x = 0; x < col.width; x++) {
+          const f = col.flags[x + z * col.width];
+          if (f & 64) g.fillStyle = 'rgba(84,214,246,0.9)';
+          else if (!(f & 1)) g.fillStyle = 'rgba(150,200,214,0.75)';
+          else continue;
+          g.fillRect(x * h, (col.height - 1 - z) * h, h, h);
+        }
+        continue;
+      }
       for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) {
         const i = z * W + x, f = cd.floors[i], lt = cd.landType[i];
         if (f == null || f < -100) continue;
@@ -405,6 +419,17 @@ export class Hud {
       }
     }
     this.mapPx = { W, H, k };
+  }
+
+  // thẻ tên NPC trên đầu (UserHud kiểu chữ trắng viền tối như userName; inn1.png "Amy", al4.png "Allen", "Wisp")
+  setNpcs(list) {
+    for (const t of this.npcTags || []) t.el.remove();
+    this.npcTags = list.map(n => {
+      const el = R(this.world, { n: 'npcHud', a: [0, 0], auto: true, pv: [0.5, 0], cls: 'col center hudtag' });
+      el.dataset.npc = n.name;
+      text(el, n.name, 26, [1, 1, 1, 1], 'outline');
+      return { el, object: n.object, height: n.height };
+    });
   }
 
   // mỗi khung: HUD theo đầu nhân vật, bản đồ nhỏ cuộn theo người chơi
@@ -418,6 +443,7 @@ export class Hud {
       el.style.bottom = ((v.y + 1) / 2 * innerHeight / s) + 'px';
     };
     place(E.userHud, player.object, player.height || 1.6);
+    for (const t of this.npcTags || []) place(t.el, t.object, t.height || 1.6);
     if (!E.monHud.hidden) place(E.monHud, slime.object, slime.height || 0.8);
     if (this.mapPx) {
       const { W, H } = this.mapPx, z = 6;       // [ĐỀ XUẤT] bản đồ nhỏ: 1 ô = 6 đơn vị (khung 200 thấy ~33 ô ngang)

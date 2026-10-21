@@ -1,24 +1,29 @@
 // Vòng chơi lát cắt đầu: bản đồ + người chơi + slime đồng hành + camera + nhập + bước chân + HUD + màn tải.
 // Logic chạy trong toạ độ Unity (x phải, z lên màn hình, y cao); chỉ khi đặt Object3D mới đổi sang three (-x, y, z).
 import * as THREE from 'three';
-import { REV, PARAMS, MOVE } from './config.js?v=20261021b';
-import { GameMap, loadMapData } from './world/map.js?v=20261021b';
-import { envTime } from './world/envmat.js?v=20261021b';
-import { Player, Slime } from './actors/actors.js?v=20261021b';
-import { FollowCamera } from './camera.js?v=20261021b';
-import { makeIntent, quantizeMove, endFrame } from './input/intent.js?v=20261021b';
-import { attachPC } from './input/pc.js?v=20261021b';
-import { attachMobile } from './input/mobile.js?v=20261021b';
-import { Audio } from './audio.js?v=20261021b';
-import { Hud } from './ui/hud.js?v=20261021b';
-import { showLoading } from './ui/loading.js?v=20261021b';
-import { state, set } from './state.js?v=20261021b';
-import { t } from '../data/loc_vi.js?v=20261021b';
+import { REV, PARAMS, MOVE } from './config.js?v=20261022a';
+import { GameMap, loadMapData } from './world/map.js?v=20261022a';
+import { envTime } from './world/envmat.js?v=20261022a';
+import { Player, Slime, Npc } from './actors/actors.js?v=20261022a';
+import { loadTex } from './assets.js?v=20261022a';
+import { MAPS, DEFAULT_MAP } from '../data/portals.js?v=20261022a';
+import { Post, GRADE } from './post.js?v=20261022a';
+import { FollowCamera } from './camera.js?v=20261022a';
+import { makeIntent, quantizeMove, endFrame } from './input/intent.js?v=20261022a';
+import { attachPC } from './input/pc.js?v=20261022a';
+import { attachMobile } from './input/mobile.js?v=20261022a';
+import { Audio } from './audio.js?v=20261022a';
+import { Hud } from './ui/hud.js?v=20261022a';
+import { showLoading } from './ui/loading.js?v=20261022a';
+import { state, set } from './state.js?v=20261022a';
+import { t } from '../data/loc_vi.js?v=20261022a';
 
 const errors = (window.__wosErrors = window.__wosErrors || []);
 addEventListener('error', e => errors.push('error: ' + e.message));
 addEventListener('unhandledrejection', e => errors.push('rejection: ' + (e.reason && e.reason.message || e.reason)));
 
+// yaw độ của data/portals.js (0 = nhìn +z lên màn hình, 90 = sang phải +x, 180 = nhìn xuống camera) -> yaw three
+function yawOfDeg(d) { const r = d * Math.PI / 180; return Math.atan2(-Math.sin(r), Math.cos(r)); }
 function setStatus(m) { const s = document.getElementById('status'); if (s) { s.textContent = m; s.hidden = !m; } }
 let loading = null;
 
@@ -38,18 +43,34 @@ export async function boot(platform) {
   hud.root.style.visibility = 'hidden';
 
   loading.phase('bản đồ');
-  const mapName = (PARAMS.get('map') || 'dev').replace(/[^a-z0-9_-]/gi, '');
+  // mặc định vào quán trọ Larus (257) như game thật; ?map=dev = bản đồ thử, ?map=110 / 478 vào thẳng
+  let mapId = (PARAMS.get('map') || String(DEFAULT_MAP)).replace(/[^a-z0-9_-]/gi, '');
   const gender = PARAMS.get('gender') === 'woman' ? 'woman' : 'man';
   const slimeId = PARAMS.get('slime') || 'SL_Slime_Water';
   // nhân vật tải song song với bản đồ (trước đây tuần tự)
   const actorsP = Promise.all([Player.create(gender), Slime.create(slimeId)]);
   actorsP.catch(() => {});
-  const data = await loadMapData(new URL('data/maps/' + mapName + '.json?v=' + REV, location.href).href);
-  const map = new GameMap(data);
-  await map.build({ onProgress: f => { loading.arm(); loading.phase('bản đồ ' + Math.round(f * 100) + '%'); } });
-  scene.add(map.root);
-  const fog = data.client.verticalFogData;
-  scene.background = new THREE.Color().setRGB(...(fog && fog.color ? fog.color.slice(0, 3) : [0.56, 0.72, 0.79]), THREE.SRGBColorSpace);
+  const fetchMap = async (id, onProgress) => {
+    const d = await loadMapData(new URL('data/maps/' + id + '.json?v=' + REV, location.href).href);
+    const m = new GameMap(d);
+    await m.build({ onProgress });
+    return m;
+  };
+  let map = await fetchMap(mapId, f => { loading.arm(); loading.phase('bản đồ ' + Math.round(f * 100) + '%'); });
+  let data = map.data;
+  // nền: mapBackgroundType 1 = InsideCommon (img/mapbackground, nền xanh đêm có quầng sáng của nhà trong), 0 = trời
+  const bgTex = {};
+  const applyBackground = () => {
+    const c = map.data.client, fog = c.verticalFogData;
+    if (c.mapBackgroundType === 1) {
+      const tx = bgTex[1] || (bgTex[1] = loadTex('img/mapbackground/InsideCommon.webp', { srgb: true }));
+      scene.background = tx;
+    } else scene.background = new THREE.Color().setRGB(...(fog && fog.color ? fog.color.slice(0, 3) : [0.56, 0.72, 0.79]), THREE.SRGBColorSpace);
+  };
+  // hậu kỳ màu theo mapLightType (post.js); ?grade=0 tắt; bản đồ thử không chấm màu
+  const post = new Post(renderer, platform === 'pc');
+  const applyGrade = () => post.setGrade(PARAMS.get('grade') === '0' || map.data._dev ? null : GRADE[map.data.client.mapLightType] || null);
+  scene.add(map.root); applyBackground(); applyGrade();
   document.getElementById('devlabel').hidden = !data._dev;
 
   loading.phase('nhân vật');
@@ -57,7 +78,12 @@ export async function boot(platform) {
   scene.add(player.object, slime.object);
   if (slimeId !== state.party[0].id) state.party[0] = { ...state.party[0], id: slimeId, name: slimeId.replace(/^SL_/, '').replace(/_/g, ' ') };
   for (const o of [player, slime]) { o.object.updateMatrixWorld(true); const bb = new THREE.Box3().setFromObject(o.object); o.height = bb.max.y - bb.min.y; }
-  hud.map = map; hud.drawMinimap();
+  const mapInfo = () => MAPS[map.data.id] || null;
+  const setMapHud = () => {
+    hud.map = map; hud.drawMinimap();
+    set({ map: { ...state.map, detail: mapInfo() ? mapInfo().name : (map.data._dev ? 'Bản đồ thử' : map.data.name || '') } });
+  };
+  setMapHud();
   hud.portrait(renderer, player.object);
   // [ĐỀ XUẤT] nhiệm vụ mẫu để thấy bố cục QuestBookmarkLayout (tên nhiệm vụ do server gửi; dịch từ khung hình V4Van)
   // ?quest: hiện nhiệm vụ mẫu, ?warn: hiện cảnh báo thể lực (để so với khung hình); mặc định như ảnh chụp demo thật
@@ -66,16 +92,20 @@ export async function boot(platform) {
 
   const audio = new Audio();
   const at = (PARAMS.get('at') || '').split(',').map(Number);   // ?at=x,z: đặt chỗ xuất phát (để chụp thử)
-  const sp = at.length === 2 && at.every(isFinite) ? { x: at[0], z: at[1] } : map.spawn();
-  const P = { x: sp.x, z: sp.z, y: map.getHeight(sp.x, sp.z), yaw: Math.PI, speed: 0, dashT: 0, dashCd: 0, dashCdMax: MOVE.dash.cooldown, dashDir: null, attackT: 0, dashes: 0, attacks: 0 };
+  const info0 = mapInfo();
+  const sp = at.length === 2 && at.every(isFinite) ? { x: at[0], z: at[1] }
+    : PARAMS.get('from') && info0 && info0.arrive[PARAMS.get('from')] ? info0.arrive[PARAMS.get('from')]
+    : info0 && info0.start ? info0.start : info0 && Object.values(info0.arrive)[0] ? Object.values(info0.arrive)[0] : map.spawn();
+  const P = { x: sp.x, z: sp.z, y: map.getHeight(sp.x, sp.z), yaw: sp.yaw != null ? yawOfDeg(sp.yaw) : Math.PI, speed: 0, dashT: 0, dashCd: 0, dashCdMax: MOVE.dash.cooldown, dashDir: null, attackT: 0, dashes: 0, attacks: 0 };
   const S = { x: sp.x - 1.2, z: sp.z - 0.8, y: map.getHeight(sp.x - 1.2, sp.z - 0.8), yaw: Math.PI, moving: false, attackT: 0 };
   if (!map.canStand(S.x, S.z)) { S.x = P.x; S.z = P.z - 1; S.y = P.y; }
 
+  audio.playBgm(map.data.client.bgm);
   const fcam = new FollowCamera(map, innerWidth / innerHeight);
   if (+PARAMS.get('zoom') > 0) fcam.dist = +PARAMS.get('zoom');   // ?zoom=<m>: khoảng cách camera (để chụp thử)
   if (platform === 'pc') attachPC(intent, renderer.domElement, { onWheel: n => fcam.wheel(n) });
   else attachMobile(intent, root, hud, { onPinch: f => fcam.zoom(f) });
-  addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); fcam.setAspect(innerWidth / innerHeight); });
+  addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); post.resize(); fcam.setAspect(innerWidth / innerHeight); });
 
   // bước chân theo sự kiện clip, landType ô dưới chân
   player.onEvent = e => { if (/Footstep/.test(e.fn)) audio.play(player.footstepEvent, { landType: map.landTypeAt(P.x, P.z) }); };
@@ -101,10 +131,69 @@ export async function boot(platform) {
   // hướng nhìn Unity (dx, dz) -> yaw three (mô hình glTF nhìn +Z): three dir = (-dx, dz)
   const yawOf = (dx, dz) => Math.atan2(-dx, dz);
 
+
   const stats = { frames: 0, fps: 0, acc: 0, dist: 0, start: { x: P.x, z: P.z } };
   // yaw = Math.PI lúc đầu: mô hình glTF nhìn +Z (= Unity +z, xa camera), nên quay về phía camera như lúc vào game
   const log = [];
-  const W = window.WOS = { REV, platform, map, player, slime, P, S, intent, audio, stats, camera: fcam, renderer, scene, errors, hud, state, log };
+  const W = window.WOS = { REV, platform, map, player, slime, P, S, intent, audio, stats, camera: fcam, renderer, scene, errors, hud, state, log, npcs: [], maps: [], THREE };
+
+  // ---- NPC của bản đồ (data/portals.js, chỗ đứng [ĐO TRONG ẢNH])
+  let npcs = [];
+  const loadNpcs = async () => {
+    const want = (mapInfo() || {}).npcs || [], forMap = map;
+    const made = await Promise.all(want.map(async d => {
+      try {
+        const a = d.slime ? await Slime.create(d.model) : await Npc.create(d.model);
+        a.def = d; a.object.updateMatrixWorld(true);
+        const bb = new THREE.Box3().setFromObject(a.object); a.height = bb.max.y - bb.min.y;
+        return a;
+      } catch (e) { errors.push('npc ' + d.name + ': ' + e.message); return null; }
+    }));
+    if (forMap !== map) return;
+    npcs = made.filter(Boolean);
+    for (const n of npcs) {
+      const d = n.def, y = map.getHeight(d.x, d.z);
+      n.object.position.set(-d.x, y > -100 ? y : 0, d.z); n.object.rotation.set(0, yawOfDeg(d.yaw || 0), 0);
+      scene.add(n.object);
+    }
+    hud.setNpcs(npcs.map(n => ({ name: n.def.name, object: n.object, height: n.height })));
+    W.npcs = npcs;
+  };
+  const npcsReady = loadNpcs();
+
+  // ---- đổi bản đồ qua cửa (portal): mờ đen, tải bản đồ đích, đặt người chơi ở cửa đến
+  const fade = document.createElement('div');
+  fade.id = 'mapfade';
+  fade.style.cssText = 'position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .25s;z-index:5';
+  document.body.appendChild(fade);
+  let switching = false;
+  const switchMap = async portal => {
+    switching = true; W.switching = true;
+    fade.style.opacity = '1';
+    const t0 = performance.now();
+    try {
+      const next = await fetchMap(String(portal.to));
+      for (const n of npcs) scene.remove(n.object);
+      npcs = []; hud.setNpcs([]);
+      scene.remove(map.root); map.root.traverse(o => { if (o.isInstancedMesh) o.dispose(); });
+      map = next; data = next.data; W.map = map; mapId = String(portal.to);
+      scene.add(map.root); applyBackground(); applyGrade();
+      document.getElementById('devlabel').hidden = !data._dev;
+      setMapHud(); fcam.setMap(map);
+      const a = (mapInfo() && mapInfo().arrive[portal.at]) || map.spawn();
+      P.x = a.x; P.z = a.z; P.y = map.getHeight(a.x, a.z); if (a.yaw != null) P.yaw = yawOfDeg(a.yaw);
+      P.dashT = 0; S.x = P.x - Math.sin(P.yaw); S.z = P.z + Math.cos(P.yaw);
+      if (!map.canStand(S.x, S.z)) { S.x = P.x; S.z = P.z; }
+      S.y = map.getHeight(S.x, S.z);
+      fcam.update(0, P, true);
+      audio.playBgm(map.data.client.bgm);
+      await loadNpcs();
+      W.maps.push({ id: mapId, ms: Math.round(performance.now() - t0), via: portal.name });
+    } catch (e) { errors.push('switch map: ' + (e && e.message || e)); }
+    fade.style.opacity = '0';
+    setTimeout(() => { switching = false; W.switching = false; }, 300);
+  };
+  const portalAt = (x, z) => ((mapInfo() || {}).portals || []).find(p => x >= p.rect[0] && x <= p.rect[2] && z >= p.rect[1] && z <= p.rect[3]);
   let battleT = 0;
   const PANELS = { worldmap: 'Common.WorldMap', inventory: 'Common.Inventory', slimeindex: 'Common.SlimeIndex', slimeinventory: 'Archive.SlimeStorageTitle',
     quest: 'Common.Quest', party: 'Common.Party', perk: 'Common.Perk', community: 'Settings.Keymap.Community', chat: 'Settings.Keymap.Community', mail: 'Common.Inventory', escape: 'Common.Settings' };
@@ -145,7 +234,10 @@ export async function boot(platform) {
   setStatus('');
   hud.root.style.visibility = '';
   loading.done();
-  fcam.update(0, P, true);
+  // ?camat=x,z: giữ điểm nhìn camera cố định (để chụp cặp so ảnh thật, khi người chơi trong ảnh không đứng giữa màn)
+  const camAt = (PARAMS.get('camat') || '').split(',').map(Number);
+  const camT = () => camAt.length === 2 && camAt.every(isFinite) ? { x: camAt[0], z: camAt[1], y: map.getHeight(camAt[0], camAt[1]) > -100 ? map.getHeight(camAt[0], camAt[1]) : P.y } : P;
+  fcam.update(0, camT(), true);
   let last = performance.now();
   renderer.setAnimationLoop(() => {
     const now = performance.now(); const dt = Math.min(0.05, (now - last) / 1000); last = now;
@@ -183,6 +275,8 @@ export async function boot(platform) {
     else player.play('Idle', 0.2);
     place(player.object, P);
     player.update(dt);
+    if (!switching) { const pt = portalAt(P.x, P.z); if (pt) switchMap(pt); }
+    for (const n of npcs) n.update(dt);
 
     // --- slime đồng hành: theo sau ~1.6 m [ĐỀ XUẤT]; Return (huýt sáo) gọi về cạnh người chơi
     const tx = P.x, tz = P.z, dx = tx - S.x, dz = tz - S.z, d = Math.hypot(dx, dz);
@@ -200,8 +294,8 @@ export async function boot(platform) {
     place(slime.object, S);
     slime.update(dt);
 
-    fcam.update(dt, P);
-    renderer.render(scene, fcam.cam);
+    fcam.update(dt, camT());
+    post.render(scene, fcam.cam);
     hud.frame(fcam.cam, P, S, player, slime, P.yaw);
     endFrame(intent);
   });

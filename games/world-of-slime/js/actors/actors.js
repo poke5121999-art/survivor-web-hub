@@ -1,8 +1,8 @@
 // Người chơi (ghép avatar theo player/index.json defaults) và slime đồng hành (slime/index.json variants).
 // Ghép avatar theo SM.Common.Character.CharacterBuilder (EXPORT_PLAYER.md); mã ghép chép từ sheet.html playerCell.
 import * as THREE from 'three';
-import { loadGLB, loadJSON, clipOf } from '../assets.js?v=20261021b';
-import { applyUnitMaterials, decalAt } from './toon.js?v=20261021b';
+import { loadGLB, loadJSON, clipOf } from '../assets.js?v=20261022a';
+import { applyUnitMaterials, decalAt } from './toon.js?v=20261022a';
 
 // Enums.Wwise_Footstep_Event. [ĐỀ XUẤT] có None = 0 ở đầu: SL_Slime_* có wwiseFootstepEvent 7 = slime.
 export const FOOTSTEP_EVENTS = ['', 'Footstep_quad', 'Footstep_default', 'Footstep_giant', 'Footstep_flutter', 'Footstep_hop',
@@ -115,5 +115,27 @@ export class Slime extends Animated {
     s.variant = v;
     s.play('Idle', 0);
     return s;
+  }
+}
+
+// NPC đứng yên (npc/index.json): mô hình + clip IdleBase của Animator (trạng thái default). Chỗ đứng là dữ liệu server
+// (ObjectController), ở bản web lấy từ data/portals.js [ĐO TRONG ẢNH].
+export class Npc extends Animated {
+  static async create(id) {
+    const n = new Npc();
+    const ni = await loadJSON('npc/index.json');
+    const v = ni.npcs.find(x => x.id === id);
+    if (!v) throw new Error('npc not found: ' + id);
+    const g = await loadGLB(v.glb);
+    n.decals = await applyUnitMaterials(g, g.scene, {});
+    n.object = new THREE.Group(); n.object.name = 'Npc_' + id; n.object.add(g.scene);
+    n.mixer = new THREE.AnimationMixer(g.scene);
+    const idle = (v.states || []).find(s => s.default) || (v.states || [])[0];
+    if (idle) n.addClip('Idle', clipOf(g, idle.clips[0]));
+    n.play('Idle', 0);
+    // lệch pha để các NPC không thở cùng nhịp [ĐỀ XUẤT]
+    if (n.actions.Idle) n.actions.Idle.action.time = Math.random() * n.actions.Idle.action.getClip().duration;
+    n.info = v;
+    return n;
   }
 }

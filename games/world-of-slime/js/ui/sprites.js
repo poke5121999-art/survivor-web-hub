@@ -1,7 +1,7 @@
 // Sprite giao diện từ repo asset (ui/<folder>/<name>.webp). Viền 9-slice chép từ ui/index.json ([l, b, r, t] px của
 // ảnh đã bóc) cho đúng những sprite HUD dùng, để không phải tải index.json 545 KB lúc vào game.
 // Image.color của Unity nhân màu vào sprite: CSS không nhân được nên `tinted()` nhân sẵn trên canvas rồi trả blob URL.
-import { assetUrl } from '../assets.js?v=20261021b';
+import { assetUrl } from '../assets.js?v=20261022a';
 
 export const BORDER = {
   'Common/Ui_Bg_Round_01_32px': [15, 15, 16, 16],

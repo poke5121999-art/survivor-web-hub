@@ -23,7 +23,7 @@ function check(name, ok, detail) {
   if (ok) pass++; else fail++;
   console.log('  ' + (ok ? 'PASS ' : 'FAIL ') + name + (detail != null ? '  (' + detail + ')' : ''));
 }
-const q = extra => '?' + [ASSETS ? 'assets=' + encodeURIComponent(ASSETS) : '', extra || ''].filter(Boolean).join('&');
+const q = extra => '?' + ['map=dev', ASSETS ? 'assets=' + encodeURIComponent(ASSETS) : '', extra || ''].filter(Boolean).join('&');   // bản đồ thử (mặc định giờ là 257)
 
 async function open(browser, file, opts, { slowGlb = 0, extra = '' } = {}) {
   const ctx = await browser.newContext(opts);

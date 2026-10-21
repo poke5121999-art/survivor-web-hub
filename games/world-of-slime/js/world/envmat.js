@@ -9,7 +9,7 @@
 // - Depth Water: màu _MainTex/_Color, trong suốt một phần, gợn sáng theo thời gian [ĐỀ XUẤT].
 // Chạy được với InstancedMesh (instanceMatrix) và mesh thường.
 import * as THREE from 'three';
-import { LIGHT_DIR } from '../config.js?v=20261021b';
+import { LIGHT_DIR } from '../config.js?v=20261022a';
 
 const WHITE = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); WHITE.needsUpdate = true;
 const lin = c => new THREE.Vector4(...new THREE.Color(c[0], c[1], c[2]).convertSRGBToLinear().toArray(), c[3] ?? 1);
@@ -20,7 +20,7 @@ const VS = `
 #include <common>
 #include <skinning_pars_vertex>
 attribute vec4 _color;
-uniform vec4 st; uniform vec4 stB; uniform float hasVColor;
+uniform vec4 st; uniform vec4 stB; uniform float hasVColor, worldUV;
 varying vec2 vUv; varying vec2 vUvB; varying vec3 vN; varying float vMix; varying vec3 vW;
 void main() {
   vUv = uv * st.xy + st.zw;
@@ -40,12 +40,14 @@ void main() {
   vW = wp.xyz;
   // Unity X = -three X: toạ độ thế giới Unity (x, z) = (-wp.x, wp.z)
   vUvB = vec2(-wp.x, wp.z) * stB.xy + stB.zw;
+  // keyword _WORLDUV (Tile Blend): _MainTex cũng lấy UV thế giới XZ, không lấy UV mảnh (sàn gỗ quán trọ ra trắng nếu dùng uv)
+  if (worldUV > 0.5) vUv = vec2(-wp.x, wp.z) * st.xy + st.zw;
   vMix = hasVColor > 0.5 ? 1.0 - _color.a : 1.0;
   gl_Position = projectionMatrix * viewMatrix * wp;
 }`;
 
 const FS = (mode, cutout) => `
-uniform sampler2D tMain, tBlend, tRamp; uniform float hasRamp, hasBlend, opacity, time;
+uniform sampler2D tMain, tBlend, tRamp; uniform float hasRamp, hasBlend, opacity, time, scroll;
 uniform vec4 cColor, cH, cS, cColorB, cHB, cSB; uniform vec3 lightDir;
 varying vec2 vUv; varying vec2 vUvB; varying vec3 vN; varying float vMix; varying vec3 vW;
 void main() {
@@ -58,6 +60,14 @@ void main() {
     float m = clamp(vMix, 0.0, 1.0);
     a = mix(b, a, m); hc = mix(cHB.rgb, cH.rgb, m); sc = mix(cSB.rgb, cS.rgb, m);
   }
+  ${mode === 'alpha' ? `vec4 ts = texture2D(tMain, vUv + vec2(time * scroll, time * scroll * 0.7));
+  vec3 lc = cColor.rgb * (0.9 + ts.rgb * cHB.rgb * 0.6);
+  gl_FragColor = vec4(lc, clamp(max(ts.a, 0.85) * cColor.a, 0.0, 1.0) * opacity);
+  #include <colorspace_fragment>
+  return;` : ''}
+  ${mode === 'add' ? `gl_FragColor = vec4(pow(t.rgb, vec3(2.2)) * cColor.rgb * cColor.a, 1.0);
+  #include <colorspace_fragment>
+  return;` : ''}
   float l = dot(normalize(vN), lightDir) * 0.5 + 0.5;
   float r = hasRamp > 0.5 ? texture2D(tRamp, vec2(l, 0.5)).r : smoothstep(0.35, 0.6, l);
   vec3 col = a * mix(sc, hc, r) * 1.22;
@@ -87,8 +97,14 @@ export function envMaterial(src, { hasVColor = false, skinned = false, texFor } 
   const blend = isBlend ? texFor(texUri('_BlendTex')) : WHITE;
   if (isBlend) blend.wrapS = blend.wrapT = THREE.RepeatWrapping;
   const water = /Water/.test(shader);
+  // MixMaster/Particles/*: tia nắng cửa sổ, sóng (_SrcBlend 1 _DstBlend 1 = cộng). Không có ánh sáng.
+  // _SrcBlend 5 / _DstBlend 10 (SrcAlpha, OneMinusSrcAlpha) hoặc Transparent Offset Scroll (mặt nước đài phun) = trộn alpha,
+  // màu _Color (+ _ColorB sáng HDR ở vân sóng); vân trôi theo thời gian [ĐỀ XUẤT] tốc độ (_WindSpeed chưa rõ đơn vị).
+  const alphaFx = /Particles\//.test(shader) && (/Offset Scroll/.test(shader) || f._DstBlend === 10);
+  const add = /Particles\//.test(shader) && !alphaFx;
+  const worldUV = (ex.keywords || []).includes('_WORLDUV') || f._WorldUV > 0;
   const transparent = water || /Transparent/.test(shader) || src.transparent;
-  const cutout = !water && (transparent || src.alphaTest > 0 || f._AplhaCutout > 0);
+  const cutout = !water && !add && !alphaFx && (transparent || src.alphaTest > 0 || f._AplhaCutout > 0);
   const stM = ST._MainTex || [1, 1, 0, 0], stB = ST._BlendTex || [1, 1, 0, 0];
   const m = new THREE.ShaderMaterial({
     uniforms: {
@@ -98,11 +114,14 @@ export function envMaterial(src, { hasVColor = false, skinned = false, texFor } 
       cColorB: { value: col('_ColorB') }, cHB: { value: col('_HColorB', c._HColor || [1, 1, 1, 1]) },
       cSB: { value: col('_SColorB', c._SColor || [.65, .65, .65, 1]) },
       st: { value: new THREE.Vector4(...stM) }, stB: { value: new THREE.Vector4(...stB) },
-      lightDir: LIGHT, time: envTime, opacity: { value: 0.82 },
+      lightDir: LIGHT, time: envTime, opacity: { value: 0.82 }, worldUV: { value: worldUV ? 1 : 0 }, scroll: { value: /Offset Scroll/.test(shader) ? 0.05 : 0 },
     },
-    vertexShader: VS, fragmentShader: FS(water ? 'water' : 'base', cutout),
-    side: THREE.DoubleSide, transparent: water, depthWrite: !water,
+    vertexShader: VS, fragmentShader: FS(water ? 'water' : add ? 'add' : alphaFx ? 'alpha' : 'base', cutout),
+    side: THREE.DoubleSide, transparent: water || add || alphaFx, depthWrite: !(water || add || alphaFx),
   });
+  if (alphaFx) { m.uniforms.opacity.value = 1; m.uniforms.cHB.value = col('_ColorB', [1, 1, 1, 1]); }
+  if (add) { m.blending = THREE.AdditiveBlending; m.uniforms.cColor.value = col('_TintColor', c._Color || [1, 1, 1, 1]); }
+  m.userData.kind = water ? 'water' : add ? 'add' : alphaFx ? 'alpha' : 'base';
   m.name = src.name;
   m.userData.shader = shader;
   cache.set(key, m);

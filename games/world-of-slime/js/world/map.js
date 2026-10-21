@@ -20,8 +20,12 @@
  * }
  * TileData { index:int, name:string, rotation:[x,y,z] (euler độ, Unity ZXY), scale:[x,y,z] (âm = lật),
  *            isInvisible:bool, useImposterObject:bool }
+ * collide: { width: 2*W, height: 2*H, cell: 0.5, flags: int[] }   // map_type_{id}_collide.dat (MiniMapLoader.GetColors):
+ *   lưới 0.5 m, ô con (sx, sz) = flags[sx + sz*2W]; bit k = MapCollisionFlag k+1: bit0 WALL, bit1 EXCLUSIVE,
+ *   bit2..5 SLIDE_UP/RIGHT/DOWN/LEFT, bit6 WATER, bit7 JUMP, bit8 ICE; 0 = ENABLE (đi được). tools/import_maps.py
+ * tile.layers[k]: k = MapObject.LayerTypes - 1 (0 Common, 1 Common_Second, 2 Route, 3 Route_New, 4 Shadow, 6 Water, 7/8 Route_*_Second)
  * Ngoài khuôn game (chỉ bản web):  _dev:bool (bản đồ thử), id, name,
- *   web: { blocked:int[] }  // [ĐỀ XUẤT] ô có cây/đá chặn đi; va chạm thật là dữ liệu server chưa có
+ *   web: { blocked:int[] }  // [ĐỀ XUẤT] chỉ bản đồ thử (không có collide): ô có cây/đá chặn đi
  *
  * ── CÁCH ĐẶT (MAPBUILD §7) ─────────────────────────────────────────────────────────────────────────────────────
  * Mảnh 'Map/<name>' = node con cùng tên trong map/<folder>.glb (map/index.json pieces[name].glb).
@@ -33,9 +37,9 @@
  */
 import * as THREE from 'three';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
-import { loadGLB, loadJSON, loadTex, assetUrl, expectBytes } from '../assets.js?v=20261021b';
-import { envMaterial } from './envmat.js?v=20261021b';
-import { MOVE } from '../config.js?v=20261021b';
+import { loadGLB, loadJSON, loadTex, assetUrl, expectBytes } from '../assets.js?v=20261022a';
+import { envMaterial } from './envmat.js?v=20261022a';
+import { MOVE } from '../config.js?v=20261022a';
 
 export const LAND = { NONE: -1, GROUND: 0, GRASS: 1, STONE: 2, WATER: 3, SNOW: 4, SAND: 5 };
 const D2R = Math.PI / 180;
@@ -61,6 +65,7 @@ export class GameMap {
     this.width = c.width; this.height = c.height;
     this.floors = c.floors; this.landType = c.landType;
     this.blocked = new Set((data.web && data.web.blocked) || []);
+    this.collide = data.collide || null;   // lưới va chạm thật của server (0.5 m)
     this.stairs = [];            // { minX, maxX, minZ, maxZ, axis:'x'|'z', lowAt:'min'|'max', h0, h1 } (Unity)
     this.root = new THREE.Group(); this.root.name = 'Map';
     this.water = new THREE.Group(); this.water.name = 'Map_Water';
@@ -98,12 +103,27 @@ export class GameMap {
     const v = i < 0 ? null : this.landType[i];
     return v == null ? LAND.NONE : v;
   }
-  // Đi được: có đất, không phải nước, không bị chặn, bậc không quá MOVE.stepMax (trừ trên cầu thang).
+  // cờ va chạm ô con 0.5 m (MapCollisionFlag bit); -1 = ngoài lưới
+  collideAt(ux, uz) {
+    const c = this.collide; if (!c) return null;
+    const sx = Math.floor(ux * 2), sz = Math.floor(uz * 2);
+    if (sx < 0 || sz < 0 || sx >= c.width || sz >= c.height) return -1;
+    return c.flags[sx + sz * c.width];
+  }
+  // Đi được: có lưới va chạm thật thì theo nó (WALL bit0, WATER bit6 chặn); không thì theo floors/landType/web.blocked.
+  // Bậc không quá MOVE.stepMax (trừ trên cầu thang).
   canStand(ux, uz, fromH) {
     const i = this.index(ux, uz);
-    if (i < 0 || this.floors[i] == null) return false;
-    if (this.landType[i] === LAND.WATER) return false;
-    if (this.blocked.has(i)) return false;
+    if (i < 0) return false;
+    if (this.collide) {
+      const f = this.collideAt(ux, uz);
+      if (f < 0 || (f & 1) || (f & 64)) return false;
+      if (this.floors[i] == null && !this.onStair(ux, uz)) return false;
+    } else {
+      if (this.floors[i] == null) return false;
+      if (this.landType[i] === LAND.WATER) return false;
+      if (this.blocked.has(i)) return false;
+    }
     const h = this.getHeight(ux, uz);
     if (fromH != null && Math.abs(h - fromH) > MOVE.stepMax) return false;
     return true;
@@ -114,11 +134,11 @@ export class GameMap {
     const pieceInfo = new Map(idx.pieces.map(p => [p.name, p]));
     // gom tile theo tên mảnh
     const byName = new Map();
-    for (const layer of this.data.tile.layers) for (const fl of layer.floors) for (const t of fl.tiles) {
+    this.data.tile.layers.forEach((layer, li) => { for (const fl of layer.floors) for (const t of fl.tiles) {
       if (t.isInvisible) continue;
       if (!byName.has(t.name)) byName.set(t.name, []);
-      byName.get(t.name).push({ t, floor: fl.floor });
-    }
+      byName.get(t.name).push({ t, floor: fl.floor, layer: li });
+    } });
     const glbs = new Set();
     for (const n of byName.keys()) {
       const p = pieceInfo.get(n);
@@ -144,10 +164,13 @@ export class GameMap {
     }
 
     const m4 = new THREE.Matrix4(), pos = new THREE.Vector3(), quat = new THREE.Quaternion(), scl = new THREE.Vector3();
-    const tileMatrix = (t, floor, out) => {
+    // Route: createPlaneHeight 0.005 + routeOverlappedHeight. [ĐỀ XUẤT] lớp Route_New (3) nằm trên Route (2) thêm 0.005
+    // (GetOverlappedRouteAddHeight chưa dịch ngược) để mép đường t01-C_b không z-fight với tâm t01-C_a.
+    const ROUTE_ADD = { 2: 0, 3: 0.005, 7: 0.01, 8: 0.015 };
+    const tileMatrix = (t, floor, out, layer = 0) => {
       const x = t.index % this.width, z = Math.floor(t.index / this.width);
       let y = floor;
-      if (t.name.startsWith('Path')) y += 0.005;
+      if (t.name.startsWith('Path')) y += 0.005 + (ROUTE_ADD[layer] || 0);
       pos.set(-(x + 0.5), y, z + 0.5);
       unityEulerToThree(t.rotation || [0, 0, 0], quat);
       const s = t.scale || [1, 1, 1];
@@ -164,6 +187,10 @@ export class GameMap {
       const isWater = name.startsWith('Water');
       const parent = isWater ? this.water : this.root;
       if (/stair/i.test(name)) this._addStair(info, list);
+      // Shadow Projector (shadow_001..004, lớp Shadow): hộp 8x8x25 chiếu _ShadowTex lên mesh nằm dưới nó. Ở 257/478 các
+      // hộp đặt ngoài mép phòng, bên dưới không có mesh nào nhận bóng; vẽ thành mặt phẳng thì ra một mảng sáng giữa
+      // nền tối (đã thử, ảnh 3_storage). Chưa có projector thật nên bỏ qua. [ĐỀ XUẤT]
+      if (/^(ter01_)?shadow_00\d$/.test(name)) { this.stats.skipped = (this.stats.skipped || 0) + list.length; continue; }
       let skinned = false; piece.traverse(o => { if (o.isSkinnedMesh) skinned = true; });
       if (skinned) {
         // mảnh có xương: clone riêng từng tile
@@ -182,7 +209,7 @@ export class GameMap {
         const mat = envMaterial(mesh.material, { hasVColor: !!mesh.geometry.attributes._color, texFor });
         const im = new THREE.InstancedMesh(mesh.geometry, mat, list.length);
         im.name = name + '/' + mesh.name;
-        list.forEach(({ t, floor }, i) => im.setMatrixAt(i, tileMatrix(t, floor, m4).multiply(rel)));
+        list.forEach(({ t, floor, layer }, i) => im.setMatrixAt(i, tileMatrix(t, floor, m4, layer).multiply(rel)));
         im.instanceMatrix.needsUpdate = true;
         im.frustumCulled = false;
         if (mat.transparent) im.renderOrder = 2;
@@ -192,31 +219,58 @@ export class GameMap {
     return this;
   }
 
-  // HeightPropData từ BoxCollider của mảnh cầu thang: trục dài = hướng leo; đầu thấp/cao lấy theo floors[] hai đầu.
+  // HeightPropData..ctor: hộp = Collider.bounds (thế giới) của BoxCollider mảnh cầu thang; minHeight/maxHeight = y của hộp.
+  // Collider trong map/index.json ở hệ glTF (X lật, export_map.py collider()): Unity x = -center[0].
+  // Hướng leo: game dùng rotation (yaw/90) + reverseX/Z (scale âm) trong TranslateHeightPosition; ở đây lấy trục có
+  // floors[] hai đầu chênh nhau nhiều nhất, đầu cao là đầu có floors gần maxHeight.
   _addStair(info, list) {
-    // Game dựng HeightPropData từ BoxCollider; collider ở đây ngắn hơn mesh (ter01_stair_001: z -2.7..0.7 so với
-    // mesh -3.5..1.5) nên hai đầu rơi vào ô cùng tầng. Dùng bounds của mesh, collider chỉ là dự phòng.
-    const box = (info.colliders || []).find(c => c.type === 'BoxCollider' && c.size);
-    const b = info.bounds ? { c: info.bounds.min.map((v, i) => (v + info.bounds.max[i]) / 2),
-      s: info.bounds.min.map((v, i) => info.bounds.max[i] - v) } : box && { c: box.center, s: box.size };
-    if (!b) return;
+    const box = (info.colliders || []).find(c => c.type === 'BoxCollider' && c.size && c.enabled !== false);
+    // hộp collider; trap 7 (ARCH): ter01_stair_001 collider ngắn hơn mesh, hai đầu rơi vào cùng tầng -> thử lại bằng bounds mesh
+    const boxes = [];
+    if (box) {
+      const cx = -box.center[0], cy = box.center[1], cz = box.center[2];
+      boxes.push([cx - box.size[0] / 2, cx + box.size[0] / 2, cz - box.size[2] / 2, cz + box.size[2] / 2, cy - box.size[1] / 2, cy + box.size[1] / 2]);
+    }
+    if (info.bounds) { const b = info.bounds; boxes.push([-b.max[0], -b.min[0], b.min[2], b.max[2], b.min[1], b.max[1]]); }
     for (const { t, floor } of list) {
+      for (let bi = 0; bi < boxes.length; bi++) {
+        const s = this._stairBox(t, floor, ...boxes[bi]);
+        if (s.fit || bi === boxes.length - 1) { this.stairs.push(s); break; }
+      }
+    }
+  }
+  _stairBox(t, floor, lx0, lx1, lz0, lz1, y0, y1) {
+    {
       const x = t.index % this.width, z = Math.floor(t.index / this.width);
-      const yaw = Math.round(((t.rotation || [0, 0, 0])[1] % 360 + 360) % 360 / 90) % 4;
-      // tâm hộp trong toạ độ Unity cục bộ (glTF lật X), xoay theo yaw Unity (chiều kim đồng hồ nhìn từ trên)
-      let cx = -b.c[0], cz = b.c[2], sx = b.s[0], sz = b.s[2];
-      for (let k = 0; k < yaw; k++) { [cx, cz] = [cz, -cx]; [sx, sz] = [sz, sx]; }
-      const wx = x + 0.5 + cx, wz = z + 0.5 + cz;
-      const s = { minX: wx - sx / 2, maxX: wx + sx / 2, minZ: wz - sz / 2, maxZ: wz + sz / 2 };
-      s.axis = sz >= sx ? 'z' : 'x';
-      const mid = s.axis === 'z' ? (s.minX + s.maxX) / 2 : (s.minZ + s.maxZ) / 2;
-      const end = v => s.axis === 'z' ? this.floorHeight(mid, v) : this.floorHeight(v, mid);
-      const lo = s.axis === 'z' ? s.minZ : s.minX, hi = s.axis === 'z' ? s.maxZ : s.maxX;
-      const hLo = end(lo - 0.5), hHi = end(hi + 0.5);
-      s.lowAt = hLo <= hHi ? 'min' : 'max';
-      s.h0 = Math.min(hLo, hHi); s.h1 = Math.max(hLo, hHi);
-      if (s.h0 < -100) s.h0 = floor; if (s.h1 < -100) s.h1 = floor + 2;
-      this.stairs.push(s);
+      const sc = t.scale || [1, 1, 1], yaw = ((t.rotation || [0, 0, 0])[1]) * D2R;
+      // 4 góc: scale rồi xoay Unity Euler(0, yaw, 0): (x, z) -> (x cos + z sin, -x sin + z cos)
+      const cs = Math.cos(yaw), sn = Math.sin(yaw);
+      let minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9;
+      for (const [px, pz] of [[lx0, lz0], [lx1, lz0], [lx0, lz1], [lx1, lz1]]) {
+        const qx = px * sc[0], qz = pz * sc[2];
+        const wx = x + 0.5 + qx * cs + qz * sn, wz = z + 0.5 - qx * sn + qz * cs;
+        minX = Math.min(minX, wx); maxX = Math.max(maxX, wx); minZ = Math.min(minZ, wz); maxZ = Math.max(maxZ, wz);
+      }
+      const s = { minX, maxX, minZ, maxZ, h0: floor + y0 * sc[1], h1: floor + y1 * sc[1], name: t.name, x, z };
+      // ô ngay ngoài bốn cạnh (lấy giá trị hợp lệ gần tâm cạnh nhất)
+      const side = (ax, v) => {
+        const mid = ax === 'x' ? (minZ + maxZ) / 2 : (minX + maxX) / 2;
+        for (const o of [0, -1, 1, -2, 2]) {
+          const h = ax === 'x' ? this.floorHeight(v, mid + o) : this.floorHeight(mid + o, v);
+          if (h > -100) return h;
+        }
+        return null;
+      };
+      const ends = { x: [side('x', minX - 0.5), side('x', maxX + 0.5)], z: [side('z', minZ - 0.5), side('z', maxZ + 0.5)] };
+      const near = (h, v) => h != null && Math.abs(h - v) < 0.6;
+      // trục leo: trục có một đầu khớp maxHeight; đầu kia khớp minHeight (hoặc không có đất: lối ra như quán trọ 257)
+      const fit = e => (near(e[0], s.h1) && !near(e[1], s.h1)) ? 'min' : (near(e[1], s.h1) && !near(e[0], s.h1)) ? 'max' : null;
+      const fx = fit(ends.x), fz = fit(ends.z);
+      s.axis = fx && !fz ? 'x' : fz && !fx ? 'z' : (maxX - minX) >= (maxZ - minZ) ? 'x' : 'z';
+      const hiAt = (s.axis === 'x' ? fx : fz) || 'max';
+      s.fit = !!(fx || fz);
+      s.lowAt = hiAt === 'max' ? 'min' : 'max';
+      return s;
     }
   }
 

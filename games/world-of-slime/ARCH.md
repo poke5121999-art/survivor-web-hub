@@ -1,6 +1,8 @@
-# Thế Giới Slime: kiến trúc lát cắt đầu (rev 20261021b)
+# Thế Giới Slime: kiến trúc (rev 20261022a)
 
-Bản web của World of Slime Demo (TEAM42). Lát cắt này gồm: bản đồ thử, người chơi đi/chạy/lướt, một slime
+Bản web của World of Slime Demo (TEAM42). Từ rev 20261022a chạy trên **bản đồ thật của server** (Larus: quán trọ 257, làng 110,
+kho 478, lấy từ đệm đĩa của game): mở game là ở phòng ngủ quán trọ như bản thật, đi xuống cầu thang ra làng, vào/ra kho.
+Lát cắt gồm: bản đồ thật + bản đồ thử (`?map=dev`), người chơi đi/chạy/lướt, một slime
 đi theo, camera của game, điều khiển PC và mobile theo bảng phím gốc, tiếng bước chân, HUD dựng từ prefab gốc, màn tải
 theo byte. Chưa có đánh nhau thật, bắt slime, các bảng (túi, bách khoa, kho, nhiệm vụ...).
 Nghiên cứu gốc: `D:\wos-ref\notes\` (MAPBUILD, PIPELINE, EXPORT_*, CODE §8-9). Kế hoạch: `brain/plans/world-of-slime.md`.
@@ -27,9 +29,38 @@ Nghiên cứu gốc: `D:\wos-ref\notes\` (MAPBUILD, PIPELINE, EXPORT_*, CODE §8
 | `data/loc_vi.js` | chuỗi giao diện chép từ `D:\wos-ref\data\loc\vi.json` (+ en dự phòng), `t(key, args)` |
 | `js/camera.js` | FollowCamera: cúi 40 độ, vùng chết, kẹp `cameraMoveRect`, zoom |
 | `js/audio.js` | một AudioContext, sự kiện Wwise -> ogg, switch `LandType` theo `landType[]` |
-| `js/game.js` | vòng chơi; `window.WOS` để test đọc trạng thái |
+| `js/game.js` | vòng chơi, đổi bản đồ qua cửa (`switchMap`: mờ đen, dựng bản đồ đích, đặt người chơi ở `arrive`), NPC; `window.WOS` để test đọc |
+| `js/post.js` | hậu kỳ màu toàn màn: cảnh vẽ vào render target half float, quad đổi sang sRGB rồi nhân ma trận affine `GRADE[mapLightType]` |
+| `data/portals.js` | `MAPS[id]`: tên bản đồ (HUD), `start`, `portals` (vùng bước vào là chuyển), `arrive`, `npcs`; mọi số `[ĐO TRONG ẢNH]` |
+| `data/maps/110,257,478.json` | bản đồ thật, sinh bằng `tools/import_maps.py` (đừng sửa tay) |
+| `data/meta/*.json` | bảng meta thật của server (`tools/import_meta.py`, xem `data/meta/README.md`; chữ chỉ là TextId) |
+| `tools/import_maps.py` | đệm server -> `data/maps/<id>.json` (`--png`: ảnh lưới va chạm vào `D:\wos-ref\proof\larus\data`) |
+| `tools/import_meta.py` | `meta_<type>_en.json.gz` -> `data/meta/<type>.json` |
 | `tools/devmap.py` | vẽ bản đồ thử 48x40 bằng luật autotile của editor -> `data/maps/dev.json` |
 | `tools/serve_cors.py` | http.server có CORS để test với asset cục bộ |
+
+## Luồng dữ liệu từ đệm server
+
+```
+D:\wos-ref\server-cache\live\StandaloneWindows64\   (đệm đĩa của demo sau khi chủ dự án chơi; WOS_CACHE để đổi)
+  <id>_tileData.txt   MessagePack TileMapData [w, h, layers]; layer k = LayerTypes-1; floor = [floor, tiles];
+                      tile = [index, name, rot, scale, isInvisible, useImposter]
+  <id>_clientData.txt MessagePack ClientMapData, mảng 13 phần tử theo khoá int (ClientMapDataFormatter): 0 w, 1 h, 2 layers (null),
+                      3 floors, 4 cameraMoveRect [sx,sy,ex,ey,fov], 5 verticalFog, 6 (khoá trống), 7 bgm, 8 landType,
+                      9 cloudProjector (khoá 0 trống), 10 mapBackgroundType, 11 mapLightType, 12 positionMarkers (null cả ba bản đồ)
+  <id>_collide.txt    w*h*16 byte: mỗi ô 4 int32 BIG-endian (MiniMapLoader.ReverseCollision đảo byte), ô con 0.5 m
+                      (2x + j%2, 2z + j/2), bit k = MapCollisionFlag k+1 (bit0 WALL, bit1 EXCLUSIVE, bit6 WATER...), 0 = ENABLE
+  meta_<type>_en.json.gz   hàng meta (MetaSyncManager)
+      | tools/import_maps.py, tools/import_meta.py (chạy lại ra tệp giống hệt)
+      v
+data/maps/<id>.json {client, tile, collide}     data/meta/<type>.json
+      | js/world/map.js: đặt mảnh theo tile, đi được theo collide, độ cao theo floors + HeightPropData cầu thang
+      v
+data/portals.js: cửa, NPC, chỗ xuất phát (server gửi lúc chơi, không có trong đệm) -> đo trong ảnh D:\wos-ref\pilot
+```
+Nhạc nền: `client.bgm` (`bgm_town_larus`) -> `audio/index.json` `BGM__<FNV-1 32 bit của tên viết thường>` (`BGM__704172dc`,
+2 tệp phát nối nhau). Kho 478 `bgm` null: giữ nhạc đang phát. Nền: `mapBackgroundType` 1 = `img/mapbackground/InsideCommon.webp`.
+Bản đồ nhỏ vẽ từ `collide` như `MiniMapLoader.MakeMiniMapFromBytesCollision`.
 
 ## Khuôn dữ liệu
 
@@ -37,7 +68,10 @@ Nghiên cứu gốc: `D:\wos-ref\notes\` (MAPBUILD, PIPELINE, EXPORT_*, CODE §8
   (xem đầu `js/world/map.js`). Khi có `map_type_{id}_client.dat` + `_tile.dat` (MessagePack) chỉ cần đổi sang JSON, không sửa bộ dựng.
 - Toạ độ logic là Unity: ô (x, z), x = `index % width`, z = `index / width`, +z lên trên màn hình. Chỉ lúc đặt Object3D mới
   đổi sang three `(-x, y, z)`. Mảnh đặt ở `(x + 0.5, floor, z + 0.5)`, đỉnh đi được = floor + 1.
-- `web.blocked` (ngoài khuôn game): ô có cây/bụi/đá chặn đi, vì va chạm thật là dữ liệu server chưa có.
+- `collide` (lưới va chạm thật 0.5 m) quyết định đi được; `web.blocked` chỉ còn ở bản đồ thử.
+- NPC: `npc/index.json` không có tên nhân vật; ghép tên theo chân dung `img/npc/NPC_Larus_*.webp` với ảnh thật: Amy = Biggirl,
+  Allen = Store, Lucy = Biggirl_4 (vật liệu `CH_Public_NPC_ArtistLucy`), Billy = Bigman, Olivia = Biggirl_5, Alice = Kidgirl,
+  Rudga = Bigman_3, Benjamin = Oldman, Vivian = Shop (đoán: không ảnh nào hiện tên), Wisp = slime `SL_Wisp_Light`.
 
 ## Chạy
 
@@ -48,8 +82,15 @@ http://127.0.0.1:8841/games/world-of-slime/index.html?assets=http://127.0.0.1:88
 WOS_ASSETS=http://127.0.0.1:8842/ node test/world-of-slime-slice.js                   # đi PC + mobile, chụp vào D:\wos-ref\proof\slice
 node test/world-of-slime-hud.js                                                      # HUD + phím + màn tải, chụp vào D:\wos-ref\proof\hud
 py -3.12 -I games/world-of-slime/tools/devmap.py                                     # dựng lại bản đồ thử
+py -3.12 -I games/world-of-slime/tools/import_maps.py [--png]                         # đệm server -> data/maps (110, 257, 478)
+py -3.12 -I games/world-of-slime/tools/import_meta.py                                 # đệm server -> data/meta
+node test/world-of-slime-larus.js     # quán trọ -> làng -> kho -> làng bằng phím thật (BFS trên collide), NPC, nhạc, lỗi, fps
+node test/world-of-slime-parity.js    # chụp web cùng chỗ với ảnh thật -> D:\wos-ref\proof\larus\web (skill parity-compare)
 ```
-Tham số trang: `?assets=`, `?map=dev`, `?gender=woman`, `?slime=SL_Bat_WindDark`, `?at=x,z`, `?zoom=<m>`, `?quest` (nhiệm vụ mẫu),
+Tờ so ảnh: `D:\wos-ref\proof\larus\compare\<key>.png`, nhận xét `D:\wos-ref\proof\larus\verdicts.tsv` (cổng `parity.py check`).
+Test slice/hud đi trên `?map=dev` (mặc định giờ là 257).
+Tham số trang: `?assets=`, `?map=dev|110|257|478` (mặc định 257), `?from=<tên cửa>`, `?camat=x,z` (khoá điểm nhìn), `?pitch=`,
+`?grade=0` (tắt hậu kỳ), `?gender=woman`, `?slime=SL_Bat_WindDark`, `?at=x,z`, `?zoom=<m>`, `?quest` (nhiệm vụ mẫu),
 `?warn` (cảnh báo thể lực), `?lang=en`.
 
 ## Bảng phím (đúng `D:\wos-ref\code\input_bindings.txt`, map Gameplay)
@@ -108,9 +149,36 @@ thì chậm. Shift-chạy và T-huýt sáo của rev a là bịa, đã bỏ. Cá
     bản đồ (`loading.arm()`), và % không bao giờ lùi.
 16. ChannelText prefab ghi fontSize 36 nhưng trong game thấy ~20 (TMP auto size vừa ô 110x40): dùng 20.
 
+17. `_collide.txt` int32 là **big-endian** (đọc little-endian ra số rác). Kích thước kiểm bằng `GetExpectedColliderLength` = w*h*16.
+18. `ClientMapData` có 13 phần tử, không phải 12 như danh sách trường: khoá 6 trống, bgm ở khoá 7. `cloudProjectorData` cũng
+    lệch một (khoá 0 trống).
+19. Tile Blend có keyword `_WORLDUV` thì `_MainTex` cũng lấy UV thế giới: dùng UV mảnh thì sàn gỗ quán trọ ra trắng.
+20. `MixMaster/Particles/*` (tia nắng cửa sổ): `_SrcBlend 1 _DstBlend 1` = cộng màu, không ánh sáng; vẽ như vật liệu thường ra
+    mảng đen. `_DstBlend 10` / Offset Scroll = trộn alpha.
+21. Shadow Projector (`shadow_001`, lớp 4) là hộp chiếu bóng lên mesh bên dưới; vẽ thành mặt phẳng thì ra mảng sáng giữa nền tối
+    (ở 257/478 hộp nằm ngoài mép phòng). Đang bỏ qua.
+22. Cầu thang quán trọ: BoxCollider (hệ glTF, `x = -center[0]`) xoay yaw 90 + scale (-1,1,-1) ra hộp x 29.45..36.55, z 18..22,
+    y 0..4.05; đầu thấp phía đông ra ngoài lưới floors (null) nên lối ra là vùng `x >= 34` (collide đi được tới 34.5).
+    Collider ngắn hơn mesh (bẫy 7, bản đồ thử) thì hai đầu cùng tầng: thử lại bằng bounds mesh.
+23. `cameraMoveRect` giới hạn tâm nhìn chứ không giới hạn mép màn (inn1: người chơi x 9.7 đứng giữa màn dù rect bắt đầu ở 0).
+    Kho 478 không có rect: dùng cả bản đồ, FOV mặc định 8 (FOV 10 làm phòng nhỏ còn 0.7 lần).
+24. Góc cúi 50 độ, cách 160 m `[ĐO TRONG ẢNH]`, không phải 40 / 126 của Main Camera trong level3: ở 40 độ vách quán trọ cao
+    160 px (thật 135) và sàn phòng ngủ sâu 190 px (thật 220).
+25. Màu làng thật xám-xanh (đất cát web (198,173,124) -> thật (138,143,138)): texture là cát vàng, nên đây là hậu kỳ của game, có
+    thể do thời tiết (DistrictType 10 weathers 20001/20002). `GRADE[0]` hồi quy trên 7 cặp mẫu cùng chất liệu. Hồi quy trên
+    trung bình vùng (khung lệch nhau vài mét) ra hệ số vô nghĩa: phải lấy mẫu từng chất liệu.
+26. Mặt nước đài phun (`FX_Offset_WaterWave_012`) không có trong `map/t01_larus.glb` (export_map.py bỏ sót), chỉ có thác nước.
+27. Đổi `REV` chưa đủ: `?v=` ở mọi import + `index.html`/`mobile.html` (sed `20261021b` -> `20261022a` trong `games/world-of-slime`).
+
 ## Còn thiếu / chưa đúng
 
-- Bố cục bản đồ thật (server). Bản đồ thử ghi `_dev` và trang hiện nhãn "bản đồ thử".
+- Vật thể server không có trong `_tileData`: giường, bàn tròn có cốc, tủ kính, cờ, lò sưởi quán trọ; sách trên giá kho (prop/PR_*).
+  Cửa/portal và chỗ NPC là số đo trong ảnh (`data/portals.js`), không phải dữ liệu thật.
+- Vách kem int02 tối hơn thật (x0.77) trong khi sàn gỗ đúng: hậu kỳ chung không sửa được, cần màu riêng của vật liệu.
+- Plane sương cửa (builtin `Plane` + vật liệu verticalfog: cửa quán trọ, cửa kho, chân cầu thang) chưa xuất: cửa thật là hốc tối.
+- Hội thoại NPC, bong bóng thoại, nhiệm vụ, chữ tên bản đồ khi vào, người chơi khác.
+
+- Bản đồ thật chỉ có ba (110, 257, 478): vùng khác cần chơi demo thêm để có đệm. Bản đồ thử ghi `_dev`, trang hiện nhãn.
 - Shader gốc chưa dịch ngược: không có gradient độ cao, matcap overlay, gió, sương dọc, hậu kỳ màu (game sáng và nhạt hơn).
 - Tốc độ đi/chạy, số camera (vùng chết, tốc độ bám), lướt: `[ĐỀ XUẤT]`. Không có bóng đổ dưới chân nhân vật.
 - Bộ nước kiểu Larus không có trong demo; ao dùng Water_01-A (bờ cỏ rừng xanh xám).
