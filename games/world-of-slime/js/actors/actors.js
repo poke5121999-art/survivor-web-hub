@@ -1,8 +1,8 @@
 // Người chơi (ghép avatar theo player/index.json defaults) và slime đồng hành (slime/index.json variants).
 // Ghép avatar theo SM.Common.Character.CharacterBuilder (EXPORT_PLAYER.md); mã ghép chép từ sheet.html playerCell.
 import * as THREE from 'three';
-import { loadGLB, loadJSON, clipOf } from '../assets.js?v=20261022e';
-import { applyUnitMaterials, decalAt } from './toon.js?v=20261022e';
+import { loadGLB, loadJSON, clipOf } from '../assets.js?v=20261022f';
+import { applyUnitMaterials, decalAt } from './toon.js?v=20261022f';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 // loadGLB trả cùng một gltf (bộ đệm): vào lại bản đồ mà gắn lại g.scene + chạy lại applyUnitMaterials thì vật liệu toon bị
@@ -41,7 +41,7 @@ class Animated {
     this.mixer.update(dt);
     const n = this.actions[this.cur]; if (!n) return;
     const t = n.action.time, dur = n.action.getClip().duration;
-    const w = decalAt(n.ex, t); for (const u of this.decals) u.value = w;
+    const w = decalAt(n.ex, t), ws = decalAt(n.ex, t, 'subDecalWeights'); for (const u of this.decals) u.value = u.sub ? ws : w;
     // sự kiện clip (bước chân): bắn khi thời gian vượt qua mốc, kể cả khi vòng lại
     const ev = this.events[this.cur] || n.ex.events;
     if (ev && this.onEvent) {

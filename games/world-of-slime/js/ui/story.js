@@ -6,12 +6,12 @@
 // - Bảng toàn màn (QuestUI, PerkUI, BuyShopUI) bố cục lồng nhiều layout group không có trong JSON (bẫy 11 ARCH.md), nên
 //   đặt theo khung hình [ĐO TRONG ẢNH]: X(px) với px đo trên ảnh 1280x720 (q1.png: K = 1.875; clip 3:57, 10:39: K = 2).
 import * as THREE from 'three';
-import { R, F, text, css, C } from './hud.js?v=20261022e';
-import { paint, uiUrl, used } from './sprites.js?v=20261022e';
-import { assetUrl } from '../assets.js?v=20261022e';
-import { state, set } from '../state.js?v=20261022e';
-import { L } from '../../data/quest_text.js?v=20261022e';
-import { DIALOGUE, NPC_ART, NPC_THUMB, TUTORIALS, QUEST, SHOP, PERKS, BAG_SLOTS, ITEM_ICON } from '../quest/data.js?v=20261022e';
+import { R, F, text, css, C } from './hud.js?v=20261022f';
+import { paint, uiUrl, used } from './sprites.js?v=20261022f';
+import { assetUrl } from '../assets.js?v=20261022f';
+import { state, set } from '../state.js?v=20261022f';
+import { L } from '../../data/quest_text.js?v=20261022f';
+import { DIALOGUE, NPC_ART, NPC_THUMB, TUTORIALS, QUEST, SHOP, PERKS, BAG_SLOTS, ITEM_ICON } from '../quest/data.js?v=20261022f';
 
 const NAVY = [0.09, 0.27, 0.42, 1], NAVY2 = [0.16, 0.38, 0.56, 1], ORANGE = '#ff8a2a';   // TMP màu chữ; cam [ĐO TRONG ẢNH] 2:24 "healed"
 const TYPE_CPS = 40;              // [ĐỀ XUẤT] chữ/giây của TypewriterByCharacter (giá trị trên prefab không có trong JSON)
@@ -82,7 +82,20 @@ export class Story {
   }
 
   // ---------------------------------------------------------------- modal
+  // F5b: bảng/hội thoại đặt bằng X(px ảnh 1280x720 * K) nên cần lớp cao >= 720K đơn vị. Màn mobile 19.5:9 (844x390) chỉ có ~1130
+  // đơn vị cao: bảng tràn đáy (nút Mua, chi tiết Túi/Kho ra ngoài màn). Thu cả lớp bảng về vừa chiều cao, giữ neo trái/phải
+  // (rộng ảo = W / sc). Màn chỉ nút (guide) đặt vòng theo vị trí nút HUD thật nên không thu.
+  fit(el, K = 2) {
+    const L0 = this.layer; if (!el || el.parentElement !== L0) return;
+    const W = L0.offsetWidth, H = L0.offsetHeight, sc = Math.min(1, H / (720 * K), W / (1280 * K));
+    if (!(sc < 0.97)) return;   // PC 1280x720 ra 0.996: không đụng
+    Object.assign(el.style, { left: '0px', top: '0px', right: 'auto', bottom: 'auto', width: W / sc + 'px', height: H / sc + 'px', transformOrigin: '0 0', transform: `scale(${sc})` });
+    el.dataset.fit = sc.toFixed(3);
+    const hit = parseFloat(getComputedStyle(L0).getPropertyValue('--hit')); if (hit) el.style.setProperty('--hit', hit / sc + 'px');
+  }
   pushModal(name, el, onKey) {
+    // popup giữa màn (Mua, Notice, biệt danh) cao < 1130 đơn vị: vừa sẵn, không thu (giữ nút -/+ to nhất có thể)
+    if (!['guide', 'buyPopup', 'popup', 'nickAsk', 'nickInput'].includes(name)) this.fit(el, name === 'questlog' ? 1.875 : 2);
     this.modalStack.push({ name, el, onKey });
     if (name !== 'guide') this.fx.classList.add('modal');   // băng chữ ẩn dưới bảng/hội thoại (log trái vẫn hiện, như 10:45); màn chỉ nút thì băng vẫn chạy dưới lớp tối (7:28)
     set({ modal: name }); this.onModal(name);
@@ -709,7 +722,7 @@ export class Story {
 
 // chụp mô hình (NPC / người chơi) vào canvas 2D bằng renderer của game: khung nửa thân như al1.png [ĐỀ XUẤT]
 function snapshot(renderer, object, canvas, height) {
-  const size = 256, rt = new THREE.WebGLRenderTarget(size, size);
+  const size = 256, rt = new THREE.WebGLRenderTarget(size, size); rt.texture.colorSpace = THREE.SRGBColorSpace;   // F5b: không đặt thì shader ghi màu tuyến tính, chibi/chân dung tối (da nâu)
   const sc = new THREE.Scene(); const par = object.parent; const pos = object.position.clone(), rot = object.rotation.clone();
   sc.add(object); object.position.set(0, 0, 0); object.rotation.set(0, Math.PI, 0); object.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(object); const h = height || (box.max.y - box.min.y);

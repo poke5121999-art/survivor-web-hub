@@ -4,17 +4,17 @@
 // gmwall_slimepedia + ui_view__SlimeIndexUI / SlimeIndexListCellPod; Túi = prefab ui_view__InventoryUI (clip không có cảnh túi,
 // GAMEPLAY "Not seen: inventory/bag panel") nên chỗ đặt là tỉ lệ prefab quy ra ảnh [ĐỀ XUẤT]; biệt danh = v4van_nickname_synthesis_lab.
 import * as THREE from 'three';
-import { R, F, text } from './hud.js?v=20261022e';
-import { paint } from './sprites.js?v=20261022e';
-import { assetUrl } from '../assets.js?v=20261022e';
-import { L } from '../../data/quest_text.js?v=20261022e';
-import { X, panel, T, NAVY, NAVY2, fmt } from './story.js?v=20261022e';
-import { Slime } from '../actors/actors.js?v=20261022e';
-import { BAG_SLOTS } from '../quest/data.js?v=20261022e';
-import { PARTY_MAX, STORAGE_MAX } from '../state.js?v=20261022e';
-import { RULES } from '../combat/rules.js?v=20261022e';
-import { item, itemIcon, bagSlots } from '../party/items.js?v=20261022e';
-import { loadDex, speciesName, displayName, elementsOf, DEX_POINT } from '../party/roster.js?v=20261022e';
+import { R, F, text } from './hud.js?v=20261022f';
+import { paint } from './sprites.js?v=20261022f';
+import { assetUrl } from '../assets.js?v=20261022f';
+import { L } from '../../data/quest_text.js?v=20261022f';
+import { X, panel, T, NAVY, NAVY2, fmt } from './story.js?v=20261022f';
+import { Slime } from '../actors/actors.js?v=20261022f';
+import { BAG_SLOTS } from '../quest/data.js?v=20261022f';
+import { PARTY_MAX, STORAGE_MAX } from '../state.js?v=20261022f';
+import { RULES } from '../combat/rules.js?v=20261022f';
+import { item, itemIcon, bagSlots } from '../party/items.js?v=20261022f';
+import { loadDex, speciesName, displayName, elementsOf, DEX_POINT } from '../party/roster.js?v=20261022f';
 
 const K = 2;
 const LIGHT = [0.74, 0.95, 1, 1];
@@ -28,6 +28,7 @@ const ELEM = {
 const vi = () => L('ui.ok') === 'Có';
 const CSS = `
 #hud .pn-card { overflow: hidden; }
+#hud.mobile [data-hud="storagePod"] { overflow: visible; }   /* F5b: overflow hidden cắt vùng chạm 44 px (.btn::after) của ô đội */
 #hud .pn-card img.sl { position:absolute; object-fit:contain; pointer-events:none; }
 #hud .pn-card img.sil { filter: brightness(0) invert(0.86) sepia(0.25) hue-rotate(170deg) saturate(1.6); opacity:.75; }
 #hud .pn-q { color: rgba(140,170,190,.55); font-weight:800; }
@@ -74,7 +75,7 @@ export async function slimePortrait(renderer, typeId, size = 384) {
   const r = Math.max(sz.x, sz.y, sz.z) * 0.62;
   const cam = new THREE.PerspectiveCamera(24, 1, 0.05, 100);
   cam.position.set(c.x, c.y + r * 0.9, c.z - r / Math.tan(12 * Math.PI / 180) * 0.95); cam.lookAt(c);
-  const rt = new THREE.WebGLRenderTarget(size, size);
+  const rt = new THREE.WebGLRenderTarget(size, size); rt.texture.colorSpace = THREE.SRGBColorSpace;   // F5b: ghi sRGB như màn chính
   const old = renderer.getClearAlpha(), oc = renderer.getClearColor(new THREE.Color());
   renderer.setRenderTarget(rt); renderer.setClearColor(0x000000, 0); renderer.clear(); renderer.render(sc, cam);
   const px = new Uint8Array(size * size * 4); renderer.readRenderTargetPixels(rt, 0, 0, size, size, px);

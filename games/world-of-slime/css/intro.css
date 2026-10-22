@@ -18,6 +18,9 @@
 #intro .outline { text-shadow: 0 0 3px rgba(10, 25, 35, .95), 0 2px 2px rgba(10, 25, 35, .8); }
 #intro .btn { pointer-events: auto; cursor: pointer; }
 #intro .btn:active { filter: brightness(1.12); }
+/* F5b: vùng chạm >= 44 px màn trên mobile (nút Skip, mũi tên ba lô, tab tạo nhân vật nhỏ hơn 40 px ở 844x390); hình giữ cỡ gốc */
+#intro[data-desktop="0"] [data-ui="tab"] { z-index: 3; }   /* vùng chạm tab đè mép trên ô chọn (ô 58 px còn dư) */
+#intro[data-desktop="0"] .btn:not(.card)::after { content: ''; position: absolute; left: 50%; top: 50%; width: max(100%, var(--hit, 0px)); height: max(100%, var(--hit, 0px)); transform: translate(-50%, -50%); }
 #intro .btxt { font-weight: 800; }
 #intro .ttl { font-weight: 800; text-shadow: 0 2px 2px rgba(0, 20, 40, .35); }
 #intro .sym { opacity: .55; }

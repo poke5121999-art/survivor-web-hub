@@ -7,14 +7,14 @@
 // game.js chỉ gọi: setMap(map, info), command(aim) -> bool, recall(), startDuel(), update(dt, cam) -> bool (true = đang lái
 // slime đồng hành S), và đọc `events` (test).
 import * as THREE from 'three';
-import { Slime } from '../actors/actors.js?v=20261022e';
-import { RULES, META, ELEMENT, elementOf, makeRng, rollDamage } from './rules.js?v=20261022e';
-import { CombatUI } from './ui.js?v=20261022e';
-import { state, set } from '../state.js?v=20261022e';
-import { L } from '../../data/quest_text.js?v=20261022e';
-import { assetUrl } from '../assets.js?v=20261022e';
-import { displayName } from '../party/roster.js?v=20261022e';
-import { loadFx, makeBall, makeHit, fadeTrail } from './fx.js?v=20261022e';
+import { Slime } from '../actors/actors.js?v=20261022f';
+import { RULES, META, ELEMENT, elementOf, makeRng, rollDamage } from './rules.js?v=20261022f';
+import { CombatUI } from './ui.js?v=20261022f';
+import { state, set } from '../state.js?v=20261022f';
+import { L } from '../../data/quest_text.js?v=20261022f';
+import { assetUrl } from '../assets.js?v=20261022f';
+import { displayName } from '../party/roster.js?v=20261022f';
+import { loadFx, makeBall, makeHit, fadeTrail } from './fx.js?v=20261022f';
 
 // F5a: quả cầu + hiệu ứng trúng dựng từ prefab gốc FX_EN0_RangeAtk_<Hệ>_EnergyBall / FX_EN0_Hit_<Hệ> (js/combat/fx.js,
 // texture gốc fx/tex). ELEM_COL chỉ còn cho hệ chưa có prefab đã xuất (khối cầu cũ) và tia lệnh. [ĐỀ XUẤT] màu
@@ -42,7 +42,9 @@ export class Combat {
     this.beam.frustumCulled = false; this.beam.renderOrder = 5; this.beamT = 0;
     ctx.scene.add(this.beam);
   }
-  ev(kind, d = {}) { this.events.push({ t: Math.round(performance.now()), kind, ...d }); if (this.events.length > 400) this.events.shift(); }
+  // t = giờ thật (ms), gt = giờ trong game (s, cộng dt mỗi khung). game.js kẹp dt <= 0.05 nên khi fps < 20 game chạy chậm hơn
+  // giờ thật: đo thời lượng trận phải dùng gt (F5b, test combat từng đỏ trên Pages vì đo bằng đồng hồ thật).
+  ev(kind, d = {}) { this.events.push({ t: Math.round(performance.now()), gt: +(this.clock || 0).toFixed(3), kind, ...d }); if (this.events.length > 400) this.events.shift(); }
 
   // ---- chỉ số đồng hành = bản ghi slime đang đồng hành (F3: engine.roster.active(), khuôn ở js/state.js): cấp, EXP,
   // máu/MP/thể lực là phần 0..1 của mức tối đa theo cấp. Đổi slime (phím 1-6) thì game.js gọi lại loadPartner().
@@ -196,6 +198,7 @@ export class Combat {
   // ---- sát thương (khuôn DamageData{gameIndex, damage, damageType})
   hitMon(m, dmg) {
     if (m.dead) return;
+    if (m.t0 == null) m.t0 = this.clock || 0;   // F5b: giờ game của đòn đầu tiên trúng con này (thời lượng trận trong sự kiện kill)
     m.hp = Math.max(0, m.hp - dmg.damage);
     m.hitT = 0.25; m.aggro = true;
     if (!m.phase) this.replay(m.actor, 'Hit');
@@ -219,7 +222,7 @@ export class Combat {
   kill(m) {
     m.dead = true; m.dieT = 0.45; m.phase = null; m.respawnT = RULES.respawn;
     this.c.audio.play('sfx_die_default');
-    this.ev('kill', { id: m.def.id, model: m.def.model, team: m.team });
+    this.ev('kill', { id: m.def.id, model: m.def.model, team: m.team, fight: +((this.clock || 0) - (m.t0 ?? this.clock ?? 0)).toFixed(2) });
     if (this.pt.target === m) { this.pt.target = null; this.pt.phase = null; this.pt.linger = 1.0; }
     this.reward(m);
   }
@@ -280,6 +283,7 @@ export class Combat {
 
   // ---- mỗi khung. Trả true khi đang lái slime đồng hành (game.js bỏ qua đi theo).
   update(dt, cam) {
+    this.clock = (this.clock || 0) + dt;
     if (!this.map) return false;
     const S = this.c.S, P = this.c.P, slime = this.c.slime, pt = this.pt, PR = RULES.partner;
     this.duelTick(dt);
@@ -401,7 +405,7 @@ export class Combat {
     if (m.dead) {
       if (m.dieT > 0) { m.dieT -= dt; const s = Math.max(0.01, m.dieT / 0.45); m.object.scale.setScalar(s); if (m.dieT <= 0) m.object.visible = false; }
       if (m.team === 'wild' && (m.respawnT -= dt) <= 0) {
-        m.dead = false; m.hp = m.maxHp; m.x = m.home.x; m.z = m.home.z; m.y = this.map.getHeight(m.x, m.z); m.aggro = false; m.phase = null;
+        m.dead = false; m.hp = m.maxHp; m.t0 = null; m.x = m.home.x; m.z = m.home.z; m.y = this.map.getHeight(m.x, m.z); m.aggro = false; m.phase = null;
         m.object.visible = true; m.object.scale.setScalar(0.01); m.spawnT = 0.4; a.play('Idle', 0);
         this.ev('respawn', { id: m.def.id });
       }
@@ -417,7 +421,7 @@ export class Combat {
     if (m.aggro) {
       // bỏ đuổi khi rời chỗ sinh quá xa (chỉ slime hoang)
       if (m.team === 'wild' && Math.hypot(m.x - m.home.x, m.z - m.home.z) > RULES.leash) {
-        m.aggro = false; m.phase = null; m.hp = m.maxHp; m.wt = { x: m.home.x, z: m.home.z };
+        m.aggro = false; m.phase = null; m.hp = m.maxHp; m.t0 = null; m.wt = { x: m.home.x, z: m.home.z };
         if (this.pt.target === m) this.recall();
       } else if (m.phase) {
         m.actT -= dt * 1000;

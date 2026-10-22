@@ -1,9 +1,9 @@
 // Khung chung cho các màn mở đầu: lớp #intro phủ toàn màn, gốc canvas đơn vị prefab (cao 1080) scale theo
 // SMUniformCanvasScaler (hud.js uiScale) như HUD; X() đặt phần tử theo toạ độ ảnh chụp 1280x720 (K = 2 đơn vị / px,
 // giống js/ui/story.js) với neo trái / giữa / phải; popup Notice / Nickname theo prefab CommonPopup / CommonInputPopup.
-import { paint, BORDER } from '../ui/sprites.js?v=20261022e';
-import { uiScale, css } from '../ui/hud.js?v=20261022e';
-import { L } from './text.js?v=20261022e';
+import { paint, BORDER } from '../ui/sprites.js?v=20261022f';
+import { uiScale, css } from '../ui/hud.js?v=20261022f';
+import { L } from './text.js?v=20261022f';
 
 // viền 9-slice của sprite dùng ở đây (ui/index.json border [l, b, r, t]) chưa có trong BORDER của HUD
 Object.assign(BORDER, {
@@ -27,6 +27,7 @@ export function makeLayer(desktop) {
   L0.relayout = () => {
     const s = uiScale(desktop); L0.s = s; L0.W = innerWidth / s; L0.H = innerHeight / s;
     Object.assign(root.style, { width: L0.W + 'px', height: L0.H + 'px', transform: `scale(${s})` });
+    root.style.setProperty('--hit', 44 / s + 'px');   // F5b: vùng chạm tối thiểu 44 px màn của nút (intro.css .btn::after, chỉ mobile)
     for (const f of L0.subs) f();
   };
   L0.relayout(); addEventListener('resize', L0.relayout);

@@ -113,11 +113,11 @@ async function converse(page, picks = [], max = 60) {
   return seen;
 }
 // slime hoang còn sống gần người chơi nhất
-const nearestMon = page => page.evaluate(() => {
+const nearestMon = (page, fresh) => page.evaluate(fresh => {
   let b = null, bd = 1e9;
-  for (const m of WOS.combat.mons) { if (m.dead || m.team !== 'wild' || m.def.model !== 'SL_Slime_Grass') continue;   /* F3: rừng có thêm Mandrake */ const d = Math.hypot(m.x - WOS.P.x, m.z - WOS.P.z); if (d < bd) { bd = d; b = { id: m.def.id, x: m.x, z: m.z, d }; } }
+  for (const m of WOS.combat.mons) { if (m.dead || m.team !== 'wild' || m.def.model !== 'SL_Slime_Grass' || (fresh && m.hp < m.maxHp)) continue;   /* F3: rừng có thêm Mandrake */ const d = Math.hypot(m.x - WOS.P.x, m.z - WOS.P.z); if (d < bd) { bd = d; b = { id: m.def.id, x: m.x, z: m.z, d }; } }
   return b;
-});
+}, !!fresh);
 // đi tới gần một Junior Floralime rồi nhấn Space (KeyboardInteractAttack), đợi nó chết
 async function fightOne(page, label) {
   const m = await nearestMon(page);
@@ -129,10 +129,16 @@ async function fightOne(page, label) {
   const eng = await until(page, () => !!WOS.combat.pt.target, null, 4000);
   const tgt = (await st(page)).target;
   const killed = await until(page, id => WOS.combat.events.some(e => e.kind === 'kill' && e.id === id && e.t > performance.now() - 30000) && !WOS.combat.mons.find(m => m.def.id === id && !m.dead), tgt, 30000);
-  const sec = (Date.now() - t0) / 1000;
-  check(`hạ Junior Floralime (${label})`, eng && killed, `${tgt} trong ${sec.toFixed(1)} s`);
-  return { id: tgt, sec };
+  // F5b: thời lượng trận = giờ TRONG GAME từ đòn đầu trúng con này tới lúc nó chết (sự kiện kill.fight, combat.js). Đồng hồ thật sai
+  // hai kiểu: (a) con này đã bị đánh từ trước khi test nhấn Space (slime hoang gây hấn, đồng hành tự lao vào) nên trận ngắn giả
+  // (3.3 s trên Pages); (b) fps < 20 thì game chạy chậm (dt kẹp 0.05) nên trận dài giả (12.1 s).
+  const sec = await page.evaluate(id => { const k = WOS.combat.events.filter(e => e.kind === 'kill' && e.id === id).pop(); return k ? k.fight : null; }, tgt);
+  check(`hạ Junior Floralime (${label})`, eng && killed, `${tgt} trong ${sec == null ? '?' : sec.toFixed(1)} s game, ${((Date.now() - t0) / 1000).toFixed(1)} s thật`);
+  return { id: tgt, sec: sec == null ? -1 : sec };
 }
+
+// WOS_CPU=4: chậm CPU như máy yếu / Pages tải nặng (CDP Emulation.setCPUThrottlingRate) để thử độ bền của test (F5b)
+const throttle = async page => { const r = +process.env.WOS_CPU || 0; if (r > 1) await (await page.context().newCDPSession(page)).send('Emulation.setCPUThrottlingRate', { rate: r }); };
 
 async function main() {
   if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
@@ -147,7 +153,7 @@ async function main() {
   try {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
     await ctx.addInitScript(p => { if (!sessionStorage.getItem('wosPreset')) { sessionStorage.setItem('wosPreset', '1'); localStorage.setItem('wos.save', p); } }, JSON.stringify(PRESET));
-    const page = await ctx.newPage(); watch(page);
+    const page = await ctx.newPage(); watch(page); await throttle(page);
     await page.goto(BASE + 'index.html' + Q('&map=110&at=30.5,58.5'));
     await page.waitForFunction(() => window.__ready && WOS.npcs.length > 0, null, { timeout: 120000 });
     await wait(page, 1200);
@@ -211,25 +217,35 @@ async function main() {
     const evs = await cev(page);
     const logs = await page.evaluate(() => WOS.__logs || []);
     void logs;
-    check('mỗi trận 4-12 s (clip ~6-9 s)', fights.every(x => x.sec >= 4 && x.sec <= 12), fights.map(x => x.sec.toFixed(1)).join(', '));
+    check('mỗi trận 4-12 s giờ game (clip ~6-9 s)', fights.every(x => x.sec >= 4 && x.sec <= 12), fights.map(x => x.sec.toFixed(1)).join(', '));
     // log EXP slime / đồ rơi / lên cấp: dòng log tự tắt sau 4.2 s, nên đọc nhật ký combat + DOM của trận cuối
     check('EXP slime + lên cấp slime Lv2 (3 con)', evs.filter(e => e === 'slimeExp').length >= 3 && evs.some(e => e === 'slimeLevel:2'), evs.filter(e => /slime/.test(e)).join(' '));
     check('Junior Floralime dùng đòn attack_type 1 lên đồng hành', evs.some(e => /^monAttack/.test(e)) && evs.some(e => e === 'partnerHit'), '');
     check('đồng hành dùng kỹ năng (skill_type) và đòn thường', evs.some(e => /^cast/.test(e)) && evs.some(e => /^attack/.test(e)), '');
 
     console.log('Huýt sáo giữa trận');
-    const m = await nearestMon(page);
-    if (m && m.d > 5) { const pts = await plan(page, m.x, m.z, 4.5, 2.0); if (pts) await walk(page, pts, { timeout: 30000 }); }
-    if (!(await st(page)).battle) await page.keyboard.press('Space');
-    await until(page, () => !!WOS.combat.pt.target, null, 4000);
-    await wait(page, 1200);
+    // F5b: huýt sáo phải nhấn khi trận còn đang diễn ra. Trước đây test có thể nhấn Space đúng lúc con đang đánh vừa chết
+    // (trận ngắn, nó đã bị đánh từ trước) -> state.battle đã tắt nên Space = đánh -> lao vào con kế (Pages: "battle true target flo6").
+    // Nay: đợi trận cũ xong, chọn con còn đầy máu, và chỉ nhấn khi mục tiêu còn > 40% máu.
+    let tgtHp = 0;
+    for (let k = 0; k < 4 && tgtHp <= 0.4; k++) {
+      await until(page, () => !WOS.state.battle, null, 15000);
+      const m = await nearestMon(page, true) || await nearestMon(page);
+      if (m && m.d > 4) { const pts = await plan(page, m.x, m.z, 4.0, 2.0); if (pts) await walk(page, pts, { timeout: 30000 }); }
+      if (!(await st(page)).battle) await page.keyboard.press('Space');
+      await until(page, () => !!WOS.combat.pt.target, null, 4000);
+      await wait(page, 1200);
+      tgtHp = await page.evaluate(() => { const t = WOS.combat.pt.target; return t && !t.dead ? t.hp / t.maxHp : 0; });
+    }
     s = await st(page);
     const btn = await page.evaluate(() => WOS.hud.el.attack.dataset.mode);
     await shot(page, 'forest_whistle');
     check('đang đánh: nút lớn là huýt sáo đỏ', s.battle && btn === 'return', btn);
     const fpsFight = s.fps;
+    const nRecall = await page.evaluate(() => WOS.combat.events.filter(e => e.kind === 'recall').length);
     await page.keyboard.press('Space'); await wait(page, 400);
     s = await st(page);
+    check('Space lúc đang đánh phát sự kiện recall (mục tiêu còn ' + Math.round(tgtHp * 100) + '% máu)', await page.evaluate(n => WOS.combat.events.filter(e => e.kind === 'recall').length > n, nRecall));
     check('Space = huýt sáo: dừng trận, đồng hành về cạnh người chơi', !s.battle && !s.target && Math.hypot(s.sx - s.x, s.sz - s.z) < 2.5, `battle ${s.battle} target ${s.target} d ${Math.hypot(s.sx - s.x, s.sz - s.z).toFixed(2)}`);
     check('fps >= 30 khi đánh', fpsFight >= 30, fpsFight);
     const resp = await until(page, () => WOS.combat.events.some(e => e.kind === 'respawn'), null, 15000);
@@ -242,7 +258,7 @@ async function main() {
     const mctx = await browser.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
     const pre2 = { ...PRESET, duel: true };
     await mctx.addInitScript(p => { if (!sessionStorage.getItem('wosPreset')) { sessionStorage.setItem('wosPreset', '1'); localStorage.setItem('wos.save', p); } }, JSON.stringify(pre2));
-    const mp = await mctx.newPage(); watch(mp);
+    const mp = await mctx.newPage(); watch(mp); await throttle(mp);
     await mp.goto(BASE + 'mobile.html' + Q('&map=shadow_forest_entrance&at=44,30'));
     await mp.waitForFunction(() => window.__ready && WOS.combat.mons.length > 0, null, { timeout: 120000 });
     await wait(mp, 1500);

@@ -7,7 +7,7 @@
 // Lớp dùng: quả cầu = Bubble + Center_Light + vệt Side_Choppy_A/B (phát theo rate khi bay) + Shadow (mặt đất);
 // trúng = Flash + Hit + Shock_Ring + lớp sprite sheet của hệ (Fire 4x4, Lightning 3x3...) + tia Particle. Drops chưa dựng.
 import * as THREE from 'three';
-import { loadJSON, loadTex } from '../assets.js?v=20261022e';
+import { loadJSON, loadTex } from '../assets.js?v=20261022f';
 
 let INDEX = null, loading = null;
 export function loadFx() {

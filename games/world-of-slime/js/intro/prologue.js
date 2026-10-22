@@ -2,11 +2,11 @@
 // (img/prologue.mp4 = TextAsset "Prologue" của video_prologue.bundle, EXPORT_2D.md).
 import * as THREE from 'three';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
-import { assetUrl, loadGLB } from '../assets.js?v=20261022e';
-import { unitMaterial } from '../actors/toon.js?v=20261022e';
-import { uiUrl, paint } from '../ui/sprites.js?v=20261022e';
-import { X, T, onTap, skipButton, media, sleep } from './ui.js?v=20261022e';
-import { L } from './text.js?v=20261022e';
+import { assetUrl, loadGLB } from '../assets.js?v=20261022f';
+import { unitMaterial } from '../actors/toon.js?v=20261022f';
+import { uiUrl, paint } from '../ui/sprites.js?v=20261022f';
+import { X, T, onTap, skipButton, media, sleep } from './ui.js?v=20261022f';
+import { L } from './text.js?v=20261022f';
 
 // nền IntroStoryUI / SelectInitialSlimeUI: đen + Gradient (Ui_FX_Circle_Glow_01 màu (0.54, 0.603, 0.811), kéo giãn hơn màn 600)
 function glowBg(layer) {

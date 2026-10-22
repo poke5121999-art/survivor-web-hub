@@ -6,10 +6,10 @@
 // bản PC (PlatformPreview.UseStandaloneUIScale) nhân thêm StandaloneScale = 0.8.
 // Vị trí/cỡ nút PC khác mobile: PlaySceneButtonBatch.buttonInfos (standalonePosition/Size vs defaultPosition/Size).
 import * as THREE from 'three';
-import { paint, tinted, uiUrl, used } from './sprites.js?v=20261022e';
-import { assetUrl } from '../assets.js?v=20261022e';
-import { state, on } from '../state.js?v=20261022e';
-import { t } from '../../data/loc_vi.js?v=20261022e';
+import { paint, tinted, uiUrl, used } from './sprites.js?v=20261022f';
+import { assetUrl } from '../assets.js?v=20261022f';
+import { state, on } from '../state.js?v=20261022f';
+import { t } from '../../data/loc_vi.js?v=20261022f';
 
 export const C = {                       // màu Image.color / TMP fontColor chép từ prefab
   dark30: [0.078, 0.118, 0.133, 0.298], dark39: [0.078, 0.118, 0.133, 0.392], dark59: [0.078, 0.118, 0.133, 0.588],
@@ -115,6 +115,7 @@ export class Hud {
     const r = this.root.style;
     r.width = innerWidth / this.s + 'px'; r.height = innerHeight / this.s + 'px';
     r.transform = `scale(${this.s})`;
+    r.setProperty('--hit', 44 / this.s + 'px');   // F5b: vùng chạm tối thiểu 44 px màn cho nút nhỏ (game.css .btn::after, chỉ mobile)
   }
 
   key(parent, k, size, p, a = [0.5, 0.5]) {        // ButtonKeymapOverlay: chỉ hiện trên PC (bàn phím)
@@ -147,6 +148,10 @@ export class Hud {
     E.levelFill = R(lg, { n: 'levelGauge', a: [0.5, 0.5], sz: [75, 170], spr: 'Game/UI_PlayerInfo_Gauge', cls: 'vfill' });
     const lv = R(pi, { a: [0.5, 0], p: [-20, 0], pv: [1, 0], auto: true, spr: 'Game/UI_PlayerInfo_BG_Lv', col: C.navy, sl: true, cls: 'pad lvbox' });
     E.levelText = text(lv, '1', 24, TXT_LV); lv.dataset.hud = 'level';
+    // F5b: chạm chân dung = Tiềm năng (K). Màn chỉ nút gốc ui_tutorial__Tutorial_PERK_BUTTON khoanh vòng ở neo (0,1) (33,-9) 196 = PlayerInfo,
+    // nên trên mobile (không có phím K) Perk mở từ đây.
+    pi.classList.add('btn'); pi.dataset.act = 'perk';
+    pi.addEventListener('pointerdown', e => { e.stopPropagation(); this.onAction('perk'); });
 
     // ---- Warning (BaseWarningLayout, dưới PlayerInfo): "Cảnh báo! Thể lực thấp!"
     const wl = E.warning = R(B, { n: 'warning', a: [0, 1], p: [40, -200], pv: [0, 1], auto: true, cls: 'col' });
@@ -197,6 +202,9 @@ export class Hud {
     const bot = R(cc, { a: [0, 1], p: [31, -144], sz: [62, 76], spr: 'Category/Category_BG_Bottom', col: [1, 1, 1, 0.784] });
     E.catParty = R(bot, { a: [0.5, 0.5], p: [0, -6], sz: [60, 60] });
     E.quest = R(B, { n: 'quest', a: [1, 0, 1, 1], p: [-140, -355], sz: [500, -830], pv: [1, 1], cls: 'questlist' });
+    // F5b: chạm thẻ nhiệm vụ = nhật ký (QuestBookmarkLayout.OnClickLayout -> QuestBookmarkUI.OpenQuestUI); mobile không có phím J
+    E.quest.dataset.act = 'quest';
+    E.quest.addEventListener('pointerdown', e => { if (!e.target.closest('.qbox, [data-hud="questEmpty"]')) return; e.stopPropagation(); this.onAction('quest'); });   // .qbox có pointer-events (game.css)
 
     // ---- SlimeQuickSlotLayout (đáy giữa): HorizontalLayoutGroup spacing -22, ô 149x139 scale 0.9
     const bar = E.slimeBar = R(B, { n: 'slimeBar', a: [0.5, 0], p: [0, 80], pv: [0.5, 0], auto: true, cls: 'row top' });
@@ -429,7 +437,7 @@ export class Hud {
 
   // Ảnh chân dung: chụp avatar thật bằng renderer của game vào render target, rồi chép ra canvas PlayerThumb.
   portrait(renderer, object) {
-    const size = 256, rt = new THREE.WebGLRenderTarget(size, size);
+    const size = 256, rt = new THREE.WebGLRenderTarget(size, size); rt.texture.colorSpace = THREE.SRGBColorSpace;   // F5b: không đặt thì shader ghi màu tuyến tính, chibi/chân dung tối (da nâu)
     const sc = new THREE.Scene(); const par = object.parent; const pos = object.position.clone(), rot = object.rotation.clone();
     sc.add(object); object.position.set(0, 0, 0); object.rotation.set(0, Math.PI, 0); object.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(object); const h = box.max.y - box.min.y;

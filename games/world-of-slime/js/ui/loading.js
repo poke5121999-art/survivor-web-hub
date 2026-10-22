@@ -2,10 +2,10 @@
 // (LoadingIcon/UI_Loading_0..29, 30 khung) và thanh Login_Loading_Gauge_Bg/Fill (sliced). Thanh chạy theo byte thật
 // (assets.loadProgress). Bố cục màn đăng nhập gốc nằm trong scene chưa bóc nên vị trí ở đây là [ĐỀ XUẤT],
 // cùng hệ đơn vị canvas 1080 với HUD.
-import { assetUrl, loadProgress } from '../assets.js?v=20261022e';
-import { paint, uiUrl } from './sprites.js?v=20261022e';
-import { uiScale } from './hud.js?v=20261022e';
-import { t } from '../../data/loc_vi.js?v=20261022e';
+import { assetUrl, loadProgress } from '../assets.js?v=20261022f';
+import { paint, uiUrl } from './sprites.js?v=20261022f';
+import { uiScale } from './hud.js?v=20261022f';
+import { t } from '../../data/loc_vi.js?v=20261022f';
 
 const FRAMES = 30;
 const KEEP = [];   // giữ tham chiếu ảnh khung: ảnh bị thu gom giữa chừng thì trình duyệt huỷ yêu cầu (ERR_ABORTED)

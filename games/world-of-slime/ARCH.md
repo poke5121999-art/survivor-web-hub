@@ -1,4 +1,4 @@
-# Thế Giới Slime: kiến trúc (rev 20261022e)
+# Thế Giới Slime: kiến trúc (rev 20261022f)
 
 Bản web của World of Slime Demo (TEAM42). Từ rev 20261022a chạy trên **bản đồ thật của server** (Larus: quán trọ 257, làng 110,
 kho 478, lấy từ đệm đĩa của game): mở game là ở phòng ngủ quán trọ như bản thật, đi xuống cầu thang ra làng, vào/ra kho.
@@ -264,7 +264,7 @@ Tham số trang: `?assets=`, `?map=dev|110|257|478` (mặc định 257), `?from=
   (`--extra-only`); bỏ đổi màu canvas. `OBJ_DadBag_2_Albedo` (đỏ) cũng xuất, chưa dùng.
 - **HUD**: phím `key_Digit1..6` trên ô slime (SlimeQuickSlot/ButtonKeymapOverlay pos (58,-65) 24x24, chỉ PC); tên bản đồ chữ 800 + bóng.
 - Chưa làm (không thuộc F5a hoặc chưa tìm ra): biểu tượng log EXP và nền "Túi Đồ" ở quầy nằm trong `js/ui/story.js` (F4);
-  miệng cười avatar trước gương: camera ngang mặt không đổi gì, decal ô 1 có miệng nhưng web không hiện (chưa rõ: mặt nạ/alpha decal);
+  miệng cười avatar trước gương: đã sửa ở F5b (sub decal);
   hộp trôi dạt b1.png (2 thùng + hòm + lưới + sao biển) không thấy prefab nào khớp trong map/ prop/ npc/ (NPC_Box_001 = 2 hòm + sao
   biển, PR_oldbox_003 = rương có lưới); lửa lò sưởi, vệt nắng projector.
 - Bẫy: (a) GLB nhiều node cùng tên `Water_Flow_02` (hai nhánh): `getObjectByName` lấy cái đầu, map.js duyệt cả cây nên đủ.
@@ -273,6 +273,48 @@ Tham số trang: `?assets=`, `?map=dev|110|257|478` (mặc định 257), `?from=
   (d) `export_fx.py` sửa bằng thay chuỗi Python có `\` + xuống dòng không khớp, im lặng: kiểm lại bằng số prefab in ra (26).
 - So ảnh: `D:/wos-ref/proof/larus/f5a/` (x2/x3 nước, inn1/w1/al4 đồ đạc; `*_before.png` / `*_after.png`), `D:/wos-ref/proof/combat/f5a/`
   (forest_grass_after/zoom, projectile_after, fx_sheet), `D:/wos-ref/proof/intro/f5a/` (pack_over/pack_focus before/after).
+
+## Ngày/đêm, màu, mobile (F5b, rev 20261022f)
+
+- **Ngày/đêm là dữ liệu gốc** (`js/post.js`): `RealtimeBaseLight.Refresh` đặt `Light.color` đèn chính =
+  `CommonDataSet.LightTypeData[lightType].lightGradient.Evaluate(t)`, t = (giây trong ngày theo giờ server % scaledDaySeconds) /
+  scaledDaySeconds (`Initialize` chia scaledDaySeconds cho timeScale; `nightStartHour` 19, `nightEndHour` 6). Enum gốc
+  `MapLightType`: 0 Common, 1 IndoorCommon, 2 Cave, 3 Fog. Gradient loại 0: xanh đêm (0.294, 0.440, 0.786) tới 0.199 ngày, cam 0.219,
+  ấm 0.246, **trắng 0.290..0.701**, ấm 0.745, cam 0.772, xanh đêm từ 0.792. Loại 1 (nhà trong) trắng suốt ngày.
+  Ảnh demo thật `D:\wos-ref\pilot` (x2, v3, out2...) chụp lúc **đêm** (đèn xanh nhân lên cát vàng ra xám-xanh); clip DcGavHFwqtk là ban
+  **ngày**. Bản web mặc định ban ngày; `?time=HH:MM` chọn giờ (trộn `GRADE` ngày -> `GRADE_NIGHT` theo độ đêm của gradient,
+  scaledDaySeconds coi là 86400 `[ĐỀ XUẤT]`: timeScale nằm trong scene, chưa đọc).
+- `GRADE[0]` ngày: ridge về đơn vị trên 6 chất liệu web `?grade=0` | khung clip 2:03.5 cùng chỗ (cát, cỏ, bụi, mái, ván, thùng).
+  Sai số trung bình khối đồng màu 32.7/255 -> 6.1/255 (`D:/wos-ref/proof/day/pair_t123_before.png` / `pair_t123_after.png`).
+  Đêm (x2, `?time=22:00`) giữ số cũ, sai số 12.1/255 so với pilot/x2.png.
+- `GRADE[2]` rừng: ridge trên cụm màu k-means của web `?grade=0` | khung clip 5:51-6:00. Đường/đất (độ sáng luma) web 1.24 vs clip
+  1.19-1.24 (cùng cách đo), tán cây từ xanh lá gắt (37,104,75) về xanh lam-xám (35,90,75) như clip; `D:/wos-ref/proof/day/forest/`
+  (`f_before.png`, `f_after.png`, `pair_after.png`).
+- **Chibi/chân dung tối** (Martin, Researcher, chân dung HUD, ảnh slime trong bảng): `snapshot`/`portrait`/`slimePortrait` vẽ vào
+  `WebGLRenderTarget` không đặt `colorSpace` nên shader ghi màu TUYẾN TÍNH rồi chép thẳng ra canvas 2D: da peach (0.93,0.75,0.65)
+  thành nâu. Nay `rt.texture.colorSpace = SRGBColorSpace` (story.js, hud.js, panels.js).
+- **Miệng avatar / NPC**: shader gốc có lớp **sub decal** (`_UseSubDecal` 1, `_SubDecalView`, UV3 = TEXCOORD_2, clip có
+  `subDecalWeights`): mặt người chơi TEXCOORD_2 chỉ phủ v 0.53..0.99 của ô = miệng + mũi. toon.js vẽ thêm lớp này; actors.js đặt trọng số
+  `subDecalWeights` cho uniform có cờ `sub`. So `D:/wos-ref/proof/f5b/mirror_face_before_after_orig.png` (trước | sau | g6).
+- **Mobile** (`test/world-of-slime-mobile.js`, 844x390 cảm ứng, ảnh `D:\wos-ref\proof\mobile\`): (1) bảng toàn màn đặt theo
+  ảnh 1280x720 x K cần lớp cao 720K đơn vị, màn 19.5:9 chỉ ~1130: chi tiết Túi/Quầy/Kho/Bách Khoa và nút Mua ra ngoài đáy (không chạm
+  được). `Story.fit()` thu cả lớp bảng về vừa chiều cao (chỉ khi < 0.97, PC không đổi; popup giữa màn và màn chỉ nút không thu).
+  (2) Nút prefab thu theo SMUniformCanvasScaler còn 25-35 px: `.btn::after` trong suốt rộng `--hit` = 44 px màn (hud.js, intro/ui.js,
+  story.js fit), hình giữ cỡ gốc; nút X và nút trong bảng `z-index` 3 để vùng chạm không bị khung chi tiết đè. (3) Mobile không có phím
+  J/K: chạm thẻ nhiệm vụ = nhật ký (`QuestBookmarkLayout.OnClickLayout` -> `OpenQuestUI`), chạm chân dung PlayerInfo = Tiềm năng (màn chỉ
+  nút gốc `Tutorial_PERK_BUTTON` khoanh đúng PlayerInfo).
+- **Hiệu năng** (mobile.html 844x390 dpr 3, pixel ratio 1.5, CPU chậm x4 bằng CDP): làng 55 fps (khung tệ nhất 36 ms), rừng 45 fps
+  (63 ms); không chậm x4: 60/60. Trên 30 nên chưa thêm mặc định chất lượng riêng cho mobile (GPU headless là GPU máy bàn: số này chỉ
+  đo phần CPU).
+- **Test combat chập chờn trên Pages** (2/2 lần đỏ): (a) "huýt sáo" nhấn Space đúng lúc con đang đánh vừa chết: `state.battle` đã tắt
+  nên Space = đánh, lao vào con kế (`battle true target flo6`). Test nay đợi trận cũ xong, chọn con đầy máu, chỉ nhấn khi mục tiêu còn
+  > 40% máu và kiểm có sự kiện `recall`. (b) "mỗi trận 4-12 s" đo bằng đồng hồ thật từ lúc test nhấn Space: con đã bị đồng hành tự đánh
+  từ trước thì ngắn giả (3.3 s), fps < 20 thì game chạy chậm (game.js kẹp dt 0.05) nên dài giả (12.1 s). combat.js nay có `clock`
+  (giờ game) và `kill.fight` = giờ game từ đòn đầu trúng con đó tới lúc chết; sự kiện có `gt`. `WOS_CPU=4` bật chậm CPU trong test.
+  5/5 lần xanh ở x4 (trận 5.7-12.0 s game: 12.0 là lúc đồng hành đổi sang con gây hấn khác giữa chừng, còn sát ngưỡng).
+- Bẫy: (a) Python heredoc có `\f` trong chuỗi đường dẫn Windows (`proof\day\forest`) thành ký tự form feed trong mã: soát bằng
+  `s.count(chr(12))`. (b) `WebGLRenderTarget` mặc định NoColorSpace: đọc pixel ra canvas phải đặt SRGBColorSpace. (c) `.pn-card`
+  `overflow: hidden` cắt luôn `::after` vùng chạm (ô đội trong Kho mở lại `overflow: visible` trên mobile).
 
 ## Bảng phím (đúng `D:\wos-ref\code\input_bindings.txt`, map Gameplay)
 
@@ -345,8 +387,8 @@ thì chậm. Shift-chạy và T-huýt sáo của rev a là bịa, đã bỏ. Cá
     Kho 478 không có rect: dùng cả bản đồ, FOV mặc định 8 (FOV 10 làm phòng nhỏ còn 0.7 lần).
 24. Góc cúi 50 độ, cách 160 m `[ĐO TRONG ẢNH]`, không phải 40 / 126 của Main Camera trong level3: ở 40 độ vách quán trọ cao
     160 px (thật 135) và sàn phòng ngủ sâu 190 px (thật 220).
-25. Màu làng thật xám-xanh (đất cát web (198,173,124) -> thật (138,143,138)): texture là cát vàng, nên đây là hậu kỳ của game, có
-    thể do thời tiết (DistrictType 10 weathers 20001/20002). `GRADE[0]` hồi quy trên 7 cặp mẫu cùng chất liệu. Hồi quy trên
+25. Màu làng trong ảnh pilot xám-xanh (đất cát web (198,173,124) -> pilot (138,143,138)): F5b tìm ra là ĐÊM (đèn chính theo
+    lightGradient, xem mục F5b), không phải thời tiết. Ban ngày (clip) cát vàng (245,214,152). `GRADE[0]` hồi quy trên 7 cặp mẫu cùng chất liệu. Hồi quy trên
     trung bình vùng (khung lệch nhau vài mét) ra hệ số vô nghĩa: phải lấy mẫu từng chất liệu.
 26. Mặt nước đài phun: đã sửa ở F5a (xem mục F5a, bẫy a, b).
 27. Đổi `REV` chưa đủ: `?v=` ở mọi import + `index.html`/`mobile.html` (sed rev cũ -> rev mới trong `games/world-of-slime`, ví dụ `20261022a` -> `20261022b`).

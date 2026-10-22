@@ -28,6 +28,12 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #8fb7c9; col
 #hud .pad20 { padding: 20px; display: flex; }
 #hud .lvbox { min-width: 44px; justify-content: center; }
 #hud .btn { pointer-events: auto; cursor: pointer; }
+/* F5b: nút nhỏ (prefab gốc thu theo SMUniformCanvasScaler còn ~29 px trên màn 390 px) có vùng chạm trong suốt >= 44 px màn;
+   hình giữ nguyên cỡ gốc. --hit = 44 / scale (hud.js layout, story.js fit) */
+#hud.mobile .btn::after { content: ''; position: absolute; left: 50%; top: 50%; width: max(100%, var(--hit, 0px)); height: max(100%, var(--hit, 0px)); transform: translate(-50%, -50%); }
+/* vùng chạm mở rộng của nút nằm trên chữ/khung cạnh nó (nút X của view() dựng trước nội dung nên bị khung chi tiết đè) */
+#hud.mobile .view .btn, #hud.mobile .view [data-hud="close"] { z-index: 3; }
+#hud .qbox, #hud [data-hud="questEmpty"] { pointer-events: auto; cursor: pointer; }   /* F5b: chạm thẻ nhiệm vụ = nhật ký */
 #hud .btn.on { filter: brightness(1.2); }
 #hud .btn.on > .u, #hud .btn.on > .spr { transform-origin: 50% 50%; }
 #hud .keycap { pointer-events: none; }

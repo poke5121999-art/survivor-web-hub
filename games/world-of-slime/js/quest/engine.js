@@ -1,10 +1,10 @@
 // Máy trạng thái nhiệm vụ: đọc bảng js/quest/data.js, giữ bản lưu (js/state.js loadSave/writeSave), đẩy HUD
 // (state.quest = nhiệm vụ đang theo dõi, state.player.level/exp, slime HP/MP/thể lực, cảnh báo thể lực) và gọi js/ui/story.js
 // để hiện hội thoại, băng chữ, log. game.js chỉ gọi: engine.interactAt(), engine.talk(npc), engine.tick(), engine.onMap().
-import { QUESTS, QUEST, TALK, GUIDES, FIRST_QUEST, EXP_TO_NEXT, START_GOLD, HEAL_COST, BOXES, PERKS, ITEM_ICON, INTERACT_RANGE, TALK_RANGE } from './data.js?v=20261022e';
-import { state, set, loadSave, writeSave } from '../state.js?v=20261022e';
-import { L } from '../../data/quest_text.js?v=20261022e';
-import { Roster } from '../party/roster.js?v=20261022e';
+import { QUESTS, QUEST, TALK, GUIDES, FIRST_QUEST, EXP_TO_NEXT, START_GOLD, HEAL_COST, BOXES, PERKS, ITEM_ICON, INTERACT_RANGE, TALK_RANGE } from './data.js?v=20261022f';
+import { state, set, loadSave, writeSave } from '../state.js?v=20261022f';
+import { L } from '../../data/quest_text.js?v=20261022f';
+import { Roster } from '../party/roster.js?v=20261022f';
 
 export class QuestEngine {
   constructor(story, hooks = {}) {

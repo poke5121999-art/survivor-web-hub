@@ -8,10 +8,10 @@
 //   ui_objects__LogUITitle  : dòng log lớn "Roasted\nLv2" fs41 (6:27)
 // Thanh trên cùng của trận (5:24) đo trong khung t0109 (480x270 -> x4 = 1920, /0.8 = đơn vị prefab) [ĐO TRONG ẢNH].
 import * as THREE from 'three';
-import { R, F, text } from '../ui/hud.js?v=20261022e';
-import { assetUrl } from '../assets.js?v=20261022e';
-import { state } from '../state.js?v=20261022e';
-import { L } from '../../data/quest_text.js?v=20261022e';
+import { R, F, text } from '../ui/hud.js?v=20261022f';
+import { assetUrl } from '../assets.js?v=20261022f';
+import { state } from '../state.js?v=20261022f';
+import { L } from '../../data/quest_text.js?v=20261022f';
 
 const NAME_COL = [0.86, 0.62, 0.96, 1];     // [ĐO TRONG ẢNH] chữ tên slime hoang tím hồng (220,158,245)
 const DARK = [0.078, 0.118, 0.133, 0.8];    // PVPvs Background / Team1 Image

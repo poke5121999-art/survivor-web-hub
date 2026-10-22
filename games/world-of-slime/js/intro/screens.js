@@ -3,11 +3,11 @@
 // phòng là sprite gốc Customize/Customize_Bg (3840x2160, prefab: cao 1440 đơn vị, giữa màn), avatar vẽ vào RawImage
 // (-436, 60) 880x880 của prefab, đè lên tấm gương có sẵn trong ảnh nền.
 import * as THREE from 'three';
-import { assetUrl } from '../assets.js?v=20261022e';
-import { uiUrl, paint } from '../ui/sprites.js?v=20261022e';
-import { X, T, panel, button, onTap, notice, toast, media, NAVY2, sleep } from './ui.js?v=20261022e';
-import { L } from './text.js?v=20261022e';
-import { buildAvatar, normLook, randomLook, DEFAULT_LOOK, COUNTS } from './avatar.js?v=20261022e';
+import { assetUrl } from '../assets.js?v=20261022f';
+import { uiUrl, paint } from '../ui/sprites.js?v=20261022f';
+import { X, T, panel, button, onTap, notice, toast, media, NAVY2, sleep } from './ui.js?v=20261022f';
+import { L } from './text.js?v=20261022f';
+import { buildAvatar, normLook, randomLook, DEFAULT_LOOK, COUNTS } from './avatar.js?v=20261022f';
 
 // ------------------------------------------------------------------ Touch To Start (g1) + Loading resources (g2)
 export async function titleScreen(layer, { preload = [] } = {}) {
@@ -160,6 +160,7 @@ async function customize(layer, mir, look0) {
   X(ui, 0, 0, null, null, { cls: 'dimR' });   // Dim: Ui_Gradient_Horizontal_02 phải -> trái, màu (0.181, 0.305, 0.358, 0.4)
   // thanh tab: x 625..1113, y 181..229 (Left 61 + Middle 73 x5 + Right 61) [ĐO TRONG ẢNH] cust1
   const bar = X(ui, 625, 181, 488, 48, { ac: true, am: true, cls: 'row', n: 'tabs' });
+  bar.style.zIndex = 3;   // F5b: vùng chạm tab (mobile, intro.css) đè mép trên hàng ô chọn
   const W = [61, 73, 73, 73, 73, 73, 61];
   const tabEls = TABS.map((t, i) => {
     const spr = i === 0 ? 'Category/Category_BG_Left' : i === 6 ? 'Category/Category_BG_Right' : 'Category/Category_BG_Middle_Horizontal';

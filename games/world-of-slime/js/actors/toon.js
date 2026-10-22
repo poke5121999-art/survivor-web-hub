@@ -2,8 +2,8 @@
 // (đã kiểm bằng ảnh sheet_final.png): ramp toon + spec/rim A/B theo mask + atlas decal mặt 3x3 theo trọng số clip +
 // emission + viền vỏ lộn (inverted hull) dày theo vertex colour B. Màu viền là đoán (albedo * _OutlineColor * 0.3).
 import * as THREE from 'three';
-import { loadTex } from '../assets.js?v=20261022e';
-import { LIGHT_DIR } from '../config.js?v=20261022e';
+import { loadTex } from '../assets.js?v=20261022f';
+import { LIGHT_DIR } from '../config.js?v=20261022f';
 
 const LIGHT = { value: new THREE.Vector3(...LIGHT_DIR).normalize() };
 const lin = c => new THREE.Vector4(...new THREE.Color(c[0], c[1], c[2]).convertSRGBToLinear().toArray(), c[3]);
@@ -14,7 +14,7 @@ const VS = `
 #include <skinning_pars_vertex>
 attribute vec4 color;
 uniform float uOutline; uniform float hasColor;
-varying vec2 vUv; varying vec2 vUv1; varying vec3 vN; varying vec3 vV; varying vec4 vCol;
+varying vec2 vUv; varying vec2 vUv1; varying vec2 vUv2; varying vec3 vN; varying vec3 vV; varying vec4 vCol;
 void main() {
   #include <skinbase_vertex>
   vec3 objectNormal = normal;
@@ -31,6 +31,11 @@ void main() {
   #else
   vUv1 = uv;
   #endif
+  #ifdef USE_UV2
+  vUv2 = uv2;
+  #else
+  vUv2 = vec2(-1.0);
+  #endif
   vN = wn; vV = cameraPosition - wp.xyz; vCol = color;
   gl_Position = projectionMatrix * viewMatrix * wp;
 }`;
@@ -40,9 +45,9 @@ uniform float hasAlbedo, hasMask, hasDecal, hasEmission, hasSkin, isOutline, dec
 uniform vec4 cColor, cH, cS, cOutline, cEmission, cRimA, cRimB, cSpecA, cSpecB;
 uniform float emissionPower, rimMinA, rimMaxA, rimStrA, rimMinB, rimMaxB, rimStrB;
 uniform float specSizeA, specSmoothA, specSizeB, specSmoothB, useRim, useSpec;
-uniform float decalW[10]; uniform float decalView; uniform vec4 decalST; uniform vec2 skinCell; uniform vec4 tint;
+uniform float decalW[10]; uniform float decalView; uniform float subDecalW[10]; uniform float subDecalView, useSubDecal; uniform vec4 decalST; uniform vec2 skinCell; uniform vec4 tint;
 uniform vec3 lightDir;
-varying vec2 vUv; varying vec2 vUv1; varying vec3 vN; varying vec3 vV; varying vec4 vCol;
+varying vec2 vUv; varying vec2 vUv1; varying vec2 vUv2; varying vec3 vN; varying vec3 vV; varying vec4 vCol;
 vec2 cell(float i) { float k = i - 1.0; return (vUv1 + vec2(mod(k, 3.0), floor(k / 3.0))) / 3.0; }
 vec3 toLinear(vec3 c) { return pow(c, vec3(2.2)); }
 void main() {
@@ -62,6 +67,16 @@ void main() {
       d = texture2D(tDecal, vUv1 * decalST.xy + decalST.zw);
     }
     base = mix(base, toLinear(d.rgb), d.a);
+    // F5b: sub decal (_UseSubDecal, UV3 = TEXCOORD_2, PIPELINE.md): cùng atlas 3x3, ô theo subDecalViewWeight của clip.
+    // Mặt người chơi: TEXCOORD_2 chỉ phủ nửa dưới ô (v 0.53..0.99) = miệng; thiếu lớp này thì avatar không có miệng.
+    if (useSubDecal > 0.5 && decalOnUv1 > 0.5 && vUv2.x >= 0.0) {
+      float ws = 0.0; for (int i = 1; i <= 9; i++) ws += subDecalW[i];
+      vec2 c0 = (vUv2 + vec2(mod(subDecalView - 1.0, 3.0), floor((subDecalView - 1.0) / 3.0))) / 3.0;
+      vec4 ds = texture2D(tDecal, c0) * max(0.0, 1.0 - ws);
+      for (int i = 1; i <= 9; i++) if (subDecalW[i] > 0.0) { float k = float(i) - 1.0;
+        ds += texture2D(tDecal, (vUv2 + vec2(mod(k, 3.0), floor(k / 3.0))) / 3.0) * subDecalW[i]; }
+      base = mix(base, toLinear(ds.rgb), ds.a);
+    }
   }
   if (isOutline > 0.5) {
     gl_FragColor = vec4(base * cOutline.rgb * 0.3, 1.0);
@@ -107,6 +122,7 @@ export function unitMaterial(ex, texs, outline, opts = {}) {
     specSizeB: { value: f._SpecularToonSizeB ?? .03 }, specSmoothB: { value: f._SpecularToonSmoothnessB ?? .01 },
     useRim: { value: f._UseRim || 0 }, useSpec: { value: f._UseSpecular || 0 },
     decalW: { value: new Array(10).fill(0) }, decalView: { value: f._DecalView || 1 }, lightDir: LIGHT,
+    subDecalW: { value: new Array(10).fill(0), sub: true }, subDecalView: { value: f._SubDecalView || 1 }, useSubDecal: { value: f._UseSubDecal || 0 },
   };
   return new THREE.ShaderMaterial({ uniforms: u, vertexShader: VS, fragmentShader: FS, side: outline ? THREE.BackSide : THREE.FrontSide });
 }
@@ -123,20 +139,20 @@ export async function applyUnitMaterials(g, root, opts = {}) {
     const o2 = { ...opts, hasColor: !!mesh.geometry.attributes.color };
     if (opts.hairColor && /Hair/.test(src.name)) o2.tint = opts.hairColor;
     const mat = unitMaterial(ex, texs, false, o2);
-    decals.push(mat.uniforms.decalW);
+    decals.push(mat.uniforms.decalW, mat.uniforms.subDecalW);
     mesh.material = mat; mesh.frustumCulled = false;
     if (mesh.isSkinnedMesh && opts.outline !== false) {
       const hull = new THREE.SkinnedMesh(mesh.geometry, unitMaterial(ex, texs, true, o2));
       hull.bind(mesh.skeleton, mesh.bindMatrix); hull.frustumCulled = false; mesh.parent.add(hull);
-      decals.push(hull.material.uniforms.decalW);
+      decals.push(hull.material.uniforms.decalW, hull.material.uniforms.subDecalW);
     }
   }
   return decals;
 }
 
 // Trọng số decal mặt tại thời điểm t của clip (extras.decalWeights).
-export function decalAt(ex, t) {
-  const w = new Array(10).fill(0), d = ex && ex.decalWeights; if (!d) return w;
+export function decalAt(ex, t, key = 'decalWeights') {
+  const w = new Array(10).fill(0), d = ex && ex[key]; if (!d) return w;
   const T = d.times; let k = 0; while (k < T.length - 2 && T[k + 1] <= t) k++;
   const f = Math.min(1, Math.max(0, (t - T[k]) / ((T[k + 1] - T[k]) || 1)));
   for (let i = 1; i <= 9; i++) if (d[i]) w[i] = d[i][k] * (1 - f) + d[i][Math.min(k + 1, T.length - 1)] * f;

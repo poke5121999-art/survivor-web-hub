@@ -6,9 +6,9 @@
 // Toạ độ logic Unity (x, z), Object3D ở (-x, y, z) như combat.js.
 import * as THREE from 'three';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
-import { loadGLB, loadTex } from '../assets.js?v=20261022e';
-import { envMaterial } from '../world/envmat.js?v=20261022e';
-import { META, RULES, tameChance, rollTame } from './rules.js?v=20261022e';
+import { loadGLB, loadTex } from '../assets.js?v=20261022f';
+import { envMaterial } from '../world/envmat.js?v=20261022f';
+import { META, RULES, tameChance, rollTame } from './rules.js?v=20261022f';
 
 const C = META.cube;
 const SOUND = { Cube_net_open: 'cube_net_open', Cube_net_close: 'cube_net_close', Cube_catch_1: 'cube_catch_1', Cube_catch_2: 'cube_catch_2',

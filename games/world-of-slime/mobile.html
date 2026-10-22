@@ -10,14 +10,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&display=swap">
-<link rel="stylesheet" href="css/game.css?v=20261022e">
+<link rel="stylesheet" href="css/game.css?v=20261022f">
 <style>
   #rotate { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: #1c3442; z-index: 40; font-size: 16px; }
   @media (orientation: portrait) { #rotate { display: flex; } }
 </style>
 <script type="importmap">
 { "imports": {
-  "three": "./vendor/three.module.min.js?v=20261022e",
+  "three": "./vendor/three.module.min.js?v=20261022f",
   "three/addons/": "./vendor/addons/"
 } }
 </script>
@@ -30,7 +30,7 @@
 <div id="status" hidden></div>
 <div id="rotate">Xoay ngang điện thoại để chơi</div>
 <script type="module">
-import { start } from './js/game.js?v=20261022e';
+import { start } from './js/game.js?v=20261022f';
 try { screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(() => {}); } catch (e) {}
 start('mobile');
 </script>
