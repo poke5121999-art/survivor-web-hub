@@ -117,9 +117,9 @@
 
       var buildUrl = "Build";
       var config = {
-        dataUrl: buildUrl + "/repo2d-unity-527576486a.data.unityweb",
-        frameworkUrl: buildUrl + "/repo2d-unity-527576486a.framework.js.unityweb",
-        codeUrl: buildUrl + "/repo2d-unity-527576486a.wasm.unityweb",
+        dataUrl: buildUrl + "/repo2d-unity-a68a917d35.data.unityweb",
+        frameworkUrl: buildUrl + "/repo2d-unity-a68a917d35.framework.js.unityweb",
+        codeUrl: buildUrl + "/repo2d-unity-a68a917d35.wasm.unityweb",
         streamingAssetsUrl: "StreamingAssets",
         // Cùng trần độ nét với fitCanvas: không đặt thì Unity tự lấy devicePixelRatio (3 trên nhiều điện thoại) và
         // bộ đệm nhảy qua lại giữa hai cỡ mỗi lần trang đổi cỡ.
@@ -129,7 +129,7 @@
         matchWebGLToCanvasSize: false,
         companyName: "HLO",
         productName: "Boo Haul Co-op Horror",
-        productVersion: "1.0+5ffccec3",
+        productVersion: "1.0+4170ca6d",
         showBanner: unityShowBanner,
       };
 
@@ -236,7 +236,7 @@
       }, 1000);
 
       var script = document.createElement("script");
-      script.src = buildUrl + "/repo2d-unity-527576486a.loader.js";
+      script.src = buildUrl + "/repo2d-unity-a68a917d35.loader.js";
       script.onerror = function () { loadFailed(loaderText("Không tải được ", "Could not load ") + script.src); };
       script.onload = function () {
         createUnityInstance(canvas, config, function (progress) {
