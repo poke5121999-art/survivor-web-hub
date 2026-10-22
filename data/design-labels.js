@@ -386,7 +386,22 @@
         "gasRange": { label: "Tầm khí độc", unit: "ô", min: 1 },
         "gasRangeMax": { label: "Tầm khí độc tối đa (phòng rộng)", unit: "ô", min: 1 },
         "decorLightFadeIn": { label: "Ánh sáng decor: hiện ra trong", unit: "giây", min: 0, help: "Đèn pin soi trúng decor phát sáng thì vòng sáng của nó hiện dần trong ngần này giây." },
-        "decorLightFadeOut": { label: "Ánh sáng decor: tắt dần trong", unit: "giây", min: 0, help: "Đèn pin rời khỏi decor thì vòng sáng tắt dần trong ngần này giây." }
+        "decorLightFadeOut": { label: "Ánh sáng decor: tắt dần trong", unit: "giây", min: 0, help: "Đèn pin rời khỏi decor thì vòng sáng tắt dần trong ngần này giây." },
+        "smartLook": { label: "Tự xoay (điện thoại một cần)", help: "Điện thoại: cần trái để đi, hướng nhìn tự quay về con quái đang khoá, không có quái thì theo hướng đi. Người chơi bật/tắt trong Cài đặt, nhóm Điều khiển. PC không dùng." },
+        "smartLook.default": { label: "Bật sẵn cho người chơi mới", min: 0, max: 1, int: true, help: "1 = máy cảm ứng lần đầu vào game thì bật sẵn, 0 = tắt sẵn. Người chơi đã chọn trong Cài đặt thì giữ lựa chọn của họ." },
+        "smartLook.lockRange": { label: "Tầm bắt đầu khoá quái", unit: "ô", min: 1, max: 20, help: "Nón đèn pin dài 6,8 ô." },
+        "smartLook.lockKeepMul": { label: "Đã khoá thì giữ tới", unit: "× tầm", min: 1, max: 3, help: "Quái lùi ra quá tầm khoá một chút vẫn giữ, để người không quay qua quay lại ở mép tầm." },
+        "smartLook.lockCone": { label: "Chỉ khoá quái ở trước mặt trong", unit: "rad", min: 0.1, max: 3.2, help: "Nửa góc tính từ hướng đang nhìn. 1 rad ≈ 57°. Quái phải đang thấy (trong đèn)." },
+        "smartLook.rearRange": { label: "Quái lao vào trong tầm này thì quay lại", unit: "ô", min: 0, max: 10, help: "Con đang đuổi mình ở gần hơn số này thì khoá dù ở sau lưng hay ngoài đèn." },
+        "smartLook.switchRatio": { label: "Đổi mục tiêu khi con mới tốt hơn", pct: true, min: 0.05, max: 1, help: "60% = điểm con mới (gần + đúng hướng + đang lao vào) phải dưới 60% điểm con đang khoá. Thấp hơn = ít đổi hơn." },
+        "smartLook.switchCooldown": { label: "Nghỉ giữa hai lần đổi mục tiêu", unit: "giây", min: 0, max: 5 },
+        "smartLook.losGrace": { label: "Quái khuất tường vẫn giữ khoá trong", unit: "giây", min: 0, max: 5 },
+        "smartLook.moveDelay": { label: "Đi một hướng bao lâu mới quay theo", unit: "giây", min: 0, max: 3 },
+        "smartLook.moveDeadband": { label: "Hướng đi lệch ít hơn thì không quay", unit: "độ", min: 0, max: 90 },
+        "smartLook.turnMul": { label: "Tốc độ tự xoay", min: 0.1, max: 3, help: "So với tốc độ quay bằng cần xoay tay. 0,45 = chậm hơn một nửa, đỡ chóng mặt." },
+        "smartLook.carryTurnMul": { label: "Đang vác/đẩy đồ: tốc độ xoay nhân thêm", min: 0.1, max: 1, help: "Đồ đang vác treo trước mặt, quay nhanh là đồ văng theo." },
+        "smartLook.carryRangeMul": { label: "Đang vác/đẩy đồ: tầm khoá nhân", min: 0, max: 1 },
+        "smartLook.carryMoveDelay": { label: "Đang vác/đẩy đồ: đi một hướng bao lâu mới quay theo", unit: "giây", min: 0, max: 5, help: "Lùi một bước ngắn khi vác thì không quay người." }
       }
     },
 
