@@ -197,11 +197,15 @@ class Library:
             if (akey, si) not in self.idx_cache:
                 idx = np.array(tris, np.uint32 if big else np.uint16)[:, [0, 2, 1]].reshape(-1)
                 self.idx_cache[(akey, si)] = g.acc(idx, 5125 if big else 5123, 'SCALAR', 34963)
-            mi = mats[min(si, len(mats) - 1)]
-            p = dict(attributes=attrs, indices=self.idx_cache[(akey, si)])
-            if mi is not None:
-                p['material'] = mi
-            prims.append(p)
+            # Unity: more materials than submeshes = each extra material draws the LAST submesh again (a second pass).
+            # The Larus fountain water (Water_Flow_01 / Water_Fall: [FX_Alpha_Skyblue_Over, FX_Offset_WaterWave_012])
+            # is such a pass; taking only mats[si] dropped the water surface (F5a).
+            last = si == len(tris_all) - 1
+            for mi in (mats[si:] if last and si < len(mats) else [mats[min(si, len(mats) - 1)]]):
+                p = dict(attributes=attrs, indices=self.idx_cache[(akey, si)])
+                if mi is not None:
+                    p['material'] = mi
+                prims.append(p)
         g.j['meshes'].append(dict(name=mesh.m_Name, primitives=prims))
         res = dict(index=len(g.j['meshes']) - 1, name=mesh.m_Name, verts=nv, tris=sum(len(t) for t in tris_all),
                    lo=pos.min(0) if nv else np.zeros(3), hi=pos.max(0) if nv else np.zeros(3), color=has_col,
@@ -282,6 +286,47 @@ class Library:
                 d['mesh'] = None
         return {k: (r4(v) if isinstance(v, list) else round(v, 4) if isinstance(v, float) else v) for k, v in d.items()}
 
+    def particle_mesh(self, go, comp, nd, Mw, info, lo, hi):
+        """ParticleSystemRenderer in Mesh mode (m_RenderMode 4) whose system holds one still particle (start speed 0, no
+        shape / velocity / size / rotation module): the fountain pool surface (Water_Flow_02, mesh Plane001, size 1.3)
+        and its rim (Water_Flow_Side, Circle_01, size 1.9) are drawn this way. Export it as a static mesh child scaled by
+        startSize (alignment Local = the transform's rotation) with extras.particleMesh. Moving particle systems stay
+        unexported (counted in `particles`)."""
+        try:
+            tt = comp.component.read_typetree()
+            if tt.get('m_RenderMode') != 4 or not tt.get('m_Mesh', {}).get('m_PathID'):
+                return
+            ps = [c for c in go.m_Component if c.component.type.name == 'ParticleSystem']
+            if not ps:
+                return
+            pt = ps[0].component.read_typetree()
+            im = pt['InitialModule']
+            moving = (im['startSpeed'].get('minMaxState') != 0 or abs(im['startSpeed'].get('scalar', 0)) > 1e-6 or
+                      pt['ShapeModule'].get('enabled') or any(pt[m].get('enabled') for m in
+                      ('VelocityModule', 'SizeModule', 'RotationModule', 'ForceModule', 'NoiseModule') if m in pt))
+            if moving or tt.get('m_RenderAlignment') not in (1, 2):   # 1 World, 2 Local: mesh keeps a fixed orientation
+                info['particleMeshSkipped'] = info.get('particleMeshSkipped', 0) + 1
+                return
+            sz = im['startSize']['scalar']
+            s3 = [sz, im['startSizeY']['scalar'], im['startSizeZ']['scalar']] if im.get('size3D') else [sz, sz, sz]
+            r = comp.component.read()
+            ms = [self.material(mp) if mp.path_id else (None, None) for mp in r.m_Materials]
+            ms = [x for x in ms if x[0] is not None] or [(None, None)]
+            me = self.mesh(r.m_Mesh, [x[0] for x in ms])
+            g = self.glb
+            g.j['nodes'].append(dict(name=go.m_Name + '_particleMesh', mesh=me['index'], scale=r4(s3),
+                                     extras=dict(particleMesh=True, startSize=r4(s3))))
+            nd.setdefault('children', []).append(len(g.j['nodes']) - 1)
+            nd.setdefault('extras', {})['hasParticleMesh'] = True
+            for x in ms:
+                if x[1] and x[1] not in info['materials']: info['materials'].append(x[1])
+            info['meshes'].append(me['name']); info['verts'] += me['verts']; info['tris'] += me['tris']
+            info['particleMeshes'] = info.get('particleMeshes', 0) + 1
+            Ms = Mw @ np.diag([s3[0], s3[1], s3[2], 1.0])
+            a, b = aabb_xform(Ms, me['lo'], me['hi']); lo[:] = np.minimum(lo, a); hi[:] = np.maximum(hi, b)
+        except Exception as e:
+            self.missing.append(f'particle mesh of {info["name"]}/{go.m_Name}: {e}')
+
     def piece(self, root_go, address=None):
         """Walk one prefab. Returns the glTF node index of its root and fills self.pieces."""
         g = self.glb
@@ -353,6 +398,8 @@ class Library:
                     info['colliders'].append(d)
                 elif tname == 'ParticleSystem':
                     info['particles'] += 1
+                elif tname == 'ParticleSystemRenderer' and active and c.m_Enabled:
+                    self.particle_mesh(go, comp, nd, Mw, info, lo, hi)
                 elif tname == 'MonoBehaviour':
                     sp = c.m_Script
                     cls = None
@@ -369,7 +416,7 @@ class Library:
                 ctr = ch.read()
                 cname = ctr.m_GameObject.read().m_Name
                 kids.append(walk(ctr, Mw, cname if not path else path + '/' + cname))
-            if kids: g.j['nodes'][ni]['children'] = kids
+            if kids: g.j['nodes'][ni]['children'] = g.j['nodes'][ni].get('children', []) + kids
             return ni
 
         root_tr = wos.transform_of(root_go)

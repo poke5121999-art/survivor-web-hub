@@ -1,33 +1,33 @@
 // Vòng chơi lát cắt đầu: bản đồ + người chơi + slime đồng hành + camera + nhập + bước chân + HUD + màn tải.
 // Logic chạy trong toạ độ Unity (x phải, z lên màn hình, y cao); chỉ khi đặt Object3D mới đổi sang three (-x, y, z).
 import * as THREE from 'three';
-import { REV, PARAMS, MOVE } from './config.js?v=20261022d';
-import { GameMap, loadMapData } from './world/map.js?v=20261022d';
-import { envTime, envMaterial } from './world/envmat.js?v=20261022d';
-import { Player, Slime, Npc } from './actors/actors.js?v=20261022d';
-import { loadTex, loadGLB, assetUrl } from './assets.js?v=20261022d';
-import { MAPS, DEFAULT_MAP } from '../data/portals.js?v=20261022d';
-import { Post, GRADE } from './post.js?v=20261022d';
-import { FollowCamera } from './camera.js?v=20261022d';
-import { makeIntent, quantizeMove, endFrame } from './input/intent.js?v=20261022d';
-import { attachPC } from './input/pc.js?v=20261022d';
-import { attachMobile } from './input/mobile.js?v=20261022d';
-import { Audio } from './audio.js?v=20261022d';
-import { Hud } from './ui/hud.js?v=20261022d';
-import { showLoading } from './ui/loading.js?v=20261022d';
-import { state, set, loadSave } from './state.js?v=20261022d';
-import { t } from '../data/loc_vi.js?v=20261022d';
-import { Story } from './ui/story.js?v=20261022d';
-import { QuestEngine } from './quest/engine.js?v=20261022d';
-import { BOXES, WEST_GATE } from './quest/data.js?v=20261022d';
-import { Combat } from './combat/combat.js?v=20261022d';   // F1: chiến đấu, rừng, đấu tay đôi
-import { runIntro, avatarFor, applyProfile, attachSetting } from './intro/intro.js?v=20261022d';   // F2: mở đầu + Setting
-import { Tame } from './combat/tame.js?v=20261022d';            // F3: ném Cube, lắc, bắt
-import { Panels } from './ui/panels.js?v=20261022d';           // F3: Túi (I), Kho (Allen), Bách khoa (B), biệt danh
-import { loadItems, item } from './party/items.js?v=20261022d';
-import { displayName, speciesName } from './party/roster.js?v=20261022d';
-import { META } from './combat/rules.js?v=20261022d';
-import { L } from '../data/quest_text.js?v=20261022d';
+import { REV, PARAMS, MOVE } from './config.js?v=20261022e';
+import { GameMap, loadMapData } from './world/map.js?v=20261022e';
+import { envTime, envMaterial } from './world/envmat.js?v=20261022e';
+import { Player, Slime, Npc } from './actors/actors.js?v=20261022e';
+import { loadTex, loadGLB, assetUrl } from './assets.js?v=20261022e';
+import { MAPS, DEFAULT_MAP } from '../data/portals.js?v=20261022e';
+import { Post, GRADE } from './post.js?v=20261022e';
+import { FollowCamera } from './camera.js?v=20261022e';
+import { makeIntent, quantizeMove, endFrame } from './input/intent.js?v=20261022e';
+import { attachPC } from './input/pc.js?v=20261022e';
+import { attachMobile } from './input/mobile.js?v=20261022e';
+import { Audio } from './audio.js?v=20261022e';
+import { Hud } from './ui/hud.js?v=20261022e';
+import { showLoading } from './ui/loading.js?v=20261022e';
+import { state, set, loadSave } from './state.js?v=20261022e';
+import { t } from '../data/loc_vi.js?v=20261022e';
+import { Story } from './ui/story.js?v=20261022e';
+import { QuestEngine } from './quest/engine.js?v=20261022e';
+import { BOXES, WEST_GATE } from './quest/data.js?v=20261022e';
+import { Combat } from './combat/combat.js?v=20261022e';   // F1: chiến đấu, rừng, đấu tay đôi
+import { runIntro, avatarFor, applyProfile, attachSetting } from './intro/intro.js?v=20261022e';   // F2: mở đầu + Setting
+import { Tame } from './combat/tame.js?v=20261022e';            // F3: ném Cube, lắc, bắt
+import { Panels } from './ui/panels.js?v=20261022e';           // F3: Túi (I), Kho (Allen), Bách khoa (B), biệt danh
+import { loadItems, item } from './party/items.js?v=20261022e';
+import { displayName, speciesName } from './party/roster.js?v=20261022e';
+import { META } from './combat/rules.js?v=20261022e';
+import { L } from '../data/quest_text.js?v=20261022e';
 
 const errors = (window.__wosErrors = window.__wosErrors || []);
 addEventListener('error', e => errors.push('error: ' + e.message));
@@ -203,7 +203,7 @@ export async function boot(platform) {
     story.log(L('item.used', { item: L('item.' + id), name: displayName(rec), n: after - before }), null, 'img/item/item_potion_hp_1.webp');
     audio.play('ui_levelUp', { gain: 0.4 });
     engine.ev('useItem', { id, from, hp: after, before });
-    if (engine.status('q9') === 'active') engine.obj('q9', 'potion');   // F4: "Use 30 HP Potion 1/1" (nhiệm vụ chưa có thì bỏ qua)
+    engine.onUse(id);   // F4: mục tiêu kind 'use' ("Use 30 HP Potion 1/1", 7:30), cả từ túi lẫn ô nhanh
     return 'ok';
   };
   const panels = new Panels(story, { engine, renderer, useItem, quick: { set: quickSet } });
@@ -448,7 +448,7 @@ export async function boot(platform) {
     if (!switching && !state.modal) { const pt = portalAt(P.x, P.z); if (pt) switchMap(pt); }
     // nhiệm vụ: bắt đầu nhiệm vụ 1, tìm thứ tương tác được trong tầm, Rudga chặn cổng tây (4:54)
     if (!switching) {
-      engine.tick(P, sp);
+      engine.tick(P, sp, map.data.id);
       target = state.modal ? null : engine.interactAt(map.data.id, P.x, P.z, npcs.map(n => ({ name: n.def.name, x: n.def.x, z: n.def.z })));
       hud.setInteract(target ? target.kind : null);
       gateT = Math.max(0, gateT - dt);

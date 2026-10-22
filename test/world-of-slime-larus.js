@@ -106,7 +106,7 @@ async function main() {
     const vOk = await waitMap(page, '110');
     s = await st(page);
     check('làng Larus (110) tải sau khi ra cửa', vOk && s.map === '110', s.map + ' ' + JSON.stringify(s.maps));
-    check('làng có 7 NPC', s.npcs.length === 7, s.npcs.join(','));
+    check('làng có 8 NPC (F4: + Mysterious Researcher)', s.npcs.length === 8 && s.npcs.includes('Mysterious Researcher'), s.npcs.join(','));
     check('đứng trước cửa quán trọ', Math.hypot(s.x - 87.5, s.z - 69.6) < 1.5, s.x + ',' + s.z);
     await page.waitForTimeout(800); await shot(page, '2_village_arrive');
     const fpsV = (await st(page)).fps;

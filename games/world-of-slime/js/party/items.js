@@ -1,7 +1,7 @@
 // Vật phẩm theo bảng meta thật data/meta/item_type.json (đệm server): ảnh, số chồng tối đa, Usable (hồi chiêu, dùng trong túi,
 // đặt ô nhanh), Cube. ItemQuickSlotPod Q/E/R = save.quick (SMLoginData.MaxQuickSlotCount = 3, CODE.md §6).
-import { REV } from '../config.js?v=20261022d';
-import { ITEM_ICON } from '../quest/data.js?v=20261022d';
+import { REV } from '../config.js?v=20261022e';
+import { ITEM_ICON } from '../quest/data.js?v=20261022e';
 
 let META = null, loading = null;
 export function loadItems() {

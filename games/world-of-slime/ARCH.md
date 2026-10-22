@@ -1,4 +1,4 @@
-# Thế Giới Slime: kiến trúc (rev 20261022d)
+# Thế Giới Slime: kiến trúc (rev 20261022e)
 
 Bản web của World of Slime Demo (TEAM42). Từ rev 20261022a chạy trên **bản đồ thật của server** (Larus: quán trọ 257, làng 110,
 kho 478, lấy từ đệm đĩa của game): mở game là ở phòng ngủ quán trọ như bản thật, đi xuống cầu thang ra làng, vào/ra kho.
@@ -8,7 +8,7 @@ theo byte. Từ rev 20261022b có **chuỗi nhiệm vụ mở đầu "Village of
 quầy Vivian bán Cube): hội thoại có chân dung + lựa chọn, băng chữ, log EXP, nhật ký J, Tiềm năng K, bản lưu localStorage.
 Từ rev 20261022c (F1) có **chiến đấu thời gian thực**, **đấu tay đôi với Rudga** và **Shadow Forest Entrance** (hai bản đồ
 DỰNG THEO CLIP, nhãn "dựng theo clip" trên trang). Rev 20261022c còn có **phần mở đầu** (js/intro: Touch To Start, đặt tên,
-tạo nhân vật 7 tab trước gương, truyện tranh, chọn ba lô = slime khởi đầu, phim tỉnh dậy, Setting bằng Esc). Từ rev 20261022d (F3) có **bắt slime bằng Cube**, đội 6 ô (phím 1-6), Túi Đồ (I), Kho Slime ở Allen, Bách Khoa (B), biệt danh slime.
+tạo nhân vật 7 tab trước gương, truyện tranh, chọn ba lô = slime khởi đầu, phim tỉnh dậy, Setting bằng Esc). Từ rev 20261022d (F3) có **bắt slime bằng Cube**, đội 6 ô (phím 1-6), Túi Đồ (I), Kho Slime ở Allen, Bách Khoa (B), biệt danh slime. Từ rev 20261022e (F4) có **nhiệm vụ 7-14**: Martin, Lucy dạy dùng thuốc, Mysterious Researcher, Billy (Patrol), màn chỉ nút, nhiều nhiệm vụ song song trên HUD.
 Nghiên cứu gốc: `D:\wos-ref\notes\` (MAPBUILD, PIPELINE, EXPORT_*, CODE §8-9). Kế hoạch: `brain/plans/world-of-slime.md`.
 
 ## Mô-đun
@@ -30,7 +30,7 @@ Nghiên cứu gốc: `D:\wos-ref\notes\` (MAPBUILD, PIPELINE, EXPORT_*, CODE §8
 | `js/ui/hud.js` | HUD HTML/CSS theo RectTransform prefab; `uiScale()` = SMUniformCanvasScaler; chân dung chụp avatar thật; bản đồ nhỏ; thẻ tên trên đầu |
 | `js/ui/sprites.js` | URL sprite `ui/`, bảng viền 9-slice `BORDER`, `tinted()` nhân Image.color trên canvas, `paint()` |
 | `js/ui/loading.js` | màn tải: `img/login_bg.mp4`, `Login_Logo_Title_En`, `LoadingIcon/UI_Loading_0..29`, thanh `Login_Loading_Gauge` theo byte |
-| `js/quest/data.js` | **khuôn dữ liệu nhiệm vụ (đầu tệp)**: `QUESTS`, `DIALOGUE` (nút thoại -> lựa chọn -> nút / hành động), `TALK` (NPC -> nút đầu theo trạng thái nhiệm vụ), hộp trôi dạt, cổng tây, quầy, Tiềm năng |
+| `js/quest/data.js` | **khuôn dữ liệu nhiệm vụ (đầu tệp)**: `QUESTS`, `DIALOGUE` (nút thoại -> lựa chọn -> nút / hành động), `TALK` (NPC -> nút đầu theo trạng thái nhiệm vụ), hộp trôi dạt, cổng tây, quầy, Tiềm năng, `GUIDES` (màn chỉ nút F4) |
 | `js/quest/engine.js` | máy trạng thái nhiệm vụ: trạng thái none/active/ready/done, hành động (`complete:q`, `heal`, `box`, `perk`, `shop`...), EXP/cấp/SP, Vàng, đồ; đẩy `state.quest` cho HUD |
 | `js/ui/story.js` | DialogueUI + ChoicePopup + DialogueIllust, QuestStart / QuestComplete / LevelUp, MapTextLayout (tên bản đồ), LogUI, QuestUI (J), PerkUI (K), BuyShopUI + BuyItemPopup, popup Notice |
 | `data/quest_text.js` | chữ nhiệm vụ/thoại: `en` nguyên văn clip (mốc giờ từng dòng), `vi` bản dịch của bản web; `?lang=en` |
@@ -41,7 +41,7 @@ Nghiên cứu gốc: `D:\wos-ref\notes\` (MAPBUILD, PIPELINE, EXPORT_*, CODE §8
 | `js/intro/intro.js` | **mở đầu (F2)**: `runIntro(platform)` Touch To Start -> đặt tên -> tạo nhân vật -> truyện tranh -> chọn ba lô -> phim tỉnh dậy; `profile` trong bản lưu; `avatarFor(profile)`, `applyProfile` |
 | `js/intro/screens.js` | màn tiêu đề (`img/login_bg.mp4`, logo, nút mạng xã hội, thanh "Loading resources"), Nickname Setting + Notice, CustomizeUI 7 tab trước gương (`Customize/Customize_Bg` + avatar 3D vào RawImage) |
 | `js/intro/avatar.js` | `buildAvatar(look)`: ghép avatar như Player.create nhưng chọn Hair/Face/Eyebrow, da, màu tóc, lens, AccDecal (CustomizeDataSet); clone mọi GLB nên dựng lại được |
-| `js/intro/prologue.js` | truyện tranh IntroStory_01..05_{M,W} trên khung PaperBoard, chọn ba lô 3D (`prop/pr_event_1_dadbag.glb`, ba lô xanh đổi màu albedo), phim `img/prologue.mp4` + Skip |
+| `js/intro/prologue.js` | truyện tranh IntroStory_01..05_{M,W} trên khung PaperBoard, chọn ba lô 3D (`prop/pr_event_1_dadbag.glb`, ba lô xanh = albedo gốc `prop/tex/OBJ_DadBag_3_Albedo.webp`), phim `img/prologue.mp4` + Skip |
 | `js/intro/setting.js` | Setting (Esc / nút menu): Graphic Quality, Max FPS, Screen Mode, Resolution, Shadow, Camera Scale, âm lượng, ngôn ngữ, Account (Về màn hình chính, Xoá dữ liệu chơi); `localStorage['wos.settings']` |
 | `js/intro/ui.js`, `js/intro/text.js`, `css/intro.css` | lớp `#intro` (đơn vị canvas như HUD, X() theo px ảnh 1280x720, popup CommonPopup), chữ vi/en (`?lang=en`, khoá loc gốc ghi cạnh) |
 | `js/post.js` | hậu kỳ màu toàn màn: cảnh vẽ vào render target half float, quad đổi sang sRGB rồi nhân ma trận affine `GRADE[mapLightType]` |
@@ -127,7 +127,7 @@ Tham số trang: `?assets=`, `?map=dev|110|257|478` (mặc định 257), `?from=
   của decal mask; Acc = ô `faceOffsetVector4s[i]` của atlas 4x4 `PC_Face_Decal`, `accDecalMultiplyFlags` chọn nhân/phủ.
   Mặc định (g6, cust1..6): ô đầu mỗi tab, Hair Color ô 10.
 - Slime khởi đầu (server gửi): ba lô xanh = `SL_ElecChicken_WindFire` (ảnh thật inn1.png và clip 1:12 đều chọn ba lô xanh và có gà lửa),
-  ba lô vàng = `SL_ElecChicken_WindElectric` `[ĐỀ XUẤT]`. Mô hình ba lô chỉ có albedo vàng: ba lô xanh đổi màu trên canvas `[ĐỀ XUẤT]`.
+  ba lô vàng = `SL_ElecChicken_WindElectric` `[ĐỀ XUẤT]`. Ba lô xanh dùng albedo gốc OBJ_DadBag_3_Albedo của ui_view.bundle (F5a).
 - Setting: Graphic Quality = pixel ratio (0.5 / 0.75 / 1 / min(dpr,1.5) / min(dpr,2)), Max FPS = bọc `requestAnimationFrame`,
   Camera Scale 0.50..1.20 nhân `FollowCamera.effDist()` `[ĐỀ XUẤT]` khoảng, Shadow chỉ lưu (web chưa có bóng), BGM đổi thì phát lại bài.
 - Test: `node test/world-of-slime-intro.js` (PC + mobile, bản lưu trống tới quán trọ, tải lại, Setting); ảnh so cùng trạng thái
@@ -170,8 +170,8 @@ Tham số trang: `?assets=`, `?map=dev|110|257|478` (mặc định 257), `?from=
   `D:\wos-ref\proof\combatverdicts.tsv`.
 - Bẫy: (a) `page.waitForFunction` (polling raf) hết giờ dù điều kiện đúng khi trang vừa đổi bản đồ: test hỏi bằng `evaluate`
   từng 100 ms (`until`). (b) `cameraMoveRect` nhỏ hơn một màn làm `effDist()` kéo camera về ~0 m (màn trống xanh): rect phải
-  rộng ít nhất một màn. (c) Cát Larus không phải Path_t01-C (ra màu cỏ) mà là mảnh `Ground_t01_002`. (d) Mảnh cỏ cao
-  xanh lam của rừng không có trong map/: dùng `ter01_grass_007/008` gần nhất. (e) Combat ghi máu/MP/thể lực vào `save.slime`
+  rộng ít nhất một màn. (c) Cát Larus không phải Path_t01-C (ra màu cỏ) mà là mảnh `Ground_t01_002`. (d) Cỏ cao của rừng
+  là `ter01_bush_001` (F5a), không phải `ter01_grass_007/008`. (e) Combat ghi máu/MP/thể lực vào `save.slime`
   mỗi 0.3 s: khi engine đổi bản lưu (chữa ở Allen) phải đọc lại, không thì đè mất (cảnh báo thể lực không tắt).
 
 ## Bắt slime + đội (F3, js/party, js/combat/tame.js, js/ui/panels.js)
@@ -200,6 +200,79 @@ Tham số trang: `?assets=`, `?map=dev|110|257|478` (mặc định 257), `?from=
   texture của slime) chết "reading 'extensions'". (b) Nhấn + nhả cùng khung: xử lý `released` SAU `pressed`, không thì ngắm kẹt.
   (c) `Story.key` bắt mọi phím ở pha capture: ô nhập biệt danh bị nuốt chữ, nên bỏ qua khi `e.target` là INPUT. (d) Rừng có 2
   Mandrake: test combat chỉ đếm/đánh SL_Slime_Grass.
+
+## Nhiệm vụ 7-14 (F4, js/quest, js/ui/story.js)
+
+- Nguồn: clip DcGavHFwqtk 6:36-11:06. Tờ 3 s (`sheet08..13.jpg`) không đọc được chữ: khung 1280x720 bóc lại bằng ffmpeg ở
+  `D:\wos-ref\clips\DcGavHFwqtk\f4\` (2 khung/giây 6:30-11:15), `f4full\` (khung đơn) và tờ cắt vùng chữ 4-12 khung/giây
+  (script ở mục Bẫy (b)). Người quay bấm qua thoại rất nhanh: dòng chỉ thấy chữ đầu ("He…", "So…") bị bỏ, dòng bị che một phần
+  ghi `[ĐỀ XUẤT]` trong `data/quest_text.js`.
+- Chuỗi: rừng Martin `q8` "Grant Martin's Request" (Defeat Junior Floralime 0/10, EXP 30 khi trả 10:15) -> Lucy trả `q7`
+  (thẻ Bag, thưởng EXP 20 + 30 HP Potion × 3, 7:28) -> màn chỉ nút túi rồi ô Q -> `q9` "Recovery Complete!" (Use 30 HP Potion 1/1,
+  túi hoặc ô Q, EXP 10) -> Researcher gọi từ xa (`call:rs0`, 7:46) -> `q10` "Suspicious Researcher" nhóm "Suspicious Side Job"
+  (thẻ Friendly Slime, Shop; Purchase Cube 0/3; trả: thẻ Tame + màn chỉ ba ô Q/E/R rồi mới "Quest complete!", EXP 20) ->
+  Billy `q11` "Patrol" nhóm "Shadow Forest Patrol" (Patrol Shadow Forest Entrance 0/1 + Defeat Junior Floralime 10) ->
+  `q12` "Suspicious Part-Time Job" (clip cắt "J…", nội dung chưa biết: mục tiêu giữ chỗ "Chưa có trong bản web").
+- Bảng: `QUESTS[].objectives.kind` thêm `kill` (model), `use`/`buy` (item), `reach` (map + rect), `none`; engine `onKill/onUse/
+  onBuy/tick(P, start, mapId)` cộng cho MỌI nhiệm vụ đang làm có mục tiêu khớp (Martin và Patrol cùng đếm như 11:03 "10/10").
+  `TALK[npc][].gate` = `{ started | done }`; dòng `s: 'none'` có cổng = NPC có việc giao, dấu "!" (`quest_marker_before`).
+  Hành động sau hội thoại: `guide:id` (GUIDES), `call:node`, `notice:khoá`. Không có if theo NPC/nhiệm vụ trong engine.
+- HUD nhiệm vụ: nhiệm vụ cũ nhất ghim ★ + mục tiêu, các nhiệm vụ song song chỉ tên (`state.quest.more`, `data-hud="questMore"`).
+  Dòng "<tên> / ✓ mục tiêu n/n" giữa trên khi một mục tiêu vừa đủ (`story.goalDone`, QuestProgressGoalLayout). Băng "Quest
+  complete!" có ô thưởng QuestRewardLayout (`data-reward="exp:30"`, ảnh EXP = `img/item/Item_EXP.webp`).
+- Màn chỉ nút = prefab gốc `ui/prefab/ui_tutorial__Tutorial_{INVENTORY_BUTTON,QUICK_SLOT_0_BUTTON,QUICK_SLOT_ALL_BUTTON}.json`
+  (nền tối 0.698, vòng `DialogueIllust_Effect`, mũi tên, khung 960x230 + chibi tròn 200). Chữ là chuỗi loc thật `Unmasking.*`
+  (en có lỗi chính tả gốc "metohd"). Modal tên `guide`: băng chữ vẫn chạy bên dưới như 7:28.
+- Thẻ: tên ảnh gốc khác tên thẻ: Friendly Slime = `DialogueIllust_Tamable`, Tame = `CubeCapture02`, Bag = `Inventory`. Không
+  thấy thẻ "Cube" nào trong clip (dò độ tối khung 7:44-8:10: chỉ hai lần tối ở 7:58.5 và 8:04.5).
+- Mysterious Researcher: `NPC_Larus_Researcher` ở (53.0, 89.9) cạnh hộp sách tím `[ĐO TRONG ẢNH]` (7:42 cách đài phun -5.9/+16.7 m,
+  8:01, 11:01). Vùng tuần tra `[ĐỀ XUẤT]`: x <= 19.5 của `shadow_forest_entrance` (đầu tây con đường rừng "Forest Path").
+- Sửa theo ảnh ghép (áp cho cả q1-q6): băng QuestComplete dời lên p.y 420 (prefab 280; clip tên ở y ~155/720), chữ băng 82/48 và
+  66 (Nunito hẹp hơn TMP ~1.3 lần), dòng log trái chờ bảng đóng rồi hiện ngay cùng băng (không xếp sau băng), log EXP có cuộn
+  `Item_EXP`, ảnh nhỏ trong thoại `⟦cube⟧` / `⟦potion⟧` (TMP sprite), lựa chọn một lối `icon: 'none'`, HUD không ẩn dưới màn chỉ nút.
+- Test: `node test/world-of-slime-quest2.js` (48 PASS cục bộ; bản lưu q1..q6 xong + q7 đủ, `?lang=en`, chạy tới q12, bắt slime, tuần tra, tải lại
+  tiếng Việt); ảnh `D:\wos-ref\proof\quest2\web`, tờ so `D:\wos-ref\proof\quest2\compare\<key>.png`, nhận xét
+  `D:\wos-ref\proof\quest2\verdicts.tsv`.
+- Bẫy: (a) `combat.js` trước đây gọi thẳng `E.obj('q8','kill')` theo id: nay là `E.onKill(model)`; thêm nhiệm vụ đếm slime thì chỉ
+  sửa bảng. (b) Chữ thoại trong clip chạy 40 ký tự/giây và người chơi bấm qua: cắt vùng khung thoại (x 400-920, y 555-640 ở 720p)
+  rồi lọc khung trùng bằng sai khác trung bình (> 7) mới đọc được; chọn lựa ở x 880-1280, y 400-500. (c) Phần thưởng q7 ở ô
+  "Quest complete!" của 7:28 (bị màn chỉ nút che mờ): EXP 20 + thuốc 3, không phải EXP 20 như bảng cũ. (d) Thuốc dùng từ túi
+  và từ ô Q cùng đi qua `useItem` -> `engine.onUse`, nên bộ đếm không lệ thuộc đường dùng.
+
+## Hoàn thiện hình (F5a, rev 20261022e)
+
+- **Mặt nước đài phun** (`t01_fountain_001`): hai chỗ export_map.py bỏ sót. (1) MeshRenderer có nhiều vật liệu hơn submesh
+  (`Water_Flow_01`/`Water_Fall`: [FX_Alpha_Skyblue_Over, FX_Offset_WaterWave_012]): Unity vẽ vật liệu thừa lên submesh cuối, nay
+  xuất thành primitive thêm. (2) Mặt hồ `Water_Flow_02` (Plane001, WaterWave_010) và vành `Water_Flow_Side` (Circle_01, _011) là
+  ParticleSystemRenderer chế độ Mesh với một hạt đứng yên (tốc độ 0, không shape): nay xuất thành node `<tên>_particleMesh` cỡ
+  startSize, `extras.particleMesh`, `index.json pieces[].particleMeshes` (12 mảnh có, 9 hệ hạt chuyển động vẫn bỏ). `envmat.js`
+  vẽ `Transparent Offset Scroll` có `_FlowTex` cuộn theo `_OffsetYDirectionA/B` + `_MaskTex`, vân sáng `_ColorB` [ĐỀ XUẤT] công thức.
+  Đo x2: hồ web (89,227,241) vs gốc (54,189,215), sáng hơn ~x1.15 (hậu kỳ chung GRADE[0], chưa tách riêng vật liệu).
+- **Đồ đạc server** (`data/portals.js` `PROPS`, `map.js _props`): prefab `PR_*` ở `prop/<tên thường>.glb`, đặt ở mặt sàn, yaw Unity
+  mặc định 180 (mặt trước PR_* ở +z; lò `PR_oven_001` và thùng `PR_barrel_001` yaw 0). Toạ độ `[ĐO TRONG ẢNH]`: chiếu điểm chân vật
+  trong ảnh demo (khung test/world-of-slime-parity.js) xuống sàn bằng camera web. Gà quay trên quầy là `PR_fish_001` (PR_dish_002 chỉ là
+  đĩa trắng). Quán trọ 9 vật, kho 7 vật.
+- **Cỏ cao Shadow Forest**: `ter01_bush_001` (lá nhọn, `ter01_vegetation_b_001_wind`; mapobject.bundle tham chiếu nó, script
+  GrassActorBehaviour, tiếng "Bush"), mỗi ô một bụi x1.3 (`tools/forestmap.py`). Đo khung 6:00: cỏ web (102,137,111) vs clip
+  (80,137,130) (web xám hơn); đường/đất web 1.2 lần, clip 1.45 lần (hậu kỳ GRADE[2] làm đất web sáng hơn clip, post.js chưa sửa).
+- **Đạn + trúng của slime** (`js/combat/fx.js`, `tools/export_fx.py`): prefab FX_EN0_RangeAtk_<Hệ>_EnergyBall (attack_type 7..19
+  rangedResource, 13 hệ) và FX_EN0_Hit_<Hệ> chỉ là ParticleSystem billboard; xuất từng lớp (cỡ, màu đầu, rate, vật liệu) vào
+  `fx/index.json` + 25 texture gốc `fx/tex/`. Web dựng tấm quay camera dùng texture gốc: Bubble + Center_Light + vệt Side_Choppy +
+  bóng Shadow; trúng = Flash + Hit + Shock_Ring + sprite sheet của hệ (Fire 4x4...) + tia Particle. Màu kênh `_UseChannel`:
+  R*_RColor + G*_GColor + B*_BColor; trộn theo `_SrcBlend/_DstBlend`. Đường cong theo thời gian sống chưa đọc: mờ tuyến tính [ĐỀ XUẤT].
+- **Ba lô xanh**: `OBJ_DadBag_3_Albedo` (ui_view.bundle, cùng UV với ba lô vàng) xuất ra `prop/tex/` bằng `export_prop.py`
+  (`--extra-only`); bỏ đổi màu canvas. `OBJ_DadBag_2_Albedo` (đỏ) cũng xuất, chưa dùng.
+- **HUD**: phím `key_Digit1..6` trên ô slime (SlimeQuickSlot/ButtonKeymapOverlay pos (58,-65) 24x24, chỉ PC); tên bản đồ chữ 800 + bóng.
+- Chưa làm (không thuộc F5a hoặc chưa tìm ra): biểu tượng log EXP và nền "Túi Đồ" ở quầy nằm trong `js/ui/story.js` (F4);
+  miệng cười avatar trước gương: camera ngang mặt không đổi gì, decal ô 1 có miệng nhưng web không hiện (chưa rõ: mặt nạ/alpha decal);
+  hộp trôi dạt b1.png (2 thùng + hòm + lưới + sao biển) không thấy prefab nào khớp trong map/ prop/ npc/ (NPC_Box_001 = 2 hòm + sao
+  biển, PR_oldbox_003 = rương có lưới); lửa lò sưởi, vệt nắng projector.
+- Bẫy: (a) GLB nhiều node cùng tên `Water_Flow_02` (hai nhánh): `getObjectByName` lấy cái đầu, map.js duyệt cả cây nên đủ.
+  (b) `export_map.py` thêm con `_particleMesh` vào `children` của node trước khi duyệt con thật: phải nối, không gán đè.
+  (c) Prefab PR_* có độ cao sẵn trong mesh (đĩa 0.91 m, gối 0.66, cờ 2.8..7 m): đặt ở mặt sàn, đừng cộng độ cao bàn.
+  (d) `export_fx.py` sửa bằng thay chuỗi Python có `\` + xuống dòng không khớp, im lặng: kiểm lại bằng số prefab in ra (26).
+- So ảnh: `D:/wos-ref/proof/larus/f5a/` (x2/x3 nước, inn1/w1/al4 đồ đạc; `*_before.png` / `*_after.png`), `D:/wos-ref/proof/combat/f5a/`
+  (forest_grass_after/zoom, projectile_after, fx_sheet), `D:/wos-ref/proof/intro/f5a/` (pack_over/pack_focus before/after).
 
 ## Bảng phím (đúng `D:\wos-ref\code\input_bindings.txt`, map Gameplay)
 
@@ -275,7 +348,7 @@ thì chậm. Shift-chạy và T-huýt sáo của rev a là bịa, đã bỏ. Cá
 25. Màu làng thật xám-xanh (đất cát web (198,173,124) -> thật (138,143,138)): texture là cát vàng, nên đây là hậu kỳ của game, có
     thể do thời tiết (DistrictType 10 weathers 20001/20002). `GRADE[0]` hồi quy trên 7 cặp mẫu cùng chất liệu. Hồi quy trên
     trung bình vùng (khung lệch nhau vài mét) ra hệ số vô nghĩa: phải lấy mẫu từng chất liệu.
-26. Mặt nước đài phun (`FX_Offset_WaterWave_012`) không có trong `map/t01_larus.glb` (export_map.py bỏ sót), chỉ có thác nước.
+26. Mặt nước đài phun: đã sửa ở F5a (xem mục F5a, bẫy a, b).
 27. Đổi `REV` chưa đủ: `?v=` ở mọi import + `index.html`/`mobile.html` (sed rev cũ -> rev mới trong `games/world-of-slime`, ví dụ `20261022a` -> `20261022b`).
 
 28. `loadGLB` trả cùng một gltf từ bộ đệm: vào lại bản đồ mà gắn lại `g.scene` và chạy lại `applyUnitMaterials` thì vật liệu toon
@@ -303,8 +376,8 @@ thì chậm. Shift-chạy và T-huýt sáo của rev a là bịa, đã bỏ. Cá
   đồ). Log EXP thiếu biểu tượng. Nền ô "Túi Đồ" ở quầy chưa hiện. Ô 2, 3 của quầy dùng ảnh món gần nhất. Giấy của băng tên bản
   đồ (PaperBg) là gradient vì sprite chưa xuất. Một số dòng thoại không đọc được trong clip ghi `[ĐỀ XUẤT]` trong data/quest_text.js.
 
-- Vật thể server không có trong `_tileData`: giường, bàn tròn có cốc, tủ kính, cờ, lò sưởi quán trọ; sách trên giá kho (prop/PR_*).
-  Cửa/portal và chỗ NPC là số đo trong ảnh (`data/portals.js`), không phải dữ liệu thật.
+- Đồ đạc server gửi (giường, tủ kính, cờ, lò sưởi, bàn tròn, giá sách kho...) đặt theo ảnh từ F5a (`data/portals.js` PROPS); lửa trong lò,
+  vệt nắng mắt cáo (projector) chưa có. Cửa/portal và chỗ NPC là số đo trong ảnh (`data/portals.js`), không phải dữ liệu thật.
 - Vách kem int02 tối hơn thật (x0.77) trong khi sàn gỗ đúng: hậu kỳ chung không sửa được, cần màu riêng của vật liệu.
 - Plane sương cửa (builtin `Plane` + vật liệu verticalfog: cửa quán trọ, cửa kho, chân cầu thang) chưa xuất: cửa thật là hốc tối.
 - Hội thoại NPC, bong bóng thoại, nhiệm vụ, chữ tên bản đồ khi vào, người chơi khác.

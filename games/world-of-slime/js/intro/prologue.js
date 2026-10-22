@@ -2,11 +2,11 @@
 // (img/prologue.mp4 = TextAsset "Prologue" của video_prologue.bundle, EXPORT_2D.md).
 import * as THREE from 'three';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
-import { assetUrl, loadGLB } from '../assets.js?v=20261022d';
-import { unitMaterial } from '../actors/toon.js?v=20261022d';
-import { uiUrl, paint } from '../ui/sprites.js?v=20261022d';
-import { X, T, onTap, skipButton, media, sleep } from './ui.js?v=20261022d';
-import { L } from './text.js?v=20261022d';
+import { assetUrl, loadGLB } from '../assets.js?v=20261022e';
+import { unitMaterial } from '../actors/toon.js?v=20261022e';
+import { uiUrl, paint } from '../ui/sprites.js?v=20261022e';
+import { X, T, onTap, skipButton, media, sleep } from './ui.js?v=20261022e';
+import { L } from './text.js?v=20261022e';
 
 // nền IntroStoryUI / SelectInitialSlimeUI: đen + Gradient (Ui_FX_Circle_Glow_01 màu (0.54, 0.603, 0.811), kéo giãn hơn màn 600)
 function glowBg(layer) {
@@ -53,8 +53,9 @@ export async function comic(layer, gender) {
 }
 
 // ------------------------------------------------------------------ chọn ba lô (pack2/3, pick1..7, clip 0:39-0:48)
-// Hai ba lô cùng mô hình PR_Event_1_DadBag. Ảnh albedo gốc là ba lô vàng nắp ô liu; ba lô xanh (nắp xanh lơ, thân xanh
-// navy) không có ảnh riêng trong bundle: bản web đổi màu albedo trên canvas [ĐỀ XUẤT] (giữ nguyên bùa slime, quai da, kim loại).
+// Hai ba lô cùng mô hình PR_Event_1_DadBag. Ba lô vàng = albedo của prefab (OBJ_DadBag_Albedo); ba lô xanh (thân navy, nắp
+// xanh lơ) = OBJ_DadBag_3_Albedo GỐC trong ui_view.bundle (vật liệu OBJ_DadBag_3_Base / _3_Outline của màn chọn ba lô, cùng
+// UV), xuất ra prop/tex/OBJ_DadBag_3_Albedo.webp bằng tools/export_prop.py (F5a; trước đó đổi màu trên canvas, đã bỏ).
 // Slime khởi đầu: server gửi. Ảnh thật (inn1.png sau khi chọn ba lô xanh) và clip 1:12 (cũng chọn ba lô xanh) cho
 // SL_ElecChicken_WindFire [ĐO TRONG ẢNH]; ba lô vàng = SL_ElecChicken_WindElectric [ĐỀ XUẤT] (cùng loài, hệ Điện hợp màu vàng).
 export const BAGS = [
@@ -65,26 +66,7 @@ const texLoader = new THREE.TextureLoader(); texLoader.setCrossOrigin('anonymous
 const loadTx = url => new Promise((res, rej) => texLoader.load(url, t => { t.flipY = false; t.colorSpace = THREE.NoColorSpace; res(t); }, undefined,
   () => { (window.__wosErrors = window.__wosErrors || []).push('texture load failed: ' + url); rej(new Error('texture load failed: ' + url)); }));
 
-// vàng (H 25..55) -> xanh navy, ô liu (H 55..95) -> xanh lơ; còn lại (da nâu H < 25, kim loại xám, bùa xanh lơ) giữ nguyên
-function recolorBlue(img) {
-  const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
-  const g = c.getContext('2d'); g.drawImage(img, 0, 0);
-  const d = g.getImageData(0, 0, c.width, c.height), p = d.data;
-  for (let i = 0; i < p.length; i += 4) {
-    const r = p[i] / 255, gg = p[i + 1] / 255, b = p[i + 2] / 255, mx = Math.max(r, gg, b), mn = Math.min(r, gg, b), s = mx ? (mx - mn) / mx : 0;
-    if (s < 0.3 || mx < 0.12) continue;
-    let h = mx === r ? ((gg - b) / (mx - mn)) % 6 : mx === gg ? (b - r) / (mx - mn) + 2 : (r - gg) / (mx - mn) + 4; h *= 60; if (h < 0) h += 360;
-    let nh, nv, ns;
-    if (h >= 30 && h < 55 && mx > 0.55) { nh = 222; nv = mx * 0.5; ns = Math.min(1, s * 0.95); }
-    else if (h >= 55 && h < 95) { nh = 190; nv = Math.min(1, mx * 2.8); ns = Math.min(1, s * 1.3); }
-    else continue;
-    const C = nv * ns, Xc = C * (1 - Math.abs((nh / 60) % 2 - 1)), m = nv - C;
-    const [r1, g1, b1] = nh < 180 ? [0, C, Xc] : nh < 240 ? [0, Xc, C] : [Xc, 0, C];
-    p[i] = (r1 + m) * 255; p[i + 1] = (g1 + m) * 255; p[i + 2] = (b1 + m) * 255;
-  }
-  g.putImageData(d, 0, 0);
-  const t = new THREE.CanvasTexture(c); t.flipY = false; t.colorSpace = THREE.NoColorSpace; return t;
-}
+const BLUE_ALBEDO = 'prop/tex/OBJ_DadBag_3_Albedo.webp';
 
 async function bagModel(blue) {
   const path = 'prop/pr_event_1_dadbag.glb', g = await loadGLB(path);
@@ -97,10 +79,7 @@ async function bagModel(blue) {
     const ex = o.material.userData || {}, outline = /Outline/.test(o.material.name);
     jobs.push((async () => {
       const tex = ex.tex || {}, texs = {};
-      if (tex._MainTex) {
-        const t = await loadTx(assetUrl(base + tex._MainTex));
-        texs.albedo = blue ? recolorBlue(t.image) : t;
-      }
+      if (tex._MainTex) texs.albedo = await loadTx(assetUrl(blue ? BLUE_ALBEDO : base + tex._MainTex));
       if (tex._MaskTex && !outline) texs.mask = await loadTx(assetUrl(base + tex._MaskTex)).catch(() => null);
       const shared = { ...ex, shared: { _Ramp: tex._Ramp ? base + tex._Ramp : undefined } };
       o.material = unitMaterial(shared, texs, outline, { hasColor: !!o.geometry.attributes.color, tint: [1.22, 1.22, 1.22, 1] });   // [ĐỀ XUẤT] sáng hơn cho gần pick3

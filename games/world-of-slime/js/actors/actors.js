@@ -1,8 +1,8 @@
 // Người chơi (ghép avatar theo player/index.json defaults) và slime đồng hành (slime/index.json variants).
 // Ghép avatar theo SM.Common.Character.CharacterBuilder (EXPORT_PLAYER.md); mã ghép chép từ sheet.html playerCell.
 import * as THREE from 'three';
-import { loadGLB, loadJSON, clipOf } from '../assets.js?v=20261022d';
-import { applyUnitMaterials, decalAt } from './toon.js?v=20261022d';
+import { loadGLB, loadJSON, clipOf } from '../assets.js?v=20261022e';
+import { applyUnitMaterials, decalAt } from './toon.js?v=20261022e';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 // loadGLB trả cùng một gltf (bộ đệm): vào lại bản đồ mà gắn lại g.scene + chạy lại applyUnitMaterials thì vật liệu toon bị

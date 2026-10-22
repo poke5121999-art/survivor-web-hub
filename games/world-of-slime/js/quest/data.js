@@ -6,8 +6,12 @@
 // QUESTS[i] = { id, title (khoá chữ), group (khoá chữ phụ đề "Village of Rough Waves"), town (sprite TownSymbol),
 //               giver (NPC giao), target (NPC trả/nói chuyện), map (bản đồ của target, cho ô chi tiết),
 //               desc? (khoá chữ StoryText ô chi tiết nhật ký),
-//               objectives: [{ id, text (khoá chữ), need (số đếm cần), kind: 'talk'|'heal'|'item'|'perk'|'kill' }],
-//               rewards: { exp, gold, items: { itemId: n } }, next (id nhiệm vụ tự nhận khi xong) }
+//               objectives: [{ id, text (khoá chữ), need (số đếm cần), kind: 'talk'|'heal'|'item'|'perk'|'kill'|'use'|'buy'|'reach'|'none',
+//                 model? (kill: loài slime), item? (use/buy: item_type id), map? + rect? [x0,z0,x1,z1] (reach: bước vào vùng) }],
+//               rewards: { exp, gold, items: { itemId: n } }, next (id nhiệm vụ tự nhận khi xong),
+//               turnIn? 'notBuilt' (clip không cho thấy lúc trả), notBuilt? (nội dung chưa biết) }
+//   Bộ đếm kill/use/buy/reach do engine.onKill/onUse/onBuy/tick cộng cho MỌI nhiệm vụ đang làm có mục tiêu khớp (Martin + Patrol
+//   cùng đếm Junior Floralime như 11:03 "Defeat Junior Floralime 10/10"), không có if theo id nhiệm vụ.
 // DIALOGUE[nodeId] = { sp (người nói: tên NPC | 'box'), t? (khoá chữ, mặc định = nodeId), style? 'dark' (DialogueStyleUI),
 //               illust? (khoá TUTORIALS, thẻ hướng dẫn hiện cùng dòng này), act? (hành động khi dòng hiện),
 //               next? (nodeId kế) | choices?: [{ t (khoá chữ), icon (ChoicePopup: before|progress|complete|heal|buy|sell|talk|exit),
@@ -15,7 +19,10 @@
 // hành động (act, chuỗi "lệnh:tham số", nhiều lệnh nối bằng ";"):
 //   start:q  complete:q  obj:q.o (cộng 1 vào bộ đếm)  heal (trừ Vàng, hồi slime, rồi obj)  box (mở hộp đang xét)
 //   perk (mở bảng Tiềm năng)  shop (mở quầy)  notbuilt (thông báo chưa có)  pushback (đẩy người chơi về làng)  sell
-// TALK[npc] = [{ when: { q, s: 'none'|'active'|'ready'|'done' } | null, start }] — NPC lấy dòng ĐẦU TIÊN khớp trạng thái.
+//   F4 (chạy sau khi khung thoại đóng, theo thứ tự): guide:id (màn chỉ nút GUIDES[id], xong thì chạy GUIDES[id].then)
+//   call:node (NPC gọi từ xa: mở hội thoại node với người nói của node)  notice:khoáChữ (popup Notice)
+// TALK[npc] = [{ when: { q, s: 'none'|'active'|'ready'|'done' } | null, gate?: { started?: q, done?: q }, start }] — NPC lấy dòng
+//   ĐẦU TIÊN khớp trạng thái (+ cổng). Dòng `s: 'none'` có cổng mở = NPC đang có việc giao: dấu "!" (quest_marker_before) trên đầu.
 //   active = đang làm, chưa đủ mục tiêu; ready = đủ mục tiêu (hoặc mục tiêu 'talk' với chính NPC này); none = chưa nhận.
 // Không có if riêng cho từng NPC: game.js chỉ gọi engine.talk(npcName) và engine tra bảng này.
 
@@ -39,8 +46,27 @@ export const QUESTS = [
     objectives: [{ id: 'talk', text: 'q6.o', need: 1, kind: 'talk' }],
     rewards: { exp: 10, gold: 0, items: {} }, next: 'q7' },                 // [THẤY 4:42] "User EXP + 10"
   { id: 'q7', title: 'q7.title', group: 'grp.larus', town: 'Town/Town_Larus', giver: 'Lucy', target: 'Lucy', map: 110,
-    objectives: [{ id: 'kill', text: 'q7.o1', need: 2, kind: 'kill' }, { id: 'frag', text: 'q7.o2', need: 1, kind: 'item' }],
-    rewards: { exp: 20, gold: 0, items: {} }, next: null },                 // chưa làm được: cần Shadow Forest (chưa có bản đồ)
+    objectives: [{ id: 'kill', text: 'q7.o1', need: 2, kind: 'kill', model: 'SL_Slime_Grass' }, { id: 'frag', text: 'q7.o2', need: 1, kind: 'item' }],
+    rewards: { exp: 20, gold: 0, items: { 1: 3 } }, next: 'q9' },   // [THẤY 7:28] "30 HP Potion × 3", "User EXP + 20"
+  // ---- F4 (QUESTLINE.md bước 8-14). Thứ tự trong bảng = thứ tự nhận trong clip = thứ tự trên HUD (6:54, 7:30, 8:33, 11:03)
+  { id: 'q8', title: 'q8.title', group: 'grp.larus', town: 'Town/Town_Larus', giver: 'Martin', target: 'Martin', map: 'shadow_forest_entrance',
+    objectives: [{ id: 'kill', text: 'q8.o', need: 10, kind: 'kill', model: 'SL_Slime_Grass' }],
+    rewards: { exp: 30, gold: 0, items: {} }, next: null },                 // [THẤY 10:15] "User EXP + 30"
+  { id: 'q9', title: 'q9.title', group: 'grp.larus', town: 'Town/Town_Larus', giver: 'Lucy', target: 'Lucy', map: 110,
+    objectives: [{ id: 'potion', text: 'q9.o', need: 1, kind: 'use', item: 1 }],
+    rewards: { exp: 10, gold: 0, items: {} }, next: null },                 // [THẤY 7:42] "User EXP + 10"
+  { id: 'q10', title: 'q10.title', group: 'grp.sidejob', town: 'Town/Town_Larus', giver: 'Mysterious Researcher', target: 'Mysterious Researcher', map: 110,
+    objectives: [{ id: 'cube', text: 'q10.o', need: 3, kind: 'buy', item: 4 }],
+    rewards: { exp: 20, gold: 0, items: {} }, next: 'q12' },                // [THẤY 11:03] "User EXP + 20"
+  // Patrol: clip không cho thấy lúc trả (chạy tới 11:06 vẫn "Patrol Shadow Forest Entrance 0/1"); phần thưởng chưa biết.
+  // Vùng tuần tra [ĐỀ XUẤT]: "scout all the way to the end in the direction of Forest Path" = đầu tây con đường rừng (x <= 19.5)
+  { id: 'q11', title: 'q11.title', group: 'grp.patrol', town: 'Town/Town_Larus', giver: 'Billy', target: 'Billy', map: 'shadow_forest_entrance',
+    objectives: [{ id: 'patrol', text: 'q11.o1', need: 1, kind: 'reach', map: 'shadow_forest_entrance', rect: [0, 0, 19.5, 60] },
+      { id: 'kill', text: 'q11.o2', need: 10, kind: 'kill', model: 'SL_Slime_Grass' }],
+    rewards: { exp: 0, gold: 0, items: {} }, next: null, turnIn: 'notBuilt' },
+  // "Suspicious Part-Time J…" (11:03): clip dừng ngay sau khi nhận, nội dung chưa biết -> mục tiêu giữ chỗ "Chưa có trong bản web"
+  { id: 'q12', title: 'q12.title', group: 'grp.sidejob', town: 'Town/Town_Larus', giver: 'Mysterious Researcher', target: 'Mysterious Researcher', map: 110,
+    desc: 'q12.desc', objectives: [{ id: 'nb', text: 'q12.o', need: 1, kind: 'none' }], rewards: { exp: 0, gold: 0, items: {} }, next: null, notBuilt: true },
 ];
 export const QUEST = Object.fromEntries(QUESTS.map(q => [q.id, q]));
 export const FIRST_QUEST = 'q1';
@@ -142,6 +168,92 @@ export const DIALOGUE = {
   vi3: { sp: 'Vivian', next: 'vi4' },
   vi4: { sp: 'Vivian', next: 'vi5' },
   vi5: { sp: 'Vivian', choices: [{ t: 'c.buy', icon: 'buy', act: 'shop' }, { t: 'c.sell', icon: 'sell', act: 'sell' }, { t: 'c.end', icon: 'exit' }] },
+  // ---- F4. Martin nhận "Grant Martin's Request" (6:39-6:52): khung thoại không chân dung, chỉ chibi (6:39)
+  mt1: { sp: 'Martin', next: 'mt2' },
+  mt2: { sp: 'Martin', next: 'mt3o' },
+  mt3o: { sp: 'Martin', t: 'mt3', choices: [{ t: 'c.matter', icon: 'before', to: 'mt4' }, { t: 'c.end', icon: 'exit' }] },   // 6:45
+  mt4: { sp: 'Martin', next: 'mt5' }, mt5: { sp: 'Martin', next: 'mt6' }, mt6: { sp: 'Martin', next: 'mt7' },
+  mt7: { sp: 'Martin', next: 'mt8' }, mt8: { sp: 'Martin', next: 'mt9' }, mt9: { sp: 'Martin', next: 'mt10' },
+  mt10: { sp: 'Martin', next: 'mt11' },
+  mt11: { sp: 'Martin', act: 'start:q8' },
+  mtA: { sp: 'Martin', t: 'mt3', choices: [{ t: 'c.whatsup', icon: 'progress', to: 'mt11r' }, { t: 'c.end', icon: 'exit' }] },   // 6:52 nói lại
+  mt11r: { sp: 'Martin', t: 'mt11' },
+  // trả (10:06-10:13)
+  mtR: { sp: 'Martin', t: 'mt3', choices: [{ t: 'c.done', icon: 'complete', to: 'mt12' }, { t: 'c.end', icon: 'exit' }] },
+  mt12: { sp: 'Martin', next: 'mt13' }, mt13: { sp: 'Martin', next: 'mt14' }, mt14: { sp: 'Martin', next: 'mt15' },
+  mt15: { sp: 'Martin', next: 'mt16' },
+  mt16: { sp: 'Martin', choices: [{ t: 'c.martin', icon: 'none', to: 'mt17' }] },
+  mt17: { sp: 'Martin', next: 'mt18' },
+  mt18: { sp: 'Martin', choices: [{ t: 'c.youdid', icon: 'none', to: 'mt19' }] },
+  mt19: { sp: 'Martin', next: 'mt20' },
+  mt20: { sp: 'Martin', act: 'complete:q8' },
+  mtI: { sp: 'Martin', t: 'mt3', choices: [{ t: 'c.end', icon: 'exit' }] },
+  // ---- Lucy trả "Grant Lucy's Request" (7:18-7:28): thẻ Túi Đồ, rồi màn chỉ nút túi + ô Q (7:28-7:30)
+  lu1q7: { sp: 'Lucy', t: 'lu1', choices: [{ t: 'c.back', icon: 'complete', to: 'lr1' }, { t: 'c.end', icon: 'exit' }] },
+  lr1: { sp: 'Lucy', choices: [{ t: 'c.actually', icon: 'none', to: 'lr2' }] },
+  lr2: { sp: 'Lucy', next: 'lr3' },
+  lr3: { sp: 'Lucy', choices: [{ t: 'c.ofcourse', icon: 'none', to: 'lr4' }] },
+  lr4: { sp: 'Lucy', choices: [{ t: 'c.herethey', icon: 'none', to: 'lr5' }] },
+  lr5: { sp: 'Lucy', next: 'lr6' }, lr6: { sp: 'Lucy', next: 'lr6b' },
+  lr6b: { sp: 'Lucy', choices: [{ t: 'c.potion', icon: 'none', to: 'lr7' }] },
+  lr7: { sp: 'Lucy', next: 'lr8' }, lr8: { sp: 'Lucy', next: 'lr9' },
+  lr9: { sp: 'Lucy', choices: [{ t: 'c.giving', icon: 'none', to: 'lr10' }] },
+  lr10: { sp: 'Lucy', next: 'lr11' },
+  lr11: { sp: 'Lucy', illust: 'bag', next: 'lr12' },                        // 7:27.5 thẻ "Bag"
+  lr12: { sp: 'Lucy', illust: 'bag', act: 'complete:q7;guide:potion' },   // 7:28: thẻ còn trên dòng này
+  // "Recovery Complete!" (7:33-7:42)
+  lu1q9: { sp: 'Lucy', t: 'lu1', choices: [{ t: 'c.whatsup', icon: 'progress', to: 'lr12r' }, { t: 'c.end', icon: 'exit' }] },
+  lr12r: { sp: 'Lucy', t: 'lr12' },
+  lu1q9r: { sp: 'Lucy', t: 'lu1', choices: [{ t: 'c.fed', icon: 'complete', to: 'lr13' }, { t: 'c.end', icon: 'exit' }] },
+  lr13: { sp: 'Lucy', next: 'lr14' }, lr14: { sp: 'Lucy', next: 'lr15' },
+  lr15: { sp: 'Lucy', choices: [{ t: 'c.whatnow2', icon: 'none', to: 'lr16' }] },
+  lr16: { sp: 'Lucy', next: 'lr17' },
+  lr17: { sp: 'Lucy', choices: [{ t: 'c.think', icon: 'none', to: 'lr18' }] },
+  lr18: { sp: 'Lucy', next: 'lr19' },
+  lr19: { sp: 'Lucy', act: 'complete:q9;call:rs0' },                         // 7:42 xong, 7:46 Researcher gọi
+  lr20: { sp: 'Lucy', choices: [{ t: 'c.end', icon: 'exit' }] },
+  // ---- Mysterious Researcher (7:46-8:05): gọi từ xa, rồi nhận "Suspicious Researcher"
+  rs0: { sp: 'Mysterious Researcher' },
+  rs1: { sp: 'Mysterious Researcher', choices: [{ t: 'c.yesright', icon: 'before', to: 'rs2' }] },
+  rs2: { sp: 'Mysterious Researcher', next: 'rs3' },
+  rs3: { sp: 'Mysterious Researcher', choices: [{ t: 'c.rare', icon: 'none', to: 'rs4' }] },
+  rs4: { sp: 'Mysterious Researcher', next: 'rs5' },
+  rs5: { sp: 'Mysterious Researcher', illust: 'friendly', next: 'rs6' },   // 7:58.5 thẻ Friendly Slime
+  rs6: { sp: 'Mysterious Researcher', illust: 'friendly', next: 'rs7' },   // thẻ còn 7:58.5-7:59
+  rs7: { sp: 'Mysterious Researcher', choices: [{ t: 'c.isee', icon: 'none', to: 'rs8' }] },
+  rs8: { sp: 'Mysterious Researcher', next: 'rs9' }, rs9: { sp: 'Mysterious Researcher', next: 'rs10' },
+  rs10: { sp: 'Mysterious Researcher', next: 'rs11' },
+  rs11: { sp: 'Mysterious Researcher', choices: [{ t: 'c.whatcube', icon: 'none', to: 'rs12' }] },
+  rs12: { sp: 'Mysterious Researcher', next: 'rs13' }, rs13: { sp: 'Mysterious Researcher', next: 'rs14' },
+  rs14: { sp: 'Mysterious Researcher', next: 'rs15' }, rs15: { sp: 'Mysterious Researcher', next: 'rs16' },
+  rs16: { sp: 'Mysterious Researcher', next: 'rs17' },
+  rs17: { sp: 'Mysterious Researcher', choices: [{ t: 'c.ownmoney', icon: 'none', to: 'rs18' }] },
+  rs18: { sp: 'Mysterious Researcher', next: 'rs19' }, rs19: { sp: 'Mysterious Researcher', next: 'rs20' },
+  rs20: { sp: 'Mysterious Researcher', next: 'rs21' },
+  rs21: { sp: 'Mysterious Researcher', illust: 'shop', act: 'start:q10' },  // 8:04.5 thẻ Shop, 8:06 băng nhiệm vụ
+  rsA: { sp: 'Mysterious Researcher', choices: [{ t: 'c.whatbuy', icon: 'progress', to: 'rs17r' }, { t: 'c.end', icon: 'exit' }] },
+  rs17r: { sp: 'Mysterious Researcher', t: 'rs17' },
+  // trả (10:55-11:03): thẻ Tame, màn chỉ ba ô Q/E/R (11:01), rồi "Quest complete! Suspicious Researcher" (11:03)
+  rsR: { sp: 'Mysterious Researcher', t: 'rsA', choices: [{ t: 'c.brought', icon: 'complete', to: 'rt1' }, { t: 'c.end', icon: 'exit' }] },
+  rt1: { sp: 'Mysterious Researcher', next: 'rt2' }, rt2: { sp: 'Mysterious Researcher', next: 'rt3' },
+  rt3: { sp: 'Mysterious Researcher', next: 'rt4' }, rt4: { sp: 'Mysterious Researcher', next: 'rt5' },
+  rt5: { sp: 'Mysterious Researcher', next: 'rt6' },
+  rt6: { sp: 'Mysterious Researcher', illust: 'tame', choices: [{ t: 'c.understood', icon: 'none', to: 'rt7' }] },
+  rt7: { sp: 'Mysterious Researcher', choices: [{ t: 'c.slimepedia', icon: 'none', to: 'rt8' }] },
+  rt8: { sp: 'Mysterious Researcher', act: 'guide:tame' },
+  rtI: { sp: 'Mysterious Researcher', t: 'rt8', choices: [{ t: 'c.end', icon: 'exit' }] },
+  // ---- Billy nhận "Patrol" (8:18-8:28)
+  bi0o: { sp: 'Billy', t: 'bi0', choices: [{ t: 'c.nicemeet', icon: 'before', to: 'bi1' }, { t: 'c.end', icon: 'exit' }] },
+  bi1: { sp: 'Billy', next: 'bi2' }, bi2: { sp: 'Billy', next: 'bi3' }, bi3: { sp: 'Billy', next: 'bi4' },
+  bi4: { sp: 'Billy', next: 'bi5' }, bi5: { sp: 'Billy', next: 'bi6' }, bi6: { sp: 'Billy', next: 'bi7' },
+  bi7: { sp: 'Billy', choices: [{ t: 'c.leave', icon: 'none', to: 'bi8' }] },
+  bi8: { sp: 'Billy', next: 'bi9' }, bi9: { sp: 'Billy', next: 'bi10' }, bi10: { sp: 'Billy', next: 'bi11' },
+  bi11: { sp: 'Billy', next: 'bi12' }, bi12: { sp: 'Billy', next: 'bi13' },
+  bi13: { sp: 'Billy', act: 'start:q11' },
+  biA: { sp: 'Billy', t: 'bi0', choices: [{ t: 'c.whatsup', icon: 'progress', to: 'bi13r' }, { t: 'c.end', icon: 'exit' }] },
+  bi13r: { sp: 'Billy', t: 'bi13' },
+  biR: { sp: 'Billy', t: 'bi0', choices: [{ t: 'c.done', icon: 'complete', act: 'notice:ui.notBuiltTurnIn' }, { t: 'c.end', icon: 'exit' }] },
+  biI: { sp: 'Billy', t: 'bi0', choices: [{ t: 'c.end', icon: 'exit' }] },
 };
 
 export const TALK = {
@@ -154,7 +266,16 @@ export const TALK = {
     { when: { q: 'q6', s: 'active' }, start: 'al1q6' },
     { when: null, start: 'al1idle' },
   ],
-  Lucy: [{ when: { q: 'q6', s: 'ready' }, start: 'lu1q6' }, { when: null, start: 'lu1' }],
+  Lucy: [{ when: { q: 'q6', s: 'ready' }, start: 'lu1q6' }, { when: { q: 'q7', s: 'ready' }, start: 'lu1q7' },
+    { when: { q: 'q9', s: 'active' }, start: 'lu1q9' }, { when: { q: 'q9', s: 'ready' }, start: 'lu1q9r' },
+    { when: { q: 'q9', s: 'done' }, start: 'lr20' }, { when: null, start: 'lu1' }],
+  // F4
+  Martin: [{ when: { q: 'q8', s: 'none' }, gate: { started: 'q7' }, start: 'mt1' }, { when: { q: 'q8', s: 'active' }, start: 'mtA' },
+    { when: { q: 'q8', s: 'ready' }, start: 'mtR' }, { when: null, start: 'mtI' }],
+  'Mysterious Researcher': [{ when: { q: 'q10', s: 'none' }, gate: { done: 'q9' }, start: 'rs1' }, { when: { q: 'q10', s: 'active' }, start: 'rsA' },
+    { when: { q: 'q10', s: 'ready' }, start: 'rsR' }, { when: { q: 'q10', s: 'done' }, start: 'rtI' }],
+  Billy: [{ when: { q: 'q11', s: 'none' }, gate: { done: 'q9' }, start: 'bi0o' }, { when: { q: 'q11', s: 'active' }, start: 'biA' },
+    { when: { q: 'q11', s: 'ready' }, start: 'biR' }, { when: null, start: 'biI' }],
   // flag: chỉ khớp khi engine.save[flag] đúng (save.duel = đã thắng Rudga, js/combat)
   Rudga: [{ flag: 'duel', when: null, start: 'ruWon' }, { when: { q: 'q7', s: 'active' }, start: 'ru1' }, { when: null, start: 'ru1idle' }],
   Vivian: [{ when: null, start: 'vi1' }],
@@ -165,17 +286,39 @@ export const NPC_ART = {
   Amy: 'img/npc/NPC_Larus_Biggirl_Default.webp', Allen: 'img/npc/NPC_Larus_Store_Default.webp',
   Lucy: 'img/npc/NPC_Larus_Biggirl_4_Default.webp', Rudga: 'img/npc/NPC_Larus_Bigman_3_Default.webp',
   Vivian: 'img/npc/NPC_Larus_Shop_Default.webp', 'Mysterious Researcher': 'img/npc/NPC_Larus_Researcher_Default.webp',
-};
+};   // Martin, Billy: không có chân dung lớn (6:39, 8:18 chỉ chibi)
 // chibi nhỏ cho ô chi tiết nhật ký (CharacterThumb là RawImage chụp mô hình; bản web dùng ảnh đứng nhỏ img/npc/<model>.webp)
 export const NPC_THUMB = {
   Amy: 'img/npc/NPC_Larus_Biggirl.webp', Allen: 'img/npc/NPC_Larus_Store.webp', Lucy: 'img/npc/NPC_Larus_Biggirl_4.webp',
   Rudga: 'img/npc/NPC_Larus_Bigman_3.webp', Vivian: 'img/npc/NPC_Larus_Shop.webp',
+  Martin: 'img/npc/NPC_Larus_Fatman_3.webp', Billy: 'img/npc/NPC_Larus_Bigman.webp', 'Mysterious Researcher': 'img/npc/NPC_Larus_Researcher.webp',
 };
 
 // thẻ hướng dẫn (DialogueIllust): ảnh img/dialogue/*
 export const TUTORIALS = {
   heal: { title: 'tut.heal.t', desc: 'tut.heal.d', img: 'img/dialogue/DialogueIllust_SlimeClinic.webp' },          // 1:42
   whistle: { title: 'tut.whistle.t', desc: 'tut.whistle.d', img: 'img/dialogue/DialogueIllust_Whistle.webp' },     // 4:57
+  // F4: tên ảnh gốc khác tên thẻ: Friendly Slime = DialogueIllust_Tamable, Tame = CubeCapture02, Bag = Inventory (ghép theo hình 7:27-10:58)
+  bag: { title: 'tut.bag.t', desc: 'tut.bag.d', img: 'img/dialogue/DialogueIllust_Inventory.webp' },                // 7:27.5
+  friendly: { title: 'tut.friendly.t', desc: 'tut.friendly.d', img: 'img/dialogue/DialogueIllust_Tamable.webp' },  // 7:58.5
+  shop: { title: 'tut.shop.t', desc: 'tut.shop.d', img: 'img/dialogue/DialogueIllust_Shop.webp' },                  // 8:04.5
+  tame: { title: 'tut.tame.t', desc: 'tut.tame.d', img: 'img/dialogue/DialogueIllust_CubeCapture02.webp' },         // 10:58
+};
+
+// Màn chỉ nút (prefab ui_tutorial__Tutorial_*): nền tối Screen (0.058,0.091,0.104,0.698), vòng sáng quanh nút HUD (target = data-hud),
+// khung chữ Dialogue_Frame_Round (0.102,0.235,0.31) 960x230 có chibi NPC (npc = dialogueNpcModelResource), chữ Unmasking.* [LOC].
+// box: vị trí tâm khung chữ theo prefab: { from: 'target', p } (con của UnmaskShape, neo góc phải trên nút) | { from: 'screen', a, p }.
+// arrow: [x, y, độ xoay] mũi tên DialogueIllust_Arrow quanh tâm nút. Bấm (chuột/Space) để qua bước.
+// then: hành động chạy sau bước cuối (11:01 màn chỉ -> 11:03 "Quest complete!").
+export const GUIDES = {
+  potion: [
+    { prefab: 'Tutorial_INVENTORY_BUTTON', npc: 'Lucy', t: 'gd.inventory', target: ['menuBag'], ring: 120, arrow: [175, 0, 90], box: { from: 'target', p: [-88, -324] } },   // 7:28
+    { prefab: 'Tutorial_QUICK_SLOT_0_BUTTON', npc: 'Lucy', t: 'gd.quick', target: ['item0'], ring: 150, arrow: [0, 190, 180], box: { from: 'screen', a: [1, 0], p: [-1146, 263] } },   // 7:30
+  ],
+  tame: [
+    { prefab: 'Tutorial_QUICK_SLOT_ALL_BUTTON', npc: 'Mysterious Researcher', t: 'gd.quickAll', target: ['item0', 'item1', 'item2'], ring: 128,
+      box: { from: 'screen', a: [1, 0], p: [-1079.5, 358] }, then: 'complete:q10' },   // 11:01
+  ],
 };
 
 // Hộp trôi dạt trong làng (110): vị trí [ĐO TRONG ẢNH] (thước 33.6 px/m ngang, 21.6 px/m dọc như data/portals.js).

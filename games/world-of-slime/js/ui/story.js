@@ -6,12 +6,12 @@
 // - Bảng toàn màn (QuestUI, PerkUI, BuyShopUI) bố cục lồng nhiều layout group không có trong JSON (bẫy 11 ARCH.md), nên
 //   đặt theo khung hình [ĐO TRONG ẢNH]: X(px) với px đo trên ảnh 1280x720 (q1.png: K = 1.875; clip 3:57, 10:39: K = 2).
 import * as THREE from 'three';
-import { R, F, text, css, C } from './hud.js?v=20261022d';
-import { paint, uiUrl, used } from './sprites.js?v=20261022d';
-import { assetUrl } from '../assets.js?v=20261022d';
-import { state, set } from '../state.js?v=20261022d';
-import { L } from '../../data/quest_text.js?v=20261022d';
-import { DIALOGUE, NPC_ART, NPC_THUMB, TUTORIALS, QUEST, SHOP, PERKS, BAG_SLOTS, ITEM_ICON } from '../quest/data.js?v=20261022d';
+import { R, F, text, css, C } from './hud.js?v=20261022e';
+import { paint, uiUrl, used } from './sprites.js?v=20261022e';
+import { assetUrl } from '../assets.js?v=20261022e';
+import { state, set } from '../state.js?v=20261022e';
+import { L } from '../../data/quest_text.js?v=20261022e';
+import { DIALOGUE, NPC_ART, NPC_THUMB, TUTORIALS, QUEST, SHOP, PERKS, BAG_SLOTS, ITEM_ICON } from '../quest/data.js?v=20261022e';
 
 const NAVY = [0.09, 0.27, 0.42, 1], NAVY2 = [0.16, 0.38, 0.56, 1], ORANGE = '#ff8a2a';   // TMP màu chữ; cam [ĐO TRONG ẢNH] 2:24 "healed"
 const TYPE_CPS = 40;              // [ĐỀ XUẤT] chữ/giây của TypewriterByCharacter (giá trị trên prefab không có trong JSON)
@@ -23,6 +23,7 @@ function segs(str) {
   if (i < str.length) out.push({ s: str.slice(i), o: false });
   return out;
 }
+const RICON = { cube: 'img/item/Item_Cube_1.webp', potion: 'img/item/item_potion_hp_1.webp' };
 function rich(el, str, n = Infinity) {          // n = số ký tự hiện (typewriter)
   let left = n, h = '';
   for (const g of segs(str)) {
@@ -30,6 +31,8 @@ function rich(el, str, n = Infinity) {          // n = số ký tự hiện (typ
     const s = g.s.slice(0, left); left -= g.s.length;
     h += g.o ? `<span style="color:${ORANGE}">${esc(s).replace(/\n/g, '<br>')}</span>` : esc(s).replace(/\n/g, '<br>');
   }
+  // F4: ảnh nhỏ trong dòng (TMP <sprite>): ⟦cube⟧ trước "Cube" (8:00-8:02, 10:57), ⟦potion⟧ trước "30 HP Potion" (7:26); ⟦…⟧ đang chạy chữ dở thì ẩn
+  h = h.replace(/⟦(\w+)⟧/g, (m, k) => RICON[k] ? `<img class="ricon" src="${assetUrl(RICON[k])}" alt="">` : '').replace(/⟦[^⟧]*$/, '');
   el.innerHTML = '<span class="rt">' + h + '</span>';   // một khối: khung chữ là flex, nút chữ rời sẽ thành mục flex riêng (mất dấu cách)
 }
 const plainLen = str => segs(str).reduce((a, g) => a + g.s.length, 0);
@@ -81,7 +84,7 @@ export class Story {
   // ---------------------------------------------------------------- modal
   pushModal(name, el, onKey) {
     this.modalStack.push({ name, el, onKey });
-    this.fx.classList.add('modal');   // băng chữ ẩn dưới bảng/hội thoại (log trái vẫn hiện, như 10:45)
+    if (name !== 'guide') this.fx.classList.add('modal');   // băng chữ ẩn dưới bảng/hội thoại (log trái vẫn hiện, như 10:45); màn chỉ nút thì băng vẫn chạy dưới lớp tối (7:28)
     set({ modal: name }); this.onModal(name);
   }
   popModal(name) {
@@ -92,7 +95,7 @@ export class Story {
     set({ modal: top ? top.name : null }); this.onModal(top ? top.name : null);
     if (!top) this.fx.classList.remove('modal');
     // đợi một nhịp: bảng mở ngay sau khi khung thoại đóng (Tiềm năng, quầy) phải chặn băng chữ như clip 3:54-4:00
-    if (!top) setTimeout(() => this.flush(), 60);
+    if (!top) { for (const f of (this.pendingLogs || []).splice(0)) f(); setTimeout(() => this.flush(), 60); }
   }
   key(e) {
     const top = this.modalStack[this.modalStack.length - 1];
@@ -222,7 +225,9 @@ export class Story {
         heal: 'DialogueUI/Dialogue_Icon_Heal', buy: 'DialogueUI/Dialogue_Icon_BuyShop', sell: 'DialogueUI/Dialogue_Icon_SellShop',
         talk: 'DialogueUI/Dialogue_Icon_Normal', exit: 'DialogueUI/Dialogue_Icon_Exit' }[c.icon] || 'DialogueUI/Dialogue_Icon_Normal';
       const big = /^(before|progress|complete)$/.test(c.icon);
-      F(b, 8, 1); const icn = F(b, 50, big ? 62 : 50, { spr: ic }); icn.style.margin = '0 10px 0 12px';
+      F(b, 8, 1);
+      if (c.icon !== 'none') { const icn = F(b, 50, big ? 62 : 50, { spr: ic }); icn.style.margin = '0 10px 0 12px'; }   // F4: 'none' = lựa chọn một lối không biểu tượng (7:20 "Actually...", 10:58 "Understood.")
+      else F(b, 22, 1);
       const tx = text(b, L(c.t, { name: state.player.name }), 27); tx.dataset.hud = 'choiceText';
       b.addEventListener('pointerdown', e => { e.stopPropagation(); this.choose(i); });
       b.addEventListener('pointerenter', () => this.hl(i));
@@ -270,7 +275,7 @@ export class Story {
   // việc hiệu ứng xếp hàng, chạy khi không có bảng nào mở (clip: băng hiện sau khi khung thoại đóng)
   enqueue(fn, ms) { this.queue.push({ fn, ms }); this.flush(); }
   flush() {
-    if (this.fxBusy || state.modal || !this.queue.length) return;
+    if (this.fxBusy || (state.modal && state.modal !== 'guide') || !this.queue.length) return;
     const { fn, ms } = this.queue.shift();
     this.fxBusy = true;
     const el = fn();
@@ -282,27 +287,101 @@ export class Story {
       const root = R(this.fx, { a: [0, 0, 1, 1], n: 'questStart', cls: 'banner' });
       root.dataset.title = L(q.title);
       const box = R(root, { a: [0, 1, 1, 1], p: [0, -240], sz: [0, 160] });
-      const tl = R(box, { a: [0, 1, 1, 1], p: [0, -48.5], cls: 'center' }); text(tl, L(q.title), 65, [1, 1, 1, 1], 'bannertxt');
+      const tl = R(box, { a: [0, 1, 1, 1], p: [0, -48.5], cls: 'center' }); text(tl, L(q.title), 82, [1, 1, 1, 1], 'bannertxt');   // prefab 65; Nunito hẹp hơn phông TMP: khung 6:57, 8:06, 8:30 tên rộng gấp ~1.3 -> 82 [ĐO TRONG ẢNH]
       const deco = R(box, { a: [0, 1, 1, 1], p: [0, -95], sz: [0, 3], cls: 'row center' }); deco.style.gap = '10px';
       F(deco, 300, 3, { spr: 'Common/Ui_Bg_Rectangle_01_16px', col: [1, 1, 1, 0.39] }); F(deco, 20, 18, { spr: 'Common/Popup_Bg_Symbol_02', col: [1, 1, 1, 0.59] });
       F(deco, 300, 3, { spr: 'Common/Ui_Bg_Rectangle_01_16px', col: [1, 1, 1, 0.39] });
       const grp = R(box, { a: [0.5, 0.5], p: [0, -49.7], sz: [1350.6, 0], cls: 'row center' }); grp.style.gap = '10px';
-      F(grp, 60, 60, { spr: q.town }); text(grp, L(q.group), 40, [1, 1, 1, 1], 'bannertxt');
+      F(grp, 60, 60, { spr: q.town }); text(grp, L(q.group), 48, [1, 1, 1, 1], 'bannertxt');
       return root;
     }, 2600);
   }
   questComplete(q) {  // ui_play__QuestComplete
     this.enqueue(() => {
-      const root = R(this.fx, { a: [0.5, 0.5], p: [0, 280], sz: [1600, 190], n: 'questComplete', cls: 'banner' });
+      // prefab p.y 280, nhưng 7:28, 7:42, 10:15, 11:03 tên nhiệm vụ ở y ~155/720 (web 280 ra ~225): +140 [ĐO TRONG ẢNH] (QuestCompleteLayout có thể dời lúc chạy)
+      const root = R(this.fx, { a: [0.5, 0.5], p: [0, 420], sz: [1600, 190], n: 'questComplete', cls: 'banner' });
       root.dataset.title = L(q.title);
       this.ribbon(root, true);
       const c = R(root, { a: [0.5, 0.5], p: [0, 120], sz: [230, 219] });
       R(c, { a: [0.5, 0.5], p: [0, 3.8], sz: [158, 150], pv: [0.5, 0.42], spr: 'Levelup/Ui_LevelUp_Icon_03' });
       const t1 = R(c, { a: [0.5, 0.5], p: [0, -82], sz: [600, 70], cls: 'center' }); text(t1, L('ui.questComplete'), 28, [0.6, 1, 1, 1], 'bannertxt');
       // ContentsText prefab ghi 28 nhưng khung 4:18 thấy chữ tên cao gấp đôi dòng "Quest complete!": 56 [ĐO TRONG ẢNH]
-      const t2 = R(c, { a: [0.5, 0.5], p: [0, -137], sz: [1300, 70], cls: 'center' }); text(t2, L(q.title), 56, [1, 1, 1, 1], 'bannertxt');
+      const t2 = R(c, { a: [0.5, 0.5], p: [0, -137], sz: [1300, 70], cls: 'center' }); text(t2, L(q.title), 66, [1, 1, 1, 1], 'bannertxt');
+      // F4: ô phần thưởng QuestRewardLayout (136x136 UI_Frame_Item_Box01, ảnh 90 ở y+12, số fs15 xanh đậm): 7:28 "20" + thuốc "3", 10:15 "30"
+      const r = q.rewards || {}, items = [];
+      if (r.exp) items.push({ icon: 'img/item/Item_EXP.webp', n: r.exp, k: 'exp' });
+      for (const [it, n] of Object.entries(r.items || {})) items.push({ icon: ITEM_ICON[it], n, k: 'item' + it });
+      if (items.length) {
+        const rw = R(c, { a: [0.5, 0.5], p: [0, -268], sz: [800, 136], cls: 'row center', n: 'questReward' }); rw.style.gap = '18px';
+        for (const it of items) {
+          const b = F(rw, 136, 136, { spr: 'Common/UI_Frame_Item_Box01' }); b.dataset.reward = it.k + ':' + it.n; b.style.position = 'relative';
+          const im = R(b, { a: [0.5, 0.5], p: [0, 12], sz: [90, 90], tag: 'img' }); im.src = assetUrl(it.icon); im.crossOrigin = 'anonymous'; im.style.objectFit = 'contain';
+          const am = R(b, { a: [0.5, 0], p: [0, 14], sz: [120, 30], pv: [0.5, 0], cls: 'center' }); text(am, String(it.n), 30, NAVY);   // prefab fs15 trong ô 136: khung 7:28 chữ cao ~1/5 ô -> 30 [ĐO TRONG ẢNH]
+        }
+      }
       return root;
     }, 2600);
+  }
+  // F4: mục tiêu vừa đủ (6:27, 7:30, 9:54): tên nhiệm vụ + từng mục tiêu có dấu ✓ (QuestProgressGoalLayout: Icon_Check02 + chữ fs32
+  // màu (0.576,0.976,0.843)), giữa trên màn, không nền, ~2.4 s. Không xếp hàng với băng (khung 7:30 hiện cùng lúc với màn chỉ nút).
+  goalDone(title, lines) {
+    const root = R(this.fx, { a: [0.5, 1], p: [0, -150], sz: [900, 0], pv: [0.5, 1], n: 'goalDone', cls: 'goaldone' });   // không phải .banner: không bị ẩn dưới bảng đang mở (túi đồ 7:30)
+    root.dataset.title = title;
+    const tl = R(root, { a: [0, 1, 1, 1], p: [0, 0], sz: [0, 44], pv: [0.5, 1], cls: 'center' }); text(tl, title, 30, [1, 1, 1, 1], 'outline');
+    lines.forEach((o, i) => {
+      const ln = R(root, { a: [0, 1, 1, 1], p: [0, -46 - i * 40], sz: [0, 40], pv: [0.5, 1], cls: 'row center' }); ln.style.gap = '8px';
+      if (o.done) F(ln, 32, 26, { spr: 'Icon/Icon_Check02' });
+      text(ln, o.text, 28, o.done ? [0.576, 0.976, 0.843, 1] : [1, 1, 1, 1], 'outline');
+    });
+    setTimeout(() => { root.classList.add('out'); setTimeout(() => root.remove(), 400); }, 2400);
+    return root;
+  }
+  // băng chữ đã chạy hết và không có bảng nào mở (NPC gọi từ xa đợi "Quest complete!" xong như 7:42 -> 7:46)
+  whenIdle() {
+    return new Promise(r => { const chk = () => (!this.fxBusy && !this.queue.length && !state.modal ? r() : setTimeout(chk, 100)); chk(); });
+  }
+  // F4: màn chỉ nút (prefab ui_tutorial__Tutorial_*, js/quest/data.js GUIDES). Lớp tối có lỗ tròn quanh nút HUD (SoftMask), vòng
+  // DialogueIllust_Effect nhấp nháy, mũi tên DialogueIllust_Arrow, khung chữ 960x230 + chibi NPC tròn 200. Bấm/Space để qua.
+  guide(st, npcObject, npcHeight) {
+    return new Promise(done => {
+      const L0 = this.layer, hr = L0.getBoundingClientRect(), sc = hr.width / (L0.offsetWidth || 1), W = L0.offsetWidth, H = L0.offsetHeight;
+      const root = R(L0, { a: [0, 0, 1, 1], n: 'guide', cls: 'guide' });
+      root.dataset.prefab = st.prefab; root.dataset.text = L(st.t);
+      const tg = st.target.map(n => document.querySelector('#hud [data-hud="' + n + '"]')).filter(Boolean).map(el => {
+        const r = el.getBoundingClientRect();
+        return { x: (r.left - hr.left + r.width / 2) / sc, y: (r.top - hr.top + r.height / 2) / sc, w: r.width / sc, h: r.height / sc, right: (r.right - hr.left) / sc, top: (r.top - hr.top) / sc };
+      });
+      const NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg');
+      svg.setAttribute('class', 'guidedim'); svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('preserveAspectRatio', 'none');
+      const path = document.createElementNS(NS, 'path'), rr = st.ring / 2;
+      path.setAttribute('d', `M0 0H${W}V${H}H0Z` + tg.map(t => `M${t.x - rr} ${t.y}a${rr} ${rr} 0 1 0 ${2 * rr} 0a${rr} ${rr} 0 1 0 ${-2 * rr} 0Z`).join(''));
+      path.setAttribute('fill-rule', 'evenodd'); path.setAttribute('fill', 'rgba(15,23,27,0.698)');   // Screen (0.058,0.091,0.104,0.698)
+      svg.appendChild(path); root.appendChild(svg);
+      for (const t of tg) {
+        const ce = R(root, { a: [0, 1], p: [t.x, -t.y], sz: [st.ring * 1.433, st.ring * 1.433], spr: 'DialogueIllust/DialogueIllust_Effect', cls: 'guidering', n: 'guideRing' });   // 172/120
+        if (st.arrow && tg.length === 1) {
+          const ar = R(root, { a: [0, 1], p: [t.x + st.arrow[0], -t.y + st.arrow[1]], sz: [128, 128], spr: 'DialogueIllust/DialogueIllust_Arrow', cls: 'guidearrow' });
+          ar.style.transform = `rotate(${st.arrow[2]}deg)`;
+        }
+      }
+      // khung chữ: tâm theo prefab (con của UnmaskShape neo góc phải trên của nút, hoặc neo màn)
+      const t0 = tg[0] || { right: W / 2, top: H / 2 };
+      const cx = st.box.from === 'target' ? t0.right + st.box.p[0] : st.box.a[0] * W + st.box.p[0];
+      const cy = st.box.from === 'target' ? t0.top - st.box.p[1] : (1 - st.box.a[1]) * H - st.box.p[1];
+      const bx = R(root, { a: [0, 1], p: [cx, -cy], sz: [960, 230], n: 'guideBox' });
+      paint(bx, 'DialogueUI/Dialogue_Frame_Round', { color: [0.102, 0.235, 0.31, 1], sliced: true });
+      const tw = R(bx, { a: [0, 0, 1, 1], p: [0, 2], sz: [-220, -80], cls: 'center guidetxt' }); rich(tw, L(st.t));
+      const th = R(bx, { a: [0.5, 0.5], p: [-441.5, 119], sz: [200, 200], spr: 'Common/Ui_Bg_Round_01_128px', col: [0.102, 0.235, 0.31, 1], cls: 'guidethumb' });
+      try {
+        if (npcObject) { const cv = R(th, { a: [0.5, 0.5], p: [0, -60], sz: [360, 360], tag: 'canvas' }); snapshot(this.renderer, npcObject, cv, npcHeight); }
+        else { const im = R(th, { a: [0.5, 0.5], p: [0, -20], sz: [200, 240], tag: 'img' }); im.src = assetUrl(NPC_THUMB[st.npc] || ''); im.crossOrigin = 'anonymous'; im.style.objectFit = 'cover'; }
+      } catch (e) { (window.__wosErrors = window.__wosErrors || []).push('guide snapshot: ' + e.message); }
+      let closed = false;
+      const close = () => { if (closed) return; closed = true; this.popModal('guide'); done(); };
+      root.addEventListener('pointerdown', e => { e.stopPropagation(); if (performance.now() - t1 > 250) close(); });
+      const t1 = performance.now();
+      this.pushModal('guide', root, e => { if ((e.code === 'Space' || e.code === 'Enter' || e.code === 'Escape') && performance.now() - t1 > 250) close(); });
+    });
   }
   levelUp(lv) {       // ui_objects__LevelUpPrefab
     this.enqueue(() => {
@@ -357,7 +436,8 @@ export class Story {
       this.logRoot.appendChild(w);
       setTimeout(() => { w.classList.add('out'); setTimeout(() => w.remove(), 500); }, 4200);
     };
-    if (state.modal && state.modal !== 'shop') this.queue.push({ fn: () => (run(), null), ms: 0 }); else run();
+    // F4: dòng log chờ bảng/hội thoại đóng rồi hiện NGAY, cùng lúc với băng "Quest complete!" (7:28, 10:15, 11:03), không xếp sau băng
+    if (state.modal && state.modal !== 'shop' && state.modal !== 'guide') (this.pendingLogs = this.pendingLogs || []).push(run); else run();
   }
   // Toast có chân dung NPC (10:45 "Thanks for your purchase!")
   npcToast(thumb, msg) {

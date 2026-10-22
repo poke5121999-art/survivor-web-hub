@@ -17,7 +17,8 @@ py -3.12 -I export_slime.py      # slime/: 218 biến thể + 119 GLB anim theo 
 py -3.12 -I export_npc.py        # npc/: 110 NPC, clip Humanoid đã quy ra xoay xương (~1,5 phút)
 py -3.12 -I export_player.py     # player/: 2 rig, 98 bộ phận, anim nam/nữ (~40 giây)
 py -3.12 -I export_map.py        # map/: 49 thư viện mảnh, texture gộp ở map/tex (~2,5 phút)
-py -3.12 -I export_prop.py       # prop/: 197 GLB (~12 phút)
+py -3.12 -I export_prop.py       # prop/: 197 GLB (~12 phút) + prop/tex/OBJ_DadBag_{2,3}_Albedo.webp (`--extra-only`: chỉ hai ảnh này)
+py -3.12 -I export_fx.py         # fx/: 26 prefab FX đạn/trúng (lớp hạt -> index.json) + 25 texture gốc (~1 phút)
 py -3.12 -I export_2d.py all     # img/ và ui/ (chạy `ui` trước `prefab`)
 py -3.12 -I export_audio.py all  # audio/: 1126 ogg + index sự kiện Wwise
 ```
@@ -34,7 +35,7 @@ Ghi chú nghiên cứu (tiếng Anh, đo trên bản demo ngày 2026-10-21) nằ
 `GAMEPLAY.md` lối chơi theo clip, `CODE.md` hệ thống trong mã, `MAPBUILD.md` cách game xếp ô bản đồ,
 `PIPELINE.md` shader và đường ống GLB, `EXPORT_*.md` lệnh chạy và bẫy của từng tool.
 
-Ba bẫy đã sập, đọc trước khi sửa tool:
+Các bẫy đã sập, đọc trước khi sửa tool:
 
 - Anim lưu góc quay euler theo thứ tự trong `GenericBinding.customType` (ở đây là XYZ). Đọc theo ZXY mặc định thì
   slime nằm úp mặt (`PIPELINE.md`, bẫy 1).
@@ -44,3 +45,13 @@ Ba bẫy đã sập, đọc trước khi sửa tool:
 
 Số liệu game (chỉ số, skill, item, quest, tên slime) và lưới ô bản đồ do server gửi, bản cài không có
 (`CODE.md` mục 1, `MAPBUILD.md` mục 0).
+
+F5a (2026-10-22), thêm vào `export_map.py` (dùng chung cho `export_prop.py`):
+
+- MeshRenderer có nhiều vật liệu hơn submesh: Unity vẽ vật liệu thừa lên submesh cuối (mặt nước đài phun Larus là một lượt như vậy).
+  Trước đây chỉ lấy `mats[si]` nên mất; giờ mỗi vật liệu thừa là một primitive nữa trên cùng chỉ số.
+- ParticleSystemRenderer chế độ Mesh với một hạt đứng yên (tốc độ 0, không shape/velocity/size/rotation module): xuất thành node con
+  `<tên>_particleMesh` (cỡ = startSize, `extras.particleMesh`), đếm ở `pieces[].particleMeshes` (12 mảnh). Hệ hạt chuyển động vẫn bỏ
+  (`particleMeshSkipped`).
+- `export_fx.py`: FX của game là ParticleSystem billboard, không có mesh. Tool ghi giá trị đầu của từng lớp (cỡ, màu, rate, burst,
+  sprite sheet, vật liệu + màu kênh `_RColor/_GColor/_BColor`) và texture gốc; đường cong theo thời gian sống chưa đọc.

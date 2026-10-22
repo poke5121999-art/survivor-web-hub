@@ -4,17 +4,17 @@
 // gmwall_slimepedia + ui_view__SlimeIndexUI / SlimeIndexListCellPod; Túi = prefab ui_view__InventoryUI (clip không có cảnh túi,
 // GAMEPLAY "Not seen: inventory/bag panel") nên chỗ đặt là tỉ lệ prefab quy ra ảnh [ĐỀ XUẤT]; biệt danh = v4van_nickname_synthesis_lab.
 import * as THREE from 'three';
-import { R, F, text } from './hud.js?v=20261022d';
-import { paint } from './sprites.js?v=20261022d';
-import { assetUrl } from '../assets.js?v=20261022d';
-import { L } from '../../data/quest_text.js?v=20261022d';
-import { X, panel, T, NAVY, NAVY2, fmt } from './story.js?v=20261022d';
-import { Slime } from '../actors/actors.js?v=20261022d';
-import { BAG_SLOTS } from '../quest/data.js?v=20261022d';
-import { PARTY_MAX, STORAGE_MAX } from '../state.js?v=20261022d';
-import { RULES } from '../combat/rules.js?v=20261022d';
-import { item, itemIcon, bagSlots } from '../party/items.js?v=20261022d';
-import { loadDex, speciesName, displayName, elementsOf, DEX_POINT } from '../party/roster.js?v=20261022d';
+import { R, F, text } from './hud.js?v=20261022e';
+import { paint } from './sprites.js?v=20261022e';
+import { assetUrl } from '../assets.js?v=20261022e';
+import { L } from '../../data/quest_text.js?v=20261022e';
+import { X, panel, T, NAVY, NAVY2, fmt } from './story.js?v=20261022e';
+import { Slime } from '../actors/actors.js?v=20261022e';
+import { BAG_SLOTS } from '../quest/data.js?v=20261022e';
+import { PARTY_MAX, STORAGE_MAX } from '../state.js?v=20261022e';
+import { RULES } from '../combat/rules.js?v=20261022e';
+import { item, itemIcon, bagSlots } from '../party/items.js?v=20261022e';
+import { loadDex, speciesName, displayName, elementsOf, DEX_POINT } from '../party/roster.js?v=20261022e';
 
 const K = 2;
 const LIGHT = [0.74, 0.95, 1, 1];

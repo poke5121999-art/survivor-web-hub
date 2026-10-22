@@ -9,7 +9,7 @@
 // - Depth Water: màu _MainTex/_Color, trong suốt một phần, gợn sáng theo thời gian [ĐỀ XUẤT].
 // Chạy được với InstancedMesh (instanceMatrix) và mesh thường.
 import * as THREE from 'three';
-import { LIGHT_DIR } from '../config.js?v=20261022d';
+import { LIGHT_DIR } from '../config.js?v=20261022e';
 
 const WHITE = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); WHITE.needsUpdate = true;
 const lin = c => new THREE.Vector4(...new THREE.Color(c[0], c[1], c[2]).convertSRGBToLinear().toArray(), c[3] ?? 1);
@@ -47,7 +47,8 @@ void main() {
 }`;
 
 const FS = (mode, cutout) => `
-uniform sampler2D tMain, tBlend, tRamp; uniform float hasRamp, hasBlend, opacity, time, scroll;
+uniform sampler2D tMain, tBlend, tRamp, tFlow, tMask; uniform float hasRamp, hasBlend, opacity, time, scroll, hasFlow, flowPow;
+uniform vec4 flowST; uniform vec2 offAB;
 uniform vec4 cColor, cH, cS, cColorB, cHB, cSB; uniform vec3 lightDir;
 varying vec2 vUv; varying vec2 vUvB; varying vec3 vN; varying float vMix; varying vec3 vW;
 void main() {
@@ -62,6 +63,15 @@ void main() {
   }
   ${mode === 'alpha' ? `vec4 ts = texture2D(tMain, vUv + vec2(time * scroll, time * scroll * 0.7));
   vec3 lc = cColor.rgb * (0.9 + ts.rgb * cHB.rgb * 0.6);
+  if (hasFlow > 0.5) {
+    // Transparent Offset Scroll (F5a): _FlowTex cuộn dọc theo _OffsetYDirectionA/B (hai lớp), vân sáng = _ColorB HDR
+    // x _FlowTexPower, nền = _Color x _MainTex; _MaskTex làm nhạt vân về mép. Công thức [ĐỀ XUẤT] (shader chưa dịch ngược).
+    vec2 fu = vUv * flowST.xy + flowST.zw;
+    float fa = texture2D(tFlow, fu + vec2(0.0, time * offAB.x)).r, fb = texture2D(tFlow, fu * 0.8 + vec2(0.37, time * offAB.y)).r;
+    float f = clamp(fa * 0.65 + fa * fb * 0.9, 0.0, 1.0) * flowPow * texture2D(tMask, vUv).r;
+    lc = pow(t.rgb, vec3(2.2)) * cColor.rgb + cHB.rgb * f * 0.18;
+    ts.a = 1.0;
+  }
   gl_FragColor = vec4(lc, clamp(max(ts.a, 0.85) * cColor.a, 0.0, 1.0) * opacity);
   #include <colorspace_fragment>
   return;` : ''}
@@ -109,7 +119,8 @@ export function envMaterial(src, { hasVColor = false, skinned = false, texFor } 
   const m = new THREE.ShaderMaterial({
     uniforms: {
       tMain: { value: main }, tBlend: { value: blend }, tRamp: { value: ramp || WHITE },
-      hasRamp: { value: ramp ? 1 : 0 }, hasBlend: { value: isBlend ? 1 : 0 }, hasVColor: { value: hasVColor ? 1 : 0 },
+      hasRamp: { value: ramp ? 1 : 0 }, hasFlow: { value: 0 }, flowPow: { value: 1 }, tFlow: { value: WHITE }, tMask: { value: WHITE },
+      flowST: { value: new THREE.Vector4(1, 1, 0, 0) }, offAB: { value: new THREE.Vector2() }, hasBlend: { value: isBlend ? 1 : 0 }, hasVColor: { value: hasVColor ? 1 : 0 },
       cColor: { value: col('_Color') }, cH: { value: col('_HColor') }, cS: { value: col('_SColor', [.65, .65, .65, 1]) },
       cColorB: { value: col('_ColorB') }, cHB: { value: col('_HColorB', c._HColor || [1, 1, 1, 1]) },
       cSB: { value: col('_SColorB', c._SColor || [.65, .65, .65, 1]) },
@@ -120,6 +131,12 @@ export function envMaterial(src, { hasVColor = false, skinned = false, texFor } 
     side: THREE.DoubleSide, transparent: water || add || alphaFx, depthWrite: !(water || add || alphaFx),
   });
   if (alphaFx) { m.uniforms.opacity.value = 1; m.uniforms.cHB.value = col('_ColorB', [1, 1, 1, 1]); }
+  if (alphaFx && texUri('_FlowTex') && texFor) {
+    const ft = texFor(texUri('_FlowTex')); ft.wrapS = ft.wrapT = THREE.RepeatWrapping;
+    const mk = texUri('_MaskTex') ? texFor(texUri('_MaskTex')) : WHITE;
+    Object.assign(m.uniforms, { tFlow: { value: ft }, tMask: { value: mk }, hasFlow: { value: 1 }, flowPow: { value: f._FlowTexPower ?? 1 },
+      flowST: { value: new THREE.Vector4(...(ST._FlowTex || [1, 1, 0, 0])) }, offAB: { value: new THREE.Vector2(f._OffsetYDirectionA || 0, f._OffsetYDirectionB || 0) } });
+  }
   if (add) { m.blending = THREE.AdditiveBlending; m.uniforms.cColor.value = col('_TintColor', c._Color || [1, 1, 1, 1]); }
   m.userData.kind = water ? 'water' : add ? 'add' : alphaFx ? 'alpha' : 'base';
   m.name = src.name;

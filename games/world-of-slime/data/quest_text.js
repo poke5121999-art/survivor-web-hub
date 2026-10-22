@@ -184,6 +184,127 @@ export const TEXT = {
     'dex.discover': 'Discovery', 'dex.tame': 'Tame', 'dex.bond': 'Bond',                          // [LOC] SlimeIndex.DegreeStep01..03
     'dex.found': 'Found slime {FoundCount}', 'dex.caught': 'Tamed slime {CaughtCount}',          // [LOC] Index.FoundSlimeCount, Index.CaughtSlimeCount
     'dex.bonding': 'People Bonding',                                                              // gmwall_slimepedia "??? People Bonding"
+    // ---- F4: nhiệm vụ 7 (trả) .. 14. Mốc giờ = clip DcGavHFwqtk; khung 1280x720 bóc lại ở D:\wos-ref\clips\DcGavHFwqtk\f4, f4full
+    'grp.sidejob': 'Suspicious Side Job', 'grp.patrol': 'Shadow Forest Patrol',                   // 8:06, 8:30 băng QuestStart
+    'map.shadow_forest_entrance': 'Shadow Forest Entrance',
+    'q8.title': "Grant Martin's Request", 'q8.o': 'Defeat Junior Floralime',                      // 6:57, 6:54
+    'q9.title': 'Recovery Complete!', 'q9.o': 'Use 30 HP Potion',                                  // 7:30 "Recovery Complete! ✓ Use 30 HP Potion 1/1"
+    'q10.title': 'Suspicious Researcher', 'q10.o': 'Purchase Cube',                                // 8:06, 10:15 "Purchase Cube 0/3"
+    'q11.title': 'Patrol', 'q11.o1': 'Patrol Shadow Forest Entrance', 'q11.o2': 'Defeat Junior Floralime',   // 8:30, 11:03
+    'q12.title': 'Suspicious Part-Time Job',                                                      // 11:03 "Suspicious Part-Time J…" (chữ bị cắt; "Job" [ĐỀ XUẤT])
+    'q12.o': 'Not in the web version yet',                                                        // bản web: clip dừng ở 11:06
+    'q12.desc': "The clip ends here (11:06): this quest's objectives are not in the web version yet.",   // bản web
+    // Martin (Shadow Forest Entrance), nhận 6:39-6:52, trả 10:06-10:13. Người chơi bấm qua nhanh: dòng "He…", "So…" bỏ (không đọc được)
+    'mt1': 'Hey! *hic*',                                                                          // 6:40
+    'mt2': 'Yes, you, the one who just turned to look!\nCome over here a moment!',                // 6:41
+    'mt3': '*hic* Bring me liquor, liquor!',                                                      // 6:45.5, 6:52, 10:06
+    'mt4': "I thought I was seeing things from being drunk, *hic*\nBut you're a real person?",    // 6:47
+    'mt5': 'Since you wander outside the village,\nyou must know how to handle slimes! *hic*',    // 6:47.5
+    'mt6': "I'm envious, *hic* so very envious...",                                               // 6:47.7
+    'mt7': 'All right, you ask? *hic*\nDoes this Martin look all right to you?',                  // 6:48.7
+    'mt8': 'The moment I see those <o>Junior Floralime</o>,\nrage boils up inside me... *hic*',   // 6:49
+    'mt9': 'Go get rid of some <o>Junior Floralime</o>\nroaming around here, *hic*',              // 6:49.7
+    'mt10': "Those cursed slimes, *hic*\nno matter how many I kill, it's never enough, *hic*",    // 6:50.8
+    'mt11': 'but <o>10</o> of them, at least, *hic*\nmight ease this gut of mine, *hic*',         // 6:51
+    'mt12': "Ohh, you're amazing! *hic*",                                                         // 10:07.8
+    'mt13': 'You know, I once dreamed\nof being a great adventurer too, *hic*',                   // 10:08.5
+    'mt14': 'Slimes...! *hic*\nThose damn slimes got in the way!!',                               // 10:09.1
+    'mt15': "If only I'd known how to handle a Cube,\nthose slimes would've just...! ......",     // 10:09.5
+    'mt16': '...... ......',                                                                      // 10:10
+    'mt17': "Everyone, come back!! Don't go that way!!",                                         // 10:10.8
+    'mt18': 'There are slimes over there...\n...Huh? Did I just doze off? *hic*',                 // 10:11.2
+    'mt19': 'If I doze off even after killing slimes, *hic*\nI must not have had enough liquor, *hic*',   // 10:12
+    'mt20': 'Good work. You can go now, *hic*\nThanks for indulging my venting, *hic*',           // 10:12.4
+    'c.matter': "What's the matter?", 'c.done': "It's done", 'c.martin': '...Martin?', 'c.youdid': 'You did...',   // 6:45, 10:07, 10:10, 10:11.5 ("You did" chạy chữ dở)
+    // Lucy trả q7 (7:18-7:28) + dạy dùng thuốc, trả "Recovery Complete!" (7:33-7:42)
+    'lr1': 'You made it back safe...!\nAre you hurt anywhere?',                                   // 7:19.2
+    'lr2': 'You were later than I expected, so I worried\nsomething might have happened to you in the forest.',   // 7:19.5 ("forest" bị khung che [ĐỀ XUẤT])
+    'lr3': 'Anyway, did you manage to defeat the Junior\nFloralime?',                             // 7:21.7
+    'lr4': 'Impressive...\nThen, will you show me the byproducts you got?',                       // 7:22.5 ("got" bị che [ĐỀ XUẤT])
+    'lr5': "Wow, it's a Small Slime Fragment.\nI haven't seen one in ages...",                    // 7:23.5
+    'lr6': 'There are only a few people in the village\nwho can handle slimes.',                  // 7:24
+    'lr6b': 'Do you have any potions with you?',                                                  // [ĐỀ XUẤT] 7:24.2 chỉ thấy "D…"
+    'lr7': "You didn't know. A <o>Potion</o> is an item that can\n<o>restore the HP or mana</o> of the slime with you.",   // 7:25.4
+    'lr8': 'Since you went outside the village,\nyour slime might be hurt too.',                  // 7:25.7
+    'lr9': "Here, take this first.\nIt's a ⟦potion⟧<o>30 HP Potion</o>.",                                 // 7:26
+    'lr10': "...Yes, it's an apology gift for you.",                                              // 7:27
+    'lr11': 'Feed it directly to the slime with you.',                                            // 7:27.5
+    'lr12': 'You can either take it straight from your <o>bag</o>,\nor <o>set it out for easy use</o>.',   // 7:27.7
+    'lr13': 'but out where slimes swarm,\na potion is a huge help.',                               // 7:35.5
+    'lr14': "Oh, and potions are sold at Vivian's shop.",                                         // 7:36
+    'lr15': "...I'm telling you this because\nyou looked like you didn't know anything.",          // 7:37
+    'lr16': 'I recommend going to see <o>Billy</o>.',                                             // 7:38.2
+    'lr17': 'He seems interested in you...\nWhy not go say hello, at least?',                     // 7:39.7
+    'lr18': "I see... it's important to act\non what your heart tells you.",                      // 7:40.7
+    'lr19': 'If you ever tame a splendid slime,\ncome show me now and then.',                    // 7:41.5
+    'lr20': '...Wondering what you should do?\nThen, how about going to see <o>Billy</o>?',       // 7:42.7
+    'c.back': "I'm back", 'c.actually': 'Actually...', 'c.ofcourse': 'Of course', 'c.herethey': 'Here they are',   // 7:18.5, 7:20, 7:22, 7:23
+    'c.potion': 'A Potion?', 'c.giving': 'Are you giving this to me?', 'c.fed': 'I fed it the potion',   // 7:24.8, 7:26.3, 7:33
+    'c.whatnow2': 'What should I do now?', 'c.think': "I'll think about it",                      // 7:36, 7:39
+    // Mysterious Researcher (gần kho, 7:46-8:05; 10:55-11:01)
+    'rs0': 'Hey, you there! Hold on.\nCome talk with me.',                                        // 7:47 (gọi từ xa khi trả Recovery Complete!)
+    'rs1': "You've got quite a rare slime there.\nIs that yours?",                               // 7:54.6
+    'rs2': 'Really?\nWhere on earth did you find it?',                                            // 7:55.9
+    'rs3': "I can't remember the last time\nI saw a slime like this!",                            // 7:56.2
+    'rs4': "Don't tell me you don't know\nthe value of your own slime?",                          // 7:57.5
+    'rs5': "It's a special kind of slime that can\nbond with you through connection.",            // 7:58.5 (thẻ Friendly Slime)
+    'rs6': 'Most slimes are hostile toward humans,\nbut a <o>Friendly Slime</o> is different.',   // 7:58.2
+    'rs7': '..Did you know that humans who can bond with\n<o>Friendly Slimes</o> are called <o>Trainers</o>?',   // 7:58.9
+    'rs8': "Ugh, I'm not sure I can trust someone\nwho doesn't even know this basic stuff.",      // 7:59.6
+    'rs9': 'The task I want to entrust to you\ncan only be done by someone who can wield ⟦cube⟧<o>Cube</o>.',   // 8:02 (khung 2 fps)
+    'rs10': 'This is a critical task that requires handling\n⟦cube⟧<o>Cube</o>...!',                    // 8:00
+    'rs11': "...!\nDon't tell me you don't even know what ⟦cube⟧<o>Cube</o> is?",                       // 8:01
+    'rs12': '⟦cube⟧<o>Cube</o> is something you need\nto <o>tame slimes</o>.',                          // 8:01.4
+    'rs13': 'Only a handful of people\ncan use one,',                                             // 8:01.7
+    'rs14': 'and only those born with\nan innate talent for handling slimes.',                    // 8:01.9
+    'rs15': "...No good.\nLooks like you don't even have ⟦cube⟧<o>Cube</o> on you.",                    // 8:02.2
+    'rs16': "So we'll have to start from there.",                                                 // 8:02.4
+    'rs17': 'Go to the <o>Shop</o> right now and\nbring me <o>3</o> ⟦cube⟧<o>Cube</o>.',                // 8:02.6
+    'rs18': "I'm teaching you the basics\nfrom scratch,",                                         // 8:03.9
+    'rs19': "so you should be grateful\nI'm not charging you for lessons!",                       // 8:04.1
+    'rs20': 'The <o>shop</o> is near the <o>west exit of the village</o>!',                       // 8:04.4
+    'rs21': 'No arguments.\nGet going, quick!',                                                   // 8:04.5 (thẻ Shop)
+    'rsA': 'How did that task go?',                                                               // 8:06.7, 10:55 "How did tha…" (cuối câu [ĐỀ XUẤT])
+    'rt1': 'Hmm, I was worried, but you managed just fine.',                                      // 10:56.9
+    'rt2': 'Good, then let me get to the real business!',                                         // 10:57.1
+    'rt3': "I'd like to offer you a part-time job.",                                              // 10:57.4
+    'rt4': 'To <o>tame</o> one, use the ⟦cube⟧<o>Cube</o> when a slime comes\nclose.',                  // 10:57.7 (chữ đầu bị cắt [ĐỀ XUẤT])
+    'rt5': "For that, you'd better take out the ⟦cube⟧<o>Cube</o>\nin advance so it's ready to use, right?",   // 10:57.9
+    'rt6': "Before throwing the ⟦cube⟧<o>Cube</o>,\ndon't forget to wear down the slime's health first.",   // 10:58.1 (thẻ Tame)
+    'rt7': "I'll give you a full explanation of the\n<o>Slimepedia</o> when the time comes.",     // 10:59.4
+    'rt8': 'If you want to know, hurry and go\n<o>tame a Junior Floralime</o>!',                 // 11:00.7
+    'c.yesright': "Yes, that's right.", 'c.rare': 'Is my slime rare?', 'c.isee': 'I see', 'c.whatcube': 'What is Cube?',   // 7:55, 7:56.5, 7:59, 8:00.3
+    'c.ownmoney': 'With my own money?', 'c.whatbuy': 'What was it you wanted me to buy?',         // 8:02.8, 8:06
+    'c.brought': "I've brought the Cube", 'c.understood': 'Understood.', 'c.slimepedia': 'Slimepedia?',   // 10:56, 10:58.3, 10:59.8
+    // Billy (đài phun, 8:18-8:28)
+    'bi0': 'Haha, care to watch over Larus with me?',                                             // 8:18.5, 8:28.5
+    'bi1': "Oh oh, a stranger from outside the village!\nGlad to meet you! I'm the guardian of the village,\nBilly.",   // 8:19.7
+    'bi2': 'Welcome to Larus Village,\nfull of curiosity and romance!',                           // 8:21
+    'bi3': "Hahaha, meeting like this must be some kind of\nfate!\nSomehow I have a feeling we'll get along just fine.",   // 8:21.8
+    'bi4': "As it happens, I've been looking for someone\nto <o>patrol</o> Shadow Forest!",       // 8:22.7
+    'bi5': "That's right!\nIt means checking for anything that could threaten\nthe village!",    // 8:23.5
+    'bi6': 'Not just inside the village,\nbut the outskirts and surroundings too!',               // 8:23.8
+    'bi7': 'So, what do you say? Would you give it a try?',                                       // 8:24
+    'bi8': 'Hahaha, I like that confidence!',                                                     // 8:25.2
+    'bi9': 'Then, start by patrolling\n<o>Shadow Forest Entrance</o>!',                           // 8:25.5
+    'bi10': 'Be thorough about it!\nMake sure to scout all the way to the end\nin the direction of Forest Path!',   // 8:25.8
+    'bi11': "Oh, if there are any threats out there, you'll have\nto take them down too!",        // 8:26.8
+    'bi12': 'I heard from Martin that <o>Shadow Forest Entrance</o>\nhas\n<o>Junior Floralime</o> running wild.',   // 8:27.2
+    'bi13': 'If you run into them on patrol,\ntake out <o>10</o> of them for me!',                // 8:27.3
+    'c.nicemeet': 'Nice to meet you', 'c.leave': 'Leave it to me',                                // 8:18 ("…meet you", chữ đầu [ĐỀ XUẤT]), 8:24.8
+    'ui.notBuiltTurnIn': 'Not in the web version yet: the clip never shows this quest being turned in.',   // bản web
+    // thẻ hướng dẫn (DialogueIllust) + màn chỉ nút (Tutorial_* prefab, chuỗi Unmasking.* [LOC])
+    'tut.friendly.t': 'Friendly Slime',                                                           // 7:58.5
+    'tut.friendly.d': 'Unlike ordinary slimes, a Friendly Slime <o>gives off a special aura</o> around it.\nTravel with a Friendly Slime to raise its <o>affinity</o>.',
+    'tut.shop.t': 'Shop',                                                                         // 8:04.5
+    'tut.shop.d': 'To <o>tame a slime</o> you need a <o>cube</o>.\nVisit the village merchant to buy cubes.',
+    'tut.tame.t': 'Tame',                                                                         // 10:58
+    'tut.tame.d': "The slime is trapped in the cube.\nThe <o>lower the slime's health</o>, the higher the tame chance.",
+    'tut.bag.t': 'Bag',                                                                           // 7:27.5
+    'tut.bag.d': 'Open your bag and try <o>using an item</o>.\nA <o>Potion</o> restores the <o>HP</o> of your accompanying slime.',
+    'gd.inventory': 'There are 2 ways to use the potion.\nOpen the bag to use the potion,',       // [LOC] Unmasking.Inventory
+    'gd.quick': 'You can easily use the equipped potion too.\nUse the potion with your preferred metohd',   // [LOC] Unmasking.QuickSlot (lỗi chính tả gốc)
+    'gd.quickAll': "Use the equipped cube if there's a slime that you want to tame! You can do this, right?",   // [LOC] Unmasking.QuickSlotButtons
   },
   vi: {
     'grp.larus': 'Làng Sóng Dữ',
@@ -330,6 +451,122 @@ export const TEXT = {
     'dex.discover': 'Phát Hiện', 'dex.tame': 'Bắt Được', 'dex.bond': 'Gắn Kết',                   // [LOC]
     'dex.found': 'Slime Đã Phát Hiện {FoundCount}', 'dex.caught': 'Slime Đã Bắt {CaughtCount}',   // [LOC]
     'dex.bonding': 'Người Gắn Kết',
+    // ---- F4
+    'grp.sidejob': 'Việc Làm Thêm Đáng Ngờ', 'grp.patrol': 'Tuần Tra Rừng Bóng Tối',
+    'map.shadow_forest_entrance': 'Lối Vào Rừng Bóng Tối',
+    'q8.title': 'Giúp Martin', 'q8.o': 'Hạ Junior Floralime',
+    'q9.title': 'Hồi Phục Xong!', 'q9.o': 'Dùng Thuốc 30 HP',
+    'q10.title': 'Nhà Nghiên Cứu Đáng Ngờ', 'q10.o': 'Mua Cube',
+    'q11.title': 'Tuần Tra', 'q11.o1': 'Tuần tra Lối Vào Rừng Bóng Tối', 'q11.o2': 'Hạ Junior Floralime',
+    'q12.title': 'Việc Làm Thêm Đáng Ngờ',
+    'q12.o': 'Chưa có trong bản web',
+    'q12.desc': 'Clip dừng ở đây (11:06): mục tiêu của nhiệm vụ này chưa có trong bản web.',
+    'mt1': 'Này! *hic*',
+    'mt2': 'Phải, cậu đó, cái người vừa quay lại nhìn!\nLại đây một chút!',
+    'mt3': '*hic* Mang rượu cho ta, rượu!',
+    'mt4': 'Ta cứ tưởng say quá nên nhìn nhầm, *hic*\nHoá ra là người thật à?',
+    'mt5': 'Cậu đi lang thang ngoài làng thế kia,\nhẳn là biết cách xử lý slime rồi! *hic*',
+    'mt6': 'Ghen tị quá, *hic* ghen tị quá đi mất...',
+    'mt7': 'Ta có ổn không à? *hic*\nTrông Martin này có giống ổn không?',
+    'mt8': 'Cứ thấy lũ <o>Junior Floralime</o> đó là\nta lại sôi máu... *hic*',
+    'mt9': 'Đi dẹp bớt lũ <o>Junior Floralime</o>\nđang lảng vảng quanh đây đi, *hic*',
+    'mt10': 'Lũ slime đáng nguyền rủa, *hic*\ngiết bao nhiêu cũng không đủ, *hic*',
+    'mt11': 'nhưng ít nhất <o>10</o> con, *hic*\nthì cũng hả được cục tức này, *hic*',
+    'mt12': 'Ồ, cậu giỏi thật đấy! *hic*',
+    'mt13': 'Cậu biết không, ta cũng từng mơ\nthành một nhà thám hiểm lừng danh, *hic*',
+    'mt14': 'Slime...! *hic*\nLũ slime chết tiệt đó cản đường!!',
+    'mt15': 'Giá mà ta biết dùng Cube,\nthì lũ slime đó đã...! ......',
+    'mt16': '...... ......',
+    'mt17': 'Mọi người, quay lại!! Đừng đi lối đó!!',
+    'mt18': 'Đằng kia có slime...\n...Hả? Ta vừa ngủ gật à? *hic*',
+    'mt19': 'Giết slime xong mà vẫn ngủ gật, *hic*\nchắc là uống chưa đủ rồi, *hic*',
+    'mt20': 'Làm tốt lắm. Cậu đi được rồi, *hic*\nCảm ơn đã nghe ta xả giận, *hic*',
+    'c.matter': 'Có chuyện gì vậy?', 'c.done': 'Xong rồi', 'c.martin': '...Martin?', 'c.youdid': 'Ông ngủ thật đấy...',
+    'lr1': 'Cậu về an toàn rồi...!\nCó bị thương ở đâu không?',
+    'lr2': 'Cậu về muộn hơn mình nghĩ, mình cứ lo\ncó chuyện gì xảy ra với cậu trong rừng.',
+    'lr3': 'Mà này, cậu hạ được Junior\nFloralime chưa?',
+    'lr4': 'Giỏi thật...\nVậy cho mình xem sản phẩm phụ cậu lấy được nhé?',
+    'lr5': 'Oa, Mảnh slime nhỏ này.\nLâu lắm rồi mình mới thấy một mảnh...',
+    'lr6': 'Trong làng chỉ có vài người\nbiết cách xử lý slime thôi.',
+    'lr6b': 'Cậu có mang theo bình thuốc nào không?',
+    'lr7': 'Cậu không biết à. <o>Bình thuốc</o> là vật phẩm\n<o>hồi HP hoặc mana</o> cho slime đi cùng cậu.',
+    'lr8': 'Cậu đã ra ngoài làng,\nchắc slime của cậu cũng bị thương rồi.',
+    'lr9': 'Đây, cầm lấy trước đã.\nLà ⟦potion⟧<o>Thuốc 30 HP</o> đấy.',
+    'lr10': '...Ừ, quà xin lỗi cho cậu đó.',
+    'lr11': 'Cho thẳng slime đi cùng cậu uống nhé.',
+    'lr12': 'Cậu có thể lấy thẳng từ <o>túi đồ</o>,\nhoặc <o>đặt sẵn ra cho tiện dùng</o>.',
+    'lr13': 'ở ngoài kia slime đầy rẫy,\nbình thuốc giúp ích nhiều lắm.',
+    'lr14': 'À, thuốc có bán ở tiệm của Vivian đấy.',
+    'lr15': '...Mình nói vậy vì\ntrông cậu như chẳng biết gì cả.',
+    'lr16': 'Mình khuyên cậu nên đi gặp <o>Billy</o>.',
+    'lr17': 'Anh ấy có vẻ để ý đến cậu đấy...\nSao không qua chào một tiếng?',
+    'lr18': 'Ra vậy... làm theo điều\ntrái tim mách bảo là quan trọng mà.',
+    'lr19': 'Nếu cậu thuần được con slime nào thật đẹp,\nthỉnh thoảng mang cho mình xem nhé.',
+    'lr20': '...Đang băn khoăn không biết làm gì à?\nVậy đi gặp <o>Billy</o> thử xem?',
+    'c.back': 'Mình về rồi', 'c.actually': 'Thật ra thì...', 'c.ofcourse': 'Tất nhiên', 'c.herethey': 'Đây này',
+    'c.potion': 'Bình thuốc?', 'c.giving': 'Cậu cho mình à?', 'c.fed': 'Mình cho nó uống thuốc rồi',
+    'c.whatnow2': 'Giờ mình nên làm gì?', 'c.think': 'Để mình nghĩ đã',
+    'rs0': 'Này, cậu kia! Đứng lại.\nLại đây nói chuyện với ta.',
+    'rs1': 'Cậu có một con slime hiếm đấy.\nLà của cậu à?',
+    'rs2': 'Thật sao?\nCậu tìm thấy nó ở đâu vậy?',
+    'rs3': 'Ta không nhớ nổi lần cuối\nta thấy một con slime như thế này!',
+    'rs4': 'Đừng nói là cậu không biết\ngiá trị của chính con slime của mình nhé?',
+    'rs5': 'Đó là một loại slime đặc biệt có thể\ngắn kết với cậu qua sợi dây liên kết.',
+    'rs6': 'Phần lớn slime thù địch với con người,\nnhưng <o>Slime Thân Thiện</o> thì khác.',
+    'rs7': '..Cậu có biết người có thể gắn kết với\n<o>Slime Thân Thiện</o> được gọi là <o>Trainer</o> không?',
+    'rs8': 'Chậc, ta không chắc có tin được người\nđến điều cơ bản này cũng không biết.',
+    'rs9': 'Việc ta muốn giao cho cậu\nchỉ người dùng được ⟦cube⟧<o>Cube</o> mới làm nổi.',
+    'rs10': 'Đây là việc hệ trọng, cần phải dùng\n⟦cube⟧<o>Cube</o>...!',
+    'rs11': '...!\nĐừng nói là cậu còn không biết ⟦cube⟧<o>Cube</o> là gì nhé?',
+    'rs12': '⟦cube⟧<o>Cube</o> là thứ cần có\nđể <o>thuần phục slime</o>.',
+    'rs13': 'Chỉ một số ít người\ndùng được nó,',
+    'rs14': 'và chỉ những ai sinh ra với\ntài năng thiên bẩm xử lý slime.',
+    'rs15': '...Không được rồi.\nCó vẻ cậu còn chẳng mang ⟦cube⟧<o>Cube</o> nào.',
+    'rs16': 'Vậy phải bắt đầu từ đó thôi.',
+    'rs17': 'Đến <o>Tiệm</o> ngay đi và\nmang cho ta <o>3</o> ⟦cube⟧<o>Cube</o>.',
+    'rs18': 'Ta dạy cậu từ những điều\ncơ bản nhất đấy,',
+    'rs19': 'nên cậu hãy biết ơn vì\nta không thu học phí!',
+    'rs20': '<o>Tiệm</o> ở gần <o>lối ra phía tây của làng</o>!',
+    'rs21': 'Không cãi.\nĐi mau lên!',
+    'rsA': 'Việc đó thế nào rồi?',
+    'rt1': 'Hừm, ta đã lo, nhưng cậu làm tốt lắm.',
+    'rt2': 'Tốt, giờ vào việc chính thôi!',
+    'rt3': 'Ta muốn mời cậu một việc làm thêm.',
+    'rt4': 'Muốn <o>thuần phục</o> một con, hãy dùng ⟦cube⟧<o>Cube</o> khi slime\nlại gần.',
+    'rt5': 'Vì vậy, cậu nên lấy sẵn ⟦cube⟧<o>Cube</o> ra\nđể lúc nào cũng dùng được, đúng không?',
+    'rt6': 'Trước khi ném ⟦cube⟧<o>Cube</o>,\nđừng quên làm slime yếu máu đi đã.',
+    'rt7': 'Đến lúc thích hợp ta sẽ giải thích\nđầy đủ về <o>Bách Khoa Slime</o>.',
+    'rt8': 'Nếu muốn biết thì mau đi\n<o>thuần phục một con Junior Floralime</o>!',
+    'c.yesright': 'Vâng, đúng vậy.', 'c.rare': 'Slime của mình hiếm à?', 'c.isee': 'Ra vậy', 'c.whatcube': 'Cube là gì?',
+    'c.ownmoney': 'Bằng tiền của mình à?', 'c.whatbuy': 'Ông muốn mình mua gì nhỉ?',
+    'c.brought': 'Mình mang Cube đến rồi', 'c.understood': 'Đã hiểu.', 'c.slimepedia': 'Bách Khoa Slime?',
+    'bi0': 'Haha, cùng mình canh giữ Larus không?',
+    'bi1': 'Ồ ồ, người lạ từ ngoài làng!\nRất vui được gặp! Mình là người bảo vệ của làng,\nBilly.',
+    'bi2': 'Chào mừng đến Làng Larus,\nđầy tò mò và lãng mạn!',
+    'bi3': 'Hahaha, gặp nhau thế này chắc là\nduyên phận!\nKhông hiểu sao mình thấy tụi mình sẽ hợp nhau lắm.',
+    'bi4': 'Đúng lúc mình đang tìm người\n<o>tuần tra</o> Rừng Bóng Tối!',
+    'bi5': 'Đúng vậy!\nLà kiểm tra mọi thứ có thể đe doạ\nngôi làng!',
+    'bi6': 'Không chỉ trong làng,\nmà cả vùng ven và xung quanh nữa!',
+    'bi7': 'Thế nào, cậu có muốn thử không?',
+    'bi8': 'Hahaha, mình thích sự tự tin đó!',
+    'bi9': 'Vậy bắt đầu bằng việc tuần tra\n<o>Lối Vào Rừng Bóng Tối</o>!',
+    'bi10': 'Làm cho kỹ nhé!\nNhớ trinh sát đến tận cùng\ntheo hướng Đường Rừng!',
+    'bi11': 'À, nếu ngoài đó có mối đe doạ nào,\ncậu cũng phải dẹp luôn đấy!',
+    'bi12': 'Mình nghe Martin nói <o>Lối Vào Rừng Bóng Tối</o>\ncó\n<o>Junior Floralime</o> đang hoành hành.',
+    'bi13': 'Nếu gặp chúng lúc tuần tra,\nhạ giúp mình <o>10</o> con nhé!',
+    'c.nicemeet': 'Rất vui được gặp', 'c.leave': 'Cứ để mình',
+    'ui.notBuiltTurnIn': 'Chưa có trong bản web: clip không cho thấy lúc trả nhiệm vụ này.',
+    'tut.friendly.t': 'Slime Thân Thiện',
+    'tut.friendly.d': 'Khác với slime thường, Slime Thân Thiện <o>toả ra một luồng khí đặc biệt</o> quanh mình.\nĐi cùng Slime Thân Thiện để tăng <o>độ thân thiết</o>.',
+    'tut.shop.t': 'Tiệm',
+    'tut.shop.d': 'Muốn <o>thuần phục slime</o> thì cần <o>cube</o>.\nHãy đến thương nhân trong làng để mua cube.',
+    'tut.tame.t': 'Thuần Phục',
+    'tut.tame.d': 'Slime bị nhốt trong cube.\n<o>Máu slime càng thấp</o>, tỉ lệ thuần phục càng cao.',
+    'tut.bag.t': 'Túi Đồ',
+    'tut.bag.d': 'Mở túi đồ và thử <o>dùng một vật phẩm</o>.\n<o>Bình thuốc</o> hồi <o>HP</o> cho slime đang đồng hành.',
+    'gd.inventory': 'Có 2 cách để dùng bình thuốc.\n Cậu có thể mở túi đồ ra rồi dùng thuốc,',                     // [LOC]
+    'gd.quick': 'Cậu cũng có thể nhấn ngay bình thuốc đã đặt sẵn để dùng cho nhanh.\n Cách nào tiện hơn thì cậu cứ dùng cách đó nhé.',   // [LOC]
+    'gd.quickAll': 'Khi có slime cậu muốn bắt ở gần, hãy dùng Cube đã đăng ký! Chuyện này thì cậu làm được chứ?',   // [LOC]
   },
 };
 

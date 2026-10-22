@@ -44,6 +44,9 @@ export const MAPS = {
       { name: 'Benjamin', model: 'NPC_Larus_Oldman', x: 34.1, z: 49.8, yaw: 180, src: 'x4.png, s1.png, b4.png (mũ sọc, ria trắng)' },
       // Vivian: tên không hiện trong ảnh nào; cô bán hàng tóc cam ở quầy t01_store_001 (x5.png, s1.png) là NPC_Larus_Shop
       { name: 'Vivian', model: 'NPC_Larus_Shop', x: 33.4, z: 73.0, yaw: 180, src: 'x5.png (quầy hàng, tên đoán)' },
+      // F4: áo blouse trắng, kính (NPC_Larus_Researcher, chân dung NPC_Larus_Researcher_Default); đứng ngay phải hộp sách tím trên rương
+      // gỗ (mảnh bản đồ ở ~50.6, 90.6), dưới lối gỗ lên phía bắc: clip 7:42 (cách đài phun -5.9, +16.7 m), 8:01, 11:01 [ĐO TRONG ẢNH]
+      { name: 'Mysterious Researcher', model: 'NPC_Larus_Researcher', x: 53.0, z: 89.9, yaw: 180, src: 'clip 7:42, 8:01, 11:01 (cạnh hộp sách tím)' },
     ],
   },
   478: {
@@ -81,5 +84,39 @@ export const MAPS = {
     ],
   },
 };
+
+// ---- Đồ đạc server gửi (F5a) ----------------------------------------------------------------------------------------
+// Giường, tủ kính, lò sưởi, bàn tròn có cốc... không có trong _tileData: game nhận chúng từ server như vật thể (prefab
+// `PR_*` của Addressables Object/Props, đã xuất ở prop/<tên thường>.glb). Mọi chỗ đặt là `[ĐO TRONG ẢNH]`: chiếu điểm
+// chân vật trong ảnh demo thật (cùng khung camera test/world-of-slime-parity.js) xuống mặt sàn bằng camera của bản web
+// rồi cộng +0.4 z (chân người chơi chiếu ra lệch 0.4..0.6 m). Mảnh PR_* đã có sẵn độ cao (đĩa trên quầy min y 0.91,
+// gối trên ghế 0.66, cờ treo 2.8..7) nên mọi vật đặt ở mặt sàn `floors[]`. yaw độ theo Unity, mặc định 180 (lò sưởi + thùng: 0, prefab lò đã xoay gốc 180): mặt trước
+// của PR_* nằm phía +z của prefab (yaw 0 thì tủ kính, cờ, giá sách, lò sưởi quay lưng về camera; đã chụp thử). Bàn tròn
+// đặt theo mép dưới trong ảnh nên trừ thêm ~1 m z so với điểm chiếu tâm.
+// { piece: tên prefab (= node trong GLB), glb, x, z, yaw?, src }
+const P = n => 'prop/' + n.toLowerCase() + '.glb';
+export const PROPS = {
+  257: [
+    { piece: 'PR_bed_001', x: 7.2, z: 35.5, src: 'inn1.png, w1.png (giường xanh, đầu giường sát vách sau)' },
+    { piece: 'PR_barrel_001', x: 11.6, z: 36.3, yaw: 0, src: 'inn1.png, w1.png (thùng có sách xanh + chổi)' },
+    { piece: 'PR_flag_001', x: 14.6, z: 37.4, src: 'inn1.png, w1.png (cờ xanh huy hiệu treo cột)' },
+    { piece: 'PR_cabinet_001', x: 17.8, z: 36.6, src: 'inn1.png, w1.png (tủ kính vòm)' },
+    { piece: 'PR_oven_001', x: 29.1, z: 36.5, yaw: 0, src: 'w1.png (lò sưởi gạch có ống khói sau quầy)' },
+    { piece: 'PR_fish_001', x: 26.7, z: 32.7, src: 'w1.png (gà quay + 2 cốc bia trên quầy; prefab tên PR_fish_001, PR_dish_002 chỉ là đĩa trắng)' },
+    { piece: 'PR_table_016', x: 18.7, z: 26.3, src: 'inn1.png, w1.png (bàn tròn 2 cốc bia)' },
+    { piece: 'PR_table_012', x: 31.1, z: 25.3, src: 'w1.png (bàn tròn đĩa cá)' },
+    { piece: 'PR_table_011', x: 21.8, z: 21.1, src: 'inn1.png, w1.png (bàn tròn có bản đồ)' },
+  ],
+  478: [
+    { piece: 'PR_bookshelf_002', x: 25.6, z: 45.8, src: 'al4.png (giá sách đầy, trái sau quầy)' },
+    { piece: 'PR_bookshelf_003', x: 39.7, z: 45.8, src: 'al4.png (giá sách đầy, phải sau quầy)' },
+    { piece: 'PR_bottle_001', x: 31.0, z: 45.5, src: 'al4.png (hai bình thuốc trên bàn sau Allen)' },
+    { piece: 'PR_book_002', x: 34.0, z: 45.5, src: 'al4.png (hàng sách trên bàn sau Allen)' },
+    { piece: 'PR_table_015', x: 26.2, z: 34.7, src: 'al4.png (bàn góc sắt có chai thuyền)' },
+    { piece: 'PR_cushion_001', x: 40.6, z: 34.5, src: 'al4.png (gối trên ghế dài phải)' },
+    { piece: 'PR_cushion_001', x: 27.0, z: 27.5, src: 'al4.png (gối trên ghế dài trái dưới)' },
+  ],
+};
+for (const l of Object.values(PROPS)) for (const o of l) { o.glb = o.glb || P(o.piece); if (o.yaw == null) o.yaw = 180; }
 
 export const DEFAULT_MAP = 257;

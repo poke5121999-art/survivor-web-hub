@@ -1,10 +1,10 @@
 // Máy trạng thái nhiệm vụ: đọc bảng js/quest/data.js, giữ bản lưu (js/state.js loadSave/writeSave), đẩy HUD
 // (state.quest = nhiệm vụ đang theo dõi, state.player.level/exp, slime HP/MP/thể lực, cảnh báo thể lực) và gọi js/ui/story.js
 // để hiện hội thoại, băng chữ, log. game.js chỉ gọi: engine.interactAt(), engine.talk(npc), engine.tick(), engine.onMap().
-import { QUESTS, QUEST, TALK, FIRST_QUEST, EXP_TO_NEXT, START_GOLD, HEAL_COST, BOXES, PERKS, ITEM_ICON, INTERACT_RANGE, TALK_RANGE } from './data.js?v=20261022d';
-import { state, set, loadSave, writeSave } from '../state.js?v=20261022d';
-import { L } from '../../data/quest_text.js?v=20261022d';
-import { Roster } from '../party/roster.js?v=20261022d';
+import { QUESTS, QUEST, TALK, GUIDES, FIRST_QUEST, EXP_TO_NEXT, START_GOLD, HEAL_COST, BOXES, PERKS, ITEM_ICON, INTERACT_RANGE, TALK_RANGE } from './data.js?v=20261022e';
+import { state, set, loadSave, writeSave } from '../state.js?v=20261022e';
+import { L } from '../../data/quest_text.js?v=20261022e';
+import { Roster } from '../party/roster.js?v=20261022e';
 
 export class QuestEngine {
   constructor(story, hooks = {}) {
@@ -36,7 +36,20 @@ export class QuestEngine {
     const done = s && s.s === 'done' ? need : q.objectives.reduce((a, o) => a + Math.min(o.kind === 'talk' ? 0 : this.count(q.id, o.id), o.need), 0);
     return { done, need };
   }
-  objText(q, o) { return o.kind === 'talk' ? L(o.text) : L(o.text) + ' ' + Math.min(this.count(q.id, o.id), o.need) + '/' + o.need; }
+  objText(q, o) { return o.kind === 'talk' || o.kind === 'none' ? L(o.text) : L(o.text) + ' ' + Math.min(this.count(q.id, o.id), o.need) + '/' + o.need; }
+  // F4: bộ đếm theo bảng (QUESTS[].objectives kind/model/item/rect): mọi nhiệm vụ đang làm có mục tiêu khớp đều được cộng
+  bump(match, n = 1) {
+    for (const q of this.active()) for (const o of q.objectives) if (match(o) && this.count(q.id, o.id) < o.need) this.obj(q.id, o.id, Math.min(n, o.need - this.count(q.id, o.id)));
+  }
+  onKill(model) { this.bump(o => o.kind === 'kill' && (!o.model || o.model === model)); }
+  onUse(item) { this.bump(o => o.kind === 'use' && +o.item === +item); }
+  onBuy(item, n) { this.bump(o => o.kind === 'buy' && +o.item === +item, n); }
+  // gate của dòng TALK: { started: q } = q đã nhận (đang làm hoặc xong), { done: q } = q đã xong
+  gateOk(g) { return !g || ((!g.started || !!this.qs(g.started)) && (!g.done || this.status(g.done) === 'done')); }
+  talkEntry(npc) {
+    const list = TALK[npc] || [];
+    return list.find(r => (!r.flag || this.save[r.flag]) && this.gateOk(r.gate) && (!r.when || this.status(r.when.q, npc) === r.when.s)) || null;
+  }
 
   start(id, { silent } = {}) {
     if (!id || this.qs(id)) return;
@@ -60,7 +73,7 @@ export class QuestEngine {
   }
   addExp(n) {
     this.save.exp += n;
-    this.story.log(L('ui.userExp'), '+ ' + n);
+    this.story.log(L('ui.userExp'), '+ ' + n, 'img/item/Item_EXP.webp');   // F4: biểu tượng cuộn EXP như 7:28, 10:15, 11:03
     this.ev('exp', { n });
     while (this.save.exp >= EXP_TO_NEXT(this.save.level)) {
       this.save.exp -= EXP_TO_NEXT(this.save.level); this.save.level++; this.save.sp++;
@@ -76,8 +89,12 @@ export class QuestEngine {
   }
   obj(qid, oid, n = 1) {
     if (this.status(qid) === 'none' || this.status(qid) === 'done') return;
-    const s = this.qs(qid); s.c[oid] = (s.c[oid] || 0) + n;
+    const s = this.qs(qid), before = s.c[oid] || 0; s.c[oid] = before + n;
     this.ev('obj', { q: qid, o: oid, c: s.c[oid] });
+    // F4: mục tiêu vừa đủ -> dòng giữa trên "<tên> / ✓ <mục tiêu> n/n" (6:27, 7:30, 9:54 QuestProgressGoalLayout)
+    const q = QUEST[qid], o = q && q.objectives.find(x => x.id === oid);
+    if (o && o.kind !== 'talk' && before < o.need && s.c[oid] >= o.need && this.story.goalDone)
+      this.story.goalDone(L(q.title), q.objectives.filter(x => x.kind !== 'talk' && x.kind !== 'none').map(x => ({ text: this.objText(q, x), done: this.count(qid, x.id) >= x.need })));
     this.persist();
   }
   // F3: món đầu tiên có thể đặt ô nhanh tự vào ô như khung gmwall_hud_party_bar (Q = thuốc, E = Cube) nếu ô đó trống [ĐỀ XUẤT]
@@ -90,20 +107,26 @@ export class QuestEngine {
   // ---- HUD
   sync() {
     const sv = this.save, lv = sv.level;
-    const a = this.active()[0];
-    const quest = a ? { id: a.id, title: L(a.title), objectives: a.objectives.map(o => ({ text: this.objText(a, o), done: o.kind !== 'talk' && this.count(a.id, o.id) >= o.need })) } : null;
+    // HUD: nhiệm vụ đầu (cũ nhất) ghim sao + mục tiêu, các nhiệm vụ song song chỉ hiện tên (6:54, 7:30, 8:33, 11:03)
+    const [a, ...rest] = this.active();
+    const quest = a ? { id: a.id, title: L(a.title), objectives: a.objectives.map(o => ({ text: this.objText(a, o), done: o.kind !== 'talk' && o.kind !== 'none' && this.count(a.id, o.id) >= o.need })),
+      more: rest.map(q => ({ id: q.id, title: L(q.title) })) } : null;
     const act = this.roster.active();
     this.roster.sync();
     set({ quest, warnStamina: !!act && act.stamina < 0.3, player: { ...state.player, level: lv, exp: Math.min(1, sv.exp / EXP_TO_NEXT(lv)) } });
     this.story.hud.setMarkers(n => this.markerFor(n));
   }
   markerFor(npc) {
+    let mk = null;
     for (const q of this.active()) {
       if (q.target !== npc) continue;
       const s = this.status(q.id, npc);
-      return s === 'ready' ? 'complete' : 'progress';
+      if (s === 'ready') return 'complete';
+      mk = 'progress';
     }
-    return null;
+    if (mk) return mk;
+    const e = this.talkEntry(npc);   // có việc giao (dòng TALK s: 'none' mở cổng) -> "!"
+    return e && e.when && e.when.s === 'none' && e.gate ? 'before' : null;
   }
 
   // ---- tương tác
@@ -111,7 +134,7 @@ export class QuestEngine {
   interactAt(mapId, x, z, npcs) {
     let best = null, bd = Infinity;
     for (const n of npcs) {
-      if (!TALK[n.name]) continue;
+      if (!this.talkEntry(n.name)) continue;
       const d = Math.hypot(n.x - x, n.z - z);
       if (d < (TALK_RANGE[n.name] || INTERACT_RANGE) && d < bd) { bd = d; best = { kind: 'npc', name: n.name }; }
     }
@@ -130,8 +153,7 @@ export class QuestEngine {
     return this.talk(target.name);
   }
   talk(npc, extra = {}) {
-    const list = TALK[npc] || [];
-    const e = list.find(r => (!r.flag || this.save[r.flag]) && (!r.when || this.status(r.when.q, npc) === r.when.s));
+    const e = this.talkEntry(npc);
     if (!e) return Promise.resolve();
     // nhiệm vụ "nói chuyện với X": xong ngay khi mở hội thoại? Không: xong ở hành động complete:q cuối mạch (như clip)
     return this.dialog(e.start, { npc, ...extra });
@@ -156,13 +178,18 @@ export class QuestEngine {
           else if (op === 'heal') goto = this.heal() ? undefined : 'alHno';
           else if (op === 'box') goto = this.openBox(ctx.box);
           else if (op === 'perk' || op === 'shop' || op === 'notbuilt' || op === 'pushback' || op === 'sell' || op === 'duel' || op === 'storage') after.push(op);
+          else if (op === 'guide' || op === 'call' || op === 'notice') after.push(op + ':' + arg);   // F4
         }
         return goto;
       },
     };
     return this.story.talk(start, c).then(async () => {
-      for (const op of after) {
+      for (const op0 of after) {
+        const [op, arg] = op0.split(':');
         if (op === 'perk') await this.story.openPerk();
+        else if (op === 'guide') await this.guide(arg);
+        else if (op === 'call') { await this.story.whenIdle(); await this.dialog(arg, {}); }   // NPC gọi từ xa (7:46): chân dung theo node, không chibi, camera không quay
+        else if (op === 'notice') await this.story.notice(L(arg));
         else if (op === 'shop') await this.story.openShop(ctx.npc);
         else if (op === 'sell') this.story.toast(L('c.sell') + ' · chưa có');
         else if (op === 'notbuilt') await this.story.notice(L('ui.notBuilt'));
@@ -172,6 +199,19 @@ export class QuestEngine {
       }
       this.sync();
     });
+  }
+  // F4: màn chỉ nút (GUIDES[id]) rồi hành động `then` của bước cuối (vd. complete:q10 như 11:01 -> 11:03)
+  async guide(id) {
+    const steps = GUIDES[id] || [];
+    this.ev('guide', { id });
+    for (const st of steps) {
+      await this.story.guide(st, this.hooks.npcObject ? this.hooks.npcObject(st.npc) : null, this.hooks.npcHeight ? this.hooks.npcHeight(st.npc) : null);
+      for (const part of (st.then || '').split(';').filter(Boolean)) {
+        const [op, arg] = part.split(':');
+        if (op === 'complete') this.complete(arg); else if (op === 'start') this.start(arg);
+      }
+    }
+    this.sync();
   }
   heal() {
     if (this.save.gold < HEAL_COST) return false;
@@ -203,11 +243,14 @@ export class QuestEngine {
     this.save.gold -= total;
     this.give(entry.item, n);
     this.ev('buy', { item: entry.item, n, gold: this.save.gold });
+    this.onBuy(entry.item, n);   // F4: "Purchase Cube 0/3" (10:45)
     this.persist();
     return { ok: true };
   }
   // nhiệm vụ 1 bắt đầu khi người chơi rời chỗ tỉnh dậy (clip 1:12 "No quest." -> 1:21 băng "An Unfamiliar Place") [ĐỀ XUẤT 2 m]
-  tick(P, start) {
+  tick(P, start, mapId) {
     if (!this.qs(FIRST_QUEST) && Math.hypot(P.x - start.x, P.z - start.z) > 2) this.start(FIRST_QUEST);
+    // F4: mục tiêu 'reach' (Patrol): bước vào vùng rect của bản đồ map
+    if (mapId != null) this.bump(o => o.kind === 'reach' && String(o.map) === String(mapId) && P.x >= o.rect[0] && P.z >= o.rect[1] && P.x <= o.rect[2] && P.z <= o.rect[3]);
   }
 }

@@ -292,8 +292,10 @@ def forest():
             sc = 0.78 + (h % 22) / 100.0
             b.prop(x, z, TREES[h % len(TREES)], (h >> 4) % 360, sc, 1.7 * sc)
 
-    # cỏ cao xanh lam (6:00, 8:51): mảng chữ nhật 1 ô/mảnh; mép vách bắc có một dải
-    TALL = os.environ.get('FOREST_TALL', 'ter01_grass_007,ter01_grass_008').split(',')
+    # cỏ cao (6:00, 8:51): mảng chữ nhật lá nhọn xanh xám. F5a: mảnh thật là ter01_bush_001 (vật liệu
+    # ter01_vegetation_b_001_wind, lá nhọn 1.2 m, cao 1.1 m; mapobject.bundle tham chiếu nó cho GrassActorBehaviour,
+    # tiếng Wwise "Bush"), không phải ter01_grass_007/008 (lá to xanh lam đậm). Một bụi mỗi ô (TileData chỉ có chỉ số ô), x1.3 cho kín ô như clip [ĐỀ XUẤT].
+    TALL = os.environ.get('FOREST_TALL', 'ter01_bush_001').split(',')
     patches = [(38, 30, 44, 31), (23, 34, 27, 35), (62, 34, 66, 35), (41, 18, 45, 19), (54, 43, 58, 44), (12, 39, 15, 41),
                (68, 37, 71, 38), (25, 44, 28, 45), (33, 51, 40, 52), (61, 50, 69, 51), (74, 49, 79, 50), (18, 44, 19, 49)]
     tall_cells = []
@@ -301,7 +303,7 @@ def forest():
         for z in range(z0, z1 + 1):
             for x in range(x0, x1 + 1):
                 if 0 <= x < W and 0 <= z < H and not b.path[z][x] and not b.water[z][x]:
-                    b.prop(x, z, TALL[hsh(x, z, 9) % len(TALL)], (hsh(x, z, 10) % 4) * 90, 0.8)
+                    b.prop(x, z, TALL[hsh(x, z, 9) % len(TALL)], (hsh(x, z, 10) % 4) * 90, 1.3)
                     tall_cells.append((x, z))
     # bờ ao: lá sen, cỏ nến (goget_battle_whistle: cỏ nến cam cạnh cỏ cao)
     b.emit(0, 1, 8, 49, 'ter01_lotusleaves_001', 30)

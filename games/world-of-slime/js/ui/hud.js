@@ -6,10 +6,10 @@
 // bản PC (PlatformPreview.UseStandaloneUIScale) nhân thêm StandaloneScale = 0.8.
 // Vị trí/cỡ nút PC khác mobile: PlaySceneButtonBatch.buttonInfos (standalonePosition/Size vs defaultPosition/Size).
 import * as THREE from 'three';
-import { paint, tinted, uiUrl, used } from './sprites.js?v=20261022d';
-import { assetUrl } from '../assets.js?v=20261022d';
-import { state, on } from '../state.js?v=20261022d';
-import { t } from '../../data/loc_vi.js?v=20261022d';
+import { paint, tinted, uiUrl, used } from './sprites.js?v=20261022e';
+import { assetUrl } from '../assets.js?v=20261022e';
+import { state, on } from '../state.js?v=20261022e';
+import { t } from '../../data/loc_vi.js?v=20261022e';
 
 export const C = {                       // màu Image.color / TMP fontColor chép từ prefab
   dark30: [0.078, 0.118, 0.133, 0.298], dark39: [0.078, 0.118, 0.133, 0.392], dark59: [0.078, 0.118, 0.133, 0.588],
@@ -181,6 +181,8 @@ export class Hud {
     const idl = F(mid, null, null, { cls: 'col' }); idl.style.gap = '6px';
     E.mapName = text(idl, '', 22, TXT_MAP); E.mapName.dataset.hud = 'mapName';
     E.mapDetail = text(idl, '', 22);
+    // F5a: inn1.png chữ tên bản đồ đậm và sáng hơn (TMP Bold + bóng tối), web 600 mảnh/xám [ĐO TRONG ẢNH]
+    for (const e of [E.mapName, E.mapDetail]) { e.style.fontWeight = '800'; e.style.textShadow = '0 0 3px rgba(0,0,0,.55), 0 1px 2px rgba(0,0,0,.45)'; }
     this.key(mini, 'key_Tab', 48, [90.7, -86.3]);
     const wm = this.button(B, 'worldmap', { n: 'worldMap', a: [1, 1], p: [-240, -217], sz: [60, 60] });
     R(wm, { a: [0, 0, 1, 1], spr: 'DialogueUI/Dialogue_Icon_Map' });
@@ -330,17 +332,22 @@ export class Hud {
       return m;
     };
     slot.norm = mk(false); slot.sel = mk(true);
+    // F5a: phím đổi slime trên ô (SlimeQuickSlot/ButtonKeymapOverlay: actionName EquipMonster, pos (58, -65), 24x24), PC thôi
+    const kc = this.key(slot, 'key_Digit' + (i + 1), 24, [58, -65]); if (kc) kc.dataset.hud = 'slotKey' + (i + 1);
     return slot;
   }
 
   questItem(q) {                                    // ui_play__QuestBookmarkLayout + ObjectiveLayout
     const box = document.createElement('div'); box.className = 'f qbox'; box.dataset.hud = 'questItem';
-    paint(box, 'Game/UI_PlayScene_QuestBG', { color: C.questBg, sliced: true });
+    if (q.bg !== false) paint(box, 'Game/UI_PlayScene_QuestBG', { color: C.questBg, sliced: true });   // F4: nhiệm vụ song song không nền (8:33)
+    else box.style.padding = '0 20px 2px 0';
     const tl = F(box, null, 49, { cls: 'row center qtitle' }); tl.style.gap = '12px';
     text(tl, q.title, 30);
-    const star = F(tl, 43, 43, { cls: 'star' }); star.style.transform = 'scale(0.85)';
-    R(star, { a: [0, 0, 1, 1], spr: 'QuestUI/Icon_Quest_Favorites_On', col: [0, 0, 0, 0.314] });
-    R(star, { a: [0, 0, 1, 1], spr: 'QuestUI/Icon_Quest_Favorites_On' });
+    if (q.star !== false) {   // F4: chỉ nhiệm vụ ghim (đầu) có sao; nhiệm vụ song song chỉ hiện tên (8:33, 11:03)
+      const star = F(tl, 43, 43, { cls: 'star' }); star.style.transform = 'scale(0.85)';
+      R(star, { a: [0, 0, 1, 1], spr: 'QuestUI/Icon_Quest_Favorites_On', col: [0, 0, 0, 0.314] });
+      R(star, { a: [0, 0, 1, 1], spr: 'QuestUI/Icon_Quest_Favorites_On' });
+    }
     for (const o of q.objectives) {
       const ol = F(box, null, 36, { cls: 'row center qobj' });
       if (o.done) { const ci = F(ol, 47, 38, { spr: 'Icon/Icon_Check02' }); ci.style.transform = 'scale(0.7)'; }
@@ -361,7 +368,10 @@ export class Hud {
     // nhiệm vụ
     E.quest.innerHTML = '';
     const content = document.createElement('div'); content.className = 'qcontent'; E.quest.appendChild(content);
-    if (S.quest) content.appendChild(this.questItem(S.quest));
+    if (S.quest) {
+      content.appendChild(this.questItem(S.quest));
+      for (const m of S.quest.more || []) { const b = this.questItem({ title: m.title, objectives: [], star: false, bg: false }); b.dataset.hud = 'questMore'; b.dataset.q = m.id; content.appendChild(b); }
+    }
     else {
       const em = F(content, null, null, { n: 'questEmpty', spr: 'Common/Ui_Bg_Round_01_54px', col: C.dark30, sl: true, cls: 'pad20' });
       text(em, t('UI.QuestNotRegistered'), 24);
@@ -403,7 +413,8 @@ export class Hud {
     E.switch.hidden = this.pc && S.control === 'user';
     E.bigMap.hidden = !S.minimapOpen;
     // bảng/hội thoại mở: HUD chơi và thẻ tên ẩn (al1.png, q1.png chỉ còn bảng)
-    this.base.hidden = !!S.modal; this.world.hidden = !!S.modal;
+    const hide = !!S.modal && S.modal !== 'guide';   // F4: màn chỉ nút (guide) để HUD hiện dưới lớp tối (7:28, 11:01)
+    this.base.hidden = hide; this.world.hidden = hide;
     E.warning.hidden = !S.warnStamina;
     E.userName.textContent = S.player.name;
     E.monName.textContent = eq ? eq.name : '';

@@ -128,3 +128,15 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #8fb7c9; col
 #hud .itemcount { pointer-events: none; }
 #hud img.fainted { filter: grayscale(1) brightness(0.6); }
 #hud .wrapc { white-space: normal; text-align: center; line-height: 1.0; }
+/* F4: màn chỉ nút (ui_tutorial__Tutorial_*), dòng mục tiêu vừa đủ (QuestProgressGoalLayout) */
+#hud .guide { z-index: 6; cursor: pointer; pointer-events: auto; }
+#hud .guide .guidedim { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+#hud .guide .guidering { animation: wos-pulse 0.8s ease-in-out infinite alternate; pointer-events: none; }
+#hud .guide .guidearrow { animation: wos-pulse 0.6s ease-in-out infinite alternate; pointer-events: none; }
+#hud .guide .guidetxt { color: #fff; font-size: 32px; font-style: italic; text-align: center; line-height: 1.35; display: flex; align-items: center; justify-content: center; }
+#hud .guide .guidethumb { border-radius: 50%; overflow: hidden; }
+#hud .guide .guidethumb canvas, #hud .guide .guidethumb img { display: block; }
+@keyframes wos-pulse { from { opacity: .55; scale: .94; } to { opacity: 1; scale: 1.04; } }
+#hud .goaldone { animation: wos-in .35s ease-out; transition: opacity .4s; z-index: 4; }
+#hud .goaldone.out { opacity: 0; }
+#hud .ricon { height: 1.05em; vertical-align: -0.18em; margin: 0 2px; }

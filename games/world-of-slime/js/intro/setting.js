@@ -9,10 +9,10 @@
 //   Camera Scale    -> nhân khoảng cách camera (FollowCamera.effDist) 0.50..1.20, mặc định 1.00 [ĐỀ XUẤT] khoảng giá trị
 //   Âm lượng        -> Master = gain tổng, BGM = gain nhạc nền (phát lại bài khi đổi), FX = gain từng tiếng
 // Thiết lập lưu ở localStorage['wos.settings'] (tiện ích từng máy).
-import { paint } from '../ui/sprites.js?v=20261022d';
-import { set } from '../state.js?v=20261022d';
-import { makeLayer, T, notice, onTap } from './ui.js?v=20261022d';
-import { L, LANG } from './text.js?v=20261022d';
+import { paint } from '../ui/sprites.js?v=20261022e';
+import { set } from '../state.js?v=20261022e';
+import { makeLayer, T, notice, onTap } from './ui.js?v=20261022e';
+import { L, LANG } from './text.js?v=20261022e';
 
 const KEY = 'wos.settings';
 export const DEFAULTS = { quality: 3, fps: 60, shadow: 2, camScale: 1, master: 10, bgm: 10, sfx: 10 };

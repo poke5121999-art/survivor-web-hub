@@ -3,11 +3,11 @@
 // phòng là sprite gốc Customize/Customize_Bg (3840x2160, prefab: cao 1440 đơn vị, giữa màn), avatar vẽ vào RawImage
 // (-436, 60) 880x880 của prefab, đè lên tấm gương có sẵn trong ảnh nền.
 import * as THREE from 'three';
-import { assetUrl } from '../assets.js?v=20261022d';
-import { uiUrl, paint } from '../ui/sprites.js?v=20261022d';
-import { X, T, panel, button, onTap, notice, toast, media, NAVY2, sleep } from './ui.js?v=20261022d';
-import { L } from './text.js?v=20261022d';
-import { buildAvatar, normLook, randomLook, DEFAULT_LOOK, COUNTS } from './avatar.js?v=20261022d';
+import { assetUrl } from '../assets.js?v=20261022e';
+import { uiUrl, paint } from '../ui/sprites.js?v=20261022e';
+import { X, T, panel, button, onTap, notice, toast, media, NAVY2, sleep } from './ui.js?v=20261022e';
+import { L } from './text.js?v=20261022e';
+import { buildAvatar, normLook, randomLook, DEFAULT_LOOK, COUNTS } from './avatar.js?v=20261022e';
 
 // ------------------------------------------------------------------ Touch To Start (g1) + Loading resources (g2)
 export async function titleScreen(layer, { preload = [] } = {}) {

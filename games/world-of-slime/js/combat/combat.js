@@ -7,22 +7,27 @@
 // game.js chỉ gọi: setMap(map, info), command(aim) -> bool, recall(), startDuel(), update(dt, cam) -> bool (true = đang lái
 // slime đồng hành S), và đọc `events` (test).
 import * as THREE from 'three';
-import { Slime } from '../actors/actors.js?v=20261022d';
-import { RULES, META, elementOf, makeRng, rollDamage } from './rules.js?v=20261022d';
-import { CombatUI } from './ui.js?v=20261022d';
-import { state, set } from '../state.js?v=20261022d';
-import { L } from '../../data/quest_text.js?v=20261022d';
-import { assetUrl } from '../assets.js?v=20261022d';
-import { displayName } from '../party/roster.js?v=20261022d';
+import { Slime } from '../actors/actors.js?v=20261022e';
+import { RULES, META, ELEMENT, elementOf, makeRng, rollDamage } from './rules.js?v=20261022e';
+import { CombatUI } from './ui.js?v=20261022e';
+import { state, set } from '../state.js?v=20261022e';
+import { L } from '../../data/quest_text.js?v=20261022e';
+import { assetUrl } from '../assets.js?v=20261022e';
+import { displayName } from '../party/roster.js?v=20261022e';
+import { loadFx, makeBall, makeHit, fadeTrail } from './fx.js?v=20261022e';
 
-// màu quả cầu / tia theo hệ [ĐỀ XUẤT]: prefab FX_EN0_RangeAtk_*_EnergyBall chưa xuất
+// F5a: quả cầu + hiệu ứng trúng dựng từ prefab gốc FX_EN0_RangeAtk_<Hệ>_EnergyBall / FX_EN0_Hit_<Hệ> (js/combat/fx.js,
+// texture gốc fx/tex). ELEM_COL chỉ còn cho hệ chưa có prefab đã xuất (khối cầu cũ) và tia lệnh. [ĐỀ XUẤT] màu
 const ELEM_COL = { 20001: 0xff7a4c, 20002: 0x63c9ff, 20005: 0x8ee65a, 20007: 0xffe066, 20012: 0xb07cff };
 const BEAM_COL = 0x8fd8ff, BEAM_SKILL = 0xff5fae;   // [THẤY 9:00 xanh nhạt, 9:30 hồng]
+// attack_type 7..19 rangedResource = FX_EN0_RangeAtk_<Hệ>_EnergyBall (data/meta/attack_type.json) cho hệ rules.js chưa ghi fx
+const elemFx = e => { const n = Object.keys(ELEMENT).find(k => ELEMENT[k] === e); return n ? 'FX_EN0_RangeAtk_' + n + '_EnergyBall' : null; };
 const yawOf = (dx, dz) => Math.atan2(-dx, dz);
 const lerpAngle = (a, b, t) => { const d = ((b - a + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI; return a + d * t; };
 
 export class Combat {
   constructor(ctx) {
+    loadFx();
     this.c = ctx;   // { scene, hud, story, engine, audio, P, S, player, slime, getMap(), getNpc(name), onDuelEnd(win), seed }
     this.ui = new CombatUI(ctx.hud);
     this.rng = makeRng(ctx.seed || (Date.now() & 0xffff));
@@ -236,7 +241,7 @@ export class Combat {
     }
     if (m.team === 'wild') {
       // nhiệm vụ 7 "Defeat Junior Floralime 0/2" + rơi "Small Slime Fragment" (item_type 215, dropRate 0.7)
-      if (m.def.model === 'SL_Slime_Grass') { E.obj('q7', 'kill'); E.obj('q8', 'kill'); }
+      E.onKill(m.def.model);   // F4: mọi nhiệm vụ có mục tiêu kill khớp loài (q7, Martin q8, Patrol q11)
       if (E.roster.discover(m.def.model)) this.ev('discover', { model: m.def.model });
       const F0 = META.fragment;
       if (this.rng() < F0.rate) {
@@ -249,7 +254,14 @@ export class Combat {
   }
 
   // ---- quả cầu năng lượng (attack_type Ranged Single, Linear, moveSpeed)
-  shoot(from, m, speed, dmg, col, size) {
+  shoot(from, m, speed, dmg, col, size, fx) {
+    const p0 = { x: from.x, z: from.z, y: from.y + 0.45 };
+    const ball = fx && makeBall(fx, size);
+    if (ball) {
+      ball.obj.position.set(-p0.x, p0.y, p0.z); this.c.scene.add(ball.obj);
+      this.fx.push({ kind: 'ball', obj: ball.obj, ball, p: p0, m, speed, dmg, col, hit: fx.replace(/RangeAtk_(\w+)_EnergyBall/, 'Hit_$1') });
+      return;
+    }
     const g = new THREE.Group();
     const core = new THREE.Mesh(new THREE.SphereGeometry(0.16 * size, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffffff }));
     const glow = new THREE.Mesh(new THREE.SphereGeometry(0.32 * size, 12, 10), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false }));
@@ -258,7 +270,9 @@ export class Combat {
     g.position.set(-p.x, p.y, p.z); this.c.scene.add(g);
     this.fx.push({ kind: 'ball', obj: g, p, m, speed, dmg, col });
   }
-  hitFx(x, y, z, col) {
+  hitFx(x, y, z, col, prefab) {
+    const h = prefab && makeHit(prefab, new THREE.Vector3(-x, y + 0.5, z));
+    if (h) { this.c.scene.add(h.obj); this.fx.push({ kind: 'hit', obj: h.obj, h }); return; }
     const ring = new THREE.Mesh(new THREE.RingGeometry(0.15, 0.32, 20), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
     ring.position.set(-x, y + 0.5, z); ring.lookAt(this.c.camera ? this.c.camera().position : new THREE.Vector3(0, 100, -100));
     this.c.scene.add(ring); this.fx.push({ kind: 'ring', obj: ring, t: 0 });
@@ -303,7 +317,7 @@ export class Combat {
         pt.actT -= dt * 1000;
         if (pt.phase === 'pre' && pt.actT <= 0) {
           const k = pt.pending;
-          this.shoot(S, m, k.speed, k.dmg, k.col, k.skill ? 1.5 : 1);
+          this.shoot(S, m, k.speed, k.dmg, k.col, k.skill ? 1.5 : 1, k.fx);
           if (k.skill) this.c.audio.play(k.sound, { gain: 0.7 }); else this.c.audio.play('sfx_defaultattack_MAGICBALL', { gain: 0.5 });
           pt.phase = 'post'; pt.actT = k.post;
         } else if (pt.phase === 'post' && pt.actT <= 0) { pt.phase = null; pt.pending = null; }
@@ -320,12 +334,12 @@ export class Combat {
         const atk = PR.atk(this.lv);
         if (sk && pt.skillCd <= 0 && this.mp >= sk.mp) {
           this.mp -= sk.mp; pt.skillCd = sk.cd;
-          pt.pending = { skill: true, speed: sk.speed, dmg: rollDamage(atk, PR.skillMult, this.rng), col, post: sk.post, sound: sk.sound };
+          pt.pending = { skill: true, speed: sk.speed, dmg: rollDamage(atk, PR.skillMult, this.rng), col, post: sk.post, sound: sk.sound, fx: da.fx || elemFx(this.elem) };
           pt.phase = 'pre'; pt.actT = sk.pre; pt.anim = slime.actions.Skill ? 'Skill' : 'Attack';
           this.flashBeam(BEAM_SKILL);
           this.ev('cast', { skill: sk.id, id: m.def.id });
         } else {
-          pt.pending = { skill: false, speed: da.speed, dmg: rollDamage(atk, 1, this.rng), col, post: da.post };
+          pt.pending = { skill: false, speed: da.speed, dmg: rollDamage(atk, 1, this.rng), col, post: da.post, fx: da.fx || elemFx(this.elem) };
           pt.phase = 'pre'; pt.actT = da.pre; pt.anim = 'Attack';
           this.ev('attack', { action: da.action, id: m.def.id });
         }
@@ -344,8 +358,16 @@ export class Combat {
         const t = f.m, tx = t.x, tz = t.z, ty = t.y + 0.45, dx = tx - f.p.x, dz = tz - f.p.z, dy = ty - f.p.y, d = Math.hypot(dx, dz, dy), step = f.speed * dt;
         if (d <= step || t.dead) {
           f.done = true; this.c.scene.remove(f.obj);
-          if (!t.dead) { this.hitMon(t, f.dmg); this.hitFx(tx, t.y, tz, f.col); }
-        } else { f.p.x += dx / d * step; f.p.z += dz / d * step; f.p.y += dy / d * step; f.obj.position.set(-f.p.x, f.p.y, f.p.z); }
+          if (f.ball) { const tr = f.ball.dispose(this.c.scene); if (tr) this.fx.push({ kind: 'trail', list: tr }); }
+          if (!t.dead) { this.hitMon(t, f.dmg); this.hitFx(tx, t.y, tz, f.col, f.ball && f.hit); }
+        } else {
+          f.p.x += dx / d * step; f.p.z += dz / d * step; f.p.y += dy / d * step; f.obj.position.set(-f.p.x, f.p.y, f.p.z);
+          if (f.ball && cam) { const gy = this.map.getHeight(f.p.x, f.p.z); f.ball.update(dt, cam, this.c.scene, gy > -100 ? gy : undefined); }
+        }
+      } else if (f.kind === 'hit') {
+        if (!cam || f.h.update(dt, cam)) { f.done = true; this.c.scene.remove(f.obj); }
+      } else if (f.kind === 'trail') {
+        if (!cam || fadeTrail(f.list, dt, cam, this.c.scene)) { f.done = true; f.list.forEach(q => this.c.scene.remove(q)); }
       } else if (f.kind === 'ring') {
         f.t += dt; const s = 1 + f.t * 6; f.obj.scale.set(s, s, s); f.obj.material.opacity = Math.max(0, 0.9 - f.t * 3);
         if (f.t > 0.3) { f.done = true; this.c.scene.remove(f.obj); f.obj.geometry.dispose(); }

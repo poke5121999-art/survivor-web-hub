@@ -1,10 +1,10 @@
 // Túi slime (đội 1-6), kho Allen, bách khoa và ô nhanh vật phẩm (F3) trên bản lưu engine.save (khuôn ở js/state.js).
 // Game gốc: holdingMonsters + equippedMonsterId (SelectMonsterInBagRequest{pocketIndex}), kho Archive, MonsterDexDegree; ở đây
 // mọi thứ chạy trên máy. Mọi chỗ đọc/ghi slime sở hữu đi qua lớp này; HUD chỉ đọc state.party / state.equipped do sync() đẩy ra.
-import { state, set, newSlime, PARTY_MAX, STORAGE_MAX, STARTER_STATS } from '../state.js?v=20261022d';
-import { RULES } from '../combat/rules.js?v=20261022d';
-import { loadJSON } from '../assets.js?v=20261022d';
-import { itemIcon } from './items.js?v=20261022d';
+import { state, set, newSlime, PARTY_MAX, STORAGE_MAX, STARTER_STATS } from '../state.js?v=20261022e';
+import { RULES } from '../combat/rules.js?v=20261022e';
+import { loadJSON } from '../assets.js?v=20261022e';
+import { itemIcon } from './items.js?v=20261022e';
 
 // Tên loài do server gửi (không có trong client). [THẤY] = đọc trong khung clip; còn lại hiện tên ghép từ id [ĐỀ XUẤT].
 export const SPECIES_NAME = {

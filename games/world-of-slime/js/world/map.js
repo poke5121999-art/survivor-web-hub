@@ -37,9 +37,10 @@
  */
 import * as THREE from 'three';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
-import { loadGLB, loadJSON, loadTex, assetUrl, expectBytes } from '../assets.js?v=20261022d';
-import { envMaterial } from './envmat.js?v=20261022d';
-import { MOVE } from '../config.js?v=20261022d';
+import { loadGLB, loadJSON, loadTex, assetUrl, expectBytes } from '../assets.js?v=20261022e';
+import { envMaterial } from './envmat.js?v=20261022e';
+import { MOVE } from '../config.js?v=20261022e';
+import { PROPS } from '../../data/portals.js?v=20261022e';
 
 export const LAND = { NONE: -1, GROUND: 0, GRASS: 1, STONE: 2, WATER: 3, SNOW: 4, SAND: 5 };
 const D2R = Math.PI / 180;
@@ -216,7 +217,36 @@ export class GameMap {
         parent.add(im); this.stats.instanced++;
       }
     }
+    await this._props(PROPS[this.data.id] || []);
     return this;
+  }
+
+  // Đồ đạc server gửi (data/portals.js PROPS, F5a): mỗi vật là node `piece` trong prop GLB, đặt ở mặt sàn floors[] (Unity
+  // x,z -> three (-x, h, z)), xoay yaw Unity quanh Y. Bỏ transform gốc của prefab như mảnh bản đồ (game đặt vật bằng
+  // position/rotation của server, đè rotation gốc).
+  async _props(list) {
+    this.props = [];
+    for (const pr of list) {
+      try {
+        const g = await loadGLB(pr.glb);
+        g.scene.updateMatrixWorld(true);
+        const src = g.scene.getObjectByName(THREE.PropertyBinding.sanitizeNodeName(pr.piece)) || g.scene.children[0];
+        const texFor = (uri, ramp) => loadTex(/^(map|prop|slime|npc|player)\//.test(uri) ? uri : pr.glb.replace(/[^/]+$/, '') + uri, { nearest: !!ramp });
+        const o = new THREE.Group(); o.name = 'prop:' + pr.piece;
+        const inv = new THREE.Matrix4().copy(src.matrixWorld).invert();
+        src.traverse(k => {
+          if (!k.isMesh || k.isSkinnedMesh) return;
+          const m = new THREE.Mesh(k.geometry, envMaterial(k.material, { hasVColor: !!k.geometry.attributes._color, texFor }));
+          new THREE.Matrix4().multiplyMatrices(inv, k.matrixWorld).decompose(m.position, m.quaternion, m.scale);
+          if (m.material.transparent) m.renderOrder = 2;
+          o.add(m);
+        });
+        const h = this.floorHeight(pr.x, pr.z);
+        o.position.set(-pr.x, h > -100 ? h : 0, pr.z);
+        o.rotation.y = -(pr.yaw || 0) * D2R;
+        this.root.add(o); this.props.push(o);
+      } catch (e) { this.stats.missing.push('prop ' + pr.piece + ': ' + e.message); }
+    }
   }
 
   // HeightPropData..ctor: hộp = Collider.bounds (thế giới) của BoxCollider mảnh cầu thang; minHeight/maxHeight = y của hộp.
