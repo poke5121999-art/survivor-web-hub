@@ -56,7 +56,7 @@ Mỗi pha xong = push + bộ kiểm của pha qua trên Pages + ảnh ghép gố
       sân đấu tay đôi với Rudga (TEAM A vs B, 05:00). Sở hữu: `js/combat/`, `js/world/` (phần rừng), `data/maps/forest*.json`.
 - [x] F2 (`c924f11c`, intro 54 PASS trên Pages) Mở đầu: Touch To Start, đặt tên, tạo nhân vật 7 tab trước gương, xác nhận ngoại hình, truyện tranh mở đầu, chọn ba
       lô (2 slime khởi đầu), phim tỉnh dậy, Setting/Account. Sở hữu: `js/intro/`, `css/intro.css`.
-- [ ] F3 Bắt slime + đội: ném Cube (Q/E/R), lắc 1-3 lần, tỉ lệ theo máu còn lại, đặt tên slime, đội 1-6 (phím 1-6, C đổi),
+- [x] F3 (`ba87e69d`, tame 33 + combat 34 + quest 70 + intro 54 PASS trên Pages) Bắt slime + đội: ném Cube (Q/E/R), lắc 1-3 lần, tỉ lệ theo máu còn lại, đặt tên slime, đội 1-6 (phím 1-6, C đổi),
       Slime Storage ở Allen, Slimepedia (B), túi đồ (I), dùng thuốc 30 HP Potion.
 - [ ] F4 Nhiệm vụ 7-14: Lucy, Martin, Patrol (Billy), Mysterious Researcher, Recovery, Tame, cùng các thẻ hướng dẫn.
 - [ ] F5 Hoàn thiện: đồ đạc trong nhà, mặt nước đài phun, bản mobile rà lại từng màn, âm thanh UI/đánh, thẻ hub
