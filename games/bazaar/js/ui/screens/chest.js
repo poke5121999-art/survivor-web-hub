@@ -14,7 +14,8 @@
   var V = function () { return root.BZView; };
   var CH = U.CHEST = { fall: 333, burst: 2317, open: 3400, rebounds: [2680, 2950, 3250], prize: 667, stagger: 120,
     shake: { Bronze: 400, Silver: 567, Gold: 733, Diamond: 733, Legendary: 733 },
-    art: 'art/ui/purchases/Chest_Purchase_Artwork_1_TUI.webp', burstArt: 'art/vfx/FX_ChestExplosion_01.webp' };
+    art: 'art/ui/purchases/Chest_Run_Clean.webp', // Chest_Purchase_Artwork_1 đã bỏ quầng alpha nướng sẵn quanh rương (UI-12)
+     burstArt: 'art/vfx/FX_ChestExplosion_01.webp' };
   var rev = null; // {el, ids, done}
 
   function later(ms, fn) { var id = setTimeout(fn, ms); rev.ids.push(id); return id; }
@@ -97,7 +98,6 @@
       var side = U.top.portrait(nm, tier, { bg: CH.art, char: null }, U.top.nameBlock('Mốc ' + ph.wins + ' trận thắng', nm, ph.name || ''));
       this._note = U.el('div', 'rs-side-note', side.r, '');
       U.bigButton(side.r, 'brown', 'Bỏ qua', 'Không lấy gì, đi tiếp', function () { U.skipReward(); }).classList.add('leave');
-      U.top.layer().appendChild(U.el('div', 'rs-hint', null, U.rewardHint()));
       this._first = true;
       reveal(run);
     },

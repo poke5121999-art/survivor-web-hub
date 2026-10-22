@@ -18,6 +18,9 @@
   // Bàn người chơi cho sim (cũng là bàn 0 của trận đấu)
   R.playerBoard = function (run) {
     var attrs = { Gold: run.gold, Income: run.income, Experience: run.xp, Prestige: run.prestige };
+    // Bộ đếm trận của run mà thẻ đọc qua thuộc tính người chơi (Dabora: Sell the Rights / Monster Sightings / Heroic Encounters):
+    // Custom_5 = số trận thắng (PvP + quái), Custom_7 = số trận thua quái, Custom_8 = số trận thua PvP
+    attrs.Custom_5 = (run.wins || 0) + (run.pveWins || 0); attrs.Custom_7 = run.pveLosses || 0; attrs.Custom_8 = run.losses || 0;
     for (var k in (run.pattrs || {})) attrs[k] = run.pattrs[k];
     var b = { name: run.hero, hero: run.hero, level: run.level, healthMax: run.healthMax, attrs: attrs,
       cards: R.allCards(run).map(R.simCard) };
@@ -31,18 +34,47 @@
     var S = sim.makeState({ boards: [R.playerBoard(run), { name: 'encounter', healthMax: 1, cards: [] }],
       seed: R.seedInt(run), day: run.day, hour: run.hour + 1, sandstorm: false, combatType: (extra && extra.combatType) || 'PVE' });
     sim.initState(S);
-    var P = S.players[0], before = {};
+    var P = S.players[0], before = {}, reacts = [];
     for (var n in P.base) before[n] = P.base[n] || 0;
+    // Sim chỉ chạy ngay ability Immediate; ngoài trận không có hàng đợi, nên phản ứng dây chuyền được nghe ở đây (O.REACT)
+    S.onEmit = function (kind, ev) { if (kind in O.REACT) reacts.push(ev); };
     var res = fn(S);
+    for (var i = 0; i < reacts.length && i < 40; i++) react(ctx, S, reacts[i]);
+    S.onEmit = null;
     readBack(ctx, S, before);
     return res;
   };
+  // Phản ứng ngoài trận cho sự kiện sim phát ra trong lúc chạy hành động: phá thẻ (Peacewrought +vàng khi phá, Hydraulic Press),
+  // giá trị đổi (Chimeric Egg nâng bậc ở 10/20/30: ability OutOfCombatOnly mà sim bỏ khỏi bộ nghe của trận). Giá trị = có cần WorksIn
+  // OutOfCombatOnly không (đổi thuộc tính thẻ thì nhiều ability của trận cũng nghe; chỉ ability dành riêng ngoài trận mới chạy).
+  O.REACT = { TTriggerOnBeforeCardDestroyed: false, TTriggerOnCardPerformedDestruction: false, TTriggerOnCardDisabled: false,
+    TTriggerOnCardAttributeChanged: true };
+  function react(ctx, S, ev) {
+    var sim = BZ(), oocOnly = O.REACT[ev.kind];
+    S.players[0].hand.concat(S.players[0].skills, S.players[0].stash).forEach(function (C) {
+      var dying = C.state === 'Destroyed' && ev.kind === 'TTriggerOnBeforeCardDestroyed' && ev.card === C;
+      if (C.state !== 'Alive' && !dying) return;
+      C.abilities.forEach(function (A) {
+        if (sim.triggerKinds(A.Trigger).indexOf(ev.kind) < 0 || A.WorksIn === 'CombatOnly') return;
+        if (oocOnly ? A.WorksIn !== 'OutOfCombatOnly' : A.Priority === 'Immediate' && A.WorksIn !== 'OutOfCombatOnly') return; // Immediate: sim đã chạy
+        if (!sim.activeIn(C, A.ActiveIn) || !sim.matchTrigger(A.Trigger, C, ev, S)) return;
+        if (!sim.prereqsOk(A.Prerequisites, { S: S, card: C, ev: ev })) return;
+        runAbility(ctx, S, C, A, ev);
+      });
+    });
+  }
   function readBack(ctx, S, before) {
     var run = ctx.run, P = S.players[0];
     S.cards.forEach(function (C) {
       if (C.owner !== 0) return;
       var ci = R.findCard(run, C.uid);
       if (!ci) return;
+      if (C.state === 'Destroyed') { // ngoài trận phá là mất hẳn (Peacewrought, Sacrifice Ancient Locket, Destructible Skill, vé thám hiểm)
+        R.removeCard(run, ci.uid);
+        R.emit(ctx, { type: 'destroy', uid: ci.uid, id: ci.id, why: 'effect' });
+        R.log(ctx, { t: 'destroy', id: ci.id });
+        return;
+      }
       if (C.tier !== ci.tier) { var from = ci.tier; ci.tier = C.tier; R.emit(ctx, { type: 'upgrade', uid: ci.uid, from: from, to: C.tier, why: 'effect' }); }
       if ((C.ench || null) !== (ci.ench || null)) { ci.ench = C.ench || null; R.emit(ctx, { type: 'enchant', uid: ci.uid, ench: ci.ench }); }
       for (var k in C.d) {
@@ -50,13 +82,17 @@
         ci.mods[k] = (ci.mods[k] || 0) + C.d[k];
         R.emit(ctx, { type: 'cardAttr', uid: ci.uid, attr: k, delta: C.d[k] });
       }
-      if (Object.keys(C.addTags || {}).length) note('addTags (sim makeCard không đọc thẻ gắn thêm)');
+      var have = ci.tags || [], add = Object.keys(C.addTags || {}).filter(function (t) { return have.indexOf(t) < 0; });
+      if (add.length) { // "Your leftmost item gains the Food type" (Training), Mysterious Crystal, Vat of Acid: loại thêm lưu trên inst.tags
+        ci.tags = have.concat(add);
+        R.emit(ctx, { type: 'tags', uid: ci.uid, add: add });
+      }
     });
     var d = function (n) { return (P.base[n] || 0) - (before[n] || 0); };
     R.gold(ctx, d('Gold'), 'effect');
     R.income(ctx, d('Income'));
     R.prestige(ctx, d('Prestige'));
-    if (d('HealthMax')) { run.healthMax = Math.max(1, run.healthMax + d('HealthMax')); R.emit(ctx, { type: 'healthMax', delta: d('HealthMax') }); }
+    if (d('HealthMax')) R.addHealthMax(ctx, d('HealthMax'));
     Object.keys(P.base).forEach(function (n) {
       if (PLAYER_ATTRS.indexOf(n) >= 0 || /^(Health|Shield|Burn|Poison|Rage|Enraged|EnragedDuration|Level)$/.test(n)) return;
       var dv = d(n);
@@ -83,7 +119,9 @@
     TActionGameSpawnCards: function (act, rc, x) { // đưa thẳng thẻ vào bàn (Spawn): số = Limit, bộ lọc đọc từ mô tả
       var n = Math.round(BZ().value((act.SpawnContext || {}).Limit, x)) || 1;
       var f = x.filter;
-      if (!f) { note('Spawn không có mô tả: ' + (x.source && x.source.name)); R.genericReward(rc, 'gold'); return; }
+      // Chữ không nêu thẻ nào ("Spin the wheel!", "Add Stove", "Visit the Artist"): Spawn/Deal của thẻ gặp gỡ bày THẺ GẶP GỠ kế tiếp
+      // (SpawnContext bị xoá), không phải vật phẩm → không chia bừa; bước đã biết thì bảng St.FX (enc-step.js) nói thật
+      if (unreadable(f)) { note('Spawn không đọc được: ' + (x.source && x.source.name)); return; }
       R.deal(rc.run, f, n, { tierMode: 'band' }).forEach(function (card) {
         if (!R.gainCard(rc, card, null, null, 'spawn', true)) R.emit(rc, { type: 'lost', id: card.id, why: 'noSpace' });
       });
@@ -91,41 +129,58 @@
     TActionGameDealCards: function (act, rc, x) { // bày một lựa chọn miễn phí (Deal) → pha loot
       var n = Math.round(BZ().value((act.SpawnContext || {}).Limit, x)) || 1;
       var f = x.filter;
-      if (!f) { note('Deal không có mô tả: ' + (x.source && x.source.name)); R.genericReward(rc, 'item'); return; }
+      if (unreadable(f)) { if (!x.hasThen) note('Deal không đọc được: ' + (x.source && x.source.name)); return; } // có Then: Deal là bày bước kế
       x.out.deals.push({ filter: f, n: n });
     },
-    TActionGameReroll: function () { note('TActionGameReroll ngoài cửa hàng'); },
+    // Đổi lựa chọn giờ đang bày (Compass "reroll 1 new Encounter", Reroll Token "reroll your enemies" ở giờ quái): SpawnCount ô cuối
+    // thay bằng gặp gỡ mới không trùng; ngoài màn chọn gặp gỡ thì không có gì để đổi
+    TActionGameReroll: function (act, rc) {
+      var run = rc.run, ph = run.phase;
+      if (ph.kind !== 'choose' || !ph.options || !ph.options.length) { note('TActionGameReroll ngoài màn chọn gặp gỡ'); return; }
+      var n = Math.min(ph.options.length, act.SpawnCount || ph.options.length);
+      run.prev = ph.options.map(function (o) { return o.id; });
+      var fresh = run.hour === T().PVE_HOUR ? R.ENCOUNTERS.combat.options(run) : R.hourOptions(run), L = ph.options.length;
+      for (var i = 0; i < n; i++) if (fresh[L - 1 - i]) ph.options[L - 1 - i] = fresh[L - 1 - i];
+      run.prev = ph.options.map(function (o) { return o.id; });
+      R.emit(rc, { type: 'reroll', why: 'effect' });
+      R.log(rc, { t: 'reroll', source: 'effect' });
+    },
     // Biến hình (SpawnContext đích bị xoá) [ĐỀ XUẤT]: thẻ đích (chấm bằng sim) đổi thành một vật phẩm khác cùng cỡ, có cùng bậc,
     // thuộc bể hero (mô tả "from any Hero" → mọi hero), giữ tag mô tả nêu ("Transform the Small Reagents" → Reagent khác).
     // Giữ uid/ô/bậc; enchantment giữ nếu thẻ mới có loại đó; mods và quest xoá. Đích là ô hiệu ứng (bếp của Jules): bỏ qua.
     TActionCardTransform: function (act, rc, x) {
       var run = rc.run, sim = BZ(), tg = act.Target || {};
       if (/SocketEffects$/.test(tg.TargetSection || '')) { note('Transform ô hiệu ứng (socket effect) chưa có'); return; }
-      var desc = (x.source && x.source.desc) || '', f = R.parseFilter(desc);
+      // đích là chữ sau "into" ("transform this into an Enchanted Friend from any Hero", "into an item from another Hero")
+      var desc = (x.source && x.source.desc) || '', into = /\binto\b(.*?)(?:\band\b|[.;]|$)/i.exec(desc), f = R.parseFilter(into ? into[1] : desc);
       var targets = sim.targets(tg, { S: x.S, card: x.card, ev: x.ev }).filter(function (T) { return T.owner === 0 && T.section !== 'skills'; });
       targets.forEach(function (T) {
         var ci = R.findCard(run, T.uid);
         if (!ci) return;
-        var old = R.tpl(ci.id), anyHero = /any Hero/i.test(desc);
+        var old = R.tpl(ci.id);
         var cands = R.pool('item').filter(function (id) {
-          var t = R.tpl(id);
+          var t = R.tpl(id), hs = t.Heroes || [], mine = hs.indexOf(run.hero) >= 0 || hs.indexOf('Common') >= 0;
           if (id === ci.id || t.Size !== old.Size || !t.Tiers || !t.Tiers[ci.tier] || R.tierIndex(t.StartingTier) > R.tierIndex(ci.tier)) return false;
-          if (!anyHero && (t.Heroes || []).indexOf(run.hero) < 0 && (t.Heroes || []).indexOf('Common') < 0) return false;
+          if (f.hero === 'other' ? mine : f.hero !== 'any' && !mine) return false;
+          if (f.enchanted && !Object.keys(t.Enchantments || {}).length) return false;
           return !f.any.length || f.any.some(function (tag) { return (t.Tags || []).concat(t.HiddenTags || []).indexOf(tag) >= 0; });
         });
         if (!cands.length) { note('Transform: không có thẻ cùng cỡ/bậc cho ' + old.InternalName); return; }
         var nid = cands[R.randInt(run, cands.length)], nt = R.tpl(nid), from = ci.id;
-        ci.id = nid; ci.mods = {}; delete ci.qp; delete ci.qd;
+        ci.id = nid; ci.mods = {}; delete ci.qp; delete ci.qd; delete ci.tags;
         if (ci.ench && !(nt.Enchantments && nt.Enchantments[ci.ench])) ci.ench = null;
+        if (f.enchanted) { var ks = Object.keys(nt.Enchantments || {}); ci.ench = ks.length ? ks[R.randInt(run, ks.length)] : null; }
+        // thẻ sim cũng thành thẻ mới để hành động sau trong cùng lần chạy thấy nó (Echo Crystal: "... and upgrade it")
+        T.id = nid; T.tpl = nt; T.ench = ci.ench; T.inst = null; T.d = {}; T.addTags = {}; sim.rebuildCard(x.S, T);
         R.emit(rc, { type: 'transform', uid: ci.uid, from: from, to: nid, tier: ci.tier });
         R.log(rc, { t: 'transform', from: from, to: nid });
       });
     }
   };
   // Hành động không làm ngoài trận [ĐỀ XUẤT]: TransformDestroyed (chỉ có nghĩa trong trận) → thẻ gặp gỡ trả phần thưởng chung;
-  // Destroy ("Join the Cult", vé thám hiểm), ExitReplacementSet, bảng loại trừ / giờ sau: bỏ qua.
+  // ExitReplacementSet, bảng loại trừ / giờ sau: bỏ qua. TActionCardDestroy do sim chạy (thẻ Destroyed), readBack xoá khỏi run.board.
   var FALLBACK = { TActionCardTransformDestroyed: 'gold', TActionExitReplacementSet: null,
-    TActionCardDestroy: null, TActionGameSetNextHourSpawnContext: null, TActionGameAddToExclusionSet: null,
+    TActionGameSetNextHourSpawnContext: null, TActionGameAddToExclusionSet: null,
     TActionGameRemoveFromExclusionSet: null };
   // ---------- hành động nhắm "SelectionSet" (hàng đang bày của thương nhân) ----------
   // Sim trả rỗng cho SelectionSet (không có hàng trong trận) → làm ở đây trên run.phase.stock: Lucky Clover (nâng bậc ngẫu nhiên),
@@ -185,6 +240,7 @@
     });
   };
 
+  function unreadable(f) { return !f || (R.filterEmpty(f) && !f.kind); }
   O.runAction = function (act, rc, x) {
     if (!act) return;
     if (isSelection(act)) { O.selectionAction(act, rc, x); return; }
@@ -218,7 +274,11 @@
     TTriggerOnEncounterCardsDealt: encCond,
     TTriggerOnEncounterEntered: encCond,
     TTriggerOnEncounterExited: encCond,
-    TTriggerOnCardQuestCompleted: function (tr, C, ev, S) { return srcIn(tr.Subject || { $type: 'TTargetCardSelf' }, C, ev, S); }
+    TTriggerOnCardQuestCompleted: function (tr, C, ev, S) { return srcIn(tr.Subject || { $type: 'TTargetCardSelf' }, C, ev, S); },
+    // người chơi chọn lấy chính thẻ này (mua / nhặt): Red Envelope, Machine Learning, Renovation (core.js R.gainCard)
+    TTriggerOnCardSelected: function (tr, C, ev, S) { return srcIn(tr.Subject || { $type: 'TTargetCardSelf' }, C, ev, S); },
+    // Gold / Level / HealthMax của run đổi (core.js R.gold, R.gainXp, R.addHealthMax): AttributeType, ChangeType, Subject như trong trận
+    TTriggerOnPlayerAttributeChanged: function (tr, C, ev, S) { return BZ().TRIGGERS.TTriggerOnPlayerAttributeChanged(tr, C, ev, S); }
   };
   function encCond(tr, C, ev, S) {
     if (!tr.Conditions) return true;
@@ -345,49 +405,81 @@
     done.forEach(function (uid) { O.fire(ctx, 'TTriggerOnCardQuestCompleted', { uid: uid }); });
   };
 
-  // kind: tên trigger; info: {uid (thẻ chủ thể), combatType, outcome, enc (thẻ gặp gỡ)}
+  // Chạy một ability của vật phẩm ngoài trận (trigger của O.fire hoặc phản ứng dây chuyền): Spawn/Deal lấy bộ lọc từ chữ tooltip,
+  // Transform lấy đích từ chữ ("into a Potion"), "gain access to X" mở sự kiện X ở giờ kế (Thieves Guild Medallion, Genie Lamp)
+  function runAbility(ctx, S, C, A, ev) {
+    var sim = BZ(), run = ctx.run, act = A.Action, lines = null;
+    var x = { S: S, card: C, ev: ev, source: { name: C.tpl.InternalName }, out: { deals: [] }, filter: null, isEncounter: false };
+    if (act && /^TActionGame(Spawn|Deal)Cards$|^TActionCardTransform$/.test(act.$type)) {
+      lines = abilityLines(sim, C, A);
+      var tl = lines.filter(function (l) { return /transform/i.test(l); }); // Alembic: dòng "... transform ... into a Potion", không lẫn dòng "get a Small Reagent"
+      x.source.desc = (act.$type === 'TActionCardTransform' && tl.length ? tl : lines).join(' ');
+    }
+    if (act && /^TActionGame(Spawn|Deal)Cards$/.test(act.$type)) {
+      var acc = /gain access to (?:the )?([A-Za-z' ]+)/i.exec(x.source.desc);
+      if (acc) { R.emit(ctx, { type: 'trigger', kind: ev.kind, uid: C.uid }); grantAccess(ctx, acc[1]); return; }
+      // chữ tooltip của thẻ ("When you buy this ..., get a Premium Piggle") làm bộ lọc (O.spawnFilter)
+      x.filter = O.spawnFilter(lines, C);
+      if (!x.filter) { note('Spawn/Deal của vật phẩm: ' + C.tpl.InternalName + ' (mô tả không có "get ..." đọc được)'); return; }
+    }
+    R.emit(ctx, { type: 'trigger', kind: ev.kind, uid: C.uid });
+    O.runAction(act, ctx, x);
+    x.out.deals.forEach(function (d) { // Deal từ vật phẩm: chia ngay vào bàn như Spawn [ĐỀ XUẤT: không ngắt pha hiện tại]
+      R.deal(run, d.filter, 1, { tierMode: 'band' }).forEach(function (card) { R.gainCard(ctx, card, null, null, 'deal'); });
+    });
+  }
+  // "gain access to the Thieves Guild / the genie Rit": sự kiện có Title là đuôi cụm chữ (bản gốc, InternalName = Title) vào lần bày giờ
+  // thường kế tiếp (clock.js R.accessOptions); đang ở màn chọn gặp gỡ thì vào luôn
+  function grantAccess(ctx, phrase) {
+    var run = ctx.run, E = R.enc().events, p = phrase.trim().toLowerCase(), id = null;
+    for (var k in E) { var t = String(E[k].Title || '').toLowerCase(); if (t && E[k].InternalName === E[k].Title && (p === t || p.slice(-t.length - 1) === ' ' + t)) { id = k; break; } }
+    if (!id) { note('gain access: không có sự kiện "' + phrase + '"'); return; }
+    run.access = (run.access || []).concat(id);
+    R.emit(ctx, { type: 'access', id: id });
+    var ph = run.phase;
+    if (ph.kind === 'choose' && run.hour !== T().PVE_HOUR && run.hour !== T().PVP_HOUR) ph.options = R.accessOptions(run, ph.options);
+  }
+
+  // kind: tên trigger; info: {uid (thẻ chủ thể), combatType, outcome, enc (thẻ gặp gỡ), attr + delta (thuộc tính người chơi đổi)}
   O.fire = function (ctx, kind, info) {
     info = info || {};
     var run = ctx.run, any = false, quest = false;
     // lọc nhanh: có thẻ nào nghe trigger này không (tránh dựng trạng thái sim mỗi giờ); mẫu đã phủ thưởng quest nếu có
+    var listens = function (tr) {
+      var j = tr && JSON.stringify(tr);
+      return !!j && j.indexOf(kind) >= 0 && (!info.attr || j.indexOf('"AttributeType":"' + info.attr + '"') >= 0);
+    };
     R.allCards(run).forEach(function (ci) {
       var tpl = R.tpl(R.questTplId(ci));
-      for (var k in (tpl && tpl.Abilities) || {}) { var tr = tpl.Abilities[k].Trigger; if (tr && JSON.stringify(tr).indexOf(kind) >= 0) any = true; }
+      for (var k in (tpl && tpl.Abilities) || {}) if (listens(tpl.Abilities[k].Trigger)) any = true;
       var E = ci.ench && tpl && tpl.Enchantments ? tpl.Enchantments[ci.ench] : null;
-      for (var j in (E && E.Abilities) || {}) { var tr2 = E.Abilities[j].Trigger; if (tr2 && JSON.stringify(tr2).indexOf(kind) >= 0) any = true; }
+      for (var j in (E && E.Abilities) || {}) if (listens(E.Abilities[j].Trigger)) any = true;
       if (ci.section !== 'skills' && Q.listens(ci, kind)) quest = true;
     });
     if (!any && !quest) return;
+    // trigger gây trigger (Healthy Tip: vàng → máu → Hammock...) có đáy; vòng lặp thì dừng ở độ sâu 6
+    if ((ctx.oocDepth || 0) >= 6) { note('O.fire quá sâu: ' + kind); return; }
+    ctx.oocDepth = (ctx.oocDepth || 0) + 1;
     var completed = [];
-    O.withState(ctx, function (S) {
-      var sim = BZ(), ev = { kind: kind, side: 0, combatType: info.combatType, outcome: info.outcome };
-      if (info.uid) S.cards.forEach(function (C) { if (C.uid === info.uid) { ev.src = C; ev.card = C; } });
-      if (info.enc) { ev.src = O.encounterCard(S, info.enc); ev.card = ev.src; }
-      S.players[0].hand.concat(S.players[0].skills, S.players[0].stash).forEach(function (C) {
-        C.abilities.forEach(function (A) {
-          var trs = A.Trigger && A.Trigger.$type === 'TTriggerOr' ? A.Trigger.Triggers || [] : [A.Trigger];
-          var tr = trs.filter(function (t) { return t && t.$type === kind; })[0];
-          if (!tr) return;
-          if (!sim.activeIn(C, A.ActiveIn) || A.WorksIn === 'InCombatOnly') return;
-          if (!TRIG[kind] || !TRIG[kind](tr, C, ev, S)) return;
-          if (!sim.prereqsOk(A.Prerequisites, { S: S, card: C, ev: ev })) return;
-          var x = { S: S, card: C, ev: ev, source: { name: C.tpl.InternalName }, out: { deals: [] }, filter: null, isEncounter: false };
-          var act = A.Action;
-          if (act && /^TActionGame(Spawn|Deal)Cards$/.test(act.$type)) {
-            // chữ tooltip của thẻ ("When you buy this ..., get a Premium Piggle") làm bộ lọc (O.spawnFilter)
-            var lines = abilityLines(sim, C, A);
-            x.filter = O.spawnFilter(lines, C);
-            if (!x.filter) { note('Spawn/Deal của vật phẩm: ' + C.tpl.InternalName + ' (mô tả không có "get ..." đọc được)'); return; }
-          }
-          R.emit(ctx, { type: 'trigger', kind: kind, uid: C.uid });
-          O.runAction(act, ctx, x);
-          x.out.deals.forEach(function (d) { // Deal từ vật phẩm: chia ngay vào bàn như Spawn [ĐỀ XUẤT: không ngắt pha hiện tại]
-            R.deal(run, d.filter, 1, { tierMode: 'band' }).forEach(function (card) { R.gainCard(ctx, card, null, null, 'deal'); });
+    try {
+      O.withState(ctx, function (S) {
+        var sim = BZ(), ev = { kind: kind, side: 0, combatType: info.combatType, outcome: info.outcome };
+        if (info.attr) { ev.attr = info.attr; ev.delta = info.delta; ev.player = S.players[0]; ev.cur = S.players[0].base[info.attr] || 0; ev.prev = ev.cur - info.delta; }
+        if (info.uid) S.cards.forEach(function (C) { if (C.uid === info.uid) { ev.src = C; ev.card = C; } });
+        if (info.enc) { ev.src = O.encounterCard(S, info.enc); ev.card = ev.src; }
+        S.players[0].hand.concat(S.players[0].skills, S.players[0].stash).forEach(function (C) {
+          C.abilities.forEach(function (A) {
+            if (C.state !== 'Alive') return; // bị ability trước phá trong cùng lần
+            var trs = A.Trigger && A.Trigger.$type === 'TTriggerOr' ? A.Trigger.Triggers || [] : [A.Trigger];
+            if (!sim.activeIn(C, A.ActiveIn) || A.WorksIn === 'CombatOnly') return;
+            if (!TRIG[kind] || !trs.some(function (t) { return t && t.$type === kind && TRIG[kind](t, C, ev, S); })) return;
+            if (!sim.prereqsOk(A.Prerequisites, { S: S, card: C, ev: ev })) return;
+            runAbility(ctx, S, C, A, ev);
           });
         });
+        if (quest) completed = Q.progress(ctx, S, kind, ev);
       });
-      if (quest) completed = Q.progress(ctx, S, kind, ev);
-    });
+    } finally { ctx.oocDepth--; }
     completed.forEach(function (uid) { O.fire(ctx, 'TTriggerOnCardQuestCompleted', { uid: uid }); });
   };
 

@@ -118,6 +118,8 @@
 /* kho mở: dải khung gặp gỡ + nút thương nhân lui đi, bàn dưới tối lại (clip stash-open, UI-10) */
 .m-run.stash-open .rs-enc, .m-run.stash-open .rs-map, .m-run.stash-open .rs-merchant-ctl, .m-run.stash-open .rs-pedestal { opacity: 0; pointer-events: none; transition: opacity .3s; }
 .m-run.stash-open .bz-board.bot { filter: brightness(.62); transition: filter .3s; }
+/* .rs-cell { pointer-events: auto } ghi đè ở con nên phải khoá cả cây con, không thì bấm ✕ trúng ô "Rời đi" tàng hình (UI-1) */
+.m-run.lane-merchant.stash-open .rs-merchant-ctl * { pointer-events: none !important; }
 
 /* ---------- màu dải theo loại màn (clip: thương nhân = dải tím viền vàng; sự kiện = băng-rôn kem; loot = khung vàng neon; bệ = ngọc lam; bàn tay = thảm xanh ngọc) ---------- */
 .m-run.lane-merchant .bz-board.top { background: rgba(104,56,170,.5); box-shadow: inset 0 0 0 2px rgba(240,207,122,.55), inset 0 0 26px rgba(30,10,60,.35); }
@@ -130,7 +132,7 @@
 .m-run:not(.m-fight) .rs-sock.locked { border-radius: 0; background: rgba(10,14,6,.42); box-shadow: 3px 0 0 rgba(10,14,6,.42), -3px 0 0 rgba(10,14,6,.42); }
 .m-run .rs-sock.locked .lock { display: none; }
 /* thảm làn (top.js T.carpet): Carpet_*_TD trải từ giữa ra hai bên, thay nền CSS tím / kem / ngọc */
-.rs-carpet { position: absolute; inset: 0; border-radius: 6px; background: center/100% 100% no-repeat; clip-path: inset(0 50% 0 50%); opacity: 0; pointer-events: none; }
+.rs-carpet { position: absolute; inset: 0; border: 0 solid transparent; border-width: 0 115px; border-image-slice: 0 120 fill; border-image-width: 0 115px; clip-path: inset(0 50% 0 50%); opacity: 0; pointer-events: none; }
 .rs-carpet.show { opacity: 1; animation: rs-unroll .7s cubic-bezier(.3,.9,.4,1) .2s both; }
 @keyframes rs-unroll { from { clip-path: inset(0 50% 0 50%); } to { clip-path: inset(0 0 0 0); } }
 .m-run.has-carpet:not(.lane-loot) .bz-board.top { background: transparent; box-shadow: none; }
@@ -178,7 +180,7 @@
 .rs-clock .pin { position: absolute; left: 50%; top: 50%; width: 26px; height: 26px; margin: -13px; border-radius: 50%;
   background: radial-gradient(circle at 40% 35%, #fff2b8, #d9a520 55%, #7a5208); box-shadow: 0 0 0 2px #4a3418; }
 .rs-clock .crownbar { position: absolute; left: 60px; top: 216px; width: 120px; height: 20px; border-radius: 4px; overflow: hidden; cursor: help; }
-.rs-clock .crownbar i { position: absolute; inset: 0; transform-origin: 0 50%; transition: transform .8s cubic-bezier(.3,0,.2,1);
+.rs-clock .crownbar i { position: absolute; inset: 0; transition: clip-path .8s cubic-bezier(.3,0,.2,1);
   background: linear-gradient(180deg, #ffe48a, #f5b51c 55%, #b9760a); }
 .rs-clock .crownbar b { position: absolute; right: 6px; top: 0; font: 800 18px/20px var(--f-num); color: #fff; text-shadow: 0 0 2px #3a2000, 0 1px 0 #3a2000, 1px 0 0 #3a2000, -1px 0 0 #3a2000; }
 .rs-clock .pulse, .rs-clock.pulse, .rs-clock .face.pulse { animation: rs-pulse .6s ease-out; }
@@ -222,13 +224,13 @@
 .rs-big { --ba: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_rectangle/Btn_Rct_Brown_L_Center_Active_TUI.webp); --bh: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_rectangle/Btn_Rct_Brown_L_Center_Highlighted_TUI.webp); --bp: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_rectangle/Btn_Rct_Brown_L_Center_Pressed_TUI.webp);
   position: relative; isolation: isolate; background: none; min-width: 200px; height: 66px; padding: 0 30px; margin: 4px 8px; border: 0; display: inline-flex; align-items: center; justify-content: center;
   font: 800 26px/1 var(--f-text); color: var(--cream); letter-spacing: .02em; text-shadow: 0 2px 0 rgba(0,0,0,.65), 0 0 6px rgba(0,0,0,.5);
-  transition: transform .1s ease-out, filter .15s; }
-.rs-big::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: var(--ba) center/100% 100% no-repeat; }
-.rs-big::after { content: ""; position: absolute; inset: -4px; pointer-events: none; pointer-events: none; border: 33px solid transparent; border-width: 33px 24px;
-  border-image: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_rectangle/Btn_Rct_Frame_L_TUI.webp) 56 80 fill / 33px 24px stretch; }
-.rs-big:hover::before { background-image: var(--bh); }
+  white-space: nowrap; transition: transform .1s ease-out, filter .15s; }
+.rs-big::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; border: 10px solid transparent; border-image: var(--ba) 20 fill / 10px stretch; }
+.rs-big::after { content: ""; position: absolute; inset: -4px; pointer-events: none; pointer-events: none; border: 12px solid transparent;
+  border-image: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_rectangle/Btn_Rct_Frame_L_TUI.webp) 24 fill / 12px stretch; }
+.rs-big:hover::before { border-image-source: var(--bh); }
 .rs-big:hover { transform: translateY(-1px); }
-.rs-big:active::before { background-image: var(--bp); }
+.rs-big:active::before { border-image-source: var(--bp); }
 .rs-big:active { transform: translateY(3px); }
 .rs-big[disabled] { filter: grayscale(.8) brightness(.6); cursor: default; }
 .rs-big.c-blue { --ba: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_rectangle/Btn_Rct_Blue_L_Center_Active_TUI.webp); --bh: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_rectangle/Btn_Rct_Blue_L_Center_Highlighted_TUI.webp); --bp: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_rectangle/Btn_Rct_Blue_L_Center_Pressed_TUI.webp); }
@@ -237,8 +239,13 @@
 /* nút Chơi: ngói vàng/xanh nằm trên khung vàng có hai mũi nhọn */
 .rs-big.c-yellow { --ba: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_play/Btn_Play_Center_Yellow_Active_TUI.webp); --bh: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_play/Btn_Play_Center_Yellow_Highlighted_TUI.webp); --bp: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_play/Btn_Play_Center_Yellow_Pressed_TUI.webp); color: #4a2100; text-shadow: 0 1px 0 rgba(255,244,200,.7); }
 .rs-big.c-blue.play { --ba: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_play/Btn_Play_Center_Blue_Active_TUI.webp); --bh: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_play/Btn_Play_Center_Blue_Highlighted_TUI.webp); --bp: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_play/Btn_Play_Center_Blue_Pressed_TUI.webp); color: #fff; text-shadow: 0 2px 0 rgba(0,40,80,.8); }
-.rs-big.c-blue.play::after, .rs-big.c-yellow::after { inset: -14% -7.7%; z-index: -2; border: 0; border-image: none; background: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_play/Btn_Play_Frame_TUI.webp) center/100% 100% no-repeat; }
-.rs-big.play { min-width: 280px; height: 80px; font-size: 32px; padding: 0 44px; margin: 12px 18px; }
+/* nút Chơi: mặt Btn_Play_Center (541×194, đầu bo 95) và khung Btn_Play_Frame (640×270, đầu nhọn 150, lề 50/38 quanh mặt) cùng tỉ lệ h/194,
+   h = --h (chiều cao nút, số thuần); chỉ phần giữa kéo giãn, hai đầu giữ hình (UI-19) */
+.rs-big.c-yellow { --h: 66; }
+.rs-big.c-blue.play::before, .rs-big.c-yellow::before { border-width: 0 calc(var(--h) * .49px); border-image-slice: 0 95 fill; border-image-width: 0 calc(var(--h) * .49px); }
+.rs-big.c-blue.play::after, .rs-big.c-yellow::after { inset: calc(var(--h) * -.196px) calc(var(--h) * -.258px); z-index: -2; border-width: 0 calc(var(--h) * .773px);
+  border-image: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_play/Btn_Play_Frame_TUI.webp) 0 150 fill / 0 calc(var(--h) * .773px) stretch; }
+.rs-big.play { --h: 80; min-width: 280px; height: 80px; font-size: 32px; padding: 0 44px; margin: 12px 18px; }
 
 /* ---------- vùng trên: bản đồ, khung gặp gỡ ---------- */
 .rs-top { position: absolute; inset: 0; pointer-events: none; }
@@ -378,10 +385,12 @@
 .rs-rnd[disabled] { cursor: default; }
 .rs-rnd.dis .tag { filter: grayscale(.8) brightness(.7); }
 .rs-rnd.none .tag { display: none; }
-.rs-hint { position: absolute; left: 50%; top: 262px; transform: translate(-50%, 0); padding: 6px 16px; border-radius: 12px; white-space: nowrap; pointer-events: none;
-  font: 600 18px/1 var(--f-text); color: #ffe9c8; background: rgba(20,10,4,.7); text-shadow: 0 1px 2px #000; z-index: 40; }
+.rs-hint { position: absolute; left: 50%; top: 262px; transform: translate(-50%, 0); padding: 6px 16px; white-space: nowrap; pointer-events: none; border: 8px solid transparent;
+  border-image: url(../art/ui/ui_sprite_atlas/Tooltip_Gold_Nested_TUI.webp) 12 fill / 8px stretch; background: #24190e;
+  font: 600 18px/1 var(--f-text); color: #ffe9c8; text-shadow: 0 1px 2px #000; z-index: 40; }
 .rs-hint.quiet:not(.warn) { opacity: 0; transition: opacity 1.2s 2.5s; }
-.rs-hint.warn { color: #fff; background: rgba(140,30,12,.9); box-shadow: 0 0 0 2px #ffcf6a, 0 0 18px rgba(255,160,60,.6); animation: rs-pulse .6s ease-out; }
+.rs-hint.warn { color: #fff; background: #4a1208; filter: drop-shadow(0 0 10px rgba(255,160,60,.7)); animation: rs-pulse .6s ease-out; }
+.rs-hint:empty { display: none; }
 
 /* ---------- sự kiện: lựa chọn + quả cầu mở màn ---------- */
 .rs-choices { position: absolute; left: 392px; top: 306px; width: 1136px; height: 232px; display: flex; gap: 20px; justify-content: center; align-items: stretch; padding: 4px 20px; }
@@ -439,7 +448,7 @@
 .rs-result .ic { display: flex; gap: 8px; }
 .rs-result .ic .rs-btn { flex: 1; height: 62px; border-radius: 8px; background: linear-gradient(180deg, #2b6f94, #174868); box-shadow: inset 0 0 0 2px #0b2a3f, inset 0 2px 0 rgba(160,225,255,.45), 0 0 0 2px #49c4ff; }
 .rs-result .ic .rs-btn svg { width: 36px; height: 36px; fill: #bfeaff; }
-.rs-result .rs-big.play { min-width: 0; width: 100%; height: 56px; font-size: 24px; padding: 0 8px; }
+.rs-result .rs-big.play { --h: 56; min-width: 0; width: 100%; height: 56px; font-size: 24px; padding: 0 8px; }
 .rs-result.lose .rs-big { filter: saturate(.85); }
 
 /* ---------- chữ bay, thông báo, tooltip hai dải ---------- */
@@ -454,8 +463,8 @@
 .rs-float.small { font-size: 28px; }
 @keyframes rs-float { 0% { opacity: 0; transform: translate(-50%, 16px) scale(.6); } 15% { opacity: 1; transform: translate(-50%, 0) scale(1.15); } 30% { transform: translate(-50%, -6px) scale(1); }
   100% { opacity: 0; transform: translate(-50%, -70px); } }
-.rs-toast { position: absolute; left: 50%; top: 470px; transform: translate(-50%, 0); padding: 0 8px; z-index: 90; pointer-events: none; opacity: 0;
-  font: 800 30px/1 var(--f-text); color: #fff; border: 0 solid transparent; border-width: 22px 34px; background: #2a1508; border-image: url(../art/ui/ui_sprite_atlas/Tooltip_Gold_Nested_TUI.webp) 30 fill / 22px 34px stretch; filter: drop-shadow(0 8px 14px rgba(0,0,0,.6)); }
+.rs-toast { position: absolute; left: 50%; top: 470px; transform: translate(-50%, 0); z-index: 90; pointer-events: none; opacity: 0;
+  font: 800 30px/1 var(--f-text); color: #fff; border: 0 solid transparent; border-width: 8px; padding: 14px 34px; background: #2a1508; border-image: url(../art/ui/ui_sprite_atlas/Tooltip_Gold_Nested_TUI.webp) 12 fill / 8px stretch; filter: drop-shadow(0 8px 14px rgba(0,0,0,.6)); }
 .rs-toast.show { animation: rs-toast 1.5s ease-out forwards; }
 @keyframes rs-toast { 0% { opacity: 0; transform: translate(-50%, 10px) scale(.9); } 10% { opacity: 1; transform: translate(-50%, 0); } 80% { opacity: 1; } 100% { opacity: 0; } }
 .rs-tip2 { position: absolute; display: none; width: 470px; z-index: 95; pointer-events: none; opacity: 0;
@@ -476,7 +485,7 @@
 .rs-gear:hover i { transform: rotate(60deg); }
 .rs-panel { position: absolute; inset: 0; z-index: 99; display: grid; place-items: center; background: rgba(10,5,2,.78); }
 .rs-panel .box { width: 600px; padding: 20px 20px 16px; text-align: center; animation: rs-pop .35s cubic-bezier(.2,1.4,.4,1); box-sizing: border-box;
-  border: 0 solid transparent; border-width: 74px 64px; border-image: url(../art/ui/ui_sprite_atlas/Container_Popup_Big_TUI.webp) 100 fill / 74px 64px stretch; background: #1f130a; filter: drop-shadow(0 24px 40px rgba(0,0,0,.7)); }
+  border: 0 solid transparent; border-width: 64px; border-image: url(../art/ui/ui_sprite_atlas/Container_Popup_Big_TUI.webp) 100 fill / 64px stretch; filter: drop-shadow(0 24px 40px rgba(0,0,0,.7)); }
 .rs-panel h2 { margin: 0; font: 900 48px/1 var(--f-title); color: var(--cream); }
 .rs-panel .sub { margin: 8px 0 18px; font: 600 20px/1.2 var(--f-text); color: #ffe9c8; opacity: .8; }
 .rs-panel .btns { display: flex; flex-direction: column; gap: 14px; align-items: center; margin-top: 20px; }
@@ -584,8 +593,8 @@
 .rs-daycard .orb { position: absolute; width: 130px; height: 130px; border-radius: 50%; border: 4px solid #e3d9ff; box-shadow: 0 0 30px #a78bff, inset 0 0 24px #a78bff; animation: rs-orb 2.4s ease-in-out infinite alternate; }
 .rs-daycard .o1 { left: 1335px; top: 272px; } .rs-daycard .o2 { left: 1335px; top: 648px; animation-delay: -1s; }
 @keyframes rs-orb { from { transform: scale(.94); opacity: .75; } to { transform: scale(1.06); opacity: 1; } }
-.rs-daycard small, .rs-vs .skip { position: absolute; right: 40px; bottom: 28px; padding: 10px 20px; border-radius: 22px; font: 700 26px/1 var(--f-text); color: #fff3dc;
-  background: rgba(20,10,40,.55); box-shadow: 0 0 0 2px rgba(255,220,160,.5); animation: rs-aura 1.2s ease-in-out infinite alternate; }
+.rs-daycard small, .rs-vs .skip { position: absolute; right: 40px; bottom: 28px; padding: 4px 14px; border: 8px solid transparent; border-image: url(../art/ui/ui_sprite_atlas/Tooltip_Gold_Nested_TUI.webp) 12 fill / 8px stretch; font: 700 26px/1 var(--f-text); color: #fff3dc;
+  background: #24190e; animation: rs-aura 1.2s ease-in-out infinite alternate; }
 /* màn VS: hero trái, bóng phải, thanh tên, gradient đỏ đáy (?t=708). Chớp trắng chạy trước, nội dung hiện khi .show */
 .rs-vs { position: absolute; inset: 0; z-index: 88; cursor: pointer; overflow: hidden; }
 .rs-vs.out { animation: rs-day-out .26s ease-in forwards; }
@@ -633,9 +642,9 @@
 
 /* ================= Pha 4 (nhánh U): sảnh 8 hero, rương, quest, xếp lại, bàn tốt nhất ================= */
 /* nạp thẻ theo hero */
-.rs-loading { position: absolute; left: 50%; top: 18px; z-index: 120; display: flex; align-items: center; gap: 12px; padding: 0 6px 0 0;
-  border: 0 solid transparent; border-width: 12px 30px; transform: translate(-50%, -12px); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; font: 700 20px/1 var(--f-text); color: #fff3dc;
-  background: #24190e; border-image: url(../art/ui/ui_sprite_atlas/Tooltip_Gold_Nested_TUI.webp) 30 fill / 12px 30px stretch; filter: drop-shadow(0 6px 12px rgba(0,0,0,.5)); }
+.rs-loading { position: absolute; left: 50%; top: 18px; z-index: 120; display: flex; align-items: center; gap: 12px; padding: 4px 28px 4px 22px;
+  border: 0 solid transparent; border-width: 8px; transform: translate(-50%, -12px); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; font: 700 20px/1 var(--f-text); color: #fff3dc;
+  background: #24190e; border-image: url(../art/ui/ui_sprite_atlas/Tooltip_Gold_Nested_TUI.webp) 12 fill / 8px stretch; filter: drop-shadow(0 6px 12px rgba(0,0,0,.5)); }
 .rs-loading.show { opacity: 1; transform: translate(-50%, 0); }
 .rs-loading i { width: 26px; height: 26px; border-radius: 50%; border: 4px solid rgba(255,211,107,.25); border-top-color: #ffd36b; animation: rs-spin .8s linear infinite; }
 @keyframes rs-spin { to { transform: rotate(360deg); } }
@@ -649,7 +658,7 @@
 
 /* trước trận: được xếp lại / bán */
 .rs-fightgo { gap: 18px; align-items: center; }
-.rs-fightgo .note { pointer-events: none; padding: 8px 16px; border-radius: 18px; font: 700 17px/1 var(--f-text); color: #fff3dc; background: rgba(20,12,30,.72); box-shadow: 0 0 0 1px rgba(201,161,74,.6); }
+.rs-fightgo .note { display: none; /* câu tự đặt, bản gốc không có (UI-26) */ pointer-events: none; padding: 8px 16px; border-radius: 18px; font: 700 17px/1 var(--f-text); color: #fff3dc; background: rgba(20,12,30,.72); box-shadow: 0 0 0 1px rgba(201,161,74,.6); }
 .rs-fightgo.wait .note { opacity: 0; }
 
 /* đổi chỗ / đẩy */
@@ -711,12 +720,14 @@
   background: var(--tc); -webkit-mask: url(../art/vfx/FX_Circle_07.webp) center/100% 100% no-repeat; mask: url(../art/vfx/FX_Circle_07.webp) center/100% 100% no-repeat; mix-blend-mode: screen; animation: rs-chglow calc(var(--burst) - var(--fall)) var(--fall) ease-in forwards; }
 @keyframes rs-chglow { to { opacity: .45; } }
 .rs-chestrev.opened .glow { animation: rs-chglow2 1.2s ease-out forwards; }
-@keyframes rs-chglow2 { 0% { opacity: 1; transform: scale(1.3); } 100% { opacity: .35; transform: scale(1); } }
+@keyframes rs-chglow2 { 0% { opacity: 1; transform: scale(1.3); } 100% { opacity: 0; transform: scale(1); } }
 .rs-chestrev .rays { position: absolute; left: 560px; top: 20px; width: 800px; height: 800px; opacity: 0; border-radius: 50%;
   background: var(--tc); -webkit-mask: url(../art/vfx/FX_Rays_03.webp) center/100% 100% no-repeat; mask: url(../art/vfx/FX_Rays_03.webp) center/100% 100% no-repeat;
   mix-blend-mode: screen; }
 .rs-chestrev.opened .rays { animation: rs-rays-in .6s ease-out forwards, rs-rays-spin 18s linear infinite; }
 @keyframes rs-rays-in { to { opacity: .4; } }
+/* màn mở xong (.settled): tia sáng tắt hẳn, không để sương trắng phủ lên ba thẻ thưởng (UI-12d) */
+.rs-chestrev.settled .rays { animation: rs-rays-in .6s ease-out reverse forwards, rs-rays-spin 18s linear infinite; }
 @keyframes rs-rays-spin { to { rotate: 360deg; } }
 .rs-chestrev .boom { position: absolute; left: 760px; top: 220px; width: 400px; height: 400px; background: center/contain no-repeat; opacity: 0; mix-blend-mode: screen; pointer-events: none; }
 .rs-chestrev.opened .boom { animation: rs-boom .7s ease-out; }
@@ -770,7 +781,7 @@
 .rs-chest.drop-hot { box-shadow: 0 0 0 4px #9be8ff, 0 0 30px rgba(120,220,255,.85); }
 .rs-chest.drop-hot .ico { transform: scale(1.14) rotate(-4deg); }
 /* dòng nhắc "chạm / bấm lần nữa để mua" trong tooltip (MOBILE-4, INTERACT-14) */
-.rs-taphint { margin: 8px 14px 4px; padding: 8px 12px; border-radius: 8px; text-align: center; font: 800 20px/1.2 var(--f-text); color: #2a1600; background: linear-gradient(180deg, #ffe58a, #f2b326); }
+.rs-taphint { margin: 8px 14px 4px; padding: 6px 12px; text-align: center; white-space: nowrap; font: 800 20px/1.2 var(--f-text); color: #fff3d6; border: 8px solid transparent; border-image: url(../art/ui/ui_sprite_atlas/Tooltip_Gold_Nested_TUI.webp) 12 fill / 8px stretch; background: #24190e; }
 .rs-enc.armed .fr { transform: translateY(-10px) scale(1.04); filter: drop-shadow(0 0 3px #ffe9a0) drop-shadow(0 0 14px rgba(255,205,90,.9)); }
 .rs-enc.armed .nm { opacity: 1; }
 .rs-orb.armed .img { transform: scale(1.07) translateY(-6px); box-shadow: 0 0 0 5px #ffe9a0, 0 0 46px 14px rgba(255,210,120,.9); }
@@ -779,7 +790,7 @@
 .rs-reroll.off .tag { filter: grayscale(.8) brightness(.7); }
 /* trước trận: nút Chiến đấu ở ô góc phải trên, không che bàn (FLOW-18) */
 .bz-side-in .rs-fightgo { position: static; display: flex; flex-direction: column; align-items: center; gap: 0; margin-top: 8px; }
-.bz-side-in .rs-fightgo .rs-big.play { min-width: 0; width: 176px; height: 60px; font-size: 26px; padding: 0 8px; }
+.bz-side-in .rs-fightgo .rs-big.play { --h: 60; min-width: 0; width: 176px; height: 60px; font-size: 26px; padding: 0 8px; }
 .rs-fightnote { margin-top: 8px; font: 700 15px/1.2 var(--f-text); color: #e8f2fb; text-align: center; transition: opacity .3s; }
 .rs-fightnote.wait { opacity: 0; }
 /* thẻ bóng ma giữa dải trước màn VS (FLOW-11, ref pvp-vs) */
@@ -803,7 +814,7 @@
 /* hộp xác nhận (INTERACT-13) */
 .rs-confirm { position: absolute; inset: 0; z-index: 130; display: grid; place-items: center; background: rgba(8,4,2,.72); }
 .rs-confirm .box { width: 700px; padding: 8px 20px 4px; text-align: center; animation: rs-pop .3s cubic-bezier(.2,1.4,.4,1); box-sizing: border-box;
-  border: 0 solid transparent; border-width: 74px 64px; border-image: url(../art/ui/ui_sprite_atlas/Container_Popup_Big_TUI.webp) 100 fill / 74px 64px stretch; background: #1f130a; filter: drop-shadow(0 24px 40px rgba(0,0,0,.7)); }
+  border: 0 solid transparent; border-width: 64px; border-image: url(../art/ui/ui_sprite_atlas/Container_Popup_Big_TUI.webp) 100 fill / 64px stretch; filter: drop-shadow(0 24px 40px rgba(0,0,0,.7)); }
 .rs-confirm h3 { margin: 0; font: 900 44px/1.1 var(--f-title); color: var(--cream); }
 .rs-confirm p { margin: 14px 0 0; font: 600 24px/1.35 var(--f-text); color: #ffe9c8; }
 .rs-confirm .btns { display: flex; gap: 20px; justify-content: center; margin-top: 26px; }
@@ -824,7 +835,7 @@
 /* ---------- màn nhỏ (điện thoại ngang, scale < 0,62 → .rs-small do core.js đặt): chữ to hơn, vùng chạm ≥ 44 px màn hình
    (124 px sân khấu ở scale 0,361) bằng ::after vô hình quanh nút — INTERACT-9/10, MOBILE-8/9 ---------- */
 .rs-small .rs-fightdock .rs-btn, .rs-small .rs-result .rs-btn, .rs-small .rs-sound .mute { position: relative; }
-.rs-small .rs-btn::after { content: ""; position: absolute; left: 50%; top: 50%; width: max(100%, 124px); height: max(100%, 124px); transform: translate(-50%, -50%); }
+.rs-small .rs-btn:not(.rs-big):not(.rs-gear)::after { content: ""; position: absolute; left: 50%; top: 50%; width: max(100%, 124px); height: max(100%, 124px); transform: translate(-50%, -50%); }
 .rs-small .rs-fightdock .rs-btn::after { width: max(100%, 120px); }
 .rs-small .rs-hint { font-size: 28px; padding: 6px 18px; top: 254px; }
 .rs-small .rs-side-name small { font-size: 28px; letter-spacing: .04em; }
@@ -861,6 +872,11 @@
 .rs-small .rs-result .ic .rs-btn { height: 80px; }
 .rs-small .rs-sound .mute { width: 96px; height: 84px; }
 .rs-small .rs-sound input { width: 380px; height: 84px; }
+/* cao 84 px để dễ chạm: phóng cả khung (đầu lục giác 18 → 42 px) và phần đầy (×84/36), không để khung kéo dọc */
+.rs-small .rs-sound input[type=range] { border-width: 0 42px; border-image-width: 0 42px; background-position: 0 50%, 19px 50%;
+  background-size: 19px 47px, max(0px, calc(17px + (100% - 72px) * var(--p, 70) / 100)) 47px; }
+.rs-small .rs-sound input[type=range]::-webkit-slider-runnable-track { height: 84px; }
+.rs-small .rs-sound input[type=range]::-webkit-slider-thumb { width: 72px; height: 72px; margin-top: 6px; }
 .rs-small .rs-sellzone .lbl { font-size: 40px; }
 .rs-small .rs-daycard small { font-size: 36px; }
 .rs-small .rs-taphint { font-size: 30px; }
@@ -871,7 +887,7 @@
 .rs-small .rs-panel h2 { font-size: 60px; }
 .rs-small .rs-panel .sub { font-size: 30px; }
 .rs-small .rs-panel .box { width: 720px; }
-.rs-small .rs-panel .rs-big { width: 460px; height: 84px; font-size: 34px; }
+.rs-small .rs-panel .rs-big { --h: 84; width: 460px; height: 84px; font-size: 34px; }
 .rs-small .rs-panel .btns { gap: 10px; margin-top: 14px; }
 /* giá bán đi theo thẻ đang kéo: hiện khi thẻ ở trên vùng bán */
 .rs-sellchip { position: absolute; left: 50%; top: -58px; transform: translateX(-50%) scale(.6); opacity: 0; display: flex; align-items: center; gap: 4px; padding: 4px 14px 4px 6px;
@@ -884,7 +900,7 @@
 
 /* ---------- lên cấp: khung lục giác gốc + mũi tên (ASSET-21, UI-06) ---------- */
 .rs-enc.lvl .frame, .rs-enc.lvl .gem { display: none; }
-.rs-enc.lvl .fr { width: 236px; margin-left: calc(50% - 118px); }
+.rs-enc.lvl .fr { width: 190px; margin-left: calc(50% - 95px); height: 142px !important; }
 .rs-enc.lvl .win { left: 7% !important; top: 7% !important; width: 86% !important; height: 86% !important; border-radius: 0 !important; background: #1b0f06;
   clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%); }
 .rs-enc.lvl .fr::after { content: ""; position: absolute; inset: -3%; pointer-events: none; background: url(../art/ui/ui_sprite_atlas/Tooltip_Reward_Level_Frame_Gold_TUI.webp) center/100% 100% no-repeat; }
@@ -892,7 +908,10 @@
 .rs-enc.lvl.t-Silver .fr::after { background-image: url(../art/ui/ui_sprite_atlas/Tooltip_Reward_Level_Frame_Silver_TUI.webp); }
 .rs-enc.lvl.t-Diamond .fr::after { background-image: url(../art/ui/ui_sprite_atlas/Tooltip_Reward_Level_Frame_Diamond_TUI.webp); }
 .rs-enc.lvl.t-Legendary .fr::after { background-image: url(../art/ui/ui_sprite_atlas/Tooltip_Reward_Level_Frame_Legendary_TUI.webp); }
-.rs-enc.lvl .pennant { background: none; filter: drop-shadow(0 3px 4px rgba(0,0,0,.6)); top: 150px !important; width: 60px; height: 64px; margin-left: -30px; }
+.rs-enc.lvl .pennant { background: none; filter: drop-shadow(0 3px 4px rgba(0,0,0,.6)); top: 104px !important; width: 48px; height: 52px; margin-left: -24px; }
+/* nhãn ô thưởng nằm trong dải trên, dưới mũi tên, không đè huy hiệu thẻ ở dải dưới (UI-16) */
+.rs-enc.lvl .lbl { left: 50%; right: auto; top: 168px; transform: translateX(-50%); white-space: nowrap; padding: 2px 10px; border: 6px solid transparent; background: #24190e;
+  border-image: url(../art/ui/ui_sprite_atlas/Tooltip_Gold_Nested_TUI.webp) 12 fill / 6px stretch; font-size: 15px; text-shadow: none; }
 .rs-enc.lvl .pennant::before { inset: 0; clip-path: none; background: url(../art/ui/ui_sprite_atlas/Frame_Pointer_Arrow_TUI.webp) center/contain no-repeat; transform: rotate(-90deg); }
 .rs-enc.lvl .pennant svg { display: none; }
 
@@ -912,8 +931,8 @@
 .rs-enc .lbl { position: absolute; left: -34px; right: -34px; top: 232px; text-align: center; font: 800 17px/1.15 var(--f-text); letter-spacing: .03em; color: #ffe9a8; text-shadow: 0 2px 3px #000, 0 0 8px rgba(0,0,0,.8); pointer-events: none; }
 .rs-choice .slot { display: block; margin-bottom: 4px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 800 13px/1.1 var(--f-text); letter-spacing: .03em; text-transform: uppercase; color: #ffd36b; text-shadow: 0 2px 2px #000; }
 .rs-enchname.alt { bottom: -64px; }
-.rs-enchname { position: absolute; left: 50%; bottom: -34px; transform: translateX(-50%); padding: 0; border: 0 solid transparent; border-width: 12px 30px; white-space: nowrap; font: 800 17px/1.1 var(--f-title); color: #fff3d6; text-shadow: 0 2px 0 #3a1a08;
-  background: #24190e; border-image: url(../art/ui/ui_sprite_atlas/Tooltip_Gold_Nested_TUI.webp) 30 fill / 12px 30px stretch; pointer-events: none; z-index: 3; }
+.rs-enchname { position: absolute; left: 50%; bottom: -34px; transform: translateX(-50%); padding: 4px 22px; border: 0 solid transparent; border-width: 8px; white-space: nowrap; font: 800 17px/1.1 var(--f-title); color: #fff3d6; text-shadow: 0 2px 0 #3a1a08;
+  background: #24190e; border-image: url(../art/ui/ui_sprite_atlas/Tooltip_Gold_Nested_TUI.webp) 12 fill / 8px stretch; pointer-events: none; z-index: 3; }
 .rs-ghostpick { cursor: pointer; }
 .rs-ghostpick .tap { display: block; margin-top: 10px; font: 800 18px/1 var(--f-text); font-style: normal; letter-spacing: .08em; text-transform: uppercase; color: #ffe9a8; animation: rs-tap 1.1s ease-in-out infinite alternate; }
 @keyframes rs-tap { from { opacity: .45; } to { opacity: 1; } }

@@ -41,6 +41,8 @@
       state: 'Alive', inst: ci.attrs || null, tb: {}, d: {}, rt: {}, attrs: {}, un: {}, tags: {}, hidden: {},
       addTags: {}, abilities: [], auras: [], cd: 0, critCapable: false
     };
+    if (ci.addTags) for (var t in ci.addTags) C.addTags[t] = 1; // loại thẻ gắn thêm ngoài trận (Training, Mysterious Crystal), run lưu ở inst.tags
+
     BZ.rebuildCard(S, C);
     return C;
   };
@@ -358,6 +360,7 @@
   // cần vậy — ability bộ đếm Immediate chạy ngay sau trong cùng lần phát].
   BZ.emit = function (S, kind, ev, sync) {
     ev.kind = kind;
+    if (S.onEmit) S.onEmit(kind, ev); // vòng chơi ngoài trận nghe phản ứng (phá thẻ, giá trị đổi) mà không chạy hàng đợi của trận
     if (S.depth > 40) { S.overflow++; return; }
     S.depth++;
     try {
@@ -457,7 +460,9 @@
     switch (op || 'Add') {
       case 'Add': delta = val; break;
       case 'Subtract': delta = -val; break;
-      case 'Multiply': delta = BZ.roundAway(pv * val) - pv; break;
+      // Thuộc tính phần trăm (PercentCooldownReduction, gốc 0): "Multiply 5" là "giảm 5 %" (Escalation Protocol), nhân lên 0 thì mất
+      // High Impact ghi Multiply 25 cho chữ "gains 25% Damage": hệ số ≥ 10 là phần trăm cộng thêm, không phải nhân 25 lần
+      case 'Multiply': delta = /^Percent/.test(n) ? val : BZ.roundAway(pv * (val >= 10 ? 1 + val / 100 : val)) - pv; break;
       default: BZ.noteUnknown(op, 'cardop'); return 0;
     }
     var b = (T.tb[n] || 0) + (T.d[n] || 0);

@@ -196,7 +196,10 @@
     R.emit(ctx, { type: 'fight', won: won, winner: run.phase.winner, endMs: r.endMs, seed: ph.seed, combatType: ph.combatType });
     R.log(ctx, { t: 'fight', type: ph.combatType, vs: ph.opponent.name, won: won, ms: r.endMs });
     R.quests.fromFight(ctx, boards, r); // quest đếm trong trận (OnItemUsed, OnCardPerformedSlow...)
-    R.ooc.fire(ctx, 'TTriggerOnFightEnded', { combatType: ph.combatType, outcome: won ? 'Win' : 'Loss' });
+    // CombatOutcome trong dữ liệu là 'Win' / 'Lose' (Stained Glass Window, Crystal Bonsai: "When you lose a fight with this, permanently destroy it")
+    // Thẻ quái là TriggerSource (Monster Tracker: "When you defeat a Gold-tier or higher Monster" xét bậc nguồn)
+    var crec = ph.opponent.combatId ? R.enc().combats[ph.opponent.combatId] : null;
+    R.ooc.fire(ctx, 'TTriggerOnFightEnded', { combatType: ph.combatType, outcome: won ? 'Win' : 'Lose', enc: crec || undefined });
   };
 
   // ---------- rương mốc thắng (TUNING.CHESTS: 4 Đồng, 7 Bạc, 10 Vàng) ----------
@@ -248,6 +251,7 @@
       R.finish(ctx, ph.after);
       return;
     }
+    if (ph.won) run.pveWins = (run.pveWins || 0) + 1; else run.pveLosses = (run.pveLosses || 0) + 1; // bộ đếm Custom_5 / Custom_7 (ooc.js)
     R.gold(ctx, ph.rewards.gold || 0, 'combat'); // thắng: đủ vàng; thua: phần theo máu quái đã trừ (lossRewards)
     R.gainXp(ctx, ph.rewards.xp || 0, ph.won ? 'combat' : 'combatLoss');
     if (!ph.won) { R.finish(ctx, ph.after); return; }

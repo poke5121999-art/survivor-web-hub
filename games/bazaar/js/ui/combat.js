@@ -22,10 +22,12 @@
     return opp.name || '';
   };
   function monById(id) { return (root.BZ_MONSTERS || []).filter(function (m) { return m.Id === id; })[0] || null; }
-  // Bóng PvP từ bộ dữ liệu (opp.source 'dataset', opp.hero): chân dung của hero đó; bóng dựng từ quái: ảnh quái
-  C.opponentArt = function (opp) {
-    var H = opp.hero && U.HEROES[opp.hero];
-    if (opp.source === 'dataset' && H) return { bg: null, char: H.portrait, store: H.store, hero: opp.hero };
+  // Bóng PvP từ bộ dữ liệu (opp.source 'dataset', opp.hero): chân dung của hero đó; bóng dựng từ quái: ảnh quái.
+  // Pha fightResult chỉ giữ {kind, name, monsterId, combatId} của đối thủ (enc-combat.js) → hero lấy từ bàn đã lưu `board.hero`
+  // (review9 UI-5: chân dung bóng trống suốt trận PvP và ở bảng kết quả)
+  C.opponentArt = function (opp, board) {
+    var hero = opp.hero || (opp.kind === 'ghost' && !opp.monsterId && board && board.hero) || null, H = hero && U.HEROES[hero];
+    if (H && (opp.source === 'dataset' || !opp.hero)) return { bg: null, char: H.portrait, store: H.store, hero: hero };
     var encId = opp.combatId || null;
     if (!encId && opp.monsterId) { var m = monById(opp.monsterId); encId = m && m.Encounters && m.Encounters[0] && m.Encounters[0].Id; }
     return { bg: U.art(encId + '_bg'), char: U.art(encId + '_char') };
@@ -64,7 +66,7 @@
         rec.el = el; lists[c.owner].push({ uid: c.uid, el: el, size: c.size, socket: c.socket });
       } else if (c.section === 'skills') skills[c.owner].push({ uid: c.uid, id: c.id, tier: c.tier, art: U.art(c.id) });
     });
-    var M = U.HEROES[run.hero] || {}, opp = ph.opponent, oa = C.opponentArt(opp), oname = U.oppName(opp);
+    var M = U.HEROES[run.hero] || {}, opp = ph.opponent, oa = C.opponentArt(opp, boards[1]), oname = U.oppName(opp);
     V().setupHero(0, { name: run.hero, level: run.level, tier: 'Gold', char: M.portrait, skills: skills[0], hpMax: res.players[0].healthMax,
       rewards: ph.combatType === 'PVE' ? { gold: 0, xp: 0 } : {} });
     var h0 = V().hero(0); if (h0) h0.art.classList.add('hero-art');

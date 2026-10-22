@@ -155,11 +155,13 @@
   H.clockRect = function () { return rectOf(E.clock); };
   H.crownRect = function () { return rectOf(E.crown); };
   // màn Số phận: thanh vương miện chạy lên số uy tín thật sau Số phận (FATES_PRESTIGE_AFTER = 1), không vờ đầy rồi tụt (FLOW-23)
+  // cắt vạch uy tín thay vì co scaleX: đầu bo của sprite giữ nguyên hình (UI-23)
+  H.crownClip = function (f) { return 'inset(0 ' + ((1 - f) * 100).toFixed(1) + '% 0 0)'; };
   H.refillCrown = function () {
     var r = U.state.run; if (!r || !E.prest) return;
     var pm = R().mode().Prestige.PrestigeMax, after = (R().TUNING && R().TUNING.FATES_PRESTIGE_AFTER) || Math.max(1, r.prestige);
-    E.prest.style.transition = 'transform 1.3s cubic-bezier(.2,.8,.3,1)';
-    E.prest.style.transform = 'scaleX(' + Math.max(0, Math.min(1, after / pm)).toFixed(3) + ')';
+    E.prest.style.transition = 'clip-path 1.3s cubic-bezier(.2,.8,.3,1)';
+    E.prest.style.clipPath = H.crownClip(Math.max(0, Math.min(1, after / pm)));
     E.prestTxt.textContent = after;
     H.pulse('crown');
     setTimeout(function () { E.prest.style.transition = ''; }, 1500);
@@ -201,7 +203,7 @@
     }
     E.wins.forEach(function (w, i) { w.classList.toggle('on', i < run.wins); });
     var pm = R().mode().Prestige.PrestigeMax;
-    E.prest.style.transform = 'scaleX(' + Math.max(0, run.prestige / pm).toFixed(3) + ')';
+    E.prest.style.clipPath = H.crownClip(Math.max(0, run.prestige / pm));
     E.prestTxt.textContent = run.prestige;
   };
   H.tick = function (now) {

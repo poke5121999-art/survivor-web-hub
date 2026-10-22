@@ -47,7 +47,7 @@
     if (run.fatesPending) { R.enterFates(ctx); return; }
     if (run.pendingLevelUps > 0) { R.enterLevelUp(ctx); return; }
     if (run.hour === T().PVP_HOUR) { R.ENCOUNTERS.combat.enterPvp(ctx); return; }
-    var options = run.hour === T().PVE_HOUR ? R.ENCOUNTERS.combat.options(ctx.run) : R.hourOptions(ctx.run);
+    var options = run.hour === T().PVE_HOUR ? R.ENCOUNTERS.combat.options(ctx.run) : R.accessOptions(run, R.hourOptions(ctx.run));
     run.prev = options.map(function (o) { return o.id; });
     run.phase = { kind: 'choose', options: options };
     R.emit(ctx, { type: 'hour', day: run.day, hour: run.hour });
@@ -68,7 +68,7 @@
   };
 
   // ---------- bày thẻ gặp gỡ cho giờ tự do ----------
-  function heroOk(e, run) { var h = e.Heroes || []; return !h.length || h.indexOf('Common') >= 0 || h.indexOf(run.hero) >= 0; }
+  function heroOk(e, run) { var h = e.Heroes || []; return (!h.length || h.indexOf('Common') >= 0 || h.indexOf(run.hero) >= 0) && R.shopHeroOk(e, run); }
   // gặp gỡ không có art trong chính game (ArtKey rỗng: Claw Game, Big Bad Wolf) thì không bày, như HIDDEN_CARDS với vật phẩm; không vẽ thay
   function artOk(e) { return e.ArtKey !== ''; }
   function dayOk(e, run) {
@@ -94,6 +94,16 @@
     if (e && c.desc) c.desc = R.encText(run, e, c.desc);
     return c;
   }
+  // Vật phẩm "gain access to X" (ooc.js grantAccess → run.access): sự kiện X thay ô cuối của lần bày giờ thường kế tiếp
+  R.accessOptions = function (run, options) {
+    var id = run.access && run.access.length ? run.access[0] : null, e = id && R.enc().events[id];
+    if (!e) return options;
+    run.access = run.access.slice(1);
+    var out = options.filter(function (o) { return o.id !== id; });
+    if (out.length >= T().HOUR_SLOTS.length) out.pop();
+    out.push(dealt(run, ref('event', e)));
+    return out;
+  };
   var poolCache = null;
   function hourPool() {
     if (poolCache) return poolCache;
@@ -129,7 +139,7 @@
     (run.prev || []).forEach(function (id) { prev[id] = 1; });
     T().HOUR_SLOTS.forEach(function (slot) {
       var base = slot === 'merchant' ? P.merchant : slot === 'event' ? P.event : P.merchant.concat(P.event);
-      var ok = function (r) { var e = recOf(r); return !taken[r.id] && artOk(e) && heroOk(e, run) && dayOk(e, run); };
+      var ok = function (r) { var e = recOf(r); return !taken[r.id] && artOk(e) && heroOk(e, run) && dayOk(e, run) && R.ENCOUNTERS.event.hasChoices(e, run); };
       var cands = base.filter(function (r) { return ok(r) && !prev[r.id]; });
       if (!cands.length) cands = base.filter(ok); // "not dealt last hour unless that empties the list" (Dealer:4938-4949)
       var r = pickByTier(run, cands);

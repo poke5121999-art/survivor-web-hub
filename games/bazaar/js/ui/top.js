@@ -37,7 +37,7 @@
     V().refs.stage.classList.add('has-carpet');
     if (el.dataset.name === name && el.classList.contains('show')) return;
     el.dataset.name = name;
-    el.style.backgroundImage = U.bg('art/board/carpets/' + name + '.webp');
+    el.style.borderImageSource = U.bg('art/board/carpets/' + name + '.webp'); // 9 mảnh: hai đầu tua giữ tỉ lệ (UI-22)
     el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
   };
   T.clear = function () { V().refs.runTop.innerHTML = ''; U.cards.clearTop(); U.panelTip(null); };
@@ -236,8 +236,9 @@
     options.forEach(function (o, i) {
       var tier = o.tier || 'Bronze', F = root.BZ_FRAMES && root.BZ_FRAMES.encounter && (root.BZ_FRAMES.encounter[tier] || root.BZ_FRAMES.encounter.Bronze);
       var H = FH, k = F ? H / F.h : 1, W = F ? F.w * k : 210;
+      // opts.y: một hàng thẳng (lên cấp: nằm gọn trong dải trên)
       var box = U.el('div', 'rs-enc t-' + tier + (opts.special === i ? ' special' : ''), layer);
-      box.style.left = (xs[i] - W / 2) + 'px'; box.style.top = (YS[i % 3] + (opts.dy || 0)) + 'px'; box.style.width = W + 'px'; box.style.height = (H + 90) + 'px';
+      box.style.left = (xs[i] - W / 2) + 'px'; box.style.top = (opts.y != null ? opts.y : YS[i % 3] + (opts.dy || 0)) + 'px'; box.style.width = W + 'px'; box.style.height = (H + 90) + 'px';
       box.style.animationDelay = (i * 80) + 'ms'; box.style.setProperty('--d', (i * 80) + 'ms');
       var fr = U.el('div', 'fr', box); fr.style.height = H + 'px';
       var art = U.el('div', 'win', fr), A = T.artOf(o);

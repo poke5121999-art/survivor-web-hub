@@ -20,6 +20,15 @@
     return !!hiddenSet[name];
   } };
   R.isJunk = function (tpl) { return !!tpl && JUNK.test(tpl.InternalName || ''); };
+  // Đồ quái rơi chung (tag Loot, hero Common: Sharpening Stone, Pelt, Coupon) và đồ chỉ để bán lấy vàng (Bar of Gold, Chunk of Gold,
+  // Bag of Jewels: tooltip duy nhất "Sells for Gold"). Bể bazaardb là suy từ lượt chơi cộng đồng và có chúng ở Curio / Aimbot; chủ dự án
+  // (người chơi bản thật) xác nhận sạp không bán loại này, nên thương nhân không bày.
+  R.isMonsterLoot = function (tpl) {
+    if (!tpl) return false;
+    var tags = (tpl.Tags || []).concat(tpl.HiddenTags || []), tips = (tpl.Localization && tpl.Localization.Tooltips) || [];
+    if (tags.indexOf('Loot') >= 0 && (tpl.Heroes || []).indexOf('Common') >= 0) return true;
+    return tips.length === 1 && /^Sells for Gold$/i.test(String((tips[0].Content || {}).Text || '').trim());
+  };
   var HEROES = ['Vanessa', 'Pygmalien', 'Dooley', 'Mak', 'Stelle', 'Jules', 'Karnok'];
   R.heroData = function (hero) { var H = root.BZ_HEROES; return (H && H.heroes && H.heroes[hero]) || null; };
   // Hero chơi được: BZ_HEROES.heroes[h].playable nếu có data/heroes.js (tools/data.py),
@@ -54,7 +63,7 @@
   // "get a Premium Piggle" / "Get a Gumball": cụm sau "get a|an|another|N" → các tên thẻ chứa mọi từ của cụm (R.findTitles)
   R.phraseFilter = function (text, excludeId) {
     var s = String(text || '').replace(/\{[^}]*\}/g, ' ').replace(/\[[^\]]*\]/g, ' ');
-    var m = /\bget (?:a|an|another|\d+)\s+([A-Za-z' ]+?)(?=\s+(?:from|and|to|for|with)\b|[.,;!]|\s*$)/i.exec(s);
+    var m = /\bget (?:(?:a|an|another|\d+)\s+)?([A-Za-z' ]+?)(?=\s+(?:from|and|to|for|with)\b|[.,;!]|\s*$)/i.exec(s);
     var names = m ? R.findTitles(m[1], excludeId) : [];
     return names.length ? { kind: 'item', tiers: null, sizes: null, any: [], not: [], hero: null, names: names, enchanted: false, copy: false } : null;
   };
@@ -66,8 +75,9 @@
     if (!words.length) return [];
     return Object.keys(V.titles).filter(function (n) {
       if (excludeId && V.titles[n].indexOf(excludeId) >= 0) return false;
-      var tw = n.split(/[^A-Za-z']+/).map(stem);
-      return words.every(function (w) { return tw.some(function (x) { return same(x, w); }); });
+      var tw = n.split(/[^A-Za-z']+/).filter(Boolean).map(stem);
+      // danh từ chính của cụm phải là danh từ chính của tên: "Gumball" → Red/Blue Gumball, không phải Gumball Machine
+      return same(tw[tw.length - 1], words[words.length - 1]) && words.every(function (w) { return tw.some(function (x) { return same(x, w); }); });
     });
   };
 
@@ -120,8 +130,9 @@
     if (/\bskills?\b/i.test(s)) f.kind = 'skill'; else if (/\bitems?\b/i.test(s) || f.names.length) f.kind = 'item';
     var tm = s.match(/\b(Bronze|Silver|Gold|Diamond|Legendary)(?=-tier| or (?:Bronze|Silver|Gold|Diamond|Legendary)-tier)/g);
     if (tm) f.tiers = tm.filter(function (x, i) { return tm.indexOf(x) === i; });
-    var sm = s.match(/\b(Small|Medium|Large)\b/g);
-    if (sm) f.sizes = sm.filter(function (x, i) { return sm.indexOf(x) === i; });
+    // cỡ viết thường cũng là cỡ ("get a small item from another Hero" của Scavenger)
+    var sm = (s.match(/\b(Small|Medium|Large)\b/gi) || []).map(function (x) { return x.charAt(0).toUpperCase() + x.slice(1).toLowerCase(); });
+    if (sm.length) f.sizes = sm.filter(function (x, i) { return sm.indexOf(x) === i; });
     if (/Buys your/i.test(s)) { // "Sells Small and Medium items. Buys your Large items at +X value": chỉ câu đầu là bộ lọc bán
       var first = s.split(/\.\s*/)[0];
       sm = first.match(/\b(Small|Medium|Large)\b/g); f.sizes = sm ? sm.filter(function (x, i) { return sm.indexOf(x) === i; }) : null;
@@ -233,16 +244,19 @@
       for (var c = 0; c < n && mine.length; c++) { var m = mine.splice(R.randInt(run, mine.length), 1)[0]; out.push({ id: m.id, tier: m.tier, ench: m.ench }); }
       return out;
     }
-    var kinds = f.kind === 'skill' ? ['skill'] : f.kind === 'item' ? ['item'] : ['item'];
-    var relax = [f, Object.assign({}, f, { any: [], not: [] }), Object.assign({}, f, { any: [], not: [], sizes: null }),
-      Object.assign({}, f, { any: [], not: [], sizes: null, hero: null, names: [] })];
+    var kinds = f.kind === 'skill' ? ['skill'] : ['item'];
+    // Bể của hero đang chơi cạn thì lấy của mọi hero, nhưng giữ tag / cỡ / tên: bỏ chúng là chia bừa (Gumball ra Rune Axe, sạp
+    // "Sells Potions" bày đồ quái rơi). Đồ quái rơi (R.isMonsterLoot) chỉ ra khi chữ gọi đích danh hoặc gọi "Loot".
+    var noLoot = !(f.names && f.names.length) && (f.any || []).indexOf('Loot') < 0;
+    var relax = [f, Object.assign({}, f, { hero: 'any' })];
     var matched = []; // thẻ khớp bộ lọc ở từng mức nới (tính một lần cho cả lần chia)
     var matchedAt = function (r) {
       if (matched[r]) return matched[r];
       var list = [];
       kinds.forEach(function (kd) {
         R.pool(kd).forEach(function (id) {
-          if (ex[id]) return;
+          if (ex[id] || (noLoot && R.isMonsterLoot(R.tpl(id)))) return;
+          if (f.enchanted && !Object.keys(R.tpl(id).Enchantments || {}).length) return; // "an Enchanted item": thẻ phải có enchantment để yểm
           if (kd === 'skill' && !opts.allowOwnedSkills) { var os = R.ownedSkillInst(run, id); if (os && !R.skillFusable(os)) return; }
           if (R.matchTpl(R.tpl(id), relax[r], run)) list.push(id);
         });
@@ -296,6 +310,11 @@
     var S = root.BZ_SHOPS;
     return (S && e && (S.merchants[e.Id] || S.trainers[e.Id])) || null;
   };
+  // Bản live chỉ bày thương nhân / thầy cho hero có hàng ở đó (Eli chỉ Mak, Colt chỉ Vanessa, sạp "Vanessa" mọi hero trừ Vanessa)
+  R.shopHeroOk = function (e, run) {
+    var rec = R.shopRec(e);
+    return !rec || !rec.heroes || rec.heroes.indexOf(run.hero) >= 0;
+  };
   // Bảng bậc theo ngày (bazaardb /shop-odds, ngày > 16 dùng hàng cuối): trọng số Đồng/Bạc/Vàng/Kim cương
   R.shopTierWeights = function (run) {
     var rows = root.BZ_SHOPS.tierOdds, r = rows[Math.min(rows.length, Math.max(1, Math.floor(run.day))) - 1];
@@ -312,11 +331,14 @@
     if (!rec || !rec.pool || !rec.pool.length) return null;
     opts = opts || {};
     var ex = opts.exclude || {}, hf = shopHeroFilter(rec, e, run), skill = !!(rec.pool.length && R.isSkill(R.tpl(rec.pool[0])));
+    var sizes = R.parseFilter((e && e.Desc) || '').sizes; // bể bản live có món đổi cỡ so với demo (Eagle Sigil: Small ở "Sells Medium items")
     var src = rec.pool, enchant = false;
     if (rec.enchantedPool && /enchanted/i.test((e && e.Desc) || '')) { src = rec.enchantedPool; enchant = true; }
     var list = src.filter(function (id) {
       var t = R.tpl(id);
       if (!t || R.isJunk(t) || (t.HiddenTags || []).indexOf('Ticket') >= 0 || ex[id] || R.isSkill(t) !== skill || !heroOk(t, hf, run)) return false;
+      if (sizes && !skill && sizes.indexOf(t.Size) < 0) return false;
+      if (R.isMonsterLoot(t)) return false;
       if (skill && !opts.allowOwnedSkills) { var os = R.ownedSkillInst(run, id); if (os && !R.skillFusable(os)) return false; }
       return true;
     });

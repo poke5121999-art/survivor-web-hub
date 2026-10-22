@@ -349,7 +349,7 @@
       U.top.clear();
       var m = U.top.map('Lên cấp', ''); // chuỗi cứng "Level Up" của LevelUpVisualController.GetLevelUpText, không dòng phụ
       m.classList.add('levelup');
-      U.top.frames(ch, function (i) { U.dispatch({ t: 'choose', i: i }); }, { pennant: function () { return 'levelup'; }, dy: 20, kicker: 'Phần thưởng lên cấp', label: function (o) { return U.slotLabel(o.slot); } });
+      U.top.frames(ch, function (i) { U.dispatch({ t: 'choose', i: i }); }, { pennant: function () { return 'levelup'; }, y: 262, kicker: 'Phần thưởng lên cấp', label: function (o) { return U.slotLabel(o.slot); } });
       // khung lục giác vàng gốc (Tooltip_Reward_Level_Frame_*) thay khung mái vòm (ASSET-21)
       Array.prototype.forEach.call(U.top.layer().querySelectorAll('.rs-enc'), function (n) { n.classList.add('lvl'); });
     },

@@ -21,18 +21,23 @@
   Ev.enter = function (ctx, r, after) {
     var run = ctx.run, e = R.enc().events[r.id], St = R.ENCOUNTERS.step;
     after = after || 'endHour';
-    if (e.Kind === 'instant') { St.resolve(ctx, e, after); return; }
+    if (e.Kind === 'merchant') { R.ENCOUNTERS.merchant.enter(ctx, r, after); return; } // tham chiếu kiểu 'event' trỏ tới thương nhân
+    var fx = St.fxOf(e);
+    // instant, hoặc pile mà St.FX biết hiệu ứng thật (rương của Shrouded Figure, Mountain Pass): chạy như một bước
+    if (e.Kind === 'instant' || (e.Kind === 'pile' && fx && (fx.fx || fx.then))) { St.resolve(ctx, e, after); return; }
     if (e.Kind === 'pile') {
       R.gainXp(ctx, e.Xp || 0, 'select');
       St.runAbilities(ctx, e); // "Get {ability.0} Gold and a Bronze-tier Loot item": phần vàng
       if (run.phase.kind === 'end') return;
-      var f = R.parseFilter(e.Desc || '', {}), n = limitOf(run, e.Limit, 1);
+      var f = R.parseFilter(St.filterText(e), {}), n = limitOf(run, e.Limit, 1);
       if (f.names.length > 1 && n >= f.names.length) { // "Sharpening Stone, Extract and Cinders": mỗi tên một thẻ
         var cards = [];
         f.names.forEach(function (nm) { cards = cards.concat(R.deal(run, Object.assign({}, f, { names: [nm] }), 1, { tierMode: 'band' })); });
         R.enterLoot(ctx, cards, e.Rules && e.Rules.CanSelectMultiple ? cards.length : 1, after, e.Id);
       } else {
-        var tm = f.kind === 'skill' ? 'band' : 'day', sh = R.shopRec(e), picks = R.dealFor(run, e, f, n, { tierMode: tm, shop: !!sh });
+        var tm = f.kind === 'skill' ? 'band' : 'day', sh = R.shopRec(e);
+        // chữ không nêu thẻ ("Choose this Chest", "Enter the Thieves Guild", Farai không mô tả) và không có bể bazaardb: không chia bừa
+        var picks = !sh && R.filterEmpty(f) && !f.kind ? [] : R.dealFor(run, e, f, n, { tierMode: tm, shop: !!sh });
         var rr = e.Rules && e.Rules.RerollRules; // thầy kỹ năng: reroll theo RerollRules [RUN-05], bazaardb ghi đè (1 lần, giá theo bậc)
         if (sh && sh.reroll && sh.reroll.cost != null) rr = { TotalAllowedRerolls: sh.reroll.n, StartingCost: sh.reroll.cost, CostIncrease: 0 };
         R.enterLoot(ctx, picks, e.Rules && e.Rules.CanSelectMultiple ? picks.length : 1, after, e.Id,
@@ -65,16 +70,23 @@
         return;
       }
     }
-    if (!choices || !choices.length) { // [ĐỀ XUẤT] sự kiện không đọc được nội dung: ba phần thưởng chung
-      choices = [{ kind: 'generic', key: 'gold', name: 'Vàng', desc: '+' + (T().GENERIC_GOLD_BY_BAND[R.bandTier(run)] || 3) + ' Gold' },
-        { kind: 'generic', key: 'xp', name: 'Kinh nghiệm', desc: '+' + T().GENERIC_XP + ' XP' },
-        { kind: 'generic', key: 'item', name: 'Vật phẩm', desc: R.bandTier(run) + ' item' }];
+    if (!choices || !choices.length) { // mọi lựa chọn đều thiếu điều kiện (bày từ trước khi bán thẻ): chỉ XP khi chọn, không bịa phần thưởng
+      R.log(ctx, { t: 'event', id: e.Id, name: e.InternalName });
+      R.finish(ctx, after);
+      return;
     }
     run.phase = { kind: 'event', eventId: e.Id, name: e.Title || e.InternalName, desc: R.encText(run, e, e.Desc || ''), choices: choices,
       canExit: !e.Rules || e.Rules.CanExit !== false, after: after };
     R.log(ctx, { t: 'event', id: e.Id, name: e.InternalName });
   };
 
+  // Sự kiện lựa chọn có ít nhất một lựa chọn người chơi này được chọn (clock.js không bày Praeteria cho Stelle, Aerodrome khi thiếu
+  // Billboard / Gatling Gun...); loại khác luôn true
+  Ev.hasChoices = function (e, run) {
+    if (!e || !(e.Kind === 'choice' || e.Kind === 'chain' || (e.Kind === 'fight' && e.Options && e.Options.length))) return true;
+    var opts = e.Options || (e.Steps || []).map(function (id) { return { t: 'step', id: id }; });
+    return opts.some(function (o) { return Ev.optionOk(o, run); });
+  };
   // Lựa chọn trỏ tới bước / sự kiện con / trận (encounters.js Options, Then)
   function recOf(o) { var E = R.enc(); return o.t === 'step' ? E.steps[o.id] : o.t === 'combat' ? E.combats[o.id] : E.events[o.id]; }
   Ev.optionOk = function (o, run) {

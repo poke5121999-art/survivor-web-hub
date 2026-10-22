@@ -68,7 +68,21 @@
     var run = ctx.run, before = run.gold;
     run.gold = Math.max(0, run.gold + delta);
     var d = run.gold - before;
-    if (d) R.emit(ctx, { type: 'gold', delta: d, why: why || null });
+    if (!d) return;
+    R.emit(ctx, { type: 'gold', delta: d, why: why || null });
+    R.playerAttrChanged(ctx, 'Gold', d); // Healthy Tip (được vàng), Bootstraps (tiêu vàng)
+  };
+  // Trigger TTriggerOnPlayerAttributeChanged ngoài trận cho thuộc tính của run (Gold, Level, HealthMax): ooc.js lọc AttributeType / ChangeType
+  R.playerAttrChanged = function (ctx, attr, delta) {
+    if (delta && R.ooc) R.ooc.fire(ctx, 'TTriggerOnPlayerAttributeChanged', { attr: attr, delta: delta });
+  };
+  R.addHealthMax = function (ctx, delta, quiet) {
+    var run = ctx.run, before = run.healthMax;
+    run.healthMax = Math.max(1, run.healthMax + delta);
+    var d = run.healthMax - before;
+    if (!d) return;
+    if (!quiet) R.emit(ctx, { type: 'healthMax', delta: d });
+    R.playerAttrChanged(ctx, 'HealthMax', d); // Hammock (enchant): "When you gain Max Health, ..."
   };
   R.income = function (ctx, delta) {
     if (!delta) return;
@@ -165,6 +179,7 @@
     attrs.BuyPrice = (base.BuyPrice != null ? base.BuyPrice : p.buy) + ((ci.mods && ci.mods.BuyPrice) || 0);
     for (k in (ci.mods || {})) if (k !== 'SellPrice' && k !== 'BuyPrice') attrs[k] = (base[k] || 0) + ci.mods[k];
     out.attrs = attrs;
+    if (ci.tags && ci.tags.length) { out.addTags = {}; ci.tags.forEach(function (t) { out.addTags[t] = 1; }); }
     return out;
   };
   R.allCards = function (run) { var b = run.board; return b.hand.concat(b.stash, b.skills); };
@@ -249,6 +264,7 @@
     var run = ctx.run, f = noFuse ? null : R.fuseTarget(run, card.id, card.tier);
     if (f) {
       R.upgradeInst(ctx, f, why || 'fuse');
+      selected(ctx, f, why);
       return f;
     }
     var ci = R.newInst(ctx, card.id, card.tier, card.ench);
@@ -263,8 +279,13 @@
     if (!spot) { run.uidN--; return null; }
     R.placeAt(run, ci, spot.section, spot.socket);
     R.emit(ctx, { type: 'gain', uid: ci.uid, id: ci.id, tier: ci.tier, section: spot.section, socket: spot.socket, why: why || null });
+    selected(ctx, ci, why);
     return ci;
   };
+  // TTriggerOnCardSelected của vật phẩm = người chơi chọn lấy thẻ (mua, nhặt loot / rương, mở màn); thẻ sinh ra bởi hiệu ứng thì không.
+  // Red Envelope "When you buy this, gain 10 Gold", Machine Learning, Renovation.
+  var SELECTED_WHY = { buy: 1, loot: 1, chest: 1, start: 1 };
+  function selected(ctx, ci, why) { if (SELECTED_WHY[why] && R.ooc) R.ooc.fire(ctx, 'TTriggerOnCardSelected', { uid: ci.uid }); }
   R.canGain = function (run, card) {
     if (R.fuseTarget(run, card.id, card.tier)) return true;
     var tpl = R.tpl(card.id);
@@ -307,11 +328,13 @@
     while (Math.floor(run.xp / per) + 1 > run.level) {
       var row = root.BZ_MODE.levelUps.filter(function (r) { return r.Level === run.level; })[0];
       var hp = row ? row.HealthIncrease : 0;
-      run.healthMax += hp;
       run.level++;
       run.pendingLevelUps = (run.pendingLevelUps || 0) + 1;
       R.emit(ctx, { type: 'levelUp', level: run.level, health: hp, sockets: R.unlockedSockets(run.level) });
       R.log(ctx, { t: 'level', level: run.level });
+      // máu của bảng cấp, rồi trigger lên cấp ngoài trận: Money Tree / Scavenger / Schematics (get ...), Lion Cane (+100 máu), Renovation
+      R.addHealthMax(ctx, hp, true);
+      R.playerAttrChanged(ctx, 'Level', 1);
     }
   };
 

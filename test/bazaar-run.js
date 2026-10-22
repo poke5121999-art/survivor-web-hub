@@ -1,7 +1,7 @@
 /*
  * Chợ Phiên (games/bazaar) — kiểm vòng chơi js/run/* (reducer thuần, tất định) bằng Node, không cần trình duyệt.
  * Chạy:  node test/bazaar-run.js              (mọi phần; quét bot 200 run mỗi hero chơi được)
- *        SWEEP=20 node test/bazaar-run.js     bớt số run quét;  ONLY=rules|pha4|det|sweep  chỉ chạy một phần
+ *        SWEEP=20 node test/bazaar-run.js     bớt số run quét;  ONLY=rules|pha4|fix9|fix9b|det|sweep  chỉ chạy một phần
  *
  * Số kỳ vọng tính tay từ dữ liệu:
  * - giá: game_modes.json StandardPrices (Small Bronze 2/1, Medium Silver 8/4, Large Gold 24/12, Small Legendary 24/12,
@@ -850,7 +850,9 @@ function fix8() {
   check('tỉ lệ 30 %: "' + first + '" hiện ≈ 30 % số lần (đo ' + (cnt[first] / 15).toFixed(1) + ' %)', Math.abs(cnt[first] / 15 - 30) < 4, cnt);
   // lựa chọn có điều kiện vẫn do điều kiện quyết (không tung tỉ lệ): Aerodrome thiếu Billboard / Gatling Gun thì không ra lựa chọn đó
   const ra = baseRun(); ra.day = 6; R.ENCOUNTERS.event.enter({ run: ra, events: [] }, { id: byName('Aerodrome').Id }, 'endHour');
-  check('Aerodrome không có Billboard / Gatling Gun: lựa chọn điều kiện bị ẩn (' + ra.phase.choices.length + ' lựa chọn)', ra.phase.choices.every(c => !/Billboard|Defense/.test(c.name)), ra.phase.choices.map(c => c.name));
+  // đợt 9b: mọi lựa chọn đều thiếu điều kiện thì không bày phần thưởng bịa: vào sự kiện là xong (và clock.js không bày Aerodrome)
+  const rac = ra.phase.choices || [];
+  check('Aerodrome không có Billboard / Gatling Gun: lựa chọn điều kiện bị ẩn (' + rac.length + ' lựa chọn, pha ' + ra.phase.kind + ')', rac.every(c => !/Billboard|Defense/.test(c.name) && c.kind !== 'generic'), rac.map(c => c.name));
   // huy hiệu cam (stamp): D'flek Upgrade = 10, Enchant = 20; Gumball "Gumballs Remaining: 5" = 5
   const df = byName("D'flek"), rf = baseRun(); rf.day = 8; rf.hero = (df.Heroes && df.Heroes[0] !== 'Common' ? df.Heroes[0] : 'Vanessa');
   R.ENCOUNTERS.event.enter({ run: rf, events: [] }, { id: df.Id }, 'endHour');
@@ -861,11 +863,200 @@ function fix8() {
   console.log('    đếm rơi về bộ đọc chữ: ' + JSON.stringify(R.shopStats));
 }
 
+// Đợt 9 (2026-10-22): chủ dự án thấy sạp có đồ quái rơi, mua Gumball ra món khác, sạp chỉ bán đồ nhỏ lại có đồ lớn
+function fix9() {
+  console.log('\n# Đợt 9: hàng và phần thưởng đúng chữ');
+  const E = globalThis.BZ_ENCOUNTERS, titleOf = id => R.title(R.tpl(id)), tagsOf = id => (R.tpl(id).Tags || []).concat(R.tpl(id).HiddenTags || []);
+  const gum5 = Object.values(E.steps).find(x => x.InternalName === 'Get 5 Gumballs (5)');
+  const got = new Set();
+  for (let seed = 1; seed <= 40; seed++) {
+    const ctx = { run: R.newRun({ hero: 'Vanessa', seed }), events: [] };
+    ctx.run.day = 3;
+    R.ENCOUNTERS.step.resolve(ctx, gum5, 'endHour');
+    ctx.events.filter(v => v.type === 'gain').forEach(v => got.add(titleOf(v.id)));
+    if (ctx.run.phase.kind === 'loot') ctx.run.phase.picks.forEach(p => got.add(titleOf(p.card.id)));
+  }
+  eq('"Get 5 Gumballs" × 40 seed: chỉ ra Gumball (không Gumball Machine, không món khác)', [...got].sort(), ['Blue Gumball', 'Green Gumball', 'Red Gumball', 'Yellow Gumball']);
+
+  // bản demo cho mọi hero, bản live (bazaardb pool_per_hero_counts) không có hàng cho hero đó
+  const offered = {};
+  ['Vanessa', 'Pygmalien'].forEach(hero => {
+    offered[hero] = new Set();
+    for (let seed = 1; seed <= 150; seed++) {
+      const run = R.newRun({ hero, seed });
+      for (const day of [1, 3, 5, 7, 9]) { run.day = day; R.hourOptions(run).forEach(o => offered[hero].add(o.name)); }
+    }
+  });
+  eq("Vanessa × 150 seed × 5 ngày: không gặp Kev's Armory, The Tester", ["Kev's Armory", 'The Tester'].filter(n => offered.Vanessa.has(n)), []);
+  eq('Pygmalien: không gặp Knightshade (Poison), Pol (Large); vẫn gặp Mr. Morland', [offered.Pygmalien.has('Knightshade'), offered.Pygmalien.has('Pol'), offered.Pygmalien.has('Mr. Morland')], [false, false, true]);
+
+  const bad = [];
+  Object.values(E.events).filter(e => e.Kind === 'merchant' && !R.TUNING.ENCOUNTER_EXCLUDE.test(e.InternalName)).forEach(e => {
+    const rec = R.shopRec(e), inPool = new Set((rec && rec.pool) || []), sizes = R.parseFilter(e.Desc || '').sizes;
+    R.HEROES_PLAYABLE.forEach(hero => {
+      if (!R.shopHeroOk(e, { hero })) return;
+      for (let seed = 1; seed <= 8; seed++) {
+        const run = R.newRun({ hero, seed });
+        run.day = 1 + seed;
+        R.ENCOUNTERS.merchant.dealStock(run, e).forEach(s => {
+          const id = s.card.id, t = R.tpl(id);
+          if (R.isMonsterLoot(t) || (tagsOf(id).includes('Loot') && !inPool.has(id))) bad.push(e.InternalName + ': Loot ' + titleOf(id));
+          if (sizes && !R.isSkill(t) && !sizes.includes(t.Size)) bad.push(e.InternalName + ': ' + t.Size + ' ' + titleOf(id));
+        });
+      }
+    });
+  });
+  eq('R.isMonsterLoot: Sharpening Stone, Bar of Gold, Chunk of Gold có; Catalyst (đồ Mak), Coincure không',
+    ['Sharpening Stone', 'Bar of Gold', 'Chunk of Gold', 'Catalyst', 'Coincure'].map(n => R.isMonsterLoot(Object.values(globalThis.BZ_CARDS).find(t => R.title(t) === n))), [true, true, true, false, false]);
+  eq('mọi thương nhân × hero được bày × 8 seed: không đồ quái rơi / Bar of Gold, cỡ đúng chữ "Sells Small/Medium/Large"', [...new Set(bad)].slice(0, 6), []);
+
+  const run = R.newRun({ hero: 'Vanessa', seed: 3 });
+  const potions = R.deal(run, R.parseFilter('Get a Potion'), 6, { tierMode: 'band' });
+  eq('"Get a Potion" cho Vanessa (bể Vanessa không có Potion): 6 thẻ, đều mang tag Potion', [potions.length, potions.every(c => tagsOf(c.id).includes('Potion'))], [6, true]);
+  const small = R.deal(run, R.parseFilter('Get a Small item'), 20, {});
+  eq('"Get a Small item": 20 thẻ Small, không đồ Loot', [small.length, small.filter(c => R.tpl(c.id).Size !== 'Small' || tagsOf(c.id).includes('Loot')).map(c => titleOf(c.id))], [20, []]);
+}
+
+// Đợt 9b (2026-10-22): "nhiều logic/cơ chế không chạy" — audit D:\bazaar-ref\review9\OOC.md (RC1-RC10) và ENC.md (A-X).
+// Mỗi nguyên nhân gốc một khẳng định hành vi với số viết tay; báo cáo: D:\bazaar-ref\review9\FIX-M.md
+function fix9b() {
+  console.log('\n# Đợt 9b: mechanics ngoài trận và gặp gỡ');
+  const C = globalThis.BZ_CARDS, E = globalThis.BZ_ENCOUNTERS;
+  const idOf = n => Object.keys(C).find(id => R.title(C[id]) === n && !/DEBUG|Debug/.test(C[id].InternalName));
+  const step = n => Object.values(E.steps).find(x => x.InternalName === n);
+  const event = n => Object.values(E.events).find(x => x.InternalName === n);
+  const titleOf = id => R.title(R.tpl(id)), tagsOf = id => (R.tpl(id).Tags || []).concat(R.tpl(id).HiddenTags || []);
+  const titles = run => R.allCards(run).map(c => titleOf(c.id));
+  const gains = ctx => ctx.events.filter(v => v.type === 'gain').map(v => titleOf(v.id));
+  const fresh = (hero, seed) => {
+    const run = R.newRun({ hero, seed: seed || 5 });
+    run.board.hand = []; run.board.stash = []; run.board.skills = []; run.phase = { kind: 'choose', options: [] }; run.day = 3; run.hour = 1;
+    return run;
+  };
+  const resolve = (run, name) => { const ctx = { run, events: [] }; R.ENCOUNTERS.step.resolve(ctx, step(name), 'endHour'); return ctx; };
+
+  // RC2 / ENC F: TActionCardDestroy bị bỏ qua (FALLBACK null) → sim phá, readBack xoá khỏi run.board
+  let run = fresh('Mak'); inst(run, idOf('Med Kit'), 'hand', 3); inst(run, idOf('Peacewrought'), 'hand', 4); run.gold = 10;
+  run.phase = { kind: 'choose', options: [R.encounterRef('merchant', event('Jay Jay'))] };
+  let r = R.apply(run, { t: 'pick', i: 0 });
+  eq('RC2 Peacewrought: vào thương nhân → Med Kit bên trái bị phá, +2 vàng', [titles(r.run).includes('Med Kit'), r.run.gold - 10], [false, 2]);
+  run = fresh('Karnok'); inst(run, idOf('Ancient Locket'), 'hand', 3, 'Silver');
+  let ctx = resolve(run, '[Shrouded Figure] Sacrifice Ancient Locket');
+  eq('ENC F Sacrifice Ancient Locket: Locket mất, +2 XP', [titles(run).includes('Ancient Locket'), ctx.events.filter(v => v.type === 'xp' && v.why === 'effect').map(v => v.delta)], [false, [2]]);
+
+  // RC1: lên cấp không bắn trigger → R.gainXp bắn OnPlayerAttributeChanged Level / HealthMax
+  run = fresh('Pygmalien'); inst(run, idOf('Money Tree'), 'hand', 2); inst(run, idOf('Lion Cane'), 'hand', 5, 'Gold');
+  let hm0 = run.healthMax; ctx = { run, events: [] }; R.gainXp(ctx, 8, 'test');
+  eq('RC1 lên cấp 1→2: Money Tree +1 Spare Change, máu tối đa +100 (bảng cấp) +100 (Lion Cane)', [gains(ctx), run.healthMax - hm0], [['Spare Change'], 200]);
+
+  // ENC C / RC7: "gains the X type" (addTags) không lưu → inst.tags, sim đọc lại
+  run = fresh('Vanessa'); const mk = inst(run, idOf('Med Kit'), 'hand', 3);
+  resolve(run, 'Food Training');
+  const simC = R.readState(run).cards.find(c => c.uid === mk.uid);
+  eq('ENC C Food Training: Med Kit (thẻ trái nhất) mang loại Food, sim thấy tag Food', [R.findCard(run, mk.uid).tags, !!simC.tags.Food], [['Food'], true]);
+
+  // ENC A: chữ không nêu thẻ → trước chia một vật phẩm ngẫu nhiên; nay bảng St.FX hoặc không gì
+  run = fresh('Vanessa'); run.day = 2; ctx = resolve(run, 'Med Kit (Level Up)');
+  eq('ENC A Med Kit (Level Up) ngày 2: được đúng 2 Med Kit', gains(ctx), ['Med Kit', 'Med Kit']);
+  run = fresh('Vanessa'); ctx = resolve(run, 'Haddy - Spin the Wheel');
+  const prizes = ['Bag of Gold', "Haddy's Hat Reward", 'Diamond Skill', 'Haddy - Enchanted Item', 'Mystery Bundle', 'Gold Skill'].map(n => /^Haddy/.test(n) ? n : 'Haddy - ' + n);
+  eq('ENC A Spin the Wheel: không vật phẩm; bày đúng 1 giải của Haddy', [gains(ctx).length, run.phase.kind, (run.phase.choices || []).length, (run.phase.choices || []).every(c => prizes.includes((E.steps[c.id] || {}).InternalName))], [0, 'event', 1, true]);
+  run = fresh('Vanessa'); let g0 = run.gold; ctx = resolve(run, '[Shrouded Figure] Choose Wealth');
+  eq('ENC A Choose Wealth ("up to 30 Gold"): 1..30 vàng, không vật phẩm', [run.gold - g0 >= 1 && run.gold - g0 <= 30, gains(ctx).length], [true, 0]);
+
+  // RC5: R.gold không bắn trigger vàng → Healthy Tip "permanently gain Max Health equal to 1 times the amount"
+  run = fresh('Pygmalien'); inst(run, idOf('Healthy Tip'), 'hand', 3, 'Silver'); hm0 = run.healthMax;
+  R.gold({ run, events: [] }, 5, 'test');
+  eq('RC5 Healthy Tip: +5 vàng → máu tối đa +5', run.healthMax - hm0, 5);
+
+  // RC4: OnCardSelected không bắn → R.gainCard (mua / nhặt) bắn cho chính thẻ
+  run = fresh('Vanessa'); run.gold = 3; run.phase = merchantPhase([{ card: { id: idOf('Red Envelope'), tier: 'Bronze', ench: null }, price: 0 }]);
+  r = R.apply(run, { t: 'buy', i: 0 });
+  eq('RC4 Red Envelope: mua (giá 0) → +10 vàng', r.run.gold, 13);
+
+  // RC3: Transform không biết đích → đọc chữ sau "into"
+  const into = [];
+  for (let seed = 1; seed <= 12; seed++) {
+    run = fresh('Mak', seed); const sm = inst(run, idOf('Med Kit'), 'hand', 2); inst(run, idOf('Alembic'), 'hand', 3, 'Silver');
+    R.ooc.fire({ run, events: [] }, 'TTriggerOnDayStarted', {});
+    into.push(tagsOf(R.findCard(run, sm.uid).id).includes('Potion'));
+  }
+  eq('RC3 Alembic × 12 seed: Small bên trái thành Potion', into.filter(Boolean).length, 12);
+
+  // RC6: TActionGameReroll ngoài cửa hàng chỉ ghi chú → đổi ô cuối của màn chọn gặp gỡ
+  run = fresh('Stelle'); run.phase = { kind: 'choose', options: R.hourOptions(run) }; const ids0 = run.phase.options.map(o => o.id);
+  const cp = inst(run, idOf('Compass'), 'hand', 3);
+  r = R.apply(run, { t: 'sell', uid: cp.uid });
+  const ids1 = r.run.phase.options.map(o => o.id);
+  eq('RC6 Compass Bronze bán ở giờ 1: đổi đúng 1 gặp gỡ (ô cuối), 2 ô đầu giữ nguyên', [ids1.length, ids1.filter((id, i) => id !== ids0[i]).length, ids1[0] === ids0[0] && ids1[1] === ids0[1]], [3, 1, true]);
+
+  // RC8: "gain access to the genie Rit" bỏ qua → sự kiện Rit vào màn chọn
+  run = fresh('Vanessa'); run.phase = { kind: 'choose', options: R.hourOptions(run) };
+  const gl = inst(run, idOf('Genie Lamp'), 'hand', 3, 'Diamond');
+  r = R.apply(run, { t: 'sell', uid: gl.uid });
+  eq('RC8 Genie Lamp bán ở màn chọn: có lựa chọn Rit, vẫn 3 lựa chọn', [r.run.phase.options.some(o => o.id === event('Rit').Id), r.run.phase.options.length], [true, 3]);
+
+  // RC9: OnCardAttributeChanged ngoài trận không bắn → Chimeric Egg nâng bậc khi giá trị chạm 10
+  run = fresh('Vanessa'); const egg = inst(run, idOf('Chimeric Egg'), 'hand', 3);
+  egg.mods = { SellPrice: 6 - R.simCard(egg).attrs.SellPrice };
+  R.ooc.fire({ run, events: [] }, 'TTriggerOnDayStarted', {});
+  eq('RC9 Chimeric Egg giá trị 6 → đầu ngày +4 = 10 → lên Silver', [R.simCard(egg).attrs.SellPrice >= 10, egg.tier], [true, 'Silver']);
+
+  // RC10: OnFightEnded truyền outcome 'Loss', dữ liệu ghi 'Lose' → Stained Glass Window không bao giờ bị phá khi thua
+  run = fresh('Pygmalien'); run.day = 8; inst(run, idOf('Stained Glass Window'), 'hand', 3, 'Gold');
+  ctx = { run, events: [] }; R.ENCOUNTERS.combat.enter(ctx, { id: Object.values(E.combats).find(c => c.InternalName === 'Morguloth').Id }, 'endHour');
+  r = R.apply(run, { t: 'fight' });
+  eq('RC10 Stained Glass Window: thua Morguloth → bị phá', [r.run.phase.won, titles(r.run).includes('Stained Glass Window')], [false, false]);
+  // RC10b: OnFightEnded không có nguồn là thẻ quái → Monster Tracker ("defeat a Gold-tier or higher Monster") không bao giờ chạy
+  run = fresh('Karnok'); run.day = 4; run.level = 8; run.healthMax = 2000;
+  const mt = inst(run, idOf('Monster Tracker'), 'hand', 0);
+  Object.keys(C).filter(id => tagsOf(id).includes('Weapon') && C[id].Size === 'Small' && (C[id].Heroes || []).includes('Karnok') && C[id].Tiers && C[id].Tiers.Diamond
+    && !/TTriggerOnFightEnded/.test(JSON.stringify(C[id].Abilities || {}))).slice(0, 6).forEach((id, i) => inst(run, id, 'hand', 2 + i, 'Diamond'));
+  ctx = { run, events: [] }; R.ENCOUNTERS.combat.enter(ctx, { id: Object.values(E.combats).find(c => c.InternalName === 'Calico').Id }, 'endHour');
+  r = R.apply(run, { t: 'fight' });
+  eq('RC10b Monster Tracker: thắng Calico (quái bậc Gold) → +1 vật phẩm Loot', [r.run.phase.won, r.events.filter(v => v.type === 'gain').map(v => tagsOf(v.id).includes('Loot'))], [true, [true]]);
+
+  // ENC D: bộ đếm trận (Custom_5/7/8) không đưa vào sim
+  run = fresh('Vanessa'); run.wins = 2; run.pveWins = 1; g0 = run.gold; resolve(run, 'Sell the Rights (Dabora)');
+  eq('ENC D Sell the Rights: thắng 2 PvP + 1 quái → +3 vàng', run.gold - g0, 3);
+
+  // ENC B1 / B2: phần thưởng chung bịa
+  run = fresh('Vanessa'); g0 = run.gold; ctx = { run, events: [] }; R.ENCOUNTERS.event.enter(ctx, { id: event("Farai's Rewards").Id }, 'endHour');
+  eq("ENC B1 Farai's Rewards (không ability, không mô tả): không vàng / vật phẩm bịa", [run.gold - g0, gains(ctx).length], [0, 0]);
+  run = fresh('Stelle'); ctx = { run, events: [] }; R.ENCOUNTERS.event.enter(ctx, { id: event('Praeteria').Id }, 'endHour');
+  let offered = 0;
+  for (let seed = 1; seed <= 60; seed++) { const x = R.newRun({ hero: 'Stelle', seed }); for (const d of [1, 2, 3]) { x.day = d; x.hour = 1; if (R.hourOptions(x).some(o => o.name === 'Praeteria')) offered++; } }
+  eq('ENC B2 Praeteria cho Stelle (không bước nào): không lựa chọn bịa, 60 seed × 3 ngày không bày', [(run.phase.choices || []).filter(c => c.kind === 'generic').length, offered], [0, 0]);
+
+  // ENC G: "Enchanted item" chia thẻ không có enchantment
+  let plain = 0;
+  for (let seed = 1; seed <= 30; seed++) {
+    run = fresh('Karnok', seed); resolve(run, 'Haddy - Enchanted Item');
+    (run.phase.picks || []).forEach(p => { if (!p.card.ench) plain++; });
+  }
+  eq('ENC G Haddy "Gain an Enchanted item" × 30 seed: thẻ nào cũng có enchantment', plain, 0);
+
+  // ENC H: Cult Member Special ("a Legendary item") chia 0 thẻ
+  run = fresh('Vanessa'); resolve(run, '[Shrouded Figure] Cult Member Legendary Chest');
+  eq('ENC H Cult Member Special: bày 3 vật phẩm Legendary, chọn 1', [run.phase.kind, (run.phase.picks || []).length, (run.phase.picks || []).every(p => R.tpl(p.card.id).StartingTier === 'Legendary' && !R.isSkill(R.tpl(p.card.id))), run.phase.take], ['loot', 3, true, 1]);
+
+  // ENC X: Multiply trên thuộc tính phần trăm gốc 0
+  run = fresh('Dooley'); const core = inst(run, idOf('Companion Core'), 'hand', 3, 'Silver');
+  resolve(run, 'Escalation Protocol');
+  eq('ENC X Escalation Protocol: Core giảm hồi chiêu 5 %', core.mods.PercentCooldownReduction, 5);
+
+  // ENC J: "Get 3 Loot items" là Deal 3 → lấy cả 3
+  run = fresh('Vanessa'); resolve(run, '[Jungle Ruins] Grab the Loot');
+  eq('ENC J Grab the Loot "Get 3 Loot items": bày 3, lấy cả 3', [(run.phase.picks || []).length, run.phase.take], [3, 3]);
+}
+
 if (!ONLY || ONLY === 'rules') rules();
 if (!ONLY || ONLY === 'rules' || ONLY === 'pha4') pha4();
 if (!ONLY || ONLY === 'rules' || ONLY === 'pha4') fixes();
 if (!ONLY || ONLY === 'rules' || ONLY === 'pha4' || ONLY === 'fix6') fix6();
 if (!ONLY || ONLY === 'rules' || ONLY === 'pha4' || ONLY === 'fix8') fix8();
+if (!ONLY || ONLY === 'rules' || ONLY === 'pha4' || ONLY === 'fix9') fix9();
+if (!ONLY || ONLY === 'rules' || ONLY === 'pha4' || ONLY === 'fix9b') fix9b();
 if (!ONLY || ONLY === 'det') determinism();
 if (!ONLY || ONLY === 'sweep') sweep();
 console.log('\n' + pass + ' ok, ' + fail + ' fail');

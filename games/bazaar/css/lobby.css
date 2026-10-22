@@ -9,7 +9,8 @@
 .lobby .lb-bg { position: absolute; inset: 0;
   background: radial-gradient(ellipse 78% 72% at 52% 52%, rgba(14,6,26,0) 45%, rgba(14,6,26,.5) 100%),
     linear-gradient(180deg, rgba(14,6,26,.3) 0, rgba(14,6,26,0) 18%, rgba(14,6,26,0) 82%, rgba(14,6,26,.4) 100%),
-    url(../art/ui/herosel_bg.webp) center/cover no-repeat; }
+    url(../art/ui/herosel_bg.webp) 0 50%/calc(100% * 1920 / 1911) auto no-repeat; }
+/* herosel_bg.webp 1920×1080 có 9 cột rác ở mép phải (x 1911-1919: đen + một vạch trắng): phóng 1920/1911 neo mép trái để 9 cột đó ra ngoài sân (review9 UI-21) */
 /* lục giác hero */
 .lobby .col { position: absolute; inset: 0; pointer-events: none; }
 .lobby .hex { position: absolute; pointer-events: auto; width: 176px; height: 202px; border: 0; padding: 0; background: none; cursor: pointer;
@@ -22,8 +23,11 @@
 .lobby .hex.sel .glow { opacity: .55; animation: lb-aura 1.4s ease-in-out infinite alternate; }
 @keyframes lb-aura { from { opacity: .55; } to { opacity: 1; } }
 .lobby .hex .plate { position: absolute; z-index: 3; left: 50%; bottom: 6px; width: 190px; height: 50px; transform: translateX(-50%); display: grid; place-items: center; opacity: 0; white-space: nowrap;
-  background: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_tabs/Btn_Tab_Frame_TUI.webp) center/100% 100% no-repeat;
+  box-sizing: border-box; border: 13px solid transparent; background: #00000d padding-box;
+  border-image: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_tabs/Btn_TabClosed_Frame_TUI.webp) 48 50 fill / 13px stretch;
   font: 800 20px/1 var(--f-text); letter-spacing: .12em; color: var(--cream); transition: opacity .2s; }
+/* review9 UI-9: Btn_Tab_Frame_TUI là đầu tab hở cạnh phải; tấm kín hai đầu khía là Btn_TabClosed_Frame_TUI (256×190): khía + góc vát ~46 px ngang,
+   viền trên / dưới + góc ~48 px → slice 48 50, độ rộng = cao tấm / 190 × slice (tấm 50 px → 13 px) để khía không bị kéo dọc */
 .lobby .hex.sel .plate { opacity: 1; }
 .lobby .hex.made .art { inset: 8% 6% 6%; clip-path: polygon(50% 0, 100% 21%, 100% 79%, 50% 100%, 0 79%, 0 21%); background: linear-gradient(160deg, #fff1b8, #c99a3c 40%, #7a5418 60%, #f5d27a); }
 .lobby .hex.made .art b { position: absolute; inset: 7px; clip-path: polygon(50% 0, 100% 21%, 100% 79%, 50% 100%, 0 79%, 0 21%); background: center 18%/cover no-repeat #3a2a50; }
@@ -65,7 +69,14 @@
 .lobby .info .lockmsg b { display: block; margin-bottom: 6px; font: 800 18px/1 var(--f-text); color: #ffb4a0; letter-spacing: .06em; text-transform: uppercase; }
 /* bảng người chơi trái trên */
 .lobby .lb-me { position: absolute; left: 20px; top: 18px; width: 560px; height: 112px; display: flex; align-items: center; padding-left: 138px; box-sizing: border-box;
-  background: url(../art/ui/ui_sprite_atlas/Container_Profile_Title_TUI.webp) left center/100% 100% no-repeat; filter: drop-shadow(0 4px 10px rgba(0,0,0,.45)); animation: lb-slide .5s cubic-bezier(.2,1,.3,1) backwards; }
+  filter: drop-shadow(0 4px 10px rgba(0,0,0,.45)); animation: lb-slide .5s cubic-bezier(.2,1,.3,1) backwards; }
+/* review9 UI-8: Container_Profile_Title_TUI (256×220) chỉ là nửa trái (mũi + cung, cạnh phải hở). Bản gốc (VersusScreen_P: Title_Frame_Left /
+   Title_Frame_Right) ghép hai nửa: nửa phải là chính sprite lật ngang (scale x −1), kiểu Sliced. Đo: mũi + cung x 0-140, viền đôi trên y 0-28,
+   viền + bóng dưới y 178-220 → slice 30 0 42 140; độ rộng = cao / 220 × slice (tấm 112 px → 15 / 21 / 71 px), chỉ phần giữa kéo ngang. */
+.lobby .lb-me::before, .lobby .lb-me::after, .rs-vs .plate small::before, .rs-vs .plate small::after { content: ""; position: absolute; top: 0; bottom: 0; width: 50%; z-index: -1; pointer-events: none;
+  border: 0 solid transparent; border-image: url(../art/ui/ui_sprite_atlas/Container_Profile_Title_TUI.webp) 30 0 42 140 fill / 15px 0 21px 71px stretch; }
+.lobby .lb-me::before, .rs-vs .plate small::before { left: 0; }
+.lobby .lb-me::after, .rs-vs .plate small::after { right: 0; transform: scaleX(-1); }
 @keyframes lb-slide { from { opacity: 0; translate: -30px 0; } }
 .lobby .lb-me .emb { position: absolute; left: 22px; top: 8px; width: 108px; height: 92px; background: url(../art/ui/ui_sprite_atlas/UI_Profile_RankTray.webp) center/contain no-repeat; }
 .lobby .lb-me .emb::after { content: ""; position: absolute; left: 50%; top: 50%; width: 46px; height: 52px; margin: -26px 0 0 -23px; background: url(../art/ui/clock/UI_VictoriesIcon_T_Temp.webp) center/contain no-repeat; }
@@ -73,8 +84,9 @@
 .lobby .lb-me b { display: block; margin-top: 2px; font: 900 44px/1.05 var(--f-title); color: #fff3d6; text-shadow: 0 3px 0 #3a1a08, 0 0 14px rgba(0,0,0,.6); }
 /* ví phải trên: kỷ lục (không tiền thật) */
 .lobby .lb-wallet { position: absolute; right: 28px; top: 26px; display: flex; gap: 12px; animation: lb-slide .5s .08s cubic-bezier(.2,1,.3,1) backwards; }
-.lobby .lb-wallet .chip { min-width: 210px; height: 64px; padding: 0 26px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 12px;
-  background: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_tabs/Btn_Tab_Frame_TUI.webp) center/100% 100% no-repeat; }
+.lobby .lb-wallet .chip { min-width: 210px; height: 64px; padding: 0 10px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 12px;
+  border: 17px solid transparent; background: #00000d padding-box; /* nền = màu giữa sprite: lấp khe nối 9 ô khi sân co lẻ */
+  border-image: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_tabs/Btn_TabClosed_Frame_TUI.webp) 48 50 fill / 17px stretch; }
 .lobby .lb-wallet .chip i { width: 38px; height: 38px; background: center/contain no-repeat; }
 .lobby .lb-wallet .chip i.tr { background-image: url(../art/ui/ui_sprite_atlas/UI_Profile_Trophy_Gold.webp); }
 .lobby .lb-wallet .chip b { font: 800 34px/1 var(--f-num); color: #ffe36d; text-shadow: 0 2px 0 #000; }
@@ -86,9 +98,14 @@
 .lobby .bar .mode:hover { filter: brightness(.9); }
 .lobby .bar .mode.on { filter: none; }
 .lobby .bar .mode .fr, .lobby .bar .ct, .lobby .lb-rnd .fr, .lobby .lb-rnd .ct, .lobby .lb-newrun::before { position: absolute; pointer-events: none; background: center/100% 100% no-repeat; }
-.lobby .bar .mode .fr { inset: 0; background-image: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_tabs/Btn_Tab_Frame_TUI.webp); }
-.lobby .bar .mode .ct { inset: 8% 1.8%; background-image: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_tabs/Btn_Tab_Center_Disabled_TUI.webp); }
-.lobby .bar .mode.on .ct { background-image: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_tabs/Btn_Tab_Center_Active_TUI.webp); }
+/* UI-9: tab chế độ = Btn_Tab_Frame_TUI (700×190, khía trái, cạnh phải hở) 9-slice thay cho 100% 100% (méo ×1,12): khía + góc 50 px, viền 48 px,
+   độ rộng = 92 / 190 × slice; mặt Btn_Tab_Center (683×160) lùi 7 px. Tab phải lật ngang để cạnh hở của cả hai nằm dưới nút Sẵn sàng. */
+.lobby .bar .mode .fr { inset: 0; background: none; border: 0 solid transparent;
+  border-image: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_tabs/Btn_Tab_Frame_TUI.webp) 48 0 48 50 fill / 23px 0 23px 24px stretch; }
+.lobby .bar .mode .ct { inset: 7px 0 7px 7px; background: none; border: 0 solid transparent;
+  border-image: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_tabs/Btn_Tab_Center_Disabled_TUI.webp) 40 0 40 40 fill / 19px 0 19px 19px stretch; }
+.lobby .bar .mode.on .ct { border-image-source: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_tabs/Btn_Tab_Center_Active_TUI.webp); }
+.lobby .bar .mode.r .fr, .lobby .bar .mode.r .ct { transform: scaleX(-1); }
 .lobby .bar .mode b, .lobby .bar .mode small { position: relative; z-index: 1; }
 .lobby .bar .mode b { font: 800 26px/1 var(--f-text); letter-spacing: .1em; color: #ffe9a8; text-shadow: 0 2px 0 #000; }
 .lobby .bar .mode small { margin-top: 4px; font: 700 14px/1.2 var(--f-text); letter-spacing: .1em; text-transform: uppercase; color: #e9d6a8; text-shadow: 0 1px 0 #000; }
@@ -117,30 +134,21 @@
 /* ================= SỐ PHẬN ================= */
 .rs-fate-veil { position: absolute; inset: 0; z-index: 4; pointer-events: none; animation: lb-veil-in 1.2s ease-out backwards;
   background: radial-gradient(ellipse at 50% 42%, rgba(60,16,84,.05) 28%, rgba(130,34,120,.34) 66%, rgba(26,4,38,.78) 100%); }
-.rs-fate-veil svg { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .7; filter: drop-shadow(0 0 5px #ff5f8a); animation: lb-thread 5s ease-in-out infinite alternate; }
 @keyframes lb-veil-in { from { opacity: 0; } }
-@keyframes lb-thread { from { opacity: .45; } to { opacity: .85; } }
 .rs-fate-teller { z-index: 3; }
 .rs-fate-teller .nm, .rs-fate-teller .pennant { display: none; }
 .rs-fate-teller .fr { filter: drop-shadow(0 0 22px rgba(200,110,255,.8)); }
-.rs-fate-orbs { position: absolute; left: 378px; top: 352px; width: 1164px; display: flex; justify-content: center; gap: 170px; z-index: 6; }
+.rs-fate-orbs { position: absolute; left: 400px; top: 330px; width: 1120px; display: flex; justify-content: space-evenly; z-index: 6; }
+/* UI-17: cùng phần với orb sự kiện (run.css .rs-choice.sh-orb): quầng 224 %, ảnh tròn, vòng FX_BubbleCircle tô màu Detail + nét trắng gốc;
+   4 cầu 170 px chia đều trong 1120 px (trước đây gap 170 → 1190 px, cầu trái đè viền trái bàn) */
 .rs-fate-orb { position: relative; width: 170px; height: 170px; padding: 0; border: 0; background: none; cursor: pointer; animation: rs-pop .6s cubic-bezier(.2,1.3,.4,1) backwards; transition: transform .2s cubic-bezier(.3,1.5,.5,1); }
-.rs-fate-orb .halo { position: absolute; inset: -50px; border-radius: 50%; background: radial-gradient(circle, rgba(200,120,255,.85) 0, rgba(150,70,255,.45) 38%, rgba(120,40,220,0) 68%);
-  animation: lb-orb-halo 2.4s ease-in-out var(--ph, 0s) infinite alternate; }
-.rs-fate-orb .core { position: absolute; inset: 14px; border-radius: 50%; overflow: hidden;
-  background: radial-gradient(circle at 36% 30%, #f6dcff 0, #bd75ff 16%, #6d26d8 44%, #2c0c7c 76%, #170646 100%);
-  box-shadow: 0 0 0 3px rgba(196,150,255,.75), 0 0 34px 8px rgba(150,80,255,.7), inset 0 0 26px rgba(255,255,255,.35), inset -12px -16px 30px rgba(10,0,50,.7);
-  animation: lb-orb-pulse 2.4s ease-in-out var(--ph, 0s) infinite alternate; }
-.rs-fate-orb .core::after { content: ""; position: absolute; inset: -30%; mix-blend-mode: screen; opacity: .6;
-  background: conic-gradient(from 0deg, transparent 0, rgba(255,255,255,.55) 8%, transparent 22%, rgba(220,150,255,.6) 48%, transparent 64%, rgba(255,255,255,.4) 82%, transparent 100%);
-  animation: lb-orb-spin 7s linear infinite; }
-.rs-fate-orb .spark { position: absolute; left: 30px; top: 26px; width: 46px; height: 26px; border-radius: 50%; background: radial-gradient(ellipse, rgba(255,255,255,.95), rgba(255,255,255,0) 70%); transform: rotate(-32deg); }
+.rs-fate-orb > i { position: absolute; display: block; pointer-events: none; }
+.rs-fate-orb .glow { left: -62%; top: -62%; width: 224%; height: 224%; z-index: -1; background: center/100% 100% no-repeat; mix-blend-mode: screen; animation: rs-orbglow 2.4s ease-in-out var(--ph, 0s) infinite alternate; }
+.rs-fate-orb .ring { inset: -8%; background: center/100% 100% no-repeat; mix-blend-mode: screen; }
+.rs-fate-orb .ring.tint { inset: -11%; background: rgba(170,140,255,.75); -webkit-mask: center/100% 100% no-repeat; mask: center/100% 100% no-repeat; filter: blur(3px); mix-blend-mode: normal; }
 .rs-fate-orb:hover, .rs-fate-orb.armed { transform: scale(1.1); }
-.rs-fate-orb:hover .core, .rs-fate-orb.armed .core { box-shadow: 0 0 0 4px #fff, 0 0 50px 14px rgba(190,120,255,.95), inset 0 0 30px rgba(255,255,255,.55), inset -12px -16px 30px rgba(10,0,50,.5); }
+.rs-fate-orb:hover .glow, .rs-fate-orb.armed .glow { animation: none; transform: scale(1.12); }
 .rs-fate-orb.chosen { animation: lb-orb-pick .5s ease-in forwards; }
-@keyframes lb-orb-pulse { from { filter: brightness(.9); } to { filter: brightness(1.2); } }
-@keyframes lb-orb-halo { from { opacity: .55; transform: scale(.94); } to { opacity: .95; transform: scale(1.06); } }
-@keyframes lb-orb-spin { to { transform: rotate(360deg); } }
 @keyframes lb-orb-pick { 0% { transform: scale(1.1); } 40% { transform: scale(1.35); filter: brightness(2); } 100% { transform: scale(2.2); opacity: 0; } }
 
 /* ================= VS ================= */
@@ -149,14 +157,40 @@
   -webkit-mask: radial-gradient(circle, #000 0, rgba(0,0,0,.6) 36%, transparent 68%); mask: radial-gradient(circle, #000 0, rgba(0,0,0,.6) 36%, transparent 68%); animation: lb-swirl 16s linear infinite; }
 .rs-vs.show .swirl { visibility: visible; }
 @keyframes lb-swirl { to { transform: rotate(360deg); } }
-.rs-vs .plate { width: 470px; height: 150px; padding: 0 28px 0 90px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; align-items: center; bottom: 170px; z-index: 3;
-  background: url(../art/ui/ui_buttons_assets_assets_thebazaar_art_ui_buttons_btn_tabs/Btn_Tab_Frame_TUI.webp) center/100% 100% no-repeat; box-shadow: none; filter: drop-shadow(0 8px 14px rgba(0,0,0,.6)); }
-.rs-vs .plate.l { left: 230px; } .rs-vs .plate.r { left: 1210px; }
-.rs-vs .plate .crest { position: absolute; left: -44px; top: 50%; width: 118px; height: 100px; margin: -50px 0 0 0; background: center/contain no-repeat; filter: drop-shadow(0 4px 8px rgba(0,0,0,.7)); }
-.rs-vs .plate small { font: 800 19px/1.1 var(--f-text); letter-spacing: .14em; color: #e9c783; }
-.rs-vs .plate b { margin-top: 2px; font: 900 44px/1.08 var(--f-title); color: #fff3d6; text-shadow: 0 3px 0 #3a1a08; }
-.rs-vs .plate b.long { font-size: 30px; }
-.rs-vs .plate em { display: block; margin-top: 4px; font: 700 normal 17px/1.1 var(--f-text); letter-spacing: .06em; color: #cdb98f; }
+/* review9 UI-9 / UI-14 — dựng theo prefab gốc VersusScreen_P (scenes_gameplay noctr_24) và ảnh ref/pvp-vs/25.jpg:
+   nền VS_Screen_BG_01 (phố chợ), hai dải hoạ tiết vàng FX_Grid_03 hai mép + viền góc FX_PVP_Screen_Concept_Final_Glow_Sprite_03_TD,
+   giữa: kim cương FX_GridCenter_01 + hai kiếm FX_GridPart_05 + quầng FX_LightBack_01. Các texture FX là nét trắng có alpha; bản gốc tô màu
+   bằng vật liệu → ở đây dùng làm mặt nạ tô vàng (kiếm giữ trắng #fdfef6 như ghi chú ref). Bảng tên: tấm tên Container_Profile_Name_TUI và băng
+   bậc Container_Profile_Title_TUI, mỗi tấm ghép hai nửa (nửa phải lật ngang) như Hero_Name_Frame / Title_Frame_Left|Right của prefab. */
+.rs-vs .sky { inset: 0; filter: brightness(.8); background-position: center; background-size: cover; }
+.rs-vs .edge, .rs-vs .mid .grid { background: #ffcf5a; -webkit-mask: center/contain no-repeat; mask: center/contain no-repeat; }
+.rs-vs .edge { top: 50%; width: 1000px; height: 1000px; margin-top: -500px; filter: drop-shadow(0 0 10px rgba(255,190,70,.9));
+  -webkit-mask-image: url(../art/ui/vs/FX_Grid_03.webp); mask-image: url(../art/ui/vs/FX_Grid_03.webp); }
+.rs-vs .edge.l { left: -230px; } .rs-vs .edge.r { left: auto; right: -230px; transform: scaleX(-1); }
+/* viền góc: 2048×1056 cắt 9 ô theo chiều ngang (hai dải hoạ tiết 560 px giữ hình, khoảng giữa trống co lại) */
+.rs-vs .edge.glow { inset: 0; width: auto; height: auto; margin: 0; transform: none; filter: drop-shadow(0 0 6px rgba(255,190,70,.8)); -webkit-mask: none; mask: none;
+  -webkit-mask-box-image: url(../art/ui/vs/FX_PVP_Screen_Glow_03.webp) 0 437 / 0 573px; opacity: .9; }
+.rs-vs .mid { width: 560px; height: 560px; margin: -280px 0 0 -280px; }
+.rs-vs .mid i { position: absolute; display: block; pointer-events: none; }
+.rs-vs .mid .lb { inset: -30%; background: url(../art/ui/vs/FX_LightBack_01.webp) center/contain no-repeat; mix-blend-mode: screen; opacity: .9; }
+.rs-vs .mid .grid { inset: 0; -webkit-mask-image: url(../art/ui/vs/FX_GridCenter_01.webp); mask-image: url(../art/ui/vs/FX_GridCenter_01.webp); filter: drop-shadow(0 0 8px rgba(255,190,70,.9)); }
+.rs-vs .mid .swords { inset: 6%; background: url(../art/ui/vs/FX_GridPart_05.webp) center/contain no-repeat; filter: drop-shadow(0 0 16px rgba(255,236,190,.9)); }
+.rs-vs .skip { z-index: 4; } /* trên bảng tên (UI-14: điện thoại bảng tên phải đè viên bỏ qua) */
+/* tấm tên: Container_Profile_Name_TUI 32×80 (cung trái + viền vàng, nền tối a.8): cung 24 px, viền 12 px; tấm cao 96 → ×1,2 */
+.rs-vs .plate { width: 480px; height: 96px; padding: 4px 30px 0 70px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; align-items: center;
+  bottom: 150px; z-index: 3; background: none; box-shadow: none; filter: drop-shadow(0 8px 14px rgba(0,0,0,.6)); isolation: isolate; }
+.rs-vs .plate::before, .rs-vs .plate::after { content: ""; position: absolute; top: 0; bottom: 0; width: 50%; z-index: -1; pointer-events: none;
+  border: 0 solid transparent; border-image: url(../art/ui/ui_sprite_atlas/Container_Profile_Name_TUI.webp) 12 0 12 24 fill / 14px 0 14px 29px stretch; }
+.rs-vs .plate::before { left: 0; } .rs-vs .plate::after { right: 0; transform: scaleX(-1); }
+.rs-vs .plate.l { left: 240px; } .rs-vs .plate.r { left: 1260px; }
+.rs-vs .plate .crest { position: absolute; left: -50px; top: 50%; width: 118px; height: 100px; margin: -56px 0 0 0; background: center/contain no-repeat; filter: drop-shadow(0 4px 8px rgba(0,0,0,.7)); }
+/* băng bậc trên tấm tên: Container_Profile_Title_TUI hai nửa, cao 40 → độ rộng = 40 / 220 × slice */
+.rs-vs .plate small { position: absolute; left: 50%; top: -30px; transform: translateX(-50%); height: 40px; padding: 0 38px; box-sizing: border-box; isolation: isolate;
+  display: flex; align-items: center; white-space: nowrap; font: 800 18px/1 var(--f-text); letter-spacing: .1em; color: #f3d9a4; text-shadow: 0 1px 2px #000; }
+.rs-vs .plate small::before, .rs-vs .plate small::after { border-image-width: 5px 0 8px 25px; }
+.rs-vs .plate b { margin-top: 10px; font: 900 40px/1.05 var(--f-title); color: #fff3d6; text-shadow: 0 3px 0 #3a1a08; white-space: nowrap; }
+.rs-vs .plate b.long { font-size: 26px; }
+.rs-vs .plate em { display: block; margin-top: 2px; font: 700 normal 15px/1.1 var(--f-text); letter-spacing: .06em; color: #cdb98f; white-space: nowrap; }
 
 /* ================= HẾT RUN ================= */
 .rs-screen.endrun .pre { background: radial-gradient(ellipse at 50% 50%, rgba(8,4,16,.5), rgba(0,0,0,.96) 78%); }
@@ -173,15 +207,74 @@
 .rs-screen.endrun .rib { padding-left: 40px; }
 .rs-screen.endrun .rib .mdl { flex: none; width: 118px; height: 100px; margin: 0 -4px 0 -6px; background: center/contain no-repeat; filter: drop-shadow(0 4px 8px rgba(0,0,0,.6)); }
 .rs-screen.endrun .rib .mdl.none { filter: grayscale(1) brightness(.6); }
-/* rương theo mốc thắng: rương đạt cao nhất to và sáng */
-.rs-screen.endrun .chests { left: 1430px; top: 14px; gap: 6px; align-items: flex-end; }
-.rs-screen.endrun .ch { flex-direction: column; gap: 2px; width: 138px; padding: 6px 4px 8px; border-radius: 10px; background: rgba(10,14,40,.5); opacity: .5; filter: grayscale(.9) brightness(.8); box-shadow: none; }
-.rs-screen.endrun .ch.on { opacity: 1; filter: none; box-shadow: inset 0 0 0 2px rgba(255,214,120,.6); }
-.rs-screen.endrun .ch.top { transform: scale(1.12); transform-origin: 50% 100%; background: rgba(30,24,10,.65); box-shadow: inset 0 0 0 3px #ffd36b, 0 0 26px rgba(255,200,80,.7); }
-.rs-screen.endrun .ch i { width: 124px; height: 92px; background-position: center top; background-size: contain; -webkit-mask: linear-gradient(#000 64%, transparent 84%); mask: linear-gradient(#000 64%, transparent 84%); }
+/* rương theo mốc thắng: rương đạt cao nhất to và sáng. UI-15: ô = Frame_General_TUI 9-slice (viền 12 px, góc vát 18 px → slice 26 / 12px) trên nền
+   Tooltip_BG_TUI; ô cao nhất dùng Frame_General_Highlight_TUI; ảnh rương vẽ trọn (trước đây bị cắt đầu bởi center top + mặt nạ gradient) */
+.rs-screen.endrun .chests { left: 1428px; top: 36px; gap: 6px; align-items: flex-end; }
+.rs-screen.endrun .ch { flex-direction: column; gap: 2px; width: 150px; box-sizing: border-box; padding: 2px 2px 4px; border: 12px solid transparent; border-radius: 0; box-shadow: none;
+  border-image: url(../art/ui/ui_sprite_atlas/Frame_General_TUI.webp) 26 / 12px stretch; background: url(../art/ui/ui_sprite_atlas/Tooltip_BG_TUI.webp) 0 0/245px padding-box; opacity: .5; filter: grayscale(.9) brightness(.8); }
+.rs-screen.endrun .ch.on { opacity: 1; filter: none; box-shadow: none; }
+.rs-screen.endrun .ch.top { transform: scale(1.12); transform-origin: 50% 100%; box-shadow: none; border-image-source: url(../art/ui/ui_sprite_atlas/Frame_General_Highlight_TUI.webp); }
+.rs-screen.endrun .ch i { width: 116px; height: 84px; background-position: center; background-size: contain; -webkit-mask: none; mask: none; }
 .rs-screen.endrun .ch b { font: 800 22px/1 var(--f-title); color: #ffe9a8; }
 .rs-screen.endrun .ch.t-Silver b { color: #e4ebff; } .rs-screen.endrun .ch.t-Bronze b { color: #f0b585; }
-.rs-screen.endrun .chestnote { position: absolute; left: 1430px; width: 440px; top: 176px; text-align: center; font: 800 19px/1.2 var(--f-text); letter-spacing: .06em; color: #ffe9a8; text-shadow: 0 2px 4px #000; }
+.rs-screen.endrun .chestnote { position: absolute; left: 1430px; width: 460px; top: 214px; text-align: center; font: 800 19px/1.2 var(--f-text); letter-spacing: .06em; color: #ffe9a8; text-shadow: 0 2px 4px #000; }
 
 /* Số phận: ảnh theo id trong quả cầu (W-04) */
-.rs-fate-orb .ico { position: absolute; left: 50%; top: 50%; width: 104px; height: 104px; margin: -52px 0 0 -52px; z-index: 2; background: center/contain no-repeat; filter: drop-shadow(0 3px 6px rgba(20,0,60,.75)); pointer-events: none; }
+.rs-fate-orb .ico { inset: 0; border-radius: 50%; background: #1a0f2a center/cover no-repeat; } /* ảnh vuông cắt tròn trong vòng (UI-17: góc vuông lòi ra ngoài cầu) */
+
+/* ================= BÓNG MA PvP (review9 UI-13) =================
+   Như ref pvp-vs/09-12: chân dung trong khung gặp gỡ + bảng tên bên phải với hai thanh. Đè nền gradient / viền box-shadow / ảnh tròn của run.css.
+   Tooltip_PVP_Frame_TUI 488×192: tường 8 px, góc vát ~20 px → slice 24 / 10px. Prestige_Frame 267×85 (hở trái, vát phải 22 px, viền 12 px) cao 34 → ×0,4;
+   Prestige_Fill 249×68 lùi 3 px trên/dưới, 7 px phải. Atlas_Item_Meter_Frame 256×86 (đầu bo 43 px) cao 30 → ×0,35; Fill 256×64 lùi 4 px. */
+.rs-ghostpick { display: flex; align-items: center; gap: 0; width: 600px; margin-left: -300px; top: 296px; padding: 0; border-radius: 0; background: none; box-shadow: none; text-align: left; }
+.rs-ghostpick .pf { position: relative; flex: none; width: 196px; height: 170px; margin: 0; border-radius: 0; overflow: visible; box-shadow: none; background: none; z-index: 1;
+  filter: drop-shadow(0 0 14px rgba(255,214,120,.7)); }
+.rs-ghostpick .pf .win { position: absolute; overflow: hidden; background: #20140c; }
+.rs-ghostpick .pf .win i { display: block; width: 100%; height: 100%; background: center 12%/cover no-repeat; }
+.rs-ghostpick .pf .fr { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.rs-ghostpick .tip { position: relative; flex: 1; margin-left: -6px; padding: 16px 22px 18px; isolation: isolate; }
+.rs-ghostpick .tip::before { content: ""; position: absolute; inset: 0; z-index: -1; border: 0 solid transparent;
+  border-image: url(../art/ui/ui_sprite_atlas/Tooltip_PVP_Frame_TUI.webp) 24 / 10px stretch; background: url(../art/ui/ui_sprite_atlas/Tooltip_BG_TUI.webp) 0 0/245px repeat; }
+.rs-ghostpick b { margin-top: 0; font: 900 30px/1.05 var(--f-title); color: #fff3d6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rs-ghostpick small { margin-top: 4px; font: 700 16px/1.2 var(--f-text); color: #e9c783; }
+.rs-ghostpick .bar { position: relative; display: block; margin-top: 10px; height: 34px; }
+.rs-ghostpick .bar s { position: absolute; display: block; text-decoration: none; clip-path: inset(0 calc((1 - var(--f, 0)) * 100%) 0 0); }
+.rs-ghostpick .bar::after { content: ""; position: absolute; inset: 0; pointer-events: none; border: 0 solid transparent; }
+.rs-ghostpick .bar.pr { margin-left: 30px; }
+.rs-ghostpick .bar.pr::after { border-image: url(../art/ui/ui_sprite_atlas/Tooltip_PVP_Prestige_Frame_TUI.webp) 12 26 12 0 / 5px 10px 5px 0 stretch; }
+.rs-ghostpick .bar.pr s { left: 0; right: 7px; top: 3px; bottom: 3px; border: 0 solid transparent;
+  border-image: url(../art/ui/ui_sprite_atlas/Tooltip_PVP_Prestige_Fill_TUI.webp) 0 22 0 0 fill / 0 9px 0 0 stretch; }
+.rs-ghostpick .bar.pr .ic { position: absolute; left: -34px; top: -1px; width: 36px; height: 36px; background: center/contain no-repeat; }
+.rs-ghostpick .bar.wn { height: 30px; }
+.rs-ghostpick .bar.wn::after { border-image: url(../art/ui/ui_sprite_atlas/Atlas_Item_Meter_Frame_TUI.webp) 0 43 fill / 0 15px stretch; }
+.rs-ghostpick .bar.wn s { left: 3px; right: 3px; top: 4px; bottom: 4px; border: 0 solid transparent;
+  border-image: url(../art/ui/ui_sprite_atlas/Atlas_Item_Meter_Fill_TUI.webp) 0 32 fill / 0 11px stretch; }
+.rs-ghostpick .tap { position: absolute; left: 0; right: 0; top: 100%; margin-top: 10px; text-align: center; }
+
+/* ================= HẾT RUN: khung thẻ tổng kết (review9 UI-15) =================
+   Đè nền gradient / viền box-shadow / clip-path của run.css bằng sprite gốc 9-slice: băng "N thắng", khung bàn, thanh chỉ số = Container_Popup_Big_TUI
+   (512², góc vát 83-89 px → slice 100, vẽ 64 px; thanh chỉ số cao 92 → 46 px); nhãn nhỏ = Tooltip_Gold_Nested_TUI (viền ~6 px → slice 12 / 6px);
+   vạch chia chỉ số = Line_Vert_01_TUI. */
+.rs-screen.endrun .rib { background: none; box-shadow: none; border: 0 solid transparent; border-image: url(../art/ui/ui_sprite_atlas/Container_Popup_Big_TUI.webp) 100 fill / 64px stretch; filter: drop-shadow(0 10px 24px rgba(0,0,0,.5)); }
+.rs-screen.endrun .board { background: none; box-shadow: none; border-radius: 0; border: 0 solid transparent; border-image: url(../art/ui/ui_sprite_atlas/Container_Popup_Big_TUI.webp) 100 fill / 64px stretch; }
+.rs-screen.endrun .stats { clip-path: none; background: none; border: 0 solid transparent; border-image: url(../art/ui/ui_sprite_atlas/Container_Popup_Big_TUI.webp) 100 fill / 46px stretch; padding: 0 18px; box-sizing: border-box; }
+.rs-screen.endrun .st { border-right: 0; background: url(../art/ui/ui_sprite_atlas/Line_Vert_01_TUI.webp) right center/3px 60% no-repeat; }
+.rs-screen.endrun .st:last-child { background: none; }
+.rs-screen.endrun .who small, .rs-screen.endrun .bestlbl small { padding: 2px 12px; border: 6px solid transparent; border-radius: 0; box-shadow: none;
+  border-image: url(../art/ui/ui_sprite_atlas/Tooltip_Gold_Nested_TUI.webp) 12 fill / 6px stretch; background: none; }
+.rs-screen.endrun .bestlbl small { display: inline-block; }
+
+/* ================= TRẬN ================= */
+/* UI-11: cúp bên thắng (bazaar.css .bz-crown.bot top 808) nằm giữa thanh máu, che số máu; dời sang góc phải trên khung chân dung */
+#bz-stage .bz-crown.bot { top: 838px; left: 1052px; z-index: 6; }
+/* UI-28: dock tốc độ (run.css right/bottom 24px) đè đáy tấm Vàng; trên máy tính dựng dọc ở lề phải, ngoài tấm (x ≥ 1548 sân), trên bánh răng */
+#bz-stage:not(.bz-cam) .rs-fightdock { right: 22px; bottom: 190px; flex-direction: column; align-items: flex-end; }
+#bz-stage:not(.bz-cam) .rs-fightdock .skip span { display: none; } /* cột hẹp: nút tới kết quả chỉ còn icon, chữ ở title */
+.rs-rw b.loss { color: #ff8a7a; }
+/* UI-7: tên dài (bóng PvP) xuống dòng trong tấm bên thay vì tràn ra ngoài */
+.bz-side .rs-side-name h3 { overflow-wrap: anywhere; }
+.bz-side .rs-side-name.long h3 { font-size: 19px; } .rs-small .bz-side .rs-side-name.long h3 { font-size: 24px; }
+#bz-stage.bz-cam .bz-side .rs-side-name.long small { font-size: 22px; } #bz-stage.bz-cam .bz-side .rs-side-name.long h3 { font-size: 28px; }
+#bz-stage.bz-cam .bz-side .rs-side-name.long p { font-size: 24px; }
+/* UI-14: viên "Bấm để bỏ qua" ở giữa đáy, giữa hai bảng tên (điện thoại: bảng tên phải che mất viên) */
+.rs-vs .skip, #bz-stage.bz-cam .rs-vs .skip { right: auto; left: 50%; translate: -50% 0; white-space: nowrap; }

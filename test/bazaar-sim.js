@@ -583,7 +583,17 @@ function fix6() {
     eq('CONTENT-13 Pontoon Skimmer Turbo', BZ.cardText({ uid: 'ps', id: ps, tier: 'Silver', ench: 'Turbo', socket: 0, size: 1, section: 'hand' }).map(l => l.text).pop(), 'When your items start Flying, Haste an item for 1 second(s)');
   }
 }
+
+// High Impact: dữ liệu ghi Multiply 25, chữ "a Weapon gains 25% Damage" → súng 10 sát thương thành 13 (làm tròn xa 0), không phải 250
+function fix9() {
+  console.log('\n# Đợt 9');
+  const hi = Object.values(globalThis.BZ_CARDS).find(t => t.InternalName === 'High Impact');
+  BZ.extraCards.wgun = item('wgun', { CooldownMax: 5000, DamageAmount: 10, Multicast: 1 }, [{ Trigger: FIRE, Action: { $type: 'TActionPlayerDamage', Target: OPP } }], { Tags: ['Weapon'] });
+  const r = BZ.run({ boards: [board('A', 1000, [card('wgun', 3), card(hi.Id, 0, { section: 'skills' })]), board('Dummy', 1000, [])], seed: 1, sandstorm: false, maxMs: 6000 });
+  eq('High Impact: phát đầu của súng 10 sát thương', evs(r, 'damage').map(e => e.amt)[0], 13);
+}
 if (!ONLY || ONLY === 'fix6') fix6();
+if (!ONLY || ONLY === 'fix9') fix9();
 if (!ONLY || ONLY === 'sockets') socketsAndEffects();
 console.log('\n' + pass + ' đạt, ' + fail + ' trượt');
 process.exit(fail ? 1 : 0);

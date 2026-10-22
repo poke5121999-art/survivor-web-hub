@@ -75,7 +75,8 @@
       var cls = l.ench ? 'ln ench' : (l.type === 'Passive' ? 'ln passive' : 'ln');
       (l.type === 'Passive' && !l.ench ? pas : act).push('<div class="' + cls + '">' + f.html + '</div>');
     });
-    if (!act.length && pas.length) { act = pas; pas = []; }
+    // chỉ có dòng bị động, không đồng hồ / đạn: không vẽ ô chủ động (Frame_Active), chữ nằm thẳng dưới tiêu đề sau vạch Divider
+    var bodyless = !act.length && !(info.cooldown > 0) && !(info.ammoMax > 0);
     var h = '<div class="tabs">';
     if (info.type === 'Skill') h += '<span class="tab">Kỹ năng</span>';
     else if (info.size) h += '<span class="tab">' + esc(String(info.size).toUpperCase()) + '</span>';
@@ -83,13 +84,16 @@
     h += '</div><div class="box"><div class="head"><h3>' + esc(info.name) + '</h3><span class="tier">' + esc(TIER_VI[info.tier] || info.tier || '') +
       (info.ench ? ' · ' + esc(info.ench) : '') + '</span></div>';
     var clock = info.cooldown > 0;
-    h += '<div class="body' + (clock ? ' has-clock' : '') + '">';
-    if (clock) h += '<div class="clock"><b>' + (Math.round(info.cooldown / 100) / 10).toFixed(1) + '</b><small>GIÂY</small></div>';
-    h += '<div class="lines">' + (act.join('') || '<div class="ln passive" style="opacity:.6">—</div>') + '</div>';
-    if (info.ammoMax > 0) h += '<div class="ammo"><i></i>' + info.ammoMax + '</div>';
-    h += '</div>';
-    if (pas.length) h += '<div class="passives">' + pas.join('') + '</div>';
-    if (info.crit > 0) h += '<div class="crit">TỈ LỆ CHÍ MẠNG: ' + ico('Crit Chance') + '<span class="num">' + Math.round(info.crit) + '%</span></div>';
+    var crit = info.crit > 0 ? '<div class="crit">Tỉ lệ chí mạng: ' + ico('Crit Chance') + '<span class="num">' + Math.round(info.crit) + '%</span></div>' : '';
+    if (bodyless) h += '<div class="passives lines">' + (pas.join('') || '<div class="ln passive" style="opacity:.6">—</div>') + crit + '</div>';
+    else {
+      h += '<div class="body' + (clock ? ' has-clock' : '') + '">';
+      if (clock) h += '<div class="clock"><b>' + (Math.round(info.cooldown / 100) / 10).toFixed(1) + '</b><small>GIÂY</small></div>';
+      h += '<div class="lines">' + (act.join('') || '<div class="ln passive" style="opacity:.6">—</div>') + crit + '</div>';
+      if (info.ammoMax > 0) h += '<div class="ammo"><i></i>' + info.ammoMax + '</div>';
+      h += '</div>';
+      if (pas.length) h += '<div class="passives">' + pas.join('') + '</div>';
+    }
     h += '</div>';
     var kl = Object.keys(keys).slice(0, 3), MT = (root.BZ_MODE && root.BZ_MODE.tooltips) || {};
     if (kl.length) {
@@ -119,13 +123,16 @@
     var showing = box.classList.contains('show');
     if (cur !== info) { box.innerHTML = T.render(info); cur = info; }
     box.className = 'bz-tip t-' + (info.tier || 'Bronze') + (showing ? ' show' : '') + (lock ? ' locked' : '');
-    box.style.display = 'block'; box.style.scale = '';
-    var w0 = box.offsetWidth, h0 = box.offsetHeight;
+    box.style.display = 'flex'; box.style.scale = '';
     // MOBILE-2: sân 1920×1080 co theo màn (0,36 ở 844×390) làm chữ 23 px còn ~8 px thật → phóng tooltip để dòng chữ ≥ ~12 px thật,
     // tối đa 2,2× và không quá khổ sân (chừa 24 px mỗi bên)
-    var vs = (root.BZView && root.BZView.scale) || 1, k = Math.max(1, Math.min(2.2, T.MIN_PX / (23 * vs)));
+    var vs = (root.BZView && root.BZView.scale) || 1, kWant = Math.max(1, Math.min(2.2, T.MIN_PX / (23 * vs)));
     var v = (root.BZView && root.BZView.vis) || { x0: 0, y0: 0, x1: stageW, y1: stageH }; // camera điện thoại chỉ thấy một phần sân
-    k = Math.max(1, Math.min(k, (v.x1 - v.x0 - 24) / w0, (v.y1 - v.y0 - 24) / h0));
+    // bảng từ khoá nằm dưới tooltip (UI-27); không đủ chỗ (điện thoại) thì bỏ bảng chứ không thu nhỏ chữ của tooltip
+    var ks = box.querySelector('.keys'); if (ks) ks.style.display = '';
+    var w0 = box.offsetWidth, h0 = box.offsetHeight;
+    var fit = function () { return Math.max(1, Math.min(kWant, (v.x1 - v.x0 - 24) / w0, (v.y1 - v.y0 - 24) / h0)); }, k = fit();
+    if (ks && k < kWant - 0.01) { ks.style.display = 'none'; w0 = box.offsetWidth; h0 = box.offsetHeight; k = fit(); }
     var w = w0 * k, h = h0 * k;
     // clip UBBAzdzXo8g: thẻ ở hàng dưới → tooltip nằm TRÊN thẻ, mép trái lệch ~20 px; hàng trên → bên phải thẻ (lật trái khi hết chỗ)
     var gap = 26, x = rect.x + rect.w + gap, left = false, y = rect.y + rect.h / 2 - h / 2;
@@ -138,8 +145,6 @@
     else box.style.transformOrigin = (left ? '100%' : '0') + ' 50%';
     box.style.left = Math.round(x) + 'px'; box.style.top = Math.round(y) + 'px';
     T.lastScale = k;
-    var ks = box.querySelector('.keys');
-    if (ks) { ks.style.left = Math.round((v.x0 + 24 - x) / k) + 'px'; ks.style.top = Math.round((v.y1 - 24 - ks.offsetHeight * k - y) / k) + 'px'; }
     if (!box.classList.contains('show')) { void box.offsetWidth; box.classList.add('show'); }
   }
   T.hide = function () { if (!box || lock) return; box.classList.remove('show'); box.style.display = 'none'; cur = null; };

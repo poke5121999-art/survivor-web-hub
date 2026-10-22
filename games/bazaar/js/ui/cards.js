@@ -35,7 +35,7 @@
     var tr = Rf.tray;
     tr.style.left = G.tray.left + 'px'; tr.style.top = G.tray.top + 'px'; tr.style.width = G.tray.w + 'px'; tr.style.height = G.tray.hgt + 'px';
     var head = U.el('div', 'head', tr, '<span>Kho đồ</span>');
-    U.button(head, 'x', '✕', 'Đóng kho (Space)', function () { C.toggleStash(false); });
+    U.button(head, 'x', '<i class="xi"></i>', 'Đóng kho (Space)', function () { C.toggleStash(false); });
     for (var k = 0; k < 10; k++) {
       var t = U.el('div', 'rs-sock tray', tr);
       t.style.left = (G.tray.x0 + k * G.tray.pitch + 3) + 'px'; t.style.top = (G.tray.y - 2) + 'px';

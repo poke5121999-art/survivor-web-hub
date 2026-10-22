@@ -11,8 +11,9 @@ Node một lần để lấy tên thẻ). Bản bazaardb mới hơn DB demo (5.0
 và đếm. Mọi tên không khớp in ra theo nhóm kèm số lượng, ghi vào đầu data/shops.js.
 
 Ra: data/shops.js  window.BZ_SHOPS = {patch, merchants, trainers, events, tierOdds, census}
-  merchants[encounterId] = {name, pool:[cardId], enchantedPool?, reroll:{n,cost}, tiers?, hero?, sellMod?:{size|tag, plus}, discounted?, days}
-  trainers[encounterId]  = {name, pool:[skillId], reroll:{n,cost}, tiers?, days, levelUp}
+  merchants[encounterId] = {name, pool:[cardId], enchantedPool?, reroll:{n,cost}, tiers?, hero?, heroes?, sellMod?:{size|tag, plus}, discounted?, days}
+  (heroes = hero có hàng ở bazaardb pool_per_hero_counts; gặp gỡ chỉ bày cho các hero này)
+  trainers[encounterId]  = {name, pool:[skillId], reroll:{n,cost}, tiers?, heroes?, days, levelUp}
   events[encounterId]    = {name, days, choices:[{stepId, t, title, stamp?, cond?, heroes?, odds:{"1":pct,...,"all":pct}}]}
   tierOdds = [{day, bronze, silver, gold, diamond}] (ngày 1..16, phần trăm)
 Trong tệp, pool là chỉ số vào bảng `ids` cho gọn (khoảng 1/10 dung lượng), đoạn cuối tệp bung lại thành id thẻ khi nạp.
@@ -116,6 +117,17 @@ def pct(s):
     return float(m.group(1)) if m else None
 
 
+def heroes_with_pool(group):
+    """Hero nào thương nhân / thầy có hàng (bazaardb pool_per_hero_counts > 0): bản live chỉ bày gặp gỡ cho các hero này.
+    None khi site không có số theo hero ({"_default": None})."""
+    out = set()
+    for g in group:
+        for h, n in (g.get("pool_per_hero_counts") or {}).items():
+            if h != "_default" and n:
+                out.add(h)
+    return sorted(out) or None
+
+
 def main():
     W = web_dump()
     M = load("merchants.json")["entries"]
@@ -192,6 +204,9 @@ def main():
         hm = hero_mode(a.get("sells_filter_text"))
         if hm:
             rec["hero"] = hm
+        hs = heroes_with_pool(group)
+        if hs:
+            rec["heroes"] = hs
         if ench:
             rec["enchantedPool"] = ench
         sm = a.get("sell_price_modifier")
@@ -234,6 +249,9 @@ def main():
         t = parse_tiers(a.get("description"))
         if t:
             rec["tiers"] = t
+        hs = heroes_with_pool(group)
+        if hs:
+            rec["heroes"] = hs
         for w in web:
             trainers[w["id"]] = dict(rec, name=a["name"])
 

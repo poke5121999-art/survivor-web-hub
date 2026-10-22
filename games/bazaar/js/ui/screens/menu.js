@@ -46,6 +46,7 @@
       r._mute.innerHTML = A.isMuted() ? '<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9zM16 9.4l1.4-1.4 2.1 2.1 2.1-2.1 1.4 1.4-2.1 2.1 2.1 2.1-1.4 1.4-2.1-2.1-2.1 2.1-1.4-1.4 2.1-2.1z"/></svg>'
         : '<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9zM16 8.5a5 5 0 0 1 0 7l1.4 1.4a7 7 0 0 0 0-9.8zM18.8 5.7a9 9 0 0 1 0 12.6l1.4 1.4a11 11 0 0 0 0-15.4z"/></svg>';
       r._vol.value = Math.round(A.getVolume() * 100);
+      r._vol.style.setProperty('--p', r._vol.value);
     });
   };
 
@@ -190,7 +191,7 @@
   // thanh dưới: thẻ XẾP HẠNG | Sẵn sàng | THƯỜNG. Hai thẻ chế độ chỉ là nhãn (bản web chưa có xếp hạng): cả hai bắt đầu cùng một run.
   var starting = false, mode = 'normal', lobbyIds = null;
   var SVG_BACK = '<svg viewBox="0 0 24 24"><path d="M15 4 7 12l8 8 2-2-6-6 6-6z"/></svg>';
-  var SVG_GEAR = '<svg viewBox="0 0 24 24"><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.4 7.4 0 0 0-1.7-1L15 3.4h-4L10.6 6a7.4 7.4 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.6a7.6 7.6 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.4 7.4 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.4 7.4 0 0 0 1.7-1l2.4 1 2-3.4zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg>';
+  var SVG_GEAR = '<i class="ic"></i>'; // sprite Icon_InGameMenu_Settings_TUI (bazaar.css)
   var SVG_SWORDS = '<svg viewBox="0 0 24 24"><path d="M3 3l7 1 9.5 9.5-2 2L8 6zM21 3l-7 1-2 2 3 3 5-4zM5 15l4 4-2 2-2.5-1L3 17.5zM15 14l5 5-1.5 2L14 17z"/></svg>';
   function rbtn(parent, cls, svg, title, fn) {
     return U.button(parent, 'lb-rnd ' + cls, '<i class="fr"></i><i class="ct"></i>' + svg, title, fn);
@@ -244,7 +245,7 @@
       var art = U.el('i', 'art', b);
       if (x.ui.btn) art.style.backgroundImage = U.bg(x.ui.btn);
       else U.el('b', '', art).style.backgroundImage = U.bg(x.ui.portrait); // không có Btn_*_TUI: lục giác dựng bằng CSS quanh chân dung
-      if (!x.playable) U.el('i', 'lk', b, '<svg viewBox="0 0 24 24"><path d="M7 10V7a5 5 0 0 1 10 0v3h1.5v11h-13V10zm2 0h6V7a3 3 0 0 0-6 0z"/></svg>');
+      if (!x.playable) U.el('i', 'lk', b, '<u></u>'); // ổ khoá = sprite Tooltip_Ring_Lock_TUI (bazaar.css)
       U.el('span', 'plate', b, U.esc(x.title.toUpperCase()));
       b.addEventListener('click', function () { U.sfx('ui.click'); pick(h); });
       b.addEventListener('pointerenter', function () { U.sfx('ui.hover', { vol: 0.5 }); });
