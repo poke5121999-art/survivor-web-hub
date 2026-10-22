@@ -1,22 +1,25 @@
 // Vòng chơi lát cắt đầu: bản đồ + người chơi + slime đồng hành + camera + nhập + bước chân + HUD + màn tải.
 // Logic chạy trong toạ độ Unity (x phải, z lên màn hình, y cao); chỉ khi đặt Object3D mới đổi sang three (-x, y, z).
 import * as THREE from 'three';
-import { REV, PARAMS, MOVE } from './config.js?v=20261022a';
-import { GameMap, loadMapData } from './world/map.js?v=20261022a';
-import { envTime } from './world/envmat.js?v=20261022a';
-import { Player, Slime, Npc } from './actors/actors.js?v=20261022a';
-import { loadTex } from './assets.js?v=20261022a';
-import { MAPS, DEFAULT_MAP } from '../data/portals.js?v=20261022a';
-import { Post, GRADE } from './post.js?v=20261022a';
-import { FollowCamera } from './camera.js?v=20261022a';
-import { makeIntent, quantizeMove, endFrame } from './input/intent.js?v=20261022a';
-import { attachPC } from './input/pc.js?v=20261022a';
-import { attachMobile } from './input/mobile.js?v=20261022a';
-import { Audio } from './audio.js?v=20261022a';
-import { Hud } from './ui/hud.js?v=20261022a';
-import { showLoading } from './ui/loading.js?v=20261022a';
-import { state, set } from './state.js?v=20261022a';
-import { t } from '../data/loc_vi.js?v=20261022a';
+import { REV, PARAMS, MOVE } from './config.js?v=20261022b';
+import { GameMap, loadMapData } from './world/map.js?v=20261022b';
+import { envTime, envMaterial } from './world/envmat.js?v=20261022b';
+import { Player, Slime, Npc } from './actors/actors.js?v=20261022b';
+import { loadTex, loadGLB } from './assets.js?v=20261022b';
+import { MAPS, DEFAULT_MAP } from '../data/portals.js?v=20261022b';
+import { Post, GRADE } from './post.js?v=20261022b';
+import { FollowCamera } from './camera.js?v=20261022b';
+import { makeIntent, quantizeMove, endFrame } from './input/intent.js?v=20261022b';
+import { attachPC } from './input/pc.js?v=20261022b';
+import { attachMobile } from './input/mobile.js?v=20261022b';
+import { Audio } from './audio.js?v=20261022b';
+import { Hud } from './ui/hud.js?v=20261022b';
+import { showLoading } from './ui/loading.js?v=20261022b';
+import { state, set } from './state.js?v=20261022b';
+import { t } from '../data/loc_vi.js?v=20261022b';
+import { Story } from './ui/story.js?v=20261022b';
+import { QuestEngine } from './quest/engine.js?v=20261022b';
+import { BOXES, WEST_GATE } from './quest/data.js?v=20261022b';
 
 const errors = (window.__wosErrors = window.__wosErrors || []);
 addEventListener('error', e => errors.push('error: ' + e.message));
@@ -87,7 +90,6 @@ export async function boot(platform) {
   hud.portrait(renderer, player.object);
   // [ĐỀ XUẤT] nhiệm vụ mẫu để thấy bố cục QuestBookmarkLayout (tên nhiệm vụ do server gửi; dịch từ khung hình V4Van)
   // ?quest: hiện nhiệm vụ mẫu, ?warn: hiện cảnh báo thể lực (để so với khung hình); mặc định như ảnh chụp demo thật
-  if (PARAMS.has('quest')) set({ quest: { title: 'Thảo Mộc Trong Hộp', objectives: [{ text: 'Thảo mộc 0/1', done: false }] } });
   if (PARAMS.has('warn')) set({ warnStamina: true });
 
   const audio = new Audio();
@@ -103,8 +105,9 @@ export async function boot(platform) {
   audio.playBgm(map.data.client.bgm);
   const fcam = new FollowCamera(map, innerWidth / innerHeight);
   if (+PARAMS.get('zoom') > 0) fcam.dist = +PARAMS.get('zoom');   // ?zoom=<m>: khoảng cách camera (để chụp thử)
-  if (platform === 'pc') attachPC(intent, renderer.domElement, { onWheel: n => fcam.wheel(n) });
-  else attachMobile(intent, root, hud, { onPinch: f => fcam.zoom(f) });
+  let baseDist = fcam.dist;
+  if (platform === 'pc') attachPC(intent, renderer.domElement, { onWheel: n => { if (!state.modal) { fcam.wheel(n); baseDist = fcam.dist; } } });
+  else attachMobile(intent, root, hud, { onPinch: f => { if (!state.modal) { fcam.zoom(f); baseDist = fcam.dist; } } });
   addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); post.resize(); fcam.setAspect(innerWidth / innerHeight); });
 
   // bước chân theo sự kiện clip, landType ô dưới chân
@@ -137,6 +140,43 @@ export async function boot(platform) {
   const log = [];
   const W = window.WOS = { REV, platform, map, player, slime, P, S, intent, audio, stats, camera: fcam, renderer, scene, errors, hud, state, log, npcs: [], maps: [], THREE };
 
+  // ---- nhiệm vụ: js/quest/engine.js (bảng js/quest/data.js) + giao diện js/ui/story.js
+  const story = new Story(hud, { renderer });
+  const engine = new QuestEngine(story, {
+    npcObject: n => { const a = npcs.find(k => k.def.name === n); return a ? a.object : null; },
+    npcHeight: n => { const a = npcs.find(k => k.def.name === n); return a ? a.height : null; },
+    playerObject: () => player.object, playerHeight: () => player.height,
+    pushback: () => { const b = WEST_GATE.back; P.x = b.x; P.z = b.z; P.y = map.getHeight(b.x, b.z); P.yaw = yawOfDeg(90); P.dashT = 0; gateT = 1.5; },
+  });
+  W.quest = engine; W.story = story;
+  // ?quest: bày trạng thái "đang làm The Herb in the Box" (q1..q3 xong) để so bố cục QuestBookmark với khung hình; chỉ trong bộ nhớ
+  if (PARAMS.has('quest')) { engine.save.quests = { q1: { s: 'done', c: {} }, q2: { s: 'done', c: {} }, q3: { s: 'done', c: {} }, q4: { s: 'active', c: {} } }; engine.sync(); }
+  let gateT = 0, target = null;
+  // hộp trôi dạt (prop/pr_oldbox_*) chỉ ở làng 110
+  let props = [];
+  const loadProps = async () => {
+    for (const o of props) scene.remove(o);
+    props = [];
+    if (String(map.data.id) !== '110') return;
+    const forMap = map;
+    for (const b of BOXES) {
+      try {
+        const g = await loadGLB(b.model);
+        if (forMap !== map) return;
+        const lib = g.scene.children[0], node = (lib.children[0] || lib).clone(true);
+        const texFor = (uri, ramp) => loadTex(/^(map|prop|slime|npc|player)\//.test(uri) ? uri : b.model.replace(/[^/]+$/, '') + uri, { nearest: !!ramp });
+        node.traverse(k => { if (k.isMesh) k.material = envMaterial(k.material, { hasVColor: !!k.geometry.attributes._color, texFor }); });
+        node.position.set(0, 0, 0);
+        const grp = new THREE.Group(); grp.add(node); grp.name = 'box:' + b.id;
+        const y = map.getHeight(b.x, b.z);
+        grp.position.set(-b.x, y > -100 ? y : 0, b.z); grp.rotation.y = yawOfDeg(b.yaw || 0); if (b.scale) grp.scale.setScalar(b.scale);
+        scene.add(grp); props.push(grp);
+      } catch (e) { errors.push('box ' + b.id + ': ' + e.message); }
+    }
+    W.props = props;
+  };
+  loadProps();
+
   // ---- NPC của bản đồ (data/portals.js, chỗ đứng [ĐO TRONG ẢNH])
   let npcs = [];
   const loadNpcs = async () => {
@@ -157,6 +197,7 @@ export async function boot(platform) {
       scene.add(n.object);
     }
     hud.setNpcs(npcs.map(n => ({ name: n.def.name, object: n.object, height: n.height })));
+    engine.sync();
     W.npcs = npcs;
   };
   const npcsReady = loadNpcs();
@@ -188,6 +229,8 @@ export async function boot(platform) {
       fcam.update(0, P, true);
       audio.playBgm(map.data.client.bgm);
       await loadNpcs();
+      loadProps();
+      if (mapInfo()) story.placeTitle(mapInfo().name);
       W.maps.push({ id: mapId, ms: Math.round(performance.now() - t0), via: portal.name });
     } catch (e) { errors.push('switch map: ' + (e && e.message || e)); }
     fade.style.opacity = '0';
@@ -212,10 +255,13 @@ export async function boot(platform) {
   };
   // hành động SMActions mỗi khung (phím, chuột, nút HUD, cảm ứng)
   const actions = () => {
+    if (state.modal) { intent.pressed.clear(); return; }   // hội thoại / bảng đang mở: phím do js/ui/story.js nhận
     for (const a of intent.pressed) {
       log.push(a); if (log.length > 200) log.shift();
       if (a === 'attack') attack(true);
-      else if (a === 'interactAttack') { if (state.battle) recall(); else attack(true); }   // KeyboardInteractAttack: không có NPC gần thì đánh; đang đánh thì nút lớn là Return
+      else if ((a === 'interactAttack' || a === 'interact') && target && !state.battle) engine.interact(target);   // KeyboardInteractAttack: có NPC/hộp trong tầm thì tương tác
+      else if (a === 'interact') { /* nút InteractButton khi không còn gì trong tầm */ }
+      else if (a === 'interactAttack') { if (state.battle) recall(); else attack(true); }   // không có NPC gần thì đánh; đang đánh thì nút lớn là Return
       else if (a === 'return') recall();
       else if (/^equip\d$/.test(a)) {
         const i = +a.slice(5);
@@ -227,6 +273,8 @@ export async function boot(platform) {
       else if (a === 'minimap') set({ minimapOpen: !state.minimapOpen });
       else if (a === 'combatmode') { set({ autoBattle: !state.autoBattle }); hud.toast(t('Settings.Keymap.CombatMode')); }
       else if (a === 'escape' && state.minimapOpen) set({ minimapOpen: false });
+      else if (a === 'quest') story.openQuestLog();
+      else if (a === 'perk') story.openPerk();
       else if (PANELS[a]) hud.toast(t(PANELS[a]) + ' · chưa có');
     }
   };
@@ -245,7 +293,7 @@ export async function boot(platform) {
     envTime.value += dt;
 
     // --- người chơi
-    const q = quantizeMove(intent.move, MOVE.dirs);
+    const q = quantizeMove(state.modal ? { x: 0, y: 0 } : intent.move, MOVE.dirs);
     P.dashCd = Math.max(0, P.dashCd - dt);
     if (intent.pressed.has('dash') && P.dashCd <= 0) {
       const d = q.speedStep ? { x: Math.cos(q.angle), z: Math.sin(q.angle) } : { x: -Math.sin(P.yaw), z: Math.cos(P.yaw) };
@@ -275,7 +323,16 @@ export async function boot(platform) {
     else player.play('Idle', 0.2);
     place(player.object, P);
     player.update(dt);
-    if (!switching) { const pt = portalAt(P.x, P.z); if (pt) switchMap(pt); }
+    if (!switching && !state.modal) { const pt = portalAt(P.x, P.z); if (pt) switchMap(pt); }
+    // nhiệm vụ: bắt đầu nhiệm vụ 1, tìm thứ tương tác được trong tầm, Rudga chặn cổng tây (4:54)
+    if (!switching) {
+      engine.tick(P, sp);
+      target = state.modal ? null : engine.interactAt(map.data.id, P.x, P.z, npcs.map(n => ({ name: n.def.name, x: n.def.x, z: n.def.z })));
+      hud.setInteract(target ? target.kind : null);
+      gateT = Math.max(0, gateT - dt);
+      const g = WEST_GATE.rect;
+      if (!state.modal && gateT <= 0 && String(map.data.id) === '110' && P.x >= g[0] && P.x <= g[2] && P.z >= g[1] && P.z <= g[3]) { gateT = 1.5; engine.talk(WEST_GATE.npc, { gate: true }); }
+    }
     for (const n of npcs) n.update(dt);
 
     // --- slime đồng hành: theo sau ~1.6 m [ĐỀ XUẤT]; Return (huýt sáo) gọi về cạnh người chơi
@@ -294,7 +351,13 @@ export async function boot(platform) {
     place(slime.object, S);
     slime.update(dt);
 
-    fcam.update(dt, camT());
+    // hội thoại: camera lại gần và nhìn giữa người chơi với NPC. [ĐO TRONG ẢNH] v9.png -> al1.png quầy kho rộng 330 -> 450 px
+    // (x1.36, khoảng cách x0.735); pilot x5.png cũng phóng như vậy so với r1.png
+    const dn = state.modal === 'dialogue' && story.dlg && story.dlg.ctx.npc ? npcs.find(n => n.def.name === story.dlg.ctx.npc) : null;
+    const want = dn ? baseDist * 0.735 : baseDist;
+    fcam.dist += (want - fcam.dist) * Math.min(1, dt * 4);
+    if (Math.abs(want - fcam.dist) < 0.05) fcam.dist = want;
+    fcam.update(dt, dn ? { x: (P.x + dn.def.x) / 2, z: (P.z + dn.def.z) / 2, y: P.y } : camT());
     post.render(scene, fcam.cam);
     hud.frame(fcam.cam, P, S, player, slime, P.yaw);
     endFrame(intent);

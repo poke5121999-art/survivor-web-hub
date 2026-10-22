@@ -1,11 +1,11 @@
 // Sprite giao diện từ repo asset (ui/<folder>/<name>.webp). Viền 9-slice chép từ ui/index.json ([l, b, r, t] px của
 // ảnh đã bóc) cho đúng những sprite HUD dùng, để không phải tải index.json 545 KB lúc vào game.
 // Image.color của Unity nhân màu vào sprite: CSS không nhân được nên `tinted()` nhân sẵn trên canvas rồi trả blob URL.
-import { assetUrl } from '../assets.js?v=20261022a';
+import { assetUrl } from '../assets.js?v=20261022b';
 
 export const BORDER = {
   'Common/Ui_Bg_Round_01_32px': [15, 15, 16, 16],
-  'Common/Ui_Bg_Round_01_54px': [28, 27, 27, 26],
+  'Common/Ui_Bg_Round_01_54px': [28, 27, 27, 26],   // 54 px: l + r = 55 > 54 (tâm âm) -> sliceCanvas kéo dãn dải giữa như Unity
   'Common/bg_common_badge_red_60px': [30, 0, 27, 0],
   'Common/Ui_Bg_Round_02_Medium_32px': [31, 0, 31, 0],
   'Game/UI_Gauge_BG01_1': [10, 9, 10, 9],
@@ -19,6 +19,21 @@ export const BORDER = {
   'Game/UI_PlayerInfo_BG_Lv': [29, 0, 29, 0],
   'Login/Login_Loading_Gauge_Bg': [8, 0, 8, 0],
   'Login/Login_Loading_Gauge_Fill': [22, 0, 22, 0],
+  // hội thoại, nhiệm vụ, bảng (js/ui/story.js)
+  'DialogueUI/Dialogue_Frame_Round': [192, 192, 192, 192],   // ảnh 384: viền 192 x2 không còn tâm (sliceCanvas kéo dãn dải giữa)
+  'DialogueUI/Dialogue_List_Unpressed': [52, 46, 52, 46],   // 104x92: cũng không còn tâm
+  'DialogueUI/Dialogue_List_Pressed': [52, 46, 52, 46],
+  'Common/Ui_Bg_Rectangle_Round_05_Medium': [27, 0, 30, 0],
+  'Container/Popup_01_Medium': [148, 183, 148, 127],
+  'Container/Popup_01_Small': [200, 200, 200, 160],
+  'Container/UI_BG_16px': [4, 4, 4, 4],
+  'Common/Btn_Square_03_Large': [58, 0, 58, 0],
+  'Common/Btn_Square_03_Medium': [37, 0, 40, 0],
+  'Common/Ui_Bg_Rectangle_Round_02_68px': [26, 0, 27, 0],
+  'Common/Ui_Bg_Round_02_Medium_54px': [54, 0, 54, 0],
+  'Common/Btn_Square_02_Small_Blue': [36, 0, 104, 0],
+  'Levelup/Ui_LevelUp_Bg': [0, 14, 0, 14],
+  'MapText/UI_Map_Reveal_Paper_Outline': [45, 0, 45, 0],
 };
 
 export const uiUrl = key => assetUrl('ui/' + key + '.webp');
@@ -54,6 +69,34 @@ export function tinted(key, color) {
   return cache.get(k);
 }
 
+// 9-slice vẽ ra canvas đúng cỡ phần tử (thay cho CSS border-image): border-image để lộ đường nối giữa các mảnh khi #hud
+// bị scale, và để trống tâm khi viền chiếm hết ảnh (Dialogue_Frame_Round 384 viền 192x2, Ui_Bg_Round_01_54px). Unity
+// kéo dãn dải giữa trong trường hợp đó và co viền theo tỉ lệ khi viền lớn hơn rect: làm y như vậy.
+const imgCache = new Map();
+const imgOf = url => imgCache.get(url) || (imgCache.set(url, loadImg(url)), imgCache.get(url));
+// vẽ ở khung hình sau (rAF) và quan sát border-box: đổi viền trong callback làm ResizeObserver báo "loop completed"
+const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(es => { const t = es.map(e => e.target); requestAnimationFrame(() => t.forEach(drawSlice)); }) : null;
+function drawSlice(sp) {
+  const im = sp._im, cv = sp._cv; if (!im || !cv) return;
+  const w = Math.round(sp.offsetWidth), h = Math.round(sp.offsetHeight);
+  if (w < 1 || h < 1 || (sp._w === w && sp._h === h)) return;
+  sp._w = w; sp._h = h;
+  const iw = im.naturalWidth, ih = im.naturalHeight;
+  let [l, bo, r, t] = sp._b;
+  if (l + r >= iw) { const k = (iw - 1) / (l + r); l *= k; r *= k; }      // nguồn: tâm >= 1 px
+  if (t + bo >= ih) { const k = (ih - 1) / (t + bo); t *= k; bo *= k; }
+  const kx = Math.min(1, w / (l + r || 1)), ky = Math.min(1, h / (t + bo || 1));
+  const dl = l * kx, dr = r * kx, dt = t * ky, db = bo * ky;
+  cv.width = w; cv.height = h;
+  const g = cv.getContext('2d');
+  const sx = [0, l, iw - r, iw], dx = [0, dl, w - dr, w], sy = [0, t, ih - bo, ih], dy = [0, dt, h - db, h];
+  for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) {
+    const sw = sx[i + 1] - sx[i], sh = sy[j + 1] - sy[j], ww = dx[i + 1] - dx[i], hh = dy[j + 1] - dy[j];
+    if (sw > 0 && sh > 0 && ww > 0 && hh > 0) g.drawImage(im, sx[i], sy[j], sw, sh, dx[i], dy[j], ww + (i < 2 ? 0.5 : 0), hh + (j < 2 ? 0.5 : 0));
+  }
+  sp.style.borderImage = 'none'; sp.style.borderWidth = '0';
+}
+
 // Gắn sprite vào phần tử: một lớp <i class="spr"> phủ kín phần tử (để alpha của Image.color không làm mờ con).
 // type 0 (simple) = background co giãn, type 1 (sliced) = border-image theo BORDER. Trả về lớp sprite.
 export function paint(el, key, { color, sliced = false } = {}) {
@@ -68,6 +111,10 @@ export function paint(el, key, { color, sliced = false } = {}) {
       sp.style.borderStyle = 'solid';
       sp.style.borderWidth = `${t}px ${r}px ${bo}px ${l}px`;
       sp.style.borderImage = `url("${url}") ${t} ${r} ${bo} ${l} fill / ${t}px ${r}px ${bo}px ${l}px stretch`;
+      imgOf(url).then(im => {
+        sp._im = im; sp._b = b; sp._cv = document.createElement('canvas'); sp._cv.className = 'slice'; sp.appendChild(sp._cv);
+        if (ro) ro.observe(sp, { box: 'border-box' }); requestAnimationFrame(() => drawSlice(sp));
+      }).catch(() => {});
     } else {
       sp.style.backgroundImage = `url("${url}")`;
       sp.style.backgroundSize = '100% 100%';

@@ -2,8 +2,8 @@
 // (đã kiểm bằng ảnh sheet_final.png): ramp toon + spec/rim A/B theo mask + atlas decal mặt 3x3 theo trọng số clip +
 // emission + viền vỏ lộn (inverted hull) dày theo vertex colour B. Màu viền là đoán (albedo * _OutlineColor * 0.3).
 import * as THREE from 'three';
-import { loadTex } from '../assets.js?v=20261022a';
-import { LIGHT_DIR } from '../config.js?v=20261022a';
+import { loadTex } from '../assets.js?v=20261022b';
+import { LIGHT_DIR } from '../config.js?v=20261022b';
 
 const LIGHT = { value: new THREE.Vector3(...LIGHT_DIR).normalize() };
 const lin = c => new THREE.Vector4(...new THREE.Color(c[0], c[1], c[2]).convertSRGBToLinear().toArray(), c[3]);

@@ -1,8 +1,18 @@
 // Người chơi (ghép avatar theo player/index.json defaults) và slime đồng hành (slime/index.json variants).
 // Ghép avatar theo SM.Common.Character.CharacterBuilder (EXPORT_PLAYER.md); mã ghép chép từ sheet.html playerCell.
 import * as THREE from 'three';
-import { loadGLB, loadJSON, clipOf } from '../assets.js?v=20261022a';
-import { applyUnitMaterials, decalAt } from './toon.js?v=20261022a';
+import { loadGLB, loadJSON, clipOf } from '../assets.js?v=20261022b';
+import { applyUnitMaterials, decalAt } from './toon.js?v=20261022b';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+
+// loadGLB trả cùng một gltf (bộ đệm): vào lại bản đồ mà gắn lại g.scene + chạy lại applyUnitMaterials thì vật liệu toon bị
+// bọc hai lần, NPC ra trắng bệch (bẫy 28 ARCH.md). Vật liệu chỉ dựng một lần trên cảnh gốc, mỗi lần tạo là một bản nhân.
+const prepared = new Map();
+async function instanceOf(g, key) {
+  if (!prepared.has(key)) prepared.set(key, applyUnitMaterials(g, g.scene, {}));
+  const decals = await prepared.get(key);
+  return { scene: SkeletonUtils.clone(g.scene), decals };
+}
 
 // Enums.Wwise_Footstep_Event. [ĐỀ XUẤT] có None = 0 ở đầu: SL_Slime_* có wwiseFootstepEvent 7 = slime.
 export const FOOTSTEP_EVENTS = ['', 'Footstep_quad', 'Footstep_default', 'Footstep_giant', 'Footstep_flutter', 'Footstep_hop',
@@ -106,9 +116,10 @@ export class Slime extends Animated {
     const v = si.variants.find(x => x.id === id);
     if (!v) throw new Error('slime variant not found: ' + id);
     const g = await loadGLB(v.glb);
-    s.decals = await applyUnitMaterials(g, g.scene, {});
-    s.object = new THREE.Group(); s.object.name = 'Slime_' + id; s.object.add(g.scene);
-    s.mixer = new THREE.AnimationMixer(g.scene);
+    const inst = await instanceOf(g, 'slime:' + id);
+    s.decals = inst.decals;
+    s.object = new THREE.Group(); s.object.name = 'Slime_' + id; s.object.add(inst.scene);
+    s.mixer = new THREE.AnimationMixer(inst.scene);
     const ag = v.clips === 'embedded' ? g : await loadGLB(v.anim);
     for (const k of ['Idle', 'Walk', 'Attack', 'Hit']) if (v.actions[k]) s.addClip(k, clipOf(ag, v.actions[k]));
     s.footstepEvent = FOOTSTEP_EVENTS[(v.modelInfo || {}).wwiseFootstepEvent] || 'Footstep_slime';
@@ -127,9 +138,10 @@ export class Npc extends Animated {
     const v = ni.npcs.find(x => x.id === id);
     if (!v) throw new Error('npc not found: ' + id);
     const g = await loadGLB(v.glb);
-    n.decals = await applyUnitMaterials(g, g.scene, {});
-    n.object = new THREE.Group(); n.object.name = 'Npc_' + id; n.object.add(g.scene);
-    n.mixer = new THREE.AnimationMixer(g.scene);
+    const inst = await instanceOf(g, 'npc:' + id);
+    n.decals = inst.decals;
+    n.object = new THREE.Group(); n.object.name = 'Npc_' + id; n.object.add(inst.scene);
+    n.mixer = new THREE.AnimationMixer(inst.scene);
     const idle = (v.states || []).find(s => s.default) || (v.states || [])[0];
     if (idle) n.addClip('Idle', clipOf(g, idle.clips[0]));
     n.play('Idle', 0);

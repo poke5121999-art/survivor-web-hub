@@ -9,7 +9,7 @@
 // - Depth Water: màu _MainTex/_Color, trong suốt một phần, gợn sáng theo thời gian [ĐỀ XUẤT].
 // Chạy được với InstancedMesh (instanceMatrix) và mesh thường.
 import * as THREE from 'three';
-import { LIGHT_DIR } from '../config.js?v=20261022a';
+import { LIGHT_DIR } from '../config.js?v=20261022b';
 
 const WHITE = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); WHITE.needsUpdate = true;
 const lin = c => new THREE.Vector4(...new THREE.Color(c[0], c[1], c[2]).convertSRGBToLinear().toArray(), c[3] ?? 1);

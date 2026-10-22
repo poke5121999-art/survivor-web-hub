@@ -6,18 +6,18 @@
 // bản PC (PlatformPreview.UseStandaloneUIScale) nhân thêm StandaloneScale = 0.8.
 // Vị trí/cỡ nút PC khác mobile: PlaySceneButtonBatch.buttonInfos (standalonePosition/Size vs defaultPosition/Size).
 import * as THREE from 'three';
-import { paint, tinted, uiUrl, used } from './sprites.js?v=20261022a';
-import { assetUrl } from '../assets.js?v=20261022a';
-import { state, on } from '../state.js?v=20261022a';
-import { t } from '../../data/loc_vi.js?v=20261022a';
+import { paint, tinted, uiUrl, used } from './sprites.js?v=20261022b';
+import { assetUrl } from '../assets.js?v=20261022b';
+import { state, on } from '../state.js?v=20261022b';
+import { t } from '../../data/loc_vi.js?v=20261022b';
 
-const C = {                       // màu Image.color / TMP fontColor chép từ prefab
+export const C = {                       // màu Image.color / TMP fontColor chép từ prefab
   dark30: [0.078, 0.118, 0.133, 0.298], dark39: [0.078, 0.118, 0.133, 0.392], dark59: [0.078, 0.118, 0.133, 0.588],
   dark80: [0.078, 0.118, 0.133, 0.8], dark60: [0.078, 0.118, 0.133, 0.6], navy: [0.039, 0.176, 0.29, 1],
   gaugeBg: [0.031, 0.118, 0.188, 1], menuBg: [0.102, 0.235, 0.306, 1], slimeInv: [0.086, 0.153, 0.184, 0.4],
   questBg: [0.061, 0.085, 0.094, 0.298], rotate: [0.624, 0.827, 1, 1],
 };
-const css = c => `rgba(${Math.round(c[0] * 255)},${Math.round(c[1] * 255)},${Math.round(c[2] * 255)},${c[3] ?? 1})`;
+export const css = c => `rgba(${Math.round(c[0] * 255)},${Math.round(c[1] * 255)},${Math.round(c[2] * 255)},${c[3] ?? 1})`;
 const TXT_LV = [0.8, 0.925, 1, 1], TXT_MAP = [0.638, 0.87, 1, 1];
 
 export function uiScale(desktop) {
@@ -31,7 +31,7 @@ export function uiScale(desktop) {
 
 // RectTransform -> CSS. o: { a:[x,y] | [x0,y0,x1,y1], p, sz, pv, sc, auto (ContentSizeFitter), n (data-hud), cls,
 // spr, col, sl (sliced), tag }
-function R(parent, o = {}) {
+export function R(parent, o = {}) {
   const e = document.createElement(o.tag || 'div');
   e.className = 'u' + (o.cls ? ' ' + o.cls : '');
   if (o.n) e.dataset.hud = o.n;
@@ -53,7 +53,7 @@ function R(parent, o = {}) {
   return e;
 }
 // phần tử con của layout group (flex), cỡ cố định
-function F(parent, w, h, o = {}) {
+export function F(parent, w, h, o = {}) {
   const e = document.createElement(o.tag || 'div');
   e.className = 'f' + (o.cls ? ' ' + o.cls : '');
   if (o.n) e.dataset.hud = o.n;
@@ -63,7 +63,7 @@ function F(parent, w, h, o = {}) {
   parent.appendChild(e);
   return e;
 }
-function text(parent, s, size, color = [1, 1, 1, 1], cls = '') {
+export function text(parent, s, size, color = [1, 1, 1, 1], cls = '') {
   const e = document.createElement('span');
   e.className = 'txt' + (cls ? ' ' + cls : '');
   e.style.fontSize = size + 'px'; e.style.color = css(color);
@@ -229,6 +229,13 @@ export class Hud {
     R(E.dash, { a: [0.5, 0.5], p: [0, 6.5], sz: [80, 80], spr: 'Game/Icon_Dash' });
     E.dashCd = R(E.dash, { a: [0.5, 0.5], p: [0, 6.5], sz: [90, 90], cls: 'cooldown' });
     this.key(E.dash, 'key_LeftShift', 32, [0, -46]);
+    // ---- InteractButton (ActionDeactiveCanvas): hiện khi có NPC / vật xem được trong tầm; Icon_ChatNPC hoặc kính lúp.
+    // Mobile = prefab (-523,475); PC [ĐO TRONG ẢNH] b2-b4.png (nút kính lúp ở (1000,464) trên 1280x720 -> (-555,510))
+    E.interact = this.button(B, 'interact', { n: 'interact', a: [1, 0], p: this.pc ? [-555, 510] : [-523, 475], sz: [100, 100], spr: 'Common/Ui_Bg_Round_02_264px', col: [0.08, 0.12, 0.13, 0.63] });
+    E.interactChat = R(E.interact, { a: [0, 0, 1, 1], sz: [-30, -30], spr: 'Game/Icon_ChatNPC' });
+    E.interactLook = R(E.interact, { a: [0, 0, 1, 1], sz: [-30, -30], spr: 'Game/Icon_Magnifier' });
+    this.key(E.interact, 'key_Spacebar', 48, [51.6, -45.1]);
+    E.interact.hidden = true;
     E.switch = this.button(B, 'switch', { n: 'switch', a: [1, 0], p: L.switch, sz: [L.switchSize, L.switchSize] });
     const sw = R(E.switch, { a: [0, 0, 1, 1], spr: 'Game/Icon_ButtonBG02' });
     R(sw, { a: [0, 0, 1, 1], sz: [-50, -50], spr: 'Game/icon_Change' });
@@ -357,6 +364,8 @@ export class Hud {
     // Switch: trên PC chỉ hiện khi đang điều khiển slime (khung hình gốc PC không có nút này lúc thường)
     E.switch.hidden = this.pc && S.control === 'user';
     E.bigMap.hidden = !S.minimapOpen;
+    // bảng/hội thoại mở: HUD chơi và thẻ tên ẩn (al1.png, q1.png chỉ còn bảng)
+    this.base.hidden = !!S.modal; this.world.hidden = !!S.modal;
     E.warning.hidden = !S.warnStamina;
     E.userName.textContent = S.player.name;
     E.monName.textContent = eq ? eq.name : '';
@@ -427,9 +436,28 @@ export class Hud {
     this.npcTags = list.map(n => {
       const el = R(this.world, { n: 'npcHud', a: [0, 0], auto: true, pv: [0.5, 0], cls: 'col center hudtag' });
       el.dataset.npc = n.name;
+      // dấu nhiệm vụ trên đầu (Icon/quest_marker_*: before "!", progress "?", complete "✓"), 2:15 / 4:27
+      const mk = F(el, 54, 58, { cls: 'qmarker' }); mk.hidden = true;
       text(el, n.name, 26, [1, 1, 1, 1], 'outline');
-      return { el, object: n.object, height: n.height };
+      return { el, object: n.object, height: n.height, name: n.name, mk };
     });
+  }
+
+  // kind: 'before' | 'progress' | 'complete' | null theo tên NPC (js/quest/engine.js markerFor)
+  setMarkers(fn) {
+    for (const t of this.npcTags || []) {
+      const k = fn(t.name);
+      if (t.mk.dataset.k === (k || '')) continue;
+      t.mk.dataset.k = k || ''; t.mk.hidden = !k;
+      t.mk.querySelectorAll('.spr').forEach(x => x.remove());
+      if (k) paint(t.mk, 'Icon/quest_marker_' + k);
+    }
+  }
+  // InteractButton: kind 'npc' | 'box' | null
+  setInteract(kind) {
+    const E = this.el; if (E.interact.dataset.k === (kind || '')) return;
+    E.interact.dataset.k = kind || ''; E.interact.hidden = !kind;
+    E.interactChat.hidden = kind !== 'npc'; E.interactLook.hidden = kind !== 'box';
   }
 
   // mỗi khung: HUD theo đầu nhân vật, bản đồ nhỏ cuộn theo người chơi

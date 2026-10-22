@@ -136,11 +136,16 @@ async function main() {
     const a7 = await st();
     check('H = CombatMode: bật tự đánh (Disabled -> Enabled)', a7.auto && a7.mode === 'enabled', a7.mode);
     await k.press('KeyH');
-    for (const [key, act] of [['KeyQ', 'slot2'], ['KeyE', 'slot3'], ['KeyR', 'slot4'], ['KeyC', 'switch'], ['KeyM', 'worldmap'], ['KeyI', 'inventory'], ['KeyB', 'slimeindex'], ['KeyN', 'slimeinventory'], ['KeyJ', 'quest'], ['KeyP', 'party'], ['KeyK', 'perk'], ['Escape', 'escape']]) await k.press(key);
+    for (const [key, act] of [['KeyQ', 'slot2'], ['KeyE', 'slot3'], ['KeyR', 'slot4'], ['KeyC', 'switch'], ['KeyM', 'worldmap'], ['KeyI', 'inventory'], ['KeyB', 'slimeindex'], ['KeyN', 'slimeinventory'], ['KeyP', 'party'], ['Escape', 'escape']]) await k.press(key);   // J / K mở bảng thật (js/ui/story.js): kiểm riêng bên dưới
     await pc.page.waitForTimeout(150);
     const a8 = await pc.page.evaluate(() => WOS.log.slice(-40));
-    const want = ['slot2', 'slot3', 'slot4', 'switch', 'worldmap', 'inventory', 'slimeindex', 'slimeinventory', 'quest', 'party', 'perk', 'escape'];
-    check('Q E R C M I B N J P K Esc ra đúng hành động', want.every(w => a8.includes(w)), want.filter(w => !a8.includes(w)).join(',') || 'đủ 12');
+    const want = ['slot2', 'slot3', 'slot4', 'switch', 'worldmap', 'inventory', 'slimeindex', 'slimeinventory', 'party', 'escape'];
+    check('Q E R C M I B N P Esc ra đúng hành động', want.every(w => a8.includes(w)), want.filter(w => !a8.includes(w)).join(',') || 'đủ 10');
+    await k.press('KeyJ'); await pc.page.waitForTimeout(400);
+    const mj = await pc.page.evaluate(() => WOS.state.modal); await k.press('Escape'); await pc.page.waitForTimeout(300);
+    await k.press('KeyK'); await pc.page.waitForTimeout(400);
+    const mk = await pc.page.evaluate(() => WOS.state.modal); await k.press('Escape'); await pc.page.waitForTimeout(300);
+    check('J mở nhật ký nhiệm vụ, K mở Tiềm năng, Esc đóng', mj === 'questlog' && mk === 'perk' && !(await pc.page.evaluate(() => WOS.state.modal)), mj + ' ' + mk);
     // phím bịa cũ: T không huýt, giữ Shift không chạy
     const b0 = await st();
     await k.press('KeyT'); await pc.page.waitForTimeout(100);

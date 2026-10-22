@@ -1,10 +1,12 @@
-# Thế Giới Slime: kiến trúc (rev 20261022a)
+# Thế Giới Slime: kiến trúc (rev 20261022b)
 
 Bản web của World of Slime Demo (TEAM42). Từ rev 20261022a chạy trên **bản đồ thật của server** (Larus: quán trọ 257, làng 110,
 kho 478, lấy từ đệm đĩa của game): mở game là ở phòng ngủ quán trọ như bản thật, đi xuống cầu thang ra làng, vào/ra kho.
 Lát cắt gồm: bản đồ thật + bản đồ thử (`?map=dev`), người chơi đi/chạy/lướt, một slime
 đi theo, camera của game, điều khiển PC và mobile theo bảng phím gốc, tiếng bước chân, HUD dựng từ prefab gốc, màn tải
-theo byte. Chưa có đánh nhau thật, bắt slime, các bảng (túi, bách khoa, kho, nhiệm vụ...).
+theo byte. Từ rev 20261022b có **chuỗi nhiệm vụ mở đầu "Village of Rough Waves"** (q1-q6 + nhận q7, Rudga chặn cổng tây,
+quầy Vivian bán Cube): hội thoại có chân dung + lựa chọn, băng chữ, log EXP, nhật ký J, Tiềm năng K, bản lưu localStorage.
+Chưa có đánh nhau thật, bắt slime, đấu với Rudga, Shadow Forest, các bảng túi / bách khoa / kho.
 Nghiên cứu gốc: `D:\wos-ref\notes\` (MAPBUILD, PIPELINE, EXPORT_*, CODE §8-9). Kế hoạch: `brain/plans/world-of-slime.md`.
 
 ## Mô-đun
@@ -22,10 +24,14 @@ Nghiên cứu gốc: `D:\wos-ref\notes\` (MAPBUILD, PIPELINE, EXPORT_*, CODE §8
 | `js/input/intent.js` | ý định chung `{move, attack, mouse, pressed:Set<tên hành động SMActions>}` + lượng tử 32 hướng |
 | `js/input/pc.js` | `KEYMAP` = SMActions/Gameplay gốc (xem dưới) |
 | `js/input/mobile.js` | cần ảo (`MainJoystick` của HUD) + chụm zoom; nút là của HUD (`data-act`) |
-| `js/state.js` | kho trạng thái HUD (người chơi, đội 6 ô, ô vật phẩm, nhiệm vụ, CombatMode, battle, minimap); `set()` báo HUD vẽ lại |
+| `js/state.js` | bản lưu `localStorage['wos.save']` có `v` (SAVE_VERSION, khác phiên bản thì bỏ), `?fresh` xoá; kho trạng thái HUD (người chơi, đội 6 ô, ô vật phẩm, nhiệm vụ, CombatMode, battle, minimap); `set()` báo HUD vẽ lại |
 | `js/ui/hud.js` | HUD HTML/CSS theo RectTransform prefab; `uiScale()` = SMUniformCanvasScaler; chân dung chụp avatar thật; bản đồ nhỏ; thẻ tên trên đầu |
 | `js/ui/sprites.js` | URL sprite `ui/`, bảng viền 9-slice `BORDER`, `tinted()` nhân Image.color trên canvas, `paint()` |
 | `js/ui/loading.js` | màn tải: `img/login_bg.mp4`, `Login_Logo_Title_En`, `LoadingIcon/UI_Loading_0..29`, thanh `Login_Loading_Gauge` theo byte |
+| `js/quest/data.js` | **khuôn dữ liệu nhiệm vụ (đầu tệp)**: `QUESTS`, `DIALOGUE` (nút thoại -> lựa chọn -> nút / hành động), `TALK` (NPC -> nút đầu theo trạng thái nhiệm vụ), hộp trôi dạt, cổng tây, quầy, Tiềm năng |
+| `js/quest/engine.js` | máy trạng thái nhiệm vụ: trạng thái none/active/ready/done, hành động (`complete:q`, `heal`, `box`, `perk`, `shop`...), EXP/cấp/SP, Vàng, đồ; đẩy `state.quest` cho HUD |
+| `js/ui/story.js` | DialogueUI + ChoicePopup + DialogueIllust, QuestStart / QuestComplete / LevelUp, MapTextLayout (tên bản đồ), LogUI, QuestUI (J), PerkUI (K), BuyShopUI + BuyItemPopup, popup Notice |
+| `data/quest_text.js` | chữ nhiệm vụ/thoại: `en` nguyên văn clip (mốc giờ từng dòng), `vi` bản dịch của bản web; `?lang=en` |
 | `data/loc_vi.js` | chuỗi giao diện chép từ `D:\wos-ref\data\loc\vi.json` (+ en dự phòng), `t(key, args)` |
 | `js/camera.js` | FollowCamera: cúi 40 độ, vùng chết, kẹp `cameraMoveRect`, zoom |
 | `js/audio.js` | một AudioContext, sự kiện Wwise -> ogg, switch `LandType` theo `landType[]` |
@@ -93,12 +99,31 @@ Tham số trang: `?assets=`, `?map=dev|110|257|478` (mặc định 257), `?from=
 `?grade=0` (tắt hậu kỳ), `?gender=woman`, `?slime=SL_Bat_WindDark`, `?at=x,z`, `?zoom=<m>`, `?quest` (nhiệm vụ mẫu),
 `?warn` (cảnh báo thể lực), `?lang=en`.
 
+## Nhiệm vụ (js/quest, js/ui/story.js)
+
+- Nguồn: clip DcGavHFwqtk (`docs/research/QUESTLINE.md`; khung 1.5 s có mốc giờ `D:\wos-ref\clips\DcGavHFwqtk\dlg\sheet_a..e.png`,
+  khung đầy đủ `...ull\`) + ảnh demo thật `D:\wos-ref\pilot` (al1/h2/h4/h6 thoại, q1 nhật ký, b1 hộp, v9 tên bản đồ, x5 Rudga).
+- Tương tác: NPC có `TALK` hoặc hộp (chỉ khi đang làm q4) trong tầm 2.2 m (Allen 3.8, Vivian 4.8: sau quầy) thì InteractButton
+  hiện (chat / kính lúp) và Space là nói chuyện. Hội thoại: Space/chuột qua dòng, mũi tên/W/S chọn, LCtrl (DialogueSkip) chạy tới
+  lựa chọn kế. Mở hội thoại thì HUD và thẻ tên ẩn, camera lại gần x0.735 và nhìn giữa người chơi với NPC (v9 -> al1).
+- Băng chữ xếp hàng, chỉ hiện khi không có bảng nào mở (clip: Level Up / Hidden Power hiện sau khi đóng Tiềm năng).
+- Số: Vàng mở đầu **10,000** `[ĐO TRONG CLIP]` (tài khoản mới; 9,929 ở 10:39 = 10,000 - 71 chữa ở 2:41; mua 3 Cube còn 8,429),
+  không phải 1,000 như đề nghị ban đầu (1,000 không đủ mua 3 Cube x 500). Chữa 89 (pilot h4.png). EXP thưởng q3 = 40, q5 = q6 = 10
+  `[THẤY]`; q1, q2, q4 và EXP lên cấp (100) `[ĐỀ XUẤT]` sao cho lên Lv2 đúng lúc trả q4 như 4:00.
+- Hộp trôi dạt: 3 hộp ở làng (vị trí `[ĐO TRONG ẢNH]`), chỉ hộp cạnh quầy Vivian có Thảo mộc. Mô hình hộp thật không có trong prop/:
+  dùng `pr_oldbox_003` x0.5 `[ĐỀ XUẤT]`.
+- Rudga: bước vào vùng cổng tây (x <= 25, z 53..63, đường đất ra mép bản đồ) thì Rudga nói 4 dòng gốc + thẻ Huýt Sáo, popup
+  "Chưa có trong bản web", rồi đẩy về (29.5, 58.5).
+- Test: `node test/world-of-slime-quest.js` (phím/chuột thật, bản lưu trống tới mua 3 Cube + tải lại trang), ảnh
+  `D:\wos-ref\proof\quest\web`; tờ so `D:\wos-ref\proof\quest\compare\<key>.png`, nhận xét `D:\wos-ref\proof\questerdicts.tsv`.
+- `?quest` bày sẵn trạng thái "đang làm q4" trong bộ nhớ (để so HUD), `?name=` đặt tên người chơi, `?fresh` xoá bản lưu.
+
 ## Bảng phím (đúng `D:\wos-ref\code\input_bindings.txt`, map Gameplay)
 
 WASD đi (mũi tên không đi: chỉ thuộc map UI), Space = KeyboardInteractAttack (không có NPC thì đánh; đang đánh thì nút lớn là
 Return = huýt sáo gọi slime về), chuột trái đánh theo hướng chuột, LShift = Dash + Slot1, Q/E/R = Slot2-4 (ô vật phẩm),
-1-6 = EquipMonster1-6, C Switch, Tab Minimap, M WorldMap, I Inventory, B SlimeIndex, N SlimeInventory, J Quest, P Party,
-K Perk, O Community, Enter Chat, LCtrl DialogueSkip, Esc, H CombatMode (tự đánh: nút Enabled/Disabled). Lăn chuột zoom.
+1-6 = EquipMonster1-6, C Switch, Tab Minimap, M WorldMap, I Inventory, B SlimeIndex, N SlimeInventory, J Quest (nhật ký), P Party,
+K Perk (Tiềm năng), O Community, Enter Chat, LCtrl DialogueSkip, Esc, H CombatMode (tự đánh: nút Enabled/Disabled). Lăn chuột zoom.
 **Không có phím chạy**: game gửi `speedStep = round(|cần|*10)`; WASD luôn |v| = 1 nên PC đi tốc độ tối đa, mobile đẩy nhẹ
 thì chậm. Shift-chạy và T-huýt sáo của rev a là bịa, đã bỏ. Các bảng chưa dựng thì hiện toast tên bảng.
 
@@ -168,9 +193,26 @@ thì chậm. Shift-chạy và T-huýt sáo của rev a là bịa, đã bỏ. Cá
     thể do thời tiết (DistrictType 10 weathers 20001/20002). `GRADE[0]` hồi quy trên 7 cặp mẫu cùng chất liệu. Hồi quy trên
     trung bình vùng (khung lệch nhau vài mét) ra hệ số vô nghĩa: phải lấy mẫu từng chất liệu.
 26. Mặt nước đài phun (`FX_Offset_WaterWave_012`) không có trong `map/t01_larus.glb` (export_map.py bỏ sót), chỉ có thác nước.
-27. Đổi `REV` chưa đủ: `?v=` ở mọi import + `index.html`/`mobile.html` (sed `20261021b` -> `20261022a` trong `games/world-of-slime`).
+27. Đổi `REV` chưa đủ: `?v=` ở mọi import + `index.html`/`mobile.html` (sed rev cũ -> rev mới trong `games/world-of-slime`, ví dụ `20261022a` -> `20261022b`).
+
+28. `loadGLB` trả cùng một gltf từ bộ đệm: vào lại bản đồ mà gắn lại `g.scene` và chạy lại `applyUnitMaterials` thì vật liệu toon
+    bọc hai lần, NPC ra trắng bệch. `actors.js instanceOf()`: dựng vật liệu một lần, mỗi NPC/slime là `SkeletonUtils.clone`.
+29. Sprite sliced có viền chiếm hết ảnh (Dialogue_Frame_Round 384 viền 192x2, Dialogue_List 104 viền 52x2, Ui_Bg_Round_01_54px
+    viền 28+27 > 54): CSS `border-image` để trống tâm, còn Unity kéo dãn dải giữa. `border-image` cũng lộ đường nối khi #hud bị
+    scale. `sprites.js drawSlice` vẽ 9 mảnh ra canvas đúng cỡ phần tử (co viền theo tỉ lệ như Unity), ResizeObserver
+    (border-box, vẽ trong rAF, không thì "ResizeObserver loop completed").
+30. Khung chữ là flex (căn giữa): nút chữ và `<span>` màu cam thành các mục flex rời, mất dấu cách và xuống dòng sai.
+    `rich()` bọc cả dòng trong một `<span class="rt">`.
+31. Popup_01_Medium/Small có lề trong suốt 60/40/60/62 px quanh thân: đặt theo ảnh phải là thân thấy được (`story.js panel()`).
+32. Bảng toàn màn đo trên ảnh 1080p thu về 720 (q1.png, thang 0.533) to hơn ~6% so với web chạy 720p (0.502): đúng theo
+    SMUniformCanvasScaler, không phải lệch bố cục.
 
 ## Còn thiếu / chưa đúng
+
+- Nhiệm vụ: đấu tay đôi với Rudga, Shadow Forest (q7 trở đi) chưa có bản đồ. Không có màn tạo nhân vật/đặt tên: {name} = "Bạn"
+  (`?name=`), chibi người chơi trong hội thoại là avatar mặc định. Dải bản đồ trong ô chi tiết nhật ký là gradient (gốc chụp bản
+  đồ). Log EXP thiếu biểu tượng. Nền ô "Túi Đồ" ở quầy chưa hiện. Ô 2, 3 của quầy dùng ảnh món gần nhất. Giấy của băng tên bản
+  đồ (PaperBg) là gradient vì sprite chưa xuất. Một số dòng thoại không đọc được trong clip ghi `[ĐỀ XUẤT]` trong data/quest_text.js.
 
 - Vật thể server không có trong `_tileData`: giường, bàn tròn có cốc, tủ kính, cờ, lò sưởi quán trọ; sách trên giá kho (prop/PR_*).
   Cửa/portal và chỗ NPC là số đo trong ảnh (`data/portals.js`), không phải dữ liệu thật.

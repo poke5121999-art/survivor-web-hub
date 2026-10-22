@@ -1,7 +1,7 @@
 // Âm thanh: một AudioContext, mở khoá ở lần nhập đầu tiên (chính sách autoplay của trình duyệt).
 // Sự kiện Wwise -> ogg qua audio/index.json: events[name].switch (nhóm LandType) chọn bộ media theo landType ô,
 // rồi bốc ngẫu nhiên một file (RanSeq random). Âm lượng = events[name].volume (dB đã đổi tuyến tính).
-import { loadJSON, assetUrl } from './assets.js?v=20261022a';
+import { loadJSON, assetUrl } from './assets.js?v=20261022b';
 
 // landType của ClientMapData -> tên case trong switch LandType (EXPORT_AUDIO.md, chữ hoa/thường như trong index).
 const LAND_CASE = { 0: ['GROUND', 'Ground'], 1: ['GRASS', 'Grass'], 2: ['STONE', 'Stone'], 3: ['WATER', 'Water'], 4: ['Snow', 'SNOW'], 5: ['Sand', 'SAND'] };
