@@ -321,8 +321,9 @@
     var a = Math.min(1, lt / (ty.fin / n.life)) * Math.min(1, (1 - lt) / (ty.fout / n.life));
     if (a <= 0 || sc <= 0.01) return true;
     var sp = n.sprite, w = sp.w * sc, h = sp.h * sc, lh = sp.label ? h * 0.42 : 0;
-    // giữ trọn số (cả nhãn CRIT) trong sân 1920×1080 — VFX-4: nhãn từng bị cắt ở mép trên, số bên dưới tụt khỏi sân
-    var px = Math.max(w / 2 + 4, Math.min(W - w / 2 - 4, n.x0 + n.dx * d)), py = Math.max(h / 2 + lh * 0.75 + 4, Math.min(H - h / 2 - 4, n.y0 + n.dy * d));
+    // giữ trọn số (cả nhãn CRIT) trong vùng đang thấy — VFX-4: nhãn từng bị cắt ở mép trên, số bên dưới tụt khỏi sân
+    var vw = (root.BZView && root.BZView.vis) || { x0: 0, y0: 0, x1: W, y1: H };
+    var px = Math.max(vw.x0 + w / 2 + 4, Math.min(vw.x1 - w / 2 - 4, n.x0 + n.dx * d)), py = Math.max(vw.y0 + h / 2 + lh * 0.75 + 4, Math.min(vw.y1 - h / 2 - 4, n.y0 + n.dy * d));
     // quầng nền (FX_Glow_03 tô màu)
     var gl = tinted('glow', ty.glowRGB);
     if (gl) {

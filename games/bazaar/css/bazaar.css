@@ -228,7 +228,7 @@ button { font: inherit; color: inherit; }
 @keyframes bz-rib-in { 0% { clip-path: inset(-170px 100% -170px -330px); transform: translateX(-80px); } 100% { clip-path: inset(-170px -330px -170px -330px); transform: none; } }
 @keyframes bz-roll { 0% { left: 0; opacity: 1; } 88% { left: 100%; opacity: 1; } 100% { left: 100%; opacity: 0; } }
 @keyframes bz-banner-out { 0% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translate(620px, -380px) scale(.25, .5); } }
-.bz-crown { position: absolute; left: 50%; width: 92px; height: 72px; margin-left: -46px; pointer-events: none; opacity: 0;
+.bz-crown { position: absolute; left: 960px; width: 92px; height: 72px; margin-left: -46px; pointer-events: none; opacity: 0;
   background: url(../art/ui/ui_sprite_atlas/Portrait_WinBanner_TUI.webp) center/contain no-repeat; filter: drop-shadow(0 4px 8px rgba(0,0,0,.6)); }
 .bz-crown.top { top: 54px; } .bz-crown.bot { top: 808px; }
 .bz-crown.on { animation: bz-crown 0.7s cubic-bezier(.2,1.5,.4,1) forwards; }
@@ -410,3 +410,8 @@ button { font: inherit; color: inherit; }
 #bz-stage.bz-victory .bz-rim { animation: bz-rim-in 1.2s 1s ease-out forwards; }
 @keyframes bz-rim-in { from { opacity: 0; } to { opacity: .85; } }
 #bz-stage.bz-won-1 .bz-card.side-bot, #bz-stage.bz-won-0 .bz-card.side-top { filter: saturate(.6) brightness(.72); transition: filter 1s 1s; }
+
+/* ---------- camera điện thoại (js/view/stage.js V.fit đặt .bz-cam): hai dải chân dung thu --pk quanh mép bàn ---------- */
+.bz-band { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+.bz-band.bot { transform-origin: 960px 790px; } .bz-band.top { transform-origin: 960px 300px; }
+#bz-stage.bz-cam .bz-band { scale: var(--pk); }

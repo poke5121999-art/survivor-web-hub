@@ -50,6 +50,18 @@ Nhãn dùng trong tệp:
 - 11 món và 1 kỹ năng không có art trong chính game gốc. Bản web giấu chúng khỏi mọi pool (`HIDDEN_CARDS` trong `js/run/tuning.js`), thay vì vẽ ảnh thay thế.
 - The Dragons (hero thứ 8, ra ở bản 19.0 ngày 7/10/2026) không có thẻ nào trong `GameData.db` của bản demo, nên vẫn khoá.
 
+## Điện thoại
+
+- Sân khấu là một khung 1920×1080 co giãn. Ở 844×390, co cả sân còn 0,361, thẻ nhỏ chỉ rộng 39 px CSS và hai bên dư dải đen. [ĐO TRONG REPO, 2026-10-22]
+- Chiều cao màn là chỗ nghẽn, chiều ngang dư. Hai hàng bàn chỉ chiếm 480 trong 1080 px sân, phần còn lại là hai dải chân dung trên và dưới.
+- Nên khi màn nhỏ (co cả sân dưới 0,62) và đang trong run, `V.fit` (`js/view/stage.js`) dùng camera `V.CAM.phone`. Camera cắt sát hai hàng bàn, còn hai dải chân dung thu lại `V.BAND.k` = 0,55 quanh mép bàn. Thẻ nhỏ lên 54 px ở 844×390 và 47 px ở 844×340 (có thanh địa chỉ, trước là 34 px).
+  - Phần tử của dải nằm trong `.bz-band` (div 0×0, `transform-origin` là tâm thu), nên dời một khối không phải sửa toạ độ từng con.
+  - HUD của dải nằm ở lớp khác (`.rs-merchant-ctl`, `.rs-level`, `.rs-xp`) thu cùng `--pk` trong `css/run.css`. Chữ và nút trong dải được phóng lại ở đó.
+  - `V.vis` là vùng đang thấy. Tooltip, bảng giải thích và số nổi kẹp vào đây, không kẹp vào 1920×1080. Nút neo góc sân dời vào trong bằng `--vt/--vr/--vb`.
+  - `V.heroRect`, `V.hpRect` đi qua `V.band`, vì đạn và số nổi bay tới chân dung đã dời.
+- Sảnh, màn hết run vẫn co cả sân, vì bố cục của chúng trải hết 1920×1080.
+- Bấm Sẵn sàng trên máy cảm ứng thì xin toàn màn hình, vì thanh địa chỉ ăn khoảng 15% chiều cao màn ngang. iPhone Safari không có API này nên bỏ qua.
+
 ## Cái bẫy đã sập
 
 - `[BẪY ĐÃ SẬP]` Thẻ có hồi chiêu bị phủ xám ở màn thương nhân. Màn hồi chiêu (`.veil`) mặc định hiện, nên thẻ chưa vào trận cũng xám. Nay nó chỉ bật khi replay gọi `C.update` (`js/view/card.js`).

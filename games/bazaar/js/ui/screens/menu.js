@@ -267,6 +267,9 @@
     pill('r', 'normal', 'THƯỜNG', 'Chơi tự do');
     function begin() {
       if (starting || U.state.pending) return;
+      // điện thoại: vào run thì xin toàn màn hình (thanh địa chỉ ăn ~15% chiều cao màn ngang); bảng tạm nghỉ có nút thoát
+      var de = document.documentElement;
+      if (V().small && !fsOn() && (de.requestFullscreen || de.webkitRequestFullscreen) && root.matchMedia('(pointer: coarse)').matches) toggleFs();
       if (saved) { starting = true; U.resume(saved); return; }
       var x = list.filter(function (y) { return y.id === selHero; })[0];
       if (!x || !x.playable) { U.sfx('ui.noSpace'); U.toast((x ? x.title : selHero) + ' chưa chơi được trong bản demo'); return; }

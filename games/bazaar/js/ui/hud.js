@@ -37,11 +37,11 @@
     if (!rect) { t.classList.remove('show'); return; }
     t.innerHTML = '<h4>' + title + '</h4><div class="b">' + body + '</div>';
     t.style.display = 'block';
-    var w = t.offsetWidth, h = t.offsetHeight, x = rect.x + rect.w + 18;
-    if (x + w > 1908) x = rect.x - w - 18;
-    var y = Math.max(10, Math.min(1070 - h, rect.y + rect.h / 2 - h / 2));
+    var v = V().vis, w = t.offsetWidth, h = t.offsetHeight, x = rect.x + rect.w + 18;
+    if (x + w > v.x1 - 12) x = rect.x - w - 18;
+    var y = Math.max(v.y0 + 10, Math.min(v.y1 - 10 - h, rect.y + rect.h / 2 - h / 2));
     var rw = rect.row;
-    if (rw && (x < 12 || (x < rw.x1 && x + w > rw.x0))) { x = Math.max(12, Math.min(1908 - w, rect.x + rect.w / 2 - w / 2)); y = Math.min(1070 - h, rw.y1 + 12); }
+    if (rw && (x < v.x0 + 12 || (x < rw.x1 && x + w > rw.x0))) { x = Math.max(v.x0 + 12, Math.min(v.x1 - 12 - w, rect.x + rect.w / 2 - w / 2)); y = Math.min(v.y1 - 10 - h, rw.y1 + 12); }
     t.style.left = Math.round(x) + 'px'; t.style.top = Math.round(y) + 'px';
     t.classList.remove('show'); void t.offsetWidth; t.classList.add('show');
   };

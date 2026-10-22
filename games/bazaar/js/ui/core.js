@@ -160,6 +160,7 @@
     if (U.transitions && (name === 'title' || name === 'heroSelect' || name === 'end')) U.transitions.cancel();
     var stg = V().refs.stage;
     stg.dataset.screen = name;
+    V().setCam(name !== 'title' && name !== 'heroSelect' && name !== 'end');
     var sc = U.SCREENS[name];
     if (!sc) { console.warn('screen "' + name + '" has no module'); return; }
     if (sc.enter) sc.enter(S.run, prev);
@@ -396,7 +397,7 @@
       if (U.cards.trayIsOpen() && !on('.rs-tray') && !on('.rs-chest') && !on('button')) U.cards.toggleStash(false);
     }, true);
     // màn nhỏ (điện thoại ngang): chữ / nút to hơn trong css/run.css (.rs-small), INTERACT-9/10, MOBILE-8/9
-    function size() { var k = V().scale || 1; st.classList.toggle('rs-small', k < 0.62); }
+    function size() { st.classList.toggle('rs-small', !!V().small); }
     root.addEventListener('resize', function () { requestAnimationFrame(size); });
     size();
     // điện thoại dọc: lời nhắc xoay ngang (MOBILE-10); chỉ hiện bằng CSS khi (orientation: portrait) + màn hẹp

@@ -949,3 +949,23 @@
 .rs-choice .stamp { position: absolute; left: 50%; top: -18px; width: 64px; height: 32px; margin-left: -32px; z-index: 4; display: grid; place-items: center; padding-left: 8px;
   background: center/100% 100% no-repeat; font: 800 22px/1 var(--f-num); color: #fff; text-shadow: 0 0 2px #732a0d, 0 2px 0 #732a0d, 2px 0 0 #732a0d, -2px 0 0 #732a0d; }
 .m-run.stash-open .rs-lanechoices { opacity: 0; pointer-events: none; transition: opacity .3s; }
+
+/* ---------- camera điện thoại (.bz-cam, js/view/stage.js V.fit): phần HUD thuộc hai dải chân dung thu cùng --pk; nút neo góc sân
+   dời vào vùng đang thấy (--vt/--vr/--vb = phần sân bị cắt mỗi bên); bánh răng lên góc trên, dock tốc độ đứng dọc mép phải ---------- */
+#bz-stage.bz-cam .rs-merchant-ctl { scale: var(--pk); transform-origin: 960px 300px; }
+#bz-stage.bz-cam .rs-level { translate: calc(128px * (1 - var(--pk))) calc(-182.5px * (1 - var(--pk))); scale: var(--pk); }
+#bz-stage.bz-cam .rs-xp { translate: 0 calc(-236px * (1 - var(--pk))); scale: var(--pk); }
+#bz-stage.bz-cam .rs-gear { top: calc(26px + var(--vt)); right: calc(26px + var(--vr)); bottom: auto; }
+#bz-stage.bz-cam .rs-fightdock { right: calc(24px + var(--vr)); bottom: calc(24px + var(--vb)); flex-direction: column; }
+#bz-stage.bz-cam .rs-map-title { top: 34px; }
+#bz-stage.bz-cam .rs-daycard small, #bz-stage.bz-cam .rs-vs .skip { right: calc(40px + var(--vr)); bottom: calc(28px + var(--vb)); }
+/* chữ và nút trong hai dải thu (×0,55) phóng lại để còn đọc / chạm được: máu, vàng, kho, tên đối thủ, nút Chiến đấu! */
+#bz-stage.bz-cam .bz-hp .hp-text { font-size: 52px; }
+#bz-stage.bz-cam .rs-gold .gd { font-size: 60px; } #bz-stage.bz-cam .rs-gold .gd i { width: 48px; height: 48px; }
+#bz-stage.bz-cam .rs-gold .inc { font-size: 44px; }
+#bz-stage.bz-cam .rs-chest .lb { font-size: 32px; }
+#bz-stage.bz-cam .bz-name { font-size: 40px; } #bz-stage.bz-cam .bz-sublabel { font-size: 26px; letter-spacing: .06em; }
+#bz-stage.bz-cam .bz-reward { font-size: 46px; }
+#bz-stage.bz-cam .rs-side-name small { font-size: 30px; } #bz-stage.bz-cam .rs-side-name h3 { font-size: 46px; }
+#bz-stage.bz-cam .rs-side-name p { font-size: 32px; } #bz-stage.bz-cam .rs-side-note { font-size: 34px; }
+#bz-stage.bz-cam .bz-side-in .rs-big { height: 96px; min-width: 190px; font-size: 40px; }

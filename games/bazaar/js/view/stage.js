@@ -26,15 +26,21 @@
     V.setEnv(null);
     R.boards = [el('div', 'bz-board bot', wd), el('div', 'bz-board top', wd)];
     R.cardLayer = el('div', '', wd); R.cardLayer.style.cssText = 'position:absolute;inset:0;';
+    R.enrVig = el('div', 'bz-enr-vig', wd);
+    // hai dải chân dung (bên 0 dưới, bên 1 trên): camera điện thoại thu cả dải quanh mép bàn (V.BAND)
+    R.bands = [el('div', 'bz-band bot', wd), el('div', 'bz-band top', wd)];
     R.sides = [];
     [0, 1].forEach(function (s) {
-      var pos = s ? 'top' : 'bot';
-      var l = el('div', 'bz-side l ' + pos, wd), r = el('div', 'bz-side r ' + pos, wd);
+      var pos = s ? 'top' : 'bot', b = R.bands[s];
+      var l = el('div', 'bz-side l ' + pos, b), r = el('div', 'bz-side r ' + pos, b);
       R.sides[s] = { l: el('div', 'bz-side-in', l), r: el('div', 'bz-side-in', r) };
     });
-    R.heroes = [el('div', 'bz-hero bot', wd), el('div', 'bz-hero top', wd)];
-    R.hp = [el('div', 'bz-hp bot', wd), el('div', 'bz-hp top', wd)];
-    R.crowns = [el('div', 'bz-crown bot', wd), el('div', 'bz-crown top', wd)];
+    R.heroes = [el('div', 'bz-hero bot', R.bands[0]), el('div', 'bz-hero top', R.bands[1])];
+    R.enrFrame = [el('div', 'bz-enr-frame bot', R.bands[0]), el('div', 'bz-enr-frame top', R.bands[1])];
+    R.shFrame = [el('div', 'bz-sh-frame bot', R.bands[0]), el('div', 'bz-sh-frame top', R.bands[1])];
+    R.rowGlow = [el('div', 'bz-rowglow bot', R.bands[0]), el('div', 'bz-rowglow top', R.bands[1])];
+    R.hp = [el('div', 'bz-hp bot', R.bands[0]), el('div', 'bz-hp top', R.bands[1])];
+    R.crowns = [el('div', 'bz-crown bot', R.bands[0]), el('div', 'bz-crown top', R.bands[1])];
     // đồng hồ trận
     var dial = R.dial = el('div', 'bz-dial', wd);
     var face = el('div', 'face', dial);
@@ -43,13 +49,8 @@
     R.dialTimeN = R.dialTime.firstChild;
     var storm = el('div', 'storm', dial); R.dialStorm = el('i', '', storm);
     R.dialLabel = el('div', 'bz-dial-label', wd, 'Bão cát sau 30 giây');
-    R.enrFrame = [el('div', 'bz-enr-frame bot', wd), el('div', 'bz-enr-frame top', wd)];
-    R.enrVig = el('div', 'bz-enr-vig', wd);
-    // lưới vàng quanh khối chân dung khi khiên > 0 (REF shield) — VFX-9: chỉ ôm khối hero (không trùm hai ô cạnh) và nằm DƯỚI thanh máu
-    // trong thứ tự DOM, nên số máu/khiên luôn rõ; một ô vầng sáng cố định mỗi bên (trước đây mỗi lần nhận khiên thêm một div + setTimeout)
-    R.shFrame = [el('div', 'bz-sh-frame bot', wd), el('div', 'bz-sh-frame top', wd)];
-    R.rowGlow = [el('div', 'bz-rowglow bot', wd), el('div', 'bz-rowglow top', wd)];
-    R.hp.forEach(function (h) { wd.appendChild(h); }); R.crowns.forEach(function (c) { wd.appendChild(c); });
+    // lưới vàng quanh khối chân dung khi khiên > 0 (REF shield, R.shFrame) — VFX-9: chỉ ôm khối hero (không trùm hai ô cạnh) và nằm DƯỚI
+    // thanh máu trong thứ tự DOM của dải, nên số máu/khiên luôn rõ
     R.rim = el('div', 'bz-rim', wd); // FX-19: viền ngọc lam khi có người thắng
     R.sand = el('div', 'bz-sand', wd);
     el('div', 'edge', R.sand); el('div', 'edge b', R.sand);
@@ -86,10 +87,31 @@
       return { t: parseFloat(cs.paddingTop) || 0, r: parseFloat(cs.paddingRight) || 0, b: parseFloat(cs.paddingBottom) || 0, l: parseFloat(cs.paddingLeft) || 0 };
     } catch (e) { return { t: 0, r: 0, b: 0, l: 0 }; }
   }
+  // camera: vùng sân khấu được đặt vừa màn. Màn nhỏ (cả sân co dưới 0,62, tức điện thoại ngang) trong run dùng `phone`: sát hai hàng bàn,
+  // hai dải chân dung thu BAND.k quanh mép bàn (y[side]) — thẻ to ~1,4 lần so với co cả sân, không còn dải đen hai bên
+  V.CAM = { full: { x: 0, y: 0, w: W, h: H }, phone: { x: 130, y: 145, w: 1660, h: 795 } };
+  V.BAND = { k: 0.55, x: W / 2, y: [790, 300] };
+  var camWanted = false;
+  V.setCam = function (on) { if (camWanted === !!on) return; camWanted = !!on; if (R.stage) V.fit(); };
+  // rect sân khấu của một phần tử trong dải chân dung bên `side` → rect đang thấy (camera điện thoại thu dải)
+  V.band = function (r, side) {
+    if (!V.phone) return r;
+    var k = V.BAND.k, px = V.BAND.x, py = V.BAND.y[side];
+    return { x: px + (r.x - px) * k, y: py + (r.y - py) * k, w: r.w * k, h: r.h * k, cx: px + (r.cx - px) * k, cy: py + (r.cy - py) * k };
+  };
   V.fit = function () {
-    var ins = safeInsets(), w = root.innerWidth - ins.l - ins.r, h = root.innerHeight - ins.t - ins.b, s = Math.min(w / W, h / H);
+    var ins = safeInsets(), w = root.innerWidth - ins.l - ins.r, h = root.innerHeight - ins.t - ins.b;
+    V.small = Math.min(w / W, h / H) < 0.62;
+    var phone = V.phone = V.small && camWanted, c = phone ? V.CAM.phone : V.CAM.full, s = Math.min(w / c.w, h / c.h);
+    var tx = Math.round(ins.l + w / 2 - (c.x + c.w / 2) * s), ty = Math.round(ins.t + h / 2 - (c.y + c.h / 2) * s);
     V.scale = s;
-    R.stage.style.transform = 'translate(' + Math.round(ins.l + (w - W * s) / 2) + 'px,' + Math.round(ins.t + (h - H * s) / 2) + 'px) scale(' + s + ')';
+    R.stage.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + s + ')';
+    R.stage.classList.toggle('bz-cam', phone);
+    R.stage.style.setProperty('--pk', V.BAND.k);
+    // vùng nhìn thấy (toạ độ sân khấu, kẹp trong sân): tooltip / bảng giải thích / số nổi kẹp vào đây, nút neo góc dời vào trong (--vl..--vb)
+    var v = V.vis = { x0: Math.max(0, (ins.l - tx) / s), y0: Math.max(0, (ins.t - ty) / s), x1: Math.min(W, (ins.l + w - tx) / s), y1: Math.min(H, (ins.t + h - ty) / s) };
+    R.stage.style.setProperty('--vl', Math.round(v.x0) + 'px'); R.stage.style.setProperty('--vt', Math.round(v.y0) + 'px');
+    R.stage.style.setProperty('--vr', Math.round(W - v.x1) + 'px'); R.stage.style.setProperty('--vb', Math.round(H - v.y1) + 'px');
     // MOBILE-2/VFX-33: hệ số phóng chữ cho màn nhỏ (tooltip, số máu): ≥ 1, đạt ~12 px thật cho chữ 23 px sân khấu
     R.stage.style.setProperty('--uik', Math.max(1, Math.min(1.8, 0.5 / s)).toFixed(3));
     if (root.BZFX && R.fx) root.BZFX.resize(s, Math.min(2, root.devicePixelRatio || 1));
@@ -162,9 +184,9 @@
   // ---------- hero ----------
   V.heroRect = function (side) {
     var P = V.PORTRAIT, x = W / 2 - P.w / 2, y = P.y[side];
-    return { x: x, y: y, w: P.w, h: P.h, cx: W / 2, cy: y + P.h * 0.55 };
+    return V.band({ x: x, y: y, w: P.w, h: P.h, cx: W / 2, cy: y + P.h * 0.55 }, side);
   };
-  V.hpRect = function (side) { return { x: 612, y: side ? 258 : 794, w: 696, h: 40 }; };
+  V.hpRect = function (side) { var y = side ? 258 : 794; return V.band({ x: 612, y: y, w: 696, h: 40, cx: W / 2, cy: y + 20 }, side); };
 
   // info: {name, level, tier, char, bg, skills:[{uid,id,tier,art}], rewards:{gold,xp}}
   V.setupHero = function (side, info) {

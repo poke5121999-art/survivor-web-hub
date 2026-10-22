@@ -124,21 +124,22 @@
     // MOBILE-2: sân 1920×1080 co theo màn (0,36 ở 844×390) làm chữ 23 px còn ~8 px thật → phóng tooltip để dòng chữ ≥ ~12 px thật,
     // tối đa 2,2× và không quá khổ sân (chừa 24 px mỗi bên)
     var vs = (root.BZView && root.BZView.scale) || 1, k = Math.max(1, Math.min(2.2, T.MIN_PX / (23 * vs)));
-    k = Math.max(1, Math.min(k, (stageW - 24) / w0, (stageH - 24) / h0));
+    var v = (root.BZView && root.BZView.vis) || { x0: 0, y0: 0, x1: stageW, y1: stageH }; // camera điện thoại chỉ thấy một phần sân
+    k = Math.max(1, Math.min(k, (v.x1 - v.x0 - 24) / w0, (v.y1 - v.y0 - 24) / h0));
     var w = w0 * k, h = h0 * k;
     // clip UBBAzdzXo8g: thẻ ở hàng dưới → tooltip nằm TRÊN thẻ, mép trái lệch ~20 px; hàng trên → bên phải thẻ (lật trái khi hết chỗ)
     var gap = 26, x = rect.x + rect.w + gap, left = false, y = rect.y + rect.h / 2 - h / 2;
-    if (rect.y + rect.h / 2 > stageH * 0.5 && rect.y - h - 14 >= 12) { x = rect.x - 20; y = rect.y - h - 14; }
-    else if (x + w > stageW - 12) { x = rect.x - gap - w; left = true; }
-    x = Math.max(12, Math.min(stageW - w - 12, x));
-    y = Math.max(12, Math.min(stageH - h - 12, y));
+    if (rect.y + rect.h / 2 > (v.y0 + v.y1) / 2 && rect.y - h - 14 >= v.y0 + 12) { x = rect.x - 20; y = rect.y - h - 14; }
+    else if (x + w > v.x1 - 12) { x = rect.x - gap - w; left = true; }
+    x = Math.max(v.x0 + 12, Math.min(v.x1 - w - 12, x));
+    y = Math.max(v.y0 + 12, Math.min(v.y1 - h - 12, y));
     // phóng quanh góc trên-trái để (x, y, w, h) đúng là hộp nhìn thấy; hoạt ảnh hiện vẫn nở từ mép gần thẻ khi không phóng
     if (k > 1.001) { box.style.transformOrigin = '0 0'; box.style.scale = k.toFixed(3); }
     else box.style.transformOrigin = (left ? '100%' : '0') + ' 50%';
     box.style.left = Math.round(x) + 'px'; box.style.top = Math.round(y) + 'px';
     T.lastScale = k;
     var ks = box.querySelector('.keys');
-    if (ks) { ks.style.left = Math.round((24 - x) / k) + 'px'; ks.style.top = Math.round((stageH - 24 - ks.offsetHeight * k - y) / k) + 'px'; }
+    if (ks) { ks.style.left = Math.round((v.x0 + 24 - x) / k) + 'px'; ks.style.top = Math.round((v.y1 - 24 - ks.offsetHeight * k - y) / k) + 'px'; }
     if (!box.classList.contains('show')) { void box.offsetWidth; box.classList.add('show'); }
   }
   T.hide = function () { if (!box || lock) return; box.classList.remove('show'); box.style.display = 'none'; cur = null; };
@@ -179,7 +180,8 @@
     P.innerHTML = h; box.appendChild(P);
     // panel nằm dưới tooltip: nếu tràn đáy sân thì đẩy tooltip lên
     var k = T.lastScale || 1, top = parseFloat(box.style.top) || 0, need = (box.offsetHeight + P.offsetHeight + 12) * k;
-    if (top + need > stageH - 8) box.style.top = Math.max(8, Math.round(stageH - 8 - need)) + 'px';
+    var vy = (root.BZView && root.BZView.vis) || { y0: 0, y1: stageH };
+    if (top + need > vy.y1 - 8) box.style.top = Math.max(vy.y0 + 8, Math.round(vy.y1 - 8 - need)) + 'px';
     P.querySelector('.sel-tier').addEventListener('change', function (e) { lock.cur.tier = e.target.value; U.sfx('ui.click'); drawLocked(); });
     var se = P.querySelector('.sel-ench');
     if (se) se.addEventListener('change', function (e) { lock.cur.ench = e.target.value || null; U.sfx('ui.click'); drawLocked(); });
