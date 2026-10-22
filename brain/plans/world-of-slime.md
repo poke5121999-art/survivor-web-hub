@@ -42,7 +42,9 @@ không tự vẽ, có hai bản PC và mobile. Asset nặng để ở repo riên
   Kiểm: `test/world-of-slime-{slice,hud,larus}.js` (13, 37, 16 PASS trên Pages).
 - Chủ dự án chọn dừng lấy đệm (phương án C). Chưa có bản đồ ngoài làng; rừng dùng `?map=dev`.
 - Đệm thô ở `D:\wos-ref\server-cache\live`, ảnh chụp game thật ở `D:\wos-ref\pilot` (tool lái game `D:\wos-ref\tools\pilot.py`).
-- Còn thiếu: đồ đạc trong nhà (vật thể server gửi), mặt nước đài phun, thoại + nhiệm vụ, đánh nhau, bắt slime, thẻ hub.
+- 2026-10-22 `69382801` rev 20261022b: nhiệm vụ Larus 1-6 + shop Cube theo `docs/research/QUESTLINE.md` (clip DcGavHFwqtk),
+  `test/world-of-slime-quest.js` 70 PASS trên Pages.
+- Còn thiếu: đồ đạc trong nhà, mặt nước đài phun, tạo nhân vật, đấu Rudga + Shadow Forest (chưa có bản đồ), đánh nhau, bắt slime, thẻ hub.
 
 ## Giả định đang dùng
 
