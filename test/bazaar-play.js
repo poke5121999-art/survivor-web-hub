@@ -247,13 +247,15 @@ async function desktop(browser, base) {
   await page.hover('.rs-top .rs-enc'); await sleep(500);
   await shot(page, '10-pve-choice');
   await page.click('.rs-top .rs-enc');
-  await waitScreen(page, 'fight'); await sleep(1200);
-  await shot(page, '11-fight-preview');
-  // gốc tự đánh ~3 s sau lúc chọn (REF-run-flow fight-start): không bấm nút, chờ trận tự bắt đầu
+  await waitScreen(page, 'fight');
+  // gốc tự đánh ~3 s sau lúc chọn (REF-run-flow fight-start): không bấm nút, chờ trận tự bắt đầu. Đo từ lúc vào màn fight, gồm cả lúc chụp ảnh
+  // (trước đây chỉ cộng cứng 1200 ms, chụp ảnh chậm trên Pages làm số đo hụt dưới 2500)
   const tFight = Date.now();
+  await sleep(1200);
+  await shot(page, '11-fight-preview');
   await waitScreen(page, 'fightResult', 8000);
   const autoMs = Date.now() - tFight;
-  check('PvE tự vào trận sau ~3 s mà không cần bấm (' + (autoMs + 1200) + ' ms)', autoMs + 1200 >= 2500 && autoMs < 4500, 'chờ thêm ' + autoMs);
+  check('PvE tự vào trận sau ~3 s mà không cần bấm (' + autoMs + ' ms)', autoMs >= 2500 && autoMs < 5700, 'đo ' + autoMs);
   await sleep(2500);
   await shot(page, '12-combat');
   const cinfo = await page.evaluate(() => window.BZ_DEBUG.combat());
