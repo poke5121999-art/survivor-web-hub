@@ -71,8 +71,9 @@
       rewards: ph.combatType === 'PVE' ? { gold: 0, xp: 0 } : {} });
     var h0 = V().hero(0); if (h0) h0.art.classList.add('hero-art');
     V().setupHero(1, { name: oname, level: (boards[1] && boards[1].level) || 1, tier: (ph.opponent.tier) || 'Silver', char: oa.char, bg: oa.bg, skills: skills[1],
-      rewards: ph.rewards || {}, hpMax: res.players[1].healthMax });
+      rewards: plateRewards(ph, false), hpMax: res.players[1].healthMax });
     var h1 = V().hero(1); if (h1) h1.art.classList.toggle('hero-art', !!oa.hero);
+    (V().refs.sides || []).forEach(function (sd) { U.fitText(sd && sd.l.querySelector('.bz-name'), 16, 2); }); // "Bóng ma của <tên>" một dòng (P3-12)
     V().layoutBoard(0, lists[0]); V().layoutBoard(1, lists[1]);
     // hai ô cạnh dưới giữ như ngoài trận: rương kho + túi vàng / thu nhập (không đổi sang bố cục trang xem trận)
     U.hud.mountSides(run);
@@ -89,7 +90,7 @@
     RP().setSpeed(Math.max(1, Math.min(3, sp)));
     RP().pause(false);
     RP().onChange = refreshDock;
-    cur = { res: res, info: info, onDone: onDone, notified: false, playing: true, expect: ph.winner, got: gotWinner };
+    cur = { res: res, info: info, onDone: onDone, notified: false, playing: true, expect: ph.winner, got: gotWinner, ph: ph };
     // FX-20: PvE và PvP cùng bật nhạc trận của hero (SoundManager.cs:788-802); music.pve chỉ là dự phòng khi thiếu bài của hero
     var A = root.BZAudio; if (A) A.music(C.battleMusic(run.hero), 1);
     C.intensity = 0; if (A && A.setIntensity) A.setIntensity(0);
@@ -98,6 +99,21 @@
     buildDock(); dock.style.display = '';
     refreshDock();
   };
+  // Tấm "Phần thưởng" của quái (P1-10 / P3-4): trong trận hiện phần thưởng quái treo (như lúc xem trước, WIKI §1.5);
+  // phase fightResult đã mang phần thật (thua = lossRewards) nên chỉ đổi sang số đó khi trận phát xong — không lộ kết quả từ giây 0.
+  function plateRewards(ph, done) {
+    if (ph.combatType === 'PVP') return {};
+    if (done) return ph.rewards || {};
+    var o = ph.opponent || {}, c = o.combatId && root.BZ_ENCOUNTERS && root.BZ_ENCOUNTERS.combats[o.combatId];
+    return o.rewards || (c ? { gold: c.Gold, xp: c.XpReward } : ph.rewards || {}); // fightResult cũ chỉ giữ combatId: tra lại phần thưởng quái
+  }
+  function setPlate(done) {
+    var side = V().refs.sides && V().refs.sides[1], rw = cur && plateRewards(cur.ph, done);
+    if (!side || !rw) return;
+    var v = side.r.querySelectorAll('.bz-reward span');
+    if (v[0]) v[0].textContent = rw.gold || 0;
+    if (v[1]) v[1].textContent = rw.xp || 0;
+  }
   C.battleMusic = function (hero) {
     var k = 'music.battle.' + U.voOf(hero), A = root.BZAudio;
     return A && A.has && A.has(k) ? k : 'music.pve';
@@ -124,9 +140,9 @@
     RP().step(dt, now);
     var S = RP().state();
     pushIntensity(S);
-    if (S && S.done && !cur.notified) { cur.notified = true; refreshDock(); if (cur.onDone) cur.onDone(); }
+    if (S && S.done && !cur.notified) { cur.notified = true; setPlate(true); refreshDock(); if (cur.onDone) cur.onDone(); }
   };
-  C.restart = function () { if (cur) { cur.notified = false; RP().restart(); if (dock) dock.classList.remove('done'); refreshDock(); } };
+  C.restart = function () { if (cur) { cur.notified = false; setPlate(false); RP().restart(); if (dock) dock.classList.remove('done'); refreshDock(); } };
   C.skip = function () { if (cur && cur.playing) { RP().pause(false); RP().skip(); } };
   // tạm dừng / chạy tiếp (Space, nút dock, bảng cài đặt). on: true/false/undefined = đảo
   C.paused = function () { var S = RP().state(); return !!(cur && S && S.paused); };

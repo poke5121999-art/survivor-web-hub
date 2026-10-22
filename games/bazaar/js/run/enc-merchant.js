@@ -30,12 +30,14 @@
     var free = !!(e.Rules && e.Rules.SelectionIsFree);
     var cards = /sells skill upgrades/i.test(e.Desc || '') ? M.skillUpgrades(run, limitOf(run, e), exclude) : null;
     if (!cards) cards = R.dealFor(run, e, M.filter(e), limitOf(run, e), { exclude: exclude || {}, priced: !free, shop: true, tierMode: R.shopRec(e) && /teach|skill/i.test(e.Desc || '') ? 'band' : 'day' });
-    var stock = cards.map(function (c) { return { card: c, price: free ? 0 : R.price(c, c.tier).buy }; });
+    // [WIKI2 R10] wiki Items (2025-04-09): yểm bùa có sẵn trên món của thương nhân thì "double the price" (nhân trước khi giảm 25 %)
+    var stock = cards.map(function (c) { return { card: c, price: free ? 0 : R.price(c, c.tier).buy * (c.ench ? 2 : 1) }; });
     var rec = R.shopRec(e), always = /always sells discounted/i.test(e.Desc || '') || !!(rec && rec.discounted); // Valpak: cờ discounted của bazaardb
     var hasRoll = JSON.stringify(e.Abilities || {}).indexOf('"BuyPrice"') >= 0;
+    // ×0,75 làm tròn XUỐNG: món 2 vàng giảm còn 1 (làm tròn xa 0 thì 1,5 → 2, "giảm giá" mà giá không đổi), 6 → 4; giá chẵn bội 4 không đổi
     if (!free && stock.length && (hasRoll || always) && R.rand(run) < (always ? T().ALWAYS_DISCOUNT_CHANCE : T().DISCOUNT_CHANCE)) {
       var s = stock[R.randInt(run, stock.length)];
-      s.price = root.BZSim.roundAway(s.price * T().DISCOUNT_MULT); s.discount = true;
+      s.price = Math.floor(s.price * T().DISCOUNT_MULT); s.discount = true;
     }
     return stock;
   };

@@ -110,6 +110,8 @@
   };
   var TIER_VI = { Bronze: 'Đồng', Silver: 'Bạc', Gold: 'Vàng', Diamond: 'Kim cương', Legendary: 'Huyền thoại' };
   T.TIER_VI = TIER_VI;
+  // icon từ khoá mà tooltip dùng (đúng URL có ?v=), để nạp sẵn (P2-6)
+  T.iconUrls = function () { var seen = {}, out = []; Object.keys(KW).forEach(function (k) { var n = KW[k][1]; if (n && !seen[n]) { seen[n] = 1; out.push('art/icons/' + n + '.webp' + REV()); } }); return out; };
 
   var cur = null;
   T.MIN_PX = 12.5; // cỡ chữ dòng hiệu ứng tối thiểu (px thật trên màn) cho điện thoại

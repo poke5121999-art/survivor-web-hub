@@ -11,9 +11,38 @@
   R.ENCOUNTERS = R.ENCOUNTERS || {};
   R.ENCOUNTERS.step = St;
 
+  // Thuộc tính người chơi vĩnh viễn (vào trận qua R.playerBoard: HealthRegen...)
+  R.addPattr = function (ctx, attr, v) {
+    if (!v) return;
+    var run = ctx.run;
+    run.pattrs = run.pattrs || {};
+    run.pattrs[attr] = (run.pattrs[attr] || 0) + v;
+    R.emit(ctx, { type: 'playerAttr', attr: attr, delta: v });
+  };
+  // Mọi vật phẩm (tay + kho) mang loại `tag` được cộng vĩnh viễn `v` vào thuộc tính `attr` (inst.mods, như ooc readBack)
+  R.buffItems = function (ctx, tag, attr, v) {
+    var run = ctx.run;
+    run.board.hand.concat(run.board.stash).forEach(function (ci) {
+      var tp = R.tpl(ci.id), tags = ((tp && tp.Tags) || []).concat(ci.tags || []);
+      if (tags.indexOf(tag) < 0) return;
+      ci.mods = ci.mods || {};
+      ci.mods[attr] = (ci.mods[attr] || 0) + v;
+      R.emit(ctx, { type: 'cardAttr', uid: ci.uid, attr: attr, delta: v });
+    });
+  };
+  // Lựa chọn tự dựng (kind 'generic', key 'tên:biến thể') cho sự kiện mà bản demo mất bước [WIKI2 E12]. fn(ctx, after) → 'phase' nếu tự đặt pha.
+  // Finn's Big Bite (2025-03-24): "Guardian's Gravy Plate: You gain 5% max Health and your Shield items gain +10 Shield; Restorative
+  // Risotto: ... Heal items gain +10 Heal; Vitality Stew: ... 5 Regeneration".
+  function maxHpPct(ctx, pct) { R.addHealthMax(ctx, Math.round(ctx.run.healthMax * pct / 100)); }
+  R.GENERIC_FX = {
+    'finn:gravy': function (ctx) { maxHpPct(ctx, 5); R.buffItems(ctx, 'Shield', 'ShieldApplyAmount', 10); },
+    'finn:risotto': function (ctx) { maxHpPct(ctx, 5); R.buffItems(ctx, 'Heal', 'HealAmount', 10); },
+    'finn:stew': function (ctx) { maxHpPct(ctx, 5); R.addPattr(ctx, 'HealthRegen', 5); }
+  };
   // Phần thưởng chung theo dải ngày [ĐỀ XUẤT TUNING.GENERIC_*]: chỉ còn cho chữ "Gain Gold and XP" không số (St.FX) và lưu cũ
-  R.genericReward = function (ctx, kind) {
+  R.genericReward = function (ctx, kind, after) {
     var run = ctx.run, band = R.bandTier(run);
+    if (R.GENERIC_FX[kind]) return R.GENERIC_FX[kind](ctx, after);
     if (kind === 'xp') { R.gainXp(ctx, T().GENERIC_XP, 'generic'); return; }
     if (kind === 'item') {
       var c = R.deal(run, { kind: 'item', tiers: [band], any: [], not: [], names: [] }, 1, {})[0];
@@ -25,16 +54,20 @@
   // Pha loot: chọn miễn phí trong `picks`; take = số được lấy (1, hoặc tất cả nếu CanSelectMultiple)
   // opts (tuỳ chọn) cho thầy có RerollRules: {rr: RerollRules, filter, n, tierMode} → pha mang rerolls / rerollCost / rerollStep / rerollMax
   // (cùng tên với pha thương nhân), `dealt` = id đã bày (không chia lại), `redeal` = bộ lọc để chia lại. [RUN-05]
+  // opts.next = {id, deals} (thẻ sinh ra không vừa chỗ, St.resolve): nhặt xong / bỏ qua thì đi tiếp phần còn lại của bước đó
+  // (Then, Deal) thay vì kết thúc gặp gỡ; opts.spawned: thẻ là quà sinh ra (không nhập bậc, không tính là "chọn lấy")
   R.enterLoot = function (ctx, picks, take, after, source, opts) {
     if (!picks.length) { R.finish(ctx, after); return; }
     var ph = { kind: 'loot', source: source || null, picks: picks.map(function (c) { return { card: c }; }),
       take: take || 1, taken: 0, after: after || 'endHour', rerolls: 0, rerollCost: 0, rerollStep: 0, rerollMax: null };
+    if (opts && opts.next) ph.next = opts.next;
+    if (opts && opts.spawned) ph.spawned = true;
     var rr = opts && opts.rr;
     if (rr && rr.TotalAllowedRerolls) {
       ph.rerolls = rr.TotalAllowedRerolls; ph.rerollCost = rr.StartingCost || 0; ph.rerollStep = rr.CostIncrease || 0;
       ph.rerollMax = rr.CostMax != null ? rr.CostMax : null;
       ph.dealt = picks.map(function (c) { return c.id; });
-      ph.redeal = { filter: opts.filter, n: opts.n, tierMode: opts.tierMode, enc: opts.enc || null };
+      ph.redeal = { filter: opts.filter, n: opts.n, tierMode: opts.tierMode, enc: opts.enc || null, allowLoot: !!opts.allowLoot };
     }
     ctx.run.phase = ph;
     R.emit(ctx, { type: 'loot', n: picks.length });
@@ -46,7 +79,7 @@
     if (ph.taken > 0) return 'cannot reroll after taking a card';
     if (run.gold < ph.rerollCost) return 'not enough gold for reroll (' + run.gold + ' < ' + ph.rerollCost + ')';
     var ex = {}; ph.dealt.forEach(function (id) { ex[id] = 1; });
-    var cards = R.dealFor(run, ph.redeal.enc, ph.redeal.filter, ph.redeal.n, { tierMode: ph.redeal.tierMode, exclude: ex, shop: !!(ph.redeal.enc && R.shopRec(ph.redeal.enc)) });
+    var cards = R.dealFor(run, ph.redeal.enc, ph.redeal.filter, ph.redeal.n, { tierMode: ph.redeal.tierMode, exclude: ex, shop: !!(ph.redeal.enc && R.shopRec(ph.redeal.enc)), allowLoot: !!ph.redeal.allowLoot });
     if (!cards.length) return 'no other cards to deal';
     R.gold(ctx, -ph.rerollCost, 'reroll');
     ph.rerolls--;
@@ -60,14 +93,18 @@
   R.lootChoose = function (ctx, cmd) {
     var ph = ctx.run.phase, p = ph.picks[cmd.i];
     if (!p) return 'loot slot ' + cmd.i + ' is empty';
-    var ci = R.gainCard(ctx, p.card, cmd.section || null, cmd.socket == null ? null : cmd.socket, 'loot');
+    var ci = R.gainCard(ctx, p.card, cmd.section || null, cmd.socket == null ? null : cmd.socket, ph.spawned ? 'spawn' : 'loot', !!ph.spawned);
     if (!ci) return R.noSpaceReason(ctx.run, p.card);
     R.log(ctx, { t: 'loot', id: p.card.id, tier: p.card.tier });
     ph.picks.splice(cmd.i, 1);
     ph.taken++;
-    if (ph.taken >= ph.take || !ph.picks.length) R.finish(ctx, ph.after);
+    if (ph.taken >= ph.take || !ph.picks.length) lootDone(ctx);
   };
-  R.lootLeave = function (ctx) { R.finish(ctx, ctx.run.phase.after); };
+  R.lootLeave = function (ctx) { lootDone(ctx); };
+  function lootDone(ctx) {
+    var ph = ctx.run.phase, nx = ph.next, E = R.enc(), e = nx && (E.steps[nx.id] || E.events[nx.id]);
+    if (e) St.afterAbilities(ctx, e, nx.deals || [], ph.after); else R.finish(ctx, ph.after);
+  }
 
   function selectedAbilities(e) {
     var out = [];
@@ -79,21 +116,29 @@
   }
   // Chạy ability "khi chọn" của thẻ gặp gỡ e. Trả về danh sách Deal cần bày ({filter, n}).
   St.runAbilities = function (ctx, e) {
-    var abs = selectedAbilities(e), deals = [], ran = 0;
-    if (!abs.length) return { deals: deals, ran: 0 };
-    var text = St.filterText(e), filter = R.parseFilter(text || e.Title || '');
+    var abs = selectedAbilities(e), deals = [], overflow = [], ran = 0;
+    if (!abs.length) return { deals: deals, overflow: overflow, ran: 0 };
+    var text = St.filterText(e), filter = St.encTier(R.parseFilter(text || e.Title || ''), e);
     if (R.filterEmpty(filter)) filter = R.phraseFilter(text, null) || filter; // "Get a Gumball" → Red/Blue/... Gumball
+    (T().EVENT_REWARD_TIER_RE || []).forEach(function (rt) { if (rt[0].test(e.InternalName || '')) filter.tiers = [rt[1]]; }); // Gumball: Đồng [WIKI2 E7]
     R.ooc.withState(ctx, function (S) {
       var sim = root.BZSim, card = R.ooc.encounterCard(S, e), ev = { kind: 'TTriggerOnCardSelected', side: 0, src: card, card: card };
       abs.forEach(function (A) {
         if (!sim.prereqsOk(A.Prerequisites, { S: S, card: card, ev: ev })) return;
-        var x = { S: S, card: card, ev: ev, source: { name: e.InternalName, desc: text }, out: { deals: deals }, filter: filter, isEncounter: true,
-          hasThen: !!((e.Then && e.Then.length) || (St.fxOf(e) && St.fxOf(e).then)) };
+        var x = { S: S, card: card, ev: ev, source: { name: e.InternalName, desc: text }, out: { deals: deals, overflow: overflow }, filter: filter,
+          isEncounter: true, hasThen: !!((e.Then && e.Then.length) || (St.fxOf(e) && St.fxOf(e).then)) };
         R.ooc.runAction(A.Action, ctx, x);
         ran++;
       });
     });
-    return { deals: deals, ran: ran };
+    return { deals: deals, overflow: overflow, ran: ran };
+  };
+  // Bậc của phần thưởng mà chữ không nêu bậc ("Get a Small Tool" của Utility Box Bạc): bậc của chính thẻ sự kiện (bazaardb ghi mỗi bậc
+  // một bản "Get a Silver-tier ..."), không phải bậc gieo theo ngày. Chỉ thẻ SỰ KIỆN (bước con mang StartingTier mặc định Đồng: bước
+  // "Roast It" của Finn's Vàng là Đồng), chỉ vật phẩm (thầy dạy kỹ năng theo dải bậc), không đụng "copy of any item".
+  St.encTier = function (f, e) {
+    if (f && f.kind !== 'skill' && !R.filterEmpty(f) && !(f.tiers && f.tiers.length) && !f.copy && e && e.StartingTier && R.enc().events[e.Id] === e) f.tiers = [e.StartingTier];
+    return f;
   };
   // Mô tả không kèm ability ("Study (Default Option): Gain 2 XP")
   function textReward(ctx, desc) {
@@ -123,10 +168,22 @@
   // null nếu đủ điều kiện (hoặc không có điều kiện); chuỗi mô tả thiếu gì nếu không
   St.conditionMissing = function (run, e) {
     var c = St.conditionOf(e);
-    if (!c) return null;
+    if (!c) return St.noTarget(run, e);
     var ok = c.kind === 'are' ? c.terms.some(function (h) { return h.toLowerCase() === String(run.hero).toLowerCase(); })
       : c.terms.some(function (t) { return hasTerm(run, t); });
     return ok ? null : (c.kind === 'are' ? 'hero is not ' : 'no ') + c.terms.join(' or ') + (c.kind === 'are' ? '' : ' in hand or stash');
+  };
+  // Bước mà mọi ability chỉ tác động lên thẻ của người chơi ("Upgrade your leftmost Poison item", "Your items gain 3 Poison") và đích
+  // (chấm bằng sim trên bàn hiện tại) rỗng thì không làm được gì: ẩn như "(if you have ...)" thay vì để chọn rồi trôi giờ. null = làm được.
+  var CARD_ACTS = { TActionCardUpgrade: 1, TActionCardEnchant: 1, TActionCardEnchantRandom: 1, TActionCardModifyAttribute: 1, TActionCardTransform: 1 };
+  St.noTarget = function (run, e) {
+    var abs = selectedAbilities(e);
+    if (!abs.length || St.fxOf(e) || !abs.every(function (A) { var a = A.Action; return a && CARD_ACTS[a.$type] && a.Target && a.Target.TargetSection !== 'SelectionSet'; })) return null;
+    var sim = root.BZSim, S = R.readState(run), card = R.ooc.encounterCard(S, e), ev = { kind: 'TTriggerOnCardSelected', side: 0, src: card, card: card };
+    var hit = abs.some(function (A) {
+      return sim.targets(A.Action.Target, { S: S, card: card, ev: ev }).some(function (T) { return T.owner === 0; });
+    });
+    return hit ? null : 'no item this choice can act on';
   };
 
   // ---------- hiệu ứng thật của bước / sự kiện mà dữ liệu không nói đủ, khoá InternalName ('InternalName|Title' khi trùng tên) ----------
@@ -194,8 +251,66 @@
   FX['The Lost Crate (Return It)|Return the Crate to Its Owner'] = { fx: function (ctx, e, after) {
     R.genericReward(ctx, 'gold'); R.genericReward(ctx, 'xp'); R.finish(ctx, after); return true;
   } };
-  // Mountain Pass (bazaardb "DEALS 1"): trong bảy lựa chọn bazaardb chỉ hai cái có bước trong dữ liệu
-  FX['Mountain Pass'] = { then: ['Lost Treasure', '[Jungle Ruins] Grab the Loot'], n: 1 };
+  // Wink: bản demo mất vế cuối; bazaardb "Transform and Upgrade all your non-Legendary items into items from any Hero, then gain 10 Prestige"
+  //   desc: chữ hiện thay Desc (R.encText);  also: fn(ctx, e) chạy sau ability của bước
+  FX["Pay Wink's Toll"] = { desc: 'Transform and upgrade all your non-Legendary items into items from any Hero, then gain 10 Prestige',
+    also: function (ctx) { R.prestige(ctx, 10); } };
+  // Mountain Pass [WIKI2 E3] Version 2.0.0 + trang (2025-05-24): "25% Chance: Fight a monster from same day; 25%: monster from next day;
+  // 40%: Positive Outcome (Get 3 Loot Items / Gain 5 Regen / Generous Tip: 10 Gold / Invest in the Convoy: 1 Income / A Routine Job:
+  // 1 XP and 5 Gold / Escape to the Sea: 5 XP); 10%: Negative Outcome (Gain the Skill Valley Fever / Insect Bite)". Sáu kết quả tốt
+  // chia đều, hai kỹ năng xấu chia đều [ĐỀ XUẤT: trang không ghi tỉ lệ con]. Gieo khi chọn; kết quả ghi log {t:'mountainPass', outcome}.
+  var MOUNTAIN_GOOD = [
+    ['loot', function (ctx, e, after) {
+      var picks = R.deal(ctx.run, { kind: 'item', tiers: null, sizes: null, any: ['Loot'], not: [], hero: 'any', names: [], enchanted: false, copy: false }, 3, { tierMode: 'day' });
+      R.enterLoot(ctx, picks, picks.length, after, e.Id); return true;
+    }],
+    ['regen', function (ctx) { R.addPattr(ctx, 'HealthRegen', 5); }],
+    ['tip', function (ctx) { R.gold(ctx, 10, 'event'); }],
+    ['invest', function (ctx) { R.income(ctx, 1); }],
+    ['routine', function (ctx) { R.gainXp(ctx, 1, 'event'); R.gold(ctx, 5, 'event'); }],
+    ['sea', function (ctx) { R.gainXp(ctx, 5, 'event'); }]
+  ];
+  St.MOUNTAIN_ODDS = [25, 25, 40, 10]; // đấu cùng ngày, đấu ngày sau, tốt, xấu
+  FX['Mountain Pass'] = { fx: function (ctx, e, after) {
+    var run = ctx.run, k = R.rollWeights(run, St.MOUNTAIN_ODDS), Cb = R.ENCOUNTERS.combat;
+    if (k === 0 || k === 1) {
+      var r = Cb.pickDayRef(run, [run.day + k]);
+      R.log(ctx, { t: 'mountainPass', outcome: k ? 'fightNextDay' : 'fightSameDay' });
+      if (r) { Cb.enter(ctx, r, after); return true; }
+      R.finish(ctx, after); return true;
+    }
+    if (k === 2) {
+      var g = MOUNTAIN_GOOD[R.randInt(run, MOUNTAIN_GOOD.length)];
+      R.log(ctx, { t: 'mountainPass', outcome: g[0] });
+      if (g[1](ctx, e, after) === true) return true;
+      R.finish(ctx, after); return true;
+    }
+    var bad = ['Valley Fever', 'Insect Bite'][R.randInt(run, 2)], C = root.BZ_CARDS, id = null;
+    for (var cid in C) if (R.title(C[cid]) === bad && R.isSkill(C[cid])) { id = cid; break; }
+    R.log(ctx, { t: 'mountainPass', outcome: 'skill:' + bad });
+    if (id) R.gainCard(ctx, { id: id, tier: R.tpl(id).StartingTier || 'Bronze', ench: null }, null, null, 'event');
+    R.finish(ctx, after); return true;
+  } };
+  // Study (2024-11-29): "Gain 1 Additional XP" [WIKI2 E6] (bản demo: Xp 2 + chữ "Gain 2 XP" = 4 XP)
+  FX['Study (Default Option)'] = { desc: 'Gain 1 XP', fx: function (ctx, e, after) { R.gainXp(ctx, 1, 'event'); R.finish(ctx, after); return true; } };
+  // Relax (2025-06-01) = Rest của bản demo: "Start your next fight with 100 Shield per Level" [WIKI2 E8]: khiên giữ trong run.nextFightShield
+  // tới trận kế (R.fightBoards cộng vào bàn, Cb.fight xoá)
+  FX.Rest = { fx: function (ctx, e, after) {
+    var run = ctx.run;
+    run.nextFightShield = (run.nextFightShield || 0) + 100 * run.level;
+    R.emit(ctx, { type: 'playerAttr', attr: 'NextFightShield', delta: 100 * run.level });
+    R.finish(ctx, after); return true;
+  } };
+  // Regenerative Tincture (2025-02-25): "Gain Regeneration equal to your level" [WIKI2 E15] (bản demo: 2 x cấp)
+  FX['Regenerative Tincture'] = { desc: 'Permanently gain Regen equal to your level', fx: function (ctx, e, after) {
+    R.addPattr(ctx, 'HealthRegen', ctx.run.level); R.finish(ctx, after); return true;
+  } };
+  // Borrow (2025-05-18): "Lose 1 Income and gain 8 / 7 / 6 gold" ngày 1-2 / 3-4 / 5-6 [WIKI2 E15] (bản demo 9 / 8 / 7)
+  [['Borrow (Day 1-2)', 8], ['Borrow (Day 3-4)', 7], ['Borrow (Day 5-6)', 6]].forEach(function (b) {
+    FX[b[0]] = { desc: 'Lose 1 Income and gain ' + b[1] + ' Gold', fx: function (ctx, e, after) {
+      R.income(ctx, -1); R.gold(ctx, b[1], 'event'); R.finish(ctx, after); return true;
+    } };
+  });
   function artist(ctx, e, after) {
     var c = R.LEVEL_SLOT_KINDS.artist(ctx.run, null, {});
     if (!c) return false;
@@ -227,15 +342,25 @@
     return list;
   }
 
-  // Chọn một bước / sự kiện tức thì: XP khi chọn (ExperienceAwardUponSelection), ability, rồi loot hoặc kết thúc
+  // Chọn một bước / sự kiện tức thì: ability, rồi loot hoặc kết thúc (KHÔNG cộng ExperienceAwardUponSelection: WIKI2 R1, xem clock.js endHour)
   St.resolve = function (ctx, e, after) {
-    R.gainXp(ctx, e.Xp || 0, 'select');
     R.log(ctx, { t: 'step', id: e.Id, name: e.InternalName });
     var fx = St.fxOf(e);
     if (fx && fx.fx && fx.fx(ctx, e, after)) return;
     var res = St.runAbilities(ctx, e);
     if (!res.ran) textReward(ctx, e.Desc); // không đọc được gì: chỉ XP khi chọn, không phần thưởng bịa
+    if (fx && fx.also) fx.also(ctx, e);
     if (ctx.run.phase.kind === 'end') return;
+    // Thẻ sinh ra không vừa tay + kho: bày thành pha nhặt (lấy hết, bán bớt cho có chỗ, hoặc bỏ qua) rồi mới đi tiếp [FLOW-9]
+    if (res.overflow.length) {
+      R.emit(ctx, { type: 'overflow', n: res.overflow.length, source: e.Id });
+      R.enterLoot(ctx, res.overflow, res.overflow.length, after, e.Id, { next: { id: e.Id, deals: res.deals }, spawned: true });
+      return;
+    }
+    St.afterAbilities(ctx, e, res.deals, after);
+  };
+  // Phần sau ability của một bước: bước kế (Then) / Deal thành pha loot / kết thúc
+  St.afterAbilities = function (ctx, e, deals, after) {
     // Bước dẫn tiếp (encounters.js Then, St.FX.then): Deal của bước chính là bày bộ kế tiếp này
     // (SpawnContext bị xoá) → bày Then thay cho Deal; được rời [ĐỀ XUẤT]
     var Ev = R.ENCOUNTERS.event, then = nextOf(ctx.run, e);
@@ -244,7 +369,7 @@
         choices: then.map(function (o) { return Ev.optionChoice(o, ctx.run, e); }), canExit: true, after: after };
       return;
     }
-    var d = res.deals[0]; // một bước chỉ bày một lựa chọn (bước có nhiều Deal: lấy cái đầu) [ĐỀ XUẤT]
+    var d = deals[0]; // một bước chỉ bày một lựa chọn (bước có nhiều Deal: lấy cái đầu) [ĐỀ XUẤT]
     if (d) {
       // "Get 3 Loot items" / "Get 2 Economic items": chữ nói lấy cả N thẻ đã bày (không phải chọn 1 trong N)
       var gm = /\bGet (\d+)\b/i.exec(R.encText(ctx.run, e, e.Desc || '')), n = Math.max(1, d.n);

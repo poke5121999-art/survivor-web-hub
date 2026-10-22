@@ -55,6 +55,9 @@
 
   R.endHour = function (ctx) {
     var run = ctx.run, m = R.mode();
+    // [WIKI2 R1] XP duy nhất của một giờ: +ExperiencePerHour (1) khi hết giờ. Chọn gặp gỡ KHÔNG cộng thêm ExperienceAwardUponSelection
+    // (Version 0.1.6: "Fixed an issue where some Level Up rewards would provide XP like they were a regular encounter" = XP của giờ chính
+    // là XP của việc chọn gặp gỡ; Level Up "Collect 8 XP to gain a level"; Day: 6 giờ / ngày) -> 6 x 1 + XP quái 2-3 ≈ 1 cấp / ngày.
     R.gainXp(ctx, m.ExperiencePerHour, 'hour');
     run.hour++;
     if (run.hour >= m.HoursInADay) {
@@ -71,11 +74,17 @@
   function heroOk(e, run) { var h = e.Heroes || []; return (!h.length || h.indexOf('Common') >= 0 || h.indexOf(run.hero) >= 0) && R.shopHeroOk(e, run); }
   // gặp gỡ không có art trong chính game (ArtKey rỗng: Claw Game, Big Bad Wolf) thì không bày, như HIDDEN_CARDS với vật phẩm; không vẽ thay
   function artOk(e) { return e.ArtKey !== ''; }
+  R.isPlaceholderEnc = function (e) { return !!e && (T().PLACEHOLDER_ENCOUNTERS || []).indexOf(e.InternalName) >= 0; }; // TUNING.PLACEHOLDER_ENCOUNTERS
+  // Khoảng ngày của một gặp gỡ ở giờ tự do [WIKI2 E13/E14]: TUNING.WIKI_DAYS (wiki xác nhận) → bazaardb days_active (10 = "10+")
+  // → Days trong tên của bản demo → TUNING.DAYS_BY_TIER theo bậc. Thẻ lên cấp không xét theo bậc (đã có bảng riêng).
   function dayOk(e, run) {
     var d = R.dataDay(run.day), S = root.BZ_SHOPS, sr = S && !e.LevelUp && (S.merchants[e.Id] || S.trainers[e.Id] || S.events[e.Id]);
-    // ngày thật có thẻ này (bazaardb days_active, 10 = "10+") thay cho Days của bản demo khi có
-    if (sr && sr.days && sr.days.length) { if (sr.days.indexOf(Math.min(10, run.day)) < 0) return false; }
-    else if (e.Days && (d < e.Days[0] || d > e.Days[1])) return false;
+    var wd = !e.LevelUp && T().WIKI_DAYS[e.InternalName], skip = T().WIKI_SKIP_DAYS[e.InternalName];
+    if (skip && skip.indexOf(run.day) >= 0) return false;
+    if (wd) { if (run.day < wd[0] || run.day > wd[1]) return false; }
+    else if (sr && sr.days && sr.days.length) { if (sr.days.indexOf(Math.min(10, run.day)) < 0) return false; }
+    else if (e.Days) { if (d < e.Days[0] || d > e.Days[1]) return false; }
+    else if (!e.LevelUp) { var bt = T().DAYS_BY_TIER[e.StartingTier || 'Bronze']; if (bt && (run.day < bt[0] || run.day > bt[1])) return false; }
     // Sự kiện kết thúc bằng một trận cố định ("Treasure Chest (Mimic)" = Mimic cấp 11, mô tả chỉ ghi "Get an item"): chỉ bày khi quái
     // không quá sức so với ngày (cấp mẫu ≤ ngày + EVENT_FIGHT_LEVEL_SLACK) [FLOW-10]
     if (e.Kind === 'fight' && e.Options && e.Options.length && e.Options.every(function (o) { return o.t === 'combat'; })) {
@@ -110,7 +119,7 @@
     var E = R.enc(), out = { merchant: [], event: [] }, id, e;
     for (id in E.events) {
       e = E.events[id];
-      if (e.LevelUp || (e.Parents && e.Parents.length) || T().ENCOUNTER_EXCLUDE.test(e.InternalName || '')) continue;
+      if (e.LevelUp || (e.Parents && e.Parents.length) || T().ENCOUNTER_EXCLUDE.test(e.InternalName || '') || R.isPlaceholderEnc(e)) continue;
       if (e.Kind === 'merchant') out.merchant.push(ref('merchant', e));
       else if (T().EVENT_KINDS_IN_POOL[e.Kind]) out.event.push(ref('event', e));
     }
@@ -122,17 +131,10 @@
     return out;
   }
   function recOf(r) { var E = R.enc(); return r.type === 'pedestal' ? E.pedestals[r.id] : E.events[r.id]; }
-  // Gieo bậc theo bảng ngày; rỗng thì đi lên rồi đi xuống (RollEncounterTierAndFilter, Dealer:4975-5041)
+  // [WIKI2 E13] lấy đều trong các gặp gỡ đúng ngày (bảng bậc theo ngày tự đặt cũ làm sự kiện Bạc không bao giờ ra ngày 1 / 10,
+  // sự kiện Đồng không ra từ ngày 7 — trái Category_Event "Day 1+")
   function pickByTier(run, cands) {
-    if (!cands.length) return null;
-    var tier = R.rollTier(run, T().ENCOUNTER_TIER_ODDS_WITH_LEGENDARY), ti = R.tierIndex(tier), order = [ti];
-    for (var u = ti + 1; u < R.TIERS.length; u++) order.push(u);
-    for (var d = ti - 1; d >= 0; d--) order.push(d);
-    for (var k = 0; k < order.length; k++) {
-      var sub = cands.filter(function (r) { return R.tierIndex(r.tier) === order[k]; });
-      if (sub.length) return sub[R.randInt(run, sub.length)];
-    }
-    return null;
+    return cands.length ? cands[R.randInt(run, cands.length)] : null;
   }
   R.hourOptions = function (run) {
     var P = hourPool(), out = [], taken = {}, prev = {};
@@ -263,9 +265,10 @@
         desc: R.encText(run, s, s.Desc || ''), artKey: s.ArtKey || null };
     }).filter(Boolean);
   };
+  // Futura [WIKI2 R15]: luôn đúng ba bước TUNING.FATES_PICKS theo thứ tự (Bounty, Crossroads, Legacy), không rút ngẫu nhiên
   R.enterFates = function (ctx) {
-    var run = ctx.run, all = R.fatesChoices(run), choices = [];
-    while (choices.length < T().FATES_PICKS && all.length) choices.push(all.splice(R.randInt(run, all.length), 1)[0]);
+    var run = ctx.run, all = R.fatesChoices(run), E = R.enc(), choices = [];
+    T().FATES_PICKS.forEach(function (n) { all.forEach(function (c) { if ((E.steps[c.stepId] || {}).InternalName === n) choices.push(c); }); });
     run.fatesPending = false;
     run.phase = { kind: 'fates', level: run.level, choices: choices };
     R.emit(ctx, { type: 'fates' });

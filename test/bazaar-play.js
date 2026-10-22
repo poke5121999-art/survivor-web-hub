@@ -946,19 +946,146 @@ async function wave2(browser, base) {
   await ctx.close();
 }
 
+// ---- review9 chơi thử, sửa giao diện (D:\bazaar-ref\review9\FIX-U2.md) ----
+// Dựng tay một pha thương nhân: tay có thẻ Nhỏ ở các ô `occ`, kho trống, hàng = 3 thẻ Nhỏ giá 2 (thương nhân "Sells Small items")
+async function u2Merchant(page, occ, level) {
+  return page.evaluate(([occ, level]) => {
+    const R = window.BZRun, E = window.BZ_ENCOUNTERS, run = R.clone(window.BZ_DEBUG.run());
+    const small = Object.keys(window.BZ_CARDS).filter(id => { const t = R.tpl(id); return t && t.Size === 'Small' && !R.isSkill(t) && !R.isJunk(t) && !R.isMonsterLoot(t) && t.StartingTier === 'Bronze'; });
+    const mid = Object.keys(E.events).find(id => /Sells Small items/.test(E.events[id].Desc || '') && E.events[id].Title);
+    run.level = level; run.gold = 100; let u = 9100;
+    run.board.hand = occ.map((s, k) => ({ uid: 'u2' + (u++), id: small[k], tier: 'Bronze', ench: null, socket: s, size: 1, section: 'hand', mods: {} }));
+    run.board.stash = [];
+    run.phase = { kind: 'choose', options: [] };
+    const cx = { run, events: [] };
+    R.ENCOUNTERS.merchant.enter(cx, { id: mid }, 'endHour');
+    cx.run.phase.stock = [20, 21, 22].map(k => ({ card: { id: small[k], tier: 'Bronze', ench: null }, price: 2 }));
+    cx.run.phase.dealt = cx.run.phase.stock.map(x => x.card.id);
+    return window.BZ_DEBUG.load(cx.run);
+  }, [occ, level]);
+}
+async function reviewU2(browser, base) {
+  // ---------- máy tính 1280×720 ----------
+  let ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  let page = await ctx.newPage(), errors = watch(page);
+  await page.goto(base + '/games/bazaar/index.html?seed=' + SEED + '&new=1', { waitUntil: 'load' });
+  await ready(page); await sleep(400);
+  await freshRun(page, 'Mak');
+  // P2-4: kéo mua NHANH (4 bước chuột, bước đầu > 100 px) thẻ xa nhất vào ô trống 1 kẹp giữa ô 0 và ô 2 đã có thẻ.
+  // Trước: độ lệch cầm lấy theo lần rê vượt ngưỡng chứ không theo chỗ nhấn → tâm thẻ lệch 1-2 ô → "Không đặt vừa chỗ này"
+  await u2Merchant(page, [0, 2, 3, 4, 5, 6, 7, 8], 12);
+  await waitScreen(page, 'merchant'); await sleep(2200);
+  let st = await stockRects(page);
+  const far = st.reduce((a, x) => x.x > a.x ? x : a), g0 = (await run(page)).gold;
+  const to1 = await handTarget(page, 1, 1);
+  await page.mouse.move(far.x, far.y); await page.mouse.down();
+  for (let i = 1; i <= 4; i++) { await page.mouse.move(far.x + (to1.x - far.x) * i / 4, far.y + (to1.y - far.y) * i / 4); await sleep(30); }
+  await sleep(80); await page.mouse.up(); await sleep(800);
+  let r = await run(page);
+  const at1 = r.board.hand.find(c => c.socket === 1), last = await page.evaluate(() => window.BZUI.drag.last);
+  check('P2-4 kéo mua nhanh vào ô trống 1 (giữa hai thẻ): mua được, thẻ ở ô 1, vàng ' + g0 + ' → ' + (g0 - 2),
+    !!at1 && at1.id === far.id && r.gold === g0 - 2, JSON.stringify({ gold: r.gold, at1: at1 && at1.id.slice(0, 8), want: far.id.slice(0, 8), last }));
+  await shot(page, 'u2-01-dragbuy-fast');
+  // P1-10 / P3-4: trận PvE thua — tấm phần thưởng của quái hiện phần thưởng treo (như xem trước) suốt trận, không lộ 0/0 từ giây đầu
+  await page.evaluate(() => {
+    const R = window.BZRun, E = window.BZ_ENCOUNTERS, run = R.clone(window.BZ_DEBUG.run());
+    run.board.hand = []; run.board.skills = []; run.healthMax = 30; run.phase = { kind: 'choose', options: [] };
+    const cid = Object.keys(E.combats).find(id => { const c = E.combats[id]; return c.Gold >= 2 && c.XpReward >= 1 && /Bronze|Silver/.test(c.StartingTier || ''); });
+    const cx = { run, events: [] }; R.ENCOUNTERS.combat.enter(cx, { id: cid }, 'endHour');
+    window.BZ_DEBUG.load(cx.run);
+  });
+  await waitScreen(page, 'fight'); await sleep(800);
+  const offer = await page.evaluate(() => window.BZ_DEBUG.run().phase.opponent.rewards);
+  await page.evaluate(() => window.BZ_DEBUG.cmd({ t: 'fight' }));
+  await sleep(1800);
+  const mid = await page.evaluate(() => ({ won: window.BZ_DEBUG.run().phase.won, pay: window.BZ_DEBUG.run().phase.rewards,
+    plate: Array.from(window.BZView.refs.sides[1].r.querySelectorAll('.bz-reward span')).map(s => +s.textContent) }));
+  check('P1-10 / P3-4 trận PvE thua: tấm phần thưởng đối thủ giữa trận = phần thưởng quái ' + offer.gold + '/' + offer.xp + ' (không phải phần trả khi thua ' + (mid.pay.gold || 0) + '/' + (mid.pay.xp || 0) + ')',
+    mid.won === false && mid.plate[0] === offer.gold && mid.plate[1] === offer.xp, JSON.stringify({ offer, mid }));
+  await shot(page, 'u2-02-pve-plate');
+  await page.evaluate(() => window.BZUI.combat.skip()); await sleep(600);
+  // P2-8: rương mở xong rồi mới bấm Space ("mở nhanh" trễ) → không mở kho, bấm thẻ thưởng lấy được ngay
+  await page.evaluate(() => { const R = window.BZRun, run = window.BZ_DEBUG.run(); run.board.hand = []; run.board.stash = []; run.phase = { kind: 'choose', options: [] };
+    const cx = { run: R.clone(run), events: [] }; cx.run.wins = 7; R.enterChest(cx, R.chestFor(7), 'endHour'); window.BZ_DEBUG.load(cx.run); });
+  await waitScreen(page, 'chest'); await sleep(4400);
+  await page.keyboard.press('Space'); await sleep(700);
+  const trayCh = await page.evaluate(() => window.BZUI.cards.trayIsOpen());
+  const loot = (await page.evaluate(() => Array.from(document.querySelectorAll('.rs-cards .bz-card.top')).filter(e => e._rs && e._rs.kind === 'loot' && !e.classList.contains('despawn'))
+    .map(e => { const b = e.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; })))[0];
+  await page.mouse.click(loot.x, loot.y); await sleep(900);
+  r = await run(page);
+  check('P2-8 rương: Space ngay sau khi rương tự mở không mở kho, bấm thẻ thưởng lấy được ngay', !trayCh && r.phase.kind !== 'chest' && r.board.hand.length + r.board.stash.length === 1, JSON.stringify({ trayCh, kind: r.phase.kind }));
+  check('review9 U2 (máy tính): 0 lỗi trang / console / HTTP', errors.length === 0, errors.slice(0, 5).join(' | '));
+  await ctx.close();
+
+  // ---------- điện thoại 844×390 cảm ứng ----------
+  ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
+  page = await ctx.newPage(); errors = watch(page);
+  await page.goto(base + '/games/bazaar/index.html?seed=' + SEED + '&new=1', { waitUntil: 'load' });
+  await ready(page); await sleep(400);
+  await freshRun(page, 'Stelle');
+  // P3-2: loot của sự kiện (Jungle Ruins → lấy đồ: quầy lều / xe ở khung trên), kho mở, chạm ✕ của kho → kho đóng, KHÔNG hỏi "Bỏ phần thưởng?"
+  await page.evaluate(() => {
+    const R = window.BZRun, E = window.BZ_ENCOUNTERS, run = R.clone(window.BZ_DEBUG.run());
+    const id = Object.keys(E.events).find(i => /^Jungle Ruins$/.test(E.events[i].Title || ''));
+    run.phase = { kind: 'choose', options: [] };
+    const cx = { run, events: [] }; R.ENCOUNTERS.event.enter(cx, { id }, 'endHour');
+    const r2 = R.apply(cx.run, { t: 'choose', i: 0 });
+    window.BZ_DEBUG.load(r2.run);
+  });
+  await waitScreen(page, 'loot'); await sleep(1800);
+  const chest = await center(page, '.rs-chest');
+  await page.touchscreen.tap(chest.x, chest.y); await sleep(700);
+  const xb = await page.evaluate(() => { const b = document.querySelector('.rs-tray .head .x').getBoundingClientRect(); const x = b.left + b.width / 2, y = b.top + b.height / 2, h = document.elementFromPoint(x, y);
+    return { x, y, top: h ? h.tagName + '.' + h.className : null, open: window.BZUI.cards.trayIsOpen(), stall: !!document.querySelector('.rs-merchant-ctl .leave') }; });
+  await page.touchscreen.tap(xb.x, xb.y); await sleep(700);
+  const afterX = await page.evaluate(() => ({ open: window.BZUI.cards.trayIsOpen(), confirm: !!document.querySelector('.rs-confirm'), screen: window.BZ_DEBUG.screen() }));
+  check('P3-2 điện thoại, loot sự kiện có quầy/xe: chạm ✕ của kho → kho đóng, không hiện "Bỏ phần thưởng?"',
+    xb.open && xb.stall && /\bx\b/.test(xb.top || '') && !afterX.open && !afterX.confirm && afterX.screen === 'loot', JSON.stringify({ xb, afterX }));
+  await shot(page, 'u2-03-phone-stash-x');
+  // P3-3: kéo chạm thẻ hàng sao cho thẻ (nhấc cao hơn ngón) nằm trên ô tay 2 — đầu ngón khi đó nằm trên rương — thẻ vào ô tay 2, không vào kho
+  await u2Merchant(page, [], 2);
+  await waitScreen(page, 'merchant'); await sleep(2400);
+  st = await stockRects(page);
+  const pk = st[0], ph = await page.evaluate(i => { const e = Array.from(document.querySelectorAll('.rs-cards .bz-card.top')).find(x => x._rs && x._rs.kind === 'stock' && x._rs.i === i); return e.getBoundingClientRect().height; }, pk.i);
+  const s2 = await handTarget(page, 2, 1), finger = { x: s2.x, y: s2.y + 12 + ph / 2 };
+  const inChest = await page.evaluate(([x, y]) => { const c = document.querySelector('.rs-chest').getBoundingClientRect(); return x >= c.left && x <= c.right && y >= c.top && y <= c.bottom; }, [finger.x, finger.y]);
+  const cdp = await ctx.newCDPSession(page), tp = (x, y) => [{ x, y, radiusX: 4, radiusY: 4, force: 1, id: 7 }];
+  const tdrag = async (a, b) => {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: tp(a.x, a.y) });
+    for (let i = 1; i <= 14; i++) { await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: tp(a.x + (b.x - a.x) * i / 14, a.y + (b.y - a.y) * i / 14) }); await sleep(20); }
+    await sleep(90); await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await sleep(800);
+  };
+  await tdrag(pk, finger);
+  r = await run(page);
+  const tray3 = await page.evaluate(() => window.BZUI.cards.trayIsOpen());
+  check('P3-3 điện thoại: thẻ kéo nằm trên ô tay 2 (đầu ngón trên rương: ' + inChest + ') → vào tay ô 2, không vào kho, kho không mở',
+    inChest && r.board.hand.some(c => c.socket === 2 && c.id === pk.id) && r.board.stash.length === 0 && !tray3,
+    JSON.stringify({ hand: r.board.hand.map(c => c.socket), stash: r.board.stash.length, last: await page.evaluate(() => window.BZUI.drag.last) }));
+  await shot(page, 'u2-04-phone-socket2');
+  // thả bằng đầu ngón giữa rương vẫn cất vào kho (INTERACT-6 không hỏng)
+  st = await stockRects(page);
+  await tdrag(st[0], await center(page, '.rs-chest'));
+  r = await run(page);
+  check('INTERACT-6 điện thoại: đầu ngón thả giữa rương vẫn cất vào kho', r.board.stash.length === 1, JSON.stringify({ stash: r.board.stash.length, last: await page.evaluate(() => window.BZUI.drag.last) }));
+  check('review9 U2 (điện thoại): 0 lỗi trang / console / HTTP', errors.length === 0, errors.slice(0, 5).join(' | '));
+  await ctx.close();
+}
+
 (async () => {
   let srv = null, base = process.env.BZ_URL;
   if (!base) { srv = await serve(); base = 'http://localhost:' + srv.address().port; }
   base = base.replace(/\/$/, '');
   const browser = await chromium.launch({ args: ['--use-angle=d3d11', '--autoplay-policy=no-user-gesture-required'] });
   const t0 = Date.now();
-  const ONLY = process.env.ONLY || ''; // ONLY=review: chỉ chạy phần sửa theo review; ONLY=w2: chỉ đợt 2 (ui2)
+  const ONLY = process.env.ONLY || ''; // ONLY=review: chỉ chạy phần sửa theo review; ONLY=w2: chỉ đợt 2 (ui2); ONLY=u2: chỉ review9 U2
   if (!ONLY) try { await desktop(browser, base); } catch (e) { check('máy tính: chạy hết kịch bản', false, e.stack.split('\n').slice(0, 3).join(' ')); }
   if (!ONLY) try { await phase4(browser, base); } catch (e) { check('pha 4: chạy hết kịch bản', false, e.stack.split('\n').slice(0, 3).join(' ')); }
   if (!ONLY) try { await phone(browser, base); } catch (e) { check('điện thoại: chạy hết kịch bản', false, e.stack.split('\n').slice(0, 3).join(' ')); }
   if (!ONLY || ONLY === 'w2') try { await wave2(browser, base); } catch (e) { check('đợt 2 (ui2): chạy hết kịch bản', false, e.stack.split('\n').slice(0, 3).join(' ')); }
-  if (ONLY !== 'w2') try { await reviewFixes(browser, base); } catch (e) { check('sửa theo review (máy tính): chạy hết kịch bản', false, e.stack.split('\n').slice(0, 3).join(' ')); }
-  if (ONLY !== 'w2') try { await reviewPhone(browser, base); } catch (e) { check('sửa theo review (điện thoại): chạy hết kịch bản', false, e.stack.split('\n').slice(0, 3).join(' ')); }
+  if (ONLY !== 'w2' && ONLY !== 'u2') try { await reviewFixes(browser, base); } catch (e) { check('sửa theo review (máy tính): chạy hết kịch bản', false, e.stack.split('\n').slice(0, 3).join(' ')); }
+  if (ONLY !== 'w2' && ONLY !== 'u2') try { await reviewPhone(browser, base); } catch (e) { check('sửa theo review (điện thoại): chạy hết kịch bản', false, e.stack.split('\n').slice(0, 3).join(' ')); }
+  if (!ONLY || ONLY === 'u2') try { await reviewU2(browser, base); } catch (e) { check('review9 U2: chạy hết kịch bản', false, e.stack.split('\n').slice(0, 3).join(' ')); }
   await browser.close();
   if (srv) srv.close();
   console.log('\nChợ Phiên — chơi thử (' + base + '): ' + pass + ' đạt, ' + fail + ' trượt, ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s. Ảnh: ' + SHOTS);

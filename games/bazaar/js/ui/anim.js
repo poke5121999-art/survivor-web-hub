@@ -185,6 +185,19 @@
     setTimeout(function () { if (m.done) return; var socks = document.querySelectorAll('.rs-sockets .rs-sock:not(.locked)'); Array.prototype.forEach.call(socks, function (s) { s.classList.remove('unlock'); void s.offsetWidth; s.classList.add('unlock'); }); }, 2000);
   };
   A.reroll = function () { U.sfx('board.reroll'); };
+  // thẻ sinh ra ("Get 5 Gumballs", Candy Stash...) mà bàn + kho đã đầy: reducer bỏ thẻ và phát {type:'lost', why:'noSpace'} (js/run/ooc.js).
+  // Trước đây giao diện im lặng (P1-4 / P2-3 / P3-7) — giờ gộp các thẻ mất của một lệnh thành một lời báo rõ, kèm tiếng hết chỗ.
+  A.lost = function (e, ctx) {
+    var L = ctx.lost = ctx.lost || { n: 0, ids: {} };
+    L.n++; L.ids[e.id] = 1;
+    if (L.n > 1) return;
+    setTimeout(function () {
+      var ids = Object.keys(L.ids), R = root.BZRun, nm = '';
+      if (ids.length === 1 && R) { var t = R.tpl(ids[0]); nm = t ? R.title(t) : ''; }
+      U.sfx('ui.noSpace'); U.heroVo('nobuyspace');
+      U.toast('Hết chỗ (tay + kho đầy): mất ' + L.n + (nm ? ' × ' + nm : ' món') + '. Bán bớt trước khi nhận.', 3600);
+    }, 0);
+  };
   A.win = function (e) {
     setTimeout(function () {
       var r = U.hud.arcRect(e.wins - 1); if (r) { FX().burst('victory', r.cx, r.cy, { big: 0.6 }); }

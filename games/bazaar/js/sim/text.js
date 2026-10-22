@@ -161,11 +161,15 @@
     if (r) return r;
     return fmt(Math.abs(BZ.value(v, ctx)), refAttr(v) || act.AttributeType);
   }
+  // Như resolveText [FLOW-4]: "Your items gain {ability.0}" (Artisan Dunes, Botul, Aldric) kết thúc ở con số vì client vẽ biểu tượng chỉ số;
+  // thêm tên chỉ số của ability (PoisonApplyAmount → Poison, DamageAmount → Damage) khi số đứng sau "gain(s)" / "+" và hết câu / hết dòng.
   BZ.encounterText = function (S, card, e, text, auras) {
-    return String(text == null ? '' : text).replace(/\{([^{}]+)\}/g, function (m, tok) {
-      var p = tok.trim().split('.'), r = null;
+    return String(text == null ? '' : text).replace(/\{([^{}]+)\}/g, function (m, tok, off, str) {
+      var p = tok.trim().split('.'), r = null, A, w;
       if (p[0] === 'ability') r = encAbilityNumber(S, card, e, p[1], p[2]);
       else if (p[0] === 'aura' && auras && auras[p[1]] != null) r = String(auras[p[1]]);
+      if (r != null && p[0] === 'ability' && p.length === 2 && /(\+|gains?\s)$/i.test(str.slice(0, off)) && /^\s*($|[.\n])/.test(str.slice(off + m.length))
+        && (A = e && e.Abilities && e.Abilities[p[1]]) && A.Action && (w = ATTR_WORD[A.Action.AttributeType])) r += ' ' + w;
       return r == null ? '?' : r;
     }).replace(/ {2,}/g, ' ');
   };

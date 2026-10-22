@@ -23,12 +23,26 @@
   // Đồ quái rơi chung (tag Loot, hero Common: Sharpening Stone, Pelt, Coupon) và đồ chỉ để bán lấy vàng (Bar of Gold, Chunk of Gold,
   // Bag of Jewels: tooltip duy nhất "Sells for Gold"). Bể bazaardb là suy từ lượt chơi cộng đồng và có chúng ở Curio / Aimbot; chủ dự án
   // (người chơi bản thật) xác nhận sạp không bán loại này, nên thương nhân không bày.
+  // [WIKI2 M3] mọi thẻ tag Loot (kể cả Catalyst: Loot của riêng Mak, wiki collection "Monster, Junk"), không chỉ Loot Common.
   R.isMonsterLoot = function (tpl) {
     if (!tpl) return false;
     var tags = (tpl.Tags || []).concat(tpl.HiddenTags || []), tips = (tpl.Localization && tpl.Localization.Tooltips) || [];
-    if (tags.indexOf('Loot') >= 0 && (tpl.Heroes || []).indexOf('Common') >= 0) return true;
+    if (tags.indexOf('Loot') >= 0) return true;
     return tips.length === 1 && /^Sells for Gold$/i.test(String((tips[0].Content || {}).Text || '').trim());
   };
+  // [WIKI2 M1/M2] Đồ của quái theo wiki: trang {{Item}} có collection Monster / Junk (BZ_SHOPS.monsterItems, tools/bazaardb.py đọc
+  // bản chép wiki) cộng R.isMonsterLoot. Junk Items.wiki: "can only be obtained through Monster encounters or from the Curio Merchant";
+  // JayJay / Luxe / Serafina: "excluding Monster items". Nên mọi thương nhân KHÔNG bày chúng, trừ Curio (Curio.wiki "Sells Bronze-tier junk
+  // items"; Bar of Gold.wiki "From the Curio merchant"; Scrap / Sharpening Stone / Gland / Med Kit...: "can be bought via the merchant Curio").
+  var monSet = null, monSrc = null;
+  R.isMonsterItem = function (tpl) {
+    if (!tpl) return false;
+    var S = root.BZ_SHOPS, list = S && S.monsterItems;
+    if (list !== monSrc) { monSrc = list; monSet = {}; (list || []).forEach(function (id) { monSet[id] = 1; }); }
+    return !!monSet[tpl.Id] || R.isMonsterLoot(tpl);
+  };
+  R.MONSTER_ITEM_MERCHANTS = ['Curio']; // thương nhân được bày đồ của quái (tên bazaardb / InternalName)
+  R.sellsMonsterItems = function (e) { return !!e && R.MONSTER_ITEM_MERCHANTS.indexOf(e.InternalName) >= 0; };
   var HEROES = ['Vanessa', 'Pygmalien', 'Dooley', 'Mak', 'Stelle', 'Jules', 'Karnok'];
   R.heroData = function (hero) { var H = root.BZ_HEROES; return (H && H.heroes && H.heroes[hero]) || null; };
   // Hero chơi được: BZ_HEROES.heroes[h].playable nếu có data/heroes.js (tools/data.py),
@@ -117,19 +131,23 @@
     var key = (desc || '') + '|' + ((opts && opts.hero) || '');
     if (parseCache[key]) return R.clone(parseCache[key]);
     var V = vocab || buildVocab(), f = { kind: null, tiers: null, sizes: null, any: [], not: [], hero: null, names: [], enchanted: false, copy: false };
-    var s = String(desc || '').replace(/\{[^}]*\}/g, ' ').replace(/\[[^\]]*\]/g, ' ');
+    var s = String(desc || '').replace(/\{[^}]*\}/g, ' ').replace(/\[[^\]]*\]/g, ' '), named = [];
     if (/copy of any item on your board/i.test(s)) f.copy = true;
     // tên thẻ cụ thể ("Get a Bronze-tier Sharpening Stone (+Damage), Extract (+Poison) and Cinders (+Burn)")
     V.tnames.forEach(function (n) {
       // tên số nhiều cũng khớp số ít ("Gumballs" ← "Get a Gumball")
       var stemN = n.length > 4 && /[^s]s$/.test(n) ? n.slice(0, -1) : n;
       var re = new RegExp('\\b' + esc(stemN) + '(e?s)?\\b', 'i');
-      if (re.test(s)) { f.names.push(n); s = s.replace(re, ' '); }
+      if (!re.test(s)) return;
+      // bậc viết liền trước tên, không có "-tier" ("Get 5 Bronze Chocolate Bars" của Eating Contest)
+      var tw = new RegExp('\\b(Bronze|Silver|Gold|Diamond|Legendary)\\s+' + esc(stemN) + '(e?s)?\\b').exec(s);
+      if (tw) named.push(tw[1]);
+      f.names.push(n); s = s.replace(re, ' ');
     });
     s = s.replace(/\([^)]*\)/g, ' ');
     if (/\bskills?\b/i.test(s)) f.kind = 'skill'; else if (/\bitems?\b/i.test(s) || f.names.length) f.kind = 'item';
-    var tm = s.match(/\b(Bronze|Silver|Gold|Diamond|Legendary)(?=-tier| or (?:Bronze|Silver|Gold|Diamond|Legendary)-tier)/g);
-    if (tm) f.tiers = tm.filter(function (x, i) { return tm.indexOf(x) === i; });
+    var tm = (s.match(/\b(Bronze|Silver|Gold|Diamond|Legendary)(?=-tier| or (?:Bronze|Silver|Gold|Diamond|Legendary)-tier)/g) || []).concat(named);
+    if (tm.length) f.tiers = tm.filter(function (x, i) { return tm.indexOf(x) === i; });
     // cỡ viết thường cũng là cỡ ("get a small item from another Hero" của Scavenger)
     var sm = (s.match(/\b(Small|Medium|Large)\b/gi) || []).map(function (x) { return x.charAt(0).toUpperCase() + x.slice(1).toLowerCase(); });
     if (sm.length) f.sizes = sm.filter(function (x, i) { return sm.indexOf(x) === i; });
@@ -156,6 +174,16 @@
       var hit = V.words[w.toLowerCase()];
       if (hit && !/^(Bronze|Silver|Gold|Diamond|Legendary|Small|Medium|Large)$/.test(w)) hit.forEach(function (x) { if (f.any.indexOf(x) < 0) f.any.push(x); });
     });
+    // "Sells Health, Speed, Strength and Toughness items" (Maximus): Speed / Strength / Toughness là tên kỹ năng, ở đây là chủ đề đồ.
+    // Lọc vật phẩm mà khớp tên kỹ năng thì đổi tên thành tag của kỹ năng đó (Cooldown, Weapon/Damage, Shield); để nguyên là sạp rỗng.
+    if (f.kind === 'item' && /\bitems?\b/i.test(s)) {
+      f.names = f.names.filter(function (n) {
+        var ids = V.titles[n] || [], tp = ids.length && R.tpl(ids[0]);
+        if (!tp || !R.isSkill(tp) || ids.some(function (id) { return !R.isSkill(R.tpl(id)); })) return true;
+        (tp.Tags || []).concat(tp.HiddenTags || []).forEach(function (g) { g = g.replace(/Reference$/, ''); if (f.any.indexOf(g) < 0) f.any.push(g); });
+        return false;
+      });
+    }
     parseCache[key] = R.clone(f);
     return f;
   };
@@ -211,6 +239,16 @@
     var st = R.tierIndex(t.StartingTier || 'Bronze'), ti = R.tierIndex(tier);
     return exact ? st === ti : st <= ti;
   }
+  // Bậc có của thẻ gần `tier` nhất (đúng bậc, rồi thấp hơn trước cao hơn): Boar Roast khi Wild Boar Vàng → Vàng
+  R.nearTier = function (t, tier) {
+    if (!t || !t.Tiers) return null;
+    if (t.Tiers[tier]) return tier;
+    for (var i = R.tierIndex(tier), d = 1; d < R.TIERS.length; d++) {
+      if (R.TIERS[i - d] && t.Tiers[R.TIERS[i - d]]) return R.TIERS[i - d];
+      if (R.TIERS[i + d] && t.Tiers[R.TIERS[i + d]]) return R.TIERS[i + d];
+    }
+    return null;
+  };
   R.ownedSkill = function (run, id) { return run.board.skills.some(function (c) { return c.id === id; }); };
   // RUN-07: kỹ năng sở hữu còn nhập được (cùng id + cùng bậc, bậc < Diamond, còn bậc kế) — SkillCard.CanFuseWith (Domain.Models.Cards/SkillCard.cs:8)
   R.skillFusable = function (c) {
@@ -223,15 +261,26 @@
     run.board.hand.concat(run.board.stash).forEach(function (c) { if (c.id === id && (!best || R.tierIndex(c.tier) > R.tierIndex(best))) best = c.tier; });
     return best;
   };
+  // [WIKI2 R6] một bảng bậc theo ngày cho mọi thẻ chia ra (wiki "Item Skill Spawn Tier Percentage by Day"): bảng bazaardb của
+  // thương nhân (R.shopTierWeights); TIER_ODDS_BY_DAY chỉ khi không có data/shops.js hoặc gọi kèm bảng riêng
   R.rollTier = function (run, table) {
+    if (!table && root.BZ_SHOPS && root.BZ_SHOPS.tierOdds) { var j = R.rollWeights(run, R.shopTierWeights(run)); return R.TIERS[j < 0 ? 0 : j]; }
     var row = (table || T().TIER_ODDS_BY_DAY), w = row[Math.min(row.length, Math.max(1, run.day)) - 1];
     var i = R.rollWeights(run, w);
     return R.TIERS[i < 0 ? 0 : i];
   };
   R.bandTier = function (run) { var b = T().BAND_BY_DAY; return b[Math.min(b.length, Math.max(1, run.day)) - 1]; };
-  function randomEnchant(run, t) {
-    var ks = Object.keys(t.Enchantments || {});
-    return ks.length ? ks[R.randInt(run, ks.length)] : null;
+  // opts.notEnchant: loại yểm bùa (mở màn: không Golden / Radiant, wiki Start of Run); opts.icyHalf: Icy nửa trọng số (Serafina,
+  // Version 0.1.3 "Reduced the rate that Serafina ... will sell Icy items" [WIKI2 M4, ĐỀ XUẤT ×0,5: bản vá không ghi số])
+  function enchantKeys(t, opts) {
+    var not = (opts && opts.notEnchant) || [];
+    return Object.keys(t.Enchantments || {}).filter(function (k) { return not.indexOf(k) < 0; });
+  }
+  function randomEnchant(run, t, opts) {
+    var ks = enchantKeys(t, opts);
+    if (!ks.length) return null;
+    var i = R.rollWeights(run, ks.map(function (k) { return opts && opts.icyHalf && k === 'Icy' ? 0.5 : 1; }));
+    return ks[i < 0 ? 0 : i];
   }
 
   // Chia n thẻ theo bộ lọc. opts: {tierMode: 'day'|'band', exclude: {id:1}, allowOwnedSkills}
@@ -255,8 +304,9 @@
       var list = [];
       kinds.forEach(function (kd) {
         R.pool(kd).forEach(function (id) {
-          if (ex[id] || (noLoot && R.isMonsterLoot(R.tpl(id)))) return;
-          if (f.enchanted && !Object.keys(R.tpl(id).Enchantments || {}).length) return; // "an Enchanted item": thẻ phải có enchantment để yểm
+          if (ex[id] || (noLoot && !opts.allowLoot && R.isMonsterLoot(R.tpl(id)))) return; // allowLoot: Pearl's Dig Site (bể Monster)
+          if (opts.noMonster && R.isMonsterItem(R.tpl(id))) return; // thương nhân không phải Curio (R.dealFor)
+          if (f.enchanted && !enchantKeys(R.tpl(id), opts).length) return; // "an Enchanted item": thẻ phải có enchantment (được phép) để yểm
           if (kd === 'skill' && !opts.allowOwnedSkills) { var os = R.ownedSkillInst(run, id); if (os && !R.skillFusable(os)) return; }
           if (R.matchTpl(R.tpl(id), relax[r], run)) list.push(id);
         });
@@ -296,8 +346,10 @@
       if (!(f.names && f.names.length)) used[pickc.id] = 1; // tên cụ thể ("Get 3 Chocolate Bars"): được trùng
       var ownedSk = R.isSkill(tpl) ? R.ownedSkillInst(run, pickc.id) : null; // kỹ năng đã có: chia đúng bậc bản đó để nhập
       var owned = ownedSk ? ownedSk.tier : R.ownedTier(run, pickc.id);
-      var dealt = owned && R.tierIndex(owned) < 3 && tpl.Tiers[owned] ? owned : pickc.tier; // TierDuplicateCardHandling
-      out.push({ id: pickc.id, tier: dealt, ench: f.enchanted ? randomEnchant(run, tpl) : null });
+      // TierDuplicateCardHandling: bản đã có thì chia đúng bậc bản đó, trừ khi chữ khoá bậc ("Get a Silver-tier ...", rương Bạc):
+      // khi đó bậc của nguồn thắng (không ra Chef Hat Đồng ở sạp "Diamond-tier", Sharpening Stone Vàng ở rương Bạc)
+      var dealt = owned && R.tierIndex(owned) < 3 && tpl.Tiers[owned] && !(f.tiers && f.tiers.length) ? owned : pickc.tier;
+      out.push({ id: pickc.id, tier: dealt, ench: f.enchanted ? randomEnchant(run, tpl, opts) : null });
     }
     return out;
   };
@@ -320,6 +372,19 @@
     var rows = root.BZ_SHOPS.tierOdds, r = rows[Math.min(rows.length, Math.max(1, Math.floor(run.day))) - 1];
     return [r.bronze, r.silver, r.gold, r.diamond];
   };
+  // Thẻ khớp chủ đề của chữ bộ lọc f (any / not): tag hoặc tag ...Reference, hoặc từ đó có trong tooltip của thẻ (không tính enchantment:
+  // Turbo của món nào cũng nhắc Haste)
+  var themeText = {};
+  R.themeOk = function (t, f) {
+    if (!t) return false;
+    var tags = (t.Tags || []).concat(t.HiddenTags || []).map(function (g) { return g.replace(/Reference$/, ''); });
+    if ((f.not || []).some(function (g) { return tags.indexOf(g) >= 0; })) return false;
+    var any = (f.any || []).map(function (g) { return g.replace(/Reference$/, ''); });
+    if (!any.length || any.some(function (g) { return tags.indexOf(g) >= 0; })) return true;
+    var key = t.Id || t.InternalName, x = themeText[key];
+    if (x == null) x = themeText[key] = ((t.Localization || {}).Tooltips || []).map(function (tt) { return ((tt || {}).Content || {}).Text || ''; }).join(' ');
+    return any.some(function (g) { return new RegExp('\\b' + esc(g), 'i').test(x); });
+  };
   var HERO_MODE = { any: 'any', other: 'other', common: 'Common' };
   function shopHeroFilter(rec, e, run) {
     if (rec.hero === 'this') { var m = /^(\w+) \(Hero Merchant\)/.exec((e && e.InternalName) || ''); return { hero: m ? m[1] : run.hero }; }
@@ -331,17 +396,23 @@
     if (!rec || !rec.pool || !rec.pool.length) return null;
     opts = opts || {};
     var ex = opts.exclude || {}, hf = shopHeroFilter(rec, e, run), skill = !!(rec.pool.length && R.isSkill(R.tpl(rec.pool[0])));
-    var sizes = R.parseFilter((e && e.Desc) || '').sizes; // bể bản live có món đổi cỡ so với demo (Eagle Sigil: Small ở "Sells Medium items")
+    var tf = R.parseFilter((e && e.Desc) || ''), sizes = tf.sizes; // bể bản live có món đổi cỡ so với demo (Eagle Sigil: Small ở "Sells Medium items")
     var src = rec.pool, enchant = false;
     if (rec.enchantedPool && /enchanted/i.test((e && e.Desc) || '')) { src = rec.enchantedPool; enchant = true; }
     var list = src.filter(function (id) {
       var t = R.tpl(id);
       if (!t || R.isJunk(t) || (t.HiddenTags || []).indexOf('Ticket') >= 0 || ex[id] || R.isSkill(t) !== skill || !heroOk(t, hf, run)) return false;
       if (sizes && !skill && sizes.indexOf(t.Size) < 0) return false;
-      if (R.isMonsterLoot(t)) return false;
+      if (!R.sellsMonsterItems(e) && R.isMonsterItem(t)) return false; // đồ của quái: chỉ Curio bày [WIKI2 M1/M2]
       if (skill && !opts.allowOwnedSkills) { var os = R.ownedSkillInst(run, id); if (os && !R.skillFusable(os)) return false; }
       return true;
     });
+    // Bể bazaardb suy từ lượt chơi cộng đồng, có món lạc chủ đề (Chronos "Sells Haste items" bày Refractor: không tag Haste, chữ không
+    // nhắc Haste). Vật phẩm phải mang tag chữ nêu (kể cả tag ...Reference) hoặc nhắc từ đó trong tooltip; lọc hết thì giữ bể cũ.
+    if (!skill && ((tf.any || []).length || (tf.not || []).length)) {
+      var themed = list.filter(function (id) { return R.themeOk(R.tpl(id), tf); });
+      if (themed.length) list = themed;
+    }
     if (!list.length) return null;
     var out = [], used = {}, band = opts.tierMode === 'band';
     for (var k = 0; k < n; k++) {
@@ -369,13 +440,16 @@
       var pk = cands[R.randInt(run, cands.length)], tpl = R.tpl(pk.id);
       used[R.title(tpl)] = 1;
       var ownedSk = skill ? R.ownedSkillInst(run, pk.id) : null, owned = ownedSk ? ownedSk.tier : R.ownedTier(run, pk.id);
-      var dealt = owned && R.tierIndex(owned) < 3 && tpl.Tiers[owned] ? owned : pk.tier; // TierDuplicateCardHandling
+      var dealt = owned && R.tierIndex(owned) < 3 && tpl.Tiers[owned] && !(rec.tiers && rec.tiers.length) ? owned : pk.tier; // như R.deal
       out.push({ id: pk.id, tier: dealt, ench: enchant ? randomEnchant(run, tpl) : null });
     }
     return out.length ? out : null;
   };
   // Cửa chung cho thương nhân / thầy: bể bazaardb trước, bộ đọc chữ sau (đếm). opts.shop = true khi gặp gỡ này đáng có bể.
   R.dealFor = function (run, e, f, n, opts) {
+    // thương nhân (không phải Curio) đọc chữ khi không có bể bazaardb (Serafina): cũng không bày đồ của quái [WIKI2 M2]
+    if (opts && opts.shop && e && e.Kind === 'merchant' && !R.sellsMonsterItems(e)) opts = Object.assign({}, opts, { noMonster: true });
+    if (opts && e && e.InternalName === 'Serafina') opts = Object.assign({}, opts, { icyHalf: true });
     var cards = root.BZ_SHOPS ? R.dealShop(run, e, n, opts) : null;
     if (cards) { R.shopStats.pool++; return cards; }
     if (root.BZ_SHOPS && opts && opts.shop) {

@@ -592,8 +592,26 @@ function fix9() {
   const r = BZ.run({ boards: [board('A', 1000, [card('wgun', 3), card(hi.Id, 0, { section: 'skills' })]), board('Dummy', 1000, [])], seed: 1, sandstorm: false, maxMs: 6000 });
   eq('High Impact: phát đầu của súng 10 sát thương', evs(r, 'damage').map(e => e.amt)[0], 13);
 }
+// Đợt 9d: luật từ khoá theo wiki (D:\bazaar-ref\review9\wiki\WIKI2.md K1, K2, K4)
+function fix9d() {
+  console.log('\n# Đợt 9d: từ khoá theo wiki');
+  const HAND = { $type: 'TTargetCardSection', TargetSection: 'SelfHand' };
+  // K1 wiki Regeneration (2025-05-14): "Regen will reduce Poison by its amount before Poison deals damage"
+  let r = BZ.run({ boards: [Object.assign(board('A', 1000, []), { attrs: { Poison: 10, HealthRegen: 5 } }), board('Dummy', 1000, [])], seed: 1, sandstorm: false, maxMs: 3500 });
+  eq('K1 Poison 10 + Regen 5: độc giảm 10 → 5 → 0 trước khi gây sát thương; chỉ một nhát 5 ở nhịp đầu t=0 (cũ: 10 mỗi giây mãi)',
+    evs(r, 'damage', e => e.kind === 'Poison').map(e => [e.t, e.amt]), [[0, 5]]);
+  // K2 wiki Multicast (2025-05-31): "Each cast of the item does count for items that have effects that trigger off item use"
+  BZ.extraCards.useCounter = item('useCounter', { ShieldApplyAmount: 1 }, [{ Trigger: { $type: 'TTriggerOnItemUsed', Subject: HAND }, Action: { $type: 'TActionPlayerShieldApply', Target: ME } }]);
+  r = BZ.run({ boards: [board('A', 1000, [card('multigun', 3), card('useCounter', 5)]), board('Dummy', 1000, [])], seed: 1, sandstorm: false, maxMs: 4500 });
+  eq('K2 súng Multicast 2 bắn một lần (t=4000): món "khi dùng một vật phẩm" chạy 2 lần → khiên 2 (cũ: 1)', frameAt(r, 4450).p[0][1], 2);
+  // K4 Version 1.0.0: "Lifesteal health recovery now counts as Healing"
+  BZ.extraCards.healCounter = item('healCounter', { ShieldApplyAmount: 1 }, [{ Trigger: { $type: 'TTriggerOnCardPerformedHeal', Subject: HAND }, Action: { $type: 'TActionPlayerShieldApply', Target: ME } }]);
+  r = BZ.run({ boards: [board('A', 1000, [card('lifegun', 3), card('healCounter', 5)]), board('Dummy', 1000, [])], seed: 1, sandstorm: false, maxMs: 5500 });
+  eq('K4 súng Lifesteal bắn ở t=5000: trigger "khi hồi máu" chạy → khiên 1 (cũ: 0)', frameAt(r, 5450).p[0][1], 1);
+}
 if (!ONLY || ONLY === 'fix6') fix6();
 if (!ONLY || ONLY === 'fix9') fix9();
+if (!ONLY || ONLY === 'fix9d') fix9d();
 if (!ONLY || ONLY === 'sockets') socketsAndEffects();
 console.log('\n' + pass + ' đạt, ' + fail + ' trượt');
 process.exit(fail ? 1 : 0);

@@ -11,12 +11,21 @@
     // ---- khởi đầu ----
     START_GOLD: 8,            // [WIKI §1.1] "base is 8 Gold + 5 Income for every hero" (mobalytics start-of-run guide)
     START_INCOME: 5,          // [WIKI §1.1]
-    // Cấp 1 = 300 máu [ĐO TRÊN CLIP] https://youtu.be/PSP75k4R4Pk?t=123 ("Health is 300 at level 1"); mỗi cấp cộng theo BZ_MODE.levelUps
-    // (bản demo; clip cũ https://youtu.be/wUzq6Q4u9Jc đầu ngày: C2 350, C3 450, C5 800, C7 1350, C9 2100 — bản vá khác, KHÔNG ép khớp).
+    // Máu tối đa THEO CẤP (bảng tuyệt đối) [WIKI2 R2]: wiki không có bảng máu; Version 2.5.0 (21/05/2025) "Increased all Heroes' starting
+    // health by 50" (cấp 1: 250 -> 300; clip PSP75k4R4Pk?t=123 cấp 1 = 300, cấp 2 = 350); clip wUzq6Q4u9Jc (build 1.0.4671, trước 2.5.0)
+    // đầu ngày: C2 350, C3 450, C4 600, C5 800, C6 1050, C7 1350, C8 1700, C9 2100, C10 2550 (2.5.0 chỉ đổi cấp 1). Bước tăng
+    // +50, +100, +150 ... = 50 x cấp đang rời; sau cấp 10 giữ đúng nhịp đó (C11 3050, C12 3600) [ĐỀ XUẤT: nối nhịp].
+    // Bảng level_ups của bản demo (C2 400 ... C10 3200) lệch một cấp và tính từ nền 250 nên KHÔNG dùng nữa.
     START_HP: 300,
+    HP_BY_LEVEL: [300, 350, 450, 600, 800, 1050, 1350, 1700, 2100, 2550],
+    HP_STEP_PER_LEVEL: 50,
     // Lựa chọn mở màn (thay cho "Start Run" của từng hero: bể thẻ bị xoá) [WIKI §1.1 start-of-run guide]
     START_INCOME_OPTION: { gold: 12, income: 2 },   // "+12 Gold, +2 Income" trên nền 8/5
-    START_ITEM_SIZE: 'Small', // "Enchanted Start: one random Small, Bronze-start item enchanted, from the hero pool"
+    START_ITEM_SIZE: 'Small', // Version 0.1.8: "3 Enchanted Small Bronze-tier Items"
+    // wiki Start of Run (2025-05-24): "Choose an Enchanted (Non-Golden, Non-Radiant) Item (Choose 1 from 3) and + 6 Gold" (0.1.9 bỏ Golden,
+    // 2.5.0 bỏ Radiant); "Choose a Gold-tier Skill (Choose 1 from 3)"; "counts as one of the six hours" (chọn xong là hết giờ 0).
+    START_ITEM_PICKS: 3, START_ITEM_GOLD: 6, START_ITEM_NOT_ENCHANT: ['Golden', 'Radiant'],
+    START_SKILL_TIER: 'Gold', START_SKILL_PICKS: 3,
 
     // ---- lịch giờ (CODE-RUN §1.2-1.3; WIKI §1.2: giờ 0,1,3,4 tự do, giờ 2 quái, giờ 5 PvP) ----
     PVE_HOUR: 2,              // [WIKI §1.2] "The third encounter in each Day is always a PvE Monster fight"
@@ -26,7 +35,9 @@
     HOUR_SLOTS: ['merchant', 'event', 'any'],
 
     // ---- tỉ lệ bậc theo ngày (ItemSkillSpawnTierPercantagesByDay bị xoá) ----
-    // [ĐỀ XUẤT] CODE-RUN §3.2: dốc mượt theo dải ngày đo được (D1-3 Đồng, 4-6 Bạc, 7-9 Vàng, 10 Kim cương — §3.7).
+    // [WIKI2 R6] wiki "Item Skill Spawn Tier Percentage by Day" là MỘT bảng chung cho mọi thẻ chia ra: đống đồ của sự kiện dùng chính
+    // bảng bazaardb /shop-odds của thương nhân (R.shopTierWeights, data/shops.js tierOdds). Bảng dưới chỉ còn là dự phòng khi
+    // không nạp data/shops.js. [ĐỀ XUẤT cũ] CODE-RUN §3.2: dốc mượt theo dải ngày (D1-3 Đồng, 4-6 Bạc, 7-9 Vàng, 10 Kim cương).
     // Cột: Bronze, Silver, Gold, Diamond. Dòng i = ngày i+1; ngày > 10 dùng dòng cuối.
     TIER_ODDS_BY_DAY: [
       [100, 0, 0, 0], [80, 20, 0, 0], [55, 40, 5, 0], [25, 55, 20, 0], [10, 50, 35, 5],
@@ -59,10 +70,16 @@
     ],
     PVE_MAX_LEVEL_WIDEN: 6,   // nới khoảng cấp từng bước ±1 tới chừng này nếu không có quái đúng bậc
     // Thẻ quái không dùng cho giờ PvE: bóng PvP, bù nhìn, sự kiện riêng của hero (tên nội bộ)
-    PVE_EXCLUDE: /PVE_|PvP|Hour 6|Dummy|Big Bad Wolf|Bounty Hunter|Sparring/,
+    // "[DISABLED] Joyful Jack" (WIKI2 P5: không bản vá nào bật lại) cũng loại
+    PVE_EXCLUDE: /PVE_|PvP|Hour 6|Dummy|Big Bad Wolf|Bounty Hunter|Sparring|\[DISABLED\]/,
+    // Phần thưởng thắng quái theo bậc, Version 2.5.0: "Bronze Monsters: 2 gold, 2 XP; Silver 3 gold, 2 XP; Gold 4 gold, 2 XP;
+    // Diamond 5 gold, 3 XP; Legendary 6 gold, 3 XP" (bỏ số trên thẻ của bản demo: 3/3/3/4/4 XP). [WIKI2 M-P1]
+    PVE_REWARD_BY_TIER: { Bronze: { gold: 2, xp: 2 }, Silver: { gold: 3, xp: 2 }, Gold: { gold: 4, xp: 2 }, Diamond: { gold: 5, xp: 3 }, Legendary: { gold: 6, xp: 3 } },
     LOOT_PICKS: 3,            // [ĐỀ XUẤT] CODE-RUN §3.5: "offer 3 random distinct items/skills from the defeated monster's board"
 
     // ---- PvP bóng giờ 5 [ĐỀ XUẤT] (TGhost + máy chủ ghép trận không có trong bản demo) ----
+    // [WIKI2 R3] wiki Day (2025-03-13): "a snapshotted version of their build after their fight" -> bóng từ data/ghosts.js mang MÁU CỦA
+    // CHÍNH NÓ (healthMax trong bản ghi). GHOST_HP_BY_DAY dưới đây chỉ còn cho bóng dựng từ bàn quái khi không có bộ dữ liệu.
     // Bóng = bàn của một quái có cấp mẫu ≈ cấp người chơi mong đợi ở ngày đó; máu = máu của một người chơi cùng cấp
     // (START_HP + cộng dồn level_ups) vì bóng thật là ảnh chụp bàn người chơi. Cấp mong đợi: ~9-10 XP/ngày (5 giờ + 1 PvP + 3 PvE)
     // → +1,2 cấp/ngày → ngày d ≈ cấp d+1 (khớp bóng ngày 6 cấp 7 trong monsters.json).
@@ -87,7 +104,9 @@
     // Bày FATES_PICKS trong số bốn; số lấy từ chính các ability của bước (không còn con số tự đặt).
     FATES_PRESTIGE_AFTER: 1,
     FATES_EVENT: 'Futura',
-    FATES_PICKS: 3,
+    // [WIKI2 R15] wiki Futura (2025-05-08): luôn đúng ba lựa chọn Fate's Bounty (20 vàng + 5 XP), Fate's Crossroads, Fate's Legacy;
+    // "Fate's Fortunes" của bản demo không có trên wiki -> không bày.
+    FATES_PICKS: ["Fate's Bounty", "Fate's Crossroads", "Fate's Legacy"],
     // Khoá giao diện của từng bước Fate (id lựa chọn: giữ 'legacy' như bản cũ để giao diện cũ vẫn ra đúng hình)
     FATES_KEYS: { "Fate's Bounty": 'bounty', "Fate's Crossroads": 'crossroads', "Fate's Legacy": 'legacy', "Fate's Fortunes": 'fortunes' },
 
@@ -157,15 +176,71 @@
     FIGHT_EVENT_LEVEL: { lo: 1, hi: 3 },
     // Sự kiện có trận cố định (Treasure Chest (Mimic) L11) chỉ bày khi cấp quái ≤ ngày + chừng này [ĐỀ XUẤT: Mimic L11 vào ngày 7+]
     EVENT_FIGHT_LEVEL_SLACK: 4,
-    // [CONTENT-03] Bậc của thẻ gặp gỡ ở giờ tự do, thêm cột Legendary (Freiya, Statia, bệ Yetarian Tomb / Arcane Abyss / Sanguine Valley).
-    // Cột: Bronze, Silver, Gold, Diamond, Legendary. Tỉ lệ thật nằm ở máy chủ [ĐỀ XUẤT]: Legendary chỉ từ ngày 8, 3% → 5% → 8%
-    // (wiki chỉ thấy thương nhân Legendary ở cuối run); bốn cột đầu giữ như TIER_ODDS_BY_DAY.
-    ENCOUNTER_TIER_ODDS_WITH_LEGENDARY: [
-      [100, 0, 0, 0, 0], [80, 20, 0, 0, 0], [55, 40, 5, 0, 0], [25, 55, 20, 0, 0], [10, 50, 35, 5, 0],
-      [5, 35, 45, 15, 0], [0, 20, 50, 30, 0], [0, 10, 45, 45, 3], [0, 5, 35, 60, 5], [0, 0, 25, 67, 8]
-    ],
-    // Tên nội bộ không đưa vào bể giờ tự do (sự kiện con / tiếp diễn của chuỗi sự kiện khác)
-    ENCOUNTER_EXCLUDE: /Return|Rewards?$|^Greenheart|^Dungeon|^Fierce Competition|^Furry|Financial District - |Futura|Magic Mirror|The Cult|Chest$|Travel Agent/,
+    // [WIKI2 E13] Giờ tự do KHÔNG còn gieo bậc theo bảng tự đặt: mỗi ô lấy ĐỀU trong các gặp gỡ đúng ngày (Category_Event 2025-06-04
+    // "Day N+"). Ngày của một gặp gỡ, theo thứ tự: WIKI_DAYS (dưới, wiki xác nhận) -> bazaardb days_active (data/shops.js, mới hơn
+    // wiki) -> Days trong tên (data/encounters.js) -> DAYS_BY_TIER theo bậc của thẻ [ĐỀ XUẤT: Category_Event cho thấy Bronze/Silver
+    // "Day 1+", Gold "Day 2+", Diamond 5+..8+ (Hospital ?-5+, Forja ?-6+, The Cult 6+, Aldric ?-8+), Legendary Frozen Tomb "Day 10+"].
+    DAYS_BY_TIER: { Bronze: [1, 99], Silver: [1, 99], Gold: [2, 99], Diamond: [6, 99], Legendary: [10, 99] },
+    // [WIKI] ngày wiki xác nhận, khoá InternalName. Thắng cả bazaardb days_active vì là dòng confirmed của WIKI2.
+    WIKI_DAYS: {
+      Haddy: [8, 99],                         // Haddy / Category_Event: "Day 8+" [WIKI2 E2]
+      'Study (Default Option)': [2, 99],      // Study: "Day 2, 4+"; 2.5.0 "No longer spawns on Day 3" (WIKI_SKIP_DAYS) [E6]
+      Form: [7, 99],                          // Category_Event "Day 7+" [E15]
+      Pol: [5, 99],                           // Version 0.1.3 "Pol (Large Merchant) no longer spawns on Day 3 and 4" [M7]
+      'Treasure Chest (Mimic)': [10, 99],     // Treasure Chest: "(if it is Day 10+) Fight Mimic" [E12]
+      // bệ yểm bùa: "Day 10+" (Bladeborn Badlands, Burning Caldera, Celestial Conduit, Guardian's Gorge, Languid Dunes = Gravity's
+      // Altar, Murkwood Bayou, Tranquil Spring = Plains of Edin, Sanguine Valley, Frozen Tomb = Yetarian Tomb) [E14]
+      'Bladeborn Badlands': [10, 99], 'Burning Caldera': [10, 99], 'Celestial Conduit': [10, 99], "Guardian's Gorge": [10, 99],
+      "Gravity's Altar": [10, 99], 'Murkwood Bayou': [10, 99], 'Plains of Edin': [10, 99], 'Sanguine Valley': [10, 99], 'Yetarian Tomb': [10, 99]
+    },
+    WIKI_SKIP_DAYS: { 'Study (Default Option)': [3] },
+    // ---- giá vàng của lựa chọn sự kiện [WIKI2 E1] (khoá InternalName của bước; 0 = miễn phí, bỏ huy hiệu bazaardb đặt nhầm chỗ) ----
+    // Eating Contest (2024-11-29): "Basic: 5 bronze / (5 gold) Deluxe: 5 silver / (10 gold) Premium: 5 Gold-tier";
+    // Form (2025-03-05): "Exploit / 5 Sharpen Weapon / 10 Upgrade / 20 Engrave"; Aldric, Botul (2025-05-18), D'fleck, Flambé (2025-05-08),
+    // Mad Maddie (2025-05-31): "Exploit / Purify|New Coating|Reinforce|Temper|Extended Magazine 5 / Upgrade 10 / Enchant 20";
+    // Economic Seminar: "(4 gold) Get 2"; Artisan Dunes (2025-05-18): "(5g) Find Better Craftsman";
+    // Gumball Machine Event (2025-05-06): "purchasing a Gumball for 1 Gold" (gói 5 viên = 5 vàng, EVENT_COSTS_RE).
+    // Chọn = trừ vàng trước khi chạy bước; thiếu vàng thì từ chối (R.legal không liệt kê).
+    EVENT_COSTS: {
+      'Basic Chocolate Bars (Eating Contest)': 0, 'Deluxe Chocolate Bars (Eating Contest)': 5, 'Premium Chocolate Bars (Eating Contest)': 10,
+      'Exploit (Form)': 0, 'Sharpen (Form)': 5, 'Sharpen Weapon (Form)': 5, 'Upgrade (Form)': 10, 'Enhance (Form)': 10, 'Engrave (Form)': 20, 'Enchant (Form)': 20,
+      'Exploit (Aldric)': 0, 'Purify (Aldric)': 5, 'Upgrade (Aldric)': 10, 'Enchant (Aldric)': 20,
+      'Exploit (Botul)': 0, 'New Coating (Botul)': 5, 'Upgrade (Botul)': 10, 'Enchant (Botul)': 20,
+      "Exploit (D'flek)": 0, "Reinforce (D'flek)": 5, "Upgrade (D'flek)": 10, "Enchant (D'flek)": 20,
+      'Exploit (Flambe)': 0, 'Temper (Flambe)': 5, 'Upgrade (Flambe)': 10, 'Enchant (Flambe)': 20,
+      'Exploit (Mad Maddie)': 0, 'Extended Magazine (Mad Maddie)': 5, 'Upgrade (Mad Maddie)': 10, 'Enchant (Mad Maddie)': 20,
+      'The Financial District - Economic Seminar - Premium Pass': 4, 'Find Better Craftsman': 5
+    },
+    // Sự kiện chỉ bày một số bước: Haddy (2025-03-19) "One prize is randomly selected" -> chỉ "Spin the Wheel" (ra 1 trong 6 giải đều
+    // nhau, gồm Magician's Top Hat: St.FX), không cho người chơi tự chọn giải [WIKI2 E2]
+    EVENT_ONLY_STEPS: { Haddy: ['Haddy - Spin the Wheel'] },
+    // Lựa chọn tự dựng cho sự kiện mà bản demo mất bước (kind 'generic', key giải ở R.GENERIC_FX, enc-step.js) [WIKI2 E12]
+    EVENT_EXTRA_CHOICES: {
+      "Finn's Big Bite": [
+        { key: 'finn:gravy', name: "Guardian's Gravy Plate", desc: 'Permanently gain 5% Max Health. Your Shield items gain +10 Shield' },
+        { key: 'finn:risotto', name: 'Restorative Risotto', desc: 'Permanently gain 5% Max Health. Your Heal items gain +10 Heal' },
+        { key: 'finn:stew', name: 'Vitality Stew', desc: 'Permanently gain 5% Max Health and 5 Regen' }
+      ]
+    },
+    EVENT_COSTS_RE: [[/^Get a Gumball \(\d+\)$/, 1], [/^Get 5 Gumballs \(\d+\)$/, 5]],
+    // Bậc ép cho phần thưởng của bước [WIKI2 E7]: "All Gumballs are of Bronze tier" (Gumball Machine Event 2025-05-06)
+    EVENT_REWARD_TIER_RE: [[/Gumballs? \(\d+\)$/, 'Bronze']],
+    // Bản đồ đổi thẻ có luật reroll riêng mà dữ liệu thiếu [WIKI2 E9]: Pearl's Dig Site (2025-02-25) "infinite rerolls, first 1 gold,
+    // each subsequent 1 more ... items from any hero and from the Monster pool"
+    EVENT_PILE_RULES: { "Pearl's Dig Site": { rr: { TotalAllowedRerolls: 999, StartingCost: 1, CostIncrease: 1 }, hero: 'any', monsterLoot: true } },
+    // Tên nội bộ không đưa vào bể giờ tự do (sự kiện con / tiếp diễn của chuỗi sự kiện khác).
+    // Statia: chỉ ở lần uy tín về 0 đầu tiên (Futura / Category_Event "Prestige reaches 0 the first time") [WIKI2 E5].
+    // Thieves Guild: chỉ tới khi bán Thieves Guild Medallion / qua Mysterious Portal (Category_Event); bản web không có ba lựa chọn
+    // Hostile Takeover / Dodge Taxes / Raid the Vault nên loại khỏi giờ tự do [WIKI2 E11].
+    ENCOUNTER_EXCLUDE: /Return|Rewards?$|^Greenheart|^Dungeon|^Fierce Competition|^Furry|Financial District - (?!Economic Seminar$)|Futura|Magic Mirror|The Cult|^\[Shrouded Figure\].*Chest$|Travel Agent|^Statia$|^Thieves Guild$/,
+    // Treasure Chest (Category_Event "Day 1+", trang: "Get an item. (if it is Day 10+) Fight Mimic") [WIKI2 E12]: bản thường vào bể
+    // từ ngày 1 (Bronze), bản Mimic chỉ từ ngày 10 (WIKI_DAYS). "The Financial District - Economic Seminar" (wiki Economic Seminar:
+    // Pygmalien, Day 3-5, "Get an Economic item or skill; (4 gold) Get 2") được vào bể; các mục Financial District khác vẫn loại.
+    // Gặp gỡ / bước NHÁP của bản demo: nói "Speed" (game không có chỉ số Speed; ability thật là +Crit Chance giữ chỗ), không có trong
+    // bazaardb events.json (19.2) lẫn wiki (trang "Speed" đã {{delete}}; Tok's Clocks là thương nhân Bạc "Sells Haste, Slow and Cooldown
+    // items"). Không bày ở giờ tự do, không bày làm lựa chọn (enc-event optionOk). Khoá InternalName.
+    PLACEHOLDER_ENCOUNTERS: ["Tok's Clocks (Charged Up More)", 'Charged Up', 'Run a Race', 'Gain 10 Speed', 'Eat it - speed',
+      'Greenheart Ambush Run Speed', 'Run With It'],
     // [CONTENT-02] Travel Agent "Sells Expedition Tickets": chế độ thám hiểm (BZ_ENCOUNTERS.expeditions) chưa có trong bản web, nên thương nhân
     // chỉ biết bán 3 vật phẩm ngẫu nhiên: loại khỏi bể cho tới khi có thám hiểm. Futura là thẻ Fates (FATES_EVENT), tới qua pha 'fates', không qua giờ tự do.
     // Magic Mirror cũng loại: "Get a copy of any item on your board" chưa có bản sao chạy đúng ở giờ tự do.
@@ -230,8 +305,9 @@
 (function (root) {
   'use strict';
   var TU = root.BZRun.TUNING;
-  // RUN-02: danh sách quái giờ PvE theo NGÀY, chép nguyên từ wiki Monsters https://thebazaar.wiki.gg/wiki/Monsters (đọc 2026-10-20).
-  // Ngày 1 không có quái Vàng; ô không có quái đúng bậc trong danh sách ngày thì lấy quái bất kỳ còn lại của danh sách đó.
+  // RUN-02 / WIKI2 P2-P4: danh sách quái giờ PvE theo NGÀY nay do tools/data.py sinh vào data/encounters.js `pveDays` (wiki Monsters
+  // ghép theo (tên, bậc), đủ bốn tên đổi: Tempest Flamedancer, Shock Trooper, Death Knight Reaper, Veteran Octopus; phần thưởng theo
+  // bậc 2.5.0; máu wiki khi phải mượn thẻ bậc khác). Bảng tên dưới chỉ còn để dự phòng khi dữ liệu cũ chưa có pveDays.
   TU.PVE_BY_DAY = [
     ['Banannabal', 'Fanged Inglet', 'Haunted Kimono', 'Kyver Drone', 'Pyro', 'Viper'],
     ['Coconut Crab', 'Giant Mosquito', 'Covetous Thief', 'Rogue Scrapper', 'Boarrior', 'Ventriloquist'],
@@ -247,14 +323,14 @@
   ];
   // Tên wiki khác tên trong dữ liệu (chính tả / đổi tên giữa bản vá) [ĐỀ XUẤT]: khớp sau khi đổi sang tên dữ liệu
   TU.PVE_NAME_ALIAS = { 'Banannabal': 'Banannibal', 'Hooverbike Hooligan': 'Hoverbike Hooligan', 'Enclave Weeper': 'Foundation Weeper',
-    'Enclave Revenant': 'Foundation Revenant' };
+    'Enclave Revenant': 'Foundation Revenant', 'Tempest Flamedancer': 'Tempest Bravo', 'Shock Trooper': 'Annex Trooper',
+    'Death Knight Reaper': 'Void Knight', 'Veteran Octopus': 'Eight Arm Davvy' };
   // CONTENT-07: từ ngày 11 (sau bảng wiki, ngày vô hạn) bể quái thêm các quái cấp 15 mà "Day 10+" của wiki không liệt kê [ĐỀ XUẤT]
   TU.PVE_LATE_FROM_DAY = 11;
   TU.PVE_LATE_EXTRA = ['Morguloth', 'Void Golem', 'Lord Arken', 'Awakened District', 'Trash Titan'];
-  // RUN-06: DB không có XP thua (RewardDefeat.ExperienceReward = 0 ở 170/170 thẻ trận; LossExperiencePoints chỉ ở bản legacy
-  // BazaarCard.cs:145, mặc định 0). [ĐỀ XUẤT] theo Mobalytics beginner-guide ("even if you lose ... the additional XP is well worth it",
-  // "Dealing enough Damage in a fight grants you additional XP"): thua mà trừ >= 50% máu quái thì nhận nguyên XP thưởng của quái.
-  TU.PVE_LOSS_XP_MIN_DAMAGE = 0.5;
+  // RUN-06 / WIKI2 R14: thua quái KHÔNG có XP. wiki Monsters (2025-07-10): "the rewards for winning that fight ... gold, XP and one of the
+  // Monster's items"; DB: RewardDefeat.ExperienceReward = 0 ở 170/170 thẻ trận. (Bản cũ [ĐỀ XUẤT] trả nguyên XP khi trừ >= 50% máu quái.)
+  TU.PVE_LOSS_XP_MIN_DAMAGE = Infinity;
   // CONTENT-05: thầy dạy cấp (Pip, Argenta...) không có bộ lọc tag đọc ra gì thì chia kỹ năng của hero thuộc dải bậc [ĐỀ XUẤT]
   TU.SKILL_ORPHAN_FALLBACK = true;
   TU.SKILL_ANY_CHANCE = 0.2;   // mỗi ô kỹ năng của thầy dạy không khoá bậc: xác suất chia từ MỌI bậc khởi đầu

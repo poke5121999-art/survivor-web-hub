@@ -167,14 +167,14 @@
       // sự kiện → sự kiện (chuỗi Then, sự kiện con): cùng màn nên go() không gọi enter; dựng lại chân dung ở đây
       if (ph.eventId !== 'start' && this._eid != null && this._eid !== ph.eventId + '|' + (ph.stepId || '')) { U.top.clear(); this._key = null; this.enter(run, null); }
       U.cards.render(run);
-      var key = ph.eventId + ':' + (ph.stepId || '') + ':' + JSON.stringify(ph.choices);
+      var key = ph.eventId + ':' + (ph.stepId || '') + ':' + JSON.stringify(ph.choices) + ':' + run.gold; // vàng đổi thì lựa chọn trả tiền sáng / mờ lại
       if (key === this._key && U.top.layer().children.length) return;
       this._key = key;
       if (ph.eventId === 'start') { U.top.clear(); startScreen(run); return; }
       Array.prototype.forEach.call(U.top.layer().querySelectorAll('.rs-choices'), function (n) { n.remove(); });
       U.laneChoices(ph.choices.map(function (c, i) {
         var lbl = c.slot && U.slotLabel(c.slot);
-        return { c: c, i: i, art: choiceArt(c), title: c.card ? R().title(R().tpl(c.card.id)) : c.name,
+        return { c: c, i: i, art: choiceArt(c), title: c.card ? R().title(R().tpl(c.card.id)) : c.name, cls: c.cost > run.gold ? 'poor' : '',
           body: c.card ? '' : (lbl && lbl !== c.name ? '<b class="w">' + U.esc(lbl) + '</b><br>' : '') + root.BZTooltip.format(c.desc || '').html };
       }), { onPick: function (i, el) { U.dispatch({ t: 'choose', i: i }, { fromRect: U.rectOf(el) }); } });
     },

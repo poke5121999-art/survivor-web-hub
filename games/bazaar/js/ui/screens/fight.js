@@ -48,6 +48,7 @@
     }
     pf.querySelector('i').style.backgroundImage = U.bg(art.char || H.portrait || art.bg);
     g.querySelector('b').textContent = String(opp.name || '').replace(/^Ghost of /, '');
+    setTimeout(function () { U.fitText(g.querySelector('b'), 18); }, 0); // đo sau khi gắn vào lớp
     g.querySelector('small').textContent = (opp.hero ? ((HH && HH[opp.hero] && HH[opp.hero].title) || opp.hero) + ' · ' : '') + (opp.wins || 0) + ' thắng · cấp ' + ((opp.board && opp.board.level) || 1);
     g.querySelector('.pr').style.setProperty('--f', Math.min(1, ((opp.board && opp.board.healthMax) || 0) / Math.max(1, run.healthMax * 1.5)).toFixed(2));
     g.querySelector('.pr .ic').style.backgroundImage = U.bg(U.ICON.health);
@@ -72,6 +73,7 @@
     p.querySelector('em').textContent = line;
     p.querySelector('.crest').style.backgroundImage = U.bg('art/ui/ui_sprite_atlas/Gem_256_' + GEMS[U.rankIndex(rank.wins, rank.prestige)] + '_TUI.webp');
     if (name.length > 14) p.querySelector('b').classList.add('long');
+    U.fitText(p.querySelector('b'), 18);
   }
   TV.vsScreen = function (run, opp, done) {
     TV.cancelVs();
@@ -199,6 +201,7 @@
         { hpMax: b.healthMax, skills: skills, level: b.level || 1 });
       var h1 = V().hero(1); if (h1) h1.art.classList.toggle('hero-art', !!oart.hero);
       var nh = side.l && side.l.querySelector('.rs-side-name h3'); if (nh && plateName.length > 11) nh.parentNode.classList.add('long');
+      U.fitText(nh, 14);
       var rw = opp.rewards || {};
       if (ph.combatType === 'PVE') {
         side.r.innerHTML = '<div class="rs-side-name"><small>Phần thưởng</small></div><div class="rs-rw"><i style="background-image:' + U.bg(U.ICON.coin) + '"></i><b>' + (rw.gold || 0) +

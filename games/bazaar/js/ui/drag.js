@@ -54,9 +54,12 @@
     if (!el.dataset.drag || !canDrag(el)) { st.noDrag = true; return; }
     st.started = true;
     U.cards.settle(el); // đang chia bài dở: hiện ngay, không chạy lại hoạt ảnh khi gắn sang lớp kéo (INTERACT-1)
-    var r = U.rectOf(el), p = stagePt(ev);
+    var r = U.rectOf(el);
     st.origin = { parent: el.parentNode, left: el.style.left, top: el.style.top, rect: r };
-    st.off = { x: p.x - r.x, y: p.y - r.y };
+    // độ lệch cầm = điểm NHẤN (pointerdown) so với thẻ, không phải điểm của lần rê vượt ngưỡng: rê nhanh thì lần rê đầu đã cách chỗ nhấn
+    // vài chục px, thẻ bị lệch khỏi con trỏ đúng chừng ấy và ô đích (tính theo tâm thẻ) trượt sang ô bên cạnh — "Không đặt vừa chỗ này"
+    // khi thả đúng giữa ô trống sát thẻ khác (P2-4)
+    st.off = { x: st.x0 - r.x, y: st.y0 - r.y };
     // cảm ứng: đáy thẻ nằm trên đầu ngón 12 px màn hình (tâm thẻ cao hơn ngón ~50 px) để ngón không che thẻ, giá và ô đích (MOBILE-12)
     if (st.touch) { st.lift = r.h + 12 / (V().scale || 1) - st.off.y; st.off.y += st.lift; }
     st.w = r.w; st.h = r.h;
@@ -115,12 +118,16 @@
   function targetAt(p0, x, y) {
     var rs = st.el._rs, run = U.state.run, size = rs.kind === 'own' ? rs.size : rs.size, cx = x + st.w / 2, G = U.cards.G;
     if (!run) return null;
-    // điểm ngắm: chuột = con trỏ; cảm ứng = tâm thẻ đang nhấc (ngón nằm dưới thẻ). Rương vẫn theo đầu ngón (p0).
+    // điểm ngắm: chuột = con trỏ; cảm ứng = tâm thẻ đang nhấc (ngón nằm dưới thẻ).
     var p = st.touch ? { x: cx, y: y + st.h / 2 } : p0;
     var tpl = R().tpl(rs.kind === 'own' ? R().findCard(run, rs.uid).id : rs.card.id), isSkill = R().isSkill(tpl);
-    // rương: rê qua thì mở kho (OpenStorageToy); thả ngay trên rương = cất vào ô trống đầu tiên của kho (INTERACT-6)
-    var ch = U.hud.chestRect();
-    if (ch && p0.x >= ch.x && p0.x <= ch.x + ch.w && p0.y >= ch.y && p0.y <= ch.y + ch.h) {
+    // rương: rê qua thì mở kho (OpenStorageToy); thả ngay trên rương = cất vào ô trống đầu tiên của kho (INTERACT-6).
+    // Cảm ứng: rương nhận đầu ngón (p0), trừ khi tâm thẻ đang nhấc nằm ở nửa trên hàng tay (≤ 60 % chiều cao ô): ngón đặt thẻ vào ô tay 2/3
+    // nằm ngay trên mép rương (điện thoại: đáy hàng tay 314 px, đỉnh rương 322 px) — thẻ hiện trên ô nào thì vào ô đó (P3-3).
+    // Ngón ở giữa rương thì tâm thẻ thấp hơn (~717 > 692) nên vẫn là rương.
+    var ch = U.hud.chestRect(), inCh = function (q) { return ch && q.x >= ch.x && q.x <= ch.x + ch.w && q.y >= ch.y && q.y <= ch.y + ch.h; };
+    var overSock = st.touch && inHand(p) && p.y <= G.hand.top + G.hand.h * 0.6;
+    if (inCh(p) || (inCh(p0) && !overSock)) {
       if (!U.cards.trayIsOpen()) { U.cards.toggleStash(true); st.openedTray = true; }
       if (isSkill) return null;
       var own0 = rs.kind === 'own' ? R().findCard(run, rs.uid) : null;
@@ -142,12 +149,13 @@
       if (p.y > 520 && rs.kind !== 'own') return { type: 'auto', ok: affordable(rs), n: 0 };
       return null;
     }
-    if (p.y >= 520 && p.y <= 800 && p.x >= 380 && p.x <= 1540) {
+    if (inHand(p)) {
       var s = clampS(Math.round((cx - G.hand.x0) / G.hand.pitch - size / 2), size);
       return withPlan({ type: 'hand', socket: s, n: size, ok: placeOk('hand', s, size) });
     }
     return null;
   }
+  function inHand(p) { return p.y >= 520 && p.y <= 800 && p.x >= 380 && p.x <= 1540; }
   function withPlan(t) {
     var rs = st.el._rs, run = U.state.run;
     if (t.ok && rs.kind === 'own') { var c = R().findCard(run, rs.uid); if (!(c.section === t.type && c.socket === t.socket)) t.plan = ownPlan(run, c, t.type, t.socket); }
@@ -208,6 +216,8 @@
     if (!s.started) { st = null; click(s.el, s.touch); return; }
     var p = stagePt(ev), x = p.x - s.off.x, y = p.y - s.off.y;
     var t = targetAt(p, x, y);
+    D.last = { p: { x: Math.round(p.x), y: Math.round(p.y) }, card: { x: Math.round(x), y: Math.round(y), w: Math.round(s.w), h: Math.round(s.h) }, kind: s.el._rs.kind, size: s.el._rs.size,
+      t: t ? { type: t.type, socket: t.socket, n: t.n, ok: !!t.ok } : null, tray: U.cards.trayIsOpen() }; // móc kiểm thử: đích của lần thả cuối
     finish(s, t, { x: x, y: y, w: s.w, h: s.h });
   }
   function cancel() { if (st && st.started) finish(st, null, null); st = null; }

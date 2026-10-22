@@ -1,13 +1,13 @@
 /*
  * Chợ Phiên (games/bazaar) — kiểm vòng chơi js/run/* (reducer thuần, tất định) bằng Node, không cần trình duyệt.
  * Chạy:  node test/bazaar-run.js              (mọi phần; quét bot 200 run mỗi hero chơi được)
- *        SWEEP=20 node test/bazaar-run.js     bớt số run quét;  ONLY=rules|pha4|fix9|fix9b|det|sweep  chỉ chạy một phần
+ *        SWEEP=20 node test/bazaar-run.js     bớt số run quét;  ONLY=rules|pha4|fix9|fix9b|fix9c|fix9d|det|sweep  chỉ chạy một phần
  *
  * Số kỳ vọng tính tay từ dữ liệu:
  * - giá: game_modes.json StandardPrices (Small Bronze 2/1, Medium Silver 8/4, Large Gold 24/12, Small Legendary 24/12,
  *   kỹ năng Gold 20/10); bán = SellPrice của thẻ (bảng, không ghi đè).
  * - run mới: 8 vàng + 5 thu nhập [WIKI], 20 uy tín, 300 máu [clip PSP75k4R4Pk?t=123], ô tay mở 3,4,5,6.
- * - lên cấp ở 8 XP: máu +100 (level_ups Level 1), mở thêm ô 2 và 7 (BazaarDeckTools.cs:1170-1230).
+ * - lên cấp ở 8 XP: máu 300 -> 350 (bảng TUNING.HP_BY_LEVEL: Version 2.5.0 + clip wUzq6Q4u9Jc, WIKI2 R2), mở thêm ô 2 và 7 (BazaarDeckTools.cs:1170-1230).
  * - thua PvP ngày 4: uy tín 20 → 16.
  */
 'use strict';
@@ -71,7 +71,8 @@ function rules() {
   let run = baseRun('Vanessa');
   eq('run mới: số khởi đầu', [run.v, run.hero, run.day, run.hour, run.gold, run.income, run.level, run.xp, run.prestige, run.wins, run.losses, run.healthMax],
     [1, 'Vanessa', 1, 0, 8, 5, 1, 0, 20, 0, 0, 300]);
-  eq('máu cấp 1 = 300 (clip PSP75k4R4Pk?t=123); cấp 2,3,5,7,9 cộng dồn level_ups', [1, 2, 3, 5, 7, 9].map(R.hpAtLevel), [300, 400, 550, 1000, 1650, 2600]);
+  eq('máu theo cấp (WIKI2 R2: Version 2.5.0 "starting health +50" + clip wUzq6Q4u9Jc C2 350 ... C10 2550; sau C10 nối +50/cấp): cấp 1,2,3,5,7,9,10,11,12',
+    [1, 2, 3, 5, 7, 9, 10, 11, 12].map(R.hpAtLevel), [300, 350, 450, 800, 1350, 2100, 2550, 3050, 3600]);
   eq('run mới: pha mở màn 3 lựa chọn, không thoát', [run.phase.kind, run.phase.choices.map(c => c.key), run.phase.canExit], ['event', ['income', 'item', 'skill'], false]);
   eq('run mới: ô tay mở 3..6', R.unlockedSockets(1).map((b, i) => b ? i : -1).filter(i => i >= 0), [3, 4, 5, 6]);
   eq('heroSelect không truyền hero', R.newRun({ seed: 1 }).phase.kind, 'heroSelect');
@@ -174,14 +175,14 @@ function rules() {
   // lên cấp ở 8 XP: rời thương nhân → hết giờ +1 XP
   run = baseRun(); run.xp = 7; run.phase = merchantPhase([]);
   r = R.apply(run, { t: 'leave' });
-  eq('8 XP: cấp 2, máu 300+100, ô mở 2..7', [r.run.level, r.run.healthMax, R.unlockedSockets(r.run.level).map((b, i) => b ? i : -1).filter(i => i >= 0)],
-    [2, 400, [2, 3, 4, 5, 6, 7]]);
+  eq('8 XP: cấp 2, máu 300+50 = 350 (WIKI2 R2, clip PSP75k4R4Pk cấp 2 = 350), ô mở 2..7', [r.run.level, r.run.healthMax, R.unlockedSockets(r.run.level).map((b, i) => b ? i : -1).filter(i => i >= 0)],
+    [2, 350, [2, 3, 4, 5, 6, 7]]);
   eq('8 XP: sự kiện levelUp, pha lên cấp chen vào đầu giờ 1', [types(r).indexOf('levelUp') >= 0, r.run.phase.kind, r.run.hour, r.run.phase.choices.length > 0],
     [true, 'levelUp', 1, true]);
   eq('ô mở cấp 3 / 4', [R.unlockedSockets(3).filter(Boolean).length, R.unlockedSockets(4).filter(Boolean).length, R.unlockedSockets(9).filter(Boolean).length], [8, 10, 10]);
   run.xp = 15; run.level = 1;
   r = R.apply(run, { t: 'leave' });
-  eq('16 XP từ cấp 1: lên 2 cấp, +100 +150 máu, 2 phần thưởng chờ', [r.run.level, r.run.healthMax, r.run.pendingLevelUps], [3, 550, 2]);
+  eq('16 XP từ cấp 1: lên 2 cấp, +50 +100 máu = 450 (WIKI2 R2, clip wUzq6Q4u9Jc C3 450), 2 phần thưởng chờ', [r.run.level, r.run.healthMax, r.run.pendingLevelUps], [3, 450, 2]);
   const lu = R.apply(r.run, { t: 'choose', i: 0 });
   check('chọn phần thưởng lên cấp không tốn giờ', lu.ok && lu.run.hour === 1 && lu.run.pendingLevelUps === 1, { ok: lu.ok, hour: lu.run.hour, p: lu.run.pendingLevelUps, ev: lu.events });
 
@@ -207,8 +208,7 @@ function rules() {
     [3, true, true]);
   const fa = R.apply(r.run, { t: 'choose', i: 0 });
   eq('Fates: chọn xong chạy tiếp (giờ 0 ngày 5), uy tín giữ 1', [fa.ok, fa.run.phase.kind, fa.run.day, fa.run.hour, fa.run.prestige], [true, 'choose', 5, 0, 1]);
-  eq('Fates [RUN-04]: ba lựa chọn đều là bước thật của Futura, không còn "Second Wind"/"Golden Gift"',
-    r.run.phase.choices.every(c => ['bounty', 'crossroads', 'legacy', 'fortunes'].indexOf(c.id) >= 0 && /^Fate's /.test(c.name)), true);
+  eq('Fates [RUN-04, WIKI2 R15 wiki Futura]: luôn đúng Bounty, Crossroads, Legacy (không Fortunes)', r.run.phase.choices.map(c => c.id), ['bounty', 'crossroads', 'legacy']);
   eq('Fates: lệnh sai bị từ chối', [R.apply(r.run, { t: 'choose', i: 9 }).ok, R.apply(r.run, { t: 'leave' }).ok], [false, false]);
   const f2 = baseRun(); f2.day = 5; f2.hour = 5; f2.prestige = 1; f2.fatesUsed = true;
   f2.phase = { kind: 'fightResult', combatType: 'PVP', winner: 'opponent', won: false, endMs: 1, seed: 1, rewards: {}, opponent: { kind: 'ghost', name: 'g' }, after: 'endHour' };
@@ -224,7 +224,7 @@ function rules() {
   const lf = baseRun(); lf.hour = 2; inst(lf, Object.values(globalThis.BZ_CARDS).find(t => t.InternalName === 'Basilisk Fang').Id, 'hand', 3);
   lf.phase = { kind: 'fight', combatType: 'PVE', seed: 7, after: 'endHour', opponent: { kind: 'monster', name: 'dummy', monsterId: null, combatId: null, rewards: { gold: 9, xp: 3 }, board: { name: 'dummy', healthMax: 1000, cards: [] } } };
   r = R.apply(lf, { t: 'fight' });
-  eq('thua quái (cọc 1000 máu, thưởng 9 vàng, bị bão cát hạ khi còn 578): vàng thua = floor(422/100) = 4, không XP vì chưa hạ được 50% máu (RUN-06)', [r.run.phase.won, r.run.phase.rewards], [false, { gold: 4, xp: 0 }]);
+  eq('thua quái (cọc 1000 máu, thưởng 9 vàng, bị bão cát hạ khi còn 578): vàng thua = floor(422/100) = 4, không XP (WIKI2 R14: XP chỉ khi thắng)', [r.run.phase.won, r.run.phase.rewards], [false, { gold: 4, xp: 0 }]);
   r = R.apply(r.run, { t: 'next' });
   eq('thua quái: nhận 4 vàng, chỉ 1 XP của giờ (không 3 XP quái), sang giờ 3', [r.run.gold, r.run.xp, r.run.hour], [8 + 4, 1, 3]);
 
@@ -236,8 +236,8 @@ function rules() {
   // quái giờ 2: ba lựa chọn Đồng / Bạc / Vàng+
   run = baseRun(); run.hour = 2; run.phase = merchantPhase([]); run.hour = 1;
   r = R.apply(run, { t: 'leave' });
-  eq('giờ 2 ngày 1: ba quái, bậc Đồng / Bạc / Bạc (wiki Monsters: ngày 1 không có quái Vàng, RUN-02)', [r.run.phase.kind, r.run.phase.options.map(o => o.type), r.run.phase.options.map(o => o.tier === 'Bronze' ? 'B' : o.tier === 'Silver' ? 'S' : 'G+')],
-    ['choose', ['combat', 'combat', 'combat'], ['B', 'S', 'S']]);
+  eq('giờ 2 ngày 1: ba quái Đồng / Bạc / Đồng (wiki Monsters ngày 1: 5 Đồng + Viper Bạc, không Vàng; WIKI2 P3: Haunted Kimono Đồng)', [r.run.phase.kind, r.run.phase.options.map(o => o.type), r.run.phase.options.map(o => o.tier === 'Bronze' ? 'B' : o.tier === 'Silver' ? 'S' : 'G+')],
+    ['choose', ['combat', 'combat', 'combat'], ['B', 'S', 'B']]);
   const f0 = R.apply(r.run, { t: 'pick', i: 0 });
   eq('chọn quái → pha fight có seed', [f0.run.phase.kind, typeof f0.run.phase.seed], ['fight', 'number']);
   const f1 = R.apply(f0.run, { t: 'fight' });
@@ -258,7 +258,7 @@ function rules() {
   eq('"Supply Drop": ba tên thẻ + bậc Bronze', [sup.names.length, sup.tiers], [3, ['Bronze']]);
   eq('"Sells Small and Medium items. Buys your Large ...": chỉ Small, Medium', R.parseFilter(byName('Quixel').Desc).sizes, ['Small', 'Medium']);
   // ngày 1 không có thẻ ngoài bậc Bronze ở thương nhân thường
-  check('ngày 1: Jay Jay chỉ bày bậc Bronze', (() => { const x = baseRun(); return R.deal(x, R.ENCOUNTERS.merchant.filter(byName('Jay Jay')), 30, {}).every(c => c.tier === 'Bronze'); })());
+  check('ngày 1: Jay Jay (bộ đọc chữ, bảng bậc bazaardb ngày 1 = 97,4% Đồng / 2,6% Bạc, WIKI2 R6) chỉ Đồng hoặc Bạc, đa số Đồng', (() => { const x = baseRun(); const t = R.deal(x, R.ENCOUNTERS.merchant.filter(byName('Jay Jay')), 30, {}).map(c => c.tier); return t.every(v => v === 'Bronze' || v === 'Silver') && t.filter(v => v === 'Bronze').length >= 25; })());
 }
 
 // ---------- bot tham lam ----------
@@ -448,11 +448,11 @@ function pha4() {
     '5': [{ name: 'Cy', hero: 'Vanessa', level: 6, day: 5, wins: 3, healthMax: 999, cards: [{ id: 'tLarge', tier: 'Gold', ench: null, socket: 2, size: 3, section: 'hand', uid: 'p7' }] }] } };
   run = baseRun('Vanessa'); run.day = 3;
   const g3 = R.ENCOUNTERS.combat.ghost(run);
-  eq('bóng ngày 3 → danh sách ngày 2, ưu tiên hero khác Vanessa (Bo), máu GHOST_HP_BY_DAY ngày 3 = 450',
-    [g3.source, g3.name, g3.hero, g3.board.healthMax, g3.board.cards.map(x => [x.uid, x.id, x.tier, x.socket])], ['dataset', 'Bo', 'Dooley', 450, [['g-0', 'tMed', 'Bronze', 4]]]);
+  eq('bóng ngày 3 → danh sách ngày 2, ưu tiên hero khác Vanessa (Bo), máu = healthMax của bản ghi 999 (WIKI2 R3, wiki Day "snapshotted version of their build")',
+    [g3.source, g3.name, g3.hero, g3.board.healthMax, g3.board.cards.map(x => [x.uid, x.id, x.tier, x.socket])], ['dataset', 'Bo', 'Dooley', 999, [['g-0', 'tMed', 'Bronze', 4]]]);
   run.day = 6;
   const g6 = R.ENCOUNTERS.combat.ghost(run);
-  eq('bóng ngày 6 → ngày 5 chỉ có Vanessa: vẫn dùng (Cy), uid đổi thành g-0, máu 1500', [g6.name, g6.board.healthMax, g6.board.cards[0].uid], ['Cy', 1500, 'g-0']);
+  eq('bóng ngày 6 → ngày 5 chỉ có Vanessa: vẫn dùng (Cy), uid đổi thành g-0, máu của bản ghi 999 (WIKI2 R3)', [g6.name, g6.board.healthMax, g6.board.cards[0].uid], ['Cy', 999, 'g-0']);
   run.day = 1;
   const g1 = R.ENCOUNTERS.combat.ghost(run);
   eq('bóng ngày 1 (không có ngày ≤ 1 trong bộ dữ liệu) → bóng quái', [g1.source || 'monster', /^Ghost of /.test(g1.name), g1.board.healthMax], ['monster', true, 350]);
@@ -468,15 +468,12 @@ function pha4() {
     eq('Karnok: vàng/thu nhập gốc, có sẵn Karnok\'s Rage, run.effects = playerEffects', [kar.gold, kar.income, kar.board.skills.map(x => titleOf(x.id)), kar.effects],
       [ks.baseGold, ks.baseIncome, ["Karnok's Rage"], ks.playerEffects]);
     const van = R.newRun({ hero: 'Vanessa', seed: 3 }), sc = van.phase.choices.find(x => x.key === 'skill');
-    const step = globalThis.BZ_ENCOUNTERS.steps[sc.stepId];
-    check('Vanessa: lựa chọn kỹ năng = một bước "(Start Skill)" của hero', H.heroes.Vanessa.start.skillSteps.indexOf(sc.stepId) >= 0 && /Choose a free/.test(sc.desc), sc);
     r = R.apply(van, { t: 'choose', i: van.phase.choices.indexOf(sc) });
-    const tag = R.parseFilter(step.Desc).any[0], lim = step.Abilities[0].Action.SpawnContext.Limit.Value;
-    eq('Vanessa chọn "' + step.InternalName + '": bày ' + lim + ' kỹ năng có tag ' + tag,
-      [r.run.phase.kind, r.run.phase.picks.length, r.run.phase.picks.every(p => { const t = R.tpl(p.card.id); return R.isSkill(t) && t.Tags.concat(t.HiddenTags).indexOf(tag) >= 0; })],
-      ['loot', lim, true]);
+    eq('Vanessa chọn Kỹ năng (WIKI2 R7 wiki Start of Run "Choose a Gold-tier Skill (Choose 1 from 3)"): pha loot 3 kỹ năng bậc Gold, lấy 1',
+      [r.run.phase.kind, r.run.phase.picks.length, r.run.phase.take, r.run.phase.picks.every(p => R.isSkill(R.tpl(p.card.id)) && p.card.tier === 'Gold')],
+      ['loot', 3, 1, true]);
     r = R.apply(r.run, { t: 'choose', i: 0 });
-    eq('chọn kỹ năng mở màn → vào giờ 0', [r.ok, r.run.board.skills.length, r.run.phase.kind, r.run.hour], [true, 1, 'choose', 0]);
+    eq('chọn kỹ năng mở màn → mở màn tính là giờ 0 (WIKI2 R13 "counts as one of the six hours"): sang giờ 1, +1 XP', [r.ok, r.run.board.skills.length, r.run.phase.kind, r.run.hour, r.run.xp], [true, 1, 'choose', 1, 1]);
   }
   // ---- loại sự kiện mới của encounters.js: fight / chain / Options / Then / Parents / starts ----
   const EV = globalThis.BZ_ENCOUNTERS, stepN = n => Object.values(EV.steps).find(s => s.InternalName === n);
@@ -488,7 +485,9 @@ function pha4() {
   if (duel) {
     run = baseRun(); run.day = 5; run.phase = { kind: 'choose', options: [R.encounterRef('event', duel)] };
     r = R.apply(run, { t: 'pick', i: 0 });
-    eq('"Deadly Duel (Day 5)" (fight, FightTier ' + duel.FightTier + '): vào trận với quái bậc đó', [r.ok, r.run.phase.kind, globalThis.BZ_ENCOUNTERS.combats[r.run.phase.opponent.combatId].StartingTier], [true, 'fight', duel.FightTier]);
+    const d56 = R.ENCOUNTERS.combat.dayCombats(5).concat(R.ENCOUNTERS.combat.dayCombats(6)).map(c => c.Id);
+    eq('"Deadly Duel (Day 5)": vào trận với một quái của danh sách ngày 5 hoặc 6, mọi bậc (WIKI2 E10 wiki Deadly Duel "from your current day or the next day, of any rarity")',
+      [r.ok, r.run.phase.kind, d56.indexOf(r.run.phase.opponent.combatId) >= 0], [true, 'fight', true]);
   }
   const wish = stepN('Wish for Wealth (1st Wish)');
   if (wish) {
@@ -549,7 +548,7 @@ function fixes() {
   const TX = (kind, name) => R.encText(run, encOf(kind, name), encOf(kind, name).Desc);
   eq('FLOW-3: "Pip (Level Up)" = Gives you 2 Gold…', TX('events', 'Pip (Level Up)'), 'Gives you 2 Gold and teaches Bronze-tier Skills');
   eq('FLOW-3: "Meditation (Level Up)" = Gain 1 XP', TX('steps', 'Meditation (Level Up)'), 'Gain 1 XP');
-  eq('FLOW-3: "Borrow (Day 1-2)" = Lose 1 Income and gain 9 Gold (hành động trừ lưu số âm → trị tuyệt đối)', TX('events', 'Borrow (Day 1-2)'), 'Lose 1 Income and gain 9 Gold');
+  eq('FLOW-3 / WIKI2 E15: "Borrow (Day 1-2)" = Lose 1 Income and gain 8 Gold (wiki Borrow 2025-05-18: 8 / 7 / 6; bản demo 9)', TX('events', 'Borrow (Day 1-2)'), 'Lose 1 Income and gain 8 Gold');
   eq('FLOW-3: "Invest" hai số', TX('steps', 'Invest'), 'Gain 2 Income. If you have a Property, gain an additional 2 Income');
   eq('FLOW-3: "Landlord" {ability.0.mod} = 5 vàng mỗi Property, [{ability.0}] = 0 (chưa có)', TX('steps', 'Landlord'), 'Gain 5 Gold for each Property you have (including Stash) [0]');
   eq('FLOW-3: "Get 5 Gumballs (5)": hết khoảng trắng đôi', TX('steps', 'Get 5 Gumballs (5)'), 'Get 5 Gumballs [Gumballs Remaining: 5]');
@@ -595,11 +594,12 @@ function fixes() {
   eq('FLOW-8: nhận 7 kỹ năng liên tiếp: 6 đầu được, thứ 7 bị từ chối (SKILL_SLOTS ' + R.TUNING.SKILL_SLOTS + ')', got, [true, true, true, true, true, true, false]);
 
   // FLOW-10: sự kiện Mimic cấp 11 không bày ở ngày thấp
-  const mimicSeen = (day, slack) => { const old = R.TUNING.EVENT_FIGHT_LEVEL_SLACK; if (slack != null) R.TUNING.EVENT_FIGHT_LEVEL_SLACK = slack; let n = 0;
-    for (let sd = 1; sd <= 1500; sd++) { const x = R.newRun({ hero: 'Mak', seed: sd }); x.day = day; x.hour = 1; if (R.hourOptions(x).some(o => R.enc().events[o.id] && R.enc().events[o.id].InternalName === 'Treasure Chest (Mimic)')) n++; }
+  const mimicSeen = (day, slack, seeds) => { const old = R.TUNING.EVENT_FIGHT_LEVEL_SLACK; if (slack != null) R.TUNING.EVENT_FIGHT_LEVEL_SLACK = slack; let n = 0;
+    for (let sd = 1; sd <= (seeds || 1500); sd++) { const x = R.newRun({ hero: 'Mak', seed: sd }); x.day = day; x.hour = 1; if (R.hourOptions(x).some(o => R.enc().events[o.id] && R.enc().events[o.id].InternalName === 'Treasure Chest (Mimic)')) n++; }
     R.TUNING.EVENT_FIGHT_LEVEL_SLACK = old; return n; };
   eq('FLOW-10: Mimic L11 → cấp quái của thẻ trận = 11', R.ENCOUNTERS.combat.levelOf(encOf('events', 'Treasure Chest (Mimic)').Options[0].id), 11);
-  eq('FLOW-10: ngày 3 × 1500 seed: "Treasure Chest (Mimic)" 0 lần; bỏ chặn (slack 99) thì xuất hiện > 0', [mimicSeen(3), mimicSeen(3, 99) > 0], [0, true]);
+  eq('FLOW-10 / WIKI2 E12 (Treasure Chest "(if it is Day 10+) Fight Mimic"): ngày 3 × 1500 seed 0 lần, kể cả bỏ chặn cấp (slack 99); ngày 9 × 500 seed 0; ngày 10 × 500 seed > 0',
+    [mimicSeen(3), mimicSeen(3, 99), mimicSeen(9, null, 500), mimicSeen(10, null, 500) > 0], [0, 0, 0, true]);
 
   // INTERACT-4: kéo thẻ lên bệ = lệnh commit {uid}
   const ped = Object.values(globalThis.BZ_ENCOUNTERS.pedestals).find(e => e.InternalName === 'B1&B2');
@@ -714,13 +714,13 @@ function fix6() {
   let travel = 0, leg = {}, early = 0, N = 0;
   for (let d = 1; d <= 10; d++) for (let sd = 1; sd <= 200; sd++) {
     const y = mk('Vanessa', sd, d); y.prev = [];
-    R.hourOptions(y).forEach(o => { N++; if (o.name === 'The Travel Agent') travel++; if (o.tier === 'Legendary') { if (d < 8) early++; else leg[o.name] = (leg[o.name] || 0) + 1; } });
+    R.hourOptions(y).forEach(o => { N++; if (o.name === 'The Travel Agent') travel++; if (o.tier === 'Legendary') { if (d < 8 && o.name !== 'Freiya') early++; else leg[o.name] = (leg[o.name] || 0) + 1; } });
   }
   eq('CONTENT-02: Travel Agent không bao giờ được bày (2000 lần chia)', travel, 0);
-  eq('CONTENT-03: bảng bậc gặp gỡ có cột Legendary: ngày 7 = 0, ngày 8 = 3, ngày 10 = 8', [7, 8, 10].map(d => R.TUNING.ENCOUNTER_TIER_ODDS_WITH_LEGENDARY[d - 1][4]), [0, 3, 8]);
-  eq('CONTENT-03: Legendary trước ngày 8 = 0 lần', early, 0);
+  eq('CONTENT-03 / WIKI2 E13: không còn bảng bậc gặp gỡ; gặp gỡ Legendary không có ngày riêng mở từ ngày 10 (wiki Frozen Tomb "Day 10+")', [R.TUNING.ENCOUNTER_TIER_ODDS_WITH_LEGENDARY, R.TUNING.DAYS_BY_TIER.Legendary], [undefined, [10, 99]]);
+  eq('CONTENT-03: Legendary trước ngày 8 = 0 lần, trừ Freiya (bazaardb days_active 5-10; WIKI2 E13 bỏ bảng bậc tự đặt)', early, 0);
   const legNames = Object.keys(leg);
-  check('CONTENT-03: từ ngày 8 có Legendary; Freiya và Statia đều xuất hiện được', legNames.indexOf('Freiya') >= 0 && legNames.indexOf('Statia') >= 0, leg);
+  check('CONTENT-03: từ ngày 8 có Legendary; Freiya xuất hiện được, Statia KHÔNG (WIKI2 E5: chỉ ở lần uy tín về 0 đầu tiên)', legNames.indexOf('Freiya') >= 0 && legNames.indexOf('Statia') < 0, leg);
   check('CONTENT-03: ít nhất một bệ Legendary (Yetarian Tomb / Arcane Abyss / Sanguine Valley) tới được', ['Yetarian Tomb', 'Arcane Abyss', 'Sanguine Valley'].some(n => legNames.indexOf(n) >= 0), leg);
 
   // CONTENT-12: Bex
@@ -855,9 +855,11 @@ function fix8() {
   check('Aerodrome không có Billboard / Gatling Gun: lựa chọn điều kiện bị ẩn (' + rac.length + ' lựa chọn, pha ' + ra.phase.kind + ')', rac.every(c => !/Billboard|Defense/.test(c.name) && c.kind !== 'generic'), rac.map(c => c.name));
   // huy hiệu cam (stamp): D'flek Upgrade = 10, Enchant = 20; Gumball "Gumballs Remaining: 5" = 5
   const df = byName("D'flek"), rf = baseRun(); rf.day = 8; rf.hero = (df.Heroes && df.Heroes[0] !== 'Common' ? df.Heroes[0] : 'Vanessa');
+  // đợt 9c (P1-9): lựa chọn "leftmost Shield item" không có đích thì ẩn → đặt một món Shield (Pearl) trên tay để bốn lựa chọn đều hiện
+  inst(rf, Object.keys(globalThis.BZ_CARDS).find(id => R.title(globalThis.BZ_CARDS[id]) === 'Pearl'), 'hand', 3);
   R.ENCOUNTERS.event.enter({ run: rf, events: [] }, { id: df.Id }, 'endHour');
   const st = {}; rf.phase.choices.forEach(c => { st[c.name] = c.stamp; });
-  eq("D'flek: stamp Exploit/Upgrade/Enchant", [st.Exploit, st.Upgrade, st.Enchant, st.Reinforce], [5, 10, 20, undefined]);
+  eq("D'flek: huy hiệu giá theo wiki D'fleck (WIKI2 E1): Exploit miễn phí, Reinforce 5, Upgrade 10, Enchant 20", [st.Exploit, st.Upgrade, st.Enchant, st.Reinforce], [undefined, 10, 20, 5]);
   const gum = Object.values(globalThis.BZ_ENCOUNTERS.steps).find(x => /Gumballs Remaining: 5\]/.test(x.Desc || ''));
   eq('Gumball: stamp = 5 từ "[Gumballs Remaining: 5]"', R.ENCOUNTERS.event.optionChoice({ t: 'step', id: gum.Id }, rf, null).stamp, 5);
   console.log('    đếm rơi về bộ đọc chữ: ' + JSON.stringify(R.shopStats));
@@ -900,15 +902,15 @@ function fix9() {
         run.day = 1 + seed;
         R.ENCOUNTERS.merchant.dealStock(run, e).forEach(s => {
           const id = s.card.id, t = R.tpl(id);
-          if (R.isMonsterLoot(t) || (tagsOf(id).includes('Loot') && !inPool.has(id))) bad.push(e.InternalName + ': Loot ' + titleOf(id));
+          if (e.InternalName !== 'Curio' && (R.isMonsterItem(t) || (tagsOf(id).includes('Loot') && !inPool.has(id)))) bad.push(e.InternalName + ': Loot ' + titleOf(id));
           if (sizes && !R.isSkill(t) && !sizes.includes(t.Size)) bad.push(e.InternalName + ': ' + t.Size + ' ' + titleOf(id));
         });
       }
     });
   });
-  eq('R.isMonsterLoot: Sharpening Stone, Bar of Gold, Chunk of Gold có; Catalyst (đồ Mak), Coincure không',
-    ['Sharpening Stone', 'Bar of Gold', 'Chunk of Gold', 'Catalyst', 'Coincure'].map(n => R.isMonsterLoot(Object.values(globalThis.BZ_CARDS).find(t => R.title(t) === n))), [true, true, true, false, false]);
-  eq('mọi thương nhân × hero được bày × 8 seed: không đồ quái rơi / Bar of Gold, cỡ đúng chữ "Sells Small/Medium/Large"', [...new Set(bad)].slice(0, 6), []);
+  eq('R.isMonsterLoot: Sharpening Stone, Bar of Gold, Chunk of Gold, Catalyst (Loot của Mak, wiki collection Monster/Junk: WIKI2 M3) có; Coincure không',
+    ['Sharpening Stone', 'Bar of Gold', 'Chunk of Gold', 'Catalyst', 'Coincure'].map(n => R.isMonsterLoot(Object.values(globalThis.BZ_CARDS).find(t => R.title(t) === n))), [true, true, true, true, false]);
+  eq('mọi thương nhân trừ Curio × hero được bày × 8 seed: không đồ của quái (wiki collection Monster/Junk, WIKI2 M2), cỡ đúng chữ "Sells Small/Medium/Large"', [...new Set(bad)].slice(0, 6), []);
 
   const run = R.newRun({ hero: 'Vanessa', seed: 3 });
   const potions = R.deal(run, R.parseFilter('Get a Potion'), 6, { tierMode: 'band' });
@@ -947,7 +949,7 @@ function fix9b() {
   // RC1: lên cấp không bắn trigger → R.gainXp bắn OnPlayerAttributeChanged Level / HealthMax
   run = fresh('Pygmalien'); inst(run, idOf('Money Tree'), 'hand', 2); inst(run, idOf('Lion Cane'), 'hand', 5, 'Gold');
   let hm0 = run.healthMax; ctx = { run, events: [] }; R.gainXp(ctx, 8, 'test');
-  eq('RC1 lên cấp 1→2: Money Tree +1 Spare Change, máu tối đa +100 (bảng cấp) +100 (Lion Cane)', [gains(ctx), run.healthMax - hm0], [['Spare Change'], 200]);
+  eq('RC1 lên cấp 1→2: Money Tree +1 Spare Change, máu tối đa +50 (bảng cấp WIKI2 R2: 300 → 350) +100 (Lion Cane)', [gains(ctx), run.healthMax - hm0], [['Spare Change'], 150]);
 
   // ENC C / RC7: "gains the X type" (addTags) không lưu → inst.tags, sim đọc lại
   run = fresh('Vanessa'); const mk = inst(run, idOf('Med Kit'), 'hand', 3);
@@ -1050,6 +1052,390 @@ function fix9b() {
   eq('ENC J Grab the Loot "Get 3 Loot items": bày 3, lấy cả 3', [(run.phase.picks || []).length, run.phase.take], [3, 3]);
 }
 
+// Đợt 9c (2026-10-23): lỗi luật người chơi thử báo ở D:\bazaar-ref\review9\play\P1..P3\ISSUES.md; báo cáo D:\bazaar-ref\review9\FIX-M2.md.
+// Mỗi mã lỗi một khẳng định số viết tay.
+function fix9c() {
+  console.log('\n# Đợt 9c: lỗi luật từ người chơi thử');
+  const C = globalThis.BZ_CARDS, E = globalThis.BZ_ENCOUNTERS;
+  const idOf = n => Object.keys(C).find(id => R.title(C[id]) === n && !/DEBUG|Debug/.test(C[id].InternalName));
+  const step = n => Object.values(E.steps).find(x => x.InternalName === n);
+  const event = n => Object.values(E.events).find(x => x.InternalName === n);
+  const titleOf = id => R.title(R.tpl(id)), tagsOf = id => (R.tpl(id).Tags || []).concat(R.tpl(id).HiddenTags || []);
+  const uniq = a => [...new Set(a)].sort();
+  const fresh = (hero, seed) => {
+    const run = R.newRun({ hero, seed: seed || 5 });
+    run.board.hand = []; run.board.stash = []; run.board.skills = []; run.phase = { kind: 'choose', options: [] }; run.day = 3; run.hour = 1;
+    return run;
+  };
+  const resolve = (run, name) => { const ctx = { run, events: [] }; R.ENCOUNTERS.step.resolve(ctx, step(name), 'endHour'); return ctx; };
+  const enterEv = (run, name) => { const ctx = { run, events: [] }; R.ENCOUNTERS.event.enter(ctx, { id: event(name).Id }, 'endHour'); return ctx; };
+  const withOwned = (tier, fn) => { const o = R.ownedTier; R.ownedTier = () => tier; try { return fn(); } finally { R.ownedTier = o; } };
+  const optOk = (run, name) => R.ENCOUNTERS.event.optionOk({ t: 'step', id: step(name).Id }, run);
+
+  // P1-1: chữ không nêu bậc → bậc của sự kiện, không phải bậc gieo theo ngày
+  let tiers = [];
+  for (let seed = 1; seed <= 20; seed++) { const run = fresh('Vanessa', seed); run.day = 2; enterEv(run, 'Utility Box'); (run.phase.picks || []).forEach(p => tiers.push(p.card.tier)); }
+  let tiers2 = [];
+  for (let seed = 1; seed <= 10; seed++) { const run = fresh('Vanessa', seed); run.day = 7; enterEv(run, 'Mystery Box'); (run.phase.picks || []).forEach(p => tiers2.push(p.card.tier)); }
+  eq('P1-1 Utility Box (Bạc) "Get a Small Tool" ngày 2 × 20 seed: chỉ Bạc; Mystery Box (Kim cương) ngày 7 × 10: chỉ Kim cương', [uniq(tiers), uniq(tiers2)], [['Silver'], ['Diamond']]);
+
+  // P2-2: "Get 5 Bronze Chocolate Bars" (không có "-tier")
+  tiers = [];
+  for (let seed = 1; seed <= 6; seed++) { const run = fresh('Mak', seed); run.day = 6; const ctx = resolve(run, 'Basic Chocolate Bars (Eating Contest)'); ctx.events.filter(v => v.type === 'gain').forEach(v => tiers.push(v.tier)); }
+  eq('P2-2 Basic Chocolate Bars ngày 6 × 6 seed: 30 thanh, đều Đồng', [tiers.length, uniq(tiers)], [30, ['Bronze']]);
+
+  // P1-2: Finn's "Roast It" → Boar Roast + Cinders
+  let run = fresh('Karnok'); inst(run, idOf('Wild Boar'), 'hand', 2, 'Gold');
+  resolve(run, "[Finn's Big Bite] Roast It");
+  eq('P1-2 Roast It với Wild Boar Vàng: thành Boar Roast Vàng + Cinders Vàng', R.allCards(run).map(c => [titleOf(c.id), c.tier]).sort(), [['Boar Roast', 'Gold'], ['Cinders', 'Gold']]);
+
+  // P1-3: Supply Drop Kim cương khi đã có Cinders Đồng
+  run = fresh('Vanessa'); run.day = 9;
+  withOwned('Bronze', () => enterEv(run, 'Supply Drop (Diamond)'));
+  eq('P1-3 Supply Drop (Kim cương), đã có bản Đồng: 3 thẻ đều Kim cương', run.phase.picks.map(p => [titleOf(p.card.id), p.card.tier]).sort(),
+    [['Cinders', 'Diamond'], ['Extract', 'Diamond'], ['Sharpening Stone', 'Diamond']]);
+
+  // P1-4 / P2-3 / P3-7: thẻ sinh ra không vừa chỗ → pha nhặt (bán bớt / bỏ qua), rồi đi tiếp chuỗi Gumball
+  run = fresh('Vanessa'); run.level = 10;
+  const big = Object.keys(C).find(id => C[id].Size === 'Large' && !R.isSkill(C[id]) && (C[id].Heroes || []).includes('Common') && !R.isJunk(C[id]));
+  ['hand', 'stash'].forEach(sec => {
+    while (R.firstFit(run, sec, 3) >= 0) inst(run, big, sec, R.firstFit(run, sec, 3));
+    while (R.firstFit(run, sec, 1) >= 0) inst(run, idOf('Med Kit'), sec, R.firstFit(run, sec, 1));
+  });
+  let ctx = resolve(run, 'Get 5 Gumballs (10)');
+  const lootPh = [run.phase.kind, (run.phase.picks || []).length, run.phase.take || 0, ctx.events.filter(v => v.type === 'lost').length];
+  let r = R.apply(run, { t: 'leave' });
+  eq('P1-4 Get 5 Gumballs, tay + kho đầy: pha nhặt 5 thẻ lấy cả 5, 0 mất im lặng; bỏ qua → còn chuỗi Gumball (2 lựa chọn)',
+    [lootPh, r.run.phase.kind, (r.run.phase.choices || []).length], [['loot', 5, 5, 0], 'event', 2]);
+
+  // P1-5: Wink +10 Prestige (chữ + hiệu ứng)
+  run = fresh('Pygmalien'); run.prestige = 5; inst(run, idOf('Med Kit'), 'hand', 3);
+  const wdesc = R.ENCOUNTERS.event.optionChoice({ t: 'step', id: step("Pay Wink's Toll").Id }, run, event('Wink')).desc;
+  resolve(run, "Pay Wink's Toll");
+  eq("P1-5 Pay Wink's Toll: uy tín 5 → 15, chữ có \"then gain 10 Prestige\"", [run.prestige, /then gain 10 Prestige$/.test(wdesc)], [15, true]);
+
+  // P1-6: biến hình không ra đồ quái rơi / thỏi vàng
+  let junk = 0, total = 0;
+  const smalls = Object.keys(C).filter(id => C[id].Size === 'Small' && !R.isSkill(C[id]) && (C[id].Heroes || []).includes('Pygmalien') && C[id].StartingTier === 'Bronze' && !R.isJunk(C[id])).slice(0, 8);
+  for (let seed = 1; seed <= 40; seed++) {
+    run = fresh('Pygmalien', seed); smalls.forEach((id, i) => inst(run, id, i < 6 ? 'hand' : 'stash', i < 6 ? 2 + i : i - 6));
+    resolve(run, "Pay Wink's Toll");
+    R.allCards(run).forEach(c => { total++; if (R.isMonsterLoot(R.tpl(c.id))) junk++; });
+  }
+  eq("P1-6 Pay Wink's Toll × 40 seed × 8 món: 0 Bar of Gold / Chunk of Gold / Pelt", [total, junk], [320, 0]);
+
+  // P1-7: sự kiện nháp "Speed" không bày
+  const seen = new Set(), ids = [event("Tok's Clocks (Charged Up More)").Id, event('Run a Race').Id];
+  for (let seed = 1; seed <= 150; seed++) { const x = R.newRun({ hero: 'Vanessa', seed }); for (const d of [1, 2, 3, 4]) { x.day = d; x.hour = 1; R.hourOptions(x).forEach(o => seen.add(o.id)); } }
+  eq("P1-7 150 seed × ngày 1-4: không bày Tok's Clocks (Charged Up More), Run a Race; lựa chọn Charged Up bị ẩn",
+    [ids.map(id => seen.has(id)), optOk(fresh('Vanessa'), 'Charged Up')], [[false, false], false]);
+
+  // P1-8: rương Bạc khi đã có bản Vàng
+  tiers = [];
+  for (let seed = 1; seed <= 10; seed++) {
+    run = fresh('Vanessa', seed); run.day = 10; ctx = { run, events: [] };
+    withOwned('Gold', () => R.enterChest(ctx, R.chestFor(7), 'endHour'));
+    run.phase.picks.forEach(p => tiers.push(p.card.tier));
+  }
+  eq('P1-8 rương 7 thắng (Bạc), đã có bản Vàng × 10 seed: 30 thẻ đều Bạc', [tiers.length, uniq(tiers)], [30, ['Silver']]);
+
+  // P1-9 / P2-5: lựa chọn "leftmost X item" / "Your items gain" không có đích thì ẩn
+  const poison = Object.keys(C).find(id => C[id].Size === 'Small' && !R.isSkill(C[id]) && (C[id].HiddenTags || []).includes('Poison') && (C[id].Heroes || []).includes('Vanessa') && !R.isJunk(C[id]));
+  const dunes = n => Object.values(E.steps).find(x => E.events[event('Artisan Dunes').Id].Steps.includes(x.Id) && x.Title === n).InternalName;
+  run = fresh('Vanessa'); inst(run, poison, 'stash', 0); inst(run, idOf('Med Kit'), 'hand', 3);
+  const noPoisonInHand = ['Upgrade (Botul)', 'Enchant (Botul)', 'New Coating (Botul)', dunes('Apprentice Banehand')].map(n => optOk(run, n));
+  run = fresh('Vanessa'); inst(run, idOf('Med Kit'), 'hand', 3);
+  const noPoison = optOk(run, dunes('Apprentice Banehand'));
+  run = fresh('Vanessa'); inst(run, poison, 'hand', 3);
+  eq('P1-9 Botul: Poison chỉ ở kho → ẩn Upgrade/Enchant (đích ở tay), giữ New Coating + Banehand (cả kho); không Poison → ẩn Banehand (P2-5); Poison ở tay → hiện',
+    [noPoisonInHand, noPoison, optOk(run, 'Upgrade (Botul)')], [[false, false, true, true], false, true]);
+
+  // P1-11: chữ "Your items gain N" kèm tên chỉ số
+  run = fresh('Vanessa');
+  eq('P1-11 chữ: New Coating "gain 3 Poison", Purify "gain 30 Heal. / gain 3 Regen", Weaponsmith "gain 5 Damage"',
+    ['New Coating (Botul)', 'Purify (Aldric)', dunes('Apprentice Weaponsmith')].map(n => R.encText(run, step(n), step(n).Desc)),
+    ['Your items gain 3 Poison', 'Your items gain 30 Heal.\nYour items gain 3 Regen', 'Your items gain 5 Damage']);
+
+  // P1-12: món "giảm giá" phải rẻ hơn
+  let disc = 0, flat = 0;
+  for (let seed = 1; seed <= 200; seed++) {
+    run = R.newRun({ hero: 'Vanessa', seed }); run.day = 1;
+    R.ENCOUNTERS.merchant.dealStock(run, event('Ande')).forEach(s => { if (s.discount) { disc++; if (s.price >= R.price(s.card, s.card.tier).buy) flat++; } });
+  }
+  eq('P1-12 Ande ngày 1 × 200 seed: có món giảm giá, không món "giảm" nào giữ nguyên giá', [disc > 0, flat], [true, 0]);
+
+  // P1-10 / P3-4 (phần reducer): pha fightResult mang phần thưởng quái treo để tấm "Phần thưởng" không lộ kết quả khi đang phát lại
+  run = fresh('Stelle'); run.day = 1;
+  const kyver = Object.values(E.combats).find(x => x.InternalName === 'Kyver Drone');
+  R.ENCOUNTERS.combat.enter({ run, events: [] }, { id: kyver.Id }, 'endHour');
+  r = R.apply(run, { t: 'fight' });
+  eq('P1-10 thua Kyver Drone với bàn trống: phase.opponent mang phần thưởng treo 2 vàng 2 XP (Version 2.5.0 Bronze, WIKI2 M-P1) và bậc Bronze (phase.rewards là phần thua)',
+    [r.run.phase.kind, r.run.phase.won, r.run.phase.opponent.rewards, r.run.phase.opponent.tier], ['fightResult', false, { gold: 2, xp: 2 }, 'Bronze']);
+
+  // P2-10 / P3-8: bậc thẻ trận khớp vàng thưởng
+  const cb = n => { const c = Object.values(E.combats).find(x => x.InternalName === n); return [c.StartingTier, c.Gold]; };
+  eq('P2-10 Bloodreef Raider Bạc 3 vàng, (D4 Bronze) Đồng 2 vàng, Ferros Khan (Bronze) cấp 10 Vàng 4 vàng',
+    ['Bloodreef Raider', 'Bloodreef Raider (D4 Bronze)', 'Ferros Khan (Bronze)'].map(cb), [['Silver', 3], ['Bronze', 2], ['Gold', 4]]);
+
+  // P2-11: Chronos "Sells Haste items" không bày món không Haste
+  const chron = new Set();
+  R.HEROES_PLAYABLE.forEach(hero => { for (let seed = 1; seed <= 40; seed++) { run = R.newRun({ hero, seed }); run.day = 6; R.ENCOUNTERS.merchant.dealStock(run, event('Chronos')).forEach(s => chron.add(titleOf(s.card.id))); } });
+  eq("P2-11 Chronos × 7 hero × 40 seed: không Refractor / Dooley's Scarf / Leather Jacket", ['Refractor', "Dooley's Scarf", 'Leather Jacket'].filter(n => chron.has(n)), []);
+
+  // P3-9: sạp khoá bậc (Goldie, Luxe) bày đúng bậc dù đã có bản bậc khác
+  const shopTiers = name => { const out = []; for (let seed = 1; seed <= 10; seed++) { run = R.newRun({ hero: 'Jules', seed }); run.day = 9; withOwned('Bronze', () => R.ENCOUNTERS.merchant.dealStock(run, event(name))).forEach(s => out.push(s.card.tier)); } return uniq(out); };
+  eq('P3-9 đã có bản Đồng mọi món: Goldie chỉ Vàng, Luxe chỉ Kim cương', [shopTiers('Goldie'), shopTiers('Luxe')], [['Gold'], ['Diamond']]);
+
+  // P3-13: bóng PvP không mang thẻ ẩn (không có art)
+  const G0 = globalThis.BZ_GHOSTS;
+  globalThis.BZ_GHOSTS = { v: 1, byDay: { 1: [{ name: 'g', hero: 'Mak', level: 1, day: 1, cards: [
+    { id: idOf('Plasma Whip'), tier: 'Bronze', socket: 0, size: 1, section: 'hand' }, { id: idOf('Med Kit'), tier: 'Bronze', socket: 1, size: 1, section: 'hand' }] }] } };
+  run = fresh('Vanessa'); run.day = 1;
+  const gb = R.ENCOUNTERS.combat.datasetGhost(run).board.cards.map(c => titleOf(c.id));
+  globalThis.BZ_GHOSTS = G0;
+  eq('P3-13 bóng có Plasma Whip (HIDDEN_CARDS): chỉ còn Med Kit', gb, ['Med Kit']);
+
+  // P2-1 / P3-1 (sửa trong pool.js trước đợt này): Maximus có hàng cho mọi hero, đúng chủ đề
+  const want = ['Health', 'Shield', 'Weapon', 'Damage', 'Cooldown'], maxi = { empty: [], off: [] };
+  ['Vanessa', 'Pygmalien', 'Dooley', 'Mak', 'Stelle', 'Jules', 'Karnok'].forEach(hero => {
+    for (const day of [1, 2, 4, 8]) {
+      run = R.newRun({ hero, seed: day * 3 }); run.day = day;
+      const st = R.ENCOUNTERS.merchant.dealStock(run, event('Maximus'));
+      if (!st.length) maxi.empty.push(hero + day);
+      st.forEach(s => { if (!want.some(t => tagsOf(s.card.id).includes(t))) maxi.off.push(titleOf(s.card.id)); });
+    }
+  });
+  eq('P2-1 Maximus × 7 hero × ngày 1/2/4/8: không sạp rỗng, mọi món mang Health/Shield/Weapon/Damage/Cooldown', maxi, { empty: [], off: [] });
+}
+
+// ---------- Đợt 9d: luật và số theo wiki (D:\bazaar-ref\review9\wiki\WIKI2.md; bản chép wiki D:\bazaar-ref\wiki2\pages) ----------
+// Mỗi khối chạy trong try: mã cũ thiếu hàm thì khối đó báo FAIL thay vì làm sập cả phần (để chạy được trên bản cũ mà so).
+function fix9d() {
+  console.log('\n# Đợt 9d: luật và số theo wiki (WIKI2)');
+  const C = globalThis.BZ_CARDS, E = globalThis.BZ_ENCOUNTERS;
+  const ev = n => Object.values(E.events).find(x => x.InternalName === n) || Object.values(E.events).find(x => x.Title === n);
+  const stepN = n => Object.values(E.steps).find(x => x.InternalName === n);
+  const titleOf = id => R.title(R.tpl(id));
+  const uniq = a => [...new Set(a)].sort();
+  const block = (name, fn) => { try { fn(); } catch (e) { check(name + ' (lỗi: ' + String(e && e.message).slice(0, 120) + ')', false, String(e && e.stack).split('\n').slice(0, 3).join(' | ')); } };
+  const fresh = (hero, seed, day) => { const x = R.newRun({ hero: hero || 'Vanessa', seed: seed || 5 }); x.board.hand = []; x.board.stash = []; x.board.skills = []; x.day = day || 3; x.hour = 1; x.phase = { kind: 'choose', options: [] }; return x; };
+  const enterEv = (run, name) => { const ctx = { run, events: [] }; R.ENCOUNTERS.event.enter(ctx, { id: ev(name).Id }, 'endHour'); return ctx; };
+  const seenIn = (names, days, seeds, hero) => { // số lần mỗi tên được bày ở giờ tự do
+    const out = {}; names.forEach(n => { out[n] = 0; });
+    days.forEach(d => { for (let sd = 1; sd <= seeds; sd++) { const x = R.newRun({ hero: hero || 'Mak', seed: sd }); x.day = d; x.hour = 1; x.prev = [];
+      R.hourOptions(x).forEach(o => { const e = E.events[o.id] || E.pedestals[o.id]; const k = e && (names.indexOf(e.InternalName) >= 0 ? e.InternalName : names.indexOf(e.Title) >= 0 ? e.Title : null); if (k) out[k]++; }); } });
+    return out;
+  };
+
+  // R1 + M-P1 + R13: bot thắng mọi trận quái (chọn ô Đồng), giờ tự do vào thương nhân rồi rời → đầu ngày 10 đúng cấp 10
+  block('R1 XP', () => {
+    const realRun = BZ.run; // trận nào cũng thắng: BZSim.run giả trả winner 0 (chỉ đo XP, không đo sức mạnh bàn)
+    BZ.run = () => ({ winner: 0, endMs: 1000, frames: [], players: [] });
+    try {
+    let run = R.newRun({ hero: 'Vanessa', seed: 11 }), n = 0;
+    const xp = {}, startOf = {};
+    const r0 = R.apply(run, { t: 'choose', i: run.phase.choices.findIndex(c => c.key === 'income') });
+    r0.events.forEach(e => { if (e.type === 'xp') xp[e.why] = (xp[e.why] || 0) + e.delta; });
+    run = r0.run;
+    while (run.phase.kind !== 'end' && run.day < 10 && n++ < 3000) {
+      const ph = run.phase, L = R.legal(run);
+      let cmd = null;
+      if (ph.kind === 'choose') { const mi = ph.options.findIndex(o => o.type === 'merchant'); cmd = { t: 'pick', i: run.hour === R.TUNING.PVE_HOUR ? 0 : (mi >= 0 ? mi : 0) }; }
+      else if (ph.kind === 'fight') cmd = { t: 'fight' };
+      else if (L.some(c => c.t === 'leave')) cmd = { t: 'leave' };
+      else if (L.some(c => c.t === 'next')) cmd = { t: 'next' };
+      else if (L.some(c => c.t === 'choose')) cmd = L.find(c => c.t === 'choose');
+      else if (L.some(c => c.t === 'back')) cmd = { t: 'back' };
+      const r = R.apply(run, cmd);
+      if (!r.ok) throw new Error('lệnh ' + JSON.stringify(cmd) + ' bị từ chối ở ' + ph.kind + ': ' + r.events[0].reason);
+      r.events.forEach(e => { if (e.type === 'xp') xp[e.why] = (xp[e.why] || 0) + e.delta; });
+      if (r.run.day !== run.day) startOf[r.run.day] = { level: r.run.level, xp: r.run.xp };
+      run = r.run;
+    }
+    eq('R1 (wiki Day "six Hours" + Level Up "8 XP" + Version 2.5.0 quái Đồng 2 XP; không XP khi chọn gặp gỡ): bot thắng mọi trận quái Đồng → đầu ngày 2 cấp 2, đầu ngày 10 cấp 10 / 72 XP',
+      [startOf[2] && startOf[2].level, startOf[10] && startOf[10].level, startOf[10] && startOf[10].xp], [2, 10, 72]);
+    eq('R1: XP theo nguồn sau 9 ngày = 54 giờ (6 x 9, mở màn là giờ 0) + 18 quái (9 x 2), không "select"', xp, { hour: 54, combat: 18 });
+    } finally { BZ.run = realRun; }
+  });
+  // R2: máu theo cấp
+  block('R2 máu', () => {
+    const run = R.newRun({ hero: 'Vanessa', seed: 42 }); run.xp = 7; run.phase = merchantPhase([]);
+    const r = R.apply(run, { t: 'leave' });
+    eq('R2 (Version 2.5.0 + clip wUzq6Q4u9Jc): lên cấp 2 → máu tối đa 350; bảng cấp 1..10 = 300/350/450/600/800/1050/1350/1700/2100/2550',
+      [r.run.level, r.run.healthMax, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(R.hpAtLevel)], [2, 350, [300, 350, 450, 600, 800, 1050, 1350, 1700, 2100, 2550]]);
+  });
+  // E1: lựa chọn trả vàng
+  block('E1 Eating Contest', () => {
+    let run = fresh('Mak', 3, 4); run.gold = 4;
+    enterEv(run, 'Eating Contest');
+    const by = n => run.phase.choices.findIndex(c => c.name === n);
+    const costs = ['Basic Chocolate Bars', 'Deluxe Chocolate Bars', 'Premium Chocolate Bars'].map(n => (run.phase.choices[by(n)] || {}).cost);
+    const legal = R.legal(run).filter(c => c.t === 'choose').map(c => run.phase.choices[c.i].name).sort();
+    const rej = R.apply(run, { t: 'choose', i: by('Deluxe Chocolate Bars') });
+    run.gold = 12;
+    const ok = R.apply(run, { t: 'choose', i: by('Deluxe Chocolate Bars') });
+    const bars = ok.events.filter(e => e.type === 'gain').map(e => titleOf(e.id) + '/' + e.tier);
+    eq('E1 Eating Contest (wiki: Basic miễn phí, (5 gold) Deluxe, (10 gold) Premium): giá 0/5/10; 4 vàng chỉ chọn được Basic; Deluxe bị từ chối khi thiếu; 12 vàng chọn Deluxe → còn 7 vàng, 5 thanh Bạc',
+      [costs, legal, rej.ok, ok.ok, ok.run.gold, bars.length, uniq(bars)], [[0, 5, 10], ['Basic Chocolate Bars'], false, true, 7, 5, ['Chocolate Bar/Silver']]);
+  });
+  block('E1 Form/Aldric/Botul/D\'flek/Flambe/Mad Maddie/Gumball/Seminar/Artisan', () => {
+    const run = fresh('Vanessa', 1, 8), cost = (evName, stepName) => R.ENCOUNTERS.event.optionChoice({ t: 'step', id: stepN(stepName).Id }, run, ev(evName)).cost;
+    eq('E1 Form (wiki: Exploit / 5 Sharpen Weapon / 10 Upgrade / 20 Engrave)', ['Exploit (Form)', 'Sharpen Weapon (Form)', 'Upgrade (Form)', 'Enchant (Form)'].map(s => cost('Form', s)), [0, 5, 10, 20]);
+    eq('E1 Aldric / Botul / D\'flek / Flambe / Mad Maddie: Exploit 0, nâng cấp chung 5, Upgrade 10, Enchant 20',
+      [['Aldric', 'Exploit', 'Purify'], ['Botul', 'Exploit', 'New Coating'], ["D'flek", 'Exploit', 'Reinforce'], ['Flambe', 'Exploit', 'Temper'], ['Mad Maddie', 'Exploit', 'Extended Magazine']]
+        .map(([e, a, b]) => [a, b, 'Upgrade', 'Enchant'].map(s => cost(e, s + ' (' + e + ')'))), [[0, 5, 10, 20], [0, 5, 10, 20], [0, 5, 10, 20], [0, 5, 10, 20], [0, 5, 10, 20]]);
+    eq('E1 Gumball Machine Event "1 gold per Gumball": 1 viên 1 vàng, gói 5 viên 5 vàng; Economic Seminar Premium 4; Artisan "Find Better Craftsman" 5',
+      [cost('Gumball Machine', 'Get a Gumball (10)'), cost('Gumball Machine', 'Get 5 Gumballs (10)'), cost('Economic Seminar', 'The Financial District - Economic Seminar - Premium Pass'), cost('Artisan Dunes', 'Find Better Craftsman')], [1, 5, 4, 5]);
+    const g = fresh('Vanessa', 2, 9); g.gold = 3;
+    g.phase = { kind: 'event', eventId: ev('Gumball Machine').Id, choices: [R.ENCOUNTERS.event.optionChoice({ t: 'step', id: stepN('Get a Gumball (10)').Id }, g, ev('Gumball Machine'))], canExit: true, after: 'endHour' };
+    const r = R.apply(g, { t: 'choose', i: 0 });
+    eq('E1 + E7 Gumball (ngày 9, 3 vàng): trả 1 vàng → còn 2, nhận 1 Gumball bậc Đồng ("All Gumballs are of Bronze tier"), không XP', [r.ok, r.run.gold, r.events.filter(e => e.type === 'gain').map(e => e.tier), r.events.filter(e => e.type === 'xp').length], [true, 2, ['Bronze'], 0]);
+  });
+  // S1 / R7: mở màn
+  block('S1/R7 mở màn', () => {
+    let bad = [], n = 0, gold = [], skillTiers = [], skillN = [];
+    R.HEROES_PLAYABLE.forEach(hero => { for (let sd = 1; sd <= 30; sd++) {
+      const run = R.newRun({ hero, seed: sd }), it = run.phase.choices.find(c => c.key === 'item'), sk = run.phase.choices.find(c => c.key === 'skill');
+      (it.picks || [it.card]).forEach(p => { n++; const t = R.tpl(p.id); if (!p.ench || p.ench === 'Golden' || p.ench === 'Radiant' || t.Size !== 'Small' || p.tier !== 'Bronze') bad.push(titleOf(p.id) + '/' + p.ench); });
+      if (sd === 1) { const r = R.apply(run, { t: 'choose', i: run.phase.choices.indexOf(it) }); gold.push(r.run.gold - run.gold); }
+      skillN.push((sk.picks || [sk.card]).length); (sk.picks || [sk.card]).forEach(p => skillTiers.push(p.tier));
+    } });
+    eq('S1 (wiki Start of Run "Choose an Enchanted (Non-Golden, Non-Radiant) Item (Choose 1 from 3) and + 6 Gold"): 7 hero x 30 seed = 630 món Small Bronze yểm bùa, 0 Golden/Radiant; chọn → +6 vàng',
+      [n, bad.slice(0, 5), uniq(gold)], [630, [], [6]]);
+    eq('R7 ("Choose a Gold-tier Skill (Choose 1 from 3)"): mọi hero 3 kỹ năng, đều bậc Gold', [uniq(skillN), uniq(skillTiers)], [[3], ['Gold']]);
+  });
+  // R10: món yểm bùa ở thương nhân giá gấp đôi
+  block('R10 Serafina', () => {
+    let nE = 0, bad = 0;
+    for (let sd = 1; sd <= 60; sd++) { const run = R.newRun({ hero: 'Vanessa', seed: sd }); run.day = 6;
+      R.ENCOUNTERS.merchant.dealStock(run, ev('Serafina')).forEach(s => { if (!s.card.ench) return; nE++; const b = 2 * R.price(s.card, s.card.tier).buy; if (s.price !== (s.discount ? Math.floor(b * 0.75) : b)) bad++; }); }
+    eq('R10 (wiki Items: enchanted từ Merchants "double the price"): Serafina 60 seed, mọi món yểm bùa giá = 2 x giá gốc (x0,75 nếu giảm)', [nE > 100, bad], [true, 0]);
+  });
+  // P2 / P3 / P4 / P5: quái theo ngày
+  block('P2-P5 quái', () => {
+    const Cb = R.ENCOUNTERS.combat, ents = d => (Cb.dayEntries ? Cb.dayEntries(d) : Cb.dayCombats(d).map(c => ({ c, tier: c.StartingTier, hp: null })));
+    const find = (d, n) => ents(d).find(x => x.c.Title === n || x.c.InternalName === n);
+    const hpOf = x => x && (x.hp || globalThis.BZ_MONSTERS.find(m => m.Id === x.c.Monster).Player.Attributes.HealthMax);
+    eq('P2 bốn tên wiki khác tên dữ liệu có mặt: Tempest Flamedancer (d3) = Tempest Bravo, Shock Trooper (d7) = Annex Trooper, Death Knight Reaper (d9, Legendary) = Void Knight, Veteran Octopus (d10, 8888 máu) = Eight Arm Davvy',
+      [[3, 'Tempest Bravo'], [7, 'Annex Trooper'], [9, 'Void Knight'], [10, 'Eight Arm Davvy']].map(([d, n]) => { const x = find(d, n) || ents(d).find(y => /Eight Arm Davvy/.test(y.c.InternalName) && n === 'Eight Arm Davvy'); return x ? [x.tier, hpOf(x)] : null; }),
+      [['Bronze', 300], ['Gold', 1925], ['Legendary', 3675], ['Legendary', 8888]]);
+    eq('P3/P4 (wiki Monsters, bậc theo ngày + máu trang quái): d1 Haunted Kimono Đồng 100; d2 Giant Mosquito Đồng 200; d2 Boarrior Vàng 400; d6 Dire Mosquito Đồng 900; d7 Thug Bạc 1550; d7 Ghost Pepper Kim cương 2200; d9 Yerdan Đồng 1925; d1 Kyver Drone 100',
+      [[1, 'Haunted Kimono'], [2, 'Giant Mosquito'], [2, 'Boarrior'], [6, 'Dire Mosquito'], [7, 'Thug'], [7, 'Ghost Pepper'], [9, 'Yerdan'], [1, 'Kyver Drone']].map(([d, n]) => { const x = find(d, n); return x ? [x.tier, hpOf(x)] : null; }),
+      [['Bronze', 100], ['Bronze', 200], ['Gold', 400], ['Bronze', 900], ['Silver', 1550], ['Diamond', 2200], ['Bronze', 1925], ['Bronze', 100]]);
+    const all = []; for (let d = 1; d <= 12; d++) ents(d).forEach(x => all.push(x.c.InternalName));
+    eq('P5: "[DISABLED] Joyful Jack" không ở danh sách ngày nào', all.filter(n => /DISABLED/.test(n)), []);
+    let leg9 = 0; for (let sd = 1; sd <= 200; sd++) { const x = R.newRun({ hero: 'Mak', seed: sd }); x.day = 9; if (Cb.options(x).some(o => o.tier === 'Legendary')) leg9++; }
+    check('P2: ngày 9 có ô Legendary (Void Knight) trong 200 seed: ' + leg9, leg9 > 0);
+  });
+  block('M-P1 thưởng quái', () => {
+    const got = {};
+    for (let d = 1; d <= 10; d++) for (let sd = 1; sd <= 30; sd++) { const x = R.newRun({ hero: 'Jules', seed: sd }); x.day = d; R.ENCOUNTERS.combat.options(x).forEach(o => { got[o.tier] = o.gold + '/' + o.xp; }); }
+    eq('M-P1 (Version 2.5.0): vàng/XP thắng quái Đồng 2/2, Bạc 3/2, Vàng 4/2, Kim cương 5/3, Huyền thoại 6/3', got, { Bronze: '2/2', Silver: '3/2', Gold: '4/2', Diamond: '5/3', Legendary: '6/3' });
+  });
+  // E3 Mountain Pass
+  block('E3 Mountain Pass', () => {
+    const cnt = { fightSameDay: 0, fightNextDay: 0, good: 0, bad: 0 }, kinds = {};
+    for (let sd = 1; sd <= 2000; sd++) {
+      const run = fresh('Vanessa', sd, 5), ctx = enterEv(run, 'Mountain Pass');
+      const o = (run.log.filter(l => l.t === 'mountainPass')[0] || {}).outcome || 'none';
+      if (/^fight/.test(o)) { cnt[o]++; if (run.phase.kind !== 'fight') cnt.noFight = (cnt.noFight || 0) + 1; } else if (/^skill:/.test(o)) cnt.bad++; else if (o !== 'none') cnt.good++;
+      kinds[o] = 1;
+    }
+    const pct = k => Math.round(cnt[k] / 20);
+    eq('E3 (Version 2.0.0 Mountain Pass 25/25/40/10): 2000 lần, % đấu cùng ngày / ngày sau / tốt / xấu (±4)', [St0().MOUNTAIN_ODDS, [pct('fightSameDay'), pct('fightNextDay'), pct('good'), pct('bad')].map((v, i) => Math.abs(v - [25, 25, 40, 10][i]) <= 4), cnt.noFight || 0],
+      [[25, 25, 40, 10], [true, true, true, true], 0]);
+    eq('E3: đủ 6 kết quả tốt + 2 kỹ năng xấu', ['loot', 'regen', 'tip', 'invest', 'routine', 'sea', 'skill:Valley Fever', 'skill:Insect Bite'].filter(k => !kinds[k]), []);
+  });
+  // R15 / E5 / E2 / E6 / E8 / E13 / E14
+  block('R15 Futura', () => {
+    const ids = []; for (let sd = 1; sd <= 20; sd++) { const x = fresh('Pygmalien', sd, 4); x.fatesPending = true; const ctx = { run: x, events: [] }; R.enterFates(ctx); ids.push(x.phase.choices.map(c => c.id).join(',')); }
+    eq('R15 (wiki Futura: Bounty, Crossroads, Legacy): 20 seed đều đúng ba lựa chọn đó', uniq(ids), ['bounty,crossroads,legacy']);
+  });
+  block('E5 Statia / E11 Thieves Guild', () => {
+    eq('E5 / E11: Statia và Thieves Guild không vào giờ tự do (ngày 8-10 x 300 seed)', seenIn(['Statia', 'Thieves Guild'], [8, 9, 10], 300), { Statia: 0, 'Thieves Guild': 0 });
+  });
+  block('E2 Haddy', () => {
+    const prizes = {}, first = [];
+    for (let sd = 1; sd <= 300; sd++) {
+      const run = fresh('Stelle', sd, 9); enterEv(run, 'Haddy'); first.push(run.phase.choices.map(c => c.name).join(','));
+      const r = R.apply(run, { t: 'choose', i: 0 });
+      (r.run.phase.choices || []).forEach(c => { prizes[E.steps[c.id] ? E.steps[c.id].InternalName : c.name] = 1; });
+    }
+    eq('E2 (wiki Haddy "One prize is randomly selected", 6 giải gồm Magician\'s Top Hat): chỉ bày "Spin the Wheel"; quay ra 1 giải, đủ 6 giải trong 300 seed',
+      [uniq(first), Object.keys(prizes).sort().length, !!prizes["Haddy - Haddy's Hat Reward"]], [['Spin the Wheel'], 6, true]);
+    const s = seenIn(['Haddy'], [6, 7], 400, 'Stelle').Haddy, s8 = seenIn(['Haddy'], [8, 9, 10], 400, 'Stelle').Haddy;
+    eq('E2 Haddy "Day 8+": ngày 6-7 không bày, ngày 8-10 có', [s, s8 > 0], [0, true]);
+  });
+  block('E6 Study', () => {
+    const run = fresh('Mak', 1, 4), sx = enterEv(run, 'Study (Default Option)').events.filter(e => e.type === 'xp' && e.why !== 'hour').reduce((a, e) => a + e.delta, 0);
+    const day3 = seenIn(['Study (Default Option)'], [3], 600)['Study (Default Option)'];
+    eq('E6 (wiki Study "Gain 1 Additional XP", 2.5.0 không ra ngày 3): Study cho đúng 1 XP (ngoài 1 XP của giờ), ngày 3 x 600 seed 0 lần', [sx, day3], [1, 0]);
+  });
+  block('E8 Relax', () => {
+    const run = fresh('Karnok', 1, 5); run.level = 5; enterEv(run, 'Rest');
+    const ctx = { run, events: [] }; run.hour = 2; R.ENCOUNTERS.combat.enter(ctx, { id: Object.values(E.combats).find(c => c.InternalName === 'Kyver Drone').Id }, 'endHour');
+    const b = R.fightBoards(run), r = R.apply(run, { t: 'fight' });
+    eq('E8 (wiki Relax "Start your next fight with 100 Shield per Level"): cấp 5 → trận kế mở với 500 khiên, xong trận thì hết', [b[0].attrs.Shield, r.run.nextFightShield], [500, 0]);
+  });
+  block('E13/E14 ngày', () => {
+    const s = seenIn(['Armory', 'Battlefield', 'Snack Time', 'Bladeborn Badlands', 'Burning Caldera'], [1], 300, 'Vanessa');
+    const s10 = seenIn(['Armory', 'Battlefield', 'Snack Time', 'Bladeborn Badlands', 'Burning Caldera'], [7, 10], 300, 'Vanessa');
+    const s9 = seenIn(['Bladeborn Badlands', 'Burning Caldera', 'Celestial Conduit', "Guardian's Gorge", 'Murkwood Bayou'], [5, 6, 7, 8, 9], 300, 'Vanessa');
+    eq('E13 (Category_Event: Armory Bạc / Snack Time Bạc / Battlefield Đồng "Day 1+"): ngày 1 có Armory + Snack Time + Battlefield; ngày 7 + 10 vẫn có cả ba',
+      [s.Armory > 0, s['Snack Time'] > 0, s.Battlefield > 0, s10.Armory > 0, s10['Snack Time'] > 0, s10.Battlefield > 0], [true, true, true, true, true, true]);
+    eq('E14 (bệ yểm bùa "Day 10+"): ngày 5-9 x 300 seed 0 lần; ngày 10 có', [Object.values(s9).reduce((a, b) => a + b, 0), s10['Bladeborn Badlands'] + s10['Burning Caldera'] > 0], [0, true]);
+  });
+  // R6: đống đồ của sự kiện theo bảng bậc của thương nhân
+  block('R6 bậc đống đồ', () => {
+    const t = {}; let n = 0;
+    for (let sd = 1; sd <= 300; sd++) { const run = fresh('Vanessa', sd, 10); enterEv(run, 'Armory'); (run.phase.picks || []).forEach(p => { n++; t[p.card.tier] = (t[p.card.tier] || 0) + 1; }); }
+    const dia = Math.round(100 * (t.Diamond || 0) / n);
+    check('R6 (một bảng bậc theo ngày, bazaardb ngày 10 = Kim cương 9,9 %): Armory ngày 10 x 300 seed, Kim cương ' + dia + ' % (cũ 76 %) ≤ 20 %', n > 200 && dia <= 20, t);
+  });
+  // M1 / M2 / M3 / M7: thương nhân
+  block('M1-M3 thương nhân', () => {
+    const sold = (merchant, hero, deals, day) => { const out = {}; for (let sd = 1; sd <= deals; sd++) { const run = R.newRun({ hero, seed: sd }); run.day = day; R.ENCOUNTERS.merchant.dealStock(run, ev(merchant)).forEach(s => { const n = titleOf(s.card.id); out[n] = (out[n] || 0) + 1; }); } return out; };
+    const cur = sold('Curio', 'Vanessa', 100, 3);
+    check('M1 (wiki Curio "Sells Bronze-tier junk items", Sharpening Stone "can be bought via the merchant Curio"): Curio 100 lần bày có Sharpening Stone (' + (cur['Sharpening Stone'] || 0) + ') và Bar of Gold (' + (cur['Bar of Gold'] || 0) + ')', cur['Sharpening Stone'] > 0 && cur['Bar of Gold'] > 0, Object.keys(cur).slice(0, 20));
+    const monNames = new Set((globalThis.BZ_SHOPS.monsterItems || []).map(titleOf));
+    const bk = {}; R.HEROES_PLAYABLE.forEach(h => { const s = sold('Barkun', h, 300, 4); for (const n in s) if (monNames.has(n) || R.isMonsterLoot(R.tpl(Object.keys(C).find(id => titleOf(id) === n)))) bk[n] = (bk[n] || 0) + s[n]; });
+    eq('M2 (wiki Junk Items "only ... Monster encounters or ... Curio"; review: Barkun 19,2 % đồ quái): Barkun 7 hero x 300 lần bày, 0 món wiki collection Monster/Junk; monsterItems có ≥ 100 thẻ', [bk, monNames.size >= 100], [{}, true]);
+    const ai = sold('Aila', 'Vanessa', 300, 5);
+    eq('M2: Aila 300 lần bày không có Old Sword / Fang / Claws', ['Old Sword', 'Fang', 'Claws'].filter(n => ai[n]), []);
+    const mk = sold('Mak (Hero Merchant)', 'Vanessa', 300, 5);
+    eq('M3 (wiki Catalyst: Loot, collection Monster/Junk): Mak Hero Merchant 300 lần bày không có Catalyst', mk.Catalyst || 0, 0);
+    eq('M7 (Version 0.1.3 "Pol ... no longer spawns on Day 3 and 4"): Pol ngày 4 x 400 seed 0 lần', seenIn(['Pol'], [4], 400, 'Dooley').Pol, 0);
+  });
+  // E9 Pearl's Dig Site / E10 Epic Battle / E12 Finn's + Treasure Chest
+  block('E9 Pearl', () => {
+    const run = fresh('Vanessa', 4, 6); run.gold = 10; enterEv(run, "Pearl's Dig Site");
+    const p0 = [run.phase.rerolls, run.phase.rerollCost];
+    const r1 = R.apply(run, { t: 'reroll' }), r2 = R.apply(r1.run, { t: 'reroll' });
+    eq("E9 (wiki Pearl's Dig Site: reroll vô hạn, 1 vàng rồi +1): reroll 999 giá 1; sau hai lần trừ 1 + 2 = 3 vàng", [p0, r2.ok, r2.run.gold], [[999, 1], true, 7]);
+    let loot = 0, other = 0;
+    for (let sd = 1; sd <= 200; sd++) { const x = fresh('Vanessa', sd, 6); enterEv(x, "Pearl's Dig Site"); (x.phase.picks || []).forEach(p => { const t = R.tpl(p.card.id); if (R.isMonsterLoot(t)) loot++; if ((t.Heroes || []).indexOf('Vanessa') < 0 && (t.Heroes || []).indexOf('Common') < 0) other++; }); }
+    check("E9: 200 lần đào có đồ của hero khác (" + other + ") và đồ quái Loot (" + loot + ")", other > 0 && loot > 0);
+  });
+  block('E12 Finn / Treasure Chest', () => {
+    const run = fresh('Pygmalien', 2, 3); run.healthMax = 300; enterEv(run, "Finn's Big Bite");
+    const names = run.phase.choices.map(c => c.name);
+    const r = R.apply(run, { t: 'choose', i: names.indexOf('Vitality Stew') });
+    eq("E12 (wiki Finn's Big Bite): bày Guardian's Gravy Plate / Restorative Risotto / Vitality Stew; Stew → máu 300 → 315, Regen +5",
+      [['Guardian\'s Gravy Plate', 'Restorative Risotto', 'Vitality Stew'].every(n => names.indexOf(n) >= 0), r.ok && r.run.healthMax, r.ok && r.run.pattrs.HealthRegen], [true, 315, 5]);
+    const tc = seenIn(['Treasure Chest', "Finn's Big Bite"], [1, 2], 400, 'Vanessa');
+    eq('E12: Treasure Chest ("Day 1+") và Finn\'s Big Bite được bày ở ngày 1-2', [tc['Treasure Chest'] > 0, tc["Finn's Big Bite"] > 0], [true, true]);
+    const esName = 'The Financial District - Economic Seminar';
+    const es = seenIn([esName], [3, 4, 5], 300, 'Pygmalien')[esName], es2 = seenIn([esName], [6], 300, 'Pygmalien')[esName];
+    eq('E12: Economic Seminar (wiki: Pygmalien, Day 3-5) được bày cho Pygmalien ngày 3-5, không ngày 6', [es > 0, es2], [true, 0]);
+  });
+  block('E15 Tincture / Form', () => {
+    const run = fresh('Mak', 1, 4); run.level = 6; enterEv(run, 'Regenerative Tincture');
+    eq('E15 (wiki Regenerative Tincture "Gain Regeneration equal to your level"): cấp 6 → Regen +6 (cũ 12); Form không ra ngày 5-6 ("Day 7+")',
+      [run.pattrs.HealthRegen, seenIn(['Form'], [5, 6], 400, 'Vanessa').Form], [6, 0]);
+  });
+}
+function St0() { return R.ENCOUNTERS.step; }
+
 if (!ONLY || ONLY === 'rules') rules();
 if (!ONLY || ONLY === 'rules' || ONLY === 'pha4') pha4();
 if (!ONLY || ONLY === 'rules' || ONLY === 'pha4') fixes();
@@ -1057,6 +1443,8 @@ if (!ONLY || ONLY === 'rules' || ONLY === 'pha4' || ONLY === 'fix6') fix6();
 if (!ONLY || ONLY === 'rules' || ONLY === 'pha4' || ONLY === 'fix8') fix8();
 if (!ONLY || ONLY === 'rules' || ONLY === 'pha4' || ONLY === 'fix9') fix9();
 if (!ONLY || ONLY === 'rules' || ONLY === 'pha4' || ONLY === 'fix9b') fix9b();
+if (!ONLY || ONLY === 'rules' || ONLY === 'pha4' || ONLY === 'fix9c') fix9c();
+if (!ONLY || ONLY === 'rules' || ONLY === 'pha4' || ONLY === 'fix9d') fix9d();
 if (!ONLY || ONLY === 'det') determinism();
 if (!ONLY || ONLY === 'sweep') sweep();
 console.log('\n' + pass + ' ok, ' + fail + ' fail');

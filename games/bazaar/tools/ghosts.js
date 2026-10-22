@@ -8,7 +8,7 @@
  * ghost = { name, hero, level, day, wins, healthMax, cards:[{id,tier,ench,socket,size,section}] }  (hình thẻ của sim)
  *
  * Chọn bóng (2026-10-10 v2): "thắng quái ≥ 50%" không đo thứ cần đo. Mỗi ứng viên đấu một mẫu bàn bot KHÁC cùng ngày (quần thể,
- * mọi hero, SEEDS hạt giống, bóng mang máu GHOST_HP_BY_DAY như luật thật) ⇒ pG = tỉ lệ bóng thắng quần thể. Giữ bóng sao cho trung bình
+ * mọi hero, SEEDS hạt giống, bóng mang máu tối đa của chính bản ghi như luật thật, WIKI2 R3) ⇒ pG = tỉ lệ bóng thắng quần thể. Giữ bóng sao cho trung bình
  * pG ≈ TARGET (0.5) mỗi ngày ⇒ bot thắng bộ bóng 45-55% ở MỌI ngày, vẫn chia đều hero/kiểu bàn. Số báo cáo đo trên mẫu ĐỘC LẬP (holdout).
  *
  * Chạy lại:  node games/bazaar/tools/ghosts.js            (cùng dữ liệu + cùng tham số ⇒ cùng tệp ra, tất định)
@@ -22,7 +22,7 @@
 const fs = require('fs');
 const path = require('path');
 const ROOT = path.resolve(__dirname, '..', '..', '..');
-['cards', 'monsters', 'mode', 'encounters'].forEach(f => require(path.join(ROOT, 'games/bazaar/data/' + f + '.js')));
+['cards', 'monsters', 'mode', 'encounters', 'shops', 'heroes'].forEach(f => require(path.join(ROOT, 'games/bazaar/data/' + f + '.js'))); // như trang (index.html nạp cả shops + heroes)
 const R = require(path.join(ROOT, 'games/bazaar/js/run/index.js'));
 const BZ = globalThis.BZSim;
 const OUT = path.join(ROOT, 'games/bazaar/data/ghosts.js');
@@ -379,11 +379,11 @@ function samples(uniq) {
 const toBoard = (g, pre, hp) => { const b = ghostBoard(g, pre); if (hp) b.healthMax = hp; return b; };
 // Tỉ lệ bóng g (máu bóng theo ngày) thắng các bàn quần thể pop
 function ghostWinRate(g, pop, day) {
-  const hp = R.ghostHp(day); let w = 0, n = 0;
+  let w = 0, n = 0; // bóng mang máu của chính bản ghi (WIKI2 R3: ảnh chụp người chơi), không còn đường cong GHOST_HP_BY_DAY
   pop.forEach((b, bi) => {
     if (b === g || (b.hero === g.hero && b.cards.length === g.cards.length && b.i === g.i)) return;
     for (let s = 0; s < SEEDS; s++) {
-      const r = BZ.run({ boards: [toBoard(b, 'b'), toBoard(g, 'g', hp)], seed: 1200 + bi * 7 + s, combatType: 'PVP', day, hour: 5, frames: false });
+      const r = BZ.run({ boards: [toBoard(b, 'b'), toBoard(g, 'g')], seed: 1200 + bi * 7 + s, combatType: 'PVP', day, hour: 5, frames: false });
       n++; if (r.winner === 1) w++;
     }
   });
@@ -469,9 +469,9 @@ function selectDay(uniq) {
 }
 // Tỉ lệ bot (quần thể mẫu kiểm) thắng một bộ bóng
 function botVs(ghosts, pop, day) {
-  const hp = R.ghostHp(day); let w = 0, n = 0;
+  let w = 0, n = 0; // bóng mang máu của chính bản ghi (WIKI2 R3: ảnh chụp người chơi), không còn đường cong GHOST_HP_BY_DAY
   ghosts.forEach(g => pop.forEach((b, bi) => {
-    for (let s = 0; s < SEEDS; s++) { const r = BZ.run({ boards: [toBoard(b, 'b'), toBoard(g, 'g', hp)], seed: 5000 + bi * 7 + s, combatType: 'PVP', day, hour: 5, frames: false }); n++; if (r.winner === 0) w++; }
+    for (let s = 0; s < SEEDS; s++) { const r = BZ.run({ boards: [toBoard(b, 'b'), toBoard(g, 'g')], seed: 5000 + bi * 7 + s, combatType: 'PVP', day, hour: 5, frames: false }); n++; if (r.winner === 0) w++; }
   }));
   return n ? w / n : 0;
 }
@@ -487,7 +487,7 @@ function finish(heroes, cand, U, SM, runs, errors, t0) {
     const per = {}, ac = {}; kept.forEach(g => { per[g.hero] = (per[g.hero] || 0) + 1; ac[g.arch] = 1; });
     const pop = SM[d].H, sel = 1 - kept.reduce((s, g) => s + g.pg, 0) / kept.length;
     hj.push({ kind: 'hold', d, ghosts: byDay[d], pop, tag: 'a' }); if (before && before[d]) hj.push({ kind: 'hold', d, ghosts: before[d], pop, tag: 'b' });
-    rep.push({ d, cand: cand[d].length, uniq: uniq.length, kept: kept.length, per, sel, bBefore: NaN, bAfter: NaN, arch: Object.keys(ac).length, hp: R.ghostHp(d) });
+    rep.push({ d, cand: cand[d].length, uniq: uniq.length, kept: kept.length, per, sel, bBefore: NaN, bAfter: NaN, arch: Object.keys(ac).length, hp: Math.round(kept.reduce((a, g) => a + (g.healthMax || 0), 0) / Math.max(1, kept.length)) });
   }
   return runJobs(hj).then(out => { hj.forEach((j, k) => { rep[j.d - 1][j.tag === 'a' ? 'bAfter' : 'bBefore'] = out[k]; }); report(heroes, cand, rep, byDay, runs, errors, t0); });
 }

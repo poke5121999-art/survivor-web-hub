@@ -47,6 +47,8 @@
   // Số aura của thương nhân "Buys your X items at +N Value" lấy từ TUNING (data/encounters.js chưa chở Auras).
   R.encText = function (run, e, text) {
     text = text == null ? '' : String(text);
+    var fx = R.ENCOUNTERS && R.ENCOUNTERS.step && R.ENCOUNTERS.step.fxOf(e); // St.FX desc: chữ thật khi bản demo mất vế (Wink +10 Prestige)
+    if (fx && fx.desc && e && text === String(e.Desc || '')) text = fx.desc;
     if (text.indexOf('{') < 0) return text;
     var sim = root.BZSim, S = R.readState(run), card = R.ooc.encounterCard(S, e), auras = {}, ms = T().MERCHANT_SELL_AURAS[e.InternalName];
     if (ms && ms[0]) auras[3] = ms[0].Value;
@@ -286,8 +288,8 @@
   // Red Envelope "When you buy this, gain 10 Gold", Machine Learning, Renovation.
   var SELECTED_WHY = { buy: 1, loot: 1, chest: 1, start: 1 };
   function selected(ctx, ci, why) { if (SELECTED_WHY[why] && R.ooc) R.ooc.fire(ctx, 'TTriggerOnCardSelected', { uid: ci.uid }); }
-  R.canGain = function (run, card) {
-    if (R.fuseTarget(run, card.id, card.tier)) return true;
+  R.canGain = function (run, card, noFuse) { // noFuse: thẻ sinh ra (pha nhặt `spawned`) không nhập bậc, cần ô trống
+    if (!noFuse && R.fuseTarget(run, card.id, card.tier)) return true;
     var tpl = R.tpl(card.id);
     return !!R.autoPlace(run, { id: card.id, size: R.isSkill(tpl) ? 1 : (R.SIZE[tpl.Size] || 1) });
   };
@@ -309,13 +311,19 @@
     return true;
   };
 
-  // ---------- XP, cấp, máu (Dealer:5278-5341; level_ups.json khoá theo cấp hiện tại) ----------
+  // ---------- XP, cấp, máu (Dealer:5278-5341; 8 XP / cấp — wiki Level Up "Collect 8 XP to gain a level") ----------
+  // Máu tối đa ở cấp L (TUNING.HP_BY_LEVEL, WIKI2 R2: 300/350/450/600/800/1050/1350/1700/2100/2550); sau bảng cộng HP_STEP_PER_LEVEL × cấp đang rời
   R.hpAtLevel = function (level) {
-    var hp = T().START_HP, ups = root.BZ_MODE.levelUps;
-    for (var L = 1; L < level; L++) { var row = ups.filter(function (r) { return r.Level === L; })[0]; hp += row ? row.HealthIncrease : 0; }
+    var t = T().HP_BY_LEVEL, L = Math.max(1, Math.floor(level));
+    if (L <= t.length) return t[L - 1];
+    var hp = t[t.length - 1];
+    for (var k = t.length; k < L; k++) hp += T().HP_STEP_PER_LEVEL * k;
     return hp;
   };
-  // Máu bóng PvP theo ngày (TUNING.GHOST_HP_BY_DAY, clip wUzq6Q4u9Jc); quá bảng thì cộng GHOST_HP_STEP_AFTER mỗi ngày
+  // Máu cộng thêm khi lên từ cấp L lên L+1
+  R.hpGainAt = function (level) { return R.hpAtLevel(level + 1) - R.hpAtLevel(level); };
+  // Máu bóng PvP dựng từ bàn quái (khi không có data/ghosts.js) theo ngày (TUNING.GHOST_HP_BY_DAY, clip wUzq6Q4u9Jc); quá bảng thì
+  // cộng GHOST_HP_STEP_AFTER mỗi ngày. Bóng từ bộ dữ liệu dùng máu của chính bản ghi (WIKI2 R3, enc-combat datasetGhost).
   R.ghostHp = function (day) {
     var t = T().GHOST_HP_BY_DAY, d = Math.max(1, Math.floor(day));
     return d <= t.length ? t[d - 1] : t[t.length - 1] + (d - t.length) * T().GHOST_HP_STEP_AFTER;
@@ -326,8 +334,7 @@
     run.xp = Math.max(0, run.xp + n);
     R.emit(ctx, { type: 'xp', delta: n, why: why || null });
     while (Math.floor(run.xp / per) + 1 > run.level) {
-      var row = root.BZ_MODE.levelUps.filter(function (r) { return r.Level === run.level; })[0];
-      var hp = row ? row.HealthIncrease : 0;
+      var hp = R.hpGainAt(run.level); // TUNING.HP_BY_LEVEL (wiki/clip), không còn level_ups.HealthIncrease của bản demo
       run.level++;
       run.pendingLevelUps = (run.pendingLevelUps || 0) + 1;
       R.emit(ctx, { type: 'levelUp', level: run.level, health: hp, sockets: R.unlockedSockets(run.level) });

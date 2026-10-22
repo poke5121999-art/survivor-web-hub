@@ -55,7 +55,6 @@
     }
     if (b.type === 'upgrade') R.upgradeInst(ctx, ci, 'pedestal');
     else applyEnchant(ctx, ci, b.ench);
-    R.gainXp(ctx, e.Xp || 0, 'select');
     R.finish(ctx, ph.after);
   };
   function applyEnchant(ctx, ci, ench) {
@@ -70,7 +69,6 @@
     var ci = R.findCard(run, ph.uid);
     if (!ci) return 'card ' + ph.uid + ' not found';
     applyEnchant(ctx, ci, ench);
-    R.gainXp(ctx, e.Xp || 0, 'select');
     R.finish(ctx, ph.after);
   };
   P.back = function (ctx) {

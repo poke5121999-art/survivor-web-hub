@@ -148,10 +148,13 @@
       seen[it.key] = 1;
       var el = top[it.key];
       // cùng ô hàng nhưng đổi bậc / yểm (sự kiện stock: Lucky Clover, Dreampearl): dựng lại tại chỗ, không chia lại
-      if (el && (el._bz.inst.tier !== it.card.tier || (el._bz.inst.ench || null) !== (it.card.ench || null))) {
+      // cũng dựng lại khi cỡ thẻ đổi: hàng 10 món thu nhỏ (fitK) mua bớt thì về lưới ổ, thẻ còn lại phải lớn lại theo ổ
+      // (trước đây giữ cỡ nhỏ, nằm lệch trong ổ)
+      var wantH = it.h || G.topRow.h;
+      if (el && (el._bz.inst.tier !== it.card.tier || (el._bz.inst.ench || null) !== (it.card.ench || null) || (!el._bz.token && Math.abs(el._bz.h - wantH) > 1))) {
         var old = el, tpl0 = R().tpl(it.card.id), sz0 = old._rs.size;
         el = BC().create({ uid: 'top:' + it.key, id: it.card.id, tier: it.card.tier, size: sz0, ench: it.card.ench || null, type: U.typeOf(tpl0) },
-          { h: old._bz.h, attrs: U.looseAttrs(it.card), side: 1 });
+          { h: old._bz.token ? old._bz.h : wantH, attrs: U.looseAttrs(it.card), side: 1, token: old._bz.token });
         el._rs = old._rs; if (old.dataset.drag) el.dataset.drag = '1';
         el.className = old.className.split(' ').filter(function (c) { return c !== 'deal'; }).join(' '); el.style.left = old.style.left; el.style.top = old.style.top;
         if (old === hovered) setHovered(null);

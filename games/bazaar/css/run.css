@@ -119,7 +119,10 @@
 .m-run.stash-open .rs-enc, .m-run.stash-open .rs-map, .m-run.stash-open .rs-merchant-ctl, .m-run.stash-open .rs-pedestal { opacity: 0; pointer-events: none; transition: opacity .3s; }
 .m-run.stash-open .bz-board.bot { filter: brightness(.62); transition: filter .3s; }
 /* .rs-cell { pointer-events: auto } ghi đè ở con nên phải khoá cả cây con, không thì bấm ✕ trúng ô "Rời đi" tàng hình (UI-1) */
-.m-run.lane-merchant.stash-open .rs-merchant-ctl * { pointer-events: none !important; }
+/* P3-2: quầy lều / xe của loot sự kiện (lane-event) và nút đổi của loot sau trận (lane-loot) cũng thế — ✕ không được rơi vào "Bỏ phần thưởng?".
+   Làn bệ giữ "Rời đi" (FLOW-1), nên khi kho mở thì dải kho nổi trên quầy (z 9 > 8): chỗ chồng nhau ✕ thắng ở mọi làn. */
+.m-run.lane-merchant.stash-open .rs-merchant-ctl *, .m-run.lane-event.stash-open .rs-merchant-ctl *, .m-run.lane-loot.stash-open .rs-merchant-ctl * { pointer-events: none !important; }
+.m-run.stash-open .rs-tray.open { z-index: 9; }
 
 /* ---------- màu dải theo loại màn (clip: thương nhân = dải tím viền vàng; sự kiện = băng-rôn kem; loot = khung vàng neon; bệ = ngọc lam; bàn tay = thảm xanh ngọc) ---------- */
 .m-run.lane-merchant .bz-board.top { background: rgba(104,56,170,.5); box-shadow: inset 0 0 0 2px rgba(240,207,122,.55), inset 0 0 26px rgba(30,10,60,.35); }
@@ -648,6 +651,13 @@
 .rs-loading.show { opacity: 1; transform: translate(-50%, 0); }
 .rs-loading i { width: 26px; height: 26px; border-radius: 50%; border: 4px solid rgba(255,211,107,.25); border-top-color: #ffd36b; animation: rs-spin .8s linear infinite; }
 @keyframes rs-spin { to { transform: rotate(360deg); } }
+/* lệnh của người chơi đang chờ thẻ (P2-7 / P3-6): chip to giữa dải trên, nảy khi bấm lại */
+.rs-loading.big { top: 392px; padding: 10px 40px 10px 30px; font-size: 30px; gap: 18px; }
+.rs-loading.big i { width: 38px; height: 38px; border-width: 5px; }
+.rs-loading.nudge { animation: rs-loadnudge .35s cubic-bezier(.3,1.6,.5,1); }
+@keyframes rs-loadnudge { 40% { scale: 1.12; } }
+#bz-stage.bz-cam .rs-loading:not(.big) { top: calc(18px + var(--vt)); }
+.rs-small .rs-loading.big { font-size: 40px; }
 
 /* sảnh: lục giác dựng bằng CSS cho hero không có Btn_*_TUI (Karnok, The Dragons), hero khoá */
 
@@ -937,6 +947,8 @@
 .rs-ghostpick .tap { display: block; margin-top: 10px; font: 800 18px/1 var(--f-text); font-style: normal; letter-spacing: .08em; text-transform: uppercase; color: #ffe9a8; animation: rs-tap 1.1s ease-in-out infinite alternate; }
 @keyframes rs-tap { from { opacity: .45; } to { opacity: 1; } }
 .rs-small .rs-enc .lbl { font-size: 24px; }
+/* nhãn ô lên cấp không rộng quá bước khung (247 px giữa ba khung): dài thì xuống dòng, không đè nhãn bên cạnh (P3-10) */
+.rs-enc.lvl .lbl { width: max-content; max-width: 240px; white-space: normal; text-align: center; line-height: 1.1; }
 
 /* ---------- lựa chọn trên làn (event.js U.laneChoices): orb bước sự kiện, thẻ, khung chân dung; đặt theo ổ, không chữ trên làn ---------- */
 .rs-lanechoices { position: absolute; inset: 0; width: auto; height: auto; display: block; padding: 0; pointer-events: none; z-index: 3; }
@@ -988,3 +1000,6 @@
 #bz-stage.bz-cam .rs-side-name small { font-size: 30px; } #bz-stage.bz-cam .rs-side-name h3 { font-size: 46px; }
 #bz-stage.bz-cam .rs-side-name p { font-size: 32px; } #bz-stage.bz-cam .rs-side-note { font-size: 34px; }
 #bz-stage.bz-cam .bz-side-in .rs-big { height: 96px; min-width: 190px; font-size: 40px; }
+/* lựa chọn trả vàng mà không đủ vàng: mờ, không nảy; bấm vẫn bị luật từ chối kèm lời báo */
+#bz-stage .rs-choice.poor, #bz-stage .rs-choice.poor:hover { filter: grayscale(.85) brightness(.55); transform: none; cursor: not-allowed; }
+#bz-stage .rs-choice.poor .glow { opacity: 0; }

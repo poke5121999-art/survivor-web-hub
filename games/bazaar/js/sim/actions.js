@@ -50,7 +50,15 @@
     players(act, ctx, OPP).forEach(function (P) {
       BZ.hit(S, P, v, 'Damage', C, crit);
       var ls = BZ.cattr(S, C, 'Lifesteal') || 0; // dữ liệu: Lifesteal = 100 (%) — hồi theo sát thương trước khiên [ĐỀ XUẤT §1.7]
-      if (ls > 0) BZ.heal(S, S.players[C.owner], v * Math.min(ls, 100) / 100, C, 'Lifesteal');
+      if (ls > 0) {
+        var me = S.players[C.owner], lsAmt = v * Math.min(ls, 100) / 100, lsMiss = Math.max(0, (BZ.pattr(S, me, 'HealthMax') || 0) - me.base.Health);
+        BZ.heal(S, me, lsAmt, C, 'Lifesteal');
+        // Version 1.0.0: "Lifesteal health recovery now counts as Healing" [WIKI2 K4]: trigger "khi bạn hồi máu", không tẩy Burn/Poison
+        if (lsAmt >= 1) {
+          performed(ctx, 'TTriggerOnCardPerformedHeal', { tplayer: me });
+          if (lsAmt > lsMiss) performed(ctx, 'TTriggerOnCardPerformedOverHeal', { tplayer: me });
+        }
+      }
       performed(ctx, 'TTriggerOnCardPerformedDamage', { tplayer: P });
     });
   };

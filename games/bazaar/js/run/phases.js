@@ -134,7 +134,6 @@
     var rec = r.type === 'combat' ? R.enc().combats[r.id] : r.type === 'pedestal' ? R.enc().pedestals[r.id] : R.enc().events[r.id];
     if (rec) R.ooc.fire(ctx, 'TTriggerOnEncounterSelected', { enc: rec });
     if (rec) R.ooc.fire(ctx, 'TTriggerOnEncounterEntered', { enc: rec }); // trước khi bày hàng (Coupon: Custom_0 += 1 rồi mới CardsDealt)
-    if (r.type === 'merchant') R.gainXp(ctx, rec.Xp || 0, 'select'); // ExperienceAwardUponSelection (sự kiện tự cộng khi vào)
     h.enter(ctx, r, 'endHour');
   }
   function levelUpChoose(ctx, cmd) {
@@ -221,12 +220,12 @@
         if (ph.rerolls > 0 && run.gold >= ph.rerollCost) out.push({ t: 'reroll' });
         out.push({ t: 'leave' }); boardCmds(); break;
       case 'event':
-        for (i = 0; i < ph.choices.length; i++) { var c = ph.choices[i]; if (!c.card || R.canGain(run, c.card)) out.push({ t: 'choose', i: i }); }
+        for (i = 0; i < ph.choices.length; i++) { var c = ph.choices[i]; if ((!c.card || R.canGain(run, c.card)) && !(c.cost > run.gold)) out.push({ t: 'choose', i: i }); }
         if (ph.canExit) out.push({ t: 'leave' });
         boardCmds(); break;
       case 'enchantPick': ph.options.forEach(function (o, k) { out.push({ t: 'choose', i: k }); }); out.push({ t: 'back' }); boardCmds(); break;
       case 'loot': case 'chest':
-        ph.picks.forEach(function (p, k) { if (R.canGain(run, p.card)) out.push({ t: 'choose', i: k }); });
+        ph.picks.forEach(function (p, k) { if (R.canGain(run, p.card, !!ph.spawned)) out.push({ t: 'choose', i: k }); });
         if (ph.rerolls > 0 && !ph.taken && run.gold >= ph.rerollCost) out.push({ t: 'reroll' });
         out.push({ t: 'leave' }); boardCmds(); break;
       case 'pedestal': ph.eligible.forEach(function (u, k) { out.push({ t: 'choose', i: k }); }); out.push({ t: 'leave' }); boardCmds(); break;

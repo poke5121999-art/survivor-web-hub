@@ -21,8 +21,8 @@
       var s = document.createElement('script');
       s.src = src + '?v=' + (root.BZ_REV || '');
       s.async = false;
-      s.onload = function () { settled[src] = true; res(true); };
-      s.onerror = function () { settled[src] = true; console.info(src + ' missing: continuing without it'); res(false); };
+      s.onload = function () { settled[src] = true; res(true); L.refresh(); };
+      s.onerror = function () { settled[src] = true; console.info(src + ' missing: continuing without it'); res(false); L.refresh(); };
       document.head.appendChild(s);
     });
     return jobs[src];
@@ -50,18 +50,30 @@
   L.progress = function () { var a = L.heroes(), n = a.filter(L.heroLoaded).length; return { loaded: n, total: a.length, ghosts: L.ghostsSettled() }; };
 
   // ---------- chip "đang tải" ----------
-  var chip = null, waiters = 0;
-  L.busy = function (on, text) {
+  // P2-7 / P3-6: lệnh của người chơi bị hoãn (chọn mở màn khi thẻ các hero chưa về) → chip to giữa dải trên kèm tiến độ "3/7 hero",
+  // bấm thêm lần nữa thì chip nảy (L.nudge) thay vì im lặng; điện thoại: chip góc trên dời vào vùng đang thấy (--vt, run.css).
+  var chip = null, waiters = 0, baseText = '', big = 0;
+  function progressText() {
+    if (!/các hero/.test(baseText)) return baseText;
+    var p = L.progress(); return baseText + ' ' + p.loaded + '/' + p.total + (p.loaded >= p.total && !p.ghosts ? ' · bóng PvP' : '');
+  }
+  L.refresh = function () { if (chip && waiters > 0) chip.querySelector('span').textContent = progressText(); };
+  L.busy = function (on, text, opts) {
     var st = root.BZView && root.BZView.refs && root.BZView.refs.stage;
     if (!st) return;
     waiters = Math.max(0, waiters + (on ? 1 : -1));
+    if (opts && opts.big) big = Math.max(0, big + (on ? 1 : -1));
+    if (!waiters) big = 0;
     if (!chip) { chip = U.el('div', 'rs-loading', st, '<i></i><span></span>'); }
-    if (on && text) chip.querySelector('span').textContent = text;
+    if (on && text) baseText = text;
+    L.refresh();
     chip.classList.toggle('show', waiters > 0);
+    chip.classList.toggle('big', big > 0);
   };
-  // chạy fn khi promise xong, chip hiện trong lúc chờ
-  L.wait = function (promise, text, fn) {
-    L.busy(true, text || 'Đang tải thẻ…');
-    return promise.then(function (x) { L.busy(false); if (fn) fn(x); return x; }, function (e) { L.busy(false); console.error(e); });
+  L.nudge = function () { if (!chip || !waiters) return; chip.classList.remove('nudge'); void chip.offsetWidth; chip.classList.add('nudge'); };
+  // chạy fn khi promise xong, chip hiện trong lúc chờ (opts.big: lệnh người chơi đang chờ → chip to, giữa dải trên)
+  L.wait = function (promise, text, fn, opts) {
+    L.busy(true, text || 'Đang tải thẻ…', opts);
+    return promise.then(function (x) { L.busy(false, null, opts); if (fn) fn(x); return x; }, function (e) { L.busy(false, null, opts); console.error(e); });
   };
 })(window);

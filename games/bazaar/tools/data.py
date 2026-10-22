@@ -176,6 +176,97 @@ HAND_INSTANT = {
     "Financial District - Economic Seminar - Basic - Reward": "Experience",
 }
 
+# Thẻ trận mà StartingTier của bản demo lệch với vàng thưởng (bảng WIKI §1.5 / §5: Bronze 2, Silver 3, Gold 4, Diamond 5, Legendary 6).
+# Bloodreef Raider: hai bản bị tráo bậc ("(D4 Bronze)" mang Silver + 2 vàng, bản thường mang Bronze + 3 vàng); wiki Bloodreef Raider
+# "tier Silver, gold 3". Ferros Khan (Bronze) cấp 10, 4 vàng = wiki Ferros Khan "level 10, tier Gold, gold 4". Sửa bậc, giữ vàng.
+COMBAT_TIER_FIX = {
+    "Bloodreef Raider": "Silver",
+    "Bloodreef Raider (D4 Bronze)": "Bronze",
+    "Ferros Khan (Bronze)": "Gold",
+}
+
+
+def combat_tier(c):
+    return COMBAT_TIER_FIX.get(c.get("InternalName"), c.get("StartingTier"))
+
+
+# ---- Quái giờ PvE theo NGÀY (encounters.js `pveDays`) ----
+# Danh sách ngày + bậc: wiki Monsters (D:\bazaar-ref\wiki2\pages\Monsters.wiki, sửa 2025-07-10; bậc = màu viền border-color
+# #B87333 Bronze, #D8D8D8 Silver, gold, #4bd9ff Diamond, #FF8C00 Legendary). Một tên có thể mang bậc khác nhau ở hai ngày
+# (Cosmic Roc d7 Silver, d8 Bronze), nên ghép theo (tên, bậc), không theo tên: bản demo thường chỉ có một thẻ trận cho mỗi tên.
+WIKI_PVE_DAYS = [
+    [('Banannabal', 'Bronze'), ('Fanged Inglet', 'Bronze'), ('Haunted Kimono', 'Bronze'), ('Kyver Drone', 'Bronze'), ('Pyro', 'Bronze'), ('Viper', 'Silver')],
+    [('Coconut Crab', 'Bronze'), ('Giant Mosquito', 'Bronze'), ('Covetous Thief', 'Silver'), ('Rogue Scrapper', 'Silver'), ('Boarrior', 'Gold'), ('Ventriloquist', 'Gold')],
+    [('Dabbling Apprentice', 'Bronze'), ('Tempest Flamedancer', 'Bronze'), ('Rogue Scrapper', 'Bronze'), ('Frost Street Challenger', 'Silver'), ('Street Gamer', 'Silver'), ('Eccentric Etherwright', 'Gold'), ('Hooverbike Hooligan', 'Gold')],
+    [('Boilerroom Brawler', 'Bronze'), ('Outlands Dervish', 'Bronze'), ('Bloodreef Raider', 'Silver'), ('Retiree', 'Silver'), ('Hellbilly', 'Gold'), ('Ahexa', 'Gold'), ('Prince Marianas', 'Gold'), ('Flame Juggler', 'Diamond')],
+    [('Preening Duelist', 'Bronze'), ('Sabretooth', 'Bronze'), ('Flame Juggler', 'Silver'), ('Harkuvian Rocket Trooper', 'Silver'), ('Infernal Envoy', 'Silver'), ('Kyver Commander', 'Silver'), ('Gorgon Noble', 'Gold'), ('Mod Squad', 'Gold'), ('Trashtown Mayor', 'Gold'), ('Scovyle', 'Diamond')],
+    [('Dire Inglet', 'Bronze'), ('Dire Mosquito', 'Bronze'), ('Zookeeper', 'Bronze'), ('Foreman', 'Silver'), ('Trash Golem', 'Silver'), ('Enclave Weeper', 'Gold'), ('Loan Shark', 'Gold'), ('Infernal', 'Diamond'), ('Lich', 'Legendary')],
+    [('Sergeant Suds', 'Bronze'), ('Viper Tyrant', 'Bronze'), ('Cosmic Roc', 'Silver'), ('Joyful Jack', 'Silver'), ('Thug', 'Silver'), ('Treasure Turtle', 'Silver'), ('Chilly Charles', 'Gold'), ('Shock Trooper', 'Gold'), ('Ghost Pepper', 'Diamond'), ('Radiant Corsair', 'Legendary')],
+    [('Cosmic Roc', 'Bronze'), ('Joyful Jack', 'Bronze'), ('Infernal Frigate', 'Silver'), ('Bouncertron', 'Silver'), ('Car Conductor', 'Silver'), ('Oasis Guardian', 'Gold'), ('Burninator Bot', 'Gold'), ('Dr. Vortex', 'Gold'), ('Wandering Shoal', 'Gold'), ('Dragon', 'Legendary')],
+    [('Yerdan', 'Bronze'), ('Bloodreef Captain', 'Bronze'), ('Oasis Guardian', 'Silver'), ('Elite Duelist', 'Silver'), ('Roaming Isle', 'Silver'), ('Ferros Khan', 'Gold'), ('Weapons Platform', 'Gold'), ('Enclave Revenant', 'Diamond'), ('Death Knight Reaper', 'Legendary')],
+    [('Boss Harrow', 'Bronze'), ('Hulking Experiment', 'Bronze'), ('Master Alchemist', 'Bronze'), ('Lord of the Wastes', 'Silver'), ('Trash Titan', 'Silver'), ('Volkas Enforcer', 'Gold'), ('Property Baron', 'Diamond'), ('Frost Street Champion', 'Diamond'), ('Void Colossus', 'Diamond'), ('Awakened District', 'Legendary'), ('Void Golem', 'Legendary'), ('Lord Arken', 'Legendary'), ('Veteran Octopus', 'Legendary')],
+]
+# Tên wiki khác tên thẻ trận của bản demo. Bốn dòng cuối: trang wiki Tempest Bravo (2025-06-23), Annex Trooper (2025-08-17), Void Knight
+# (2025-08-05, ảnh "Death Knight Reaper Board.png"), Veteran Octopus = Eight Arm Davvy (8888 máu, Version 0.1.4 "now has 8888 HP").
+WIKI_PVE_ALIAS = {'Banannabal': 'Banannibal', 'Hooverbike Hooligan': 'Hoverbike Hooligan', 'Enclave Weeper': 'Foundation Weeper',
+                  'Enclave Revenant': 'Foundation Revenant', 'Tempest Flamedancer': 'Tempest Bravo', 'Shock Trooper': 'Annex Trooper',
+                  'Death Knight Reaper': 'Void Knight', 'Veteran Octopus': 'Eight Arm Davvy'}
+# Phần thưởng theo bậc, Version 2.5.0 (21/05/2025): "Bronze Monsters: 2 gold, 2 XP; Silver 3 gold, 2 XP; Gold 4 gold, 2 XP;
+# Diamond 5 gold, 3 XP; Legendary 6 gold, 3 XP" (mọi trang quái sửa từ 2025-05-24 cùng số). Bỏ số trên thẻ của bản demo (3/3/3/4/4 XP).
+PVE_REWARD_BY_TIER = {'Bronze': (2, 2), 'Silver': (3, 2), 'Gold': (4, 2), 'Diamond': (5, 3), 'Legendary': (6, 3)}
+# Máu quái lấy từ trang wiki khi (a) bản vá ghi số mới (Version 2.0.0: Rogue Scrapper 350, Boarrior 400, Ghost Pepper 2200, Yerdan 1925;
+# trang sửa từ 2025-05-24: Kyver Drone 100, Mod Squad 1300, Scovyle 1400, Lich 1900, Chilly Charles 2100, Infernal Frigate 2050) hoặc
+# (b) bản demo không có thẻ đúng bậc của ngày đó nên phải mượn thẻ bậc khác (Giant Mosquito Vàng 700 máu → wiki Đồng 200 máu...).
+# Số: trường `health` của trang quái (wiki2/pages/<tên>.wiki).
+WIKI_MONSTER_HP = {'Kyver Drone': 100, 'Rogue Scrapper': 350, 'Boarrior': 400, 'Mod Squad': 1300, 'Scovyle': 1400, 'Lich': 1900,
+                   'Chilly Charles': 2100, 'Ghost Pepper': 2200, 'Infernal Frigate': 2050, 'Yerdan': 1925,
+                   'Haunted Kimono': 100, 'Giant Mosquito': 200, 'Dire Mosquito': 900, 'Foreman': 1300, 'Trash Golem': 1400,
+                   'Enclave Weeper': 1550, 'Sergeant Suds': 1200, 'Joyful Jack': 1650, 'Thug': 1550, 'Elite Duelist': 2500,
+                   'Boss Harrow': 2750}
+WIKI_PATCH_HP = {'Kyver Drone', 'Rogue Scrapper', 'Boarrior', 'Mod Squad', 'Scovyle', 'Lich', 'Chilly Charles', 'Ghost Pepper',
+                 'Infernal Frigate', 'Yerdan'}
+
+
+def pve_norm(s):
+    return re.sub(r"\s*\((?:silver|bronze|gold|diamond|legendary|monster)[^)]*\)\s*$", "", (s or "").lower()).strip()
+
+
+def build_pve_days(combats, monsters):
+    """pveDays[d-1] = [{Combat, Name, Tier, Gold, Xp, Hp?}] cho ngày d = 1..10 (ngày > 10 dùng dòng cuối ở js/run).
+    Thẻ: thẻ trận có tên đó và ĐÚNG bậc của ngày (bỏ "[DISABLED]"); nhiều thẻ đúng bậc thì ưu tiên thẻ có hậu tố "(<bậc>)", rồi Id nhỏ.
+    Không có thẻ đúng bậc: mượn thẻ có hậu tố "(<bậc>)" hoặc thẻ đầu tiên, ghi đè bậc / phần thưởng / máu theo wiki."""
+    by = collections.defaultdict(list)
+    for cid in sorted(combats):
+        c = combats[cid]
+        if (c.get("InternalName") or "").startswith("[DISABLED]"):
+            continue
+        for n in (c.get("Title"), c.get("InternalName")):
+            k = pve_norm(n)
+            if k and c not in by[k]:
+                by[k].append(c)
+    days, miss, moved = [], [], []
+    for d, lst in enumerate(WIKI_PVE_DAYS, 1):
+        row = []
+        for name, tier in lst:
+            cs = by.get(pve_norm(WIKI_PVE_ALIAS.get(name, name)), [])
+            if not cs:
+                miss.append(f"d{d} {name}")
+                continue
+            suffix = [c for c in cs if f"({tier.lower()})" in (c.get("InternalName") or "").lower()]
+            exact = [c for c in cs if c["StartingTier"] == tier]
+            c = ([x for x in exact if x in suffix] or exact or suffix or cs)[0]
+            gold, xp = PVE_REWARD_BY_TIER[tier]
+            o = {"Combat": c["Id"], "Name": name, "Tier": tier, "Gold": gold, "Xp": xp}
+            hp0 = ((monsters.get(c["Monster"]) or {}).get("Player") or {}).get("Attributes", {}).get("HealthMax")
+            hp = WIKI_MONSTER_HP.get(name)
+            if hp and hp != hp0 and (c["StartingTier"] != tier or name in WIKI_PATCH_HP):
+                o["Hp"] = hp
+            if c["StartingTier"] != tier:
+                moved.append(f"d{d} {name} {c['StartingTier']}->{tier}" + (f" hp {hp0}->{hp}" if "Hp" in o else ""))
+            row.append(o)
+        days.append(row)
+    return days, miss, moved
+
 
 def hand_instant_ability(attr, tier):
     val = 2 if attr == "Experience" else HAND_INSTANT_GOLD.get(tier, 3)
@@ -347,7 +438,7 @@ def card_ids_in(o, ids, out):
         out.append(o)
 
 
-def write_encounters(cards, byid, monster_ids):
+def write_encounters(cards, byid, monster_ids):  # monster_ids: {Id: monster} (đọc máu cho pveDays)
     """data/encounters.js cho vòng chơi (games/bazaar/js/run). Mỗi bản ghi gọn: Id, InternalName, Title, Desc, StartingTier,
     Heroes, Tags, ArtKey, Xp (= ExperienceAwardUponSelection), Days (từ tên), LevelUp (tên có "(Level Up)"), Abilities (DSL).
     - events: Kind = merchant (Tags Merchant hoặc "Sells ..."), instant (không SelectionContext: ability chạy khi chọn),
@@ -361,6 +452,7 @@ def write_encounters(cards, byid, monster_ids):
     - steps: bước được nối + mọi bước "(Level Up)" + bước dẫn tiếp; Then = [{t, id}] bộ chọn kế tiếp (THEN) khi biết.
     - pedestals: Criteria = SelectionCriteria (DSL TCardConditional*); Behavior bị xoá -> js/run suy ra từ Desc.
     - combats: thẻ quái (Monster = MonsterTemplateId, Level, Gold/XpReward) có template trong monsters.json.
+    - pveDays: quái giờ PvE theo ngày 1..10 = wiki Monsters ghép theo (tên, bậc) (build_pve_days, WIKI_PVE_DAYS).
     - starts: sự kiện mở màn của hero "(Start Run)", "(Start Run 2)", "(Start Skill)" — tách khỏi events để không lọt vào bể
       giờ tự do; Hero, Role ('run'|'run2'|'skill'), Steps khi biết (Start Skill → TRAININGS).
     - expeditions: {events, steps, combats} của chuyến thám hiểm cần vé (Crash Site, Temple), chưa vào vòng chơi.
@@ -396,6 +488,7 @@ def write_encounters(cards, byid, monster_ids):
     def combat_rec(c):
         ct = c.get("CombatantType") or {}
         o = base(c)
+        o["StartingTier"] = combat_tier(c)  # COMBAT_TIER_FIX
         o.update({"Monster": ct.get("MonsterTemplateId"), "Level": ct.get("Level"),
                   "Gold": c.get("RewardCombatGold") or 0, "XpReward": c.get("RewardCombatXp") or 0})
         return o
@@ -632,8 +725,9 @@ def write_encounters(cards, byid, monster_ids):
         if "Then" in s:
             s["Then"] = [x for x in s["Then"] if x["t"] != "combat" or x["id"] in combats]
 
+    pve_days, pve_miss, pve_moved = build_pve_days(combats, monster_ids)
     data = {"events": events, "steps": steps, "pedestals": peds, "combats": combats, "starts": starts,
-            "expeditions": exped}
+            "expeditions": exped, "pveDays": pve_days}
     kinds = collections.Counter(e["Kind"] for e in events.values())
     links = collections.Counter(e.get("Link") for e in events.values() if e.get("Link"))
     note = (f"{len(events)} events ({', '.join(f'{k} {v}' for k, v in sorted(kinds.items()))}; links "
@@ -649,6 +743,8 @@ def write_encounters(cards, byid, monster_ids):
     for name, why in dropped:
         print(f"  dropped: {name}: {why}")
     print(f"  combat cards without a monster template (dropped): {len(no_mon)}: {', '.join(sorted(no_mon))}")
+    print(f"  pveDays: {sum(len(r) for r in pve_days)} entries (wiki Monsters), missing {len(pve_miss)}: {', '.join(pve_miss)}")
+    print(f"  pveDays borrowed another tier's card ({len(pve_moved)}): {'; '.join(pve_moved)}")
     print(f"{p}: {n} bytes ({n / 1048576:.2f} MB)")
     return data
 
@@ -666,8 +762,9 @@ def write_heroes(cards, byid, enc, card_files, pool_counts):
         start: {
           events: [Id trong BZ_ENCOUNTERS.starts theo thứ tự chơi: run → run2 → skill],
           skillSteps: [Id bước trong BZ_ENCOUNTERS.steps] lựa chọn kỹ năng mở màn đã lọc theo hero [ĐỀ XUẤT],
-          options: [{key, ...}] ba lựa chọn mở màn [WIKI §1.1 start-of-run-guide]: income +12 Gold +2 Income /
-                   enchanted Small Bronze item / skill; base 8 Gold + 5 Income,
+          options: [{key, ...}] ba lựa chọn mở màn (wiki Start of Run 2025-05-24): income +12 Gold +2 Income /
+                   item: chọn 1 trong `picks` vật phẩm Small Bronze yểm bùa (trừ `notEnchant`) + `gold` vàng /
+                   skill: chọn 1 trong `picks` kỹ năng bậc `tier`; base 8 Gold + 5 Income,
           fixedSkills: [Id TCardSkill] kỹ năng có sẵn khi vào run,
           playerEffects / socketEffects: [Id trong BZ_HEROES.effects] hiệu ứng nền của hero,
           note }
@@ -747,9 +844,13 @@ def write_heroes(cards, byid, enc, card_files, pool_counts):
         heroes[h] = {
             "id": hid, "title": h, "playable": True, "cardFile": card_files[h], "pool": cnt,
             "start": {"events": [s["Id"] for s in st], "skillSteps": skill_steps,
+                      # wiki Start of Run (2025-05-24): "+12 Gold and +2 Income" / "Choose an Enchanted (Non-Golden, Non-Radiant)
+                      # Item (Choose 1 from 3) and + 6 Gold" (0.1.9 bỏ Golden, 2.5.0 bỏ Radiant; 0.1.8 "Small Bronze-tier") /
+                      # "Choose a Gold-tier Skill (Choose 1 from 3)"
                       "options": [{"key": "income", "gold": 12, "income": 2},
-                                  {"key": "item", "size": "Small", "tier": "Bronze", "enchanted": True},
-                                  {"key": "skill", "tier": "Bronze"}],
+                                  {"key": "item", "size": "Small", "tier": "Bronze", "enchanted": True, "picks": 3, "gold": 6,
+                                   "notEnchant": ["Golden", "Radiant"]},
+                                  {"key": "skill", "tier": "Gold", "picks": 3}],
                       "baseGold": 8, "baseIncome": 5,
                       "fixedSkills": f.get("fixedSkills", []), "playerEffects": f.get("playerEffects", []),
                       "socketEffects": f.get("socketEffects", []),
@@ -788,7 +889,7 @@ def main():
     byid = {c["Id"]: c for c in cards}
     os.makedirs(OUT, exist_ok=True)
 
-    enc = write_encounters(cards, byid, {m["Id"] for m in monsters})
+    enc = write_encounters(cards, byid, {m["Id"]: m for m in monsters})
 
     # ---- chia thẻ ----
     playable = [c for c in cards if c["$type"] in CARD_TYPES]
@@ -855,7 +956,7 @@ def main():
             continue
         encm.setdefault(mid, []).append({
             "Id": c["Id"], "InternalName": c.get("InternalName"), "Title": loc_text(c, "Title"),
-            "StartingTier": c.get("StartingTier"), "Level": ct.get("Level"),
+            "StartingTier": combat_tier(c), "Level": ct.get("Level"),
             "RewardCombatGold": c.get("RewardCombatGold"), "RewardCombatXp": c.get("RewardCombatXp"),
             "ArtKey": c.get("ArtKey"),
         })

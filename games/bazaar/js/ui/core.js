@@ -13,6 +13,19 @@
   var S = U.state = { screen: null, run: null, busy: false, log: [] };
 
   // ---------- tiện ích ----------
+  // Chữ một dòng vừa khung (P3-12: tên bóng PvP tràn tấm / gãy giữa chữ "SneakyWiza / rd"): bỏ xuống dòng, thu cỡ chữ từng 1 px tới minPx,
+  // vẫn tràn thì cắt "…". Phần tử phải đang hiện (đo scrollWidth); chưa có bề rộng thì bỏ qua.
+  // lines > 1: cho xuống dòng ở khoảng trắng (không gãy giữa chữ), thu tới khi chữ dài nhất vừa bề ngang và đủ trong `lines` dòng.
+  U.fitText = function (el, minPx, lines) {
+    if (!el) return;
+    lines = lines || 1;
+    el.style.fontSize = ''; el.style.whiteSpace = lines > 1 ? 'normal' : 'nowrap'; el.style.maxWidth = '100%'; el.style.overflowWrap = 'normal'; el.style.wordBreak = 'normal';
+    if (!el.clientWidth) return;
+    var cs = getComputedStyle(el), fs = parseFloat(cs.fontSize) || 20, lh = parseFloat(cs.lineHeight) / fs || 1.2, n = 0;
+    function over() { return el.scrollWidth > el.clientWidth + 1 || (lines > 1 && el.scrollHeight > fs * lh * lines + 2); }
+    while (over() && fs > (minPx || 12) && n++ < 60) { fs -= 1; el.style.fontSize = fs + 'px'; }
+    if (over()) { el.style.overflow = 'hidden'; if (lines === 1) el.style.textOverflow = 'ellipsis'; }
+  };
   U.REV = function () { return '?v=' + (root.BZ_REV || ''); };
   U.url = function (p) { return p ? (/^data:/.test(p) ? p : p + U.REV()) : ''; };
   U.bg = function (p) { return p ? "url('" + U.url(p) + "')" : ''; }; // nháy đơn: dùng được cả trong style="..." của chuỗi HTML
@@ -186,12 +199,12 @@
     if (!run) return { ok: false, reason: 'no run' };
     var wait = gate(run, cmd);
     if (wait) {
-      if (S.pending) return { ok: false, reason: 'loading', pending: true };
+      if (S.pending) { U.data.nudge(); U.sfx('ui.click', { vol: 0.5 }); return { ok: false, reason: 'loading', pending: true }; }
       S.pending = cmd;
       U.data.wait(wait, cmd.t === 'pickHero' ? 'Đang tải thẻ của ' + cmd.hero + '…' : 'Đang tải thẻ các hero…', function () {
         S.pending = null;
         if (S.run === run) U.dispatch(cmd, ctx);
-      });
+      }, { big: true });
       return { ok: false, reason: 'loading', pending: true };
     }
     if (U.transitions && U.transitions.dayActive()) U.transitions.cancelDay(true); // lệnh mới = người chơi đã đi tiếp: bỏ thẻ ngày đang chạy (thẻ gốc kéo dài ~6 s)
@@ -333,6 +346,26 @@
     var q = new URLSearchParams(root.location.search);
     return q.has('view') || (q.has('a') && q.has('b'));
   }
+  // P2-6: tooltip / nút / icon từ khoá là nền CSS — phần tử bị gỡ (tooltip tắt, nút đổi màn) trước khi ảnh về thì trình duyệt huỷ yêu cầu
+  // (786 ERR_ABORTED trong 4 run trên Pages), lần sau lại tải từ đầu và lại hụt. Nạp sẵn một lần, giữ đối tượng Image để tải xong vào cache.
+  // Chạy sau khi trang sẵn sàng, 4 yêu cầu một lúc, không tranh băng thông với art thẻ đang chia.
+  var warmKeep = [];
+  function warmUi() {
+    var urls = [], seen = {}, RX = /ui_sprite_atlas\/Tooltip_|btn_rectangle\/|\/art\/icons\/|Icon_Stat_|PriceTag/;
+    function add(u) { if (u && !seen[u]) { seen[u] = 1; urls.push(u); } }
+    Array.prototype.forEach.call(document.styleSheets, function (sh) {
+      var rules; try { rules = sh.cssRules; } catch (e) { return; }
+      Array.prototype.forEach.call(rules || [], function (r) {
+        var t = r.cssText || '', re = /url\("?([^")]+)"?\)/g, m;
+        while ((m = re.exec(t))) { if (RX.test(m[1]) && !/^data:/.test(m[1])) { try { add(new URL(m[1], sh.href || root.location.href).href); } catch (e) { /* bỏ */ } } }
+      });
+    });
+    if (root.BZTooltip && root.BZTooltip.iconUrls) root.BZTooltip.iconUrls().forEach(function (u) { add(new URL(u, root.location.href).href); });
+    var i = 0;
+    function next() { if (i >= urls.length) return; var im = new Image(); warmKeep.push(im); im.onload = im.onerror = next; im.src = urls[i++]; }
+    for (var k = 0; k < 4; k++) next();
+    U.warmCount = urls.length;
+  }
   U.start = function () {
     patchArt();
     // trang xem trận giữ BZ_DEBUG riêng của nó (test/bazaar-view.js); bàn quái chỉ cần thẻ chung nhưng bàn tuỳ ý có thể có thẻ hero
@@ -352,7 +385,7 @@
     loadFrames(function () {
       var saved = U.loadSaved(), q = new URLSearchParams(root.location.search);
       if (q.has('new')) saved = null;
-      var fin = function () { root.BZ_READY = true; };
+      var fin = function () { root.BZ_READY = true; setTimeout(warmUi, 1500); };
       if (saved && saved.phase.kind !== 'heroSelect') U.resume(saved).then(fin);
       else { U.go('title'); fin(); }
       if (AU()) AU().preload(['ui.hover', 'ui.click', 'card.raise', 'card.lower', 'card.pickup', 'card.land.player', 'card.land.storage', 'card.drop',
@@ -361,6 +394,8 @@
       ['art/ui/purchases/Chest_Purchase_Artwork_1_TUI.webp', 'art/vfx/FX_ChestExplosion_01.webp'].forEach(function (p) { var im = new Image(); im.src = U.url(p); });
     });
     requestAnimationFrame(loop);
+    // lệnh đang chờ thẻ: chạm / bấm đâu trên sân cũng làm chip "Đang tải" nảy (P2-7: màn không còn trông như treo)
+    st.addEventListener('pointerdown', function () { if (S.pending && U.data) U.data.nudge(); }, true);
     keys();
     touchUx(st);
   };

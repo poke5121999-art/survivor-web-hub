@@ -21,7 +21,7 @@
   function later(ms, fn) { var id = setTimeout(fn, ms); rev.ids.push(id); return id; }
   function finishReveal(skip) {
     if (!rev || rev.done) return;
-    rev.done = true;
+    rev.done = true; rev.doneAt = U.now();
     rev.ids.forEach(clearTimeout);
     rev.el.classList.add('opened', 'settled');
     if (skip) {
@@ -121,7 +121,13 @@
       U.dispatch({ t: 'choose', i: el._rs.i }, { fromRect: U.rectOf(el) });
       return true;
     },
-    key: function (e) { if ((e.code === 'Space' || e.key === 'Enter') && rev && !rev.done) { finishReveal(true); return true; } },
+    // Space / Enter bấm để "mở nhanh" ngay sau khi rương tự mở xong thì nuốt (2,5 s) — không thì Space mở kho, kho che ba thẻ thưởng
+    // và mọi cú bấm thẻ sau đó rơi vào kho (P2-8: 6 cú bấm "không có gì xảy ra"). Quá 2,5 s Space lại mở kho như mọi màn.
+    key: function (e) {
+      if (!(e.code === 'Space' || e.key === 'Enter') || !rev) return;
+      if (!rev.done) { finishReveal(true); return true; }
+      if (U.now() - rev.doneAt < 2500 && !U.cards.trayIsOpen()) return true;
+    },
     revealing: function () { return !!(rev && !rev.done); },
     boardFull: function () { U.boardFullHint(); }
   };

@@ -31,15 +31,38 @@
       var sk = b.cards.filter(function (c) { return c.section === 'skills'; });
       if (sk.length) { var sr = U.el('div', 'skills', p); sk.forEach(function (c) { var a = U.art(c.id); U.el('i', '', sr).style.backgroundImage = a ? U.bg(a) : ''; }); }
     }
-    // ngoài hàng khung: khung đầu → bên trái hàng, khung khác → bên phải khung cuối (không che khung bên cạnh, MOBILE-25)
-    var r = U.rectOf(box), all = U.top.layer().querySelectorAll('.rs-enc'), isFirst = all[0] === box, last = U.rectOf(all[all.length - 1]);
-    var left = isFirst && all.length > 1 ? r.x - 560 - 16 : (last ? last.x + last.w : r.x + r.w) + 16;
-    if (left + 560 > 1900) left = r.x - 560 - 16;
-    p.style.left = left + 'px'; p.style.top = Math.max(80, r.y) + 'px';
+    // ngoài hàng khung: khung đầu → bên trái hàng, khung khác → bên phải khung cuối (không che khung bên cạnh, MOBILE-25).
+    // Đo trong vùng đang thấy V.vis (điện thoại: camera cắt hai bên, P3-5): bên ưu tiên không đủ chỗ thì sang bên kia;
+    // hai bên đều hẹp thì thu bảng vừa bên rộng hơn (không dưới 0,6), rồi kẹp vào khung nhìn.
+    var r = U.rectOf(box), all = U.top.layer().querySelectorAll('.rs-enc'), isFirst = all[0] === box;
+    var first = U.rectOf(all[0]) || r, last = U.rectOf(all[all.length - 1]) || r;
+    var v = V().vis || { x0: 0, y0: 0, x1: 1920, y1: 1080 }, w = p.offsetWidth || 560, h = p.offsetHeight || 400, M = 12, G = 16;
+    var spL = first.x - G - (v.x0 + M), spR = (v.x1 - M) - (last.x + last.w + G);
+    var side = isFirst && all.length > 1 ? 'L' : 'R';
+    if ((side === 'L' ? spL : spR) < w) side = (side === 'L' ? spR : spL) >= w ? (side === 'L' ? 'R' : 'L') : (spL > spR ? 'L' : 'R');
+    var sp = side === 'L' ? spL : spR, k = sp >= w ? 1 : Math.max(0.6, sp / w), ww = w * k, hh = h * k;
+    var left = side === 'L' ? first.x - G - ww : last.x + last.w + G;
+    left = Math.max(v.x0 + M, Math.min(v.x1 - M - ww, left));
+    var top = Math.max(v.y0 + M, Math.min(v.y1 - M - hh, Math.max(80, r.y)));
+    p.style.transformOrigin = '0 0'; if (k < 1) p.style.scale = k.toFixed(3);
+    p.style.left = left.toFixed(1) + 'px'; p.style.top = top.toFixed(1) + 'px';
     var mon = (o.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     U.sfx('vo.monster.' + mon, { gap: 4000, vol: 0.7 });
   }
   function hidePreview() { if (prev) { prev.remove(); prev = null; } }
+  // nạp sẵn art thẻ + kỹ năng của ba quái ngay khi màn PvE hiện: bảng xem trước mở ra là có ảnh, không còn thẻ đen chờ mạng (P3-5)
+  var warm = {};
+  function prefetch(options) {
+    options.forEach(function (o) {
+      var m = monsterOf(o.id); if (!m) return;
+      var b; try { b = root.BZSim.boardFromMonster(m, 'pv'); } catch (e) { return; }
+      b.cards.forEach(function (c) {
+        var src = c.section === 'skills' ? U.art(c.id) : root.BZCard.artSrc(c.id);
+        if (!src || warm[src]) return;
+        warm[src] = new Image(); warm[src].src = U.url(src);
+      });
+    });
+  }
 
   U.SCREENS.choose = {
     enter: function (run) {
@@ -57,7 +80,7 @@
       U.top.map('', '');
       var special = -1;
       if (!pve) { ph.options.forEach(function (o, i) { if (special < 0 && o.type === 'merchant' && R().tierIndex(o.tier) >= 1) special = i; }); }
-      else special = 1;
+      else { special = 1; prefetch(ph.options); }
       U.top.frames(ph.options, function (i) { U.dispatch({ t: 'pick', i: i }); }, {
         special: special,
         onHover: pve ? preview : null, onLeave: pve ? hidePreview : null

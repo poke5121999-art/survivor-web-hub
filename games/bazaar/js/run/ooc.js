@@ -112,6 +112,13 @@
       baseTags: e.Tags || [], baseHidden: [], addTags: {}, abilities: [], auras: [], inst: null };
   };
 
+  // Thẻ sinh ra (Spawn) vào thẳng bàn; hết chỗ thì thẻ của gặp gỡ dồn vào x.out.overflow để enc-step bày thành pha nhặt (bán bớt rồi
+  // lấy, hoặc bỏ qua) thay vì mất im lặng ("Get 5 Gumballs" khi tay + kho đầy); thẻ do vật phẩm sinh ra thì vẫn báo mất
+  function spawnCard(rc, x, card) {
+    if (R.gainCard(rc, card, null, null, 'spawn', true)) return;
+    if (x.out && x.out.overflow) x.out.overflow.push(card);
+    else R.emit(rc, { type: 'lost', id: card.id, why: 'noSpace' });
+  }
   // ---------- chạy một hành động: hành động vòng chơi xử lý ở đây, còn lại giao cho sim ----------
   // ctx2 = {S, card, ev, source: {desc, enc}, out: {deals: []}}
   var RUN_ACTIONS = O.RUN_ACTIONS = {
@@ -122,9 +129,7 @@
       // Chữ không nêu thẻ nào ("Spin the wheel!", "Add Stove", "Visit the Artist"): Spawn/Deal của thẻ gặp gỡ bày THẺ GẶP GỠ kế tiếp
       // (SpawnContext bị xoá), không phải vật phẩm → không chia bừa; bước đã biết thì bảng St.FX (enc-step.js) nói thật
       if (unreadable(f)) { note('Spawn không đọc được: ' + (x.source && x.source.name)); return; }
-      R.deal(rc.run, f, n, { tierMode: 'band' }).forEach(function (card) {
-        if (!R.gainCard(rc, card, null, null, 'spawn', true)) R.emit(rc, { type: 'lost', id: card.id, why: 'noSpace' });
-      });
+      R.deal(rc.run, f, n, { tierMode: 'band' }).forEach(function (card) { spawnCard(rc, x, card); });
     },
     TActionGameDealCards: function (act, rc, x) { // bày một lựa chọn miễn phí (Deal) → pha loot
       var n = Math.round(BZ().value((act.SpawnContext || {}).Limit, x)) || 1;
@@ -151,8 +156,14 @@
     TActionCardTransform: function (act, rc, x) {
       var run = rc.run, sim = BZ(), tg = act.Target || {};
       if (/SocketEffects$/.test(tg.TargetSection || '')) { note('Transform ô hiệu ứng (socket effect) chưa có'); return; }
-      // đích là chữ sau "into" ("transform this into an Enchanted Friend from any Hero", "into an item from another Hero")
-      var desc = (x.source && x.source.desc) || '', into = /\binto\b(.*?)(?:\band\b|[.;]|$)/i.exec(desc), f = R.parseFilter(into ? into[1] : desc);
+      // đích là chữ sau "into" ("transform this into an Enchanted Friend from any Hero", "into an item from another Hero"); các vế
+      // "and <tên thẻ>" sau đó là thẻ sinh thêm ("transform your Wild Boar into Boar Roast and Cinders"), vế khác ("and upgrade it") bỏ
+      var desc = (x.source && x.source.desc) || '', into = /\binto\b(.*?)(?:[.;]|$)/i.exec(desc);
+      var parts = into ? into[1].split(/\band\b/i) : [desc], f = R.parseFilter(parts[0]);
+      var extra = parts.slice(1).map(function (p) { return R.parseFilter(p).names; }).filter(function (ns) { return ns.length === 1; });
+      // Đích gọi tên ("into Boar Roast") thì đúng thẻ đó, bỏ qua cỡ / hero; không thì đồ hero + Common cùng cỡ, không đồ quái rơi /
+      // thỏi vàng (R.isMonsterLoot: "items from any Hero" không gồm Pelt, Bar of Gold) trừ khi chữ gọi "Loot"
+      var named = f.names.length ? f.names : null, loot = (f.any || []).indexOf('Loot') >= 0;
       var targets = sim.targets(tg, { S: x.S, card: x.card, ev: x.ev }).filter(function (T) { return T.owner === 0 && T.section !== 'skills'; });
       targets.forEach(function (T) {
         var ci = R.findCard(run, T.uid);
@@ -160,7 +171,9 @@
         var old = R.tpl(ci.id);
         var cands = R.pool('item').filter(function (id) {
           var t = R.tpl(id), hs = t.Heroes || [], mine = hs.indexOf(run.hero) >= 0 || hs.indexOf('Common') >= 0;
+          if (named) return named.indexOf(R.title(t)) >= 0 && !!R.nearTier(t, ci.tier);
           if (id === ci.id || t.Size !== old.Size || !t.Tiers || !t.Tiers[ci.tier] || R.tierIndex(t.StartingTier) > R.tierIndex(ci.tier)) return false;
+          if (!loot && R.isMonsterLoot(t)) return false;
           if (f.hero === 'other' ? mine : f.hero !== 'any' && !mine) return false;
           if (f.enchanted && !Object.keys(t.Enchantments || {}).length) return false;
           return !f.any.length || f.any.some(function (tag) { return (t.Tags || []).concat(t.HiddenTags || []).indexOf(tag) >= 0; });
@@ -168,12 +181,18 @@
         if (!cands.length) { note('Transform: không có thẻ cùng cỡ/bậc cho ' + old.InternalName); return; }
         var nid = cands[R.randInt(run, cands.length)], nt = R.tpl(nid), from = ci.id;
         ci.id = nid; ci.mods = {}; delete ci.qp; delete ci.qd; delete ci.tags;
+        if (named) { ci.tier = R.nearTier(nt, ci.tier); ci.size = R.SIZE[nt.Size] || ci.size; T.tier = ci.tier; } // Medium → Small: ô thừa trống ra
         if (ci.ench && !(nt.Enchantments && nt.Enchantments[ci.ench])) ci.ench = null;
         if (f.enchanted) { var ks = Object.keys(nt.Enchantments || {}); ci.ench = ks.length ? ks[R.randInt(run, ks.length)] : null; }
         // thẻ sim cũng thành thẻ mới để hành động sau trong cùng lần chạy thấy nó (Echo Crystal: "... and upgrade it")
         T.id = nid; T.tpl = nt; T.ench = ci.ench; T.inst = null; T.d = {}; T.addTags = {}; sim.rebuildCard(x.S, T);
         R.emit(rc, { type: 'transform', uid: ci.uid, from: from, to: nid, tier: ci.tier });
         R.log(rc, { t: 'transform', from: from, to: nid });
+        extra.forEach(function (ns) {
+          var id = R.pool('item').filter(function (k) { return R.title(R.tpl(k)) === ns[0]; })[0];
+          var tr = id && R.nearTier(R.tpl(id), ci.tier);
+          if (tr) spawnCard(rc, x, { id: id, tier: tr, ench: null });
+        });
       });
     }
   };

@@ -436,7 +436,10 @@
     var C = g.C;
     if (BZ.isAmmo(S, C)) BZ.setRt(S, C, 'Ammo', Math.max(0, C.rt.Ammo - 1), C);
     if (g.crit) BZ.emit(S, 'TTriggerOnCardCritted', { card: C, src: C, side: C.owner });
-    BZ.emit(S, 'TTriggerOnItemUsed', { card: C, src: C, side: C.owner });
+    // wiki Multicast (2025-05-31): "Each cast of the item does count for items that have effects that trigger off item use" [WIKI2 K2]:
+    // một lần dùng mỗi lần bắn (đạn vẫn trừ một lần ở trên)
+    var casts = Math.max(1, Math.floor(BZ.cattr(S, C, 'Multicast') || 1));
+    for (var k = 0; k < casts; k++) BZ.emit(S, 'TTriggerOnItemUsed', { card: C, src: C, side: C.owner });
   }
 
   // ---------- đổi thuộc tính ----------
@@ -506,6 +509,10 @@
     var p = P.base.Poison || 0; if (p <= 0) return;
     BZ.log(S, { type: 'damage', kind: 'Poison', src: null, target: pid(P), amt: p, shield: 0, hp: p });
     BZ.changePlayer(S, P, 'Health', -p, null);
+  }
+  function regenCleanse(S, P) { // Regen trừ Poison một lượng bằng chính nó, trước khi Poison gây sát thương (cả khi đầy máu)
+    var r = BZ.pattr(S, P, 'HealthRegen') || 0, p = P.base.Poison || 0;
+    if (r > 0 && p > 0) BZ.changePlayer(S, P, 'Poison', -Math.min(r, p), null);
   }
   function regenTick(S, P) { // mỗi 1 s, bỏ qua khi đầy máu (:984-1004)
     var r = BZ.pattr(S, P, 'HealthRegen') || 0; if (r <= 0) return;
@@ -663,7 +670,8 @@
         if (S.timed.length) expireTimed(S);
         if (t === 0) BZ.emit(S, 'TTriggerOnFightStarted', { side: 0 }); // chạy ở khung 1 qua hàng đợi (:4076-4093)
         cardPass(S);
-        if (t % BZ.POISON_REGEN_TICK === 0) { S.players.forEach(function (P) { poisonTick(S, P); }); S.players.forEach(function (P) { regenTick(S, P); }); }
+        // wiki Regeneration (2025-05-14): "Regen will reduce Poison by its amount before Poison deals damage" [WIKI2 K1]
+        if (t % BZ.POISON_REGEN_TICK === 0) { S.players.forEach(function (P) { regenCleanse(S, P); }); S.players.forEach(function (P) { poisonTick(S, P); }); S.players.forEach(function (P) { regenTick(S, P); }); }
         if (t % BZ.BURN_TICK === 0) S.players.forEach(function (P) { burnTick(S, P); });
         S.players.forEach(function (P) { enrageTick(S, P); });
         sandstorm(S);
