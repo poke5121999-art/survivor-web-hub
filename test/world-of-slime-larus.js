@@ -86,7 +86,7 @@ async function main() {
     page.on('requestfailed', r => { if (!/\.ogg$/.test(r.url()) || !/ERR_ABORTED/.test((r.failure() || {}).errorText)) problems.push('requestfailed: ' + r.url() + ' ' + (r.failure() || {}).errorText); });
     page.on('response', r => { if (r.status() >= 400) problems.push('http ' + r.status() + ': ' + r.url()); });
     const t0 = Date.now();
-    await page.goto(BASE + 'index.html' + (ASSETS ? '?assets=' + encodeURIComponent(ASSETS) : ''));
+    await page.goto(BASE + 'index.html?intro=0' + (ASSETS ? '&assets=' + encodeURIComponent(ASSETS) : ''));
     await page.waitForFunction(() => window.__ready || (window.__wosErrors || []).length, null, { timeout: 120000 });
     console.log('Mở game (index.html, không tham số) ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s');
     await waitMap(page, '257', 20000);

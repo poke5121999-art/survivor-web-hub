@@ -1,8 +1,8 @@
 // Người chơi (ghép avatar theo player/index.json defaults) và slime đồng hành (slime/index.json variants).
 // Ghép avatar theo SM.Common.Character.CharacterBuilder (EXPORT_PLAYER.md); mã ghép chép từ sheet.html playerCell.
 import * as THREE from 'three';
-import { loadGLB, loadJSON, clipOf } from '../assets.js?v=20261022b';
-import { applyUnitMaterials, decalAt } from './toon.js?v=20261022b';
+import { loadGLB, loadJSON, clipOf } from '../assets.js?v=20261022c';
+import { applyUnitMaterials, decalAt } from './toon.js?v=20261022c';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 // loadGLB trả cùng một gltf (bộ đệm): vào lại bản đồ mà gắn lại g.scene + chạy lại applyUnitMaterials thì vật liệu toon bị
@@ -122,6 +122,7 @@ export class Slime extends Animated {
     s.mixer = new THREE.AnimationMixer(inst.scene);
     const ag = v.clips === 'embedded' ? g : await loadGLB(v.anim);
     for (const k of ['Idle', 'Walk', 'Attack', 'Hit']) if (v.actions[k]) s.addClip(k, clipOf(ag, v.actions[k]));
+    if (v.actions.Skill_Range_Enter) s.addClip('Skill', clipOf(ag, v.actions.Skill_Range_Enter));   // js/combat: kỹ năng motionCategory 20002 (Skill_Range)
     s.footstepEvent = FOOTSTEP_EVENTS[(v.modelInfo || {}).wwiseFootstepEvent] || 'Footstep_slime';
     s.variant = v;
     s.play('Idle', 0);

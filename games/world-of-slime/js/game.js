@@ -1,25 +1,27 @@
 // Vòng chơi lát cắt đầu: bản đồ + người chơi + slime đồng hành + camera + nhập + bước chân + HUD + màn tải.
 // Logic chạy trong toạ độ Unity (x phải, z lên màn hình, y cao); chỉ khi đặt Object3D mới đổi sang three (-x, y, z).
 import * as THREE from 'three';
-import { REV, PARAMS, MOVE } from './config.js?v=20261022b';
-import { GameMap, loadMapData } from './world/map.js?v=20261022b';
-import { envTime, envMaterial } from './world/envmat.js?v=20261022b';
-import { Player, Slime, Npc } from './actors/actors.js?v=20261022b';
-import { loadTex, loadGLB } from './assets.js?v=20261022b';
-import { MAPS, DEFAULT_MAP } from '../data/portals.js?v=20261022b';
-import { Post, GRADE } from './post.js?v=20261022b';
-import { FollowCamera } from './camera.js?v=20261022b';
-import { makeIntent, quantizeMove, endFrame } from './input/intent.js?v=20261022b';
-import { attachPC } from './input/pc.js?v=20261022b';
-import { attachMobile } from './input/mobile.js?v=20261022b';
-import { Audio } from './audio.js?v=20261022b';
-import { Hud } from './ui/hud.js?v=20261022b';
-import { showLoading } from './ui/loading.js?v=20261022b';
-import { state, set } from './state.js?v=20261022b';
-import { t } from '../data/loc_vi.js?v=20261022b';
-import { Story } from './ui/story.js?v=20261022b';
-import { QuestEngine } from './quest/engine.js?v=20261022b';
-import { BOXES, WEST_GATE } from './quest/data.js?v=20261022b';
+import { REV, PARAMS, MOVE } from './config.js?v=20261022c';
+import { GameMap, loadMapData } from './world/map.js?v=20261022c';
+import { envTime, envMaterial } from './world/envmat.js?v=20261022c';
+import { Player, Slime, Npc } from './actors/actors.js?v=20261022c';
+import { loadTex, loadGLB, assetUrl } from './assets.js?v=20261022c';
+import { MAPS, DEFAULT_MAP } from '../data/portals.js?v=20261022c';
+import { Post, GRADE } from './post.js?v=20261022c';
+import { FollowCamera } from './camera.js?v=20261022c';
+import { makeIntent, quantizeMove, endFrame } from './input/intent.js?v=20261022c';
+import { attachPC } from './input/pc.js?v=20261022c';
+import { attachMobile } from './input/mobile.js?v=20261022c';
+import { Audio } from './audio.js?v=20261022c';
+import { Hud } from './ui/hud.js?v=20261022c';
+import { showLoading } from './ui/loading.js?v=20261022c';
+import { state, set } from './state.js?v=20261022c';
+import { t } from '../data/loc_vi.js?v=20261022c';
+import { Story } from './ui/story.js?v=20261022c';
+import { QuestEngine } from './quest/engine.js?v=20261022c';
+import { BOXES, WEST_GATE } from './quest/data.js?v=20261022c';
+import { Combat } from './combat/combat.js?v=20261022c';   // F1: chiến đấu, rừng, đấu tay đôi
+import { runIntro, avatarFor, applyProfile, attachSetting } from './intro/intro.js?v=20261022c';   // F2: mở đầu + Setting
 
 const errors = (window.__wosErrors = window.__wosErrors || []);
 addEventListener('error', e => errors.push('error: ' + e.message));
@@ -31,6 +33,7 @@ function setStatus(m) { const s = document.getElementById('status'); if (s) { s.
 let loading = null;
 
 export async function boot(platform) {
+  const profile = await runIntro(platform); applyProfile(profile);   // null khi ?intro=0
   const root = document.getElementById('game');
   const renderer = new THREE.WebGLRenderer({ antialias: platform === 'pc', powerPreference: 'high-performance', preserveDrawingBuffer: PARAMS.has('shot') });
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, platform === 'pc' ? 1.5 : 2));
@@ -49,9 +52,9 @@ export async function boot(platform) {
   // mặc định vào quán trọ Larus (257) như game thật; ?map=dev = bản đồ thử, ?map=110 / 478 vào thẳng
   let mapId = (PARAMS.get('map') || String(DEFAULT_MAP)).replace(/[^a-z0-9_-]/gi, '');
   const gender = PARAMS.get('gender') === 'woman' ? 'woman' : 'man';
-  const slimeId = PARAMS.get('slime') || 'SL_Slime_Water';
+  const slimeId = PARAMS.get('slime') || (profile && profile.slime) || 'SL_Slime_Water';
   // nhân vật tải song song với bản đồ (trước đây tuần tự)
-  const actorsP = Promise.all([Player.create(gender), Slime.create(slimeId)]);
+  const actorsP = Promise.all([profile ? avatarFor(profile) : Player.create(gender), Slime.create(slimeId)]);
   actorsP.catch(() => {});
   const fetchMap = async (id, onProgress) => {
     const d = await loadMapData(new URL('data/maps/' + id + '.json?v=' + REV, location.href).href);
@@ -74,7 +77,12 @@ export async function boot(platform) {
   const post = new Post(renderer, platform === 'pc');
   const applyGrade = () => post.setGrade(PARAMS.get('grade') === '0' || map.data._dev ? null : GRADE[map.data.client.mapLightType] || null);
   scene.add(map.root); applyBackground(); applyGrade();
-  document.getElementById('devlabel').hidden = !data._dev;
+  const setLabel = () => {   // bản đồ thử / bản đồ dựng theo clip (không phải dữ liệu server) có nhãn riêng
+    const el = document.getElementById('devlabel'); el.hidden = !data._dev && !data._clip;
+    el.textContent = data._clip ? 'dựng theo clip' : 'bản đồ thử';
+    el.style.top = data._clip ? 'auto' : ''; el.style.bottom = data._clip ? '4px' : '';
+  };
+  setLabel();
 
   loading.phase('nhân vật');
   const [player, slime] = await actorsP;
@@ -84,7 +92,10 @@ export async function boot(platform) {
   const mapInfo = () => MAPS[map.data.id] || null;
   const setMapHud = () => {
     hud.map = map; hud.drawMinimap();
-    set({ map: { ...state.map, detail: mapInfo() ? mapInfo().name : (map.data._dev ? 'Bản đồ thử' : map.data.name || '') } });
+    const mi = mapInfo();
+    if (mi && mi.icon && hud.el.mapIcon) hud.el.mapIcon.src = assetUrl(mi.icon);
+    else if (hud.el.mapIcon && state.map.icon) hud.el.mapIcon.src = assetUrl(state.map.icon);
+    set({ map: { ...state.map, name: mi && mi.region || 'Larus', detail: mi ? mi.name : (map.data._dev ? 'Bản đồ thử' : map.data.name || '') } });
   };
   setMapHud();
   hud.portrait(renderer, player.object);
@@ -146,9 +157,15 @@ export async function boot(platform) {
     npcObject: n => { const a = npcs.find(k => k.def.name === n); return a ? a.object : null; },
     npcHeight: n => { const a = npcs.find(k => k.def.name === n); return a ? a.height : null; },
     playerObject: () => player.object, playerHeight: () => player.height,
+    duel: () => { W.duelStart = performance.now(); switchMap({ to: 'rudga_arena', at: 'duel', name: 'duel' }).then(() => combat.startDuel()); },
     pushback: () => { const b = WEST_GATE.back; P.x = b.x; P.z = b.z; P.y = map.getHeight(b.x, b.z); P.yaw = yawOfDeg(90); P.dashT = 0; gateT = 1.5; },
   });
   W.quest = engine; W.story = story;
+  // ---- chiến đấu (js/combat): slime hoang của bản đồ, đồng hành tự đánh, huýt sáo, đấu tay đôi với Rudga
+  const combat = new Combat({ scene, hud, story, engine, audio, P, S, player, slime, camera: () => fcam.cam,
+    seed: +PARAMS.get('seed') || 0, getNpc: n => npcs.find(k => k.def.name === n) || null,
+    onDuelEnd: win => { if (win) { engine.save.duel = true; engine.persist(); } switchMap({ to: 110, at: 'west_gate', name: 'duel_end' }); } });
+  W.combat = combat;
   // ?quest: bày trạng thái "đang làm The Herb in the Box" (q1..q3 xong) để so bố cục QuestBookmark với khung hình; chỉ trong bộ nhớ
   if (PARAMS.has('quest')) { engine.save.quests = { q1: { s: 'done', c: {} }, q2: { s: 'done', c: {} }, q3: { s: 'done', c: {} }, q4: { s: 'active', c: {} } }; engine.sync(); }
   let gateT = 0, target = null;
@@ -201,6 +218,7 @@ export async function boot(platform) {
     W.npcs = npcs;
   };
   const npcsReady = loadNpcs();
+  combat.setMap(map, mapInfo());
 
   // ---- đổi bản đồ qua cửa (portal): mờ đen, tải bản đồ đích, đặt người chơi ở cửa đến
   const fade = document.createElement('div');
@@ -219,7 +237,7 @@ export async function boot(platform) {
       scene.remove(map.root); map.root.traverse(o => { if (o.isInstancedMesh) o.dispose(); });
       map = next; data = next.data; W.map = map; mapId = String(portal.to);
       scene.add(map.root); applyBackground(); applyGrade();
-      document.getElementById('devlabel').hidden = !data._dev;
+      setLabel();
       setMapHud(); fcam.setMap(map);
       const a = (mapInfo() && mapInfo().arrive[portal.at]) || map.spawn();
       P.x = a.x; P.z = a.z; P.y = map.getHeight(a.x, a.z); if (a.yaw != null) P.yaw = yawOfDeg(a.yaw);
@@ -229,8 +247,9 @@ export async function boot(platform) {
       fcam.update(0, P, true);
       audio.playBgm(map.data.client.bgm);
       await loadNpcs();
+      await combat.setMap(map, mapInfo());
       loadProps();
-      if (mapInfo()) story.placeTitle(mapInfo().name);
+      if (mapInfo() && !mapInfo().duel) story.placeTitle(mapInfo().name);   // sân đấu không có băng tên bản đồ (5:12-5:18)
       W.maps.push({ id: mapId, ms: Math.round(performance.now() - t0), via: portal.name });
     } catch (e) { errors.push('switch map: ' + (e && e.message || e)); }
     fade.style.opacity = '0';
@@ -244,12 +263,14 @@ export async function boot(platform) {
     S.x = P.x - Math.sin(P.yaw); S.z = P.z + Math.cos(P.yaw);
     if (!map.canStand(S.x, S.z)) { S.x = P.x; S.z = P.z; }
     S.y = map.getHeight(S.x, S.z); S.attackT = 0; battleT = 0; set({ battle: false }); audio.play('ui_whistle');
+    combat.recall();
   };
   const attack = aimed => {
     P.attackT = 0.5; P.attacks++;
     const a = aimed && platform === 'pc' ? aimPoint() : null;
     if (a) P.yaw = yawOf(a.x - P.x, a.z - P.z);
-    S.attackT = 0.83; battleT = 3;   // [ĐỀ XUẤT] slime giữ trạng thái đánh 3 s sau đòn cuối (chưa có quái thật)
+    if (combat.command(a)) { battleT = 0; audio.play('ui_attack'); return; }   // có slime hoang/đối thủ: đồng hành lao vào
+    S.attackT = 0.83; battleT = 3;   // [ĐỀ XUẤT] không có mục tiêu: slime giữ trạng thái đánh 3 s sau đòn cuối
     if (!state.battle) set({ battle: true });
     audio.play('ui_attack');
   };
@@ -275,6 +296,7 @@ export async function boot(platform) {
       else if (a === 'escape' && state.minimapOpen) set({ minimapOpen: false });
       else if (a === 'quest') story.openQuestLog();
       else if (a === 'perk') story.openPerk();
+      else if (a === 'escape' && W.openSetting) W.openSetting();
       else if (PANELS[a]) hud.toast(t(PANELS[a]) + ' · chưa có');
     }
   };
@@ -284,7 +306,7 @@ export async function boot(platform) {
   loading.done();
   // ?camat=x,z: giữ điểm nhìn camera cố định (để chụp cặp so ảnh thật, khi người chơi trong ảnh không đứng giữa màn)
   const camAt = (PARAMS.get('camat') || '').split(',').map(Number);
-  const camT = () => camAt.length === 2 && camAt.every(isFinite) ? { x: camAt[0], z: camAt[1], y: map.getHeight(camAt[0], camAt[1]) > -100 ? map.getHeight(camAt[0], camAt[1]) : P.y } : P;
+  const camT = () => mapInfo() && mapInfo().camAt ? { ...mapInfo().camAt, y: P.y } : camAt.length === 2 && camAt.every(isFinite) ? { x: camAt[0], z: camAt[1], y: map.getHeight(camAt[0], camAt[1]) > -100 ? map.getHeight(camAt[0], camAt[1]) : P.y } : P;
   fcam.update(0, camT(), true);
   let last = performance.now();
   renderer.setAnimationLoop(() => {
@@ -331,11 +353,17 @@ export async function boot(platform) {
       hud.setInteract(target ? target.kind : null);
       gateT = Math.max(0, gateT - dt);
       const g = WEST_GATE.rect;
-      if (!state.modal && gateT <= 0 && String(map.data.id) === '110' && P.x >= g[0] && P.x <= g[2] && P.z >= g[1] && P.z <= g[3]) { gateT = 1.5; engine.talk(WEST_GATE.npc, { gate: true }); }
+      if (!state.modal && gateT <= 0 && String(map.data.id) === '110' && P.x >= g[0] && P.x <= g[2] && P.z >= g[1] && P.z <= g[3]) {
+        gateT = 1.5;
+        if (engine.save.duel) switchMap({ to: 'shadow_forest_entrance', at: 'larus_gate', name: 'west_gate' });   // đã thắng Rudga: cổng tây mở (5:48)
+        else engine.talk(WEST_GATE.npc, { gate: true });
+      }
     }
     for (const n of npcs) n.update(dt);
 
-    // --- slime đồng hành: theo sau ~1.6 m [ĐỀ XUẤT]; Return (huýt sáo) gọi về cạnh người chơi
+    // --- slime đồng hành: js/combat lái khi đang đánh; không thì theo sau ~1.6 m [ĐỀ XUẤT]; Return (huýt sáo) gọi về cạnh người chơi
+    const fighting = !switching && combat.update(dt, fcam.cam);
+    if (!fighting) {
     const tx = P.x, tz = P.z, dx = tx - S.x, dz = tz - S.z, d = Math.hypot(dx, dz);
     if (d > 12) { S.x = P.x; S.z = P.z - 1; S.y = P.y; }
     if (d > (S.moving ? 1.4 : 2.2)) {
@@ -348,6 +376,7 @@ export async function boot(platform) {
     const sy = map.getHeight(S.x, S.z); if (sy > -100) S.y += (sy - S.y) * Math.min(1, dt * 12);
     S.attackT = Math.max(0, S.attackT - dt);
     if (S.attackT > 0 && !S.moving) slime.play('Attack', 0.1); else slime.play(S.moving ? 'Walk' : 'Idle', 0.15);
+    }
     place(slime.object, S);
     slime.update(dt);
 
@@ -362,6 +391,7 @@ export async function boot(platform) {
     hud.frame(fcam.cam, P, S, player, slime, P.yaw);
     endFrame(intent);
   });
+  attachSetting(W, platform);
   W.ready = true; window.__ready = true;
   return W;
 }

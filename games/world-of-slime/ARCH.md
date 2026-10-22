@@ -1,4 +1,4 @@
-# Thế Giới Slime: kiến trúc (rev 20261022b)
+# Thế Giới Slime: kiến trúc (rev 20261022c)
 
 Bản web của World of Slime Demo (TEAM42). Từ rev 20261022a chạy trên **bản đồ thật của server** (Larus: quán trọ 257, làng 110,
 kho 478, lấy từ đệm đĩa của game): mở game là ở phòng ngủ quán trọ như bản thật, đi xuống cầu thang ra làng, vào/ra kho.
@@ -6,7 +6,9 @@ Lát cắt gồm: bản đồ thật + bản đồ thử (`?map=dev`), người 
 đi theo, camera của game, điều khiển PC và mobile theo bảng phím gốc, tiếng bước chân, HUD dựng từ prefab gốc, màn tải
 theo byte. Từ rev 20261022b có **chuỗi nhiệm vụ mở đầu "Village of Rough Waves"** (q1-q6 + nhận q7, Rudga chặn cổng tây,
 quầy Vivian bán Cube): hội thoại có chân dung + lựa chọn, băng chữ, log EXP, nhật ký J, Tiềm năng K, bản lưu localStorage.
-Chưa có đánh nhau thật, bắt slime, đấu với Rudga, Shadow Forest, các bảng túi / bách khoa / kho.
+Từ rev 20261022c (F1) có **chiến đấu thời gian thực**, **đấu tay đôi với Rudga** và **Shadow Forest Entrance** (hai bản đồ
+DỰNG THEO CLIP, nhãn "dựng theo clip" trên trang). Rev 20261022c còn có **phần mở đầu** (js/intro: Touch To Start, đặt tên,
+tạo nhân vật 7 tab trước gương, truyện tranh, chọn ba lô = slime khởi đầu, phim tỉnh dậy, Setting bằng Esc). Chưa có bắt slime, các bảng túi / bách khoa / kho.
 Nghiên cứu gốc: `D:\wos-ref\notes\` (MAPBUILD, PIPELINE, EXPORT_*, CODE §8-9). Kế hoạch: `brain/plans/world-of-slime.md`.
 
 ## Mô-đun
@@ -36,7 +38,17 @@ Nghiên cứu gốc: `D:\wos-ref\notes\` (MAPBUILD, PIPELINE, EXPORT_*, CODE §8
 | `js/camera.js` | FollowCamera: cúi 40 độ, vùng chết, kẹp `cameraMoveRect`, zoom |
 | `js/audio.js` | một AudioContext, sự kiện Wwise -> ogg, switch `LandType` theo `landType[]` |
 | `js/game.js` | vòng chơi, đổi bản đồ qua cửa (`switchMap`: mờ đen, dựng bản đồ đích, đặt người chơi ở `arrive`), NPC; `window.WOS` để test đọc |
+| `js/intro/intro.js` | **mở đầu (F2)**: `runIntro(platform)` Touch To Start -> đặt tên -> tạo nhân vật -> truyện tranh -> chọn ba lô -> phim tỉnh dậy; `profile` trong bản lưu; `avatarFor(profile)`, `applyProfile` |
+| `js/intro/screens.js` | màn tiêu đề (`img/login_bg.mp4`, logo, nút mạng xã hội, thanh "Loading resources"), Nickname Setting + Notice, CustomizeUI 7 tab trước gương (`Customize/Customize_Bg` + avatar 3D vào RawImage) |
+| `js/intro/avatar.js` | `buildAvatar(look)`: ghép avatar như Player.create nhưng chọn Hair/Face/Eyebrow, da, màu tóc, lens, AccDecal (CustomizeDataSet); clone mọi GLB nên dựng lại được |
+| `js/intro/prologue.js` | truyện tranh IntroStory_01..05_{M,W} trên khung PaperBoard, chọn ba lô 3D (`prop/pr_event_1_dadbag.glb`, ba lô xanh đổi màu albedo), phim `img/prologue.mp4` + Skip |
+| `js/intro/setting.js` | Setting (Esc / nút menu): Graphic Quality, Max FPS, Screen Mode, Resolution, Shadow, Camera Scale, âm lượng, ngôn ngữ, Account (Về màn hình chính, Xoá dữ liệu chơi); `localStorage['wos.settings']` |
+| `js/intro/ui.js`, `js/intro/text.js`, `css/intro.css` | lớp `#intro` (đơn vị canvas như HUD, X() theo px ảnh 1280x720, popup CommonPopup), chữ vi/en (`?lang=en`, khoá loc gốc ghi cạnh) |
 | `js/post.js` | hậu kỳ màu toàn màn: cảnh vẽ vào render target half float, quad đổi sang sRGB rồi nhân ma trận affine `GRADE[mapLightType]` |
+| `js/combat/rules.js` | **mọi số chiến đấu một chỗ**: `META` = hàng thật data/meta (đòn thường action 4..15 / attack 8..19, kỹ năng 116/153/167, đòn slime hoang action 1 / attack 1 Sector 3 ô 90°, Small Slime Fragment item 215 dropRate 0.7), `RULES` = `[ĐỀ XUẤT]` (máu, sát thương, tầm, hồi sinh, đấu tay đôi) có chú thích từng số; RNG có hạt `?seed=` |
+| `js/combat/combat.js` | slime hoang (lang thang, gây hấn, đuổi, đánh, chết, rơi đồ, sinh lại), đồng hành tự đánh (đòn thường + kỹ năng, quả cầu bay theo moveSpeed meta), tia lệnh người chơi -> slime, huýt sáo, EXP/cấp slime (`save.slime.lv/exp`), nhiệm vụ q7 (`obj q7.kill/frag`), đấu tay đôi (`startDuel`, `save.duel`); game.js chỉ gọi `setMap/command/recall/startDuel/update` |
+| `js/combat/ui.js` | thẻ MonsterHud trên đầu, ô mục tiêu giữa trên, PVPvs / PVP321Start / thanh trên trận, bóng thoại, dòng log lớn LogUITitle ("Roasted / Lv2"); số theo prefab gốc |
+| `tools/forestmap.py` | vẽ tay `data/maps/shadow_forest_entrance.json` + `rudga_arena.json` theo khung clip rồi chạy luật autotile (như devmap.py), có `collide`, `web.spawns`, cờ `_clip` |
 | `data/portals.js` | `MAPS[id]`: tên bản đồ (HUD), `start`, `portals` (vùng bước vào là chuyển), `arrive`, `npcs`; mọi số `[ĐO TRONG ẢNH]` |
 | `data/maps/110,257,478.json` | bản đồ thật, sinh bằng `tools/import_maps.py` (đừng sửa tay) |
 | `data/meta/*.json` | bảng meta thật của server (`tools/import_meta.py`, xem `data/meta/README.md`; chữ chỉ là TextId) |
@@ -99,6 +111,25 @@ Tham số trang: `?assets=`, `?map=dev|110|257|478` (mặc định 257), `?from=
 `?grade=0` (tắt hậu kỳ), `?gender=woman`, `?slime=SL_Bat_WindDark`, `?at=x,z`, `?zoom=<m>`, `?quest` (nhiệm vụ mẫu),
 `?warn` (cảnh báo thể lực), `?lang=en`.
 
+## Mở đầu (js/intro, pha F2)
+
+- Thứ tự theo clip DcGavHFwqtk 0:00-1:12 và ảnh demo thật `D:\wos-ref\pilot` (g1/g2 tiêu đề, g4/g5 đặt tên, cust1..6 + g6 tạo nhân vật,
+  g7 xác nhận, intro*/g8 truyện tranh, pack*/pick* ba lô, pro* phim). Mở trang luôn qua Touch To Start; bản lưu có `profile` thì vào thẳng
+  game, không thì chạy hết rồi ghi `profile = { name, look, slime, bag, at }` vào `wos.save` TRƯỚC khi engine đọc bản lưu.
+- Tham số: `?intro=0` bỏ hẳn (mọi test cũ dùng), `?intro=nick|custom|comic|pack|film` nhảy tới một màn để chụp so (không ghi bản lưu nếu
+  bỏ qua đặt tên), `?name=` tên dùng khi nhảy vào `custom`.
+- Tab tạo nhân vật (icon `CustomizeUI/Category_Customize_0X_*`): Gender, Skin, Hair, Hair Color, Face, Lens, Acc. Không có tab Brow:
+  lông mày đi theo Face (`Face i` -> decal `PC_<G>_Face00i` + `Eyebrow00i_L/R`) `[ĐỀ XUẤT]`. Lens nhân `lensColors` vào vùng cyan/magenta
+  của decal mask; Acc = ô `faceOffsetVector4s[i]` của atlas 4x4 `PC_Face_Decal`, `accDecalMultiplyFlags` chọn nhân/phủ.
+  Mặc định (g6, cust1..6): ô đầu mỗi tab, Hair Color ô 10.
+- Slime khởi đầu (server gửi): ba lô xanh = `SL_ElecChicken_WindFire` (ảnh thật inn1.png và clip 1:12 đều chọn ba lô xanh và có gà lửa),
+  ba lô vàng = `SL_ElecChicken_WindElectric` `[ĐỀ XUẤT]`. Mô hình ba lô chỉ có albedo vàng: ba lô xanh đổi màu trên canvas `[ĐỀ XUẤT]`.
+- Setting: Graphic Quality = pixel ratio (0.5 / 0.75 / 1 / min(dpr,1.5) / min(dpr,2)), Max FPS = bọc `requestAnimationFrame`,
+  Camera Scale 0.50..1.20 nhân `FollowCamera.effDist()` `[ĐỀ XUẤT]` khoảng, Shadow chỉ lưu (web chưa có bóng), BGM đổi thì phát lại bài.
+- Test: `node test/world-of-slime-intro.js` (PC + mobile, bản lưu trống tới quán trọ, tải lại, Setting); ảnh so cùng trạng thái
+  `node test/world-of-slime-intro-parity.js` -> `D:\wos-ref\proof\intro\web`, tờ so `D:\wos-ref\proof\intro\compare\<key>.png`,
+  nhận xét `D:\wos-ref\proof\introerdicts.tsv`.
+
 ## Nhiệm vụ (js/quest, js/ui/story.js)
 
 - Nguồn: clip DcGavHFwqtk (`docs/research/QUESTLINE.md`; khung 1.5 s có mốc giờ `D:\wos-ref\clips\DcGavHFwqtk\dlg\sheet_a..e.png`,
@@ -117,6 +148,27 @@ Tham số trang: `?assets=`, `?map=dev|110|257|478` (mặc định 257), `?from=
 - Test: `node test/world-of-slime-quest.js` (phím/chuột thật, bản lưu trống tới mua 3 Cube + tải lại trang), ảnh
   `D:\wos-ref\proof\quest\web`; tờ so `D:\wos-ref\proof\quest\compare\<key>.png`, nhận xét `D:\wos-ref\proof\questerdicts.tsv`.
 - `?quest` bày sẵn trạng thái "đang làm q4" trong bộ nhớ (để so HUD), `?name=` đặt tên người chơi, `?fresh` xoá bản lưu.
+
+## Chiến đấu + rừng (F1, js/combat)
+
+- Đường đi: q7 đang làm -> cổng tây 110 -> Rudga (ru1..ru4, lựa chọn "Lucy nhờ...") -> hành động `duel` -> sân `rudga_arena`
+  (băng TEAM A vs TEAM B 2.2 s, thanh trên đồng hồ 00:00 -> 05:00 đếm lùi, 3-2-1-Start bằng UI_PVP_*, bóng thoại Rudga, slime
+  đồng hành tự đánh "Junior Aqualime" Lv1 của Rudga) -> thắng: `save.duel = true`, về 110 cổng tây; thua (ngất / hết giờ): về
+  làng, nói lại với Rudga để đấu lại. Đã thắng thì bước vào vùng cổng tây = sang `shadow_forest_entrance` (cửa về: mép đông).
+- Rừng: 7 Junior Floralime (`SL_Slime_Grass`, 26 HP như ảnh goget_battle_whistle), Martin (`NPC_Larus_Fatman_3`, bóng thoại
+  "Hic!"). Space / chuột trái / nút đánh = chọn con gần (chuột: gần điểm chuột 3 m) và đồng hành lao vào; đang đánh thì nút
+  lớn thành huýt sáo đỏ, Space = gọi về. CombatMode (H) bật: tự đánh con trong 6 m. Thắng: log "<tên> EXP Slime + 2",
+  70% "Mảnh slime nhỏ × 1" (item 215), lên cấp slime sau 6 EXP (con thứ ba, như 6:27) bằng dòng log lớn.
+- Hậu kỳ màu rừng `GRADE[2]` (post.js) đo trên khung clip; sân đấu `mapLightType 3` không chấm màu (clip sáng như làng).
+- Sân đấu: `MAPS.rudga_arena.camAt` giữ camera giữa sân. Cát = `Ground_t01_002` cùng tầng với cỏ `Cliff_t01-A` (như 110).
+- Test: `node test/world-of-slime-combat.js` (bản lưu dựng sẵn q1..q6 xong, đấu, rừng, 3 con, huýt sáo, sinh lại, mobile.html
+  cần ảo + nút); ảnh `D:\wos-ref\proof\combat\web`, tờ so `D:\wos-ref\proof\combat\compare\<key>.png`, nhận xét
+  `D:\wos-ref\proof\combatverdicts.tsv`.
+- Bẫy: (a) `page.waitForFunction` (polling raf) hết giờ dù điều kiện đúng khi trang vừa đổi bản đồ: test hỏi bằng `evaluate`
+  từng 100 ms (`until`). (b) `cameraMoveRect` nhỏ hơn một màn làm `effDist()` kéo camera về ~0 m (màn trống xanh): rect phải
+  rộng ít nhất một màn. (c) Cát Larus không phải Path_t01-C (ra màu cỏ) mà là mảnh `Ground_t01_002`. (d) Mảnh cỏ cao
+  xanh lam của rừng không có trong map/: dùng `ter01_grass_007/008` gần nhất. (e) Combat ghi máu/MP/thể lực vào `save.slime`
+  mỗi 0.3 s: khi engine đổi bản lưu (chữa ở Allen) phải đọc lại, không thì đè mất (cảnh báo thể lực không tắt).
 
 ## Bảng phím (đúng `D:\wos-ref\code\input_bindings.txt`, map Gameplay)
 
@@ -206,11 +258,17 @@ thì chậm. Shift-chạy và T-huýt sáo của rev a là bịa, đã bỏ. Cá
 31. Popup_01_Medium/Small có lề trong suốt 60/40/60/62 px quanh thân: đặt theo ảnh phải là thân thấy được (`story.js panel()`).
 32. Bảng toàn màn đo trên ảnh 1080p thu về 720 (q1.png, thang 0.533) to hơn ~6% so với web chạy 720p (0.502): đúng theo
     SMUniformCanvasScaler, không phải lệch bố cục.
+33. `Object3D.clone()` không gắn lại SkinnedMesh vào xương mới: hai ba lô clone thường cùng vẽ theo bộ xương gốc ở gốc toạ độ (một ba lô
+    nằm nghiêng giữa màn). Dùng `SkeletonUtils.clone`. Player.create cũng chuyển con của gltf trong bộ đệm sang rig (chỉ dùng được một
+    lần mỗi GLB): `js/intro/avatar.js` clone từng bộ phận trước khi ghép.
+34. Một WebGLRenderer cho cả gương lẫn ba lô: gương đặt `left/top/width` lên canvas; sang màn ba lô phải xoá `style` không thì canvas lệch
+    (chỉ thấy trên mobile).
+35. `?fresh` xoá bản lưu mỗi lần `loadSave()` được gọi: js/intro ghi profile rồi engine gọi lại là mất. `loadSave.freshDone` chỉ xoá một lần.
+36. game.js kéo `fcam.dist` về `baseDist` mỗi khung: Camera Scale phải nhân ở `effDist()`, đổi `dist` từ ngoài sẽ bị trả lại.
 
 ## Còn thiếu / chưa đúng
 
-- Nhiệm vụ: đấu tay đôi với Rudga, Shadow Forest (q7 trở đi) chưa có bản đồ. Không có màn tạo nhân vật/đặt tên: {name} = "Bạn"
-  (`?name=`), chibi người chơi trong hội thoại là avatar mặc định. Dải bản đồ trong ô chi tiết nhật ký là gradient (gốc chụp bản
+- Nhiệm vụ: đấu tay đôi với Rudga, Shadow Forest (q7 trở đi) chưa có bản đồ. {name} = biệt danh của màn đặt tên (`?intro=0`: "Bạn" hoặc `?name=`). Dải bản đồ trong ô chi tiết nhật ký là gradient (gốc chụp bản
   đồ). Log EXP thiếu biểu tượng. Nền ô "Túi Đồ" ở quầy chưa hiện. Ô 2, 3 của quầy dùng ảnh món gần nhất. Giấy của băng tên bản
   đồ (PaperBg) là gradient vì sprite chưa xuất. Một số dòng thoại không đọc được trong clip ghi `[ĐỀ XUẤT]` trong data/quest_text.js.
 

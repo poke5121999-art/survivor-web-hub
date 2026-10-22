@@ -1,7 +1,7 @@
 // Tải GLB / JSON / ảnh từ repo asset, có bộ đệm. Lỗi tải ghi vào window.__wosErrors để test bắt.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { ASSETS } from './config.js?v=20261022b';
+import { ASSETS } from './config.js?v=20261022c';
 
 const gltfLoader = new GLTFLoader();
 const texLoader = new THREE.TextureLoader();

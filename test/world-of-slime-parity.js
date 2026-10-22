@@ -41,7 +41,7 @@ const SHOTS = {
   const page = await (await b.newContext({ viewport: { width: 1280, height: 720 } })).newPage();
   for (const k of keys) {
     const [m, px, pz, cx, cz] = SHOTS[k];
-    const q = `?map=${m}&at=${px},${pz}&camat=${cx},${cz}` + (ASSETS ? '&assets=' + encodeURIComponent(ASSETS) : '');
+    const q = `?intro=0&map=${m}&at=${px},${pz}&camat=${cx},${cz}` + (ASSETS ? '&assets=' + encodeURIComponent(ASSETS) : '');
     await page.goto(BASE + 'index.html' + q);
     await page.waitForFunction(() => window.__ready && WOS.npcs.length > 0, null, { timeout: 90000 });
     await page.waitForTimeout(1500);

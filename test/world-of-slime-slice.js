@@ -34,7 +34,7 @@ async function open(browser, file, opts) {
   page.on('requestfailed', r => problems.push('requestfailed: ' + r.url() + ' ' + (r.failure() || {}).errorText));
   page.on('response', r => { if (r.status() >= 400) problems.push('http ' + r.status() + ': ' + r.url()); });
   // bản đồ thử (?map=dev): từ rev 20261022a trang mặc định vào quán trọ Larus 257, test này đi trên bản đồ thử
-  const q = '?map=dev' + (ASSETS ? '&assets=' + encodeURIComponent(ASSETS) : '');
+  const q = '?map=dev&intro=0' + (ASSETS ? '&assets=' + encodeURIComponent(ASSETS) : '');
   const t0 = Date.now();
   await page.goto(BASE + file + q);
   await page.waitForFunction(() => window.__ready || (window.__wosErrors || []).length, null, { timeout: 120000 });

@@ -1,5 +1,5 @@
 // Hằng số dùng chung. REV phải khớp ?v= trong index.html / mobile.html và mọi import (hub: đổi rev mỗi lần đẩy).
-export const REV = '20261022b';
+export const REV = '20261022c';
 
 const P = new URLSearchParams(location.search);
 // Gốc asset: repo world-of-slime-assets trên Pages. ?assets=<url> để test trỏ vào http.server cục bộ.

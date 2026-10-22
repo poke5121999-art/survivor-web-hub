@@ -1,0 +1,102 @@
+/* Phần mở đầu (js/intro): lớp #intro phủ toàn màn, .iroot là canvas đơn vị prefab scale(s) như #hud. */
+#intro { position: fixed; inset: 0; z-index: 40; background: #000; overflow: hidden; color: #fff;
+  font: 700 13px/1.25 "Nunito", system-ui, sans-serif; user-select: none; -webkit-user-select: none; touch-action: none; transition: opacity .5s; }
+#intro.fadeout { opacity: 0; }
+#intro.setting { background: transparent; z-index: 45; }
+#intro .iroot { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+#intro .u { position: absolute; box-sizing: border-box; }
+#intro .f { position: relative; box-sizing: border-box; flex: none; }
+#intro .u, #intro .f { isolation: isolate; }
+#intro .spr { position: absolute; inset: 0; box-sizing: border-box; pointer-events: none; background-repeat: no-repeat; z-index: -1; }
+#intro .spr canvas.slice { position: absolute; inset: 0; width: 100%; height: 100%; }
+#intro .full { left: 0; top: 0; width: 100%; height: 100%; }
+#intro .center { display: flex; align-items: center; justify-content: center; text-align: center; }
+#intro .row { display: flex; flex-direction: row; }
+#intro .col { display: flex; flex-direction: column; }
+#intro .txt { white-space: nowrap; line-height: 1.12; }
+#intro .wrap .txt, #intro .txt.body { white-space: pre-line; text-align: center; }
+#intro .outline { text-shadow: 0 0 3px rgba(10, 25, 35, .95), 0 2px 2px rgba(10, 25, 35, .8); }
+#intro .btn { pointer-events: auto; cursor: pointer; }
+#intro .btn:active { filter: brightness(1.12); }
+#intro .btxt { font-weight: 800; }
+#intro .ttl { font-weight: 800; text-shadow: 0 2px 2px rgba(0, 20, 40, .35); }
+#intro .sym { opacity: .55; }
+#intro video.cover { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+#intro video.film { background: #000; object-fit: contain; }
+
+/* Touch To Start */
+#intro .title { cursor: pointer; pointer-events: auto; }
+#intro .title .ver { font-style: italic; font-weight: 600; }
+#intro .title .tt { text-shadow: 0 1px 3px rgba(0, 0, 0, .6); font-weight: 600; letter-spacing: .02em; }
+#intro .pulse { animation: wos-pulse 1.6s ease-in-out infinite; }
+@keyframes wos-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+
+/* phòng + gương */
+#intro .roombg { overflow: hidden; }
+#intro .roombg .bgimg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; -webkit-user-drag: none; }
+#intro canvas.mirror { position: absolute; pointer-events: none; filter: brightness(1.2); }   /* [ĐO] tóc x0.83 so với cust5 */
+#intro .dimR { left: auto; right: 0; width: 1330px; background: linear-gradient(to left, rgba(46, 78, 91, .4), rgba(46, 78, 91, 0)); pointer-events: none; }
+#intro .ticon { pointer-events: none; }
+#intro .tabdesc { transform: translate(-50%, -50%); padding: 0 22px; border-radius: 26px; background: #121e21; height: 52px; white-space: nowrap; pointer-events: none; }
+#intro .tabdesc::after { content: ''; position: absolute; left: 50%; bottom: -14px; margin-left: -14px; border: 14px solid transparent; border-bottom: 0; border-top-color: #121e21; }
+#intro .opt .spr { transition: filter .1s; }
+#intro .opt.on { filter: drop-shadow(0 0 10px rgba(110, 240, 255, .75)); }
+#intro .sel { pointer-events: none; }
+#intro .gcard { overflow: visible; }
+#intro .nickin { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; outline: 0; background: transparent; text-align: center;
+  font: 700 39px "Nunito", system-ui, sans-serif; color: rgb(40, 96, 142); caret-color: rgb(40, 96, 142); pointer-events: auto; user-select: text; -webkit-user-select: text; }
+#intro .nickin::placeholder { color: rgb(122, 189, 244); }
+#intro .toast { background: rgba(10, 25, 35, .72); border-radius: 34px; transition: opacity .4s; pointer-events: none; z-index: 5; }
+#intro .toast.out { opacity: 0; }
+
+/* truyện tranh, ba lô */
+#intro .storybg { background: transparent; }
+#intro .boxglow { position: absolute; left: -25%; top: -25%; width: 150%; height: 150%; pointer-events: none; }
+#intro .card { transform: translateX(1500px); opacity: 0; transition: transform .9s cubic-bezier(.3, .6, .3, 1), opacity .9s; pointer-events: none; }
+#intro .card.in { transform: none; opacity: 1; }
+#intro .card.out { transform: translateX(-1500px); opacity: 0; }
+#intro .card::after { content: ''; position: absolute; left: 50px; top: 50px; right: 50px; bottom: 50px; z-index: 2; pointer-events: none;
+  box-shadow: inset 0 0 110px 40px rgba(20, 12, 6, .55); }   /* intro2: tranh tối dần về mép */
+#intro .card .frame { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; }
+#intro .card .pic { position: absolute; left: 50px; top: 50px; width: calc(100% - 100px); height: calc(100% - 100px); object-fit: cover; z-index: 1;
+  -webkit-mask-image: var(--mask); mask-image: var(--mask); -webkit-mask-size: 100% 100%; mask-size: 100% 100%; filter: brightness(.86); }   /* [ĐO] tranh x1.19 so với intro2 */
+#intro canvas.packcv { position: absolute; inset: 0; width: 100%; height: 100%; }
+#intro .packopts { gap: 18px; align-items: flex-end; height: auto; }
+#intro .popt { height: 92px; min-width: 520px; padding: 0 96px 0 40px; display: flex; align-items: center; justify-content: flex-start; }
+#intro .keycap { position: absolute; right: 24px; top: 50%; transform: translateY(-50%); min-width: 48px; height: 44px; padding: 0 8px; border-radius: 10px;
+  background: rgba(220, 235, 245, .92); color: #16456c; font: 800 22px/44px "Nunito", sans-serif; text-align: center; }
+#intro .skipbtn { position: absolute; left: auto; }
+
+/* Setting (QualitySettingUI) */
+#intro .sdim { position: absolute; inset: 0; background: rgba(20, 30, 34, .12); -webkit-backdrop-filter: blur(6px) brightness(1.15); backdrop-filter: blur(6px) brightness(1.15); pointer-events: auto; }
+#intro .shead { position: absolute; left: 270px; top: 52px; display: flex; align-items: center; gap: 14px; }
+#intro .shicon { display: none; }
+#intro .stitle { font-weight: 800; }
+#intro .sclose { position: absolute; right: 40px; top: 29px; width: 124px; height: 90px; }
+#intro .scats { position: absolute; left: 72px; top: 180px; width: 96px; display: flex; flex-direction: column; }
+#intro .scat { position: relative; width: 96px; height: 146px; }
+#intro .scat .scicon { left: 12px; top: 37px; width: 72px; height: 72px; }
+#intro .scat.on { filter: brightness(1.08); }
+#intro .slist { position: absolute; left: 270px; right: 125px; top: 190px; bottom: 70px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;
+  pointer-events: auto; scrollbar-width: thin; touch-action: pan-y; }
+#intro .ssec { padding: 18px 8px 2px; }
+#intro .srow { position: relative; flex: none; min-height: 112px; border-radius: 34px; background: rgba(236, 246, 255, .94); box-shadow: 0 2px 4px rgba(0, 30, 60, .18); display: flex; align-items: center; padding: 8px 26px 8px 34px; gap: 20px; }
+#intro .slab { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+#intro .slab .txt { white-space: normal; }
+#intro .slab .b { font-weight: 800; }
+#intro .slab .d { font-weight: 600; }
+#intro .sctl { flex: none; width: 460px; display: flex; justify-content: flex-end; align-items: center; }
+#intro .ssel, #intro .sbtn, #intro .sarrow, #intro .scat, #intro .srow, #intro .sgauge { isolation: isolate; }
+#intro .ssel { position: relative; width: 420px; height: 66px; border-radius: 33px; background: #b4dcf8; }   /* clip 11:12: ô chọn xanh nhạt */
+#intro .ssel select { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; outline: 0; background: transparent; -webkit-appearance: none; appearance: none;
+  font: 800 30px "Nunito", sans-serif; color: #16456c; text-align: center; text-align-last: center; padding: 0 64px 0 20px; cursor: pointer; pointer-events: auto; }
+#intro .ssel select:disabled { cursor: default; opacity: .8; }
+#intro .sarrow { position: absolute; right: 12px; top: 11px; width: 44px; height: 44px; pointer-events: none; }
+#intro .sgauge { display: flex; align-items: center; gap: 18px; width: 460px; justify-content: flex-end; }
+#intro .sgauge input[type=range] { -webkit-appearance: none; appearance: none; width: 340px; height: 20px; border-radius: 10px; pointer-events: auto; cursor: pointer;
+  background: linear-gradient(to right, #6cc9ff 0, #6cc9ff var(--p, 50%), #0a2d4a var(--p, 50%), #0a2d4a 100%); }
+#intro .sgauge input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 56px; height: 56px; border-radius: 50%; background: #eaf6ff; border: 6px solid #2f7fbf; box-shadow: 0 2px 4px rgba(0, 0, 0, .35); }
+#intro .sgauge input[type=range]::-moz-range-thumb { width: 44px; height: 44px; border-radius: 50%; background: #eaf6ff; border: 6px solid #2f7fbf; }
+#intro .scount { min-width: 72px; text-align: right; font-weight: 800; }
+#intro .sbtn { position: relative; width: 300px; height: 76px; display: flex; align-items: center; justify-content: center; padding-right: 40px; }
+#intro .sbarrow { right: 16px; top: 13px; width: 50px; height: 50px; }

@@ -6,12 +6,12 @@
 // - Bảng toàn màn (QuestUI, PerkUI, BuyShopUI) bố cục lồng nhiều layout group không có trong JSON (bẫy 11 ARCH.md), nên
 //   đặt theo khung hình [ĐO TRONG ẢNH]: X(px) với px đo trên ảnh 1280x720 (q1.png: K = 1.875; clip 3:57, 10:39: K = 2).
 import * as THREE from 'three';
-import { R, F, text, css, C } from './hud.js?v=20261022b';
-import { paint, uiUrl, used } from './sprites.js?v=20261022b';
-import { assetUrl } from '../assets.js?v=20261022b';
-import { state, set } from '../state.js?v=20261022b';
-import { L } from '../../data/quest_text.js?v=20261022b';
-import { DIALOGUE, NPC_ART, NPC_THUMB, TUTORIALS, QUEST, SHOP, PERKS, BAG_SLOTS, ITEM_ICON } from '../quest/data.js?v=20261022b';
+import { R, F, text, css, C } from './hud.js?v=20261022c';
+import { paint, uiUrl, used } from './sprites.js?v=20261022c';
+import { assetUrl } from '../assets.js?v=20261022c';
+import { state, set } from '../state.js?v=20261022c';
+import { L } from '../../data/quest_text.js?v=20261022c';
+import { DIALOGUE, NPC_ART, NPC_THUMB, TUTORIALS, QUEST, SHOP, PERKS, BAG_SLOTS, ITEM_ICON } from '../quest/data.js?v=20261022c';
 
 const NAVY = [0.09, 0.27, 0.42, 1], NAVY2 = [0.16, 0.38, 0.56, 1], ORANGE = '#ff8a2a';   // TMP màu chữ; cam [ĐO TRONG ẢNH] 2:24 "healed"
 const TYPE_CPS = 40;              // [ĐỀ XUẤT] chữ/giây của TypewriterByCharacter (giá trị trên prefab không có trong JSON)

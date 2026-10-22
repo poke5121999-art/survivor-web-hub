@@ -6,10 +6,10 @@
 // bản PC (PlatformPreview.UseStandaloneUIScale) nhân thêm StandaloneScale = 0.8.
 // Vị trí/cỡ nút PC khác mobile: PlaySceneButtonBatch.buttonInfos (standalonePosition/Size vs defaultPosition/Size).
 import * as THREE from 'three';
-import { paint, tinted, uiUrl, used } from './sprites.js?v=20261022b';
-import { assetUrl } from '../assets.js?v=20261022b';
-import { state, on } from '../state.js?v=20261022b';
-import { t } from '../../data/loc_vi.js?v=20261022b';
+import { paint, tinted, uiUrl, used } from './sprites.js?v=20261022c';
+import { assetUrl } from '../assets.js?v=20261022c';
+import { state, on } from '../state.js?v=20261022c';
+import { t } from '../../data/loc_vi.js?v=20261022c';
 
 export const C = {                       // màu Image.color / TMP fontColor chép từ prefab
   dark30: [0.078, 0.118, 0.133, 0.298], dark39: [0.078, 0.118, 0.133, 0.392], dark59: [0.078, 0.118, 0.133, 0.588],

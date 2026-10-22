@@ -1,9 +1,9 @@
 // Máy trạng thái nhiệm vụ: đọc bảng js/quest/data.js, giữ bản lưu (js/state.js loadSave/writeSave), đẩy HUD
 // (state.quest = nhiệm vụ đang theo dõi, state.player.level/exp, slime HP/MP/thể lực, cảnh báo thể lực) và gọi js/ui/story.js
 // để hiện hội thoại, băng chữ, log. game.js chỉ gọi: engine.interactAt(), engine.talk(npc), engine.tick(), engine.onMap().
-import { QUESTS, QUEST, TALK, FIRST_QUEST, EXP_TO_NEXT, START_GOLD, HEAL_COST, BOXES, PERKS, ITEM_ICON, INTERACT_RANGE, TALK_RANGE } from './data.js?v=20261022b';
-import { state, set, loadSave, writeSave } from '../state.js?v=20261022b';
-import { L } from '../../data/quest_text.js?v=20261022b';
+import { QUESTS, QUEST, TALK, FIRST_QUEST, EXP_TO_NEXT, START_GOLD, HEAL_COST, BOXES, PERKS, ITEM_ICON, INTERACT_RANGE, TALK_RANGE } from './data.js?v=20261022c';
+import { state, set, loadSave, writeSave } from '../state.js?v=20261022c';
+import { L } from '../../data/quest_text.js?v=20261022c';
 
 export class QuestEngine {
   constructor(story, hooks = {}) {
@@ -122,7 +122,7 @@ export class QuestEngine {
   }
   talk(npc, extra = {}) {
     const list = TALK[npc] || [];
-    const e = list.find(r => !r.when || this.status(r.when.q, npc) === r.when.s);
+    const e = list.find(r => (!r.flag || this.save[r.flag]) && (!r.when || this.status(r.when.q, npc) === r.when.s));
     if (!e) return Promise.resolve();
     // nhiệm vụ "nói chuyện với X": xong ngay khi mở hội thoại? Không: xong ở hành động complete:q cuối mạch (như clip)
     return this.dialog(e.start, { npc, ...extra });
@@ -146,7 +146,7 @@ export class QuestEngine {
           else if (op === 'obj') { const [q, o] = arg.split('.'); this.obj(q, o); }
           else if (op === 'heal') goto = this.heal() ? undefined : 'alHno';
           else if (op === 'box') goto = this.openBox(ctx.box);
-          else if (op === 'perk' || op === 'shop' || op === 'notbuilt' || op === 'pushback' || op === 'sell') after.push(op);
+          else if (op === 'perk' || op === 'shop' || op === 'notbuilt' || op === 'pushback' || op === 'sell' || op === 'duel') after.push(op);
         }
         return goto;
       },
@@ -158,6 +158,7 @@ export class QuestEngine {
         else if (op === 'sell') this.story.toast(L('c.sell') + ' · chưa có');
         else if (op === 'notbuilt') await this.story.notice(L('ui.notBuilt'));
         else if (op === 'pushback' && this.hooks.pushback) this.hooks.pushback();
+        else if (op === 'duel' && this.hooks.duel) this.hooks.duel();   // js/combat: sang sân đấu Rudga
       }
       this.sync();
     });

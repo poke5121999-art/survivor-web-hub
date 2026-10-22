@@ -37,9 +37,9 @@
  */
 import * as THREE from 'three';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
-import { loadGLB, loadJSON, loadTex, assetUrl, expectBytes } from '../assets.js?v=20261022b';
-import { envMaterial } from './envmat.js?v=20261022b';
-import { MOVE } from '../config.js?v=20261022b';
+import { loadGLB, loadJSON, loadTex, assetUrl, expectBytes } from '../assets.js?v=20261022c';
+import { envMaterial } from './envmat.js?v=20261022c';
+import { MOVE } from '../config.js?v=20261022c';
 
 export const LAND = { NONE: -1, GROUND: 0, GRASS: 1, STONE: 2, WATER: 3, SNOW: 4, SAND: 5 };
 const D2R = Math.PI / 180;

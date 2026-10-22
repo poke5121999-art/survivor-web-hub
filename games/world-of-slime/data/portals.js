@@ -33,6 +33,7 @@ export const MAPS = {
     arrive: {
       tavern_door: { x: 87.5, z: 69.6, yaw: 180 },   // out2.png: đứng ngay trước cửa quán trọ
       storage_door: { x: 83.5, z: 91.3, yaw: 180 },
+      west_gate: { x: 28.5, z: 58.5, yaw: 90 },        // về từ rừng / sân đấu: ngay trong cổng tây, nhìn vào làng (5:39)
     },
     npcs: [
       { name: 'Lucy', model: 'NPC_Larus_Biggirl_4', x: 65.8, z: 76.0, yaw: 180, src: 'x2.png, x3.png, v3.png (mũ nồi, bảng vẽ; vật liệu CH_Public_NPC_ArtistLucy)' },
@@ -55,6 +56,28 @@ export const MAPS = {
     npcs: [
       { name: 'Allen', model: 'NPC_Larus_Store', x: 32.5, z: 41.0, yaw: 180, src: 'v9.png, al4.png, h5.png (tóc vàng sau quầy)' },
       { name: 'Wisp', model: 'SL_Wisp_Light', slime: true, x: 39.2, z: 44.9, yaw: 180, src: 'al4.png, h5.png (slime trắng cạnh giá sách phải)' },
+    ],
+  },
+  // ---- DỰNG THEO CLIP (tools/forestmap.py, không phải dữ liệu server): chỗ đứng [ĐO TRONG CLIP] DcGavHFwqtk
+  shadow_forest_entrance: {
+    name: 'Shadow Forest Entrance', region: 'Shadow Forest', icon: 'img/mapicon/UI_Map_ShadowForest.webp', clip: true,
+    portals: [
+      // đường cổng đông ra mép bản đồ (5:48 đi vào từ phải) -> làng Larus, cổng tây
+      { name: 'forest_exit', rect: [86, 25, 88, 30], to: 110, at: 'west_gate' },
+    ],
+    arrive: { larus_gate: { x: 82.5, z: 27.5, yaw: -90 } },   // 5:48: vừa qua rào cổng, nhìn sang trái
+    npcs: [
+      // Martin (say rượu, cốc bia, mắt xoáy): NPC_Larus_Fatman_3; đứng phía tây bắc cổng (5:51, 6:36)
+      { name: 'Martin', model: 'NPC_Larus_Fatman_3', x: 66.5, z: 33.5, yaw: 180, src: 'clip 5:51, 6:36 (đầu hói, râu nâu, cốc bia)' },
+    ],
+  },
+  rudga_arena: {
+    name: 'Sân đấu', region: 'Shadow Forest', icon: 'img/mapicon/UI_Map_ShadowForest.webp', clip: true, duel: true,
+    camAt: { x: 28, z: 21.2 },   // 5:24-5:36: camera đứng yên giữa sân, rào chiếm gần hết màn [ĐO TRONG CLIP]
+    portals: [],
+    arrive: { duel: { x: 19.5, z: 29.5, yaw: 135 } },   // 5:21: góc trái trên sân
+    npcs: [
+      { name: 'Rudga', model: 'NPC_Larus_Bigman_3', x: 37.5, z: 15.5, yaw: -45, src: 'clip 5:21-5:36 (góc phải dưới sân)' },
     ],
   },
 };

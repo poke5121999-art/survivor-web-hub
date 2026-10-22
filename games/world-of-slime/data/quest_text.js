@@ -137,6 +137,12 @@ export const TEXT = {
     'ui.notEnoughGold': 'Not enough Gold.',                                                       // [ĐỀ XUẤT]
     'item.4': 'Cube', 'item.4.d': 'A basic Cube made for taming slimes. Anyone can obtain it easily.',   // 10:39
     'item.773': 'Herb',
+    'item.215': 'Small Slime Fragment',                                                           // 6:27 (item_type 215)
+    'ui.slimeExp': 'Slime EXP',                                                                   // 6:06 "Roasted Slime EXP + 2"
+    'ru.duel1': 'Got some fight in you? Then bring it!',                                          // 5:33
+    'ru.duel2': "A true adventurer doesn't crumble over a trial like this!",                      // 5:36
+    'ru.won': "A true adventurer doesn't crumble over a trial like this!",                        // [ĐỀ XUẤT] sau trận: lặp câu 5:36
+    'mt.b1': "Hic! Ah, I'm getting drunk!",                                                       // 6:36
     'ui.notice': 'Notice',
     'ui.notBuilt': 'Not in the web version yet: the duel with Rudga and Shadow Forest have no map data.',   // bản web
     'ui.ok': 'Yes',
@@ -239,6 +245,12 @@ export const TEXT = {
     'ui.notEnoughGold': 'Không đủ Vàng.',
     'item.4': 'Cube', 'item.4.d': 'Cube cơ bản dùng để thuần phục slime. Ai cũng dễ dàng có được.',
     'item.773': 'Thảo mộc',
+    'item.215': 'Mảnh slime nhỏ',
+    'ui.slimeExp': 'EXP Slime',
+    'ru.duel1': 'Có chút máu chiến đấy nhỉ? Vậy thì lên đi!',
+    'ru.duel2': 'Nhà thám hiểm thật thụ không gục ngã vì chút thử thách thế này đâu!',
+    'ru.won': 'Nhà thám hiểm thật thụ không gục ngã vì chút thử thách thế này đâu!',
+    'mt.b1': 'Hic! A, mình say mất rồi!',
     'ui.notice': 'Thông Báo',
     'ui.notBuilt': 'Chưa có trong bản web: trận đấu với Rudga và Shadow Forest chưa có dữ liệu bản đồ.',
     'ui.ok': 'Có',

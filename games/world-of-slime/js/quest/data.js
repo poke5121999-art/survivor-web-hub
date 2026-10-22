@@ -128,7 +128,8 @@ export const DIALOGUE = {
   ru2: { sp: 'Rudga', next: 'ru3' },
   ru3: { sp: 'Rudga', choices: [{ t: 'c.lucy', icon: 'progress', to: 'ru4' }] },
   ru3idle: { sp: 'Rudga', t: 'ru3', choices: [{ t: 'c.end', icon: 'exit', act: 'pushback' }] },
-  ru4: { sp: 'Rudga', illust: 'whistle', act: 'notbuilt;pushback' },
+  ru4: { sp: 'Rudga', illust: 'whistle', act: 'duel' },   // F1: đấu tay đôi ở sân dựng theo clip (js/combat)
+  ruWon: { sp: 'Rudga', t: 'ru.won' },
   ru1idle: { sp: 'Rudga', t: 'ru1', next: 'ru3idle' },
   // ---- hộp trôi dạt (b1.png, 3:09-3:24): khung thoại tối DialogueStyleUI, tên "..."
   bx1: { sp: 'box', style: DD, choices: [{ t: 'c.look', icon: 'talk', act: 'box' }, { t: 'c.end', icon: 'exit' }] },
@@ -152,7 +153,8 @@ export const TALK = {
     { when: null, start: 'al1idle' },
   ],
   Lucy: [{ when: { q: 'q6', s: 'ready' }, start: 'lu1q6' }, { when: null, start: 'lu1' }],
-  Rudga: [{ when: { q: 'q7', s: 'active' }, start: 'ru1' }, { when: null, start: 'ru1idle' }],
+  // flag: chỉ khớp khi engine.save[flag] đúng (save.duel = đã thắng Rudga, js/combat)
+  Rudga: [{ flag: 'duel', when: null, start: 'ruWon' }, { when: { q: 'q7', s: 'active' }, start: 'ru1' }, { when: null, start: 'ru1idle' }],
   Vivian: [{ when: null, start: 'vi1' }],
 };
 
@@ -198,7 +200,7 @@ export const SHOP = {
     { item: null, price: 500, icon: 'img/item/Item_Basket.webp', name: null },
   ],
 };
-export const ITEM_ICON = { 4: 'img/item/Item_Cube_1.webp', 773: 'img/item/Item_Herb.webp' };
+export const ITEM_ICON = { 4: 'img/item/Item_Cube_1.webp', 773: 'img/item/Item_Herb.webp', 215: 'img/item/Item_SlimePart_1.webp' };   // 215 Small Slime Fragment (item_type thumbnail)
 export const BAG_SLOTS = 28;           // [THẤY 10:39] "Bag 1/28"
 
 // Tiềm năng (PerkUI): nút Slime Companion 1, 3 bậc (0/3, 3:54), học tốn 1 SP (3:57 "Learn SP 1")

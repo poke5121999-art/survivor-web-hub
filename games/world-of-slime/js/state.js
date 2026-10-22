@@ -43,7 +43,7 @@ export function freshSave(startGold) {
 }
 export function loadSave(startGold) {
   try {
-    if (P.has('fresh')) localStorage.removeItem(SAVE_KEY);
+    if (P.has('fresh') && !loadSave.freshDone) { loadSave.freshDone = true; localStorage.removeItem(SAVE_KEY); }   // một lần mỗi trang: js/intro ghi profile rồi engine mới đọc
     const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
     if (s && s.v === SAVE_VERSION) return Object.assign(freshSave(startGold), s);
   } catch (e) { /* trình duyệt chặn bộ nhớ: chơi không lưu */ }

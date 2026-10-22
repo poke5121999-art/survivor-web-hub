@@ -2,7 +2,7 @@
  * Thế Giới Slime (games/world-of-slime): chuỗi nhiệm vụ mở đầu "Village of Rough Waves" chơi bằng phím/chuột thật từ bản
  * lưu trống (?fresh): q1 An Unfamiliar Place (Amy) -> q2 Allen of Larus Storage -> q3 Heal the Slime (89 Vàng) -> q4 The Herb
  * in the Box (hộp rỗng cạnh nhà Benjamin, hộp có Thảo mộc cạnh quầy Vivian) -> q5 Hidden Power (Tiềm năng, Learn SP 1, Level Up)
- * -> q6 Talk with Lucy -> q7 nhận, Rudga chặn cổng tây + thông báo "chưa có" -> Vivian bán 3 Cube (500) -> tải lại trang,
+ * -> q6 Talk with Lucy -> q7 nhận, Rudga chặn cổng tây + đấu tay đôi (F1) -> Vivian bán 3 Cube (500) -> tải lại trang,
  * bản lưu còn. Kiểm: chữ HUD theo dõi nhiệm vụ, băng chữ, log EXP, Vàng, không lỗi trang / console / HTTP >= 400.
  * Ảnh chụp từng bước vào D:\wos-ref\proof\quest\web\ (so với khung clip bằng skill parity-compare).
  *
@@ -152,7 +152,7 @@ async function main() {
     page.on('pageerror', e => problems.push('pageerror: ' + e.message));
     page.on('requestfailed', r => { if (!/\.ogg$/.test(r.url()) || !/ERR_ABORTED/.test((r.failure() || {}).errorText)) problems.push('requestfailed: ' + r.url() + ' ' + (r.failure() || {}).errorText); });
     page.on('response', r => { if (r.status() >= 400) problems.push('http ' + r.status() + ': ' + r.url()); });
-    await page.goto(BASE + 'index.html?fresh' + Q(''));
+    await page.goto(BASE + 'index.html?fresh&intro=0' + Q(''));
     await page.waitForFunction(() => window.__ready || (window.__wosErrors || []).length, null, { timeout: 120000 });
     await waitMap(page, '257', 20000);
     await page.mouse.click(640, 300);
@@ -294,12 +294,15 @@ async function main() {
     check('Rudga mở hội thoại khi bước ra cổng', ru);
     seen = await converse(page, [0], { shots: { ru1: '23_rudga', ru4: '24_rudga_whistle' } });
     check('Rudga nói 3 dòng + thẻ Huýt Sáo', ['ru1', 'ru2', 'ru3', 'ru4'].every(i => seen.some(d => d.id === i)) && seen.some(d => d.id === 'ru4' && d.illust), seen.map(d => d.id).join(','));
-    const nt = await page.waitForSelector('[data-hud="popup"]', { timeout: 4000 }).then(() => true, () => false);
-    await shot(page, '25_notbuilt');
-    check('thông báo "Chưa có trong bản web"', nt && /Chưa có trong bản web/.test(await page.innerText('[data-hud="popup"]')));
-    await page.click('[data-hud="popupBtn"]'); await wait(page, 500);
+    // F1: Rudga mời đấu tay đôi -> sân đấu dựng theo clip, slime đồng hành tự thắng, về lại cổng tây (test/world-of-slime-combat.js kiểm kỹ)
+    let arena = false, back = false;
+    for (let i = 0; i < 300 && !back; i++) { const m = await page.evaluate(() => String(WOS.map.data.id)); if (m === 'rudga_arena') arena = true; if (arena && m === '110') back = true; await wait(page, 200); }
+    await shot(page, '25_after_duel');
+    check('đấu tay đôi với Rudga ở sân đấu rồi về làng', arena && back);
+    await page.waitForFunction(() => !WOS.switching, null, { timeout: 5000 }).catch(() => {});
+    await wait(page, 800);
     s = await st(page);
-    check('bị đẩy về làng (x 29.5), vẫn ở 110', s.map === '110' && Math.abs(s.x - 29.5) < 0.6 && !s.modal, s.map + ' ' + s.x + ',' + s.z);
+    check('về cổng tây (x 28.5), vẫn ở 110, cổng đã mở', s.map === '110' && Math.abs(s.x - 28.5) < 1.5 && !s.modal && (await page.evaluate(() => !!WOS.quest.save.duel)), s.map + ' ' + s.x + ',' + s.z);
 
     console.log('Vivian bán 3 Cube');
     await goTo(page, 'Vivian', 33.4, 73.0, 4.6, 1.0);
@@ -331,7 +334,7 @@ async function main() {
     console.log('Sự kiện: ' + s.events.filter(e => /^(start|complete|levelup|heal|buy)/.test(e)).join(' '));
 
     console.log('Tải lại trang: bản lưu (localStorage wos.save v1) còn nguyên');
-    await page.goto(BASE + 'index.html?x=1' + Q(''));
+    await page.goto(BASE + 'index.html?intro=0' + Q(''));
     await page.waitForFunction(() => window.__ready, null, { timeout: 120000 });
     await wait(page, 1200);
     s = await st(page);

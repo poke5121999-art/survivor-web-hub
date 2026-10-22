@@ -9,6 +9,9 @@ import * as THREE from 'three';
 export const GRADE = {
   0: { m: [0.521, 0.148, 0.249, -0.147, 0.902, 0.381, -0.137, 0.308, 1.2], o: [-0.108, -0.146, -0.171] },   // ngoài trời (110)
   1: { m: [1.22, 0, 0, 0, 1.22, 0, 0, 0, 1.22], o: [-0.03, -0.03, -0.03] },   // nhà trong (257, 478): ở x1.15 vách w1 0.77, sàn v9 0.79; ở x1.3 sàn quầy inn1 1.19: lấy giữa, nền tối giữ nguyên
+  // rừng dựng theo clip (shadow_forest_entrance, mapLightType 2): x1.1 + lệch [ĐO TRONG ẢNH] đất web (70,118,94) -> clip t0117/t0119/t0121
+  // (95..110, 122..150, 101..125), D:/wos-ref/proof/combat/compare/report.json
+  2: { m: [1.1, 0, 0, 0, 1.1, 0, 0, 0, 1.1], o: [0.09, 0.04, 0.035] },
 };
 
 export class Post {
