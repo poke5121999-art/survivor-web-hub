@@ -77,7 +77,7 @@ const fake = {
   tables: { quests: JSON.parse(fs.readFileSync('D:/REPO_Meta/gamespark-config/quests.json', 'utf8')),
     stage_houses: JSON.parse(JSON.stringify(DEFAULTS.stage_houses)), stage_rules: JSON.parse(JSON.stringify(DEFAULTS.stage_rules)),
     // As on DEV before fake online: pvp has neither fakeOnline nor fake.
-    modes: [{ _id: 'coop', open: true }, { _id: 'pvp', open: false }, { _id: 'endless_solo', open: true }, { _id: 'endless_coop', open: false }] },
+    modes: [{ _id: 'coop', open: true }, { _id: 'pvp', open: false, unlockRuns: 2 }, { _id: 'endless_solo', open: true }, { _id: 'endless_coop', open: false }] },
   saves: [],
   guardSaves: [],
   guardReject: null,
@@ -594,7 +594,7 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
   await open('modes');
   await p.waitForSelector('#reach-online:not([disabled])');
   const modeHeads = await p.$$eval('.dz-grid > thead th', ths => ths.map(t => t.textContent).join('|'));
-  check('lưới chế độ chỉ có cột Mở, công tắc phụ nằm ở dòng dưới', modeHeads === 'Dòng|Mở cho người chơi|', modeHeads);
+  check('lưới chế độ có cột Mở và Số ca phải chơi, công tắc phụ nằm ở dòng dưới', modeHeads === 'Dòng|Mở cho người chơi|Số ca phải chơi để mở Đấu đội (ca)|', modeHeads);
   const sw = await p.$eval(K('pvp', 'fakeOnline') + ' input', e => ({ type: e.type, checked: e.checked, row: e.closest('tr').getAttribute('data-fake') }));
   check('dòng dưới pvp có công tắc Giả online, thiếu trường = tắt', sw.type === 'checkbox' && !sw.checked && sw.row === 'pvp', JSON.stringify(sw));
   const fakeCells = await p.$$eval('[data-fake="pvp"] [data-k^="pvp|fake."]', els => els.map(e => e.getAttribute('data-k').slice(9)));
@@ -683,6 +683,13 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
   const rawLabels = await p.evaluate(() => [...document.querySelectorAll('[data-fake="pvp"] [data-k^="pvp|bots."], [data-fake="pvp"] [data-k^="pvp|arena."]')]
     .map(c => c.closest('.dz-fld')).filter(Boolean).map(f => (f.querySelector('.dz-fld__label') || {}).textContent).filter(t => /^[a-z][A-Za-z]*$/.test(t || '')));
   check('mọi ô bot / đấu trường có nhãn tiếng Việt, không lộ tên trường', rawLabels.length === 0, rawLabels.join());
+  const pvpLbl = await p.evaluate(() => {
+    const c = document.querySelector('[data-k="pvp|unlockRuns"]'), f = document.querySelector('[data-k="pvp|arena.foeCount"]');
+    const col = c && c.closest('td') ? c.closest('td').cellIndex : -1, ths = [...document.querySelectorAll('#dz-pane .dz-list > table > thead th, #dz-pane .dz-list thead th')].map(t => t.textContent);
+    const fl = f && f.closest('.dz-fld') && (f.closest('.dz-fld').querySelector('.dz-fld__label') || {}).textContent;
+    return { cell: !!c, head: ths.some(t => t.indexOf('Số ca phải chơi để mở Đấu đội') >= 0), foe: fl, val: c && (c.querySelector('input') || {}).value };
+  });
+  check('pvp: unlockRuns (2) và arena.foeCount có nhãn tiếng Việt', pvpLbl.cell && pvpLbl.head && pvpLbl.foe === 'Số quái trên đấu trường' && pvpLbl.val === '2', JSON.stringify(pvpLbl));
   check('thiếu khối bots: ô hiện số seed', (await p.inputValue(B('swingArc') + ' input')) === String(seedBots.swingArc) &&
     (await p.inputValue(B('redropCooldown.pad') + ' input')) === String(seedBots.redropCooldown.pad) &&
     (await p.inputValue(A('lootCount') + ' input')) === String(seedArena.lootCount), '');

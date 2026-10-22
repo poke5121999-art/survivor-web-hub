@@ -779,6 +779,7 @@
       fields: {
         "_id": ID,
         "open": { label: "Mở cho người chơi", help: "Tắt = thẻ hiện COMING SOON, không vào được." },
+        "unlockRuns": { label: "Số ca phải chơi để mở Đấu đội", int: true, min: 0, max: 1000, unit: "ca", help: "Chơi đủ số ca này thì thẻ Đấu đội 3v3 mở; 0 = mở ngay." },
         "localOpen": { label: "Local (cùng Wi-Fi)", help: "Chỉ có ở Chơi với bạn. Tắt = người chơi không chọn được Local; Online vẫn theo công tắc Online. Thiếu trường = mở." },
         "fakeOnline": { label: "Giả online (1 người + 9 bot)", help: "Bật = bấm TÌM TRẬN 5v5 hiện màn tìm trận giả rồi vào trận offline với 9 bot; không cần Relay hay UGS, công tắc Online ở Chơi với bạn (và tab Chi phí dịch vụ) không đóng được. Tắt = tìm trận online thật. Chỉ có tác dụng khi Mở cho người chơi đang bật. Bản game cũ hơn bản có tính năng này bỏ qua công tắc." },
         "fake": { label: "Màn tìm trận giả", help: "Chỉ dùng khi Giả online bật." },
@@ -859,7 +860,7 @@
         "arena": { label: "Đấu trường dựng tay", help: "Số cho các bố cục ở bảng Bố cục đấu trường 5v5. Loot và quái chỉ nằm ở vùng giữa để hai phe giành nhau. Thiếu khối này = game dùng số mặc định." },
         "arena.lootCount": { label: "Số chỗ loot ở vùng giữa", int: true, min: 0, max: 200, unit: "chỗ", help: "Bốc ngẫu nhiên trong vùng giữa lúc dựng trận; cũng là trần số món vùng giữa giữ được." },
         "arena.respawnDelay": { label: "Chờ mọc món thay", unit: "giây", min: 0, max: 600, help: "Sau khi một món vùng giữa bị mang đi hẳn, ngần này giây sau mọc món thay ở một ô giữa trống, ngoài nón đèn của mọi người." },
-        "arena.foeCount": { label: "Số chỗ đặt quái ở vùng giữa", int: true, min: 1, max: 100, unit: "chỗ", help: "Loài đi đàn đứng cả cụm quanh một chỗ." }
+        "arena.foeCount": { label: "Số quái trên đấu trường", int: true, min: 1, max: 100, unit: "con", help: "Chỉ quái to (Kẻ húc, Kẻ truy lùng, Xác ướp)." }
       },
       // Extra switches under the coop row. Online is not an md_modes field: it is cd_cost_guard/relay.forceClosed, inverted.
       reach: {

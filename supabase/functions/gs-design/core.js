@@ -295,6 +295,8 @@ const TABLE_RULES = {
     : typeof d.open !== "boolean" ? `Giá trị open của "${d._id}" là ${JSON.stringify(d.open)}, phải là true hoặc false.`
     : d.localOpen !== undefined && d._id !== "coop" ? `Chế độ "${d._id}" không có trường localOpen, chỉ "coop" có.`
     : d.localOpen !== undefined && typeof d.localOpen !== "boolean" ? `Giá trị localOpen là ${JSON.stringify(d.localOpen)}, phải là true hoặc false.`
+    : d.unlockRuns !== undefined && d._id !== "pvp" ? `Chế độ "${d._id}" không có trường unlockRuns, chỉ "pvp" có.`
+    : d.unlockRuns !== undefined && numsRule("pvp", d, { unlockRuns: [0, 1000, true] }) ? numsRule("pvp", d, { unlockRuns: [0, 1000, true] })
     : d.fakeOnline !== undefined && d._id !== "pvp" ? `Chế độ "${d._id}" không có trường fakeOnline, chỉ "pvp" có.`
     : d.fakeOnline !== undefined && typeof d.fakeOnline !== "boolean" ? `Giá trị fakeOnline là ${JSON.stringify(d.fakeOnline)}, không phải true hoặc false.`
     : d.fake !== undefined && d._id !== "pvp" ? `Chế độ "${d._id}" không có trường fake, chỉ "pvp" có.`
