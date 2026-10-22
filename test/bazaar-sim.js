@@ -170,9 +170,11 @@ function micro() {
   // Hết giờ = hoà
   r = BZ.run({ boards: [board('A', 10, []), board('B', 10, [])], seed: 1, sandstorm: false, maxMs: 2000 });
   eq('hết giờ: hoà', [r.winner, r.endMs], ['draw', 2000]);
-  // Bão cát [ĐỀ XUẤT, COMBAT-04]: 1 sát thương ở t=30000 cho cả hai, rồi nhịp 1 s hằng định, mỗi nhịp +2 (≈ +1,8/s của clip)
-  r = BZ.run({ boards: [board('A', 100000, []), board('B', 100000, [])], seed: 1, maxMs: 34000 });
-  eq('bão cát: [t, lượng] các lần đánh bàn 0 tới t=34000', evs(r, 'damage', e => e.kind === 'Sandstorm' && e.target === 'p0').map(e => [e.t, e.amt]), [[30000, 1], [31000, 3], [32000, 5], [33000, 7]]);
+  // Bão cát, công thức legacy BazaarCardDealer.cs:4247-4285 (số [ĐỀ XUẤT] CODE-COMBAT §1.11: nền 1, nhịp 1000 − 100 mỗi lần tới sàn 200,
+  // ở sàn +1 mỗi nhịp; R1-2 đợt 9e): 1 ở t=30000, nhịp 900, 800 ... 200 ms giữ 1, rồi 2, 3, 4, 5 mỗi 200 ms
+  r = BZ.run({ boards: [board('A', 100000, []), board('B', 100000, [])], seed: 1, maxMs: 35100 });
+  eq('bão cát: [t, lượng] các lần đánh bàn 0 tới t=35000', evs(r, 'damage', e => e.kind === 'Sandstorm' && e.target === 'p0').map(e => [e.t, e.amt]),
+    [[30000, 1], [30900, 1], [31700, 1], [32400, 1], [33000, 1], [33500, 1], [33900, 1], [34200, 1], [34400, 2], [34600, 3], [34800, 4], [35000, 5]]);
   // Tất định
   const A = BZ.boardFromMonster(globalThis.BZ_MONSTERS.find(m => m.InternalName === 'Flame Juggler'), 'a');
   const B = BZ.boardFromMonster(globalThis.BZ_MONSTERS.find(m => m.Encounters.length && m.Player.Attributes.Level === 7 && m.InternalName !== 'Flame Juggler'), 'b');

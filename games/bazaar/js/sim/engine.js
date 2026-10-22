@@ -565,15 +565,21 @@
     if (!st.active) {
       if (st.enabled && S.t === cfg.countdownStart) BZ.log(S, { type: 'sandstorm', phase: 'countdown', ms: cfg.countdown });
       if (st.force || (st.enabled && S.t === cfg.countdownStart + cfg.countdown)) {
-        st.active = true; st.force = false; st.dmg = cfg.baseDamage; st.acc = 0;
+        st.active = true; st.force = false; st.dmg = cfg.baseDamage; st.acc = 0; st.tick = cfg.baseTickRate - cfg.tickRateDecrement;
         BZ.log(S, { type: 'sandstorm', phase: 'start' });
         stormHit(S);
         BZ.emit(S, 'TTriggerOnSandstorm', { side: 0 });
       }
       return;
     }
+    // legacy BazaarCardDealer.cs:4247-4285: đánh rồi rút nhịp tới sàn; ở sàn mỗi nhịp sát thương + AdditiveScalar
     st.acc += FRAME;
-    if (st.acc >= cfg.tick) { st.dmg += cfg.addPerTick; stormHit(S); st.acc = 0; }
+    if (st.acc >= st.tick) {
+      stormHit(S);
+      if (st.tick > cfg.tickRateFloor) st.tick -= cfg.tickRateDecrement;
+      if (st.tick <= cfg.tickRateFloor) st.dmg += cfg.additiveScalar;
+      st.acc = 0;
+    }
   }
 
   // ---------- hàng đợi ưu tiên (§3.3, PrioQueue.cs:9-66; CombatSimEffectDelay = 0 [ĐỀ XUẤT]) ----------
@@ -685,7 +691,9 @@
       BZ.recordError(S, null, 'engine', e);
       S.fatal = String(e && e.stack || e);
     }
-    if (winner === null) winner = 'draw'; // hết giờ = hoà [ĐỀ XUẤT §1.12; legacy: bàn 0 thua]
+    // Hết 120 s chưa ai chết: 'draw' cho phần phát lại; run tính là THUA (TUNING.DRAW_IS_LOSS): legacy BazaarCardDealer.cs:4037 để người
+    // thắng mặc định là đối thủ, CombatSim.cs:18 chỉ có Winner Player|Opponent (không có hoà). Bão cát legacy làm trường hợp này gần như không xảy ra.
+    if (winner === null) winner = 'draw';
     // Thẻ sinh ra giữa trận làm S.cards dài thêm: khung cũ chèn ô "đã huỷ" để mọi khung cùng bố cục theo result.cards
     for (var fi = 0; fi < frames.length; fi++) while (frames[fi].c.length < S.cards.length) frames[fi].c.push([0, -1, 0, 0, 0, 1, 0]);
     return {

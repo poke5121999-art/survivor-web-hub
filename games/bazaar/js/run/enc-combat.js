@@ -31,14 +31,14 @@
   }
   // Phần thưởng thắng quái theo BẬC (TUNING.PVE_REWARD_BY_TIER, Version 2.5.0: XP 2/2/2/3/3, vàng 2/3/4/5/6) [WIKI2 M-P1]
   Cb.reward = function (tier) { var x = T().PVE_REWARD_BY_TIER[tier] || T().PVE_REWARD_BY_TIER.Bronze; return { gold: x.gold, xp: x.xp }; };
-  // Mục quái của ngày: {c: thẻ trận, tier, gold, xp, hp?} — bậc / phần thưởng / máu theo wiki (data/encounters.js pveDays)
-  function entryOf(c) { var rw = Cb.reward(c.StartingTier); return { c: c, tier: c.StartingTier, gold: rw.gold, xp: rw.xp, hp: null }; }
+  // Mục quái của ngày: {c: thẻ trận, tier, gold, xp, hp?, lvl?} — bậc / phần thưởng / máu theo wiki (data/encounters.js pveDays)
+  function entryOf(c) { var rw = Cb.reward(c.StartingTier); return { c: c, tier: c.StartingTier, gold: rw.gold, xp: rw.xp, hp: null, lvl: null }; }
   function ref(c, x) {
     var m = monster(c.Monster);
     x = x || entryOf(c);
     var r = { type: 'combat', id: c.Id, name: c.Title || c.InternalName, tier: x.tier, desc: '', kind: 'combat',
-      level: tplLevel(m), health: x.hp || ((m.Player || {}).Attributes || {}).HealthMax || 0, gold: x.gold, xp: x.xp };
-    r.pve = { tier: x.tier, gold: x.gold, xp: x.xp, hp: x.hp || null }; // Cb.enter đọc lại (bậc / thưởng / máu wiki)
+      level: x.lvl || tplLevel(m), health: x.hp || ((m.Player || {}).Attributes || {}).HealthMax || 0, gold: x.gold, xp: x.xp };
+    r.pve = { tier: x.tier, gold: x.gold, xp: x.xp, hp: x.hp || null, lvl: x.lvl || null }; // Cb.enter đọc lại (bậc / thưởng / máu wiki)
     return r;
   }
   // Một quái theo bậc + khoảng cấp mẫu quanh ngày (nới dần TUNING.PVE_MAX_LEVEL_WIDEN), bỏ quái đã dùng
@@ -82,7 +82,7 @@
       var c = R.enc().combats[x.Combat];
       if (!c || !monster(c.Monster) || T().PVE_EXCLUDE.test(c.InternalName || '')) return;
       have[c.Id] = 1;
-      out.push({ c: c, tier: x.Tier, gold: x.Gold, xp: x.Xp, hp: x.Hp || null });
+      out.push({ c: c, tier: x.Tier, gold: x.Gold, xp: x.Xp, hp: x.Hp || null, lvl: x.Lvl || null }); // máu + cấp của trang quái wiki (R1-4, R1-7)
     });
     if (d >= T().PVE_LATE_FROM_DAY) {
       var idx = byTitle();
@@ -138,6 +138,7 @@
     var x = r.pve || entryOf(c);
     board.name = c.Title || board.name;
     if (x.hp) board.healthMax = x.hp;
+    if (x.lvl) board.level = x.lvl;
     fightPhase(ctx, 'PVE', { kind: 'monster', name: board.name, board: board, combatId: c.Id, monsterId: m.Id, tier: x.tier,
       rewards: { gold: x.gold, xp: x.xp } }, after);
   };

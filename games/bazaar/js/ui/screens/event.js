@@ -129,6 +129,8 @@
           els.forEach(function (x) { x.classList.remove('armed'); });
           b.classList.add('armed'); U.sfx('ui.hover', { vol: 0.5 }); show(true); return;
         }
+        // thiếu vàng: để luật từ chối (hiện lời báo), không làm mờ các lựa chọn khác — trước đây chúng mờ mãi, chỉ còn đường rời đi
+        if (b.classList.contains('poor')) { o.onPick(it.i, b); return; }
         hide(); U.sfx('spell.select');
         els.forEach(function (x) { if (x !== b) x.classList.add('faded'); });
         b.classList.add('chosen');

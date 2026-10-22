@@ -118,7 +118,8 @@
   St.runAbilities = function (ctx, e) {
     var abs = selectedAbilities(e), deals = [], overflow = [], ran = 0;
     if (!abs.length) return { deals: deals, overflow: overflow, ran: 0 };
-    var text = St.filterText(e), filter = St.encTier(R.parseFilter(text || e.Title || ''), e);
+    var ph = ctx.run.phase, parent = ph && ph.kind === 'event' && ph.eventId ? R.enc().events[ph.eventId] : null;
+    var text = St.filterText(e), filter = St.encTier(R.parseFilter(text || e.Title || ''), e, parent);
     if (R.filterEmpty(filter)) filter = R.phraseFilter(text, null) || filter; // "Get a Gumball" → Red/Blue/... Gumball
     (T().EVENT_REWARD_TIER_RE || []).forEach(function (rt) { if (rt[0].test(e.InternalName || '')) filter.tiers = [rt[1]]; }); // Gumball: Đồng [WIKI2 E7]
     R.ooc.withState(ctx, function (S) {
@@ -134,10 +135,16 @@
     return { deals: deals, overflow: overflow, ran: ran };
   };
   // Bậc của phần thưởng mà chữ không nêu bậc ("Get a Small Tool" của Utility Box Bạc): bậc của chính thẻ sự kiện (bazaardb ghi mỗi bậc
-  // một bản "Get a Silver-tier ..."), không phải bậc gieo theo ngày. Chỉ thẻ SỰ KIỆN (bước con mang StartingTier mặc định Đồng: bước
-  // "Roast It" của Finn's Vàng là Đồng), chỉ vật phẩm (thầy dạy kỹ năng theo dải bậc), không đụng "copy of any item".
-  St.encTier = function (f, e) {
-    if (f && f.kind !== 'skill' && !R.filterEmpty(f) && !(f.tiers && f.tiers.length) && !f.copy && e && e.StartingTier && R.enc().events[e.Id] === e) f.tiers = [e.StartingTier];
+  // một bản "Get a Silver-tier ..."), không phải bậc gieo theo ngày. Chỉ vật phẩm (thầy dạy kỹ năng theo dải bậc), không đụng "copy of any item".
+  // Bước con chọn từ màn sự kiện (đợt 9e, R1-3): bậc của chính bước, không cao hơn sự kiện cha đang bày nó (lên cấp, Fates, bước nối tiếp: như cũ): bazaardb events.json ghi bậc từng lựa chọn và khớp
+  // StartingTier của bước (The Lost Crate Bạc / "Open It" SILVER; Likit Bạc / "Test New Treats" BRONZE; mọi bước Đồng của Finn's Vàng BRONZE).
+  // Bộ lọc chỉ có "non-X" ("Get a non-Weapon item" của Recycling Center) cũng là lọc vật phẩm (trước bị coi là rỗng nên chia theo dải ngày).
+  St.encTier = function (f, e, parent) {
+    if (!f || f.kind === 'skill' || (f.tiers && f.tiers.length) || f.copy || !e || !e.StartingTier) return f;
+    if (R.filterEmpty(f) && !(f.kind === 'item' && f.not && f.not.length)) return f;
+    var E = R.enc();
+    if (E.events[e.Id] === e) f.tiers = [e.StartingTier];
+    else if (parent && parent.StartingTier && E.steps[e.Id] === e) f.tiers = [R.tierIndex(parent.StartingTier) < R.tierIndex(e.StartingTier) ? parent.StartingTier : e.StartingTier];
     return f;
   };
   // Mô tả không kèm ability ("Study (Default Option): Gain 2 XP")

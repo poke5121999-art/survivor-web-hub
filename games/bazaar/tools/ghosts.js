@@ -9,7 +9,7 @@
  *
  * Chọn bóng (2026-10-10 v2): "thắng quái ≥ 50%" không đo thứ cần đo. Mỗi ứng viên đấu một mẫu bàn bot KHÁC cùng ngày (quần thể,
  * mọi hero, SEEDS hạt giống, bóng mang máu tối đa của chính bản ghi như luật thật, WIKI2 R3) ⇒ pG = tỉ lệ bóng thắng quần thể. Giữ bóng sao cho trung bình
- * pG ≈ TARGET (0.5) mỗi ngày ⇒ bot thắng bộ bóng 45-55% ở MỌI ngày, vẫn chia đều hero/kiểu bàn. Số báo cáo đo trên mẫu ĐỘC LẬP (holdout).
+ * pG ≈ TARGET (0.5; ngày 1-3 TARGET_EARLY 0.3) mỗi ngày ⇒ bot thắng bộ bóng 45-55% ở MỌI ngày, vẫn chia đều hero/kiểu bàn. Số báo cáo đo trên mẫu ĐỘC LẬP (holdout).
  *
  * Chạy lại:  node games/bazaar/tools/ghosts.js            (cùng dữ liệu + cùng tham số ⇒ cùng tệp ra, tất định)
  *   RUNS=100   số run mỗi hero (mặc định 100)      PER_DAY=16   số bóng giữ mỗi ngày (12-20)
@@ -32,6 +32,11 @@ const SEED = +(process.env.SEED || 7);
 const MIN_WIN = +(process.env.MIN_WIN || 0.5);
 const DRY = !!process.env.DRY;
 const TARGET = +(process.env.TARGET || 0.5);       // tỉ lệ bóng thắng quần thể mong muốn (bot thắng bóng = 1 - TARGET)
+// Đợt 9e (R1-6): ngày 1..EARLY_DAYS nhắm bóng yếu hơn. Quần thể đo là bot thông minh của tệp này; người chơi mới / bot tham (measure.js)
+// với bàn 3-4 thẻ thua 70-87 % ngày 1-3 khi bóng cân ở 0,5 (người chơi thử R1: thắng 1/5, 1/5, 0/5). [ĐỀ XUẤT]
+const TARGET_EARLY = +(process.env.TARGET_EARLY || 0.3);
+const EARLY_DAYS = +(process.env.EARLY_DAYS || 3);
+const targetOf = d => (d <= EARLY_DAYS ? TARGET_EARLY : TARGET);
 const SAMPLE = +(process.env.SAMPLE || 30);        // số bàn quần thể mỗi mẫu (mẫu chọn và mẫu kiểm độc lập)
 const SEEDS = +(process.env.SEEDS || 1);           // số hạt giống mỗi cặp
 const BEFORE = process.env.BEFORE;                 // (dev) tệp ghosts.js cũ để in bảng "trước"
@@ -445,7 +450,7 @@ function doJob(job) {
   return res;
 }
 // Chọn PER_DAY bóng: đa dạng hero/kiểu, rồi hoán đổi cùng hero để trung bình pG sát TARGET
-function selectDay(uniq) {
+function selectDay(uniq, TARGET) {
   let ok = uniq.filter(g => g.win >= 0.25);
   if (ok.length < 4 * PER_DAY) ok = uniq.slice();
   const hc = {}, ac = {}, kept = [], left = ok.slice().sort((a, b) => a.i - b.i);
@@ -482,7 +487,7 @@ function loadBefore() {
 function finish(heroes, cand, U, SM, runs, errors, t0) {
   const byDay = {}, rep = [], used = {}, nameR = rng(SEED * 17 + 3), before = loadBefore(), hj = [], KEPT = {};
   for (let d = 1; d <= 10; d++) {
-    const uniq = U[d], kept = selectDay(uniq).sort((a, b) => a.i - b.i);
+    const uniq = U[d], kept = selectDay(uniq, targetOf(d)).sort((a, b) => a.i - b.i);
     byDay[d] = kept.map(g => ({ name: makeName(nameR, used), hero: g.hero, level: g.level, day: g.day, wins: g.wins, healthMax: g.healthMax, cards: g.cards }));
     const per = {}, ac = {}; kept.forEach(g => { per[g.hero] = (per[g.hero] || 0) + 1; ac[g.arch] = 1; });
     const pop = SM[d].H, sel = 1 - kept.reduce((s, g) => s + g.pg, 0) / kept.length;

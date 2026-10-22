@@ -1,7 +1,7 @@
 /*
  * Chợ Phiên (games/bazaar) — kiểm vòng chơi js/run/* (reducer thuần, tất định) bằng Node, không cần trình duyệt.
  * Chạy:  node test/bazaar-run.js              (mọi phần; quét bot 200 run mỗi hero chơi được)
- *        SWEEP=20 node test/bazaar-run.js     bớt số run quét;  ONLY=rules|pha4|fix9|fix9b|fix9c|fix9d|det|sweep  chỉ chạy một phần
+ *        SWEEP=20 node test/bazaar-run.js     bớt số run quét;  ONLY=rules|pha4|fix9|fix9b|fix9c|fix9d|fix9e|det|sweep  chỉ chạy một phần
  *
  * Số kỳ vọng tính tay từ dữ liệu:
  * - giá: game_modes.json StandardPrices (Small Bronze 2/1, Medium Silver 8/4, Large Gold 24/12, Small Legendary 24/12,
@@ -532,7 +532,7 @@ function fixes() {
   eq('FLOW-2: bậc theo ngày 15 = Diamond; bảng bậc dòng cuối [0,0,25,75]', [R.bandTier({ day: 15 }), R.TUNING.TIER_ODDS_BY_DAY[9]], ['Diamond', [0, 0, 25, 75]]);
   const lvAt = d => { const s = new Set(); for (let sd = 1; sd <= 60; sd++) { const x = R.newRun({ hero: 'Vanessa', seed: sd }); x.day = d; R.ENCOUNTERS.combat.options(x).forEach(o => s.add(o.level)); } return [Math.min(...s), Math.max(...s)]; };
   eq('FLOW-2: quái giờ PvE ngày 10 cấp 10..15 (PVE_BY_DAY); ngày 11 và 17 giống ngày 10 (không hết quái)', [lvAt(10), lvAt(11), lvAt(17)], [[10, 15], [10, 15], [10, 15]]);
-  eq('quái giờ PvE ngày 1 chỉ cấp 1, ngày 6 cấp 6..9 (PVE_BY_DAY theo wiki)', [lvAt(1), lvAt(6)], [[1, 1], [6, 9]]);
+  eq('quái giờ PvE ngày 1 chỉ cấp 1, ngày 6 cấp 6..10 (PVE_BY_DAY theo wiki; cấp của trang quái từ đợt 9e: Lich L10)', [lvAt(1), lvAt(6)], [[1, 1], [6, 10]]);
   run = baseRun(); run.day = 14; run.hour = 5; R.ENCOUNTERS.combat.enterPvp({ run, events: [] });
   eq('FLOW-2: bóng PvP ngày 14: máu ngoại suy 4062 + 3×700 = 6162, có thẻ trên bàn', [run.phase.opponent.board.healthMax, run.phase.opponent.board.cards.length > 0], [6162, true]);
   let bad = 0;
@@ -1165,7 +1165,8 @@ function fix9c() {
   eq('P1-12 Ande ngày 1 × 200 seed: có món giảm giá, không món "giảm" nào giữ nguyên giá', [disc > 0, flat], [true, 0]);
 
   // P1-10 / P3-4 (phần reducer): pha fightResult mang phần thưởng quái treo để tấm "Phần thưởng" không lộ kết quả khi đang phát lại
-  run = fresh('Stelle'); run.day = 1;
+  // máu 10: Kyver Drone (100 máu) hạ bàn trống trước bão cát (bão legacy từ đợt 9e hạ quái ngày 1 trước bàn trống 300 máu, như Mobalytics "100% free")
+  run = fresh('Stelle'); run.day = 1; run.healthMax = 10;
   const kyver = Object.values(E.combats).find(x => x.InternalName === 'Kyver Drone');
   R.ENCOUNTERS.combat.enter({ run, events: [] }, { id: kyver.Id }, 'endHour');
   r = R.apply(run, { t: 'fight' });
@@ -1196,7 +1197,7 @@ function fix9c() {
   eq('P3-13 bóng có Plasma Whip (HIDDEN_CARDS): chỉ còn Med Kit', gb, ['Med Kit']);
 
   // P2-1 / P3-1 (sửa trong pool.js trước đợt này): Maximus có hàng cho mọi hero, đúng chủ đề
-  const want = ['Health', 'Shield', 'Weapon', 'Damage', 'Cooldown'], maxi = { empty: [], off: [] };
+  const want = ['Health', 'Heal', 'Regen', 'Shield', 'Damage', 'Haste', 'Cooldown'], maxi = { empty: [], off: [] }; // bảng SKILL_THEME đợt 9e (R1-5)
   ['Vanessa', 'Pygmalien', 'Dooley', 'Mak', 'Stelle', 'Jules', 'Karnok'].forEach(hero => {
     for (const day of [1, 2, 4, 8]) {
       run = R.newRun({ hero, seed: day * 3 }); run.day = day;
@@ -1205,7 +1206,7 @@ function fix9c() {
       st.forEach(s => { if (!want.some(t => tagsOf(s.card.id).includes(t))) maxi.off.push(titleOf(s.card.id)); });
     }
   });
-  eq('P2-1 Maximus × 7 hero × ngày 1/2/4/8: không sạp rỗng, mọi món mang Health/Shield/Weapon/Damage/Cooldown', maxi, { empty: [], off: [] });
+  eq('P2-1 Maximus × 7 hero × ngày 1/2/4/8: không sạp rỗng, mọi món mang Health/Heal/Regen/Shield/Damage/Haste/Cooldown', maxi, { empty: [], off: [] });
 }
 
 // ---------- Đợt 9d: luật và số theo wiki (D:\bazaar-ref\review9\wiki\WIKI2.md; bản chép wiki D:\bazaar-ref\wiki2\pages) ----------
@@ -1436,6 +1437,102 @@ function fix9d() {
 }
 function St0() { return R.ENCOUNTERS.step; }
 
+// Đợt 9e: lỗi mới của người chơi thử lại D:\bazaar-ref\review9\play\R1\RETEST.md (R1-2 ... R1-7), báo cáo D:\bazaar-ref\review9\FIX-R1.md
+function fix9e() {
+  console.log('\n# Đợt 9e: R1-2 ... R1-7 (người chơi thử lại R1)');
+  const E = globalThis.BZ_ENCOUNTERS, M = globalThis.BZ_MONSTERS, Cb = R.ENCOUNTERS.combat;
+  const ev = n => Object.values(E.events).find(x => x.InternalName === n) || Object.values(E.events).find(x => x.Title === n);
+  const titleOf = id => R.title(R.tpl(id));
+  const uniq = a => [...new Set(a)].sort();
+  const block = (name, fn) => { try { fn(); } catch (e) { check(name + ' (lỗi: ' + String(e && e.message).slice(0, 120) + ')', false, String(e && e.stack).split('\n').slice(0, 3).join(' | ')); } };
+  const fresh = (hero, seed, day) => { const x = R.newRun({ hero: hero || 'Vanessa', seed: seed || 5 }); x.board.hand = []; x.board.stash = []; x.board.skills = []; x.day = day || 3; x.hour = 1; x.phase = { kind: 'choose', options: [] }; return x; };
+  const monBoard = n => { const c = Object.values(E.combats).find(x => x.Title === n || x.InternalName === n); return BZ.boardFromMonster(M.find(m => m.Id === c.Monster), 'm' + n.length); };
+
+  // R1-2: bão cát legacy (nhịp rút tới sàn 200 ms, ở sàn +1 mỗi nhịp) phải kết thúc trận bàn hồi máu; hết giờ vẫn tính thua
+  block('R1-2 bão cát', () => {
+    const pairs = [['Joyful Jack', 'Sergeant Suds'], ['Joyful Jack', 'Hulking Experiment'], ['Sergeant Suds', 'Treasure Turtle'], ['Joyful Jack', 'Joyful Jack']];
+    const got = pairs.map(([a, b]) => { const r = BZ.run({ boards: [monBoard(a), monBoard(b)], seed: 1, frames: false }); return [r.winner, r.endMs]; });
+    eq('R1-2 (Version 0.1.3 "Dramatically increased the floor tick rate of Sandstorm to accelerate the end of combat"; CombatSim.cs:18 chỉ có Winner Player|Opponent): bốn cặp bàn quái hồi máu (trước: cả bốn hoà ở 120 s) nay có người thắng [winner, endMs]',
+      got, [[0, 65800], [0, 52400], [1, 65000], [1, 77800]]);
+    eq('R1-2: BZSim.SANDSTORM = công thức legacy (nền 1, nhịp 1000 − 100 tới sàn 200, +1 ở sàn), bão ở 30 s', BZ.SANDSTORM,
+      { countdownStart: 25000, countdown: 5000, baseDamage: 1, baseTickRate: 1000, tickRateDecrement: 100, tickRateFloor: 200, additiveScalar: 1 });
+    const run = fresh('Mak', 401, 8), ctx = { run, events: [] };
+    Cb.enter(ctx, Cb.ref(Object.values(E.combats).find(c => c.InternalName === 'Kyver Drone')), 'endHour');
+    const realRun = BZ.run; BZ.run = () => ({ winner: 'draw', endMs: 120000, frames: [], players: [{ healthMax: 300, health: 10 }, { healthMax: 100, health: 100 }] });
+    let r; try { r = R.apply(run, { t: 'fight' }); } finally { BZ.run = realRun; }
+    eq('R1-2: nếu vẫn hết 120 s thì là thua (legacy BazaarCardDealer.cs:4037 người thắng mặc định là đối thủ): won false, winner draw, không XP',
+      [r.run.phase.won, r.run.phase.winner, r.run.phase.rewards.xp || 0], [false, 'draw', 0]);
+  });
+
+  // R1-3: phần thưởng không nêu bậc theo bậc sự kiện, cả bộ lọc "non-X" và bước con
+  block('R1-3 bậc thưởng', () => {
+    const tiersOf = (name, choice, day, seeds) => { const out = []; for (let sd = 1; sd <= seeds; sd++) {
+      const run = fresh('Mak', sd, day); const ctx = { run, events: [] }; R.ENCOUNTERS.event.enter(ctx, { id: ev(name).Id }, 'endHour');
+      if (choice) { const i = (run.phase.choices || []).findIndex(c => c.name === choice); if (i < 0) continue; const r = R.apply(run, { t: 'choose', i }); if (!r.ok) continue; r.run.phase.picks && r.run.phase.picks.forEach(p => out.push(p.card.tier)); }
+      else (run.phase.picks || []).forEach(p => out.push(p.card.tier)); } return uniq(out); };
+    eq('R1-3 Recycling Center Bạc ("Get a non-Weapon item", bazaardb mỗi bậc một bản "Get a <bậc>-tier non-Weapon item"): ngày 3 x 30 seed chỉ ra Bạc (trước: Đồng theo dải ngày)',
+      tiersOf('Recycling Center', null, 3, 30), ['Silver']);
+    eq('R1-3 The Lost Crate Bạc / "Open It" (bazaardb choice tier SILVER, "Get a Medium item"): ngày 2 x 30 seed chỉ ra Bạc', tiersOf('The Lost Crate', 'Open It', 2, 30), ['Silver']);
+    eq('R1-3 Likit Bạc / "Test New Treats" (bước Đồng, bazaardb BRONZE): ngày 8 vẫn Đồng, không lên theo sự kiện hay theo ngày', tiersOf('Likit', 'Test New Treats', 8, 30), ['Bronze']);
+  });
+
+  // R1-4 / R1-7: máu và cấp trên thẻ xem trước = trang quái wiki = bàn vào trận
+  block('R1-4/R1-7 máu + cấp', () => {
+    const at = (d, n) => Cb.dayEntries(d).find(x => x.c.Title === n || x.c.InternalName === n);
+    const show = (d, n) => { const x = at(d, n), r = Cb.ref(x.c, x), run = fresh('Dooley', 1, d), ctx = { run, events: [] }; Cb.enter(ctx, r, 'endHour');
+      return [r.tier, r.health, r.level, run.phase.opponent.board.healthMax, run.phase.opponent.board.level]; };
+    eq('R1-4 (trang quái wiki health): Joyful Jack ngày 8 Đồng 1650 (trước 1550, ngày 7 đã 1650); Covetous Thief ngày 2 400; Bloodreef Raider ngày 4 650; Master Alchemist ngày 10 2500; thẻ xem trước = bàn vào trận',
+      [[8, 'Joyful Jack'], [2, 'Covetous Thief'], [4, 'Bloodreef Raider'], [10, 'Master Alchemist']].map(([d, n]) => show(d, n)),
+      [['Bronze', 1650, 8, 1650, 8], ['Silver', 400, 3, 400, 3], ['Silver', 650, 5, 650, 5], ['Bronze', 2500, 10, 2500, 10]]);
+    eq('R1-7 (trang quái wiki level): Giant Mosquito ngày 2 Đồng L2 (trước L5 của thẻ Vàng mượn), Rogue Scrapper ngày 2 L4, Boarrior L3; Yerdan ngày 9 L10, Oasis Guardian L9; Thug ngày 7 L8, Chilly Charles L9',
+      [[2, 'Giant Mosquito'], [2, 'Rogue Scrapper'], [2, 'Boarrior'], [9, 'Yerdan'], [9, 'Oasis Guardian'], [7, 'Thug'], [7, 'Chilly Charles']].map(([d, n]) => show(d, n).slice(0, 3)),
+      [['Bronze', 200, 2], ['Silver', 350, 4], ['Gold', 400, 3], ['Bronze', 1925, 10], ['Silver', 2325, 9], ['Silver', 1550, 8], ['Gold', 2100, 9]]);
+    let bad = [];
+    for (let d = 1; d <= 10; d++) Cb.dayEntries(d).forEach(x => { const s = show(d, x.c.Title || x.c.InternalName); if (s[1] !== s[3] || s[2] !== s[4]) bad.push(d + ' ' + x.c.Title); });
+    eq('R1-4: 88 mục ngày 1-10, máu / cấp xem trước khác bàn vào trận: 0', bad, []);
+  });
+
+  // R1-5: Maximus chỉ bày đồ đúng chủ đề
+  block('R1-5 Maximus', () => {
+    const mx = ev('Maximus'), f = R.parseFilter(mx.Desc);
+    eq('R1-5 bộ lọc Maximus "Sells Health, Speed, Strength and Toughness items": Health/Heal/Regen, Haste/Cooldown, Damage, Shield (không còn Weapon trơn)', f.any.slice().sort(),
+      ['Cooldown', 'Damage', 'Haste', 'Heal', 'Health', 'Regen', 'Shield']);
+    const theme = ['Health', 'Heal', 'Regen', 'Haste', 'Cooldown', 'Damage', 'Shield'], off = {}, noDmgWeapon = {}, healSpeed = {}; let n = 0;
+    R.HEROES_PLAYABLE.forEach(h => { for (let sd = 1; sd <= 30; sd++) { const run = R.newRun({ hero: h, seed: sd }); run.day = 1 + sd % 9;
+      R.ENCOUNTERS.merchant.dealStock(run, mx).forEach(s => { n++; const t = R.tpl(s.card.id), tg = (t.Tags || []).concat(t.HiddenTags || []);
+        if (!theme.some(g => tg.indexOf(g) >= 0)) off[R.title(t)] = 1;
+        if (!['Health', 'Damage', 'Shield', 'Cooldown', 'Weapon'].some(g => tg.indexOf(g) >= 0)) healSpeed[R.title(t)] = 1;
+        if (tg.indexOf('Weapon') >= 0 && !theme.some(g => tg.indexOf(g) >= 0 && g !== 'Cooldown' && g !== 'Haste')) noDmgWeapon[R.title(t)] = 1; }); } });
+    eq('R1-5: 7 hero x 30 lần bày (' + n + ' thẻ): 0 thẻ không mang chủ đề nào, 0 vũ khí không gây Damage / Shield / Heal', [n > 500, Object.keys(off), Object.keys(noDmgWeapon)], [true, [], []]);
+    check('R1-5: có đồ Heal / Regen / Haste thuần (Bar of Soap, Starfish, Spark Plug...) trong 630 thẻ: ' + Object.keys(healSpeed).length + ' tên (trước: 0, "Health" chỉ là Max Health, "Speed" chỉ là Cooldown)', Object.keys(healSpeed).length >= 10, Object.keys(healSpeed).slice(0, 8));
+  });
+
+  // R1-6: bot tham (D:\bazaar-ref\review9\wiki\measure.js: mua món đắt nhất, PvE ô đầu) đấu bộ bóng data/ghosts.js ngày 1-3
+  block('R1-6 bóng đầu game', () => {
+    const fs = require('fs'), G = {}; new Function('window', 'globalThis', fs.readFileSync(path.join(ROOT, 'games/bazaar/data/ghosts.js'), 'utf8'))(G, G);
+    const byDay = G.BZ_GHOSTS.byDay;
+    const ghostBoard = (g, i) => ({ name: g.name, hero: g.hero, level: g.level, healthMax: g.healthMax, cards: g.cards.map((c, k) => ({ uid: 'g' + i + '-' + k, id: c.id, tier: c.tier, ench: c.ench || null, socket: c.socket, size: c.size, section: c.section })) });
+    const greedy = run => { const L = R.legal(run).filter(c => c.t !== 'move'), ph = run.phase, has = t => L.filter(c => c.t === t);
+      if (ph.kind === 'merchant') { const b = has('buy'); return b.length ? b.reduce((a, c) => (ph.stock[c.i].price > ph.stock[a.i].price ? c : a)) : { t: 'leave' }; }
+      if (ph.kind === 'choose') { if (run.hour === R.TUNING.PVE_HOUR) return { t: 'pick', i: 0 }; const mi = ph.options.findIndex(o => o.type === 'merchant'); if (run.gold >= 4 && mi >= 0) return { t: 'pick', i: mi }; const ei = ph.options.findIndex(o => o.type !== 'merchant'); return { t: 'pick', i: ei >= 0 ? ei : 0 }; }
+      for (const t of ['choose', 'next', 'leave']) { const x = has(t); if (x.length) return x[0]; }
+      const s = has('sell'); return s.length ? s[0] : null; };
+    const boards = { 1: [], 2: [], 3: [] };
+    R.HEROES_PLAYABLE.forEach(hero => { for (let sd = 1; sd <= 4; sd++) {
+      let run = R.newRun({ hero, seed: sd * 7919 + 13 }), n = 0;
+      while (run.phase.kind !== 'end' && run.day <= 3 && n++ < 2000) {
+        if (run.phase.kind === 'fight' && run.phase.combatType === 'PVP') { boards[run.day].push(R.playerBoard(run)); }
+        const cmd = run.phase.kind === 'fight' ? { t: 'fight' } : greedy(run); if (!cmd) break;
+        const r = R.apply(run, cmd); if (!r.ok) break; run = r.run;
+      } } });
+    const rate = d => { let w = 0, k = 0; boards[d].forEach((b, bi) => byDay[String(d)].forEach((g, gi) => {
+      const r = BZ.run({ boards: [JSON.parse(JSON.stringify(b)), ghostBoard(g, gi)], seed: 5000 + bi * 7 + gi, combatType: 'PVP', day: d, hour: 5, frames: false }); k++; if (r.winner === 0) w++; })); return Math.round(100 * w / Math.max(1, k)); };
+    const got = [1, 2, 3].map(rate);
+    check('R1-6 (người chơi thử R1: thắng PvP ngày 1-3 1/5, 1/5, 0/5): bot tham 7 hero x 4 seed đấu bộ bóng ngày 1/2/3 thắng ' + got.join('/') + ' % (cần 40-60 % mỗi ngày)',
+      got.every(x => x >= 40 && x <= 60), got);
+  });
+}
+
 if (!ONLY || ONLY === 'rules') rules();
 if (!ONLY || ONLY === 'rules' || ONLY === 'pha4') pha4();
 if (!ONLY || ONLY === 'rules' || ONLY === 'pha4') fixes();
@@ -1445,6 +1542,7 @@ if (!ONLY || ONLY === 'rules' || ONLY === 'pha4' || ONLY === 'fix9') fix9();
 if (!ONLY || ONLY === 'rules' || ONLY === 'pha4' || ONLY === 'fix9b') fix9b();
 if (!ONLY || ONLY === 'rules' || ONLY === 'pha4' || ONLY === 'fix9c') fix9c();
 if (!ONLY || ONLY === 'rules' || ONLY === 'pha4' || ONLY === 'fix9d') fix9d();
+if (!ONLY || ONLY === 'rules' || ONLY === 'pha4' || ONLY === 'fix9e') fix9e();
 if (!ONLY || ONLY === 'det') determinism();
 if (!ONLY || ONLY === 'sweep') sweep();
 console.log('\n' + pass + ' ok, ' + fail + ' fail');

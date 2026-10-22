@@ -24,10 +24,13 @@
   BZ.MIN_COOLDOWN = 1000;    // [ĐỀ XUẤT] sàn = trần 1/20 CooldownMax mỗi khung của bản legacy (BazaarCardDealer.cs:4414)
   BZ.RAGE_MAX = 100;         // tooltip Rage "Reach 100 Rage"
   BZ.ENRAGE_MS = 5000;       // [ĐỀ XUẤT] EnragedDurationMax mặc định: mọi quái có trường này đều để 5000 (monsters.json)
-  // [ĐỀ XUẤT, COMBAT-04] TGameModeConfigSandstorm bị xoá. Clip hV5vwlc_tBE?t=100 (bản cũ ~1.0.2625): hai bên chịu -22, -25, -29, -31, -33, -37
-  // lấy mẫu mỗi 2 s ≈ +1,8/s. Giữ mốc 30 s (25 s + 5 s đếm ngược), nhịp hằng định 1 s, mỗi nhịp +2 (công thức cũ dốc ~+5/s ở cuối).
+  // Bão cát: công thức legacy (BazaarCardDealer.cs:4247-4285, trường TGameModeConfigSandstorm.cs:5-18): đánh BaseDamage, mỗi nhịp rút
+  // khoảng nhịp TickRateDecrement tới sàn TickRateFloor, ở sàn mỗi nhịp +AdditiveScalar. Số bị xoá khỏi dữ liệu → [ĐỀ XUẤT] CODE-COMBAT §1.11
+  // (1000/100/200/1). Version 0.1.3: "Dramatically increased the floor tick rate of Sandstorm to accelerate the end of combat" (WIKI2 R4).
+  // Bản cũ (nhịp 1 s, +2/nhịp, R1-2 đợt 9e) không thắng nổi bàn hồi máu: 30/1488 trận bóng-quái/bóng-bóng hết 120 s; bản này 0, trận dài nhất 55,6 s.
+  // (Clip hV5vwlc_tBE?t=100, bản cũ ~1.0.2625, đo được dốc chậm hơn ≈ +1,8/s: không còn dùng, xem README Combat.)
   BZ.SANDSTORM = {
-    countdownStart: 25000, countdown: 5000, baseDamage: 1, tick: 1000, addPerTick: 2
+    countdownStart: 25000, countdown: 5000, baseDamage: 1, baseTickRate: 1000, tickRateDecrement: 100, tickRateFloor: 200, additiveScalar: 1
   };
 
   BZ.TIERS = ['Bronze', 'Silver', 'Gold', 'Diamond', 'Legendary'];

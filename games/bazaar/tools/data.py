@@ -225,6 +225,25 @@ WIKI_MONSTER_HP = {'Kyver Drone': 100, 'Rogue Scrapper': 350, 'Boarrior': 400, '
                    'Boss Harrow': 2750}
 WIKI_PATCH_HP = {'Kyver Drone', 'Rogue Scrapper', 'Boarrior', 'Mod Squad', 'Scovyle', 'Lich', 'Chilly Charles', 'Ghost Pepper',
                  'Infernal Frigate', 'Yerdan'}
+# Đợt 9e (R1-4, R1-7): máu VÀ cấp của MỌI mục ngày lấy từ trang quái của bản chép wiki (`| health = ` / `| level = `), không chỉ các
+# tên ở trên. Trước đó Joyful Jack ngày 7 (thẻ mượn) 1650 máu nhưng ngày 8 (thẻ đúng bậc) 1550 của bản demo; 12 mục lệch máu
+# (Covetous Thief 300 → 400, Bloodreef Raider 450 → 650...) và cấp hiện trên thẻ là cấp mẫu demo (Giant Mosquito ngày 2: thẻ Vàng
+# mượn L5, wiki L2). Không có bản chép: dùng WIKI_MONSTER_HP như cũ, cấp của bản demo.
+WIKI_PAGES = r"D:\bazaar-ref\wiki2\pages"
+
+
+def wiki_monster(name):
+    """(health, level) từ `<WIKI_PAGES>/<name>.wiki` (chỉ nhận số nguyên); thiếu trang / trường thì None."""
+    p = os.path.join(WIKI_PAGES, name + ".wiki")
+    if not os.path.isfile(p):
+        return None, None
+    with io.open(p, encoding="utf-8") as f:
+        t = f.read()
+    out = []
+    for key in ("health", "level"):
+        m = re.search(r"^\s*\|\s*" + key + r"\s*=\s*(\d+)\s*$", t, re.M)
+        out.append(int(m.group(1)) if m else None)
+    return tuple(out)
 
 
 def pve_norm(s):
@@ -257,10 +276,16 @@ def build_pve_days(combats, monsters):
             c = ([x for x in exact if x in suffix] or exact or suffix or cs)[0]
             gold, xp = PVE_REWARD_BY_TIER[tier]
             o = {"Combat": c["Id"], "Name": name, "Tier": tier, "Gold": gold, "Xp": xp}
-            hp0 = ((monsters.get(c["Monster"]) or {}).get("Player") or {}).get("Attributes", {}).get("HealthMax")
-            hp = WIKI_MONSTER_HP.get(name)
-            if hp and hp != hp0 and (c["StartingTier"] != tier or name in WIKI_PATCH_HP):
+            a0 = ((monsters.get(c["Monster"]) or {}).get("Player") or {}).get("Attributes", {})
+            hp0, lv0 = a0.get("HealthMax"), a0.get("Level")
+            whp, wlv = wiki_monster(WIKI_PVE_ALIAS.get(name, name))
+            if whp is None:
+                whp, wlv = wiki_monster(name)
+            hp = whp or WIKI_MONSTER_HP.get(name)
+            if hp and hp != hp0 and (whp or c["StartingTier"] != tier or name in WIKI_PATCH_HP):
                 o["Hp"] = hp
+            if wlv and wlv != lv0:
+                o["Lvl"] = wlv
             if c["StartingTier"] != tier:
                 moved.append(f"d{d} {name} {c['StartingTier']}->{tier}" + (f" hp {hp0}->{hp}" if "Hp" in o else ""))
             row.append(o)

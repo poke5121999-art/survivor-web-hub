@@ -123,6 +123,8 @@
     return vocab;
   }
   function esc(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+  // Chủ đề đồ của tên kỹ năng trong chữ thương nhân (Maximus), xem R.parseFilter
+  var SKILL_THEME = { Speed: ['Haste', 'Cooldown'], Strength: ['Damage'], Toughness: ['Shield'], Health: ['Health', 'Heal', 'Regen'] };
 
   // Đọc chữ → bộ lọc {kind, tiers, sizes, any, not, hero, names, enchanted, copy, unparsed}
   var parseCache = {};
@@ -175,14 +177,21 @@
       if (hit && !/^(Bronze|Silver|Gold|Diamond|Legendary|Small|Medium|Large)$/.test(w)) hit.forEach(function (x) { if (f.any.indexOf(x) < 0) f.any.push(x); });
     });
     // "Sells Health, Speed, Strength and Toughness items" (Maximus): Speed / Strength / Toughness là tên kỹ năng, ở đây là chủ đề đồ.
-    // Lọc vật phẩm mà khớp tên kỹ năng thì đổi tên thành tag của kỹ năng đó (Cooldown, Weapon/Damage, Shield); để nguyên là sạp rỗng.
+    // Lọc vật phẩm mà khớp tên kỹ năng thì đổi tên thành chủ đề (SKILL_THEME); để nguyên là sạp rỗng. Đợt 9e (R1-5): trước lấy mọi tag của
+    // thẻ kỹ năng (Strength mang tag Weapon nên mọi vũ khí lọt, kể cả món không gây sát thương), nay bảng chặt: Speed = Haste / giảm hồi chiêu,
+    // Strength = gây Damage, Toughness = Shield; "Health" đứng cùng chúng = Health (Max Health) / Heal / Regen. Maximus không có trang wiki /
+    // bazaardb nên bảng là [ĐỀ XUẤT].
     if (f.kind === 'item' && /\bitems?\b/i.test(s)) {
+      var themed = false;
       f.names = f.names.filter(function (n) {
         var ids = V.titles[n] || [], tp = ids.length && R.tpl(ids[0]);
         if (!tp || !R.isSkill(tp) || ids.some(function (id) { return !R.isSkill(R.tpl(id)); })) return true;
-        (tp.Tags || []).concat(tp.HiddenTags || []).forEach(function (g) { g = g.replace(/Reference$/, ''); if (f.any.indexOf(g) < 0) f.any.push(g); });
+        var th = SKILL_THEME[n] || (tp.Tags || []).concat(tp.HiddenTags || []).map(function (g) { return g.replace(/Reference$/, ''); });
+        th.forEach(function (g) { if (f.any.indexOf(g) < 0) f.any.push(g); });
+        if (SKILL_THEME[n]) themed = true;
         return false;
       });
+      if (themed && f.any.indexOf('Health') >= 0) SKILL_THEME.Health.forEach(function (g) { if (f.any.indexOf(g) < 0) f.any.push(g); });
     }
     parseCache[key] = R.clone(f);
     return f;

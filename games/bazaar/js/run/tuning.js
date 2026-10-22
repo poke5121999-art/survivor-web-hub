@@ -92,7 +92,8 @@
     GHOST_HP_STEP_AFTER: 700,
     // Ngày 6-7 ưu tiên ba bàn hero thật PVE_{Stelle,Jules,Karnok}_D6_001 (monsters.json, L7) [ĐỀ XUẤT CODE-RUN §1.4]
     GHOST_HERO_BOARDS: { days: [6, 7], match: /^PVE_(\w+)_D6_001$/ },
-    // Hết giờ (hoà) tính là thua cho người chơi [ĐỀ XUẤT: legacy BazaarCardDealer bàn 0 thua khi hết giờ, CODE-COMBAT §1.12]
+    // Hết giờ (hoà) tính là thua cho người chơi: legacy BazaarCardDealer.cs:4037 (người thắng mặc định là đối thủ, CODE-COMBAT §1.12);
+    // CombatSim.cs:18 chỉ có Winner Player|Opponent. Bão cát legacy (sim/core.js BZ.SANDSTORM) làm trận kết thúc trước 120 s (R1-2, đợt 9e).
     DRAW_IS_LOSS: true,
 
     // ---- Fates (Futura aef5e7d8, CODE-RUN §1.5): uy tín về <= 0 lần đầu → về 1 rồi chọn 1 trong 3 phần thưởng mạnh ----
