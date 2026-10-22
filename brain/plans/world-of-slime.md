@@ -58,8 +58,8 @@ Mỗi pha xong = push + bộ kiểm của pha qua trên Pages + ảnh ghép gố
       lô (2 slime khởi đầu), phim tỉnh dậy, Setting/Account. Sở hữu: `js/intro/`, `css/intro.css`.
 - [x] F3 (`ba87e69d`, tame 33 + combat 34 + quest 70 + intro 54 PASS trên Pages) Bắt slime + đội: ném Cube (Q/E/R), lắc 1-3 lần, tỉ lệ theo máu còn lại, đặt tên slime, đội 1-6 (phím 1-6, C đổi),
       Slime Storage ở Allen, Slimepedia (B), túi đồ (I), dùng thuốc 30 HP Potion.
-- [ ] F4 Nhiệm vụ 7-14: Lucy, Martin, Patrol (Billy), Mysterious Researcher, Recovery, Tame, cùng các thẻ hướng dẫn.
-- [ ] F5 Hoàn thiện: đồ đạc trong nhà, mặt nước đài phun, bản mobile rà lại từng màn, âm thanh UI/đánh, thẻ hub
+- [x] F4 (`741de227`, quest2 48 PASS trên Pages) Nhiệm vụ 7-14: Lucy, Martin, Patrol (Billy), Mysterious Researcher, Recovery, Tame, cùng các thẻ hướng dẫn.
+- [ ] F5 Hoàn thiện (F5a đồ đạc/nước/cỏ/FX/ba lô xong ở `741de227`; F5b màu + mobile + test combat chập chờn đang chạy): đồ đạc trong nhà, mặt nước đài phun, bản mobile rà lại từng màn, âm thanh UI/đánh, thẻ hub
       (`data/games.js`, ảnh bìa từ game thật), kiểm toàn bộ trên Pages.
 
 ## Giả định đang dùng
