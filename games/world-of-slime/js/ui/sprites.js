@@ -1,7 +1,7 @@
 // Sprite giao diện từ repo asset (ui/<folder>/<name>.webp). Viền 9-slice chép từ ui/index.json ([l, b, r, t] px của
 // ảnh đã bóc) cho đúng những sprite HUD dùng, để không phải tải index.json 545 KB lúc vào game.
 // Image.color của Unity nhân màu vào sprite: CSS không nhân được nên `tinted()` nhân sẵn trên canvas rồi trả blob URL.
-import { assetUrl } from '../assets.js?v=20261022c';
+import { assetUrl } from '../assets.js?v=20261022d';
 
 export const BORDER = {
   'Common/Ui_Bg_Round_01_32px': [15, 15, 16, 16],
@@ -34,6 +34,18 @@ export const BORDER = {
   'Common/Btn_Square_02_Small_Blue': [36, 0, 104, 0],
   'Levelup/Ui_LevelUp_Bg': [0, 14, 0, 14],
   'MapText/UI_Map_Reveal_Paper_Outline': [45, 0, 45, 0],
+  // F3: túi, kho, bách khoa, ô slime (js/ui/panels.js, hud.js)
+  'Common/Ui_Bg_Round_01_40px': [19, 19, 19, 19],
+  'Common/Ui_Bg_Round_01_100px': [49, 49, 49, 49],
+  'Common/Ui_Bg_Rectangle_Round_02_42px': [16, 0, 19, 0],
+  'Common/Ui_Bg_Rectangle_Round_02_20px': [8, 0, 10, 0],
+  'Common/Ui_Frame_Outline': [60, 60, 60, 60],
+  'Common/Btn_Square_02_Large_Green': [56, 0, 162, 0],
+  'Product/UI_Bg_Product': [30, 0, 30, 0],
+  'SlimeInventoryUI/UI_Bg_Slimeslot': [65, 0, 64, 0],
+  'SlimeInventoryUI/UI_Bg_Slimeslot_Empty': [65, 0, 65, 0],
+  'SlimeInventoryUI/UI_BG_Slimeslot_Deco': [50, 0, 50, 0],
+  ...Object.fromEntries(['Dark', 'Electric', 'Fire', 'Grass', 'Ice', 'Light', 'Magic', 'Poison', 'Power', 'Soil', 'Steel', 'Water', 'Wind'].map(e => ['Element/UI_Bg_Element_' + e, [30, 0, 30, 0]])),
 };
 
 export const uiUrl = key => assetUrl('ui/' + key + '.webp');

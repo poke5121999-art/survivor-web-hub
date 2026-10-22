@@ -115,7 +115,7 @@ async function converse(page, picks = [], max = 60) {
 // slime hoang còn sống gần người chơi nhất
 const nearestMon = page => page.evaluate(() => {
   let b = null, bd = 1e9;
-  for (const m of WOS.combat.mons) { if (m.dead || m.team !== 'wild') continue; const d = Math.hypot(m.x - WOS.P.x, m.z - WOS.P.z); if (d < bd) { bd = d; b = { id: m.def.id, x: m.x, z: m.z, d }; } }
+  for (const m of WOS.combat.mons) { if (m.dead || m.team !== 'wild' || m.def.model !== 'SL_Slime_Grass') continue;   /* F3: rừng có thêm Mandrake */ const d = Math.hypot(m.x - WOS.P.x, m.z - WOS.P.z); if (d < bd) { bd = d; b = { id: m.def.id, x: m.x, z: m.z, d }; } }
   return b;
 });
 // đi tới gần một Junior Floralime rồi nhấn Space (KeyboardInteractAttack), đợi nó chết
@@ -195,8 +195,8 @@ async function main() {
     await until(page, () => WOS.npcs.length > 0 && WOS.combat.mons.length > 0, null, 20000);
     await wait(page, 1500); await shot(page, 'forest_entrance');
     s = await st(page);
-    const info = await page.evaluate(() => ({ npcs: WOS.npcs.map(n => n.def.name), mons: WOS.combat.mons.length, title: [...document.querySelectorAll('[data-hud="placeTitle"]')].map(e => e.dataset.title), map: WOS.state.map }));
-    check('nhãn "dựng theo clip", Martin, 7 Junior Floralime', s.label === 'dựng theo clip' && info.npcs.includes('Martin') && info.mons === 7, JSON.stringify(info.npcs) + ' ' + info.mons);
+    const info = await page.evaluate(() => ({ npcs: WOS.npcs.map(n => n.def.name), mons: WOS.combat.mons.filter(m => m.def.model === 'SL_Slime_Grass').length, man: WOS.combat.mons.filter(m => m.def.model === 'SL_Mandrake_Grass').length, title: [...document.querySelectorAll('[data-hud="placeTitle"]')].map(e => e.dataset.title), map: WOS.state.map }));
+    check('nhãn "dựng theo clip", Martin, 7 Junior Floralime + 2 Mandrake (F3)', s.label === 'dựng theo clip' && info.npcs.includes('Martin') && info.mons === 7 && info.man === 2, JSON.stringify(info.npcs) + ' ' + info.mons + '+' + info.man);
     check('HUD: Shadow Forest / Shadow Forest Entrance', info.map.name === 'Shadow Forest' && info.map.detail === 'Shadow Forest Entrance', JSON.stringify(info.map));
 
     console.log('Đánh Junior Floralime');

@@ -7,12 +7,13 @@
 // game.js chỉ gọi: setMap(map, info), command(aim) -> bool, recall(), startDuel(), update(dt, cam) -> bool (true = đang lái
 // slime đồng hành S), và đọc `events` (test).
 import * as THREE from 'three';
-import { Slime } from '../actors/actors.js?v=20261022c';
-import { RULES, META, elementOf, makeRng, rollDamage } from './rules.js?v=20261022c';
-import { CombatUI } from './ui.js?v=20261022c';
-import { state, set } from '../state.js?v=20261022c';
-import { L } from '../../data/quest_text.js?v=20261022c';
-import { assetUrl } from '../assets.js?v=20261022c';
+import { Slime } from '../actors/actors.js?v=20261022d';
+import { RULES, META, elementOf, makeRng, rollDamage } from './rules.js?v=20261022d';
+import { CombatUI } from './ui.js?v=20261022d';
+import { state, set } from '../state.js?v=20261022d';
+import { L } from '../../data/quest_text.js?v=20261022d';
+import { assetUrl } from '../assets.js?v=20261022d';
+import { displayName } from '../party/roster.js?v=20261022d';
 
 // màu quả cầu / tia theo hệ [ĐỀ XUẤT]: prefab FX_EN0_RangeAtk_*_EnergyBall chưa xuất
 const ELEM_COL = { 20001: 0xff7a4c, 20002: 0x63c9ff, 20005: 0x8ee65a, 20007: 0xffe066, 20012: 0xb07cff };
@@ -30,7 +31,6 @@ export class Combat {
     this.events = [];
     this.pt = { target: null, actT: 0, phase: null, skillCd: 0, pending: null, linger: 0, syncT: 0 };
     this.duel = null;
-    this.elem = elementOf(state.party[0] && state.party[0].id);
     this.loadPartner();
     const g = new THREE.CylinderGeometry(0.045, 0.045, 1, 6, 1, true); g.translate(0, 0.5, 0); g.rotateX(Math.PI / 2);
     this.beam = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: BEAM_COL, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
@@ -39,23 +39,28 @@ export class Combat {
   }
   ev(kind, d = {}) { this.events.push({ t: Math.round(performance.now()), kind, ...d }); if (this.events.length > 400) this.events.shift(); }
 
-  // ---- chỉ số đồng hành: cấp/EXP ở engine.save.slime (lv, exp), máu/MP/thể lực là phần 0..1 như bản lưu cũ
+  // ---- chỉ số đồng hành = bản ghi slime đang đồng hành (F3: engine.roster.active(), khuôn ở js/state.js): cấp, EXP,
+  // máu/MP/thể lực là phần 0..1 của mức tối đa theo cấp. Đổi slime (phím 1-6) thì game.js gọi lại loadPartner().
   loadPartner() {
-    const sv = this.c.engine.save.slime;
-    this.lv = sv.lv || 1; this.exp = sv.exp || 0;
+    const r = this.rec = this.c.engine.roster.active();
+    if (!r) return;
+    this.elem = elementOf(r.typeId);
+    this.lv = r.level || 1; this.exp = r.exp || 0;
     const P = RULES.partner;
     this.maxHp = P.hp(this.lv); this.maxMp = P.mp(this.lv);
-    this.hp = Math.max(1, (sv.hp ?? 1) * this.maxHp); this.mp = (sv.mp ?? 1) * this.maxMp; this.st = sv.st ?? 1;
+    this.fainted = !!r.fainted || r.hp <= 0;
+    this.hp = this.fainted ? Math.max(0, r.hp * this.maxHp) : Math.max(1, (r.hp ?? 1) * this.maxHp); this.mp = (r.mp ?? 1) * this.maxMp; this.st = r.stamina ?? 1;
     this.pushParty();
   }
   pushParty(persist) {
-    const sv = this.c.engine.save.slime;
-    sv.hp = this.hp / this.maxHp; sv.mp = this.mp / this.maxMp; sv.st = this.st; sv.lv = this.lv; sv.exp = this.exp;
-    this._w = { hp: sv.hp, mp: sv.mp, st: sv.st };   // để nhận ra khi engine đổi bản lưu (chữa ở Allen: hồi đầy)
+    const r = this.rec; if (!r) return;
+    r.hp = this.hp / this.maxHp; r.mp = this.mp / this.maxMp; r.stamina = this.st; r.level = this.lv; r.exp = this.exp;
+    if (this.fainted) r.fainted = true; else delete r.fainted;
+    this._w = { hp: r.hp, mp: r.mp, st: r.stamina, uid: r.uid };   // để nhận ra khi engine đổi bản ghi (chữa ở Allen, thuốc, đổi slime)
     if (persist) this.c.engine.persist(); else this.c.engine.sync();
-    const party = state.party.slice();
-    if (party[0]) { party[0] = { ...party[0], level: this.lv, exp: Math.min(1, this.exp / RULES.partner.expToNext(this.lv)) }; set({ party }); }
   }
+  // tên hiện của slime đồng hành (biệt danh, F3)
+  get partnerName() { return displayName(this.rec) || 'Slime'; }
 
   // ---- bản đồ: slime hoang theo map.data.web.spawns (bản đồ dựng theo clip)
   async setMap(map, info) {
@@ -91,12 +96,13 @@ export class Combat {
     if (dz && map.canStand(o.x, o.z + dz, o.y)) { o.z += dz; moved = true; }
     return moved;
   }
-  alive(team) { return this.mons.filter(m => !m.dead && (!team || m.team === team)); }
+  alive(team) { return this.mons.filter(m => !m.dead && !m.trapped && (!team || m.team === team)); }
   replay(actor, key) { actor.cur = null; actor.play(key, 0.06); }
 
   // ---- lệnh của người chơi (Space / chuột trái / nút đánh): chọn mục tiêu, đồng hành lao vào. Không có gì thì trả false.
   command(aim) {
     if (this.duel && this.duel.phase !== 'fight') return false;
+    if (this.fainted) return false;   // slime ngất không đánh (EquipMonsterFailCode.MONSTER_HP_ZERO)
     const P = this.c.P, list = this.alive(this.duel ? 'B' : 'wild');
     let best = null, bd = Infinity;
     if (aim) for (const m of list) { const d = Math.hypot(m.x - aim.x, m.z - aim.z); if (d < 3 && d < bd) { bd = d; best = m; } }
@@ -109,6 +115,7 @@ export class Combat {
     const pt = this.pt;
     if (pt.target !== m) { pt.target = m; pt.phase = null; pt.actT = 0; }
     m.aggro = true;
+    if (m.team === 'wild' && this.c.engine.roster.discover(m.def.model)) this.ev('discover', { model: m.def.model });   // MonsterDexDegree Discover
     if (!state.battle) set({ battle: true });
     if (byPlayer) this.flashBeam(BEAM_COL);
     this.ev('engage', { id: m.def.id, by: byPlayer ? 'player' : 'auto' });
@@ -135,7 +142,7 @@ export class Combat {
     this.duel = { t: 0, phase: 'vs', time: RULES.duel.time, said: 0, ended: false };
     const thumbP = this.c.hud.el.playerThumb;
     this.ui.topBar(
-      { level: this.c.engine.save.level, name: state.player.name, player: thumbP, slime: this.slimeIcon(state.party[0].id) },
+      { level: this.c.engine.save.level, name: state.player.name, player: thumbP, slime: this.slimeIcon(this.rec.typeId) },
       { name: 'Rudga', player: this.npcIcon('NPC_Larus_Bigman_3'), slime: this.slimeIcon('SL_Slime_Water') });
     this.ui.versus(state.player.name, 'Rudga', RULES.duel.splash);   // sau thanh trên: nền mờ phủ cả thanh (5:18)
     this.ev('duel', { phase: 'vs' });
@@ -197,7 +204,8 @@ export class Combat {
     this.c.audio.play('sfx_hit_NONE_S', { gain: 0.6 });
     this.ev('partnerHit', { ...dmg, hp: this.hp });
     if (this.hp <= 0) {
-      this.hp = this.maxHp * RULES.partner.faintHp;
+      // F3: ngất (Icon_Faint, "Fainted"): ô slime xám, không đánh tới khi hồi (thuốc / Allen / nghỉ tới faintHp x6 máu [ĐỀ XUẤT])
+      this.hp = 0; this.fainted = true;
       this.ev('faint');
       if (this.duel && !this.duel.ended) { this.duel.lost = true; this.endDuel(false); }
       else this.recall();
@@ -211,11 +219,11 @@ export class Combat {
     this.reward(m);
   }
   reward(m) {
-    const E = this.c.engine, st = this.c.story, R0 = m.rules, name = state.party[0] ? state.party[0].name : 'Slime';
+    const E = this.c.engine, st = this.c.story, R0 = m.rules, name = this.partnerName;
     // EXP slime (6:06 "Roasted Slime EXP + 2"), lên cấp slime (6:27 "Roasted Lv2")
     if (R0.exp > 0) {
       this.exp += R0.exp;
-      st.log(name + ' ' + L('ui.slimeExp'), '+ ' + R0.exp, 'img/sl/' + state.party[0].id + '.webp');
+      st.log(name + ' ' + L('ui.slimeExp'), '+ ' + R0.exp, 'img/sl/' + this.rec.typeId + '.webp');
       this.ev('slimeExp', { n: R0.exp });
     }
     while (this.exp >= RULES.partner.expToNext(this.lv)) {
@@ -229,6 +237,7 @@ export class Combat {
     if (m.team === 'wild') {
       // nhiệm vụ 7 "Defeat Junior Floralime 0/2" + rơi "Small Slime Fragment" (item_type 215, dropRate 0.7)
       if (m.def.model === 'SL_Slime_Grass') { E.obj('q7', 'kill'); E.obj('q8', 'kill'); }
+      if (E.roster.discover(m.def.model)) this.ev('discover', { model: m.def.model });
       const F0 = META.fragment;
       if (this.rng() < F0.rate) {
         E.give(F0.item, F0.min);
@@ -263,10 +272,11 @@ export class Combat {
     // hồi MP; hồi máu khi không đánh
     this.mp = Math.min(this.maxMp, this.mp + PR.mpRegen * dt);
     if (!pt.target) this.hp = Math.min(this.maxHp, this.hp + PR.hpRegenIdle * this.maxHp * dt);
+    if (this.fainted && this.hp >= this.maxHp * PR.faintHp * 6) { this.fainted = false; this.ev('revive'); this.pushParty(true); }
     pt.skillCd = Math.max(0, pt.skillCd - dt * 1000);
     pt.recallT = Math.max(0, (pt.recallT || 0) - dt);
-    const sv = this.c.engine.save.slime;
-    if (this._w && (sv.hp !== this._w.hp || sv.mp !== this._w.mp || sv.st !== this._w.st)) this.loadPartner();   // engine.heal() vừa ghi
+    const sv = this.c.engine.roster.active();
+    if (sv && this._w && (sv.uid !== this._w.uid || sv.hp !== this._w.hp || sv.mp !== this._w.mp || sv.stamina !== this._w.st)) this.loadPartner();   // chữa / thuốc / đổi slime vừa ghi
     if ((pt.syncT -= dt) <= 0) { pt.syncT = 0.3; this.pushParty(false); }
 
     // slime hoang
@@ -360,7 +370,7 @@ export class Combat {
     }
 
     this.ui.frame(cam, this.mons);
-    this.ui.showTarget(pt.target && !pt.target.dead && !this.duel ? pt.target : null);   // trận đấu tay đôi không có ô mục tiêu (5:24-5:36)
+    this.ui.showTarget(pt.target && !pt.target.dead && !this.duel ? pt.target : null, m0 => this.c.engine.roster.degree(m0.def.model));   // trận đấu tay đôi không có ô mục tiêu (5:24-5:36)
     return driving;
   }
 
@@ -376,6 +386,7 @@ export class Combat {
       a.update(dt); this.place(m);
       return;
     }
+    if (m.trapped) { a.update(dt); return; }   // F3: đang trong Cube (js/combat/tame.js)
     if (m.spawnT > 0) { m.spawnT -= dt; m.object.scale.setScalar(Math.min(1, 1 - m.spawnT / 0.4 + 0.01)); }
     m.hitT = Math.max(0, m.hitT - dt);
     const dS = Math.hypot(S.x - m.x, S.z - m.z), dP = Math.hypot(P.x - m.x, P.z - m.z);

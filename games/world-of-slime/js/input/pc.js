@@ -29,7 +29,7 @@ export function attachPC(intent, canvas, { onWheel } = {}) {
     for (const a of KEYMAP[e.code] || []) intent.pressed.add(a);
     update();
   });
-  addEventListener('keyup', e => { keys.delete(e.code); update(); });
+  addEventListener('keyup', e => { keys.delete(e.code); for (const a of KEYMAP[e.code] || []) if (/^slot/.test(a)) intent.released.add(a); update(); });
   addEventListener('blur', () => { keys.clear(); update(); });
   canvas.addEventListener('pointerdown', e => {
     if (e.button !== 0) return;

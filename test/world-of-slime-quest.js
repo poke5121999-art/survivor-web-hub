@@ -115,7 +115,7 @@ async function converse(page, picks = [], { shots = {}, mouse = false, max = 60 
       const k = picks.length ? picks.shift() : 0;
       if (mouse) {
         const els = await page.$$('[data-hud="choice"]'); const b = await els[k].boundingBox();
-        await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+        await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2); await page.mouse.move(5, 5);   // F3: chuột để yên trên lựa chọn thì lần hội thoại sau (Allen có thêm "Kho Slime") hover chọn nhầm
       } else {
         for (let i = 0; i < k; i++) { await page.keyboard.press('ArrowDown'); await wait(page, 40); }
         await page.keyboard.press('Space');

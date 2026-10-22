@@ -6,10 +6,10 @@
 // bản PC (PlatformPreview.UseStandaloneUIScale) nhân thêm StandaloneScale = 0.8.
 // Vị trí/cỡ nút PC khác mobile: PlaySceneButtonBatch.buttonInfos (standalonePosition/Size vs defaultPosition/Size).
 import * as THREE from 'three';
-import { paint, tinted, uiUrl, used } from './sprites.js?v=20261022c';
-import { assetUrl } from '../assets.js?v=20261022c';
-import { state, on } from '../state.js?v=20261022c';
-import { t } from '../../data/loc_vi.js?v=20261022c';
+import { paint, tinted, uiUrl, used } from './sprites.js?v=20261022d';
+import { assetUrl } from '../assets.js?v=20261022d';
+import { state, on } from '../state.js?v=20261022d';
+import { t } from '../../data/loc_vi.js?v=20261022d';
 
 export const C = {                       // màu Image.color / TMP fontColor chép từ prefab
   dark30: [0.078, 0.118, 0.133, 0.298], dark39: [0.078, 0.118, 0.133, 0.392], dark59: [0.078, 0.118, 0.133, 0.588],
@@ -96,6 +96,7 @@ export class Hud {
   constructor(platform, { map, onAction } = {}) {
     this.platform = platform; this.pc = platform === 'pc';
     this.map = map; this.onAction = onAction || (() => {});
+    this.onDrag = () => {}; this.onRelease = () => {}; this.itemCd = null;   // F3: game.js gán (ô vật phẩm: ngắm / ném / hồi)
     this.el = {}; this.tags = [];
     const host = document.getElementById('hud') || document.body.appendChild(Object.assign(document.createElement('div'), { id: 'hud' }));
     host.innerHTML = ''; host.classList.toggle('pc', this.pc); host.classList.toggle('mobile', !this.pc);
@@ -160,7 +161,7 @@ export class Hud {
     const mh = R(B, { n: 'menu', a: [1, 1], p: [-456, -46], pv: [1, 1], auto: true, cls: 'row' }); mh.style.gap = '40px';
     for (const [n, spr, act] of [['menuBag', 'Game/Btn_PlayScene_Bag', 'inventory'], ['menuIndex', 'Game/Btn_PlayScene_Index', 'slimeindex'], ['menuMail', 'Game/Btn_PlayScene_Mail', 'mail']]) {
       const b = F(mh, 84, 84, { n, cls: 'btn', spr }); b.dataset.act = act;
-      if (n === 'menuIndex') b.hidden = true;   // ảnh chụp bản demo thật (D:\wos-ref\pilot\inn1.png): chỉ có Túi + Thư; Index bật sau
+      if (n === 'menuIndex') { b.hidden = true; E.menuIndex = b; }   // F3: hiện khi đã bắt slime đầu tiên (gmwall_hud_party_bar có nút này);   // ảnh chụp bản demo thật (D:\wos-ref\pilot\inn1.png): chỉ có Túi + Thư; Index bật sau
       b.addEventListener('pointerdown', e => { e.stopPropagation(); this.onAction(act); });
     }
     const mm = this.button(B, 'escape', { n: 'mainMenu', a: [1, 1], p: [-300, -40], sz: [100, 100], pv: [1, 1] });
@@ -204,11 +205,25 @@ export class Hud {
     for (let i = 0; i < 6; i++) E.slots.push(this.slimeSlot(bar, i));
 
     // ---- nút hành động góc phải dưới
+    // ItemQuickSlotPod: IconBase + Item (RawImage, sizeDelta -20, y 6) + ImgCooltime (radial 90, đen 0.6) + TextCooltime fs22 + Count.
+    // Mobile: kéo nút để ngắm (ItemQuickSlotPod.UpdateTouchAim, SkillJoystick), thả = ném; PC: nhấn phím = ngắm, nhả = ném (F3).
     E.items = L.item.map((p, i) => {
       const b = this.button(B, 'slot' + (i + 2), { n: 'item' + i, a: [1, 0], p, sz: [L.itemSize, L.itemSize] });
+      const k = L.itemSize / 120;
       R(b, { a: [0, 0, 1, 1], spr: 'Game/Icon_ButtonBG03' });
-      R(b, { a: [0, 0, 1, 1], p: [0, 7.8], sz: [-40, -40], spr: 'InventoryUI/Icon_Inventory_Consumable', col: [1, 1, 1, 0.039] });
+      b.empty = R(b, { a: [0, 0, 1, 1], p: [0, 7.8], sz: [-40 * k, -40 * k], spr: 'InventoryUI/Icon_Inventory_Consumable', col: [1, 1, 1, 0.039] });
+      b.icon = R(b, { tag: 'img', a: [0, 0, 1, 1], p: [0, 6], sz: [-20 * k, -20 * k], cls: 'itemicon' }); b.icon.hidden = true; b.icon.draggable = false;
+      b.cd = R(b, { a: [0.5, 0.5], p: [0, 6.5], sz: [90 * k, 90 * k], cls: 'cooldown' });
+      b.cdText = R(b, { a: [0, 0, 1, 1], p: [0, 7], sz: [0, -14], cls: 'center' }); text(b.cdText, '', 22, [0.7, 0.9, 1, 1], 'outline');
+      // Count (0,17) fs12 + TMP tự co: khung gmwall_hud_party_bar thấy số ~20 đơn vị ở góc phải dưới ô [ĐO TRONG ẢNH]
+      b.count = R(b, { a: [1, 0], p: [-14 * k, 14 * k], auto: true, pv: [1, 0], cls: 'itemcount' }); b.countText = text(b.count, '', 20, [0.8, 0.9, 1, 1], 'outline');
       this.key(b, ITEM_KEYS[i], 32, [0, -46]);
+      const act = 'slot' + (i + 2);
+      let drag = null;
+      b.addEventListener('pointerdown', e => { drag = { id: e.pointerId, x: e.clientX, y: e.clientY }; try { b.setPointerCapture(e.pointerId); } catch (er) { /* */ } this.onDrag(act, 0, 0); });
+      b.addEventListener('pointermove', e => { if (drag && e.pointerId === drag.id) this.onDrag(act, (e.clientX - drag.x) / this.s, -(e.clientY - drag.y) / this.s); });
+      b.addEventListener('pointerup', e => { if (drag && e.pointerId === drag.id) { const d = drag; drag = null; this.onRelease(act, (e.clientX - d.x) / this.s, -(e.clientY - d.y) / this.s); } });
+      b.addEventListener('pointercancel', () => { drag = null; this.onRelease(act, 0, 0, true); });
       return b;
     });
     const atk = E.attack = this.button(B, 'interactAttack', { n: 'attack', a: [1, 0], p: L.attack, sz: [L.attackSize, L.attackSize] });
@@ -302,6 +317,15 @@ export class Hud {
       const lvb = R(m, { a: [0.5, 0], p: [sel ? -33.7 : -28.8, sel ? 15.2 : 13.5], sz: [54, sel ? 34 : 36], pv: [1, 0], spr: 'Common/Ui_Bg_Round_01_32px', col: sel ? C.navy : C.dark60, sl: true, cls: 'center' });
       m.lv = text(lvb, '1', 18, TXT_LV);
       R(m, { a: [0.5, 1], p: [14, 9], sz: [36, 36], pv: [1, 1], spr: 'Icon/Icon_Tamed' });   // SpecialSlime: tim hồng của slime đã thuần (khung V4Van)
+      // SlimeQuickSlot: CoolTime (Ui_Bg_Round_01_100px màu (0.1,0.1,0.1,0.8) ở (-13,0) 100x100, chữ "0.9" fs26) khi đang hồi đổi slime;
+      // Faint_Alarm (Product/UI_Bg_Product 200x80 scale 0.7 ở (-9.5,-42)) với "Fainted" (+ ảnh xám), cùng nhãn đó cho ô quá giới hạn
+      // đồng hành: "Accompany Unavailable" (PlayScene.Slimeslotlimit, khung gmwall_hud_party_bar ô 5)
+      m.cool = R(m, { a: [0.5, 0.5], p: [-13, 0], sz: [100, 100], spr: 'Common/Ui_Bg_Round_01_100px', col: [0.1, 0.1, 0.1, 0.8], cls: 'center' });
+      m.coolText = text(m.cool, '', 26, [0.7, 0.9, 1, 1]); m.cool.hidden = true;
+      m.lock = R(m, { a: [0.5, 0], p: [-9.5, -42], sz: [200, 80], sc: 0.7, spr: 'Product/UI_Bg_Product', sl: true, cls: 'center' });
+      text(m.lock, t('PlayScene.Slimeslotlimit'), 26).classList.add('wrapc'); m.lock.hidden = true; m.lock.dataset.hud = 'slotLocked';
+      m.faint = R(m, { a: [0.5, 0], p: [-9.5, -42], sz: [200, 80], sc: 0.7, spr: 'Product/UI_Bg_Product', sl: true, cls: 'center' });
+      text(m.faint, t('Slimeinventory.Faint'), 26); m.faint.hidden = true; m.faint.dataset.hud = 'slotFainted';
       // ButtonKeymapOverlay (58,-65) không hiện phím số trên ảnh chụp demo thật (inn1) nên bỏ
       return m;
     };
@@ -354,8 +378,22 @@ export class Hud {
         m.hp.fill(sl.hp); m.mp.fill(sl.mp); m.st.fill(sl.st); m.st.hidden = sl.st >= 1;   // inn1: thể lực đầy thì không có thanh thứ ba
         m.exp.style.clipPath = `inset(${(1 - sl.exp) * 100}% 0 0 0)`;
         m.lv.textContent = String(sl.level);
+        m.pic.classList.toggle('fainted', !!sl.fainted); m.faint.hidden = !sl.fainted; m.lock.hidden = !sl.locked || !!sl.fainted;
+        const cd = !sel && S.switchCd > 0 && !sl.locked && !sl.fainted; m.cool.hidden = !cd; if (cd) m.coolText.textContent = S.switchCd.toFixed(1);
       }
+      slot.dataset.uid = sl.uid || ''; slot.dataset.name = sl.name; slot.classList.toggle('fainted', !!sl.fainted);
     });
+    // ô nhanh vật phẩm Q/E/R (F3): ảnh item_type.thumbnailResource, số còn
+    (S.quick || []).forEach((id, i) => {
+      const b = E.items[i]; if (!b) return;
+      const n = id != null ? (S.bag && S.bag[id]) || 0 : 0, icon = (S.quickIcons || [])[i];
+      b.dataset.item = id != null ? String(id) : '';
+      b.icon.hidden = id == null || !icon; b.empty.hidden = id != null;
+      if (id != null && icon && b.icon.dataset.src !== icon) { b.icon.crossOrigin = 'anonymous'; b.icon.src = assetUrl(icon); b.icon.dataset.src = icon; }
+      b.icon.style.filter = id != null && n <= 0 ? 'grayscale(1) brightness(0.7)' : '';
+      b.countText.textContent = id != null ? String(n) : ''; b.count.hidden = id == null;
+    });
+    E.menuIndex.hidden = !S.showIndex;
     const eq = S.equipped != null ? S.party[S.equipped] : null;
     if (eq && E.slimeThumb.dataset.id !== eq.id) { E.slimeThumb.src = slimeImg(eq.id); E.slimeThumb.dataset.id = eq.id; }
     // nút lớn: Return (huýt sáo) khi slime đang đánh, còn lại Enabled/Disabled theo CombatMode
@@ -491,6 +529,12 @@ export class Hud {
     // hồi chiêu lướt: vòng tối Ui_Bg_Round_02_264px kiểu ImgCooltime (filled radial)
     const cd = P.dashCd > 0 ? P.dashCd / P.dashCdMax : 0;
     E.dashCd.style.background = cd > 0 ? `conic-gradient(rgba(0,0,0,0.588) ${cd * 360}deg, transparent 0)` : '';
+    // ô vật phẩm: ImgCooltime filled radial (đen 0.6) + TextCooltime giây còn lại
+    if (this.itemCd) E.items.forEach((b, i) => {
+      const c = this.itemCd(i), on = c && c.left > 0;
+      b.cd.style.background = on ? `conic-gradient(rgba(0,0,0,0.6) ${c.left / c.max * 360}deg, transparent 0)` : '';
+      const tx = on ? (c.left / 1000).toFixed(1) : ''; if (b.cdText.firstChild.textContent !== tx) b.cdText.firstChild.textContent = tx;
+    });
   }
 }
 

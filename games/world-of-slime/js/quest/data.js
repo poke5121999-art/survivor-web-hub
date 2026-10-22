@@ -83,18 +83,20 @@ export const DIALOGUE = {
   alH: { sp: 'Allen', choices: [{ t: 'c.yes', icon: 'talk', act: 'heal', to: 'alH2' }, { t: 'c.no', icon: 'exit' }] },
   alH2: { sp: 'Allen' },
   alHno: { sp: 'Allen' },
+  // ---- Allen, Slime Storage (F3; dòng thoại v4van_capture_untamed_prince): mở kho khi hội thoại đóng
+  alSt: { sp: 'Allen', t: 'al.st1', act: 'storage' },
   // ---- Allen, nhiệm vụ 3
-  al1q3: { sp: 'Allen', t: 'al1', choices: [{ t: 'c.whatwas', icon: 'progress', to: 'al7r' }, { t: 'c.heal', icon: 'heal', to: 'alH' }, { t: 'c.end', icon: 'exit' }] },
+  al1q3: { sp: 'Allen', t: 'al1', choices: [{ t: 'c.whatwas', icon: 'progress', to: 'al7r' }, { t: 'c.heal', icon: 'heal', to: 'alH' }, { t: 'c.storage', icon: 'talk', to: 'alSt' }, { t: 'c.end', icon: 'exit' }] },
   al7r: { sp: 'Allen', t: 'al7' },
-  al1q3r: { sp: 'Allen', t: 'al1', choices: [{ t: 'c.thanks', icon: 'complete', to: 'al8' }, { t: 'c.heal', icon: 'heal', to: 'alH' }, { t: 'c.end', icon: 'exit' }] },
+  al1q3r: { sp: 'Allen', t: 'al1', choices: [{ t: 'c.thanks', icon: 'complete', to: 'al8' }, { t: 'c.heal', icon: 'heal', to: 'alH' }, { t: 'c.storage', icon: 'talk', to: 'alSt' }, { t: 'c.end', icon: 'exit' }] },
   al8: { sp: 'Allen', choices: [{ t: 'c.stamina', icon: 'talk', to: 'al9' }] },
   al9: { sp: 'Allen', next: 'al10' },
   al10: { sp: 'Allen', choices: [{ t: 'c.whatisit', icon: 'talk', to: 'al11' }] },
   al11: { sp: 'Allen', act: 'complete:q3' },
   // ---- Allen, nhiệm vụ 4 (2:56, 3:44-3:51)
-  al1q4: { sp: 'Allen', t: 'al1', choices: [{ t: 'c.whatsup', icon: 'progress', to: 'al11r' }, { t: 'c.heal', icon: 'heal', to: 'alH' }, { t: 'c.end', icon: 'exit' }] },
+  al1q4: { sp: 'Allen', t: 'al1', choices: [{ t: 'c.whatsup', icon: 'progress', to: 'al11r' }, { t: 'c.heal', icon: 'heal', to: 'alH' }, { t: 'c.storage', icon: 'talk', to: 'alSt' }, { t: 'c.end', icon: 'exit' }] },
   al11r: { sp: 'Allen', t: 'al11' },
-  al1q4r: { sp: 'Allen', t: 'al1', choices: [{ t: 'c.here', icon: 'complete', to: 'al12' }, { t: 'c.heal', icon: 'heal', to: 'alH' }, { t: 'c.end', icon: 'exit' }] },
+  al1q4r: { sp: 'Allen', t: 'al1', choices: [{ t: 'c.here', icon: 'complete', to: 'al12' }, { t: 'c.heal', icon: 'heal', to: 'alH' }, { t: 'c.storage', icon: 'talk', to: 'alSt' }, { t: 'c.end', icon: 'exit' }] },
   al12: { sp: 'Allen', act: 'complete:q4', next: 'al13' },
   al13: { sp: 'Allen', next: 'al14' },
   al14: { sp: 'Allen', next: 'al15' },
@@ -103,16 +105,16 @@ export const DIALOGUE = {
   al17: { sp: 'Allen', next: 'al18' },
   al18: { sp: 'Allen', act: 'perk' },
   // ---- Allen, nhiệm vụ 5 (4:03-4:18)
-  al1q5: { sp: 'Allen', t: 'al1', choices: [{ t: 'c.whatsup', icon: 'progress', to: 'al18' }, { t: 'c.heal', icon: 'heal', to: 'alH' }, { t: 'c.end', icon: 'exit' }] },
-  al1q5r: { sp: 'Allen', t: 'al1', choices: [{ t: 'c.awakened', icon: 'complete', to: 'al19' }, { t: 'c.heal', icon: 'heal', to: 'alH' }, { t: 'c.end', icon: 'exit' }] },
+  al1q5: { sp: 'Allen', t: 'al1', choices: [{ t: 'c.whatsup', icon: 'progress', to: 'al18' }, { t: 'c.heal', icon: 'heal', to: 'alH' }, { t: 'c.storage', icon: 'talk', to: 'alSt' }, { t: 'c.end', icon: 'exit' }] },
+  al1q5r: { sp: 'Allen', t: 'al1', choices: [{ t: 'c.awakened', icon: 'complete', to: 'al19' }, { t: 'c.heal', icon: 'heal', to: 'alH' }, { t: 'c.storage', icon: 'talk', to: 'alSt' }, { t: 'c.end', icon: 'exit' }] },
   al19: { sp: 'Allen', next: 'al20' },
   al20: { sp: 'Allen', next: 'al21' },
   al21: { sp: 'Allen', choices: [{ t: 'c.whatisit', icon: 'talk', to: 'al22' }] },
   al22: { sp: 'Allen', choices: [{ t: 'c.where', icon: 'talk', to: 'al23' }] },
   al23: { sp: 'Allen', act: 'complete:q5' },
-  al1q6: { sp: 'Allen', t: 'al1', choices: [{ t: 'c.whoto', icon: 'progress', to: 'al23r' }, { t: 'c.heal', icon: 'heal', to: 'alH' }, { t: 'c.end', icon: 'exit' }] },
+  al1q6: { sp: 'Allen', t: 'al1', choices: [{ t: 'c.whoto', icon: 'progress', to: 'al23r' }, { t: 'c.heal', icon: 'heal', to: 'alH' }, { t: 'c.storage', icon: 'talk', to: 'alSt' }, { t: 'c.end', icon: 'exit' }] },
   al23r: { sp: 'Allen', t: 'al23' },
-  al1idle: { sp: 'Allen', t: 'al1', choices: [{ t: 'c.heal', icon: 'heal', to: 'alH' }, { t: 'c.end', icon: 'exit' }] },
+  al1idle: { sp: 'Allen', t: 'al1', choices: [{ t: 'c.heal', icon: 'heal', to: 'alH' }, { t: 'c.storage', icon: 'talk', to: 'alSt' }, { t: 'c.end', icon: 'exit' }] },
   // ---- Lucy, nhiệm vụ 6 (4:29-4:39)
   lu1q6: { sp: 'Lucy', t: 'lu1', choices: [{ t: 'c.hello', icon: 'complete', to: 'lu2' }, { t: 'c.end', icon: 'exit' }] },
   lu2: { sp: 'Lucy', next: 'lu3' },
@@ -196,11 +198,11 @@ export const WEST_GATE = { rect: [0, 53, 25, 63], back: { x: 29.5, z: 58.5 }, np
 export const SHOP = {
   Vivian: [
     { item: 4, price: 500, icon: 'img/item/Item_Cube_1.webp', name: 'item.4', desc: 'item.4.d' },
-    { item: 1, price: 500, icon: 'img/item/Item_Potion3.webp', name: null },
+    { item: 1, price: 500, icon: 'img/item/item_potion_hp_1.webp', name: 'item.1', desc: 'item.1.d' },   // F3: thuốc = item_type 1 (thumbnail item_potion_hp_1) [ĐỀ XUẤT ghép ô 2 của quầy]
     { item: null, price: 500, icon: 'img/item/Item_Basket.webp', name: null },
   ],
 };
-export const ITEM_ICON = { 4: 'img/item/Item_Cube_1.webp', 773: 'img/item/Item_Herb.webp', 215: 'img/item/Item_SlimePart_1.webp' };   // 215 Small Slime Fragment (item_type thumbnail)
+export const ITEM_ICON = { 1: 'img/item/item_potion_hp_1.webp', 4: 'img/item/Item_Cube_1.webp', 773: 'img/item/Item_Herb.webp', 215: 'img/item/Item_SlimePart_1.webp' };   // 215 Small Slime Fragment (item_type thumbnail)
 export const BAG_SLOTS = 28;           // [THẤY 10:39] "Bag 1/28"
 
 // Tiềm năng (PerkUI): nút Slime Companion 1, 3 bậc (0/3, 3:54), học tốn 1 SP (3:57 "Learn SP 1")

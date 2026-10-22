@@ -146,6 +146,44 @@ export const TEXT = {
     'ui.notice': 'Notice',
     'ui.notBuilt': 'Not in the web version yet: the duel with Rudga and Shadow Forest have no map data.',   // bản web
     'ui.ok': 'Yes',
+    // ---- F3 bắt slime, túi, kho, bách khoa. [LOC] = chuỗi của D:\wos-ref\data\loc\en.json (khoá ghi cạnh)
+    'item.1': '30 HP Potion', 'item.1.d': 'A potion that restores 30 HP of the slime with you.',   // tên 7:38 "30 HP Potion × 3"; mô tả [ĐỀ XUẤT]
+    'tame.tag.tame': 'Tame', 'tame.tag.untamed': 'Untamed',                                       // gmwall_tame_floralime_cube / v4van_capture_untamed_prince; [LOC] SlimeIndex.DegreeStep02
+    'tame.noNearby': 'There are no wild slimes nearby to tame!',                                  // [LOC] UI.CubeNoNearbySlime
+    'tame.autoArchived': 'The tamed slime has been sent to the warehouse!',                       // [LOC] UI.AutoArchived
+    'tame.full': 'Slime inventory is full. You cannot tame a slime now.',                         // [LOC] UI.CubeNoEmptyInven
+    'tame.caught': '{name} was tamed!',                                                           // [ĐỀ XUẤT]
+    'tame.free': '{name} broke free!',                                                            // [ĐỀ XUẤT] ("nakatakas", GM WALL 6:56)
+    'tame.miss': 'The Cube missed.',                                                              // [ĐỀ XUẤT]
+    'tame.registered': 'New slime data has been registered in the Slimepedia.',                  // [LOC] UI.SlimeIndexRegistered
+    'tame.askNick': 'Would you like to give the {name} a nickname?',                              // v4van_nickname_synthesis_lab
+    'tame.nextTime': 'Next time', 'tame.nickname': 'Nickname',                                    // v4van_nickname_synthesis_lab
+    'tame.nickTitle': 'Nickname Setting', 'tame.nickHint': 'Maximum of {Length} alphabets',       // [LOC] LoginScene.NickName.Title, LoginScene.Nickname.PlaceHolder
+    'item.cooldown': 'The item is on cooldown.',                                                  // [ĐỀ XUẤT]
+    'item.used': '{item} used: {name} HP + {n}',                                                  // [ĐỀ XUẤT]
+    'item.noTarget': 'There is no partner slime to use it on.',                                   // [ĐỀ XUẤT]
+    'item.addQuick': 'Added to Quick Slot!', 'item.removeQuick': 'Removed from Quick Slot!',      // [LOC] Inventory.AddQuickslot / RemoveQuickslot
+    'item.alreadyQuick': "It's already set in Quickslot",                                         // [LOC] Inventory.AlreadyQuickSlot
+    'bag.use': 'Use', 'bag.addQuick': 'Add Quick-Slot', 'bag.removeQuick': 'Remove Quick Slot', 'bag.organize': 'Organize',   // [LOC] Common.UseButton, Inventory.AddQuickSlot, Common.RemoveQuickSlot, Inventory.OrganizeBag
+    'bag.title': 'Bag', 'bag.all': 'All', 'bag.empty': 'You have selected an empty slot.',       // [LOC] Common.Inventory, SlimeArchive.Empty
+    'bag.cannotUse': 'This item cannot be used from the bag.',                                    // [ĐỀ XUẤT] (Cube: canUseInInventory false)
+    'party.unavailable': 'Accompany Unavailable',                                                 // [LOC] PlayScene.Slimeslotlimit
+    'party.cooldown': 'Cannot be changed during cooldown.',                                       // [LOC] EquipMonsterFailCode.SWITCH_ON_COOLDOWN
+    'party.hpZero': 'Slime has no HP.',                                                           // [LOC] EquipMonsterFailCode.MONSTER_HP_ZERO
+    'party.switchPerk': 'Unlock the skill to use.',                                               // [LOC] SwitchMonsterFailCode.Perk
+    'party.fainted': 'Fainted', 'party.accompanying': 'Accompanying',                              // [LOC] Slimeinventory.Faint, Archive.AlreadyHolding
+    'st.title': 'Slime Storage', 'st.take': 'Take It', 'st.archive': 'Archive', 'st.bag': 'Bag',  // [LOC] Archive.*
+    'st.emptySlot': 'You have selected an empty slot.',                                          // [LOC] SlimeArchive.Empty
+    'st.takeFail': 'Failed to bring out the slime!', 'st.archiveFail': 'Slime storage failed!',   // [LOC] Context.Archive.*
+    'st.lastSlime': 'You must have at least one slime!',                                          // [LOC] SlimeInventory.ReleaseWhenOneSlime
+    'st.equipped': 'Partner slime cannot be used.',                                               // [LOC] SlimeInventory.ReleaseEquippedSlime
+    'st.skill': 'Skill', 'st.level': 'Level',
+    'c.storage': 'Slime Storage',                                                                 // [LOC] Archive.SlimeStorageTitle (lựa chọn với Allen)
+    'al.st1': "You'll be able to see a list of slimes currently tamed by {name}.",               // v4van_capture_untamed_prince (Allen)
+    'dex.title': 'Slimepedia', 'dex.point': 'Collection Point', 'dex.noData': 'No data',          // [LOC] Index.SlimeIndexTitle, Index.IndexScore, SlimeIndex.DegreeStep00
+    'dex.discover': 'Discovery', 'dex.tame': 'Tame', 'dex.bond': 'Bond',                          // [LOC] SlimeIndex.DegreeStep01..03
+    'dex.found': 'Found slime {FoundCount}', 'dex.caught': 'Tamed slime {CaughtCount}',          // [LOC] Index.FoundSlimeCount, Index.CaughtSlimeCount
+    'dex.bonding': 'People Bonding',                                                              // gmwall_slimepedia "??? People Bonding"
   },
   vi: {
     'grp.larus': 'Làng Sóng Dữ',
@@ -254,6 +292,44 @@ export const TEXT = {
     'ui.notice': 'Thông Báo',
     'ui.notBuilt': 'Chưa có trong bản web: trận đấu với Rudga và Shadow Forest chưa có dữ liệu bản đồ.',
     'ui.ok': 'Có',
+    // ---- F3 (bản dịch của bản web; [LOC] chép vi.json của game)
+    'item.1': 'Bình Thuốc 30 HP', 'item.1.d': 'Bình thuốc hồi 30 HP cho slime đang đồng hành.',
+    'tame.tag.tame': 'Bắt Được', 'tame.tag.untamed': 'Chưa Bắt',                                   // DegreeStep02 [LOC]; "Chưa Bắt" [ĐỀ XUẤT]
+    'tame.noNearby': 'Không có slime hoang gần đây để thuần!',                                    // [LOC]
+    'tame.autoArchived': 'Slime đã thuần được gửi vào kho!',                                      // [LOC]
+    'tame.full': 'Túi slime đã đầy. Bạn không thể thuần slime lúc này.',                          // [LOC]
+    'tame.caught': 'Đã thuần phục {name}!',
+    'tame.free': '{name} đã thoát ra!',
+    'tame.miss': 'Cube ném trượt.',
+    'tame.registered': 'Dữ liệu slime mới đã được ghi vào Bách Khoa Slime.',                      // [LOC]
+    'tame.askNick': 'Bạn có muốn đặt biệt danh cho {name} không?',
+    'tame.nextTime': 'Để sau', 'tame.nickname': 'Biệt Danh',
+    'tame.nickTitle': 'Cài Đặt Biệt Danh', 'tame.nickHint': 'Tối đa {Length} ký tự',             // [LOC]
+    'item.cooldown': 'Vật phẩm đang hồi.',
+    'item.used': 'Đã dùng {item}: {name} HP + {n}',
+    'item.noTarget': 'Không có slime đồng hành để dùng.',
+    'item.addQuick': 'Đã thêm vào ô nhanh!', 'item.removeQuick': 'Đã xóa khỏi ô nhanh!',          // [LOC]
+    'item.alreadyQuick': 'Đã có trong ô nhanh.',                                                  // [LOC]
+    'bag.use': 'Sử Dụng', 'bag.addQuick': 'Thêm Vào Ô Nhanh', 'bag.removeQuick': 'Xóa Khỏi Ô Nhanh', 'bag.organize': 'Sắp Xếp',   // [LOC]
+    'bag.title': 'Túi Đồ', 'bag.all': 'Tất Cả', 'bag.empty': 'Bạn đã chọn một ô trống.',         // [LOC]
+    'bag.cannotUse': 'Không dùng được vật phẩm này trong túi.',
+    'party.unavailable': 'Không Thể Đồng Hành',                                                    // [LOC]
+    'party.cooldown': 'Không thể đổi khi đang hồi.',                                              // [LOC]
+    'party.hpZero': 'Slime hết HP.',                                                              // [LOC]
+    'party.switchPerk': 'Mở khóa kỹ năng để sử dụng.',                                            // [LOC]
+    'party.fainted': 'Bất Tỉnh', 'party.accompanying': 'Đang Đồng Hành',                           // [LOC]
+    'st.title': 'Kho Slime', 'st.take': 'Lấy Ra', 'st.archive': 'Cất Giữ', 'st.bag': 'Túi Đồ',    // [LOC]
+    'st.emptySlot': 'Bạn đã chọn một ô trống.',                                                   // [LOC]
+    'st.takeFail': 'Không thể lấy slime ra!', 'st.archiveFail': 'Lưu trữ slime thất bại!',        // [LOC]
+    'st.lastSlime': 'Bạn phải có ít nhất một slime!',                                             // [LOC]
+    'st.equipped': 'Không thể dùng slime đồng hành.',                                             // [LOC]
+    'st.skill': 'Kỹ Năng', 'st.level': 'Cấp',
+    'c.storage': 'Kho Slime',                                                                     // [LOC]
+    'al.st1': 'Cậu sẽ xem được danh sách những slime mà {name} đang thuần phục.',
+    'dex.title': 'Bách Khoa Slime', 'dex.point': 'Điểm Sưu Tầm', 'dex.noData': 'Không Có Dữ Liệu', // [LOC]
+    'dex.discover': 'Phát Hiện', 'dex.tame': 'Bắt Được', 'dex.bond': 'Gắn Kết',                   // [LOC]
+    'dex.found': 'Slime Đã Phát Hiện {FoundCount}', 'dex.caught': 'Slime Đã Bắt {CaughtCount}',   // [LOC]
+    'dex.bonding': 'Người Gắn Kết',
   },
 };
 

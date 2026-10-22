@@ -13,9 +13,9 @@
 //   acc   -> customize.faceOffsetVector4s[acc] (ST trên atlas 4x4 PC_Face_Decal = AccDecalTex), accDecalMultiplyFlags[acc]
 import * as THREE from 'three';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
-import { loadGLB, loadJSON, clipOf, assetUrl } from '../assets.js?v=20261022c';
-import { applyUnitMaterials } from '../actors/toon.js?v=20261022c';
-import { Player } from '../actors/actors.js?v=20261022c';
+import { loadGLB, loadJSON, clipOf, assetUrl } from '../assets.js?v=20261022d';
+import { applyUnitMaterials } from '../actors/toon.js?v=20261022d';
+import { Player } from '../actors/actors.js?v=20261022d';
 
 // Mặc định của màn tạo nhân vật [ĐO TRONG ẢNH] g6/cust1..6.png: ô đầu mỗi tab được chọn, riêng Hair Color là ô 10 (trắng tím)
 export const DEFAULT_LOOK = { gender: 'man', skin: 1, hair: 0, hairColor: 9, face: 0, lens: 0, acc: 0 };

@@ -8,6 +8,7 @@ export function makeIntent() {
     move: { x: 0, y: 0 }, attack: false,
     mouse: null,            // { x, y } px màn hình (PC), để ngắm
     pressed: new Set(),
+    released: new Set(),    // F3: hành động vừa nhả (Q/E/R: nhả = ném Cube, như SkillUsePress / SkillUseReleaseRequest)
     source: 'none',
   };
 }
@@ -22,4 +23,4 @@ export function quantizeMove(move, dirs = 32) {
   return { speedStep, angle, x: Math.cos(angle) * speedStep / 10, y: Math.sin(angle) * speedStep / 10 };
 }
 
-export function endFrame(intent) { intent.pressed.clear(); }
+export function endFrame(intent) { intent.pressed.clear(); intent.released.clear(); }

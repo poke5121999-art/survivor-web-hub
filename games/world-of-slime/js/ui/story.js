@@ -6,12 +6,12 @@
 // - Bảng toàn màn (QuestUI, PerkUI, BuyShopUI) bố cục lồng nhiều layout group không có trong JSON (bẫy 11 ARCH.md), nên
 //   đặt theo khung hình [ĐO TRONG ẢNH]: X(px) với px đo trên ảnh 1280x720 (q1.png: K = 1.875; clip 3:57, 10:39: K = 2).
 import * as THREE from 'three';
-import { R, F, text, css, C } from './hud.js?v=20261022c';
-import { paint, uiUrl, used } from './sprites.js?v=20261022c';
-import { assetUrl } from '../assets.js?v=20261022c';
-import { state, set } from '../state.js?v=20261022c';
-import { L } from '../../data/quest_text.js?v=20261022c';
-import { DIALOGUE, NPC_ART, NPC_THUMB, TUTORIALS, QUEST, SHOP, PERKS, BAG_SLOTS, ITEM_ICON } from '../quest/data.js?v=20261022c';
+import { R, F, text, css, C } from './hud.js?v=20261022d';
+import { paint, uiUrl, used } from './sprites.js?v=20261022d';
+import { assetUrl } from '../assets.js?v=20261022d';
+import { state, set } from '../state.js?v=20261022d';
+import { L } from '../../data/quest_text.js?v=20261022d';
+import { DIALOGUE, NPC_ART, NPC_THUMB, TUTORIALS, QUEST, SHOP, PERKS, BAG_SLOTS, ITEM_ICON } from '../quest/data.js?v=20261022d';
 
 const NAVY = [0.09, 0.27, 0.42, 1], NAVY2 = [0.16, 0.38, 0.56, 1], ORANGE = '#ff8a2a';   // TMP màu chữ; cam [ĐO TRONG ẢNH] 2:24 "healed"
 const TYPE_CPS = 40;              // [ĐỀ XUẤT] chữ/giây của TypewriterByCharacter (giá trị trên prefab không có trong JSON)
@@ -96,6 +96,8 @@ export class Story {
   }
   key(e) {
     const top = this.modalStack[this.modalStack.length - 1];
+    // ô nhập chữ (biệt danh, js/ui/panels.js): để phím tới ô nhập, chỉ Esc / Enter đi vào bảng
+    if (e.target && e.target.tagName === 'INPUT') { if (top && (e.code === 'Escape' || e.code === 'Enter' || e.code === 'NumpadEnter') && !e.repeat) { e.stopPropagation(); top.onKey && top.onKey(e); } return; }
     if (!top) {
       if (e.code === 'KeyJ' && !e.repeat) { e.stopPropagation(); this.openQuestLog(); }
       else if (e.code === 'KeyK' && !e.repeat) { e.stopPropagation(); this.openPerk(); }
@@ -645,3 +647,4 @@ function snapshot(renderer, object, canvas, height) {
   g.putImageData(im, 0, 0);
 }
 export { ITEM_ICON, QUEST };
+export { X, panel, T, snapshot, NAVY, NAVY2, fmt };   // F3: js/ui/panels.js dùng chung khung bảng

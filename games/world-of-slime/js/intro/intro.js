@@ -7,15 +7,15 @@
 // Bản lưu: localStorage['wos.save'].profile = { name, look (avatar.js), slime, bag, at } qua loadSave/writeSave của
 // js/state.js. Ghi trước khi js/quest/engine.js đọc bản lưu (engine giữ trường lạ khi ghi lại).
 import * as THREE from 'three';
-import { REV, PARAMS } from '../config.js?v=20261022c';
-import { loadJSON, loadGLB } from '../assets.js?v=20261022c';
-import { loadSave, writeSave, SAVE_VERSION, state } from '../state.js?v=20261022c';
-import { makeLayer } from './ui.js?v=20261022c';
-import { titleScreen, createCharacter } from './screens.js?v=20261022c';
-import { comic, pickBackpack, wakeFilm, BAGS } from './prologue.js?v=20261022c';
-import { buildAvatar, normLook, DEFAULT_LOOK } from './avatar.js?v=20261022c';
-import { attachSetting } from './setting.js?v=20261022c';
-import { uiUrl } from '../ui/sprites.js?v=20261022c';
+import { REV, PARAMS } from '../config.js?v=20261022d';
+import { loadJSON, loadGLB } from '../assets.js?v=20261022d';
+import { loadSave, writeSave, SAVE_VERSION, state } from '../state.js?v=20261022d';
+import { makeLayer } from './ui.js?v=20261022d';
+import { titleScreen, createCharacter } from './screens.js?v=20261022d';
+import { comic, pickBackpack, wakeFilm, BAGS } from './prologue.js?v=20261022d';
+import { buildAvatar, normLook, DEFAULT_LOOK } from './avatar.js?v=20261022d';
+import { attachSetting } from './setting.js?v=20261022d';
+import { uiUrl } from '../ui/sprites.js?v=20261022d';
 
 export { attachSetting };
 
@@ -27,7 +27,7 @@ export function readProfile() {
 export function writeProfile(profile) {
   let s = null;
   try { s = JSON.parse(localStorage.getItem('wos.save') || 'null'); } catch (e) { s = null; }
-  if (!s || s.v !== SAVE_VERSION) s = { v: SAVE_VERSION };
+  if (!s || (s.v !== SAVE_VERSION && s.v !== 1)) s = { v: SAVE_VERSION };   // v1 giữ lại: loadSave đổi lên v2
   s.profile = profile;
   return writeSave(s);
 }

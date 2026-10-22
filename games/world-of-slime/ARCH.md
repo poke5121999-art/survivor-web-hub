@@ -1,4 +1,4 @@
-# Thế Giới Slime: kiến trúc (rev 20261022c)
+# Thế Giới Slime: kiến trúc (rev 20261022d)
 
 Bản web của World of Slime Demo (TEAM42). Từ rev 20261022a chạy trên **bản đồ thật của server** (Larus: quán trọ 257, làng 110,
 kho 478, lấy từ đệm đĩa của game): mở game là ở phòng ngủ quán trọ như bản thật, đi xuống cầu thang ra làng, vào/ra kho.
@@ -8,7 +8,7 @@ theo byte. Từ rev 20261022b có **chuỗi nhiệm vụ mở đầu "Village of
 quầy Vivian bán Cube): hội thoại có chân dung + lựa chọn, băng chữ, log EXP, nhật ký J, Tiềm năng K, bản lưu localStorage.
 Từ rev 20261022c (F1) có **chiến đấu thời gian thực**, **đấu tay đôi với Rudga** và **Shadow Forest Entrance** (hai bản đồ
 DỰNG THEO CLIP, nhãn "dựng theo clip" trên trang). Rev 20261022c còn có **phần mở đầu** (js/intro: Touch To Start, đặt tên,
-tạo nhân vật 7 tab trước gương, truyện tranh, chọn ba lô = slime khởi đầu, phim tỉnh dậy, Setting bằng Esc). Chưa có bắt slime, các bảng túi / bách khoa / kho.
+tạo nhân vật 7 tab trước gương, truyện tranh, chọn ba lô = slime khởi đầu, phim tỉnh dậy, Setting bằng Esc). Từ rev 20261022d (F3) có **bắt slime bằng Cube**, đội 6 ô (phím 1-6), Túi Đồ (I), Kho Slime ở Allen, Bách Khoa (B), biệt danh slime.
 Nghiên cứu gốc: `D:\wos-ref\notes\` (MAPBUILD, PIPELINE, EXPORT_*, CODE §8-9). Kế hoạch: `brain/plans/world-of-slime.md`.
 
 ## Mô-đun
@@ -45,6 +45,10 @@ Nghiên cứu gốc: `D:\wos-ref\notes\` (MAPBUILD, PIPELINE, EXPORT_*, CODE §8
 | `js/intro/setting.js` | Setting (Esc / nút menu): Graphic Quality, Max FPS, Screen Mode, Resolution, Shadow, Camera Scale, âm lượng, ngôn ngữ, Account (Về màn hình chính, Xoá dữ liệu chơi); `localStorage['wos.settings']` |
 | `js/intro/ui.js`, `js/intro/text.js`, `css/intro.css` | lớp `#intro` (đơn vị canvas như HUD, X() theo px ảnh 1280x720, popup CommonPopup), chữ vi/en (`?lang=en`, khoá loc gốc ghi cạnh) |
 | `js/post.js` | hậu kỳ màu toàn màn: cảnh vẽ vào render target half float, quad đổi sang sRGB rồi nhân ma trận affine `GRADE[mapLightType]` |
+| `js/party/roster.js` | **F3: túi slime / kho / bách khoa** trên bản lưu (khuôn ở `js/state.js`): `ensureStarter`, `add` (bắt được: túi hoặc kho), `equip(i)` (hồi đổi, mã lỗi gốc), `archive`/`take`, `healAll`, `sync()` đẩy `state.party/equipped/quick/quickIcons/bag/showIndex`; tên loài `SPECIES_NAME`, biệt danh ba lô `STARTER_NICK`, số bách khoa `loadDex()` |
+| `js/party/items.js` | bảng `data/meta/item_type.json` (fetch một lần): ảnh, `slotMaxCount`, Usable (coolTime, canUseInInventory, canRegisterQuickSlot), Cube; `bagSlots()` = số ô túi |
+| `js/combat/tame.js` | **ném Cube**: cubeGuide (đường + vòng guideSize 3), `throw(aim)` -> bay parabol (attack_type 5) -> nhốt -> clip `prop/cube001.glb` Cube_net_open / net_close / catch_1..3 / success / catch_failed (+ tiếng Wwise cube_*) -> `onResult` |
+| `js/ui/panels.js` | **Túi Đồ, Kho Slime, Bách Khoa, hỏi + nhập biệt danh**; ảnh 3D slime = chụp `Slime.create` bằng renderer của game (`slimePortrait`) |
 | `js/combat/rules.js` | **mọi số chiến đấu một chỗ**: `META` = hàng thật data/meta (đòn thường action 4..15 / attack 8..19, kỹ năng 116/153/167, đòn slime hoang action 1 / attack 1 Sector 3 ô 90°, Small Slime Fragment item 215 dropRate 0.7), `RULES` = `[ĐỀ XUẤT]` (máu, sát thương, tầm, hồi sinh, đấu tay đôi) có chú thích từng số; RNG có hạt `?seed=` |
 | `js/combat/combat.js` | slime hoang (lang thang, gây hấn, đuổi, đánh, chết, rơi đồ, sinh lại), đồng hành tự đánh (đòn thường + kỹ năng, quả cầu bay theo moveSpeed meta), tia lệnh người chơi -> slime, huýt sáo, EXP/cấp slime (`save.slime.lv/exp`), nhiệm vụ q7 (`obj q7.kill/frag`), đấu tay đôi (`startDuel`, `save.duel`); game.js chỉ gọi `setMap/command/recall/startDuel/update` |
 | `js/combat/ui.js` | thẻ MonsterHud trên đầu, ô mục tiêu giữa trên, PVPvs / PVP321Start / thanh trên trận, bóng thoại, dòng log lớn LogUITitle ("Roasted / Lv2"); số theo prefab gốc |
@@ -170,11 +174,38 @@ Tham số trang: `?assets=`, `?map=dev|110|257|478` (mặc định 257), `?from=
   xanh lam của rừng không có trong map/: dùng `ter01_grass_007/008` gần nhất. (e) Combat ghi máu/MP/thể lực vào `save.slime`
   mỗi 0.3 s: khi engine đổi bản lưu (chữa ở Allen) phải đọc lại, không thì đè mất (cảnh báo thể lực không tắt).
 
+## Bắt slime + đội (F3, js/party, js/combat/tame.js, js/ui/panels.js)
+
+- Khuôn: `save.slimes[uid] = {uid, typeId, nickname, level, exp, hp, mp, stamina (0..1), tamedAt, acquisition, friendly?, fainted?}`,
+  `save.party` (thứ tự ô 1-6, tối đa 6 = SlimeArchiveUI.SlimeInventoryPods), `save.storage` (tối đa 16, "Bag 10/16"), `save.active`,
+  `save.dex[typeId]` 1 Discover / 2 Catch, `save.quick` = [itemId x3] Q/E/R. SAVE_VERSION 2; bản lưu v1 được đổi lên (slime cũ thành
+  bản ghi STARTER) chứ không bỏ. Combat đọc/ghi bản ghi đang đồng hành (`roster.active()`), không còn `save.slime`.
+- Số thật (META, rules.js): Cube = item_type 4 (castType Position maxRange 6, guideSize 3, cần slime Catchable trong 5.5 ô, coolTime
+  5000, useSound item_cube) -> action 32 (pre 300) -> attack_type 5 (moveSpeed 10, Parabola maxCurveHeight 3, Sector 1 ô onlyOne,
+  rangedResource Cube001_Catch). 30 HP Potion = item_type 1 (Immediate EquippedMonster, coolTime 3000, dùng được trong túi), lượng 30
+  theo tên. Perk Cube (2, 63) CUBE_BOOST +0.1/bậc. Kết quả theo `CubeWobbleResult` FAIL -1 / CAUGHT 0 / 1-3 lắc.
+- [ĐỀ XUẤT]: tỉ lệ `tameChance = (0.12 + 0.78 (1 - máu)^1.4) x (1 + boost)`, mỗi lần lắc qua với xác suất chance^(1/3); hồi đổi slime 3 s;
+  4 slime đồng hành được (ô 5-6 "Accompany Unavailable", 5 từ Lv16); ngất = 0 HP, ô xám "Fainted", hết ngất khi hồi tới 30% máu
+  (nghỉ, thuốc hoặc Allen); Cube/thuốc mua đầu tiên tự vào ô E/Q (như khung gmwall); biệt danh ba lô xanh "Roasted", vàng "Zapped";
+  số bách khoa ngoài 002/015/016/017; điểm sưu tầm 50 / 1000; Mandrake hoang ở Shadow Forest Entrance (man1, man2).
+- Điều khiển: PC nhấn Q/E/R = ngắm (đường + vòng theo chuột), nhả = ném (như SkillUsePress/Release); mobile kéo nút ô vật phẩm
+  (150 đơn vị canvas = 6 m), kéo dưới 24 = tự nhắm con gần. Thuốc dùng ngay khi nhấn. C (Switch) = điều khiển slime trực tiếp, cần
+  perk Switching nên báo `SwitchMonsterFailCode.Perk`. Thẻ "Tame"/"Untamed" cạnh tên trong ô mục tiêu theo bậc bách khoa của loài.
+- Kho: lựa chọn "Kho Slime" trong mọi menu của Allen (dòng thoại kho trong v4van), Cất Giữ (ô đội) / Lấy Ra (ô kho); không cất
+  được slime đang đồng hành hay slime cuối.
+- Test: `node test/world-of-slime-tame.js` (bản lưu v1 -> mua ở Vivian -> rừng -> bắt -> biệt danh -> đổi 2/1 -> thuốc Q -> I, B ->
+  kho Allen -> tải lại -> mobile kéo ném); ảnh `D:wos-refproof	ameweb`, tờ so `D:wos-refproof	amecompare<key>.png`,
+  nhận xét `D:wos-refproof	ameerdicts.tsv`.
+- Bẫy: (a) prop GLB (cube001) có `extras.tex` là uri: dùng `envMaterial` + texFor như hộp trôi dạt, `applyUnitMaterials` (chỉ số
+  texture của slime) chết "reading 'extensions'". (b) Nhấn + nhả cùng khung: xử lý `released` SAU `pressed`, không thì ngắm kẹt.
+  (c) `Story.key` bắt mọi phím ở pha capture: ô nhập biệt danh bị nuốt chữ, nên bỏ qua khi `e.target` là INPUT. (d) Rừng có 2
+  Mandrake: test combat chỉ đếm/đánh SL_Slime_Grass.
+
 ## Bảng phím (đúng `D:\wos-ref\code\input_bindings.txt`, map Gameplay)
 
 WASD đi (mũi tên không đi: chỉ thuộc map UI), Space = KeyboardInteractAttack (không có NPC thì đánh; đang đánh thì nút lớn là
 Return = huýt sáo gọi slime về), chuột trái đánh theo hướng chuột, LShift = Dash + Slot1, Q/E/R = Slot2-4 (ô vật phẩm),
-1-6 = EquipMonster1-6, C Switch, Tab Minimap, M WorldMap, I Inventory, B SlimeIndex, N SlimeInventory, J Quest (nhật ký), P Party,
+1-6 = EquipMonster1-6 (F3: đổi slime thật), C Switch, Tab Minimap, M WorldMap, I Inventory, B SlimeIndex, N SlimeInventory, J Quest (nhật ký), P Party,
 K Perk (Tiềm năng), O Community, Enter Chat, LCtrl DialogueSkip, Esc, H CombatMode (tự đánh: nút Enabled/Disabled). Lăn chuột zoom.
 **Không có phím chạy**: game gửi `speedStep = round(|cần|*10)`; WASD luôn |v| = 1 nên PC đi tốc độ tối đa, mobile đẩy nhẹ
 thì chậm. Shift-chạy và T-huýt sáo của rev a là bịa, đã bỏ. Các bảng chưa dựng thì hiện toast tên bảng.

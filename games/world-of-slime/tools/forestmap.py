@@ -352,6 +352,9 @@ def forest():
             {'id': 'flo5', 'model': 'SL_Slime_Grass', 'x': 44.5, 'z': 23.0},
             {'id': 'flo6', 'model': 'SL_Slime_Grass', 'x': 70.0, 'z': 35.0},
             {'id': 'flo7', 'model': 'SL_Slime_Grass', 'x': 38.0, 'z': 45.5},
+            # F3: loài thứ hai để bắt (Mandrake, cỏ) [ĐỀ XUẤT chỗ sinh]: clip chỉ cho thấy Mandrake của người chơi khác
+            {'id': 'man1', 'model': 'SL_Mandrake_Grass', 'x': 60.0, 'z': 26.0},
+            {'id': 'man2', 'model': 'SL_Mandrake_Grass', 'x': 52.0, 'z': 44.0},
         ],
     }
     b.write(os.path.join(GAME, 'data/maps/shadow_forest_entrance.json'), meta, client, web)

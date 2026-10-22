@@ -136,11 +136,15 @@ async function main() {
     const a7 = await st();
     check('H = CombatMode: bật tự đánh (Disabled -> Enabled)', a7.auto && a7.mode === 'enabled', a7.mode);
     await k.press('KeyH');
-    for (const [key, act] of [['KeyQ', 'slot2'], ['KeyE', 'slot3'], ['KeyR', 'slot4'], ['KeyC', 'switch'], ['KeyM', 'worldmap'], ['KeyI', 'inventory'], ['KeyB', 'slimeindex'], ['KeyN', 'slimeinventory'], ['KeyP', 'party'], ['Escape', 'escape']]) await k.press(key);   // J / K mở bảng thật (js/ui/story.js): kiểm riêng bên dưới
+    for (const [key, act] of [['KeyQ', 'slot2'], ['KeyE', 'slot3'], ['KeyR', 'slot4'], ['KeyC', 'switch'], ['KeyM', 'worldmap'], ['KeyN', 'slimeinventory'], ['KeyP', 'party'], ['Escape', 'escape']]) await k.press(key);   // I / B mở bảng thật từ F3: kiểm riêng bên dưới   // J / K mở bảng thật (js/ui/story.js): kiểm riêng bên dưới
     await pc.page.waitForTimeout(150);
     const a8 = await pc.page.evaluate(() => WOS.log.slice(-40));
-    const want = ['slot2', 'slot3', 'slot4', 'switch', 'worldmap', 'inventory', 'slimeindex', 'slimeinventory', 'party', 'escape'];
-    check('Q E R C M I B N P Esc ra đúng hành động', want.every(w => a8.includes(w)), want.filter(w => !a8.includes(w)).join(',') || 'đủ 10');
+    const want = ['slot2', 'slot3', 'slot4', 'switch', 'worldmap', 'slimeinventory', 'party', 'escape'];
+    check('Q E R C M N P Esc ra đúng hành động', want.every(w => a8.includes(w)), want.filter(w => !a8.includes(w)).join(',') || 'đủ 8');
+    await pc.page.waitForTimeout(300); if (await pc.page.evaluate(() => WOS.state.modal)) { await k.press('Escape'); await pc.page.waitForTimeout(300); }
+    await k.press('KeyI'); await pc.page.waitForTimeout(500); const mi = await pc.page.evaluate(() => WOS.state.modal); await k.press('Escape'); await pc.page.waitForTimeout(300);
+    await k.press('KeyB'); await pc.page.waitForTimeout(1500); const mb = await pc.page.evaluate(() => WOS.state.modal); await k.press('Escape'); await pc.page.waitForTimeout(300);
+    check('I mở Túi Đồ, B mở Bách Khoa (F3), Esc đóng', mi === 'bag' && mb === 'dex' && !(await pc.page.evaluate(() => WOS.state.modal)), mi + ' ' + mb);
     await k.press('KeyJ'); await pc.page.waitForTimeout(400);
     const mj = await pc.page.evaluate(() => WOS.state.modal); await k.press('Escape'); await pc.page.waitForTimeout(300);
     await k.press('KeyK'); await pc.page.waitForTimeout(400);

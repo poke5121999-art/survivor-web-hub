@@ -43,6 +43,17 @@ export const META = {
   wildAttack: { action: 1, attack: 1, pre: 300, post: 1000, radius: 3, angle: 90 },
   // item_type 215 (thumbnail Item_SlimePart_1, giá bán 15): ConditionalDrop MonsterTier <= 2, dropRate 0.7, 1..1 cái
   fragment: { item: 215, rate: 0.7, min: 1, max: 1, icon: 'img/item/Item_SlimePart_1.webp' },
+  // F3. item_type 4 "Cube": Usable ActionCast action 32, castType Position maxRange 6, guideSize 3, cubeGuide, chase; useCondition =
+  // có slime thường (MonsterNormal, Enemy, Catchable) trong 5.5 ô quanh người chơi + MonsterObtainable; coolTime 5000 ms, consume,
+  // useSound item_cube, canUseInInventory false, canRegisterQuickSlot true, slotMaxCount 99. action 32 = Attack preDelay 300 ->
+  // attack_type 5: Ranged, moveSpeed 10, Parabola maxCurveHeight 3, rangedResource Cube001_Catch (prop/cube001.glb), Sector bán kính
+  // 1 ô 360° onlyOne (trúng một con). Kết quả do server (CatchResultData, CubeWobbleResult FAIL/CAUGHT/1-3 lắc).
+  cube: { item: 4, action: 32, attack: 5, maxRange: 6, guide: 3, nearRadius: 5.5, hitRadius: 1, pre: 300, speed: 10, curve: 3, cooldown: 5000, sound: 'item_cube' },
+  // item_type 1 (item_potion_hp_1): Usable ActionCast action 31 Immediate EquippedMonster -> attack_type 4 Heal (FX_EN0_Heal_Medium),
+  // coolTime 3000 ms, canUseInInventory, canRegisterQuickSlot, consume, slotMaxCount 99. Lượng hồi không có trong meta: 30 lấy từ tên "30 HP Potion" (7:38).
+  potion: { item: 1, action: 31, attack: 4, hp: 30, cooldown: 3000, fx: 'FX_EN0_Heal_Medium' },
+  // perk 2 / 63 (Icon_Perk_Cube_Lv1/2): StatRatio stat 20103 (CUBE_BOOST) +0.1 mỗi bậc
+  cubeBoostPerLevel: 0.1,
 };
 
 export const RULES = {
@@ -61,6 +72,26 @@ export const RULES = {
       exp: 0,              // [THẤY 5:36-5:39] thắng đấu tay đôi không có log EXP slime (Lv2 vẫn đến sau con Floralime thứ ba, 6:27)
       speed: 1.1, chase: 2.6,
     },
+    // F3: loài thứ hai cho rừng. Mandrake (cỏ) thấy trong V4Van sheet1 / GAMEPLAY "Grass icon (Junior Floralime, Mandrake)"; chỗ sinh
+    // ở Shadow Forest Entrance và mọi số dưới là [ĐỀ XUẤT] (clip không cho thấy Mandrake hoang ở Entrance).
+    SL_Mandrake_Grass: { name: 'Mandrake', level: 3, hp: 34, atk: 2.4, exp: 3, speed: 0.9, chase: 2.2 },
+  },
+  // ---- bắt slime (F3) [ĐỀ XUẤT]: server tính tỉ lệ (CODE.md §4), client không có công thức.
+  // chance = (base + span * (1 - máu còn)^pow) * (1 + CUBE_BOOST); mỗi lần lắc qua với xác suất chance^(1/3): qua đủ 3 lần = CAUGHT,
+  // dừng ở lần k (0..2) = thoát sau k lần lắc (k = 0 vẫn lắc 1 lần cho thấy, CubeWobbleResult FAIL / ONE / TWO).
+  // Thẻ Tame (13:00 clip): "The lower the slime's health, the higher the tame chance."
+  tame: {
+    base: 0.12,        // [ĐỀ XUẤT] đầy máu: 12%
+    span: 0.78,        // [ĐỀ XUẤT] còn 0 máu: 90%
+    pow: 1.4,          // [ĐỀ XUẤT] tăng nhanh khi máu dưới ~40%
+    shakeTime: 1.0,    // [ĐO TRONG REPO] clip Cube_catch_3 1.0 s (catch_1 1.5, catch_2 1.22): mỗi lần lắc phát một clip
+    exp: 0,            // [ĐỀ XUẤT] bắt được không cho EXP slime (clip không thấy log EXP khi bắt)
+  },
+  // ---- đội (F3)
+  party: {
+    accompany: 4,      // [THẤY gmwall_hud_party_bar] ô thứ 5 ghi "Accompany Unavailable" (PlayScene.Slimeslotlimit); GAMEPLAY: 4 ô đầu demo
+    accompanyAt16: 5,  // [THẤY GM WALL ảnh boss] người chơi Lv16+ có 5 slime đi cùng; mốc Lv16 [ĐỀ XUẤT]
+    switchCd: 3,       // [ĐỀ XUẤT] s hồi đổi slime (EquipMonsterFailCode.SWITCH_ON_COOLDOWN có, số không có)
   },
   // ---- slime đồng hành theo cấp lv (state.party[0])
   partner: {
@@ -95,6 +126,18 @@ export const RULES = {
     bubble: 3.0,            // [ĐỀ XUẤT] s mỗi bóng thoại của Rudga
   },
 };
+
+// tỉ lệ bắt theo phần máu còn (0..1) và bậc perk Cube (perk 2 + 63) [ĐỀ XUẤT công thức, hệ số perk ĐO TRONG REPO]
+export function tameChance(hpRatio, cubePerkLevels = 0) {
+  const T = RULES.tame, r = Math.max(0, Math.min(1, hpRatio));
+  return Math.min(0.98, (T.base + T.span * Math.pow(1 - r, T.pow)) * (1 + META.cubeBoostPerLevel * cubePerkLevels));
+}
+// CubeWobbleResult: -1 FAIL, 0 CAUGHT, 1..3 số lần lắc rồi thoát
+export function rollTame(chance, rng) {
+  const q = Math.pow(chance, 1 / 3); let k = 0;
+  while (k < 3 && rng() < q) k++;
+  return k === 3 ? { result: 0, shakes: 3 } : { result: k === 0 ? -1 : k, shakes: Math.max(1, k) };
+}
 
 // RNG có hạt giống (mulberry32) để test chạy lại ra cùng kết quả: ?seed=<n>
 export function makeRng(seed) {

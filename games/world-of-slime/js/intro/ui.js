@@ -1,9 +1,9 @@
 // Khung chung cho các màn mở đầu: lớp #intro phủ toàn màn, gốc canvas đơn vị prefab (cao 1080) scale theo
 // SMUniformCanvasScaler (hud.js uiScale) như HUD; X() đặt phần tử theo toạ độ ảnh chụp 1280x720 (K = 2 đơn vị / px,
 // giống js/ui/story.js) với neo trái / giữa / phải; popup Notice / Nickname theo prefab CommonPopup / CommonInputPopup.
-import { paint, BORDER } from '../ui/sprites.js?v=20261022c';
-import { uiScale, css } from '../ui/hud.js?v=20261022c';
-import { L } from './text.js?v=20261022c';
+import { paint, BORDER } from '../ui/sprites.js?v=20261022d';
+import { uiScale, css } from '../ui/hud.js?v=20261022d';
+import { L } from './text.js?v=20261022d';
 
 // viền 9-slice của sprite dùng ở đây (ui/index.json border [l, b, r, t]) chưa có trong BORDER của HUD
 Object.assign(BORDER, {

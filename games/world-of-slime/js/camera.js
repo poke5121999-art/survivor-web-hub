@@ -2,7 +2,7 @@
 // bám người chơi có vùng chết, tốc độ bám minSpeed..maxSpeed theo khoảng lệch, kẹp theo cameraMoveRect,
 // zoom bằng con lăn / chụm. Số trên prefab chưa đọc -> CAMERA trong config.js ghi [ĐỀ XUẤT].
 import * as THREE from 'three';
-import { CAMERA, PARAMS } from './config.js?v=20261022c';
+import { CAMERA, PARAMS } from './config.js?v=20261022d';
 
 const D2R = Math.PI / 180;
 

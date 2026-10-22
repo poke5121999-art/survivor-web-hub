@@ -1,27 +1,33 @@
 // Vòng chơi lát cắt đầu: bản đồ + người chơi + slime đồng hành + camera + nhập + bước chân + HUD + màn tải.
 // Logic chạy trong toạ độ Unity (x phải, z lên màn hình, y cao); chỉ khi đặt Object3D mới đổi sang three (-x, y, z).
 import * as THREE from 'three';
-import { REV, PARAMS, MOVE } from './config.js?v=20261022c';
-import { GameMap, loadMapData } from './world/map.js?v=20261022c';
-import { envTime, envMaterial } from './world/envmat.js?v=20261022c';
-import { Player, Slime, Npc } from './actors/actors.js?v=20261022c';
-import { loadTex, loadGLB, assetUrl } from './assets.js?v=20261022c';
-import { MAPS, DEFAULT_MAP } from '../data/portals.js?v=20261022c';
-import { Post, GRADE } from './post.js?v=20261022c';
-import { FollowCamera } from './camera.js?v=20261022c';
-import { makeIntent, quantizeMove, endFrame } from './input/intent.js?v=20261022c';
-import { attachPC } from './input/pc.js?v=20261022c';
-import { attachMobile } from './input/mobile.js?v=20261022c';
-import { Audio } from './audio.js?v=20261022c';
-import { Hud } from './ui/hud.js?v=20261022c';
-import { showLoading } from './ui/loading.js?v=20261022c';
-import { state, set } from './state.js?v=20261022c';
-import { t } from '../data/loc_vi.js?v=20261022c';
-import { Story } from './ui/story.js?v=20261022c';
-import { QuestEngine } from './quest/engine.js?v=20261022c';
-import { BOXES, WEST_GATE } from './quest/data.js?v=20261022c';
-import { Combat } from './combat/combat.js?v=20261022c';   // F1: chiến đấu, rừng, đấu tay đôi
-import { runIntro, avatarFor, applyProfile, attachSetting } from './intro/intro.js?v=20261022c';   // F2: mở đầu + Setting
+import { REV, PARAMS, MOVE } from './config.js?v=20261022d';
+import { GameMap, loadMapData } from './world/map.js?v=20261022d';
+import { envTime, envMaterial } from './world/envmat.js?v=20261022d';
+import { Player, Slime, Npc } from './actors/actors.js?v=20261022d';
+import { loadTex, loadGLB, assetUrl } from './assets.js?v=20261022d';
+import { MAPS, DEFAULT_MAP } from '../data/portals.js?v=20261022d';
+import { Post, GRADE } from './post.js?v=20261022d';
+import { FollowCamera } from './camera.js?v=20261022d';
+import { makeIntent, quantizeMove, endFrame } from './input/intent.js?v=20261022d';
+import { attachPC } from './input/pc.js?v=20261022d';
+import { attachMobile } from './input/mobile.js?v=20261022d';
+import { Audio } from './audio.js?v=20261022d';
+import { Hud } from './ui/hud.js?v=20261022d';
+import { showLoading } from './ui/loading.js?v=20261022d';
+import { state, set, loadSave } from './state.js?v=20261022d';
+import { t } from '../data/loc_vi.js?v=20261022d';
+import { Story } from './ui/story.js?v=20261022d';
+import { QuestEngine } from './quest/engine.js?v=20261022d';
+import { BOXES, WEST_GATE } from './quest/data.js?v=20261022d';
+import { Combat } from './combat/combat.js?v=20261022d';   // F1: chiến đấu, rừng, đấu tay đôi
+import { runIntro, avatarFor, applyProfile, attachSetting } from './intro/intro.js?v=20261022d';   // F2: mở đầu + Setting
+import { Tame } from './combat/tame.js?v=20261022d';            // F3: ném Cube, lắc, bắt
+import { Panels } from './ui/panels.js?v=20261022d';           // F3: Túi (I), Kho (Allen), Bách khoa (B), biệt danh
+import { loadItems, item } from './party/items.js?v=20261022d';
+import { displayName, speciesName } from './party/roster.js?v=20261022d';
+import { META } from './combat/rules.js?v=20261022d';
+import { L } from '../data/quest_text.js?v=20261022d';
 
 const errors = (window.__wosErrors = window.__wosErrors || []);
 addEventListener('error', e => errors.push('error: ' + e.message));
@@ -52,7 +58,11 @@ export async function boot(platform) {
   // mặc định vào quán trọ Larus (257) như game thật; ?map=dev = bản đồ thử, ?map=110 / 478 vào thẳng
   let mapId = (PARAMS.get('map') || String(DEFAULT_MAP)).replace(/[^a-z0-9_-]/gi, '');
   const gender = PARAMS.get('gender') === 'woman' ? 'woman' : 'man';
-  const slimeId = PARAMS.get('slime') || (profile && profile.slime) || 'SL_Slime_Water';
+  // F3: slime đồng hành = bản ghi active của bản lưu (đổi bằng phím 1-6); lần đầu = slime khởi đầu theo ba lô / ?slime=
+  const starterId = PARAMS.get('slime') || (profile && profile.slime) || 'SL_Slime_Water';
+  const sv0 = loadSave(10000), act0 = sv0.slimes && sv0.slimes[sv0.active];
+  const slimeId = (act0 && act0.typeId) || starterId;
+  const itemsP = loadItems(); itemsP.catch(e => errors.push('items: ' + e.message));
   // nhân vật tải song song với bản đồ (trước đây tuần tự)
   const actorsP = Promise.all([profile ? avatarFor(profile) : Player.create(gender), Slime.create(slimeId)]);
   actorsP.catch(() => {});
@@ -85,9 +95,8 @@ export async function boot(platform) {
   setLabel();
 
   loading.phase('nhân vật');
-  const [player, slime] = await actorsP;
+  let [player, slime] = await actorsP;
   scene.add(player.object, slime.object);
-  if (slimeId !== state.party[0].id) state.party[0] = { ...state.party[0], id: slimeId, name: slimeId.replace(/^SL_/, '').replace(/_/g, ' ') };
   for (const o of [player, slime]) { o.object.updateMatrixWorld(true); const bb = new THREE.Box3().setFromObject(o.object); o.height = bb.max.y - bb.min.y; }
   const mapInfo = () => MAPS[map.data.id] || null;
   const setMapHud = () => {
@@ -158,14 +167,88 @@ export async function boot(platform) {
     npcHeight: n => { const a = npcs.find(k => k.def.name === n); return a ? a.height : null; },
     playerObject: () => player.object, playerHeight: () => player.height,
     duel: () => { W.duelStart = performance.now(); switchMap({ to: 'rudga_arena', at: 'duel', name: 'duel' }).then(() => combat.startDuel()); },
+    storage: () => panels.openStorage(),   // F3: lựa chọn "Kho Slime" của Allen
     pushback: () => { const b = WEST_GATE.back; P.x = b.x; P.z = b.z; P.y = map.getHeight(b.x, b.z); P.yaw = yawOfDeg(90); P.dashT = 0; gateT = 1.5; },
   });
   W.quest = engine; W.story = story;
+  engine.roster.ensureStarter(starterId, profile && profile.bag); engine.sync();
+  W.roster = engine.roster;
   // ---- chiến đấu (js/combat): slime hoang của bản đồ, đồng hành tự đánh, huýt sáo, đấu tay đôi với Rudga
   const combat = new Combat({ scene, hud, story, engine, audio, P, S, player, slime, camera: () => fcam.cam,
     seed: +PARAMS.get('seed') || 0, getNpc: n => npcs.find(k => k.def.name === n) || null,
     onDuelEnd: win => { if (win) { engine.save.duel = true; engine.persist(); } switchMap({ to: 110, at: 'west_gate', name: 'duel_end' }); } });
   W.combat = combat;
+  // ---- F3: bắt slime, ô nhanh vật phẩm, đổi slime, bảng túi / kho / bách khoa
+  const itemCd = {};   // itemId -> ms còn hồi (Usable.coolTimeMillis)
+  const quickSet = (slot, id) => {
+    const q = engine.save.quick;
+    for (let i = 0; i < q.length; i++) if (q[i] === id) q[i] = null;
+    if (slot >= 0 && slot < q.length) q[slot] = id;
+    engine.persist();
+  };
+  const useItem = (id, from) => {
+    const m = item(id), u = m && m.usable;
+    if (!u) return 'bag.cannotUse';
+    if (!(engine.save.items[id] > 0)) return 'bag.empty';
+    if (itemCd[id] > 0) return 'item.cooldown';
+    if (m.cube) return 'bag.cannotUse';
+    if (+id !== META.potion.item) return 'bag.cannotUse';
+    // 30 HP Potion: action 31 Immediate EquippedMonster -> attack_type 4 Heal (FX_EN0_Heal_Medium)
+    const rec = engine.roster.active(); if (!rec) return 'item.noTarget';
+    const mh = engine.roster.maxHp(rec), before = Math.round(rec.hp * mh), after = Math.min(mh, before + META.potion.hp);
+    engine.save.items[id]--; itemCd[id] = u.cd;
+    rec.hp = after / mh; if (rec.hp > 0) delete rec.fainted;
+    engine.persist(); combat.loadPartner();
+    combat.hitFx(S.x, S.y, S.z, 0x8dff9a);
+    story.log(L('item.used', { item: L('item.' + id), name: displayName(rec), n: after - before }), null, 'img/item/item_potion_hp_1.webp');
+    audio.play('ui_levelUp', { gain: 0.4 });
+    engine.ev('useItem', { id, from, hp: after, before });
+    if (engine.status('q9') === 'active') engine.obj('q9', 'potion');   // F4: "Use 30 HP Potion 1/1" (nhiệm vụ chưa có thì bỏ qua)
+    return 'ok';
+  };
+  const panels = new Panels(story, { engine, renderer, useItem, quick: { set: quickSet } });
+  W.panels = panels;
+  const tame = new Tame({ scene, audio, combat, roster: engine.roster, P, rng: () => combat.rng(), perkLevels: () => (engine.save.perks.cube1 || 0) + (engine.save.perks.cube2 || 0),
+    ev: (k, d) => { combat.ev(k, d); engine.ev(k, d); },
+    onResult: async res => {
+      const m = res.monster;
+      if (res.miss) { hud.toast(L('tame.miss')); return; }
+      if (res.result !== 0) { hud.toast(L('tame.free', { name: m.def.name }), 2000); return; }
+      const out = engine.roster.add(m.def.model, { level: m.def.level, hp: Math.max(0.05, m.hp / m.maxHp), mp: 1, stamina: 1, acquisition: 'FIELD' });
+      if (!out) { hud.toast(L('tame.full')); return; }
+      engine.sync();
+      story.log(L('tame.caught', { name: m.def.name }), null, 'img/sl/' + m.def.model + '.webp');
+      if (out.where === 'storage') hud.toast(L('tame.autoArchived'), 2200);
+      else if (out.first) hud.toast(L('tame.registered'), 2200);
+      await panels.askNickname(out.rec);
+      engine.sync();
+    } });
+  W.tame = tame;
+  hud.itemCd = i => { const id = engine.save.quick[i]; if (id == null) return null; const m = item(id); const max = (m && m.usable && m.usable.cd) || 1; return { left: m && m.cube ? tame.cd : itemCd[id] || 0, max }; };
+  let aiming = null;   // { act, slot, id, drag: {dx, dy} | null } khi đang ngắm Cube
+  hud.onDrag = (act, dx, dy) => { if (aiming && aiming.act === act) aiming.drag = { dx, dy }; else if (platform !== 'pc') pendingDrag[act] = { dx, dy }; };
+  const pendingDrag = {};
+  hud.onRelease = (act, dx, dy, cancel) => { if (aiming && aiming.act === act) { aiming.drag = { dx, dy }; aiming.cancel = !!cancel; } intent.released.add(act); };
+  // swap mô hình slime đồng hành (phím 1-6)
+  const swapSlime = async rec => {
+    const old = slime, nw = await Slime.create(rec.typeId);
+    nw.object.updateMatrixWorld(true); const bb = new THREE.Box3().setFromObject(nw.object); nw.height = bb.max.y - bb.min.y;
+    scene.remove(old.object); scene.add(nw.object);
+    nw.onEvent = old.onEvent; slime = nw; W.slime = nw; combat.c.slime = nw;
+    place(nw.object, S);
+    combat.recall(); combat.loadPartner();
+    engine.sync();
+    W.swaps = (W.swaps || 0) + 1;
+  };
+  // ngắm: PC = điểm chuột, mobile = hướng kéo nút (dài 150 đơn vị canvas = maxRange) [ĐỀ XUẤT], kéo dưới 24 = tự nhắm con gần
+  const aimOf = a => {
+    if (!a) return null;
+    if (platform === 'pc') return aimPoint();
+    const d = a.drag; if (!d || Math.hypot(d.dx, d.dy) < 24) return null;
+    const l = Math.hypot(d.dx, d.dy), k = Math.min(1, l / 150) * META.cube.maxRange;
+    return { x: P.x + d.dx / l * k, z: P.z + d.dy / l * k };
+  };
+  const TAME_ERR = { cooldown: 'item.cooldown', noNearby: 'tame.noNearby', full: 'tame.full', busy: 'item.cooldown' };
   // ?quest: bày trạng thái "đang làm The Herb in the Box" (q1..q3 xong) để so bố cục QuestBookmark với khung hình; chỉ trong bộ nhớ
   if (PARAMS.has('quest')) { engine.save.quests = { q1: { s: 'done', c: {} }, q2: { s: 'done', c: {} }, q3: { s: 'done', c: {} }, q4: { s: 'active', c: {} } }; engine.sync(); }
   let gateT = 0, target = null;
@@ -276,8 +359,9 @@ export async function boot(platform) {
   };
   // hành động SMActions mỗi khung (phím, chuột, nút HUD, cảm ứng)
   const actions = () => {
-    if (state.modal) { intent.pressed.clear(); return; }   // hội thoại / bảng đang mở: phím do js/ui/story.js nhận
+    if (state.modal) { intent.pressed.clear(); intent.released.clear(); if (aiming) { aiming = null; tame.hideGuide(); } return; }   // hội thoại / bảng đang mở: phím do js/ui/story.js nhận
     for (const a of intent.pressed) {
+      if (state.modal) break;   // vừa mở bảng (I / B / hội thoại): phím còn lại của khung này bỏ
       log.push(a); if (log.length > 200) log.shift();
       if (a === 'attack') attack(true);
       else if ((a === 'interactAttack' || a === 'interact') && target && !state.battle) engine.interact(target);   // KeyboardInteractAttack: có NPC/hộp trong tầm thì tương tác
@@ -285,12 +369,19 @@ export async function boot(platform) {
       else if (a === 'interactAttack') { if (state.battle) recall(); else attack(true); }   // không có NPC gần thì đánh; đang đánh thì nút lớn là Return
       else if (a === 'return') recall();
       else if (/^equip\d$/.test(a)) {
-        const i = +a.slice(5);
-        if (state.party[i]) { if (state.equipped !== i) set({ equipped: i }); log.push('equipped:' + i); }
-        else hud.toast(t('PlayScene.Slimeslotlimit'));
+        // EquipMonster1..6 (SelectMonsterInBagRequest{pocketIndex}); lỗi theo EquipMonsterFailCode / PlayScene.Slimeslotlimit
+        const i = +a.slice(5), r = engine.roster.equip(i);
+        if (r === 'ok') { log.push('equipped:' + i); swapSlime(engine.roster.active()).catch(e => errors.push('swap slime: ' + e.message)); }
+        else if (r === 'same') log.push('equipped:' + i);
+        else hud.toast(L({ empty: 'party.unavailable', unavailable: 'party.unavailable', hpZero: 'party.hpZero', cooldown: 'party.cooldown' }[r]));
       } else if (/^slot[234]$/.test(a)) {
-        const b = hud.el.items[+a.slice(4) - 2]; b.classList.add('on'); setTimeout(() => b.classList.remove('on'), 150);
-      } else if (a === 'switch') { set({ control: state.control === 'user' ? 'slime' : 'user' }); hud.toast(t('Settings.Keymap.Switch')); }
+        const k = +a.slice(4) - 2, b = hud.el.items[k]; b.classList.add('on'); setTimeout(() => b.classList.remove('on'), 150);
+        const id = engine.save.quick[k], m = id != null ? item(id) : null;
+        if (m && m.cube) { if (engine.save.items[id] > 0) aiming = { act: a, slot: k, id, drag: pendingDrag[a] || null }; else hud.toast(L('bag.empty')); }   // nhấn = hiện cubeGuide, nhả = ném
+        else if (m) { const r = useItem(id, 'quick'); if (r !== 'ok') hud.toast(L(r)); }
+      } else if (a === 'switch') hud.toast(L('party.switchPerk'));   // Switch (C) = điều khiển slime trực tiếp: cần perk Switching (SwitchMonsterFailCode.Perk)
+      else if (a === 'inventory') panels.openBag();
+      else if (a === 'slimeindex') panels.openDex();
       else if (a === 'minimap') set({ minimapOpen: !state.minimapOpen });
       else if (a === 'combatmode') { set({ autoBattle: !state.autoBattle }); hud.toast(t('Settings.Keymap.CombatMode')); }
       else if (a === 'escape' && state.minimapOpen) set({ minimapOpen: false });
@@ -298,6 +389,15 @@ export async function boot(platform) {
       else if (a === 'perk') story.openPerk();
       else if (a === 'escape' && W.openSetting) W.openSetting();
       else if (PANELS[a]) hud.toast(t(PANELS[a]) + ' · chưa có');
+    }
+    // F3 (sau phím nhấn: nhấn + nhả cùng khung vẫn ném): nhả phím / nút ô vật phẩm đang ngắm Cube = ném (CastTargetMonstersRequest)
+    for (const a of intent.released) {
+      if (!aiming || aiming.act !== a) continue;
+      const aim = aimOf(aiming), id = aiming.id, cancel = aiming.cancel; aiming = null; tame.hideGuide();
+      if (cancel) continue;
+      const r = tame.throw(aim);
+      if (r === 'ok') { engine.save.items[id]--; engine.persist(); P.attackT = 0.5; if (aim) P.yaw = yawOf(aim.x - P.x, aim.z - P.z); log.push('throw'); }
+      else hud.toast(L(TAME_ERR[r] || r));
     }
   };
 
@@ -363,6 +463,10 @@ export async function boot(platform) {
 
     // --- slime đồng hành: js/combat lái khi đang đánh; không thì theo sau ~1.6 m [ĐỀ XUẤT]; Return (huýt sáo) gọi về cạnh người chơi
     const fighting = !switching && combat.update(dt, fcam.cam);
+    tame.update(dt);
+    if (aiming) tame.guide(aimOf(aiming) || (() => { const m = tame.nearest(P.x, P.z, META.cube.nearRadius); return m ? { x: m.x, z: m.z } : null; })());
+    for (const k in itemCd) itemCd[k] = Math.max(0, itemCd[k] - dt * 1000);
+    if (engine.roster.switchCd > 0) { engine.roster.switchCd = Math.max(0, engine.roster.switchCd - dt); const v = Math.ceil(engine.roster.switchCd * 10) / 10; if (v !== state.switchCd) set({ switchCd: v }); }
     if (!fighting) {
     const tx = P.x, tz = P.z, dx = tx - S.x, dz = tz - S.z, d = Math.hypot(dx, dz);
     if (d > 12) { S.x = P.x; S.z = P.z - 1; S.y = P.y; }

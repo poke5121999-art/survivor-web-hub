@@ -123,3 +123,8 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #8fb7c9; col
 #hud .story-fx.modal .banner { visibility: hidden; }
 #hud .paper { border-radius: 26px 26px 22px 22px; background: linear-gradient(#5cc2ff, #2b8fe6 55%, #1f6fc6); box-shadow: 0 0 18px rgba(80,180,255,.7); }
 #hud .pline .spr { background: none !important; }
+/* F3: ô vật phẩm, ô slime ngất / quá giới hạn */
+#hud .itemicon { object-fit: contain; pointer-events: none; }
+#hud .itemcount { pointer-events: none; }
+#hud img.fainted { filter: grayscale(1) brightness(0.6); }
+#hud .wrapc { white-space: normal; text-align: center; line-height: 1.0; }

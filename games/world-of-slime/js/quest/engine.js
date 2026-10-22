@@ -1,9 +1,10 @@
 // Máy trạng thái nhiệm vụ: đọc bảng js/quest/data.js, giữ bản lưu (js/state.js loadSave/writeSave), đẩy HUD
 // (state.quest = nhiệm vụ đang theo dõi, state.player.level/exp, slime HP/MP/thể lực, cảnh báo thể lực) và gọi js/ui/story.js
 // để hiện hội thoại, băng chữ, log. game.js chỉ gọi: engine.interactAt(), engine.talk(npc), engine.tick(), engine.onMap().
-import { QUESTS, QUEST, TALK, FIRST_QUEST, EXP_TO_NEXT, START_GOLD, HEAL_COST, BOXES, PERKS, ITEM_ICON, INTERACT_RANGE, TALK_RANGE } from './data.js?v=20261022c';
-import { state, set, loadSave, writeSave } from '../state.js?v=20261022c';
-import { L } from '../../data/quest_text.js?v=20261022c';
+import { QUESTS, QUEST, TALK, FIRST_QUEST, EXP_TO_NEXT, START_GOLD, HEAL_COST, BOXES, PERKS, ITEM_ICON, INTERACT_RANGE, TALK_RANGE } from './data.js?v=20261022d';
+import { state, set, loadSave, writeSave } from '../state.js?v=20261022d';
+import { L } from '../../data/quest_text.js?v=20261022d';
+import { Roster } from '../party/roster.js?v=20261022d';
 
 export class QuestEngine {
   constructor(story, hooks = {}) {
@@ -11,6 +12,8 @@ export class QuestEngine {
     this.hooks = hooks;           // { pushback(), npcObject(name), playerObject() }
     this.save = loadSave(START_GOLD);
     this.events = [];             // nhật ký cho test: [{ t, kind, ... }]
+    this.roster = new Roster(this);   // F3: túi slime / kho / bách khoa (js/party/roster.js)
+    if (!this.save.quick.some(x => x != null)) for (const it of [1, 4]) this.autoQuick(it);   // bản lưu cũ đã có đồ
     this.sync();
   }
   ev(kind, data = {}) { this.events.push({ t: Math.round(performance.now()), kind, ...data }); if (this.events.length > 300) this.events.shift(); }
@@ -67,6 +70,7 @@ export class QuestEngine {
   }
   give(item, n) {
     this.save.items[item] = (this.save.items[item] || 0) + n;
+    this.autoQuick(item);
     this.story.log(L('item.' + item) + ' × ' + n, null, ITEM_ICON[item]);
     this.ev('item', { item, n });
   }
@@ -76,6 +80,11 @@ export class QuestEngine {
     this.ev('obj', { q: qid, o: oid, c: s.c[oid] });
     this.persist();
   }
+  // F3: món đầu tiên có thể đặt ô nhanh tự vào ô như khung gmwall_hud_party_bar (Q = thuốc, E = Cube) nếu ô đó trống [ĐỀ XUẤT]
+  autoQuick(item) {
+    const auto = { 1: 0, 4: 1 }[item];
+    if (auto != null && this.save.items[item] > 0 && !this.save.quick.includes(item) && this.save.quick[auto] == null) this.save.quick[auto] = item;
+  }
   bagCount() { return Object.values(this.save.items).filter(n => n > 0).length; }
 
   // ---- HUD
@@ -83,9 +92,9 @@ export class QuestEngine {
     const sv = this.save, lv = sv.level;
     const a = this.active()[0];
     const quest = a ? { id: a.id, title: L(a.title), objectives: a.objectives.map(o => ({ text: this.objText(a, o), done: o.kind !== 'talk' && this.count(a.id, o.id) >= o.need })) } : null;
-    const sl = { ...state.party[0], hp: sv.slime.hp, mp: sv.slime.mp, st: sv.slime.st };
-    const party = state.party.slice(); party[0] = sl;
-    set({ quest, party, warnStamina: sv.slime.st < 0.3, player: { ...state.player, level: lv, exp: Math.min(1, sv.exp / EXP_TO_NEXT(lv)) } });
+    const act = this.roster.active();
+    this.roster.sync();
+    set({ quest, warnStamina: !!act && act.stamina < 0.3, player: { ...state.player, level: lv, exp: Math.min(1, sv.exp / EXP_TO_NEXT(lv)) } });
     this.story.hud.setMarkers(n => this.markerFor(n));
   }
   markerFor(npc) {
@@ -146,7 +155,7 @@ export class QuestEngine {
           else if (op === 'obj') { const [q, o] = arg.split('.'); this.obj(q, o); }
           else if (op === 'heal') goto = this.heal() ? undefined : 'alHno';
           else if (op === 'box') goto = this.openBox(ctx.box);
-          else if (op === 'perk' || op === 'shop' || op === 'notbuilt' || op === 'pushback' || op === 'sell' || op === 'duel') after.push(op);
+          else if (op === 'perk' || op === 'shop' || op === 'notbuilt' || op === 'pushback' || op === 'sell' || op === 'duel' || op === 'storage') after.push(op);
         }
         return goto;
       },
@@ -159,6 +168,7 @@ export class QuestEngine {
         else if (op === 'notbuilt') await this.story.notice(L('ui.notBuilt'));
         else if (op === 'pushback' && this.hooks.pushback) this.hooks.pushback();
         else if (op === 'duel' && this.hooks.duel) this.hooks.duel();   // js/combat: sang sân đấu Rudga
+        else if (op === 'storage' && this.hooks.storage) await this.hooks.storage();   // F3: Slime Storage (js/ui/panels.js)
       }
       this.sync();
     });
@@ -166,7 +176,7 @@ export class QuestEngine {
   heal() {
     if (this.save.gold < HEAL_COST) return false;
     this.save.gold -= HEAL_COST;
-    this.save.slime = { hp: 1, mp: 1, st: 1 };
+    this.roster.healAll();
     this.ev('heal', { gold: this.save.gold });
     if (this.status('q3') === 'active') this.obj('q3', 'heal'); else this.persist();
     return true;

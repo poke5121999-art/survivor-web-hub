@@ -8,9 +8,10 @@
 //   ui_objects__LogUITitle  : dòng log lớn "Roasted\nLv2" fs41 (6:27)
 // Thanh trên cùng của trận (5:24) đo trong khung t0109 (480x270 -> x4 = 1920, /0.8 = đơn vị prefab) [ĐO TRONG ẢNH].
 import * as THREE from 'three';
-import { R, F, text } from '../ui/hud.js?v=20261022c';
-import { assetUrl } from '../assets.js?v=20261022c';
-import { state } from '../state.js?v=20261022c';
+import { R, F, text } from '../ui/hud.js?v=20261022d';
+import { assetUrl } from '../assets.js?v=20261022d';
+import { state } from '../state.js?v=20261022d';
+import { L } from '../../data/quest_text.js?v=20261022d';
 
 const NAME_COL = [0.86, 0.62, 0.96, 1];     // [ĐO TRONG ẢNH] chữ tên slime hoang tím hồng (220,158,245)
 const DARK = [0.078, 0.118, 0.133, 0.8];    // PVPvs Background / Team1 Image
@@ -29,6 +30,7 @@ const CSS = `
   font-size:21px; line-height:1.15; box-shadow:0 2px 0 rgba(0,0,0,.25); text-align:center; }
 #hud .cbt-title .txt { white-space:pre; line-height:1.0; font-style:italic; }
 #hud .cbt-fade { transition: opacity .4s; }
+#hud .tametag { padding: 0 12px; }
 `;
 
 export class CombatUI {
@@ -65,19 +67,28 @@ export class CombatUI {
     const r = this.targetEl = R(this.top, { n: 'combatTarget', a: [0.5, 1], p: [0, -330], sz: [400, 190], pv: [0.5, 0], cls: 'cbt-target' });
     this.tImg = R(r, { tag: 'img', a: [0.5, 1], p: [-12, -64], sz: [128, 128], pv: [0.5, 0.5] }); this.tImg.crossOrigin = 'anonymous';
     const lv = R(r, { a: [0.5, 1], p: [78, -104], auto: true, pv: [0.5, 0.5] }); this.tLv = text(lv, 'LV.2', 30, [0.8, 0.95, 1, 1], 'outline');
-    const nm = R(r, { a: [0.5, 1], p: [0, -140], auto: true, pv: [0.5, 0.5] }); this.tName = text(nm, '', 30, NAME_COL, 'outline');
+    const nm = R(r, { a: [0.5, 1], p: [0, -140], auto: true, pv: [0.5, 0.5], cls: 'row center' }); nm.style.gap = '8px'; this.tName = text(nm, '', 30, NAME_COL, 'outline');
+    // F3: thẻ "Tame" (chữ xanh lá) / "Untamed" (chữ xám) trên nền tối bo tròn cạnh tên [ĐO TRONG ẢNH gmwall_tame_floralime_cube,
+    // v4van_nickname_synthesis_lab]: Tame = loài đã có trong bách khoa ở mức Catch (SlimeIndex.DegreeStep02)
+    this.tTag = F(nm, null, 36, { spr: 'Common/Ui_Bg_Round_01_32px', col: [0.05, 0.1, 0.14, 0.75], sl: true, cls: 'row center tametag', n: 'tameTag' });
+    this.tTagText = text(this.tTag, '', 26, [1, 1, 1, 1]);
     const g = this.tBar = R(r, { a: [0.5, 1], p: [0, -172], sz: [295, 22], pv: [0.5, 0.5], spr: 'Game/UI_Gauge_BG01_1', col: [0.031, 0.118, 0.188, 1], sl: true });
     this.tFill = R(g, { a: [0, 0, 0, 1], p: [2, 0], sz: [291, -4], pv: [0, 0.5], spr: 'Game/UI_Gauge_EnemyHP', sl: true });
     this.tNum = document.createElement('div'); this.tNum.className = 'cbt-num'; g.appendChild(this.tNum);
     r.hidden = true;
   }
-  showTarget(m) {
+  showTarget(m, degreeOf) {
     const r = this.targetEl;
     if (!m || m.dead) { r.hidden = true; r.dataset.id = ''; return; }
     r.hidden = false;
     if (r.dataset.id !== m.def.id) {
       r.dataset.id = m.def.id; this.tImg.src = assetUrl('img/sl/' + m.def.model + '.webp');
       this.tName.textContent = m.def.name; this.tLv.textContent = 'LV.' + m.def.level;
+    }
+    const tame = degreeOf ? degreeOf(m) >= 2 : false;
+    if (this.tTag.dataset.k !== String(tame)) {
+      this.tTag.dataset.k = String(tame); this.tTagText.textContent = L(tame ? 'tame.tag.tame' : 'tame.tag.untamed');
+      this.tTagText.style.color = tame ? 'rgb(150,240,140)' : 'rgb(215,222,226)';
     }
     this.tFill.style.width = 291 * Math.max(0, m.hp / m.maxHp) + 'px';
     this.tNum.textContent = Math.ceil(m.hp) + ' / ' + m.maxHp;
@@ -89,8 +100,8 @@ export class CombatUI {
     this.world.hidden = !!state.modal; this.top.style.visibility = state.modal ? 'hidden' : '';
     for (const m of list) {
       const t = this.tag(m);
-      t.el.style.opacity = m.dead ? '0' : '1';
-      if (m.dead) continue;
+      t.el.style.opacity = m.dead || m.trapped ? '0' : '1';
+      if (m.dead || m.trapped) continue;
       v.set(m.object.position.x, m.object.position.y + (m.height || 0.8) + 0.4, m.object.position.z).project(cam);
       const vis = v.z < 1 && Math.abs(v.x) < 1.2 && Math.abs(v.y) < 1.2;
       t.el.style.visibility = vis ? '' : 'hidden';
