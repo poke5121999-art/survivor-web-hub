@@ -987,5 +987,29 @@ window.HUB_GAMES = [
     // (logic restored from the IL2CPP binary). Kiểm: python docs/tests/browser/test_casual_farm.py <hub url> (meta-repo).
     status: "available",
     tags: ["Nông trại", "Quản lý", "Màn dọc"]
+  },
+  {
+    id: "world-of-slime",
+    title: "Thế Giới Slime",
+    tagline: "Tỉnh dậy ở làng chài Larus cùng slime đồng hành, đánh và thuần phục slime hoang.",
+    desc: "Làm lại bản demo World of Slime trên web. Tạo nhân vật, chọn ba lô có slime đầu tiên, làm nhiệm vụ cho dân làng Larus. Ra rừng Shadow Forest, slime của bạn tự đánh slime hoang. Đánh yếu rồi ném Cube để thuần phục, xếp đội tới 6 con. Có bản PC và bản mobile.",
+    genre: "nhap-vai",
+    accent: "#38bdf8",
+    en: { title: "World of Slime", tagline: "Wake up in the fishing village of Larus with a partner slime, fight and tame wild ones.", desc: "The World of Slime demo remade for the web. Create your character, pick the backpack with your first slime and help the villagers of Larus. Out in Shadow Forest your slime fights wild slimes on its own. Wear them down, throw a Cube to tame them and build a team of up to six. PC and mobile versions." },
+    thumbnail: "assets/thumbnails/world-of-slime.png",
+    path: "games/world-of-slime/index.html",
+    rev: "20261022f",
+    // three.js r160 vendor trong games/world-of-slime/vendor, không bước build. Dựng lại World of Slime Demo (TEAM42,
+    // Steam appid 4793900) theo yêu cầu của chủ dự án ngày 2026-10-21, từ bản cài trên máy (Unity IL2CPP, Addressables).
+    // Asset (477 MB GLB/webp/ogg) ở repo Pages riêng poke5121999-art/world-of-slime-assets, sinh bằng
+    // games/world-of-slime/tools/. Bản mobile: games/world-of-slime/mobile.html (cần ảo, chạm).
+    // Game gốc là MMO: số liệu và bản đồ do server gửi. Ba bản đồ Larus (quán trọ 257, làng 110, kho 478) và 10 bảng
+    // meta là dữ liệu thật lấy từ đệm của game khi chơi thử 2026-10-21. Rừng Shadow Forest Entrance và sân đấu Rudga
+    // DỰNG THEO CLIP (DcGavHFwqtk) bằng mảnh gốc, có nhãn trên màn. Chuỗi nhiệm vụ 1-14 chép thoại từ clip
+    // (games/world-of-slime/docs/research/QUESTLINE.md). Số không có trong client gom ở js/combat/rules.js, nhãn [ĐỀ XUẤT].
+    // Chơi đơn: không PvP, không chat. Kiến trúc + bẫy: games/world-of-slime/ARCH.md.
+    // Kiểm: test/world-of-slime-{intro,quest,quest2,combat,tame,larus,mobile,hud,slice}.js (WOS_BASE=<url game> WOS_ASSETS=).
+    status: "available",
+    tags: ["Nhập vai", "Bắt quái", "Nhìn từ trên xuống"]
   }
 ];
