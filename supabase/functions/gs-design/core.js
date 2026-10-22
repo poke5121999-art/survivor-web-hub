@@ -180,13 +180,41 @@ const BOTS_NUMS = {
   fumblePerSec: [0, 1], regrabDelay: [0, 10], carryDither: [0, 1], swingArc: [1, 180], aimErrDeg: [0, 90], aimLag: [0, 2],
   strafeFlipMin: [0.05, 30], strafeFlipMax: [0.05, 30], backstepChance: [0, 1], retreatHp: [0, 1], retreatExitHp: [0, 1],
   retreatMaxT: [0, 60], castReactMin: [0, 10], castReactMax: [0, 10], teamCastGap: [0, 60], lootMemoryT: [0, 600], freeDither: [0, 1],
-  wpPauseMin: [0, 10], wpPauseMax: [0, 10], wpRing: [0, 1], guards: [0, 5, true], coverR: [0, 6], coverChance: [0, 1],
+  wpPauseMin: [0, 10], wpPauseMax: [0, 10], wpRing: [0, 1], coverR: [0, 6], coverChance: [0, 1],
   chaseCarrierR: [0, 30], idleThink: [0, 5],
 };
 const TRAITS_NUMS = {
   engageMin: [0.1, 3], engageMax: [0.1, 3], reactMin: [0, 5], reactMax: [0, 5],
   retreatMin: [0, 5], retreatMax: [0, 5], aimMin: [0, 5], aimMax: [0, 5],
 };
+// md_modes.pvp.bots.brains: one row per bot brain { id, weight, jobs, traits }, the ranges RemoteTables.PvpBrainsDoc clamps to.
+const BRAIN_JOBS = ["loot", "hunt", "chase", "escort", "hold", "foe", "retreat"];
+const BRAIN_TRAITS = ["aggression", "caution", "aim"];
+
+function brainsRule(list) {
+  if (!Array.isArray(list)) return `bots.brains là ${JSON.stringify(list)}, không phải danh sách.`;
+  if (list.length > 20) return `bots.brains có ${list.length} kiểu não, tối đa 20.`;
+  const ids = new Set();
+  let total = 0;
+  for (const [i, r] of list.entries()) {
+    const at = `Kiểu não thứ ${i + 1}`;
+    if (!isPlain(r)) return `${at} không phải object.`;
+    if (typeof r.id !== "string" || !/^[a-z0-9_]{1,40}$/.test(r.id)) return `${at}: mã ${JSON.stringify(r.id)} chỉ gồm chữ thường không dấu, số và dấu _, tối đa 40 ký tự.`;
+    if (ids.has(r.id)) return `${at}: mã "${r.id}" trùng.`;
+    ids.add(r.id);
+    const bad = numsRule(`bots.brains.${r.id}`, r, { weight: [0, 100] }) ||
+      (r.jobs !== undefined ? numsRule(`bots.brains.${r.id}.jobs`, r.jobs, Object.fromEntries(BRAIN_JOBS.map((k) => [k, [0, 10]]))) : null) ||
+      (r.traits !== undefined ? numsRule(`bots.brains.${r.id}.traits`, r.traits, Object.fromEntries(BRAIN_TRAITS.map((k) => [k, [-1, 1]]))) : null);
+    if (bad) return bad;
+    for (const k of Object.keys(r)) if (!["id", "weight", "jobs", "traits"].includes(k)) return `${at} (${r.id}): trường lạ "${k}".`;
+    for (const k of Object.keys(r.jobs || {})) if (!BRAIN_JOBS.includes(k)) return `${at} (${r.id}): việc lạ "${k}", chỉ nhận ${BRAIN_JOBS.join(", ")}.`;
+    for (const k of Object.keys(r.traits || {})) if (!BRAIN_TRAITS.includes(k)) return `${at} (${r.id}): tính nết lạ "${k}", chỉ nhận ${BRAIN_TRAITS.join(", ")}.`;
+    total += r.weight === undefined ? 1 : r.weight;
+  }
+  if (list.length && total <= 0) return "Tổng tỉ lệ bốc của các kiểu não bằng 0: không bot nào bốc được kiểu nào.";
+  return null;
+}
+
 const REDROP_NUMS = { snap: [0, 120], pad: [0, 120], flee: [0, 120], fight: [0, 120], rescue: [0, 120], down: [0, 120], grab: [0, 120] };
 const ARENA_NUMS = { lootCount: [0, 200, true], respawnDelay: [0, 600], foeCount: [1, 100, true] };
 
@@ -214,6 +242,10 @@ function botsRule(b) {
   }
   if (b.redropCooldown !== undefined) {
     const r = numsRule("bots.redropCooldown", b.redropCooldown, REDROP_NUMS);
+    if (r) return r;
+  }
+  if (b.brains !== undefined) {
+    const r = brainsRule(b.brains);
     if (r) return r;
   }
   for (const [lo, hi] of [["strafeFlipMin", "strafeFlipMax"], ["castReactMin", "castReactMax"], ["wpPauseMin", "wpPauseMax"]]) {

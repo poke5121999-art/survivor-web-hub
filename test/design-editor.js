@@ -691,17 +691,21 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
   check('sửa ô bots đầu tiên ghi cả khối: ' + flat(seedBots, '').length + ' thay đổi', (await txt('#dz-bar-count')) === flat(seedBots, '').length + ' thay đổi', await txt('#dz-bar-count'));
   await p.fill(B('swingArc') + ' input', '181');
   check('swingArc 181: lỗi trần 180, chặn lưu', /Không được lớn hơn 180/.test(await txt(B('swingArc') + ' .dz-cell__err')) && await p.$eval('#btn-review', e => e.disabled), '');
-  await p.fill(B('guards') + ' input', '1.5');
-  check('guards lẻ: lỗi số nguyên', /số nguyên/.test(await txt(B('guards') + ' .dz-cell__err')), '');
+  const brainCols = await p.$$eval('[data-fake="pvp"] .dz-sub th', ths => ths.map(t => t.textContent));
+  check('kiểu não: bảng nhỏ, cột tiếng Việt theo thứ tự cols', brainCols.slice(1, 4).join() === 'Mã kiểu não,Tỉ lệ bốc,Nhặt đồ' && brainCols.length >= 13, brainCols.join());
+  await p.fill(B('brains.0.jobs.hunt') + ' input', '11');
+  check('kiểu não hunt 11: lỗi trần 10, chặn lưu', /Không được lớn hơn 10/.test(await txt(B('brains.0.jobs.hunt') + ' .dz-cell__err')) && await p.$eval('#btn-review', e => e.disabled), '');
   await p.fill(B('swingArc') + ' input', '25');
-  await p.fill(B('guards') + ' input', '2');
+  await p.fill(B('brains.0.jobs.hunt') + ' input', '2.5');
   await p.fill(A('lootCount') + ' input', '20');
   await p.click('#btn-review');
   await dryDone();
   await p.click('#btn-save');
   await barGone();
   const savedBots = fake.tables.modes.find(d => d._id === 'pvp');
-  check('bots + arena: pvp lưu đủ hai khối với ô đã sửa', JSON.stringify(savedBots.bots) === JSON.stringify(Object.assign({}, seedBots, { swingArc: 25, guards: 2 })) &&
+  const wantBots = JSON.parse(JSON.stringify(Object.assign({}, seedBots, { swingArc: 25 })));
+  wantBots.brains[0].jobs.hunt = 2.5;
+  check('bots + arena: pvp lưu đủ hai khối với ô đã sửa', JSON.stringify(savedBots.bots) === JSON.stringify(wantBots) &&
     JSON.stringify(savedBots.arena) === JSON.stringify(Object.assign({}, seedArena, { lootCount: 20 })), JSON.stringify(savedBots.bots).slice(0, 100));
   // 14) Bố cục đấu trường: bảng chưa dán nên hiện số gốc; rows và legend chỉ xem (khối chữ đơn cách), open sửa được.
   await open('pvp_maps');
