@@ -1,0 +1,19 @@
+# Cloudflare Pages header rules (ignored by GitHub Pages, so safe to keep in both).
+# Mục tiêu: trang HTML luôn lấy bản mới sau deploy; file build nặng thì cache lâu.
+
+# HTML + trang chủ: revalidate để deploy mới hiện ngay, không kẹt bản cũ.
+/
+  Cache-Control: public, max-age=0, must-revalidate
+/*.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+# File build Unity mang hash nội dung trong tên (…-baed323bd3.data.unityweb) nên không
+# bao giờ đổi dưới cùng tên → cache một năm, immutable. Đây là phần nặng nhất của repo2d-unity.
+/games/*/Build/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Media tĩnh khác (ảnh, tiếng, font). JS/CSS đã busting bằng ?v=, mấy cái này đổi hiếm.
+/games/*
+  Cache-Control: public, max-age=86400
+/assets/*
+  Cache-Control: public, max-age=86400
