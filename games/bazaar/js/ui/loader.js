@@ -1,9 +1,8 @@
-/* Chợ Phiên — nạp thẻ theo hero (pha 4). Trang chỉ nạp sẵn data/cards-common.js + data/heroes.js; thẻ riêng của hero đang chọn
-   (BZ_HEROES.cardFiles[hero]) nạp lúc bấm "Sẵn sàng", các hero còn lại + data/ghosts.js nạp ngầm ngay sau khi run bắt đầu.
-   Thứ tự chạy cố định: common → hero đang chơi → các hero khác theo BZ_HEROES.order (script async=false chạy đúng thứ tự chèn),
-   nên bể thẻ (BZRun.pool duyệt BZ_CARDS theo thứ tự nạp) giống nhau giữa các lần mở trang của cùng một run.
-   Cổng: lệnh có thể chia thẻ hoặc dựng bàn đối thủ (thương nhân "from any Hero", rương, bóng PvP của hero khác — enc-combat
-   bỏ thẻ chưa nạp) chỉ chạy khi U.data.ready(); chưa xong thì BZUI.dispatch hoãn lệnh và hiện chip "Đang tải". */
+/* Chợ Phiên — nạp thẻ hero. Trang nạp sẵn data/cards-common.js + data/heroes.js; màn tải (js/ui/core.js bootPreload) gọi loadAll(null)
+   để nạp thẻ cả 7 hero (BZ_HEROES.cardFiles) + data/ghosts.js trước khi vào sảnh. Thứ tự chạy cố định: common → BZ_HEROES.order
+   (script async=false chạy đúng thứ tự chèn), nên bể thẻ (BZRun.pool duyệt BZ_CARDS theo thứ tự nạp) giống nhau mọi lần mở trang.
+   Cổng: lệnh có thể chia thẻ hoặc dựng bàn đối thủ chỉ chạy khi U.data.ready(); trang xem trận (không qua màn tải) vẫn có thể phải chờ,
+   khi đó BZUI.dispatch hoãn lệnh và hiện chip "Đang tải". */
 (function (root) {
   'use strict';
   var U = root.BZUI = root.BZUI || {};

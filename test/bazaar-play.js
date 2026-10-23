@@ -133,7 +133,9 @@ async function desktop(browser, base) {
   check('UI-02 sảnh: bảng người chơi (bậc đầu "Apprentice Merchant"), ví 0/0, hai thẻ chế độ XẾP HẠNG/THƯỜNG, hero to, nút Sẵn sàng',
     lob.rank === 'Apprentice Merchant' && lob.chips === '0/0' && lob.pills === 'ranked,normal' && lob.ready && lob.big, JSON.stringify(lob));
   const parts0 = await page.evaluate(() => Object.keys(window.BZ_CARDS_PARTS || {}).join(','));
-  check('mở trang chỉ nạp thẻ chung (data/cards-common.js)', parts0 === 'common', parts0);
+  const boot = await page.evaluate(() => { const b = document.getElementById('bz-boot'); return { done: !!b && b.classList.contains('done'), ghosts: !!window.BZ_GHOSTS }; });
+  // màn tải (index.html #bz-boot): sảnh chỉ hiện khi đủ thẻ 7 hero (thứ tự cố định BZ_HEROES.order) + bóng PvP
+  check('màn tải: sảnh hiện khi đã nạp thẻ chung + 7 hero + bóng PvP, màn tải đã ẩn', parts0 === 'common,vanessa,pygmalien,dooley,mak,stelle,jules,karnok' && boot.done && boot.ghosts, parts0 + ' ' + JSON.stringify(boot));
   const tags = {};
   for (const h of ['Mak', 'Stelle', 'Jules', 'Karnok']) {
     await page.click('.lobby .hex[data-hero="' + h + '"]'); await sleep(250);
@@ -398,7 +400,7 @@ async function phase4(browser, base) {
   await page.evaluate(seed => { window.BZUI.newRun(seed); window.BZ_DEBUG.cmd({ t: 'pickHero', hero: 'Pygmalien' }); }, SEED);
   await page.waitForFunction(() => window.BZ_DEBUG.run().hero === 'Pygmalien' && window.BZ_DEBUG.cardsReady(), null, { timeout: 30000 });
   const order = await page.evaluate(() => Object.keys(window.BZ_CARDS_PARTS).join(','));
-  check('chọn Pygmalien: tệp của hero nạp trước các hero khác', order.startsWith('common,pygmalien,vanessa'), order);
+  check('chọn Pygmalien: thứ tự nạp thẻ cố định, không đổi theo hero (bể thẻ giống nhau mọi lần mở trang)', order === 'common,vanessa,pygmalien,dooley,mak,stelle,jules,karnok', order);
   await page.evaluate(() => window.BZ_DEBUG.cmd({ t: 'choose', i: 0 }));
   await waitScreen(page, 'choose'); await sleep(600);
 

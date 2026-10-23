@@ -35,6 +35,16 @@
     return new Promise(function (res, rej) { var i = new Image(); i.onload = function () { res(i); }; i.onerror = function () { rej(new Error('ảnh ' + url)); }; i.src = url; });
   }
 
+  // màn tải: nạp sẵn runtime + tệp Spine của mọi hero vào cache (không cần WebGL); lỗi thì bỏ qua, sảnh vẫn có ảnh tĩnh
+  S.warm = function () {
+    var files = [];
+    Object.keys(CODE).forEach(function (h) {
+      var N = 'Skin_' + CODE[h].toUpperCase() + '_01a', dir = 'art/heroes/skin_' + CODE[h] + '_01/';
+      files.push(fetchBuf(dir + 'spine/' + N + '.skel'), fetchTxt(dir + 'spine/' + N + '.atlas'), loadImg(dir + N + '.webp'));
+    });
+    return Promise.all([loadRuntime()].concat(files).map(function (p) { return p.catch(function () {}); }));
+  };
+
   function ensureGl() {
     if (canvas) return;
     var c = document.createElement('canvas');

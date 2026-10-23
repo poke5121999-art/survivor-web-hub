@@ -346,30 +346,53 @@
     var q = new URLSearchParams(root.location.search);
     return q.has('view') || (q.has('a') && q.has('b'));
   }
-  // P2-6: tooltip / nút / icon từ khoá là nền CSS — phần tử bị gỡ (tooltip tắt, nút đổi màn) trước khi ảnh về thì trình duyệt huỷ yêu cầu
-  // (786 ERR_ABORTED trong 4 run trên Pages), lần sau lại tải từ đầu và lại hụt. Nạp sẵn một lần, giữ đối tượng Image để tải xong vào cache.
-  // Chạy sau khi trang sẵn sàng, 4 yêu cầu một lúc, không tranh băng thông với art thẻ đang chia.
-  var warmKeep = [];
-  function warmUi() {
-    var urls = [], seen = {}, RX = /ui_sprite_atlas\/Tooltip_|btn_rectangle\/|\/art\/icons\/|Icon_Stat_|PriceTag/;
+  // Màn tải (BZBoot ở index.html): vào game chỉ sau khi đủ thẻ 7 hero + bóng PvP, ảnh giao diện trong CSS, chân dung sảnh và Spine sảnh.
+  // Ảnh nền CSS (tooltip, nút, icon từ khoá) bị trình duyệt huỷ nếu phần tử bị gỡ trước khi ảnh về (P2-6: 786 ERR_ABORTED trên Pages);
+  // nạp sẵn ở đây, giữ đối tượng Image cho tới khi tải xong vào cache. Mỗi việc có hạn giờ: hỏng một ảnh không kẹt màn tải.
+  var warmKeep = [], BOOT_TASK_MS = 30000, BOOT_IMG_PAR = 6;
+  function cssImageUrls() {
+    var urls = [], seen = {};
     function add(u) { if (u && !seen[u]) { seen[u] = 1; urls.push(u); } }
     Array.prototype.forEach.call(document.styleSheets, function (sh) {
       var rules; try { rules = sh.cssRules; } catch (e) { return; }
       Array.prototype.forEach.call(rules || [], function (r) {
         var t = r.cssText || '', re = /url\("?([^")]+)"?\)/g, m;
-        while ((m = re.exec(t))) { if (RX.test(m[1]) && !/^data:/.test(m[1])) { try { add(new URL(m[1], sh.href || root.location.href).href); } catch (e) { /* bỏ */ } } }
+        while ((m = re.exec(t))) { if (/\.(webp|png|jpe?g)$/i.test(m[1]) && !/^data:/.test(m[1])) { try { add(new URL(m[1], sh.href || root.location.href).href); } catch (e) { /* bỏ */ } } }
       });
     });
     if (root.BZTooltip && root.BZTooltip.iconUrls) root.BZTooltip.iconUrls().forEach(function (u) { add(new URL(u, root.location.href).href); });
-    var i = 0;
-    function next() { if (i >= urls.length) return; var im = new Image(); warmKeep.push(im); im.onload = im.onerror = next; im.src = urls[i++]; }
-    for (var k = 0; k < 4; k++) next();
-    U.warmCount = urls.length;
+    Object.keys(U.HEROES || {}).forEach(function (h) { var x = U.HEROES[h] || {}; [x.store, x.portrait, x.ui && x.ui.portrait].forEach(function (u) { if (u) add(new URL(u, root.location.href).href); }); });
+    ['art/ui/purchases/Chest_Purchase_Artwork_1_TUI.webp', 'art/vfx/FX_ChestExplosion_01.webp'].forEach(function (u) { add(new URL(U.url(u), root.location.href).href); });
+    return urls;
+  }
+  function capped(p) { return new Promise(function (res) { var t = setTimeout(res, BOOT_TASK_MS); p.then(res, res).then(function () { clearTimeout(t); }); }); }
+  function bootPreload() {
+    var B = root.BZBoot, tasks = [], doneW = 0, totalW = 0;
+    function task(w, label, run) { tasks.push({ w: w, label: label, run: run }); totalW += w; }
+    // thẻ hero: loadAll chèn script đúng thứ tự (bể thẻ phụ thuộc thứ tự nạp), từng hero là một phần tiến độ
+    var L = U.data;
+    if (L) { L.loadAll(null); L.heroes().forEach(function (h) { task(6, 'ĐANG TẢI THẺ', function () { return L.loadHero(h); }); }); task(3, 'ĐANG TẢI THẺ', function () { return L.script('data/ghosts.js'); }); }
+    if (root.BZSpine && root.BZSpine.warm) task(6, 'ĐANG TẢI HERO', function () { return root.BZSpine.warm(); });
+    var imgs = cssImageUrls(), qi = 0, imgDone = null, imgLeft = imgs.length;
+    U.warmCount = imgs.length;
+    function nextImg() {
+      if (qi >= imgs.length) return;
+      var im = new Image(), u = imgs[qi++], fin = false;
+      warmKeep.push(im);
+      var end = function () { if (fin) return; fin = true; doneW += 1; tick('ĐANG TẢI HÌNH'); if (--imgLeft <= 0 && imgDone) imgDone(); nextImg(); };
+      setTimeout(end, BOOT_TASK_MS); im.onload = im.onerror = end; im.src = u;
+    }
+    totalW += imgs.length;
+    function tick(label) { if (B) B.progress(totalW ? doneW / totalW : 1, label); }
+    var all = tasks.map(function (t) { return capped(t.run()).then(function () { doneW += t.w; tick(t.label); }); });
+    all.push(imgs.length ? new Promise(function (res) { imgDone = res; for (var k = 0; k < BOOT_IMG_PAR; k++) nextImg(); }) : Promise.resolve());
+    tick('ĐANG TẢI');
+    return Promise.all(all);
   }
   U.start = function () {
     patchArt();
     // trang xem trận giữ BZ_DEBUG riêng của nó (test/bazaar-view.js); bàn quái chỉ cần thẻ chung nhưng bàn tuỳ ý có thể có thẻ hero
-    if (viewerMode()) { (U.data ? U.data.loadAll(null, { ghosts: false }) : Promise.resolve()).then(function () { root.BZViewer.start(); }); return; }
+    if (viewerMode()) { (U.data ? U.data.loadAll(null, { ghosts: false }) : Promise.resolve()).then(function () { root.BZViewer.start(); if (root.BZBoot) root.BZBoot.done(); }); return; }
     root.BZ_DEBUG = DEBUG;
     var host = document.getElementById('bz-root');
     V().build(host);
@@ -382,17 +405,15 @@
     if (U.hud) U.hud.build();
     if (U.cards) U.cards.build();
     if (U.drag) U.drag.build();
-    loadFrames(function () {
+    loadFrames(function () { bootPreload().then(function () {
       var saved = U.loadSaved(), q = new URLSearchParams(root.location.search);
       if (q.has('new')) saved = null;
-      var fin = function () { root.BZ_READY = true; setTimeout(warmUi, 1500); };
+      var fin = function () { root.BZ_READY = true; if (root.BZBoot) root.BZBoot.done(); };
       if (saved && saved.phase.kind !== 'heroSelect') U.resume(saved).then(fin);
       else { U.go('title'); fin(); }
       if (AU()) AU().preload(['ui.hover', 'ui.click', 'card.raise', 'card.lower', 'card.pickup', 'card.land.player', 'card.land.storage', 'card.drop',
         'board.attrGold', 'board.reroll', 'board.encounterClick', 'board.portraitHover', 'board.levelUp', 'card.revealFlipBronze', 'board.stashFlip']);
-      // ảnh rương + loé nổ: nạp sẵn, rương đầu tiên không trống > 1,5 s (INTERACT-18)
-      ['art/ui/purchases/Chest_Purchase_Artwork_1_TUI.webp', 'art/vfx/FX_ChestExplosion_01.webp'].forEach(function (p) { var im = new Image(); im.src = U.url(p); });
-    });
+    }); });
     requestAnimationFrame(loop);
     // lệnh đang chờ thẻ: chạm / bấm đâu trên sân cũng làm chip "Đang tải" nảy (P2-7: màn không còn trông như treo)
     st.addEventListener('pointerdown', function () { if (S.pending && U.data) U.data.nudge(); }, true);
