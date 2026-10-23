@@ -139,3 +139,18 @@ Khảo sát `D:\bazaar-ref\notes\AUDIT2.md` → `audit2\{UI-CONFIG,CLIPS,PERF}.m
 - perf8: bỏ 10 trường dữ liệu không ai đọc, font tự phục vụ (470 → 122 KB), màn chờ, bỏ tải đôi. Không nhận phần "thẻ rút gọn + nạp theo nhu cầu" (cơ chế lớn cho ~240 KB nạp ngầm sau khi đã vào run).
 - `[BẪY ĐÃ SẬP]` Lều/xe to che chỗ thẻ đang chia bay qua, cú nhấc giữa lúc chia trúng nút đổi hàng: thẻ `.deal` phải nổi trên `.rs-merchant-ctl`.
 - Còn lệch: khung neon làn loot vẫn là viền CSS; nền bàn chung một kiểu chứ không theo hero; orb bệ dùng `Battlepass_Voucher_Orb_TUI`.
+
+## Pha 9: rà như người chơi + theo wiki (2026-10-22 → 23, tạm dừng ở rev 20261023b)
+
+Chủ dự án: sạp bán đồ quái rơi / thỏi vàng, mua Gumball ra món khác, sạp đồ nhỏ ra đồ lớn, UI chưa slice, art tự vẽ; rồi "tự chơi thử nhiều lần + coi wiki".
+Hợp đồng chơi thử: `D:\bazaar-ref\notes\PLAYTEST9.md`. Báo cáo và script: `D:\bazaar-ref\review9\` (UI.md, OOC.md, ENC.md, wiki\RULES.md, wiki\WIKI2.md, play\{P1,P2,P3,R1}\, FIX-*.md; ảnh chụp đã xoá, giữ ảnh ghép cmp-*).
+Wiki.gg sống lại: bản sao 1351 trang ở `D:\bazaar-ref\wiki2\pages\` (`dump.py`). Luật và số mới kèm nguồn ghi ở `games/bazaar/README.md`.
+
+Kết quả: 16 run trên Pages (7 hero, máy tính + điện thoại); 36 lỗi chơi thử + 7 lỗi chơi lại đã sửa; XP / máu / quái / mở màn / lựa chọn trả vàng theo wiki;
+kiểm `test/bazaar-run.js` 318/0 (nhóm fix9…fix9e), sim 134/0, play 100/0 và view 61/0 trên Pages.
+
+Còn mở:
+- Chờ chủ dự án quyết: rương 4/7/10 trong run (game thật là thưởng tài khoản; đề xuất bỏ). Curio bán đồ quái rơi theo wiki (đã làm, đổi lại được).
+- Số bão cát 1000 → 200 ms là `[ĐỀ XUẤT]` từ mã gốc; bàn quái demo khác wiki (Sergeant Suds mọc ~6700 máu); bot tham thắng PvP ngày 4-7 chỉ 15-21 %.
+- Không có sprite gốc: tấm đá 4 tấm bên, bệ, lưng thẻ úp, tiêu đề Lên cấp, nút loa.
+- Chưa có hiệu ứng thật: bếp/tủ lạnh Jules, The Cult, Investment Payout, Thieves Guild, Farai; cược Bex chưa trừ vàng.
