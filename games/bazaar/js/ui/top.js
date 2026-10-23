@@ -248,8 +248,9 @@
           'border-radius:' + (wn.shape === 'arch' ? '46% 46% 6px 6px / 30% 30% 6px 6px' : (wn.r * k) + 'px');
       }
       var bg = U.el('div', 'bg', art), ch = U.el('div', 'ch', art);
-      if (A.bg) bg.style.backgroundImage = U.bg(A.bg);
-      if (A.char) ch.style.backgroundImage = U.bg(A.char); else ch.style.display = 'none';
+      var paint = function (e, p) { if (root.BZHires && root.BZHires.paint) root.BZHires.paint(e, p, U.url(p)); else e.style.backgroundImage = U.bg(p); };
+      if (A.bg) paint(bg, A.bg);
+      if (A.char) paint(ch, A.char); else ch.style.display = 'none';
       if (root.BZHires) { root.BZHires.apply(bg, A.bg, { zoom: opts.zoom }); root.BZHires.apply(ch, A.char, { zoom: opts.zoom }); }
       if (F) { var im = U.el('img', 'frame', fr); im.src = U.url(F.src); im.alt = ''; im.draggable = false; }
       U.el('i', 'gem', fr);

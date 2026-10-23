@@ -49,7 +49,7 @@
     var art = el('div', 'art', win);
     var src = C.artSrc(inst.id);
     var veil = el('div', 'veil', win); // bản sao ảnh art, xám + tối, cắt theo tiến độ hồi chiêu (clip: màn xám phủ cả thẻ, vạch xanh quét từ đáy lên)
-    if (src) { art.style.backgroundImage = veil.style.backgroundImage = 'url("' + src + REV() + '")'; }
+    if (src) { if (root.BZHires && root.BZHires.paint) root.BZHires.paint([art, veil], src, src + REV()); else art.style.backgroundImage = veil.style.backgroundImage = 'url("' + src + REV() + '")'; }
     else art.style.background = veil.style.background = 'linear-gradient(160deg,#4a3324,#24160d)';
     var rub = el('div', 'rub', win); // đống đổ nát màu cát khi thẻ bị phá (clip J6T0 destroy)
     var line = el('div', 'cdline', win);

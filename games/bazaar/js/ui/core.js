@@ -349,9 +349,9 @@
   // Màn tải (BZBoot ở index.html): vào game chỉ sau khi đủ thẻ 7 hero + bóng PvP, ảnh giao diện trong CSS, chân dung sảnh và Spine sảnh.
   // Ảnh nền CSS (tooltip, nút, icon từ khoá) bị trình duyệt huỷ nếu phần tử bị gỡ trước khi ảnh về (P2-6: 786 ERR_ABORTED trên Pages);
   // nạp sẵn ở đây, giữ đối tượng Image cho tới khi tải xong vào cache. Mỗi việc có hạn giờ: hỏng một ảnh không kẹt màn tải.
-  // Thẻ + bóng PvP là bắt buộc (thiếu thì bể thẻ khác đi). Ảnh và Spine chờ thêm tối đa BOOT_EXTRA_MS sau khi thẻ xong rồi tải tiếp ở nền:
-  // đo trên Pages ngày 2026-10-23, trình duyệt có lúc chờ byte đầu ~46 s mỗi ảnh (curl cùng lúc 0,4 s), chờ hết thì kẹt màn tải ~2 phút.
-  var warmKeep = [], BOOT_TASK_MS = 30000, BOOT_EXTRA_MS = 20000, BOOT_IMG_PAR = 10;
+  // Chờ đủ mọi thứ rồi mới vào (chủ dự án: "loading xong hẵng cho vào game"). Art thẻ / gặp gỡ không chờ: đã có bản mờ trong
+  // data/thumbs.js, bản thật rõ dần khi về (BZHires.paint). Mỗi ảnh hạn BOOT_TASK_MS để một tệp hỏng không kẹt màn tải mãi.
+  var warmKeep = [], BOOT_TASK_MS = 60000, BOOT_IMG_PAR = 10;
   function cssImageUrls() {
     var urls = [], seen = {};
     function add(u) { if (u && !seen[u]) { seen[u] = 1; urls.push(u); } }
@@ -364,7 +364,7 @@
     });
     if (root.BZTooltip && root.BZTooltip.iconUrls) root.BZTooltip.iconUrls().forEach(function (u) { add(new URL(u, root.location.href).href); });
     Object.keys(U.HEROES || {}).forEach(function (h) { var x = U.HEROES[h] || {}; [x.store, x.portrait, x.ui && x.ui.portrait].forEach(function (u) { if (u) add(new URL(u, root.location.href).href); }); });
-    ['art/ui/purchases/Chest_Purchase_Artwork_1_TUI.webp', 'art/vfx/FX_ChestExplosion_01.webp'].forEach(function (u) { add(new URL(U.url(u), root.location.href).href); });
+    ['art/ui/purchases/Chest_Purchase_Artwork_1_TUI.webp', 'art/vfx/FX_ChestExplosion_01.webp'].concat(root.BZ_PRELOAD || []).forEach(function (u) { add(new URL(U.url(u), root.location.href).href); });
     return urls;
   }
   function capped(p) { return new Promise(function (res) { var t = setTimeout(res, BOOT_TASK_MS); p.then(res, res).then(function () { clearTimeout(t); }); }); }
@@ -387,13 +387,15 @@
     }
     totalW += imgs.length;
     function tick(label) { if (B) B.progress(totalW ? doneW / totalW : 1, label); }
-    var all = tasks.map(function (t) { return capped(t.run()).then(function () { doneW += t.w; tick(t.label); }); });
+    // việc bắt buộc không có hạn giờ (vào sảnh khi thẻ chưa đủ là bể thẻ sai); tệp hỏng (L.script trả false) thì báo lỗi + Tải lại
+    var all = tasks.map(function (t, i) {
+      var p = i < nMust ? t.run().then(function (ok) { if (ok === false && B) B.fail('Không tải được dữ liệu thẻ, thử tải lại trang.'); }) : capped(t.run());
+      return p.then(function () { doneW += t.w; tick(t.label); });
+    });
     var extra = all.splice(nMust);
     extra.push(imgs.length ? new Promise(function (res) { imgDone = res; for (var k = 0; k < BOOT_IMG_PAR; k++) nextImg(); }) : Promise.resolve());
     tick('ĐANG TẢI');
-    return Promise.all(all).then(function () {
-      return Promise.race([Promise.all(extra), new Promise(function (res) { setTimeout(res, BOOT_EXTRA_MS); })]);
-    });
+    return Promise.all(all.concat(extra));
   }
   U.start = function () {
     patchArt();

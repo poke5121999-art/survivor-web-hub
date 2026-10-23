@@ -185,3 +185,7 @@
 @keyframes bz-buff { 0% { opacity: 0; transform: translate(-50%, 10px) scale(.6); } 20% { opacity: 1; transform: translate(-50%, 0) scale(1.15); }
   100% { opacity: 0; transform: translate(-50%, -40px) scale(1); } }
 .bz-card.skill-mini { perspective: none; }
+/* art đang là bản 32 px (BZHires.paint): làm mềm cho khỏi vỡ ô; bản thật về thì rõ dần */
+.bz-lq { filter: blur(3px); }
+.bz-sharp { animation: bz-sharpen .5s ease-out; }
+@keyframes bz-sharpen { from { filter: blur(3px); } to { filter: blur(0); } }

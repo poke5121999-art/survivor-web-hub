@@ -208,8 +208,9 @@
       pf.style.boxShadow = '0 0 0 4px #e0b25a, 0 0 0 7px #5b3317'; pf.style.borderRadius = '46% 46% 8px 8px / 30% 30% 8px 8px';
     }
     var bg = el('div', 'pf-bg', art), ch = el('div', 'pf-char', art);
-    if (info.bg) bg.style.backgroundImage = 'url("' + info.bg + REV() + '")';
-    if (info.char) ch.style.backgroundImage = 'url("' + info.char + REV() + '")';
+    var paint = function (e, p) { if (root.BZHires && root.BZHires.paint) root.BZHires.paint(e, p, p + REV()); else e.style.backgroundImage = 'url("' + p + REV() + '")'; };
+    if (info.bg) paint(bg, info.bg);
+    if (info.char) paint(ch, info.char);
     if (root.BZHires) { root.BZHires.apply(bg, info.bg, { zoom: info.zoom }); root.BZHires.apply(ch, info.char, { zoom: info.zoom }); } // bản gốc khi khung đủ lớn
     var tint = el('div', 'pf-tint', art), flash = el('div', 'pf-flash', art);
     var ring = el('div', 'bz-enrage-ring', pf);
