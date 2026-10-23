@@ -689,7 +689,7 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
     const fl = f && f.closest('.dz-fld') && (f.closest('.dz-fld').querySelector('.dz-fld__label') || {}).textContent;
     return { cell: !!c, head: ths.some(t => t.indexOf('Số ca phải chơi để mở Đấu đội') >= 0), foe: fl, val: c && (c.querySelector('input') || {}).value };
   });
-  check('pvp: unlockRuns (2) và arena.foeCount có nhãn tiếng Việt', pvpLbl.cell && pvpLbl.head && pvpLbl.foe === 'Số quái trên đấu trường' && pvpLbl.val === '2', JSON.stringify(pvpLbl));
+  check('pvp: unlockRuns (2) và arena.foeCount có nhãn tiếng Việt', pvpLbl.cell && pvpLbl.head && pvpLbl.foe === 'Số quái to trên đấu trường' && pvpLbl.val === '2', JSON.stringify(pvpLbl));
   check('thiếu khối bots: ô hiện số seed', (await p.inputValue(B('swingArc') + ' input')) === String(seedBots.swingArc) &&
     (await p.inputValue(B('redropCooldown.pad') + ' input')) === String(seedBots.redropCooldown.pad) &&
     (await p.inputValue(A('lootCount') + ' input')) === String(seedArena.lootCount), '');

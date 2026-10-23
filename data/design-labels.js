@@ -17,13 +17,13 @@
       fields: {
         "_id": CFG_ID,
         "gold": { label: "Vàng", unit: "vàng", min: 0, int: true },
-        "gem": { label: "Ngọc", unit: "ngọc", min: 0, int: true },
+        "gem": { label: "Ngọc", unit: "ngọc", min: 0, int: true, help: "Ngọc tài khoản mới có ngay. Hiện 0: chỉ có 160 ngọc quà hướng dẫn." },
         "ticketX": { label: "Vé Xác", unit: "vé", min: 0, int: true },
         "crew": { label: "Xác có sẵn", help: "Mã các xác người chơi mới có ngay, ví dụ bao (Flare)." },
         "crew.*": { label: "Mã xác" },
         "mateTactics": { label: "Chiến thuật 4 ô đồng đội", items: ["Ô 1", "Ô 2", "Ô 3", "Ô 4"], help: "Mã chiến thuật: loot, thu, soi, baoke, cuuho, nhu, san, tiepte." },
         "tutorialGold": { label: "Quà hướng dẫn: vàng", unit: "vàng", min: 0, int: true, help: "Trao một lần duy nhất, khi người chơi chơi hết màn hướng dẫn lần đầu. 0 = không tặng." },
-        "tutorialGem": { label: "Quà hướng dẫn: ngọc", unit: "ngọc", min: 0, int: true, help: "Như trên." },
+        "tutorialGem": { label: "Quà hướng dẫn: ngọc", unit: "ngọc", min: 0, int: true, help: "Trao cùng lúc với vàng quà hướng dẫn. 0 = không tặng." },
         "tutorialTicketX": { label: "Quà hướng dẫn: vé xác", unit: "vé", min: 0, int: true, help: "Như trên." }
       }
     },
@@ -49,7 +49,7 @@
         "skill.cd": { label: "Hồi chiêu", unit: "giây", min: 0, help: "Số gốc, trước khi trừ Giảm hồi chiêu." },
         "skill.dur": { label: "Thời gian hiệu lực", unit: "giây", min: 0 },
         "skill.radius": { label: "Bán kính", unit: "ô", min: 0 },
-        "skill.heal": { label: "Hồi máu mỗi giây", unit: "máu", min: 0 },
+        "skill.heal": { label: "Hồi máu", unit: "máu", min: 0, help: "Bao Vây Hồi Máu: hồi mỗi giây trong vòng. Mở Toang (Pick): hồi một lần cho mỗi người được thanh tẩy." },
         "skill.dmg": { label: "Sát thương kỹ năng", min: 0 },
         "skill.stun": { label: "Thời gian choáng", unit: "giây", min: 0 },
         "skill.dist": { label: "Quãng dịch chuyển", unit: "ô", min: 0 },
@@ -58,6 +58,7 @@
         "skill.camZoom": { label: "Độ thu camera", min: 0.4, max: 1, help: "Thấu Thị: 0,74 = camera lùi ra, thấy rộng hơn khoảng 35% mỗi chiều. 1 = không đổi." },
         "skill.mapZoom": { label: "Độ mở bản đồ nhỏ", min: 1, max: 3, help: "Thấu Thị: bản đồ nhỏ thấy gấp bấy nhiêu lần số ô." },
         "skill.pullSpd": { label: "Tốc độ kéo đầu", unit: "ô/giây", min: 1, help: "Kéo Về: đầu đồng đội bị móc bay về người bấm với tốc độ này, xuyên tường." },
+        "skill.maxItems": { label: "Số món tối đa mỗi lần kéo", unit: "món", int: true, min: 0, help: "Kéo Đồ: một lần bấm kéo nhiều nhất bấy nhiêu món về bệ. 0 = không giới hạn." },
         "skill.flySpd": { label: "Tốc độ đồ bay", unit: "ô/giây", min: 1, help: "Kéo Đồ: đồ lơ lửng bay thẳng về bệ với tốc độ này, xuyên tường." }
       }
     },
@@ -280,10 +281,10 @@
         "floors": { label: "Số nhà", int: true, help: "Game client không đổi số nhà theo ô này (số nhà thật do stage_houses quyết). " + UNKNOWN },
         "clear": { label: "Thưởng phá đảo" },
         "clear.gold": { label: "Vàng", unit: "vàng", min: 0, int: true },
-        "clear.gem": { label: "Ngọc", unit: "ngọc", min: 0, int: true },
+        "clear.gem": { label: "Ngọc", unit: "ngọc", min: 0, int: true, help: "Hiện đặt 0: ngọc chỉ có từ quà hướng dẫn và cửa hàng." },
         "first": { label: "Thưởng lần đầu", help: "Thưởng thêm cho lần phá đảo đầu tiên." },
         "first.gold": { label: "Vàng", unit: "vàng", min: 0, int: true },
-        "first.gem": { label: "Ngọc", unit: "ngọc", min: 0, int: true }
+        "first.gem": { label: "Ngọc", unit: "ngọc", min: 0, int: true, help: "Hiện đặt 0." }
       }
     },
 
@@ -293,8 +294,24 @@
       effect: SERVER,
       fields: {
         "_id": CFG_ID,
-        "lootGoldRate": { label: "Vàng theo giá trị đồ giao", pct: true, min: 0, help: "55% = nhận vàng bằng 55% tổng giá trị đồ đã giao." },
-        "coopGemPerStep": { label: "Ngọc co-op mỗi chặng", unit: "ngọc", min: 0, int: true, help: "Ca co-op: nhận bấy nhiêu ngọc cho mỗi chặng tầng đã qua." },
+        "lootGoldRate": { label: "Vàng theo giá trị đồ giao", pct: true, min: 0, help: "55% = nhận vàng bằng 55% tổng giá trị đồ đã giao. 0 = đồ nhặt không quy ra vàng tài khoản (đồ chỉ tiêu ở cửa hàng trạm trong ca)." },
+        "goldPerHouse": { label: "Vàng thưởng mỗi nhà xong", help: "Mỗi nhà qua được cộng bấy nhiêu vàng vào thưởng ca, theo chế độ; tổng bị kẹp bởi Trần vàng thưởng." },
+        "goldPerHouse.normal": { label: "Ải 5 nhà", unit: "vàng", min: 0, int: true },
+        "goldPerHouse.coop": { label: "Chơi với bạn", unit: "vàng", min: 0, int: true },
+        "goldPerHouse.endless_solo": { label: "Vô tận một mình", unit: "vàng", min: 0, int: true },
+        "goldPerHouse.endless_coop": { label: "Vô tận cùng bạn", unit: "vàng", min: 0, int: true },
+        "goldCap": { label: "Trần vàng thưởng mỗi ca / trận", help: "Vàng thưởng một ca không vượt số này, theo chế độ." },
+        "goldCap.normal": { label: "Ải 5 nhà", unit: "vàng", min: 0, int: true },
+        "goldCap.coop": { label: "Chơi với bạn", unit: "vàng", min: 0, int: true },
+        "goldCap.endless_solo": { label: "Vô tận một mình", unit: "vàng", min: 0, int: true },
+        "goldCap.endless_coop": { label: "Vô tận cùng bạn", unit: "vàng", min: 0, int: true },
+        "goldCap.pvp": { label: "Đấu đội 5v5", unit: "vàng", min: 0, int: true },
+        "pvpGold": { label: "Vàng thưởng Đấu đội 5v5", help: "Vàng sau trận: thắng hoặc thua cộng số cố định, thêm theo số hạ gục; kẹp bởi Trần vàng Đấu đội." },
+        "pvpGold.win": { label: "Thắng", unit: "vàng", min: 0, int: true },
+        "pvpGold.lose": { label: "Thua", unit: "vàng", min: 0, int: true },
+        "pvpGold.perKill": { label: "Mỗi hạ gục", unit: "vàng", min: 0, int: true },
+        "pvpGold.minSec": { label: "Trận phải kéo dài ít nhất", unit: "giây", min: 0, int: true, help: "Trận ngắn hơn số giây này thì không có vàng thưởng (chống bỏ ngang lấy thưởng)." },
+        "coopGemPerStep": { label: "Ngọc co-op mỗi chặng", unit: "ngọc", min: 0, int: true, help: "Ca co-op: nhận bấy nhiêu ngọc cho mỗi chặng tầng đã qua. 0 = không thưởng ngọc." },
         "coopFloorsPerStep": { label: "Số tầng mỗi chặng ngọc co-op", min: 1, int: true },
         "coopTierFloors": { label: "Số tầng mỗi bậc co-op", min: 1, int: true, help: "Bậc = số tầng chia số này; chỉ để hiện, không đổi thưởng." },
         "lootCapSlack": { label: "Hệ số trần đồ mỗi nhà (chống gian lận)", min: 1, help: "Server không trả quá trần đồ loot_cap của các nhà mà giờ chơi cho phép, nhân số này. 2 = gấp đôi trần đặt đồ, chừa két, rương và món cuối." },
@@ -372,6 +389,7 @@
       fields: {
         "_id": CFG_ID,
         "shuffleThemes": { label: "Xáo kiểu nhà mỗi ca", help: "Bật: độ khó vẫn theo vị trí nhà, còn tên, kiểu nhà, loot và quái đặc trưng được xáo." },
+        "angelBotTotal": { label: "Bot giữ thiên thần hộ người chơi", unit: "giây", min: 0, help: "Khi người chơi gục, cả tổ bot đồng đội cùng giữ thiên thần hộ trong tổng bấy nhiêu giây (không nhân theo số bot). Mặc định 15." },
         "minPadSpacing": { label: "Khoảng cách tối thiểu giữa hai bệ", unit: "cửa", min: 1, int: true },
         "xeNoMul": { label: "Đồ trên xe chịu nổ", min: 0, help: "1 = đau như đồ trên sàn, 0 = xe che hết." },
         "cartFoeHitMul": { label: "Đồ trên xe khi quái đánh người đẩy", min: 0, help: "1 = như món đang vác, 0 = quái không làm hư đồ trên xe." },
@@ -857,10 +875,18 @@
         "bots.redropCooldown.rescue": { label: "Buông để cứu đồng đội", unit: "giây", min: 0, max: 120 },
         "bots.redropCooldown.down": { label: "Bị hạ gục", unit: "giây", min: 0, max: 120 },
         "bots.redropCooldown.grab": { label: "Bị người kia giật", unit: "giây", min: 0, max: 120 },
+        "mmk": { label: "Ghép trận Đấu đội", help: "Thời gian chờ ghép và cỡ đội." },
+        "mmk.waitSec": { label: "Chờ ghép trước khi bot lấp chỗ", unit: "giây", min: 0, max: 600, help: "Sau ngần này giây chưa đủ người thật thì bot lấp các ghế còn trống." },
+        "mmk.teamSize": { label: "Số người mỗi đội", int: true, min: 1, max: 10, unit: "người" },
         "arena": { label: "Đấu trường dựng tay", help: "Số cho các bố cục ở bảng Bố cục đấu trường 5v5. Loot và quái chỉ nằm ở vùng giữa để hai phe giành nhau. Thiếu khối này = game dùng số mặc định." },
-        "arena.lootCount": { label: "Số chỗ loot ở vùng giữa", int: true, min: 0, max: 200, unit: "chỗ", help: "Bốc ngẫu nhiên trong vùng giữa lúc dựng trận; cũng là trần số món vùng giữa giữ được." },
-        "arena.respawnDelay": { label: "Chờ mọc món thay", unit: "giây", min: 0, max: 600, help: "Sau khi một món vùng giữa bị mang đi hẳn, ngần này giây sau mọc món thay ở một ô giữa trống, ngoài nón đèn của mọi người." },
-        "arena.foeCount": { label: "Số quái trên đấu trường", int: true, min: 1, max: 100, unit: "con", help: "Chỉ quái to (Kẻ húc, Kẻ truy lùng, Xác ướp)." }
+        "arena.lootCount": { label: "Số món loot giữa sân lúc vào trận", int: true, min: 0, max: 200, unit: "món", help: "Bốc ngẫu nhiên trong vùng giữa lúc dựng trận; cũng là trần số món vùng giữa giữ được." },
+        "arena.respawnMode": { label: "Luật mọc bù món", choices: [
+          { v: "broken", label: "Chỉ mọc bù món vỡ" }, { v: "empty", label: "Luật cũ: mọc khi chỗ trống" }
+        ], help: "Chỉ mọc bù món vỡ = món bị mang đi hẳn không mọc lại; luật cũ = chỗ nào trống thì mọc món mới." },
+        "arena.chestCount": { label: "Số rương trên đấu trường", int: true, min: 0, max: 100, unit: "cái" },
+        "arena.safeCount": { label: "Số két trên đấu trường", int: true, min: 0, max: 100, unit: "cái" },
+        "arena.respawnDelay": { label: "Chờ trước khi mọc bù", unit: "giây", min: 0, max: 600, help: "Sau khi một món vùng giữa bị mang đi hẳn, ngần này giây sau mọc món thay ở một ô giữa trống, ngoài nón đèn của mọi người." },
+        "arena.foeCount": { label: "Số quái to trên đấu trường", int: true, min: 1, max: 100, unit: "con", help: "Chỉ quái to (Kẻ húc, Kẻ truy lùng, Xác ướp)." }
       },
       // Extra switches under the coop row. Online is not an md_modes field: it is cd_cost_guard/relay.forceClosed, inverted.
       reach: {

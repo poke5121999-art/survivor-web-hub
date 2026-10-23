@@ -216,7 +216,8 @@ function brainsRule(list) {
 }
 
 const REDROP_NUMS = { snap: [0, 120], pad: [0, 120], flee: [0, 120], fight: [0, 120], rescue: [0, 120], down: [0, 120], grab: [0, 120] };
-const ARENA_NUMS = { lootCount: [0, 200, true], respawnDelay: [0, 600], foeCount: [1, 100, true] };
+const ARENA_NUMS = { lootCount: [0, 200, true], respawnDelay: [0, 600], foeCount: [0, 100, true], chestCount: [0, 100, true], safeCount: [0, 100, true] };
+const ARENA_RESPAWN_MODES = ["broken", "empty"];
 
 function numsRule(name, o, spec) {
   if (!isPlain(o)) return `${name} là ${JSON.stringify(o)}, không phải object.`;
@@ -306,7 +307,7 @@ const TABLE_RULES = {
     : d.bots !== undefined && d._id !== "pvp" ? `Chế độ "${d._id}" không có trường bots, chỉ "pvp" có.`
     : d.bots !== undefined && botsRule(d.bots) ? botsRule(d.bots)
     : d.arena !== undefined && d._id !== "pvp" ? `Chế độ "${d._id}" không có trường arena, chỉ "pvp" có.`
-    : d.arena !== undefined ? numsRule("arena", d.arena, ARENA_NUMS) : null),
+    : d.arena !== undefined ? (numsRule("arena", d.arena, ARENA_NUMS) || (d.arena.respawnMode !== undefined && !ARENA_RESPAWN_MODES.includes(d.arena.respawnMode) ? `arena.respawnMode là ${JSON.stringify(d.arena.respawnMode)}, chỉ nhận ${ARENA_RESPAWN_MODES.join(", ")}.` : null)) : null),
   pvp_maps: pvpMapRule,
 };
 
