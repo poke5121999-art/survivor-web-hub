@@ -349,7 +349,9 @@
   // Màn tải (BZBoot ở index.html): vào game chỉ sau khi đủ thẻ 7 hero + bóng PvP, ảnh giao diện trong CSS, chân dung sảnh và Spine sảnh.
   // Ảnh nền CSS (tooltip, nút, icon từ khoá) bị trình duyệt huỷ nếu phần tử bị gỡ trước khi ảnh về (P2-6: 786 ERR_ABORTED trên Pages);
   // nạp sẵn ở đây, giữ đối tượng Image cho tới khi tải xong vào cache. Mỗi việc có hạn giờ: hỏng một ảnh không kẹt màn tải.
-  var warmKeep = [], BOOT_TASK_MS = 30000, BOOT_IMG_PAR = 6;
+  // Thẻ + bóng PvP là bắt buộc (thiếu thì bể thẻ khác đi). Ảnh và Spine chờ thêm tối đa BOOT_EXTRA_MS sau khi thẻ xong rồi tải tiếp ở nền:
+  // đo trên Pages ngày 2026-10-23, trình duyệt có lúc chờ byte đầu ~46 s mỗi ảnh (curl cùng lúc 0,4 s), chờ hết thì kẹt màn tải ~2 phút.
+  var warmKeep = [], BOOT_TASK_MS = 30000, BOOT_EXTRA_MS = 20000, BOOT_IMG_PAR = 10;
   function cssImageUrls() {
     var urls = [], seen = {};
     function add(u) { if (u && !seen[u]) { seen[u] = 1; urls.push(u); } }
@@ -372,6 +374,7 @@
     // thẻ hero: loadAll chèn script đúng thứ tự (bể thẻ phụ thuộc thứ tự nạp), từng hero là một phần tiến độ
     var L = U.data;
     if (L) { L.loadAll(null); L.heroes().forEach(function (h) { task(6, 'ĐANG TẢI THẺ', function () { return L.loadHero(h); }); }); task(3, 'ĐANG TẢI THẺ', function () { return L.script('data/ghosts.js'); }); }
+    var nMust = tasks.length;
     if (root.BZSpine && root.BZSpine.warm) task(6, 'ĐANG TẢI HERO', function () { return root.BZSpine.warm(); });
     var imgs = cssImageUrls(), qi = 0, imgDone = null, imgLeft = imgs.length;
     U.warmCount = imgs.length;
@@ -385,9 +388,12 @@
     totalW += imgs.length;
     function tick(label) { if (B) B.progress(totalW ? doneW / totalW : 1, label); }
     var all = tasks.map(function (t) { return capped(t.run()).then(function () { doneW += t.w; tick(t.label); }); });
-    all.push(imgs.length ? new Promise(function (res) { imgDone = res; for (var k = 0; k < BOOT_IMG_PAR; k++) nextImg(); }) : Promise.resolve());
+    var extra = all.splice(nMust);
+    extra.push(imgs.length ? new Promise(function (res) { imgDone = res; for (var k = 0; k < BOOT_IMG_PAR; k++) nextImg(); }) : Promise.resolve());
     tick('ĐANG TẢI');
-    return Promise.all(all);
+    return Promise.all(all).then(function () {
+      return Promise.race([Promise.all(extra), new Promise(function (res) { setTimeout(res, BOOT_EXTRA_MS); })]);
+    });
   }
   U.start = function () {
     patchArt();
