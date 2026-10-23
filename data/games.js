@@ -1011,5 +1011,22 @@ window.HUB_GAMES = [
     // Kiểm: test/world-of-slime-{intro,quest,quest2,combat,tame,larus,mobile,hud,slice}.js (WOS_BASE=<url game> WOS_ASSETS=).
     status: "available",
     tags: ["Nhập vai", "Bắt quái", "Nhìn từ trên xuống"]
+  },
+  {
+    id: "walking-trade",
+    title: "Chuyến Buôn Xác Sống",
+    tagline: "The Walking Trade: mở quán giữa thời xác sống, bán đồ lấy pin.",
+    desc: "Lát cắt vòng quán của The Walking Trade, dựng lại bằng Unity WebGL. Sáng mua hàng của thương nhân, đặt giá rồi mở quán. Khách xem kệ, chê đắt khi giá quá 2,25 lần giá gốc, mang món ưng ra quầy trả bằng pin. Sau 19 giờ đóng quán đi ngủ, xem tổng kết rồi sang ngày mới.",
+    genre: "thu-gian",
+    accent: "#e8b04a",
+    en: { title: "The Walking Trade", tagline: "Run a shop at the end of the world and sell your stock for batteries.", desc: "The shop loop of The Walking Trade, rebuilt in Unity WebGL. In the morning, buy from the merchant, set your prices and open up. Customers browse the shelf, refuse anything over 2.25 times its base value, and pay in batteries at the counter. After 7 pm, close up and sleep, read the day summary and start a new day." },
+    thumbnail: "assets/thumbnails/walking-trade.png",
+    path: "games/walking-trade/index.html",
+    rev: "20261024a",
+    // Unity 6 WebGL, project ngoài git ở D:\walking-trade-ref	wt-webgl. Luật khách, giá và ngày đọc từ bản decode
+    // IL2CPP của game gốc (D:\walking-trade-ref); hình tự vẽ bằng khối màu, không ship art gốc. Số nào tự đặt và
+    // cách build: games/walking-trade/README.md. Kiểm: node test/walking-trade-play.js (TWT_URL=<gốc hub> chạy trên Pages).
+    status: "available",
+    tags: ["Quản lý", "Sinh tồn", "Unity"]
   }
 ];
