@@ -9,11 +9,11 @@
 <meta name="theme-color" content="#120c08">
 <title>Chợ Phiên</title>
 <meta name="description" content="Chợ Phiên: đấu thẻ bài tự động kiểu The Bazaar — mua bán, đánh quái, đấu bóng người chơi tới 10 trận thắng. Dữ liệu và hình gốc từ bản demo.">
-<link rel="stylesheet" href="css/bazaar.css?v=20261023e">
-<link rel="stylesheet" href="css/card.css?v=20261023e">
-<link rel="stylesheet" href="css/tooltip.css?v=20261023e">
-<link rel="stylesheet" href="css/run.css?v=20261023e">
-<link rel="stylesheet" href="css/lobby.css?v=20261023e">
+<link rel="stylesheet" href="css/bazaar.css?v=20261023f">
+<link rel="stylesheet" href="css/card.css?v=20261023f">
+<link rel="stylesheet" href="css/tooltip.css?v=20261023f">
+<link rel="stylesheet" href="css/run.css?v=20261023f">
+<link rel="stylesheet" href="css/lobby.css?v=20261023f">
 <style>
 #bz-boot{position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#120c08;color:#cfd6dc;font:15px/1.3 system-ui,sans-serif}
 #bz-boot.done{display:none}
@@ -33,7 +33,9 @@
      tải xong (js/ui/core.js bootPreload gọi BZBoot.done). Phần đầu thanh = các <script> bên dưới, phần sau = bootPreload -->
 <div id="bz-boot" role="progressbar" aria-label="Đang tải" data-scripts="56"><div class="t">ĐANG TẢI</div><div class="bar"><i></i></div><div class="pct">0%</div><div class="hint"></div><button type="button" onclick="location.reload()">Tải lại</button></div>
 <noscript><p style="padding:24px">Chợ Phiên cần JavaScript để chạy.</p></noscript>
-<script>window.BZ_REV = '20261023e';
+<script>window.BZ_REV = '20261023f';
+// giữ tài nguyên đã tải trên máy (sw.js); ?v= theo rev để lên bản mới thì worker mới dọn bản cũ
+if ('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('sw.js?v=' + window.BZ_REV).catch(function (e) { console.info('service worker: ' + e.message); });
 (function () {
   var el = document.getElementById('bz-boot'), bar = el.querySelector('.bar i'), pct = el.querySelector('.pct'), hint = el.querySelector('.hint'), title = el.querySelector('.t');
   var t0 = Date.now(), shown = -1, lastChange = Date.now(), finished = false, failed = false, SCRIPTS = 0.35;
@@ -71,61 +73,61 @@
 })();
 </script>
 <!-- thẻ: chung + bảng hero lúc mở trang; thẻ riêng từng hero nạp theo hero (js/ui/loader.js). data/cards.js giữ cho Node -->
-<script src="data/cards-common.js?v=20261023e"></script>
-<script src="data/heroes.js?v=20261023e"></script>
-<script src="data/monsters.js?v=20261023e"></script>
-<script src="data/mode.js?v=20261023e"></script>
-<script src="data/encounters.js?v=20261023e"></script>
-<script src="data/carpets.js?v=20261023e"></script>
-<script src="data/shops.js?v=20261023e"></script>
-<script src="data/art.js?v=20261023e"></script>
-<script src="data/thumbs.js?v=20261023e"></script>
-<script src="data/preload.js?v=20261023e"></script>
-<script src="data/hires.js?v=20261023e"></script>
-<script src="data/audio.js?v=20261023e"></script>
-<script src="data/env.js?v=20261023e"></script>
-<script src="data/vfxmap.js?v=20261023e"></script>
-<script src="js/sim/core.js?v=20261023e"></script>
-<script src="js/sim/dsl.js?v=20261023e"></script>
-<script src="js/sim/triggers.js?v=20261023e"></script>
-<script src="js/sim/actions.js?v=20261023e"></script>
-<script src="js/sim/engine.js?v=20261023e"></script>
-<script src="js/sim/text.js?v=20261023e"></script>
-<script src="js/run/tuning.js?v=20261023e"></script>
-<script src="js/run/core.js?v=20261023e"></script>
-<script src="js/run/pool.js?v=20261023e"></script>
-<script src="js/run/ooc.js?v=20261023e"></script>
-<script src="js/run/clock.js?v=20261023e"></script>
-<script src="js/run/enc-merchant.js?v=20261023e"></script>
-<script src="js/run/enc-step.js?v=20261023e"></script>
-<script src="js/run/enc-event.js?v=20261023e"></script>
-<script src="js/run/enc-pedestal.js?v=20261023e"></script>
-<script src="js/run/enc-combat.js?v=20261023e"></script>
-<script src="js/run/phases.js?v=20261023e"></script>
-<script src="js/view/vfx-data.js?v=20261023e"></script>
-<script src="js/view/fx.js?v=20261023e"></script>
-<script src="js/view/hires.js?v=20261023e"></script>
-<script src="js/view/card.js?v=20261023e"></script>
-<script src="js/view/tooltip.js?v=20261023e"></script>
-<script src="js/view/stage.js?v=20261023e"></script>
-<script src="js/view/replay.js?v=20261023e"></script>
-<script src="js/view/spine.js?v=20261023e"></script>
-<script src="js/audio.js?v=20261023e"></script>
-<script src="js/main.js?v=20261023e"></script>
-<script src="js/ui/loader.js?v=20261023e"></script>
-<script src="js/ui/hud.js?v=20261023e"></script>
-<script src="js/ui/cards.js?v=20261023e"></script>
-<script src="js/ui/drag.js?v=20261023e"></script>
-<script src="js/ui/anim.js?v=20261023e"></script>
-<script src="js/ui/combat.js?v=20261023e"></script>
-<script src="js/ui/top.js?v=20261023e"></script>
-<script src="js/ui/transitions.js?v=20261023e"></script>
-<script src="js/ui/screens/menu.js?v=20261023e"></script>
-<script src="js/ui/screens/choose.js?v=20261023e"></script>
-<script src="js/ui/screens/merchant.js?v=20261023e"></script>
-<script src="js/ui/screens/event.js?v=20261023e"></script>
-<script src="js/ui/screens/fight.js?v=20261023e"></script>
-<script src="js/ui/screens/chest.js?v=20261023e"></script>
-<script src="js/ui/core.js?v=20261023e"></script>
+<script src="data/cards-common.js?v=20261023f"></script>
+<script src="data/heroes.js?v=20261023f"></script>
+<script src="data/monsters.js?v=20261023f"></script>
+<script src="data/mode.js?v=20261023f"></script>
+<script src="data/encounters.js?v=20261023f"></script>
+<script src="data/carpets.js?v=20261023f"></script>
+<script src="data/shops.js?v=20261023f"></script>
+<script src="data/art.js?v=20261023f"></script>
+<script src="data/thumbs.js?v=20261023f"></script>
+<script src="data/preload.js?v=20261023f"></script>
+<script src="data/hires.js?v=20261023f"></script>
+<script src="data/audio.js?v=20261023f"></script>
+<script src="data/env.js?v=20261023f"></script>
+<script src="data/vfxmap.js?v=20261023f"></script>
+<script src="js/sim/core.js?v=20261023f"></script>
+<script src="js/sim/dsl.js?v=20261023f"></script>
+<script src="js/sim/triggers.js?v=20261023f"></script>
+<script src="js/sim/actions.js?v=20261023f"></script>
+<script src="js/sim/engine.js?v=20261023f"></script>
+<script src="js/sim/text.js?v=20261023f"></script>
+<script src="js/run/tuning.js?v=20261023f"></script>
+<script src="js/run/core.js?v=20261023f"></script>
+<script src="js/run/pool.js?v=20261023f"></script>
+<script src="js/run/ooc.js?v=20261023f"></script>
+<script src="js/run/clock.js?v=20261023f"></script>
+<script src="js/run/enc-merchant.js?v=20261023f"></script>
+<script src="js/run/enc-step.js?v=20261023f"></script>
+<script src="js/run/enc-event.js?v=20261023f"></script>
+<script src="js/run/enc-pedestal.js?v=20261023f"></script>
+<script src="js/run/enc-combat.js?v=20261023f"></script>
+<script src="js/run/phases.js?v=20261023f"></script>
+<script src="js/view/vfx-data.js?v=20261023f"></script>
+<script src="js/view/fx.js?v=20261023f"></script>
+<script src="js/view/hires.js?v=20261023f"></script>
+<script src="js/view/card.js?v=20261023f"></script>
+<script src="js/view/tooltip.js?v=20261023f"></script>
+<script src="js/view/stage.js?v=20261023f"></script>
+<script src="js/view/replay.js?v=20261023f"></script>
+<script src="js/view/spine.js?v=20261023f"></script>
+<script src="js/audio.js?v=20261023f"></script>
+<script src="js/main.js?v=20261023f"></script>
+<script src="js/ui/loader.js?v=20261023f"></script>
+<script src="js/ui/hud.js?v=20261023f"></script>
+<script src="js/ui/cards.js?v=20261023f"></script>
+<script src="js/ui/drag.js?v=20261023f"></script>
+<script src="js/ui/anim.js?v=20261023f"></script>
+<script src="js/ui/combat.js?v=20261023f"></script>
+<script src="js/ui/top.js?v=20261023f"></script>
+<script src="js/ui/transitions.js?v=20261023f"></script>
+<script src="js/ui/screens/menu.js?v=20261023f"></script>
+<script src="js/ui/screens/choose.js?v=20261023f"></script>
+<script src="js/ui/screens/merchant.js?v=20261023f"></script>
+<script src="js/ui/screens/event.js?v=20261023f"></script>
+<script src="js/ui/screens/fight.js?v=20261023f"></script>
+<script src="js/ui/screens/chest.js?v=20261023f"></script>
+<script src="js/ui/core.js?v=20261023f"></script>
 </body>
 </html>
