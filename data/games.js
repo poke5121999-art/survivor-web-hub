@@ -1022,7 +1022,7 @@ window.HUB_GAMES = [
     en: { title: "The Walking Trade", tagline: "Run a shop at the end of the world, sell your stock for batteries, and defend it when a raid hits.", desc: "The shop loop of The Walking Trade, rebuilt in Unity WebGL. In the morning, buy from the merchant, set your prices and open up. Customers browse the shelf, refuse anything over 2.25 times its base value, and pay in batteries at the counter. After 7 pm, close up and sleep, read the day summary and start a new day. On day 3 and every 4 days after, a 09:30 RAID sends waves of zombies in: wield a weapon from your stock (knife, bow, hammer) and tap to fight, survive every wave for loot, or lose batteries if you fall." },
     thumbnail: "assets/thumbnails/walking-trade.png",
     path: "games/walking-trade/index.html",
-    rev: "20261025a",
+    rev: "20261025b",
     // Unity 6 WebGL, project ngoài git ở D:\walking-trade-ref	wt-webgl. Luật khách, giá và ngày đọc từ bản decode
     // IL2CPP của game gốc (D:\walking-trade-ref); hình tự vẽ bằng khối màu, không ship art gốc. Số nào tự đặt và
     // cách build: games/walking-trade/README.md. Kiểm: node test/walking-trade-play.js (TWT_URL=<gốc hub> chạy trên Pages).
