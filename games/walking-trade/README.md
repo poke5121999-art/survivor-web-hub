@@ -39,7 +39,29 @@ Decode không có các số này, hoặc bản build gốc giấu đi. Cả năm
 - **30 pin khởi đầu và vài món trong kho.** Asset ghi `_startValue: 0`, còn tutorial cho gì thì chưa tìm ra.
 - **Mỗi buổi sáng thương nhân bày 6 món.** Bản gốc có nhiều landmark trên bản đồ thế giới, mỗi cái một danh sách hàng.
 
-Bản này chưa có: khách bán đồ cho người chơi (mặc cả), khách bị thương, xác sống, raid, nhân viên, cây kỹ năng.
+Bản này chưa có: khách bán đồ cho người chơi (mặc cả), khách bị thương, nhân viên, cây kỹ năng.
+
+## Raid (thủ quán) `[ĐO TRONG REPO]`
+
+Spec đọc từ decode: `RaidManager.cs`, `RaidWave.cs`, prefab zombie (`Damageable._maxHealth`, navigator `_defaultSpeed`), `*WeaponData.asset`, `*AuthoredRaidDefinition.asset`. Số đo đầy đủ ở phiếu spec (ngoài repo): `D:\walking-trade-ref` nhánh điều tra, file `RAID-SPEC.md`. Logic trong `TwtGame.cs` vùng `// ---------- raid`.
+
+| Luật | Giá trị | Nguồn |
+|---|---|---|
+| Raid đầu | ngày 3 (ngày hiện tại + 2) | `RaidManager` GetDelayDaysForScheduling |
+| Các raid sau | mỗi 4 ngày | `Random.Range(4/F, 5/F)`, F=1 |
+| Giờ raid | 09:30 | `RaidManager.cs:1348` |
+| 5 raid thiết kế sẵn | 48 / 46 / 58 / 61 / 243 xác, chia 5/5/5/3/3 đợt | `*AuthoredRaidDefinition.asset` |
+| Máu người chơi | 100, hồi sinh 50% | `PlayerObject._maxHealth` |
+| Xác thường/Tumour | 100 máu, 3,5 m/s, đòn 25, cd 2 s | prefab Damageable/navigator |
+| Hulking | 750 máu, 3,0 m/s, đòn 150, cd 5 s | prefab |
+| Boss Brute/Birther/Charger/Twins | 4000 / 2500 / 10000 / 4000 máu | prefab |
+| Vũ khí (vài món) | Dao 70/0,5s · Cung 45/0,4s · Cờ lê lưỡi dao 50/0,4s · Búa 22/0,75s | `*WeaponData.asset` |
+| Thắng | dọn hết đợt cuối → loot (item) | `Raid.OnAllMobsDespawned`, `RaidRewardGenerator` |
+| Thua | người chơi chết → mất 10–20% pin, quán đóng, hồi sinh | `GameController.OnDeadPlayerStateEntered` |
+
+Số tự đặt cho bản web `[ĐỀ XUẤT]` (đánh dấu trong `TwtGame.cs`): 8 hướng vào + 10 barrier gốc rút thành xác tràn từ bên phải; bảng loot gốc (Pills, Nail Bomb, Grenade…) rút thành +3 món sẵn trong kho; vũ khí "Tay không" mặc định khi kho không có vũ khí; nhịp spawn và tỉ lệ px/mét cho sân schematic; raid kết thúc là sang thẳng tổng kết (bản gốc cho mở lại quán sau raid). Boss hiện là khối máu cao, chưa có cơ chế riêng (đẻ con, lao, chia máu đôi).
+
+Cách chơi: buổi sáng ngày raid có cảnh báo — mua vũ khí ở thương nhân. Vào raid, chạm vũ khí để cầm (ưu tiên DPS cao), chạm xác sống để đánh; vũ khí cận chiến chỉ với tới xác đã lại gần quầy, cung bắn được từ xa.
 
 ## Build và đẩy lên hub
 
