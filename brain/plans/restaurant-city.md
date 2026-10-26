@@ -53,6 +53,9 @@ bạn trong giao diện chưa thử; (3) lần đầu mở sau khi đổi rev, m
 
 ## Bẫy đã gặp
 
+- Đổi rev bằng `node games/restaurant-city/tools/stamp.js <rev> [games.js]`, đừng sửa tay: 2026-10-27 một lệnh thay
+  chuỗi nuốt dấu phẩy sau `rev:` trong `data/games.js`, trang chủ hub mất danh sách game khoảng 40 phút.
+
 - `server/public/data` bị `.gitignore` ở repo server. Thiếu `restaurant.xml`/`front.xml`/`perk.xml`/`avatar.xml`/
   `appointment.xml` thì đồ Cash báo lỗi, quà tặng bị từ chối, Gourmet Street ném lỗi, save không định giá được đồ mua
   bằng xu. Tải từ `https://rc-reborn.uk/<tên>.xml`; `build-rpc.mjs` giờ fail nếu thiếu [ĐO 2026-10-26].
