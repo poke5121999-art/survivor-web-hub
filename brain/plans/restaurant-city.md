@@ -28,8 +28,10 @@ Chủ dự án muốn chơi online bằng tài khoản hub (2026-10-26), biết 
 ## Trạng thái 2026-10-26
 
 - Xong 1-5 và 7 (lần đẩy đầu). `rc-rpc` deploy, `test/restaurant-city-rpc.js` 415 PASS; `test/restaurant-city-play.js` 7/7 ở máy.
-- Còn 6 (avatar): đã build 3 biến thể Phong / tắt Phong / đổ bóng một lớp (`Avatar3D.as`), chưa so được vì kịch bản
-  bấm tới màn tạo nhân vật lệch nhịp theo từng người chơi mới. Cần cách mở màn avatar chắc chắn hơn trước khi so.
+- 6 (avatar, rev 20261026b): so 3 biến thể ở màn tạo nhân vật, 2x, function thật. Phong vẽ đường kẻ sáng chéo
+  qua mặt trong Ruffle; đổ bóng một lớp (`WhiteShadingBitmapMaterial`) cháy trắng; texture phẳng sạch nhất →
+  `patches/0003-avatar-flat-skin-texture.diff` (tóc vẫn Phong, không lỗi). Nhịp bấm tới màn avatar trên function
+  thật: X, X, bong bóng, tờ báo, chờ 8 s (`rc-page-drive.js` trong scratchpad phiên 2026-10-26).
 - Độ trễ: batch `getUserProfile` 2-4 s vì Edge ở Seoul còn DB ở Tokyo; trang gửi `forceFunctionRegion=ap-northeast-1`.
 
 ## Bẫy đã gặp
