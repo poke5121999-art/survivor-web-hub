@@ -34,7 +34,24 @@ Chủ dự án muốn chơi online bằng tài khoản hub (2026-10-26), biết 
   thật: X, X, bong bóng, tờ báo, chờ 8 s (`rc-page-drive.js` trong scratchpad phiên 2026-10-26).
 - Độ trễ: batch `getUserProfile` 2-4 s vì Edge ở Seoul còn DB ở Tokyo; trang gửi `forceFunctionRegion=ap-northeast-1`.
 
+## Đợt "full game" (2026-10-26, chiều)
+
+Tự chơi trên Pages bằng `tools/rc-live.js` (log ghi tên từng RPC và sub nào server không trả lời).
+Đã chạy thật: quiz, nâng món, chợ xu, nguyên liệu Cash, mua/đặt/dời đồ, đồ Cash, Gourmet Street, chấm sao,
+vào Rating Guide, trồng + tưới vườn, nút chia sẻ. Thu hoạch cần 48 giờ thật, chưa thử.
+
+Còn lại theo thứ tự: (1) social link thay khung Facebook (tặng snack, tặng đồ, đăng tường, mời bạn, xin nguyên
+liệu), server gốc có sẵn `src/social-links`; (2) hộp email hiện mỗi lần mở; (3) khách bóng trắng ~1,5 phút mỗi lần
+mở (IsoCacher chỉ dựng hình khi không có popup, 15 ms mỗi khung); (4) bot `rc-bot-*` lẫn vào phố của người thật.
+
 ## Bẫy đã gặp
+
+- `server/public/data` bị `.gitignore` ở repo server. Thiếu `restaurant.xml`/`front.xml`/`perk.xml`/`avatar.xml`/
+  `appointment.xml` thì đồ Cash báo lỗi, quà tặng bị từ chối, Gourmet Street ném lỗi, save không định giá được đồ mua
+  bằng xu. Tải từ `https://rc-reborn.uk/<tên>.xml`; `build-rpc.mjs` giờ fail nếu thiếu [ĐO 2026-10-26].
+- Deploy `--use-api` bị CLI cắt ở 60 s khi gửi `generated/` (3 MB TS) làm file rời; giờ Prisma client được esbuild gộp
+  vào `rpc.bundle.js` (661 KB) và deploy xong trong ~30 s. Kiểm version bằng `functions list`, đừng tin "timed out".
+- RPC 32 `buyMystryBox` (client không gửi) nhận token là id thuần và tặng không món đồ đó; build vá thành luôn từ chối.
 
 - Ruffle cần một cú bấm đầu để nhận focus; trước đó nút trong game không ăn [ĐO 2026-10-26].
 - Server gốc rate-limit đăng ký theo IP; khởi động lại để reset khi test.

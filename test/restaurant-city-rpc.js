@@ -232,6 +232,41 @@ async function main() {
     check(parsePoll(after.body).events.length === 0, 'B pollEvents after ack is empty');
   }
 
+  // ---- RPCs the captured intro never reaches -----------------------------------------
+  const call = (type, session, body = Buffer.alloc(0)) => Buffer.concat([Buffer.from([0, type]), writeString(session || ''), body]);
+  const answered = (r, type) => r.status === 200 && r.body[0] === 0 && r.body[1] === type;
+  const cashOf = async () => {
+    const r = await rpc(tokens.A, call(248, sessions.A));
+    return answered(r, 248) ? readVarint(r.body, 2)[0] : -1;
+  };
+  const cash0 = await cashOf();
+  check(cash0 >= 0, 'A getCashBalance', `${cash0}`);
+  if (cash0 >= 2) {
+    // restaurant.xml "jbcPCtwNvvrgkU7YFsCqQG": 2 PF Cash -> 1000 coins (server test/cash-catalog.test.cjs).
+    const conv = await rpc(tokens.A, call(40, sessions.A, writeString('jbcPCtwNvvrgkU7YFsCqQG')));
+    const left = answered(conv, 40) ? readVarint(conv.body, 3)[0] : -1;
+    check(answered(conv, 40) && conv.body[2] === 0 && left === cash0 - 2 && await cashOf() === cash0 - 2,
+      'purchaseCoinsWithPfCash charges 2 PF Cash', `status=${conv.body[2]} cash ${cash0}->${left}${conv.error ? ` err=${conv.error}` : ''}`);
+  }
+  // Gourmet Street scoring reads restaurant.xml; without it the call throws (served as an error envelope).
+  for (const [type, name] of [[37, 'getRandomStreetUsers'], [38, 'getGourmetStreetUsers'], [39, 'getHireCandidates']]) {
+    const r = await rpc(tokens.A, call(type, sessions.A, writeVarint(10)));
+    const count = answered(r, type) ? readVarint(r.body, 2)[0] : -1;
+    check(count > 0, `${name} lists players`, `${count}${r.error ? ` err=${r.error}` : ''}`);
+  }
+  const uidB = Buffer.concat([writeVarint(2), writeString(who.B.networkUid), writeVarint(who.B.playfishUid)]);
+  for (const [type, name, body] of [
+    [246, 'getPricepoints', Buffer.alloc(0)], [250, 'getPurchasableItems', Buffer.alloc(0)], [253, 'getTimeToken0', Buffer.alloc(0)],
+    [44, 'readBookmarkCount', Buffer.alloc(0)], [45, 'writeBookmarkCount', writeVarint(1)], [46, 'sendNotification', uidB],
+    [43, 'waterFriendGarden', Buffer.concat([uidB, uidB, writeVarint(0)])],
+  ]) {
+    const r = await rpc(tokens.A, call(type, sessions.A, body));
+    check(answered(r, type) && !r.error, `${name} answered`, `${r.body.subarray(0, 8).toString('hex')}${r.error ? ` err=${r.error}` : ''}`);
+  }
+  // Not sent by the shipped client; a made-up token must not mint an item (STATUS_INVALID_TOKEN = 4).
+  const box = await rpc(tokens.A, call(32, sessions.A, Buffer.concat([writeString(''), writeVarint(1), writeString('3040001')])));
+  check(answered(box, 32) && readVarint(box.body, 2)[0] === 4, 'buyMystryBox rejects a crafted token', box.body.toString('hex'));
+
   const sorted = [...batchMs].sort((a, b) => a - b);
   console.log(`batch latency ms: first=${batchMs[0]} median=${sorted[Math.floor(sorted.length / 2)]} all=${batchMs.join(',')}`);
   console.log(failures ? `FAIL ${failures} check(s) failed` : 'PASS all checks');

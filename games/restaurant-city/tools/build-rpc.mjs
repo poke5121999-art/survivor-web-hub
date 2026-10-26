@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Regenerates supabase/functions/rc-rpc/ from the ORIGINAL Restaurant City
 // server (github.com/Dippys/Restaurant-City-Server, cloned at D:/rc-ref/server):
-//   1. Prisma client for Deno from server/prisma/schema.postgresql.prisma -> generated/
-//   2. esbuild bundle of the RPC + persistence code + tools/rpc-shims -> rpc.bundle.js
+//   1. Prisma client for Deno from server/prisma/schema.postgresql.prisma (build cache)
+//   2. esbuild bundle of that client + the RPC + persistence code + tools/rpc-shims -> rpc.bundle.js
 //   3. index.ts (Deno entry) + deno.json
 // The server checkout is only read, never modified.
 //
@@ -67,10 +67,13 @@ fs.writeFileSync(path.join(prismaDir, 'schema.prisma'), schema);
 fs.rmSync(path.join(prismaDir, 'generated'), { recursive: true, force: true });
 run(process.execPath, [prismaCli, 'generate', '--schema', 'schema.prisma'], { cwd: prismaDir, shell: false });
 
+// The generated client (~3 MB of TS) is bundled into rpc.bundle.js instead of
+// shipped as files: Supabase's server-side bundling of the loose files took
+// longer than the CLI's 60 s deploy request.
 fs.mkdirSync(OUT, { recursive: true });
 fs.rmSync(path.join(OUT, 'generated'), { recursive: true, force: true });
-fs.cpSync(path.join(prismaDir, 'generated'), path.join(OUT, 'generated'), { recursive: true });
-const classTs = path.join(OUT, 'generated/internal/class.ts');
+const GENERATED_CLIENT = path.join(prismaDir, 'generated/client.ts');
+const classTs = path.join(prismaDir, 'generated/internal/class.ts');
 let classSrc = fs.readFileSync(classTs, 'utf8');
 for (const file of ['query_compiler_fast_bg.postgresql.mjs', 'query_compiler_fast_bg.postgresql.wasm-base64.mjs']) {
   const from = `import("@prisma/client/runtime/${file}")`;
@@ -78,7 +81,7 @@ for (const file of ['query_compiler_fast_bg.postgresql.mjs', 'query_compiler_fas
   classSrc = classSrc.replace(from, `import("npm:@prisma/client@${PRISMA_CLIENT_VERSION}/runtime/${file}")`);
 }
 fs.writeFileSync(classTs, classSrc);
-console.log('prisma client -> generated/ (class.ts runtime imports pinned to npm:)');
+console.log('prisma client generated (class.ts runtime imports pinned to npm:)');
 
 // ---- 2. esbuild bundle ---------------------------------------------------------
 function loadEsbuild() {
@@ -106,6 +109,9 @@ const PATCHES = new Map([
   [norm(path.join(SRC, 'db/rpc-store.ts')), [
     // Edge: each async poll is an edge invocation; poll about once a minute.
     ['minPollInterval: request.synchronous ? 30000 : 5000,', 'minPollInterval: request.synchronous ? 30000 : 60000,'],
+    // RPC 32 is never sent by the shipped client, yet a crafted token holding a
+    // plain item id ("3040001") minted that item for free. Resolve nothing.
+    ['const chosen = itemIdFromToken(tokens[0] ?? category, 0);', 'const chosen = 0;'],
   ]],
 ]);
 
@@ -119,6 +125,14 @@ function resolveTs(base) {
 const dataFiles = Object.fromEntries(fs.readdirSync(path.join(SERVER, 'public/data'))
   .filter((f) => f.endsWith('.xml'))
   .map((f) => [f, fs.readFileSync(path.join(SERVER, 'public/data', f), 'utf8')]));
+// public/data is gitignored in the server repo. Without these XMLs the server
+// cannot price coin purchases in saves, sell PF Cash furniture, accept gifts or
+// score Gourmet Street, so a missing one is a build error, not a warning.
+const catalogSrc = fs.readFileSync(path.join(SRC, 'db/item-catalog.ts'), 'utf8');
+const catalogList = /const CATALOG_FILES = \[([\s\S]*?)\]/.exec(catalogSrc);
+if (!catalogList) fail('CATALOG_FILES not found in db/item-catalog.ts');
+const missingData = [...catalogList[1].matchAll(/'([\w.-]+\.xml)'/g)].map((m) => m[1]).filter((f) => !dataFiles[f]);
+if (missingData.length) fail(`server/public/data lacks ${missingData.join(', ')} (download from https://rc-reborn.uk/<name>)`);
 
 const rcPlugin = {
   name: 'rc-edge',
@@ -153,7 +167,7 @@ const rcPlugin = {
       }
       return { contents: `import * as zlib from 'node:zlib';\n${body}\nexport { encodeArgbPng };\n`, loader: 'ts', resolveDir: SRC };
     });
-    build.onResolve({ filter: /^\.\/generated\/client\.ts$/ }, () => ({ path: './generated/client.ts', external: true }));
+    build.onResolve({ filter: /^\.\/generated\/client\.ts$/ }, () => ({ path: GENERATED_CLIENT }));
     build.onLoad({ filter: /\.ts$/ }, (args) => {
       if (!inServer(args.path)) return undefined;
       let contents = fs.readFileSync(args.path, 'utf8');
@@ -179,7 +193,7 @@ const result = await esbuild.build({
   format: 'esm',
   platform: 'node',
   target: 'es2022',
-  external: ['node:*', '@prisma/adapter-pg', 'npm:*'],
+  external: ['node:*', '@prisma/adapter-pg', '@prisma/client/*', 'npm:*'],
   plugins: [rcPlugin],
   metafile: true,
   legalComments: 'none',
@@ -216,4 +230,4 @@ fs.writeFileSync(path.join(OUT, 'deno.json'), `${JSON.stringify({
   },
 }, null, 2)}\n`);
 const kb = (f) => `${Math.round(fs.statSync(path.join(OUT, f)).size / 1024)} KB`;
-console.log(`wrote ${OUT}: index.ts, deno.json, rpc.bundle.js (${kb('rpc.bundle.js')}), generated/`);
+console.log(`wrote ${OUT}: index.ts, deno.json, rpc.bundle.js (${kb('rpc.bundle.js')})`);
