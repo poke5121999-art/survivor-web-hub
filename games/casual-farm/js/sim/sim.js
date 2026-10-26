@@ -295,6 +295,7 @@ export class Sim {
     s.trash.forEach((tr, i) => {
       if (st.active.has(tr.name) && tr.zone && tr.zone.contains(p, R)) inputs.push({ kind: 'trash', i });
     });
+    if (this.cars && this.cars.ready() && this.cars.zone.contains(p, R)) inputs.unshift({ kind: 'car' });
     const cash = [];
     s.cashiers.forEach((c, i) => {
       st.cashiers[i].playerOn = st.active.has(c.name) && !!c.desk && c.desk.contains(p, R);
@@ -312,6 +313,7 @@ export class Sim {
       const sh = this.store.shelves[z.i];
       return sh.type === type && this.state.shelves[z.i].count < sh.slots.length;
     }
+    if (z.kind === 'car') return this.cars.needs(type);
     return z.kind === 'trash';
   }
 
@@ -322,6 +324,8 @@ export class Sim {
       this.after(0.35, () => this.tryStart(z.i));
     } else if (z.kind === 'shelf') {
       this.state.shelves[z.i].count++;
+    } else if (z.kind === 'car') {
+      this.cars.give(type);
     }
   }
 

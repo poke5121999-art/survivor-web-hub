@@ -41,8 +41,12 @@ export class Bot {
     const deskJobs = s.cashiers.map((c, i) => ({ at: c.desk.middle, i })).filter(j => waiting[j.i] && sim.isActive(s.cashiers[j.i].name));
     if (deskJobs.length && customers.some(cu => cu.state === 4 && !st.cashiers[cu.cashier].worker)) return { kind: 'desk', ...nearest(deskJobs), hold: 1.5 };
 
+    // A full car order is collected on the spot (the HUD Collect button).
+    if (sim.cars && sim.cars.full()) sim.cars.collect();
+
     if (carry.length) {
       const drops = [];
+      if (sim.cars && carry.some(t => sim.cars.needs(t))) drops.push({ at: sim.cars.point, kind: 'drop' });
       s.shelves.forEach((sh, i) => {
         if (sim.isActive(sh.name) && carry.includes(sh.type) && st.shelves[i].count < sh.slots.length) drops.push({ at: sh.zone.middle, kind: 'drop' });
       });

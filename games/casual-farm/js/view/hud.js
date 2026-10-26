@@ -73,7 +73,7 @@ export class Hud {
     const el = this.canvas.parentElement || document.body;
     const R = () => Math.min(window.innerWidth, window.innerHeight) * 0.13;
     el.addEventListener('pointerdown', e => {
-      if (e.target.closest('.btn, .upmenu, .next')) return;
+      if (e.target.closest('.btn, .upmenu, .next, .car')) return;
       this.stick = { active: true, id: e.pointerId, ox: e.clientX, oy: e.clientY, x: 0, y: 0 };
       this.joyEl.style.display = 'block';
       this.joyEl.style.left = `${e.clientX}px`;
@@ -264,6 +264,19 @@ export class Hud {
     }
 
     this.updateTask();
+    // Car order: what the car still needs, and Collect once it is full (PhoneOrderMenuController).
+    const car = st.car && st.car.order && sim.cars && sim.cars.ready() ? st.car.order : null;
+    if (car) {
+      const full = sim.cars.full();
+      const html = full ? '<a class="btn collect" data-car="1">COLLECT</a>'
+        : car.items.map(x => `<img class="ico" src="${this.art}/items/${(this.items.types[x.type] || {}).icon}" alt=""><b>${x.got}/${x.n}</b>`).join('');
+      const t = this.tag('car', `bubble car${full ? ' full' : ''}`, html);
+      this.place(t, { x: sim.cars.point.x, y: 10, z: sim.cars.point.z });
+      if (!t._wired) {
+        t._wired = true;
+        t.addEventListener('click', e => { if (e.target.closest('[data-car]')) sim.cars.collect(); });
+      }
+    }
     const th = st.thief && st.thief.chasing && st.thief.agent;
     if (th) this.arrow('thief', { x: th.x, y: 6, z: th.z });
     this.nextEl.style.display = st.next.ready ? 'flex' : 'none';

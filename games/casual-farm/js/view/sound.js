@@ -115,6 +115,8 @@ export class Sound {
       case 'activate': if (s.nextMart && e.name === s.nextMart.name) this.play('honk', { at: s.nextMart.zone.middle }); break;
       case 'depart': this.play('drive'); break;
       case 'thiefCaught': this.play('cashBurst', { index: 0 }); break;
+      case 'carArrive': this.play('honk', { at: this.sim.cars && this.sim.cars.point }); break;
+      case 'carLeave': if (e.paid) this.play('cashBurst', { index: e.amount < 1000 ? 0 : e.amount < 5000 ? 1 : e.amount < 10000 ? 2 : 3 }); break;
       default: break;
     }
   }

@@ -228,6 +228,7 @@ export class GameView {
     });
 
     this.updateThief(dt);
+    this.updateCar();
     this.updateCustomers(dt);
     this.updateWorkers(dt);
     this.updateFlights(dt);
@@ -356,6 +357,36 @@ export class GameView {
     this.syncStack('thief', new Array(Math.min(a.carried, 20)).fill(11), (g, k) => { g.position.set(0, CASH_LAYER_STEP * k, 0); }, v.slot);
   }
 
+  // --- car customer: the mart's own van body parked at CarPoint, sliding in along its local z for 3 s (OutCirc) ------
+  updateCar() {
+    const cars = this.sim.cars, o = this.sim.state.car && this.sim.state.car.order;
+    if (!cars || !cars.point) return;
+    if (!this.carView) {
+      const nm = this.store.nextMart, van = nm && nm.van != null ? this.obj(nm.van) : null;
+      if (!van) { this.carView = { obj: null }; return; }
+      const c = this.cloneObject(van);
+      const pt = this.obj(cars.pointNode);
+      pt.getWorldPosition(c.position);
+      pt.getWorldQuaternion(c.quaternion);
+      c.scale.copy(van.getWorldScale(new THREE.Vector3()));
+      c.visible = false;
+      this.root.add(c);
+      this.carView = { obj: c, home: c.position.clone(), shown: false };
+    }
+    const v = this.carView;
+    if (!v.obj) return;
+    if (o && !v.shown) {
+      v.shown = true;
+      v.obj.visible = true;
+      const back = new THREE.Vector3(0, 0, 1).applyQuaternion(v.obj.quaternion).multiplyScalar(150);
+      v.obj.position.copy(v.home).add(back);
+      this.tween(v.obj, { key: 'car', to: v.home.clone(), dur: 3, ease: 'outCirc' });
+    } else if (!o && v.shown) {
+      v.shown = false;
+      v.obj.visible = false;
+    }
+  }
+
   // --- workers ---------------------------------------------------------------------------------------------------
   updateWorkers() {
     for (const w of this.sim.state.workers || []) {
@@ -425,7 +456,7 @@ export class GameView {
         const from = this.worldOfStack('player', e.from) || { x: this.sim.state.player.x, y: 3, z: this.sim.state.player.z };
         if (e.to.kind === 'shelf') this.fly(`shelf${e.to.i}`, e.slot, from, 0.35, e.item, 3);
         else if (e.to.kind === 'producer') this.fly(`in${e.to.i}.${e.to.k}`, null, from, 0.35, e.item, 3);
-        else this.fly(null, null, from, 0.35, e.item, 3, this.store.trash[e.to.i].pos);
+        else this.fly(null, null, from, 0.35, e.item, 3, e.to.kind === 'car' ? this.sim.cars.point : this.store.trash[e.to.i].pos);
         break;
       }
       case 'workerPick':

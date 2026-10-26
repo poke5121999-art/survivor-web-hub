@@ -42,22 +42,23 @@ function mulberry32(a) {
   const { GridNav } = await imp('grid.js');
   const { Workers } = await imp('workers.js');
   const { Thief } = await imp('thief.js');
+  const { Cars } = await imp('cars.js');
   const { Tasks, buildTasks } = await imp('tasks.js');
   const read = f => JSON.parse(fs.readFileSync(path.join(G, f), 'utf8'));
 
   const store = buildStore(read(`art/${STORE}/scene.json`), read(`data/${STORE}.json`));
   const nav = new NavMesh(read(`art/${STORE}/navmesh.json`), store.player.start);
   const grid = new GridNav(nav);
-  // Later marts have no coin piles: the player arrives with cash from the previous mart. Give enough for the first
-  // four mats (cashier, first shelf, first plant come in the first four everywhere).
-  const cash = FIRST ? 0 : store.mats.slice(0, 4).reduce((n, m) => n + m.cost, 0);
+  // Later marts have no coin piles: the player arrives with what the previous mart earned (its next-mart pad alone
+  // costs 1000 to 125000). Assumed bankroll: a tenth of this mart's mat total, MM_CASH overrides.
+  const cash = process.env.MM_CASH != null ? +process.env.MM_CASH : FIRST ? 0 : Math.round(store.mats.reduce((n, m) => n + m.cost, 0) / 10);
   const sim = new Sim(store, { rng: mulberry32(SEED), cash });
   const customers = new Customers(sim, grid);
   const taskList = buildTasks(store);
-  sim.systems.push(customers, new Workers(sim, grid), new Thief(sim, grid), new Tasks(sim, taskList));
+  sim.systems.push(customers, new Workers(sim, grid), new Thief(sim, grid), new Cars(sim), new Tasks(sim, taskList));
   const bot = new Bot(sim, grid);
 
-  const firstDone = {}, tasksDone = [], thieves = { spawned: 0, caught: 0, upgrades: 0 };
+  const firstDone = {}, tasksDone = [], thieves = { spawned: 0, caught: 0, upgrades: 0, cars: 0, carsLost: 0, carCash: 0 };
   let midSave = null;
   let paid = 0, served = 0, gaveUp = 0, maxCustomers = 0, invariantErr = null;
   const steps = Math.round(MINUTES * 60 / DT);
@@ -72,6 +73,7 @@ function mulberry32(a) {
       if (e.type === 'thiefSpawn') thieves.spawned++;
       if (e.type === 'thiefCaught') thieves.caught++;
       if (e.type === 'levelUp') thieves.upgrades++;
+      if (e.type === 'carLeave') { if (e.paid) { thieves.cars++; thieves.carCash += e.amount; } else thieves.carsLost++; }
     }
     sim.events.length = 0;
     const st = sim.state;
@@ -92,7 +94,7 @@ function mulberry32(a) {
     `cash ${st.cash}, stack level ${st.stackLevel}, served ${served} (paid ${paid}), gave up ${gaveUp}, max customers on map ${maxCustomers}`);
   Object.entries(firstDone).sort((a, b) => a[1] - b[1]).filter((e, i, a) => i < 3 || /StoreTile|NextMart|Worker/.test(e[0]) || i === a.length - 1)
     .forEach(([n]) => console.log(`    ${n}: ${t(n)}`));
-  console.log(`    thieves ${thieves.spawned} (caught ${thieves.caught}), machine/worker upgrades bought ${thieves.upgrades}`);
+  console.log(`    thieves ${thieves.spawned} (caught ${thieves.caught}), machine/worker upgrades bought ${thieves.upgrades}, car orders ${thieves.cars} paid ${thieves.carCash} (${thieves.carsLost} expired)`);
 
   if (FIRST) {
     check('the 10 starting coin piles are collected', st.coins.every(c => c.taken));

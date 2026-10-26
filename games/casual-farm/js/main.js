@@ -13,6 +13,7 @@ import { Sim } from './sim/sim.js';
 import { Customers } from './sim/customers.js';
 import { Workers } from './sim/workers.js';
 import { Thief } from './sim/thief.js';
+import { Cars } from './sim/cars.js';
 import { Tasks, buildTasks, matArrows } from './sim/tasks.js';
 import { NavMesh } from './sim/nav.js';
 import { GridNav } from './sim/grid.js';
@@ -105,7 +106,7 @@ async function load() {
   const sim = new Sim(store, { save: readSave(), cash: global.cash });
   const tasks = new Tasks(sim, buildTasks(store));
   const workers = new Workers(sim, grid);
-  sim.systems.push(new Customers(sim, grid), workers, new Thief(sim, grid), tasks);
+  sim.systems.push(new Customers(sim, grid), workers, new Thief(sim, grid), new Cars(sim), tasks);
   const view = new GameView({ world, store, sim, items, itemsGltf, texBase: `${ART}/tex`, anim });
   // RC_MartOrders: the pad leads to the next entry; past the last one GoToNextMart falls back to the first.
   const here = marts.findIndex(m => m.id === STORE);

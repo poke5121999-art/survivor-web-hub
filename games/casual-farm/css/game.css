@@ -76,3 +76,5 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #9bd36a; tou
 .welcome b { display: flex; align-items: center; gap: 0.3em; }
 .welcome b img { width: 1.4em; height: 1.4em; }
 .tag.price i { font-style: normal; background: #3aa0ff; border-radius: 0.4em; padding: 0 0.4em; font-size: 0.75em; }
+.tag.bubble.car { pointer-events: auto; }
+.tag.bubble .collect { cursor: pointer; background: #4cd137; color: #fff; border-radius: 0.5em; padding: 0.1em 0.6em; text-shadow: 0 2px 0 rgba(0, 0, 0, 0.3); }

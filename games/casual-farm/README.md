@@ -28,7 +28,7 @@ Chủ dự án yêu cầu ngày 2026-10-26: nạp nhẹ hơn, lúc đầu mờ r
 - `js/sim/` là luật chơi thuần, không dùng THREE, chạy được bằng node. Sim phát sự kiện vào `sim.events`, view đọc rồi xoá.
   - `store.js` dựng mô tả tĩnh của cửa hàng từ `scene.json`: ô mua, máy sản xuất, kệ, quầy, khách, người chơi.
   - `sim.js` giữ trạng thái: tiền, hàng mang theo, trả tiền ô, sản xuất, nâng sức mang, lưu/nạp.
-  - `customers.js`, `workers.js`, `thief.js`, `tasks.js` (15 bước hướng dẫn đọc từ `TaskController`), `grid.js` + `nav.js` (tìm đường), `bot.js`.
+  - `customers.js`, `workers.js`, `thief.js`, `cars.js` (khách đi xe đặt hàng, trả gấp 5), `tasks.js` (15 bước hướng dẫn đọc từ `TaskController`), `grid.js` + `nav.js` (tìm đường), `bot.js`.
   - Máy: cây (tự sinh), máy 1–4 đầu vào (mỗi đầu vào một ô thả riêng), ao cá, xe thu hoạch (đi 2,5 s, về 2,5 s, nhả từng món 0,2 s).
   - Nâng cấp (`Sim.upgradeOffer` / `buyUpgrade`): người chơi mang 3→7; máy tốc độ ×1,2…×1,8 và sức chứa 4/6/8; nhân viên tốc độ 9→15 và mang 3→6. Giá gốc P/W là giá ô đã mở khoá máy/nhân viên đó (suy từ `MatActivateController.c:1939`).
   - Lưu: `mmm-global-v1` (mart đang ở, tiền dùng chung, giờ lưu) và `mmm-<store>-v1` cho từng mart.
@@ -63,7 +63,7 @@ Mọi con số luật chơi có dẫn nguồn trong `D:\minimart-ref\rules\*.md`
 ## Còn thiếu
 
 - Không làm phần gắn với quảng cáo và mua trong app: xe RV, boost, gem, coupon, vòng quay, trang phục, mũ, thú cưng, bản đồ thành phố, mart theo mùa (Halloween, Giáng Sinh...), Big Mart.
-- Khách VIP và khách đi xe (`_ActivateCarCustomer`) chưa có: chỉ bật cờ, không sinh khách.
+- Khách VIP chưa có. Khách đi xe mượn thân xe van của mart (prefab xe chưa bóc), vùng thả hàng là ô vuông 10 m quanh chỗ đỗ (đoán, `car-orders.md`).
 - Hệ số tốc độ máy lấy theo bảng `S`; nhân viên cùng `workerSection` khác 0 chưa nâng cấp chung.
 - Bán kính "người chơi đứng gần quầy" khi tung xu ra trộm là đoán (8 m); trộm mượn thân khách vì prefab trộm chưa bóc.
-- Store 9–14: thu nhập mỗi khách vẫn theo bảng giá chung (giá tối đa 10), nên mất nhiều giờ chơi; `pricing.md` xác nhận bản gốc không nhân thêm hệ số nào.
+- Mart sau rất chậm nếu tới nơi với ít vốn: giá món là `MyObject.rewardPrize` giống nhau ở mọi scene (tối đa 10), không có hệ số theo mart (`pricing.md`, `MyObjectManager.GetObjectPrize`), mà ô Store 12–14 giá hàng nghìn. Bot mô phỏng 900 phút với vốn bằng 10% tổng giá ô mới mua được khoảng một phần ba Store 13. Có thể bản gốc còn nguồn thu chưa tìm ra (thu nhập nhàn rỗi theo mart trên bản đồ, `martMaxIdleIncomeList`).
