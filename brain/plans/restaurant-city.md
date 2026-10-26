@@ -44,9 +44,12 @@ Rev 20261027a: social link thay khung Facebook (`js/rc-social.js`, route `social
 `index.html?link=<slug>`); bỏ hộp email + khảo sát NetPromoter (`patches/0004`). Đã chạy thật: rc-bot-g bấm Lolly
 → link → rc-bot-a nhận → game hiện thư "Here's a Heart Lolly". Client này không gọi `addSendGiftIFrame`.
 
-Còn lại: (1) khách bóng trắng ~1,5 phút mỗi lần mở ở máy headless (IsoCacher chỉ dựng hình khi không có popup,
-15 ms mỗi khung), chưa đo trên máy có GPU; (2) bot `rc-bot-*` lẫn vào phố của người thật (cần SQL để khoá);
-(3) thu hoạch vườn (48 giờ) và tưới vườn bạn trong giao diện chưa thử.
+Rev 20261027b: khách bóng trắng. IsoCacher của gốc chỉ dựng hình nhân vật khi không có popup, 15 ms mỗi khung;
+đo trên RTX 3050 (Chromium D3D11, `rc-bot-g`) thì bóng trắng còn 10-15 s sau khi đóng popup đầu (SwiftShader ~90 s).
+`patches/0005` cho dựng cả khi có popup, 30 ms mỗi khung: lúc đóng popup mọi khách đã có hình [ĐO 2026-10-27].
+
+Còn lại: (1) bot `rc-bot-*` lẫn vào phố của người thật (cần SQL để khoá); (2) thu hoạch vườn (48 giờ) và tưới vườn
+bạn trong giao diện chưa thử; (3) lần đầu mở sau khi đổi rev, máy văn phòng tải asset từ Pages hơn 60 s.
 
 ## Bẫy đã gặp
 

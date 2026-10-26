@@ -5,7 +5,9 @@ set -eu
 CLIENT=${1:-D:/rc-ref/client}
 FLEX=${2:-D:/flex}
 HERE=$(cd "$(dirname "$0")" && pwd)
-OUT=$HERE/../swf/game.swf
+# RC_PATCHES / RC_SWF_OUT: build a trial SWF from another patch set (swf/<name>.swf, open with index.html?swf=<name>.swf).
+PATCHES=${RC_PATCHES:-$HERE/patches}
+OUT=${RC_SWF_OUT:-$HERE/../swf/game.swf}
 PG=$FLEX/frameworks/libs/player/25.0/playerglobal.swc
 [ -f "$FLEX/lib/mxmlc.jar" ] || { echo "mxmlc.jar not found in $FLEX/lib" >&2; exit 1; }
 [ -f "$PG" ] || { echo "playerglobal.swc not found at $PG" >&2; exit 1; }
@@ -14,7 +16,7 @@ echo "client commit: $(git -C "$CLIENT" rev-parse HEAD)"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 cp -r "$CLIENT/scripts" "$TMP/scripts"
-for p in "$HERE"/patches/*.diff; do
+for p in "$PATCHES"/*.diff; do
   [ -f "$p" ] || continue
   echo "applying $(basename "$p")"
   # --directory/--unsafe-paths keep git apply inside the temp copy (no repo there)
