@@ -1,6 +1,7 @@
 /*
  * Restaurant City (games/restaurant-city): mở trang game bằng một tài khoản hub thật, để Ruffle nạp game.swf,
  * gọi RPC thật qua Edge Function rc-rpc, rồi kiểm mọi request đều thành công và màn chơi không trống.
+ * Sau đó mở một social link (lời mời kết bạn do rc-bot-a tạo) khi chưa đăng nhập và khi đã đăng nhập.
  *
  *   node test/restaurant-city-play.js                     # máy chủ tĩnh trên gốc repo, function thật trên Supabase
  *   RC_URL=https://poke5121999-art.github.io/survivor-web-hub node test/restaurant-city-play.js
@@ -55,16 +56,16 @@ async function authPost(p, body) {
   return { status: r.status, data: await r.json().catch(() => ({})) };
 }
 
-async function botSession() {
-  const email = `${BOT}@rc-bot.example.com`;
+async function botSession(bot = BOT) {
+  const email = `${bot}@rc-bot.example.com`;
   let r = await authPost('/auth/v1/token?grant_type=password', { email, password: BOT_PASSWORD });
   if (r.status !== 200) {
-    await authPost('/auth/v1/signup', { email, password: BOT_PASSWORD, data: { display_name: BOT } });
+    await authPost('/auth/v1/signup', { email, password: BOT_PASSWORD, data: { display_name: bot } });
     r = await authPost('/auth/v1/token?grant_type=password', { email, password: BOT_PASSWORD });
   }
   if (r.status !== 200) throw new Error('bot sign-in failed: ' + JSON.stringify(r.data).slice(0, 200));
   const d = r.data;
-  return { kind: 'member', userId: d.user.id, email, name: BOT, accessToken: d.access_token, refreshToken: d.refresh_token, expiresAt: (d.expires_at || Math.floor(Date.now() / 1000) + 3600) * 1000 };
+  return { kind: 'member', userId: d.user.id, email, name: bot, accessToken: d.access_token, refreshToken: d.refresh_token, expiresAt: (d.expires_at || Math.floor(Date.now() / 1000) + 3600) * 1000 };
 }
 
 (async () => {
@@ -110,6 +111,26 @@ async function botSession() {
 
     const shot = fs.readFileSync(path.join(SHOTS, 'rc-play.png'));
     check('screenshot is not a blank stage', shot.length > 30000, shot.length + ' bytes, ' + path.join(SHOTS, 'rc-play.png'));
+
+    const inviter = await botSession('rc-bot-a');
+    const made = await fetch(SUPA_URL + '/functions/v1/rc-rpc/social-links', {
+      method: 'POST', headers: { apikey: ANON, Authorization: 'Bearer ' + inviter.accessToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind: 'friendInvite' }),
+    }).then((r) => r.json());
+    if (check('rc-bot-a creates a friend-invite link', /^[A-Za-z0-9_-]{32}$/.test(made.slug || ''), JSON.stringify(made))) {
+      const linkUrl = server.base + '/games/restaurant-city/index.html?link=' + made.slug;
+      const anon = await (await browser.newContext()).newPage();
+      await anon.goto(linkUrl);
+      await anon.waitForSelector('#loginLink:not(.hidden)', { timeout: 30000 }).catch(() => null);
+      check('a signed-out visitor is asked to sign in to accept the link',
+        await anon.locator('#loginLink').isVisible() && /link Restaurant City/.test(await anon.locator('#panelText').textContent()));
+      const card = await ctx.newPage();
+      await card.goto(linkUrl);
+      const shown = await card.waitForFunction(() => /Đồng ý/.test(document.querySelector('#linkCard').textContent), null, { timeout: 60000 })
+        .then(() => true, () => false);
+      check('a member sees the invite card with an accept button', shown && await card.locator('#linkCard h1').textContent() === 'Lời mời kết bạn trong Restaurant City',
+        (await card.locator('#linkCard').textContent()).slice(0, 120));
+    }
   } finally {
     await browser.close();
     server.close();

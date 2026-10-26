@@ -1040,7 +1040,7 @@ window.HUB_GAMES = [
     en: { title: "Restaurant City", tagline: "Playfish's 2009 restaurant game, online: cook, decorate, hire hub players as staff.", desc: "The original Flash game running in Ruffle, saved online to your hub account. Open a restaurant, lay out tables, grow ingredients, learn dishes and hire other players as waiters and chefs. Visit each other, send mail and gifts, and trade ingredients with real people. Sign-in required." },
     thumbnail: "assets/thumbnails/restaurant-city.png",
     path: "games/restaurant-city/index.html",
-    rev: "20261026b",
+    rev: "20261027a"
     // game.swf build lại từ AS3 decompile của Dippys/Restaurant-City-client (gỡ khoá tên miền + nút Discord của
     // RC Reborn: games/restaurant-city/tools/patches). Server là mã gốc Dippys/Restaurant-City-Server chạy trong Edge
     // Function rc-rpc trên Postgres của hub (schema rc): supabase/functions/rc-rpc/README.md.

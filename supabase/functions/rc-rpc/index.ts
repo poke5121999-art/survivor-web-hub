@@ -17,7 +17,7 @@ const TOKEN_CACHE_MS = 60_000;
 
 const CORS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
+  "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info, idempotency-key",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   "Access-Control-Expose-Headers": "x-rc-error, server-timing",
 };
@@ -140,8 +140,10 @@ Deno.serve(async (req) => {
     }
   }
 
+  const social = /\/social-links(?:\/(.*))?$/.exec(path);
   const isMe = /\/me$/.test(path);
-  if (!(req.method === "GET" && isMe) && !(req.method === "POST" && !isMe)) {
+  if (social ? !(req.method === "POST" || (req.method === "GET" && social[1]))
+    : !(req.method === "GET" && isMe) && !(req.method === "POST" && !isMe)) {
     return json({ ok: false, error: "not found" }, 404);
   }
 
@@ -153,6 +155,20 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error("rc-rpc auth check failed:", error);
     return json({ ok: false, error: "auth service unavailable" }, 503);
+  }
+
+  // A social link page is public; only acting on it needs an account.
+  if (social && (verified || req.method === "GET")) {
+    try {
+      const input = req.method === "POST" ? await req.json().catch(() => ({})) : {};
+      const rpc = await loadRpc();
+      const result = await rpc.handleSocial(verified?.user ?? null, verified?.sessionId ?? "", req.method, social[1] ?? "",
+        input && typeof input === "object" ? input : {}, req);
+      return json(result.body, result.status);
+    } catch (error) {
+      console.error("rc-rpc social link failed:", error);
+      return json({ ok: false, error: "server error", detail: terse(error) }, 500);
+    }
   }
   if (!verified) return json({ ok: false, error: "session expired" }, 401);
 

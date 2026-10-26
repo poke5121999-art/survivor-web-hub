@@ -1,0 +1,37 @@
+diff --git a/scripts/com/playfish/games/cooking/WorldStreet.as b/scripts/com/playfish/games/cooking/WorldStreet.as
+index a2e613e..f8b4f28 100644
+--- a/scripts/com/playfish/games/cooking/WorldStreet.as
++++ b/scripts/com/playfish/games/cooking/WorldStreet.as
+@@ -395,32 +395,6 @@ package com.playfish.games.cooking
+             sceneLayer.keyboardEnabled = false;
+             sceneLayer.scrollEnabled = false;
+             GameWorld.cashPanel.visible = false;
+-            if(GameWorld.gameUser.level.value > 0)
+-            {
+-               _loc16_ = 0;
+-               if(GameWorld.gameUser.userInfo.lastSurveyTime)
+-               {
+-                  _loc16_ = Math.floor(GameWorld.gameUser.userInfo.lastSurveyTime.time / (1000 * 60 * 60 * 24));
+-               }
+-               _loc17_ = Math.floor(GameWorld.serverTime.time / (1000 * 60 * 60 * 24));
+-               if(Debug.TEST_NET_PROMOTER || _loc17_ > _loc16_ && Math.random() < GameWorld.NETPROMOTER_POP_UP_CHANCE)
+-               {
+-                  logoMovieClip.stop();
+-                  _loc18_ = new WorldNetPromoter();
+-                  _loc18_.sceneContent.mc_tick.addEventListener(MouseEvent.CLICK,onNetPromoterOKClick,false,0,true);
+-                  _loc18_.sceneContent.mc_cancel.addEventListener(MouseEvent.CLICK,onNetPromoterCancelClick,false,0,true);
+-                  _loc18_.show();
+-               }
+-               else if(!SocialPlatform.instance.application.isPermissionGranted(SocialPlatformApp.PERMISSION_EMAIL_ACCESS))
+-               {
+-                  if(Math.random() < GameWorld.EMAIL_PERMISSION_REMINDER_POP_UP_CHANCE)
+-                  {
+-                     logoMovieClip.stop();
+-                     _loc19_ = new EmailPermissionReminderPopUp(this);
+-                     _loc19_.show();
+-                  }
+-               }
+-            }
+          }
+          else
+          {

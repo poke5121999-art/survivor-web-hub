@@ -5,6 +5,7 @@
 //   d x1 y1 x2 y2  kéo
 //   t text         gõ chữ        k Key   bấm phím (Enter, Escape...)
 //   w ms           chờ           r       tải lại trang      q   thoát
+//   e expr         chạy biểu thức JS trong trang, ghi kết quả (JSON) vào log
 // Sau mỗi lệnh: chụp <OUT>/live-<id>.png, ghi <OUT>/ack.txt = id.
 // <OUT>/log.txt ghi tên từng RPC (giải mã từ body), status, x-rc-error và sub nào server không trả lời.
 //
@@ -84,7 +85,9 @@ function unanswered(buf, calls) {
   page.on('pageerror', (e) => log('pageerror ' + e.message));
   page.on('response', async (r) => {
     const u = r.url();
-    if (/rc-rpc/.test(u) && r.request().method() === 'POST') {
+    if (/rc-rpc\/social-links/.test(u)) {
+      log('social ' + r.request().method() + ' ' + r.status() + ' ' + u.replace(/^.*\/social-links/, '').replace(/\?.*$/, ''));
+    } else if (/rc-rpc/.test(u) && r.request().method() === 'POST') {
       const calls = requestCalls(r.request().postDataBuffer());
       let body = null;
       try { body = await r.body(); } catch (e) { /* page closed */ }
@@ -127,6 +130,9 @@ function unanswered(buf, calls) {
           await page.keyboard.type(a.join(' '), { delay: 60 }); await page.waitForTimeout(500);
         } else if (op === 'k') {
           await page.keyboard.press(a[0]); await page.waitForTimeout(800);
+        } else if (op === 'e') {
+          const value = await page.evaluate((src) => (0, eval)(src), line.trim().split(/\s+/).slice(2).join(' '));
+          log('= ' + JSON.stringify(value));
         } else if (op === 'w') {
           await page.waitForTimeout(n[0]);
         } else if (op === 'r') {

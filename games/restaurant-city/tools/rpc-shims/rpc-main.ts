@@ -11,6 +11,8 @@ import { recordLoginActivity, drainScheduledPlayerScans } from '@rc/moderation/s
 import { recordRpcActivity, rpcActivityBuffer } from '@rc/activity-buffer';
 import { dueUtcDate, runDailyIngredientRotation } from '@rc/daily-ingredients/scheduler';
 import { latestStoredImage } from '@rc/db/rpc-store';
+import { catalogEntry } from '@rc/db/item-catalog';
+import { actOnLink, cancelPlayerLink, createPlayerLink, publicLink } from '@rc/social-links/service';
 import { encodeArgbPng } from 'rc-png:encoder';
 import { prisma, queryStats } from './db-client';
 import { ensureLiveEventTables, flushLiveEvents, prepareLiveEvents } from './live-events';
@@ -273,6 +275,85 @@ export async function handleRpc(user: HubUser, sessionId: string, bytes: Uint8Ar
   mark('flush');
   marks.push(`queries;desc="${queryStats.count - q0}"`);
   return { status: 200, response: new Uint8Array(response.buffer, response.byteOffset, response.byteLength), error, timing: marks.join(', '), background: backgroundWork() };
+}
+
+// ---- social links (the original's /__api/social-links, ADR-0022) --------------
+// The game's old Facebook surfaces (free snacks, item gifts, wall posts, friend
+// invites, ingredient requests) create a link the player sends to friends; the
+// friend opens it on the hub and claims it. Same service code as the original.
+
+const socialHits = new Map<string, number[]>();
+
+/** Same limits as the original's enforceSocialRateLimit (create 20/min, action 60/min), per isolate. */
+function socialRateLimited(key: string, max: number): boolean {
+  const now = Date.now();
+  const hits = (socialHits.get(key) ?? []).filter((at) => now - at < 60_000);
+  hits.push(now);
+  if (socialHits.size > 5000) socialHits.clear();
+  socialHits.set(key, hits);
+  return hits.length > max;
+}
+
+/** The catalogue name of the link's item, so the hub page can word the offer itself. */
+async function linkItemName(slug: string): Promise<string> {
+  const row = await prisma.socialLink.findUnique({ where: { slug }, select: { payloadJson: true } });
+  let data: Record<string, unknown> = {};
+  try { data = JSON.parse(row?.payloadJson ?? '{}'); } catch { data = {}; }
+  const itemId = Number(data.itemId ?? data.ingredientId ?? data.wantItemId ?? 0);
+  return itemId ? catalogEntry(itemId)?.label ?? '' : '';
+}
+
+/**
+ * GET  .../social-links/<slug>            link state (auth optional)
+ * POST .../social-links                   create from an in-game template
+ * POST .../social-links/<slug>/actions    claim / accept / fulfil
+ * POST .../social-links/<slug>/cancel     creator cancels, escrow returns
+ */
+export async function handleSocial(user: HubUser | null, sessionId: string, method: string, rest: string, input: Record<string, unknown>, req: Request): Promise<ResultJson> {
+  await ensureStartup();
+  let account: ActiveAccount | null = null;
+  if (user) {
+    try {
+      const resolved = await resolveAccount(user, sessionId, req);
+      account = resolved.account;
+      if (resolved.created) await ensureLoginAccount(account);
+    } catch (error) {
+      if (error instanceof AccountUnavailable) return { status: 403, body: { ok: false, error: error.message } };
+      throw error;
+    }
+  }
+  const parts = rest.split('/').filter(Boolean);
+  const slug = parts[0] ?? '';
+  try {
+    if (method === 'GET' && parts.length === 1) {
+      const link = await publicLink(slug, account);
+      if (!link) return { status: 404, body: { ok: false, error: 'social link not found' } };
+      return { status: 200, body: { ok: true, link: { ...link, itemName: await linkItemName(slug) } } };
+    }
+    if (method !== 'POST' || parts.length > 2) return { status: 404, body: { ok: false, error: 'not found' } };
+    if (!account) return { status: 401, body: { ok: false, error: 'session expired' } };
+    if (parts.length === 0) {
+      if (socialRateLimited(`create:${account.id}`, 20)) return { status: 429, body: { ok: false, error: 'too many links, try again shortly' } };
+      const created = await createPlayerLink(account, input);
+      return { status: 201, body: { ok: true, slug: created.slug } };
+    }
+    if (socialRateLimited(`action:${account.id}`, 60)) return { status: 429, body: { ok: false, error: 'too many requests, try again shortly' } };
+    if (parts[1] === 'actions') {
+      const key = String(req.headers.get('idempotency-key') ?? input.idempotencyKey ?? '');
+      const result = await actOnLink(slug, account, String(input.action ?? ''), key);
+      // The reward mail notification must be durable before the claimer sees the result.
+      await flushLiveEvents();
+      return { status: result.ok ? 200 : result.code === 'ALREADY_DONE' ? 409 : 400, body: result };
+    }
+    if (parts[1] === 'cancel') {
+      await cancelPlayerLink(slug, account);
+      return { status: 200, body: { ok: true } };
+    }
+    return { status: 404, body: { ok: false, error: 'not found' } };
+  } catch (error) {
+    // Validation failures from the service ("Unknown employee snack.", "Insufficient inventory for escrow.").
+    return { status: 400, body: { ok: false, error: error instanceof Error ? error.message : String(error) } };
+  }
 }
 
 /**

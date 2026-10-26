@@ -40,9 +40,13 @@ Tự chơi trên Pages bằng `tools/rc-live.js` (log ghi tên từng RPC và su
 Đã chạy thật: quiz, nâng món, chợ xu, nguyên liệu Cash, mua/đặt/dời đồ, đồ Cash, Gourmet Street, chấm sao,
 vào Rating Guide, trồng + tưới vườn, nút chia sẻ. Thu hoạch cần 48 giờ thật, chưa thử.
 
-Còn lại theo thứ tự: (1) social link thay khung Facebook (tặng snack, tặng đồ, đăng tường, mời bạn, xin nguyên
-liệu), server gốc có sẵn `src/social-links`; (2) hộp email hiện mỗi lần mở; (3) khách bóng trắng ~1,5 phút mỗi lần
-mở (IsoCacher chỉ dựng hình khi không có popup, 15 ms mỗi khung); (4) bot `rc-bot-*` lẫn vào phố của người thật.
+Rev 20261027a: social link thay khung Facebook (`js/rc-social.js`, route `social-links` của rc-rpc, trang nhận
+`index.html?link=<slug>`); bỏ hộp email + khảo sát NetPromoter (`patches/0004`). Đã chạy thật: rc-bot-g bấm Lolly
+→ link → rc-bot-a nhận → game hiện thư "Here's a Heart Lolly". Client này không gọi `addSendGiftIFrame`.
+
+Còn lại: (1) khách bóng trắng ~1,5 phút mỗi lần mở ở máy headless (IsoCacher chỉ dựng hình khi không có popup,
+15 ms mỗi khung), chưa đo trên máy có GPU; (2) bot `rc-bot-*` lẫn vào phố của người thật (cần SQL để khoá);
+(3) thu hoạch vườn (48 giờ) và tưới vườn bạn trong giao diện chưa thử.
 
 ## Bẫy đã gặp
 

@@ -18,7 +18,7 @@ var require_sharp = __commonJS({
 });
 
 // games/restaurant-city/tools/rpc-shims/rpc-main.ts
-import { randomBytes as randomBytes4 } from "node:crypto";
+import { randomBytes as randomBytes5 } from "node:crypto";
 
 // ../rc-ref/server/src/rpc/calls.ts
 var CALL_TYPES = {
@@ -2087,6 +2087,9 @@ function fullCatalog() {
   cached = [...byId.values()].sort((a, b) => a.id - b.id);
   return cached;
 }
+function isCatalogItemId(id) {
+  return fullCatalog().some((entry) => entry.id === id);
+}
 var cachedHashIndex = null;
 function itemIdForToken(token) {
   if (!cachedHashIndex) {
@@ -2124,6 +2127,13 @@ function sellPriceForItemId(id) {
   if (Number.isInteger(cash) && cash > 0) return cash * 330;
   const cost = Number(attrs.cost);
   return Number.isInteger(cost) && cost >= 0 ? Math.floor(cost / 3) : null;
+}
+function catalogLabel(id) {
+  const entry = fullCatalog().find((candidate) => candidate.id === id);
+  return entry ? `${entry.label} (${id})` : `Unknown item (${id})`;
+}
+function catalogEntry(id) {
+  return fullCatalog().find((entry) => entry.id === id);
 }
 function itemAttributes(id) {
   if (!cachedAttributes) {
@@ -2234,6 +2244,9 @@ var NON_EDITABLE_RESTAURANT_GROUPS = /* @__PURE__ */ new Set([360, 390, 391]);
 function isNonEditableRestaurantEntitlementItem(globalItemId) {
   return NON_EDITABLE_RESTAURANT_GROUPS.has(Math.floor(globalItemId / 1e4));
 }
+function isFoodKingEligibleItem(id) {
+  return itemAttributes(id)?.foodKingFeed === "true";
+}
 function isGiftableItemId(id) {
   const attrs = itemAttributes(id);
   if (!attrs) return false;
@@ -2241,6 +2254,17 @@ function isGiftableItemId(id) {
   if ([602, 603].includes(Math.floor(id / 1e4)) && attrs.fanPageFeed === "true") return false;
   if (/\bnotGiftable\b/.test(attrs.type ?? "")) return false;
   return true;
+}
+function isEmployeeSnackItem(id) {
+  const entry = catalogEntry(id);
+  if (entry?.category !== "perk") return false;
+  try {
+    const xml = withoutXmlComments(readFileSync(path2.resolve(__dirname, "..", "..", "public", "data", "perk.xml"), "utf8"));
+    const group = xml.match(/<group\s+name="Employee">([\s\S]*?)<\/group>/)?.[1] ?? "";
+    return new RegExp(`<item\\b[^>]*\\bid="${id}"`).test(group);
+  } catch {
+    return false;
+  }
 }
 
 // ../rc-ref/server/src/db/purchase-pricing.ts
@@ -2928,8 +2952,8 @@ async function captureProfileSnapshot(networkUid, reason, label = "", actor) {
 }
 async function captureProfileSnapshotTx(tx, networkUid, reason, label = "", actor) {
   const profile = await tx.userProfile.findUniqueOrThrow({ where: { networkUid }, include: snapshotInclude });
-  const payload = payloadFromProfile(profile);
-  return persistSnapshotTx(tx, networkUid, reason, label, payload, actor?.id);
+  const payload2 = payloadFromProfile(profile);
+  return persistSnapshotTx(tx, networkUid, reason, label, payload2, actor?.id);
 }
 function payloadFromProfile(profile) {
   return {
@@ -2963,8 +2987,8 @@ function payloadFromProfile(profile) {
     employees: profile.employees.map(({ network, networkUid, playfishUid, happiness, task, notify }) => ({ network, networkUid, playfishUid, happiness, task, notify }))
   };
 }
-async function persistSnapshotTx(tx, networkUid, reason, label, payload, actorAccountId) {
-  const payloadJson = JSON.stringify(payload);
+async function persistSnapshotTx(tx, networkUid, reason, label, payload2, actorAccountId) {
+  const payloadJson = JSON.stringify(payload2);
   const id = randomUUID();
   await tx.profileSnapshot.create({ data: {
     id,
@@ -2974,14 +2998,14 @@ async function persistSnapshotTx(tx, networkUid, reason, label, payload, actorAc
     payloadVersion: 1,
     payloadJson,
     payloadDigest: createHash("sha256").update(payloadJson).digest("hex"),
-    userLevel: payload.profile.userLevel,
-    gourmetPoint: payload.profile.gourmetPoint,
-    credits: payload.profile.credits,
-    cashBalance: payload.profile.cashBalance,
-    placedItems: payload.ownedItems.length,
-    inventoryUnits: payload.inventoryItems.reduce((sum, item) => sum + Math.max(0, item.number), 0),
-    ingredientUnits: payload.ingredients.reduce((sum, item) => sum + Math.max(0, item.number), 0),
-    employeeCount: payload.employees.length,
+    userLevel: payload2.profile.userLevel,
+    gourmetPoint: payload2.profile.gourmetPoint,
+    credits: payload2.profile.credits,
+    cashBalance: payload2.profile.cashBalance,
+    placedItems: payload2.ownedItems.length,
+    inventoryUnits: payload2.inventoryItems.reduce((sum, item) => sum + Math.max(0, item.number), 0),
+    ingredientUnits: payload2.ingredients.reduce((sum, item) => sum + Math.max(0, item.number), 0),
+    employeeCount: payload2.employees.length,
     createdByAccountId: actorAccountId
   } });
   return id;
@@ -4204,8 +4228,8 @@ function isFallbackProfileValues(restaurantName, userLevel, gourmetPoint) {
 }
 function snapshotPayload(value) {
   try {
-    const payload = JSON.parse(value);
-    return payload?.version === 1 && payload.profile ? payload : null;
+    const payload2 = JSON.parse(value);
+    return payload2?.version === 1 && payload2.profile ? payload2 : null;
   } catch {
     return null;
   }
@@ -4238,7 +4262,7 @@ async function recoverFallbackProfileScalars(networkUid) {
         orderBy: { createdAt: "desc" },
         take: 250
       });
-      clean = snapshots.map((row) => snapshotPayload(row.payloadJson)).find((payload) => payload && !/^Dummy\d+$/i.test(payload.profile.restaurantName.trim())) ?? null;
+      clean = snapshots.map((row) => snapshotPayload(row.payloadJson)).find((payload2) => payload2 && !/^Dummy\d+$/i.test(payload2.profile.restaurantName.trim())) ?? null;
     }
     if (!clean) {
       return false;
@@ -7645,6 +7669,492 @@ async function runDailyIngredientRotationCore(serverRoot, webhookUrl, now, force
   return true;
 }
 
+// ../rc-ref/server/src/social-links/service.ts
+import { createDecipheriv, randomBytes as randomBytes4, randomUUID as randomUUID3 } from "node:crypto";
+var SOCIAL_KINDS = [
+  "foodKingReward",
+  "promotion",
+  "specialDay",
+  "employeeSnack",
+  "directGift",
+  "ingredientRequest",
+  "ingredientTrade",
+  "friendInvite",
+  "referral",
+  "restaurantVisit",
+  "gardenHelp",
+  "restaurantRating",
+  "playerProfile",
+  "screenshot",
+  "achievement",
+  "leaderboard",
+  "announcement"
+];
+var TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1e3;
+var APPROVED_IMAGES = /* @__PURE__ */ new Set(["/assets/chef.png", "/assets/building.png", "/assets/food-pizza.png", "/assets/food-butter.png"]);
+var PLAYER_KINDS = new Set(SOCIAL_KINDS.filter((kind) => !["promotion", "specialDay", "announcement"].includes(kind)));
+var VIEW_KINDS = /* @__PURE__ */ new Set(["restaurantVisit", "gardenHelp", "restaurantRating", "playerProfile", "screenshot", "achievement", "leaderboard", "announcement"]);
+var SUCCESS_OUTCOMES = /* @__PURE__ */ new Set(["claimed", "accepted", "fulfilled", "joined", "viewed"]);
+function ingredientImagePath(itemId) {
+  return catalogEntry(itemId)?.category === "ingredient" ? `/assets/ingredients/${itemId}.png` : null;
+}
+function isApprovedPublicImage(imagePath) {
+  if (APPROVED_IMAGES.has(imagePath)) return true;
+  const match = imagePath.match(/^\/assets\/ingredients\/(\d+)\.png$/);
+  return Boolean(match && ingredientImagePath(Number(match[1])) === imagePath);
+}
+function resolvedPublicImage(link) {
+  const kind = asKind(link.kind);
+  if (kind === "screenshot") return `/s/${link.slug}/image.png`;
+  const data = payload(link);
+  const ingredientId = Number(
+    kind === "ingredientRequest" ? data.ingredientId : kind === "ingredientTrade" ? data.wantItemId : kind === "foodKingReward" || kind === "directGift" ? data.itemId : 0
+  );
+  return ingredientImagePath(ingredientId) ?? (isApprovedPublicImage(link.imagePath) ? link.imagePath : "/assets/chef.png");
+}
+function requireAccountId(account) {
+  if (!account.id) throw new Error("Authentication required.");
+  return account.id;
+}
+function profileKey4(networkUid) {
+  return `facebook:${networkUid}`;
+}
+function opaqueSlug() {
+  return randomBytes4(24).toString("base64url");
+}
+function asKind(value) {
+  const kind = String(value ?? "");
+  if (!SOCIAL_KINDS.includes(kind)) throw new Error("Unknown social-link kind.");
+  return kind;
+}
+function plainText(value, max, fallback = "") {
+  const text = String(value ?? fallback).replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim();
+  if (text.length > max) throw new Error(`Text must be ${max} characters or fewer.`);
+  return text;
+}
+function positiveInt3(value, fallback = 1) {
+  const number = Number(value ?? fallback);
+  if (!Number.isSafeInteger(number) || number < 1 || number > 1e9) throw new Error("Expected a positive integer.");
+  return number;
+}
+function dateOrNull(value) {
+  if (value === void 0 || value === null || value === "") return null;
+  const date = new Date(String(value));
+  if (!Number.isFinite(date.getTime())) throw new Error("Invalid date.");
+  return date;
+}
+function payload(link) {
+  const parsed = JSON.parse(link.payloadJson);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("Invalid stored social-link payload.");
+  return parsed;
+}
+function disabled(kind) {
+  return new Set(String(process.env.RC_SOCIAL_DISABLED_KINDS ?? "").split(",").map((v) => v.trim()).filter(Boolean)).has(kind);
+}
+function expectedAction(kind) {
+  if (["foodKingReward", "promotion", "specialDay", "employeeSnack", "directGift"].includes(kind)) return { action: "claim", label: "Claim" };
+  if (kind === "ingredientRequest") return { action: "fulfill", label: "Send ingredient" };
+  if (kind === "ingredientTrade" || kind === "friendInvite") return { action: "accept", label: "Accept" };
+  if (kind === "referral") return { action: "join", label: "Join" };
+  return { action: "view", label: kind === "announcement" ? "Continue" : "View in game" };
+}
+function defaultPresentation(kind, data) {
+  const itemId = Number(data.itemId ?? data.ingredientId ?? data.wantItemId ?? data.offerItemId ?? 0);
+  const item = itemId ? catalogLabel(itemId) : "";
+  const itemImage = ingredientImagePath(itemId);
+  const presentations = {
+    foodKingReward: ["A Food King reward awaits", item ? `Claim ${item}.` : "Claim an eligible Food King reward.", itemImage ?? "/assets/food-pizza.png"],
+    promotion: ["Restaurant City promotion", "Claim this RC Reborn campaign reward.", "/assets/food-pizza.png"],
+    specialDay: ["A special-day present", "Celebrate with a Restaurant City reward.", "/assets/food-butter.png"],
+    employeeSnack: ["A free employee snack", item ? `Claim ${item} for your restaurant.` : "Claim an eligible employee perk.", "/assets/food-butter.png"],
+    directGift: ["A gift from another chef", item ? `Claim ${item}.` : "Claim an escrowed gift.", itemImage ?? "/assets/food-pizza.png"],
+    ingredientRequest: ["A chef needs an ingredient", item ? `Send one ${item}.` : "Help fulfill this ingredient request.", itemImage ?? "/assets/chef.png"],
+    ingredientTrade: ["Ingredient trade", "Review and accept this escrow-backed trade.", itemImage ?? "/assets/chef.png"],
+    friendInvite: ["Restaurant City friend invitation", "Accept this invitation to become local friends.", "/assets/chef.png"],
+    referral: ["Join Restaurant City Reborn", "Open your restaurant through this referral.", "/assets/chef.png"],
+    restaurantVisit: ["Visit this restaurant", "Open this chef\u2019s restaurant in Restaurant City Reborn.", "/assets/building.png"],
+    gardenHelp: ["A garden needs help", "Visit this restaurant garden; watering remains an in-game action.", "/assets/building.png"],
+    restaurantRating: ["Rate this restaurant", "Visit the restaurant and use the in-game rating controls.", "/assets/building.png"],
+    playerProfile: ["Restaurant City chef", "View this chef\u2019s public restaurant profile.", "/assets/chef.png"],
+    screenshot: ["Restaurant screenshot", "View a screenshot shared from Restaurant City Reborn.", "/assets/building.png"],
+    achievement: ["Restaurant City achievement", "A chef shared an authoritative achievement.", "/assets/food-pizza.png"],
+    leaderboard: ["Restaurant City leaderboard", "View the current leaderboard.", "/assets/chef.png"],
+    announcement: ["Restaurant City announcement", "News from the Restaurant City Reborn team.", "/assets/chef.png"]
+  };
+  const [title, description, imagePath] = presentations[kind];
+  return { title, description, imagePath };
+}
+function eligibleFoodKingIds() {
+  return fullCatalog().filter((entry) => isFoodKingEligibleItem(entry.id)).map((entry) => entry.id);
+}
+function categoryForItem(itemId) {
+  const category = catalogEntry(itemId)?.category;
+  if (category === "ingredient") return "ingredient";
+  if (category === "recipe") return "recipe";
+  return "inventory";
+}
+function decryptLegacyValue(hex) {
+  if (!/^[0-9a-f]+$/i.test(hex) || hex.length % 32 !== 0) throw new Error("Invalid Food King legacy value.");
+  const decipher = createDecipheriv("aes-128-ecb", Buffer.from("d4ae3749fdd284924b4567bdbc7e3744", "hex"), null);
+  decipher.setAutoPadding(true);
+  return Buffer.concat([decipher.update(Buffer.from(hex, "hex")), decipher.final()]).toString("utf8");
+}
+function decodeFoodKingLegacyUrl(value) {
+  const url = new URL(value, "https://legacy.invalid");
+  const itemId = Number(decryptLegacyValue(url.searchParams.get("pf_i_id") ?? ""));
+  const creatorUid = decryptLegacyValue(url.searchParams.get("pf_uid") ?? "");
+  const expirySeconds = Number(decryptLegacyValue(url.searchParams.get("pf_ex") ?? ""));
+  if (!Number.isSafeInteger(itemId) || !/^\d+$/.test(creatorUid) || !Number.isSafeInteger(expirySeconds)) throw new Error("Invalid Food King legacy link.");
+  return { itemId, creatorUid, expiresAt: new Date(expirySeconds * 1e3) };
+}
+async function createFoodKingPayload(account, input, now) {
+  let selectedItemId = Number(input.itemId ?? 0);
+  let requestedExpiry = new Date(now.getTime() + TWO_DAYS_MS);
+  if (input.legacyUrl) {
+    const decoded = decodeFoodKingLegacyUrl(String(input.legacyUrl));
+    if (decoded.creatorUid !== account.networkUid) throw new Error("Food King creator mismatch.");
+    selectedItemId = decoded.itemId;
+    requestedExpiry = decoded.expiresAt;
+  }
+  if (!isFoodKingEligibleItem(selectedItemId)) throw new Error("The selected item is not eligible for Food King sharing.");
+  const expiresAt = new Date(Math.min(requestedExpiry.getTime(), now.getTime() + TWO_DAYS_MS));
+  const pools = {
+    recipe: eligibleFoodKingIds().filter((id) => catalogEntry(id)?.category === "recipe"),
+    ingredient: eligibleFoodKingIds().filter((id) => catalogEntry(id)?.category === "ingredient"),
+    inventory: eligibleFoodKingIds().filter((id) => !["recipe", "ingredient"].includes(catalogEntry(id)?.category ?? ""))
+  };
+  const selectedCategory = categoryForItem(selectedItemId);
+  const pick2 = (ids) => ids[randomBytes4(4).readUInt32BE() % Math.max(1, ids.length)] ?? selectedItemId;
+  const offers = [pick2(pools.recipe), pick2(pools.ingredient), pick2(pools.inventory)];
+  offers[["recipe", "ingredient", "inventory"].indexOf(selectedCategory)] = selectedItemId;
+  const encounterId = randomUUID3();
+  await prisma.foodKingEncounter.create({ data: { id: encounterId, creatorAccountId: requireAccountId(account), offersJson: JSON.stringify(offers), selectedItemId, expiresAt } });
+  return { data: { encounterId, itemId: selectedItemId, category: selectedCategory }, expiresAt };
+}
+async function validatePlayerPayload(account, kind, input, now) {
+  if (disabled(kind)) throw new Error(`${kind} links are disabled.`);
+  if (!PLAYER_KINDS.has(kind)) throw new Error("Players cannot create this link kind.");
+  if (kind === "foodKingReward") return createFoodKingPayload(account, input, now);
+  if (kind === "employeeSnack") {
+    const itemId = positiveInt3(input.itemId);
+    if (!isEmployeeSnackItem(itemId)) throw new Error("Unknown employee snack.");
+    const unlockLevel = Number(itemAttributes(itemId)?.unlockLevel ?? 0);
+    const profile = await prisma.userProfile.findUnique({ where: { id: profileKey4(account.networkUid) }, select: { userLevel: true } });
+    if (!profile || profile.userLevel < unlockLevel) throw new Error("This employee snack is not unlocked.");
+    return { data: { itemId, category: "inventory" } };
+  }
+  if (kind === "ingredientRequest") {
+    const ingredientId = positiveInt3(input.ingredientId ?? input.itemId);
+    if (catalogEntry(ingredientId)?.category !== "ingredient") throw new Error("Unknown ingredient.");
+    return { data: { ingredientId, message: plainText(input.message, 180) } };
+  }
+  if (kind === "directGift") {
+    const itemId = positiveInt3(input.itemId);
+    if (!isCatalogItemId(itemId)) throw new Error("Unknown item.");
+    const category = catalogEntry(itemId)?.category === "ingredient" ? "ingredient" : "inventory";
+    return { data: { itemId, category, quantity: positiveInt3(input.quantity) }, expiresAt: dateOrNull(input.expiresAt) ?? new Date(now.getTime() + 7 * 864e5) };
+  }
+  if (kind === "ingredientTrade") {
+    const offerItemId = positiveInt3(input.offerItemId);
+    const wantItemId = positiveInt3(input.wantItemId);
+    if (catalogEntry(offerItemId)?.category !== "ingredient" || catalogEntry(wantItemId)?.category !== "ingredient") throw new Error("Trades only support shipped ingredients.");
+    return { data: { offerItemId, offerQuantity: positiveInt3(input.offerQuantity), wantItemId, wantQuantity: positiveInt3(input.wantQuantity) }, expiresAt: dateOrNull(input.expiresAt) ?? new Date(now.getTime() + 7 * 864e5) };
+  }
+  if (kind === "screenshot") return { data: { imageType: Math.max(0, Math.min(255, Number(input.imageType ?? 0) || 0)) } };
+  if (kind === "achievement") return { data: { source: plainText(input.source, 40, "achievement") } };
+  return { data: {} };
+}
+async function deduct(tx, networkUid, category, itemId, quantity) {
+  const where = { userProfileId_globalItemId: { userProfileId: profileKey4(networkUid), globalItemId: itemId } };
+  if (category === "ingredient") {
+    const row = await tx.ingredientInventory.findUnique({ where });
+    if (!row || row.number < quantity) return false;
+    if (row.number === quantity) await tx.ingredientInventory.delete({ where });
+    else await tx.ingredientInventory.update({ where, data: { number: { decrement: quantity } } });
+  } else {
+    const row = await tx.inventoryItem.findUnique({ where });
+    if (!row || row.number < quantity) return false;
+    await tx.inventoryItem.update({ where, data: { number: { decrement: quantity } } });
+  }
+  return true;
+}
+async function grant(tx, networkUid, category, itemId, quantity) {
+  const userProfileId = profileKey4(networkUid);
+  if (category === "ingredient") {
+    await tx.ingredientInventory.upsert({
+      where: { userProfileId_globalItemId: { userProfileId, globalItemId: itemId } },
+      update: { number: { increment: quantity }, isLocked: true },
+      create: { id: `${userProfileId}:ingredient:${itemId}`, userProfileId, globalItemId: itemId, number: quantity, isLocked: true }
+    });
+  } else {
+    await tx.inventoryItem.upsert({
+      where: { userProfileId_globalItemId: { userProfileId, globalItemId: itemId } },
+      update: { number: { increment: quantity } },
+      create: { id: `${userProfileId}:inventory:${itemId}`, userProfileId, globalItemId: itemId, number: quantity }
+    });
+  }
+}
+async function holdEscrow(tx, linkId, account, data) {
+  const kindData = data;
+  const category = kindData.offerItemId ? "ingredient" : String(kindData.category);
+  const itemId = Number(kindData.offerItemId ?? kindData.itemId);
+  const quantity = Number(kindData.offerQuantity ?? kindData.quantity);
+  if (!await deduct(tx, account.networkUid, category, itemId, quantity)) throw new Error("Insufficient inventory for escrow.");
+  await tx.socialLinkEscrow.create({ data: { id: randomUUID3(), socialLinkId: linkId, ownerAccountId: requireAccountId(account), category, globalItemId: itemId, quantity } });
+}
+async function createPlayerLink(account, input, now = /* @__PURE__ */ new Date()) {
+  const kind = asKind(input.kind ?? input.template);
+  const validated = await validatePlayerPayload(account, kind, input, now);
+  const presentation = defaultPresentation(kind, validated.data);
+  const id = randomUUID3();
+  const slug = opaqueSlug();
+  await prisma.$transaction(async (tx) => {
+    await tx.socialLink.create({ data: {
+      id,
+      slug,
+      kind,
+      status: "ACTIVE",
+      creatorAccountId: requireAccountId(account),
+      payloadJson: JSON.stringify(validated.data),
+      title: presentation.title,
+      description: presentation.description,
+      imagePath: presentation.imagePath,
+      expiresAt: validated.expiresAt,
+      perAccountLimit: 1,
+      totalActionLimit: ["directGift", "ingredientRequest", "ingredientTrade"].includes(kind) ? 1 : null,
+      activatedAt: now
+    } });
+    if (kind === "directGift" || kind === "ingredientTrade") await holdEscrow(tx, id, account, validated.data);
+  });
+  return { id, slug, url: `/s/${slug}` };
+}
+function availability(link, account, now) {
+  if (link.status === "REVOKED") return "revoked";
+  if (link.status === "PAUSED" || link.status === "DRAFT") return "paused";
+  if (link.notBefore && link.notBefore > now) return "upcoming";
+  if (link.expiresAt && link.expiresAt <= now) return "expired";
+  if (link.totalActionLimit !== null && link.successfulActionCount >= link.totalActionLimit) return "exhausted";
+  if (account?.id && link.actions.some((item) => item.actorAccountId === account.id && SUCCESS_OUTCOMES.has(item.outcome))) return "completed";
+  return "available";
+}
+async function publicLink(slug, account, now = /* @__PURE__ */ new Date()) {
+  if (!/^[A-Za-z0-9_-]{32}$/.test(slug)) return null;
+  const link = await prisma.socialLink.findUnique({ where: { slug }, include: { creator: true, actions: true, escrows: true } });
+  if (!link) return null;
+  const kind = asKind(link.kind);
+  const state = availability(link, account, now);
+  const action = expectedAction(kind);
+  return {
+    slug,
+    kind,
+    title: link.title,
+    description: link.description,
+    imagePath: resolvedPublicImage(link),
+    creatorName: link.creator?.firstName,
+    availability: state,
+    action: action.action,
+    actionLabel: action.label,
+    loggedIn: Boolean(account),
+    completedForViewer: state === "completed",
+    playUrl: VIEW_KINDS.has(kind) ? deepLink(kind, link.slug) : "/game"
+  };
+}
+function deepLink(kind, slug) {
+  if (["announcement", "achievement", "leaderboard"].includes(kind)) return "/game";
+  return `/game?socialLink=${encodeURIComponent(slug)}`;
+}
+function reject(code, message) {
+  return { ok: false, code, message };
+}
+async function recordAction(tx, linkId, accountId, action, outcome, summary, key) {
+  await tx.socialLinkAction.create({ data: { id: randomUUID3(), socialLinkId: linkId, actorAccountId: accountId, action, outcome, resultSummary: plainText(summary, 240), idempotencyKey: key } });
+}
+async function executeKind(tx, link, actor, action, now) {
+  const kind = asKind(link.kind);
+  const data = payload(link);
+  const expected = expectedAction(kind).action;
+  if (action !== expected) return reject("INVALID_ACTION", "This action is not permitted for the link.");
+  if (VIEW_KINDS.has(kind)) return { ok: true, outcome: "viewed", message: "Ready to open Restaurant City.", playUrl: deepLink(kind, link.slug) };
+  if (kind === "foodKingReward") {
+    const encounter = await tx.foodKingEncounter.findUnique({ where: { id: String(data.encounterId) } });
+    const itemId = Number(data.itemId);
+    if (!encounter || encounter.expiresAt <= now || !JSON.parse(encounter.offersJson).includes(itemId) || encounter.selectedItemId !== itemId || !isFoodKingEligibleItem(itemId)) return reject("NOT_ELIGIBLE", "This Food King offer is not valid.");
+    const category = categoryForItem(itemId);
+    if (category === "recipe") {
+      const owned = await tx.inventoryItem.findUnique({ where: { userProfileId_globalItemId: { userProfileId: profileKey4(actor.networkUid), globalItemId: itemId } } });
+      if (owned && owned.number > 0) return reject("ALREADY_OWNED", "You already own this recipe.");
+    }
+    await grant(tx, actor.networkUid, category === "recipe" ? "inventory" : category, itemId, 1);
+    await createRewardMail(tx, link, actor, 10, itemId, "Food King reward claimed through RC Reborn.");
+    return { ok: true, outcome: "claimed", message: `${catalogLabel(itemId)} was added to your restaurant.`, playUrl: "/game?refresh=social-link" };
+  }
+  if (kind === "promotion" || kind === "specialDay") {
+    const reward = data.reward;
+    await applyAdminReward(tx, actor, reward);
+    const itemId = Number(reward?.itemId ?? 0);
+    if (itemId) await createRewardMail(tx, link, actor, kind === "specialDay" ? 13 : 11, itemId, `${kind} reward claimed through RC Reborn.`);
+    return { ok: true, outcome: "claimed", message: "Your campaign reward was applied.", playUrl: "/game?refresh=social-link" };
+  }
+  if (kind === "employeeSnack") {
+    const itemId = Number(data.itemId);
+    if (!isEmployeeSnackItem(itemId)) return reject("NOT_ELIGIBLE", "This employee snack is unavailable.");
+    await grant(tx, actor.networkUid, "inventory", itemId, 1);
+    await createRewardMail(tx, link, actor, 9, itemId, "Employee snack delivered by RC Reborn.");
+    return { ok: true, outcome: "claimed", message: "The employee snack was delivered.", playUrl: "/game?refresh=social-link" };
+  }
+  if (kind === "directGift") {
+    const escrow = link.escrows.find((row) => row.state === "HELD");
+    if (!escrow) return reject("EXHAUSTED", "This gift is no longer available.");
+    await grant(tx, actor.networkUid, escrow.category, escrow.globalItemId, escrow.quantity);
+    await tx.socialLinkEscrow.update({ where: { id: escrow.id }, data: { state: "TRANSFERRED", transferredAt: now } });
+    await createRewardMail(tx, link, actor, 4, escrow.globalItemId, "Gift transferred through RC Reborn.");
+    return { ok: true, outcome: "claimed", message: "The gift was transferred to you.", playUrl: "/game?refresh=social-link" };
+  }
+  if (kind === "ingredientRequest") {
+    const ingredientId = Number(data.ingredientId);
+    if (!await deduct(tx, actor.networkUid, "ingredient", ingredientId, 1)) return reject("INSUFFICIENT_INVENTORY", "You do not own the requested ingredient.");
+    if (!link.creator) return reject("NOT_ELIGIBLE", "The requester is unavailable.");
+    await grant(tx, link.creator.networkUid, "ingredient", ingredientId, 1);
+    return { ok: true, outcome: "fulfilled", message: "One ingredient was sent to the requester.", playUrl: "/game" };
+  }
+  if (kind === "ingredientTrade") {
+    const escrow = link.escrows.find((row) => row.state === "HELD");
+    if (!escrow || !link.creator) return reject("EXHAUSTED", "This trade is no longer available.");
+    const wantId = Number(data.wantItemId);
+    const wantQuantity = Number(data.wantQuantity);
+    if (!await deduct(tx, actor.networkUid, "ingredient", wantId, wantQuantity)) return reject("INSUFFICIENT_INVENTORY", "You do not own the requested trade ingredients.");
+    await grant(tx, link.creator.networkUid, "ingredient", wantId, wantQuantity);
+    await grant(tx, actor.networkUid, "ingredient", escrow.globalItemId, escrow.quantity);
+    await tx.socialLinkEscrow.update({ where: { id: escrow.id }, data: { state: "TRANSFERRED", transferredAt: now } });
+    return { ok: true, outcome: "accepted", message: "The ingredient trade completed.", playUrl: "/game?refresh=social-link" };
+  }
+  if (kind === "friendInvite") {
+    if (!link.creator) return reject("NOT_ELIGIBLE", "The inviting player is unavailable.");
+    const [a, b] = [link.creator.id, requireAccountId(actor)].sort();
+    await tx.friendRequest.upsert({ where: { senderAccountId_recipientAccountId: { senderAccountId: link.creator.id, recipientAccountId: requireAccountId(actor) } }, update: { status: "ACCEPTED" }, create: { id: randomUUID3(), senderAccountId: link.creator.id, recipientAccountId: requireAccountId(actor), status: "ACCEPTED" } });
+    await tx.friendship.upsert({ where: { accountAId_accountBId: { accountAId: a, accountBId: b } }, update: {}, create: { id: randomUUID3(), accountAId: a, accountBId: b } });
+    return { ok: true, outcome: "accepted", message: "You are now Restaurant City friends.", playUrl: "/game?refresh=social-link" };
+  }
+  if (kind === "referral") return { ok: true, outcome: "joined", message: "Referral recorded. Friendship and rewards remain separate actions.", playUrl: "/game" };
+  return reject("INVALID_ACTION", "Unsupported social action.");
+}
+async function applyAdminReward(tx, actor, reward) {
+  const category = String(reward?.category ?? "");
+  const amount = positiveInt3(reward?.amount ?? 1);
+  if (category === "coins") await tx.userProfile.update({ where: { id: profileKey4(actor.networkUid) }, data: { credits: { increment: amount } } });
+  else if (category === "gourmetPoints") await tx.userProfile.update({ where: { id: profileKey4(actor.networkUid) }, data: { gourmetPoint: { increment: amount } } });
+  else if (category === "playfishCash") await tx.userProfile.update({ where: { id: profileKey4(actor.networkUid) }, data: { cashBalance: { increment: amount } } });
+  else {
+    const itemId = positiveInt3(reward?.itemId);
+    if (!isCatalogItemId(itemId)) throw new Error("Unknown reward item.");
+    await grant(tx, actor.networkUid, category === "ingredient" ? "ingredient" : "inventory", itemId, amount);
+  }
+}
+async function createRewardMail(tx, link, actor, type, itemId, message) {
+  const sender = link.creator ?? await tx.account.findFirst({ where: { role: "ADMIN", disabled: false } });
+  if (!sender) return;
+  await tx.mail.create({ data: {
+    senderProfileId: profileKey4(sender.networkUid),
+    recipientProfileId: profileKey4(actor.networkUid),
+    senderNetworkUid: sender.networkUid,
+    senderPlayfishUid: sender.playfishUid,
+    recipientNetworkUid: actor.networkUid,
+    recipientPlayfishUid: actor.playfishUid,
+    globalItemIdsJson: JSON.stringify([itemId]),
+    itemId,
+    message,
+    sendDate: Math.floor(Date.now() / 1e3),
+    type
+  } });
+}
+async function actOnLink(slug, actor, action, idempotencyKey, now = /* @__PURE__ */ new Date()) {
+  const accountId = requireAccountId(actor);
+  const key = plainText(idempotencyKey, 80);
+  if (!/^[A-Za-z0-9_.:-]{8,80}$/.test(key)) return reject("INVALID_ACTION", "A valid idempotency key is required.");
+  let liveMailType = 0;
+  const result = await prisma.$transaction(async (tx) => {
+    const link = await tx.socialLink.findUnique({ where: { slug }, include: { creator: true, actions: true, escrows: true } });
+    if (!link) return reject("INVALID_ACTION", "Social link not found.");
+    const prior = link.actions.find((row) => row.actorAccountId === accountId && row.idempotencyKey === key);
+    if (prior) return SUCCESS_OUTCOMES.has(prior.outcome) ? { ok: true, outcome: prior.outcome, message: prior.resultSummary, playUrl: "/game?refresh=social-link" } : reject(prior.outcome, prior.resultSummary);
+    let result2;
+    const state = availability(link, actor, now);
+    if (disabled(asKind(link.kind))) result2 = reject("PAUSED", "This kind is temporarily disabled.");
+    else if (state === "upcoming") result2 = reject("NOT_STARTED", "This link is not active yet.");
+    else if (state === "expired") result2 = reject("EXPIRED", "This link has expired.");
+    else if (state === "paused") result2 = reject("PAUSED", "This link is paused.");
+    else if (state === "revoked") result2 = reject("REVOKED", "This link was revoked.");
+    else if (state === "exhausted") result2 = reject("EXHAUSTED", "This link has reached its limit.");
+    else if (state === "completed") result2 = reject("ALREADY_DONE", "You already completed this action.");
+    else if (!link.allowSelfAction && link.creatorAccountId === accountId) result2 = reject("SELF_CLAIM", "You cannot use your own link.");
+    else {
+      const successes = link.actions.filter((row) => row.actorAccountId === accountId && SUCCESS_OUTCOMES.has(row.outcome)).length;
+      const eligibility = await eligibilityFailure(tx, actor, payload(link), now);
+      result2 = successes >= link.perAccountLimit ? reject("ALREADY_DONE", "You already completed this action.") : eligibility ?? await executeKind(tx, link, actor, action, now);
+      if (result2.ok) liveMailType = socialRewardMailType(link);
+    }
+    const outcome = result2.ok ? result2.outcome : result2.code;
+    await recordAction(tx, link.id, accountId, action, outcome, result2.message, key);
+    if (result2.ok) await tx.socialLink.update({ where: { id: link.id }, data: { successfulActionCount: { increment: 1 } } });
+    return result2;
+  });
+  if (result.ok && liveMailType > 0) enqueueLiveMail(actor.networkUid, liveMailType);
+  return result;
+}
+function socialRewardMailType(link) {
+  const kind = asKind(link.kind);
+  if (kind === "foodKingReward") return 10;
+  if (kind === "employeeSnack") return 9;
+  if (kind === "directGift") return 4;
+  if ((kind === "promotion" || kind === "specialDay") && Number(payload(link).reward?.itemId ?? 0) > 0) {
+    return kind === "specialDay" ? 13 : 11;
+  }
+  return 0;
+}
+async function returnEscrow(tx, link, now) {
+  for (const escrow of link.escrows.filter((row) => row.state === "HELD")) {
+    const owner = await tx.account.findUnique({ where: { id: escrow.ownerAccountId } });
+    if (owner) await grant(tx, owner.networkUid, escrow.category, escrow.globalItemId, escrow.quantity);
+    await tx.socialLinkEscrow.update({ where: { id: escrow.id }, data: { state: "RETURNED", returnedAt: now } });
+  }
+}
+async function cancelPlayerLink(slug, account, now = /* @__PURE__ */ new Date()) {
+  await prisma.$transaction(async (tx) => {
+    const link = await tx.socialLink.findUnique({ where: { slug }, include: { creator: true, actions: true, escrows: true } });
+    if (!link || link.creatorAccountId !== requireAccountId(account)) throw new Error("Social link not found.");
+    if (link.status === "REVOKED") throw new Error("This social link is already cancelled.");
+    if (link.successfulActionCount > 0) throw new Error("A completed link cannot be cancelled.");
+    await returnEscrow(tx, link, now);
+    await tx.socialLink.update({ where: { id: link.id }, data: { status: "REVOKED", revokedAt: now } });
+  });
+}
+async function eligibilityFailure(tx, actor, data, now) {
+  const eligibility = data.eligibility ?? {};
+  if (!eligibility || typeof eligibility !== "object" || Array.isArray(eligibility)) return reject("NOT_ELIGIBLE", "This campaign has invalid eligibility rules.");
+  const accountId = requireAccountId(actor);
+  const [account, profile] = await Promise.all([
+    tx.account.findUnique({ where: { id: accountId }, select: { usernameKey: true, createdAt: true, disabled: true } }),
+    tx.userProfile.findUnique({ where: { id: profileKey4(actor.networkUid) }, select: { userLevel: true } })
+  ]);
+  if (!account || account.disabled || !profile) return reject("NOT_ELIGIBLE", "This account is not eligible for the campaign.");
+  const minLevel = Number(eligibility.minLevel ?? 0);
+  const maxLevel = Number(eligibility.maxLevel ?? Number.MAX_SAFE_INTEGER);
+  if (profile.userLevel < minLevel || profile.userLevel > maxLevel) return reject("NOT_ELIGIBLE", "Your restaurant level is not eligible for this campaign.");
+  const minAgeDays = Number(eligibility.minAccountAgeDays ?? 0);
+  if (minAgeDays > 0 && account.createdAt.getTime() > now.getTime() - minAgeDays * 864e5) return reject("NOT_ELIGIBLE", "Your account is not old enough for this campaign.");
+  const allowlist = Array.isArray(eligibility.allowlistUsernames) ? eligibility.allowlistUsernames.map(String) : [];
+  if (allowlist.length && !allowlist.includes(account.usernameKey)) return reject("NOT_ELIGIBLE", "This campaign is limited to an allowlist.");
+  for (const [field, mustOwn] of [["requireOwnedItemId", true], ["excludeOwnedItemId", false]]) {
+    const itemId = Number(eligibility[field] ?? 0);
+    if (!itemId) continue;
+    const category = catalogEntry(itemId)?.category;
+    const row = category === "ingredient" ? await tx.ingredientInventory.findUnique({ where: { userProfileId_globalItemId: { userProfileId: profileKey4(actor.networkUid), globalItemId: itemId } }, select: { number: true } }) : await tx.inventoryItem.findUnique({ where: { userProfileId_globalItemId: { userProfileId: profileKey4(actor.networkUid), globalItemId: itemId } }, select: { number: true } });
+    const owns = Boolean(row && row.number > 0);
+    if (owns !== mustOwn) return reject("NOT_ELIGIBLE", mustOwn ? "You do not own a required campaign item." : "You already own an item excluded by this campaign.");
+  }
+  return null;
+}
+
 // rc-png:encoder
 import * as zlib from "node:zlib";
 function encodeArgbPng(argb, width, height) {
@@ -7762,7 +8272,7 @@ function* usernameCandidates(base) {
     yield `${base.slice(0, 24 - suffix.length)}${suffix}`;
   }
   for (let i = 0; i < 20; i += 1) {
-    const suffix = `_${randomBytes4(3).toString("hex")}`;
+    const suffix = `_${randomBytes5(3).toString("hex")}`;
     yield `${base.slice(0, 24 - suffix.length)}${suffix}`;
   }
 }
@@ -7805,8 +8315,8 @@ async function createAccount(user) {
           lastName,
           // Hub accounts sign in through Supabase; the PIN path stays closed
           // (same as the original's Discord-only accounts).
-          pinHash: randomBytes4(32).toString("hex"),
-          pinSalt: randomBytes4(16).toString("hex"),
+          pinHash: randomBytes5(32).toString("hex"),
+          pinSalt: randomBytes5(16).toString("hex"),
           pinEnabled: false,
           networkUid: identity.networkUid,
           playfishUid: identity.playfishUid,
@@ -7841,7 +8351,7 @@ async function resolveAccount(user, sessionId, req) {
         data: {
           id: sessionId,
           tokenHash: hashSessionToken(sessionId),
-          csrfToken: randomBytes4(24).toString("base64url"),
+          csrfToken: randomBytes5(24).toString("base64url"),
           accountId: row.id,
           expiresAt: new Date(now + SESSION_MS2),
           ipAddress: (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim().slice(0, 100),
@@ -7935,6 +8445,70 @@ async function handleRpc(user, sessionId, bytes, req) {
   marks.push(`queries;desc="${queryStats.count - q0}"`);
   return { status: 200, response: new Uint8Array(response.buffer, response.byteOffset, response.byteLength), error, timing: marks.join(", "), background: backgroundWork() };
 }
+var socialHits = /* @__PURE__ */ new Map();
+function socialRateLimited(key, max) {
+  const now = Date.now();
+  const hits2 = (socialHits.get(key) ?? []).filter((at) => now - at < 6e4);
+  hits2.push(now);
+  if (socialHits.size > 5e3) socialHits.clear();
+  socialHits.set(key, hits2);
+  return hits2.length > max;
+}
+async function linkItemName(slug) {
+  const row = await prisma.socialLink.findUnique({ where: { slug }, select: { payloadJson: true } });
+  let data = {};
+  try {
+    data = JSON.parse(row?.payloadJson ?? "{}");
+  } catch {
+    data = {};
+  }
+  const itemId = Number(data.itemId ?? data.ingredientId ?? data.wantItemId ?? 0);
+  return itemId ? catalogEntry(itemId)?.label ?? "" : "";
+}
+async function handleSocial(user, sessionId, method, rest, input, req) {
+  await ensureStartup();
+  let account = null;
+  if (user) {
+    try {
+      const resolved = await resolveAccount(user, sessionId, req);
+      account = resolved.account;
+      if (resolved.created) await ensureLoginAccount(account);
+    } catch (error) {
+      if (error instanceof AccountUnavailable) return { status: 403, body: { ok: false, error: error.message } };
+      throw error;
+    }
+  }
+  const parts = rest.split("/").filter(Boolean);
+  const slug = parts[0] ?? "";
+  try {
+    if (method === "GET" && parts.length === 1) {
+      const link = await publicLink(slug, account);
+      if (!link) return { status: 404, body: { ok: false, error: "social link not found" } };
+      return { status: 200, body: { ok: true, link: { ...link, itemName: await linkItemName(slug) } } };
+    }
+    if (method !== "POST" || parts.length > 2) return { status: 404, body: { ok: false, error: "not found" } };
+    if (!account) return { status: 401, body: { ok: false, error: "session expired" } };
+    if (parts.length === 0) {
+      if (socialRateLimited(`create:${account.id}`, 20)) return { status: 429, body: { ok: false, error: "too many links, try again shortly" } };
+      const created = await createPlayerLink(account, input);
+      return { status: 201, body: { ok: true, slug: created.slug } };
+    }
+    if (socialRateLimited(`action:${account.id}`, 60)) return { status: 429, body: { ok: false, error: "too many requests, try again shortly" } };
+    if (parts[1] === "actions") {
+      const key = String(req.headers.get("idempotency-key") ?? input.idempotencyKey ?? "");
+      const result = await actOnLink(slug, account, String(input.action ?? ""), key);
+      await flushLiveEvents();
+      return { status: result.ok ? 200 : result.code === "ALREADY_DONE" ? 409 : 400, body: result };
+    }
+    if (parts[1] === "cancel") {
+      await cancelPlayerLink(slug, account);
+      return { status: 200, body: { ok: true } };
+    }
+    return { status: 404, body: { ok: false, error: "not found" } };
+  } catch (error) {
+    return { status: 400, body: { ok: false, error: error instanceof Error ? error.message : String(error) } };
+  }
+}
 async function handleProfileImage(rest) {
   const parts = rest.split("/").filter(Boolean);
   let networkUid = "";
@@ -7953,5 +8527,6 @@ async function handleProfileImage(rest) {
 export {
   handleMe,
   handleProfileImage,
-  handleRpc
+  handleRpc,
+  handleSocial
 };

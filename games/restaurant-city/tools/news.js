@@ -23,8 +23,8 @@ const PAGES = [
   {
     file: 'news1.png', w: 540, h: 380, box: [270, 190, 270, 190], size: 11.5,
     html: `<h2>Khác bản gốc ở đâu?</h2>
-      <p>Facebook đã đóng từ lâu, nên các nút đăng tường, mời bạn và nạp tiền thật không còn tác dụng.</p>
-      <p>Gửi thư, tặng quà, đổi nguyên liệu, tưới vườn giúp bạn và chấm điểm quán vẫn chơi với người thật.</p>
+      <p>Không còn Facebook: nút tặng snack, chia sẻ và mời bạn giờ tạo ra một đường link. Copy gửi bạn bè, họ mở trên hub là nhận. Không có nạp tiền thật.</p>
+      <p>Thư, đổi nguyên liệu, tưới vườn giúp bạn và chấm điểm quán vẫn chơi với người thật.</p>
       <p class="sign">Survivor Hub</p>`
   },
   {

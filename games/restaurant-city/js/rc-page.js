@@ -1,12 +1,13 @@
 /*
  * Trang Restaurant City: kiểm tài khoản hub, cắm lớp mạng (rc-net.js), rồi dựng Ruffle chạy game.swf.
  * Game chơi online qua Edge Function rc-rpc nên bắt buộc đăng nhập bằng tài khoản thành viên của hub.
+ * ?link=<slug> mở một social link (quà, lời mời) trước khi vào quán, xem rc-social.js.
  * ?rpc=<url> thay địa chỉ function, ?swf=<tên>.swf nạp bản SWF khác trong swf/ (chạy thử).
  */
 (function () {
   "use strict";
 
-  var REV = "20261026b";
+  var REV = "20261027a";
   var cfg = window.SUPABASE_CONFIG || {};
   var FN = new URLSearchParams(location.search).get("rpc") ||
     (String(cfg.url || "").replace(/\/+$/, "") + "/functions/v1/rc-rpc");
@@ -67,16 +68,16 @@
     });
   }
 
-  // game.swf gọi ra trang qua ExternalInterface. Những nút Facebook/Playfish cũ (đăng tường, mời bạn,
-  // tặng quà, nạp tiền thật) không còn chỗ để đi, nên báo "không làm" để game tự đóng hộp thoại.
+  // game.swf gọi ra trang qua ExternalInterface. Đăng tường, mời bạn, tặng quà thành social link (rc-social.js);
+  // nạp tiền thật và bookmark Facebook không còn chỗ để đi, nên báo "không làm" để game tự đóng hộp thoại.
   function flashCallback(ok) {
     var player = document.querySelector("ruffle-player, ruffle-object");
     try { if (player && typeof player.sendToActionScript === "function") player.sendToActionScript([!!ok]); } catch (e) { /* game không chờ callback */ }
   }
   [
-    "addStream", "addFeedSystem", "addInviteFriendsIFrame", "addSendGiftIFrame", "callBookmark",
-    "addPurchaseIFrame", "addPurchaseIFramePaymo", "addPurchaseIFrameMoneybookers", "addPurchaseIFrameSuperRewards",
-    "addPurchaseIFrameOnebip", "addPurchaseIFrameTrialPayCurrency", "submitFacebookOrder"
+    "callBookmark", "addBookmark", "addPermission", "addPurchaseIFrame", "addPurchaseIFramePaymo",
+    "addPurchaseIFrameMoneybookers", "addPurchaseIFrameSuperRewards", "addPurchaseIFrameOnebip",
+    "addPurchaseIFrameTrialPayCurrency", "submitFacebookOrder"
   ].forEach(function (name) {
     window[name] = function () { setTimeout(function () { flashCallback(false); }, 0); };
   });
@@ -115,10 +116,20 @@
       showPanel("Máy chủ tài khoản của hub chưa cấu hình, nên chưa chơi online được.");
       return;
     }
+    var link = window.RCSocial.pendingSlug();
     if (!member()) {
-      showPanel("Restaurant City chơi online: nhà hàng, bạn bè, thư và đổi nguyên liệu đều lưu theo tài khoản hub.", { login: true });
+      showPanel(link ? "Có người gửi bạn một link Restaurant City. Đăng nhập tài khoản hub để nhận."
+        : "Restaurant City chơi online: nhà hàng, bạn bè, thư và đổi nguyên liệu đều lưu theo tài khoản hub.", { login: true });
       return;
     }
+    window.RCSocial.install({
+      fnUrl: fnUrl,
+      anonKey: cfg.anonKey,
+      token: token,
+      refresh: refresh,
+      callback: flashCallback,
+      refocus: function () { try { if (window.__rcPlayer) window.__rcPlayer.focus(); } catch (e) { /* bấm vào game là được */ } }
+    });
     window.RCNet.install({
       fnUrl: fnUrl,
       anonKey: cfg.anonKey,
@@ -132,7 +143,15 @@
     me().then(function (account) {
       if (account.expired) { showPanel("Phiên đăng nhập đã hết hạn.", { login: true }); return; }
       $("who").textContent = "Chủ quán: " + account.username;
-      return mount();
+      if (!link) return mount();
+      $("panelBody").classList.add("hidden");
+      $("linkCard").classList.remove("hidden");
+      return window.RCSocial.claimCard(link, $("linkCard")).then(function () {
+        $("linkCard").classList.add("hidden");
+        $("panelBody").classList.remove("hidden");
+        showPanel("Đang mở nhà hàng…");
+        return mount();
+      });
     }).catch(function (err) {
       showPanel("Không mở được nhà hàng.", { error: String(err && err.message || err) });
     });

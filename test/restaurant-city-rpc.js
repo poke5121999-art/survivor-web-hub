@@ -267,6 +267,49 @@ async function main() {
   const box = await rpc(tokens.A, call(32, sessions.A, Buffer.concat([writeString(''), writeVarint(1), writeString('3040001')])));
   check(answered(box, 32) && readVarint(box.body, 2)[0] === 4, 'buyMystryBox rejects a crafted token', box.body.toString('hex'));
 
+  // ---- social links: the hub's stand-in for the game's Facebook gift/invite dialogs ----
+  const social = async (method, rest, token, body) => {
+    const res = await fetch(`${FN}/social-links${rest}`, {
+      method,
+      headers: { apikey: ANON, 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    return { status: res.status, json: await res.json().catch(() => ({})) };
+  };
+  const key = () => `rc-test-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const anonCreate = await social('POST', '', null, { kind: 'employeeSnack', itemId: 6000001 });
+  check(anonCreate.status === 401, 'creating a link without a hub session -> 401', `${anonCreate.status}`);
+  // Lolly (perk.xml Employee group, unlockLevel 0): what GiftInviteFoodPopUp passes to addInviteStickersIFrame.
+  const snack = await social('POST', '', tokens.A, { kind: 'employeeSnack', itemId: 6000001 });
+  const slug = snack.json.slug || '';
+  check(snack.status === 201 && /^[A-Za-z0-9_-]{32}$/.test(slug), 'A creates an employee-snack link', `${snack.status} ${JSON.stringify(snack.json)}`);
+  if (slug) {
+    const view = await social('GET', `/${slug}`, null);
+    check(view.status === 200 && view.json.link?.kind === 'employeeSnack' && view.json.link?.itemName === 'Lolly'
+      && view.json.link?.availability === 'available' && view.json.link?.loggedIn === false,
+    'anyone can view the link (no session)', `${view.status} ${JSON.stringify(view.json.link || view.json).slice(0, 200)}`);
+    const self = await social('POST', `/${slug}/actions`, tokens.A, { action: 'claim', idempotencyKey: key() });
+    check(self.json.code === 'SELF_CLAIM', 'the creator cannot claim their own link', `${self.status} ${self.json.code}`);
+    const staleB = await rpc(tokens.B, pollRequest(sessions.B));
+    const staleIds = staleB.status === 200 ? parsePoll(staleB.body).events.map((e) => e.id) : [];
+    if (staleIds.length) await rpc(tokens.B, pollRequest(sessions.B, staleIds));
+    const claim = await social('POST', `/${slug}/actions`, tokens.B, { action: 'claim', idempotencyKey: key() });
+    check(claim.status === 200 && claim.json.ok && claim.json.outcome === 'claimed', 'B claims the snack', `${claim.status} ${JSON.stringify(claim.json)}`);
+    const again = await social('POST', `/${slug}/actions`, tokens.B, { action: 'claim', idempotencyKey: key() });
+    check(again.status === 409 && again.json.code === 'ALREADY_DONE', 'a second claim is refused', `${again.status} ${again.json.code}`);
+    const ev = await rpc(tokens.B, pollRequest(sessions.B));
+    const snackMail = (ev.status === 200 ? parsePoll(ev.body).events : []).find((e) => e.type === 2 && e.body[0] === 9);
+    check(Boolean(snackMail), 'B gets a snack mail notification (mail type 9)');
+    if (snackMail) await rpc(tokens.B, pollRequest(sessions.B, [snackMail.id]));
+  }
+  const invite = await social('POST', '', tokens.A, { kind: 'friendInvite' });
+  if (check(invite.status === 201 && invite.json.slug, 'A creates a friend invite', `${invite.status}`)) {
+    const accept = await social('POST', `/${invite.json.slug}/actions`, tokens.B, { action: 'accept', idempotencyKey: key() });
+    check(accept.json.ok && accept.json.outcome === 'accepted', 'B accepts the friend invite', JSON.stringify(accept.json));
+    const friends = await rpc(tokens.B, call(2, sessions.B));
+    check(answered(friends, 2) && friends.body.includes(Buffer.from(who.A.username, 'utf8')), "A is in B's getAllFriends", `${friends.body.length} bytes`);
+  }
+
   const sorted = [...batchMs].sort((a, b) => a - b);
   console.log(`batch latency ms: first=${batchMs[0]} median=${sorted[Math.floor(sorted.length / 2)]} all=${batchMs.join(',')}`);
   console.log(failures ? `FAIL ${failures} check(s) failed` : 'PASS all checks');
