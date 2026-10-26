@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Restaurant City</title>
+<style>
+  :root { --sky: #5fc8ec; --sky-pale: #d9f3fb; --steel: #2d5a7b; --ink: #12344d; --panel: #fffdf6; --accent: #f2a516; }
+  html, body { height: 100%; margin: 0; }
+  @supports (height: 100dvh) { html, body { height: 100dvh; } }
+  body {
+    display: grid; grid-template-rows: auto 1fr; overflow: hidden;
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink);
+    background: linear-gradient(180deg, var(--sky) 0%, #8bd8f2 55%, var(--sky-pale) 100%);
+  }
+  header { display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: rgba(255,255,255,.75); }
+  header a, header button {
+    font: inherit; font-weight: 700; color: var(--ink); text-decoration: none; cursor: pointer;
+    background: #fff; border: 2px solid var(--steel); border-radius: 10px; padding: 4px 10px;
+  }
+  header .who { font-weight: 700; }
+  header .spacer { flex: 1; }
+  main { display: grid; place-items: center; min-height: 0; padding: 10px; }
+  .stage {
+    position: relative; width: min(100%, calc((100vh - 80px) * 1.2667), 1140px);
+    aspect-ratio: 760 / 600; background: #050607; border: 5px solid var(--steel); border-radius: 14px; overflow: hidden;
+  }
+  .stage > ruffle-player, .stage > ruffle-object { display: block; width: 100% !important; height: 100% !important; }
+  .stage ruffle-player:fullscreen { background: #050607; }
+  .panel {
+    position: absolute; inset: 0; display: grid; place-items: center; padding: 16px;
+    background: radial-gradient(circle at 50% 30%, #2a6f96 0%, #0c2234 75%); color: #eaf7ff; text-align: center;
+  }
+  .hidden { display: none !important; }
+  .panel h1 { margin: 0 0 8px; font-size: clamp(22px, 4vw, 34px); color: #ffd36b; }
+  .panel p { margin: 6px auto; max-width: 440px; }
+  .panel .go {
+    display: inline-block; margin-top: 12px; padding: 10px 18px; border-radius: 12px; background: var(--accent);
+    color: #2a1600; font-weight: 800; text-decoration: none; border: 0; font-size: 16px; cursor: pointer;
+  }
+  .panel .err { color: #ffb4a8; font-size: 13px; }
+</style>
+<script>
+  window.RufflePlayer = window.RufflePlayer || {};
+  window.RufflePlayer.config = {
+    autoplay: "on", unmuteOverlay: "hidden", splashScreen: false, warnOnUnsupportedContent: false,
+    allowFullscreen: true, allowScriptAccess: true, quality: "high", contextMenu: "off", publicPath: "ruffle/"
+  };
+</script>
+<script src="../../js/session.js"></script>
+<script src="../../js/supabase-config.js"></script>
+<script src="../../js/supabase-auth.js"></script>
+<script src="js/rc-net.js?v=20261026a"></script>
+<script src="js/rc-page.js?v=20261026a"></script>
+<script src="ruffle/ruffle.js?v=20261026a"></script>
+</head>
+<body>
+<header>
+  <a href="../../index.html">← Hub</a>
+  <span class="who" id="who"></span>
+  <span class="spacer"></span>
+  <button id="fullscreen" type="button">Toàn màn hình</button>
+</header>
+<main>
+  <div class="stage" id="stage">
+    <div class="panel" id="panel">
+      <div>
+        <h1>Restaurant City</h1>
+        <p id="panelText">Đang mở nhà hàng…</p>
+        <a class="go hidden" id="loginLink" href="../../login.html?next=games/restaurant-city/index.html">Đăng nhập để chơi</a>
+        <p class="err" id="panelErr"></p>
+      </div>
+    </div>
+  </div>
+</main>
+</body>
+</html>

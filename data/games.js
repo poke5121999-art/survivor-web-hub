@@ -1028,5 +1028,23 @@ window.HUB_GAMES = [
     // cách build: games/walking-trade/README.md. Kiểm: node test/walking-trade-play.js (TWT_URL=<gốc hub> chạy trên Pages).
     status: "available",
     tags: ["Quản lý", "Sinh tồn", "Chiến đấu", "Unity"]
+  },
+  {
+    id: "restaurant-city",
+    title: "Restaurant City",
+    tagline: "Quán ăn Playfish 2009 chơi online: nấu, bày quán, thuê bạn hub làm nhân viên.",
+    desc: "Bản Flash gốc chạy bằng Ruffle, lưu online theo tài khoản hub. Mở quán, xếp bàn ghế, trồng rau, học món mới, thuê người chơi khác làm bồi bàn và đầu bếp. Ghé quán nhau, gửi thư, tặng quà và đổi nguyên liệu với người thật. Cần đăng nhập để chơi.",
+    genre: "thu-gian",
+    accent: "#f2a516",
+    en: { title: "Restaurant City", tagline: "Playfish's 2009 restaurant game, online: cook, decorate, hire hub players as staff.", desc: "The original Flash game running in Ruffle, saved online to your hub account. Open a restaurant, lay out tables, grow ingredients, learn dishes and hire other players as waiters and chefs. Visit each other, send mail and gifts, and trade ingredients with real people. Sign-in required." },
+    thumbnail: "assets/thumbnails/restaurant-city.png",
+    path: "games/restaurant-city/index.html",
+    rev: "20261026a",
+    // game.swf build lại từ AS3 decompile của Dippys/Restaurant-City-client (gỡ khoá tên miền + nút Discord của
+    // RC Reborn: games/restaurant-city/tools/patches). Server là mã gốc Dippys/Restaurant-City-Server chạy trong Edge
+    // Function rc-rpc trên Postgres của hub (schema rc): supabase/functions/rc-rpc/README.md.
+    // Kiểm: node test/restaurant-city-rpc.js (RPC thật, 2 bot gửi thư cho nhau) và node test/restaurant-city-play.js (RC_URL=<gốc hub>).
+    status: "available",
+    tags: ["Quản lý", "Online", "Flash"]
   }
 ];

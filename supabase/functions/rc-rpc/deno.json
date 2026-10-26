@@ -1,0 +1,7 @@
+{
+  "imports": {
+    "@prisma/client/runtime/client": "npm:@prisma/client@7.8.0/runtime/client",
+    "pg": "npm:pg@8.16.3",
+    "@prisma/adapter-pg": "npm:@prisma/adapter-pg@7.8.0"
+  }
+}

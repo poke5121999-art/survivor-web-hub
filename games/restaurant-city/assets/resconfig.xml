@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<config>
+	<paths>
+		<path network="facebook" name="res" src="" />
+		<path network="myspace" name="res" src="" />
+	</paths>
+	
+	<resources path="res">
+		<resource network="facebook" name="game_asset" 		src="game_asset.swf" />
+		<resource network="facebook" name="avatar_asset" 	src="avatar_asset.swf" />
+		<resource network="facebook" name="indoor_asset" 	src="indoor_asset.swf" />
+		<resource network="facebook" name="ingredient_asset" src="ingredient_asset.swf" />
+		<resource network="facebook" name="outdoor_asset" 	src="outdoor_asset.swf" />
+		<resource network="facebook" name="perk_asset" 		src="perk_asset.swf" />
+		<resource network="facebook" name="sound_asset" 	src="sound_asset.swf" />
+		<resource network="facebook" name="preloader_asset" src="preloader_asset.swf" />
+		<resource network="facebook" name="ingredient_bin" 	src="ingredient.bin" />
+		<resource network="facebook" name="model_bin" 		src="model.bin" />
+		<resource network="facebook" name="perk_bin" 		src="perk.bin" />
+		<resource network="facebook" name="quiz_bin" 		src="quiz.bin" />
+		<resource network="facebook" name="recipe_bin" 		src="recipe.bin" />
+		<resource network="facebook" name="challenge_bin" 	src="challenge.bin" />
+		<resource network="facebook" name="lang_en" 		src="lang_en.bin" />
+		<resource network="facebook" name="lang_fr" 		src="lang_fr.bin" />
+		<resource network="facebook" name="newsletter" 		src="newsletter.xml" />
+		<resource network="facebook" name="avatar_bin" 		src="avatar.bin" />
+		<resource network="facebook" name="front_bin" 		src="front.bin" />
+		<resource network="facebook" name="restaurant_bin" 	src="restaurant.bin" />
+		<resource network="facebook" name="appointment_bin" 	src="appointment.bin" />
+		
+		<!-- newsletter images -->
+		<resource network="facebook" name="news0" 	src="news0.png" />
+		<resource network="facebook" name="news1" 	src="news1.png" />
+		<resource network="facebook" name="news2" 	src="news2.png" />
+		
+		<!-- preloader marketing image -->
+		<resource network="facebook" name="preloader_marketing_image" 	src="preloader.png" />
+		
+		<!-- Added -->
+		<resource network="facebook" name="game.swf" 		src="game.swf" />
+		<resource network="facebook" name="preloader.swf" 	src="preloader.swf" />
+		<resource network="facebook" name="resconfig.xml" 	src="resconfig.xml" />
+		
+		<!--
+		<resource network="facebook" name="recipe_bin_2087" src="2087/recipe.bin" />
+		<resource network="facebook" name="newsletter_2087" src="2087/newsletter.xml" />
+		<resource network="facebook" name="front_bin_2087" 	src="2087/front.bin" />
+		<resource network="facebook" name="restaurant_bin_2087" 	src="2087/restaurant.bin" />
+		-->
+	</resources>
+</config>

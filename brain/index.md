@@ -23,6 +23,7 @@
 - [[plans/dredge-web]]
 - [[plans/ghe-nong-tfm2-full]]
 - [[plans/pokeone-2d-pro]]
+- [[plans/restaurant-city]]
 - [[plans/soulknight-full]]
 - [[plans/soulknight-normal-mode]]
 - [[plans/soulknight-walkthrough]]
