@@ -7795,7 +7795,7 @@ function categoryForItem(itemId) {
 }
 function decryptLegacyValue(hex) {
   if (!/^[0-9a-f]+$/i.test(hex) || hex.length % 32 !== 0) throw new Error("Invalid Food King legacy value.");
-  const decipher = createDecipheriv("aes-128-ecb", Buffer.from("d4ae3749fdd284924b4567bdbc7e3744", "hex"), null);
+  const decipher = createDecipheriv("aes-128-ecb", Buffer.from("d4ae3749fdd284924b4567bdbc7e3744", "hex"), Buffer.alloc(0));
   decipher.setAutoPadding(true);
   return Buffer.concat([decipher.update(Buffer.from(hex, "hex")), decipher.final()]).toString("utf8");
 }

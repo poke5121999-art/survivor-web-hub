@@ -302,6 +302,18 @@ async function main() {
     check(Boolean(snackMail), 'B gets a snack mail notification (mail type 9)');
     if (snackMail) await rpc(tokens.B, pollRequest(sessions.B, [snackMail.id]));
   }
+  // Food King: the game posts a feed whose URL carries AES-128-ECB hex values (server social-links/service.ts key).
+  const crypto = require('crypto');
+  const enc = (text) => {
+    const c = crypto.createCipheriv('aes-128-ecb', Buffer.from('d4ae3749fdd284924b4567bdbc7e3744', 'hex'), null);
+    return Buffer.concat([c.update(String(text), 'utf8'), c.final()]).toString('hex');
+  };
+  const kingUrl = `https://apps.facebook.com/cooking/foodking?pf_i_id=${enc(4000010)}&pf_uid=${enc(who.A.networkUid)}&pf_ex=${enc(Math.floor(Date.now() / 1000) + 3600)}`;
+  const king = await social('POST', '', tokens.A, { kind: 'foodKingReward', legacyUrl: kingUrl });
+  if (check(king.status === 201 && king.json.slug, 'A creates a Food King link from the game feed URL', `${king.status} ${JSON.stringify(king.json)}`)) {
+    const kingClaim = await social('POST', `/${king.json.slug}/actions`, tokens.B, { action: 'claim', idempotencyKey: key() });
+    check(kingClaim.json.ok && kingClaim.json.outcome === 'claimed', 'B claims the Food King reward (Carrot)', JSON.stringify(kingClaim.json));
+  }
   const invite = await social('POST', '', tokens.A, { kind: 'friendInvite' });
   if (check(invite.status === 201 && invite.json.slug, 'A creates a friend invite', `${invite.status}`)) {
     const accept = await social('POST', `/${invite.json.slug}/actions`, tokens.B, { action: 'accept', idempotencyKey: key() });

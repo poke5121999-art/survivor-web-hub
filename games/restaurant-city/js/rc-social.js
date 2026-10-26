@@ -223,7 +223,8 @@
         var link = r.json.link;
         var info = KINDS[link.kind] || { title: link.title, text: function () { return link.description; } };
         title.textContent = info.title;
-        text.textContent = info.text(link.itemName) + (link.creatorName ? " Người gửi: " + link.creatorName + "." : "");
+        var who = link.kind === "ingredientRequest" ? "Người xin" : link.kind === "friendInvite" ? "Người mời" : "Người gửi";
+        text.textContent = info.text(link.itemName) + (link.creatorName ? " " + who + ": " + link.creatorName + "." : "");
         if (link.availability !== "available") { note.textContent = STATES[link.availability] || ""; return; }
         if (link.action === "view") return;
         act.textContent = ACTIONS[link.action] || link.actionLabel;

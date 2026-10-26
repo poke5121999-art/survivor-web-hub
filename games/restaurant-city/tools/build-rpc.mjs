@@ -113,6 +113,11 @@ const PATCHES = new Map([
     // plain item id ("3040001") minted that item for free. Resolve nothing.
     ['const chosen = itemIdFromToken(tokens[0] ?? category, 0);', 'const chosen = 0;'],
   ]],
+  [norm(path.join(SRC, 'social-links/service.ts')), [
+    // Deno's node:crypto rejects a null IV ("expected typed ArrayBufferView"); ECB ignores the IV anyway.
+    ["createDecipheriv('aes-128-ecb', Buffer.from('d4ae3749fdd284924b4567bdbc7e3744', 'hex'), null)",
+      "createDecipheriv('aes-128-ecb', Buffer.from('d4ae3749fdd284924b4567bdbc7e3744', 'hex'), Buffer.alloc(0))"],
+  ]],
 ]);
 
 function resolveTs(base) {

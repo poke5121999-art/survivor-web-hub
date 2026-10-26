@@ -48,8 +48,12 @@ Rev 20261027b: khách bóng trắng. IsoCacher của gốc chỉ dựng hình nh
 đo trên RTX 3050 (Chromium D3D11, `rc-bot-g`) thì bóng trắng còn 10-15 s sau khi đóng popup đầu (SwiftShader ~90 s).
 `patches/0005` cho dựng cả khi có popup, 30 ms mỗi khung: lúc đóng popup mọi khách đã có hình [ĐO 2026-10-27].
 
-Còn lại: (1) bot `rc-bot-*` lẫn vào phố của người thật (cần SQL để khoá); (2) thu hoạch vườn (48 giờ) và tưới vườn
-bạn trong giao diện chưa thử; (3) lần đầu mở sau khi đổi rev, máy văn phòng tải asset từ Pages hơn 60 s.
+Rev 20261027c: chơi thật thêm tưới vườn bạn, đuổi chồn quán bạn, cho nhân viên ăn snack, xin nguyên liệu qua link,
+Food King (SWF thử cho hiện 100%), máy Deep Sea Arcade (mua 12 cash, chơi, chia sẻ điểm), mua đất ngoài trời
+(SWF thử bỏ cổng cấp 10). Food King hỏng trên Deno: `createDecipheriv(..., null)` → build vá IV thành `Buffer.alloc(0)`.
+
+Còn lại: (1) thu hoạch vườn (48 giờ, cây của rc-bot-g chín khoảng 28/10 chiều); (2) bot `rc-bot-*` lẫn vào phố của
+người thật (cần SQL để khoá); (3) lần đầu mở sau khi đổi rev, máy văn phòng tải asset từ Pages hơn 60 s.
 
 ## Bẫy đã gặp
 
