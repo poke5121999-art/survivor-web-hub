@@ -1,6 +1,8 @@
 // Staff (PlayerWorkerAgentController / PlayerWorkerFarmController / PlayerWorkerChefController / WorkerCashierController).
 // Lists, speeds and rates come from the scene; the decision loop is reconstructed (rules/customers.md: the shelver's
 // target rule did not decompile) as: pick the emptiest target that one of my sources can feed, fill up, deliver, pause.
+import { UPGRADE } from './sim.js';
+
 const RADIUS = 1;
 const PAUSE = 0.5;               // pauseAfterCompletingJob
 
@@ -46,7 +48,6 @@ export class Workers {
         this.list.push({
           name: d.name, def: d, x: d.start.x, y: 0, z: d.start.z, dirX: 0, dirZ: 1, path: [], moving: false,
           carry: [], job: null, phase: 'idle', timer: 0, restAt: d.rest && d.rest.length ? d.rest[restIdx % d.rest.length] : d.start,
-          level: 0,
         });
         sim.emit({ type: 'workerSpawn', name: d.name });
       }
@@ -63,7 +64,7 @@ export class Workers {
 
   walk(w, dt) {
     if (!w.path.length) { w.moving = false; return true; }
-    let budget = w.def.speed * dt;
+    let budget = (w.def.role === 'cashier' ? w.def.speed : UPGRADE.WORKER_SPEED[this.sim.workerLevel(w.name).speed]) * dt;
     while (budget > 0 && w.path.length) {
       const p = w.path[0], dx = p.x - w.x, dz = p.z - w.z, d = Math.hypot(dx, dz);
       if (d <= budget) { w.x = p.x; w.z = p.z; w.path.shift(); budget -= d; } else {
@@ -88,7 +89,7 @@ export class Workers {
   }
 
   limit(w) {
-    return Math.min(3 + w.level, 6);
+    return Math.min(3 + this.sim.workerLevel(w.name).stack, 6);
   }
 
   // A job: deliver type T from source producer S to target (shelf index or producer index for feeding).
@@ -113,7 +114,7 @@ export class Workers {
         const space = sim.inputSpace(pi, t);
         if (space <= 0) return;
         const src = sourceFor(t);
-        if (src) jobs.push({ kind: 'feed', target: pi, type: t, source: src.i, fill: 1 - space / p.limit });
+        if (src) jobs.push({ kind: 'feed', target: pi, type: t, source: src.i, fill: 1 - space / sim.limitOf(pi) });
       });
     });
     jobs.sort((a, b) => a.fill - b.fill);
@@ -122,7 +123,7 @@ export class Workers {
 
   targetZone(job) {
     const s = this.sim.store;
-    return job.kind === 'shelf' ? s.shelves[job.target].zone : s.producers[job.target].inZone;
+    return job.kind === 'shelf' ? s.shelves[job.target].zone : s.producers[job.target].inputs.find(x => x.type === job.type).zone;
   }
 
   stepCarrier(w, dt) {

@@ -9,7 +9,7 @@
    1.0,
    1.0
   ],
-  "tex": "palette",
+  "tex": "palette-04da571a",
   "toon": {
    "h": [
     1.0,
@@ -38,7 +38,7 @@
   }
  },
  "textures": [
-  "palette"
+  "palette-04da571a"
  ],
  "types": {
   "18": {
@@ -87,7 +87,7 @@
      1.0,
      1.0
     ],
-    "tex": "palette",
+    "tex": "palette-04da571a",
     "toon": {
      "h": [
       1.0,

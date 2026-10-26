@@ -1,9 +1,9 @@
 /*
- * My Mini Mart (games/casual-farm): plays Store 1 with the bot on the real data (scene.json, data/store1.json,
+ * My Mini Mart (games/casual-farm): plays one mart with the bot on the real data (scene.json, data/<store>.json,
  * navmesh.json) and checks the loop end to end without a browser: every mat completes, money and stock invariants hold.
  *
- *   node test/casual-farm-sim.js            # 90 sim-minutes, seed 1
- *   MM_MINUTES=30 MM_SEED=7 node test/casual-farm-sim.js
+ *   node test/casual-farm-sim.js            # Store 1, 90 sim-minutes, seed 1
+ *   MM_STORE=store2 MM_MINUTES=30 MM_SEED=7 node test/casual-farm-sim.js
  */
 'use strict';
 const fs = require('fs');
@@ -13,6 +13,8 @@ const { pathToFileURL } = require('url');
 const G = path.resolve(__dirname, '..', 'games', 'casual-farm');
 const MINUTES = +(process.env.MM_MINUTES || 90);
 const SEED = +(process.env.MM_SEED || 1);
+const STORE = process.env.MM_STORE || 'store1';
+const FIRST = STORE === 'store1';
 const DT = 1 / 30;
 
 let pass = 0, fail = 0;
@@ -39,19 +41,23 @@ function mulberry32(a) {
   const { Bot } = await imp('bot.js');
   const { GridNav } = await imp('grid.js');
   const { Workers } = await imp('workers.js');
+  const { Thief } = await imp('thief.js');
   const { Tasks, buildTasks } = await imp('tasks.js');
   const read = f => JSON.parse(fs.readFileSync(path.join(G, f), 'utf8'));
 
-  const store = buildStore(read('art/store1/scene.json'), read('data/store1.json'));
-  const nav = new NavMesh(read('art/store1/navmesh.json'));
+  const store = buildStore(read(`art/${STORE}/scene.json`), read(`data/${STORE}.json`));
+  const nav = new NavMesh(read(`art/${STORE}/navmesh.json`), store.player.start);
   const grid = new GridNav(nav);
-  const sim = new Sim(store, { rng: mulberry32(SEED) });
+  // Later marts have no coin piles: the player arrives with cash from the previous mart. Give enough for the first
+  // four mats (cashier, first shelf, first plant come in the first four everywhere).
+  const cash = FIRST ? 0 : store.mats.slice(0, 4).reduce((n, m) => n + m.cost, 0);
+  const sim = new Sim(store, { rng: mulberry32(SEED), cash });
   const customers = new Customers(sim, grid);
   const taskList = buildTasks(store);
-  sim.systems.push(customers, new Workers(sim, grid), new Tasks(sim, taskList));
+  sim.systems.push(customers, new Workers(sim, grid), new Thief(sim, grid), new Tasks(sim, taskList));
   const bot = new Bot(sim, grid);
 
-  const firstDone = {}, tasksDone = [];
+  const firstDone = {}, tasksDone = [], thieves = { spawned: 0, caught: 0, upgrades: 0 };
   let midSave = null;
   let paid = 0, served = 0, gaveUp = 0, maxCustomers = 0, invariantErr = null;
   const steps = Math.round(MINUTES * 60 / DT);
@@ -63,6 +69,9 @@ function mulberry32(a) {
       if (e.type === 'customerPay') { paid += e.amount; served++; }
       if (e.type === 'customerLeave' && !e.paid) gaveUp++;
       if (e.type === 'taskDone') tasksDone.push([e.index, sim.state.t]);
+      if (e.type === 'thiefSpawn') thieves.spawned++;
+      if (e.type === 'thiefCaught') thieves.caught++;
+      if (e.type === 'levelUp') thieves.upgrades++;
     }
     sim.events.length = 0;
     const st = sim.state;
@@ -72,29 +81,33 @@ function mulberry32(a) {
       if (st.cash < 0) invariantErr = `cash ${st.cash} at ${st.t.toFixed(1)}s`;
       store.shelves.forEach((sh, i) => { if (st.shelves[i].count < 0 || st.shelves[i].count > sh.slots.length) invariantErr = `${sh.name} count ${st.shelves[i].count}`; });
       if (st.carry.length > carryLimit(st.stackLevel)) invariantErr = `carry ${st.carry.length} > ${carryLimit(st.stackLevel)}`;
-      store.producers.forEach((p, i) => { if (st.producers[i].out.filter(x => x != null).length > p.limit) invariantErr = `${p.name} output over limit`; });
+      store.producers.forEach((p, i) => { if (st.producers[i].out.filter(x => x != null).length > sim.limitOf(i)) invariantErr = `${p.name} output over limit`; });
     }
     if (Object.keys(firstDone).length === store.mats.length && k % 300 === 0 && sim.state.t > 60) break;
   }
 
   const t = n => (firstDone[n] != null ? (firstDone[n] / 60).toFixed(1) + ' min' : 'never');
   const st = sim.state;
-  console.log(`Store 1, seed ${SEED}, ${(st.t / 60).toFixed(1)} sim-minutes: ${Object.keys(firstDone).length}/${store.mats.length} mats, ` +
+  console.log(`${STORE}, seed ${SEED}, ${(st.t / 60).toFixed(1)} sim-minutes: ${Object.keys(firstDone).length}/${store.mats.length} mats, ` +
     `cash ${st.cash}, stack level ${st.stackLevel}, served ${served} (paid ${paid}), gave up ${gaveUp}, max customers on map ${maxCustomers}`);
-  ['Mat_Activate_Cashier', 'Mat_Activate_Tomato_Shelf', 'Mat_Activate_Plant_Tomato', 'Mat_Activate_Chicken', 'Mat_Unlock_Worker_ShelfA',
-    'Mat_Activate_Blender', 'Mat_Activate_StoreTile1', 'Mat_Activate_StoreTile2', 'Mat_Activate_Oven_Tabletop', 'Mat_Activate_NextMart']
-    .forEach(n => console.log(`    ${n}: ${t(n)}`));
+  Object.entries(firstDone).sort((a, b) => a[1] - b[1]).filter((e, i, a) => i < 3 || /StoreTile|NextMart|Worker/.test(e[0]) || i === a.length - 1)
+    .forEach(([n]) => console.log(`    ${n}: ${t(n)}`));
+  console.log(`    thieves ${thieves.spawned} (caught ${thieves.caught}), machine/worker upgrades bought ${thieves.upgrades}`);
 
-  check('the 10 starting coin piles are collected', st.coins.every(c => c.taken));
-  check('first three mats complete from the starting cash', ['Mat_Activate_Cashier', 'Mat_Activate_Tomato_Shelf', 'Mat_Activate_Plant_Tomato'].every(n => firstDone[n] != null));
+  if (FIRST) {
+    check('the 10 starting coin piles are collected', st.coins.every(c => c.taken));
+    check('first three mats complete from the starting cash', ['Mat_Activate_Cashier', 'Mat_Activate_Tomato_Shelf', 'Mat_Activate_Plant_Tomato'].every(n => firstDone[n] != null));
+  }
   check('customers buy and pay at the cashier', served >= 20, `${served} served`);
   check('the player stack is upgraded at least once', st.stackLevel >= 1, `level ${st.stackLevel}`);
-  check('every Store 1 mat completes', Object.keys(firstDone).length === store.mats.length,
-    store.mats.filter(m => firstDone[m.name] == null).map(m => m.name).join(', ') || 'all 40');
-  console.log(`    tutorial: ${tasksDone.map(([i, t]) => `${i}@${(t / 60).toFixed(1)}`).join(' ')}`);
-  check('the tutorial has the 15 TaskControllers of Store 1', taskList.length === 15, `${taskList.length} tasks`);
-  check('every tutorial task completes, in order', tasksDone.length === taskList.length && tasksDone.every(([i], k) => i === k),
-    `${tasksDone.length}/${taskList.length}`);
+  check(`every ${STORE} mat completes`, Object.keys(firstDone).length === store.mats.length,
+    store.mats.filter(m => firstDone[m.name] == null).map(m => m.name).join(', ') || `all ${store.mats.length}`);
+  if (FIRST) {
+    console.log(`    tutorial: ${tasksDone.map(([i, t]) => `${i}@${(t / 60).toFixed(1)}`).join(' ')}`);
+    check('the tutorial has the 15 TaskControllers of Store 1', taskList.length === 15, `${taskList.length} tasks`);
+    check('every tutorial task completes, in order', tasksDone.length === taskList.length && tasksDone.every(([i], k) => i === k),
+      `${tasksDone.length}/${taskList.length}`);
+  }
   if (midSave) {
     const back = new Sim(store, { rng: mulberry32(SEED), save: JSON.parse(midSave.json) });
     const doneBack = store.mats.filter(m => back.state.mats[m.name].done).length;

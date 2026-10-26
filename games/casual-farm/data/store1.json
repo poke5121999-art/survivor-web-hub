@@ -11,10 +11,7 @@
     "Mat_Activate_Tomato_Shelf"
    ],
    "delays": [],
-   "highlight": [
-    "null",
-    "null"
-   ]
+   "highlight": []
   },
   {
    "name": "Mat_Activate_Tomato_Shelf",
@@ -26,10 +23,7 @@
     "Mat_Activate_Plant_Tomato"
    ],
    "delays": [],
-   "highlight": [
-    "null",
-    "null"
-   ]
+   "highlight": []
   },
   {
    "name": "Mat_Activate_Plant_Tomato",
@@ -41,10 +35,7 @@
     "_CustomerAgent_2"
    ],
    "delays": [],
-   "highlight": [
-    "null",
-    "null"
-   ]
+   "highlight": []
   },
   {
    "name": "Mat_Activate_Plant_Tomato2",
@@ -57,8 +48,7 @@
    ],
    "delays": [],
    "highlight": [
-    "Mat_Activate_Egg_Shelf",
-    "null"
+    "Mat_Activate_Egg_Shelf"
    ]
   },
   {
@@ -70,10 +60,7 @@
     "Mat_Activate_Chicken"
    ],
    "delays": [],
-   "highlight": [
-    "null",
-    "null"
-   ]
+   "highlight": []
   },
   {
    "name": "Mat_Activate_Chicken",
@@ -86,8 +73,7 @@
    ],
    "delays": [],
    "highlight": [
-    "Mat_Unlock_Worker_ShelfA",
-    "null"
+    "Mat_Unlock_Worker_ShelfA"
    ]
   },
   {
@@ -103,8 +89,7 @@
     5.0
    ],
    "highlight": [
-    "_Worker_ShelfA",
-    "null"
+    "_Worker_ShelfA"
    ]
   },
   {
@@ -117,8 +102,7 @@
    ],
    "delays": [],
    "highlight": [
-    "Mat_Activate_Blender",
-    "null"
+    "Mat_Activate_Blender"
    ]
   },
   {
@@ -146,8 +130,7 @@
    ],
    "delays": [],
    "highlight": [
-    "_Worker_CashierA",
-    "null"
+    "_Worker_CashierA"
    ]
   },
   {
@@ -159,10 +142,7 @@
     "Mat_Activate_Plant_Tomato3"
    ],
    "delays": [],
-   "highlight": [
-    "null",
-    "null"
-   ]
+   "highlight": []
   },
   {
    "name": "Mat_Activate_Plant_Tomato3",
@@ -173,10 +153,7 @@
     "Mat_Activate_Plant_Tomato4"
    ],
    "delays": [],
-   "highlight": [
-    "null",
-    "null"
-   ]
+   "highlight": []
   },
   {
    "name": "Mat_Activate_Plant_Tomato4",
@@ -186,10 +163,7 @@
     "Plant_Tomato4"
    ],
    "delays": [],
-   "highlight": [
-    "null",
-    "null"
-   ]
+   "highlight": []
   },
   {
    "name": "Mat_Activate_StoreTile1",
@@ -204,10 +178,7 @@
     0.0,
     3.0
    ],
-   "highlight": [
-    "null",
-    "null"
-   ]
+   "highlight": []
   },
   {
    "name": "Mat_Activate_Wheat_Shelf",
@@ -218,10 +189,7 @@
     "Mat_Activate_Plant_Wheat1"
    ],
    "delays": [],
-   "highlight": [
-    "null",
-    "null"
-   ]
+   "highlight": []
   },
   {
    "name": "Mat_Activate_Plant_Wheat1",
@@ -234,10 +202,7 @@
     "_CustomerAgent_5"
    ],
    "delays": [],
-   "highlight": [
-    "null",
-    "null"
-   ]
+   "highlight": []
   },
   {
    "name": "Mat_Activate_Plant_Wheat2",
@@ -249,10 +214,7 @@
     "_ActivateCarCustomer"
    ],
    "delays": [],
-   "highlight": [
-    "null",
-    "null"
-   ]
+   "highlight": []
   },
   {
    "name": "Mat_Activate_Plant_Wheat3",
@@ -265,8 +227,7 @@
    ],
    "delays": [],
    "highlight": [
-    "Mat_Activate_Fridge_Shelf",
-    "null"
+    "Mat_Activate_Fridge_Shelf"
    ]
   },
   {
@@ -282,10 +243,7 @@
     0.0,
     3.0
    ],
-   "highlight": [
-    "null",
-    "null"
-   ]
+   "highlight": []
   },
   {
    "name": "Mat_Activate_Bread_Shelf",
@@ -298,10 +256,7 @@
     "Mat_Unlock_Worker_ShelfB"
    ],
    "delays": [],
-   "highlight": [
-    "null",
-    "null"
-   ]
+   "highlight": []
   },
   {
    "name": "Mat_Activate_Oven_Tabletop",
@@ -313,8 +268,7 @@
    ],
    "delays": [],
    "highlight": [
-    "Mat_Activate_NextMart",
-    "null"
+    "Mat_Activate_NextMart"
    ]
   },
   {
@@ -326,10 +280,7 @@
     "Mat_Activate_Plant_Wheat8"
    ],
    "delays": [],
-   "highlight": [
-    "null",
-    "null"
-   ]
+   "highlight": []
   },
   {
    "name": "Mat_Activate_Plant_Wheat8",
@@ -340,10 +291,7 @@
     "Mat_Activate_Plant_Wheat9"
    ],
    "delays": [],
-   "highlight": [
-    "null",
-    "null"
-   ]
+   "highlight": []
   },
   {
    "name": "Mat_Activate_Plant_Wheat9",
@@ -356,8 +304,7 @@
    ],
    "delays": [],
    "highlight": [
-    "Mat_Unlock_Worker_ChefA",
-    "null"
+    "Mat_Unlock_Worker_ChefA"
    ]
   },
   {
@@ -369,10 +316,7 @@
     "Mat_Activate_Plant_Wheat11"
    ],
    "delays": [],
-   "highlight": [
-    "null",
-    "null"
-   ]
+   "highlight": []
   },
   {
    "name": "Mat_Activate_Plant_Wheat11",
@@ -383,10 +327,7 @@
     "Mat_Activate_Plant_Wheat12"
    ],
    "delays": [],
-   "highlight": [
-    "null",
-    "null"
-   ]
+   "highlight": []
   },
   {
    "name": "Mat_Activate_Plant_Wheat12",
@@ -396,10 +337,7 @@
     "Plant_Wheat12"
    ],
    "delays": [],
-   "highlight": [
-    "null",
-    "null"
-   ]
+   "highlight": []
   },
   {
    "name": "Mat_Activate_NextMart",
@@ -410,8 +348,7 @@
    ],
    "delays": [],
    "highlight": [
-    "Mat_NextMart",
-    "null"
+    "Mat_NextMart"
    ]
   },
   {
@@ -426,8 +363,7 @@
     5.0
    ],
    "highlight": [
-    "_Worker_ChefA",
-    "null"
+    "_Worker_ChefA"
    ]
   },
   {
@@ -440,10 +376,7 @@
     "_CustomerAgent_7"
    ],
    "delays": [],
-   "highlight": [
-    "null",
-    "null"
-   ]
+   "highlight": []
   },
   {
    "name": "Mat_Unlock_Worker_CashierB",
@@ -456,8 +389,7 @@
     3.0
    ],
    "highlight": [
-    "_Worker_CashierB",
-    "null"
+    "_Worker_CashierB"
    ]
   },
   {
@@ -472,8 +404,7 @@
     5.0
    ],
    "highlight": [
-    "_Worker_ShelfB",
-    "null"
+    "_Worker_ShelfB"
    ]
   },
   {
@@ -487,8 +418,7 @@
    ],
    "delays": [],
    "highlight": [
-    "Mat_Activate_Cow",
-    "null"
+    "Mat_Activate_Cow"
    ]
   },
   {
@@ -501,8 +431,7 @@
    ],
    "delays": [],
    "highlight": [
-    "Mat_Unlock_Worker_FarmerA",
-    "null"
+    "Mat_Unlock_Worker_FarmerA"
    ]
   },
   {
@@ -517,8 +446,7 @@
     5.0
    ],
    "highlight": [
-    "_Worker_FarmerA",
-    "null"
+    "_Worker_FarmerA"
    ]
   },
   {
@@ -530,10 +458,7 @@
     "Mat_Activate_WheatMill"
    ],
    "delays": [],
-   "highlight": [
-    "null",
-    "null"
-   ]
+   "highlight": []
   },
   {
    "name": "Mat_Activate_WheatMill",
@@ -543,10 +468,7 @@
     "Machine_WheatMill"
    ],
    "delays": [],
-   "highlight": [
-    "null",
-    "null"
-   ]
+   "highlight": []
   },
   {
    "name": "Mat_Activate_Plant_Wheat4",
@@ -561,10 +483,7 @@
     0.0,
     3.0
    ],
-   "highlight": [
-    "null",
-    "null"
-   ]
+   "highlight": []
   },
   {
    "name": "Mat_Activate_Plant_Wheat5",
@@ -575,10 +494,7 @@
     "Mat_Activate_Plant_Wheat6"
    ],
    "delays": [],
-   "highlight": [
-    "null",
-    "null"
-   ]
+   "highlight": []
   },
   {
    "name": "Mat_Activate_Plant_Wheat6",
@@ -589,10 +505,7 @@
     "Mat_Activate_Plant_Wheat7"
    ],
    "delays": [],
-   "highlight": [
-    "null",
-    "null"
-   ]
+   "highlight": []
   }
  ],
  "prices": {

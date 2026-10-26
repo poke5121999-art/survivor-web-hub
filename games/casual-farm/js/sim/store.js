@@ -1,9 +1,18 @@
 // Turns art/<store>/scene.json + data/<store>.json into the static description of one mart: every gameplay entity
 // with its trigger boxes, slot positions and original numbers. Pure data, no THREE; see D:\minimart-ref\rules\*.md
 // for where each number comes from.
-import { worldMatrices, position, apply, Box } from './math.js';
+import { worldMatrices, position, apply, compose, Box } from './math.js';
 
-const PRODUCERS = ['FactoryAutoProduceController', 'FactoryInputProduceController', 'FactoryDualInputController'];
+const PRODUCERS = ['FactoryAutoProduceController', 'FactoryInputProduceController', 'FactoryDualInputController',
+  'FactoryTripleInputController', 'FactoryQuadInputController', 'FactoryFishPond', 'FactoryAutoHarvester'];
+// Input fields by class (production2.md): each MatInputController child, in order, takes the next input type.
+const INPUT_FIELDS = {
+  FactoryInputProduceController: ['inputObjectType'], FactoryFishPond: ['inputObjectType'],
+  FactoryDualInputController: ['inputObjectType', 'inputObjectType_2'],
+  FactoryTripleInputController: ['inputObjectType', 'inputObjectType_2', 'inputObjectType_3'],
+  FactoryQuadInputController: ['inputObjectType', 'inputObjectType_2', 'inputObjectType_3', 'inputObjectType_4'],
+};
+// FactoryAutoHarvester (production2.md): out and back legs of 2.5 s each; cargo by level lives in sim.js.
 const MATS = ['MatActivateController', 'MatSpecialConditionActivateController', 'MatUnlockUpgradeController'];
 const SHELVES = ['ShelfController', 'ShelfFridgeController'];
 // FactoryInputProduceController.UpdateInputAndOutputUI: animals use inputAndOutputLimitList[level], machines 4/6/8.
@@ -50,7 +59,10 @@ export function buildStore(scene, data) {
   const mats = [], producers = [], shelves = [], cashiers = [], trash = [], coins = [];
   const matRows = new Map((data.mats || []).map(m => [m.name, m]));
 
+  // Mat prefabs exported under "__Prefabs" (Stores 9-14) are templates, not scene mats.
+  const prefabs = new Set(byName.has('__Prefabs') ? [byName.get('__Prefabs'), ...descendants(byName.get('__Prefabs'))] : []);
   nodes.forEach((n, i) => {
+    if (prefabs.has(i)) return;
     const mc = compOf(i, MATS);
     if (mc) {
       const f = comp(i, mc);
@@ -72,16 +84,26 @@ export function buildStore(scene, data) {
     if (pc) {
       const f = comp(i, pc);
       const outMat = findDesc(i, 'MatOutputController');
-      const inMat = findDesc(i, 'MatInputController');
-      const auto = pc === 'FactoryAutoProduceController';
-      const ins = auto ? [] : pc === 'FactoryDualInputController' ? [f.inputObjectType ?? 0, f.inputObjectType_2 ?? 0] : [f.inputObjectType ?? 0];
-      const limit = auto ? f.currentInputAndOutputLimit
+      const inMats = descendants(i).filter(j => comp(j, 'MatInputController'));
+      const kind = pc === 'FactoryAutoProduceController' ? 'auto' : pc === 'FactoryAutoHarvester' ? 'harvest' : 'input';
+      const ins = (INPUT_FIELDS[pc] || []).map(k => f[k] ?? 0);
+      const limit = kind === 'auto' ? f.currentInputAndOutputLimit
         : (f.factoryType === 2 && f.inputAndOutputLimitList && f.inputAndOutputLimitList.length ? f.inputAndOutputLimitList[0] : MACHINE_LIMITS[0]);
       const outSlots = outMat != null ? slotsUnder(outMat, 'SlotOutputController') : [];
+      // Limit by stack level (production.md): animals use inputAndOutputLimitList, machines and trucks 4/6/8, plants fixed.
+      const limits = kind === 'auto' ? [limit] : f.factoryType === 2 && f.inputAndOutputLimitList && f.inputAndOutputLimitList.length
+        ? f.inputAndOutputLimitList : MACHINE_LIMITS;
       producers.push({
-        name: n.n, node: i, kind: auto ? 'auto' : 'input', out: f.outputObjectTypeToProduce, ins, time: f.desiredProductionLength,
+        name: n.n, node: i, kind, out: f.outputObjectTypeToProduce, ins, time: f.desiredProductionLength,
         limit: Math.min(limit, Math.max(outSlots.length, 1)), outZone: outMat != null ? box(outMat) : null, outSlots,
-        inZone: inMat != null ? box(inMat) : null, inSlots: inMat != null ? slotsUnder(inMat, 'SlotInputController') : [],
+        limits: limits.map(l => Math.min(l, Math.max(outSlots.length, 1))), title: f.factoryName || n.n,
+        // The upgrade menu lists machines (factoryType 1) and trucks; plants and animals stay off it (upgrades.md).
+        upgradable: kind === 'harvest' || (kind === 'input' && f.factoryType !== 2),
+        inputs: ins.map((type, k) => {
+          const j = inMats[Math.min(k, inMats.length - 1)];
+          return { type, zone: j != null ? box(j) : null, slots: j != null ? slotsUnder(j, 'SlotInputController') : [] };
+        }),
+        truck: kind === 'harvest' ? { node: ref(f.truckTransform), drip: f.dropOffRate || 0.2, leg: 2.5 } : null,
         spawn: f.factoryOutputSlot && ref(f.factoryOutputSlot) != null ? pos(ref(f.factoryOutputSlot)) : pos(i),
         moveTime: f.lerpDurationForOutput ?? 0.5, workerSlot: ref(f.workerSlot) != null ? pos(ref(f.workerSlot)) : pos(i),
         inputWorkerSlot: ref(f.inputWorkerSlot) != null ? pos(ref(f.inputWorkerSlot)) : null,
@@ -127,6 +149,45 @@ export function buildStore(scene, data) {
       coins.push({ name: n.n, node: i, amount: oc.Amount || 1, pos: pos(i), zone: box(i) });
     }
   });
+
+  // Stores 9-14 (progression-data.md): ProgressionData clones a mat prefab per CSV row at Awake. Worker, cashier and
+  // next-mart rows take the upgrade-style prefab. Placement: a store tile's zoom-out transform at scale 1.5, else the
+  // item's matPos placeholder, else the object's local offset by name (machine 2 m, plant/worker 0, other 6 m in front).
+  const UPGRADE_PREFAB = ['PlayerWorkerAgentController', 'PlayerWorkerFarmController', 'PlayerWorkerChefController',
+    'WorkerCashierController', 'MatNextStore'];
+  const label = (obj, name) => (comp(obj, 'WorkerCashierController') ? 'CASHIER' : comp(obj, 'MatNextStore') ? 'Next Mart'
+    : /shel/i.test(name) ? 'SHELVER' : /chef/i.test(name) ? 'CHEF' : /farmer/i.test(name) ? 'FARMER' : /cleaner/i.test(name) ? 'CLEANER' : '');
+  (data.mats || []).forEach((row, k) => {
+    const obj = row.object != null ? byName.get(row.object) : null;
+    if (obj == null || byName.has(row.name)) return;
+    const upgrade = UPGRADE_PREFAB.some(c => comp(obj, c));
+    const kind = upgrade ? 'MatUnlockUpgradeController' : 'MatActivateController';
+    const template = byName.get(upgrade ? 'Mat_ActivateUpgrade' : 'Mat_Activate');
+    if (template == null) return;
+    const tile = comp(obj, 'StoreTileController'), item = comp(obj, 'ProgressionDataItem');
+    let m;
+    if (tile && tile.zoomOutHighglightTransform) {
+      const p = pos(tile.zoomOutHighglightTransform.n);
+      m = compose([p.x, p.y, p.z], [0, 0, 0, 1], [1.5, 1.5, 1.5]);
+    } else if (item && item.matPos) {
+      m = world[item.matPos.n];
+    } else {
+      const lower = row.object.toLowerCase();
+      const p = apply(world[obj], { x: 0, y: 0, z: lower.startsWith('machine') ? 2 : /plant|worker/.test(lower) ? 0 : 6 });
+      m = compose([p.x, p.y, p.z]);
+    }
+    mats.push({
+      name: row.name, node: null, template, matrix: m, object: row.object, kind, cost: row.cost,
+      zone: new Box(m, comp(template, 'BoxCollider')), pos: position(m), startsOpen: k === 0,
+      activate: row.activate.map(name => ({ name, delay: 1 })), waitFor: [], highlight: row.highlight,
+      upgradeType: upgrade ? label(obj, row.object) : null, noPayFor: 0,
+    });
+  });
+
+  // Upgrade base price P / W: when a mat activates a MasterController it hands it its objectTypeReq through the first
+  // virtual (MatActivateController.c:1939, UpdateUpgradePrice), so the base is the price of the mat that unlocked it.
+  const unlockCost = name => (mats.find(m => m.activate.some(a => a.name === name)) || {}).cost || 0;
+  producers.forEach(p => { p.basePrice = unlockCost(p.name); });
 
   function findAnimator(i) {
     if (comp(i, 'Animator')) return i;
@@ -174,13 +235,20 @@ export function buildStore(scene, data) {
     return o._gates;
   }
 
+  // MatNextStore pad (sound-thief-nextmart.md): stand on it `timer` s to open the Go / Close menu; the van leaves.
+  const nmNode = nodes.findIndex((n, i) => comp(i, 'MatNextStore'));
+  const nextMart = nmNode < 0 ? null : (f => ({
+    name: nodes[nmNode].n, node: nmNode, zone: box(nmNode), time: f.timer ?? 1.5, van: ref(f.vanTransform), left: !!f.shouldMoveLeft,
+  }))(comp(nmNode, 'MatNextStore'));
+
   const playerNode = byName.get('Player_Chef');
   const player = comp(playerNode, 'PlayerHumanController');
   const upgradeNode = byName.get('UpgradeZone_Player');
   const prices = Object.fromEntries(Object.entries(data.prices || {}).map(([k, v]) => [k, v.price]));
 
   return {
-    nodes, world, byName, children, mats, producers, shelves, cashiers, trash, coins, activatedLater, prices, customers,
+    unlockCost,
+    nodes, world, byName, children, mats, producers, shelves, cashiers, trash, coins, activatedLater, prices, customers, nextMart,
     quotas: Object.fromEntries(Object.entries(data.prices || {}).map(([k, v]) => [k, v.quota])),
     player: {
       node: playerNode, start: pos(playerNode), speed: player.speed, pickupRate: player.pickupRate,

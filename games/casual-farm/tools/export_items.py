@@ -13,7 +13,7 @@ import json, os, re, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import mm  # noqa: E402
-from export_store import GLB, read_mesh, material_entry, log  # noqa: E402
+from export_store import GLB, read_mesh, material_entry, log, save_texture  # noqa: E402
 
 GAME = os.path.dirname(HERE)
 
@@ -72,9 +72,9 @@ def main():
     textures = []
 
     def tex_ref(pptr):
-        t = pptr.read()
-        textures.append(t.m_Name)
-        return t.m_Name
+        name, _ = save_texture(pptr.read(), os.path.join(GAME, "art", "tex"))
+        textures.append(name)
+        return name
 
     def prefab_part(ref):
         """(MeshFilter mesh, material) of a prefab's MyObjectController, or of its first child that has a mesh."""

@@ -10,6 +10,13 @@ const tmp = new THREE.Vector3();
 const UP = new THREE.Vector3(0, 1, 0);
 const CASH_LAYER_STEP = 0.45;
 const POP_TIME = 0.25;
+// DOTween eases used by the original's moves.
+const EASE = {
+  linear: t => t,
+  inBack: t => 2.70158 * t * t * t - 1.70158 * t * t,
+  inCirc: t => 1 - Math.sqrt(1 - t * t),
+  outCirc: t => Math.sqrt(1 - (t - 1) * (t - 1)),
+};
 
 export class GameView {
   constructor({ world, store, sim, items, itemsGltf, texBase, anim }) {
@@ -21,6 +28,7 @@ export class GameView {
     this.root = world.root;
     this.flights = [];
     this.pops = [];
+    this.tweens = [];
     this.started = false;
     this.byIndex = world.objects;
 
@@ -56,6 +64,31 @@ export class GameView {
     this.workerViews = new Map();
     this.agentTemplates = new Map(store.customers.agents.map(a => [a.name, this.obj(a.node)]));
     this.stacks = new Map();
+    // CSV-built mats (Stores 9-14) are clones of the prefab under "__Prefabs", placed where ProgressionData puts them.
+    for (const m of store.mats) {
+      if (m.template == null) continue;
+      const o = this.cloneObject(this.obj(m.template));
+      o.matrix.fromArray(m.matrix);
+      o.matrix.decompose(o.position, o.quaternion, o.scale);
+      o.name = m.name;
+      o.visible = false;
+      this.root.add(o);
+      world.byName.set(m.name, o);
+    }
+  }
+
+  // Object3D.copy deep-copies userData through JSON, and a Rig points back at its object: lift rigs off first and
+  // give the clone its own rigs on the same controllers.
+  cloneObject(template) {
+    const rigs = [];
+    template.traverse(x => { if (x.userData.rig) { rigs.push([x, x.userData.rig]); delete x.userData.rig; } });
+    let o;
+    try { o = cloneSkinned(template); } finally { rigs.forEach(([x, r]) => { x.userData.rig = r; }); }
+    const ctrlByName = new Map(rigs.map(([x, r]) => [x.name, r.ctrl]));
+    o.traverse(x => {
+      if (ctrlByName.has(x.name)) x.userData.rig = new Rig(this.anim, x, ctrlByName.get(x.name));
+    });
+    return o;
   }
 
   obj(i) {
@@ -80,6 +113,17 @@ export class GameView {
     this.byIndex.forEach(o => {
       const k = o.userData.node.k || {};
       if (SELF_HIDING.some(c => k[c]) || /^placeholder/i.test(o.name)) o.visible = false;
+    });
+    // Rewarded-video carts (ads are not part of this build) and seasonal decorations: with no season running,
+    // SeasonVisual_GameObject.DisableAllVisualObjects shows the default objects and hides every seasonal one.
+    const AD_ONLY = ['TurThanksgivingRvMat', 'MatRVSpawnerController', 'AdsBoxesSpawner'];
+    this.byIndex.forEach(o => {
+      const k = o.userData.node.k || {};
+      if (AD_ONLY.some(c => k[c])) o.visible = false;
+      for (const c of ['__Funflare.Scripts.SeasonalEvents.SeasonVisual_GameObject', '__Funflare.Scripts.SeasonalEvents.SeasonVisual_GameObject_Randomized']) {
+        if (!k[c]) continue;
+        (k[c].seasonalVisuals || []).forEach(v => (v.visuals || []).forEach(r => { if (r && r.n != null) this.obj(r.n).visible = false; }));
+      }
     });
     const ph = this.player && this.player.userData.node.k && this.player.userData.node.k.PlayerHumanController;
     if (ph) for (const f of ['netTransform', 'dottedIndicatorObj', 'thiefRadarInstance', 'objectiveRadarInstance', 'vanCarObj', 'speedBoostLeft', 'speedBoostRight']) {
@@ -137,7 +181,8 @@ export class GameView {
     for (const e of sim.events) this.onEvent(e);
     sim.events.length = 0;
 
-    for (const name of store.activatedLater) {
+    // Mats too: the first one starts open (not "activated later") and every mat hides once bought.
+    for (const name of this.toggled || (this.toggled = new Set([...store.activatedLater, ...store.mats.map(m => m.name)]))) {
       const o = this.named(name);
       if (!o) continue;
       const on = st.active.has(name);
@@ -146,6 +191,7 @@ export class GameView {
     }
     this.started = true;
     this.updatePops(dt);
+    this.updateTweens(dt);
     store.coins.forEach((c, i) => { this.obj(c.node).visible = !st.coins[i].taken; });
 
     this.placeAgent(this.player, st.player);
@@ -160,9 +206,13 @@ export class GameView {
       const out = [];
       ps.out.forEach((t, k) => { if (t != null) out.push({ t, k }); });
       this.syncStack(`out${i}`, out.map(o => o.t), (g, k) => { const sp = p.outSlots[out[k].k]; g.position.set(sp.x, sp.y, sp.z); });
-      const ins = [];
-      p.ins.forEach(t => { for (let n = 0; n < (ps.inputs[t] || 0); n++) ins.push(t); });
-      this.syncStack(`in${i}`, ins, (g, k) => { const sp = p.inSlots[k % Math.max(p.inSlots.length, 1)] || p.spawn; g.position.set(sp.x, sp.y, sp.z); });
+      p.inputs.forEach((inp, k) => {
+        const n = ps.inputs[inp.type] || 0;
+        this.syncStack(`in${i}.${k}`, new Array(n).fill(inp.type), (g, j) => {
+          const sp = inp.slots[j % Math.max(inp.slots.length, 1)] || p.spawn;
+          g.position.set(sp.x, sp.y, sp.z);
+        });
+      });
     });
     store.shelves.forEach((sh, i) => {
       const n = st.shelves[i].count;
@@ -177,6 +227,7 @@ export class GameView {
       });
     });
 
+    this.updateThief(dt);
     this.updateCustomers(dt);
     this.updateWorkers(dt);
     this.updateFlights(dt);
@@ -209,6 +260,26 @@ export class GameView {
     });
   }
 
+  // Local position (and optionally scale) tween of one object: {o, key, to, dur, delay, ease, scale, done}.
+  tween(o, opts) {
+    if (!o) return;
+    this.tweens = this.tweens.filter(t => t.o !== o || t.key !== opts.key);
+    this.tweens.push({ ...opts, o, t: -(opts.delay || 0), from: o.position.clone(), ease: EASE[opts.ease || 'linear'] });
+  }
+
+  updateTweens(dt) {
+    this.tweens = this.tweens.filter(tw => {
+      tw.t += dt;
+      if (tw.t < 0) return true;
+      if (!tw.started) { tw.started = true; tw.from = tw.o.position.clone(); if (tw.start) tw.start(); }
+      const k = Math.min(tw.t / tw.dur, 1), e = tw.ease(k);
+      if (tw.to) tw.o.position.lerpVectors(tw.from, tw.to, e);
+      if (k < 1) return true;
+      if (tw.done) tw.done();
+      return false;
+    });
+  }
+
   // --- customers -------------------------------------------------------------------------------------------------
   customerObject(c) {
     let v = this.customerViews.get(c.id);
@@ -220,15 +291,8 @@ export class GameView {
       o = template;
     } else {
       clone = true;
-      // Object3D.copy deep-copies userData through JSON, and a Rig points back at its object: lift rigs off first.
-      const rigs = [];
-      template.traverse(x => { if (x.userData.rig) { rigs.push([x, x.userData.rig]); delete x.userData.rig; } });
-      try { o = cloneSkinned(template); } finally { rigs.forEach(([x, r]) => { x.userData.rig = r; }); }
+      o = this.cloneObject(template);
       template.parent.add(o);
-      const ctrlByName = new Map(rigs.map(([x, r]) => [x.name, r.ctrl]));
-      o.traverse(x => {
-        if (ctrlByName.has(x.name)) x.userData.rig = new Rig(this.anim, x, ctrlByName.get(x.name));
-      });
     }
     o.visible = true;
     v = { obj: o, rig: this.rigOf(o), id: c.id, clone };
@@ -259,6 +323,37 @@ export class GameView {
       if (v.clone) v.obj.parent.remove(v.obj);
       this.customerViews.delete(id);
     }
+  }
+
+  // --- thief: a customer body carrying the stolen coins; the player shows the net while chasing ----------------------
+  updateThief(dt) {
+    const th = this.sim.state.thief, a = th && th.agent;
+    if (this.net === undefined) {
+      const ph = this.store.comp(this.store.player.node, 'PlayerHumanController');
+      this.net = ph && ph.netTransform ? this.obj(ph.netTransform.n) : null;
+    }
+    if (this.net) this.net.visible = !!(th && th.chasing);
+    if (!a) {
+      if (this.thiefView) {
+        this.thiefView.obj.visible = false;
+        this.syncStack('thief', [], () => {}, this.thiefView.slot);
+      }
+      return;
+    }
+    if (!this.thiefView) {
+      const template = [...this.agentTemplates.values()][0];
+      const o = this.cloneObject(template);
+      template.parent.add(o);
+      this.thiefView = { obj: o, rig: this.rigOf(o), slot: o.getObjectByName('BoxTransformSlot') || o };
+    }
+    const v = this.thiefView;
+    v.obj.visible = true;
+    this.placeAgent(v.obj, a);
+    if (v.rig) {
+      v.rig.play(a.moving ? (a.carried ? 'WalkingCarry' : 'Walking') : (a.carried ? 'Idle_Carry' : 'Idle'));
+      v.rig.update(dt);
+    }
+    this.syncStack('thief', new Array(Math.min(a.carried, 20)).fill(11), (g, k) => { g.position.set(0, CASH_LAYER_STEP * k, 0); }, v.slot);
   }
 
   // --- workers ---------------------------------------------------------------------------------------------------
@@ -298,6 +393,26 @@ export class GameView {
         if (r) r.play('Idle');
         break;
       }
+      case 'depart': {
+        // MatNextStore.FillUpCompleted: player hidden, van DOLocalMoveX +-50 over 1.5 s (InBack) after 1.0 s.
+        if (this.player) this.player.visible = false;
+        const nm = this.store.nextMart, van = nm && nm.van != null ? this.obj(nm.van) : null;
+        if (van) this.tween(van, { key: 'van', to: van.position.clone().add(new THREE.Vector3(nm.left ? -50 : 50, 0, 0)), dur: 1.5, delay: 1, ease: 'inBack' });
+        break;
+      }
+      case 'truck': {
+        // FactoryAutoHarvester: truck slides along its local Z to -150 (Unity) and hides, then comes back to 0.
+        const p = this.store.producers[e.producer], tr = p.truck && p.truck.node != null ? this.obj(p.truck.node) : null;
+        if (!tr) break;
+        if (!tr.userData.home) tr.userData.home = { pos: tr.position.clone(), scale: tr.scale.clone() };
+        const home = tr.userData.home;
+        if (e.move === 'out') {
+          this.tween(tr, { key: 'truck', to: home.pos.clone().add(new THREE.Vector3(0, 0, 150)), dur: 2, delay: 0.5, ease: 'inCirc', done: () => { tr.visible = false; } });
+        } else if (e.move === 'back') {
+          this.tween(tr, { key: 'truck', to: home.pos.clone(), dur: 2, delay: 0.5, ease: 'outCirc', start: () => { tr.visible = true; } });
+        }
+        break;
+      }
       case 'produced': {
         const p = this.store.producers[e.producer];
         this.fly(`out${e.producer}`, null, p.spawn, e.move, e.item, 0);
@@ -309,7 +424,7 @@ export class GameView {
       case 'drop': {
         const from = this.worldOfStack('player', e.from) || { x: this.sim.state.player.x, y: 3, z: this.sim.state.player.z };
         if (e.to.kind === 'shelf') this.fly(`shelf${e.to.i}`, e.slot, from, 0.35, e.item, 3);
-        else if (e.to.kind === 'producer') this.fly(`in${e.to.i}`, null, from, 0.35, e.item, 3);
+        else if (e.to.kind === 'producer') this.fly(`in${e.to.i}.${e.to.k}`, null, from, 0.35, e.item, 3);
         else this.fly(null, null, from, 0.35, e.item, 3, this.store.trash[e.to.i].pos);
         break;
       }

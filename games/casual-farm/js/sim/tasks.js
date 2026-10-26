@@ -32,8 +32,8 @@ export function buildTasks(store) {
 
 export function matArrows(store) {
   return store.mats.map(m => {
-    const f = store.comp(m.node, m.kind);
-    return f.enableArrowSlotWhenActivated && f.arrowSlot ? store.pos(f.arrowSlot.n) : null;
+    const f = m.node != null ? store.comp(m.node, m.kind) : null;
+    return f && f.enableArrowSlotWhenActivated && f.arrowSlot ? store.pos(f.arrowSlot.n) : null;
   });
 }
 

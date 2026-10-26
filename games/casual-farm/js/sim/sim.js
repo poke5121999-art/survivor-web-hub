@@ -15,8 +15,25 @@ export function carryLimit(level) {
   return level < 4 ? level + 3 : 7;
 }
 
+// Upgrade tables (upgrades.md). Factory: speed x1.2..1.8 at P*1.8/2.1/2.4/3.0, stack (limit) at P*1.6/2.2.
+// Worker: speed 9/11/13/15 at W*1.4/1.7/2.0, carry 3..6 at W*1.2/1.5/1.8. One button buys the lower track first.
+const FACTORY_SPEED = [1, 1.2, 1.4, 1.6, 1.8], FACTORY_SPEED_PRICE = [1.8, 2.1, 2.4, 3.0], FACTORY_STACK_PRICE = [1.6, 2.2];
+const WORKER_SPEED = [9, 11, 13, 15], WORKER_SPEED_PRICE = [1.4, 1.7, 2.0], WORKER_STACK_PRICE = [1.2, 1.5, 1.8];
+const TRUCK_CARGO = [8, 10, 12];
+export const UPGRADE = { FACTORY_SPEED, WORKER_SPEED };
+
+// Next purchase on a slot: speed while speed level <= stack level, else stack; a maxed track yields to the other.
+function nextStep(lv, speedPrices, stackPrices, base) {
+  const sp = lv.speed < speedPrices.length, st = lv.stack < stackPrices.length;
+  if (!sp && !st) return null;
+  const track = sp && (!st || lv.speed <= lv.stack) ? 'speed' : 'stack';
+  const k = track === 'speed' ? speedPrices[lv.speed] : stackPrices[lv.stack];
+  return { track, price: Math.trunc(base * k) };
+}
+
 export class Sim {
-  constructor(store, { rng = Math.random, save = null } = {}) {
+  // `cash` is what the player brings in: money is global across marts (progression.md, Next mart).
+  constructor(store, { rng = Math.random, save = null, cash = 0 } = {}) {
     this.store = store;
     this.rng = rng;
     this.events = [];
@@ -24,16 +41,18 @@ export class Sim {
     this.timers = [];
     this.systems = [];
     const s = this.state = {
-      t: 0, cash: 0, stackLevel: 0,
+      t: 0, cash, stackLevel: 0,
       player: { x: store.player.start.x, y: 0, z: store.player.start.z, dirX: 0, dirZ: 1, moving: false, frozen: 0 },
       carry: [],
       active: new Set(),
       mats: Object.fromEntries(store.mats.map(m => [m.name, { open: false, done: false, paid: 0, anim: 0, openAt: 0 }])),
-      producers: store.producers.map(p => ({ out: new Array(p.outSlots.length).fill(null), inputs: {}, timer: 0, busy: false, making: null })),
+      producers: store.producers.map(p => ({ out: new Array(p.outSlots.length).fill(null), inputs: {}, timer: 0, busy: false, making: null, phase: null, cargo: 0 })),
       shelves: store.shelves.map(() => ({ count: 0 })),
       cashiers: store.cashiers.map(() => ({ cash: 0, worker: false, playerOn: false })),
       coins: store.coins.map(() => ({ taken: false })),
       upgrade: { present: 0, paid: 0, cooldownUntil: 0 },
+      next: { t: 0, ready: false, closed: false, gone: false },
+      levels: { producers: store.producers.map(() => ({ speed: 0, stack: 0 })), workers: {} },
       drain: { delay: 0, rate: 0, mult: 1, inc: 0, amount: 1, step: 0, stop: false, target: null },
       acc: { pick: 0, drop: 0, coin: 0 },
       tick: 0,
@@ -74,7 +93,7 @@ export class Sim {
       this.state.active.add(name);
       this.emit({ type: 'activate', name });
       const pi = this.store.producers.findIndex(p => p.name === name);
-      if (pi >= 0 && this.store.producers[pi].kind === 'auto') this.tryStart(pi);
+      if (pi >= 0 && this.store.producers[pi].kind !== 'input') this.tryStart(pi);
     });
   }
 
@@ -112,6 +131,13 @@ export class Sim {
   tryStart(pi) {
     const p = this.store.producers[pi], ps = this.state.producers[pi];
     if (ps.busy || !this.state.active.has(p.name)) return;
+    if (p.kind === 'harvest') {
+      // FactoryAutoHarvester.Update: a new run starts only once the truck is empty.
+      if (ps.phase || ps.cargo > 0) return;
+      Object.assign(ps, { phase: 'out', busy: true, timer: 0 });
+      this.emit({ type: 'truck', producer: pi, move: 'out' });
+      return;
+    }
     const free = this.freeOutSlot(pi);
     if (free < 0) return;
     if (p.kind !== 'auto') {
@@ -126,16 +152,17 @@ export class Sim {
 
   freeOutSlot(pi) {
     const p = this.store.producers[pi], ps = this.state.producers[pi];
-    for (let k = 0; k < Math.min(ps.out.length, p.limit); k++) if (ps.out[k] == null) return k;
+    for (let k = 0; k < Math.min(ps.out.length, this.limitOf(pi)); k++) if (ps.out[k] == null) return k;
     return -1;
   }
 
   stepProducers(dt) {
     this.store.producers.forEach((p, pi) => {
       const ps = this.state.producers[pi];
+      if (p.kind === 'harvest') { this.stepHarvester(pi, dt); return; }
       if (!ps.busy) return;
       ps.timer += dt;
-      if (ps.timer < p.time) return;
+      if (ps.timer < this.timeOf(pi)) return;
       ps.busy = false;
       const k = this.freeOutSlot(pi);
       if (k < 0) return;
@@ -146,10 +173,86 @@ export class Sim {
     });
   }
 
+  // Truck round trip (production2.md): the harvest timer includes the out leg, cargo appears when the truck is away,
+  // the back leg follows the timer, then one item drips into the output mat every `drip` s while a slot is free.
+  stepHarvester(pi, dt) {
+    const p = this.store.producers[pi], ps = this.state.producers[pi], T = p.truck;
+    if (ps.phase === 'out' || ps.phase === 'away') {
+      ps.timer += dt;
+      if (ps.phase === 'out' && ps.timer >= T.leg) { ps.phase = 'away'; ps.cargo = TRUCK_CARGO[this.state.levels.producers[pi].stack]; }
+      if (ps.timer >= this.timeOf(pi)) {
+        Object.assign(ps, { phase: 'back', timer: 0 });
+        this.emit({ type: 'truck', producer: pi, move: 'back' });
+      }
+    } else if (ps.phase === 'back') {
+      ps.timer += dt;
+      if (ps.timer >= T.leg) {
+        Object.assign(ps, { phase: 'drip', timer: 0, busy: false });
+        this.emit({ type: 'truck', producer: pi, move: 'stop' });
+      }
+    } else if (ps.phase === 'drip') {
+      ps.timer += dt;
+      if (ps.timer < T.drip) return;
+      ps.timer = 0;
+      if (ps.cargo <= 0) {
+        ps.phase = null;
+        this.tryStart(pi);
+        return;
+      }
+      const k = this.freeOutSlot(pi);
+      if (k < 0) return;
+      ps.cargo--;
+      ps.out[k] = p.out;
+      this.emit({ type: 'produced', producer: pi, slot: k, item: p.out, move: 0.25 });
+    }
+  }
+
+  limitOf(pi) {
+    const p = this.store.producers[pi];
+    return p.limits[Math.min(this.state.levels.producers[pi].stack, p.limits.length - 1)];
+  }
+
+  timeOf(pi) {
+    return this.store.producers[pi].time / FACTORY_SPEED[this.state.levels.producers[pi].speed];
+  }
+
+  workerLevel(name) {
+    return this.state.levels.workers[name] || (this.state.levels.workers[name] = { speed: 0, stack: 0 });
+  }
+
+  // What the upgrade menu would buy next for a slot: {track, price} or null when maxed.
+  upgradeOffer(slot) {
+    if (slot.kind === 'player') {
+      const prices = this.store.player.stackPrices;
+      return this.state.stackLevel < prices.length ? { track: 'stack', price: prices[this.state.stackLevel] - this.state.upgrade.paid } : null;
+    }
+    if (slot.kind === 'producer') {
+      return nextStep(this.state.levels.producers[slot.i], FACTORY_SPEED_PRICE, FACTORY_STACK_PRICE, this.store.producers[slot.i].basePrice);
+    }
+    return nextStep(this.workerLevel(slot.name), WORKER_SPEED_PRICE, WORKER_STACK_PRICE, slot.base);
+  }
+
+  buyUpgrade(slot) {
+    const offer = this.upgradeOffer(slot);
+    if (!offer || this.state.cash < offer.price) return false;
+    this.state.cash -= offer.price;
+    if (slot.kind === 'player') {
+      this.state.stackLevel++;
+      this.state.upgrade.paid = 0;
+      this.emit({ type: 'upgraded', level: this.state.stackLevel, limit: carryLimit(this.state.stackLevel) });
+      return true;
+    }
+    const lv = slot.kind === 'producer' ? this.state.levels.producers[slot.i] : this.workerLevel(slot.name);
+    lv[offer.track]++;
+    this.emit({ type: 'levelUp', slot, track: offer.track });
+    if (slot.kind === 'producer') this.tryStart(slot.i);
+    return true;
+  }
+
   inputSpace(pi, type) {
     const p = this.store.producers[pi], ps = this.state.producers[pi];
     if (!p.ins.includes(type)) return 0;
-    return p.limit - (ps.inputs[type] || 0);
+    return this.limitOf(pi) - (ps.inputs[type] || 0);
   }
 
   // --- player ---------------------------------------------------------------------------------------------------
@@ -183,7 +286,7 @@ export class Sim {
     const inputs = [], outputs = [];
     s.producers.forEach((pr, i) => {
       if (!st.active.has(pr.name)) return;
-      if (pr.inZone && pr.inZone.contains(p, R)) inputs.push({ kind: 'producer', i });
+      pr.inputs.forEach((inp, k) => { if (inp.zone && inp.zone.contains(p, R)) inputs.push({ kind: 'producer', i, k, type: inp.type }); });
       if (pr.outZone && pr.outZone.contains(p, R)) outputs.push({ kind: 'producer', i });
     });
     s.shelves.forEach((sh, i) => {
@@ -199,11 +302,12 @@ export class Sim {
     });
     const mat = s.mats.find(m => st.mats[m.name].open && st.active.has(m.name) && m.zone && m.zone.contains(p, R));
     const upgrade = s.player.upgradeZone && st.active.has('UpgradeZone_Player') && s.player.upgradeZone.contains(p, R);
-    return { inputs, outputs, cash, mat, upgrade };
+    const next = !!(s.nextMart && st.active.has(s.nextMart.name) && s.nextMart.zone && s.nextMart.zone.contains(p, R));
+    return { inputs, outputs, cash, mat, upgrade, next };
   }
 
   accepts(z, type) {
-    if (z.kind === 'producer') return this.inputSpace(z.i, type) > 0;
+    if (z.kind === 'producer') return z.type === type && this.inputSpace(z.i, type) > 0;
     if (z.kind === 'shelf') {
       const sh = this.store.shelves[z.i];
       return sh.type === type && this.state.shelves[z.i].count < sh.slots.length;
@@ -358,6 +462,31 @@ export class Sim {
     });
   }
 
+  // MatFillUpController: standing on the pad fills it in `time` s, then the menu opens until the player steps off.
+  stepNextMart(dt, zone) {
+    const n = this.state.next;
+    if (n.gone) return;
+    if (!zone.next) {
+      Object.assign(n, { t: 0, ready: false, closed: false });
+      return;
+    }
+    n.t += dt;
+    if (n.t >= this.store.nextMart.time && !n.ready && !n.closed) {
+      n.ready = true;
+      this.emit({ type: 'nextReady' });
+    }
+  }
+
+  // Go on the next-mart menu: the player boards the van (DisappearForNextMart) and control is taken away.
+  depart() {
+    const n = this.state.next;
+    if (n.gone) return;
+    Object.assign(n, { gone: true, ready: false });
+    this.state.player.frozen = Infinity;
+    this.state.player.moving = false;
+    this.emit({ type: 'depart' });
+  }
+
   // Customers pay at the desk: coins pile up to the desk limit, the excess goes straight to the player.
   giveCash(ci, amount) {
     const c = this.state.cashiers[ci];
@@ -384,6 +513,7 @@ export class Sim {
     this.zone = zone;
     this.stepCarry(dt, zone);
     this.stepMoney(dt, zone);
+    this.stepNextMart(dt, zone);
     this.stepProducers(dt);
     for (const sys of this.systems) sys.step(dt, this);
   }
@@ -397,7 +527,7 @@ export class Sim {
       active: [...st.active].filter(n => this.store.activatedLater.has(n)),
       producers: st.producers.map(p => ({ out: p.out.filter(x => x != null).length, inputs: p.inputs })),
       shelves: st.shelves.map(s => s.count), desk: st.cashiers.map(c => c.cash),
-      coins: st.coins.map(c => c.taken ? 1 : 0), carry: st.carry, task: st.task,
+      coins: st.coins.map(c => c.taken ? 1 : 0), carry: st.carry, task: st.task, levels: st.levels,
     };
   }
 
@@ -405,6 +535,10 @@ export class Sim {
     const st = this.state, s = this.store;
     st.cash = d.cash; st.stackLevel = d.stackLevel; st.carry = d.carry || [];
     if (d.task) st.task = { ...d.task, showAt: Math.min(d.task.showAt, 1) };
+    if (d.levels) {
+      (d.levels.producers || []).forEach((l, i) => { if (st.levels.producers[i]) st.levels.producers[i] = l; });
+      st.levels.workers = d.levels.workers || {};
+    }
     if (d.player) { st.player.x = d.player.x; st.player.z = d.player.z; }
     (d.active || []).forEach(n => st.active.add(n));
     s.mats.forEach(m => {

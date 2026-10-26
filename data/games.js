@@ -974,16 +974,17 @@ window.HUB_GAMES = [
   {
     id: "casual-farm",
     title: "My Mini Mart",
-    tagline: "Trồng rau, nuôi gà, xếp kệ, đứng quầy thu tiền và thuê nhân viên cho siêu thị nhỏ.",
-    desc: "Làm lại My Mini Mart (Kiseki Games / Supersonic) từ bản Android 1.89.5, chạy thẳng trên web: nạp khoảng 4 MB thay vì 150 MB, vào là thấy cửa hàng, hình mờ rồi rõ dần. Cửa hàng đầu tiên đầy đủ: nhặt tiền mở quầy, luống cà chua, chuồng gà, máy xay, lò bánh, hái hàng xếp kệ, thu tiền khách, nâng sức mang và thuê nhân viên, có hướng dẫn từng bước như bản gốc. Kéo để đi, lưu trong trình duyệt. Bản Unity cũ vẫn mở được ở unity.html.",
+    tagline: "Trồng rau, nuôi gà bò, xếp kệ, đứng quầy, thuê nhân viên rồi lái xe van mở 14 siêu thị.",
+    desc: "Làm lại My Mini Mart (Kiseki Games / Supersonic) từ bản Android 1.89.5, chạy thẳng trên web: mỗi lần chỉ nạp khoảng 4 MB thay vì 150 MB, vào là thấy cửa hàng, hình mờ rồi rõ dần. Đủ 14 siêu thị nối nhau bằng xe van, từ Grocer Mart tới Campsite Mart: luống rau, chuồng gà bò, máy xay, lò, máy làm burger, xe tải chở bột, xếp kệ, thu tiền, thuê và nâng cấp nhân viên, nâng cấp máy, đuổi bắt kẻ trộm. Có tiếng và nhạc gốc, camera lia tới đồ vừa mở, hướng dẫn từng bước như bản gốc. Kéo để đi, lưu trong trình duyệt. Bản Unity cũ vẫn mở được ở unity.html.",
     genre: "thu-gian",
     accent: "#8bd450",
-    en: { title: "My Mini Mart", tagline: "Grow produce, raise chickens, stock shelves, ring up customers and hire staff for a small mart.", desc: "My Mini Mart (Kiseki Games / Supersonic) remade from the Android 1.89.5 release to run straight in the browser: about 4 MB instead of 150 MB, the store shows at once and sharpens as it loads. The whole first mart: pick up cash to buy the till, tomato beds, the chicken pen, the blender and the oven, stock the shelves, ring customers up, upgrade your carry and hire staff, with the original step-by-step tutorial. Drag to walk, saved in the browser. The old Unity build is still at unity.html." },
+    en: { title: "My Mini Mart", tagline: "Grow produce, raise chickens and cows, stock shelves, run the till, hire staff and drive the van through 14 marts.", desc: "My Mini Mart (Kiseki Games / Supersonic) remade from the Android 1.89.5 release to run straight in the browser: about 4 MB per load instead of 150 MB, the store shows at once and sharpens as it loads. All 14 marts, linked by the van, from Grocer Mart to Campsite Mart: crop beds, chicken and cow pens, blenders, ovens, the burger maker, the flour truck, shelves, the till, hiring and upgrading staff, machine upgrades and chasing the thief. Original sounds and music, the camera pans to what you unlock, and the original step-by-step tutorial. Drag to walk, saved in the browser. The old Unity build is still at unity.html." },
     thumbnail: "assets/thumbnails/casual-farm.png",
     path: "games/casual-farm/index.html",
-    rev: "20261026a",
-    // three.js r160 vendor, no build step; Store 1 rebuilt from the APK (D:/minimart-ref) by games/casual-farm/tools.
-    // Bump rev with: node games/casual-farm/tools/stamp.js <rev>. Kiểm: node test/casual-farm-play.js (MM_URL=<Pages>).
+    rev: "20261027a",
+    // three.js r160 vendor, no build step; all 14 marts of RC_MartOrder rebuilt from the APK (D:/minimart-ref) by
+    // games/casual-farm/tools (export_marts.py, export_audio.py). Bump rev with: node games/casual-farm/tools/stamp.js <rev>.
+    // Kiểm: node test/casual-farm-play.js (MM_URL=<Pages>), MM_STORE=storeN node test/casual-farm-sim.js.
     // The old 150 MB Unity build stays in its own Pages repo (poke5121999-art/my-mini-mart-web), opened by unity.html.
     status: "available",
     tags: ["Nông trại", "Quản lý", "Màn dọc"]

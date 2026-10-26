@@ -32,6 +32,10 @@ export class Bot {
     const carry = st.carry;
     const lim = carryLimit(st.stackLevel);
 
+    // Chase an escaping thief: the stolen coins come back on a catch.
+    const thief = st.thief && st.thief.chasing && st.thief.agent;
+    if (thief) return { kind: 'thief', at: { x: thief.x, y: 0, z: thief.z } };
+
     const customers = st.customers || [];
     const waiting = s.cashiers.map((c, i) => customers.some(cu => cu.cashier === i && (cu.state === 4 || cu.state === 3 || cu.state === 2)) && !st.cashiers[i].worker);
     const deskJobs = s.cashiers.map((c, i) => ({ at: c.desk.middle, i })).filter(j => waiting[j.i] && sim.isActive(s.cashiers[j.i].name));
@@ -43,7 +47,7 @@ export class Bot {
         if (sim.isActive(sh.name) && carry.includes(sh.type) && st.shelves[i].count < sh.slots.length) drops.push({ at: sh.zone.middle, kind: 'drop' });
       });
       s.producers.forEach((p, i) => {
-        if (sim.isActive(p.name) && p.inZone && p.ins.some(t => carry.includes(t) && sim.inputSpace(i, t) > 0)) drops.push({ at: p.inZone.middle, kind: 'drop' });
+        if (sim.isActive(p.name)) p.inputs.forEach(inp => { if (inp.zone && carry.includes(inp.type) && sim.inputSpace(i, inp.type) > 0) drops.push({ at: inp.zone.middle, kind: 'drop' }); });
       });
       if (drops.length && (carry.length >= lim || !this.pickable(carry.length < lim))) return nearest(drops);
       if (!drops.length && carry.length >= lim) {
@@ -103,8 +107,29 @@ export class Bot {
     return false;
   }
 
+  // Upgrade menu: buy a step when it costs less than a third of the cheapest mat still to buy (half for the carry),
+  // but never while an open mat is affordable or just after one completes (the next one opens 1 s later).
+  shop(dt) {
+    this.shopT = (this.shopT || 0) + dt;
+    if (this.shopT < 3) return;
+    this.shopT = 0;
+    const sim = this.sim, s = sim.store, st = sim.state;
+    if (s.mats.some(m => st.mats[m.name].open && m.cost - st.mats[m.name].paid <= st.cash)) { this.calm = 0; return; }
+    this.calm = (this.calm || 0) + 3;
+    if (this.calm < 6) return;
+    const next = Math.min(...s.mats.filter(m => !st.mats[m.name].done).map(m => m.cost), Infinity);
+    const slots = [{ kind: 'player' }];
+    s.producers.forEach((p, i) => { if (p.upgradable && sim.isActive(p.name)) slots.push({ kind: 'producer', i }); });
+    (st.workers || []).forEach(w => { if (w.def.role !== 'cashier') slots.push({ kind: 'worker', name: w.name, base: s.unlockCost(w.name) }); });
+    const best = slots.map(slot => ({ slot, offer: sim.upgradeOffer(slot) }))
+      .filter(x => x.offer && x.offer.price > 0 && x.offer.price <= st.cash && x.offer.price <= next / (x.slot.kind === 'player' ? 2 : 3))
+      .sort((a, b) => a.offer.price - b.offer.price)[0];
+    if (best) sim.buyUpgrade(best.slot);
+  }
+
   step(dt) {
     const sim = this.sim, me = sim.state.player;
+    this.shop(dt);
     this.repath -= dt;
     if (!this.goal || this.repath <= 0) {
       const g = this.choose();
@@ -114,7 +139,7 @@ export class Bot {
         this.path = this.nav ? (this.nav.path({ x: me.x, y: me.y, z: me.z }, g.at) || [g.at]) : [g.at];
         this.held = 0;
       }
-      this.repath = 0.5;
+      this.repath = this.goal.kind === 'thief' ? 0.15 : 0.5;
     }
     while (this.path.length && Math.hypot(this.path[0].x - me.x, this.path[0].z - me.z) < 0.6) this.path.shift();
     if (!this.path.length && this.goal && Math.hypot(this.goal.at.x - me.x, this.goal.at.z - me.z) > 3 && !this.near(this.goal)) {

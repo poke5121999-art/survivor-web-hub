@@ -1,13 +1,15 @@
-"""Export the Store 1 NavMeshData (level1 "NavMesh Surface") to art/store1/navmesh.json.
+"""Export a store's NavMeshData to art/<out-id>/navmesh.json.
 
-Run from this folder:  PYTHONIOENCODING=utf-8 py -3.12 export_navmesh.py
+Run from this folder after export_store.py:  PYTHONIOENCODING=utf-8 py -3.12 export_navmesh.py <out-id>   e.g. store1
+The NavMeshData is the one the scene's "NavMesh Surface" (Unity.AI.Navigation.NavMeshSurface) points at, read from
+art/<out-id>/scene.json.
 
 Tile blob layout (Unity 6000.0.59f2, magic bytes 'VAND' = i32 0x444E4156, version 16), measured:
   header 72 bytes: i32 magic, version, x, y, agentTypeId; polyCount@20, vertCount@24, ...; f32 bmin@44, bmax@56, quant@68
   verts   vertCount * 3 f32, absolute world coords, start at byte 72
   polys   polyCount * 32 bytes: u16 verts[6], u16 neis[6], u32 firstLink, u8 vertCount, u8 area, 2 pad
 Detail meshes, links, BV tree and off-mesh connections follow and are ignored (m_OffMeshLinks is empty).
-NavMeshData m_Position/m_Rotation are identity for this scene (checked at runtime below).
+NavMeshData m_Position/m_Rotation place the tiles (identity in most stores, not in Store_6).
 
 Output is converted once to three.js space: (x,y,z) -> (x,y,-z) and each polygon is wound counter-clockwise seen from +Y
 (right-handed: rotation from +Z towards +X). Adjacency is rebuilt geometrically from shared welded edges, with an
@@ -24,8 +26,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import mm
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-OUT = os.path.join(HERE, "..", "art", "store1", "navmesh.json")
-SCENE = os.path.join(HERE, "..", "art", "store1", "scene.json")
+OUT_ID = sys.argv[1] if len(sys.argv) > 1 else "store1"
+OUT = os.path.join(HERE, "..", "art", OUT_ID, "navmesh.json")
+SCENE = os.path.join(HERE, "..", "art", OUT_ID, "scene.json")
 MAGIC = 0x444E4156  # bytes 'VAND' in the file
 WELD = 1000.0  # 1 mm
 
@@ -110,11 +113,14 @@ def obstacles():
 
 def main():
     mm.load()
-    obj = mm.by_file("sharedassets1.assets")[1568]
+    nodes = json.load(io.open(SCENE, encoding="utf-8"))["nodes"]
+    surf = next(n["k"]["Unity.AI.Navigation.NavMeshSurface"] for n in nodes if n["n"] == "NavMesh Surface")
+    ref = (surf[0] if isinstance(surf, list) else surf)["m_NavMeshData"]
+    obj = mm.by_file(ref["f"])[ref["id"]]
     data = obj.read_typetree()
+    # Tiles are baked in the NavMeshData's own frame (Store_6 moves and turns it); placed in Unity space before conversion.
     pos, q = data["m_Position"], data["m_Rotation"]
-    assert (pos["x"], pos["y"], pos["z"]) == (0, 0, 0) and (q["x"], q["y"], q["z"], q["w"]) == (0, 0, 0, 1), \
-        "NavMeshData has non-identity position/rotation; apply it to tile coordinates"
+    P, Q = (pos["x"], pos["y"], pos["z"]), (q["x"], q["y"], q["z"], q["w"])
 
     vid, verts, polys = {}, [], []
     seen_polys, dupes = set(), 0
@@ -122,8 +128,9 @@ def main():
     for _, tv, tp in tiles(data):
         ntiles += 1
         remap = []
-        for x, y, z in tv:
-            p = (x, y, -z)  # Unity -> three.js
+        for v in tv:
+            x, y, z = rot(Q, v)
+            p = (x + P[0], y + P[1], -(z + P[2]))  # Unity -> three.js
             k = (round(p[0] * WELD), round(p[2] * WELD))
             if k not in vid:
                 vid[k] = len(verts)

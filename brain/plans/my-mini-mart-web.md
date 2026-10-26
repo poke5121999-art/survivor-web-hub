@@ -24,14 +24,14 @@ hơn, vì bản cũ nhiều bug. Bản cũ: Unity WebGL 150 MB ở repo Pages `m
 
 ## Pha
 
-Trạng thái 2026-10-26: pha 1-4 và 6 xong cho Store 1, rev `20261026a`. Cách chạy, kiểm và bẫy: `games/casual-farm/README.md`.
+Trạng thái 2026-10-27: làm "full game" theo yêu cầu "làm full game đi". Cách chạy, kiểm và bẫy: `games/casual-farm/README.md`.
 
-1. **Hình** xong: cảnh, nhân vật có xương + clip, món hàng, viền, meshopt.
-2. **Mô phỏng thuần JS** xong: `node test/casual-farm-sim.js` (`MM_MINUTES=180`: 40/40 ô, 15/15 bước hướng dẫn).
-3. **Giao diện** xong phần chính: HUD tiền, joystick, nhãn giá, bong bóng khách, banner + mũi tên hướng dẫn, nhảy khi mở khoá.
-   Còn: camera lia tới đồ vừa mở (2 s), tiếng, nâng cấp worker/máy.
-4. **Tải mờ rồi rõ** xong: blur 14 → 8 → 5 → 0 theo chặng, ảnh 16 px trước.
-5. **Các cửa hàng sau** chưa làm: chạy lại bộ xuất cho level2..; nhánh CSV cho Store 9+; `Mat_NextMart` chuyển cảnh.
-6. **Lên hub** xong: `index.html` mới, Unity cũ ở `unity.html`, `node test/casual-farm-play.js` (thêm `MM_URL` cho Pages).
+1. **Hình** xong cho cả 14 mart (`tools/export_marts.py`).
+2. **Mô phỏng thuần JS** xong: máy 1–4 đầu vào, ao cá, xe thu hoạch, trộm, nâng cấp máy/nhân viên/người chơi.
+3. **Giao diện** xong: HUD, banner + mũi tên hướng dẫn, camera lia khi mở khoá, menu nâng cấp, menu Next Mart, tiền lúc vắng mặt, tiếng + nhạc.
+4. **Tải mờ rồi rõ** xong.
+5. **Các cửa hàng sau** xong: Store 2–8 dùng ô có sẵn trong scene; Store 9–14 dựng ô từ CSV `Store_N_Progression` (khớp RC Store 9 38/38).
+6. **Lên hub** xong (`index.html`, Unity cũ ở `unity.html`).
 
-Hở: giữa game chậm (bot mua StoreTile2 ở phút 78, khách bỏ về nhiều); chưa rõ do bot hay do luật.
+Không làm: quảng cáo, mua trong app, trang phục, thú cưng, bản đồ thành phố, mart theo mùa, Big Mart, khách VIP/xe.
+Hở: thu nhập đầu mỗi mart sau rất chậm nếu tới nơi với ít tiền (giá hàng tối đa 10, `pricing.md`).

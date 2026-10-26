@@ -2,14 +2,17 @@
 // cash counter, floating joystick, MAX over the player, price tags on open mats and the carry upgrade zone,
 // demand bubbles over customers.
 import * as THREE from 'three';
-import { carryLimit } from '../sim/sim.js';
+import { carryLimit, UPGRADE } from '../sim/sim.js';
 import { Action } from '../sim/tasks.js';
 
 const v3 = new THREE.Vector3();
 const KEYS = { ArrowUp: [0, -1], KeyW: [0, -1], ArrowDown: [0, 1], KeyS: [0, 1], ArrowLeft: [-1, 0], KeyA: [-1, 0], ArrowRight: [1, 0], KeyD: [1, 0] };
 
 export class Hud {
-  constructor({ sim, store, camera, canvas, items, art, world, tasks, matArrows }) {
+  constructor({ sim, store, camera, canvas, items, art, world, tasks, matArrows, nextMart, workerDefs, sound }) {
+    this.sound = sound;
+    this.nextMart = nextMart;
+    this.workerDefs = workerDefs || [];
     this.tasks = tasks;
     this.matArrows = matArrows || [];
     this.sim = sim;
@@ -27,7 +30,33 @@ export class Hud {
       <div class="joy" id="joy"><img class="ring" src="${ui('AllAxis_Outline_Arrows')}" alt=""><img class="knob" src="${ui('Handle_Plain')}" alt=""></div>
       <div class="max" id="max">MAX</div>
       <div class="tags" id="tags"></div>
-      <div class="task" id="task"><img alt=""><span></span><b></b></div>`;
+      <div class="task" id="task"><img alt=""><span></span><b></b></div>
+      <div class="next" id="next"><i>NEXT MART</i><b></b><div><a class="btn go">GO!</a><a class="btn close">✕</a></div></div>
+      <a class="btn snd" id="snd"></a>
+      <a class="btn upbtn" id="upbtn"><img src="${ui('upgradeIcon')}" alt=""></a>
+      <div class="upmenu" id="upmenu"><div class="head"><b>UPGRADES</b><a class="btn x">✕</a></div><div class="rows"></div></div>`;
+    const snd = this.root.querySelector('#snd');
+    const showSnd = () => { snd.textContent = sound && sound.muted ? '🔇' : '🔊'; };
+    showSnd();
+    snd.addEventListener('click', () => { if (sound) sound.setMuted(!sound.muted); showSnd(); });
+    // SoundManager.PlayTapSfx on every button, PlayCancelSfx on close buttons.
+    this.root.addEventListener('click', e => {
+      const b = e.target.closest('.btn');
+      if (b && sound) sound.play(b.matches('.x, .close') ? 'cancel' : 'tap');
+    });
+    this.upEl = this.root.querySelector('#upmenu');
+    this.upRows = this.upEl.querySelector('.rows');
+    this.root.querySelector('#upbtn').addEventListener('click', () => { this.upEl.classList.toggle('open'); this.upKey = null; });
+    this.upEl.querySelector('.x').addEventListener('click', () => this.upEl.classList.remove('open'));
+    this.upRows.addEventListener('click', e => {
+      const b = e.target.closest('[data-k]');
+      const slot = b && this.slots && this.slots.get(b.dataset.k);
+      if (slot && sim.buyUpgrade(slot)) this.upKey = null;
+    });
+    this.nextEl = this.root.querySelector('#next');
+    this.nextEl.querySelector('b').textContent = nextMart ? nextMart.name : '';
+    this.nextEl.querySelector('.go').addEventListener('click', () => sim.depart());
+    this.nextEl.querySelector('.close').addEventListener('click', () => Object.assign(sim.state.next, { ready: false, closed: true }));
     this.taskEl = this.root.querySelector('#task');
     this.cashEl = this.root.querySelector('#cash');
     this.joyEl = this.root.querySelector('#joy');
@@ -44,7 +73,7 @@ export class Hud {
     const el = this.canvas.parentElement || document.body;
     const R = () => Math.min(window.innerWidth, window.innerHeight) * 0.13;
     el.addEventListener('pointerdown', e => {
-      if (e.target.closest('.btn')) return;
+      if (e.target.closest('.btn, .upmenu, .next')) return;
       this.stick = { active: true, id: e.pointerId, ox: e.clientX, oy: e.clientY, x: 0, y: 0 };
       this.joyEl.style.display = 'block';
       this.joyEl.style.left = `${e.clientX}px`;
@@ -124,6 +153,61 @@ export class Hud {
     if (task.target) this.arrow('task', { x: task.target.x, y: (task.target.y || 0) + 4, z: task.target.z });
   }
 
+  // Welcome-back popup with the offline income; Collect pays it.
+  welcome(amount, collect) {
+    const el = document.createElement('div');
+    el.className = 'next welcome';
+    el.innerHTML = `<i>WELCOME BACK!</i><b><img src="${this.ui('cashIcon')}" alt=""> ${amount}</b><div><a class="btn go">COLLECT</a></div>`;
+    el.style.display = 'flex';
+    el.querySelector('.go').addEventListener('click', () => { collect(); el.remove(); });
+    this.root.appendChild(el);
+  }
+
+  // Upgrade menu (FunflareUpgradeMenuController): one slot each for the player, every unlocked machine or truck and
+  // every unlocked shelver / farmer / chef; the button buys the slot's next step (Sim.upgradeOffer).
+  upgradeSlots() {
+    const sim = this.sim, s = this.store, slots = [];
+    slots.push({ key: 'player', kind: 'player', title: 'You', icon: this.ui('playerIcon') });
+    s.producers.forEach((p, i) => {
+      if (!p.upgradable || !sim.isActive(p.name)) return;
+      const it = this.items.types[p.out];
+      slots.push({ key: `p${i}`, kind: 'producer', i, title: p.title.replace(/^(Machine|Animal)_/, '').replace(/_/g, ' '),
+        icon: it && it.icon ? `${this.art}/items/${it.icon}` : this.ui('upgradeIcon') });
+    });
+    const ROLE = { shelver: ['Shelver', 'workerShelfIcon'], farmer: ['Farmer', 'workerFarmerIcon'], chef: ['Chef', 'workerChefIcon'] };
+    this.workerDefs.forEach(d => {
+      if (!ROLE[d.role] || !sim.isActive(d.name)) return;
+      slots.push({ key: `w${d.name}`, kind: 'worker', name: d.name, base: s.unlockCost(d.name),
+        title: `${ROLE[d.role][0]} ${d.name.replace(/^.*?([A-Z])$/, '$1')}`, icon: this.ui(ROLE[d.role][1]) });
+    });
+    return slots;
+  }
+
+  updateMenu() {
+    const sim = this.sim, st = sim.state;
+    const slots = this.upgradeSlots();
+    const rows = slots.map(slot => {
+      const offer = sim.upgradeOffer(slot);
+      let info;
+      if (slot.kind === 'player') {
+        info = offer ? `Carry ${carryLimit(st.stackLevel)} → ${carryLimit(st.stackLevel + 1)}` : `Carry ${carryLimit(st.stackLevel)}`;
+      } else {
+        const lv = slot.kind === 'producer' ? st.levels.producers[slot.i] : sim.workerLevel(slot.name);
+        const speed = slot.kind === 'producer' ? `×${UPGRADE.FACTORY_SPEED[lv.speed]}` : `${UPGRADE.WORKER_SPEED[lv.speed]}`;
+        const cap = slot.kind === 'producer' ? sim.limitOf(slot.i) : Math.min(3 + lv.stack, 6);
+        info = !offer ? `Speed ${speed} · Cap ${cap}` : offer.track === 'speed' ? `Speed ${speed} → next` : `Capacity ${cap} → next`;
+      }
+      const buy = offer ? `<a class="btn buy${st.cash >= offer.price ? '' : ' poor'}" data-k="${slot.key}"><img src="${this.ui('cashIcon')}" alt="">${offer.price}</a>`
+        : '<a class="btn buy max">MAX</a>';
+      return `<div class="row"><img src="${slot.icon}" alt=""><span><b>${slot.title}</b><i>${info}</i></span>${buy}</div>`;
+    });
+    const key = rows.join('');
+    if (key === this.upKey) return;
+    this.upKey = key;
+    this.slots = new Map(slots.map(x => [x.key, x]));
+    this.upRows.innerHTML = key;
+  }
+
   // Bouncing arrow over a world point; off screen it sticks to the edge and turns toward the target.
   arrow(key, p) {
     const t = this.tag(`arrow:${key}`, 'arrow', '<i></i>');
@@ -149,7 +233,9 @@ export class Hud {
       const ms = st.mats[m.name];
       if (!ms.open || !st.active.has(m.name) || st.t < ms.openAt - 0.25) return;
       const rem = m.cost - ms.paid;
-      const t = this.tag(`mat:${m.name}`, 'price', `<img src="${this.ui('cashIcon')}" alt=""><b>${rem}</b>`);
+      // Worker / next-mart mats (MatUnlockUpgradeController) also name what they unlock.
+      const label = m.upgradeType ? `<i>${m.upgradeType}</i>` : '';
+      const t = this.tag(`mat:${m.name}`, 'price', `${label}<img src="${this.ui('cashIcon')}" alt=""><b>${rem}</b>`);
       this.place(t, m.zone.middle);
     });
 
@@ -178,6 +264,10 @@ export class Hud {
     }
 
     this.updateTask();
+    const th = st.thief && st.thief.chasing && st.thief.agent;
+    if (th) this.arrow('thief', { x: th.x, y: 6, z: th.z });
+    this.nextEl.style.display = st.next.ready ? 'flex' : 'none';
+    if (this.upEl.classList.contains('open')) this.updateMenu();
     this.matArrows.forEach((p, i) => {
       const m = s.mats[i], ms = st.mats[m.name];
       if (p && ms.open && !ms.done && st.active.has(m.name) && st.t >= ms.openAt) this.arrow(`ma:${i}`, p);

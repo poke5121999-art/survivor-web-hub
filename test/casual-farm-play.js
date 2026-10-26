@@ -93,6 +93,51 @@ function serve() {
     });
     check('a reload keeps cash and bought mats', back.done === saved.done && back.cash === saved.cash,
       `mats ${back.done}/${saved.done}, cash ${back.cash}/${saved.cash}`);
+
+    // The upgrade menu buys a machine step with the cash in hand.
+    const upgraded = await page.evaluate(async () => {
+      const g = window.__mmGame, sim = g.sim;
+      const pi = g.store.producers.findIndex(p => p.upgradable);
+      if (pi < 0) return { err: 'no upgradable machine' };
+      sim.state.active.add(g.store.producers[pi].name);
+      sim.state.cash = 100000;
+      document.querySelector('#upbtn').click();
+      await new Promise(r => setTimeout(r, 400));
+      const btn = document.querySelector(`.upmenu [data-k="p${pi}"]`);
+      if (!btn) return { err: 'no row for the machine' };
+      btn.click();
+      const lv = sim.state.levels.producers[pi];
+      return { level: lv.speed + lv.stack, cash: sim.state.cash };
+    });
+    check('the upgrade menu buys a machine upgrade', upgraded.level === 1 && upgraded.cash < 100000, JSON.stringify(upgraded));
+
+    // Next mart pad: stand on it, press GO, the van leaves and Store 2 loads with the same cash.
+    const before = await page.evaluate(async () => {
+      const g = window.__mmGame, nm = g.store.nextMart, st = g.sim.state;
+      st.active.add(nm.name);
+      Object.assign(st.player, { x: nm.zone.middle.x, z: nm.zone.middle.z });
+      st.cash = 777;
+      for (let i = 0; i < 40 && !st.next.ready; i++) await new Promise(r => setTimeout(r, 100));
+      const shown = getComputedStyle(document.querySelector('#next')).display !== 'none';
+      window.__oldPage = true;
+      document.querySelector('#next .go').click();
+      return { shown, label: document.querySelector('#next b').textContent };
+    });
+    await page.waitForFunction(() => !window.__oldPage && window.__mm && (window.__mm.ready || window.__mm.error) && window.__mmGame, null, { timeout: 90000 });
+    const arrived = await page.evaluate(() => ({ first: window.__mmGame.store.mats[0].name, cash: window.__mmGame.sim.state.cash }));
+    check('the next-mart pad opens the menu and GO drives to Store 2 with the cash', before.shown && arrived.first === 'Mat_Activate_Cashier_Cafe' && arrived.cash === 777,
+      `menu ${before.shown} "${before.label}", first mat ${arrived.first}, cash ${arrived.cash}`);
+
+    // Stores 9-14 build their mats from the progression CSV: the first one is open and drawn.
+    await page.goto(`${url}?mart=store9&fresh`);
+    await page.waitForFunction(() => window.__mm && (window.__mm.ready || window.__mm.error), null, { timeout: 90000 });
+    const s9 = await page.evaluate(() => {
+      const g = window.__mmGame, m = g.store.mats[0], o = g.world.byName.get(m.name);
+      return { err: window.__mm.error, mats: g.store.mats.length, first: m.name, open: g.sim.state.mats[m.name].open, drawn: !!(o && o.visible) };
+    });
+    check('Store 9 loads with its CSV mats and the first one drawn', !s9.err && s9.mats === 38 && s9.open && s9.drawn, JSON.stringify(s9));
+    const sfx = await page.evaluate(async () => (await fetch('art/sfx/sfx.json')).ok);
+    check('the sound table is served', sfx);
     check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | ') || 'none');
     check('no missing files', missing.length === 0, missing.slice(0, 3).join(' | ') || 'none');
   } finally {

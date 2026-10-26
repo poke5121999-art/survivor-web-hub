@@ -1,0 +1,155 @@
+{
+ "tap": {
+  "files": [
+   "Tap_tap.mp3"
+  ],
+  "volume": 1.0
+ },
+ "cancel": {
+  "files": [
+   "buttonCancel.mp3"
+  ],
+  "volume": 0.8
+ },
+ "unlock": {
+  "files": [
+   "PoofUnlock_Small.mp3"
+  ],
+  "volume": 0.9
+ },
+ "tile": {
+  "files": [
+   "PoofUnlock_Area.mp3"
+  ],
+  "volume": 0.9
+ },
+ "factoryUpgrade": {
+  "files": [
+   "Small_Success.mp3"
+  ],
+  "volume": 1.0
+ },
+ "upgrade": {
+  "files": [
+   "powerupScaleRotate.mp3"
+  ],
+  "volume": 1.0
+ },
+ "worker": {
+  "files": [
+   "Success_Big_Reward.mp3"
+  ],
+  "volume": 0.8
+ },
+ "box": {
+  "files": [
+   "thud.mp3"
+  ],
+  "volume": 1.0
+ },
+ "kaching": {
+  "files": [
+   "cash_register_sound_effect.mp3"
+  ],
+  "volume": 1.0
+ },
+ "boxPick": {
+  "files": [
+   "Swish_1.mp3"
+  ],
+  "volume": 1.0
+ },
+ "cashBurst": {
+  "files": [
+   "CashBurst_Small.mp3",
+   "CashBurst_Medium.mp3",
+   "CashBurst_Large.mp3",
+   "CashBurst_ExtraLarge.mp3"
+  ],
+  "volume": 1.0
+ },
+ "honk": {
+  "files": [
+   "clacson.mp3"
+  ],
+  "volume": 0.3
+ },
+ "drive": {
+  "files": [
+   "carPullingAway.mp3"
+  ],
+  "volume": 1.0
+ },
+ "pick": {
+  "files": [
+   "Cartoon_Pop_Up.mp3",
+   "Cartoon_Pop_Up2.mp3",
+   "Cartoon_Pop_Up3.mp3"
+  ],
+  "volume": 0.8
+ },
+ "drop": {
+  "files": [
+   "Plop2.mp3",
+   "Plop3.mp3",
+   "Plop4.mp3"
+  ],
+  "volume": 0.6
+ },
+ "cashPick": {
+  "files": [
+   "paperMoney04.mp3",
+   "paperMoney05.mp3",
+   "paperMoney06.mp3"
+  ],
+  "volume": 0.3
+ },
+ "cashDrop": {
+  "files": [
+   "paperMoney01.mp3",
+   "paperMoney02.mp3",
+   "paperMoney03.mp3"
+  ],
+  "volume": 0.5
+ },
+ "chicken": {
+  "files": [
+   "Chicken_Sound_Effect.mp3",
+   "Chicken_Sound_Effect2.mp3",
+   "Chicken_Sound_Effect3.mp3"
+  ],
+  "volume": 1.0
+ },
+ "cow": {
+  "files": [
+   "CowMoo_01.mp3",
+   "CowMoo_02.mp3",
+   "CowMoo_07.mp3",
+   "CowMoo_09.mp3"
+  ],
+  "volume": 1.0
+ },
+ "pig": {
+  "files": [
+   "pig01.mp3",
+   "pig02.mp3",
+   "pig03.mp3",
+   "pig04.mp3"
+  ],
+  "volume": 1.0
+ },
+ "goat": {
+  "files": [
+   "goat01.mp3",
+   "goat02.mp3",
+   "goat04.mp3"
+  ],
+  "volume": 1.0
+ },
+ "music": {
+  "files": [
+   "My_Mini_Mart___Idea_2___Alt_Melody_3.mp3"
+  ],
+  "volume": 0.8
+ }
+}

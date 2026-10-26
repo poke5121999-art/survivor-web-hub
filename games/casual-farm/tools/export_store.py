@@ -14,7 +14,7 @@ Kept: every GameObject outside DROP_ROOTS, minus UI-only subtrees (RectTransform
 Component data: MonoBehaviour fields (IL2CPP type trees via mm.py) and colliders; a PPtr to a GameObject or
 component of the same scene becomes {"n": node index}; other PPtrs stay {"f": file, "id": path id}.
 """
-import io, json, os, struct, subprocess, sys
+import hashlib, io, json, os, struct, subprocess, sys
 import numpy as np
 from PIL import Image
 from UnityPy.helpers.MeshHelper import MeshHandler
@@ -201,6 +201,95 @@ def material_entry(m, textures):
     return e
 
 
+def save_texture(t, texdir):
+    """Write a Texture2D as <name>-<hash>.webp (+ .lq.webp, 16 px) and return that stem with the image.
+
+    Stores share art/tex, and the same name holds different pixels per store (each mart has its own "palette"; Store_9
+    also has "Palette", the same file on Windows), so the file name carries 8 hex of the pixels' md5."""
+    im = t.image.convert("RGBA")
+    if im.getextrema()[3][0] >= 250:
+        im = im.convert("RGB")
+    stem = f"{t.m_Name}-{hashlib.md5(im.tobytes()).hexdigest()[:8]}"
+    path = os.path.join(texdir, stem + ".webp")
+    if not os.path.exists(path):
+        im.save(path, "WEBP", quality=90, method=6, lossless=max(im.size) <= 256)
+        lq = im.copy()
+        lq.thumbnail((16, 16), Image.BILINEAR)
+        lq.save(os.path.join(texdir, stem + ".lq.webp"), "WEBP", quality=70)
+    return stem, im
+
+
+class Tree:
+    """GameObject hierarchy of one serialized file: owners, transforms, parents, children."""
+
+    def __init__(self, name):
+        self.objs = mm.by_file(name)
+        self.ext = mm.ext_names(next(iter(self.objs.values())).assets_file)
+        self.tt = {}
+        self.gos = [pid for pid, o in self.objs.items() if o.type.name == "GameObject"]
+        self.owner, self.trans, self.parent, self.children = {}, {}, {}, {}
+        for g in self.gos:
+            for c in self.T(g)["m_Component"]:
+                cid = c["component"]["m_PathID"]
+                self.owner[cid] = g
+                if cid in self.objs and self.objs[cid].type.name in ("Transform", "RectTransform"):
+                    self.trans[g] = cid
+        for g, t in self.trans.items():
+            d = self.T(t)
+            fp = d["m_Father"]["m_PathID"]
+            self.parent[g] = self.owner.get(fp) if fp else None
+            self.children[g] = [self.owner[x["m_PathID"]] for x in d["m_Children"] if x["m_PathID"] in self.owner]
+        self.index = {}
+
+    def T(self, pid):
+        if pid not in self.tt:
+            self.tt[pid] = self.objs[pid].read_typetree()
+        return self.tt[pid]
+
+    def has_renderer(self, g):
+        for c in self.T(g)["m_Component"]:
+            cid = c["component"]["m_PathID"]
+            if cid in self.objs and self.objs[cid].type.name in ("MeshRenderer", "SkinnedMeshRenderer", "SpriteRenderer", "ParticleSystemRenderer"):
+                return True
+        return any(self.has_renderer(ch) for ch in self.children.get(g, []))
+
+    def walk(self, g, keep):
+        if self.objs[self.trans[g]].type.name == "RectTransform" and not self.has_renderer(g):
+            return
+        keep.append((self, g))
+        for ch in self.children.get(g, []):
+            self.walk(ch, keep)
+
+    def roots(self):
+        return [g for g in self.gos if g in self.trans and self.parent.get(g) is None]
+
+    def ref(self, v):
+        if isinstance(v, dict):
+            if set(v.keys()) == {"m_FileID", "m_PathID"}:
+                if v["m_PathID"] == 0:
+                    return None
+                if v["m_FileID"] == 0:
+                    pid = v["m_PathID"]
+                    g = pid if pid in self.index else self.owner.get(pid)
+                    if g in self.index:
+                        return {"n": self.index[g]}
+                    return {"f": "", "id": pid, "dropped": True}
+                return {"f": self.ext[v["m_FileID"] - 1], "id": v["m_PathID"]}
+            return {k: self.ref(x) for k, x in v.items()}
+        if isinstance(v, list):
+            return [self.ref(x) for x in v]
+        if isinstance(v, float):
+            return round(v, 5)
+        if isinstance(v, (bytes, bytearray)):
+            return None
+        return v
+
+
+# ProgressionData (Stores 9-14, rules/progression-data.md) instantiates these prefabs for every mat at runtime; they
+# are appended under an inactive root "__Prefabs" so the view can clone them.
+PREFAB_FIELDS = ("matActivatePrefab", "matActivateUpgradePrefab")
+
+
 def main():
     level, outid = sys.argv[1], sys.argv[2]
     out = os.path.join(GAME, "art", outid)
@@ -208,80 +297,37 @@ def main():
     os.makedirs(out, exist_ok=True)
     os.makedirs(texdir, exist_ok=True)
 
-    objs = mm.by_file(level)
-    sf = next(iter(objs.values())).assets_file
-    ext = mm.ext_names(sf)
-    tt = {}
-
-    def T(pid):
-        if pid not in tt:
-            tt[pid] = objs[pid].read_typetree()
-        return tt[pid]
-
-    gos = [pid for pid, o in objs.items() if o.type.name == "GameObject"]
-    owner = {}
-    for g in gos:
-        for c in T(g)["m_Component"]:
-            owner[c["component"]["m_PathID"]] = g
-    trans = {}
-    for g in gos:
-        for c in T(g)["m_Component"]:
-            cid = c["component"]["m_PathID"]
-            if cid in objs and objs[cid].type.name in ("Transform", "RectTransform"):
-                trans[g] = cid
-    parent = {}
-    children = {}
-    for g, t in trans.items():
-        d = T(t)
-        fp = d["m_Father"]["m_PathID"]
-        parent[g] = owner.get(fp) if fp else None
-        children[g] = [owner[x["m_PathID"]] for x in d["m_Children"] if x["m_PathID"] in owner]
-
-    def has_renderer(g):
-        for c in T(g)["m_Component"]:
-            cid = c["component"]["m_PathID"]
-            if cid in objs and objs[cid].type.name in ("MeshRenderer", "SkinnedMeshRenderer", "SpriteRenderer", "ParticleSystemRenderer"):
-                return True
-        return any(has_renderer(ch) for ch in children.get(g, []))
-
+    scene = Tree(level)
     keep = []
-
-    def walk(g):
-        rect = objs[trans[g]].type.name == "RectTransform"
-        if rect and not has_renderer(g):
-            return
-        keep.append(g)
-        for ch in children.get(g, []):
-            walk(ch)
-
-    roots = [g for g in gos if g in trans and parent.get(g) is None]
-    for r in roots:
-        if T(r)["m_Name"] in DROP_ROOTS:
-            log("drop root", T(r)["m_Name"])
+    for r in scene.roots():
+        if scene.T(r)["m_Name"] in DROP_ROOTS:
+            log("drop root", scene.T(r)["m_Name"])
             continue
-        walk(r)
-    index = {g: i for i, g in enumerate(keep)}
+        scene.walk(r, keep)
+    scene.index = {g: i for i, (_, g) in enumerate(keep)}
 
-    def ref(v):
-        if isinstance(v, dict):
-            if set(v.keys()) == {"m_FileID", "m_PathID"}:
-                if v["m_PathID"] == 0:
-                    return None
-                if v["m_FileID"] == 0:
-                    pid = v["m_PathID"]
-                    g = pid if pid in index else owner.get(pid)
-                    if g in index:
-                        return {"n": index[g]}
-                    return {"f": "", "id": pid, "dropped": True}
-                return {"f": ext[v["m_FileID"] - 1], "id": v["m_PathID"]}
-            return {k: ref(x) for k, x in v.items()}
-        if isinstance(v, list):
-            return [ref(x) for x in v]
-        if isinstance(v, float):
-            return round(v, 5)
-        if isinstance(v, (bytes, bytearray)):
-            return None
-        return v
+    prefab_roots = []
+    for pid, o in scene.objs.items():
+        if o.type.name == "MonoBehaviour" and mm.script(o)[1] == "ProgressionData":
+            d = mm.read(o)
+            for field in PREFAB_FIELDS:
+                p = d[field]
+                if p["m_PathID"]:
+                    prefab_roots.append((field, scene.ext[p["m_FileID"] - 1] if p["m_FileID"] else level, p["m_PathID"]))
+    prefab_parent = {}
+    if prefab_roots:
+        holder = len(keep)
+        keep.append((None, "__Prefabs"))
+        trees = {}
+        for field, fname, pid in prefab_roots:
+            tr = trees.setdefault(fname, Tree(fname))
+            g = tr.owner.get(pid, pid)
+            start = len(keep)
+            tr.walk(g, keep)
+            for k in range(start, len(keep)):
+                tr.index[keep[k][1]] = k
+            prefab_parent[(id(tr), g)] = holder
+            log(f"prefab {field}: {fname}:{pid} -> {len(keep) - start} nodes")
 
     glb = GLB()
     meshes, mesh_index = [], {}
@@ -289,22 +335,15 @@ def main():
     textures, tex_index = [], {}
 
     def tex_ref(pptr):
-        key = (pptr.m_FileID, pptr.m_PathID, id(pptr.assetsfile) if hasattr(pptr, "assetsfile") else 0)
         t = pptr.read()
-        name = t.m_Name
-        if name in tex_index:
-            return tex_index[name]
-        im = t.image.convert("RGBA")
-        if im.getextrema()[3][0] >= 250:
-            im = im.convert("RGB")
-        im.save(os.path.join(texdir, name + ".webp"), "WEBP", quality=90, method=6, lossless=max(im.size) <= 256)
-        lq = im.copy()
-        lq.thumbnail((16, 16), Image.BILINEAR)
-        lq.save(os.path.join(texdir, name + ".lq.webp"), "WEBP", quality=70)
+        key = (t.object_reader.assets_file.name, t.object_reader.path_id)
+        if key in tex_index:
+            return tex_index[key]
+        name, im = save_texture(t, texdir)
         textures.append({"name": name, "size": list(im.size), "alpha": im.mode == "RGBA"})
-        tex_index[name] = len(textures) - 1
+        tex_index[key] = len(textures) - 1
         log(f"  tex {name} {im.size[0]}x{im.size[1]} {im.mode}")
-        return tex_index[name]
+        return tex_index[key]
 
     def mesh_ref(pptr, skinned=False):
         mo = pptr.read()
@@ -336,10 +375,14 @@ def main():
 
     nodes = []
     counts = {"mesh": 0, "skinned": 0, "mb": 0, "mb_err": 0}
-    for g in keep:
-        G = T(g)
-        t = T(trans[g])
-        node = {"n": G["m_Name"], "p": index.get(parent.get(g), -1)}
+    for tr, g in keep:
+        if tr is None:
+            nodes.append({"n": g, "p": -1, "a": 0})
+            continue
+        G = tr.T(g)
+        t = tr.T(tr.trans[g])
+        par = tr.parent.get(g)
+        node = {"n": G["m_Name"], "p": tr.index[par] if par in tr.index else prefab_parent.get((id(tr), g), -1)}
         if not G["m_IsActive"]:
             node["a"] = 0
         lp, lr, ls = t["m_LocalPosition"], t["m_LocalRotation"], t["m_LocalScale"]
@@ -355,7 +398,7 @@ def main():
         mf = mr = None
         for c in G["m_Component"]:
             cid = c["component"]["m_PathID"]
-            o = objs.get(cid)
+            o = tr.objs.get(cid)
             if o is None:
                 continue
             ty = o.type.name
@@ -367,7 +410,7 @@ def main():
                 sm = o.read()
                 if sm.m_Mesh.m_PathID:
                     mi = mesh_ref(sm.m_Mesh, skinned=True)
-                    bones = [index.get(owner.get(b.m_PathID)) for b in sm.m_Bones]
+                    bones = [tr.index.get(tr.owner.get(b.m_PathID)) for b in sm.m_Bones]
                     if mi is not None and "bind" in meshes[mi] and None not in bones:
                         node["sk"] = {"m": mi, "mt": [mat_ref(p) for p in sm.m_Materials], "bones": bones}
                         if not sm.m_Enabled:
@@ -385,12 +428,12 @@ def main():
                     counts["mb_err"] += 1
                     comps.setdefault(cls, []).append({"err": str(e)[:80]})
                     continue
-                f = ref({k: v for k, v in d.items() if k not in ("m_GameObject", "m_Script", "m_Name")})
+                f = tr.ref({k: v for k, v in d.items() if k not in ("m_GameObject", "m_Script", "m_Name")})
                 comps.setdefault(cls, []).append(f)
                 counts["mb"] += 1
             elif ty in KEEP_TYPES:
                 d = o.read_typetree()
-                comps.setdefault(ty, []).append(ref({k: v for k, v in d.items() if k not in ("m_GameObject",)}))
+                comps.setdefault(ty, []).append(tr.ref({k: v for k, v in d.items() if k not in ("m_GameObject",)}))
         if mf is not None and mr is not None and mf.m_Mesh.m_PathID:
             mi = mesh_ref(mf.m_Mesh)
             if mi is not None:
@@ -403,17 +446,17 @@ def main():
             node["k"] = {k: (v[0] if len(v) == 1 else v) for k, v in comps.items()}
         nodes.append(node)
 
-    rs = next((o.read_typetree() for o in objs.values() if o.type.name == "RenderSettings"), {})
-    scene = {"level": level, "nodes": nodes, "meshes": meshes, "materials": materials, "textures": textures,
-             "render": ref({k: rs.get(k) for k in ("m_AmbientMode", "m_AmbientSkyColor", "m_AmbientEquatorColor",
-                                                    "m_AmbientGroundColor", "m_AmbientIntensity", "m_Fog", "m_FogColor",
-                                                    "m_FogMode", "m_LinearFogStart", "m_LinearFogEnd", "m_SubtractiveShadowColor")})}
+    rs = next((o.read_typetree() for o in scene.objs.values() if o.type.name == "RenderSettings"), {})
+    out_scene = {"level": level, "nodes": nodes, "meshes": meshes, "materials": materials, "textures": textures,
+                 "render": scene.ref({k: rs.get(k) for k in ("m_AmbientMode", "m_AmbientSkyColor", "m_AmbientEquatorColor",
+                                                              "m_AmbientGroundColor", "m_AmbientIntensity", "m_Fog", "m_FogColor",
+                                                              "m_FogMode", "m_LinearFogStart", "m_LinearFogEnd", "m_SubtractiveShadowColor")})}
     glb.write(os.path.join(out, "geo.glb"))
     with open(os.path.join(out, "scene.json"), "w", encoding="utf-8") as fh:
-        json.dump(scene, fh, ensure_ascii=False, separators=(",", ":"))
+        json.dump(out_scene, fh, ensure_ascii=False, separators=(",", ":"))
     with open(os.path.join(out, "export.log"), "w", encoding="utf-8") as fh:
         fh.write("\n".join(LOG))
-    log(f"{level} -> {outid}: nodes {len(nodes)} (of {len(gos)}), meshes {len(meshes)}, materials {len(materials)}, "
+    log(f"{level} -> {outid}: nodes {len(nodes)} (of {len(scene.gos)}), meshes {len(meshes)}, materials {len(materials)}, "
         f"textures {len(textures)}, {counts}, geo.glb {os.path.getsize(os.path.join(out, 'geo.glb')) // 1024} KB, "
         f"scene.json {os.path.getsize(os.path.join(out, 'scene.json')) // 1024} KB")
 

@@ -6,10 +6,13 @@ import { lighting, texture } from './view/toon.js';
 import { AnimLibrary, attachRigs } from './view/anim.js';
 import { GameView } from './view/game.js';
 import { Hud } from './view/hud.js';
+import { CameraDirector } from './view/camera.js';
+import { Sound } from './view/sound.js';
 import { buildStore } from './sim/store.js';
 import { Sim } from './sim/sim.js';
 import { Customers } from './sim/customers.js';
 import { Workers } from './sim/workers.js';
+import { Thief } from './sim/thief.js';
 import { Tasks, buildTasks, matArrows } from './sim/tasks.js';
 import { NavMesh } from './sim/nav.js';
 import { GridNav } from './sim/grid.js';
@@ -19,8 +22,16 @@ const params = new URLSearchParams(location.search);
 const V = new URL(import.meta.url).searchParams.get('v') || '';
 const BASE = new URL('../', import.meta.url).href;
 const ART = `${BASE}art`;
-const STORE = 'store1';
-const SAVE_KEY = 'mmm-store1-v1';
+// Saves: one global record (current mart, cash: money is global, progression.md "Next mart") plus one record per mart.
+const GLOBAL_KEY = 'mmm-global-v1';
+const MART_KEY = id => `mmm-${id}-v1`;
+const load_ = k => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } };
+const store_ = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } };
+const fresh = params.has('fresh');
+// Before marts existed the only save was Store 1's, which then also held the cash.
+const global = (!fresh && load_(GLOBAL_KEY)) || { mart: 'store1', cash: (!fresh && load_(MART_KEY('store1')) || {}).cash || 0 };
+if (params.get('mart')) global.mart = params.get('mart');
+const STORE = global.mart;
 
 const canvas = document.getElementById('game');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -69,35 +80,43 @@ const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 const glb = url => gltfLoader.loadAsync(`${url}?v=${V}`);
 
 function readSave() {
-  if (params.has('fresh')) return null;
-  try { return JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch (e) { return null; }
+  const d = fresh ? null : load_(MART_KEY(STORE));
+  return d && { ...d, cash: global.cash };
 }
 
 async function load() {
   const restP = Promise.all([
     json(`${ART}/anim/clips.json`), json(`${ART}/anim/controllers.json`), json(`${ART}/items/items.json`),
     glb(`${ART}/items/items.glb`), json(`${ART}/${STORE}/navmesh.json`), json(`${BASE}data/${STORE}.json`),
+    json(`${BASE}data/marts.json`),
   ]);
   const [sceneJson, gltf] = await Promise.all([json(`${ART}/${STORE}/scene.json`), glb(`${ART}/${STORE}/geo.glb`)]);
   const world = buildWorld(sceneJson, gltf, { texBase: `${ART}/tex` });
   scene3.add(world.root);
   setStage(8, 'geometry');
-  const [clips, controllers, items, itemsGltf, navJson, data] = await restP;
+  const [clips, controllers, items, itemsGltf, navJson, data, marts] = await restP;
   const anim = new AnimLibrary(clips, controllers);
   world.rigs = attachRigs(anim, world);
   setStage(5, 'animation');
 
   const store = buildStore(sceneJson, data);
-  const nav = new NavMesh(navJson);
+  const nav = new NavMesh(navJson, store.player.start);
   const grid = new GridNav(nav);
-  const sim = new Sim(store, { save: readSave() });
+  const sim = new Sim(store, { save: readSave(), cash: global.cash });
   const tasks = new Tasks(sim, buildTasks(store));
-  sim.systems.push(new Customers(sim, grid), new Workers(sim, grid), tasks);
+  const workers = new Workers(sim, grid);
+  sim.systems.push(new Customers(sim, grid), workers, new Thief(sim, grid), tasks);
   const view = new GameView({ world, store, sim, items, itemsGltf, texBase: `${ART}/tex`, anim });
-  const hud = new Hud({ sim, store, camera, canvas, items, art: ART, world, tasks, matArrows: matArrows(store) });
+  // RC_MartOrders: the pad leads to the next entry; past the last one GoToNextMart falls back to the first.
+  const here = marts.findIndex(m => m.id === STORE);
+  const next = marts[(here + 1) % marts.length];
+  const hud = new Hud({ sim, store, camera, canvas, items, art: ART, world, tasks, matArrows: matArrows(store), nextMart: next, workerDefs: workers.defs,
+    sound: new Sound(`${ART}/sfx`, sim, store, V) });
   await Promise.all(sceneJson.textures.map(t => texture(`${ART}/tex`, t.name).full));
   setStage(0, 'textures');
-  return { world, store, nav, grid, sim, view, hud };
+  sim.listeners.push(e => { if (e.type === 'depart') setTimeout(() => travel(next.id), VAN_TIME); });
+  const director = new CameraDirector(sim, store);
+  return { world, store, nav, grid, sim, view, hud, director };
 }
 
 let game = null;
@@ -108,7 +127,34 @@ let bot = null;
 
 function save() {
   if (!game) return;
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(game.sim.save())); } catch (e) { /* storage unavailable */ }
+  const d = game.sim.save();
+  global.cash = d.cash;
+  store_(MART_KEY(STORE), d);
+  global.savedAt = Date.now();
+  store_(GLOBAL_KEY, global);
+}
+
+// WelcomeBackController.ActivateWith(seconds): income = min(maxIncome 240, incomePerMinAway 1.0 / 60 * seconds).
+// Its minTimeAway is not in the dumps; one whole coin (a minute away) is the threshold used here.
+const AWAY_MAX = 240, AWAY_PER_MIN = 1;
+function welcomeBack(g) {
+  if (fresh || !global.savedAt) return;
+  const income = Math.min(AWAY_MAX, Math.floor(AWAY_PER_MIN / 60 * (Date.now() - global.savedAt) / 1000));
+  if (income >= 1) g.hud.welcome(income, () => {
+    g.sim.state.cash += income;
+    g.sim.emit({ type: 'coinPile', amount: income });
+  });
+}
+
+// MatNextStore.FillUpCompleted: the van leaves after 1.0 s and drives for 1.5 s, then the next scene loads.
+const VAN_TIME = 2600;
+function travel(id) {
+  save();
+  global.mart = id;
+  store_(GLOBAL_KEY, global);
+  const keep = new URLSearchParams();
+  if (params.has('bot')) keep.set('bot', '');
+  location.replace(`${location.pathname}${keep.toString() ? `?${keep}` : ''}`);
 }
 document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
 window.addEventListener('pagehide', save);
@@ -116,7 +162,7 @@ window.addEventListener('pagehide', save);
 function frame() {
   const dt = Math.min(clock.getDelta(), 0.1);
   if (game) {
-    const { sim, view, hud, nav, grid, world } = game;
+    const { sim, view, hud, nav, grid, world, director } = game;
     if (bot) bot.step(dt);
     else {
       const j = hud.joystick();
@@ -127,9 +173,11 @@ function frame() {
     sim.step(dt, { nav, grid });
     view.update(dt);
     for (const r of world.rigs) r.update(dt);
-    target.set(sim.state.player.x, 0, sim.state.player.z);
+    const shot = director.update();
+    target.set(shot.x, 0, shot.z);
     camera.position.copy(target).add(FOLLOW);
     camera.lookAt(target.x, LOOK_UP, target.z);
+    if (camera.zoom !== 1 / shot.zoom) { camera.zoom = 1 / shot.zoom; camera.updateProjectionMatrix(); }
     hud.update(dt);
     saveTimer += dt;
     if (saveTimer > 5) { saveTimer = 0; save(); }
@@ -144,6 +192,7 @@ load().then(g => {
   game = g;
   window.__mmGame = Object.assign(g, { camera, scene: scene3, renderer });
   if (params.has('bot')) bot = new Bot(g.sim, g.grid);
+  else welcomeBack(g);
   mm.ready = true;
 }).catch(e => {
   console.error(e);

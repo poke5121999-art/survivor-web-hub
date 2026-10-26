@@ -431,7 +431,7 @@ HUD_TREES = {  # key -> path under the scene (level1)
 }
 # (key, file, path or GameObject id, extra info)
 UZ = "[WorkerUpgradeActionZones]/"
-BY_NAME = {"cashierIcon", "workerCashierIcon"}
+BY_NAME = {"cashierIcon", "workerCashierIcon", "workerShelfIcon", "workerFarmerIcon", "workerChefIcon", "vanMartIcon"}
 WORLD_TREES = [
     ("MatActivateCanvas", "sharedassets1.assets", 6233, "prefab WorldCanvasMatActivate: MatActivateUI picks one child variant"),
     ("CustomerDemandHolder", "sharedassets1.assets", 3910, "prefab _CustomerDemandHolder (horizontal)"),

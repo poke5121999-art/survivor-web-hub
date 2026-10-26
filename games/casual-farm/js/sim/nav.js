@@ -67,7 +67,9 @@ export function footprint(o) {
 }
 
 export class NavMesh {
-  constructor(json) {
+  // `home` picks the walkable component the player lives on: each scene also bakes the city map around x = -1000,
+  // which in Store 2 is larger than the mart floor.
+  constructor(json, home = null) {
     this.verts = json.verts;
     this.polys = json.polys;
     this.adj = json.adj;
@@ -104,6 +106,10 @@ export class NavMesh {
       this.compSize.push(cnt);
     }
     this.mainComp = this.compSize.indexOf(Math.max(...this.compSize, 0));
+    if (home) {
+      const n0 = this.nearest(home);
+      if (n0) this.mainComp = this.comp[n0.poly];
+    }
   }
 
   // Height of polygon `pi` at (x,z), by the fan triangle containing the point (nearest fan triangle if outside).
