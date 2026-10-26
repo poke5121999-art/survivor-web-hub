@@ -1,0 +1,1126 @@
+{
+ "height": 1.2999999523162842,
+ "material": {
+  "name": "aToon_Palette_Outline",
+  "shader": "Toony Colors Pro 2/Hybrid Shader 2 (Outline)",
+  "color": [
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "tex": "palette",
+  "toon": {
+   "h": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "s": [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ],
+   "thr": 0.767,
+   "smooth": 0.594
+  },
+  "outline": {
+   "w": 2.0,
+   "color": [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ],
+   "const": true
+  }
+ },
+ "textures": [
+  "palette"
+ ],
+ "types": {
+  "18": {
+   "name": "Sushi",
+   "price": 8.0,
+   "quota": 2,
+   "unused": 0,
+   "mesh": 0,
+   "icon": "icons/18.webp"
+  },
+  "20": {
+   "name": "CoffeeBag",
+   "price": 3.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 1,
+   "icon": "icons/20.webp"
+  },
+  "8": {
+   "name": "Cookie",
+   "price": 6.0,
+   "quota": 3,
+   "unused": 0,
+   "mesh": 2,
+   "icon": "icons/8.webp"
+  },
+  "16": {
+   "name": "Cucumber",
+   "price": 1.0,
+   "quota": 5,
+   "unused": 1,
+   "mesh": 2
+  },
+  "11": {
+   "name": "Coin",
+   "price": 1.0,
+   "quota": 5,
+   "unused": 1,
+   "mesh": 127,
+   "material": {
+    "name": "aToon_Palette_Outline",
+    "shader": "Toony Colors Pro 2/Hybrid Shader 2 (Outline)",
+    "color": [
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ],
+    "tex": "palette",
+    "toon": {
+     "h": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "s": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+     ],
+     "thr": 0.767,
+     "smooth": 0.594
+    },
+    "outline": {
+     "w": 2.0,
+     "color": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+     ],
+     "const": true
+    }
+   }
+  },
+  "24": {
+   "name": "Orange",
+   "price": 1.0,
+   "quota": 6,
+   "unused": 0,
+   "mesh": 4,
+   "icon": "icons/24.webp"
+  },
+  "1": {
+   "name": "Tomato",
+   "price": 1.0,
+   "quota": 6,
+   "unused": 0,
+   "mesh": 5,
+   "icon": "icons/1.webp"
+  },
+  "17": {
+   "name": "Fish",
+   "price": 3.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 6,
+   "icon": "icons/17.webp"
+  },
+  "14": {
+   "name": "Corn",
+   "price": 2.0,
+   "quota": 5,
+   "unused": 0,
+   "mesh": 7,
+   "icon": "icons/14.webp"
+  },
+  "27": {
+   "name": "FlowerTulip",
+   "price": 4.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 8,
+   "icon": "icons/27.webp"
+  },
+  "26": {
+   "name": "FlowerRose",
+   "price": 4.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 9,
+   "icon": "icons/26.webp"
+  },
+  "9": {
+   "name": "Coffee",
+   "price": 1.0,
+   "quota": 6,
+   "unused": 0,
+   "mesh": 10
+  },
+  "6": {
+   "name": "Bread",
+   "price": 5.0,
+   "quota": 3,
+   "unused": 0,
+   "mesh": 11,
+   "icon": "icons/6.webp"
+  },
+  "25": {
+   "name": "Lemon",
+   "price": 1.0,
+   "quota": 5,
+   "unused": 1,
+   "mesh": 2
+  },
+  "21": {
+   "name": "CoffeeCup",
+   "price": 5.0,
+   "quota": 3,
+   "unused": 0,
+   "mesh": 12,
+   "icon": "icons/21.webp"
+  },
+  "5": {
+   "name": "Noodle",
+   "price": 1.0,
+   "quota": 5,
+   "unused": 1,
+   "mesh": 2
+  },
+  "0": {
+   "name": "Wheat",
+   "price": 1.0,
+   "quota": 6,
+   "unused": 0,
+   "mesh": 13,
+   "icon": "icons/0.webp"
+  },
+  "28": {
+   "name": "FlowerDaisy",
+   "price": 3.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 14,
+   "icon": "icons/28.webp"
+  },
+  "4": {
+   "name": "JuiceBox",
+   "price": 4.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 15,
+   "icon": "icons/4.webp"
+  },
+  "13": {
+   "name": "Carrot",
+   "price": 1.0,
+   "quota": 6,
+   "unused": 0,
+   "mesh": 16,
+   "icon": "icons/13.webp"
+  },
+  "23": {
+   "name": "AppleRed",
+   "price": 1.0,
+   "quota": 5,
+   "unused": 1,
+   "mesh": 2
+  },
+  "7": {
+   "name": "Pizza",
+   "price": 5.0,
+   "quota": 3,
+   "unused": 0,
+   "mesh": 17
+  },
+  "15": {
+   "name": "Broccoli",
+   "price": 1.0,
+   "quota": 5,
+   "unused": 1,
+   "mesh": 2
+  },
+  "12": {
+   "name": "Milk",
+   "price": 2.0,
+   "quota": 5,
+   "unused": 0,
+   "mesh": 18,
+   "icon": "icons/12.webp"
+  },
+  "10": {
+   "name": "Egg",
+   "price": 2.0,
+   "quota": 5,
+   "unused": 0,
+   "mesh": 19,
+   "icon": "icons/10.webp"
+  },
+  "19": {
+   "name": "Banana",
+   "price": 2.0,
+   "quota": 5,
+   "unused": 1,
+   "mesh": 20,
+   "icon": "icons/19.webp"
+  },
+  "22": {
+   "name": "AppleGreen",
+   "price": 1.0,
+   "quota": 6,
+   "unused": 0,
+   "mesh": 21,
+   "icon": "icons/22.webp"
+  },
+  "3": {
+   "name": "TomatoSauce",
+   "price": 3.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 22,
+   "icon": "icons/3.webp"
+  },
+  "2": {
+   "name": "FlourBag",
+   "price": 3.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 23,
+   "icon": "icons/2.webp"
+  },
+  "29": {
+   "name": "FlowerBouquet",
+   "price": 8.0,
+   "quota": 2,
+   "unused": 0,
+   "mesh": 24,
+   "icon": "icons/29.webp"
+  },
+  "132": {
+   "name": "MozzarellaStick",
+   "price": 2.0,
+   "quota": 5,
+   "unused": 0,
+   "mesh": 25
+  },
+  "90": {
+   "name": "ApplePie",
+   "price": 6.0,
+   "quota": 3,
+   "unused": 0,
+   "mesh": 26,
+   "icon": "icons/90.webp"
+  },
+  "44": {
+   "name": "PotatoFries",
+   "price": 4.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 27,
+   "icon": "icons/44.webp"
+  },
+  "134": {
+   "name": "PizzaSauce",
+   "price": 2.0,
+   "quota": 5,
+   "unused": 0,
+   "mesh": 28
+  },
+  "106": {
+   "name": "FlourBag_Rice",
+   "price": 6.0,
+   "quota": 3,
+   "unused": 0,
+   "mesh": 23
+  },
+  "122": {
+   "name": "ThanksgivingTurkey",
+   "price": 2.0,
+   "quota": 5,
+   "unused": 0,
+   "mesh": 29
+  },
+  "116": {
+   "name": "SteakAndEggs",
+   "price": 5.0,
+   "quota": 3,
+   "unused": 0,
+   "mesh": 30
+  },
+  "45": {
+   "name": "Lettuce",
+   "price": 2.0,
+   "quota": 5,
+   "unused": 0,
+   "mesh": 31,
+   "icon": "icons/45.webp"
+  },
+  "93": {
+   "name": "Gingerbread",
+   "price": 6.0,
+   "quota": 3,
+   "unused": 0,
+   "mesh": 32,
+   "icon": "icons/93.webp"
+  },
+  "64": {
+   "name": "Nigiri",
+   "price": 6.0,
+   "quota": 3,
+   "unused": 0,
+   "mesh": 33,
+   "icon": "icons/64.webp"
+  },
+  "61": {
+   "name": "Avocado",
+   "price": 1.0,
+   "quota": 6,
+   "unused": 0,
+   "mesh": 34,
+   "icon": "icons/61.webp"
+  },
+  "35": {
+   "name": "Aubergine",
+   "price": 3.0,
+   "quota": 5,
+   "unused": 1,
+   "mesh": 35
+  },
+  "73": {
+   "name": "BananaSplit",
+   "price": 6.0,
+   "quota": 3,
+   "unused": 0,
+   "mesh": 36,
+   "icon": "icons/73.webp"
+  },
+  "55": {
+   "name": "TeaBag",
+   "price": 4.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 37,
+   "icon": "icons/55.webp"
+  },
+  "139": {
+   "name": "Dough",
+   "price": 2.0,
+   "quota": 5,
+   "unused": 0,
+   "mesh": 38
+  },
+  "84": {
+   "name": "Pumpkin",
+   "price": 2.0,
+   "quota": 5,
+   "unused": 0,
+   "mesh": 39,
+   "icon": "icons/84.webp"
+  },
+  "63": {
+   "name": "Rice",
+   "price": 4.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 40,
+   "icon": "icons/63.webp"
+  },
+  "135": {
+   "name": "Mozzarella",
+   "price": 2.0,
+   "quota": 5,
+   "unused": 0,
+   "mesh": 41
+  },
+  "78": {
+   "name": "Ketchup",
+   "price": 3.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 42,
+   "icon": "icons/78.webp"
+  },
+  "74": {
+   "name": "JellyBeans",
+   "price": 5.0,
+   "quota": 3,
+   "unused": 0,
+   "mesh": 43
+  },
+  "94": {
+   "name": "Eggnog",
+   "price": 5.0,
+   "quota": 3,
+   "unused": 0,
+   "mesh": 44,
+   "icon": "icons/94.webp"
+  },
+  "85": {
+   "name": "JackOLantern",
+   "price": 4.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 45,
+   "icon": "icons/85.webp"
+  },
+  "118": {
+   "name": "Stew",
+   "price": 6.0,
+   "quota": 3,
+   "unused": 0,
+   "mesh": 46,
+   "icon": "icons/118.webp"
+  },
+  "47": {
+   "name": "Burger",
+   "price": 7.0,
+   "quota": 2,
+   "unused": 0,
+   "mesh": 47,
+   "icon": "icons/47.webp"
+  },
+  "32": {
+   "name": "EggEaster02",
+   "price": 3.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 48
+  },
+  "108": {
+   "name": "Olive",
+   "price": 1.0,
+   "quota": 6,
+   "unused": 0,
+   "mesh": 49,
+   "icon": "icons/108.webp"
+  },
+  "124": {
+   "name": "BreadLoaf",
+   "price": 2.0,
+   "quota": 5,
+   "unused": 0,
+   "mesh": 50
+  },
+  "123": {
+   "name": "Basil",
+   "price": 2.0,
+   "quota": 5,
+   "unused": 0,
+   "mesh": 51
+  },
+  "129": {
+   "name": "SodaWater",
+   "price": 2.0,
+   "quota": 5,
+   "unused": 0,
+   "mesh": 52
+  },
+  "114": {
+   "name": "Mushroom",
+   "price": 1.0,
+   "quota": 6,
+   "unused": 0,
+   "mesh": 53,
+   "icon": "icons/114.webp"
+  },
+  "41": {
+   "name": "WineRed",
+   "price": 1.0,
+   "quota": 5,
+   "unused": 1,
+   "mesh": 54
+  },
+  "117": {
+   "name": "CannedBeans",
+   "price": 3.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 55,
+   "icon": "icons/117.webp"
+  },
+  "136": {
+   "name": "Cappuccino",
+   "price": 2.0,
+   "quota": 5,
+   "unused": 0,
+   "mesh": 56
+  },
+  "46": {
+   "name": "Salad",
+   "price": 4.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 57,
+   "icon": "icons/46.webp"
+  },
+  "71": {
+   "name": "StrawberrySundae",
+   "price": 4.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 58,
+   "icon": "icons/71.webp"
+  },
+  "38": {
+   "name": "Perfume",
+   "price": 1.0,
+   "quota": 5,
+   "unused": 1,
+   "mesh": 59
+  },
+  "109": {
+   "name": "OliveOil",
+   "price": 3.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 60,
+   "icon": "icons/109.webp"
+  },
+  "72": {
+   "name": "StrawberryShortcake",
+   "price": 5.0,
+   "quota": 3,
+   "unused": 0,
+   "mesh": 61,
+   "icon": "icons/72.webp"
+  },
+  "33": {
+   "name": "EggEaster03",
+   "price": 3.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 62
+  },
+  "104": {
+   "name": "NianGao",
+   "price": 6.0,
+   "quota": 3,
+   "unused": 0,
+   "mesh": 63,
+   "icon": "icons/104.webp"
+  },
+  "53": {
+   "name": "BlueberryJam",
+   "price": 3.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 64,
+   "icon": "icons/53.webp"
+  },
+  "36": {
+   "name": "FlowerJasmine",
+   "price": 2.0,
+   "quota": 5,
+   "unused": 0,
+   "mesh": 65,
+   "icon": "icons/36.webp"
+  },
+  "121": {
+   "name": "HalloweenPumpkin",
+   "price": 2.0,
+   "quota": 5,
+   "unused": 0,
+   "mesh": 66
+  },
+  "115": {
+   "name": "Bean",
+   "price": 1.0,
+   "quota": 6,
+   "unused": 0,
+   "mesh": 67,
+   "icon": "icons/115.webp"
+  },
+  "102": {
+   "name": "CrabCake",
+   "price": 7.0,
+   "quota": 3,
+   "unused": 0,
+   "mesh": 68,
+   "icon": "icons/102.webp"
+  },
+  "110": {
+   "name": "Ratatouille",
+   "price": 4.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 69,
+   "icon": "icons/110.webp"
+  },
+  "131": {
+   "name": "Focaccia",
+   "price": 2.0,
+   "quota": 5,
+   "unused": 0,
+   "mesh": 70
+  },
+  "89": {
+   "name": "GlazedBacon",
+   "price": 5.0,
+   "quota": 3,
+   "unused": 0,
+   "mesh": 71
+  },
+  "80": {
+   "name": "SausageRoll",
+   "price": 6.0,
+   "quota": 3,
+   "unused": 0,
+   "mesh": 72,
+   "icon": "icons/80.webp"
+  },
+  "111": {
+   "name": "Donut",
+   "price": 6.0,
+   "quota": 3,
+   "unused": 0,
+   "mesh": 73,
+   "icon": "icons/111.webp"
+  },
+  "37": {
+   "name": "Honey",
+   "price": 4.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 74
+  },
+  "100": {
+   "name": "FriedPrawn",
+   "price": 6.0,
+   "quota": 3,
+   "unused": 0,
+   "mesh": 75,
+   "icon": "icons/100.webp"
+  },
+  "62": {
+   "name": "RiceGrass",
+   "price": 2.0,
+   "quota": 5,
+   "unused": 0,
+   "mesh": 76,
+   "icon": "icons/62.webp"
+  },
+  "81": {
+   "name": "FlowerMustard",
+   "price": 3.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 77,
+   "icon": "icons/81.webp"
+  },
+  "87": {
+   "name": "CottonCandy",
+   "price": 4.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 78,
+   "icon": "icons/87.webp"
+  },
+  "137": {
+   "name": "Latte",
+   "price": 2.0,
+   "quota": 5,
+   "unused": 0,
+   "mesh": 79
+  },
+  "101": {
+   "name": "Crab",
+   "price": 3.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 80,
+   "icon": "icons/101.webp"
+  },
+  "103": {
+   "name": "SugarBrown",
+   "price": 3.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 81,
+   "icon": "icons/103.webp"
+  },
+  "88": {
+   "name": "CandiedApple",
+   "price": 5.0,
+   "quota": 3,
+   "unused": 0,
+   "mesh": 82,
+   "icon": "icons/88.webp"
+  },
+  "107": {
+   "name": "Zucchini",
+   "price": 1.0,
+   "quota": 6,
+   "unused": 0,
+   "mesh": 83,
+   "icon": "icons/107.webp"
+  },
+  "70": {
+   "name": "Pancakes",
+   "price": 5.0,
+   "quota": 3,
+   "unused": 0,
+   "mesh": 84,
+   "icon": "icons/70.webp"
+  },
+  "65": {
+   "name": "Sake",
+   "price": 6.0,
+   "quota": 3,
+   "unused": 0,
+   "mesh": 85,
+   "icon": "icons/65.webp"
+  },
+  "82": {
+   "name": "Mustard",
+   "price": 4.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 86,
+   "icon": "icons/82.webp"
+  },
+  "40": {
+   "name": "GrapeJam",
+   "price": 1.0,
+   "quota": 5,
+   "unused": 1,
+   "mesh": 54
+  },
+  "69": {
+   "name": "Strawberry",
+   "price": 1.0,
+   "quota": 6,
+   "unused": 0,
+   "mesh": 87,
+   "icon": "icons/69.webp"
+  },
+  "95": {
+   "name": "ChristmasPudding",
+   "price": 7.0,
+   "quota": 3,
+   "unused": 0,
+   "mesh": 88,
+   "icon": "icons/95.webp"
+  },
+  "97": {
+   "name": "Clam",
+   "price": 3.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 89,
+   "icon": "icons/97.webp"
+  },
+  "83": {
+   "name": "Hotdog",
+   "price": 8.0,
+   "quota": 2,
+   "unused": 0,
+   "mesh": 90,
+   "icon": "icons/83.webp"
+  },
+  "68": {
+   "name": "Burrito",
+   "price": 7.0,
+   "quota": 2,
+   "unused": 0,
+   "mesh": 91,
+   "icon": "icons/68.webp"
+  },
+  "75": {
+   "name": "Butter",
+   "price": 3.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 92,
+   "icon": "icons/75.webp"
+  },
+  "54": {
+   "name": "BlueberryYoghurt",
+   "price": 5.0,
+   "quota": 3,
+   "unused": 0,
+   "mesh": 93,
+   "icon": "icons/54.webp"
+  },
+  "39": {
+   "name": "Grape",
+   "price": 1.0,
+   "quota": 5,
+   "unused": 1,
+   "mesh": 94
+  },
+  "91": {
+   "name": "CornDog",
+   "price": 6.0,
+   "quota": 3,
+   "unused": 0,
+   "mesh": 95,
+   "icon": "icons/91.webp"
+  },
+  "86": {
+   "name": "CandyCorn",
+   "price": 5.0,
+   "quota": 3,
+   "unused": 0,
+   "mesh": 96,
+   "icon": "icons/86.webp"
+  },
+  "92": {
+   "name": "CandyCane",
+   "price": 4.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 97,
+   "icon": "icons/92.webp"
+  },
+  "60": {
+   "name": "Meat",
+   "price": 4.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 98,
+   "icon": "icons/60.webp"
+  },
+  "128": {
+   "name": "MineralSodaWater",
+   "price": 2.0,
+   "quota": 5,
+   "unused": 0,
+   "mesh": 99
+  },
+  "51": {
+   "name": "Blueberry",
+   "price": 1.0,
+   "quota": 6,
+   "unused": 0,
+   "mesh": 100,
+   "icon": "icons/51.webp"
+  },
+  "133": {
+   "name": "GreenCoffeeBean",
+   "price": 2.0,
+   "quota": 5,
+   "unused": 0,
+   "mesh": 101
+  },
+  "126": {
+   "name": "BreadBaguette",
+   "price": 2.0,
+   "quota": 5,
+   "unused": 0,
+   "mesh": 102
+  },
+  "96": {
+   "name": "Seaweed",
+   "price": 1.0,
+   "quota": 6,
+   "unused": 0,
+   "mesh": 103,
+   "icon": "icons/96.webp"
+  },
+  "58": {
+   "name": "Sugar",
+   "price": 3.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 104,
+   "icon": "icons/58.webp"
+  },
+  "99": {
+   "name": "Prawn",
+   "price": 3.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 105,
+   "icon": "icons/99.webp"
+  },
+  "59": {
+   "name": "Cola",
+   "price": 6.0,
+   "quota": 3,
+   "unused": 0,
+   "mesh": 106,
+   "icon": "icons/59.webp"
+  },
+  "56": {
+   "name": "SweetTea",
+   "price": 7.0,
+   "quota": 3,
+   "unused": 0,
+   "mesh": 107,
+   "icon": "icons/56.webp"
+  },
+  "34": {
+   "name": "Egg_Golden",
+   "price": 10.0,
+   "quota": 5,
+   "unused": 0,
+   "mesh": 108,
+   "icon": "icons/34.webp"
+  },
+  "43": {
+   "name": "Potato",
+   "price": 2.0,
+   "quota": 5,
+   "unused": 0,
+   "mesh": 109,
+   "icon": "icons/43.webp"
+  },
+  "127": {
+   "name": "FlavoredSodaWater",
+   "price": 2.0,
+   "quota": 5,
+   "unused": 0,
+   "mesh": 110
+  },
+  "79": {
+   "name": "Sausage",
+   "price": 3.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 111,
+   "icon": "icons/79.webp"
+  },
+  "76": {
+   "name": "Popcorn",
+   "price": 6.0,
+   "quota": 3,
+   "unused": 0,
+   "mesh": 112,
+   "icon": "icons/76.webp"
+  },
+  "42": {
+   "name": "WineWhite",
+   "price": 1.0,
+   "quota": 5,
+   "unused": 1,
+   "mesh": 54
+  },
+  "138": {
+   "name": "IcedCoffee",
+   "price": 2.0,
+   "quota": 5,
+   "unused": 0,
+   "mesh": 113
+  },
+  "30": {
+   "name": "OrangeJuice",
+   "price": 3.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 35,
+   "icon": "icons/30.webp"
+  },
+  "140": {
+   "name": "PreBakedPizza",
+   "price": 2.0,
+   "quota": 5,
+   "unused": 0,
+   "mesh": 114
+  },
+  "77": {
+   "name": "WaterBottle",
+   "price": 2.0,
+   "quota": 5,
+   "unused": 0,
+   "mesh": 115
+  },
+  "125": {
+   "name": "BreadBrioche",
+   "price": 2.0,
+   "quota": 5,
+   "unused": 0,
+   "mesh": 116
+  },
+  "120": {
+   "name": "Blueprint",
+   "price": 6.0,
+   "quota": 3,
+   "unused": 0,
+   "mesh": 117
+  },
+  "130": {
+   "name": "BakedCalzone",
+   "price": 2.0,
+   "quota": 5,
+   "unused": 0,
+   "mesh": 118
+  },
+  "31": {
+   "name": "EggEaster01",
+   "price": 3.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 119
+  },
+  "112": {
+   "name": "IceCream",
+   "price": 5.0,
+   "quota": 3,
+   "unused": 0,
+   "mesh": 120,
+   "icon": "icons/112.webp"
+  },
+  "57": {
+   "name": "Sugarcane",
+   "price": 1.0,
+   "quota": 6,
+   "unused": 0,
+   "mesh": 121,
+   "icon": "icons/57.webp"
+  },
+  "67": {
+   "name": "Guacamole",
+   "price": 4.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 122,
+   "icon": "icons/67.webp"
+  },
+  "98": {
+   "name": "ClamChowder",
+   "price": 5.0,
+   "quota": 3,
+   "unused": 0,
+   "mesh": 123,
+   "icon": "icons/98.webp"
+  },
+  "66": {
+   "name": "Nacho",
+   "price": 4.0,
+   "quota": 4,
+   "unused": 0,
+   "mesh": 124,
+   "icon": "icons/66.webp"
+  },
+  "113": {
+   "name": "BirthdayCake",
+   "price": 7.0,
+   "quota": 3,
+   "unused": 0,
+   "mesh": 125,
+   "icon": "icons/113.webp"
+  },
+  "105": {
+   "name": "FaGao",
+   "price": 6.0,
+   "quota": 3,
+   "unused": 0,
+   "mesh": 126,
+   "icon": "icons/105.webp"
+  }
+ }
+}

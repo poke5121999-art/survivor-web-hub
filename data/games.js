@@ -974,17 +974,17 @@ window.HUB_GAMES = [
   {
     id: "casual-farm",
     title: "My Mini Mart",
-    tagline: "Trồng rau, nuôi gà, xếp kệ, thuê nhân viên và mở thêm cửa hàng mới.",
-    desc: "Bản web đầy đủ của My Mini Mart (Kiseki Games / Supersonic), dựng lại từ bản Android 1.89.5. Kéo để đi. Mở quầy, luống và chuồng bằng tiền, hái hàng xếp lên kệ, đứng quầy thu tiền khách, rồi thuê nhân viên và chuyển sang cửa hàng kế. Quảng cáo trao thưởng ngay, đồ trả phí miễn phí. Lưu trong trình duyệt.",
+    tagline: "Trồng rau, nuôi gà, xếp kệ, đứng quầy thu tiền và thuê nhân viên cho siêu thị nhỏ.",
+    desc: "Làm lại My Mini Mart (Kiseki Games / Supersonic) từ bản Android 1.89.5, chạy thẳng trên web: nạp khoảng 4 MB thay vì 150 MB, vào là thấy cửa hàng, hình mờ rồi rõ dần. Cửa hàng đầu tiên đầy đủ: nhặt tiền mở quầy, luống cà chua, chuồng gà, máy xay, lò bánh, hái hàng xếp kệ, thu tiền khách, nâng sức mang và thuê nhân viên, có hướng dẫn từng bước như bản gốc. Kéo để đi, lưu trong trình duyệt. Bản Unity cũ vẫn mở được ở unity.html.",
     genre: "thu-gian",
     accent: "#8bd450",
-    en: { title: "My Mini Mart", tagline: "Grow produce, raise animals, stock shelves, hire staff and open new marts.", desc: "The full My Mini Mart (Kiseki Games / Supersonic), rebuilt for the web from the Android 1.89.5 release. Drag to walk. Buy the till, beds and pens, pick produce onto the shelves, ring customers up at the till, then hire staff and move on to the next mart. Ads reward instantly and paid items are free. Saved in the browser." },
+    en: { title: "My Mini Mart", tagline: "Grow produce, raise chickens, stock shelves, ring up customers and hire staff for a small mart.", desc: "My Mini Mart (Kiseki Games / Supersonic) remade from the Android 1.89.5 release to run straight in the browser: about 4 MB instead of 150 MB, the store shows at once and sharpens as it loads. The whole first mart: pick up cash to buy the till, tomato beds, the chicken pen, the blender and the oven, stock the shelves, ring customers up, upgrade your carry and hire staff, with the original step-by-step tutorial. Drag to walk, saved in the browser. The old Unity build is still at unity.html." },
     thumbnail: "assets/thumbnails/casual-farm.png",
     path: "games/casual-farm/index.html",
-    rev: "20261019a",
-    // The 150 MB Unity 6 WebGL build lives in its own Pages repo (poke5121999-art/my-mini-mart-web) so the hub
-    // stays under the 1 GB site limit; games/casual-farm/index.html redirects there. Source: D:/minimart-extract
-    // (logic restored from the IL2CPP binary). Kiểm: python docs/tests/browser/test_casual_farm.py <hub url> (meta-repo).
+    rev: "20261026a",
+    // three.js r160 vendor, no build step; Store 1 rebuilt from the APK (D:/minimart-ref) by games/casual-farm/tools.
+    // Bump rev with: node games/casual-farm/tools/stamp.js <rev>. Kiểm: node test/casual-farm-play.js (MM_URL=<Pages>).
+    // The old 150 MB Unity build stays in its own Pages repo (poke5121999-art/my-mini-mart-web), opened by unity.html.
     status: "available",
     tags: ["Nông trại", "Quản lý", "Màn dọc"]
   },
