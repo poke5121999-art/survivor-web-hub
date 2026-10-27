@@ -20,9 +20,11 @@ export function buildTasks(store) {
       producer: owner(focus, store.producers), shelf: owner(focus, store.shelves), mat: store.mats.findIndex(m => m.node === focus),
       color: f.buttonColor,
     };
-    // Carry tasks focus the player in Store 1; the walk-on upgrade zone is where the carry is actually bought.
+    // Carry tasks focus the player in Store 1: a live upgrade pad is the target, otherwise the HUD upgrade button
+    // (task.menu, no world arrow).
     const playerFocus = focus === store.player.node;
-    task.target = playerFocus && store.player.upgradeZone ? store.player.upgradeZone.middle : focus != null ? store.pos(focus) : null;
+    task.menu = playerFocus && !store.player.upgradeZone;
+    task.target = playerFocus ? (store.player.upgradeZone ? store.player.upgradeZone.middle : null) : focus != null ? store.pos(focus) : null;
     task.item = task.action === Action.Pick ? store.producers[task.producer]?.out
       : task.action === Action.Feed ? store.producers[task.producer]?.ins[0]
         : task.action === Action.Shelf ? store.shelves[task.shelf]?.type : null;

@@ -5,7 +5,11 @@ import { COIN } from './store.js';
 import { BOOST } from './boosters.js';
 
 const ITEM_HEIGHT = 1.3;
-const COIN_PILE_RATE = 0.0182;      // PlayerHumanController.cashPickUpRate, one coin per tick (inferred)
+// MatCashOutputController.GetCash (checkout-anim.md section 3): up to 9 bills one per 0.1 s (cashReceiveDelay), 10-20
+// one per frame, 21 or more six per frame; GetCash runs once a frame (inferred, 60 fps here).
+const COIN_SLOW = 0.1, COIN_FRAME = 1 / 60;
+// FinishDroppingOffCash enables the pile's collider 0.5 s after the customer pays.
+const DESK_CASH_DELAY = 0.5;
 const UPGRADE_BEGIN = 0.25;         // UpgradeActionZone.playerPresentDurationToBegin
 const UPGRADE_SPEND = 0.65;         // playerPresentDurationToSpend
 const UPGRADE_COOLDOWN = 2.5;
@@ -436,13 +440,17 @@ export class Sim {
 
     if (zone.cash.length) {
       st.acc.coin += dt;
-      while (st.acc.coin >= COIN_PILE_RATE) {
-        st.acc.coin -= COIN_PILE_RATE;
-        const ci = zone.cash.find(i => st.cashiers[i].cash > 0);
+      for (;;) {
+        const ci = zone.cash.find(i => st.cashiers[i].cash > 0 && st.t >= (st.cashiers[i].readyAt || 0));
         if (ci == null) { st.acc.coin = 0; break; }
-        st.cashiers[ci].cash--;
-        st.cash++;
-        this.emit({ type: 'collect', cashier: ci, index: st.cashiers[ci].cash });
+        const n = st.cashiers[ci].cash, tick = n <= 9 ? COIN_SLOW : COIN_FRAME;
+        if (st.acc.coin < tick) break;
+        st.acc.coin -= tick;
+        for (let k = n >= 21 ? 6 : 1; k > 0 && st.cashiers[ci].cash > 0; k--) {
+          st.cashiers[ci].cash--;
+          st.cash++;
+          this.emit({ type: 'collect', cashier: ci, index: st.cashiers[ci].cash });
+        }
       }
     } else st.acc.coin = 0;
 
@@ -506,13 +514,14 @@ export class Sim {
   }
 
   // Customers pay at the desk: coins pile up to the desk limit, the excess goes straight to the player.
-  giveCash(ci, amount) {
+  giveCash(ci, amount, id = null) {
     const c = this.state.cashiers[ci];
     const room = Math.max(0, DESK_CASH_LIMIT - c.cash);
     const onDesk = Math.min(amount, room, 80);
     c.cash += onDesk;
+    c.readyAt = this.state.t + DESK_CASH_DELAY;
     this.state.cash += amount - onDesk;
-    this.emit({ type: 'deskCash', cashier: ci, amount: onDesk, total: c.cash });
+    this.emit({ type: 'deskCash', cashier: ci, amount: onDesk, total: c.cash, id });
   }
 
   step(dt, { nav = null, grid = null } = {}) {

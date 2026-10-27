@@ -981,7 +981,7 @@ window.HUB_GAMES = [
     en: { title: "My Mini Mart", tagline: "Grow produce, raise chickens and cows, stock shelves, run the till, hire staff and drive the van through 14 marts.", desc: "My Mini Mart (Kiseki Games / Supersonic) remade from the Android 1.89.5 release to run straight in the browser: about 4 MB per load instead of 150 MB, the store shows at once and sharpens as it loads. All 14 marts, linked by the van, from Grocer Mart to Campsite Mart: crop beds, chicken and cow pens, blenders, ovens, the burger maker, the flour truck, shelves, the till, hiring and upgrading staff, machine upgrades, chasing the thief, filling car orders, boosters and bonus cash (free, no ads), and a mart map to go back and collect idle income. Original sounds and music, the camera pans to what you unlock, and the original step-by-step tutorial. Drag to walk, saved in the browser. The old Unity build is still at unity.html." },
     thumbnail: "assets/thumbnails/casual-farm.png",
     path: "games/casual-farm/index.html",
-    rev: "20261027e",
+    rev: "20261027f",
     // three.js r160 vendor, no build step; all 14 marts of RC_MartOrder rebuilt from the APK (D:/minimart-ref) by
     // games/casual-farm/tools (export_marts.py, export_audio.py). Bump rev with: node games/casual-farm/tools/stamp.js <rev>.
     // Kiểm: node test/casual-farm-play.js (MM_URL=<Pages>), MM_STORE=storeN node test/casual-farm-sim.js.

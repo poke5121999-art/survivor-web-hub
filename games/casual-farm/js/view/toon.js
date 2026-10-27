@@ -3,7 +3,7 @@
 // flat ambient, alpha test, and a constant-pixel-width inverted-hull outline (TCP2_OUTLINE_CONST_SIZE).
 import * as THREE from 'three';
 
-const loader = new THREE.TextureLoader();
+const loader = new THREE.ImageLoader();
 const texCache = new Map();
 
 export const lighting = {
@@ -14,16 +14,24 @@ export const lighting = {
 };
 
 // Every texture starts as its 16 px .lq.webp and swaps to the full image when it arrives; the caller awaits `full`.
+// The two loads race: from the HTTP cache the full image often lands first, and a late 16 px image must not
+// replace it (that left grass tan, cash grey and tomatoes pink-and-white for returning players).
 export function texture(base, name) {
   if (texCache.has(name)) return texCache.get(name);
-  const t = loader.load(`${base}/${name}.lq.webp`);
+  const t = new THREE.Texture();
   setup(t);
-  const entry = { tex: t, full: null };
+  const entry = { tex: t, full: null, sharp: false };
+  loader.load(`${base}/${name}.lq.webp`, img => {
+    if (entry.sharp) return;
+    t.image = img;
+    t.needsUpdate = true;
+  });
   entry.full = new Promise(resolve => {
     loader.load(`${base}/${name}.webp`, img => {
+      entry.sharp = true;
       // The 16 px upload is immutable storage (texStorage2D); a bigger image needs a fresh allocation.
       t.dispose();
-      t.image = img.image;
+      t.image = img;
       t.needsUpdate = true;
       resolve();
     }, undefined, () => resolve());

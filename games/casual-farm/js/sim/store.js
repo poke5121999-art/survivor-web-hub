@@ -134,7 +134,7 @@ export function buildStore(scene, data) {
         queue: children[i].filter(j => comp(j, 'SlotCashierQueueController')).map(j => ({
           pos: pos(j), look: children[j].length ? pos(children[j][0]) : pos(i),
         })),
-        boxSlot: ref(f.boxTransformSlot) != null ? pos(ref(f.boxTransformSlot)) : pos(i),
+        boxSlot: ref(f.boxTransformSlot) != null ? pos(ref(f.boxTransformSlot)) : pos(i), boxNode: ref(f.boxTransformSlot) ?? i,
         workerSlot: (() => { const j = children[i].find(c => nodes[c].n === 'CashierSlot'); return j != null ? pos(j) : pos(i); })(),
       });
       return;
@@ -267,7 +267,9 @@ export function buildStore(scene, data) {
       dropOffRate: player.dropOffRate, cashDelay: player.cashDelayDropOff, cashRate: player.cashDropOffRate,
       cashAccel: player.cashDropOffMultiplyOneSecondBy, cashPickupRate: player.cashPickUpRate,
       stackPrices: player.stackUpgradePrice || [15, 50, 250, 999], rotate: player.rotateControlBy ?? -12,
-      upgradeZone: upgradeNode != null ? box(upgradeNode) : null,
+      // Stand-on upgrade pads are live only where RC_ActionZoneRemoteConfig says isActive (Big Marts); Store 1-14
+      // buy the carry upgrade from the HUD menu.
+      upgradeZone: data.actionZones && upgradeNode != null ? box(upgradeNode) : null,
     },
     obstacleGates,
     obstacleOff,

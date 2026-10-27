@@ -50,6 +50,19 @@ export class GameView {
       this.itemProto[type] = { prims: prims.map(p => p.geometry), matrix: src.matrix.clone(), mats };
       prims.forEach(p => { if (mats.outline) addSmoothNormals(p.geometry); });
     }
+    // Checkout box (MatCustomer.boxPrefab): open and sealed meshes placed under one root, plus the 4 item slots.
+    this.boxDef = items.box && items.box.open && items.box.sealed ? items.box : null;
+    if (this.boxDef) {
+      for (const part of ['open', 'sealed']) {
+        const d = this.boxDef[part], src = geo[d.mesh];
+        if (!src) { this.boxDef = null; break; }
+        src.updateMatrix();
+        d.proto = { prims: (src.isMesh ? [src] : src.children).map(p => p.geometry), matrix: src.matrix.clone(),
+          place: new THREE.Matrix4().fromArray(d.matrix), mats: d.material ? itemMaterial(d.material) : base };
+        d.proto.prims.forEach(g => { if (d.proto.mats.outline) addSmoothNormals(g); });
+      }
+    }
+    this.checkouts = new Map();
     this.pool = [];
     this.layer = new THREE.Group();
     this.layer.name = 'items';
@@ -82,8 +95,16 @@ export class GameView {
   cloneObject(template) {
     const rigs = [];
     template.traverse(x => { if (x.userData.rig) { rigs.push([x, x.userData.rig]); delete x.userData.rig; } });
+    // Whatever the view hung on the template (carried items, a checkout box) belongs to the customer using it, not
+    // to the clone.
+    const held = [];
+    template.traverse(x => { if (x !== template && (x.userData.type !== undefined || x.name === 'PackagingBox')) held.push([x, x.parent]); });
+    held.forEach(([x, p]) => p.remove(x));
     let o;
-    try { o = cloneSkinned(template); } finally { rigs.forEach(([x, r]) => { x.userData.rig = r; }); }
+    try { o = cloneSkinned(template); } finally {
+      rigs.forEach(([x, r]) => { x.userData.rig = r; });
+      held.forEach(([x, p]) => p.add(x));
+    }
     const ctrlByName = new Map(rigs.map(([x, r]) => [x.name, r.ctrl]));
     o.traverse(x => {
       if (ctrlByName.has(x.name)) x.userData.rig = new Rig(this.anim, x, ctrlByName.get(x.name));
@@ -156,6 +177,123 @@ export class GameView {
 
   release(g) {
     if (g.parent) g.parent.remove(g);
+  }
+
+  makeBox() {
+    const root = new THREE.Group();
+    root.name = 'PackagingBox';
+    for (const part of ['open', 'sealed']) {
+      const p = this.boxDef[part].proto, g = new THREE.Group();
+      g.name = part;
+      g.matrixAutoUpdate = false;
+      g.matrix.copy(p.place);
+      for (const geo of p.prims) {
+        const m = new THREE.Mesh(geo, p.mats.mat);
+        m.applyMatrix4(p.matrix);
+        g.add(m);
+        if (p.mats.outline) { const ol = new THREE.Mesh(geo, p.mats.outline); ol.applyMatrix4(p.matrix); g.add(ol); }
+      }
+      g.visible = part === 'open';
+      root.add(g);
+    }
+    root.userData.slots = this.boxDef.slots.map(s => new THREE.Vector3(s[0], s[1], s[2]));
+    return root;
+  }
+
+  // --- checkout desk (rules/checkout-anim.md) ----------------------------------------------------------------------
+  // t = 0 when packing starts: the box pops in at the desk slot (0.25 s OutBack); every 0.3 s the customer's top item
+  // hops into the next of the 4 slots (jump 4, 0.5 s); at `close` the lid shuts (0.6 s clip) and the trolley shrinks;
+  // at close + 0.75 the sealed box replaces the open one and arcs to the customer's BoxTransformSlot (0.5 s, apex 3),
+  // where it stays until the customer is gone.
+  startCheckout(e) {
+    if (!this.boxDef) return;
+    const desk = this.store.cashiers[e.cashier], slotObj = desk && this.obj(desk.boxNode);
+    if (!slotObj) return;
+    const box = this.makeBox();
+    slotObj.getWorldPosition(box.position);
+    slotObj.getWorldQuaternion(box.quaternion);
+    box.scale.setScalar(0.0001);
+    this.layer.add(box);
+    this.checkouts.set(e.id, { id: e.id, t: 0, box, close: e.close, items: e.items.slice(), launched: 0, hops: [], phase: 'pack',
+      deskPos: box.position.clone(), deskQuat: box.quaternion.clone() });
+  }
+
+  updateCheckouts(dt) {
+    const outBack = k => 1 + 2.70158 * (k - 1) ** 3 + 1.70158 * (k - 1) ** 2;
+    for (const [id, co] of this.checkouts) {
+      co.t += dt;
+      const v = this.customerViews.get(id);
+      const c = (this.sim.state.customers || []).find(x => x.id === id);
+      if (!c || !v) {
+        this.release(co.box);
+        co.hops.forEach(h => this.release(h.g));
+        this.checkouts.delete(id);
+        continue;
+      }
+      if (co.phase === 'pack') {
+        co.box.scale.setScalar(Math.max(0.0001, outBack(Math.min(co.t / 0.25, 1))));
+        // LIFO: the top of the customer's stack leaves first, from where it is drawn.
+        while (co.launched < co.items.length && co.t >= 0.25 + 0.3 * (co.launched + 1)) {
+          const k = co.items.length - 1 - co.launched;
+          const from = this.worldOfStack(`cust${id}`, k) || { x: c.x, y: 3, z: c.z };
+          const g = this.makeItem(co.items[k]);
+          const slot = co.box.userData.slots[co.launched % 4];
+          co.box.add(g);
+          co.box.updateMatrixWorld(true);
+          const local = co.box.worldToLocal(new THREE.Vector3(from.x, from.y, from.z));
+          g.position.copy(local);
+          co.hops.push({ g, from: local, to: slot.clone(), t: 0 });
+          co.launched++;
+        }
+        for (const h of co.hops) {
+          h.t = Math.min(h.t + dt, 0.5);
+          const a = h.t / 0.5, e = 1 - (1 - a) * (1 - a);
+          h.g.position.lerpVectors(h.from, h.to, e);
+          h.g.position.y += Math.sin(Math.PI * a) * 4 / co.box.scale.y;
+        }
+        // Lid: the open box's flaps fold over the 0.6 s Closing clip; drawn as a short squash (no flap bones here).
+        if (co.t >= co.close) {
+          const k = Math.min((co.t - co.close) / 0.6, 1);
+          co.box.children[0].scale.set(1, 1 - 0.12 * Math.sin(Math.PI * k), 1);
+        }
+        if (co.t >= co.close + 0.75) {
+          co.phase = 'lift';
+          co.box.children[0].visible = false;
+          co.box.children[1].visible = true;
+          co.hops.forEach(h => this.release(h.g));
+          co.hops = [];
+          co.liftFrom = co.box.position.clone();
+        }
+      }
+      if (co.phase === 'lift') {
+        const slot = v.obj.getObjectByName('BoxTransformSlot') || v.obj;
+        const to = slot.getWorldPosition(new THREE.Vector3());
+        const a = Math.min((co.t - co.close - 0.75) / 0.5, 1);
+        // CatmullRom through the midpoint raised to 3 above the slot: a smooth arc, approximated by a sine lift.
+        co.box.position.lerpVectors(co.liftFrom, to, a);
+        co.box.position.y += Math.sin(Math.PI * a) * Math.max(0, 3 - Math.abs(to.y - co.liftFrom.y) / 2);
+        const q = slot.getWorldQuaternion(new THREE.Quaternion());
+        co.box.quaternion.slerpQuaternions(co.deskQuat, q, a);
+        if (a >= 1) {
+          co.phase = 'held';
+          slot.add(co.box);
+          co.box.position.set(0, 0, 0);
+          co.box.quaternion.identity();
+          co.box.scale.setScalar(1);
+          // A world scale on the slot would shrink the box; keep its desk size.
+          const ws = slot.getWorldScale(new THREE.Vector3());
+          co.box.scale.set(1 / ws.x, 1 / ws.y, 1 / ws.z);
+        }
+      }
+    }
+  }
+
+  // Bills landing on the desk pile: one per cash, straight from the customer's cash slot (0.35 s, no arc).
+  deskCash(e) {
+    const c = (this.sim.state.customers || []).find(x => x.id === e.id);
+    const from = c ? { x: c.x, y: 1.9, z: c.z } : null;
+    if (!from) return;
+    for (let i = e.total - e.amount; i < e.total; i++) this.fly(`cash${e.cashier}`, i, from, 0.35, 11, 0);
   }
 
   // A stack is a keyed list of item meshes that should sit at given world positions (rebuilt when counts change).
@@ -237,6 +375,7 @@ export class GameView {
     this.updateThief(dt);
     this.updateCar();
     this.updateCustomers(dt);
+    this.updateCheckouts(dt);
     this.updateWorkers(dt);
     this.updateFlights(dt);
   }
@@ -247,7 +386,8 @@ export class GameView {
     o.parent.worldToLocal(tmp);
     o.position.copy(tmp);
     if (a.dirX || a.dirZ) {
-      const yaw = Math.atan2(a.dirX, a.dirZ);
+      // Exported rigs face local -z (carry slot, trolley and box slot all sit at negative z).
+      const yaw = Math.atan2(a.dirX, a.dirZ) + Math.PI;
       o.quaternion.setFromAxisAngle(UP, yaw);
     }
   }
@@ -315,13 +455,39 @@ export class GameView {
       const v = this.customerObject(c);
       v.obj.visible = true;
       this.placeAgent(v.obj, c);
-      const carrying = c.carried.length > 0 && c.state !== 7;
+      // limitToCarryByHand 3: a bigger order pushes the trolley (CheckWalkingAnimation plays the carry walk the whole
+      // time); PickUpBox shrinks it to zero over 0.2 s when the packed box is handed over.
+      const co = this.checkouts.get(c.id);
+      const trolley = c.trolley && c.state < 7 && !(co && co.t >= co.close);
+      if (v.trolley === undefined) {
+        v.trolley = v.obj.getObjectByName('trolley') || null;
+        if (v.trolley) v.trolley.userData.baseScale = v.trolley.userData.baseScale || v.trolley.scale.clone();
+      }
+      if (v.trolley) {
+        if (trolley) { v.trolley.visible = true; v.trolley.scale.copy(v.trolley.userData.baseScale); v.shrink = 0; }
+        else if (c.trolley && v.trolley.visible) {
+          v.shrink = (v.shrink || 0) + dt;
+          v.trolley.scale.copy(v.trolley.userData.baseScale).multiplyScalar(Math.max(0.0001, 1 - v.shrink / 0.2));
+          if (v.shrink >= 0.2) v.trolley.visible = false;
+        } else v.trolley.visible = false;
+      }
+      const left = co ? c.carried.length - co.launched : c.carried.length;
+      const carrying = trolley || (left > 0 && c.state <= 5) || c.state === 7 || !!(co && co.t >= co.close + 0.75);
       if (v.rig) {
         v.rig.play(c.moving ? (carrying ? 'WalkingCarry' : 'Walking') : (carrying ? 'Idle_Carry' : 'Idle'));
         if (v.clone) v.rig.update(dt);
       }
-      const slot = v.obj.getObjectByName('BoxTransformSlot') || v.obj;
-      this.syncStack(`cust${c.id}`, c.state >= 5 ? [] : c.carried, (g, k) => { g.position.set(0, ITEM_HEIGHT * k, 0); }, slot);
+      const hand = v.obj.getObjectByName('BoxTransformSlot') || v.obj;
+      const items = c.state > 5 ? [] : c.carried.slice(0, Math.max(0, left));
+      if (trolley && v.trolley) {
+        // Four per layer in the basket (customers.md, inferred); trolley mesh spans local z -4.8..-0.4, top at 2.9.
+        this.syncStack(`cust${c.id}`, items, (g, k) => {
+          const j = k % 4, layer = Math.floor(k / 4);
+          g.position.set(j % 2 ? 0.55 : -0.55, 1.5 + layer * ITEM_HEIGHT, (j < 2 ? -0.55 : 0.55) - 0.3);
+        }, v.trolley);
+      } else {
+        this.syncStack(`cust${c.id}`, items, (g, k) => { g.position.set(0, ITEM_HEIGHT * k, 0); }, hand);
+      }
     }
     for (const [id, v] of this.customerViews) {
       if (alive.has(id)) continue;
@@ -472,6 +638,30 @@ export class GameView {
       case 'customerPick':
         this.fly(`cust${e.id}`, e.index, this.store.shelves[e.shelf].slots[e.slot], 0.3, e.item, 2);
         break;
+      case 'customerPack':
+        this.startCheckout(e);
+        break;
+      case 'deskCash':
+        if (e.id != null) this.deskCash(e);
+        break;
+      case 'payMat': {
+        const m = this.store.mats.find(x => x.name === e.name);
+        if (m) this.payFlight(m.zone.middle);
+        break;
+      }
+      case 'payUpgrade':
+        if (this.store.player.upgradeZone) this.payFlight(this.store.player.upgradeZone.middle);
+        break;
+      case 'collect': {
+        // The desk pile still holds the bill this frame (events run before the stacks resync).
+        // The pile draws at most 80 bills, so a deeper index leaves from the top of what is drawn.
+        const pile = this.stacks.get(`cash${e.cashier}`);
+        const from = pile && pile.length ? this.worldOfStack(`cash${e.cashier}`, Math.min(e.index, pile.length - 1)) : null;
+        const p = this.sim.state.player;
+        // NewMoveCashTo: DOJump(power 8, 0.5 s, linear) + a full spin, to where the player was at launch.
+        if (from) this.fly(null, null, from, 0.5, 11, 8, { x: p.x, y: 4, z: p.z }, { ease: 'linear', spin: true });
+        break;
+      }
       default:
         break;
     }
@@ -485,9 +675,17 @@ export class GameView {
   }
 
   // Animate the item that just appeared at the end of stack `key` (or index k) from world point `from`.
-  fly(key, k, from, duration, type, jump, toPoint = null) {
+  // toPoint may be a function (a moving target); opts.ease 'linear' and opts.spin (a full turn on x and y) copy the
+  // cash bills' DOLocalJump + DORotate(360, 360) in MatActivateController.ReceivingAnimation.
+  fly(key, k, from, duration, type, jump, toPoint = null, opts = {}) {
     if (!from) return;
-    this.flights.push({ key, k, from: new THREE.Vector3(from.x, from.y, from.z), t: 0, duration: Math.max(duration, 0.05), type, jump, toPoint, ghost: null });
+    this.flights.push({ key, k, from: new THREE.Vector3(from.x, from.y, from.z), t: 0, duration: Math.max(duration, 0.05), type, jump, toPoint, ghost: null, ...opts });
+  }
+
+  // One bill per payment step, from the player's chest to a point (mat, upgrade pad).
+  payFlight(to) {
+    const p = this.sim.state.player;
+    this.fly(null, null, { x: p.x, y: 4, z: p.z }, 0.45, 11, 8, { x: to.x, y: (to.y || 0) + 0.5, z: to.z }, { ease: 'linear', spin: true });
   }
 
   updateFlights(dt) {
@@ -501,11 +699,14 @@ export class GameView {
         this.layer.add(f.ghost);
       }
       if (target) { target.userData.flying = f.t < f.duration; target.visible = !target.userData.flying; }
-      const to = target ? target.getWorldPosition(new THREE.Vector3()) : f.toPoint ? new THREE.Vector3(f.toPoint.x, f.toPoint.y, f.toPoint.z) : f.from;
-      const a = Math.min(f.t / f.duration, 1), e = 1 - (1 - a) * (1 - a);
+      const tp = typeof f.toPoint === 'function' ? f.toPoint() : f.toPoint;
+      const to = target ? target.getWorldPosition(new THREE.Vector3()) : tp ? new THREE.Vector3(tp.x, tp.y, tp.z) : f.from;
+      const a = Math.min(f.t / f.duration, 1), e = f.ease === 'linear' ? a : 1 - (1 - a) * (1 - a);
       f.ghost.position.lerpVectors(f.from, to, e);
       f.ghost.position.y += Math.sin(Math.PI * a) * f.jump;
+      if (f.spin) f.ghost.rotation.set(a * Math.PI * 2, a * Math.PI * 2, 0);
       if (a >= 1) {
+        f.ghost.rotation.set(0, 0, 0);
         this.release(f.ghost);
         if (target) { target.userData.flying = false; target.visible = true; }
         this.flights.splice(i, 1);

@@ -73,8 +73,9 @@ export class Bot {
     if (cash.length && (st.cashiers.reduce((a, c) => a + c.cash, 0) >= 10 || !this.pickable(true))) return nearest(cash);
 
     const prices = s.player.stackPrices;
-    if (st.stackLevel < prices.length && st.cash >= prices[st.stackLevel] - st.upgrade.paid && s.player.upgradeZone && sim.isActive('UpgradeZone_Player')) {
-      return { at: s.player.upgradeZone.middle, kind: 'upgrade', hold: 1.5 };
+    if (st.stackLevel < prices.length && st.cash >= prices[st.stackLevel] - st.upgrade.paid) {
+      if (!s.player.upgradeZone) sim.buyUpgrade({ kind: 'player' });
+      else if (sim.isActive('UpgradeZone_Player')) return { at: s.player.upgradeZone.middle, kind: 'upgrade', hold: 1.5 };
     }
 
     const pick = this.pickable(carry.length < lim);

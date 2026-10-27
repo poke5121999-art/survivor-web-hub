@@ -213,7 +213,7 @@ function frame() {
 load().then(g => {
   game = g;
   window.__mmGame = Object.assign(g, { camera, scene: scene3, renderer });
-  if (params.has('bot')) bot = new Bot(g.sim, g.grid);
+  if (params.has('bot')) g.bot = bot = new Bot(g.sim, g.grid);
   else welcomeBack(g);
   mm.ready = true;
 }).catch(e => {

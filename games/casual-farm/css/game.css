@@ -51,6 +51,8 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #9bd36a; tou
   border-radius: 50%; background: #3aa0ff; box-shadow: 0 4px 0 rgba(0, 0, 0, 0.25); pointer-events: auto; cursor: pointer; display: flex;
   align-items: center; justify-content: center; }
 .upbtn img { width: 70%; height: 70%; object-fit: contain; }
+.upbtn.hint { animation: hintPulse 0.5s ease-in-out infinite alternate; box-shadow: 0 0 0 4px #ffe14d; }
+@keyframes hintPulse { from { transform: scale(1); } to { transform: scale(1.15); } }
 .upmenu { display: none; position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 12vh); transform: translateX(-50%);
   width: min(92vw, 460px); max-height: 62vh; flex-direction: column; background: #fff; color: #4b3b2a; border-radius: 0.8em;
   box-shadow: 0 5px 0 rgba(0, 0, 0, 0.25); pointer-events: auto; font-size: clamp(15px, 2.3vh, 22px); animation: fadein 0.25s ease-out; }

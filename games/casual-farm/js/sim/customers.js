@@ -7,7 +7,12 @@ const PICK_RATE = 0.5;            // CustomerAgentController.pickupRate (scene)
 const HAND_LIMIT = 3;             // limitToCarryByHand
 const WAIT_TIME = 3;              // RC_PatienceTimer.customerItemWaitTime
 const PATIENCE_TIME = 10;         // customerItemPatienceTime
-const PACK_RATE = 0.02;           // BoxController.packingRate
+// Checkout timeline (rules/checkout-anim.md): the box pops in over BOX_POP, one item leaves every PACK_RATE (the first one
+// a full interval after the pop, the lid closes on the tick that finds none left), then PickUpBox: lift at +0.75, landed
+// at +1.25, walk away and pay at +1.75.
+const BOX_POP = 0.25;
+const PACK_RATE = 0.3;            // BoxController.packingRate (PackagingBox prefab)
+const PICKUP_WALK = 1.75;
 const ARRIVE = 0.4;
 
 export const CState = { Shelf: 0, ToCashier: 2, Queue: 3, Ready: 4, Packing: 5, Leaving: 7, WaitCashier: 8, WaitShelf: 9 };
@@ -318,17 +323,18 @@ export class Customers {
         c.state = CState.Packing;
         c.packT = 0;
         const n = c.carried.length;
-        c.packDur = 0.25 + n * PACK_RATE + 0.5 + 0.75 + 0.5;
+        c.closeAt = BOX_POP + (n + 1) * PACK_RATE;
+        c.packDur = c.closeAt + PICKUP_WALK;
         c.reward = c.items.reduce((a, x) => a + Math.trunc((sim.store.prices[x.type] ?? 1) * x.got), 0);
         // GameManager.IsCashBoosted: the reward is doubled before rounding.
         if (sim.boosters && sim.boosters.on('cash')) c.reward *= BOOST.cash;
-        sim.emit({ type: 'customerPack', id: c.id, cashier: c.cashier, items: c.carried.slice(), duration: c.packDur });
+        sim.emit({ type: 'customerPack', id: c.id, cashier: c.cashier, items: c.carried.slice(), duration: c.packDur, close: c.closeAt });
         break;
       }
       case CState.Packing:
         c.packT += dt;
         if (c.packT < c.packDur) return;
-        sim.giveCash(c.cashier, c.reward);
+        sim.giveCash(c.cashier, c.reward, c.id);
         sim.emit({ type: 'customerPay', id: c.id, cashier: c.cashier, amount: c.reward });
         c.face = c.angry ? 'neutral' : 'happy';
         this.leave(c, true);

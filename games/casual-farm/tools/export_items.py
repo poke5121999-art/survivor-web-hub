@@ -24,6 +24,94 @@ def enum_names():
     return {int(v): k for k, v in re.findall(r"public const MyObjectType (\w+) = (-?\d+);", body)}
 
 
+def export_box(glb, first_mesh, objs, tex_ref):
+    """The checkout box (MatCustomer.boxPrefab, BoxController; rules/checkout-anim.md): the open box (openBoxObj, a
+    skinned mesh kept in its bind pose), the sealed box (closedBoxObj) and the four item slots, all relative to the
+    prefab root. Returns {"open": {mesh, material, matrix}, "sealed": {...}, "slots": [[x, y, z]], "packingRate"}."""
+    import numpy as np
+    cust = None
+    for o in objs.values():
+        if o.type.name == "MonoBehaviour" and mm.script(o)[1] == "MatCustomer":
+            cust = o.read_typetree(nodes=mm.mb_node(*mm.script(o)))
+            src = o
+            break
+    if not cust:
+        log("box: no MatCustomer")
+        return None
+    ref = cust["boxPrefab"]
+    fname = mm.ext_names(src.assets_file)[ref["m_FileID"] - 1] if ref["m_FileID"] else src.assets_file.name
+    po = mm.by_file(fname)
+    bc_obj = po[ref["m_PathID"]]
+    bc = bc_obj.read_typetree(nodes=mm.mb_node(*mm.script(bc_obj)))
+
+    def go_of(comp_ptr):
+        return po[comp_ptr["m_PathID"]].read()
+
+    def transform_of(go):
+        for c in go.m_Components:
+            if c.type.name == "Transform":
+                return c.read()
+        return None
+
+    root_tr = transform_of(go_of(bc["m_GameObject"]))
+
+    def matrix_to_root(tr):
+        """Local -> prefab root, in the mirrored (z-flipped) space read_mesh uses."""
+        M = np.eye(4)
+        while tr is not None and tr.m_GameObject.m_PathID != root_tr.m_GameObject.m_PathID:
+            p, q, s = tr.m_LocalPosition, tr.m_LocalRotation, tr.m_LocalScale
+            # Mirror z: position z, quaternion x and y flip sign.
+            x, y, z, w = -q.x, -q.y, q.z, q.w
+            R = np.array([[1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
+                          [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
+                          [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)]])
+            L = np.eye(4)
+            L[:3, :3] = R @ np.diag([s.x, s.y, s.z])
+            L[:3, 3] = [p.x, p.y, -p.z]
+            M = L @ M
+            tr = tr.m_Father.read() if tr.m_Father.m_PathID else None
+        return M
+
+    out, k = {}, first_mesh
+    for key, field in (("open", "openBoxObj"), ("sealed", "closedBoxObj")):
+        go = go_of(bc[field])
+        mesh = mat = None
+        node_tr = transform_of(go)
+        stack = [go]
+        while stack and mesh is None:
+            g = stack.pop()
+            for c in g.m_Components:
+                if c.type.name == "SkinnedMeshRenderer":
+                    r = c.read()
+                    mesh, mat, node_tr = r.m_Mesh.read(), r.m_Materials[0].read(), transform_of(g)
+                elif c.type.name == "MeshFilter":
+                    mesh, node_tr = c.read().m_Mesh.read(), transform_of(g)
+                elif c.type.name == "MeshRenderer":
+                    mat = c.read().m_Materials[0].read()
+            if mesh is None:
+                stack.extend(ch.read().m_GameObject.read() for ch in transform_of(g).m_Children)
+        if mesh is None:
+            log(f"box: no mesh under {field}")
+            continue
+        glb.mesh(f"Box_{key}", read_mesh(mesh))
+        out[key] = {"mesh": k, "material": material_entry(mat, tex_ref) if mat else None,
+                    "matrix": [round(float(v), 6) for v in matrix_to_root(node_tr).T.reshape(-1)]}
+        k += 1
+    slots = []
+    for s in bc["slotInputList"]:
+        t = transform_of(go_of(po[s["m_PathID"]].read_typetree()["m_GameObject"]))
+        m = matrix_to_root(t)
+        slots.append([round(float(v), 4) for v in m[:3, 3]])
+    if not slots:
+        # slotInputList does not read back through the generated type tree; InputSlots (2..5) of PackagingBox
+        # (checkout-anim.md section 1), Unity (+-0.35, 0.85, +-0.75) in hierarchy order, z mirrored.
+        slots = [[-0.35, 0.85, 0.75], [-0.35, 0.85, -0.75], [0.35, 0.85, 0.75], [0.35, 0.85, -0.75]]
+    out["slots"] = slots
+    out["packingRate"] = bc["packingRate"]
+    log(f"box: {', '.join(k for k in out if k in ('open', 'sealed'))}, {len(slots)} slots, packingRate {bc['packingRate']}")
+    return out
+
+
 def main():
     level = sys.argv[1] if len(sys.argv) > 1 else "level1"
     out = os.path.join(GAME, "art", "items")
@@ -97,6 +185,8 @@ def main():
         cmr = po2[cash["mesh_renderer"]["m_PathID"]].read()
         types["11"]["material"] = material_entry(cmr.m_Materials[0].read(), tex_ref)
 
+    box = export_box(glb, len(glb.j["meshes"]), objs, tex_ref)
+
     # Demand-bubble and shelf icons: Sprite "<lowerCamelName>Icon" (resources.assets or the addressable group).
     sprites = {}
     for o in env.objects:
@@ -116,7 +206,7 @@ def main():
 
     glb.write(os.path.join(out, "items.glb"))
     with open(os.path.join(out, "items.json"), "w", encoding="utf-8") as fh:
-        json.dump({"height": height, "material": material, "textures": sorted(set(textures)), "types": types}, fh,
+        json.dump({"height": height, "material": material, "textures": sorted(set(textures)), "types": types, "box": box}, fh,
                   ensure_ascii=False, indent=1)
     log(f"items: {len(types)} types, {len(mesh_index)} meshes, height {height}, "
         f"items.glb {os.path.getsize(os.path.join(out, 'items.glb')) // 1024} KB")

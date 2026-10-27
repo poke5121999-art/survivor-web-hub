@@ -168,6 +168,8 @@ export class Hud {
   updateTask() {
     const task = this.tasks && this.tasks.current;
     const on = !!(task && task.text);
+    this.upBtn = this.upBtn || this.root.querySelector('#upbtn');
+    this.upBtn.classList.toggle('hint', !!(on && task.menu));
     this.taskEl.style.display = on ? 'flex' : 'none';
     if (!on) return;
     const icon = task.item != null && this.items.types[task.item] ? `${this.art}/items/${this.items.types[task.item].icon}`
@@ -312,6 +314,12 @@ export class Hud {
     }
 
     for (const c of st.customers || []) {
+      // MatCustomer.SelectNewFace at walk-away: happy, or neutral when part of the order was missing.
+      if (c.state === 7 && c.face) {
+        const face = this.ui(c.face === 'happy' ? 'happyIcon' : 'neutralIcon');
+        this.place(this.tag(`c:${c.id}`, 'bubble', `<img class="ico" src="${face}" alt="">`), { x: c.x, y: 9, z: c.z }, -10);
+        continue;
+      }
       if (c.state >= 5) continue;
       let html;
       if (c.di >= c.items.length || c.state === 2 || c.state === 3 || c.state === 4 || c.state === 8) {
