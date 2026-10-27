@@ -1,0 +1,59 @@
+diff --git a/scripts/com/playfish/games/cooking/Avatar3D.as b/scripts/com/playfish/games/cooking/Avatar3D.as
+index 2430bff..cf79910 100644
+--- a/scripts/com/playfish/games/cooking/Avatar3D.as
++++ b/scripts/com/playfish/games/cooking/Avatar3D.as
+@@ -228,6 +228,9 @@ package com.playfish.games.cooking
+          cachingDirection = ANIMATION_CACHE_DIRECTIONS[_loc2_][cachingDirectionIndex];
+          playAnimation(_loc2_);
+          isoCacher = new IsoCacher(this,isoCacheCallback,true,true,ANGLE_PER_DIRECTION * cachingDirection);
++         // Frames are cached at 2x and drawn at half scale by CachedAvatar3D, so avatars stay sharp
++         // when the restaurant is zoomed in or the screen is HiDPI (1x frames were upscaled and blurry).
++         isoCacher.setResolutionBoost(2);
+       }
+       
+       public function stopAnimation() : void
+diff --git a/scripts/com/playfish/games/cooking/CachedAvatar3D.as b/scripts/com/playfish/games/cooking/CachedAvatar3D.as
+index 8803c00..d970ea9 100644
+--- a/scripts/com/playfish/games/cooking/CachedAvatar3D.as
++++ b/scripts/com/playfish/games/cooking/CachedAvatar3D.as
+@@ -110,14 +110,15 @@ package com.playfish.games.cooking
+             frameBitmap.visible = true;
+             frameBitmap.bitmapData = _loc2_.bitmapData;
+             frameBitmap.smoothing = true;
++            frameBitmap.scaleY = _loc2_.scale || 1;
+             if(animationDirection >= 5)
+             {
+-               frameBitmap.scaleX = -1;
++               frameBitmap.scaleX = -frameBitmap.scaleY;
+                frameBitmap.x = -_loc2_.x;
+             }
+             else
+             {
+-               frameBitmap.scaleX = 1;
++               frameBitmap.scaleX = frameBitmap.scaleY;
+                frameBitmap.x = _loc2_.x;
+             }
+             frameBitmap.y = _loc2_.y + WorldRestaurant.tileHeight / 2;
+diff --git a/scripts/com/playfish/games/cooking/IsoCacher.as b/scripts/com/playfish/games/cooking/IsoCacher.as
+index 417e457..f5a27e6 100644
+--- a/scripts/com/playfish/games/cooking/IsoCacher.as
++++ b/scripts/com/playfish/games/cooking/IsoCacher.as
+@@ -118,14 +118,16 @@ package com.playfish.games.cooking
+          var _loc2_:DisplayObject = _loc1_.getChildAt(0);
+          var _loc3_:Rectangle = _loc2_.getRect(null);
+          var _loc6_:Rectangle = _loc2_.getRect(_loc2_);
+-         var _loc4_:BitmapData = new BitmapData(Math.max(1,_loc3_.width),Math.max(1,_loc3_.height),true,0);
+-         _loc4_.draw(_loc2_,new Matrix(1,0,0,1,-_loc6_.left,-_loc6_.top));
++         var _loc7_:Number = resolutionBoost;
++         var _loc4_:BitmapData = new BitmapData(Math.max(1,Math.ceil(_loc3_.width * _loc7_)),Math.max(1,Math.ceil(_loc3_.height * _loc7_)),true,0);
++         _loc4_.draw(_loc2_,new Matrix(_loc7_,0,0,_loc7_,-_loc6_.left * _loc7_,-_loc6_.top * _loc7_),null,null,null,true);
+          view.clear();
+          view.visible = false;
+          var _loc5_:Object = new Object();
+          _loc5_.bitmapData = _loc4_;
+          _loc5_.x = _loc3_.left;
+          _loc5_.y = _loc3_.top;
++         _loc5_.scale = 1 / _loc7_;
+          return _loc5_;
+       }
+       

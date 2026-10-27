@@ -77,12 +77,25 @@ function unanswered(buf, calls) {
 }
 
 (async () => {
-  const browser = await chromium.launch({ headless: true, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+  // RC_ANGLE=d3d11 renders on the GPU (closer to a player's machine than the default software SwiftShader).
+  const angle = process.env.RC_ANGLE || 'swiftshader';
+  const browser = await chromium.launch({ headless: true, args: angle === 'swiftshader' ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : ['--use-angle=' + angle, '--enable-gpu', '--ignore-gpu-blocklist'] });
   setTimeout(() => { log('max time reached, quitting'); browser.close().finally(() => process.exit(3)); }, MAX_MS).unref();
   const ctx = await browser.newContext({ viewport: { width: 1100, height: 860 } });
   await ctx.addInitScript((s) => { try { localStorage.setItem('hub.session.v1', s); } catch (e) { /* storage blocked */ } }, SESSION);
+  // RC_RUFFLE_LOG=info makes Ruffle print AS3 trace() output (default level drops it).
+  if (process.env.RC_RUFFLE_LOG) {
+    // index.html assigns RufflePlayer.config wholesale, so merge the level in on every assignment.
+    await ctx.addInitScript((level) => {
+      let config = { logLevel: level };
+      window.RufflePlayer = window.RufflePlayer || {};
+      Object.defineProperty(window.RufflePlayer, 'config', { configurable: true, get: () => config, set: (v) => { config = Object.assign({}, v, { logLevel: level }); } });
+    }, process.env.RC_RUFFLE_LOG);
+  }
   const page = await ctx.newPage();
   page.on('pageerror', (e) => log('pageerror ' + e.message));
+  // Ruffle reports uncaught AS3 errors (and AVM warnings) on the console, not as page errors.
+  page.on('console', (m) => { if (process.env.RC_RUFFLE_LOG || m.type() === 'error' || /Error #?\d|TypeError|ReferenceError/.test(m.text())) log('console ' + m.type() + ' ' + m.text().slice(0, 300)); });
   page.on('response', async (r) => {
     const u = r.url();
     if (/rc-rpc\/social-links/.test(u)) {
