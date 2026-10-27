@@ -525,6 +525,7 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
   await p.waitForFunction(() => document.querySelector('#gate-maint-card [data-role="status"]').textContent === 'Đang bảo trì');
   const sOn = fake.gateSaves[fake.gateSaves.length - 1];
   const wantOn = { _id: 'default', maintenance: { on: true, message: MSG, until: '2026-10-20T01:30:00Z' },
+    netMaintenance: { eos: { on: false, message: '', until: null }, utp: { on: false, message: '', until: null } },
     minBuild: { webgl: 0, android: 0, ios: 0 }, storeUrls: { android: '', ios: '' } };
   check('bật bảo trì: gửi gate_save cả doc, until là UTC', fake.gateSaves.length === 1 && sOn.action === 'gate_save' &&
     JSON.stringify(sOn.doc) === JSON.stringify(wantOn), JSON.stringify(sOn.doc));
@@ -581,6 +582,40 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
   await p.click('#gate-build-save');
   for (let i = 0; i < 60 && fake.gateDoc.minBuild.webgl !== 1234; i++) await p.waitForTimeout(50);
   check('bản web tối thiểu bằng bản trên hub thì lưu được', fake.gateDoc.minBuild.webgl === 1234, String(fake.gateDoc.minBuild.webgl));
+  // thẻ Bảo trì mạng: hai dòng EOS và Netcode, một nút Lưu
+  const netRows = await p.$$eval('#gate-net-card section', els => els.map(e => e.querySelector('h4').textContent));
+  check('thẻ bảo trì mạng có đúng hai dòng EOS và Netcode', netRows.join('|') === 'EOS (Epic Online Services)|Netcode (Unity Relay)', netRows.join('|'));
+  check('bảo trì mạng mở đầu tắt cả hai, đếm 0/300', await p.$eval('#gate-net-eos', e => !e.checked) && await p.$eval('#gate-net-utp', e => !e.checked) &&
+    (await txt('#gate-net-eos-count')) === '0/300 ký tự', await txt('#gate-net-eos-count'));
+  const netBefore = fake.gateSaves.length;
+  const NMSG = 'EOS đang bảo trì, dùng Local co-op nhé.';
+  await p.fill('#gate-net-eos-msg', NMSG);
+  await p.fill('#gate-net-eos-until', '2026-10-21T10:00');
+  check('giờ dự kiến mạng 10:00 (UTC+7) hiện 03:00 UTC', (await txt('#gate-net-eos-utc')) === 'Lưu là 2026-10-21 03:00 UTC', await txt('#gate-net-eos-utc'));
+  await p.fill('#gate-net-utp-msg', 'x'.repeat(300));
+  await p.fill('#gate-net-eos-msg', NMSG);
+  await p.click('#gate-net-eos');
+  check('chỉ sửa mà chưa bấm Lưu thì không gửi gì', fake.gateSaves.length === netBefore, String(fake.gateSaves.length));
+  dialogNo = true;
+  await p.click('#gate-net-save');
+  dialogNo = false;
+  check('bật bảo trì mạng hỏi lại; Huỷ thì không gửi', fake.gateSaves.length === netBefore && /EOS \(Epic Online Services\)/.test(dialogs[dialogs.length - 1]), dialogs[dialogs.length - 1]);
+  await p.click('#gate-net-save');
+  await p.waitForFunction(() => /Đã lưu bảo trì mạng/.test([...document.querySelectorAll('.dz-toast')].map(e => e.textContent).join('|')));
+  const sN = fake.gateSaves[fake.gateSaves.length - 1];
+  const wantNet = { eos: { on: true, message: NMSG, until: '2026-10-21T03:00:00Z' }, utp: { on: false, message: 'x'.repeat(300), until: null } };
+  check('lưu bảo trì mạng: gửi cả doc, phần khác giữ bản đã lưu', fake.gateSaves.length === netBefore + 1 && sN.action === 'gate_save' &&
+    JSON.stringify(sN.doc.netMaintenance) === JSON.stringify(wantNet) && sN.doc.minBuild.webgl === 1234 && sN.doc.maintenance.on === false, JSON.stringify(sN.doc.netMaintenance));
+  await p.fill('#gate-net-utp-msg', 'x'.repeat(301));
+  check('ô lời nhắn mạng cắt ở 300 ký tự, nút Lưu vẫn bật', (await p.$eval('#gate-net-utp-msg', e => e.value.length)) === 300 &&
+    (await txt('#gate-net-utp-count')) === '300/300 ký tự' && await p.$eval('#gate-net-save', e => !e.disabled), await txt('#gate-net-utp-count'));
+  await p.fill('#gate-net-utp-msg', 'x'.repeat(300));
+  await p.click('#gate-net-eos');
+  const nOff = fake.gateSaves.length;
+  await p.click('#gate-net-save');
+  for (let i = 0; i < 60 && fake.gateDoc.netMaintenance.eos.on; i++) await p.waitForTimeout(50);
+  check('tắt bảo trì mạng không hỏi lại, lưu eos tắt', fake.gateSaves.length === nOff + 1 && fake.gateDoc.netMaintenance.eos.on === false &&
+    fake.gateDoc.netMaintenance.eos.message === NMSG, JSON.stringify(fake.gateDoc.netMaintenance.eos));
   await p.screenshot({ path: SHOTS + '/client-gate.png', fullPage: true });
   await p.setViewportSize({ width: 390, height: 800 });
   await p.waitForTimeout(150);

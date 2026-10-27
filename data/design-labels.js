@@ -956,6 +956,20 @@
         saved: { on: "Đã bật bảo trì", off: "Đã tắt bảo trì", msg: "Đã lưu lời nhắn bảo trì" },
         status: { on: "Đang bảo trì", off: "Mở" }
       },
+      net: {
+        title: "Bảo trì mạng",
+        note: "Khoá riêng từng đường mạng co-op với lý do bảo trì: Co-op Online, Co-op Vô Tận và PvP bị khoá; Co-op Local và chơi một mình vẫn mở.",
+        ids: {
+          eos: { label: "EOS (Epic Online Services)", help: "Phòng co-op Online trên app." },
+          utp: { label: "Netcode (Unity Relay)", help: "Co-op trên web và đường dự phòng của app." }
+        },
+        on: { label: "Bảo trì", help: "Chỉ có hiệu lực sau khi bấm Lưu. Bật thì hỏi lại trước." },
+        message: { label: "Lời nhắn cho người chơi", help: "Hiện làm lý do khoá chế độ. Tối đa 300 ký tự." },
+        until: { label: "Dự kiến xong lúc", help: "Không bắt buộc, chỉ để hiện cho người chơi; tắt bảo trì vẫn phải bấm tay. Nhập theo giờ máy bạn, lưu dưới dạng UTC." },
+        confirmOn: "Bật bảo trì mạng cho {names}? Các chế độ co-op và PvP dùng đường này sẽ bị khoá cho tới khi tắt.",
+        save: "Lưu bảo trì mạng",
+        saved: "Đã lưu bảo trì mạng"
+      },
       build: {
         title: "Bản tối thiểu",
         note: "Bản thấp hơn số này không vào được game. 0 = không chặn. Đặt bất kỳ ô nào lớn hơn 0 thì bản game cũ chưa gửi số bản (mọi nền tảng) cũng bị chặn.",
