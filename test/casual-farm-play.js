@@ -136,6 +136,29 @@ function serve() {
       && upgraded.lv1.speed === 1 && upgraded.lv1.stack === 0 && upgraded.lv2.stack === 1 && upgraded.label, JSON.stringify(upgraded));
     check('the upgrade button dot shows a new unlock until its tab is seen', upgraded.dotOn && upgraded.dotOff, JSON.stringify(upgraded));
 
+    // Phone order: an order shows the phone button with its countdown, the dot lights when the car is in, the popup lists
+    // the lines and Collect (only once full) pays 5 x the order.
+    const phone = await page.evaluate(async () => {
+      const g = window.__mmGame, sim = g.sim, st = sim.state, btn = document.querySelector('#phonebtn');
+      const type = g.store.shelves[0].type;
+      st.car.order = { items: [{ type, n: 2, got: 0 }], arrive: st.t - 1, expires: st.t + 600 };
+      await new Promise(r => setTimeout(r, 500));
+      const shown = getComputedStyle(btn).display !== 'none', timer = btn.querySelector('s').textContent, dot = btn.classList.contains('alert');
+      btn.click();
+      await new Promise(r => setTimeout(r, 300));
+      const rows = document.querySelectorAll('#phonemenu .row').length;
+      const cash0 = st.cash;
+      document.querySelector('#phonemenu [data-collect]').click();
+      const early = st.cash - cash0;
+      st.car.order.items[0].got = 2;
+      await new Promise(r => setTimeout(r, 300));
+      document.querySelector('#phonemenu [data-collect]').click();
+      const paid = st.cash - cash0, price = g.store.prices[type] || 0;
+      return { shown, timer, dot, rows, early, paid, expect: Math.trunc(5 * Math.trunc(price * 2)), gone: !st.car.order };
+    });
+    check('the phone button counts down an order and its popup collects 5x once full', phone.shown && /09m 5\ds/.test(phone.timer) && phone.dot
+      && phone.rows === 1 && phone.early === 0 && phone.paid === phone.expect && phone.gone, JSON.stringify(phone));
+
     // Left button column and Settings: the buttons sit on the left; Settings switches the music.
     const hudLeft = await page.evaluate(async () => {
       const g = window.__mmGame, up = document.querySelector('#upbtn');

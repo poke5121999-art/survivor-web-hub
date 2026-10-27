@@ -166,3 +166,18 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #9bd36a; tou
 @media (max-aspect-ratio: 3/4) { .upmenu.upgrades .who { margin-left: 0; width: 4.6em; } .upmenu.upgrades .tracks { margin-right: 0; } .upmenu.upgrades .goods img { width: 1.1em; height: 1.1em; } }
 .upmenu.upgrades .who .goods { margin-top: 0.15em; }
 @media (max-aspect-ratio: 3/4) { .upmenu.upgrades .tr .buy { min-width: 3.4em; padding: 0.2em 0.5em; } .upmenu.upgrades .tr { gap: 0.4em; } }
+.lb.phone { --tint: #ffb347; }
+.lb.phone s { position: absolute; left: 105%; top: 50%; transform: translateY(-50%); text-decoration: none; white-space: nowrap; font-size: 0.8em;
+  background: rgba(0, 0, 0, 0.45); border-radius: 0.4em; padding: 0.05em 0.4em; color: #fff; }
+.upmenu.phonemenu .head { background: #ff9f1a; justify-content: flex-start; gap: 0.4em; }
+.upmenu.phonemenu .head img { width: 1.8em; height: 1.4em; object-fit: contain; }
+.upmenu.phonemenu .head .x { margin-left: auto; }
+.upmenu.phonemenu .row img { width: 2em; height: 2em; object-fit: contain; }
+.upmenu.phonemenu .row .bar { flex: 1; display: block; height: 0.6em; background: #e3e3e3; border-radius: 0.3em; overflow: hidden; }
+.upmenu.phonemenu .row .bar u { display: block; height: 100%; background: #4cd137; }
+.upmenu.phonemenu .foot { display: flex; justify-content: center; padding: 0.4em; }
+.upmenu.phonemenu .collect { cursor: pointer; pointer-events: auto; padding: 0.3em 1.2em; }
+.saving { position: absolute; left: 1em; bottom: calc(env(safe-area-inset-bottom) + 0.6em); font-size: max(13px, calc(26 / 1334 * 100vh)); opacity: 0;
+  text-shadow: 0 1px 0 #000; }
+.saving.on { animation: savingFade 1.6s ease-out; }
+@keyframes savingFade { 0% { opacity: 0; } 15% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; } }

@@ -39,27 +39,38 @@ export class Hud {
         <a class="btn lb set" id="setbtn"><img src="${ui('settingsUI')}" alt=""></a>
         <a class="btn lb mapbtn" id="mapbtn"><img src="${ui('MapCityUI')}" alt=""><i class="dot"></i></a>
         <a class="btn lb upbtn" id="upbtn"><img src="${ui('upgradeIcon')}" alt=""><i class="dot"></i></a>
+        <a class="btn lb phone" id="phonebtn"><img src="${ui('mobilePhoneIcon')}" alt=""><i class="dot"></i><s></s></a>
       </div>
+      <div class="upmenu phonemenu" id="phonemenu"><div class="head"><img src="${ui('car_CustomerIcon')}" alt=""><b>ORDER</b><a class="btn x">✕</a></div>
+        <div class="rows"></div><div class="foot"><a class="btn buy collect" data-collect="1">COLLECT</a></div></div>
+      <div class="saving" id="saving">Save...</div>
       <div class="upmenu settings" id="setmenu"><div class="head"><b>SETTINGS</b><a class="btn x">✕</a></div>
         <div class="rows"><div class="row"><span><b>Sound</b></span><a class="btn buy tog" data-tog="sound"></a></div>
-        <div class="row"><span><b>Music</b></span><a class="btn buy tog" data-tog="music"></a></div></div></div>
+        <div class="row"><span><b>Music</b></span><a class="btn buy tog" data-tog="music"></a></div>
+        <div class="row"><span><b>Vibration</b></span><a class="btn buy tog" data-tog="vibrate"></a></div></div></div>
       <div class="upmenu upgrades" id="upmenu"><div class="head"><img src="${ui('upgradeIcon')}" alt=""><b>UPGRADES</b><a class="btn x">✕</a></div>
         <div class="tabs"><a class="btn tab workers" data-tab="workers">Workers<i class="dot"></i></a><a class="btn tab machines" data-tab="machines">Machines<i class="dot"></i></a><a class="btn tab animals" data-tab="animals">Animals<i class="dot"></i></a></div>
         <div class="rows"></div></div>
       <div class="boosts" id="boosts"></div>
       <div class="upmenu map" id="mapmenu"><div class="head"><b>MARTS</b><a class="btn x">✕</a></div><div class="rows"></div></div>`;
-    // SettingMenuController: sound and music switches.
+    // SettingMenuController: sound, music and vibration (VibratePref, on by default) switches.
+    try { this.vibrate = localStorage.getItem('mmm-vibrate') !== '0'; } catch (e) { this.vibrate = true; }
     this.setEl = this.root.querySelector('#setmenu');
     const showTog = () => this.setEl.querySelectorAll('[data-tog]').forEach(b => {
-      const on = !sound || (b.dataset.tog === 'sound' ? !sound.muted : sound.music);
+      const on = b.dataset.tog === 'vibrate' ? this.vibrate : !sound || (b.dataset.tog === 'sound' ? !sound.muted : sound.music);
       b.textContent = on ? 'ON' : 'OFF';
       b.classList.toggle('poor', !on);
     });
     showTog();
     this.setEl.addEventListener('click', e => {
       const b = e.target.closest('[data-tog]');
-      if (!b || !sound) return;
-      if (b.dataset.tog === 'sound') sound.setMuted(!sound.muted); else sound.setMusic(!sound.music);
+      if (!b) return;
+      if (b.dataset.tog === 'vibrate') {
+        this.vibrate = !this.vibrate;
+        try { localStorage.setItem('mmm-vibrate', this.vibrate ? '1' : '0'); } catch (err) { /* storage unavailable */ }
+        if (this.vibrate) this.buzz(10);
+      } else if (!sound) return;
+      else if (b.dataset.tog === 'sound') sound.setMuted(!sound.muted); else sound.setMusic(!sound.music);
       showTog();
     });
     this.root.querySelector('#setbtn').addEventListener('click', () => {
@@ -106,6 +117,25 @@ export class Hud {
       if (!sim.buyUpgrade(row.slot, track)) return;
       this.upKey = null;
       this.afterBuy(row, track, firstCarry);
+    });
+    // Phone order (PhoneMenuButton / PhoneOrderMenuController): the button counts down the order's time, its dot lights
+    // when the car arrives; the popup lists every line with n/m and a bar, Collect works once all are full, and the
+    // popup closes as soon as the player moves.
+    this.phoneEl = this.root.querySelector('#phonemenu');
+    this.root.querySelector('#phonebtn').addEventListener('click', () => {
+      this.closeMenus(this.phoneEl);
+      this.phoneEl.classList.toggle('open');
+      this.phoneSeen = true;
+      this.phoneKey = null;
+    });
+    this.phoneEl.querySelector('.x').addEventListener('click', () => this.phoneEl.classList.remove('open'));
+    this.phoneEl.querySelector('[data-collect]').addEventListener('click', () => {
+      if (sim.cars && sim.cars.full()) { sim.cars.collect(); this.phoneEl.classList.remove('open'); }
+    });
+    // GameSingleton haptics: VibrateSuccess when a mat completes, VibrateLight when the checkout box pops.
+    sim.listeners.push(e => {
+      if (e.type === 'matDone') this.buzz([20, 40, 20]);
+      if (e.type === 'customerPack' && !(sim.state.cashiers[e.cashier] || {}).worker) this.buzz(10);
     });
     this.mapEl = this.root.querySelector('#mapmenu');
     this.mapRows = this.mapEl.querySelector('.rows');
@@ -195,9 +225,45 @@ export class Hud {
     });
   }
 
+  buzz(pattern) {
+    if (this.vibrate && navigator.vibrate) { try { navigator.vibrate(pattern); } catch (e) { /* not allowed */ } }
+  }
+
+  // "Save..." in the lower-left corner when the game saves (shown at most every 30 s, like the original's cadence).
+  saved() {
+    const now = performance.now();
+    if (now - (this.savedAt || -1e9) < 30000) return;
+    this.savedAt = now;
+    const el = this.root.querySelector('#saving');
+    el.classList.remove('on');
+    void el.offsetWidth;
+    el.classList.add('on');
+  }
+
+  updatePhone() {
+    const sim = this.sim, o = sim.state.car && sim.state.car.order, btn = this.root.querySelector('#phonebtn');
+    btn.style.display = o ? '' : 'none';
+    if (!o) { this.phoneEl.classList.remove('open'); this.phoneSeen = false; return; }
+    const left = Math.max(0, o.expires - sim.state.t), m = Math.floor(left / 60), sec = Math.floor(left % 60);
+    btn.querySelector('s').textContent = `${String(m).padStart(2, '0')}m ${String(sec).padStart(2, '0')}s`;
+    btn.classList.toggle('alert', sim.cars.ready() && !this.phoneSeen);
+    if (!this.phoneEl.classList.contains('open')) return;
+    if (sim.state.player.moving) { this.phoneEl.classList.remove('open'); return; }
+    const rows = o.items.map(x => {
+      const it = this.items.types[x.type];
+      return `<div class="row"><img src="${this.art}/items/${it && it.icon}" alt=""><i class="bar"><u style="width:${Math.min(100, x.got / x.n * 100)}%"></u></i><b>${x.got}/${x.n}</b></div>`;
+    }).join('');
+    const full = sim.cars.full();
+    const key = rows + full;
+    if (key === this.phoneKey) return;
+    this.phoneKey = key;
+    this.phoneEl.querySelector('.rows').innerHTML = rows;
+    this.phoneEl.querySelector('[data-collect]').classList.toggle('poor', !full);
+  }
+
   // One popup at a time.
   closeMenus(keep) {
-    for (const el of [this.upEl, this.mapEl, this.setEl]) if (el && el !== keep) el.classList.remove('open');
+    for (const el of [this.upEl, this.mapEl, this.setEl, this.phoneEl]) if (el && el !== keep) el.classList.remove('open');
   }
 
   bindInput() {
@@ -285,16 +351,6 @@ export class Hud {
     const c = task.color;
     if (c) this.taskEl.style.setProperty('--c', `rgb(${c.r * 255 | 0},${c.g * 255 | 0},${c.b * 255 | 0})`);
     if (task.target) this.arrow('task', { x: task.target.x, y: (task.target.y || 0) + 4, z: task.target.z });
-  }
-
-  // Welcome-back popup with the offline income; Collect pays it.
-  welcome(amount, collect) {
-    const el = document.createElement('div');
-    el.className = 'next welcome';
-    el.innerHTML = `<i>WELCOME BACK!</i><b><img src="${this.ui('cashIcon')}" alt=""> ${amount}</b><div><a class="btn go">COLLECT</a></div>`;
-    el.style.display = 'flex';
-    el.querySelector('.go').addEventListener('click', () => { collect(); el.remove(); });
-    this.root.appendChild(el);
   }
 
   // Upgrade slots the sim understands, one per unlocked row (the bot, the red dot of old and tests use this list).
@@ -437,6 +493,11 @@ export class Hud {
     }
 
     for (const c of st.customers || []) {
+      // OpenAngryFacePopUp when the patience bar runs out, then the customer moves on.
+      if (c.angryAt != null && st.t - c.angryAt < 1) {
+        this.place(this.tag(`c:${c.id}`, 'bubble', `<img class="ico" src="${this.ui('angryIcon')}" alt="">`), { x: c.x, y: 9, z: c.z }, -10);
+        continue;
+      }
       // MatCustomer.SelectNewFace at walk-away: happy, or neutral when part of the order was missing.
       if (c.state === 7 && c.face) {
         const face = this.ui(c.face === 'happy' ? 'happyIcon' : 'neutralIcon');
@@ -457,21 +518,24 @@ export class Hud {
     }
 
     this.updateTask();
-    // Car order: what the car still needs, and Collect once it is full (PhoneOrderMenuController).
+    // Car order bubble (CarUI is a CustomerUI): what the car still needs, a happy face once it is full; Collect is in the
+    // phone popup (PhoneOrderMenuController).
     const car = st.car && st.car.order && sim.cars && sim.cars.ready() ? st.car.order : null;
     if (car) {
       const full = sim.cars.full();
-      const html = full ? '<a class="btn collect" data-car="1">COLLECT</a>'
+      const html = full ? `<img class="ico" src="${this.ui('happyIcon')}" alt="">`
         : car.items.map(x => `<img class="ico" src="${this.art}/items/${(this.items.types[x.type] || {}).icon}" alt=""><b>${x.got}/${x.n}</b>`).join('');
-      const t = this.tag('car', `bubble car${full ? ' full' : ''}`, html);
-      this.place(t, { x: sim.cars.point.x, y: 10, z: sim.cars.point.z });
-      if (!t._wired) {
-        t._wired = true;
-        t.addEventListener('click', e => { if (e.target.closest('[data-car]')) sim.cars.collect(); });
-      }
+      this.place(this.tag('car', 'bubble car', html), { x: sim.cars.point.x, y: 10, z: sim.cars.point.z });
     }
     const th = st.thief && st.thief.chasing && st.thief.agent;
     if (th) this.arrow('thief', { x: th.x, y: 6, z: th.z });
+    // CWCommUIController on the thief: an evil laugh while it steals and runs, crying once caught.
+    const ta = st.thief && st.thief.agent;
+    if (ta && ta.state !== 'walk') {
+      const face = ta.state === 'caught' ? 'sadIcon' : 'thiefIcon';
+      this.place(this.tag('thief-face', 'bubble', `<img class="ico" src="${this.ui(face)}" alt="">`), { x: ta.x, y: 9, z: ta.z }, -10);
+    }
+    this.updatePhone();
     if (sim.boosters) this.updateBoosts();
     this.nextEl.style.display = st.next.ready ? 'flex' : 'none';
     // _notificationCircle on the upgrade button (CanvasManager.UpdateUpgradeButtonNotif): a tab holds something

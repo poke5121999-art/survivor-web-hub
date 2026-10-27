@@ -4,7 +4,9 @@
 // every 0.2 s up to 20, waits 2 s and runs to an exit. While it runs the player chases it with the net: touching it
 // (2.5 m circle) freezes both for 2 s and the stolen coins come back; reaching the exit loses them.
 const WALK = 10, RUN = 15, STEAL_RATE = 0.2, CARRY = 20, ESCAPE_DELAY = 2, CATCH_R = 2.5, FREEZE = 2, SCATTER = 0.5;
-const NEAR_DESK = 8;   // isPlayerAroundTheSphereCollider: the cashier's sphere radius is not exported (guess)
+// isPlayerAroundTheSphereCollider: CashierDesk/PlayerDetector SphereCollider radius 20 around the desk node, plus the
+// player's own trigger capsule (radius 1) (census-instore.md 3.5).
+const NEAR_DESK = 20 + 1;
 
 export class Thief {
   constructor(sim, nav) {
@@ -17,7 +19,7 @@ export class Thief {
     this.exits = (cm.thiefExitPointList || []).filter(r => r && r.n != null).map(r => s.pos(r.n));
     this.desks = s.cashiers.map(c => {
       const f = s.comp(c.node, 'CashierController') || {};
-      return { slot: f.thiefSlot ? s.pos(f.thiefSlot.n) : c.desk.middle, spawn: f.thiefSpawnSlot ? s.pos(f.thiefSpawnSlot.n) : c.desk.middle };
+      return { slot: f.thiefSlot ? s.pos(f.thiefSlot.n) : c.desk.middle, spawn: f.thiefSpawnSlot ? s.pos(f.thiefSpawnSlot.n) : c.desk.middle, at: s.pos(c.node) };
     });
     sim.state.thief = { timer: 0, agent: null, chasing: false };
   }
@@ -28,11 +30,14 @@ export class Thief {
     if (!st.agent) {
       st.timer += dt;
       if (st.timer < this.every) return;
-      st.timer = 0;
+      // CustomerManager: once the timer is up the check runs every frame, and the timer restarts only when a cashier
+      // qualifies (11+ coins on the desk, player outside its sphere), whether or not the roll spawns a thief.
       const p = sim.state.player;
       const ci = sim.store.cashiers.findIndex((c, i) => sim.isActive(c.name) && sim.state.cashiers[i].cash > 10
-        && Math.hypot(c.desk.middle.x - p.x, c.desk.middle.z - p.z) > NEAR_DESK);
-      if (ci >= 0 && sim.rng() > this.prob) this.spawn(ci);
+        && Math.hypot(this.desks[i].at.x - p.x, this.desks[i].at.z - p.z) > NEAR_DESK);
+      if (ci < 0) return;
+      st.timer = 0;
+      if (sim.rng() > this.prob) this.spawn(ci);
       return;
     }
     const a = st.agent;

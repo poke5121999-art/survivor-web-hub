@@ -50,6 +50,7 @@ function installProbe() {
     tags: { bad: [], upgrade: 0 },
     checkout: { packs: 0, boxes: 0, hopping: 0, leaving: 0, held: 0, faces: 0, desk: 0, deskBills: 0, stray: [] }, phantom: [],
     fx: { walk: 0, dust: 0, gone: 0, gonePuff: 0, pops: 0, popPuff: 0, levels: 0, confetti: 0, boostOn: 0, rings: 0 },
+    doors: { busy: 0, open: 0, idle: 0, shut: 0 },
   };
   const ev = window.__ev = [];
   sim.listeners.push(e => ev.push(e));
@@ -91,6 +92,12 @@ function installProbe() {
       }
       if (k === 'upgrade') stats.tags.upgrade++;
     }
+    // Doors: someone inside for a while means open; nobody near for long means shut again.
+    for (const d of view.doors || []) {
+      if (d.open && d.wait <= 0 && d.k >= 0.999) stats.doors.open++;
+      if (d.open) { d.busyT = (d.busyT || 0) + 0.5; d.idleT = 0; if (d.busyT >= 1.5) stats.doors.busy++; }
+      else { d.idleT = (d.idleT || 0) + 0.5; d.busyT = 0; if (d.idleT >= 6) { stats.doors.idle++; if (d.k <= 0.001) stats.doors.shut++; } }
+    }
     const fx = stats.fx, parts = view.fx ? view.fx.parts : [];
     if (st.player.moving) { fx.walk++; if (parts.some(p => p.look === 'puff' && p.size < 2)) fx.dust++; }
     const b = sim.boosters;
@@ -125,6 +132,8 @@ function installProbe() {
   window.__ff = (seconds, until) => {
     const DT = 1 / 30;
     let next = 0;
+    // Events from real-time frames between two calls were already drawn; only count what this loop steps.
+    ev.length = 0;
     for (let t = 0; t < seconds; t += DT) {
       g.bot.step(DT);
       sim.step(DT, { nav: g.nav, grid: g.grid });
@@ -296,7 +305,7 @@ function installHold() {
       const i = g.store.producers.findIndex(p => p.upgradable && sim.isActive(p.name));
       if (i < 0) return;
       sim.state.cash += 100000;
-      sim.buyUpgrade({ kind: 'producer', i });
+      if (sim.buyUpgrade({ kind: 'producer', i })) { window.__rs.fx.levels++; window.__confettiAt = window.__rs.t + 1.2; }
       window.__ff(2);
     });
 
@@ -316,6 +325,9 @@ function installHold() {
     check('a leaving customer vanishes in a smoke puff', fx.gone > 10 && fx.gonePuff === fx.gone, `${fx.gonePuff}/${fx.gone}`);
     check('a machine level-up throws confetti a second later', fx.levels > 0 && fx.confetti === fx.levels, `${fx.confetti}/${fx.levels}`);
     check('boost rings show while a booster runs', fx.boostOn > 10 && fx.rings > fx.boostOn * 0.8, `${fx.rings}/${fx.boostOn} samples`);
+    const dr = s.doors;
+    check('entrance doors open while someone walks through and shut after', dr.busy > 5 && dr.open >= dr.busy * 0.8 && dr.idle > 5 && dr.shut >= dr.idle * 0.98,
+      `open ${dr.open}/${dr.busy} busy samples, shut ${dr.shut}/${dr.idle} idle samples`);
     const co = s.checkout;
     check('every checkout pops a box at the desk', co.packs > 10 && co.boxes === co.packs, `${co.boxes}/${co.packs}`);
     check('goods are seen hopping into the box', co.hopping > 5, `${co.hopping} samples`);

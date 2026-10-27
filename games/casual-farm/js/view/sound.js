@@ -121,6 +121,11 @@ export class Sound {
       }
       case 'customerPack': this.play('box', { at: s.cashiers[e.cashier].boxSlot }); break;
       case 'customerPay': this.play('kaching', { at: s.cashiers[e.cashier].boxSlot }); break;
+      case 'boxPick': {
+        const c = (this.sim.state.customers || []).find(x => x.id === e.id);
+        if (c) this.play('boxPick', { at: c });
+        break;
+      }
       case 'activate': if (s.nextMart && e.name === s.nextMart.name) this.play('honk', { at: s.nextMart.zone.middle }); break;
       case 'depart': this.play('drive'); break;
       case 'thiefCaught': this.play('cashBurst', { index: 0 }); break;

@@ -158,18 +158,7 @@ function save() {
   store_(MART_KEY(STORE), d);
   global.savedAt = Date.now();
   store_(GLOBAL_KEY, global);
-}
-
-// WelcomeBackController.ActivateWith(seconds): income = min(maxIncome 240, incomePerMinAway 1.0 / 60 * seconds).
-// Its minTimeAway is not in the dumps; one whole coin (a minute away) is the threshold used here.
-const AWAY_MAX = 240, AWAY_PER_MIN = 1;
-function welcomeBack(g) {
-  if (fresh || !global.savedAt) return;
-  const income = Math.min(AWAY_MAX, Math.floor(AWAY_PER_MIN / 60 * (Date.now() - global.savedAt) / 1000));
-  if (income >= 1) g.hud.welcome(income, () => {
-    g.sim.state.cash += income;
-    g.sim.emit({ type: 'coinPile', amount: income });
-  });
+  game.hud.saved();
 }
 
 // MatNextStore.FillUpCompleted: the van leaves after 1.0 s and drives for 1.5 s, then the next scene loads.
@@ -217,8 +206,9 @@ function frame() {
 load().then(g => {
   game = g;
   window.__mmGame = Object.assign(g, { camera, scene: scene3, renderer });
+  // No welcome-back popup: WelcomeBackController has no caller in the original (census-daily-shop.md); away time pays
+  // only through the map's idle income.
   if (params.has('bot')) g.bot = bot = new Bot(g.sim, g.grid);
-  else welcomeBack(g);
   mm.ready = true;
 }).catch(e => {
   console.error(e);

@@ -90,6 +90,55 @@ export class GameView {
     }
   }
 
+  // Entrance doors and fridge doors (rules/census-instore.md 3.2, 3.3): each opens while any player, worker, customer
+  // or thief body is inside its trigger box and closes after the last one leaves.
+  initDoors() {
+    const s = this.store;
+    this.doors = [];
+    s.nodes.forEach((n, i) => {
+      const k = n.k || {};
+      const d = k.DoorSlidingController || k.DoorPaper;
+      if (d && d.leftDoor && d.rightDoor) {
+        const L = this.obj(d.leftDoor.n), R = this.obj(d.rightDoor.n);
+        if (L && R) this.doors.push({ kind: k.DoorPaper ? 'paper' : 'slide', zone: s.box(i), leaves: [L, R], base: [L.position.x, R.position.x], k: 0, open: false });
+      }
+      if (k.FridgeRadarController && k.FridgeRadarController.shelfFridgeInstance) {
+        const f = s.comp(k.FridgeRadarController.shelfFridgeInstance.n, 'ShelfFridgeController');
+        const L = f && f.leftDoorTransform && this.obj(f.leftDoorTransform.n), R = f && f.rightDoorTransform && this.obj(f.rightDoorTransform.n);
+        if (L && R) {
+          this.doors.push({ kind: 'fridge', zone: s.box(i), leaves: [L, R], base: [L.quaternion.clone(), R.quaternion.clone()], k: 0, open: false,
+            openBy: THREE.MathUtils.degToRad(f.openBy ?? 135), openT: f.openDuration ?? 0.75, closeT: f.closeDuration ?? 0.75,
+            delay: (f.delayBeforeClosing ?? 0.1) + (f.openDuration ?? 0.75) });
+        }
+      }
+    });
+  }
+
+  updateDoors(dt) {
+    if (!this.doors) this.initDoors();
+    if (!this.doors.length) return;
+    const st = this.sim.state;
+    const bodies = [st.player, ...(st.workers || []), ...(st.customers || [])];
+    if (st.thief && st.thief.agent) bodies.push(st.thief.agent);
+    const yAxis = new THREE.Vector3(0, 1, 0), q = new THREE.Quaternion();
+    for (const d of this.doors) {
+      const inside = bodies.some(b => d.zone.contains({ x: b.x, y: d.zone.middle.y, z: b.z }));
+      if (inside !== d.open) { d.open = inside; d.wait = inside ? 0 : (d.kind === 'fridge' ? d.delay : d.kind === 'paper' ? 1.5 : 2.5); }
+      if (d.wait > 0) { d.wait -= dt; continue; }
+      // Opening and closing speeds: slide 1.0 / 2.5 s, paper 1.0 / 2.5 s, fridge openDuration / closeDuration.
+      const dur = d.open ? (d.kind === 'fridge' ? d.openT : 1) : (d.kind === 'fridge' ? d.closeT : 2.5);
+      d.k = THREE.MathUtils.clamp(d.k + (d.open ? dt : -dt) / dur, 0, 1);
+      // DOTween default OutQuad on the way out; the fridge closes with InQuart.
+      const e = d.open || d.kind !== 'fridge' ? 1 - (1 - d.k) * (1 - d.k) : d.k * d.k * d.k * d.k;
+      if (d.kind === 'slide') d.leaves.forEach(o => { o.scale.x = 1 + (0.112 - 1) * e; });
+      else if (d.kind === 'paper') d.leaves.forEach((o, j) => { o.position.x = d.base[j] + (j ? 9.7 : -9.7) * e; });
+      else {
+        // ShelfFridgeController.OpenDoor: local euler y + openBy (left) / - openBy (right); the mirrored export flips the sign.
+        d.leaves.forEach((o, j) => { o.quaternion.copy(q.setFromAxisAngle(yAxis, (j ? 1 : -1) * d.openBy * e)).multiply(d.base[j]); });
+      }
+    }
+  }
+
   // Object3D.copy deep-copies userData through JSON, and a Rig points back at its object: lift rigs off first and
   // give the clone its own rigs on the same controllers.
   cloneObject(template) {
@@ -387,6 +436,7 @@ export class GameView {
     this.updateCustomers(dt);
     this.updateCheckouts(dt);
     this.updateWorkers(dt);
+    this.updateDoors(dt);
     this.updateFlights(dt);
     if (this.fx) this.updateFx(dt);
   }

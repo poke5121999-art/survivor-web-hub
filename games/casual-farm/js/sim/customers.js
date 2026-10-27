@@ -298,6 +298,7 @@ export class Customers {
             // OnPatienceTimerComplete -> GoToNext: give up on this item only and move on to the next one; after the
             // last one, pay for what was taken or go home empty-handed.
             c.angry = true;
+            c.angryAt = sim.state.t;
             item.n = item.got;
             const q = this.shelfQueue[c.shelf];
             if (q.indexOf(c.id) >= 0) q.splice(q.indexOf(c.id), 1);
@@ -333,6 +334,8 @@ export class Customers {
       }
       case CState.Packing:
         c.packT += dt;
+        // PickUpBox OnStart: the sealed box lifts off the desk (PlayBoxPickUpSfx) 0.75 s after the lid closes.
+        if (!c.lifted && c.packT >= c.closeAt + 0.75) { c.lifted = true; sim.emit({ type: 'boxPick', id: c.id }); }
         if (c.packT < c.packDur) return;
         sim.giveCash(c.cashier, c.reward, c.id);
         sim.emit({ type: 'customerPay', id: c.id, cashier: c.cashier, amount: c.reward });
