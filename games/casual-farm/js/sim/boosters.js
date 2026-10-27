@@ -85,6 +85,13 @@ export class Boosters {
     return true;
   }
 
+  // A booster from elsewhere (daily spin, rolling offer): the same effect for `seconds`, extending one already running.
+  grant(kind, seconds) {
+    const b = this.sim.state.boost, t = this.sim.state.t;
+    b.active[kind] = Math.max(b.active[kind] || 0, t) + seconds;
+    this.sim.emit({ type: 'boostOn', kind, duration: seconds });
+  }
+
   claimCash() {
     const b = this.sim.state.boost;
     if (!b.cash) return 0;

@@ -35,8 +35,8 @@ Trạng thái 2026-10-27: làm "full game" theo yêu cầu "làm full game đi".
 
 7. **Prestige, bản đồ thành phố 3D, trang phục + thú cưng** xong (rev j, k, l). Tường vô hình xong (rev m: z của `NavMeshObstacle.m_Center`).
 
-Tutorial đủ camera, banner, radar ở rev n. Còn lại theo thứ tự: gem + vòng quay ngày, popup tiền đầu mart, shop tiền ảo, rolling offer, 6 mart mùa + sự kiện, 2 Big Mart, việc nhỏ (lái xe trên bản đồ, cài đặt, mây vùng khoá).
-Đối chiếu class trong `D:\minimart-ref\il2cpp-dump\dump.cs` (2026-10-27) thấy còn thiếu thêm: nhiệm vụ ngày (`DailyChecklistManager`, dễ/vừa/khó + mốc thưởng), cấp người chơi (`XPController`, `PlayerRankScreenController`), bảng thống kê (`StatsMenuController`), menu quản lý 14 mart (`ManageMenuController`), trên bản đồ: dân đi bộ cho skin (`CityMapCivilian`), nhà thu nhập thụ động (`CityMapPassiveIncomeBuilding`), ô xem quảng cáo mở nhà (`CityMapRvMat`), radar cốp xe (`CarTrunkRadarController`), menu mạng xã hội thưởng tiền (`SocialMenuController`).
+Tutorial đủ camera, banner, radar ở rev n. Gem, vòng quay ngày, popup tiền đầu mart ở rev r. Còn lại theo thứ tự: shop tiền ảo, rolling offer, 6 mart mùa + sự kiện, 2 Big Mart, việc nhỏ (lái xe trên bản đồ, cài đặt, mây vùng khoá).
+Đối chiếu 302 class trong `D:\minimart-ref\il2cpp-dump\dump.cs` (2026-10-27) với census cũ: không cần làm nhiệm vụ ngày (`DailyChecklistManager` là khung UI bỏ dở, tiến độ không bao giờ tăng), cấp người chơi (`_XPHolder` tắt sẵn trong HUD gốc), dân đi bộ, nhà thu nhập, ô quảng cáo mở nhà (thuộc bản đồ `Map_meta_art`, nhánh A/B `ABMeta = 1`, mặc định tắt), menu mạng xã hội (link ngoài). Menu quản lý 14 mart đã có (thẻ bản đồ). Còn nhỏ: radar cốp xe (`CarTrunkRadarController`), bảng thống kê (`StatsMenuController`, chưa rõ có nút mở không).
 Không làm: mua trong app bằng tiền thật (quảng cáo thành nhận miễn phí).
 Hở: thu nhập đầu mỗi mart sau rất chậm nếu tới nơi với ít tiền (giá hàng tối đa 10, `pricing.md`).
 Hở: Store 9 còn 3 vật cản (`Wall.006/.008/.009`) nằm xa mesh của chính nó; quầy bếp lệch đã sửa ở rev n (static batching). Chưa truy.

@@ -55,6 +55,9 @@ EVENTS = {
     "pig": (["pig01", "pig02", "pig03", "pig04"], 1.0),
     "goat": (["goat01", "goat02", "goat04"], 1.0),
     "renovation": (["renovationSFX"], 0.4),
+    # SoundManager.dailySpinningSFX / dailySpinRewardSFX (sharedassets0 path ids 57 / 52)
+    "spin": (["PrizeWheel"], 1.0),
+    "spinReward": (["Game Prize 1"], 1.0),
     "music": (["My Mini Mart - Idea 2 - Alt Melody 3"], 0.8),
 }
 

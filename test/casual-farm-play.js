@@ -102,7 +102,10 @@ function serve() {
     check('a customer pays at the cashier', run.paid >= 1, `${run.paid} paid`);
     check('the tutorial moves past "Shelf tomatoes"', run.task >= 3, `task ${run.task}, banner "${run.banner}"`);
 
+    // Freeze the sim first: the bot keeps paying into a mat until the page goes, and the unload save would then hold
+    // less cash than the snapshot (Pages loads slower, so that gap was wide enough to fail there).
     const saved = await page.evaluate(() => {
+      window.__mmGame.sim.step = () => {};
       dispatchEvent(new Event('pagehide'));
       const st = window.__mmGame.sim.state;
       return { cash: st.cash, done: Object.values(st.mats).filter(m => m.done).length };
@@ -433,6 +436,36 @@ function serve() {
       check(`the game keeps the portrait frame, and the map card and prestige menu lay out cleanly at ${vw}x${vh}`, lay.bad.length === 0, JSON.stringify(lay));
     }
     await page.setViewportSize({ width: 390, height: 844 });
+
+    // Daily spin (DailySpinButtonController): Store 1 shows the button once the blender is bought; the free spin turns
+    // the wheel for 5.25 s and the reward screen pays what the pointer shows. MartWelcomeScreen: a first visit to
+    // Store 2 offers 300 cash, the ad button (granted here) doubles it, and it never comes back.
+    await page.goto(`${url}?fresh`);
+    await page.waitForFunction(() => window.__mm && (window.__mm.ready || window.__mm.error), null, { timeout: 90000 });
+    const spinHidden = await page.evaluate(() => getComputedStyle(document.querySelector('#spinbtn')).display === 'none');
+    await page.evaluate(() => { const g = window.__mmGame; g.sim.completeMat(g.store.mats.find(m => m.name === 'Mat_Activate_Blender')); g.daily.rng = () => 0.05; });
+    await page.click('#spinbtn', { timeout: 5000 }).catch(() => {});
+    await page.click('#spinmenu [data-act="spin"]', { timeout: 5000 }).catch(() => {});
+    await page.waitForSelector('#spinreward.open', { timeout: 9000 }).catch(() => {});
+    const spun = await page.evaluate(() => {
+      const g = window.__mmGame, d = g.daily, p = d.pending;
+      return { pending: p, cheapest: g.sim.boosters.extraCash(), cash: g.sim.state.cash, used: d.g.spin.used, slot: document.querySelector('#spinreward .amt').textContent };
+    });
+    await page.click('#spinreward [data-act="claim"]', { timeout: 5000 }).catch(() => {});
+    const paid = await page.evaluate(() => ({ cash: window.__mmGame.sim.state.cash, rv: getComputedStyle(document.querySelector('#spinmenu .rv')).display !== 'none' }));
+    check('the spin button waits for the blender; a free spin landing on the golden slot pays 3 x the cheapest mat, then Extra Spin shows',
+      spinHidden && spun.pending && spun.pending.kind === 'cash' && spun.pending.amount === 3 * spun.cheapest && paid.cash === spun.cash + spun.pending.amount
+      && spun.used === 1 && paid.rv, JSON.stringify({ spinHidden, ...spun, paid }));
+    await page.goto(`${url}?fresh&mart=store2`);
+    await page.waitForFunction(() => window.__mm && (window.__mm.ready || window.__mm.error), null, { timeout: 90000 });
+    const wel = await page.evaluate(() => ({ open: document.querySelector('#martwelcome').classList.contains('open'), amt: document.querySelector('#martwelcome .amt').textContent, cash: window.__mmGame.sim.state.cash }));
+    await page.click('#martwelcome [data-act="double"]', { timeout: 5000 }).catch(() => {});
+    const wel2 = await page.evaluate(() => { dispatchEvent(new Event('pagehide')); return window.__mmGame.sim.state.cash; });
+    await page.goto(`${url}?mart=store2`);
+    await page.waitForFunction(() => window.__mm && (window.__mm.ready || window.__mm.error), null, { timeout: 90000 });
+    const wel3 = await page.evaluate(() => document.querySelector('#martwelcome').classList.contains('open'));
+    check('a first visit to Store 2 offers 300 cash, the ad button doubles it, and a reload does not offer it again',
+      wel.open && wel.amt === '300' && wel2 === wel.cash + 600 && !wel3, JSON.stringify({ ...wel, after: wel2, again: wel3 }));
 
     // Stores 9-14 build their mats from the progression CSV: the first one is open and drawn.
     await page.goto(`${url}?mart=store9&fresh`);

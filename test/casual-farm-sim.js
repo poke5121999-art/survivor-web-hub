@@ -187,6 +187,28 @@ function mulberry32(a) {
   const feeders = st.workers.filter(w => w.def.feeds && w.def.feeds.length);
   check('staff with machines or animals to feed do feed them on their own', feeders.length > 0 && feeders.every(w => fed[w.name] > 0)
     && (!FIRST || fed['_Worker_ChefA -> Machine_WheatMill'] > 0), Object.entries(fed).filter(([k]) => k.includes('->')).map(([k, n]) => `${k} ${n}`).join(', ') || 'no feeds');
+  // Daily spin rules (sim/daily.js): slot odds 20/10/15/20/15/20 %, every landing stops inside the drawn slot, the
+  // day's spins go free -> 3 extra -> gems, and the cash slots pay trunc(trunc(mult x cheapest) x free multiplier).
+  const D = await imp('daily.js');
+  const rr = mulberry32(SEED + 99), hits = [0, 0, 0, 0, 0, 0];
+  let off = 0, angle = D.WHEEL_START;
+  for (let k = 0; k < 60000; k++) {
+    const i = D.rollSlot(rr());
+    hits[i]++;
+    angle = D.landing(angle, i, rr()) % 360;
+    if (D.slotAt(angle) !== i) off++;
+  }
+  const pct = hits.map(h => Math.round(h / 600));
+  check('the daily spin lands on slots 0..5 at 20/10/15/20/15/20 % and stops inside the drawn slot',
+    pct.join('/') === '20/10/15/20/15/20' && off === 0, `${pct.join('/')} %, ${off} off-slot`);
+  const g = {}, day = new Date(2026, 9, 27, 12), seen = [];
+  for (let k = 0; k < 6; k++) { const s = D.spinState(g, day); seen.push(s.free ? 'free' : s.ads > 0 ? `ad${s.ads}` : 'gem'); g.spin.used++; }
+  const next = D.spinState(g, new Date(2026, 9, 28, 0, 1));
+  const w = D.dealWheel(rr);
+  const cashPay = D.reward(1, w, { cheapest: 25, g: { maxLevel: 1, maxItems: 2 } }).amount;
+  check('spins per day: one free, three extra, then gems; a new day resets; slot 1 pays 3 x cheapest x free multiplier',
+    seen.join(',') === 'free,ad3,ad2,ad1,gem,gem' && next.free && cashPay === 225 && new Set(w.filter(Boolean)).size === 3,
+    `${seen.join(',')}, next day free ${next.free}, slot 1 pays ${cashPay}, boosters ${w.filter(Boolean).join('/')}`);
   console.log(`PASS: ${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(2); });

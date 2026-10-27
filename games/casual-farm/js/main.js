@@ -24,6 +24,7 @@ import { Fx } from './view/fx.js';
 import { CityMap } from './view/citymap.js';
 import { Looks } from './view/looks.js';
 import { cosmeticsState, saveCosmetics, cosmeticEffects } from './view/customise.js';
+import { Daily } from './view/daily.js';
 
 const params = new URLSearchParams(location.search);
 const V = new URL(import.meta.url).searchParams.get('v') || '';
@@ -185,15 +186,36 @@ async function load() {
     },
     global,
   };
-  const hud = new Hud({ sim, store, camera, canvas, items, art: ART, world, tasks, matArrows: matArrows(store), nextMart: next, workerDefs: workers.defs,
+  // CashMultiplierManager inputs: the furthest mart ever entered (scene index) and the most distinct shelf items it had.
+  const level = +String(sceneJson.level || '').replace(/\D/g, '') || 0;
+  if (level > (global.maxLevel || 0)) { global.maxLevel = level; global.maxItems = 0; }
+  const daily = new Daily({ art: ART, sound: null, g: global, rng: Math.random,
+    wallet: {
+      cheapest: () => sim.boosters.extraCash() || Math.max(0, ...store.mats.map(m => m.cost)),
+      addCash: n => { sim.state.cash += n; sim.emit({ type: 'coinPile', amount: n }); },
+      boost: (kind, s) => sim.boosters.grant(kind, s),
+    },
+    save: () => save(),
+    unlocked: () => {
+      if (STORE !== 'store1' || global.showSpin) return true;
+      if ((sim.state.mats.Mat_Activate_Blender || {}).done) global.showSpin = true;
+      return !!global.showSpin;
+    } });
+  sim.listeners.push(e => {
+    if (e.type !== 'matDone' || level !== global.maxLevel) return;
+    const items = new Set(store.shelves.filter(sh => sim.isActive(sh.name)).map(sh => sh.type)).size;
+    global.maxItems = Math.max(global.maxItems || 0, items);
+  });
+  const hud = new Hud({ daily, sim, store, camera, canvas, items, art: ART, world, tasks, matArrows: matArrows(store), nextMart: next, workerDefs: workers.defs,
     sound: new Sound(`${ART}/sfx`, sim, store, V), martMap, upgradeRows: upgradeIcons && upgradeIcons.stores[STORE], cosmetics,
     onMapView: i => { if (i == null) { cityMap.hide(); sim.state.mapMode = false; } else { sim.state.mapMode = true; if (cityMap.open) cityMap.goTo(i); else cityMap.show(martMap.rows(), i); } } });
   await Promise.all(sceneJson.textures.map(t => texture(`${ART}/tex`, t.name).full));
   setStage(0, 'textures');
+  daily.sound = hud.sound;
   sim.listeners.push(e => { if (e.type === 'depart') setTimeout(() => travel(next.id), VAN_TIME); });
   const director = new CameraDirector(sim, store);
   hud.onTaskFocus = p => director.highlight(p);
-  return { world, store, nav, grid, sim, view, hud, director, cityMap, looks, radar: objectiveRadar(world, store) };
+  return { world, store, nav, grid, sim, view, hud, director, cityMap, looks, daily, saved: !!saved, marts, radar: objectiveRadar(world, store) };
 }
 
 // ObjectiveRadarController under PlayerFollower: while a task has a target, an arrow circles the player, LookAt the target
@@ -307,6 +329,11 @@ load().then(g => {
   if (params.has('bot')) g.bot = bot = new Bot(g.sim, g.grid);
   // CanvasManager.Start with HasJustPrestiged: the welcome screen, then ResetPrestige.
   if (global.prestige && global.prestige.id === STORE && g.hud.martMenu) g.hud.martMenu.showWelcome(global.prestige);
+  // UpdateScreenController.OnStoreLoadedFirstTime: a mart loaded with no save of its own greets with its starting cash.
+  else if (!g.saved) {
+    const m = g.marts.find(x => x.id === STORE);
+    if (m) g.daily.showWelcome({ id: m.id, name: m.name, level: m.level, icon: `${ART}/ui/${m.icon}.webp` });
+  }
   mm.ready = true;
 }).catch(e => {
   console.error(e);

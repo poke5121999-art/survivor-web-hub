@@ -11,7 +11,8 @@ const v3 = new THREE.Vector3();
 const KEYS = { ArrowUp: [0, -1], KeyW: [0, -1], ArrowDown: [0, 1], KeyS: [0, 1], ArrowLeft: [-1, 0], KeyA: [-1, 0], ArrowRight: [1, 0], KeyD: [1, 0] };
 
 export class Hud {
-  constructor({ sim, store, camera, canvas, items, art, world, tasks, matArrows, nextMart, workerDefs, sound, martMap, upgradeRows, onMapView, cosmetics }) {
+  constructor({ sim, store, camera, canvas, items, art, world, tasks, matArrows, nextMart, workerDefs, sound, martMap, upgradeRows, onMapView, cosmetics, daily }) {
+    this.daily = daily || null;
     this.upgradeRows = upgradeRows || null;
     this.floats = [];
     this.martMap = martMap;
@@ -32,6 +33,7 @@ export class Hud {
     this.ui = ui;
     this.root.innerHTML = `
       <div class="counters"><div class="cash"><img src="${ui('cashIcon')}" alt=""><span id="cash">0</span></div>
+        <div class="cash gem" id="gemc"><img src="${art}/ui/menus/icon-gem.webp" alt=""><span id="gems">0</span></div>
         <div class="cash gold" id="goldc"><img src="${art}/ui/menus/goldBarIcon.webp" alt=""><span id="gold">0</span></div></div>
       <div class="joy" id="joy"><img class="ring" src="${ui('AllAxis_Outline_Arrows')}" alt=""><img class="knob" src="${ui('Handle_Plain')}" alt=""></div>
       <div class="max" id="max">MAX</div>
@@ -43,6 +45,7 @@ export class Hud {
         <a class="btn lb mapbtn" id="mapbtn"><img src="${ui('MapCityUI')}" alt=""><i class="dot"></i></a>
         <a class="btn lb upbtn" id="upbtn"><img src="${ui('upgradeIcon')}" alt=""><i class="dot"></i></a>
         <a class="btn lb custombtn" id="custombtn"><img src="${ui('oldCostumeIcon')}" alt=""></a>
+        <a class="btn lb spinbtn" id="spinbtn"><img src="${ui('dailySpinIcon')}" alt=""><i class="dot"></i></a>
         <a class="btn lb phone" id="phonebtn"><img src="${ui('mobilePhoneIcon')}" alt=""><i class="dot"></i><s></s></a>
       </div>
       <div class="upmenu phonemenu" id="phonemenu"><div class="head"><img src="${ui('car_CustomerIcon')}" alt=""><b>ORDER</b><a class="btn x">✕</a></div>
@@ -158,6 +161,11 @@ export class Hud {
       this.root.querySelector('#mapbtn').addEventListener('click', () => {
         if (this.martMenu.isOpen) this.martMenu.close(); else this.martMenu.open();
       });
+    }
+    if (this.daily) {
+      this.daily.mount(this.root);
+      this.root.querySelector('#spinbtn').addEventListener('click', () => { this.closeMenus(); this.daily.open(); });
+      sim.listeners.push(e => { if (e.type === 'boostOffer') this.daily.boosterShown(); });
     }
     this.boostEl = this.root.querySelector('#boosts');
     this.boostEl.addEventListener('click', e => {
@@ -292,6 +300,7 @@ export class Hud {
     for (const el of [this.upEl, this.setEl, this.phoneEl]) if (el && el !== keep) el.classList.remove('open');
     if (this.martMenu && keep !== this.mapEl) this.martMenu.close();
     if (this.customise && keep !== this.customise.el) this.customise.close();
+    if (this.daily) this.daily.close();
   }
 
   bindInput() {
@@ -506,6 +515,17 @@ export class Hud {
     const gold = this.martMap ? this.martMap.global.gold || 0 : 0;
     this.goldEl.textContent = gold;
     this.goldEl.parentNode.style.display = gold > 0 ? '' : 'none';
+    // GemCounter and DailySpinButtonController (Store 1 shows the button once the blender is bought, then for good).
+    if (this.daily) {
+      const d = this.daily, spin = d.unlocked();
+      this.gemEl = this.gemEl || this.root.querySelector('#gems');
+      this.gemEl.textContent = d.g.gems;
+      this.gemEl.parentNode.style.display = spin || d.g.gems > 0 ? '' : 'none';
+      const b = this.root.querySelector('#spinbtn');
+      b.style.display = spin ? '' : 'none';
+      b.classList.toggle('alert', spin && d.freeReady());
+      d.update();
+    } else this.root.querySelector('#gemc').style.display = this.root.querySelector('#spinbtn').style.display = 'none';
     for (const t of this.tags.values()) t._seen = false;
 
     s.mats.forEach(m => {

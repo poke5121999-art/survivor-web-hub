@@ -375,3 +375,93 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #1f2a1b; tou
 .custom .tile:has(s) .pic { height: calc(85 * var(--u)); }
 .custom .tile:has(s)::before { bottom: calc(95 * var(--u)); }
 .custom .tile s { margin-top: calc(6 * var(--u)); white-space: normal; text-align: center; padding: 0 calc(8 * var(--u)); }
+
+/* Daily spin (daily.js, DailySpinScreen Panel_2: the new design isNewDailySpinDesignActive turns on). Panel 914 units
+   tall at 0.9 scale; the wheel face is image-spin turned 45.37 degrees inside the 500-unit wheel. */
+.lb.spinbtn { --tint: #ffb347; }
+.cash.gem img { width: 1.35em; height: 1.35em; }
+.dspin .panel { top: calc(50% - 457 * var(--u) - 30 * var(--u)); height: calc(914 * var(--u)); width: calc(min(var(--sw), 750 * var(--u)) - 20 * var(--u));
+  transform: translateX(-50%) scale(0.9); background: none; border-style: solid; border-width: calc(159 * var(--u)) calc(80 * var(--u)) calc(205 * var(--u));
+  border-image: var(--bg) 175 87.5 225 fill / calc(159 * var(--u)) calc(80 * var(--u)) calc(205 * var(--u)); box-sizing: border-box; }
+.dspin .head, .dspin .mid, .dspin .foot, .dspin .x { position: absolute; }
+.dspin .head { left: calc(-80 * var(--u)); right: calc(-80 * var(--u)); top: calc(-159 * var(--u)); height: calc(120 * var(--u)); }
+.dspin .hdr { position: absolute; left: 50%; bottom: calc(40 * var(--u)); width: calc(390 * var(--u)); height: calc(185 * var(--u)); transform: translateX(-50%); }
+.dspin .timer { position: absolute; left: 0; right: 0; top: calc(66 * var(--u)); text-align: center; font-style: normal; font-size: calc(32 * var(--u)); }
+.dspin .mid { left: calc(-70 * var(--u)); right: calc(-70 * var(--u)); top: calc(-29 * var(--u)); bottom: calc(-45 * var(--u)); }
+.dspin .mid > * { position: absolute; left: 50%; top: 50%; }
+.dspin .back { width: calc(460 * var(--u)); height: calc(465 * var(--u)); transform: translate(-50%, calc(-50% + 10 * var(--u))); }
+.dspin .wheel { width: calc(500 * var(--u)); height: calc(500 * var(--u)); margin: calc(-250 * var(--u)) 0 0 calc(-250 * var(--u)); }
+.dspin .face { position: absolute; left: calc(20 * var(--u)); top: calc(17.5 * var(--u)); width: calc(460 * var(--u)); height: calc(465 * var(--u));
+  transform: rotate(45.37deg); }
+.dspin .icons .slot { position: absolute; left: 50%; top: 50%; width: calc(200 * var(--u)); height: calc(130 * var(--u));
+  transform: translate(-50%, -50%) rotate(var(--a)) translateY(calc(-151.8 * var(--u))); display: flex; flex-direction: column; align-items: center; }
+.dspin .icons img { width: calc(80 * var(--u)); height: calc(80 * var(--u)); object-fit: contain; }
+.dspin .icons b { font-weight: 400; font-size: calc(30 * var(--u)); line-height: 1; margin-top: calc(-14 * var(--u)); }
+.dspin .icons b.c { font-size: calc(40 * var(--u)); color: #c2ff47; }
+.dspin .icons b.g { font-size: calc(36 * var(--u)); color: #ffd9ee; }
+.dspin .lights { width: 0; height: 0; transform: rotate(15deg); }
+.dspin .lights i { position: absolute; left: calc(-15 * var(--u)); top: calc(-15 * var(--u)); width: calc(30 * var(--u)); height: calc(30 * var(--u));
+  border-radius: 50%; background: #898679; transform: rotate(var(--a)) translateY(calc(-260 * var(--u))); }
+.dspin .lights i:nth-child(even), .dspin .lights.alt i:nth-child(odd) { background: #fcff92; box-shadow: 0 0 calc(10 * var(--u)) #fcff92; }
+.dspin .lights.alt i:nth-child(even) { background: #898679; box-shadow: none; }
+.dspin .hub { width: calc(120 * var(--u)); height: calc(120 * var(--u)); margin: calc(-60 * var(--u)) 0 0 calc(-60 * var(--u)); border-radius: 50%;
+  background: #5a96e0; box-shadow: inset 0 0 0 calc(6 * var(--u)) #2b5f9e; }
+.dspin .ptr { width: calc(60 * var(--u)); height: calc(80 * var(--u)); margin: calc(-300 * var(--u)) 0 0 calc(-30 * var(--u)); }
+.dspin .foot { left: 0; right: 0; bottom: calc(-185 * var(--u)); height: calc(120 * var(--u)); display: flex; justify-content: center; align-items: center; }
+.dspin .foot.busy { visibility: hidden; }
+.sb { position: relative; display: flex; align-items: center; justify-content: center; gap: calc(8 * var(--u)); box-sizing: border-box; cursor: pointer;
+  background: var(--b) center / 100% 100% no-repeat; color: #fff; pointer-events: auto; text-decoration: none; padding-bottom: calc(10 * var(--u)); }
+.sb:active { filter: brightness(0.85); }
+.sb img { pointer-events: none; }
+.sb s { text-decoration: none; }
+.sb.shake { animation: cashShake 0.35s ease-in-out; }
+.dspin .spin, .dspin .rv { width: calc(260 * var(--u)); height: calc(100 * var(--u)); font-size: calc(40 * var(--u)); }
+.dspin .rv { font-size: calc(36 * var(--u)); }
+.dspin .rv img { width: calc(50 * var(--u)); height: calc(60 * var(--u)); object-fit: contain; }
+.dspin .rv s { position: absolute; right: calc(-15 * var(--u)); top: calc(-20 * var(--u)); width: calc(50 * var(--u)); height: calc(50 * var(--u)); border-radius: 50%;
+  background: #ff585d; display: flex; align-items: center; justify-content: center; font-size: calc(30 * var(--u)); }
+.dspin .rv s::before { content: "x"; }
+.dspin .gem { width: calc(220 * var(--u)); height: calc(95 * var(--u)); font-size: calc(27 * var(--u)); }
+.dspin .gem img { width: calc(50 * var(--u)); height: calc(50 * var(--u)); object-fit: contain; }
+.dspin .gem s { position: absolute; right: calc(12 * var(--u)); top: calc(-22 * var(--u)); font-size: calc(30 * var(--u)); }
+.dspin .gem.poor s { color: #ff585d; }
+.dspin .x { right: calc(-70 * var(--u)); top: calc(-150 * var(--u)); width: calc(70 * var(--u)); height: calc(76 * var(--u)); padding: 0; }
+
+/* _DailySpin_RewardScreen, MartWelcomeScreen, Update_Gems: centred panels with a Claim button. */
+.dreward .panel, .dwelcome .panel, .dgems .panel { top: 50%; transform: translate(-50%, -50%); }
+.dreward .panel { width: calc(min(var(--sw), 750 * var(--u)) - 100 * var(--u)); height: calc(600 * var(--u)); background: #ff8ff7; }
+.dreward .title { top: calc(20 * var(--u)); }
+.dreward .desc { position: absolute; left: 0; right: 0; top: calc(110 * var(--u)); text-align: center; font-size: calc(46 * var(--u)); color: #b6ffd4; }
+.dreward .desc.k-cash { color: #c2ff47; }
+.dreward .desc.k-gems { color: #ffd9ee; }
+.dreward .box { position: absolute; left: calc(60 * var(--u)); right: calc(60 * var(--u)); top: calc(180 * var(--u)); height: calc(280 * var(--u));
+  background: #c26cdd; border-radius: calc(30 * var(--u)); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.dreward .shine { position: absolute; width: calc(340 * var(--u)); height: calc(340 * var(--u)); opacity: 0.7; animation: spinShine 6s linear infinite; }
+@keyframes spinShine { to { transform: rotate(360deg); } }
+.dreward .icon { position: relative; width: calc(200 * var(--u)); height: calc(200 * var(--u)); object-fit: contain; margin-top: calc(-40 * var(--u)); }
+.dreward .amt { position: absolute; bottom: calc(10 * var(--u)); font-size: calc(60 * var(--u)); }
+.dreward .amt.k-cash { font-size: calc(76 * var(--u)); color: #c2ff47; }
+.dreward .amt.k-gems { font-size: calc(76 * var(--u)); color: #ffd9ee; }
+.dreward .foot, .dwelcome .foot, .dgems .foot { bottom: calc(10 * var(--u)); }
+.dreward .foot .tb, .dwelcome .foot .tb, .dgems .foot .tb { width: calc(260 * var(--u)); height: calc(100 * var(--u)); font-size: calc(40 * var(--u)); }
+.dwelcome .panel { height: calc(740 * var(--u)); background: #af7edd; }
+.dwelcome .title { top: calc(30 * var(--u)); color: #f8ffb6; }
+.dwelcome .box { position: absolute; left: calc(20 * var(--u)); right: calc(20 * var(--u)); top: calc(160 * var(--u)); bottom: calc(140 * var(--u));
+  background: #86b3ff; border-radius: calc(30 * var(--u)); display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; text-align: center; }
+.dwelcome .box .icon { width: calc(160 * var(--u)); height: calc(160 * var(--u)); object-fit: contain; }
+.dwelcome .box .name { font-size: calc(50 * var(--u)); color: #a4ec73; line-height: 1; }
+.dwelcome .box p { font-size: calc(30 * var(--u)); }
+.dwelcome .pay, .dgems .pay { display: flex; align-items: center; gap: calc(14 * var(--u)); }
+.dwelcome .pay img { width: calc(80 * var(--u)); height: calc(80 * var(--u)); object-fit: contain; }
+.dwelcome .pay b { font-size: calc(60 * var(--u)); color: #c2ff47; }
+.dwelcome .foot .tb[data-act="double"] { font-size: calc(30 * var(--u)); }
+.dwelcome .foot .tb img { width: calc(50 * var(--u)); }
+.dgems .panel { width: calc(min(var(--sw), 750 * var(--u)) - 80 * var(--u)); height: calc(700 * var(--u)); background: #9995f1; }
+.dgems .title { top: calc(20 * var(--u)); color: #ffe8f8; }
+.dgems .info { top: calc(110 * var(--u)); height: calc(220 * var(--u)); background: #7571db; }
+.dgems .info p { font-size: calc(34 * var(--u)); }
+.dgems p .p { color: #ffd9ee; }
+.dgems .free { position: absolute; left: 0; right: 0; top: calc(370 * var(--u)); text-align: center; font-size: calc(34 * var(--u)); }
+.dgems .pay { position: absolute; left: 50%; top: calc(440 * var(--u)); transform: translateX(-50%); }
+.dgems .pay img { width: calc(100 * var(--u)); height: calc(100 * var(--u)); object-fit: contain; }
+.dgems .pay b { font-size: calc(80 * var(--u)); color: #ffd9ee; }
