@@ -239,6 +239,35 @@ function serve() {
       map.open && map.first === 'Cafe Mart' && map.here && map.third.title === 'Pizza Mart' && map.third.locked && map.title === 'Grocer Mart'
       && map.expect > 0 && map.expect === map.max && map.num === `${map.max}/${map.max}` && map.paid === map.expect && !map.again && /^\d+h \d\dm \d\ds$|^\d\dm \d\ds$/.test(map.timer),
       JSON.stringify(map));
+    // The 3D saga map behind the card: the store is hidden, the van sits on the shown mart's Mart3DController node and
+    // the camera follows it; Up hops the van to the next mart (GoToMart3D); a mart not reached yet is drawn black;
+    // closing the card brings the store back and returns the van to the player.
+    const city = await page.evaluate(async () => {
+      const g = window.__mmGame, cm = g.cityMap, card = document.querySelector('#mapmenu');
+      g.hud.martMenu.close();
+      document.querySelector('#mapbtn').click();
+      for (let i = 0; i < 100 && !cm.ready; i++) await new Promise(r => setTimeout(r, 100));
+      await new Promise(r => setTimeout(r, 200));
+      const near = i => cm.van.getWorldPosition(new (cm.target.constructor)()).distanceTo(cm.martPos(i, new (cm.target.constructor)()));
+      const at0 = { index: g.hud.martMenu.index, cityOn: cm.world.root.visible, storeOff: !g.world.root.visible, van: near(g.hud.martMenu.index),
+        mapMode: g.sim.state.mapMode, cam: Math.hypot(g.camera.position.x - 77.38 - cm.target.x, g.camera.position.z - 310.62 - cm.target.z) };
+      card.querySelector('.up').click();
+      await new Promise(r => setTimeout(r, 800));
+      const i1 = g.hud.martMenu.index;
+      const black = cm.marts[i1].meshes.filter(m => m.material.side !== 1).every(m => m.material === cm.black);
+      const at1 = { index: i1, van: near(i1), black, cityMeshes: cm.world.root.children.length };
+      card.querySelector('[data-act="close"]').click();
+      await new Promise(r => setTimeout(r, 200));
+      const back = { cityOff: !cm.world.root.visible, storeOn: g.world.root.visible, vanHome: cm.van.parent === cm.vanHome.parent, vanHidden: !cm.van.visible, mapMode: !!g.sim.state.mapMode };
+      document.querySelector('#mapbtn').click();
+      card.querySelector('.down').click();
+      await new Promise(r => setTimeout(r, 300));
+      return { at0, at1, back };
+    });
+    check('the map card shows the 3D city: van on the mart, camera on the van, Up hops to the next mart drawn black, close restores the store',
+      city.at0.cityOn && city.at0.storeOff && city.at0.van < 0.5 && city.at0.mapMode && city.at0.cam < 1 && city.at1.index === city.at0.index + 1
+      && city.at1.van < 0.5 && city.at1.black && city.back.cityOff && city.back.storeOn && city.back.vanHome && city.back.vanHidden && !city.back.mapMode,
+      JSON.stringify(city));
     const cashBack = await page.evaluate(() => {
       const c = window.__mmGame.sim.state.cash;
       window.__oldPage = true;
@@ -313,7 +342,12 @@ function serve() {
         const box = el => el.getBoundingClientRect();
         const inside = (a, b) => a.left >= b.left - 1 && a.right <= b.right + 1 && a.top >= b.top - 1 && a.bottom <= b.bottom + 1;
         const overlap = (a, b) => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
-        const view = { left: 0, top: 0, right: innerWidth, bottom: innerHeight };
+        // The game keeps the phone's portrait frame: #stage is 750:1334 (or the whole window when that is narrower).
+        const view = box(document.querySelector('#stage'));
+        const want = Math.min(innerWidth, innerHeight * 750 / 1334), canvas = document.querySelector('#game');
+        if (Math.abs(view.width - want) > 1.5 || Math.abs(view.height - innerHeight) > 1.5) bad.push(`stage ${view.width}x${view.height}, want ${want}x${innerHeight}`);
+        if (Math.abs(canvas.width / canvas.height - view.width / view.height) > 0.02) bad.push(`canvas ${canvas.width}x${canvas.height} is not the stage aspect`);
+        if (Math.abs(view.left - (innerWidth - view.width) / 2) > 1.5) bad.push('stage not centred');
         const bad = [];
         const card = document.querySelector('#mapmenu .panel'), cb = box(card);
         if (!inside(cb, view)) bad.push('card outside the viewport');
@@ -335,7 +369,7 @@ function serve() {
         menu.close();
         return { bad, card: [Math.round(cb.width), Math.round(cb.height)], menu: [Math.round(pb.width), Math.round(pb.height)] };
       });
-      check(`the map card and prestige menu lay out cleanly at ${vw}x${vh}`, lay.bad.length === 0, JSON.stringify(lay));
+      check(`the game keeps the portrait frame, and the map card and prestige menu lay out cleanly at ${vw}x${vh}`, lay.bad.length === 0, JSON.stringify(lay));
     }
     await page.setViewportSize({ width: 390, height: 844 });
 

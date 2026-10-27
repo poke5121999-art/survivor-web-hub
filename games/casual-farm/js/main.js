@@ -21,6 +21,7 @@ import { Bot } from './sim/bot.js';
 import { martRows } from './sim/martmap.js';
 import { Boosters } from './sim/boosters.js';
 import { Fx } from './view/fx.js';
+import { CityMap } from './view/citymap.js';
 
 const params = new URLSearchParams(location.search);
 const V = new URL(import.meta.url).searchParams.get('v') || '';
@@ -63,7 +64,8 @@ const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.3, 1000);
 const camFwd = new THREE.Vector2(-FOLLOW.x, -FOLLOW.z).normalize();
 
 function resize() {
-  const w = window.innerWidth, h = window.innerHeight;
+  // The portrait frame (#stage), not the window.
+  const w = canvas.clientWidth || window.innerWidth, h = canvas.clientHeight || window.innerHeight;
   renderer.setSize(w, h, false);
   // Unity's orthographic size is the vertical half-extent whatever the aspect: a landscape screen sees the same height
   // and more width (gameplay video at 1280x720: a crop bed 143 px long, as with 35 here).
@@ -132,6 +134,11 @@ async function load() {
   const next = marts[(here + 1) % marts.length];
   const doneOf = id => (id === STORE ? Object.values(sim.state.mats).filter(m => m.done).length
     : Object.values((load_(MART_KEY(id)) || {}).mats || {}).filter(m => m.done).length);
+  // The 3D map loads the first time the card opens; the player's van (vanCarObj) is borrowed while it is shown.
+  const ph = sceneJson.nodes[store.player.node] && sceneJson.nodes[store.player.node].k.PlayerHumanController;
+  const cityMap = new CityMap({ scene3, texBase: `${ART}/tex`, fx: view.fx, storeRoot: world.root,
+    van: ph && ph.vanCarObj ? world.objects[ph.vanCarObj.n] : new THREE.Group(),
+    load: () => Promise.all([json(`${ART}/citymap/scene.json`), glb(`${ART}/citymap/geo.glb`)]) });
   const martMap = {
     rows: () => {
       // UpdateCollectButton stamps a reached mart the first time the menu shows it, so its 3-hour clock starts then.
@@ -168,12 +175,13 @@ async function load() {
     global,
   };
   const hud = new Hud({ sim, store, camera, canvas, items, art: ART, world, tasks, matArrows: matArrows(store), nextMart: next, workerDefs: workers.defs,
-    sound: new Sound(`${ART}/sfx`, sim, store, V), martMap, upgradeRows: upgradeIcons && upgradeIcons.stores[STORE] });
+    sound: new Sound(`${ART}/sfx`, sim, store, V), martMap, upgradeRows: upgradeIcons && upgradeIcons.stores[STORE],
+    onMapView: i => { if (i == null) { cityMap.hide(); sim.state.mapMode = false; } else { sim.state.mapMode = true; if (cityMap.open) cityMap.goTo(i); else cityMap.show(martMap.rows(), i); } } });
   await Promise.all(sceneJson.textures.map(t => texture(`${ART}/tex`, t.name).full));
   setStage(0, 'textures');
   sim.listeners.push(e => { if (e.type === 'depart') setTimeout(() => travel(next.id), VAN_TIME); });
   const director = new CameraDirector(sim, store);
-  return { world, store, nav, grid, sim, view, hud, director };
+  return { world, store, nav, grid, sim, view, hud, director, cityMap };
 }
 
 let game = null;
@@ -228,6 +236,12 @@ function frame() {
     for (const r of world.rigs) r.update(dt);
     const shot = director.update();
     target.set(shot.x, 0, shot.z);
+    // Map mode: the main vcam follows the van on the city map (CameraController.GoIntoMapMode).
+    if (game.cityMap.open && game.cityMap.ready) {
+      game.cityMap.update(dt, hud.martMenu && hud.martMenu.rows);
+      target.set(game.cityMap.target.x, 0, game.cityMap.target.z);
+      shot.zoom = 1;
+    }
     camera.position.copy(target).add(FOLLOW);
     camera.lookAt(target.x, LOOK_UP, target.z);
     if (camera.zoom !== 1 / shot.zoom) { camera.zoom = 1 / shot.zoom; camera.updateProjectionMatrix(); }

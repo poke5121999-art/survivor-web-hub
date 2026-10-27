@@ -16,8 +16,10 @@ export function clock(sec) {
 
 export class MartMenu {
   // martMap: { rows(), collect(row, mult), go(row), prestige(row), global }; art: art root; ui(name): HUD sprite url.
-  constructor({ root, art, ui, martMap, sound, onOpen }) {
+  // onView(index | null): the 3D map follows the card (null when it closes).
+  constructor({ root, art, ui, martMap, sound, onOpen, onView }) {
     this.map = martMap;
+    this.onView = onView || (() => {});
     this.sound = sound;
     this.onOpen = onOpen || (() => {});
     this.ui = ui;
@@ -95,10 +97,12 @@ export class MartMenu {
     this.card.classList.add('open');
     this.key = null;
     this.onOpen();
+    this.onView(this.index);
     this.update(true);
   }
 
   close() {
+    if (this.isOpen) this.onView(null);
     this.card.classList.remove('open');
     this.pmenu.classList.remove('open');
   }
@@ -115,6 +119,7 @@ export class MartMenu {
       if (i < 0 || i >= rows.length) return;
       this.tap();
       this.index = i;
+      this.onView(i);
     } else if ((act === 'collect' || act === 'collect2') && r.ready) {
       this.tap();
       // The ad button pays trunc(1.5 x income) (MartMenuController.c:2987); the web gives it without the video.
@@ -186,8 +191,8 @@ export class MartMenu {
     const b = document.querySelector('#mapbtn');
     const hl = this.info.querySelector('.hl');
     if (b && b.offsetParent) {
-      const r = b.getBoundingClientRect();
-      Object.assign(hl.style, { display: '', left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+      const r = b.getBoundingClientRect(), o = this.info.getBoundingClientRect();
+      Object.assign(hl.style, { display: '', left: `${r.left - o.left}px`, top: `${r.top - o.top}px`, width: `${r.width}px`, height: `${r.height}px` });
     } else hl.style.display = 'none';
     this.info.classList.add('open');
   }
@@ -198,7 +203,7 @@ export class MartMenu {
     const now = performance.now();
     if (!force && now - (this.t || 0) < 500) return;
     this.t = now;
-    const rows = this.map.rows(), r = rows[this.index];
+    const rows = this.rows = this.map.rows(), r = rows[this.index];
     const c = this.card;
     const key = JSON.stringify([this.index, r.star, r.pct, r.income, r.max, r.ready, Math.ceil(r.left), r.here, r.visited]);
     if (key === this.key) return;

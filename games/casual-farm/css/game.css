@@ -1,9 +1,12 @@
-html, body { margin: 0; height: 100%; overflow: hidden; background: #9bd36a; touch-action: none; user-select: none; -webkit-user-select: none; }
-#stage { position: fixed; inset: 0; }
+/* The game keeps the phone's portrait frame (reference canvas 750x1334): on a wider window it is centred and the rest
+   stays dark. --sw is the frame width; every size that used the window width uses it instead. */
+:root { --sw: min(100vw, calc(100vh * 750 / 1334)); }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #1f2a1b; touch-action: none; user-select: none; -webkit-user-select: none; }
+#stage { position: fixed; top: 0; bottom: 0; left: calc((100vw - var(--sw)) / 2); width: var(--sw); overflow: hidden; background: #9bd36a; }
 #game { display: block; width: 100%; height: 100%; transition: filter 0.6s ease-out; }
 #hud { position: absolute; inset: 0; pointer-events: none; font-family: 'Londrina Solid', system-ui, sans-serif; color: #fff; }
 #hud img { -webkit-user-drag: none; }
-.counters { position: absolute; top: calc(env(safe-area-inset-top) + 2.2vh); right: 3vw; display: flex; flex-direction: column; align-items: flex-end;
+.counters { position: absolute; top: calc(env(safe-area-inset-top) + 2.2vh); right: calc(3 * var(--sw) / 100); display: flex; flex-direction: column; align-items: flex-end;
   gap: 0.4vh; }
 .cash { display: flex; align-items: center; gap: 0.5em;
   background: rgba(0, 0, 0, 0.28); border-radius: 0.6em; padding: 0.15em 0.8em 0.15em 0.35em; font-size: max(16px, calc(32 / 1334 * 100vh));
@@ -26,9 +29,9 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #9bd36a; tou
 .tag.bubble .ico { width: 1.6em; height: 1.6em; object-fit: contain; }
 .tag.bubble s { display: block; width: 2.2em; height: 0.35em; border-radius: 0.2em;
   background: linear-gradient(90deg, #e74c3c calc(var(--p) * 100%), #ddd 0); }
-.task { display: none; position: absolute; top: calc(env(safe-area-inset-top) + 2.2vh); left: 3vw; align-items: center; gap: 0.35em;
+.task { display: none; position: absolute; top: calc(env(safe-area-inset-top) + 2.2vh); left: calc(3 * var(--sw) / 100); align-items: center; gap: 0.35em;
   background: var(--c, #3aa0ff); border-radius: 0.6em; padding: 0.2em 0.7em 0.2em 0.3em; font-size: clamp(18px, 2.8vh, 28px);
-  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.25); text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35); max-width: 58vw; }
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.25); text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35); max-width: calc(58 * var(--sw) / 100); }
 .task img { width: 1.6em; height: 1.6em; object-fit: contain; }
 .task b { font-weight: 400; opacity: 0.9; }
 .tag.arrow i { display: block; width: clamp(34px, 6vh, 60px); height: clamp(34px, 6vh, 60px); background: #ffe14a;
@@ -67,7 +70,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #9bd36a; tou
 .upbtn.hint { animation: hintPulse 0.5s ease-in-out infinite alternate; filter: drop-shadow(0 0 6px #ffe14d); }
 @keyframes hintPulse { from { transform: scale(1); } to { transform: scale(1.15); } }
 .upmenu { display: none; position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 12vh); transform: translateX(-50%);
-  width: min(92vw, 460px); max-height: 62vh; flex-direction: column; background: #fff; color: #4b3b2a; border-radius: 0.8em;
+  width: min(calc(92 * var(--sw) / 100), 460px); max-height: 62vh; flex-direction: column; background: #fff; color: #4b3b2a; border-radius: 0.8em;
   box-shadow: 0 5px 0 rgba(0, 0, 0, 0.25); pointer-events: auto; font-size: clamp(15px, 2.3vh, 22px); animation: fadein 0.25s ease-out; }
 .upmenu.open { display: flex; }
 .upmenu .head { display: flex; justify-content: space-between; align-items: center; padding: 0.4em 0.7em; background: #3aa0ff; color: #fff;
@@ -97,7 +100,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #9bd36a; tou
 .upmenu.map .buy.go { background: #3aa0ff; }
 .upmenu.map .row .buy + .buy { margin-left: 0.3em; }
 .upmenu.map .row.locked > img { filter: brightness(0.35); }
-.boosts { position: absolute; right: 3vw; top: calc(env(safe-area-inset-top) + 10vh); display: flex; flex-direction: column; gap: 0.4em;
+.boosts { position: absolute; right: calc(3 * var(--sw) / 100); top: calc(env(safe-area-inset-top) + 10vh); display: flex; flex-direction: column; gap: 0.4em;
   align-items: flex-start; font-size: clamp(12px, 1.9vh, 18px); }
 .boosts .on { display: flex; align-items: center; gap: 0.3em; background: rgba(0, 0, 0, 0.35); border-radius: 1em; padding: 0.15em 0.6em 0.15em 0.2em; }
 .boosts .on img { width: 1.8em; height: 1.8em; object-fit: contain; }
@@ -112,7 +115,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #9bd36a; tou
 .upmenu.settings .row { justify-content: space-between; }
 .upmenu.settings .tog { min-width: 3.5em; justify-content: center; }
 /* Legacy UPGRADES popup (gameplay video 5:52 / 7:44): green frame, three coloured tabs, rows tinted by tab. */
-.upmenu.upgrades { width: 96vw; max-width: none; top: calc(env(safe-area-inset-top) + 12vh); bottom: auto; height: 78vh; display: none;
+.upmenu.upgrades { width: calc(96 * var(--sw) / 100); max-width: none; top: calc(env(safe-area-inset-top) + 12vh); bottom: auto; height: 78vh; display: none;
   flex-direction: column; background: #8be871; border-radius: 1em; padding: 0.4em 0.5em 0.6em; box-sizing: border-box; }
 .upmenu.upgrades.open { display: flex; }
 .upmenu.upgrades.hl { visibility: hidden; }
@@ -185,7 +188,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #9bd36a; tou
 @keyframes savingFade { 0% { opacity: 0; } 15% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; } }
 /* City map card and prestige screens (martmenu.js). --u = one unit of the 750x1334 reference canvas; .tb = the white
    normalButton sprites tinted by their Button colour, drawn as a rounded box with the darker bottom lip of the sprite. */
-#hud { --u: min(calc(100vh / 1334), calc(100vw / 750)); }
+#hud { --u: min(calc(100vh / 1334), calc(var(--sw) / 750)); }
 .ol { text-shadow: calc(-2 * var(--u)) 0 #000, calc(2 * var(--u)) 0 #000, 0 calc(-2 * var(--u)) #000, 0 calc(2 * var(--u)) #000,
   calc(1.5 * var(--u)) calc(1.5 * var(--u)) #000, calc(-1.5 * var(--u)) calc(-1.5 * var(--u)) #000, calc(1.5 * var(--u)) calc(-1.5 * var(--u)) #000,
   calc(-1.5 * var(--u)) calc(1.5 * var(--u)) #000, calc(-1.5 * var(--u)) calc(4 * var(--u)) 0 #000; }
@@ -205,7 +208,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #9bd36a; tou
 .mcard .bar u, .mshade .bar u { position: absolute; left: calc(2 * var(--u)); top: calc(2 * var(--u)); bottom: calc(2 * var(--u)); max-width: calc(100% - 4 * var(--u));
   background: #ffff77; border-radius: calc(6 * var(--u)); }
 
-.mcard { display: none; position: absolute; left: 50%; transform: translateX(-50%); width: min(100vw, calc(750 * var(--u)));
+.mcard { display: none; position: absolute; left: 50%; transform: translateX(-50%); width: min(var(--sw), calc(750 * var(--u)));
   top: calc(env(safe-area-inset-top) + 180 * var(--u)); pointer-events: auto; z-index: 5; font-size: calc(32 * var(--u)); }
 .mcard.open { display: block; }
 .mcard .panel { position: relative; margin: 0 calc(10 * var(--u)); height: calc(520 * var(--u)); background: #fda36c; border-radius: calc(36 * var(--u)); }
@@ -261,7 +264,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #9bd36a; tou
 
 .mshade { display: none; position: absolute; inset: 0; background: rgba(0, 0, 0, 0.71); pointer-events: auto; z-index: 6; font-size: calc(32 * var(--u)); }
 .mshade.open { display: block; }
-.mshade .panel { position: absolute; left: 50%; transform: translateX(-50%); width: calc(min(100vw, 750 * var(--u)) - 40 * var(--u));
+.mshade .panel { position: absolute; left: 50%; transform: translateX(-50%); width: calc(min(var(--sw), 750 * var(--u)) - 40 * var(--u));
   background: #dca4f3; border-radius: calc(36 * var(--u)); }
 .mshade b, .mshade i { font-weight: 400; font-style: normal; }
 .mshade .title { position: absolute; left: 0; right: 0; text-align: center; font-size: calc(64 * var(--u)); color: #faedff; line-height: 1; }
@@ -308,7 +311,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #9bd36a; tou
 .pwelcome.open .info > :nth-child(4) { animation-delay: 0.75s; }
 .pwelcome.open .claim { animation-delay: 1.05s; }
 @keyframes popIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-.pinfo .panel { top: calc(50% - 140 * var(--u)); height: calc(520 * var(--u)); width: calc(min(100vw, 750 * var(--u)) - 20 * var(--u)); }
+.pinfo .panel { top: calc(50% - 140 * var(--u)); height: calc(520 * var(--u)); width: calc(min(var(--sw), 750 * var(--u)) - 20 * var(--u)); }
 .pinfo .head { position: absolute; top: calc(10 * var(--u)); left: 0; right: 0; display: flex; justify-content: center; align-items: center;
   gap: calc(10 * var(--u)); font-size: calc(50 * var(--u)); }
 .pinfo .head img { width: calc(50 * var(--u)); }

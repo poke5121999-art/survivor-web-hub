@@ -30,6 +30,8 @@ export class Thief {
     if (!st.agent) {
       st.timer += dt;
       if (st.timer < this.every) return;
+      // SpawnNewThief refuses in map mode (CustomerManager.c:4588).
+      if (sim.state.mapMode) return;
       // CustomerManager: once the timer is up the check runs every frame, and the timer restarts only when a cashier
       // qualifies (11+ coins on the desk, player outside its sphere), whether or not the roll spawns a thief.
       const p = sim.state.player;

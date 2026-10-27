@@ -18,6 +18,19 @@ const EASE = {
   outCirc: t => Math.sqrt(1 - (t - 1) * (t - 1)),
 };
 
+// NewVisualObjectActivator / NewVisualMeshRendererActivator keep one of two prop sets (old office desk, red bin, old
+// chicken... or their redesigns) by RC_GeneralConfig.isNewVisualsActive. The shipped default is 1, but the gameplay
+// clip this build follows (9RL-61HwGzw: grey office chair, red bin with a white logo) runs the old set, so it stays.
+export const NEW_VISUALS = false;
+export function hideOtherVisuals(o, k) {
+  const a = k['__Funflare.Scripts.Helper.NewVisualObjectActivator'];
+  if (a && !!(Array.isArray(a) ? a[0] : a).isNewVersion !== NEW_VISUALS) o.visible = false;
+  const r = k['__Funflare.Scripts.Helper.NewVisualMeshRendererActivator'];
+  if (r && !!(Array.isArray(r) ? r[0] : r).isNewVersion !== NEW_VISUALS) {
+    for (const c of o.children) if (c.isMesh && !c.userData.node) c.visible = false;
+  }
+}
+
 export class GameView {
   constructor({ world, store, sim, items, itemsGltf, texBase, anim }) {
     this.world = world;
@@ -191,6 +204,7 @@ export class GameView {
     this.byIndex.forEach(o => {
       const k = o.userData.node.k || {};
       if (AD_ONLY.some(c => k[c])) o.visible = false;
+      hideOtherVisuals(o, k);
       for (const c of ['__Funflare.Scripts.SeasonalEvents.SeasonVisual_GameObject', '__Funflare.Scripts.SeasonalEvents.SeasonVisual_GameObject_Randomized']) {
         if (!k[c]) continue;
         (k[c].seasonalVisuals || []).forEach(v => (v.visuals || []).forEach(r => { if (r && r.n != null) this.obj(r.n).visible = false; }));

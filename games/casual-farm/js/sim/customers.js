@@ -49,8 +49,9 @@ export class Customers {
       }
     }
     const extra = sim.boosters && sim.boosters.on('customer') ? BOOST.customer : 0;
-    // Nothing on sale yet: a customer would have an empty order and turn straight back (and never count).
-    while (this.population() < this.unlocked.size + extra && this.available().length) {
+    // Nothing on sale yet: a customer would have an empty order and turn straight back (and never count). No new
+    // customers while the map is open (CustomerManager.c:4386, mapMode).
+    while (!sim.state.mapMode && this.population() < this.unlocked.size + extra && this.available().length) {
       const agent = this.freeAgent();
       this.spawn(agent ? agent.name : `${[...this.unlocked][0]}#${this.nextId}`);
     }

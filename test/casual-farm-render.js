@@ -338,6 +338,24 @@ function installHold() {
     check('payment bills fly from the customer to the desk pile', co.desk > 10 && co.deskBills === co.desk, `${co.deskBills}/${co.desk}`);
     check('no price tag floats over an undrawn mat', s.tags.bad.length === 0, s.tags.bad.join(', ') || `${s.samples} samples`);
     check('Store 1 has no walk-on upgrade pad tag', s.tags.upgrade === 0, `${s.tags.upgrade} samples with one`);
+    // NewVisualObjectActivator / NewVisualMeshRendererActivator: of each old/new prop pair exactly one set is drawn (the
+    // old one, as in the gameplay clip): no red bin under a green one, no two office chairs.
+    const vis = await page.evaluate(() => {
+      const shown = o => { for (let p = o; p; p = p.parent) if (!p.visible) return false; return true; };
+      const out = { old: 0, neu: 0, oldOff: [], neuOn: [] };
+      for (const o of window.__mmGame.world.objects) {
+        const k = o.userData.node.k || {};
+        for (const c of ['__Funflare.Scripts.Helper.NewVisualObjectActivator', '__Funflare.Scripts.Helper.NewVisualMeshRendererActivator']) {
+          if (!k[c]) continue;
+          const isNew = !!(Array.isArray(k[c]) ? k[c][0] : k[c]).isNewVersion;
+          const mesh = c.endsWith('RendererActivator') ? o.children.find(m => m.isMesh && !m.userData.node) : o;
+          const on = mesh && shown(o) && mesh.visible;
+          if (isNew) { out.neu++; if (on) out.neuOn.push(o.name); } else { out.old++; if (!on && shown(o.parent)) out.oldOff.push(o.name); }
+        }
+      }
+      return out;
+    });
+    check('only the old prop set is drawn, never both old and new', vis.old > 5 && vis.neu > 5 && vis.neuOn.length === 0 && vis.oldOff.length === 0, JSON.stringify(vis));
     check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | ') || 'none');
   } catch (e) {
     if (e.message !== 'quick') throw e;

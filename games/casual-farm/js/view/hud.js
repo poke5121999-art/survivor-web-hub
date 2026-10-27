@@ -10,7 +10,7 @@ const v3 = new THREE.Vector3();
 const KEYS = { ArrowUp: [0, -1], KeyW: [0, -1], ArrowDown: [0, 1], KeyS: [0, 1], ArrowLeft: [-1, 0], KeyA: [-1, 0], ArrowRight: [1, 0], KeyD: [1, 0] };
 
 export class Hud {
-  constructor({ sim, store, camera, canvas, items, art, world, tasks, matArrows, nextMart, workerDefs, sound, martMap, upgradeRows }) {
+  constructor({ sim, store, camera, canvas, items, art, world, tasks, matArrows, nextMart, workerDefs, sound, martMap, upgradeRows, onMapView }) {
     this.upgradeRows = upgradeRows || null;
     this.floats = [];
     this.martMap = martMap;
@@ -140,7 +140,7 @@ export class Hud {
     });
     // City map card + prestige screens (MartMenuController, PrestigeMenuController), see martmenu.js.
     if (martMap) {
-      this.martMenu = new MartMenu({ root: this.root, art, ui, martMap, sound, onOpen: () => this.closeMenus(this.martMenu.card) });
+      this.martMenu = new MartMenu({ root: this.root, art, ui, martMap, sound, onOpen: () => this.closeMenus(this.martMenu.card), onView: onMapView });
       this.mapEl = this.martMenu.card;
       this.root.querySelector('#mapbtn').addEventListener('click', () => {
         if (this.martMenu.isOpen) this.martMenu.close(); else this.martMenu.open();
@@ -277,13 +277,14 @@ export class Hud {
 
   bindInput() {
     const el = this.canvas.parentElement || document.body;
-    const R = () => Math.min(window.innerWidth, window.innerHeight) * 0.13;
+    const R = () => Math.min(this.root.clientWidth, this.root.clientHeight) * 0.13;
     el.addEventListener('pointerdown', e => {
       if (e.target.closest('.btn, .upmenu, .next, .car, .boosts, .lbtns')) return;
       this.stick = { active: true, id: e.pointerId, ox: e.clientX, oy: e.clientY, x: 0, y: 0 };
       this.joyEl.style.display = 'block';
-      this.joyEl.style.left = `${e.clientX}px`;
-      this.joyEl.style.top = `${e.clientY}px`;
+      const box = this.root.getBoundingClientRect();
+      this.joyEl.style.left = `${e.clientX - box.left}px`;
+      this.joyEl.style.top = `${e.clientY - box.top}px`;
       this.knob.style.transform = 'translate(-50%, -50%)';
     });
     window.addEventListener('pointermove', e => {
@@ -319,8 +320,8 @@ export class Hud {
 
   screen(p, out = {}) {
     v3.set(p.x, p.y || 0, p.z).project(this.camera);
-    out.x = (v3.x + 1) / 2 * window.innerWidth;
-    out.y = (1 - v3.y) / 2 * window.innerHeight;
+    out.x = (v3.x + 1) / 2 * this.root.clientWidth;
+    out.y = (1 - v3.y) / 2 * this.root.clientHeight;
     return out;
   }
 
@@ -446,7 +447,7 @@ export class Hud {
   arrow(key, p) {
     const t = this.tag(`arrow:${key}`, 'arrow', '<i></i>');
     const s = this.screen(p);
-    const W = window.innerWidth, H = window.innerHeight, m = 36;
+    const W = this.root.clientWidth, H = this.root.clientHeight, m = 36;
     if (s.x >= m && s.x <= W - m && s.y >= m && s.y <= H - m) {
       t.classList.remove('edge');
       t.style.transform = `translate(${s.x}px, ${s.y}px) translate(-50%, -100%)`;

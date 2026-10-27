@@ -1,6 +1,9 @@
 """Export one My Mini Mart store scene for the three.js build.
 
 Usage: py -3.12 export_store.py <levelN> <out-id>        e.g. level1 store1  (level1 = Assets/Store.unity)
+       py -3.12 export_store.py level1 citymap --root CORE/GameManager/ENVIRONMENT_City --drop Environment_V2,AdsBreakDropPoints
+         exports only that subtree (shown active, its own transform dropped) minus the named children: the 3D city map
+         every store scene carries (rules/census-citymap.md).
 
 Writes games/casual-farm/art/<out-id>/
   geo.glb      every unique static mesh, glTF mesh i = scene.meshes[i], one primitive per submesh, no materials
@@ -292,6 +295,8 @@ PREFAB_FIELDS = ("matActivatePrefab", "matActivateUpgradePrefab")
 
 def main():
     level, outid = sys.argv[1], sys.argv[2]
+    opt = dict(zip(sys.argv[3::2], sys.argv[4::2]))
+    root_path, drop = opt.get("--root"), set(filter(None, opt.get("--drop", "").split(",")))
     out = os.path.join(GAME, "art", outid)
     texdir = os.path.join(GAME, "art", "tex")
     os.makedirs(out, exist_ok=True)
@@ -299,11 +304,23 @@ def main():
 
     scene = Tree(level)
     keep = []
-    for r in scene.roots():
-        if scene.T(r)["m_Name"] in DROP_ROOTS:
-            log("drop root", scene.T(r)["m_Name"])
-            continue
-        scene.walk(r, keep)
+    root_g = None
+    if root_path:
+        parts = root_path.split("/")
+        cur = [g for g in scene.roots() if scene.T(g)["m_Name"] == parts[0]]
+        for name in parts[1:]:
+            cur = [c for g in cur for c in scene.children.get(g, []) if scene.T(c)["m_Name"] == name]
+        root_g = cur[0]
+        for c in [c for c in scene.children[root_g] if scene.T(c)["m_Name"] in drop]:
+            scene.children[root_g].remove(c)
+            log("drop child", scene.T(c)["m_Name"])
+        scene.walk(root_g, keep)
+    else:
+        for r in scene.roots():
+            if scene.T(r)["m_Name"] in DROP_ROOTS:
+                log("drop root", scene.T(r)["m_Name"])
+                continue
+            scene.walk(r, keep)
     scene.index = {g: i for i, (_, g) in enumerate(keep)}
 
     prefab_roots = []
@@ -383,9 +400,11 @@ def main():
         t = tr.T(tr.trans[g])
         par = tr.parent.get(g)
         node = {"n": G["m_Name"], "p": tr.index[par] if par in tr.index else prefab_parent.get((id(tr), g), -1)}
-        if not G["m_IsActive"]:
+        if not G["m_IsActive"] and g != root_g:
             node["a"] = 0
         lp, lr, ls = t["m_LocalPosition"], t["m_LocalRotation"], t["m_LocalScale"]
+        if g == root_g:
+            lp, lr, ls = {"x": 0, "y": 0, "z": 0}, {"x": 0, "y": 0, "z": 0, "w": 1}, {"x": 1, "y": 1, "z": 1}
         if (lp["x"], lp["y"], lp["z"]) != (0, 0, 0):
             node["t"] = pos(lp)
         if (lr["x"], lr["y"], lr["z"], lr["w"]) != (0, 0, 0, 1):
