@@ -43,6 +43,7 @@ function mulberry32(a) {
   const { Workers } = await imp('workers.js');
   const { Thief } = await imp('thief.js');
   const { Cars } = await imp('cars.js');
+  const { Boosters } = await imp('boosters.js');
   const { Tasks, buildTasks } = await imp('tasks.js');
   const read = f => JSON.parse(fs.readFileSync(path.join(G, f), 'utf8'));
 
@@ -55,10 +56,10 @@ function mulberry32(a) {
   const sim = new Sim(store, { rng: mulberry32(SEED), cash });
   const customers = new Customers(sim, grid);
   const taskList = buildTasks(store);
-  sim.systems.push(customers, new Workers(sim, grid), new Thief(sim, grid), new Cars(sim), new Tasks(sim, taskList));
+  sim.systems.push(customers, new Workers(sim, grid), new Thief(sim, grid), new Cars(sim), new Boosters(sim), new Tasks(sim, taskList));
   const bot = new Bot(sim, grid);
 
-  const firstDone = {}, tasksDone = [], thieves = { spawned: 0, caught: 0, upgrades: 0, cars: 0, carsLost: 0, carCash: 0 };
+  const firstDone = {}, tasksDone = [], thieves = { spawned: 0, caught: 0, upgrades: 0, cars: 0, carsLost: 0, carCash: 0, boosts: 0, extra: 0, extraCash: 0 };
   let midSave = null;
   let paid = 0, served = 0, gaveUp = 0, shortPaid = 0, airPicks = 0, inAir = [], maxCustomers = 0, invariantErr = null;
   const steps = Math.round(MINUTES * 60 / DT);
@@ -83,6 +84,8 @@ function mulberry32(a) {
       if (e.type === 'thiefSpawn') thieves.spawned++;
       if (e.type === 'thiefCaught') thieves.caught++;
       if (e.type === 'levelUp') thieves.upgrades++;
+      if (e.type === 'boostOn') thieves.boosts++;
+      if (e.type === 'extraCash') { thieves.extra++; thieves.extraCash += e.amount; }
       if (e.type === 'carLeave') { if (e.paid) { thieves.cars++; thieves.carCash += e.amount; } else thieves.carsLost++; }
     }
     sim.events.length = 0;
@@ -104,7 +107,7 @@ function mulberry32(a) {
     `cash ${st.cash}, stack level ${st.stackLevel}, served ${served} (paid ${paid}), gave up ${gaveUp}, max customers on map ${maxCustomers}`);
   Object.entries(firstDone).sort((a, b) => a[1] - b[1]).filter((e, i, a) => i < 3 || /StoreTile|NextMart|Worker/.test(e[0]) || i === a.length - 1)
     .forEach(([n]) => console.log(`    ${n}: ${t(n)}`));
-  console.log(`    thieves ${thieves.spawned} (caught ${thieves.caught}), machine/worker upgrades bought ${thieves.upgrades}, car orders ${thieves.cars} paid ${thieves.carCash} (${thieves.carsLost} expired)`);
+  console.log(`    thieves ${thieves.spawned} (caught ${thieves.caught}), machine/worker upgrades bought ${thieves.upgrades}, car orders ${thieves.cars} paid ${thieves.carCash} (${thieves.carsLost} expired), boosters ${thieves.boosts}, extra cash ${thieves.extra} paid ${thieves.extraCash}`);
 
   if (FIRST) {
     check('the 10 starting coin piles are collected', st.coins.every(c => c.taken));

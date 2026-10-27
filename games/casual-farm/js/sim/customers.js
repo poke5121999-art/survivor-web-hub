@@ -1,6 +1,7 @@
 // Customers (CustomerManager + CustomerAgentController + MatCustomer + CashierController checkout).
 // Rules: D:\minimart-ref\rules\customers.md and production.md (cashier). Like CustomerPool.GetObject, a replacement
 // spawns at once; when every unlocked pool object is still walking out, `agent` names a clone the view instantiates.
+import { BOOST } from './boosters.js';
 const SPEED = 10;                 // NavMeshAgent speed on _CustomerAgent_*
 const PICK_RATE = 0.5;            // CustomerAgentController.pickupRate (scene)
 const HAND_LIMIT = 3;             // limitToCarryByHand
@@ -43,7 +44,9 @@ export class Customers {
         this.unlocked.add(a.name);
       }
     }
-    while (this.population() < this.unlocked.size) {
+    const extra = sim.boosters && sim.boosters.on('customer') ? BOOST.customer : 0;
+    // Nothing on sale yet: a customer would have an empty order and turn straight back (and never count).
+    while (this.population() < this.unlocked.size + extra && this.available().length) {
       const agent = this.freeAgent();
       this.spawn(agent ? agent.name : `${[...this.unlocked][0]}#${this.nextId}`);
     }
@@ -317,6 +320,8 @@ export class Customers {
         const n = c.carried.length;
         c.packDur = 0.25 + n * PACK_RATE + 0.5 + 0.75 + 0.5;
         c.reward = c.items.reduce((a, x) => a + Math.trunc((sim.store.prices[x.type] ?? 1) * x.got), 0);
+        // GameManager.IsCashBoosted: the reward is doubled before rounding.
+        if (sim.boosters && sim.boosters.on('cash')) c.reward *= BOOST.cash;
         sim.emit({ type: 'customerPack', id: c.id, cashier: c.cashier, items: c.carried.slice(), duration: c.packDur });
         break;
       }

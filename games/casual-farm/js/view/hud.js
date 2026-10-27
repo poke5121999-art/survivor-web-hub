@@ -36,6 +36,7 @@ export class Hud {
       <a class="btn snd" id="snd"></a>
       <a class="btn upbtn" id="upbtn"><img src="${ui('upgradeIcon')}" alt=""></a>
       <div class="upmenu" id="upmenu"><div class="head"><b>UPGRADES</b><a class="btn x">✕</a></div><div class="rows"></div></div>
+      <div class="boosts" id="boosts"></div>
       <a class="btn mapbtn" id="mapbtn"><img src="${ui('MapCityUI')}" alt=""></a>
       <div class="upmenu map" id="mapmenu"><div class="head"><b>MARTS</b><a class="btn x">✕</a></div><div class="rows"></div></div>`;
     const snd = this.root.querySelector('#snd');
@@ -73,6 +74,13 @@ export class Hud {
       if (b.dataset.act === 'collect' && row.ready) { this.martMap.collect(row); this.mapT = 0; }
       if (b.dataset.act === 'go' && row.visited && !row.here) this.martMap.go(row);
     });
+    this.boostEl = this.root.querySelector('#boosts');
+    this.boostEl.addEventListener('click', e => {
+      const b = e.target.closest('[data-boost]');
+      if (!b || !sim.boosters) return;
+      if (b.dataset.boost === 'cash-mat') sim.boosters.claimCash();
+      else sim.boosters.claim();
+    });
     this.nextEl = this.root.querySelector('#next');
     this.nextEl.querySelector('b').textContent = nextMart ? nextMart.name : '';
     this.nextEl.querySelector('.go').addEventListener('click', () => sim.depart());
@@ -93,7 +101,7 @@ export class Hud {
     const el = this.canvas.parentElement || document.body;
     const R = () => Math.min(window.innerWidth, window.innerHeight) * 0.13;
     el.addEventListener('pointerdown', e => {
-      if (e.target.closest('.btn, .upmenu, .next, .car')) return;
+      if (e.target.closest('.btn, .upmenu, .next, .car, .boosts')) return;
       this.stick = { active: true, id: e.pointerId, ox: e.clientX, oy: e.clientY, x: 0, y: 0 };
       this.joyEl.style.display = 'block';
       this.joyEl.style.left = `${e.clientX}px`;
@@ -246,6 +254,22 @@ export class Hud {
     this.mapRows.innerHTML = html;
   }
 
+  // Booster buttons (BoosterAdsController): the running boosts with their time left, the current offer, and the
+  // extra-cash button; the extra-cash mat also gets a price tag in the world.
+  updateBoosts() {
+    const sim = this.sim, b = sim.state.boost, t = sim.state.t, cash = this.ui('cashIcon');
+    const ICON = { cash, player: this.ui('playerIcon'), worker: this.ui('workerShelfIcon'), machine: this.ui('Blender'), customer: this.ui('giftTrolleyIcon') };
+    const LABEL = { cash: 'CASH x2', player: 'SPEED UP', worker: 'FAST STAFF', machine: 'MACHINES x2', customer: '+3 CUSTOMERS' };
+    const clock = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+    let html = Object.keys(b.active).filter(k => sim.boosters.on(k))
+      .map(k => `<div class="on"><img src="${ICON[k]}" alt=""><b>${clock(sim.boosters.left(k))}</b></div>`).join('');
+    if (b.offer) html += `<a class="btn offer" data-boost="${b.offer.kind}"><img src="${ICON[b.offer.kind]}" alt=""><b>${LABEL[b.offer.kind]}</b><i>${Math.ceil(b.offer.until - t)}</i></a>`;
+    if (b.cash) html += `<a class="btn offer xcash" data-boost="cash-mat"><img src="${cash}" alt=""><b>+${b.cash.amount}</b><i>${Math.ceil(b.cash.until - t)}</i></a>`;
+    if (html !== this.boostKey) { this.boostKey = html; this.boostEl.innerHTML = html; }
+    const m = sim.boosters.cashMat;
+    if (b.cash && m) this.place(this.tag('xcash', 'price', `<img src="${cash}" alt="">+${b.cash.amount}`), { x: m.pos.x, y: 3, z: m.pos.z });
+  }
+
   // Bouncing arrow over a world point; off screen it sticks to the edge and turns toward the target.
   arrow(key, p) {
     const t = this.tag(`arrow:${key}`, 'arrow', '<i></i>');
@@ -317,6 +341,7 @@ export class Hud {
     }
     const th = st.thief && st.thief.chasing && st.thief.agent;
     if (th) this.arrow('thief', { x: th.x, y: 6, z: th.z });
+    if (sim.boosters) this.updateBoosts();
     this.nextEl.style.display = st.next.ready ? 'flex' : 'none';
     if (this.upEl.classList.contains('open')) this.updateMenu();
     // Twice a second: each refresh reads the other marts' saves.

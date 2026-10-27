@@ -111,6 +111,27 @@ function serve() {
     });
     check('the upgrade menu buys a machine upgrade', upgraded.level === 1 && upgraded.cash < 100000, JSON.stringify(upgraded));
 
+    // Boosters: the offer button grants a 300 s cash x2; the extra-cash mat shows, and standing on it pays the cheapest mat.
+    const boost = await page.evaluate(async () => {
+      const g = window.__mmGame, sim = g.sim, b = sim.state.boost, t = sim.state.t;
+      b.offer = { kind: 'cash', until: t + 20 };
+      await new Promise(r => setTimeout(r, 300));
+      const btn = document.querySelector('#boosts [data-boost="cash"]');
+      if (btn) btn.click();
+      const on = sim.boosters.on('cash'), left = Math.round(sim.boosters.left('cash'));
+      const amount = sim.boosters.extraCash();
+      b.cashT = 1e9;
+      await new Promise(r => setTimeout(r, 300));
+      const m = sim.boosters.cashMat, mat = g.world.byName.get('Mat_RV_Extra_Cash');
+      const shown = !!(mat && mat.visible && b.cash);
+      const cash0 = sim.state.cash;
+      Object.assign(sim.state.player, { x: m.zone.middle.x, z: m.zone.middle.z });
+      for (let i = 0; i < 40 && b.cash; i++) await new Promise(r => setTimeout(r, 100));
+      return { clicked: !!btn, on, left, shown, amount, paid: sim.state.cash - cash0 };
+    });
+    check('a booster offer grants cash x2 and the extra-cash mat pays the cheapest mat', boost.clicked && boost.on && boost.left >= 299 && boost.shown && boost.amount > 0 && boost.paid === boost.amount,
+      JSON.stringify(boost));
+
     // Next mart pad: stand on it, press GO, the van leaves and Store 2 loads with the same cash.
     const before = await page.evaluate(async () => {
       const g = window.__mmGame, nm = g.store.nextMart, st = g.sim.state;

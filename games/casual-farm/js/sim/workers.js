@@ -2,6 +2,7 @@
 // Lists, speeds and rates come from the scene; the decision loop is reconstructed (rules/customers.md: the shelver's
 // target rule did not decompile) as: pick the emptiest target that one of my sources can feed, fill up, deliver, pause.
 import { UPGRADE } from './sim.js';
+import { BOOST } from './boosters.js';
 
 const RADIUS = 1;
 const PAUSE = 0.5;               // pauseAfterCompletingJob
@@ -64,7 +65,8 @@ export class Workers {
 
   walk(w, dt) {
     if (!w.path.length) { w.moving = false; return true; }
-    let budget = (w.def.role === 'cashier' ? w.def.speed : UPGRADE.WORKER_SPEED[this.sim.workerLevel(w.name).speed]) * dt;
+    const extra = this.sim.boosters && this.sim.boosters.on('worker') ? BOOST.worker : 0;
+    let budget = ((w.def.role === 'cashier' ? w.def.speed : UPGRADE.WORKER_SPEED[this.sim.workerLevel(w.name).speed]) + extra) * dt;
     while (budget > 0 && w.path.length) {
       const p = w.path[0], dx = p.x - w.x, dz = p.z - w.z, d = Math.hypot(dx, dz);
       if (d <= budget) { w.x = p.x; w.z = p.z; w.path.shift(); budget -= d; } else {

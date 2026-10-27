@@ -116,7 +116,8 @@ export class GameView {
     });
     // Rewarded-video carts (ads are not part of this build) and seasonal decorations: with no season running,
     // SeasonVisual_GameObject.DisableAllVisualObjects shows the default objects and hides every seasonal one.
-    const AD_ONLY = ['TurThanksgivingRvMat', 'MatRVSpawnerController', 'AdsBoxesSpawner'];
+    // MatRVSpawnerController stays: its extra-cash mat shows while the offer is up (Boosters).
+    const AD_ONLY = ['TurThanksgivingRvMat', 'AdsBoxesSpawner'];
     this.byIndex.forEach(o => {
       const k = o.userData.node.k || {};
       if (AD_ONLY.some(c => k[c])) o.visible = false;
@@ -188,6 +189,12 @@ export class GameView {
       const on = st.active.has(name);
       if (on && !o.visible && this.started) this.popIn(o);
       o.visible = on;
+    }
+    const xc = this.sim.boosters && this.sim.boosters.cashMat && this.obj(this.sim.boosters.cashMat.node);
+    if (xc) {
+      const on = !!st.boost.cash;
+      if (on && !xc.visible) this.popIn(xc);
+      xc.visible = on;
     }
     this.started = true;
     this.updatePops(dt);

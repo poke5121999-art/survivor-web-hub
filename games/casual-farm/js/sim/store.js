@@ -223,6 +223,15 @@ export function buildStore(scene, data) {
     for (let j = i; j >= 0; j = nodes[j].p) if (activatedLaterNames().has(nodes[j].n)) out.push(nodes[j].n);
     return out;
   };
+  // MyNavMeshObstacleEnablerAndDisabler: while its object is enabled the obstacle it names is switched off (OnEnable),
+  // and back on when it is disabled. Store 12's "NavMeshObstacleForWhenStillLocked" walls sit under the same tile as
+  // their jetty, so they never block once the tile is bought.
+  const switchedBy = new Map();
+  nodes.forEach((n, i) => {
+    const f = comp(i, 'MyNavMeshObstacleEnablerAndDisabler');
+    if (f && f.navMeshObstacleObj && f.navMeshObstacleObj.n != null) switchedBy.set(f.navMeshObstacleObj.n, i);
+  });
+  // Gates: names that must all be active for the box to block; `off`: names that, all active, switch it off.
   function obstacleGates(o) {
     if (o._gates) return o._gates;
     let best = null, bd = Infinity;
@@ -232,8 +241,11 @@ export function buildStore(scene, data) {
       if (d < bd) { bd = d; best = i; }
     }
     o._gates = best == null ? [] : gatesOf(best);
+    const sw = best == null ? null : switchedBy.get(best);
+    o._off = sw == null ? null : gatesOf(sw);
     return o._gates;
   }
+  const obstacleOff = o => (obstacleGates(o), o._off);
 
   // MatNextStore pad (sound-thief-nextmart.md): stand on it `timer` s to open the Go / Close menu; the van leaves.
   const nmNode = nodes.findIndex((n, i) => comp(i, 'MatNextStore'));
@@ -258,6 +270,7 @@ export function buildStore(scene, data) {
       upgradeZone: upgradeNode != null ? box(upgradeNode) : null,
     },
     obstacleGates,
+    obstacleOff,
     node: name => byName.get(name),
     pos,
     box,

@@ -41,8 +41,9 @@ export class Bot {
     const deskJobs = s.cashiers.map((c, i) => ({ at: c.desk.middle, i })).filter(j => waiting[j.i] && sim.isActive(s.cashiers[j.i].name));
     if (deskJobs.length && customers.some(cu => cu.state === 4 && !st.cashiers[cu.cashier].worker)) return { kind: 'desk', ...nearest(deskJobs), hold: 1.5 };
 
-    // A full car order is collected on the spot (the HUD Collect button).
+    // A full car order is collected on the spot (the HUD Collect button); booster and extra-cash offers are tapped.
     if (sim.cars && sim.cars.full()) sim.cars.collect();
+    if (sim.boosters) { sim.boosters.claim(); sim.boosters.claimCash(); }
 
     // Paying a mat needs no free hands: an affordable one comes before delivering, or a busy bot never reaches it.
     const mats = s.mats.filter(m => st.mats[m.name].open && sim.isActive(m.name)).map(m => ({ at: m.zone.middle, kind: 'mat', m, rem: m.cost - st.mats[m.name].paid }));

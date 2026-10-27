@@ -88,3 +88,15 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #9bd36a; tou
 .upmenu.map .buy.go { background: #3aa0ff; }
 .upmenu.map .row .buy + .buy { margin-left: 0.3em; }
 .upmenu.map .row.locked > img { filter: brightness(0.35); }
+.boosts { position: absolute; left: 3vw; top: calc(env(safe-area-inset-top) + 10vh); display: flex; flex-direction: column; gap: 0.4em;
+  align-items: flex-start; font-size: clamp(12px, 1.9vh, 18px); }
+.boosts .on { display: flex; align-items: center; gap: 0.3em; background: rgba(0, 0, 0, 0.35); border-radius: 1em; padding: 0.15em 0.6em 0.15em 0.2em; }
+.boosts .on img { width: 1.8em; height: 1.8em; object-fit: contain; }
+.boosts .on b { font-weight: 400; }
+.boosts .offer { position: relative; display: flex; align-items: center; gap: 0.3em; pointer-events: auto; cursor: pointer; background: #ff9f1a;
+  border-radius: 0.7em; padding: 0.25em 0.7em 0.25em 0.3em; box-shadow: 0 4px 0 rgba(0, 0, 0, 0.25); animation: boostPulse 0.9s ease-in-out infinite alternate; }
+.boosts .offer.xcash { background: #4cd137; }
+.boosts .offer img { width: 2.2em; height: 2.2em; object-fit: contain; }
+.boosts .offer b { font-weight: 400; text-shadow: 0 2px 0 rgba(0, 0, 0, 0.3); }
+.boosts .offer i { position: absolute; right: -0.5em; top: -0.5em; font-style: normal; font-size: 0.75em; background: #e74c3c; border-radius: 1em; padding: 0 0.4em; }
+@keyframes boostPulse { from { transform: scale(1); } to { transform: scale(1.06); } }

@@ -2,6 +2,7 @@
 // deterministic given (store, rng, inputs). Rules and numbers: D:\minimart-ref\rules\{player,production,progression}.md.
 // The view reads `state` and drains `events` each frame; customers and workers plug in as systems.
 import { COIN } from './store.js';
+import { BOOST } from './boosters.js';
 
 const ITEM_HEIGHT = 1.3;
 const COIN_PILE_RATE = 0.0182;      // PlayerHumanController.cashPickUpRate, one coin per tick (inferred)
@@ -69,7 +70,10 @@ export class Sim {
   }
 
   // A NavMeshObstacle blocks while every gameplay ancestor that a mat unlocks is active.
-  isSolid = o => this.store.obstacleGates(o).every(n => this.state.active.has(n));
+  isSolid = o => {
+    const on = n => this.state.active.has(n), off = this.store.obstacleOff(o);
+    return this.store.obstacleGates(o).every(on) && !(off && off.every(on));
+  };
 
   emit(e) {
     this.events.push(e);
@@ -216,7 +220,8 @@ export class Sim {
   }
 
   timeOf(pi) {
-    return this.store.producers[pi].time / FACTORY_SPEED[this.state.levels.producers[pi].speed];
+    const boost = this.boosters && this.boosters.on('machine') ? BOOST.machine : 1;
+    return this.store.producers[pi].time / FACTORY_SPEED[this.state.levels.producers[pi].speed] / boost;
   }
 
   workerLevel(name) {
@@ -274,7 +279,8 @@ export class Sim {
     const pl = this.state.player;
     pl.frozen = Math.max(0, pl.frozen - dt);
     if (!pl.moving) return;
-    const speed = this.store.player.speed * Math.min(pl.inputMag, 1);
+    const base = this.store.player.speed + (this.boosters && this.boosters.on('player') ? BOOST.player : 0);
+    const speed = base * Math.min(pl.inputMag, 1);
     let nx = pl.x + pl.dirX * speed * dt, nz = pl.z + pl.dirZ * speed * dt;
     if (nav) {
       const p = nav.clamp({ x: pl.x, y: pl.y, z: pl.z }, { x: nx, y: pl.y, z: nz }, CARVE_RADIUS, this.isSolid);
