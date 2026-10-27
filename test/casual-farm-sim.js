@@ -59,7 +59,7 @@ function mulberry32(a) {
   sim.systems.push(customers, new Workers(sim, grid), new Thief(sim, grid), new Cars(sim), new Boosters(sim), new Tasks(sim, taskList));
   const bot = new Bot(sim, grid);
 
-  const firstOpen = {};
+  const firstOpen = {}, workerFeeds = {};
   const firstDone = {}, tasksDone = [], thieves = { spawned: 0, caught: 0, upgrades: 0, cars: 0, carsLost: 0, carCash: 0, boosts: 0, extra: 0, extraCash: 0 };
   let midSave = null;
   let paid = 0, served = 0, gaveUp = 0, shortPaid = 0, airPicks = 0, inAir = [], maxCustomers = 0, invariantErr = null;
@@ -70,6 +70,7 @@ function mulberry32(a) {
     for (const e of sim.events) {
       if (e.type === 'matDone' && firstDone[e.name] == null) firstDone[e.name] = sim.state.t;
       if (e.type === 'matOpen' && firstOpen[e.name] == null) firstOpen[e.name] = sim.state.t;
+      if (e.type === 'workerDrop' && e.to.kind === 'producer') { const k = `${e.name} -> ${store.producers[e.to.i].name}`; workerFeeds[k] = (workerFeeds[k] || 0) + 1; }
       if (e.type === 'customerPay') { paid += e.amount; served++; }
       if ((e.type === 'drop' || e.type === 'workerDrop') && e.to.kind === 'shelf') (inAir[e.to.i] = inAir[e.to.i] || []).push(sim.state.t);
       if (e.type === 'customerPick') {
@@ -110,6 +111,7 @@ function mulberry32(a) {
   Object.entries(firstDone).sort((a, b) => a[1] - b[1]).filter((e, i, a) => i < 3 || /StoreTile|NextMart|Worker/.test(e[0]) || i === a.length - 1)
     .forEach(([n]) => console.log(`    ${n}: ${t(n)}`));
   console.log(`    thieves ${thieves.spawned} (caught ${thieves.caught}), machine/worker upgrades bought ${thieves.upgrades}, car orders ${thieves.cars} paid ${thieves.carCash} (${thieves.carsLost} expired), boosters ${thieves.boosts}, extra cash ${thieves.extra} paid ${thieves.extraCash}`);
+  console.log(`    worker feeds: ${Object.entries(workerFeeds).map(([k, n]) => `${k} ${n}`).join(", ")}`);
 
   if (FIRST) {
     check('the 10 starting coin piles are collected', st.coins.every(c => c.taken));
@@ -128,14 +130,15 @@ function mulberry32(a) {
   if (FIRST) {
     // Owner request: the first wheat plot also opens the second shelver and the farmer (store.js EARLY), also for an old
     // save that already has the plot.
-    const w1 = firstDone.Mat_Activate_Plant_Wheat1, early = ['Mat_Unlock_Worker_ShelfB', 'Mat_Unlock_Worker_FarmerA'];
-    const opened = early.map(n => firstOpen[n] - w1);
+    const w1 = firstDone.Mat_Activate_Plant_Wheat1, mill = firstDone.Mat_Activate_WheatMill;
+    const early = ['Mat_Unlock_Worker_ShelfB', 'Mat_Unlock_Worker_FarmerA', 'Mat_Unlock_Worker_ChefA'];
+    const opened = early.map(n => firstOpen[n] - (n.endsWith('ChefA') ? mill : w1));
     const old = JSON.parse(JSON.stringify(sim.save()));
     early.forEach(n => { old.mats[n] = { paid: 0, done: false }; old.active = old.active.filter(a => a !== n); });
     const oldBack = new Sim(store, { rng: mulberry32(SEED), save: old });
     oldBack.step(0.1);
-    check('the first wheat plot opens the second shelver and the farmer, an old save catches up', opened.every(d => d > 0 && d < 1.5)
-      && early.every(n => oldBack.state.mats[n].open), `opened ${opened.map(d => d.toFixed(2)).join(', ')} s after the plot; old save open ${early.map(n => oldBack.state.mats[n].open)}`);
+    check('the first wheat plot opens the second shelver and the farmer, the mill opens the chef, an old save catches up', opened.every(d => d > 0 && d < 1.5)
+      && early.every(n => oldBack.state.mats[n].open), `opened ${opened.map(d => d.toFixed(2)).join(', ')} s after the plot / mill; old save open ${early.map(n => oldBack.state.mats[n].open)}`);
   }
   if (midSave) {
     const back = new Sim(store, { rng: mulberry32(SEED), save: JSON.parse(midSave.json) });
@@ -170,6 +173,20 @@ function mulberry32(a) {
     check('a paused worker rests and takes no job; resumed it works again', pausedPicks === 0 && atRest && resumedPicks > 0,
       `${wk.name}: ${pausedPicks} picks while paused, at rest ${atRest}, ${resumedPicks} after resume`);
   }
+  // Without the player, staff with a drop-off list (farmer: animals, chef: machines) keep feeding them.
+  const fed = {};
+  for (let k = 0; k < 240 / DT; k++) {
+    sim.step(DT, { nav, grid });
+    for (const e of sim.events) if (e.type === 'workerDrop' && e.to.kind === 'producer') {
+      fed[e.name] = (fed[e.name] || 0) + 1;
+      const k = `${e.name} -> ${store.producers[e.to.i].name}`;
+      fed[k] = (fed[k] || 0) + 1;
+    }
+    sim.events.length = 0;
+  }
+  const feeders = st.workers.filter(w => w.def.feeds && w.def.feeds.length);
+  check('staff with machines or animals to feed do feed them on their own', feeders.length > 0 && feeders.every(w => fed[w.name] > 0)
+    && (!FIRST || fed['_Worker_ChefA -> Machine_WheatMill'] > 0), Object.entries(fed).filter(([k]) => k.includes('->')).map(([k, n]) => `${k} ${n}`).join(', ') || 'no feeds');
   console.log(`PASS: ${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(2); });

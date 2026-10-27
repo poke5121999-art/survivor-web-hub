@@ -181,7 +181,7 @@ export class Workers {
         w.timer += dt;
         if (w.timer < w.def.drop) break;
         w.timer = 0;
-        const z = w.job.kind === 'shelf' ? { kind: 'shelf', i: w.job.target } : { kind: 'producer', i: w.job.target };
+        const z = w.job.kind === 'shelf' ? { kind: 'shelf', i: w.job.target } : { kind: 'producer', i: w.job.target, type: w.job.type };
         if (!w.carry.length || !sim.accepts(z, w.carry[w.carry.length - 1])) {
           w.carry.length = 0;
           w.phase = 'pause';

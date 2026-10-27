@@ -205,14 +205,21 @@ export function buildStore(scene, data) {
   const unlockCost = name => (mats.find(m => m.activate.some(a => a.name === name)) || {}).cost || 0;
   producers.forEach(p => { p.basePrice = unlockCost(p.name); });
 
-  // Owner request 2026-10-27 (not in the original): Store 1 is too hard with two staff at the wheat stage, so the first
-  // wheat plot also opens the second shelver (wheat, cow, mill, oven) and the farmer, at their original prices.
-  const EARLY = { level1: { after: 'Mat_Activate_Plant_Wheat1', open: ['Mat_Unlock_Worker_ShelfB', 'Mat_Unlock_Worker_FarmerA'] } }[scene.level];
-  const early = EARLY && mats.find(m => m.name === EARLY.after);
-  if (early) {
-    EARLY.open.filter(n => mats.some(m => m.name === n)).forEach(name => early.activate.push({ name, delay: 1 }));
-    early.early = EARLY.open;
-  }
+  // Owner requests 2026-10-27 (not in the original): Store 1 is too hard with two staff at the wheat stage, so the first
+  // wheat plot also opens the second shelver (wheat, cow, mill, oven) and the farmer, and the wheat mill opens the chef
+  // (the only staff that feeds machines; originally last, after all 12 wheat plots). Original prices.
+  const EARLY = {
+    level1: [
+      { after: 'Mat_Activate_Plant_Wheat1', open: ['Mat_Unlock_Worker_ShelfB', 'Mat_Unlock_Worker_FarmerA'] },
+      { after: 'Mat_Activate_WheatMill', open: ['Mat_Unlock_Worker_ChefA'] },
+    ],
+  }[scene.level] || [];
+  EARLY.forEach(({ after, open }) => {
+    const early = mats.find(m => m.name === after);
+    if (!early) return;
+    open.filter(n => mats.some(m => m.name === n)).forEach(name => early.activate.push({ name, delay: 1 }));
+    early.early = open;
+  });
 
   function findAnimator(i) {
     if (comp(i, 'Animator')) return i;
