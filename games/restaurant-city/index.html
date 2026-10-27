@@ -52,6 +52,13 @@
   .rc-social-box button { font: inherit; font-weight: 800; padding: 8px 14px; border-radius: 10px; cursor: pointer; border: 2px solid var(--steel); background: #fff; color: var(--ink); }
   .rc-social-box .rc-social-go { background: var(--accent); border-color: #b97a00; }
   .rc-social-box button:disabled { opacity: .5; cursor: default; }
+  header .badge { display: inline-block; min-width: 18px; margin-left: 4px; padding: 0 5px; border-radius: 9px; background: #e2462f; color: #fff; font-size: 12px; text-align: center; }
+  .rc-friends-search { display: flex; gap: 8px; align-items: center; }
+  .rc-friends-search .rc-social-url { margin-top: 0; }
+  .rc-friends-head { margin: 12px 0 4px; font-size: 15px; }
+  .rc-friends-list { list-style: none; margin: 0; padding: 0; max-height: 40vh; overflow-y: auto; }
+  .rc-friends-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #e3e8ec; }
+  .rc-friends-name { flex: 1; min-width: 0; overflow-wrap: anywhere; font-weight: 700; }
 </style>
 <script>
   window.RufflePlayer = window.RufflePlayer || {};
@@ -60,19 +67,23 @@
     allowFullscreen: true, allowScriptAccess: true, quality: "high", contextMenu: "off", publicPath: "ruffle/"
   };
 </script>
+<!-- Ruffle tải game.swf sau khi wasm của nó xong; tải sẵn từ đầu để hai việc chạy song song. -->
+<link rel="preload" href="swf/game.swf?v=20261027f" as="fetch" crossorigin>
 <script src="../../js/session.js"></script>
 <script src="../../js/supabase-config.js"></script>
 <script src="../../js/supabase-auth.js"></script>
-<script src="js/rc-net.js?v=20261027e"></script>
-<script src="js/rc-social.js?v=20261027e"></script>
-<script src="js/rc-page.js?v=20261027e"></script>
-<script src="ruffle/ruffle.js?v=20261027e"></script>
+<script src="js/rc-net.js?v=20261027f"></script>
+<script src="js/rc-social.js?v=20261027f"></script>
+<script src="js/rc-friends.js?v=20261027f"></script>
+<script src="js/rc-page.js?v=20261027f"></script>
+<script src="ruffle/ruffle.js?v=20261027f"></script>
 </head>
 <body>
 <header>
   <a href="../../index.html">← Hub</a>
   <span class="who" id="who"></span>
   <span class="spacer"></span>
+  <button id="friendsBtn" class="hidden" type="button">Bạn bè <span id="friendsBadge" class="badge hidden"></span></button>
   <button id="fullscreen" type="button">Toàn màn hình</button>
 </header>
 <main>

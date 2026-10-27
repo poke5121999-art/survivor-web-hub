@@ -1,0 +1,43 @@
+diff --git a/scripts/com/playfish/games/cooking/GameInitLoader.as b/scripts/com/playfish/games/cooking/GameInitLoader.as
+index dbdbe13..4831db8 100644
+--- a/scripts/com/playfish/games/cooking/GameInitLoader.as
++++ b/scripts/com/playfish/games/cooking/GameInitLoader.as
+@@ -57,6 +57,9 @@ package com.playfish.games.cooking
+          {
+             socialNetworkSuccess = true;
+          }
++         // The original fetched resconfig.xml and the asset files only after the init RPC came
++         // back; nothing in them depends on it, so start downloading now, alongside the RPCs.
++         loadResources();
+          try
+          {
+             GameWorld.rpcClient.beginBatch(RpcClient.BATCHMODE_INORDER);
+@@ -251,8 +254,6 @@ package com.playfish.games.cooking
+       private function rpcInitSuccess() : void
+       {
+          var rpcs:RpcRequestManager = null;
+-         var resConfigUrl:String = null;
+-         var network:String = null;
+          Debug.out("rpcInitSuccess");
+          try
+          {
+@@ -267,6 +268,19 @@ package com.playfish.games.cooking
+             rpcs.addEventListener(RpcEvent.SUCCESS,onRpcsSuccess);
+             rpcs.addEventListener(RpcEvent.FAIL,onRpcsFail);
+             rpcs.commit();
++         }
++         catch(ex:Error)
++         {
++            onInitError(ex.getStackTrace());
++         }
++      }
++
++      private function loadResources() : void
++      {
++         var resConfigUrl:String = null;
++         var network:String = null;
++         try
++         {
+             if(Engine.instance.resHandler == null)
+             {
+                resConfigUrl = Engine.instance.getParameterString("pf_res_config");

@@ -145,7 +145,9 @@ Deno.serve(async (req) => {
   const social = /\/social-links(?:\/(.*))?$/.exec(path);
   const isMe = /\/me$/.test(path);
   const isGrow = /\/dev\/grow-garden$/.test(path);
+  const friends = /\/friends\/(search|requests|request|respond|remove)$/.exec(path);
   if (social ? !(req.method === "POST" || (req.method === "GET" && social[1]))
+    : friends ? !(req.method === "GET" || req.method === "POST")
     : !(req.method === "GET" && isMe) && !(req.method === "POST" && !isMe)) {
     return json({ ok: false, error: "not found" }, 404);
   }
@@ -174,6 +176,21 @@ Deno.serve(async (req) => {
     }
   }
   if (!verified) return json({ ok: false, error: "session expired" }, 401);
+
+  if (friends) {
+    try {
+      const input = req.method === "POST"
+        ? await req.json().catch(() => ({}))
+        : Object.fromEntries(new URL(req.url).searchParams);
+      const rpc = await loadRpc();
+      const result = await rpc.handleFriends(verified.user, verified.sessionId, req.method, friends[1],
+        input && typeof input === "object" ? input : {}, req);
+      return json(result.body, result.status);
+    } catch (error) {
+      console.error("rc-rpc friends failed:", error);
+      return json({ ok: false, error: "server error", detail: terse(error) }, 500);
+    }
+  }
 
   // Test lever: fast-forward the caller's garden instead of waiting 48 real hours.
   if (isGrow) {

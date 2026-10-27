@@ -336,6 +336,31 @@ async function main() {
     check(answered(friends, 2) && friends.body.includes(Buffer.from(who.A.username, 'utf8')), "A is in B's getAllFriends", `${friends.body.length} bytes`);
   }
 
+  // ---- friends by name: the hub's replacement for the friend invite link ----
+  const fr = async (method, path, token, body) => {
+    const res = await fetch(`${FN}/friends/${path}`, {
+      method,
+      headers: { apikey: ANON, ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(body ? { 'Content-Type': 'application/json' } : {}) },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    return { status: res.status, json: await res.json().catch(() => ({})) };
+  };
+  const bFriends = async () => (await rpc(tokens.B, call(2, sessions.B))).body.includes(Buffer.from(who.A.username, 'utf8'));
+  check((await fr('GET', 'search?q=rc-bot', null)).status === 401, 'friend search without a hub session -> 401');
+  const removed = await fr('POST', 'remove', tokens.A, { username: who.B.username });
+  check(removed.status === 200 && removed.json.state === 'none' && !(await bFriends()), 'A unfriends B; A leaves B\'s getAllFriends', JSON.stringify(removed.json));
+  const found = await fr('GET', `search?q=${encodeURIComponent(who.B.username)}`, tokens.A);
+  check(found.status === 200 && found.json.players?.some((p) => p.username === who.B.username && p.state === 'none'), 'A finds B by name', JSON.stringify(found.json).slice(0, 200));
+  check((await fr('GET', 'search?q=r', tokens.A)).status === 400, 'a 1-character search is refused');
+  const asked = await fr('POST', 'request', tokens.A, { username: who.B.username });
+  check(asked.json.state === 'sent', 'A sends B a friend request', JSON.stringify(asked.json));
+  const inbox = await fr('GET', 'requests', tokens.B);
+  check(inbox.json.requests?.some((r) => r.username === who.A.username), "the request is in B's inbox", JSON.stringify(inbox.json));
+  const answer = await fr('POST', 'respond', tokens.B, { username: who.A.username, accept: true });
+  check(answer.json.state === 'friend' && await bFriends(), 'B accepts; A is back in B\'s getAllFriends', JSON.stringify(answer.json));
+  check((await fr('POST', 'request', tokens.A, { username: who.A.username })).status === 400, 'befriending yourself is refused');
+  check((await fr('POST', 'request', tokens.A, { username: 'no-such-player-xyz' })).status === 404, 'an unknown name -> 404');
+
   const sorted = [...batchMs].sort((a, b) => a - b);
   console.log(`batch latency ms: first=${batchMs[0]} median=${sorted[Math.floor(sorted.length / 2)]} all=${batchMs.join(',')}`);
   console.log(failures ? `FAIL ${failures} check(s) failed` : 'PASS all checks');

@@ -11,12 +11,3 @@ index 0d92a7b..417e457 100644
           {
              _loc2_ = getTimer();
              do
-@@ -149,7 +149,7 @@ package com.playfish.games.cooking
-                   break;
-                }
-             }
--            while(getTimer() - _loc2_ < 15);
-+            while(getTimer() - _loc2_ < 30);
-          }
-       }
-       

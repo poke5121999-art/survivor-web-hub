@@ -2,7 +2,7 @@
 // ActiveAccount and runs the ORIGINAL buildResponse (server/src/rpc/index.ts),
 // the same way handleRpc in server/src/http-server.ts does.
 // `@rc/...` resolves to the original server's src/ (see build-rpc.mjs).
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { buildResponse } from '@rc/rpc/index';
 import { parseRequest } from '@rc/rpc/codec';
 import { accountFromUsername, cleanUsername, hashSessionToken, type ActiveAccount } from '@rc/session';
@@ -354,6 +354,126 @@ export async function handleSocial(user: HubUser | null, sessionId: string, meth
     // Validation failures from the service ("Unknown employee snack.", "Insufficient inventory for escrow.").
     return { status: 400, body: { ok: false, error: error instanceof Error ? error.message : String(error) } };
   }
+}
+
+// ---- friends: find a player by name, send / answer a friend request ------------
+// Replaces the friendInvite link. Same FriendRequest / Friendship rows the original's
+// social-links service writes when an invite link is accepted, so getAllFriends sees them.
+
+type FriendState = 'friend' | 'sent' | 'received' | 'none';
+
+async function friendStates(meId: string, otherIds: string[]): Promise<Map<string, FriendState>> {
+  const [friendships, requests] = await Promise.all([
+    prisma.friendship.findMany({
+      where: { OR: [{ accountAId: meId, accountBId: { in: otherIds } }, { accountBId: meId, accountAId: { in: otherIds } }] },
+      select: { accountAId: true, accountBId: true },
+    }),
+    prisma.friendRequest.findMany({
+      where: { status: 'PENDING', OR: [{ senderAccountId: meId, recipientAccountId: { in: otherIds } }, { recipientAccountId: meId, senderAccountId: { in: otherIds } }] },
+      select: { senderAccountId: true, recipientAccountId: true },
+    }),
+  ]);
+  const states = new Map<string, FriendState>(otherIds.map((id) => [id, 'none']));
+  for (const r of requests) {
+    const sent = r.senderAccountId === meId;
+    states.set(sent ? r.recipientAccountId : r.senderAccountId, sent ? 'sent' : 'received');
+  }
+  for (const f of friendships) states.set(f.accountAId === meId ? f.accountBId : f.accountAId, 'friend');
+  return states;
+}
+
+async function befriend(meId: string, otherId: string): Promise<void> {
+  const [a, b] = [meId, otherId].sort();
+  await prisma.$transaction([
+    prisma.friendship.upsert({ where: { accountAId_accountBId: { accountAId: a, accountBId: b } }, update: {}, create: { id: randomUUID(), accountAId: a, accountBId: b } }),
+    prisma.friendRequest.updateMany({
+      where: { OR: [{ senderAccountId: meId, recipientAccountId: otherId }, { senderAccountId: otherId, recipientAccountId: meId }] },
+      data: { status: 'ACCEPTED' },
+    }),
+  ]);
+}
+
+/** Usernames use [A-Za-z0-9_.-] (cleanUsername); anything else cannot match. */
+function nameKey(value: unknown): string {
+  return String(value ?? '').trim().toLocaleLowerCase('en-US').replace(/[^a-z0-9_.-]/g, '');
+}
+
+/**
+ * GET  .../friends/search?q=<name>       up to 10 players whose name contains q, with friend state
+ * GET  .../friends/requests              friend requests waiting for me
+ * POST .../friends/request  {username}   send a request (accepts theirs if they already asked me)
+ * POST .../friends/respond  {username, accept}
+ * POST .../friends/remove   {username}   unfriend (and drop requests either way)
+ */
+export async function handleFriends(user: HubUser, sessionId: string, method: string, rest: string, input: Record<string, unknown>, req: Request): Promise<ResultJson> {
+  await ensureStartup();
+  let account: ActiveAccount;
+  try {
+    const resolved = await resolveAccount(user, sessionId, req);
+    account = resolved.account;
+    if (resolved.created) await ensureLoginAccount(account);
+  } catch (error) {
+    if (error instanceof AccountUnavailable) return { status: 403, body: { ok: false, error: error.message } };
+    throw error;
+  }
+  if (socialRateLimited(`friends:${account.id}`, 60)) return { status: 429, body: { ok: false, error: 'too many requests, try again shortly' } };
+  const route = `${method} ${rest.split('/').filter(Boolean).join('/')}`;
+
+  if (route === 'GET search') {
+    const q = nameKey(input.q);
+    if (q.length < 2) return { status: 400, body: { ok: false, error: 'name too short' } };
+    const rows = await prisma.account.findMany({
+      where: { usernameKey: { contains: q }, disabled: false, id: { not: account.id } },
+      orderBy: { usernameKey: 'asc' }, take: 10, select: { id: true, username: true },
+    });
+    const states = await friendStates(account.id, rows.map((row) => row.id));
+    return { status: 200, body: { ok: true, players: rows.map((row) => ({ username: row.username, state: states.get(row.id) })) } };
+  }
+  if (route === 'GET requests') {
+    const rows = await prisma.friendRequest.findMany({
+      where: { recipientAccountId: account.id, status: 'PENDING', sender: { disabled: false } },
+      orderBy: { createdAt: 'desc' }, take: 50, select: { sender: { select: { username: true } } },
+    });
+    return { status: 200, body: { ok: true, requests: rows.map((row) => ({ username: row.sender.username })) } };
+  }
+  if (route !== 'POST request' && route !== 'POST respond' && route !== 'POST remove') return { status: 404, body: { ok: false, error: 'not found' } };
+
+  const other = await prisma.account.findUnique({ where: { usernameKey: nameKey(input.username) }, select: { id: true, username: true, disabled: true } });
+  if (!other || other.disabled) return { status: 404, body: { ok: false, error: 'player not found' } };
+  if (other.id === account.id) return { status: 400, body: { ok: false, error: 'cannot befriend yourself' } };
+  const state = (await friendStates(account.id, [other.id])).get(other.id);
+
+  if (route === 'POST remove') {
+    const [a, b] = [account.id, other.id].sort();
+    await prisma.$transaction([
+      prisma.friendship.deleteMany({ where: { accountAId: a, accountBId: b } }),
+      prisma.friendRequest.updateMany({
+        where: { OR: [{ senderAccountId: account.id, recipientAccountId: other.id }, { senderAccountId: other.id, recipientAccountId: account.id }] },
+        data: { status: 'DECLINED' },
+      }),
+    ]);
+    return { status: 200, body: { ok: true, state: 'none' } };
+  }
+  if (route === 'POST request') {
+    if (state === 'friend') return { status: 200, body: { ok: true, state } };
+    if (state === 'received') {
+      await befriend(account.id, other.id);
+      return { status: 200, body: { ok: true, state: 'friend' } };
+    }
+    await prisma.friendRequest.upsert({
+      where: { senderAccountId_recipientAccountId: { senderAccountId: account.id, recipientAccountId: other.id } },
+      update: { status: 'PENDING' },
+      create: { id: randomUUID(), senderAccountId: account.id, recipientAccountId: other.id, status: 'PENDING' },
+    });
+    return { status: 200, body: { ok: true, state: 'sent' } };
+  }
+  if (state !== 'received') return { status: 404, body: { ok: false, error: 'no friend request from this player' } };
+  if (input.accept === true) {
+    await befriend(account.id, other.id);
+    return { status: 200, body: { ok: true, state: 'friend' } };
+  }
+  await prisma.friendRequest.updateMany({ where: { senderAccountId: other.id, recipientAccountId: account.id }, data: { status: 'DECLINED' } });
+  return { status: 200, body: { ok: true, state: 'none' } };
 }
 
 // ---- test lever: garden fast-forward -------------------------------------------

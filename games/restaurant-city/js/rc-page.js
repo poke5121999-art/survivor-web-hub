@@ -7,7 +7,7 @@
 (function () {
   "use strict";
 
-  var REV = "20261027e";
+  var REV = "20261027f";
   var cfg = window.SUPABASE_CONFIG || {};
   var FN = new URLSearchParams(location.search).get("rpc") ||
     (String(cfg.url || "").replace(/\/+$/, "") + "/functions/v1/rc-rpc");
@@ -104,6 +104,7 @@
     var options = { url: "swf/" + (/^[\w-]+\.swf$/.test(swf || "") ? swf : "game.swf") + "?v=" + REV, allowScriptAccess: true };
     var api = typeof player.ruffle === "function" ? player.ruffle() : player;
     return Promise.resolve(api.load(options)).then(function () {
+      if (!player.isConnected) return;
       $("panel").classList.add("hidden");
       try { player.focus(); } catch (e) { /* trình duyệt chặn focus: người chơi bấm một lần là được */ }
       window.__rcPlayer = player;
@@ -130,6 +131,17 @@
       callback: flashCallback,
       refocus: function () { try { if (window.__rcPlayer) window.__rcPlayer.focus(); } catch (e) { /* bấm vào game là được */ } }
     });
+    // Sau RCSocial: nút mời bạn trong game mở hộp tìm bạn theo tên thay cho link mời.
+    window.RCFriends.install({
+      fnUrl: fnUrl,
+      anonKey: cfg.anonKey,
+      token: token,
+      refresh: refresh,
+      callback: flashCallback,
+      button: $("friendsBtn"),
+      badge: $("friendsBadge"),
+      refocus: function () { try { if (window.__rcPlayer) window.__rcPlayer.focus(); } catch (e) { /* bấm vào game là được */ } }
+    });
     window.RCNet.install({
       fnUrl: fnUrl,
       anonKey: cfg.anonKey,
@@ -140,10 +152,18 @@
       onExpired: function () { showPanel("Phiên đăng nhập đã hết hạn.", { login: true }); }
     });
     showPanel("Đang mở nhà hàng…");
+    // Ruffle, game.swf và asset tải song song với /me (trước đây chờ /me xong mới tải, mất thêm 1-2 s).
+    // /me hỏng hoặc phiên hết hạn thì gỡ game ra rồi báo.
+    var mounting = link ? null : mount();
+    function unmount() {
+      var player = $("stage").querySelector("ruffle-player, ruffle-object");
+      if (player) player.remove();
+      window.__rcPlayer = null;
+    }
     me().then(function (account) {
-      if (account.expired) { showPanel("Phiên đăng nhập đã hết hạn.", { login: true }); return; }
+      if (account.expired) { unmount(); showPanel("Phiên đăng nhập đã hết hạn.", { login: true }); return; }
       $("who").textContent = "Chủ quán: " + account.username;
-      if (!link) return mount();
+      if (!link) return mounting;
       $("panelBody").classList.add("hidden");
       $("linkCard").classList.remove("hidden");
       return window.RCSocial.claimCard(link, $("linkCard")).then(function () {
@@ -153,6 +173,7 @@
         return mount();
       });
     }).catch(function (err) {
+      unmount();
       showPanel("Không mở được nhà hàng.", { error: String(err && err.message || err) });
     });
   }

@@ -15,6 +15,11 @@ Mọi file trong thư mục này (trừ README) là **sinh ra**, đừng sửa t
 | `GET /functions/v1/rc-rpc/social-links/<slug>` | không bắt buộc (có token thì biết người xem đã nhận chưa) | `{"ok":true,"link":{...publicLink gốc, itemName}}` hoặc 404 |
 | `POST .../social-links/<slug>/actions`, JSON `{action, idempotencyKey}` | bắt buộc | kết quả `actOnLink` gốc: 200 `{ok:true,outcome}`, 409 `ALREADY_DONE`, 400 `{ok:false,code}` |
 | `POST .../social-links/<slug>/cancel` | bắt buộc, chỉ người tạo | 200, trả đồ trong escrow về |
+| `GET .../friends/search?q=<tên>` | bắt buộc | tối đa 10 người chơi có tên chứa `q` (ít nhất 2 ký tự), kèm `state`: `none`, `sent`, `received`, `friend`. Thay cho link mời bạn; ghi cùng bảng `FriendRequest`/`Friendship` của server gốc nên `getAllFriends` thấy ngay lần tải sau |
+| `GET .../friends/requests` | bắt buộc | lời mời đang chờ mình: `{"ok":true,"requests":[{username}]}` |
+| `POST .../friends/request` `{username}` | bắt buộc | gửi lời mời (`sent`); người kia đã mời mình thì thành bạn luôn (`friend`). Tên không có: 404, chính mình: 400 |
+| `POST .../friends/respond` `{username, accept}` | bắt buộc | đồng ý (`friend`) hoặc từ chối (`none`) lời mời của người đó; không có lời mời: 404 |
+| `POST .../friends/remove` `{username}` | bắt buộc | bỏ kết bạn, đánh dấu mọi lời mời giữa hai người là từ chối. Cả nhóm `/friends/*` giới hạn 60 lần/phút mỗi tài khoản |
 | `POST /functions/v1/rc-rpc/dev/grow-garden`, JSON `{seconds?}` (1..172800, mặc định 172800 = chín ngay) | bắt buộc, email phải nằm trong secret `RC_DEV_EMAILS` (hiện `rc-bot-a`, `rc-bot-g`), không thì 403 | 200 `{"ok":true,"username","plots":[{plotId,ingredientId,ingredient,secondsLeft}]}`. Cộng vào `plantWetTime` của mọi ô đã trồng, giữ `updatedAt` (đồng hồ tưới). Game chỉ đọc vườn lúc tải, nên tải lại trang. Lệnh: `node games/restaurant-city/tools/grow-garden.js <bot> [giờ]` |
 
 Token sai/hết hạn: 401 `{"ok":false,"error":"session expired"}`. Tài khoản bị khoá: 403. CORS: origin `*`, header `authorization, apikey, content-type, x-client-info, idempotency-key`, method `GET, POST, OPTIONS`. Mỗi trả lời RPC có `Server-Timing` (thời gian từng pha + số truy vấn) để đo.

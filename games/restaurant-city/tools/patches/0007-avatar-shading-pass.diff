@@ -34,12 +34,14 @@ index cf79910..46899b1 100644
        
 diff --git a/scripts/com/playfish/games/cooking/AvatarLighting.as b/scripts/com/playfish/games/cooking/AvatarLighting.as
 new file mode 100644
-index 0000000..33f6d11
+index 0000000..7aa5fd3
 --- /dev/null
 +++ b/scripts/com/playfish/games/cooking/AvatarLighting.as
-@@ -0,0 +1,37 @@
+@@ -0,0 +1,39 @@
 +package com.playfish.games.cooking
 +{
++   import flash.display.Graphics;
++
 +   // Shading for cached avatar frames (IsoCacher). Away3D's Phong materials stack blend-mode
 +   // layers that Ruffle drops when drawing to a BitmapData, so avatars came out unlit; the
 +   // original game shows soft light and shade on hair, skin and clothes.
@@ -57,9 +59,9 @@ index 0000000..33f6d11
 +      // Shadow colour: a warm brown reads as skin in shade, black reads as grime on pale skin.
 +      public static const SHADE_TINT:uint = 0x6E3424;
 +
-+      // While true, avatar materials draw their shading (white, darkened toward SHADE_TINT by
-+      // shadeAlpha) instead of their texture; IsoCacher sets it for its shading pass.
-+      public static var shadePass:Boolean = false;
++      // While set, avatar materials also draw each face's shading (white, darkened toward
++      // SHADE_TINT by shadeAlpha) into it; IsoCacher sets it around the renders it caches.
++      public static var shadeLayer:Graphics = null;
 +
 +      public function AvatarLighting()
 +      {
@@ -76,7 +78,7 @@ index 0000000..33f6d11
 +   }
 +}
 diff --git a/scripts/com/playfish/games/cooking/IsoCacher.as b/scripts/com/playfish/games/cooking/IsoCacher.as
-index f5a27e6..5743bf0 100644
+index f5a27e6..a7b2ad5 100644
 --- a/scripts/com/playfish/games/cooking/IsoCacher.as
 +++ b/scripts/com/playfish/games/cooking/IsoCacher.as
 @@ -7,6 +7,7 @@ package com.playfish.games.cooking
@@ -97,43 +99,77 @@ index f5a27e6..5743bf0 100644
        
        public function IsoCacher(param1:Avatar3D, param2:Function, param3:Boolean = true, param4:Boolean = true, param5:int = 0)
        {
-@@ -110,7 +114,30 @@ package com.playfish.games.cooking
+@@ -110,7 +114,41 @@ package com.playfish.games.cooking
           light.lookAt(new Number3D(0,0,0));
        }
        
-+      // Hi-res frames (the in-world animation cache) get a shading pass: render the model again
-+      // with AvatarLighting.shadePass, blur it, clip it to the frame's silhouette (ALPHA) and
-+      // multiply it over the frame. Everything stays on the GPU in Ruffle; swapping the model's
-+      // materials instead of the flag cost 140 ms a frame against ~45 ms (RTX 3050, 2026-10-27).
++      // Hi-res frames (the in-world animation cache) also get light and shade. While
++      // AvatarLighting.shadeLayer is set, the avatar materials draw each face's shading into
++      // SHADE_LAYER during the frame's own view.render(); it is drawn alongside the frame,
++      // blurred, clipped to the frame's silhouette (ALPHA) and multiplied over it. Rendering the
++      // model a second time for the shading instead cost ~9 ms more per frame in Ruffle.
++      private static const SHADE_LAYER:Shape = new Shape();
++
        private function renderShape() : Object
 +      {
-+         var _loc1_:Object = drawView();
-+         var _loc2_:Object = null;
-+         var _loc7_:BitmapData = null;
-+         if(resolutionBoost > 1)
++         var _loc1_:Object = null;
++         var _loc2_:BitmapData = null;
++         if(resolutionBoost <= 1)
 +         {
-+            AvatarLighting.shadePass = true;
-+            _loc2_ = drawView();
-+            AvatarLighting.shadePass = false;
-+            _loc7_ = _loc2_.bitmapData;
-+            _loc7_.applyFilter(_loc7_,_loc7_.rect,new Point(),SHADE_BLUR);
-+            _loc7_.draw(_loc1_.bitmapData,new Matrix(1,0,0,1,(_loc1_.x - _loc2_.x) * resolutionBoost,(_loc1_.y - _loc2_.y) * resolutionBoost),null,BlendMode.ALPHA);
-+            _loc1_.bitmapData.draw(_loc7_,new Matrix(1,0,0,1,(_loc2_.x - _loc1_.x) * resolutionBoost,(_loc2_.y - _loc1_.y) * resolutionBoost),null,BlendMode.MULTIPLY);
-+            _loc7_.dispose();
++            return drawView(null);
 +         }
++         SHADE_LAYER.graphics.clear();
++         AvatarLighting.shadeLayer = SHADE_LAYER.graphics;
++         try
++         {
++            _loc1_ = drawView(SHADE_LAYER);
++         }
++         finally
++         {
++            AvatarLighting.shadeLayer = null;
++         }
++         _loc2_ = _loc1_.shade;
++         _loc2_.applyFilter(_loc2_,_loc2_.rect,new Point(),SHADE_BLUR);
++         _loc2_.draw(_loc1_.bitmapData,null,null,BlendMode.ALPHA);
++         _loc1_.bitmapData.draw(_loc2_,null,null,BlendMode.MULTIPLY);
++         _loc2_.dispose();
++         delete _loc1_.shade;
 +         return _loc1_;
 +      }
 +
-+      private function drawView() : Object
++      private function drawView(param1:DisplayObject) : Object
        {
           view.visible = true;
           view.render();
+@@ -120,10 +158,21 @@ package com.playfish.games.cooking
+          var _loc6_:Rectangle = _loc2_.getRect(_loc2_);
+          var _loc7_:Number = resolutionBoost;
+          var _loc4_:BitmapData = new BitmapData(Math.max(1,Math.ceil(_loc3_.width * _loc7_)),Math.max(1,Math.ceil(_loc3_.height * _loc7_)),true,0);
+-         _loc4_.draw(_loc2_,new Matrix(_loc7_,0,0,_loc7_,-_loc6_.left * _loc7_,-_loc6_.top * _loc7_),null,null,null,true);
++         var _loc8_:Matrix = new Matrix(_loc7_,0,0,_loc7_,-_loc6_.left * _loc7_,-_loc6_.top * _loc7_);
++         _loc4_.draw(_loc2_,_loc8_,null,null,null,true);
++         var _loc9_:BitmapData = null;
++         if(param1)
++         {
++            _loc9_ = new BitmapData(_loc4_.width,_loc4_.height,true,0);
++            _loc9_.draw(param1,_loc8_,null,null,null,true);
++         }
+          view.clear();
+          view.visible = false;
+          var _loc5_:Object = new Object();
++         if(_loc9_)
++         {
++            _loc5_.shade = _loc9_;
++         }
+          _loc5_.bitmapData = _loc4_;
+          _loc5_.x = _loc3_.left;
+          _loc5_.y = _loc3_.top;
 diff --git a/scripts/com/playfish/games/cooking/ShadedBitmapMaterial.as b/scripts/com/playfish/games/cooking/ShadedBitmapMaterial.as
 new file mode 100644
-index 0000000..0bc3294
+index 0000000..7c88063
 --- /dev/null
 +++ b/scripts/com/playfish/games/cooking/ShadedBitmapMaterial.as
-@@ -0,0 +1,28 @@
+@@ -0,0 +1,27 @@
 +package com.playfish.games.cooking
 +{
 +   import away3d.core.draw.DrawTriangle;
@@ -141,8 +177,8 @@ index 0000000..0bc3294
 +   import away3d.materials.WhiteShadingBitmapMaterial;
 +   import flash.display.BitmapData;
 +
-+   // Avatar skin/clothes texture. Draws the plain texture, or during AvatarLighting.shadePass
-+   // the face's shading. Extends WhiteShadingBitmapMaterial for its per-face light values.
++   // Avatar skin/clothes texture, plus the face's shading into AvatarLighting.shadeLayer when
++   // set. Extends WhiteShadingBitmapMaterial for its per-face light values.
 +   public class ShadedBitmapMaterial extends WhiteShadingBitmapMaterial
 +   {
 +
@@ -153,18 +189,17 @@ index 0000000..0bc3294
 +
 +      override protected function renderTri(param1:DrawTriangle, param2:AbstractRenderSession, param3:Number, param4:Number, param5:Number, param6:Number, param7:Number, param8:Number, param9:Number, param10:Number, param11:Number) : void
 +      {
-+         if(!AvatarLighting.shadePass)
++         param2.renderTriangleBitmap(bitmap,getMapping(param1),param1.screenVertices,param1.screenIndices,param1.startIndex,param1.endIndex,smooth,repeat);
++         if(AvatarLighting.shadeLayer)
 +         {
-+            param2.renderTriangleBitmap(bitmap,getMapping(param1),param1.screenVertices,param1.screenIndices,param1.startIndex,param1.endIndex,smooth,repeat);
-+            return;
++            ShadedColorMaterial.renderShade(param1,param2,AvatarLighting.shadeAlpha(param3,param4,param5,param6,param7,param8),AvatarLighting.shadeLayer);
 +         }
-+         ShadedColorMaterial.renderShade(param1,param2,AvatarLighting.shadeAlpha(param3,param4,param5,param6,param7,param8));
 +      }
 +   }
 +}
 diff --git a/scripts/com/playfish/games/cooking/ShadedColorMaterial.as b/scripts/com/playfish/games/cooking/ShadedColorMaterial.as
 new file mode 100644
-index 0000000..9e62015
+index 0000000..782856a
 --- /dev/null
 +++ b/scripts/com/playfish/games/cooking/ShadedColorMaterial.as
 @@ -0,0 +1,35 @@
@@ -173,8 +208,9 @@ index 0000000..9e62015
 +   import away3d.core.draw.DrawTriangle;
 +   import away3d.core.render.AbstractRenderSession;
 +   import away3d.materials.ShadingColorMaterial;
++   import flash.display.Graphics;
 +
-+   // Avatar hair: flat colour, or during AvatarLighting.shadePass the face's shading.
++   // Avatar hair: flat colour, plus the face's shading into AvatarLighting.shadeLayer when set.
 +   public class ShadedColorMaterial extends ShadingColorMaterial
 +   {
 +
@@ -183,23 +219,22 @@ index 0000000..9e62015
 +         super(param1,param2);
 +      }
 +
-+      public static function renderShade(param1:DrawTriangle, param2:AbstractRenderSession, param3:Number) : void
++      public static function renderShade(param1:DrawTriangle, param2:AbstractRenderSession, param3:Number, param4:Graphics) : void
 +      {
-+         param2.renderTriangleColor(16777215,1,param1.screenVertices,param1.screenCommands,param1.screenIndices,param1.startIndex,param1.endIndex);
++         param2.renderTriangleColor(16777215,1,param1.screenVertices,param1.screenCommands,param1.screenIndices,param1.startIndex,param1.endIndex,param4);
 +         if(param3 > 0.01)
 +         {
-+            param2.renderTriangleColor(AvatarLighting.SHADE_TINT,param3,param1.screenVertices,param1.screenCommands,param1.screenIndices,param1.startIndex,param1.endIndex);
++            param2.renderTriangleColor(AvatarLighting.SHADE_TINT,param3,param1.screenVertices,param1.screenCommands,param1.screenIndices,param1.startIndex,param1.endIndex,param4);
 +         }
 +      }
 +
 +      override protected function renderTri(param1:DrawTriangle, param2:AbstractRenderSession, param3:Number, param4:Number, param5:Number, param6:Number, param7:Number, param8:Number, param9:Number, param10:Number, param11:Number) : void
 +      {
-+         if(!AvatarLighting.shadePass)
++         param2.renderTriangleColor(color,1,param1.screenVertices,param1.screenCommands,param1.screenIndices,param1.startIndex,param1.endIndex);
++         if(AvatarLighting.shadeLayer)
 +         {
-+            param2.renderTriangleColor(color,1,param1.screenVertices,param1.screenCommands,param1.screenIndices,param1.startIndex,param1.endIndex);
-+            return;
++            renderShade(param1,param2,AvatarLighting.shadeAlpha(param3,param4,param5,param6,param7,param8),AvatarLighting.shadeLayer);
 +         }
-+         renderShade(param1,param2,AvatarLighting.shadeAlpha(param3,param4,param5,param6,param7,param8));
 +      }
 +   }
 +}
