@@ -40,6 +40,7 @@ export class Workers {
     });
     this.list = [];
     sim.state.workers = this.list;
+    sim.store.workerNames = new Set(this.defs.filter(d => d.role !== 'cashier').map(d => d.name));
   }
 
   step(dt, sim) {
@@ -133,7 +134,8 @@ export class Workers {
     const here = { x: w.x, y: 0, z: w.z };
     switch (w.phase) {
       case 'idle': {
-        w.job = this.chooseJob(w);
+        // PauseWorker: an idle worker walks to its rest spot and takes no job until resumed.
+        w.job = sim.workerLevel(w.name).paused ? null : this.chooseJob(w);
         if (!w.job) {
           if (Math.hypot(w.restAt.x - w.x, w.restAt.z - w.z) > 1 && !w.path.length) this.goTo(w, w.restAt);
           this.walk(w, dt);

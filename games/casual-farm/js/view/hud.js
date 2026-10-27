@@ -9,7 +9,9 @@ const v3 = new THREE.Vector3();
 const KEYS = { ArrowUp: [0, -1], KeyW: [0, -1], ArrowDown: [0, 1], KeyS: [0, 1], ArrowLeft: [-1, 0], KeyA: [-1, 0], ArrowRight: [1, 0], KeyD: [1, 0] };
 
 export class Hud {
-  constructor({ sim, store, camera, canvas, items, art, world, tasks, matArrows, nextMart, workerDefs, sound, martMap }) {
+  constructor({ sim, store, camera, canvas, items, art, world, tasks, matArrows, nextMart, workerDefs, sound, martMap, upgradeRows }) {
+    this.upgradeRows = upgradeRows || null;
+    this.floats = [];
     this.martMap = martMap;
     this.sound = sound;
     this.nextMart = nextMart;
@@ -33,16 +35,38 @@ export class Hud {
       <div class="tags" id="tags"></div>
       <div class="task" id="task"><img alt=""><span></span><b></b></div>
       <div class="next" id="next"><i>NEXT MART</i><b></b><div><a class="btn go">GO!</a><a class="btn close">✕</a></div></div>
-      <a class="btn snd" id="snd"></a>
-      <a class="btn upbtn" id="upbtn"><img src="${ui('upgradeIcon')}" alt=""></a>
-      <div class="upmenu" id="upmenu"><div class="head"><b>UPGRADES</b><a class="btn x">✕</a></div><div class="rows"></div></div>
+      <div class="lbtns" style="--btn: url('${ui('normalButtonLarge')}')">
+        <a class="btn lb set" id="setbtn"><img src="${ui('settingsUI')}" alt=""></a>
+        <a class="btn lb mapbtn" id="mapbtn"><img src="${ui('MapCityUI')}" alt=""><i class="dot"></i></a>
+        <a class="btn lb upbtn" id="upbtn"><img src="${ui('upgradeIcon')}" alt=""><i class="dot"></i></a>
+      </div>
+      <div class="upmenu settings" id="setmenu"><div class="head"><b>SETTINGS</b><a class="btn x">✕</a></div>
+        <div class="rows"><div class="row"><span><b>Sound</b></span><a class="btn buy tog" data-tog="sound"></a></div>
+        <div class="row"><span><b>Music</b></span><a class="btn buy tog" data-tog="music"></a></div></div></div>
+      <div class="upmenu upgrades" id="upmenu"><div class="head"><img src="${ui('upgradeIcon')}" alt=""><b>UPGRADES</b><a class="btn x">✕</a></div>
+        <div class="tabs"><a class="btn tab workers" data-tab="workers">Workers<i class="dot"></i></a><a class="btn tab machines" data-tab="machines">Machines<i class="dot"></i></a><a class="btn tab animals" data-tab="animals">Animals<i class="dot"></i></a></div>
+        <div class="rows"></div></div>
       <div class="boosts" id="boosts"></div>
-      <a class="btn mapbtn" id="mapbtn"><img src="${ui('MapCityUI')}" alt=""></a>
       <div class="upmenu map" id="mapmenu"><div class="head"><b>MARTS</b><a class="btn x">✕</a></div><div class="rows"></div></div>`;
-    const snd = this.root.querySelector('#snd');
-    const showSnd = () => { snd.textContent = sound && sound.muted ? '🔇' : '🔊'; };
-    showSnd();
-    snd.addEventListener('click', () => { if (sound) sound.setMuted(!sound.muted); showSnd(); });
+    // SettingMenuController: sound and music switches.
+    this.setEl = this.root.querySelector('#setmenu');
+    const showTog = () => this.setEl.querySelectorAll('[data-tog]').forEach(b => {
+      const on = !sound || (b.dataset.tog === 'sound' ? !sound.muted : sound.music);
+      b.textContent = on ? 'ON' : 'OFF';
+      b.classList.toggle('poor', !on);
+    });
+    showTog();
+    this.setEl.addEventListener('click', e => {
+      const b = e.target.closest('[data-tog]');
+      if (!b || !sound) return;
+      if (b.dataset.tog === 'sound') sound.setMuted(!sound.muted); else sound.setMusic(!sound.music);
+      showTog();
+    });
+    this.root.querySelector('#setbtn').addEventListener('click', () => {
+      this.closeMenus(this.setEl);
+      this.setEl.classList.toggle('open');
+    });
+    this.setEl.querySelector('.x').addEventListener('click', () => this.setEl.classList.remove('open'));
     // SoundManager.PlayTapSfx on every button, PlayCancelSfx on close buttons.
     this.root.addEventListener('click', e => {
       const b = e.target.closest('.btn');
@@ -50,22 +74,47 @@ export class Hud {
     });
     this.upEl = this.root.querySelector('#upmenu');
     this.upRows = this.upEl.querySelector('.rows');
-    this.root.querySelector('#upbtn').addEventListener('click', () => { this.upEl.classList.toggle('open'); this.upKey = null; });
+    // UpgradeMenuController (legacy menu, the one in gameplay video; rules/upgrade-menu.md): Workers / Machines /
+    // Animals tabs, every row of the mart listed (locked ones as black silhouettes), Stack and Speed bought separately.
+    this.tab = 'workers';
+    this.root.querySelector('#upbtn').addEventListener('click', () => {
+      this.closeMenus(this.upEl);
+      if (this.upEl.classList.toggle('open')) this.openTab(this.tab);
+      this.upKey = null;
+    });
     this.upEl.querySelector('.x').addEventListener('click', () => this.upEl.classList.remove('open'));
+    this.upEl.querySelector('.tabs').addEventListener('click', e => {
+      const b = e.target.closest('[data-tab]');
+      if (b) this.openTab(b.dataset.tab);
+    });
     this.upRows.addEventListener('click', e => {
-      const b = e.target.closest('[data-k]');
-      const slot = b && this.slots && this.slots.get(b.dataset.k);
-      if (slot && sim.buyUpgrade(slot)) this.upKey = null;
+      const b = e.target.closest('[data-r]');
+      const row = b && this.menuRows && this.menuRows[+b.dataset.r];
+      if (!row || !row.unlocked) return;
+      if (b.dataset.pause != null) {
+        const lv = sim.workerLevel(row.slot.name);
+        lv.paused = !lv.paused;
+        this.upKey = null;
+        return;
+      }
+      const track = b.dataset.t, offer = sim.upgradeOffer(row.slot, track);
+      if (!offer) return;
+      // CounterController.ShakeCashOnce when the cash is short.
+      if (sim.state.cash < offer.price) { this.shakeCash(); return; }
+      const firstCarry = row.slot.kind === 'player' && sim.state.stackLevel === 0;
+      this.tutorialCarry = !!(this.tasks && this.tasks.current && this.tasks.current.menu);
+      if (!sim.buyUpgrade(row.slot, track)) return;
+      this.upKey = null;
+      this.afterBuy(row, track, firstCarry);
     });
     this.mapEl = this.root.querySelector('#mapmenu');
     this.mapRows = this.mapEl.querySelector('.rows');
     this.root.querySelector('#mapbtn').addEventListener('click', () => {
-      this.upEl.classList.remove('open');
+      this.closeMenus(this.mapEl);
       this.mapEl.classList.toggle('open');
       this.mapKey = null;
       this.mapT = 0;
     });
-    this.root.querySelector('#upbtn').addEventListener('click', () => this.mapEl.classList.remove('open'));
     this.mapEl.querySelector('.x').addEventListener('click', () => this.mapEl.classList.remove('open'));
     this.mapRows.addEventListener('click', e => {
       const b = e.target.closest('[data-id]');
@@ -97,11 +146,65 @@ export class Hud {
     this.bindInput();
   }
 
+  // The tab on show is marked seen (its red dot goes); OnEnable does the same for the tab the menu opens on.
+  openTab(tab) {
+    if (tab === 'animals' && !this.animalsTab()) tab = 'workers';
+    this.tab = tab;
+    this.sim.state.seen[tab] = true;
+    this.upEl.dataset.tab = tab;
+    this.upKey = null;
+  }
+
+  animalsTab() {
+    return !!(this.upgradeRows && this.upgradeRows.animalsTab && this.upgradeRows.tabs.animals.length);
+  }
+
+  shakeCash() {
+    const el = this.root.querySelector('.cash');
+    el.classList.remove('shake');
+    void el.offsetWidth;
+    el.classList.add('shake');
+  }
+
+  // After a buy: PlayUpgradePS shows CARRY / SPEED over the worker or player 0.4 s later for 3 s; a machine speed buy
+  // shows SPEED over it 1 s later for 1 s. The camera highlight (CameraDirector) hides the UI for its 1.5 s. The very
+  // first carry upgrade of the Store 1 tutorial closes the menu (UpgradeSuccessful).
+  afterBuy(row, track, firstCarry) {
+    const t = this.sim.state.t, word = track === 'speed' ? 'SPEED' : 'CARRY';
+    if (row.slot.kind === 'player') this.floats.push({ text: 'CARRY', at: () => this.sim.state.player, start: t + 0.4, end: t + 3.4 });
+    else if (row.slot.kind === 'worker') {
+      const w = (this.sim.state.workers || []).find(x => x.name === row.slot.name);
+      if (w) this.floats.push({ text: word, at: () => w, start: t + 0.4, end: t + 3.4 });
+    } else if (track === 'speed') {
+      const p = this.store.producers[row.slot.i].spawn;
+      this.floats.push({ text: 'SPEED', at: () => p, start: t + 1, end: t + 2 });
+    }
+    this.upEl.classList.add('hl');
+    clearTimeout(this.hlTimer);
+    this.hlTimer = setTimeout(() => this.upEl.classList.remove('hl'), 1500);
+    if (firstCarry && this.tutorialCarry) this.upEl.classList.remove('open');
+  }
+
+  updateFloats() {
+    const t = this.sim.state.t;
+    this.floats = this.floats.filter(f => t < f.end);
+    this.floats.forEach((f, i) => {
+      if (t < f.start) return;
+      const p = f.at();
+      this.place(this.tag(`float:${i}:${f.text}`, 'float', `${f.text} <i>↑</i>`), { x: p.x, y: 11 + (t - f.start) * 0.8, z: p.z });
+    });
+  }
+
+  // One popup at a time.
+  closeMenus(keep) {
+    for (const el of [this.upEl, this.mapEl, this.setEl]) if (el && el !== keep) el.classList.remove('open');
+  }
+
   bindInput() {
     const el = this.canvas.parentElement || document.body;
     const R = () => Math.min(window.innerWidth, window.innerHeight) * 0.13;
     el.addEventListener('pointerdown', e => {
-      if (e.target.closest('.btn, .upmenu, .next, .car, .boosts')) return;
+      if (e.target.closest('.btn, .upmenu, .next, .car, .boosts, .lbtns')) return;
       this.stick = { active: true, id: e.pointerId, ox: e.clientX, oy: e.clientY, x: 0, y: 0 };
       this.joyEl.style.display = 'block';
       this.joyEl.style.left = `${e.clientX}px`;
@@ -130,6 +233,7 @@ export class Hud {
   }
 
   joystick() {
+    if (this.root.querySelector('.upmenu.open')) return { x: 0, y: 0, mag: 0 };
     let x = this.stick.x, y = this.stick.y;
     for (const k of this.keys) { x += KEYS[k][0]; y += KEYS[k][1]; }
     const mag = Math.min(1, Math.hypot(x, y));
@@ -193,49 +297,68 @@ export class Hud {
     this.root.appendChild(el);
   }
 
-  // Upgrade menu (FunflareUpgradeMenuController): one slot each for the player, every unlocked machine or truck and
-  // every unlocked shelver / farmer / chef; the button buys the slot's next step (Sim.upgradeOffer).
+  // Upgrade slots the sim understands, one per unlocked row (the bot, the red dot of old and tests use this list).
   upgradeSlots() {
-    const sim = this.sim, s = this.store, slots = [];
-    slots.push({ key: 'player', kind: 'player', title: 'You', icon: this.ui('playerIcon') });
-    s.producers.forEach((p, i) => {
-      if (!p.upgradable || !sim.isActive(p.name)) return;
-      const it = this.items.types[p.out];
-      slots.push({ key: `p${i}`, kind: 'producer', i, title: p.title.replace(/^(Machine|Animal)_/, '').replace(/_/g, ' '),
-        icon: it && it.icon ? `${this.art}/items/${it.icon}` : this.ui('upgradeIcon') });
-    });
-    const ROLE = { shelver: ['Shelver', 'workerShelfIcon'], farmer: ['Farmer', 'workerFarmerIcon'], chef: ['Chef', 'workerChefIcon'] };
-    this.workerDefs.forEach(d => {
-      if (!ROLE[d.role] || !sim.isActive(d.name)) return;
-      slots.push({ key: `w${d.name}`, kind: 'worker', name: d.name, base: s.unlockCost(d.name),
-        title: `${ROLE[d.role][0]} ${d.name.replace(/^.*?([A-Z])$/, '$1')}`, icon: this.ui(ROLE[d.role][1]) });
-    });
-    return slots;
+    return this.menuModel().filter(r => r.unlocked).map(r => r.slot);
+  }
+
+  // Rows of every tab from art/ui/upgrade/icons.json (scene node names), each tied to a sim slot.
+  menuModel() {
+    if (this.model) return this.model;
+    const s = this.store, R = this.upgradeRows;
+    const rows = [];
+    const tabs = R ? R.tabs : { workers: [{ node: s.nodes[s.player.node].n, kind: 'player', name: 'Player', icon: null }], machines: [], animals: [] };
+    for (const tab of ['workers', 'machines', 'animals']) {
+      for (const r of tabs[tab] || []) {
+        let slot;
+        if (r.kind === 'player') slot = { kind: 'player' };
+        else if (r.kind === 'worker') slot = { kind: 'worker', name: r.node, base: s.unlockCost(r.node) };
+        else {
+          const i = s.producers.findIndex(p => p.name === r.node);
+          if (i < 0 || !s.producers[i].upgradable) continue;
+          slot = { kind: 'producer', i };
+        }
+        const d = r.kind === 'worker' ? this.workerDefs.find(x => x.name === r.node) : null;
+        // responsibleImages: what the worker carries (its shelves' goods and the inputs it feeds).
+        const goods = d ? [...new Set([...(d.shelves || []).map(si => s.shelves[si].type), ...(d.feeds || []).flatMap(pi => s.producers[pi].ins)])] : [];
+        rows.push({ tab, ...r, slot, goods, icon: r.icon ? `${this.art}/ui/upgrade/${r.icon}` : this.ui('playerIcon') });
+      }
+    }
+    this.model = rows;
+    return rows;
   }
 
   updateMenu() {
     const sim = this.sim, st = sim.state;
-    const slots = this.upgradeSlots();
-    const rows = slots.map(slot => {
-      const offer = sim.upgradeOffer(slot);
-      let info;
-      if (slot.kind === 'player') {
-        info = offer ? `Carry ${carryLimit(st.stackLevel)} → ${carryLimit(st.stackLevel + 1)}` : `Carry ${carryLimit(st.stackLevel)}`;
-      } else {
-        const lv = slot.kind === 'producer' ? st.levels.producers[slot.i] : sim.workerLevel(slot.name);
-        const speed = slot.kind === 'producer' ? `×${UPGRADE.FACTORY_SPEED[lv.speed]}` : `${UPGRADE.WORKER_SPEED[lv.speed]}`;
-        const cap = slot.kind === 'producer' ? sim.limitOf(slot.i) : Math.min(3 + lv.stack, 6);
-        info = !offer ? `Speed ${speed} · Cap ${cap}` : offer.track === 'speed' ? `Speed ${speed} → next` : `Capacity ${cap} → next`;
+    const cash = `<img src="${this.ui('cashIcon')}" alt="">`;
+    const rows = this.menuModel();
+    rows.forEach(r => { r.unlocked = r.slot.kind === 'player' || sim.isActive(r.node); });
+    this.menuRows = rows;
+    const level = (r, track) => (r.slot.kind === 'player' ? st.stackLevel : (r.slot.kind === 'producer' ? st.levels.producers[r.slot.i] : sim.workerLevel(r.slot.name))[track]) + 1;
+    const html = rows.map((r, idx) => {
+      if (r.tab !== this.tab) return '';
+      if (!r.unlocked) {
+        const q = r.kind === 'worker' ? '<div class="tracks"><div class="tr"><span>???</span></div><div class="tr"><span>???</span></div></div>' : '';
+        return `<div class="row locked"><div class="who"><img src="${r.icon}" alt=""><b>???</b></div>${q}</div>`;
       }
-      const buy = offer ? `<a class="btn buy${st.cash >= offer.price ? '' : ' poor'}" data-k="${slot.key}"><img src="${this.ui('cashIcon')}" alt="">${offer.price}</a>`
-        : '<a class="btn buy max">MAX</a>';
-      return `<div class="row"><img src="${slot.icon}" alt=""><span><b>${slot.title}</b><i>${info}</i></span>${buy}</div>`;
-    });
-    const key = rows.join('');
+      const tracks = (r.slot.kind === 'player' ? ['stack'] : ['stack', 'speed']).map(track => {
+        const offer = sim.upgradeOffer(r.slot, track);
+        const btn = offer ? `<a class="btn buy${st.cash >= offer.price ? '' : ' poor'}" data-r="${idx}" data-t="${track}">${cash}${offer.price}</a>`
+          : '<a class="btn buy max">MAX</a>';
+        return `<div class="tr"><span>${track === 'stack' ? 'Stack' : 'Speed'} - Lvl.${level(r, track)}</span>${btn}</div>`;
+      }).join('');
+      const paused = r.slot.kind === 'worker' && sim.workerLevel(r.slot.name).paused;
+      const pause = r.slot.kind === 'worker' ? `<a class="btn pause" data-r="${idx}" data-pause="1">${paused ? '▶' : 'II'}</a>` : '';
+      const goods = r.goods.length ? `<div class="goods">${r.goods.map(t => (this.items.types[t] && this.items.types[t].icon ? `<img src="${this.art}/items/${this.items.types[t].icon}" alt="">` : '')).join('')}</div>` : '';
+      return `<div class="row"><div class="who"><img src="${r.icon}" alt=""><b>${r.name}</b>${pause}${goods}</div><div class="tracks">${tracks}</div></div>`;
+    }).join('');
+    const dots = ['workers', 'machines', 'animals'].map(t => (st.seen[t] ? '' : t)).join(',');
+    const key = `${this.tab}|${html}|${dots}`;
     if (key === this.upKey) return;
     this.upKey = key;
-    this.slots = new Map(slots.map(x => [x.key, x]));
-    this.upRows.innerHTML = key;
+    this.upRows.innerHTML = html;
+    this.upEl.querySelector('.tab.animals').style.display = this.animalsTab() ? '' : 'none';
+    for (const t of ['workers', 'machines', 'animals']) this.upEl.querySelector(`.tab.${t}`).classList.toggle('alert', !st.seen[t] && t !== this.tab);
   }
 
   // Map menu rows: progress bar, idle income (COLLECT when the 3-hour clock is up, else the time left) and GO.
@@ -351,6 +474,12 @@ export class Hud {
     if (th) this.arrow('thief', { x: th.x, y: 6, z: th.z });
     if (sim.boosters) this.updateBoosts();
     this.nextEl.style.display = st.next.ready ? 'flex' : 'none';
+    // _notificationCircle on the upgrade button (CanvasManager.UpdateUpgradeButtonNotif): a tab holds something
+    // unlocked since it was last looked at. The map button shows once a second mart has been reached.
+    const seen = st.seen, unseen = !seen.workers || !seen.machines || (this.animalsTab() && !seen.animals);
+    this.upBtn.classList.toggle('alert', unseen);
+    if (this.martMap) this.root.querySelector('#mapbtn').style.display = this.martMap.global.visited.length > 1 ? '' : 'none';
+    this.updateFloats();
     if (this.upEl.classList.contains('open')) this.updateMenu();
     // Twice a second: each refresh reads the other marts' saves.
     if (this.martMap && this.mapEl.classList.contains('open') && !(performance.now() - (this.mapT || 0) < 500)) {

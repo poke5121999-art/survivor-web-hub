@@ -94,22 +94,62 @@ function serve() {
     check('a reload keeps cash and bought mats', back.done === saved.done && back.cash === saved.cash,
       `mats ${back.done}/${saved.done}, cash ${back.cash}/${saved.cash}`);
 
-    // The upgrade menu buys a machine step with the cash in hand.
+    // Upgrade menu (legacy UpgradeMenuController): a machine row on the Machines tab, Speed and Stack bought separately;
+    // a locked machine shows as a "???" silhouette; the red dot means an unlocked thing on a tab not yet looked at.
     const upgraded = await page.evaluate(async () => {
-      const g = window.__mmGame, sim = g.sim;
-      const pi = g.store.producers.findIndex(p => p.upgradable);
-      if (pi < 0) return { err: 'no upgradable machine' };
-      sim.state.active.add(g.store.producers[pi].name);
-      sim.state.cash = 100000;
+      const g = window.__mmGame, sim = g.sim, st = sim.state, hud = g.hud;
+      const rows = hud.menuModel();
+      const ri = rows.findIndex(r => r.tab === 'machines');
+      if (ri < 0) return { err: 'no machine row' };
+      const pi = rows[ri].slot.i, name = g.store.producers[pi].name;
+      st.active.delete(name);
       document.querySelector('#upbtn').click();
-      await new Promise(r => setTimeout(r, 400));
-      const btn = document.querySelector(`.upmenu [data-k="p${pi}"]`);
-      if (!btn) return { err: 'no row for the machine' };
-      btn.click();
-      const lv = sim.state.levels.producers[pi];
-      return { level: lv.speed + lv.stack, cash: sim.state.cash };
+      document.querySelector('#upmenu [data-tab="machines"]').click();
+      await new Promise(r => setTimeout(r, 300));
+      const lockedRow = [...document.querySelectorAll('#upmenu .row')][rows.filter(r => r.tab === 'machines').indexOf(rows[ri])];
+      const locked = !!lockedRow && lockedRow.classList.contains('locked') && /\?\?\?/.test(lockedRow.textContent);
+      document.querySelector('#upmenu .x').click();
+      st.seen.machines = true;
+      sim.activate ? sim.activate(name, 0) : st.active.add(name);
+      if (!st.active.has(name)) { st.active.add(name); st.seen.machines = false; }
+      await new Promise(r => setTimeout(r, 600));
+      const dotOn = document.querySelector('#upbtn').classList.contains('alert');
+      st.cash = 100000;
+      document.querySelector('#upbtn').click();
+      document.querySelector('#upmenu [data-tab="machines"]').click();
+      await new Promise(r => setTimeout(r, 300));
+      const speed = document.querySelector(`#upmenu [data-r="${ri}"][data-t="speed"]`);
+      if (!speed) return { err: 'no speed button', locked, dotOn };
+      speed.click();
+      await new Promise(r => setTimeout(r, 1700));
+      const lv1 = { ...st.levels.producers[pi] };
+      const stack = document.querySelector(`#upmenu [data-r="${ri}"][data-t="stack"]`);
+      if (stack) stack.click();
+      const lv2 = { ...st.levels.producers[pi] };
+      await new Promise(r => setTimeout(r, 600));
+      const dotOff = !document.querySelector('#upbtn').classList.contains('alert');
+      const text = document.querySelector('#upmenu .rows').textContent;
+      document.querySelector('#upmenu .x').click();
+      return { locked, dotOn, dotOff, lv1, lv2, label: /Speed - Lvl\.2/.test(text) && /Stack - Lvl\.2/.test(text) };
     });
-    check('the upgrade menu buys a machine upgrade', upgraded.level === 1 && upgraded.cash < 100000, JSON.stringify(upgraded));
+    check('the upgrade menu lists a locked machine as "???" and buys Speed and Stack separately', upgraded.locked && upgraded.lv1
+      && upgraded.lv1.speed === 1 && upgraded.lv1.stack === 0 && upgraded.lv2.stack === 1 && upgraded.label, JSON.stringify(upgraded));
+    check('the upgrade button dot shows a new unlock until its tab is seen', upgraded.dotOn && upgraded.dotOff, JSON.stringify(upgraded));
+
+    // Left button column and Settings: the buttons sit on the left; Settings switches the music.
+    const hudLeft = await page.evaluate(async () => {
+      const g = window.__mmGame, up = document.querySelector('#upbtn');
+      const box = up.getBoundingClientRect();
+      document.querySelector('#setbtn').click();
+      const open = document.querySelector('#setmenu').classList.contains('open');
+      const music0 = g.hud.sound.music;
+      document.querySelector('#setmenu [data-tog="music"]').click();
+      const music1 = g.hud.sound.music;
+      document.querySelector('#setmenu [data-tog="music"]').click();
+      document.querySelector('#setmenu .x').click();
+      return { left: Math.round(box.left), open, toggled: music0 !== music1 };
+    });
+    check('the HUD buttons sit on the left and Settings switches the music', hudLeft.left < 40 && hudLeft.open && hudLeft.toggled, JSON.stringify(hudLeft));
 
     // Boosters: the offer button grants a 300 s cash x2; the extra-cash mat shows, and standing on it pays the cheapest mat.
     const boost = await page.evaluate(async () => {

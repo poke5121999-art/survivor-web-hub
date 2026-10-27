@@ -61,9 +61,10 @@ const camFwd = new THREE.Vector2(-FOLLOW.x, -FOLLOW.z).normalize();
 function resize() {
   const w = window.innerWidth, h = window.innerHeight;
   renderer.setSize(w, h, false);
-  // Portrait keeps the original vertical extent; a wide screen keeps roughly the width a phone shows.
+  // Unity's orthographic size is the vertical half-extent whatever the aspect: a landscape screen sees the same height
+  // and more width (gameplay video at 1280x720: a crop bed 143 px long, as with 35 here).
   const aspect = w / h;
-  const half = aspect > 9 / 16 ? Math.max(ORTHO * 0.62, ORTHO * (9 / 16) / aspect * 1.6) : ORTHO;
+  const half = ORTHO;
   camera.left = -half * aspect; camera.right = half * aspect;
   camera.top = half; camera.bottom = -half;
   camera.updateProjectionMatrix();
@@ -99,12 +100,13 @@ async function load() {
     json(`${ART}/anim/clips.json`), json(`${ART}/anim/controllers.json`), json(`${ART}/items/items.json`),
     glb(`${ART}/items/items.glb`), json(`${ART}/${STORE}/navmesh.json`), json(`${BASE}data/${STORE}.json`),
     json(`${BASE}data/marts.json`), json(`${ART}/fx/fx.json`), glb(`${ART}/fx/fx.glb`),
+    json(`${ART}/ui/upgrade/icons.json`).catch(() => null),
   ]);
   const [sceneJson, gltf] = await Promise.all([json(`${ART}/${STORE}/scene.json`), glb(`${ART}/${STORE}/geo.glb`)]);
   const world = buildWorld(sceneJson, gltf, { texBase: `${ART}/tex` });
   scene3.add(world.root);
   setStage(8, 'geometry');
-  const [clips, controllers, items, itemsGltf, navJson, data, marts, fxData, fxGltf] = await restP;
+  const [clips, controllers, items, itemsGltf, navJson, data, marts, fxData, fxGltf, upgradeIcons] = await restP;
   const anim = new AnimLibrary(clips, controllers);
   world.rigs = attachRigs(anim, world);
   setStage(5, 'animation');
@@ -135,7 +137,7 @@ async function load() {
     global,
   };
   const hud = new Hud({ sim, store, camera, canvas, items, art: ART, world, tasks, matArrows: matArrows(store), nextMart: next, workerDefs: workers.defs,
-    sound: new Sound(`${ART}/sfx`, sim, store, V), martMap });
+    sound: new Sound(`${ART}/sfx`, sim, store, V), martMap, upgradeRows: upgradeIcons && upgradeIcons.stores[STORE] });
   await Promise.all(sceneJson.textures.map(t => texture(`${ART}/tex`, t.name).full));
   setStage(0, 'textures');
   sim.listeners.push(e => { if (e.type === 'depart') setTimeout(() => travel(next.id), VAN_TIME); });

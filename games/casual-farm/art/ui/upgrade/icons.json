@@ -1,0 +1,1639 @@
+{
+ "menu": "UpgradeMenuController (legacy 3-tab UPGRADES popup; see rules/upgrade-menu.md)",
+ "key": "node = nodes[].n in art/<store>/scene.json (= store.producers[].name / workers.defs[].name); player row node is Player_Chef",
+ "tabOrder": [
+  "workers",
+  "machines",
+  "animals"
+ ],
+ "locked": "same icon tinted black (filter: brightness(0)), name '???', no buttons",
+ "files": {
+  "bananaSplitMakerIcon.webp": {
+   "sprite": "sharedassets10.assets:79",
+   "w": 90,
+   "h": 128
+  },
+  "beesIcon.webp": {
+   "sprite": "sharedassets6.assets:105",
+   "w": 114,
+   "h": 113
+  },
+  "blenderIcon.webp": {
+   "sprite": "resources.assets:1030",
+   "w": 105,
+   "h": 128
+  },
+  "burgerMakerIcon.webp": {
+   "sprite": "sharedassets7.assets:95",
+   "w": 118,
+   "h": 128
+  },
+  "burritoMakerIcon.webp": {
+   "sprite": "sharedassets9.assets:55",
+   "w": 110,
+   "h": 128
+  },
+  "butterChurnerIcon.webp": {
+   "sprite": "sharedassets11.assets:116",
+   "w": 108,
+   "h": 128
+  },
+  "campOvenIcon.webp": {
+   "sprite": "sharedassets20.assets:48",
+   "w": 114,
+   "h": 128
+  },
+  "cannerIcon.webp": {
+   "sprite": "sharedassets20.assets:47",
+   "w": 122,
+   "h": 128
+  },
+  "carryUpgradeIcon.webp": {
+   "sprite": "sharedassets0.assets:78",
+   "w": 125,
+   "h": 128
+  },
+  "chickenIcon.webp": {
+   "sprite": "resources.assets:882",
+   "w": 179,
+   "h": 250
+  },
+  "clamIcon.webp": {
+   "sprite": "sharedassets1.assets:1526",
+   "w": 124,
+   "h": 111
+  },
+  "coffeeGrinderIcon.webp": {
+   "sprite": "resources.assets:633",
+   "w": 96,
+   "h": 128
+  },
+  "cottonCandyMachineIcon.webp": {
+   "sprite": "sharedassets14.assets:79",
+   "w": 102,
+   "h": 126
+  },
+  "cowIcon.webp": {
+   "sprite": "resources.assets:1017",
+   "w": 243,
+   "h": 244
+  },
+  "crabIcon.webp": {
+   "sprite": "sharedassets1.assets:1252",
+   "w": 126,
+   "h": 127
+  },
+  "deepFryerIcon.webp": {
+   "sprite": "sharedassets7.assets:88",
+   "w": 116,
+   "h": 128
+  },
+  "deliveryTruckIcon.webp": {
+   "sprite": "sharedassets6.assets:108",
+   "w": 128,
+   "h": 108
+  },
+  "fishIcon.webp": {
+   "sprite": "sharedassets8.assets:105",
+   "w": 128,
+   "h": 112
+  },
+  "fruitPresserIcon.webp": {
+   "sprite": "sharedassets18.assets:71",
+   "w": 102,
+   "h": 128
+  },
+  "fryingPan_GlazedBaconIcon.webp": {
+   "sprite": "sharedassets14.assets:81",
+   "w": 126,
+   "h": 120
+  },
+  "goatIcon.webp": {
+   "sprite": "sharedassets18.assets:72",
+   "w": 183,
+   "h": 256
+  },
+  "guacamoleMakerIcon.webp": {
+   "sprite": "sharedassets9.assets:60",
+   "w": 119,
+   "h": 118
+  },
+  "hotdogMakerIcon.webp": {
+   "sprite": "sharedassets12.assets:66",
+   "w": 117,
+   "h": 128
+  },
+  "jellybeanMaker.webp": {
+   "sprite": "sharedassets11.assets:104",
+   "w": 110,
+   "h": 128
+  },
+  "juicerIcon.webp": {
+   "sprite": "resources.assets:776",
+   "w": 118,
+   "h": 126
+  },
+  "ketchupMakerIcon.webp": {
+   "sprite": "sharedassets12.assets:67",
+   "w": 114,
+   "h": 128
+  },
+  "latteMachineIcon.webp": {
+   "sprite": "sharedassets2.assets:125",
+   "w": 104,
+   "h": 127
+  },
+  "microwaveIcon.webp": {
+   "sprite": "sharedassets11.assets:114",
+   "w": 126,
+   "h": 112
+  },
+  "mustardMakerIcon.webp": {
+   "sprite": "sharedassets12.assets:64",
+   "w": 114,
+   "h": 128
+  },
+  "nachoGrillIcon.webp": {
+   "sprite": "sharedassets9.assets:61",
+   "w": 126,
+   "h": 116
+  },
+  "nigiriMakerIcon.webp": {
+   "sprite": "sharedassets8.assets:95",
+   "w": 86,
+   "h": 128
+  },
+  "ovenIcon.webp": {
+   "sprite": "sharedassets14.assets:78",
+   "w": 123,
+   "h": 128
+  },
+  "ovenTabletopIcon.webp": {
+   "sprite": "sharedassets1.assets:1199",
+   "w": 125,
+   "h": 112
+  },
+  "pancakeMakerIcon.webp": {
+   "sprite": "sharedassets10.assets:80",
+   "w": 98,
+   "h": 128
+  },
+  "pigIcon.webp": {
+   "sprite": "sharedassets12.assets:69",
+   "w": 213,
+   "h": 247
+  },
+  "pizzaOvenIcon.webp": {
+   "sprite": "resources.assets:1060",
+   "w": 108,
+   "h": 128
+  },
+  "popcornMakerIcon.webp": {
+   "sprite": "sharedassets11.assets:109",
+   "w": 108,
+   "h": 128
+  },
+  "pot_CandiedAppleIcon.webp": {
+   "sprite": "sharedassets14.assets:80",
+   "w": 120,
+   "h": 107
+  },
+  "pot_ClamChowderIcon.webp": {
+   "sprite": "sharedassets16.assets:100",
+   "w": 128,
+   "h": 123
+  },
+  "prawnIcon.webp": {
+   "sprite": "sharedassets1.assets:1421",
+   "w": 128,
+   "h": 114
+  },
+  "riceCookerIcon.webp": {
+   "sprite": "sharedassets8.assets:88",
+   "w": 120,
+   "h": 108
+  },
+  "sakeBrewerIcon.webp": {
+   "sprite": "sharedassets8.assets:96",
+   "w": 96,
+   "h": 128
+  },
+  "saladMakerIcon.webp": {
+   "sprite": "sharedassets7.assets:97",
+   "w": 121,
+   "h": 118
+  },
+  "sausageRollMaker.webp": {
+   "sprite": "sharedassets12.assets:65",
+   "w": 114,
+   "h": 108
+  },
+  "shortcakeMixerIcon.webp": {
+   "sprite": "sharedassets10.assets:78",
+   "w": 118,
+   "h": 124
+  },
+  "sodaMachineIcon.webp": {
+   "sprite": "sharedassets11.assets:112",
+   "w": 100,
+   "h": 126
+  },
+  "sugarcaneCrusher.webp": {
+   "sprite": "sharedassets11.assets:105",
+   "w": 128,
+   "h": 128
+  },
+  "sundaeMakerIcon.webp": {
+   "sprite": "sharedassets10.assets:81",
+   "w": 100,
+   "h": 128
+  },
+  "sushiMakerIcon.webp": {
+   "sprite": "sharedassets8.assets:89",
+   "w": 82,
+   "h": 128
+  },
+  "sweetTeaMakerIcon.webp": {
+   "sprite": "sharedassets1.assets:1372",
+   "w": 102,
+   "h": 122
+  },
+  "wheatMillIcon.webp": {
+   "sprite": "resources.assets:641",
+   "w": 100,
+   "h": 126
+  },
+  "workerChefIcon.webp": {
+   "sprite": "sharedassets0.assets:94",
+   "w": 128,
+   "h": 128
+  },
+  "workerFarmerIcon.webp": {
+   "sprite": "sharedassets0.assets:104",
+   "w": 127,
+   "h": 128
+  },
+  "workerShelfIcon.webp": {
+   "sprite": "sharedassets0.assets:110",
+   "w": 128,
+   "h": 128
+  },
+  "yoghurtMakerIcon.webp": {
+   "sprite": "sharedassets6.assets:97",
+   "w": 96,
+   "h": 116
+  }
+ },
+ "stores": {
+  "store1": {
+   "scene": "Store",
+   "sceneType": 1,
+   "animalsTab": true,
+   "tabs": {
+    "workers": [
+     {
+      "node": "Player_Chef",
+      "kind": "player",
+      "name": "Player",
+      "icon": "carryUpgradeIcon.webp"
+     },
+     {
+      "node": "_Worker_ShelfA",
+      "kind": "worker",
+      "name": "Shelver A",
+      "icon": "workerShelfIcon.webp",
+      "role": "shelver",
+      "letter": "A"
+     },
+     {
+      "node": "_Worker_ChefA",
+      "kind": "worker",
+      "name": "Chef",
+      "icon": "workerChefIcon.webp",
+      "role": "chef",
+      "letter": "A"
+     },
+     {
+      "node": "_Worker_FarmerA",
+      "kind": "worker",
+      "name": "Farmer",
+      "icon": "workerFarmerIcon.webp",
+      "role": "farmer",
+      "letter": "A"
+     },
+     {
+      "node": "_Worker_ShelfB",
+      "kind": "worker",
+      "name": "Shelver B",
+      "icon": "workerShelfIcon.webp",
+      "role": "shelver",
+      "letter": "B"
+     }
+    ],
+    "machines": [
+     {
+      "node": "Machine_Blender",
+      "kind": "machine",
+      "name": "Blender",
+      "icon": "blenderIcon.webp"
+     },
+     {
+      "node": "Machine_Oven_Tabletop",
+      "kind": "machine",
+      "name": "Bread Oven",
+      "icon": "ovenTabletopIcon.webp"
+     },
+     {
+      "node": "Machine_WheatMill",
+      "kind": "machine",
+      "name": "Wheat Mill",
+      "icon": "wheatMillIcon.webp"
+     }
+    ],
+    "animals": [
+     {
+      "node": "Animal_Chicken",
+      "kind": "animal",
+      "name": "Chicken A",
+      "icon": "chickenIcon.webp"
+     },
+     {
+      "node": "Animal_Chicken2",
+      "kind": "animal",
+      "name": "Chicken B",
+      "icon": "chickenIcon.webp"
+     },
+     {
+      "node": "Animal_Cow",
+      "kind": "animal",
+      "name": "Cow",
+      "icon": "cowIcon.webp"
+     }
+    ]
+   }
+  },
+  "store2": {
+   "scene": "Store_2",
+   "sceneType": 2,
+   "animalsTab": true,
+   "tabs": {
+    "workers": [
+     {
+      "node": "Player_Chef",
+      "kind": "player",
+      "name": "Player",
+      "icon": "carryUpgradeIcon.webp"
+     },
+     {
+      "node": "_Worker_ShelfA",
+      "kind": "worker",
+      "name": "Shelver A",
+      "icon": "workerShelfIcon.webp",
+      "role": "shelver",
+      "letter": "A"
+     },
+     {
+      "node": "_Worker_FarmerA",
+      "kind": "worker",
+      "name": "Farmer",
+      "icon": "workerFarmerIcon.webp",
+      "role": "farmer",
+      "letter": "A"
+     },
+     {
+      "node": "_Worker_ChefA",
+      "kind": "worker",
+      "name": "Chef A",
+      "icon": "workerChefIcon.webp",
+      "role": "chef",
+      "letter": "A"
+     },
+     {
+      "node": "_Worker_ShelfB",
+      "kind": "worker",
+      "name": "Shelver B",
+      "icon": "workerShelfIcon.webp",
+      "role": "shelver",
+      "letter": "B"
+     },
+     {
+      "node": "_Worker_ChefB",
+      "kind": "worker",
+      "name": "Chef B",
+      "icon": "workerChefIcon.webp",
+      "role": "chef",
+      "letter": "B"
+     }
+    ],
+    "machines": [
+     {
+      "node": "Machine_CoffeeGrinder",
+      "kind": "machine",
+      "name": "Coffee Grinder",
+      "icon": "coffeeGrinderIcon.webp"
+     },
+     {
+      "node": "Machine_LatteMachine",
+      "kind": "machine",
+      "name": "Latte Machine",
+      "icon": "latteMachineIcon.webp"
+     },
+     {
+      "node": "Machine_Juicer",
+      "kind": "machine",
+      "name": "Veggie Juicer",
+      "icon": "juicerIcon.webp"
+     }
+    ],
+    "animals": [
+     {
+      "node": "Animal_Cow",
+      "kind": "animal",
+      "name": "Cow",
+      "icon": "cowIcon.webp"
+     }
+    ]
+   }
+  },
+  "store3": {
+   "scene": "Store_3",
+   "sceneType": 3,
+   "animalsTab": false,
+   "tabs": {
+    "workers": [
+     {
+      "node": "Player_Chef",
+      "kind": "player",
+      "name": "Player",
+      "icon": "carryUpgradeIcon.webp"
+     },
+     {
+      "node": "_Worker_ShelfA",
+      "kind": "worker",
+      "name": "Shelver A",
+      "icon": "workerShelfIcon.webp",
+      "role": "shelver",
+      "letter": "A"
+     },
+     {
+      "node": "_Worker_ChefA",
+      "kind": "worker",
+      "name": "Chef A",
+      "icon": "workerChefIcon.webp",
+      "role": "chef",
+      "letter": "A"
+     },
+     {
+      "node": "_Worker_ShelfB",
+      "kind": "worker",
+      "name": "Shelver B",
+      "icon": "workerShelfIcon.webp",
+      "role": "shelver",
+      "letter": "B"
+     },
+     {
+      "node": "_Worker_ChefB",
+      "kind": "worker",
+      "name": "Chef B",
+      "icon": "workerChefIcon.webp",
+      "role": "chef",
+      "letter": "B"
+     }
+    ],
+    "machines": [
+     {
+      "node": "Machine_Blender",
+      "kind": "machine",
+      "name": "Blender",
+      "icon": "blenderIcon.webp"
+     },
+     {
+      "node": "Machine_PizzaOven",
+      "kind": "machine",
+      "name": "Pizza Oven",
+      "icon": "pizzaOvenIcon.webp"
+     },
+     {
+      "node": "Machine_WheatMill",
+      "kind": "machine",
+      "name": "Wheat Mill",
+      "icon": "wheatMillIcon.webp"
+     },
+     {
+      "node": "Machine_Juicer_Orange",
+      "kind": "machine",
+      "name": "Orange Juicer",
+      "icon": "juicerIcon.webp"
+     }
+    ],
+    "animals": []
+   }
+  },
+  "store4": {
+   "scene": "Store_4",
+   "sceneType": 6,
+   "animalsTab": true,
+   "tabs": {
+    "workers": [
+     {
+      "node": "Player_Chef",
+      "kind": "player",
+      "name": "Player",
+      "icon": "carryUpgradeIcon.webp"
+     },
+     {
+      "node": "_Worker_ShelfA",
+      "kind": "worker",
+      "name": "Shelver A",
+      "icon": "workerShelfIcon.webp",
+      "role": "shelver",
+      "letter": "A"
+     },
+     {
+      "node": "_Worker_ChefA",
+      "kind": "worker",
+      "name": "Chef A",
+      "icon": "workerChefIcon.webp",
+      "role": "chef",
+      "letter": "A"
+     },
+     {
+      "node": "_Worker_FarmerA",
+      "kind": "worker",
+      "name": "Farmer",
+      "icon": "workerFarmerIcon.webp",
+      "role": "farmer",
+      "letter": "A"
+     },
+     {
+      "node": "_Worker_ShelfB Variant",
+      "kind": "worker",
+      "name": "Shelver B",
+      "icon": "workerShelfIcon.webp",
+      "role": "shelver",
+      "letter": "B"
+     },
+     {
+      "node": "_Worker_ChefB",
+      "kind": "worker",
+      "name": "Chef B",
+      "icon": "workerChefIcon.webp",
+      "role": "chef",
+      "letter": "B"
+     },
+     {
+      "node": "_Worker_ChefC",
+      "kind": "worker",
+      "name": "Chef C",
+      "icon": "workerChefIcon.webp",
+      "role": "chef",
+      "letter": "C"
+     }
+    ],
+    "machines": [
+     {
+      "node": "Machine_Tea_Grinder",
+      "kind": "machine",
+      "name": "Tea Grinder",
+      "icon": "coffeeGrinderIcon.webp"
+     },
+     {
+      "node": "Machine_Blender_BlueberryJam",
+      "kind": "machine",
+      "name": "Blender",
+      "icon": "blenderIcon.webp"
+     },
+     {
+      "node": "Machine_SweetTeaMaker",
+      "kind": "machine",
+      "name": "Sweet Tea Maker",
+      "icon": "sweetTeaMakerIcon.webp"
+     },
+     {
+      "node": "PickupAutoTruck",
+      "kind": "machine",
+      "name": "Milk Truck",
+      "icon": "deliveryTruckIcon.webp"
+     },
+     {
+      "node": "Machine_YoghurtMaker",
+      "kind": "machine",
+      "name": "Yoghurt Maker",
+      "icon": "yoghurtMakerIcon.webp"
+     }
+    ],
+    "animals": [
+     {
+      "node": "Animal_BeeHouse",
+      "kind": "animal",
+      "name": "Bees A",
+      "icon": "beesIcon.webp"
+     },
+     {
+      "node": "Animal_BeeHouse2",
+      "kind": "animal",
+      "name": "Bees B",
+      "icon": "beesIcon.webp"
+     }
+    ]
+   }
+  },
+  "store5": {
+   "scene": "Store_5",
+   "sceneType": 7,
+   "animalsTab": true,
+   "tabs": {
+    "workers": [
+     {
+      "node": "Player_Chef",
+      "kind": "player",
+      "name": "Player",
+      "icon": "carryUpgradeIcon.webp"
+     },
+     {
+      "node": "_Worker_ChefA",
+      "kind": "worker",
+      "name": "Chef A",
+      "icon": "workerChefIcon.webp",
+      "role": "chef",
+      "letter": "A"
+     },
+     {
+      "node": "_Worker_ShelfA",
+      "kind": "worker",
+      "name": "Shelver A",
+      "icon": "workerShelfIcon.webp",
+      "role": "shelver",
+      "letter": "A"
+     },
+     {
+      "node": "_Worker_ShelfB",
+      "kind": "worker",
+      "name": "Shelver B",
+      "icon": "workerShelfIcon.webp",
+      "role": "shelver",
+      "letter": "B"
+     },
+     {
+      "node": "_Worker_FarmerA",
+      "kind": "worker",
+      "name": "Farmer",
+      "icon": "workerFarmerIcon.webp",
+      "role": "farmer",
+      "letter": "A"
+     },
+     {
+      "node": "_Worker_ChefB",
+      "kind": "worker",
+      "name": "Chef B",
+      "icon": "workerChefIcon.webp",
+      "role": "chef",
+      "letter": "B"
+     }
+    ],
+    "machines": [
+     {
+      "node": "Machine_DeepFryer",
+      "kind": "machine",
+      "name": "Deep Fryer",
+      "icon": "deepFryerIcon.webp"
+     },
+     {
+      "node": "Machine_SaladMaker",
+      "kind": "machine",
+      "name": "Salad Maker",
+      "icon": "saladMakerIcon.webp"
+     },
+     {
+      "node": "DeliveryTruck_FlourBag",
+      "kind": "machine",
+      "name": "Flour Truck",
+      "icon": "deliveryTruckIcon.webp"
+     },
+     {
+      "node": "Machine_BurgerMaker",
+      "kind": "machine",
+      "name": "Burger Maker",
+      "icon": "burgerMakerIcon.webp"
+     }
+    ],
+    "animals": [
+     {
+      "node": "Animal_Cow_Meat",
+      "kind": "animal",
+      "name": "Cow A",
+      "icon": "cowIcon.webp"
+     },
+     {
+      "node": "Animal_Cow_Meat2",
+      "kind": "animal",
+      "name": "Cow B",
+      "icon": "cowIcon.webp"
+     }
+    ]
+   }
+  },
+  "store6": {
+   "scene": "Store_6",
+   "sceneType": 8,
+   "animalsTab": true,
+   "tabs": {
+    "workers": [
+     {
+      "node": "Player_Chef",
+      "kind": "player",
+      "name": "Player",
+      "icon": "carryUpgradeIcon.webp"
+     },
+     {
+      "node": "_Worker_ShelfA",
+      "kind": "worker",
+      "name": "Shelver A",
+      "icon": "workerShelfIcon.webp",
+      "role": "shelver",
+      "letter": "A"
+     },
+     {
+      "node": "_Worker_FarmerA",
+      "kind": "worker",
+      "name": "Farmer",
+      "icon": "workerFarmerIcon.webp",
+      "role": "farmer",
+      "letter": "A"
+     },
+     {
+      "node": "_Worker_ChefA",
+      "kind": "worker",
+      "name": "Chef A",
+      "icon": "workerChefIcon.webp",
+      "role": "chef",
+      "letter": "A"
+     },
+     {
+      "node": "_Worker_ShelfB",
+      "kind": "worker",
+      "name": "Shelver B",
+      "icon": "workerShelfIcon.webp",
+      "role": "shelver",
+      "letter": "B"
+     },
+     {
+      "node": "_Worker_ChefB",
+      "kind": "worker",
+      "name": "Chef B",
+      "icon": "workerChefIcon.webp",
+      "role": "chef",
+      "letter": "B"
+     },
+     {
+      "node": "_Worker_ChefC",
+      "kind": "worker",
+      "name": "Chef C",
+      "icon": "workerChefIcon.webp",
+      "role": "chef",
+      "letter": "C"
+     }
+    ],
+    "machines": [
+     {
+      "node": "Machine_RiceCooker",
+      "kind": "machine",
+      "name": "Rice Cooker",
+      "icon": "riceCookerIcon.webp"
+     },
+     {
+      "node": "Machine_NigiriMaker",
+      "kind": "machine",
+      "name": "Nigiri Maker",
+      "icon": "nigiriMakerIcon.webp"
+     },
+     {
+      "node": "Machine_SakeBrewer",
+      "kind": "machine",
+      "name": "Sake Brewer",
+      "icon": "sakeBrewerIcon.webp"
+     },
+     {
+      "node": "Machine_SushiMaker",
+      "kind": "machine",
+      "name": "Sushi Maker",
+      "icon": "sushiMakerIcon.webp"
+     }
+    ],
+    "animals": [
+     {
+      "node": "Animal_Fish",
+      "kind": "animal",
+      "name": "Fish",
+      "icon": "fishIcon.webp"
+     }
+    ]
+   }
+  },
+  "store7": {
+   "scene": "Store_7",
+   "sceneType": 9,
+   "animalsTab": true,
+   "tabs": {
+    "workers": [
+     {
+      "node": "Player_Chef",
+      "kind": "player",
+      "name": "Player",
+      "icon": "carryUpgradeIcon.webp"
+     },
+     {
+      "node": "_Worker_ShelfA",
+      "kind": "worker",
+      "name": "Shelver A",
+      "icon": "workerShelfIcon.webp",
+      "role": "shelver",
+      "letter": "A"
+     },
+     {
+      "node": "_Worker_FarmerA",
+      "kind": "worker",
+      "name": "Farmer",
+      "icon": "workerFarmerIcon.webp",
+      "role": "farmer",
+      "letter": "A"
+     },
+     {
+      "node": "_Worker_ChefA",
+      "kind": "worker",
+      "name": "Chef A",
+      "icon": "workerChefIcon.webp",
+      "role": "chef",
+      "letter": "A"
+     },
+     {
+      "node": "_Worker_ShelfB",
+      "kind": "worker",
+      "name": "Shelver B",
+      "icon": "workerShelfIcon.webp",
+      "role": "shelver",
+      "letter": "B"
+     },
+     {
+      "node": "_Worker_ChefB",
+      "kind": "worker",
+      "name": "Chef B",
+      "icon": "workerChefIcon.webp",
+      "role": "chef",
+      "letter": "B"
+     }
+    ],
+    "machines": [
+     {
+      "node": "Machine_NachoGrill",
+      "kind": "machine",
+      "name": "Nacho Grill",
+      "icon": "nachoGrillIcon.webp"
+     },
+     {
+      "node": "Machine_GuacamoleMaker",
+      "kind": "machine",
+      "name": "Guacamole Maker",
+      "icon": "guacamoleMakerIcon.webp"
+     },
+     {
+      "node": "DeliveryTruck_FlourBag",
+      "kind": "machine",
+      "name": "Flour Truck",
+      "icon": "deliveryTruckIcon.webp"
+     },
+     {
+      "node": "Machine_BurritoMaker",
+      "kind": "machine",
+      "name": "Burrito Maker",
+      "icon": "burritoMakerIcon.webp"
+     }
+    ],
+    "animals": [
+     {
+      "node": "Animal_Cow_Meat_Corn",
+      "kind": "animal",
+      "name": "Cow",
+      "icon": "cowIcon.webp"
+     }
+    ]
+   }
+  },
+  "store8": {
+   "scene": "Store_8",
+   "sceneType": 10,
+   "animalsTab": false,
+   "tabs": {
+    "workers": [
+     {
+      "node": "Player_Chef",
+      "kind": "player",
+      "name": "Player",
+      "icon": "carryUpgradeIcon.webp"
+     },
+     {
+      "node": "_Worker_ShelfA",
+      "kind": "worker",
+      "name": "Shelver A",
+      "icon": "workerShelfIcon.webp",
+      "role": "shelver",
+      "letter": "A"
+     },
+     {
+      "node": "_Worker_ChefA",
+      "kind": "worker",
+      "name": "Chef A",
+      "icon": "workerChefIcon.webp",
+      "role": "chef",
+      "letter": "A"
+     },
+     {
+      "node": "_Worker_ShelfB",
+      "kind": "worker",
+      "name": "Shelver B",
+      "icon": "workerShelfIcon.webp",
+      "role": "shelver",
+      "letter": "B"
+     },
+     {
+      "node": "_Worker_ChefB",
+      "kind": "worker",
+      "name": "Chef B",
+      "icon": "workerChefIcon.webp",
+      "role": "chef",
+      "letter": "B"
+     }
+    ],
+    "machines": [
+     {
+      "node": "DeliveryTruck_Milk",
+      "kind": "machine",
+      "name": "Milk Truck",
+      "icon": "deliveryTruckIcon.webp"
+     },
+     {
+      "node": "Machine_SundaeMaker",
+      "kind": "machine",
+      "name": "Sundae Maker",
+      "icon": "sundaeMakerIcon.webp"
+     },
+     {
+      "node": "DeliveryTruck_FlourBag",
+      "kind": "machine",
+      "name": "Flour Truck",
+      "icon": "deliveryTruckIcon.webp"
+     },
+     {
+      "node": "Machine_ShortcakeMixer",
+      "kind": "machine",
+      "name": "Shortcake Mixer",
+      "icon": "shortcakeMixerIcon.webp"
+     },
+     {
+      "node": "Machine_PancakeMaker",
+      "kind": "machine",
+      "name": "Pancake Maker",
+      "icon": "pancakeMakerIcon.webp"
+     },
+     {
+      "node": "Machine_BananaSplitMaker",
+      "kind": "machine",
+      "name": "Banana Split Maker",
+      "icon": "bananaSplitMakerIcon.webp"
+     }
+    ],
+    "animals": []
+   }
+  },
+  "store9": {
+   "scene": "Store_9",
+   "sceneType": 11,
+   "animalsTab": true,
+   "tabs": {
+    "workers": [
+     {
+      "node": "Player_Chef",
+      "kind": "player",
+      "name": "Player",
+      "icon": "carryUpgradeIcon.webp"
+     },
+     {
+      "node": "_Worker_FarmerA",
+      "kind": "worker",
+      "name": "Farmer",
+      "icon": "workerFarmerIcon.webp",
+      "role": "farmer",
+      "letter": "A"
+     },
+     {
+      "node": "_Worker_ShelfA",
+      "kind": "worker",
+      "name": "Shelver A",
+      "icon": "workerShelfIcon.webp",
+      "role": "shelver",
+      "letter": "A"
+     },
+     {
+      "node": "_Worker_ShelfB",
+      "kind": "worker",
+      "name": "Shelver B",
+      "icon": "workerShelfIcon.webp",
+      "role": "shelver",
+      "letter": "B"
+     },
+     {
+      "node": "_Worker_ChefA",
+      "kind": "worker",
+      "name": "Chef",
+      "icon": "workerChefIcon.webp",
+      "role": "chef",
+      "letter": "A"
+     },
+     {
+      "node": "_Worker_ChefB",
+      "kind": "worker",
+      "name": "Chef B",
+      "icon": "workerChefIcon.webp",
+      "role": "chef",
+      "letter": "B"
+     }
+    ],
+    "machines": [
+     {
+      "node": "Machine_ButterChurner",
+      "kind": "machine",
+      "name": "Butter Churner",
+      "icon": "butterChurnerIcon.webp"
+     },
+     {
+      "node": "Machine_JellybeanMaker",
+      "kind": "machine",
+      "name": "Jellybean Maker",
+      "icon": "jellybeanMaker.webp"
+     },
+     {
+      "node": "Machine_SugarcaneCrusher",
+      "kind": "machine",
+      "name": "Sugarcane Crusher",
+      "icon": "sugarcaneCrusher.webp"
+     },
+     {
+      "node": "Machine_Soda",
+      "kind": "machine",
+      "name": "Soda Machine",
+      "icon": "sodaMachineIcon.webp"
+     },
+     {
+      "node": "Machine_Microwave",
+      "kind": "machine",
+      "name": "Microwave",
+      "icon": "microwaveIcon.webp"
+     },
+     {
+      "node": "Machine_PopcornMaker",
+      "kind": "machine",
+      "name": "Popcorn Maker",
+      "icon": "popcornMakerIcon.webp"
+     }
+    ],
+    "animals": [
+     {
+      "node": "Animal_Cow",
+      "kind": "animal",
+      "name": "Cow",
+      "icon": "cowIcon.webp"
+     }
+    ]
+   }
+  },
+  "store10": {
+   "scene": "Store_10",
+   "sceneType": 12,
+   "animalsTab": true,
+   "tabs": {
+    "workers": [
+     {
+      "node": "Player_Chef",
+      "kind": "player",
+      "name": "Player",
+      "icon": "carryUpgradeIcon.webp"
+     },
+     {
+      "node": "_Worker_ShelfA",
+      "kind": "worker",
+      "name": "Shelver A",
+      "icon": "workerShelfIcon.webp",
+      "role": "shelver",
+      "letter": "A"
+     },
+     {
+      "node": "_Worker_ShelfB",
+      "kind": "worker",
+      "name": "Shelver B",
+      "icon": "workerShelfIcon.webp",
+      "role": "shelver",
+      "letter": "B"
+     },
+     {
+      "node": "_Worker_FarmerA",
+      "kind": "worker",
+      "name": "Farmer",
+      "icon": "workerFarmerIcon.webp",
+      "role": "farmer",
+      "letter": "A"
+     },
+     {
+      "node": "_Worker_ChefB",
+      "kind": "worker",
+      "name": "Chef B",
+      "icon": "workerChefIcon.webp",
+      "role": "chef",
+      "letter": "B"
+     },
+     {
+      "node": "_Worker_ChefA",
+      "kind": "worker",
+      "name": "Chef",
+      "icon": "workerChefIcon.webp",
+      "role": "chef",
+      "letter": "A"
+     }
+    ],
+    "machines": [
+     {
+      "node": "Machine_KetchupMaker",
+      "kind": "machine",
+      "name": "Ketchup Maker",
+      "icon": "ketchupMakerIcon.webp"
+     },
+     {
+      "node": "Machine_MustardMaker",
+      "kind": "machine",
+      "name": "Mustard Maker",
+      "icon": "mustardMakerIcon.webp"
+     },
+     {
+      "node": "Machine_SausageRollMaker",
+      "kind": "machine",
+      "name": "Sausage Roll Maker",
+      "icon": "sausageRollMaker.webp"
+     },
+     {
+      "node": "DeliveryTruck_FlourBag",
+      "kind": "machine",
+      "name": "Flour Truck",
+      "icon": "deliveryTruckIcon.webp"
+     },
+     {
+      "node": "Machine_HotdogMaker",
+      "kind": "machine",
+      "name": "Hotdog Maker",
+      "icon": "hotdogMakerIcon.webp"
+     }
+    ],
+    "animals": [
+     {
+      "node": "Animal_Pig_Sausage",
+      "kind": "animal",
+      "name": "Pig A",
+      "icon": "pigIcon.webp"
+     },
+     {
+      "node": "Animal_Pig_Sausage2",
+      "kind": "animal",
+      "name": "Pig B",
+      "icon": "pigIcon.webp"
+     }
+    ]
+   }
+  },
+  "store11": {
+   "scene": "Store_11",
+   "sceneType": 14,
+   "animalsTab": true,
+   "tabs": {
+    "workers": [
+     {
+      "node": "Player_Chef",
+      "kind": "player",
+      "name": "Player",
+      "icon": "carryUpgradeIcon.webp"
+     },
+     {
+      "node": "_Worker_ShelfA",
+      "kind": "worker",
+      "name": "Shelver A",
+      "icon": "workerShelfIcon.webp",
+      "role": "shelver",
+      "letter": "A"
+     },
+     {
+      "node": "_Worker_ShelfB",
+      "kind": "worker",
+      "name": "Shelver B",
+      "icon": "workerShelfIcon.webp",
+      "role": "shelver",
+      "letter": "B"
+     },
+     {
+      "node": "_Worker_ShelfC",
+      "kind": "worker",
+      "name": "Shelver C",
+      "icon": "workerShelfIcon.webp",
+      "role": "shelver",
+      "letter": "C"
+     },
+     {
+      "node": "_Worker_ChefA",
+      "kind": "worker",
+      "name": "Chef A",
+      "icon": "workerChefIcon.webp",
+      "role": "chef",
+      "letter": "A"
+     },
+     {
+      "node": "_Worker_ChefB",
+      "kind": "worker",
+      "name": "Chef B",
+      "icon": "workerChefIcon.webp",
+      "role": "chef",
+      "letter": "B"
+     },
+     {
+      "node": "_Worker_FarmerA",
+      "kind": "worker",
+      "name": "Farmer",
+      "icon": "workerFarmerIcon.webp",
+      "role": "farmer",
+      "letter": "A"
+     }
+    ],
+    "machines": [
+     {
+      "node": "DeliveryTruck_SugarCube",
+      "kind": "machine",
+      "name": "Sugar Truck",
+      "icon": "deliveryTruckIcon.webp"
+     },
+     {
+      "node": "Machine_CottonCandy",
+      "kind": "machine",
+      "name": "Cotton Candy Machine",
+      "icon": "cottonCandyMachineIcon.webp"
+     },
+     {
+      "node": "Machine_Pot_CandiedApple",
+      "kind": "machine",
+      "name": "Candied Apple Pot",
+      "icon": "pot_CandiedAppleIcon.webp"
+     },
+     {
+      "node": "Machine_FryingPan_GlazedBacon",
+      "kind": "machine",
+      "name": "Glazed Bacon Pan",
+      "icon": "fryingPan_GlazedBaconIcon.webp"
+     },
+     {
+      "node": "DeliveryTruck_FlourBag",
+      "kind": "machine",
+      "name": "Flour Truck",
+      "icon": "deliveryTruckIcon.webp"
+     },
+     {
+      "node": "Machine_Oven_ApplePie",
+      "kind": "machine",
+      "name": "Apple Pie Oven",
+      "icon": "ovenIcon.webp"
+     },
+     {
+      "node": "Machine_DeepFryer_CornDog",
+      "kind": "machine",
+      "name": "Deep Fryer",
+      "icon": "deepFryerIcon.webp"
+     }
+    ],
+    "animals": [
+     {
+      "node": "Animal_Pig_Sausage",
+      "kind": "animal",
+      "name": "Pig A",
+      "icon": "pigIcon.webp"
+     }
+    ]
+   }
+  },
+  "store12": {
+   "scene": "Store_12",
+   "sceneType": 16,
+   "animalsTab": true,
+   "tabs": {
+    "workers": [
+     {
+      "node": "Player_Chef",
+      "kind": "player",
+      "name": "Player",
+      "icon": "carryUpgradeIcon.webp"
+     },
+     {
+      "node": "_Worker_ShelfA",
+      "kind": "worker",
+      "name": "Shelver A",
+      "icon": "workerShelfIcon.webp",
+      "role": "shelver",
+      "letter": "A"
+     },
+     {
+      "node": "_Worker_ShelfB",
+      "kind": "worker",
+      "name": "Shelver B",
+      "icon": "workerShelfIcon.webp",
+      "role": "shelver",
+      "letter": "B"
+     },
+     {
+      "node": "_Worker_ShelfC",
+      "kind": "worker",
+      "name": "Shelver C",
+      "icon": "workerShelfIcon.webp",
+      "role": "shelver",
+      "letter": "C"
+     },
+     {
+      "node": "_Worker_ChefA",
+      "kind": "worker",
+      "name": "Chef A",
+      "icon": "workerChefIcon.webp",
+      "role": "chef",
+      "letter": "A"
+     },
+     {
+      "node": "_Worker_ChefB",
+      "kind": "worker",
+      "name": "Chef B",
+      "icon": "workerChefIcon.webp",
+      "role": "chef",
+      "letter": "B"
+     },
+     {
+      "node": "_Worker_FarmerA",
+      "kind": "worker",
+      "name": "Farmer",
+      "icon": "workerFarmerIcon.webp",
+      "role": "farmer",
+      "letter": "A"
+     }
+    ],
+    "machines": [
+     {
+      "node": "DeliveryTruck_FlourBag",
+      "kind": "machine",
+      "name": "Flour Truck",
+      "icon": "deliveryTruckIcon.webp"
+     },
+     {
+      "node": "Machine_Pot_ClamChowder",
+      "kind": "machine",
+      "name": "Clam Chowder Pot",
+      "icon": "pot_ClamChowderIcon.webp"
+     },
+     {
+      "node": "Machine_DeepFryer_FriedPrawn",
+      "kind": "machine",
+      "name": "Deep Fryer",
+      "icon": "deepFryerIcon.webp"
+     },
+     {
+      "node": "DeliveryTruck_Egg",
+      "kind": "machine",
+      "name": "Egg Truck",
+      "icon": "deliveryTruckIcon.webp"
+     },
+     {
+      "node": "Machine_Pot_CrabCake",
+      "kind": "machine",
+      "name": "Crab Cake Pot",
+      "icon": "pot_CandiedAppleIcon.webp"
+     }
+    ],
+    "animals": [
+     {
+      "node": "Animal_Clam",
+      "kind": "animal",
+      "name": "Clams",
+      "icon": "clamIcon.webp"
+     },
+     {
+      "node": "Animal_Prawn",
+      "kind": "animal",
+      "name": "Prawns",
+      "icon": "prawnIcon.webp"
+     },
+     {
+      "node": "Animal_Crabs",
+      "kind": "animal",
+      "name": "Crabs",
+      "icon": "crabIcon.webp"
+     }
+    ]
+   }
+  },
+  "store13": {
+   "scene": "Store_13",
+   "sceneType": 18,
+   "animalsTab": true,
+   "tabs": {
+    "workers": [
+     {
+      "node": "Player_Chef",
+      "kind": "player",
+      "name": "Player",
+      "icon": "carryUpgradeIcon.webp"
+     },
+     {
+      "node": "_Worker_ShelfA",
+      "kind": "worker",
+      "name": "Shelver A",
+      "icon": "workerShelfIcon.webp",
+      "role": "shelver",
+      "letter": "A"
+     },
+     {
+      "node": "_Worker_ShelfB",
+      "kind": "worker",
+      "name": "Shelver B",
+      "icon": "workerShelfIcon.webp",
+      "role": "shelver",
+      "letter": "B"
+     },
+     {
+      "node": "_Worker_ChefA",
+      "kind": "worker",
+      "name": "Chef A",
+      "icon": "workerChefIcon.webp",
+      "role": "chef",
+      "letter": "A"
+     },
+     {
+      "node": "_Worker_ChefB",
+      "kind": "worker",
+      "name": "Chef B",
+      "icon": "workerChefIcon.webp",
+      "role": "chef",
+      "letter": "B"
+     },
+     {
+      "node": "_Worker_FarmerA",
+      "kind": "worker",
+      "name": "Farmer",
+      "icon": "workerFarmerIcon.webp",
+      "role": "farmer",
+      "letter": "A"
+     }
+    ],
+    "machines": [
+     {
+      "node": "Machine_Oven_Ratatouille",
+      "kind": "machine",
+      "name": "Ratatouille Oven",
+      "icon": "ovenIcon.webp"
+     },
+     {
+      "node": "Machine_Blender",
+      "kind": "machine",
+      "name": "Blender",
+      "icon": "blenderIcon.webp"
+     },
+     {
+      "node": "Machine_FruitPresser_OliveOil",
+      "kind": "machine",
+      "name": "Olive Presser",
+      "icon": "fruitPresserIcon.webp"
+     }
+    ],
+    "animals": [
+     {
+      "node": "Animal_Goat_Cheese",
+      "kind": "animal",
+      "name": "Goat A",
+      "icon": "goatIcon.webp"
+     },
+     {
+      "node": "Animal_Goat_Cheese2",
+      "kind": "animal",
+      "name": "Goat B",
+      "icon": "goatIcon.webp"
+     }
+    ]
+   }
+  },
+  "store14": {
+   "scene": "Store_14",
+   "sceneType": 20,
+   "animalsTab": true,
+   "tabs": {
+    "workers": [
+     {
+      "node": "Player_Chef",
+      "kind": "player",
+      "name": "Player",
+      "icon": "carryUpgradeIcon.webp"
+     },
+     {
+      "node": "_Worker_ShelfA",
+      "kind": "worker",
+      "name": "Shelver A",
+      "icon": "workerShelfIcon.webp",
+      "role": "shelver",
+      "letter": "A"
+     },
+     {
+      "node": "_Worker_ShelfB",
+      "kind": "worker",
+      "name": "Shelver A",
+      "icon": "workerShelfIcon.webp",
+      "role": "shelver",
+      "letter": "B"
+     },
+     {
+      "node": "_Worker_ShelfC",
+      "kind": "worker",
+      "name": "Shelver A",
+      "icon": "workerShelfIcon.webp",
+      "role": "shelver",
+      "letter": "C"
+     },
+     {
+      "node": "_Worker_ChefA",
+      "kind": "worker",
+      "name": "Chef",
+      "icon": "workerChefIcon.webp",
+      "role": "chef",
+      "letter": "A"
+     },
+     {
+      "node": "_Worker_ChefB",
+      "kind": "worker",
+      "name": "Chef",
+      "icon": "workerChefIcon.webp",
+      "role": "chef",
+      "letter": "B"
+     },
+     {
+      "node": "_Worker_FarmerA",
+      "kind": "worker",
+      "name": "Farmer",
+      "icon": "workerFarmerIcon.webp",
+      "role": "farmer",
+      "letter": "A"
+     }
+    ],
+    "machines": [
+     {
+      "node": "Machine_FryingPan_SteakAndEggs",
+      "kind": "machine",
+      "name": "Steak And Egg Pan",
+      "icon": "fryingPan_GlazedBaconIcon.webp"
+     },
+     {
+      "node": "Machine_Canner",
+      "kind": "machine",
+      "name": "Bean Canner",
+      "icon": "cannerIcon.webp"
+     },
+     {
+      "node": "Machine_CampOven",
+      "kind": "machine",
+      "name": "Camp Oven",
+      "icon": "campOvenIcon.webp"
+     }
+    ],
+    "animals": [
+     {
+      "node": "Animal_Chicken",
+      "kind": "animal",
+      "name": "Chicken A",
+      "icon": "chickenIcon.webp"
+     },
+     {
+      "node": "Animal_Chicken2",
+      "kind": "animal",
+      "name": "Chicken B",
+      "icon": "chickenIcon.webp"
+     },
+     {
+      "node": "Animal_Cow_Meat",
+      "kind": "animal",
+      "name": "Cow A",
+      "icon": "cowIcon.webp"
+     },
+     {
+      "node": "Animal_Cow_Meat2",
+      "kind": "animal",
+      "name": "Cow B",
+      "icon": "cowIcon.webp"
+     }
+    ]
+   }
+  }
+ }
+}

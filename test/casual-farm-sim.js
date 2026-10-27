@@ -132,6 +132,30 @@ function mulberry32(a) {
   check('customers only take items that have landed on the shelf', airPicks === 0, `${airPicks} taken mid-air`);
   check('a patient customer never pays with part of the order missing', shortPaid === 0, `${shortPaid} short`);
   check('money and stock invariants hold all run', !invariantErr, invariantErr || 'ok');
+
+  // Upgrade-menu pause (PauseWorker): a paused worker finishes what it carries, goes to its rest spot and takes no new
+  // job; resumed, it picks work again.
+  const wk = st.workers.find(w => w.def.role !== 'cashier');
+  if (wk) {
+    const run = (seconds, from) => {
+      let picks = 0;
+      for (let k = 0; k < seconds / DT; k++) {
+        bot.step(DT);
+        sim.step(DT, { nav, grid });
+        for (const e of sim.events) if (e.type === 'workerPick' && e.name === wk.name && sim.state.t >= from) picks++;
+        sim.events.length = 0;
+      }
+      return picks;
+    };
+    sim.workerLevel(wk.name).paused = true;
+    const t0 = sim.state.t;
+    const pausedPicks = run(90, t0 + 15);
+    const atRest = Math.hypot(wk.x - wk.restAt.x, wk.z - wk.restAt.z) < 2 && !wk.carry.length;
+    sim.workerLevel(wk.name).paused = false;
+    const resumedPicks = run(90, 0);
+    check('a paused worker rests and takes no job; resumed it works again', pausedPicks === 0 && atRest && resumedPicks > 0,
+      `${wk.name}: ${pausedPicks} picks while paused, at rest ${atRest}, ${resumedPicks} after resume`);
+  }
   console.log(`PASS: ${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(2); });

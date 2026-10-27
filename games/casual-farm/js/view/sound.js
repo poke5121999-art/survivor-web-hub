@@ -3,7 +3,7 @@
 // (full up to ~20 m, silent past ~30 m). Music is one looping track at 0.8. Audio starts on the first input
 // (browser autoplay rule); the speaker button mutes both and is remembered per browser.
 const NEAR = 20, FAR = 30, MIN_GAP = { cashDrop: 0.06, cashPick: 0.06, pick: 0.04, drop: 0.04 };
-const MUTE_KEY = 'mmm-mute';
+const MUTE_KEY = 'mmm-mute', MUSIC_KEY = 'mmm-music';
 
 export class Sound {
   constructor(base, sim, store, v = '') {
@@ -16,6 +16,7 @@ export class Sound {
     this.buffers = new Map();
     this.last = {};
     try { this.muted = localStorage.getItem(MUTE_KEY) === '1'; } catch (e) { this.muted = false; }
+    try { this.music = localStorage.getItem(MUSIC_KEY) !== '0'; } catch (e) { this.music = true; }
     fetch(`${base}/sfx.json?v=${v}`).then(r => (r.ok ? r.json() : null)).then(t => { this.table = t; }).catch(() => {});
     const start = () => this.unlock();
     window.addEventListener('pointerdown', start, { once: true });
@@ -44,6 +45,12 @@ export class Sound {
     if (this.master) this.master.gain.value = m ? 0 : 1;
   }
 
+  setMusic(on) {
+    this.music = on;
+    try { localStorage.setItem(MUSIC_KEY, on ? '1' : '0'); } catch (e) { /* storage unavailable */ }
+    if (this.musicGain) this.musicGain.gain.value = on ? 1 : 0;
+  }
+
   buffer(file) {
     if (!this.buffers.has(file)) {
       this.buffers.set(file, fetch(`${this.base}/${file}?v=${this.v}`).then(r => r.arrayBuffer())
@@ -61,7 +68,9 @@ export class Sound {
     src.buffer = buf;
     src.loop = true;
     g.gain.value = ev.volume;
-    src.connect(g).connect(this.master);
+    this.musicGain = this.ctx.createGain();
+    this.musicGain.gain.value = this.music ? 1 : 0;
+    src.connect(g).connect(this.musicGain).connect(this.master);
     src.start();
   }
 

@@ -31,6 +31,12 @@ const TRUCK_CARGO = [8, 10, 12];
 export const UPGRADE = { FACTORY_SPEED, WORKER_SPEED };
 
 // Next purchase on a slot: speed while speed level <= stack level, else stack; a maxed track yields to the other.
+// One track's next step (the legacy upgrade menu buys Stack and Speed independently, rules/upgrade-menu.md section 4).
+function trackStep(lv, track, speedPrices, stackPrices, base) {
+  const prices = track === 'speed' ? speedPrices : stackPrices;
+  return lv[track] < prices.length ? { track, price: Math.trunc(base * prices[lv[track]]) } : null;
+}
+
 function nextStep(lv, speedPrices, stackPrices, base) {
   const sp = lv.speed < speedPrices.length, st = lv.stack < stackPrices.length;
   if (!sp && !st) return null;
@@ -61,6 +67,8 @@ export class Sim {
       upgrade: { present: 0, paid: 0, cooldownUntil: 0 },
       next: { t: 0, ready: false, closed: false, gone: false },
       levels: { producers: store.producers.map(() => ({ speed: 0, stack: 0 })), workers: {} },
+      // HasSeen{Worker,Factory,Animal}UpgradeMenu: cleared when something of that tab unlocks (red dots).
+      seen: { workers: true, machines: true, animals: true },
       drain: { delay: 0, rate: 0, mult: 1, inc: 0, amount: 1, step: 0, stop: false, target: null },
       acc: { pick: 0, drop: 0, coin: 0 },
       tick: 0,
@@ -104,6 +112,8 @@ export class Sim {
       this.state.active.add(name);
       this.emit({ type: 'activate', name });
       const pi = this.store.producers.findIndex(p => p.name === name);
+      if (pi >= 0 && this.store.producers[pi].upgradable) this.state.seen[this.store.producers[pi].animal ? 'animals' : 'machines'] = false;
+      if (this.store.workerNames && this.store.workerNames.has(name)) this.state.seen.workers = false;
       if (pi >= 0 && this.store.producers[pi].kind !== 'input') this.tryStart(pi);
     });
   }
@@ -232,20 +242,22 @@ export class Sim {
     return this.state.levels.workers[name] || (this.state.levels.workers[name] = { speed: 0, stack: 0 });
   }
 
-  // What the upgrade menu would buy next for a slot: {track, price} or null when maxed.
-  upgradeOffer(slot) {
+  // What a slot would buy next: {track, price} or null when maxed. With `track` it is that track only (the menu's two
+  // buttons); without, the lower track first (the walk-on pads and the bot).
+  upgradeOffer(slot, track = null) {
     if (slot.kind === 'player') {
       const prices = this.store.player.stackPrices;
+      if (track === 'speed') return null;
       return this.state.stackLevel < prices.length ? { track: 'stack', price: prices[this.state.stackLevel] - this.state.upgrade.paid } : null;
     }
-    if (slot.kind === 'producer') {
-      return nextStep(this.state.levels.producers[slot.i], FACTORY_SPEED_PRICE, FACTORY_STACK_PRICE, this.store.producers[slot.i].basePrice);
-    }
-    return nextStep(this.workerLevel(slot.name), WORKER_SPEED_PRICE, WORKER_STACK_PRICE, slot.base);
+    const lv = slot.kind === 'producer' ? this.state.levels.producers[slot.i] : this.workerLevel(slot.name);
+    const [sp, stk, base] = slot.kind === 'producer' ? [FACTORY_SPEED_PRICE, FACTORY_STACK_PRICE, this.store.producers[slot.i].basePrice]
+      : [WORKER_SPEED_PRICE, WORKER_STACK_PRICE, slot.base];
+    return track ? trackStep(lv, track, sp, stk, base) : nextStep(lv, sp, stk, base);
   }
 
-  buyUpgrade(slot) {
-    const offer = this.upgradeOffer(slot);
+  buyUpgrade(slot, track = null) {
+    const offer = this.upgradeOffer(slot, track);
     if (!offer || this.state.cash < offer.price) return false;
     this.state.cash -= offer.price;
     if (slot.kind === 'player') {
@@ -483,7 +495,7 @@ export class Sim {
         up.present = 0;
         up.cooldownUntil = st.t + UPGRADE_COOLDOWN;
         st.drain.target = null;
-        this.emit({ type: 'upgraded', level: st.stackLevel, limit: carryLimit(st.stackLevel) });
+        this.emit({ type: 'upgraded', level: st.stackLevel, limit: carryLimit(st.stackLevel), pad: true });
       }
     });
   }
@@ -554,7 +566,7 @@ export class Sim {
       active: [...st.active].filter(n => this.store.activatedLater.has(n)),
       producers: st.producers.map(p => ({ out: p.out.filter(x => x != null).length, inputs: p.inputs })),
       shelves: st.shelves.map(s => s.count), desk: st.cashiers.map(c => c.cash),
-      coins: st.coins.map(c => c.taken ? 1 : 0), carry: st.carry, task: st.task, levels: st.levels,
+      coins: st.coins.map(c => c.taken ? 1 : 0), carry: st.carry, task: st.task, levels: st.levels, seen: st.seen,
     };
   }
 
@@ -566,6 +578,7 @@ export class Sim {
       (d.levels.producers || []).forEach((l, i) => { if (st.levels.producers[i]) st.levels.producers[i] = l; });
       st.levels.workers = d.levels.workers || {};
     }
+    if (d.seen) Object.assign(st.seen, d.seen);
     if (d.player) { st.player.x = d.player.x; st.player.z = d.player.z; }
     (d.active || []).forEach(n => st.active.add(n));
     s.mats.forEach(m => {
