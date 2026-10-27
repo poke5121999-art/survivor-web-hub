@@ -59,6 +59,7 @@ function mulberry32(a) {
   sim.systems.push(customers, new Workers(sim, grid), new Thief(sim, grid), new Cars(sim), new Boosters(sim), new Tasks(sim, taskList));
   const bot = new Bot(sim, grid);
 
+  const firstOpen = {};
   const firstDone = {}, tasksDone = [], thieves = { spawned: 0, caught: 0, upgrades: 0, cars: 0, carsLost: 0, carCash: 0, boosts: 0, extra: 0, extraCash: 0 };
   let midSave = null;
   let paid = 0, served = 0, gaveUp = 0, shortPaid = 0, airPicks = 0, inAir = [], maxCustomers = 0, invariantErr = null;
@@ -68,6 +69,7 @@ function mulberry32(a) {
     sim.step(DT, { nav, grid });
     for (const e of sim.events) {
       if (e.type === 'matDone' && firstDone[e.name] == null) firstDone[e.name] = sim.state.t;
+      if (e.type === 'matOpen' && firstOpen[e.name] == null) firstOpen[e.name] = sim.state.t;
       if (e.type === 'customerPay') { paid += e.amount; served++; }
       if ((e.type === 'drop' || e.type === 'workerDrop') && e.to.kind === 'shelf') (inAir[e.to.i] = inAir[e.to.i] || []).push(sim.state.t);
       if (e.type === 'customerPick') {
@@ -122,6 +124,18 @@ function mulberry32(a) {
     check('the tutorial has the 15 TaskControllers of Store 1', taskList.length === 15, `${taskList.length} tasks`);
     check('every tutorial task completes, in order', tasksDone.length === taskList.length && tasksDone.every(([i], k) => i === k),
       `${tasksDone.length}/${taskList.length}`);
+  }
+  if (FIRST) {
+    // Owner request: the first wheat plot also opens the second shelver and the farmer (store.js EARLY), also for an old
+    // save that already has the plot.
+    const w1 = firstDone.Mat_Activate_Plant_Wheat1, early = ['Mat_Unlock_Worker_ShelfB', 'Mat_Unlock_Worker_FarmerA'];
+    const opened = early.map(n => firstOpen[n] - w1);
+    const old = JSON.parse(JSON.stringify(sim.save()));
+    early.forEach(n => { old.mats[n] = { paid: 0, done: false }; old.active = old.active.filter(a => a !== n); });
+    const oldBack = new Sim(store, { rng: mulberry32(SEED), save: old });
+    oldBack.step(0.1);
+    check('the first wheat plot opens the second shelver and the farmer, an old save catches up', opened.every(d => d > 0 && d < 1.5)
+      && early.every(n => oldBack.state.mats[n].open), `opened ${opened.map(d => d.toFixed(2)).join(', ')} s after the plot; old save open ${early.map(n => oldBack.state.mats[n].open)}`);
   }
   if (midSave) {
     const back = new Sim(store, { rng: mulberry32(SEED), save: JSON.parse(midSave.json) });

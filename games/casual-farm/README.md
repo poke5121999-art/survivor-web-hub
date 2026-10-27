@@ -101,6 +101,7 @@ Mọi con số luật chơi có dẫn nguồn trong `D:\minimart-ref\rules\*.md`
 
 ## Còn thiếu
 
+- `[ĐỀ XUẤT]` Khác bản gốc theo yêu cầu chủ dự án (2026-10-27): ở Store 1, mua ô lúa mì đầu tiên thì mở luôn ô thuê người xếp kệ thứ hai `Mat_Unlock_Worker_ShelfB` (chở lúa, sữa, bột, bánh mì lên kệ, 250) và nông dân `Mat_Unlock_Worker_FarmerA` (thu hoạch cà chua, lúa, cho gà và bò ăn, 315), giá giữ nguyên. Bản gốc chỉ mở hai ô này sau bàn thu ngân thứ hai và con bò. Bảng `EARLY` trong `js/sim/store.js`; save cũ đã mua ô lúa thì tự mở khi tải.
 - Tutorial chỉ có ở Store 1 (`TaskManager`, 15 `TaskController`). Bản gốc bật nó theo A/B `ABTutorialType` (Supersonic, mặc định 0 là tắt); bản này chạy nhánh 1/4: mũi tên trên pad, banner, camera lia, mũi tên radar quanh người chơi (`ObjectiveRadarController`, cỡ `min(khoảng cách / 15, 1)`). `SmartTaskManager` không có ai gọi trong mã gốc nên không làm.
 - Store 9 còn 3 vật cản (`Wall.006/.008/.009` của `store09_Tile02`) nằm xa mesh của chính nó; chưa rõ vì sao.
 - Trang phục: món IAP (4 bộ đồ, 4 thú cưng) không bán trong bản này; món Special (sự kiện) hiện "?" cho tới khi có sự kiện. Mỗi lần bấm món quảng cáo tính là một lần xem.

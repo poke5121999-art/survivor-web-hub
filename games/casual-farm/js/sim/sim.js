@@ -609,6 +609,8 @@ export class Sim {
       if (ms.done) st.active.delete(m.name);
       else if (st.active.has(m.name) || m.startsOpen) { ms.open = true; ms.openAt = 0; st.active.add(m.name); }
     });
+    // Saves made before the early staff mats (store.js EARLY) catch up once their trigger is bought.
+    s.mats.forEach(m => { if (m.early && st.mats[m.name].done) m.early.forEach(n => this.activate(n, 0)); });
     (d.producers || []).forEach((p, i) => {
       const ps = st.producers[i];
       for (let k = 0; k < p.out && k < ps.out.length; k++) ps.out[k] = s.producers[i].out;
