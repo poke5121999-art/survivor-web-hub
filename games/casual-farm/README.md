@@ -58,6 +58,9 @@ Mọi con số luật chơi có dẫn nguồn trong `D:\minimart-ref\rules\*.md`
 - `[BẪY ĐÃ SẬP]` Navmesh mỗi scene có cả bản đồ thành phố ở x ≈ -1000; ở Store 2 vùng đó lớn hơn sàn cửa hàng nên "vùng lớn nhất" kéo người chơi sang đó. `NavMesh(json, home)` chọn vùng chứa điểm xuất phát.
 - `[BẪY ĐÃ SẬP]` NavMeshData của Store 6 có position/rotation khác 0; phải áp vào toạ độ tile trước khi đổi hệ trục.
 - `[BẪY ĐÃ SẬP]` Tiếng của `sharedassets0/1/12/18` nằm trong file `.resource` rời trên đĩa. UnityPy không mở nên đọc ra `FmodError: FORMAT`; đọc byte FSB5 thẳng từ file rồi giải bằng vgmstream.
+- `[BẪY ĐÃ SẬP]` Người chơi bị giữ cách vật cản 1,2 m nên không chạm được mat dâu Store 8 (mat nằm trên luống `plant_Box03`, vật cản `m_Carve`). Unity khoét navmesh theo `agentRadius` = 0,75 của NavMeshBuildSettings (mọi mart), nên `CARVE_RADIUS` trong `sim.js` là 0,75.
+- `[BẪY ĐÃ SẬP]` Bot ưu tiên giao hàng trước khi trả tiền mat, nên đang bận tay thì không bao giờ tới mat: Store 3 kẹt 19/35 với 67 nghìn trong túi. Trả tiền mat không cần tay trống nên mat đủ tiền được xét trước.
+- `[BẪY ĐÃ SẬP]` Hết kiên nhẫn (3 s chờ + 10 s thanh) thì bản gốc chỉ bỏ món đang lấy rồi sang món kế (`OnPatienceTimerComplete` -> `GoToNext`), không đi thẳng ra quầy với cả đơn còn thiếu. Hàng thả lên kệ chỉ lấy được sau 0,35 s bay (`shelves[i].landing`).
 - `[BẪY ĐÃ SẬP]` Heredoc của Bash nuốt `\r` trong đường dẫn `D:\minimart-ref\rules` (thành ký tự CR). Sửa file Python có dấu `\` bằng công cụ Edit.
 
 ## Còn thiếu
@@ -66,4 +69,5 @@ Mọi con số luật chơi có dẫn nguồn trong `D:\minimart-ref\rules\*.md`
 - Khách VIP chưa có. Khách đi xe mượn thân xe van của mart (prefab xe chưa bóc), vùng thả hàng là ô vuông 10 m quanh chỗ đỗ (đoán, `car-orders.md`).
 - Hệ số tốc độ máy lấy theo bảng `S`; nhân viên cùng `workerSection` khác 0 chưa nâng cấp chung.
 - Bán kính "người chơi đứng gần quầy" khi tung xu ra trộm là đoán (8 m); trộm mượn thân khách vì prefab trộm chưa bóc.
-- Mart sau rất chậm nếu tới nơi với ít vốn: giá món là `MyObject.rewardPrize` giống nhau ở mọi scene (tối đa 10), không có hệ số theo mart (`pricing.md`, `MyObjectManager.GetObjectPrize`), mà ô Store 12–14 giá hàng nghìn. Bot mô phỏng 900 phút với vốn bằng 10% tổng giá ô mới mua được khoảng một phần ba Store 13. Có thể bản gốc còn nguồn thu chưa tìm ra (thu nhập nhàn rỗi theo mart trên bản đồ, `martMaxIdleIncomeList`).
+- Mart sau rất chậm nếu tới nơi với ít vốn: giá món là `MyObject.rewardPrize` giống nhau ở mọi scene (tối đa 10), mà ô Store 12–14 giá hàng chục nghìn. Tiền khách trả trong bản gốc (`CustomerAgentController`, quanh dòng 1037) chỉ được nhân thêm bởi các nguồn chưa làm: `cashBoosterMultiplier` (đặt bởi `PlayerHumanController.RevenueBoost`, booster), món shop `reward_double_income`, `IsCashBoosted` (x2), và Star Path (`MartStarPathManager.CalculateMartMultiplier`). Thu nhập nhàn rỗi trên bản đồ là `martMaxIdleIncomeList[mart] x tỉ lệ hoàn thành` mỗi `requiredTimeForCollection` = 10800 s (3 giờ, `MartMenuController.c:32`), tức Store 1–4 cộng lại chỉ khoảng 17 tiền/phút.
+- Số đo bot (`MM_STORE=storeN MM_MINUTES=... node test/casual-farm-sim.js`, vốn = 10% tổng giá ô, 2026-10-27): Store 1 xong 40/40 ở phút 151, Store 2 46/46 ở phút 179, Store 3 35/35 ở phút 422, Store 4 40/40 ở phút 693. Store 5–14 sau 450 phút mới được 12–30 ô mỗi mart.

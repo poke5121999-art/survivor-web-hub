@@ -10,6 +10,9 @@ const UPGRADE_SPEND = 0.65;         // playerPresentDurationToSpend
 const UPGRADE_COOLDOWN = 2.5;
 const DESK_CASH_LIMIT = 240;        // CashierController._cashLimitOnDesk
 const PLAYER_RADIUS = 1;            // Player_Chef CapsuleCollider.m_Radius (trigger)
+// NavMeshObstacle carving keeps an agent this far from the box: the bake's agentRadius (NavMeshBuildSettings, every
+// mart). At 1.2 the player could not reach Store 8's strawberry mats, which sit on a carved planter.
+const CARVE_RADIUS = 0.75;
 
 export function carryLimit(level) {
   return level < 4 ? level + 3 : 7;
@@ -274,7 +277,7 @@ export class Sim {
     const speed = this.store.player.speed * Math.min(pl.inputMag, 1);
     let nx = pl.x + pl.dirX * speed * dt, nz = pl.z + pl.dirZ * speed * dt;
     if (nav) {
-      const p = nav.clamp({ x: pl.x, y: pl.y, z: pl.z }, { x: nx, y: pl.y, z: nz }, 1.2, this.isSolid);
+      const p = nav.clamp({ x: pl.x, y: pl.y, z: pl.z }, { x: nx, y: pl.y, z: nz }, CARVE_RADIUS, this.isSolid);
       nx = p.x; nz = p.z; pl.y = p.y;
     }
     pl.x = nx; pl.z = nz;
@@ -323,7 +326,12 @@ export class Sim {
       ps.inputs[type] = (ps.inputs[type] || 0) + 1;
       this.after(0.35, () => this.tryStart(z.i));
     } else if (z.kind === 'shelf') {
-      this.state.shelves[z.i].count++;
+      // The item counts toward the shelf at once but is only on a slot after its 0.35 s jump; until then no
+      // customer can take it (they took items still in the air).
+      const sh = this.state.shelves[z.i];
+      sh.count++;
+      sh.landing = (sh.landing || 0) + 1;
+      this.after(0.35, () => { sh.landing--; });
     } else if (z.kind === 'car') {
       this.cars.give(type);
     }

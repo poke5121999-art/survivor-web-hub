@@ -150,7 +150,11 @@ export class Customers {
 
   goNext(c) {
     while (c.di < c.items.length && c.items[c.di].got >= c.items[c.di].n) c.di++;
-    if (c.di >= c.items.length) { this.toCashier(c); return; }
+    if (c.di >= c.items.length) {
+      if (c.carried.length) this.toCashier(c);
+      else this.leave(c, false);
+      return;
+    }
     const si = this.shelfFor(c.items[c.di].type);
     if (si < 0) { this.releaseShelf(c); c.shelf = -1; c.state = CState.WaitShelf; return; }
     this.releaseShelf(c);
@@ -257,7 +261,8 @@ export class Customers {
         const item = c.items[c.di];
         const shelfState = sim.state.shelves[c.shelf];
         const myTurn = this.shelfQueue[c.shelf][0] === c.id;
-        if (myTurn && shelfState.count > 0) {
+        const onShelf = shelfState.count - (shelfState.landing || 0);
+        if (myTurn && onShelf > 0) {
           c.timer += dt;
           if (c.timer >= PICK_RATE) {
             c.timer = 0;
@@ -265,7 +270,7 @@ export class Customers {
             item.got++;
             c.carried.push(item.type);
             c.wait = 0; c.patience = 0; c.patienceOn = false;
-            sim.emit({ type: 'customerPick', id: c.id, shelf: c.shelf, slot: shelfState.count, item: item.type, index: c.carried.length - 1 });
+            sim.emit({ type: 'customerPick', id: c.id, shelf: c.shelf, slot: onShelf - 1, item: item.type, index: c.carried.length - 1 });
             if (item.got >= item.n) {
               const q = this.shelfQueue[c.shelf];
               q.splice(q.indexOf(c.id), 1);
@@ -282,14 +287,14 @@ export class Customers {
         } else {
           c.patience += dt;
           if (c.patience >= PATIENCE_TIME) {
+            // OnPatienceTimerComplete -> GoToNext: give up on this item only and move on to the next one; after the
+            // last one, pay for what was taken or go home empty-handed.
             c.angry = true;
-            if (!c.carried.length) {
-              this.leave(c, false);
-            } else {
-              c.items = c.items.map(x => ({ ...x, n: x.got })).filter(x => x.n > 0);
-              c.di = c.items.length;
-              this.toCashier(c);
-            }
+            item.n = item.got;
+            const q = this.shelfQueue[c.shelf];
+            if (q.indexOf(c.id) >= 0) q.splice(q.indexOf(c.id), 1);
+            c.di++;
+            this.goNext(c);
           }
         }
         break;

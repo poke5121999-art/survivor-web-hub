@@ -44,6 +44,11 @@ export class Bot {
     // A full car order is collected on the spot (the HUD Collect button).
     if (sim.cars && sim.cars.full()) sim.cars.collect();
 
+    // Paying a mat needs no free hands: an affordable one comes before delivering, or a busy bot never reaches it.
+    const mats = s.mats.filter(m => st.mats[m.name].open && sim.isActive(m.name)).map(m => ({ at: m.zone.middle, kind: 'mat', m, rem: m.cost - st.mats[m.name].paid }));
+    const affordable = mats.filter(m => m.rem <= st.cash);
+    if (affordable.length) return { ...affordable.sort((a, b) => a.rem - b.rem)[0], hold: 0.5 };
+
     if (carry.length) {
       const drops = [];
       if (sim.cars && carry.some(t => sim.cars.needs(t))) drops.push({ at: sim.cars.point, kind: 'drop' });
@@ -65,10 +70,6 @@ export class Bot {
 
     const cash = s.cashiers.map((c, i) => ({ at: c.cashZone.middle, kind: 'cash', i })).filter(c => st.cashiers[c.i].cash > 0 && sim.isActive(s.cashiers[c.i].name));
     if (cash.length && (st.cashiers.reduce((a, c) => a + c.cash, 0) >= 10 || !this.pickable(true))) return nearest(cash);
-
-    const mats = s.mats.filter(m => st.mats[m.name].open && sim.isActive(m.name)).map(m => ({ at: m.zone.middle, kind: 'mat', m, rem: m.cost - st.mats[m.name].paid }));
-    const affordable = mats.filter(m => m.rem <= st.cash);
-    if (affordable.length) return { ...affordable.sort((a, b) => a.rem - b.rem)[0], hold: 0.5 };
 
     const prices = s.player.stackPrices;
     if (st.stackLevel < prices.length && st.cash >= prices[st.stackLevel] - st.upgrade.paid && s.player.upgradeZone && sim.isActive('UpgradeZone_Player')) {
@@ -141,6 +142,10 @@ export class Bot {
       if (!this.goal || g.kind !== this.goal.kind || Math.hypot(g.at.x - this.goal.at.x, g.at.z - this.goal.at.z) > 0.5) {
         this.goal = g;
         this.path = this.nav ? (this.nav.path({ x: me.x, y: me.y, z: me.z }, g.at) || [g.at]) : [g.at];
+        // The grid keeps agents 1.2 m off obstacles, but a mat on a carved planter is only reached by walking into
+        // the box face (the player stops 0.75 m off it): finish on the goal itself.
+        const end = this.path[this.path.length - 1];
+        if (!end || Math.hypot(end.x - g.at.x, end.z - g.at.z) > 0.6) this.path.push(g.at);
         this.held = 0;
       }
       this.repath = this.goal.kind === 'thief' ? 0.15 : 0.5;

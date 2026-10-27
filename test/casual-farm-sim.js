@@ -60,7 +60,7 @@ function mulberry32(a) {
 
   const firstDone = {}, tasksDone = [], thieves = { spawned: 0, caught: 0, upgrades: 0, cars: 0, carsLost: 0, carCash: 0 };
   let midSave = null;
-  let paid = 0, served = 0, gaveUp = 0, maxCustomers = 0, invariantErr = null;
+  let paid = 0, served = 0, gaveUp = 0, shortPaid = 0, airPicks = 0, inAir = [], maxCustomers = 0, invariantErr = null;
   const steps = Math.round(MINUTES * 60 / DT);
   for (let k = 0; k < steps; k++) {
     bot.step(DT);
@@ -68,6 +68,16 @@ function mulberry32(a) {
     for (const e of sim.events) {
       if (e.type === 'matDone' && firstDone[e.name] == null) firstDone[e.name] = sim.state.t;
       if (e.type === 'customerPay') { paid += e.amount; served++; }
+      if ((e.type === 'drop' || e.type === 'workerDrop') && e.to.kind === 'shelf') (inAir[e.to.i] = inAir[e.to.i] || []).push(sim.state.t);
+      if (e.type === 'customerPick') {
+        const q = inAir[e.shelf] || [];
+        const k = q.findIndex(t0 => sim.state.t - t0 >= 0.35 - 1e-6);
+        if (k < 0) airPicks++; else q.splice(k, 1);
+      }
+      if (e.type === 'customerPack') {
+        const cu = sim.state.customers.find(o => o.id === e.id);
+        if (cu && !cu.angry && cu.items.some(x => x.got < x.n)) shortPaid++;
+      }
       if (e.type === 'customerLeave' && !e.paid) gaveUp++;
       if (e.type === 'taskDone') tasksDone.push([e.index, sim.state.t]);
       if (e.type === 'thiefSpawn') thieves.spawned++;
@@ -116,6 +126,8 @@ function mulberry32(a) {
     check('a save restores cash, finished mats and the tutorial step', back.state.cash === midSave.cash && doneBack === midSave.done && back.state.task.index === midSave.task,
       `cash ${back.state.cash}/${midSave.cash}, mats ${doneBack}/${midSave.done}, task ${back.state.task.index}/${midSave.task}`);
   }
+  check('customers only take items that have landed on the shelf', airPicks === 0, `${airPicks} taken mid-air`);
+  check('a patient customer never pays with part of the order missing', shortPaid === 0, `${shortPaid} short`);
   check('money and stock invariants hold all run', !invariantErr, invariantErr || 'ok');
   console.log(`PASS: ${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
