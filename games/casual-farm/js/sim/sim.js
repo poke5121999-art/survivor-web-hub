@@ -85,7 +85,7 @@ export class Sim {
   // A NavMeshObstacle blocks while every gameplay ancestor that a mat unlocks is active.
   isSolid = o => {
     const on = n => this.state.active.has(n), off = this.store.obstacleOff(o);
-    return this.store.obstacleGates(o).every(on) && !(off && off.every(on));
+    return !this.store.obstacleHidden(o) && this.store.obstacleGates(o).every(on) && !(off && off.every(on));
   };
 
   emit(e) {

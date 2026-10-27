@@ -1,6 +1,7 @@
 """Export a store's NavMeshData to art/<out-id>/navmesh.json.
 
 Run from this folder after export_store.py:  PYTHONIOENCODING=utf-8 py -3.12 export_navmesh.py <out-id>   e.g. store1
+Add --obstacles to rewrite only the NavMeshObstacle list from scene.json (no game data load).
 The NavMeshData is the one the scene's "NavMesh Surface" (Unity.AI.Navigation.NavMeshSurface) points at, read from
 art/<out-id>/scene.json.
 
@@ -95,7 +96,8 @@ def obstacles():
             continue
         pos, q, s = world(nodes, i, cache)
         c = o["m_Center"]
-        lc = (c["x"] * s[0], c["y"] * s[1], c["z"] * s[2])
+        # m_Center is Unity-space while scene.json TRS is three.js-space: flip its z like every other Unity vector.
+        lc = (c["x"] * s[0], c["y"] * s[1], -c["z"] * s[2])
         lc = rot(q, lc)
         e = o.get("m_Extents") or {"x": 0, "y": 0, "z": 0}
         if o["m_Shape"] == 1:
@@ -112,6 +114,14 @@ def obstacles():
 
 
 def main():
+    if "--obstacles" in sys.argv:  # NavMeshObstacle boxes come from scene.json alone; keep the baked polygons
+        with io.open(OUT, encoding="utf-8") as f:
+            out = json.load(f)
+        out["obstacles"] = obstacles()
+        with io.open(OUT, "w", encoding="utf-8", newline="\n") as f:
+            json.dump(out, f, separators=(",", ":"))
+        print("obstacles", len(out["obstacles"]))
+        return
     mm.load()
     nodes = json.load(io.open(SCENE, encoding="utf-8"))["nodes"]
     surf = next(n["k"]["Unity.AI.Navigation.NavMeshSurface"] for n in nodes if n["n"] == "NavMesh Surface")

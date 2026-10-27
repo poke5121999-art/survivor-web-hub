@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { clone as cloneSkinned } from '../../vendor/SkeletonUtils.js';
 import { makeMaterial, addSmoothNormals } from './toon.js';
 import { ITEM_HEIGHT, carryLimit } from '../sim/sim.js';
+import { NEW_VISUALS } from '../sim/store.js';
 import { Rig } from './anim.js';
 
 const tmp = new THREE.Vector3();
@@ -18,10 +19,7 @@ const EASE = {
   outCirc: t => Math.sqrt(1 - (t - 1) * (t - 1)),
 };
 
-// NewVisualObjectActivator / NewVisualMeshRendererActivator keep one of two prop sets (old office desk, red bin, old
-// chicken... or their redesigns) by RC_GeneralConfig.isNewVisualsActive. The shipped default is 1, but the gameplay
-// clip this build follows (9RL-61HwGzw: grey office chair, red bin with a white logo) runs the old set, so it stays.
-export const NEW_VISUALS = false;
+// The prop set not in use (NEW_VISUALS, sim/store.js) is hidden.
 export function hideOtherVisuals(o, k) {
   const a = k['__Funflare.Scripts.Helper.NewVisualObjectActivator'];
   if (a && !!(Array.isArray(a) ? a[0] : a).isNewVersion !== NEW_VISUALS) o.visible = false;

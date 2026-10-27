@@ -2,6 +2,10 @@
 // with its trigger boxes, slot positions and original numbers. Pure data, no THREE; see D:\minimart-ref\rules\*.md
 // for where each number comes from.
 import { worldMatrices, position, apply, compose, Box } from './math.js';
+// NewVisualObjectActivator / NewVisualMeshRendererActivator keep one of two prop sets (old office desk, red bin, old
+// chicken... or their redesigns) by RC_GeneralConfig.isNewVisualsActive. The shipped default is 1, but the gameplay
+// clip this build follows (9RL-61HwGzw: grey office chair, red bin with a white logo) runs the old set, so it stays.
+export const NEW_VISUALS = false;
 
 const PRODUCERS = ['FactoryAutoProduceController', 'FactoryInputProduceController', 'FactoryDualInputController',
   'FactoryTripleInputController', 'FactoryQuadInputController', 'FactoryFishPond', 'FactoryAutoHarvester'];
@@ -28,6 +32,17 @@ export function buildStore(scene, data) {
   nodes.forEach((n, i) => { if (!byName.has(n.n)) byName.set(n.n, i); });
 
   const comp = (i, name) => nodes[i].k && nodes[i].k[name];
+  // Objects this build never shows take their NavMeshObstacles with them: the prop set not in use (NewVisualObjectActivator,
+  // see NEW_VISUALS) and the ad-only carts (TurThanksgivingRvMat, AdsBoxesSpawner; hidden in view/game.js hideDebug).
+  const AD_ONLY = ['TurThanksgivingRvMat', 'AdsBoxesSpawner'];
+  const otherVisual = i => {
+    for (let j = i; j >= 0; j = nodes[j].p) {
+      const a = comp(j, '__Funflare.Scripts.Helper.NewVisualObjectActivator');
+      if (a && !!(Array.isArray(a) ? a[0] : a).isNewVersion !== NEW_VISUALS) return true;
+      if (AD_ONLY.some(c => comp(j, c))) return true;
+    }
+    return false;
+  };
   const compOf = (i, names) => names.find(c => comp(i, c));
   const descendants = i => {
     const out = [];
@@ -242,11 +257,13 @@ export function buildStore(scene, data) {
       if (d < bd) { bd = d; best = i; }
     }
     o._gates = best == null ? [] : gatesOf(best);
+    o._hidden = best != null && otherVisual(best);
     const sw = best == null ? null : switchedBy.get(best);
     o._off = sw == null ? null : gatesOf(sw);
     return o._gates;
   }
   const obstacleOff = o => (obstacleGates(o), o._off);
+  const obstacleHidden = o => (obstacleGates(o), o._hidden);
 
   // MatNextStore pad (sound-thief-nextmart.md): stand on it `timer` s to open the Go / Close menu; the van leaves.
   const nmNode = nodes.findIndex((n, i) => comp(i, 'MatNextStore'));
@@ -272,7 +289,7 @@ export function buildStore(scene, data) {
       // buy the carry upgrade from the HUD menu.
       upgradeZone: data.actionZones && upgradeNode != null ? box(upgradeNode) : null,
     },
-    obstacleGates,
+    obstacleGates, obstacleHidden,
     obstacleOff,
     node: name => byName.get(name),
     pos,

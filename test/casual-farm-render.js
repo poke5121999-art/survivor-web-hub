@@ -356,6 +356,29 @@ function installHold() {
       return out;
     });
     check('only the old prop set is drawn, never both old and new', vis.old > 5 && vis.neu > 5 && vis.neuOn.length === 0 && vis.oldOff.length === 0, JSON.stringify(vis));
+    // No invisible walls: every NavMeshObstacle that blocks belongs to something drawn (a hidden prop set or ad cart must
+    // not keep its obstacle, as HR Area, Rubbish Bin and the turkey cart's Basket_Large once did).
+    const walls = await page.evaluate(() => {
+      const g = window.__mmGame, shown = o => { for (let p = o; p; p = p.parent) if (!p.visible) return false; return true; };
+      // Distance in XZ from the obstacle centre to the nearest drawn mesh box of its own object; an object with no mesh at
+      // all is a blocker the original never draws either (bare "NavMeshObstacle" nodes on the store edge).
+      const gap = (o, w, onlyShown) => {
+        let best = Infinity;
+        w.traverse(c => {
+          if (!c.isMesh || (onlyShown && !shown(c))) return;
+          c.geometry.computeBoundingBox();
+          const b = c.geometry.boundingBox.clone().applyMatrix4(c.matrixWorld);
+          best = Math.min(best, Math.hypot(Math.max(b.min.x - o.center[0], 0, o.center[0] - b.max.x), Math.max(b.min.z - o.center[2], 0, o.center[2] - b.max.z)));
+        });
+        return best;
+      };
+      g.world.root.updateMatrixWorld(true);
+      const solid = g.nav.obstacles.filter(o => g.sim.isSolid(o));
+      const own = o => g.world.objects.filter(w => w.name === o.name);
+      const bad = solid.filter(o => own(o).some(w => gap(o, w, false) < Infinity) && !own(o).some(w => gap(o, w, true) <= 1.5));
+      return { solid: solid.length, bad: bad.map(o => `${o.name}@${o.center.map(v => v.toFixed(0))}`) };
+    });
+    check('every blocking obstacle belongs to a drawn object (no invisible walls)', walls.solid > 0 && walls.bad.length === 0, JSON.stringify(walls));
     check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | ') || 'none');
   } catch (e) {
     if (e.message !== 'quick') throw e;

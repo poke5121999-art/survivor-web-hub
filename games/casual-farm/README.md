@@ -22,7 +22,7 @@ Chủ dự án yêu cầu ngày 2026-10-26: nạp nhẹ hơn, lúc đầu mờ r
   - `export_anim.py` ghi `art/anim/clips.json` và `controllers.json` (state machine của Animator).
   - `export_items.py` ghi `art/items/` (mesh và icon của 136 loại hàng).
   - `export_data.py Store store1` ghi `data/store1.json` (giá ô, tiền đầu, giá hàng, lấy từ `RC_MartProgression`). Store 9–14 dựng ô từ CSV `Store_N_Progression` như `ProgressionData.CreateProgressData`; với Store 9 kết quả khớp `RC_MartProgression_Store_9` 38/38 ô (in ra khi chạy).
-  - `export_navmesh.py store1` ghi `art/store1/navmesh.json` (polygon Detour và NavMeshObstacle).
+  - `export_navmesh.py store1` ghi `art/store1/navmesh.json` (polygon Detour và NavMeshObstacle). Thêm `--obstacles` thì chỉ ghi lại danh sách NavMeshObstacle từ `scene.json`, không cần nạp dữ liệu game.
   - `export_audio.py` ghi `art/sfx/` (43 clip mp3 + `sfx.json` sự kiện → clip, âm lượng gốc). Cần ffmpeg và vgmstream.
   - `export_ui.py` ghi `art/ui/` (sprite HUD, layout uGUI).
   - `export_cosmetics.py` ghi `art/cosmetics/` (10 da, 22 bộ đồ, 40 mũ, 11 thú cưng của shop gốc: giá, loại giá, khả năng, sức mang; mesh da và đồ gắn vào 22 xương của người chơi, mỗi mesh giữ bind pose riêng; mesh mũ tĩnh; 81 icon). Dữ liệu đọc từ controller trong `art/store1/scene.json`; dòng nào GameObject tắt thì không có trong shop.
@@ -58,6 +58,8 @@ Mọi con số luật chơi có dẫn nguồn trong `D:\minimart-ref\rules\*.md`
 - `[BẪY ĐÃ SẬP]` `Object3D.clone` chép `userData` bằng JSON, mà `userData.rig` trỏ ngược về object nên chép vòng. Nhân bản khách phải gỡ rig ra trước (`GameView.customerObject`).
 - `[BẪY ĐÃ SẬP]` Nhiều mesh trong cảnh là mốc mà code gốc tắt lúc chạy: ô xếp hàng quầy (`SlotCashierQueueController`), điểm xe RV (`SlotRVController`, `MeshDisablerController`), vợt và vòng đuổi trộm của người chơi. Danh sách nằm ở `GameView.hideDebug`.
 - `[BẪY ĐÃ SẬP]` Vật cản xoay theo trục X (`shelf01.001`) và vật cản cỡ 0 (`Basket_Large`) từng hút người chơi vào tâm. `footprint()` trong `nav.js` lấy hai trục nằm ngang nhất và bỏ qua hộp suy biến.
+- `[BẪY ĐÃ SẬP]` Tường vô hình ở ruộng lúa Store 1. `NavMeshObstacle.m_Center` là toạ độ Unity, còn TRS trong `scene.json` đã đổi sang three.js, nên phải lật z của center. Exporter từng quên lật, làm 128/500 vật cản của 14 mart lệch chỗ; `store_Tile01_Wall` (center z 29,5) nhảy từ tường sau (z -43,5) ra giữa sân (z 15,5), chắn lối từ cửa hàng ra ruộng lúa. Test `casual-farm-render.js` đo khoảng cách từ tâm vật cản tới hộp mesh đang vẽ của chính nó.
+- `[BẪY ĐÃ SẬP]` Vật cản thuộc bộ đồ vật không dùng (`NewVisualObjectActivator`, xem `NEW_VISUALS`) và xe quảng cáo (`TurThanksgivingRvMat`, `AdsBoxesSpawner`) vẫn chặn đường dù đã ẩn: HR Area ở Store 2, Rubbish Bin, xe gà tây `Basket_Large`. `store.obstacleHidden` gỡ chúng.
 - `[BẪY ĐÃ SẬP]` Bot chèn vào trang bằng `page.evaluate` bị joystick ghi đè mỗi khung, vì `main.js` gọi `setInput` khi không có `?bot`. Test dùng `?bot`.
 
 - `[BẪY ĐÃ SẬP]` Mọi mart ghi texture chung `art/tex/`, mà mỗi mart có "palette" riêng, Store 9 còn có cả `Palette` (trên Windows là cùng một file). Store 2 hiện trắng bệch vì palette bị ghi đè. Tên file giờ kèm 8 ký tự md5 của điểm ảnh (`save_texture`).
