@@ -171,6 +171,11 @@ export class Hud {
     this.nextEl.querySelector('.go').addEventListener('click', () => sim.depart());
     this.nextEl.querySelector('.close').addEventListener('click', () => Object.assign(sim.state.next, { ready: false, closed: true }));
     this.taskEl = this.root.querySelector('#task');
+    // TaskBannerController.OnPressButton -> HighlightFocusTask: tapping the banner sends the camera to the target.
+    this.taskEl.addEventListener('click', () => {
+      const task = this.tasks && this.tasks.current;
+      if (task && task.target && this.onTaskFocus) this.onTaskFocus(task.target);
+    });
     this.cashEl = this.root.querySelector('#cash');
     this.goldEl = this.root.querySelector('#gold');
     this.joyEl = this.root.querySelector('#joy');
@@ -364,8 +369,29 @@ export class Hud {
     const on = !!(task && task.text);
     this.upBtn = this.upBtn || this.root.querySelector('#upbtn');
     this.upBtn.classList.toggle('hint', !!(on && task.menu));
-    this.taskEl.style.display = on ? 'flex' : 'none';
-    if (!on) return;
+    // TaskManager.HighlightFirstTask (Invoke 3.5 s): the first task of the session gets a camera shot on its target,
+    // even a waiting task that has no banner.
+    if (task && !this.firstTaskShown) {
+      this.firstTaskShown = true;
+      if (task.target && this.onTaskFocus) this.onTaskFocus(task.target);
+    }
+    // SetTask pops the banner in (scale 0 -> 1, 0.5 s OutBack after 0.25 s); TaskCompleted shrinks it (0.35 s InBack).
+    const el = this.taskEl, shown = el.style.display === 'flex';
+    if (on && (!shown || el.classList.contains('out') || this.taskShown !== task)) {
+      if (this.taskShown !== task) { el.classList.remove('in'); void el.offsetWidth; }
+      el.classList.remove('out');
+      el.classList.add('in');
+      el.style.display = 'flex';
+      this.taskShown = task;
+    } else if (!on && shown && !el.classList.contains('out')) {
+      el.classList.remove('in');
+      el.classList.add('out');
+      this.taskOutAt = performance.now() + 350;
+    }
+    if (!on) {
+      if (shown && performance.now() >= this.taskOutAt) { el.style.display = 'none'; el.classList.remove('out'); this.taskShown = null; }
+      return;
+    }
     const icon = task.item != null && this.items.types[task.item] ? `${this.art}/items/${this.items.types[task.item].icon}`
       : task.action === Action.Checkout ? this.ui('cashierIcon') : this.ui('upgradeIcon');
     const [img, span, b] = this.taskEl.children;

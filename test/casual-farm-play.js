@@ -61,6 +61,20 @@ function serve() {
     const p1 = await page.evaluate(() => ({ ...window.__mmGame.sim.state.player }));
     check('W walks the player', Math.hypot(p1.x - p0.x, p1.z - p0.z) > 3, `moved ${Math.hypot(p1.x - p0.x, p1.z - p0.z).toFixed(1)} m`);
 
+    // TaskBannerController.OnPressButton: a tap on the banner sends the camera to the task target; the objective radar
+    // circles the player while a task has a target.
+    await page.evaluate(() => { const g = window.__mmGame; for (const n of ['Mat_Activate_Cashier', 'Mat_Activate_Tomato_Shelf', 'Mat_Activate_Plant_Tomato']) g.sim.completeMat(g.store.mats.find(m => m.name === n)); });
+    await page.waitForFunction(() => { const t = window.__mmGame.hud.tasks.current; return t && t.text && t.target && document.querySelector('#task').style.display === 'flex'; },
+      null, { timeout: 60000 }).catch(() => {});
+    await page.evaluate(() => { window.__mmGame.director.shots.length = 0; });
+    await page.click('#task', { timeout: 5000 }).catch(() => {});
+    const tut = await page.evaluate(() => {
+      const g = window.__mmGame, task = g.hud.tasks.current, shot = g.director.shots[0], r = g.world.objects[g.store.node('ObjectiveRadar')];
+      return { task: task && task.name, shot: !!shot && !!task && Math.hypot(shot.follow().x - task.target.x, shot.follow().z - task.target.z) < 0.01,
+        frozen: g.sim.state.player.frozen > 1, radar: r.visible, pop: document.querySelector('#task').classList.contains('in') };
+    });
+    check('tapping the task banner pans the camera to its target and the radar arrow is up', tut.shot && tut.frozen && tut.radar && tut.pop, JSON.stringify(tut));
+
     // The in-page bot (?bot, the policy test/casual-farm-sim.js proves can finish Store 1) plays the opening.
     await page.goto(`${url}?fresh&bot`);
     await page.waitForFunction(() => window.__mm && (window.__mm.ready || window.__mm.error), null, { timeout: 90000 });

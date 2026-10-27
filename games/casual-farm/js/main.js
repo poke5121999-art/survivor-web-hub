@@ -192,7 +192,30 @@ async function load() {
   setStage(0, 'textures');
   sim.listeners.push(e => { if (e.type === 'depart') setTimeout(() => travel(next.id), VAN_TIME); });
   const director = new CameraDirector(sim, store);
-  return { world, store, nav, grid, sim, view, hud, director, cityMap, looks };
+  hud.onTaskFocus = p => director.highlight(p);
+  return { world, store, nav, grid, sim, view, hud, director, cityMap, looks, radar: objectiveRadar(world, store) };
+}
+
+// ObjectiveRadarController under PlayerFollower: while a task has a target, an arrow circles the player, LookAt the target
+// and scaled by min(distance / 15, 1) (PlayerHumanController.SetFocusArrow, ABTutorialType arms 1, 2 and 4; the arm
+// this build follows also keeps the world arrows). The arrow child sits at -2.9 z after the z flip, so -z faces the target.
+function objectiveRadar(world, store) {
+  const i = store.node('ObjectiveRadar');
+  if (i == null) return null;
+  const o = world.objects[i];
+  world.root.add(o);
+  o.visible = false;
+  const away = new THREE.Vector3();
+  return {
+    update(player, p) {
+      o.visible = !!p;
+      if (!p) return;
+      const d = Math.hypot(p.x - player.x, p.z - player.z), k = Math.min(d / 15, 1);
+      o.position.set(player.x, 0, player.z);
+      o.scale.setScalar(Math.max(k, 1e-3));
+      o.lookAt(away.set(2 * player.x - p.x, 0, 2 * player.z - p.z));
+    },
+  };
 }
 
 let game = null;
@@ -245,6 +268,7 @@ function frame() {
     sim.step(dt, { nav, grid });
     view.update(dt);
     game.looks.update(dt);
+    if (game.radar) { const task = hud.tasks && hud.tasks.current; game.radar.update(sim.state.player, task && task.target); }
     for (const r of world.rigs) r.update(dt);
     const shot = director.update();
     target.set(shot.x, 0, shot.z);

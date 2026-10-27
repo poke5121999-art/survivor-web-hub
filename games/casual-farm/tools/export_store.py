@@ -469,6 +469,11 @@ def main():
             if mi is not None:
                 node["m"] = mi
             node["mt"] = [mat_ref(p) for p in mr.m_Materials]
+            # Static batching: the mesh is a "Combined Mesh (root: scene)" in world space; this renderer draws only its
+            # submesh range, untransformed.
+            sb = getattr(mr, "m_StaticBatchInfo", None)
+            if sb is not None and sb.subMeshCount:
+                node["sb"] = [sb.firstSubMesh, sb.subMeshCount]
             if not mr.m_Enabled:
                 node["ren"] = 0
             counts["mesh"] += 1

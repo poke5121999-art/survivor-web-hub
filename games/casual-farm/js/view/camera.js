@@ -63,7 +63,17 @@ export class CameraDirector {
       if (!w) return;
       follow = () => w;
     }
-    const t = st.t;
+    this.immediate(follow);
+  }
+
+  // CameraController.ImmediateHighlightFor: the highlight cam follows the target for highlight_duration 1.5 s and
+  // control is taken away for 2.0 s (TakeAwayControlFor(duration + 0.5)). Task focus and banner taps use it too.
+  highlight(p) {
+    this.immediate(() => p);
+  }
+
+  immediate(follow) {
+    const st = this.sim.state, t = st.t;
     this.shots = this.shots.filter(s => !s.follow);
     this.shots.push({ start: t, end: t + UPGRADE_HOLD, follow });
     st.player.frozen = Math.max(st.player.frozen, UPGRADE_HOLD + LOCK_EXTRA);

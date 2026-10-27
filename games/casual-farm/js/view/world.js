@@ -33,19 +33,25 @@ export function buildWorld(scene, gltf, { texBase }) {
   scene.nodes.forEach((n, i) => {
     if (n.m == null) return;
     const src = geoMeshes[n.m];
-    const prims = src.isMesh ? [src] : src.children;
+    const all = src.isMesh ? [src] : src.children;
+    // Static batching (n.sb = [firstSubMesh, count]): only that submesh range, in world space. Undoing the node's world
+    // matrix as it is at load keeps the vertices in place while later scale pops still pivot on the node.
+    const prims = n.sb ? all.slice(n.sb[0], n.sb[0] + n.sb[1]) : all;
+    const unbatch = n.sb ? (root.updateMatrixWorld(true), objects[i].matrixWorld.clone().invert()) : null;
     prims.forEach((prim, k) => {
       const mi = n.mt[Math.min(k, n.mt.length - 1)];
       if (mi == null) return;
       const m = materials[mi];
       const mesh = new THREE.Mesh(prim.geometry, m.mat);
       mesh.applyMatrix4(dequant(src));
+      if (unbatch) mesh.applyMatrix4(unbatch);
       mesh.visible = n.ren !== 0;
       objects[i].add(mesh);
       if (m.outline) {
         addSmoothNormals(prim.geometry);
         const ol = new THREE.Mesh(prim.geometry, m.outline);
         ol.applyMatrix4(dequant(src));
+        if (unbatch) ol.applyMatrix4(unbatch);
         ol.visible = mesh.visible;
         objects[i].add(ol);
       }

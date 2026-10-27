@@ -33,5 +33,9 @@ Trạng thái 2026-10-27: làm "full game" theo yêu cầu "làm full game đi".
 5. **Các cửa hàng sau** xong: Store 2–8 dùng ô có sẵn trong scene; Store 9–14 dựng ô từ CSV `Store_N_Progression` (khớp RC Store 9 38/38).
 6. **Lên hub** xong (`index.html`, Unity cũ ở `unity.html`).
 
-Không làm: quảng cáo, mua trong app, trang phục, thú cưng, bản đồ thành phố, mart theo mùa, Big Mart, khách VIP/xe.
+7. **Prestige, bản đồ thành phố 3D, trang phục + thú cưng** xong (rev j, k, l). Tường vô hình xong (rev m: z của `NavMeshObstacle.m_Center`).
+
+Tutorial đủ camera, banner, radar ở rev n. Còn lại theo thứ tự: gem + vòng quay ngày, popup tiền đầu mart, shop tiền ảo, rolling offer, 6 mart mùa + sự kiện, 2 Big Mart, việc nhỏ (lái xe trên bản đồ, cài đặt, mây vùng khoá).
+Không làm: mua trong app bằng tiền thật (quảng cáo thành nhận miễn phí).
 Hở: thu nhập đầu mỗi mart sau rất chậm nếu tới nơi với ít tiền (giá hàng tối đa 10, `pricing.md`).
+Hở: Store 9 còn 3 vật cản (`Wall.006/.008/.009`) nằm xa mesh của chính nó; quầy bếp lệch đã sửa ở rev n (static batching). Chưa truy.

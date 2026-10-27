@@ -32,6 +32,11 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #1f2a1b; tou
 .task { display: none; position: absolute; top: calc(env(safe-area-inset-top) + 2.2vh); left: calc(3 * var(--sw) / 100); align-items: center; gap: 0.35em;
   background: var(--c, #3aa0ff); border-radius: 0.6em; padding: 0.2em 0.7em 0.2em 0.3em; font-size: clamp(18px, 2.8vh, 28px);
   box-shadow: 0 3px 0 rgba(0, 0, 0, 0.25); text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35); max-width: calc(58 * var(--sw) / 100); }
+.task { pointer-events: auto; cursor: pointer; transform-origin: 20% 50%; }
+.task.in { animation: taskIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.25s both; }
+.task.out { animation: taskOut 0.35s cubic-bezier(0.36, 0, 0.66, -0.56) both; }
+@keyframes taskIn { from { transform: scale(0); } to { transform: scale(1); } }
+@keyframes taskOut { from { transform: scale(1); } to { transform: scale(0); } }
 .task img { width: 1.6em; height: 1.6em; object-fit: contain; }
 .task b { font-weight: 400; opacity: 0.9; }
 .tag.arrow i { display: block; width: clamp(34px, 6vh, 60px); height: clamp(34px, 6vh, 60px); background: #ffe14a;
