@@ -3,84 +3,112 @@
   "id": "store1",
   "name": "Grocer Mart",
   "scene": "Store",
-  "level": "level1"
+  "level": "level1",
+  "mats": 40,
+  "idle": 300
  },
  {
   "id": "store2",
   "name": "Cafe Mart",
   "scene": "Store_2",
-  "level": "level2"
+  "level": "level2",
+  "mats": 46,
+  "idle": 600
  },
  {
   "id": "store3",
   "name": "Pizza Mart",
   "scene": "Store_3",
-  "level": "level3"
+  "level": "level3",
+  "mats": 35,
+  "idle": 900
  },
  {
   "id": "store4",
   "name": "Blueberry Mart",
   "scene": "Store_4",
-  "level": "level6"
+  "level": "level6",
+  "mats": 40,
+  "idle": 1200
  },
  {
   "id": "store5",
   "name": "Burger Mart",
   "scene": "Store_5",
-  "level": "level7"
+  "level": "level7",
+  "mats": 49,
+  "idle": 1500
  },
  {
   "id": "store6",
   "name": "Sushi Mart",
   "scene": "Store_6",
-  "level": "level8"
+  "level": "level8",
+  "mats": 35,
+  "idle": 2000
  },
  {
   "id": "store7",
   "name": "Mexican Mart",
   "scene": "Store_7",
-  "level": "level9"
+  "level": "level9",
+  "mats": 39,
+  "idle": 2600
  },
  {
   "id": "store8",
   "name": "Dessert Mart",
   "scene": "Store_8",
-  "level": "level10"
+  "level": "level10",
+  "mats": 33,
+  "idle": 3300
  },
  {
   "id": "store9",
   "name": "Cinema Mart",
   "scene": "Store_9",
-  "level": "level11"
+  "level": "level11",
+  "mats": 38,
+  "idle": 4200
  },
  {
   "id": "store10",
   "name": "Hotdog Mart",
   "scene": "Store_10",
-  "level": "level12"
+  "level": "level12",
+  "mats": 38,
+  "idle": 5500
  },
  {
   "id": "store11",
   "name": "Fairground Mart",
   "scene": "Store_11",
-  "level": "level14"
+  "level": "level14",
+  "mats": 30,
+  "idle": 7000
  },
  {
   "id": "store12",
   "name": "Seafood Mart",
   "scene": "Store_12",
-  "level": "level16"
+  "level": "level16",
+  "mats": 39,
+  "idle": 8000
  },
  {
   "id": "store13",
   "name": "Ratatouille Mart",
   "scene": "Store_13",
-  "level": "level18"
+  "level": "level18",
+  "mats": 33,
+  "idle": 9000
  },
  {
   "id": "store14",
   "name": "Campsite Mart",
   "scene": "Store_14",
-  "level": "level20"
+  "level": "level20",
+  "mats": 30,
+  "idle": 10000
  }
 ]

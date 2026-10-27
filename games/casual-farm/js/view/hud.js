@@ -9,7 +9,8 @@ const v3 = new THREE.Vector3();
 const KEYS = { ArrowUp: [0, -1], KeyW: [0, -1], ArrowDown: [0, 1], KeyS: [0, 1], ArrowLeft: [-1, 0], KeyA: [-1, 0], ArrowRight: [1, 0], KeyD: [1, 0] };
 
 export class Hud {
-  constructor({ sim, store, camera, canvas, items, art, world, tasks, matArrows, nextMart, workerDefs, sound }) {
+  constructor({ sim, store, camera, canvas, items, art, world, tasks, matArrows, nextMart, workerDefs, sound, martMap }) {
+    this.martMap = martMap;
     this.sound = sound;
     this.nextMart = nextMart;
     this.workerDefs = workerDefs || [];
@@ -34,7 +35,9 @@ export class Hud {
       <div class="next" id="next"><i>NEXT MART</i><b></b><div><a class="btn go">GO!</a><a class="btn close">✕</a></div></div>
       <a class="btn snd" id="snd"></a>
       <a class="btn upbtn" id="upbtn"><img src="${ui('upgradeIcon')}" alt=""></a>
-      <div class="upmenu" id="upmenu"><div class="head"><b>UPGRADES</b><a class="btn x">✕</a></div><div class="rows"></div></div>`;
+      <div class="upmenu" id="upmenu"><div class="head"><b>UPGRADES</b><a class="btn x">✕</a></div><div class="rows"></div></div>
+      <a class="btn mapbtn" id="mapbtn"><img src="${ui('MapCityUI')}" alt=""></a>
+      <div class="upmenu map" id="mapmenu"><div class="head"><b>MARTS</b><a class="btn x">✕</a></div><div class="rows"></div></div>`;
     const snd = this.root.querySelector('#snd');
     const showSnd = () => { snd.textContent = sound && sound.muted ? '🔇' : '🔊'; };
     showSnd();
@@ -52,6 +55,23 @@ export class Hud {
       const b = e.target.closest('[data-k]');
       const slot = b && this.slots && this.slots.get(b.dataset.k);
       if (slot && sim.buyUpgrade(slot)) this.upKey = null;
+    });
+    this.mapEl = this.root.querySelector('#mapmenu');
+    this.mapRows = this.mapEl.querySelector('.rows');
+    this.root.querySelector('#mapbtn').addEventListener('click', () => {
+      this.upEl.classList.remove('open');
+      this.mapEl.classList.toggle('open');
+      this.mapKey = null;
+      this.mapT = 0;
+    });
+    this.root.querySelector('#upbtn').addEventListener('click', () => this.mapEl.classList.remove('open'));
+    this.mapEl.querySelector('.x').addEventListener('click', () => this.mapEl.classList.remove('open'));
+    this.mapRows.addEventListener('click', e => {
+      const b = e.target.closest('[data-id]');
+      const row = b && this.martRows && this.martRows.find(r => r.id === b.dataset.id);
+      if (!row || !this.martMap) return;
+      if (b.dataset.act === 'collect' && row.ready) { this.martMap.collect(row); this.mapT = 0; }
+      if (b.dataset.act === 'go' && row.visited && !row.here) this.martMap.go(row);
     });
     this.nextEl = this.root.querySelector('#next');
     this.nextEl.querySelector('b').textContent = nextMart ? nextMart.name : '';
@@ -208,6 +228,24 @@ export class Hud {
     this.upRows.innerHTML = key;
   }
 
+  // Map menu rows: progress bar, idle income (COLLECT when the 3-hour clock is up, else the time left) and GO.
+  updateMap() {
+    const rows = this.martRows = this.martMap.rows();
+    const cash = `<img src="${this.ui('cashIcon')}" alt="">`;
+    const clock = s => { const m = Math.ceil(s / 60); return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`; };
+    const html = rows.map(r => {
+      if (!r.visited) return `<div class="row locked"><img src="${this.ui('padlock_icon')}" alt=""><span><b>${r.name}</b><i>Locked</i></span></div>`;
+      const pct = Math.floor(r.rate * 100);
+      const idle = r.ready ? `<a class="btn buy" data-id="${r.id}" data-act="collect">${cash}${r.amount}</a>`
+        : r.amount > 0 ? `<a class="btn buy poor">${cash}${r.amount} · ${clock(r.left)}</a>` : '';
+      const go = r.here ? '<a class="btn buy max">HERE</a>' : `<a class="btn buy go" data-id="${r.id}" data-act="go">GO</a>`;
+      return `<div class="row"><img src="${this.ui('martIcon')}" alt=""><span><b>${r.name}</b><i class="bar"><u style="width:${pct}%"></u></i><i>${pct}%</i></span>${idle}${go}</div>`;
+    }).join('');
+    if (html === this.mapKey) return;
+    this.mapKey = html;
+    this.mapRows.innerHTML = html;
+  }
+
   // Bouncing arrow over a world point; off screen it sticks to the edge and turns toward the target.
   arrow(key, p) {
     const t = this.tag(`arrow:${key}`, 'arrow', '<i></i>');
@@ -281,6 +319,11 @@ export class Hud {
     if (th) this.arrow('thief', { x: th.x, y: 6, z: th.z });
     this.nextEl.style.display = st.next.ready ? 'flex' : 'none';
     if (this.upEl.classList.contains('open')) this.updateMenu();
+    // Twice a second: each refresh reads the other marts' saves.
+    if (this.martMap && this.mapEl.classList.contains('open') && !(performance.now() - (this.mapT || 0) < 500)) {
+      this.mapT = performance.now();
+      this.updateMap();
+    }
     this.matArrows.forEach((p, i) => {
       const m = s.mats[i], ms = st.mats[m.name];
       if (p && ms.open && !ms.done && st.active.has(m.name) && st.t >= ms.openAt) this.arrow(`ma:${i}`, p);

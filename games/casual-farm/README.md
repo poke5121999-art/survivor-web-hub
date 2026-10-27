@@ -65,7 +65,8 @@ Mọi con số luật chơi có dẫn nguồn trong `D:\minimart-ref\rules\*.md`
 
 ## Còn thiếu
 
-- Không làm phần gắn với quảng cáo và mua trong app: xe RV, boost, gem, coupon, vòng quay, trang phục, mũ, thú cưng, bản đồ thành phố, mart theo mùa (Halloween, Giáng Sinh...), Big Mart.
+- Không làm phần gắn với quảng cáo và mua trong app: xe RV, boost, gem, coupon, vòng quay, trang phục, mũ, thú cưng, prestige (sao), mart theo mùa (Halloween, Giáng Sinh...), Big Mart.
+- Bản đồ thành phố 3D không dựng lại; nút bản đồ mở danh sách mart như `MartMenuController` (% hoàn thành, thu tiền để không mỗi 3 giờ, GO về mart đã tới), logic ở `js/sim/martmap.js`.
 - Khách VIP chưa có. Khách đi xe mượn thân xe van của mart (prefab xe chưa bóc), vùng thả hàng là ô vuông 10 m quanh chỗ đỗ (đoán, `car-orders.md`).
 - Hệ số tốc độ máy lấy theo bảng `S`; nhân viên cùng `workerSection` khác 0 chưa nâng cấp chung.
 - Bán kính "người chơi đứng gần quầy" khi tung xu ra trộm là đoán (8 m); trộm mượn thân khách vì prefab trộm chưa bóc.

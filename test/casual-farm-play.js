@@ -128,6 +128,32 @@ function serve() {
     check('the next-mart pad opens the menu and GO drives to Store 2 with the cash', before.shown && arrived.first === 'Mat_Activate_Cashier_Cafe' && arrived.cash === 777,
       `menu ${before.shown} "${before.label}", first mat ${arrived.first}, cash ${arrived.cash}`);
 
+    // Map menu (MartMenuController): Store 1 now holds idle income; three hours on, COLLECT pays it and GO goes back.
+    const map = await page.evaluate(async () => {
+      const g = window.__mmGame, mm = g.hud.martMap, st = g.sim.state;
+      mm.global.idleAt.store1 = Date.now() - 10801 * 1000;
+      document.querySelector('#mapbtn').click();
+      await new Promise(r => setTimeout(r, 700));
+      const rows = [...document.querySelectorAll('#mapmenu .row')];
+      const s1 = mm.rows().find(r => r.id === 'store1');
+      const cash0 = st.cash;
+      const btn = document.querySelector('#mapmenu [data-id="store1"][data-act="collect"]');
+      if (btn) btn.click();
+      return { rows: rows.length, locked: rows.filter(r => r.classList.contains('locked')).length, here: !!document.querySelector('#mapmenu .max'),
+        expect: s1.amount, paid: st.cash - cash0, again: mm.rows().find(r => r.id === 'store1').ready };
+    });
+    check('the map lists every mart and COLLECT pays the Store 1 idle income once', map.rows === 14 && map.locked === 12 && map.here && map.expect > 0 && map.paid === map.expect && !map.again,
+      JSON.stringify(map));
+    const cashBack = await page.evaluate(() => {
+      const c = window.__mmGame.sim.state.cash;
+      window.__oldPage = true;
+      document.querySelector('#mapmenu [data-id="store1"][data-act="go"]').click();
+      return c;
+    });
+    await page.waitForFunction(() => !window.__oldPage && window.__mm && (window.__mm.ready || window.__mm.error) && window.__mmGame, null, { timeout: 90000 });
+    const back1 = await page.evaluate(() => ({ first: window.__mmGame.store.mats[0].name, cash: window.__mmGame.sim.state.cash }));
+    check('GO on the map goes back to Store 1 with the cash', back1.first === 'Mat_Activate_Cashier' && back1.cash === cashBack, JSON.stringify(back1));
+
     // Stores 9-14 build their mats from the progression CSV: the first one is open and drawn.
     await page.goto(`${url}?mart=store9&fresh`);
     await page.waitForFunction(() => window.__mm && (window.__mm.ready || window.__mm.error), null, { timeout: 90000 });

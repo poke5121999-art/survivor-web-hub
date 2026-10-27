@@ -18,6 +18,7 @@ import { Tasks, buildTasks, matArrows } from './sim/tasks.js';
 import { NavMesh } from './sim/nav.js';
 import { GridNav } from './sim/grid.js';
 import { Bot } from './sim/bot.js';
+import { martRows } from './sim/martmap.js';
 
 const params = new URLSearchParams(location.search);
 const V = new URL(import.meta.url).searchParams.get('v') || '';
@@ -33,6 +34,12 @@ const fresh = params.has('fresh');
 const global = (!fresh && load_(GLOBAL_KEY)) || { mart: 'store1', cash: (!fresh && load_(MART_KEY('store1')) || {}).cash || 0 };
 if (params.get('mart')) global.mart = params.get('mart');
 const STORE = global.mart;
+// Map menu state: marts reached so far (older saves: every mart with a save) and when each one's idle income was
+// last collected; the 3-hour clock starts on the first visit.
+global.idleAt = global.idleAt || {};
+if (!global.visited) global.visited = Object.keys(localStorage).map(k => (k.match(/^mmm-(store\d+)-v1$/) || [])[1]).filter(Boolean);
+if (!global.visited.includes(STORE)) global.visited.push(STORE);
+if (global.idleAt[STORE] == null) global.idleAt[STORE] = Date.now();
 
 const canvas = document.getElementById('game');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -111,8 +118,21 @@ async function load() {
   // RC_MartOrders: the pad leads to the next entry; past the last one GoToNextMart falls back to the first.
   const here = marts.findIndex(m => m.id === STORE);
   const next = marts[(here + 1) % marts.length];
+  const doneOf = id => (id === STORE ? Object.values(sim.state.mats).filter(m => m.done).length
+    : Object.values((load_(MART_KEY(id)) || {}).mats || {}).filter(m => m.done).length);
+  const martMap = {
+    rows: () => martRows(marts, global, doneOf, Date.now()),
+    collect: row => {
+      global.idleAt[row.id] = Date.now();
+      sim.state.cash += row.amount;
+      sim.emit({ type: 'coinPile', amount: row.amount });
+      save();
+    },
+    go: row => travel(row.id),
+    global,
+  };
   const hud = new Hud({ sim, store, camera, canvas, items, art: ART, world, tasks, matArrows: matArrows(store), nextMart: next, workerDefs: workers.defs,
-    sound: new Sound(`${ART}/sfx`, sim, store, V) });
+    sound: new Sound(`${ART}/sfx`, sim, store, V), martMap });
   await Promise.all(sceneJson.textures.map(t => texture(`${ART}/tex`, t.name).full));
   setStage(0, 'textures');
   sim.listeners.push(e => { if (e.type === 'depart') setTimeout(() => travel(next.id), VAN_TIME); });

@@ -21,6 +21,9 @@ MARTS = [("Store", "level1"), ("Store_2", "level2"), ("Store_3", "level3"), ("St
 NAMES = ["Grocer Mart", "Cafe Mart", "Pizza Mart", "Blueberry Mart", "Burger Mart", "Sushi Mart", "Mexican Mart",
          "Dessert Mart", "Cinema Mart", "Hotdog Mart", "Fairground Mart", "Seafood Mart", "Ratatouille Mart", "Campsite Mart"]
 
+# Player_Chef.martMaxIdleIncomeList (rules/upgrades.md "Idle / offline income").
+IDLE = [300, 600, 900, 1200, 1500, 2000, 2600, 3300, 4200, 5500, 7000, 8000, 9000, 10000]
+
 
 def mart_id(k):
     return f"store{k + 1}"
@@ -42,7 +45,13 @@ def main():
             run("export_store.py", level, mid)
             run("export_navmesh.py", mid)
         run("export_data.py", scene, mid)
-    out = [{"id": mart_id(k), "name": NAMES[k], "scene": scene, "level": level} for k, (scene, level) in enumerate(MARTS)]
+    out = []
+    for k, (scene, level) in enumerate(MARTS):
+        with open(os.path.join(GAME, "data", mart_id(k) + ".json"), encoding="utf-8") as fh:
+            mats = len(json.load(fh)["mats"])
+        # mats: completion = finished / total (PlayerHumanController.GetCompletionRate). idle: the map's collectable
+        # income at 100 % (martMaxIdleIncomeList on Player_Chef, RC_MartOrder index).
+        out.append({"id": mart_id(k), "name": NAMES[k], "scene": scene, "level": level, "mats": mats, "idle": IDLE[k]})
     with open(os.path.join(GAME, "data", "marts.json"), "w", encoding="utf-8", newline="\n") as fh:
         json.dump(out, fh, indent=1)
 

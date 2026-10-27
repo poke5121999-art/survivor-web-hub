@@ -10,7 +10,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #9bd36a; tou
 .joy { display: none; position: absolute; width: 26vmin; height: 26vmin; transform: translate(-50%, -50%); opacity: 0.85; }
 .joy .ring { width: 100%; height: 100%; }
 .joy .knob { position: absolute; left: 50%; top: 50%; width: 42%; height: 42%; transform: translate(-50%, -50%); }
-.max { display: none; position: absolute; left: 0; top: 0; font-size: clamp(18px, 2.8vh, 28px); font-weight: 900;
+#max { display: none; position: absolute; left: 0; top: 0; font-size: clamp(18px, 2.8vh, 28px); font-weight: 900;
   -webkit-text-stroke: 1.5px #c0392b; text-shadow: 0 2px 0 #7a1f15; }
 .tags { position: absolute; inset: 0; }
 .tag { position: absolute; left: 0; top: 0; white-space: nowrap; will-change: transform; }
@@ -78,3 +78,13 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #9bd36a; tou
 .tag.price i { font-style: normal; background: #3aa0ff; border-radius: 0.4em; padding: 0 0.4em; font-size: 0.75em; }
 .tag.bubble.car { pointer-events: auto; }
 .tag.bubble .collect { cursor: pointer; background: #4cd137; color: #fff; border-radius: 0.5em; padding: 0.1em 0.6em; text-shadow: 0 2px 0 rgba(0, 0, 0, 0.3); }
+.mapbtn { position: absolute; right: 3vw; bottom: calc(env(safe-area-inset-bottom) + 3vh + clamp(52px, 8vh, 76px)); width: clamp(52px, 8vh, 76px);
+  height: clamp(52px, 8vh, 76px); border-radius: 50%; background: #fff; box-shadow: 0 4px 0 rgba(0, 0, 0, 0.25); pointer-events: auto; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; }
+.mapbtn img { width: 72%; height: 72%; object-fit: contain; }
+.upmenu.map .row.locked { opacity: 0.5; }
+.upmenu.map .bar { display: block; height: 0.45em; margin: 0.15em 0; background: #e3e3e3; border-radius: 0.3em; overflow: hidden; }
+.upmenu.map .bar u { display: block; height: 100%; background: #4cd137; }
+.upmenu.map .buy.go { background: #3aa0ff; }
+.upmenu.map .row .buy + .buy { margin-left: 0.3em; }
+.upmenu.map .row.locked > img { filter: brightness(0.35); }
