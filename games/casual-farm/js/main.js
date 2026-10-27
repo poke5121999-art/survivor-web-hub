@@ -20,6 +20,7 @@ import { GridNav } from './sim/grid.js';
 import { Bot } from './sim/bot.js';
 import { martRows } from './sim/martmap.js';
 import { Boosters } from './sim/boosters.js';
+import { Fx } from './view/fx.js';
 
 const params = new URLSearchParams(location.search);
 const V = new URL(import.meta.url).searchParams.get('v') || '';
@@ -97,13 +98,13 @@ async function load() {
   const restP = Promise.all([
     json(`${ART}/anim/clips.json`), json(`${ART}/anim/controllers.json`), json(`${ART}/items/items.json`),
     glb(`${ART}/items/items.glb`), json(`${ART}/${STORE}/navmesh.json`), json(`${BASE}data/${STORE}.json`),
-    json(`${BASE}data/marts.json`),
+    json(`${BASE}data/marts.json`), json(`${ART}/fx/fx.json`), glb(`${ART}/fx/fx.glb`),
   ]);
   const [sceneJson, gltf] = await Promise.all([json(`${ART}/${STORE}/scene.json`), glb(`${ART}/${STORE}/geo.glb`)]);
   const world = buildWorld(sceneJson, gltf, { texBase: `${ART}/tex` });
   scene3.add(world.root);
   setStage(8, 'geometry');
-  const [clips, controllers, items, itemsGltf, navJson, data, marts] = await restP;
+  const [clips, controllers, items, itemsGltf, navJson, data, marts, fxData, fxGltf] = await restP;
   const anim = new AnimLibrary(clips, controllers);
   world.rigs = attachRigs(anim, world);
   setStage(5, 'animation');
@@ -116,6 +117,7 @@ async function load() {
   const workers = new Workers(sim, grid);
   sim.systems.push(new Customers(sim, grid), workers, new Thief(sim, grid), new Cars(sim), new Boosters(sim), tasks);
   const view = new GameView({ world, store, sim, items, itemsGltf, texBase: `${ART}/tex`, anim });
+  view.fx = new Fx({ root: scene3, camera, art: ART, fxData, gltf: fxGltf, texBase: `${ART}/tex`, version: V });
   // RC_MartOrders: the pad leads to the next entry; past the last one GoToNextMart falls back to the first.
   const here = marts.findIndex(m => m.id === STORE);
   const next = marts[(here + 1) % marts.length];

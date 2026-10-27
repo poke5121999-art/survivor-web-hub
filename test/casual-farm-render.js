@@ -49,6 +49,7 @@ function installProbe() {
     pay: { events: 0, bills: 0, miss: [] }, collect: { events: 0, bills: 0, miss: [] },
     tags: { bad: [], upgrade: 0 },
     checkout: { packs: 0, boxes: 0, hopping: 0, leaving: 0, held: 0, faces: 0, desk: 0, deskBills: 0, stray: [] }, phantom: [],
+    fx: { walk: 0, dust: 0, gone: 0, gonePuff: 0, pops: 0, popPuff: 0, levels: 0, confetti: 0, boostOn: 0, rings: 0 },
   };
   const ev = window.__ev = [];
   sim.listeners.push(e => ev.push(e));
@@ -90,6 +91,10 @@ function installProbe() {
       }
       if (k === 'upgrade') stats.tags.upgrade++;
     }
+    const fx = stats.fx, parts = view.fx ? view.fx.parts : [];
+    if (st.player.moving) { fx.walk++; if (parts.some(p => p.look === 'puff' && p.size < 2)) fx.dust++; }
+    const b = sim.boosters;
+    if (b && (b.on('player') || b.on('machine') || b.on('cash'))) { fx.boostOn++; if (parts.some(p => p.look === 'hexsheet' || p.look === 'ring')) fx.rings++; }
     const co = stats.checkout;
     for (const x of view.checkouts.values()) if (x.hops.length) co.hopping++;
     // Every item mesh in the scene is one the view tracks (a stack, a flight, a hop into a box).
@@ -128,12 +133,18 @@ function installProbe() {
       for (const r of g.world.rigs) r.update(DT);
       for (const e of fresh) {
         if (e.type === 'payMat') { stats.pay.events++; if (bills() > 0) stats.pay.bills++; else if (stats.pay.miss.length < 3) stats.pay.miss.push(JSON.stringify(e)); }
+        if (e.type === 'customerGone') { stats.fx.gone++; if (view.fx.parts.some(p => p.look === 'puff' && p.age < 0.05 && p.size >= 4)) stats.fx.gonePuff++; }
+        if (e.type === 'levelUp' && e.slot.kind === 'producer') { stats.fx.levels++; window.__confettiAt = stats.t + 1.2; }
         if (e.type === 'customerPack') { stats.checkout.packs++; const x = view.checkouts.get(e.id); if (x && x.box.parent) stats.checkout.boxes++; }
         if (e.type === 'deskCash' && e.id != null && e.amount > 0) {
           stats.checkout.desk++;
           if (view.flights.some(f => f.key === `cash${e.cashier}`)) stats.checkout.deskBills++;
         }
         if (e.type === 'collect') { stats.collect.events++; if (bills() > 0) stats.collect.bills++; else if (stats.collect.miss.length < 3) stats.collect.miss.push(JSON.stringify(e)); }
+      }
+      if (window.__confettiAt && stats.t >= window.__confettiAt) {
+        window.__confettiAt = 0;
+        if (view.fx.parts.some(p => p.look === 'confetti')) stats.fx.confetti++;
       }
       stats.t += DT;
       if (stats.t >= next) { next = stats.t + 0.5; sample(); }
@@ -226,6 +237,7 @@ function installHold() {
     await page.goto(`${url}?fresh&bot`);
     await page.waitForFunction(() => window.__mm && (window.__mm.ready || window.__mm.error), null, { timeout: 90000 });
     await page.waitForFunction(() => window.__mm.blur === 0, null, { timeout: 90000 });
+    await page.waitForTimeout(800); // the canvas blur fades out over a 0.6 s CSS transition
     await page.evaluate(installProbe);
     await page.evaluate(installHold);
     const moment = async (name, seconds, cond) => {
@@ -259,6 +271,14 @@ function installHold() {
       await moment(name, 20, new Function('fresh', 'g', `const p = window.__pack, c = p && g.sim.state.customers.find(x => x.id === p.id);
         return c && window.__rs.t >= ${at} && { x: c.x, z: c.z };`));
     }
+    await moment('fx-dust', 60, (fresh, g) => {
+      const p = g.sim.state.player;
+      return p.moving && g.view.fx.parts.filter(x => x.look === 'puff' && x.size < 2).length >= 3 && { x: p.x, z: p.z };
+    });
+    await moment('fx-poof', 240, (fresh, g) => {
+      const p = fresh.some(x => x.type === 'customerGone') && g.view.fx.parts.find(x => x.look === 'puff' && x.size >= 4 && x.age < 0.05);
+      return p && { x: p.pos.x, z: p.pos.z };
+    });
     const collect = await moment('collect-cash', 240, (fresh, g) => {
       const e = fresh.find(x => x.type === 'collect');
       return e && { x: g.sim.state.player.x, z: g.sim.state.player.z };
@@ -270,6 +290,15 @@ function installHold() {
     });
     check('a big order with a trolley is caught on camera', !!big.hit, `at ${big.t.toFixed(0)} s`);
     await page.evaluate(() => window.__ff(300));
+    // A machine upgrade bought outright (the bot rarely affords one this early): confetti must follow a second later.
+    await page.evaluate(() => {
+      const g = window.__mmGame, sim = g.sim;
+      const i = g.store.producers.findIndex(p => p.upgradable && sim.isActive(p.name));
+      if (i < 0) return;
+      sim.state.cash += 100000;
+      sim.buyUpgrade({ kind: 'producer', i });
+      window.__ff(2);
+    });
 
     const s = await page.evaluate(() => window.__rs);
     const f = s.face;
@@ -282,6 +311,11 @@ function installHold() {
       `${tr.bigHidden}/${tr.big} samples without, ${tr.inCart} with goods in the basket`);
     check('every mat payment throws a cash bill', s.pay.events > 20 && s.pay.bills === s.pay.events, `${s.pay.bills}/${s.pay.events} ${s.pay.miss.join(' ')}`);
     check('every desk pickup throws a cash bill', s.collect.events > 20 && s.collect.bills === s.collect.events, `${s.collect.bills}/${s.collect.events} ${s.collect.miss.join(' ')}`);
+    const fx = s.fx;
+    check('the player sheds dust while walking', fx.walk > 20 && fx.dust > fx.walk * 0.8, `${fx.dust}/${fx.walk} walking samples with dust`);
+    check('a leaving customer vanishes in a smoke puff', fx.gone > 10 && fx.gonePuff === fx.gone, `${fx.gonePuff}/${fx.gone}`);
+    check('a machine level-up throws confetti a second later', fx.levels > 0 && fx.confetti === fx.levels, `${fx.confetti}/${fx.levels}`);
+    check('boost rings show while a booster runs', fx.boostOn > 10 && fx.rings > fx.boostOn * 0.8, `${fx.rings}/${fx.boostOn} samples`);
     const co = s.checkout;
     check('every checkout pops a box at the desk', co.packs > 10 && co.boxes === co.packs, `${co.boxes}/${co.packs}`);
     check('goods are seen hopping into the box', co.hopping > 5, `${co.hopping} samples`);

@@ -321,18 +321,28 @@ export class GameView {
     sim.events.length = 0;
 
     // Mats too: the first one starts open (not "activated later") and every mat hides once bought.
+    this.matNames = this.matNames || new Set(store.mats.map(m => m.name));
     for (const name of this.toggled || (this.toggled = new Set([...store.activatedLater, ...store.mats.map(m => m.name)]))) {
       const o = this.named(name);
       if (!o) continue;
       const on = st.active.has(name);
-      if (on && !o.visible && this.started) this.popIn(o);
+      if (on && !o.visible && this.started) {
+        this.popIn(o);
+        // ActivateObject plays the Big smoke puff (Cashier/Factory/Worker controllers); mats just pop in.
+        if (this.fx && !this.matNames.has(name)) this.fx.puff('big', o.getWorldPosition(new THREE.Vector3()));
+      }
       o.visible = on;
     }
     const xc = this.sim.boosters && this.sim.boosters.cashMat && this.obj(this.sim.boosters.cashMat.node);
     if (xc) {
       const on = !!st.boost.cash;
-      if (on && !xc.visible) this.popIn(xc);
+      if (on && !xc.visible) {
+        this.popIn(xc);
+        // MatRVController.UpdateLocation: Small puff where the ad mat appears; its Sparkle runs while it shows.
+        if (this.fx) this.fx.puff('small', this.sim.boosters.cashMat.pos);
+      }
       xc.visible = on;
+      if (this.fx) this.fx.sparkle('xcash', this.sim.boosters.cashMat.pos, on);
     }
     this.started = true;
     this.updatePops(dt);
@@ -378,6 +388,24 @@ export class GameView {
     this.updateCheckouts(dt);
     this.updateWorkers(dt);
     this.updateFlights(dt);
+    if (this.fx) this.updateFx(dt);
+  }
+
+  // Walking dust behind the player, boost rings while boosters run, then step every particle.
+  updateFx(dt) {
+    const st = this.sim.state, p = st.player, fx = this.fx;
+    const last = this.lastPlayer || (this.lastPlayer = { x: p.x, z: p.z });
+    const d = Math.hypot(p.x - last.x, p.z - last.z);
+    if (p.moving && d > 0 && d < 5 && this.player && this.player.visible) fx.dust(p, p.dirX, p.dirZ, d);
+    last.x = p.x; last.z = p.z;
+    const b = this.sim.boosters;
+    if (b) {
+      fx.boost('player', () => st.player, b.on('player'));
+      for (const w of st.workers || []) fx.boost(`w:${w.name}`, () => w, b.on('worker') && w.def.role !== 'cashier');
+      this.store.producers.forEach((pr, i) => fx.boost(`p${i}`, () => pr.spawn, b.on('machine') && this.sim.isActive(pr.name)));
+      this.store.cashiers.forEach((c, i) => fx.boost(`c${i}`, () => c.boxSlot, b.on('cash') && this.sim.isActive(c.name), 'revenue'));
+    }
+    fx.update(dt);
   }
 
   placeAgent(o, a) {
@@ -640,6 +668,44 @@ export class GameView {
         break;
       case 'customerPack':
         this.startCheckout(e);
+        break;
+      case 'customerGone': {
+        // CustomerAgentController.CompletedLoop: the customer's own Big_2 smoke puff where it vanishes.
+        const v = this.customerViews.get(e.id);
+        if (this.fx && v) this.fx.puff('big', v.obj.getWorldPosition(new THREE.Vector3()));
+        break;
+      }
+      case 'workerSpawn': {
+        const w = (this.sim.state.workers || []).find(x => x.name === e.name);
+        if (this.fx && w) this.fx.puff('big', w);
+        break;
+      }
+      case 'thiefSpawn':
+      case 'thiefGone': {
+        const a = this.sim.state.thief && this.sim.state.thief.agent;
+        if (this.fx && a) this.fx.puff('big', a);
+        break;
+      }
+      case 'thiefCaught': {
+        // psCaught: SmokePuff_ThiefCaught child, startDelay 0.6 s.
+        const a = this.sim.state.thief && this.sim.state.thief.agent;
+        if (this.fx && a) this.fx.puff('thief', { x: a.x, y: 0, z: a.z }, 0.6);
+        break;
+      }
+      case 'upgraded':
+        // PlayerController.UpgradeCarryingLimit -> PlayUpgradePS 0.4 s later (cyan spray).
+        if (this.fx) this.fx.upgrade(() => this.sim.state.player, false);
+        break;
+      case 'levelUp':
+        if (!this.fx) break;
+        if (e.slot.kind === 'producer') {
+          // FactoryController: Invoke("PlayConfetti", 1.0) after a level-up.
+          const pr = this.store.producers[e.slot.i];
+          this.fx.later(1, () => this.fx.confetti(pr.spawn));
+        } else if (e.slot.kind === 'worker') {
+          const w = (this.sim.state.workers || []).find(x => x.name === e.slot.name);
+          if (w) this.fx.upgrade(() => w, true);
+        }
         break;
       case 'deskCash':
         if (e.id != null) this.deskCash(e);
