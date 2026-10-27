@@ -54,6 +54,7 @@ EVENTS = {
     "cow": (["CowMoo_01", "CowMoo_02", "CowMoo_07", "CowMoo_09"], 1.0),
     "pig": (["pig01", "pig02", "pig03", "pig04"], 1.0),
     "goat": (["goat01", "goat02", "goat04"], 1.0),
+    "renovation": (["renovationSFX"], 0.4),
     "music": (["My Mini Mart - Idea 2 - Alt Melody 3"], 0.8),
 }
 

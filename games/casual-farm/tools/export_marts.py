@@ -51,7 +51,11 @@ def main():
             mats = len(json.load(fh)["mats"])
         # mats: completion = finished / total (PlayerHumanController.GetCompletionRate). idle: the map's collectable
         # income at 100 % (martMaxIdleIncomeList on Player_Chef, RC_MartOrder index).
-        out.append({"id": mart_id(k), "name": NAMES[k], "scene": scene, "level": level, "mats": mats, "idle": IDLE[k]})
+        # icon: GameManager.martIconList sprite (export_menus.py writes Mart_<Name>Icon); Campsite has none -> martIcon.
+        icon = "menus/Mart_%sIcon" % NAMES[k].split()[0]
+        if not os.path.exists(os.path.join(GAME, "art", "ui", icon + ".webp")):
+            icon = "sprites/martIcon"
+        out.append({"id": mart_id(k), "name": NAMES[k], "scene": scene, "level": level, "mats": mats, "idle": IDLE[k], "icon": icon})
     with open(os.path.join(GAME, "data", "marts.json"), "w", encoding="utf-8", newline="\n") as fh:
         json.dump(out, fh, indent=1)
 

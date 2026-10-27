@@ -5,7 +5,8 @@
   "scene": "Store",
   "level": "level1",
   "mats": 40,
-  "idle": 300
+  "idle": 300,
+  "icon": "menus/Mart_GrocerIcon"
  },
  {
   "id": "store2",
@@ -13,7 +14,8 @@
   "scene": "Store_2",
   "level": "level2",
   "mats": 46,
-  "idle": 600
+  "idle": 600,
+  "icon": "menus/Mart_CafeIcon"
  },
  {
   "id": "store3",
@@ -21,7 +23,8 @@
   "scene": "Store_3",
   "level": "level3",
   "mats": 35,
-  "idle": 900
+  "idle": 900,
+  "icon": "menus/Mart_PizzaIcon"
  },
  {
   "id": "store4",
@@ -29,7 +32,8 @@
   "scene": "Store_4",
   "level": "level6",
   "mats": 40,
-  "idle": 1200
+  "idle": 1200,
+  "icon": "menus/Mart_BlueberryIcon"
  },
  {
   "id": "store5",
@@ -37,7 +41,8 @@
   "scene": "Store_5",
   "level": "level7",
   "mats": 49,
-  "idle": 1500
+  "idle": 1500,
+  "icon": "menus/Mart_BurgerIcon"
  },
  {
   "id": "store6",
@@ -45,7 +50,8 @@
   "scene": "Store_6",
   "level": "level8",
   "mats": 35,
-  "idle": 2000
+  "idle": 2000,
+  "icon": "menus/Mart_SushiIcon"
  },
  {
   "id": "store7",
@@ -53,7 +59,8 @@
   "scene": "Store_7",
   "level": "level9",
   "mats": 39,
-  "idle": 2600
+  "idle": 2600,
+  "icon": "menus/Mart_MexicanIcon"
  },
  {
   "id": "store8",
@@ -61,7 +68,8 @@
   "scene": "Store_8",
   "level": "level10",
   "mats": 33,
-  "idle": 3300
+  "idle": 3300,
+  "icon": "menus/Mart_DessertIcon"
  },
  {
   "id": "store9",
@@ -69,7 +77,8 @@
   "scene": "Store_9",
   "level": "level11",
   "mats": 38,
-  "idle": 4200
+  "idle": 4200,
+  "icon": "menus/Mart_CinemaIcon"
  },
  {
   "id": "store10",
@@ -77,7 +86,8 @@
   "scene": "Store_10",
   "level": "level12",
   "mats": 38,
-  "idle": 5500
+  "idle": 5500,
+  "icon": "menus/Mart_HotdogIcon"
  },
  {
   "id": "store11",
@@ -85,7 +95,8 @@
   "scene": "Store_11",
   "level": "level14",
   "mats": 30,
-  "idle": 7000
+  "idle": 7000,
+  "icon": "menus/Mart_FairgroundIcon"
  },
  {
   "id": "store12",
@@ -93,7 +104,8 @@
   "scene": "Store_12",
   "level": "level16",
   "mats": 39,
-  "idle": 8000
+  "idle": 8000,
+  "icon": "menus/Mart_SeafoodIcon"
  },
  {
   "id": "store13",
@@ -101,7 +113,8 @@
   "scene": "Store_13",
   "level": "level18",
   "mats": 33,
-  "idle": 9000
+  "idle": 9000,
+  "icon": "menus/Mart_RatatouilleIcon"
  },
  {
   "id": "store14",
@@ -109,6 +122,7 @@
   "scene": "Store_14",
   "level": "level20",
   "mats": 30,
-  "idle": 10000
+  "idle": 10000,
+  "icon": "sprites/martIcon"
  }
 ]

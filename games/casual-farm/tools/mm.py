@@ -13,7 +13,9 @@ from UnityPy.helpers.TypeTreeNode import TypeTreeNode
 REF = os.environ.get("MM_REF", "D:/minimart-ref")
 DATA = [os.path.join(REF, p) for p in ("com.KisekiGames.smart/assets/bin/Data/data.unity3d", "UnityDataAssetPack/assets/bin/Data/datapack.unity3d",
                                        "com.KisekiGames.smart/assets/bin/Data/Resources/unity default resources",
-                                       "UnityDataAssetPack/assets/aa/Android/defaultlocalgroup_assets_all_926c4ae76da8857efb97404a90513c4c.bundle")]
+                                       "UnityDataAssetPack/assets/aa/Android/defaultlocalgroup_assets_all_926c4ae76da8857efb97404a90513c4c.bundle",
+                                       # MonoScripts of the addressable prefabs (menus spawned from CanvasManager)
+                                       "UnityDataAssetPack/assets/aa/Android/19966a5ac228b87df6e9aa722bceb29b_monoscripts_82f4764c979b36838b75fa5821a01fe0.bundle")]
 _env = None
 _gen = None
 _nodes = {}
@@ -53,7 +55,7 @@ def ext_names(sf):
 
 def script(obj):
     raw = obj.get_raw_data()
-    fid, pid = int.from_bytes(raw[16:20], "little"), int.from_bytes(raw[20:28], "little")
+    fid, pid = int.from_bytes(raw[16:20], "little"), int.from_bytes(raw[20:28], "little", signed=True)
     sf = obj.assets_file
     name = sf.name if fid == 0 else ext_names(sf)[fid - 1]
     return _scripts.get((name, pid), (None, f"?{name}:{pid}"))

@@ -346,7 +346,9 @@ def node_data(f, g, idx, parent, path):
                 d = mono(o)
                 extra["scaler"] = scaler_of(d)
             elif cls == "UnityEngine.UI.Button":
-                extra["button"] = True
+                # White button sprites take their colour from the ColorBlock tint (normal / pressed)
+                c = mono(o)["m_Colors"]
+                extra["button"] = {"normal": col(c["m_NormalColor"]), "pressed": col(c["m_PressedColor"])}
             elif cls == "UnityEngine.UI.Slider" or cls == "UnityEngine.UI.Scrollbar":
                 extra["slider"] = True
             elif kind == "Canvas":

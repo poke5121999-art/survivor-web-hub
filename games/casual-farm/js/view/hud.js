@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { carryLimit, UPGRADE } from '../sim/sim.js';
 import { Action } from '../sim/tasks.js';
+import { MartMenu } from './martmenu.js';
 
 const v3 = new THREE.Vector3();
 const KEYS = { ArrowUp: [0, -1], KeyW: [0, -1], ArrowDown: [0, 1], KeyS: [0, 1], ArrowLeft: [-1, 0], KeyA: [-1, 0], ArrowRight: [1, 0], KeyD: [1, 0] };
@@ -29,7 +30,8 @@ export class Hud {
     const ui = n => `${art}/ui/sprites/${n}.webp`;
     this.ui = ui;
     this.root.innerHTML = `
-      <div class="cash"><img src="${ui('cashIcon')}" alt=""><span id="cash">0</span></div>
+      <div class="counters"><div class="cash"><img src="${ui('cashIcon')}" alt=""><span id="cash">0</span></div>
+        <div class="cash gold" id="goldc"><img src="${art}/ui/menus/goldBarIcon.webp" alt=""><span id="gold">0</span></div></div>
       <div class="joy" id="joy"><img class="ring" src="${ui('AllAxis_Outline_Arrows')}" alt=""><img class="knob" src="${ui('Handle_Plain')}" alt=""></div>
       <div class="max" id="max">MAX</div>
       <div class="tags" id="tags"></div>
@@ -51,8 +53,7 @@ export class Hud {
       <div class="upmenu upgrades" id="upmenu"><div class="head"><img src="${ui('upgradeIcon')}" alt=""><b>UPGRADES</b><a class="btn x">✕</a></div>
         <div class="tabs"><a class="btn tab workers" data-tab="workers">Workers<i class="dot"></i></a><a class="btn tab machines" data-tab="machines">Machines<i class="dot"></i></a><a class="btn tab animals" data-tab="animals">Animals<i class="dot"></i></a></div>
         <div class="rows"></div></div>
-      <div class="boosts" id="boosts"></div>
-      <div class="upmenu map" id="mapmenu"><div class="head"><b>MARTS</b><a class="btn x">✕</a></div><div class="rows"></div></div>`;
+      <div class="boosts" id="boosts"></div>`;
     // SettingMenuController: sound, music and vibration (VibratePref, on by default) switches.
     try { this.vibrate = localStorage.getItem('mmm-vibrate') !== '0'; } catch (e) { this.vibrate = true; }
     this.setEl = this.root.querySelector('#setmenu');
@@ -137,22 +138,14 @@ export class Hud {
       if (e.type === 'matDone') this.buzz([20, 40, 20]);
       if (e.type === 'customerPack' && !(sim.state.cashiers[e.cashier] || {}).worker) this.buzz(10);
     });
-    this.mapEl = this.root.querySelector('#mapmenu');
-    this.mapRows = this.mapEl.querySelector('.rows');
-    this.root.querySelector('#mapbtn').addEventListener('click', () => {
-      this.closeMenus(this.mapEl);
-      this.mapEl.classList.toggle('open');
-      this.mapKey = null;
-      this.mapT = 0;
-    });
-    this.mapEl.querySelector('.x').addEventListener('click', () => this.mapEl.classList.remove('open'));
-    this.mapRows.addEventListener('click', e => {
-      const b = e.target.closest('[data-id]');
-      const row = b && this.martRows && this.martRows.find(r => r.id === b.dataset.id);
-      if (!row || !this.martMap) return;
-      if (b.dataset.act === 'collect' && row.ready) { this.martMap.collect(row); this.mapT = 0; }
-      if (b.dataset.act === 'go' && row.visited && !row.here) this.martMap.go(row);
-    });
+    // City map card + prestige screens (MartMenuController, PrestigeMenuController), see martmenu.js.
+    if (martMap) {
+      this.martMenu = new MartMenu({ root: this.root, art, ui, martMap, sound, onOpen: () => this.closeMenus(this.martMenu.card) });
+      this.mapEl = this.martMenu.card;
+      this.root.querySelector('#mapbtn').addEventListener('click', () => {
+        if (this.martMenu.isOpen) this.martMenu.close(); else this.martMenu.open();
+      });
+    }
     this.boostEl = this.root.querySelector('#boosts');
     this.boostEl.addEventListener('click', e => {
       const b = e.target.closest('[data-boost]');
@@ -166,6 +159,7 @@ export class Hud {
     this.nextEl.querySelector('.close').addEventListener('click', () => Object.assign(sim.state.next, { ready: false, closed: true }));
     this.taskEl = this.root.querySelector('#task');
     this.cashEl = this.root.querySelector('#cash');
+    this.goldEl = this.root.querySelector('#gold');
     this.joyEl = this.root.querySelector('#joy');
     this.knob = this.joyEl.querySelector('.knob');
     this.maxEl = this.root.querySelector('#max');
@@ -261,9 +255,24 @@ export class Hud {
     this.phoneEl.querySelector('[data-collect]').classList.toggle('poor', !full);
   }
 
+  // Map card refresh, and CheckShouldPopUpPrestigeInfo: once the current mart is 100 % built (prestigeRequirement 1.0)
+  // and HasSeenPrestigeInfo is unset, the "New Update: Prestige" popup points at the map.
+  updatePrestige() {
+    this.martMenu.update();
+    const g = this.martMap.global;
+    if (g.seenPrestigeInfo || this.martMenu.pending) return;
+    const mats = Object.values(this.sim.state.mats);
+    if (mats.length && mats.every(m => m.done)) {
+      g.seenPrestigeInfo = true;
+      this.closeMenus();
+      this.martMenu.showInfo();
+    }
+  }
+
   // One popup at a time.
   closeMenus(keep) {
-    for (const el of [this.upEl, this.mapEl, this.setEl, this.phoneEl]) if (el && el !== keep) el.classList.remove('open');
+    for (const el of [this.upEl, this.setEl, this.phoneEl]) if (el && el !== keep) el.classList.remove('open');
+    if (this.martMenu && keep !== this.mapEl) this.martMenu.close();
   }
 
   bindInput() {
@@ -299,7 +308,7 @@ export class Hud {
   }
 
   joystick() {
-    if (this.root.querySelector('.upmenu.open')) return { x: 0, y: 0, mag: 0 };
+    if (this.root.querySelector('.upmenu.open, .mcard.open, .mshade.open')) return { x: 0, y: 0, mag: 0 };
     let x = this.stick.x, y = this.stick.y;
     for (const k of this.keys) { x += KEYS[k][0]; y += KEYS[k][1]; }
     const mag = Math.min(1, Math.hypot(x, y));
@@ -417,24 +426,6 @@ export class Hud {
     for (const t of ['workers', 'machines', 'animals']) this.upEl.querySelector(`.tab.${t}`).classList.toggle('alert', !st.seen[t] && t !== this.tab);
   }
 
-  // Map menu rows: progress bar, idle income (COLLECT when the 3-hour clock is up, else the time left) and GO.
-  updateMap() {
-    const rows = this.martRows = this.martMap.rows();
-    const cash = `<img src="${this.ui('cashIcon')}" alt="">`;
-    const clock = s => { const m = Math.ceil(s / 60); return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`; };
-    const html = rows.map(r => {
-      if (!r.visited) return `<div class="row locked"><img src="${this.ui('padlock_icon')}" alt=""><span><b>${r.name}</b><i>Locked</i></span></div>`;
-      const pct = Math.floor(r.rate * 100);
-      const idle = r.ready ? `<a class="btn buy" data-id="${r.id}" data-act="collect">${cash}${r.amount}</a>`
-        : r.amount > 0 ? `<a class="btn buy poor">${cash}${r.amount} · ${clock(r.left)}</a>` : '';
-      const go = r.here ? '<a class="btn buy max">HERE</a>' : `<a class="btn buy go" data-id="${r.id}" data-act="go">GO</a>`;
-      return `<div class="row"><img src="${this.ui('martIcon')}" alt=""><span><b>${r.name}</b><i class="bar"><u style="width:${pct}%"></u></i><i>${pct}%</i></span>${idle}${go}</div>`;
-    }).join('');
-    if (html === this.mapKey) return;
-    this.mapKey = html;
-    this.mapRows.innerHTML = html;
-  }
-
   // Booster buttons (BoosterAdsController): the running boosts with their time left, the current offer, and the
   // extra-cash button; the extra-cash mat also gets a price tag in the world.
   updateBoosts() {
@@ -470,6 +461,9 @@ export class Hud {
   update() {
     const sim = this.sim, st = sim.state, s = this.store;
     this.cashEl.textContent = st.cash;
+    const gold = this.martMap ? this.martMap.global.gold || 0 : 0;
+    this.goldEl.textContent = gold;
+    this.goldEl.parentNode.style.display = gold > 0 ? '' : 'none';
     for (const t of this.tags.values()) t._seen = false;
 
     s.mats.forEach(m => {
@@ -545,11 +539,7 @@ export class Hud {
     if (this.martMap) this.root.querySelector('#mapbtn').style.display = this.martMap.global.visited.length > 1 ? '' : 'none';
     this.updateFloats();
     if (this.upEl.classList.contains('open')) this.updateMenu();
-    // Twice a second: each refresh reads the other marts' saves.
-    if (this.martMap && this.mapEl.classList.contains('open') && !(performance.now() - (this.mapT || 0) < 500)) {
-      this.mapT = performance.now();
-      this.updateMap();
-    }
+    if (this.martMenu) this.updatePrestige();
     this.matArrows.forEach((p, i) => {
       const m = s.mats[i], ms = st.mats[m.name];
       if (p && ms.open && !ms.done && st.active.has(m.name) && st.t >= ms.openAt) this.arrow(`ma:${i}`, p);

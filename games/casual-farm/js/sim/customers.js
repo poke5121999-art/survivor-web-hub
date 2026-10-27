@@ -25,7 +25,6 @@ export class Customers {
     this.def = c;
     this.list = [];
     this.nextId = 1;
-    this.demandIndex = 0;
     this.liveDemand = {};
     this.failed = {};
     this.unlocked = new Set();
@@ -72,7 +71,7 @@ export class Customers {
   }
 
   nextDemand() {
-    const d = this.def, i = this.demandIndex;
+    const d = this.def, i = this.sim.state.demandIndex;
     if (i < d.demands.length && i < d.codeProceduralFrom) {
       const scripted = d.demands[i];
       if (i < d.basicUpTo || this.achievable(scripted)) return { items: scripted.map(x => ({ ...x })), scripted: true };
@@ -239,7 +238,7 @@ export class Customers {
       }
     }
     c.items.forEach(x => { this.liveDemand[x.type] = Math.max(0, (this.liveDemand[x.type] || 0) - 1); });
-    if (paid && !c.unachievable) this.demandIndex++;
+    if (paid && !c.unachievable) this.sim.state.demandIndex++;
     c.state = CState.Leaving;
     c.cashier = -1;
     const ex = this.def.exits;

@@ -55,7 +55,8 @@ export class Sim {
     this.timers = [];
     this.systems = [];
     const s = this.state = {
-      t: 0, cash, stackLevel: 0,
+      // demandIndex: CustomerManager.currentDemandIndex, saved with the mart (scripted demands, then procedural)
+      t: 0, cash, stackLevel: 0, demandIndex: 0,
       player: { x: store.player.start.x, y: 0, z: store.player.start.z, dirX: 0, dirZ: 1, moving: false, frozen: 0 },
       carry: [],
       active: new Set(),
@@ -566,7 +567,7 @@ export class Sim {
       active: [...st.active].filter(n => this.store.activatedLater.has(n)),
       producers: st.producers.map(p => ({ out: p.out.filter(x => x != null).length, inputs: p.inputs })),
       shelves: st.shelves.map(s => s.count), desk: st.cashiers.map(c => c.cash),
-      coins: st.coins.map(c => c.taken ? 1 : 0), carry: st.carry, task: st.task, levels: st.levels, seen: st.seen,
+      coins: st.coins.map(c => c.taken ? 1 : 0), carry: st.carry, task: st.task, levels: st.levels, seen: st.seen, demand: st.demandIndex,
     };
   }
 
@@ -579,6 +580,7 @@ export class Sim {
       st.levels.workers = d.levels.workers || {};
     }
     if (d.seen) Object.assign(st.seen, d.seen);
+    if (d.demand) st.demandIndex = d.demand;
     if (d.player) { st.player.x = d.player.x; st.player.z = d.player.z; }
     (d.active || []).forEach(n => st.active.add(n));
     s.mats.forEach(m => {

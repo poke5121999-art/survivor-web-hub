@@ -146,6 +146,12 @@
   ],
   "volume": 1.0
  },
+ "renovation": {
+  "files": [
+   "renovationSFX.mp3"
+  ],
+  "volume": 0.4
+ },
  "music": {
   "files": [
    "My_Mini_Mart___Idea_2___Alt_Melody_3.mp3"

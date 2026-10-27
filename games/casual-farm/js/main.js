@@ -42,6 +42,10 @@ global.idleAt = global.idleAt || {};
 if (!global.visited) global.visited = Object.keys(localStorage).map(k => (k.match(/^mmm-(store\d+)-v1$/) || [])[1]).filter(Boolean);
 if (!global.visited.includes(STORE)) global.visited.push(STORE);
 if (global.idleAt[STORE] == null) global.idleAt[STORE] = Date.now();
+// Prestige (census-prestige.md): stars per mart (martStarList), gold bars, and the reward waiting for the welcome
+// screen after the reload (GameSingleton.SetPrestigeReward / JustPrestiged).
+global.stars = global.stars || {};
+global.gold = global.gold || 0;
 
 const canvas = document.getElementById('game');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -114,7 +118,10 @@ async function load() {
   const store = buildStore(sceneJson, data);
   const nav = new NavMesh(navJson, store.player.start);
   const grid = new GridNav(nav);
-  const sim = new Sim(store, { save: readSave(), cash: global.cash });
+  const saved = readSave();
+  const sim = new Sim(store, { save: saved, cash: global.cash });
+  // HasJustPrestiged: the rebuilt mart starts at currentDemandIndex 100 (CustomerManager.c:2907-2911).
+  if (!saved && global.prestige && global.prestige.id === STORE) sim.state.demandIndex = 100;
   const tasks = new Tasks(sim, buildTasks(store));
   const workers = new Workers(sim, grid);
   sim.systems.push(new Customers(sim, grid), workers, new Thief(sim, grid), new Cars(sim), new Boosters(sim), tasks);
@@ -126,14 +133,38 @@ async function load() {
   const doneOf = id => (id === STORE ? Object.values(sim.state.mats).filter(m => m.done).length
     : Object.values((load_(MART_KEY(id)) || {}).mats || {}).filter(m => m.done).length);
   const martMap = {
-    rows: () => martRows(marts, global, doneOf, Date.now()),
-    collect: row => {
+    rows: () => {
+      // UpdateCollectButton stamps a reached mart the first time the menu shows it, so its 3-hour clock starts then.
+      const now = Date.now();
+      for (const id of global.visited) if (global.idleAt[id] == null) global.idleAt[id] = now;
+      return martRows(marts, global, doneOf, now);
+    },
+    // GiveExtraCashImmediateSaveGame(income), or trunc(1.5 x income) from the ad button, then the clock restarts.
+    collect: (row, mult = 1) => {
+      const amount = Math.trunc(row.income * mult);
       global.idleAt[row.id] = Date.now();
-      sim.state.cash += row.amount;
-      sim.emit({ type: 'coinPile', amount: row.amount });
+      sim.state.cash += amount;
+      sim.emit({ type: 'coinPile', amount });
       save();
     },
     go: row => travel(row.id),
+    // OnPressPrestigeButton: star +1, the mart's save is deleted, the reward is parked for the welcome screen, then
+    // the renovation sound plays and that mart's scene loads.
+    prestige: row => {
+      global.stars[row.id] = row.star + 1;
+      global.prestige = { id: row.id, name: row.name, icon: row.icon, star: row.star + 1, cash: row.offer.cash, gold: row.offer.gold,
+        before: row.offer.now, after: row.offer.next };
+      if (game.hud.sound) game.hud.sound.play('renovation');
+      setTimeout(() => travel(row.id, row.id), 600);
+    },
+    // PrestigeMenuWelcome.OnPressClaimButton: GiveExtraCash(cash) and GiveExtraGold(gold), no ad.
+    claim: p => {
+      sim.state.cash += p.cash;
+      sim.emit({ type: 'coinPile', amount: p.cash });
+      global.gold += p.gold;
+      global.prestige = null;
+      save();
+    },
     global,
   };
   const hud = new Hud({ sim, store, camera, canvas, items, art: ART, world, tasks, matArrows: matArrows(store), nextMart: next, workerDefs: workers.defs,
@@ -163,8 +194,15 @@ function save() {
 
 // MatNextStore.FillUpCompleted: the van leaves after 1.0 s and drives for 1.5 s, then the next scene loads.
 const VAN_TIME = 2600;
-function travel(id) {
-  save();
+// wipe: a mart whose save is deleted on the way (prestige); the cash is kept, the mart's own record is not written back.
+function travel(id, wipe = null) {
+  if (wipe && wipe === STORE && game) {
+    global.cash = game.sim.state.cash;
+    game = null;
+  } else save();
+  if (wipe) {
+    try { localStorage.removeItem(MART_KEY(wipe)); } catch (e) { /* storage unavailable */ }
+  }
   global.mart = id;
   store_(GLOBAL_KEY, global);
   const keep = new URLSearchParams();
@@ -209,6 +247,8 @@ load().then(g => {
   // No welcome-back popup: WelcomeBackController has no caller in the original (census-daily-shop.md); away time pays
   // only through the map's idle income.
   if (params.has('bot')) g.bot = bot = new Bot(g.sim, g.grid);
+  // CanvasManager.Start with HasJustPrestiged: the welcome screen, then ResetPrestige.
+  if (global.prestige && global.prestige.id === STORE && g.hud.martMenu) g.hud.martMenu.showWelcome(global.prestige);
   mm.ready = true;
 }).catch(e => {
   console.error(e);

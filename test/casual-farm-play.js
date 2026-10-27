@@ -212,31 +212,132 @@ function serve() {
     check('the next-mart pad opens the menu and GO drives to Store 2 with the cash', before.shown && arrived.first === 'Mat_Activate_Cashier_Cafe' && arrived.cash === 777,
       `menu ${before.shown} "${before.label}", first mat ${arrived.first}, cash ${arrived.cash}`);
 
-    // Map menu (MartMenuController): Store 1 now holds idle income; three hours on, COLLECT pays it and GO goes back.
+    // Map card (MartMenuController): it opens on this mart; Down walks back to Store 1, which three hours on holds its
+    // idle income; Collect pays it once, Store 3 shows locked, and GO goes back to Store 1.
     const map = await page.evaluate(async () => {
       const g = window.__mmGame, mm = g.hud.martMap, st = g.sim.state;
+      const card = document.querySelector('#mapmenu');
       mm.global.idleAt.store1 = Date.now() - 10801 * 1000;
       document.querySelector('#mapbtn').click();
-      await new Promise(r => setTimeout(r, 700));
-      const rows = [...document.querySelectorAll('#mapmenu .row')];
+      await new Promise(r => setTimeout(r, 300));
+      const first = card.querySelector('.title').textContent, here = getComputedStyle(card.querySelector('.here')).display !== 'none';
+      card.querySelector('.up').click();
+      await new Promise(r => setTimeout(r, 100));
+      const third = { title: card.querySelector('.title').textContent, locked: card.classList.contains('locked') };
+      card.querySelector('.down').click();
+      card.querySelector('.down').click();
+      await new Promise(r => setTimeout(r, 100));
       const s1 = mm.rows().find(r => r.id === 'store1');
       const cash0 = st.cash;
-      const btn = document.querySelector('#mapmenu [data-id="store1"][data-act="collect"]');
-      if (btn) btn.click();
-      return { rows: rows.length, locked: rows.filter(r => r.classList.contains('locked')).length, here: !!document.querySelector('#mapmenu .max'),
-        expect: s1.amount, paid: st.cash - cash0, again: mm.rows().find(r => r.id === 'store1').ready };
+      const title = card.querySelector('.title').textContent, num = card.querySelector('.inc .num').textContent;
+      card.querySelector('[data-act="collect"]').click();
+      await new Promise(r => setTimeout(r, 100));
+      return { open: card.classList.contains('open'), first, here, third, title, num, expect: s1.income, max: s1.max, paid: st.cash - cash0,
+        again: mm.rows().find(r => r.id === 'store1').ready, timer: card.querySelector('.collect s').textContent };
     });
-    check('the map lists every mart and COLLECT pays the Store 1 idle income once', map.rows === 14 && map.locked === 12 && map.here && map.expect > 0 && map.paid === map.expect && !map.again,
+    check('the map card opens on this mart, walks to Store 1 and Collect pays its idle income once',
+      map.open && map.first === 'Cafe Mart' && map.here && map.third.title === 'Pizza Mart' && map.third.locked && map.title === 'Grocer Mart'
+      && map.expect > 0 && map.expect === map.max && map.num === `${map.max}/${map.max}` && map.paid === map.expect && !map.again && /^\d+h \d\dm \d\ds$|^\d\dm \d\ds$/.test(map.timer),
       JSON.stringify(map));
     const cashBack = await page.evaluate(() => {
       const c = window.__mmGame.sim.state.cash;
       window.__oldPage = true;
-      document.querySelector('#mapmenu [data-id="store1"][data-act="go"]').click();
+      document.querySelector('#mapmenu [data-act="go"]').click();
       return c;
     });
     await page.waitForFunction(() => !window.__oldPage && window.__mm && (window.__mm.ready || window.__mm.error) && window.__mmGame, null, { timeout: 90000 });
     const back1 = await page.evaluate(() => ({ first: window.__mmGame.store.mats[0].name, cash: window.__mmGame.sim.state.cash }));
     check('GO on the map goes back to Store 1 with the cash', back1.first === 'Mat_Activate_Cashier' && back1.cash === cashBack, JSON.stringify(back1));
+
+    // Prestige (census-prestige.md). At 100 % the one-time "New Update: Prestige" popup points at the map; the card's
+    // Prestige button opens the menu with 20 gold, 1.5 x max income in cash and max income 300 -> 450; Rebuild wipes
+    // Store 1 and reloads it at demand 100 with the welcome screen, whose Claim pays the cash and the gold.
+    const pre = await page.evaluate(async () => {
+      const g = window.__mmGame, st = g.sim.state;
+      for (const m of Object.values(st.mats)) m.done = true;
+      await new Promise(r => setTimeout(r, 300));
+      const info = document.querySelector('#prestigeinfo').classList.contains('open');
+      document.querySelector('#prestigeinfo [data-act="map"]').click();
+      await new Promise(r => setTimeout(r, 300));
+      const card = document.querySelector('#mapmenu');
+      const fromInfo = card.classList.contains('open') && card.querySelector('.title').textContent === 'Grocer Mart';
+      const btnOn = !card.querySelector('.prest').classList.contains('off');
+      card.querySelector('[data-act="prestige"]').click();
+      await new Promise(r => setTimeout(r, 100));
+      const pm = document.querySelector('#prestigemenu');
+      const menu = { open: pm.classList.contains('open'), gold: pm.querySelector('b.vg').textContent, cash: pm.querySelector('b.vc').textContent,
+        a: pm.querySelector('b.a').textContent, b: pm.querySelector('b.b').textContent, comp: pm.querySelector('.comp b').textContent,
+        next: pm.querySelectorAll('.stars i.nx').length };
+      window.__cashBefore = st.cash;
+      window.__oldPage = true;
+      pm.querySelector('[data-act="rebuild"]').click();
+      return { info, fromInfo, btnOn, menu, cash: st.cash };
+    });
+    check('at 100 % the prestige popup opens the map, and the menu offers 20 gold, 450 cash, max income 300 -> 450',
+      pre.info && pre.fromInfo && pre.btnOn && pre.menu.open && pre.menu.gold === '20' && pre.menu.cash === '450' && pre.menu.a === '300'
+      && pre.menu.b === '450' && pre.menu.comp === '100% Completed' && pre.menu.next === 1, JSON.stringify(pre));
+    await page.waitForFunction(() => !window.__oldPage && window.__mm && (window.__mm.ready || window.__mm.error) && window.__mmGame, null, { timeout: 90000 });
+    const post = await page.evaluate(async () => {
+      const g = window.__mmGame, st = g.sim.state, w = document.querySelector('#prestigewelcome');
+      const done = Object.values(st.mats).filter(m => m.done).length;
+      const shown = { open: w.classList.contains('open'), stars: w.querySelectorAll('.stars i.on').length, gold: w.querySelector('b.vg').textContent,
+        cash: w.querySelector('b.vc').textContent, a: w.querySelector('b.a').textContent, b: w.querySelector('b.b').textContent };
+      const cash0 = st.cash;
+      await new Promise(r => setTimeout(r, 1300));
+      w.querySelector('[data-act="claim"]').click();
+      await new Promise(r => setTimeout(r, 100));
+      const row = g.hud.martMap.rows().find(r => r.id === 'store1');
+      return { first: g.store.mats[0].name, done, demand: st.demandIndex, shown, cash0, paid: st.cash - cash0, gold: g.hud.martMap.global.gold,
+        goldShown: document.querySelector('#gold').textContent, star: row.star, max: row.max, closed: !w.classList.contains('open') };
+    });
+    check('Rebuild reloads Store 1 empty at demand 100 with 1 star, and Claim pays 450 cash and 20 gold',
+      post.first === 'Mat_Activate_Cashier' && post.done === 0 && post.demand === 100 && post.shown.open && post.shown.stars === 1
+      && post.shown.gold === '20' && post.shown.cash === '450' && post.shown.a === '300' && post.shown.b === '450' && post.paid === 450
+      && post.gold === 20 && post.closed && post.star === 1 && post.max === 300 && post.cash0 === pre.cash, JSON.stringify(post));
+    await page.waitForTimeout(800);
+    check('the gold counter shows the bars', await page.evaluate(() => getComputedStyle(document.querySelector('#goldc')).display !== 'none'
+      && document.querySelector('#gold').textContent === '20'));
+
+    // Layout of the map card and the prestige menu on a phone and a desktop window: every block sits inside its panel
+    // and the viewport, the card's blocks do not overlap, and no text is clipped by its button.
+    for (const [vw, vh] of [[390, 844], [1280, 720]]) {
+      await page.setViewportSize({ width: vw, height: vh });
+      await page.waitForTimeout(300);
+      const lay = await page.evaluate(async () => {
+        const g = window.__mmGame, st = g.sim.state, mats = Object.values(st.mats);
+        mats.forEach((m, i) => { m.done = i < mats.length * 0.85; });
+        const hud = g.hud, menu = hud.martMenu;
+        menu.close();
+        menu.open();
+        await new Promise(r => setTimeout(r, 200));
+        const box = el => el.getBoundingClientRect();
+        const inside = (a, b) => a.left >= b.left - 1 && a.right <= b.right + 1 && a.top >= b.top - 1 && a.bottom <= b.bottom + 1;
+        const overlap = (a, b) => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
+        const view = { left: 0, top: 0, right: innerWidth, bottom: innerHeight };
+        const bad = [];
+        const card = document.querySelector('#mapmenu .panel'), cb = box(card);
+        if (!inside(cb, view)) bad.push('card outside the viewport');
+        const parts = ['.head', '.line', '.mid', '.go', '.nav', '.x'].map(q => [q, box(card.querySelector(q))]);
+        for (const [q, b] of parts) if (!inside(b, cb)) bad.push(`${q} outside the card`);
+        for (let i = 0; i < parts.length; i++) for (let j = i + 1; j < parts.length; j++)
+          if (overlap(parts[i][1], parts[j][1]) && !(parts[i][0] === '.head' && parts[j][0] === '.x')) bad.push(`${parts[i][0]} overlaps ${parts[j][0]}`);
+        if (overlap(box(card.querySelector('.head')), box(card.querySelector('.x')))) bad.push('.head overlaps .x');
+        for (const t of card.querySelectorAll('.tb')) if (t.offsetParent && t.scrollWidth > t.clientWidth + 1) bad.push(`text clipped in ${t.textContent.trim()}`);
+        card.querySelector('[data-act="prestige"]').click();
+        await new Promise(r => setTimeout(r, 200));
+        const pm = document.querySelector('#prestigemenu .panel'), pb = box(pm);
+        if (!inside(pb, view)) bad.push('prestige menu outside the viewport');
+        for (const q of ['.title', '.info', '.foot', '.x', '.info .mart', '.info p', '.info .rew', '.info .maxinc'])
+          if (!inside(box(pm.querySelector(q)), pb)) bad.push(`prestige ${q} outside the panel`);
+        const kids = [...pm.querySelectorAll('.info > *')].map(e => box(e));
+        for (let i = 1; i < kids.length; i++) if (overlap(kids[i - 1], kids[i])) bad.push(`prestige info rows ${i - 1}/${i} overlap`);
+        document.querySelector('#prestigemenu [data-act="close"]').click();
+        menu.close();
+        return { bad, card: [Math.round(cb.width), Math.round(cb.height)], menu: [Math.round(pb.width), Math.round(pb.height)] };
+      });
+      check(`the map card and prestige menu lay out cleanly at ${vw}x${vh}`, lay.bad.length === 0, JSON.stringify(lay));
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
 
     // Stores 9-14 build their mats from the progression CSV: the first one is open and drawn.
     await page.goto(`${url}?mart=store9&fresh`);
