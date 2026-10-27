@@ -99,7 +99,7 @@ export function buildStore(scene, data) {
         limits: limits.map(l => Math.min(l, Math.max(outSlots.length, 1))), title: f.factoryName || n.n,
         // The legacy upgrade menu lists machines and trucks (factoryType 1, Machines tab) and animals (factoryType 2, Animals
         // tab); plants never (rules/upgrade-menu.md section 1).
-        upgradable: kind === 'harvest' || kind === 'input', animal: f.factoryType === 2,
+        upgradable: kind === 'harvest' || kind === 'input', animal: f.factoryType === 2, factoryType: f.factoryType,
         inputs: ins.map((type, k) => {
           const j = inMats[Math.min(k, inMats.length - 1)];
           return { type, zone: j != null ? box(j) : null, slots: j != null ? slotsUnder(j, 'SlotInputController') : [] };

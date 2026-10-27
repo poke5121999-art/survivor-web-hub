@@ -25,6 +25,13 @@ TREES = {
 # key -> (file, MonoBehaviour path id): the whole prefab that holds this component (scene-referenced prefabs)
 BY_COMPONENT = {
     "martRow": ("sharedassets1.assets", 20836),  # MartMenuController: one row of the city map menu
+    # CustomiseScreenController (CUSTOMIZE CANVAS) and its shop holders (rules/census-cosmetics.md section 4)
+    "customise": ("sharedassets1.assets", 24340),
+    "hatButton": ("sharedassets1.assets", 17931),
+    "hatSpecial": ("sharedassets1.assets", 23693),
+    "outfitButton": ("sharedassets1.assets", 17941),
+    "outfitSpecial": ("sharedassets1.assets", 25276),
+    "petButton": ("sharedassets1.assets", 24212),
 }
 
 

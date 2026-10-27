@@ -5,12 +5,13 @@ import * as THREE from 'three';
 import { carryLimit, UPGRADE } from '../sim/sim.js';
 import { Action } from '../sim/tasks.js';
 import { MartMenu } from './martmenu.js';
+import { Customise } from './customise.js';
 
 const v3 = new THREE.Vector3();
 const KEYS = { ArrowUp: [0, -1], KeyW: [0, -1], ArrowDown: [0, 1], KeyS: [0, 1], ArrowLeft: [-1, 0], KeyA: [-1, 0], ArrowRight: [1, 0], KeyD: [1, 0] };
 
 export class Hud {
-  constructor({ sim, store, camera, canvas, items, art, world, tasks, matArrows, nextMart, workerDefs, sound, martMap, upgradeRows, onMapView }) {
+  constructor({ sim, store, camera, canvas, items, art, world, tasks, matArrows, nextMart, workerDefs, sound, martMap, upgradeRows, onMapView, cosmetics }) {
     this.upgradeRows = upgradeRows || null;
     this.floats = [];
     this.martMap = martMap;
@@ -41,6 +42,7 @@ export class Hud {
         <a class="btn lb set" id="setbtn"><img src="${ui('settingsUI')}" alt=""></a>
         <a class="btn lb mapbtn" id="mapbtn"><img src="${ui('MapCityUI')}" alt=""><i class="dot"></i></a>
         <a class="btn lb upbtn" id="upbtn"><img src="${ui('upgradeIcon')}" alt=""><i class="dot"></i></a>
+        <a class="btn lb custombtn" id="custombtn"><img src="${ui('oldCostumeIcon')}" alt=""></a>
         <a class="btn lb phone" id="phonebtn"><img src="${ui('mobilePhoneIcon')}" alt=""><i class="dot"></i><s></s></a>
       </div>
       <div class="upmenu phonemenu" id="phonemenu"><div class="head"><img src="${ui('car_CustomerIcon')}" alt=""><b>ORDER</b><a class="btn x">✕</a></div>
@@ -138,6 +140,17 @@ export class Hud {
       if (e.type === 'matDone') this.buzz([20, 40, 20]);
       if (e.type === 'customerPack' && !(sim.state.cashiers[e.cashier] || {}).worker) this.buzz(10);
     });
+    // Customise screen (CustomiseScreenController) behind the HatButton, see customise.js.
+    if (cosmetics) {
+      this.customise = new Customise({ root: this.root, art, ui, sound, data: cosmetics.data, state: cosmetics.state,
+        wallet: { cash: () => sim.state.cash, spendCash: n => { sim.state.cash -= n; }, gold: () => martMap.global.gold || 0,
+          spendGold: n => { martMap.global.gold -= n; } },
+        onChange: cosmetics.onChange, onShortCash: () => this.shakeCash(), onOpen: () => this.closeMenus(this.customise.el),
+        onMap: () => { if (this.martMenu) this.martMenu.open(); } });
+      this.root.querySelector('#custombtn').addEventListener('click', () => {
+        if (this.customise.isOpen) this.customise.close(); else this.customise.open();
+      });
+    } else this.root.querySelector('#custombtn').style.display = 'none';
     // City map card + prestige screens (MartMenuController, PrestigeMenuController), see martmenu.js.
     if (martMap) {
       this.martMenu = new MartMenu({ root: this.root, art, ui, martMap, sound, onOpen: () => this.closeMenus(this.martMenu.card), onView: onMapView });
@@ -273,6 +286,7 @@ export class Hud {
   closeMenus(keep) {
     for (const el of [this.upEl, this.setEl, this.phoneEl]) if (el && el !== keep) el.classList.remove('open');
     if (this.martMenu && keep !== this.mapEl) this.martMenu.close();
+    if (this.customise && keep !== this.customise.el) this.customise.close();
   }
 
   bindInput() {
@@ -462,6 +476,7 @@ export class Hud {
   update() {
     const sim = this.sim, st = sim.state, s = this.store;
     this.cashEl.textContent = st.cash;
+    this.root.classList.toggle('customising', !!(this.customise && this.customise.isOpen));
     const gold = this.martMap ? this.martMap.global.gold || 0 : 0;
     this.goldEl.textContent = gold;
     this.goldEl.parentNode.style.display = gold > 0 ? '' : 'none';
@@ -546,7 +561,7 @@ export class Hud {
       if (p && ms.open && !ms.done && st.active.has(m.name) && st.t >= ms.openAt) this.arrow(`ma:${i}`, p);
     });
 
-    const full = st.carry.length >= carryLimit(st.stackLevel);
+    const full = st.carry.length >= this.sim.carryMax();
     this.maxEl.style.display = full ? 'block' : 'none';
     if (full) {
       const p = this.screen({ x: st.player.x, y: 8 + st.carry.length * 1.3, z: st.player.z });

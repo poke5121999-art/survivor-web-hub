@@ -327,6 +327,45 @@ function serve() {
     check('the gold counter shows the bars', await page.evaluate(() => getComputedStyle(document.querySelector('#goldc')).display !== 'none'
       && document.querySelector('#gold').textContent === '20'));
 
+    // Customise screen (rules/census-cosmetics.md): cash buys Skin_Gray (500) and Hat_Chef (5000), gold buys the Ninja
+    // outfit (130, FasterPlayer x1.4: speed 23 -> 32.2) and the Duck (10, +1 carry); Hat_Ribbon needs 2 ad claims; IAP rows
+    // are not offered; items past the player's own limit ride on the pet; everything survives a reload.
+    const cos = await page.evaluate(async () => {
+      const g = window.__mmGame, st = g.sim.state, c = document.querySelector('#custom');
+      st.cash = 20000; g.hud.martMap.global.gold = 200;
+      document.querySelector('#custombtn').click();
+      const pick = (t, id) => { c.querySelector(`[data-tab="${t}"]`).click(); const b = c.querySelector(`[data-id="${id}"]`); if (b) b.click(); return !!b; };
+      pick('skins', 2); pick('hats', 7); pick('outfits', 12); pick('pets', 7);
+      pick('hats', 3);
+      const ribbonAfter1 = { owned: g.hud.customise.state.own.hats.has(3), label: c.querySelector('[data-id="3"] .foot').textContent };
+      pick('hats', 3);
+      const iapShown = pick('outfits', 2);
+      for (let i = 0; i < 40 && !g.looks.pet; i++) await new Promise(r => setTimeout(r, 100));
+      c.querySelector('[data-act="close"]').click();
+      const base = g.store.player.speed;
+      st.player.inputMag = 1; st.player.dirX = 1; st.player.dirZ = 0;
+      const x0 = st.player.x; g.sim.state.player.frozen = 0;
+      st.carry = Array(g.sim.carryMax()).fill(st.carry[0] || 'Tomato');
+      await new Promise(r => setTimeout(r, 300));
+      const petStack = (g.view.stacks.get('pet') || []).filter(o => o.parent === g.looks.pet.obj).length;
+      st.carry = [];
+      return { eq: { ...g.hud.customise.state.eq }, cash: st.cash, gold: g.hud.martMap.global.gold, ribbonAfter1, ribbon: g.hud.customise.state.own.hats.has(3),
+        iapShown, speed: +(base * g.sim.abilities.player).toFixed(2), carry: g.sim.carryMax(), petStack,
+        outfitMeshes: g.looks.extra.filter(m => m.isSkinnedMesh).length, hatMeshes: g.looks.extra.filter(m => m.isMesh && !m.isSkinnedMesh).length };
+    });
+    check('the customise screen sells by cash, gold and ad claims, and the outfit, hat and pet change the game',
+      cos.eq.skin === 2 && cos.eq.outfit === 12 && cos.eq.pet === 7 && cos.eq.hat === 3 && cos.cash === 20000 - 500 - 5000 && cos.gold === 200 - 130 - 10
+      && !cos.ribbonAfter1.owned && /1\/2/.test(cos.ribbonAfter1.label) && cos.ribbon && !cos.iapShown && cos.speed === 32.2 && cos.carry === 4
+      && cos.petStack === 1 && cos.outfitMeshes >= 1 && cos.hatMeshes >= 1, JSON.stringify(cos));
+    await page.reload();
+    await page.waitForFunction(() => window.__mm && (window.__mm.ready || window.__mm.error) && window.__mmGame, null, { timeout: 90000 });
+    const cos2 = await page.evaluate(async () => {
+      const g = window.__mmGame;
+      for (let i = 0; i < 40 && !g.looks.pet; i++) await new Promise(r => setTimeout(r, 100));
+      return { eq: { ...g.hud.customise.state.eq }, chef: g.hud.customise.state.own.hats.has(7), speed: g.sim.abilities.player, pet: !!g.looks.pet };
+    });
+    check('the cosmetics survive a reload', cos2.eq.outfit === 12 && cos2.eq.hat === 3 && cos2.chef && cos2.speed === 1.4 && cos2.pet, JSON.stringify(cos2));
+
     // Layout of the map card and the prestige menu on a phone and a desktop window: every block sits inside its panel
     // and the viewport, the card's blocks do not overlap, and no text is clipped by its button.
     for (const [vw, vh] of [[390, 844], [1280, 720]]) {

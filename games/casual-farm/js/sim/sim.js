@@ -229,6 +229,18 @@ export class Sim {
     }
   }
 
+  // Cosmetics (rules/census-cosmetics.md): the equipped outfit's abilities (OutfitController.ActivateAbility, one outfit,
+  // nothing stacks) and the pet's extra carry (PetController.carryLimit). Set from main.js on load and on every equip.
+  setCosmetics({ abilities = {}, petCarry = 0 } = {}) {
+    this.abilities = { machine: 1, animal: 1, worker: 1, player: 1, revenue: 1, ...abilities };
+    this.petCarry = petCarry;
+  }
+
+  // totalCarryingLimit = carryingLimit + petCarryLimit; items past the player's own limit ride on the pet.
+  carryMax() {
+    return carryLimit(this.state.stackLevel) + (this.petCarry || 0);
+  }
+
   limitOf(pi) {
     const p = this.store.producers[pi];
     return p.limits[Math.min(this.state.levels.producers[pi].stack, p.limits.length - 1)];
@@ -236,7 +248,10 @@ export class Sim {
 
   timeOf(pi) {
     const boost = this.boosters && this.boosters.on('machine') ? BOOST.machine : 1;
-    return this.store.producers[pi].time / FACTORY_SPEED[this.state.levels.producers[pi].speed] / boost;
+    // FactoryController: time = Original / (S x boost) x (1 - (m - 1)), m = FasterMachine / FasterAnimal by factoryType.
+    const ft = this.store.producers[pi].factoryType, ab = this.abilities || {};
+    const m = (ft === 1 ? ab.machine : ft === 2 ? ab.animal : 1) || 1;
+    return this.store.producers[pi].time / FACTORY_SPEED[this.state.levels.producers[pi].speed] / boost * (1 - (m - 1));
   }
 
   workerLevel(name) {
@@ -296,7 +311,8 @@ export class Sim {
     const pl = this.state.player;
     pl.frozen = Math.max(0, pl.frozen - dt);
     if (!pl.moving) return;
-    const base = this.store.player.speed + (this.boosters && this.boosters.on('player') ? BOOST.player : 0);
+    // finalSpeed = (speed + booster) x FasterPlayer (PlayerController.c:3215).
+    const base = (this.store.player.speed + (this.boosters && this.boosters.on('player') ? BOOST.player : 0)) * ((this.abilities || {}).player || 1);
     const speed = base * Math.min(pl.inputMag, 1);
     let nx = pl.x + pl.dirX * speed * dt, nz = pl.z + pl.dirZ * speed * dt;
     if (nav) {
@@ -361,7 +377,7 @@ export class Sim {
   }
 
   stepCarry(dt, zone) {
-    const st = this.state, acc = st.acc, lim = carryLimit(st.stackLevel);
+    const st = this.state, acc = st.acc, lim = this.carryMax();
     if (zone.inputs.length && st.carry.length) {
       acc.drop += dt;
       if (acc.drop >= this.store.player.dropOffRate) {

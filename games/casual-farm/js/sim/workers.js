@@ -67,7 +67,9 @@ export class Workers {
   walk(w, dt) {
     if (!w.path.length) { w.moving = false; return true; }
     const extra = this.sim.boosters && this.sim.boosters.on('worker') ? BOOST.worker : 0;
-    let budget = ((w.def.role === 'cashier' ? w.def.speed : UPGRADE.WORKER_SPEED[this.sim.workerLevel(w.name).speed]) + extra) * dt;
+    // ProgressManager.UpdateWorkerSpeed: (speed + booster) x FasterWorker.
+    const ab = (this.sim.abilities || {}).worker || 1;
+    let budget = ((w.def.role === 'cashier' ? w.def.speed : UPGRADE.WORKER_SPEED[this.sim.workerLevel(w.name).speed]) + extra) * ab * dt;
     while (budget > 0 && w.path.length) {
       const p = w.path[0], dx = p.x - w.x, dz = p.z - w.z, d = Math.hypot(dx, dz);
       if (d <= budget) { w.x = p.x; w.z = p.z; w.path.shift(); budget -= d; } else {

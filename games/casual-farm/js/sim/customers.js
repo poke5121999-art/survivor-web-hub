@@ -329,6 +329,9 @@ export class Customers {
         c.reward = c.items.reduce((a, x) => a + Math.trunc((sim.store.prices[x.type] ?? 1) * x.got), 0);
         // GameManager.IsCashBoosted: the reward is doubled before rounding.
         if (sim.boosters && sim.boosters.on('cash')) c.reward *= BOOST.cash;
+        // RevenueBoost outfit: round(m x pay) after the ad x2 (cashBoosterMultiplier).
+        const rev = (sim.abilities || {}).revenue || 1;
+        if (rev !== 1) c.reward = Math.round(c.reward * rev);
         sim.emit({ type: 'customerPack', id: c.id, cashier: c.cashier, items: c.carried.slice(), duration: c.packDur, close: c.closeAt });
         break;
       }

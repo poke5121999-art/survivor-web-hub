@@ -4,6 +4,9 @@ Usage: py -3.12 export_store.py <levelN> <out-id>        e.g. level1 store1  (le
        py -3.12 export_store.py level1 citymap --root CORE/GameManager/ENVIRONMENT_City --drop Environment_V2,AdsBreakDropPoints
          exports only that subtree (shown active, its own transform dropped) minus the named children: the 3D city map
          every store scene carries (rules/census-citymap.md).
+       py -3.12 export_store.py sharedassets1.assets pets --prefabs 22225,25472
+         exports prefabs of an .assets file instead of a scene: each id (a GameObject or one of its components) gives
+         its top-most GameObject as a root, in the order given (the pets' PetVisuals prefabs, rules/census-cosmetics.md).
 
 Writes games/casual-farm/art/<out-id>/
   geo.glb      every unique static mesh, glTF mesh i = scene.meshes[i], one primitive per submesh, no materials
@@ -297,6 +300,7 @@ def main():
     level, outid = sys.argv[1], sys.argv[2]
     opt = dict(zip(sys.argv[3::2], sys.argv[4::2]))
     root_path, drop = opt.get("--root"), set(filter(None, opt.get("--drop", "").split(",")))
+    prefab_ids = [int(x) for x in opt.get("--prefabs", "").split(",") if x]
     out = os.path.join(GAME, "art", outid)
     texdir = os.path.join(GAME, "art", "tex")
     os.makedirs(out, exist_ok=True)
@@ -305,7 +309,14 @@ def main():
     scene = Tree(level)
     keep = []
     root_g = None
-    if root_path:
+    if prefab_ids:
+        for pid in prefab_ids:
+            g = scene.owner.get(pid, pid)
+            while scene.parent.get(g):
+                g = scene.parent[g]
+            scene.walk(g, keep)
+            log("prefab", pid, "->", scene.T(g)["m_Name"])
+    elif root_path:
         parts = root_path.split("/")
         cur = [g for g in scene.roots() if scene.T(g)["m_Name"] == parts[0]]
         for name in parts[1:]:

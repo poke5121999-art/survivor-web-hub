@@ -22,6 +22,8 @@ import { martRows } from './sim/martmap.js';
 import { Boosters } from './sim/boosters.js';
 import { Fx } from './view/fx.js';
 import { CityMap } from './view/citymap.js';
+import { Looks } from './view/looks.js';
+import { cosmeticsState, saveCosmetics, cosmeticEffects } from './view/customise.js';
 
 const params = new URLSearchParams(location.search);
 const V = new URL(import.meta.url).searchParams.get('v') || '';
@@ -107,12 +109,13 @@ async function load() {
     glb(`${ART}/items/items.glb`), json(`${ART}/${STORE}/navmesh.json`), json(`${BASE}data/${STORE}.json`),
     json(`${BASE}data/marts.json`), json(`${ART}/fx/fx.json`), glb(`${ART}/fx/fx.glb`),
     json(`${ART}/ui/upgrade/icons.json`).catch(() => null),
+    json(`${ART}/cosmetics/cosmetics.json`), glb(`${ART}/cosmetics/cosmetics.glb`),
   ]);
   const [sceneJson, gltf] = await Promise.all([json(`${ART}/${STORE}/scene.json`), glb(`${ART}/${STORE}/geo.glb`)]);
   const world = buildWorld(sceneJson, gltf, { texBase: `${ART}/tex` });
   scene3.add(world.root);
   setStage(8, 'geometry');
-  const [clips, controllers, items, itemsGltf, navJson, data, marts, fxData, fxGltf, upgradeIcons] = await restP;
+  const [clips, controllers, items, itemsGltf, navJson, data, marts, fxData, fxGltf, upgradeIcons, cosData, cosGltf] = await restP;
   const anim = new AnimLibrary(clips, controllers);
   world.rigs = attachRigs(anim, world);
   setStage(5, 'animation');
@@ -139,6 +142,14 @@ async function load() {
   const cityMap = new CityMap({ scene3, texBase: `${ART}/tex`, fx: view.fx, storeRoot: world.root,
     van: ph && ph.vanCarObj ? world.objects[ph.vanCarObj.n] : new THREE.Group(),
     load: () => Promise.all([json(`${ART}/citymap/scene.json`), glb(`${ART}/citymap/geo.glb`)]) });
+  // Cosmetics are global (not per mart): saved in the global record like the original's PlayerPrefs preferences.
+  const cosState = cosmeticsState(cosData, global.cosmetics);
+  const looks = new Looks({ data: cosData, gltf: cosGltf, texBase: `${ART}/tex`, player: world.objects[store.player.node], anim,
+    loadPets: () => Promise.all([json(`${ART}/pets/scene.json`), glb(`${ART}/pets/geo.glb`)]) });
+  view.looks = looks;
+  const wear = () => { looks.apply(cosState.eq); sim.setCosmetics(cosmeticEffects(cosData, cosState.eq)); };
+  wear();
+  const cosmetics = { data: cosData, state: cosState, onChange: () => { global.cosmetics = saveCosmetics(cosState); wear(); save(); } };
   const martMap = {
     rows: () => {
       // UpdateCollectButton stamps a reached mart the first time the menu shows it, so its 3-hour clock starts then.
@@ -175,13 +186,13 @@ async function load() {
     global,
   };
   const hud = new Hud({ sim, store, camera, canvas, items, art: ART, world, tasks, matArrows: matArrows(store), nextMart: next, workerDefs: workers.defs,
-    sound: new Sound(`${ART}/sfx`, sim, store, V), martMap, upgradeRows: upgradeIcons && upgradeIcons.stores[STORE],
+    sound: new Sound(`${ART}/sfx`, sim, store, V), martMap, upgradeRows: upgradeIcons && upgradeIcons.stores[STORE], cosmetics,
     onMapView: i => { if (i == null) { cityMap.hide(); sim.state.mapMode = false; } else { sim.state.mapMode = true; if (cityMap.open) cityMap.goTo(i); else cityMap.show(martMap.rows(), i); } } });
   await Promise.all(sceneJson.textures.map(t => texture(`${ART}/tex`, t.name).full));
   setStage(0, 'textures');
   sim.listeners.push(e => { if (e.type === 'depart') setTimeout(() => travel(next.id), VAN_TIME); });
   const director = new CameraDirector(sim, store);
-  return { world, store, nav, grid, sim, view, hud, director, cityMap };
+  return { world, store, nav, grid, sim, view, hud, director, cityMap, looks };
 }
 
 let game = null;
@@ -233,6 +244,7 @@ function frame() {
     }
     sim.step(dt, { nav, grid });
     view.update(dt);
+    game.looks.update(dt);
     for (const r of world.rigs) r.update(dt);
     const shot = director.update();
     target.set(shot.x, 0, shot.z);
@@ -244,6 +256,14 @@ function frame() {
     }
     camera.position.copy(target).add(FOLLOW);
     camera.lookAt(target.x, LOOK_UP, target.z);
+    // Customise screen: zoom in on the player and lift it into the open top of the screen (the original shows a preview
+    // rig there).
+    const dressing = hud.customise && hud.customise.isOpen;
+    if (dressing) { target.set(sim.state.player.x, 0, sim.state.player.z); camera.position.copy(target).add(FOLLOW); camera.lookAt(target.x, LOOK_UP, target.z); shot.zoom = 0.45; }
+    if (dressing !== !!(camera.view && camera.view.enabled)) {
+      if (dressing) camera.setViewOffset(canvas.clientWidth, canvas.clientHeight, 0, canvas.clientHeight * 0.33, canvas.clientWidth, canvas.clientHeight);
+      else camera.clearViewOffset();
+    }
     if (camera.zoom !== 1 / shot.zoom) { camera.zoom = 1 / shot.zoom; camera.updateProjectionMatrix(); }
     hud.update(dt);
     saveTimer += dt;

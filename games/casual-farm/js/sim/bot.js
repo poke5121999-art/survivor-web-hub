@@ -1,6 +1,5 @@
 // A greedy player for tests and the in-page autoplay check: walks the real nav mesh and plays the Store 1 loop
 // (coins → mats → harvest → stock → checkout → collect → upgrade). It only feeds Sim.setInput, like a joystick.
-import { carryLimit } from './sim.js';
 
 export class Bot {
   constructor(sim, nav) {
@@ -30,7 +29,7 @@ export class Bot {
     const d = p => (p.x - me.x) ** 2 + (p.z - me.z) ** 2;
     const nearest = list => list.sort((a, b) => d(a.at) - d(b.at))[0];
     const carry = st.carry;
-    const lim = carryLimit(st.stackLevel);
+    const lim = this.sim.carryMax();
 
     // Chase an escaping thief: the stolen coins come back on a catch.
     const thief = st.thief && st.thief.chasing && st.thief.agent;

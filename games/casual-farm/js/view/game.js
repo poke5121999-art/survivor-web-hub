@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { clone as cloneSkinned } from '../../vendor/SkeletonUtils.js';
 import { makeMaterial, addSmoothNormals } from './toon.js';
-import { ITEM_HEIGHT } from '../sim/sim.js';
+import { ITEM_HEIGHT, carryLimit } from '../sim/sim.js';
 import { Rig } from './anim.js';
 
 const tmp = new THREE.Vector3();
@@ -417,7 +417,14 @@ export class GameView {
       const carrying = st.carry.length > 0;
       this.playerRig.play(st.player.moving ? (carrying ? 'WalkingCarry' : 'Walking') : (carrying ? 'Idle_Carry' : 'Idle'));
     }
-    this.syncStack('player', st.carry, (g, k) => { g.position.set(0, ITEM_HEIGHT * k, 0); g.rotation.set(0, 0, 0); }, this.playerSlot);
+    // Past the player's own carry limit the items ride on the pet (PlayerHumanController.PickUp -> petSlotTransform):
+    // StackingSlot_PetSmall/Medium/Big at y 2.3/3.0/3.9, z -0.2, one item every 1.3.
+    const pet = this.looks && this.looks.pet, own = pet ? Math.min(st.carry.length, carryLimit(st.stackLevel)) : st.carry.length;
+    this.syncStack('player', st.carry.slice(0, own), (g, k) => { g.position.set(0, ITEM_HEIGHT * k, 0); g.rotation.set(0, 0, 0); }, this.playerSlot);
+    if (pet) {
+      const y0 = { small: 2.3, medium: 3.0, big: 3.9 }[this.looks.petRow.size] || 2.3;
+      this.syncStack('pet', st.carry.slice(own), (g, k) => { g.position.set(0, y0 + 1.3 * k, -0.2); g.rotation.set(0, 0, 0); }, pet.obj);
+    } else if (this.stacks.has('pet')) this.syncStack('pet', [], () => {});
 
     store.producers.forEach((p, i) => {
       const ps = st.producers[i];

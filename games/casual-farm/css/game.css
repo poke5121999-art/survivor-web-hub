@@ -330,3 +330,43 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #1f2a1b; tou
   background: #ffff79; transform: scaleX(-1); animation: pointLeft 0.6s ease-in-out infinite alternate;
   -webkit-mask: url(../art/ui/menus/arrow.webp) center / contain no-repeat; mask: url(../art/ui/menus/arrow.webp) center / contain no-repeat; }
 @keyframes pointLeft { from { translate: 0 0; } to { translate: calc(24 * var(--u)) 0; } }
+/* Customise screen (customise.js): CUSTOMIZE CANVAS panel 20 units in, 420 from the top, 160 from the bottom; the top
+   shows the live player (camera zoomed in) under a spotlight instead of the original's preview rig. */
+.mshade.custom { background: radial-gradient(circle at 50% 17%, rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, 0) calc(150 * var(--u)), rgba(0, 0, 0, 0.88) calc(330 * var(--u))); }
+.custom .panel { top: calc(420 * var(--u)); bottom: calc(160 * var(--u)); width: calc(var(--sw) - 20 * var(--u)); background: #69ffd8; }
+.custom .title { top: calc(-20 * var(--u)); font-size: calc(70 * var(--u)); color: #effffb; }
+.custom .tabs { position: absolute; left: calc(20 * var(--u)); right: calc(20 * var(--u)); top: calc(90 * var(--u)); height: calc(100 * var(--u));
+  display: flex; gap: calc(10 * var(--u)); }
+.custom .tabs .tb { flex: 1; font-size: calc(30 * var(--u)); border-radius: calc(24 * var(--u)) calc(24 * var(--u)) 0 0; opacity: 0.75; }
+.custom .tabs .tb.on { opacity: 1; transform: translateY(calc(-6 * var(--u))); }
+.custom .scroll { position: absolute; left: calc(10 * var(--u)); right: calc(10 * var(--u)); top: calc(190 * var(--u)); bottom: calc(10 * var(--u));
+  background: #35b7e9; border-radius: calc(30 * var(--u)); padding: calc(10 * var(--u)); box-sizing: border-box; }
+.custom .grid { height: 100%; overflow-y: auto; background: #fff; border-radius: calc(26 * var(--u)); padding: calc(10 * var(--u)); box-sizing: border-box;
+  display: grid; grid-template-columns: repeat(auto-fill, calc(165 * var(--u))); justify-content: center; align-content: start; gap: calc(10 * var(--u));
+  pointer-events: auto; touch-action: pan-y; }
+.custom .tile { position: relative; width: calc(165 * var(--u)); height: calc(165 * var(--u)); border-radius: calc(24 * var(--u)); background: var(--tile);
+  box-shadow: inset 0 calc(-10 * var(--u)) 0 rgba(0, 0, 0, 0.2); cursor: pointer; display: flex; flex-direction: column; align-items: center; }
+.custom .tile.on { outline: calc(5 * var(--u)) solid #51ff45; }
+.custom .tile::before { content: ''; position: absolute; left: calc(18 * var(--u)); right: calc(18 * var(--u)); top: calc(14 * var(--u)); bottom: calc(60 * var(--u));
+  background: rgba(0, 0, 0, 0.15); border-radius: calc(18 * var(--u)); }
+.custom .tile .pic { position: relative; width: calc(100 * var(--u)); height: calc(95 * var(--u)); margin-top: calc(10 * var(--u)); object-fit: contain; }
+.custom .tile .pic.dark { filter: brightness(0); }
+.custom .tile s { position: relative; text-decoration: none; font-size: calc(21 * var(--u)); line-height: 1; margin-top: calc(-4 * var(--u)); white-space: nowrap; }
+.custom .tile .foot { position: absolute; left: 0; right: 0; bottom: calc(14 * var(--u)); display: flex; justify-content: center; }
+.custom .tile .foot i { font-style: normal; display: flex; align-items: center; gap: calc(6 * var(--u)); font-size: calc(30 * var(--u)); }
+.custom .tile .foot i img { width: calc(36 * var(--u)); height: calc(36 * var(--u)); object-fit: contain; }
+.custom .tile .foot i.q { font-size: calc(40 * var(--u)); }
+.custom .nogold { display: none; position: absolute; inset: 0; background: rgba(0, 0, 0, 0.88); }
+.custom.short .nogold { display: block; }
+.custom .nogold .box { position: absolute; left: calc(40 * var(--u)); right: calc(40 * var(--u)); top: calc(50% - 170 * var(--u)); height: calc(340 * var(--u));
+  background: #dca4f3; border-radius: calc(36 * var(--u)); display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; text-align: center; }
+.custom .nogold .head { display: flex; align-items: center; gap: calc(10 * var(--u)); font-size: calc(40 * var(--u)); }
+.custom .nogold .head img { width: calc(50 * var(--u)); }
+.custom .nogold .map { width: calc(80 * var(--u)); height: calc(80 * var(--u)); }
+.custom .nogold .map img { width: calc(64 * var(--u)); }
+#hud.customising .counters { z-index: 7; }
+.lb.custombtn { --tint: #61ecdc; }
+.custom .tile:has(s) { height: calc(220 * var(--u)); }
+.custom .tile:has(s) .pic { height: calc(85 * var(--u)); }
+.custom .tile:has(s)::before { bottom: calc(95 * var(--u)); }
+.custom .tile s { margin-top: calc(6 * var(--u)); white-space: normal; text-align: center; padding: 0 calc(8 * var(--u)); }
