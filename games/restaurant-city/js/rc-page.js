@@ -7,7 +7,7 @@
 (function () {
   "use strict";
 
-  var REV = "20261027d";
+  var REV = "20261027e";
   var cfg = window.SUPABASE_CONFIG || {};
   var FN = new URLSearchParams(location.search).get("rpc") ||
     (String(cfg.url || "").replace(/\/+$/, "") + "/functions/v1/rc-rpc");
