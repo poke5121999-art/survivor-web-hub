@@ -21,6 +21,11 @@ TREES = {
     "prestigeWelcome": "MartPrestige_WelcomeScreen",
     "prestigeInfo": "Info_Prestige",
     "prestigeButton": "PrestigeButtonHolder",
+    # DailySpinMenuController + its reward popup, the welcome-mart cash screen (UpdateScreenController), the gems intro
+    "dailySpin": "DailySpinScreen",
+    "dailySpinReward": "_DailySpin_RewardScreen",
+    "martWelcome": "MartWelcomeScreen",
+    "gemsInfo": "Update_Gems",
 }
 # key -> (file, MonoBehaviour path id): the whole prefab that holds this component (scene-referenced prefabs)
 BY_COMPONENT = {

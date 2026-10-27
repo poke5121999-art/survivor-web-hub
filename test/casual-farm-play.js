@@ -63,6 +63,10 @@ function serve() {
 
     // TaskBannerController.OnPressButton: a tap on the banner sends the camera to the task target; the objective radar
     // circles the player while a task has a target.
+    // The opening task only waits for the tomato mats (action 8): DeactivateRadar, no arrow pointing back at the field.
+    await page.waitForFunction(() => window.__mmGame.hud.tasks.current, null, { timeout: 15000 }).catch(() => {});
+    const wait = await page.evaluate(() => { const g = window.__mmGame, t = g.hud.tasks.current; return { task: t && t.name, radar: g.world.objects[g.store.node('ObjectiveRadar')].visible }; });
+    check('no radar arrow while the task only waits for a mat to be bought', wait.task && /Waiting/.test(wait.task) && !wait.radar, JSON.stringify(wait));
     await page.evaluate(() => { const g = window.__mmGame; for (const n of ['Mat_Activate_Cashier', 'Mat_Activate_Tomato_Shelf', 'Mat_Activate_Plant_Tomato']) g.sim.completeMat(g.store.mats.find(m => m.name === n)); });
     await page.waitForFunction(() => { const t = window.__mmGame.hud.tasks.current; return t && t.text && t.target && document.querySelector('#task').style.display === 'flex'; },
       null, { timeout: 60000 }).catch(() => {});
@@ -70,10 +74,14 @@ function serve() {
     await page.click('#task', { timeout: 5000 }).catch(() => {});
     const tut = await page.evaluate(() => {
       const g = window.__mmGame, task = g.hud.tasks.current, shot = g.director.shots[0], r = g.world.objects[g.store.node('ObjectiveRadar')];
+      const pl = g.sim.state.player, a = new r.position.constructor();
+      r.children[0].getWorldPosition(a);
+      const toward = task && task.target ? ((a.x - pl.x) * (task.target.x - pl.x) + (a.z - pl.z) * (task.target.z - pl.z)) / Math.hypot(task.target.x - pl.x, task.target.z - pl.z) : 0;
       return { task: task && task.name, shot: !!shot && !!task && Math.hypot(shot.follow().x - task.target.x, shot.follow().z - task.target.z) < 0.01,
-        frozen: g.sim.state.player.frozen > 1, radar: r.visible, pop: document.querySelector('#task').classList.contains('in') };
+        frozen: g.sim.state.player.frozen > 1, radar: r.visible, pop: document.querySelector('#task').classList.contains('in'), toward: +toward.toFixed(2) };
     });
     check('tapping the task banner pans the camera to its target and the radar arrow is up', tut.shot && tut.frozen && tut.radar && tut.pop, JSON.stringify(tut));
+    check('the radar arrow sits on the target side of the player', tut.toward > 1, `${tut.toward} m toward the target`);
 
     // The in-page bot (?bot, the policy test/casual-farm-sim.js proves can finish Store 1) plays the opening.
     await page.goto(`${url}?fresh&bot`);

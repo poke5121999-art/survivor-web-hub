@@ -6,6 +6,7 @@ import { CState } from './customers.js';
 
 export const Action = { Pick: 1, Feed: 2, Shelf: 4, Checkout: 6, WaitQueue: 7, WaitMat: 8, Upgrade: 9, Cash: 12 };
 const FIRST_DELAY = 3.5, NEXT_DELAY = 1.0;
+const RADAR = new Set([0, 1, 2, 4, 6, 10]);
 const AT_CASHIER = new Set([CState.Queue, CState.Ready, CState.Packing]);
 
 export function buildTasks(store) {
@@ -25,6 +26,9 @@ export function buildTasks(store) {
     const playerFocus = focus === store.player.node;
     task.menu = playerFocus && !store.player.upgradeZone;
     task.target = playerFocus ? (store.player.upgradeZone ? store.player.upgradeZone.middle : null) : focus != null ? store.pos(focus) : null;
+    // TaskController.SetTask calls SetFocusArrow only for the doing tasks (actions 0, 1, 2, 4, 6, 10); the waiting ones
+    // (5, 7, 8, 12) and the upgrade task (9) call DeactivateRadar.
+    task.radar = RADAR.has(task.action) && !!task.target;
     task.item = task.action === Action.Pick ? store.producers[task.producer]?.out
       : task.action === Action.Feed ? store.producers[task.producer]?.ins[0]
         : task.action === Action.Shelf ? store.shelves[task.shelf]?.type : null;

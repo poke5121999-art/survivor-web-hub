@@ -268,7 +268,7 @@ function frame() {
     sim.step(dt, { nav, grid });
     view.update(dt);
     game.looks.update(dt);
-    if (game.radar) { const task = hud.tasks && hud.tasks.current; game.radar.update(sim.state.player, task && task.target); }
+    if (game.radar) { const task = hud.tasks && hud.tasks.current; game.radar.update(sim.state.player, task && task.radar && task.target); }
     for (const r of world.rigs) r.update(dt);
     const shot = director.update();
     target.set(shot.x, 0, shot.z);
