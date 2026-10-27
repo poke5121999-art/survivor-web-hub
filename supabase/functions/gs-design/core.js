@@ -445,9 +445,12 @@ const GATE_PLATFORMS = ["webgl", "android", "ios"];
 const GATE_STORES = ["android", "ios"];
 const GATE_MSG_MAX = 300;
 const GATE_BUILD_MAX = 1e9;
+// Network maintenance switches: eos = app Online co-op rooms, utp = Unity Relay (web co-op, app fallback).
+const NET_IDS = ["eos", "utp"];
 export const GATE_OFF = Object.freeze({
   _id: GATE_ID,
   maintenance: { on: false, message: "", until: null },
+  netMaintenance: { eos: { on: false, message: "", until: null }, utp: { on: false, message: "", until: null } },
   minBuild: { webgl: 0, android: 0, ios: 0 },
   storeUrls: { android: "", ios: "" },
 });
@@ -470,7 +473,7 @@ const sameKeys = (o, keys) => isPlain(o) && Object.keys(o).length === keys.lengt
 export function checkGateDoc(d) {
   if (!isPlain(d)) return "doc không phải object";
   if (d._id !== GATE_ID) return `_id là ${JSON.stringify(d._id)}, phải là "${GATE_ID}".`;
-  const top = ["_id", "maintenance", "minBuild", "storeUrls"];
+  const top = ["_id", "maintenance", "netMaintenance", "minBuild", "storeUrls"];
   for (const k of Object.keys(d)) if (!top.includes(k)) return `Cổng phiên bản không có trường "${k}".`;
   const m = d.maintenance;
   if (!sameKeys(m, ["on", "message", "until"])) return "maintenance phải có đúng ba trường on, message, until.";
@@ -478,6 +481,15 @@ export function checkGateDoc(d) {
   if (typeof m.message !== "string") return `Lời nhắn bảo trì là ${JSON.stringify(m.message)}, phải là chuỗi.`;
   if (m.message.length > GATE_MSG_MAX) return `Lời nhắn bảo trì dài ${m.message.length} ký tự, tối đa ${GATE_MSG_MAX}.`;
   if (m.until !== null && !isUtcIso(m.until)) return `Giờ dự kiến xong ${JSON.stringify(m.until)} phải là null hoặc giờ UTC dạng 2026-10-20T03:00:00Z.`;
+  if (!sameKeys(d.netMaintenance, NET_IDS)) return `netMaintenance phải có đúng các trường ${NET_IDS.join(", ")}.`;
+  for (const id of NET_IDS) {
+    const n = d.netMaintenance[id];
+    if (!sameKeys(n, ["on", "message", "until"])) return `netMaintenance.${id} phải có đúng ba trường on, message, until.`;
+    if (typeof n.on !== "boolean") return `Bảo trì mạng ${id} (on) là ${JSON.stringify(n.on)}, phải là true hoặc false.`;
+    if (typeof n.message !== "string") return `Lời nhắn bảo trì mạng ${id} là ${JSON.stringify(n.message)}, phải là chuỗi.`;
+    if (n.message.length > GATE_MSG_MAX) return `Lời nhắn bảo trì mạng ${id} dài ${n.message.length} ký tự, tối đa ${GATE_MSG_MAX}.`;
+    if (n.until !== null && !isUtcIso(n.until)) return `Giờ dự kiến xong của bảo trì mạng ${id} ${JSON.stringify(n.until)} phải là null hoặc giờ UTC dạng 2026-10-20T03:00:00Z.`;
+  }
   if (!sameKeys(d.minBuild, GATE_PLATFORMS)) return `minBuild phải có đúng các trường ${GATE_PLATFORMS.join(", ")}.`;
   for (const p of GATE_PLATFORMS) {
     const v = d.minBuild[p];
@@ -492,9 +504,10 @@ export function checkGateDoc(d) {
 }
 
 // Missing or ill-typed fields read as the gate-off value, same as the server treats them.
-function fillGate(raw) {
+export function fillGate(raw) {
   const pick = (v, ok, dflt) => (ok(v) ? v : dflt);
   const m = isPlain(raw && raw.maintenance) ? raw.maintenance : {};
+  const nm = isPlain(raw && raw.netMaintenance) ? raw.netMaintenance : {};
   const b = isPlain(raw && raw.minBuild) ? raw.minBuild : {};
   const u = isPlain(raw && raw.storeUrls) ? raw.storeUrls : {};
   const doc = {
@@ -504,9 +517,18 @@ function fillGate(raw) {
       message: pick(m.message, (v) => typeof v === "string", ""),
       until: pick(m.until, isUtcIso, null),
     },
+    netMaintenance: {},
     minBuild: {},
     storeUrls: {},
   };
+  for (const id of NET_IDS) {
+    const n = isPlain(nm[id]) ? nm[id] : {};
+    doc.netMaintenance[id] = {
+      on: n.on === true,
+      message: pick(n.message, (v) => typeof v === "string", ""),
+      until: pick(n.until, isUtcIso, null),
+    };
+  }
   for (const p of GATE_PLATFORMS) doc.minBuild[p] = pick(b[p], (v) => Number.isInteger(v) && v >= 0, 0);
   for (const p of GATE_STORES) doc.storeUrls[p] = pick(u[p], (v) => typeof v === "string", "");
   return doc;

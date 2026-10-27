@@ -185,13 +185,21 @@ function shuffleKeys(v) {
   const gate = await act({ action: "gate" });
   const off = JSON.stringify(core.GATE_OFF);
   check("gate đọc được, đủ hình doc", gate.status === 200 && typeof gate.json.exists === "boolean" &&
-    Object.keys(gate.json.doc).join() === "_id,maintenance,minBuild,storeUrls" && core.checkGateDoc(gate.json.doc) === null &&
+    Object.keys(gate.json.doc).join() === "_id,maintenance,netMaintenance,minBuild,storeUrls" && core.checkGateDoc(gate.json.doc) === null &&
     (gate.json.exists || JSON.stringify(gate.json.doc) === off),
     `status ${gate.status}, exists=${gate.json.exists}, doc=${JSON.stringify(gate.json.doc)}`);
   check("gate: doc tắt cổng qua được luật kiểm", core.checkGateDoc(JSON.parse(off)) === null, off);
   const gOk = { _id: "default", maintenance: { on: true, message: "x".repeat(300), until: "2026-10-20T01:30:00Z" },
+    netMaintenance: { eos: { on: true, message: "EOS bảo trì", until: "2026-10-20T01:30:00Z" }, utp: { on: false, message: "", until: null } },
     minBuild: { webgl: 1234, android: 120, ios: 1e9 }, storeUrls: { android: "https://play.google.com/store/apps/details?id=a", ios: "" } };
   check("gate: doc đầy đủ hợp lệ qua được luật kiểm", core.checkGateDoc(gOk) === null, core.checkGateDoc(gOk) || "");
+  const filled = core.fillGate({ _id: "default", maintenance: { on: true, message: "m", until: null } });
+  check("gate: fillGate điền netMaintenance khi doc cũ thiếu", JSON.stringify(filled.netMaintenance) === JSON.stringify(core.GATE_OFF.netMaintenance) &&
+    filled.netMaintenance.eos.on === false && filled.netMaintenance.utp.message === "" && filled.maintenance.on === true && core.checkGateDoc(filled) === null,
+    JSON.stringify(filled.netMaintenance));
+  const half = core.fillGate({ netMaintenance: { eos: { on: true, message: "e", until: "2026-10-20T01:30:00Z" }, utp: { on: "yes", message: 5, until: "bad" } } });
+  check("gate: fillGate giữ eos hợp lệ, utp hỏng về giá trị tắt", half.netMaintenance.eos.on === true && half.netMaintenance.eos.message === "e" &&
+    half.netMaintenance.utp.on === false && half.netMaintenance.utp.message === "" && half.netMaintenance.utp.until === null, JSON.stringify(half.netMaintenance));
   const seedFile = "D:/REPO_Meta/gamespark-config/runtime/client_gate.json";
   if (!fs.existsSync(seedFile)) console.log("ℹ gate: chưa có hạt giống runtime/client_gate.json — bỏ qua so khớp");
   else {
@@ -201,6 +209,7 @@ function shuffleKeys(v) {
       docs.map((d) => core.checkGateDoc(d)).filter(Boolean).join(" | ") || JSON.stringify(docs[0]));
   }
   const gm = (patch) => ({ ...gOk, ...patch });
+  check("gate: lời nhắn mạng đúng 300 ký tự qua được", core.checkGateDoc(gm({ netMaintenance: { ...gOk.netMaintenance, utp: { on: true, message: "x".repeat(300), until: null } } })) === null, "300 ký tự");
   const badGate = [
     ["_id lạ", gm({ _id: "live" })],
     ["trường lạ", gm({ note: "x" })],
@@ -224,6 +233,13 @@ function shuffleKeys(v) {
     ["storeUrls không phải link", gm({ storeUrls: { ...gOk.storeUrls, android: "play store" } })],
     ["storeUrls javascript:", gm({ storeUrls: { ...gOk.storeUrls, android: "javascript:alert(1)" } })],
     ["storeUrls có trường lạ", gm({ storeUrls: { ...gOk.storeUrls, webgl: "" } })],
+    ["thiếu netMaintenance", (({ netMaintenance, ...rest }) => rest)(gOk)],
+    ["netMaintenance thiếu utp", gm({ netMaintenance: { eos: gOk.netMaintenance.eos } })],
+    ["netMaintenance có id lạ", gm({ netMaintenance: { ...gOk.netMaintenance, relay: gOk.netMaintenance.utp } })],
+    ["netMaintenance.eos.on là chuỗi", gm({ netMaintenance: { ...gOk.netMaintenance, eos: { ...gOk.netMaintenance.eos, on: "yes" } } })],
+    ["netMaintenance.utp lời nhắn 301 ký tự", gm({ netMaintenance: { ...gOk.netMaintenance, utp: { on: false, message: "x".repeat(301), until: null } } })],
+    ["netMaintenance.eos until không có Z", gm({ netMaintenance: { ...gOk.netMaintenance, eos: { ...gOk.netMaintenance.eos, until: "2026-10-20T08:30:00" } } })],
+    ["netMaintenance.eos thiếu until", gm({ netMaintenance: { ...gOk.netMaintenance, eos: { on: true, message: "" } } })],
     ["doc không phải object", []],
   ];
   for (const [n, doc] of badGate) {

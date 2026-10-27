@@ -36,6 +36,7 @@
   var GATE_PLATFORMS = ["webgl", "android", "ios"];
   var GATE_STORES = ["android", "ios"];
   var GATE_MSG_MAX = 300;
+  var NET_IDS = ["eos", "utp"]; // same ids as NET_IDS in supabase/functions/gs-design/core.js
   var GATE_BUILD_MAX = 1e9;
   // Written by the WebGL client build next to the player ({ "build": <int> }); absent until that build exists.
   var HUB_VERSION_URL = "games/repo2d-unity/version.json";
@@ -171,7 +172,7 @@
   var S = { tables: {}, current: null, loaded: false, conflict: {}, errors: {}, search: {}, open: {}, banner: null,
     guard: { loaded: false, rows: [], meters: {}, month: "", edited: false },
     // hubBuild: undefined = not read yet, null = no version.json (check skipped), else the hub WebGL build.
-    gate: { loaded: false, doc: null, exists: false, dirty: { maint: false, build: false }, hubBuild: undefined } };
+    gate: { loaded: false, doc: null, exists: false, dirty: { maint: false, build: false, net: false }, hubBuild: undefined } };
   var session = window.HubSession ? window.HubSession.get() : null;
 
   function tableTitle(n) { return (LABELS[n] || {}).title || n; }
@@ -846,7 +847,7 @@
     S.current = n;
     try { history.replaceState(null, "", location.search + "#" + n); } catch (e) { /* file:// */ }
     if (n === GUARD) { S.guard.edited = false; loadGuard(); }
-    else if (n === GATE) { S.gate.dirty = { maint: false, build: false }; loadGate(); loadHubBuild(); }
+    else if (n === GATE) { S.gate.dirty = { maint: false, build: false, net: false }; loadGate(); loadHubBuild(); }
     else if (n === MODES) loadGuard();
     renderMain();
     updateBar();
@@ -917,7 +918,7 @@
     var n = S.current;
     if (document.visibilityState !== "visible" || !n || !S.loaded) return;
     if (n === GUARD) { if (!S.guard.edited) loadGuard(); return; }
-    if (n === GATE) { if (!S.gate.dirty.maint && !S.gate.dirty.build) loadGate(); return; }
+    if (n === GATE) { if (!S.gate.dirty.maint && !S.gate.dirty.build && !S.gate.dirty.net) loadGate(); return; }
     if (n === MODES) loadGuard();
     call({ action: "get", table: n }).then(function (j) {
       onRemote(n, { exists: j.exists, docs: j.docs, hash: j.hash });
@@ -1143,6 +1144,18 @@
       h("div", { class: "dz-fld__ctl" }, ctl, help ? h("p", { class: "dz-help", text: help }) : null));
   }
 
+  // Message + expected-end fields shared by the maintenance card and every network row.
+  function readMsgUntil(msg, until) {
+    var u = localInputToUtc(until.value), text = msg.value.trim();
+    var bad = text.length > GATE_MSG_MAX ? "Lời nhắn dài " + text.length + " ký tự, tối đa " + GATE_MSG_MAX + "."
+      : u === undefined ? "Giờ dự kiến xong không hợp lệ." : null;
+    return { message: text, until: u === undefined ? null : u, bad: bad };
+  }
+  function paintMsgUntil(v, msg, count, utc) {
+    count.textContent = msg.value.trim().length + "/" + GATE_MSG_MAX + " ký tự";
+    utc.textContent = v.until ? "Lưu là " + v.until.slice(0, 16).replace("T", " ") + " UTC" : "Không đặt giờ";
+  }
+
   function gateMaintCard(paintTop) {
     var L = TL().maint || {}, m = S.gate.doc.maintenance;
     var pill = h("span", { class: "dz-pill", "data-role": "status" });
@@ -1166,15 +1179,11 @@
       paintTop();
     }
     function values() {
-      var u = localInputToUtc(until.value), text = msg.value.trim();
-      var bad = text.length > GATE_MSG_MAX ? "Lời nhắn dài " + text.length + " ký tự, tối đa " + GATE_MSG_MAX + "."
-        : u === undefined ? "Giờ dự kiến xong không hợp lệ." : null;
-      return { message: text, until: u === undefined ? null : u, bad: bad };
+      return readMsgUntil(msg, until);
     }
     function check() {
       var v = values();
-      count.textContent = msg.value.trim().length + "/" + GATE_MSG_MAX + " ký tự";
-      utc.textContent = v.until ? "Lưu là " + v.until.slice(0, 16).replace("T", " ") + " UTC" : "Không đặt giờ";
+      paintMsgUntil(v, msg, count, utc);
       err.hidden = !v.bad;
       err.textContent = v.bad || "";
       saveBtn.disabled = !!v.bad;
@@ -1218,6 +1227,77 @@
           h("div", { class: "dz-fld__ctl" }, h("div", { class: "dz-cell__box" }, on, onText), h("p", { class: "dz-help", text: L.on.help }))),
         gateField("gate-msg", L.message.label, L.message.help, h("div", null, msg, count)),
         gateField("gate-until", L.until.label, L.until.help, h("div", null, until, utc))),
+      h("div", { class: "dz-guard__actions" }, saveBtn), err);
+  }
+
+  // One row per network switch (EOS, Netcode); one dirty flag and one Save for the whole card.
+  function gateNetCard() {
+    var L = TL().net || {}, rows = {};
+    var err = h("p", { class: "dz-guard__err", id: "gate-net-err", role: "alert", hidden: true });
+    var saveBtn = h("button", { class: "btn btn--primary", id: "gate-net-save", type: "button", text: L.save });
+    var rowEls = NET_IDS.map(function (id) {
+      var P = (L.ids || {})[id] || {}, n = S.gate.doc.netMaintenance[id];
+      var on = h("input", { type: "checkbox", class: "dz-switch", role: "switch", id: "gate-net-" + id, "aria-label": P.label });
+      on.checked = n.on;
+      var onText = h("span", { class: "dz-switch__text", id: "gate-net-" + id + "-text", text: n.on ? "Bật" : "Tắt" });
+      var msg = h("textarea", { class: "dz-input dz-input--area", id: "gate-net-" + id + "-msg", rows: "2", maxlength: String(GATE_MSG_MAX) });
+      msg.value = n.message;
+      var count = h("p", { class: "dz-help", id: "gate-net-" + id + "-count" });
+      var until = h("input", { type: "datetime-local", class: "dz-input dz-input--when", id: "gate-net-" + id + "-until" });
+      until.value = utcToLocalInput(n.until);
+      var utc = h("p", { class: "dz-help", id: "gate-net-" + id + "-utc" });
+      rows[id] = { on: on, onText: onText, msg: msg, until: until, count: count, utc: utc };
+      on.addEventListener("change", function () { onText.textContent = on.checked ? "Bật" : "Tắt"; edited(); });
+      msg.addEventListener("input", edited);
+      until.addEventListener("input", edited);
+      until.addEventListener("change", edited);
+      return h("section", { class: "dz-form dz-form--detail", id: "gate-net-row-" + id },
+        h("h4", { class: "dz-guard__title", text: P.label }),
+        h("div", { class: "dz-fld" },
+          h("label", { class: "dz-fld__label", for: "gate-net-" + id, text: L.on.label }),
+          h("div", { class: "dz-fld__ctl" }, h("div", { class: "dz-cell__box" }, on, onText), P.help ? h("p", { class: "dz-help", text: P.help }) : null)),
+        gateField("gate-net-" + id + "-msg", L.message.label, L.message.help, h("div", null, msg, count)),
+        gateField("gate-net-" + id + "-until", L.until.label, L.until.help, h("div", null, until, utc)));
+    });
+    function values() {
+      var out = {}, bad = null;
+      NET_IDS.forEach(function (id) {
+        var r = rows[id], v = readMsgUntil(r.msg, r.until);
+        paintMsgUntil(v, r.msg, r.count, r.utc);
+        if (v.bad && !bad) bad = ((L.ids || {})[id] || {}).label + ": " + v.bad;
+        out[id] = { on: r.on.checked, message: v.message, until: v.until };
+      });
+      return { net: out, bad: bad };
+    }
+    function check() {
+      var v = values();
+      err.hidden = !v.bad;
+      err.textContent = v.bad || "";
+      saveBtn.disabled = !!v.bad;
+      return v;
+    }
+    function edited() { S.gate.dirty.net = true; check(); }
+    saveBtn.addEventListener("click", function () {
+      var v = check();
+      if (v.bad) return;
+      var turnsOn = NET_IDS.filter(function (id) { return v.net[id].on && !S.gate.doc.netMaintenance[id].on; });
+      if (turnsOn.length && !confirm(fill(L.confirmOn, { names: turnsOn.map(function (id) { return L.ids[id].label; }).join(", ") }))) return;
+      saveBtn.disabled = true;
+      saveGateDoc({ netMaintenance: v.net }).then(function () {
+        S.gate.dirty.net = false;
+        check();
+        toast(L.saved);
+      }, function (e) {
+        saveBtn.disabled = false;
+        err.hidden = false;
+        err.textContent = errText(e);
+      });
+    });
+    check();
+    return h("article", { class: "dz-guard", id: "gate-net-card" },
+      h("header", { class: "dz-guard__head" }, h("h3", { class: "dz-guard__title", text: L.title })),
+      L.note ? h("p", { class: "dz-guard__note", text: L.note }) : null,
+      h("div", null, rowEls),
       h("div", { class: "dz-guard__actions" }, saveBtn), err);
   }
 
@@ -1316,7 +1396,7 @@
     }
     pane.appendChild(missing);
     pane.appendChild(onNote);
-    pane.appendChild(h("div", { class: "dz-gate" }, gateMaintCard(paintTop), gateBuildCard()));
+    pane.appendChild(h("div", { class: "dz-gate" }, gateMaintCard(paintTop), gateNetCard(), gateBuildCard()));
   }
 
   // ---------- review & save ----------
