@@ -14,6 +14,8 @@ if (typeof (nodeProcess as { pid?: unknown }).pid !== "number") {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 const TOKEN_CACHE_MS = 60_000;
+// Hub emails allowed to call /dev/grow-garden (comma separated secret). Unset = nobody.
+const DEV_EMAILS = new Set((Deno.env.get("RC_DEV_EMAILS") ?? "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean));
 
 const CORS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -142,6 +144,7 @@ Deno.serve(async (req) => {
 
   const social = /\/social-links(?:\/(.*))?$/.exec(path);
   const isMe = /\/me$/.test(path);
+  const isGrow = /\/dev\/grow-garden$/.test(path);
   if (social ? !(req.method === "POST" || (req.method === "GET" && social[1]))
     : !(req.method === "GET" && isMe) && !(req.method === "POST" && !isMe)) {
     return json({ ok: false, error: "not found" }, 404);
@@ -171,6 +174,20 @@ Deno.serve(async (req) => {
     }
   }
   if (!verified) return json({ ok: false, error: "session expired" }, 401);
+
+  // Test lever: fast-forward the caller's garden instead of waiting 48 real hours.
+  if (isGrow) {
+    if (!DEV_EMAILS.has((verified.user.email ?? "").toLowerCase())) return json({ ok: false, error: "account not on RC_DEV_EMAILS" }, 403);
+    try {
+      const input = await req.json().catch(() => ({}));
+      const rpc = await loadRpc();
+      const result = await rpc.handleGrowGarden(verified.user, verified.sessionId, input && typeof input === "object" ? input : {}, req);
+      return json(result.body, result.status);
+    } catch (error) {
+      console.error("rc-rpc grow garden failed:", error);
+      return json({ ok: false, error: "server error", detail: terse(error) }, 500);
+    }
+  }
 
   try {
     const rpc = await loadRpc();

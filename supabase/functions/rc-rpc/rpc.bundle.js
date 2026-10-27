@@ -8509,6 +8509,27 @@ async function handleSocial(user, sessionId, method, rest, input, req) {
     return { status: 400, body: { ok: false, error: error instanceof Error ? error.message : String(error) } };
   }
 }
+var GARDEN_GROW_TIME_SECONDS3 = 48 * 60 * 60;
+async function handleGrowGarden(user, sessionId, input, req) {
+  await ensureStartup();
+  const { account } = await resolveAccount(user, sessionId, req);
+  const seconds = input.seconds === void 0 ? GARDEN_GROW_TIME_SECONDS3 : Number(input.seconds);
+  if (!Number.isInteger(seconds) || seconds < 1 || seconds > GARDEN_GROW_TIME_SECONDS3) {
+    return { status: 400, body: { ok: false, error: `seconds outside 1..${GARDEN_GROW_TIME_SECONDS3}` } };
+  }
+  const profile = await prisma.userProfile.findUnique({ where: { networkUid: account.networkUid }, select: { id: true } });
+  if (!profile) return { status: 404, body: { ok: false, error: "profile not found" } };
+  const plots = await prisma.gardenPlot.findMany({ where: { userProfileId: profile.id, ingredientId: { not: 0 } }, orderBy: { plotId: "asc" } });
+  const now = Date.now();
+  const grown = [];
+  for (const plot of plots) {
+    const plantWetTime = Math.min(GARDEN_GROW_TIME_SECONDS3, plot.plantWetTime + seconds);
+    await prisma.gardenPlot.update({ where: { id: plot.id }, data: { plantWetTime, updatedAt: plot.updatedAt } });
+    const growth = Math.min(GARDEN_GROW_TIME_SECONDS3, plantWetTime + Math.max(0, Math.floor((now - plot.createdAt.getTime()) / 1e3)));
+    grown.push({ plotId: plot.plotId, ingredientId: plot.ingredientId, ingredient: catalogEntry(plot.ingredientId)?.label ?? "", secondsLeft: GARDEN_GROW_TIME_SECONDS3 - growth });
+  }
+  return { status: 200, body: { ok: true, username: account.username, plots: grown } };
+}
 async function handleProfileImage(rest) {
   const parts = rest.split("/").filter(Boolean);
   let networkUid = "";
@@ -8525,6 +8546,7 @@ async function handleProfileImage(rest) {
   return { status: 200, png: new Uint8Array(png.buffer, png.byteOffset, png.byteLength) };
 }
 export {
+  handleGrowGarden,
   handleMe,
   handleProfileImage,
   handleRpc,

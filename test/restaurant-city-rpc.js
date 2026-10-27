@@ -267,6 +267,20 @@ async function main() {
   const box = await rpc(tokens.A, call(32, sessions.A, Buffer.concat([writeString(''), writeVarint(1), writeString('3040001')])));
   check(answered(box, 32) && readVarint(box.body, 2)[0] === 4, 'buyMystryBox rejects a crafted token', box.body.toString('hex'));
 
+  // Garden fast-forward test lever: only emails in the RC_DEV_EMAILS secret (rc-bot-a, rc-bot-g) may call it.
+  const grow = async (token, body) => {
+    const res = await fetch(`${FN}/dev/grow-garden`, {
+      method: 'POST', headers: { apikey: ANON, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    return { status: res.status, json: await res.json().catch(() => ({})) };
+  };
+  const growB = await grow(tokens.B, {});
+  check(growB.status === 403 && growB.json.error === 'account not on RC_DEV_EMAILS', 'grow-garden refuses an account off the list', `${growB.status} ${growB.json.error}`);
+  const growBad = await grow(tokens.A, { seconds: 0 });
+  check(growBad.status === 400, 'grow-garden refuses seconds=0', `${growBad.status} ${growBad.json.error}`);
+  const growA = await grow(tokens.A, { seconds: 60 });
+  check(growA.status === 200 && growA.json.username === BOTS.A && Array.isArray(growA.json.plots), 'grow-garden answers a listed account', `${growA.status} ${JSON.stringify(growA.json)}`);
+
   // ---- social links: the hub's stand-in for the game's Facebook gift/invite dialogs ----
   const social = async (method, rest, token, body) => {
     const res = await fetch(`${FN}/social-links${rest}`, {

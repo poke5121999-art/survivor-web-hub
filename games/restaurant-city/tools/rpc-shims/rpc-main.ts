@@ -356,6 +356,37 @@ export async function handleSocial(user: HubUser | null, sessionId: string, meth
   }
 }
 
+// ---- test lever: garden fast-forward -------------------------------------------
+// A plot ripens after 48 h of growth: writePlot sends plantWetTime + seconds since
+// the row was created (responders.ts, GARDEN_GROW_TIME_SECONDS). Adding to
+// plantWetTime moves every planted plot of the caller forward; the client sees it
+// on its next load. index.ts gates this on RC_DEV_EMAILS.
+
+const GARDEN_GROW_TIME_SECONDS = 48 * 60 * 60;
+
+/** POST .../rc-rpc/dev/grow-garden {seconds?}: default ripens every planted plot. */
+export async function handleGrowGarden(user: HubUser, sessionId: string, input: Record<string, unknown>, req: Request): Promise<ResultJson> {
+  await ensureStartup();
+  const { account } = await resolveAccount(user, sessionId, req);
+  const seconds = input.seconds === undefined ? GARDEN_GROW_TIME_SECONDS : Number(input.seconds);
+  if (!Number.isInteger(seconds) || seconds < 1 || seconds > GARDEN_GROW_TIME_SECONDS) {
+    return { status: 400, body: { ok: false, error: `seconds outside 1..${GARDEN_GROW_TIME_SECONDS}` } };
+  }
+  const profile = await prisma.userProfile.findUnique({ where: { networkUid: account.networkUid }, select: { id: true } });
+  if (!profile) return { status: 404, body: { ok: false, error: 'profile not found' } };
+  const plots = await prisma.gardenPlot.findMany({ where: { userProfileId: profile.id, ingredientId: { not: 0 } }, orderBy: { plotId: 'asc' } });
+  const now = Date.now();
+  const grown = [];
+  for (const plot of plots) {
+    const plantWetTime = Math.min(GARDEN_GROW_TIME_SECONDS, plot.plantWetTime + seconds);
+    // Keep updatedAt: it is the watering clock, and bumping it would also refill wetness.
+    await prisma.gardenPlot.update({ where: { id: plot.id }, data: { plantWetTime, updatedAt: plot.updatedAt } });
+    const growth = Math.min(GARDEN_GROW_TIME_SECONDS, plantWetTime + Math.max(0, Math.floor((now - plot.createdAt.getTime()) / 1000)));
+    grown.push({ plotId: plot.plotId, ingredientId: plot.ingredientId, ingredient: catalogEntry(plot.ingredientId)?.label ?? '', secondsLeft: GARDEN_GROW_TIME_SECONDS - growth });
+  }
+  return { status: 200, body: { ok: true, username: account.username, plots: grown } };
+}
+
 /**
  * GET .../rc-rpc/profile-image/<uid>/<type>.png, no auth (Ruffle loads it as a
  * plain image). Same lookup + PNG as handleProfileImage in the original
