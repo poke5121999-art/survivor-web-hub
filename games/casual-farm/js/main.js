@@ -25,6 +25,8 @@ import { CityMap } from './view/citymap.js';
 import { Looks } from './view/looks.js';
 import { cosmeticsState, saveCosmetics, cosmeticEffects } from './view/customise.js';
 import { Daily } from './view/daily.js';
+import { Shop } from './view/shop.js';
+import { featureCount } from './sim/shop.js';
 import { pull, push, owner } from './cloud.js';
 
 const params = new URLSearchParams(location.search);
@@ -47,7 +49,7 @@ const STORE = global.mart;
 // Map menu state: marts reached so far (older saves: every mart with a save) and when each one's idle income was
 // last collected; the 3-hour clock starts on the first visit.
 global.idleAt = global.idleAt || {};
-if (!global.visited) global.visited = Object.keys(localStorage).map(k => (k.match(/^mmm-(store\d+)-v1$/) || [])[1]).filter(Boolean);
+if (!global.visited) global.visited = fresh ? [] : Object.keys(localStorage).map(k => (k.match(/^mmm-(store\d+)-v1$/) || [])[1]).filter(Boolean);
 if (!global.visited.includes(STORE)) global.visited.push(STORE);
 if (global.idleAt[STORE] == null) global.idleAt[STORE] = Date.now();
 // Prestige (census-prestige.md): stars per mart (martStarList), gold bars, and the reward waiting for the welcome
@@ -205,21 +207,39 @@ async function load() {
       if ((sim.state.mats.Mat_Activate_Blender || {}).done) global.showSpin = true;
       return !!global.showSpin;
     } });
+  // ShopManager: the shop button comes on with Store 1's cashier mat (RC_Shop unlockFeatureId) and stays on
+  // (ShopButtonActivated); saves from before the shop existed that are past Store 1 count as unlocked.
+  const shopOn = () => {
+    const s = global.shop || (global.shop = {});
+    if (!s.on && (STORE !== 'store1' || (sim.state.mats.Mat_Activate_Cashier || {}).done)) s.on = true;
+    return !!s.on;
+  };
+  const shop = new Shop({ art: ART, sound: null, g: global, save: () => save(), unlocked: shopOn,
+    wallet: {
+      cash: () => sim.state.cash,
+      spendCash: n => { sim.state.cash -= n; },
+      addCash: n => { sim.state.cash += n; sim.emit({ type: 'coinPile', amount: n }); },
+      boost: (kind, s) => sim.boosters.grant(kind, s),
+      cheapest: () => sim.boosters.extraCash() || Math.max(0, ...store.mats.map(m => m.cost)),
+      features: () => featureCount(global.visited.map(doneOf)),
+      shake: () => game.hud.shakeCash(),
+    } });
   sim.listeners.push(e => {
     if (e.type !== 'matDone' || level !== global.maxLevel) return;
     const items = new Set(store.shelves.filter(sh => sim.isActive(sh.name)).map(sh => sh.type)).size;
     global.maxItems = Math.max(global.maxItems || 0, items);
   });
-  const hud = new Hud({ daily, sim, store, camera, canvas, items, art: ART, world, tasks, matArrows: matArrows(store), nextMart: next, workerDefs: workers.defs,
+  const hud = new Hud({ daily, shop, sim, store, camera, canvas, items, art: ART, world, tasks, matArrows: matArrows(store), nextMart: next, workerDefs: workers.defs,
     sound: new Sound(`${ART}/sfx`, sim, store, V), martMap, upgradeRows: upgradeIcons && upgradeIcons.stores[STORE], cosmetics,
     onMapView: i => { if (i == null) { cityMap.hide(); sim.state.mapMode = false; } else { sim.state.mapMode = true; if (cityMap.open) cityMap.goTo(i); else cityMap.show(martMap.rows(), i); } } });
   await Promise.all(sceneJson.textures.map(t => texture(`${ART}/tex`, t.name).full));
   setStage(0, 'textures');
   daily.sound = hud.sound;
+  shop.sound = hud.sound;
   sim.listeners.push(e => { if (e.type === 'depart') setTimeout(() => travel(next.id), VAN_TIME); });
   const director = new CameraDirector(sim, store);
   hud.onTaskFocus = p => director.highlight(p);
-  return { world, store, nav, grid, sim, view, hud, director, cityMap, looks, daily, saved: !!saved, marts, radar: objectiveRadar(world, store) };
+  return { world, store, nav, grid, sim, view, hud, director, cityMap, looks, daily, shop, saved: !!saved, marts, radar: objectiveRadar(world, store) };
 }
 
 // ObjectiveRadarController under PlayerFollower: while a task has a target, an arrow circles the player, LookAt the target

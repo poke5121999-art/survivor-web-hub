@@ -130,7 +130,8 @@ export class Daily {
     if (act === 'spin' && st.free) this.spin();
     else if (act === 'rv' && !st.free && st.ads > 0) this.spin();
     else if (act === 'gem' && !st.free && st.ads === 0) {
-      if (this.g.gems < GEM_SPIN) { b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); return; }
+      // Not enough gems: the shop opens on its gem bundles (DailySpinMenuController.OnPressGem).
+      if (this.g.gems < GEM_SPIN) { b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); if (this.onShortGems) this.onShortGems(); return; }
       this.g.gems -= GEM_SPIN;
       this.spin();
     }

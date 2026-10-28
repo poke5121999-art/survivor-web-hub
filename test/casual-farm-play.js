@@ -471,6 +471,46 @@ function serve() {
     check('a first visit to Store 2 offers 300 cash, the ad button doubles it, and a reload does not offer it again',
       wel.open && wel.amt === '300' && wel2 === wel.cash + 600 && !wel3, JSON.stringify({ ...wel, after: wel2, again: wel3 }));
 
+    // Shop (view/shop.js): the button waits for Store 1's cashier mat. Fresh Store 1 with only the cashier: 2 features
+    // (cash bundles x1.2), StoreCashMultiplier 1, so the one-time bundle pays 300 and the free one 60, then waits 5 min.
+    // Rolling offer: step 1 pays half the cheapest mat and the next card unlocks; both survive a reload.
+    await page.goto(`${url}?fresh`);
+    await page.waitForFunction(() => window.__mm && (window.__mm.ready || window.__mm.error), null, { timeout: 90000 });
+    const shopHidden = await page.evaluate(() => getComputedStyle(document.querySelector('#shopbtn')).display === 'none');
+    await page.evaluate(() => { const g = window.__mmGame; g.sim.step = () => {}; g.sim.completeMat(g.store.mats.find(m => m.name === 'Mat_Activate_Cashier')); g.sim.state.cash = 0; });
+    await page.waitForTimeout(300);
+    await page.click('#shopbtn', { timeout: 5000 }).catch(() => {});
+    const cash0 = await page.evaluate(() => window.__mmGame.sim.state.cash);
+    await page.click('[data-buy="coin_bundle_05"]', { timeout: 5000 }).catch(() => {});
+    const cash1 = await page.evaluate(() => ({ cash: window.__mmGame.sim.state.cash, gone: !document.querySelector('[data-id="coin_bundle_05"]') }));
+    await page.click('[data-buy="coin_bundle_02"]', { timeout: 5000 }).catch(() => {});
+    await page.waitForTimeout(600);
+    const cash2 = await page.evaluate(() => {
+      const s = document.querySelector('[data-id="coin_bundle_02"]');
+      return { cash: window.__mmGame.sim.state.cash, wait: s.querySelector('.buy').textContent.trim(), skip: !!s.querySelector('.skip') };
+    });
+    await page.click('[data-buy="daily_deal_01"]', { timeout: 5000 }).catch(() => {});
+    const deal = await page.evaluate(() => document.querySelector('[data-id="daily_deal_01"]').classList.contains('grey'));
+    await page.click('#shopmenu [data-act="close"]', { timeout: 5000 }).catch(() => {});
+    check('the shop opens after the cashier mat: the one-time bundle pays 300 and leaves, the free bundle pays 60 then waits 5 min with a gem skip, a daily deal greys out',
+      shopHidden && cash1.cash === cash0 + 300 && cash1.gone && cash2.cash === cash1.cash + 60 && /0[45]:\d\d/.test(cash2.wait) && cash2.skip && deal,
+      JSON.stringify({ shopHidden, cash0, cash1, cash2, deal }));
+    await page.click('#robtn', { timeout: 5000 }).catch(() => {});
+    const ro0 = await page.evaluate(() => ({ cash: window.__mmGame.sim.state.cash, cheapest: window.__mmGame.shop.wallet.cheapest() }));
+    await page.click('[data-claim="0"]', { timeout: 5000 }).catch(() => {});
+    await page.waitForTimeout(2000);
+    const ro1 = await page.evaluate(() => {
+      const top = [...document.querySelectorAll('#romenu .card')].find(c => c.getBoundingClientRect().top >= document.querySelector('#romenu .scroll').getBoundingClientRect().top - 2);
+      return { cash: window.__mmGame.sim.state.cash, ro: window.__mmGame.shop.g.ro, top: top && top.dataset.i, locked: top && top.classList.contains('locked') };
+    });
+    await page.evaluate(() => dispatchEvent(new Event('pagehide')));
+    await page.goto(url);
+    await page.waitForFunction(() => window.__mm && (window.__mm.ready || window.__mm.error), null, { timeout: 90000 });
+    const kept = await page.evaluate(() => ({ ro: window.__mmGame.shop.g.ro, once: !!window.__mmGame.shop.g.shop.bought.coin_bundle_05, btn: getComputedStyle(document.querySelector('#shopbtn')).display !== 'none' }));
+    check('the rolling offer pays half the cheapest mat, scrolls to the next card unlocked, and the ladder and shop survive a reload',
+      ro0.cheapest > 0 && ro1.cash === ro0.cash + Math.trunc(0.5 * ro0.cheapest) && ro1.ro === 1 && ro1.top === '1' && !ro1.locked
+      && kept.ro === 1 && kept.once && kept.btn, JSON.stringify({ ro0, ro1, kept }));
+
     // Account save (js/cloud.js over the hub's HubSave): a stand-in HubSave keeps one cloud row per account in
     // localStorage key __cloud_<uid> and signs in as __uid. Account A saves, a second device (local save cleared) gets
     // A's progress back, account B on the same browser starts fresh with A's save parked, and A gets its own back.

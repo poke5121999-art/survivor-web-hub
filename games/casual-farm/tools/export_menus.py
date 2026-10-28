@@ -38,6 +38,23 @@ BY_COMPONENT = {
     "outfitSpecial": ("sharedassets1.assets", 25276),
     "petButton": ("sharedassets1.assets", 24212),
 }
+# key -> (file, GameObject path id): prefab roots found by name (scratch tool find_shop.py), and HUD buttons in level1
+BY_GAMEOBJECT = {
+    # FunflareShopMenuController and its slots (rules/shop-ui.md)
+    "shopMenu": ("sharedassets1.assets", 2237),
+    "shopItem": ("sharedassets1.assets", 1671),
+    "shopCategory": ("sharedassets1.assets", 1856),
+    "shopCategoryDeal": ("sharedassets1.assets", 4960),
+    # RollingOfferManager menu (rules/rolling-offer.md)
+    "rollingMenu": ("sharedassets1.assets", 7487),
+    "shopButton": ("level1", 8714),
+    "rollingButton": ("level1", 6164),
+}
+# Sprites the shop picks at run time (RC_CurrencyOffer.currencyIcons / currencyDisabledIcons, FunflareSpriteConfig visuals)
+EXTRA_SPRITES = (["cash-%02d" % i for i in range(1, 7)] + ["gem-%02d" % i for i in range(1, 7)]
+                 + ["cash-dark-%02d" % i for i in range(1, 7)] + ["gem-dark-%02d" % i for i in range(1, 7)]
+                 + ["workersSpeedBoostIcon", "playerSpeedBoostIcon", "extraCustomersIcon", "superWorker-bundle-icon-8 5",
+                    "MachineSpeedBoostUI", "revenueBoostIcon", "cashIcon", "icon-gem"])
 
 
 def outline(nodes):
@@ -100,6 +117,24 @@ def main():
         print(key, f.gname(g), len(nodes), "nodes")
         if "--print" in sys.argv:
             outline(nodes)
+    for key, (fname, g) in BY_GAMEOBJECT.items():
+        f = ui.F(fname)
+        nodes = ui.export_tree(f, g)
+        out[key] = {"source": "%s:%d" % (fname, g), "nodes": nodes}
+        print(key, f.gname(g), len(nodes), "nodes")
+        if "--print" in sys.argv:
+            outline(nodes)
+    want = set(EXTRA_SPRITES)
+    for o in mm.load().objects:
+        if not want:
+            break
+        if o.type.name == "Sprite" and not o.assets_file.name.startswith("CAB-"):
+            n = o.read_typetree()["m_Name"]
+            if n in want:
+                want.discard(n)
+                ui.sprite_ref(ui.F(o.assets_file.name), {"m_FileID": 0, "m_PathID": o.path_id})
+    if want:
+        print("MISSING sprites", sorted(want))
     # GameManager.martIconList (GetMartIconForScene): Mart_<Name>Icon sprites, matched to data/marts.json by name.
     # The Campsite mart (Store14) has no Mart_ sprite in the build; the web falls back to martIcon.
     icons = {}

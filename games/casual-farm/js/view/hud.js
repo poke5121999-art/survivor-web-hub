@@ -11,8 +11,9 @@ const v3 = new THREE.Vector3();
 const KEYS = { ArrowUp: [0, -1], KeyW: [0, -1], ArrowDown: [0, 1], KeyS: [0, 1], ArrowLeft: [-1, 0], KeyA: [-1, 0], ArrowRight: [1, 0], KeyD: [1, 0] };
 
 export class Hud {
-  constructor({ sim, store, camera, canvas, items, art, world, tasks, matArrows, nextMart, workerDefs, sound, martMap, upgradeRows, onMapView, cosmetics, daily }) {
+  constructor({ sim, store, camera, canvas, items, art, world, tasks, matArrows, nextMart, workerDefs, sound, martMap, upgradeRows, onMapView, cosmetics, daily, shop }) {
     this.daily = daily || null;
+    this.shop = shop || null;
     this.upgradeRows = upgradeRows || null;
     this.floats = [];
     this.martMap = martMap;
@@ -45,6 +46,7 @@ export class Hud {
         <a class="btn lb mapbtn" id="mapbtn"><img src="${ui('MapCityUI')}" alt=""><i class="dot"></i></a>
         <a class="btn lb upbtn" id="upbtn"><img src="${ui('upgradeIcon')}" alt=""><i class="dot"></i></a>
         <a class="btn lb custombtn" id="custombtn"><img src="${ui('oldCostumeIcon')}" alt=""></a>
+        <a class="btn lb robtn" id="robtn"><img src="${art}/ui/menus/giftTrolleyIcon.webp" alt=""></a>
         <a class="btn lb spinbtn" id="spinbtn"><img src="${ui('dailySpinIcon')}" alt=""><i class="dot"></i></a>
         <a class="btn lb phone" id="phonebtn"><img src="${ui('mobilePhoneIcon')}" alt=""><i class="dot"></i><s></s></a>
       </div>
@@ -58,7 +60,7 @@ export class Hud {
       <div class="upmenu upgrades" id="upmenu"><div class="head"><img src="${ui('upgradeIcon')}" alt=""><b>UPGRADES</b><a class="btn x">✕</a></div>
         <div class="tabs"><a class="btn tab workers" data-tab="workers">Workers<i class="dot"></i></a><a class="btn tab machines" data-tab="machines">Machines<i class="dot"></i></a><a class="btn tab animals" data-tab="animals">Animals<i class="dot"></i></a></div>
         <div class="rows"></div></div>
-      <div class="boosts" id="boosts"></div>`;
+      <div class="rcol"><a class="btn lb shopbtn" id="shopbtn" style="--sbg:url('${art}/ui/menus/shopButtonLarge.webp')"><img src="${art}/ui/menus/marketplaceIcon.webp" alt=""><i class="dot"></i></a><div class="boosts" id="boosts"></div></div>`;
     // SettingMenuController: sound, music and vibration (VibratePref, on by default) switches.
     try { this.vibrate = localStorage.getItem('mmm-vibrate') !== '0'; } catch (e) { this.vibrate = true; }
     this.setEl = this.root.querySelector('#setmenu');
@@ -167,6 +169,13 @@ export class Hud {
       this.root.querySelector('#spinbtn').addEventListener('click', () => { this.closeMenus(); this.daily.open(); });
       sim.listeners.push(e => { if (e.type === 'boostOffer') this.daily.boosterShown(); });
     }
+    // ShopMenuButton (right column, above the booster buttons) and RollingOfferButton (left column, every mart).
+    if (this.shop) {
+      this.shop.mount(this.root);
+      this.root.querySelector('#shopbtn').addEventListener('click', () => { this.closeMenus(); this.shop.open(); });
+      this.root.querySelector('#robtn').addEventListener('click', () => { this.closeMenus(); this.shop.openRolling(); });
+      if (this.daily) this.daily.onShortGems = () => { this.closeMenus(); this.shop.open('gem_bundles'); };
+    } else this.root.querySelector('#shopbtn').style.display = this.root.querySelector('#robtn').style.display = 'none';
     this.boostEl = this.root.querySelector('#boosts');
     this.boostEl.addEventListener('click', e => {
       const b = e.target.closest('[data-boost]');
@@ -301,13 +310,14 @@ export class Hud {
     if (this.martMenu && keep !== this.mapEl) this.martMenu.close();
     if (this.customise && keep !== this.customise.el) this.customise.close();
     if (this.daily) this.daily.close();
+    if (this.shop) this.shop.close();
   }
 
   bindInput() {
     const el = this.canvas.parentElement || document.body;
     const R = () => Math.min(this.root.clientWidth, this.root.clientHeight) * 0.13;
     el.addEventListener('pointerdown', e => {
-      if (e.target.closest('.btn, .upmenu, .next, .car, .boosts, .lbtns')) return;
+      if (e.target.closest('.btn, .upmenu, .next, .car, .boosts, .lbtns, .rcol')) return;
       this.stick = { active: true, id: e.pointerId, ox: e.clientX, oy: e.clientY, x: 0, y: 0 };
       this.joyEl.style.display = 'block';
       const box = this.root.getBoundingClientRect();
@@ -526,6 +536,18 @@ export class Hud {
       b.classList.toggle('alert', spin && d.freeReady());
       d.update();
     } else this.root.querySelector('#gemc').style.display = this.root.querySelector('#spinbtn').style.display = 'none';
+    if (this.shop) {
+      const b = this.root.querySelector('#shopbtn'), on = this.shop.unlocked();
+      b.style.display = on ? '' : 'none';
+      if (on) {
+        this.gemEl = this.gemEl || this.root.querySelector('#gems');
+        this.gemEl.parentNode.style.display = '';
+        // ShopMenuButton polls the open-item count every 2 s.
+        const now = performance.now();
+        if (now - (this.shopPoll || 0) > 2000) { this.shopPoll = now; b.classList.toggle('alert', this.shop.dot()); }
+      }
+      this.shop.update();
+    }
     for (const t of this.tags.values()) t._seen = false;
 
     s.mats.forEach(m => {

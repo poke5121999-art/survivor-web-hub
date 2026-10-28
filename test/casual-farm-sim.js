@@ -209,6 +209,51 @@ function mulberry32(a) {
   check('spins per day: one free, three extra, then gems; a new day resets; slot 1 pays 3 x cheapest x free multiplier',
     seen.join(',') === 'free,ad3,ad2,ad1,gem,gem' && next.free && cashPay === 225 && new Set(w.filter(Boolean)).size === 3,
     `${seen.join(',')}, next day free ${next.free}, slot 1 pays ${cashPay}, boosters ${w.filter(Boolean).join('/')}`);
+
+  // Shop (sim/shop.js). Store 1 with 2 distinct items (StoreCashMultiplier 4.5) and 5 features (cash x1.4, gems x1.2).
+  const S = await imp('shop.js');
+  check('the daily-deal shuffle matches .NET System.Random (seed 2064 -> 4,5,7,2,1,6,9,8,3,0; seed 12345 -> 1,7,2,8,5,4,3,6,9,0)',
+    S.shuffle(10, 2064).join(',') === '4,5,7,2,1,6,9,8,3,0' && S.shuffle(10, 12345).join(',') === '1,7,2,8,5,4,3,6,9,0' && S.dealSeed('2026-10-28') === 2064,
+    `${S.shuffle(10, 2064).join(',')} / ${S.shuffle(10, 12345).join(',')}`);
+  let sc = 5000;
+  const sg = { maxLevel: 1, maxItems: 2, gems: 100 };
+  const sx = (now = new Date(Date.UTC(2026, 9, 28, 12))) => ({ g: sg, now, features: 5, cash: () => sc, spendCash: n => { sc -= n; } });
+  const it = id => S.ITEMS.find(x => x.id === id);
+  const r6 = S.rewards(it('coin_bundle_06'), sx()), r2 = S.rewards(it('coin_bundle_02'), sx()), p6 = S.price(it('coin_bundle_06'), sx());
+  const p3 = S.price(it('coin_bundle_03'), sx()), g4 = S.rewards(it('gem_bundle_04'), sx()), pg4 = S.price(it('gem_bundle_04'), sx());
+  check('bundles: 1000 coins -> 6300 (was 3150) for 175 gems, 50 coins -> 315 (was 157), the sale bundle 8 gems (was 13), 80 gems -> 95 for 3420 cash',
+    r6.list[0].amount === 6300 && r6.was === 3150 && p6.amount === 175 && r2.list[0].amount === 315 && r2.was === 157
+    && p3.amount === 8 && p3.was === 13 && g4.list[0].amount === 95 && pg4.amount === 3420,
+    JSON.stringify({ r6, p6, r2, p3, g4: g4.list[0].amount, pg4: pg4.amount }));
+  const t0 = new Date(Date.UTC(2026, 9, 28, 12));
+  const free1 = S.buy(it('coin_bundle_02'), sx(t0)), again = S.buy(it('coin_bundle_02'), sx(new Date(+t0 + 60e3)));
+  const skipped = S.buy(it('coin_bundle_02'), sx(new Date(+t0 + 60e3)), { skip: true }), gemsAfterSkip = sg.gems;
+  const later = S.availability(it('coin_bundle_02'), sx(new Date(+t0 + 301e3)));
+  const once = S.buy(it('coin_bundle_05'), sx(t0)), onceAfter = S.availability(it('coin_bundle_05'), sx(t0));
+  const short = S.buy(it('coin_bundle_06'), sx(t0)), gemBuy = S.buy(it('gem_bundle_04'), sx(t0));
+  check('a free claim waits 5 min (or 4 gems skip it), the one-time bundle leaves the list, short gems fail, 3420 cash buys 95 gems',
+    free1.ok && free1.list[0].amount === 315 && !again.ok && again.why === 'cooling' && skipped.ok && gemsAfterSkip === 96 && later === 'open'
+    && once.ok && onceAfter === 'gone' && !short.ok && short.why === 'gems' && gemBuy.ok && sc === 1580 && gemBuy.list[0].amount === 95,
+    JSON.stringify({ free1: free1.ok, again: again.why, gemsAfterSkip, later, onceAfter, short: short.why, sc }));
+  const today = [0, 1, 2].map(k => S.rewards(it(`daily_deal_0${k + 1}`), sx(t0)).list[0]);
+  const y = new Date(Date.UTC(2026, 9, 27, 12)), yday = S.rewards(it('daily_deal_03'), sx(y)).list[0];
+  const dealBuy = S.buy(it('daily_deal_01'), sx(t0)), dealAgain = S.availability(it('daily_deal_01'), sx(t0));
+  const dealNext = S.availability(it('daily_deal_01'), sx(new Date(Date.UTC(2026, 9, 29, 0, 1))));
+  check('daily deals on 2026-10-28 are faster workers / faster player / super worker 15 min; 2026-10-27 slot 3 pays 300 x 4.5; one buy each per UTC day',
+    today.map(r => `${r.item}:${r.amount}`).join(',') === 'reward_faster_workers:15,reward_faster_player:15,reward_super_worker:15'
+    && yday.item === 'reward_cash' && yday.amount === 1350 && dealBuy.ok && dealAgain === 'bought' && dealNext === 'open',
+    JSON.stringify({ today, yday, dealAgain, dealNext }));
+
+  // Rolling offer (sim/rolling.js): 13 steps once, claimed in order, the real-money steps 6 and 11 passed over.
+  const RO = await imp('rolling.js');
+  const rg = { maxLevel: 1, maxItems: 2 }, rctx = { cheapest: 40, g: rg }, claimed = [], pays = [];
+  const early = RO.claim(rg, 3, rctx);
+  while (RO.current(rg) < RO.LADDER.length) { const i = RO.current(rg); claimed.push(i); pays.push(RO.claim(rg, i, rctx)); }
+  check('the rolling offer pays 50% of the cheapest mat x free multiplier first (60), claims only the current step, skips steps 6 and 11, ends on Coming soon',
+    early === null && claimed.join(',') === '0,1,2,3,4,6,7,8,9,11,12' && pays[0][0].amount === 60
+    && JSON.stringify(pays[3]) === JSON.stringify([{ kind: 'gems', amount: 1 }, { kind: 'boost', boost: 'player', seconds: 300 }])
+    && RO.claim(rg, 12, rctx) === null && rg.ro === 13,
+    `claimed ${claimed.join(',')}, first ${pays[0][0].amount}, step 4 ${JSON.stringify(pays[3])}`);
   console.log(`PASS: ${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(2); });
