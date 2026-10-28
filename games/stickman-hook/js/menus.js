@@ -5,6 +5,7 @@ import { Renderer } from './render.js';
 import { bake } from './fx.js';
 import { XP_ROAD, SKIP_TICKETS, qty } from './meta.js';
 import { MODES } from './modes.js';
+import { artPage, spr, slice, label, glText, U, kitStyle } from './uikit.js';
 
 const CSS = `
 .sheet { margin: auto; background: #12314d; color: #fff; border: 4px solid #0d1b2a; border-radius: 22px; width: min(96vw, 620px);
@@ -78,7 +79,7 @@ const CSS = `
 .mk p { margin: 0 2px 6px; font-size: 13px; opacity: .8; }
 `;
 
-const KIND_TABS = [['skins', 'Skin'], ['ropes', 'Dây'], ['trails', 'Vệt']];
+const KIND_TABS = [['ropes', 'Dây'], ['skins', 'Skin'], ['trails', 'Vệt']]; // CategoriesToggles order
 const FLAGS = { 'flag.has_coin_offers': 'Ưu đãi xu trong chợ', 'flag.has_welcome_booster': 'Gói thẻ chào mừng',
   'flag.seasonal_event': 'Sự kiện theo mùa' };
 
@@ -133,30 +134,85 @@ function iconCanvas(icons, it, px) {
 // first step (0 XP). Its row opens the wheel.
 const SCREENS = { 'mode.lucky_wheel': { open: (app) => openWheel(app), icon: 'wheel' } };
 
-export function openModes(app) {
+// GameModesPage (ui_pages_gamemodes): UIGradient #0082FF -> #00EAFF, Pattern_Game mode tiled, "Game Mode" title with
+// GameModes_Icon, a scroll of GameModeItemUi cards (gamemodes_*_menuitem, 700 x 235): BG rounded_square_128px #4FC3FF
+// (locked #B2B2B2), white line at 0.61-0.63, the mode's illustration masked under it, Frame_Mode_01 outline, icon + title
+// + subtitle on top, Counter_01 (#045483) with the level; locked: BottomFrameLocked with the condition and Icon_Lock.
+// The whole card is the button (BG Button); the web keeps a transparent "Chơi" button over it.
+const MODE_ART = {
+  'mode.adventure': ['IllustrationAdventure', 'Icon', 'Bạn đi được bao xa?'],
+  'mode.grapple': ['IllustrationGrapple', 'Grapple_Icon', 'Lao thẳng tới mục tiêu'],
+  'mode.challenge': ['IllustrationChallenge', 'IconChallenge completed', 'Không dễ đâu!'],
+  'mode.pachinko': ['IllustrationPachinko', 'Icon_Pachinko', 'Thử vận may, thử tài!'],
+  'mode.tournament': [null, 'Icon_Trophy', 'Đua với ghost của người chơi khác'],
+  'mode.lucky_wheel': [null, 'Icon_LuckyWheel', 'Quay lấy quà'],
+  'mode.normal': [null, 'Icon_Home', 'Các màn chính'],
+};
+const MODES_CSS = `
+#modes .abody { margin: 0 ${U(24)} calc(env(safe-area-inset-bottom) + ${U(24)}); border-radius: ${U(30)}; background: rgba(35, 34, 122, .44);
+  overflow: auto; padding: ${U(14)} ${U(12)}; gap: ${U(18)}; }
+#modes .mode { position: relative; flex: none; width: 100%; max-width: ${U(700)}; height: ${U(235)}; margin: 0 auto; border-radius: ${U(26)};
+  background: #4fc3ff; box-shadow: 0 ${U(8)} 0 rgba(0, 0, 0, .25); }
+#modes .mode.off { background: #b2b2b2; }
+#modes .mode.noill { height: ${U(100)}; }
+#modes .mode.noill .line { display: none; }
+#modes .mode.noill .ic { height: 70%; top: 12%; }
+#modes .mode.noill .nm { top: 10%; height: 40%; }
+#modes .mode.noill .sub { top: 58%; }
+#modes .mode.noill .cnt { top: 22%; height: 46%; }
+#modes .mode.noill .lockf { bottom: ${U(4)}; transform: scale(.8); }
+#modes .mode .ill { position: absolute; left: ${U(2)}; right: ${U(2)}; bottom: 5%; height: 56%; border-radius: 0 0 ${U(20)} ${U(20)};
+  background-size: 118% 298%; background-position: 50% 50%; }
+#modes .mode.off .ill { filter: grayscale(1) brightness(1.05); opacity: .8; }
+#modes .mode .line { position: absolute; left: ${U(6)}; right: ${U(6)}; top: 37%; height: 2%; background: #fff; }
+#modes .mode .fr { position: absolute; inset: 0; }
+#modes .mode .ic { position: absolute; left: 3%; top: 5%; width: 10%; height: 31%; filter: drop-shadow(0 ${U(3)} 0 rgba(0,0,0,.3)); }
+#modes .mode .nm { position: absolute; left: 14%; top: 4%; height: 16%; display: flex; align-items: center; font-size: ${U(32)}; }
+#modes .mode .sub { position: absolute; left: 14%; top: 22%; font: 800 ${U(20)}/1.2 system-ui, sans-serif; color: #045483; }
+#modes .mode.off .sub { color: #5b5b5b; }
+#modes .mode .cnt { position: absolute; right: 3%; top: 8%; min-width: 18%; height: 15%; border-radius: ${U(12)}; background: #045483;
+  display: flex; align-items: center; justify-content: center; font-size: ${U(26)}; padding: 0 ${U(8)}; box-sizing: border-box; }
+#modes .mode .lockf { position: absolute; left: 50%; bottom: ${U(36 - 22.5)}; width: ${U(330)}; height: ${U(45)}; margin-left: ${U(-165 - 7)};
+  display: flex; align-items: center; justify-content: center; }
+#modes .mode .lockf span { font-size: ${U(22)}; }
+#modes .mode .lk { position: absolute; left: 50%; top: 50%; width: ${U(82 * 0.7)}; height: ${U(124 * 0.7)}; margin: ${U(-43 - 6)} 0 0 ${U(-29)}; }
+#modes .mode > button { position: absolute; inset: 0; border: 0; background: none; color: transparent; font-size: 1px; cursor: pointer; }
+#modes .mode > button:active ~ .fr { transform: scale(.98); }
+`;
+
+export async function openModes(app) {
   const { meta, save } = app;
-  const sheet = sheetOverlay(app, 'modes', 'Chế độ chơi');
-  const box = document.createElement('div');
-  box.className = 'scroll';
+  kitStyle();
+  if (!document.getElementById('modesCss')) document.head.insertAdjacentHTML('beforeend', `<style id="modesCss">${MODES_CSS}</style>`);
+  const { body, sh } = await artPage(app, 'modes', 'modes', { grad: 'linear-gradient(#0082ff, #00eaff)', pattern: 'Pattern_Game mode',
+    patSize: 256, patAlpha: 0.08, title: 'Chế độ chơi', icon: 'GameModes_Icon' });
   for (const m of meta.d.modes) {
     const st = meta.modeState(save, m);
     const screen = SCREENS[st.id];
     const playable = st.open && (MODES[st.id] || screen);
+    const [ill, ic, sub] = MODE_ART[st.id] || [null, null, 'Sự kiện theo mùa'];
     const row = document.createElement('div');
-    row.className = 'mode' + (playable ? '' : ' off');
+    row.className = 'mode' + (playable ? '' : ' off') + (ill ? '' : ' noill');
     row.dataset.id = st.id;
-    const ic = document.createElement('i');
-    const key = screen ? screen.icon : st.id;
-    app.icon(ic, key, 52);
-    if (!meta.d.menu[key]) Object.assign(ic.style, { width: '52px', height: '52px' });
-    row.appendChild(ic);
-    const nm = document.createElement('div');
-    nm.className = 'nm';
+    row.innerHTML = `${ill ? '<i class="ill"></i>' : ''}<i class="line"></i><i class="fr"></i>${ic ? '<i class="ic"></i>' : ''}
+      <b class="nm"></b><span class="sub"></span>`;
+    if (ill) spr(row.querySelector('.ill'), sh, ill);
+    slice(row.querySelector('.fr'), sh, 'Frame_Mode_01', 1);
+    if (ic) spr(row.querySelector('.ic'), sh, ic === 'IconChallenge completed' && !playable ? 'IconChallengeLocked' : ic);
+    const nm = row.querySelector('.nm');
     nm.textContent = st.name;
-    row.appendChild(nm);
+    row.querySelector('.sub').textContent = sub;
     if (playable) {
+      const lv = MODES[st.id]?.slot?.(save);
+      if (lv && st.id !== 'mode.tournament') {
+        const c = document.createElement('b');
+        c.className = 'cnt';
+        c.textContent = (lv.level || 0) + 1;
+        row.appendChild(c);
+      }
       const b = document.createElement('button');
       b.textContent = 'Chơi';
+      b.title = 'Chơi ' + st.name;
       b.onclick = () => {
         app.play('button');
         if (!screen) { app.openMode(st.id); return; }
@@ -165,35 +221,92 @@ export function openModes(app) {
       };
       row.appendChild(b);
     } else {
-      const s = document.createElement('div');
-      s.className = 'st';
-      s.innerHTML = st.need
-        ? '🔒 ' + (st.need.road === XP_ROAD ? `Cần ${st.need.value} XP` : `Hoàn thành màn ${st.need.value}`)
-        : 'Sắp có';
-      row.appendChild(s);
+      row.insertAdjacentHTML('beforeend', '<div class="lockf st"><span></span></div><i class="lk"></i>');
+      slice(row.querySelector('.lockf'), sh, 'BottomFrameLocked', 0.5);
+      spr(row.querySelector('.lk'), sh, 'Icon_Lock');
+      const t = row.querySelector('.lockf span');
+      t.textContent = st.need ? (st.need.road === XP_ROAD ? `Cần ${st.need.value} XP` : `Hoàn thành màn ${st.need.value}`) : 'Sắp có';
+      glText(app, t, 22);
     }
-    box.appendChild(row);
+    body.appendChild(row);
+    glText(app, nm, 32);
   }
-  sheet.appendChild(box);
 }
 
 // ---- customization -------------------------------------------------------------------------------------------------
+// CustomizationPage (ui_pages_customization): the top third (anchors 0.67-1) is the preview: background2, ShinySun
+// (#6BFCFF, turning), the skin in the middle (298 x 285), the rope and the trail in ShopTrailRopeHolder (#2E77B08D,
+// 130 x 130) at 0.25 / 0.75 of the width. Under it, on #062452: ROPES / SKINS / TRAILS toggles (Button_ShopSelection /
+// Unselected), the page numbers (Container_PageCollection, ContainerPage_Selected / Unselected) and the collections:
+// yellow when complete, blue otherwise, with their count, and one ShopHolder / ShopLocked card per item by rarity.
+// The web keeps every collection of a kind in one scroll; a page number scrolls to its collections (7 pages).
+const SHOP_CSS = `
+#shop .abody { background: #062452; }
+#shop .top { position: relative; flex: none; height: ${U(300)}; overflow: hidden; }
+#shop .top .bg2 { position: absolute; inset: 0; }
+#shop .top .sun { position: absolute; left: 50%; top: 50%; width: ${U(520)}; height: ${U(520)}; margin: ${U(-260)} 0 0 ${U(-260)};
+  animation: shopsun 12s linear infinite; opacity: .55; }
+@keyframes shopsun { to { transform: rotate(360deg); } }
+#shop .top canvas.pv { position: absolute; left: 50%; top: 50%; width: ${U(300)}; height: ${U(300)}; margin: ${U(-150)} 0 0 ${U(-150)}; }
+#shop .top .hold { position: absolute; top: 50%; width: ${U(130)}; height: ${U(130)}; margin-top: ${U(-65)}; border-radius: ${U(30)};
+  background: rgba(46, 119, 176, .55); }
+#shop .top .hold canvas { position: absolute; inset: ${U(5)}; width: ${U(120)}; height: ${U(120)}; }
+#shop .top .hold.r { left: calc(25% - ${U(30 + 65)}); }
+#shop .top .hold.t { left: calc(75% + ${U(30 - 65)}); }
+#shop .info { position: absolute; left: ${U(16)}; right: ${U(16)}; bottom: ${U(6)}; text-align: center; font: 800 ${U(21)}/1.2 system-ui, sans-serif;
+  text-shadow: 0 ${U(2)} 0 #062452; }
+#shop .info b { font-size: ${U(26)}; }
+#shop .info .rar { margin-left: ${U(8)}; font-weight: 900; }
+#shop .tabs { flex: none; display: flex; height: ${U(82)}; padding: ${U(6)} ${U(12)} 0; gap: ${U(4)}; }
+#shop .tabs button { flex: 1; cursor: pointer; color: #fff; font: 900 ${U(30)} system-ui, sans-serif; -webkit-text-stroke: ${U(5)} #1a1c4b;
+  paint-order: stroke fill; text-transform: uppercase; padding: 0 0 ${U(8)}; }
+#shop .tabs button.on { transform: translateY(${U(-4)}); }
+#shop .pages { flex: none; align-self: center; display: flex; gap: ${U(6)}; align-items: center; height: ${U(64)}; padding: 0 ${U(24)};
+  margin: ${U(8)} 0; }
+#shop .pages button { width: ${U(46)}; height: ${U(48)}; border: 0; cursor: pointer; font-size: ${U(26)}; color: #fff; padding: 0; }
+#shop .scroll { flex: 1; overflow: auto; padding: ${U(4)} ${U(16)} calc(env(safe-area-inset-bottom) + ${U(30)}); }
+#shop .col { position: relative; margin: 0 0 ${U(24)}; padding: ${U(78)} ${U(16)} ${U(22)}; }
+#shop .col h3 { position: absolute; left: ${U(24)}; right: ${U(24)}; top: ${U(14)}; margin: 0; display: flex; align-items: center;
+  justify-content: space-between; height: ${U(50)}; }
+#shop .col h3 span { font-size: ${U(30)}; }
+#shop .col h3 small { min-width: ${U(80)}; height: ${U(44)}; display: flex; align-items: center; justify-content: center; font-size: ${U(26)};
+  padding: 0 ${U(8)}; }
+#shop .cells { display: grid; grid-template-columns: repeat(3, 1fr); gap: ${U(18)}; }
+#shop .cell { position: relative; aspect-ratio: 281 / 285; cursor: pointer; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; }
+#shop .cell canvas { width: 70%; height: 70%; }
+#shop .cell.locked canvas { opacity: .5; filter: grayscale(.7) brightness(.7); }
+#shop .cell .t { position: absolute; left: 6%; right: 6%; bottom: 7%; text-align: center; font: 900 ${U(17)}/1.1 system-ui, sans-serif;
+  color: #fff; -webkit-text-stroke: ${U(3)} #1a1c4b; paint-order: stroke fill; text-transform: uppercase; }
+#shop .cell:not(.locked) .t { display: none; }
+#shop .cell.sel { outline: ${U(6)} solid #fff; outline-offset: ${U(-2)}; border-radius: ${U(26)}; }
+#shop .cell .eq { position: absolute; right: ${U(-8)}; top: ${U(-10)}; width: ${U(56)}; height: ${U(56)}; }
+`;
+
 export async function openShop(app) {
   const { meta, save, custom } = app;
-  const sheet = sheetOverlay(app, 'shop', 'Tuỳ biến');
-  sheet.insertAdjacentHTML('beforeend', `<div class="prev"><canvas></canvas><div class="info"><b></b><span class="rar"></span>
-    <div class="how"></div></div></div><div class="tabs"></div><div class="scroll">Đang tải…</div>`);
-  const tabs = sheet.querySelector('.tabs'), list = sheet.querySelector('.scroll'), info = sheet.querySelector('.info');
+  kitStyle();
+  if (!document.getElementById('shopCss')) document.head.insertAdjacentHTML('beforeend', `<style id="shopCss">${SHOP_CSS}</style>`);
+  const [{ body, sh }, icons] = await Promise.all([artPage(app, 'shop', 'shop', { grad: '#062452', title: 'Tuỳ biến',
+    onClose: () => close(app, 'shop') }), custom.icons()]);
+  body.innerHTML = `<div class="top"><i class="bg2"></i><i class="sun"></i><div class="hold r"><canvas></canvas></div>
+    <canvas class="pv"></canvas><div class="hold t"><canvas></canvas></div><div class="info"><b></b><span class="rar"></span><div class="how"></div></div></div>
+    <div class="tabs"></div><div class="pages"></div><div class="scroll"></div>`;
+  spr(body.querySelector('.bg2'), sh, 'background2');
+  spr(body.querySelector('.sun'), sh, 'ShinySun');
+  const tabs = body.querySelector('.tabs'), list = body.querySelector('.scroll'), info = body.querySelector('.info');
+  const pages = body.querySelector('.pages');
+  slice(pages, sh, 'Container_PageCollection', 0.7);
   const state = { kind: 'skins', sel: meta.item('skins', save.equipped.skins) };
-  for (const [kind, label] of KIND_TABS) {
+  for (const [kind, text] of KIND_TABS) {
     const b = document.createElement('button');
-    b.textContent = label;
+    b.textContent = text;
     b.dataset.kind = kind;
     b.onclick = () => { app.play('button'); state.kind = kind; state.sel = meta.item(kind, save.equipped[kind]); render(); };
     tabs.appendChild(b);
   }
-  const icons = await custom.icons();
-  const preview = startPreview(app, sheet.querySelector('.prev canvas'), state);
+  const preview = startPreview(app, body.querySelector('canvas.pv'), state);
+  const holders = [...body.querySelectorAll('.hold canvas')];
 
   function showInfo() {
     const it = state.sel, rar = meta.d.rarities[it.rarity];
@@ -204,43 +317,78 @@ export async function openShop(app) {
     const u = meta.unlockInfo(it);
     info.querySelector('.how').innerHTML = save.equipped[it.kind] === it.name ? 'Đang dùng'
       : owned ? 'Đã có. Chạm để dùng.'
-        : rich(u.text || 'Locked') + (u.live ? '' : '<br><small style="opacity:.7">Cách mở này sắp có ở bản web</small>');
+        : rich(u.text || 'Locked') + (u.live ? '' : ' <small style="opacity:.7">(cách mở này sắp có ở bản web)</small>');
     preview.select(it);
+    // the rope and trail holders show the selected (or equipped) rope and trail
+    for (const [i, kind] of [[0, 'ropes'], [1, 'trails']]) {
+      const pick = state.sel.kind === kind ? state.sel : meta.item(kind, save.equipped[kind]);
+      const c = iconCanvas(icons, pick, 60);
+      holders[i].width = c.width; holders[i].height = c.height;
+      holders[i].getContext('2d').drawImage(c, 0, 0);
+    }
   }
 
   function render() {
-    for (const b of tabs.children) b.classList.toggle('on', b.dataset.kind === state.kind);
+    for (const b of tabs.children) {
+      b.classList.toggle('on', b.dataset.kind === state.kind);
+      slice(b, sh, b.dataset.kind === state.kind ? 'Button_ShopSelection' : 'Button_ShopUnselected', 0.45);
+    }
     list.innerHTML = '';
+    pages.innerHTML = '';
     const cols = Object.entries(meta.d.collections).filter(([, c]) => c[1] === state.kind).sort((a, b) => a[1][2] - b[1][2] || a[1][3] - b[1][3]);
+    // the original has 7 pages: the collections of a kind spread over at most 7 numbers
+    let n = 0;
+    const per = Math.max(1, Math.ceil(cols.length / 7));
     for (const [cid, c] of cols) {
       const items = meta.items.filter((it) => it.collection === cid && it.kind === state.kind);
       if (!items.length) continue;
       items.sort((a, b) => meta.d.rarityIds.indexOf(a.rarity) - meta.d.rarityIds.indexOf(b.rarity) || a.title.localeCompare(b.title));
-      const have = items.filter((it) => save.owned[it.kind].includes(it.name)).length;
+      const have = items.filter((it) => save.owned[it.kind].includes(it.name)).length, full = have === items.length;
       const sec = document.createElement('div');
       sec.className = 'col';
-      sec.innerHTML = `<h3>${esc(c[0])}<small>${have}/${items.length}${c[4] ? ' · +' + c[4] + ' XP' : ''}</small></h3><div class="cells"></div>`;
+      sec.innerHTML = `<h3><span></span><small></small></h3><div class="cells"></div>`;
+      slice(sec, sh, full ? 'HolderCollection_01' : 'HolderGameMode_01', 0.7);
+      const t = sec.querySelector('h3 span'), cnt = sec.querySelector('h3 small');
+      t.textContent = c[0];
+      cnt.textContent = `${have}/${items.length}`;
+      cnt.title = c[4] ? `+${c[4]} XP khi đủ bộ` : '';
+      spr(cnt, sh, full ? 'Container_CollectionNumberCompleted' : 'Container_CollectionNumber');
       const cells = sec.querySelector('.cells');
       for (const it of items) cells.appendChild(cell(it));
+      if (n % per === 0) {
+        const b = document.createElement('button'), page = n / per + 1;
+        b.textContent = page;
+        b.onclick = () => { app.play('button'); sec.scrollIntoView({ block: 'start', behavior: 'smooth' }); };
+        pages.appendChild(b);
+      }
+      n++;
       list.appendChild(sec);
+      glText(app, t, 30);
+      glText(app, cnt, 26);
     }
+    const marks = [...pages.children];
+    marks.forEach((b, i) => { spr(b, sh, i === 0 ? 'ContainerPage_Selected' : 'ContainerPage_Unselected'); glText(app, b, 26); });
+    list.onscroll = () => {
+      const secs = [...list.children], top = list.getBoundingClientRect().top;
+      const at = Math.max(0, secs.findIndex((e) => e.getBoundingClientRect().bottom > top + 10));
+      marks.forEach((b, i) => spr(b, sh, i === Math.floor(at / per) ? 'ContainerPage_Selected' : 'ContainerPage_Unselected'));
+    };
     showInfo();
   }
 
   function cell(it) {
-    const rar = meta.d.rarities[it.rarity];
     const owned = save.owned[it.kind].includes(it.name), eq = save.equipped[it.kind] === it.name;
     const b = document.createElement('div');
     b.className = 'cell' + (owned ? '' : ' locked') + (state.sel === it ? ' sel' : '');
     b.dataset.id = it.id;
-    b.style.background = rar[1];
-    b.style.borderColor = rar[2];
-    b.appendChild(iconCanvas(icons, it, 32));
+    b.title = it.title;
+    spr(b, sh, (owned ? 'ShopHolder_' : 'ShopLocked_') + it.rarity);
+    b.appendChild(iconCanvas(icons, it, 48));
     const t = document.createElement('div');
     t.className = 't';
     t.innerHTML = owned ? esc(it.title) : rich(meta.unlockInfo(it).text || 'Locked');
     b.appendChild(t);
-    if (eq) b.insertAdjacentHTML('beforeend', '<span class="tag eq">✓</span>');
+    if (eq) { const e = document.createElement('i'); e.className = 'eq'; spr(e, sh, 'ValidateIcon_01'); b.appendChild(e); }
     b.onclick = () => {
       app.play('button');
       if (owned && !eq) {
@@ -249,7 +397,9 @@ export async function openShop(app) {
         app.applyEquip();
       }
       state.sel = it;
+      const y = list.scrollTop;
       render();
+      list.scrollTop = y;
     };
     return b;
   }
@@ -278,6 +428,7 @@ function startPreview(app, canvas, state) {
     R.resize();
     const t = (now - t0) / 1000;
     R.begin({ x: 0, y: -0.15, zoom: 0.75 });
+    R.ctx.clearRect(0, 0, canvas.width, canvas.height); // over the page's preview background (CustomizationPage TopHolder)
     if (state.kind === 'trails' && view.trail) {
       pts.push({ x: Math.cos(t * 3) * 0.5, y: -0.2 + Math.sin(t * 6) * 0.2, t });
       while (pts.length && t - pts[0].t > view.trail.time) pts.shift();
@@ -304,12 +455,57 @@ function startPreview(app, canvas, state) {
 }
 
 // ---- XP road -------------------------------------------------------------------------------------------------------
+// XpRoadPopup (ui_xproad_popup): UIGradient #DA73D6 (top) -> #3673C7, Pattern_Trophy tiled; the road climbs from the
+// bottom: a column on the left (rank number markers, cyan fill up to the XP, the league medal on the current rank) and
+// one XpRoadHolder card per rank (rarity of its reward), a check once claimed. The road items are runtime prefabs not
+// read here: [ĐỀ XUẤT] column x 85 (the particles' EndPoint), 250 units per rank, card 349 x 185 (the sprite).
+const ROAD_CSS = `
+#road .abody { overflow: auto; }
+#road .steps { display: flex; flex-direction: column-reverse; padding: ${U(40)} 0 ${U(200)}; position: relative; }
+#road .col { position: absolute; left: ${U(85 - 20)}; width: ${U(40)}; top: 0; bottom: 0; background: #3c2a7d; border-radius: ${U(20)};
+  box-shadow: inset 0 0 0 ${U(5)} #2b1f5c; }
+#road .fill { position: absolute; left: ${U(85 - 14)}; width: ${U(28)}; bottom: 0; background: linear-gradient(90deg, #12c6ff, #8ff3ff 60%, #12c6ff);
+  border-radius: ${U(14)}; }
+#road .step { position: relative; height: ${U(250)}; flex: none; }
+#road .rk { position: absolute; left: ${U(85 - 30)}; top: 50%; width: ${U(60)}; height: ${U(46)}; margin-top: ${U(-23)}; border-radius: ${U(14)};
+  background: #3c2a7d; border: ${U(4)} solid #2b1f5c; display: flex; align-items: center; justify-content: center; font-size: ${U(26)};
+  box-sizing: border-box; }
+#road .step.cur .rk { width: ${U(110)}; height: ${U(110)}; left: ${U(85 - 55)}; margin-top: ${U(-55)}; background-color: transparent; border: 0;
+  font-size: ${U(34)}; }
+#road .card { position: absolute; left: calc(${U(85 + 50)} + (100% - ${U(85 + 50)}) / 2 - ${U(175)}); top: 50%; width: ${U(349)}; height: ${U(185)};
+  margin-top: ${U(-92)}; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: ${U(6)}; }
+#road .card .rw { display: flex; gap: ${U(14)}; align-items: center; }
+#road .card .rwd { display: flex; flex-direction: column; align-items: center; gap: ${U(4)}; max-width: ${U(300)}; text-align: center;
+  background: none; padding: 0; }
+#road .card .rwd canvas, #road .card .rwd i { width: ${U(96)}; height: ${U(96)}; filter: drop-shadow(0 ${U(4)} 0 rgba(0,0,0,.25)); }
+#road .card .rwd > span { font: 900 ${U(22)}/1.1 system-ui, sans-serif; text-transform: uppercase; -webkit-text-stroke: ${U(4)} #1a1c4b;
+  paint-order: stroke fill; }
+#road .card .rwd .soon { display: block; font-size: ${U(16)}; color: #ffd6d6; }
+#road .step.done .card { filter: brightness(.85); }
+#road .ok { position: absolute; right: ${U(-12)}; top: ${U(-12)}; width: ${U(64)}; height: ${U(64)}; }
+#road .lg { position: absolute; left: ${U(150)}; top: ${U(8)}; font-size: ${U(28)}; }
+#road .foot { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; gap: ${U(20)};
+  padding: ${U(20)} ${U(24)} calc(env(safe-area-inset-bottom) + ${U(26)}); background: linear-gradient(rgba(54, 115, 199, 0), rgba(54, 115, 199, .9) 40%); }
+#road .foot .sum { font-size: ${U(26)}; }
+#road .foot .big { width: ${U(330)}; height: ${U(110)}; border: 0; box-shadow: none; background-color: transparent; color: #fff; padding: 0;
+  font: 900 ${U(30)} system-ui, sans-serif; -webkit-text-stroke: ${U(5)} #8a3d00; paint-order: stroke fill; }
+#road .foot .big:disabled { filter: grayscale(1) brightness(.85); }
+`;
+const MEDAL = { Bronze: 'BronzeMedals_01', Silver: 'SilverMedals_01', Gold: 'GoldMedal_01', Platine: 'OtherMedals_01',
+  Diamond: 'Diamond_Small', Master: 'Master_Small' };
+
 export async function openRoad(app) {
   const { meta, save, custom } = app;
-  const sheet = sheetOverlay(app, 'road', 'Đường XP');
-  sheet.insertAdjacentHTML('beforeend', '<div class="scroll">Đang tải…</div><div class="foot"><span class="sum"></span><button class="big" disabled>Nhận thưởng</button></div>');
-  const list = sheet.querySelector('.scroll'), btn = sheet.querySelector('.foot .big'), sum = sheet.querySelector('.sum');
-  const icons = await custom.icons();
+  kitStyle();
+  if (!document.getElementById('roadCss')) document.head.insertAdjacentHTML('beforeend', `<style id="roadCss">${ROAD_CSS}</style>`);
+  const [{ el: page, body, sh }, icons] = await Promise.all([
+    artPage(app, 'road', 'road', { grad: 'linear-gradient(#da73d6, #3673c7)', pattern: 'Pattern_Trophy', patSize: 256, patAlpha: 0.08,
+      title: 'Đường XP' }), custom.icons()]);
+  body.innerHTML = '<div class="steps"><i class="col"></i><i class="fill"></i></div>';
+  page.insertAdjacentHTML('beforeend', '<div class="foot"><b class="sum"></b><button class="big" disabled>Nhận thưởng</button></div>');
+  const list = body.querySelector('.steps'), btn = page.querySelector('.foot .big'), sum = page.querySelector('.foot .sum');
+  spr(btn, sh, 'OutlinedButtonGold');
+  glText(app, sum, 26);
 
   function reward([res, q]) {
     const el = document.createElement('div');
@@ -317,12 +513,12 @@ export async function openRoad(app) {
     const kind = res.split('.')[0];
     const it = meta.byId.get(res);
     let label, soon = false;
-    if (it) { el.appendChild(iconCanvas(icons, it, 17)); label = it.title; }
+    if (it) { el.appendChild(iconCanvas(icons, it, 48)); label = it.title; }
     else {
       const ic = document.createElement('i');
       const key = res === 'currency.skin_coins' ? 'coin' : kind === 'booster' ? 'booster.' + meta.d.boosters[res]?.[1]?.replace('welcome', 'epic')
         : kind === 'unlocked_level_mode' ? 'mode.challenge' : res;
-      app.icon(ic, key, 34);
+      app.icon(ic, key, 60);
       el.appendChild(ic);
       const mode = meta.d.modes.find((m) => m[0] === res);
       if (res === 'currency.skin_coins') label = q + ' xu';
@@ -338,25 +534,44 @@ export async function openRoad(app) {
   }
 
   function render() {
-    list.innerHTML = '';
-    const done = save.claimed[XP_ROAD] ?? -1;
-    meta.xpRoad.forEach(([v, rewards, league], i) => {
-      if (league) list.insertAdjacentHTML('beforeend', `<div class="league">${esc(meta.d.leagues[league])}</div>`);
-      if (!rewards.length) return;
+    for (const e of list.querySelectorAll('.step')) e.remove();
+    const done = save.claimed[XP_ROAD] ?? -1, rank = meta.rankOf(save.xp);
+    let league = '', fillTo = 0;
+    meta.xpRoad.forEach(([v, rewards, lg], i) => {
+      if (lg) league = meta.d.leagues[lg];
       const row = document.createElement('div');
-      row.className = 'step' + (v <= done ? ' done' : v <= save.xp ? ' ready' : '');
-      row.innerHTML = `<div class="rk">Hạng ${i + 1}<small>${v} XP</small></div><div class="rw"></div>`;
-      for (const r of rewards) row.querySelector('.rw').appendChild(reward(r));
-      if (v <= done) row.querySelector('.rk').insertAdjacentHTML('beforeend', '<small>✓ đã nhận</small>');
+      row.className = 'step' + (v <= done ? ' done' : v <= save.xp ? ' ready' : '') + (i + 1 === rank ? ' cur' : '');
+      row.innerHTML = '<b class="rk"></b>';
+      const rk = row.querySelector('.rk');
+      rk.textContent = i + 1;
+      if (i + 1 === rank) spr(rk, sh, MEDAL[league] || 'BronzeMedals_01');
+      if (lg) { const l = document.createElement('b'); l.className = 'lg'; l.textContent = meta.d.leagues[lg]; row.appendChild(l); glText(app, l, 28); }
+      if (rewards.length) {
+        const card = document.createElement('div');
+        card.className = 'card';
+        const it = rewards.map(([res]) => meta.byId.get(res)).find(Boolean);
+        const rar = it?.rarity === 'ultimate' ? 'legendary' : ['epic', 'legendary'].includes(it?.rarity) ? it.rarity : 'common';
+        spr(card, sh, 'XpRoadHolder_' + rar);
+        const rw = document.createElement('div');
+        rw.className = 'rw';
+        for (const r of rewards) rw.appendChild(reward(r));
+        card.appendChild(rw);
+        if (v <= done) { const ok = document.createElement('i'); ok.className = 'ok'; spr(ok, sh, 'ValidateIcon_01'); card.appendChild(ok); }
+        row.appendChild(card);
+      }
       list.appendChild(row);
+      glText(app, rk, i + 1 === rank ? 34 : 26);
+      if (v <= save.xp) fillTo = i;
     });
+    // the fill reaches the current rank's marker plus its share of the way to the next one
+    const b = meta.xpBar(save.xp);
+    list.querySelector('.fill').style.height = `calc(${U(40)} + ${U(250)} * ${fillTo + 0.5 + Math.min(1, b.k)})`;
     const n = meta.claimable(save);
     btn.disabled = !n;
     btn.textContent = n ? `Nhận thưởng (${n})` : 'Nhận thưởng';
-    const b = meta.xpBar(save.xp);
-    sum.textContent = `${save.xp} XP · Hạng ${b.rank}`;
-    sheet.querySelector('.c').textContent = save.coins;
-    (list.querySelector('.ready') || list.querySelector('.step:not(.done)'))?.scrollIntoView({ block: 'center' });
+    sum.textContent = `${save.xp} XP`;
+    page.querySelector('.c').textContent = save.coins;
+    (list.querySelector('.ready') || list.querySelector('.cur'))?.scrollIntoView({ block: 'center' });
   }
   btn.onclick = () => {
     app.play('popup_in');

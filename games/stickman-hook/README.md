@@ -45,7 +45,10 @@ Chưa làm: thẻ bài, booster, quảng cáo, VIP.
 | `js/meta.js` | Kinh tế gốc: phát thưởng theo bảng loại tài nguyên, chữ mở khoá theo bảng cách mở, XP road, theme |
 | `js/custom.js` | Nạp lười `custom.json`, sheet skin, `ropes.webp`, `custom-ui.webp` |
 | `js/fx.js` | Nướng hiệu ứng của skin biến thể (nạp chỉ khi cần) |
-| `js/menus.js` | Chế độ, Tuỳ biến, Đường XP, vòng quay, Chợ (nạp khi mở lần đầu) |
+| `js/menus.js` | Chế độ, Tuỳ biến, Đường XP (art gốc), vòng quay, Chợ (nạp khi mở lần đầu) |
+| `js/home.js` | Trang chính theo prefab HomePage + MenuBar, art gốc; nạp khi trang chính hiện lần đầu, không bao giờ nạp với `?level=` |
+| `js/uikit.js` | Bộ dựng menu dùng chung: sheet theo màn, sprite/9-slice/tile, đơn vị tham chiếu `--u` (1334 chiều cao), chữ font game trên canvas |
+| `art/m-<màn>.webp`, `data/m-<màn>.json` | Art menu gốc theo màn: `home`, `modes`, `road`, `shop`, `tour` (`tools/build_menus.py`), nạp lười |
 | `js/bonus.js` | Luật vòng quay, heo đất, xu mỗi ngày, vé bỏ qua, bỏ qua màn; ô trang chính, nút bỏ qua, khung heo đất (nạp lười) |
 | `js/modes.js` | Bảng chế độ: nguồn màn, lớp người chơi, chỗ lưu tiến độ, luật mở màn, thưởng cuối màn, road |
 | `js/grapple.js` | Người chơi Mechanical Grapple (nạp khi mở chế độ) |
@@ -149,12 +152,22 @@ Ghi chú:
 - Ghép màn ngẫu nhiên (`PatternSpawner`): mỗi ô Start/Middle/Finish lọc pattern có `entryPositions & lối ra trước != 0`, rồi chọn bằng `new System.Random(chỉ số màn).Next(số ứng viên)`.
   - Mỗi ô tạo một `Random` mới với cùng seed.
 
+- **Pháo giấy về đích là `ConfettisLeft`**, `PlayerController.confettisPrefab` của mọi chế độ (PathID −2858981051185679930,
+  bundle13). Đọc bằng `tools/extract/dump_confetti.py` + `show_ps.py`, port ở `js/main.js` (`CONF`):
+  - Nón 20°, bán kính 0.01, theo hướng bay (`transform.up = v`) [asm 0x1207938..0x1207ae8]. 400 hạt/s, tối đa 70, sống 4 s, không lặp, 3.9 s.
+  - Tốc 50-100, cỡ 0.2-0.5 × scale 0.3, trọng lực ×1.4-2, xoay 3D ±45° ban đầu và ±2π rad/s mỗi trục, noise 0.5 tần số 0.5.
+  - Màu ngẫu nhiên trong gradient Fixed: #BC0067, #FF6DB5, #F3EADA, #9BF7AD, #F9F871. Mờ dần từ 0.806 tuổi. Texture `confetti`: chữ nhật trắng bo góc 0.98 × 0.70.
+- **Zoom về đích đúng từ trước.** Ảnh n02 cũ chụp màn 1 lúc +0.25 s (zoom 3.34). Clip 2026 qua vạch ~0:13.25, khung 0:13.7 là +0.45 s, zoom đã gần 2.
+- **"STAGE n COMPLETED" xuống dòng theo bề ngang.** Hộp chữ `FinishText` rộng bằng canvas (neo 0-1), wrap Normal, cỡ 60.
+  Điện thoại 9:20 rộng 600 đơn vị: "Stage 44 Completed" 613.6 nên hai dòng, "Stage 1 Completed" 562.9 nên một dòng, ở gốc cũng vậy.
+
 Tự đặt, có nhãn `[ĐỀ XUẤT]`:
 
 - Vùng chết: ra khỏi mép khung 0.3 đơn vị.
 - Camera lấy vận tốc của thân, không lấy hiệu vị trí như ProCamera2D, để lúc hồi sinh nhảy về đầu màn không làm camera giật.
-- Pháo giấy: prefab của Player chưa tìm thấy. 60 mảnh, tốc 15-30, cản 6/s, chạy theo thời gian đã chậm nên lơ lửng trong slow-mo
-  (ConfettisLeft của UI: tốc 50-100 × scale 0.3, Limit Velocity dampen 0.1).
+- Pháo giấy: Limit Velocity dampen 0.1 áp mỗi khung hình thật (60 fps), hạt chạy theo thời gian đã chậm; tốc không nhân scale 0.3.
+  Đo bằng `tools/extract/confetti_sim.js`: 1 s sau vạch đám mây trải −1.0..+3.8 đơn vị theo hướng bay, clip 2019 0:09.7-0:10.0 là −0.2..+3.6.
+  Áp theo thời gian của hạt hoặc nhân tốc với 0.3 thì đám mây nhỏ còn một phần ba.
 
 ## Pha 1: tuỳ biến và vỏ meta
 
@@ -207,6 +220,23 @@ Số tự đặt `[ĐỀ XUẤT]`:
 - Glow: cộng `_GlowColor × _Glow / 10`.
 - Ngưỡng đổi màu tối thiểu 0.08.
 - Trail lấy mẫu mỗi khi người chơi đi được 0.02 đơn vị, tuổi tính theo thời gian game. Hạt của trail chưa vẽ.
+
+## Menu bằng art gốc (2026-10-29, rev 20261028i)
+
+Trang chính, Chế độ, Đường XP, Tuỳ biến và trang Đua dựng lại theo prefab 9.9.60 với sprite gốc. Vòng quay và Chợ giữ như cũ.
+
+- Art: `tools/extract/page_sprites.py` xuất mọi Sprite với tới được từ bundle của trang (cùng bundle phụ thuộc) ra `D:/stickman-hook-ref/sprites_menus`.
+  `rarity_sprites.py` xuất holder theo độ hiếm (cùng tên ở mọi độ hiếm, lưu `<Tên>_<độ hiếm>`).
+  `tools/build_menus.py` gói thành một sheet mỗi màn kèm viền 9-slice.
+- Bố cục theo đơn vị tham chiếu: CanvasScaler 750 × 1334 khớp chiều cao, CSS `--u = 100dvh / 1334`. Số lấy từ RectTransform của prefab (`tools/extract/ui_tree.py`).
+- Màu nền: UIGradient của từng trang. Trang chính #006DCF→#00EAFF, Chế độ #0082FF→#00EAFF, Đường XP #DA73D6→#3673C7, Đua #6521C5→#A52FDB.
+- Chữ: số và chữ ASCII vẽ bằng font Junegull của game (canvas, `uikit.js label/glText`). Font không có dấu tiếng Việt, nên nhãn tiếng Việt
+  ("CHƠI", "TRANG CHỦ", "CHẾ ĐỘ CHƠI", "GIẢI ĐUA"...) dùng chữ hệ thống viền xanh đậm. `glText` giữ nguyên `textContent`: code và bài kiểm vẫn đọc được số.
+- Trang chính: cột trái gốc là VIP Bundle / No Ads (chưa làm), web đặt widget Chợ ở đó. Tab thẻ bài khoá. Bánh răng mở bảng chọn màn.
+- Tuỳ biến: gốc lật 7 trang, web cuộn mọi bộ sưu tập trong một danh sách, số trang cuộn tới nhóm của nó.
+- Đường XP: thẻ thưởng là prefab lúc chạy, chưa đọc. Cột x 85, 250 đơn vị mỗi hạng là `[ĐỀ XUẤT]`. Nút "Nhận thưởng" của web giữ lại.
+- Nạp: `home.js` + `uikit.js` + `m-home.webp` chỉ nạp khi trang chính hiện. Màn đầu (`?level=1`) 580 KB. Mở trang chính thẳng (không `?level`) 712 KB
+  (`m-home.webp` 92 KB thay `menu.webp` 39 KB).
 
 ## Chế độ phụ
 
@@ -512,6 +542,13 @@ Bẫy:
   - `sh: 0` nghĩa là "sprite này thường có bóng nhưng item này không". Đọc `levels.json` trực tiếp thì phải gọi `unpackDefaults`.
 - **CSS `canvas { position: fixed }` áp cho mọi canvas.** Canvas xem trước trong shop đã phủ kín màn hình và chặn nút đóng. CSS giờ chỉ nhắm `#cv`.
 
+- **Pháo giấy tưởng là của UI.** `ConfettisLeft` nằm trong thư mục UI và có scale 0.3, nên vòng trước bỏ qua.
+  Đọc `PlayerController.confettisPrefab` trong `grapple_raw.json` mới thấy đúng nó. Cấu hình Normal không chứa Player, phải đọc qua bundle cấu hình Grapple.
+- **Nhân tốc pháo giấy với scale 0.3 làm đám mây bé ba lần.** Clip 2019 và 2026 cho thấy tốc 50-100 không đổi, dampen theo khung thật.
+- **Ảnh n02 "zoom sai" là chụp sớm.** Cảnh chụp cũ lấy +0.25 s ở màn 1. Đối chiếu clip phải đo giờ qua vạch (chữ STAGE hiện) trước, rồi chụp cùng độ trễ.
+- **Khung gốc n03 lúc 0:14.9 là cảnh khác** (clip cắt sang người nhảy dù). Đã dời sang `parity/ref_off/`.
+- **heredoc của bash vỡ với template literal có `${...}` dài.** Viết script vá bằng Write.
+
 - **Gốc prefab lệch.** 30 pattern Finish có gốc ở x=37. `Instantiate` rồi gán `transform.position` sẽ bỏ vị trí gốc.
   - Lần đầu mình cộng vị trí gốc vào mọi thứ, nên cả đoạn cuối màn bị đẩy xa 37 đơn vị: bot thấy một khoảng trống không thể qua.
   - `build_data.py` giờ bỏ vị trí gốc, giữ xoay và scale.
@@ -608,5 +645,5 @@ Phần HUD và về đích: chỉ có nút pause trong màn; về đích giữ t
 ## Tăng số bản
 
 Đổi mọi `?v=` trong `index.html`, `js/main.js` (hằng `V`) và ba `import()` có `?v=` trong `js/modes.js` (`pachinko.js`, `race.js`, `adventure.js`), rồi đổi `rev` trong `data/games.js` cho trùng.
-Bản hiện tại: `20261028h`. `js/pachinko.js` có `PV` riêng (`20261028d`) cho ảnh của nó.
+Bản hiện tại: `20261028i`. `js/pachinko.js` có `PV` riêng (`20261028d`) cho ảnh của nó.
 Module JS mới phải có dòng trong importmap của `index.html`, kể cả module chỉ nạp động (`menus.js`, `fx.js`).

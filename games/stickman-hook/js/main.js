@@ -7,7 +7,7 @@ import { Meta } from './meta.js';
 import { makeCustom } from './custom.js';
 import { MODES, NORMAL } from './modes.js';
 
-const V = '?v=20261028h';
+const V = '?v=20261028i';
 const DEFAULT_ZOOM = 5, FINISH_ZOOM = 2; // CameraConfig.defaultZoom, PlayerCameraController.cameraZoomOnEndGame
 // Rope prefab: sprite scaled (1.6, 2) under its parent. [ĐỀ XUẤT] 0.2 per axis so a 167 px tile is ~0.4 wide.
 const ROPE_SCALE = [1.6 * 0.2, 2 * 0.2];
@@ -86,6 +86,7 @@ function startLevel(index) {
   game.t = 0;
   game.hold = false;
   game.confetti = [];
+  game.emitter = null;
   game.timeScale = 1;
   game.trail = [];
   game.reward = null;
@@ -156,13 +157,10 @@ function finishLevel(forced) {
   custom.skin(equippedItem('skins')).then((s) => { look.dance = s; }).catch(() => {});
   if (!mode.race) loadEnd().catch(() => {});
   play('popup_in');
-  const sp = Math.hypot(player.vx, player.vy) || 1;
-  for (let i = 0; i < (forced ? 0 : 60); i++) {
-    const a = Math.atan2(player.vy, player.vx) + (Math.random() - 0.5) * 1.6, v = 15 + Math.random() * 15;
-    game.confetti.push({ x: player.x + player.vx * 0.04, y: player.y + player.vy * 0.04, vx: Math.cos(a) * v + player.vx / sp,
-      vy: Math.sin(a) * v,
-      r: Math.random() * 6, c: ['#ff5a5f', '#ffd23f', '#7ee0ff', '#fff', '#7cff8a'][i % 5] });
-  }
+  // Instantiate(confettisPrefab) at the player + velocity x 2 Time.deltaTime, its up along the velocity [asm 0x1207938..0x1207ae8]
+  const sp = Math.hypot(player.vx, player.vy);
+  game.emitter = forced ? null : { x: player.x + player.vx * (2 / 60), y: player.y + player.vy * (2 / 60),
+    ax: sp ? player.vx / sp : 0, ay: sp ? player.vy / sp : 1, t: 0, acc: 0 };
 }
 
 function outOfCamera() {
@@ -372,7 +370,8 @@ function draw(now) {
   }
   mode.race?.draw(R, game);
   drawPlayer(t);
-  drawConfetti(game.paused ? 0 : Math.min(0.1, game.frameDt || 0) * game.timeScale);
+  const fdt = game.paused ? 0 : Math.min(0.1, game.frameDt || 0);
+  drawConfetti(fdt * game.timeScale, fdt);
   drawHud();
 }
 
@@ -414,21 +413,71 @@ function drawPlayer(t) {
   look.drawn++;
 }
 
-// Confettis is a ParticleSystem on scaled time: in the finish slow motion it hangs in the air (2026 clip 0:14.9).
-// [ĐỀ XUẤT] speed 15..30 with drag 6/s: the finish prefab was not found; ConfettisLeft (UI) starts at 50..100 x scale 0.3
-// with Limit Velocity dampen 0.1, and the clips show the burst spread over the zoomed screen within the first frames.
-function drawConfetti(dt) {
+// ConfettisLeft: PlayerController.confettisPrefab of every mode's player (PathID -2858981051185679930, bundle13 CAB-a88ed77c),
+// one ParticleSystem read field by field (tools/extract/dump_confetti.py). Scaled time, so in the finish slow motion it
+// hangs around the player (2026 clip 0:13.7, 0:14.5). Scaling mode Local with transform scale 0.3: the size x 0.3; the
+// speed stays in world units (with it x 0.3 the cloud is a third of the clips' one).
+//   duration 3.9 s, not looping, rate 400/s, max 70 particles, lifetime 4 s, world simulation space
+//   start speed 50..100, size 0.2..0.5, 3D start rotation +-45 deg per axis, gravity modifier 1.4..2 (x 9.81)
+//   shape: cone 20 deg, radius 0.01, along the transform's up
+//   start colour: random in a Fixed gradient #BC0067 / #FF6DB5 / #F3EADA / #9BF7AD / #F9F871 (one fifth each)
+//   rotation over lifetime: -2pi..2pi rad/s on x, y, z; colour over lifetime: alpha 1 until 0.806, 0 at 1
+//   limit velocity: 1, dampen 0.1; noise: strength 0.5, frequency 0.5
+//   renderer: billboard, ConfettisMaterial = texture `confetti`, a white rounded rectangle 0.98 x 0.70 of the quad
+// [ĐỀ XUẤT] the dampen applies once per rendered frame (60 fps, real time) while the particles move in scaled time:
+// 1 s after the finish the cloud spans -1.0..+3.8 units along the flight and up to 0.8 off it; the 2019 clip 0:09.7-0:10.0
+// shows -0.2..+3.6 and +-1.05 (tools/extract/confetti_sim.js A 1). Damping in particle time instead leaves the cloud 3 x smaller.
+const CONF = { rate: 400, max: 70, dur: 3.9, life: 4, speed: [50, 100], size: [0.06, 0.15], grav: [1.4, 2], cone: (20 * Math.PI) / 180,
+  limit: 1, dampen: 0.1, noise: 0.5, freq: 0.5, spin: 2 * Math.PI, rot0: Math.PI / 4, fade: 0.806,
+  colors: ['#BC0067', '#FF6DB5', '#F3EADA', '#9BF7AD', '#F9F871'] };
+const rnd = (a, b) => a + Math.random() * (b - a);
+
+function emitConfetti(dt) {
+  const e = game.emitter;
+  if (!e || e.t >= CONF.dur) return;
+  e.t += dt;
+  e.acc += CONF.rate * dt;
+  for (; e.acc >= 1; e.acc--) {
+    if (game.confetti.length >= CONF.max) { e.acc = 0; break; }
+    // a point in the cone's base disc (uniform area) sets the angle off the axis; azimuth around it in 3D
+    const th = CONF.cone * Math.sqrt(Math.random()), ph = Math.random() * 2 * Math.PI, v = rnd(...CONF.speed);
+    const along = Math.cos(th) * v, side = Math.sin(th) * Math.cos(ph) * v;
+    game.confetti.push({ x: e.x, y: e.y, vx: e.ax * along - e.ay * side, vy: e.ay * along + e.ax * side, age: 0,
+      g: 9.81 * rnd(...CONF.grav), s: rnd(...CONF.size), c: CONF.colors[Math.min(4, Math.floor(Math.random() * 5))],
+      r: [rnd(-CONF.rot0, CONF.rot0), rnd(-CONF.rot0, CONF.rot0), rnd(-CONF.rot0, CONF.rot0)],
+      w: [rnd(-CONF.spin, CONF.spin), rnd(-CONF.spin, CONF.spin), rnd(-CONF.spin, CONF.spin)] });
+  }
+}
+
+// dt: scaled seconds of this frame; real: its real seconds (the limit-velocity dampen counts frames)
+function drawConfetti(dt, real) {
+  emitConfetti(dt);
   if (!game.confetti.length) return;
   const { ctx } = R;
+  const damp = dt > 0 ? 1 - Math.pow(1 - CONF.dampen, real * 60) : 0, k = CONF.freq * 2 * Math.PI;
+  game.confetti = game.confetti.filter((p) => (p.age += dt) < CONF.life);
+  ctx.globalCompositeOperation = 'source-over';
   for (const p of game.confetti) {
-    const drag = Math.exp(-6 * dt);
-    p.vx *= drag; p.vy = p.vy * drag - 9.81 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.r += 12 * dt;
-    R.setWorld([1, 0, 0, 1, p.x, p.y]);
-    ctx.globalCompositeOperation = 'source-over';
+    p.vy -= p.g * dt;
+    const s = Math.hypot(p.vx, p.vy);
+    if (s > CONF.limit) { const ns = s - (s - CONF.limit) * damp; p.vx *= ns / s; p.vy *= ns / s; }
+    // noise: a still field (scroll speed 0) moving the particle by up to `noise` units/s
+    p.x += (p.vx + CONF.noise * Math.sin(k * p.y + 1.3) * Math.cos(k * 0.7 * p.x)) * dt;
+    p.y += (p.vy + CONF.noise * Math.cos(k * p.x + 0.4) * Math.sin(k * 0.6 * p.y + 2.1)) * dt;
+    for (let i = 0; i < 3; i++) p.r[i] += p.w[i] * dt;
+    // the billboard quad turned in 3D (Unity Euler order Z, X, Y), seen straight on: its x and y axes projected
+    const [cx, sx] = [Math.cos(p.r[0]), Math.sin(p.r[0])], [cy, sy] = [Math.cos(p.r[1]), Math.sin(p.r[1])];
+    const [cz, sz] = [Math.cos(p.r[2]), Math.sin(p.r[2])];
+    const ex = [cy * cz + sy * sx * sz, cx * sz], ey = [-cy * sz + sy * sx * cz, cx * cz];
+    const a = p.age / CONF.life;
+    ctx.globalAlpha = a < CONF.fade ? 1 : Math.max(0, 1 - (a - CONF.fade) / (1 - CONF.fade));
+    R.setWorld([ex[0] * p.s, ex[1] * p.s, ey[0] * p.s, ey[1] * p.s, p.x, p.y]);
     ctx.fillStyle = p.c;
-    ctx.rotate(p.r);
-    ctx.fillRect(-0.06, -0.03, 0.12, 0.06);
+    ctx.beginPath();
+    ctx.roundRect(-0.49, -0.35, 0.98, 0.7, 0.12);
+    ctx.fill();
   }
+  ctx.globalAlpha = 1;
 }
 
 // AInGamePage.GetPercentageOfProgressBar [asm 0x28d934c]: clamp01((x - StartingX) / posDiff), posDiff = Finish x - half
@@ -498,7 +547,6 @@ function icon(el, key, px) {
 
 // Coins, XP bar and the road badge on the home screen.
 function hud() {
-  if ($('start').classList.contains('on')) for (const el of document.querySelectorAll('#start [data-ico]')) icon(el, el.dataset.ico, +el.dataset.px || 30);
   const b = meta.xpBar(save.xp);
   $('coins').textContent = save.coins;
   if (bonus) bonus.hud();
@@ -506,11 +554,19 @@ function hud() {
   $('rank').textContent = b.rank;
   $('league').textContent = b.league;
   $('xpfill').style.width = Math.round(b.k * 100) + '%';
-  $('xptext').textContent = b.hi > b.lo ? `${save.xp} / ${b.hi}` : String(save.xp);
+  $('xptext').textContent = b.hi > b.lo ? `${save.xp - b.lo}/${b.hi - b.lo}` : String(save.xp);
   const n = meta.claimable(save);
   $('roadBadge').textContent = n;
   $('roadBadge').style.display = n ? '' : 'none';
-  $('playLevel').textContent = mode.race ? modeName(mode.id) : (mode.def.picker ? modeName(mode.id) + ' · ' : '') + 'Màn ' + (world.index + 1);
+  // PlayCounter: the level number only (LevelNumberText); another mode's name before it
+  $('playLevel').textContent = mode.race ? modeName(mode.id) : (mode.def.picker ? modeName(mode.id) + ' ' : '') + (world.index + 1);
+  if (home && $('start').classList.contains('on')) home.show(app);
+}
+
+// The home screen's layout and art (home.js, art/m-home.webp) load the first time it shows.
+let home = null;
+function showHome() {
+  import('./home.js').then(async (h) => { await h.setup(app); home = h; hud(); }).catch((e) => toast('Không tải được trang chính: ' + e.message));
 }
 
 function setHold(v) {
@@ -524,6 +580,7 @@ function setHold(v) {
 // Overlays pause the level behind them.
 function overlay(id, on) {
   $(id).classList.toggle('on', on);
+  if (id === 'start' && on) showHome();
   game.paused = [...document.querySelectorAll('.overlay')].some((e) => e.classList.contains('on'));
   document.body.classList.toggle('menu', game.paused);
   if (game.paused) game.hold = false;
@@ -532,7 +589,7 @@ function overlay(id, on) {
 const app = {
   get save() { return save; }, get meta() { return meta; }, get custom() { return custom; }, get world() { return world; },
   get R() { return R; }, play, finishText, nextLevel, restart: () => restart(), pause, writeSave: () => writeSave(save), applyEquip, hud, overlay, toast, image, icon, $, V, look,
-  openMode, get mode() { return mode.id; }, openMenu, skipLevel, loadBonus, get bonus() { return bonus; },
+  openMode, get mode() { return mode.id; }, openMenu, openLevels, skipLevel, loadBonus, get bonus() { return bonus; },
   loadMode, startRace, get game() { return game; }, get player() { return player; },
 };
 let menus = null;

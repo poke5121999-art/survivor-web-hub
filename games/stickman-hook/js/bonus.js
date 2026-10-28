@@ -191,7 +191,7 @@ export class Bonus {
   }
 
   // ---- views ----------------------------------------------------------------------------------------------------
-  // Home: the ticket pill next to the coins, the market widget on the left and the Lucky Wheel widget on the right
+  // Home (home.js): the ticket count, the market widget on the left and the Lucky Wheel widget on the right
   // (HomePage MarketWidgetsHolder / ModesContainer LuckyWheelButton with its coins/price counter and red dot).
   hud() {
     const s = this.app.save, $ = (id) => document.getElementById(id);
@@ -218,14 +218,6 @@ const CSS = `
 #skip.on { display: block; }
 #skip b { position: absolute; left: 0; right: 0; top: 100%; text-align: center; font-size: 17px; text-shadow: 0 2px 0 #0d1b2a; }
 body.menu #skip { visibility: hidden; }
-.widgets { position: absolute; left: 50%; transform: translateX(-50%); width: min(calc(100% - 28px), 560px); top: 56%; display: flex; justify-content: space-between; pointer-events: none; }
-.widget { pointer-events: auto; position: relative; width: 78px; padding: 6px 2px 4px; border: 0; border-radius: 16px;
-  background: rgba(0, 26, 51, .3); color: #fff; font: 800 12px/1.1 system-ui, sans-serif; cursor: pointer;
-  display: flex; flex-direction: column; align-items: center; gap: 3px; }
-.widget span { background: rgba(255, 140, 140, .9); border-radius: 8px; padding: 1px 6px; color: #3b0d0d; }
-.dot { position: absolute; top: 2px; left: 6px; width: 14px; height: 14px; border-radius: 50%; background: #ff1a1a;
-  border: 2px solid #fff; display: none; }
-.dot.on { display: block; }
 `;
 
 // `app` is main.js's handle (save, meta, icon(), openMenu(), skipLevel(), ...). Adds the views' DOM and returns the rules.
@@ -235,13 +227,7 @@ export function makeBonus(app, d) {
   const st = document.createElement('style');
   st.textContent = CSS;
   document.head.appendChild(st);
-  const coins = document.getElementById('coins').parentNode;
-  coins.insertAdjacentHTML('afterend', '<div class="pill" title="Vé bỏ qua"><i class="ico" data-ico="ticket"></i><b id="tickets">0</b></div>');
-  document.querySelector('#start .title').insertAdjacentHTML('afterend', `<div class="widgets">
-    <button class="widget" id="btnMarket" title="Chợ: xu miễn phí, vé bỏ qua"><i class="ico" data-ico="coinpile" data-px="56"></i>
-      <span>Chợ</span><b class="dot" id="marketDot"></b></button>
-    <button class="widget" id="btnWheel" title="Vòng quay may mắn"><i class="ico" data-ico="wheel" data-px="56"></i>
-      <span id="wheelPrice"></span><b class="dot" id="wheelDot"></b></button></div>`);
+  // the home screen's ticket pill, market and wheel widgets are in index.html (laid out by home.js)
   document.getElementById('btnMarket').onclick = () => app.openMenu('openMarket');
   document.getElementById('btnWheel').onclick = () => app.openMenu('openWheel');
   // the skip image is a CSS background: the browser fetches it when the button first shows

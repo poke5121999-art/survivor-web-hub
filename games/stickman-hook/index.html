@@ -6,8 +6,8 @@
 <meta name="theme-color" content="#00b4fc">
 <link rel="icon" href="../../assets/favicon.svg">
 <title>Stickman Hook</title>
-<link rel="preload" href="./data/levels.json?v=20261028h" as="fetch" crossorigin>
-<link rel="preload" href="./art/atlas.webp?v=20261028h" as="image">
+<link rel="preload" href="./data/levels.json?v=20261028i" as="fetch" crossorigin>
+<link rel="preload" href="./art/atlas.webp?v=20261028i" as="image">
 <style>
   html, body { margin: 0; height: 100%; background: #00b4fc; overflow: hidden; touch-action: none;
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
@@ -40,27 +40,12 @@
   #hint { left: 0; right: 0; bottom: max(28px, env(safe-area-inset-bottom)); text-align: center; pointer-events: none;
     text-shadow: 0 2px 0 #0d1b2a; font-size: 17px; transition: opacity .4s; }
   #loading { inset: 0; display: grid; place-items: center; font-size: 18px; }
-  #start { background: rgba(0, 40, 70, .45); flex-direction: column; align-items: center; justify-content: space-between;
-    padding: max(14px, env(safe-area-inset-top)) 14px max(30px, env(safe-area-inset-bottom)); box-sizing: border-box; }
-  .top { width: min(100%, 560px); display: flex; gap: 10px; align-items: center; }
-  .pill { display: flex; align-items: center; gap: 6px; background: #0d1b2a; border-radius: 99px; padding: 4px 12px 4px 4px; }
-  .ico { display: inline-block; width: 30px; height: 30px; background-repeat: no-repeat; flex: none; }
-  .xpbar { flex: 1; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 2px 8px; position: relative;
-    background: #0d1b2a; color: #fff; border: 0; border-radius: 16px; padding: 4px 12px 6px 4px; font: inherit; cursor: pointer; }
-  .xpbar .ico { grid-row: span 2; }
-  .xpbar .bar { grid-column: 2 / 4; height: 9px; border-radius: 9px; background: #23415e; overflow: hidden; }
-  #xpfill { display: block; height: 100%; width: 0; background: #7ee0ff; }
-  #xptext { font-size: 12px; opacity: .8; }
-  .badge { position: absolute; top: -6px; right: -6px; background: #ff5a5f; border-radius: 99px; min-width: 20px; height: 20px;
-    font-size: 13px; display: grid; place-items: center; border: 2px solid #fff; }
-  .title { font: 900 clamp(34px, 11vw, 64px)/1 system-ui, sans-serif; text-align: center; text-shadow: 0 5px 0 #0d1b2a;
-    letter-spacing: 1px; margin-top: 12vh; }
-  .menu { display: flex; flex-direction: column; align-items: center; gap: 14px; width: min(100%, 360px); }
-  .big, .mid { border: 4px solid #0d1b2a; border-radius: 20px; font: 900 26px system-ui, sans-serif; color: #0d1b2a;
+  /* home screen: hidden until home.js has laid it out (its CSS and art load with it) */
+  #start { visibility: hidden; }
+  #start.ready { visibility: visible; }
+  .big { border: 4px solid #0d1b2a; border-radius: 20px; font: 900 26px system-ui, sans-serif; color: #0d1b2a;
     background: #ffd23f; box-shadow: 0 6px 0 #0d1b2a; cursor: pointer; width: 100%; padding: 12px; }
-  .big small { display: block; font-size: 15px; opacity: .7; }
-  .mid { font-size: 18px; background: #fff; padding: 10px; }
-  .big:active, .mid:active { transform: translateY(4px); box-shadow: 0 2px 0 #0d1b2a; }
+  .big:active { transform: translateY(4px); box-shadow: 0 2px 0 #0d1b2a; }
   .row { display: flex; gap: 12px; width: 100%; }
   body.menu #btnPause, body.menu #hint, body.fin #btnPause { visibility: hidden; }
   #toast { left: 50%; bottom: 120px; transform: translate(-50%, 20px); max-width: 80vw; text-align: center; background: #0d1b2a; border-radius: 14px; padding: 10px 16px;
@@ -83,43 +68,53 @@
 </div>
 <div class="ui" id="hint">Giữ chuột / chạm để móc dây, thả ra để bay</div>
 <div class="ui" id="toast"></div>
+<!-- HomePage (home.js lays it out from the prefab with art/m-home.webp; ids are read by main.js, bonus.js and the tests) -->
 <div class="ui overlay" id="start">
-  <div class="top">
-    <div class="pill" title="Xu"><i class="ico" data-ico="coin"></i><b id="coins">0</b></div>
-    <button class="xpbar" id="xpbar" title="Đường XP"><i class="ico" data-ico="xp"></i>
-      <span>Hạng <b id="rank">1</b> · <span id="league"></span></span><span id="xptext"></span>
-      <span class="bar"><span id="xpfill"></span></span><b class="badge" id="roadBadge"></b></button>
-  </div>
-  <div class="title">STICKMAN<br>HOOK</div>
-  <div class="menu">
-    <button class="big" id="btnPlay">Chơi<small id="playLevel"></small></button>
-    <div class="row"><button class="mid" id="btnModes">Chế độ</button><button class="mid" id="btnShop">Tuỳ biến</button></div>
-  </div>
+  <div class="hbg"><i class="hpat"></i></div>
+  <button id="btnSettings" data-s="Settings" title="Chọn màn"></button>
+  <div class="hcur"><div class="hpill" title="Vé bỏ qua"><i data-s="SkipTickets"></i><b id="tickets">0</b><i class="add" data-s="AddButton"></i></div>
+    <div class="hpill" title="Xu"><i data-s="SkinCoins"></i><b id="coins">0</b><i class="add" data-s="AddButton" id="btnAddCoins"></i></div></div>
+  <button id="xpbar" title="Đường XP"><i class="medal"><b id="rank">1</b></i><span class="bar"><span id="xpfill"></span><b id="xptext"></b></span>
+    <i class="gift" data-s="GiftIcon"></i><b class="badge" id="roadBadge"></b><span id="league" hidden></span></button>
+  <div class="hplayer"><i class="light" data-s="glow"></i><i class="shadow"></i><canvas id="homePlayer"></canvas></div>
+  <div class="hcol l"><button class="hw" id="btnMarket" title="Chợ: xu miễn phí, vé bỏ qua"><i data-s="Icon_Shop"></i><span>Chợ</span><b class="dot" id="marketDot"></b></button></div>
+  <div class="hcol r"><button class="hw" id="btnLucky" title="Lucky Drop"><i data-s="Icon_Pachinko"></i><span>Lucky Drop</span></button>
+    <button class="hw" id="btnWheel" title="Vòng quay may mắn"><i data-s="Icon_LuckyWheel"></i><span class="cnt" data-s="HolderLuckyWheelCoin"><b id="wheelPrice"></b><i data-s="SkinCoins"></i></span><b class="dot" id="wheelDot"></b></button></div>
+  <button class="hm" id="btnTour" title="Đua"><i class="bt"></i><i class="ic"></i><b class="pos"></b><span class="time"></span></button>
+  <button class="hm" id="btnAdv" title="Phiêu lưu"><i class="bt"></i><i class="ic"></i><b class="pos"></b><span class="time"></span></button>
+  <button id="btnPlay" data-s="ButtonPlay_Holder_02"><span class="pt k-vi">Chơi</span><span class="pc"><b id="playLevel"></b></span></button>
+  <nav class="mbar"><button id="btnTabShop" title="Chợ"><i data-s="Icon_Shop"></i></button>
+    <button id="btnShop" title="Tuỳ biến"><i data-s="Icon_Customization"></i><b class="num" id="skinCount"></b></button>
+    <button class="sel" id="btnHome" title="Trang chính"><i data-s="Icon_Home"></i><span class="k-vi">Trang chủ</span></button>
+    <button id="btnModes" title="Chế độ chơi"><i data-s="Icon_GameMode"></i></button>
+    <button id="btnCards" title="Thẻ bài (chưa có ở bản web)"><i data-s="Icon_CardsLocked"></i></button></nav>
 </div>
 <div class="ui overlay" id="levels"><div class="panel"><h2 id="levelsTitle">Chọn màn</h2><div id="grid"></div>
   <button class="btn" id="btnClose" style="width:auto;padding:0 18px;align-self:center">Đóng</button></div></div>
 <script type="importmap">
 { "imports": {
-  "./js/level.js": "./js/level.js?v=20261028h",
-  "./js/physics.js": "./js/physics.js?v=20261028h",
-  "./js/render.js": "./js/render.js?v=20261028h",
-  "./js/save.js": "./js/save.js?v=20261028h",
-  "./js/meta.js": "./js/meta.js?v=20261028h",
-  "./js/custom.js": "./js/custom.js?v=20261028h",
-  "./js/fx.js": "./js/fx.js?v=20261028h",
-  "./js/menus.js": "./js/menus.js?v=20261028h",
-  "./js/modes.js": "./js/modes.js?v=20261028h",
-  "./js/grapple.js": "./js/grapple.js?v=20261028h",
-  "./js/bonus.js": "./js/bonus.js?v=20261028h",
-  "./js/pachinko.js": "./js/pachinko.js?v=20261028h",
-  "./js/race.js": "./js/race.js?v=20261028h",
-  "./js/adventure.js": "./js/adventure.js?v=20261028h",
-  "./js/advrun.js": "./js/advrun.js?v=20261028h",
-  "./js/camera.js": "./js/camera.js?v=20261028h",
-  "./js/endgame.js": "./js/endgame.js?v=20261028h",
-  "./js/main.js": "./js/main.js?v=20261028h"
+  "./js/level.js": "./js/level.js?v=20261028i",
+  "./js/physics.js": "./js/physics.js?v=20261028i",
+  "./js/render.js": "./js/render.js?v=20261028i",
+  "./js/save.js": "./js/save.js?v=20261028i",
+  "./js/meta.js": "./js/meta.js?v=20261028i",
+  "./js/custom.js": "./js/custom.js?v=20261028i",
+  "./js/fx.js": "./js/fx.js?v=20261028i",
+  "./js/menus.js": "./js/menus.js?v=20261028i",
+  "./js/modes.js": "./js/modes.js?v=20261028i",
+  "./js/grapple.js": "./js/grapple.js?v=20261028i",
+  "./js/bonus.js": "./js/bonus.js?v=20261028i",
+  "./js/pachinko.js": "./js/pachinko.js?v=20261028i",
+  "./js/race.js": "./js/race.js?v=20261028i",
+  "./js/adventure.js": "./js/adventure.js?v=20261028i",
+  "./js/advrun.js": "./js/advrun.js?v=20261028i",
+  "./js/camera.js": "./js/camera.js?v=20261028i",
+  "./js/endgame.js": "./js/endgame.js?v=20261028i",
+  "./js/home.js": "./js/home.js?v=20261028i",
+  "./js/uikit.js": "./js/uikit.js?v=20261028i",
+  "./js/main.js": "./js/main.js?v=20261028i"
 } }
 </script>
-<script type="module" src="./js/main.js?v=20261028h"></script>
+<script type="module" src="./js/main.js?v=20261028i"></script>
 </body>
 </html>

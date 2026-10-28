@@ -1,8 +1,28 @@
 # So bản web với Stickman Hook gốc
 
-Ngày so: 2026-10-28. Bản web: Pages `?v=20261028f`, khung điện thoại 390×844, DPR 2, chụp bằng Playwright.
+Ngày so: 2026-10-28, chụp lại 2026-10-29. Bản web: Pages `?v=20261028f`, local `?v=20261028i`, khung điện thoại 390×844, DPR 2, chụp bằng Playwright.
 Mỗi cặp ảnh nằm ở `shots/stickman-hook/parity/<key>.png` (web bên trái, tối đa 2 khung gốc bên phải, vùng đo viền xanh lơ).
 Số đo màu lấy từ `shots/stickman-hook/parity/report.json`. Nhãn từng cặp ở `D:/stickman-hook-ref/parity/verdicts.tsv`, cổng `parity.py check` thoát 0.
+
+## Vòng sửa 20261028i (2026-10-29)
+
+Chụp lại phía web trên server local (`?v=20261028i`) cho cả 33 cặp, dựng lại ảnh ghép, xem từng cặp đã sửa. Cổng `parity.py check`: ok 27, version 16, not-built 6, web-bug 0.
+Cảnh chụp mới: `l44_finish` / `l44_finish_late` (màn 44, skin Stick Hat, khung 360×800 = tỉ lệ clip 576×1280, đặt người chơi trước vạch, chụp +0.45 s / +0.9 s).
+`map.tsv`: n02 → `l44_finish`, n03 → `l44_finish_late`. Khung gốc n03 0:14.9 là cảnh khác (clip cắt), dời sang `parity/ref_off/`.
+
+| Key | Trạng thái 20261028i |
+|---|---|
+| n02, n03 | **Zoom khớp.** Web zoom đúng từ trước (ZoomOnPlayer 2 trong 0.5 s); ảnh cũ chụp màn 1 lúc +0.25 s (zoom 3.34). Clip qua vạch ~0:13.25 (chữ STAGE hiện), khung 0:13.7 = +0.45 s. Cùng thời điểm, cùng skin thì người chơi to như gốc |
+| n02 | **Chữ hai dòng khớp.** `FinishText` rộng bằng canvas: 600 đơn vị ở 9:20, "Stage 44 Completed" 613.6 → hai dòng; "Stage 1 Completed" 562.9 vừa một dòng ở cả gốc. Không đổi code |
+| p05, n03, o04, r03 | **Đã sửa** pháo giấy: prefab thật `ConfettisLeft` của `PlayerController`, nón 20° theo hướng bay, 70 mảnh, 5 màu gốc, mảnh bo góc lật 3D, dampen mỗi khung. Hết `web-bug` |
+| n05, p07 | **Đã làm** trang chính bằng art gốc (HomePage, MenuBar, XpRoadHomeBar). Còn `not-built`: VIP Bundle / No Ads, thẻ bài |
+| n06, p12 | **Đã làm** Tuỳ biến bằng art gốc. Còn `not-built`: lật trang (web cuộn), nút FIND |
+| n11 | **Đã làm** Đường XP bằng art gốc. Còn `not-built`: thẻ thưởng đúng prefab lúc chạy |
+| n12 | **Đã làm** Chế độ bằng art gốc (thẻ GameModeItemUi + ảnh minh hoạ). Chế độ không có thẻ gốc vẽ thẻ thấp |
+| n09 | **Đã làm** trang Đua bằng art gốc. Còn `not-built`: avatar skin, nút quảng cáo +1 vé / SKIP |
+| n10 | Không đổi (`ok`) |
+
+Lệch màu nền còn lại (n01, n07, n13, p01-p04, p08, r01-r03, n02 nền) đều là `version`: bộ màu 2019 / server 2026 khác APK.
 
 ## Vòng sửa 20261028h
 
@@ -110,7 +130,7 @@ Mức: **gameplay** (đổi cách chơi hoặc thông tin người chơi cần),
 - Màn Normal 1-20 trên bản dọc: chỉ có bản trình duyệt ngang 2019. Clip dọc tìm được (2018) chưa tải.
 - Khung hình lúc bắt đầu màn: ở web, điểm móc đầu của màn 1 và 3 nằm sát mép phải (x 374/390). Không có clip dọc màn 1-3 để đối chiếu.
 
-## Thứ tự nên sửa (lần so đầu; 1-10 đã sửa ở 20261028h, 11 còn mở)
+## Thứ tự nên sửa (lần so đầu; 1-10 đã sửa ở 20261028h, 11 làm ở 20261028i)
 
 1. **Gradient nền trắng thay vì màu effect của theme.** Mức look, thấy ở mọi màn mọi chế độ, đã đo.
    - `js/render.js:88-98`: `drawBackgroundGradient` vẽ ảnh không tô màu.

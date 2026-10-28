@@ -70,3 +70,9 @@ Nguyên tắc: vẫn "nhẹ, load nhanh".
   - Còn lệch: pháo giấy toả về phía trước (prefab của Player chưa tìm thấy), heo đất đầy chưa có thanh bộ sưu tập và nút VIP Skip.
   - Chưa làm (mục 8): vỏ menu bằng art gốc (trang chủ, Tuỳ biến, Đường XP, Chế độ, Tournament) vẫn là DOM.
   - Việc còn lại: đẩy lên Pages, tăng `rev` trong `data/games.js` lên 20261028h, chạy bài kiểm trên Pages với `SH_URL`.
+- [~] Vòng giống bản gốc lần hai (2026-10-29, rev 20261028i, CHƯA đẩy lên Pages, CHƯA kiểm trên Pages): chi tiết ở `docs/PARITY.md` mục "Vòng sửa 20261028i".
+  - Pháo giấy = prefab gốc `ConfettisLeft` (nón 20°, 70 mảnh, 5 màu, xoay 3D). Zoom về đích đã đúng, ảnh cũ chụp sớm. Chữ về đích xuống dòng theo bề ngang như TMP.
+  - Trang chính, Chế độ, Đường XP, Tuỳ biến, trang Đua dựng bằng art gốc (`js/home.js`, `js/uikit.js`, `tools/build_menus.py`, `art/m-*.webp`).
+  - Kiểm: play 83/83, pachinko 27/27, sim xem PARITY.md. Màn đầu 580 KB. Cổng parity: ok 27, version 16, not-built 6, web-bug 0.
+  - Còn lại: VIP/No Ads, thẻ bài, thẻ thưởng Đường XP đúng prefab, avatar trên bảng Đua, lật trang Tuỳ biến.
+  - Việc còn lại: đẩy lên Pages, tăng `rev` trong `data/games.js` lên 20261028i, chạy bài kiểm và chụp lại cặp trên Pages với `SH_URL`.

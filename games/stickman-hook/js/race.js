@@ -6,6 +6,7 @@
 import { NetRandom } from './level.js';
 import { PHYS } from './physics.js';
 import { SKIP_TICKETS, qty, addQty } from './meta.js';
+import { artPage, spr, slice, glText, U } from './uikit.js';
 
 const ID = 'mode.tournament';
 const COINS = [10, 7, 5, 3, 1]; // TournamentService.SkinCoinsPerPosition (.cctor 0x11910c8, metadata 0x6cb420)
@@ -272,32 +273,95 @@ export async function open(app) {
   await load(app);
   for (const o of ['modes', 'start', 'levels', 'raceEnd']) if (document.getElementById(o)) app.overlay(o, false);
   const { board, claimed } = currentBoard(app, S.cfg);
-  const a = await art(app).catch(() => null);
-  page(app, board, claimed, a);
+  await page(app, board, claimed);
 }
 
-function page(app, board, claimed, a) {
+// TournamentPage (ui_pages_tournament): UIGradient #6521C5 (top) -> #A52FDB, Pattern_Trophy_Invers; TrophyTournament_01
+// over the title and the time left in HolderTime_01; TOP PRIZES: three HolderReward cards (#2, #1 raised, #3); the
+// COMPETITORS list: FramePlayer_01 rows (#rank, HolderPortrait, name, the coins of that rank, CounterPlayer_01 with
+// CupIcon_01 and the trophies), the player's row in HolderYourPlayer / CounterYouPlayer_01; the play button at the bottom.
+// Reward per rank: the board's thresholds (cfg.board.rewards: from rank p on).
+const TOUR_CSS = `
+#race .abody { overflow: auto; padding: 0 ${U(24)} ${U(200)}; align-items: center; }
+#race .tt { position: relative; flex: none; width: ${U(220)}; height: ${U(160)}; margin-top: ${U(-10)}; }
+#race .tname { font-size: ${U(52)}; margin-top: ${U(-8)}; }
+#race .time { flex: none; min-width: ${U(170)}; height: ${U(46)}; display: flex; align-items: center; justify-content: center; font-size: ${U(28)};
+  padding: 0 ${U(16)}; margin-top: ${U(4)}; }
+#race .msg { margin: ${U(14)} 0 0; font: 800 ${U(22)}/1.25 system-ui, sans-serif; text-align: center; background: rgba(40, 10, 90, .45);
+  border-radius: ${U(18)}; padding: ${U(10)} ${U(16)}; }
+#race h3 { margin: ${U(20)} 0 ${U(8)}; font-size: ${U(40)}; }
+#race .prizes { display: flex; align-items: flex-end; gap: ${U(14)}; }
+#race .pz { position: relative; width: ${U(170)}; height: ${U(170)}; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: ${U(4)}; }
+#race .pz.p1 { width: ${U(200)}; height: ${U(200)}; margin-bottom: ${U(16)}; }
+#race .pz .n { position: absolute; left: ${U(-6)}; top: ${U(-10)}; font-size: ${U(40)}; }
+#race .pz .q { font: 900 ${U(22)} system-ui, sans-serif; -webkit-text-stroke: ${U(4)} #1a1c4b; paint-order: stroke fill; text-align: center; }
+#race .pz i.coin { width: ${U(70)}; height: ${U(70)}; }
+#race ol { list-style: none; margin: 0; padding: 0 ${U(10)}; width: 100%; max-width: ${U(694)}; display: flex; flex-direction: column; gap: ${U(16)};
+  box-sizing: border-box; }
+#race li { position: relative; height: ${U(82)}; display: flex; align-items: center; gap: ${U(10)}; padding: 0 ${U(14)}; box-sizing: border-box; }
+#race li > b { width: ${U(64)}; font-size: ${U(30)}; display: flex; justify-content: center; }
+#race li .pt { width: ${U(60)}; height: ${U(60)}; flex: none; display: flex; align-items: center; justify-content: center; font-size: ${U(30)}; }
+#race li > span { flex: 1; min-width: 0; font: 900 ${U(28)} system-ui, sans-serif; color: #5d2bb3; text-transform: uppercase; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+#race li.me > span { color: #fff; -webkit-text-stroke: ${U(4)} #1a1c4b; paint-order: stroke fill; }
+#race li .rw { display: flex; align-items: center; gap: ${U(2)}; font: 900 ${U(18)} system-ui, sans-serif; color: #fff;
+  -webkit-text-stroke: ${U(3)} #1a1c4b; paint-order: stroke fill; }
+#race li .rw i { width: ${U(36)}; height: ${U(36)}; }
+#race li .sc { min-width: ${U(110)}; height: ${U(46)}; display: flex; align-items: center; justify-content: flex-end; gap: ${U(6)}; padding: 0 ${U(12)};
+  box-sizing: border-box; font-size: ${U(26)}; }
+#race li .sc i { width: ${U(34)}; height: ${U(34)}; order: -1; }
+#race li .sc em { font-style: normal; }
+#race .bot { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: center; padding: ${U(16)} 0 calc(env(safe-area-inset-bottom) + ${U(26)});
+  background: linear-gradient(rgba(165, 47, 219, 0), rgba(165, 47, 219, .9) 40%); }
+#race .go { width: ${U(380)}; height: ${U(126)}; border: 0; background-color: transparent; color: #fff; cursor: pointer; padding: 0 0 ${U(10)};
+  font: 900 ${U(46)}/1 system-ui, sans-serif; -webkit-text-stroke: ${U(6)} #145c1c; paint-order: stroke fill; text-transform: uppercase;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: ${U(4)}; }
+#race .go small { font: 800 ${U(19)} system-ui, sans-serif; text-transform: none; -webkit-text-stroke: ${U(3)} #145c1c; }
+`;
+
+async function page(app, board, claimed) {
   const { save, meta } = app, cfg = S.cfg, now = Date.now();
+  if (!document.getElementById('tourCss')) document.head.insertAdjacentHTML('beforeend', `<style id="tourCss">${TOUR_CSS}</style>`);
   const rows = board.ranking(now, qty(save, R_WIN), qty(save, R_BEST));
   const left = Math.max(0, board.start + DAY - now);
   const hh = Math.floor(left / 3600000), mm = Math.floor(left / 60000) % 60;
   const ps = playState(save, now);
-  const box = document.getElementById('race');
-  const prize = cfg.board.rewards.map(([p, r]) => `#${p + 1}: ` + r.map(([res, q]) =>
-    res === 'currency.skin_coins' ? q + ' xu' : 'skin ' + cfg.board.pools[res].map((id) => meta.resTitle(id)).join('/')).join(' + ')).join(' · ');
-  box.innerHTML = `<div class="rc"><header><h2>Đua · bảng xếp hạng hôm nay</h2><button class="x">✕</button></header>
-    <div class="body">
-      ${claimed ? `<div class="msg">Bảng ngày ${String(claimed.day).replace(/(\d{4})(\d\d)(\d\d)/, '$3/$2')} đã đóng: bạn hạng ${claimed.rank + 1}.
-        ${claimed.got.map((g) => (g.coins ? `+${g.coins} xu` : g.item ? 'Mở khoá ' + g.item.title : '')).filter(Boolean).join(', ') || 'Không có thưởng.'}</div>` : ''}
-      <div class="note">Còn ${hh} giờ ${mm} phút · thắng ${qty(save, R_WIN)} ngày · cúp hôm nay: ${qty(save, R_TROPHIES)}</div>
-      <ol>${rows.map((r, i) => `<li class="${r.me ? 'me' : ''}"><b>${i + 1}</b><span>${r.name}</span>${r.score} <i class="tro"></i></li>`).join('')}</ol>
-      <div class="note">Thưởng cuối ngày: ${prize}</div>
-      <button class="go">Đua<small>${ps.free ? `Miễn phí: còn ${ps.free}/${FREE_PER_DAY} lượt hôm nay` : `1 vé bỏ qua (còn ${ps.tickets})`}</small></button>
-    </div></div>`;
-  if (a) for (const i of box.querySelectorAll('.tro')) trophyIcon(i, 20, a);
-  box.querySelector('.x').onclick = () => { app.play('popup_out'); app.overlay('race', false); app.overlay('start', true); app.hud(); };
+  const { el: box, body, sh } = await artPage(app, 'race', 'tour', { grad: 'linear-gradient(#6521c5, #a52fdb)', pattern: 'Pattern_Trophy_Invers',
+    patSize: 256, patAlpha: 0.08, title: '', onClose: () => { app.overlay('race', false); app.overlay('start', true); app.hud(); } });
+  const reward = (rank) => { let r = []; for (const [p, rw] of cfg.board.rewards) if (rank >= p) r = rw; return r; };
+  const coinsOf = (rank) => reward(rank).find(([res]) => res === 'currency.skin_coins')?.[1] || 0;
+  body.innerHTML = `<i class="tt"></i><b class="tname">Giải đua</b><b class="time">${hh}H ${mm}M</b>
+    ${claimed ? `<div class="msg">Bảng ngày ${String(claimed.day).replace(/(\d{4})(\d\d)(\d\d)/, '$3/$2')} đã đóng: bạn hạng ${claimed.rank + 1}.
+      ${claimed.got.map((g) => (g.coins ? `+${g.coins} xu` : g.item ? 'Mở khoá ' + g.item.title : '')).filter(Boolean).join(', ') || 'Không có thưởng.'}</div>` : ''}
+    <h3>Giải thưởng</h3><div class="prizes">${[1, 0, 2].map((r) => `<div class="pz p${r + 1}"><b class="n">#${r + 1}</b><i class="coin"></i>
+      <span class="q">${reward(r).map(([res, q]) => (res === 'currency.skin_coins' ? 'x' + q : 'Skin mới')).join(' + ')}</span></div>`).join('')}</div>
+    <h3>Đối thủ</h3>
+    <ol>${rows.map((r, i) => `<li class="${r.me ? 'me' : ''}"><b>${i + 1}</b><i class="pt">${(r.name[0] || '?').toUpperCase()}</i><span>${r.name}</span>
+      <i class="rw"><i></i>x${coinsOf(i)}</i><b class="sc"><i></i><em>${r.score}</em></b></li>`).join('')}</ol>
+    <p class="note" hidden>Còn ${hh} giờ ${mm} phút · thắng ${qty(save, R_WIN)} ngày · cúp hôm nay: ${qty(save, R_TROPHIES)}</p>`;
+  box.insertAdjacentHTML('beforeend', `<div class="bot"><button class="go">Đua<small>${ps.free ? `Miễn phí: còn ${ps.free}/${FREE_PER_DAY} lượt hôm nay`
+    : `1 vé bỏ qua (còn ${ps.tickets})`}</small></button></div>`);
+  spr(body.querySelector('.tt'), sh, 'TrophyTournament_01');
+  spr(body.querySelector('.time'), sh, 'HolderTime_01');
+  for (const z of body.querySelectorAll('.pz')) { spr(z, sh, 'HolderReward'); spr(z.querySelector('.coin'), sh, 'SkinCoins'); glText(app, z.querySelector('.n'), 40); }
+  for (const li of body.querySelectorAll('li')) {
+    const me = li.classList.contains('me');
+    slice(li, sh, me ? 'HolderYourPlayer' : 'FramePlayer_01', 0.6);
+    spr(li.querySelector('.pt'), sh, me ? 'HolderPortrait_02' : 'HolderPortrait_01');
+    spr(li.querySelector('.rw i'), sh, 'SkinCoins');
+    spr(li.querySelector('.sc'), sh, me ? 'CounterYouPlayer_01' : 'CounterPlayer_01');
+    spr(li.querySelector('.sc i'), sh, 'CupIcon_01');
+    // the rank keeps its plain number (read by the tests); the game font draws it with the "#"
+    glText(app, li.querySelector('b'), 30);
+    glText(app, li.querySelector('.pt'), 30);
+    if (!me) glText(app, li.querySelector('span'), 28, '#7a3fd6');
+    glText(app, li.querySelector('.sc em'), 26);
+    glText(app, li.querySelector('.rw'), 18);
+  }
+  for (const h of body.querySelectorAll('h3, .tname, .time')) glText(app, h, parseFloat(getComputedStyle(h).fontSize) / (window.innerHeight / 1334));
+  spr(box.querySelector('.go'), sh, 'OutlinedButtonGreen');
   box.querySelector('.go').onclick = () => go(app);
-  app.overlay('race', true);
 }
 
 async function go(app) {
