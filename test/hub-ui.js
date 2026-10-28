@@ -10,7 +10,7 @@ const T = require('../tools/thumb-lib.js');
 global.window = {};
 require(path.join(T.ROOT, 'data', 'games.js'));
 const VISIBLE = window.HUB_GAMES.filter((g) => g.status === 'available');
-const NEWEST = VISIBLE.filter((g) => g.rev).sort((a, b) => (a.rev < b.rev ? 1 : -1))[0];
+const NEWEST = VISIBLE.filter((g) => g.rev && g.genre !== 'cong-cu').sort((a, b) => (a.rev < b.rev ? 1 : -1))[0];
 const SHOTS = process.env.HUB_SHOTS;
 
 let pass = 0, fail = 0;
@@ -36,7 +36,7 @@ async function main() {
   const br = await T.browser();
 
   console.log('dữ liệu');
-  const genres = ['hanh-dong', 'kinh-di', 'nhap-vai', 'chien-thuat', 'thu-gian', 'khac'];
+  const genres = ['hanh-dong', 'kinh-di', 'nhap-vai', 'chien-thuat', 'thu-gian', 'khac', 'cong-cu'];
   check('mọi game đang hiện có genre hợp lệ', VISIBLE.every((g) => genres.includes(g.genre)),
     VISIBLE.filter((g) => !genres.includes(g.genre)).map((g) => g.id).join(',') || null);
   check('tagline ≤ 80 ký tự', VISIBLE.every((g) => g.tagline.length <= 80),
@@ -67,6 +67,15 @@ async function main() {
   check('bộ lọc giữ qua lần tải lại', kept === horror.length, kept);
   await page.click('.chip[data-key="all"]');
   check('Tất cả hiện lại đủ thẻ', await page.locator('.card:not([hidden])').count() === VISIBLE.length);
+
+  const chipKeys = await page.$$eval('.chip', (cs) => cs.map((c) => c.dataset.key));
+  check('tab Tool đứng ngay sau Công cụ & bản thử', chipKeys.indexOf('cong-cu') === chipKeys.indexOf('khac') + 1, chipKeys.join(','));
+  const tools = VISIBLE.filter((g) => g.genre === 'cong-cu').map((g) => g.id).sort();
+  await page.click('.chip[data-key="cong-cu"]');
+  const toolShown = await page.$$eval('.card:not([hidden])', (cs) => cs.map((c) => c.dataset.gameId).sort());
+  check('lọc Tool chỉ còn đồ nghề, có Bàn Cắt Sprite', JSON.stringify(toolShown) === JSON.stringify(tools) && tools.includes('sprite-cutter'), toolShown.join(','));
+  check('nhãn tab Tool', (await page.textContent('.chip[data-key="cong-cu"]')).includes('Tool'));
+  await page.click('.chip[data-key="all"]');
 
   const target = VISIBLE[3];
   const card = page.locator('.card[data-game-id="' + target.id + '"]');

@@ -17,8 +17,10 @@
   // Filter chips render in this order. A game's `genre` in data/games.js must be one of these keys.
   // Labels come from js/i18n.js ("genre.<key>").
   var GENRES = {
-    "hanh-dong": "⚔️", "kinh-di": "👻", "nhap-vai": "🧙", "chien-thuat": "♟️", "thu-gian": "🌿", "khac": "🧪"
+    "hanh-dong": "⚔️", "kinh-di": "👻", "nhap-vai": "🧙", "chien-thuat": "♟️", "thu-gian": "🌿", "khac": "🧪", "cong-cu": "🛠️"
   };
+  // Tab Tool là đồ nghề làm game, không phải game: không lên ô game nổi bật dù có bản mới nhất.
+  var NOT_FEATURED = { "cong-cu": true };
   var I = window.HubI18n;
   var t = I.t;
   var NEW_DAYS = 10;
@@ -404,7 +406,7 @@
     var sub = document.getElementById("hub-subtitle");
     if (sub) sub.textContent = t("subtitle", visible.length);
 
-    var newest = visible.filter(revDate).sort(function (a, b) { return a.rev < b.rev ? 1 : -1; })[0];
+    var newest = visible.filter(function (g) { return revDate(g) && !NOT_FEATURED[g.genre]; }).sort(function (a, b) { return a.rev < b.rev ? 1 : -1; })[0];
     if (newest) renderHero(newest);
 
     visible.forEach(function (game) {

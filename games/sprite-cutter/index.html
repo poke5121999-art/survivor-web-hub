@@ -1,0 +1,1454 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+</head>
+<body>
+<title>Bàn Cắt Sprite</title>
+<style>
+/* Hai cột: bên trái tấm sprite sheet để chỉnh khung, bên phải máy chạy thử và nút cắt. Hẹp thì xếp chồng. */
+:root {
+  --bg: #eceef3; --panel: #f8f9fb; --ink: #1b2130; --mute: #5d6577; --line: #d3d8e2;
+  --accent: #3a55e0; --accent-ink: #ffffff; --sel: #e0670f; --bad: #d23b3b;
+  --check-a: #dfe3ea; --check-b: #f3f4f7; --cell: #7a8296;
+  --f-ui: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-num: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --f-pixel: "Silkscreen", "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #14171f; --panel: #1c202a; --ink: #e6e9f0; --mute: #8f97a9; --line: #2d3341;
+  --accent: #7f95ff; --accent-ink: #10131a; --sel: #ff9b4d; --bad: #ff6b6b;
+  --check-a: #242935; --check-b: #2d3340; --cell: #8a93a8; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #14171f; --panel: #1c202a; --ink: #e6e9f0; --mute: #8f97a9; --line: #2d3341;
+  --accent: #7f95ff; --accent-ink: #10131a; --sel: #ff9b4d; --bad: #ff6b6b;
+  --check-a: #242935; --check-b: #2d3340; --cell: #8a93a8; color-scheme: dark }
+
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { background: var(--bg); color: var(--ink); }
+body { font: 14px/1.45 var(--f-ui); }
+.wrap { padding-block: 20px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); max-width: 1320px; margin: 0 auto; display: grid; gap: 16px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+h1 { font-size: 22px; font-weight: 700; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+header p { margin: 0; color: var(--mute); }
+.cols { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(300px, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 900px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: grid; gap: 12px; min-width: 0; }
+h2 { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--mute); margin: 0; }
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.bar .grow { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--mute); }
+.num { font-family: var(--f-num); font-variant-numeric: tabular-nums; }
+
+button, select, input { font: inherit; color: var(--ink); }
+button { background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 6px 11px; cursor: pointer; }
+button:hover { border-color: var(--cell); }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+select, input[type=number], input[type=text] { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 5px 7px; }
+input[type=number] { width: 100%; font-family: var(--f-num); font-variant-numeric: tabular-nums; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; background: transparent; }
+.seg button[aria-pressed="true"], .seg button[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); }
+
+.fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
+.fields label { display: grid; gap: 3px; font-size: 12px; color: var(--mute); }
+.group { display: grid; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+.group-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.group-head h3 { margin: 0; font-size: 13px; font-weight: 600; }
+
+.sheet-box { position: relative; overflow: auto; max-height: 64vh; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); }
+.zoom { display: inline-flex; align-items: center; gap: 6px; }
+.zoom input[type=range] { width: 120px; }
+.zoom .num { min-width: 70px; color: var(--mute); }
+.panning, .panning canvas { cursor: grabbing !important; }
+.sheet-box.drop { outline: 2px dashed var(--accent); outline-offset: -6px; }
+#sheet { display: block; touch-action: none; cursor: crosshair; }
+.hint { font-size: 12px; color: var(--mute); margin: 0; }
+.hint kbd { font-family: var(--f-num); font-size: 11px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; background: var(--bg); }
+
+.stage { display: grid; place-items: center; border-radius: 8px; border: 1px solid var(--line); overflow: hidden; aspect-ratio: 1 / 1; max-width: 100%; }
+#player { width: 100%; height: 100%; display: block; }
+.counter { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.counter b { font-family: var(--f-pixel); font-weight: 400; font-size: 26px; letter-spacing: 0.04em; }
+.counter span { color: var(--mute); font-size: 12px; }
+.transport { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.transport button { padding: 8px 0; font-family: var(--f-num); }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+#bg-pick[aria-pressed="true"] { border-color: var(--sel); color: var(--sel); }
+.fps-row { display: grid; grid-template-columns: 1fr 72px; gap: 8px; align-items: center; }
+.opts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.opts label { display: grid; gap: 3px; font-size: 12px; color: var(--mute); }
+.check { display: flex !important; align-items: center; gap: 6px; color: var(--ink) !important; font-size: 13px !important; }
+
+.status { font-size: 13px; min-height: 1.4em; color: var(--mute); margin: 0; }
+.status.ok { color: var(--accent); } .status.bad { color: var(--bad); }
+.thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; }
+.thumbs button { padding: 4px; display: grid; gap: 2px; justify-items: center; background-color: var(--check-b); }
+.thumbs img { image-rendering: pixelated; width: 100%; aspect-ratio: 1 / 1; object-fit: contain; }
+.thumbs span { font-size: 10px; font-family: var(--f-num); color: var(--mute); }
+.thumbs .sheet-out { grid-column: 1 / -1; }
+.thumbs .sheet-out img { aspect-ratio: auto; max-height: 160px; }
+.warn { color: var(--bad); font-size: 12px; margin: 0; }
+.pane { display: grid; gap: 12px; min-width: 0; }
+.swatches { display: inline-flex; gap: 4px; }
+.swatches button { width: 26px; height: 26px; padding: 0; border-radius: 50%; border: 2px solid var(--panel); box-shadow: 0 0 0 1px var(--line); }
+.swatches button[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--ink); }
+.fcol { display: grid; gap: 6px; align-content: start; min-width: 0; }
+.stack-wrap { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 12px; }
+.flist { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; align-content: start; max-height: 420px; overflow: auto; }
+.flist li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px; align-items: center; }
+.flist li.off button { opacity: 0.45; }
+.flip { display: grid; place-items: center; width: 26px; height: 30px; cursor: pointer; }
+.flist small { white-space: nowrap; }
+.flip input { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+.flist button { width: 100%; display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 10px; align-items: center; text-align: left; padding: 4px 8px 4px 4px; }
+.flist button[aria-current="true"] { border-color: var(--sel); background: color-mix(in srgb, var(--sel) 14%, var(--bg)); }
+.flist canvas { width: 44px; height: 44px; border-radius: 4px; display: block; }
+.flist b { display: block; font-family: var(--f-num); font-weight: 600; font-size: 12px; }
+.flist small { font-family: var(--f-num); font-size: 11px; color: var(--mute); }
+.stack-box { border: 1px solid var(--line); border-radius: 8px; overflow: auto; height: 460px; max-height: 70vh; }
+#stack { display: block; touch-action: none; cursor: grab; }
+@media (max-width: 700px) { .stack-wrap { grid-template-columns: minmax(0, 1fr); } .flist { max-height: 210px; } .stack-box { height: 340px; } }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Bàn Cắt Sprite</h1>
+    <p>Nhập sprite sheet, chỉnh khung từng frame, xem chạy thử, rồi cắt ra PNG đúng khung đã chỉnh.</p>
+  </header>
+
+  <div class="cols">
+    <section aria-label="Sprite sheet đã nhập">
+      <div class="bar">
+        <div class="seg" role="tablist" aria-label="Chế độ xem">
+          <button type="button" role="tab" id="tab-sheet" aria-selected="true" aria-controls="pane-sheet">Sprite sheet</button>
+          <button type="button" role="tab" id="tab-stack" aria-selected="false" aria-controls="stack-sec">Xếp chồng khung</button>
+        </div>
+        <span class="grow num" id="sheet-info"></span>
+        <div class="seg" role="group" aria-label="Nền sau khung hình" id="view-bg" title="Nền sau khung hình ở cả sheet, xếp chồng và máy chạy. Ô cờ đổi màu theo giao diện sáng/tối của máy, Ô cờ tối luôn tối. Đổi Tối hoặc Sáng để soi chỗ nền còn sót.">
+          <button type="button" data-bg="check" aria-pressed="false">Ô cờ</button><button type="button" data-bg="checkDark" aria-pressed="true">Ô cờ tối</button><button type="button" data-bg="dark" aria-pressed="false">Tối</button><button type="button" data-bg="light" aria-pressed="false">Sáng</button>
+        </div>
+        <button id="btn-paste" type="button" title="Dán ảnh đang copy (Ctrl V)">Dán ảnh</button>
+        <button id="btn-open" type="button">Nhập ảnh…</button>
+        <input id="file" type="file" accept="image/*" hidden>
+      </div>
+      <p class="status" id="paste-status" role="status" hidden></p>
+      <div class="bar">
+        <label class="check"><input type="checkbox" id="bg-on"> Xoá nền</label>
+        <input type="color" id="bg-color" value="#ffffff" aria-label="Màu nền cần xoá">
+        <button type="button" id="bg-pick" aria-pressed="false">Hút màu trên sheet</button>
+        <label class="hint" for="bg-tol">Độ lệch màu</label>
+        <input type="range" id="bg-tol" min="0" max="120" value="30" style="width:110px">
+        <select id="bg-mode" aria-label="Xoá những chỗ nào"><option value="holes" selected>nền viền ô + chỗ bị bao kín</option><option value="edge">chỉ nền nối từ viền ô</option><option value="all">mọi chỗ cùng màu</option></select>
+        <label class="hint" id="bg-hole-box" title="Chỗ màu nền nằm kín giữa hình (khe giữa hai chân, giữa tay và thân) bị xoá. Chỗ nhỏ hơn số này được giữ, ví dụ đốm sáng trong mắt.">giữ chỗ kín dưới <input type="number" id="bg-hole" min="0" max="9999" value="6" style="width:56px"> px</label>
+        <label class="check" title="Mép hình bị khử răng cưa trên nền cũ còn lẫn màu nền. Tách phần màu nền ra để mép không ám viền."><input type="checkbox" id="bg-defringe" checked> Gỡ viền ám màu nền</label>
+      </div>
+      <div class="pane" id="pane-sheet" role="tabpanel" aria-labelledby="tab-sheet">
+      <div class="bar">
+        <div class="seg" role="group" aria-label="Kéo chuột để">
+          <button type="button" id="mode-frame" aria-pressed="true">Chọn khung</button>
+          <button type="button" id="mode-grid" aria-pressed="false">Dời cả lưới</button>
+        </div>
+        <span class="zoom"><label class="hint" for="zoom">Phóng</label><input type="range" id="zoom" min="0" max="100" value="50"><span class="num" id="zoom-v"></span><button type="button" id="zoom-fit">Vừa khung</button></span>
+      </div>
+      <div class="sheet-box" id="sheet-box"><canvas id="sheet"></canvas></div>
+      <p class="hint">Kéo chấm tròn giữa mỗi khung để dời riêng khung đó, kéo ô vuông cam ở góc để đổi cỡ mọi khung. Bấm vào khung để chọn nó và nhảy máy chạy tới frame đó.
+        <kbd>←↑→↓</kbd> dời khung đang chọn 1px, giữ <kbd>Shift</kbd> để dời cả lưới. Thả ảnh vào đây, hoặc copy ảnh rồi bấm vào trang và nhấn <kbd>Ctrl V</kbd>.</p>
+
+      <div class="group">
+        <div class="group-head"><h3>Lưới cắt</h3><button type="button" id="btn-fit">Chia đều theo cột × hàng</button></div>
+        <div class="fields">
+          <label>Cột<input type="number" id="g-cols" min="1" max="256"></label>
+          <label>Hàng<input type="number" id="g-rows" min="1" max="256"></label>
+          <label>Rộng (px)<input type="number" id="g-w" min="1"></label>
+          <label>Cao (px)<input type="number" id="g-h" min="1"></label>
+          <label>Lề trái<input type="number" id="g-x"></label>
+          <label>Lề trên<input type="number" id="g-y"></label>
+          <label>Khe ngang<input type="number" id="g-gx"></label>
+          <label>Khe dọc<input type="number" id="g-gy"></label>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="group-head"><h3>Dải frame</h3>
+          <select id="order" aria-label="Thứ tự đếm ô"><option value="row">Đếm theo hàng</option><option value="col">Đếm theo cột</option></select></div>
+        <div class="fields">
+          <label>Frame đầu (ô số)<input type="number" id="f-start" min="0"></label>
+          <label>Số frame<input type="number" id="f-count" min="1"></label>
+        </div>
+        <p class="warn" id="oob" hidden></p>
+      </div>
+
+      <div class="group">
+        <div class="group-head"><h3 id="sel-title">Chưa chọn khung</h3>
+          <div class="bar"><button type="button" id="btn-reset-sel">Trả khung này về lưới</button><button type="button" id="btn-reset-all">Trả mọi khung về lưới</button></div></div>
+        <div class="fields">
+          <label>Lệch X<input type="number" id="s-dx" disabled></label>
+          <label>Lệch Y<input type="number" id="s-dy" disabled></label>
+        </div>
+      </div>
+      </div>
+      <div class="pane" id="stack-sec" role="tabpanel" aria-labelledby="tab-stack" hidden>
+      <div class="bar">
+        <span class="grow num" id="stack-info"></span>
+        <label class="hint" for="stack-alpha">Độ rõ các frame khác</label>
+        <input type="range" id="stack-alpha" min="0" max="100" value="30" style="width:140px">
+      </div>
+      <div class="bar">
+        <label class="hint" for="st-w">Khung cắt</label>
+        <input type="number" id="st-w" min="1" style="width:72px" aria-label="Rộng khung cắt (px)">
+        <span class="hint">×</span>
+        <input type="number" id="st-h" min="1" style="width:72px" aria-label="Cao khung cắt (px)">
+        <span class="hint">px</span>
+      </div>
+      <div class="bar">
+        <div class="seg" role="group" aria-label="Kéo trên khung chồng để">
+          <button type="button" id="tool-move" aria-pressed="true">Dời hình</button>
+          <button type="button" id="tool-mark" aria-pressed="false">Chấm điểm</button>
+          <button type="button" id="tool-erase" aria-pressed="false">Tẩy</button>
+          <button type="button" id="tool-fill" aria-pressed="false">Tẩy vùng</button>
+          <button type="button" id="tool-restore" aria-pressed="false">Trả lại</button>
+        </div>
+        <div class="swatches" id="swatches" role="group" aria-label="Màu điểm"></div>
+        <button type="button" id="marks-clear">Xoá hết điểm</button>
+        <label class="check"><input type="checkbox" id="marks-player" checked> Hiện điểm ở máy chạy</label>
+      </div>
+      <div class="bar">
+        <label class="hint" for="st-size">Cỡ cọ</label>
+        <input type="range" id="st-size" min="1" max="64" value="4" style="width:110px">
+        <span class="num" id="st-size-v">4 px</span>
+        <div class="seg" role="group" aria-label="Dáng cọ" id="st-shape">
+          <button type="button" data-shape="round" aria-pressed="true">Tròn</button><button type="button" data-shape="square" aria-pressed="false">Vuông</button>
+        </div>
+        <button type="button" id="st-undo">Hoàn tác</button>
+        <button type="button" id="st-clear">Bỏ mọi nét tẩy</button>
+        <span class="grow"></span>
+        <span class="zoom"><label class="hint" for="st-zoom">Phóng</label><input type="range" id="st-zoom" min="0" max="100" value="50"><span class="num" id="st-zoom-v"></span><button type="button" id="st-zoom-fit">Vừa khung</button></span>
+      </div>
+      <div class="stack-wrap">
+        <div class="fcol">
+          <ol class="flist" id="flist" aria-label="Danh sách frame"></ol>
+          <button type="button" id="skip-clear" hidden>Bật lại mọi frame</button>
+        </div>
+        <div class="stack-box"><canvas id="stack" tabindex="0" aria-label="Các frame chồng lên nhau. Kéo để dời hình của frame đang chọn."></canvas></div>
+      </div>
+      <p class="hint">Chọn một frame trong danh sách rồi kéo trên khung chồng để dời hình của nó. Các frame khác hiện mờ bên dưới để canh cho khớp; đường đứt là tâm khung.
+        Kéo ô vuông cam trên viền để đổi cỡ khung cắt: khung nở đều hai phía nên tâm từng frame đứng yên.
+        Ở chế độ <b>Chấm điểm</b>, bấm lên khung để đặt một điểm mốc chung cho mọi frame (ví dụ chỗ chân chạm đất), kéo để dời, kéo ra ngoài khung hoặc bấm chuột phải để xoá.
+        Khi đang đứng ở khu này, <kbd>←↑→↓</kbd> dời hình 1px theo đúng hướng mũi tên.
+        <b>Tẩy</b> tô lên chỗ cần xoá của frame đang chọn. <b>Tẩy vùng</b> bấm một lần để xoá cả mảng cùng màu liền nhau trong khung, độ giống màu theo thanh Độ lệch màu. <b>Trả lại</b> tô để lấy lại chỗ đã tẩy; giữ <kbd>Alt</kbd> khi tô cũng là trả lại.
+        Cọ <b>Vuông</b> tẩy gọn theo ô pixel, hợp để xén mép thẳng của pixel art.
+        <kbd>Ctrl Z</kbd> hoàn tác, <kbd>[</kbd> <kbd>]</kbd> đổi cỡ cọ, <kbd>Ctrl</kbd> + lăn chuột để phóng, giữ nút lăn chuột rồi kéo để dời chỗ xem.</p>
+      </div>
+    </section>
+
+    <section aria-labelledby="h-play">
+      <h2 id="h-play">Chạy thử</h2>
+      <div class="stage" id="stage"><canvas id="player" width="320" height="320"></canvas></div>
+      <div class="counter"><b class="num" id="cnt">00/00</b><span id="cnt-cell"></span></div>
+      <input type="range" id="scrub" min="0" max="0" value="0" aria-label="Tua frame">
+      <div class="transport">
+        <button type="button" id="b-first" aria-label="Về frame đầu">|◀</button>
+        <button type="button" id="b-prev" aria-label="Lùi một frame">◀|</button>
+        <button type="button" id="b-play" class="primary" aria-label="Chạy hoặc dừng">❚❚</button>
+        <button type="button" id="b-next" aria-label="Tới một frame">|▶</button>
+      </div>
+      <div class="fields" style="grid-template-columns:1fr">
+        <label>Tốc độ (fps)
+          <div class="fps-row"><input type="range" id="fps-r" min="1" max="60"><input type="number" id="fps" min="1" max="120"></div>
+        </label>
+      </div>
+      <div class="opts">
+        <label>Kiểu chạy<select id="pmode"><option value="loop">Lặp vòng</option><option value="pingpong">Đi rồi về</option><option value="once">Một lần</option></select></label>
+        <label>Phóng<select id="pzoom"><option value="fit">Vừa khung</option><option value="1">1×</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option></select></label>
+        <label class="check"><input type="checkbox" id="onion"> Bóng frame trước</label>
+        <label class="check"><input type="checkbox" id="ghosts" checked> Mờ frame khác khi dừng</label>
+        <label class="check"><input type="checkbox" id="pivot"> Hiện tâm đáy</label>
+      </div>
+
+      <div class="group">
+        <div class="group-head"><h3>Cắt và lưu</h3></div>
+        <div class="fields" style="grid-template-columns:1fr">
+          <label>Tên tệp<input type="text" id="prefix" spellcheck="false"></label>
+        </div>
+        <button type="button" class="primary" id="btn-cut">Cắt và lưu .zip</button>
+        <p class="status" id="status" role="status"></p>
+        <div class="thumbs" id="thumbs"></div>
+      </div>
+    </section>
+  </div>
+
+
+</div>
+
+<script src="vendor/jszip.min.js?v=20261028a"></script>
+<script>
+const $ = id => document.getElementById(id);
+
+const S = {
+  img: null, name: "slime_mau",
+  grid: { cols: 4, rows: 2, x: 0, y: 0, w: 48, h: 48, gx: 0, gy: 0 },
+  order: "row", start: 0, count: 8,
+  off: {},
+  skip: new Set(),
+  sel: null,
+  fps: 10, mode: "loop", playing: true, cur: 0, dir: 1,
+  zoom: "fit", pzoom: "fit", bgView: "checkDark", onion: false, pivot: false, ghosts: true,
+  drag: "frame",
+};
+
+function cellCount() { return S.grid.cols * S.grid.rows; }
+
+function setOff(key, dx, dy) { S.off[key] = { dx, dy }; }
+
+function cells() {
+  const g = S.grid, out = [];
+  for (let i = 0; i < cellCount(); i++) {
+    const c = S.order === "row" ? i % g.cols : Math.floor(i / g.rows);
+    const r = S.order === "row" ? Math.floor(i / g.cols) : i % g.rows;
+    const key = r + "," + c, o = S.off[key];
+    out.push({ i, r, c, key, w: g.w, h: g.h,
+      x: g.x + c * (g.w + g.gx) + (o ? o.dx : 0),
+      y: g.y + r * (g.h + g.gy) + (o ? o.dy : 0) });
+  }
+  return out;
+}
+
+function frames() {
+  const all = cells();
+  return all.slice(S.start, S.start + S.count);
+}
+
+// Các frame trong dải mà người dùng chưa tắt: máy chạy, ô đang chạy trên sheet và nút cắt đều đọc từ đây.
+function played() { return frames().filter(f => !S.skip.has(f.key)); }
+
+function clampRange() {
+  const n = cellCount();
+  S.start = Math.max(0, Math.min(S.start, n - 1));
+  S.count = Math.max(1, Math.min(S.count, n - S.start));
+  S.cur = Math.max(0, Math.min(S.cur, played().length - 1));
+}
+
+function imgW() { return S.img ? S.img.width : 1; }
+function imgH() { return S.img ? S.img.height : 1; }
+
+function fitGrid() {
+  const g = S.grid;
+  g.w = Math.max(1, Math.floor((imgW() - g.x - g.gx * (g.cols - 1)) / g.cols));
+  g.h = Math.max(1, Math.floor((imgH() - g.y - g.gy * (g.rows - 1)) / g.rows));
+}
+
+function guessGrid() {
+  const W = imgW(), H = imgH(), g = S.grid;
+  g.x = g.y = g.gx = g.gy = 0;
+  if (W > H && W % H === 0) { g.rows = 1; g.cols = W / H; }
+  else if (H > W && H % W === 0) { g.cols = 1; g.rows = H / W; }
+  fitGrid();
+}
+
+/* ---------- ảnh mẫu: slime nhảy 8 frame, 4 × 2 ô 48px ---------- */
+function makeSample() {
+  const F = 48, cv = document.createElement("canvas");
+  cv.width = F * 4; cv.height = F * 2;
+  const x = cv.getContext("2d");
+  for (let k = 0; k < 8; k++) {
+    const t = k / 8, ox = (k % 4) * F, oy = Math.floor(k / 4) * F;
+    const lift = Math.sin(Math.PI * t) * 10;
+    const squash = Math.cos(Math.PI * 2 * t);
+    const sx = 1 + 0.18 * squash, sy = 1 - 0.18 * squash;
+    const ground = oy + 42, cx = ox + 24;
+    x.fillStyle = "rgba(0,0,0,0.28)";
+    x.beginPath(); x.ellipse(cx, ground + 1, 13 - lift * 0.35, 3, 0, 0, Math.PI * 2); x.fill();
+    const rw = 14 * sx, rh = 12 * sy, cy = ground - rh - lift;
+    x.fillStyle = "#2f7d3a";
+    x.beginPath(); x.ellipse(cx, cy + 1, rw + 1.5, rh + 1.5, 0, 0, Math.PI * 2); x.fill();
+    x.fillStyle = "#5cc46a";
+    x.beginPath(); x.ellipse(cx, cy, rw, rh, 0, 0, Math.PI * 2); x.fill();
+    x.fillStyle = "#a6f0ae";
+    x.beginPath(); x.ellipse(cx - rw * 0.4, cy - rh * 0.45, rw * 0.28, rh * 0.2, -0.5, 0, Math.PI * 2); x.fill();
+    x.fillStyle = "#16301a";
+    x.fillRect(Math.round(cx - 6), Math.round(cy - 2), 3, 4);
+    x.fillRect(Math.round(cx + 3), Math.round(cy - 2), 3, 4);
+  }
+  return cv;
+}
+
+/* ---------- vẽ tấm sheet ---------- */
+const sheet = $("sheet"), sctx = sheet.getContext("2d");
+const box = $("sheet-box");
+let sheetDirty = true, playerDirty = true;
+function dirty() { sheetDirty = playerDirty = true; }
+
+function tokens() {
+  const cs = getComputedStyle(document.documentElement);
+  const t = n => cs.getPropertyValue(n).trim();
+  return { accent: t("--accent"), accentInk: t("--accent-ink"), sel: t("--sel"), bad: t("--bad"), cell: t("--cell"), a: t("--check-a"), b: t("--check-b"), ink: t("--ink") };
+}
+
+function sheetZoom() {
+  if (S.zoom !== "fit") return +S.zoom;
+  const avail = box.clientWidth - 2;
+  return Math.max(0.1, Math.min(8, avail / imgW()));
+}
+
+function checker(ctx, w, h, size, T) {
+  ctx.fillStyle = T.b; ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = T.a;
+  for (let y = 0; y < h; y += size) for (let x = (y / size) % 2 ? size : 0; x < w; x += size * 2) ctx.fillRect(x, y, size, size);
+}
+
+const BACKDROPS = { dark: "#111318", light: "#f4f4f2", magenta: "#ff00ff" };
+const DARK_CHECK = { a: "#2a2e38", b: "#1c1f26" };
+function paintBackdrop(ctx, w, h, size, T) {
+  if (S.bgView === "check") checker(ctx, w, h, size, T);
+  else if (S.bgView === "checkDark") checker(ctx, w, h, size, DARK_CHECK);
+  else { ctx.fillStyle = BACKDROPS[S.bgView]; ctx.fillRect(0, 0, w, h); }
+}
+
+function handleCell() {
+  const all = cells();
+  if (S.sel !== null && all[S.sel]) return all[S.sel];
+  return all[S.start];
+}
+
+function drawSheet() {
+  if (!S.img) return;
+  const T = tokens(), dpr = window.devicePixelRatio || 1;
+  let z = sheetZoom();
+  const maxSide = 8192 / dpr;
+  z = Math.min(z, maxSide / imgW(), maxSide / imgH());
+  showSheetZoom(z, S.zoom === "fit");
+  const cw = Math.round(imgW() * z), ch = Math.round(imgH() * z);
+  if (sheet.width !== Math.round(cw * dpr) || sheet.height !== Math.round(ch * dpr)) {
+    sheet.width = Math.round(cw * dpr); sheet.height = Math.round(ch * dpr);
+    sheet.style.width = cw + "px"; sheet.style.height = ch + "px";
+  }
+  sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  paintBackdrop(sctx, cw, ch, 8, T);
+  sctx.imageSmoothingEnabled = z < 1;
+  sctx.drawImage(S.img, 0, 0, cw, ch);
+
+  const all = cells(), fr = frames(), inRange = new Set(fr.map(f => f.i)), pl = played();
+  const curCell = pl[S.cur];
+  sctx.lineWidth = 1;
+  sctx.font = "600 11px " + getComputedStyle(document.body).getPropertyValue("--f-num");
+  sctx.textBaseline = "top";
+  for (const c of all) {
+    const X = Math.round(c.x * z) + 0.5, Y = Math.round(c.y * z) + 0.5;
+    const Wd = Math.round(c.w * z) - 1, Hd = Math.round(c.h * z) - 1;
+    const out = c.x < 0 || c.y < 0 || c.x + c.w > imgW() || c.y + c.h > imgH();
+    const used = inRange.has(c.i);
+    if (curCell && c.i === curCell.i) {
+      sctx.fillStyle = T.accent; sctx.globalAlpha = 0.22; sctx.fillRect(X, Y, Wd, Hd); sctx.globalAlpha = 1;
+    }
+    sctx.setLineDash(out ? [4, 3] : used ? [] : [2, 3]);
+    sctx.strokeStyle = out ? T.bad : used ? T.accent : T.cell;
+    sctx.globalAlpha = used ? 1 : 0.7;
+    sctx.strokeRect(X, Y, Wd, Hd);
+    sctx.globalAlpha = 1;
+    if (used && Wd > 22) {
+      const off = S.skip.has(c.key);
+      const label = off ? "tắt" : String(pl.findIndex(f => f.i === c.i));
+      const tw = sctx.measureText(label).width + 6;
+      sctx.fillStyle = out ? T.bad : off ? T.cell : T.accent; sctx.fillRect(X, Y, tw, 14);
+      sctx.fillStyle = T.accentInk; sctx.fillText(label, X + 3, Y + 1.5);
+    }
+  }
+  sctx.setLineDash([]);
+  if (S.sel !== null && all[S.sel]) {
+    const c = all[S.sel];
+    sctx.strokeStyle = T.sel; sctx.lineWidth = 2;
+    sctx.strokeRect(Math.round(c.x * z) + 1, Math.round(c.y * z) + 1, Math.round(c.w * z) - 2, Math.round(c.h * z) - 2);
+    sctx.lineWidth = 1;
+  }
+  for (const c of all) {
+    const cx = (c.x + c.w / 2) * z, cy = (c.y + c.h / 2) * z;
+    const picked = S.sel === c.i || (drag && drag.kind === "frame" && drag.key === c.key);
+    const rad = picked ? 9 : 7;
+    sctx.beginPath(); sctx.arc(cx, cy, rad + 1.5, 0, Math.PI * 2); sctx.fillStyle = "rgba(0,0,0,0.55)"; sctx.fill();
+    sctx.beginPath(); sctx.arc(cx, cy, rad, 0, Math.PI * 2);
+    sctx.fillStyle = picked ? T.sel : inRange.has(c.i) ? T.accent : T.cell;
+    sctx.fill(); sctx.lineWidth = 2; sctx.strokeStyle = "#fff"; sctx.stroke(); sctx.lineWidth = 1;
+  }
+  const h = handleCell();
+  if (h) {
+    const hx = (h.x + h.w) * z, hy = (h.y + h.h) * z;
+    sctx.fillStyle = T.sel; sctx.fillRect(hx - 5, hy - 5, 10, 10);
+    sctx.strokeStyle = "#fff"; sctx.strokeRect(hx - 4.5, hy - 4.5, 9, 9);
+  }
+  sheetDirty = false;
+}
+
+/* ---------- máy chạy ---------- */
+const player = $("player"), pctx = player.getContext("2d");
+
+const opaqueCache = new WeakMap();
+function sheetIsOpaque() {
+  if (!opaqueCache.has(S.img)) {
+    const c = document.createElement("canvas"); c.width = S.img.width; c.height = S.img.height;
+    const x = c.getContext("2d", { willReadFrequently: true }); x.drawImage(S.img, 0, 0);
+    const p = x.getImageData(0, 0, c.width, c.height).data;
+    let opaque = true;
+    for (let i = 3; i < p.length && opaque; i += 4) if (p[i] < 16) opaque = false;
+    opaqueCache.set(S.img, opaque);
+  }
+  return opaqueCache.get(S.img);
+}
+
+// Vẽ các frame khác (trừ frame k) làm lớp mờ, trả về độ rõ dùng cho frame k vẽ đè lên.
+// Sheet nền đặc: frame k vẽ kín sẽ che hết lớp dưới, nên trộn đều các frame khác rồi cho frame k mờ theo weight.
+function drawGhosts(ctx, fr, k, s, ox, oy, weight) {
+  const others = fr.filter((f, j) => j !== k);
+  if (!sheetIsOpaque()) { for (const g of others) drawFrame(ctx, g, s, ox, oy, weight); return 1; }
+  others.forEach((g, n) => drawFrame(ctx, g, s, ox, oy, 1 / (n + 1)));
+  return others.length ? Math.max(0.25, 1 - weight) : 1;
+}
+
+function drawFrame(ctx, f, s, ox, oy, alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(ox, oy); ctx.scale(s, s);
+  ctx.beginPath(); ctx.rect(0, 0, f.w, f.h); ctx.clip();
+  ctx.drawImage(S.img, -f.x, -f.y);
+  ctx.restore();
+}
+
+function drawPlayer() {
+  const dpr = window.devicePixelRatio || 1;
+  const side = Math.round($("stage").clientWidth * dpr) || 320;
+  if (player.width !== side) { player.width = side; player.height = side; }
+  const T = tokens(), P = side;
+  paintBackdrop(pctx, P, P, Math.round(12 * dpr), T);
+  const fr = played();
+  if (!S.img || !fr.length) return;
+  const f = fr[S.cur];
+  let s = S.pzoom === "fit" ? Math.max(1, Math.floor((P * 0.86) / Math.max(f.w, f.h))) : +S.pzoom * dpr;
+  if (S.pzoom === "fit" && Math.max(f.w, f.h) * s > P) s = (P * 0.86) / Math.max(f.w, f.h);
+  const ox = Math.round((P - f.w * s) / 2), oy = Math.round((P - f.h * s) / 2);
+  pctx.imageSmoothingEnabled = false;
+  let curAlpha = 1;
+  if (S.ghosts && !S.playing && fr.length > 1) curAlpha = drawGhosts(pctx, fr, S.cur, s, ox, oy, 0.35);
+  else if (S.onion && fr.length > 1) curAlpha = drawGhosts(pctx, [fr[(S.cur - 1 + fr.length) % fr.length], f], 1, s, ox, oy, 0.3);
+  drawFrame(pctx, f, s, ox, oy, curAlpha);
+  pctx.strokeStyle = T.accent; pctx.globalAlpha = 0.5; pctx.lineWidth = 1;
+  pctx.strokeRect(ox - 0.5, oy - 0.5, f.w * s + 1, f.h * s + 1); pctx.globalAlpha = 1;
+  if (S.pivot) {
+    const px = ox + (f.w * s) / 2, py = oy + f.h * s;
+    pctx.strokeStyle = T.sel; pctx.lineWidth = Math.max(1, dpr);
+    pctx.beginPath(); pctx.moveTo(px - 8 * dpr, py); pctx.lineTo(px + 8 * dpr, py); pctx.moveTo(px, py - 8 * dpr); pctx.lineTo(px, py + 4 * dpr); pctx.stroke();
+  }
+  if (S.marksInPlayer) drawMarks(pctx, s, ox, oy, dpr);
+  playerDirty = false;
+}
+
+function setCur(k) {
+  const n = played().length;
+  if (!n) return;
+  S.cur = ((k % n) + n) % n;
+  dirty(); syncPlayerUi();
+}
+
+function advance() {
+  const n = played().length;
+  if (n < 2) return;
+  if (S.mode === "loop") S.cur = (S.cur + 1) % n;
+  else if (S.mode === "pingpong") {
+    if (S.cur + S.dir < 0 || S.cur + S.dir >= n) S.dir = -S.dir;
+    S.cur += S.dir;
+  } else if (S.cur < n - 1) S.cur++;
+  else S.playing = false;
+  dirty(); syncPlayerUi();
+}
+
+let last = performance.now(), acc = 0;
+function tick(t) {
+  const dt = t - last; last = t;
+  if (S.playing) {
+    acc += dt;
+    const step = 1000 / S.fps;
+    if (acc > 1000) acc = step;
+    while (acc >= step && S.playing) { acc -= step; advance(); }
+  } else acc = 0;
+  if (sheetDirty) drawSheet();
+  if (playerDirty) drawPlayer();
+  if (stackDirty) drawStack();
+  requestAnimationFrame(tick);
+}
+
+/* ---------- đồng bộ ô nhập ---------- */
+const gridFields = { "g-cols": "cols", "g-rows": "rows", "g-w": "w", "g-h": "h", "g-x": "x", "g-y": "y", "g-gx": "gx", "g-gy": "gy" };
+
+function put(id, v) { const el = $(id); if (document.activeElement !== el) el.value = v; }
+
+function syncPlayerUi() {
+  const n = played().length;
+  $("cnt").textContent = String(n ? S.cur + 1 : 0).padStart(2, "0") + "/" + String(n).padStart(2, "0");
+  const f = played()[S.cur];
+  $("cnt-cell").textContent = f ? `ô ${f.i} · x ${f.x}, y ${f.y} · ${f.w}×${f.h}` : "";
+  $("scrub").max = Math.max(0, n - 1); $("scrub").value = S.cur;
+  $("b-play").textContent = S.playing ? "❚❚" : "▶";
+}
+
+function syncUi() {
+  for (const [id, k] of Object.entries(gridFields)) put(id, S.grid[k]);
+  put("st-w", S.grid.w); put("st-h", S.grid.h);
+  put("f-start", S.start); put("f-count", S.count);
+  $("f-start").max = cellCount() - 1; $("f-count").max = cellCount() - S.start;
+  $("order").value = S.order;
+  put("fps", S.fps); $("fps-r").value = Math.min(60, S.fps);
+  $("sheet-info").textContent = S.img ? `${S.name} · ${imgW()}×${imgH()} px · ${cellCount()} ô` : "";
+  const all = cells(), c = S.sel !== null ? all[S.sel] : null;
+  $("sel-title").textContent = c ? `Khung đang chọn: ô ${c.i} (hàng ${c.r}, cột ${c.c})` : "Chưa chọn khung, bấm một khung trên sheet";
+  $("s-dx").disabled = $("s-dy").disabled = !c;
+  const o = c && S.off[c.key];
+  put("s-dx", c ? (o ? o.dx : 0) : ""); put("s-dy", c ? (o ? o.dy : 0) : "");
+  const bad = frames().filter(f => f.x < 0 || f.y < 0 || f.x + f.w > imgW() || f.y + f.h > imgH());
+  $("oob").hidden = !bad.length;
+  $("oob").textContent = bad.length ? `${bad.length} frame lòi ra ngoài ảnh (viền đỏ). Phần lòi ra sẽ thành trong suốt khi cắt.` : "";
+  const moved = Object.values(S.off).filter(o => o.dx || o.dy).length;
+  $("skip-clear").hidden = !S.skip.size;
+  $("skip-clear").textContent = `Bật lại ${S.skip.size} frame đang tắt`;
+  $("btn-reset-all").textContent = moved ? `Trả mọi khung về lưới (${moved})` : "Trả mọi khung về lưới";
+  syncPlayerUi();
+}
+
+function changed() { clampRange(); dirty(); stackDirty = true; syncUi(); }
+
+for (const [id, k] of Object.entries(gridFields)) {
+  $(id).addEventListener("input", e => {
+    const v = parseInt(e.target.value, 10);
+    if (Number.isNaN(v)) return;
+    const wasAll = S.start === 0 && S.count === cellCount();
+    S.grid[k] = k === "cols" || k === "rows" || k === "w" || k === "h" ? Math.max(1, v) : v;
+    if (k === "cols" || k === "rows") { fitGrid(); if (wasAll) S.count = cellCount(); S.sel = null; }
+    changed();
+  });
+}
+$("btn-fit").onclick = () => { fitGrid(); changed(); };
+$("f-start").addEventListener("input", e => { const v = parseInt(e.target.value, 10); if (!Number.isNaN(v)) { S.start = v; S.cur = 0; changed(); } });
+$("f-count").addEventListener("input", e => { const v = parseInt(e.target.value, 10); if (!Number.isNaN(v)) { S.count = v; changed(); } });
+$("order").onchange = e => { S.order = e.target.value; S.sel = null; changed(); };
+for (const id of ["s-dx", "s-dy"]) $(id).addEventListener("input", () => {
+  const c = cells()[S.sel]; if (!c) return;
+  const dx = parseInt($("s-dx").value, 10) || 0, dy = parseInt($("s-dy").value, 10) || 0;
+  setOff(c.key, dx, dy); changed();
+});
+$("btn-reset-sel").onclick = () => { const c = cells()[S.sel]; if (c) { delete S.off[c.key]; changed(); } };
+$("btn-reset-all").onclick = () => { S.off = {}; changed(); };
+
+function setDrag(m) { S.drag = m; $("mode-frame").setAttribute("aria-pressed", m === "frame"); $("mode-grid").setAttribute("aria-pressed", m === "grid"); }
+$("mode-frame").onclick = () => setDrag("frame");
+$("mode-grid").onclick = () => setDrag("grid");
+
+$("fps").addEventListener("input", e => { const v = parseInt(e.target.value, 10); if (v > 0) { S.fps = Math.min(120, v); syncUi(); } });
+$("fps-r").addEventListener("input", e => { S.fps = +e.target.value; syncUi(); });
+$("pmode").onchange = e => { S.mode = e.target.value; S.dir = 1; if (S.mode !== "once") S.playing = true; syncPlayerUi(); };
+$("pzoom").onchange = e => { S.pzoom = e.target.value; dirty(); };
+for (const b of $("view-bg").children) b.onclick = () => {
+  S.bgView = b.dataset.bg; dirty(); stackDirty = true;
+  for (const x of $("view-bg").children) x.setAttribute("aria-pressed", x === b);
+};
+$("onion").onchange = e => { S.onion = e.target.checked; dirty(); };
+$("pivot").onchange = e => { S.pivot = e.target.checked; dirty(); };
+$("ghosts").onchange = e => { S.ghosts = e.target.checked; dirty(); };
+$("scrub").addEventListener("input", e => { S.playing = false; setCur(+e.target.value); });
+$("b-first").onclick = () => { S.playing = false; setCur(0); };
+$("b-prev").onclick = () => { S.playing = false; setCur(S.cur - 1); };
+$("b-next").onclick = () => { S.playing = false; setCur(S.cur + 1); };
+$("b-play").onclick = togglePlay;
+function togglePlay() {
+  if (!S.playing && S.mode === "once" && S.cur === played().length - 1) S.cur = 0;
+  S.playing = !S.playing; syncPlayerUi(); dirty();
+}
+
+/* ---------- kéo trên sheet ---------- */
+let drag = null;
+function toImg(e) {
+  const r = sheet.getBoundingClientRect();
+  return { x: (e.clientX - r.left) / r.width * imgW(), y: (e.clientY - r.top) / r.height * imgH(), z: r.width / imgW(), cx: e.clientX, cy: e.clientY };
+}
+sheet.addEventListener("pointerdown", e => {
+  if (!S.img || e.button !== 0) return;
+  if (bgPicking) { pickBackground(e); return; }
+  const p = toImg(e), all = cells(), h = handleCell();
+  sheet.setPointerCapture(e.pointerId);
+  if (h && Math.abs(p.x - (h.x + h.w)) * p.z < 9 && Math.abs(p.y - (h.y + h.h)) * p.z < 9) {
+    drag = { kind: "size", p, w: S.grid.w, h: S.grid.h }; return;
+  }
+  const dot = dotAt(p, all, e.pointerType === "touch" ? 18 : 12);
+  if (dot) {
+    selectCell(dot);
+    const o = S.off[dot.key] || { dx: 0, dy: 0 };
+    drag = { kind: "frame", p, key: dot.key, dx: o.dx, dy: o.dy };
+    sheet.style.cursor = "grabbing";
+    changed(); return;
+  }
+  if (S.drag === "grid") { drag = { kind: "grid", p, x: S.grid.x, y: S.grid.y }; return; }
+  let hit = null;
+  for (let k = all.length - 1; k >= 0; k--) { const c = all[k]; if (p.x >= c.x && p.x < c.x + c.w && p.y >= c.y && p.y < c.y + c.h) { hit = c; break; } }
+  if (hit) selectCell(hit); else S.sel = null;
+  changed();
+});
+function dotAt(p, all, radius) {
+  let best = null, bestD = radius;
+  for (const c of all) {
+    const d = Math.hypot(p.x - (c.x + c.w / 2), p.y - (c.y + c.h / 2)) * p.z;
+    if (d <= bestD) { best = c; bestD = d; }
+  }
+  return best;
+}
+function selectCell(c, pause = true) {
+  S.sel = c.i;
+  const k = played().findIndex(f => f.i === c.i);
+  if (k >= 0) { S.cur = k; if (pause) S.playing = false; }
+  syncPlayerUi();
+}
+sheet.addEventListener("pointermove", e => {
+  if (!drag) {
+    if (bgPicking) { sheet.style.cursor = "copy"; return; }
+    const p = toImg(e), h = handleCell();
+    sheet.style.cursor = h && Math.abs(p.x - (h.x + h.w)) * p.z < 9 && Math.abs(p.y - (h.y + h.h)) * p.z < 9 ? "nwse-resize"
+      : dotAt(p, cells(), 12) ? "grab" : S.drag === "grid" ? "move" : "pointer";
+    return;
+  }
+  const dx = Math.round((e.clientX - drag.p.cx) / drag.p.z), dy = Math.round((e.clientY - drag.p.cy) / drag.p.z);
+  if (drag.kind === "size") { S.grid.w = Math.max(1, drag.w + dx); S.grid.h = Math.max(1, drag.h + dy); }
+  else if (drag.kind === "grid") { S.grid.x = drag.x + dx; S.grid.y = drag.y + dy; }
+  else setOff(drag.key, drag.dx + dx, drag.dy + dy);
+  changed();
+});
+const endDrag = () => { if (drag) { drag = null; sheet.style.cursor = "grab"; sheetDirty = true; } };
+sheet.addEventListener("pointerup", endDrag);
+sheet.addEventListener("pointercancel", endDrag);
+
+document.addEventListener("keydown", e => {
+  const t = e.target;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !(t.matches && t.matches("input[type=text], input[type=number]"))) { e.preventDefault(); undoEdit(); return; }
+  if (t.matches && t.matches("input[type=number], input[type=text], select")) return;
+  if (!$("stack-sec").hidden && (e.key === "[" || e.key === "]")) { setBrush(S.edSize + (e.key === "]" ? 1 : -1)); return; }
+  const arrows = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+  if (e.key === " ") { e.preventDefault(); togglePlay(); return; }
+  if (e.key === "," ) { S.playing = false; setCur(S.cur - 1); return; }
+  if (e.key === ".") { S.playing = false; setCur(S.cur + 1); return; }
+  const a = arrows[e.key];
+  if (!a) return;
+  if (e.shiftKey) { S.grid.x += a[0]; S.grid.y += a[1]; }
+  else {
+    const c = cells()[S.sel]; if (!c) return;
+    const o = S.off[c.key] || { dx: 0, dy: 0 };
+    // Ở khu xếp chồng người dùng dời hình, tức khung cắt đi ngược chiều.
+    const sign = t.closest && t.closest("#stack-sec") ? -1 : 1;
+    setOff(c.key, o.dx + a[0] * sign, o.dy + a[1] * sign);
+  }
+  e.preventDefault(); changed();
+});
+
+/* ---------- xếp chồng khung ---------- */
+const stack = $("stack"), kctx = stack.getContext("2d");
+let stackDirty = true, stackScale = 1, listSig = "", stackDrag = null;
+S.stackAlpha = 0.3;
+S.marks = [];
+S.markColor = "#ff3b30";
+S.stackTool = "move";
+S.marksInPlayer = true;
+const MARK_COLORS = ["#ff3b30", "#ffcc00", "#2ee06b", "#00c2ff", "#ff2bd6", "#ffffff"];
+
+function drawMarks(ctx, s, ox, oy, unit) {
+  const r = Math.min(Math.max(5 * unit, s * 0.6), 9 * unit);
+  for (const m of S.marks) {
+    const x = ox + (m.x + 0.5) * s, y = oy + (m.y + 0.5) * s;
+    ctx.beginPath(); ctx.arc(x, y, r + 2 * unit, 0, Math.PI * 2); ctx.fillStyle = "rgba(0,0,0,0.65)"; ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, r + 0.5 * unit, 0, Math.PI * 2); ctx.fillStyle = "#fff"; ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, r - unit, 0, Math.PI * 2); ctx.fillStyle = m.color; ctx.fill();
+  }
+}
+
+function selFrameIndex() { return frames().findIndex(f => f.i === S.sel); }
+
+function drawStack() {
+  stackDirty = false;
+  $("st-undo").disabled = $("st-clear").disabled = !S.strokes.length;
+  const dpr = window.devicePixelRatio || 1, bw = stackPane.clientWidth, bh = stackPane.clientHeight;
+  const fr = frames();
+  renderList(fr);
+  if (!bw || !bh) return;
+  const gw = S.grid.w, gh = S.grid.h, sizing = stackDrag && stackDrag.kind === "size";
+  const sc = sizing ? stackDrag.scale : S.stackZoom === "fit" ? Math.min(bw / (gw * 1.2), bh / (gh * 1.2)) : +S.stackZoom;
+  const cw = Math.max(bw, Math.ceil(gw * sc * 1.2)), ch = Math.max(bh, Math.ceil(gh * sc * 1.2));
+  const W = Math.round(cw * dpr), H = Math.round(ch * dpr);
+  if (stack.width !== W || stack.height !== H) { stack.width = W; stack.height = H; stack.style.width = cw + "px"; stack.style.height = ch + "px"; }
+  const T = tokens();
+  paintBackdrop(kctx, W, H, Math.round(12 * dpr), T);
+  if (!S.img || !fr.length) return;
+  let s = sc * dpr;
+  if (!sizing && S.stackZoom === "fit" && s >= 1) s = Math.floor(s);
+  stackScale = s / dpr;
+  showStackZoom(stackScale, S.stackZoom === "fit");
+  const ox = Math.round((W - gw * s) / 2), oy = Math.round((H - gh * s) / 2);
+  kctx.imageSmoothingEnabled = false;
+  const k = selFrameIndex();
+  const shown = fr.filter((f, j) => j === k || !S.skip.has(f.key));
+  const curAlpha = drawGhosts(kctx, shown, shown.indexOf(fr[k]), s, ox, oy, S.stackAlpha);
+  if (k >= 0) drawFrame(kctx, fr[k], s, ox, oy, curAlpha);
+  drawMarks(kctx, s, ox, oy, dpr);
+  if (stackHover && ERASE_TOOLS.has(S.stackTool)) { kctx.save(); kctx.scale(dpr, dpr); drawBrush(kctx, (ox + stackHover.u * s) / dpr, (oy + stackHover.v * s) / dpr, s / dpr, S.stackTool); kctx.restore(); }
+  kctx.lineWidth = Math.max(1, dpr);
+  kctx.strokeStyle = T.accent;
+  kctx.strokeRect(ox - 0.5, oy - 0.5, gw * s + 1, gh * s + 1);
+  kctx.setLineDash([4 * dpr, 4 * dpr]); kctx.globalAlpha = 0.7;
+  kctx.beginPath();
+  kctx.moveTo(ox + gw * s / 2, oy); kctx.lineTo(ox + gw * s / 2, oy + gh * s);
+  kctx.moveTo(ox, oy + gh * s / 2); kctx.lineTo(ox + gw * s, oy + gh * s / 2);
+  kctx.stroke();
+  kctx.setLineDash([]); kctx.globalAlpha = 1;
+  stackBox = { x: ox / dpr, y: oy / dpr, w: gw * s / dpr, h: gh * s / dpr };
+  for (const [hx, hy] of HANDLES) {
+    const px = ox + (hx + 1) / 2 * gw * s, py = oy + (hy + 1) / 2 * gh * s, r = 5 * dpr;
+    kctx.fillStyle = T.sel; kctx.fillRect(px - r, py - r, r * 2, r * 2);
+    kctx.strokeStyle = "#fff"; kctx.strokeRect(px - r + 0.5, py - r + 0.5, r * 2 - 1, r * 2 - 1);
+  }
+  kctx.font = `600 ${12 * dpr}px ` + getComputedStyle(document.body).getPropertyValue("--f-num");
+  kctx.fillStyle = T.accent; kctx.textBaseline = "bottom";
+  kctx.fillText(`${gw} × ${gh}`, ox, oy - 8 * dpr);
+  const f = fr[k];
+  $("stack-info").textContent = f ? `đang dời frame ${String(k).padStart(2, "0")} · ô ${f.i}` : "chọn một frame bên trái để dời";
+}
+
+function renderList(fr) {
+  const list = $("flist"), dpr = window.devicePixelRatio || 1;
+  const sig = [S.start, S.count, S.order, S.grid.cols, S.grid.rows, S.img && S.name].join();
+  if (sig !== listSig) {
+    listSig = sig;
+    list.replaceChildren(...fr.map((f, j) => {
+      const li = document.createElement("li"), b = document.createElement("button"), c = document.createElement("canvas");
+      const tx = document.createElement("div"), name = document.createElement("b"), sub = document.createElement("small");
+      const sw = document.createElement("label"), box = document.createElement("input");
+      b.type = "button"; c.width = c.height = Math.round(44 * dpr);
+      box.type = "checkbox"; box.setAttribute("aria-label", "Cho frame " + String(j).padStart(2, "0") + " chạy");
+      sw.className = "flip"; sw.title = "Bật/tắt frame này khi chạy"; sw.append(box);
+      tx.append(name, sub); b.append(c, tx); li.append(b, sw);
+      b.onclick = () => { selectCell(f, false); changed(); };
+      box.onchange = () => { if (box.checked) S.skip.delete(f.key); else S.skip.add(f.key); changed(); };
+      return li;
+    }));
+  }
+  const k = selFrameIndex(), T = tokens();
+  [...list.children].forEach((li, j) => {
+    const f = fr[j], b = li.firstChild, c = b.firstChild, x = c.getContext("2d");
+    b.setAttribute("aria-current", j === k);
+    const on = !S.skip.has(f.key);
+    li.lastChild.firstChild.checked = on; li.classList.toggle("off", !on);
+    const o = S.off[f.key];
+    b.querySelector("b").textContent = "Frame " + String(j).padStart(2, "0");
+    b.querySelector("small").textContent = on ? `ô ${f.i} · lệch ${o ? o.dx : 0}, ${o ? o.dy : 0}` : `ô ${f.i} · đang tắt`;
+    paintBackdrop(x, c.width, c.height, Math.round(6 * dpr), T);
+    const s = Math.min(c.width / f.w, c.height / f.h);
+    x.imageSmoothingEnabled = false;
+    drawFrame(x, f, s, (c.width - f.w * s) / 2, (c.height - f.h * s) / 2, 1);
+  });
+}
+
+const HANDLES = [[-1, -1], [0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0]];
+const HANDLE_CURSOR = { "-1,-1": "nwse-resize", "1,1": "nwse-resize", "1,-1": "nesw-resize", "-1,1": "nesw-resize", "0,-1": "ns-resize", "0,1": "ns-resize", "-1,0": "ew-resize", "1,0": "ew-resize" };
+let stackBox = null, stackHover = null;
+const stackPane = stack.parentElement, ERASE_TOOLS = new Set(["erase", "fill", "restore"]);
+S.stackZoom = "fit";
+
+function handleAt(e) {
+  if (!stackBox) return null;
+  const r = stack.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  const reach = e.pointerType === "touch" ? 16 : 9;
+  return HANDLES.find(([hx, hy]) =>
+    Math.abs(x - (stackBox.x + (hx + 1) / 2 * stackBox.w)) <= reach &&
+    Math.abs(y - (stackBox.y + (hy + 1) / 2 * stackBox.h)) <= reach) || null;
+}
+
+// Giữ bước lưới (rộng + khe) không đổi để tâm mọi ô đứng yên khi khung nở hay co.
+function resizeAroundCenter(base, nw, nh) {
+  const g = S.grid;
+  nw = Math.max(1, nw); nh = Math.max(1, nh);
+  g.x = base.x - Math.round((nw - base.w) / 2); g.gx = base.gx - (nw - base.w); g.w = nw;
+  g.y = base.y - Math.round((nh - base.h) / 2); g.gy = base.gy - (nh - base.h); g.h = nh;
+  const sx = base.x - g.x - (base.mx || 0), sy = base.y - g.y - (base.my || 0);
+  for (const m of S.marks) { m.x += sx; m.y += sy; }
+  base.mx = base.x - g.x; base.my = base.y - g.y;
+}
+
+for (const id of ["st-w", "st-h"]) $(id).addEventListener("input", () => {
+  const nw = parseInt($("st-w").value, 10), nh = parseInt($("st-h").value, 10);
+  if (Number.isNaN(nw) || Number.isNaN(nh)) return;
+  resizeAroundCenter({ ...S.grid }, nw, nh); changed();
+});
+
+stack.addEventListener("pointerdown", e => {
+  if (e.button !== 0) return;
+  if (!S.img || !frames().length) return;
+  stack.setPointerCapture(e.pointerId); stack.focus({ preventScroll: true });
+  const h = handleAt(e);
+  if (h) {
+    stackDrag = { kind: "size", hx: h[0], hy: h[1], cx: e.clientX, cy: e.clientY, scale: stackScale, base: { ...S.grid } };
+    return;
+  }
+  if (ERASE_TOOLS.has(S.stackTool)) {
+    const f = stackFrame(); if (!f) return;
+    if (eraseDown(S.stackTool, f, stackSrcPoint(e, f), e.altKey)) stackDrag = { kind: "erase" };
+    return;
+  }
+  if (S.stackTool === "mark") {
+    const p = framePixel(e);
+    let m = markAt(e);
+    if (!m) { m = { x: p.x, y: p.y, color: S.markColor }; S.marks.push(m); }
+    stackDrag = { kind: "mark", m };
+    stack.style.cursor = "grabbing"; changed();
+    return;
+  }
+  const f = stackFrame(); if (!f) return;
+  const o = S.off[f.key] || { dx: 0, dy: 0 };
+  stackDrag = { kind: "move", cx: e.clientX, cy: e.clientY, key: f.key, dx: o.dx, dy: o.dy };
+  stack.style.cursor = "grabbing";
+});
+function stackFrame() {
+  if (selFrameIndex() < 0) {
+    const pf = played()[S.cur];
+    if (!pf) return null;
+    selectCell(pf, false); changed();
+  }
+  return frames()[selFrameIndex()];
+}
+function stackSrcPoint(e, f) {
+  const r = stack.getBoundingClientRect(), u = (e.clientX - r.left - stackBox.x) / stackScale, v = (e.clientY - r.top - stackBox.y) / stackScale;
+  return { x: f.x + u, y: f.y + v, u, v };
+}
+stack.addEventListener("pointermove", e => {
+  if (ERASE_TOOLS.has(S.stackTool) && stackBox) {
+    const f = frames()[selFrameIndex()] || played()[S.cur];
+    if (f) { const p = stackSrcPoint(e, f); stackHover = p; stackDirty = true; if (stackDrag && stackDrag.kind === "erase") { eraseMove(p); return; } }
+  }
+  if (!stackDrag) {
+    const h = handleAt(e);
+    stack.style.cursor = h ? HANDLE_CURSOR[h.join()] : S.stackTool === "mark" ? (markAt(e) ? "grab" : "crosshair") : S.stackTool === "move" ? "grab" : "crosshair";
+    return;
+  }
+  if (stackDrag.kind === "mark") {
+    const p = framePixel(e);
+    stackDrag.m.x = p.x; stackDrag.m.y = p.y;
+    changed(); return;
+  }
+  if (stackDrag.kind === "size") {
+    const d = stackDrag, b = d.base;
+    const dw = 2 * d.hx * Math.round((e.clientX - d.cx) / d.scale), dh = 2 * d.hy * Math.round((e.clientY - d.cy) / d.scale);
+    resizeAroundCenter(b, b.w + dw, b.h + dh);
+  } else {
+    setOff(stackDrag.key,
+      stackDrag.dx - Math.round((e.clientX - stackDrag.cx) / stackScale),
+      stackDrag.dy - Math.round((e.clientY - stackDrag.cy) / stackScale));
+  }
+  changed();
+});
+const endStackDrag = () => {
+  if (stackDrag && stackDrag.kind === "mark") {
+    const m = stackDrag.m;
+    if (m.x < 0 || m.y < 0 || m.x >= S.grid.w || m.y >= S.grid.h) S.marks.splice(S.marks.indexOf(m), 1);
+  }
+  liveStroke = null;
+  stackDrag = null; stack.style.cursor = S.stackTool === "move" ? "grab" : "crosshair"; changed();
+};
+
+function framePixel(e) {
+  const r = stack.getBoundingClientRect();
+  return { x: Math.floor((e.clientX - r.left - stackBox.x) / stackScale), y: Math.floor((e.clientY - r.top - stackBox.y) / stackScale) };
+}
+function markAt(e) {
+  const r = stack.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  const reach = Math.max(e.pointerType === "touch" ? 16 : 9, stackScale * 0.6);
+  let best = null, bestD = reach;
+  for (const m of S.marks) {
+    const d = Math.hypot(x - (stackBox.x + (m.x + 0.5) * stackScale), y - (stackBox.y + (m.y + 0.5) * stackScale));
+    if (d <= bestD) { best = m; bestD = d; }
+  }
+  return best;
+}
+stack.addEventListener("contextmenu", e => {
+  const m = markAt(e);
+  if (!m) return;
+  e.preventDefault(); S.marks.splice(S.marks.indexOf(m), 1); changed();
+});
+function setStackTool(t) {
+  S.stackTool = t;
+  for (const id of ["move", "mark", "erase", "fill", "restore"]) $("tool-" + id).setAttribute("aria-pressed", t === id);
+  stack.style.cursor = t === "move" ? "grab" : "crosshair"; stackDirty = true;
+}
+for (const id of ["move", "mark", "erase", "fill", "restore"]) $("tool-" + id).onclick = () => setStackTool(id);
+stack.addEventListener("pointerleave", () => { stackHover = null; stackDirty = true; });
+for (const c of MARK_COLORS) {
+  const b = document.createElement("button");
+  b.type = "button"; b.style.background = c; b.title = "Màu " + c; b.setAttribute("aria-label", "Màu điểm " + c);
+  b.setAttribute("aria-pressed", c === S.markColor);
+  b.onclick = () => { S.markColor = c; for (const x of $("swatches").children) x.setAttribute("aria-pressed", x === b); setStackTool("mark"); };
+  $("swatches").append(b);
+}
+/* ---------- xoá nền ---------- */
+// S.src là ảnh gốc; S.img là ảnh đang dùng để vẽ và cắt (ảnh gốc, hoặc bản đã xoá nền).
+let bgPicking = false;
+const hex2 = v => v.toString(16).padStart(2, "0");
+
+function srcPixels() {
+  const c = document.createElement("canvas");
+  c.width = S.src.width; c.height = S.src.height;
+  const x = c.getContext("2d", { willReadFrequently: true });
+  x.drawImage(S.src, 0, 0);
+  return { c, x, d: x.getImageData(0, 0, c.width, c.height) };
+}
+function cornerColor() {
+  const p = srcPixels().d.data;
+  return "#" + hex2(p[0]) + hex2(p[1]) + hex2(p[2]);
+}
+
+function keyOut() {
+  const { c, x, d } = srcPixels(), p = d.data, W = c.width, H = c.height;
+  const hex = $("bg-color").value, r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
+  const tol = +$("bg-tol").value * 3;
+  const dist = i => p[i + 3] < 16 ? 0 : Math.abs(p[i] - r) + Math.abs(p[i + 1] - g) + Math.abs(p[i + 2] - b);
+  const isBg = i => dist(i) <= tol;
+  if ($("bg-mode").value === "all") {
+    for (let i = 0; i < p.length; i += 4) if (isBg(i)) p[i + 3] = 0;
+  } else {
+    const seen = new Uint8Array(W * H), stack = new Int32Array(W * H);
+    let top = 0;
+    const push = n => { if (!seen[n] && isBg(n * 4)) { seen[n] = 1; stack[top++] = n; } };
+    const seed = (px, py) => { if (px >= 0 && py >= 0 && px < W && py < H) push(py * W + px); };
+    // Gieo từ viền ảnh và viền từng ô (lùi vào tới 2px để vượt qua đường kẻ ô 1px).
+    const gr = S.grid, pX = gr.w + gr.gx, pY = gr.h + gr.gy;
+    const rects = [{ x: 0, y: 0, w: W, h: H }];
+    for (let cy = 0; cy < gr.rows; cy++) for (let cx = 0; cx < gr.cols; cx++) rects.push({ x: gr.x + cx * pX, y: gr.y + cy * pY, w: gr.w, h: gr.h });
+    for (const q of rects) for (let k = 0; k < 3; k++) {
+      for (let px = q.x + k; px < q.x + q.w - k; px++) { seed(px, q.y + k); seed(px, q.y + q.h - 1 - k); }
+      for (let py = q.y + k; py < q.y + q.h - k; py++) { seed(q.x + k, py); seed(q.x + q.w - 1 - k, py); }
+    }
+    const fill = () => {
+      while (top) {
+        const n = stack[--top], px = n % W;
+        p[n * 4 + 3] = 0;
+        if (px > 0) push(n - 1);
+        if (px < W - 1) push(n + 1);
+        if (n >= W) push(n - W);
+        if (n < W * (H - 1)) push(n + W);
+      }
+    };
+    fill();
+    if ($("bg-mode").value === "holes") {
+      const keep = +$("bg-hole").value, mark = new Uint8Array(W * H);
+      for (let s = 0; s < W * H; s++) {
+        if (seen[s] || mark[s] || p[s * 4 + 3] === 0 || !isBg(s * 4)) continue;
+        const part = [s]; mark[s] = 1;
+        for (let k = 0; k < part.length; k++) {
+          const n = part[k], px = n % W;
+          for (const m of [px > 0 ? n - 1 : -1, px < W - 1 ? n + 1 : -1, n - W, n < W * (H - 1) ? n + W : -1])
+            if (m >= 0 && !mark[m] && !seen[m] && p[m * 4 + 3] && isBg(m * 4)) { mark[m] = 1; part.push(m); }
+        }
+        // JPEG làm nhoè mép nên chỉ xét lõi (pixel có đủ bốn bên trong mảng): khe nền thật có lõi trùng màu nền,
+        // còn mắt sáng gần trắng lệch đều cả lõi thì là hình, giữ lại. Khe mỏng không có lõi thì coi là nền.
+        const core = part.filter(n => { const px = n % W; return px > 0 && px < W - 1 && mark[n - 1] && mark[n + 1] && mark[n - W] && mark[n + W]; });
+        const ds = core.map(n => dist(n * 4)).sort((a, b) => a - b);
+        if (part.length >= keep && (!ds.length || ds[ds.length >> 1] <= tol / 3)) { for (const n of part) push(n); fill(); }
+      }
+    }
+  }
+  if ($("bg-defringe").checked) defringe(p, W, H, [r, g, b]);
+  x.putImageData(d, 0, 0);
+  return c;
+}
+
+// Pixel mép là màu hình trộn với màu nền. Lấy màu hình là pixel xa màu nền nhất trong ô 5×5,
+// chiếu pixel lên đoạn nền→màu hình để ra độ đục, rồi tách màu nền ra. Chỉ lan qua pixel còn lẫn nền,
+// nên viền đen rõ nét chặn lại và mắt trắng bên trong không bị đụng tới.
+function defringe(p, W, H, bg) {
+  const DEPTH = 3, R = 2, src = p.slice(), depth = new Uint8Array(W * H), queue = [];
+  const far = n => { const i = n * 4; return (src[i] - bg[0]) ** 2 + (src[i + 1] - bg[1]) ** 2 + (src[i + 2] - bg[2]) ** 2; };
+  for (let n = 0; n < W * H; n++) {
+    if (src[n * 4 + 3] === 0) continue;
+    const px = n % W;
+    if ((px > 0 && src[n * 4 - 1] === 0) || (px < W - 1 && src[n * 4 + 7] === 0) || (n >= W && src[(n - W) * 4 + 3] === 0) || (n < W * (H - 1) && src[(n + W) * 4 + 3] === 0)) { depth[n] = 1; queue.push(n); }
+  }
+  for (let q = 0; q < queue.length; q++) {
+    const n = queue[q], px = n % W, py = (n - px) / W, i = n * 4;
+    let best = n, bestD = far(n);
+    for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+      const x = px + dx, y = py + dy;
+      if (x < 0 || y < 0 || x >= W || y >= H) continue;
+      const m = y * W + x;
+      if (src[m * 4 + 3] && far(m) > bestD) { best = m; bestD = far(m); }
+    }
+    if (bestD < 900) continue;
+    const f = best * 4;
+    let a = ((src[i] - bg[0]) * (src[f] - bg[0]) + (src[i + 1] - bg[1]) * (src[f + 1] - bg[1]) + (src[i + 2] - bg[2]) * (src[f + 2] - bg[2])) / bestD;
+    if (a >= 0.98) continue;
+    a = Math.max(0, a);
+    if (a < 0.06) { p[i + 3] = 0; }
+    else {
+      for (let k = 0; k < 3; k++) p[i + k] = Math.max(0, Math.min(255, Math.round(bg[k] + (src[i + k] - bg[k]) / a)));
+      p[i + 3] = Math.round(src[i + 3] * a);
+    }
+    if (depth[n] >= DEPTH) continue;
+    for (const m of [px > 0 ? n - 1 : -1, px < W - 1 ? n + 1 : -1, n - W, n + W]) {
+      if (m < 0 || m >= W * H || depth[m] || !src[m * 4 + 3]) continue;
+      depth[m] = depth[n] + 1; queue.push(m);
+    }
+  }
+}
+
+function applyBackground() {
+  S.base = $("bg-on").checked ? keyOut() : S.src;
+  composeImg();
+  changed();
+}
+let bgQueued = false;
+function queueBackground() {
+  if (bgQueued) return;
+  bgQueued = true;
+  requestAnimationFrame(() => { bgQueued = false; applyBackground(); });
+}
+function pickBackground(e) {
+  const r = sheet.getBoundingClientRect();
+  const px = Math.floor((e.clientX - r.left) / r.width * S.src.width), py = Math.floor((e.clientY - r.top) / r.height * S.src.height);
+  const p = srcPixels().d.data, i = (py * S.src.width + px) * 4;
+  $("bg-color").value = "#" + hex2(p[i]) + hex2(p[i + 1]) + hex2(p[i + 2]);
+  bgPicking = false; $("bg-pick").setAttribute("aria-pressed", false);
+  $("bg-on").checked = true; applyBackground();
+}
+$("bg-on").onchange = applyBackground;
+$("bg-color").addEventListener("input", () => { if ($("bg-on").checked) queueBackground(); });
+$("bg-tol").addEventListener("input", () => { if ($("bg-on").checked) queueBackground(); });
+$("bg-mode").onchange = () => { $("bg-hole-box").hidden = $("bg-mode").value !== "holes"; if ($("bg-on").checked) applyBackground(); };
+$("bg-hole").addEventListener("input", () => { if ($("bg-on").checked) queueBackground(); });
+$("bg-defringe").onchange = () => { if ($("bg-on").checked) applyBackground(); };
+$("bg-pick").onclick = () => {
+  bgPicking = !bgPicking; $("bg-pick").setAttribute("aria-pressed", bgPicking);
+  if (bgPicking) showTab("sheet");
+};
+
+$("skip-clear").onclick = () => { S.skip.clear(); changed(); };
+$("marks-clear").onclick = () => { S.marks = []; changed(); };
+$("marks-player").onchange = e => { S.marksInPlayer = e.target.checked; dirty(); };
+stack.addEventListener("pointerup", endStackDrag);
+stack.addEventListener("pointercancel", endStackDrag);
+function showTab(name) {
+  for (const [tab, pane] of [["tab-sheet", "pane-sheet"], ["tab-stack", "stack-sec"]]) {
+    const on = tab === "tab-" + name;
+    $(tab).setAttribute("aria-selected", on); $(pane).hidden = !on;
+  }
+  dirty(); stackDirty = true;
+}
+$("tab-sheet").onclick = () => showTab("sheet");
+$("tab-stack").onclick = () => showTab("stack");
+$("stack-alpha").addEventListener("input", e => { S.stackAlpha = +e.target.value / 100; stackDirty = true; });
+
+/* ---------- tẩy tay trên khu xếp chồng ---------- */
+// Nét tẩy lưu theo toạ độ ảnh gốc và vẽ đè sau bước xoá nền tự động (S.base), nên đổi cài đặt xoá nền vẫn giữ nét.
+// Nét cọ: { restore, size, shape: "round" | "square", pts: [x0, y0, x1, y1, …] }. Tẩy vùng: { pix: Int32Array chỉ số pixel }.
+S.strokes = []; S.edSize = 4; S.edShape = "round";
+let eraseMask = null, composed = null, liveStroke = null;
+
+function maskCtx() {
+  if (!eraseMask || eraseMask.width !== S.src.width || eraseMask.height !== S.src.height) {
+    eraseMask = document.createElement("canvas"); eraseMask.width = S.src.width; eraseMask.height = S.src.height;
+  }
+  return eraseMask.getContext("2d");
+}
+// Đóng dấu từng hàng pixel nguyên, không khử răng cưa, để mép tẩy trên pixel art không ra pixel nửa trong.
+function stamp(x, y, size, restore, shape) {
+  const m = maskCtx(), R = size / 2;
+  const cx = size % 2 ? Math.floor(x) + 0.5 : Math.round(x), cy = size % 2 ? Math.floor(y) + 0.5 : Math.round(y);
+  m.fillStyle = "#000";
+  if (shape === "square") { if (restore) m.clearRect(cx - R, cy - R, size, size); else m.fillRect(cx - R, cy - R, size, size); return; }
+  for (let py = Math.ceil(cy - R - 0.5); py <= Math.floor(cy + R - 0.5); py++) {
+    const dy = py + 0.5 - cy, w = Math.sqrt(Math.max(0, R * R - dy * dy));
+    const x0 = Math.ceil(cx - w - 0.5), x1 = Math.floor(cx + w - 0.5);
+    if (x1 < x0) continue;
+    if (restore) m.clearRect(x0, py, x1 - x0 + 1, 1); else m.fillRect(x0, py, x1 - x0 + 1, 1);
+  }
+}
+function paintStroke(s, from) {
+  if (s.pix) {
+    const m = maskCtx(), W = eraseMask.width; m.fillStyle = "#000";
+    for (const n of s.pix) m.fillRect(n % W, Math.floor(n / W), 1, 1);
+    return;
+  }
+  const p = s.pts;
+  for (let i = from; i < p.length; i += 2) {
+    if (i === 0) { stamp(p[0], p[1], s.size, s.restore, s.shape); continue; }
+    const ax = p[i - 2], ay = p[i - 1], bx = p[i], by = p[i + 1];
+    const n = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) / Math.max(0.5, s.size / 4)));
+    for (let k = 1; k <= n; k++) stamp(ax + (bx - ax) * k / n, ay + (by - ay) * k / n, s.size, s.restore, s.shape);
+  }
+}
+function composeImg() {
+  const base = S.base || S.src;
+  if (!S.strokes.length) { S.img = base; return; }
+  composed = composed || document.createElement("canvas");
+  if (composed.width !== base.width || composed.height !== base.height) { composed.width = base.width; composed.height = base.height; }
+  const x = composed.getContext("2d");
+  x.clearRect(0, 0, composed.width, composed.height);
+  x.drawImage(base, 0, 0);
+  x.globalCompositeOperation = "destination-out"; x.drawImage(eraseMask, 0, 0);
+  x.globalCompositeOperation = "source-over";
+  S.img = composed; opaqueCache.delete(composed);
+}
+function editsChanged() { composeImg(); dirty(); stackDirty = true; }
+function undoEdit() {
+  if (!S.strokes.length) return;
+  S.strokes.pop();
+  maskCtx().clearRect(0, 0, eraseMask.width, eraseMask.height);
+  for (const s of S.strokes) paintStroke(s, 0);
+  editsChanged();
+}
+function drawBrush(ctx, x, y, z, tool) {
+  ctx.lineWidth = 1.5;
+  for (const [c, r] of [["rgba(0,0,0,0.7)", 1.5], ["#fff", 0]]) {
+    ctx.strokeStyle = c; ctx.beginPath();
+    if (tool === "fill") { ctx.moveTo(x - 8, y); ctx.lineTo(x + 8, y); ctx.moveTo(x, y - 8); ctx.lineTo(x, y + 8); }
+    else {
+      const h = Math.max(2, S.edSize * z / 2) + r;
+      if (S.edShape === "square") ctx.rect(x - h, y - h, h * 2, h * 2); else ctx.arc(x, y, h, 0, Math.PI * 2);
+    }
+    ctx.stroke();
+  }
+}
+function eraseDown(tool, f, p, alt) {
+  if (tool === "fill") {
+    const pix = fillPixels(p, f);
+    if (pix) { S.strokes.push({ pix }); paintStroke(S.strokes.at(-1), 0); editsChanged(); }
+    return false;
+  }
+  liveStroke = { restore: tool === "restore" || alt, size: S.edSize, shape: S.edShape, pts: [p.x, p.y] };
+  S.strokes.push(liveStroke); paintStroke(liveStroke, 0); editsChanged();
+  return true;
+}
+function eraseMove(p) {
+  if (!liveStroke) return;
+  liveStroke.pts.push(p.x, p.y); paintStroke(liveStroke, liveStroke.pts.length - 2); editsChanged();
+}
+// Mảng cùng màu liền nhau với pixel bấm, chỉ trong khung đang sửa.
+function fillPixels(p, f) {
+  const W = S.img.width, H = S.img.height;
+  const x0 = Math.max(0, f.x), y0 = Math.max(0, f.y), x1 = Math.min(W, f.x + f.w), y1 = Math.min(H, f.y + f.h);
+  const sx = Math.floor(p.x), sy = Math.floor(p.y);
+  if (sx < x0 || sy < y0 || sx >= x1 || sy >= y1) return null;
+  const w = x1 - x0, h = y1 - y0, c = document.createElement("canvas");
+  c.width = w; c.height = h;
+  const cx = c.getContext("2d", { willReadFrequently: true });
+  cx.drawImage(S.img, -x0, -y0);
+  const d = cx.getImageData(0, 0, w, h).data, s0 = (sy - y0) * w + (sx - x0);
+  if (d[s0 * 4 + 3] === 0) return null;
+  const tol = +$("bg-tol").value * 3, r = d[s0 * 4], g = d[s0 * 4 + 1], b = d[s0 * 4 + 2];
+  const near = n => d[n * 4 + 3] > 0 && Math.abs(d[n * 4] - r) + Math.abs(d[n * 4 + 1] - g) + Math.abs(d[n * 4 + 2] - b) <= tol;
+  const seen = new Uint8Array(w * h), out = [s0]; seen[s0] = 1;
+  for (let k = 0; k < out.length; k++) {
+    const n = out[k], u = n % w;
+    for (const m of [u > 0 ? n - 1 : -1, u < w - 1 ? n + 1 : -1, n - w, n + w])
+      if (m >= 0 && m < w * h && !seen[m] && near(m)) { seen[m] = 1; out.push(m); }
+  }
+  return Int32Array.from(out, n => (y0 + Math.floor(n / w)) * W + x0 + n % w);
+}
+function setBrush(v) {
+  S.edSize = Math.max(1, Math.min(64, v));
+  $("st-size").value = S.edSize; $("st-size-v").textContent = S.edSize + " px"; stackDirty = true;
+}
+$("st-size").addEventListener("input", e => setBrush(+e.target.value));
+for (const b of $("st-shape").children) b.onclick = () => {
+  S.edShape = b.dataset.shape; stackDirty = true;
+  for (const x of $("st-shape").children) x.setAttribute("aria-pressed", x === b);
+};
+$("st-undo").onclick = undoEdit;
+$("st-clear").onclick = () => { S.strokes = []; maskCtx().clearRect(0, 0, eraseMask.width, eraseMask.height); editsChanged(); };
+
+/* ---------- phóng bằng thanh kéo, giữ nút lăn chuột để dời chỗ xem ---------- */
+// Thanh kéo 0–100 đi theo thang log từ 0,25× tới 32×, để nửa dưới đủ mịn cho ảnh lớn.
+const ZMIN = 0.25, ZMAX = 32;
+const zoomOf = v => { const z = ZMIN * (ZMAX / ZMIN) ** (v / 100); return z >= 1 ? Math.round(z) : +z.toFixed(2); };
+const sliderOf = z => Math.round(Math.log(z / ZMIN) / Math.log(ZMAX / ZMIN) * 100);
+// Giữ điểm đang nhìn (giữa ô, hoặc dưới con trỏ khi lăn chuột) đứng yên khi đổi cỡ.
+function zoomView(pane, canvas, apply, at) {
+  const r = pane.getBoundingClientRect(), cx = at ? at.clientX - r.left : pane.clientWidth / 2, cy = at ? at.clientY - r.top : pane.clientHeight / 2;
+  const fx = (pane.scrollLeft + cx) / canvas.offsetWidth, fy = (pane.scrollTop + cy) / canvas.offsetHeight;
+  apply();
+  requestAnimationFrame(() => requestAnimationFrame(() => { pane.scrollLeft = fx * canvas.offsetWidth - cx; pane.scrollTop = fy * canvas.offsetHeight - cy; }));
+}
+function zoomControl(id, pane, canvas, set, current) {
+  const input = $(id), label = $(id + "-v");
+  input.addEventListener("input", () => zoomView(pane, canvas, () => set(zoomOf(+input.value))));
+  $(id + "-fit").onclick = () => zoomView(pane, canvas, () => set("fit"));
+  pane.addEventListener("wheel", e => {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    const z = Math.max(ZMIN, Math.min(ZMAX, current() * (e.deltaY < 0 ? 1.25 : 0.8)));
+    zoomView(pane, canvas, () => set(z >= 1 ? Math.round(z) || 1 : +z.toFixed(2)), e);
+  }, { passive: false });
+  return (z, fit) => { if (document.activeElement !== input) input.value = sliderOf(z); label.textContent = (fit ? "vừa · " : "") + (+z.toFixed(2)) + "×"; };
+}
+const showStackZoom = zoomControl("st-zoom", stackPane, stack, z => { S.stackZoom = z; stackDirty = true; }, () => stackScale);
+const showSheetZoom = zoomControl("zoom", box, sheet, z => { S.zoom = z; dirty(); }, () => sheetZoom());
+// Trên Linux, nhả nút giữa còn dán vùng chữ đang bôi đen; panEnded để bộ dán ảnh bỏ qua lần dán đó.
+let panEnded = 0;
+function middlePan(pane) {
+  let pan = null;
+  for (const t of ["mousedown", "mouseup", "auxclick"]) pane.addEventListener(t, e => { if (e.button === 1) e.preventDefault(); });
+  pane.addEventListener("pointerdown", e => {
+    if (e.button !== 1) return;
+    e.preventDefault();
+    pan = { x: e.clientX, y: e.clientY, l: pane.scrollLeft, t: pane.scrollTop };
+    pane.setPointerCapture(e.pointerId); pane.classList.add("panning");
+  });
+  pane.addEventListener("pointermove", e => { if (pan) { pane.scrollLeft = pan.l - (e.clientX - pan.x); pane.scrollTop = pan.t - (e.clientY - pan.y); } });
+  const end = () => { if (pan) panEnded = performance.now(); pan = null; pane.classList.remove("panning"); };
+  pane.addEventListener("pointerup", end); pane.addEventListener("pointercancel", end);
+}
+middlePan(stackPane); middlePan(box);
+
+/* ---------- nhập ảnh ---------- */
+function loadFile(file, pasted) {
+  if (!file || !file.type.startsWith("image/")) { status("Tệp này không phải ảnh. Hãy chọn PNG, JPG, GIF hoặc WebP.", "bad"); return; }
+  const url = URL.createObjectURL(file), im = new Image();
+  im.onload = () => {
+    S.src = S.img = im;
+    S.name = pasted ? "dan_anh" : file.name.replace(/\.[^.]+$/, "") || "sprite";
+    $("bg-color").value = cornerColor();
+    S.off = {}; S.skip = new Set(); S.sel = null; S.start = 0; S.cur = 0; S.playing = true;
+    S.strokes = []; eraseMask = null;
+    guessGrid(); S.count = cellCount();
+    applyBackground();
+    $("prefix").value = S.name; clearThumbs();
+    status(""); pasteNote(pasted ? `Đã dán ảnh ${im.naturalWidth}×${im.naturalHeight}px.` : "", "ok");
+    changed();
+  };
+  im.onerror = () => status("Trình duyệt không đọc được ảnh này.", "bad");
+  im.src = url;
+}
+$("btn-open").onclick = () => $("file").click();
+$("file").onchange = e => loadFile(e.target.files[0]);
+box.addEventListener("dragover", e => { e.preventDefault(); box.classList.add("drop"); });
+box.addEventListener("dragleave", () => box.classList.remove("drop"));
+box.addEventListener("drop", e => { e.preventDefault(); box.classList.remove("drop"); loadFile(e.dataTransfer.files[0]); });
+document.addEventListener("paste", e => {
+  const d = e.clipboardData; if (!d || performance.now() - panEnded < 500) return;
+  const file = [...d.files].find(f => f.type.startsWith("image/"))
+    || [...d.items].find(i => i.kind === "file" && i.type.startsWith("image/"))?.getAsFile();
+  if (!file) {
+    if (!/^(INPUT|TEXTAREA)$/.test(e.target.tagName)) pasteNote("Clipboard không có ảnh. Copy ảnh (không phải tệp hay đường dẫn) rồi dán lại.", "bad");
+    return;
+  }
+  e.preventDefault(); loadFile(file, true);
+});
+$("btn-paste").onclick = async () => {
+  try {
+    for (const item of await navigator.clipboard.read()) {
+      const type = item.types.find(t => t.startsWith("image/"));
+      if (type) { loadFile(new File([await item.getType(type)], "dan_anh", { type }), true); return; }
+    }
+    pasteNote("Clipboard không có ảnh. Copy ảnh (không phải tệp hay đường dẫn) rồi dán lại.", "bad");
+  } catch {
+    pasteNote("Trình duyệt không cho nút này đọc clipboard. Bấm vào trang rồi nhấn Ctrl V.", "bad");
+  }
+};
+
+/* ---------- cắt và lưu ---------- */
+const downloadsP = window.claude?.use ? window.claude.use("downloads").catch(() => null) : Promise.resolve(null);
+let thumbUrls = [];
+function pasteNote(msg, kind) { const el = $("paste-status"); el.textContent = msg; el.className = "status" + (kind ? " " + kind : ""); el.hidden = !msg; }
+function status(msg, kind) { const el = $("status"); el.textContent = msg; el.className = "status" + (kind ? " " + kind : ""); }
+function clearThumbs() { thumbUrls.forEach(u => URL.revokeObjectURL(u)); thumbUrls = []; $("thumbs").replaceChildren(); }
+
+function cutFrame(f) {
+  const c = document.createElement("canvas");
+  c.width = f.w; c.height = f.h;
+  drawFrame(c.getContext("2d"), f, 1, 0, 0, 1);
+  return new Promise(r => c.toBlob(r, "image/png"));
+}
+
+const saveMsg = {
+  declined: "Bạn đã huỷ lưu.", rate_limited: "Đang có một hộp lưu khác mở. Đóng nó rồi bấm lại.",
+  too_large: "Tệp quá lớn để lưu ở đây.",
+};
+// claude.ai chỉ cho thành viên tổ chức của người đăng trang tải tệp về; người ngoài nhận null hoặc mã lỗi.
+// Trang không tự tải lách qua trình duyệt: claude.ai chặn và báo "only available to members of its organization".
+const NO_SAVE = "Không tải được: claude.ai chỉ cho thành viên tổ chức của người đăng trang tải tệp về. Mở trang bằng tài khoản trong tổ chức đó, hoặc nhờ người đăng cắt rồi gửi tệp.";
+// Mở thẳng tệp HTML trên máy (không qua claude.ai) thì không có window.claude: tải kiểu thường của trình duyệt.
+const standalone = !window.claude?.use;
+async function offer(filename, data) {
+  if (standalone) {
+    const a = document.createElement("a"); a.href = URL.createObjectURL(data); a.download = filename; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+    status(`Đã tải ${filename}.`, "ok"); return;
+  }
+  const dl = await downloadsP;
+  if (!dl) { noSave(); return; }
+  try { await dl.save({ filename, data }); status(`Đã lưu ${filename}.`, "ok"); }
+  catch (err) { if (saveMsg[err?.code]) status(saveMsg[err.code], "bad"); else noSave(); }
+}
+async function noSave() {
+  const perms = window.claude?.use ? await window.claude.use("permissions").catch(() => null) : null;
+  if (!perms || await perms.state("downloads").catch(() => "") !== "denied") { status(NO_SAVE, "bad"); return; }
+  const b = document.createElement("button"); b.type = "button"; b.textContent = "Bật lại quyền tải";
+  b.onclick = () => perms.manage().catch(() => status("Không mở được bảng quyền. Mở menu Permissions của trang rồi bật Downloads.", "bad"));
+  const el = $("status"); el.className = "status bad";
+  el.replaceChildren("Bạn đã tắt quyền tải của trang này. Bấm ", b, " để bật lại.");
+}
+
+$("btn-cut").onclick = async () => {
+  const fr = played();
+  if (!S.img || !fr.length) { status("Mọi frame đang tắt. Bật ít nhất một frame rồi cắt.", "bad"); return; }
+  const prefix = ($("prefix").value.trim() || S.name).replace(/[\\/:*?"<>|]+/g, "_");
+  const pad = String(fr.length - 1).length < 2 ? 2 : String(fr.length - 1).length;
+  status(`Đang cắt ${fr.length} frame…`);
+  clearThumbs();
+  const zip = new JSZip(), meta = [];
+  const fw = S.grid.w, fh = S.grid.h, cols = Math.min(S.grid.cols, fr.length), rows = Math.ceil(fr.length / cols);
+  const packed = document.createElement("canvas");
+  packed.width = cols * fw; packed.height = rows * fh;
+  const pctx2 = packed.getContext("2d");
+  for (let k = 0; k < fr.length; k++) drawFrame(pctx2, fr[k], 1, (k % cols) * fw, Math.floor(k / cols) * fh, 1);
+  const sheetFile = `${prefix}_sheet.png`, sheetBlob = await new Promise(r => packed.toBlob(r, "image/png"));
+  zip.file(sheetFile, sheetBlob);
+  const sheetUrl = URL.createObjectURL(sheetBlob); thumbUrls.push(sheetUrl);
+  const sb = document.createElement("button"); sb.type = "button"; sb.className = "sheet-out"; sb.title = "Lưu riêng " + sheetFile;
+  const sim = document.createElement("img"); sim.src = sheetUrl; sim.alt = sheetFile;
+  const ssp = document.createElement("span"); ssp.textContent = `sheet mới · ${cols}×${rows} ô · ${packed.width}×${packed.height}px`;
+  sb.append(sim, ssp); sb.onclick = () => offer(sheetFile, sheetBlob);
+  $("thumbs").append(sb);
+  for (let k = 0; k < fr.length; k++) {
+    const f = fr[k], file = `${prefix}_${String(k).padStart(pad, "0")}.png`;
+    const blob = await cutFrame(f);
+    zip.file(file, blob);
+    meta.push({ file, cell: f.i, x: f.x, y: f.y, w: f.w, h: f.h, sheetX: (k % cols) * fw, sheetY: Math.floor(k / cols) * fh });
+    const url = URL.createObjectURL(blob); thumbUrls.push(url);
+    const b = document.createElement("button"); b.type = "button"; b.title = "Lưu riêng " + file;
+    const im = document.createElement("img"); im.src = url; im.alt = file;
+    const sp = document.createElement("span"); sp.textContent = String(k).padStart(pad, "0");
+    b.append(im, sp); b.onclick = () => offer(file, blob);
+    $("thumbs").append(b);
+  }
+  zip.file(`${prefix}.json`, JSON.stringify({ source: S.name, sheet: { w: imgW(), h: imgH() }, fps: S.fps, mode: S.mode, frameSize: { w: S.grid.w, h: S.grid.h }, newSheet: { file: sheetFile, cols, rows, w: packed.width, h: packed.height }, markers: S.marks.map(m => ({ x: m.x, y: m.y, color: m.color })), frames: meta }, null, 2));
+  const zb = await zip.generateAsync({ type: "blob" });
+  status(`Đã cắt ${fr.length} frame ${fw}×${fh} và xếp thành sheet mới ${cols}×${rows} ô. Đang mở hộp lưu…`);
+  await offer(`${prefix}.zip`, zb);
+};
+
+/* ---------- khởi động ---------- */
+S.src = S.img = makeSample();
+$("prefix").value = S.name;
+changed();
+const redrawAll = () => { dirty(); stackDirty = true; };
+const ro = new ResizeObserver(redrawAll);
+for (const el of [box, $("stage"), stackPane]) ro.observe(el);
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", redrawAll);
+new MutationObserver(redrawAll).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+requestAnimationFrame(tick);
+</script>
+
+</body>
+</html>
