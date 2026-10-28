@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#008ec5">
+<link rel="icon" href="../../assets/favicon.svg">
+<title>Stickman Hook</title>
+<link rel="preload" href="./data/levels.json?v=20261028a" as="fetch" crossorigin>
+<link rel="preload" href="./art/atlas.webp?v=20261028a" as="image">
+<style>
+  html, body { margin: 0; height: 100%; background: #008ec5; overflow: hidden; touch-action: none;
+    -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  .ui { position: fixed; z-index: 2; font: 700 15px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif; color: #fff; }
+  .btn { width: 46px; height: 46px; border-radius: 14px; border: 3px solid #0d1b2a; background: #fff; color: #0d1b2a;
+    font-size: 22px; font-weight: 900; display: grid; place-items: center; cursor: pointer; box-shadow: 0 4px 0 #0d1b2a; }
+  .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #0d1b2a; }
+  #tl { top: max(12px, env(safe-area-inset-top)); left: 12px; display: flex; gap: 10px; }
+  #tr { top: max(12px, env(safe-area-inset-top)); right: 12px; display: flex; gap: 10px; }
+  #levels { inset: 0; background: rgba(0, 40, 70, .82); display: none; align-items: center; justify-content: center; }
+  #levels.on { display: flex; }
+  #levels .panel { background: #fff; color: #0d1b2a; border: 4px solid #0d1b2a; border-radius: 22px; padding: 16px;
+    width: min(92vw, 560px); max-height: 80vh; display: flex; flex-direction: column; gap: 12px; }
+  #levels h2 { margin: 0; font-size: 20px; text-align: center; }
+  #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 8px; overflow: auto; padding: 4px; }
+  #grid button { height: 46px; border-radius: 12px; border: 3px solid #0d1b2a; background: #ffd23f; font: 900 16px system-ui;
+    color: #0d1b2a; cursor: pointer; }
+  #grid button.done { background: #7ee0ff; }
+  #grid button.cur { background: #ff5a5f; color: #fff; }
+  #grid button:disabled { background: #e4e7eb; color: #9aa5b1; border-color: #9aa5b1; cursor: default; }
+  #hint { left: 0; right: 0; bottom: max(28px, env(safe-area-inset-bottom)); text-align: center; pointer-events: none;
+    text-shadow: 0 2px 0 #0d1b2a; font-size: 17px; transition: opacity .4s; }
+  #loading { inset: 0; display: grid; place-items: center; font-size: 18px; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div class="ui" id="loading">Đang tải…</div>
+<div class="ui" id="tl">
+  <a class="btn" id="home" href="../../index.html" title="Về hub">⌂</a>
+  <button class="btn" id="btnLevels" title="Chọn màn">☰</button>
+</div>
+<div class="ui" id="tr">
+  <button class="btn" id="btnSound" title="Âm thanh">♪</button>
+  <button class="btn" id="btnRestart" title="Chơi lại màn">↻</button>
+</div>
+<div class="ui" id="hint">Giữ chuột / chạm để móc dây, thả ra để bay</div>
+<div class="ui" id="levels"><div class="panel"><h2>Chọn màn</h2><div id="grid"></div>
+  <button class="btn" id="btnClose" style="width:auto;padding:0 18px;align-self:center">Đóng</button></div></div>
+<script type="importmap">
+{ "imports": {
+  "./js/level.js": "./js/level.js?v=20261028a",
+  "./js/physics.js": "./js/physics.js?v=20261028a",
+  "./js/render.js": "./js/render.js?v=20261028a",
+  "./js/main.js": "./js/main.js?v=20261028a"
+} }
+</script>
+<script type="module" src="./js/main.js?v=20261028a"></script>
+</body>
+</html>

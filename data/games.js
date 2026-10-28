@@ -1083,5 +1083,22 @@ window.HUB_GAMES = [
     // Kiểm: node test/restaurant-city-rpc.js (RPC thật, 2 bot gửi thư cho nhau) và node test/restaurant-city-play.js (RC_URL=<gốc hub>).
     status: "available",
     tags: ["Quản lý", "Online", "Flash"]
+  },
+  {
+    id: "stickman-hook",
+    title: "Stickman Hook",
+    tagline: "Giữ để móc dây, thả ra để bay. Đu qua từng màn tới vạch caro.",
+    desc: "Làm lại Stickman Hook (Madbox) từ bản Android 9.9.60, chạy thẳng trên web: nạp khoảng 250 KB thay vì 848 MB. Đủ 64 màn gốc, từ màn 65 ghép ngẫu nhiên như bản gốc nên chơi không hết. Dây lò xo, bumper nảy và cú về đích theo mã gốc. Giữ chuột, chạm hoặc giữ Space để móc, thả ra để bay.",
+    genre: "hanh-dong",
+    accent: "#ff4d4d",
+    en: { title: "Stickman Hook", tagline: "Hold to hook, let go to fly. Swing through every level to the checkered line.", desc: "Stickman Hook (Madbox) remade from the Android 9.9.60 release to run straight in the browser: about 250 KB instead of 848 MB. All 64 original levels, then endless levels from 65 on, stitched at random exactly like the original. Spring rope, bouncy bumpers and the finish follow the original code. Hold the mouse, touch or hold Space to hook, let go to fly." },
+    thumbnail: "assets/thumbnails/stickman-hook.png",
+    path: "games/stickman-hook/index.html",
+    rev: "20261028a",
+    // Canvas 2D, không engine. Màn, hình, font, tiếng bóc từ APK Android 9.9.60 (D:/stickman-hook-ref); luật đọc từ
+    // libil2cpp ARMv7 dịch ngược (games/stickman-hook/docs/GAMEPLAY.md). Dựng dữ liệu: games/stickman-hook/tools.
+    // Kiểm: node test/stickman-hook-sim.js (bot qua 64 màn + 30 màn ngẫu nhiên) và node test/stickman-hook-play.js (SH_URL=<Pages>).
+    status: "available",
+    tags: ["Hành động", "Một ngón", "Màn dọc"]
   }
 ];
