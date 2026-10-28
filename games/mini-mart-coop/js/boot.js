@@ -111,7 +111,7 @@ mmc.menuAt = performance.now();
 if (params.get('msg')) menu.error(params.get('msg'));
 
 // A signed-in hub account brings its stores from other devices (the Load Store list reads records afresh each time).
-loadNet().then(n => n.cloud.pull(() => records.all(), r => records.put(r))).then(s => { mmc.cloud = s; }, () => { mmc.cloud = 'off'; });
+loadNet().then(n => n.cloud.pull(() => records.all(), r => records.put(r), id => records.del(id))).then(s => { mmc.cloud = s; }, () => { mmc.cloud = 'off'; });
 
 // The backdrop waits for the first paint of the menu and for an idle moment, then plays Store 1 with the solo bot.
 const startBackdrop = async () => {
@@ -157,6 +157,7 @@ async function host(record, o) {
     if (game) {
       const d = game.sim.save();
       record.cash = d.cash;
+      keepBoosts(game.sim, record);
       record.marts = record.marts || {};
       record.marts[game.mart] = d;
       record.done = Object.values(game.sim.state.mats).filter(m => m.done).length;
@@ -170,8 +171,10 @@ async function host(record, o) {
   const travel = async (id, wipe = null) => {
     if (travelling) return;
     travelling = true;
-    if (wipe && session.game && session.game.mart === wipe) record.cash = session.game.sim.state.cash;
-    else save();
+    if (wipe && session.game && session.game.mart === wipe) {
+      record.cash = session.game.sim.state.cash;
+      keepBoosts(session.game.sim, record);
+    } else save();
     if (wipe && record.marts) delete record.marts[wipe];
     record.mart = id;
     records.put(record);
@@ -185,7 +188,7 @@ async function host(record, o) {
   const open = async id => {
     const d = record.marts && record.marts[id];
     const game = await enterStore(id, 'host', { difficulty: record.difficulty, record, save: d ? { ...d, cash: record.cash } : null,
-      hooks: { travel, save: () => save(true) } });
+      hooks: { travel, save: () => save(true), deleteAccount } });
     session.game = game;
     if (session.net) session.net.rebind(game.sim, info());
     else {
@@ -212,9 +215,29 @@ async function host(record, o) {
     throw e;
   }
   const bar = storeBar({ name: record.name, code: room.code, onLeave: () => { save(true); session.net.close(); room.close(); back(); } });
+  window.addEventListener('pagehide', () => { if (!session.leaving) { save(true); session.net.close(); room.close(true); } });
   bar.roster(session.net.roster());
-  document.addEventListener('visibilitychange', () => { if (document.hidden) save(true); });
-  window.addEventListener('pagehide', () => { save(true); session.net.close(); room.close(true); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden && !session.leaving) save(true); });
+}
+
+// Running boosters as play seconds left (solo main.js keepBoosts): a reload or the next mart carries on with them.
+function keepBoosts(sim, record) {
+  const b = sim.state.boost, t = sim.state.t;
+  record.boostLeft = Object.fromEntries(Object.entries(b.active || {}).map(([k, until]) => [k, Math.round((until - t) * 10) / 10]).filter(([, s]) => s > 0));
+}
+
+// Settings > Delete Account: every co-op store and the wardrobe go, here and in the hub account; a host's room closes
+// first so nothing saves again.
+async function deleteAccount() {
+  const { cloud } = await loadNet();
+  if (session) {
+    session.leaving = true;
+    if (session.kind === 'host') { session.net.close(); session.room.close(); } else { session.net.leave(); session.room.leave(); }
+  }
+  for (const id of Object.keys(records.all())) records.del(id);
+  local.del('mmc-wardrobe');
+  await cloud.wipe();
+  back();
 }
 
 // What a guest's buttons change in the store, run on the host.
@@ -254,6 +277,7 @@ async function join(o, attempt = 0) {
   const open = async m => {
     ready = false;
     const game = await enterStore(m.info.mart, 'guest', { difficulty: m.info.difficulty, welcome: m, hooks: {
+      deleteAccount,
       looks: l => { wardrobe.looks = l; net.setLooks(l); },
       wallet: {
         cash: () => game.sim.state.cash,

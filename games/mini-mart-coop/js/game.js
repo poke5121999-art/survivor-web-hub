@@ -229,7 +229,7 @@ export async function startGame({ canvas, hudRoot, mart, role, difficulty = 0, s
     sim.listeners.push(e => { if (e.type === 'depart') setTimeout(() => hooks.travel(next.id), VAN_TIME); });
   }
 
-  const hud = attract ? null : new Hud({ sim, store, camera, canvas, items, art: ART, world, tasks, matArrows: matArrows(store),
+  const hud = attract ? null : new Hud({ onDeleteAccount: hooks.deleteAccount, sim, store, camera, canvas, items, art: ART, world, tasks, matArrows: matArrows(store),
     nextMart: next, workerDefs: workers.defs, sound: new Sound(`${ART}/sfx`, sim, store, V), martMap, cosmetics, daily, shop,
     upgradeRows: upgradeIcons && upgradeIcons.stores[mart],
     onMapView: i => {
@@ -253,6 +253,8 @@ export async function startGame({ canvas, hudRoot, mart, role, difficulty = 0, s
   stage(0, 'textures');
   const director = new CameraDirector(sim, store);
   if (hud) hud.onTaskFocus = p => director.highlight(p);
+  // Boosters still running when the store was saved carry on (solo main.js, global.boostLeft in play seconds).
+  if (host) for (const [kind, s] of Object.entries(record.boostLeft || {})) if (s > 0) sim.boosters.grant(kind, s);
   if (host && hud && hud.martMenu && record.prestige && record.prestige.id === mart) hud.martMenu.showWelcome(record.prestige);
   else if (host && daily && !save && !hooks.quiet) {
     const m = marts.find(x => x.id === mart);

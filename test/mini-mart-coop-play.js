@@ -40,8 +40,17 @@ function serve() {
   const url = process.env.MMC_URL || `http://localhost:${server.address().port}/games/mini-mart-coop/index.html`;
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const errors = [];
-  const open = async (who, size) => {
+  // A signed-in hub account without Supabase: save-sync.js is swapped for a HubSave whose one cloud row lives here.
+  let cloudRow = null;
+  const FAKE_HUB = `window.HubSave = { isAvailable: () => true, whoAmI: () => ({ signedIn: true, userId: 'u-test' }),
+    loadSave: id => window.__cloudLoad(id), storeSave: (id, payload, opts) => window.__cloudStore(id, payload, opts) };`;
+  const open = async (who, size, cloud = false) => {
     const ctx = await browser.newContext({ viewport: size });
+    if (cloud) {
+      await ctx.route('**/js/save-sync.js*', r => r.fulfill({ contentType: 'text/javascript', body: FAKE_HUB }));
+      await ctx.exposeFunction('__cloudLoad', () => (cloudRow ? { ok: true, found: true, payload: cloudRow } : { ok: true, found: false }));
+      await ctx.exposeFunction('__cloudStore', (id, payload) => { if (id === 'mini-mart-coop') cloudRow = payload; return { ok: true }; });
+    }
     const page = await ctx.newPage();
     page.on('pageerror', e => errors.push(`${who}: ${e.message}`));
     page.on('console', m => { if (m.type() === 'error') errors.push(`${who} console: ${m.text()}`); });
@@ -50,7 +59,7 @@ function serve() {
   };
   const watchdog = setTimeout(() => { console.log('  FAIL timed out'); process.exit(1); }, (SECONDS + 240) * 1000);
 
-  const a = await open('A', { width: 1280, height: 720 });
+  const a = await open('A', { width: 1280, height: 720 }, true);
   const t0 = Date.now();
   await a.goto(`${url}?bot`);
   await a.waitForFunction(() => window.__mmc && window.__mmc.menuAt, null, { timeout: 15000 });
@@ -125,7 +134,11 @@ function serve() {
   await a.waitForFunction(h => { const r = Object.values(window.__mmc.game.sim.state.remotes)[0]; return r && r.looks && r.looks.hat === h; }, hat, { timeout: 10000 })
     .then(() => check('host sees the hat the guest put on', true, `hat ${hat}`), () => check('host sees the hat the guest put on', false, `hat ${hat}`));
 
-  // The host takes the room to Store 2 (what the van and the map's GO do).
+  const delRow = p => p.evaluate(() => { const r = document.querySelector('#hud .delrow'); return !!r && r.style.display !== 'none'; });
+  check('Settings has Delete Account for host and guest (solo 5892b409)', await delRow(a) && await delRow(b));
+
+  // The host takes the room to Store 2 (what the van and the map's GO do), with a worker booster running.
+  await a.evaluate(() => window.__mmc.game.sim.boosters.grant('worker', 600));
   await a.evaluate(() => window.__mmc.travel('store2'));
   await a.waitForFunction(() => window.__mmc.game.mart === 'store2' && window.__mmc.stage === 'textures', null, { timeout: 60000 });
   await b.waitForFunction(() => window.__mmc.game && window.__mmc.game.mart === 'store2' && window.__mmc.stage === 'textures', null, { timeout: 60000 })
@@ -136,6 +149,8 @@ function serve() {
   check('in Store 2 they see each other and share the wallet', moved2.remotes.includes('host') && Math.abs(moved2.cash - hostCash2) <= 5, `cash ${moved2.cash}/${hostCash2}`);
   // Solo rule (hud.js featuresOn): map and outfits come in after Store 1's tutorial or at a second mart.
   check('host gets the mart map and outfits once a second mart is reached', await shown(a, '#mapbtn') && await shown(a, '#custombtn'));
+  const boostLeft = await a.evaluate(() => window.__mmc.game.sim.boosters.left('worker'));
+  check('a running booster carries on in the next mart (solo 358377bf)', boostLeft > 550 && boostLeft <= 600, `${Math.round(boostLeft)} s left`);
   await a.screenshot({ path: path.join(SHOTS, 'a-store2.png') });
   await b.screenshot({ path: path.join(SHOTS, 'b-store2.png') });
 
@@ -153,6 +168,30 @@ function serve() {
 
   await a.locator('.mmc-bar .leave').click();
   await a.waitForTimeout(1500);
+  const up = cloudRow && Object.values(cloudRow.stores || {}).find(r => r.name === 'Relay Test Mart');
+  check('the store went up to the hub account', !!up && up.mart === 'store2' && !!up.marts.store1 && !!up.marts.store2, up && `mart ${up.mart}, marts ${Object.keys(up.marts)}`);
+
+  // Another browser on the same account: the store is in Load Store, and loading it opens Store 2 with the booster.
+  const c = await open('C', { width: 1280, height: 720 }, true);
+  await c.goto(`${url}?nobg`);
+  await c.waitForFunction(() => window.__mmc && window.__mmc.cloud && window.__mmc.cloud !== 'off', null, { timeout: 20000 }).catch(() => {});
+  await c.getByText(/Tải cửa hàng|Load Store/).first().click();
+  const saved = c.locator('.mm-row', { hasText: 'Relay Test Mart' }).first();
+  await saved.waitFor({ timeout: 10000 }).then(() => check('Load Store on another device lists the store from the account', true),
+    () => check('Load Store on another device lists the store from the account', false, String(cloudRow && Object.keys(cloudRow.stores || {}))));
+  await saved.getByRole('button', { name: /^(Tải|Load)$/ }).click();
+  await c.waitForFunction(() => window.__mmc.role === 'host' && window.__mmc.stage === 'textures', null, { timeout: 60000 })
+    .then(() => check('loading it reopens the store as host', true), () => check('loading it reopens the store as host', false));
+  const loaded = await c.evaluate(() => ({ mart: window.__mmc.game.mart, boost: window.__mmc.game.sim.boosters.left('worker') }));
+  check('it reopens in Store 2 with the booster still running', loaded.mart === 'store2' && loaded.boost > 500, `${loaded.mart}, ${Math.round(loaded.boost)} s`);
+
+  // Delete Account from Settings: confirm, then everything goes here and in the account.
+  await c.evaluate(() => { document.querySelector('#hud [data-del]').click(); });
+  await c.locator('#delconfirm [data-act="delete"]').click();
+  await c.waitForFunction(() => window.__mmc && window.__mmc.menuAt && !window.__mmc.role, null, { timeout: 20000 }).catch(() => {});
+  const left = await c.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('mmc-store-') || k === 'mmc-wardrobe').length);
+  check('Delete Account erases the stores here and in the account', left === 0 && cloudRow && Object.keys(cloudRow.stores).length === 0 && cloudRow.wipedAt > 0,
+    `${left} local, ${cloudRow && Object.keys(cloudRow.stores).length} in the account`);
   const real = errors.filter(e => !/favicon/.test(e));
   check('no page errors, console errors or failed requests', real.length === 0, real.slice(0, 5).join(' | '));
   clearTimeout(watchdog);
