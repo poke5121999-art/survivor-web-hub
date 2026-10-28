@@ -144,8 +144,8 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
         <button type="button" id="bg-pick" aria-pressed="false">Hút màu trên sheet</button>
         <label class="hint" for="bg-tol">Độ lệch màu</label>
         <input type="range" id="bg-tol" min="0" max="120" value="30" style="width:110px">
-        <select id="bg-mode" aria-label="Xoá những chỗ nào"><option value="holes" selected>nền viền ô + chỗ bị bao kín</option><option value="edge">chỉ nền nối từ viền ô</option><option value="all">mọi chỗ cùng màu</option></select>
-        <label class="hint" id="bg-hole-box" title="Chỗ màu nền nằm kín giữa hình (khe giữa hai chân, giữa tay và thân) bị xoá. Chỗ nhỏ hơn số này được giữ, ví dụ đốm sáng trong mắt.">giữ chỗ kín dưới <input type="number" id="bg-hole" min="0" max="9999" value="6" style="width:56px"> px</label>
+        <select id="bg-mode" aria-label="Xoá những chỗ nào"><option value="edge" selected>chỉ nền nối từ viền ô</option><option value="holes">thêm chỗ bị bao kín (dễ mất mắt)</option><option value="all">mọi chỗ cùng màu</option></select>
+        <label class="hint" id="bg-hole-box" hidden title="Chỗ màu nền nằm kín giữa hình (khe giữa hai chân, giữa tay và thân) bị xoá. Chỗ nhỏ hơn số này được giữ, ví dụ đốm sáng trong mắt.">giữ chỗ kín dưới <input type="number" id="bg-hole" min="0" max="9999" value="6" style="width:56px"> px</label>
         <label class="check" title="Mép hình bị khử răng cưa trên nền cũ còn lẫn màu nền. Tách phần màu nền ra để mép không ám viền."><input type="checkbox" id="bg-defringe" checked> Gỡ viền ám màu nền</label>
       </div>
       <div class="pane" id="pane-sheet" role="tabpanel" aria-labelledby="tab-sheet">
@@ -286,7 +286,7 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
 
 </div>
 
-<script src="vendor/jszip.min.js?v=20261028a"></script>
+<script src="vendor/jszip.min.js?v=20261028b"></script>
 <script>
 const $ = id => document.getElementById(id);
 
