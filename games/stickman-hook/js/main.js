@@ -6,7 +6,7 @@ import { Meta } from './meta.js';
 import { makeCustom } from './custom.js';
 import { MODES, NORMAL } from './modes.js';
 
-const V = '?v=20261028c';
+const V = '?v=20261028d';
 const DEFAULT_ZOOM = 5, FINISH_ZOOM = 2; // CameraConfig.defaultZoom, PlayerCameraController.cameraZoomOnEndGame
 // Rope prefab: sprite scaled (1.6, 2) under its parent. [ĐỀ XUẤT] 0.2 per axis so a 167 px tile is ~0.4 wide,
 // next to the 0.045 Classic line.
@@ -41,7 +41,7 @@ const cam = { x: 0, y: 0, zoom: DEFAULT_ZOOM };
 // phase: 'spawn' (spawn FX, player hidden) -> 'play' -> 'finish' (slow motion + zoom, then wait for a tap).
 // Leaving the camera through its bottom or left edge while not hooked restarts the level (CameraLimits triggers).
 const game = { phase: 'spawn', t: 0, hold: false, deaths: 0, confetti: [], timeScale: 1, zoomFrom: DEFAULT_ZOOM, camFrom: null,
-  paused: false, clock: 0, trail: [], reward: null };
+  paused: false, clock: 0, trail: [], reward: null, died: false };
 // Equipped look: skin = loaded sheet or null (atlas CHAR_Classic), rope = textured rope or null (Classic line).
 const look = { skin: null, dance: null, rope: null, trail: null, drawn: 0 };
 
@@ -70,6 +70,9 @@ function startLevel(index) {
   game.timeScale = 1;
   game.trail = [];
   game.reward = null;
+  game.died = false;
+  bonus?.hidePiggy();
+  skipView();
   cam.zoom = DEFAULT_ZOOM;
   cam.x = clampCamX(world.spawn.x);
   cam.y = 0;
@@ -109,7 +112,17 @@ function finishLevel() {
   game.reward = mode.def.complete(meta, save, world.index);
   writeSave(save);
   hud();
+  skipView();
   for (const g of game.reward.got) if (g.item) toast('Mở khoá: ' + g.item.title);
+  // Normal end game: the piggy bank fills on a level's first completion (like XP: the original never replays a level)
+  if (mode.id === NORMAL && game.reward.xp) {
+    const at = world;
+    loadBonus().then((b) => {
+      const r = b.piggyLevelEnd(save);
+      writeSave(save);
+      if (r && game.phase === 'finish' && world === at) b.showPiggy(r);
+    }).catch(() => {});
+  }
   // the dance clip lives in the skin sheet, also for the default skin
   custom.skin(equippedItem('skins')).then((s) => { look.dance = s; }).catch(() => {});
   play('popup_in');
@@ -129,10 +142,42 @@ function outOfCamera() {
 
 function respawn() {
   game.deaths++;
+  game.died = true;
+  skipView();
   player = new mode.Player(world.spawn);
   game.phase = 'spawn';
   game.t = 0;
   game.trail = [];
+}
+
+// Lucky Wheel, piggy bank, market and skip level: js/bonus.js + data/bonus.json, loaded with the home screen, at the
+// first death or at the finish of a Normal level. The first level never loads them.
+let bonus = null, bonusP = null;
+function loadBonus() {
+  bonusP ||= Promise.all([import('./bonus.js'), load('./data/bonus.json')]).then(([m, d]) => {
+    bonus = m.makeBonus(app, d);
+    hud();
+    skipView();
+    return bonus;
+  });
+  return bonusP;
+}
+
+// SkipButtonView: in a Normal level after a death (SetHasDied), while today's skips last. It pays a skip ticket and
+// completes the level (Bonus.skipLevel).
+function skipView() {
+  const show = mode.id === NORMAL && game.died && game.phase !== 'finish';
+  if (bonus) bonus.skipView(show);
+  else if (show) loadBonus().catch(() => {});
+}
+
+function skipLevel() {
+  initAudio();
+  if (!bonus || game.phase === 'finish' || game.paused) return;
+  const r = bonus.skipLevel(save);
+  if (r.refused) { toast(r.refused === 'tickets' ? 'Cần 1 vé bỏ qua (mua ở Chợ trên trang chính)' : 'Hết lượt bỏ qua hôm nay'); return; }
+  play('button');
+  finishLevel();
 }
 
 // Next level when the mode has one and it is open (Challenge waits for XP), else back to the mode's level picker.
@@ -151,7 +196,9 @@ async function loadMode(id) {
   return (loaded[id] = { id, def, data: d, Player: P, count: d.random.length ? Infinity : d.levels.length });
 }
 
+// A mode with its own engine (modes.js `launch`) takes over the screen itself instead of loading levels.
 async function openMode(id) {
+  if (MODES[id].launch) return MODES[id].launch(app);
   const same = mode.id === id;
   mode = await loadMode(id);
   for (const o of ['modes', 'start', 'levels']) if ($(o)) overlay(o, false);
@@ -353,9 +400,11 @@ function icon(el, key, px) {
 
 // Coins, XP bar and the road badge on the home screen.
 function hud() {
-  if ($('start').classList.contains('on')) for (const el of document.querySelectorAll('#start [data-ico]')) icon(el, el.dataset.ico, 30);
+  if ($('start').classList.contains('on')) for (const el of document.querySelectorAll('#start [data-ico]')) icon(el, el.dataset.ico, +el.dataset.px || 30);
   const b = meta.xpBar(save.xp);
   $('coins').textContent = save.coins;
+  if (bonus) bonus.hud();
+  else if ($('start').classList.contains('on')) loadBonus().catch(() => {});
   $('rank').textContent = b.rank;
   $('league').textContent = b.league;
   $('xpfill').style.width = Math.round(b.k * 100) + '%';
@@ -385,7 +434,7 @@ function overlay(id, on) {
 const app = {
   get save() { return save; }, get meta() { return meta; }, get custom() { return custom; }, get world() { return world; },
   get R() { return R; }, play, writeSave: () => writeSave(save), applyEquip, hud, overlay, toast, image, icon, $, V, look,
-  openMode, get mode() { return mode.id; },
+  openMode, get mode() { return mode.id; }, openMenu, skipLevel, loadBonus, get bonus() { return bonus; },
 };
 let menus = null;
 async function openMenu(name) {
@@ -454,8 +503,10 @@ async function boot() {
   app.atlas = { img: atlasImg, rects: lv.atlas, fontImg, font };
   // the achieved-level road follows `best`, so catch up rewards from saves made before it existed
   if (meta.claim(save, 'achieved_level_mode.normal', save.best).length) writeSave(save);
+  // road rewards kept in `pending` before their system existed (skip tickets) are delivered now
+  if (meta.deliverPending(save).length) writeSave(save);
   const params = new URLSearchParams(location.search), q = params.get('level'), qm = 'mode.' + params.get('mode');
-  if (MODES[qm]) mode = await loadMode(qm);
+  if (MODES[qm]?.launch) setTimeout(() => openMode(qm)); else if (MODES[qm]) mode = await loadMode(qm);
   startLevel(q ? Math.max(0, (parseInt(q, 10) || 1) - 1) : mode.def.slot(save).level || 0);
   applyEquip();
   bindInput();
@@ -466,7 +517,7 @@ async function boot() {
   requestAnimationFrame(frame);
   window.__sh = { game, get world() { return world; }, get player() { return player; }, get save() { return save; }, cam, look,
     get theme() { return R.theme; }, meta, startLevel, setHold, applyEquip, openMenu, overlay, openMode, openLevels,
-    get mode() { return mode; } };
+    get mode() { return mode; }, skipLevel, hud, loadBonus, get bonus() { return bonus; } };
 }
 
 boot().catch((e) => { $('loading').textContent = 'Không tải được game: ' + e.message; });

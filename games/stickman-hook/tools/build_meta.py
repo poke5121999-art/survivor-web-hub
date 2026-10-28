@@ -5,7 +5,8 @@
 Reads  REF/dump/full/remote_settings_default.json   (customization, progression_road, game_modes, theme, rarity, booster)
        REF/apk/assets/aa/Android/*.bundle            (menu icons and the skin effect materials, via UnityPy)
        ../data/custom.json                           (tools/build_custom.py: trail and rope render data)
-Writes ../data/meta.json and ../art/menu.webp
+Writes ../data/meta.json, ../art/menu.webp and, for js/bonus.js, ../data/bonus.json, ../art/wheel.webp, ../art/piggy.webp,
+       ../art/skip.webp
 
 meta.json (arrays are positional to keep the file small; field names are in *Fields):
   items:       [id, asset, collection, rarity, unlock, value, name, xp, fx]   kind = id prefix; asset = key in custom.json,
@@ -23,6 +24,13 @@ meta.json (arrays are positional to keep the file small; field names are in *Fie
   fx:          pixel ops [[op, ...]...] per distinct effect material, see js/fx.js
   trails, ropes: copied from custom.json so playing never needs custom.json unless a skin sheet is equipped
   menu:        {icon: [x, y, w, h]} in art/menu.webp, `_size` = [sheet w, h]
+bonus.json (js/bonus.js):
+  wheel:       lucky_wheel config {prices, pools: [[poolId, rarity, weight, [[res, qty]...]]], forced} plus LuckyWheelSettings
+               (resources.assets 'LuckyWheelConfig'): items, at (reward index), spin, recenter, curve keys [t, v, in, out], ticker
+  piggy:       {fill: [[claimsThreshold, levelComplete, rewarded, iap]], rewards: skin ids, max}
+  offers:      {freeCoins, skipPrice: [res, qty] of a rewarded ad, tickets: [[qty, coins]]}; skipCard: card.skip_level
+               [minEffect, maxEffect, graduation, maxLevel]; periodic: {daily.free_coins: [qty, unit, isUtc]}
+  wheelArt, piggyArt: rects in art/wheel.webp / art/piggy.webp, [x, y, w, h(, border l, b, r, t)]; also art/skip.webp
 """
 import sys, os, re, json
 from PIL import Image
@@ -71,6 +79,91 @@ def bundle_for(address):
     pre = 'defaultlocalgroup_assets_' + address.lower().replace('/', '_').replace(' ', '') + '_'
     hits = [f for f in os.listdir(BUNDLES) if f.startswith(pre) and re.fullmatch(r'[0-9a-f]{32}\.bundle', f[len(pre):])]
     return os.path.join(BUNDLES, hits[0]) if hits else None
+
+
+def named_sprites(address, names):
+    """Sprites by name from a prefab bundle and its dependencies: {name: Sprite}."""
+    sys.path.insert(0, os.path.join(REF, 'tools'))
+    from shenv import load_with_deps
+    env = load_with_deps(os.path.basename(bundle_for(address)))
+    out = {}
+    for o in env.objects:
+        if o.type.name != 'Sprite': continue
+        try: n = o.peek_name()
+        except Exception: n = o.read().m_Name
+        if n in names and n not in out: out[n] = o.read()
+    return out
+
+
+def first_sprite(address):
+    b = bundle_for(address)
+    return next((o.read() for o in UnityPy.load(b).objects if o.type.name == 'Sprite'), None) if b else None
+
+
+def pack(entries, path, width=1024, quality=80):
+    """Shelf-pack [(key, RGBA image, border or None)] into one webp; rect = [x, y, w, h(, l, b, r, t, k)].
+    border = [l, b, r, t, scale] of the source sprite; the image was scaled by `scale`, so the rect keeps the scaled border
+    in sheet pixels and k = 1 / scale: the size of one sheet pixel in reference UI units."""
+    rects = {}
+    x = y = shelf = 0
+    for key, im, _ in sorted(entries, key=lambda e: -e[1].height):
+        if x + im.width > width: x = 0; y += shelf + 2; shelf = 0
+        rects[key] = [x, y, im.width, im.height]; x += im.width + 2; shelf = max(shelf, im.height)
+    sheet = Image.new('RGBA', (width, y + shelf))
+    for key, im, border in entries:
+        sheet.paste(im, tuple(rects[key][:2]))
+        if border and any(border[:4]):
+            k = border[4] if len(border) > 4 else 1
+            rects[key] += [round(v * k) for v in border[:4]] + [round(1 / k, 3)]
+    sheet.save(os.path.join(GAME, path), quality=quality, method=6)
+    rects['_size'] = [width, y + shelf]
+    return rects
+
+
+def sprite_im(sp, scale=1.0, tint=None):
+    im = sp.image.convert('RGBA')
+    if scale != 1: im = im.resize((max(1, round(im.width * scale)), max(1, round(im.height * scale))), Image.LANCZOS)
+    if tint:  # bake a UI Image colour (multiply) into the pixels
+        r, g, b, a = im.split()
+        r, g, b = (ch.point(lambda v, k=k: round(v * k)) for ch, k in zip((r, g, b), tint[:3]))
+        a = a.point(lambda v: round(v * tint[3]))
+        im = Image.merge('RGBA', (r, g, b, a))
+    return im
+
+
+def fit(im, n):
+    im = im.crop(im.getbbox() or (0, 0, 1, 1))
+    im.thumbnail((n, n), Image.LANCZOS)
+    return im
+
+
+def lucky_wheel_settings():
+    """LuckyWheelSettings 'LuckyWheelConfig' in resources.assets (no typetree in data.unity3d): read the raw fields in
+    declaration order: _nbItemsToDisplay, _rewardItemIndex, _interpolationCurves, _spinDurationSeconds,
+    _recenterDurationSeconds, _tickerPinOffset, _maxTickerAngle, _tickerDownDistance, _tickerUpSpeed."""
+    import struct
+    env = UnityPy.load(os.path.join(REF, 'apk/assets/bin/Data/data.unity3d'))
+    for o in env.objects:
+        if o.type.name != 'MonoBehaviour' or o.assets_file.name != 'resources.assets': continue
+        raw = o.get_raw_data()
+        nl, = struct.unpack_from('<i', raw, 28)
+        if not 0 < nl < 64 or raw[32:32 + nl] != b'LuckyWheelConfig': continue
+        p = (32 + nl + 3) & ~3
+        items, at = struct.unpack_from('<ii', raw, p); p += 8
+        n, = struct.unpack_from('<i', raw, p); p += 4
+        curves = []
+        for _ in range(n):
+            nk, = struct.unpack_from('<i', raw, p); p += 4
+            keys = []
+            for _ in range(nk):  # Keyframe: time, value, inSlope, outSlope, weightedMode, inWeight, outWeight
+                t, v, i, s, _w, _a, _b = struct.unpack_from('<ffffiff', raw, p); p += 28
+                keys.append([round(t, 5), round(v, 5), round(i, 5), round(s, 5)])
+            p += 12  # pre/post wrap mode, rotation order
+            curves.append(keys)
+        spin, recenter, pin, angle, down, up = struct.unpack_from('<6f', raw, p)
+        return {'items': items, 'at': at, 'curve': curves[0], 'spin': round(spin, 3), 'recenter': round(recenter, 3),
+                'ticker': [round(pin, 3), round(angle, 3), round(down, 3), round(up, 3)]}
+    raise SystemExit('LuckyWheelConfig not found in data.unity3d')
 
 
 def rgb(c): return [round(c['r'], 3), round(c['g'], 3), round(c['b'], 3)]
@@ -177,20 +270,30 @@ for m in rs['game_modes']['modes']:
     if m.get('iconAddress'): ICONS[m['id']] = m['iconAddress']
 for r in ('Common', 'Epic', 'Legendary'):
     ICONS['booster.' + r.lower()] = 'Boosters/%s/NoOutline' % r
-ICON_PX = {'coin': 64, 'xp': 64}
+ICONS.update({'ticket': 'Sprites/Currencies/SkipTickets', 'coinpile': 'Sprites/Currencies/SkinCoinsPile'})
+ICON_PX = {'coin': 64, 'xp': 64, 'ticket': 64, 'coinpile': 64, 'wheel': 80}
+# sprites that are not addressable on their own: (prefab address whose dependencies hold it, sprite name)
+NAMED_ICONS = {'wheel': ('UI/Pages/Home', 'Icon_LuckyWheel')}
 menu = {}
 if UnityPy:
     ims = []
-    for key, addr in ICONS.items():
-        b = bundle_for(addr)
-        if not b: print('NO ICON BUNDLE', addr); continue
-        env = UnityPy.load(b)
-        sp = next((o.read() for o in env.objects if o.type.name == 'Sprite'), None)
+    for key, addr in list(ICONS.items()) + list(NAMED_ICONS.items()):
+        if isinstance(addr, tuple):
+            sp = named_sprites(addr[0], [addr[1]]).get(addr[1])
+            if not sp: print('NO ICON', addr); continue
+        else:
+            b = bundle_for(addr)
+            if not b: print('NO ICON BUNDLE', addr); continue
+            env = UnityPy.load(b)
+            sp = next((o.read() for o in env.objects if o.type.name == 'Sprite'), None)
         im = sp.image.convert('RGBA')
         im = im.crop(im.getbbox() or (0, 0, 1, 1))
         n = ICON_PX.get(key, 96)
         im.thumbnail((n, n), Image.LANCZOS)
-        ims.append((key, im))
+        # centred on a square: main.js icon() fits the rect into a square box, a narrow rect would show its neighbours
+        sq = Image.new('RGBA', (max(im.size),) * 2)
+        sq.paste(im, ((sq.width - im.width) // 2, (sq.height - im.height) // 2))
+        ims.append((key, sq))
     x = y = shelf = 0; W = 512
     for key, im in sorted(ims, key=lambda t: -t[1].height):
         if x + im.width > W: x = 0; y += shelf + 2; shelf = 0
@@ -199,6 +302,62 @@ if UnityPy:
     menu['_size'] = [W, y + shelf]
     for key, im in ims: sheet.paste(im, tuple(menu[key][:2]))
     sheet.save(os.path.join(GAME, 'art/menu.webp'), quality=82, method=6)
+
+# ---- Lucky Wheel, piggy bank, market offers, skip level ------------------------------------------------------
+lw = rs['lucky_wheel']
+wheel = {
+    'prices': [[p['resourceId'], p['quantity']] for p in lw['prices']],
+    # [poolId, rarity, weight, [[resourceId, qty]...]]; the last config entry is a stray {"poolId": 0}
+    'pools': [[p['poolId'], p['rarityId'], p['weight'], [[i['resourceId'], i['quantity']] for i in p.get('items', [])]]
+              for p in lw['rewardPools'] if isinstance(p.get('poolId'), str)],
+    'forced': [[r['resourceId'], r['quantity']] for r in lw.get('forcedRewards', [])],
+}
+pb = rs['piggy_bank']
+piggy = {'fill': [[c['threshold'], c['levelComplete'], c['rewarded'], c['iap']] for c in pb['fillConfigs']],
+         'rewards': pb['rewardIds'], 'max': 100}  # PiggyBankService.AddProgress clamps to 100 [asm 0x1175c48]
+content = rs['market']['offerContent']
+offer_qty = lambda oid, res: next(c['reward']['quantity'] for c in content
+                                  if c['sourceId'] == oid and c['reward']['resourceId'] == res)
+skip_price = next(p['skipPrice'] for p in rs['ads']['placements'] if p['placementId'] == 'rewarded.default')
+TICKET_COINS = 50  # [ĐỀ XUẤT] IAP packs paid in coins: 20 tickets = 1000 coins, the cheapest coin pack (offer.coins_1)
+offers = {
+    'freeCoins': offer_qty('offer.free_coins', 'currency.skin_coins'),
+    'skipPrice': [skip_price['resourceId'], skip_price['quantity']],
+    'tickets': [[q, q * TICKET_COINS] for q in (offer_qty('offer.skip_tickets_%d' % i, 'currency.skip_tickets') for i in (1, 2, 3))],
+}
+card = next(c for c in rs['cards']['cards'] if c['id'] == 'card.skip_level')
+skip_card = [card['minEffect'], card['maxEffect'], card['effectGraduation'], card['cardMaxLevel']]
+wheel_art = piggy_art = {}
+if UnityPy:
+    wheel.update(lucky_wheel_settings())
+    POPUP = ['FortuneWheel_Background', 'BG_CenterSpin', 'Shadow', 'Reflect', 'Arrow', 'BoltBig_Off', 'BoltBig_On', 'BoltSmallOff',
+             'BoltSmallOn', 'StarsOff', 'StarsOn', 'Title', 'Dice', 'Nail', 'OutlinedButtonGold', 'InfoButton', 'ShinySun']
+    sp = named_sprites('UI/Popups/LuckyWheel', POPUP)
+    # Image colours of the prefab: Shadow (0.2, 0.2, 0.2, 0.6), Sun (0.1, 0.5, 1, 0.7); Sun is drawn 800 wide, halve it
+    TINT = {'Shadow': (0.2, 0.2, 0.2, 0.6), 'ShinySun': (0.1, 0.5, 1.0, 0.7)}
+    # [ĐỀ XUẤT] smaller sheet: stretched / sliced sprites are stored at a lower scale (borders scale with them)
+    SCALE = {'ShinySun': 0.4, 'Dice': 0.5, 'StarsOn': 0.6, 'StarsOff': 0.6, 'FortuneWheel_Background': 0.5, 'BG_CenterSpin': 0.4, 'Shadow': 0.3, 'Reflect': 0.5,
+             'OutlinedButtonGold': 0.6}
+    entries = []
+    for n in POPUP:
+        s = sp[n]; b = s.m_Border
+        entries.append((n, sprite_im(s, SCALE.get(n, 1), TINT.get(n)), [b.x, b.y, b.z, b.w, SCALE.get(n, 1)]))
+    for r in ('Common', 'Epic', 'Legendary'):
+        s = first_sprite('Rarities/%s/LuckyWheelHolder' % r); b = s.m_Border
+        entries.append(('holder.' + r.lower(), sprite_im(s, 0.5), [b.x, b.y, b.z, b.w, 0.5]))
+        entries.append(('booster.' + r.lower(), fit(sprite_im(first_sprite('Boosters/%s/NoOutline' % r)), 96), None))
+    entries.append(('card', fit(sprite_im(named_sprites('UI/Popups/LuckyWheel/Info', ['Icon_Card'])['Icon_Card']), 96), None))
+    entries.append(('coin', fit(sprite_im(first_sprite('Sprites/Currencies/SkinCoins')), 40), None))
+    by_id = {i['itemId']: i for i in cz['items']}
+    for pool in wheel['pools']:
+        for res, _ in pool[3]:
+            if res in by_id: entries.append((res, fit(sprite_im(first_sprite(by_id[res]['uiAssetAddress'])), 96), None))
+    wheel_art = pack(entries, 'art/wheel.webp')
+    # piggy bank: the next skin's UI sprite, filled from the bottom; the in-game skip button (ticket variant)
+    entries = [(res, fit(sprite_im(first_sprite(by_id[res]['uiAssetAddress'])), 128), None) for res in piggy['rewards']]
+    piggy_art = pack(entries, 'art/piggy.webp', 512, 75)
+    skip = named_sprites('UI/Pages/InGame/Default', ['SkipButtonTicket_01'])['SkipButtonTicket_01']
+    sprite_im(skip, 0.5).save(os.path.join(GAME, 'art/skip.webp'), quality=82, method=6)
 
 meta = {
     'v': 1, 'xpPerLevel': XP_PER_LEVEL,
@@ -212,6 +371,14 @@ meta = {
 }
 txt = json.dumps(meta, separators=(',', ':'), ensure_ascii=False)
 open(os.path.join(GAME, 'data/meta.json'), 'w', encoding='utf-8').write(txt)
+# loaded with js/bonus.js only (home screen, first death or finish of a Normal level), never by the first level
+bonus = {
+    'v': 1, 'wheel': wheel, 'piggy': piggy, 'offers': offers, 'skipCard': skip_card,
+    'periodic': {r['resourceId']: [r['frequency']['quantity'], r['frequency']['unit'], r['isUtc']]
+                 for r in rs['periodic_resources']['resources'] if r['resourceId'] == 'daily.free_coins'},
+    'wheelArt': wheel_art, 'piggyArt': piggy_art,
+}
+open(os.path.join(GAME, 'data/bonus.json'), 'w', encoding='utf-8').write(json.dumps(bonus, separators=(',', ':'), ensure_ascii=False))
 print('items', len(items), 'collections', len(collections), 'fx', len(fx), 'xp road', len(roads['progression.xp']),
       'meta.json', len(txt.encode()) // 1024, 'KB', 'menu.webp',
       os.path.getsize(os.path.join(GAME, 'art/menu.webp')) // 1024 if menu else '-', 'KB')

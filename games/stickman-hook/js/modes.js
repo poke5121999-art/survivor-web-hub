@@ -6,6 +6,7 @@
 //   complete(m, s, i)  end-of-level rewards; returns {xp, got}
 //   hud       word drawn before the level number
 //   picker    opening the mode shows its level picker
+//   launch(app)  a mode with its own engine (Pachinko): main.js openMode calls it instead of loading levels
 // The unlock threshold of each mode is data (meta.d.modes), and so are the theme colours (Meta.themeFor).
 // Not reproduced: the events' one free game per day and their date window (both server-driven).
 import { Player } from './physics.js';
@@ -46,4 +47,6 @@ export const MODES = {
   }),
   'mode.easter_event': event('mode.easter_event', 'easter'),
   'mode.valentine_day': event('mode.valentine_day', 'valentine'),
+  // Lucky Drop: its own engine and screen (js/pachinko.js, loaded on open). No levels; unlock rule stays meta.d.modes.
+  'mode.pachinko': { launch: (app) => import('./pachinko.js?v=20261028d').then((p) => p.open(app)) },
 };

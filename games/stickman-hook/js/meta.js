@@ -6,6 +6,10 @@ const KINDS = { skin: 'skins', rope: 'ropes', trail: 'trails' };
 export const XP_ROAD = 'progression.xp';
 export const NORMAL_ROAD = 'achieved_level_mode.normal';
 export const CHALLENGE_LEVELS = 'unlocked_level_mode.challenge';
+export const SKIP_TICKETS = 'currency.skip_tickets';
+// Quantities without a field of their own (save.inv), keyed by resource id
+export const qty = (s, res) => s.inv[res] || 0;
+export const addQty = (s, res, q) => { s.inv[res] = qty(s, res) + q; };
 
 function hex(c) {
   const n = parseInt(c.slice(1), 16), a = c.length > 7 ? (n & 255) / 255 : 1;
@@ -23,6 +27,9 @@ const UNLOCK = {
   seasonal_event_mode_easter_event: { live: true },
   seasonal_event_mode_valentine_day: { live: true },
   progression_road_progression_cards_perk_level: { arg: (m, it) => it.value },
+  lucky_wheel: { live: true },
+  piggy_bank: { live: true },
+  pachinko: { live: true },
 };
 
 export class Meta {
@@ -159,6 +166,27 @@ export class Meta {
   }
 
   // `open`: the unlock threshold is reached (XP, or Normal level for the events).
+  // Display name of a resource: the item title, or a booster's name without its rich-text tags.
+  resTitle(res) {
+    const it = this.byId.get(res);
+    if (it) return it.title;
+    const b = this.d.boosters[res];
+    return b ? b[0].replace(/<[^>]+>/g, '') : res;
+  }
+
+  ownsRes(s, res) {
+    const it = this.byId.get(res);
+    return it ? owns(s, it.kind, it.name) : qty(s, res) > 0;
+  }
+
+  // Rewards that a road granted before their system existed: grant again, whatever still has no system stays pending.
+  deliverPending(s) {
+    const was = s.pending, out = [];
+    s.pending = [];
+    for (const r of was) this.grantReward(s, r, out);
+    return out.filter((g) => !g.later);
+  }
+
   modeState(s, [id, name, unlock]) {
     if (!unlock) return { id, name, open: true };
     const [road, value] = unlock;
@@ -173,6 +201,7 @@ function colors(c) {
 
 const REWARDS = {
   currency(m, s, res, q, out) {
+    if (res === SKIP_TICKETS) { addQty(s, res, q); out.push({ tickets: q }); return; }
     if (res !== 'currency.skin_coins') return REWARDS.later(m, s, res, q, out);
     s.coins += q;
     out.push({ coins: q });

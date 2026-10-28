@@ -66,6 +66,8 @@ function serve() {
   check('first level loads no shop art', lazy.length === 0, lazy.join(' '));
   const modeFiles = requested.filter((u) => /mode-\w+\.json|grapple\.js|menus\.js/.test(u));
   check('first level loads no mode data', modeFiles.length === 0, modeFiles.join(' '));
+  const bonusFiles = requested.filter((u) => /bonus\.js|bonus\.json|wheel\.webp|piggy\.webp|skip\.webp/.test(u));
+  check('first level loads no wheel / piggy / skip code or art', bonusFiles.length === 0, bonusFiles.join(' '));
   check('level 1 is Solo1 with one target', await page.evaluate(() => window.__sh.world.names.join() === 'Solo1' && window.__sh.world.targets.length === 1));
 
   const painted = await page.evaluate(() => {
@@ -93,6 +95,14 @@ function serve() {
   check('progress saved (best level 1)', saved.best === 1, `best ${saved.best}`);
   check('level 1 gives +10 XP', saved.xp === 10, `xp ${saved.xp}`);
   check('finish plays the skin dance clip', await page.evaluate(() => window.__sh.look.dance?.id === 'skin.basic'));
+  // piggy bank: a Normal level's first completion fills it by fillConfigs[threshold 0].levelComplete = 10
+  await page.waitForSelector('#piggy.on', { timeout: 10000 }).catch(() => {});
+  const pig1 = await page.evaluate(() => ({ p: window.__sh.save.inv['progression.piggy_bank_progress'],
+    res: document.getElementById('piggy')?.dataset.res, on: !!document.querySelector('#piggy.on') }));
+  check('finishing level 1 fills the piggy bank by 10 toward Stick Frog', pig1.p === 10 && pig1.res === 'skin.stick_frog' && pig1.on,
+    JSON.stringify(pig1));
+  await page.waitForTimeout(900);
+  await page.screenshot({ path: path.join(SHOTS, 'finish-piggy.png') });
 
   await page.mouse.click(195, 500);
   await page.waitForTimeout(300);
@@ -310,6 +320,146 @@ function serve() {
   await page.waitForTimeout(300);
   check('Normal is back where it was', await page.evaluate(() => window.__sh.mode.id === 'mode.normal' && window.__sh.world.index === 0
     && window.__sh.theme.bg === '#00B4FC'));
+
+  // ---- Lucky Wheel, market, piggy bank, skip level (js/bonus.js). A save at Normal level 13 with no coins, no tickets,
+  // 3 skip tickets and a booster left pending by a road, and no welcome booster yet.
+  await page.evaluate(() => {
+    const s = JSON.parse(localStorage.getItem('stickman-hook'));
+    for (const f of Object.keys(s.flags)) if (f.startsWith('flag.nb_levels_skipped_') || f === 'flag.has_welcome_booster') delete s.flags[f];
+    localStorage.setItem('stickman-hook', JSON.stringify({ ...s, coins: 0, best: 12, level: 12, inv: {}, periodic: {},
+      pending: [['currency.skip_tickets', 3], ['booster.epic', 1]] }));
+  });
+  await page.goto(url.replace(/\?.*$/, '') + '?level=13');
+  await page.waitForFunction(() => window.__sh && window.__sh.world, null, { timeout: 30000 });
+  const pend = await page.evaluate(() => ({ t: window.__sh.save.inv['currency.skip_tickets'], p: window.__sh.save.pending }));
+  check('pending skip tickets are delivered, the booster stays pending', pend.t === 3 && JSON.stringify(pend.p) === '[["booster.epic",1]]',
+    JSON.stringify(pend));
+
+  const wheelState = () => page.evaluate(() => {
+    const W = window.__sh.look.wheel, s = window.__sh.save;
+    return { spinning: !!W.spin, won: W.won >= 0, under: Math.round(W.p), at45: W.reel[45]?.res, coins: s.coins,
+      claims: s.inv['progression.lucky_wheel_claims'] || 0, skins: s.owned.skins, label: document.querySelector('#wheel .wspin small').textContent };
+  });
+  const spinAndWait = async () => {
+    await page.click('#wheel .wspin');
+    await page.waitForFunction(() => { const W = window.__sh.look.wheel; return W.won >= 0 && !W.spin; }, null, { timeout: 15000 }).catch(() => {});
+    await page.waitForTimeout(400);
+  };
+  // mode.lucky_wheel (the wheel's unlock, XP road step 1) is a row of the mode list that opens the wheel
+  await page.evaluate(() => window.__sh.openMenu('openModes'));
+  await page.waitForSelector('#modes .mode[data-id="mode.lucky_wheel"] button', { timeout: 10000 });
+  await page.click('#modes .mode[data-id="mode.lucky_wheel"] button');
+  await page.waitForFunction(() => window.__sh.look.wheel?.img, null, { timeout: 10000 });
+  check('the Lucky Wheel row of the mode list opens the wheel', await page.evaluate(() =>
+    document.getElementById('wheel').classList.contains('on') && !document.getElementById('modes').classList.contains('on')));
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: path.join(SHOTS, 'wheel.png') });
+  const w0 = await wheelState();
+  check('the first wheel spin is free (prices[min(claims, 1)])', w0.label === 'Miễn phí' && w0.claims === 0, JSON.stringify(w0));
+  await page.click('#wheel .wspin');
+  await page.waitForTimeout(3000);
+  await page.screenshot({ path: path.join(SHOTS, 'wheel-spin.png') });
+  await page.waitForFunction(() => { const W = window.__sh.look.wheel; return W.won >= 0 && !W.spin; }, null, { timeout: 15000 }).catch(() => {});
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: path.join(SHOTS, 'wheel-won.png') });
+  const w1 = await wheelState();
+  check('first spin lands on slot 45 = forced reward Potatoz, and grants it', w1.won && w1.under === 45 && w1.at45 === 'skin.potatoz'
+    && w1.skins.includes('potatoz') && w1.claims === 1 && w1.coins === 0, JSON.stringify(w1));
+  await page.click('#wheel .wspin');
+  await page.waitForTimeout(300);
+  const w2 = await wheelState();
+  check('second spin costs 500 coins: refused with 0 coins', !w2.spinning && w2.claims === 1 && w2.label.startsWith('500')
+    && await page.evaluate(() => document.getElementById('toast').textContent.includes('xu')), JSON.stringify(w2));
+  await page.evaluate(() => { window.__sh.save.coins = 500; Math.__r = Math.random; Math.random = () => 0; });
+  await spinAndWait();
+  const w3 = await wheelState();
+  await page.evaluate(() => { Math.random = Math.__r; });
+  check('paid spin (random 0, no welcome booster) lands on and grants Tiki for 500 coins', w3.under === 45 && w3.at45 === 'skin.tiki'
+    && w3.skins.includes('tiki') && w3.coins === 0 && w3.claims === 2, JSON.stringify(w3));
+  await page.click('#wheel .wclose');
+
+  // market: 20 free coins once a day, skip tickets for coins
+  const freeBtn = '#market .offer[data-id="free_coins"] button';
+  await page.evaluate(() => window.__sh.openMenu('openMarket'));
+  await page.waitForSelector(freeBtn, { timeout: 10000 });
+  await page.screenshot({ path: path.join(SHOTS, 'market.png') });
+  await page.click(freeBtn);
+  const c1 = await page.evaluate(() => window.__sh.save.coins);
+  const again = await page.evaluate((b) => document.querySelector(b).disabled, freeBtn);
+  await page.evaluate((b) => document.querySelector(b).click(), freeBtn);
+  const c2 = await page.evaluate(() => window.__sh.save.coins);
+  check('daily free coins: +20 once, then refused the same day', c1 === 20 && c2 === 20 && again, `${c1} ${c2} disabled ${again}`);
+  await page.evaluate(() => { window.__sh.save.periodic['daily.free_coins'] = 20000101; window.__sh.save.coins = 1000; });
+  await page.click('#market .x');
+  await page.evaluate(() => window.__sh.openMenu('openMarket'));
+  await page.waitForSelector(freeBtn, { timeout: 10000 });
+  const nextDay = await page.evaluate((b) => !document.querySelector(b).disabled, freeBtn);
+  await page.click('#market .offer[data-id="tickets_0"] button');
+  const bought = await page.evaluate(() => ({ t: window.__sh.save.inv['currency.skip_tickets'], c: window.__sh.save.coins }));
+  check('free coins come back the next day; 20 tickets cost 1000 coins', nextDay && bought.t === 23 && bought.c === 0, JSON.stringify(bought));
+  await page.screenshot({ path: path.join(SHOTS, 'market-bought.png') });
+  await page.click('#market .x');
+
+  // piggy bank: at 90 the next Normal level fills it to 100; unlocking costs 1 ticket (rewarded ad skip price); then +3 a level
+  await page.evaluate(() => { window.__sh.save.inv['progression.piggy_bank_progress'] = 90; window.__sh.startLevel(12); });
+  await page.waitForFunction(() => window.__sh.game.phase === 'play', null, { timeout: 5000 });
+  await finishNow();
+  await page.waitForSelector('#piggy.on .act', { timeout: 10000 }).catch(() => {});
+  await page.waitForTimeout(900);
+  await page.screenshot({ path: path.join(SHOTS, 'piggy-full.png') });
+  const full = await page.evaluate(() => ({ p: window.__sh.save.inv['progression.piggy_bank_progress'],
+    btn: document.querySelector('#piggy .act')?.textContent.trim() }));
+  await page.click('#piggy .act');
+  await page.waitForTimeout(300);
+  const broke = await page.evaluate(() => { const s = window.__sh.save; return { p: s.inv['progression.piggy_bank_progress'],
+    claims: s.inv['progression.piggy_bank_claims'], t: s.inv['currency.skip_tickets'], frog: s.owned.skins.includes('stick_frog'),
+    next: document.getElementById('piggy').dataset.res }; });
+  check('piggy full at 100 breaks for 1 skip ticket into Stick Frog', full.p === 100 && full.btn.startsWith('Mở khoá') && broke.p === 0
+    && broke.claims === 1 && broke.t === 22 && broke.frog && broke.next === 'skin.ghost', JSON.stringify({ full, broke }));
+  await page.screenshot({ path: path.join(SHOTS, 'piggy-broken.png') });
+  await page.evaluate(() => window.__sh.startLevel(13));
+  check('next level hides the piggy panel', await page.evaluate(() => !document.querySelector('#piggy.on')));
+  await page.waitForFunction(() => window.__sh.game.phase === 'play', null, { timeout: 5000 });
+  await finishNow();
+  await page.waitForSelector('#piggy.on', { timeout: 10000 }).catch(() => {});
+  check('after the first claim a level fills the piggy by 3', await page.evaluate(() =>
+    window.__sh.save.inv['progression.piggy_bank_progress'] === 3));
+
+  // skip level: per day = card.skip_level effect; no card (no welcome booster) = 0, so no button after a death
+  const die = async () => {
+    await page.waitForFunction(() => window.__sh.game.phase === 'play', null, { timeout: 5000 });
+    await page.evaluate(() => { window.__sh.player.y = -40; });
+    await page.waitForFunction(() => window.__sh.game.died, null, { timeout: 5000 }).catch(() => {});
+    await page.waitForTimeout(300);
+  };
+  await page.evaluate(() => window.__sh.startLevel(14));
+  await die();
+  check('no skip button without the skip card', await page.evaluate(() => !document.querySelector('#skip.on')));
+  await page.evaluate(() => { window.__sh.save.flags['flag.has_welcome_booster'] = 1; window.__sh.startLevel(14); });
+  await die();
+  const sk = await page.evaluate(() => ({ on: !!document.querySelector('#skip.on'), text: document.querySelector('#skip b')?.textContent }));
+  await page.screenshot({ path: path.join(SHOTS, 'skip.png') });
+  await page.click('#skip');
+  await page.waitForTimeout(300);
+  const skipped = await page.evaluate(() => { const s = window.__sh.save; return { phase: window.__sh.game.phase, best: s.best,
+    t: s.inv['currency.skip_tickets'], day: Object.entries(s.flags).find(([k]) => k.startsWith('flag.nb_levels_skipped_')) }; });
+  check('after a death the skip button (1/1) spends a ticket and completes level 15', sk.on && sk.text === '1/1'
+    && skipped.phase === 'finish' && skipped.best === 15 && skipped.t === 21 && skipped.day?.[1] === 1, JSON.stringify({ sk, skipped }));
+  await page.evaluate(() => window.__sh.startLevel(15));
+  await die();
+  check('the daily skip limit holds: no skip button on the next death', await page.evaluate(() => !document.querySelector('#skip.on')
+    && window.__sh.save.inv['currency.skip_tickets'] === 21));
+
+  // home screen entry points
+  await page.click('#btnMenu');
+  await page.waitForSelector('#btnWheel', { timeout: 10000 });
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: path.join(SHOTS, 'home-bonus.png') });
+  const home = await page.evaluate(() => ({ wheel: document.getElementById('wheelPrice').textContent,
+    tickets: document.getElementById('tickets').textContent, market: document.getElementById('marketDot').classList.contains('on') }));
+  check('home shows the wheel counter (coins/500), ticket count and market', home.wheel === `${await page.evaluate(() => window.__sh.save.coins)}/500`
+    && home.tickets === '21', JSON.stringify(home));
+  await page.click('#btnPlay');
 
   check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
   await browser.close();

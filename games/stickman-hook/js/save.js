@@ -3,6 +3,9 @@
 // claimed: {roadResource: highest claimed threshold value}; flags: {flagId: qty}; collections: completed ids;
 // pending: rewards granted by a road whose system is not built yet (boosters, ...), kept for the phase that adds it.
 // modes: {modeId: {unlocked?, levels?, level, best, done: [level indices finished]}}; Normal keeps level/best at the top.
+// inv: other quantities, keyed by the original resource id (currency.skip_tickets, progression.lucky_wheel_claims,
+// progression.piggy_bank_progress / _claims / _skips). periodic: {periodicResourceId: day id of its last claim}.
+// The day's skipped levels live in flags as flag.nb_levels_skipped_<day id>, as in the original.
 
 const KEY = 'stickman-hook';
 
@@ -13,7 +16,7 @@ function fresh() {
     v: 2, level: 0, best: 0, sound: true, coins: 0, xp: 0,
     owned: { skins: ['basic'], ropes: ['basic'], trails: ['basic'] },
     equipped: { ...DEFAULT_EQUIP },
-    modes: {}, claimed: {}, flags: {}, collections: [], pending: [],
+    modes: {}, claimed: {}, flags: {}, collections: [], pending: [], inv: {}, periodic: {},
   };
 }
 
@@ -31,6 +34,8 @@ export function readSave() {
     flags: { ...(s.flags || {}) },
     collections: [...(s.collections || [])],
     pending: [...(s.pending || [])],
+    inv: { ...(s.inv || {}) },
+    periodic: { ...(s.periodic || {}) },
   };
 }
 

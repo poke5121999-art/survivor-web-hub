@@ -11,7 +11,10 @@ Nạp khoảng 215 KB (bản gốc 848 MB).
 Pha 1 của bản full (kế hoạch: `brain/plans/stickman-hook-full.md`) thêm phần tuỳ biến và vỏ meta, xem mục "Pha 1" bên dưới.
 Pha tiếp theo thêm ba chế độ: Mechanical Grapple, Challenge, sự kiện Easter / Valentine's Day. Xem mục "Chế độ phụ".
 
-Chưa làm: các chế độ Adventure/Pachinko/Race, vòng quay, heo đất, thẻ bài, booster, quảng cáo, VIP.
+Vòng quay, heo đất, xu miễn phí mỗi ngày và vé bỏ qua màn: xem mục "Vòng quay, heo đất, chợ, vé bỏ qua".
+Lucky Drop (Pachinko) có engine riêng `js/pachinko.js`; luật, toạ độ bàn chơi và bẫy ở `docs/PACHINKO.md`.
+
+Chưa làm: các chế độ Adventure/Race, thẻ bài, booster, quảng cáo, VIP.
 
 ## Cách chơi
 
@@ -34,21 +37,24 @@ Chưa làm: các chế độ Adventure/Pachinko/Race, vòng quay, heo đất, th
 | `js/meta.js` | Kinh tế gốc: phát thưởng theo bảng loại tài nguyên, chữ mở khoá theo bảng cách mở, XP road, theme |
 | `js/custom.js` | Nạp lười `custom.json`, sheet skin, `ropes.webp`, `custom-ui.webp` |
 | `js/fx.js` | Nướng hiệu ứng của skin biến thể (nạp chỉ khi cần) |
-| `js/menus.js` | Chế độ, Tuỳ biến, Đường XP (nạp khi mở lần đầu) |
+| `js/menus.js` | Chế độ, Tuỳ biến, Đường XP, vòng quay, Chợ (nạp khi mở lần đầu) |
+| `js/bonus.js` | Luật vòng quay, heo đất, xu mỗi ngày, vé bỏ qua, bỏ qua màn; ô trang chính, nút bỏ qua, khung heo đất (nạp lười) |
 | `js/modes.js` | Bảng chế độ: nguồn màn, lớp người chơi, chỗ lưu tiến độ, luật mở màn, thưởng cuối màn, road |
 | `js/grapple.js` | Người chơi Mechanical Grapple (nạp khi mở chế độ) |
 | `data/levels.json` | 123 pattern (toạ độ thế giới) cùng danh sách màn |
 | `data/mode-<file>.json` | `{v, sets: {modeId: {levels, random?}}, patterns}`: danh sách màn của chế độ và pattern chưa có trong `levels.json` (`grapple`, `challenge`, `seasonal`) |
 | `data/meta.json` | Bảng item, bộ sưu tập, độ hiếm, XP road, road màn Normal, chế độ, màu theme, trail/dây |
+| `data/bonus.json` | Cấu hình vòng quay (pool, giá, `LuckyWheelSettings`), heo đất, ưu đãi Chợ, thẻ `skip_level`, toạ độ ảnh |
 | `data/custom.json` | Khung của 95 skin, dây, trail, toạ độ icon shop |
 | `art/skins/<tên>.webp` | Một sheet mỗi skin (7 trạng thái + điệu nhảy về đích) |
-| `art/custom-ui.webp`, `art/ropes.webp`, `art/menu.webp` | Icon shop, texture dây, icon xu/XP/chế độ/booster |
+| `art/custom-ui.webp`, `art/ropes.webp`, `art/menu.webp` | Icon shop, texture dây, icon xu/XP/chế độ/booster/vé/vòng quay |
+| `art/wheel.webp`, `art/piggy.webp`, `art/skip.webp` | Popup vòng quay, skin của heo đất, nút bỏ qua (ảnh gốc) |
 | `data/font.json` | Bảng glyph của font Junegull |
 | `art/atlas.webp` | Atlas sprite |
 | `art/font.webp` | Font Junegull |
 | `tools/build_data.py` | Tạo `levels.json`, `mode-*.json` và atlas, mọi chế độ qua cùng một `compile_pattern` |
 | `tools/build_custom.py` | Tạo sheet skin, `ropes.webp`, `custom-ui.webp`, `custom.json` |
-| `tools/build_meta.py` | Tạo `meta.json` và `menu.webp` từ remote settings mặc định trong APK |
+| `tools/build_meta.py` | Tạo `meta.json`, `bonus.json`, `menu.webp`, `wheel.webp`, `piggy.webp`, `skip.webp` từ remote settings mặc định và bundle trong APK |
 | `tools/build_font.py` | Nướng font TMP SDF thành bitmap |
 | `tools/thumb.js` | Chụp ảnh thẻ hub |
 | `tools/extract/` | Bóc dữ liệu từ APK, dịch ngược ARM |
@@ -123,8 +129,8 @@ Bản gốc chạy offline bằng chính bản này.
 - **Đường XP** (127 mốc): người chơi bấm "Nhận thưởng", nhận lần lượt mọi mốc đã đạt (`ClaimAllRewards`).
   - Thưởng mà hệ thống chưa có (booster, ...) vẫn được ghi vào `save.pending` để pha sau trả, và hiện khoá "sắp có".
 - **Mở khoá item.** Một bảng `UNLOCK` (cách mở → điền `{0}` của `textTemplate` gốc, có đạt được ở bản web hay không).
-  - Ở bản web chỉ đạt được: mặc định, road XP, road màn Normal.
-  - Các cách khác (vòng quay, quảng cáo, VIP, heo đất, Adventure, Race, pachinko, sự kiện, link ngoài, thẻ, Challenge, Grapple) hiện chữ gốc và không có đường mở giả.
+  - Lúc làm Pha 1, bản web chỉ đạt được: mặc định, road XP, road màn Normal. Sau đó có thêm sự kiện, Challenge, Grapple, vòng quay, heo đất (bảng `UNLOCK`, cờ `live`).
+  - Các cách còn lại (quảng cáo, VIP, Adventure, Race, pachinko, link ngoài, thẻ) hiện chữ gốc và không có đường mở giả.
   - `tournament` không có trong `unlockConditions`, nên dùng chữ của `leaderboard_prize`.
 - **Chế độ.** Normal chơi được. Các chế độ khác hiện "Cần N XP" (theo mốc road phát chế độ đó), Easter/Valentine cần màn 10. Đạt rồi thì hiện "Sắp có".
 - **Skin biến thể** (`skin.alien_hologram_travelers`, ...; 51 item): dùng sheet của skin gốc.
@@ -191,6 +197,95 @@ Tự đặt, có nhãn `[ĐỀ XUẤT]`:
 - **Không làm giới hạn 1 lượt chơi miễn phí mỗi ngày** của sự kiện, cũng không làm khung ngày của sự kiện. Cả hai do server quyết, offline thì luôn mở.
 - Grapple và Challenge mở theo XP đã đạt, không cần bấm nhận thưởng trên Đường XP.
 
+## Vòng quay, heo đất, chợ, vé bỏ qua
+
+Vào từ trang chính: ô "Chợ" bên trái và ô vòng quay bên phải, giống `MarketWidgetsHolder` và `LuckyWheelButton` của `HomePage`.
+Hàng "Lucky Wheel" trong Chế độ cũng mở vòng quay. Heo đất hiện ở màn kết thúc Normal. Nút bỏ qua hiện trong màn Normal sau một lần chết.
+
+- Code: `js/bonus.js` (luật, ô trang chính, nút bỏ qua, khung heo đất) và `js/menus.js` (`openWheel`, `openMarket`).
+- Dữ liệu `data/bonus.json`, ảnh `art/wheel.webp`, `art/piggy.webp`, `art/skip.webp`. Tất cả do `tools/build_meta.py` tạo từ APK.
+- Màn đầu không nạp gì trong số này. `bonus.js` + `bonus.json` nạp khi trang chính hiện, khi chết hoặc khi qua một màn Normal.
+  `wheel.webp` nạp khi mở vòng quay, `piggy.webp` khi khung heo hiện, `skip.webp` khi nút bỏ qua hiện.
+
+Số lấy từ `remote_settings_default.json` (`lucky_wheel`, `piggy_bank`, `market`, `ads`, `cards`, `periodic_resources`).
+Thông số dải quay lấy từ `LuckyWheelSettings` "LuckyWheelConfig" trong `resources.assets`.
+
+**Vòng quay** (`LuckyWheelService`):
+
+- Giá = `prices[min(số lần đã nhận, 1)]` = [0, 500] xu. Số lần nhận đếm suốt đời (`progression.lucky_wheel_claims`) [asm 0x115ab14..0x115ac50].
+  - Lần quay đầu miễn phí, từ lần sau mỗi lần 500 xu.
+  - Không có lượt miễn phí mỗi ngày, cũng không có thời gian chờ: cả service lẫn config đều không có. Thiếu xu thì nút báo "Cần thêm xu".
+- `PayForSpin` trừ giá, `ClaimReward` cộng số lần nhận rồi phát thưởng [asm 0x115db94, 0x115dd94].
+- Danh sách thưởng (`RefreshRewardsList` [asm 0x115c8b4]): mọi món của mọi pool, trừ đồ tuỳ biến đã có [asm 0x115e3c8].
+  - Trọng số một món = trọng số pool / số món còn lại trong pool [asm 0x115cc38..0x115cc7c]. Pool `trail.epic` rỗng nên không góp gì.
+- Thưởng ép: món đầu tiên của `forcedRewards` chưa có, tức skin Potatoz [asm 0x115ce78..0x115cee0]. Vì thế lần quay đầu luôn ra Potatoz.
+  - `FULLGAME.md` ghi luật này là UNKNOWN. Giờ đã rõ: thưởng ép áp dụng khi người chơi chưa có món đó.
+- Ngoài thưởng ép thì chọn theo trọng số (`WeightedRandom.GetRandom` [asm 0x115d030]).
+  - Booster và thẻ lẻ chỉ được chọn sau khi có `flag.has_welcome_booster` (Đường XP, 550 XP) [asm 0x115e524..0x115e5c0].
+  - Hệ thẻ chưa có, nên chúng vào `save.pending` như thưởng booster của Đường XP.
+- Dải quay có 50 ô, thưởng nằm ở ô 45. Quay 8 s theo đường cong của `LuckyWheelSettings` (3 key, nội suy Hermite như `AnimationCurve`).
+  - Mỗi ô đi qua làm mũi tên giật xuống tối đa 45°, rồi bật lại với `tickerUpSpeed` 0.1 s.
+- `mode.lucky_wheel` không có màn. Nó là cổng mở vòng quay, Đường XP phát ở bước 1 (0 XP).
+
+**Heo đất** (`PiggyBankService`, `PiggyBankPopup`):
+
+- Chỉ có ở Normal: `GiveEndGameRewards` mở popup heo khi còn skin heo chưa có [asm 0x12a62bc].
+- Skin kế tiếp: trong các skin của `rewardIds` chưa có, lấy món thứ (số lần bỏ mod số món) [asm 0x1175cc8..0x1175dfc].
+- Mức nạp lấy từ dòng cuối của `fillConfigs` có `threshold` ≤ số lần đã mở [asm 0x11759b4].
+  - Trước lần mở đầu: +10 mỗi màn. Từ đó về sau: +3. Cột `rewarded` (+30) dành cho nút xem quảng cáo.
+  - Tiến độ kẹp ở 100 [asm 0x1175c44..0x1175c88]. Đầy khi > 99 [asm 0x1175cb8].
+- Mở heo: tiến độ về 0, số lần mở +1, nhận skin [asm 0x1175e38]. Bỏ heo: tiến độ về 0, số lần bỏ +1, chuyển sang skin sau [asm 0x1176094].
+- Heo đầy mà không mở thì sẽ mất ở màn kế tiếp (`Activate` gọi `LoseReward` [asm 0x1177648]).
+- Bản gốc không bán heo đất bằng tiền thật. Hai nút "Mở khoá" và "+30%" là quảng cáo có thưởng (`rewarded.piggy_bank_unlock`, `rewarded.piggy_bank_fill`).
+  - Mọi quảng cáo có thưởng đều bỏ qua được bằng `skipPrice` của `rewarded.default`: 1 vé bỏ qua.
+  - Bản web lấy đúng giá đó: mỗi nút tốn 1 vé.
+
+**Xu miễn phí mỗi ngày**: `offer.free_coins` cho 20 xu.
+
+- Điều kiện là `didnt_buy_free_coins_today` (`daily.free_coins` < 1). Chu kỳ 1 ngày, `isUtc` false, nên ngày tính theo giờ máy.
+- `offer.rewarded_coins` (50 xu đổi một quảng cáo) không làm.
+
+**Vé bỏ qua** (`currency.skip_tickets`):
+
+- Trong bản gốc, vé dùng để bỏ qua quảng cáo (`skipPrice` của `rewarded.default`). Bản web không có quảng cáo, nên mọi nút "xem quảng cáo" ở trên đều tốn 1 vé.
+- Nguồn vé: gói 20/60/140 vé (`offer.skip_tickets_1..3`). Bản gốc bán bằng tiền thật, bản web bán bằng xu trong Chợ.
+- Thưởng `currency.skip_tickets` còn chờ trong `save.pending` được trả lúc khởi động (`Meta.deliverPending`).
+  - Đường XP gốc không phát vé, nên thường không có gì để trả. Booster vẫn chờ.
+
+**Bỏ qua màn** (`SkipLevelService`, `SkipButtonView`):
+
+- Nút hiện ở màn Normal sau một lần chết (`SetHasDied`), khi hôm nay còn lượt (`CanSkipLevelToday` [asm 0x124eac8]). Chữ dưới nút là "còn/ngày".
+- Số lượt mỗi ngày = hiệu ứng thẻ `card.skip_level` ở cấp thẻ hiện có (`GetNbSkippableLevelsPerDay` [asm 0x124ea20]).
+  - Cấp < 1 cho 0 lượt [asm 0x127c668]. Cấp L cho min + bước × (L − 1), tức 1 lượt ở cấp 1.
+- Lượt đã dùng đếm trong `flag.nb_levels_skipped_<ngày>` [asm 0x124eb40..0x124eb94]. Cờ của ngày cũ bị xoá (`CleanDailyTokenFlags`).
+- Bấm nút = xem quảng cáo `rewarded.skip_level`, ở bản web là trả 1 vé.
+  - Sau đó màn được tính là đã qua (`GamePlayService.SkipLevel` → `CompleteLevel` [asm 0x129c96c]): +10 XP, road, heo đất.
+
+Tự đặt, có nhãn `[ĐỀ XUẤT]`:
+
+- Giá gói vé: 50 xu/vé, nên 20 vé = 1000 xu, bằng gói xu rẻ nhất (`offer.coins_1`). APK không có giá tiền của từng gói nên không quy đổi được.
+- Cấp thẻ `skip_level`: hệ thẻ chưa làm.
+  - Bản web coi là cấp 1 khi đã có `flag.has_welcome_booster`, vì gói chào mừng gốc chắc chắn có thẻ này (`guaranteedCards`). Trước đó là cấp 0.
+  - Tức là được bỏ qua 1 màn/ngày từ 550 XP.
+- Heo đất chỉ nạp ở lần qua màn đầu tiên, giống XP. Bản web cho chơi lại màn, bản gốc thì không.
+- Mã ngày dạng YYYYMMDD theo giờ máy. `FormatDateId` của bản gốc chưa giải.
+- Dải quay:
+  - Các ô khác lặp lại danh sách thưởng đã xáo. Ô quanh ô 45 không trùng với thưởng.
+  - Bắt đầu ở ô 2 và cuộn xuống. Khung tham chiếu 750 × 1334.
+  - Nhịp đèn bolt, tốc độ xoay của mặt trời và độ trôi của xúc xắc là tự đặt.
+- Heo đất là một khung dưới chữ "completed", không phải popup toàn màn hình, để chạm chỗ khác vẫn sang màn.
+- Booster trúng từ vòng quay giữ nguyên. Không đổi sang xu theo `GetFallbackIfNoCardAvailable`, vì hệ thẻ chưa làm.
+
+Bẫy:
+
+- `LuckyWheelSettings` nằm trong `data.unity3d`, không có typetree. Phải đọc thô theo thứ tự trường trong `dump.cs`.
+  - Mỗi Keyframe dài 28 byte: time, value, inSlope, outSlope, weightedMode, inWeight, outWeight.
+- `rewardPools` có phần tử cuối là `{"poolId": 0}`. Phải bỏ nó đi.
+- Icon trong `menu.webp` phải nằm trên ô vuông. `icon()` co ảnh vào ô vuông, nên ảnh hẹp (vé 64×49) để lộ ảnh bên cạnh trong sheet.
+- Thêm icon thì `menu.webp` xếp lại chỗ. Luôn tạo lại cùng lúc với `meta.json`.
+- Để luật mới trong `meta.js` và `meta.json` thì màn đầu lên 606 KB, vượt ngân sách 600 KB. Đã tách sang `bonus.js` + `bonus.json` nạp lười: màn đầu còn 592 KB.
+- Đề bài cho rằng heo đất bán bằng tiền thật, và vòng quay có lượt miễn phí mỗi ngày. Cả hai đều sai so với config và asm.
+
 ## Bẫy đã sập
 
 - **Ngân sách 600 KB của màn đầu.** Bản cũ đã nạp 585 KB, nên thêm `meta.json` là vượt.
@@ -250,7 +345,18 @@ Phần chế độ:
 - Với 3000 XP, Grapple và Challenge mở. Màn 1 của mỗi chế độ nạp đúng pattern và màu theme. Cú móc Grapple kéo thẳng rồi tự nhả.
 - Challenge hiện 30 màn, mở 4. ↻ giữ chế độ. Qua màn mở cuối thì quay về bảng chọn màn. Quay lại Normal.
 - Màn đầu không nạp `mode-*.json` hay `grapple.js`.
-Nó cũng kiểm màn đầu không nạp quá 600 KB và không nạp ảnh shop. Ảnh chụp nằm ở `shots/stickman-hook/`.
+Phần vòng quay, heo đất, Chợ, bỏ qua màn:
+
+- Màn 1 nạp heo đất thêm 10. Vé đang chờ trong `pending` được trả, booster vẫn chờ.
+- Hàng Lucky Wheel của Chế độ mở vòng quay. Lần đầu miễn phí, dừng ở ô 45 là Potatoz và nhận được.
+- Lần sau giá 500 xu, không có xu thì bị từ chối. Có 500 xu và `Math.random` = 0 thì ra Tiki.
+- Chợ: +20 xu một lần, cùng ngày bấm lại không được, sang ngày khác thì được. 20 vé giá 1000 xu.
+- Heo 90 qua một màn thành 100, mở bằng 1 vé ra Stick Frog, màn sau chỉ +3.
+- Chưa có thẻ `skip_level` thì không có nút bỏ qua. Có rồi thì chết một lần hiện nút "1/1": bấm là trừ 1 vé và qua màn 15. Màn sau chết không còn nút.
+- Trang chính có ô vòng quay "xu/500" và số vé.
+
+Nó cũng kiểm màn đầu không nạp quá 600 KB, không nạp ảnh shop và không nạp `bonus.js`, `bonus.json`, ảnh vòng quay/heo/nút bỏ qua.
+Ảnh chụp nằm ở `shots/stickman-hook/`.
 
 ## Tăng số bản
 
