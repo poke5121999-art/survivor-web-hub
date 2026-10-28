@@ -4,6 +4,7 @@
 // the home widgets and the in-game skip button. The wheel and market sheets are in menus.js, the piggy bank popup in
 // endgame.js.
 import { SKIP_TICKETS, qty, addQty } from './meta.js';
+import { dayKey } from './daily.js';
 
 export const FREE_COINS = 'daily.free_coins';
 const WHEEL_CLAIMS = 'progression.lucky_wheel_claims';
@@ -14,8 +15,8 @@ const WELCOME_BOOSTER = 'flag.has_welcome_booster';
 // PiggyBankService.GetFillAmount picks a column of the fill config by source
 export const PIGGY_LEVEL = 1, PIGGY_REWARDED = 2;
 
-// Day id of the local calendar day: periodic resources and the skip counter are not UTC (isUtc false).
-// [ĐỀ XUẤT] the format YYYYMMDD (the original's TimeServiceHelper.FormatDateId is not decoded).
+// Day id of the local calendar day for the periodic resources (isUtc false), kept YYYYMMDD in save.periodic. The skip
+// counter uses SkipLevelService.GetDayId = FormatDateId "yyyy-MM-dd" [asm 0x124e998, 0x2e7b9ec] (daily.js dayKey).
 export function dayId(d = new Date()) { return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); }
 
 // Rules of the original services, on a save. `m` is the Meta (items, rewards), `d` is data/bonus.json.
@@ -87,8 +88,8 @@ export class Bonus {
 
   // ClaimReward: claims + 1, the reward through GetFallbackIfNoCardAvailable for boosters (b__20_4 [asm 0x115e4c0]),
   // then card.extra_lucky_wheel's roll (HasExtraLuckyWheel [asm 0x115e1c4]): an automatic spin, PayForSpin skipped, so
-  // the price index (claims count) moves but nothing is paid. [ĐỀ XUẤT] the extra spin grants its reward: in the
-  // original its ClaimReward finds no paid spin (progression.lucky_wheel_spin 0) and returns early [asm 0x115de58].
+  // nothing is paid. Its ClaimReward then finds no paid spin (progression.lucky_wheel_spin <= 0 [asm 0x115de58..0x115de5c])
+  // and returns with an error log [asm 0x115e0f8..0x115e114]: no claim counted, no reward, no further extra roll.
   wheelClaim(s, reward, price, rand = Math.random) {
     addQty(s, WHEEL_CLAIMS, 1);
     const got = [], cards = this.m.cards;
@@ -98,11 +99,12 @@ export class Bonus {
     return { reward, price, got, extra };
   }
 
-  // The extra spin of card.extra_lucky_wheel: free, no price.
+  // The extra spin of card.extra_lucky_wheel: the wheel turns to a picked reward, but ClaimReward exits early (above),
+  // so it grants nothing and changes nothing in the save.
   wheelFreeSpin(s, rand = Math.random) {
     const reward = this.wheelPick(s, rand);
     if (!reward) return { refused: 'empty' };
-    return this.wheelClaim(s, reward, [this.wheelPrice(s)[0], 0], rand);
+    return { reward, price: [this.wheelPrice(s)[0], 0], got: [], extra: false, empty: true };
   }
 
   // ---- Piggy bank (PiggyBankService) ----
@@ -194,12 +196,12 @@ export class Bonus {
     return Math.trunc(level < 1 ? 0 : level >= maxLevel ? max : min + step * (level - 1));
   }
 
-  skipsLeft(s, day = dayId()) { return this.skipsPerDay(s) - (s.flags[SKIPPED + day] || 0); }
+  skipsLeft(s, day = dayKey()) { return this.skipsPerDay(s) - (s.flags[SKIPPED + day] || 0); }
 
   // SkipButtonView: the skip is a rewarded ad (rewarded.skip_level), paid here with its skip ticket; then
   // SkipLevelService.SkipLevel counts it in flag.nb_levels_skipped_<day> [asm 0x124eb40..0x124eb94] and the level completes
   // (GamePlayService.SkipLevel -> CompleteLevel [asm 0x129c96c]). Older day counters are dropped (CleanDailyTokenFlags).
-  skipLevel(s, day = dayId()) {
+  skipLevel(s, day = dayKey()) {
     if (this.skipsLeft(s, day) < 1) return { refused: 'limit' };
     if (!this.payRewarded(s)) return { refused: 'tickets' };
     const key = SKIPPED + day;

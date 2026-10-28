@@ -5,7 +5,8 @@
 // art/race.webp + data/race/art.json (start markers, trophy; tools/build_race.py).
 import { NetRandom } from './level.js';
 import { PHYS } from './physics.js';
-import { SKIP_TICKETS, qty, addQty } from './meta.js';
+import { qty, addQty } from './meta.js';
+import { dayKey, playState as dailyState, payPlay } from './daily.js';
 import { artPage, spr, slice, glText, U } from './uikit.js';
 
 const ID = 'mode.tournament';
@@ -16,7 +17,7 @@ const STEP_S = 0.5;
 const DAY = 86400000;
 const R_TROPHIES = 'progression.race_trophies', R_WIN = 'leaderboard.tournament_win';
 const R_PLAYED = 'leaderboard.tournament_played', R_BEST = 'leaderboard.tournament_best_score';
-const R_LAST = 'leaderboard.tournament_last_score', R_TICKETS = 'rewarded_tickets_mode.tournament';
+const R_LAST = 'leaderboard.tournament_last_score';
 const FREE_PER_DAY = 2; // game_modes.modes[mode.tournament].maxFreeGamesPerDay
 const ME = 'Bạn';
 // Ghostable2D.alternativeMaterials = GhostMaterial (Sprites/Default, _Color alpha 0.396): replays are see-through, and
@@ -24,8 +25,8 @@ const ME = 'Bạn';
 // if square like its length unit.
 const GHOST_ALPHA = 0.396, GHOST_ROPE = 0.06 * 0.345;
 
-// [ĐỀ XUẤT] day id YYYYMMDD in local time (FormatDateId not decoded), like bonus.js
-const dayId = (ms) => { const d = new Date(ms); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); };
+// day id: FormatDateId = "yyyy-MM-dd" [asm 0x2e7b9ec] (daily.js dayKey); [ĐỀ XUẤT] local clock, the original asks the server
+const dayId = dayKey;
 const midnight = (ms) => { const d = new Date(ms); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); };
 // System.Random.Next(min, max): (int)(Sample() * (max - min)) + min
 const range = (rng, a, b) => a + Math.floor(rng.sample() * (b - a));
@@ -219,23 +220,14 @@ export function currentBoard(app, cfg, now = Date.now()) {
   return { board: new Board(cfg, st.board.start), claimed };
 }
 
-// GameModesService daily play [asm 0x1296f40, 0x12972f0, 0x1297870]: 2 free races a day, counted when a race starts,
-// in flag daily_flag_mode.tournament_free_<day>. After that each race needs a rewarded ad (maxRewardedGamesPerDay -1:
-// no limit); here, like every rewarded ad of the web build, 1 skip ticket (rewarded.default skipPrice).
-function freeKey(now) { return 'daily_flag_' + ID + '_free_' + dayId(now); }
+// GameModesService daily play (js/daily.js) [asm 0x1296f40, 0x12972f0, 0x1297870]: 2 free races a day, counted when a
+// race starts in flag daily_flag_mode.tournament_free_<yyyy-MM-dd>. After that each race needs a rewarded ad
+// (maxRewardedGamesPerDay -1: no limit); here, like every rewarded ad of the web build, 1 skip ticket (rewarded.default skipPrice).
 export function playState(save, now = Date.now()) {
-  const used = save.flags[freeKey(now)] || 0;
-  return { free: Math.max(0, FREE_PER_DAY - used), tickets: qty(save, SKIP_TICKETS) };
+  const st = dailyState(save, ID, now);
+  return { free: st.free, tickets: st.tickets };
 }
-function pay(save, now = Date.now()) {
-  const k = freeKey(now);
-  for (const f of Object.keys(save.flags)) if (f.startsWith('daily_flag_' + ID + '_free_') && f !== k) delete save.flags[f];
-  const st = playState(save, now);
-  if (st.free > 0) { save.flags[k] = (save.flags[k] || 0) + 1; return true; }
-  if (qty(save, R_TICKETS) > 0) { addQty(save, R_TICKETS, -1); return true; }
-  if (st.tickets > 0) { addQty(save, SKIP_TICKETS, -1); return true; }
-  return false;
-}
+const pay = (save, now = Date.now()) => !!payPlay(save, ID, now);
 
 async function load(app) {
   if (S) return S;
@@ -332,7 +324,7 @@ async function page(app, board, claimed) {
   const reward = (rank) => { let r = []; for (const [p, rw] of cfg.board.rewards) if (rank >= p) r = rw; return r; };
   const coinsOf = (rank) => reward(rank).find(([res]) => res === 'currency.skin_coins')?.[1] || 0;
   body.innerHTML = `<i class="tt"></i><b class="tname">Giải đua</b><b class="time">${hh}H ${mm}M</b>
-    ${claimed ? `<div class="msg">Bảng ngày ${String(claimed.day).replace(/(\d{4})(\d\d)(\d\d)/, '$3/$2')} đã đóng: bạn hạng ${claimed.rank + 1}.
+    ${claimed ? `<div class="msg">Bảng ngày ${String(claimed.day).replace(/(\d{4})-(\d\d)-(\d\d)/, '$3/$2')} đã đóng: bạn hạng ${claimed.rank + 1}.
       ${claimed.got.map((g) => (g.coins ? `+${g.coins} xu` : g.item ? 'Mở khoá ' + g.item.title : '')).filter(Boolean).join(', ') || 'Không có thưởng.'}</div>` : ''}
     <h3>Giải thưởng</h3><div class="prizes">${[1, 0, 2].map((r) => `<div class="pz p${r + 1}"><b class="n">#${r + 1}</b><i class="coin"></i>
       <span class="q">${reward(r).map(([res, q]) => (res === 'currency.skin_coins' ? 'x' + q : 'Skin mới')).join(' + ')}</span></div>`).join('')}</div>

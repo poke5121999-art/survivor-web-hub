@@ -100,6 +100,37 @@ const BOARDS = [
   check('the board state is saved for the next drop', await page.evaluate(() =>
     JSON.parse(localStorage.getItem('stickman-hook')).modes['mode.pachinko'].state.main.id === 'skin.sausage'));
 
+  // ---- GameModesService daily limit of mode.pachinko: 1 free game, then 2 rewarded (1 skip ticket each), then none
+  const day = await page.evaluate(async () => (await import('./js/daily.js')).dayKey());
+  const gate1 = await page.evaluate((day) => { const s = JSON.parse(localStorage.getItem('stickman-hook'));
+    return { free: s.flags['daily_flag_mode.pachinko_free_' + day], stDay: s.modes['mode.pachinko'].state.day }; }, day);
+  check('opening Lucky Drop from the mode list used the free game of the day (daily_flag_mode.pachinko_free_<yyyy-MM-dd> = 1), board dated today',
+    gate1.free === 1 && gate1.stDay === day && /^\d{4}-\d\d-\d\d$/.test(day), JSON.stringify({ day, ...gate1 }));
+  const reopen = async (tickets) => {
+    await page.evaluate((t) => { window.__sh.save.inv['currency.skip_tickets'] = t; window.__pachinko?.stop(); }, tickets);
+    await page.evaluate(() => window.__sh.openMode('mode.pachinko'));
+    await page.waitForSelector('#pachinko .res.on #pachinkoGo', { timeout: 10000 }).catch(() => {});
+    return page.evaluate(() => ({ dl: document.querySelector('#pachinko .res.on .dl')?.textContent,
+      btn: document.querySelector('#pachinkoGo')?.textContent, off: document.querySelector('#pachinkoGo')?.disabled }));
+  };
+  const g2 = await reopen(0);
+  await page.click('#pachinkoGo');
+  const g2b = await page.evaluate(() => ({ panel: !!document.querySelector('#pachinko .res.on #pachinkoGo') }));
+  check('the 2nd game of the day asks for a ticket: "Daily limit" 1/3, Chơi · 1 vé; with no ticket it stays on the panel',
+    g2.dl === '1/3' && g2.btn === 'Chơi · 1 vé' && !g2.off && g2b.panel, JSON.stringify({ g2, g2b }));
+  const g3 = await reopen(5);
+  await page.click('#pachinkoGo');
+  await page.waitForFunction(() => window.__pachinko && window.__pachinko.world && !document.querySelector('#pachinko .res.on'), null, { timeout: 10000 }).catch(() => {});
+  const g4 = await reopen(4);
+  await page.click('#pachinkoGo');
+  await page.waitForTimeout(200);
+  const g5 = await reopen(3);
+  const g5s = await page.evaluate((day) => ({ t: window.__sh.save.inv['currency.skip_tickets'], rew: window.__sh.save.flags['daily_flag_mode.pachinko_rewarded_' + day] }), day);
+  check('two rewarded games (1 skip ticket each: 5 -> 4, 4 -> 3) then "Daily limit" 3/3, the button off until midnight',
+    g3.dl === '1/3' && g4.dl === '2/3' && g5.dl === '3/3' && g5.off && g5.btn === 'Hết lượt' && g5s.rew === 2, JSON.stringify({ g3, g4, g5, g5s }));
+  await page.screenshot({ path: path.join(SHOTS, 'pachinko-limit.png') });
+  await page.click('#pachinkoBack');
+
   // ---- every board type, forced with ?ptype=
   for (let t = 0; t < BOARDS.length; t++) {
     const [name, want] = BOARDS[t];

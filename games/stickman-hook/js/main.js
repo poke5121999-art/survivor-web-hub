@@ -1,5 +1,5 @@
 import { buildLevel, modeData, unpackDefaults } from './level.js';
-import { forwardFocus } from './camera.js';
+import { forwardFocus, deathLimits } from './camera.js';
 import { PHYS, ST } from './physics.js';
 import { Renderer } from './render.js';
 import { readSave, writeSave, DEFAULT_EQUIP } from './save.js';
@@ -7,7 +7,7 @@ import { Meta } from './meta.js';
 import { makeCustom } from './custom.js';
 import { MODES, NORMAL } from './modes.js';
 
-const V = '?v=20261028j';
+const V = '?v=20261028k';
 const DEFAULT_ZOOM = 5, FINISH_ZOOM = 2; // CameraConfig.defaultZoom, PlayerCameraController.cameraZoomOnEndGame
 // Rope prefab: sprite scaled (1.6, 2) under its parent. [ĐỀ XUẤT] 0.2 per axis so a 167 px tile is ~0.4 wide.
 const ROPE_SCALE = [1.6 * 0.2, 2 * 0.2];
@@ -139,6 +139,7 @@ function finishLevel(forced) {
   game.camFrom = { x: cam.x, y: cam.y };
   if (forced) player.finish();
   game.reward = mode.race ? mode.race.finish(forced) : mode.def.complete(meta, save, world.index);
+  game.paid = null; // a gated mode's game ends here: playing it again goes through the daily limit
   writeSave(save);
   hud();
   skipView();
@@ -163,9 +164,10 @@ function finishLevel(forced) {
     ax: sp ? player.vx / sp : 0, ay: sp ? player.vy / sp : 1, t: 0, acc: 0 };
 }
 
+// CameraLimitsBottom / CameraLimitsLeft (camera.js deathLimits): the player's circle touches a box under or left of the frame
 function outOfCamera() {
-  const halfW = (cv.width / cv.height) * cam.zoom;
-  return player.y < cam.y - cam.zoom - 0.3 || player.x < cam.x - halfW - 0.3;
+  const d = deathLimits(cv.width / cv.height, PHYS.radius);
+  return player.y < cam.y + d.bottom || player.x < cam.x + d.left;
 }
 
 function respawn() {
@@ -290,7 +292,8 @@ function nextLevel() {
 async function loadMode(id) {
   if (loaded[id]) return loaded[id];
   const def = MODES[id];
-  const [file, P] = await Promise.all([def.file ? load('./data/mode-' + def.file + '.json') : null, def.player()]);
+  const [file, P, dl] = await Promise.all([def.file ? load('./data/mode-' + def.file + '.json') : null, def.player(), def.prepare?.()]);
+  if (dl) daily = dl;
   const d = file ? modeData(data, file, id) : data;
   return (loaded[id] = { id, def, data: d, file, Player: P, count: d.random.length ? Infinity : d.levels.length });
 }
@@ -301,7 +304,11 @@ async function openMode(id) {
   const same = mode.id === id;
   mode = await loadMode(id);
   for (const o of ['modes', 'start', 'levels']) if ($(o)) overlay(o, false);
-  if (!same) startLevel(mode.def.slot(save).level || 0);
+  if (mode.def.gate) {
+    // SeasonalEventPage: today's level only, entered through the daily limit (picker click); until then nothing is paid
+    const t = mode.def.today(meta, save);
+    if (!same || game.paid !== mode.id + ':' + world.index) { game.paid = null; startLevel(t.level >= 0 ? t.level : mode.def.slot(save).level || 0); }
+  } else if (!same) startLevel(mode.def.slot(save).level || 0);
   if (mode.def.picker) openLevels();
   hud();
 }
@@ -314,7 +321,10 @@ async function startRace(rc) {
   startLevel(rc.level);
   hud();
 }
-const restart = () => (mode.race ? openMode(mode.id) : startLevel(world.index));
+// a gated mode (events) restarts the paid game for free (the original respawns in the same game); with no game paid
+// (after the finish) it goes back to the picker and its daily limit
+const restart = () => (mode.race ? openMode(mode.id) : mode.def.gate && game.paid !== mode.id + ':' + world.index ? openLevels()
+  : startLevel(world.index));
 
 const STEP = PHYS.fixedDt;
 let acc = 0, last = 0;
@@ -676,7 +686,17 @@ function bindInput() {
   $('btnRestart').onclick = () => { initAudio(); play('button'); pause(false); restart(); };
   $('btnSound').onclick = () => { initAudio(); save.sound = !save.sound; writeSave(save); soundIcon(); play('button'); };
   $('btnLevels').onclick = () => { initAudio(); play('popup_in'); pause(false); openLevels(); };
-  $('btnClose').onclick = () => { play('popup_out'); overlay('levels', false); };
+  $('btnClose').onclick = () => {
+    play('popup_out');
+    overlay('levels', false);
+    // a gated mode's level that was not paid for is not playable: back to Normal and the home page
+    if (mode.def.gate && game.paid !== mode.id + ':' + world.index) {
+      mode = loaded[NORMAL];
+      startLevel(save.level || 0);
+      overlay('start', true);
+      hud();
+    }
+  };
   $('btnMenu').onclick = () => { initAudio(); play('popup_in'); pause(false); overlay('start', true); hud(); };
   $('btnPlay').onclick = () => { initAudio(); play('button'); overlay('start', false); };
   $('btnModes').onclick = () => openMenu('openModes');
@@ -695,6 +715,16 @@ function soundIcon() { $('btnSound').style.opacity = save.sound ? 1 : 0.45; }
 
 function modeName(id) { return meta.d.modes.find((m) => m[0] === id)?.[1] || id; }
 
+let daily = null; // js/daily.js, loaded with the first gated mode (modes.js prepare)
+// Under the picker of a gated mode (events): SeasonalEventsService.GetCanPlayState [asm 0x1180bd0] and the daily limit
+function gateNote() {
+  const t = mode.def.today(meta, save), st = daily.playState(save, mode.id);
+  if (t.all) return 'Đã nhận hết quà của sự kiện.';
+  if (t.wonToday) return `Đã nhận quà hôm nay. Màn mới sau ${daily.fmtLeft(st.msLeft)}.`;
+  const pay = st.state === 'free' ? 'miễn phí' : st.state === 'tickets' ? '1 lượt đã có' : `1 vé bỏ qua (còn ${st.tickets})`;
+  return `Hôm nay: màn ${t.level + 1} · lượt này ${pay}`;
+}
+
 // Level picker of the current mode: every level of a finite mode (locked ones greyed), else up to the next new level.
 function openLevels() {
   if (mode.race) return openMode(mode.id); // race: the tournament page
@@ -709,10 +739,23 @@ function openLevels() {
     if (done(i)) b.className = 'done';
     if (i === world.index) b.className = 'cur';
     b.disabled = !mode.def.open(meta, save, i);
-    b.onclick = () => { overlay('levels', false); play('button'); startLevel(i); };
+    b.onclick = () => {
+      if (mode.def.gate && game.paid !== mode.id + ':' + i) {
+        // GameModesService.TryPlaying (daily.js): the day's free game, else a rewarded ad = 1 skip ticket
+        const how = daily.payPlay(save, mode.id);
+        if (!how) { toast('Hết lượt miễn phí hôm nay: cần 1 vé bỏ qua (mua ở Chợ)'); return; }
+        writeSave(save);
+        if (how === 'ad') toast('Đã dùng 1 vé bỏ qua');
+        overlay('levels', false); play('button'); startLevel(i);
+        game.paid = mode.id + ':' + i;
+        return;
+      }
+      overlay('levels', false); play('button'); startLevel(i);
+    };
     g.appendChild(b);
   }
   $('levelsTitle').textContent = mode.def.picker ? modeName(mode.id) : 'Chọn màn';
+  $('levelsNote').textContent = mode.def.gate ? gateNote() : '';
   overlay('levels', true);
   g.querySelector('.cur')?.scrollIntoView({ block: 'center' });
 }

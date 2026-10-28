@@ -203,7 +203,8 @@ Theme colors per mode (camera bg, shadow, finish light, ...) are in `theme.gameM
 - Bumpers (`BumperAnimationController.Start` [asm 0x11ff9f4] → `SetType` [asm 0x11fa948]): `RangeInt(0, 4)` first (discarded), then
   `InitState(Seed + static _bumpersCount++)`, `value`, `Range`. NEUTRAL → NORMAL, GOOD → HIGH, BAD → `RangeInt(0, 2)` LOW / ONE_TIME;
   INITIAL → SAME. Bounciness NORMAL 1.3, SAME 1.0, LOW 0.5, HIGH 1.5 [asm 0x11fad94].
-- Both static counters are only reset by the class constructor, i.e. once per app launch (the web version resets them per run, [ĐỀ XUẤT]).
+- Both static counters are only reset by the class constructor, i.e. once per app launch. The web keeps them for the page session
+  (`adventure.js COUNTS`; a reload is a launch), since rev 20261028k.
 - Gravity zone:
   - `InitState(seed)`, spawns when `value < 0.15`, x = a random place inside the pattern, then `Range` then `value` for the type [asm 0x11f99d0, 0x11f9b80, 0x11f9cb8].
   - BAD → DOWN, GOOD → UP, NEUTRAL → no `SetType`: it stays UP but invisible (no render group).

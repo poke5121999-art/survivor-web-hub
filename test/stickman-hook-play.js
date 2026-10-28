@@ -291,11 +291,56 @@ function serve() {
   await page.waitForSelector('#egPage.on #egPlay', { timeout: 10000 }).catch(() => {});
   await page.click('#egPlay');
   await page.waitForTimeout(300);
-  check('Play on the end page after an event level opens event level 2', await page.evaluate(() => window.__sh.mode.id === 'mode.easter_event'
-    && window.__sh.world.index === 1));
+  // SeasonalEventsService: today's reward won -> PARTIALLY_FINISHED until tomorrow; the day's free game is spent too
+  const evDone = await page.evaluate(() => ({ picker: document.getElementById('levels').classList.contains('on'),
+    open: [...document.querySelectorAll('#grid button')].filter((b) => !b.disabled).length,
+    note: document.getElementById('levelsNote').textContent,
+    free: Object.entries(window.__sh.save.flags).find(([k]) => k.startsWith('daily_flag_mode.easter_event_free_')) }));
+  check('after winning today\'s Easter reward, Play shows the picker with no open level ("Đã nhận quà hôm nay"), free flag 1',
+    evDone.picker && evDone.open === 0 && /^Đã nhận quà hôm nay/.test(evDone.note) && evDone.free?.[1] === 1
+    && /_free_\d{4}-\d\d-\d\d$/.test(evDone.free?.[0]), JSON.stringify(evDone));
+  await page.click('#btnClose');
+  check('closing the event picker without a paid game goes back to Normal and the home page', await page.evaluate(() =>
+    window.__sh.mode.id === 'mode.normal' && document.getElementById('start').classList.contains('on')));
   const vd = await playMode('mode.valentine_day', 1);
   const valentine = await bgAt();
   check('Valentine event opens with its own theme', vd.n === 5 && valentine.theme === '#FD95B0', `${valentine.theme} ${valentine.px}`);
+  // daily.js on bare saves: GameModesService limits, FormatDateId, the seasonal one-level-a-day cycle
+  const dr = await page.evaluate(async () => {
+    const d = await import('./js/daily.js');
+    const T = new Date(2026, 9, 29, 10).getTime(), DAY = 86400000;
+    const sv = (t) => ({ flags: {}, inv: { 'currency.skip_tickets': t }, modes: {} });
+    const p = sv(2), pays = [];
+    for (let i = 0; i < 4; i++) pays.push(d.payPlay(p, 'mode.pachinko', T));
+    const pst = d.playState(p, 'mode.pachinko', T);
+    const next = d.playState(p, 'mode.pachinko', T + DAY).state;
+    d.payPlay(p, 'mode.pachinko', T + DAY);
+    const e0 = sv(0), e5 = sv(5), ep = [d.payPlay(e0, 'mode.easter_event', T), d.payPlay(e0, 'mode.easter_event', T)];
+    for (let i = 0; i < 4; i++) ep.push(d.payPlay(e5, 'mode.easter_event', T));
+    const r = sv(0), rp = [0, 1, 2].map(() => d.payPlay(r, 'mode.tournament', T));
+    const n = sv(0), np = [0, 1, 2].map(() => d.payPlay(n, 'mode.challenge', T));
+    // the event cycle: 5 rewards, none owned at T
+    const own = new Set(), owned = (i) => own.has(i), s = sv(0), ev = [];
+    ev.push(d.eventToday(s, 'mode.easter_event', 5, owned, T));
+    own.add(0); ev.push(d.eventToday(s, 'mode.easter_event', 5, owned, T + 3600000));
+    ev.push(d.eventToday(s, 'mode.easter_event', 5, owned, T + DAY));
+    own.add(1); ev.push(d.eventToday(s, 'mode.easter_event', 5, owned, T + 5 * DAY));
+    for (let i = 2; i < 5; i++) own.add(i);
+    ev.push(d.eventToday(s, 'mode.easter_event', 5, owned, T + 9 * DAY));
+    return { key: d.dayKey(T), pays, pst: [pst.state, pst.played, pst.max, p.inv['currency.skip_tickets']], next,
+      keys: Object.keys(p.flags).sort(), ep, e5t: e5.inv['currency.skip_tickets'], rp, np,
+      ev: ev.map((x) => [x.level, x.wonToday, x.all, x.days]) };
+  });
+  check('FormatDateId = "yyyy-MM-dd": 29 Oct 2026 -> 2026-10-29', dr.key === '2026-10-29', dr.key);
+  check('Lucky Drop a day: free, ad, ad (2 skip tickets -> 0), then refused: "Daily limit" 3/3; next day free again, old flags cleaned',
+    JSON.stringify(dr.pays) === '["free","ad","ad",null]' && JSON.stringify(dr.pst) === '["limit",3,3,0]' && dr.next === 'free'
+    && JSON.stringify(dr.keys) === '["daily_flag_mode.pachinko_free_2026-10-30"]', JSON.stringify(dr));
+  check('events: 1 free game a day, then 1 skip ticket per game with no daily cap (5 tickets -> 2 after 1 free + 3 ads); none without tickets',
+    JSON.stringify(dr.ep) === '["free",null,"free","ad","ad","ad"]' && dr.e5t === 2, JSON.stringify(dr.ep) + ' ' + dr.e5t);
+  check('Race: 2 free a day then a ticket; Challenge (-1/-1): always free',
+    JSON.stringify(dr.rp) === '["free","free",null]' && JSON.stringify(dr.np) === '["free","free","free"]', JSON.stringify([dr.rp, dr.np]));
+  check('event cycle: day 0 level 1, won -> done today; day 1 level 2; after 5 days a new cycle of the 3 unowned (level 3); all owned -> finished',
+    JSON.stringify(dr.ev) === '[[0,false,false,5],[0,true,false,5],[1,false,false,5],[2,false,false,3],[-1,false,true,0]]', JSON.stringify(dr.ev));
   await page.waitForTimeout(400);
   await page.screenshot({ path: path.join(SHOTS, 'valentine.png') });
 
@@ -482,7 +527,7 @@ function serve() {
   const skipped = await page.evaluate(() => { const s = window.__sh.save; return { phase: window.__sh.game.phase, best: s.best,
     t: s.inv['currency.skip_tickets'], day: Object.entries(s.flags).find(([k]) => k.startsWith('flag.nb_levels_skipped_')) }; });
   check('after a death the skip button (1/1) spends a ticket and completes level 15', sk.on && sk.text === '1/1'
-    && skipped.phase === 'finish' && skipped.best === 15 && skipped.t === 21 && skipped.day?.[1] === 1, JSON.stringify({ sk, skipped }));
+    && skipped.phase === 'finish' && skipped.best === 15 && skipped.t === 21 && skipped.day?.[1] === 1 && /^flag\.nb_levels_skipped_\d{4}-\d\d-\d\d$/.test(skipped.day?.[0]), JSON.stringify({ sk, skipped }));
   await page.evaluate(() => window.__sh.startLevel(15));
   await die();
   check('the daily skip limit holds: no skip button on the next death', await page.evaluate(() => !document.querySelector('#skip.on')
@@ -624,10 +669,11 @@ function serve() {
     const r = bonus.wheelSpin(s, () => 0);
     const free = r.extra ? bonus.wheelFreeSpin(s, () => 0.99) : null;
     delete s.inv['card.extra_lucky_wheel'];
-    return { extra: r.extra, coins: s.coins, claims: s.inv['progression.lucky_wheel_claims'] - claims, freePrice: free?.price?.[1] };
+    return { extra: r.extra, coins: s.coins, claims: s.inv['progression.lucky_wheel_claims'] - claims, freePrice: free?.price?.[1],
+      empty: free?.empty, got: free?.got.length, again: free?.extra };
   });
-  check('extra_lucky_wheel: a paid spin rolls an extra spin, the extra one is free (500 coins paid once, 2 claims)',
-    ew.extra === true && ew.coins === 0 && ew.claims === 2 && ew.freePrice === 0, JSON.stringify(ew));
+  check('extra_lucky_wheel: a paid spin rolls an extra spin; it is free and, as in the original (ClaimReward exits early), grants nothing: 500 coins once, 1 claim',
+    ew.extra === true && ew.coins === 0 && ew.claims === 1 && ew.freePrice === 0 && ew.empty === true && ew.got === 0 && ew.again === false, JSON.stringify(ew));
 
   // adventure limit cards: purchasable cap = 20 + trunc(effect): level 1 -> 28, max -> 100
   const ad = await page.evaluate(async () => {
@@ -868,16 +914,17 @@ function serve() {
   await page.screenshot({ path: path.join(SHOTS, 'adv-skills.png') });
   const ap = await page.evaluate(() => ({ skills: [...document.querySelectorAll('#adv .sk b')].map((b) => b.textContent),
     rows: document.querySelectorAll('#adv li').length, me: !!document.querySelector('#adv li.me'), road: document.querySelector('#adv .road div b')?.textContent,
-    btn: document.querySelector('#adv .sk button')?.textContent, disabled: document.querySelector('#adv .sk button')?.disabled }));
+    btn: document.querySelector('#adv .lvup')?.firstChild.textContent, disabled: document.querySelector('#adv .lvup')?.disabled,
+    perSkill: document.querySelectorAll('#adv .sk button').length }));
   check('the Adventure row opens its page: 6 skills at level 0/20 in Vietnamese, the road from 1 m, the weekly top 10 + my row',
     ap.skills.length === 6 && ap.skills[0] === 'Độ nảy · cấp 0/20' && ap.skills[3] === 'Độ dài dây · cấp 0/20' && ap.road === '1 m'
-    && ap.rows === 11 && ap.me && ap.btn === '100 xu PL' && ap.disabled, JSON.stringify(ap));
+    && ap.rows === 11 && ap.me && ap.btn === '100 xu PL' && ap.disabled && ap.perSkill === 0, JSON.stringify(ap));
   check('the Adventure code, patterns and art load only when the mode opens', ['js/adventure.js', 'js/advrun.js', 'data/mode-adventure.json',
     'art/adventure.webp'].every((f) => requested.slice(advFirst).some((u) => u.includes(f))));
   // a run on a fixed seed: the same seed gives the same patterns, zones, portals and target types; another seed differs
   const layout = () => page.evaluate(() => window.__sh.adv.run.spawned.map((s) => [s.name, s.zone && [s.zone.type, +s.zone.x.toFixed(3)],
     s.portal && [+s.portal.x.toFixed(2), +s.portal.y.toFixed(2)], s.targets.map((t) => t.type).join(''), s.bumpers.map((b) => b.type).join('')]));
-  const startAdv = (seed) => page.evaluate(async (seed) => { const m = await import('./js/adventure.js'); await m.startRun(null, { seed }); }, seed);
+  const startAdv = (seed) => page.evaluate(async (seed) => { const m = await import('./js/adventure.js'); await m.startRun(null, { seed, relaunch: true }); }, seed);
   const advPause = (v) => page.evaluate((v) => { window.__sh.adv.paused = v; }, v);
   await startAdv(1792810);
   const l1 = await layout();
@@ -889,6 +936,16 @@ function serve() {
     JSON.stringify(l1) === JSON.stringify(l2) && l1.map((s) => s[0]).join('|') === 'INITIAL000|NewEasyLow (2)'
     && JSON.stringify(l1[0][2]) === '[1.89,2.59]' && JSON.stringify(l1[1][1]) === '[1,18.874]'
     && l3.map((s) => s[0]).join('|') === 'INITIAL000|NewEasyMid (4)' && JSON.stringify(l3[1][1]) === '[0,20.835]', JSON.stringify([l1, l3]));
+  // Target._targetsCount / BumperAdventure._bumpersCount are static: zero only at app launch, so a second run of the same
+  // session seeds its targets and bumpers from where the first stopped
+  const cnt = await page.evaluate(async () => { const m = await import('./js/adventure.js');
+    await m.startRun(null, { seed: 1792810, relaunch: true });
+    const c1 = { ...window.__sh.adv.run.counts };
+    await m.startRun(null, { seed: 1792810 });
+    const r = window.__sh.adv.run;
+    return { c1, c2: { ...r.counts }, shared: r.counts === m.COUNTS }; });
+  check('adventure counters run on across runs of one session (0 only at launch): 2nd run of seed 1792810 ends at twice the 1st',
+    cnt.shared && cnt.c1.target > 0 && cnt.c2.target === 2 * cnt.c1.target && cnt.c2.bumper === 2 * cnt.c1.bumper, JSON.stringify(cnt));
   await startAdv(1792810);
   await page.waitForFunction(() => window.__sh.adv.phase === 'play' && window.__sh.adv.t > 0.4, null, { timeout: 5000 }).catch(() => {});
   await advPause(true);
@@ -901,7 +958,7 @@ function serve() {
   // gravity zones: 10 fixed steps from rest inside the zone (the frame loop paused)
   const zonePush = (seed) => page.evaluate(async (seed) => {
     const m = await import('./js/adventure.js');
-    await m.startRun(null, { seed });
+    await m.startRun(null, { seed, relaunch: true });
     const a = window.__sh.adv, r = a.run, z = r.spawned[1].zone;
     a.paused = true; a.phase = 'play';
     Object.assign(r.player, { x: z.x, y: z.y, vx: 0, vy: 0, age: 5 });
@@ -970,14 +1027,37 @@ function serve() {
   // the skill shop: 100 tokens a level (100 + 10 per 10 levels in total), rope 3 -> 4.455 m
   await page.click('#advEnd [data-act="page"]');
   await page.waitForSelector('#adv.on .sk', { timeout: 10000 });
-  await page.click('#adv .sk[data-id="rope_length"] button');
+  // one level-up button for a random upgradable skill: Random.Range(0, 6) = 3 (rope_length) with Math.random 0.51
+  await page.evaluate(() => { window.__mr = Math.random; Math.random = () => 0.51; });
+  await page.click('#adv .lvup');
+  await page.evaluate(() => { Math.random = window.__mr; });
   await page.waitForTimeout(200);
   const buy = await page.evaluate(async () => { const s = window.__sh.save, m = await import('./js/adventure.js');
-    await m.startRun(null, { seed: 1792800 });
+    await m.startRun(null, { seed: 1792800, relaunch: true });
     const rope = window.__sh.adv.run.rope;
     return { lv: s.inv['progression_adventure_skill_level.rope_length'], tok: s.inv['currency.adventure_tokens'], rope }; });
   check('buying a skill level: rope length level 1 for 100 tokens, the next run\'s rope is 4.455 m', buy.lv === 1 && buy.tok === 823
     && Math.abs(buy.rope - 4.4553) < 1e-3, JSON.stringify(buy));
+  // LevelUpRandomSkill [asm 0x126a3f4] on bare saves, and the HoldButton repeat intervals
+  const lur = await page.evaluate(async () => {
+    const m = await import('./js/adventure.js'), data = await (await fetch('./data/mode-adventure.json')).json();
+    const sv = (tok, lv = {}) => ({ inv: { 'currency.adventure_tokens': tok, ...Object.fromEntries(Object.entries(lv).map(([k, v]) => ['progression_adventure_skill_level.' + k, v])) } });
+    const a = sv(250), ra = m.levelUpRandom(data, a, () => 0.51);
+    const capped = { bounce_difficulty: 20, wind_difficulty: 20, hook_difficulty: 20, teleporter_spawn_chance: 20 };
+    const b = sv(500, capped), rb = m.levelUpRandom(data, b, () => 0.99);
+    const c = sv(99), rc = m.levelUpRandom(data, c, () => 0);
+    const all = { ...capped, rope_length: 20, firewall_difficulty: 20 };
+    const d = sv(500, all), rd = m.levelUpRandom(data, d, () => 0);
+    return { ra: [ra.id, ra.cost, a.inv['currency.adventure_tokens']], rb: [rb.id, rb.cost, b.inv['currency.adventure_tokens']],
+      rc: [rc.refused, c.inv['currency.adventure_tokens']], rd: [rd.refused, rd.cost, d.inv['currency.adventure_tokens']],
+      hold: [0, 1, 2, 3, 4, 5, 9].map((k) => +m.holdInterval(k).toFixed(3)) };
+  });
+  check('random skill level-up: 6 open -> #3 rope_length for 100 (250 -> 150); 2 open -> last = firewall_difficulty for 180 (80 levels; 500 -> 320)',
+    JSON.stringify(lur.ra) === '["rope_length",100,150]' && JSON.stringify(lur.rb) === '["firewall_difficulty",180,320]', JSON.stringify(lur));
+  check('random skill level-up refuses with 99 tokens (cost 100) and with every skill at its cap 20 (cost 220), spending nothing',
+    JSON.stringify(lur.rc) === '["tokens",99]' && JSON.stringify(lur.rd) === '["cap",220,500]', JSON.stringify(lur));
+  check('hold-to-repeat: intervals 0.6, 0.58, 0.52, 0.42, 0.28, then 0.1 s (lerp 0.6 -> 0.1 over 5 clicks, eased t^2)',
+    JSON.stringify(lur.hold) === '[0.6,0.58,0.52,0.42,0.28,0.1,0.1]', JSON.stringify(lur.hold));
   await page.evaluate(() => { window.__sh.adv.paused = true; });
   await page.click('#advPlay .btn');
   await page.waitForSelector('#advEnd.on [data-act="page"]', { timeout: 5000 });

@@ -86,4 +86,13 @@ Nguyên tắc: vẫn "nhẹ, load nhanh".
   - `[ĐỀ XUẤT]`: giá gói thẻ theo đơn giá Chợ Đen (3800 / 9800 / 49000), lượt quay thêm có thưởng (bản gốc quay mà không nhận), nhịp đếm ngược hồi sinh.
   - Lucky Drop Limit không có tác dụng trong 9.9.60 (giá trị thử không ai đọc); giới hạn lượt/ngày của Lucky Drop vẫn bỏ như trước.
   - Bài kiểm (local): `test/stickman-hook-play.js` 109/109, `test/stickman-hook-sim.js` 306/306, `test/stickman-hook-pachinko.js` 26/26 (ván rơi ô xu). Màn đầu 584 KB thô (trước 580).
-  - Việc còn lại: đẩy lên Pages, tăng `rev` trong `data/games.js` lên 20261028j, chạy bài kiểm trên Pages với `SH_URL`. Phiêu lưu nâng kỹ năng ngẫu nhiên ở bản gốc, web vẫn cho chọn.
+  - Việc còn lại: đẩy lên Pages, tăng `rev` trong `data/games.js` lên 20261028j, chạy bài kiểm trên Pages với `SH_URL`. (Nâng kỹ năng ngẫu nhiên: xong ở 20261028k.)
+- [~] Luật lối chơi còn lệch (2026-10-29, rev 20261028k, CHƯA đẩy lên Pages, CHƯA kiểm trên Pages): chi tiết ở README (địa chỉ asm), `docs/PARITY.md` mục 20261028k, `docs/PACHINKO.md`.
+  - Phiêu lưu: một nút giữ-để-lặp nâng kỹ năng ngẫu nhiên (`LevelUpRandomSkill` [asm 0x126a3f4], `HoldButton` 0.6 → 0.1 s, easing t²). Bộ đếm `_targetsCount/_bumpersCount` sống suốt phiên trang.
+  - `js/daily.js` (mới, nạp lười): `FormatDateId` = `yyyy-MM-dd`; giới hạn ngày `GameModesService` (Lucky Drop 1 + 2 vé, sự kiện 1 + vé không trần, Đua 2 + vé); vòng một màn mỗi ngày của sự kiện (`SeasonalEventState`), nhận quà hôm nay thì hết hôm nay. Bàn Lucky Drop bốc lại mỗi ngày.
+  - Vùng chết = hộp `CameraLimitsBottom/Left` (`CameraService.PlaceBorder` [asm 0x127a1b0]): 9:16 chết dưới −6.695 / trái −5.853 quanh tâm camera (`camera.js deathLimits`, bot dùng chung). Thay số `[ĐỀ XUẤT]` 0.3.
+  - Extra Lucky Wheel: lượt quay thêm không phát thưởng như bản gốc.
+  - Còn `[ĐỀ XUẤT]` luật: mở Grapple/Challenge theo XP (gốc cần nhận mốc Đường XP), thưởng sự kiện (server), đồng hồ server, giá gói vé/gói thẻ (tiền thật), heo đất chỉ lần đầu qua màn, popup booster cấp đúng cái đã hiện.
+  - Chưa làm: hạt của trail, hiệu ứng động của skin biến thể (mục 4).
+  - Bài kiểm (local): `test/stickman-hook-play.js` 119/119, `test/stickman-hook-sim.js` 307/307, `test/stickman-hook-pachinko.js` 30/30. Màn đầu 589 KB thô (trước 584).
+  - Việc còn lại: đẩy lên Pages, tăng `rev` trong `data/games.js` lên 20261028k, chạy bài kiểm trên Pages với `SH_URL`.

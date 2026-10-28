@@ -3,6 +3,7 @@
 // Rules and addresses: README "Phiêu lưu (Adventure)". Data: data/mode-adventure.json (tools/build_adventure.py).
 import { Player, PHYS } from './physics.js';
 import { NetRandom } from './level.js';
+import { deathLimits } from './camera.js';
 
 const F = Math.fround;
 const clamp01 = (v) => (v > 1 ? 1 : v < 0 ? 0 : v);
@@ -212,9 +213,9 @@ export class AdvRun {
     this.U = new URandom(0);
     this.index = 0; // AdventurePatternSpawner._index
     // Target._targetsCount, BumperAdventure._bumpersCount: static, only Start increments them, never reset after
-    // launch [asm 0x120114c, 0x11faac0]. [ĐỀ XUẤT] a run starts them at 0, as the first run after a launch does.
-    this.targetCount = 0;
-    this.bumperCount = 0;
+    // launch [asm 0x120114c, 0x11faac0]: `opts.counts` is the page's pair (adventure.js COUNTS), so a second run of the
+    // same session goes on from where the first stopped, as in the original; a page load (app launch) starts at 0.
+    this.counts = opts.counts || { target: 0, bumper: 0 };
     this.spawned = [];
     this.world = { targets: [], bumpers: [], caps: [], polys: [], finishX: Infinity };
     this.time = 0;
@@ -322,7 +323,7 @@ export class AdvRun {
   // Target.Start in Adventure [asm 0x1200e74] + TargetAdventure.SetType [asm 0x11fcc48]
   startTarget(t) {
     const U = this.U, s = this.skills.hook_difficulty, c = this.cfg.target;
-    U.init((this.seed + this.targetCount++) | 0);
+    U.init((this.seed + this.counts.target++) | 0);
     const r = U.value(), size = U.range(s.minSize, s.maxSize);
     const d = difficulty(s, biased(r, size, this.value(s.id, Math.trunc(t.x))));
     // GOOD -> SPINNING, NEUTRAL -> NORMAL, BAD -> Random.Range(0, 3) + 1: ONE_TIME / TIMED / MOVING
@@ -344,7 +345,7 @@ export class AdvRun {
   startBumper(b) {
     const U = this.U, s = this.skills.bounce_difficulty, bo = this.cfg.bounce;
     U.rangeInt(0, 4); // the initial type, overwritten by SetType below [asm 0x11ffbe8]
-    U.init((this.seed + this.bumperCount++) | 0);
+    U.init((this.seed + this.counts.bumper++) | 0);
     const r = U.value(), size = U.range(s.minSize, s.maxSize);
     const d = difficulty(s, biased(r, size, this.value(s.id, Math.trunc(b.m[4]))));
     // NEUTRAL -> NORMAL, GOOD -> HIGH_BUMP, BAD -> Random.Range(0, 2): 0 LOW_BUMP, 1 ONE_TIME
@@ -430,9 +431,9 @@ export class AdvRun {
     const [bx, by, bw, bh] = this.cfg.firewall.box, fx = this.fire.x;
     const qx = Math.max(fx + bx - bw / 2, Math.min(p.x, fx + bx + bw / 2)), qy = Math.max(by - bh / 2, Math.min(p.y, by + bh / 2));
     if (Math.hypot(p.x - qx, p.y - qy) < R) { this.die('fire'); return; }
-    // camera edges (CameraLimits), like every mode: out of the bottom or left edge while not hooked
-    const halfW = this.aspect * this.cam.zoom;
-    if (p.hooked < 0 && (p.y < this.cam.y - this.cam.zoom - 0.3 || p.x < this.cam.x - halfW - 0.3)) this.die('fall');
+    // camera edges (CameraLimitsBottom / Left, camera.js deathLimits), like every mode, while not hooked
+    const d = deathLimits(this.aspect, R);
+    if (p.hooked < 0 && (p.y < this.cam.y + d.bottom || p.x < this.cam.x + d.left)) this.die('fall');
   }
 
   // HandlePortalCollision [asm 0x129ff2c]: Random.Range(1, 3) patterns ahead, one of its spawn points, 1 unit left of it

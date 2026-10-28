@@ -21,7 +21,10 @@ Mỗi luật có `[asm 0x…]` là lệnh nó dựa vào. Chỗ nào tự đặt
 - **Loại bàn** `GetNextLevel` [asm 0x116f190]:
   - `w = progression.pachinko_main_wins`. Khi `w < 7` thì loại bàn là `w`, nên 7 loại đi lần lượt theo thứ tự.
   - Từ `w ≥ 7` thì lấy `Random.Range(0, 7)`. LOOP (7) không bao giờ ra.
-- **Giữ nguyên trạng thái** (loại bàn và 5 phần thưởng) cho tới khi trúng giải chính.
+- **Giữ nguyên trạng thái** (loại bàn và 5 phần thưởng) cho tới khi trúng giải chính hoặc hết ngày.
+  - `PachinkoState._startDate` = `FormatDateId(hôm nay)` [asm 0x116ec38]. `GetMsLeftUnsafe` trả −1 khi nó khác hôm nay [asm 0x116f3f8..0x116f440],
+    nên `WaitForPachinkoEndToReset` (chạy từ `AsyncInit`) dựng lại trạng thái sang ngày mới [asm 0x117091c, 0x1170afc]: ô xu bốc lại,
+    từ 7 lần thắng thì loại bàn cũng bốc lại. Web lưu `state.day` (rev 20261028k).
   - Trúng giải chính thì `main_wins + 1` rồi `ResetPachinkoState` [asm 0x116fb4c..0x116fb54].
   - Bản web lưu trạng thái ở `save.modes['mode.pachinko'].state` và số lần thắng ở `save.inv['progression.pachinko_main_wins']`.
 - **Giải chính** `GenerateMainReward` [asm 0x116ee44, 0x116fc88]: món **đầu tiên chưa có** trong `mainRewardOptions`, theo thứ tự danh sách.
@@ -82,9 +85,16 @@ Mỗi luật có `[asm 0x…]` là lệnh nó dựa vào. Chỗ nào tự đặt
   - Không có hệ số nhân, không có XP.
   - Bản web cấp qua `meta.grantReward` và lưu bằng `writeSave`. Vật phẩm mới thì cộng XP mở khoá của nó như mọi nơi khác trong game.
 
+**Giới hạn lượt mỗi ngày** (rev 20261028k, `js/daily.js`)
+
+- `PachinkoPage.OnPlayClickedAsync` → `GameModesService.TryPlaying("mode.pachinko")` [asm 0x117304c]: `maxFreeGamesPerDay` 1, `maxRewardedGamesPerDay` 2.
+  Lượt quảng cáo (`rewarded.play_ticket_mode_pachinko`) ở web là 1 vé bỏ qua. Hết 3 lượt thì "Daily Limit Reached" tới nửa đêm
+  (`UpdateUiAsync` [asm 0x117364c..0x11737c4], chữ `Daily limit: {đã chơi}/{1 + 2}` của `GetDailyPlayProgress` [asm 0x1297668]).
+- Web: lượt miễn phí thì vào bàn ngay; sau đó mở khung "Giới hạn hôm nay n/3" với nút "Chơi · 1 vé" hoặc "Hết lượt" và giờ còn lại.
+  Lối thử `?ptype` / `?pseed` / `?pbonus` bỏ qua giới hạn.
+
 **Không làm**
 
-- **Giới hạn lượt mỗi ngày** (1 miễn phí + 2 xem quảng cáo) và mốc thời gian reset: offline nên bỏ, chơi bao nhiêu lần cũng được.
 - **Lucky Drop Limit**: thẻ có phép thử khi dựng lại trạng thái, nhưng 9.9.60 không đọc kết quả, nên không đổi gì (README mục thẻ). Ba thẻ còn lại đã làm.
 
 ## Tự đặt `[ĐỀ XUẤT]`

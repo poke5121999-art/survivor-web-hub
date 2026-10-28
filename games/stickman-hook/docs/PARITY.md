@@ -4,6 +4,21 @@ Ngày so: 2026-10-28, chụp lại 2026-10-29. Bản web: Pages `?v=20261028f`, 
 Mỗi cặp ảnh nằm ở `shots/stickman-hook/parity/<key>.png` (web bên trái, tối đa 2 khung gốc bên phải, vùng đo viền xanh lơ).
 Số đo màu lấy từ `shots/stickman-hook/parity/report.json`. Nhãn từng cặp ở `D:/stickman-hook-ref/parity/verdicts.tsv`, cổng `parity.py check` thoát 0.
 
+## 20261028k: luật lối chơi còn lệch (2026-10-29)
+
+Không có clip gốc cho các màn dưới đây, so bằng asm (địa chỉ ở README). Ảnh web: `shots/stickman-hook/adv-skills.png`, `picker-easter_event.png`, `pachinko-limit.png`.
+
+| Chỗ | Trạng thái 20261028k |
+|---|---|
+| Phiêu lưu, nâng kỹ năng | **Đã sửa.** Một nút giữ-để-lặp nâng kỹ năng ngẫu nhiên (`LevelUpRandomSkill`, `HoldButton` 0.6 → 0.1 s); web cũ cho chọn kỹ năng |
+| Phiêu lưu, bộ đếm vật thể | **Đã sửa.** `_targetsCount` / `_bumpersCount` chỉ về 0 khi tải trang, như mở app |
+| Sự kiện | **Đã sửa.** Một màn mỗi ngày theo vòng `SeasonalEventState`, nhận quà xong thì hết hôm nay; 1 lượt miễn phí/ngày, sau đó 1 vé/lượt. Khung ngày sự kiện vẫn là server: luôn mở |
+| Lucky Drop | **Đã sửa.** 1 miễn phí + 2 quảng cáo (1 vé) mỗi ngày, rồi "hết lượt" tới nửa đêm; bàn bốc lại mỗi ngày |
+| Mã ngày | **Đã sửa.** `FormatDateId` = `yyyy-MM-dd` cho cờ bỏ qua màn, cờ lượt chơi, bảng Đua |
+| Vùng chết | **Đã sửa.** Hộp `CameraLimitsBottom/Left` của bản gốc: chết dưới tâm camera 5.05 + 0.3125 × rộng (9:16: 6.695), không còn 0.3 ngoài mép |
+| Extra Lucky Wheel | **Đã sửa.** Lượt quay thêm không phát thưởng, như bản gốc |
+| Mở chế độ / màn Challenge | Còn lệch (`[ĐỀ XUẤT]`): web mở theo XP đạt, gốc cần nhận mốc Đường XP |
+
 ## 20261028j: thẻ bài, booster, Chợ Đen (2026-10-29)
 
 Không có clip gốc của trang thẻ, popup mở booster hay Chợ Đen trong `D:/stickman-hook-ref/clips`, nên chưa có cặp gốc|web cho ba màn này.

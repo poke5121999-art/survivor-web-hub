@@ -58,9 +58,11 @@ const CSS = `
 .ac .sk small { grid-column: 1; opacity: .8; font-weight: 600; font-size: 12px; }
 .ac .sk .bar { grid-column: 1; height: 7px; border-radius: 7px; background: #0d1b2a; overflow: hidden; }
 .ac .sk .bar i { display: block; height: 100%; background: #7cff8a; }
-.ac .sk button { grid-row: 1 / span 3; grid-column: 2; border: 3px solid #0d1b2a; border-radius: 12px; background: #ffd23f;
-  color: #0d1b2a; font: 900 14px system-ui; padding: 6px 10px; cursor: pointer; min-width: 84px; }
-.ac .sk button:disabled { background: #6b7d90; color: #dfe6ee; cursor: default; }
+.ac .sk em { grid-row: 1 / span 3; grid-column: 2; font: 900 13px system-ui; font-style: normal; opacity: .85; }
+.ac .lvup { border: 3px solid #0d1b2a; border-radius: 14px; background: #ffd23f; color: #0d1b2a; font: 900 18px system-ui;
+  padding: 8px 12px; cursor: pointer; touch-action: none; user-select: none; }
+.ac .lvup small { display: block; font: 700 12px system-ui; }
+.ac .lvup:disabled { background: #6b7d90; color: #dfe6ee; cursor: default; }
 .ac ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .ac li { display: flex; gap: 8px; align-items: center; background: #1d4467; border-radius: 10px; padding: 5px 10px; }
 .ac li.me { background: #ffd23f; color: #0d1b2a; }
@@ -118,17 +120,39 @@ export function skillStatus(data, save, id, cards = S?.app?.cards) {
   return lv >= skillCap(data, save, id, cards) ? 'locked' : 'up';
 }
 
-export function buySkill(data, save, id) {
-  if (skillStatus(data, save, id) !== 'up') return { refused: 'cap' };
+// AdventureSkillsController.LevelUpRandomSkill [asm 0x126a3f4], the only way to level a skill (AdventureSkillsContainer's
+// level-up HoldButton, OnHold [asm 0x113d050..0x113d080]): tokens < cost -> "Not enough Tokens !" and nothing happens
+// [asm 0x126a4dc..0x126a504]; the candidates are the skills whose status is UPGRADABLE (FindAll(<LevelUpRandomSkill>b__15_0)
+// [asm 0x126aa5c]), none -> nothing spent [asm 0x126a590]; one is picked with UnityEngine.Random.Range(0, n) [asm 0x126a5a0],
+// the cost is paid and it gains a level [asm 0x126a63c, 0x126a660]. Then card.skill_upgrade_boost (card level >= 1, the
+// same skill still UPGRADABLE): Range(0, 1000) < trunc(effect) * 10 gives it one more level [asm 0x126a684..0x126a774].
+// `rand` = UnityEngine.Random's global stream (unseeded: Math.random).
+export function levelUpRandom(data, save, rand = Math.random) {
   const cost = upgradeCost(data, save);
   if (qty(save, TOKENS) < cost) return { refused: 'tokens', cost };
+  const ups = SKILL_IDS.filter((id) => skillStatus(data, save, id) === 'up');
+  if (!ups.length) return { refused: 'cap', cost };
+  const id = ups[Math.floor(rand() * ups.length)];
   addQty(save, TOKENS, -cost);
   addQty(save, LEVEL + id, 1);
-  // card.skill_upgrade_boost: a free level when the skill can still go up [asm 0x126a6b4..0x126a714]
-  const cards = S?.app?.cards, free = !!cards && skillStatus(data, save, id) === 'up' && cards.freeSkillLevel(save);
+  const cards = S?.app?.cards, free = !!cards && skillStatus(data, save, id) === 'up' && cards.freeSkillLevel(save, rand);
   if (free) addQty(save, LEVEL + id, 1);
-  return { cost, level: skillLevel(save, id), free };
+  return { id, cost, level: skillLevel(save, id), free };
 }
+
+// HoldButton of the level-up button (prefab ui_pages_adventure "Button"): OnPointerDown fires OnHold at once, then while
+// pressed waits lerp(initialInterval 0.6, finalInterval 0.1, easing(clamp01(counter / nbClicksToFinal 5))) s and fires
+// again, counter + 1 each time [asm 0x304064c, 0x3040830..0x30409a4]; easingCurve keys (0, 0, slope 0) and (1, 1, slope 2)
+// = t^2. While the button is not interactable (tokens < cost, UpdateView [asm 0x113bb34..0x113bb84]) it waits a frame.
+export const HOLD = { initial: 0.6, final: 0.1, clicks: 5 };
+export function holdInterval(counter) {
+  const t = Math.min(1, Math.max(0, counter / HOLD.clicks));
+  return HOLD.initial + (HOLD.final - HOLD.initial) * t * t;
+}
+// Target._targetsCount / BumperAdventure._bumpersCount: static, zero only at app launch (= page load here)
+export const COUNTS = { target: 0, bumper: 0 };
+let HELD = null, HOLD_BOUND = false; // HELD: {timer, counter}
+function releaseHold() { if (HELD) clearTimeout(HELD.timer); HELD = null; }
 
 // The week's board, claiming a finished one first (LeaderboardsService.ClaimRewards, as js/race.js): position reward,
 // adventure_win +1 when rank <= maxRankToWin, adventure_played +1. A new board resets the best-score road
@@ -247,8 +271,8 @@ function page(app, { board, claimed }) {
     const shown = id === 'rope_length' ? v.toFixed(1) + ' m' : id === 'firewall_difficulty' ? '×' + v.toFixed(2) : Math.round(v * 100) + '%';
     return `<div class="sk" data-id="${id}"><b>${SKILL_VI[id][0]} · cấp ${lv}/${cap}</b>
       <small>${SKILL_VI[id][1]} · hiện tại ${shown}</small><div class="bar"><i style="width:${(100 * lv) / cap}%"></i></div>
-      <button ${st !== 'up' || tokens < cost ? 'disabled' : ''}>${st === 'up' ? `${cost} xu PL` : st === 'locked' ? 'Cần thẻ' : 'Tối đa'}</button></div>`;
-  }).join('');
+      <em>${st === 'locked' ? 'Cần thẻ' : st === 'max' ? 'Tối đa' : ''}</em></div>`;
+  }).join('') + `<button class="lvup" ${tokens < cost ? 'disabled' : ''}>${cost} xu PL<small>Nâng một kỹ năng ngẫu nhiên · giữ để nâng liên tục</small></button>`;
   const roadCells = data.road.filter(([v]) => v >= (next ? next[0] : 0) - 100).slice(0, 12).map(([v, r]) =>
     `<div class="${v <= (save.claimed[ROAD] ?? -1) ? 'got' : ''}"><b>${v} m</b>${r.map(([res, q]) => res === TOKENS ? q + ' xu PL'
       : res === 'currency.skin_coins' ? q + ' xu' : meta.resTitle(res)).join(', ')}</div>`).join('');
@@ -267,15 +291,30 @@ function page(app, { board, claimed }) {
     </div></div>`;
   box.querySelector('.x').onclick = () => { app.play('popup_out'); app.overlay('adv', false); app.overlay('start', true); app.hud(); };
   box.querySelector('.go').onclick = () => { app.play('button'); startRun(app); };
-  for (const b of box.querySelectorAll('.sk button')) {
-    b.onclick = () => {
-      const id = b.closest('.sk').dataset.id, r = buySkill(data, save, id);
-      if (r.refused) { app.toast(r.refused === 'tokens' ? `Cần ${r.cost} xu phiêu lưu` : 'Kỹ năng đã tối đa'); return; }
-      app.play('button');
-      app.writeSave();
-      page(app, currentBoard(app));
+  const lv = box.querySelector('.lvup');
+  // one level up; false when the button is not interactable (the hold then polls each frame without counting)
+  const fire = () => {
+    if (qty(save, TOKENS) < upgradeCost(data, save)) return false;
+    const r = levelUpRandom(data, save);
+    if (r.refused) { app.toast('Mọi kỹ năng đã tới trần'); return true; }
+    app.play('button');
+    app.writeSave();
+    app.toast(`${SKILL_VI[r.id][0]} lên cấp ${r.level}${r.free ? ' (thẻ: +1 cấp miễn phí)' : ''}`);
+    page(app, currentBoard(app));
+    return true;
+  };
+  lv.onpointerdown = (e) => {
+    e.preventDefault();
+    if (HELD) return;
+    HELD = { counter: 0, timer: 0 };
+    const tick = () => {
+      if (!HELD) return;
+      if (fire()) HELD.timer = setTimeout(() => { if (HELD) { HELD.counter++; tick(); } }, holdInterval(HELD.counter) * 1000);
+      else HELD.timer = setTimeout(tick, 16);
     };
-  }
+    tick();
+  };
+  if (!HOLD_BOUND) { HOLD_BOUND = true; for (const ev of ['pointerup', 'pointercancel', 'blur']) window.addEventListener(ev, releaseHold); }
   app.overlay('adv', true);
 }
 
@@ -304,7 +343,8 @@ export async function startRun(app, opts = {}) {
   const R = new Renderer(cv, app.atlas.img, app.atlas.rects, app.atlas.fontImg, app.atlas.font);
   R.theme = app.meta.themeFor(ID, 0);
   R.resize();
-  const run = new AdvRun(S.data, { seed: opts.seed ?? board.seed, levels, aspect: cv.width / cv.height,
+  if (opts.relaunch) { COUNTS.target = 0; COUNTS.bumper = 0; } // tests: as after an app launch
+  const run = new AdvRun(S.data, { seed: opts.seed ?? board.seed, levels, aspect: cv.width / cv.height, counts: COUNTS,
     last: qty(save, R_LAST), best: qty(save, R_BEST) });
   const st = { app, run, R, cv, hold: false, raf: 0, last: 0, phase: 'spawn', t: 0, acc: 0, fx: makeFx(), ended: false };
   const down = (e) => { e.preventDefault(); cv.setPointerCapture?.(e.pointerId); st.hold = true; };

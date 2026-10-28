@@ -55,6 +55,7 @@ Chưa làm: quảng cáo (mọi nút xem quảng cáo trả 1 vé bỏ qua), VIP
 | `js/uikit.js` | Bộ dựng menu dùng chung: sheet theo màn, sprite/9-slice/tile, đơn vị tham chiếu `--u` (1334 chiều cao), chữ font game trên canvas |
 | `art/m-<màn>.webp`, `data/m-<màn>.json` | Art menu gốc theo màn: `home`, `modes`, `road`, `shop`, `tour` (`tools/build_menus.py`), nạp lười |
 | `js/bonus.js` | Luật vòng quay, heo đất, xu mỗi ngày, vé bỏ qua, bỏ qua màn; ô trang chính, nút bỏ qua, khung heo đất (nạp lười) |
+| `js/daily.js` | Mã ngày `yyyy-MM-dd`, giới hạn lượt mỗi ngày của chế độ (`GameModesService`), vòng một màn mỗi ngày của sự kiện; không DOM (nạp lười) |
 | `js/modes.js` | Bảng chế độ: nguồn màn, lớp người chơi, chỗ lưu tiến độ, luật mở màn, thưởng cuối màn, road |
 | `js/grapple.js` | Người chơi Mechanical Grapple (nạp khi mở chế độ) |
 | `js/race.js` | Đua: trang bảng xếp hạng ngày, chọn đối thủ, ghost, đếm ngược, xếp hạng, thưởng (nạp khi mở chế độ) |
@@ -167,9 +168,17 @@ Ghi chú:
 - **"STAGE n COMPLETED" xuống dòng theo bề ngang.** Hộp chữ `FinishText` rộng bằng canvas (neo 0-1), wrap Normal, cỡ 60.
   Điện thoại 9:20 rộng 600 đơn vị: "Stage 44 Completed" 613.6 nên hai dòng, "Stage 1 Completed" 562.9 nên một dòng, ở gốc cũng vậy.
 
+- **Vùng chết là hai hộp `CameraLimitsBottom` / `CameraLimitsLeft`** con của Main Camera (scene level2), chạm là chết
+  (`OnTriggerStay2D` tên bắt đầu bằng "CameraLimits" → `TryKillPlayer` [asm 0x120500c..0x12050c0]).
+  `CameraService.SetupCamera` [asm 0x127a010] đặt chúng một lần lúc nạp scene, với camera size 5 (`PlaceBorder` [asm 0x127a1b0]):
+  BoxCollider2D 1 × 1, lệch 0.6 × hướng, scale đều = rộng / 0.32 (đáy) hoặc cao / 0.32 (trái), 0.32 là `SpriteRenderer.size`;
+  tâm cách tâm camera nửa khung × (1 + `_percentageBorderMargin` 0.01) (CameraConfig: 0.01, 5, 15).
+  Mép gần của hộp nằm ngoài khung 0.1 × scale: đáy 5.05 + 0.3125 × rộng dưới tâm, trái 0.505 × rộng + 3.125.
+  Ở 9:16 người chơi (bán kính 0.1125) chết khi tâm xuống dưới −6.695 hoặc lùi quá 5.853 bên trái tâm camera (`camera.js deathLimits`, dùng cho mọi chế độ, cả Phiêu lưu).
+  Bản cũ đặt `[ĐỀ XUẤT]` 0.3 đơn vị ngoài mép, chết sớm hơn bản gốc khoảng 1.5 đơn vị.
+
 Tự đặt, có nhãn `[ĐỀ XUẤT]`:
 
-- Vùng chết: ra khỏi mép khung 0.3 đơn vị.
 - Camera lấy vận tốc của thân, không lấy hiệu vị trí như ProCamera2D, để lúc hồi sinh nhảy về đầu màn không làm camera giật.
 - Pháo giấy: Limit Velocity dampen 0.1 áp mỗi khung hình thật (60 fps), hạt chạy theo thời gian đã chậm; tốc không nhân scale 0.3.
   Đo bằng `tools/extract/confetti_sim.js`: 1 s sau vạch đám mây trải −1.0..+3.8 đơn vị theo hướng bay, clip 2019 0:09.7-0:10.0 là −0.2..+3.6.
@@ -280,9 +289,28 @@ Tự đặt, có nhãn `[ĐỀ XUẤT]`:
 
 - Màn thứ N của sự kiện tặng skin thứ N của sự kiện, theo thứ tự bảng tuỳ biến.
   - Bản gốc lấy danh sách thưởng từ server (`SeasonalEventDto.Rewards`, rỗng trong cấu hình có sẵn), mỗi ngày một phần.
-- Sự kiện mở màn sau theo thứ tự. Bản gốc mỗi ngày cho một màn (`GetLevelForToday`).
-- **Không làm giới hạn 1 lượt chơi miễn phí mỗi ngày** của sự kiện, cũng không làm khung ngày của sự kiện. Cả hai do server quyết, offline thì luôn mở.
+- Khung ngày của sự kiện do server quyết (`seasonalEvents` rỗng trong cấu hình có sẵn). Bản web để cả hai sự kiện luôn mở.
 - Grapple và Challenge mở theo XP đã đạt, không cần bấm nhận thưởng trên Đường XP.
+  Bản gốc cần đã nhận: `IsUnlocked` = số lượng `mode.<id>` trong túi > 0 [asm 0x1296ee0], `HasUnlockedLevel` so với số lượng
+  `unlocked_level_mode.challenge` [asm 0x1296b28, 0x1296d08], cả hai chỉ có khi nhận mốc Đường XP. Giữ như cũ vì bản web chưa dựng
+  `XpRoadPopup` tự hiện như bản gốc; đổi lúc này sẽ khoá chế độ của người đã đủ XP mà chưa bấm nhận.
+
+**Một màn mỗi ngày và giới hạn lượt** (rev 20261028k, `js/daily.js`, `modes.js event`, `main.js openLevels`):
+
+- Vòng sự kiện (`SeasonalEventsService.InitializeEvent` [asm 0x118066c]): trạng thái cũ giữ khi `now < EndDate` = ngày bắt đầu + số thưởng
+  ngày [asm 0x11807dc..0x118081c, 0x117fe54]. Hết hạn (hoặc chưa có) thì mở vòng mới từ 0 giờ hôm nay với các thưởng chưa có
+  (`<InitializeEvent>b__2`: `GetQuantity < 1` [asm 0x1181f6c]). Thưởng hôm nay = `rewards[(now − StartDate).Days]` [asm 0x11810b8, 0x118117c],
+  màn hôm nay = vị trí của thưởng đó trong danh sách của sự kiện (`GetLevelForToday` [asm 0x118127c]).
+- `GetCanPlayState` của sự kiện [asm 0x1180bd0]: có đủ thưởng → xong hẳn (5) [asm 0x1180c44]; đã có thưởng hôm nay → xong hôm nay (6)
+  [asm 0x1180c58]; còn lại theo giới hạn ngày của `GameModesService`. Bảng chọn màn chỉ mở màn hôm nay, ghi "Hôm nay: màn N" hoặc
+  "Đã nhận quà hôm nay. Màn mới sau …".
+- Giới hạn ngày (`GameModesService.GetCanPlayState` [asm 0x129747c], `TryPlaying` [asm 0x1297744]), số từ `game_modes`:
+  sự kiện 1 miễn phí, quảng cáo không giới hạn; Lucky Drop 1 miễn phí + 2 quảng cáo; Đua 2 miễn phí, quảng cáo không giới hạn; các chế độ khác −1/−1.
+  - Miễn phí: cờ `daily_flag_<mode>_free_<yyyy-MM-dd>` +1 (`PlayForFree` [asm 0x1297870]). Quảng cáo: `AddRewardedTicket` [asm 0x1298494]
+    rồi `PlayForRewarded` trừ vé chế độ và cộng `daily_flag_<mode>_rewarded_<ngày>` [asm 0x1297a04]. Web: 1 vé bỏ qua và chơi luôn.
+  - Cờ của ngày khác bị xoá (`CleanOldFlags` [asm 0x12964cc]).
+- Lượt sự kiện tính khi bấm màn trong bảng chọn. Chết rồi hồi sinh, phím R, "Chơi lại" trong cùng lượt không tính thêm (bản gốc hồi sinh trong cùng game).
+  Đóng bảng chọn khi chưa trả lượt thì về Normal và trang chính. `?mode=easter_event&level=N` (lối thử) bỏ qua giới hạn.
 
 ## Vòng quay, heo đất, chợ, vé bỏ qua
 
@@ -352,7 +380,9 @@ Tự đặt, có nhãn `[ĐỀ XUẤT]`:
 
 - Giá gói vé: 50 xu/vé, nên 20 vé = 1000 xu, bằng gói xu rẻ nhất (`offer.coins_1`). APK không có giá tiền của từng gói nên không quy đổi được.
 - Heo đất chỉ nạp ở lần qua màn đầu tiên, giống XP. Bản web cho chơi lại màn, bản gốc thì không.
-- Mã ngày dạng YYYYMMDD theo giờ máy. `FormatDateId` của bản gốc chưa giải.
+- Giờ máy, giờ địa phương. Bản gốc lấy ngày từ `OnlineDateService` (server).
+  `FormatDateId` đã giải: `DateTime.ToString("yyyy-MM-dd")` [asm 0x2e7b9ec]. Cờ bỏ qua màn là `flag.nb_levels_skipped_yyyy-MM-dd`
+  (`SkipLevelService.GetDayId` [asm 0x124e998]). Xu miễn phí mỗi ngày là tài nguyên định kỳ, không qua `FormatDateId`, vẫn lưu YYYYMMDD.
 - Dải quay:
   - Các ô khác lặp lại danh sách thưởng đã xáo. Ô quanh ô 45 không trùng với thưởng.
   - Bắt đầu ở ô 2 và cuộn xuống. Khung tham chiếu 750 × 1334.
@@ -438,7 +468,8 @@ Luật đọc từ mã IL2CPP:
 
 Tự đặt, có nhãn `[ĐỀ XUẤT]`:
 
-- Ngày của bảng: nửa đêm theo giờ máy, mã ngày dạng YYYYMMDD. Bản gốc lấy giờ từ server (`OnlineDateService`), và `FormatDateId` chưa giải.
+- Ngày của bảng: nửa đêm theo giờ máy. Bản gốc lấy giờ từ server (`OnlineDateService`). Mã ngày theo `FormatDateId` đã giải: `yyyy-MM-dd`
+  (`js/daily.js dayKey`), cờ lượt miễn phí `daily_flag_mode.tournament_free_<yyyy-MM-dd>`.
 - Tên ghost lấy từ 9 AI của bảng, không lấy tên người chơi. Bản gốc xáo cả 10 người, nên có thể ra chính tên mình.
 - Ghost và người chơi về trong cùng một khung hình thì ghost đứng trước (đồng hồ đua chạy trước bước vật lý của khung đó).
 - Màu dây ghost lấy màu dây mặc định (trắng). Độ rộng 0.06 × 0.345 giả định `AAL_square_mini` là hình vuông.
@@ -510,12 +541,20 @@ Luật đọc từ mã IL2CPP:
 - **Điểm**: `lastDistance = floor(max(lastDistance, x − StartingX))` [asm 0x129fa54]. Vạch "best score" / "last score" đặt ở x = điểm [asm 0x129ef5c].
 - **Kết thúc lượt** (`RegisterPendingScore` [asm 0x12680cc], `ClaimPendingScore` [asm 0x1268190]): ghi kỷ lục tuần, điểm lần trước, `progression.adventure_best_score`; mỗi mét = 1 xu phiêu lưu.
 - **Giá nâng kỹ năng** = `100 + 10 × floor(tổng cấp cả 6 kỹ năng / 10)` [asm 0x126a184]. `FULLGAME.md` cũ ghi "+10 mỗi cấp" là sai.
+- **Nâng kỹ năng ngẫu nhiên** (rev 20261028k): nút duy nhất là `HoldButton` gọi `LevelUpRandomSkill` [asm 0x113d050..0x113d080, 0x126a3f4].
+  Thiếu xu phiêu lưu thì thôi [asm 0x126a4dc..0x126a504]. Ứng viên = kỹ năng còn nâng được (`<LevelUpRandomSkill>b__15_0` [asm 0x126aa5c]),
+  không còn thì không trừ gì [asm 0x126a590]. Chọn `UnityEngine.Random.Range(0, n)` [asm 0x126a5a0], trừ giá, +1 cấp [asm 0x126a63c, 0x126a660].
+  Có thẻ Skill Upgrade Boost và kỹ năng đó còn nâng được thì `Range(0, 1000) < trunc(effect) × 10` cho thêm 1 cấp [asm 0x126a684..0x126a774].
+  - Giữ nút thì lặp: lần đầu ngay khi chạm, rồi chờ `lerp(0.6, 0.1, (đếm / 5)²)` giây (prefab: initialInterval 0.6, finalInterval 0.1,
+    nbClicksToFinal 5, easing (0,0,0)→(1,1,2) = t²) [asm 0x304064c, 0x3040830..0x30409a4]: 0.6, 0.58, 0.52, 0.42, 0.28, rồi 0.1 s.
+    Nút tắt khi thiếu xu (`UpdateView` [asm 0x113bb34..0x113bb84]), lúc đó vòng lặp chờ từng khung.
+- **Bộ đếm tĩnh** `Target._targetsCount` / `BumperAdventure._bumpersCount` chỉ về 0 khi mở app [asm 0x120114c, 0x11faac0].
+  Web giữ chúng trong `adventure.js COUNTS` suốt phiên trang (tải lại trang = mở app), nên lượt thứ hai cùng seed ra loại vật thể khác, như bản gốc.
 - **Tuần mới** xoá đường kỷ lục (`ResetProgressionRoad` [asm 0x1267e24]) và điểm tuần. Bảng `adventure`: 10000 người, 6 độ khó AI, hạng ≤ 2 tính là thắng.
 
 Tự đặt, có nhãn `[ĐỀ XUẤT]`:
 
 - Tuần bắt đầu thứ Hai 0 giờ theo giờ máy. Bản gốc lấy từ server. Bảng tuần dùng `Board` của `race.js` với thời gian chạy chậm 7 lần.
-- Bộ đếm `_targetsCount` / `_bumpersCount` về 0 mỗi lượt. Bản gốc chỉ về 0 khi mở app, nên lượt thứ hai trong cùng phiên của bản gốc ra loại vật thể khác.
 - `Target.Start` / `BumperAnimationController.Start` chạy theo thứ tự trong hierarchy, ngay sau khi sinh pattern.
 - Camera: như Normal (dẫn trước `vx × 0.2`), y khoá ở 0, không có mép phải.
 - Hạt và ánh sáng làm đơn giản: hạt lửa, tia lửa, quầng đỏ, hạt của vùng gió lấy tốc độ phát, thời gian sống, cỡ, màu từ ParticleSystem của prefab, nhưng phẳng 2D và không có Light.
@@ -580,6 +619,9 @@ Luật đọc từ mã IL2CPP:
   - `Revive` [asm 0x12097f0..0x1209a64]: điểm xuất hiện cuối cùng bên trái chỗ chết (chỉ pattern Start có, nên là đầu màn), đếm ngược `SpawnCounter`, vận tốc 0. Không tính là chết, nên không hiện nút bỏ qua.
   - Không có giới hạn "1 lần mỗi màn" trong code dù chữ của thẻ ghi vậy: mỗi lần chết lại thử.
 - **Vòng quay** `card.extra_lucky_wheel`: sau mỗi lần nhận thưởng, `Range(0, 1000) < (int)(effect × 10)` thì quay thêm một lượt tự động, không trả giá [asm 0x115e1c4..0x115e234, 0x1160b0c].
+  - Lượt thêm không phát gì (rev 20261028k, giống bản gốc): bỏ qua `PayForSpin`, nên `ClaimReward` thấy `progression.lucky_wheel_spin` ≤ 0
+    [asm 0x115de58..0x115de5c] và thoát với log lỗi [asm 0x115e0f8..0x115e114]: không đếm lần nhận, không thưởng, không thử quay thêm lần nữa.
+    Web quay bánh xe tới một món rồi báo "Lượt quay thêm không phát thưởng".
 - **Lucky Drop**:
   - `PachinkoLevelSpawner.Initialize` [asm 0x1212548..0x1212718], sau khi dựng bàn, trước khi chọn chỗ xuất hiện, trên danh sách chốt xếp từ cao xuống:
     - Extra Stickman: một lần `value() < effect / 100`, rồi `Range(0, min(n − 1, 10))`. Chữ của thẻ ghi "1-2" nhưng code chỉ một chốt.
@@ -587,7 +629,9 @@ Luật đọc từ mã IL2CPP:
   - Chốt người que (`SetAsExtraStickman` [asm 0x121b024]): sprite `PegExtra*`, 1 xu, chạm là sinh một người que phụ ở chốt, bay `10 × (cos a, sin a)` với `a = Range(45, 135)` độ, không móc được, mờ 0.5 [asm 0x12a87b8, 0x1217cec].
     Chốt biến mất ngay. Ván xong khi mọi người que đều vào ô, mỗi ô đều được tính thưởng [asm 0x12a768c, 0x12a7ff8].
   - Bumper Resistance: mỗi lần chạm khi chốt chưa biến mất, `value() < effect / 100` thì chốt đứng lại [asm 0x121b39c..0x121b4d0]. Chốt x10 vẫn tiêu một lần thử.
-  - Lucky Drop Limit: `ResetPachinkoState` thử `NextDouble() < effect / 100` vào `_bonusGamesLimit` [asm 0x116f26c], nhưng không code nào của 9.9.60 đọc giá trị này. Web lưu nó vào trạng thái Lucky Drop và không dùng.
+  - Lucky Drop Limit: `ResetPachinkoState` thử `NextDouble() < effect / 100` vào `_bonusGamesLimit` [asm 0x116f26c], nhưng không code nào của 9.9.60 đọc giá trị này
+    (`get_BonusGamesLimit` không có ai gọi; giới hạn ngày chỉ đọc `maxFreeGamesPerDay` / `maxRewardedGamesPerDay` [asm 0x1297178, 0x1297234]). Web lưu nó vào trạng thái Lucky Drop và không dùng.
+  - Giới hạn ngày của Lucky Drop (1 miễn phí + 2 quảng cáo) và bàn đổi mỗi ngày: `docs/PACHINKO.md` (rev 20261028k).
 - **Phiêu lưu**:
   - Trần mua kỹ năng = 20 + `trunc(effect)` của thẻ nâng trần tương ứng ở cấp đang có [asm 0x1269bb8..0x1269be8]: 20 khi chưa có thẻ, 28 ở cấp 1, 100 ở cấp 10. Mẫu số của công thức giá trị vẫn là 100 [asm 0x1269e50].
   - Skill Upgrade Boost: sau khi nâng, `Range(0, 1000) < trunc(effect) × 10` thì được thêm một cấp miễn phí [asm 0x126a6b4..0x126a714].
@@ -604,13 +648,11 @@ Tự đặt, có nhãn `[ĐỀ XUẤT]`:
 - **Giá gói thẻ.** Bản gốc bán `offer.boosters_1..3` bằng tiền thật, APK không có bảng nối sản phẩm với mức giá (`IAPPriceConversion` chỉ có mức → tiền địa phương).
   Web tính theo giá xu của chính config: mỗi lượt rút = chồng trung bình `(min + max) / 2` × đơn giá Chợ Đen của độ hiếm lượt đó (độ hiếm bảo đảm, hoặc trung bình theo `cardsWeight`), làm tròn 100.
   Ra 3800 xu (1 epic), 9800 (1 legendary), 49000 (5 legendary). `tools/build_cards.py booster_coins`.
-- **Lượt quay thêm của Extra Lucky Wheel phát thưởng.** Ở bản gốc, lượt tự động bỏ qua `PayForSpin`, nên `ClaimReward` thấy `progression.lucky_wheel_spin` = 0 và thoát sớm [asm 0x115de58]: quay mà không nhận gì. Web cho nhận thưởng.
 - Popup mở booster hiện và cấp đúng một nội dung. Bản gốc sinh hai lần (một để hiện, một để cấp) với lần thử độ hiếm không seed, nên có thể cấp khác cái đã hiện.
 - Đếm ngược của Cơ hội thứ hai: "3", "2", "1", "GO", mỗi chữ 0.5 s như ô xuất phát của Đua, chữ DOM đỏ #FF483E. Popup thẻ nhỏ (`SmallCardsEffectPopup`) và popup hiệu ứng (`NormalCardsEffectPopup`) rút gọn thành toast.
 - Thanh tiến độ trong popup hiện ngay trạng thái cuối, không chạy đếm từ n/2 tới n.
 - Dải giá trị dưới thẻ (`GradientHorizontalInOut`, trắng trong prefab) tô màu tối của độ hiếm.
 - Trang thẻ: khối 675 đơn vị co lại cho vừa màn hình hẹp (canvas gốc ghép theo chiều cao nên rộng chỉ ~616 đơn vị ở 390 × 844).
-- Phiêu lưu: bản gốc nâng **một kỹ năng ngẫu nhiên** (`LevelUpRandomSkill`, `Range(0, n)` [asm 0x126a5a0]). Web vẫn để người chơi chọn kỹ năng như trước; thẻ Skill Upgrade Boost thêm cấp vào kỹ năng vừa chọn.
 - Ô thẻ trong Chợ Đen: chữ "LVL n" và tên chế độ bằng chữ hệ thống trên thanh màu tối của độ hiếm.
 
 Bẫy:
@@ -619,7 +661,8 @@ Bẫy:
 - **`page_sprites.py` lấy bundle đầu tiên khớp tiền tố** và bỏ sprite trùng tên. Gói thẻ và nền nhóm thẻ trùng tên ở mọi biến thể, nên cần `booster_sprites.py`.
 - **Thẻ "x" nhân rất ít.** Cùng công thức `effect / 100 × số lượng` với thẻ "+%": Daily Coins Boost x2 trên 7 xu đua là `round(0.14)` = 0. Đúng asm, không phải lỗi.
 - **Welcome booster cho 2 thẻ Skin XP Boost, mỗi thẻ 1.** Thẻ chỉ định tính "mới" theo kho đồ, không tính thẻ vừa rút trong cùng gói.
-- **Mã tuần / ngày của bộ đếm dùng `yyyy-MM-dd`**, khác mã ngày YYYYMMDD của vé bỏ qua (`bonus.js dayId`). Hai hệ đếm độc lập, giữ đúng từng chỗ.
+- **Mọi mã ngày của bản gốc là `FormatDateId` = `yyyy-MM-dd`** (bộ đếm thẻ, bỏ qua màn, cờ lượt chơi của chế độ, Lucky Drop).
+  Riêng xu miễn phí mỗi ngày (`periodic_resources`) không qua hàm này, `bonus.js dayId` vẫn là YYYYMMDD.
 
 ## Bẫy đã sập
 
@@ -738,9 +781,21 @@ Phần thẻ bài (`js/cards.js`, `js/cardsui.js`):
 - Cấp thẻ: 0/1/30/31/271 thẻ skip = cấp 0/1/1/2/10. Popup cấp đúng thứ đã hiện. Trang thẻ: 7 nhóm, 33 thẻ, 29 khoá, perk 4/330.
 - Hiệu ứng: skip cấp 2 cho nút "2/2". Second Chance tối đa (25 %, Random 0) hồi sinh ở đầu màn với đếm ngược, không tính chết.
   Finish Line XP cấp 1: màn Normal +11 XP. Daily Coins Boost Đua tối đa: +2 trên 100 xu, rồi 0. Shop Free Coins cấp 1: 22 xu.
-  Extra Lucky Wheel: một lượt trả 500 xu được thêm lượt miễn phí. Rope Length Limit Boost: trần 20 → 28 → 100. Perk 13 nhận Stick Viking.
+  Extra Lucky Wheel: một lượt trả 500 xu được thêm lượt quay miễn phí không phát thưởng (1 lần nhận). Rope Length Limit Boost: trần 20 → 28 → 100. Perk 13 nhận Stick Viking.
 - Chợ Đen: 3 món + 3 thẻ, hết lượt ở mốc 6 giờ giờ máy. Mua thẻ trừ đơn giá × số thẻ, mua lại bị từ chối. Mua món trả giá cố định.
 - Lucky Drop bàn 4 seed 3 với thẻ tối đa: 2 chốt x10, 1 chốt người que (chạm ra người que phụ 10 m/s bay lên), Bumper Resistance giữ chốt khi thử 0.1.
+
+Phần luật theo ngày và Phiêu lưu (rev 20261028k):
+
+- `daily.js`: 29/10/2026 → `2026-10-29`. Lucky Drop: miễn phí, vé, vé, rồi từ chối (3/3); hôm sau miễn phí lại, cờ cũ bị xoá.
+  Sự kiện: 1 miễn phí rồi 1 vé mỗi lượt, không trần. Đua 2 miễn phí rồi vé. Challenge luôn miễn phí.
+- Vòng sự kiện 5 thưởng: ngày 0 màn 1, nhận xong thì hết hôm nay, ngày 1 màn 2, sau 5 ngày vòng mới với 3 thưởng chưa có (màn 3), có đủ thì xong hẳn.
+- Trong trình duyệt: nhận quà Easter hôm nay rồi thì bảng chọn không mở màn nào; đóng bảng thì về Normal. Cờ bỏ qua màn dạng `yyyy-MM-dd`.
+- Nâng kỹ năng ngẫu nhiên: 6 kỹ năng mở, Random 0.51 → Độ dài dây, 100 xu; 2 kỹ năng mở → kỹ năng cuối, 180 xu (80 cấp);
+  thiếu xu hoặc mọi kỹ năng ở trần thì không trừ gì. Khoảng lặp khi giữ: 0.6, 0.58, 0.52, 0.42, 0.28, 0.1 s.
+- Bộ đếm vật thể Phiêu lưu chạy tiếp sang lượt sau trong cùng phiên (lượt 2 cùng seed kết thúc ở gấp đôi lượt 1).
+- `test/stickman-hook-pachinko.js`: lượt đầu từ trang Chế độ dùng lượt miễn phí, lượt 2 cần vé (1/3), 2 lượt vé rồi "Hết lượt" (3/3).
+- `test/stickman-hook-sim.js`: vùng chết ở 9:16 là −6.695 / −5.853 quanh tâm camera; bot dùng chung `camera.js deathLimits`.
 
 Phần HUD và về đích: chỉ có nút pause trong màn; về đích giữ tư thế FINISHED và ẩn nút pause; màn heo đất toàn màn hình rồi trang kết thúc; nút Play mở màn sau; pause dừng màn.
 Ảnh chụp nằm ở `shots/stickman-hook/`.
@@ -748,5 +803,5 @@ Phần HUD và về đích: chỉ có nút pause trong màn; về đích giữ t
 ## Tăng số bản
 
 Đổi mọi `?v=` trong `index.html`, `js/main.js` (hằng `V`) và ba `import()` có `?v=` trong `js/modes.js` (`pachinko.js`, `race.js`, `adventure.js`), rồi đổi `rev` trong `data/games.js` cho trùng.
-Bản hiện tại: `20261028j`. `js/pachinko.js` có `PV` riêng (`20261028d`) cho ảnh của nó.
+Bản hiện tại: `20261028k`. `js/pachinko.js` có `PV` riêng (`20261028d`) cho ảnh của nó.
 Module JS mới phải có dòng trong importmap của `index.html`, kể cả module chỉ nạp động (`menus.js`, `fx.js`, `cards.js`, `cardsui.js`).

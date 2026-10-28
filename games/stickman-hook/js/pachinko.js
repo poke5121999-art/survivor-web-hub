@@ -4,6 +4,9 @@
 // The board is the camera view, like PachinkoLevelSpawner.Initialize (ViewportToWorldPoint (0,0) and (1,1)).
 import { Player, PHYS, ST } from './physics.js';
 import { Renderer } from './render.js';
+import { dayKey, playState as dailyState, payPlay, fmtLeft } from './daily.js';
+
+const ID = 'mode.pachinko';
 
 const PV = '?v=20261028d';
 const DEG = Math.PI / 180;
@@ -317,9 +320,34 @@ export async function open(app) {
   const q = new URLSearchParams(location.search);
   // test hooks: ?ptype= forces a board type (not saved), ?pseed= seeds Random, ?pbonus= marks N pegs as x10 like the card
   const num = (k) => (q.has(k) ? +q.get(k) : null);
-  live = new Session(app, root, cv, res, num('ptype'), num('pseed'), num('pbonus') || 0);
-  exit.onclick = () => { app.play('popup_out'); live.close(); };
-  return live;
+  const leave = () => { app.overlay('pachinko', false); app.overlay('start', true); app.hud(); };
+  exit.onclick = () => { app.play('popup_out'); if (live) live.close(); else leave(); };
+  const start = () => (live = new Session(app, root, cv, res, num('ptype'), num('pseed'), num('pbonus') || 0));
+  // the test hooks skip the daily limit, like they skip saving the board type
+  if (['ptype', 'pseed', 'pbonus'].some((k) => q.has(k))) return start();
+  // PachinkoPage.OnPlayClickedAsync -> GameModesService.TryPlaying("mode.pachinko") [asm 0x117304c]: 1 free game a day,
+  // then 2 rewarded ads a day (rewarded.play_ticket_mode_pachinko; here 1 skip ticket each), then "Daily Limit Reached"
+  // until midnight (UpdateUiAsync [asm 0x117364c..0x11737c4], daily.js).
+  const st = dailyState(app.save, ID);
+  if (st.state === 'free') { payPlay(app.save, ID); app.writeSave(); return start(); }
+  const limit = st.state === 'limit';
+  res.innerHTML = `<div class="card"><h2>Lucky Drop</h2>
+    <div class="row2"><span>Giới hạn hôm nay</span><b class="dl">${st.played}/${st.max}</b></div>
+    ${limit ? `<div class="it">Hết lượt hôm nay. Mở lại sau ${fmtLeft(st.msLeft)}.</div>`
+      : `<div class="it">Đã dùng lượt miễn phí hôm nay. Lượt thêm: 1 vé bỏ qua (còn ${st.tickets}).</div>`}
+    <button class="big" id="pachinkoGo"${limit ? ' disabled' : ''}>${limit ? 'Hết lượt' : 'Chơi · 1 vé'}</button>
+    <button class="big" id="pachinkoBack">Về trang chính</button></div>`;
+  res.classList.add('on');
+  res.querySelector('#pachinkoBack').onclick = () => { app.play('popup_out'); leave(); };
+  res.querySelector('#pachinkoGo').onclick = () => {
+    if (!payPlay(app.save, ID)) { app.toast('Cần 1 vé bỏ qua (mua ở Chợ)'); return; }
+    app.writeSave();
+    app.play('button');
+    res.classList.remove('on');
+    res.innerHTML = '';
+    start();
+  };
+  return null;
 }
 
 class Session {
@@ -762,7 +790,7 @@ const outSine = (t) => Math.sin((t * Math.PI) / 2);
 const END_DELAY = 1.0; // [ĐỀ XUẤT] result panel after the stickman settles in the bucket
 
 // ---- service: level type and rewards (PachinkoService) ----------------------------------------------------------------
-// The state (board type + bucket rewards) is kept until the main prize is won (WinRewards -> ResetPachinkoState
+// The state (board type + bucket rewards) is kept until the main prize is won or the day ends (WinRewards -> ResetPachinkoState
 // [asm 0x116fb4c..0x116fb54]), so the same board comes back after a coin bucket. Saved in save.modes['mode.pachinko'].
 const MAIN_WINS = 'progression.pachinko_main_wins';
 
@@ -777,7 +805,10 @@ function weighted(rnd, list, w) {
 
 function pachinkoState(app, rnd) {
   const { meta, save } = app, slot = slotOf(save);
-  if (slot.state) return slot.state;
+  // PachinkoState._startDate = FormatDateId(today) [asm 0x116ec38]; GetMsLeftUnsafe is -1 once it is not today
+  // [asm 0x116f3f8..0x116f440], so WaitForPachinkoEndToReset (AsyncInit) rebuilds the state on a new day
+  // [asm 0x117091c, 0x1170afc]: the coin buckets (and from 7 main wins the board type) are rolled again every day.
+  if (slot.state && slot.state.day === dayKey()) return slot.state;
   // GetNextLevel [asm 0x116f190]: main wins 0..6 walk the 7 types in order, then Random.Range(0, 7). LOOP never comes.
   const wins = save.inv?.[MAIN_WINS] || 0;
   const level = wins < 7 ? wins : rangeI(rnd, 0, 7);
@@ -792,7 +823,7 @@ function pachinkoState(app, rnd) {
   const main = it ? { id: it.id, qty: 1 } : sec[sec.length - 1];
   // ResetPachinkoState also rolls GetBonusGamesLimit (card.pachinko_lucky_drop_limit: System.Random NextDouble <
   // effect / 100 -> 1) into PachinkoState._bonusGamesLimit [asm 0x116ed48, 0x116f26c]. No code of 9.9.60 reads it.
-  slot.state = { level, main, sec, bonusGames: app.cards ? app.cards.bonusGames(save) : 0 };
+  slot.state = { day: dayKey(), level, main, sec, bonusGames: app.cards ? app.cards.bonusGames(save) : 0 };
   app.writeSave();
   return slot.state;
 }

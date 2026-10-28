@@ -38,7 +38,7 @@ function rng(seed) {
   const { buildLevel, patternNames, NetRandom, modeData } = await import(pathToFileURL(path.join(GAME, 'js/level.js')));
   const { Player, PHYS } = await import(pathToFileURL(path.join(GAME, 'js/physics.js')));
   const { GrapplePlayer } = await import(pathToFileURL(path.join(GAME, 'js/grapple.js')));
-  const { forwardFocus } = await import(pathToFileURL(path.join(GAME, 'js/camera.js')));
+  const { forwardFocus, deathLimits } = await import(pathToFileURL(path.join(GAME, 'js/camera.js')));
   const json = (f) => JSON.parse(fs.readFileSync(path.join(GAME, 'data', f), 'utf8'));
   const data = json('levels.json');
   let pass = 0, fail = 0;
@@ -51,6 +51,10 @@ function rng(seed) {
   const dt = PHYS.fixedDt;
   const ASPECT = 9 / 16; // portrait phone: the narrowest camera, so the strictest left-edge death
   const halfW = ASPECT * 5;
+  // CameraLimitsBottom / Left as in main.js (camera.js deathLimits; the camera y stays 0)
+  const DEATH = deathLimits(ASPECT, PHYS.radius);
+  check('CameraLimits at 9:16: the player (r 0.1125) dies 6.695 below / 5.853 left of the camera centre (frame edges 5 / 2.8125)',
+    Math.abs(DEATH.bottom + 6.6953125) < 1e-6 && Math.abs(DEATH.left + 5.853125) < 1e-6, JSON.stringify(DEATH));
   const clone = (p) => Object.assign(Object.create(Object.getPrototypeOf(p)), p);
 
   // Runs one swing from a free-flying state: wait until the nearest target ahead is within `gate`, hold, release
@@ -91,7 +95,7 @@ function rng(seed) {
       t += dt;
       if (ev.finished) return { done: true, t };
       camX = clamp(p.x + forwardFocus(ff, p.vx, 2 * halfW, dt));
-      if (p.hooked < 0 && (p.y < -5.3 || p.x < camX - halfW - 0.3)) return null;
+      if (p.hooked < 0 && (p.y < DEATH.bottom || p.x < camX + DEATH.left)) return null;
     }
     return null;
   }

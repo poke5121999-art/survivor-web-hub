@@ -35,3 +35,17 @@ export function forwardFocus(ff, speed, width, dt) {
   ff.h = smoothDamp(ff.h, target, ff, FOCUS_SMOOTH, dt);
   return ff.h;
 }
+
+// Death zones. LoadingSceneLogic.AfterSceneLoaded -> CameraService.SetupCamera [asm 0x127a010] with the scene camera's
+// orthographicSize 5: width w = 10 x aspect, height h = 10. PlaceBorder [asm 0x127a1b0] sizes the two children of the
+// camera, CameraLimitsBottom (mask down) and CameraLimitsLeft (mask left): BoxCollider2D 1 x 1, offset 0.6 x mask
+// [asm 0x127a290..0x127a2d0], uniform scale |w / 0.32| (bottom) or |h / 0.32| (left), 0.32 = the SpriteRenderer size
+// [asm 0x127a31c..0x127a394], centre at mask x (w or h) / 2 x (1 + _percentageBorderMargin 0.01) from the camera
+// [asm 0x127a3ec..0x127a460] (CameraConfig in resources.assets: 0.01, 5, 15). So each box's near edge lies 0.1 x scale
+// beyond the frame: bottom 5.05 + 0.3125 w below the centre, left 0.505 w + 3.125 left of it. OnTriggerStay2D with a
+// "CameraLimits*" collider kills (TryKillPlayer [asm 0x120500c..0x12050c0]): the player's circle (radius r) touches it.
+export const LIMITS = { size: 5, margin: 0.01, sprite: 0.32, offset: 0.6 };
+export function deathLimits(aspect, r) {
+  const h = 2 * LIMITS.size, w = h * aspect, k = 1 + LIMITS.margin, out = LIMITS.offset - 0.5;
+  return { bottom: -(h / 2 * k + out * w / LIMITS.sprite) + r, left: -(w / 2 * k + out * h / LIMITS.sprite) + r };
+}

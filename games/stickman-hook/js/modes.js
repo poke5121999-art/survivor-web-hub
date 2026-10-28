@@ -8,9 +8,15 @@
 //   picker    opening the mode shows its level picker
 //   launch(app)  a mode with its own screen (Pachinko, the Race page): main.js openMode calls it instead of loading levels
 // The unlock threshold of each mode is data (meta.d.modes), and so are the theme colours (Meta.themeFor).
-// Not reproduced: the events' one free game per day and their date window (both server-driven).
+//   gate      starting a level goes through the mode's daily play limit (daily.js payPlay, main.js openLevels)
+// Not reproduced: the events' date window and reward list (server-driven): both events are always on.
 import { Player } from './physics.js';
 import { XP_ROAD, CHALLENGE_LEVELS } from './meta.js';
+import { owns } from './save.js';
+
+// js/daily.js (day limits, event cycle) loads with the first gated mode: main.js loadMode awaits its prepare()
+let D = null;
+const loadDaily = () => (D ? Promise.resolve(D) : import('./daily.js').then((m) => (D = m)));
 
 export const NORMAL = 'mode.normal';
 
@@ -27,8 +33,17 @@ function mode(id, def) {
   };
 }
 
+// Seasonal event: one level a day (SeasonalEventsService cycle, daily.js eventToday), none once today's reward is won
+// or every reward is owned; each game needs the day's free play or 1 skip ticket (maxFreeGamesPerDay 1).
+// [ĐỀ XUẤT] reward i = the event's i-th skin (customization table order), see Meta.modeLevelComplete.
 function event(id, hud) {
-  return mode(id, { file: 'seasonal', hud, road: null, reward: 'seasonal_event_' + id.replace('.', '_') });
+  const reward = 'seasonal_event_' + id.replace('.', '_');
+  const today = (m, s, now) => {
+    const its = m.items.filter((o) => o.unlock === reward);
+    return D.eventToday(s, id, its.length, (i) => owns(s, its[i].kind, its[i].name), now);
+  };
+  return mode(id, { file: 'seasonal', hud, road: null, reward, today, gate: true, prepare: loadDaily,
+    open: (m, s, i) => { const t = today(m, s); return !t.all && !t.wonToday && i === t.level; } });
 }
 
 export const MODES = {
@@ -48,14 +63,14 @@ export const MODES = {
   'mode.easter_event': event('mode.easter_event', 'easter'),
   'mode.valentine_day': event('mode.valentine_day', 'valentine'),
   // Lucky Drop: its own engine and screen (js/pachinko.js, loaded on open). No levels; unlock rule stays meta.d.modes.
-  'mode.pachinko': { launch: (app) => import('./pachinko.js?v=20261028j').then((p) => p.open(app)) },
+  'mode.pachinko': { launch: (app) => import('./pachinko.js?v=20261028k').then((p) => p.open(app)) },
   // Adventure: the endless run against the firewall, its page and meta (js/adventure.js + js/advrun.js, loaded on open)
-  'mode.adventure': { launch: (app) => import('./adventure.js?v=20261028j').then((a) => a.open(app)) },
+  'mode.adventure': { launch: (app) => import('./adventure.js?v=20261028k').then((a) => a.open(app)) },
   // Race (Tournament): Normal physics on the 21 Tournament maps against 4 recorded ghosts. Opening it shows the
   // tournament page of js/race.js (loaded on open), which starts each race through main.js startRace. Rewards are
   // trophies and coins by placement (race.js), no XP: the base GiveEndGameRewards is empty [asm 0x28d84f8].
   'mode.tournament': {
     file: 'race', hud: 'race', picker: false, player: () => Player, slot: modeSlot('mode.tournament'), open: () => true,
-    complete: () => ({ xp: 0, got: [] }), launch: (app) => import('./race.js?v=20261028j').then((r) => r.open(app)),
+    complete: () => ({ xp: 0, got: [] }), launch: (app) => import('./race.js?v=20261028k').then((r) => r.open(app)),
   },
 };

@@ -715,7 +715,8 @@ export async function openWheel(app) {
         app.play('popup_in');
         app.applyEquip();
         app.hud();
-        app.toast('Nhận: ' + meta.resTitle(s.r.reward.res) + (s.r.got.some((x) => x.later) ? ' (sắp có ở bản web)' : ''));
+        app.toast(s.r.empty ? 'Lượt quay thêm không phát thưởng (như bản gốc)'
+          : 'Nhận: ' + meta.resTitle(s.r.reward.res) + (s.r.got.some((x) => x.later) ? ' (sắp có ở bản web)' : ''));
         refresh();
         if (s.r.extra) setTimeout(() => { if (document.getElementById('wheel')?.classList.contains('on')) extraSpin(); }, 1200);
       }
