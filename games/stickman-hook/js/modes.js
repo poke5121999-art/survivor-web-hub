@@ -48,12 +48,12 @@ export const MODES = {
   'mode.easter_event': event('mode.easter_event', 'easter'),
   'mode.valentine_day': event('mode.valentine_day', 'valentine'),
   // Lucky Drop: its own engine and screen (js/pachinko.js, loaded on open). No levels; unlock rule stays meta.d.modes.
-  'mode.pachinko': { launch: (app) => import('./pachinko.js?v=20261028e').then((p) => p.open(app)) },
+  'mode.pachinko': { launch: (app) => import('./pachinko.js?v=20261028f').then((p) => p.open(app)) },
   // Race (Tournament): Normal physics on the 21 Tournament maps against 4 recorded ghosts. Opening it shows the
   // tournament page of js/race.js (loaded on open), which starts each race through main.js startRace. Rewards are
   // trophies and coins by placement (race.js), no XP: the base GiveEndGameRewards is empty [asm 0x28d84f8].
   'mode.tournament': {
     file: 'race', hud: 'race', picker: false, player: () => Player, slot: modeSlot('mode.tournament'), open: () => true,
-    complete: () => ({ xp: 0, got: [] }), launch: (app) => import('./race.js?v=20261028e').then((r) => r.open(app)),
+    complete: () => ({ xp: 0, got: [] }), launch: (app) => import('./race.js?v=20261028f').then((r) => r.open(app)),
   },
 };

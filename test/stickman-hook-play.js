@@ -96,6 +96,7 @@ function serve() {
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('stickman-hook') || '{}'));
   check('progress saved (best level 1)', saved.best === 1, `best ${saved.best}`);
   check('level 1 gives +10 XP', saved.xp === 10, `xp ${saved.xp}`);
+  await page.waitForFunction(() => window.__sh.look.dance?.id === 'skin.basic', null, { timeout: 10000 }).catch(() => {});
   check('finish plays the skin dance clip', await page.evaluate(() => window.__sh.look.dance?.id === 'skin.basic'));
   // piggy bank: a Normal level's first completion fills it by fillConfigs[threshold 0].levelComplete = 10
   await page.waitForSelector('#piggy.on', { timeout: 10000 }).catch(() => {});
@@ -153,6 +154,7 @@ function serve() {
   await page.waitForTimeout(300);
   await page.screenshot({ path: path.join(SHOTS, 'road.png') });
   await page.click('#road .foot .big');
+  await page.waitForFunction(() => window.__sh.save.coins === 150, null, { timeout: 10000 }).catch(() => {});
   const road = await page.evaluate(() => ({ ropes: window.__sh.save.owned.ropes, claimed: window.__sh.save.claimed['progression.xp'],
     coins: window.__sh.save.coins }));
   check('XP road claim grants its rewards', road.ropes.includes('spiders') && road.claimed >= 275 && road.coins === 150, JSON.stringify(road));

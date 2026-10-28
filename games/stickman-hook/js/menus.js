@@ -307,7 +307,7 @@ function startPreview(app, canvas, state) {
 export async function openRoad(app) {
   const { meta, save, custom } = app;
   const sheet = sheetOverlay(app, 'road', 'Đường XP');
-  sheet.insertAdjacentHTML('beforeend', '<div class="scroll">Đang tải…</div><div class="foot"><span class="sum"></span><button class="big">Nhận thưởng</button></div>');
+  sheet.insertAdjacentHTML('beforeend', '<div class="scroll">Đang tải…</div><div class="foot"><span class="sum"></span><button class="big" disabled>Nhận thưởng</button></div>');
   const list = sheet.querySelector('.scroll'), btn = sheet.querySelector('.foot .big'), sum = sheet.querySelector('.sum');
   const icons = await custom.icons();
 
