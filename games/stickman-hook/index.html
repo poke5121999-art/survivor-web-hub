@@ -3,26 +3,28 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#008ec5">
+<meta name="theme-color" content="#00b4fc">
 <link rel="icon" href="../../assets/favicon.svg">
 <title>Stickman Hook</title>
-<link rel="preload" href="./data/levels.json?v=20261028a" as="fetch" crossorigin>
-<link rel="preload" href="./art/atlas.webp?v=20261028a" as="image">
+<link rel="preload" href="./data/levels.json?v=20261028b" as="fetch" crossorigin>
+<link rel="preload" href="./art/atlas.webp?v=20261028b" as="image">
 <style>
-  html, body { margin: 0; height: 100%; background: #008ec5; overflow: hidden; touch-action: none;
+  html, body { margin: 0; height: 100%; background: #00b4fc; overflow: hidden; touch-action: none;
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
-  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  #cv { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
   .ui { position: fixed; z-index: 2; font: 700 15px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif; color: #fff; }
   .btn { width: 46px; height: 46px; border-radius: 14px; border: 3px solid #0d1b2a; background: #fff; color: #0d1b2a;
     font-size: 22px; font-weight: 900; display: grid; place-items: center; cursor: pointer; box-shadow: 0 4px 0 #0d1b2a; }
   .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #0d1b2a; }
   #tl { top: max(12px, env(safe-area-inset-top)); left: 12px; display: flex; gap: 10px; }
+  #tl2 { top: calc(max(12px, env(safe-area-inset-top)) + 58px); left: 12px; }
   #tr { top: max(12px, env(safe-area-inset-top)); right: 12px; display: flex; gap: 10px; }
-  #levels { inset: 0; background: rgba(0, 40, 70, .82); display: none; align-items: center; justify-content: center; }
-  #levels.on { display: flex; }
-  #levels .panel { background: #fff; color: #0d1b2a; border: 4px solid #0d1b2a; border-radius: 22px; padding: 16px;
-    width: min(92vw, 560px); max-height: 80vh; display: flex; flex-direction: column; gap: 12px; }
-  #levels h2 { margin: 0; font-size: 20px; text-align: center; }
+  .overlay { inset: 0; display: none; z-index: 3; }
+  .overlay.on { display: flex; }
+  #levels { background: rgba(0, 40, 70, .82); align-items: center; justify-content: center; }
+  .panel { background: #fff; color: #0d1b2a; border: 4px solid #0d1b2a; border-radius: 22px; padding: 16px;
+    width: min(92vw, 560px); max-height: 80vh; display: flex; flex-direction: column; gap: 12px; box-sizing: border-box; }
+  .panel h2 { margin: 0; font-size: 20px; text-align: center; }
   #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 8px; overflow: auto; padding: 4px; }
   #grid button { height: 46px; border-radius: 12px; border: 3px solid #0d1b2a; background: #ffd23f; font: 900 16px system-ui;
     color: #0d1b2a; cursor: pointer; }
@@ -32,6 +34,32 @@
   #hint { left: 0; right: 0; bottom: max(28px, env(safe-area-inset-bottom)); text-align: center; pointer-events: none;
     text-shadow: 0 2px 0 #0d1b2a; font-size: 17px; transition: opacity .4s; }
   #loading { inset: 0; display: grid; place-items: center; font-size: 18px; }
+  #start { background: rgba(0, 40, 70, .45); flex-direction: column; align-items: center; justify-content: space-between;
+    padding: max(14px, env(safe-area-inset-top)) 14px max(30px, env(safe-area-inset-bottom)); box-sizing: border-box; }
+  .top { width: min(100%, 560px); display: flex; gap: 10px; align-items: center; }
+  .pill { display: flex; align-items: center; gap: 6px; background: #0d1b2a; border-radius: 99px; padding: 4px 12px 4px 4px; }
+  .ico { display: inline-block; width: 30px; height: 30px; background-repeat: no-repeat; flex: none; }
+  .xpbar { flex: 1; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 2px 8px; position: relative;
+    background: #0d1b2a; color: #fff; border: 0; border-radius: 16px; padding: 4px 12px 6px 4px; font: inherit; cursor: pointer; }
+  .xpbar .ico { grid-row: span 2; }
+  .xpbar .bar { grid-column: 2 / 4; height: 9px; border-radius: 9px; background: #23415e; overflow: hidden; }
+  #xpfill { display: block; height: 100%; width: 0; background: #7ee0ff; }
+  #xptext { font-size: 12px; opacity: .8; }
+  .badge { position: absolute; top: -6px; right: -6px; background: #ff5a5f; border-radius: 99px; min-width: 20px; height: 20px;
+    font-size: 13px; display: grid; place-items: center; border: 2px solid #fff; }
+  .title { font: 900 clamp(34px, 11vw, 64px)/1 system-ui, sans-serif; text-align: center; text-shadow: 0 5px 0 #0d1b2a;
+    letter-spacing: 1px; margin-top: 12vh; }
+  .menu { display: flex; flex-direction: column; align-items: center; gap: 14px; width: min(100%, 360px); }
+  .big, .mid { border: 4px solid #0d1b2a; border-radius: 20px; font: 900 26px system-ui, sans-serif; color: #0d1b2a;
+    background: #ffd23f; box-shadow: 0 6px 0 #0d1b2a; cursor: pointer; width: 100%; padding: 12px; }
+  .big small { display: block; font-size: 15px; opacity: .7; }
+  .mid { font-size: 18px; background: #fff; padding: 10px; }
+  .big:active, .mid:active { transform: translateY(4px); box-shadow: 0 2px 0 #0d1b2a; }
+  .row { display: flex; gap: 12px; width: 100%; }
+  body.menu #tl, body.menu #tl2, body.menu #tr, body.menu #hint { visibility: hidden; }
+  #toast { left: 50%; bottom: 120px; transform: translate(-50%, 20px); max-width: 80vw; text-align: center; background: #0d1b2a; border-radius: 14px; padding: 10px 16px;
+    opacity: 0; transition: .3s; pointer-events: none; z-index: 5; }
+  #toast.on { opacity: 1; transform: translate(-50%, 0); }
 </style>
 </head>
 <body>
@@ -41,21 +69,41 @@
   <a class="btn" id="home" href="../../index.html" title="Về hub">⌂</a>
   <button class="btn" id="btnLevels" title="Chọn màn">☰</button>
 </div>
+<div class="ui" id="tl2"><button class="btn" id="btnMenu" title="Trang chính">★</button></div>
 <div class="ui" id="tr">
   <button class="btn" id="btnSound" title="Âm thanh">♪</button>
   <button class="btn" id="btnRestart" title="Chơi lại màn">↻</button>
 </div>
 <div class="ui" id="hint">Giữ chuột / chạm để móc dây, thả ra để bay</div>
-<div class="ui" id="levels"><div class="panel"><h2>Chọn màn</h2><div id="grid"></div>
+<div class="ui" id="toast"></div>
+<div class="ui overlay" id="start">
+  <div class="top">
+    <div class="pill" title="Xu"><i class="ico" data-ico="coin"></i><b id="coins">0</b></div>
+    <button class="xpbar" id="xpbar" title="Đường XP"><i class="ico" data-ico="xp"></i>
+      <span>Hạng <b id="rank">1</b> · <span id="league"></span></span><span id="xptext"></span>
+      <span class="bar"><span id="xpfill"></span></span><b class="badge" id="roadBadge"></b></button>
+  </div>
+  <div class="title">STICKMAN<br>HOOK</div>
+  <div class="menu">
+    <button class="big" id="btnPlay">Chơi<small id="playLevel"></small></button>
+    <div class="row"><button class="mid" id="btnModes">Chế độ</button><button class="mid" id="btnShop">Tuỳ biến</button></div>
+  </div>
+</div>
+<div class="ui overlay" id="levels"><div class="panel"><h2>Chọn màn</h2><div id="grid"></div>
   <button class="btn" id="btnClose" style="width:auto;padding:0 18px;align-self:center">Đóng</button></div></div>
 <script type="importmap">
 { "imports": {
-  "./js/level.js": "./js/level.js?v=20261028a",
-  "./js/physics.js": "./js/physics.js?v=20261028a",
-  "./js/render.js": "./js/render.js?v=20261028a",
-  "./js/main.js": "./js/main.js?v=20261028a"
+  "./js/level.js": "./js/level.js?v=20261028b",
+  "./js/physics.js": "./js/physics.js?v=20261028b",
+  "./js/render.js": "./js/render.js?v=20261028b",
+  "./js/save.js": "./js/save.js?v=20261028b",
+  "./js/meta.js": "./js/meta.js?v=20261028b",
+  "./js/custom.js": "./js/custom.js?v=20261028b",
+  "./js/fx.js": "./js/fx.js?v=20261028b",
+  "./js/menus.js": "./js/menus.js?v=20261028b",
+  "./js/main.js": "./js/main.js?v=20261028b"
 } }
 </script>
-<script type="module" src="./js/main.js?v=20261028a"></script>
+<script type="module" src="./js/main.js?v=20261028b"></script>
 </body>
 </html>

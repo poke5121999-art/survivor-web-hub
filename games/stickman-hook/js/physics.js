@@ -146,22 +146,15 @@ export class Player {
     this.wasHold = hold;
     this.updateClosest(world);
 
+    this.beforeFixedStep(dt, world);
     const h = dt / PHYS.substeps;
-    const w = 2 * Math.PI * PHYS.springHz;
-    const k = PHYS.mass * w * w, c = 2 * PHYS.mass * PHYS.springDamping * w;
     let contact = null;
     for (let i = 0; i < PHYS.substeps; i++) {
-      let ax = 0, ay = PHYS.gravity;
       if (this.hooked >= 0) {
         const t = world.targets[this.hooked];
         this.angle = Math.atan2(t.y - this.y, t.x - this.x) - Math.PI / 2; // transform.up = toward target
-        const a = this.anchor();
-        const dx = a.x - t.x, dy = a.y - t.y, d = Math.hypot(dx, dy) || 1e-6;
-        const nx = dx / d, ny = dy / d;
-        const vn = this.vx * nx + this.vy * ny;
-        const f = (-k * (d - this.rest) - c * vn) / PHYS.mass;
-        ax += f * nx; ay += f * ny;
       }
+      const [ax, ay] = this.accel(world);
       this.vx += ax * h;
       this.vy += ay * h;
       this.x += this.vx * h;
@@ -188,6 +181,24 @@ export class Player {
     this.tickAnimation(world);
     if (this.x >= world.finishX) { this.finish(); ev.finished = true; }
     return ev;
+  }
+
+  beforeFixedStep() {}
+
+  // Gravity plus, while hooked, the SpringJoint2D pull on the hand anchor.
+  accel(world) {
+    let ax = 0, ay = PHYS.gravity;
+    if (this.hooked >= 0) {
+      const w = 2 * Math.PI * PHYS.springHz;
+      const k = PHYS.mass * w * w, c = 2 * PHYS.mass * PHYS.springDamping * w;
+      const t = world.targets[this.hooked], a = this.anchor();
+      const dx = a.x - t.x, dy = a.y - t.y, d = Math.hypot(dx, dy) || 1e-6;
+      const nx = dx / d, ny = dy / d;
+      const vn = this.vx * nx + this.vy * ny;
+      const f = (-k * (d - this.rest) - c * vn) / PHYS.mass;
+      ax += f * nx; ay += f * ny;
+    }
+    return [ax, ay];
   }
 
   collide(world) {

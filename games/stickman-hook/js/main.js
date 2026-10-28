@@ -1,48 +1,71 @@
 import { buildLevel } from './level.js';
-import { Player, PHYS } from './physics.js';
+import { Player, PHYS, ST } from './physics.js';
 import { Renderer } from './render.js';
+import { readSave, writeSave, DEFAULT_EQUIP } from './save.js';
+import { Meta } from './meta.js';
+import { makeCustom } from './custom.js';
 
-const V = '?v=20261028a';
-const SAVE_KEY = 'stickman-hook';
+const V = '?v=20261028b';
 const DEFAULT_ZOOM = 5, FINISH_ZOOM = 2; // CameraConfig.defaultZoom, PlayerCameraController.cameraZoomOnEndGame
+// Rope prefab: sprite scaled (1.6, 2) under its parent. [ĐỀ XUẤT] 0.2 per axis so a 167 px tile is ~0.4 wide,
+// next to the 0.045 Classic line.
+const ROPE_SCALE = [1.6 * 0.2, 2 * 0.2];
+const DANCE_AFTER = 0.6; // [ĐỀ XUẤT] the dance starts once the finish slow motion has settled
 
 const $ = (id) => document.getElementById(id);
 const cv = $('cv');
 
 function load(url) { return fetch(url + V).then((r) => { if (!r.ok) throw new Error(url + ' ' + r.status); return r.json(); }); }
 function image(url) {
-  return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url + V; });
+  return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error(url)); i.src = url + V; });
 }
 
-function readSave() {
-  try { return JSON.parse(localStorage.getItem(SAVE_KEY)) || { level: 0, best: 0, sound: true }; }
-  catch { return { level: 0, best: 0, sound: true }; }
-}
-function writeSave(s) { try { localStorage.setItem(SAVE_KEY, JSON.stringify(s)); } catch { /* private mode */ } }
-
+// Sounds are created on the first input: nothing plays before it anyway, and the first level loads lighter.
 const sfx = {};
+function initAudio() {
+  if (sfx.button) return;
+  for (const n of ['button', 'popup_in', 'popup_out']) { sfx[n] = new Audio('./audio/' + n + '.mp3' + V); sfx[n].preload = 'auto'; }
+}
 function play(name) {
   if (!save.sound) return;
   const a = sfx[name];
   if (a) { a.currentTime = 0; a.play().catch(() => {}); }
 }
 
-let data, R, world, player, save = readSave();
+let data, R, world, player, meta, custom, save = readSave();
 const cam = { x: 0, y: 0, zoom: DEFAULT_ZOOM };
 // phase: 'spawn' (spawn FX, player hidden) -> 'play' -> 'finish' (slow motion + zoom, then wait for a tap).
 // Leaving the camera through its bottom or left edge while not hooked restarts the level (CameraLimits triggers).
-const game = { phase: 'spawn', t: 0, hold: false, deaths: 0, confetti: [], timeScale: 1, zoomFrom: DEFAULT_ZOOM, camFrom: null };
+const game = { phase: 'spawn', t: 0, hold: false, deaths: 0, confetti: [], timeScale: 1, zoomFrom: DEFAULT_ZOOM, camFrom: null,
+  paused: false, clock: 0, trail: [], reward: null };
+// Equipped look: skin = loaded sheet or null (atlas CHAR_Classic), rope = textured rope or null (Classic line).
+const look = { skin: null, dance: null, rope: null, trail: null, drawn: 0 };
+
+// SpriteShadow renders at sortingOrder + sortingOrderDifference (d.sh[2]); with solid shadows that order shows.
+// Ties put the shadow first, so a target's own background stays above its ring's shadow.
+function layers(draw) {
+  const out = [];
+  draw.forEach((d, i) => {
+    if (d.sh) out.push({ d, shadow: true, o: d.o + (d.sh[2] || 0), i });
+    out.push({ d, shadow: false, o: d.o, i });
+  });
+  return out.sort((a, b) => a.o - b.o || b.shadow - a.shadow || a.i - b.i);
+}
 
 function startLevel(index) {
   world = buildLevel(data, index);
+  world.layers = layers(world.draw);
   save.level = index;
   writeSave(save);
+  R.theme = meta.theme(index);
   player = new Player(world.spawn);
   game.phase = 'spawn';
   game.t = 0;
   game.hold = false;
   game.confetti = [];
   game.timeScale = 1;
+  game.trail = [];
+  game.reward = null;
   cam.zoom = DEFAULT_ZOOM;
   cam.x = clampCamX(world.spawn.x);
   cam.y = 0;
@@ -54,13 +77,37 @@ function clampCamX(x) {
   return lo > hi ? (world.camMin + world.camMax) / 2 : Math.min(hi, Math.max(lo, x));
 }
 
+function equippedItem(kind) { return meta.item(kind, save.equipped[kind]) || meta.item(kind, DEFAULT_EQUIP[kind]); }
+
+// Loads what the equipped items need. The default skin and rope draw from atlas.webp, so they fetch nothing.
+function applyEquip() {
+  const sk = equippedItem('skins'), rp = equippedItem('ropes'), tr = equippedItem('trails');
+  look.trail = meta.d.trails[tr.asset] || null;
+  look.dance = null;
+  if (sk.name === DEFAULT_EQUIP.skins) look.skin = null;
+  else custom.skin(sk).then((s) => { if (equippedItem('skins') === sk) look.skin = s; }).catch(() => {});
+  if (rp.name === DEFAULT_EQUIP.ropes) look.rope = null;
+  else {
+    const r = meta.d.ropes[rp.asset];
+    custom.ropes().then((img) => {
+      if (equippedItem('ropes') !== rp) return;
+      const w = (r.rect[2] / r.ppu) * ROPE_SCALE[0], p = (r.rect[3] / r.ppu) * ROPE_SCALE[1];
+      look.rope = { img, rect: r.rect, width: w, period: p };
+    }).catch(() => {});
+  }
+}
+
 function finishLevel() {
   game.phase = 'finish';
   game.t = 0;
   game.zoomFrom = cam.zoom;
   game.camFrom = { x: cam.x, y: cam.y };
-  save.best = Math.max(save.best, world.index + 1);
+  game.reward = meta.levelComplete(save, world.index);
   writeSave(save);
+  hud();
+  for (const g of game.reward.got) if (g.item) toast('Mở khoá: ' + g.item.title);
+  // the dance clip lives in the skin sheet, also for the default skin
+  custom.skin(equippedItem('skins')).then((s) => { look.dance = s; }).catch(() => {});
   play('popup_in');
   const sp = Math.hypot(player.vx, player.vy) || 1;
   for (let i = 0; i < 60; i++) {
@@ -81,6 +128,7 @@ function respawn() {
   player = new Player(world.spawn);
   game.phase = 'spawn';
   game.t = 0;
+  game.trail = [];
 }
 
 function nextLevel() { play('button'); startLevel(world.index + 1); }
@@ -92,6 +140,7 @@ function frame(now) {
   R.resize();
   let dt = Math.min(0.1, (now - (last || now)) / 1000);
   last = now;
+  if (game.paused) dt = 0;
   game.t += dt;
 
   if (game.phase === 'spawn' && game.t >= PHYS.timeToSpawn) { game.phase = 'play'; game.t = 0; }
@@ -102,6 +151,7 @@ function frame(now) {
   }
   if (game.phase === 'play' || game.phase === 'finish') {
     acc += dt * game.timeScale;
+    game.clock += dt * game.timeScale;
     while (acc >= STEP) {
       acc -= STEP;
       const ev = player.step(STEP, world, game.phase === 'play' && game.hold);
@@ -109,11 +159,21 @@ function frame(now) {
       if (ev.finished && game.phase === 'play') finishLevel();
       if (game.phase === 'play' && player.hooked < 0 && outOfCamera()) { respawn(); break; }
     }
+    sampleTrail();
   } else acc = 0;
 
   for (const b of world.bumpers) if (b.anim >= 0) { b.anim += dt; if (b.anim > 0.1667) b.anim = -1; }
   updateCamera(dt);
   draw(now);
+}
+
+// TrailRenderer: points age out after the trail's `time` (game time, so the finish slow motion stretches it)
+function sampleTrail() {
+  const tr = look.trail;
+  if (!tr || game.phase === 'spawn') return;
+  const pts = game.trail, last = pts[pts.length - 1];
+  if (!last || Math.hypot(player.x - last.x, player.y - last.y) > 0.02) pts.push({ x: player.x, y: player.y, t: game.clock });
+  while (pts.length && game.clock - pts[0].t > tr.time) pts.shift();
 }
 
 function updateCamera(dt) {
@@ -136,13 +196,15 @@ function updateCamera(dt) {
 
 const BUMP_FRAMES = ['AN_Grap1_BumperLarge0001', 'AN_Grap1_BumperLarge0002', 'AN_Grap1_BumperLarge0003',
   'AN_Grap1_BumperLarge0004', 'AN_Grap1_BumperLarge0005'];
+// draw item `th` -> theme colour replacing the material tint (build_data.py THEMED)
+const THEMED = { 1: 'targets', 2: 'walls' };
 
 function draw(now) {
   R.begin(cam);
   const halfW = (cv.width / cv.height) * cam.zoom + 3;
   const t = now / 1000;
   const hooked = player.hooked, closest = player.closest;
-  for (const d of world.draw) {
+  for (const { d, shadow } of world.layers) {
     if (Math.abs(d.m[4] - cam.x) > halfW + 12) continue;
     let name = d.s, m = d.m;
     if (d.bumper != null) {
@@ -151,39 +213,62 @@ function draw(now) {
     }
     if (d.target != null && d.target === hooked) name = 'A_PlotSelected';
     if (d.bob) m = [m[0], m[1], m[2], m[3], m[4], m[5] + Math.sin(t * (2 * Math.PI / 0.383)) * 0.06];
-    if (d.sh) {
+    if (shadow) {
       const sm = [m[0], m[1], m[2], m[3], m[4] + d.sh[0], m[5] + d.sh[1]];
       if (d.size) R.tiled(name, sm, d.size, true); else R.sprite(name, sm, { shadow: true });
+      continue;
     }
     if (d.size) R.tiled(name, m, d.size, d.shadow);
-    else R.sprite(name, m, { tint: d.tint, shadow: d.shadow });
+    else R.sprite(name, m, { tint: d.th ? R.theme[THEMED[d.th]] : d.tint, shadow: d.shadow });
     if (d.target != null && d.target === closest && hooked < 0 && game.phase === 'play') {
       const s = 0.5 * 1.2 * (1 + 0.05 * Math.sin(t * 12));
       R.sprite('A_PlotNearestFeedback', [s, 0, 0, s, m[4], m[5]]);
     }
   }
-  drawPlayer();
+  drawPlayer(t);
   drawConfetti();
   drawHud(now);
 }
 
-function drawPlayer() {
+// Sprite frame for the player: the dance clip after the finish, else the PlayerState clip at 15 fps (physics.js FRAMES).
+function playerFrame(t) {
+  const sk = look.skin;
+  if (game.phase === 'finish' && look.dance && game.t > DANCE_AFTER) {
+    const dn = look.dance.dance;
+    if (dn.frames.length) return [look.dance, dn.frames[Math.floor((game.t - DANCE_AFTER) * dn.fps) % dn.frames.length], true];
+  }
+  if (!sk) return [null, player.frame(), false];
+  const f = sk.states[player.state] || sk.states[ST.FALL];
+  return [sk, f.length > 1 ? f[Math.floor((player.time - player.stateTime) * 15) % f.length] : f[0], false];
+}
+
+function drawPlayer(t) {
+  if (game.trail.length > 1) R.trail(game.trail, game.clock, look.trail);
   if (player.hooked >= 0) {
     const tg = world.targets[player.hooked];
     const a = player.anchor();
-    R.line(a.x, a.y, tg.x, tg.y, 0.045, '#0d1b2a');
+    if (look.rope) R.rope(look.rope.img, look.rope.rect, tg.x, tg.y, a.x, a.y, look.rope.width, look.rope.period);
+    else R.line(a.x, a.y, tg.x, tg.y, 0.045, '#0d1b2a');
   }
   if (game.phase === 'spawn') {
     const k = game.t / PHYS.timeToSpawn, s = 0.15 + k * 0.5;
     R.sprite('A_PlotNearestFeedback', [s, 0, 0, s, world.spawn.x, world.spawn.y], { alpha: 1 - k });
     return;
   }
-  const s = 0.3 * player.scale(), fx = player.flipX ? -1 : 1;
-  const c = Math.cos(player.angle) * s, sn = Math.sin(player.angle) * s;
+  const [sheet, name, upright] = playerFrame(t);
+  const s = 0.3 * player.scale(), fx = player.flipX ? -1 : 1, ang = upright ? 0 : player.angle;
+  const c = Math.cos(ang) * s, sn = Math.sin(ang) * s;
   const m = [c * fx, sn * fx, -sn, c, player.x, player.y];
-  const name = player.frame();
-  R.sprite(name, [m[0], m[1], m[2], m[3], m[4], m[5] - 0.1], { shadow: true });
-  R.sprite(name, m);
+  const sm = [m[0], m[1], m[2], m[3], m[4], m[5] - 0.1];
+  if (!sheet) {
+    R.sprite(name, sm, { shadow: true });
+    R.sprite(name, m);
+    return;
+  }
+  const [img, r] = sheet.frames[name];
+  if (!meta.byId.get(sheet.id).noShadow) R.spriteFrom(img, name, r, sm, { shadow: true });
+  R.spriteFrom(img, name, r, m);
+  look.drawn++;
 }
 
 function drawConfetti() {
@@ -205,15 +290,73 @@ function drawHud(now) {
   if (game.phase === 'finish' && game.t > 0.9) {
     const h = cv.height / R.dpr;
     R.text('level ' + (world.index + 1) + ' completed', w / 2, h * 0.3, Math.min(54, w / 13));
+    if (game.reward?.xp) R.text('+' + game.reward.xp + ' xp', w / 2, h * 0.3 + Math.min(54, w / 13) * 1.2, Math.min(34, w / 18));
     const blink = 0.6 + 0.4 * Math.sin(now / 200);
     R.text('tap to continue', w / 2, h * 0.62, Math.min(30, w / 18), 0.5, blink);
   }
 }
 
+let toastTimer = 0;
+function toast(msg) {
+  const el = $('toast');
+  el.textContent = msg;
+  el.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('on'), 2200);
+}
+
+// Menu icon from art/menu.webp (tools/build_meta.py), fitted into a px square. Set only when a menu shows, so the
+// sheet loads after the level, never before it.
+function icon(el, key, px) {
+  const r = meta.d.menu[key], [W, H] = meta.d.menu._size;
+  if (!r) return;
+  const k = px / Math.max(r[2], r[3]);
+  Object.assign(el.style, { width: px + 'px', height: px + 'px', backgroundImage: `url(./art/menu.webp${V})`,
+    backgroundSize: `${W * k}px ${H * k}px`,
+    backgroundPosition: `${-r[0] * k + (px - r[2] * k) / 2}px ${-r[1] * k + (px - r[3] * k) / 2}px` });
+}
+
+// Coins, XP bar and the road badge on the home screen.
+function hud() {
+  if ($('start').classList.contains('on')) for (const el of document.querySelectorAll('#start [data-ico]')) icon(el, el.dataset.ico, 30);
+  const b = meta.xpBar(save.xp);
+  $('coins').textContent = save.coins;
+  $('rank').textContent = b.rank;
+  $('league').textContent = b.league;
+  $('xpfill').style.width = Math.round(b.k * 100) + '%';
+  $('xptext').textContent = b.hi > b.lo ? `${save.xp} / ${b.hi}` : String(save.xp);
+  const n = meta.claimable(save);
+  $('roadBadge').textContent = n;
+  $('roadBadge').style.display = n ? '' : 'none';
+  $('playLevel').textContent = 'Màn ' + (world.index + 1);
+}
+
 function setHold(v) {
+  if (v) initAudio();
+  if (game.paused) return;
   if (game.phase === 'finish') { if (v && game.t > 1) nextLevel(); return; }
   if (v && !game.hold) $('hint').style.opacity = 0;
   game.hold = v;
+}
+
+// Overlays pause the level behind them.
+function overlay(id, on) {
+  $(id).classList.toggle('on', on);
+  game.paused = [...document.querySelectorAll('.overlay')].some((e) => e.classList.contains('on'));
+  document.body.classList.toggle('menu', game.paused);
+  if (game.paused) game.hold = false;
+}
+
+const app = {
+  get save() { return save; }, get meta() { return meta; }, get custom() { return custom; }, get world() { return world; },
+  get R() { return R; }, play, writeSave: () => writeSave(save), applyEquip, hud, overlay, toast, image, icon, $, V, look,
+};
+let menus = null;
+async function openMenu(name) {
+  initAudio();
+  play('popup_in');
+  menus ||= await import('./menus.js');
+  menus[name](app);
 }
 
 function bindInput() {
@@ -224,13 +367,18 @@ function bindInput() {
   window.addEventListener('blur', up);
   window.addEventListener('keydown', (e) => {
     if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') { e.preventDefault(); if (!e.repeat) setHold(true); }
-    if (e.code === 'KeyR') { startLevel(world.index); }
+    if (e.code === 'KeyR' && !game.paused) { startLevel(world.index); }
   });
   window.addEventListener('keyup', (e) => { if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') setHold(false); });
-  $('btnRestart').onclick = () => { play('button'); startLevel(world.index); };
-  $('btnSound').onclick = () => { save.sound = !save.sound; writeSave(save); soundIcon(); play('button'); };
-  $('btnLevels').onclick = () => { play('popup_in'); openLevels(); };
-  $('btnClose').onclick = () => { play('popup_out'); $('levels').classList.remove('on'); };
+  $('btnRestart').onclick = () => { initAudio(); play('button'); startLevel(world.index); };
+  $('btnSound').onclick = () => { initAudio(); save.sound = !save.sound; writeSave(save); soundIcon(); play('button'); };
+  $('btnLevels').onclick = () => { initAudio(); play('popup_in'); openLevels(); };
+  $('btnClose').onclick = () => { play('popup_out'); overlay('levels', false); };
+  $('btnMenu').onclick = () => { initAudio(); play('popup_in'); overlay('start', true); hud(); };
+  $('btnPlay').onclick = () => { initAudio(); play('button'); overlay('start', false); };
+  $('btnModes').onclick = () => openMenu('openModes');
+  $('btnShop').onclick = () => openMenu('openShop');
+  $('xpbar').onclick = () => openMenu('openRoad');
 }
 
 function soundIcon() { $('btnSound').style.opacity = save.sound ? 1 : 0.45; }
@@ -245,27 +393,35 @@ function openLevels() {
     if (i < save.best) b.className = 'done';
     if (i === world.index) b.className = 'cur';
     b.disabled = i > save.best;
-    b.onclick = () => { $('levels').classList.remove('on'); play('button'); startLevel(i); };
+    b.onclick = () => { overlay('levels', false); play('button'); startLevel(i); };
     g.appendChild(b);
   }
-  $('levels').classList.add('on');
+  overlay('levels', true);
   g.querySelector('.cur')?.scrollIntoView({ block: 'center' });
 }
 
 async function boot() {
-  const [lv, atlasImg, font, fontImg] = await Promise.all([
-    load('./data/levels.json'), image('./art/atlas.webp'), load('./data/font.json'), image('./art/font.webp'),
+  const [lv, atlasImg, font, fontImg, md] = await Promise.all([
+    load('./data/levels.json'), image('./art/atlas.webp'), load('./data/font.json'), image('./art/font.webp'), load('./data/meta.json'),
   ]);
   data = lv;
+  meta = new Meta(md);
+  custom = makeCustom(load, image);
   R = new Renderer(cv, atlasImg, lv.atlas, fontImg, font);
-  for (const n of ['button', 'popup_in', 'popup_out']) { sfx[n] = new Audio('./audio/' + n + '.mp3' + V); sfx[n].preload = 'auto'; }
+  app.atlas = { img: atlasImg, rects: lv.atlas, fontImg, font };
+  // the achieved-level road follows `best`, so catch up rewards from saves made before it existed
+  if (meta.claim(save, 'achieved_level_mode.normal', save.best).length) writeSave(save);
   const q = new URLSearchParams(location.search).get('level');
   startLevel(q ? Math.max(0, (parseInt(q, 10) || 1) - 1) : save.level || 0);
+  applyEquip();
   bindInput();
   soundIcon();
+  if (!q) overlay('start', true);
+  hud();
   $('loading').remove();
   requestAnimationFrame(frame);
-  window.__sh = { game, get world() { return world; }, get player() { return player; }, cam, startLevel, setHold };
+  window.__sh = { game, get world() { return world; }, get player() { return player; }, get save() { return save; }, cam, look,
+    get theme() { return R.theme; }, meta, startLevel, setHold, applyEquip, openMenu, overlay };
 }
 
 boot().catch((e) => { $('loading').textContent = 'Không tải được game: ' + e.message; });

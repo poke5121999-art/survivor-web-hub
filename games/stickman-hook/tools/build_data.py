@@ -23,7 +23,10 @@ PLAYER_FRAMES = ['CHAR_Classic0001', 'CHAR_Classic0005', 'CHAR_Classic0015', 'CH
                  'CHAR_Classic0028', 'CHAR_Classic0036']
 EXTRA = ['AN_Grap1_BumperLarge0001', 'AN_Grap1_BumperLarge0002', 'AN_Grap1_BumperLarge0003', 'AN_Grap1_BumperLarge0004',
          'A_PlotSelected', 'in_game', 'GradientVertical', 'A_Particle', 'A_FinishLight']
-MATERIAL_TINT = {'TargetsBGMaterial': [0.894, 0.890, 0.325], 'WallReflectionMaterial': [0.031, 0.4, 0.773]}
+# The level theme recolours these materials at run time (theme.levelColors targetsBackgroundColor / wallsReflectionColor;
+# their saved _Color is theme 2's). Items using them carry `th` (1 targets background, 2 walls reflection) and keep `tint`
+# only for a non-white sprite colour.
+THEMED = {'TargetsBGMaterial': 1, 'WallReflectionMaterial': 2}
 
 
 def mul(m, n):
@@ -55,7 +58,7 @@ used = set(PLAYER_FRAMES + EXTRA)
 
 def compile_pattern(root):
     out = {'draw': [], 'targets': [], 'bumpers': [], 'caps': [], 'polys': [], 'finish': [], 'spawn': None,
-           'spawns': [], 'end': None, 'cam': [None, None]}
+           'end': None, 'cam': [None, None]}
     pc = root['c'].get('StickmanHook.Services.PatternController', [{}])[0]
     out['entry'] = pc.get('entryPositions', 7); out['exit'] = pc.get('exitPositions', 7)
 
@@ -76,8 +79,6 @@ def compile_pattern(root):
             out['cam'][1] = r4(x)
         elif name == 'Spawn':
             out['spawn'] = [r4(x), r4(y)]
-        if 'SpawnPoint' in c:
-            out['spawns'].append([r4(x), r4(y)])
         if 'Target' in c:
             out['targets'].append([r4(x), r4(y)])
         if 'FinishScript' in c:
@@ -91,8 +92,6 @@ def compile_pattern(root):
             mat = (sr.get('mat') or [None])[0]
             col = sr['m_Color']
             tint = [col['r'], col['g'], col['b']]
-            if mat in MATERIAL_TINT:
-                tint = [t * k for t, k in zip(tint, MATERIAL_TINT[mat])]
             sm = m
             if sr['m_FlipX']: sm = mul(sm, [-1, 0, 0, 1, 0, 0])
             if sr['m_FlipY']: sm = mul(sm, [1, 0, 0, -1, 0, 0])
@@ -101,6 +100,8 @@ def compile_pattern(root):
                 item['size'] = [r4(sr['m_Size']['x']), r4(sr['m_Size']['y'])]
             if any(abs(t - 1) > 0.01 for t in tint):
                 item['tint'] = [round(t, 3) for t in tint]
+            if mat in THEMED:
+                item['th'] = THEMED[mat]
             if mat == 'ShadowMaterial':
                 item['shadow'] = 1
             elif 'SpriteShadow' in c:
@@ -132,9 +133,12 @@ def compile_pattern(root):
             seg = [r4(cx - ax[0] * half), r4(cy - ax[1] * half), r4(cx + ax[0] * half), r4(cy + ax[1] * half), r4(rad)]
             if 'BumperAnimationController' in c:
                 bc = c['BumperAnimationController'][0]
-                out['bumpers'].append({'cap': seg, 'draw': draw_index,
-                                       'bounce': r4(bc['bounciness']) if bc['overrideBounciness'] else None,
-                                       'force': [r4(bc['forceImpulse']['x']), r4(bc['forceImpulse']['y'])] if bc['forceBounce'] else None})
+                bumper = {'cap': seg, 'draw': draw_index}  # bounce / force only when the prefab overrides them
+                if bc['overrideBounciness']:
+                    bumper['bounce'] = r4(bc['bounciness'])
+                if bc['forceBounce']:
+                    bumper['force'] = [r4(bc['forceImpulse']['x']), r4(bc['forceImpulse']['y'])]
+                out['bumpers'].append(bumper)
             else:
                 out['caps'].append(seg)
         for pol in c.get('PolygonCollider2D', []):
