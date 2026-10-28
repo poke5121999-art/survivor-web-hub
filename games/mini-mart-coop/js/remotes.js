@@ -7,8 +7,8 @@ const COLORS = ['#ff5a5a', '#4fb3ff', '#ffd23f', '#7ee06b', '#c77dff'];
 const tmp = new THREE.Vector3();
 
 export class RemotePlayers {
-  constructor({ view, store, camera, canvas, hudRoot }) {
-    Object.assign(this, { view, store, camera, canvas, hudRoot });
+  constructor({ view, store, camera, canvas, hudRoot, makeLooks = null }) {
+    Object.assign(this, { view, store, camera, canvas, hudRoot, makeLooks });
     this.avatars = new Map();
     this.slotName = view.playerSlot && view.playerSlot.name;
     this.tags = document.createElement('div');
@@ -32,7 +32,8 @@ export class RemotePlayers {
     tag.className = 'mmc-tag';
     tag.style.setProperty('--c', this.colorOf(pid));
     this.tags.appendChild(tag);
-    a = { obj, slot: slot || obj, rig: v.rigOf(obj), tag, pose: { x: r.player.x, y: 0, z: r.player.z, dirX: 0, dirZ: 1 } };
+    a = { obj, slot: slot || obj, rig: v.rigOf(obj), tag, pose: { x: r.player.x, y: 0, z: r.player.z, dirX: 0, dirZ: 1 },
+      looks: this.makeLooks ? this.makeLooks(obj) : null, worn: '' };
     this.avatars.set(pid, a);
     if (v.fx) v.fx.puff('small', { x: r.player.x, y: 1, z: r.player.z });
     return a;
@@ -42,6 +43,7 @@ export class RemotePlayers {
     const a = this.avatars.get(pid);
     if (!a) return;
     this.view.syncStack(`r${pid}`, [], () => {});
+    if (a.looks && a.looks.pet) a.looks.pet.obj.removeFromParent();
     a.obj.removeFromParent();
     a.tag.remove();
     this.avatars.delete(pid);
@@ -56,6 +58,9 @@ export class RemotePlayers {
       p.y = q.y || 0;
       if (q.dirX || q.dirZ) { p.dirX = q.dirX; p.dirZ = q.dirZ; }
       this.view.placeAgent(a.obj, p);
+      const worn = r.looks ? JSON.stringify(r.looks) : '';
+      if (a.looks && worn !== a.worn) { a.worn = worn; a.looks.apply({ skin: 0, outfit: 0, hat: 1, pet: 0, ...(r.looks || {}) }); }
+      if (a.looks) a.looks.update(dt);
       const carrying = r.carry.length > 0;
       if (a.rig) {
         a.rig.play(q.moving ? (carrying ? 'WalkingCarry' : 'Walking') : (carrying ? 'Idle_Carry' : 'Idle'));

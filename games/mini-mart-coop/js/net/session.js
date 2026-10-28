@@ -62,7 +62,9 @@ export class HostNet {
     this.acc = 0;
     this.events = [];
     this.bytes = { tick: 0, full: 0, frames: 0 };
-    sim.listeners.push(e => { if (!LOCAL_EVENTS.has(e.type)) this.events.push(e); });
+    this.listen = e => { if (!LOCAL_EVENTS.has(e.type) && this.sim === this.listening) this.events.push(e); };
+    this.listening = sim;
+    sim.listeners.push(this.listen);
     link.onMessage = (from, f) => {
       const m = this.framer.unpack(from, f);
       if (m) this.receive(from, m);
@@ -81,9 +83,9 @@ export class HostNet {
       if (m.v !== PROTOCOL) { this.send(from, { t: 'kick', why: 'version' }); return; }
       if (!p && this.peers.size >= this.maxPlayers - 1) { this.send(from, { t: 'kick', why: 'full' }); return; }
       if (!p) {
-        p = { pid: `p${++this.joins}`, name: String(m.name || 'Player').slice(0, 16), ready: false, heard: now(), uid: m.uid };
+        p = { pid: `p${++this.joins}`, name: String(m.name || 'Player').slice(0, 16), ready: false, heard: now(), uid: m.uid, looks: m.looks || null };
         this.peers.set(from, p);
-        this.sim.addRemote(p.pid, p.name);
+        this.sim.addRemote(p.pid, p.name, p.looks);
         this.onRoster(this.roster());
       }
       p.ready = false;   // the welcome goes out right after the next tick, with the state that tick produced
@@ -93,6 +95,9 @@ export class HostNet {
       this.sim.setPose(p.pid, m.p);
     } else if (m.t === 'resync') {
       p.ready = false;
+    } else if (m.t === 'looks') {
+      p.looks = m.looks || null;
+      this.sim.setLooks(p.pid, p.looks);
     } else if (m.t === 'cmd') {
       this.onCommand(p.pid, m);
     } else if (m.t === 'bye') {
@@ -140,6 +145,20 @@ export class HostNet {
     }
   }
 
+  // The room moved to another mart (next-mart van, map, prestige): a new sim, everyone re-added and re-welcomed.
+  rebind(sim, info) {
+    this.sim = sim;
+    this.info = info;
+    this.listening = sim;
+    sim.listeners.push(this.listen);
+    for (const p of this.peers.values()) {
+      sim.addRemote(p.pid, p.name, p.looks);
+      p.ready = false;
+    }
+    this.events = [];
+    this.sent = sim.wire(this.hostName);
+  }
+
   close(why = 'host closed the store') {
     for (const id of this.peers.keys()) this.send(id, { t: 'kick', why });
     this.link.close();
@@ -147,8 +166,8 @@ export class HostNet {
 }
 
 export class GuestNet {
-  constructor({ link, name, uid = null }) {
-    Object.assign(this, { link, name, uid });
+  constructor({ link, name, uid = null, looks = null }) {
+    Object.assign(this, { link, name, uid, looks });
     this.framer = new Framer();
     this.host = link.hostId;
     this.wire = null;
@@ -156,7 +175,8 @@ export class GuestNet {
     this.acc = 0;
     this.lastPose = '';
     this.sentAt = 0;
-    this.onTick = () => {};      // (wire, events) after each applied patch or full state
+    this.onTick = () => {};      // (wire, events) after each applied patch
+    this.onWelcome = () => {};   // a later welcome: a resync, or the room moved to another mart (m.info.mart)
     this.onKick = () => {};
     this.stats = { ticks: 0, resyncs: 0 };
     link.onMessage = (from, f) => {
@@ -177,7 +197,7 @@ export class GuestNet {
       const timer = setTimeout(() => reject(new Error('host did not answer')), timeout * 1000);
       this.welcomed = m => { clearTimeout(timer); resolve(m); };
       this.refused = why => { clearTimeout(timer); reject(new Error(why)); };
-      this.send({ t: 'hello', v: PROTOCOL, name: this.name, uid: this.uid });
+      this.send({ t: 'hello', v: PROTOCOL, name: this.name, uid: this.uid, looks: this.looks });
     });
   }
 
@@ -186,8 +206,8 @@ export class GuestNet {
       this.wire = m.full;
       this.seq = m.s;
       this.me = m.you;
-      if (this.welcomed) { const w = this.welcomed; this.welcomed = null; w(m); }
-      this.onTick(this.wire, []);
+      if (this.welcomed) { const w = this.welcomed; this.welcomed = null; w(m); return; }
+      this.onWelcome(m);
     } else if (m.t === 'tick') {
       if (!this.wire) return;
       if (m.s !== this.seq + 1) {
@@ -217,6 +237,8 @@ export class GuestNet {
   }
 
   command(op, args = {}) { this.send({ t: 'cmd', op, ...args }); }
+
+  setLooks(looks) { this.looks = looks; this.send({ t: 'looks', looks }); }
 
   leave() {
     try { this.send({ t: 'bye' }); } catch (e) { /* link already down */ }

@@ -21,5 +21,5 @@ body.in-store #menu { display: none; }
   background: var(--c); color: #1d1030; font: 900 clamp(10px, calc(var(--sw) / 40), 16px) 'Londrina Solid', sans-serif;
   box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3); }
 
-/* Solo-only HUD buttons: city map, outfits, gift trolley, daily spin, shop. */
-#hud.coop #mapbtn, #hud.coop #custombtn, #hud.coop #robtn, #hud.coop #spinbtn, #hud.coop #shopbtn { display: none !important; }
+/* The store's meta (city map, gift trolley, daily spin, shop) is the host's; a guest keeps its own outfits only. */
+#hud.coop-guest #mapbtn, #hud.coop-guest #robtn, #hud.coop-guest #spinbtn, #hud.coop-guest #shopbtn { display: none !important; }

@@ -35,9 +35,11 @@ export async function hostRoom({ name, isPrivate, mart, difficulty, region, play
   };
 }
 
-export async function joinRoom({ lobbyId, code, playerName }) {
+// relay: a reconnect after the link dropped goes straight back to the allocation it knew; the lobby seat is still its.
+export async function joinRoom({ lobbyId, code, playerName, relay: known = null, lobbyCode = null }) {
   const ugs = await new Ugs().signIn();
-  const lobby = lobbyId ? await ugs.joinLobbyById(lobbyId, playerName) : await ugs.joinLobbyByCode(code, playerName);
+  const lobby = known ? { id: lobbyId, lobbyCode, data: { relay: { value: known } } }
+    : lobbyId ? await ugs.joinLobbyById(lobbyId, playerName) : await ugs.joinLobbyByCode(code, playerName);
   const relay = lobby.data && lobby.data.relay && lobby.data.relay.value;
   if (!relay) {
     ugs.leaveLobby(lobby.id).catch(() => {});
@@ -52,7 +54,7 @@ export async function joinRoom({ lobbyId, code, playerName }) {
   }
   let left = false;
   return {
-    ugs, link, lobby, uid: ugs.playerId,
+    ugs, link, lobby, relay, uid: ugs.playerId,
     leave(keepalive = false) {
       if (left) return;
       left = true;

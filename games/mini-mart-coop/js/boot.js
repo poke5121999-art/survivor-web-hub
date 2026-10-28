@@ -1,13 +1,17 @@
 // Entry: the menu paints first (DOM only); the store backdrop, three.js and the solo game's modules load after it.
-// New / Load Store host a room, Join Store joins one; either way the page then becomes one co-op store.
+// New / Load Store host a room, Join Store joins one; either way the page then becomes one co-op store, and the whole
+// room moves together when the host drives the van to the next mart or picks one on the map.
 import { mountMenu } from './menu.js';
+
 // The network modules load on first use, so the menu waits on two files only (Pages answers an edge miss in 0.4-1 s).
-const loadNet = () => Promise.all([import('./net/room.js'), import('./net/session.js')]).then(([r, s]) => ({ ...r, ...s }));
+const loadNet = () => Promise.all([import('./net/room.js'), import('./net/session.js'), import('./cloud.js')])
+  .then(([r, s, c]) => ({ ...r, ...s, cloud: c }));
 
 const V = new URL(import.meta.url).searchParams.get('v') || '';
 const SOLO = new URL('../../casual-farm/', import.meta.url).href;
 const params = new URLSearchParams(location.search);
 const MAX_PLAYERS = 4;
+const RECONNECTS = 3;
 
 // Unity Relay regions (GET /v1/regions, 2026-10-28) grouped by the menu's map areas.
 const REGIONS = [
@@ -38,19 +42,48 @@ const local = {
   get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } },
   del(k) { try { localStorage.removeItem(k); } catch (e) { /* storage unavailable */ } },
+  keys() { try { return Object.keys(localStorage); } catch (e) { return []; } },
 };
-const SAVES = 'mmc-saves';
+
+// --- stores -----------------------------------------------------------------------------------------------------
+// One record per co-op store, the solo game's "global" plus every mart's sim save:
+//   { id, name, difficulty, mart, cash, gold, visited, idleAt, stars, prestige, shop, ..., marts: { id: simSave },
+//     savedAt, done, total }
+const STORE_KEY = id => `mmc-store-${id}`;
+const records = {
+  all() {
+    const out = {};
+    for (const k of local.keys()) if (k.startsWith('mmc-store-')) { const r = local.get(k, null); if (r && r.id) out[r.id] = r; }
+    return out;
+  },
+  put(r) { local.set(STORE_KEY(r.id), r); },
+  del(id) { local.del(STORE_KEY(id)); },
+};
+// Rev 20261028a kept one mart per store: mmc-saves (list) + mmc-save-<id> (that mart's sim save).
+for (const s of local.get('mmc-saves', [])) {
+  const d = local.get(`mmc-save-${s.id}`, null);
+  if (!local.get(STORE_KEY(s.id), null)) records.put({ ...s, cash: d ? d.cash || 0 : 0, marts: d ? { [s.mart]: d } : {}, visited: [s.mart] });
+  local.del(`mmc-save-${s.id}`);
+}
+local.del('mmc-saves');
+
 const options = local.get('mmc-options', { name: '', music: 0.6, sfx: 0.8 });
 if (!options.name) options.name = `Player${Math.floor(Math.random() * 900 + 100)}`;
+// The player's own outfits: their solo wardrobe the first time (games/casual-farm keeps it in mmm-global-v1).
+const wardrobe = {
+  saved: local.get('mmc-wardrobe', null) || ((local.get('mmm-global-v1', {}) || {}).cosmetics || null),
+  keep(s) { this.saved = s; local.set('mmc-wardrobe', s); },
+};
 
-const marts = (await fetch(`${SOLO}data/marts.json?v=${V}`).then(r => r.json())).filter(m => !m.seasonal)
-  .map(m => ({ id: m.id, name: m.name, mats: m.mats, icon: `${SOLO}art/ui/${m.icon}.webp` }));
+const allMarts = await fetch(`${SOLO}data/marts.json?v=${V}`).then(r => r.json());
+const marts = allMarts.map(m => ({ id: m.id, name: m.name, mats: m.mats, seasonal: !!m.seasonal,
+  icon: `${SOLO}art/ui/${m.seasonal ? 'menus/Mart_GrocerIcon' : m.icon}.webp` }));
 
 const menuRoot = document.getElementById('menu');
 const bg = document.getElementById('bg');
 const stageEl = document.getElementById('stage');
 let backdrop = null;
-let session = null;   // { kind: 'host' | 'guest', game, net, room, ... }
+let session = null;   // { kind: 'host' | 'guest', game, net, room }
 const mmc = window.__mmc = { stage: 'menu' };
 
 const ctl = {
@@ -61,14 +94,15 @@ const ctl = {
   region: local.get('mmc-region', guessRegion()),
   options,
   saveOptions: o => { Object.assign(options, o); local.set('mmc-options', options); },
-  newStore: o => host({ ...o, id: `s${Date.now().toString(36)}`, save: null }),
-  listSaves: () => local.get(SAVES, []),
+  newStore: o => host({ id: `s${Date.now().toString(36)}`, name: (o.name || `${options.name}'s Mart`).slice(0, 32), difficulty: o.difficulty,
+    mart: o.mart, cash: 0, marts: {} }, o),
+  listSaves: () => Object.values(records.all()).sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0))
+    .map(r => ({ id: r.id, name: r.name, mart: r.mart, difficulty: r.difficulty || 0, savedAt: r.savedAt || 0, done: r.done || 0, total: r.total || 0 })),
   loadStore: (id, o) => {
-    const meta = local.get(SAVES, []).find(s => s.id === id);
-    if (!meta) return Promise.reject(new Error('save not found'));
-    return host({ ...meta, ...o, save: local.get(`mmc-save-${id}`, null) });
+    const r = records.all()[id];
+    return r ? host(r, o) : Promise.reject(new Error('save not found'));
   },
-  deleteSave: id => { local.set(SAVES, local.get(SAVES, []).filter(s => s.id !== id)); local.del(`mmc-save-${id}`); },
+  deleteSave: id => records.del(id),
   listRooms: () => loadNet().then(n => n.listRooms()),
   joinStore: o => join(o),
 };
@@ -76,83 +110,134 @@ const menu = mountMenu(menuRoot, ctl);
 mmc.menuAt = performance.now();
 if (params.get('msg')) menu.error(params.get('msg'));
 
+// A signed-in hub account brings its stores from other devices (the Load Store list reads records afresh each time).
+loadNet().then(n => n.cloud.pull(() => records.all(), r => records.put(r))).then(s => { mmc.cloud = s; }, () => { mmc.cloud = 'off'; });
+
 // The backdrop waits for the first paint of the menu and for an idle moment, then plays Store 1 with the solo bot.
 const startBackdrop = async () => {
   if (session || backdrop || params.has('nobg')) return;
   const { startGame } = await import(`./game.js?v=${V}`);
   if (session) return;
-  backdrop = startGame({ canvas: bg, hudRoot: document.createElement('div'), mart: 'store1', role: 'attract',
+  backdrop = startGame({ canvas: bg, hudRoot: document.createElement('div'), mart: 'store1', role: 'attract', marts: allMarts,
     onStage: s => { mmc.backdrop = s; } }).catch(e => { console.warn('backdrop', e); return null; });
 };
-(window.requestIdleCallback || (f => setTimeout(f, 200)))(() => { loadNet(); startBackdrop(); }, { timeout: 800 });
+(window.requestIdleCallback || (f => setTimeout(f, 200)))(() => startBackdrop(), { timeout: 800 });
 
+// Each store gets a fresh canvas: a stopped renderer loses its WebGL context and the canvas cannot get another.
 async function enterStore(mart, role, extra) {
   const { startGame, prefetch } = await import(`./game.js?v=${V}`);
   prefetch(mart);
   const b = backdrop && await backdrop;
   backdrop = null;
   if (b) b.stop();
+  if (session && session.game) { session.game.stop(); session.game = null; }
   bg.hidden = true;
   stageEl.hidden = false;
   menu.hide();
   document.body.classList.add('in-store');
-  return startGame({ canvas: document.getElementById('game'), hudRoot: document.getElementById('hud'), mart, role, ...extra,
+  const old = document.getElementById('game'), canvas = document.createElement('canvas');
+  canvas.id = 'game';
+  old.replaceWith(canvas);
+  mmc.stage = 'loading';
+  return startGame({ canvas, hudRoot: document.getElementById('hud'), mart, role, marts: allMarts, wardrobe, ...extra,
     onStage: s => { mmc.stage = s; } });
 }
 
 // --- host -------------------------------------------------------------------------------------------------------
-async function host(o) {
-  const { hostRoom, HostNet } = await loadNet();
+async function host(record, o) {
+  const { hostRoom, HostNet, cloud } = await loadNet();
   local.set('mmc-region', o.region);
-  const name = (o.name || `${options.name}'s Mart`).slice(0, 32);
-  const room = await hostRoom({ name, isPrivate: o.isPrivate, mart: o.mart, difficulty: o.difficulty, region: o.region,
+  const room = await hostRoom({ name: record.name, isPrivate: o.isPrivate, mart: record.mart, difficulty: record.difficulty, region: o.region,
     playerName: options.name, maxPlayers: MAX_PLAYERS });
-  let game;
+  const info = () => ({ mart: record.mart, difficulty: record.difficulty, name: record.name });
+  session = { kind: 'host', room, game: null, net: null };
+  let travelling = false;
+  const save = (force = false) => {
+    const game = session.game;
+    if (game) {
+      const d = game.sim.save();
+      record.cash = d.cash;
+      record.marts = record.marts || {};
+      record.marts[game.mart] = d;
+      record.done = Object.values(game.sim.state.mats).filter(m => m.done).length;
+      record.total = game.store.mats.length;
+    }
+    record.savedAt = Date.now();
+    records.put(record);
+    cloud.push(() => records.all(), force);
+  };
+  // Every way to another mart ends here: the next-mart van, the map card's GO, a prestige (wipe = that mart's save).
+  const travel = async (id, wipe = null) => {
+    if (travelling) return;
+    travelling = true;
+    if (wipe && session.game && session.game.mart === wipe) record.cash = session.game.sim.state.cash;
+    else save();
+    if (wipe && record.marts) delete record.marts[wipe];
+    record.mart = id;
+    records.put(record);
+    room.ugs.updateLobby(room.lobby.id, { data: { mart: { visibility: 'public', value: id } } }).catch(() => {});
+    try {
+      await open(id);
+    } finally {
+      travelling = false;
+    }
+  };
+  const open = async id => {
+    const d = record.marts && record.marts[id];
+    const game = await enterStore(id, 'host', { difficulty: record.difficulty, record, save: d ? { ...d, cash: record.cash } : null,
+      hooks: { travel, save: () => save(true) } });
+    session.game = game;
+    if (session.net) session.net.rebind(game.sim, info());
+    else {
+      session.net = new HostNet({ link: room.link, sim: game.sim, hostName: options.name, maxPlayers: MAX_PLAYERS, info: info(),
+        onCommand: (pid, m) => command(session.game, m),
+        onRoster: (list, change) => { if (change && change.uid && change.why === 'timeout') room.free(change.uid); bar.roster(list); } });
+    }
+    let saveT = 0;
+    game.afterStep = dt => {
+      // Gold lives on the record; guests read it off the store state to pay for outfits.
+      game.sim.state.coopGold = record.gold || 0;
+      session.net.update(dt);
+      saveT += dt;
+      if (saveT > 10) { saveT = 0; save(); }
+    };
+    save();
+    Object.assign(mmc, { role: 'host', code: room.code, net: session.net, game, room, record, travel });
+  };
   try {
-    game = await enterStore(o.mart, 'host', { difficulty: o.difficulty, save: o.save });
+    await open(record.mart);
   } catch (e) {
     room.close();
+    session = null;
     throw e;
   }
-  const meta = { id: o.id, name, mart: o.mart, difficulty: o.difficulty };
-  const net = new HostNet({ link: room.link, sim: game.sim, hostName: options.name, maxPlayers: MAX_PLAYERS,
-    info: { mart: o.mart, difficulty: o.difficulty, name },
-    onCommand: (pid, m) => command(game.sim, m),
-    onRoster: (list, change) => { if (change && change.uid && change.why === 'timeout') room.free(change.uid); bar.roster(list); } });
-  session = { kind: 'host', game, net, room };
-  const save = () => {
-    const d = game.sim.save();
-    const list = local.get(SAVES, []).filter(s => s.id !== meta.id);
-    const done = Object.values(game.sim.state.mats).filter(m => m.done).length;
-    list.unshift({ ...meta, savedAt: Date.now(), done, total: game.store.mats.length });
-    local.set(SAVES, list.slice(0, 20));
-    local.set(`mmc-save-${meta.id}`, d);
-  };
-  let saveT = 0;
-  game.afterStep = dt => {
-    net.update(dt);
-    saveT += dt;
-    if (saveT > 10) { saveT = 0; save(); }
-  };
-  save();
-  const bar = storeBar({ name, code: room.code, isPrivate: o.isPrivate, onLeave: () => { save(); net.close(); room.close(); back(); } });
-  bar.roster(net.roster());
-  window.addEventListener('pagehide', () => { save(); net.close(); room.close(true); });
-  Object.assign(mmc, { role: 'host', code: room.code, net, game, room });
+  const bar = storeBar({ name: record.name, code: room.code, onLeave: () => { save(true); session.net.close(); room.close(); back(); } });
+  bar.roster(session.net.roster());
+  document.addEventListener('visibilitychange', () => { if (document.hidden) save(true); });
+  window.addEventListener('pagehide', () => { save(true); session.net.close(); room.close(true); });
 }
 
-// A guest's HUD buttons that change the store, run on the host instead.
-function command(sim, m) {
+// What a guest's buttons change in the store, run on the host.
+function command(game, m) {
+  // Between marts there is no store to change; the guest's button press is dropped.
+  if (!game) return;
+  const sim = game.sim;
   if (m.op === 'upgrade' && m.slot) sim.buyUpgrade({ kind: m.slot.kind, i: m.slot.i, name: m.slot.name }, m.track || null);
   else if (m.op === 'claim' && sim.boosters) sim.boosters.claim();
   else if (m.op === 'claimCash' && sim.boosters) sim.boosters.claimCash();
+  else if (m.op === 'carsCollect' && sim.cars && sim.cars.full()) sim.cars.collect();
+  else if (m.op === 'spend') {
+    // Outfits: cash from the shared wallet, gold from the store's prestige gold; never below zero.
+    sim.state.cash -= Math.max(0, Math.min(+m.cash || 0, sim.state.cash));
+    if (game.record) game.record.gold = Math.max(0, (game.record.gold || 0) - Math.max(0, +m.gold || 0));
+  }
 }
 
 // --- guest ------------------------------------------------------------------------------------------------------
-async function join(o) {
+async function join(o, attempt = 0) {
   const { joinRoom, GuestNet } = await loadNet();
   const room = await joinRoom({ ...o, playerName: options.name });
-  const net = new GuestNet({ link: room.link, name: options.name, uid: room.uid });
+  const net = new GuestNet({ link: room.link, name: options.name, uid: room.uid, looks: wardrobe.looks || null });
   let welcome;
   try {
     welcome = await net.join();
@@ -161,29 +246,69 @@ async function join(o) {
     room.link.close();
     throw e;
   }
-  const game = await enterStore(welcome.info.mart, 'guest', { difficulty: welcome.info.difficulty, welcome });
-  const sim = game.sim, me = welcome.you;
-  sim.buyUpgrade = (slot, track) => { net.command('upgrade', { slot: { kind: slot.kind, i: slot.i, name: slot.name }, track }); return true; };
-  if (sim.boosters) {
-    sim.boosters.claim = () => net.command('claim');
-    sim.boosters.claimCash = () => net.command('claimCash');
-  }
+  if (!session || session.kind !== 'guest') session = { kind: 'guest' };
+  Object.assign(session, { net, room, rejoin: { lobbyId: room.lobby.id, relay: room.relay, lobbyCode: room.lobby.lobbyCode } });
+  const bar = session.bar || (session.bar = storeBar({ name: welcome.info.name, code: room.lobby.lobbyCode,
+    onLeave: () => { session.leaving = true; session.net.leave(); session.room.leave(); back(); } }));
+  let ready = false;
+  const open = async m => {
+    ready = false;
+    const game = await enterStore(m.info.mart, 'guest', { difficulty: m.info.difficulty, welcome: m, hooks: {
+      looks: l => { wardrobe.looks = l; net.setLooks(l); },
+      wallet: {
+        cash: () => game.sim.state.cash,
+        spendCash: n => { game.sim.state.cash -= n; net.command('spend', { cash: n }); },
+        gold: () => game.sim.state.coopGold || 0,
+        spendGold: n => { game.sim.state.coopGold -= n; net.command('spend', { gold: n }); },
+      } } });
+    session.game = game;
+    const sim = game.sim;
+    sim.buyUpgrade = (slot, track) => { net.command('upgrade', { slot: { kind: slot.kind, i: slot.i, name: slot.name }, track }); return true; };
+    if (sim.boosters) {
+      sim.boosters.claim = () => net.command('claim');
+      sim.boosters.claimCash = () => net.command('claimCash');
+    }
+    if (sim.cars) sim.cars.collect = () => net.command('carsCollect');
+    game.afterStep = dt => net.update(dt, sim.pose());
+    // Ticks that came while the new mart loaded are already in net.wire.
+    if (net.wire) sim.adopt(net.wire);
+    ready = true;
+    Object.assign(mmc, { role: 'guest', me: m.you, net, game, room });
+  };
   net.onTick = (wire, events) => {
+    if (!ready) return;
+    const sim = session.game.sim;
     sim.adopt(wire);
     for (const e of events) {
-      if (e.pid === me) delete e.pid;
+      if (e.pid === sim.me) delete e.pid;
       else if (e.pid == null) e.pid = 'host';
       sim.emit(e);
     }
-    const names = Object.entries(wire.players || {}).map(([id, p]) => ({ id, name: p.name }));
-    bar.roster(names, me);
+    bar.roster(Object.entries(wire.players || {}).map(([id, p]) => ({ id, name: p.name })));
   };
-  net.onKick = why => { session = null; room.leave(); back(why === 'version' ? 'Phiên bản khác chủ phòng, tải lại trang' : 'Chủ phòng đã đóng cửa hàng'); };
-  game.afterStep = dt => net.update(dt, sim.pose());
-  session = { kind: 'guest', game, net, room };
-  const bar = storeBar({ name: welcome.info.name, code: room.lobby.lobbyCode, onLeave: () => { net.leave(); room.leave(); back(); } });
-  window.addEventListener('pagehide', () => { net.leave(); room.leave(true); });
-  Object.assign(mmc, { role: 'guest', me, net, game, room });
+  // A later welcome: a resync of the same mart, or the host took the room to another one.
+  net.onWelcome = m => {
+    if (ready && session.game && m.info.mart === session.game.mart && m.you === session.game.sim.me) session.game.sim.adopt(m.full);
+    else open(m).catch(e => back(String(e.message || e)));
+  };
+  await open(welcome);
+  net.onKick = why => {
+    if (session.leaving) return;
+    // A host's kick says why; anything else is the relay link dropping, worth a few tries on the same allocation
+    // (the lobby seat is kept for those).
+    if (['host closed the store', 'full', 'version'].includes(why) || attempt >= RECONNECTS) {
+      room.leave();
+      back(why === 'version' ? 'Phiên bản khác chủ phòng, tải lại trang' : why === 'full' ? 'Cửa hàng đã đủ người' : 'Chủ phòng đã đóng cửa hàng');
+      return;
+    }
+    mmc.reconnecting = (mmc.reconnecting || 0) + 1;
+    const r = session.rejoin;
+    setTimeout(() => join(r, attempt + 1).catch(() => back('Mất kết nối với chủ phòng')), 1000 * (attempt + 1));
+  };
+  if (!session.unload) {
+    session.unload = true;
+    window.addEventListener('pagehide', () => { session.leaving = true; session.net.leave(); session.room.leave(true); });
+  }
 }
 
 // Back to the menu: a fresh page is the simplest clean slate (WebGL, sockets, timers); the tab keeps its UGS session.
@@ -194,7 +319,7 @@ function back(msg) {
 }
 
 // The strip over the store: name, room code (tap to copy), who is in, leave.
-function storeBar({ name, code, isPrivate, onLeave }) {
+function storeBar({ name, code, onLeave }) {
   const el = document.createElement('div');
   el.className = 'mmc-bar';
   el.innerHTML = '<b class="n"></b><button class="code" title="Copy"></button><span class="who"></span><button class="leave">✕</button>';

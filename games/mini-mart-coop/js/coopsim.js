@@ -7,6 +7,8 @@ import { plain, live, assignDeep } from './net/mirror.js';
 
 const OWN = ['player', 'carry', 'acc', 'drain', 'upgrade'];
 const POSE = ['x', 'y', 'z', 'dirX', 'dirZ', 'moving'];
+// Thief.step only lets state.player catch the thief (games/casual-farm/js/sim/thief.js: CATCH_R 2.5, FREEZE 2).
+const CATCH_R = 2.5, FREEZE = 2;
 
 export const freshPlayer = (store) => ({
   player: { x: store.player.start.x, y: 0, z: store.player.start.z, dirX: 0, dirZ: 1, moving: false, frozen: 0, inputMag: 0 },
@@ -23,9 +25,10 @@ export class CoopSim extends Sim {
     this.pid = null;
   }
 
-  addRemote(pid, name) {
+  addRemote(pid, name, looks = null) {
     const r = this.state.remotes[pid] || (this.state.remotes[pid] = freshPlayer(this.store));
     r.name = name;
+    this.setLooks(pid, looks);
     // Spread joiners around the start point so they do not stand inside each other.
     const n = Object.keys(this.state.remotes).length;
     r.player.x = this.store.player.start.x + 3 * Math.cos(n * 2.1);
@@ -48,6 +51,15 @@ export class CoopSim extends Sim {
     for (const k of POSE) if (pose[k] !== undefined) r.player[k] = pose[k];
   }
 
+  // Outfit, hat, skin and pet of one player (their eq ids) and the carry their pet adds. Store-wide outfit skills
+  // (faster machines, revenue) are the host's, through Sim.setCosmetics; speed is each player's own and lives on
+  // their own screen, where they walk.
+  setLooks(pid, looks) {
+    const r = pid === 'host' ? null : this.state.remotes[pid];
+    const eq = looks && looks.eq ? looks.eq : null, petCarry = looks && looks.petCarry ? +looks.petCarry || 0 : 0;
+    if (r) { r.looks = eq; r.petCarry = petCarry; } else if (pid === 'host') this.hostLooks = eq;
+  }
+
   emit(e) {
     if (this.pid != null && e.pid === undefined) e.pid = this.pid;
     super.emit(e);
@@ -67,31 +79,55 @@ export class CoopSim extends Sim {
     if (!pids.length) return;
     const own = {};
     for (const k of OWN) own[k] = st[k];
-    const ownZone = this.zone;
+    const ownZone = this.zone, ownPet = this.petCarry;
     const on = st.cashiers.map(c => c.playerOn);
     try {
       for (const pid of pids) {
         const r = st.remotes[pid];
         for (const k of OWN) st[k] = r[k];
         this.pid = pid;
+        this.petCarry = r.petCarry || 0;
+        r.player.frozen = Math.max(0, (r.player.frozen || 0) - dt);
         const zone = this.zones();
         this.stepCarry(dt, zone);
         this.stepMoney(dt, zone);
         st.cashiers.forEach((c, i) => { on[i] = on[i] || c.playerOn; });
+        this.catchThief(r);
+        this.standOnCashMat(pid, r, dt);
       }
     } finally {
       this.pid = null;
+      this.petCarry = ownPet;
       for (const k of OWN) st[k] = own[k];
       this.zone = ownZone;
       st.cashiers.forEach((c, i) => { c.playerOn = on[i]; });
     }
   }
 
+  // Same catch as Thief.step's, for any player: the coins come back when the thief's caught state runs out.
+  catchThief(r) {
+    const th = this.state.thief, a = th && th.agent;
+    if (!a || a.state !== 'escape' || Math.hypot(r.player.x - a.x, r.player.z - a.z) > CATCH_R + 1) return;
+    Object.assign(a, { state: 'caught', timer: 0, moving: false });
+    r.player.frozen = Math.max(r.player.frozen || 0, FREEZE);
+    th.chasing = false;
+    this.emit({ type: 'thiefCaught' });
+  }
+
+  // Boosters.step counts only state.player standing on the bonus-cash mat; anyone else counts here.
+  standOnCashMat(pid, r, dt) {
+    const b = this.state.boost, mat = this.boosters && this.boosters.cashMat;
+    this.matStand = this.matStand || {};
+    if (!b || !b.cash || !mat || !mat.zone.contains(r.player, 1)) { this.matStand[pid] = 0; return; }
+    this.matStand[pid] = (this.matStand[pid] || 0) + dt;
+    if (this.matStand[pid] >= mat.time) { this.matStand[pid] = 0; this.boosters.claimCash(); }
+  }
+
   // --- replication ----------------------------------------------------------------------------------------------
   // Wire form: the shared state plus every player under `players`, the host as "host".
   wire(hostName) {
-    const st = this.state, players = { host: { name: hostName, player: st.player, carry: st.carry } };
-    for (const [pid, r] of Object.entries(st.remotes)) players[pid] = { name: r.name, player: r.player, carry: r.carry };
+    const st = this.state, players = { host: { name: hostName, player: st.player, carry: st.carry, looks: this.hostLooks || null } };
+    for (const [pid, r] of Object.entries(st.remotes)) players[pid] = { name: r.name, player: r.player, carry: r.carry, looks: r.looks || null };
     const shared = {};
     for (const k of Object.keys(st)) if (!OWN.includes(k) && k !== 'remotes') shared[k] = st[k];
     shared.players = players;

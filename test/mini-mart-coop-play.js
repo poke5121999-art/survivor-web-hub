@@ -111,6 +111,42 @@ function serve() {
   await a.screenshot({ path: path.join(SHOTS, 'a-store.png') });
   await b.screenshot({ path: path.join(SHOTS, 'b-store.png') });
 
+  const shown = (p, sel) => p.evaluate(s => { const e = document.querySelector(s); return !!e && getComputedStyle(e).display !== 'none'; }, sel);
+  const vis = { bCustom: await shown(b, '#custombtn'), bMap: await shown(b, '#mapbtn'), bSpin: await shown(b, '#spinbtn') };
+  check('guest has outfits but not the store meta (map, shop, spin)', vis.bCustom && !vis.bMap && !vis.bSpin, JSON.stringify(vis));
+
+  // Outfits: the guest puts on another hat through the Customise state, as its buttons do.
+  const hat = await b.evaluate(() => {
+    const c = window.__mmc.game.hud.customise, own = [...c.state.own.hats];
+    c.state.eq.hat = own.find(h => h !== c.state.eq.hat) ?? own[0];
+    c.onChange();
+    return c.state.eq.hat;
+  });
+  await a.waitForFunction(h => { const r = Object.values(window.__mmc.game.sim.state.remotes)[0]; return r && r.looks && r.looks.hat === h; }, hat, { timeout: 10000 })
+    .then(() => check('host sees the hat the guest put on', true, `hat ${hat}`), () => check('host sees the hat the guest put on', false, `hat ${hat}`));
+
+  // The host takes the room to Store 2 (what the van and the map's GO do).
+  await a.evaluate(() => window.__mmc.travel('store2'));
+  await a.waitForFunction(() => window.__mmc.game.mart === 'store2' && window.__mmc.stage === 'textures', null, { timeout: 60000 });
+  await b.waitForFunction(() => window.__mmc.game && window.__mmc.game.mart === 'store2' && window.__mmc.stage === 'textures', null, { timeout: 60000 })
+    .then(() => check('the whole room moves to Store 2', true), () => check('the whole room moves to Store 2', false));
+  await a.waitForTimeout(4000);
+  const moved2 = await b.evaluate(() => ({ remotes: Object.keys(window.__mmc.game.sim.state.remotes), cash: window.__mmc.game.sim.state.cash }));
+  const hostCash2 = await a.evaluate(() => window.__mmc.game.sim.state.cash);
+  check('in Store 2 they see each other and share the wallet', moved2.remotes.includes('host') && Math.abs(moved2.cash - hostCash2) <= 5, `cash ${moved2.cash}/${hostCash2}`);
+  // Solo rule (hud.js featuresOn): map and outfits come in after Store 1's tutorial or at a second mart.
+  check('host gets the mart map and outfits once a second mart is reached', await shown(a, '#mapbtn') && await shown(a, '#custombtn'));
+  await a.screenshot({ path: path.join(SHOTS, 'a-store2.png') });
+  await b.screenshot({ path: path.join(SHOTS, 'b-store2.png') });
+
+  // The guest's relay socket drops: it comes back on its own.
+  await b.evaluate(() => window.__mmc.net.link.ws.close());
+  await b.waitForFunction(() => window.__mmc.reconnecting === 1 && window.__mmc.role === 'guest' && window.__mmc.stage === 'textures' && window.__mmc.net.link.ws.readyState === 1, null, { timeout: 60000 })
+    .then(() => check('guest reconnects after its link drops', true), () => check('guest reconnects after its link drops', false));
+  await a.waitForFunction(() => window.__mmc.roster.length === 2, null, { timeout: 30000 })
+    .then(async () => check('host is back to two players (the dropped one timed out)', true, (await a.evaluate(() => window.__mmc.roster)).join(', ')),
+      () => check('host is back to two players (the dropped one timed out)', false));
+
   await b.locator('.mmc-bar .leave').click();
   await a.waitForFunction(() => window.__mmc.roster.length === 1, null, { timeout: 20000 }).then(() => check('host sees the guest leave', true), () => check('host sees the guest leave', false));
   await b.waitForFunction(() => window.__mmc && window.__mmc.menuAt && !window.__mmc.role, null, { timeout: 15000 }).then(() => check('guest is back at the menu', true), () => check('guest is back at the menu', false));

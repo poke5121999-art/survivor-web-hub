@@ -123,6 +123,35 @@ const perSec = hostNet.bytes.tick / secs;
 check('guest stream under 8 KB/s', perSec < 8192, `${(perSec / 1024).toFixed(2)} KB/s ticks, full ${(hostNet.bytes.full / 1024).toFixed(1)} KB, ${guestNet.stats.resyncs} resyncs`);
 check('upgrade command from the guest reached the host', commands.length === 0 || commands.every(c => c.op === 'upgrade'), `${commands.length} commands`);
 
+const caught = guestEvents.filter(e => e.type === 'thiefCaught');
+console.log(`  info: thief caught ${caught.length} times, ${caught.filter(e => e.pid === pid).length} by the guest`);
+
+guestNet.setLooks({ eq: { skin: 2, outfit: 1, hat: 3, pet: 1 }, petCarry: 1 });
+await flush();
+hostNet.update(1);
+await flush();
+const hr = host.state.remotes[pid];
+check('host keeps the guest outfit and its pet carry', hr.looks && hr.looks.skin === 2 && hr.petCarry === 1);
+check('everyone gets the guest outfit in the stream', guestNet.wire.players[pid].looks && guestNet.wire.players[pid].looks.hat === 3);
+host.step(DT, { nav, grid });
+check('pet carry counts for that player only', !host.petCarry, `host pet carry ${host.petCarry || 0} after a step`);
+
+const S2 = 'store2';
+const store2 = buildStore(read(`art/${S2}/scene.json`), read(`data/${S2}.json`));
+const host2 = new CoopSim(store2, { cash: host.state.cash });
+let moved2 = null;
+guestNet.onWelcome = m => { moved2 = m; };
+hostNet.rebind(host2, { mart: S2, difficulty: 0, name: 'x' });
+hostNet.update(1);
+await flush();
+check('the room moves to the next mart: guest welcomed there as the same player', moved2 && moved2.info.mart === S2 && moved2.you === pid && !!host2.state.remotes[pid],
+  moved2 && `${moved2.info.mart}, ${moved2.you}`);
+check('cash rides along to the next mart', moved2 && moved2.full.cash === host.state.cash, moved2 && moved2.full.cash);
+check('guest outfit survives the move', host2.state.remotes[pid] && host2.state.remotes[pid].looks && host2.state.remotes[pid].looks.skin === 2);
+const g2 = new MirrorSim(store2, pid);
+g2.adopt(moved2.full);
+check('guest mirror of the new mart has the host in it', !!g2.state.remotes.host && g2.state.cash === host2.state.cash);
+
 console.log('  bytes by part', Object.entries(cost).sort((a, b) => b[1] - a[1]).slice(0, 14).map(([k, v]) => `${k} ${(v / MINUTES / 60) | 0}B/s`).join(', '));
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
