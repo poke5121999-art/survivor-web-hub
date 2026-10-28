@@ -3,10 +3,11 @@
  * Proves the ported rules (spring rope, grapple reel, bumpers, finish line, camera-edge deaths) keep the original levels
  * beatable. Normal: the 64 hand-made levels plus SH_RANDOM random levels from 65 on. Mechanical Grapple: its 41 levels
  * plus SH_GRAPPLE_RANDOM random ones (GrapplePlayer). Challenge: 30 levels. Easter and Valentine's Day: 5 levels each.
+ * Race (Tournament): the 21 maps, each from all 5 start slots (SH_RACE_SLOTS=one: map n from slot (n - 1) % 5 only).
  * The bot is a beam search over hooks: from each kept state it tries SH_TRY (grab distance, release point) pairs
  * for the next swing, keeps the SH_BEAM states that got furthest alive, and repeats until one crosses the finish.
  * SH_PICK=13,24 runs only those level numbers of each mode.
- *   node test/stickman-hook-sim.js   SH_MODES=normal,grapple,challenge,easter_event,valentine_day
+ *   node test/stickman-hook-sim.js   SH_MODES=normal,grapple,challenge,easter_event,valentine_day,race
  *                                    SH_LEVELS=1-64 SH_RANDOM=30 SH_GRAPPLE_RANDOM=10 SH_BEAM=10 SH_TRY=14
  */
 'use strict';
@@ -21,7 +22,8 @@ const TRY = +(process.env.SH_TRY || 14);
 const GRAPPLE_RANDOM = +(process.env.SH_GRAPPLE_RANDOM ?? 10);
 const [L0, L1] = (process.env.SH_LEVELS || '1-64').split('-').map(Number);
 const PICK = process.env.SH_PICK ? process.env.SH_PICK.split(',').map(Number) : null; // only these level numbers
-const ONLY = (process.env.SH_MODES || 'normal,grapple,challenge,easter_event,valentine_day').split(',');
+const ONLY = (process.env.SH_MODES || 'normal,grapple,challenge,easter_event,valentine_day,race').split(',');
+const RACE_ONE = process.env.SH_RACE_SLOTS === 'one';
 
 function rng(seed) {
   let s = seed >>> 0;
@@ -120,26 +122,37 @@ function rng(seed) {
   const grapple = modeData(data, json('mode-grapple.json'), 'mode.grapple');
   const challenge = modeData(data, json('mode-challenge.json'), 'mode.challenge');
   const seasonal = json('mode-seasonal.json');
+  const raceFile = json('mode-race.json');
+  const race = modeData(data, raceFile, 'mode.tournament');
   const runs = {
     normal: ['level', data, Player, [...range(L0, L1), ...random(65, RANDOM)]],
     grapple: ['grapple', grapple, GrapplePlayer, [...range(1, grapple.levels.length), ...random(grapple.levels.length + 1, GRAPPLE_RANDOM)]],
     challenge: ['challenge', challenge, Player, range(1, challenge.levels.length), true],
     easter_event: ['easter', modeData(data, seasonal, 'mode.easter_event'), Player, range(1, 5), true],
     valentine_day: ['valentine', modeData(data, seasonal, 'mode.valentine_day'), Player, range(1, 5), true],
+    race: ['race', race, Player, range(1, race.levels.length), true],
   };
+  // a race map starts from the slot "Spawn" + (slot > 0 ? slot : "") of its first pattern
+  const raceSlots = (n) => (RACE_ONE ? [(n - 1) % 5] : [0, 1, 2, 3, 4]);
   check('grapple level 1 = Solo5, 41 fixed levels', grapple.levels.length === 41 && grapple.levels[0].join() === 'Solo5');
   check('challenge has 30 levels of 3 patterns', challenge.levels.length === 30 && challenge.levels.every((l) => l.length === 3));
+  check('race has 21 maps, map 2 = STARTUPRace01+MIDDLE020+FINISH03, 5 start slots each', race.levels.length === 21
+    && race.levels[1].join('+') === 'STARTUPRace01+MIDDLE020+FINISH03'
+    && race.levels.every((l) => race.patterns[l[0]].spawns?.length === 5));
   for (const id of ONLY) {
     const [label, d, P, levels, explore] = runs[id];
     for (const n of levels) {
       if (PICK && !PICK.includes(n)) continue;
-      const world = buildLevel(d, n - 1);
-      let res = solve(world, n * 7919, P, explore);
-      // Challenge levels are puzzles (bumper chutes, forced bounces): a failed search retries with 2x, then 3x the
-      // beam and tries
-      for (let k = 2; !res.ok && explore && k <= 3; k++) res = solve(world, n * 7919, P, explore, BEAM * k, TRY * k);
-      check(`${label} ${n} (${world.names.join('+')}) can be finished`, res.ok,
-        res.ok ? `${res.depth} swings, ${res.t.toFixed(1)} s` : `got to x ${res.best.toFixed(1)} of finish ${world.finishX.toFixed(1)}`);
+      for (const slot of id === 'race' ? raceSlots(n) : [null]) {
+        const world = buildLevel(d, n - 1);
+        if (slot !== null) { const sp = d.patterns[world.names[0]].spawns[slot]; world.spawn = { x: sp[0], y: sp[1] }; }
+        let res = solve(world, n * 7919, P, explore);
+        // Challenge levels are puzzles (bumper chutes, forced bounces): a failed search retries with 2x, then 3x the
+        // beam and tries
+        for (let k = 2; !res.ok && explore && k <= 3; k++) res = solve(world, n * 7919, P, explore, BEAM * k, TRY * k);
+        check(`${label} ${n}${slot !== null ? ' slot ' + slot : ''} (${world.names.join('+')}) can be finished`, res.ok,
+          res.ok ? `${res.depth} swings, ${res.t.toFixed(1)} s` : `got to x ${res.best.toFixed(1)} of finish ${world.finishX.toFixed(1)}`);
+      }
     }
   }
   console.log(`\n${pass} pass, ${fail} fail`);

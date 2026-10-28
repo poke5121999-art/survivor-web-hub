@@ -13,8 +13,9 @@ Pha tiếp theo thêm ba chế độ: Mechanical Grapple, Challenge, sự kiện
 
 Vòng quay, heo đất, xu miễn phí mỗi ngày và vé bỏ qua màn: xem mục "Vòng quay, heo đất, chợ, vé bỏ qua".
 Lucky Drop (Pachinko) có engine riêng `js/pachinko.js`; luật, toạ độ bàn chơi và bẫy ở `docs/PACHINKO.md`.
+Đua (Tournament): đua với ghost trên 21 map, bảng xếp hạng ngày chạy offline. Xem mục "Đua (Tournament)".
 
-Chưa làm: các chế độ Adventure/Race, thẻ bài, booster, quảng cáo, VIP.
+Chưa làm: chế độ Adventure, thẻ bài, booster, quảng cáo, VIP.
 
 ## Cách chơi
 
@@ -22,7 +23,7 @@ Chưa làm: các chế độ Adventure/Race, thẻ bài, booster, quảng cáo, 
 - Thả ra: bay đi.
 - Qua vạch caro là xong màn.
 - Rơi khỏi mép dưới hoặc mép trái camera khi không móc: chơi lại từ đầu màn.
-- `?level=N` mở thẳng màn N, bỏ qua trang chính. Thêm `&mode=grapple` (hoặc `challenge`, `easter_event`, `valentine_day`) để mở màn của chế độ đó. Phím `R` chơi lại. Tiến độ lưu trong `localStorage` (`stickman-hook`).
+- `?level=N` mở thẳng màn N, bỏ qua trang chính. Thêm `&mode=grapple` (hoặc `challenge`, `easter_event`, `valentine_day`) để mở màn của chế độ đó. `?mode=tournament` mở trang Đua. Phím `R` chơi lại. Tiến độ lưu trong `localStorage` (`stickman-hook`).
 - Nút ★: trang chính, gồm xu, thanh XP (bấm để mở Đường XP), Chơi, Chế độ, Tuỳ biến.
 
 ## Tệp
@@ -41,8 +42,10 @@ Chưa làm: các chế độ Adventure/Race, thẻ bài, booster, quảng cáo, 
 | `js/bonus.js` | Luật vòng quay, heo đất, xu mỗi ngày, vé bỏ qua, bỏ qua màn; ô trang chính, nút bỏ qua, khung heo đất (nạp lười) |
 | `js/modes.js` | Bảng chế độ: nguồn màn, lớp người chơi, chỗ lưu tiến độ, luật mở màn, thưởng cuối màn, road |
 | `js/grapple.js` | Người chơi Mechanical Grapple (nạp khi mở chế độ) |
+| `js/race.js` | Đua: trang bảng xếp hạng ngày, chọn đối thủ, ghost, đếm ngược, xếp hạng, thưởng (nạp khi mở chế độ) |
+| `data/race/<map>.json`, `art/race.webp` | Ghost của từng map (nạp khi đua map đó), vòng xuất phát và cúp |
 | `data/levels.json` | 123 pattern (toạ độ thế giới) cùng danh sách màn |
-| `data/mode-<file>.json` | `{v, sets: {modeId: {levels, random?}}, patterns}`: danh sách màn của chế độ và pattern chưa có trong `levels.json` (`grapple`, `challenge`, `seasonal`) |
+| `data/mode-<file>.json` | `{v, sets: {modeId: {levels, random?}}, patterns}`: danh sách màn của chế độ và pattern chưa có trong `levels.json` (`grapple`, `challenge`, `seasonal`, `race`; `race` có thêm mục `race`) |
 | `data/meta.json` | Bảng item, bộ sưu tập, độ hiếm, XP road, road màn Normal, chế độ, màu theme, trail/dây |
 | `data/bonus.json` | Cấu hình vòng quay (pool, giá, `LuckyWheelSettings`), heo đất, ưu đãi Chợ, thẻ `skip_level`, toạ độ ảnh |
 | `data/custom.json` | Khung của 95 skin, dây, trail, toạ độ icon shop |
@@ -53,6 +56,7 @@ Chưa làm: các chế độ Adventure/Race, thẻ bài, booster, quảng cáo, 
 | `art/atlas.webp` | Atlas sprite |
 | `art/font.webp` | Font Junegull |
 | `tools/build_data.py` | Tạo `levels.json`, `mode-*.json` và atlas, mọi chế độ qua cùng một `compile_pattern` |
+| `tools/build_race.py` | Giải bản ghi ghost của Tournament, lấy mẫu lại 10 Hz → `data/race/*.json`; tạo `art/race.webp` |
 | `tools/build_custom.py` | Tạo sheet skin, `ropes.webp`, `custom-ui.webp`, `custom.json` |
 | `tools/build_meta.py` | Tạo `meta.json`, `bonus.json`, `menu.webp`, `wheel.webp`, `piggy.webp`, `skip.webp` từ remote settings mặc định và bundle trong APK |
 | `tools/build_font.py` | Nướng font TMP SDF thành bitmap |
@@ -70,9 +74,13 @@ py -3 -I tools/extract_raw.py defaultlocalgroup_assets_stickmanhook_gamemodes_no
 py -3 -I tools/extract_mode.py defaultlocalgroup_assets_stickmanhook_gamemodes_grapplegameplayconfig_c49590a553d4e81fcd7f9af8e5a01cfe.bundle dump/full/grapple_raw.json
 py -3 -I tools/extract_mode.py defaultlocalgroup_assets_stickmanhook_gamemodes_challengegameplayconfig_1b394e114a8ba77953f7d300be6414b3.bundle dump/full/challenge_raw.json
 py -3 -I tools/extract_mode.py defaultlocalgroup_assets_stickmanhook_gamemodes_seasonalgameplayconfig_1702fd10f76412a2f1a9044ba4e2b346.bundle dump/full/seasonal_raw.json
+py -3 -I tools/extract_mode.py defaultlocalgroup_assets_stickmanhook_gamemodes_tournamentgameplayconfig_bee3ed665559a1033a70490b1ea1909d.bundle dump/full/tournament_raw.json
+cd tools && py -3 -I export_sprites.py D:/stickman-hook-ref/sprites_race defaultlocalgroup_assets_stickmanhook_gamemodes_tournamentgameplayconfig_bee3ed665559a1033a70490b1ea1909d.bundle -- SpawnPointGhost SpawnPointPlayer
+py -3 -I export_sprites.py D:/stickman-hook-ref/sprites_race defaultlocalgroup_assets_sprites_currencies_trophies_66fd9d60e2bcf44a91d4087abe890310.bundle -- Trophies && cd ..
 py -3 -I tools/export_sprites.py D:/stickman-hook-ref/sprites <normal bundle> <generalservices gameplayconfig bundle> <skins_basic_animationcontroller bundle> -- --all-prefix AN_Grap1_Bumper A_ C_Wall D_Wall AAA_GE CHAR_Classic in_game GradientVertical UI
 cd D:/survivor-web-hub/games/stickman-hook/tools && py -3 -I build_data.py && py -3 -I build_font.py
 py -3 -I build_custom.py && py -3 -I build_meta.py   # build_meta đọc custom.json, nên chạy sau
+py -3 -I build_race.py   # đọc levels.json và mode-race.json, nên chạy sau build_data
 ```
 
 Ghi chú:
@@ -286,6 +294,97 @@ Bẫy:
 - Để luật mới trong `meta.js` và `meta.json` thì màn đầu lên 606 KB, vượt ngân sách 600 KB. Đã tách sang `bonus.js` + `bonus.json` nạp lười: màn đầu còn 592 KB.
 - Đề bài cho rằng heo đất bán bằng tiền thật, và vòng quay có lượt miễn phí mỗi ngày. Cả hai đều sai so với config và asm.
 
+## Đua (Tournament)
+
+Mở ở 150 XP (Đường XP phát `mode.tournament`). Chế độ → Đua mở trang bảng xếp hạng hôm nay, nút Đua bắt đầu một cuộc đua.
+Người chơi đua với tối đa 4 ghost là bản ghi người thật có sẵn trong APK, trên một trong 21 map của Tournament.
+
+- Code: `js/race.js` (trang bảng xếp hạng, chọn đối thủ, ghost, đếm ngược, xếp hạng, thưởng, bảng ngày). `main.js` chỉ có vài móc `mode.race?.…`, vật lý là của Normal.
+- Dữ liệu: `data/mode-race.json` (`build_data.py`: 21 map + mục `race`: số đối thủ, trọng số độ khó, cấu hình bảng xếp hạng, tên và skin AI),
+  `data/race/<map>.json` (`build_race.py`: ghost của map đó), `art/race.webp` + `data/race/art.json` (vòng đánh dấu chỗ xuất phát, cúp).
+- Nạp lười: mở chế độ nạp `race.js` (27 KB thô) + `mode-race.json` (55 KB). Mỗi cuộc đua nạp một file ghost (40–103 KB thô, gzip trung bình 17 KB),
+  `race.webp` (18 KB) và sheet skin của các ghost. Màn đầu không nạp gì trong số này.
+- Bản ghi asm đã dịch: `D:/stickman-hook-ref/dump/asm/tournament/` (`tools/dump_tournament_asm.py`). Tìm nơi gọi một hàm: `tools/callers.py`.
+
+Luật đọc từ mã IL2CPP:
+
+- **Lượt chơi.** 2 lượt miễn phí mỗi ngày (`maxFreeGamesPerDay`), đếm lúc bấm Đua, không phải lúc về đích, trong cờ
+  `daily_flag_mode.tournament_free_<ngày>` [asm 0x1296f40, 0x12972f0, 0x1297870].
+  - Hết lượt miễn phí thì bản gốc bắt xem quảng cáo, không giới hạn (`maxRewardedGamesPerDay` −1) [asm 0x129747c, 0x12984f8].
+    Bản web theo quy ước chung: mỗi quảng cáo có thưởng = 1 vé bỏ qua. Không có vé thì nút báo cần vé.
+- **Chọn map.** `GetNextLevelToPlay` = max(0, min(đã đạt, đã mở)) [asm 0x1296b50]. `RefineLevel`: dưới 21 thì giữ nguyên, từ 21 trở đi `Random.Range(0, 21)` [asm 0x12aac08].
+  - Về đích (kể cả bị ép về đích) thì "đã đạt" = map + 1 nếu chưa vượt (`OnLevelAchieved` [asm 0x2419580, 0x12968e4]). Lưu ở `save.modes['mode.tournament'].best`.
+  - Vì thế 21 cuộc đua đầu đi lần lượt map 1 → 21 (map 1 là `RaceTest`), sau đó ngẫu nhiên.
+- **Chỗ xuất phát.** Người chơi ở ô `Random.Range(0, 5)` [asm 0x121fea0]. Ô k là object `"Spawn" + (k > 0 ? k : "")` của pattern đầu [asm 0x12aad00].
+- **Đối thủ.** Mỗi ô còn lại lấy `GetRandomSaveForRace(map, ô, ANY)` [asm 0x12202d8]:
+  - Độ khó rút theo trọng số `_difficultyLevels[clamp(số ngày thắng, 0, 5)]` [asm 0x1190c6c]. Số ngày thắng = `leaderboard.tournament_win` (`GetNbLeaderboardWins` [asm 0x12b8af0]).
+  - Lấy ngẫu nhiên một bản ghi cùng map, độ khó, ô. Không có bản ghi nào thì trả null và ô đó trống [asm 0x12205a0].
+    Đây là lời giải của UNKNOWN "fallback diff 4" trong `FULLGAME.md`: độ khó 4 (ANY) không có bản ghi, nên từ 5 ngày thắng mỗi ô có 40 % bị trống.
+  - Đối thủ xếp theo `duration` tăng dần [asm 0x1220c0c]. Tên ghost lấy từ danh sách người của bảng xếp hạng đã xáo [asm 0x1220160].
+- **Đếm ngược.** "3", "2", "1", "GO", mỗi chữ 500 ms [asm 0x1220e98, 0x1220f78, 0x122102c].
+  - Trong lúc đếm, ô của người chơi hiện `SpawnPointPlayer`, các ô khác hiện `SpawnPointGhost` [asm 0x12aae04]. Vòng của người chơi phồng 1.2 lần trong 0.2 s ở mỗi nhịp [asm 0x1220acc, 0x1220b48].
+  - Người chơi chỉ xuất hiện sau khi `StartRace` xong, cùng lúc các ghost bắt đầu chạy [asm 0x12abeec].
+- **Ghost về đích.** `PlayGhostAndWaitForFinish` chờ `Task.Delay(round(duration × 1000))` tính từ GO rồi mới báo ghost về đích [asm 0x1221438, 0x1221528].
+  - Hình của ghost chạy theo đồng hồ bản ghi, cũng tính từ GO.
+- **Xếp hạng** = thứ tự về đích. Ghost về thì vào danh sách (`TriggerOnGhostFinished`). Người chơi về thì vào danh sách (`CompleteLevel` [asm 0x12ab638]). Hạng là chỉ số của người chơi, đếm từ 0 [asm 0x12abb74].
+  - Ghost làm danh sách đủ 4 thì người chơi bị ép về đích (`ForceFinish`, không có pháo giấy) [asm 0x12ab824..0x12ab84c]. Nghĩa là thua cả 4 thì về thứ 5.
+  - Chết thì chơi lại từ ô xuất phát của mình. Cuộc đua vẫn chạy tiếp (`Respawn`, xem `docs/GAMEPLAY.md` mục 4).
+- **Thưởng mỗi cuộc đua** (`GetRaceRewards(clamp(hạng, 0, 4))` [asm 0x1190d24]): xu [10, 7, 5, 3, 1], cúp [10, 5, 3, 2, 1].
+  - Hai mảng nằm trong metadata ở offset 0x6cb420 và 0x6d20b8 (`.cctor` [asm 0x11910c8]).
+  - `FinishRace` cộng xu và `progression.race_trophies`, rồi ghi tổng cúp hôm nay làm điểm bảng xếp hạng [asm 0x1190e44, 0x1191054].
+  - Không có XP: `GiveEndGameRewards` của lớp gốc rỗng, Tournament không ghi đè [asm 0x28d84f8].
+- **Bảng xếp hạng ngày** (competition `tournament`, 10 người, 1 ngày):
+  - Seed = (int)(32 bit thấp của mốc bắt đầu tính bằng ms) / 1000 [asm 0x115642c].
+  - 9 AI sinh từ `System.Random(seed)` [asm 0x11568ec, 0x115692c]. Mỗi AI: `Next(0, 100)` ≤ 20 thì tên là "Player" + 6 chữ số, cắt còn 10 ký tự. Còn lại thì lấy `playerNames[Next]`. Sau đó rút skin từ `playerSkinIds`.
+  - Điểm AI: mỗi lần tính lại tạo một `System.Random(seed)` mới. Độ khó = `aiDifficulties[min(số ngày thắng, 4)]`.
+    AI thứ i: easing = bảng[`Next(0, 7)`] (bảng có SINE_OUT hai lần [asm 0x813404]), đích = `Next(min, max)`, điểm = (int)(start + easing(p) × (đích − start)), với p = phần ngày đã trôi qua [asm 0x12b9ae4, 0x12b94c8..0x12b96e4].
+  - Người chơi đứng sau 9 AI, điểm = cúp hôm nay. Sắp xếp giảm dần và ổn định, nên hoà điểm thì người chơi đứng dưới [asm 0x12b97f4, 0x1154ebc].
+  - `tournaments.tournamentsAI` trong config không được code nào đọc.
+- **Hết ngày.** Lần mở kế tiếp sẽ chốt bảng cũ ở p = 1 (`ClaimRewards` [asm 0x12bae08]):
+  - Thưởng theo hạng: hạng có trong danh sách thì lấy đúng mục đó, hạng nằm giữa hai mục thì nội suy và làm tròn chẵn (hạng 7/8/9: 20/15/10 xu) [asm 0x12ba320].
+  - Hạng 1 nhận skin chưa có thứ (số bảng đã chơi mod số skin chưa có) của `reward_pool.tournament_skin`. Có đủ cả 6 thì mất phần skin [asm 0x1157358..0x1157374].
+  - Hạng 1 cộng 1 ngày thắng [asm 0x12bb4cc]. Mọi hạng cộng 1 bảng đã chơi [asm 0x12bb54c].
+  - Bảng mới xoá cúp và điểm của ngày [asm 0x11909bc, 0x12b880c].
+
+Đo trong dữ liệu:
+
+- Ghost: `GhostMaterial` (Sprites/Default, `_Color` alpha 0.396). Đây là `alternativeMaterials` của `Ghostable2D`, nên ghost trong suốt 60 %.
+  - Bản ghi chỉ có thân và dây, nên ghost không có bóng.
+- Bản ghi (`build_race.py`): track 0 là thân (vị trí, góc z, flipX, tên khung hình), track 1 là dây.
+  - Vị trí của dây là trung điểm, scale y = độ dài / 0.345. Điểm móc = 2 × trung điểm − thân.
+- 502/505 bản ghi chạm vạch đích chậm hơn `duration` khoảng 0.22 s (trung vị 0.221).
+  - Nghĩa là ghost được tính về đích trước khi hình của nó chạm vạch. Bản web giữ nguyên lệch này.
+- Ghost lấy mẫu lại 10 Hz, vẽ bằng Catmull-Rom. Sau khi bản ghi hết (khoảng `duration` + 0.5 s) thì ghost biến mất.
+
+Tự đặt, có nhãn `[ĐỀ XUẤT]`:
+
+- Ngày của bảng: nửa đêm theo giờ máy, mã ngày dạng YYYYMMDD. Bản gốc lấy giờ từ server (`OnlineDateService`), và `FormatDateId` chưa giải.
+- Tên ghost lấy từ 9 AI của bảng, không lấy tên người chơi. Bản gốc xáo cả 10 người, nên có thể ra chính tên mình.
+- Chỗ đứng trên HUD lúc đang đua ("2/4") = số ghost đã về + số ghost đang ở phía trước theo x. Bản gốc không có HUD này.
+- Ghost và người chơi về trong cùng một khung hình thì ghost đứng trước (đồng hồ đua chạy trước bước vật lý của khung đó).
+- Màu dây ghost lấy màu dây Classic. Độ rộng 0.06 × 0.345 giả định `AAL_square_mini` là hình vuông.
+- Màn kết thúc là khung DOM tiếng Việt: hạng, thời gian, xu/cúp, thứ tự cả cuộc đua, hạng trên bảng ngày, nút "Bảng xếp hạng" và "Đua tiếp".
+  - Bản gốc dùng ảnh hạng và nút xem quảng cáo nhân xu.
+- ↻, phím R và ☰ trong cuộc đua mở lại trang bảng xếp hạng, để không chơi lại free cùng một cuộc đua.
+
+Chưa làm:
+
+- Nút xem quảng cáo nhân xu ở màn kết thúc (`skinCoinsMultiplier` nằm trong prefab, chưa đọc).
+- Thẻ `daily_coins_boost_tournament`, `daily_trophy_boost_tournament`, `second_chance_tournament`. Hệ thẻ chưa có.
+- Đường VIP `flag.old_no_ads`.
+- Chữ "X đã về đích" trong lúc đua.
+- Ảnh hạng và hoạt hình của `FinishedTournamentPopup`.
+
+Bẫy:
+
+- **Bản ghi có cả lúc chết.** Giữa bản ghi có những đoạn thân bị đẩy về x − 1000 (`ResetPlayer`) rồi xuất hiện lại.
+  - Nội suy qua những đoạn đó sẽ ra ghost bay ngang màn hình. `build_race.py` ghi chúng vào `hid` và ẩn ghost ở đó.
+- **Vị trí track dây không phải điểm móc** mà là trung điểm của dây. Lấy nó làm điểm móc thì dây chỉ dài một nửa.
+- **Map 1 (`RaceTest`) không có bản ghi độ khó 0 cho ô 1.** Người mới chơi ở ô khác chỉ gặp 3 ghost. Đó là luật gốc, không phải lỗi.
+- **Vòng xuất phát, Halo và sprite tắt trong prefab không được vào `atlas.webp`**, vì atlas thuộc màn đầu. Chúng nằm riêng trong `race.webp`.
+- **Seed của bảng phụ thuộc múi giờ** (nửa đêm giờ máy). Bài kiểm dùng mốc ms cố định 1793120400000 (28/10/2026, UTC+7).
+- **Tên trường `n` trong file ghost là tên bản ghi.** Lúc giải nén lần đầu, mình gán số mẫu vào `n` và làm mất tên. Số mẫu giờ là `len`.
+
 ## Bẫy đã sập
 
 - **Ngân sách 600 KB của màn đầu.** Bản cũ đã nạp 585 KB, nên thêm `meta.json` là vượt.
@@ -331,7 +430,9 @@ Bot chạy trên chính `physics.js`, có quay lui theo từng cú móc. Camera 
   - Lý do: vài màn Challenge đặt điểm móc đầu tiên sau chỗ xuất hiện, hoặc bắt rơi qua máng bumper trước.
   - Một cú móc dò vét cạn (giữ ở giây a, nhả ở giây b) đã đi xa được ở các màn bot kẹt, nên đó là giới hạn của bot, không phải lỗi dữ liệu.
 
-Mất khoảng 17 phút. `SH_MODES=grapple,challenge` để chạy riêng vài chế độ.
+- Đua: 21 map, mỗi map xuất phát từ cả 5 ô (`SH_RACE_SLOTS=one`: map n chỉ từ ô (n − 1) mod 5).
+
+Mất khoảng 17 phút, riêng phần Đua khoảng 30 giây. `SH_MODES=grapple,challenge,race` để chạy riêng vài chế độ.
 
 ```sh
 SH_URL=<Pages> node test/stickman-hook-play.js
@@ -355,10 +456,21 @@ Phần vòng quay, heo đất, Chợ, bỏ qua màn:
 - Chưa có thẻ `skip_level` thì không có nút bỏ qua. Có rồi thì chết một lần hiện nút "1/1": bấm là trừ 1 vé và qua màn 15. Màn sau chết không còn nút.
 - Trang chính có ô vòng quay "xu/500" và số vé.
 
-Nó cũng kiểm màn đầu không nạp quá 600 KB, không nạp ảnh shop và không nạp `bonus.js`, `bonus.json`, ảnh vòng quay/heo/nút bỏ qua.
+Phần Đua (`Math.random` = 0 lúc dựng cuộc đua, nên map, ô và ghost là cố định):
+
+- Hàng Đua của Chế độ mở trang bảng xếp hạng 10 dòng, còn 2/2 lượt miễn phí. `race.js` và `mode-race.json` chỉ nạp lúc này.
+- Cuộc đua 1: map `RaceTest`, ô 0 ở (0.08, 4.33), 3 ghost Ninja 24.915 s, Harry 27.333 s, Mommy 39.895 s, mỗi ghost có sheet skin của nó.
+- Ghost Ninja nằm đúng mẫu bản ghi: (0.08, −3.67) lúc 0.04 s, (9.86, −4.37) lúc 1.04 s, (32.95, −0.83) lúc 3.04 s. Trong cuộc đua thật mọi ghost đều di chuyển.
+- Về đích lúc 26 s, sau ghost 24.9 s: hạng 2, +7 xu, +5 cúp, map 1 đã đạt. Màn kết thúc ghi "Hạng 2/4", "+7 xu", "+5 cúp".
+- Cuộc đua 2: map 2, 4 ghost. Cả 4 về trước thì bị ép về đích thứ 5: +1 xu, +1 cúp.
+- Hết 2 lượt miễn phí thì trả 1 vé bỏ qua, hết vé thì bị từ chối.
+- Bảng ngày 28/10/2026 (mốc 1793120400000): seed 2119037, ba AI đầu HBK-Taker2 / Player1935 / Zeus, bảng lúc 12 giờ trưa đúng từng điểm. Hạng 7 được 20 xu, hạng 8 được 15 xu.
+- Bảng hai ngày trước với 100 cúp: mở trang thì chốt hạng 1, nhận 1000 xu và Dolphin, thắng 1, chơi 1, bảng mới có 0 cúp.
+
+Nó cũng kiểm màn đầu không nạp quá 600 KB, không nạp ảnh shop và không nạp `bonus.js`, `bonus.json`, ảnh vòng quay/heo/nút bỏ qua, `race.js`, file ghost, `race.webp`.
 Ảnh chụp nằm ở `shots/stickman-hook/`.
 
 ## Tăng số bản
 
-Đổi mọi `?v=` trong `index.html` và `js/main.js` (hằng `V`), rồi đổi `rev` trong `data/games.js` cho trùng.
+Đổi mọi `?v=` trong `index.html`, `js/main.js` (hằng `V`) và hai `import()` có `?v=` trong `js/modes.js` (`pachinko.js`, `race.js`), rồi đổi `rev` trong `data/games.js` cho trùng.
 Module JS mới phải có dòng trong importmap của `index.html`, kể cả module chỉ nạp động (`menus.js`, `fx.js`).

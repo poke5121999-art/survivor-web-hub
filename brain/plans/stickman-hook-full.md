@@ -44,3 +44,10 @@ Nguyên tắc: vẫn "nhẹ, load nhanh".
   - Bài kiểm: `test/stickman-hook-play.js` 55/55 chạy local. Màn đầu 592 KB thô.
   - Việc còn lại: đẩy lên Pages, tăng `rev` trong `data/games.js`, chạy bài kiểm trên Pages với `SH_URL`.
   - Phần còn lại của Pha 6: thẻ bài, booster (đang nằm trong `save.pending`), chợ đen, xu đổi quảng cáo.
+- [~] Pha 5 (2026-10-28, rev 20261028e, CHƯA đẩy lên Pages, CHƯA kiểm trên Pages): Đua (Tournament). Chi tiết ở README, mục "Đua (Tournament)".
+  - `build_data.py` thêm `data/mode-race.json` (21 map, cấu hình đua và bảng ngày). `tools/build_race.py` giải 505 bản ghi ghost, lấy mẫu 10 Hz → `data/race/<map>.json` (1.2 MB thô cả 21 file, mỗi cuộc đua nạp 1 file 40–103 KB) và `art/race.webp`.
+  - `js/race.js` nạp lười: trang bảng xếp hạng ngày, đếm ngược 3-2-1-GO, tối đa 4 ghost trong suốt theo skin của bản ghi, hạng theo thứ tự về đích, thua cả 4 thì bị ép về đích, xu [10,7,5,3,1] và cúp [10,5,3,2,1], 2 lượt miễn phí/ngày rồi 1 vé.
+  - Bảng ngày offline: seed từ nửa đêm, 9 AI bằng `System.Random(seed)`, điểm AI theo easing và đoạn hạng, chốt bảng cũ khi mở trang (thưởng theo hạng có nội suy, skin hạng 1).
+  - Ba UNKNOWN của `FULLGAME.md` đã giải: `RefineLevel` [asm 0x12aac08], fallback độ khó 4 = ô trống [asm 0x12205a0], `GetNbWins` = `leaderboard.tournament_win` [asm 0x12b8af0].
+  - Bài kiểm: `test/stickman-hook-sim.js` 295/295 (thêm 21 map × 5 ô xuất phát), `test/stickman-hook-play.js` 70/70, `test/stickman-hook-pachinko.js` 27/27 (26/26 khi bi rơi vào ô xu). Màn đầu 595 KB thô (trước 592–593 KB).
+  - Chưa làm: nút quảng cáo nhân xu ở màn kết thúc, thẻ của Tournament, đường VIP. Việc còn lại: đẩy lên Pages, tăng `rev` trong `data/games.js`, chạy bài kiểm trên Pages với `SH_URL`.

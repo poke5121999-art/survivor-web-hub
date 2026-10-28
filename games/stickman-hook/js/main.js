@@ -6,7 +6,7 @@ import { Meta } from './meta.js';
 import { makeCustom } from './custom.js';
 import { MODES, NORMAL } from './modes.js';
 
-const V = '?v=20261028d';
+const V = '?v=20261028e';
 const DEFAULT_ZOOM = 5, FINISH_ZOOM = 2; // CameraConfig.defaultZoom, PlayerCameraController.cameraZoomOnEndGame
 // Rope prefab: sprite scaled (1.6, 2) under its parent. [ĐỀ XUẤT] 0.2 per axis so a 167 px tile is ~0.4 wide,
 // next to the 0.045 Classic line.
@@ -58,6 +58,7 @@ function layers(draw) {
 
 function startLevel(index) {
   world = buildLevel(mode.data, index);
+  mode.race?.place(world); // race: the player's start slot
   world.layers = layers(world.draw);
   mode.def.slot(save).level = index;
   writeSave(save);
@@ -76,6 +77,7 @@ function startLevel(index) {
   cam.zoom = DEFAULT_ZOOM;
   cam.x = clampCamX(world.spawn.x);
   cam.y = 0;
+  mode.race?.begin(game); // race: countdown before the start
 }
 
 function clampCamX(x) {
@@ -104,12 +106,14 @@ function applyEquip() {
   }
 }
 
-function finishLevel() {
+// forced: a race the player lost to all four ghosts (PlayerController.ForceFinish: no confetti)
+function finishLevel(forced) {
   game.phase = 'finish';
   game.t = 0;
   game.zoomFrom = cam.zoom;
   game.camFrom = { x: cam.x, y: cam.y };
-  game.reward = mode.def.complete(meta, save, world.index);
+  if (forced) player.finish();
+  game.reward = mode.race ? mode.race.finish(forced) : mode.def.complete(meta, save, world.index);
   writeSave(save);
   hud();
   skipView();
@@ -127,7 +131,7 @@ function finishLevel() {
   custom.skin(equippedItem('skins')).then((s) => { look.dance = s; }).catch(() => {});
   play('popup_in');
   const sp = Math.hypot(player.vx, player.vy) || 1;
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < (forced ? 0 : 60); i++) {
     const a = Math.atan2(player.vy, player.vx) + (Math.random() - 0.5) * 1.6, v = 2 + Math.random() * 4;
     game.confetti.push({ x: player.x + player.vx * 0.04, y: player.y + player.vy * 0.04, vx: Math.cos(a) * v + player.vx / sp,
       vy: Math.sin(a) * v,
@@ -193,7 +197,7 @@ async function loadMode(id) {
   const def = MODES[id];
   const [file, P] = await Promise.all([def.file ? load('./data/mode-' + def.file + '.json') : null, def.player()]);
   const d = file ? modeData(data, file, id) : data;
-  return (loaded[id] = { id, def, data: d, Player: P, count: d.random.length ? Infinity : d.levels.length });
+  return (loaded[id] = { id, def, data: d, file, Player: P, count: d.random.length ? Infinity : d.levels.length });
 }
 
 // A mode with its own engine (modes.js `launch`) takes over the screen itself instead of loading levels.
@@ -207,6 +211,16 @@ async function openMode(id) {
   hud();
 }
 
+// Race (js/race.js): the mode's level with its controller `rc` (start slot, ghosts, countdown, placement).
+async function startRace(rc) {
+  mode = await loadMode(rc.id);
+  mode.race = rc;
+  for (const o of ['modes', 'start', 'levels']) if ($(o)) overlay(o, false);
+  startLevel(rc.level);
+  hud();
+}
+const restart = () => (mode.race ? openMode(mode.id) : startLevel(world.index));
+
 const STEP = PHYS.fixedDt;
 let acc = 0, last = 0;
 function frame(now) {
@@ -218,6 +232,9 @@ function frame(now) {
   game.t += dt;
 
   if (game.phase === 'spawn' && game.t >= PHYS.timeToSpawn) { game.phase = 'play'; game.t = 0; }
+  if (game.phase === 'count' && mode.race.counted(game.t)) { game.phase = 'play'; game.t = 0; }
+  // the race clock runs from GO, also while respawning; all four ghosts home first = forced finish
+  if (mode.race && game.phase !== 'count' && mode.race.tick(dt * game.timeScale) && game.phase !== 'finish') finishLevel(true);
   if (game.phase === 'finish') {
     // TimeScale.AnimateTimescale(0.05, 600 ms, OutCirc), real time
     const k = Math.min(1, game.t / 0.6);
@@ -305,6 +322,7 @@ function draw(now) {
       R.sprite('A_PlotNearestFeedback', [s, 0, 0, s, m[4], m[5]]);
     }
   }
+  mode.race?.draw(R, game);
   drawPlayer(t);
   drawConfetti();
   drawHud(now);
@@ -330,6 +348,7 @@ function drawPlayer(t) {
     if (look.rope) R.rope(look.rope.img, look.rope.rect, tg.x, tg.y, a.x, a.y, look.rope.width, look.rope.period);
     else R.line(a.x, a.y, tg.x, tg.y, 0.045, '#0d1b2a');
   }
+  if (game.phase === 'count') return;
   if (game.phase === 'spawn') {
     const k = game.t / PHYS.timeToSpawn, s = 0.15 + k * 0.5;
     R.sprite('A_PlotNearestFeedback', [s, 0, 0, s, world.spawn.x, world.spawn.y], { alpha: 1 - k });
@@ -366,6 +385,7 @@ function drawConfetti() {
 
 function drawHud(now) {
   const w = cv.width / R.dpr;
+  if (mode.race) return mode.race.hud(R, w, cv.height / R.dpr, game, player);
   const label = mode.def.hud + ' ' + (world.index + 1);
   // shrink long labels ("challenge 12") to the gap between the two button rows
   R.text(label, w / 2, 34, Math.min(30, (30 * (w - 250)) / R.measure(label, 30)));
@@ -412,13 +432,13 @@ function hud() {
   const n = meta.claimable(save);
   $('roadBadge').textContent = n;
   $('roadBadge').style.display = n ? '' : 'none';
-  $('playLevel').textContent = (mode.def.picker ? modeName(mode.id) + ' · ' : '') + 'Màn ' + (world.index + 1);
+  $('playLevel').textContent = mode.race ? modeName(mode.id) : (mode.def.picker ? modeName(mode.id) + ' · ' : '') + 'Màn ' + (world.index + 1);
 }
 
 function setHold(v) {
   if (v) initAudio();
   if (game.paused) return;
-  if (game.phase === 'finish') { if (v && game.t > 1) nextLevel(); return; }
+  if (game.phase === 'finish') { if (v && game.t > 1 && !mode.race) nextLevel(); return; }
   if (v && !game.hold) $('hint').style.opacity = 0;
   game.hold = v;
 }
@@ -435,6 +455,7 @@ const app = {
   get save() { return save; }, get meta() { return meta; }, get custom() { return custom; }, get world() { return world; },
   get R() { return R; }, play, writeSave: () => writeSave(save), applyEquip, hud, overlay, toast, image, icon, $, V, look,
   openMode, get mode() { return mode.id; }, openMenu, skipLevel, loadBonus, get bonus() { return bonus; },
+  loadMode, startRace, get game() { return game; }, get player() { return player; },
 };
 let menus = null;
 async function openMenu(name) {
@@ -452,10 +473,10 @@ function bindInput() {
   window.addEventListener('blur', up);
   window.addEventListener('keydown', (e) => {
     if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') { e.preventDefault(); if (!e.repeat) setHold(true); }
-    if (e.code === 'KeyR' && !game.paused) { startLevel(world.index); }
+    if (e.code === 'KeyR' && !game.paused) restart();
   });
   window.addEventListener('keyup', (e) => { if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') setHold(false); });
-  $('btnRestart').onclick = () => { initAudio(); play('button'); startLevel(world.index); };
+  $('btnRestart').onclick = () => { initAudio(); play('button'); restart(); };
   $('btnSound').onclick = () => { initAudio(); save.sound = !save.sound; writeSave(save); soundIcon(); play('button'); };
   $('btnLevels').onclick = () => { initAudio(); play('popup_in'); openLevels(); };
   $('btnClose').onclick = () => { play('popup_out'); overlay('levels', false); };
@@ -472,6 +493,7 @@ function modeName(id) { return meta.d.modes.find((m) => m[0] === id)?.[1] || id;
 
 // Level picker of the current mode: every level of a finite mode (locked ones greyed), else up to the next new level.
 function openLevels() {
+  if (mode.race) return openMode(mode.id); // race: the tournament page
   const g = $('grid');
   g.innerHTML = '';
   const slot = mode.def.slot(save), best = slot.best || 0;
@@ -517,7 +539,7 @@ async function boot() {
   requestAnimationFrame(frame);
   window.__sh = { game, get world() { return world; }, get player() { return player; }, get save() { return save; }, cam, look,
     get theme() { return R.theme; }, meta, startLevel, setHold, applyEquip, openMenu, overlay, openMode, openLevels,
-    get mode() { return mode; }, skipLevel, hud, loadBonus, get bonus() { return bonus; } };
+    get mode() { return mode; }, skipLevel, hud, loadBonus, get bonus() { return bonus; }, get race() { return mode.race; } };
 }
 
 boot().catch((e) => { $('loading').textContent = 'Không tải được game: ' + e.message; });

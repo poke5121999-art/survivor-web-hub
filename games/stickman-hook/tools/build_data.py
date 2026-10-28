@@ -3,10 +3,11 @@
     py -3 -I build_data.py [REF=D:/stickman-hook-ref]
 
 Reads  REF/dump/normal_raw.json                      (tools/extract_raw.py on NormalGamePlayConfig)
-       REF/dump/full/{grapple,challenge,seasonal}_raw.json  (tools/extract_mode.py: {config, prefabs})
+       REF/dump/full/{grapple,challenge,seasonal,tournament}_raw.json  (tools/extract_mode.py: {config, prefabs})
        REF/sprites/*.png + sprites.json               (tools/export_sprites.py)
 Writes ../data/levels.json          Normal: {v, atlas, patterns, levels, random}
-       ../data/mode-<file>.json     {v, sets: {modeId: {levels, random?}}, patterns}: only patterns not in levels.json
+       ../data/mode-<file>.json     {v, sets: {modeId: {levels, random?}}, patterns, race?}: only patterns not in levels.json
+                                    (mode-race.json also carries the Tournament config `race`, see RACE below)
        ../art/atlas.webp            one atlas for every mode
 
 Everything is flattened to world units with the pattern root at the origin. Each drawable is an affine
@@ -62,7 +63,43 @@ MODES = {
     'challenge': ('dump/full/challenge_raw.json', lambda c: {'mode.challenge': level_set(c['_levels'])}),
     'seasonal': ('dump/full/seasonal_raw.json', lambda c: {
         lit(e)['_eventId']: level_set(lit(e)['_deterministicLevelDefinitions']) for e in lit(c['_seasonalEventLevelDefinitions'])}),
+    # Tournament ("Race"): TournamentGamePlaySettings._possibleLevels, 21 maps of 1 or 3 patterns. Ghosts: build_race.py.
+    'race': ('dump/full/tournament_raw.json', lambda c: {'mode.tournament': level_set(c['_possibleLevels'])}),
 }
+
+
+# Extra config kept in a mode file: Tournament's opponent count and ghost difficulty weights per number of daily wins
+# (_difficultyLevels[i]._weightedDifficulties -> [[difficulty, weight], ...]; difficulty 4 = GhostDifficulty.ANY).
+def RACE(c):
+    lv = sorted((lit(d) for d in lit(c['_difficultyLevels'])), key=lambda d: d['_level'])
+    # the daily leaderboard (remote settings `leaderboard`, competition "tournament") and the AI names / skins
+    # (`social_profile`), both from the default remote config bundled in the APK
+    rs = json.load(open(os.path.join(REF, 'dump/full/remote_settings_default.json'), encoding='utf-8'))
+    lb = rs['leaderboard']
+    comp = next(x for x in lb['competitions'] if x['id'] == 'tournament')
+    ai = {a['id']: a for a in lb['aiDifficulties']}
+    rewards = next(x for x in lb['rewards'] if x['id'] == comp['rewardsListId'])
+    pools = {p['id']: p['resourceIds'] for p in lb['rewardPools']}
+    sp = rs['social_profile']
+    return {
+        'opponents': c['_nbOpponents'],
+        'difficulty': [[[w['_difficulty'], w['_weight']] for w in d['_weightedDifficulties']] for d in lv],
+        'board': {
+            'participants': comp['nbParticipants'], 'maxRankToWin': comp['maxRankToWin'],
+            # aiDifficulties by index (difficulties[min(wins, n - 1)]): segments [high, low, start, min, max]
+            'ai': [[[s['highPosition'], s['lowPosition'], s['startScore'], s['minOverallScore'], s['maxOverallScore']]
+                    for s in ai[d['id']]['segments']] for d in comp['difficulties']],
+            'rewards': [[r['position'], [[i['resourceId'], i['quantity']] for i in r['rewards']]]
+                        for r in rewards['positionRewards']],
+            'pools': {k: v for k, v in pools.items() if k == 'reward_pool.tournament_skin'},
+        },
+        'names': sp['playerNames'], 'skins': sp['playerSkinIds'],
+        'namePrefix': sp['global']['defaultNamePrefix'], 'nameChance': sp['global']['defaultNameChancePercent'],
+        'nameMax': sp['global']['nameMaxLength'],
+    }
+
+
+MODE_EXTRA = {'race': ('race', RACE)}
 
 def mul(m, n):
     a, b, c, d, e, f = m
@@ -125,6 +162,9 @@ def compile_pattern(root):
             out['cam'][1] = r4(x)
         elif name == 'Spawn':
             out['spawn'] = [r4(x), r4(y)]
+        elif name in ('Spawn1', 'Spawn2', 'Spawn3', 'Spawn4'):
+            # race start slots: TournamentGamePlayController.GetSpawnPointName = "Spawn" + (slot > 0 ? slot : "")
+            out.setdefault('spawns', {})[int(name[5])] = [r4(x), r4(y)]
         if 'Target' in c:
             out['targets'].append([r4(x), r4(y)])
         if 'FinishScript' in c:
@@ -208,6 +248,8 @@ def compile_pattern(root):
         if 'bumper' in d:
             out['bumpers'][d['bumper']]['draw'] = i
     if not out['finish']: del out['finish']
+    if 'spawns' in out:
+        out['spawns'] = [out['spawn']] + [out['spawns'][k] for k in sorted(out['spawns'])]
     return out
 
 
@@ -229,6 +271,9 @@ for fid, (src, sets_of) in MODES.items():
             sys.exit('pattern %s differs between Normal and %s' % (n, fid))
     mode_files[fid] = {'v': 1, 'sets': sets,
                        'patterns': compile_patterns(mraw['prefabs'], [n for n in names if n not in raw['patterns']])}
+    if fid in MODE_EXTRA:
+        key, f = MODE_EXTRA[fid]
+        mode_files[fid][key] = f({k: lit(v) for k, v in mraw['config'].items()})
 
 # ---- atlas: trim transparent margins, shelf-pack, record rect + pivot (sprite units) ----
 items = []

@@ -3,6 +3,8 @@
  * and the level list opens. Then the meta shell: XP per level, level themes, the XP road claim, Customization equip,
  * equipped skin / rope drawn in game, an effect-variant skin, the mode list. Then the modes: a seasonal event after
  * Normal level 10, and with enough XP Mechanical Grapple and Challenge (pickers, theme colours, rewards, next, restart).
+ * Then the Race (Tournament): page, start slots, ghosts on their recorded paths, placement, forced finish, rewards,
+ * daily free races, the seeded daily leaderboard and its end-of-day claim.
  * Screenshots go to SH_SHOTS (default shots/stickman-hook).
  *   node test/stickman-hook-play.js
  *   SH_URL=https://poke5121999-art.github.io/survivor-web-hub/games/stickman-hook/index.html node test/stickman-hook-play.js
@@ -64,7 +66,7 @@ function serve() {
   check('download under 600 KB', kb > 50 && kb < 600, `${kb} KB`);
   const lazy = requested.filter((u) => /custom\.json|custom-ui|ropes\.webp|menu\.webp|art\/skins\//.test(u));
   check('first level loads no shop art', lazy.length === 0, lazy.join(' '));
-  const modeFiles = requested.filter((u) => /mode-\w+\.json|grapple\.js|menus\.js/.test(u));
+  const modeFiles = requested.filter((u) => /mode-\w+\.json|grapple\.js|menus\.js|race\.js|\/race\/|race\.webp/.test(u));
   check('first level loads no mode data', modeFiles.length === 0, modeFiles.join(' '));
   const bonusFiles = requested.filter((u) => /bonus\.js|bonus\.json|wheel\.webp|piggy\.webp|skip\.webp/.test(u));
   check('first level loads no wheel / piggy / skip code or art', bonusFiles.length === 0, bonusFiles.join(' '));
@@ -460,6 +462,151 @@ function serve() {
   check('home shows the wheel counter (coins/500), ticket count and market', home.wheel === `${await page.evaluate(() => window.__sh.save.coins)}/500`
     && home.tickets === '21', JSON.stringify(home));
   await page.click('#btnPlay');
+
+  // ---- Race (js/race.js). A clean tournament state, 1 skip ticket, no coins. Math.random = 0 while a race is set up:
+  // map index = achieved level (0: RaceTest), player slot Random.Range(0, 5) = 0, difficulty 0 (no wins), and per slot
+  // the first save of the map's file; RaceTest has no difficulty-0 save for slot 1, so that slot stays empty.
+  await page.evaluate(() => {
+    const s = window.__sh.save;
+    delete s.modes['mode.tournament'];
+    for (const k of Object.keys(s.inv)) if (/race_trophies|tournament/.test(k)) delete s.inv[k];
+    for (const f of Object.keys(s.flags)) if (f.startsWith('daily_flag_mode.tournament')) delete s.flags[f];
+    s.coins = 0; s.inv['currency.skip_tickets'] = 1; s.owned.skins = s.owned.skins.filter((n) => n !== 'dolphin');
+  });
+  const raceFirst = requested.length;
+  await page.evaluate(() => window.__sh.openMenu('openModes'));
+  await page.waitForSelector('#modes .mode[data-id="mode.tournament"] button', { timeout: 10000 });
+  await page.click('#modes .mode[data-id="mode.tournament"] button');
+  await page.waitForSelector('#race.on .go', { timeout: 10000 }).catch(() => {});
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: path.join(SHOTS, 'race-page.png') });
+  const rp = await page.evaluate(() => ({ rows: document.querySelectorAll('#race li').length, me: document.querySelector('#race li.me b')?.textContent,
+    btn: document.querySelector('#race .go')?.textContent }));
+  check('the Race row opens the tournament page: 10 board rows, 2 free races today', rp.rows === 10 && rp.me === '10'
+    && /còn 2\/2/.test(rp.btn), JSON.stringify(rp));
+  check('the race code and maps load only when the mode opens', requested.slice(raceFirst).some((u) => /js\/race\.js/.test(u))
+    && requested.slice(raceFirst).some((u) => /mode-race\.json/.test(u)));
+  const rand0 = () => page.evaluate(() => { Math.__r = Math.random; Math.random = () => 0; });
+  const randBack = () => page.evaluate(() => { Math.random = Math.__r; });
+  const raceStarts = async (sel) => {
+    await rand0();
+    await page.click(sel);
+    await page.waitForFunction(() => window.__sh.race && window.__sh.game.phase === 'count' && !document.querySelector('#race.on, #raceEnd.on'),
+      null, { timeout: 15000 }).catch(() => {});
+    await randBack();
+  };
+  await raceStarts('#race .go');
+  await page.waitForTimeout(700);
+  await page.screenshot({ path: path.join(SHOTS, 'race-start.png') });
+  const r1 = await page.evaluate(() => { const r = window.__sh.race, s = window.__sh.save; return { level: r.level, me: r.me,
+    spawn: window.__sh.world.spawn, ghosts: r.ghosts.map((o) => [o.g.n, o.g.s, o.g.k, o.g.ms, o.sheet?.id]),
+    free: Object.entries(s.flags).find(([k]) => k.startsWith('daily_flag_mode.tournament_free_'))?.[1] }; });
+  check('race 1: map RaceTest, player at slot 0 "Spawn" (0.08, 4.33), 3 ghosts sorted by time with their skins',
+    r1.level === 0 && r1.me === 0 && r1.spawn.x === 0.08 && r1.spawn.y === 4.33 && JSON.stringify(r1.ghosts) === JSON.stringify([
+      ['PlayerReplaySave69291131', 4, 'skin.ninja', 24915, 'skin.ninja'], ['PlayerReplaySave22829796', 2, 'skin.harry', 27333, 'skin.harry'],
+      ['PlayerReplaySave82156701', 3, 'skin.mommy', 39895, 'skin.mommy']]), JSON.stringify(r1));
+  check('starting a race uses 1 of the 2 free races of the day', r1.free === 1, `flag ${r1.free}`);
+  check('ghost data and skins load with the race', requested.some((u) => /data\/race\/0\.json/.test(u))
+    && requested.some((u) => /art\/skins\/ninja\.webp/.test(u)) && requested.some((u) => /art\/race\.webp/.test(u)));
+  await page.waitForFunction(() => window.__sh.game.phase === 'play', null, { timeout: 5000 });
+  // the ninja ghost follows its record: (0.08, -3.67) at its spawn, (9.86, -4.37) at 1.04 s, (32.95, -0.83) at 3.04 s
+  const poseAt = (t) => page.evaluate(async (t) => {
+    const m = await import('./js/race.js');
+    const p = m.ghostPose(window.__sh.race.ghosts[0].g, t);
+    return p && [Math.round(p.x * 100) / 100, Math.round(p.y * 100) / 100, p.frame];
+  }, t);
+  const poses = [await poseAt(0.04), await poseAt(1.04), await poseAt(3.04)];
+  check('the ninja ghost sits on its recorded samples at 0.04 / 1.04 / 3.04 s', JSON.stringify(poses) === JSON.stringify([
+    [0.08, -3.67, 'CHAR_Ninja0005'], [9.86, -4.37, 'CHAR_Ninja0001'], [32.95, -0.83, 'CHAR_Ninja0002']]), JSON.stringify(poses));
+  const live = await page.evaluate(async () => {
+    const m = await import('./js/race.js'), r = window.__sh.race;
+    await new Promise((res) => setTimeout(res, 600));
+    const a = r.clock, pa = r.ghosts.map((o) => m.ghostPose(o.g, a));
+    await new Promise((res) => setTimeout(res, 400));
+    const b = r.clock, pb = r.ghosts.map((o) => m.ghostPose(o.g, b));
+    return { a, b, moved: pa.map((p, i) => Math.hypot(pb[i].x - p.x, pb[i].y - p.y)) };
+  });
+  check('in the running race the race clock advances and every ghost moves', live.b > live.a + 0.3 && live.moved.every((d) => d > 0.1),
+    JSON.stringify(live));
+  // mid race: pause at 10.75 s, when the three ghosts are within 2.6 units (x 30.8..33.4), with the player among them
+  await page.evaluate(() => {
+    const sh = window.__sh, r = sh.race;
+    sh.game.paused = true; sh.game.phase = 'play'; r.clock = 10.75;
+    Object.assign(sh.player, { x: 32.6, y: 3.2, vx: 0, vy: 0, finished: false }); sh.cam.x = 32;
+  });
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: path.join(SHOTS, 'race-mid.png') });
+  // placement against ghosts of known time: at 26 s only the ninja (24.915 s) is home, so the player finishes 2nd of 4
+  await page.evaluate(() => {
+    const sh = window.__sh;
+    sh.race.clock = 26; Object.assign(sh.player, { x: sh.world.finishX + 0.05, y: 0, vx: 3, vy: 0 }); sh.game.paused = false;
+  });
+  await page.waitForSelector('#raceEnd.on', { timeout: 10000 }).catch(() => {});
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: path.join(SHOTS, 'race-finish.png') });
+  const f1 = await page.evaluate(() => { const s = window.__sh.save, r = window.__sh.race; return { done: r.done, coins: s.coins,
+    trophies: s.inv['progression.race_trophies'], best: s.inv['leaderboard.tournament_best_score'], achieved: s.modes['mode.tournament'].best,
+    text: document.querySelector('#raceEnd')?.innerText.replace(/\s+/g, ' ') }; });
+  check('finishing at 26 s behind the 24.9 s ghost = 2nd: +7 coins, +5 trophies, map 1 achieved', f1.done?.rank === 1 && !f1.done.forced
+    && f1.coins === 7 && f1.trophies === 5 && f1.best === 5 && f1.achieved === 1, JSON.stringify({ ...f1, text: undefined }));
+  check('the finish screen says it in Vietnamese: Hạng 2/4, +7 xu, +5 cúp', /Hạng 2\/4/.test(f1.text) && /\+7 xu/.test(f1.text)
+    && /\+5 cúp/.test(f1.text), f1.text);
+  // race 2 (last free one): map 2, four ghosts; when all four are home first the player is force-finished last
+  await raceStarts('#raceEnd [data-act="again"]');
+  const r2 = await page.evaluate(() => ({ level: window.__sh.race.level, n: window.__sh.race.ghosts.length,
+    names: window.__sh.world.names.join('+') }));
+  await page.waitForFunction(() => window.__sh.game.phase === 'play', null, { timeout: 5000 });
+  await page.evaluate(() => { window.__sh.race.clock = 999; });
+  await page.waitForSelector('#raceEnd.on', { timeout: 10000 }).catch(() => {});
+  const f2 = await page.evaluate(() => ({ done: window.__sh.race.done, coins: window.__sh.save.coins,
+    trophies: window.__sh.save.inv['progression.race_trophies'], text: document.querySelector('#raceEnd')?.innerText.replace(/\s+/g, ' ') }));
+  check('race 2 is map 2 (STARTUPRace01+MIDDLE020+FINISH03) with 4 ghosts', r2.level === 1 && r2.n === 4
+    && r2.names === 'STARTUPRace01+MIDDLE020+FINISH03', JSON.stringify(r2));
+  check('4 ghosts home first = forced finish, 5th: +1 coin, +1 trophy', f2.done?.forced && f2.done.rank === 4 && f2.coins === 8
+    && f2.trophies === 6 && /Hạng 5\/5/.test(f2.text), JSON.stringify({ ...f2, text: f2.text?.slice(0, 80) }));
+  // free races are used up: the next race costs the 1 skip ticket, the one after is refused
+  await raceStarts('#raceEnd [data-act="again"]');
+  const t3 = await page.evaluate(() => ({ race: !!window.__sh.race && window.__sh.game.phase !== 'finish',
+    tickets: window.__sh.save.inv['currency.skip_tickets'] }));
+  await page.evaluate(() => window.__sh.openMode('mode.tournament'));
+  await page.waitForSelector('#race.on .go', { timeout: 10000 });
+  await page.click('#race .go');
+  await page.waitForTimeout(300);
+  const t4 = await page.evaluate(() => ({ page: !!document.querySelector('#race.on'), toast: document.getElementById('toast').textContent }));
+  check('after 2 free races a race costs 1 skip ticket, then none is left', t3.race && t3.tickets === 0 && t4.page && /vé/.test(t4.toast),
+    JSON.stringify({ t3, t4 }));
+  // the daily board: seed (int)(low 32 bits of the start ms) / 1000, 9 AI from System.Random(seed), scores at noon
+  const bd = await page.evaluate(async () => {
+    const m = await import('./js/race.js'), cfg = window.__sh.mode.file.race;
+    const b = new m.Board(cfg, 1793120400000);
+    return { seed: b.seed, names: b.ai.slice(0, 3).map((a) => a.name),
+      noon: b.ranking(1793120400000 + 43200000, 0, 12).map((r) => r.name + ':' + r.score).join(', '),
+      p6: m.positionReward(cfg, 6), p7: m.positionReward(cfg, 7) };
+  });
+  check('daily board of 2026-10-28 (UTC+7): seed 2119037, AI HBK-Taker2 / Player1935 / Zeus, noon ranking', bd.seed === 2119037
+    && bd.names.join() === 'HBK-Taker2,Player1935,Zeus'
+    && bd.noon === 'HBK-Taker2:19, Bạn:12, Demetrius:8, ZedPS:8, _Pad:5, KissMachine:4, ReMiiXeD:4, Zeus:3, Player1935:2, Gravellings:1',
+    JSON.stringify(bd));
+  check('board rewards between listed positions are interpolated: 7th = 20 coins, 8th = 15', JSON.stringify(bd.p6) === '[["currency.skin_coins",20]]'
+    && JSON.stringify(bd.p7) === '[["currency.skin_coins",15]]', JSON.stringify([bd.p6, bd.p7]));
+  // a board two days old with 100 trophies: claimed on open at rank 1 -> 1000 coins + the first unowned pool skin
+  // (Dolphin, played 0), one daily win; today's board starts with the trophies wiped
+  await page.click('#race .x');
+  await page.evaluate(() => {
+    const s = window.__sh.save;
+    s.modes['mode.tournament'].board = { start: 1793120400000 - 2 * 86400000 };
+    s.inv['leaderboard.tournament_best_score'] = 100; s.coins = 0;
+  });
+  await page.evaluate(() => window.__sh.openMode('mode.tournament'));
+  await page.waitForSelector('#race.on .msg', { timeout: 10000 }).catch(() => {});
+  await page.screenshot({ path: path.join(SHOTS, 'race-claim.png') });
+  const cl = await page.evaluate(() => { const s = window.__sh.save; return { coins: s.coins, dolphin: s.owned.skins.includes('dolphin'),
+    win: s.inv['leaderboard.tournament_win'], played: s.inv['leaderboard.tournament_played'], trophies: s.inv['progression.race_trophies'] || 0,
+    start: s.modes['mode.tournament'].board.start, msg: document.querySelector('#race .msg')?.textContent.replace(/\s+/g, ' ') }; });
+  const midnight = await page.evaluate(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); });
+  check('a finished board pays rank 1: 1000 coins + Dolphin, 1 win, 1 played; the new board has 0 trophies', cl.coins === 1000 && cl.dolphin
+    && cl.win === 1 && cl.played === 1 && cl.trophies === 0 && cl.start === midnight && /hạng 1/.test(cl.msg), JSON.stringify(cl));
+  await page.click('#race .x');
 
   check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
   await browser.close();
