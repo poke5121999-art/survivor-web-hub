@@ -177,37 +177,72 @@ Theme colors per mode (camera bg, shadow, finish light, ...) are in `theme.gameM
 - Spawner (`AdventurePatternSpawner`):
   - Tier: `clamp(lastIndexWhere(_index >= inc[k]), 0, 7)` [asm 0x11fa5f0].
   - Seed: `seed = Leaderboard.Seed + _index`, which feeds both `System.Random` (pattern) and `UnityEngine.Random` (zones and portals) [asm 0x11f950c, 0x11f9584]. The whole run is deterministic per weekly seed.
-  - Pattern choice: candidates are filtered by the previous pattern's exit, then one random element is taken [asm 0x11f954c, 0x11f959c].
-  - Each pattern is placed at the previous pattern's end transform [asm 0x11f9700].
-  - Patterns are spawned ahead and cleared 100 behind [asm 0x11f8f8c, 0x11f9118].
+  - Pattern choice: candidates are filtered by `entryPositions & lastExit != 0` (`Intersects` [asm 0x12a242c]; `lastExit` starts at 7), then
+    `System.Random(seed).Next(0, count)` (`RandomElement` [asm 0x17501a8]) [asm 0x11f954c, 0x11f959c].
+    *Corrected 2026-10-28 (was UNKNOWN).*
+  - Each pattern is placed at the previous pattern's end transform, the first one at `Vector3.zero` [asm 0x11f9700..0x11f9774].
+  - `SpawnNextPatternIfNecessary` [asm 0x11f8f0c]: load one more while count <= 3 or the last pattern starts less than 100 ahead of the player;
+    drop the first once count >= 3 and the second starts more than 100 behind [asm 0x11f8f8c, 0x11f9118].
+  - `UnityEngine.Random` is libunity's Xorshift128 (`InitState` [libunity 0x22a968], `value` = `(w & 0x7FFFFF) * 1.192093e-7`
+    [libunity 0x22aa10], `Range(float)` = `t * min + (1 - t) * max` [libunity 0x22a998], `Range(int)` = `min + next % (max - min)`
+    [libunity 0x236128]). Ported in `js/advrun.js` `URandom`.
 - Skill bias (common to all objects):
-  - `skill = lerp(min, max, levelCurve(clamp01((1 + distCurve(x/1000) * maxBonusMult) * lvl/20)))` [asm 0x126a0c4].
+  - `skill = lerp(min, max, levelCurve(clamp01((1 + distCurve(x/1000) * maxBonusMult) * lvl/top)))` [asm 0x126a060..0x126a0c4].
+    *Corrected 2026-10-28:* `top` is `GetSkillLevelMax` = maxLevel 20 + the limit-boost card's effect at card max (80) = **100**
+    [asm 0x1269d78], not 20. Without cards a skill is capped at level 20 (`LOCKED` [asm 0x1269ae0, 0x126a390]), so level 20 gives
+    at most `levelCurve(0.2 * (1 + bonus))`.
   - `r = Random.value; v = r + (min(1, r + Range(minSize, maxSize)) - r) * skill`.
   - `bucket = v * (bad+neutral+good)`, compared against bad and bad+neutral, gives 0/1/2 [asm 0x11f9cb8, 0x126ac1c].
   - Skills apply to: bumpers (4 render types; single-use, shrink after hit [asm 0x11fa83c]); targets (default / one-time / timed / moving); wind (gravity zone up or down); teleporters.
+- Targets (`Target.Start` replaced by `TargetAdventure` [asm 0x1200e74], `SetType` [asm 0x11fcc48]). *Decoded 2026-10-28 (was UNKNOWN):*
+  - `InitState(Seed + static _targetsCount++)`, then `value`, then `Range(minSize, maxSize)`. GOOD → SPINNING, NEUTRAL → NORMAL,
+    BAD → `RangeInt(0, 3) + 1` = ONE_TIME / TIMED / MOVING. A target under an `INITIAL` parent is always NORMAL.
+  - ONE_TIME dies when let go (shrink 0.1 s) [asm 0x11fdfd0]. TIMED dies 5 s after the first grab, also when let go [asm 0x11fc93c].
+    SPINNING turns 180°/s and keeps the hooked player at speed >= 6 [asm 0x11fca84]. MOVING: direction `RangeInt(0, 4)`, ±distance/2,
+    SINE_EASE_IN_OUT, speed 2, distance 2 [asm 0x11fe2ac]. A destroyed hooked target forces `UnGrab` [asm 0x120adb8..0x120ae30].
+- Bumpers (`BumperAnimationController.Start` [asm 0x11ff9f4] → `SetType` [asm 0x11fa948]): `RangeInt(0, 4)` first (discarded), then
+  `InitState(Seed + static _bumpersCount++)`, `value`, `Range`. NEUTRAL → NORMAL, GOOD → HIGH, BAD → `RangeInt(0, 2)` LOW / ONE_TIME;
+  INITIAL → SAME. Bounciness NORMAL 1.3, SAME 1.0, LOW 0.5, HIGH 1.5 [asm 0x11fad94].
+- Both static counters are only reset by the class constructor, i.e. once per app launch (the web version resets them per run, [ĐỀ XUẤT]).
 - Gravity zone:
-  - Spawns with chance 0.15 at a random x inside the pattern [asm 0x11f99d0, 0x11f9b80].
-  - Size 10×30. Force each FixedUpdate is `extraGravityUp (10, 3)` or `extraGravityDown (-3, -1.5)` [asm 0x11fbcdc, 0x12a0b44].
+  - `InitState(seed)`, spawns when `value < 0.15`, x = a random place inside the pattern, then `Range` then `value` for the type [asm 0x11f99d0, 0x11f9b80, 0x11f9cb8].
+  - BAD → DOWN, GOOD → UP, NEUTRAL → no `SetType`: it stays UP but invisible (no render group).
+  - Size 10×30. Force each FixedUpdate is `extraGravityUp (10, 3)` or `extraGravityDown (-3, -1.5)` (AddForce, mass 2), skipped while hooked
+    and moving against it [asm 0x11fbcdc, 0x12a0920, 0x12a0b44]. Enter/exit triggers [asm 0x129fe3c, 0x12a0628].
   - Velocity capped at 35 [asm 0x12a0be4].
 - Portal:
-  - Spawn gate uses `portalBonusCurve(_index/300)`, and the teleporter skill must roll bucket 2 [asm 0x11f9f70, 0x11fa0ec].
-  - On enter: teleport to a random spawn point 1–2 patterns ahead [asm 0x12a00ec..0x12a0120].
+  - Spawn gate: while the previous pattern starts before x 300 the bonus gate `clamp01((1 - portalBonusCurve(_index/300)) * 0.2)` is
+    always <= 0.2, so it always passes; after that `value <= 0.2`. Then `value`, `Range`, and the teleporter skill must roll GOOD [asm 0x11f9f70, 0x11fa0ec].
+    It sits 1 unit right of a random spawn point of its pattern [asm 0x11fa3a8].
+  - On enter: `RangeInt(1, 3)` patterns ahead, a random spawn point there, 1 unit left of it [asm 0x12a00ec..0x12a0120]. The player turns
+    alpha 0.3, flies kinematic at 20 u/s and leaves with velocity (14.7087, 2.94174) [asm 0x12a02b0, 0x12a14d0, 0x12a1660].
+    A portal closes once the player is past it [asm 0x12a1b50].
+- `rope_length` *(decoded 2026-10-28)*: `AdventurePlayerController.Awake` sets `PlayerHookController.ropeLength` [asm 0x12a081c];
+  `UpdateClosestTarget` only picks targets within it [asm 0x120a58c], and the green `RangeIndicator` circle shows it [asm 0x11ffef0].
+  Holding grabs as soon as a target comes in range (`grabOnHold` [asm 0x12a18f8..0x12a1940]).
 - Firewall [asm 0x11fb4cc..0x11fbc5c]:
-  - Starts after 3 s. Its prefab uses mode 0 (linear).
-  - `speed` starts at 0.1 and grows `+= 0.05 * dt * skill`. Rubber-band: it never trails more than 30 behind the player.
-  - Touching it kills [asm 0x129fdcc]. The firewall skill gives skill = 1 at level 0 and 0.2 at max level.
-- Score: `max(best, int(player.x - startX))`, i.e. distance in metres [asm 0x129faf8]. One life per run (the firewall or a fall ends it).
+  - *Corrected 2026-10-28:* spawned at (0, 0, 0) [asm 0x11fb4cc] and started by the first grab (`OnStartedPlaying`), then waits 3 s.
+    The prefab's mode 0 is `ACCELERATE_OVER_TIME`.
+  - `speed` starts at 0.1 and grows `+= 0.05 * dt * skill` **with no cap** (`maxSpeed` 3 is only read by mode 1) [asm 0x11fb98c].
+    Rubber-band: it never trails more than 30 behind the player.
+  - Touching its trigger box (offset (−2.5, 40), size (5, 100)) kills [asm 0x129fdcc]. The firewall skill gives skill = 1 at level 0 and lower with levels.
+- Score: `max(best, int(player.x - startX))`, i.e. distance in metres [asm 0x129fa54..0x129faf8]. One life per run (the firewall or a fall ends it).
+- End of run *(decoded 2026-10-28)*: `RegisterPendingScore` writes the week's best/last score and `progression.adventure_best_score`
+  [asm 0x12680cc]; `ClaimPendingScore` pays **tokens = metres** [asm 0x1268190]. A new week resets the road (`ResetProgressionRoad` [asm 0x1267e24]).
 - Meta:
-  - Tokens (`currency.adventure_tokens`) buy skill levels: 6 skills × 20 levels, cost 100 + 10 per level.
+  - Tokens (`currency.adventure_tokens`) buy skill levels: 6 skills × 20 levels. *Corrected 2026-10-28:* cost = `100 + 10 * floor(total levels of all skills / 10)`
+    [asm 0x126a184, floorf 0x10b9638], not "+10 per level".
   - Token sources: `weekly.adventure_starter_pack`, cards (weekly_starting_tokens, daily_login_tokens, daily_tokens_multiplier max 1000/day), and the best-score road.
   - Best-score road (`progression.adventure_best_score`): 105 thresholds from 1 to 15000 m giving tokens and boosters.
   - Weekly leaderboard `adventure`: 10000 participants, 6 difficulty tiers; #1 = 3000 coins + boosters + 3 skins from `reward_pool.adventure_skin` (48 collection skins).
   - The weekly seed and leaderboard are **ONLINE** in the original; offline, use a local week seed and a simulated board.
-- **UNKNOWN**: the pattern exit filter predicate, where rope_length is applied, the target types' behaviour, the end-of-run token formula, the firewall spawn point.
+- ~~UNKNOWN~~ (all decoded 2026-10-28, above): the pattern exit filter predicate, where rope_length is applied, the target types' behaviour,
+  the end-of-run token formula, the firewall spawn point. Still server-driven: the week's window (seed) and real players.
 - Assets: 12.3 MB config bundle; 39 dependency bundles = 53.5 MB, of which 45 MB is not used by Normal.
   - 21 new sprites (bumper types, target variants `Target_OneTime`/`Target_Mooving`, chrono, portal) and 7 new animators (BumperDefault/High/Low/OneTime, Portal, TimedHook).
   - ParticleSystem and Light.
-  - Web estimate: 400–700 KB. **Largest mode.**
+  - Web estimate: 400–700 KB. **Largest mode.** Built 2026-10-28: 564 KB raw / about 220 KB gzip, all lazy
+    (`mode-adventure.json` 389 KB raw / 86 KB gzip, `adventure.webp` 111 KB, `adventure.js` + `advrun.js` 64 KB raw).
 
 ## 8. TargetMover (moving hooks)
 
@@ -215,7 +250,7 @@ Theme colors per mode (camera bg, shadow, finish light, ...) are in `theme.gameM
 - Moves along a waypoint loop at `speed`; a waypoint is reached when within `minProximity`.
 - `waitForHook` holds the target until it is hooked, and it stops again after each lap. `startDelay` and `targetFreezeDelay` set timed holds.
 - **No shipped pattern in any mode uses TargetMover** (0 instances in Normal, Challenge, Grapple, Seasonal, Tournament,
-  Pachinko and Adventure dumps). Adventure's "moving" targets go through `TargetAdventure`, which was not decoded. Low priority.
+  Pachinko and Adventure dumps). Adventure's "moving" targets go through `TargetAdventure` (decoded 2026-10-28, section 7). Low priority.
 
 ## 9. Meta systems
 
@@ -331,5 +366,5 @@ Skins dominate everything.
 Open UNKNOWNs to resolve before the relevant phase:
 - Phase 5: `RefineLevel`, the save fallback for diff 4, `GetNbWins`.
 - Phase 6: per-type `BuildLevel` coordinates, minBonus/maxBonus %.
-- Phase 8: `TargetAdventure` types, rope_length use, end rewards.
+- Phase 8: ~~`TargetAdventure` types, rope_length use, end rewards~~ decoded 2026-10-28 (section 7).
 - Phase 1: the exact Normal end-of-level `AddQuantity` resource.

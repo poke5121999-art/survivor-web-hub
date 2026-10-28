@@ -139,23 +139,44 @@ def ints(x):
 used = set(PLAYER_FRAMES + EXTRA)
 
 
-def compile_pattern(root):
+def compile_pattern(root, adv=False):
+    """adv: Adventure mode (tools/build_adventure.py). Target.Start and BumperAnimationController.Start replace every
+    target and bumper with the TargetAdventure / BumperAdventure prefab at the same position (and rotation), and
+    destroy the original [asm 0x1200e74, 0x11ff9f4], so their sprites are not compiled: `targets` items become
+    [x, y, initial] and `bumpers` items {p: [x, y], r: degrees, ini}, with `seq` their creation order ('t'/'b' + index)
+    and `sp` the pattern's SpawnPoint positions (PatternController.SpawnPoints, portals). `initial` = the parent's name
+    contains "INITIAL" (SetType keeps those NORMAL / SAME)."""
     out = {'draw': [], 'targets': [], 'bumpers': [], 'caps': [], 'polys': [], 'finish': [], 'spawn': None,
            'end': None, 'cam': [None, None]}
+    if adv:
+        out.update(seq=[], sp=[])
     pc = root['c'].get('StickmanHook.Services.PatternController', [{}])[0]
     out['entry'] = pc.get('entryPositions', 7); out['exit'] = pc.get('exitPositions', 7)
 
-    def walk(n, pm, active):
+    def walk(n, pm, active, parent='', rot=0.0):
         m = mul(pm, local(n))
         act = active and n['active']
         name = n['name'].split(' (')[0]
         c = n['c']
         x, y = m[4], m[5]
+        rot += n.get('r') or 0
         if name.startswith('End_'):
             # PatternController.EndObject is read for its position even when the object is inactive (Solo12).
             out['end'] = [r4(x), r4(y)]
         if not act:
             return
+        if adv and 'Target' in c:
+            out['seq'].append('t%d' % len(out['targets']))
+            out['targets'].append([r4(x), r4(y), int('INITIAL' in parent)])
+            return
+        if adv and 'BumperAnimationController' in c:
+            if m[0] * m[3] - m[1] * m[2] < 0:
+                print('WARN mirrored bumper', root['name'], n['name'])
+            out['seq'].append('b%d' % len(out['bumpers']))
+            out['bumpers'].append({'p': [r4(x), r4(y)], 'r': r4(rot), 'ini': int('INITIAL' in parent)})
+            return
+        if adv and 'SpawnPoint' in c:
+            out['sp'].append([r4(x), r4(y)])
         if name == 'StartCamera':
             out['cam'][0] = r4(x)
         elif name == 'EndCamera':
@@ -237,7 +258,7 @@ def compile_pattern(root):
                     pts += [r4(v) for v in ap(m, p['x'] + ox, p['y'] + oy)]
                 out['polys'].append(pts)
         for ch in n['ch']:
-            walk(ch, m, act)
+            walk(ch, m, act, n['name'], rot)
 
     # PatternSpawner sets transform.position after Instantiate, so the prefab root's own position is discarded
     # (FINISH05 has its root at x=37); rotation and scale stay.
@@ -257,70 +278,75 @@ def compile_patterns(nodes, names):
     return {name: compile_pattern(nodes[name]) for name in names}
 
 
-raw = json.load(open(os.path.join(REF, 'dump/normal_raw.json')))
-patterns = compile_patterns(raw['patterns'], raw['patterns'])
+def main():
+    raw = json.load(open(os.path.join(REF, 'dump/normal_raw.json')))
+    patterns = compile_patterns(raw['patterns'], raw['patterns'])
 
-mode_files = {}
-for fid, (src, sets_of) in MODES.items():
-    mraw = json.load(open(os.path.join(REF, src)))
-    sets = sets_of({k: lit(v) for k, v in mraw['config'].items()})
-    names = sorted({n for st in sets.values() for lv in st['levels'] + st.get('random', []) for n in lv})
-    for n in names:
-        # a name shared with Normal must be the same prefab, or levels.json would draw the wrong one
-        if n in raw['patterns'] and json.dumps(raw['patterns'][n], sort_keys=True) != json.dumps(mraw['prefabs'][n], sort_keys=True):
-            sys.exit('pattern %s differs between Normal and %s' % (n, fid))
-    mode_files[fid] = {'v': 1, 'sets': sets,
-                       'patterns': compile_patterns(mraw['prefabs'], [n for n in names if n not in raw['patterns']])}
-    if fid in MODE_EXTRA:
-        key, f = MODE_EXTRA[fid]
-        mode_files[fid][key] = f({k: lit(v) for k, v in mraw['config'].items()})
+    mode_files = {}
+    for fid, (src, sets_of) in MODES.items():
+        mraw = json.load(open(os.path.join(REF, src)))
+        sets = sets_of({k: lit(v) for k, v in mraw['config'].items()})
+        names = sorted({n for st in sets.values() for lv in st['levels'] + st.get('random', []) for n in lv})
+        for n in names:
+            # a name shared with Normal must be the same prefab, or levels.json would draw the wrong one
+            if n in raw['patterns'] and json.dumps(raw['patterns'][n], sort_keys=True) != json.dumps(mraw['prefabs'][n], sort_keys=True):
+                sys.exit('pattern %s differs between Normal and %s' % (n, fid))
+        mode_files[fid] = {'v': 1, 'sets': sets,
+                           'patterns': compile_patterns(mraw['prefabs'], [n for n in names if n not in raw['patterns']])}
+        if fid in MODE_EXTRA:
+            key, f = MODE_EXTRA[fid]
+            mode_files[fid][key] = f({k: lit(v) for k, v in mraw['config'].items()})
 
-# ---- atlas: trim transparent margins, shelf-pack, record rect + pivot (sprite units) ----
-items = []
-for name in sorted(used):
-    if name not in smeta:
-        print('MISSING SPRITE', name); continue
-    im = Image.open(os.path.join(REF, 'sprites', name + '.png')).convert('RGBA')
-    md = smeta[name]
-    scale = 1.0
-    if name.startswith('CHAR_'):
-        scale = 0.5
-    if name == 'GradientVertical':
-        im = im.resize((8, 410), Image.LANCZOS); sx, sy = 8 / md['w'], 410 / md['h']
-    else:
-        sx = sy = scale
-        if scale != 1.0:
-            im = im.resize((round(im.width * scale), round(im.height * scale)), Image.LANCZOS)
-    bbox = im.getbbox() or (0, 0, 1, 1)
-    im = im.crop(bbox)
-    px = md['px'] * sx - bbox[0]; py = md['py'] * sy - bbox[1]
-    ppu = md['ppu'] * sx
-    ppuy = md['ppu'] * sy
-    items.append((name, im, px, py, ppu, ppuy))
+    # ---- atlas: trim transparent margins, shelf-pack, record rect + pivot (sprite units) ----
+    items = []
+    for name in sorted(used):
+        if name not in smeta:
+            print('MISSING SPRITE', name); continue
+        im = Image.open(os.path.join(REF, 'sprites', name + '.png')).convert('RGBA')
+        md = smeta[name]
+        scale = 1.0
+        if name.startswith('CHAR_'):
+            scale = 0.5
+        if name == 'GradientVertical':
+            im = im.resize((8, 410), Image.LANCZOS); sx, sy = 8 / md['w'], 410 / md['h']
+        else:
+            sx = sy = scale
+            if scale != 1.0:
+                im = im.resize((round(im.width * scale), round(im.height * scale)), Image.LANCZOS)
+        bbox = im.getbbox() or (0, 0, 1, 1)
+        im = im.crop(bbox)
+        px = md['px'] * sx - bbox[0]; py = md['py'] * sy - bbox[1]
+        ppu = md['ppu'] * sx
+        ppuy = md['ppu'] * sy
+        items.append((name, im, px, py, ppu, ppuy))
 
-items.sort(key=lambda t: -t[1].height)
-W = 1024; x = y = shelf = 0; rects = {}
-PAD = 2
-for name, im, px, py, ppu, ppuy in items:
-    if x + im.width + PAD > W:
-        x = 0; y += shelf + PAD; shelf = 0
-    rects[name] = [x, y, im.width, im.height, round(px, 2), round(py, 2), round(ppu, 3), round(ppuy, 3)]
-    x += im.width + PAD; shelf = max(shelf, im.height)
-H = y + shelf
-atlas = Image.new('RGBA', (W, H))
-for name, im, *_ in items:
-    r = rects[name]; atlas.paste(im, (r[0], r[1]))
-os.makedirs(os.path.join(GAME, 'art'), exist_ok=True)
-atlas.save(os.path.join(GAME, 'art/atlas.webp'), lossless=True, quality=100, method=6)
+    items.sort(key=lambda t: -t[1].height)
+    W = 1024; x = y = shelf = 0; rects = {}
+    PAD = 2
+    for name, im, px, py, ppu, ppuy in items:
+        if x + im.width + PAD > W:
+            x = 0; y += shelf + PAD; shelf = 0
+        rects[name] = [x, y, im.width, im.height, round(px, 2), round(py, 2), round(ppu, 3), round(ppuy, 3)]
+        x += im.width + PAD; shelf = max(shelf, im.height)
+    H = y + shelf
+    atlas = Image.new('RGBA', (W, H))
+    for name, im, *_ in items:
+        r = rects[name]; atlas.paste(im, (r[0], r[1]))
+    os.makedirs(os.path.join(GAME, 'art'), exist_ok=True)
+    atlas.save(os.path.join(GAME, 'art/atlas.webp'), lossless=True, quality=100, method=6)
 
-data = {'v': 1, 'atlas': {'w': W, 'h': H, 'rects': rects}, 'patterns': patterns, 'levels': raw['deterministic'],
-        'random': raw['random']}
-os.makedirs(os.path.join(GAME, 'data'), exist_ok=True)
-txt = json.dumps(ints(data), separators=(',', ':'))
-open(os.path.join(GAME, 'data/levels.json'), 'w').write(txt)
-print('patterns', len(patterns), 'sprites', len(rects), 'atlas', W, 'x', H, 'json', len(txt) // 1024, 'KB')
-for fid, md in mode_files.items():
-    mt = json.dumps(ints(md), separators=(',', ':'))
-    open(os.path.join(GAME, 'data/mode-%s.json' % fid), 'w').write(mt)
-    print('mode-%s.json' % fid, {k: len(v['levels']) for k, v in md['sets'].items()}, 'new patterns', len(md['patterns']),
-          len(mt) // 1024, 'KB')
+    data = {'v': 1, 'atlas': {'w': W, 'h': H, 'rects': rects}, 'patterns': patterns, 'levels': raw['deterministic'],
+            'random': raw['random']}
+    os.makedirs(os.path.join(GAME, 'data'), exist_ok=True)
+    txt = json.dumps(ints(data), separators=(',', ':'))
+    open(os.path.join(GAME, 'data/levels.json'), 'w').write(txt)
+    print('patterns', len(patterns), 'sprites', len(rects), 'atlas', W, 'x', H, 'json', len(txt) // 1024, 'KB')
+    for fid, md in mode_files.items():
+        mt = json.dumps(ints(md), separators=(',', ':'))
+        open(os.path.join(GAME, 'data/mode-%s.json' % fid), 'w').write(mt)
+        print('mode-%s.json' % fid, {k: len(v['levels']) for k, v in md['sets'].items()}, 'new patterns', len(md['patterns']),
+              len(mt) // 1024, 'KB')
+
+
+if __name__ == '__main__':
+    main()

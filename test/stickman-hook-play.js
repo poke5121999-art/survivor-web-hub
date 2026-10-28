@@ -66,7 +66,7 @@ function serve() {
   check('download under 600 KB', kb > 50 && kb < 600, `${kb} KB`);
   const lazy = requested.filter((u) => /custom\.json|custom-ui|ropes\.webp|menu\.webp|art\/skins\//.test(u));
   check('first level loads no shop art', lazy.length === 0, lazy.join(' '));
-  const modeFiles = requested.filter((u) => /mode-\w+\.json|grapple\.js|menus\.js|race\.js|\/race\/|race\.webp/.test(u));
+  const modeFiles = requested.filter((u) => /mode-[\w-]+\.json|grapple\.js|menus\.js|race\.js|\/race\/|race\.webp|adventure\.js|advrun\.js|adventure\.webp/.test(u));
   check('first level loads no mode data', modeFiles.length === 0, modeFiles.join(' '));
   const bonusFiles = requested.filter((u) => /bonus\.js|bonus\.json|wheel\.webp|piggy\.webp|skip\.webp/.test(u));
   check('first level loads no wheel / piggy / skip code or art', bonusFiles.length === 0, bonusFiles.join(' '));
@@ -609,6 +609,139 @@ function serve() {
   check('a finished board pays rank 1: 1000 coins + Dolphin, 1 win, 1 played; the new board has 0 trophies', cl.coins === 1000 && cl.dolphin
     && cl.win === 1 && cl.played === 1 && cl.trophies === 0 && cl.start === midnight && /hạng 1/.test(cl.msg), JSON.stringify(cl));
   await page.click('#race .x');
+
+  // ---- Adventure: the endless run against the firewall (js/adventure.js + js/advrun.js, README "Phiêu lưu") ----
+  await page.evaluate(() => {
+    const s = window.__sh.save;
+    delete s.modes['mode.adventure']; delete s.claimed['progression.adventure_best_score'];
+    for (const k of Object.keys(s.inv)) if (/adventure/.test(k)) delete s.inv[k];
+  });
+  const advFirst = requested.length;
+  await page.evaluate(() => window.__sh.openMenu('openModes'));
+  await page.waitForSelector('#modes .mode[data-id="mode.adventure"] button', { timeout: 10000 });
+  await page.click('#modes .mode[data-id="mode.adventure"] button');
+  await page.waitForSelector('#adv.on .go', { timeout: 15000 }).catch(() => {});
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: path.join(SHOTS, 'adv-skills.png') });
+  const ap = await page.evaluate(() => ({ skills: [...document.querySelectorAll('#adv .sk b')].map((b) => b.textContent),
+    rows: document.querySelectorAll('#adv li').length, me: !!document.querySelector('#adv li.me'), road: document.querySelector('#adv .road div b')?.textContent,
+    btn: document.querySelector('#adv .sk button')?.textContent, disabled: document.querySelector('#adv .sk button')?.disabled }));
+  check('the Adventure row opens its page: 6 skills at level 0/20 in Vietnamese, the road from 1 m, the weekly top 10 + my row',
+    ap.skills.length === 6 && ap.skills[0] === 'Độ nảy · cấp 0/20' && ap.skills[3] === 'Độ dài dây · cấp 0/20' && ap.road === '1 m'
+    && ap.rows === 11 && ap.me && ap.btn === '100 xu PL' && ap.disabled, JSON.stringify(ap));
+  check('the Adventure code, patterns and art load only when the mode opens', ['js/adventure.js', 'js/advrun.js', 'data/mode-adventure.json',
+    'art/adventure.webp'].every((f) => requested.slice(advFirst).some((u) => u.includes(f))));
+  // a run on a fixed seed: the same seed gives the same patterns, zones, portals and target types; another seed differs
+  const layout = () => page.evaluate(() => window.__sh.adv.run.spawned.map((s) => [s.name, s.zone && [s.zone.type, +s.zone.x.toFixed(3)],
+    s.portal && [+s.portal.x.toFixed(2), +s.portal.y.toFixed(2)], s.targets.map((t) => t.type).join(''), s.bumpers.map((b) => b.type).join('')]));
+  const startAdv = (seed) => page.evaluate(async (seed) => { const m = await import('./js/adventure.js'); await m.startRun(null, { seed }); }, seed);
+  const advPause = (v) => page.evaluate((v) => { window.__sh.adv.paused = v; }, v);
+  await startAdv(1792810);
+  const l1 = await layout();
+  await startAdv(1792810);
+  const l2 = await layout();
+  await startAdv(1792868);
+  const l3 = await layout();
+  check('same seed, same layout: 1792810 = INITIAL000 (portal at 1.89, 2.59) + NewEasyLow (2) (DOWN zone at 18.874); 1792868 differs',
+    JSON.stringify(l1) === JSON.stringify(l2) && l1.map((s) => s[0]).join('|') === 'INITIAL000|NewEasyLow (2)'
+    && JSON.stringify(l1[0][2]) === '[1.89,2.59]' && JSON.stringify(l1[1][1]) === '[1,18.874]'
+    && l3.map((s) => s[0]).join('|') === 'INITIAL000|NewEasyMid (4)' && JSON.stringify(l3[1][1]) === '[0,20.835]', JSON.stringify([l1, l3]));
+  await startAdv(1792810);
+  await page.waitForFunction(() => window.__sh.adv.phase === 'play' && window.__sh.adv.t > 0.4, null, { timeout: 5000 }).catch(() => {});
+  await advPause(true);
+  await page.waitForTimeout(100);
+  await page.screenshot({ path: path.join(SHOTS, 'adv-start.png') });
+  const st0 = await page.evaluate(() => { const a = window.__sh.adv, r = a.run; return { spawn: r.spawn, rope: r.rope, fire: [r.fire.x, r.fire.moving],
+    hud: r.distance }; });
+  check('a run starts at INITIAL000\'s spawn (0.86, 6.27), rope 3 m, the firewall waiting at x 0 until the first grab',
+    st0.spawn.x === 0.86 && st0.spawn.y === 6.27 && st0.rope === 3 && st0.fire[0] === 0 && !st0.fire[1], JSON.stringify(st0));
+  // gravity zones: 10 fixed steps from rest inside the zone (the frame loop paused)
+  const zonePush = (seed) => page.evaluate(async (seed) => {
+    const m = await import('./js/adventure.js');
+    await m.startRun(null, { seed });
+    const a = window.__sh.adv, r = a.run, z = r.spawned[1].zone;
+    a.paused = true; a.phase = 'play';
+    Object.assign(r.player, { x: z.x, y: z.y, vx: 0, vy: 0, age: 5 });
+    for (let i = 0; i < 10; i++) r.fixed(0.02, false);
+    r.cam.x = z.x;
+    return { eg: r.player.eg, v: [Math.round(r.player.vx * 1000) / 1000, Math.round(r.player.vy * 1000) / 1000] };
+  }, seed);
+  const zUp = await zonePush(1792868);
+  // the picture: near the zone's left edge, running for a moment so its particles drift up and right
+  await page.evaluate(() => { const a = window.__sh.adv, r = a.run, z = r.spawned[1].zone;
+    Object.assign(r.player, { x: z.x - 3.5, y: 0, vx: 0, vy: 0 }); r.cam.x = z.x - 3.5; a.paused = false; });
+  await page.waitForTimeout(450);
+  await advPause(true);
+  await page.waitForTimeout(100);
+  await page.screenshot({ path: path.join(SHOTS, 'adv-zone.png') });
+  const zDown = await zonePush(1792810);
+  check('gravity zones push: UP (10, 3) -> v (0.9, -1.888), DOWN (-3, -1.5) -> v (-0.27, -2.293), gravity alone -2.158',
+    JSON.stringify(zUp) === '{"eg":[10,3],"v":[0.9,-1.888]}' && JSON.stringify(zDown) === '{"eg":[-3,-1.5],"v":[-0.27,-2.293]}',
+    JSON.stringify([zUp, zDown]));
+  // the portal on INITIAL000 of seed 1792810 sends the player 1..2 patterns ahead, 1 unit left of a spawn point
+  await startAdv(1792810);
+  await page.evaluate(() => { const a = window.__sh.adv, o = a.run.spawned[0].portal; a.phase = 'play'; a.t = 0;
+    Object.assign(a.run.player, { x: o.x - 1.2, y: o.y, vx: 6, vy: 0.5, age: 5 }); a.run.cam.x = o.x; });
+  await page.waitForFunction(() => { const p = window.__sh.adv.run.player; return p.tele && p.tele.t > 0.1; }, null, { timeout: 5000 }).catch(() => {});
+  await advPause(true);
+  // the destination draws from UnityEngine.Random's global state (whatever spawned last), so it is checked against the rule:
+  // pattern 1 or 2 ahead of the portal's, one of its spawn points, 1 unit to the left
+  const tp = await page.evaluate(() => { const r = window.__sh.adv.run, p = r.player;
+    const ok = r.spawned.slice(1, 3).flatMap((s) => s.sp.map(([x, y]) => [Math.round((x - 1) * 1000) / 1000, y]));
+    return { to: p.tele?.to && p.tele.to.map((v) => Math.round(v * 1000) / 1000), ok, alpha: p.alpha }; });
+  await page.waitForTimeout(100);
+  await page.screenshot({ path: path.join(SHOTS, 'adv-portal.png') });
+  await advPause(false);
+  await page.waitForFunction(() => !window.__sh.adv.run.player.tele, null, { timeout: 8000 }).catch(() => {});
+  await advPause(true);
+  const tp2 = await page.evaluate(() => { const p = window.__sh.adv.run.player, o = window.__sh.adv.run.spawned[0].portal;
+    return { x: p.x, alpha: p.alpha, closed: o.killed >= 0 }; });
+  check('the portal teleports 1-2 patterns ahead, 1 unit left of a spawn point, see-through (alpha 0.3), then solid with the portal closed',
+    !!tp.to && tp.ok.some((q) => q[0] === tp.to[0] && q[1] === tp.to[1]) && tp.to[0] > 20 && tp.alpha === 0.3 && tp2.alpha === 1
+    && tp2.x > tp.to[0] - 0.5 && tp2.closed, JSON.stringify([tp, tp2]));
+  // the firewall close behind, then it catches the player: one life, the run ends and pays out
+  await startAdv(1792800);
+  await page.evaluate(() => { const a = window.__sh.adv, r = a.run; a.paused = true; a.phase = 'play';
+    r.fire.moving = false; r.fire.x = 122.5; Object.assign(r.player, { x: r.startX + 123.6, y: 1, vx: 0, vy: 0, age: 5 });
+    r.update(0); r.cam.x = r.player.x; a.paused = false; });
+  // the firewall's particles need a few frames to fill in (held in place, not moving yet)
+  await page.waitForTimeout(400);
+  await page.evaluate(() => { const a = window.__sh.adv, r = a.run; a.paused = true;
+    r.fire.moving = true; r.fire.timer = 10; Object.assign(r.player, { x: r.startX + 123.6, y: 1, vx: 0, vy: 0 }); r.cam.x = r.player.x; });
+  await page.waitForTimeout(150);
+  await page.screenshot({ path: path.join(SHOTS, 'adv-fire.png') });
+  await page.evaluate(() => { const a = window.__sh.adv, r = a.run; r.fire.x = r.player.x - 0.2; a.paused = false; });
+  await page.waitForSelector('#advEnd.on', { timeout: 8000 }).catch(() => {});
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: path.join(SHOTS, 'adv-end.png') });
+  const fe = await page.evaluate(() => { const s = window.__sh.save, a = window.__sh.adv;
+    const disk = JSON.parse(localStorage.getItem('stickman-hook'));
+    return { why: a.run.dead?.why, d: a.run.distance, text: document.querySelector('#advEnd')?.innerText.replace(/\s+/g, ' '),
+      tok: s.inv['currency.adventure_tokens'], best: s.inv['leaderboard.adventure_best_score'], road: s.claimed['progression.adventure_best_score'],
+      boosters: s.pending?.length, disk: [disk.inv['currency.adventure_tokens'], disk.inv['leaderboard.adventure_best_score'],
+        disk.claimed['progression.adventure_best_score']] }; });
+  check('the firewall kills: "Tường lửa bắt kịp bạn" at 123 m, the road paid as one line', fe.why === 'fire' && fe.d === 123 && /123 m/.test(fe.text)
+    && /Tường lửa bắt kịp bạn/.test(fe.text) && /\+123 xu phiêu lưu · Đường kỷ lục: \+800 xu phiêu lưu, Common Card/.test(fe.text), JSON.stringify({ ...fe, text: fe.text?.slice(0, 120) }));
+  check('123 m = +123 tokens + road steps 1..100 (800 tokens), best 123, all written to localStorage', fe.tok === 923 && fe.best === 123
+    && fe.road === 100 && JSON.stringify(fe.disk) === '[923,123,100]', JSON.stringify(fe.disk));
+  // the skill shop: 100 tokens a level (100 + 10 per 10 levels in total), rope 3 -> 4.455 m
+  await page.click('#advEnd [data-act="page"]');
+  await page.waitForSelector('#adv.on .sk', { timeout: 10000 });
+  await page.click('#adv .sk[data-id="rope_length"] button');
+  await page.waitForTimeout(200);
+  const buy = await page.evaluate(async () => { const s = window.__sh.save, m = await import('./js/adventure.js');
+    await m.startRun(null, { seed: 1792800 });
+    const rope = window.__sh.adv.run.rope;
+    return { lv: s.inv['progression_adventure_skill_level.rope_length'], tok: s.inv['currency.adventure_tokens'], rope }; });
+  check('buying a skill level: rope length level 1 for 100 tokens, the next run\'s rope is 4.455 m', buy.lv === 1 && buy.tok === 823
+    && Math.abs(buy.rope - 4.4553) < 1e-3, JSON.stringify(buy));
+  await page.evaluate(() => { window.__sh.adv.paused = true; });
+  await page.click('#advPlay .btn');
+  await page.waitForSelector('#advEnd.on [data-act="page"]', { timeout: 5000 });
+  await page.click('#advEnd [data-act="page"]');
+  await page.waitForSelector('#adv.on .sk', { timeout: 10000 });
+  await page.screenshot({ path: path.join(SHOTS, 'adv-skills.png') });
+  await page.click('#adv .x');
 
   check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
   await browser.close();

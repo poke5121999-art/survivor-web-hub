@@ -14,8 +14,9 @@ Pha tiếp theo thêm ba chế độ: Mechanical Grapple, Challenge, sự kiện
 Vòng quay, heo đất, xu miễn phí mỗi ngày và vé bỏ qua màn: xem mục "Vòng quay, heo đất, chợ, vé bỏ qua".
 Lucky Drop (Pachinko) có engine riêng `js/pachinko.js`; luật, toạ độ bàn chơi và bẫy ở `docs/PACHINKO.md`.
 Đua (Tournament): đua với ghost trên 21 map, bảng xếp hạng ngày chạy offline. Xem mục "Đua (Tournament)".
+Phiêu lưu (Adventure): chạy vô tận trước tường lửa, 6 kỹ năng, đường kỷ lục, bảng tuần chạy offline. Xem mục "Phiêu lưu (Adventure)".
 
-Chưa làm: chế độ Adventure, thẻ bài, booster, quảng cáo, VIP.
+Chưa làm: thẻ bài, booster, quảng cáo, VIP.
 
 ## Cách chơi
 
@@ -43,6 +44,9 @@ Chưa làm: chế độ Adventure, thẻ bài, booster, quảng cáo, VIP.
 | `js/modes.js` | Bảng chế độ: nguồn màn, lớp người chơi, chỗ lưu tiến độ, luật mở màn, thưởng cuối màn, road |
 | `js/grapple.js` | Người chơi Mechanical Grapple (nạp khi mở chế độ) |
 | `js/race.js` | Đua: trang bảng xếp hạng ngày, chọn đối thủ, ghost, đếm ngược, xếp hạng, thưởng (nạp khi mở chế độ) |
+| `js/advrun.js` | Phiêu lưu: ghép đường theo seed tuần, `UnityEngine.Random`, kỹ năng, điểm móc/bumper/gió/cổng, tường lửa, điểm (không DOM) |
+| `js/adventure.js` | Phiêu lưu: trang kỹ năng / đường kỷ lục / bảng tuần, vòng lặp, vẽ, màn kết thúc (nạp khi mở chế độ) |
+| `data/mode-adventure.json`, `art/adventure.webp` | Cấu hình, kỹ năng, đường kỷ lục, 189 pattern của Phiêu lưu; sprite và texture hạt riêng |
 | `data/race/<map>.json`, `art/race.webp` | Ghost của từng map (nạp khi đua map đó), vòng xuất phát và cúp |
 | `data/levels.json` | 123 pattern (toạ độ thế giới) cùng danh sách màn |
 | `data/mode-<file>.json` | `{v, sets: {modeId: {levels, random?}}, patterns}`: danh sách màn của chế độ và pattern chưa có trong `levels.json` (`grapple`, `challenge`, `seasonal`, `race`; `race` có thêm mục `race`) |
@@ -56,6 +60,7 @@ Chưa làm: chế độ Adventure, thẻ bài, booster, quảng cáo, VIP.
 | `art/atlas.webp` | Atlas sprite |
 | `art/font.webp` | Font Junegull |
 | `tools/build_data.py` | Tạo `levels.json`, `mode-*.json` và atlas, mọi chế độ qua cùng một `compile_pattern` |
+| `tools/build_adventure.py` | Tạo `mode-adventure.json` và `adventure.webp` (pattern qua `build_data.compile_pattern(adv=True)`) |
 | `tools/build_race.py` | Giải bản ghi ghost của Tournament, lấy mẫu lại 10 Hz → `data/race/*.json`; tạo `art/race.webp` |
 | `tools/build_custom.py` | Tạo sheet skin, `ropes.webp`, `custom-ui.webp`, `custom.json` |
 | `tools/build_meta.py` | Tạo `meta.json`, `bonus.json`, `menu.webp`, `wheel.webp`, `piggy.webp`, `skip.webp` từ remote settings mặc định và bundle trong APK |
@@ -385,6 +390,72 @@ Bẫy:
 - **Seed của bảng phụ thuộc múi giờ** (nửa đêm giờ máy). Bài kiểm dùng mốc ms cố định 1793120400000 (28/10/2026, UTC+7).
 - **Tên trường `n` trong file ghost là tên bản ghi.** Lúc giải nén lần đầu, mình gán số mẫu vào `n` và làm mất tên. Số mẫu giờ là `len`.
 
+## Phiêu lưu (Adventure)
+
+Mở ở 650 XP (`meta.d.modes`: `mode.adventure` ← `progression.xp` 650). Chế độ → Phiêu lưu mở trang của chế độ: kỹ năng, đường kỷ lục, bảng tuần, nút Chơi.
+Một lượt là chạy vô tận sang phải, tường lửa đuổi sau lưng, một mạng. Điểm là số mét.
+
+- Code: `js/advrun.js` (luật, không đụng DOM, bài kiểm node chạy thẳng), `js/adventure.js` (trang, vòng lặp, vẽ, màn kết thúc). Vật lý là `physics.js` của Normal.
+- Dữ liệu: `data/mode-adventure.json` (`tools/build_adventure.py`: cấu hình, 6 kỹ năng, giá, đường kỷ lục 105 mốc, bảng tuần, 8 tầng, 189 pattern, toạ độ sprite)
+  và `art/adventure.webp` (sprite riêng của Adventure, khung bumper đỏ `_Low` đã nướng màu, texture hạt).
+- Nạp lười, chỉ khi mở chế độ: `adventure.js` 38 KB + `advrun.js` 26 KB + `mode-adventure.json` 389 KB (gzip 86 KB) + `adventure.webp` 111 KB.
+  Tổng 564 KB thô, khoảng 220 KB gzip. Màn đầu không nạp gì trong số này (594 KB, như trước).
+- Bản ghi asm: `D:/stickman-hook-ref/dump/asm/adventure/*.s` (`tools/dump_adventure_asm.py`). `UnityEngine.Random` đọc từ `libunity.so` (Thumb),
+  giải nén ở `D:/stickman-hook-ref/libunity_x/`, đọc bằng `tools/unity_icall_thumb.py` và `tools/unity_dis.py`.
+- Dựng lại: `adventure_assets.py`, `adventure_curves.py`, `export_textures.py` (ở `D:/stickman-hook-ref/tools/`), rồi `cd tools && py -3 -I build_adventure.py`.
+
+Luật đọc từ mã IL2CPP:
+
+- **Ghép đường** (`LoadNewAdventurePattern` [asm 0x11f9300]):
+  - seed = `Leaderboard.Seed + _index`. Tầng = chỉ số cuối k có `_index >= [0, 1, 10, 25, 35, 55, 65, 80][k]` [asm 0x11f8e3c..0x11f8ee0].
+  - Ứng viên: pattern của tầng có `entry & lối ra trước != 0` (`Intersects` [asm 0x12a242c], lối ra đầu = 7). Chọn bằng `System.Random(seed).Next(0, số ứng viên)` [asm 0x17501a8].
+  - Đặt ở điểm End của pattern trước, pattern đầu ở `Vector3.zero`. Sau đó `SpawnGravityZone`, `SpawnPortal`.
+  - Nạp thêm khi còn ≤ 3 pattern hoặc pattern cuối bắt đầu chưa tới 100 m trước người chơi. Xoá pattern đầu khi có ≥ 3 và pattern thứ hai đã lùi quá 100 m [asm 0x11f8f0c].
+- **`UnityEngine.Random`** là Xorshift128 của libunity: `InitState` [libunity 0x22a968], `value` = `(w & 0x7FFFFF) × f32(0x34000001)` [0x22aa10],
+  `Range(float)` = `(1 − t) × max + t × min` [0x22a998], `Range(int)` = `min + next % (max − min)` [0x236128]. Port: `URandom` trong `advrun.js`.
+- **Thiên lệch theo kỹ năng** (mọi vật thể): `v = r + (min(1, r + Range(minSize, maxSize)) − r) × giá trị kỹ năng`, rồi `GetDifficulty` chia ba: BAD / NEUTRAL / GOOD [asm 0x126ac08].
+  - Giá trị kỹ năng `GetValueAtLevelAndDistance` [asm 0x126a060] = `lerp(min, max, progression(clamp01((1 + bonus(d / 1000) × mult) × cấp / 100)))`.
+  - 100 là `GetSkillLevelMax` = 20 + hiệu ứng thẻ nâng trần ở cấp tối đa (80) [asm 0x1269d78]. Không có thẻ thì trần là cấp 20 (`LOCKED` [asm 0x1269ae0, 0x126a390]).
+- **Điểm móc** (`TargetAdventure`, `Target.Start` [asm 0x1200e74]): `InitState(Seed + _targetsCount++)`, `value`, `Range`.
+  GOOD → xoay (180°/s, giữ tốc ≥ 6 khi đang móc [asm 0x11fca84]), NEUTRAL → thường, BAD → `RangeInt(0, 3) + 1`: dùng một lần (thả là mất [asm 0x11fdfd0]),
+  hẹn giờ (mất sau 5 s kể từ lần móc đầu [asm 0x11fc93c]), di chuyển (hướng `RangeInt(0, 4)`, ±1, SINE_EASE_IN_OUT [asm 0x11fe2ac]).
+  Điểm móc dưới pattern `INITIAL` luôn thường. Điểm đang móc bị huỷ thì tự nhả [asm 0x120adb8].
+- **Bumper** (`BumperAnimationController.Start` [asm 0x11ff9f4] → `SetType` [asm 0x11fa948]): `RangeInt(0, 4)` bỏ đi, rồi `InitState(Seed + _bumpersCount++)`.
+  NEUTRAL → thường (nảy 1.3), GOOD → vàng (1.5), BAD → `RangeInt(0, 2)`: đỏ (0.5) hoặc dùng một lần (co lại khi chạm [asm 0x11fa810]). `INITIAL` → giữ 1.0 [asm 0x11fad94].
+- **Vùng gió** (`SpawnGravityZone` [asm 0x11f9950]): `InitState(seed)`, có khi `value < 0.15`, vị trí ngẫu nhiên trong pattern, rồi `Range`, `value`.
+  BAD → kéo xuống (−3, −1.5), GOOD → đẩy lên (10, 3), NEUTRAL → vẫn đẩy lên nhưng không hiện hình. `AddForce` mỗi bước vật lý (khối lượng 2), bỏ qua khi đang móc mà đi ngược lực.
+  Vận tốc kẹp ở 35 [asm 0x12a0920]. Vào / ra vùng qua trigger [asm 0x129fe3c, 0x12a0628].
+- **Cổng dịch chuyển** (`SpawnPortal` [asm 0x11f9e1c]): khi pattern trước còn trước x 300 thì cổng thưởng luôn qua, sau đó cần `value ≤ 0.2`. Rồi `value`, `Range`, phải ra GOOD.
+  Cổng đặt cách một điểm xuất hiện của pattern 1 m về bên phải. Chạm cổng (`HandlePortalCollision` [asm 0x129ff2c]): tới pattern `RangeInt(1, 3)` phía trước,
+  một điểm xuất hiện ngẫu nhiên, lùi 1 m. Người chơi mờ 0.3, bay thẳng 20 m/s, ra với vận tốc (14.7087, 2.94174) [asm 0x12a1660]. Đi qua cổng thì cổng đóng [asm 0x12a1b50].
+- **Độ dài dây**: `AdventurePlayerController.Awake` gán `ropeLength` [asm 0x12a081c]. Chỉ điểm móc trong tầm dây mới được chọn [asm 0x120a58c].
+  Vòng tròn xanh (0.25, 1, 0.31, α 0.118) quanh người chơi là tầm dây [asm 0x11ffef0]. Giữ nút thì móc ngay khi có điểm vào tầm (`grabOnHold` [asm 0x12a18f8]).
+- **Tường lửa** (`Firewall` [asm 0x11fb4cc..0x11fbc5c]): sinh ở (0, 0), chạy từ lần móc đầu, chờ 3 s. Mode 0: tốc độ 0.1, cộng `0.05 × dt × kỹ năng` mỗi khung, không có trần.
+  Không bao giờ tụt sau người chơi quá 30 m. Chạm hộp trigger (lệch (−2.5, 40), cỡ (5, 100)) là chết [asm 0x129fdcc].
+- **Điểm**: `lastDistance = floor(max(lastDistance, x − StartingX))` [asm 0x129fa54]. Vạch "best score" / "last score" đặt ở x = điểm [asm 0x129ef5c].
+- **Kết thúc lượt** (`RegisterPendingScore` [asm 0x12680cc], `ClaimPendingScore` [asm 0x1268190]): ghi kỷ lục tuần, điểm lần trước, `progression.adventure_best_score`; mỗi mét = 1 xu phiêu lưu.
+- **Giá nâng kỹ năng** = `100 + 10 × floor(tổng cấp cả 6 kỹ năng / 10)` [asm 0x126a184]. `FULLGAME.md` cũ ghi "+10 mỗi cấp" là sai.
+- **Tuần mới** xoá đường kỷ lục (`ResetProgressionRoad` [asm 0x1267e24]) và điểm tuần. Bảng `adventure`: 10000 người, 6 độ khó AI, hạng ≤ 2 tính là thắng.
+
+Tự đặt, có nhãn `[ĐỀ XUẤT]`:
+
+- Tuần bắt đầu thứ Hai 0 giờ theo giờ máy. Bản gốc lấy từ server. Bảng tuần dùng `Board` của `race.js` với thời gian chạy chậm 7 lần.
+- Bộ đếm `_targetsCount` / `_bumpersCount` về 0 mỗi lượt. Bản gốc chỉ về 0 khi mở app, nên lượt thứ hai trong cùng phiên của bản gốc ra loại vật thể khác.
+- `Target.Start` / `BumperAnimationController.Start` chạy theo thứ tự trong hierarchy, ngay sau khi sinh pattern.
+- Camera: như Normal (dẫn trước `vx × 0.2`), y khoá ở 0, không có mép phải.
+- Hạt và ánh sáng làm đơn giản: hạt lửa, tia lửa, quầng đỏ, hạt của vùng gió lấy tốc độ phát, thời gian sống, cỡ, màu từ ParticleSystem của prefab, nhưng phẳng 2D và không có Light.
+  Cổng dịch chuyển vẽ bằng vài lớp quầng tĩnh. Chưa có clip Adventure của bản gốc để so hình.
+- Thưởng đường kỷ lục nhận ngay ở màn kết thúc. Bảng tuần hạng 1 nhận skin từ `reward_pool.adventure_skin` theo cách của Đua.
+- Thẻ tăng xu phiêu lưu (ngày, tuần) chưa có vì hệ thẻ chưa có.
+
+Bẫy:
+
+- **Tên pattern trùng với Normal** (`FINISH00`, …) nhưng prefab khác. Pattern Adventure chỉ nằm trong `mode-adventure.json`, không gộp vào `levels.json`.
+- **Seed liền nhau của `System.Random` ra pattern xen kẽ** (`NewEasyLow (1)`, `(2)`, `(1)`, …). Đó là đúng bản gốc, không phải lỗi.
+- **Đích của cổng phụ thuộc trạng thái chung của `UnityEngine.Random`**, tức là vật thể nào vừa sinh. Bài kiểm trình duyệt kiểm theo luật, không kiểm toạ độ cố định.
+- **Renderer nhận bảng toạ độ atlas trần** (`app.atlas.rects`). Bọc thêm một lớp `{rects}` thì không vẽ được người chơi, tường, theme mà không báo lỗi gì.
+- **Script vá có dấu `\` viết bằng heredoc của bash bị nuốt mất.** Viết bằng công cụ Write rồi chạy.
+
 ## Bẫy đã sập
 
 - **Ngân sách 600 KB của màn đầu.** Bản cũ đã nạp 585 KB, nên thêm `meta.json` là vượt.
@@ -432,7 +503,11 @@ Bot chạy trên chính `physics.js`, có quay lui theo từng cú móc. Camera 
 
 - Đua: 21 map, mỗi map xuất phát từ cả 5 ô (`SH_RACE_SLOTS=one`: map n chỉ từ ô (n − 1) mod 5).
 
-Mất khoảng 17 phút, riêng phần Đua khoảng 30 giây. `SH_MODES=grapple,challenge,race` để chạy riêng vài chế độ.
+- Phiêu lưu: `URandom` khớp số của libunity, 8 tầng, chuỗi pattern / vùng gió / cổng / loại vật thể của seed 1792800, giá trị kỹ năng, giá nâng cấp,
+  cổng (20 m/s, vận tốc ra), tường lửa (chờ 3 s, kéo dây 30 m). Bot beam search với kỹ năng cấp 0 (dây 3 m) phải đi được `SH_ADV_GOAL` m (mặc định 500)
+  trên ba seed tuần cố định. Phần này mất khoảng 4 phút.
+
+Mất khoảng 20 phút, riêng phần Đua khoảng 30 giây. `SH_MODES=grapple,challenge,race,adventure` để chạy riêng vài chế độ.
 
 ```sh
 SH_URL=<Pages> node test/stickman-hook-play.js
@@ -467,10 +542,20 @@ Phần Đua (`Math.random` = 0 lúc dựng cuộc đua, nên map, ô và ghost l
 - Bảng ngày 28/10/2026 (mốc 1793120400000): seed 2119037, ba AI đầu HBK-Taker2 / Player1935 / Zeus, bảng lúc 12 giờ trưa đúng từng điểm. Hạng 7 được 20 xu, hạng 8 được 15 xu.
 - Bảng hai ngày trước với 100 cúp: mở trang thì chốt hạng 1, nhận 1000 xu và Dolphin, thắng 1, chơi 1, bảng mới có 0 cúp.
 
-Nó cũng kiểm màn đầu không nạp quá 600 KB, không nạp ảnh shop và không nạp `bonus.js`, `bonus.json`, ảnh vòng quay/heo/nút bỏ qua, `race.js`, file ghost, `race.webp`.
+Phần Phiêu lưu:
+
+- Hàng Phiêu lưu mở trang: 6 kỹ năng cấp 0/20 tiếng Việt, đường kỷ lục từ 1 m, top 10 + dòng của mình. Code, pattern, ảnh chỉ nạp lúc này.
+- Cùng seed thì cùng đường (1792810: `INITIAL000` có cổng ở (1.89, 2.59), `NewEasyLow (2)` có gió kéo xuống ở x 18.874), seed khác thì khác.
+- Lượt bắt đầu ở (0.86, 6.27), dây 3 m, tường lửa đứng ở x 0.
+- Gió: 10 bước từ đứng yên, lên (10, 3) ra v (0.9, −1.888), xuống (−3, −1.5) ra v (−0.27, −2.293).
+- Cổng: bay tới 1 m trái một điểm xuất hiện của pattern 1–2 phía trước, mờ 0.3, tới nơi thì rõ lại, cổng đóng.
+- Tường lửa bắt kịp ở 123 m: màn kết thúc ghi "Tường lửa bắt kịp bạn", +123 xu, đường kỷ lục +800 xu, kỷ lục 123, đã ghi vào `localStorage`.
+- Mua 1 cấp độ dài dây giá 100 xu, lượt sau dây dài 4.455 m.
+
+Nó cũng kiểm màn đầu không nạp quá 600 KB, không nạp ảnh shop và không nạp `bonus.js`, `bonus.json`, ảnh vòng quay/heo/nút bỏ qua, `race.js`, file ghost, `race.webp`, `adventure.js`, `advrun.js`, `adventure.webp`.
 Ảnh chụp nằm ở `shots/stickman-hook/`.
 
 ## Tăng số bản
 
-Đổi mọi `?v=` trong `index.html`, `js/main.js` (hằng `V`) và hai `import()` có `?v=` trong `js/modes.js` (`pachinko.js`, `race.js`), rồi đổi `rev` trong `data/games.js` cho trùng.
+Đổi mọi `?v=` trong `index.html`, `js/main.js` (hằng `V`) và ba `import()` có `?v=` trong `js/modes.js` (`pachinko.js`, `race.js`, `adventure.js`), rồi đổi `rev` trong `data/games.js` cho trùng.
 Module JS mới phải có dòng trong importmap của `index.html`, kể cả module chỉ nạp động (`menus.js`, `fx.js`).

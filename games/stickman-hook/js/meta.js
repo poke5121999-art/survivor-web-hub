@@ -202,6 +202,7 @@ function colors(c) {
 const REWARDS = {
   currency(m, s, res, q, out) {
     if (res === SKIP_TICKETS) { addQty(s, res, q); out.push({ tickets: q }); return; }
+    if (res === 'currency.adventure_tokens') { addQty(s, res, q); out.push({ tokens: q }); return; }
     if (res !== 'currency.skin_coins') return REWARDS.later(m, s, res, q, out);
     s.coins += q;
     out.push({ coins: q });

@@ -51,3 +51,11 @@ Nguyên tắc: vẫn "nhẹ, load nhanh".
   - Ba UNKNOWN của `FULLGAME.md` đã giải: `RefineLevel` [asm 0x12aac08], fallback độ khó 4 = ô trống [asm 0x12205a0], `GetNbWins` = `leaderboard.tournament_win` [asm 0x12b8af0].
   - Bài kiểm: `test/stickman-hook-sim.js` 295/295 (thêm 21 map × 5 ô xuất phát), `test/stickman-hook-play.js` 70/70, `test/stickman-hook-pachinko.js` 27/27 (26/26 khi bi rơi vào ô xu). Màn đầu 595 KB thô (trước 592–593 KB).
   - Chưa làm: nút quảng cáo nhân xu ở màn kết thúc, thẻ của Tournament, đường VIP. Việc còn lại: đẩy lên Pages, tăng `rev` trong `data/games.js`, chạy bài kiểm trên Pages với `SH_URL`.
+- [~] Pha 4 (2026-10-28, rev 20261028g, CHƯA đẩy lên Pages, CHƯA kiểm trên Pages): Phiêu lưu (Adventure). Chi tiết ở README, mục "Phiêu lưu (Adventure)".
+  - `tools/build_adventure.py` → `data/mode-adventure.json` (8 tầng, 189 pattern, 6 kỹ năng, giá, đường kỷ lục 105 mốc, bảng tuần) + `art/adventure.webp`. `build_data.compile_pattern(adv=True)` thêm điểm móc/bumper có cờ INITIAL; `levels.json` và atlas không đổi byte nào.
+  - `js/advrun.js` (luật, không DOM) + `js/adventure.js` (trang, vòng lặp, vẽ, màn kết thúc), nạp lười. Tổng 564 KB thô, khoảng 220 KB gzip.
+  - `UnityEngine.Random` port từ `libunity.so` (Xorshift128). Ghép đường theo seed tuần, điểm móc 5 loại, bumper 5 loại, vùng gió, cổng dịch chuyển, độ dài dây, tường lửa kéo dây 30 m, điểm theo mét, vận tốc tối đa 35, một mạng.
+  - Mọi UNKNOWN Adventure của `FULLGAME.md` đã giải bằng asm. `FULLGAME.md` đã sửa: giá nâng cấp, trần kỹ năng 100, tường lửa sinh ở (0, 0) và không có trần tốc, cổng thưởng, xu cuối lượt = số mét.
+  - `[ĐỀ XUẤT]`: tuần bắt đầu thứ Hai giờ máy, bộ đếm tĩnh về 0 mỗi lượt, camera, hạt/ánh sáng làm phẳng (chưa có clip Adventure của bản gốc để so), thưởng bảng tuần theo cách của Đua.
+  - Bài kiểm: `test/stickman-hook-sim.js` 304/304 (thêm 9 của Phiêu lưu; sau đó thêm 2 kiểm cổng và tường lửa, chạy riêng `SH_MODES=adventure` 16/16), `test/stickman-hook-play.js` 79/79, `test/stickman-hook-pachinko.js` 27/27. Màn đầu 594 KB thô (trước 595 KB).
+  - Chưa làm: thẻ tăng xu phiêu lưu, gói khởi đầu tuần, nhân xu bằng quảng cáo. Việc còn lại: đẩy lên Pages, tăng `rev` trong `data/games.js` lên 20261028g, chạy bài kiểm trên Pages với `SH_URL`.
