@@ -68,8 +68,9 @@ Mỗi luật có `[asm 0x…]` là lệnh nó dựa vào. Chỗ nào tự đặt
   - Sau đó `ShrinkToNothing(0.15)` (OutSine) rồi tắt hẳn, kể cả collider [asm 0x121b724, 0x121bc50].
   - Trong 0.65 s đó chốt vẫn va chạm và vẫn trả xu.
 - **Chốt ×10 và chốt người que thứ hai chỉ có khi có thẻ**: `card.pachinko_x10_multiplier` và `card.pachinko_extra_stickman` [asm 0x1212510..0x1212718].
-  - Bản web chưa có thẻ, nên hai loại chốt này không xuất hiện.
-  - Tham số thử `?pbonus=N` đặt N chốt thưởng theo đúng cách chọn của thẻ: danh sách xếp theo `Math.Round(b.y − a.y)`, bốc `Range(0, count − 1)`.
+  - Từ rev 20261028j hai thẻ này có thật (`js/cards.js pachinkoRolls`, luật ở README mục "Thẻ bài, booster, Chợ Đen"): Extra Stickman một lần thử
+    rồi một trong ~10 chốt cao nhất, x10 năm lần thử độc lập. Chốt người que sinh người que phụ; ván xong khi mọi người que vào ô.
+  - Tham số thử `?pbonus=N` đặt thêm N chốt thưởng theo đúng cách chọn của thẻ: danh sách xếp theo `Math.Round(b.y − a.y)`, bốc `Range(0, count − 1)`.
 - `minBonusPercentage` / `maxBonusPercentage` (0.04 / 0.06) chỉ được ghi trong constructor, không có chỗ nào đọc.
 
 **Ô thưởng và trả thưởng**
@@ -84,7 +85,7 @@ Mỗi luật có `[asm 0x…]` là lệnh nó dựa vào. Chỗ nào tự đặt
 **Không làm**
 
 - **Giới hạn lượt mỗi ngày** (1 miễn phí + 2 xem quảng cáo) và mốc thời gian reset: offline nên bỏ, chơi bao nhiêu lần cũng được.
-- **Thẻ**: extra stickman, x10, bumper resistance, lucky drop limit.
+- **Lucky Drop Limit**: thẻ có phép thử khi dựng lại trạng thái, nhưng 9.9.60 không đọc kết quả, nên không đổi gì (README mục thẻ). Ba thẻ còn lại đã làm.
 
 ## Tự đặt `[ĐỀ XUẤT]`
 

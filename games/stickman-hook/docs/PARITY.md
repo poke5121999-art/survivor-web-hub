@@ -4,6 +4,12 @@ Ngày so: 2026-10-28, chụp lại 2026-10-29. Bản web: Pages `?v=20261028f`, 
 Mỗi cặp ảnh nằm ở `shots/stickman-hook/parity/<key>.png` (web bên trái, tối đa 2 khung gốc bên phải, vùng đo viền xanh lơ).
 Số đo màu lấy từ `shots/stickman-hook/parity/report.json`. Nhãn từng cặp ở `D:/stickman-hook-ref/parity/verdicts.tsv`, cổng `parity.py check` thoát 0.
 
+## 20261028j: thẻ bài, booster, Chợ Đen (2026-10-29)
+
+Không có clip gốc của trang thẻ, popup mở booster hay Chợ Đen trong `D:/stickman-hook-ref/clips`, nên chưa có cặp gốc|web cho ba màn này.
+Đã so với art gốc đã xuất (`D:/stickman-hook-ref/sprites_cards`) và cây prefab (`CardsPage`, `HolderCardItemUI`, `CardsUI`, `BoosterOpeningPopup`,
+`BoosterCardItemUI`, `MarketBlackMarketSection`, `MarketOfferBlackMarketCardOfferCard`). Ảnh web: `shots/stickman-hook/cards-*.png`.
+
 ## Vòng sửa 20261028i (2026-10-29)
 
 Chụp lại phía web trên server local (`?v=20261028i`) cho cả 33 cặp, dựng lại ảnh ghép, xem từng cặp đã sửa. Cổng `parity.py check`: ok 27, version 16, not-built 6, web-bug 0.
@@ -15,7 +21,7 @@ Cảnh chụp mới: `l44_finish` / `l44_finish_late` (màn 44, skin Stick Hat, 
 | n02, n03 | **Zoom khớp.** Web zoom đúng từ trước (ZoomOnPlayer 2 trong 0.5 s); ảnh cũ chụp màn 1 lúc +0.25 s (zoom 3.34). Clip qua vạch ~0:13.25 (chữ STAGE hiện), khung 0:13.7 = +0.45 s. Cùng thời điểm, cùng skin thì người chơi to như gốc |
 | n02 | **Chữ hai dòng khớp.** `FinishText` rộng bằng canvas: 600 đơn vị ở 9:20, "Stage 44 Completed" 613.6 → hai dòng; "Stage 1 Completed" 562.9 vừa một dòng ở cả gốc. Không đổi code |
 | p05, n03, o04, r03 | **Đã sửa** pháo giấy: prefab thật `ConfettisLeft` của `PlayerController`, nón 20° theo hướng bay, 70 mảnh, 5 màu gốc, mảnh bo góc lật 3D, dampen mỗi khung. Hết `web-bug` |
-| n05, p07 | **Đã làm** trang chính bằng art gốc (HomePage, MenuBar, XpRoadHomeBar). Còn `not-built`: VIP Bundle / No Ads, thẻ bài |
+| n05, p07 | **Đã làm** trang chính bằng art gốc (HomePage, MenuBar, XpRoadHomeBar). Tab thẻ bài mở trang thẻ từ 20261028j. Còn `not-built`: VIP Bundle / No Ads |
 | n06, p12 | **Đã làm** Tuỳ biến bằng art gốc. Còn `not-built`: lật trang (web cuộn), nút FIND |
 | n11 | **Đã làm** Đường XP bằng art gốc. Còn `not-built`: thẻ thưởng đúng prefab lúc chạy |
 | n12 | **Đã làm** Chế độ bằng art gốc (thẻ GameModeItemUi + ảnh minh hoạ). Chế độ không có thẻ gốc vẽ thẻ thấp |

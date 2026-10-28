@@ -118,7 +118,11 @@ export function setup(app) {
     root.querySelector('#btnTabShop').onclick = () => app.openMenu('openMarket');
     root.querySelector('#btnMarket').onclick = () => app.openMenu('openMarket');
     root.querySelector('#btnWheel').onclick = () => app.openMenu('openWheel');
-    root.querySelector('#btnCards').onclick = () => app.toast('Thẻ bài chưa có ở bản web');
+    // MenuBar cards tab: TabLocker until the first card (requirement has_cards); the welcome booster comes at 550 XP
+    root.querySelector('#btnCards').onclick = () => {
+      if (app.cards?.hasCards(app.save)) app.openCards();
+      else app.toast('Thẻ bài mở khi nhận gói thẻ chào mừng (Đường XP, 550 XP)');
+    };
     const open = (id) => () => {
       const m = app.meta.d.modes.find((x) => x[0] === id), st = app.meta.modeState(app.save, m);
       if (st.open) app.openMode(id); else app.toast(st.need ? `Cần ${st.need.value} XP` : 'Chưa mở');
@@ -166,5 +170,11 @@ export function show(app) {
   document.getElementById('skinCount').textContent = `${save.owned.skins.length}/${owned}`;
   modeButton(app, document.getElementById('btnTour'), 'mode.tournament', ['Button_Tournament', 'Button_TournamentLocked', 'Icon_Trophy', 'Icon_TrophyLocked']);
   modeButton(app, document.getElementById('btnAdv'), 'mode.adventure', ['Button_Adventure', 'Button_AdventureLocked', 'Icon_Compass', 'Icon_CompassLocked']);
+  const cardsOn = !!app.cards?.hasCards(save), bc = document.getElementById('btnCards');
+  if (bc.dataset.on !== String(cardsOn)) {
+    bc.dataset.on = cardsOn;
+    spr(bc.querySelector('i'), sh, cardsOn ? 'Icon_Cards' : 'Icon_CardsLocked');
+    bc.title = cardsOn ? 'Thẻ bài' : 'Thẻ bài (mở ở 550 XP)';
+  }
   if (!raf) drawPlayer(app);
 }

@@ -7,7 +7,7 @@ import { Meta } from './meta.js';
 import { makeCustom } from './custom.js';
 import { MODES, NORMAL } from './modes.js';
 
-const V = '?v=20261028i';
+const V = '?v=20261028j';
 const DEFAULT_ZOOM = 5, FINISH_ZOOM = 2; // CameraConfig.defaultZoom, PlayerCameraController.cameraZoomOnEndGame
 // Rope prefab: sprite scaled (1.6, 2) under its parent. [ĐỀ XUẤT] 0.2 per axis so a 167 px tile is ~0.4 wide.
 const ROPE_SCALE = [1.6 * 0.2, 2 * 0.2];
@@ -169,6 +169,8 @@ function outOfCamera() {
 }
 
 function respawn() {
+  // PlayerController.TryKillPlayer: DeservesSecondChance -> Revive instead of KillPlayer [asm 0x12050d0, 0x1207054]
+  if (cards && cards.secondChance(save, mode.id)) { revive(); return; }
   game.deaths++;
   game.died = true;
   skipView();
@@ -177,6 +179,58 @@ function respawn() {
   game.t = 0;
   game.fx = 0;
   game.trail = [];
+}
+
+// Revive [asm 0x12097f0..0x1209a64]: GetLastSpawnPointPassed (the last pattern spawn point left of the death, else
+// the start; only Start patterns hold one, so the level start), the SpawnCounter countdown, then SpawnPlayer with
+// velocity 0. No death is counted (no skip button). The small card popup (ActivateSmallCardEffect) shows the card.
+// [ĐỀ XUẤT] the countdown is the race's SpawnCounter rhythm: "3", "2", "1", "GO", 0.5 s each.
+const REVIVE_STEP = 0.5, REVIVE_TEXT = ['3', '2', '1', 'GO'];
+function revive() {
+  player = new mode.Player(world.spawn);
+  game.phase = 'revive';
+  game.t = 0;
+  game.trail = [];
+  game.hold = false;
+  cardsUi?.secondChance(app, mode.id);
+}
+function reviveTick() {
+  const i = Math.floor(game.t / REVIVE_STEP), el = $('revive');
+  if (i >= REVIVE_TEXT.length) { el.classList.remove('on'); game.phase = 'spawn'; game.t = 0; game.fx = 0; return; }
+  el.textContent = REVIVE_TEXT[i];
+  el.classList.add('on');
+}
+
+// Cards, boosters, black market (js/cards.js rules + data/cards.json; js/cardsui.js views): loaded with the home screen,
+// or at start when the save holds a card or a booster. Booster rewards wait in save.boosterQueue and open in their popup
+// (BoosterOpeningPopup) as soon as the home screen shows.
+let cards = null, cardsP = null, cardsUi = null, cardsUiP = null;
+function loadCards() {
+  cardsP ||= Promise.all([import('./cards.js'), load('./data/cards.json')]).then(([m, d]) => {
+    cards = m.makeCards(app, d);
+    meta.onBoost = (res, src, n) => cardsUi?.boostToast(app, res, src, n);
+    if (meta.deliverPending(save).length) writeSave(save);
+    hud();
+    return cards;
+  });
+  return cardsP;
+}
+function loadCardsUi() {
+  cardsUiP ||= Promise.all([loadCards(), import('./cardsui.js')]).then(([, u]) => (cardsUi = u));
+  return cardsUiP;
+}
+let opening = false;
+async function nextBooster() {
+  if (opening || !cards || !save.boosterQueue?.length || !$('start').classList.contains('on')) return;
+  opening = true;
+  try { await loadCardsUi(); await cardsUi.openBooster(app, cards); } finally { opening = false; }
+  hud();
+}
+async function openCards() {
+  initAudio();
+  play('popup_in');
+  await loadCardsUi();
+  await cardsUi.openCards(app, cards);
 }
 
 // End game (js/endgame.js, art/ui.webp): piggy bank popup, then the end page with the dancing skin and the Play button.
@@ -276,6 +330,7 @@ function frame(now) {
   game.fx += dt;
   if (game.phase === 'spawn' && game.t >= SPAWN_DELAY) { game.phase = 'play'; game.t = 0; }
   if (game.phase === 'count' && mode.race.counted(game.t)) { game.phase = 'play'; game.t = 0; }
+  if (game.phase === 'revive') reviveTick();
   // the race clock runs from GO, also while respawning; all four ghosts home first = forced finish
   if (mode.race && game.phase !== 'count' && mode.race.tick(dt * game.timeScale) && game.phase !== 'finish') finishLevel(true);
   if (game.phase === 'finish') {
@@ -392,7 +447,7 @@ function drawPlayer(t) {
     if (look.rope) R.rope(look.rope.img, look.rope.rect, tg.x, tg.y, a.x, a.y, look.rope.width, look.rope.period);
     else R.line(a.x, a.y, tg.x, tg.y, DEFAULT_ROPE[0], DEFAULT_ROPE[1]);
   }
-  if (game.phase === 'count') return;
+  if (game.phase === 'count' || game.phase === 'revive') return;
   // FX_Spawn at the start point, a 2-unit particle stepping through its sheet once in 0.5 s
   const cell = Math.floor((game.fx / SPAWN_FX_LIFE) * SPAWN_FX_CELLS);
   if (cell < SPAWN_FX_FRAMES) R.sprite('FX_Spawn' + String(cell).padStart(2, '0'), [1, 0, 0, 1, world.spawn.x, world.spawn.y]);
@@ -551,6 +606,7 @@ function hud() {
   $('coins').textContent = save.coins;
   if (bonus) bonus.hud();
   else if ($('start').classList.contains('on')) loadBonus().catch(() => {});
+  if ($('start').classList.contains('on')) { if (cards) nextBooster().catch(() => {}); else loadCards().catch(() => {}); }
   $('rank').textContent = b.rank;
   $('league').textContent = b.league;
   $('xpfill').style.width = Math.round(b.k * 100) + '%';
@@ -591,6 +647,7 @@ const app = {
   get R() { return R; }, play, finishText, nextLevel, restart: () => restart(), pause, writeSave: () => writeSave(save), applyEquip, hud, overlay, toast, image, icon, $, V, look,
   openMode, get mode() { return mode.id; }, openMenu, openLevels, skipLevel, loadBonus, get bonus() { return bonus; },
   loadMode, startRace, get game() { return game; }, get player() { return player; },
+  loadCards, loadCardsUi, openCards, nextBooster, get cards() { return cards; }, get cardsUi() { return cardsUi; },
 };
 let menus = null;
 async function openMenu(name) {
@@ -679,6 +736,8 @@ async function boot() {
   if (meta.claim(save, 'achieved_level_mode.normal', save.best).length) writeSave(save);
   // road rewards kept in `pending` before their system existed (skip tickets) are delivered now
   if (meta.deliverPending(save).length) writeSave(save);
+  // a save that holds cards (or a booster to open) needs the card rules in play: second chance, XP / coin boosts
+  if (save.boosterQueue?.length || Object.keys(save.inv).some((k) => k.startsWith('card.'))) loadCards().catch(() => {});
   const params = new URLSearchParams(location.search), q = params.get('level'), qm = 'mode.' + params.get('mode');
   if (MODES[qm]?.launch) setTimeout(() => openMode(qm)); else if (MODES[qm]) mode = await loadMode(qm);
   startLevel(q ? Math.max(0, (parseInt(q, 10) || 1) - 1) : mode.def.slot(save).level || 0);
@@ -691,7 +750,8 @@ async function boot() {
   requestAnimationFrame(frame);
   window.__sh = { game, get world() { return world; }, get player() { return player; }, get save() { return save; }, cam, look,
     get theme() { return R.theme; }, meta, startLevel, setHold, applyEquip, openMenu, overlay, openMode, openLevels,
-    get mode() { return mode; }, skipLevel, hud, loadBonus, get bonus() { return bonus; }, get race() { return mode.race; } };
+    get mode() { return mode; }, skipLevel, hud, loadBonus, get bonus() { return bonus; }, get race() { return mode.race; },
+    loadCards, loadCardsUi, openCards, get cards() { return cards; }, get cardsUi() { return cardsUi; }, app };
 }
 
 boot().catch((e) => { $('loading').textContent = 'Không tải được game: ' + e.message; });

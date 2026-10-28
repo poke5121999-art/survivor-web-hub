@@ -150,7 +150,7 @@ function boxPts(cx, cy, w, h, rot = 0) {
   return out;
 }
 
-function makeWorld(W, H, type, rnd) {
+function makeWorld(W, H, type, rnd, beforeSpawn) {
   const board = new Board(W, H, rnd);
   const built = board.build(type);
   const { L, R, B, T } = board, n = P.settings.NumberOfBuckets, bw = W / n;
@@ -189,6 +189,7 @@ function makeWorld(W, H, type, rnd) {
   const wallH = H - 1.75, wallY = (B + T) / 2 + 0.875;
   const walls = [L + 0.08, R - 0.08].map((x) => ({ x, y: wallY, w: 0.16, h: wallH, bump: -1 }));
   for (const w of walls) shapes.push({ t: 'p', pts: boxPts(w.x, w.y, w.w, w.h), bounce: pt.wall.bounce, wall: w });
+  beforeSpawn?.(pegs);
   // spawn, bumper, target [asm 0x1213144..0x1213220]: one side of the centre picked at random, jittered by Range(-1, 1)
   const side = rnd() < 0.5 ? -2 : 2, jx = rangeF(rnd, -1, 1);
   const sx = -side + jx;
@@ -300,7 +301,7 @@ let live = null; // the running session
 function el(tag, cls, html) { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
 
 export async function open(app) {
-  await loadAll(app);
+  await Promise.all([loadAll(app), app.loadCards?.().catch(() => {})]);
   if (live) live.stop();
   if (!document.getElementById('pachinko-css')) { const st = el('style'); st.id = 'pachinko-css'; st.textContent = CSS; document.head.appendChild(st); }
   let root = document.getElementById('pachinko');
@@ -332,8 +333,10 @@ class Session {
     this.R.resize();
     const aspect = Math.min(REF_ASPECT, cv.width / cv.height || REF_ASPECT);
     const H = P.settings.CameraSize * 2, W = H * aspect;
-    this.world = makeWorld(W, H, forcedType ?? this.state.level, this.rnd);
-    setupPegs(this.world, this.rnd, bonus);
+    this.cards = app.cards;
+    this.world = makeWorld(W, H, forcedType ?? this.state.level, this.rnd, (pegs) => setupPegs(pegs, this.rnd, bonus, this.cards, app.save));
+    this.extras = []; // card.pachinko_extra_stickman clones: {pl, touching, bucket}
+    this.mainBucket = -1;
     this.player = new PachinkoPlayer(this.world.spawn);
     this.game = { phase: 'spawn', t: 0, hold: false, clock: 0, coins: 0, fx: [], trail: [], grabbed: false, bucket: -1, payout: null };
     this.touching = new Set();
@@ -417,6 +420,45 @@ class Session {
 
   // one FixedUpdate: player step, then the contacts' gameplay (pegs, bumper, walls) and the bucket triggers
   tick(STEP) {
+    if (this.mainBucket < 0) this.tickMain(STEP);
+    for (const ex of this.extras) if (ex.bucket < 0) this.tickExtra(ex, STEP);
+    // CollectReward removes each stickman as it lands; FinishLevel once none is left [asm 0x12a768c, 0x12a77b4..0x12a78ec]
+    if (this.mainBucket >= 0 && this.extras.every((e) => e.bucket >= 0)) this.endRun();
+  }
+
+  // a clone (InitAsExtraStickman [asm 0x1217cec]): canGrab false, alpha 0.5; pegs, bumper and walls as the main one
+  tickExtra(ex, STEP) {
+    const w = this.world, pl = ex.pl;
+    pl.contacts.length = 0;
+    pl.step(STEP, w, false);
+    ex.touching = this.contacts(pl, ex.touching, STEP);
+    const i = this.bucketOf(pl);
+    if (i >= 0) ex.bucket = i;
+  }
+
+  contacts(pl, touching, STEP) {
+    const now = new Set();
+    for (const c of pl.contacts) {
+      const s = c.s;
+      if (now.has(s)) continue;
+      now.add(s);
+      const enter = !touching.has(s);
+      if (s.peg && enter) this.hitPeg(s.peg, c, pl);
+      else if (s.bumper && enter) s.bumper.anim = 0;
+      else if (s.wall) this.hitWall(s.wall, c, enter, STEP, pl);
+    }
+    return now;
+  }
+
+  // PachinkoRewardPeg trigger (BoxCollider2D offset (0, -1.2), size 2 x 3 under (bucket centre, bottom + 1))
+  bucketOf(pl) {
+    const w = this.world, [, oy, , th] = P.parts.rewardTrigger;
+    const top = w.B + 1 + oy + th / 2;
+    if (pl.y - PHYS.radius >= top) return -1;
+    return Math.min(w.buckets.length - 1, Math.max(0, Math.floor((pl.x - w.L) / w.bw)));
+  }
+
+  tickMain(STEP) {
     const g = this.game, w = this.world, pl = this.player;
     const wasHooked = pl.hooked;
     pl.contacts.length = 0;
@@ -424,24 +466,10 @@ class Session {
     if (pl.hooked >= 0 && wasHooked < 0) this.onGrab();
     if (pl.hooked < 0 && wasHooked >= 0) this.onRelease();
     // OnCollisionEnter2D fires when a contact starts, OnCollisionStay2D every step while it lasts
-    const now = new Set();
-    for (const c of pl.contacts) {
-      const s = c.s;
-      if (now.has(s)) continue;
-      now.add(s);
-      const enter = !this.touching.has(s);
-      if (s.peg && enter) this.hitPeg(s.peg, c);
-      else if (s.bumper && enter) s.bumper.anim = 0;
-      else if (s.wall) this.hitWall(s.wall, c, enter, STEP);
-    }
-    this.touching = now;
-    // PachinkoRewardPeg trigger (BoxCollider2D offset (0, -1.2), size 2 x 3 under (bucket centre, bottom + 1))
-    const [, oy, , th] = P.parts.rewardTrigger;
-    const top = w.B + 1 + oy + th / 2;
-    if (pl.y - PHYS.radius < top) {
-      const i = Math.min(w.buckets.length - 1, Math.max(0, Math.floor((pl.x - w.L) / w.bw)));
-      this.enterBucket(i);
-    }
+    this.touching = this.contacts(pl, this.touching, STEP);
+    void w;
+    const i = this.bucketOf(pl);
+    if (i >= 0) this.enterBucket(i);
   }
 
   onGrab() { this.game.grabbed = true; }
@@ -453,24 +481,30 @@ class Session {
   }
 
   // PachinkoPeg.OnCollisionEnter2D [asm 0x121b128]: every new contact pays, not only the first
-  hitPeg(peg, c) {
+  hitPeg(peg, c, pl = this.player) {
     const g = this.game;
     g.coins += peg.coins; // CollectCoins(_coinCount: 1, 10 on a bonus peg) [asm 0x12a7550]
     g.fx.push({ kind: 'coin', x: peg.x, y: peg.y, n: peg.coins, t: 0, life: 0.8 });
     g.fx.push({ kind: 'ring', x: this.player.x - c.nx * PHYS.radius, y: this.player.y - c.ny * PHYS.radius, t: 0, life: 0.3 });
     // AddForce(-contact.normal * _minBumpForce, Impulse) on the stickman: away from the peg, / mass 2 [asm 0x121b2a4..0x121b32c]
     const k = P.pegs[peg.kind].minBump / PHYS.mass;
-    this.player.vx += c.nx * k; this.player.vy += c.ny * k;
-    // first hit starts Disappear(destroyImmediate ? 0 : DisappearingTimer); no bumper_resistance card in this build
-    if (peg.dying < 0 && P.settings.Disappearing) { peg.dying = 0; peg.delay = peg.bonus ? 0 : P.settings.DisappearingTimer; }
+    pl.vx += c.nx * k; pl.vy += c.ny * k;
+    // the extra-stickman peg: SpawnExtraStickman(peg) and Object.Destroy at once [asm 0x121b254..0x121b398]
+    if (peg.extra) { this.spawnExtra(peg); peg.gone = peg.shape.off = true; peg.hits++; return; }
+    // while not destroying: card.pachinko_bumper_resistance rolls value() < effect / 100 (when owned); a non-immediate
+    // peg that resists keeps standing, else Disappear(destroyImmediate ? 0 : DisappearingTimer) [asm 0x121b39c..0x121b4d0]
+    if (peg.dying < 0) {
+      const resists = !!this.cards && this.cards.resists(this.app.save, this.rnd) && !peg.bonus;
+      if (!resists && P.settings.Disappearing) { peg.dying = 0; peg.delay = peg.bonus ? 0 : P.settings.DisappearingTimer; }
+    }
     peg.flash = 0; // MiniBounce(0.1): lit sprite and a 20 % pop, every hit [asm 0x121b4ec, 0x121b868]
     peg.hits++;
   }
 
   // PachinkoWall: on enter an impulse sign * clamp(25 - |vx|, 0, 2.5) along x [asm 0x1219df0], while touching
   // AddForce(sign * 20, Force) each step [asm 0x121a1d8]; sign -1 when the contact is left of the wall.
-  hitWall(wl, c, enter, dt) {
-    const pl = this.player, sign = pl.x < wl.x ? -1 : 1;
+  hitWall(wl, c, enter, dt, pl = this.player) {
+    const sign = pl.x < wl.x ? -1 : 1;
     if (enter) {
       pl.vx += (sign * Math.min(2.5, Math.max(0, 25 - Math.abs(pl.vx)))) / PHYS.mass;
       wl.bump = 0; wl.bumpY = pl.y; wl.bumpSign = sign;
@@ -478,45 +512,65 @@ class Session {
     pl.vx += ((sign * 20) / PHYS.mass) * dt;
   }
 
+  // SpawnExtraStickmanAsync [asm 0x12a87b8..0x12a8920]: at the peg, velocity 10 (cos a, sin a), a = Range(45, 135) degrees
+  spawnExtra(peg) {
+    const a = (rangeI(this.rnd, 45, 135) * Math.PI) / 180;
+    const pl = new PachinkoPlayer({ x: peg.x, y: peg.y });
+    pl.vx = 10 * Math.cos(a); pl.vy = 10 * Math.sin(a);
+    pl.extra = true;
+    this.extras.push({ pl, touching: new Set(), bucket: -1 });
+  }
+
   enterBucket(i) {
     const g = this.game;
-    if (g.phase !== 'play') return;
-    g.phase = 'end'; g.t = 0; g.bucket = i;
+    if (g.phase !== 'play' || this.mainBucket >= 0) return;
+    this.mainBucket = i;
+    g.bucket = i;
     g.hold = false;
     this.player.ungrab();
-    g.payout = this.pay(i);
+  }
+
+  endRun() {
+    const g = this.game;
+    if (g.phase !== 'play') return;
+    g.phase = 'end'; g.t = 0;
+    g.payout = this.pay(this.mainBucket, this.extras.map((e) => e.bucket));
   }
 
   // NbCollectedCoins + the bucket's reward, granted and saved at once
   // CollectReward adds a coin bucket to NbCollectedCoins [asm 0x12a75a0]; WinRewards grants the item, then the coins,
   // no multiplier, no XP [asm 0x116f6a0]. Winning the main prize counts a main win and rebuilds the state.
-  pay(i) {
+  // Every stickman's bucket counts (WinRewards(list, coins) [asm 0x12a7ff8]). The coins grant has source "pachinko"
+  // (card.pachinko_daily_coins_boost: the day's first 100 coins [asm 0x116f88c..0x116f8c0]).
+  pay(i, more = []) {
     const { app } = this, { meta, save } = app, got = [];
-    const r = this.rewards[i];
+    const r = this.rewards[i], all = [i, ...more].map((b) => this.rewards[b]);
     const coins = this.game.coins;
-    if (r.id !== 'currency.skin_coins') meta.grantReward(save, [r.id, r.qty], got);
-    const total = coins + (r.id === 'currency.skin_coins' ? r.qty : 0);
-    if (total) meta.grantReward(save, ['currency.skin_coins', total], got);
-    if (i === Math.floor(P.settings.NumberOfBuckets * 0.5)) {
+    let bucketCoins = 0;
+    for (const x of all) if (x.id !== 'currency.skin_coins') meta.grantReward(save, [x.id, x.qty], got); else bucketCoins += x.qty;
+    const total = coins + bucketCoins;
+    if (total) meta.grantReward(save, ['currency.skin_coins', total], got, 'pachinko');
+    if ([i, ...more].includes(Math.floor(P.settings.NumberOfBuckets * 0.5))) {
       save.inv ||= {};
       save.inv[MAIN_WINS] = (save.inv[MAIN_WINS] || 0) + 1;
       slotOf(save).state = null;
     }
     app.writeSave();
     if (got.some((x) => x.item)) app.applyEquip();
-    return { pegs: coins, reward: r, got };
+    return { pegs: coins, reward: r, rewards: all, bucketCoins, got };
   }
 
   showResult() {
-    const { pegs, reward, got } = this.game.payout;
+    const { pegs, got, bucketCoins } = this.game.payout;
     const item = got.find((x) => x.item)?.item;
-    const bucketCoins = reward.id === 'currency.skin_coins' ? reward.qty : 0;
+    const paid = got.filter((x) => x.coins).reduce((t, x) => t + x.coins, 0);
     const kind = { skins: 'Skin', ropes: 'Dây', trails: 'Vệt' };
     this.res.innerHTML = `<div class="card"><h2>Lucky Drop</h2>
       <div class="row2"><span>Xu từ chốt</span><b>${pegs}</b></div>
       <div class="row2"><span>Thưởng ô ${this.game.bucket + 1}</span><b>${bucketCoins ? bucketCoins + ' xu' : 'vật phẩm'}</b></div>
       ${item ? `<div class="it">Mở khoá ${kind[item.kind] || ''}: <b>${item.title}</b></div>` : ''}
-      <div class="row2 tot"><span>Tổng xu</span><b>+${pegs + bucketCoins}</b></div>
+      ${this.extras.length ? `<div class="row2"><span>Người que phụ</span><b>${this.extras.length}</b></div>` : ''}
+      <div class="row2 tot"><span>Tổng xu</span><b>+${paid || pegs + bucketCoins}</b></div>
       <button class="big" id="pachinkoHome">Về trang chính</button></div>`;
     this.res.classList.add('on');
     this.app.play('popup_in');
@@ -632,7 +686,7 @@ class Session {
   }
 
   drawPlayer() {
-    const { R, game: g, player: pl, app } = this, look = app.look;
+    const { R, game: g, app } = this, look = app.look, pl = this.player, alpha = 1;
     if (g.trail.length > 1) R.trail(g.trail, g.clock, look.trail);
     if (pl.hooked >= 0) {
       const tg = this.world.target, a = pl.anchor();
@@ -644,6 +698,12 @@ class Session {
       R.sprite('A_PlotNearestFeedback', [s, 0, 0, s, this.world.spawn.x, this.world.spawn.y], { alpha: 1 - k });
       return;
     }
+    this.drawBody(pl, alpha);
+    for (const ex of this.extras) this.drawBody(ex.pl, 0.5);
+  }
+
+  drawBody(pl, alpha) {
+    const { R, app } = this, look = app.look;
     const sk = look.skin;
     let sheet = null, name;
     if (!sk) name = pl.frame();
@@ -654,10 +714,10 @@ class Session {
     const s = 0.3 * pl.scale(), fx = pl.flipX ? -1 : 1;
     const c = Math.cos(pl.angle) * s, sn = Math.sin(pl.angle) * s;
     const m = [c * fx, sn * fx, -sn, c, pl.x, pl.y], sm = [m[0], m[1], m[2], m[3], m[4], m[5] - 0.1];
-    if (!sheet) { R.sprite(name, sm, { shadow: true }); R.sprite(name, m); return; }
+    if (!sheet) { R.sprite(name, sm, { shadow: true, alpha }); R.sprite(name, m, { alpha }); return; }
     const [img, r] = sheet.frames[name];
-    if (!app.meta.byId.get(sheet.id).noShadow) R.spriteFrom(img, name, r, sm, { shadow: true });
-    R.spriteFrom(img, name, r, m);
+    if (!app.meta.byId.get(sheet.id).noShadow) R.spriteFrom(img, name, r, sm, { shadow: true, alpha });
+    R.spriteFrom(img, name, r, m, { alpha });
   }
 
   drawLabels() {
@@ -730,7 +790,9 @@ function pachinkoState(app, rnd) {
   for (let i = 0; i < count; i++) { const o = weighted(rnd, P.rewards.secondary, (x) => x[2]); sec.push({ id: o[0], qty: o[1] }); }
   sec.sort((a, b) => a.qty - b.qty);
   const main = it ? { id: it.id, qty: 1 } : sec[sec.length - 1];
-  slot.state = { level, main, sec };
+  // ResetPachinkoState also rolls GetBonusGamesLimit (card.pachinko_lucky_drop_limit: System.Random NextDouble <
+  // effect / 100 -> 1) into PachinkoState._bonusGamesLimit [asm 0x116ed48, 0x116f26c]. No code of 9.9.60 reads it.
+  slot.state = { level, main, sec, bonusGames: app.cards ? app.cards.bonusGames(save) : 0 };
   app.writeSave();
   return slot.state;
 }
@@ -743,10 +805,17 @@ function orderedRewards(st) {
 }
 
 // PachinkoLevelSpawner.Initialize card rolls on the pegs sorted top first (Comparer: Math.Round(b.y - a.y)
-// [asm 0x121ae30]). Cards do not exist in this build, so no peg is a bonus or extra one; `bonus` (?pbonus=) stands in for
-// x10_multiplier successes: SetAsBonus on Range(0, count - 1) of the remaining list [asm 0x121260c..0x1212718].
-function setupPegs(w, rnd, bonus) {
-  const list = [...w.pegs].sort((a, b) => roundEven(b.y - a.y));
+// [asm 0x121ae30]): card.pachinko_extra_stickman (one value() roll, then one of the ~10 highest pegs) and
+// card.pachinko_x10_multiplier (5 value() rolls, then k x Range(0, count - 1)) [asm 0x1212548..0x1212718], js/cards.js
+// pachinkoRolls. Nothing is rolled for a card not owned. `bonus` (?pbonus=, tests) adds N x10 pegs the same way.
+function setupPegs(pegs, rnd, bonus, cards, save) {
+  const list = [...pegs].sort((a, b) => roundEven(b.y - a.y));
+  if (cards) {
+    const r = cards.pachinkoRolls(save, list, rnd, (a, b) => rangeI(rnd, a, b));
+    // SetAsExtraStickman [asm 0x121b024]: extra sprite, destroy immediately, still 1 coin
+    if (r.extra) r.extra.extra = true;
+    for (const p of r.bonus) { p.bonus = true; p.coins = 10; }
+  }
   for (let k = 0; k < bonus && list.length > 1; k++) {
     const p = list.splice(rangeI(rnd, 0, list.length - 1), 1)[0];
     p.bonus = true; p.coins = 10; // SetAsBonus: 10 coins, special sprite, x10 label, disappears without delay [asm 0x121b084]

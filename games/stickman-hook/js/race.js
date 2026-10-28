@@ -454,9 +454,14 @@ export class RaceRun {
     this.ranking.push({ name: ME, time, me: true });
     const rank = this.ranking.findIndex((r) => r.me);
     const k = Math.max(0, Math.min(rank, COINS.length - 1));
-    const coins = COINS[k], trophies = TROPHIES[k];
+    let coins = COINS[k], trophies = TROPHIES[k];
     save.coins += coins;
     addQty(save, R_TROPHIES, trophies);
+    // source finish_level_tournament [asm 0x1190f1c..0x1190ffc]: card.daily_coins_boost_tournament (first 100 coins of
+    // the day) and card.daily_trophy_boost_tournament (cap 30 in the config; the "40" of its text is display only)
+    const meta = this.app.meta;
+    coins += meta.bonus(save, 'currency.skin_coins', 'finish_level_tournament', coins);
+    trophies += meta.bonus(save, R_TROPHIES, 'finish_level_tournament', trophies);
     const total = qty(save, R_TROPHIES);
     save.inv[R_LAST] = total;
     save.inv[R_BEST] = Math.max(qty(save, R_BEST), total);

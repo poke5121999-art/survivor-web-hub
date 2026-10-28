@@ -6,8 +6,8 @@
 <meta name="theme-color" content="#00b4fc">
 <link rel="icon" href="../../assets/favicon.svg">
 <title>Stickman Hook</title>
-<link rel="preload" href="./data/levels.json?v=20261028i" as="fetch" crossorigin>
-<link rel="preload" href="./art/atlas.webp?v=20261028i" as="image">
+<link rel="preload" href="./data/levels.json?v=20261028j" as="fetch" crossorigin>
+<link rel="preload" href="./art/atlas.webp?v=20261028j" as="image">
 <style>
   html, body { margin: 0; height: 100%; background: #00b4fc; overflow: hidden; touch-action: none;
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
@@ -51,6 +51,9 @@
   #toast { left: 50%; bottom: 120px; transform: translate(-50%, 20px); max-width: 80vw; text-align: center; background: #0d1b2a; border-radius: 14px; padding: 10px 16px;
     opacity: 0; transition: .3s; pointer-events: none; z-index: 5; }
   #toast.on { opacity: 1; transform: translate(-50%, 0); }
+  #revive { left: 0; right: 0; top: 38%; text-align: center; font: 900 120px/1 system-ui, sans-serif; color: #ff483e; -webkit-text-stroke: 8px #1a1c4b;
+    paint-order: stroke fill; display: none; pointer-events: none; }
+  #revive.on { display: block; }
 </style>
 </head>
 <body>
@@ -68,6 +71,7 @@
 </div>
 <div class="ui" id="hint">Giữ chuột / chạm để móc dây, thả ra để bay</div>
 <div class="ui" id="toast"></div>
+<div class="ui" id="revive"></div>
 <!-- HomePage (home.js lays it out from the prefab with art/m-home.webp; ids are read by main.js, bonus.js and the tests) -->
 <div class="ui overlay" id="start">
   <div class="hbg"><i class="hpat"></i></div>
@@ -87,34 +91,36 @@
     <button id="btnShop" title="Tuỳ biến"><i data-s="Icon_Customization"></i><b class="num" id="skinCount"></b></button>
     <button class="sel" id="btnHome" title="Trang chính"><i data-s="Icon_Home"></i><span class="k-vi">Trang chủ</span></button>
     <button id="btnModes" title="Chế độ chơi"><i data-s="Icon_GameMode"></i></button>
-    <button id="btnCards" title="Thẻ bài (chưa có ở bản web)"><i data-s="Icon_CardsLocked"></i></button></nav>
+    <button id="btnCards" title="Thẻ bài"><i data-s="Icon_CardsLocked"></i></button></nav>
 </div>
 <div class="ui overlay" id="levels"><div class="panel"><h2 id="levelsTitle">Chọn màn</h2><div id="grid"></div>
   <button class="btn" id="btnClose" style="width:auto;padding:0 18px;align-self:center">Đóng</button></div></div>
 <script type="importmap">
 { "imports": {
-  "./js/level.js": "./js/level.js?v=20261028i",
-  "./js/physics.js": "./js/physics.js?v=20261028i",
-  "./js/render.js": "./js/render.js?v=20261028i",
-  "./js/save.js": "./js/save.js?v=20261028i",
-  "./js/meta.js": "./js/meta.js?v=20261028i",
-  "./js/custom.js": "./js/custom.js?v=20261028i",
-  "./js/fx.js": "./js/fx.js?v=20261028i",
-  "./js/menus.js": "./js/menus.js?v=20261028i",
-  "./js/modes.js": "./js/modes.js?v=20261028i",
-  "./js/grapple.js": "./js/grapple.js?v=20261028i",
-  "./js/bonus.js": "./js/bonus.js?v=20261028i",
-  "./js/pachinko.js": "./js/pachinko.js?v=20261028i",
-  "./js/race.js": "./js/race.js?v=20261028i",
-  "./js/adventure.js": "./js/adventure.js?v=20261028i",
-  "./js/advrun.js": "./js/advrun.js?v=20261028i",
-  "./js/camera.js": "./js/camera.js?v=20261028i",
-  "./js/endgame.js": "./js/endgame.js?v=20261028i",
-  "./js/home.js": "./js/home.js?v=20261028i",
-  "./js/uikit.js": "./js/uikit.js?v=20261028i",
-  "./js/main.js": "./js/main.js?v=20261028i"
+  "./js/level.js": "./js/level.js?v=20261028j",
+  "./js/physics.js": "./js/physics.js?v=20261028j",
+  "./js/render.js": "./js/render.js?v=20261028j",
+  "./js/save.js": "./js/save.js?v=20261028j",
+  "./js/meta.js": "./js/meta.js?v=20261028j",
+  "./js/custom.js": "./js/custom.js?v=20261028j",
+  "./js/fx.js": "./js/fx.js?v=20261028j",
+  "./js/menus.js": "./js/menus.js?v=20261028j",
+  "./js/modes.js": "./js/modes.js?v=20261028j",
+  "./js/grapple.js": "./js/grapple.js?v=20261028j",
+  "./js/bonus.js": "./js/bonus.js?v=20261028j",
+  "./js/pachinko.js": "./js/pachinko.js?v=20261028j",
+  "./js/race.js": "./js/race.js?v=20261028j",
+  "./js/adventure.js": "./js/adventure.js?v=20261028j",
+  "./js/advrun.js": "./js/advrun.js?v=20261028j",
+  "./js/camera.js": "./js/camera.js?v=20261028j",
+  "./js/endgame.js": "./js/endgame.js?v=20261028j",
+  "./js/home.js": "./js/home.js?v=20261028j",
+  "./js/uikit.js": "./js/uikit.js?v=20261028j",
+  "./js/cards.js": "./js/cards.js?v=20261028j",
+  "./js/cardsui.js": "./js/cardsui.js?v=20261028j",
+  "./js/main.js": "./js/main.js?v=20261028j"
 } }
 </script>
-<script type="module" src="./js/main.js?v=20261028i"></script>
+<script type="module" src="./js/main.js?v=20261028j"></script>
 </body>
 </html>

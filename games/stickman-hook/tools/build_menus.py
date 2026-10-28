@@ -14,7 +14,17 @@ from PIL import Image
 
 REF = sys.argv[1] if len(sys.argv) > 1 else r'D:/stickman-hook-ref'
 SRC = os.path.join(REF, 'sprites_menus')
+# sprites_cards: page_sprites.py over the cards / boosters / ui_market_* bundles; sprites_cards/boosters: booster_sprites.py
+DIRS = [SRC, os.path.join(REF, 'sprites_cards'), os.path.join(REF, 'sprites_cards', 'boosters'), os.path.join(REF, 'sprites')]
 GAME = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+CARD_SPRITES = ['GlobalCollectionXPBoost', 'GlobalSkinXPBoost', 'GlobalRopeXPBoost', 'GlobalTrailXPBoost', 'SecondChance',
+                'DailyCoinsBoost', 'TournamentDailyTrophyBoost', 'PachinkoExtraStickman', 'Pachinkox10Mutliplier',
+                'PachinkoBumperResistance', 'PachinkoLuckyDropLimit', 'GlobalExtraLuckyWheel', 'GlobalRankCoinsBoost',
+                'GlobalDoubleCards', 'GlobalExtraDraw', 'FinishLineXpBoost', 'GlobalSkipLevel', 'GlobalShopFreeCoinsBoost',
+                'AdventureWeeklyStartingTokens', 'AdventureDailyLoginTokens', 'AdventureDailyTokensBoost', 'AdventureSkillUpgradeBoost',
+                'AdventureRopeLengthLimitBoost', 'AdventureHookDifficultyLimitBoost', 'AdventureBounceDifficultyLimitBoost',
+                'AdventureTeleporterSpawnLimitBoost', 'AdventureWindDifficultyLimitBoost', 'AdventureFirewallLimitBoost']
 
 # screen -> {sprite: longest side in px}
 SHEETS = {
@@ -26,7 +36,7 @@ SHEETS = {
              'Button_Tournament': 160, 'Button_TournamentLocked': 160, 'Icon_Trophy': 120, 'Icon_TrophyLocked': 120,
              'Button_Adventure': 160, 'Button_AdventureLocked': 160, 'Icon_Compass': 120, 'Icon_CompassLocked': 120,
              'ButtonPlay_Holder_02': 360, 'HolderMenu': 230, 'Icon_Customization': 120, 'Icon_Home': 120,
-             'Icon_GameMode': 120, 'Icon_CardsLocked': 120, 'Notifs_Dot': 40, 'HolderCollectionNumber': 120, 'Icon_Lock': 60,
+             'Icon_GameMode': 120, 'Icon_CardsLocked': 120, 'Icon_Cards': 120, 'Notifs_Dot': 40, 'HolderCollectionNumber': 120, 'Icon_Lock': 60,
              'CHAR_Classic0010': 280},
     # GameModesPage + GameModes MenuItem (adventure, grapple, challenge, pachinko)
     'modes': {'Pattern_Game mode': 256, 'GameModes_Icon': 90, 'Frame_Mode_01': 184, 'rounded_square_flat_top': 128,
@@ -51,16 +61,34 @@ SHEETS = {
              'FramePlayer_01': 694, 'HolderYourPlayer': 694, 'HolderPortrait_01': 90, 'HolderPortrait_02': 90,
              'CounterPlayer_01': 160, 'CounterYouPlayer_01': 160, 'CupIcon_01': 64, 'SkinCoins': 56, 'OutlinedButtonGold': 320,
              'OutlinedButtonGreen': 320, 'SkipTickets': 72, 'Icon_Home': 90, 'ConnectionIcon_On': 40},
+    # CardsPage (HolderCardItemUI, CardsUI), BoosterOpeningPopup (BoosterCardItemUI), black market / booster offer cards:
+    # 27 card sprites, 7 category patterns, rarity holders, booster packs
+    'cards': dict({n: 150 for n in CARD_SPRITES}, **{c: 150 for c in ('Global', 'Normal', 'Tournament', 'Adventure', 'Challenge',
+             'Grapple', 'Pachinko')}, **{'CardHolder_common': 200, 'CardHolder_epic': 200, 'CardyHolder_legendary': 200,
+             'CardLocked_common': 200, 'Pattern_CardMenu': 256, 'Icon_Perks': 240, 'Banner': 90, 'LevelBackground': 100,
+             'HolderProgressBar': 200, 'ProgressBar': 200, 'ArrowIcon': 40, 'Icon_Lock': 80, 'ShinySun': 200,
+             'GradientHorizontalInOut': 128, 'SquareInsideShadow': 64, 'rounded_square_flat_bottom': 128,
+             'rounded_square_128px': 128, 'Icon_Home': 90, 'SkinCoins': 64, 'IconValidate': 60, 'InfoButton': 50}),
+    # BoosterOpeningPopup and the market's booster / black market offer cards (drawn over the cards sheet)
+    'boost': {'Img_New': 100, 'Light_Booster': 200, 'SquareBlur_02': 160, 'MarketOfferSkinCoins_3': 160,
+              'common_nooutline': 300, 'epic_nooutline': 300, 'legendary_nooutline': 300, 'commoncard_nooutline': 110,
+              'epiccard_nooutline': 110, 'legendarycard_nooutline': 110, 'common_market': 180, 'epic_market': 180,
+              'legendary_market': 180, 'legendary_multiplemarket': 200, 'MarketTitleBanner': 600, 'Icon_Timer': 28,
+              'ButtonWhite': 120, 'Glow': 160, 'DiscountBadge': 70, 'rounded_square_shadow_top': 85,
+              'OutlinedButtonGreen': 320, 'OutlinedButtonGold': 320, 'Xp': 80, 'SkipTickets': 72},
 }
 
 
 def build(screen, sprites):
-    meta = json.load(open(os.path.join(SRC, 'meta.json')))
+    meta = {}
+    for d in DIRS[::-1]:
+        mp = os.path.join(d, 'meta.json')
+        if os.path.exists(mp):
+            meta.update(json.load(open(mp)))
     ims = []
     for name, side in sprites.items():
-        p = os.path.join(SRC, name + '.png')
-        if not os.path.exists(p):  # level / skin sprites (the home screen's default stickman) from export_sprites.py
-            p = os.path.join(REF, 'sprites', name + '.png')
+        # first folder that has it; level / skin sprites (the home screen's default stickman) from export_sprites.py
+        p = next((q for q in (os.path.join(d, name + '.png') for d in DIRS) if os.path.exists(q)), '')
         if not os.path.exists(p):
             print('  missing', name); continue
         im = Image.open(p).convert('RGBA')
@@ -92,5 +120,7 @@ def build(screen, sprites):
 
 
 if __name__ == '__main__':
+    only = sys.argv[2:]  # optional screen names: rebuild just those sheets
     for s, sp in SHEETS.items():
-        build(s, sp)
+        if not only or s in only:
+            build(s, sp)

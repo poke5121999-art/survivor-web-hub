@@ -82,10 +82,27 @@ export class Bonus {
     const reward = this.wheelPick(s, rand);
     if (!reward) return { refused: 'empty', price };
     s.coins -= price[1];
+    return this.wheelClaim(s, reward, price, rand);
+  }
+
+  // ClaimReward: claims + 1, the reward through GetFallbackIfNoCardAvailable for boosters (b__20_4 [asm 0x115e4c0]),
+  // then card.extra_lucky_wheel's roll (HasExtraLuckyWheel [asm 0x115e1c4]): an automatic spin, PayForSpin skipped, so
+  // the price index (claims count) moves but nothing is paid. [ĐỀ XUẤT] the extra spin grants its reward: in the
+  // original its ClaimReward finds no paid spin (progression.lucky_wheel_spin 0) and returns early [asm 0x115de58].
+  wheelClaim(s, reward, price, rand = Math.random) {
     addQty(s, WHEEL_CLAIMS, 1);
-    const got = [];
-    this.m.grantReward(s, [reward.res, reward.q], got);
-    return { reward, price, got };
+    const got = [], cards = this.m.cards;
+    const r = cards && reward.res.startsWith('booster.') ? cards.fallback(s, reward.res, reward.q) : [reward.res, reward.q];
+    this.m.grantReward(s, r, got);
+    const extra = !!cards && cards.extraWheel(s, rand);
+    return { reward, price, got, extra };
+  }
+
+  // The extra spin of card.extra_lucky_wheel: free, no price.
+  wheelFreeSpin(s, rand = Math.random) {
+    const reward = this.wheelPick(s, rand);
+    if (!reward) return { refused: 'empty' };
+    return this.wheelClaim(s, reward, [this.wheelPrice(s)[0], 0], rand);
   }
 
   // ---- Piggy bank (PiggyBankService) ----
@@ -153,7 +170,8 @@ export class Bonus {
     if (!this.freeCoinsReady(s, day)) return 0;
     s.periodic[FREE_COINS] = day;
     s.coins += this.d.offers.freeCoins;
-    return this.d.offers.freeCoins;
+    // card.shop_free_coins_boost: source offer.free_coins (MarketOfferDto.Source [asm 0x2f6c3d8])
+    return this.d.offers.freeCoins + this.m.bonus(s, 'currency.skin_coins', 'offer.free_coins', this.d.offers.freeCoins);
   }
 
   // The original sells these packs for real money; here they cost coins ([ĐỀ XUẤT] price, tools/build_meta.py TICKET_COINS).
@@ -166,14 +184,14 @@ export class Bonus {
   }
 
   // ---- Skip level (SkipLevelService) ----
-  // Per day = effect of card.skip_level at the player's card level (GetNbSkippableLevelsPerDay [asm 0x124ea20]); a card
-  // level below 1 gives 0 (GetCardEffectForLevel [asm 0x127c668]), level L gives min + graduation * (L - 1), max level max.
-  // [ĐỀ XUẤT] cards are not built: card level 1 once the welcome booster flag is owned, since that booster's guaranteed
-  // cards hold card.skip_level; level 0 before.
+  // Per day = trunc(effect of card.skip_level) at the player's card level (GetNbSkippableLevelsPerDay [asm 0x124ea74..
+  // 0x124ea90]); the card level comes from the cards owned (save.inv['card.skip_level']): n < 1 -> 0, else
+  // (n - 1) / cardsPerLevel + 1 (CardsService.GetCardLevel [asm 0x127bb7c]). Level < 1 gives 0 (GetCardEffectForLevel
+  // [asm 0x127c668]), level L gives min + graduation * (L - 1), max level max.
   skipsPerDay(s) {
-    const level = (s.flags[WELCOME_BOOSTER] || 0) > 0 ? 1 : 0;
-    const [min, max, step, maxLevel] = this.d.skipCard;
-    return level < 1 ? 0 : level >= maxLevel ? max : min + step * (level - 1);
+    const [min, max, step, maxLevel, req] = this.d.skipCard, n = qty(s, 'card.skip_level');
+    const level = n < 1 ? 0 : Math.floor((n - 1) / req) + 1;
+    return Math.trunc(level < 1 ? 0 : level >= maxLevel ? max : min + step * (level - 1));
   }
 
   skipsLeft(s, day = dayId()) { return this.skipsPerDay(s) - (s.flags[SKIPPED + day] || 0); }

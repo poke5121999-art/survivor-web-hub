@@ -26,7 +26,7 @@ const UNLOCK = {
   progression_road_achieved_level_mode_grapple: { live: true, arg: (m, it) => it.value },
   seasonal_event_mode_easter_event: { live: true },
   seasonal_event_mode_valentine_day: { live: true },
-  progression_road_progression_cards_perk_level: { arg: (m, it) => it.value },
+  progression_road_progression_cards_perk_level: { live: true, arg: (m, it) => it.value },
   lucky_wheel: { live: true },
   piggy_bank: { live: true },
   pachinko: { live: true },
@@ -101,26 +101,35 @@ export class Meta {
     return { text: tpl.replace('{0}', u.arg ? u.arg(this, it) : ''), live: !!u.live };
   }
 
-  // Unlock XP of an item, plus the collection's XP once every item of it is owned.
+  // ResourceBoostingService: a grant of `res` from `source` adds the matching card's bonus as a second grant
+  // (js/cards.js Cards.boost; 0 while the cards module is not loaded, i.e. the save holds no card).
+  bonus(s, res, source, q) {
+    const n = this.cards ? this.cards.boost(s, res, source, q) : 0;
+    if (n > 0) { if (res === XP_ROAD) s.xp += n; else if (res === 'currency.skin_coins') s.coins += n; else addQty(s, res, n); this.onBoost?.(res, source, n); }
+    return n;
+  }
+
+  // Unlock XP of an item (source unlocked_<kind>), plus the collection's XP once every item of it is owned.
   grantItem(s, it, out) {
     if (owns(s, it.kind, it.name)) return;
     grant(s, it.kind, it.name);
-    s.xp += it.xp;
+    s.xp += it.xp + this.bonus(s, XP_ROAD, 'unlocked_' + it.id.split('.')[0], it.xp);
     out.push({ item: it });
     const col = it.collection;
     if (s.collections.includes(col)) return;
     if (this.items.every((o) => o.collection !== col || owns(s, o.kind, o.name))) {
       s.collections.push(col);
-      s.xp += this.d.collections[col][4];
+      const x = this.d.collections[col][4];
+      s.xp += x + this.bonus(s, XP_ROAD, 'collection_complete', x);
       out.push({ collection: col });
     }
   }
 
-  // One reward [resourceId, qty] -> save. Kinds without a system in this build go to `pending`.
-  grantReward(s, [res, q], out) {
+  // One reward [resourceId, qty] -> save, `source` for the card boosts. Kinds without a system go to `pending`.
+  grantReward(s, [res, q], out, source) {
     const kind = res.split('.')[0];
     const by = REWARDS[kind] || REWARDS.later;
-    by(this, s, res, q, out);
+    by(this, s, res, q, out, source);
   }
 
   // Claims every reached, unclaimed step of a road in order (ProgressionRoadService.ClaimAllRewards).
@@ -129,7 +138,7 @@ export class Meta {
     const done = s.claimed[road] ?? -1;
     for (const [v, rewards] of this.d.roads[road]) {
       if (v <= done || v > value) continue;
-      for (const r of rewards) this.grantReward(s, r, out);
+      for (const r of rewards) this.grantReward(s, r, out, 'progression_road_' + road);
       s.claimed[road] = v;
     }
     return out;
@@ -145,25 +154,30 @@ export class Meta {
   levelComplete(s, levelIndex) {
     const first = levelIndex + 1 > s.best;
     s.best = Math.max(s.best, levelIndex + 1);
+    const xp = first ? this.d.xpPerLevel + this.bonus(s, XP_ROAD, 'finish_level_normal', this.d.xpPerLevel) : 0;
     if (first) s.xp += this.d.xpPerLevel;
-    return { xp: first ? this.d.xpPerLevel : 0, got: this.claim(s, NORMAL_ROAD, s.best) };
+    return { xp, got: this.claim(s, NORMAL_ROAD, s.best) };
   }
 
   // Any mode level: XP on its first completion, then the mode's achieved-level road (highest level finished), then the
   // event skin of that level. `slot` is the mode's progress in the save ({best, done}).
   // [ĐỀ XUẤT] event level N gives the event's N-th skin (customization table order): the original's reward list comes
   // from the server (SeasonalEventDto.Rewards, empty in the bundled config), one reward per day.
-  modeLevelComplete(s, slot, levelIndex, road, rewardUnlock) {
+  modeLevelComplete(s, slot, levelIndex, road, rewardUnlock, modeId) {
     const done = slot.done || [];
     const first = !done.includes(levelIndex);
-    if (first) { slot.done = [...done, levelIndex]; s.xp += this.d.xpPerLevel; }
+    let xp = 0;
+    if (first) {
+      slot.done = [...done, levelIndex]; s.xp += this.d.xpPerLevel;
+      xp = this.d.xpPerLevel + this.bonus(s, XP_ROAD, 'finish_level_' + (modeId || '').split('.')[1], this.d.xpPerLevel);
+    }
     slot.best = Math.max(slot.best || 0, levelIndex + 1);
     const got = road ? this.claim(s, road, slot.best) : [];
     if (first && rewardUnlock) {
       const it = this.items.filter((o) => o.unlock === rewardUnlock)[levelIndex];
       if (it) this.grantItem(s, it, got);
     }
-    return { xp: first ? this.d.xpPerLevel : 0, got };
+    return { xp, got };
   }
 
   // `open`: the unlock threshold is reached (XP, or Normal level for the events).
@@ -203,13 +217,20 @@ function colors(c) {
 }
 
 const REWARDS = {
-  currency(m, s, res, q, out) {
+  currency(m, s, res, q, out, src) {
     if (res === SKIP_TICKETS) { addQty(s, res, q); out.push({ tickets: q }); return; }
-    if (res === 'currency.adventure_tokens') { addQty(s, res, q); out.push({ tokens: q }); return; }
+    if (res === 'currency.adventure_tokens') { addQty(s, res, q); out.push({ tokens: q + (src ? m.bonus(s, res, src, q) : 0) }); return; }
     if (res !== 'currency.skin_coins') return REWARDS.later(m, s, res, q, out);
     s.coins += q;
-    out.push({ coins: q });
+    out.push({ coins: q + (src ? m.bonus(s, res, src, q) : 0) });
   },
+  // a booster opens at once in a popup (BoosterIncentiveController): queued for js/cardsui.js; pending until cards load
+  booster(m, s, res, q, out) {
+    if (!m.cards) return REWARDS.later(m, s, res, q, out);
+    m.cards.queue(s, res, q);
+    out.push({ booster: res, q });
+  },
+  card(m, s, res, q, out) { if (!m.cards) return REWARDS.later(m, s, res, q, out); m.cards.addCard(s, res, q, out); out.push({ card: res, q }); },
   skin: (m, s, res, q, out) => m.grantItem(s, m.byId.get(res), out),
   rope: (m, s, res, q, out) => m.grantItem(s, m.byId.get(res), out),
   trail: (m, s, res, q, out) => m.grantItem(s, m.byId.get(res), out),

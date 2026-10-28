@@ -330,7 +330,7 @@ offers = {
     'tickets': [[q, q * TICKET_COINS] for q in (offer_qty('offer.skip_tickets_%d' % i, 'currency.skip_tickets') for i in (1, 2, 3))],
 }
 card = next(c for c in rs['cards']['cards'] if c['id'] == 'card.skip_level')
-skip_card = [card['minEffect'], card['maxEffect'], card['effectGraduation'], card['cardMaxLevel']]
+skip_card = [card['minEffect'], card['maxEffect'], card['effectGraduation'], card['cardMaxLevel'], card['requiredCardsPerLevel']]
 wheel_art = piggy_art = {}
 if UnityPy:
     wheel.update(lucky_wheel_settings())

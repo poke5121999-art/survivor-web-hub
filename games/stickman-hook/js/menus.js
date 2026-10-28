@@ -524,7 +524,7 @@ export async function openRoad(app) {
       if (res === 'currency.skin_coins') label = q + ' xu';
       else if (mode) label = 'Mở ' + mode[1];
       else if (kind === 'unlocked_level_mode') label = 'Challenge +' + q + ' màn';
-      else if (kind === 'booster') { label = meta.d.boosters[res]?.[0] || res; soon = true; }
+      else if (kind === 'booster') label = meta.d.boosters[res]?.[0] || res;
       else label = FLAGS[res] || res;
     }
     const s = document.createElement('span');
@@ -665,6 +665,17 @@ export async function openWheel(app) {
       app.toast(r.refused === 'coins' ? 'Cần thêm xu để quay vòng quay' : 'Đã có hết phần thưởng của vòng quay');
       return;
     }
+    launch(r);
+  };
+  // card.extra_lucky_wheel: after a claim, an automatic free spin (LuckyWheelPopup IsAutomatic, card popup first)
+  function extraSpin() {
+    const r = bonus.wheelFreeSpin(save);
+    if (r.refused) return;
+    app.cardsUi?.cardToast(app, 'card.extra_lucky_wheel');
+    launch(r);
+  }
+  W.extraSpin = extraSpin;
+  function launch(r) {
     app.play('button');
     app.writeSave();
     // keep the strip under the arrow where it is, then put the reward at slot 45
@@ -681,7 +692,7 @@ export async function openWheel(app) {
     W.spin = { t: 0, from: W.p, r };
     W.won = -1;
     refresh();
-  };
+  }
   refresh();
 
   const img = await app.image('./art/wheel.webp');
@@ -706,6 +717,7 @@ export async function openWheel(app) {
         app.hud();
         app.toast('Nhận: ' + meta.resTitle(s.r.reward.res) + (s.r.got.some((x) => x.later) ? ' (sắp có ở bản web)' : ''));
         refresh();
+        if (s.r.extra) setTimeout(() => { if (document.getElementById('wheel')?.classList.contains('on')) extraSpin(); }, 1200);
       }
     }
     // ticker: each slot passing the arrow kicks it down (max 45 degrees), it springs back at tickerUpSpeed
@@ -856,6 +868,14 @@ export async function openMarket(app) {
       }).dataset.id = 'tickets_' + i;
     });
     sheet.querySelector('.c').textContent = save.coins;
+    // boosters and the Black Market (js/cardsui.js, loaded now)
+    const token = (render.n = (render.n || 0) + 1);
+    const sec = document.createElement('div');
+    sec.className = 'cardsec';
+    box.appendChild(sec);
+    app.loadCardsUi().then(() => { if (render.n === token) return app.cardsUi.marketSections(app, app.cards, sec, render); })
+      .then(() => { sheet.querySelector('.c').textContent = save.coins; })
+      .catch((e) => { sec.textContent = 'Không tải được Chợ Đen: ' + e.message; });
   }
   render();
 }

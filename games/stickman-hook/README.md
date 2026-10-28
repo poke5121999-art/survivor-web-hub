@@ -16,7 +16,9 @@ Lucky Drop (Pachinko) có engine riêng `js/pachinko.js`; luật, toạ độ b�
 Đua (Tournament): đua với ghost trên 21 map, bảng xếp hạng ngày chạy offline. Xem mục "Đua (Tournament)".
 Phiêu lưu (Adventure): chạy vô tận trước tường lửa, 6 kỹ năng, đường kỷ lục, bảng tuần chạy offline. Xem mục "Phiêu lưu (Adventure)".
 
-Chưa làm: thẻ bài, booster, quảng cáo, VIP.
+Thẻ bài (33 thẻ), booster, Chợ Đen và hiệu ứng thẻ ở mọi chế độ: xem mục "Thẻ bài, booster, Chợ Đen".
+
+Chưa làm: quảng cáo (mọi nút xem quảng cáo trả 1 vé bỏ qua), VIP.
 
 ## Cách chơi
 
@@ -46,6 +48,9 @@ Chưa làm: thẻ bài, booster, quảng cáo, VIP.
 | `js/custom.js` | Nạp lười `custom.json`, sheet skin, `ropes.webp`, `custom-ui.webp` |
 | `js/fx.js` | Nướng hiệu ứng của skin biến thể (nạp chỉ khi cần) |
 | `js/menus.js` | Chế độ, Tuỳ biến, Đường XP (art gốc), vòng quay, Chợ (nạp khi mở lần đầu) |
+| `js/cards.js` | Luật thẻ: cấp thẻ, cấp perk, mở booster (XXHash64 + `UnityEngine.Random`), Chợ Đen, cộng tài nguyên theo thẻ, phép thử của thẻ ở từng chế độ (không DOM) |
+| `js/cardsui.js` | Trang thẻ, popup mở booster, gói thẻ và Chợ Đen trong Chợ, thông báo hiệu ứng thẻ (nạp lười) |
+| `data/cards.json`, `art/m-cards.webp`, `art/m-boost.webp` | 33 thẻ, 7 nhóm, 7 booster, đơn giá Chợ Đen, `resource_boosting`, road perk, giá gói thẻ; art thẻ và booster |
 | `js/home.js` | Trang chính theo prefab HomePage + MenuBar, art gốc; nạp khi trang chính hiện lần đầu, không bao giờ nạp với `?level=` |
 | `js/uikit.js` | Bộ dựng menu dùng chung: sheet theo màn, sprite/9-slice/tile, đơn vị tham chiếu `--u` (1334 chiều cao), chữ font game trên canvas |
 | `art/m-<màn>.webp`, `data/m-<màn>.json` | Art menu gốc theo màn: `home`, `modes`, `road`, `shop`, `tour` (`tools/build_menus.py`), nạp lười |
@@ -72,6 +77,7 @@ Chưa làm: thẻ bài, booster, quảng cáo, VIP.
 | `tools/build_adventure.py` | Tạo `mode-adventure.json` và `adventure.webp` (pattern qua `build_data.compile_pattern(adv=True)`) |
 | `tools/build_race.py` | Giải bản ghi ghost của Tournament, lấy mẫu lại 10 Hz → `data/race/*.json`; tạo `art/race.webp` |
 | `tools/build_custom.py` | Tạo sheet skin, `ropes.webp`, `custom-ui.webp`, `custom.json` |
+| `tools/build_cards.py` | Tạo `data/cards.json` từ remote settings mặc định |
 | `tools/build_meta.py` | Tạo `meta.json`, `bonus.json`, `menu.webp`, `wheel.webp`, `piggy.webp`, `skip.webp` từ remote settings mặc định và bundle trong APK |
 | `tools/build_font.py` | Nướng font TMP SDF thành bitmap |
 | `tools/build_ui.py` | Tạo `art/ui.webp` + `data/ui.json` từ `REF/sprites_ui` (xuất bằng `tools/extract/export_named.py`) |
@@ -191,10 +197,10 @@ Bản gốc chạy offline bằng chính bản này.
   - Không có thưởng xu mỗi màn: `FULLGAME.md` không tìm thấy, nên không tự đặt.
 - **Road màn Normal** (`achieved_level_mode.normal`): tự nhận khi qua màn 10/20/25/35/50/100, như `GiveEndGameRewards`. Lúc khởi động cũng nhận bù.
 - **Đường XP** (127 mốc): người chơi bấm "Nhận thưởng", nhận lần lượt mọi mốc đã đạt (`ClaimAllRewards`).
-  - Thưởng mà hệ thống chưa có (booster, ...) vẫn được ghi vào `save.pending` để pha sau trả, và hiện khoá "sắp có".
+  - Thưởng mà hệ thống chưa nạp vẫn được ghi vào `save.pending` và trả khi hệ đó nạp (booster: khi `cards.js` nạp).
 - **Mở khoá item.** Một bảng `UNLOCK` (cách mở → điền `{0}` của `textTemplate` gốc, có đạt được ở bản web hay không).
   - Lúc làm Pha 1, bản web chỉ đạt được: mặc định, road XP, road màn Normal. Sau đó có thêm sự kiện, Challenge, Grapple, vòng quay, heo đất (bảng `UNLOCK`, cờ `live`).
-  - Các cách còn lại (quảng cáo, VIP, Adventure, Race, pachinko, link ngoài, thẻ) hiện chữ gốc và không có đường mở giả.
+  - Các cách còn lại (quảng cáo, VIP, Adventure, Race, link ngoài) hiện chữ gốc và không có đường mở giả. Road cấp perk của thẻ giờ có thật.
   - `tournament` không có trong `unlockConditions`, nên dùng chữ của `leaderboard_prize`.
 - **Chế độ.** Normal chơi được. Các chế độ khác hiện "Cần N XP" (theo mốc road phát chế độ đó), Easter/Valentine cần màn 10. Đạt rồi thì hiện "Sắp có".
 - **Skin biến thể** (`skin.alien_hologram_travelers`, ...; 51 item): dùng sheet của skin gốc.
@@ -232,7 +238,7 @@ Trang chính, Chế độ, Đường XP, Tuỳ biến và trang Đua dựng lạ
 - Màu nền: UIGradient của từng trang. Trang chính #006DCF→#00EAFF, Chế độ #0082FF→#00EAFF, Đường XP #DA73D6→#3673C7, Đua #6521C5→#A52FDB.
 - Chữ: số và chữ ASCII vẽ bằng font Junegull của game (canvas, `uikit.js label/glText`). Font không có dấu tiếng Việt, nên nhãn tiếng Việt
   ("CHƠI", "TRANG CHỦ", "CHẾ ĐỘ CHƠI", "GIẢI ĐUA"...) dùng chữ hệ thống viền xanh đậm. `glText` giữ nguyên `textContent`: code và bài kiểm vẫn đọc được số.
-- Trang chính: cột trái gốc là VIP Bundle / No Ads (chưa làm), web đặt widget Chợ ở đó. Tab thẻ bài khoá. Bánh răng mở bảng chọn màn.
+- Trang chính: cột trái gốc là VIP Bundle / No Ads (chưa làm), web đặt widget Chợ ở đó. Tab thẻ bài (`Icon_CardsLocked` tới khi có thẻ đầu tiên, rồi `Icon_Cards`) mở trang thẻ. Bánh răng mở bảng chọn màn.
 - Tuỳ biến: gốc lật 7 trang, web cuộn mọi bộ sưu tập trong một danh sách, số trang cuộn tới nhóm của nó.
 - Đường XP: thẻ thưởng là prefab lúc chạy, chưa đọc. Cột x 85, 250 đơn vị mỗi hạng là `[ĐỀ XUẤT]`. Nút "Nhận thưởng" của web giữ lại.
 - Nạp: `home.js` + `uikit.js` + `m-home.webp` chỉ nạp khi trang chính hiện. Màn đầu (`?level=1`) 580 KB. Mở trang chính thẳng (không `?level`) 712 KB
@@ -303,7 +309,7 @@ Thông số dải quay lấy từ `LuckyWheelSettings` "LuckyWheelConfig" trong 
   - `FULLGAME.md` ghi luật này là UNKNOWN. Giờ đã rõ: thưởng ép áp dụng khi người chơi chưa có món đó.
 - Ngoài thưởng ép thì chọn theo trọng số (`WeightedRandom.GetRandom` [asm 0x115d030]).
   - Booster và thẻ lẻ chỉ được chọn sau khi có `flag.has_welcome_booster` (Đường XP, 550 XP) [asm 0x115e524..0x115e5c0].
-  - Hệ thẻ chưa có, nên chúng vào `save.pending` như thưởng booster của Đường XP.
+  - Booster trúng được qua `GetFallbackIfNoCardAvailable` rồi mở trong popup (mục "Thẻ bài, booster, Chợ Đen").
 - Dải quay có 50 ô, thưởng nằm ở ô 45. Quay 8 s theo đường cong của `LuckyWheelSettings` (3 key, nội suy Hermite như `AnimationCurve`).
   - Mỗi ô đi qua làm mũi tên giật xuống tối đa 45°, rồi bật lại với `tickerUpSpeed` 0.1 s.
 - `mode.lucky_wheel` không có màn. Nó là cổng mở vòng quay, Đường XP phát ở bước 1 (0 XP).
@@ -331,13 +337,13 @@ Thông số dải quay lấy từ `LuckyWheelSettings` "LuckyWheelConfig" trong 
 - Trong bản gốc, vé dùng để bỏ qua quảng cáo (`skipPrice` của `rewarded.default`). Bản web không có quảng cáo, nên mọi nút "xem quảng cáo" ở trên đều tốn 1 vé.
 - Nguồn vé: gói 20/60/140 vé (`offer.skip_tickets_1..3`). Bản gốc bán bằng tiền thật, bản web bán bằng xu trong Chợ.
 - Thưởng `currency.skip_tickets` còn chờ trong `save.pending` được trả lúc khởi động (`Meta.deliverPending`).
-  - Đường XP gốc không phát vé, nên thường không có gì để trả. Booster vẫn chờ.
+  - Đường XP gốc không phát vé, nên thường không có gì để trả. Booster chờ tới khi `cards.js` nạp (trang chính) rồi mở.
 
 **Bỏ qua màn** (`SkipLevelService`, `SkipButtonView`):
 
 - Nút hiện ở màn Normal sau một lần chết (`SetHasDied`), khi hôm nay còn lượt (`CanSkipLevelToday` [asm 0x124eac8]). Chữ dưới nút là "còn/ngày".
-- Số lượt mỗi ngày = hiệu ứng thẻ `card.skip_level` ở cấp thẻ hiện có (`GetNbSkippableLevelsPerDay` [asm 0x124ea20]).
-  - Cấp < 1 cho 0 lượt [asm 0x127c668]. Cấp L cho min + bước × (L − 1), tức 1 lượt ở cấp 1.
+- Số lượt mỗi ngày = `trunc(hiệu ứng)` của thẻ `card.skip_level` ở cấp thẻ hiện có (`GetNbSkippableLevelsPerDay` [asm 0x124ea74..0x124ea90]).
+  - Cấp thẻ từ số thẻ đang có (`save.inv['card.skip_level']`): `(n − 1) / 30 + 1` [asm 0x127bb7c]. Cấp < 1 cho 0 lượt [asm 0x127c668]. Cấp L cho 1 + (L − 1) lượt.
 - Lượt đã dùng đếm trong `flag.nb_levels_skipped_<ngày>` [asm 0x124eb40..0x124eb94]. Cờ của ngày cũ bị xoá (`CleanDailyTokenFlags`).
 - Bấm nút = xem quảng cáo `rewarded.skip_level`, ở bản web là trả 1 vé.
   - Sau đó màn được tính là đã qua (`GamePlayService.SkipLevel` → `CompleteLevel` [asm 0x129c96c]): +10 XP, road, heo đất.
@@ -345,9 +351,6 @@ Thông số dải quay lấy từ `LuckyWheelSettings` "LuckyWheelConfig" trong 
 Tự đặt, có nhãn `[ĐỀ XUẤT]`:
 
 - Giá gói vé: 50 xu/vé, nên 20 vé = 1000 xu, bằng gói xu rẻ nhất (`offer.coins_1`). APK không có giá tiền của từng gói nên không quy đổi được.
-- Cấp thẻ `skip_level`: hệ thẻ chưa làm.
-  - Bản web coi là cấp 1 khi đã có `flag.has_welcome_booster`, vì gói chào mừng gốc chắc chắn có thẻ này (`guaranteedCards`). Trước đó là cấp 0.
-  - Tức là được bỏ qua 1 màn/ngày từ 550 XP.
 - Heo đất chỉ nạp ở lần qua màn đầu tiên, giống XP. Bản web cho chơi lại màn, bản gốc thì không.
 - Mã ngày dạng YYYYMMDD theo giờ máy. `FormatDateId` của bản gốc chưa giải.
 - Dải quay:
@@ -360,7 +363,6 @@ Tự đặt, có nhãn `[ĐỀ XUẤT]`:
   - `[ĐỀ XUẤT]` chữ phóng 1.2 lần (đo trong clip, prefab ghi 49), skin chiếm 60 % hộp 570, nạp chạy 0.8 s. Chưa làm: thanh bộ sưu tập, nút VIP Skip.
 - Trang kết thúc (`NormalEndGame`): nền theme, `BackgroundEndRace` hai góc, "stage n / Completed!" (#FFC327, Grapple/Challenge #76E97E) ở 300 từ trên,
   `LightEndRace_01`, bục caro (rộng 516 đơn vị như clip 2026 0:27.6), skin nhảy cỡ gốc 100 đơn vị/đơn vị thế giới, nút `PlayButton_03` ở 300 từ dưới, nút nhà.
-- Booster trúng từ vòng quay giữ nguyên. Không đổi sang xu theo `GetFallbackIfNoCardAvailable`, vì hệ thẻ chưa làm.
 
 Bẫy:
 
@@ -449,7 +451,6 @@ Tự đặt, có nhãn `[ĐỀ XUẤT]`:
 Chưa làm:
 
 - Nút xem quảng cáo nhân xu ở màn kết thúc (`skinCoinsMultiplier` nằm trong prefab, chưa đọc).
-- Thẻ `daily_coins_boost_tournament`, `daily_trophy_boost_tournament`, `second_chance_tournament`. Hệ thẻ chưa có.
 - Đường VIP `flag.old_no_ads`.
 - Chữ "X đã về đích" trong lúc đua.
 - Ảnh hạng và hoạt hình của `FinishedTournamentPopup`.
@@ -520,7 +521,6 @@ Tự đặt, có nhãn `[ĐỀ XUẤT]`:
 - Hạt và ánh sáng làm đơn giản: hạt lửa, tia lửa, quầng đỏ, hạt của vùng gió lấy tốc độ phát, thời gian sống, cỡ, màu từ ParticleSystem của prefab, nhưng phẳng 2D và không có Light.
   Cổng dịch chuyển vẽ bằng vài lớp quầng tĩnh. Chưa có clip Adventure của bản gốc để so hình.
 - Thưởng đường kỷ lục nhận ngay ở màn kết thúc. Bảng tuần hạng 1 nhận skin từ `reward_pool.adventure_skin` theo cách của Đua.
-- Thẻ tăng xu phiêu lưu (ngày, tuần) chưa có vì hệ thẻ chưa có.
 
 Bẫy:
 
@@ -529,6 +529,97 @@ Bẫy:
 - **Đích của cổng phụ thuộc trạng thái chung của `UnityEngine.Random`**, tức là vật thể nào vừa sinh. Bài kiểm trình duyệt kiểm theo luật, không kiểm toạ độ cố định.
 - **Renderer nhận bảng toạ độ atlas trần** (`app.atlas.rects`). Bọc thêm một lớp `{rects}` thì không vẽ được người chơi, tường, theme mà không báo lỗi gì.
 - **Script vá có dấu `\` viết bằng heredoc của bash bị nuốt mất.** Viết bằng công cụ Write rồi chạy.
+
+## Thẻ bài, booster, Chợ Đen (2026-10-29, rev 20261028j)
+
+33 thẻ, 7 booster, Chợ Đen và hiệu ứng thẻ ở mọi chế độ. Vào từ tab thẻ bài của thanh menu dưới trang chính (khoá tới khi có thẻ đầu tiên) và từ Chợ.
+
+- Code: `js/cards.js` (luật, không DOM: cấp thẻ, booster, Chợ Đen, cộng tài nguyên theo thẻ, các phép thử của thẻ), `js/cardsui.js` (trang thẻ, popup mở booster, phần Chợ Đen và gói thẻ trong Chợ, thông báo hiệu ứng).
+- Dữ liệu: `data/cards.json` (14 KB, `tools/build_cards.py` từ `remote_settings_default.json`: `cards`, `booster`, `black_market`, `resource_boosting`, road `progression.cards_perk_level`, giá gói thẻ).
+- Art: `art/m-cards.webp` (thẻ, holder theo độ hiếm, nền theo nhóm, trang thẻ) và `art/m-boost.webp` (gói thẻ, popup, Chợ Đen), cùng `tools/build_menus.py`.
+  - Sprite gốc: `tools/extract/page_sprites.py` trên mọi bundle `cards_*`, `boosters_*`, `ui_market_*`, `ui_pages_cards`, `ui_popups_cards_info` ra `D:/stickman-hook-ref/sprites_cards`.
+  - Gói thẻ cùng tên `Market` / `NoOutline` ở mọi độ hiếm: `tools/extract/booster_sprites.py` lưu `<loại>_<biến thể>.png` vào `sprites_cards/boosters`.
+  - Prefab dựng lúc chạy (`HolderCardItemUI`, `CardsUI`, `BoosterCardItemUI`) không có đường dẫn container: `tools/extract/ui_roots.py <bundle> [tên]` in mọi GameObject gốc.
+- Nạp lười: `cards.js` + `cards.json` nạp cùng trang chính, khi mở Lucky Drop / Phiêu lưu / Chợ, hoặc lúc mở game nếu bản lưu đã có thẻ hay booster chờ mở.
+  `cardsui.js` + `m-cards.webp` (254 KB) + `m-boost.webp` (124 KB) nạp khi mở trang thẻ, popup booster hoặc Chợ. Màn đầu không nạp gì trong số này.
+- Bản ghi asm: `D:/stickman-hook-ref/dump/asm/{cards,blackmarket,boost,cardfx}/`.
+
+Luật đọc từ mã IL2CPP:
+
+- **Cấp thẻ** (`CardsService`). Số thẻ lưu dưới chính id thẻ (`save.inv['card.skip_level']`) [asm 0x1277100]. Cấp = 0 nếu chưa có, ngược lại `(n − 1) / requiredCardsPerLevel + 1` (chia nguyên) [asm 0x127bb7c..0x127bba0].
+  - Thẻ đầu tiên cho cấp 1, mỗi cấp sau tốn đúng `requiredCardsPerLevel` (common 30, epic 15, legendary 10). Tối đa `(maxLevel − 1) × req + 1` thẻ [asm 0x127bd40].
+  - Thanh tiến độ: `(n − 1) % req` trên `req`, đầy khi tối đa [asm 0x127bc8c..0x127bd20].
+  - Hiệu ứng ở cấp L: 0 nếu L < 1, `maxEffect` nếu L ≥ max, ngược lại `minEffect + effectGraduation × (L − 1)` [asm 0x127c5b0]. Ví dụ Second Chance 5, 7, … 21, 23, rồi 25 ở cấp 10.
+- **Cấp perk** = tổng cấp của 33 thẻ, tối đa 330 [asm 0x127b9c4, 0x127c0f0]. Mỗi lần đổi, road `progression.cards_perk_level` tự nhận mọi mốc đã đạt [asm 0x127b20c]:
+  10 Stick Viking, 20 Spider, 29 dây Banana, 50 dây Candy, … 330 vệt Fire. Cách mở khoá này giờ có thật (`meta.js UNLOCK` `live`).
+- **Booster đến tay** (`BoosterIncentiveController`): thưởng `booster.*` không nằm trong túi đồ. Mỗi cái thành một bản `"<id>_<GUID N>"` và mở ngay bằng popup [asm 0x1278a68..0x1278b18].
+  - Web: `save.boosterQueue`, popup mở khi trang chính hiện. Booster trong `save.pending` từ các bản cũ được trả qua `Meta.deliverPending` khi `cards.js` nạp.
+  - Vòng quay: `booster_card.<độ hiếm>` cho `booster.<độ hiếm>_single_card`. Mọi booster của vòng quay qua `GetFallbackIfNoCardAvailable`: hết thẻ chưa tối đa ở mọi độ hiếm có trọng số thì đổi thành xu bù × số lượng [asm 0x1277260, 0x115e4c0].
+  - `flag.has_welcome_booster` chỉ là thưởng của Đường XP mốc 550 (cùng `booster.welcome_booster`), code không ghi nó.
+- **Mở booster** (`GetBoosterContent` [asm 0x12759ec]):
+  - Seed: `UnityEngine.Random.InitState((int)XXHash64(token))`, token là đoạn sau dấu `_` cuối [asm 0x1275b3c, 0x1275e04]. Port XXHash64 (BigInt) và Xorshift128 trong `cards.js`.
+  - Số lượt rút = `nbCards`, hoặc 1 nếu là `one_more_card_` / `extra_card_` [asm 0x1275d58]. Mỗi lượt theo thứ tự:
+    1. `Range(min, max + 1)` thẻ một chồng [asm 0x1275e38].
+    2. Lượt i < số `guaranteedCards`: thẻ chỉ định (mới nếu chưa có, bỏ qua thẻ vừa rút), hoặc `booster_card.<độ hiếm>` thì đi đường độ hiếm.
+    3. Còn lại: độ hiếm theo `cardsWeight` bằng `System.Random` **không seed** (`WeightedRandom` [asm 0x12763bc, 0x19749dc]).
+  - Trong một độ hiếm [asm 0x12766b0]: bể = thẻ chưa tối đa (tính cả thẻ vừa rút). Rỗng thì ra xu bù 1/3/10. Toàn thẻ mới hoặc toàn thẻ cũ thì không thử, ngược lại mới khi `value < noveltyChance / 100` (7.5 / 20 / 30 %) [asm 0x1276940]. Chọn đều bằng `Range(0, n)` [asm 0x12769d0].
+  - Thẻ mới cho 1 thẻ. Thẻ cũ cho `min(chồng, còn thiếu tới tối đa)` [asm 0x1276dc4, 0x1277044].
+  - `card.double_cards`: khi còn thiếu > chồng, `Range(0, 1000) < (int)(effect × 10)` thì chồng × 2 [asm 0x1276f80..0x1277018].
+  - `card.extra_draw`: lúc đóng popup, ≥ 2 thẻ và `Range(0, 1000) < (int)(effect × 10)` trên cùng dòng Random thì được thêm `extra_card_<id>`, mở tiếp [asm 0x1142d6c..0x1142ec8].
+  - Nút "+1 Card": không phải one-more, `nbRewarded ≥ 1`, món đầu là thẻ [asm 0x1144360..0x11443e8]. Bản gốc là quảng cáo, web trả 1 vé bỏ qua.
+- **Popup** (`RunOpenFlow` [asm 0x1145c04]): ≥ 2 thẻ thì có màn xé gói (openingDelay 0.5 s, displayDelay 1.0 s), chờ 300 ms [asm 0x1145fb4], hiện từng thẻ phóng tới 1.6 [asm 0x1143294],
+  rồi vòng tổng kết bán kính 210, y × 1.2, bắt đầu từ 90° [asm 0x1146088]. Nền UIGradient #0C142B → #2169D4, `Pattern_CardMenu` tô #040711.
+- **Cộng tài nguyên theo thẻ** (`ResourceBoostingService.GetBoostAmount` [asm 0x117d920]): khoá `(tài nguyên + "_" + nguồn)` chữ thường.
+  - Thưởng thêm = `RoundHalfEven(effect / 100 × số lượng)` (float), cho cả thẻ "+%" lẫn thẻ "x" [asm 0x117daf4..0x117dc24], kẹp theo phần còn lại của ngày.
+  - Bộ đếm ngày `consumption_<thẻ>_<yyyy-MM-dd>` (giờ máy) cộng theo số lượng **gốc** [asm 0x117dd74], chỉ khi có trần ≥ 1. Thưởng thêm là một lần cộng riêng [asm 0x117d8e0].
+  - Nguồn: `finish_level_normal` / `finish_level_grapple` (XP cuối màn), `unlocked_<skin|rope|trail>`, `collection_complete`, `progression_road_progression.xp` (xu của Đường XP, Rank Coins Boost),
+    `offer.free_coins`, `finish_level_tournament` (xu, cúp), `pachinko` (xu của Lucky Drop), `finish_level_adventure` (xu phiêu lưu).
+- **Bỏ qua màn**: số lượt mỗi ngày = `trunc(effect)` của `card.skip_level` ở cấp thẻ đang có [asm 0x124ea74..0x124ea90]. Thẻ cấp 2 (31 thẻ) cho 2 lượt.
+- **Cơ hội thứ hai** (`PlayerController.TryKillPlayer` → `DeservesSecondChance` [asm 0x12050d0, 0x1207054..0x1207238]):
+  thẻ của chế độ đang chơi (normal / challenge / grapple / tournament), `Range(0, 100) < effect` thì hồi sinh thay vì chết.
+  - `Revive` [asm 0x12097f0..0x1209a64]: điểm xuất hiện cuối cùng bên trái chỗ chết (chỉ pattern Start có, nên là đầu màn), đếm ngược `SpawnCounter`, vận tốc 0. Không tính là chết, nên không hiện nút bỏ qua.
+  - Không có giới hạn "1 lần mỗi màn" trong code dù chữ của thẻ ghi vậy: mỗi lần chết lại thử.
+- **Vòng quay** `card.extra_lucky_wheel`: sau mỗi lần nhận thưởng, `Range(0, 1000) < (int)(effect × 10)` thì quay thêm một lượt tự động, không trả giá [asm 0x115e1c4..0x115e234, 0x1160b0c].
+- **Lucky Drop**:
+  - `PachinkoLevelSpawner.Initialize` [asm 0x1212548..0x1212718], sau khi dựng bàn, trước khi chọn chỗ xuất hiện, trên danh sách chốt xếp từ cao xuống:
+    - Extra Stickman: một lần `value() < effect / 100`, rồi `Range(0, min(n − 1, 10))`. Chữ của thẻ ghi "1-2" nhưng code chỉ một chốt.
+    - x10: 5 lần thử độc lập, rồi k lần `Range(0, n − 1)`.
+  - Chốt người que (`SetAsExtraStickman` [asm 0x121b024]): sprite `PegExtra*`, 1 xu, chạm là sinh một người que phụ ở chốt, bay `10 × (cos a, sin a)` với `a = Range(45, 135)` độ, không móc được, mờ 0.5 [asm 0x12a87b8, 0x1217cec].
+    Chốt biến mất ngay. Ván xong khi mọi người que đều vào ô, mỗi ô đều được tính thưởng [asm 0x12a768c, 0x12a7ff8].
+  - Bumper Resistance: mỗi lần chạm khi chốt chưa biến mất, `value() < effect / 100` thì chốt đứng lại [asm 0x121b39c..0x121b4d0]. Chốt x10 vẫn tiêu một lần thử.
+  - Lucky Drop Limit: `ResetPachinkoState` thử `NextDouble() < effect / 100` vào `_bonusGamesLimit` [asm 0x116f26c], nhưng không code nào của 9.9.60 đọc giá trị này. Web lưu nó vào trạng thái Lucky Drop và không dùng.
+- **Phiêu lưu**:
+  - Trần mua kỹ năng = 20 + `trunc(effect)` của thẻ nâng trần tương ứng ở cấp đang có [asm 0x1269bb8..0x1269be8]: 20 khi chưa có thẻ, 28 ở cấp 1, 100 ở cấp 10. Mẫu số của công thức giá trị vẫn là 100 [asm 0x1269e50].
+  - Skill Upgrade Boost: sau khi nâng, `Range(0, 1000) < trunc(effect) × 10` thì được thêm một cấp miễn phí [asm 0x126a6b4..0x126a714].
+  - Weekly Starting Tokens: tuần mới, ngay sau khi xoá đường kỷ lục [asm 0x1267e40]. Daily Login Tokens: mở trang Phiêu lưu, mỗi ngày một lần, cờ `flag.adventure_daily_token_flag_<ngày>` [asm 0x12682b0].
+- **Chợ Đen** (`BlackMarketService`):
+  - Lượt 6 giờ (`BlackMarketDuration` 21600000 ms [asm 0x126cb10]) theo lịch giờ máy tính từ 1970-01-01, tức đổi lúc 0, 6, 12, 18 giờ [asm 0x1270160].
+  - Mỗi lượt: 3 món tuỳ biến, rồi 3 thẻ, không lặp món của lượt trước (thiếu thì cho lặp), xáo Fisher–Yates bằng `System.Random` không seed [asm 0x12717f8..0x1271988, 0x1270b2c].
+  - Món tuỳ biến: chưa có, không thuộc bể thưởng Đua, không là giải chính đang có của Lucky Drop [asm 0x126cc18]. Giá cố định 1000 / 3000 / 6000 xu.
+  - Thẻ: đã có (cấp ≥ 1), chưa tối đa [asm 0x126cebc]. Số thẻ = phần XP còn thiếu của cấp hiện tại, giá = đơn giá 20 / 50 / 200 × số thẻ [asm 0x126edc0..0x126f0f8]. Mỗi thẻ mua một lần mỗi lượt.
+  - Phần thẻ và gói thẻ cần `has_cards` (đã có ít nhất một thẻ).
+
+Tự đặt, có nhãn `[ĐỀ XUẤT]`:
+
+- **Giá gói thẻ.** Bản gốc bán `offer.boosters_1..3` bằng tiền thật, APK không có bảng nối sản phẩm với mức giá (`IAPPriceConversion` chỉ có mức → tiền địa phương).
+  Web tính theo giá xu của chính config: mỗi lượt rút = chồng trung bình `(min + max) / 2` × đơn giá Chợ Đen của độ hiếm lượt đó (độ hiếm bảo đảm, hoặc trung bình theo `cardsWeight`), làm tròn 100.
+  Ra 3800 xu (1 epic), 9800 (1 legendary), 49000 (5 legendary). `tools/build_cards.py booster_coins`.
+- **Lượt quay thêm của Extra Lucky Wheel phát thưởng.** Ở bản gốc, lượt tự động bỏ qua `PayForSpin`, nên `ClaimReward` thấy `progression.lucky_wheel_spin` = 0 và thoát sớm [asm 0x115de58]: quay mà không nhận gì. Web cho nhận thưởng.
+- Popup mở booster hiện và cấp đúng một nội dung. Bản gốc sinh hai lần (một để hiện, một để cấp) với lần thử độ hiếm không seed, nên có thể cấp khác cái đã hiện.
+- Đếm ngược của Cơ hội thứ hai: "3", "2", "1", "GO", mỗi chữ 0.5 s như ô xuất phát của Đua, chữ DOM đỏ #FF483E. Popup thẻ nhỏ (`SmallCardsEffectPopup`) và popup hiệu ứng (`NormalCardsEffectPopup`) rút gọn thành toast.
+- Thanh tiến độ trong popup hiện ngay trạng thái cuối, không chạy đếm từ n/2 tới n.
+- Dải giá trị dưới thẻ (`GradientHorizontalInOut`, trắng trong prefab) tô màu tối của độ hiếm.
+- Trang thẻ: khối 675 đơn vị co lại cho vừa màn hình hẹp (canvas gốc ghép theo chiều cao nên rộng chỉ ~616 đơn vị ở 390 × 844).
+- Phiêu lưu: bản gốc nâng **một kỹ năng ngẫu nhiên** (`LevelUpRandomSkill`, `Range(0, n)` [asm 0x126a5a0]). Web vẫn để người chơi chọn kỹ năng như trước; thẻ Skill Upgrade Boost thêm cấp vào kỹ năng vừa chọn.
+- Ô thẻ trong Chợ Đen: chữ "LVL n" và tên chế độ bằng chữ hệ thống trên thanh màu tối của độ hiếm.
+
+Bẫy:
+
+- **Đặt `background-size: contain !important` lên phần tử dùng `spr()` thì hiện cả sheet.** `spr` cần kích thước nền đúng tỉ lệ sheet. Ảnh co vào hộp dùng `fit()` (cắt sprite bằng `cut`).
+- **`page_sprites.py` lấy bundle đầu tiên khớp tiền tố** và bỏ sprite trùng tên. Gói thẻ và nền nhóm thẻ trùng tên ở mọi biến thể, nên cần `booster_sprites.py`.
+- **Thẻ "x" nhân rất ít.** Cùng công thức `effect / 100 × số lượng` với thẻ "+%": Daily Coins Boost x2 trên 7 xu đua là `round(0.14)` = 0. Đúng asm, không phải lỗi.
+- **Welcome booster cho 2 thẻ Skin XP Boost, mỗi thẻ 1.** Thẻ chỉ định tính "mới" theo kho đồ, không tính thẻ vừa rút trong cùng gói.
+- **Mã tuần / ngày của bộ đếm dùng `yyyy-MM-dd`**, khác mã ngày YYYYMMDD của vé bỏ qua (`bonus.js dayId`). Hai hệ đếm độc lập, giữ đúng từng chỗ.
 
 ## Bẫy đã sập
 
@@ -608,12 +699,12 @@ Phần chế độ:
 - Màn đầu không nạp `mode-*.json` hay `grapple.js`.
 Phần vòng quay, heo đất, Chợ, bỏ qua màn:
 
-- Màn 1 nạp heo đất thêm 10. Vé đang chờ trong `pending` được trả, booster vẫn chờ.
+- Màn 1 nạp heo đất thêm 10. Vé đang chờ trong `pending` được trả. Booster chờ tới trang chính, ở đó gói epic mở trong popup.
 - Hàng Lucky Wheel của Chế độ mở vòng quay. Lần đầu miễn phí, dừng ở ô 45 là Potatoz và nhận được.
 - Lần sau giá 500 xu, không có xu thì bị từ chối. Có 500 xu và `Math.random` = 0 thì ra Tiki.
 - Chợ: +20 xu một lần, cùng ngày bấm lại không được, sang ngày khác thì được. 20 vé giá 1000 xu.
 - Heo 90 qua một màn thành 100, mở bằng 1 vé ra Stick Frog, màn sau chỉ +3.
-- Chưa có thẻ `skip_level` thì không có nút bỏ qua. Có rồi thì chết một lần hiện nút "1/1": bấm là trừ 1 vé và qua màn 15. Màn sau chết không còn nút.
+- Chưa có thẻ `skip_level` thì không có nút bỏ qua. Có 1 thẻ (cấp 1) thì chết một lần hiện nút "1/1": bấm là trừ 1 vé và qua màn 15. Màn sau chết không còn nút.
 - Trang chính có ô vòng quay "xu/500" và số vé.
 
 Phần Đua (`Math.random` = 0 lúc dựng cuộc đua, nên map, ô và ghost là cố định):
@@ -639,11 +730,23 @@ Phần Phiêu lưu:
 
 Nó cũng kiểm màn đầu không nạp quá 600 KB, không nạp ảnh shop và không nạp `bonus.js`, `bonus.json`, ảnh vòng quay/heo/nút bỏ qua, `endgame.js`, `ui.webp`, `ui.json`, `race.js`, file ghost, `race.webp`, `adventure.js`, `advrun.js`, `adventure.webp`.
 
+Phần thẻ bài (`js/cards.js`, `js/cardsui.js`):
+
+- Màn đầu không nạp `cards.js`, `cardsui.js`, `cards.json`, `m-cards.webp`, `m-boost.webp`. Booster `pending` mở trong popup khi trang chính hiện.
+- Rút có seed: welcome booster ra đúng 5 thẻ bảo đảm, perk 4. Epic booster token `0123…cdef` (độ hiếm thử bằng 0.1) ra
+  `finish_line_xp_boost_grapple:1 (mới), shop_free_coins_boost 18 + 20, pachinko_x10_multiplier 16, skip_level 17`. Thẻ lẻ common ra 14 Shop Free Coins Boost.
+- Cấp thẻ: 0/1/30/31/271 thẻ skip = cấp 0/1/1/2/10. Popup cấp đúng thứ đã hiện. Trang thẻ: 7 nhóm, 33 thẻ, 29 khoá, perk 4/330.
+- Hiệu ứng: skip cấp 2 cho nút "2/2". Second Chance tối đa (25 %, Random 0) hồi sinh ở đầu màn với đếm ngược, không tính chết.
+  Finish Line XP cấp 1: màn Normal +11 XP. Daily Coins Boost Đua tối đa: +2 trên 100 xu, rồi 0. Shop Free Coins cấp 1: 22 xu.
+  Extra Lucky Wheel: một lượt trả 500 xu được thêm lượt miễn phí. Rope Length Limit Boost: trần 20 → 28 → 100. Perk 13 nhận Stick Viking.
+- Chợ Đen: 3 món + 3 thẻ, hết lượt ở mốc 6 giờ giờ máy. Mua thẻ trừ đơn giá × số thẻ, mua lại bị từ chối. Mua món trả giá cố định.
+- Lucky Drop bàn 4 seed 3 với thẻ tối đa: 2 chốt x10, 1 chốt người que (chạm ra người que phụ 10 m/s bay lên), Bumper Resistance giữ chốt khi thử 0.1.
+
 Phần HUD và về đích: chỉ có nút pause trong màn; về đích giữ tư thế FINISHED và ẩn nút pause; màn heo đất toàn màn hình rồi trang kết thúc; nút Play mở màn sau; pause dừng màn.
 Ảnh chụp nằm ở `shots/stickman-hook/`.
 
 ## Tăng số bản
 
 Đổi mọi `?v=` trong `index.html`, `js/main.js` (hằng `V`) và ba `import()` có `?v=` trong `js/modes.js` (`pachinko.js`, `race.js`, `adventure.js`), rồi đổi `rev` trong `data/games.js` cho trùng.
-Bản hiện tại: `20261028i`. `js/pachinko.js` có `PV` riêng (`20261028d`) cho ảnh của nó.
-Module JS mới phải có dòng trong importmap của `index.html`, kể cả module chỉ nạp động (`menus.js`, `fx.js`).
+Bản hiện tại: `20261028j`. `js/pachinko.js` có `PV` riêng (`20261028d`) cho ảnh của nó.
+Module JS mới phải có dòng trong importmap của `index.html`, kể cả module chỉ nạp động (`menus.js`, `fx.js`, `cards.js`, `cardsui.js`).

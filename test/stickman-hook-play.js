@@ -70,6 +70,8 @@ function serve() {
   check('first level loads no mode data', modeFiles.length === 0, modeFiles.join(' '));
   const bonusFiles = requested.filter((u) => /bonus\.js|bonus\.json|wheel\.webp|piggy\.webp|skip\.webp|endgame\.js|\/ui\.webp|\/ui\.json/.test(u));
   check('first level loads no wheel / piggy / skip / end game code or art', bonusFiles.length === 0, bonusFiles.join(' '));
+  const cardsEarly = requested.filter((u) => /cards\.js|cardsui\.js|cards\.json|m-cards|m-boost/.test(u));
+  check('first level loads no cards code, data or art', cardsEarly.length === 0, cardsEarly.join(' '));
   check('level 1 is Solo1 with one target', await page.evaluate(() => window.__sh.world.names.join() === 'Solo1' && window.__sh.world.targets.length === 1));
   // DefaultInGameUI: the pause button and the "1 ▬ 2" progress bar; no other in-level buttons
   check('in-level HUD is the pause button (B_PauseButton) only', await page.evaluate(() => {
@@ -461,7 +463,7 @@ function serve() {
   check('after the first claim a level fills the piggy by 3', await page.evaluate(() =>
     window.__sh.save.inv['progression.piggy_bank_progress'] === 3));
 
-  // skip level: per day = card.skip_level effect; no card (no welcome booster) = 0, so no button after a death
+  // skip level: per day = trunc(card.skip_level effect) at the card level; no card = 0, so no button after a death
   const die = async () => {
     await page.waitForFunction(() => window.__sh.game.phase === 'play', null, { timeout: 5000 });
     await page.evaluate(() => { window.__sh.player.y = -40; });
@@ -471,7 +473,7 @@ function serve() {
   await page.evaluate(() => window.__sh.startLevel(14));
   await die();
   check('no skip button without the skip card', await page.evaluate(() => !document.querySelector('#skip.on')));
-  await page.evaluate(() => { window.__sh.save.flags['flag.has_welcome_booster'] = 1; window.__sh.startLevel(14); });
+  await page.evaluate(() => { window.__sh.save.inv['card.skip_level'] = 1; window.__sh.startLevel(14); });
   await die();
   const sk = await page.evaluate(() => ({ on: !!document.querySelector('#skip.on'), text: document.querySelector('#skip b')?.textContent }));
   await page.screenshot({ path: path.join(SHOTS, 'skip.png') });
@@ -490,6 +492,14 @@ function serve() {
   await page.click('#btnPause');
   await page.click('#btnMenu');
   await page.waitForSelector('#btnWheel', { timeout: 10000 });
+  // the cards load with the home screen: the epic booster left pending by a road is delivered and opens at once
+  await page.waitForSelector('#boostPop.on', { timeout: 15000 }).catch(() => {});
+  check('the booster left pending opens on the home screen (epic booster popup)', await page.evaluate(() =>
+    /^booster\.epic_[0-9a-f]{32}$/.test(document.getElementById('boostPop')?.dataset.inst || '') && window.__sh.save.pending.length === 0));
+  for (let i = 0; i < 8 && !(await page.evaluate(() => document.getElementById('boostPop').classList.contains('done'))); i++) {
+    await page.mouse.click(195, 500); await page.waitForTimeout(i ? 450 : 2300);
+  }
+  await page.click('#boostPop .close');
   await page.waitForTimeout(600);
   await page.screenshot({ path: path.join(SHOTS, 'home-bonus.png') });
   const home = await page.evaluate(() => ({ wheel: document.getElementById('wheelPrice').textContent,
@@ -497,6 +507,206 @@ function serve() {
   check('home shows the wheel counter (coins/500), ticket count and market', home.wheel === `${await page.evaluate(() => window.__sh.save.coins)}/500`
     && home.tickets === '21', JSON.stringify(home));
   await page.click('#btnPlay');
+
+  // ---- Cards, boosters, black market (js/cards.js, js/cardsui.js, data/cards.json, art/m-cards.webp + m-boost.webp) ----
+  await page.evaluate(async () => { await window.__sh.loadCards(); });
+  check('the cards rules load: 33 cards, perk max 330', await page.evaluate(() => window.__sh.cards.list.length === 33
+    && window.__sh.cards.perkMax() === 330));
+  // seeded pulls: UnityEngine.Random.InitState((int)XXHash64(token)), the unseeded rarity roll stubbed at 0.1
+  const pulls = await page.evaluate(() => {
+    const c = window.__sh.cards, s = { coins: 0, xp: 0, owned: { skins: [], ropes: [], trails: [] }, claimed: {}, flags: {}, inv: {}, pending: [], collections: [] };
+    const fmt = (b) => b.items.map((i) => (i.card ? `${i.card}:${i.qty}${i.isNew ? 'N' : ''}` : `coins:${i.coins}`)).join(' ');
+    const w = c.content(s, 'booster.welcome_booster_0123456789abcdef0123456789abcdef', () => 0.1);
+    const out = { welcome: fmt(w) };
+    c.consume(s, w);
+    out.perk = s.inv['progression.cards_perk_level'];
+    out.epic = fmt(c.content(s, 'booster.epic_0123456789abcdef0123456789abcdef', () => 0.1));
+    out.single = fmt(c.content(s, 'booster.common_single_card_00000000000000000000000000000001', () => 0.1));
+    return out;
+  });
+  check('welcome booster: its 5 guaranteed cards, each new = 1 card; perk level 4', pulls.welcome === 'card.skip_level:1N card.shop_free_coins_boost:1N '
+    + 'card.pachinko_x10_multiplier:1N card.xp_boost_skin:1N card.xp_boost_skin:1N' && pulls.perk === 4, JSON.stringify(pulls));
+  check('seeded epic booster pull (token 0123..cdef, rarity roll 0.1)', pulls.epic === 'card.finish_line_xp_boost_grapple:1N '
+    + 'card.shop_free_coins_boost:18 card.shop_free_coins_boost:20 card.pachinko_x10_multiplier:16 card.skip_level:17', pulls.epic);
+  check('seeded common single card: 14 Shop Free Coins Boost cards', pulls.single === 'card.shop_free_coins_boost:14', pulls.single);
+  // card levels: n < 1 -> 0, (n - 1) / cardsPerLevel + 1, max at (max - 1) x req + 1 cards
+  const lv = await page.evaluate(() => {
+    const c = window.__sh.cards, s = { inv: {} };
+    return [0, 1, 30, 31, 271].map((n) => c.level(s, 'card.skip_level', n)).join(',') + ' ' + c.maxCards('card.skip_level')
+      + ' ' + JSON.stringify(c.progress({ inv: { 'card.skip_level': 31 } }, 'card.skip_level'));
+  });
+  check('card levels: 0/1/30/31/271 skip cards = levels 0,1,1,2,10; max 271; 31 cards = 0/30 toward level 3',
+    lv === '0,1,1,2,10 271 {"have":0,"need":30,"max":false,"locked":false}', lv);
+
+  // delivery: the booster left pending by a road opens in its popup once the cards load with the home screen
+  await page.evaluate(() => { const s = window.__sh.save; s.boosterQueue = []; s.pending = [['booster.welcome_booster', 1]];
+    for (const k of Object.keys(s.inv)) if (k.startsWith('card.') || k.startsWith('consumption_')) delete s.inv[k];
+    window.__sh.meta.deliverPending(s); window.__sh.overlay('start', true); });
+  await page.waitForSelector('#boostPop.on', { timeout: 15000 });
+  await page.waitForTimeout(700);
+  await page.screenshot({ path: path.join(SHOTS, 'cards-booster-pack.png') });
+  check('a pending booster is delivered: the opening popup shows the welcome pack', await page.evaluate(() =>
+    /^booster\.welcome_booster_[0-9a-f]{32}$/.test(document.getElementById('boostPop').dataset.inst) && window.__sh.save.pending.length === 0));
+  await page.mouse.click(195, 500);
+  await page.waitForTimeout(2400);
+  await page.screenshot({ path: path.join(SHOTS, 'cards-booster-card.png') });
+  for (let i = 0; i < 5; i++) { await page.mouse.click(195, 500); await page.waitForTimeout(450); }
+  await page.waitForSelector('#boostPop.done', { timeout: 5000 });
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: path.join(SHOTS, 'cards-booster-recap.png') });
+  const opened = await page.evaluate(() => ({ shown: document.querySelectorAll('#boostPop .bc').length,
+    inv: ['card.skip_level', 'card.shop_free_coins_boost', 'card.pachinko_x10_multiplier', 'card.xp_boost_skin'].map((k) => window.__sh.save.inv[k]).join(),
+    perk: window.__sh.save.inv['progression.cards_perk_level'], q: window.__sh.save.boosterQueue.length }));
+  check('opening grants what it shows: 5 cards, skip 1 / free coins 1 / x10 1 / skin XP 2, perk 4', opened.shown === 5
+    && opened.inv === '1,1,1,2' && opened.perk === 4 && opened.q === 0, JSON.stringify(opened));
+  await page.click('#boostPop .close');
+  await page.waitForTimeout(400);
+
+  // the cards tab of the home menu bar opens the cards page
+  await page.click('#btnCards');
+  await page.waitForSelector('#cards.on .ccard', { timeout: 15000 });
+  await page.waitForTimeout(700);
+  await page.screenshot({ path: path.join(SHOTS, 'cards-page.png') });
+  const cpg = await page.evaluate(() => ({ cards: document.querySelectorAll('#cards .ccard').length, cats: document.querySelectorAll('#cards .cat').length,
+    locked: document.querySelectorAll('#cards .ccard.locked').length, perk: document.querySelector('#cards .pl').textContent }));
+  check('cards page: 7 categories, 33 cards, 29 locked, perk 4/330', cpg.cards === 33 && cpg.cats === 7 && cpg.locked === 29 && cpg.perk === '4/330',
+    JSON.stringify(cpg));
+  const cardFiles = requested.filter((u) => /cards|m-boost/.test(u)).map((u) => u.replace(/^.*\/(js|data|art)\//, '$1/').replace(/\?.*/, ''));
+  check('cards load lazily: cards.js, cards.json, cardsui.js, m-cards / m-boost art', ['js/cards.js', 'data/cards.json', 'js/cardsui.js',
+    'art/m-cards.webp', 'art/m-boost.webp'].every((f) => cardFiles.includes(f)), cardFiles.join(' '));
+  await page.evaluate(() => window.__sh.overlay('cards', false));
+
+  // effect: skip_level daily count = trunc(effect) at the card level: 31 cards = level 2 = 2 skips a day
+  await page.evaluate(() => { const s = window.__sh.save; s.inv['card.skip_level'] = 31; s.inv['currency.skip_tickets'] = 5;
+    for (const f of Object.keys(s.flags)) if (f.startsWith('flag.nb_levels_skipped_')) delete s.flags[f];
+    window.__sh.overlay('start', false); window.__sh.startLevel(20); });
+  await die();
+  const sk2 = await page.evaluate(() => ({ on: !!document.querySelector('#skip.on'), text: document.querySelector('#skip b')?.textContent }));
+  check('skip_level level 2 (31 cards): the skip button offers 2/2', sk2.on && sk2.text === '2/2', JSON.stringify(sk2));
+
+  // effect: second chance (normal, max level 25 %): Range(0, 100) = 0 < 25 revives with the countdown, no death counted
+  await page.evaluate(() => { const s = window.__sh.save; s.inv['card.second_chance_normal'] = window.__sh.cards.maxCards('card.second_chance_normal');
+    Math.__r = Math.random; Math.random = () => 0; window.__sh.startLevel(20); });
+  await page.waitForFunction(() => window.__sh.game.phase === 'play', null, { timeout: 5000 });
+  await page.evaluate(() => { window.__sh.player.y = -40; });
+  await page.waitForFunction(() => window.__sh.game.phase === 'revive' && document.getElementById('revive').textContent, null, { timeout: 5000 }).catch(() => {});
+  const rv = await page.evaluate(() => ({ phase: window.__sh.game.phase, died: window.__sh.game.died, text: document.getElementById('revive').textContent,
+    x: window.__sh.player.x, sx: window.__sh.world.spawn.x }));
+  await page.screenshot({ path: path.join(SHOTS, 'cards-second-chance.png') });
+  await page.evaluate(() => { Math.random = Math.__r; });
+  check('second_chance_normal revives at the start with the 3-2-1 countdown, no death counted', rv.phase === 'revive' && !rv.died
+    && rv.text === '3' && rv.x === rv.sx, JSON.stringify(rv));
+  await page.waitForFunction(() => window.__sh.game.phase === 'play', null, { timeout: 5000 }).catch(() => {});
+  check('after the countdown the player plays on', await page.evaluate(() => window.__sh.game.phase === 'play'));
+  await page.evaluate(() => { delete window.__sh.save.inv['card.second_chance_normal']; });
+
+  // resource boosts: RoundHalfEven(effect / 100 x quantity), the day's cap counted in base quantity
+  const bo = await page.evaluate(() => {
+    const { meta, cards } = window.__sh;
+    const mk = (inv) => ({ coins: 0, xp: 0, best: 0, owned: { skins: [], ropes: [], trails: [] }, claimed: {}, flags: {}, inv, pending: [], collections: [], periodic: {} });
+    const a = mk({ 'card.finish_line_xp_boost_normal': 1 });
+    const r = meta.levelComplete(a, 0);
+    const b = mk({ 'card.daily_coins_boost_tournament': cards.maxCards('card.daily_coins_boost_tournament') });
+    const t1 = cards.boost(b, 'currency.skin_coins', 'finish_level_tournament', 100), t2 = cards.boost(b, 'currency.skin_coins', 'finish_level_tournament', 100);
+    const c = mk({ 'card.shop_free_coins_boost': 1 }), free = window.__sh.bonus.claimFreeCoins(c, 20261029);
+    return { xp: a.xp, rxp: r.xp, t1, t2, free, coins: c.coins };
+  });
+  check('finish_line_xp_boost_normal level 1 (+10 %): a Normal level gives 10 + 1 XP', bo.xp === 11 && bo.rxp === 11, JSON.stringify(bo));
+  check('daily_coins_boost_tournament max (x2): +2 on 100 coins, then 0 (first 100 of the day used)', bo.t1 === 2 && bo.t2 === 0, JSON.stringify(bo));
+  check('shop_free_coins_boost level 1 (+10 %): free coins 20 + 2', bo.free === 22 && bo.coins === 22, JSON.stringify(bo));
+
+  // extra_lucky_wheel max (10 %): Range(0, 1000) = 0 < 100 gives an automatic spin that costs nothing
+  const ew = await page.evaluate(() => {
+    const { bonus, cards } = window.__sh, s = window.__sh.save;
+    s.inv['card.extra_lucky_wheel'] = cards.maxCards('card.extra_lucky_wheel');
+    s.coins = 500;
+    const claims = s.inv['progression.lucky_wheel_claims'];
+    const r = bonus.wheelSpin(s, () => 0);
+    const free = r.extra ? bonus.wheelFreeSpin(s, () => 0.99) : null;
+    delete s.inv['card.extra_lucky_wheel'];
+    return { extra: r.extra, coins: s.coins, claims: s.inv['progression.lucky_wheel_claims'] - claims, freePrice: free?.price?.[1] };
+  });
+  check('extra_lucky_wheel: a paid spin rolls an extra spin, the extra one is free (500 coins paid once, 2 claims)',
+    ew.extra === true && ew.coins === 0 && ew.claims === 2 && ew.freePrice === 0, JSON.stringify(ew));
+
+  // adventure limit cards: purchasable cap = 20 + trunc(effect): level 1 -> 28, max -> 100
+  const ad = await page.evaluate(async () => {
+    const a = await import('./js/adventure.js'), { cards } = window.__sh;
+    const d = { skills: null };
+    const data = JSON.parse(await (await fetch('./data/mode-adventure.json')).text());
+    const s1 = { inv: { 'card.rope_length_limit_boost': 1 } }, s2 = { inv: { 'card.rope_length_limit_boost': cards.maxCards('card.rope_length_limit_boost') } };
+    void d;
+    return [a.skillCap(data, { inv: {} }, 'rope_length', cards), a.skillCap(data, s1, 'rope_length', cards), a.skillCap(data, s2, 'rope_length', cards)].join();
+  });
+  check('rope_length_limit_boost raises the rope skill cap 20 -> 28 (level 1) -> 100 (max)', ad === '20,28,100', ad);
+
+  // perk road: the card perk level reaching 10 unlocks Stick Viking (progression.cards_perk_level road)
+  const perk = await page.evaluate(() => { const { cards } = window.__sh, s = window.__sh.save;
+    const got = cards.addCard(s, 'card.skip_level', 271 - s.inv['card.skip_level']);
+    return { perk: s.inv['progression.cards_perk_level'], viking: s.owned.skins.includes('stick_viking'), got: got.length }; });
+  check('perk level 13 claims the perk road step 10: Stick Viking', perk.perk === 13 && perk.viking, JSON.stringify(perk));
+
+  // black market: 3 customization items and 3 cards per 6 h rotation; a card offer = the XP left in its level x unit price
+  await page.evaluate(() => { const s = window.__sh.save; s.coins = 20000; delete s.blackMarket; window.__sh.overlay('start', true); });
+  await page.evaluate(() => window.__sh.openMenu('openMarket'));
+  await page.waitForSelector('#market .ocard[data-card]', { timeout: 15000 });
+  await page.waitForTimeout(600);
+  await page.evaluate(() => document.querySelector('#market .bm-ban').scrollIntoView());
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: path.join(SHOTS, 'cards-market.png') });
+  const bm = await page.evaluate(() => { const b = window.__sh.save.blackMarket, end = new Date(b.end);
+    return { items: b.items.length, cards: b.cards.length, h: end.getHours() % 6, m: end.getMinutes(), offers: document.querySelectorAll('#market .ocard').length,
+      fromBm: b.cards.every((id) => window.__sh.save.inv[id] >= 1) }; });
+  check('black market: 3 items, 3 owned cards, rotation ends on a 6 h local boundary; 3 booster offers', bm.items === 3 && bm.cards === 3
+    && bm.h === 0 && bm.m === 0 && bm.offers === 9 && bm.fromBm, JSON.stringify(bm));
+  const bbuy = await page.evaluate(() => {
+    const s = window.__sh.save, b = s.blackMarket, id = b.cards.find((x) => x === 'card.xp_boost_skin') || b.cards[0];
+    const o = b.offers[id], before = { coins: s.coins, n: s.inv[id] };
+    document.querySelector(`#market .ocard[data-card="${id}"] .buy`).click();
+    return { id, o, before, after: { coins: s.coins, n: s.inv[id] }, again: window.__sh.cards.buyCard(s, id).refused };
+  });
+  check('buying a black market card: price = unit x XP left, the card gains that many, one per rotation',
+    bbuy.after.coins === bbuy.before.coins - bbuy.o.price && bbuy.after.n === bbuy.before.n + bbuy.o.qty
+    && bbuy.o.price === { common: 20, epic: 50, legendary: 200 }[await page.evaluate((id) => window.__sh.cards.byId.get(id).rarity, bbuy.id)] * bbuy.o.qty
+    && bbuy.again === 'sold', JSON.stringify(bbuy));
+  const bi = await page.evaluate(() => { const s = window.__sh.save, res = s.blackMarket.items[0], it = window.__sh.meta.byId.get(res);
+    const c0 = s.coins, r = window.__sh.cards.buyItem(s, res);
+    return { res, price: r.price, paid: c0 - s.coins, owned: s.owned[it.kind].includes(it.name), table: window.__sh.cards.d.market[res][1] }; });
+  check('buying a black market item: flat price, item owned', bi.owned && bi.paid === bi.table && bi.price === bi.table, JSON.stringify(bi));
+  await page.click('#market .x');
+
+  // pachinko cards: x10_multiplier (max 50 %: 5 rolls) and extra_stickman (max 100 %) on board 4, seed 3
+  await page.evaluate(() => { const s = window.__sh.save, c = window.__sh.cards;
+    s.inv['card.pachinko_x10_multiplier'] = c.maxCards('card.pachinko_x10_multiplier');
+    s.inv['card.pachinko_extra_stickman'] = c.maxCards('card.pachinko_extra_stickman');
+    s.inv['card.pachinko_bumper_resistance'] = c.maxCards('card.pachinko_bumper_resistance'); window.__sh.app.writeSave(); });
+  await page.goto(url.replace(/\?.*$/, '') + '?mode=pachinko&ptype=4&pseed=3');
+  await page.waitForFunction(() => window.__pachinko && window.__pachinko.world, null, { timeout: 20000 });
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: path.join(SHOTS, 'cards-pachinko.png') });
+  const pk = await page.evaluate(() => {
+    const p = window.__pachinko, w = p.world, bonus = w.pegs.filter((x) => x.bonus), extra = w.pegs.filter((x) => x.extra);
+    const out = { bonus: bonus.length, coins: bonus.map((x) => x.coins).join(), extra: extra.length };
+    // extra stickman peg: a clone at the peg, 10 m/s at 45..135 degrees
+    p.hitPeg(extra[0], { nx: 0, ny: 1 });
+    const ex = p.extras[0]?.pl;
+    out.clone = ex ? Math.round(Math.hypot(ex.vx, ex.vy) * 100) / 100 : null;
+    out.up = ex ? ex.vy > 0 : null;
+    out.gone = extra[0].gone;
+    // bumper resistance: value() < 0.5 keeps the peg, else it starts to disappear
+    const pegs = w.pegs.filter((x) => !x.bonus && !x.extra && !x.gone);
+    p.rnd = () => 0.1; p.hitPeg(pegs[0], { nx: 0, ny: 1 });
+    p.rnd = () => 0.9; p.hitPeg(pegs[1], { nx: 0, ny: 1 });
+    out.resist = [pegs[0].dying, pegs[1].dying].join();
+    return out;
+  });
+  check('pachinko x10 card (50 %, 5 rolls, seed 3): 4 x10 pegs worth 10 coins', pk.bonus === 4 && pk.coins === '10,10,10,10', JSON.stringify(pk));
+  check('pachinko extra stickman card (100 %): one extra peg; hitting it spawns a clone at 10 m/s upward, the peg goes',
+    pk.extra === 1 && pk.clone === 10 && pk.up && pk.gone, JSON.stringify(pk));
+  check('pachinko bumper resistance (50 %): a roll of 0.1 keeps the peg, 0.9 starts its disappearing', pk.resist === '-1,0', JSON.stringify(pk));
+  await page.evaluate(() => { const s = window.__sh.save;
+    for (const k of Object.keys(s.inv)) if (k.startsWith('card.') || k.startsWith('consumption_')) delete s.inv[k];
+    delete s.inv['progression.cards_perk_level']; s.boosterQueue = []; delete s.blackMarket; window.__pachinko.close(); window.__sh.app.writeSave(); });
 
   // ---- Race (js/race.js). A clean tournament state, 1 skip ticket, no coins. Math.random = 0 while a race is set up:
   // map index = achieved level (0: RaceTest), player slot Random.Range(0, 5) = 0, difficulty 0 (no wins), and per slot
@@ -751,7 +961,7 @@ function serve() {
     const disk = JSON.parse(localStorage.getItem('stickman-hook'));
     return { why: a.run.dead?.why, d: a.run.distance, text: document.querySelector('#advEnd')?.innerText.replace(/\s+/g, ' '),
       tok: s.inv['currency.adventure_tokens'], best: s.inv['leaderboard.adventure_best_score'], road: s.claimed['progression.adventure_best_score'],
-      boosters: s.pending?.length, disk: [disk.inv['currency.adventure_tokens'], disk.inv['leaderboard.adventure_best_score'],
+      boosters: (s.boosterQueue?.length || 0) + (s.pending?.length || 0), disk: [disk.inv['currency.adventure_tokens'], disk.inv['leaderboard.adventure_best_score'],
         disk.claimed['progression.adventure_best_score']] }; });
   check('the firewall kills: "Tường lửa bắt kịp bạn" at 123 m, the road paid as one line', fe.why === 'fire' && fe.d === 123 && /123 m/.test(fe.text)
     && /Tường lửa bắt kịp bạn/.test(fe.text) && /\+123 xu phiêu lưu · Đường kỷ lục: \+800 xu phiêu lưu, Common Card/.test(fe.text), JSON.stringify({ ...fe, text: fe.text?.slice(0, 120) }));

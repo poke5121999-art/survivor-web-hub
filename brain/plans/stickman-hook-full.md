@@ -76,3 +76,14 @@ Nguyên tắc: vẫn "nhẹ, load nhanh".
   - Kiểm: play 83/83, pachinko 27/27, sim xem PARITY.md. Màn đầu 580 KB. Cổng parity: ok 27, version 16, not-built 6, web-bug 0.
   - Còn lại: VIP/No Ads, thẻ bài, thẻ thưởng Đường XP đúng prefab, avatar trên bảng Đua, lật trang Tuỳ biến.
   - Việc còn lại: đẩy lên Pages, tăng `rev` trong `data/games.js` lên 20261028i, chạy bài kiểm và chụp lại cặp trên Pages với `SH_URL`.
+- [~] Pha 6, phần 2 (2026-10-29, rev 20261028j, CHƯA đẩy lên Pages, CHƯA kiểm trên Pages): thẻ bài, booster, Chợ Đen. Chi tiết ở README, mục "Thẻ bài, booster, Chợ Đen".
+  - `tools/build_cards.py` → `data/cards.json` (33 thẻ, 7 booster, đơn giá Chợ Đen, `resource_boosting`, road perk). Art `m-cards.webp` + `m-boost.webp` qua `build_menus.py`.
+  - `js/cards.js` (luật) + `js/cardsui.js` (trang thẻ, popup mở booster, Chợ Đen và gói thẻ trong Chợ), nạp lười; màn đầu không nạp.
+  - Luật đọc asm (4 lượt dịch song song): cấp thẻ, perk, rút booster (XXHash64 + Xorshift128, độ hiếm không seed), double_cards, extra_draw, +1 Card (1 vé),
+    Chợ Đen 6 h, cộng tài nguyên theo thẻ, Second Chance 4 chế độ, Extra Lucky Wheel, Lucky Drop (x10, người que phụ, Bumper Resistance), thẻ Phiêu lưu.
+  - Thay chỗ đứng tạm: lượt bỏ qua màn theo cờ welcome booster → theo cấp thẻ `skip_level`; booster nằm `save.pending` → mở bằng popup; booster vòng quay → qua GetFallback;
+    chốt x10/người que chỉ có với `?pbonus` → theo thẻ; thẻ Đua và thẻ xu/kỹ năng Phiêu lưu "chưa có" → có.
+  - `[ĐỀ XUẤT]`: giá gói thẻ theo đơn giá Chợ Đen (3800 / 9800 / 49000), lượt quay thêm có thưởng (bản gốc quay mà không nhận), nhịp đếm ngược hồi sinh.
+  - Lucky Drop Limit không có tác dụng trong 9.9.60 (giá trị thử không ai đọc); giới hạn lượt/ngày của Lucky Drop vẫn bỏ như trước.
+  - Bài kiểm (local): `test/stickman-hook-play.js` 109/109, `test/stickman-hook-sim.js` 306/306, `test/stickman-hook-pachinko.js` 26/26 (ván rơi ô xu). Màn đầu 584 KB thô (trước 580).
+  - Việc còn lại: đẩy lên Pages, tăng `rev` trong `data/games.js` lên 20261028j, chạy bài kiểm trên Pages với `SH_URL`. Phiêu lưu nâng kỹ năng ngẫu nhiên ở bản gốc, web vẫn cho chọn.

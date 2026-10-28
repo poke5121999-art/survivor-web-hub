@@ -109,11 +109,13 @@ export function upgradeCost(data, save) {
 }
 
 // GetSkillUpgradeStatus [asm 0x126a390]: MAXED at GetSkillLevelMax (20 + 80), LOCKED at GetSkillLevelCap = maxLevel +
-// the limit-boost card's effect at the owned card level. No card system here: card level 0 -> effect 0 -> cap 20.
-export function skillStatus(data, save, id) {
+// trunc(the limit-boost card's effect at the owned card level) [asm 0x1269bb8..0x1269be8]: 20 without the card, 28 +
+// 8 (L - 1) at card level L. `cards` = app.cards (null: no card owned).
+export function skillCap(data, save, id, cards) { return skillDefs(data)[id].maxLevel + (cards ? cards.skillCapBonus(save, id) : 0); }
+export function skillStatus(data, save, id, cards = S?.app?.cards) {
   const s = skillDefs(data)[id], lv = skillLevel(save, id);
   if (lv >= s.top) return 'max';
-  return lv >= s.maxLevel ? 'locked' : 'up';
+  return lv >= skillCap(data, save, id, cards) ? 'locked' : 'up';
 }
 
 export function buySkill(data, save, id) {
@@ -122,7 +124,10 @@ export function buySkill(data, save, id) {
   if (qty(save, TOKENS) < cost) return { refused: 'tokens', cost };
   addQty(save, TOKENS, -cost);
   addQty(save, LEVEL + id, 1);
-  return { cost, level: skillLevel(save, id) };
+  // card.skill_upgrade_boost: a free level when the skill can still go up [asm 0x126a6b4..0x126a714]
+  const cards = S?.app?.cards, free = !!cards && skillStatus(data, save, id) === 'up' && cards.freeSkillLevel(save);
+  if (free) addQty(save, LEVEL + id, 1);
+  return { cost, level: skillLevel(save, id), free };
 }
 
 // The week's board, claiming a finished one first (LeaderboardsService.ClaimRewards, as js/race.js): position reward,
@@ -151,6 +156,9 @@ export function currentBoard(app, now = Date.now()) {
     st.board = { start: weekStart(now) };
     for (const r of [R_BEST, R_LAST, ROAD]) delete save.inv[r];
     delete save.claimed[ROAD];
+    // ReceiveWeeklyTokens right after ResetProgressionRoad [asm 0x1267e40..0x126805c]: card.weekly_starting_tokens
+    const n = app.cards?.weeklyTokens(save) || 0;
+    if (n) { addQty(save, TOKENS, n); claimed = { ...(claimed || {}), weekly: n }; }
   }
   app.writeSave();
   return { board: new Board(cfg, st.board.start), claimed };
@@ -170,6 +178,8 @@ export function endRun(app, distance) {
   save.inv[R_BEST] = Math.max(qty(save, R_BEST), distance);
   save.inv[ROAD] = qty(save, R_BEST);
   const got = [];
+  // ClaimPendingScore source finish_level_adventure [asm 0x12681c8]: card.daily_tokens_multiplier (first 1000 a day)
+  const bonus = distance >= 1 ? meta.bonus(save, TOKENS, 'finish_level_adventure', distance) : 0;
   if (distance >= 1) addQty(save, TOKENS, distance);
   const done = save.claimed[ROAD] ?? -1;
   for (const [v, rewards] of data.road) {
@@ -179,7 +189,7 @@ export function endRun(app, distance) {
   }
   slot(save).runs = (slot(save).runs || 0) + 1;
   app.writeSave();
-  return { distance, tokens: distance >= 1 ? distance : 0, best: qty(save, R_BEST), got };
+  return { distance, tokens: distance >= 1 ? distance + bonus : 0, best: qty(save, R_BEST), got };
 }
 
 const fmtTok = (n) => n.toLocaleString('vi-VN');
@@ -202,16 +212,23 @@ function tokenLabel(g) {
   if (g.tokens) return `+${g.tokens} xu phiêu lưu`;
   if (g.coins) return `+${g.coins} xu`;
   if (g.item) return 'Mở khoá ' + g.item.title;
-  if (g.later) return S.app.meta.resTitle(g.later) + ' (sắp có)';
+  if (g.booster) return S.app.meta.resTitle(g.booster) + (g.q > 1 ? ` ×${g.q}` : '');
+  if (g.later) return S.app.meta.resTitle(g.later);
   return '';
 }
 
 // ---- the Adventure page (AdventurePage): skills, the road, the week's board, play ------------------------------------
 export async function open(app) {
   await load(app);
+  await app.loadCards?.().catch(() => {});
   for (const o of ['modes', 'start', 'levels', 'advEnd']) if (document.getElementById(o)) app.overlay(o, false);
   stopRun();
-  page(app, currentBoard(app));
+  const b = currentBoard(app);
+  // AdventurePage.ClaimPendingRewards -> ClaimDailyTokens [asm 0x1137b90, 0x12682b0]: card.daily_login_tokens once a day
+  const daily = app.cards?.dailyTokens(app.save) || 0;
+  if (daily) { app.writeSave(); app.cardsUi?.cardToast(app, 'card.daily_login_tokens'); }
+  if (b.claimed?.weekly) app.cardsUi?.cardToast(app, 'card.weekly_starting_tokens');
+  page(app, b);
 }
 
 function page(app, { board, claimed }) {
@@ -225,12 +242,12 @@ function page(app, { board, claimed }) {
   const next = data.road.find(([v]) => v > (save.claimed[ROAD] ?? -1));
   const box = document.getElementById('adv');
   const skills = SKILL_IDS.map((id) => {
-    const s = S.skills[id], lv = skillLevel(save, id), st = skillStatus(data, save, id);
+    const s = S.skills[id], lv = skillLevel(save, id), st = skillStatus(data, save, id), cap = skillCap(data, save, id, app.cards);
     const v = skillValue(data, s, lv, 0);
     const shown = id === 'rope_length' ? v.toFixed(1) + ' m' : id === 'firewall_difficulty' ? '×' + v.toFixed(2) : Math.round(v * 100) + '%';
-    return `<div class="sk" data-id="${id}"><b>${SKILL_VI[id][0]} · cấp ${lv}/${s.maxLevel}</b>
-      <small>${SKILL_VI[id][1]} · hiện tại ${shown}</small><div class="bar"><i style="width:${(100 * lv) / s.maxLevel}%"></i></div>
-      <button ${st !== 'up' || tokens < cost ? 'disabled' : ''}>${st === 'up' ? `${cost} xu PL` : 'Tối đa'}</button></div>`;
+    return `<div class="sk" data-id="${id}"><b>${SKILL_VI[id][0]} · cấp ${lv}/${cap}</b>
+      <small>${SKILL_VI[id][1]} · hiện tại ${shown}</small><div class="bar"><i style="width:${(100 * lv) / cap}%"></i></div>
+      <button ${st !== 'up' || tokens < cost ? 'disabled' : ''}>${st === 'up' ? `${cost} xu PL` : st === 'locked' ? 'Cần thẻ' : 'Tối đa'}</button></div>`;
   }).join('');
   const roadCells = data.road.filter(([v]) => v >= (next ? next[0] : 0) - 100).slice(0, 12).map(([v, r]) =>
     `<div class="${v <= (save.claimed[ROAD] ?? -1) ? 'got' : ''}"><b>${v} m</b>${r.map(([res, q]) => res === TOKENS ? q + ' xu PL'
