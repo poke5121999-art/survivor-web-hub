@@ -6,6 +6,7 @@ import { carryLimit, UPGRADE } from '../sim/sim.js';
 import { Action } from '../sim/tasks.js';
 import { MartMenu } from './martmenu.js';
 import { Customise } from './customise.js';
+import { Unlocks } from './unlocks.js';
 
 const v3 = new THREE.Vector3();
 const KEYS = { ArrowUp: [0, -1], KeyW: [0, -1], ArrowDown: [0, 1], KeyS: [0, 1], ArrowLeft: [-1, 0], KeyA: [-1, 0], ArrowRight: [1, 0], KeyD: [1, 0] };
@@ -533,7 +534,7 @@ export class Hud {
     t.style.transform = `translate(${cx + dx * k}px, ${cy + dy * k}px) translate(-50%, -50%) rotate(${Math.atan2(dy, dx) - Math.PI / 2}rad)`;
   }
 
-  update() {
+  update(dt = 0) {
     const sim = this.sim, st = sim.state, s = this.store;
     this.cashEl.textContent = st.cash;
     this.root.classList.toggle('customising', !!(this.customise && this.customise.isOpen));
@@ -635,16 +636,18 @@ export class Hud {
     // unlocked since it was last looked at. The map button shows once a second mart has been reached.
     const seen = st.seen, unseen = !seen.workers || !seen.machines || (this.animalsTab() && !seen.animals);
     this.upBtn.classList.toggle('alert', unseen);
-    // [ĐỀ XUẤT] Customise, Rolling offer and Map come in when Store 1's tutorial ends (or a second mart is reached), then
-    // stay (global.featuresOn). The decompile shows no gate for them, but the gameplay clip of a new Store 1 has only
-    // Settings and Upgrade beside the cash; shop and spin keep their own unlocks (cashier mat, blender).
+    // Buttons that open one by one, each with a tip when it first shows (unlocks.js).
     if (this.martMap) {
-      const g = this.martMap.global, t = this.tasks;
-      if (!g.featuresOn && (g.visited.length > 1 || !t || !t.list.length || st.task.index >= t.list.length)) g.featuresOn = true;
-      const on = !!g.featuresOn;
-      this.root.querySelector('#mapbtn').style.display = on ? '' : 'none';
-      if (this.customise) this.root.querySelector('#custombtn').style.display = on ? '' : 'none';
-      if (this.shop) this.root.querySelector('#robtn').style.display = on ? '' : 'none';
+      const g = this.martMap.global, t = this.tasks, task = t && t.current;
+      const all = g.visited.length > 1 || !!g.featuresOn || !t || !t.list.length;
+      this.unlocks = this.unlocks || new Unlocks(this.root, g);
+      this.unlocks.update({
+        all, done: k => all || st.task.index > k, upgradeTask: !!(task && task.menu),
+        shop: !!(this.shop && this.shop.unlocked()), spin: !!(this.daily && this.daily.unlocked()),
+        phone: this.root.querySelector('#phonebtn').style.display !== 'none',
+      }, dt);
+      if (!this.customise) this.root.querySelector('#custombtn').style.display = 'none';
+      if (!this.shop) this.root.querySelector('#robtn').style.display = 'none';
     }
     this.updateFloats();
     if (this.upEl.classList.contains('open')) this.updateMenu();

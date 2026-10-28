@@ -74,6 +74,20 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #1f2a1b; tou
 .lb.alert .dot { display: block; }
 .upbtn.hint { animation: hintPulse 0.5s ease-in-out infinite alternate; filter: drop-shadow(0 0 6px #ffe14d); }
 @keyframes hintPulse { from { transform: scale(1); } to { transform: scale(1.15); } }
+/* New-feature tip (unlocks.js): the button pops in, the original arrow sprite bobs beside it pointing at it, and a
+   one-line bubble says what it is. Left column tips sit to the right of the button, the right column's to the left. */
+/* The endless pulse is on the icon, not the button, so the button's own box stays still (and clickable mid-pulse). */
+.lb.popin { animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); filter: drop-shadow(0 0 6px #ffe14d); z-index: 3; }
+.lb.popin img { animation: hintPulse 0.5s 0.4s ease-in-out infinite alternate; }
+.newtip { position: absolute; left: calc(100% + 0.9em); top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 0.3em;
+  white-space: nowrap; padding: 0.35em 0.7em 0.35em 1.5em; background: #fff; color: #4b3b2a; border-radius: 0.7em; font-size: clamp(12px, 1.9vh, 18px);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.25); pointer-events: none; animation: fadein 0.3s ease-out; }
+.newtip b { color: #ee3539; }
+.newtip .point { position: absolute; right: calc(100% - 1.1em); top: 50%; width: 2.2em; height: 1.7em; margin-top: -0.85em; background: #ffd21f;
+  transform: scaleX(-1); animation: pointLeft 0.6s ease-in-out infinite alternate; --u: 0.025em;
+  -webkit-mask: url(../art/ui/menus/arrow.webp) center / contain no-repeat; mask: url(../art/ui/menus/arrow.webp) center / contain no-repeat; }
+.rcol .newtip { left: auto; right: calc(100% + 0.9em); padding: 0.35em 1.5em 0.35em 0.7em; }
+.rcol .newtip .point { right: auto; left: calc(100% - 1.1em); transform: none; }
 /* z-index: menus sit above the right column (shop button + booster timers), which otherwise covered their close button. */
 .upmenu { display: none; position: absolute; z-index: 5; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 12vh); transform: translateX(-50%);
   width: min(calc(92 * var(--sw) / 100), 460px); max-height: 62vh; flex-direction: column; background: #fff; color: #4b3b2a; border-radius: 0.8em;

@@ -495,16 +495,27 @@ function serve() {
     check('the shop opens after the cashier mat: the one-time bundle pays 300 and leaves, the free bundle pays 60 then waits 5 min with a gem skip, a daily deal greys out',
       shopHidden && cash1.cash === cash0 + 300 && cash1.gone && cash2.cash === cash1.cash + 60 && /0[45]:\d\d/.test(cash2.wait) && cash2.skip && deal,
       JSON.stringify({ shopHidden, cash0, cash1, cash2, deal }));
-    // Customise / Rolling offer / Map wait for the end of Store 1's tutorial, then stay.
+    // Rolling offer, Customise and Map open at Store 1 tutorial steps 8, 10 and 14 (unlocks.js); each new button shows a
+    // NEW! tip with the arrow until pressed, one tip at a time, and the unlocks survive a reload.
     const gate = await page.evaluate(async () => {
-      const g = window.__mmGame, vis = id => getComputedStyle(document.querySelector(id)).display !== 'none';
-      const before = ['#custombtn', '#robtn', '#mapbtn'].map(vis);
-      g.sim.state.task.index = g.hud.tasks.list.length;
-      await new Promise(r => setTimeout(r, 300));
-      return { before, after: ['#custombtn', '#robtn', '#mapbtn'].map(vis), latched: !!g.hud.martMap.global.featuresOn };
+      const g = window.__mmGame, ids = ['#robtn', '#custombtn', '#mapbtn'], wait = ms => new Promise(r => setTimeout(r, ms));
+      const vis = () => ids.map(id => getComputedStyle(document.querySelector(id)).display !== 'none');
+      const tips = () => [...document.querySelectorAll('.newtip')].map(t => t.parentNode.id);
+      const press = async () => { for (let k = 0; k < 6 && tips().length; k++) { document.querySelector('#' + tips()[0]).click(); g.hud.closeMenus(); await wait(250); } };
+      const out = { start: vis() };
+      g.sim.state.task.index = 9; await wait(300);
+      out.at9 = vis(); out.tips9 = tips(); await press(); out.cleared9 = tips();
+      g.sim.state.task.index = 11; await wait(300);
+      out.at11 = vis(); out.tips11 = tips(); await press();
+      g.sim.state.task.index = g.hud.tasks.list.length; await wait(300);
+      out.end = vis(); out.tipsEnd = tips(); await press();
+      out.state = { ...g.hud.martMap.global.unlocks };
+      return out;
     });
-    check('Customise, Rolling offer and Map stay hidden in a new Store 1 until its tutorial ends',
-      gate.before.every(v => !v) && gate.after.every(Boolean) && gate.latched, JSON.stringify(gate));
+    check('Rolling offer, Customise and Map open one by one at tutorial steps 8, 10 and 14, each with a NEW! tip that goes once pressed',
+      gate.start.every(v => !v) && gate.at9.join() === 'true,false,false' && gate.tips9.length === 1 && gate.cleared9.length === 0
+      && gate.at11.join() === 'true,true,false' && gate.tips11.join() === 'custombtn' && gate.end.every(Boolean) && gate.tipsEnd.join() === 'mapbtn'
+      && ['rolling', 'custom', 'map'].every(k => gate.state[k] === 'seen'), JSON.stringify(gate));
     await page.click('#robtn', { timeout: 5000 }).catch(() => {});
     const ro0 =await page.evaluate(() => ({ cash: window.__mmGame.sim.state.cash, cheapest: window.__mmGame.shop.wallet.cheapest() }));
     await page.click('[data-claim="0"]', { timeout: 5000 }).catch(() => {});
@@ -517,11 +528,12 @@ function serve() {
     const boostBefore = await page.evaluate(() => { const b = window.__mmGame.sim.boosters; b.grant('worker', 1800); b.grant('worker', 1800); dispatchEvent(new Event('pagehide')); return Math.round(b.left('worker')); });
     await page.goto(url);
     await page.waitForFunction(() => window.__mm && (window.__mm.ready || window.__mm.error), null, { timeout: 90000 });
-    const kept = await page.evaluate(() => ({ ro: window.__mmGame.shop.g.ro, once: !!window.__mmGame.shop.g.shop.bought.coin_bundle_05, btn: getComputedStyle(document.querySelector('#shopbtn')).display !== 'none',
+    await page.waitForTimeout(500);
+    const kept = await page.evaluate(() => ({ unlocked: ['#robtn', '#custombtn', '#mapbtn'].every(id => getComputedStyle(document.querySelector(id)).display !== 'none'), tips: document.querySelectorAll('.newtip').length, ro: window.__mmGame.shop.g.ro, once: !!window.__mmGame.shop.g.shop.bought.coin_bundle_05, btn: getComputedStyle(document.querySelector('#shopbtn')).display !== 'none',
       worker: Math.round(window.__mmGame.sim.boosters.left('worker')) }));
-    check('the rolling offer pays half the cheapest mat, scrolls to the next card unlocked, and the ladder, shop and a 1-hour worker booster survive a reload',
+    check('the rolling offer pays half the cheapest mat, scrolls to the next card unlocked, and the ladder, shop, opened buttons and a 1-hour worker booster survive a reload',
       ro0.cheapest > 0 && ro1.cash === ro0.cash + Math.trunc(0.5 * ro0.cheapest) && ro1.ro === 1 && ro1.top === '1' && !ro1.locked
-      && kept.ro === 1 && kept.once && kept.btn && boostBefore >= 3600 && Math.abs(kept.worker - boostBefore) <= 2, JSON.stringify({ ro0, ro1, kept, boostBefore }));
+      && kept.ro === 1 && kept.once && kept.btn && kept.unlocked && kept.tips === 0 && boostBefore >= 3600 && Math.abs(kept.worker - boostBefore) <= 2, JSON.stringify({ ro0, ro1, kept, boostBefore }));
 
     // Seasonal marts (census-events.md): Halloween Mart loads from its own CSV (18 mats), greets with
     // martCashAmounts[13] = 1000, has no next-mart pad, and the map lists all six as open event marts with no prestige.
