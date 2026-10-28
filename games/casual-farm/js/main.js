@@ -25,6 +25,7 @@ import { CityMap } from './view/citymap.js';
 import { Looks } from './view/looks.js';
 import { cosmeticsState, saveCosmetics, cosmeticEffects } from './view/customise.js';
 import { Daily } from './view/daily.js';
+import { pull, push, owner } from './cloud.js';
 
 const params = new URLSearchParams(location.search);
 const V = new URL(import.meta.url).searchParams.get('v') || '';
@@ -36,9 +37,12 @@ const MART_KEY = id => `mmm-${id}-v1`;
 const load_ = k => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } };
 const store_ = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } };
 const fresh = params.has('fresh');
+// A signed-in account's cloud save replaces the local one first when it is newer or the local one is someone else's.
+const cloudState = fresh ? 'off' : await pull();
 // Before marts existed the only save was Store 1's, which then also held the cash.
 const global = (!fresh && load_(GLOBAL_KEY)) || { mart: 'store1', cash: (!fresh && load_(MART_KEY('store1')) || {}).cash || 0 };
 if (params.get('mart')) global.mart = params.get('mart');
+if (owner()) global.owner = owner();
 const STORE = global.mart;
 // Map menu state: marts reached so far (older saves: every mart with a save) and when each one's idle income was
 // last collected; the 3-hour clock starts on the first visit.
@@ -83,7 +87,7 @@ window.addEventListener('resize', resize);
 resize();
 
 // Load stages drive the blur: the scene shows as soon as geometry exists, then sharpens as the rest arrives.
-const mm = window.__mm = { stage: 'boot', blur: 14, stages: [] };
+const mm = window.__mm = { stage: 'boot', blur: 14, stages: [], cloud: cloudState };
 function setStage(px, label) {
   mm.blur = px;
   mm.stage = label;
@@ -252,8 +256,10 @@ function save() {
   global.cash = d.cash;
   store_(MART_KEY(STORE), d);
   global.savedAt = Date.now();
+  global.ver = (global.ver || 0) + 1;
   store_(GLOBAL_KEY, global);
   game.hud.saved();
+  push();
 }
 
 // MatNextStore.FillUpCompleted: the van leaves after 1.0 s and drives for 1.5 s, then the next scene loads.
@@ -271,9 +277,11 @@ function travel(id, wipe = null) {
   store_(GLOBAL_KEY, global);
   const keep = new URLSearchParams();
   if (params.has('bot')) keep.set('bot', '');
-  location.replace(`${location.pathname}${keep.toString() ? `?${keep}` : ''}`);
+  // The upload goes out before the reload (up to 2 s), so the next mart starts from what the account holds.
+  const go = () => location.replace(`${location.pathname}${keep.toString() ? `?${keep}` : ''}`);
+  Promise.race([push(true), new Promise(ok => setTimeout(ok, 2000))]).then(go, go);
 }
-document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) { save(); push(true); } });
 window.addEventListener('pagehide', save);
 
 function frame() {

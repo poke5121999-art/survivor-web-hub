@@ -471,6 +471,63 @@ function serve() {
     check('a first visit to Store 2 offers 300 cash, the ad button doubles it, and a reload does not offer it again',
       wel.open && wel.amt === '300' && wel2 === wel.cash + 600 && !wel3, JSON.stringify({ ...wel, after: wel2, again: wel3 }));
 
+    // Account save (js/cloud.js over the hub's HubSave): a stand-in HubSave keeps one cloud row per account in
+    // localStorage key __cloud_<uid> and signs in as __uid. Account A saves, a second device (local save cleared) gets
+    // A's progress back, account B on the same browser starts fresh with A's save parked, and A gets its own back.
+    const size = await page.evaluate(async () => JSON.stringify((await import('./js/cloud.js')).localPayload()).length);
+    check('the whole save fits the 100 KB cloud row after this session', size > 1000 && size < 102400, `${size} bytes`);
+    const ctx2 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    await ctx2.addInitScript(() => {
+      const uid = () => localStorage.getItem('__uid');
+      const fake = {
+        isAvailable: () => !!uid(),
+        whoAmI: () => ({ signedIn: !!uid(), userId: uid() }),
+        loadSave: async () => {
+          const row = localStorage.getItem(`__cloud_${uid()}`);
+          return row ? { ok: true, found: true, payload: JSON.parse(row) } : { ok: true, found: false };
+        },
+        storeSave: async (id, payload) => { localStorage.setItem(`__cloud_${uid()}`, JSON.stringify(payload)); window.__pushes = (window.__pushes || 0) + 1; return { ok: true }; },
+      };
+      Object.defineProperty(window, 'HubSave', { get: () => fake, set: () => {}, configurable: true });
+    });
+    const cp = await ctx2.newPage();
+    cp.on('pageerror', e => errors.push(e.message));
+    // Leave the game for a plain same-origin file first: the game's pagehide save would undo the clearing.
+    const blank = url.replace(/index\.html$/, 'art/sfx/sfx.json');
+    const boot = async (uid, clearLocal) => {
+      await cp.goto(blank);
+      await cp.evaluate(([u, c]) => {
+        localStorage.setItem('__uid', u);
+        if (c) Object.keys(localStorage).filter(k => /^mmm-/.test(k)).forEach(k => localStorage.removeItem(k));
+      }, [uid, clearLocal]);
+      await cp.goto(url);
+      await cp.waitForFunction(() => window.__mm && (window.__mm.ready || window.__mm.error), null, { timeout: 90000 });
+      return cp.evaluate(() => {
+        const g = window.__mmGame;
+        return { cloud: window.__mm.cloud, cash: g.sim.state.cash, cashier: !!g.sim.state.mats.Mat_Activate_Cashier.done,
+          backups: Object.keys(localStorage).filter(k => /^mmm-bak-/.test(k)) };
+      });
+    };
+    const a0 = await boot('A', true);
+    await cp.evaluate(() => {
+      const g = window.__mmGame;
+      g.sim.step = () => {};
+      g.sim.completeMat(g.store.mats.find(m => m.name === 'Mat_Activate_Cashier'));
+      g.sim.state.cash = 1234;
+      dispatchEvent(new Event('pagehide'));
+    });
+    await cp.waitForTimeout(300);
+    const row = await cp.evaluate(() => { const r = JSON.parse(localStorage.getItem('__cloud_A') || 'null'); return r && { cash: r.global.cash, owner: r.global.owner, marts: Object.keys(r.marts) }; });
+    const a1 = await boot('A', true);
+    const b1 = await boot('B', false);
+    const a2 = await boot('A', false);
+    check('the save follows the account: a second device gets A back, B starts fresh, A returns to its own',
+      row && row.cash === 1234 && row.owner === 'A' && row.marts.includes('store1')
+      && a1.cloud === 'cloud' && a1.cash === 1234 && a1.cashier
+      && b1.cloud === 'fresh' && b1.cash !== 1234 && !b1.cashier && b1.backups.includes('mmm-bak-A')
+      && a2.cloud === 'cloud' && a2.cash === 1234 && a2.cashier, JSON.stringify({ a0: a0.cloud, row, a1, b1, a2 }));
+    await ctx2.close();
+
     // Stores 9-14 build their mats from the progression CSV: the first one is open and drawn.
     await page.goto(`${url}?mart=store9&fresh`);
     await page.waitForFunction(() => window.__mm && (window.__mm.ready || window.__mm.error), null, { timeout: 90000 });
