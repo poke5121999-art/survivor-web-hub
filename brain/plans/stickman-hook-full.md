@@ -92,7 +92,18 @@ Nguyên tắc: vẫn "nhẹ, load nhanh".
   - `js/daily.js` (mới, nạp lười): `FormatDateId` = `yyyy-MM-dd`; giới hạn ngày `GameModesService` (Lucky Drop 1 + 2 vé, sự kiện 1 + vé không trần, Đua 2 + vé); vòng một màn mỗi ngày của sự kiện (`SeasonalEventState`), nhận quà hôm nay thì hết hôm nay. Bàn Lucky Drop bốc lại mỗi ngày.
   - Vùng chết = hộp `CameraLimitsBottom/Left` (`CameraService.PlaceBorder` [asm 0x127a1b0]): 9:16 chết dưới −6.695 / trái −5.853 quanh tâm camera (`camera.js deathLimits`, bot dùng chung). Thay số `[ĐỀ XUẤT]` 0.3.
   - Extra Lucky Wheel: lượt quay thêm không phát thưởng như bản gốc.
-  - Còn `[ĐỀ XUẤT]` luật: mở Grapple/Challenge theo XP (gốc cần nhận mốc Đường XP), thưởng sự kiện (server), đồng hồ server, giá gói vé/gói thẻ (tiền thật), heo đất chỉ lần đầu qua màn, popup booster cấp đúng cái đã hiện.
-  - Chưa làm: hạt của trail, hiệu ứng động của skin biến thể (mục 4).
+  - Còn `[ĐỀ XUẤT]` luật: mở Grapple/Challenge theo XP (gốc cần nhận mốc Đường XP; đã sửa ở 20261028l), thưởng sự kiện (server), đồng hồ server, giá gói vé/gói thẻ (tiền thật), heo đất chỉ lần đầu qua màn, popup booster cấp đúng cái đã hiện.
+  - Chưa làm: hạt của trail, hiệu ứng động của skin biến thể (mục 4). Đã làm ở 20261028l.
   - Bài kiểm (local): `test/stickman-hook-play.js` 119/119, `test/stickman-hook-sim.js` 307/307, `test/stickman-hook-pachinko.js` 30/30. Màn đầu 589 KB thô (trước 584).
   - Việc còn lại: đẩy lên Pages, tăng `rev` trong `data/games.js` lên 20261028k, chạy bài kiểm trên Pages với `SH_URL`.
+- [~] Bốn chỗ lệch cuối (2026-10-29, rev 20261028l, CHƯA đẩy lên Pages, CHƯA kiểm trên Pages): chi tiết ở README (4 mục rev 20261028l) và `docs/PARITY.md` mục 20261028l.
+  - Mở chế độ theo mốc Đường XP **đã nhận** (`IsUnlocked` [asm 0x1296df4], `HasUnlockedLevel` [asm 0x1296bf4], `OnModeLevelUnlocked` [asm 0x1297dec]).
+  - Popup Đường XP tự mở: sau màn có XP (trước heo đất) và ở trang chính (`XpRoadService.OnXpChanged` [asm 0x11a0310], `xp_road_recovery` [asm 0x1192fa0]).
+    Thứ tự: sao bay, thanh chạy, `ClaimAllRewards`, 600 ms, đóng. Dựng theo prefab `XpRoadPopup` và thẻ Big/Small/Mode. Hạng đếm từ 0.
+  - Bản lưu cũ: `progression.xp_claimed` = mốc cuối đã bấm nhận. Phần XP còn lại được nhận ở lần vào trang chính tới.
+  - Hạt trail: `tools/build_trails.py` → `data/trailfx/`, `art/trailfx/`, `js/trailfx.js`, nạp theo trail đang dùng. 24/26 trail có hạt.
+  - Skin biến thể động theo mã GLES3: 35/51 skin, `art/fx/` nạp lười, `meta.json` không đổi.
+  - Heo đất đầy: hiện màu, thanh bộ sưu tập, LOSE IT sau 600 ms.
+  - Bài kiểm (local): `test/stickman-hook-play.js` 133/133, `test/stickman-hook-sim.js` 307/307, `test/stickman-hook-pachinko.js` 30/30. Màn đầu 595 KB thô (trước 589).
+  - Còn lệch: `ModeUnlockedPopup` và popup mở item vẫn là toast, "TOP n %" của hạng (server), thông số đường bay sao (`CurveProfile`) là `[ĐỀ XUẤT]`.
+  - Việc còn lại: đẩy lên Pages, tăng `rev` trong `data/games.js` lên 20261028l, chạy bài kiểm trên Pages với `SH_URL`.

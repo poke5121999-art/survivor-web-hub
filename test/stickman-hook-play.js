@@ -70,6 +70,9 @@ function serve() {
   check('first level loads no mode data', modeFiles.length === 0, modeFiles.join(' '));
   const bonusFiles = requested.filter((u) => /bonus\.js|bonus\.json|wheel\.webp|piggy\.webp|skip\.webp|endgame\.js|\/ui\.webp|\/ui\.json/.test(u));
   check('first level loads no wheel / piggy / skip / end game code or art', bonusFiles.length === 0, bonusFiles.join(' '));
+  const fxFiles = requested.filter((u) => /trailfx|\/fx\.js|art\/fx\/|m-road/.test(u));
+  check('first level loads no trail particle / skin effect / road code or art; default trail has no particles',
+    fxFiles.length === 0 && await page.evaluate(() => window.__sh.trailfx === null), fxFiles.join(' '));
   const cardsEarly = requested.filter((u) => /cards\.js|cardsui\.js|cards\.json|m-cards|m-boost/.test(u));
   check('first level loads no cards code, data or art', cardsEarly.length === 0, cardsEarly.join(' '));
   check('level 1 is Solo1 with one target', await page.evaluate(() => window.__sh.world.names.join() === 'Solo1' && window.__sh.world.targets.length === 1));
@@ -108,6 +111,24 @@ function serve() {
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('stickman-hook') || '{}'));
   check('progress saved (best level 1)', saved.best === 1, `best ${saved.best}`);
   check('level 1 gives +10 XP', saved.xp === 10, `xp ${saved.xp}`);
+  // XpRoadService.OnXpChanged: the 10 XP are pending, so the automatic XP road popup opens before the piggy bank
+  await page.waitForFunction(() => !!document.getElementById('road')?.dataset.states, null, { timeout: 10000, polling: 30 }).catch(() => {});
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: path.join(SHOTS, 'road-auto.png') });
+  const rpop = await page.evaluate(() => { const r = document.getElementById('road'); return { first: r?.dataset.states.split(',')[0],
+    home: r?.dataset.home, pend: r?.dataset.pend }; });
+  check('level 1 end: the XP road popup opens by itself, animating 10 pending XP with the back button hidden',
+    rpop.first === 'animating' && rpop.home === 'hidden' && rpop.pend === '10', JSON.stringify(rpop));
+  await page.waitForFunction(() => document.getElementById('road')?.dataset.state === 'claimed', null, { timeout: 8000 }).catch(() => {});
+  await page.screenshot({ path: path.join(SHOTS, 'road-auto-claimed.png') });
+  const rc = await page.evaluate(() => ({ claimed: window.__sh.save.inv['progression.xp_claimed'], step: window.__sh.save.claimed['progression.xp'],
+    wheel: !!window.__sh.save.modes['mode.lucky_wheel']?.unlocked, pops: document.querySelectorAll('#road .rcard .ok.pop').length,
+    card: document.querySelector('#road .rcard[data-step="0"]')?.dataset.kind }));
+  check('ClaimAllRewards: claimed XP 10, step 0 (0 XP, Lucky Wheel, a ModeReward card) claimed with its check mark',
+    rc.claimed === 10 && rc.step === 0 && rc.wheel && rc.pops === 1 && rc.card === 'mode', JSON.stringify(rc));
+  await page.waitForFunction(() => document.getElementById('road')?.dataset.state === 'closed', null, { timeout: 4000 }).catch(() => {});
+  check('the popup closes by itself 600 ms after the claim', await page.evaluate(() => !document.querySelector('#road.on')
+    && document.getElementById('road').dataset.states === 'animating,claimed,closed'));
   await page.waitForFunction(() => window.__sh.look.dance?.id === 'skin.basic', null, { timeout: 10000 }).catch(() => {});
   check('finish plays the skin dance clip', await page.evaluate(() => window.__sh.look.dance?.id === 'skin.basic'));
   // piggy bank: a Normal level's first completion fills it by fillConfigs[threshold 0].levelComplete = 10; the full-screen
@@ -173,17 +194,38 @@ function serve() {
   const owned = await page.evaluate(() => window.__sh.save.owned.skins);
   check('Normal level road unlocks its skins', owned.includes('basket') && owned.includes('ping_pong'), owned.join(','));
 
+  // reached but unclaimed steps grant nothing until the popup claims them: Race (150 XP) stays locked
+  check('XP alone does not unlock: Race (150 XP) stays locked until claimed', await page.evaluate(() =>
+    !window.__sh.save.modes['mode.tournament']?.unlocked
+    && !window.__sh.meta.modeState(window.__sh.save, window.__sh.meta.d.modes.find((m) => m[0] === 'mode.tournament')).open));
+  // opening the road with pending XP animates and claims too (OnShowEndedAsync), then closes
   await page.evaluate(() => window.__sh.openMenu('openRoad'));
-  await page.waitForSelector('#road .foot .big:not([disabled])', { timeout: 10000 });
-  await page.waitForTimeout(300);
+  await page.waitForFunction(() => document.getElementById('road')?.dataset.state === 'animating', null, { timeout: 10000, polling: 30 }).catch(() => {});
+  await page.waitForTimeout(500);
   await page.screenshot({ path: path.join(SHOTS, 'road.png') });
-  await page.click('#road .foot .big');
-  await page.waitForFunction(() => window.__sh.save.coins === 150, null, { timeout: 10000 }).catch(() => {});
-  const road = await page.evaluate(() => ({ ropes: window.__sh.save.owned.ropes, claimed: window.__sh.save.claimed['progression.xp'],
-    coins: window.__sh.save.coins }));
-  check('XP road claim grants its rewards', road.ropes.includes('spiders') && road.claimed >= 275 && road.coins === 150, JSON.stringify(road));
+  await page.waitForFunction(() => document.getElementById('road')?.dataset.state === 'claimed', null, { timeout: 8000 }).catch(() => {});
   await page.screenshot({ path: path.join(SHOTS, 'road-claimed.png') });
-  await page.click('#road .x');
+  const road = await page.evaluate(() => ({ ropes: window.__sh.save.owned.ropes, claimed: window.__sh.save.claimed['progression.xp'],
+    coins: window.__sh.save.coins, race: !!window.__sh.save.modes['mode.tournament']?.unlocked,
+    cards: [...document.querySelectorAll('#road .rcard')].slice(0, 6).map((c) => c.dataset.kind).join() }));
+  check('XP road popup claims the steps under the pending XP (300 + the level road skins): Spiders rope, 150 coins, Race, up to 350; cards mode,big,small,mode,big,big',
+    road.ropes.includes('spiders') && road.claimed === 350 && road.coins === 150 && road.race && road.cards === 'mode,big,small,mode,big,big',
+    JSON.stringify(road));
+  await page.waitForFunction(() => document.getElementById('road')?.dataset.state === 'closed', null, { timeout: 4000 }).catch(() => {});
+  // the unlocked items' XP is pending again: the popup shows again until nothing is (main.js roadPopup)
+  await page.evaluate(() => window.__sh.app.roadPopup());
+  const road2 = await page.evaluate(() => ({ claimed: window.__sh.save.claimed['progression.xp'], pend: window.__sh.meta.xpPending(window.__sh.save),
+    pachinko: !!window.__sh.save.modes['mode.pachinko']?.unlocked }));
+  check('item XP from the claim is pending again; the next popup claims on to 450 (Lama)', road2.claimed === 450 && road2.pend === 0 && road2.pachinko,
+    JSON.stringify(road2));
+  // nothing pending: the road opens to browse with its back button
+  await page.evaluate(() => window.__sh.openMenu('openRoad'));
+  await page.waitForFunction(() => document.getElementById('road')?.dataset.state === 'browse', null, { timeout: 10000 }).catch(() => {});
+  check('with nothing pending the road opens to browse, Home button shown; ranks count from 0 (1850 XP = rank 21 as in the 2026 clip)',
+    await page.evaluate(() => getComputedStyle(document.querySelector('#road .home')).display !== 'none'
+      && window.__sh.meta.rankOf(1850) === 21 && window.__sh.meta.rankOf(0) === 0
+      && document.querySelector('#road .oct.medal')?.dataset.step === String(window.__sh.meta.rankOf(window.__sh.save.xp))));
+  await page.click('#road .home');
 
   await page.evaluate(() => window.__sh.openMenu('openShop'));
   await page.waitForSelector('#shop .cell[data-id="skin.basket"]', { timeout: 10000 });
@@ -233,6 +275,54 @@ function serve() {
   await page.mouse.up({ button: 'left' });
   check('effect variant skin uses the base sheet', await page.evaluate(() => window.__sh.look.skin?.id === 'skin.alien_hologram_travelers')
     && requested.some((u) => u.includes('/art/skins/alien.webp')));
+  // AllIn1SpriteShader animation (fx.js, art/fx/anim.json): hologram stripes scroll with _Time, so one texel's alpha changes
+  const holo = await page.evaluate(() => { const fx = window.__sh.look.skin.fx, n = window.__sh.look.skin.states[2][0];
+    return { anim: fx.anim.map((o) => o[0]).join(), hs: fx.anim.find((o) => o[0] === 'hs').slice(1).join(),
+      a0: fx.sample(n, 10, 0.575, 0.025)[3], a1: fx.sample(n, 10.5, 0.575, 0.025)[3] }; });
+  check('hologram skin animates as the shader: ops t,gl,fl,hs,ca,ol, stripes [0.069,0.11,3.19,0.43,1], texel alpha 255 at t 10 -> 154 at 10.5',
+    holo.anim === 't,gl,fl,hs,ca,ol' && holo.hs === '0.069,0.11,3.19,0.43,1' && holo.a0 === 255 && holo.a1 === 154, JSON.stringify(holo));
+  // a static variant keeps its one bake; shake (SHAKEUV) moves the pivot only
+  const fx2 = await page.evaluate(async () => {
+    const m = window.__sh.meta, cu = window.__sh.app.custom;
+    const pix = await cu.skin(m.byId.get('skin.basket_pixelated_friends')), cl = await cu.skin(m.byId.get('skin.cloud_the_negative_ones'));
+    const n = cl.states[2][0];
+    return { pixAnim: pix.fx.animated, pixOps: JSON.stringify(pix.fx.ops), clPer: cl.fx.perPixel,
+      p0: Math.round(cl.fx.render(n, 10)[1][4] * 100) / 100, p1: Math.round(cl.fx.render(n, 10.2)[1][4] * 100) / 100 };
+  });
+  check('Pixelated Friends stays a static bake (pix 84); Negative Ones shakes its pivot 86.77 -> 90.11 without a per-pixel pass',
+    !fx2.pixAnim && fx2.pixOps === '[["pix",84]]' && fx2.clPer === false && fx2.p0 === 86.77 && fx2.p1 === 90.11, JSON.stringify(fx2));
+  await page.evaluate(() => window.__sh.startLevel(0));
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: path.join(SHOTS, 'skin-fx-2.png') });
+
+  // trail particles (trailfx.js): the fire trail's prefab systems, loaded only when it is equipped
+  await page.evaluate(() => { const s = window.__sh.save; s.owned.trails.push('fire'); s.equipped.trails = 'fire'; window.__sh.applyEquip(); });
+  await page.waitForFunction(() => window.__sh.trailfx?.name === 'fire', null, { timeout: 10000 }).catch(() => {});
+  const overlays0 = await page.evaluate(() => [...document.querySelectorAll('.overlay.on')].map((e) => e.id).join());
+  await page.evaluate(() => { for (const e of document.querySelectorAll('.overlay.on')) window.__sh.overlay(e.id, false); window.__sh.startLevel(2); });
+  await page.waitForFunction(() => window.__sh.game.phase === 'play', null, { timeout: 5000 });
+  const tf0 = await page.evaluate(() => window.__sh.trailfx);
+  await page.mouse.move(195, 600); // off the pause button, where the last click (the shop's home button) left the mouse
+  await page.mouse.down({ button: 'left' });
+  await page.waitForTimeout(800);
+  const tf1 = await page.evaluate(() => window.__sh.trailfx);
+  const tf1p = await page.evaluate(() => window.__sh.game.paused + ' ' + window.__sh.game.phase);
+  await page.screenshot({ path: path.join(SHOTS, 'trail-fire.png') });
+  await page.mouse.up({ button: 'left' });
+  check('fire trail: data/trailfx/fire.json + art loaded, 3 systems BaseFollow/BaseSmoke/BaseShine (max 1000), 0 at spawn, 30-80 particles after 0.8 s',
+    requested.some((u) => u.includes('/data/trailfx/fire.json')) && requested.some((u) => u.includes('/art/trailfx/fire.webp'))
+    && tf1?.line === true && tf1.systems.map((x) => x.name + ':' + x.max).join() === 'BaseFollow:1000,BaseSmoke:1000,BaseShine:1000'
+    && tf0.count === 0 && tf1.count >= 30 && tf1.count <= 80, JSON.stringify({ overlays0, paused: tf1p, tf0: tf0?.count, tf1 }));
+  await page.evaluate(() => { const s = window.__sh.save; s.owned.trails.push('candy', 'thunder'); s.equipped.trails = 'candy'; window.__sh.applyEquip(); });
+  await page.waitForFunction(() => window.__sh.trailfx?.name === 'candy', null, { timeout: 10000 }).catch(() => {});
+  const candy = await page.evaluate(() => window.__sh.trailfx.systems.find((x) => x.name === 'BaseFollow')?.max);
+  await page.evaluate(() => { window.__sh.save.equipped.trails = 'thunder'; window.__sh.applyEquip(); });
+  await page.waitForFunction(() => window.__sh.trailfx?.name === 'thunder', null, { timeout: 10000 }).catch(() => {});
+  const gold = await page.evaluate(() => window.__sh.trailfx?.line);
+  check('candy BaseFollow keeps at most 100 particles; thunder has no trail line (TrailRenderer off)', candy === 100 && gold === false,
+    JSON.stringify({ candy, gold }));
+  await page.evaluate(() => { const s = window.__sh.save; s.equipped.trails = 'basic'; s.equipped.skins = 'alien_hologram_travelers'; window.__sh.applyEquip();
+    window.__sh.overlay('start', true); });
 
   await page.evaluate(() => window.__sh.openMenu('openModes'));
   await page.waitForSelector('#modes .mode', { timeout: 10000 });
@@ -252,9 +342,23 @@ function serve() {
   await page.click('#btnPlay');
 
   // ---- modes. Helpers: open a mode from the mode list and pick a level; jump past the finish line.
+  // the automatic XP road popup and the boosters it claims (welcome pack at 550 XP...) open over the home page:
+  // let the popup finish and open / close every booster, as a player would
+  const settle = async () => {
+    await page.waitForFunction(() => !document.querySelector('#road.on'), null, { timeout: 15000 }).catch(() => {});
+    await page.waitForTimeout(300);
+    for (let k = 0; k < 8 && await page.evaluate(() => !!document.querySelector('#boostPop.on')); k++) {
+      for (let i = 0; i < 12 && !(await page.evaluate(() => document.getElementById('boostPop').classList.contains('done'))); i++) {
+        await page.mouse.click(195, 500); await page.waitForTimeout(i ? 450 : 2300);
+      }
+      await page.click('#boostPop .close'); await page.waitForTimeout(1200);
+    }
+  };
   const playMode = async (id, level) => {
+    await page.waitForFunction(() => !document.querySelector('#road.on'), null, { timeout: 15000 }).catch(() => {});
     // from a level's end page: Home first (the end page covers the level, as in the original)
     if (await page.evaluate(() => !!document.querySelector('#egPage.on'))) await page.click('#egHome');
+    await settle();
     await page.evaluate(() => window.__sh.openMenu('openModes'));
     await page.waitForSelector(`#modes .mode[data-id="${id}"] button`, { timeout: 10000 });
     await page.click(`#modes .mode[data-id="${id}"] button`);
@@ -351,6 +455,16 @@ function serve() {
   });
   await page.goto(level1);
   await page.waitForFunction(() => window.__sh && window.__sh.world, null, { timeout: 30000 });
+  const lock0 = await page.evaluate(() => ['mode.grapple', 'mode.challenge'].map((id) =>
+    window.__sh.meta.modeState(window.__sh.save, window.__sh.meta.d.modes.find((m) => m[0] === id)).open).join());
+  // GameModesService.IsUnlocked = the mode resource owned: 3000 XP opens nothing until the road popup claims it
+  await page.evaluate(() => window.__sh.app.roadPopup());
+  const lock1 = await page.evaluate(() => ({ open: ['mode.grapple', 'mode.challenge'].map((id) =>
+    window.__sh.meta.modeState(window.__sh.save, window.__sh.meta.d.modes.find((m) => m[0] === id)).open).join(),
+    levels: window.__sh.save.modes['mode.challenge']?.levels, claimed: window.__sh.save.inv['progression.xp_claimed'], xp: window.__sh.save.xp }));
+  check('Grapple / Challenge locked at 3000 XP until claimed; the popup claims them, and again for the item XP (4 Challenge levels), claimed XP = XP',
+    lock0 === 'false,false' && lock1.open === 'true,true' && lock1.levels === 4 && lock1.claimed === lock1.xp, JSON.stringify({ lock0, lock1 }));
+  const xpClaimed = lock1.xp;
   await page.evaluate(() => window.__sh.openMenu('openModes'));
   await page.waitForSelector('#modes .mode', { timeout: 10000 });
   await page.screenshot({ path: path.join(SHOTS, 'modes-open.png') });
@@ -374,11 +488,11 @@ function serve() {
   await page.waitForFunction(() => window.__sh.game.phase === 'play', null, { timeout: 5000 }).catch(() => {});
   await finishNow();
   const gSave = await page.evaluate(() => window.__sh.save);
-  check('finishing Grapple 1 gives 10 XP and saves it', gSave.xp === 3010 && gSave.modes['mode.grapple'].best === 1,
+  check('finishing Grapple 1 gives 10 XP and saves it', gSave.xp === xpClaimed + 10 && gSave.modes['mode.grapple'].best === 1,
     `xp ${gSave.xp} ${JSON.stringify(gSave.modes['mode.grapple'])}`);
 
   const cp = await playMode('mode.challenge', 1);
-  check('Challenge picker shows 30 levels, 4 open at 3000 XP', cp.n === 30 && cp.open === 4, JSON.stringify(cp));
+  check('Challenge picker shows 30 levels, 5 open (4 claimed Challenge levels)', cp.n === 30 && cp.open === 5, JSON.stringify(cp));
   const ch = await bgAt();
   check('Challenge level 1 loads with the Challenge theme', ch.theme === '#35C1CC' && ch.px !== grapple.px
     && await page.evaluate(() => window.__sh.world.names.join('+') === 'STARTU031+MIDDLEv2_002+FINISH40'), `${ch.theme} ${ch.px}`);
@@ -387,15 +501,17 @@ function serve() {
   await page.click('#btnPause');
   await page.click('#btnRestart');
   check('restart keeps the mode and level', await page.evaluate(() => window.__sh.mode.id === 'mode.challenge' && window.__sh.world.index === 0));
-  await page.evaluate(() => window.__sh.startLevel(3));
+  await page.evaluate(() => window.__sh.startLevel(4));
   await page.waitForFunction(() => window.__sh.game.phase === 'play', null, { timeout: 5000 });
   await finishNow();
   await page.screenshot({ path: path.join(SHOTS, 'challenge-finish.png') });
   await page.waitForSelector('#egPage.on #egPlay', { timeout: 10000 }).catch(() => {});
   await page.click('#egPlay');
   await page.waitForTimeout(400);
-  check('after the last open Challenge level the picker opens', await page.evaluate(() =>
-    document.getElementById('levels').classList.contains('on') && window.__sh.save.modes['mode.challenge'].done.join() === '3'));
+  const lastCh = await page.evaluate(() => ({ picker: document.getElementById('levels').classList.contains('on'),
+    done: window.__sh.save.modes['mode.challenge'].done.join(), idx: window.__sh.world.index, road: !!document.querySelector('#road.on'),
+    eg: !!document.querySelector('#endgame.on') }));
+  check('after the last open Challenge level the picker opens', lastCh.picker && lastCh.done === '4', JSON.stringify(lastCh));
   await page.click('#btnClose');
   await page.evaluate(() => window.__sh.openMenu('openModes'));
   await page.waitForSelector('#modes .mode[data-id="mode.normal"] button', { timeout: 10000 });
@@ -409,7 +525,7 @@ function serve() {
   await page.evaluate(() => {
     const s = JSON.parse(localStorage.getItem('stickman-hook'));
     for (const f of Object.keys(s.flags)) if (f.startsWith('flag.nb_levels_skipped_') || f === 'flag.has_welcome_booster') delete s.flags[f];
-    localStorage.setItem('stickman-hook', JSON.stringify({ ...s, coins: 0, best: 12, level: 12, inv: {}, periodic: {},
+    localStorage.setItem('stickman-hook', JSON.stringify({ ...s, coins: 0, best: 12, level: 12, inv: { 'progression.xp_claimed': s.xp }, periodic: {}, boosterQueue: [],
       pending: [['currency.skip_tickets', 3], ['booster.epic', 1]] }));
   });
   await page.goto(url.replace(/\?.*$/, '') + '?level=13');
@@ -488,10 +604,13 @@ function serve() {
   await page.waitForFunction(() => window.__sh.game.phase === 'play', null, { timeout: 5000 });
   await finishNow();
   await page.waitForSelector('#egPiggy[data-mode="full"] .acts .gold', { timeout: 10000 }).catch(() => {});
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(700);
   await page.screenshot({ path: path.join(SHOTS, 'piggy-full.png') });
   const full = await page.evaluate(() => ({ p: window.__sh.save.inv['progression.piggy_bank_progress'],
-    mode: document.getElementById('egPiggy')?.dataset.mode }));
+    mode: document.getElementById('egPiggy')?.dataset.mode, col: document.getElementById('egPiggy')?.dataset.collection }));
+  // PiggyBankPopup.Fill at 100: AnimateUnlock, then CollectionProgressBar.InitializeElements of the skin's collection
+  check('piggy full: the collection bar of Stick Frog shows Aquatic Friends with 0 of 3 owned', full.col === 'aquatic_friends:0/3',
+    JSON.stringify(full));
   await page.click('#egPiggy .acts .gold');
   await page.waitForTimeout(500);
   const broke = await page.evaluate(() => { const s = window.__sh.save; return { p: s.inv['progression.piggy_bank_progress'],
@@ -500,6 +619,8 @@ function serve() {
   check('piggy full at 100: UNLOCK breaks it for 1 skip ticket into Stick Frog', full.p === 100 && full.mode === 'full' && broke.p === 0
     && broke.claims === 1 && broke.t === 22 && broke.frog && broke.next === 'skin.ghost' && broke.mode === 'unlocked', JSON.stringify({ full, broke }));
   await page.screenshot({ path: path.join(SHOTS, 'piggy-broken.png') });
+  check('after UNLOCK the collection bar counts Stick Frog: 1 of 3', await page.evaluate(() =>
+    document.getElementById('egPiggy')?.dataset.collection === 'aquatic_friends:1/3'));
   await page.evaluate(() => window.__sh.startLevel(13));
   check('next level hides the piggy popup', await page.evaluate(() => !document.querySelector('#egPiggy.on') && !window.__sh.game.paused));
   await page.waitForFunction(() => window.__sh.game.phase === 'play', null, { timeout: 5000 });
@@ -551,6 +672,7 @@ function serve() {
     tickets: document.getElementById('tickets').textContent, market: document.getElementById('marketDot').classList.contains('on') }));
   check('home shows the wheel counter (coins/500), ticket count and market', home.wheel === `${await page.evaluate(() => window.__sh.save.coins)}/500`
     && home.tickets === '21', JSON.stringify(home));
+  await settle(); // boosters claimed by the XP road popup open on the home page first
   await page.click('#btnPlay');
 
   // ---- Cards, boosters, black market (js/cards.js, js/cardsui.js, data/cards.json, art/m-cards.webp + m-boost.webp) ----
@@ -759,7 +881,7 @@ function serve() {
   // the first save of the map's file; RaceTest has no difficulty-0 save for slot 1, so that slot stays empty.
   await page.evaluate(() => {
     const s = window.__sh.save;
-    delete s.modes['mode.tournament'];
+    s.modes['mode.tournament'] = { unlocked: true, levels: 1 }; // clean progress, the mode stays claimed
     for (const k of Object.keys(s.inv)) if (/race_trophies|tournament/.test(k)) delete s.inv[k];
     for (const f of Object.keys(s.flags)) if (f.startsWith('daily_flag_mode.tournament')) delete s.flags[f];
     s.coins = 0; s.inv['currency.skip_tickets'] = 1; s.owned.skins = s.owned.skins.filter((n) => n !== 'dolphin');
@@ -902,7 +1024,7 @@ function serve() {
   // ---- Adventure: the endless run against the firewall (js/adventure.js + js/advrun.js, README "Phiêu lưu") ----
   await page.evaluate(() => {
     const s = window.__sh.save;
-    delete s.modes['mode.adventure']; delete s.claimed['progression.adventure_best_score'];
+    s.modes['mode.adventure'] = { unlocked: true, levels: 1 }; delete s.claimed['progression.adventure_best_score'];
     for (const k of Object.keys(s.inv)) if (/adventure/.test(k)) delete s.inv[k];
   });
   const advFirst = requested.length;

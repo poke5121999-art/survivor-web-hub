@@ -17,7 +17,9 @@ GAME = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # name -> longest side in the sheet (px); the pages draw them at most ~2x their CSS size at DPR 2
 SPRITES = {'BackgroundEndRace': 560, 'LightEndRace_01': 320, 'NewAN_Grap1_FinishPlatform0001': 446, 'PlayButton_03': 200,
            'Pattern_MainMenu': 256, 'OutlinedButtonGold': 315, 'OutlinedButtonGreen': 318, 'AdIcon': 84,
-           'SkipTickets': 120, 'Icon_Home': 112}
+           'SkipTickets': 120, 'Icon_Home': 112,
+           # PiggyBankPopup CollectionProgressBar: CollectionProgressElement 77 x 84 (slot, check, golden check)
+           'rounded_square_shadow_bottom': 84, 'IconValidateSlot': 58, 'IconValidate': 59, 'Icon_Validate': 66}
 
 
 def main():

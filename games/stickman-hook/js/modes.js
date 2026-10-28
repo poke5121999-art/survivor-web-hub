@@ -11,7 +11,6 @@
 //   gate      starting a level goes through the mode's daily play limit (daily.js payPlay, main.js openLevels)
 // Not reproduced: the events' date window and reward list (server-driven): both events are always on.
 import { Player } from './physics.js';
-import { XP_ROAD, CHALLENGE_LEVELS } from './meta.js';
 import { owns } from './save.js';
 
 // js/daily.js (day limits, event cycle) loads with the first gated mode: main.js loadMode awaits its prepare()
@@ -54,23 +53,23 @@ export const MODES = {
     complete: (m, s, i) => m.levelComplete(s, i),
   },
   'mode.grapple': mode('mode.grapple', { file: 'grapple', hud: 'grapple', road: 'achieved_level_mode.grapple', player: grapplePlayer }),
-  // autoUnlockNextLevel = false: level index i is open once the XP road granted i Challenge levels
-  // (HasUnlockedLevel: GetMaxLevelUnlocked >= level [asm 0x1296d08..0x1296d14]), so level 1 comes with the mode.
+  // autoUnlockNextLevel = false: level index i is open once i Challenge levels were granted by CLAIMED XP road steps
+  // (HasUnlockedLevel: GetMaxLevelUnlocked >= level [asm 0x1296d08..0x1296d14], Meta.levelsUnlocked).
   'mode.challenge': mode('mode.challenge', {
     file: 'challenge', hud: 'challenge', road: 'achieved_level_mode.challenge',
-    open: (m, s, i) => i <= m.roadGranted(XP_ROAD, CHALLENGE_LEVELS, s.xp),
+    open: (m, s, i) => i <= m.levelsUnlocked(s, 'mode.challenge'),
   }),
   'mode.easter_event': event('mode.easter_event', 'easter'),
   'mode.valentine_day': event('mode.valentine_day', 'valentine'),
   // Lucky Drop: its own engine and screen (js/pachinko.js, loaded on open). No levels; unlock rule stays meta.d.modes.
-  'mode.pachinko': { launch: (app) => import('./pachinko.js?v=20261028k').then((p) => p.open(app)) },
+  'mode.pachinko': { launch: (app) => import('./pachinko.js?v=20261028l').then((p) => p.open(app)) },
   // Adventure: the endless run against the firewall, its page and meta (js/adventure.js + js/advrun.js, loaded on open)
-  'mode.adventure': { launch: (app) => import('./adventure.js?v=20261028k').then((a) => a.open(app)) },
+  'mode.adventure': { launch: (app) => import('./adventure.js?v=20261028l').then((a) => a.open(app)) },
   // Race (Tournament): Normal physics on the 21 Tournament maps against 4 recorded ghosts. Opening it shows the
   // tournament page of js/race.js (loaded on open), which starts each race through main.js startRace. Rewards are
   // trophies and coins by placement (race.js), no XP: the base GiveEndGameRewards is empty [asm 0x28d84f8].
   'mode.tournament': {
     file: 'race', hud: 'race', picker: false, player: () => Player, slot: modeSlot('mode.tournament'), open: () => true,
-    complete: () => ({ xp: 0, got: [] }), launch: (app) => import('./race.js?v=20261028k').then((r) => r.open(app)),
+    complete: () => ({ xp: 0, got: [] }), launch: (app) => import('./race.js?v=20261028l').then((r) => r.open(app)),
   },
 };

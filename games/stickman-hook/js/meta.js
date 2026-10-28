@@ -7,6 +7,10 @@ export const XP_ROAD = 'progression.xp';
 export const NORMAL_ROAD = 'achieved_level_mode.normal';
 export const CHALLENGE_LEVELS = 'unlocked_level_mode.challenge';
 export const SKIP_TICKETS = 'currency.skip_tickets';
+// progression_road.progressions[progression.xp].claimedResourceId: the XP value the XP road popup has animated and
+// claimed up to. XP above it is "pending" (ProgressionRoadStateController.GetPendingProgressions [asm 0x2f9fde8]).
+export const XP_CLAIMED = 'progression.xp_claimed';
+const SEASONAL_FLAG = 'flag.seasonal_event';
 // Quantities without a field of their own (save.inv), keyed by resource id
 export const qty = (s, res) => s.inv[res] || 0;
 export const addQty = (s, res, q) => { s.inv[res] = qty(s, res) + q; };
@@ -76,17 +80,18 @@ export class Meta {
     return n;
   }
 
-  // Rank = 1-based position of the last XP road step reached. [ĐỀ XUẤT] the original fills {{level}} from the road state.
+  // Rank = index of the last XP road step reached, the first step (0 XP) being rank 0: the 2026 clip (0:16) shows the
+  // 1850 XP step (index 21) as rank 21. Earlier builds counted from 1.
   rankOf(xp) {
     let r = 0;
     for (const s of this.xpRoad) if (s[0] <= xp) r++;
-    return Math.max(1, r);
+    return Math.max(0, r - 1);
   }
 
   xpBar(xp) {
-    const steps = this.xpRoad, i = Math.max(0, this.rankOf(xp) - 1);
+    const steps = this.xpRoad, i = this.rankOf(xp);
     const lo = steps[i][0], hi = steps[i + 1] ? steps[i + 1][0] : lo;
-    return { rank: i + 1, lo, hi, k: hi > lo ? (xp - lo) / (hi - lo) : 1, league: this.league(xp) };
+    return { rank: i, lo, hi, k: hi > lo ? (xp - lo) / (hi - lo) : 1, league: this.league(xp) };
   }
 
   league(xp) {
@@ -149,6 +154,33 @@ export class Meta {
     return this.xpRoad.filter(([v, r]) => v > done && v <= s.xp && r.length).length;
   }
 
+  // XP not yet shown by the XP road popup. XpRoadService.OnXpChanged enqueues XpRoadPopup.AutomaticTrophyRoadPopupConfig
+  // when it is > 0 [asm 0x11a0310..0x11a046c]; XpRoadRecoveryPromptController ('xp_road_recovery') shows the same popup
+  // on the home page while it is > 0 [asm 0x1192fa0..0x119313c].
+  xpPending(s) { return Math.max(0, s.xp - qty(s, XP_CLAIMED)); }
+
+  // XpRoadPopup.OnShowEndedAsync after the bar animation: ProgressionRoadService.ClaimAllRewards('progression.xp')
+  // [asm 0x1240c38]: every reached step, in order; the claimed XP catches up with the XP. Rewards that add XP
+  // (item unlocks, xp steps) leave new pending XP, which shows the popup again.
+  claimRoad(s) {
+    const from = qty(s, XP_CLAIMED);
+    s.inv[XP_CLAIMED] = s.xp;
+    return { from, to: s.xp, got: this.claim(s, XP_ROAD, s.xp) };
+  }
+
+  // Saves from before the claimed-XP counter: start it at the last step claimed with the old "claim" button, so the
+  // XP earned since then is pending and the automatic popup claims the rest on the next home visit (or level end).
+  // A Challenge level granted before the mode flag existed (OnModeLevelUnlocked sets the mode too) unlocks the mode.
+  migrate(s) {
+    let changed = false;
+    if (s.inv[XP_CLAIMED] === undefined) { s.inv[XP_CLAIMED] = Math.max(0, s.claimed[XP_ROAD] ?? 0); changed = true; }
+    for (const [id, st] of Object.entries(s.modes)) {
+      if (st.levels > 0 && !st.unlocked) { st.unlocked = true; changed = true; }
+      if (id === 'mode.challenge' && !st.levels && st.unlocked) { st.levels = 1; changed = true; }
+    }
+    return changed;
+  }
+
   // NormalGamePlayController.GiveEndGameRewards: XP for the level, then the achieved-level road.
   // XP only on a level's first completion: the original never replays a finished Normal level.
   levelComplete(s, levelIndex) {
@@ -202,11 +234,24 @@ export class Meta {
     return out.filter((g) => !g.later);
   }
 
+  // GameModesService.IsUnlocked: the mode resource is in the inventory, i.e. its road reward was claimed (seasonal
+  // events: flag.seasonal_event, claimed by the Normal level road at level 10) [asm 0x1296df4..0x1296ee8].
+  // `need` is the road step that grants it (GetUnlockText), shown while the mode is locked.
   modeState(s, [id, name, unlock]) {
     if (!unlock) return { id, name, open: true };
     const [road, value] = unlock;
-    const have = road === XP_ROAD ? s.xp : s.best;
-    return { id, name, open: have >= value, need: have < value ? { road, value } : null };
+    const open = road === XP_ROAD ? !!s.modes[id]?.unlocked : (s.flags[SEASONAL_FLAG] || 0) > 0;
+    return { id, name, open, need: open ? null : { road, value } };
+  }
+
+  // GameModesService.HasUnlockedLevel (level = 0-based index): autoUnlockNextLevel modes are open; otherwise
+  // GetMaxLevelUnlocked >= level, the count of unlocked_level_mode.<mode> granted by claimed road steps
+  // [asm 0x1296bf4..0x1296d14]; FixUnlockDiscrepancies raises it to the level achieved [asm 0x12962f4..0x1296350].
+  // [ĐỀ XUẤT] the achieved level is the 0-based index of the highest level finished (best - 1), so finishing the last
+  // open level does not open the next one.
+  levelsUnlocked(s, id) {
+    const st = s.modes[id] || {};
+    return Math.max(st.levels || 0, (st.best || 0) - 1);
   }
 }
 
@@ -239,12 +284,19 @@ const REWARDS = {
     s.xp += q;
     out.push({ xp: q });
   },
-  mode(m, s, res, q, out) { s.modes[res] = { ...(s.modes[res] || {}), unlocked: true }; out.push({ mode: res }); },
+  // OnModeUnlocked: a mode without unlocked levels gets unlocked_level_<mode> = 1 [asm 0x1297c1c..0x1297c5c]
+  mode(m, s, res, q, out) {
+    const st = s.modes[res] || {};
+    s.modes[res] = { ...st, unlocked: true, levels: Math.max(1, st.levels || 0) };
+    out.push({ mode: res, ...(st.unlocked ? {} : { unlocked: true }) });
+  },
+  // OnModeLevelUnlocked: the first level grant of a locked mode unlocks the mode too (and shows ModeUnlockedPopup)
+  // [asm 0x1297dec..0x1297f68]
   unlocked_level_mode(m, s, res, q, out) {
     const id = 'mode.' + res.split('.')[1];
     const st = s.modes[id] || {};
-    s.modes[id] = { ...st, levels: (st.levels || 0) + q };
-    out.push({ mode: id, levels: q });
+    s.modes[id] = { ...st, unlocked: true, levels: (st.levels || 0) + q };
+    out.push({ mode: id, levels: q, ...(st.unlocked ? {} : { unlocked: true }) });
   },
   flag(m, s, res, q, out) { s.flags[res] = q; out.push({ flag: res }); },
   later(m, s, res, q, out) { s.pending.push([res, q]); out.push({ later: res }); },

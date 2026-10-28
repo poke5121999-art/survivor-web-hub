@@ -9,6 +9,8 @@
 
 const REF_H = 1334;
 const PIGGY_FILL_S = 0.8; // [ĐỀ XUẤT] fill animation length
+const UNLOCK_MS = 400; // [ĐỀ XUẤT] PiggyBankSkin.AnimateUnlock white flash (clip 0:19.6-0:20)
+const FULL_NEXT_MS = UNLOCK_MS + 600; // NextButton (LOSE IT) after Task.Delay(600) [asm 0x117854c]
 
 const CSS = `
 #endgame { z-index: 4; overflow: hidden; }
@@ -109,9 +111,16 @@ export function makeEndgame(app, d) {
     Object.assign(pat.style, { backgroundImage: `url(${await tile('Pattern_MainMenu')})`, backgroundSize: `${341 * u()}px ${341 * u()}px` });
     const from = r && r.res === res ? r.before : b.piggyProgress(s);
     let mode = b.piggyFull(s) && from >= 100 ? 'full' : 'fill', unlockedAt = 0;
+    let fullAt = mode === 'full' ? performance.now() : 0;
+    sheet ||= await app.image('./art/ui.webp');
+    // the skin's collection (CollectionProgressBar.InitializeElements [asm 0x11f3c10]): its items, how many are owned
+    const item = app.meta.byId.get(res), col = item?.collection;
+    const colItems = col ? app.meta.items.filter((o) => o.collection === col) : [];
+    const owned = () => colItems.filter((o) => app.meta.ownsRes(s, o.id)).length;
     const acts = piggyEl.querySelector('.acts');
     acts.style.bottom = (240 - 60) * u() + 'px'; // ActionButton: 120 high at 240 from the bottom
     piggyEl.dataset.res = res;
+    delete piggyEl.dataset.collection;
     piggyEl.classList.add('on');
     return new Promise((done) => {
       function buttons() {
@@ -151,6 +160,7 @@ export function makeEndgame(app, d) {
       }
       const tap = piggyEl.querySelector('.tap');
       tap.onclick = () => {
+        if (mode === 'full' && performance.now() < fullAt + FULL_NEXT_MS) return; // NextButton shows 600 ms later
         if (mode === 'full') { app.play('popup_out'); b.piggyLose(s); app.writeSave(); } // LOSE IT
         else app.play('button');
         finish();
@@ -168,7 +178,9 @@ export function makeEndgame(app, d) {
         const p = a0 + (a1 - a0) * (1 - (1 - k) * (1 - k));
         if (k >= 1 && acts.style.visibility === 'hidden') acts.style.visibility = '';
         if (k >= 1 && mode === 'fill' && !acts.childElementCount && b.piggyProgress(s) < 100) buttons();
-        if (k >= 1 && mode === 'fill' && b.piggyFull(s)) { mode = 'full'; buttons(); }
+        if (k >= 1 && mode === 'fill' && b.piggyFull(s)) { mode = 'full'; fullAt = performance.now(); buttons(); }
+        // ActionButton with the collection bar after PiggyBankSkin.AnimateUnlock, LOSE IT 600 ms later [asm 0x117830c..0x11785dc]
+        if (mode === 'full') acts.style.visibility = performance.now() < fullAt + UNLOCK_MS ? 'hidden' : '';
         // StageCompletedText at 250 from the top, two lines, Junegull 49 under its container's Animation, which shows it
         // 1.2x (2026 clip 0:18: "COMPLETED" spans 57 % of the width, like the in-game 60); "New skin / unlocked!" once unlocked
         const px = 49 * 1.2 * U, lh = (app.R.font.lineHeight / app.R.font.size) * px;
@@ -197,10 +209,11 @@ export function makeEndgame(app, d) {
         const o = 4 * U; // Outline
         for (const [dx, dy] of [[-o, 0], [o, 0], [0, -o], [0, o], [-o, -o], [o, o], [-o, o], [o, -o]]) g.drawImage(state.white, x0 + dx, y0 + dy, dw, dh);
         if (mode === 'unlocked' || mode === 'full') {
-          const fl = mode === 'unlocked' ? Math.max(0, 1 - (performance.now() - unlockedAt) / 400) : 0;
-          if (mode === 'unlocked') g.drawImage(piggyImg, rr[0], rr[1], rr[2], rr[3], x0, y0, dw, dh);
-          else g.drawImage(state.purple, x0, y0, dw, dh);
+          // PiggyBankSkin.AnimateUnlock: full means revealed in colour after a white flash (2026 clip 0:19.6-0:20)
+          const fl = mode === 'full' ? Math.max(0, 1 - (performance.now() - fullAt) / UNLOCK_MS) : 0;
+          g.drawImage(piggyImg, rr[0], rr[1], rr[2], rr[3], x0, y0, dw, dh);
           if (fl) { g.globalAlpha = fl; g.drawImage(state.white, x0, y0, dw, dh); g.globalAlpha = 1; }
+          if (colItems.length && (mode === 'unlocked' || performance.now() >= fullAt + UNLOCK_MS)) collectionBar(g, w, h, U);
         } else {
           g.drawImage(state.dark, x0, y0, dw, dh);
           const fh = dh * (p / 100);
@@ -213,10 +226,34 @@ export function makeEndgame(app, d) {
           const lab = mode === 'unlocked' ? 'equip it!' : mode === 'full' ? 'unlock' : '+' + b.piggyFill(s, 2 /* PIGGY_REWARDED */) + '%';
           text(app.R, g, lab, w / 2 + (mode === 'unlocked' ? 0 : 30 * U), ab - 4 * U, (mode === 'unlocked' ? 36 : 42) * U);
         }
-        if (mode === 'full') text(app.R, g, 'lose it!', w / 2, ab + 110 * U, 44 * U, '#092b57');
+        if (mode === 'full' && performance.now() >= fullAt + FULL_NEXT_MS) text(app.R, g, 'lose it!', w / 2, ab + 110 * U, 44 * U, '#092b57');
         if (mode === 'unlocked') text(app.R, g, 'tap to continue', w / 2, h - 100 * U - 30 * U, 50 * U, '#092b57');
         return true;
       });
+
+      // CollectionProgressBar (322 x 170 at (0, -265) from the centre; the Progress panel rounded_square #103D7580 grows
+      // to ~540 x 180 around its content, 2026 clip 0:21.5): CollectionName Junegull 38.3 at the top, then one
+      // CollectionProgressElement (77 x 84, rounded_square_shadow_bottom) per item joined by a white link: IconValidate
+      // for the owned ones (index < owned), IconValidateSlot otherwise; complete: Icon_Validate (gold) and Completed!.
+      // [ĐỀ XUẤT] 107 units between elements (clip, 4 items), shrunk to fit 500 units for longer collections.
+      function collectionBar(g, w, h, U) {
+        const cy = h / 2 + 265 * U, pw = 540 * U, ph = 180 * U, x0 = w / 2 - pw / 2, y0 = cy - ph / 2;
+        g.fillStyle = 'rgba(16, 61, 117, 0.5)';
+        g.beginPath(); g.roundRect(x0, y0, pw, ph, 24 * U); g.fill();
+        const name = app.meta.d.collections[col]?.[0] || col, nItems = colItems.length, have = owned(), done = have >= nItems;
+        text(app.R, g, name, w / 2, y0 + 43 * U, 38.3 * U);
+        if (done) text(app.R, g, 'completed!', w / 2, y0 + 71 * U, 18 * U, '#FFC327');
+        const gap = Math.min(107, 500 / Math.max(1, nItems)) * U, k = Math.min(1, gap / (107 * U)), ey = y0 + 123 * U;
+        const ex = (i) => w / 2 + (i - (nItems - 1) / 2) * gap;
+        g.fillStyle = '#fff';
+        if (nItems > 1) g.fillRect(ex(0), ey - 4 * U * k, ex(nItems - 1) - ex(0), 8 * U * k);
+        const spr = (key, cx, cy2, sw, sh2) => { const r = d[key]; g.drawImage(sheet, r[0], r[1], r[2], r[3], cx - sw / 2, cy2 - sh2 / 2, sw, sh2); };
+        for (let i = 0; i < nItems; i++) {
+          spr('rounded_square_shadow_bottom', ex(i), ey, 77 * U * k, 84 * U * k);
+          spr(done ? 'Icon_Validate' : i < have ? 'IconValidate' : 'IconValidateSlot', ex(i), ey - 6 * U * k, 58 * U * k, 48 * U * k);
+        }
+        piggyEl.dataset.collection = `${col}:${have}/${nItems}`;
+      }
     });
   }
 
@@ -282,6 +319,9 @@ export function makeEndgame(app, d) {
       root.style.setProperty('--u', u() + 'px');
       app.overlay('endgame', true);
       app.play('popup_in');
+      // the XP of this level is pending: the automatic XP road popup comes first (clip 2026 0:15.8-0:17.4, before the
+      // piggy bank at 0:17.6), see main.js roadPopup
+      if (app.meta.xpPending(app.save) > 0) await app.roadPopup().catch(() => {});
       if (o.piggy && app.bonus) await piggy(o.piggy);
       page(o);
     },

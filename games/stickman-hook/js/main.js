@@ -7,7 +7,7 @@ import { Meta } from './meta.js';
 import { makeCustom } from './custom.js';
 import { MODES, NORMAL } from './modes.js';
 
-const V = '?v=20261028k';
+const V = '?v=20261028l';
 const DEFAULT_ZOOM = 5, FINISH_ZOOM = 2; // CameraConfig.defaultZoom, PlayerCameraController.cameraZoomOnEndGame
 // Rope prefab: sprite scaled (1.6, 2) under its parent. [ĐỀ XUẤT] 0.2 per axis so a 167 px tile is ~0.4 wide.
 const ROPE_SCALE = [1.6 * 0.2, 2 * 0.2];
@@ -88,7 +88,7 @@ function startLevel(index) {
   game.confetti = [];
   game.emitter = null;
   game.timeScale = 1;
-  game.trail = [];
+  game.trail = []; trailFx?.reset();
   game.reward = null;
   game.died = false;
   game.fx = 0;
@@ -116,6 +116,7 @@ function equippedItem(kind) { return meta.item(kind, save.equipped[kind]) || met
 function applyEquip() {
   const sk = equippedItem('skins'), rp = equippedItem('ropes'), tr = equippedItem('trails');
   look.trail = meta.d.trails[tr.asset] || null;
+  equipTrailFx(tr.asset);
   look.dance = null;
   if (sk.name === DEFAULT_EQUIP.skins) look.skin = null;
   else custom.skin(sk).then((s) => { if (equippedItem('skins') === sk) look.skin = s; }).catch(() => {});
@@ -180,7 +181,7 @@ function respawn() {
   game.phase = 'spawn';
   game.t = 0;
   game.fx = 0;
-  game.trail = [];
+  game.trail = []; trailFx?.reset();
 }
 
 // Revive [asm 0x12097f0..0x1209a64]: GetLastSpawnPointPassed (the last pattern spawn point left of the death, else
@@ -192,7 +193,7 @@ function revive() {
   player = new mode.Player(world.spawn);
   game.phase = 'revive';
   game.t = 0;
-  game.trail = [];
+  game.trail = []; trailFx?.reset();
   game.hold = false;
   cardsUi?.secondChance(app, mode.id);
 }
@@ -222,8 +223,21 @@ function loadCardsUi() {
   return cardsUiP;
 }
 let opening = false;
+// The automatic XP road popup (XpRoadPopup.AutomaticTrophyRoadPopupConfig, menus.js openRoad {auto}): enqueued by
+// XpRoadService.OnXpChanged while XP is pending [asm 0x11a0310..0x11a046c], so after a level's end, and by the home
+// page's 'xp_road_recovery' prompt [asm 0x1192fa0]. Rewards that add XP leave XP pending: it shows again (at most 4).
+let roadBusy = null;
+function roadPopup() {
+  if (roadBusy) return roadBusy;
+  roadBusy = (async () => {
+    menus ||= await import('./menus.js');
+    for (let i = 0; i < 4 && meta.xpPending(save) > 0; i++) await menus.openRoad(app, { auto: true });
+  })().finally(() => { roadBusy = null; hud(); });
+  return roadBusy;
+}
+
 async function nextBooster() {
-  if (opening || !cards || !save.boosterQueue?.length || !$('start').classList.contains('on')) return;
+  if (roadBusy || opening || !cards || !save.boosterQueue?.length || !$('start').classList.contains('on')) return;
   opening = true;
   try { await loadCardsUi(); await cardsUi.openBooster(app, cards); } finally { opening = false; }
   hud();
@@ -367,9 +381,23 @@ function frame(now) {
   draw(now);
 }
 
+// The trail prefab's ParticleSystems (js/trailfx.js, data/trailfx/<name>.json, art/trailfx/<name>.webp from
+// tools/build_trails.py), loaded only for a trail that has some: `basic` (the default) and `pink` emit nothing.
+const TRAIL_NO_FX = new Set(['basic', 'pink']);
+let trailFx = null, trailFxWant = null;
+function equipTrailFx(name) {
+  if (trailFxWant === name) return;
+  trailFxWant = name;
+  trailFx = null;
+  if (!name || TRAIL_NO_FX.has(name)) return;
+  import('./trailfx.js').then((m) => m.loadTrailFx(name, V)).then((fx) => { if (trailFxWant === name) trailFx = fx; }).catch(() => {});
+}
+
 // TrailRenderer: points age out after the trail's `time` (game time, so the finish slow motion stretches it)
 function sampleTrail() {
   const tr = look.trail;
+  // particles run on scaled time, like the line; the limit-velocity dampen counts real frames (trailfx.js)
+  trailFx?.update(game.frameDt * game.timeScale, game.frameDt, player);
   if (!tr || game.phase === 'spawn') return;
   const pts = game.trail, last = pts[pts.length - 1];
   if (!last || Math.hypot(player.x - last.x, player.y - last.y) > 0.02) pts.push({ x: player.x, y: player.y, t: game.clock });
@@ -435,6 +463,7 @@ function draw(now) {
   }
   mode.race?.draw(R, game);
   drawPlayer(t);
+  trailFx?.draw(R, cam.zoom, 1, Infinity); // trail particles sorted at or above the player's order 1
   const fdt = game.paused ? 0 : Math.min(0.1, game.frameDt || 0);
   drawConfetti(fdt * game.timeScale, fdt);
   drawHud();
@@ -450,7 +479,11 @@ function playerFrame() {
 }
 
 function drawPlayer(t) {
-  if (game.trail.length > 1) R.trail(game.trail, game.clock, look.trail);
+  // sorting orders: trail particles below -5, the TrailRenderer -5 (hidden in goldcandy / goldsmoke / thunder),
+  // particles -5..0, then the rope (0) and the player (1)
+  trailFx?.draw(R, cam.zoom, -Infinity, -6);
+  if (game.trail.length > 1 && trailFx?.line !== false) R.trail(game.trail, game.clock, look.trail);
+  trailFx?.draw(R, cam.zoom, -5, 0);
   if (player.hooked >= 0) {
     const tg = world.targets[player.hooked];
     const a = player.anchor();
@@ -632,7 +665,10 @@ function hud() {
 // The home screen's layout and art (home.js, art/m-home.webp) load the first time it shows.
 let home = null;
 function showHome() {
-  import('./home.js').then(async (h) => { await h.setup(app); home = h; hud(); }).catch((e) => toast('Không tải được trang chính: ' + e.message));
+  import('./home.js').then(async (h) => {
+    await h.setup(app); home = h; hud();
+    if (meta.xpPending(save) > 0) roadPopup().catch((e) => toast('Không mở được Đường XP: ' + e.message)); // xp_road_recovery
+  }).catch((e) => toast('Không tải được trang chính: ' + e.message));
 }
 
 function setHold(v) {
@@ -658,6 +694,7 @@ const app = {
   openMode, get mode() { return mode.id; }, openMenu, openLevels, skipLevel, loadBonus, get bonus() { return bonus; },
   loadMode, startRace, get game() { return game; }, get player() { return player; },
   loadCards, loadCardsUi, openCards, nextBooster, get cards() { return cards; }, get cardsUi() { return cardsUi; },
+  roadPopup,
 };
 let menus = null;
 async function openMenu(name) {
@@ -777,6 +814,8 @@ async function boot() {
     backgroundPosition: `${(pr[0] / (lv.atlas.w - pr[2])) * 100}% ${(pr[1] / (lv.atlas.h - pr[3])) * 100}%` });
   // the achieved-level road follows `best`, so catch up rewards from saves made before it existed
   if (meta.claim(save, 'achieved_level_mode.normal', save.best).length) writeSave(save);
+  // saves from before the claimed-XP counter: the XP since the last claim becomes pending (Meta.migrate)
+  if (meta.migrate(save)) writeSave(save);
   // road rewards kept in `pending` before their system existed (skip tickets) are delivered now
   if (meta.deliverPending(save).length) writeSave(save);
   // a save that holds cards (or a booster to open) needs the card rules in play: second chance, XP / coin boosts
@@ -794,7 +833,9 @@ async function boot() {
   window.__sh = { game, get world() { return world; }, get player() { return player; }, get save() { return save; }, cam, look,
     get theme() { return R.theme; }, meta, startLevel, setHold, applyEquip, openMenu, overlay, openMode, openLevels,
     get mode() { return mode; }, skipLevel, hud, loadBonus, get bonus() { return bonus; }, get race() { return mode.race; },
-    loadCards, loadCardsUi, openCards, get cards() { return cards; }, get cardsUi() { return cardsUi; }, app };
+    loadCards, loadCardsUi, openCards, get cards() { return cards; }, get cardsUi() { return cardsUi; }, app,
+    // trail particles: {name, line, count, systems: [{name, order, count, max}]}, null while none is loaded
+    get trailfx() { return trailFx ? trailFx.stats() : null; } };
 }
 
 boot().catch((e) => { $('loading').textContent = 'Không tải được game: ' + e.message; });

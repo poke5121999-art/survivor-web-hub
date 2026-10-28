@@ -455,134 +455,319 @@ function startPreview(app, canvas, state) {
 }
 
 // ---- XP road -------------------------------------------------------------------------------------------------------
-// XpRoadPopup (ui_xproad_popup): UIGradient #DA73D6 (top) -> #3673C7, Pattern_Trophy tiled; the road climbs from the
-// bottom: a column on the left (rank number markers, cyan fill up to the XP, the league medal on the current rank) and
-// one XpRoadHolder card per rank (rarity of its reward), a check once claimed. The road items are runtime prefabs not
-// read here: [ĐỀ XUẤT] column x 85 (the particles' EndPoint), 250 units per rank, card 349 x 185 (the sprite).
+// XpRoadPopup (ui_xproad_popup): UIGradient #DA73D6 (top) -> #3673C7, Pattern_Trophy tiled, a vertical scroller and the
+// HomeButton 85 x 85 at (-60, 60) from the bottom right. No header in the original: the web keeps none either.
+// Rows from the bottom (XpRoadPooledScroller): ElementStart (454 high, the first league under the first step), then one
+// 300-high ElementReward (or ElementLeague when the step opens a league) per step. Each row's Bar (x 85, 47 wide,
+// #2B247B) ends at the row top in an octagon 80 x 66 (Octogone_HolderTrophyRoad #4E47A1 in its outline #2B247B, the
+// rank in Junegull 28 #A46AC7). Step i sits 33 units under its row top: Y(i) = 454 + 300 i - 33 from the bottom.
+// The progress fill (#6DDCFF, right half #25CAFF, CursorTrophyRoad #6FDCFF at its tip) climbs between steps in
+// proportion to the XP. Rewards hang on a link (#372B8582, 5 high) from the bar at 30 % of the width, centred on the
+// step: TrophyRoadRewardBigUI (400 x 180: customization items and booster packs, on the rarity's XpRoadHolder),
+// TrophyRoadRewardSmallUI (180 x 180: coins, single cards, tickets, flags) or TrophyRoadRewardModeUI (400 x 180: the
+// mode's illustration, its name and "New Mode" / "New Challenge" in #FFC93D), frame rounded_square #372B85 at 50 %,
+// IconValidate 60 x 60 on the top right once claimed (XpRoadSettings prefabs in the xproadconfig bundle).
+//
+// Opening: XpRoadPopup.OnShowEndedAsync [asm 0x1240a94..0x12413f8]. With pending XP (Meta.xpPending) the back button
+// stays hidden, the XP flies in as Xp stars (XpRoadParticlesGenerator: StartPoint bottom centre -> EndPoint x 85, 30 %
+// of the height) and the bar fills (AnimateAllXpProgress), then ProgressionRoadService.ClaimAllRewards [asm 0x1240c38],
+// UpdateView, Task.Delay(600) [asm 0x1240e6c] and Close. Without pending XP: Delay(100) [asm 0x1241210], GoToLevel
+// (0.45 s, [asm 0x1240d88]) to the current step and the back button shows.
+// The same popup opens by itself (Meta.xpPending): main.js roadPopup after a level's end and on the home page.
+// [ĐỀ XUẤT] star count min(10, XP gained), 0.06 s apart, 0.5 s flight, fill 0.6 s (clip 2026 0:15.8-0:17.4: ~1.6 s).
+const ROW = 300, ROAD_START = 454, STEP_DY = 33, BAR_X = 85, CARD_X = 0.3;
 const ROAD_CSS = `
-#road .abody { overflow: auto; }
-#road .steps { display: flex; flex-direction: column-reverse; padding: ${U(40)} 0 ${U(200)}; position: relative; }
-#road .col { position: absolute; left: ${U(85 - 20)}; width: ${U(40)}; top: 0; bottom: 0; background: #3c2a7d; border-radius: ${U(20)};
-  box-shadow: inset 0 0 0 ${U(5)} #2b1f5c; }
-#road .fill { position: absolute; left: ${U(85 - 14)}; width: ${U(28)}; bottom: 0; background: linear-gradient(90deg, #12c6ff, #8ff3ff 60%, #12c6ff);
-  border-radius: ${U(14)}; }
-#road .step { position: relative; height: ${U(250)}; flex: none; }
-#road .rk { position: absolute; left: ${U(85 - 30)}; top: 50%; width: ${U(60)}; height: ${U(46)}; margin-top: ${U(-23)}; border-radius: ${U(14)};
-  background: #3c2a7d; border: ${U(4)} solid #2b1f5c; display: flex; align-items: center; justify-content: center; font-size: ${U(26)};
-  box-sizing: border-box; }
-#road .step.cur .rk { width: ${U(110)}; height: ${U(110)}; left: ${U(85 - 55)}; margin-top: ${U(-55)}; background-color: transparent; border: 0;
-  font-size: ${U(34)}; }
-#road .card { position: absolute; left: calc(${U(85 + 50)} + (100% - ${U(85 + 50)}) / 2 - ${U(175)}); top: 50%; width: ${U(349)}; height: ${U(185)};
-  margin-top: ${U(-92)}; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: ${U(6)}; }
-#road .card .rw { display: flex; gap: ${U(14)}; align-items: center; }
-#road .card .rwd { display: flex; flex-direction: column; align-items: center; gap: ${U(4)}; max-width: ${U(300)}; text-align: center;
-  background: none; padding: 0; }
-#road .card .rwd canvas, #road .card .rwd i { width: ${U(96)}; height: ${U(96)}; filter: drop-shadow(0 ${U(4)} 0 rgba(0,0,0,.25)); }
-#road .card .rwd > span { font: 900 ${U(22)}/1.1 system-ui, sans-serif; text-transform: uppercase; -webkit-text-stroke: ${U(4)} #1a1c4b;
-  paint-order: stroke fill; }
-#road .card .rwd .soon { display: block; font-size: ${U(16)}; color: #ffd6d6; }
-#road .step.done .card { filter: brightness(.85); }
-#road .ok { position: absolute; right: ${U(-12)}; top: ${U(-12)}; width: ${U(64)}; height: ${U(64)}; }
-#road .lg { position: absolute; left: ${U(150)}; top: ${U(8)}; font-size: ${U(28)}; }
-#road .foot { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; gap: ${U(20)};
-  padding: ${U(20)} ${U(24)} calc(env(safe-area-inset-bottom) + ${U(26)}); background: linear-gradient(rgba(54, 115, 199, 0), rgba(54, 115, 199, .9) 40%); }
-#road .foot .sum { font-size: ${U(26)}; }
-#road .foot .big { width: ${U(330)}; height: ${U(110)}; border: 0; box-shadow: none; background-color: transparent; color: #fff; padding: 0;
-  font: 900 ${U(30)} system-ui, sans-serif; -webkit-text-stroke: ${U(5)} #8a3d00; paint-order: stroke fill; }
-#road .foot .big:disabled { filter: grayscale(1) brightness(.85); }
+#road { z-index: 6; }
+#road header { display: none; }
+#road .abody { overflow-y: auto; overflow-x: hidden; scrollbar-width: none; }
+#road .abody::-webkit-scrollbar { display: none; }
+#road .steps { position: relative; flex: none; width: 100%; }
+#road .col { position: absolute; left: ${U(BAR_X - 23.5)}; width: ${U(47)}; bottom: ${U(-1000)}; background: #2b247b; }
+#road .fill { position: absolute; left: ${U(BAR_X - 20.5)}; width: ${U(41)}; bottom: ${U(-1000)};
+  background: linear-gradient(90deg, #6ddcff 50%, #25caff 50%); }
+#road .fill .cur { position: absolute; left: 50%; top: 0; width: ${U(60)}; height: ${U(22)}; transform: translate(-50%, -50%);
+  filter: drop-shadow(0 0 ${U(8)} #6fdcff); }
+#road .oct { position: absolute; left: ${U(BAR_X - 40)}; width: ${U(80)}; height: ${U(66)}; }
+#road .oct i { position: absolute; inset: 0; background-size: 100% 100%; }
+#road .oct b { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+#road .oct.medal { left: ${U(BAR_X - 55)}; width: ${U(110)}; height: ${U(110)}; }
+#road .link { position: absolute; left: ${U(BAR_X + 5)}; height: ${U(5)}; background: #372b8582; }
+#road .rcard { position: absolute; height: ${U(180)}; }
+#road .rcard .frame { position: absolute; inset: 0; background: #372b8580; border-radius: ${U(26)}; }
+#road .rcard .hold { position: absolute; inset: ${U(8)}; background-size: 100% 100%; border-radius: ${U(20)}; overflow: hidden; }
+#road .rcard .art { position: absolute; background-repeat: no-repeat; }
+#road .rcard .t1, #road .rcard .t2 { position: absolute; left: 0; right: 0; display: flex; justify-content: center; }
+#road .rcard .ok { position: absolute; width: ${U(60)}; height: ${U(60)}; }
+#road .rcard .ok.pop { animation: roadOk .35s ease-out; }
+@keyframes roadOk { 0% { transform: scale(0); } 70% { transform: scale(1.25); } 100% { transform: scale(1); } }
+#road .lg { position: absolute; left: 0; right: 0; height: ${U(8)}; background: #ffffffcc; }
+#road .lgm { position: absolute; width: ${U(180)}; height: ${U(180)}; transform: translateX(-50%); }
+#road .lgn { position: absolute; transform: translateX(-50%); }
+#road .home { position: absolute; right: ${U(60 - 42.5)}; bottom: calc(env(safe-area-inset-bottom) + ${U(60 - 42.5)}); width: ${U(85)};
+  height: ${U(85)}; border: 0; padding: 0; background-color: transparent; cursor: pointer; z-index: 2;
+  filter: drop-shadow(0 ${U(4)} 0 rgba(0,0,0,.35)); }
+#road .stars { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+#road .stars i { position: absolute; width: ${U(70)}; height: ${U(70)}; margin: ${U(-35)} 0 0 ${U(-35)}; }
 `;
 const MEDAL = { Bronze: 'BronzeMedals_01', Silver: 'SilverMedals_01', Gold: 'GoldMedal_01', Platine: 'OtherMedals_01',
   Diamond: 'Diamond_Small', Master: 'Master_Small' };
+const MODE_ILLU = { 'mode.challenge': 'RoadMode_challengeMode', 'mode.grapple': 'RoadMode_grappleMode',
+  'mode.lucky_wheel': 'RoadMode_fortuneWheel', 'mode.tournament': 'RoadMode_tournamentMode', 'mode.pachinko': 'RoadMode_pachinkoMode',
+  'mode.adventure': 'RoadMode_adventure' };
 
-export async function openRoad(app) {
+// A white sprite tinted (UI Image colour), as an image URL
+const tints = new Map();
+function tinted(sh, name, color) {
+  const key = name + color;
+  if (!tints.has(key)) {
+    const r = sh.rects[name], c = document.createElement('canvas');
+    c.width = r[2]; c.height = r[3];
+    const g = c.getContext('2d');
+    g.drawImage(sh.img, r[0], r[1], r[2], r[3], 0, 0, r[2], r[3]);
+    g.globalCompositeOperation = 'multiply'; g.fillStyle = color; g.fillRect(0, 0, r[2], r[3]);
+    g.globalCompositeOperation = 'destination-in'; g.drawImage(sh.img, r[0], r[1], r[2], r[3], 0, 0, r[2], r[3]);
+    tints.set(key, c.toDataURL());
+  }
+  return `url(${tints.get(key)})`;
+}
+
+// TMP rich text "<color=#A3D6FF>Common</color> Booster" as a row of Junegull labels, one per colour run
+function richRow(app, text, px) {
+  const row = document.createElement('div');
+  Object.assign(row.style, { display: 'flex', alignItems: 'center', gap: U(px * 0.3) });
+  const re = /<color=(#[0-9a-fA-F]{6,8})>(.*?)<\/color>|([^<]+)/g;
+  for (let m; (m = re.exec(text));) {
+    const t = (m[2] ?? m[3]).trim();
+    if (t) row.appendChild(label(app, t, px, m[1] ? m[1].slice(0, 7) : null));
+  }
+  return row;
+}
+
+// The card of one road step: [{el, ok}] (ok: where the check mark goes)
+function roadCard(app, sh, icons, rewards, claimed) {
+  const { meta } = app;
+  const [res, q] = rewards[0];
+  const kind = res.split('.')[0];
+  const it = meta.byId.get(res);
+  const booster = meta.d.boosters[res];
+  const modeId = kind === 'mode' ? res : kind === 'unlocked_level_mode' ? 'mode.' + res.split('.')[1] : null;
+  const big = !!(it || (booster && !res.endsWith('_single_card'))) || !!modeId;
+  const el = document.createElement('div');
+  const kind2 = modeId ? 'mode' : big ? 'big' : 'small';
+  el.className = 'rcard rc-' + kind2; // not .big: index.html styles .big buttons
+  el.dataset.kind = kind2;
+  el.dataset.res = res;
+  el.style.width = U(big ? 400 : 180);
+  el.innerHTML = '<i class="frame"></i><div class="hold"></div>';
+  const hold = el.querySelector('.hold');
+  const art = (name, x, y, w, h) => {
+    const a = document.createElement('i');
+    a.className = 'art';
+    Object.assign(a.style, { left: `calc(50% + ${U(x - w / 2)})`, top: `calc(50% + ${U(-y - h / 2)})`, width: U(w), height: U(h) });
+    if (name) spr(a, sh, name);
+    el.appendChild(a);
+    return a;
+  };
+  const text = (cls, t, y, px, color) => {
+    const d = document.createElement('div');
+    d.className = cls;
+    d.style.top = `calc(50% + ${U(-y - px * 0.6)})`;
+    d.appendChild(t.includes('<color') ? richRow(app, t, px) : label(app, t, px, color));
+    el.appendChild(d);
+  };
+  // CheckMark centre from the card centre (x right, y up): Big and Mode (190, 57), Small (72, 49)
+  let okAt = [190, 57];
+  if (modeId) {
+    // TrophyRoadRewardModeUI: Mask 384 x 164 with the mode sprite, ModeName (22) at -54, the second line (30, #FFC93D) at -82
+    hold.style.inset = U(8);
+    spr(hold, sh, MODE_ILLU[modeId] || 'RoadMode_challengeMode');
+    const name = modeName(meta, modeId);
+    const lv = kind === 'unlocked_level_mode' ? meta.d.roads[XP_ROAD].filter(([v, rw]) => v <= stepValue(rewards) && rw.some(([r]) => r === res)).length : 0;
+    text('t1', lv ? `${name} level ${lv}` : name, -54 + 6, 22);
+    text('t2', lv ? 'New challenge' : 'New mode', -82 + 6, 30, '#FFC93D');
+    okAt = [190, 57];
+  } else if (big) {
+    // TrophyRoadRewardBigUI: the rarity's XpRoadHolder; the item icon (BigRewardWithBackground, 230 at +50) or the
+    // booster pack (BigRewardWithoutBackground, 160 x 150 at +25), the title (30) along the bottom
+    const rar = it ? (it.rarity === 'ultimate' ? 'legendary' : ['epic', 'legendary'].includes(it.rarity) ? it.rarity : 'common') : booster[1].replace('welcome', 'epic');
+    spr(hold, sh, 'XpRoadHolder_' + rar);
+    if (it) {
+      const a = art(null, 0, 20, 150, 150);
+      const c = iconCanvas(icons, it, 75);
+      Object.assign(c.style, { width: '100%', height: '100%' });
+      a.appendChild(c);
+    } else art(rar + '_nooutline', 0, 35, 150, 150 * (sh.rects[rar + '_nooutline'][3] / sh.rects[rar + '_nooutline'][2]));
+    text('t1', it ? it.title : booster[0], -70, 30);
+  } else {
+    // TrophyRoadRewardSmallUI: SmallRewardCoinsPrize (SkinCoinsPile + the amount), a single card, tickets, a flag
+    el.querySelector('.frame').style.background = '#372b8582';
+    hold.style.display = 'none';
+    if (res === 'currency.skin_coins') { art('SkinCoinsPile', 0, 10, 130, 128); text('t1', String(q), -62, 32); }
+    else if (booster) {
+      const rar = booster[1], n = rar + 'card_nooutline', r = sh.rects[n];
+      art(n, 0, 12, 120 * (r[2] / r[3]), 120);
+      text('t1', booster[0].replace(/ Card$/, ' card'), -70, 22);
+    } else if (res === SKIP_TICKETS) { art('Ticket', 0, 12, 110, 89); text('t1', `x${q} tickets`, -70, 22); }
+    else { const a = art(null, 0, 15, 90, 90); app.icon(a, res, 90 * (window.innerHeight / 1334)); text('t1', FLAGS[res] || res, -70, 18); }
+    okAt = [72, 49];
+  }
+  const ok = document.createElement('i');
+  ok.className = 'ok';
+  Object.assign(ok.style, { left: `calc(50% + ${U(okAt[0] - 30)})`, top: `calc(50% + ${U(-okAt[1] - 30)})` });
+  spr(ok, sh, 'IconValidate');
+  ok.style.display = claimed ? '' : 'none';
+  el.appendChild(ok);
+  return el;
+}
+const stepValue = (rewards) => rewards.value;
+function modeName(meta, id) { return meta.d.modes.find((m) => m[0] === id)?.[1] || id; }
+
+// opts.auto: the automatic popup (main.js roadPopup). Resolves when the popup closes, with the rewards claimed.
+export async function openRoad(app, opts = {}) {
   const { meta, save, custom } = app;
   kitStyle();
   if (!document.getElementById('roadCss')) document.head.insertAdjacentHTML('beforeend', `<style id="roadCss">${ROAD_CSS}</style>`);
+  let finish;
+  const closed = new Promise((r) => { finish = r; });
   const [{ el: page, body, sh }, icons] = await Promise.all([
     artPage(app, 'road', 'road', { grad: 'linear-gradient(#da73d6, #3673c7)', pattern: 'Pattern_Trophy', patSize: 256, patAlpha: 0.08,
       title: 'Đường XP' }), custom.icons()]);
-  body.innerHTML = '<div class="steps"><i class="col"></i><i class="fill"></i></div>';
-  page.insertAdjacentHTML('beforeend', '<div class="foot"><b class="sum"></b><button class="big" disabled>Nhận thưởng</button></div>');
-  const list = body.querySelector('.steps'), btn = page.querySelector('.foot .big'), sum = page.querySelector('.foot .sum');
-  spr(btn, sh, 'OutlinedButtonGold');
-  glText(app, sum, 26);
-
-  function reward([res, q]) {
-    const el = document.createElement('div');
-    el.className = 'rwd';
-    const kind = res.split('.')[0];
-    const it = meta.byId.get(res);
-    let label, soon = false;
-    if (it) { el.appendChild(iconCanvas(icons, it, 48)); label = it.title; }
-    else {
-      const ic = document.createElement('i');
-      const key = res === 'currency.skin_coins' ? 'coin' : kind === 'booster' ? 'booster.' + meta.d.boosters[res]?.[1]?.replace('welcome', 'epic')
-        : kind === 'unlocked_level_mode' ? 'mode.challenge' : res;
-      app.icon(ic, key, 60);
-      el.appendChild(ic);
-      const mode = meta.d.modes.find((m) => m[0] === res);
-      if (res === 'currency.skin_coins') label = q + ' xu';
-      else if (mode) label = 'Mở ' + mode[1];
-      else if (kind === 'unlocked_level_mode') label = 'Challenge +' + q + ' màn';
-      else if (kind === 'booster') label = meta.d.boosters[res]?.[0] || res;
-      else label = FLAGS[res] || res;
-    }
-    const s = document.createElement('span');
-    s.innerHTML = rich(label) + (soon ? '<span class="soon">🔒 sắp có</span>' : '');
-    el.appendChild(s);
-    return el;
-  }
-
-  function render() {
-    for (const e of list.querySelectorAll('.step')) e.remove();
-    const done = save.claimed[XP_ROAD] ?? -1, rank = meta.rankOf(save.xp);
-    let league = '', fillTo = 0;
-    meta.xpRoad.forEach(([v, rewards, lg], i) => {
-      if (lg) league = meta.d.leagues[lg];
-      const row = document.createElement('div');
-      row.className = 'step' + (v <= done ? ' done' : v <= save.xp ? ' ready' : '') + (i + 1 === rank ? ' cur' : '');
-      row.innerHTML = '<b class="rk"></b>';
-      const rk = row.querySelector('.rk');
-      rk.textContent = i + 1;
-      if (i + 1 === rank) spr(rk, sh, MEDAL[league] || 'BronzeMedals_01');
-      if (lg) { const l = document.createElement('b'); l.className = 'lg'; l.textContent = meta.d.leagues[lg]; row.appendChild(l); glText(app, l, 28); }
-      if (rewards.length) {
-        const card = document.createElement('div');
-        card.className = 'card';
-        const it = rewards.map(([res]) => meta.byId.get(res)).find(Boolean);
-        const rar = it?.rarity === 'ultimate' ? 'legendary' : ['epic', 'legendary'].includes(it?.rarity) ? it.rarity : 'common';
-        spr(card, sh, 'XpRoadHolder_' + rar);
-        const rw = document.createElement('div');
-        rw.className = 'rw';
-        for (const r of rewards) rw.appendChild(reward(r));
-        card.appendChild(rw);
-        if (v <= done) { const ok = document.createElement('i'); ok.className = 'ok'; spr(ok, sh, 'ValidateIcon_01'); card.appendChild(ok); }
-        row.appendChild(card);
-      }
-      list.appendChild(row);
-      glText(app, rk, i + 1 === rank ? 34 : 26);
-      if (v <= save.xp) fillTo = i;
-    });
-    // the fill reaches the current rank's marker plus its share of the way to the next one
-    const b = meta.xpBar(save.xp);
-    list.querySelector('.fill').style.height = `calc(${U(40)} + ${U(250)} * ${fillTo + 0.5 + Math.min(1, b.k)})`;
-    const n = meta.claimable(save);
-    btn.disabled = !n;
-    btn.textContent = n ? `Nhận thưởng (${n})` : 'Nhận thưởng';
-    sum.textContent = `${save.xp} XP`;
-    page.querySelector('.c').textContent = save.coins;
-    (list.querySelector('.ready') || list.querySelector('.cur'))?.scrollIntoView({ block: 'center' });
-  }
-  btn.onclick = () => {
-    app.play('popup_in');
-    const got = meta.claim(save, XP_ROAD, save.xp);
-    app.writeSave();
-    app.applyEquip();
-    const names = got.map((g) => g.item?.title || (g.coins && g.coins + ' xu') || (g.mode && 'chế độ mới') || null).filter(Boolean);
-    if (names.length) app.toast('Nhận: ' + names.join(', '));
-    render();
+  const steps = meta.xpRoad, n = steps.length;
+  const Y = (i) => ROAD_START + ROW * i - STEP_DY;
+  // the XP's height on the bar: between the steps it lies between, in proportion
+  const yOf = (xp) => {
+    let i = 0;
+    while (i + 1 < n && steps[i + 1][0] <= xp) i++;
+    if (i + 1 >= n) return Y(i);
+    const k = Math.min(1, Math.max(0, (xp - steps[i][0]) / (steps[i + 1][0] - steps[i][0])));
+    return Y(i) + ROW * k;
   };
-  render();
+  body.innerHTML = `<div class="steps" style="height:${U(ROAD_START + ROW * (n - 1) + 200)}"><i class="col"></i><i class="fill"><i class="cur"></i></i></div>`;
+  page.insertAdjacentHTML('beforeend', '<button class="home" title="Đóng"></button><div class="stars"></div>');
+  const list = body.querySelector('.steps'), fill = list.querySelector('.fill'), home = page.querySelector('.home');
+  list.querySelector('.col').style.height = `calc(${U(1000)} + ${U(Y(n - 1))})`;
+  spr(fill.querySelector('.cur'), sh, 'CursorTrophyRoad');
+  spr(home, sh, 'Icon_Home');
+  const octBg = `${tinted(sh, 'Octogone_HolderTrophyRoad', '#4e47a1')}, ${tinted(sh, 'Octogone_HolderTrophyRoadOutline', '#2b247b')}`;
+  const cards = [];
+  let league = '';
+  function render(shownXp) {
+    for (const e of list.querySelectorAll('.oct, .link, .rcard, .lg, .lgm, .lgn')) e.remove();
+    cards.length = 0;
+    const done = save.claimed[XP_ROAD] ?? -1, rank = meta.rankOf(shownXp);
+    steps.forEach(([v, rewards, lg], i) => {
+      const y = Y(i);
+      if (lg) {
+        league = meta.d.leagues[lg];
+        // ElementStart / ElementLeague: LeagueHolder 30 under the row top (ElementStart: 154 from its bottom) with the
+        // limit line (BarRankTrophyRoad, 8 high) on it, the medal 30 above it at x +50, the league name 35 under it
+        const at = i === 0 ? 154 : y + STEP_DY - 30;
+        if (i) { const l = document.createElement('i'); l.className = 'lg'; l.style.bottom = U(at - 8); list.appendChild(l); }
+        const m = document.createElement('i');
+        m.className = 'lgm';
+        Object.assign(m.style, { left: `calc(50% + ${U(50)})`, bottom: U(at + 30 - 90) });
+        spr(m, sh, MEDAL[league] || 'BronzeMedals_01');
+        list.appendChild(m);
+        const t = document.createElement('div');
+        t.className = 'lgn';
+        Object.assign(t.style, { left: `calc(50% + ${U(50)})`, bottom: U(at - 35 - 25) });
+        t.appendChild(label(app, league, 40));
+        list.appendChild(t);
+      }
+      const oct = document.createElement('div');
+      oct.className = 'oct' + (i === rank ? ' medal' : '');
+      oct.dataset.step = i;
+      oct.style.bottom = `calc(${U(y)} - ${U(i === rank ? 55 : 33)})`;
+      oct.innerHTML = '<i></i><b></b>';
+      if (i === rank) spr(oct.firstChild, sh, MEDAL[meta.league(shownXp)] || 'BronzeMedals_01');
+      else oct.firstChild.style.backgroundImage = octBg;
+      oct.lastChild.appendChild(label(app, String(i), i === rank ? 34 : 28, i === rank ? null : '#A46AC7'));
+      list.appendChild(oct);
+      if (!rewards.length) return;
+      const link = document.createElement('i');
+      link.className = 'link';
+      Object.assign(link.style, { bottom: U(y + 0.5), width: `calc(${CARD_X * 100}% - ${U(BAR_X + 5)})` });
+      list.appendChild(link);
+      const rw = Object.assign([...rewards], { value: v });
+      const card = roadCard(app, sh, icons, rw, v <= done);
+      Object.assign(card.style, { left: `${CARD_X * 100}%`, bottom: `calc(${U(y)} - ${U(90)})` });
+      card.dataset.step = i;
+      list.appendChild(card);
+      cards.push([v, card]);
+    });
+  }
+  const setFill = (xp) => { fill.style.height = `calc(${U(1000)} + ${U(yOf(xp))})`; };
+  // scroll so the given height of the bar sits at 30 % of the view from the bottom (EndPoint anchor y 0.3)
+  const scrollTo = (y) => {
+    body.scrollTop = list.clientHeight - y * u() - body.clientHeight * 0.7;
+  };
+  const u = () => window.innerHeight / 1334;
+  // data-state (and the data-states history, data-pend at opening) for the tests
+  const mark = (st) => { page.dataset.state = st; page.dataset.states = (page.dataset.states ? page.dataset.states + ',' : '') + st; };
+  const close = (got) => { mark('closed'); app.overlay('road', false); app.hud(); finish(got); };
+  home.onclick = () => { app.play('popup_out'); close([]); };
+
+  const pend = meta.xpPending(save), from = save.xp - pend;
+  page.dataset.states = '';
+  page.dataset.pend = pend;
+  mark(pend ? 'animating' : 'browse');
+  render(pend ? from : save.xp);
+  setFill(pend ? from : save.xp);
+  scrollTo(yOf(pend ? from : save.xp));
+  if (!pend) {
+    // SetBackButtonVisibility(true) after GoToLevel; nothing to claim
+    home.style.display = '';
+    page.dataset.home = 'shown';
+    return closed;
+  }
+  home.style.display = 'none'; // SetBackButtonVisibility(false) while the XP animates
+  page.dataset.home = 'hidden';
+  // XpRoadParticlesGenerator: Xp stars from the bottom centre to the fill's tip, then the bar fills
+  const stars = page.querySelector('.stars'), count = Math.min(10, pend);
+  const tStart = performance.now(), FLY = 0.5, GAP = 0.06, FILL = 0.6;
+  const t1 = FLY + GAP * (count - 1);
+  const items = [];
+  for (let k = 0; k < count; k++) { const s = document.createElement('i'); spr(s, sh, 'Xp'); s.style.display = 'none'; stars.appendChild(s); items.push(s); }
+  await new Promise((done) => {
+    const step = () => {
+      const t = (performance.now() - tStart) / 1000, W = page.clientWidth, H = page.clientHeight;
+      const ex = BAR_X * u(), ey = H * 0.7;
+      items.forEach((s, k) => {
+        const kt = (t - k * GAP) / FLY;
+        if (kt < 0 || kt >= 1) { s.style.display = 'none'; return; }
+        const e = 1 - (1 - kt) * (1 - kt), sx = W / 2, sy = H;
+        // a curve bending left of the straight line (CurveProfile) [ĐỀ XUẤT]
+        const x = sx + (ex - sx) * e - Math.sin(Math.PI * kt) * W * 0.15, y = sy + (ey - sy) * e;
+        Object.assign(s.style, { display: '', left: x + 'px', top: y + 'px', transform: `scale(${1 - 0.4 * kt})` });
+      });
+      const kf = Math.min(1, Math.max(0, (t - FLY) / Math.max(FILL, t1 - FLY + 0.1)));
+      const xp = from + pend * (1 - (1 - kf) * (1 - kf));
+      setFill(xp);
+      scrollTo(yOf(xp));
+      page.dataset.xp = Math.round(xp);
+      if (kf < 1) requestAnimationFrame(step); else { stars.innerHTML = ''; done(); }
+    };
+    requestAnimationFrame(step);
+  });
+  // ClaimAllRewards, then UpdateView: the newly claimed cards get their check mark
+  const doneBefore = save.claimed[XP_ROAD] ?? -1;
+  const { got } = meta.claimRoad(save);
+  app.writeSave();
+  const doneNow = save.claimed[XP_ROAD] ?? -1;
+  for (const [v, card] of cards) {
+    if (v <= doneBefore || v > doneNow) continue;
+    const ok = card.querySelector('.ok');
+    ok.style.display = ''; ok.classList.add('pop');
+  }
+  mark('claimed');
+  page.dataset.claimed = save.claimed[XP_ROAD] ?? -1;
+  for (const g of got) {
+    if (g.item) app.toast('Mở khoá: ' + g.item.title);
+    else if (g.unlocked && g.mode) app.toast('Chế độ mới: ' + modeName(meta, g.mode));
+  }
+  await new Promise((r) => setTimeout(r, 600)); // Task.Delay(600) [asm 0x1240e6c]
+  close(got);
+  return closed;
 }
 
 // ---- Lucky Wheel ---------------------------------------------------------------------------------------------------

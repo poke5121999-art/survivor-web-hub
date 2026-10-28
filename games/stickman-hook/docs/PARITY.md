@@ -4,6 +4,22 @@ Ngày so: 2026-10-28, chụp lại 2026-10-29. Bản web: Pages `?v=20261028f`, 
 Mỗi cặp ảnh nằm ở `shots/stickman-hook/parity/<key>.png` (web bên trái, tối đa 2 khung gốc bên phải, vùng đo viền xanh lơ).
 Số đo màu lấy từ `shots/stickman-hook/parity/report.json`. Nhãn từng cặp ở `D:/stickman-hook-ref/parity/verdicts.tsv`, cổng `parity.py check` thoát 0.
 
+## 20261028l: Đường XP tự nhận, hạt trail, skin động, heo đất đầy (2026-10-29)
+
+So với clip `n` (8qpsOxGtjz8): popup Đường XP 0:15.8-0:17.4, heo đất đầy 0:21.5. Ảnh web: `shots/stickman-hook/road-auto.png`, `road.png`,
+`road-claimed.png`, `piggy-full.png`, `piggy-broken.png`, `trail-fire.png`, `trailfx-*.png`, `skinfx-*.png`. Địa chỉ asm ở README.
+
+| Chỗ | Trạng thái 20261028l |
+|---|---|
+| Mở chế độ / màn Challenge | **Đã sửa.** Mở khi mốc Đường XP đã được nhận (`IsUnlocked` = có tài nguyên chế độ), màn Challenge theo số mốc đã nhận |
+| Popup Đường XP tự mở | **Đã làm.** Sau màn có XP (trước heo đất, như clip 0:15.8) và ở trang chính khi còn XP chưa nhận: sao bay, thanh chạy, nhận hết, 600 ms rồi đóng |
+| n11 Đường XP | **Đã sửa.** Hàng 300, bát giác, thẻ Big/Small/Mode đúng prefab, ảnh chế độ gốc, đánh số hạng từ 0 (khớp "21 Epic Card, 22 Challenge level 3, 23 150, 24 Common Booster") |
+| Bản lưu cũ | XP sau mốc đã bấm nhận thành XP chờ, trang chính tự nhận ở lần vào tới |
+| Hạt của trail | **Đã làm.** 24/26 trail theo ParticleSystem của prefab, nạp theo trail đang dùng. Chưa có clip gốc dùng trail khác mặc định |
+| Skin biến thể động | **Đã làm.** 35/51 skin có phần động theo mã GLES3 của `AllIn1SpriteShaderScrollView`. Chưa có clip gốc có skin biến thể |
+| n04 heo đất đầy | **Đã sửa.** Skin hiện màu khi đầy (chớp trắng), thanh bộ sưu tập (tên + ô tích), LOSE IT sau 600 ms. Nút VIP Skip không làm (tiền thật) |
+| Còn lệch | Popup `ModeUnlockedPopup` / mở item / đủ bộ sau khi nhận vẫn là toast; "TOP n % of players" (số server) không có |
+
 ## 20261028k: luật lối chơi còn lệch (2026-10-29)
 
 Không có clip gốc cho các màn dưới đây, so bằng asm (địa chỉ ở README). Ảnh web: `shots/stickman-hook/adv-skills.png`, `picker-easter_event.png`, `pachinko-limit.png`.
@@ -17,7 +33,7 @@ Không có clip gốc cho các màn dưới đây, so bằng asm (địa chỉ �
 | Mã ngày | **Đã sửa.** `FormatDateId` = `yyyy-MM-dd` cho cờ bỏ qua màn, cờ lượt chơi, bảng Đua |
 | Vùng chết | **Đã sửa.** Hộp `CameraLimitsBottom/Left` của bản gốc: chết dưới tâm camera 5.05 + 0.3125 × rộng (9:16: 6.695), không còn 0.3 ngoài mép |
 | Extra Lucky Wheel | **Đã sửa.** Lượt quay thêm không phát thưởng, như bản gốc |
-| Mở chế độ / màn Challenge | Còn lệch (`[ĐỀ XUẤT]`): web mở theo XP đạt, gốc cần nhận mốc Đường XP |
+| Mở chế độ / màn Challenge | Lệch ở 20261028k (web mở theo XP đạt); **đã sửa ở 20261028l** |
 
 ## 20261028j: thẻ bài, booster, Chợ Đen (2026-10-29)
 
@@ -58,7 +74,7 @@ Bảng dưới (cột "Khác") là trạng thái lúc so lần đầu `20261028f
 | p04, n02 | **Đã sửa.** "STAGE n COMPLETED" hiện ngay ở 20 %, #9FFF54 + trắng. "LEVEL CLEARED" của 2019/2023 là `version` |
 | p05, n03 | **Đã sửa** tư thế bay suốt slow-mo, không nhảy, không "tap to continue". **Còn lệch:** pháo giấy toả về phía trước, gốc toả quanh người (`web-bug`, prefab chưa tìm thấy) |
 | p06, o05 | **Đã làm** trang kết thúc 9.9.60 (so clip 2026 0:27.6). Khung 2019/2023 là `version` |
-| n04 | **Đã làm** màn heo đất toàn màn hình. **Chưa làm:** thanh bộ sưu tập khi đầy, nút VIP Skip |
+| n04 | **Đã làm** màn heo đất toàn màn hình. Thanh bộ sưu tập: có từ 20261028l. Nút VIP Skip không làm |
 | p08 | **Đã sửa.** Người chơi ở 0.30 bề ngang (ForwardFocus 0.25 đọc từ scene) |
 | p09, p10, p13, o01 | **Đã sửa.** Đáy nền mang màu effect của theme |
 | o02 | **Đã sửa.** Màn 93-96 tím: theme đổi mỗi 4 màn |

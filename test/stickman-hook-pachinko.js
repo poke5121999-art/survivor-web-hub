@@ -67,9 +67,28 @@ const BOARDS = [
   // ---- first screen: home, nothing of the mode loaded
   await page.goto(url);
   await page.waitForFunction(() => window.__sh && window.__sh.world, null, { timeout: 30000 });
+  const lockedBefore = await page.evaluate(() => !window.__sh.save.modes['mode.pachinko']?.unlocked);
   await page.waitForTimeout(500);
   const early = requested.filter((u) => /pachinko/.test(u));
   check('first screen loads no pachinko file', early.length === 0, early.join(' '));
+  // 400 XP, nothing claimed: Lucky Drop (XP road step 350) is locked until the home page's automatic XP road popup
+  // (xp_road_recovery) claims it
+  await page.waitForFunction(() => window.__sh.save.inv['progression.xp_claimed'] === 400 && !document.querySelector('#road.on'),
+    null, { timeout: 15000 }).catch(() => {});
+  check('the home page claims the pending 400 XP through the XP road popup: Lucky Drop unlocked by the claim',
+    lockedBefore && await page.evaluate(() => !!window.__sh.save.modes['mode.pachinko']?.unlocked));
+  // the item XP of that claim reaches the welcome booster (550): its popup opens on the home page; open it and close it
+  await page.waitForFunction(() => !document.querySelector('#road.on') && !window.__sh.meta.xpPending(window.__sh.save), null, { timeout: 15000 }).catch(() => {});
+  await page.waitForTimeout(1500);
+  for (let k = 0; k < 4 && await page.evaluate(() => !!document.querySelector('#boostPop.on')); k++) {
+    for (let i = 0; i < 12 && !(await page.evaluate(() => document.getElementById('boostPop').classList.contains('done'))); i++) {
+      await page.mouse.click(225, 450); await page.waitForTimeout(i ? 450 : 2300);
+    }
+    await page.click('#boostPop .close'); await page.waitForTimeout(1200);
+  }
+  // the welcome pack's cards (one is pachinko_x10_multiplier) would change the boards below: this test runs without cards
+  await page.evaluate(() => { const s = window.__sh.save; for (const k of Object.keys(s.inv)) if (k.startsWith('card.')) delete s.inv[k];
+    s.boosterQueue = []; window.__sh.app.writeSave(); });
 
   // ---- mode list -> Lucky Drop
   await page.click('#btnModes');

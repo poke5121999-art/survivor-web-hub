@@ -46,7 +46,8 @@ Chưa làm: quảng cáo (mọi nút xem quảng cáo trả 1 vé bỏ qua), VIP
 | `js/save.js` | Bản lưu v2: xu, XP, đồ đã có/đang dùng theo loại, mốc đã nhận của từng road, cờ, chế độ |
 | `js/meta.js` | Kinh tế gốc: phát thưởng theo bảng loại tài nguyên, chữ mở khoá theo bảng cách mở, XP road, theme |
 | `js/custom.js` | Nạp lười `custom.json`, sheet skin, `ropes.webp`, `custom-ui.webp` |
-| `js/fx.js` | Nướng hiệu ứng của skin biến thể (nạp chỉ khi cần) |
+| `js/fx.js` | Nướng hiệu ứng của skin biến thể, kể cả phần động (nạp chỉ khi cần) |
+| `js/trailfx.js`, `data/trailfx/<tên>.json`, `art/trailfx/<tên>.webp` | Hạt của trail (ParticleSystem của prefab trail), nạp khi trail đó được trang bị (`tools/build_trails.py`) |
 | `js/menus.js` | Chế độ, Tuỳ biến, Đường XP (art gốc), vòng quay, Chợ (nạp khi mở lần đầu) |
 | `js/cards.js` | Luật thẻ: cấp thẻ, cấp perk, mở booster (XXHash64 + `UnityEngine.Random`), Chợ Đen, cộng tài nguyên theo thẻ, phép thử của thẻ ở từng chế độ (không DOM) |
 | `js/cardsui.js` | Trang thẻ, popup mở booster, gói thẻ và Chợ Đen trong Chợ, thông báo hiệu ứng thẻ (nạp lười) |
@@ -205,17 +206,19 @@ Bản gốc chạy offline bằng chính bản này.
   - Mở khoá một item cũng cộng XP theo độ hiếm (20/30/50/75). Đủ bộ sưu tập cộng thêm XP của bộ.
   - Không có thưởng xu mỗi màn: `FULLGAME.md` không tìm thấy, nên không tự đặt.
 - **Road màn Normal** (`achieved_level_mode.normal`): tự nhận khi qua màn 10/20/25/35/50/100, như `GiveEndGameRewards`. Lúc khởi động cũng nhận bù.
-- **Đường XP** (127 mốc): người chơi bấm "Nhận thưởng", nhận lần lượt mọi mốc đã đạt (`ClaimAllRewards`).
+- **Đường XP** (127 mốc): không có nút nhận. Popup Đường XP tự mở khi có XP chưa nhận, chạy thanh rồi nhận mọi mốc đã đạt (`ClaimAllRewards`).
+  Xem mục "Đường XP tự nhận" (rev 20261028l).
   - Thưởng mà hệ thống chưa nạp vẫn được ghi vào `save.pending` và trả khi hệ đó nạp (booster: khi `cards.js` nạp).
 - **Mở khoá item.** Một bảng `UNLOCK` (cách mở → điền `{0}` của `textTemplate` gốc, có đạt được ở bản web hay không).
   - Lúc làm Pha 1, bản web chỉ đạt được: mặc định, road XP, road màn Normal. Sau đó có thêm sự kiện, Challenge, Grapple, vòng quay, heo đất (bảng `UNLOCK`, cờ `live`).
   - Các cách còn lại (quảng cáo, VIP, Adventure, Race, link ngoài) hiện chữ gốc và không có đường mở giả. Road cấp perk của thẻ giờ có thật.
   - `tournament` không có trong `unlockConditions`, nên dùng chữ của `leaderboard_prize`.
-- **Chế độ.** Normal chơi được. Các chế độ khác hiện "Cần N XP" (theo mốc road phát chế độ đó), Easter/Valentine cần màn 10. Đạt rồi thì hiện "Sắp có".
+- **Chế độ.** Normal chơi được. Chế độ khác mở khi mốc Đường XP phát nó đã được **nhận** (từ 20261028l; trước đó web mở theo XP đạt).
+  Còn khoá thì hiện "Cần N XP". Easter/Valentine mở theo cờ `flag.seasonal_event` do road màn Normal phát ở màn 10.
 - **Skin biến thể** (`skin.alien_hologram_travelers`, ...; 51 item): dùng sheet của skin gốc.
   - Material AllIn1SpriteShader của nó được `build_meta.py` rút gọn thành vài phép xử lý điểm ảnh: đổi màu, HSV, swap, xám, âm bản, posterize, gradient, pixel hoá, glow, sọc hologram, viền.
   - `fx.js` nướng các phép này một lần cho mỗi khung hình.
-  - Các hiệu ứng động (glitch, nhấp nháy, rung, sóng, dissolve, color ramp) bỏ qua.
+  - Hiệu ứng động: xem mục "Hiệu ứng động của skin biến thể" (rev 20261028l).
   - Skin biến thể có `hasShadow: false` nên không vẽ bóng.
 - **Nạp lười.** Màn đầu chỉ nạp thêm `meta.json` (31 KB).
   - Skin mặc định vẽ từ `atlas.webp`. Dây mặc định là texture `basic` trắng: web vẽ một nét trắng rộng 0.03 đơn vị, không nạp `ropes.webp`
@@ -229,12 +232,12 @@ Số tự đặt `[ĐỀ XUẤT]`:
 
 - Dây: prefab Rope scale sprite (1.6, 2) dưới một cha không rõ scale.
   - Mình nhân thêm 0.2: ô texture 167 px rộng khoảng 0.4 đơn vị, cạnh dây Classic 0.045.
-- Hạng = vị trí (đếm từ 1) của mốc road XP cuối cùng đã đạt.
+- Hạng = chỉ số (đếm từ 0) của mốc Đường XP cuối cùng đã đạt. Clip 2026 0:16: mốc 1850 XP (chỉ số 21) mang số 21. Bản trước 20261028l đếm từ 1.
   - Mã gốc điền `{{level}}` từ trạng thái road, còn template mặc định dùng `{0}`.
 - Pixel hoá: khối `max(2, round(cạnh khung / _PixelateSize × 4))` px.
 - Glow: cộng `_GlowColor × _Glow / 10`.
 - Ngưỡng đổi màu tối thiểu 0.08.
-- Trail lấy mẫu mỗi khi người chơi đi được 0.02 đơn vị, tuổi tính theo thời gian game. Hạt của trail chưa vẽ.
+- Trail lấy mẫu mỗi khi người chơi đi được 0.02 đơn vị, tuổi tính theo thời gian game. Hạt của trail: mục "Hạt của trail" (rev 20261028l).
 
 ## Menu bằng art gốc (2026-10-29, rev 20261028i)
 
@@ -249,7 +252,7 @@ Trang chính, Chế độ, Đường XP, Tuỳ biến và trang Đua dựng lạ
   ("CHƠI", "TRANG CHỦ", "CHẾ ĐỘ CHƠI", "GIẢI ĐUA"...) dùng chữ hệ thống viền xanh đậm. `glText` giữ nguyên `textContent`: code và bài kiểm vẫn đọc được số.
 - Trang chính: cột trái gốc là VIP Bundle / No Ads (chưa làm), web đặt widget Chợ ở đó. Tab thẻ bài (`Icon_CardsLocked` tới khi có thẻ đầu tiên, rồi `Icon_Cards`) mở trang thẻ. Bánh răng mở bảng chọn màn.
 - Tuỳ biến: gốc lật 7 trang, web cuộn mọi bộ sưu tập trong một danh sách, số trang cuộn tới nhóm của nó.
-- Đường XP: thẻ thưởng là prefab lúc chạy, chưa đọc. Cột x 85, 250 đơn vị mỗi hạng là `[ĐỀ XUẤT]`. Nút "Nhận thưởng" của web giữ lại.
+- Đường XP: từ 20261028l theo prefab `ElementStart` / `ElementReward` (300 đơn vị mỗi hạng) và thẻ thưởng Big / Small / Mode của `XpRoadSettings`. Bỏ nút "Nhận thưởng" của web.
 - Nạp: `home.js` + `uikit.js` + `m-home.webp` chỉ nạp khi trang chính hiện. Màn đầu (`?level=1`) 580 KB. Mở trang chính thẳng (không `?level`) 712 KB
   (`m-home.webp` 92 KB thay `menu.webp` 39 KB).
 
@@ -390,7 +393,7 @@ Tự đặt, có nhãn `[ĐỀ XUẤT]`:
 - Heo đất (`js/endgame.js`) là màn toàn màn hình như `PiggyBankPopup`: nền gradient `#40E8EC → #008FE1` (UIGradient), `Pattern_MainMenu` lát 341 đơn vị,
   xoay 30°, cộng sáng 0.17; chữ "Stage n / Completed" ở 250 từ trên; bóng skin `#252252`, phần đã nạp tô tím từ dưới lên; nút vàng ở 240 từ dưới.
   - Nút vàng mang icon vé (web trả vé thay quảng cáo). Chạm chỗ trống là tiếp tục. Đầy: UNLOCK hoặc chạm "LOSE IT!". Mở xong: "Equip it!".
-  - `[ĐỀ XUẤT]` chữ phóng 1.2 lần (đo trong clip, prefab ghi 49), skin chiếm 60 % hộp 570, nạp chạy 0.8 s. Chưa làm: thanh bộ sưu tập, nút VIP Skip.
+  - `[ĐỀ XUẤT]` chữ phóng 1.2 lần (đo trong clip, prefab ghi 49), skin chiếm 60 % hộp 570, nạp chạy 0.8 s. Thanh bộ sưu tập: có từ 20261028l. Nút VIP Skip không làm (tiền thật).
 - Trang kết thúc (`NormalEndGame`): nền theme, `BackgroundEndRace` hai góc, "stage n / Completed!" (#FFC327, Grapple/Challenge #76E97E) ở 300 từ trên,
   `LightEndRace_01`, bục caro (rộng 516 đơn vị như clip 2026 0:27.6), skin nhảy cỡ gốc 100 đơn vị/đơn vị thế giới, nút `PlayButton_03` ở 300 từ dưới, nút nhà.
 
@@ -664,6 +667,123 @@ Bẫy:
 - **Mọi mã ngày của bản gốc là `FormatDateId` = `yyyy-MM-dd`** (bộ đếm thẻ, bỏ qua màn, cờ lượt chơi của chế độ, Lucky Drop).
   Riêng xu miễn phí mỗi ngày (`periodic_resources`) không qua hàm này, `bonus.js dayId` vẫn là YYYYMMDD.
 
+## Đường XP tự nhận (2026-10-29, rev 20261028l)
+
+Luật gốc, đọc từ asm (`D:/stickman-hook-ref/dump/asm/road/`):
+
+- **Chế độ mở theo mốc đã nhận.** `GameModesService.IsUnlocked` = số lượng tài nguyên chế độ trong kho > 0 [asm 0x1296df4..0x1296ee8].
+  Sự kiện dùng `flag.seasonal_event`. Tài nguyên chỉ vào kho khi mốc Đường XP được nhận.
+  Web: `Meta.modeState` đọc `save.modes[id].unlocked`, sự kiện đọc `save.flags['flag.seasonal_event']`.
+- **Màn Challenge.** `HasUnlockedLevel(mode, i)` (i đếm từ 0): `nbLevels <= i` thì không; `autoUnlockNextLevel` thì có;
+  còn lại `GetMaxLevelUnlocked >= i` [asm 0x1296bf4..0x1296d14].
+  - `GetMaxLevelUnlocked` = số `unlocked_level_mode.challenge` trong kho [asm 0x1296b28]. Mỗi mốc đã nhận cộng 1.
+  - `FixUnlockDiscrepancies` nâng nó lên bằng số màn đã qua [asm 0x12962f4..0x1296350].
+  - Web: `Meta.levelsUnlocked` = max(`levels`, `best`).
+- **Lần cấp màn đầu tiên mở luôn chế độ.** `OnModeLevelUnlocked` gán chế độ = 1 rồi gọi `ShowModePopup` [asm 0x1297dec..0x1297f68].
+  `OnModeUnlocked` cấp màn 1 cho chế độ chưa có màn nào [asm 0x1297c1c..0x1297c5c].
+- **Popup tự mở.** `XpRoadService.OnXpChanged` theo dõi `progression.xp` [asm 0x11a0310..0x11a046c].
+  - Còn XP chưa chạy thanh (`ProgressionRoadStateController.GetPendingProgressions` [asm 0x2f9fde8]) thì xếp hàng `XpRoadPopup.AutomaticTrophyRoadPopupConfig`.
+  - Trang chính có prompt `xp_road_recovery` (`XpRoadRecoveryPromptController`) mở cùng popup đó khi còn XP chưa nhận [asm 0x1192fa0..0x119313c].
+  - Clip 2026: qua màn 44 lúc 0:13.25, popup Đường XP ở 0:15.8-0:17.4, heo đất từ 0:17.6.
+  - Web: XP qua màn → popup trước heo đất (`endgame.js show`), và trang chính mở popup khi còn XP chưa nhận (`main.js roadPopup`).
+- **Trong popup** (`XpRoadPopup.OnShowEndedAsync` [asm 0x1240a94..0x12413f8]):
+  - Ẩn nút về, sao XP bay vào, thanh chạy (`AnimateAllXpProgress`).
+  - Rồi `ClaimAllRewards('progression.xp')` [asm 0x1240c38], `UpdateView`, `Task.Delay(600)` [asm 0x1240e6c] và tự đóng.
+  - Không còn XP chờ: `Delay(100)`, cuộn tới mốc hiện tại, hiện nút về.
+  - Mở tay khi còn XP chờ (bấm thanh XP) cũng chạy, nhận rồi đóng như vậy.
+- **XP đã nhận.** Lưu ở `save.inv['progression.xp_claimed']` (`claimedResourceId` của `progression_road`). `Meta.xpPending` = XP − giá trị đó.
+  - Mở khoá item lúc nhận cũng cộng XP. Vì vậy sau một lần nhận có thể còn XP chờ, và popup mở tiếp (web: tối đa 4 lần liền).
+- **Chuyển bản lưu cũ** (`Meta.migrate`, chạy lúc khởi động):
+  - Bản lưu chưa có `progression.xp_claimed` lấy giá trị bằng mốc cuối đã bấm nhận ở web cũ.
+  - Phần XP sau mốc đó thành XP chờ. Lần tới về trang chính (hoặc qua màn), popup tự nhận nốt.
+  - Ai đã bấm nhận mốc Grapple / Challenge thì giữ quyền vào. Ai chỉ có XP mà chưa nhận thì được nhận ngay ở trang chính.
+  - Chế độ đã có `levels` mà thiếu cờ `unlocked` thì được gắn cờ.
+- **Popup dựng theo prefab** (`menus.js openRoad`, art `m-road.webp`):
+  - Hàng: `ElementStart` cao 454, mỗi mốc sau cao 300 (`ElementReward` / `ElementLeague`). Thanh ở x 85, rộng 47, màu #2B247B.
+    Bát giác 80 × 66 #4E47A1 viền #2B247B, số Junegull 28 #A46AC7. Mốc i nằm 33 dưới đỉnh hàng.
+  - Phần đầy #6DDCFF / #25CAFF, đầu thanh `CursorTrophyRoad`. Dây nối #372B8582 dày 5 tới thẻ ở 30 % bề ngang.
+  - Thẻ (`XpRoadSettings` trong bundle xproadconfig):
+    - Big 400 × 180: item và gói booster, nền `XpRoadHolder` theo độ hiếm.
+    - Small 180 × 180: xu (`SkinCoinsPile` + số), thẻ lẻ, vé, cờ.
+    - Mode 400 × 180: ảnh chế độ (`TrophyRoadRewardModeUI`: Challenge_Illu, Grapple_Illu, LuckyWheel_Illu, Tournament_Illu, LuckyDrop_Illu, Adventure_Illu;
+      xuất bằng `D:/stickman-hook-ref/tools/export_modereward.py`), tên 22 và "New Mode" / "New Challenge" #FFC93D 30.
+    - Khung `rounded_square` #372B85 50 %, `IconValidate` 60 × 60 khi đã nhận.
+  - Nút nhà 85 × 85 ở góc phải dưới, không có tiêu đề, như prefab.
+- `[ĐỀ XUẤT]`:
+  - Số sao min(10, XP chờ), cách nhau 0.06 s, bay 0.5 s, thanh chạy 0.6 s, đường bay cong sang trái. Tổng ~1.7 s, khớp clip ~1.6 s.
+    Thông số thật nằm trong `CurveProfile` / `MagneticLauncher`, chưa đọc.
+  - Huy chương hạng dùng sprite medal nhỏ đã có, không có "TOP n % of players" (số của server).
+  - Mốc 0 XP (Lucky Wheel) được nhận ở lần popup đầu, tức sau màn 1.
+- Chưa làm: `ModeUnlockedPopup` sau khi nhận chế độ (web hiện toast "Chế độ mới: …"). Popup mở item và mở bộ sưu tập cũng vẫn là toast.
+
+## Hiệu ứng động của skin biến thể (2026-10-29, rev 20261028l)
+
+Cả 51 material dùng shader `AllIn1SpriteShaderScrollView` (bundle192). 33 chương trình GLES3 của nó khớp một-một với tổ hợp keyword của các material.
+Công thức đọc thẳng từ mã GLES3, ghi cạnh `material_ops` trong `tools/build_meta.py`. `_Time` = (t/20, t, 2t, 3t); uv là toạ độ trên texture gốc của skin.
+
+| Hiệu ứng (keyword) | Công thức | Skin |
+|---|---|---|
+| Rung (SHAKEUV) | uv += 0.01·sin(t/20·speed·500·(x, y)) | NegativeOnes ×3 |
+| Glitch (GLITCH) | kênh lục lệch 0.02·amount·r1³·r2³·r3; ô ngẫu nhiên 24×19 và 38×14 (×size), đổi 12 lần/giây | Hologram ×3, ChromaticLot ×3 |
+| Tách màu (CHROMABERR) | đỏ ở uv.x + 0.1·amount, lam ở −; alpha = max(aG, max(aR, aB)·alpha) | 6 skin trên |
+| Nhấp nháy (FLICKER) | bật = fract(3t·freq + 0.05) ≤ 1 − percent; A = clamp(A·bật + alpha)·A | Hologram ×3, RainbowLovers ×3 |
+| Sọc hologram (HOLOGRAM) | s = fract((v + fract(t/20)·speed)/(stripes + unmod)); alpha 1 dưới unmod, rồi min + (s − unmod)·(max − min) | Hologram ×3, WaveParty ×3 |
+| Sóng tròn (ROUNDWAVEUV) | uv += sin((t·speed·0.1 − dist)·66.67)·strength·0.1 | WaveParty ×3 |
+| Viền méo (OUTDIST) | bán kính viền = width + (noise − 0.5)·0.2·amount, noise trôi theo fract(t/20·speed) | 20 skin (GlowInTheDark, ColdFire, Poisonous, Diabolical, Goldies, Overpowered…) |
+| Viền texture (OUTTEX) | màu viền × texture cầu vồng trôi × 2·OutlineGlow | ChromaticLot ×3, RainbowLovers ×3 |
+
+- 35/51 skin có phần động. Glow theo shader: rgb·(1 + a²·Glow·GlowColor), thay cho mức cộng 1/10 cũ (icon shop sáng hơn trước).
+- Viền theo bề rộng thật của shader (`_OutlinePixelWidth` làm tròn xuống, hoặc `_OutlineWidth`·200 texel) × 2·OutlineGlow, mảnh hơn bản nướng cũ.
+- `js/fx.js` + `js/custom.js`: skin động trả `frames[tên]` là canvas của thời điểm hiện tại.
+  - Mỗi khung chỉ vẽ lại khi có nơi đọc, tối đa 30 lần/giây (đo ~24 lần/giây khi chơi). Không nơi gọi nào phải sửa.
+  - Rung chỉ dời pivot. Skin tĩnh vẫn nướng một lần.
+- Nạp lười, chỉ khi skin hiệu ứng được dựng: `art/fx/anim.json` (4.4 KB, 1 KB gzip), `art/fx/noise.webp` (8 KB, chỉ cho viền méo),
+  `art/fx/outline.webp` (0.5 KB, chỉ cho viền cầu vồng). `data/meta.json` không đổi byte nào.
+- `[ĐỀ XUẤT]`:
+  - Hoa văn bám texture gốc bắt đầu ở góc dưới trái của sprite, vì vị trí của sprite trong atlas gốc không còn.
+  - Phép thử viền: điểm đặc đầu tiên theo mỗi hướng lấy mẫu nằm trong bán kính.
+  - Skin xám: glitch trộn sau khi tô xám.
+- Không clip nào có skin biến thể, nên chưa có cặp gốc|web. Ảnh web: `shots/stickman-hook/skinfx-*.png`.
+
+## Hạt của trail (2026-10-29, rev 20261028l)
+
+`tools/build_trails.py` đọc prefab trail: `Renderer` (TrailRenderer, order −5) và `BaseFollow` cùng 3 con `BaseSmoke` / `BaseShine` / `BaseFall`.
+Mỗi trail ra `data/trailfx/<tên>.json` (0.9-4.2 KB) và `art/trailfx/<tên>.webp` (1.6-12.7 KB; emoji 55 KB).
+`js/trailfx.js` chỉ nạp khi trail đang dùng có hạt. 24/26 trail có hạt; `basic` và `pink` không phát hạt nào (emission tắt), nên không có file.
+
+- `PlayerController.DisplayTrail` [asm 0x1206c14..0x1206d3c] gắn prefab làm con của người chơi (scale 0.3).
+  Nó được gọi từ `SpawnPlayer` sau `DestroyTrailIfExists` [asm 0x1206894], nên mỗi lần xuất hiện hạt bắt đầu từ trống.
+  Về đích không xoá hạt: hạt chạy theo thời gian game, nên chậm lại theo slow-mo.
+- Mọi system mô phỏng ở world space, có loop, `emitterVelocity` lấy theo Rigidbody.
+  - Hầu hết phát theo quãng đường. Ví dụ fire `BaseFollow`: 11 hạt mỗi đơn vị, sống 0.25-0.35 s, cone 25°.
+  - poop Smoke phát thêm 4 hạt/s theo thời gian. burger Fall có burst 5 hạt mỗi 0.5 s.
+- Đã port: shape sphere/cone, inherit velocity, trọng lực, limit velocity, noise, size/rotation/colour over lifetime (cả kiểu random giữa hai curve/gradient),
+  texture sheet dạng lưới và dạng sprite, stretched billboard, pivot, maxParticleSize, sorting order (hạt order ≤ 0 vẽ trước người chơi, ≥ 1 vẽ sau).
+- Scaling Hierarchy (fire, bubble, smoke, goldsmoke, thunder) nhân cỡ và shape với 0.3. Các trail khác dùng scaling Local.
+- goldcandy và thunder tắt TrailRenderer, goldsmoke có Renderer inactive: ba trail này không vẽ vạch.
+- Material: Mobile Alpha → source-over, Legacy Additive → `lighter`, Additive (Soft) → `screen`, Legacy Alpha → màu × 2 · tint.
+- `[ĐỀ XUẤT]`:
+  - Tốc ban đầu không nhân scale (như pháo giấy). Dampen tính theo khung 60 fps thật. Noise dùng trường mượt của pháo giấy.
+  - fruits: giới hạn cả chuyển động do noise. Không giới hạn thì trái cây văng khỏi màn trong 1 s.
+  - Bỏ prewarm, Collision 3D, External Forces. thunder `BaseShine` (stretched, vận tốc 0) bỏ.
+- Chưa có clip gốc dùng trail khác mặc định. Đã so với icon shop của từng trail.
+
+## Heo đất đầy: thanh bộ sưu tập (2026-10-29, rev 20261028l)
+
+`PiggyBankPopup.Fill` khi tiến độ > 99 [asm 0x1178194..0x11785dc]:
+
+- `PiggyBankSkin.AnimateUnlock`: skin hiện màu sau một chớp trắng. Web cũ để tím tới khi mở.
+- Tìm bộ sưu tập của skin (`CollectionsMap`), `CollectionProgressBar.InitializeElements` [asm 0x11f3c10], rồi bật thanh.
+- Bật `ActionButton` UNLOCK, `Task.Delay(600)` [asm 0x117854c], rồi bật NextButton (LOSE IT).
+- Thanh (`CollectionProgressBar`, 322 × 170 ở (0, −265) quanh tâm):
+  - Khung `rounded_square` #103D7580, giãn theo nội dung. Clip 0:21.5 đo được ~540 × 180.
+  - Tên bộ sưu tập Junegull 38.3. Mỗi item một `CollectionProgressElement` 77 × 84 (`rounded_square_shadow_bottom`), nối bằng dây trắng.
+  - `IconValidate` cho item đã có (chỉ số < số đã có, `GetNbItemsClaimedInCollection`), `IconValidateSlot` cho phần còn lại.
+  - Đủ bộ: `Icon_Validate` vàng và chữ "Completed!" #FFC327.
+- Mở xong thì thanh đếm thêm skin vừa có.
+- `[ĐỀ XUẤT]`: chớp trắng 0.4 s; khoảng cách 107 đơn vị giữa ô (đo trong clip, 4 ô), thu lại cho vừa 500 đơn vị khi bộ dài hơn.
+- Không làm: nút VIP Skip (tiền thật).
+
 ## Bẫy đã sập
 
 - **Ngân sách 600 KB của màn đầu.** Bản cũ đã nạp 585 KB, nên thêm `meta.json` là vượt.
@@ -797,11 +917,24 @@ Phần luật theo ngày và Phiêu lưu (rev 20261028k):
 - `test/stickman-hook-pachinko.js`: lượt đầu từ trang Chế độ dùng lượt miễn phí, lượt 2 cần vé (1/3), 2 lượt vé rồi "Hết lượt" (3/3).
 - `test/stickman-hook-sim.js`: vùng chết ở 9:16 là −6.695 / −5.853 quanh tâm camera; bot dùng chung `camera.js deathLimits`.
 
+Phần rev 20261028l (`test/stickman-hook-play.js` 133/133):
+
+- Qua màn 1: popup Đường XP tự mở (10 XP chờ, nút về ẩn), nhận mốc 0 (Lucky Wheel, thẻ Mode, dấu tích), tự đóng: `animating,claimed,closed`.
+- 300 XP chưa nhận: Race vẫn khoá. Mở Đường XP thì nhận tới mốc 350 (dây Spiders, 150 xu, Race; thẻ mode,big,small,mode,big,big), lần sau tới 450.
+  Không còn XP chờ thì mở để xem, có nút về. Hạng đếm từ 0 (1850 XP = hạng 21).
+- 3000 XP: Grapple / Challenge khoá tới khi popup nhận. Nhận xong có 4 màn Challenge cấp (mở 5 màn), XP đã nhận = XP.
+- Màn đầu không nạp `trailfx`, `fx.js`, `art/fx/`, `m-road`. Trail fire: 3 system BaseFollow/BaseSmoke/BaseShine (max 1000), 0 hạt lúc xuất hiện, 30-80 hạt sau 0.8 s.
+  candy BaseFollow tối đa 100; thunder không vẽ vạch.
+- Skin hologram: op động `t,gl,fl,hs,ca,ol`, sọc `[0.069, 0.11, 3.19, 0.43, 1]`, alpha một texel 255 lúc t 10 → 154 lúc 10.5.
+  Pixelated Friends vẫn là một lần nướng (`pix 84`). Negative Ones rung pivot 86.77 → 90.11.
+- Heo đất đầy: thanh "Aquatic Friends" 0/3; mở xong 1/3.
+- `test/stickman-hook-pachinko.js`: 400 XP chưa nhận thì Lucky Drop khoá; trang chính tự nhận nên mở.
+
 Phần HUD và về đích: chỉ có nút pause trong màn; về đích giữ tư thế FINISHED và ẩn nút pause; màn heo đất toàn màn hình rồi trang kết thúc; nút Play mở màn sau; pause dừng màn.
 Ảnh chụp nằm ở `shots/stickman-hook/`.
 
 ## Tăng số bản
 
 Đổi mọi `?v=` trong `index.html`, `js/main.js` (hằng `V`) và ba `import()` có `?v=` trong `js/modes.js` (`pachinko.js`, `race.js`, `adventure.js`), rồi đổi `rev` trong `data/games.js` cho trùng.
-Bản hiện tại: `20261028k`. `js/pachinko.js` có `PV` riêng (`20261028d`) cho ảnh của nó.
+Bản hiện tại: `20261028l`. `js/pachinko.js` có `PV` riêng (`20261028d`) cho ảnh của nó.
 Module JS mới phải có dòng trong importmap của `index.html`, kể cả module chỉ nạp động (`menus.js`, `fx.js`, `cards.js`, `cardsui.js`).

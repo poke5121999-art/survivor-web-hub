@@ -1094,7 +1094,7 @@ window.HUB_GAMES = [
     en: { title: "Stickman Hook", tagline: "Hold to hook, let go to fly. Swing through every level to the checkered line.", desc: "Stickman Hook (Madbox) remade from the Android 9.9.60 release to run straight in the browser: about 250 KB instead of 848 MB. All 64 original levels, then endless levels from 65 on, stitched at random exactly like the original. Spring rope, bouncy bumpers and the finish follow the original code. Hold the mouse, touch or hold Space to hook, let go to fly." },
     thumbnail: "assets/thumbnails/stickman-hook.png",
     path: "games/stickman-hook/index.html",
-    rev: "20261028k",
+    rev: "20261028l",
     // Canvas 2D, không engine. Màn, hình, font, tiếng bóc từ APK Android 9.9.60 (D:/stickman-hook-ref); luật đọc từ
     // libil2cpp ARMv7 dịch ngược (games/stickman-hook/docs/GAMEPLAY.md). Dựng dữ liệu: games/stickman-hook/tools.
     // Kiểm: node test/stickman-hook-sim.js (bot qua 64 màn + 30 màn ngẫu nhiên) và node test/stickman-hook-play.js (SH_URL=<Pages>).

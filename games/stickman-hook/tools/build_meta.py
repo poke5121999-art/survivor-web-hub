@@ -6,7 +6,7 @@ Reads  REF/dump/full/remote_settings_default.json   (customization, progression_
        REF/apk/assets/aa/Android/*.bundle            (menu icons and the skin effect materials, via UnityPy)
        ../data/custom.json                           (tools/build_custom.py: trail and rope render data)
 Writes ../data/meta.json, ../art/menu.webp and, for js/bonus.js, ../data/bonus.json, ../art/wheel.webp, ../art/piggy.webp,
-       ../art/skip.webp
+       ../art/skip.webp; ../art/fx/anim.json, noise.webp, outline.webp (animated skin effects, see material_ops)
 
 meta.json (arrays are positional to keep the file small; field names are in *Fields):
   items:       [id, asset, collection, rarity, unlock, value, name, xp, fx]   kind = id prefix; asset = key in custom.json,
@@ -169,7 +169,49 @@ def lucky_wheel_settings():
 def rgb(c): return [round(c['r'], 3), round(c['g'], 3), round(c['b'], 3)]
 
 
-def material_ops(t):
+# Texture each base skin's in-game sprites sample (Texture2D or SpriteAtlas page), in texels: the shader's UV-space
+# amounts (shake, glitch, hologram stripes, outline distortion) are fractions of it. Measured 2026-10-29 by walking the
+# sprites of every Customization/Skins/<Name>/AnimationController bundle (with deps) to m_RD.texture / m_SpriteAtlas.
+SKIN_TEX = {**{k: (2048, 2048) for k in (
+    'Angel Basic Bunny Cloud Dino Dragon Fly Granny Harry Lama Lemon Lion LoveBear LovePotion Mjolnir Octopus Owl Pigeot '
+    'Pingoo Potatoz Robot Rock Seal Shark Sheep Thief Tree Unicorn').split()},
+    **{k: (1024, 1024) for k in 'Alien CarrotRabbit Champs Cow Dwarf Moon Sharky SwimmingCat Zombie'.split()},
+    **{k: (512, 512) for k in 'Ananas Basket Dolphin Flamingo GoldDragon IceCream MrDiamond StickFrog StickHat StickKnight Wolf'.split()},
+    'Burger': (1024, 2048)}
+# Animated AllIn1SpriteShader passes, decoded from the GLES3 programs of AllIn1SpriteShaderScrollView (the shader of all 51
+# effect materials; bundle192, Shader PathID -6741751417278005047); _Time = (t/20, t, 2t, 3t). Written to art/fx/anim.json
+# per item id (js/fx.js), never into meta.json:
+#   t  [w, h, atlas]           texture size (SKIN_TEX); atlas = ATLAS_ON (uv remapped to the sprite rect by _Min/_MaxXUV)
+#   sh [speed, x, y]           SHAKEUV: uv += 0.01 * sin((t/20) * speed * 500 * (x, y))
+#   gl [amount, size]          GLITCH: green sample uv.x += 0.02 * amount * r1^3 * r2^3 * r3, r = hash of 24x19 / 38x14 * size
+#                              uv cells and of floor(fract((t/20, t)) * 12 + 50): blocks re-rolled 12 times a second
+#   ca [amount, alpha]         CHROMABERR: red at uv.x + 0.1 * amount, blue at uv.x - 0.1 * amount, a = max(aG, max(aR, aB) * alpha)
+#   fl [freq, percent, alpha]  FLICKER: on = fract(3t * freq + 0.05) <= 1 - percent; A = clamp(A * on + alpha) * A
+#   hs [stripes, unmod, speed, min, max]  HOLOGRAM: s = fract((v + fract(t/20) * speed) / (stripes + unmod)), alpha 1 below
+#                              unmod / (stripes + unmod), else min + (s - that) * (max - min)
+#   rw [strength, speed]       ROUNDWAVEUV: uv += sin((t * speed * 0.1 - |(0.5, 0.5) - uv'|) * 66.67) * strength * 0.1
+#   ol [rgb, alpha, width, glow, dirs]  OUTBASE as the shader draws it: `width` texels (_OutlinePixelWidth as an int when
+#                              OUTBASEPIXELPERF, else _OutlineWidth * 200), colour * 2 * _OutlineGlow, 8 or 4 samples
+#   od [noise, [stx, sty], amount, [sx, sy]]  OUTDIST: the outline offset gains (n - 0.5) * 0.2 * amount, n = noise tile
+#                              `noise` of art/fx/noise.webp at uv * st + fract(t/20 * s)
+#   ot [tex, [stx, sty], [sx, sy]]  OUTTEX: outline colour *= row `tex` of art/fx/outline.webp at uv * st + fract(t/20 * s)
+FX_TEX = {'noise': [], 'outline': []}  # (bundle, PathID) of the textures the animated ops index
+
+
+def fx_texture(env, t, prop, kind):
+    """Index of material texture `prop` in FX_TEX[kind], resolved through the material bundle's externals."""
+    sys.path.insert(0, os.path.join(REF, 'tools'))
+    from shenv import _sfs, CAB
+    te = dict(t['m_SavedProperties']['m_TexEnvs'])[prop]
+    sf = next(s for f in env.files.values() for s in _sfs(f))
+    fid, pid = te['m_Texture']['m_FileID'], te['m_Texture']['m_PathID']
+    key = (CAB[os.path.basename(sf.externals[fid - 1].path).lower()], pid) if fid else (None, pid)
+    if key not in FX_TEX[kind]: FX_TEX[kind].append(key)
+    return FX_TEX[kind].index(key), [round(te['m_Scale']['x'], 3), round(te['m_Scale']['y'], 3)]
+
+
+def material_ops(t, addr=None, env=None):
+    """(static pixel ops for meta.json fx, animated ops for art/fx/anim.json or None)."""
     kw = set(t.get('m_ValidKeywords') or t.get('m_ShaderKeywords') or [])
     f = dict(t['m_SavedProperties']['m_Floats']); c = dict(t['m_SavedProperties']['m_Colors'])
     ops = []
@@ -197,11 +239,38 @@ def material_ops(t):
         ops.append(['holo', round(f['_HologramMinAlpha'], 3), round(f['_HologramMaxAlpha'], 3)])
     if 'OUTBASE_ON' in kw:
         ops.append(['out', rgb(c['_OutlineColor']), round(f['_OutlineAlpha'], 3), round(f['_OutlineWidth'], 3)])
-    return ops
+    if not addr: return ops, None
+    r3 = lambda k: round(f[k], 3)
+    anim = []
+    if 'SHAKEUV_ON' in kw: anim.append(['sh', r3('_ShakeUvSpeed'), r3('_ShakeUvX'), r3('_ShakeUvY')])
+    if 'GLITCH_ON' in kw: anim.append(['gl', r3('_GlitchAmount'), r3('_GlitchSize')])
+    if 'FLICKER_ON' in kw: anim.append(['fl', r3('_FlickerFreq'), r3('_FlickerPercent'), r3('_FlickerAlpha')])
+    if 'HOLOGRAM_ON' in kw:
+        anim.append(['hs', r3('_HologramStripesAmount'), r3('_HologramUnmodAmount'), r3('_HologramStripesSpeed'),
+                     r3('_HologramMinAlpha'), r3('_HologramMaxAlpha')])
+    if 'ROUNDWAVEUV_ON' in kw: anim.append(['rw', r3('_RoundWaveStrength'), r3('_RoundWaveSpeed')])
+    if 'OUTBASE_ON' in kw:
+        if 'OUTDIST_ON' in kw and f['_OutlineDistortAmount'] > 0:
+            n, st = fx_texture(env, t, '_OutlineDistortTex', 'noise')
+            anim.append(['od', n, st, r3('_OutlineDistortAmount'), [r3('_OutlineDistortTexXSpeed'), r3('_OutlineDistortTexYSpeed')]])
+        if 'OUTTEX_ON' in kw:
+            n, st = fx_texture(env, t, '_OutlineTex', 'outline')
+            anim.append(['ot', n, st, [r3('_OutlineTexXSpeed'), r3('_OutlineTexYSpeed')]])
+    if not anim: return ops, None
+    # the passes the animated path redraws itself, as the shader computes them
+    if 'CHROMABERR_ON' in kw: anim.append(['ca', r3('_ChromAberrAmount'), r3('_ChromAberrAlpha')])
+    if 'OUTBASE_ON' in kw:
+        # _OutlinePixelWidth is an `int` uniform in the programs: the float property is truncated
+        width = int(f['_OutlinePixelWidth']) if 'OUTBASEPIXELPERF_ON' in kw else round(f['_OutlineWidth'] * 200, 2)
+        anim.append(['ol', rgb(c['_OutlineColor']), r3('_OutlineAlpha'), width, round(2 * f['_OutlineGlow'], 2),
+                     8 if 'OUTBASE8DIR_ON' in kw else 4])
+    w, h = SKIN_TEX[addr.split('/')[2]]
+    return ops, [['t', w, h, int('ATLAS_ON' in kw)]] + anim
 
 
 fx = {}
 fx_key = {}
+fx_anim = {}  # effectMaterialAddress -> animated ops
 try:
     import UnityPy
 except ImportError:
@@ -212,12 +281,39 @@ for addr in fx_needed:
         print('NO FX BUNDLE', addr); continue
     env = UnityPy.load(b)
     mat = next(o.read_typetree() for o in env.objects if o.type.name == 'Material')
-    ops = material_ops(mat)
+    ops, anim = material_ops(mat, addr, env)
+    if anim: fx_anim[addr] = anim
     key = '/'.join(addr.split('/')[2::2])  # Alien/HologramTravelers
     sig = json.dumps(ops)
     same = next((k for k, v in fx.items() if json.dumps(v) == sig), None)
     if same: fx_key[addr] = same
     else: fx[key] = ops; fx_key[addr] = key
+
+
+def fx_tex_image(key):
+    b, pid = key
+    return next(o for o in UnityPy.load(os.path.join(BUNDLES, b)).objects if o.path_id == pid).read().image
+
+
+if fx_anim:
+    # art/fx/: loaded by js/fx.js only when an animated effect skin is built, so meta.json stays as it was
+    os.makedirs(os.path.join(GAME, 'art/fx'), exist_ok=True)
+    anim_items = {i['itemId']: fx_anim[i['effectMaterialAddress']] for i in sorted(cz['items'], key=lambda i: i['itemId'])
+                  if i.get('effectMaterialAddress') in fx_anim}
+    open(os.path.join(GAME, 'art/fx/anim.json'), 'w', encoding='utf-8').write(json.dumps(anim_items, separators=(',', ':')))
+    # distortion noise (red channel only) as 64 x 64 grey tiles side by side [ĐỀ XUẤT] 1/4..1/16 of the source size
+    N = 64
+    sheet = Image.new('L', (N * len(FX_TEX['noise']), N))
+    for i, key in enumerate(FX_TEX['noise']):
+        sheet.paste(fx_tex_image(key).convert('RGB').getchannel('R').resize((N, N), Image.LANCZOS), (i * N, 0))
+    sheet.save(os.path.join(GAME, 'art/fx/noise.webp'), quality=90, method=6)
+    # outline textures, 8 rows each at 256 wide, lossless: the outline glow (x 2 _OutlineGlow, up to 111) turns the
+    # texture's near-zero channels into visible colour, so they must stay as decoded
+    sheet = Image.new('RGBA', (256, 8 * len(FX_TEX['outline'])))
+    for i, key in enumerate(FX_TEX['outline']):
+        sheet.paste(fx_tex_image(key).convert('RGBA').resize((256, 8), Image.NEAREST), (0, i * 8))
+    sheet.save(os.path.join(GAME, 'art/fx/outline.webp'), lossless=True, method=6)
+    print('anim fx', len(anim_items), 'items, noise', len(FX_TEX['noise']), 'outline', len(FX_TEX['outline']))
 
 # ---- items, collections, rarities ----------------------------------------------------------------------------
 items = []

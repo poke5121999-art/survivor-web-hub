@@ -48,7 +48,15 @@ SHEETS = {
     'road': {'Pattern_Trophy': 256, 'BarRankTrophyRoad': 32, 'LoadingbarUnder': 120, 'Loadingbar': 120,
              'BronzeMedals_01': 90, 'SilverMedals_01': 90, 'GoldMedal_01': 90, 'OtherMedals_01': 90, 'Diamond_Small': 100,
              'Master_Small': 100, 'XpRoadHolder_common': 350, 'XpRoadHolder_epic': 350, 'XpRoadHolder_legendary': 350,
-             'ValidateIcon_01': 64, 'Icon_Lock': 60, 'Xp': 64, 'SkinCoins': 64, 'OutlinedButtonGold': 330, 'Icon_Home': 90},
+             'ValidateIcon_01': 64, 'Icon_Lock': 60, 'Xp': 64, 'SkinCoins': 64, 'OutlinedButtonGold': 330, 'Icon_Home': 90,
+             # reward prefabs of XpRoadSettings (xproadconfig bundle): BigReward / SmallReward / ModeReward and contents;
+             # RoadMode_*: TrophyRoadRewardModeUI's mode sprites (export_modereward.py); bar: ElementReward.Bar
+             'rounded_square_128px': 128, 'SkinCoinsPile': 150, 'EpicPrizesHolder': 200, 'Stars_EpicReward': 200, 'IconValidate': 64,
+             'Ticket': 120, 'Octogone_HolderTrophyRoad': 80, 'Octogone_HolderTrophyRoadOutline': 80, 'CursorTrophyRoad': 60,
+             'RoadMode_challengeMode': 320, 'RoadMode_grappleMode': 320, 'RoadMode_fortuneWheel': 320,
+             'RoadMode_tournamentMode': 320, 'RoadMode_pachinkoMode': 320, 'RoadMode_adventure': 320,
+             'commoncard_nooutline': 140, 'epiccard_nooutline': 140, 'legendarycard_nooutline': 140, 'common_nooutline': 200,
+             'epic_nooutline': 200, 'legendary_nooutline': 200},
     # CustomizationPage: preview, ROPES / SKINS / TRAILS tabs, pages, collection holders, item cards
     'shop': {'Button_ShopSelection': 300, 'Button_ShopUnselected': 300, 'ShopTrailRopeHolder': 180, 'ContainerPage_Selected': 64,
              'ContainerPage_Unselected': 64, 'Container_PageCollection': 260, 'HolderCollection_01': 348, 'HolderGameMode_01': 348,
