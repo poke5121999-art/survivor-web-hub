@@ -42,7 +42,8 @@ export class Unlocks {
     if (this.g.unlocks && this.g.unlocks[id] === 'new') this.g.unlocks[id] = 'seen';
   }
 
-  // ctx: { done(step), upgradeTask, shop, spin, phone, all }; all = past Store 1 (a second mart reached). dt in seconds.
+  // ctx: { done(step), upgradeTask, shop, spin, phone, all, busy }; all = past Store 1 (a second mart reached); busy = a
+  // menu or the next-mart card is up, so the tip waits (and its clock stops) rather than lying across it. dt in seconds.
   update(ctx, dt) {
     this.migrate(ctx);
     const u = this.g.unlocks;
@@ -54,7 +55,7 @@ export class Unlocks {
       if (!b) continue;
       if (f.own) b.style.display = u[f.id] ? '' : 'none';
       const visible = b.style.display !== 'none';
-      if (!shown && u[f.id] === 'new' && visible && !(f.id === 'phone' && !ctx.phone)) shown = f;
+      if (!shown && !ctx.busy && u[f.id] === 'new' && visible && !(f.id === 'phone' && !ctx.phone)) shown = f;
     }
     if (shown) {
       this.shownFor = (this.shownId === shown.id ? this.shownFor : 0) + dt;

@@ -192,6 +192,11 @@ export class Hud {
       this.root.querySelector('#robtn').addEventListener('click', () => { this.closeMenus(); this.shop.openRolling(); });
       if (this.daily) this.daily.onShortGems = () => { this.closeMenus(); this.shop.open('gem_bundles'); };
     } else this.root.querySelector('#shopbtn').style.display = this.root.querySelector('#robtn').style.display = 'none';
+    // The right column (shop button, booster timers) hangs under the counters, which grow a row when gems or gold show.
+    const counters = this.root.querySelector('.counters'), rcol = this.root.querySelector('.rcol');
+    const hang = () => { rcol.style.top = `${counters.offsetTop + counters.offsetHeight + 8}px`; };
+    if (window.ResizeObserver) new ResizeObserver(hang).observe(counters);
+    hang();
     this.boostEl = this.root.querySelector('#boosts');
     this.boostEl.addEventListener('click', e => {
       const b = e.target.closest('[data-boost]');
@@ -645,6 +650,7 @@ export class Hud {
         all, done: k => all || st.task.index > k, upgradeTask: !!(task && task.menu),
         shop: !!(this.shop && this.shop.unlocked()), spin: !!(this.daily && this.daily.unlocked()),
         phone: this.root.querySelector('#phonebtn').style.display !== 'none',
+        busy: st.next.ready || !!this.root.querySelector('.upmenu.open, .mshade.open, .mcard.open') || !!(this.customise && this.customise.isOpen),
       }, dt);
       if (!this.customise) this.root.querySelector('#custombtn').style.display = 'none';
       if (!this.shop) this.root.querySelector('#robtn').style.display = 'none';

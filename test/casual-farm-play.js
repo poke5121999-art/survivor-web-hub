@@ -495,6 +495,17 @@ function serve() {
     check('the shop opens after the cashier mat: the one-time bundle pays 300 and leaves, the free bundle pays 60 then waits 5 min with a gem skip, a daily deal greys out',
       shopHidden && cash1.cash === cash0 + 300 && cash1.gone && cash2.cash === cash1.cash + 60 && /0[45]:\d\d/.test(cash2.wait) && cash2.skip && deal,
       JSON.stringify({ shopHidden, cash0, cash1, cash2, deal }));
+    // The shop button hangs under the counters: with the gem and gold rows showing it must not cover them.
+    const stack = await page.evaluate(async () => {
+      const g = window.__mmGame, gold0 = g.hud.martMap.global.gold;
+      g.hud.martMap.global.gold = 20;
+      await new Promise(r => setTimeout(r, 500));
+      const r = id => document.querySelector(id).getBoundingClientRect();
+      const out = { gold: Math.round(r('#goldc').bottom), gem: Math.round(r('#gemc').bottom), shop: Math.round(r('#shopbtn').top) };
+      g.hud.martMap.global.gold = gold0;
+      return out;
+    });
+    check('the shop button sits below the cash, gem and gold counters', stack.shop >= Math.max(stack.gem, stack.gold), JSON.stringify(stack));
     // Rolling offer, Customise and Map open at Store 1 tutorial steps 8, 10 and 14 (unlocks.js); each new button shows a
     // NEW! tip with the arrow until pressed, one tip at a time, and the unlocks survive a reload.
     const gate = await page.evaluate(async () => {

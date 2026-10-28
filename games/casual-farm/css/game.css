@@ -79,8 +79,8 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #1f2a1b; tou
 /* The endless pulse is on the icon, not the button, so the button's own box stays still (and clickable mid-pulse). */
 .lb.popin { animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); filter: drop-shadow(0 0 6px #ffe14d); z-index: 3; }
 .lb.popin img { animation: hintPulse 0.5s 0.4s ease-in-out infinite alternate; }
-.newtip { position: absolute; left: calc(100% + 0.9em); top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 0.3em;
-  white-space: nowrap; padding: 0.35em 0.7em 0.35em 1.5em; background: #fff; color: #4b3b2a; border-radius: 0.7em; font-size: clamp(12px, 1.9vh, 18px);
+.newtip { position: absolute; left: calc(100% + 0.9em); top: 50%; transform: translateY(-50%); display: block; width: max-content;
+  max-width: calc(var(--sw) * 0.46); line-height: 1.15; padding: 0.35em 0.7em 0.35em 1.5em; background: #fff; color: #4b3b2a; border-radius: 0.7em; font-size: clamp(12px, 1.9vh, 18px);
   box-shadow: 0 3px 0 rgba(0, 0, 0, 0.25); pointer-events: none; animation: fadein 0.3s ease-out; }
 .newtip b { color: #ee3539; }
 .newtip .point { position: absolute; right: calc(100% - 1.1em); top: 50%; width: 2.2em; height: 1.7em; margin-top: -0.85em; background: #ffd21f;
@@ -192,7 +192,8 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #1f2a1b; tou
 .upmenu.upgrades .who .goods { margin-top: 0.15em; }
 @media (max-aspect-ratio: 3/4) { .upmenu.upgrades .tr .buy { min-width: 3.4em; padding: 0.2em 0.5em; } .upmenu.upgrades .tr { gap: 0.4em; } }
 .lb.phone { --tint: #ffb347; }
-.lb.phone s { position: absolute; left: 105%; top: 50%; transform: translateY(-50%); text-decoration: none; white-space: nowrap; font-size: 0.8em;
+/* Timer under the button: beside it, it ran into the centred NEXT MART card on a 390-wide phone. */
+.lb.phone s { position: absolute; left: 50%; top: calc(100% + 2px); transform: translateX(-50%); text-decoration: none; white-space: nowrap; font-size: 0.8em;
   background: rgba(0, 0, 0, 0.45); border-radius: 0.4em; padding: 0.05em 0.4em; color: #fff; }
 .upmenu.phonemenu .head { background: #ff9f1a; justify-content: flex-start; gap: 0.4em; }
 .upmenu.phonemenu .head img { width: 1.8em; height: 1.4em; object-fit: contain; }
