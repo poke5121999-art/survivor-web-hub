@@ -3,6 +3,7 @@
 import { Renderer } from './render.js';
 import { bake } from './fx.js';
 import { XP_ROAD } from './meta.js';
+import { MODES } from './modes.js';
 
 const CSS = `
 .sheet { margin: auto; background: #12314d; color: #fff; border: 4px solid #0d1b2a; border-radius: 22px; width: min(96vw, 620px);
@@ -114,8 +115,9 @@ export function openModes(app) {
   box.className = 'scroll';
   for (const m of meta.d.modes) {
     const st = meta.modeState(save, m);
+    const playable = st.open && MODES[st.id];
     const row = document.createElement('div');
-    row.className = 'mode' + (st.open ? '' : ' off');
+    row.className = 'mode' + (playable ? '' : ' off');
     row.dataset.id = st.id;
     const ic = document.createElement('i');
     app.icon(ic, st.id, 52);
@@ -125,10 +127,10 @@ export function openModes(app) {
     nm.className = 'nm';
     nm.textContent = st.name;
     row.appendChild(nm);
-    if (st.open) {
+    if (playable) {
       const b = document.createElement('button');
       b.textContent = 'Chơi';
-      b.onclick = () => { app.play('button'); close(app, 'modes'); app.overlay('start', false); };
+      b.onclick = () => { app.play('button'); app.openMode(st.id); };
       row.appendChild(b);
     } else {
       const s = document.createElement('div');

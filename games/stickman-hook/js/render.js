@@ -211,6 +211,13 @@ export class Renderer {
   }
 
   // Bitmap text in the game's Junegull font; (x, y) in CSS pixels, align 0 left / 0.5 centre / 1 right.
+  // CSS px width of `str` drawn at `px`
+  measure(str, px) {
+    let w = 0;
+    for (const ch of str.toUpperCase()) w += (this.font.glyphs[ch] || this.font.glyphs[' '])[6];
+    return (w * px) / this.font.size;
+  }
+
   text(str, x, y, px, align = 0.5, alpha = 1) {
     const { ctx, font, dpr } = this;
     const s = (px * dpr) / font.size;

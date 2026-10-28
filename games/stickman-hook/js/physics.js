@@ -165,6 +165,10 @@ export class Player {
         if (hit.bumper >= 0 && hit.enter) ev.bumper = hit.bumper;
       }
     }
+    // BumperAnimationController.OnCollisionEnter2D with forceBounce: velocity = 0, then AddForce(forceImpulse, Impulse)
+    // in world space [asm 0x11ffdf8..0x11ffe24]. No Normal bumper sets it; Challenge and event ones do.
+    const force = ev.bumper >= 0 && world.bumpers[ev.bumper].force;
+    if (force) { this.vx = force[0] / PHYS.mass; this.vy = force[1] / PHYS.mass; }
     if (contact) {
       this.setState(ST.ROLL);
       // SetRotation: spin = tangential speed * 200 deg/s, clockwise when moving right

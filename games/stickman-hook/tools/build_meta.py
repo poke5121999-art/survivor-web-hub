@@ -36,7 +36,7 @@ custom = json.load(open(os.path.join(GAME, 'data/custom.json')))
 cz = rs['customization']
 road = rs['progression_road']
 XP_PER_LEVEL = 10  # GamePlaySettings._xpGainPerLevelCompleted
-ROADS = ['progression.xp', 'achieved_level_mode.normal']
+ROADS = ['progression.xp', 'achieved_level_mode.normal', 'achieved_level_mode.grapple', 'achieved_level_mode.challenge']
 # item unlockMethod -> unlockConditions id, where they differ
 UNLOCK_ALIAS = {'tournament': 'leaderboard_prize'}
 RARITY_ORDER = ['common', 'epic', 'legendary', 'ultimate']

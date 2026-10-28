@@ -5,6 +5,7 @@ import { owns, grant } from './save.js';
 const KINDS = { skin: 'skins', rope: 'ropes', trail: 'trails' };
 export const XP_ROAD = 'progression.xp';
 export const NORMAL_ROAD = 'achieved_level_mode.normal';
+export const CHALLENGE_LEVELS = 'unlocked_level_mode.challenge';
 
 function hex(c) {
   const n = parseInt(c.slice(1), 16), a = c.length > 7 ? (n & 255) / 255 : 1;
@@ -17,8 +18,10 @@ const UNLOCK = {
   default_item: { live: true },
   progression_road_progression_xp: { live: true, arg: (m, it) => m.rankOf(it.value) },
   progression_road_achieved_level_mode_normal: { live: true, arg: (m, it) => it.value },
-  progression_road_achieved_level_mode_challenge: { arg: (m, it) => it.value },
-  progression_road_achieved_level_mode_grapple: { arg: (m, it) => it.value },
+  progression_road_achieved_level_mode_challenge: { live: true, arg: (m, it) => it.value },
+  progression_road_achieved_level_mode_grapple: { live: true, arg: (m, it) => it.value },
+  seasonal_event_mode_easter_event: { live: true },
+  seasonal_event_mode_valentine_day: { live: true },
   progression_road_progression_cards_perk_level: { arg: (m, it) => it.value },
 };
 
@@ -46,8 +49,23 @@ export class Meta {
 
   // theme.levelColors cycles every nbLevelsPerTheme levels: [camera, effect, shadow, targets, finishLight, walls]
   theme(levelIndex) {
-    const t = this.d.theme, c = t.levels[Math.floor(levelIndex / t.perTheme) % t.levels.length];
-    return { bg: c[0].slice(0, 7), shadow: hex(c[2]), targets: hex(c[3]).slice(0, 3), walls: hex(c[5]).slice(0, 3) };
+    const t = this.d.theme;
+    return colors(t.levels[Math.floor(levelIndex / t.perTheme) % t.levels.length]);
+  }
+
+  // ThemeService.SetGameModeTheme: a mode listed in theme.gameModes uses its colours, any other mode (Grapple) gets
+  // levelColors[0] [asm 0x118fc4c..0x118fcc8]. Normal cycles with the level (theme above).
+  themeFor(modeId, levelIndex) {
+    if (modeId === 'mode.normal') return this.theme(levelIndex);
+    const t = this.d.theme;
+    return colors(t.modes[modeId] || t.levels[0]);
+  }
+
+  // How much of `res` the reached steps of a road grant (each XP road step grants one Challenge level).
+  roadGranted(road, res, value) {
+    let n = 0;
+    for (const [v, rewards] of this.d.roads[road]) if (v <= value) for (const [r, q] of rewards) if (r === res) n += q;
+    return n;
   }
 
   // Rank = 1-based position of the last XP road step reached. [ĐỀ XUẤT] the original fills {{level}} from the road state.
@@ -123,12 +141,34 @@ export class Meta {
     return { xp: first ? this.d.xpPerLevel : 0, got: this.claim(s, NORMAL_ROAD, s.best) };
   }
 
+  // Any mode level: XP on its first completion, then the mode's achieved-level road (highest level finished), then the
+  // event skin of that level. `slot` is the mode's progress in the save ({best, done}).
+  // [ĐỀ XUẤT] event level N gives the event's N-th skin (customization table order): the original's reward list comes
+  // from the server (SeasonalEventDto.Rewards, empty in the bundled config), one reward per day.
+  modeLevelComplete(s, slot, levelIndex, road, rewardUnlock) {
+    const done = slot.done || [];
+    const first = !done.includes(levelIndex);
+    if (first) { slot.done = [...done, levelIndex]; s.xp += this.d.xpPerLevel; }
+    slot.best = Math.max(slot.best || 0, levelIndex + 1);
+    const got = road ? this.claim(s, road, slot.best) : [];
+    if (first && rewardUnlock) {
+      const it = this.items.filter((o) => o.unlock === rewardUnlock)[levelIndex];
+      if (it) this.grantItem(s, it, got);
+    }
+    return { xp: first ? this.d.xpPerLevel : 0, got };
+  }
+
+  // `open`: the unlock threshold is reached (XP, or Normal level for the events).
   modeState(s, [id, name, unlock]) {
     if (!unlock) return { id, name, open: true };
     const [road, value] = unlock;
     const have = road === XP_ROAD ? s.xp : s.best;
-    return { id, name, open: false, need: have < value ? { road, value } : null };
+    return { id, name, open: have >= value, need: have < value ? { road, value } : null };
   }
+}
+
+function colors(c) {
+  return { bg: c[0].slice(0, 7), shadow: hex(c[2]), targets: hex(c[3]).slice(0, 3), walls: hex(c[5]).slice(0, 3) };
 }
 
 const REWARDS = {

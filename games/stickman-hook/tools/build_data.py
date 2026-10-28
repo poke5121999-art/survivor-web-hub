@@ -1,33 +1,68 @@
-"""Compile the raw pattern dump + exported sprites into the web game's data.
+"""Compile the raw pattern dumps + exported sprites into the web game's data.
 
     py -3 -I build_data.py [REF=D:/stickman-hook-ref]
 
-Reads  REF/dump/normal_raw.json   (tools/extract_raw.py on NormalGamePlayConfig)
-       REF/sprites/*.png + sprites.json (tools/export_sprites.py)
-Writes ../data/levels.json  and  ../art/atlas.webp
+Reads  REF/dump/normal_raw.json                      (tools/extract_raw.py on NormalGamePlayConfig)
+       REF/dump/full/{grapple,challenge,seasonal}_raw.json  (tools/extract_mode.py: {config, prefabs})
+       REF/sprites/*.png + sprites.json               (tools/export_sprites.py)
+Writes ../data/levels.json          Normal: {v, atlas, patterns, levels, random}
+       ../data/mode-<file>.json     {v, sets: {modeId: {levels, random?}}, patterns}: only patterns not in levels.json
+       ../art/atlas.webp            one atlas for every mode
 
 Everything is flattened to world units with the pattern root at the origin. Each drawable is an affine
 matrix [a,b,c,d,e,f] mapping sprite units (pivot at 0,0, y up) to world. Colliders become capsules
 (segment + radius) and polygon edge chains, which is all the original level geometry uses.
 """
-import sys, os, json, math
+import sys, os, json, math, ast
 from PIL import Image
 
 REF = sys.argv[1] if len(sys.argv) > 1 else r'D:/stickman-hook-ref'
 HERE = os.path.dirname(os.path.abspath(__file__))
 GAME = os.path.dirname(HERE)
-raw = json.load(open(os.path.join(REF, 'dump/normal_raw.json')))
 smeta = json.load(open(os.path.join(REF, 'sprites/sprites.json')))
 
 PLAYER_FRAMES = ['CHAR_Classic0001', 'CHAR_Classic0005', 'CHAR_Classic0015', 'CHAR_Classic0020', 'CHAR_Classic0022',
                  'CHAR_Classic0028', 'CHAR_Classic0036']
+# bumper hit clips: BumperAnimation (Large0001..0005) and BumperAnimationSmall (Small000..004), 30 fps
 EXTRA = ['AN_Grap1_BumperLarge0001', 'AN_Grap1_BumperLarge0002', 'AN_Grap1_BumperLarge0003', 'AN_Grap1_BumperLarge0004',
-         'A_PlotSelected', 'in_game', 'GradientVertical', 'A_Particle', 'A_FinishLight']
+         'AN_Grap1_BumperSmall000', 'AN_Grap1_BumperSmall001', 'AN_Grap1_BumperSmall002', 'AN_Grap1_BumperSmall003',
+         'AN_Grap1_BumperSmall004', 'A_PlotSelected', 'in_game', 'GradientVertical', 'A_Particle', 'A_FinishLight']
 # The level theme recolours these materials at run time (theme.levelColors targetsBackgroundColor / wallsReflectionColor;
 # their saved _Color is theme 2's). Items using them carry `th` (1 targets background, 2 walls reflection) and keep `tint`
 # only for a non-white sprite colour.
 THEMED = {'TargetsBGMaterial': 1, 'WallReflectionMaterial': 2}
 
+
+def ref(v):
+    return v.split(':', 1)[1] if isinstance(v, str) and v.startswith('prefab:') else v
+
+
+def lit(v):
+    # extract_mode.py may store config values as python-repr strings
+    if isinstance(v, str):
+        try:
+            return ast.literal_eval(v)
+        except (ValueError, SyntaxError):
+            return v
+    return v
+
+
+def level_set(det, rnd=()):
+    out = {'levels': [[ref(p) for p in lit(d)['patternPrefabs']] for d in lit(det)]}
+    rnd = [[ref(p) for p in lit(r)['_possiblePatterns']] for r in lit(rnd)]
+    if rnd:
+        out['random'] = rnd
+    return out
+
+
+# Mode data file -> (raw dump, config -> {modeId: level set}). The modes' patterns compile with the Normal code below.
+MODES = {
+    'grapple': ('dump/full/grapple_raw.json', lambda c: {
+        'mode.grapple': level_set(c['_deterministicLevelDefinitions'], c['_randomPatternDefinitions'])}),
+    'challenge': ('dump/full/challenge_raw.json', lambda c: {'mode.challenge': level_set(c['_levels'])}),
+    'seasonal': ('dump/full/seasonal_raw.json', lambda c: {
+        lit(e)['_eventId']: level_set(lit(e)['_deterministicLevelDefinitions']) for e in lit(c['_seasonalEventLevelDefinitions'])}),
+}
 
 def mul(m, n):
     a, b, c, d, e, f = m
@@ -51,6 +86,17 @@ def axis_len(m, i):
 
 def r4(v):
     return round(v, 4)
+
+
+def ints(x):
+    # 1.0 -> 1: same value in JS, 12 KB less in levels.json (the first-load budget)
+    if isinstance(x, float) and x == int(x):
+        return int(x)
+    if isinstance(x, list):
+        return [ints(v) for v in x]
+    if isinstance(x, dict):
+        return {k: ints(v) for k, v in x.items()}
+    return x
 
 
 used = set(PLAYER_FRAMES + EXTRA)
@@ -165,7 +211,24 @@ def compile_pattern(root):
     return out
 
 
-patterns = {name: compile_pattern(p) for name, p in raw['patterns'].items()}
+def compile_patterns(nodes, names):
+    return {name: compile_pattern(nodes[name]) for name in names}
+
+
+raw = json.load(open(os.path.join(REF, 'dump/normal_raw.json')))
+patterns = compile_patterns(raw['patterns'], raw['patterns'])
+
+mode_files = {}
+for fid, (src, sets_of) in MODES.items():
+    mraw = json.load(open(os.path.join(REF, src)))
+    sets = sets_of({k: lit(v) for k, v in mraw['config'].items()})
+    names = sorted({n for st in sets.values() for lv in st['levels'] + st.get('random', []) for n in lv})
+    for n in names:
+        # a name shared with Normal must be the same prefab, or levels.json would draw the wrong one
+        if n in raw['patterns'] and json.dumps(raw['patterns'][n], sort_keys=True) != json.dumps(mraw['prefabs'][n], sort_keys=True):
+            sys.exit('pattern %s differs between Normal and %s' % (n, fid))
+    mode_files[fid] = {'v': 1, 'sets': sets,
+                       'patterns': compile_patterns(mraw['prefabs'], [n for n in names if n not in raw['patterns']])}
 
 # ---- atlas: trim transparent margins, shelf-pack, record rect + pivot (sprite units) ----
 items = []
@@ -208,6 +271,11 @@ atlas.save(os.path.join(GAME, 'art/atlas.webp'), lossless=True, quality=100, met
 data = {'v': 1, 'atlas': {'w': W, 'h': H, 'rects': rects}, 'patterns': patterns, 'levels': raw['deterministic'],
         'random': raw['random']}
 os.makedirs(os.path.join(GAME, 'data'), exist_ok=True)
-txt = json.dumps(data, separators=(',', ':'))
+txt = json.dumps(ints(data), separators=(',', ':'))
 open(os.path.join(GAME, 'data/levels.json'), 'w').write(txt)
 print('patterns', len(patterns), 'sprites', len(rects), 'atlas', W, 'x', H, 'json', len(txt) // 1024, 'KB')
+for fid, md in mode_files.items():
+    mt = json.dumps(ints(md), separators=(',', ':'))
+    open(os.path.join(GAME, 'data/mode-%s.json' % fid), 'w').write(mt)
+    print('mode-%s.json' % fid, {k: len(v['levels']) for k, v in md['sets'].items()}, 'new patterns', len(md['patterns']),
+          len(mt) // 1024, 'KB')

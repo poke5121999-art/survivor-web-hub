@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /* Stickman Hook (games/stickman-hook) in a real browser: loads light, hooks, finishes level 1, moves on to level 2,
  * and the level list opens. Then the meta shell: XP per level, level themes, the XP road claim, Customization equip,
- * equipped skin / rope drawn in game, an effect-variant skin, the mode list.
+ * equipped skin / rope drawn in game, an effect-variant skin, the mode list. Then the modes: a seasonal event after
+ * Normal level 10, and with enough XP Mechanical Grapple and Challenge (pickers, theme colours, rewards, next, restart).
  * Screenshots go to SH_SHOTS (default shots/stickman-hook).
  *   node test/stickman-hook-play.js
  *   SH_URL=https://poke5121999-art.github.io/survivor-web-hub/games/stickman-hook/index.html node test/stickman-hook-play.js
@@ -63,6 +64,8 @@ function serve() {
   check('download under 600 KB', kb > 50 && kb < 600, `${kb} KB`);
   const lazy = requested.filter((u) => /custom\.json|custom-ui|ropes\.webp|menu\.webp|art\/skins\//.test(u));
   check('first level loads no shop art', lazy.length === 0, lazy.join(' '));
+  const modeFiles = requested.filter((u) => /mode-\w+\.json|grapple\.js|menus\.js/.test(u));
+  check('first level loads no mode data', modeFiles.length === 0, modeFiles.join(' '));
   check('level 1 is Solo1 with one target', await page.evaluate(() => window.__sh.world.names.join() === 'Solo1' && window.__sh.world.targets.length === 1));
 
   const painted = await page.evaluate(() => {
@@ -203,6 +206,110 @@ function serve() {
   await page.click('#btnMenu');
   await page.waitForTimeout(500);
   await page.screenshot({ path: path.join(SHOTS, 'home.png') });
+  await page.click('#btnPlay');
+
+  // ---- modes. Helpers: open a mode from the mode list and pick a level; jump past the finish line.
+  const playMode = async (id, level) => {
+    await page.evaluate(() => window.__sh.openMenu('openModes'));
+    await page.waitForSelector(`#modes .mode[data-id="${id}"] button`, { timeout: 10000 });
+    await page.click(`#modes .mode[data-id="${id}"] button`);
+    await page.waitForSelector('#levels.on #grid button', { timeout: 10000 });
+    const g = await page.evaluate(() => ({ title: document.getElementById('levelsTitle').textContent,
+      n: document.querySelectorAll('#grid button').length,
+      open: [...document.querySelectorAll('#grid button')].filter((b) => !b.disabled).length }));
+    await page.screenshot({ path: path.join(SHOTS, `picker-${id.slice(5)}.png`) });
+    await page.click(`#grid button:nth-child(${level})`);
+    await page.waitForFunction(() => window.__sh.game.phase === 'play', null, { timeout: 5000 });
+    return g;
+  };
+  const finishNow = async () => {
+    await page.evaluate(() => { const p = window.__sh.player; p.x = window.__sh.world.finishX + 0.05; p.vx = 3; });
+    await page.waitForFunction(() => window.__sh.game.phase === 'finish', null, { timeout: 5000 }).catch(() => {});
+    await page.waitForTimeout(1200);
+  };
+
+  // seasonal: this save is past Normal level 10, so both events are open; the event window is ignored offline
+  const ev = await playMode('mode.easter_event', 1);
+  check('Easter event opens after Normal level 10: 5 levels, 1 open', ev.n === 5 && ev.open === 1, JSON.stringify(ev));
+  const easter = await bgAt();
+  check('Easter level 1 loads with the Easter theme', easter.theme === '#2FBC41' && await page.evaluate(() =>
+    window.__sh.world.names.join('+') === 'STARTU055+MIDDLEv2_028+FINISH42'), `${easter.theme} ${easter.px}`);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: path.join(SHOTS, 'easter.png') });
+  const xpEv = await page.evaluate(() => window.__sh.save.xp);
+  await finishNow();
+  await page.screenshot({ path: path.join(SHOTS, 'easter-finish.png') });
+  const evSave = await page.evaluate(() => window.__sh.save);
+  check('finishing Easter level 1 gives its first event skin and XP', evSave.owned.skins.includes('carrot_rabbit')
+    && evSave.modes['mode.easter_event'].done.join() === '0' && evSave.xp === xpEv + 10 + 50,
+    `xp ${xpEv} -> ${evSave.xp} ${JSON.stringify(evSave.modes['mode.easter_event'])}`);
+  await page.mouse.click(195, 500);
+  await page.waitForTimeout(300);
+  check('tap after an event level opens event level 2', await page.evaluate(() => window.__sh.mode.id === 'mode.easter_event'
+    && window.__sh.world.index === 1));
+  const vd = await playMode('mode.valentine_day', 1);
+  const valentine = await bgAt();
+  check('Valentine event opens with its own theme', vd.n === 5 && valentine.theme === '#FD95B0', `${valentine.theme} ${valentine.px}`);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: path.join(SHOTS, 'valentine.png') });
+
+  // a save with 3000 XP: Mechanical Grapple (2650) and Challenge (1250) are open; 3 Challenge road steps reached
+  await page.evaluate(() => {
+    const s = JSON.parse(localStorage.getItem('stickman-hook'));
+    localStorage.setItem('stickman-hook', JSON.stringify({ ...s, xp: 3000 }));
+  });
+  await page.goto(level1);
+  await page.waitForFunction(() => window.__sh && window.__sh.world, null, { timeout: 30000 });
+  await page.evaluate(() => window.__sh.openMenu('openModes'));
+  await page.waitForSelector('#modes .mode', { timeout: 10000 });
+  await page.screenshot({ path: path.join(SHOTS, 'modes-open.png') });
+  await page.click('#modes .x');
+
+  const gp = await playMode('mode.grapple', 1);
+  check('Grapple picker: level 1 open', gp.open === 1 && gp.n >= 41, JSON.stringify(gp));
+  const grapple = await bgAt();
+  check('Grapple level 1 is Solo5 with levelColors[0] and the grapple player', grapple.theme === '#00B4FC'
+    && await page.evaluate(() => window.__sh.world.names.join() === 'Solo5' && window.__sh.player.constructor.name === 'GrapplePlayer'),
+    `${grapple.theme} ${grapple.px}`);
+  await page.mouse.down({ button: 'left' });
+  await page.waitForTimeout(120);
+  const reel = await page.evaluate(() => { const p = window.__sh.player; return { hooked: p.hooked, v: Math.hypot(p.vx, p.vy) }; });
+  await page.screenshot({ path: path.join(SHOTS, 'grapple.png') });
+  await page.waitForTimeout(1200);
+  const after = await page.evaluate(() => window.__sh.player.hooked);
+  await page.mouse.up({ button: 'left' });
+  check('the grapple reels toward the target, then lets go by itself', reel.hooked === 0 && reel.v > 4 && after === -1,
+    `${JSON.stringify(reel)} hooked after 1.3 s: ${after}`);
+  await page.waitForFunction(() => window.__sh.game.phase === 'play', null, { timeout: 5000 }).catch(() => {});
+  await finishNow();
+  const gSave = await page.evaluate(() => window.__sh.save);
+  check('finishing Grapple 1 gives 10 XP and saves it', gSave.xp === 3010 && gSave.modes['mode.grapple'].best === 1,
+    `xp ${gSave.xp} ${JSON.stringify(gSave.modes['mode.grapple'])}`);
+
+  const cp = await playMode('mode.challenge', 1);
+  check('Challenge picker shows 30 levels, 4 open at 3000 XP', cp.n === 30 && cp.open === 4, JSON.stringify(cp));
+  const ch = await bgAt();
+  check('Challenge level 1 loads with the Challenge theme', ch.theme === '#35C1CC' && ch.px !== grapple.px
+    && await page.evaluate(() => window.__sh.world.names.join('+') === 'STARTU031+MIDDLEv2_002+FINISH40'), `${ch.theme} ${ch.px}`);
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: path.join(SHOTS, 'challenge.png') });
+  await page.click('#btnRestart');
+  check('restart keeps the mode and level', await page.evaluate(() => window.__sh.mode.id === 'mode.challenge' && window.__sh.world.index === 0));
+  await page.evaluate(() => window.__sh.startLevel(3));
+  await page.waitForFunction(() => window.__sh.game.phase === 'play', null, { timeout: 5000 });
+  await finishNow();
+  await page.screenshot({ path: path.join(SHOTS, 'challenge-finish.png') });
+  await page.mouse.click(195, 500);
+  await page.waitForTimeout(400);
+  check('after the last open Challenge level the picker opens', await page.evaluate(() =>
+    document.getElementById('levels').classList.contains('on') && window.__sh.save.modes['mode.challenge'].done.join() === '3'));
+  await page.click('#btnClose');
+  await page.evaluate(() => window.__sh.openMenu('openModes'));
+  await page.waitForSelector('#modes .mode[data-id="mode.normal"] button', { timeout: 10000 });
+  await page.click('#modes .mode[data-id="mode.normal"] button');
+  await page.waitForTimeout(300);
+  check('Normal is back where it was', await page.evaluate(() => window.__sh.mode.id === 'mode.normal' && window.__sh.world.index === 0
+    && window.__sh.theme.bg === '#00B4FC'));
 
   check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
   await browser.close();

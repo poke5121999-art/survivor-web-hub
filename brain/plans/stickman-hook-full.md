@@ -31,3 +31,10 @@ Nguyên tắc: vẫn "nhẹ, load nhanh".
   - Bài kiểm: `test/stickman-hook-play.js` 23/23, `test/stickman-hook-sim.js` 96/96. Màn đầu 585 KB thô.
   - Còn lại: hạt của trail, hiệu ứng động của skin biến thể, ảnh holder theo độ hiếm (đang dùng màu `rarity`), icon bộ sưu tập.
   - `data/games.js` chưa đổi `rev`.
+- [x] Pha 3 (một phần, 2026-10-28, rev 20261028c, chưa đẩy lên Pages): Mechanical Grapple, Challenge, sự kiện Easter / Valentine's Day. Chi tiết ở README, mục "Chế độ phụ".
+  - `build_data.py` dịch mọi chế độ bằng cùng `compile_pattern` → `data/mode-{grapple,challenge,seasonal}.json`, nạp khi mở chế độ.
+  - Bảng chế độ `js/modes.js`. `js/grapple.js` đã soát lại theo asm: kẹp −5, `Vector2.SmoothDamp`, vận tốc SmoothDamp ban đầu.
+  - `physics.js` thêm luật bumper `forceBounce`, thiếu luật này thì 6 màn Challenge không qua được. Bot thêm nước chờ/móc phía sau và thử lại với ngân sách gấp 2, gấp 3 cho Challenge và sự kiện.
+  - Bài kiểm: `test/stickman-hook-sim.js` 189/189 (Normal 94, Grapple 51, Challenge 30, sự kiện 10). `test/stickman-hook-play.js` 38/38. Màn đầu 589 KB thô.
+  - Còn lại của pha 3: Pachinko. Giới hạn 1 lượt/ngày của sự kiện cố ý bỏ.
+  - `data/games.js` chưa đổi `rev`.

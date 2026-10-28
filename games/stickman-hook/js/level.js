@@ -60,6 +60,12 @@ export function patternNames(data, levelIndex) {
   return names;
 }
 
+// buildLevel input of a non-Normal mode: its own patterns (data/mode-<file>.json) over Normal's, and its level lists.
+export function modeData(normal, file, modeId) {
+  const set = file.sets[modeId];
+  return { patterns: { ...normal.patterns, ...file.patterns }, levels: set.levels, random: set.random || [] };
+}
+
 // Places each pattern at the previous pattern's end point and flattens everything into one world.
 export function buildLevel(data, levelIndex) {
   const names = patternNames(data, levelIndex);

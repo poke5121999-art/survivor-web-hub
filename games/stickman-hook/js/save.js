@@ -2,6 +2,7 @@
 // Item names are the item id without its kind prefix ('skin.ice_cream' -> owned.skins 'ice_cream').
 // claimed: {roadResource: highest claimed threshold value}; flags: {flagId: qty}; collections: completed ids;
 // pending: rewards granted by a road whose system is not built yet (boosters, ...), kept for the phase that adds it.
+// modes: {modeId: {unlocked?, levels?, level, best, done: [level indices finished]}}; Normal keeps level/best at the top.
 
 const KEY = 'stickman-hook';
 

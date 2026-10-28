@@ -1,0 +1,49 @@
+// The playable modes. Every difference between modes lives in this table; main.js and menus.js only ask it.
+//   file      data/mode-<file>.json (tools/build_data.py) holding the mode's level lists; null = levels.json
+//   player()  the player class (a promise for lazily loaded ones)
+//   slot(s)   where the save keeps the mode's progress: {level, best, done?}
+//   open(m, s, i)  whether level index i can be played (autoUnlockNextLevel modes: after level i-1)
+//   complete(m, s, i)  end-of-level rewards; returns {xp, got}
+//   hud       word drawn before the level number
+//   picker    opening the mode shows its level picker
+// The unlock threshold of each mode is data (meta.d.modes), and so are the theme colours (Meta.themeFor).
+// Not reproduced: the events' one free game per day and their date window (both server-driven).
+import { Player } from './physics.js';
+import { XP_ROAD, CHALLENGE_LEVELS } from './meta.js';
+
+export const NORMAL = 'mode.normal';
+
+const modeSlot = (id) => (s) => (s.modes[id] = s.modes[id] || {});
+const afterPrevious = (slot) => (m, s, i) => i <= (slot(s).best || 0);
+const grapplePlayer = () => import('./grapple.js').then((g) => g.GrapplePlayer);
+
+function mode(id, def) {
+  const slot = modeSlot(id);
+  return {
+    slot, open: afterPrevious(slot), picker: true, player: () => Player,
+    complete: (m, s, i) => m.modeLevelComplete(s, slot(s), i, def.road, def.reward),
+    ...def,
+  };
+}
+
+function event(id, hud) {
+  return mode(id, { file: 'seasonal', hud, road: null, reward: 'seasonal_event_' + id.replace('.', '_') });
+}
+
+export const MODES = {
+  [NORMAL]: {
+    file: null, hud: 'level', picker: false, player: () => Player,
+    slot: (s) => s, // Normal keeps its v1 fields save.level / save.best
+    open: (m, s, i) => i <= s.best,
+    complete: (m, s, i) => m.levelComplete(s, i),
+  },
+  'mode.grapple': mode('mode.grapple', { file: 'grapple', hud: 'grapple', road: 'achieved_level_mode.grapple', player: grapplePlayer }),
+  // autoUnlockNextLevel = false: level index i is open once the XP road granted i Challenge levels
+  // (HasUnlockedLevel: GetMaxLevelUnlocked >= level [asm 0x1296d08..0x1296d14]), so level 1 comes with the mode.
+  'mode.challenge': mode('mode.challenge', {
+    file: 'challenge', hud: 'challenge', road: 'achieved_level_mode.challenge',
+    open: (m, s, i) => i <= m.roadGranted(XP_ROAD, CHALLENGE_LEVELS, s.xp),
+  }),
+  'mode.easter_event': event('mode.easter_event', 'easter'),
+  'mode.valentine_day': event('mode.valentine_day', 'valentine'),
+};

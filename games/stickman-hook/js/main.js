@@ -1,11 +1,12 @@
-import { buildLevel } from './level.js';
-import { Player, PHYS, ST } from './physics.js';
+import { buildLevel, modeData } from './level.js';
+import { PHYS, ST } from './physics.js';
 import { Renderer } from './render.js';
 import { readSave, writeSave, DEFAULT_EQUIP } from './save.js';
 import { Meta } from './meta.js';
 import { makeCustom } from './custom.js';
+import { MODES, NORMAL } from './modes.js';
 
-const V = '?v=20261028b';
+const V = '?v=20261028c';
 const DEFAULT_ZOOM = 5, FINISH_ZOOM = 2; // CameraConfig.defaultZoom, PlayerCameraController.cameraZoomOnEndGame
 // Rope prefab: sprite scaled (1.6, 2) under its parent. [ĐỀ XUẤT] 0.2 per axis so a 167 px tile is ~0.4 wide,
 // next to the 0.045 Classic line.
@@ -33,6 +34,9 @@ function play(name) {
 }
 
 let data, R, world, player, meta, custom, save = readSave();
+// The mode being played: {id, def (modes.js entry), data (buildLevel input), Player, count}. Loaded modes are cached.
+let mode = null;
+const loaded = {};
 const cam = { x: 0, y: 0, zoom: DEFAULT_ZOOM };
 // phase: 'spawn' (spawn FX, player hidden) -> 'play' -> 'finish' (slow motion + zoom, then wait for a tap).
 // Leaving the camera through its bottom or left edge while not hooked restarts the level (CameraLimits triggers).
@@ -53,12 +57,12 @@ function layers(draw) {
 }
 
 function startLevel(index) {
-  world = buildLevel(data, index);
+  world = buildLevel(mode.data, index);
   world.layers = layers(world.draw);
-  save.level = index;
+  mode.def.slot(save).level = index;
   writeSave(save);
-  R.theme = meta.theme(index);
-  player = new Player(world.spawn);
+  R.theme = meta.themeFor(mode.id, index);
+  player = new mode.Player(world.spawn);
   game.phase = 'spawn';
   game.t = 0;
   game.hold = false;
@@ -102,7 +106,7 @@ function finishLevel() {
   game.t = 0;
   game.zoomFrom = cam.zoom;
   game.camFrom = { x: cam.x, y: cam.y };
-  game.reward = meta.levelComplete(save, world.index);
+  game.reward = mode.def.complete(meta, save, world.index);
   writeSave(save);
   hud();
   for (const g of game.reward.got) if (g.item) toast('Mở khoá: ' + g.item.title);
@@ -125,13 +129,36 @@ function outOfCamera() {
 
 function respawn() {
   game.deaths++;
-  player = new Player(world.spawn);
+  player = new mode.Player(world.spawn);
   game.phase = 'spawn';
   game.t = 0;
   game.trail = [];
 }
 
-function nextLevel() { play('button'); startLevel(world.index + 1); }
+// Next level when the mode has one and it is open (Challenge waits for XP), else back to the mode's level picker.
+function nextLevel() {
+  play('button');
+  const n = world.index + 1;
+  if (n < mode.count && mode.def.open(meta, save, n)) startLevel(n);
+  else openLevels();
+}
+
+async function loadMode(id) {
+  if (loaded[id]) return loaded[id];
+  const def = MODES[id];
+  const [file, P] = await Promise.all([def.file ? load('./data/mode-' + def.file + '.json') : null, def.player()]);
+  const d = file ? modeData(data, file, id) : data;
+  return (loaded[id] = { id, def, data: d, Player: P, count: d.random.length ? Infinity : d.levels.length });
+}
+
+async function openMode(id) {
+  const same = mode.id === id;
+  mode = await loadMode(id);
+  for (const o of ['modes', 'start', 'levels']) if ($(o)) overlay(o, false);
+  if (!same) startLevel(mode.def.slot(save).level || 0);
+  if (mode.def.picker) openLevels();
+  hud();
+}
 
 const STEP = PHYS.fixedDt;
 let acc = 0, last = 0;
@@ -194,8 +221,13 @@ function updateCamera(dt) {
   cam.y = 0;
 }
 
-const BUMP_FRAMES = ['AN_Grap1_BumperLarge0001', 'AN_Grap1_BumperLarge0002', 'AN_Grap1_BumperLarge0003',
-  'AN_Grap1_BumperLarge0004', 'AN_Grap1_BumperLarge0005'];
+// BumperAnimation / BumperAnimationSmall clips (30 fps), keyed by the bumper's idle sprite
+const BUMP_FRAMES = {
+  AN_Grap1_BumperLarge0005: ['AN_Grap1_BumperLarge0001', 'AN_Grap1_BumperLarge0002', 'AN_Grap1_BumperLarge0003',
+    'AN_Grap1_BumperLarge0004', 'AN_Grap1_BumperLarge0005'],
+  AN_Grap1_BumperSmall004: ['AN_Grap1_BumperSmall000', 'AN_Grap1_BumperSmall001', 'AN_Grap1_BumperSmall002',
+    'AN_Grap1_BumperSmall003', 'AN_Grap1_BumperSmall004'],
+};
 // draw item `th` -> theme colour replacing the material tint (build_data.py THEMED)
 const THEMED = { 1: 'targets', 2: 'walls' };
 
@@ -209,7 +241,8 @@ function draw(now) {
     let name = d.s, m = d.m;
     if (d.bumper != null) {
       const b = world.bumpers[d.bumper];
-      if (b.anim >= 0) name = BUMP_FRAMES[Math.min(4, Math.floor(b.anim * 30))];
+      const clip = BUMP_FRAMES[d.s];
+      if (b.anim >= 0 && clip) name = clip[Math.min(clip.length - 1, Math.floor(b.anim * 30))];
     }
     if (d.target != null && d.target === hooked) name = 'A_PlotSelected';
     if (d.bob) m = [m[0], m[1], m[2], m[3], m[4], m[5] + Math.sin(t * (2 * Math.PI / 0.383)) * 0.06];
@@ -286,10 +319,12 @@ function drawConfetti() {
 
 function drawHud(now) {
   const w = cv.width / R.dpr;
-  R.text('level ' + (world.index + 1), w / 2, 34, 30);
+  const label = mode.def.hud + ' ' + (world.index + 1);
+  // shrink long labels ("challenge 12") to the gap between the two button rows
+  R.text(label, w / 2, 34, Math.min(30, (30 * (w - 250)) / R.measure(label, 30)));
   if (game.phase === 'finish' && game.t > 0.9) {
     const h = cv.height / R.dpr;
-    R.text('level ' + (world.index + 1) + ' completed', w / 2, h * 0.3, Math.min(54, w / 13));
+    R.text(label + ' completed', w / 2, h * 0.3, Math.min(54, w / 13));
     if (game.reward?.xp) R.text('+' + game.reward.xp + ' xp', w / 2, h * 0.3 + Math.min(54, w / 13) * 1.2, Math.min(34, w / 18));
     const blink = 0.6 + 0.4 * Math.sin(now / 200);
     R.text('tap to continue', w / 2, h * 0.62, Math.min(30, w / 18), 0.5, blink);
@@ -328,7 +363,7 @@ function hud() {
   const n = meta.claimable(save);
   $('roadBadge').textContent = n;
   $('roadBadge').style.display = n ? '' : 'none';
-  $('playLevel').textContent = 'Màn ' + (world.index + 1);
+  $('playLevel').textContent = (mode.def.picker ? modeName(mode.id) + ' · ' : '') + 'Màn ' + (world.index + 1);
 }
 
 function setHold(v) {
@@ -350,6 +385,7 @@ function overlay(id, on) {
 const app = {
   get save() { return save; }, get meta() { return meta; }, get custom() { return custom; }, get world() { return world; },
   get R() { return R; }, play, writeSave: () => writeSave(save), applyEquip, hud, overlay, toast, image, icon, $, V, look,
+  openMode, get mode() { return mode.id; },
 };
 let menus = null;
 async function openMenu(name) {
@@ -383,19 +419,25 @@ function bindInput() {
 
 function soundIcon() { $('btnSound').style.opacity = save.sound ? 1 : 0.45; }
 
+function modeName(id) { return meta.d.modes.find((m) => m[0] === id)?.[1] || id; }
+
+// Level picker of the current mode: every level of a finite mode (locked ones greyed), else up to the next new level.
 function openLevels() {
   const g = $('grid');
   g.innerHTML = '';
-  const top = Math.max(save.best + 1, world.index + 1, 64);
+  const slot = mode.def.slot(save), best = slot.best || 0;
+  const done = (i) => (slot.done ? slot.done.includes(i) : i < best);
+  const top = Number.isFinite(mode.count) ? mode.count : Math.max(best + 1, world.index + 1, mode.data.levels.length);
   for (let i = 0; i < top; i++) {
     const b = document.createElement('button');
     b.textContent = i + 1;
-    if (i < save.best) b.className = 'done';
+    if (done(i)) b.className = 'done';
     if (i === world.index) b.className = 'cur';
-    b.disabled = i > save.best;
+    b.disabled = !mode.def.open(meta, save, i);
     b.onclick = () => { overlay('levels', false); play('button'); startLevel(i); };
     g.appendChild(b);
   }
+  $('levelsTitle').textContent = mode.def.picker ? modeName(mode.id) : 'Chọn màn';
   overlay('levels', true);
   g.querySelector('.cur')?.scrollIntoView({ block: 'center' });
 }
@@ -406,13 +448,15 @@ async function boot() {
   ]);
   data = lv;
   meta = new Meta(md);
+  mode = loaded[NORMAL] = { id: NORMAL, def: MODES[NORMAL], data, Player: MODES[NORMAL].player(), count: Infinity };
   custom = makeCustom(load, image);
   R = new Renderer(cv, atlasImg, lv.atlas, fontImg, font);
   app.atlas = { img: atlasImg, rects: lv.atlas, fontImg, font };
   // the achieved-level road follows `best`, so catch up rewards from saves made before it existed
   if (meta.claim(save, 'achieved_level_mode.normal', save.best).length) writeSave(save);
-  const q = new URLSearchParams(location.search).get('level');
-  startLevel(q ? Math.max(0, (parseInt(q, 10) || 1) - 1) : save.level || 0);
+  const params = new URLSearchParams(location.search), q = params.get('level'), qm = 'mode.' + params.get('mode');
+  if (MODES[qm]) mode = await loadMode(qm);
+  startLevel(q ? Math.max(0, (parseInt(q, 10) || 1) - 1) : mode.def.slot(save).level || 0);
   applyEquip();
   bindInput();
   soundIcon();
@@ -421,7 +465,8 @@ async function boot() {
   $('loading').remove();
   requestAnimationFrame(frame);
   window.__sh = { game, get world() { return world; }, get player() { return player; }, get save() { return save; }, cam, look,
-    get theme() { return R.theme; }, meta, startLevel, setHold, applyEquip, openMenu, overlay };
+    get theme() { return R.theme; }, meta, startLevel, setHold, applyEquip, openMenu, overlay, openMode, openLevels,
+    get mode() { return mode; } };
 }
 
 boot().catch((e) => { $('loading').textContent = 'Không tải được game: ' + e.message; });
