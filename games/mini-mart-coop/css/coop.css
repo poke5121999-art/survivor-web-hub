@@ -1,0 +1,25 @@
+/* Page frame around the menu and the store. The store itself keeps the solo portrait frame (#stage in
+   ../casual-farm/css/game.css); the menu and its live backdrop fill the window like Supermarket Together's. */
+html, body { margin: 0; height: 100%; overflow: hidden; background: #2a1d3d; }
+#bg { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+#menu { position: fixed; inset: 0; z-index: 2; }
+body.in-store #menu { display: none; }
+#stage[hidden] { display: none; }
+
+.mmc-bar { position: absolute; z-index: 30; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom) + 1.2vh);
+  display: flex; align-items: center; gap: 0.45em; max-width: calc(94 * var(--sw) / 100); padding: 0.35em 0.5em; border-radius: 0.7em;
+  background: rgba(58, 28, 110, 0.82); color: #fff; font: 900 clamp(11px, calc(var(--sw) / 34), 18px) 'Londrina Solid', sans-serif; }
+.mmc-bar .n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 9em; }
+.mmc-bar button { font: inherit; color: #fff; border: 0; border-radius: 0.45em; padding: 0.15em 0.5em; cursor: pointer; }
+.mmc-bar .code { background: #7b4dff; letter-spacing: 0.08em; }
+.mmc-bar .leave { background: #e5484d; }
+.mmc-bar .who { display: flex; gap: 0.25em; flex-wrap: wrap; }
+.mmc-bar .who i { font-style: normal; padding: 0 0.4em; border-radius: 0.4em; color: #1d1030; }
+
+.mmc-tags { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 5; }
+.mmc-tag { position: absolute; left: 0; top: 0; padding: 0.05em 0.45em; border-radius: 0.45em; white-space: nowrap;
+  background: var(--c); color: #1d1030; font: 900 clamp(10px, calc(var(--sw) / 40), 16px) 'Londrina Solid', sans-serif;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3); }
+
+/* Solo-only HUD buttons: city map, outfits, gift trolley, daily spin, shop. */
+#hud.coop #mapbtn, #hud.coop #custombtn, #hud.coop #robtn, #hud.coop #spinbtn, #hud.coop #shopbtn { display: none !important; }

@@ -990,6 +990,23 @@ window.HUB_GAMES = [
     tags: ["Nông trại", "Quản lý", "Màn dọc"]
   },
   {
+    id: "mini-mart-coop",
+    title: "My Mini Mart Together",
+    tagline: "My Mini Mart chơi chung tới 4 người: cùng trồng, xếp kệ, đứng quầy, chung một túi tiền.",
+    desc: "Bản co-op của My Mini Mart, nối qua Unity Relay. Menu như Supermarket Together: mở cửa hàng mới (đặt tên, riêng tư hoặc công khai, độ khó, chọn vùng máy chủ trên bản đồ, chọn 1 trong 14 mart), tải cửa hàng đã lưu, hoặc vào cửa hàng của bạn bè từ danh sách phòng hay bằng mã 6 chữ. Mỗi người tự đi, tự mang hàng; tiền, ô mua, máy và nhân viên là của chung. Chủ phòng giữ tiến độ. Menu hiện ngay, cửa hàng tải sau và rõ dần. Bản chơi một mình vẫn ở My Mini Mart.",
+    genre: "thu-gian",
+    accent: "#8b5cf6",
+    en: { title: "My Mini Mart Together", tagline: "My Mini Mart for up to 4 players: farm, stock shelves and run the till together, one shared wallet.", desc: "The co-op version of My Mini Mart, connected through Unity Relay. A Supermarket Together style menu: open a new store (name it, private or public, difficulty, pick the server region on the world map, pick one of 14 marts), load a saved store, or join a friend's store from the room list or with a 6-letter code. Everyone walks and carries on their own; cash, pads, machines and staff are shared. The host keeps the progress. The menu shows at once, the store loads behind it and sharpens. The solo game is still My Mini Mart." },
+    thumbnail: "assets/thumbnails/mini-mart-coop.png",
+    path: "games/mini-mart-coop/index.html",
+    rev: "20261028a",
+    // Co-op on top of the solo game (games/casual-farm, imported as is, not copied). Unity Relay + Lobby over plain
+    // REST/WebSocket (games/mini-mart-coop/js/net), same UGS project as D:/REPO_Meta (Boo Haul). Bump rev with:
+    // node games/mini-mart-coop/tools/stamp.js <rev>. Kiểm: test/mini-mart-coop-{relay,sim,play}.js (MMC_URL=<Pages>).
+    status: "available",
+    tags: ["Nông trại", "Quản lý", "Chơi chung"]
+  },
+  {
     id: "world-of-slime",
     title: "Thế Giới Slime",
     tagline: "Tỉnh dậy ở làng chài Larus cùng slime đồng hành, đánh và thuần phục slime hoang.",
