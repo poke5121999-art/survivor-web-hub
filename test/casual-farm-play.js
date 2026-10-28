@@ -503,13 +503,15 @@ function serve() {
       const top = [...document.querySelectorAll('#romenu .card')].find(c => c.getBoundingClientRect().top >= document.querySelector('#romenu .scroll').getBoundingClientRect().top - 2);
       return { cash: window.__mmGame.sim.state.cash, ro: window.__mmGame.shop.g.ro, top: top && top.dataset.i, locked: top && top.classList.contains('locked') };
     });
-    await page.evaluate(() => dispatchEvent(new Event('pagehide')));
+    // A worker booster of 1 hour (two 30-minute grants) must survive the reload: ShopItemPrefs keeps boosts in play time.
+    const boostBefore = await page.evaluate(() => { const b = window.__mmGame.sim.boosters; b.grant('worker', 1800); b.grant('worker', 1800); dispatchEvent(new Event('pagehide')); return Math.round(b.left('worker')); });
     await page.goto(url);
     await page.waitForFunction(() => window.__mm && (window.__mm.ready || window.__mm.error), null, { timeout: 90000 });
-    const kept = await page.evaluate(() => ({ ro: window.__mmGame.shop.g.ro, once: !!window.__mmGame.shop.g.shop.bought.coin_bundle_05, btn: getComputedStyle(document.querySelector('#shopbtn')).display !== 'none' }));
-    check('the rolling offer pays half the cheapest mat, scrolls to the next card unlocked, and the ladder and shop survive a reload',
+    const kept = await page.evaluate(() => ({ ro: window.__mmGame.shop.g.ro, once: !!window.__mmGame.shop.g.shop.bought.coin_bundle_05, btn: getComputedStyle(document.querySelector('#shopbtn')).display !== 'none',
+      worker: Math.round(window.__mmGame.sim.boosters.left('worker')) }));
+    check('the rolling offer pays half the cheapest mat, scrolls to the next card unlocked, and the ladder, shop and a 1-hour worker booster survive a reload',
       ro0.cheapest > 0 && ro1.cash === ro0.cash + Math.trunc(0.5 * ro0.cheapest) && ro1.ro === 1 && ro1.top === '1' && !ro1.locked
-      && kept.ro === 1 && kept.once && kept.btn, JSON.stringify({ ro0, ro1, kept }));
+      && kept.ro === 1 && kept.once && kept.btn && boostBefore >= 3600 && Math.abs(kept.worker - boostBefore) <= 2, JSON.stringify({ ro0, ro1, kept, boostBefore }));
 
     // Seasonal marts (census-events.md): Halloween Mart loads from its own CSV (18 mats), greets with
     // martCashAmounts[13] = 1000, has no next-mart pad, and the map lists all six as open event marts with no prestige.

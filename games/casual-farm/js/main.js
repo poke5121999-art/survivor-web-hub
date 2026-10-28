@@ -239,6 +239,7 @@ async function load() {
   sim.listeners.push(e => { if (e.type === 'depart') setTimeout(() => travel(next.id), VAN_TIME); });
   const director = new CameraDirector(sim, store);
   hud.onTaskFocus = p => director.highlight(p);
+  for (const [kind, s] of Object.entries(global.boostLeft || {})) if (s > 0) sim.boosters.grant(kind, s);
   return { world, store, nav, grid, sim, view, hud, director, cityMap, looks, daily, shop, saved: !!saved, marts, radar: objectiveRadar(world, store) };
 }
 
@@ -270,10 +271,18 @@ const clock = new THREE.Clock();
 let saveTimer = 0;
 let bot = null;
 
+// Running boosters (ShopItemPrefs.activeUntil in play time): what is left goes into the global record, so a reload or the
+// next mart carries on with it; time away from the game does not count down.
+function keepBoosts(sim) {
+  const b = sim.state.boost, t = sim.state.t;
+  global.boostLeft = Object.fromEntries(Object.entries(b.active).map(([k, until]) => [k, Math.round((until - t) * 10) / 10]).filter(([, s]) => s > 0));
+}
+
 function save() {
   if (!game) return;
   const d = game.sim.save();
   global.cash = d.cash;
+  keepBoosts(game.sim);
   store_(MART_KEY(STORE), d);
   global.savedAt = Date.now();
   global.ver = (global.ver || 0) + 1;
@@ -288,6 +297,7 @@ const VAN_TIME = 2600;
 function travel(id, wipe = null) {
   if (wipe && wipe === STORE && game) {
     global.cash = game.sim.state.cash;
+    keepBoosts(game.sim);
     game = null;
   } else save();
   if (wipe) {
