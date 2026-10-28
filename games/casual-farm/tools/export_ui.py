@@ -136,6 +136,8 @@ def deref(f, pptr):
 SPRITES = {}      # name -> info
 SPRITE_IDS = {}   # (file, id) -> name
 SKIPPED = []
+# export_menus.py: write oversized sprites scaled down to MAX_W (sizes on screen come from the rects, not the pixels).
+SHRINK_BIG = False
 FONTS = {}
 
 
@@ -155,7 +157,8 @@ def sprite_ref(f, pptr):
     name = td["m_Name"]
     safe = "".join(ch if ch.isalnum() or ch in "-_. ()" else "_" for ch in name).strip() or f"sprite{pid}"
     base, n = safe, 2
-    while safe in SPRITES:
+    # Case-insensitive: on Windows "Triangle" and "triangle" are one file, and the later sprite overwrote the earlier.
+    while safe.lower() in {k.lower() for k in SPRITES}:
         safe = f"{base}~{n}"
         n += 1
     rc = td["m_Rect"]
@@ -166,7 +169,7 @@ def sprite_ref(f, pptr):
             "src": f"{sf.name}:{pid}"}
     SPRITES[safe] = info
     SPRITE_IDS[key] = safe
-    if info["w"] > MAX_W or info["h"] > MAX_W:
+    if (info["w"] > MAX_W or info["h"] > MAX_W) and not SHRINK_BIG:
         SKIPPED.append((safe, info["w"], info["h"]))
         info["skipped"] = True
         log(f"  sprite {safe} {info['w']}x{info['h']} wider than {MAX_W}: not written")
@@ -175,6 +178,10 @@ def sprite_ref(f, pptr):
         im = o.read().image
         if im.mode != "RGBA":
             im = im.convert("RGBA")
+        if max(im.size) > MAX_W:
+            k = MAX_W / max(im.size)
+            im = im.resize((round(im.width * k), round(im.height * k)), Image.LANCZOS)
+            info["shrunk"] = round(k, 4)
         info["px"] = list(im.size)
         p = os.path.join(SPR, safe + ".webp")
         if max(im.size) <= 256:

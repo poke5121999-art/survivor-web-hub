@@ -382,7 +382,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #1f2a1b; tou
 .cash.gem img { width: 1.35em; height: 1.35em; }
 .dspin .panel { top: calc(50% - 457 * var(--u) - 30 * var(--u)); height: calc(914 * var(--u)); width: calc(min(var(--sw), 750 * var(--u)) - 20 * var(--u));
   transform: translateX(-50%) scale(0.9); background: none; border-style: solid; border-width: calc(159 * var(--u)) calc(80 * var(--u)) calc(205 * var(--u));
-  border-image: var(--bg) 175 87.5 225 fill / calc(159 * var(--u)) calc(80 * var(--u)) calc(205 * var(--u)); box-sizing: border-box; }
+  border-image: var(--bg) 204 102 262 fill / calc(159 * var(--u)) calc(80 * var(--u)) calc(205 * var(--u)); box-sizing: border-box; }
 .dspin .head, .dspin .mid, .dspin .foot, .dspin .x { position: absolute; }
 .dspin .head { left: calc(-80 * var(--u)); right: calc(-80 * var(--u)); top: calc(-159 * var(--u)); height: calc(120 * var(--u)); }
 .dspin .hdr { position: absolute; left: 50%; bottom: calc(40 * var(--u)); width: calc(390 * var(--u)); height: calc(185 * var(--u)); transform: translateX(-50%); }

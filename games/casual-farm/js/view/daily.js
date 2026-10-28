@@ -44,7 +44,7 @@ export class Daily {
           <div class="wheel"><img class="face" src="${m('image-spin')}" alt=""><div class="icons"></div></div>
           <div class="lights">${Array.from({ length: 12 }, (_, i) => `<i style="--a:${i * 30}deg"></i>`).join('')}</div>
           <i class="hub"></i>
-          <img class="ptr" src="${m('Triangle')}" alt="">
+          <img class="ptr" src="${m('Triangle~2')}" alt="">
         </div>
         <div class="foot">
           <a class="sb ol spin" data-act="spin" style="--b:url('${m('button-green')}')">Spin</a>

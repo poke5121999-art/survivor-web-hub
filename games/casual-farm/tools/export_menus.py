@@ -66,7 +66,13 @@ def depth_of(nodes, i):
 
 def main():
     os.makedirs(OUT, exist_ok=True)
+    # Start from an empty folder: Windows keeps an existing file's letter case on overwrite, so a sprite renamed by case
+    # ("triangle" -> "Triangle~2") would keep the old spelling on disk and 404 on the case-sensitive host.
+    for n in os.listdir(OUT):
+        if n.endswith(".webp"):
+            os.remove(os.path.join(OUT, n))
     ui.SPR = OUT
+    ui.SHRINK_BIG = True
     mm.load()
     out = {}
     for key, name in TREES.items():

@@ -21,6 +21,10 @@ function serve() {
   return new Promise(res => {
     const srv = http.createServer((q, s) => {
       const f = path.join(ROOT, decodeURIComponent(q.url.split('?')[0]));
+      // Case-sensitive like GitHub Pages: Windows would serve Triangle~2.webp for triangle~2.webp.
+      let exact = false;
+      try { exact = fs.readdirSync(path.dirname(f)).includes(path.basename(f)); } catch (e) { /* no folder */ }
+      if (!exact) { s.writeHead(404); s.end(); return; }
       fs.readFile(f, (e, b) => {
         if (e) { s.writeHead(404); s.end(); return; }
         s.writeHead(200, { 'content-type': TYPES[path.extname(f)] || 'application/octet-stream' });
