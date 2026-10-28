@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Boo Haul Co-op Horror</title>
+    <link rel="shortcut icon" href="TemplateData/favicon.ico">
+    <style>
+      /*
+       * Khuôn trang cho hub.
+       *
+       * WHY tự viết thay vì dùng khuôn mặc định của Unity: khuôn mặc định ghi CỨNG
+       * `canvas.style.width = "540px"` cho máy tính, nên trang không bao giờ co theo cửa sổ.
+       * Đo được trên bản đã đẩy lên hub: cửa sổ cỡ điện thoại (390x780) thì khung game nằm ở
+       * toạ độ x=-75, y=-111 — mất 75 điểm mỗi bên và 111 điểm trên dưới, bay luôn dòng ví và
+       * chữ trên thanh tab. Nó cũng kèm một thanh chân có logo Unity mà không game nào khác
+       * trên hub có.
+       *
+       * Game KHOÁ NGANG. Cửa sổ nằm ngang: khung tràn hết cửa sổ (giao diện tự dàn theo mọi tỉ lệ
+       * ngang, điện thoại 19,5:9 thì không phí hai dải đen). Máy cảm ứng cầm dọc: khung vẫn tràn
+       * hết, và PortHost tự xoay hình 90 độ bên trong — không xoay bằng CSS được, vì Unity đọc chỗ
+       * chạm theo khung chưa xoay. Máy tính với cửa sổ dựng đứng: không ai nghiêng đầu nhìn màn
+       * hình, nên giữ một khung 16:9 nằm giữa.
+       * Tham khảo: web-hub/games/chuyen-tau (game ngang, xoay vỏ bằng CSS) và kingfall (Unity, khung ngang).
+       */
+      html, body {
+        margin: 0; padding: 0; height: 100%; width: 100%;
+        background: #0c0d10; overflow: hidden;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      }
+      #unity-container {
+        position: fixed; inset: 0;
+        display: flex; align-items: center; justify-content: center;
+      }
+      #unity-canvas {
+        display: block; background: #0c0d10; outline: none;
+        width: 100vw; height: 100vh;
+        touch-action: none;
+      }
+      @supports (height: 100dvh) {
+        #unity-canvas { width: 100dvw; height: 100dvh; }
+      }
+      @media (orientation: portrait) and (pointer: fine) {
+        #unity-canvas { width: 100vw; height: calc(100vw * 9 / 16); }
+      }
+      #unity-loading-bar {
+        position: absolute; inset: 0;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 14px; color: #cfd6dc; pointer-events: none;
+      }
+      #unity-loading-bar.done { display: none; }
+      #unity-loading-title { font-size: 15px; letter-spacing: .12em; color: #8a949e; }
+      #unity-loading-pct { font-size: 13px; color: #cfd6dc; font-variant-numeric: tabular-nums; }
+      #unity-loading-hint { font-size: 12px; color: #8a949e; min-height: 1em; }
+      #unity-progress-bar-empty {
+        width: min(62vw, 280px); height: 6px; border-radius: 3px; background: #23272e;
+      }
+      #unity-progress-bar-full {
+        width: 0%; height: 100%; border-radius: 3px; background: #e0a53c; transition: width .2s;
+      }
+      #unity-warning {
+        position: absolute; left: 50%; top: 16px; transform: translateX(-50%);
+        color: #e6ebee; background: rgba(20,22,26,.92); padding: 10px 14px; border-radius: 8px;
+        font-size: 13px; max-width: 86vw; display: none;
+      }
+      #unity-warning { pointer-events: auto; }
+      #unity-retry {
+        margin-left: 8px; padding: 6px 14px; font-size: 14px; border-radius: 6px;
+        border: 0; background: #e0a53c; color: #14161a; font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="unity-container">
+      <canvas id="unity-canvas" tabindex="-1"></canvas>
+      <div id="unity-loading-bar">
+        <div id="unity-loading-title">ĐANG TẢI</div>
+        <div id="unity-progress-bar-empty"><div id="unity-progress-bar-full"></div></div>
+        <div id="unity-loading-pct">0%</div>
+        <div id="unity-loading-hint"></div>
+      </div>
+      <div id="unity-warning"></div>
+    </div>
+
+    <!-- Hub account layer (web-hub/games/BRIDGE.md Layer 0), kept for the hub page itself. The game no longer reads
+         window.HubSave: player data lives on GameSpark (the Supabase save sync and PortHub.jslib were removed). -->
+    <script src="../../js/session.js"></script>
+    <script src="../../js/supabase-config.js"></script>
+    <script src="../../js/supabase-auth.js"></script>
+    <script src="../../js/save-sync.js"></script>
+    <script>
+      // Chữ màn tải hiện TRƯỚC khi Unity nạp, nên tự đọc ngôn ngữ đã lưu (cùng khoá với Ng.KEY): "anh"/"viet";
+      // chưa lưu thì theo máy — chỉ máy để tiếng Việt mới ra Việt, còn lại tiếng Anh (khớp Ng.Load).
+      var LOADER_EN = (function () {
+        var raw = null;
+        try { raw = localStorage.getItem("repo2d.ngonngu.v1"); } catch (e) {}
+        if (raw === "anh") return true;
+        if (raw === "viet") return false;
+        var lang = navigator.userLanguage || navigator.language || "";
+        return String(lang).toLowerCase().indexOf("vi") !== 0;
+      })();
+      function loaderText(vi, en) { return LOADER_EN ? en : vi; }
+      document.documentElement.lang = LOADER_EN ? "en" : "vi";
+      document.querySelector("#unity-loading-title").textContent = loaderText("ĐANG TẢI", "LOADING");
+      var canvas = document.querySelector("#unity-canvas");
+      var loadingBar = document.querySelector("#unity-loading-bar");
+      var progressBarFull = document.querySelector("#unity-progress-bar-full");
+      var warningBanner = document.querySelector("#unity-warning");
+
+      function unityShowBanner(msg, type) {
+        // Lỗi trước khi game chạy (loader không tải được tệp) có khi chỉ báo qua đây, không reject.
+        if (type === "error" && !window.unityInstance && typeof loadFailed === "function") { loadFailed(msg); return; }
+        warningBanner.style.display = "block";
+        warningBanner.textContent = msg;
+        if (type !== "error") setTimeout(function () { warningBanner.style.display = "none"; }, 5000);
+      }
+
+      var buildUrl = "Build";
+      // Phiên bản (1.0+<sha8>, WebGLBuild) trên URL: service worker và bộ nhớ đệm của Unity khoá theo URL, mà bản build thử luôn
+      // tên test.*; thiếu nó thì build mới trên cùng cổng nhận lại tệp đã giải nén của build cũ.
+      var buildV = "?v=" + encodeURIComponent("1.0+87ce01a7");
+      var config = {
+        dataUrl: buildUrl + "/repo2d-unity-live-bf6c9dfac1.data.unityweb" + buildV,
+        frameworkUrl: buildUrl + "/repo2d-unity-live-bf6c9dfac1.framework.js.unityweb" + buildV,
+        codeUrl: buildUrl + "/repo2d-unity-live-bf6c9dfac1.wasm.unityweb" + buildV,
+        streamingAssetsUrl: "StreamingAssets",
+        // Cùng trần độ nét với fitCanvas: không đặt thì Unity tự lấy devicePixelRatio (3 trên nhiều điện thoại) và
+        // bộ đệm nhảy qua lại giữa hai cỡ mỗi lần trang đổi cỡ.
+        devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+        // Kế hoạch 03 phase 2: trang tự đặt cỡ bộ đệm (fitCanvas, theo ngân sách điểm ảnh + hệ số tự điều chỉnh).
+        // Để Unity tự khớp thì mỗi khung nó đặt lại canvas.width = cỡ CSS × devicePixelRatio và đè mất tỉ lệ ấy.
+        matchWebGLToCanvasSize: false,
+        companyName: "HLO",
+        productName: "Boo Haul Co-op Horror",
+        productVersion: "1.0+87ce01a7",
+        showBanner: unityShowBanner,
+        // Có service worker giữ bản đã giải nén (sw.js) thì nó là bộ nhớ đệm của tệp build: tắt bộ nhớ đệm IndexedDB của Unity
+        // cho Build/, kẻo Unity lưu thêm một bản 121 MB và mỗi lần kiểm lại lại ghi đè.
+        cacheControl: function (url) { return (window.__repoSw && /\/Build\//.test(url)) ? "no-store" : "must-revalidate"; },
+      };
+      // Mở lại game nhanh gấp đôi trên điện thoại: S20+ tới sảnh 10,5 s → 5,5 s (đo 2026-10-24), vì loader nhận tệp thô từ
+      // service worker và bỏ bước giải nén brotli bằng JS. ?sw=0 gỡ service worker (để đo đối chứng hay khi nghi nó hỏng).
+      window.__repoSw = false;
+      if ("serviceWorker" in navigator) {
+        if (/[?&]sw=0/.test(location.search)) {
+          navigator.serviceWorker.getRegistrations().then(function (rs) { rs.forEach(function (r) { r.unregister(); }); });
+        } else {
+          window.__repoSw = !!navigator.serviceWorker.controller;
+          navigator.serviceWorker.register("sw.js").catch(function (e) { console.warn("[sw] register: " + e); });
+          navigator.serviceWorker.addEventListener("message", function (e) { console.log("[sw] " + JSON.stringify(e.data)); });
+        }
+      }
+      // Vào game được 20 s (máy đã rảnh) thì nhờ service worker giải nén và giữ tệp build cho lần mở sau.
+      function swWarm() {
+        if (!("serviceWorker" in navigator) || /[?&]sw=0/.test(location.search)) return;
+        navigator.serviceWorker.ready.then(function (r) {
+          if (r.active) r.active.postMessage({ type: "warm", urls: [config.dataUrl, config.codeUrl] });
+        });
+      }
+
+      // Bộ đệm vẽ phải khớp cỡ THẬT của canvas trên màn hình, nhân với độ nét của máy.
+      // Không đặt thì Unity vẽ ở cỡ mặc định rồi trình duyệt phóng lên — chữ nhoè và
+      // chỗ chạm lệch với chỗ nhìn thấy.
+      //
+      // Kế hoạch 03 phase 2 — NGÂN SÁCH ĐIỂM ẢNH. Tỉ lệ vẽ = min(dpr (trần 2), √(ngân sách / diện tích CSS)) × hệ số,
+      // kẹp [0,5; dpr]. Ngân sách ~1080p: màn 1080p dpr2 hay 1440p không còn vẽ 8,3 / 3,7 triệu điểm mỗi khung. Hệ số do
+      // PortHost (RenderScale) gửi xuống qua PortSetRenderScale: khung chậm kéo dài thì hạ, máy khoẻ thì nâng dần tới
+      // trọn dpr (chữ 4K nét). PortHost chia bộ đệm cho cỡ CSS để ra dpr thật nên toạ độ chạm và cỡ giao diện tự đúng.
+      // ?renderScale=0 tắt tự điều chỉnh (hệ số 1) để đo so sánh.
+      var NGAN_SACH_PX = 1920 * 1080;
+      window.__repoHeSo = 1;
+      window.__repoTuChinh = !/[?&]renderScale=0/.test(location.search);
+      function tiLeNganSach(r) { return Math.sqrt(NGAN_SACH_PX / Math.max(1, r.width * r.height)); }
+      function fitCanvas() {
+        var r = canvas.getBoundingClientRect();
+        var dpr = Math.min(window.devicePixelRatio || 1, 2);
+        var k = Math.max(0.5, Math.min(dpr, tiLeNganSach(r) * window.__repoHeSo));
+        var w = Math.max(1, Math.round(r.width * k)), h = Math.max(1, Math.round(r.height * k));
+        if (canvas.width !== w) canvas.width = w;
+        if (canvas.height !== h) canvas.height = h;
+        window.__repoTiLeVe = k;
+        return k / tiLeNganSach(r);          // hệ số THỰC SỰ dùng sau khi kẹp
+      }
+      window.__repoFitCanvas = fitCanvas;
+      fitCanvas();
+      window.addEventListener("resize", fitCanvas);
+      window.addEventListener("orientationchange", function () { setTimeout(fitCanvas, 200); });
+
+      // Máy nào cho khoá thật (Android, khi đang toàn màn hình) thì khoá ngang luôn ở cú chạm đầu:
+      // hình khỏi phải xoay trong game. Safari trên iPhone không có lock() — ở đó lệnh ném lỗi, bị
+      // nuốt, và PortHost xoay khung thay. Cả hai API bắt buộc gọi trong một thao tác người dùng.
+      document.addEventListener("pointerdown", function () {
+        if (!matchMedia("(pointer: coarse)").matches) return;
+        var el = document.documentElement;
+        var fs = el.requestFullscreen || el.webkitRequestFullscreen;
+        var lock = function () {
+          try {
+            var r = screen.orientation && screen.orientation.lock && screen.orientation.lock("landscape");
+            if (r && r.catch) r.catch(function () {});
+          } catch (e) { /* không khoá được thì PortHost xoay */ }
+          setTimeout(fitCanvas, 200);
+        };
+        if (fs && !(document.fullscreenElement || document.webkitFullscreenElement)) {
+          try {
+            var p = fs.call(el, { navigationUI: "hide" });
+            if (p && p.then) p.then(lock, lock); else lock();
+          } catch (e) { lock(); }
+        } else lock();
+      }, { passive: true });
+
+      // Tải hỏng (mạng chập chờn, điện thoại hết bộ nhớ lúc giải nén rồi trả về rỗng → "TypeError: Failed to fetch at
+      // instantiateAsync", trình duyệt tạm ngưng tab khi người chơi chuyển app giữa chừng) thì trang tự tải lại MỘT
+      // lần; lần sau vẫn hỏng thì hiện nút Tải lại thay vì để khung đen với dòng lỗi. Lần tải lại lấy tệp từ bộ nhớ
+      // đệm của Unity (dataCaching) nên nhanh hơn nhiều.
+      var RETRY_KEY = "repo2d-unity-load-retry";
+      var loadFailedOnce = false;
+      function loadFailed(message) {
+        if (loadFailedOnce) return;      // loader có thể báo cả banner lẫn reject cho cùng một lỗi
+        loadFailedOnce = true;
+        var retried = false;
+        try { retried = sessionStorage.getItem(RETRY_KEY) === "1"; } catch (e) {}
+        console.error("[load] " + message);
+        if (!retried) {
+          try { sessionStorage.setItem(RETRY_KEY, "1"); } catch (e) {}
+          location.reload();
+          return;
+        }
+        try { sessionStorage.removeItem(RETRY_KEY); } catch (e) {}
+        loadingBar.classList.add("done");
+        warningBanner.style.display = "block";
+        warningBanner.textContent = loaderText("Tải game không thành công. ", "The game failed to load. ");
+        var btn = document.createElement("button");
+        btn.id = "unity-retry";
+        btn.textContent = loaderText("Tải lại", "Reload");
+        btn.onclick = function () { location.reload(); };
+        warningBanner.appendChild(btn);
+        var detail = document.createElement("div");
+        detail.style.cssText = "opacity:.6;font-size:11px;margin-top:6px";
+        detail.textContent = String(message).slice(0, 200);
+        warningBanner.appendChild(detail);
+      }
+
+      // Số % + thời gian + giai đoạn, để người chơi (và người debug trên điện thoại) biết đang ở đâu.
+      // Tiến độ của Unity: 0..90% là tải tệp (chủ yếu .data và .wasm, tính theo byte đã nhận), 90..100% là giải nén +
+      // khởi động engine. Kẹt một mức lâu thì hiện gợi ý thay vì để người chơi tưởng treo.
+      var loadStart = Date.now(), lastPct = -1, lastChange = Date.now();
+      var loadingTitle = document.querySelector("#unity-loading-title");
+      var loadingPct = document.querySelector("#unity-loading-pct");
+      var loadingHint = document.querySelector("#unity-loading-hint");
+      function showProgress(progress) {
+        var pct = Math.floor(100 * progress);
+        if (pct !== lastPct) { lastPct = pct; lastChange = Date.now(); }
+        loadingTitle.textContent = progress < 0.9 ? loaderText("ĐANG TẢI", "LOADING") : loaderText("ĐANG KHỞI ĐỘNG", "STARTING");
+        loadingPct.textContent = pct + "% · " + Math.round((Date.now() - loadStart) / 1000) + " s";
+      }
+      var loadTicker = setInterval(function () {
+        if (window.unityInstance) { clearInterval(loadTicker); return; }
+        showProgress(Math.max(0, lastPct) / 100);
+        var still = (Date.now() - lastChange) / 1000;
+        loadingHint.textContent = still > 15 ? (lastPct < 90 ? loaderText("Mạng chậm, vẫn đang tải…", "Slow network, still loading…") : loaderText("Máy đang giải nén, chờ thêm chút…", "Unpacking, please wait a little longer…")) : "";
+      }, 1000);
+
+      // Mốc khởi động của trang (performance.now), BootMark đọc qua PortBootMarks và gửi kèm RUN_FINISH ca đầu phiên.
+      window.__repoBoot = {};
+      var script = document.createElement("script");
+      script.src = buildUrl + "/repo2d-unity-live-bf6c9dfac1.loader.js";
+      script.onerror = function () { loadFailed(loaderText("Không tải được ", "Could not load ") + script.src); };
+      script.onload = function () {
+        window.__repoBoot.ld = performance.now();
+        createUnityInstance(canvas, config, function (progress) {
+          if (progress >= 0.9 && !window.__repoBoot.dl) window.__repoBoot.dl = performance.now();
+          progressBarFull.style.width = (100 * progress) + "%";
+          showProgress(progress);
+        }).then(function (unityInstance) {
+          window.unityInstance = unityInstance;
+          window.__repoBoot.inst = performance.now();
+          window.__repoBoot.sw = window.__repoSw ? 1 : 0;
+          setTimeout(swWarm, 20000);
+          console.log("[load] xong sau " + ((Date.now() - loadStart) / 1000).toFixed(1) + " s");
+          loadingBar.classList.add("done");
+          try { sessionStorage.removeItem(RETRY_KEY); } catch (e) {}
+          fitCanvas();
+        }).catch(loadFailed);
+      };
+      document.body.appendChild(script);
+    </script>
+  </body>
+</html>
