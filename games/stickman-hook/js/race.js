@@ -439,9 +439,9 @@ export class RaceRun {
         const hx = p.x + c * ax - sn * ay, hy = p.y + sn * ax + c * ay;
         const tg = p.rope[2] >= 0 ? this.world.targets[p.rope[2]] : { x: p.rope[3] / 100, y: p.rope[4] / 100 };
         if (tg) {
-          // [ĐỀ XUẤT] rope colour: the Classic line's
+          // [ĐỀ XUẤT] rope colour: the default rope's (white `basic` texture)
           R.setWorld([1, 0, 0, 1, 0, 0]);
-          Object.assign(R.ctx, { globalAlpha: GHOST_ALPHA, globalCompositeOperation: 'source-over', strokeStyle: '#0d1b2a',
+          Object.assign(R.ctx, { globalAlpha: GHOST_ALPHA, globalCompositeOperation: 'source-over', strokeStyle: '#fff',
             lineWidth: GHOST_ROPE, lineCap: 'butt' });
           R.ctx.beginPath(); R.ctx.moveTo(hx, hy); R.ctx.lineTo(tg.x, tg.y); R.ctx.stroke();
         }
@@ -453,15 +453,25 @@ export class RaceRun {
     }
   }
 
-  hud(R, w, h, game, player) {
-    const total = this.ghosts.length + 1;
-    R.text('race ' + (this.level + 1), w / 2, 34, Math.min(30, (30 * (w - 250)) / R.measure('race 00', 30)));
+  // TournamentInGameUI (u = one 750 x 1334 reference unit): the progress bar (main.js), RacePlayerFinishText (top right,
+  // Junegull 40) listing "#n name" for everyone home, the player's line in #FFC64C (OnRankingsUpdated
+  // [asm 0x1224cfc..0x1224ed0]), and at the finish FinishText = rank + 1 and "st" / "nd" / "rd" / "th"
+  // (TournamentInGamePage.OnLevelComplete [asm 0x1224c1c..0x1224c90]).
+  hud(R, w, h, game, player, u) {
     if (game.phase === 'count') {
+      // SpawnCounter: CounterText (red #FF483E) on the player's own start ring (SpawnPoint prefab canvas; 2019 clip 0:26)
       const i = Math.min(COUNT.length - 1, Math.floor(game.t / STEP_S));
-      R.text(COUNT[i], w / 2, h * 0.36, Math.min(110, w / 4));
+      const [sx, sy] = this.spawns[this.me] || this.spawns[0], k = R.k / R.dpr;
+      R.text(COUNT[i], w / 2 + (sx - R.cam.x) * k, h / 2 - (sy - R.cam.y) * k, 0.5 * k, 0.5, 1, '#FF483E');
       return;
     }
-    R.text(this.livePlace(player) + '/' + total, w / 2, 76, 34);
+    const px = 40 * u, lh = (R.font.lineHeight / R.font.size) * px, right = w * 0.98, top = h * (1 - 0.89);
+    // the Junegull font has no Vietnamese letters: the player's line says ME, as the 2019 clip's "ME: 1"
+    this.ranking.forEach((r, i) => R.text(`#${i + 1} ${r.me ? 'me' : r.name}`, right, top + lh * (i + 0.5), px, 1, 1, r.me ? '#FFC64C' : null));
+    if (this.done) { // also a forced finish: Finish calls CompleteLevel either way [asm 0x12078f0]
+      const n = this.done.rank + 1;
+      this.app.finishText(w, h, u, [[n + (['st', 'nd', 'rd'][n - 1] || 'th'), null]]);
+    }
     if (this.done && game.t > 0.9 && !this.endShown) { this.endShown = true; this.end(); }
   }
 

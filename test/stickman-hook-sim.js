@@ -38,6 +38,7 @@ function rng(seed) {
   const { buildLevel, patternNames, NetRandom, modeData } = await import(pathToFileURL(path.join(GAME, 'js/level.js')));
   const { Player, PHYS } = await import(pathToFileURL(path.join(GAME, 'js/physics.js')));
   const { GrapplePlayer } = await import(pathToFileURL(path.join(GAME, 'js/grapple.js')));
+  const { forwardFocus } = await import(pathToFileURL(path.join(GAME, 'js/camera.js')));
   const json = (f) => JSON.parse(fs.readFileSync(path.join(GAME, 'data', f), 'utf8'));
   const data = json('levels.json');
   let pass = 0, fail = 0;
@@ -55,13 +56,15 @@ function rng(seed) {
   // Runs one swing from a free-flying state: wait until the nearest target ahead is within `gate`, hold, release
   // `reach` rope lengths past it while moving forward and up (or, for a negative `reach`, after -reach seconds while
   // moving forward, which is how you leave a target ringed by a wall), then fly until the next grab would start.
-  // Mirrors main.js: camera x follows with lead, clamped to the camera bounds; y fixed at 0; edge exits kill.
+  // Mirrors main.js: camera x = player x + ForwardFocus influence (js/camera.js), clamped to the camera bounds; y fixed
+  // at 0; edge exits kill.
   // A grapple hook lets go by itself near the target (auto release), which the bot treats as its release.
   // `wait` (s) and `back` are the extra moves Challenge needs: fall onto a bumper first, or hook a target behind
   // (several Challenge starts put the first target behind the spawn or below a bumper chute).
   function swing(world, node, gate, reach, wait = 0, back = false) {
     const p = clone(node.p);
     let { camX, t } = node;
+    const ff = { ...node.ff };
     const clamp = (x) => { const lo = world.camMin + halfW, hi = world.camMax - halfW; return lo > hi ? (lo + hi) / 2 : Math.min(hi, Math.max(lo, x)); };
     let phase = 0, hold = false, hookedAt = -1, releasedAt = -1;
     for (let n = 0; n < 12 / dt; n++) {
@@ -82,12 +85,12 @@ function rng(seed) {
       } else if (phase === 2 && t - releasedAt > 0.25) {
         p.updateClosest(world);
         const tg = world.targets[p.closest];
-        if (!tg || tg.x > p.x - 0.3 || t - releasedAt > 4) return { p, camX, t, releasedAt, x: p.x };
+        if (!tg || tg.x > p.x - 0.3 || t - releasedAt > 4) return { p, camX, ff, t, releasedAt, x: p.x };
       }
       const ev = p.step(dt, world, hold);
       t += dt;
       if (ev.finished) return { done: true, t };
-      camX += (clamp(p.x + Math.max(-1.2, Math.min(1.2, p.vx * 0.2))) - camX) * Math.min(1, dt * 6);
+      camX = clamp(p.x + forwardFocus(ff, p.vx, 2 * halfW, dt));
       if (p.hooked < 0 && (p.y < -5.3 || p.x < camX - halfW - 0.3)) return null;
     }
     return null;
@@ -97,7 +100,7 @@ function rng(seed) {
     const rand = rng(seed);
     const p0 = new P(world.spawn);
     const clamp0 = Math.min(world.camMax - halfW, Math.max(world.camMin + halfW, world.spawn.x));
-    let beam = [{ p: p0, camX: clamp0, t: 0, releasedAt: -1, x: p0.x }];
+    let beam = [{ p: p0, camX: clamp0, ff: { h: 0, v: 0 }, t: 0, releasedAt: -1, x: p0.x }];
     let best = p0.x;
     for (let depth = 0; depth < 60 && beam.length; depth++) {
       const next = [];

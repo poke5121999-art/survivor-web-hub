@@ -59,3 +59,14 @@ Nguyên tắc: vẫn "nhẹ, load nhanh".
   - `[ĐỀ XUẤT]`: tuần bắt đầu thứ Hai giờ máy, bộ đếm tĩnh về 0 mỗi lượt, camera, hạt/ánh sáng làm phẳng (chưa có clip Adventure của bản gốc để so), thưởng bảng tuần theo cách của Đua.
   - Bài kiểm: `test/stickman-hook-sim.js` 304/304 (thêm 9 của Phiêu lưu; sau đó thêm 2 kiểm cổng và tường lửa, chạy riêng `SH_MODES=adventure` 16/16), `test/stickman-hook-play.js` 79/79, `test/stickman-hook-pachinko.js` 27/27. Màn đầu 594 KB thô (trước 595 KB).
   - Chưa làm: thẻ tăng xu phiêu lưu, gói khởi đầu tuần, nhân xu bằng quảng cáo. Việc còn lại: đẩy lên Pages, tăng `rev` trong `data/games.js` lên 20261028g, chạy bài kiểm trên Pages với `SH_URL`.
+- [~] Vòng giống bản gốc (2026-10-28, rev 20261028h, CHƯA đẩy lên Pages, CHƯA kiểm trên Pages): sửa theo `docs/PARITY.md`. Chi tiết ở README ("Luật gốc đã dùng", heo đất, Đua).
+  - Vòng nét đứt quanh điểm móc gần nhất (Halo, appear 0.1 s), vòng sáng FX_Spawn, người chơi xuất hiện ngay (`ParticleSystem.time` = 0).
+  - Camera ForwardFocus 0.25 / SmoothDamp 0.5 đọc từ scene `level2` (`js/camera.js`, bot dùng chung): người chơi ở ~0.3 bề ngang.
+  - Về đích: giữ tư thế bay, chữ "STAGE n COMPLETED" ngay ở 20 %, sau 1.0 s màn heo đất toàn màn hình rồi trang kết thúc (skin nhảy, nút Play) trong `js/endgame.js` + `art/ui.webp` (nạp lười).
+  - Nền tô màu effect của theme; theme đổi mỗi 4 màn (server ghi đè 5 của APK). Dây mặc định trắng mảnh.
+  - HUD: nút pause + thanh "n ▬ n+1" theo CanvasScaler 750×1334 khớp chiều cao; chọn màn/chơi lại/âm thanh/về hub vào menu pause. Đua: "1ST", danh sách "#n tên", số đếm trên vòng ô xuất phát.
+  - Màn đầu 576 KB thô (trước 594): `levels.json` bỏ `sh`/`o` mặc định (−48 KB), atlas +16 KB.
+  - Bài kiểm: `test/stickman-hook-sim.js` 306/306, `test/stickman-hook-play.js` 83/83 (luồng về đích, pause, heo đất viết lại theo UI gốc), `test/stickman-hook-pachinko.js` 27/27.
+  - Còn lệch: pháo giấy toả về phía trước (prefab của Player chưa tìm thấy), heo đất đầy chưa có thanh bộ sưu tập và nút VIP Skip.
+  - Chưa làm (mục 8): vỏ menu bằng art gốc (trang chủ, Tuỳ biến, Đường XP, Chế độ, Tournament) vẫn là DOM.
+  - Việc còn lại: đẩy lên Pages, tăng `rev` trong `data/games.js` lên 20261028h, chạy bài kiểm trên Pages với `SH_URL`.

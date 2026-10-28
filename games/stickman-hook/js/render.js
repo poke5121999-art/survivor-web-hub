@@ -24,7 +24,7 @@ function gradient(keys, t) {
 
 // Level theme (theme.levelColors): camera clear colour and the ShadowMaterial colour. ShadowMaterial uses the
 // Sprites/SolidCol shader, so shadows are flat silhouettes in that colour, not a multiply.
-const DEFAULT_THEME = { bg: '#00b4fc', shadow: [0.22, 0.345, 0.522, 1] };
+const DEFAULT_THEME = { bg: '#00b4fc', effect: [0, 0.431, 0.906], shadow: [0.22, 0.345, 0.522, 1] };
 const css = (c) => `rgb(${c.slice(0, 3).map((v) => Math.round(v * 255)).join(',')})`;
 
 export class Renderer {
@@ -84,18 +84,21 @@ export class Renderer {
     this.drawBackgroundGradient();
   }
 
-  // BackgroundGradient: GradientVertical stretched across the view, following the camera (GradientBackgroundMover).
+  // BackgroundGradient: GradientVertical (white, alpha 0 at the top to 1 at the bottom) tinted with the theme's effect
+  // colour (effectBackgroundColor), stretched across the view, following the camera (GradientBackgroundMover).
+  // The bottom of every clip's background is that colour (docs/PARITY.md: #006EE7 / #FF7D79 / #F3D248 / #577DE9).
   drawBackgroundGradient() {
     const r = this.rects.GradientVertical;
     if (!r) return;
     const { ctx, cv, cam } = this;
+    const src = this.variant('GradientVertical', this.theme.effect || DEFAULT_THEME.effect, false);
     const sy = 0.5434 * (cam.zoom / 5);
     const hWorld = (r[3] / r[7]) * sy;
     const topWorld = cam.y - 0.05 + (r[5] / r[7]) * sy;
     const k = this.k;
     const top = cv.height / 2 - (topWorld - cam.y) * k;
     // only the centre column: the sprite's side columns fade out and would show as stripes when stretched
-    ctx.drawImage(this.img, r[0] + (r[2] >> 1), r[1], 1, r[3], 0, top, cv.width, hWorld * k);
+    ctx.drawImage(src, r[2] >> 1, 0, 1, r[3], 0, top, cv.width, hWorld * k);
   }
 
   viewMatrix() {
@@ -218,8 +221,37 @@ export class Renderer {
     return (w * px) / this.font.size;
   }
 
-  text(str, x, y, px, align = 0.5, alpha = 1) {
+  // The baked font is white with a dark outline; `color` multiplies the fill (TMP <color=...>), the outline stays dark.
+  fontIn(color) {
+    if (!color) return this.fontImg;
+    const key = 'font#' + color;
+    let c = this.cache.get(key);
+    if (!c) {
+      const f = this.fontImg;
+      c = document.createElement('canvas'); c.width = f.width; c.height = f.height;
+      const g = c.getContext('2d');
+      g.drawImage(f, 0, 0);
+      g.globalCompositeOperation = 'multiply'; g.fillStyle = color; g.fillRect(0, 0, c.width, c.height);
+      g.globalCompositeOperation = 'destination-in'; g.drawImage(f, 0, 0);
+      this.cache.set(key, c);
+    }
+    return c;
+  }
+
+  // Screen-space rectangle in CSS px.
+  rect(x, y, w, h, color, alpha = 1) {
+    const { ctx, dpr } = this;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = alpha;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = color;
+    ctx.fillRect(x * dpr, y * dpr, w * dpr, h * dpr);
+    ctx.globalAlpha = 1;
+  }
+
+  text(str, x, y, px, align = 0.5, alpha = 1, color = null) {
     const { ctx, font, dpr } = this;
+    const img = this.fontIn(color);
     const s = (px * dpr) / font.size;
     const up = str.toUpperCase();
     let w = 0;
@@ -231,7 +263,7 @@ export class Renderer {
     const base = y * dpr + font.ascent * s * 0.5;
     for (const ch of up) {
       const g = font.glyphs[ch] || font.glyphs[' '];
-      if (g[2] > 1) ctx.drawImage(this.fontImg, g[0], g[1], g[2], g[3], cx + g[4] * s, base - g[5] * s, g[2] * s, g[3] * s);
+      if (g[2] > 1) ctx.drawImage(img, g[0], g[1], g[2], g[3], cx + g[4] * s, base - g[5] * s, g[2] * s, g[3] * s);
       cx += g[6] * s;
     }
     ctx.globalAlpha = 1;

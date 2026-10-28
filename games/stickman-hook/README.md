@@ -24,8 +24,11 @@ Chưa làm: thẻ bài, booster, quảng cáo, VIP.
 - Thả ra: bay đi.
 - Qua vạch caro là xong màn.
 - Rơi khỏi mép dưới hoặc mép trái camera khi không móc: chơi lại từ đầu màn.
+- Trong màn chỉ có nút pause (góc trái trên) và thanh tiến độ "n ▬ n+1", như `DefaultInGameUI`.
+  Pause mở `PauseUI`: chạm chỗ trống để chơi tiếp, nút nhà về trang chính. Hàng nút dưới (chọn màn, chơi lại, âm thanh, về hub) là của bản web.
+  Phím Esc cũng mở/đóng pause.
 - `?level=N` mở thẳng màn N, bỏ qua trang chính. Thêm `&mode=grapple` (hoặc `challenge`, `easter_event`, `valentine_day`) để mở màn của chế độ đó. `?mode=tournament` mở trang Đua. Phím `R` chơi lại. Tiến độ lưu trong `localStorage` (`stickman-hook`).
-- Nút ★: trang chính, gồm xu, thanh XP (bấm để mở Đường XP), Chơi, Chế độ, Tuỳ biến.
+- Pause → nút nhà: trang chính, gồm xu, thanh XP (bấm để mở Đường XP), Chơi, Chế độ, Tuỳ biến.
 
 ## Tệp
 
@@ -34,7 +37,10 @@ Chưa làm: thẻ bài, booster, quảng cáo, VIP.
 | `js/level.js` | Ghép màn từ pattern. Có bản port `System.Random` của .NET |
 | `js/physics.js` | Thân tròn treo trên lò xo, va chạm capsule/polygon, trạng thái hoạt hình |
 | `js/render.js` | Camera orthographic, vẽ sprite từ atlas, bóng, font bitmap |
-| `js/main.js` | Vòng lặp, các pha `spawn → play → finish`, camera, HUD, chọn màn, đồ đang dùng, trang chính |
+| `js/main.js` | Vòng lặp, các pha `spawn → play → finish`, HUD (pause, thanh tiến độ, chữ về đích), chọn màn, đồ đang dùng, trang chính |
+| `js/camera.js` | Camera ngang: ProCamera2D + ForwardFocus, dùng chung với bot của bài kiểm |
+| `js/endgame.js` | Sau khi về đích: màn heo đất toàn màn hình rồi trang kết thúc (skin nhảy trên bục, nút Play). Nạp ở lần về đích đầu |
+| `art/ui.webp`, `data/ui.json` | Art của trang kết thúc, heo đất và nút nhà của pause (`tools/build_ui.py`), nạp lười |
 | `js/save.js` | Bản lưu v2: xu, XP, đồ đã có/đang dùng theo loại, mốc đã nhận của từng road, cờ, chế độ |
 | `js/meta.js` | Kinh tế gốc: phát thưởng theo bảng loại tài nguyên, chữ mở khoá theo bảng cách mở, XP road, theme |
 | `js/custom.js` | Nạp lười `custom.json`, sheet skin, `ropes.webp`, `custom-ui.webp` |
@@ -65,6 +71,7 @@ Chưa làm: thẻ bài, booster, quảng cáo, VIP.
 | `tools/build_custom.py` | Tạo sheet skin, `ropes.webp`, `custom-ui.webp`, `custom.json` |
 | `tools/build_meta.py` | Tạo `meta.json`, `bonus.json`, `menu.webp`, `wheel.webp`, `piggy.webp`, `skip.webp` từ remote settings mặc định và bundle trong APK |
 | `tools/build_font.py` | Nướng font TMP SDF thành bitmap |
+| `tools/build_ui.py` | Tạo `art/ui.webp` + `data/ui.json` từ `REF/sprites_ui` (xuất bằng `tools/extract/export_named.py`) |
 | `tools/thumb.js` | Chụp ảnh thẻ hub |
 | `tools/extract/` | Bóc dữ liệu từ APK, dịch ngược ARM |
 
@@ -86,12 +93,18 @@ py -3 -I tools/export_sprites.py D:/stickman-hook-ref/sprites <normal bundle> <g
 cd D:/survivor-web-hub/games/stickman-hook/tools && py -3 -I build_data.py && py -3 -I build_font.py
 py -3 -I build_custom.py && py -3 -I build_meta.py   # build_meta đọc custom.json, nên chạy sau
 py -3 -I build_race.py   # đọc levels.json và mode-race.json, nên chạy sau build_data
+py -3 -I build_ui.py     # đọc REF/sprites_ui
 ```
 
 Ghi chú:
 
 - Các script trong `tools/extract/` đọc từ `D:/stickman-hook-ref/tools/`, nên chép chúng về đó trước khi chạy.
 - Dịch ngược một method: `py -3 -I tools/arm_method.py 'PlayerHookController\$\$Grab'`.
+- Art HUD, trang kết thúc, heo đất và hiệu ứng xuất hiện nằm ở `REF/sprites_ui`, xuất bằng
+  `export_named.py <REF>/sprites_ui <tiền tố bundle> tên1 tên2 ...` với bundle `ui_pages_ingame_default`
+  (`FX_Grap1_Spawn`, `B_PauseButton`, `Icon_Home`), `ui_pages_endgame_normal`, `ui_popups_piggybank`.
+- Cây prefab UI (anchor, cỡ, sprite, chữ TMP): `ui_tree.py <tiền tố bundle>`. Trường của một component: `ui_component.py <bundle> <tên GameObject> [script]`.
+- Trường MonoBehaviour trong scene (`data.unity3d` không có typetree): `scene_monobehaviours.py`.
 - `libil2cpp.so` là ARMv7, metadata v31. Il2CppDumper đọc được với `ForceDump`.
 
 ## Luật gốc đã dùng
@@ -104,6 +117,14 @@ Ghi chú:
   - 0.5808 là độ dài anchor chưa nhân scale. Vì thế lúc móc có cú giật nhẹ, đúng như bản gốc.
 - Bumper: `BumperMaterial` nảy 1.4, kết hợp kiểu Maximum. Tường không nảy.
 - Camera: ortho size 5 (cao 10 đơn vị), y khoá ở 0, x giới hạn giữa `StartCamera` và `EndCamera`.
+- Camera ngang (`js/camera.js`), đọc thô từ scene `level2` trong `data.unity3d` theo thứ tự trường của `dump.cs`:
+  - `ProCamera2D`: `HorizontalFollowSmoothness` 0, tức camera nằm đúng trên người chơi cộng độ lệch của ForwardFocus.
+  - `ProCamera2DForwardFocus`: Progressive, SpeedMultiplier 1, TransitionSmoothness 0.5, MaintainInfluenceOnStop, Left = Right = 0.25.
+  - `ApplyInfluence` [asm 0x11b5860..0x11b5fbc]: đích = vận tốc ngang kẹp trong ±0.25 bề ngang màn [asm 0x11b5a80..0x11b5ab0].
+    MaintainInfluenceOnStop giữ độ lệch lớn hơn theo chiều đang bay [asm 0x11b5b20..0x11b5b84], rồi `Mathf.SmoothDamp(…, 0.5)` [asm 0x11b5f4c].
+  - Bay nhanh hơn 0.25 bề ngang/giây là bão hoà, nên người chơi đứng ở ~0.25-0.30 bề ngang tính từ trái, đúng như các clip.
+  - Bot của bài kiểm dùng cùng file này.
+- HUD: `CanvasScaler` của scene `level1` là ScaleWithScreenSize 750 × 1334, khớp chiều cao (match 1). Mọi toạ độ HUD nhân `cao / 1334`.
 - Game gốc chơi màn dọc (`screenOrientation = 1`).
 
 Đọc từ mã IL2CPP:
@@ -112,14 +133,28 @@ Ghi chú:
 - Nhả dây được đẩy lên 0.15 m/s, tối đa một lần mỗi 0.5 s, và xoay `|v| × 200` độ/s.
 - Chạm tường xoay theo tốc độ tiếp tuyến × 200.
 - Về đích: thân thành kinematic, thời gian chậm về 5% trong 0.6 s, camera zoom về 2 trong 0.5 s.
+  - Người chơi giữ tư thế FINISHED (bay ngang) suốt slow-mo. Điệu nhảy chỉ có ở trang kết thúc.
+  - Chữ về đích hiện ngay khi chạm vạch: `<color=#9FFF54>Stage {0}</color> Completed`, Junegull 60, anchor y 0.8 (20 % từ trên) [asm 0x28d9430..0x28d9584].
+    Hộp chữ rộng bằng màn, nên số màn hai chữ số xuống hai dòng như clip 2026.
+  - Đua: chữ là hạng + "st/nd/rd/th" [asm 0x1224c1c..0x1224c90], cả khi bị ép về đích.
+  - Sau `WhenAll(slow-mo 0.6 s, zoom 0.5 s)` + `Task.Delay(400)` [asm 0x1207d70..0x1207810], tức 1.0 s, trang kết thúc mở. Không còn "chạm để tiếp".
+  - Nút pause biến mất từ lúc về đích (mọi clip).
+- Thanh tiến độ: `clamp01((x − StartingX) / (Finish.x − nửa bề ngang vạch đích − StartingX))` [asm 0x28d934c, 0x28d8e90..0x28d92f8], đầy khi về đích.
+  Nền #656565 198 × 21, bóng đen 0.5 lệch 7 xuống, phần đầy trắng, số "n" và "n+1" Junegull 41.65 cách tâm 146 (prefab `DefaultInGameUI`). Đua không có hai số.
+- Điểm móc gần nhất: `Target.MarkAsClosest` bật con `Halo` (`A_PlotNearestFeedback`), `MarkAsHooked` tắt nó.
+  `HaloAppearManager.OnEnable` scale 0 → 1 trong 0.1 s [asm 0x1242b78..0x1242b94], nên scale 1.2 trong prefab bị ghi đè: vòng rộng 2.74 × 0.5 = 1.37 đơn vị.
+- Xuất hiện: `FX_Spawn` là một hạt sống 0.5 s, cỡ 1 × scale 2 = 2 đơn vị, chạy tờ `FX_Grap1_Spawn` 8 × 2 một lượt (ô 11-15 trống).
+  `ShowSpawnFx` chờ `ParticleSystem.time × timeToSpawn` [asm 0x1206ea0..0x1206f04]. `time` của FX vừa sinh là 0, nên người chơi lớn dần ngay trong vòng sáng.
+  Clip 2019 0:05.8 và 0:05.95 thấy cả vòng lẫn người chơi. Bản cũ chờ 0.75 s.
 - Ghép màn ngẫu nhiên (`PatternSpawner`): mỗi ô Start/Middle/Finish lọc pattern có `entryPositions & lối ra trước != 0`, rồi chọn bằng `new System.Random(chỉ số màn).Next(số ứng viên)`.
   - Mỗi ô tạo một `Random` mới với cùng seed.
 
-Tự đặt, có nhãn `[ĐỀ XUẤT]` vì không có trong code (scene ProCamera2D không có typetree):
+Tự đặt, có nhãn `[ĐỀ XUẤT]`:
 
-- Độ dẫn trước của camera: `vx × 0.2`, kẹp trong ±1.2.
 - Vùng chết: ra khỏi mép khung 0.3 đơn vị.
-- Hiệu ứng xuất hiện: vòng tròn mờ 0.75 s.
+- Camera lấy vận tốc của thân, không lấy hiệu vị trí như ProCamera2D, để lúc hồi sinh nhảy về đầu màn không làm camera giật.
+- Pháo giấy: prefab của Player chưa tìm thấy. 60 mảnh, tốc 15-30, cản 6/s, chạy theo thời gian đã chậm nên lơ lửng trong slow-mo
+  (ConfettisLeft của UI: tốc 50-100 × scale 0.3, Limit Velocity dampen 0.1).
 
 ## Pha 1: tuỳ biến và vỏ meta
 
@@ -127,8 +162,11 @@ Mọi con số kinh tế lấy từ `D:/stickman-hook-ref/dump/full/remote_setti
 emote_settings_default.json`: bản cấu hình mặc định nằm sẵn trong APK.
 Bản gốc chạy offline bằng chính bản này.
 
-- **Theme màn.** Cứ 5 màn đổi một bộ màu: `theme.levelColors[floor(màn/5) % 4]`.
+- **Theme màn.** Cứ 4 màn đổi một bộ màu: `theme.levelColors[floor(màn/4) % 4]`.
+  - APK ghi `nbLevelsPerTheme` = 5, nhưng cả ba clip đổi mỗi 4 màn (2019: 1-4 / 5-8 / 9…; 2023: 89-92 / 93-96 / 97-100; 2026: 43-46 / 47-50 / 51-54).
+    Server ghi đè giá trị này. `SetGameModeTheme` chia cho nó [asm 0x118fb64..0x118fc00]. `tools/build_meta.py` đặt `NB_LEVELS_PER_THEME = 4`.
   - Đổi màu nền camera, màu bóng, nền điểm móc (`targetsBackgroundColor`), phản chiếu tường (`wallsReflectionColor`).
+  - `effectBackgroundColor` tô sprite `GradientVertical` (trắng, trong suốt ở trên, đặc ở dưới): đáy nền là màu này ở mọi clip (`render.js`).
   - `build_data.py` gắn `th` (1 nền điểm móc, 2 phản chiếu tường) cho sprite dùng hai material đó. Màu theme thay tint của material.
   - `tint` chỉ còn giữ cho màu sprite khác trắng.
 - **Bóng là màu đặc, không phải multiply.** `ShadowMaterial` dùng shader `Sprites/SolidCol`.
@@ -152,7 +190,8 @@ Bản gốc chạy offline bằng chính bản này.
   - Các hiệu ứng động (glitch, nhấp nháy, rung, sóng, dissolve, color ramp) bỏ qua.
   - Skin biến thể có `hasShadow: false` nên không vẽ bóng.
 - **Nạp lười.** Màn đầu chỉ nạp thêm `meta.json` (31 KB).
-  - Skin mặc định và dây Classic vẫn vẽ từ `atlas.webp`.
+  - Skin mặc định vẽ từ `atlas.webp`. Dây mặc định là texture `basic` trắng: web vẽ một nét trắng rộng 0.03 đơn vị, không nạp `ropes.webp`
+    (clip 2026 1:06: 4-5 px ở 128 px/đơn vị, kể cả nhoè JPEG).
   - Khi đổi sang đồ khác mới nạp `custom.json` + sheet skin, hoặc `ropes.webp`.
   - Điệu nhảy về đích nạp sheet của skin đang dùng khi qua màn.
   - Tiếng nạp ở lần chạm đầu.
@@ -164,7 +203,6 @@ Số tự đặt `[ĐỀ XUẤT]`:
   - Mình nhân thêm 0.2: ô texture 167 px rộng khoảng 0.4 đơn vị, cạnh dây Classic 0.045.
 - Hạng = vị trí (đếm từ 1) của mốc road XP cuối cùng đã đạt.
   - Mã gốc điền `{{level}}` từ trạng thái road, còn template mặc định dùng `{0}`.
-- Điệu nhảy bắt đầu sau 0.6 s, lúc slow motion về đích đã xong.
 - Pixel hoá: khối `max(2, round(cạnh khung / _PixelateSize × 4))` px.
 - Glow: cộng `_GlowColor × _Glow / 10`.
 - Ngưỡng đổi màu tối thiểu 0.08.
@@ -173,7 +211,7 @@ Số tự đặt `[ĐỀ XUẤT]`:
 ## Chế độ phụ
 
 Mở từ trang chính → Chế độ. Hàng nào đã mở thì có nút Chơi, bấm vào là ra bảng chọn màn của chế độ đó.
-Nút ☰, ↻ và màn kết thúc đều làm việc trên chế độ đang chơi. Mọi khác biệt giữa các chế độ nằm trong `js/modes.js`.
+Nút chọn màn, chơi lại (trong pause) và trang kết thúc đều làm việc trên chế độ đang chơi. Mọi khác biệt giữa các chế độ nằm trong `js/modes.js`.
 
 | Chế độ | Màn | Mở chế độ | Mở màn | Road |
 |---|---|---|---|---|
@@ -286,7 +324,12 @@ Tự đặt, có nhãn `[ĐỀ XUẤT]`:
   - Các ô khác lặp lại danh sách thưởng đã xáo. Ô quanh ô 45 không trùng với thưởng.
   - Bắt đầu ở ô 2 và cuộn xuống. Khung tham chiếu 750 × 1334.
   - Nhịp đèn bolt, tốc độ xoay của mặt trời và độ trôi của xúc xắc là tự đặt.
-- Heo đất là một khung dưới chữ "completed", không phải popup toàn màn hình, để chạm chỗ khác vẫn sang màn.
+- Heo đất (`js/endgame.js`) là màn toàn màn hình như `PiggyBankPopup`: nền gradient `#40E8EC → #008FE1` (UIGradient), `Pattern_MainMenu` lát 341 đơn vị,
+  xoay 30°, cộng sáng 0.17; chữ "Stage n / Completed" ở 250 từ trên; bóng skin `#252252`, phần đã nạp tô tím từ dưới lên; nút vàng ở 240 từ dưới.
+  - Nút vàng mang icon vé (web trả vé thay quảng cáo). Chạm chỗ trống là tiếp tục. Đầy: UNLOCK hoặc chạm "LOSE IT!". Mở xong: "Equip it!".
+  - `[ĐỀ XUẤT]` chữ phóng 1.2 lần (đo trong clip, prefab ghi 49), skin chiếm 60 % hộp 570, nạp chạy 0.8 s. Chưa làm: thanh bộ sưu tập, nút VIP Skip.
+- Trang kết thúc (`NormalEndGame`): nền theme, `BackgroundEndRace` hai góc, "stage n / Completed!" (#FFC327, Grapple/Challenge #76E97E) ở 300 từ trên,
+  `LightEndRace_01`, bục caro (rộng 516 đơn vị như clip 2026 0:27.6), skin nhảy cỡ gốc 100 đơn vị/đơn vị thế giới, nút `PlayButton_03` ở 300 từ dưới, nút nhà.
 - Booster trúng từ vòng quay giữ nguyên. Không đổi sang xu theo `GetFallbackIfNoCardAvailable`, vì hệ thẻ chưa làm.
 
 Bẫy:
@@ -365,12 +408,13 @@ Tự đặt, có nhãn `[ĐỀ XUẤT]`:
 
 - Ngày của bảng: nửa đêm theo giờ máy, mã ngày dạng YYYYMMDD. Bản gốc lấy giờ từ server (`OnlineDateService`), và `FormatDateId` chưa giải.
 - Tên ghost lấy từ 9 AI của bảng, không lấy tên người chơi. Bản gốc xáo cả 10 người, nên có thể ra chính tên mình.
-- Chỗ đứng trên HUD lúc đang đua ("2/4") = số ghost đã về + số ghost đang ở phía trước theo x. Bản gốc không có HUD này.
 - Ghost và người chơi về trong cùng một khung hình thì ghost đứng trước (đồng hồ đua chạy trước bước vật lý của khung đó).
-- Màu dây ghost lấy màu dây Classic. Độ rộng 0.06 × 0.345 giả định `AAL_square_mini` là hình vuông.
+- Màu dây ghost lấy màu dây mặc định (trắng). Độ rộng 0.06 × 0.345 giả định `AAL_square_mini` là hình vuông.
+- Trong lúc đua: thanh tiến độ không số, góc phải liệt kê "#n tên" người đã về (người chơi là "ME" vì font Junegull không có chữ Việt, màu #FFC64C),
+  số đếm đỏ #FF483E nằm trên vòng ô xuất phát của người chơi (`SpawnCounter`). Bản web vẫn giữ nút pause khi đua (gốc tắt), để thoát được map chỉ có 3 ghost.
 - Màn kết thúc là khung DOM tiếng Việt: hạng, thời gian, xu/cúp, thứ tự cả cuộc đua, hạng trên bảng ngày, nút "Bảng xếp hạng" và "Đua tiếp".
   - Bản gốc dùng ảnh hạng và nút xem quảng cáo nhân xu.
-- ↻, phím R và ☰ trong cuộc đua mở lại trang bảng xếp hạng, để không chơi lại free cùng một cuộc đua.
+- Chơi lại, phím R và chọn màn (trong pause) khi đang đua mở lại trang bảng xếp hạng, để không chơi lại free cùng một cuộc đua.
 
 Chưa làm:
 
@@ -399,7 +443,7 @@ Một lượt là chạy vô tận sang phải, tường lửa đuổi sau lưng
 - Dữ liệu: `data/mode-adventure.json` (`tools/build_adventure.py`: cấu hình, 6 kỹ năng, giá, đường kỷ lục 105 mốc, bảng tuần, 8 tầng, 189 pattern, toạ độ sprite)
   và `art/adventure.webp` (sprite riêng của Adventure, khung bumper đỏ `_Low` đã nướng màu, texture hạt).
 - Nạp lười, chỉ khi mở chế độ: `adventure.js` 38 KB + `advrun.js` 26 KB + `mode-adventure.json` 389 KB (gzip 86 KB) + `adventure.webp` 111 KB.
-  Tổng 564 KB thô, khoảng 220 KB gzip. Màn đầu không nạp gì trong số này (594 KB, như trước).
+  Tổng 564 KB thô, khoảng 220 KB gzip. Màn đầu không nạp gì trong số này.
 - Bản ghi asm: `D:/stickman-hook-ref/dump/asm/adventure/*.s` (`tools/dump_adventure_asm.py`). `UnityEngine.Random` đọc từ `libunity.so` (Thumb),
   giải nén ở `D:/stickman-hook-ref/libunity_x/`, đọc bằng `tools/unity_icall_thumb.py` và `tools/unity_dis.py`.
 - Dựng lại: `adventure_assets.py`, `adventure_curves.py`, `export_textures.py` (ở `D:/stickman-hook-ref/tools/`), rồi `cd tools && py -3 -I build_adventure.py`.
@@ -462,6 +506,10 @@ Bẫy:
   - Đã gỡ trường `spawns` không dùng và các trường bumper `null`.
   - Đã bỏ tint cố định của material theme, nạp tiếng ở lần chạm đầu, nạp `fx.js` động.
   - Lúc đó còn 585 KB, sau khi thêm chế độ phụ là 589 KB. Thêm gì vào màn đầu thì đo lại bằng bài kiểm tra.
+- **Ngân sách 600 KB lần ba (2026-10-28h).** Atlas thêm vòng nét đứt, 11 khung FX_Spawn và nút pause (+16 KB).
+  - `levels.json` bỏ `sh` khi trùng bóng hay gặp nhất của sprite và `o` khi bằng 0 (`build_data.py pack_defaults`, `level.js unpackDefaults`): −48 KB.
+  - Khung FX_Spawn để nửa độ phân giải, alpha 16 mức (28 KB → 12 KB). Màn đầu còn 576 KB.
+  - `sh: 0` nghĩa là "sprite này thường có bóng nhưng item này không". Đọc `levels.json` trực tiếp thì phải gọi `unpackDefaults`.
 - **CSS `canvas { position: fixed }` áp cho mọi canvas.** Canvas xem trước trong shop đã phủ kín màn hình và chặn nút đóng. CSS giờ chỉ nhắm `#cv`.
 
 - **Gốc prefab lệch.** 30 pattern Finish có gốc ở x=37. `Instantiate` rồi gán `transform.position` sẽ bỏ vị trí gốc.
@@ -552,10 +600,13 @@ Phần Phiêu lưu:
 - Tường lửa bắt kịp ở 123 m: màn kết thúc ghi "Tường lửa bắt kịp bạn", +123 xu, đường kỷ lục +800 xu, kỷ lục 123, đã ghi vào `localStorage`.
 - Mua 1 cấp độ dài dây giá 100 xu, lượt sau dây dài 4.455 m.
 
-Nó cũng kiểm màn đầu không nạp quá 600 KB, không nạp ảnh shop và không nạp `bonus.js`, `bonus.json`, ảnh vòng quay/heo/nút bỏ qua, `race.js`, file ghost, `race.webp`, `adventure.js`, `advrun.js`, `adventure.webp`.
+Nó cũng kiểm màn đầu không nạp quá 600 KB, không nạp ảnh shop và không nạp `bonus.js`, `bonus.json`, ảnh vòng quay/heo/nút bỏ qua, `endgame.js`, `ui.webp`, `ui.json`, `race.js`, file ghost, `race.webp`, `adventure.js`, `advrun.js`, `adventure.webp`.
+
+Phần HUD và về đích: chỉ có nút pause trong màn; về đích giữ tư thế FINISHED và ẩn nút pause; màn heo đất toàn màn hình rồi trang kết thúc; nút Play mở màn sau; pause dừng màn.
 Ảnh chụp nằm ở `shots/stickman-hook/`.
 
 ## Tăng số bản
 
 Đổi mọi `?v=` trong `index.html`, `js/main.js` (hằng `V`) và ba `import()` có `?v=` trong `js/modes.js` (`pachinko.js`, `race.js`, `adventure.js`), rồi đổi `rev` trong `data/games.js` cho trùng.
+Bản hiện tại: `20261028h`. `js/pachinko.js` có `PV` riêng (`20261028d`) cho ảnh của nó.
 Module JS mới phải có dòng trong importmap của `index.html`, kể cả module chỉ nạp động (`menus.js`, `fx.js`).

@@ -1,7 +1,8 @@
 // Lucky Wheel, piggy bank, market (daily free coins, skip tickets) and skip level, driven by data/bonus.json
 // (tools/build_meta.py). main.js loads this module with the home screen, at the first death or at the finish of a Normal
 // level, so the first level never downloads it. Rules first (class Bonus, pure on the save), then the views it owns:
-// the home widgets, the in-game skip button and the piggy bank panel. The wheel and market sheets are in menus.js.
+// the home widgets and the in-game skip button. The wheel and market sheets are in menus.js, the piggy bank popup in
+// endgame.js.
 import { SKIP_TICKETS, qty, addQty } from './meta.js';
 
 export const FREE_COINS = 'daily.free_coins';
@@ -208,48 +209,7 @@ export class Bonus {
     el.classList.toggle('on', on);
     if (on) el.querySelector('b').textContent = `${this.skipsLeft(s)}/${this.skipsPerDay(s)}`;
   }
-
-  hidePiggy() { document.getElementById('piggy').classList.remove('on'); }
-
-  // The piggy bank at the end of a Normal level (PiggyBankPopup): the next skin fills from the bottom; full, it is
-  // unlocked or lost. r = piggyLevelEnd() {res, before, after}.
-  // [ĐỀ XUẤT] a panel under the finish text instead of the original full-screen popup, so a tap still continues.
-  showPiggy(r) {
-    const { app } = this, s = app.save, el = document.getElementById('piggy');
-    const res = this.piggyReward(s), p = this.piggyProgress(s), full = this.piggyFull(s);
-    if (!res) { this.hidePiggy(); return; }
-    const add = r && res === r.res ? r.after - r.before : 0;
-    el.dataset.res = res;
-    el.innerHTML = `<div class="pg"><div class="pic"><i class="dim"></i><i class="lit"></i></div><div class="info">
-      <b>Heo đất</b><small>${full ? 'Đầy rồi! Mở khoá trước khi qua màn sau, không thì mất' : 'Qua màn để nạp, đầy thì được skin'}:
-      ${app.meta.resTitle(res)}</small><div class="bar"><span></span><div class="pct">${p}%${add ? ' (+' + add + '%)' : ''}</div></div></div></div>
-      <div class="btns"><button class="act">${full ? 'Mở khoá' : '+' + this.piggyFill(s, PIGGY_REWARDED) + '%'} · 1 <i></i></button>
-      ${full ? '<button class="lose">Bỏ đi</button>' : ''}</div>`;
-    const A = this.d.piggyArt, [W, H] = A._size, rr = A[res], k = 84 / Math.max(rr[2], rr[3]);
-    for (const i of el.querySelectorAll('.pic i')) {
-      Object.assign(i.style, { backgroundImage: `url(./art/piggy.webp${app.V})`, backgroundSize: `${W * k}px ${H * k}px`,
-        backgroundPosition: `${-rr[0] * k + (84 - rr[2] * k) / 2}px ${-rr[1] * k + (84 - rr[3] * k) / 2}px` });
-    }
-    app.icon(el.querySelector('.act i'), 'ticket', 22);
-    const lit = el.querySelector('.lit'), bar = el.querySelector('.bar span');
-    const set = (v) => { lit.style.clipPath = `inset(${100 - v}% 0 0 0)`; bar.style.width = v + '%'; };
-    const from = r && res === r.res ? r.before : p;
-    set(from);
-    if (from !== p) requestAnimationFrame(() => requestAnimationFrame(() => set(p)));
-    el.querySelector('.act').onclick = () => {
-      const done = full ? this.piggyUnlock(s) : this.piggyBoost(s);
-      if (!done) return;
-      if (done.refused) { app.toast('Cần 1 vé bỏ qua (mua ở Chợ trên trang chính)'); return; }
-      app.play('popup_in');
-      app.writeSave();
-      app.hud();
-      if (full) app.toast('Mở khoá: ' + app.meta.resTitle(res));
-      this.showPiggy(full ? null : { res, before: p, after: this.piggyProgress(s) });
-    };
-    const lose = el.querySelector('.lose');
-    if (lose) lose.onclick = () => { app.play('popup_out'); this.piggyLose(s); app.writeSave(); this.showPiggy(null); };
-    el.classList.add('on');
-  }
+  // The piggy bank popup itself (PiggyBankPopup, full screen) is drawn by endgame.js with these rules.
 }
 
 const CSS = `
@@ -266,26 +226,6 @@ body.menu #skip { visibility: hidden; }
 .dot { position: absolute; top: 2px; left: 6px; width: 14px; height: 14px; border-radius: 50%; background: #ff1a1a;
   border: 2px solid #fff; display: none; }
 .dot.on { display: block; }
-#piggy { left: 50%; transform: translateX(-50%); bottom: max(18px, env(safe-area-inset-bottom)); width: min(92vw, 420px);
-  display: none; flex-direction: column; gap: 8px; background: rgba(13, 27, 42, .88); border-radius: 18px; padding: 10px 12px;
-  box-sizing: border-box; }
-#piggy.on { display: flex; }
-body.menu #piggy { visibility: hidden; }
-body:has(#piggy.on) #toast { bottom: 190px; }
-#piggy .pg { display: flex; gap: 12px; align-items: center; }
-#piggy .pic { position: relative; width: 84px; height: 84px; flex: none; }
-#piggy .pic i { position: absolute; inset: 0; background-repeat: no-repeat; transition: clip-path .8s ease-out; }
-#piggy .pic .dim { filter: brightness(0) opacity(.45); }
-#piggy .info { flex: 1; min-width: 0; }
-#piggy .info b { font-size: 18px; display: block; }
-#piggy .info small { font-size: 13px; opacity: .85; display: block; margin: 2px 0 6px; }
-#piggy .bar { height: 14px; border-radius: 9px; background: #23415e; overflow: hidden; position: relative; }
-#piggy .bar span { display: block; height: 100%; width: 0; background: linear-gradient(#9fff54, #20c060); transition: width .8s ease-out; }
-#piggy .pct { position: absolute; inset: 0; font-size: 11px; line-height: 14px; text-align: center; }
-#piggy .btns { display: flex; gap: 8px; }
-#piggy button { flex: 1; border: 3px solid #0d1b2a; border-radius: 14px; font: 900 16px system-ui; padding: 8px; cursor: pointer;
-  display: flex; align-items: center; justify-content: center; gap: 4px; background: #9fff54; color: #0d1b2a; }
-#piggy button.lose { background: #fff; flex: 0 0 auto; }
 `;
 
 // `app` is main.js's handle (save, meta, icon(), openMenu(), skipLevel(), ...). Adds the views' DOM and returns the rules.
@@ -306,7 +246,7 @@ export function makeBonus(app, d) {
   document.getElementById('btnWheel').onclick = () => app.openMenu('openWheel');
   // the skip image is a CSS background: the browser fetches it when the button first shows
   document.body.insertAdjacentHTML('beforeend', `<button class="ui" id="skip" title="Bỏ qua màn (1 vé)"
-    style="background-image:url(./art/skip.webp${app.V})"><b></b></button><div class="ui" id="piggy"></div>`);
+    style="background-image:url(./art/skip.webp${app.V})"><b></b></button>`);
   document.getElementById('skip').onclick = () => app.skipLevel();
   return b;
 }

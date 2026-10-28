@@ -60,6 +60,20 @@ export function patternNames(data, levelIndex) {
   return names;
 }
 
+// levels.json drops each draw item's sorting order when 0 and its SpriteShadow when it is the sprite's usual one
+// (build_data.py pack_defaults, first-load budget); this puts both back, once, in place.
+export function unpackDefaults(data) {
+  if (!data.shd) return data;
+  for (const p of Object.values(data.patterns)) {
+    for (const d of p.draw) {
+      d.o ??= 0;
+      if (d.sh === undefined) { if (data.shd[d.s]) d.sh = data.shd[d.s]; } else if (d.sh === 0) delete d.sh;
+    }
+  }
+  delete data.shd;
+  return data;
+}
+
 // buildLevel input of a non-Normal mode: its own patterns (data/mode-<file>.json) over Normal's, and its level lists.
 export function modeData(normal, file, modeId) {
   const set = file.sets[modeId];

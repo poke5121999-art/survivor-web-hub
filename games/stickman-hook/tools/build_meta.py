@@ -260,7 +260,11 @@ for m in rs['game_modes']['modes']:
 th = rs['theme']
 COLS = ['cameraBackgroundColor', 'effectBackgroundColor', 'shadowColor', 'targetsBackgroundColor', 'finishLightColor',
         'wallsReflectionColor']
-theme = {'levels': [[t[k] for k in COLS] for t in th['levelColors']], 'perTheme': th['general']['nbLevelsPerTheme'],
+# nbLevelsPerTheme: the APK default is 5, but the live game changes theme every 4 levels in all three clips (2019 levels
+# 1-4 / 5-8 / 9.., 2023 89-92 / 93-96 / 97-100, 2026 43-46 / 47-50 / 51-54; docs/PARITY.md). Remote config overrides
+# it, and SetGameModeTheme divides by it [asm 0x118fb64..0x118fc00], so the server value is used here.
+NB_LEVELS_PER_THEME = 4
+theme = {'levels': [[t[k] for k in COLS] for t in th['levelColors']], 'perTheme': NB_LEVELS_PER_THEME,
          'modes': {t['gameModeId']: [t[k] for k in COLS] for t in th['gameModes']}}
 boosters = {b['id']: [b['displayName'], b['rarityId']] for b in rs['booster']['boosters']}
 

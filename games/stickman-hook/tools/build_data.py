@@ -27,7 +27,14 @@ PLAYER_FRAMES = ['CHAR_Classic0001', 'CHAR_Classic0005', 'CHAR_Classic0015', 'CH
 # bumper hit clips: BumperAnimation (Large0001..0005) and BumperAnimationSmall (Small000..004), 30 fps
 EXTRA = ['AN_Grap1_BumperLarge0001', 'AN_Grap1_BumperLarge0002', 'AN_Grap1_BumperLarge0003', 'AN_Grap1_BumperLarge0004',
          'AN_Grap1_BumperSmall000', 'AN_Grap1_BumperSmall001', 'AN_Grap1_BumperSmall002', 'AN_Grap1_BumperSmall003',
-         'AN_Grap1_BumperSmall004', 'A_PlotSelected', 'in_game', 'GradientVertical', 'A_Particle', 'A_FinishLight']
+         'AN_Grap1_BumperSmall004', 'A_PlotSelected', 'in_game', 'GradientVertical', 'A_Particle', 'A_FinishLight',
+         'A_PlotNearestFeedback']
+# In-game HUD art (ui_pages_ingame_default bundle), exported to REF/sprites_ui by export_named.py with meta.json:
+# name -> pixel size it is packed at (the HUD draws them at most ~90 CSS px, so ~2x at DPR 2).
+UI_EXTRA = {'B_PauseButton': 96}
+# FX_Spawn (ui_pages_ingame_default): one particle, 0.5 s, size 1 x transform scale 2 = 2 world units, texture sheet
+# FX_Grap1_Spawn 8 x 2 cells played once over the lifetime (UVModule). Cells 11..15 are empty, so 11 frames are packed.
+SPAWN_FX = ('FX_Grap1_Spawn.tex', 8, 2, 11)
 # The level theme recolours these materials at run time (theme.levelColors targetsBackgroundColor / wallsReflectionColor;
 # their saved _Color is theme 2's). Items using them carry `th` (1 targets background, 2 walls reflection) and keep `tint`
 # only for a non-white sprite colour.
@@ -274,6 +281,32 @@ def compile_pattern(root, adv=False):
     return out
 
 
+def pack_defaults(patterns):
+    """First-load budget: most draw items of levels.json repeat their sprite's SpriteShadow ([0, -0.1, -10] on every
+    bumper) and sorting order 0. Drop `sh` when it equals the sprite's most common one (`sh: 0` = no shadow where the
+    sprite has a default) and `o` when 0. level.js `unpackDefaults` restores both at load. Saves ~50 KB."""
+    from collections import Counter, defaultdict
+    seen = defaultdict(Counter)
+    for p in patterns.values():
+        for it in p['draw']:
+            seen[it['s']][json.dumps(it.get('sh'))] += 1
+    shd = {}
+    for s, c in seen.items():
+        top = c.most_common(1)[0][0]
+        if top != 'null':
+            shd[s] = json.loads(top)
+    for p in patterns.values():
+        for it in p['draw']:
+            if it['s'] in shd:
+                if 'sh' not in it:
+                    it['sh'] = 0
+                elif it['sh'] == shd[it['s']]:
+                    del it['sh']
+            if it['o'] == 0:
+                del it['o']
+    return shd
+
+
 def compile_patterns(nodes, names):
     return {name: compile_pattern(nodes[name]) for name in names}
 
@@ -319,6 +352,29 @@ def main():
         ppu = md['ppu'] * sx
         ppuy = md['ppu'] * sy
         items.append((name, im, px, py, ppu, ppuy))
+    ui_meta = json.load(open(os.path.join(REF, 'sprites_ui/meta.json')))
+    for name, size in UI_EXTRA.items():
+        im = Image.open(os.path.join(REF, 'sprites_ui', name + '.png')).convert('RGBA')
+        k = size / max(im.width, im.height)
+        im = im.resize((round(im.width * k), round(im.height * k)), Image.LANCZOS)
+        # screen-space art: the pivot is the centre, ppu 1 (the HUD scales it to CSS px itself)
+        items.append((name, im, im.width / 2, im.height / 2, 1, 1))
+    sheet = Image.open(os.path.join(REF, 'sprites_ui', SPAWN_FX[0] + '.png')).convert('RGBA')
+    # the rings are one flat colour over alpha, but the texture keeps noise in the RGB of transparent pixels, which
+    # lossless WebP has to store: flatten RGB to the ring colour (the most opaque pixel)
+    a = sheet.getchannel('A')
+    ring = sheet.getpixel(max(((x, y) for x in range(0, sheet.width, 4) for y in range(0, sheet.height, 4)),
+                              key=lambda q: a.getpixel(q)))[:3]
+    sheet = Image.merge('RGBA', [Image.new('L', sheet.size, v) for v in ring] + [a])
+    cw, ch = sheet.width // SPAWN_FX[1], sheet.height // SPAWN_FX[2]
+    for i in range(SPAWN_FX[3]):
+        cx, cy = (i % SPAWN_FX[1]) * cw, (i // SPAWN_FX[1]) * ch
+        # half resolution (first-load budget: 28 KB -> ~9 KB); the quad spans the cell, 2 world units across
+        cell = sheet.crop((cx, cy, cx + cw, cy + ch)).resize((cw // 2, ch // 2), Image.LANCZOS)
+        # 16 alpha levels: a 0.5 s flash, and lossless WebP halves its size
+        cell.putalpha(cell.getchannel('A').point(lambda v: min(255, round(v / 17) * 17)))
+        bbox = cell.getbbox() or (0, 0, 1, 1)
+        items.append(('FX_Spawn%02d' % i, cell.crop(bbox), cw / 4 - bbox[0], ch / 4 - bbox[1], cw / 4, ch / 4))
 
     items.sort(key=lambda t: -t[1].height)
     W = 1024; x = y = shelf = 0; rects = {}
@@ -336,7 +392,7 @@ def main():
     atlas.save(os.path.join(GAME, 'art/atlas.webp'), lossless=True, quality=100, method=6)
 
     data = {'v': 1, 'atlas': {'w': W, 'h': H, 'rects': rects}, 'patterns': patterns, 'levels': raw['deterministic'],
-            'random': raw['random']}
+            'random': raw['random'], 'shd': pack_defaults(patterns)}
     os.makedirs(os.path.join(GAME, 'data'), exist_ok=True)
     txt = json.dumps(ints(data), separators=(',', ':'))
     open(os.path.join(GAME, 'data/levels.json'), 'w').write(txt)

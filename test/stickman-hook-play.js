@@ -68,9 +68,15 @@ function serve() {
   check('first level loads no shop art', lazy.length === 0, lazy.join(' '));
   const modeFiles = requested.filter((u) => /mode-[\w-]+\.json|grapple\.js|menus\.js|race\.js|\/race\/|race\.webp|adventure\.js|advrun\.js|adventure\.webp/.test(u));
   check('first level loads no mode data', modeFiles.length === 0, modeFiles.join(' '));
-  const bonusFiles = requested.filter((u) => /bonus\.js|bonus\.json|wheel\.webp|piggy\.webp|skip\.webp/.test(u));
-  check('first level loads no wheel / piggy / skip code or art', bonusFiles.length === 0, bonusFiles.join(' '));
+  const bonusFiles = requested.filter((u) => /bonus\.js|bonus\.json|wheel\.webp|piggy\.webp|skip\.webp|endgame\.js|\/ui\.webp|\/ui\.json/.test(u));
+  check('first level loads no wheel / piggy / skip / end game code or art', bonusFiles.length === 0, bonusFiles.join(' '));
   check('level 1 is Solo1 with one target', await page.evaluate(() => window.__sh.world.names.join() === 'Solo1' && window.__sh.world.targets.length === 1));
+  // DefaultInGameUI: the pause button and the "1 ▬ 2" progress bar; no other in-level buttons
+  check('in-level HUD is the pause button (B_PauseButton) only', await page.evaluate(() => {
+    const b = document.getElementById('btnPause'), r = b.getBoundingClientRect();
+    return getComputedStyle(b).visibility === 'visible' && /atlas\.webp/.test(b.style.backgroundImage) && r.width > 40 && r.width < 60
+      && !document.getElementById('btnLevels').checkVisibility();
+  }));
 
   const painted = await page.evaluate(() => {
     const c = document.getElementById('cv'), g = c.getContext('2d');
@@ -91,26 +97,42 @@ function serve() {
   await page.mouse.up({ button: 'left' });
   await page.waitForFunction(() => window.__sh.game.phase === 'finish', null, { timeout: 8000 }).catch(() => {});
   check('swinging past the checker line finishes level 1', await page.evaluate(() => window.__sh.game.phase === 'finish'));
-  await page.waitForTimeout(1300);
+  await page.waitForTimeout(500);
   await page.screenshot({ path: path.join(SHOTS, 'finish.png') });
+  // Finish: the FINISHED pose (state 6) through the slow motion, no dance in the level; the end game 1 s after the finish
+  check('the finish keeps the FINISHED pose, the pause button goes', await page.evaluate(() => window.__sh.player.state === 6
+    && getComputedStyle(document.getElementById('btnPause')).visibility === 'hidden'));
+  await page.waitForTimeout(800);
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('stickman-hook') || '{}'));
   check('progress saved (best level 1)', saved.best === 1, `best ${saved.best}`);
   check('level 1 gives +10 XP', saved.xp === 10, `xp ${saved.xp}`);
   await page.waitForFunction(() => window.__sh.look.dance?.id === 'skin.basic', null, { timeout: 10000 }).catch(() => {});
   check('finish plays the skin dance clip', await page.evaluate(() => window.__sh.look.dance?.id === 'skin.basic'));
-  // piggy bank: a Normal level's first completion fills it by fillConfigs[threshold 0].levelComplete = 10
-  await page.waitForSelector('#piggy.on', { timeout: 10000 }).catch(() => {});
+  // piggy bank: a Normal level's first completion fills it by fillConfigs[threshold 0].levelComplete = 10; the full-screen
+  // PiggyBankPopup comes first, then the end page
+  await page.waitForSelector('#egPiggy.on', { timeout: 10000 }).catch(() => {});
   const pig1 = await page.evaluate(() => ({ p: window.__sh.save.inv['progression.piggy_bank_progress'],
-    res: document.getElementById('piggy')?.dataset.res, on: !!document.querySelector('#piggy.on') }));
-  check('finishing level 1 fills the piggy bank by 10 toward Stick Frog', pig1.p === 10 && pig1.res === 'skin.stick_frog' && pig1.on,
+    res: document.getElementById('egPiggy')?.dataset.res, on: !!document.querySelector('#egPiggy.on') }));
+  check('finishing level 1 fills the piggy bank by 10 toward Stick Frog (full-screen popup)', pig1.p === 10 && pig1.res === 'skin.stick_frog' && pig1.on,
     JSON.stringify(pig1));
   await page.waitForTimeout(900);
   await page.screenshot({ path: path.join(SHOTS, 'finish-piggy.png') });
 
-  await page.mouse.click(195, 500);
+  await page.mouse.click(195, 300);
+  await page.waitForSelector('#egPage.on #egPlay', { timeout: 10000 }).catch(() => {});
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: path.join(SHOTS, 'end-page.png') });
+  check('tapping the piggy popup opens the end page', await page.evaluate(() => !!document.querySelector('#egPage.on')
+    && !document.querySelector('#egPiggy.on') && window.__sh.world.index === 0));
+  await page.click('#egPlay');
   await page.waitForTimeout(300);
-  check('tap after finishing opens level 2', await page.evaluate(() => window.__sh.world.index === 1 && window.__sh.world.names.join() === 'Solo2'));
+  check('Play on the end page opens level 2', await page.evaluate(() => window.__sh.world.index === 1 && window.__sh.world.names.join() === 'Solo2'
+    && !document.querySelector('#endgame.on')));
 
+  await page.click('#btnPause');
+  await page.waitForTimeout(150);
+  check('the pause button pauses and opens the pause menu', await page.evaluate(() => window.__sh.game.paused
+    && document.getElementById('pause').classList.contains('on')));
   await page.click('#btnLevels');
   await page.waitForTimeout(200);
   const grid = await page.evaluate(() => ({ n: document.querySelectorAll('#grid button').length,
@@ -124,7 +146,7 @@ function serve() {
   await page.waitForTimeout(1500);
   await page.screenshot({ path: path.join(SHOTS, 'level65.png') });
 
-  // ---- level theme: every 5 levels the camera, shadow and target colours change
+  // ---- level theme: every 4 levels (server nbLevelsPerTheme) the camera, shadow and target colours change
   const bgAt = () => page.evaluate(() => {
     const c = document.getElementById('cv'), d = c.getContext('2d').getImageData(4, Math.round(c.height * 0.12), 1, 1).data;
     return { theme: window.__sh.theme.bg, px: [d[0], d[1], d[2]].join(',') };
@@ -217,13 +239,20 @@ function serve() {
     && modes.some((m) => m.startsWith('mode.grapple') && m.includes('2650 XP')), modes.join(' | '));
   await page.screenshot({ path: path.join(SHOTS, 'modes.png') });
   await page.click('#modes .x');
-  await page.click('#btnMenu');
+  // the swings above may have crossed the finish line (the end game then covers the level): back to a fresh level 1
+  await page.evaluate(() => window.__sh.startLevel(0));
+  if (!(await page.evaluate(() => document.getElementById('start').classList.contains('on')))) {
+    await page.click('#btnPause');
+    await page.click('#btnMenu');
+  }
   await page.waitForTimeout(500);
   await page.screenshot({ path: path.join(SHOTS, 'home.png') });
   await page.click('#btnPlay');
 
   // ---- modes. Helpers: open a mode from the mode list and pick a level; jump past the finish line.
   const playMode = async (id, level) => {
+    // from a level's end page: Home first (the end page covers the level, as in the original)
+    if (await page.evaluate(() => !!document.querySelector('#egPage.on'))) await page.click('#egHome');
     await page.evaluate(() => window.__sh.openMenu('openModes'));
     await page.waitForSelector(`#modes .mode[data-id="${id}"] button`, { timeout: 10000 });
     await page.click(`#modes .mode[data-id="${id}"] button`);
@@ -257,9 +286,10 @@ function serve() {
   check('finishing Easter level 1 gives its first event skin and XP', evSave.owned.skins.includes('carrot_rabbit')
     && evSave.modes['mode.easter_event'].done.join() === '0' && evSave.xp === xpEv + 10 + 50,
     `xp ${xpEv} -> ${evSave.xp} ${JSON.stringify(evSave.modes['mode.easter_event'])}`);
-  await page.mouse.click(195, 500);
+  await page.waitForSelector('#egPage.on #egPlay', { timeout: 10000 }).catch(() => {});
+  await page.click('#egPlay');
   await page.waitForTimeout(300);
-  check('tap after an event level opens event level 2', await page.evaluate(() => window.__sh.mode.id === 'mode.easter_event'
+  check('Play on the end page after an event level opens event level 2', await page.evaluate(() => window.__sh.mode.id === 'mode.easter_event'
     && window.__sh.world.index === 1));
   const vd = await playMode('mode.valentine_day', 1);
   const valentine = await bgAt();
@@ -307,13 +337,15 @@ function serve() {
     && await page.evaluate(() => window.__sh.world.names.join('+') === 'STARTU031+MIDDLEv2_002+FINISH40'), `${ch.theme} ${ch.px}`);
   await page.waitForTimeout(600);
   await page.screenshot({ path: path.join(SHOTS, 'challenge.png') });
+  await page.click('#btnPause');
   await page.click('#btnRestart');
   check('restart keeps the mode and level', await page.evaluate(() => window.__sh.mode.id === 'mode.challenge' && window.__sh.world.index === 0));
   await page.evaluate(() => window.__sh.startLevel(3));
   await page.waitForFunction(() => window.__sh.game.phase === 'play', null, { timeout: 5000 });
   await finishNow();
   await page.screenshot({ path: path.join(SHOTS, 'challenge-finish.png') });
-  await page.mouse.click(195, 500);
+  await page.waitForSelector('#egPage.on #egPlay', { timeout: 10000 }).catch(() => {});
+  await page.click('#egPlay');
   await page.waitForTimeout(400);
   check('after the last open Challenge level the picker opens', await page.evaluate(() =>
     document.getElementById('levels').classList.contains('on') && window.__sh.save.modes['mode.challenge'].done.join() === '3'));
@@ -408,24 +440,24 @@ function serve() {
   await page.evaluate(() => { window.__sh.save.inv['progression.piggy_bank_progress'] = 90; window.__sh.startLevel(12); });
   await page.waitForFunction(() => window.__sh.game.phase === 'play', null, { timeout: 5000 });
   await finishNow();
-  await page.waitForSelector('#piggy.on .act', { timeout: 10000 }).catch(() => {});
-  await page.waitForTimeout(900);
+  await page.waitForSelector('#egPiggy[data-mode="full"] .acts .gold', { timeout: 10000 }).catch(() => {});
+  await page.waitForTimeout(300);
   await page.screenshot({ path: path.join(SHOTS, 'piggy-full.png') });
   const full = await page.evaluate(() => ({ p: window.__sh.save.inv['progression.piggy_bank_progress'],
-    btn: document.querySelector('#piggy .act')?.textContent.trim() }));
-  await page.click('#piggy .act');
-  await page.waitForTimeout(300);
+    mode: document.getElementById('egPiggy')?.dataset.mode }));
+  await page.click('#egPiggy .acts .gold');
+  await page.waitForTimeout(500);
   const broke = await page.evaluate(() => { const s = window.__sh.save; return { p: s.inv['progression.piggy_bank_progress'],
     claims: s.inv['progression.piggy_bank_claims'], t: s.inv['currency.skip_tickets'], frog: s.owned.skins.includes('stick_frog'),
-    next: document.getElementById('piggy').dataset.res }; });
-  check('piggy full at 100 breaks for 1 skip ticket into Stick Frog', full.p === 100 && full.btn.startsWith('Mở khoá') && broke.p === 0
-    && broke.claims === 1 && broke.t === 22 && broke.frog && broke.next === 'skin.ghost', JSON.stringify({ full, broke }));
+    next: window.__sh.bonus.piggyReward(s), mode: document.getElementById('egPiggy')?.dataset.mode }; });
+  check('piggy full at 100: UNLOCK breaks it for 1 skip ticket into Stick Frog', full.p === 100 && full.mode === 'full' && broke.p === 0
+    && broke.claims === 1 && broke.t === 22 && broke.frog && broke.next === 'skin.ghost' && broke.mode === 'unlocked', JSON.stringify({ full, broke }));
   await page.screenshot({ path: path.join(SHOTS, 'piggy-broken.png') });
   await page.evaluate(() => window.__sh.startLevel(13));
-  check('next level hides the piggy panel', await page.evaluate(() => !document.querySelector('#piggy.on')));
+  check('next level hides the piggy popup', await page.evaluate(() => !document.querySelector('#egPiggy.on') && !window.__sh.game.paused));
   await page.waitForFunction(() => window.__sh.game.phase === 'play', null, { timeout: 5000 });
   await finishNow();
-  await page.waitForSelector('#piggy.on', { timeout: 10000 }).catch(() => {});
+  await page.waitForSelector('#egPiggy.on', { timeout: 10000 }).catch(() => {});
   check('after the first claim a level fills the piggy by 3', await page.evaluate(() =>
     window.__sh.save.inv['progression.piggy_bank_progress'] === 3));
 
@@ -455,6 +487,7 @@ function serve() {
     && window.__sh.save.inv['currency.skip_tickets'] === 21));
 
   // home screen entry points
+  await page.click('#btnPause');
   await page.click('#btnMenu');
   await page.waitForSelector('#btnWheel', { timeout: 10000 });
   await page.waitForTimeout(600);

@@ -4,6 +4,28 @@ Ngày so: 2026-10-28. Bản web: Pages `?v=20261028f`, khung điện thoại 390
 Mỗi cặp ảnh nằm ở `shots/stickman-hook/parity/<key>.png` (web bên trái, tối đa 2 khung gốc bên phải, vùng đo viền xanh lơ).
 Số đo màu lấy từ `shots/stickman-hook/parity/report.json`. Nhãn từng cặp ở `D:/stickman-hook-ref/parity/verdicts.tsv`, cổng `parity.py check` thoát 0.
 
+## Vòng sửa 20261028h
+
+Chụp lại phía web trên server local (`?v=20261028h`) cho 24 cặp gameplay, dựng lại ảnh ghép, xem từng ảnh. Cổng: ok 18, version 15, not-built 6, web-bug 2.
+Cảnh chụp mới trong `tools/extract/capture-web.js` (bản của `D:/stickman-hook-ref/clips/tools/` thêm cảnh; `SH_URL` trỏ server local; `map.tsv` đã trỏ): `l1_finish_late` (+0.8 s), `l1_piggy`, `l1_podium`, `race_finish_jump` (đặt người chơi lên vạch).
+Bảng dưới (cột "Khác") là trạng thái lúc so lần đầu `20261028f`; trạng thái mới ở đây.
+
+| Key | Trạng thái 20261028h |
+|---|---|
+| p01, p02, o03 | **Đã sửa.** Vòng nét đứt quanh điểm móc gần nhất, vòng sáng FX_Spawn lúc xuất hiện, HUD pause + "1 ▬ 2". Đáy nền 2019 xanh ngọc là bộ màu khác (`version`) |
+| p03, n01 | **Đã sửa.** Dây mặc định trắng 0.03 đơn vị |
+| p04, n02 | **Đã sửa.** "STAGE n COMPLETED" hiện ngay ở 20 %, #9FFF54 + trắng. "LEVEL CLEARED" của 2019/2023 là `version` |
+| p05, n03 | **Đã sửa** tư thế bay suốt slow-mo, không nhảy, không "tap to continue". **Còn lệch:** pháo giấy toả về phía trước, gốc toả quanh người (`web-bug`, prefab chưa tìm thấy) |
+| p06, o05 | **Đã làm** trang kết thúc 9.9.60 (so clip 2026 0:27.6). Khung 2019/2023 là `version` |
+| n04 | **Đã làm** màn heo đất toàn màn hình. **Chưa làm:** thanh bộ sưu tập khi đầy, nút VIP Skip |
+| p08 | **Đã sửa.** Người chơi ở 0.30 bề ngang (ForwardFocus 0.25 đọc từ scene) |
+| p09, p10, p13, o01 | **Đã sửa.** Đáy nền mang màu effect của theme |
+| o02 | **Đã sửa.** Màn 93-96 tím: theme đổi mỗi 4 màn |
+| n07, n13 | `version`: bộ màu server 2026 khác APK |
+| r01 | **Đã sửa.** Số đếm đỏ trên vòng ô của người chơi |
+| r02, r03 | **Đã sửa.** "1ST" ngay khi về đích, danh sách "#n tên" góc phải theo 9.9.60 ("ME: n" của 2019 là `version`) |
+| p07, p12, n05, n06, n09, n11, n12, r04 | Chưa đụng (vỏ menu, mục 8 của đề bài) |
+
 ## Clip đã dùng
 
 | Mã | Clip | Ngày đăng | Khung | Ghi chú |
@@ -71,6 +93,7 @@ Mức: **gameplay** (đổi cách chơi hoặc thông tin người chơi cần),
   - 2026: màn 43-46, 47-50, 51-54.
 
   `SetGameModeTheme` chia `GetMaxLevelAchieved` cho `nbLevelsPerTheme` [asm 0x118fb64..0x118fc00], nên công thức đúng. Chỉ có số 5 lấy từ `remote_settings_default.json` là lệch: server trả 4.
+  Đã sửa: `tools/build_meta.py` đặt `NB_LEVELS_PER_THEME = 4`.
 - **Điểm móc gần nhất không có phản hồi.** `A_PlotNearestFeedback` không có trong `atlas.webp`, dù đã bóc ra ở `D:/stickman-hook-ref/sprites/`. Vì thế `R.sprite` không vẽ gì, cả vòng nét đứt lẫn hiệu ứng xuất hiện.
   - Ảnh cận cảnh: `D:/stickman-hook-ref/parity/view/nearest.jpg`. Ba điểm móc web không có vòng, gốc 2023 có vòng nét đứt trắng.
 - **Dây mặc định.** Texture `basic` trong `ropes.webp` là trắng (668/1278 điểm ảnh trắng đặc). Web vẽ dây mặc định bằng nét đen.
@@ -87,7 +110,7 @@ Mức: **gameplay** (đổi cách chơi hoặc thông tin người chơi cần),
 - Màn Normal 1-20 trên bản dọc: chỉ có bản trình duyệt ngang 2019. Clip dọc tìm được (2018) chưa tải.
 - Khung hình lúc bắt đầu màn: ở web, điểm móc đầu của màn 1 và 3 nằm sát mép phải (x 374/390). Không có clip dọc màn 1-3 để đối chiếu.
 
-## Thứ tự nên sửa
+## Thứ tự nên sửa (lần so đầu; 1-10 đã sửa ở 20261028h, 11 còn mở)
 
 1. **Gradient nền trắng thay vì màu effect của theme.** Mức look, thấy ở mọi màn mọi chế độ, đã đo.
    - `js/render.js:88-98`: `drawBackgroundGradient` vẽ ảnh không tô màu.

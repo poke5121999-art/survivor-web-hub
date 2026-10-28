@@ -55,6 +55,7 @@ export class Meta {
   item(kind, name) { return this.byId.get(Object.keys(KINDS).find((k) => KINDS[k] === kind) + '.' + name); }
 
   // theme.levelColors cycles every nbLevelsPerTheme levels: [camera, effect, shadow, targets, finishLight, walls]
+  // (4 levels: the server value seen in every clip, tools/build_meta.py NB_LEVELS_PER_THEME)
   theme(levelIndex) {
     const t = this.d.theme;
     return colors(t.levels[Math.floor(levelIndex / t.perTheme) % t.levels.length]);
@@ -196,7 +197,9 @@ export class Meta {
 }
 
 function colors(c) {
-  return { bg: c[0].slice(0, 7), shadow: hex(c[2]), targets: hex(c[3]).slice(0, 3), walls: hex(c[5]).slice(0, 3) };
+  // effect (effectBackgroundColor) tints the GradientVertical overlay: the bottom of the background in every clip
+  return { bg: c[0].slice(0, 7), effect: hex(c[1]).slice(0, 3), shadow: hex(c[2]), targets: hex(c[3]).slice(0, 3),
+    walls: hex(c[5]).slice(0, 3) };
 }
 
 const REWARDS = {
