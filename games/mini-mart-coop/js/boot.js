@@ -4,8 +4,21 @@
 import { mountMenu } from './menu.js';
 
 // The network modules load on first use, so the menu waits on two files only (Pages answers an edge miss in 0.4-1 s).
-const loadNet = () => Promise.all([import('./net/room.js'), import('./net/session.js'), import('./cloud.js')])
+const loadNet = () => Promise.all([import('./net/room.js'), import('./net/session.js'), import('./cloud.js'), hubScripts()])
   .then(([r, s, c]) => ({ ...r, ...s, cloud: c }));
+// The hub's account scripts (HubSave for js/cloud.js) also come after the menu: as page scripts, even deferred, the
+// menu module waited on all four (first load on Pages went from 0.8 s to 1.2-1.5 s). They run in this order, one by one.
+const HUB_SCRIPTS = ['session.js', 'supabase-config.js', 'supabase-auth.js', 'save-sync.js'];
+let hubLoad = null;
+function hubScripts() {
+  const base = new URL('../../../js/', import.meta.url).href, v = new URL(import.meta.url).searchParams.get('v') || '';
+  return hubLoad || (hubLoad = HUB_SCRIPTS.reduce((p, f) => p.then(() => new Promise(ok => {
+    const s = document.createElement('script');
+    s.src = `${base}${f}?v=${v}`;
+    s.onload = s.onerror = ok;
+    document.head.appendChild(s);
+  })), Promise.resolve()));
+}
 
 const V = new URL(import.meta.url).searchParams.get('v') || '';
 const SOLO = new URL('../../casual-farm/', import.meta.url).href;
