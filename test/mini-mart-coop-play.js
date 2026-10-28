@@ -67,7 +67,10 @@ function serve() {
   for (let i = 0; i < 2 && !(await a.locator('.mm-stage').innerText()).match(/Công khai|Public/); i++) await a.locator('.mm-stage button:has-text(">")').first().click();
   await a.screenshot({ path: path.join(SHOTS, 'a-new.png') });
   await a.getByRole('button', { name: /^(Tạo|Create)$/ }).click();
-  await a.waitForFunction(() => window.__mmc.role === 'host' && window.__mmc.stage === 'textures', null, { timeout: 60000 });
+  await a.waitForFunction(() => window.__mmc.role === 'host' && window.__mmc.stage === 'textures', null, { timeout: 60000 }).catch(async e => {
+    console.log('  host never entered:', await a.evaluate(() => [window.__mmc.stage, document.querySelector('.mm-toast') && document.querySelector('.mm-toast').textContent]), errors);
+    throw e;
+  });
   const code = await a.evaluate(() => window.__mmc.code);
   check('host opens a store with a room code', /^[A-Z0-9]{6}$/.test(code || ''), code);
 

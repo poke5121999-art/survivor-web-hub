@@ -8,62 +8,64 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Londrina+Solid:wght@400;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./css/coop.css?v=20261028a">
-<link rel="stylesheet" href="./css/menu.css?v=20261028a" data-mm-css>
+<link rel="stylesheet" href="./css/coop.css?v=20261028b">
+<link rel="stylesheet" href="./css/menu.css?v=20261028b" data-mm-css>
 <!-- The store's HUD styles are only needed once a store opens: loaded without blocking the menu's first paint. -->
-<link rel="stylesheet" href="../casual-farm/css/game.css?v=20261028a" media="print" onload="this.media='all'">
-<link rel="preload" href="../casual-farm/data/marts.json?v=20261028a" as="fetch" crossorigin>
+<link rel="stylesheet" href="../casual-farm/css/game.css?v=20261028b" media="print" onload="this.media='all'">
+<link rel="preload" href="../casual-farm/data/marts.json?v=20261028b" as="fetch" crossorigin>
+<link rel="modulepreload" href="./js/boot.js?v=20261028b">
+<link rel="modulepreload" href="./js/menu.js?v=20261028b">
 <script type="importmap">
 {
  "imports": {
-  "three": "../casual-farm/vendor/three.module.min.js?v=20261028a",
-  "./js/boot.js": "./js/boot.js?v=20261028a",
-  "./js/coopsim.js": "./js/coopsim.js?v=20261028a",
-  "./js/game.js": "./js/game.js?v=20261028a",
-  "./js/menu.js": "./js/menu.js?v=20261028a",
-  "./js/net/mirror.js": "./js/net/mirror.js?v=20261028a",
-  "./js/net/relay.js": "./js/net/relay.js?v=20261028a",
-  "./js/net/room.js": "./js/net/room.js?v=20261028a",
-  "./js/net/session.js": "./js/net/session.js?v=20261028a",
-  "./js/net/ugs.js": "./js/net/ugs.js?v=20261028a",
-  "./js/remotes.js": "./js/remotes.js?v=20261028a",
-  "../casual-farm/js/cloud.js": "../casual-farm/js/cloud.js?v=20261028a",
-  "../casual-farm/js/main.js": "../casual-farm/js/main.js?v=20261028a",
-  "../casual-farm/js/sim/boosters.js": "../casual-farm/js/sim/boosters.js?v=20261028a",
-  "../casual-farm/js/sim/bot.js": "../casual-farm/js/sim/bot.js?v=20261028a",
-  "../casual-farm/js/sim/cars.js": "../casual-farm/js/sim/cars.js?v=20261028a",
-  "../casual-farm/js/sim/customers.js": "../casual-farm/js/sim/customers.js?v=20261028a",
-  "../casual-farm/js/sim/daily.js": "../casual-farm/js/sim/daily.js?v=20261028a",
-  "../casual-farm/js/sim/grid.js": "../casual-farm/js/sim/grid.js?v=20261028a",
-  "../casual-farm/js/sim/martmap.js": "../casual-farm/js/sim/martmap.js?v=20261028a",
-  "../casual-farm/js/sim/math.js": "../casual-farm/js/sim/math.js?v=20261028a",
-  "../casual-farm/js/sim/nav.js": "../casual-farm/js/sim/nav.js?v=20261028a",
-  "../casual-farm/js/sim/rolling.js": "../casual-farm/js/sim/rolling.js?v=20261028a",
-  "../casual-farm/js/sim/shop.js": "../casual-farm/js/sim/shop.js?v=20261028a",
-  "../casual-farm/js/sim/sim.js": "../casual-farm/js/sim/sim.js?v=20261028a",
-  "../casual-farm/js/sim/store.js": "../casual-farm/js/sim/store.js?v=20261028a",
-  "../casual-farm/js/sim/tasks.js": "../casual-farm/js/sim/tasks.js?v=20261028a",
-  "../casual-farm/js/sim/thief.js": "../casual-farm/js/sim/thief.js?v=20261028a",
-  "../casual-farm/js/sim/workers.js": "../casual-farm/js/sim/workers.js?v=20261028a",
-  "../casual-farm/js/view/anim.js": "../casual-farm/js/view/anim.js?v=20261028a",
-  "../casual-farm/js/view/camera.js": "../casual-farm/js/view/camera.js?v=20261028a",
-  "../casual-farm/js/view/citymap.js": "../casual-farm/js/view/citymap.js?v=20261028a",
-  "../casual-farm/js/view/customise.js": "../casual-farm/js/view/customise.js?v=20261028a",
-  "../casual-farm/js/view/daily.js": "../casual-farm/js/view/daily.js?v=20261028a",
-  "../casual-farm/js/view/fx.js": "../casual-farm/js/view/fx.js?v=20261028a",
-  "../casual-farm/js/view/game.js": "../casual-farm/js/view/game.js?v=20261028a",
-  "../casual-farm/js/view/hud.js": "../casual-farm/js/view/hud.js?v=20261028a",
-  "../casual-farm/js/view/looks.js": "../casual-farm/js/view/looks.js?v=20261028a",
-  "../casual-farm/js/view/martmenu.js": "../casual-farm/js/view/martmenu.js?v=20261028a",
-  "../casual-farm/js/view/shop.js": "../casual-farm/js/view/shop.js?v=20261028a",
-  "../casual-farm/js/view/sound.js": "../casual-farm/js/view/sound.js?v=20261028a",
-  "../casual-farm/js/view/toon.js": "../casual-farm/js/view/toon.js?v=20261028a",
-  "../casual-farm/js/view/world.js": "../casual-farm/js/view/world.js?v=20261028a",
-  "../casual-farm/vendor/BufferGeometryUtils.js": "../casual-farm/vendor/BufferGeometryUtils.js?v=20261028a",
-  "../casual-farm/vendor/GLTFLoader.js": "../casual-farm/vendor/GLTFLoader.js?v=20261028a",
-  "../casual-farm/vendor/SkeletonUtils.js": "../casual-farm/vendor/SkeletonUtils.js?v=20261028a",
-  "../casual-farm/vendor/meshopt_decoder.js": "../casual-farm/vendor/meshopt_decoder.js?v=20261028a",
-  "../casual-farm/vendor/three.module.min.js": "../casual-farm/vendor/three.module.min.js?v=20261028a"
+  "three": "../casual-farm/vendor/three.module.min.js?v=20261028b",
+  "./js/boot.js": "./js/boot.js?v=20261028b",
+  "./js/coopsim.js": "./js/coopsim.js?v=20261028b",
+  "./js/game.js": "./js/game.js?v=20261028b",
+  "./js/menu.js": "./js/menu.js?v=20261028b",
+  "./js/net/mirror.js": "./js/net/mirror.js?v=20261028b",
+  "./js/net/relay.js": "./js/net/relay.js?v=20261028b",
+  "./js/net/room.js": "./js/net/room.js?v=20261028b",
+  "./js/net/session.js": "./js/net/session.js?v=20261028b",
+  "./js/net/ugs.js": "./js/net/ugs.js?v=20261028b",
+  "./js/remotes.js": "./js/remotes.js?v=20261028b",
+  "../casual-farm/js/cloud.js": "../casual-farm/js/cloud.js?v=20261028b",
+  "../casual-farm/js/main.js": "../casual-farm/js/main.js?v=20261028b",
+  "../casual-farm/js/sim/boosters.js": "../casual-farm/js/sim/boosters.js?v=20261028b",
+  "../casual-farm/js/sim/bot.js": "../casual-farm/js/sim/bot.js?v=20261028b",
+  "../casual-farm/js/sim/cars.js": "../casual-farm/js/sim/cars.js?v=20261028b",
+  "../casual-farm/js/sim/customers.js": "../casual-farm/js/sim/customers.js?v=20261028b",
+  "../casual-farm/js/sim/daily.js": "../casual-farm/js/sim/daily.js?v=20261028b",
+  "../casual-farm/js/sim/grid.js": "../casual-farm/js/sim/grid.js?v=20261028b",
+  "../casual-farm/js/sim/martmap.js": "../casual-farm/js/sim/martmap.js?v=20261028b",
+  "../casual-farm/js/sim/math.js": "../casual-farm/js/sim/math.js?v=20261028b",
+  "../casual-farm/js/sim/nav.js": "../casual-farm/js/sim/nav.js?v=20261028b",
+  "../casual-farm/js/sim/rolling.js": "../casual-farm/js/sim/rolling.js?v=20261028b",
+  "../casual-farm/js/sim/shop.js": "../casual-farm/js/sim/shop.js?v=20261028b",
+  "../casual-farm/js/sim/sim.js": "../casual-farm/js/sim/sim.js?v=20261028b",
+  "../casual-farm/js/sim/store.js": "../casual-farm/js/sim/store.js?v=20261028b",
+  "../casual-farm/js/sim/tasks.js": "../casual-farm/js/sim/tasks.js?v=20261028b",
+  "../casual-farm/js/sim/thief.js": "../casual-farm/js/sim/thief.js?v=20261028b",
+  "../casual-farm/js/sim/workers.js": "../casual-farm/js/sim/workers.js?v=20261028b",
+  "../casual-farm/js/view/anim.js": "../casual-farm/js/view/anim.js?v=20261028b",
+  "../casual-farm/js/view/camera.js": "../casual-farm/js/view/camera.js?v=20261028b",
+  "../casual-farm/js/view/citymap.js": "../casual-farm/js/view/citymap.js?v=20261028b",
+  "../casual-farm/js/view/customise.js": "../casual-farm/js/view/customise.js?v=20261028b",
+  "../casual-farm/js/view/daily.js": "../casual-farm/js/view/daily.js?v=20261028b",
+  "../casual-farm/js/view/fx.js": "../casual-farm/js/view/fx.js?v=20261028b",
+  "../casual-farm/js/view/game.js": "../casual-farm/js/view/game.js?v=20261028b",
+  "../casual-farm/js/view/hud.js": "../casual-farm/js/view/hud.js?v=20261028b",
+  "../casual-farm/js/view/looks.js": "../casual-farm/js/view/looks.js?v=20261028b",
+  "../casual-farm/js/view/martmenu.js": "../casual-farm/js/view/martmenu.js?v=20261028b",
+  "../casual-farm/js/view/shop.js": "../casual-farm/js/view/shop.js?v=20261028b",
+  "../casual-farm/js/view/sound.js": "../casual-farm/js/view/sound.js?v=20261028b",
+  "../casual-farm/js/view/toon.js": "../casual-farm/js/view/toon.js?v=20261028b",
+  "../casual-farm/js/view/world.js": "../casual-farm/js/view/world.js?v=20261028b",
+  "../casual-farm/vendor/BufferGeometryUtils.js": "../casual-farm/vendor/BufferGeometryUtils.js?v=20261028b",
+  "../casual-farm/vendor/GLTFLoader.js": "../casual-farm/vendor/GLTFLoader.js?v=20261028b",
+  "../casual-farm/vendor/SkeletonUtils.js": "../casual-farm/vendor/SkeletonUtils.js?v=20261028b",
+  "../casual-farm/vendor/meshopt_decoder.js": "../casual-farm/vendor/meshopt_decoder.js?v=20261028b",
+  "../casual-farm/vendor/three.module.min.js": "../casual-farm/vendor/three.module.min.js?v=20261028b"
  }
 }
 </script>
@@ -72,6 +74,6 @@
 <canvas id="bg"></canvas>
 <div id="menu"></div>
 <div id="stage" hidden><canvas id="game"></canvas><div id="hud"></div></div>
-<script type="module" src="./js/boot.js?v=20261028a"></script>
+<script type="module" src="./js/boot.js?v=20261028b"></script>
 </body>
 </html>

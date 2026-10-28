@@ -1,8 +1,8 @@
 // Entry: the menu paints first (DOM only); the store backdrop, three.js and the solo game's modules load after it.
 // New / Load Store host a room, Join Store joins one; either way the page then becomes one co-op store.
 import { mountMenu } from './menu.js';
-import { hostRoom, joinRoom, listRooms } from './net/room.js';
-import { HostNet, GuestNet } from './net/session.js';
+// The network modules load on first use, so the menu waits on two files only (Pages answers an edge miss in 0.4-1 s).
+const loadNet = () => Promise.all([import('./net/room.js'), import('./net/session.js')]).then(([r, s]) => ({ ...r, ...s }));
 
 const V = new URL(import.meta.url).searchParams.get('v') || '';
 const SOLO = new URL('../../casual-farm/', import.meta.url).href;
@@ -69,7 +69,7 @@ const ctl = {
     return host({ ...meta, ...o, save: local.get(`mmc-save-${id}`, null) });
   },
   deleteSave: id => { local.set(SAVES, local.get(SAVES, []).filter(s => s.id !== id)); local.del(`mmc-save-${id}`); },
-  listRooms: () => listRooms(),
+  listRooms: () => loadNet().then(n => n.listRooms()),
   joinStore: o => join(o),
 };
 const menu = mountMenu(menuRoot, ctl);
@@ -84,7 +84,7 @@ const startBackdrop = async () => {
   backdrop = startGame({ canvas: bg, hudRoot: document.createElement('div'), mart: 'store1', role: 'attract',
     onStage: s => { mmc.backdrop = s; } }).catch(e => { console.warn('backdrop', e); return null; });
 };
-(window.requestIdleCallback || (f => setTimeout(f, 200)))(() => startBackdrop(), { timeout: 800 });
+(window.requestIdleCallback || (f => setTimeout(f, 200)))(() => { loadNet(); startBackdrop(); }, { timeout: 800 });
 
 async function enterStore(mart, role, extra) {
   const { startGame, prefetch } = await import(`./game.js?v=${V}`);
@@ -102,6 +102,7 @@ async function enterStore(mart, role, extra) {
 
 // --- host -------------------------------------------------------------------------------------------------------
 async function host(o) {
+  const { hostRoom, HostNet } = await loadNet();
   local.set('mmc-region', o.region);
   const name = (o.name || `${options.name}'s Mart`).slice(0, 32);
   const room = await hostRoom({ name, isPrivate: o.isPrivate, mart: o.mart, difficulty: o.difficulty, region: o.region,
@@ -117,7 +118,7 @@ async function host(o) {
   const net = new HostNet({ link: room.link, sim: game.sim, hostName: options.name, maxPlayers: MAX_PLAYERS,
     info: { mart: o.mart, difficulty: o.difficulty, name },
     onCommand: (pid, m) => command(game.sim, m),
-    onRoster: (list, change) => { if (change && change.uid) room.free(change.uid); bar.roster(list); } });
+    onRoster: (list, change) => { if (change && change.uid && change.why === 'timeout') room.free(change.uid); bar.roster(list); } });
   session = { kind: 'host', game, net, room };
   const save = () => {
     const d = game.sim.save();
@@ -149,6 +150,7 @@ function command(sim, m) {
 
 // --- guest ------------------------------------------------------------------------------------------------------
 async function join(o) {
+  const { joinRoom, GuestNet } = await loadNet();
   const room = await joinRoom({ ...o, playerName: options.name });
   const net = new GuestNet({ link: room.link, name: options.name, uid: room.uid });
   let welcome;
