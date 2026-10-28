@@ -20,6 +20,32 @@ const EASE = {
 };
 
 // The prop set not in use (NEW_VISUALS, sim/store.js) is hidden.
+// RC_SeasonalTheme: season_xmas from 15 Nov to 17 Dec every year by the UTC date (SeasonalEventManager.
+// GetCurrentSeasonTheme); ?season=<id> forces one for testing, ?season=none none.
+export function seasonTheme(now = new Date()) {
+  const forced = new URLSearchParams(globalThis.location ? location.search : '').get('season');
+  if (forced) return forced === 'none' ? null : forced;
+  const md = (now.getUTCMonth() + 1) * 100 + now.getUTCDate();
+  return md >= 1115 && md <= 1217 ? 'season_xmas' : null;
+}
+
+// SeasonVisual_GameObject.UpdateVisuals: in a season the default objects hide and that season's visuals show
+// (the _Randomized variant shows one of them, Random.Range(0, count)); out of season only the defaults show.
+const SEASON_COMPS = ['__Funflare.Scripts.SeasonalEvents.SeasonVisual_GameObject', '__Funflare.Scripts.SeasonalEvents.SeasonVisual_GameObject_Randomized'];
+export function seasonVisuals(k, obj, theme = seasonTheme()) {
+  for (const c of SEASON_COMPS) {
+    const sv = k[c];
+    if (!sv) continue;
+    const refs = l => (l || []).filter(r => r && r.n != null).map(r => obj(r.n)).filter(Boolean);
+    const mine = (sv.seasonalVisuals || []).find(v => theme && v.seasonTheme === theme);
+    (sv.seasonalVisuals || []).forEach(v => refs(v.visuals).forEach(o => { o.visible = false; }));
+    if (!mine) continue;
+    refs(sv.defaultObjects).forEach(o => { o.visible = false; });
+    const vis = refs(mine.visuals);
+    if (c.endsWith('_Randomized')) { if (vis.length) vis[Math.floor(Math.random() * vis.length)].visible = true; } else vis.forEach(o => { o.visible = true; });
+  }
+}
+
 export function hideOtherVisuals(o, k) {
   const a = k['__Funflare.Scripts.Helper.NewVisualObjectActivator'];
   if (a && !!(Array.isArray(a) ? a[0] : a).isNewVersion !== NEW_VISUALS) o.visible = false;
@@ -195,18 +221,14 @@ export class GameView {
       const k = o.userData.node.k || {};
       if (SELF_HIDING.some(c => k[c]) || /^placeholder/i.test(o.name)) o.visible = false;
     });
-    // Rewarded-video carts (ads are not part of this build) and seasonal decorations: with no season running,
-    // SeasonVisual_GameObject.DisableAllVisualObjects shows the default objects and hides every seasonal one.
+    // Rewarded-video carts (ads are not part of this build) and seasonal decorations (seasonVisuals).
     // MatRVSpawnerController stays: its extra-cash mat shows while the offer is up (Boosters).
     const AD_ONLY = ['TurThanksgivingRvMat', 'AdsBoxesSpawner'];
     this.byIndex.forEach(o => {
       const k = o.userData.node.k || {};
       if (AD_ONLY.some(c => k[c])) o.visible = false;
       hideOtherVisuals(o, k);
-      for (const c of ['__Funflare.Scripts.SeasonalEvents.SeasonVisual_GameObject', '__Funflare.Scripts.SeasonalEvents.SeasonVisual_GameObject_Randomized']) {
-        if (!k[c]) continue;
-        (k[c].seasonalVisuals || []).forEach(v => (v.visuals || []).forEach(r => { if (r && r.n != null) this.obj(r.n).visible = false; }));
-      }
+      seasonVisuals(k, n => this.obj(n));
     });
     const ph = this.player && this.player.userData.node.k && this.player.userData.node.k.PlayerHumanController;
     if (ph) for (const f of ['netTransform', 'dottedIndicatorObj', 'thiefRadarInstance', 'objectiveRadarInstance', 'vanCarObj', 'speedBoostLeft', 'speedBoostRight']) {
@@ -408,7 +430,17 @@ export class GameView {
     this.started = true;
     this.updatePops(dt);
     this.updateTweens(dt);
-    store.coins.forEach((c, i) => { this.obj(c.node).visible = !st.coins[i].taken; });
+    // CoinIdleController.Start: DOMoveY(+1, 1 s) yoyo and DOBlendableRotateBy(0, 360, 0) every 3 s, both linear.
+    this.coinT = (this.coinT || 0) + dt;
+    const bob = 1 - Math.abs((this.coinT % 2) - 1), spin = (this.coinT % 3) / 3 * Math.PI * 2;
+    store.coins.forEach((c, i) => {
+      const o = this.obj(c.node);
+      o.visible = !st.coins[i].taken;
+      if (!o.visible) return;
+      if (!o.userData.idle) o.userData.idle = { y: o.position.y, q: o.quaternion.clone() };
+      o.position.y = o.userData.idle.y + bob;
+      o.quaternion.setFromAxisAngle(UP, spin).multiply(o.userData.idle.q);
+    });
 
     this.placeAgent(this.player, st.player);
     if (this.playerRig) {

@@ -124,5 +124,65 @@
   "mats": 30,
   "idle": 10000,
   "icon": "sprites/martIcon"
+ },
+ {
+  "id": "val23",
+  "name": "Valentine Mart",
+  "scene": "Store_Val23",
+  "level": "level4",
+  "mats": 26,
+  "idle": 0,
+  "icon": "sprites/martIcon",
+  "seasonal": true
+ },
+ {
+  "id": "eas23",
+  "name": "Easter Mart",
+  "scene": "Store_Eas23",
+  "level": "level5",
+  "mats": 17,
+  "idle": 0,
+  "icon": "sprites/martIcon",
+  "seasonal": true
+ },
+ {
+  "id": "hal22",
+  "name": "Halloween Mart",
+  "scene": "Store_Hal22",
+  "level": "level13",
+  "mats": 18,
+  "idle": 0,
+  "icon": "sprites/martIcon",
+  "seasonal": true
+ },
+ {
+  "id": "xms22",
+  "name": "Christmas Mart",
+  "scene": "Store_Xms22",
+  "level": "level15",
+  "mats": 27,
+  "idle": 0,
+  "icon": "sprites/martIcon",
+  "seasonal": true
+ },
+ {
+  "id": "cny23",
+  "name": "Chinese New Year Mart",
+  "scene": "Store_Cny23",
+  "level": "level17",
+  "mats": 31,
+  "idle": 0,
+  "icon": "sprites/martIcon",
+  "seasonal": true
+ },
+ {
+  "id": "anv23",
+  "name": "Anniversary Mart",
+  "scene": "Store_Anv23",
+  "level": "level19",
+  "mats": 18,
+  "idle": 0,
+  "icon": "sprites/martIcon",
+  "seasonal": true
  }
 ]

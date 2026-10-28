@@ -140,8 +140,8 @@ async function load() {
   const view = new GameView({ world, store, sim, items, itemsGltf, texBase: `${ART}/tex`, anim });
   view.fx = new Fx({ root: scene3, camera, art: ART, fxData, gltf: fxGltf, texBase: `${ART}/tex`, version: V });
   // RC_MartOrders: the pad leads to the next entry; past the last one GoToNextMart falls back to the first.
-  const here = marts.findIndex(m => m.id === STORE);
-  const next = marts[(here + 1) % marts.length];
+  const order = marts.filter(m => !m.seasonal), here = order.findIndex(m => m.id === STORE);
+  const next = here < 0 ? null : order[(here + 1) % order.length];
   const doneOf = id => (id === STORE ? Object.values(sim.state.mats).filter(m => m.done).length
     : Object.values((load_(MART_KEY(id)) || {}).mats || {}).filter(m => m.done).length);
   // The 3D map loads the first time the card opens; the player's van (vanCarObj) is borrowed while it is shown.

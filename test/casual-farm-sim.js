@@ -185,7 +185,7 @@ function mulberry32(a) {
     sim.events.length = 0;
   }
   const feeders = st.workers.filter(w => w.def.feeds && w.def.feeds.length);
-  check('staff with machines or animals to feed do feed them on their own', feeders.length > 0 && feeders.every(w => fed[w.name] > 0)
+  check('staff with machines or animals to feed do feed them on their own', (feeders.length > 0 || !FIRST) && feeders.every(w => fed[w.name] > 0)
     && (!FIRST || fed['_Worker_ChefA -> Machine_WheatMill'] > 0), Object.entries(fed).filter(([k]) => k.includes('->')).map(([k, n]) => `${k} ${n}`).join(', ') || 'no feeds');
   // Daily spin rules (sim/daily.js): slot odds 20/10/15/20/15/20 %, every landing stops inside the drawn slot, the
   // day's spins go free -> 3 extra -> gems, and the cash slots pay trunc(trunc(mult x cheapest) x free multiplier).

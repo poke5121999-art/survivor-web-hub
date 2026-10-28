@@ -124,7 +124,7 @@ export class MartMenu {
       this.tap();
       // The ad button pays trunc(1.5 x income) (MartMenuController.c:2987); the web gives it without the video.
       this.map.collect(r, act === 'collect2' ? 1.5 : 1);
-    } else if (act === 'go' && r.visited && !r.here) {
+    } else if (act === 'go' && r.open && !r.here) {
       this.tap();
       this.map.go(r);
     } else if (act === 'prestige' && r.canPrestige) {
@@ -205,17 +205,19 @@ export class MartMenu {
     this.t = now;
     const rows = this.rows = this.map.rows(), r = rows[this.index];
     const c = this.card;
-    const key = JSON.stringify([this.index, r.star, r.pct, r.income, r.max, r.ready, Math.ceil(r.left), r.here, r.visited]);
+    const key = JSON.stringify([this.index, r.star, r.pct, r.income, r.max, r.ready, Math.ceil(r.left), r.here, r.visited, r.open]);
     if (key === this.key) return;
     this.key = key;
     c.querySelector('.head .icon').src = `${this.art}/ui/${r.icon}.webp`;
-    c.querySelector('.head .icon').classList.toggle('dark', !r.visited);
+    c.querySelector('.head .icon').classList.toggle('dark', !r.open);
     c.querySelector('.title').textContent = r.name;
     c.querySelector('.head .stars').outerHTML = stars(r.star);
     // 0 % on a reached mart that is not this one: "Visit to update" (MartMenuController.c:~3640).
-    c.querySelector('.comp b').textContent = r.visited && r.pct === 0 && !r.here ? 'Visit to update' : `${r.pct}% Completed`;
+    c.querySelector('.comp b').textContent = r.seasonal && !r.visited ? 'Event Mart'
+      : r.visited && r.pct === 0 && !r.here ? 'Visit to update' : `${r.pct}% Completed`;
     c.querySelector('.comp u').style.width = `${r.pct}%`;
-    c.classList.toggle('locked', !r.visited);
+    c.classList.toggle('locked', !r.open);
+    c.classList.toggle('event', r.seasonal);
     c.querySelector('.prest').style.display = r.prestige ? '' : 'none';
     c.querySelector('.prest').classList.toggle('off', !r.canPrestige);
     c.querySelector('.inc .num').textContent = `${r.income}/${r.max}`;
@@ -224,7 +226,7 @@ export class MartMenu {
     c.querySelector('.collect').classList.toggle('off', !ready);
     c.querySelector('.rv').classList.toggle('off', !ready);
     c.querySelector('.collect s').textContent = ready ? '' : clock(r.left);
-    c.querySelector('.go [data-act="go"]').style.display = r.here || !r.visited ? 'none' : '';
+    c.querySelector('.go [data-act="go"]').style.display = r.here || !r.open ? 'none' : '';
     c.querySelector('.go .here').style.display = r.here ? '' : 'none';
     c.querySelector('.up').classList.toggle('off', this.index >= rows.length - 1);
     c.querySelector('.down').classList.toggle('off', this.index <= 0);

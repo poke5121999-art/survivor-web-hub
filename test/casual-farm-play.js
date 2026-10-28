@@ -511,6 +511,19 @@ function serve() {
       ro0.cheapest > 0 && ro1.cash === ro0.cash + Math.trunc(0.5 * ro0.cheapest) && ro1.ro === 1 && ro1.top === '1' && !ro1.locked
       && kept.ro === 1 && kept.once && kept.btn, JSON.stringify({ ro0, ro1, kept }));
 
+    // Seasonal marts (census-events.md): Halloween Mart loads from its own CSV (18 mats), greets with
+    // martCashAmounts[13] = 1000, has no next-mart pad, and the map lists all six as open event marts with no prestige.
+    await page.goto(`${url}?fresh&mart=hal22`);
+    await page.waitForFunction(() => window.__mm && (window.__mm.ready || window.__mm.error), null, { timeout: 90000 });
+    const hal = await page.evaluate(() => {
+      const g = window.__mmGame, rows = g.hud.martMap.rows(), ev = rows.filter(r => r.seasonal);
+      return { err: window.__mm.error, mats: g.store.mats.length, next: !!g.store.nextMart, welcome: document.querySelector('#martwelcome .amt').textContent,
+        events: ev.map(r => r.name), open: ev.every(r => r.open && !r.prestige), here: rows.find(r => r.here).id };
+    });
+    check('Halloween Mart loads its 18 CSV mats, greets with 1,000, has no next-mart pad; the map lists six open event marts',
+      !hal.err && hal.mats === 18 && !hal.next && hal.welcome === '1,000' && hal.events.length === 6 && hal.open && hal.here === 'hal22',
+      JSON.stringify(hal));
+
     // Account save (js/cloud.js over the hub's HubSave): a stand-in HubSave keeps one cloud row per account in
     // localStorage key __cloud_<uid> and signs in as __uid. Account A saves, a second device (local save cleared) gets
     // A's progress back, account B on the same browser starts fresh with A's save parked, and A gets its own back.

@@ -152,6 +152,9 @@ export class Bot {
       this.repath = this.goal.kind === 'thief' ? 0.15 : 0.5;
     }
     while (this.path.length && Math.hypot(this.path[0].x - me.x, this.path[0].z - me.z) < 0.6) this.path.shift();
+    // Inside the goal's trigger: stand still. A mat whose middle lies off the mesh (Valentine Mart's rose plot) would
+    // otherwise keep the stick pushed at the edge, and a mat pays only a player who stops.
+    if (this.path.length && this.goal && this.near(this.goal)) this.path = [];
     if (!this.path.length && this.goal && Math.hypot(this.goal.at.x - me.x, this.goal.at.z - me.z) > 3 && !this.near(this.goal)) {
       this.path = this.nav ? this.nav.path({ x: me.x, y: me.y, z: me.z }, this.goal.at) : [this.goal.at];
     }

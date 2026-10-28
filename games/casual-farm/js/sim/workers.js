@@ -25,11 +25,24 @@ export class Workers {
         const f = k[cls];
         const role = cls === 'PlayerWorkerFarmController' ? 'farmer' : cls === 'PlayerWorkerChefController' ? 'chef' : 'shelver';
         const nodesOf = list => (list || []).map(r => r && r.n).filter(x => x != null);
+        let sources = [...new Set(nodesOf(f.factorySourceList).map(j => prodByNode.get(j)).filter(x => x != null))];
+        let shelves = nodesOf(f.shelfList).map(j => shelfByNode.get(j)).filter(x => x != null);
+        let feeds = nodesOf(f.factoryDropOffList).map(j => prodByNode.get(j)).filter(x => x != null);
+        // CheckOnFactorySourceAndDropOffList (rules/csv-worker-jobs.md): CSV-built marts leave the lists empty and the
+        // worker fills them from responsibleObjectTypeList R over every shelf and factory of the scene. Shelver: the first
+        // shelf of each type in R, sources = factories making a type in R. Chef / farmer: drop-off = machines (factoryType
+        // 1) / animals (2) making a type in R, sources = factories making one of their inputs.
+        const R = f.responsibleObjectTypeList || [];
+        const making = types => s.producers.map((p, j) => j).filter(j => types.includes(s.producers[j].out));
+        if (R.length && role === 'shelver') {
+          if (!shelves.length) shelves = R.map(t => s.shelves.findIndex(x => x.type === t)).filter(j => j >= 0);
+          if (!sources.length) sources = [...new Set(making(R))];
+        } else if (R.length) {
+          if (!feeds.length) feeds = making(R).filter(j => s.producers[j].factoryType === (role === 'chef' ? 1 : 2));
+          if (!sources.length) sources = [...new Set(feeds.flatMap(j => making(s.producers[j].ins || [])))];
+        }
         this.defs.push({
-          name: n.n, node: i, role, speed: f.speed, pick: f.pickupRate, drop: f.dropOffRate,
-          sources: [...new Set(nodesOf(f.factorySourceList).map(j => prodByNode.get(j)).filter(x => x != null))],
-          shelves: nodesOf(f.shelfList).map(j => shelfByNode.get(j)).filter(x => x != null),
-          feeds: nodesOf(f.factoryDropOffList).map(j => prodByNode.get(j)).filter(x => x != null),
+          name: n.n, node: i, role, speed: f.speed, pick: f.pickupRate, drop: f.dropOffRate, sources, shelves, feeds,
           rest: role === 'farmer' ? rest('farmerRestTransform') : role === 'chef' ? rest('chefRestTransform') : rest('shelfRestTransform'),
           start: s.pos(i),
         });

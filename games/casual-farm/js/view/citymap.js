@@ -5,11 +5,10 @@
 // jumps to the next mart and pops back (DOScale x1.2 OutBack) with its smoke.
 import * as THREE from 'three';
 import { buildWorld } from './world.js';
-import { hideOtherVisuals } from './game.js';
+import { hideOtherVisuals, seasonVisuals } from './game.js';
 
 const OFFSET = new THREE.Vector3(-1000, 0, 0);
 const HIDE = ['DebugSphere', 'MatRVSpawnPoint', 'MeshDisablerController', '__Funflare.Game.Scripts.SagaMapFirstTutorial'];
-const SEASONAL = '__Funflare.Scripts.SeasonalEvents.SeasonVisual_GameObject';
 const v3 = new THREE.Vector3();
 
 export class CityMap {
@@ -31,7 +30,7 @@ export class CityMap {
       world.objects.forEach(o => {
         const k = o.userData.node.k || {};
         if (HIDE.some(c => k[c]) || /^AdsBreakDropPoints/.test(o.name)) o.visible = false;
-        if (k[SEASONAL]) (k[SEASONAL].seasonalVisuals || []).forEach(s => (s.visuals || []).forEach(r => { if (r) world.objects[r.n].visible = false; }));
+        seasonVisuals(k, n => world.objects[n]);
         hideOtherVisuals(o, k);
         // SagaMapBigMartVisualOverride: the Asian decorations on Mart02 belong to the Big Mart that can replace the Cafe
         // Mart; without Big Marts the default objects stay.
@@ -53,8 +52,10 @@ export class CityMap {
     return this.loading;
   }
 
+  // The map has buildings for the 14 marts of the order only; a seasonal mart's card leaves the van where it is.
   martPos(i, out = v3) {
-    return this.marts[i].node.getWorldPosition(out);
+    const m = this.marts[i] || this.marts[this.last || 0];
+    return m.node.getWorldPosition(out);
   }
 
   // rows: martRows(); index: the mart the card shows.
@@ -87,6 +88,7 @@ export class CityMap {
   }
 
   place(i) {
+    if (this.marts[i]) this.last = i;
     this.martPos(i, v3);
     this.van.position.copy(this.world.root.worldToLocal(v3.clone()));
     this.target.copy(v3);
@@ -95,6 +97,7 @@ export class CityMap {
   // GoToMart3D: shrink 0.1 s, move, pop to 1.2x OutBack then settle, smoke puff.
   goTo(i) {
     if (!this.ready || i === this.at) return;
+    if (!this.marts[i] || !this.marts[this.at]) { this.at = i; this.place(i); return; }
     this.at = i;
     this.anim = { t: 0, to: i, moved: false };
   }
