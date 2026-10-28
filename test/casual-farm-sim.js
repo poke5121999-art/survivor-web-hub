@@ -210,6 +210,26 @@ function mulberry32(a) {
     seen.join(',') === 'free,ad3,ad2,ad1,gem,gem' && next.free && cashPay === 225 && new Set(w.filter(Boolean)).size === 3,
     `${seen.join(',')}, next day free ${next.free}, slot 1 pays ${cashPay}, boosters ${w.filter(Boolean).join('/')}`);
 
+  // A waiting mat across a reload (MatSpecialConditionActivateController): Store 1's Wheat 7 waits for the oven and Wheat 6.
+  // Buy everything up to Wheat 6 but the oven, save, reload, buy the oven: Wheat 7 must open (it stayed shut before rev x).
+  if (FIRST) {
+    const ws = new Sim(store, { rng: mulberry32(SEED) }), wst = ws.state, run = n => { for (let k = 0; k < n; k++) ws.step(0.1, {}); };
+    const skip = /Wheat(7|8|9|10|11|12)$|Oven_Tabletop|NextMart/;
+    for (let k = 0; k < 200; k++) {
+      const m = store.mats.find(x => wst.mats[x.name].open && !wst.mats[x.name].done && !skip.test(x.name));
+      if (!m) break;
+      ws.completeMat(m);
+      run(40);
+    }
+    const back = new Sim(store, { rng: mulberry32(SEED), save: JSON.parse(JSON.stringify(ws.save())) });
+    const shutBefore = !back.state.mats.Mat_Activate_Plant_Wheat7.open;
+    back.completeMat(store.mats.find(m => m.name === 'Mat_Activate_Oven_Tabletop'));
+    for (let k = 0; k < 40; k++) back.step(0.1, {});
+    check('Wheat 7 still waits for the oven after a reload and opens once the oven is bought',
+      wst.mats.Mat_Activate_Plant_Wheat6.done && shutBefore && back.state.mats.Mat_Activate_Plant_Wheat7.open && back.state.active.has('Mat_Activate_Plant_Wheat7'),
+      JSON.stringify(back.state.mats.Mat_Activate_Plant_Wheat7));
+  }
+
   // Shop (sim/shop.js). Store 1 with 2 distinct items (StoreCashMultiplier 4.5) and 5 features (cash x1.4, gems x1.2).
   const S = await imp('shop.js');
   check('the daily-deal shuffle matches .NET System.Random (seed 2064 -> 4,5,7,2,1,6,9,8,3,0; seed 12345 -> 1,7,2,8,5,4,3,6,9,0)',

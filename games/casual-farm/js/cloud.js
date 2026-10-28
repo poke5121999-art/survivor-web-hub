@@ -57,6 +57,14 @@ export function owner() {
   return h ? h.whoAmI().userId : null;
 }
 
+// Delete Account: every mmm-* record goes, and the account's cloud row is overwritten by an empty save stamped now, so
+// the next pull on any device starts a fresh game (HubSave has no delete call).
+export async function wipe() {
+  for (const k of keys()) if (/^mmm-/.test(k)) { try { localStorage.removeItem(k); } catch (e) { /* storage unavailable */ } }
+  const h = hub();
+  if (h) await withTimeout(h.storeSave(GAME_ID, { v: 1, at: Date.now(), global: null, marts: {} }, { version: 0 }).catch(() => null), 5000);
+}
+
 let last = 0, inFlight = null;
 // After a local save: at most one upload per PUSH_EVERY ms unless forced (page hidden, mart change).
 export function push(force = false) {

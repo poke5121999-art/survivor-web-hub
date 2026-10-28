@@ -609,6 +609,14 @@ export class Sim {
       if (ms.done) st.active.delete(m.name);
       else if (st.active.has(m.name) || m.startsOpen) { ms.open = true; ms.openAt = 0; st.active.add(m.name); }
     });
+    // A mat with a matToBeCheckedList (MatSpecialConditionActivateController, e.g. Store 1's Wheat 7 waits for the oven
+    // and Wheat 6) that a bought mat has already activated is waiting; the save does not hold that flag, so rebuild it
+    // (without it the mat never opened after a reload, and the wheat plots behind it stayed locked for good).
+    const activatedBy = new Set(s.mats.filter(m => st.mats[m.name].done).flatMap(m => m.activate.map(a => a.name)));
+    s.mats.forEach(m => {
+      const ms = st.mats[m.name];
+      if (!ms.done && !ms.open && m.waitFor.length && activatedBy.has(m.name)) { ms.waiting = true; this.openMat(m, 0); }
+    });
     // Saves made before the early staff mats (store.js EARLY) catch up once their trigger is bought.
     s.mats.forEach(m => { if (m.early && st.mats[m.name].done) m.early.forEach(n => this.activate(n, 0)); });
     (d.producers || []).forEach((p, i) => {

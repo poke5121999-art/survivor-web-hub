@@ -11,7 +11,7 @@ const v3 = new THREE.Vector3();
 const KEYS = { ArrowUp: [0, -1], KeyW: [0, -1], ArrowDown: [0, 1], KeyS: [0, 1], ArrowLeft: [-1, 0], KeyA: [-1, 0], ArrowRight: [1, 0], KeyD: [1, 0] };
 
 export class Hud {
-  constructor({ sim, store, camera, canvas, items, art, world, tasks, matArrows, nextMart, workerDefs, sound, martMap, upgradeRows, onMapView, cosmetics, daily, shop }) {
+  constructor({ sim, store, camera, canvas, items, art, world, tasks, matArrows, nextMart, workerDefs, sound, martMap, upgradeRows, onMapView, cosmetics, daily, shop, onDeleteAccount }) {
     this.daily = daily || null;
     this.shop = shop || null;
     this.upgradeRows = upgradeRows || null;
@@ -56,11 +56,15 @@ export class Hud {
       <div class="upmenu settings" id="setmenu"><div class="head"><b>SETTINGS</b><a class="btn x">✕</a></div>
         <div class="rows"><div class="row"><span><b>Sound</b></span><a class="btn buy tog" data-tog="sound"></a></div>
         <div class="row"><span><b>Music</b></span><a class="btn buy tog" data-tog="music"></a></div>
+        <div class="row delrow"><span><b>Delete Account</b><i>Erase all progress</i></span><a class="btn buy danger" data-del="1">DELETE</a></div>
         <div class="row"><span><b>Vibration</b></span><a class="btn buy tog" data-tog="vibrate"></a></div></div></div>
       <div class="upmenu upgrades" id="upmenu"><div class="head"><img src="${ui('upgradeIcon')}" alt=""><b>UPGRADES</b><a class="btn x">✕</a></div>
         <div class="tabs"><a class="btn tab workers" data-tab="workers">Workers<i class="dot"></i></a><a class="btn tab machines" data-tab="machines">Machines<i class="dot"></i></a><a class="btn tab animals" data-tab="animals">Animals<i class="dot"></i></a></div>
         <div class="rows"></div></div>
-      <div class="rcol"><a class="btn lb shopbtn" id="shopbtn" style="--sbg:url('${art}/ui/menus/shopButtonLarge.webp')"><img src="${art}/ui/menus/marketplaceIcon.webp" alt=""><i class="dot"></i></a><div class="boosts" id="boosts"></div></div>`;
+      <div class="rcol"><a class="btn lb shopbtn" id="shopbtn" style="--sbg:url('${art}/ui/menus/shopButtonLarge.webp')"><img src="${art}/ui/menus/marketplaceIcon.webp" alt=""><i class="dot"></i></a><div class="boosts" id="boosts"></div></div>
+      <div class="mshade dconfirm" id="delconfirm"><div class="panel"><b class="title ol">Delete Account</b>
+        <p class="ol">All your marts, cash, gems, gold and outfits will be erased, here and in your hub account. This cannot be undone.</p>
+        <div class="foot"><a class="tb ol" data-act="cancel" style="--c:#8ce971">Cancel</a><a class="tb ol" data-act="delete" style="--c:#ff585d">Delete</a></div></div></div>`;
     // SettingMenuController: sound, music and vibration (VibratePref, on by default) switches.
     try { this.vibrate = localStorage.getItem('mmm-vibrate') !== '0'; } catch (e) { this.vibrate = true; }
     this.setEl = this.root.querySelector('#setmenu');
@@ -86,6 +90,17 @@ export class Hud {
       this.setEl.classList.toggle('open');
     });
     this.setEl.querySelector('.x').addEventListener('click', () => this.setEl.classList.remove('open'));
+    // Delete Account (store requirement for games with accounts): a confirm popup, then the caller erases every save.
+    this.delEl = this.root.querySelector('#delconfirm');
+    if (onDeleteAccount) {
+      this.setEl.querySelector('[data-del]').addEventListener('click', () => { this.setEl.classList.remove('open'); this.delEl.classList.add('open'); });
+      this.delEl.addEventListener('click', e => {
+        const b = e.target.closest('[data-act]');
+        if (!b) return;
+        if (b.dataset.act === 'cancel') this.delEl.classList.remove('open');
+        else if (!this.deleting) { this.deleting = true; b.classList.add('off'); onDeleteAccount(); }
+      });
+    } else this.setEl.querySelector('.delrow').style.display = 'none';
     // SoundManager.PlayTapSfx on every button, PlayCancelSfx on close buttons.
     this.root.addEventListener('click', e => {
       const b = e.target.closest('.btn');
@@ -620,7 +635,17 @@ export class Hud {
     // unlocked since it was last looked at. The map button shows once a second mart has been reached.
     const seen = st.seen, unseen = !seen.workers || !seen.machines || (this.animalsTab() && !seen.animals);
     this.upBtn.classList.toggle('alert', unseen);
-    if (this.martMap) this.root.querySelector('#mapbtn').style.display = this.martMap.global.visited.length > 1 ? '' : 'none';
+    // [ĐỀ XUẤT] Customise, Rolling offer and Map come in when Store 1's tutorial ends (or a second mart is reached), then
+    // stay (global.featuresOn). The decompile shows no gate for them, but the gameplay clip of a new Store 1 has only
+    // Settings and Upgrade beside the cash; shop and spin keep their own unlocks (cashier mat, blender).
+    if (this.martMap) {
+      const g = this.martMap.global, t = this.tasks;
+      if (!g.featuresOn && (g.visited.length > 1 || !t || !t.list.length || st.task.index >= t.list.length)) g.featuresOn = true;
+      const on = !!g.featuresOn;
+      this.root.querySelector('#mapbtn').style.display = on ? '' : 'none';
+      if (this.customise) this.root.querySelector('#custombtn').style.display = on ? '' : 'none';
+      if (this.shop) this.root.querySelector('#robtn').style.display = on ? '' : 'none';
+    }
     this.updateFloats();
     if (this.upEl.classList.contains('open')) this.updateMenu();
     if (this.martMenu) this.updatePrestige();

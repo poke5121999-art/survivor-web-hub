@@ -74,7 +74,8 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #1f2a1b; tou
 .lb.alert .dot { display: block; }
 .upbtn.hint { animation: hintPulse 0.5s ease-in-out infinite alternate; filter: drop-shadow(0 0 6px #ffe14d); }
 @keyframes hintPulse { from { transform: scale(1); } to { transform: scale(1.15); } }
-.upmenu { display: none; position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 12vh); transform: translateX(-50%);
+/* z-index: menus sit above the right column (shop button + booster timers), which otherwise covered their close button. */
+.upmenu { display: none; position: absolute; z-index: 5; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 12vh); transform: translateX(-50%);
   width: min(calc(92 * var(--sw) / 100), 460px); max-height: 62vh; flex-direction: column; background: #fff; color: #4b3b2a; border-radius: 0.8em;
   box-shadow: 0 5px 0 rgba(0, 0, 0, 0.25); pointer-events: auto; font-size: clamp(15px, 2.3vh, 22px); animation: fadein 0.25s ease-out; }
 .upmenu.open { display: flex; }
@@ -555,3 +556,10 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #1f2a1b; tou
 .droll .card.soon { background: #656565; min-height: calc(200 * var(--u)); justify-content: center; }
 .droll .card.soon b { font-size: calc(36 * var(--u)); color: #fff; }
 .lb.robtn { --tint: #fff; }
+.upmenu .buy.danger { background: #ff585d; }
+.dconfirm .panel { top: 30%; padding: calc(40 * var(--u)) calc(30 * var(--u)); display: flex; flex-direction: column; align-items: center;
+  gap: calc(24 * var(--u)); background: #ffb0b0; }
+.dconfirm .title { position: static; color: #fff; }
+.dconfirm p { text-align: center; color: #fff; font-size: calc(32 * var(--u)); }
+.dconfirm .foot { display: flex; gap: calc(24 * var(--u)); }
+.dconfirm .tb { width: calc(240 * var(--u)); height: calc(90 * var(--u)); font-size: calc(36 * var(--u)); }

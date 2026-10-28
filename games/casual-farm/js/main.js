@@ -27,7 +27,7 @@ import { cosmeticsState, saveCosmetics, cosmeticEffects } from './view/customise
 import { Daily } from './view/daily.js';
 import { Shop } from './view/shop.js';
 import { featureCount } from './sim/shop.js';
-import { pull, push, owner } from './cloud.js';
+import { pull, push, owner, wipe } from './cloud.js';
 
 const params = new URLSearchParams(location.search);
 const V = new URL(import.meta.url).searchParams.get('v') || '';
@@ -229,7 +229,9 @@ async function load() {
     const items = new Set(store.shelves.filter(sh => sim.isActive(sh.name)).map(sh => sh.type)).size;
     global.maxItems = Math.max(global.maxItems || 0, items);
   });
-  const hud = new Hud({ daily, shop, sim, store, camera, canvas, items, art: ART, world, tasks, matArrows: matArrows(store), nextMart: next, workerDefs: workers.defs,
+  // Settings > Delete Account: no more saves from this page, erase, then start over.
+  const onDeleteAccount = async () => { game = null; await wipe(); location.replace(location.pathname); };
+  const hud = new Hud({ onDeleteAccount, daily, shop, sim, store, camera, canvas, items, art: ART, world, tasks, matArrows: matArrows(store), nextMart: next, workerDefs: workers.defs,
     sound: new Sound(`${ART}/sfx`, sim, store, V), martMap, upgradeRows: upgradeIcons && upgradeIcons.stores[STORE], cosmetics,
     onMapView: i => { if (i == null) { cityMap.hide(); sim.state.mapMode = false; } else { sim.state.mapMode = true; if (cityMap.open) cityMap.goTo(i); else cityMap.show(martMap.rows(), i); } } });
   await Promise.all(sceneJson.textures.map(t => texture(`${ART}/tex`, t.name).full));

@@ -495,8 +495,18 @@ function serve() {
     check('the shop opens after the cashier mat: the one-time bundle pays 300 and leaves, the free bundle pays 60 then waits 5 min with a gem skip, a daily deal greys out',
       shopHidden && cash1.cash === cash0 + 300 && cash1.gone && cash2.cash === cash1.cash + 60 && /0[45]:\d\d/.test(cash2.wait) && cash2.skip && deal,
       JSON.stringify({ shopHidden, cash0, cash1, cash2, deal }));
+    // Customise / Rolling offer / Map wait for the end of Store 1's tutorial, then stay.
+    const gate = await page.evaluate(async () => {
+      const g = window.__mmGame, vis = id => getComputedStyle(document.querySelector(id)).display !== 'none';
+      const before = ['#custombtn', '#robtn', '#mapbtn'].map(vis);
+      g.sim.state.task.index = g.hud.tasks.list.length;
+      await new Promise(r => setTimeout(r, 300));
+      return { before, after: ['#custombtn', '#robtn', '#mapbtn'].map(vis), latched: !!g.hud.martMap.global.featuresOn };
+    });
+    check('Customise, Rolling offer and Map stay hidden in a new Store 1 until its tutorial ends',
+      gate.before.every(v => !v) && gate.after.every(Boolean) && gate.latched, JSON.stringify(gate));
     await page.click('#robtn', { timeout: 5000 }).catch(() => {});
-    const ro0 = await page.evaluate(() => ({ cash: window.__mmGame.sim.state.cash, cheapest: window.__mmGame.shop.wallet.cheapest() }));
+    const ro0 =await page.evaluate(() => ({ cash: window.__mmGame.sim.state.cash, cheapest: window.__mmGame.shop.wallet.cheapest() }));
     await page.click('[data-claim="0"]', { timeout: 5000 }).catch(() => {});
     await page.waitForTimeout(2000);
     const ro1 = await page.evaluate(() => {
@@ -581,6 +591,23 @@ function serve() {
       && a1.cloud === 'cloud' && a1.cash === 1234 && a1.cashier
       && b1.cloud === 'fresh' && b1.cash !== 1234 && !b1.cashier && b1.backups.includes('mmm-bak-A')
       && a2.cloud === 'cloud' && a2.cash === 1234 && a2.cashier, JSON.stringify({ a0: a0.cloud, row, a1, b1, a2 }));
+    // The upgrade menu's close button is on top (the right column of shop button and booster timers once covered it),
+    // and Settings > Delete Account erases this browser's save and the account's cloud row: the reload starts fresh.
+    const topX = await cp.evaluate(() => {
+      window.__mmGame.sim.boosters.grant('worker', 600);
+      document.querySelector('#upbtn').click();
+      const x = document.querySelector('#upmenu .x'), r = x.getBoundingClientRect();
+      return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) === x;
+    });
+    await cp.click('#upmenu .x').catch(() => {});
+    await cp.click('#setbtn').catch(() => {});
+    await cp.click('#setmenu [data-del]').catch(() => {});
+    await cp.click('#delconfirm [data-act="delete"]').catch(() => {});
+    await cp.waitForFunction(() => window.__mm && window.__mm.ready && window.__mmGame && !window.__mmGame.sim.state.mats.Mat_Activate_Cashier.done, null, { timeout: 90000 }).catch(() => {});
+    const wiped = await cp.evaluate(() => ({ cloud: window.__mm.cloud, cash: window.__mmGame.sim.state.cash, cashier: !!window.__mmGame.sim.state.mats.Mat_Activate_Cashier.done,
+      row: (JSON.parse(localStorage.getItem('__cloud_A') || 'null') || {}).global === null, backups: Object.keys(localStorage).filter(k => /^mmm-bak-/.test(k)).length }));
+    check('the upgrade menu close button is on top, and Delete Account wipes the save here and in the account',
+      topX && wiped.cloud === 'cloud' && !wiped.cashier && wiped.cash !== 1234 && wiped.backups === 0, JSON.stringify({ topX, wiped }));
     await ctx2.close();
 
     // Stores 9-14 build their mats from the progression CSV: the first one is open and drawn.
