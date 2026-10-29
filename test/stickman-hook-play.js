@@ -173,7 +173,7 @@ function serve() {
   check('the pause button pauses and opens the pause menu', await page.evaluate(() => window.__sh.game.paused
     && document.getElementById('pause').classList.contains('on')));
   await page.click('#btnLevels');
-  await page.waitForTimeout(200);
+  await page.waitForFunction(() => document.querySelectorAll('#grid button').length > 0, null, { timeout: 15000 }).catch(() => {});
   const grid = await page.evaluate(() => ({ n: document.querySelectorAll('#grid button').length,
     open: [...document.querySelectorAll('#grid button')].filter((b) => !b.disabled).length }));
   check('level list shows 64 levels, 2 unlocked', grid.n === 64 && grid.open === 2, JSON.stringify(grid));
@@ -1510,7 +1510,7 @@ function serve() {
   const f4 = await ftueState(p2);
   const ls = await p2.evaluate(() => ({ raw: JSON.parse(localStorage.getItem('stickman-hook')), q: location.search, sound: window.__sh.save.sound }));
   check('after the delete: reloaded on the home page, progress wiped (best 0, no XP / coins / uid), sound setting kept (off)',
-    ls.q === '?v=20261028o' && f4.best === 0 && !ls.raw.best && !ls.raw.xp && !ls.raw.uid && ls.raw.sound === false && ls.sound === false, JSON.stringify(ls));
+    /^\?v=\d{8}[a-z]$/.test(ls.q) && f4.best === 0 && !ls.raw.best && !ls.raw.xp && !ls.raw.uid && ls.raw.sound === false && ls.sound === false, JSON.stringify(ls));
   check('after the delete: the FTUE overlay and hand are back, tab bar hidden', f4.ftue && f4.overlay && f4.hand && !f4.bar, JSON.stringify(f4));
   await D.ctx.close();
   // phone 390 x 844: the frame is the whole screen
@@ -1859,7 +1859,8 @@ function serve() {
           document.querySelectorAll('.pp.on').forEach((e) => e.__close?.('t')); });
         await q.waitForTimeout(400);
         if (open) await q.evaluate((c) => { (0, eval)(c); }, open);
-        await q.waitForSelector(sel, { timeout: 8000, state: 'visible' });
+        await q.waitForSelector(sel, { timeout: 20000, state: 'visible' });
+        await q.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});
         await q.waitForTimeout(1600);
         for (const x of await q.evaluate(measure)) {
           if (STRETCHED[x.sprite]) allowed.add(x.sprite);

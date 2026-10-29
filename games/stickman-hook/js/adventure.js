@@ -281,7 +281,7 @@ function page(app, { board, claimed }) {
   box.innerHTML = `<div class="ac"><header><h2>Phiêu lưu</h2><span class="tok" title="Xu phiêu lưu">◆ <b>${fmtTok(tokens)}</b></span>
       <button class="x">✕</button></header>
     <div class="body">
-      ${claimed ? `<div class="msg">Tuần trước đã đóng: bạn hạng ${claimed.rank + 1}.
+      ${claimed?.got ? `<div class="msg">Tuần trước đã đóng: bạn hạng ${claimed.rank + 1}.
         ${groupLabels(claimed.got) || 'Không có thưởng.'}</div>` : ''}
       <button class="go">Chơi<small>Kỷ lục tuần ${best} m · tường lửa đuổi sau lưng</small></button>
       <div class="note">Tuần này còn ${dd} ngày ${hh} giờ · mỗi mét = 1 xu phiêu lưu</div>
