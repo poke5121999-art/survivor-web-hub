@@ -143,7 +143,6 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
         <input type="range" id="bg-tol" min="0" max="120" value="30" style="width:110px">
         <select id="bg-mode" aria-label="Xoá những chỗ nào"><option value="holes" selected>nền viền ô + chỗ bị bao kín</option><option value="edge">chỉ nền nối từ viền ô</option><option value="all">mọi chỗ cùng màu</option></select>
         <label class="hint" id="bg-hole-box" title="Chỗ màu nền nằm kín giữa hình (khe giữa hai chân, giữa tay và thân) bị xoá. Chỗ nhỏ hơn số này được giữ, ví dụ đốm sáng trong mắt.">giữ chỗ kín dưới <input type="number" id="bg-hole" min="0" max="9999" value="6" style="width:56px"> px</label>
-        <button type="button" id="bg-pocket" aria-pressed="false" title="Bấm vào một chỗ kín màu nền trên sheet (lòng trắng mắt, khe giữa tay và thân) để đổi giữa giữ và xoá">Bấm giữ/xoá chỗ kín</button>
         <label class="check" title="Mép hình bị khử răng cưa trên nền cũ còn lẫn màu nền. Tách phần màu nền ra để mép không ám viền."><input type="checkbox" id="bg-defringe" checked> Gỡ viền ám màu nền</label>
       </div>
       <p class="status" id="bg-status" role="status" hidden></p>
@@ -241,7 +240,7 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
         Kéo ô vuông cam trên viền để đổi cỡ khung cắt: khung nở đều hai phía nên tâm từng frame đứng yên.
         Ở chế độ <b>Chấm điểm</b>, bấm lên khung để đặt một điểm mốc chung cho mọi frame (ví dụ chỗ chân chạm đất), kéo để dời, kéo ra ngoài khung hoặc bấm chuột phải để xoá. 
         Khi đang đứng ở khu này, <kbd>←↑→↓</kbd> dời hình 1px theo đúng hướng mũi tên.
-        <b>Tẩy</b> tô lên chỗ cần xoá của frame đang chọn. <b>Tẩy vùng</b> bấm một lần để xoá cả mảng cùng màu liền nhau trong khung, độ giống màu theo thanh Độ lệch màu. <b>Trả lại</b> tô để lấy lại chỗ đã tẩy hoặc đã tô màu; giữ <kbd>Alt</kbd> khi tẩy cũng là trả lại. <b>Tô màu</b> vẽ đè màu ở ô màu lên pixel của hình, theo cỡ và dáng cọ; ô màu cũng là màu của điểm mốc.
+        <b>Tẩy</b> tô lên chỗ cần xoá của frame đang chọn. <b>Tẩy vùng</b> bấm một lần để xoá cả mảng cùng màu liền nhau trong khung, độ giống màu theo thanh Độ lệch màu. <b>Trả lại</b> tô để lấy lại chỗ đã tẩy, đã tô màu, hoặc chỗ Xoá nền xoá nhầm giữa hình (lòng trắng mắt); giữ <kbd>Alt</kbd> khi tẩy cũng là trả lại. <b>Tô màu</b> vẽ đè màu ở ô màu lên pixel của hình, theo cỡ và dáng cọ; ô màu cũng là màu của điểm mốc.
         Cọ <b>Vuông</b> tẩy gọn theo ô pixel, hợp để xén mép thẳng của pixel art.
         <kbd>Ctrl Z</kbd> hoàn tác, <kbd>[</kbd> <kbd>]</kbd> đổi cỡ cọ, <kbd>Ctrl</kbd> + lăn chuột để phóng, giữ nút lăn chuột rồi kéo để dời chỗ xem.</p>
       </div>
@@ -286,7 +285,7 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
 
 </div>
 
-<script src="vendor/jszip.min.js?v=20261029d"></script>
+<script src="vendor/jszip.min.js?v=20261029e"></script>
 <script>
 const $ = id => document.getElementById(id);
 
@@ -675,7 +674,6 @@ function toImg(e) {
 sheet.addEventListener("pointerdown", e => {
   if (!S.img || e.button !== 0) return;
   if (bgPicking) { pickBackground(e); return; }
-  if (pocketPicking) { togglePocket(e); return; }
   const p = toImg(e), all = cells(), h = handleCell();
   sheet.setPointerCapture(e.pointerId);
   if (h && Math.abs(p.x - (h.x + h.w)) * p.z < 9 && Math.abs(p.y - (h.y + h.h)) * p.z < 9) {
@@ -711,7 +709,7 @@ function selectCell(c, pause = true) {
 }
 sheet.addEventListener("pointermove", e => {
   if (!drag) {
-    if (bgPicking || pocketPicking) { sheet.style.cursor = bgPicking ? "copy" : "crosshair"; return; }
+    if (bgPicking) { sheet.style.cursor = "copy"; return; }
     const p = toImg(e), h = handleCell();
     sheet.style.cursor = h && Math.abs(p.x - (h.x + h.w)) * p.z < 9 && Math.abs(p.y - (h.y + h.h)) * p.z < 9 ? "nwse-resize"
       : dotAt(p, cells(), 12) ? "grab" : S.drag === "grid" ? "move" : "pointer";
@@ -987,12 +985,13 @@ stack.addEventListener("pointerleave", () => { stackHover = null; stackDirty = t
 $("pen-color").addEventListener("input", () => { if (S.stackTool !== "mark") setStackTool("paint"); });
 /* ---------- xoá nền ---------- */
 // S.src là ảnh gốc; S.img là ảnh đang dùng để vẽ và cắt (ảnh gốc, hoặc bản đã xoá nền).
-let bgPicking = false, pocketPicking = false;
-S.pocketFlips = new Set(); S.pocketOf = null;
+let bgPicking = false;
+// Ảnh đã xoá nền nhưng còn nguyên những chỗ kín máy đã xoá, để nét Trả lại lấy lại được lòng trắng mắt bị xoá nhầm.
+let restoreFrom = null;
 function bgNote(gone, kept) {
   const el = $("bg-status");
   el.hidden = gone === undefined || !(gone + kept);
-  if (!el.hidden) el.textContent = `Chỗ kín màu nền: xoá ${gone}, giữ ${kept}. Máy đoán sai (mất mắt, còn chấm trắng) thì bấm "Bấm giữ/xoá chỗ kín" rồi bấm vào chỗ đó trên sheet.`;
+  if (!el.hidden) el.textContent = `Chỗ màu nền nằm giữa hình: xoá ${gone}, giữ ${kept}. Mất lòng trắng mắt thì sang Xếp chồng khung, chọn Trả lại rồi tô lên chỗ mất. Còn chấm trắng thì chọn Tẩy vùng rồi bấm vào chấm.`;
 }
 const hex2 = v => v.toString(16).padStart(2, "0");
 
@@ -1009,14 +1008,14 @@ function cornerColor() {
 }
 
 function keyOut() {
-  const { c, x, d } = srcPixels(), p = d.data, W = c.width, H = c.height;
+  const { c, x, d } = srcPixels(), p = d.data, W = c.width, H = c.height, lost = [];
   const hex = $("bg-color").value, r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
   const tol = +$("bg-tol").value * 3;
   const dist = i => p[i + 3] < 16 ? 0 : Math.abs(p[i] - r) + Math.abs(p[i + 1] - g) + Math.abs(p[i + 2] - b);
   const isBg = i => dist(i) <= tol;
   if ($("bg-mode").value === "all") {
     for (let i = 0; i < p.length; i += 4) if (isBg(i)) p[i + 3] = 0;
-    S.pocketOf = null; bgNote();
+    bgNote();
   } else {
     const seen = new Uint8Array(W * H), stack = new Int32Array(W * H);
     let top = 0;
@@ -1042,7 +1041,7 @@ function keyOut() {
     };
     fill();
     // Chỗ kín = mảng màu nền không thông ra viền ô. Lòng trắng mắt và khe giữa tay với thân đều là chỗ kín cùng màu nền,
-    // không quy tắc màu nào tách được, nên máy đoán trước rồi người dùng bấm vào chỗ kín để đổi (S.pocketFlips).
+    // không quy tắc màu nào tách được, nên máy đoán trước rồi người dùng tô Trả lại để lấy lại chỗ đoán nhầm.
     const holes = $("bg-mode").value === "holes", keep = +$("bg-hole").value, pocketOf = new Int32Array(W * H), parts = [];
     for (let s = 0; s < W * H; s++) {
       if (seen[s] || pocketOf[s] || p[s * 4 + 3] === 0 || !isBg(s * 4)) continue;
@@ -1072,8 +1071,6 @@ function keyOut() {
       }
       return walled * 2 >= part.length;
     };
-    const flipped = new Set();
-    for (const n of S.pocketFlips) if (pocketOf[n]) flipped.add(pocketOf[n]);
     let gone = 0, kept = 0;
     parts.forEach((part, k) => {
       // JPEG làm nhoè mép nên chỉ xét lõi (pixel có đủ bốn bên trong mảng): khe nền thật có lõi trùng màu nền,
@@ -1081,14 +1078,19 @@ function keyOut() {
       const core = part.filter(n => { const px = n % W; return px > 0 && px < W - 1 && pocketOf[n - 1] && pocketOf[n + 1] && pocketOf[n - W] && pocketOf[n + W]; });
       const ds = core.map(n => dist(n * 4)).sort((a, b) => a - b);
       const guess = holes && part.length >= keep && (ds.length ? ds[ds.length >> 1] <= tol / 3 : slit(part, k + 1));
-      if (part.length >= keep) guess !== flipped.has(k + 1) ? gone++ : kept++;
-      if (guess !== flipped.has(k + 1)) for (const n of part) p[n * 4 + 3] = 0;
+      if (part.length >= keep) guess ? gone++ : kept++;
+      if (guess) for (const n of part) { lost.push(n, p[n * 4 + 3]); p[n * 4 + 3] = 0; }
     });
-    S.pocketOf = pocketOf;
     bgNote(gone, kept);
   }
   if ($("bg-defringe").checked) defringe(p, W, H, [r, g, b]);
   x.putImageData(d, 0, 0);
+  restoreFrom = null;
+  if (lost.length) {
+    for (let k = 0; k < lost.length; k += 2) p[lost[k] * 4 + 3] = lost[k + 1];
+    restoreFrom = document.createElement("canvas"); restoreFrom.width = W; restoreFrom.height = H;
+    restoreFrom.getContext("2d").putImageData(d, 0, 0);
+  }
   return c;
 }
 
@@ -1132,7 +1134,7 @@ function defringe(p, W, H, bg) {
 
 function applyBackground() {
   S.base = $("bg-on").checked ? keyOut() : S.src;
-  if (!$("bg-on").checked) { S.pocketOf = null; bgNote(); }
+  if (!$("bg-on").checked) { restoreFrom = null; bgNote(); }
   composeImg();
   changed();
 }
@@ -1158,23 +1160,8 @@ $("bg-hole").addEventListener("input", () => { if ($("bg-on").checked) queueBack
 $("bg-defringe").onchange = () => { if ($("bg-on").checked) applyBackground(); };
 $("bg-pick").onclick = () => {
   bgPicking = !bgPicking; $("bg-pick").setAttribute("aria-pressed", bgPicking);
-  if (bgPicking) { setPocketPicking(false); showTab("sheet"); }
+  if (bgPicking) showTab("sheet");
 };
-function setPocketPicking(on) {
-  pocketPicking = on; $("bg-pocket").setAttribute("aria-pressed", on);
-  if (on) { bgPicking = false; $("bg-pick").setAttribute("aria-pressed", false); showTab("sheet"); }
-}
-$("bg-pocket").onclick = () => setPocketPicking(!pocketPicking);
-function togglePocket(e) {
-  const r = sheet.getBoundingClientRect();
-  const px = Math.floor((e.clientX - r.left) / r.width * S.src.width), py = Math.floor((e.clientY - r.top) / r.height * S.src.height);
-  const id = $("bg-on").checked && S.pocketOf ? S.pocketOf[py * S.src.width + px] : 0;
-  if (!id) { $("bg-status").hidden = false; $("bg-status").textContent = "Chỗ vừa bấm không phải chỗ kín màu nền. Bấm vào giữa lòng trắng mắt hoặc chấm trắng còn sót."; return; }
-  let undid = false;
-  for (const n of S.pocketFlips) if (S.pocketOf[n] === id) { S.pocketFlips.delete(n); undid = true; }
-  if (!undid) S.pocketFlips.add(py * S.src.width + px);
-  applyBackground();
-}
 
 $("skip-clear").onclick = () => { S.skip.clear(); changed(); };
 $("marks-clear").onclick = () => { S.marks = []; changed(); };
@@ -1197,7 +1184,8 @@ $("stack-alpha").addEventListener("input", e => { S.stackAlpha = +e.target.value
 // Nét cọ: { restore, color?, size, shape: "round" | "square", pts: [x0, y0, x1, y1, …] }. Tẩy vùng: { pix: Int32Array chỉ số pixel }.
 // Có color là nét tô. Màu tô nằm ở lớp riêng phủ lên trên, nét tẩy hay trả lại đi sau thì xoá luôn màu đã tô ở chỗ đó.
 S.strokes = []; S.edSize = 4; S.edShape = "round";
-let eraseMask = null, paintLayer = null, composed = null, liveStroke = null;
+// used: lớp tô và lớp trả lại đã có nét chưa. Chưa có thì nét tẩy khỏi xoá hai lớp đó, đỡ tốn trên ảnh lớn.
+let eraseMask = null, paintLayer = null, restoreMask = null, restored = null, used = { paint: false, back: false }, composed = null, liveStroke = null;
 
 function maskCtx() {
   if (!eraseMask || eraseMask.width !== S.src.width || eraseMask.height !== S.src.height) {
@@ -1211,15 +1199,22 @@ function paintCtx() {
   }
   return paintLayer.getContext("2d");
 }
+function restoreCtx() {
+  if (!restoreMask || restoreMask.width !== S.src.width || restoreMask.height !== S.src.height) {
+    restoreMask = document.createElement("canvas"); restoreMask.width = S.src.width; restoreMask.height = S.src.height;
+  }
+  return restoreMask.getContext("2d");
+}
 function clearEdits() {
-  for (const x of [maskCtx(), paintCtx()]) x.clearRect(0, 0, S.src.width, S.src.height);
+  for (const x of [maskCtx(), paintCtx(), restoreCtx()]) x.clearRect(0, 0, S.src.width, S.src.height);
+  used = { paint: false, back: false };
 }
 function stampRect(s, x, y, w, h) {
-  const p = paintCtx();
-  if (s.color) { p.fillStyle = s.color; p.fillRect(x, y, w, h); return; }
+  if (s.color) { const p = paintCtx(); p.fillStyle = s.color; p.fillRect(x, y, w, h); used.paint = true; return; }
   const m = maskCtx(); m.fillStyle = "#000";
-  if (s.restore) m.clearRect(x, y, w, h); else m.fillRect(x, y, w, h);
-  p.clearRect(x, y, w, h);
+  if (s.restore) { m.clearRect(x, y, w, h); const back = restoreCtx(); back.fillStyle = "#000"; back.fillRect(x, y, w, h); used.back = true; }
+  else { m.fillRect(x, y, w, h); if (used.back) restoreCtx().clearRect(x, y, w, h); }
+  if (used.paint) paintCtx().clearRect(x, y, w, h);
 }
 // Đóng dấu từng hàng pixel nguyên, không khử răng cưa, để mép tẩy trên pixel art không ra pixel nửa trong.
 function stamp(x, y, s) {
@@ -1256,6 +1251,15 @@ function composeImg() {
   x.clearRect(0, 0, composed.width, composed.height);
   x.drawImage(base, 0, 0);
   x.globalCompositeOperation = "destination-out"; x.drawImage(maskCtx().canvas, 0, 0);
+  if (restoreFrom && S.strokes.some(s => s.restore)) {
+    restored = restored || document.createElement("canvas");
+    if (restored.width !== base.width || restored.height !== base.height) { restored.width = base.width; restored.height = base.height; }
+    const r = restored.getContext("2d");
+    r.clearRect(0, 0, restored.width, restored.height); r.drawImage(restoreCtx().canvas, 0, 0);
+    r.globalCompositeOperation = "source-in"; r.drawImage(restoreFrom, 0, 0); r.globalCompositeOperation = "source-over";
+    x.globalCompositeOperation = "destination-out"; x.drawImage(restoreMask, 0, 0);
+    x.globalCompositeOperation = "source-over"; x.drawImage(restored, 0, 0);
+  }
   x.globalCompositeOperation = "source-over"; x.drawImage(paintCtx().canvas, 0, 0);
   S.img = composed; opaqueCache.delete(composed);
 }
@@ -1380,7 +1384,7 @@ function loadFile(file, pasted) {
     S.name = pasted ? "dan_anh" : file.name.replace(/\.[^.]+$/, "") || "sprite";
     $("bg-color").value = cornerColor();
     S.off = {}; S.skip = new Set(); S.sel = null; S.start = 0; S.cur = 0; S.playing = true;
-    S.strokes = []; eraseMask = paintLayer = null; S.pocketFlips.clear();
+    S.strokes = []; eraseMask = paintLayer = restoreMask = null; used = { paint: false, back: false };
     guessGrid(); S.count = cellCount();
     // Ô Xoá nền còn bật từ sheet trước: ảnh đã trong suốt thì góc ra màu đen và viền tối của hình bị loang mất.
     const keyedOff = $("bg-on").checked && !sheetIsOpaque();
