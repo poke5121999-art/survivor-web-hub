@@ -1572,10 +1572,11 @@ function serve() {
     const el = await q.waitForSelector('.pp.on', { timeout: 3000 }).catch(() => null);
     if (!el) {
       if (await q.evaluate(() => !!document.querySelector('#road.on'))) continue;
-      // a popup can open between the wait and the click: then it is handled on the next turn
+      // a popup can open between the wait and either click (its art loads lazily, slower on Pages): handled next turn
+      if (await q.evaluate(() => !!document.querySelector('#modes.on'))) { await q.click('#modes .x', { timeout: 3000 }).catch(() => {}); continue; }
       if (!(await q.click('#btnModes', { timeout: 3000 }).then(() => true, () => false))) continue;
-      await q.waitForSelector('#modes.on', { timeout: 10000 });
-      await q.click('#modes .x');
+      await q.waitForSelector('#modes.on', { timeout: 10000 }).catch(() => {});
+      await q.click('#modes .x', { timeout: 3000 }).catch(() => {});
       continue;
     }
     await q.waitForTimeout(700);
@@ -1760,6 +1761,8 @@ function serve() {
     await q.evaluate(() => window.__sh.openMode('mode.adventure'));
     await q.waitForSelector('#adv.on', { timeout: 15000 });
     await q.waitForTimeout(1200);
+    // the offer popup's art loads on first use: slower on Pages than from disk
+    if (k === 4) await q.waitForSelector('#ppOffer.on', { timeout: 10000 }).catch(() => {});
     advOffers.push(await q.evaluate(() => (document.querySelector('#ppOffer.on') ? document.getElementById('ppOffer').dataset.offer + '/' + document.getElementById('ppOffer').dataset.source : '')));
     if (k < 4) { await q.evaluate(() => { document.querySelector('#adv .x')?.click(); }); await drain(); } // NewAdventurePopup on the way home
   }
@@ -1835,7 +1838,8 @@ function serve() {
         }
       }
       if (!hit && el.tagName === 'IMG' && el.naturalWidth && (cs.objectFit === 'fill' || !cs.objectFit)) hit = { kind: 'img', d: (r.width / r.height) / (el.naturalWidth / el.naturalHeight) };
-      if (!hit && el.tagName === 'CANVAS' && el.width > 1 && el.height > 1 && !/contain|cover/.test(cs.objectFit)) hit = { kind: 'canvas', d: (r.width / r.height) / (el.width / el.height) };
+      // a canvas still at the 300 x 150 default has not been sized or drawn yet (its art is loading): blank, not stretched
+      if (!hit && el.tagName === 'CANVAS' && el.width > 1 && el.height > 1 && !(el.width === 300 && el.height === 150) && !/contain|cover/.test(cs.objectFit)) hit = { kind: 'canvas', d: (r.width / r.height) / (el.width / el.height) };
       if (!hit || Math.abs(hit.d - 1) <= 0.04 || !shown(el)) continue;
       out.push({ ...hit, d: +hit.d.toFixed(3), sprite: el.dataset.spr || (m ? m[1].split('/').pop().split('?')[0].slice(0, 40) : el.tagName.toLowerCase()), el: desc(el), box: [Math.round(r.width), Math.round(r.height)] });
     }
