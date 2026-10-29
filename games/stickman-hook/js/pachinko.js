@@ -5,6 +5,7 @@
 import { Player, PHYS, ST } from './physics.js';
 import { Renderer } from './render.js';
 import { dayKey, playState as dailyState, payPlay, fmtLeft } from './daily.js';
+import { adIcon } from './ads.js';
 
 const ID = 'mode.pachinko';
 
@@ -326,21 +327,28 @@ export async function open(app) {
   // the test hooks skip the daily limit, like they skip saving the board type
   if (['ptype', 'pseed', 'pbonus'].some((k) => q.has(k))) return start();
   // PachinkoPage.OnPlayClickedAsync -> GameModesService.TryPlaying("mode.pachinko") [asm 0x117304c]: 1 free game a day,
-  // then 2 rewarded ads a day (rewarded.play_ticket_mode_pachinko; here 1 skip ticket each), then "Daily Limit Reached"
-  // until midnight (UpdateUiAsync [asm 0x117364c..0x11737c4], daily.js).
+  // then 2 rewarded ads a day (rewarded.play_ticket_mode_pachinko, PlayRewarded RewardedButton: AdIcon, or the skip
+  // ticket that pays it), then "Daily Limit Reached" until midnight (UpdateUiAsync [asm 0x117364c..0x11737c4], daily.js).
+  // The ad is granted at once (js/ads.js watch).
   const st = dailyState(app.save, ID);
   if (st.state === 'free') { payPlay(app.save, ID); app.writeSave(); return start(); }
-  const limit = st.state === 'limit';
+  const limit = st.state === 'limit', how = adIcon(app.save);
   res.innerHTML = `<div class="card"><h2>Lucky Drop</h2>
     <div class="row2"><span>Giới hạn hôm nay</span><b class="dl">${st.played}/${st.max}</b></div>
     ${limit ? `<div class="it">Hết lượt hôm nay. Mở lại sau ${fmtLeft(st.msLeft)}.</div>`
-      : `<div class="it">Đã dùng lượt miễn phí hôm nay. Lượt thêm: 1 vé bỏ qua (còn ${st.tickets}).</div>`}
-    <button class="big" id="pachinkoGo"${limit ? ' disabled' : ''}>${limit ? 'Hết lượt' : 'Chơi · 1 vé'}</button>
+      : `<div class="it">Đã dùng lượt miễn phí hôm nay. Lượt thêm: xem quảng cáo${how === 'ticket' ? ` (trả bằng 1 vé bỏ qua, còn ${st.tickets})` : ' (nhận ngay)'}.</div>`}
+    <button class="big${limit ? '' : ' rew'}" id="pachinkoGo" data-icon="${how}"${limit ? ' disabled' : ''}>${limit ? 'Hết lượt' : '<i class="ad" style="display:inline-block;width:34px;height:26px;vertical-align:-6px;margin-right:8px"></i>Chơi'}</button>
     <button class="big" id="pachinkoBack">Về trang chính</button></div>`;
   res.classList.add('on');
+  if (!limit) {
+    import('./uikit.js').then(async (ui) => {
+      const i = res.querySelector('#pachinkoGo .ad');
+      if (i) ui.fit(i, await ui.sheet(app, 'ads'), how === 'ticket' ? 'SkipTickets' : 'AdIcon');
+    }).catch(() => {});
+  }
   res.querySelector('#pachinkoBack').onclick = () => { app.play('popup_out'); leave(); };
   res.querySelector('#pachinkoGo').onclick = () => {
-    if (!payPlay(app.save, ID)) { app.toast('Cần 1 vé bỏ qua (mua ở Chợ)'); return; }
+    if (!payPlay(app.save, ID)) { app.toast('Hết lượt hôm nay'); return; }
     app.writeSave();
     app.play('button');
     res.classList.remove('on');

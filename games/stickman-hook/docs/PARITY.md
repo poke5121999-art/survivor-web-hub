@@ -4,6 +4,23 @@ Ngày so: 2026-10-28, chụp lại 2026-10-29. Bản web: Pages `?v=20261028f`, 
 Mỗi cặp ảnh nằm ở `shots/stickman-hook/parity/<key>.png` (web bên trái, tối đa 2 khung gốc bên phải, vùng đo viền xanh lơ).
 Số đo màu lấy từ `shots/stickman-hook/parity/report.json`. Nhãn từng cặp ở `D:/stickman-hook-ref/parity/verdicts.tsv`, cổng `parity.py check` thoát 0.
 
+## 20261028m: nút quảng cáo và IAP như bản gốc, bấm là nhận (2026-10-29)
+
+Không có clip gốc của Chợ, popup mở gói thẻ hay trang Đua có nút quảng cáo trong `D:/stickman-hook-ref/clips`. Đã so với cây prefab
+(`PiggyBankPopup`, `TournamentPage`, `MarketSpecialOfferCard`, `MarketOfferSingleItem`, `MarketOfferWidget`, `DefaultInGameUI` SkipButton) và art gốc.
+Ảnh web: `shots/stickman-hook/ads-*.png`, `market*.png`, `race-claim.png`. Luật và địa chỉ asm ở README, mục "Quảng cáo có thưởng và IAP".
+
+| Chỗ | Trạng thái 20261028m |
+|---|---|
+| n04 heo đất | **Đã làm.** Nút vàng mang AdIcon (hoặc vé khi có vé), nút VIP Skip (VIPButtonSmall_01, vương miện, vé, "Skip") khi chưa VIP và `CanSkip` sai |
+| n05, p07 trang chính | **Đã làm.** Cột trái là widget ưu đãi: VIP Bundle + Welcome Offer / No Ads theo ngày; mua xong thì ẩn. Hết `not-built` VIP Bundle / No Ads |
+| n09 trang Đua | **Đã làm.** Hết lượt miễn phí: `RewardedPlayButton` AdIcon "+1" Ticket và nút VIP "Skip". Bảng cũ đóng: "Claim" / "Claim x1200". Hết `not-built` +1 vé / SKIP |
+| Màn kết thúc Đua | **Đã làm.** "Claim +N" (4 × xu cuộc đua) |
+| Chợ | **Đã làm lại** theo 5 mục của `market.sections`, thẻ Special Offers và Single Item, nút free / get+AdIcon / giá IAP gạch giá cũ, nhãn "+N%" |
+| Nút bỏ qua màn | **Đã sửa.** Ảnh quảng cáo `SkipButton0001` khi `CanSkip` sai, ảnh vé khi vé > 1 |
+| Tuỳ biến | **Đã làm.** 12 skin "Watch a Rewarded" có AdIcon, bấm là mở |
+| Còn lệch | Giá IAP là `[ĐỀ XUẤT]` (giá thật do cửa hàng gửi). Popup ưu đãi (`MarketOfferPurchasePopup`, VIP popup) chưa dựng: bấm thẻ / widget mua luôn. Prompt cuối màn (`customization_incentive`, market / wheel incentive) chưa có |
+
 ## 20261028l: Đường XP tự nhận, hạt trail, skin động, heo đất đầy (2026-10-29)
 
 So với clip `n` (8qpsOxGtjz8): popup Đường XP 0:15.8-0:17.4, heo đất đầy 0:21.5. Ảnh web: `shots/stickman-hook/road-auto.png`, `road.png`,

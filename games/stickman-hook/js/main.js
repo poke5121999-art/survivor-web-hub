@@ -7,7 +7,7 @@ import { Meta } from './meta.js';
 import { makeCustom } from './custom.js';
 import { MODES, NORMAL } from './modes.js';
 
-const V = '?v=20261028l';
+const V = '?v=20261028m';
 const DEFAULT_ZOOM = 5, FINISH_ZOOM = 2; // CameraConfig.defaultZoom, PlayerCameraController.cameraZoomOnEndGame
 // Rope prefab: sprite scaled (1.6, 2) under its parent. [ĐỀ XUẤT] 0.2 per axis so a 167 px tile is ~0.4 wide.
 const ROPE_SCALE = [1.6 * 0.2, 2 * 0.2];
@@ -265,12 +265,12 @@ async function openEnd() {
   endgame.show({ mode: mode.id, def: mode.def, level: world.index, piggy: game.piggy });
 }
 
-// Lucky Wheel, piggy bank, market and skip level: js/bonus.js + data/bonus.json, loaded with the home screen, at the
+// Lucky Wheel, piggy bank, market, ads/IAP and skip level: js/bonus.js + data/bonus.json + data/ads.json, loaded with the home screen, at the
 // first death or at the finish of a Normal level. The first level never loads them.
 let bonus = null, bonusP = null;
 function loadBonus() {
-  bonusP ||= Promise.all([import('./bonus.js'), load('./data/bonus.json')]).then(([m, d]) => {
-    bonus = m.makeBonus(app, d);
+  bonusP ||= Promise.all([import('./bonus.js'), load('./data/bonus.json'), load('./data/ads.json')]).then(([m, d, a]) => {
+    bonus = m.makeBonus(app, d, a);
     hud();
     skipView();
     return bonus;
@@ -278,8 +278,8 @@ function loadBonus() {
   return bonusP;
 }
 
-// SkipButtonView: in a Normal level after a death (SetHasDied), while today's skips last. It pays a skip ticket and
-// completes the level (Bonus.skipLevel).
+// SkipButtonView: in a Normal level after a death (SetHasDied), while today's skips last. Its rewarded ad (a skip ticket
+// when owned, else granted at once: ads.js) completes the level (Bonus.skipLevel).
 function skipView() {
   const show = mode.id === NORMAL && game.died && game.phase !== 'finish';
   if (bonus) bonus.skipView(show);
@@ -290,7 +290,7 @@ function skipLevel() {
   initAudio();
   if (!bonus || game.phase === 'finish' || game.paused) return;
   const r = bonus.skipLevel(save);
-  if (r.refused) { toast(r.refused === 'tickets' ? 'Cần 1 vé bỏ qua (mua ở Chợ trên trang chính)' : 'Hết lượt bỏ qua hôm nay'); return; }
+  if (r.refused) { toast('Hết lượt bỏ qua hôm nay'); return; }
   play('button');
   finishLevel();
 }
@@ -758,7 +758,7 @@ function gateNote() {
   const t = mode.def.today(meta, save), st = daily.playState(save, mode.id);
   if (t.all) return 'Đã nhận hết quà của sự kiện.';
   if (t.wonToday) return `Đã nhận quà hôm nay. Màn mới sau ${daily.fmtLeft(st.msLeft)}.`;
-  const pay = st.state === 'free' ? 'miễn phí' : st.state === 'tickets' ? '1 lượt đã có' : `1 vé bỏ qua (còn ${st.tickets})`;
+  const pay = st.state === 'free' ? 'miễn phí' : st.state === 'tickets' ? '1 lượt đã có' : st.tickets ? '1 vé bỏ qua thay quảng cáo' : 'quảng cáo (nhận ngay)';
   return `Hôm nay: màn ${t.level + 1} · lượt này ${pay}`;
 }
 
@@ -778,11 +778,11 @@ function openLevels() {
     b.disabled = !mode.def.open(meta, save, i);
     b.onclick = () => {
       if (mode.def.gate && game.paid !== mode.id + ':' + i) {
-        // GameModesService.TryPlaying (daily.js): the day's free game, else a rewarded ad = 1 skip ticket
+        // GameModesService.TryPlaying (daily.js): the day's free game, else the rewarded ad (a skip ticket when owned)
         const how = daily.payPlay(save, mode.id);
-        if (!how) { toast('Hết lượt miễn phí hôm nay: cần 1 vé bỏ qua (mua ở Chợ)'); return; }
+        if (!how) { toast('Hết lượt hôm nay'); return; }
         writeSave(save);
-        if (how === 'ad') toast('Đã dùng 1 vé bỏ qua');
+        if (how === 'skip') toast('Đã dùng 1 vé bỏ qua thay quảng cáo');
         overlay('levels', false); play('button'); startLevel(i);
         game.paid = mode.id + ':' + i;
         return;

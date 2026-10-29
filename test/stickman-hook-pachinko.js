@@ -119,7 +119,8 @@ const BOARDS = [
   check('the board state is saved for the next drop', await page.evaluate(() =>
     JSON.parse(localStorage.getItem('stickman-hook')).modes['mode.pachinko'].state.main.id === 'skin.sausage'));
 
-  // ---- GameModesService daily limit of mode.pachinko: 1 free game, then 2 rewarded (1 skip ticket each), then none
+  // ---- GameModesService daily limit of mode.pachinko: 1 free game, then 2 rewarded ads (rewarded.play_ticket_mode_pachinko:
+  // granted at once with no skip ticket, paid by 1 ticket when owned), then none
   const day = await page.evaluate(async () => (await import('./js/daily.js')).dayKey());
   const gate1 = await page.evaluate((day) => { const s = JSON.parse(localStorage.getItem('stickman-hook'));
     return { free: s.flags['daily_flag_mode.pachinko_free_' + day], stDay: s.modes['mode.pachinko'].state.day }; }, day);
@@ -130,23 +131,27 @@ const BOARDS = [
     await page.evaluate(() => window.__sh.openMode('mode.pachinko'));
     await page.waitForSelector('#pachinko .res.on #pachinkoGo', { timeout: 10000 }).catch(() => {});
     return page.evaluate(() => ({ dl: document.querySelector('#pachinko .res.on .dl')?.textContent,
-      btn: document.querySelector('#pachinkoGo')?.textContent, off: document.querySelector('#pachinkoGo')?.disabled }));
+      btn: document.querySelector('#pachinkoGo')?.textContent, off: document.querySelector('#pachinkoGo')?.disabled,
+      icon: document.querySelector('#pachinkoGo')?.dataset.icon }));
   };
+  const played = () => page.waitForFunction(() => window.__pachinko && window.__pachinko.world && !document.querySelector('#pachinko .res.on'), null, { timeout: 10000 }).catch(() => {});
   const g2 = await reopen(0);
+  await page.screenshot({ path: path.join(SHOTS, 'ads-pachinko.png') });
   await page.click('#pachinkoGo');
-  const g2b = await page.evaluate(() => ({ panel: !!document.querySelector('#pachinko .res.on #pachinkoGo') }));
-  check('the 2nd game of the day asks for a ticket: "Daily limit" 1/3, Chơi · 1 vé; with no ticket it stays on the panel',
-    g2.dl === '1/3' && g2.btn === 'Chơi · 1 vé' && !g2.off && g2b.panel, JSON.stringify({ g2, g2b }));
+  await played();
+  const g2b = await page.evaluate((day) => ({ panel: !!document.querySelector('#pachinko .res.on #pachinkoGo'), t: window.__sh.save.inv['currency.skip_tickets'],
+    rew: window.__sh.save.flags['daily_flag_mode.pachinko_rewarded_' + day] }), day);
+  check('the 2nd game of the day is the rewarded ad: "Daily limit" 1/3, Chơi with AdIcon; with no ticket the click plays at once (rewarded 1, 0 tickets)',
+    g2.dl === '1/3' && g2.btn === 'Chơi' && g2.icon === 'video' && !g2.off && !g2b.panel && g2b.t === 0 && g2b.rew === 1, JSON.stringify({ g2, g2b }));
   const g3 = await reopen(5);
   await page.click('#pachinkoGo');
-  await page.waitForFunction(() => window.__pachinko && window.__pachinko.world && !document.querySelector('#pachinko .res.on'), null, { timeout: 10000 }).catch(() => {});
-  const g4 = await reopen(4);
-  await page.click('#pachinkoGo');
-  await page.waitForTimeout(200);
+  await played();
+  const g3s = await page.evaluate(() => window.__sh.save.inv['currency.skip_tickets']);
   const g5 = await reopen(3);
   const g5s = await page.evaluate((day) => ({ t: window.__sh.save.inv['currency.skip_tickets'], rew: window.__sh.save.flags['daily_flag_mode.pachinko_rewarded_' + day] }), day);
-  check('two rewarded games (1 skip ticket each: 5 -> 4, 4 -> 3) then "Daily limit" 3/3, the button off until midnight',
-    g3.dl === '1/3' && g4.dl === '2/3' && g5.dl === '3/3' && g5.off && g5.btn === 'Hết lượt' && g5s.rew === 2, JSON.stringify({ g3, g4, g5, g5s }));
+  check('the 3rd game: ticket icon, the ad paid by 1 skip ticket (5 -> 4); then "Daily limit" 3/3, the button off until midnight',
+    g3.dl === '2/3' && g3.icon === 'ticket' && g3s === 4 && g5.dl === '3/3' && g5.off && g5.btn === 'Hết lượt' && g5s.rew === 2 && g5s.t === 3,
+    JSON.stringify({ g3, g3s, g5, g5s }));
   await page.screenshot({ path: path.join(SHOTS, 'pachinko-limit.png') });
   await page.click('#pachinkoBack');
 

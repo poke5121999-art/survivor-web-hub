@@ -12,8 +12,7 @@ Writes data/cards.json (loaded with js/cards.js, never on the first level):
   market: {resourceId: [subSection, coins]}  (black_market.unitPrices)
   boost:  [[cardId, resource, source, dailyCap | 0]]  (resource_boosting)
   perk:   [[value, [[res, qty]]]], perkFallback  (progression road progression.cards_perk_level)
-  offers: [[offerId, [[res, qty]], coins]]  booster offers of the market; coins = the coin price used here ([ĐỀ XUẤT], see
-          OFFER_COINS) because the original sells them for real money
+The market's booster offers (offer.boosters_1..3, IAP) are in data/ads.json (tools/build_ads.py).
 """
 import sys, os, io, json
 
@@ -50,42 +49,6 @@ perk.sort()
 perk_fallback = next([[r['resourceId'], r['quantity']] for r in p['fallbackRewards']]
                      for p in rs['progression_road']['progressions'] if p['resourceId'] == 'progression.cards_perk_level')
 
-# Market booster offers (offerGroup "booster"): IAP in the original, and no table in the APK ties a product to a price
-# tier (IAPPriceConversion holds tier -> local prices only). [ĐỀ XUẤT] coin price = the booster's expected cards at the
-# config's own coin price of a card (black_market.unitPrices by rarity): sum over its draws of the mean stack
-# (min + max) / 2 x the unit price of the draw's rarity (guaranteed rarity, else the cardsWeight mean), rounded to 100.
-unit = {}
-for c in rs['cards']['cards']:
-    unit[c['rarityId']] = market[c['id']][1]
-
-
-def booster_coins(bid):
-    b = boosters[bid]
-    n, lo, hi, weights, guaranteed = b[3], b[6], b[7], b[8], b[9]
-    tot = sum(w for _, w in weights)
-    mean_w = sum(unit[r] * w for r, w in weights) / tot
-    v = 0
-    for i in range(n):
-        g = guaranteed[i] if i < len(guaranteed) else None
-        price = unit[g.split('.')[1]] if g and g.startswith('booster_card.') else mean_w
-        v += (lo + hi) / 2 * price
-    return v
-
-
-OFFER_COINS = {}
-for o in rs['market']['offers']:
-    if o['offerGroupId'] == 'booster':
-        got = [c['reward'] for c in rs['market']['offerContent'] if c['sourceId'] == o['id']]
-        OFFER_COINS[o['id']] = int(round(sum(booster_coins(r['resourceId']) * r['quantity'] for r in got) / 100.0) * 100)
-print('booster offers (coins):', OFFER_COINS)
-offers = []
-content = rs['market']['offerContent']
-for o in rs['market']['offers']:
-    if o['offerGroupId'] != 'booster':
-        continue
-    got = [[c['reward']['resourceId'], c['reward']['quantity']] for c in content if c['sourceId'] == o['id']]
-    offers.append([o['id'], got, OFFER_COINS.get(o['id'], 0)])
-
 # Black market exclusions (PickBlackMarketCustomizationItems b__0 [asm 0x126cc18]): the tournament's prize pool and the
 # Lucky Drop main prize (the first pachinko.mainRewardOptions item not owned, GenerateMainReward).
 
@@ -110,7 +73,7 @@ tour_pool = re.findall(r'skin\.[a-z0-9_]+', json.dumps(find_pool(rs, 'reward_poo
 pachinko_main = [o['reward']['resourceId'] for o in rs['pachinko']['mainRewardOptions']]
 
 out = {'v': 1, 'exclude': {'tournament': tour_pool, 'pachinkoMain': pachinko_main}, 'cards': cards, 'cats': cats, 'rarity': rarity, 'boosters': boosters, 'boosterRarity': booster_rarity,
-       'market': market, 'boost': boost, 'perk': perk, 'perkFallback': perk_fallback, 'offers': offers}
+       'market': market, 'boost': boost, 'perk': perk, 'perkFallback': perk_fallback}
 txt = json.dumps(out, separators=(',', ':'), ensure_ascii=False)
 io.open(os.path.join(GAME, 'data/cards.json'), 'w', encoding='utf-8').write(txt)
-print('cards.json', len(txt.encode('utf-8')), 'bytes,', len(cards), 'cards,', len(market), 'market prices,', len(offers), 'offers')
+print('cards.json', len(txt.encode('utf-8')), 'bytes,', len(cards), 'cards,', len(market), 'market prices')

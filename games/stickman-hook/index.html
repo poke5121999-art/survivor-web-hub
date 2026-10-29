@@ -6,8 +6,8 @@
 <meta name="theme-color" content="#00b4fc">
 <link rel="icon" href="../../assets/favicon.svg">
 <title>Stickman Hook</title>
-<link rel="preload" href="./data/levels.json?v=20261028l" as="fetch" crossorigin>
-<link rel="preload" href="./art/atlas.webp?v=20261028l" as="image">
+<link rel="preload" href="./data/levels.json?v=20261028m" as="fetch" crossorigin>
+<link rel="preload" href="./art/atlas.webp?v=20261028m" as="image">
 <style>
   html, body { margin: 0; height: 100%; background: #00b4fc; overflow: hidden; touch-action: none;
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
@@ -81,7 +81,7 @@
   <button id="xpbar" title="Đường XP"><i class="medal"><b id="rank">1</b></i><span class="bar"><span id="xpfill"></span><b id="xptext"></b></span>
     <i class="gift" data-s="GiftIcon"></i><b class="badge" id="roadBadge"></b><span id="league" hidden></span></button>
   <div class="hplayer"><i class="light" data-s="glow"></i><i class="shadow"></i><canvas id="homePlayer"></canvas></div>
-  <div class="hcol l"><button class="hw" id="btnMarket" title="Chợ: xu miễn phí, vé bỏ qua"><i data-s="Icon_Shop"></i><span>Chợ</span><b class="dot" id="marketDot"></b></button></div>
+  <div class="hcol l none" id="homeOffers"></div>
   <div class="hcol r"><button class="hw" id="btnLucky" title="Lucky Drop"><i data-s="Icon_Pachinko"></i><span>Lucky Drop</span></button>
     <button class="hw" id="btnWheel" title="Vòng quay may mắn"><i data-s="Icon_LuckyWheel"></i><span class="cnt" data-s="HolderLuckyWheelCoin"><b id="wheelPrice"></b><i data-s="SkinCoins"></i></span><b class="dot" id="wheelDot"></b></button></div>
   <button class="hm" id="btnTour" title="Đua"><i class="bt"></i><i class="ic"></i><b class="pos"></b><span class="time"></span></button>
@@ -97,32 +97,33 @@
   <button class="btn" id="btnClose" style="width:auto;padding:0 18px;align-self:center">Đóng</button></div></div>
 <script type="importmap">
 { "imports": {
-  "./js/level.js": "./js/level.js?v=20261028l",
-  "./js/physics.js": "./js/physics.js?v=20261028l",
-  "./js/render.js": "./js/render.js?v=20261028l",
-  "./js/save.js": "./js/save.js?v=20261028l",
-  "./js/meta.js": "./js/meta.js?v=20261028l",
-  "./js/custom.js": "./js/custom.js?v=20261028l",
-  "./js/fx.js": "./js/fx.js?v=20261028l",
-  "./js/menus.js": "./js/menus.js?v=20261028l",
-  "./js/modes.js": "./js/modes.js?v=20261028l",
-  "./js/grapple.js": "./js/grapple.js?v=20261028l",
-  "./js/bonus.js": "./js/bonus.js?v=20261028l",
-  "./js/pachinko.js": "./js/pachinko.js?v=20261028l",
-  "./js/race.js": "./js/race.js?v=20261028l",
-  "./js/adventure.js": "./js/adventure.js?v=20261028l",
-  "./js/advrun.js": "./js/advrun.js?v=20261028l",
-  "./js/camera.js": "./js/camera.js?v=20261028l",
-  "./js/endgame.js": "./js/endgame.js?v=20261028l",
-  "./js/home.js": "./js/home.js?v=20261028l",
-  "./js/uikit.js": "./js/uikit.js?v=20261028l",
-  "./js/cards.js": "./js/cards.js?v=20261028l",
-  "./js/cardsui.js": "./js/cardsui.js?v=20261028l",
-  "./js/daily.js": "./js/daily.js?v=20261028l",
-  "./js/trailfx.js": "./js/trailfx.js?v=20261028l",
-  "./js/main.js": "./js/main.js?v=20261028l"
+  "./js/level.js": "./js/level.js?v=20261028m",
+  "./js/physics.js": "./js/physics.js?v=20261028m",
+  "./js/render.js": "./js/render.js?v=20261028m",
+  "./js/save.js": "./js/save.js?v=20261028m",
+  "./js/meta.js": "./js/meta.js?v=20261028m",
+  "./js/custom.js": "./js/custom.js?v=20261028m",
+  "./js/fx.js": "./js/fx.js?v=20261028m",
+  "./js/menus.js": "./js/menus.js?v=20261028m",
+  "./js/modes.js": "./js/modes.js?v=20261028m",
+  "./js/grapple.js": "./js/grapple.js?v=20261028m",
+  "./js/bonus.js": "./js/bonus.js?v=20261028m",
+  "./js/pachinko.js": "./js/pachinko.js?v=20261028m",
+  "./js/race.js": "./js/race.js?v=20261028m",
+  "./js/adventure.js": "./js/adventure.js?v=20261028m",
+  "./js/advrun.js": "./js/advrun.js?v=20261028m",
+  "./js/camera.js": "./js/camera.js?v=20261028m",
+  "./js/endgame.js": "./js/endgame.js?v=20261028m",
+  "./js/home.js": "./js/home.js?v=20261028m",
+  "./js/uikit.js": "./js/uikit.js?v=20261028m",
+  "./js/cards.js": "./js/cards.js?v=20261028m",
+  "./js/cardsui.js": "./js/cardsui.js?v=20261028m",
+  "./js/daily.js": "./js/daily.js?v=20261028m",
+  "./js/ads.js": "./js/ads.js?v=20261028m",
+  "./js/trailfx.js": "./js/trailfx.js?v=20261028m",
+  "./js/main.js": "./js/main.js?v=20261028m"
 } }
 </script>
-<script type="module" src="./js/main.js?v=20261028l"></script>
+<script type="module" src="./js/main.js?v=20261028m"></script>
 </body>
 </html>

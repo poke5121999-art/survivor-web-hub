@@ -1,10 +1,11 @@
-// Lucky Wheel, piggy bank, market (daily free coins, skip tickets) and skip level, driven by data/bonus.json
+// Lucky Wheel, piggy bank, market (daily free coins; offers in ads.js) and skip level, driven by data/bonus.json
 // (tools/build_meta.py). main.js loads this module with the home screen, at the first death or at the finish of a Normal
 // level, so the first level never downloads it. Rules first (class Bonus, pure on the save), then the views it owns:
 // the home widgets and the in-game skip button. The wheel and market sheets are in menus.js, the piggy bank popup in
 // endgame.js.
 import { SKIP_TICKETS, qty, addQty } from './meta.js';
 import { dayKey } from './daily.js';
+import { watch, canSkip, Shop } from './ads.js';
 
 export const FREE_COINS = 'daily.free_coins';
 const WHEEL_CLAIMS = 'progression.lucky_wheel_claims';
@@ -23,14 +24,9 @@ export function dayId(d = new Date()) { return d.getFullYear() * 10000 + (d.getM
 export class Bonus {
   constructor(m, d) { this.m = m; this.d = d; }
 
-  // A rewarded ad is skipped by paying its skipPrice (ads placement rewarded.default: 1 skip ticket). Ads do not exist
-  // here, so every "watch an ad" action of the original costs that price.
-  payRewarded(s) {
-    const [res, q] = this.d.offers.skipPrice;
-    if (qty(s, res) < q) return false;
-    addQty(s, res, -q);
-    return true;
-  }
+  // Every rewarded ad of the original goes through ads.js watch (AdController.SafelyDisplayAd): a skip ticket pays it when
+  // the player owns one, else it is granted at once. `how` = 'vip' | 'ticket' | 'ad'.
+  watch(s) { return watch(s); }
 
   // ---- Lucky Wheel (LuckyWheelService) ----
   // GetNextRewardPrice: prices[min(claims, count - 1)], claims counted for life: first spin free, then 500 coins
@@ -151,21 +147,22 @@ export class Bonus {
     addQty(s, PIGGY_SKIPS, 1);
   }
 
-  // The popup's two ad buttons: "Unlock" when full (rewarded.piggy_bank_unlock), "+N%" otherwise (rewarded.piggy_bank_fill).
+  // The popup's ad button: "Unlock" when full (PiggyBankPopup.WatchRewardedToUnlockSkin), "+N%" otherwise
+  // (WatchRewardedToAddProgression), placements "rewarded." + ... + "_unlock" / "_fill" [asm 0x1178cb4, 0x1178fb8].
   piggyUnlock(s, out = []) {
     if (!this.piggyFull(s)) return null;
-    if (!this.payRewarded(s)) return { refused: 'tickets' };
-    return { got: this.piggyClaim(s, out) };
+    const how = watch(s);
+    return { how, got: this.piggyClaim(s, out) };
   }
 
   piggyBoost(s) {
     if (this.piggyFull(s) || !this.piggyReward(s)) return null;
-    if (!this.payRewarded(s)) return { refused: 'tickets' };
+    const how = watch(s);
     this.piggyAdd(s, this.piggyFill(s, PIGGY_REWARDED));
-    return { progress: this.piggyProgress(s) };
+    return { how, progress: this.piggyProgress(s) };
   }
 
-  // ---- Market: daily free coins (offer.free_coins, requirement didnt_buy_free_coins_today), skip ticket packs ----
+  // ---- Market: daily free coins (offer.free_coins, requirement didnt_buy_free_coins_today); the rest is ads.js Shop ----
   freeCoinsReady(s, day = dayId()) { return s.periodic[FREE_COINS] !== day; }
 
   claimFreeCoins(s, day = dayId()) {
@@ -174,15 +171,6 @@ export class Bonus {
     s.coins += this.d.offers.freeCoins;
     // card.shop_free_coins_boost: source offer.free_coins (MarketOfferDto.Source [asm 0x2f6c3d8])
     return this.d.offers.freeCoins + this.m.bonus(s, 'currency.skin_coins', 'offer.free_coins', this.d.offers.freeCoins);
-  }
-
-  // The original sells these packs for real money; here they cost coins ([ĐỀ XUẤT] price, tools/build_meta.py TICKET_COINS).
-  buyTickets(s, i) {
-    const [q, price] = this.d.offers.tickets[i];
-    if (s.coins < price) return false;
-    s.coins -= price;
-    addQty(s, SKIP_TICKETS, q);
-    return true;
   }
 
   // ---- Skip level (SkipLevelService) ----
@@ -198,20 +186,20 @@ export class Bonus {
 
   skipsLeft(s, day = dayKey()) { return this.skipsPerDay(s) - (s.flags[SKIPPED + day] || 0); }
 
-  // SkipButtonView: the skip is a rewarded ad (rewarded.skip_level), paid here with its skip ticket; then
+  // SkipButtonView.SkipLevelAsync: the rewarded ad rewarded.skip_level (ads.js watch [asm 0x12a3fb8]); then
   // SkipLevelService.SkipLevel counts it in flag.nb_levels_skipped_<day> [asm 0x124eb40..0x124eb94] and the level completes
   // (GamePlayService.SkipLevel -> CompleteLevel [asm 0x129c96c]). Older day counters are dropped (CleanDailyTokenFlags).
   skipLevel(s, day = dayKey()) {
     if (this.skipsLeft(s, day) < 1) return { refused: 'limit' };
-    if (!this.payRewarded(s)) return { refused: 'tickets' };
+    const how = watch(s);
     const key = SKIPPED + day;
     for (const f of Object.keys(s.flags)) if (f.startsWith(SKIPPED) && f !== key) delete s.flags[f];
     s.flags[key] = (s.flags[key] || 0) + 1;
-    return { left: this.skipsLeft(s, day) };
+    return { how, left: this.skipsLeft(s, day) };
   }
 
   // ---- views ----------------------------------------------------------------------------------------------------
-  // Home (home.js): the ticket count, the market widget on the left and the Lucky Wheel widget on the right
+  // Home (home.js): the ticket count, the market offer widgets on the left and the Lucky Wheel widget on the right
   // (HomePage MarketWidgetsHolder / ModesContainer LuckyWheelButton with its coins/price counter and red dot).
   hud() {
     const s = this.app.save, $ = (id) => document.getElementById(id);
@@ -219,17 +207,81 @@ export class Bonus {
     const price = this.wheelPrice(s)[1];
     $('wheelPrice').textContent = price ? `${s.coins}/${price}` : 'Miễn phí';
     $('wheelDot').classList.toggle('on', s.coins >= price && this.wheelRewards(s).length > 0);
-    $('marketDot').classList.toggle('on', this.freeCoinsReady(s));
+    this.homeOffers().catch(() => {});
+  }
+
+  // MarketWidgetsHolder: one MarketOfferWidget (120 x 120: OfferIllustration, OfferTitle Junegull 20 "Gold 2") per visible
+  // offer with a widget view: offer.vip / offer.vip_discount ("VIP Bundle", Market/Offer/Vip/Widget), offer.welcome_offer
+  // (Market/Offer/Welcome/Widget), offer.no_ads ("No Ads", Market/Reward/NoAds). The original opens the offer's popup;
+  // here a click buys it at once (owner rule). Bought offers drop out by their display requirements (no_vip, no_no_ads).
+  async homeOffers() {
+    const box = document.getElementById('homeOffers');
+    if (!box) return;
+    const list = this.shop.widgets(this.app.save), key = list.map((o) => o.id).join();
+    if (box.dataset.k === key) return;
+    box.dataset.k = key;
+    box.innerHTML = '';
+    box.classList.toggle('none', !list.length);
+    if (!list.length) return;
+    const ui = await import('./uikit.js'), sh = await ui.sheet(this.app, 'ads');
+    if (box.dataset.k !== key) return;
+    const art = { 'Market/Offer/Vip/Widget': 'MarketOfferVipWidget', 'Market/Offer/Welcome/Widget': 'MarketOfferWelcomeWidget',
+      'Market/Reward/NoAds': 'MarketRewardNoAds' };
+    for (const o of list) {
+      const b = document.createElement('button');
+      b.className = 'hw offer';
+      b.dataset.offer = o.id;
+      b.title = (o.widget.title || o.card?.title || o.id) + ' (bấm là nhận ngay)';
+      b.innerHTML = '<i></i><span></span>';
+      ui.fit(b.querySelector('i'), sh, art[o.widget.sprite] || 'MarketRewardNoAds');
+      const t = b.querySelector('span');
+      t.textContent = o.widget.title || '';
+      if (t.textContent) ui.glText(this.app, t, 20, '#FFD54A');
+      b.onclick = () => this.buy(o.id);
+      box.appendChild(b);
+    }
+  }
+
+  // A click on an IAP or rewarded-ad offer button (home widgets, market, VIP buttons): ads.js Shop.buy grants it at once,
+  // then the usual follow-ups (save, equipped look, HUD; queued boosters open from the home HUD).
+  buy(id) {
+    const app = this.app, r = this.shop.buy(app.save, id);
+    if (r.refused) { app.toast(REFUSED[r.refused] || 'Chưa mua được'); return r; }
+    app.play('popup_in');
+    app.writeSave();
+    app.applyEquip?.();
+    app.toast((r.offer.card?.title || r.offer.widget?.title || 'Đã nhận').replace(/<[^>]+>|\n/g, ' ') + ': ' + gotText(r.got));
+    app.hud();
+    return r;
   }
 
   // The skip button (DefaultInGameUI SkipButton, top right, text left/per day). `show`: a Normal level after a death.
+  // SkipButtonView.Initialize picks the sprite: the crown with flag.old_no_ads, the ticket one when AdsService.CanSkip
+  // (tickets > 1, ads.js canSkip), else the rewarded-ad one (SkipButton0001) [asm 0x12a38a4..0x12a3968].
   skipView(show) {
     const s = this.app.save, el = document.getElementById('skip');
     const on = show && this.skipsLeft(s) > 0;
     el.classList.toggle('on', on);
-    if (on) el.querySelector('b').textContent = `${this.skipsLeft(s)}/${this.skipsPerDay(s)}`;
+    if (!on) return;
+    el.querySelector('b').textContent = `${this.skipsLeft(s)}/${this.skipsPerDay(s)}`;
+    const art = canSkip(s) ? 'skip' : 'skip-ad';
+    if (el.dataset.art !== art) { el.dataset.art = art; el.style.backgroundImage = `url(./art/${art}.webp${this.app.V})`; }
   }
   // The piggy bank popup itself (PiggyBankPopup, full screen) is drawn by endgame.js with these rules.
+}
+
+const REFUSED = { has_cards: 'Cần có thẻ đầu tiên', didnt_buy_free_coins_today: 'Mai quay lại',
+  didnt_buy_rewarded_coins_today: 'Mai quay lại', hidden: 'Ưu đãi này không còn', none: 'Không có ưu đãi này' };
+
+// "+3000 xu, +60 vé, 12 món mới, 3 gói thẻ" from Meta.grantReward's out list
+export function gotText(got) {
+  let coins = 0, tickets = 0, items = 0, boosters = 0, tokens = 0, flags = 0;
+  for (const g of got) {
+    coins += g.coins || 0; tickets += g.tickets || 0; tokens += g.tokens || 0;
+    if (g.item) items++; if (g.booster) boosters += g.q || 1; if (g.flag) flags++;
+  }
+  return [coins && `+${coins} xu`, tickets && `+${tickets} vé`, tokens && `+${tokens} token`, items && `${items} món mới`,
+    boosters && `${boosters} gói thẻ`, !coins && !tickets && !items && !boosters && !tokens && flags && 'đã kích hoạt'].filter(Boolean).join(', ') || 'đã nhận';
 }
 
 const CSS = `
@@ -238,21 +290,23 @@ const CSS = `
 #skip.on { display: block; }
 #skip b { position: absolute; left: 0; right: 0; top: 100%; text-align: center; font-size: 17px; text-shadow: 0 2px 0 #0d1b2a; }
 body.menu #skip { visibility: hidden; }
+#homeOffers.none { visibility: hidden; }
+#homeOffers .hw > i { left: 0; right: 0; top: 0; bottom: calc(var(--u) * 20); }
 `;
 
 // `app` is main.js's handle (save, meta, icon(), openMenu(), skipLevel(), ...). Adds the views' DOM and returns the rules.
-export function makeBonus(app, d) {
+// `ads` is data/ads.json: the market's offers (ads.js Shop, `bonus.shop`).
+export function makeBonus(app, d, ads) {
   const b = new Bonus(app.meta, d);
   b.app = app;
+  b.shop = new Shop(app.meta, ads);
   const st = document.createElement('style');
   st.textContent = CSS;
   document.head.appendChild(st);
-  // the home screen's ticket pill, market and wheel widgets are in index.html (laid out by home.js)
-  document.getElementById('btnMarket').onclick = () => app.openMenu('openMarket');
+  // the home screen's ticket pill, offer column and wheel widget are in index.html (laid out by home.js)
   document.getElementById('btnWheel').onclick = () => app.openMenu('openWheel');
   // the skip image is a CSS background: the browser fetches it when the button first shows
-  document.body.insertAdjacentHTML('beforeend', `<button class="ui" id="skip" title="Bỏ qua màn (1 vé)"
-    style="background-image:url(./art/skip.webp${app.V})"><b></b></button>`);
+  document.body.insertAdjacentHTML('beforeend', `<button class="ui" id="skip" title="Bỏ qua màn"><b></b></button>`);
   document.getElementById('skip').onclick = () => app.skipLevel();
   return b;
 }

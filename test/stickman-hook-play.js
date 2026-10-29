@@ -436,13 +436,15 @@ function serve() {
       ev: ev.map((x) => [x.level, x.wonToday, x.all, x.days]) };
   });
   check('FormatDateId = "yyyy-MM-dd": 29 Oct 2026 -> 2026-10-29', dr.key === '2026-10-29', dr.key);
-  check('Lucky Drop a day: free, ad, ad (2 skip tickets -> 0), then refused: "Daily limit" 3/3; next day free again, old flags cleaned',
-    JSON.stringify(dr.pays) === '["free","ad","ad",null]' && JSON.stringify(dr.pst) === '["limit",3,3,0]' && dr.next === 'free'
+  // the rewarded ad of a play (AdController.SafelyDisplayAd): a skip ticket pays it when owned ('skip'), else it is granted
+  // at once ('ad'); only the daily cap refuses (null)
+  check('Lucky Drop a day: free, then 2 ads paid by the 2 skip tickets (2 -> 0), then refused: "Daily limit" 3/3; next day free again, old flags cleaned',
+    JSON.stringify(dr.pays) === '["free","skip","skip",null]' && JSON.stringify(dr.pst) === '["limit",3,3,0]' && dr.next === 'free'
     && JSON.stringify(dr.keys) === '["daily_flag_mode.pachinko_free_2026-10-30"]', JSON.stringify(dr));
-  check('events: 1 free game a day, then 1 skip ticket per game with no daily cap (5 tickets -> 2 after 1 free + 3 ads); none without tickets',
-    JSON.stringify(dr.ep) === '["free",null,"free","ad","ad","ad"]' && dr.e5t === 2, JSON.stringify(dr.ep) + ' ' + dr.e5t);
-  check('Race: 2 free a day then a ticket; Challenge (-1/-1): always free',
-    JSON.stringify(dr.rp) === '["free","free",null]' && JSON.stringify(dr.np) === '["free","free","free"]', JSON.stringify([dr.rp, dr.np]));
+  check('events: 1 free game a day, then ads with no daily cap: with 0 tickets the ad is granted at once, with 5 tickets 3 ads take 3 (5 -> 2)',
+    JSON.stringify(dr.ep) === '["free","ad","free","skip","skip","skip"]' && dr.e5t === 2, JSON.stringify(dr.ep) + ' ' + dr.e5t);
+  check('Race: 2 free a day then the ad (0 tickets: granted at once); Challenge (-1/-1): always free',
+    JSON.stringify(dr.rp) === '["free","free","ad"]' && JSON.stringify(dr.np) === '["free","free","free"]', JSON.stringify([dr.rp, dr.np]));
   check('event cycle: day 0 level 1, won -> done today; day 1 level 2; after 5 days a new cycle of the 3 unowned (level 3); all owned -> finished',
     JSON.stringify(dr.ev) === '[[0,false,false,5],[0,true,false,5],[1,false,false,5],[2,false,false,3],[-1,false,true,0]]', JSON.stringify(dr.ev));
   await page.waitForTimeout(400);
@@ -577,29 +579,50 @@ function serve() {
     && w3.skins.includes('tiki') && w3.coins === 0 && w3.claims === 2, JSON.stringify(w3));
   await page.click('#wheel .wclose');
 
-  // market: 20 free coins once a day, skip tickets for coins
-  const freeBtn = '#market .offer[data-id="free_coins"] button';
+  // market (ads.js Shop over data/ads.json): sections in the config order; 20 free coins once a day; IAP buttons show the
+  // [ĐỀ XUẤT] USD price and grant at once (no coins taken); the rewarded 50 coins once a day, paid by a skip ticket when owned
+  const mk = (id) => `#market [data-offer="${id}"] button`;
   await page.evaluate(() => window.__sh.openMenu('openMarket'));
-  await page.waitForSelector(freeBtn, { timeout: 10000 });
+  await page.waitForSelector(mk('offer.free_coins'), { timeout: 15000 });
+  await page.waitForTimeout(400);
   await page.screenshot({ path: path.join(SHOTS, 'market.png') });
-  await page.click(freeBtn);
+  const m0 = await page.evaluate(() => ({ secs: [...document.querySelectorAll('#market .bm-ban')].map((e) => e.dataset.section).join(),
+    t1: document.querySelector('#market [data-offer="offer.skip_tickets_1"] button')?.textContent,
+    c1: document.querySelector('#market [data-offer="offer.coins_1"] button')?.textContent,
+    vip: document.querySelector('#market [data-offer="offer.vip"] .bar button')?.textContent,
+    vipDisc: document.querySelector('#market [data-offer="offer.vip"] .disc') ? 1 : 0,
+    rew: document.querySelector('#market [data-offer="offer.rewarded_coins"] button')?.dataset.icon }));
+  check('market sections in config order (special offers, boosters, black market, coins, skip tickets); IAP prices 1.99$ / 0.99$, VIP 49.97$ struck -> 19.99$ (+150 %)',
+    m0.secs === 'special_offers,booster,black_market,currency.skin_coins,currency.skip_tickets' && m0.t1 === '1.99$' && m0.c1 === '0.99$'
+    && m0.vip === '49.97$19.99$' && m0.vipDisc === 1 && m0.rew === 'ticket', JSON.stringify(m0));
+  await page.click(mk('offer.free_coins'));
+  await page.waitForFunction(() => document.querySelector('#market [data-offer="offer.free_coins"] button.na'), null, { timeout: 10000 }).catch(() => {});
   const c1 = await page.evaluate(() => window.__sh.save.coins);
-  const again = await page.evaluate((b) => document.querySelector(b).disabled, freeBtn);
-  await page.evaluate((b) => document.querySelector(b).click(), freeBtn);
+  const again = await page.evaluate((b) => document.querySelector(b).disabled, mk('offer.free_coins'));
+  await page.evaluate((b) => document.querySelector(b).click(), mk('offer.free_coins'));
   const c2 = await page.evaluate(() => window.__sh.save.coins);
-  check('daily free coins: +20 once, then refused the same day', c1 === 20 && c2 === 20 && again, `${c1} ${c2} disabled ${again}`);
+  check('daily free coins: +20 once, then "available in" the same day', c1 === 20 && c2 === 20 && again, `${c1} ${c2} disabled ${again}`);
   await page.evaluate(() => { window.__sh.save.periodic['daily.free_coins'] = 20000101; window.__sh.save.coins = 1000; });
   await page.click('#market .x');
   await page.evaluate(() => window.__sh.openMenu('openMarket'));
-  await page.waitForSelector(freeBtn, { timeout: 10000 });
-  const nextDay = await page.evaluate((b) => !document.querySelector(b).disabled, freeBtn);
-  await page.click('#market .offer[data-id="tickets_0"] button');
+  await page.waitForSelector(mk('offer.free_coins'), { timeout: 15000 });
+  const nextDay = await page.evaluate((b) => !document.querySelector(b).disabled, mk('offer.free_coins'));
+  await page.click(mk('offer.skip_tickets_1'));
+  await page.waitForTimeout(300);
   const bought = await page.evaluate(() => ({ t: window.__sh.save.inv['currency.skip_tickets'], c: window.__sh.save.coins }));
-  check('free coins come back the next day; 20 tickets cost 1000 coins', nextDay && bought.t === 23 && bought.c === 0, JSON.stringify(bought));
+  check('free coins come back the next day; the 20-ticket IAP button grants 20 tickets at once and takes no coins (3 -> 23, 1000 coins)',
+    nextDay && bought.t === 23 && bought.c === 1000, JSON.stringify(bought));
+  await page.click(mk('offer.rewarded_coins'));
+  await page.waitForTimeout(300);
+  const rc1 = await page.evaluate(() => ({ t: window.__sh.save.inv['currency.skip_tickets'], c: window.__sh.save.coins,
+    na: !!document.querySelector('#market [data-offer="offer.rewarded_coins"] button.na'), day: window.__sh.save.periodic['daily.rewarded_coins'] }));
+  check('rewarded coins ("get" + ticket icon): +50 coins, the ad paid by 1 skip ticket (23 -> 22), then "available in" until tomorrow',
+    rc1.c === 1050 && rc1.t === 22 && rc1.na && rc1.day > 20260000, JSON.stringify(rc1));
   await page.screenshot({ path: path.join(SHOTS, 'market-bought.png') });
   await page.click('#market .x');
 
-  // piggy bank: at 90 the next Normal level fills it to 100; unlocking costs 1 ticket (rewarded ad skip price); then +3 a level
+  // piggy bank: at 90 the next Normal level fills it to 100; UNLOCK is the rewarded ad, paid by a skip ticket when owned
+  // (22 tickets: CanSkip, so no VIP Skip button); then +3 a level
   await page.evaluate(() => { window.__sh.save.inv['progression.piggy_bank_progress'] = 90; window.__sh.startLevel(12); });
   await page.waitForFunction(() => window.__sh.game.phase === 'play', null, { timeout: 5000 });
   await finishNow();
@@ -607,7 +630,8 @@ function serve() {
   await page.waitForTimeout(700);
   await page.screenshot({ path: path.join(SHOTS, 'piggy-full.png') });
   const full = await page.evaluate(() => ({ p: window.__sh.save.inv['progression.piggy_bank_progress'],
-    mode: document.getElementById('egPiggy')?.dataset.mode, col: document.getElementById('egPiggy')?.dataset.collection }));
+    mode: document.getElementById('egPiggy')?.dataset.mode, col: document.getElementById('egPiggy')?.dataset.collection,
+    icon: document.querySelector('#egPiggy .acts .gold')?.dataset.icon, vip: !!document.querySelector('#egPiggy .acts .vip') }));
   // PiggyBankPopup.Fill at 100: AnimateUnlock, then CollectionProgressBar.InitializeElements of the skin's collection
   check('piggy full: the collection bar of Stick Frog shows Aquatic Friends with 0 of 3 owned', full.col === 'aquatic_friends:0/3',
     JSON.stringify(full));
@@ -616,8 +640,9 @@ function serve() {
   const broke = await page.evaluate(() => { const s = window.__sh.save; return { p: s.inv['progression.piggy_bank_progress'],
     claims: s.inv['progression.piggy_bank_claims'], t: s.inv['currency.skip_tickets'], frog: s.owned.skins.includes('stick_frog'),
     next: window.__sh.bonus.piggyReward(s), mode: document.getElementById('egPiggy')?.dataset.mode }; });
-  check('piggy full at 100: UNLOCK breaks it for 1 skip ticket into Stick Frog', full.p === 100 && full.mode === 'full' && broke.p === 0
-    && broke.claims === 1 && broke.t === 22 && broke.frog && broke.next === 'skin.ghost' && broke.mode === 'unlocked', JSON.stringify({ full, broke }));
+  check('piggy full at 100: UNLOCK (ticket icon, no VIP button with 22 tickets) breaks it into Stick Frog, the ticket pays the ad (22 -> 21)',
+    full.p === 100 && full.mode === 'full' && full.icon === 'ticket' && !full.vip && broke.p === 0
+    && broke.claims === 1 && broke.t === 21 && broke.frog && broke.next === 'skin.ghost' && broke.mode === 'unlocked', JSON.stringify({ full, broke }));
   await page.screenshot({ path: path.join(SHOTS, 'piggy-broken.png') });
   check('after UNLOCK the collection bar counts Stick Frog: 1 of 3', await page.evaluate(() =>
     document.getElementById('egPiggy')?.dataset.collection === 'aquatic_friends:1/3'));
@@ -641,18 +666,49 @@ function serve() {
   check('no skip button without the skip card', await page.evaluate(() => !document.querySelector('#skip.on')));
   await page.evaluate(() => { window.__sh.save.inv['card.skip_level'] = 1; window.__sh.startLevel(14); });
   await die();
-  const sk = await page.evaluate(() => ({ on: !!document.querySelector('#skip.on'), text: document.querySelector('#skip b')?.textContent }));
+  const sk = await page.evaluate(() => ({ on: !!document.querySelector('#skip.on'), text: document.querySelector('#skip b')?.textContent,
+    art: document.getElementById('skip').dataset.art }));
   await page.screenshot({ path: path.join(SHOTS, 'skip.png') });
   await page.click('#skip');
   await page.waitForTimeout(300);
   const skipped = await page.evaluate(() => { const s = window.__sh.save; return { phase: window.__sh.game.phase, best: s.best,
     t: s.inv['currency.skip_tickets'], day: Object.entries(s.flags).find(([k]) => k.startsWith('flag.nb_levels_skipped_')) }; });
-  check('after a death the skip button (1/1) spends a ticket and completes level 15', sk.on && sk.text === '1/1'
-    && skipped.phase === 'finish' && skipped.best === 15 && skipped.t === 21 && skipped.day?.[1] === 1 && /^flag\.nb_levels_skipped_\d{4}-\d\d-\d\d$/.test(skipped.day?.[0]), JSON.stringify({ sk, skipped }));
+  check('after a death the skip button (1/1, ticket sprite: CanSkip with 21 tickets) spends a ticket and completes level 15', sk.on && sk.text === '1/1'
+    && sk.art === 'skip' && skipped.phase === 'finish' && skipped.best === 15 && skipped.t === 20 && skipped.day?.[1] === 1 && /^flag\.nb_levels_skipped_\d{4}-\d\d-\d\d$/.test(skipped.day?.[0]), JSON.stringify({ sk, skipped }));
   await page.evaluate(() => window.__sh.startLevel(15));
   await die();
   check('the daily skip limit holds: no skip button on the next death', await page.evaluate(() => !document.querySelector('#skip.on')
-    && window.__sh.save.inv['currency.skip_tickets'] === 21));
+    && window.__sh.save.inv['currency.skip_tickets'] === 20));
+  // AdsService.CanSkip is tickets > 1: with exactly 1 ticket the skip button keeps the rewarded-ad sprite (SkipButton0001),
+  // yet SafelyDisplayAd pays the ad with that ticket (>= 1)
+  await page.evaluate(() => { const s = window.__sh.save; for (const f of Object.keys(s.flags)) if (f.startsWith('flag.nb_levels_skipped_')) delete s.flags[f];
+    s.inv['currency.skip_tickets'] = 1; window.__sh.startLevel(15); });
+  await die();
+  const sk1 = await page.evaluate(() => ({ on: !!document.querySelector('#skip.on'), art: document.getElementById('skip').dataset.art,
+    bg: document.getElementById('skip').style.backgroundImage }));
+  await page.screenshot({ path: path.join(SHOTS, 'ads-skip-ad.png') });
+  await page.click('#skip');
+  await page.waitForTimeout(300);
+  const sk1b = await page.evaluate(() => ({ phase: window.__sh.game.phase, t: window.__sh.save.inv['currency.skip_tickets'] }));
+  check('1 ticket: the skip button shows the ad sprite (skip-ad.webp) and its click still spends the ticket (1 -> 0) and skips',
+    sk1.on && sk1.art === 'skip-ad' && /skip-ad\.webp/.test(sk1.bg) && sk1b.phase === 'finish' && sk1b.t === 0, JSON.stringify({ sk1, sk1b }));
+  // 0 tickets: the piggy UNLOCK shows AdIcon next to the VIP Skip button; the click grants the skin at once, nothing paid
+  await page.evaluate(() => { window.__sh.save.inv['progression.piggy_bank_progress'] = 99; window.__sh.startLevel(16); });
+  await page.waitForFunction(() => window.__sh.game.phase === 'play', null, { timeout: 5000 });
+  await finishNow();
+  await page.waitForSelector('#egPiggy[data-mode="full"] .acts .vip', { timeout: 10000 }).catch(() => {});
+  await page.waitForTimeout(1200);
+  await page.screenshot({ path: path.join(SHOTS, 'ads-piggy-full.png') });
+  const pz = await page.evaluate(() => ({ icon: document.querySelector('#egPiggy .acts .gold')?.dataset.icon, vip: document.querySelector('#egPiggy .acts .vip')?.dataset.offer,
+    res: document.getElementById('egPiggy').dataset.res }));
+  await page.click('#egPiggy .acts .gold');
+  await page.waitForTimeout(400);
+  const pz2 = await page.evaluate(() => ({ ghost: window.__sh.save.owned.skins.includes('ghost'), t: window.__sh.save.inv['currency.skip_tickets'],
+    mode: document.getElementById('egPiggy').dataset.mode }));
+  check('piggy with 0 tickets: UNLOCK with AdIcon + VIP Skip (offer.vip); the ad button grants Ghost at once, 0 tickets spent',
+    pz.icon === 'video' && pz.vip === 'offer.vip' && pz.res === 'skin.ghost' && pz2.ghost && pz2.t === 0 && pz2.mode === 'unlocked', JSON.stringify({ pz, pz2 }));
+  await page.evaluate(() => { window.__sh.save.inv['currency.skip_tickets'] = 21; window.__sh.app.writeSave(); window.__sh.startLevel(17); });
+  await page.waitForFunction(() => window.__sh.game.phase === 'play', null, { timeout: 5000 });
 
   // home screen entry points
   await page.click('#btnPause');
@@ -669,9 +725,11 @@ function serve() {
   await page.waitForTimeout(600);
   await page.screenshot({ path: path.join(SHOTS, 'home-bonus.png') });
   const home = await page.evaluate(() => ({ wheel: document.getElementById('wheelPrice').textContent,
-    tickets: document.getElementById('tickets').textContent, market: document.getElementById('marketDot').classList.contains('on') }));
-  check('home shows the wheel counter (coins/500), ticket count and market', home.wheel === `${await page.evaluate(() => window.__sh.save.coins)}/500`
-    && home.tickets === '21', JSON.stringify(home));
+    tickets: document.getElementById('tickets').textContent,
+    offers: [...document.querySelectorAll('#homeOffers [data-offer]')].map((b) => b.dataset.offer) }));
+  check('home shows the wheel counter (coins/500), ticket count and the offer widgets (VIP Bundle + welcome offer or No Ads)',
+    home.wheel === `${await page.evaluate(() => window.__sh.save.coins)}/500` && home.tickets === '21' && home.offers[0] === 'offer.vip'
+    && home.offers.length === 2 && /offer\.(welcome_offer|no_ads)/.test(home.offers[1]), JSON.stringify(home));
   await settle(); // boosters claimed by the XP road popup open on the home page first
   await page.click('#btnPlay');
 
@@ -819,14 +877,14 @@ function serve() {
   await page.evaluate(() => window.__sh.openMenu('openMarket'));
   await page.waitForSelector('#market .ocard[data-card]', { timeout: 15000 });
   await page.waitForTimeout(600);
-  await page.evaluate(() => document.querySelector('#market .bm-ban').scrollIntoView());
+  await page.evaluate(() => document.querySelector('#market .bm-ban[data-section="black_market"]').scrollIntoView());
   await page.waitForTimeout(300);
   await page.screenshot({ path: path.join(SHOTS, 'cards-market.png') });
   const bm = await page.evaluate(() => { const b = window.__sh.save.blackMarket, end = new Date(b.end);
-    return { items: b.items.length, cards: b.cards.length, h: end.getHours() % 6, m: end.getMinutes(), offers: document.querySelectorAll('#market .ocard').length,
+    return { items: b.items.length, cards: b.cards.length, h: end.getHours() % 6, m: end.getMinutes(), offers: document.querySelectorAll('#market [data-group="booster"] .ocard').length,
       fromBm: b.cards.every((id) => window.__sh.save.inv[id] >= 1) }; });
   check('black market: 3 items, 3 owned cards, rotation ends on a 6 h local boundary; 3 booster offers', bm.items === 3 && bm.cards === 3
-    && bm.h === 0 && bm.m === 0 && bm.offers === 9 && bm.fromBm, JSON.stringify(bm));
+    && bm.h === 0 && bm.m === 0 && bm.offers === 3 && bm.fromBm, JSON.stringify(bm));
   const bbuy = await page.evaluate(() => {
     const s = window.__sh.save, b = s.blackMarket, id = b.cards.find((x) => x === 'card.xp_boost_skin') || b.cards[0];
     const o = b.offers[id], before = { coins: s.coins, n: s.inv[id] };
@@ -841,7 +899,32 @@ function serve() {
     const c0 = s.coins, r = window.__sh.cards.buyItem(s, res);
     return { res, price: r.price, paid: c0 - s.coins, owned: s.owned[it.kind].includes(it.name), table: window.__sh.cards.d.market[res][1] }; });
   check('buying a black market item: flat price, item owned', bi.owned && bi.paid === bi.table && bi.price === bi.table, JSON.stringify(bi));
-  await page.click('#market .x');
+  // a booster IAP (offer.boosters_1, x1 epic booster, [ĐỀ XUẤT] 1.99$): the click opens the booster popup at once, no coins
+  // taken; the popup's "+1 Card" is the rewarded ad (rewarded.one_more_card) with the ticket icon while tickets are owned
+  const cardSum = () => page.evaluate(() => Object.entries(window.__sh.save.inv).filter(([k]) => k.startsWith('card.')).reduce((t, [, v]) => t + v, 0));
+  const bo0 = { cards: await cardSum(), coins: await page.evaluate(() => window.__sh.save.coins), t: await page.evaluate(() => window.__sh.save.inv['currency.skip_tickets']),
+    price: await page.evaluate(() => document.querySelector('#market [data-offer="offer.boosters_1"] button')?.textContent) };
+  await page.evaluate(() => document.querySelector('#market [data-offer="offer.boosters_1"]').scrollIntoView());
+  await page.screenshot({ path: path.join(SHOTS, 'ads-market-boosters.png') });
+  await page.click('#market [data-offer="offer.boosters_1"] button');
+  await page.waitForSelector('#boostPop.on', { timeout: 15000 }).catch(() => {});
+  const boInst = await page.evaluate(() => document.getElementById('boostPop')?.dataset.inst || '');
+  for (let i = 0; i < 12 && !(await page.evaluate(() => document.getElementById('boostPop').classList.contains('done'))); i++) {
+    await page.mouse.click(195, 500); await page.waitForTimeout(i ? 450 : 2300);
+  }
+  await page.waitForTimeout(400);
+  const more = await page.evaluate(() => document.querySelector('#boostPop .more')?.dataset.icon);
+  await page.screenshot({ path: path.join(SHOTS, 'ads-booster-more.png') });
+  const bo1 = { cards: await cardSum(), coins: await page.evaluate(() => window.__sh.save.coins) };
+  if (more) await page.click('#boostPop .more');
+  await page.waitForTimeout(800);
+  const bo2 = await page.evaluate(() => ({ t: window.__sh.save.inv['currency.skip_tickets'], q: (window.__sh.save.boosterQueue || []).join(), pop: document.getElementById('boostPop')?.dataset.inst || '' }));
+  check('booster IAP "1.99$": the epic booster popup opens at once, 5 draws of cards are added, no coins taken',
+    bo0.price === '1.99$' && /^booster\.epic_[0-9a-f]{32}$/.test(boInst) && bo1.cards > bo0.cards && bo1.coins === bo0.coins, JSON.stringify({ bo0, boInst, bo1 }));
+  check('"+1 Card" is the rewarded ad with the ticket icon: the click pays 1 ticket and opens one more card', more === 'ticket'
+    && bo2.t === bo0.t - 1 && /one_more_card_booster\.epic/.test(bo2.q + ' ' + bo2.pop), JSON.stringify({ more, bo2 }));
+  await settle();
+  if (await page.evaluate(() => !!document.querySelector('#market.on'))) await page.click('#market .x');
 
   // pachinko cards: x10_multiplier (max 50 %: 5 rolls) and extra_stickman (max 100 %) on board 4, seed 3
   await page.evaluate(() => { const s = window.__sh.save, c = window.__sh.cards;
@@ -964,6 +1047,16 @@ function serve() {
     && f1.coins === 7 && f1.trophies === 5 && f1.best === 5 && f1.achieved === 1, JSON.stringify({ ...f1, text: undefined }));
   check('the finish screen says it in Vietnamese: Hạng 2/4, +7 xu, +5 cúp', /Hạng 2\/4/.test(f1.text) && /\+7 xu/.test(f1.text)
     && /\+5 cúp/.test(f1.text), f1.text);
+  // TournamentEndGamePage: "Claim +28" = skinCoinsMultiplier 4 x the 7 coins earned; the 1 skip ticket pays the ad
+  const cb = await page.evaluate(() => { const b = document.querySelector('#raceEnd [data-act="claim"]');
+    return { text: b?.textContent.trim(), icon: b?.dataset.icon }; });
+  await page.screenshot({ path: path.join(SHOTS, 'ads-race-claim4.png') });
+  await page.click('#raceEnd [data-act="claim"]');
+  await page.waitForTimeout(300);
+  const ca = await page.evaluate(() => ({ coins: window.__sh.save.coins, t: window.__sh.save.inv['currency.skip_tickets'],
+    again: !!document.querySelector('#raceEnd [data-act="claim"]'), text: document.querySelector('#raceEnd')?.innerText.replace(/\s+/g, ' ') }));
+  check('race end: rewarded "Claim +28" (4 x 7 coins) with the ticket icon; the click adds 28 coins (7 -> 35), the ticket pays the ad (1 -> 0), once',
+    cb.text === 'Claim +28' && cb.icon === 'ticket' && ca.coins === 35 && ca.t === 0 && !ca.again && /\+35 xu/.test(ca.text), JSON.stringify({ cb, ca }));
   // race 2 (last free one): map 2, four ghosts; when all four are home first the player is force-finished last
   await raceStarts('#raceEnd [data-act="again"]');
   const r2 = await page.evaluate(() => ({ level: window.__sh.race.level, n: window.__sh.race.ghosts.length,
@@ -975,19 +1068,32 @@ function serve() {
     trophies: window.__sh.save.inv['progression.race_trophies'], text: document.querySelector('#raceEnd')?.innerText.replace(/\s+/g, ' ') }));
   check('race 2 is map 2 (STARTUPRace01+MIDDLE020+FINISH03) with 4 ghosts', r2.level === 1 && r2.n === 4
     && r2.names === 'STARTUPRace01+MIDDLE020+FINISH03', JSON.stringify(r2));
-  check('4 ghosts home first = forced finish, 5th: +1 coin, +1 trophy', f2.done?.forced && f2.done.rank === 4 && f2.coins === 8
+  check('4 ghosts home first = forced finish, 5th: +1 coin, +1 trophy', f2.done?.forced && f2.done.rank === 4 && f2.coins === 36
     && f2.trophies === 6 && /Hạng 5\/5/.test(f2.text), JSON.stringify({ ...f2, text: f2.text?.slice(0, 80) }));
-  // free races are used up: the next race costs the 1 skip ticket, the one after is refused
+  // free races are used up: the next race is the rewarded ad (rewarded.play_ticket_mode_tournament, no daily cap): with no
+  // skip ticket it is granted at once, AddRewardedTicket + PlayForRewarded play it
+  const rewFlag = () => page.evaluate(() => Object.entries(window.__sh.save.flags).find(([k]) => k.startsWith('daily_flag_mode.tournament_rewarded_'))?.[1] || 0);
+  const rf0 = await rewFlag();
   await raceStarts('#raceEnd [data-act="again"]');
   const t3 = await page.evaluate(() => ({ race: !!window.__sh.race && window.__sh.game.phase !== 'finish',
-    tickets: window.__sh.save.inv['currency.skip_tickets'] }));
+    tickets: window.__sh.save.inv['currency.skip_tickets'], modeTickets: window.__sh.save.inv['rewarded_tickets_mode.tournament'] || 0 }));
+  const rf1 = await rewFlag();
   await page.evaluate(() => window.__sh.openMode('mode.tournament'));
   await page.waitForSelector('#race.on .go', { timeout: 10000 });
-  await page.click('#race .go');
-  await page.waitForTimeout(300);
-  const t4 = await page.evaluate(() => ({ page: !!document.querySelector('#race.on'), toast: document.getElementById('toast').textContent }));
-  check('after 2 free races a race costs 1 skip ticket, then none is left', t3.race && t3.tickets === 0 && t4.page && /vé/.test(t4.toast),
-    JSON.stringify({ t3, t4 }));
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: path.join(SHOTS, 'ads-race-page.png') });
+  const t4 = await page.evaluate(() => { const g = document.querySelector('#race .go'), v = document.querySelector('#race .bot .vip');
+    return { rew: g.classList.contains('rew'), icon: g.dataset.icon, plus: g.querySelector('b')?.textContent, vip: v?.dataset.offer, skip: v?.textContent }; });
+  await raceStarts('#race .go');
+  const rf2 = await rewFlag();
+  const t5 = await page.evaluate(() => ({ race: !!window.__sh.race && window.__sh.game.phase !== 'finish', tickets: window.__sh.save.inv['currency.skip_tickets'] }));
+  check('after 2 free races the rewarded ad plays a race with 0 tickets: rewarded plays 0 -> 1, the +1 race ticket is played at once (0 left)',
+    t3.race && t3.tickets === 0 && t3.modeTickets === 0 && rf0 === 0 && rf1 === 1, JSON.stringify({ t3, rf0, rf1 }));
+  check('Race page: RewardedPlayButton AdIcon "+1" Ticket and the VIP "Skip" button (offer.vip); a click plays (rewarded plays 2), no cap',
+    t4.rew && t4.icon === 'video' && t4.plus === '+1' && t4.vip === 'offer.vip' && /Skip/.test(t4.skip) && rf2 === 2 && t5.race && t5.tickets === 0,
+    JSON.stringify({ t4, rf2, t5 }));
+  await page.evaluate(() => window.__sh.openMode('mode.tournament'));
+  await page.waitForSelector('#race.on .go', { timeout: 10000 });
   // the daily board: seed (int)(low 32 bits of the start ms) / 1000, 9 AI from System.Random(seed), scores at noon
   const bd = await page.evaluate(async () => {
     const m = await import('./js/race.js'), cfg = window.__sh.mode.file.race;
@@ -1002,8 +1108,9 @@ function serve() {
     JSON.stringify(bd));
   check('board rewards between listed positions are interpolated: 7th = 20 coins, 8th = 15', JSON.stringify(bd.p6) === '[["currency.skin_coins",20]]'
     && JSON.stringify(bd.p7) === '[["currency.skin_coins",15]]', JSON.stringify([bd.p6, bd.p7]));
-  // a board two days old with 100 trophies: claimed on open at rank 1 -> 1000 coins + the first unowned pool skin
-  // (Dolphin, played 0), one daily win; today's board starts with the trophies wiped
+  // a board two days old with 100 trophies: FinishedTournamentPopup on open, rank 1: "Claim" (1000 coins) or the rewarded
+  // "Claim x1200" (coins x 1.2); either also gives the first unowned pool skin (Dolphin, played 0) and one daily win; today's
+  // board starts with the trophies wiped
   await page.click('#race .x');
   await page.evaluate(() => {
     const s = window.__sh.save;
@@ -1011,14 +1118,23 @@ function serve() {
     s.inv['leaderboard.tournament_best_score'] = 100; s.coins = 0;
   });
   await page.evaluate(() => window.__sh.openMode('mode.tournament'));
-  await page.waitForSelector('#race.on .msg', { timeout: 10000 }).catch(() => {});
+  await page.waitForSelector('#race.on .msg.claim .cl.rew', { timeout: 10000 }).catch(() => {});
+  await page.waitForTimeout(300);
   await page.screenshot({ path: path.join(SHOTS, 'race-claim.png') });
+  const cl0 = await page.evaluate(() => ({ coins: window.__sh.save.coins, reg: document.querySelector('#race .cl.reg')?.textContent,
+    rew: document.querySelector('#race .cl.rew')?.textContent.trim(), pending: !!window.__sh.save.modes['mode.tournament'].claim }));
+  await page.click('#race .cl.rew');
+  await page.waitForSelector('#race.on .msg:not(.claim)', { timeout: 10000 }).catch(() => {});
   const cl = await page.evaluate(() => { const s = window.__sh.save; return { coins: s.coins, dolphin: s.owned.skins.includes('dolphin'),
     win: s.inv['leaderboard.tournament_win'], played: s.inv['leaderboard.tournament_played'], trophies: s.inv['progression.race_trophies'] || 0,
-    start: s.modes['mode.tournament'].board.start, msg: document.querySelector('#race .msg')?.textContent.replace(/\s+/g, ' ') }; });
+    start: s.modes['mode.tournament'].board.start, claim: !!s.modes['mode.tournament'].claim, t: s.inv['currency.skip_tickets'],
+    msg: document.querySelector('#race .msg')?.textContent.replace(/\s+/g, ' ') }; });
   const midnight = await page.evaluate(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); });
-  check('a finished board pays rank 1: 1000 coins + Dolphin, 1 win, 1 played; the new board has 0 trophies', cl.coins === 1000 && cl.dolphin
-    && cl.win === 1 && cl.played === 1 && cl.trophies === 0 && cl.start === midnight && /hạng 1/.test(cl.msg), JSON.stringify(cl));
+  check('a finished board waits for its claim: "Claim" and the rewarded "Claim x1200" (rank 1, 1000 x 1.2), nothing paid yet',
+    cl0.coins === 0 && cl0.reg === 'Claim' && cl0.rew === 'Claim x1200' && cl0.pending, JSON.stringify(cl0));
+  check('the rewarded claim (0 tickets: granted at once) pays 1200 coins + Dolphin, 1 win, 1 played; the new board has 0 trophies',
+    cl.coins === 1200 && cl.dolphin && cl.win === 1 && cl.played === 1 && cl.trophies === 0 && cl.start === midnight && !cl.claim && cl.t === 0
+    && /hạng 1/.test(cl.msg) && /\+1200 xu/.test(cl.msg), JSON.stringify(cl));
   await page.click('#race .x');
 
   // ---- Adventure: the endless run against the firewall (js/adventure.js + js/advrun.js, README "Phiêu lưu") ----
@@ -1187,6 +1303,45 @@ function serve() {
   await page.waitForSelector('#adv.on .sk', { timeout: 10000 });
   await page.screenshot({ path: path.join(SHOTS, 'adv-skills.png') });
   await page.click('#adv .x');
+
+  // ---- VIP Bundle (offer.vip, [ĐỀ XUẤT] 19.99$): the home widget buys it at once. VIP grants flag.vip + flag.no_ads,
+  // 3000 coins, 60 skip tickets, 9 skins, 3 ropes, 3 trails and 3 legendary boosters; VipOfferWidget / NoAdsButton hide
+  // with flag.vip, the welcome / No Ads widgets with flag.no_ads; the 60 tickets then pay every rewarded ad.
+  await page.evaluate(() => { const s = window.__sh.save; s.coins = 0; s.inv['currency.skip_tickets'] = 0; window.__sh.app.writeSave(); window.__sh.overlay('start', true); });
+  await settle();
+  await page.waitForSelector('#homeOffers [data-offer="offer.vip"]', { timeout: 10000 }).catch(() => {});
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: path.join(SHOTS, 'ads-home-widgets.png') });
+  const v0 = await page.evaluate(() => [...document.querySelectorAll('#homeOffers [data-offer]')].map((b) => b.dataset.offer));
+  await page.click('#homeOffers [data-offer="offer.vip"]');
+  await page.waitForTimeout(500);
+  const v1 = await page.evaluate(() => { const s = window.__sh.save; return { vip: s.flags['flag.vip'], noAds: s.flags['flag.no_ads'], coins: s.coins,
+    t: s.inv['currency.skip_tickets'], skins: ['vampire', 'shark', 'pigeot', 'gold_stick', 'gold_unicorn', 'gold_dragon'].every((n) => s.owned.skins.includes(n)),
+    ropes: ['gold_chain', 'gold_diamond', 'gold_plant'].every((n) => s.owned.ropes.includes(n)),
+    trails: ['golden', 'gold_poop', 'gold_smoke'].every((n) => s.owned.trails.includes(n)),
+    legendary: (s.boosterQueue || []).filter((b) => b.startsWith('booster.legendary_')).length + (document.getElementById('boostPop')?.dataset.inst?.startsWith('booster.legendary_') ? 1 : 0),
+    widgets: document.querySelectorAll('#homeOffers [data-offer]').length, vipOffer: !!window.__sh.bonus.shop.vipOffer(s) }; });
+  check('home widgets before VIP: VIP Bundle + welcome/No Ads; the VIP click grants flag.vip, flag.no_ads, 3000 coins, 60 tickets, the gold skins/ropes/trails, 3 legendary boosters',
+    v0[0] === 'offer.vip' && v0.length === 2 && v1.vip === 1 && v1.noAds === 1 && v1.coins === 3000 && v1.t === 60 && v1.skins && v1.ropes && v1.trails
+    && v1.legendary === 3, JSON.stringify({ v0, v1 }));
+  await settle();
+  const v2 = await page.evaluate(() => ({ widgets: document.querySelectorAll('#homeOffers [data-offer]').length, vipOffer: !!window.__sh.bonus.shop.vipOffer(window.__sh.save),
+    saved: JSON.parse(localStorage.getItem('stickman-hook')).flags['flag.vip'] }));
+  check('after VIP: every home offer widget is gone (no VIP offer left), flag.vip saved in localStorage', v2.widgets === 0 && !v2.vipOffer && v2.saved === 1, JSON.stringify(v2));
+  // the VIP benefit in play: a full piggy shows no VIP Skip button and UNLOCK pays its ad with one of the 60 tickets
+  await page.evaluate(async () => { await window.__sh.openMode('mode.normal'); window.__sh.save.inv['progression.piggy_bank_progress'] = 99; window.__sh.startLevel(window.__sh.save.best); });
+  await page.waitForFunction(() => window.__sh.game.phase === 'play', null, { timeout: 5000 });
+  await finishNow();
+  await page.waitForSelector('#egPiggy[data-mode="full"] .acts .gold', { timeout: 10000 }).catch(() => {});
+  await page.waitForTimeout(1200);
+  await page.screenshot({ path: path.join(SHOTS, 'ads-piggy-vip.png') });
+  const v3 = await page.evaluate(() => ({ icon: document.querySelector('#egPiggy .acts .gold')?.dataset.icon, vip: !!document.querySelector('#egPiggy .acts .vip'),
+    res: document.getElementById('egPiggy').dataset.res }));
+  await page.click('#egPiggy .acts .gold');
+  await page.waitForTimeout(400);
+  const v4 = await page.evaluate((res) => ({ t: window.__sh.save.inv['currency.skip_tickets'], owned: window.__sh.meta.ownsRes(window.__sh.save, res) }), v3.res);
+  check('with VIP: the full piggy has no VIP Skip button, UNLOCK shows the ticket icon and takes 1 of the 60 tickets (60 -> 59)',
+    v3.icon === 'ticket' && !v3.vip && v4.t === 59 && v4.owned, JSON.stringify({ v3, v4 }));
 
   check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
   await browser.close();

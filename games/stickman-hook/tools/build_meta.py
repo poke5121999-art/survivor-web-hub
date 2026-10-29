@@ -28,7 +28,7 @@ bonus.json (js/bonus.js):
   wheel:       lucky_wheel config {prices, pools: [[poolId, rarity, weight, [[res, qty]...]]], forced} plus LuckyWheelSettings
                (resources.assets 'LuckyWheelConfig'): items, at (reward index), spin, recenter, curve keys [t, v, in, out], ticker
   piggy:       {fill: [[claimsThreshold, levelComplete, rewarded, iap]], rewards: skin ids, max}
-  offers:      {freeCoins, skipPrice: [res, qty] of a rewarded ad, tickets: [[qty, coins]]}; skipCard: card.skip_level
+  offers:      {freeCoins, skipPrice: [res, qty] of a rewarded ad}; skipCard: card.skip_level (the market's IAP offers: data/ads.json)
                [minEffect, maxEffect, graduation, maxLevel]; periodic: {daily.free_coins: [qty, unit, isUtc]}
   wheelArt, piggyArt: rects in art/wheel.webp / art/piggy.webp, [x, y, w, h(, border l, b, r, t)]; also art/skip.webp
 """
@@ -419,11 +419,9 @@ content = rs['market']['offerContent']
 offer_qty = lambda oid, res: next(c['reward']['quantity'] for c in content
                                   if c['sourceId'] == oid and c['reward']['resourceId'] == res)
 skip_price = next(p['skipPrice'] for p in rs['ads']['placements'] if p['placementId'] == 'rewarded.default')
-TICKET_COINS = 50  # [ĐỀ XUẤT] IAP packs paid in coins: 20 tickets = 1000 coins, the cheapest coin pack (offer.coins_1)
 offers = {
     'freeCoins': offer_qty('offer.free_coins', 'currency.skin_coins'),
     'skipPrice': [skip_price['resourceId'], skip_price['quantity']],
-    'tickets': [[q, q * TICKET_COINS] for q in (offer_qty('offer.skip_tickets_%d' % i, 'currency.skip_tickets') for i in (1, 2, 3))],
 }
 card = next(c for c in rs['cards']['cards'] if c['id'] == 'card.skip_level')
 skip_card = [card['minEffect'], card['maxEffect'], card['effectGraduation'], card['cardMaxLevel'], card['requiredCardsPerLevel']]

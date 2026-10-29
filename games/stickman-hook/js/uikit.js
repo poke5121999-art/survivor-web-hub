@@ -70,6 +70,14 @@ export function cut(sh, name) {
   return cuts.get(key);
 }
 
+// A sprite fitted inside the element's box (Image preserveAspect / AspectRatioFitter)
+export function fit(el, sh, name) {
+  if (!sh.rects[name]) return el;
+  Object.assign(el.style, { backgroundImage: `url(${cut(sh, name)})`, backgroundSize: 'contain', backgroundPosition: 'center',
+    backgroundRepeat: 'no-repeat' });
+  return el;
+}
+
 // Image type Sliced: the sprite's border [l, b, r, t] (sheet px) drawn at `k` reference units per sheet px.
 export function slice(el, sh, name, k = 1) {
   const r = sh.rects[name];

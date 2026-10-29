@@ -237,7 +237,7 @@ export class Cards {
     return true;
   }
   // "+1 Card" (OneMoreCard [asm 0x1143644]): offered when the booster is not a one-more draw, nbRewarded >= 1 and its
-  // first item is a card; a rewarded ad in the original (1 skip ticket here, the ads rule of the whole game).
+  // first item is a card; a rewarded ad (rewarded.one_more_card, js/ads.js watch).
   canOneMore(box) { return !box.one && this.boosters[box.id][4] >= 1 && !!box.items[0]?.card; }
   oneMore(s, box) {
     s.boosterQueue = ['one_more_card_' + box.id + '_' + guid(), ...(s.boosterQueue || [])];
@@ -374,16 +374,6 @@ export class Cards {
     const got = [];
     this.m.grantReward(s, [res, 1], got);
     return { price, got };
-  }
-  // Market booster offers (offer group "booster"): bought with coins here, see build_cards.py OFFER_COINS.
-  buyOffer(s, offerId) {
-    const o = this.d.offers.find((x) => x[0] === offerId);
-    if (!o) return { refused: 'none' };
-    if (s.coins < o[2]) return { refused: 'coins', price: o[2] };
-    s.coins -= o[2];
-    const got = [];
-    for (const r of o[1]) this.m.grantReward(s, r, got);
-    return { price: o[2], got };
   }
 }
 

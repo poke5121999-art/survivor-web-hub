@@ -1,11 +1,12 @@
 // Meta menus, loaded on first open: game modes, Customization (skins / ropes / trails by collection), the XP road,
-// the Lucky Wheel and the market (daily free coins, skip tickets).
+// the Lucky Wheel and the market (js/cardsui.js marketSections).
 // `app` is main.js's handle: save, meta, custom loader, overlay(), writeSave(), applyEquip(), hud(), icon(), ...
 import { Renderer } from './render.js';
 import { bake } from './fx.js';
 import { XP_ROAD, SKIP_TICKETS, qty } from './meta.js';
 import { MODES } from './modes.js';
-import { artPage, spr, slice, label, glText, U, kitStyle } from './uikit.js';
+import { artPage, spr, slice, label, glText, U, kitStyle, sheet, fit } from './uikit.js';
+import { watch, adIcon } from './ads.js';
 
 const CSS = `
 .sheet { margin: auto; background: #12314d; color: #fff; border: 4px solid #0d1b2a; border-radius: 22px; width: min(96vw, 620px);
@@ -389,8 +390,28 @@ export async function openShop(app) {
     t.innerHTML = owned ? esc(it.title) : rich(meta.unlockInfo(it).text || 'Locked');
     b.appendChild(t);
     if (eq) { const e = document.createElement('i'); e.className = 'eq'; spr(e, sh, 'ValidateIcon_01'); b.appendChild(e); }
+    // unlockMethod "rewarded" (12 common skins): ShopItemUI.OnClickAsync shows the ad rewarded.customization_unlock
+    // [asm 0x11ee67c] and sets the item to 1 [asm 0x11ee76c]: one ad per item. Granted at once (js/ads.js watch).
+    const rew = !owned && it.unlock === 'rewarded';
+    if (rew) {
+      const a = document.createElement('i');
+      a.className = 'ad';
+      a.style.cssText = `position:absolute;right:${U(6)};top:${U(6)};width:${U(40)};height:${U(32)}`;
+      b.dataset.icon = adIcon(save);
+      sheet(app, 'ads').then((x) => fit(a, x, b.dataset.icon === 'ticket' ? 'SkipTickets' : 'AdIcon')).catch(() => {});
+      b.appendChild(a);
+    }
     b.onclick = () => {
       app.play('button');
+      if (rew) {
+        watch(save);
+        const out = [];
+        meta.grantItem(save, it, out);
+        app.writeSave();
+        app.play('popup_in');
+        app.toast('Mở khoá: ' + it.title);
+        app.hud();
+      }
       if (owned && !eq) {
         save.equipped[it.kind] = it.name;
         app.writeSave();
@@ -1011,57 +1032,28 @@ export async function openWheel(app) {
   }
 }
 
-// ---- Market: daily free coins and skip tickets ---------------------------------------------------------------------
-// offer.free_coins (FREE, once a day: periodic daily.free_coins) and the skip ticket packs. The original sells the packs
-// (and every other coin or ticket pack) for real money; here they cost coins ([ĐỀ XUẤT] price). Rewarded coins need an ad: not here.
+// ---- Market ---------------------------------------------------------------------------------------------------------
+// MarketPage: every section (special offers, boosters, black market, coins, skip tickets) is drawn by js/cardsui.js
+// marketSections from data/ads.json (js/ads.js Shop). IAP and rewarded buttons grant at once (owner rule 2026-10-29).
 export async function openMarket(app) {
-  const { save } = app, bonus = await app.loadBonus();
+  await app.loadBonus();
   const sheet = sheetOverlay(app, 'market', 'Chợ');
   sheet.insertAdjacentHTML('beforeend', '<div class="scroll mk"></div>');
   const box = sheet.querySelector('.scroll');
-  const offer = (ico, name, sub, btn, enabled, onclick) => {
-    const row = document.createElement('div');
-    row.className = 'offer';
-    row.innerHTML = `<i></i><div class="nm">${name}<small>${sub}</small></div><button>${btn}</button>`;
-    app.icon(row.querySelector('i'), ico, 52);
-    const b = row.querySelector('button');
-    b.disabled = !enabled;
-    b.onclick = onclick;
-    b.querySelectorAll('[data-ico]').forEach((i) => app.icon(i, i.dataset.ico, 18));
-    box.appendChild(row);
-    return row;
-  };
-  function render() {
-    box.innerHTML = `<h3>Xu</h3>`;
-    const ready = bonus.freeCoinsReady(save);
-    offer('coinpile', `${bonus.d.offers.freeCoins} xu miễn phí`, 'Mỗi ngày một lần', ready ? 'Nhận' : 'Mai quay lại', ready, () => {
-      const n = bonus.claimFreeCoins(save);
-      if (!n) return;
-      app.play('popup_in');
-      app.writeSave();
-      app.toast(`Nhận ${n} xu`);
-      render();
-    }).dataset.id = 'free_coins';
-    box.insertAdjacentHTML('beforeend', `<h3>Vé bỏ qua · đang có <span class="tk">${qty(save, SKIP_TICKETS)}</span></h3>
-      <p>Mỗi vé thay một lần xem quảng cáo của bản gốc: bỏ qua màn, mở hoặc nạp heo đất.</p>`);
-    bonus.d.offers.tickets.forEach(([q, price], i) => {
-      offer('ticket', `${q} vé`, 'Bản gốc: tiền thật', `${price}<i data-ico="coin"></i>`, save.coins >= price, () => {
-        if (!bonus.buyTickets(save, i)) return;
-        app.play('popup_in');
-        app.writeSave();
-        app.toast(`Nhận ${q} vé bỏ qua`);
-        render();
-      }).dataset.id = 'tickets_' + i;
-    });
-    sheet.querySelector('.c').textContent = save.coins;
-    // boosters and the Black Market (js/cardsui.js, loaded now)
-    const token = (render.n = (render.n || 0) + 1);
-    const sec = document.createElement('div');
-    sec.className = 'cardsec';
-    box.appendChild(sec);
-    app.loadCardsUi().then(() => { if (render.n === token) return app.cardsUi.marketSections(app, app.cards, sec, render); })
-      .then(() => { sheet.querySelector('.c').textContent = save.coins; })
-      .catch((e) => { sec.textContent = 'Không tải được Chợ Đen: ' + e.message; });
+  async function render() {
+    const token = (render.n = (render.n || 0) + 1), top = box.scrollTop;
+    try {
+      await app.loadCardsUi();
+      if (render.n !== token) return;
+      const sec = document.createElement('div');
+      sec.className = 'cardsec';
+      await app.cardsUi.marketSections(app, app.cards, sec, render);
+      if (render.n !== token) return;
+      box.replaceChildren(sec);
+      box.scrollTop = top;
+    } catch (e) { box.textContent = 'Không tải được Chợ: ' + e.message; }
+    sheet.querySelector('.c').textContent = app.save.coins;
+    box.dataset.ready = token;
   }
-  render();
+  await render();
 }

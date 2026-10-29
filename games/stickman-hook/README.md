@@ -18,7 +18,7 @@ Phiêu lưu (Adventure): chạy vô tận trước tường lửa, 6 kỹ năng,
 
 Thẻ bài (33 thẻ), booster, Chợ Đen và hiệu ứng thẻ ở mọi chế độ: xem mục "Thẻ bài, booster, Chợ Đen".
 
-Chưa làm: quảng cáo (mọi nút xem quảng cáo trả 1 vé bỏ qua), VIP.
+Quảng cáo có thưởng và mua bằng tiền thật (IAP): mọi nút hiện như bản gốc, bấm là nhận ngay. Xem mục "Quảng cáo có thưởng và IAP" (rev 20261028m).
 
 ## Cách chơi
 
@@ -55,7 +55,10 @@ Chưa làm: quảng cáo (mọi nút xem quảng cáo trả 1 vé bỏ qua), VIP
 | `js/home.js` | Trang chính theo prefab HomePage + MenuBar, art gốc; nạp khi trang chính hiện lần đầu, không bao giờ nạp với `?level=` |
 | `js/uikit.js` | Bộ dựng menu dùng chung: sheet theo màn, sprite/9-slice/tile, đơn vị tham chiếu `--u` (1334 chiều cao), chữ font game trên canvas |
 | `art/m-<màn>.webp`, `data/m-<màn>.json` | Art menu gốc theo màn: `home`, `modes`, `road`, `shop`, `tour` (`tools/build_menus.py`), nạp lười |
-| `js/bonus.js` | Luật vòng quay, heo đất, xu mỗi ngày, vé bỏ qua, bỏ qua màn; ô trang chính, nút bỏ qua, khung heo đất (nạp lười) |
+| `js/bonus.js` | Luật vòng quay, heo đất, xu mỗi ngày, bỏ qua màn; ô trang chính (cả cột ưu đãi VIP / No Ads), nút bỏ qua, `bonus.buy` (nạp lười) |
+| `js/ads.js` | Luật quảng cáo có thưởng (`watch`, `adIcon`, `canSkip`, `vipSkip`) và Chợ (`Shop`: hiện, giá, mua) theo `data/ads.json`; không DOM |
+| `data/ads.json`, `art/skip-ad.webp` | Ưu đãi Chợ, nội dung, giá, điều kiện, chữ và màu của thẻ (`tools/build_ads.py`); nút bỏ qua bản quảng cáo |
+| `art/m-ads.webp`, `art/m-market.webp` | Nút quảng cáo / VIP dùng chung, widget ưu đãi trang chính; art thẻ Chợ (`tools/build_menus.py`, nạp lười) |
 | `js/daily.js` | Mã ngày `yyyy-MM-dd`, giới hạn lượt mỗi ngày của chế độ (`GameModesService`), vòng một màn mỗi ngày của sự kiện; không DOM (nạp lười) |
 | `js/modes.js` | Bảng chế độ: nguồn màn, lớp người chơi, chỗ lưu tiến độ, luật mở màn, thưởng cuối màn, road |
 | `js/grapple.js` | Người chơi Mechanical Grapple (nạp khi mở chế độ) |
@@ -80,6 +83,7 @@ Chưa làm: quảng cáo (mọi nút xem quảng cáo trả 1 vé bỏ qua), VIP
 | `tools/build_race.py` | Giải bản ghi ghost của Tournament, lấy mẫu lại 10 Hz → `data/race/*.json`; tạo `art/race.webp` |
 | `tools/build_custom.py` | Tạo sheet skin, `ropes.webp`, `custom-ui.webp`, `custom.json` |
 | `tools/build_cards.py` | Tạo `data/cards.json` từ remote settings mặc định |
+| `tools/build_ads.py` | Tạo `data/ads.json` (ưu đãi, giá, điều kiện, chữ thẻ Chợ) và `art/skip-ad.webp` từ remote settings và bundle |
 | `tools/build_meta.py` | Tạo `meta.json`, `bonus.json`, `menu.webp`, `wheel.webp`, `piggy.webp`, `skip.webp` từ remote settings mặc định và bundle trong APK |
 | `tools/build_font.py` | Nướng font TMP SDF thành bitmap |
 | `tools/build_ui.py` | Tạo `art/ui.webp` + `data/ui.json` từ `REF/sprites_ui` (xuất bằng `tools/extract/export_named.py`) |
@@ -250,7 +254,7 @@ Trang chính, Chế độ, Đường XP, Tuỳ biến và trang Đua dựng lạ
 - Màu nền: UIGradient của từng trang. Trang chính #006DCF→#00EAFF, Chế độ #0082FF→#00EAFF, Đường XP #DA73D6→#3673C7, Đua #6521C5→#A52FDB.
 - Chữ: số và chữ ASCII vẽ bằng font Junegull của game (canvas, `uikit.js label/glText`). Font không có dấu tiếng Việt, nên nhãn tiếng Việt
   ("CHƠI", "TRANG CHỦ", "CHẾ ĐỘ CHƠI", "GIẢI ĐUA"...) dùng chữ hệ thống viền xanh đậm. `glText` giữ nguyên `textContent`: code và bài kiểm vẫn đọc được số.
-- Trang chính: cột trái gốc là VIP Bundle / No Ads (chưa làm), web đặt widget Chợ ở đó. Tab thẻ bài (`Icon_CardsLocked` tới khi có thẻ đầu tiên, rồi `Icon_Cards`) mở trang thẻ. Bánh răng mở bảng chọn màn.
+- Trang chính: cột trái là `MarketWidgetsHolder` (VIP Bundle, Welcome Offer / No Ads; từ 20261028m), Chợ mở từ tab đầu của thanh menu và nút + cạnh xu. Tab thẻ bài (`Icon_CardsLocked` tới khi có thẻ đầu tiên, rồi `Icon_Cards`) mở trang thẻ. Bánh răng mở bảng chọn màn.
 - Tuỳ biến: gốc lật 7 trang, web cuộn mọi bộ sưu tập trong một danh sách, số trang cuộn tới nhóm của nó.
 - Đường XP: từ 20261028l theo prefab `ElementStart` / `ElementReward` (300 đơn vị mỗi hạng) và thẻ thưởng Big / Small / Mode của `XpRoadSettings`. Bỏ nút "Nhận thưởng" của web.
 - Nạp: `home.js` + `uikit.js` + `m-home.webp` chỉ nạp khi trang chính hiện. Màn đầu (`?level=1`) 580 KB. Mở trang chính thẳng (không `?level`) 712 KB
@@ -310,7 +314,7 @@ Tự đặt, có nhãn `[ĐỀ XUẤT]`:
 - Giới hạn ngày (`GameModesService.GetCanPlayState` [asm 0x129747c], `TryPlaying` [asm 0x1297744]), số từ `game_modes`:
   sự kiện 1 miễn phí, quảng cáo không giới hạn; Lucky Drop 1 miễn phí + 2 quảng cáo; Đua 2 miễn phí, quảng cáo không giới hạn; các chế độ khác −1/−1.
   - Miễn phí: cờ `daily_flag_<mode>_free_<yyyy-MM-dd>` +1 (`PlayForFree` [asm 0x1297870]). Quảng cáo: `AddRewardedTicket` [asm 0x1298494]
-    rồi `PlayForRewarded` trừ vé chế độ và cộng `daily_flag_<mode>_rewarded_<ngày>` [asm 0x1297a04]. Web: 1 vé bỏ qua và chơi luôn.
+    rồi `PlayForRewarded` trừ vé chế độ và cộng `daily_flag_<mode>_rewarded_<ngày>` [asm 0x1297a04]. Quảng cáo: `js/ads.js watch` (có vé bỏ qua thì trừ 1 vé, không thì nhận ngay).
   - Cờ của ngày khác bị xoá (`CleanOldFlags` [asm 0x12964cc]).
 - Lượt sự kiện tính khi bấm màn trong bảng chọn. Chết rồi hồi sinh, phím R, "Chơi lại" trong cùng lượt không tính thêm (bản gốc hồi sinh trong cùng game).
   Đóng bảng chọn khi chưa trả lượt thì về Normal và trang chính. `?mode=easter_event&level=N` (lối thử) bỏ qua giới hạn.
@@ -355,18 +359,18 @@ Thông số dải quay lấy từ `LuckyWheelSettings` "LuckyWheelConfig" trong 
 - Mở heo: tiến độ về 0, số lần mở +1, nhận skin [asm 0x1175e38]. Bỏ heo: tiến độ về 0, số lần bỏ +1, chuyển sang skin sau [asm 0x1176094].
 - Heo đầy mà không mở thì sẽ mất ở màn kế tiếp (`Activate` gọi `LoseReward` [asm 0x1177648]).
 - Bản gốc không bán heo đất bằng tiền thật. Hai nút "Mở khoá" và "+30%" là quảng cáo có thưởng (`rewarded.piggy_bank_unlock`, `rewarded.piggy_bank_fill`).
-  - Mọi quảng cáo có thưởng đều bỏ qua được bằng `skipPrice` của `rewarded.default`: 1 vé bỏ qua.
-  - Bản web lấy đúng giá đó: mỗi nút tốn 1 vé.
+  - Mọi quảng cáo có thưởng đều bỏ qua được bằng `skipPrice` của `rewarded.default`: 1 vé bỏ qua, trừ tự động khi có vé.
+  - Từ 20261028m: không có vé thì bấm là nhận ngay (mục "Quảng cáo có thưởng và IAP").
 
 **Xu miễn phí mỗi ngày**: `offer.free_coins` cho 20 xu.
 
 - Điều kiện là `didnt_buy_free_coins_today` (`daily.free_coins` < 1). Chu kỳ 1 ngày, `isUtc` false, nên ngày tính theo giờ máy.
-- `offer.rewarded_coins` (50 xu đổi một quảng cáo) không làm.
+- `offer.rewarded_coins` (50 xu đổi một quảng cáo, một lần mỗi ngày): có từ 20261028m.
 
 **Vé bỏ qua** (`currency.skip_tickets`):
 
-- Trong bản gốc, vé dùng để bỏ qua quảng cáo (`skipPrice` của `rewarded.default`). Bản web không có quảng cáo, nên mọi nút "xem quảng cáo" ở trên đều tốn 1 vé.
-- Nguồn vé: gói 20/60/140 vé (`offer.skip_tickets_1..3`). Bản gốc bán bằng tiền thật, bản web bán bằng xu trong Chợ.
+- Trong bản gốc, vé dùng để bỏ qua quảng cáo (`skipPrice` của `rewarded.default`): có vé thì quảng cáo không chiếu, trừ 1 vé (`PAID_SKIP` [asm 0x2dfb204, 0x2dfb3ac]).
+- Nguồn vé: gói 20/60/140 vé (`offer.skip_tickets_1..3`, IAP; từ 20261028m bấm là nhận ngay), VIP Bundle (60 vé).
 - Thưởng `currency.skip_tickets` còn chờ trong `save.pending` được trả lúc khởi động (`Meta.deliverPending`).
   - Đường XP gốc không phát vé, nên thường không có gì để trả. Booster chờ tới khi `cards.js` nạp (trang chính) rồi mở.
 
@@ -376,12 +380,11 @@ Thông số dải quay lấy từ `LuckyWheelSettings` "LuckyWheelConfig" trong 
 - Số lượt mỗi ngày = `trunc(hiệu ứng)` của thẻ `card.skip_level` ở cấp thẻ hiện có (`GetNbSkippableLevelsPerDay` [asm 0x124ea74..0x124ea90]).
   - Cấp thẻ từ số thẻ đang có (`save.inv['card.skip_level']`): `(n − 1) / 30 + 1` [asm 0x127bb7c]. Cấp < 1 cho 0 lượt [asm 0x127c668]. Cấp L cho 1 + (L − 1) lượt.
 - Lượt đã dùng đếm trong `flag.nb_levels_skipped_<ngày>` [asm 0x124eb40..0x124eb94]. Cờ của ngày cũ bị xoá (`CleanDailyTokenFlags`).
-- Bấm nút = xem quảng cáo `rewarded.skip_level`, ở bản web là trả 1 vé.
+- Bấm nút = xem quảng cáo `rewarded.skip_level` (`js/ads.js watch`). Ảnh nút: vé khi `CanSkip` (vé > 1), còn lại ảnh quảng cáo `SkipButton0001` (`art/skip-ad.webp`).
   - Sau đó màn được tính là đã qua (`GamePlayService.SkipLevel` → `CompleteLevel` [asm 0x129c96c]): +10 XP, road, heo đất.
 
 Tự đặt, có nhãn `[ĐỀ XUẤT]`:
 
-- Giá gói vé: 50 xu/vé, nên 20 vé = 1000 xu, bằng gói xu rẻ nhất (`offer.coins_1`). APK không có giá tiền của từng gói nên không quy đổi được.
 - Heo đất chỉ nạp ở lần qua màn đầu tiên, giống XP. Bản web cho chơi lại màn, bản gốc thì không.
 - Giờ máy, giờ địa phương. Bản gốc lấy ngày từ `OnlineDateService` (server).
   `FormatDateId` đã giải: `DateTime.ToString("yyyy-MM-dd")` [asm 0x2e7b9ec]. Cờ bỏ qua màn là `flag.nb_levels_skipped_yyyy-MM-dd`
@@ -392,8 +395,8 @@ Tự đặt, có nhãn `[ĐỀ XUẤT]`:
   - Nhịp đèn bolt, tốc độ xoay của mặt trời và độ trôi của xúc xắc là tự đặt.
 - Heo đất (`js/endgame.js`) là màn toàn màn hình như `PiggyBankPopup`: nền gradient `#40E8EC → #008FE1` (UIGradient), `Pattern_MainMenu` lát 341 đơn vị,
   xoay 30°, cộng sáng 0.17; chữ "Stage n / Completed" ở 250 từ trên; bóng skin `#252252`, phần đã nạp tô tím từ dưới lên; nút vàng ở 240 từ dưới.
-  - Nút vàng mang icon vé (web trả vé thay quảng cáo). Chạm chỗ trống là tiếp tục. Đầy: UNLOCK hoặc chạm "LOSE IT!". Mở xong: "Equip it!".
-  - `[ĐỀ XUẤT]` chữ phóng 1.2 lần (đo trong clip, prefab ghi 49), skin chiếm 60 % hộp 570, nạp chạy 0.8 s. Thanh bộ sưu tập: có từ 20261028l. Nút VIP Skip không làm (tiền thật).
+  - Nút vàng mang `AdIcon`, hoặc icon vé khi có vé (`NoAdsIconChanger`). Bên cạnh là nút VIP Skip khi chưa có VIP. Chạm chỗ trống là tiếp tục. Đầy: UNLOCK hoặc chạm "LOSE IT!". Mở xong: "Equip it!".
+  - `[ĐỀ XUẤT]` chữ phóng 1.2 lần (đo trong clip, prefab ghi 49), skin chiếm 60 % hộp 570, nạp chạy 0.8 s. Thanh bộ sưu tập: có từ 20261028l. Nút VIP Skip: có từ 20261028m.
 - Trang kết thúc (`NormalEndGame`): nền theme, `BackgroundEndRace` hai góc, "stage n / Completed!" (#FFC327, Grapple/Challenge #76E97E) ở 300 từ trên,
   `LightEndRace_01`, bục caro (rộng 516 đơn vị như clip 2026 0:27.6), skin nhảy cỡ gốc 100 đơn vị/đơn vị thế giới, nút `PlayButton_03` ở 300 từ dưới, nút nhà.
 
@@ -424,7 +427,7 @@ Luật đọc từ mã IL2CPP:
 - **Lượt chơi.** 2 lượt miễn phí mỗi ngày (`maxFreeGamesPerDay`), đếm lúc bấm Đua, không phải lúc về đích, trong cờ
   `daily_flag_mode.tournament_free_<ngày>` [asm 0x1296f40, 0x12972f0, 0x1297870].
   - Hết lượt miễn phí thì bản gốc bắt xem quảng cáo, không giới hạn (`maxRewardedGamesPerDay` −1) [asm 0x129747c, 0x12984f8].
-    Bản web theo quy ước chung: mỗi quảng cáo có thưởng = 1 vé bỏ qua. Không có vé thì nút báo cần vé.
+    Nút `RewardedPlayButton` (AdIcon "+1" Ticket): quảng cáo cho 1 vé đua, chơi ngay (`js/ads.js watch`; có vé bỏ qua thì trừ 1 vé).
 - **Chọn map.** `GetNextLevelToPlay` = max(0, min(đã đạt, đã mở)) [asm 0x1296b50]. `RefineLevel`: dưới 21 thì giữ nguyên, từ 21 trở đi `Random.Range(0, 21)` [asm 0x12aac08].
   - Về đích (kể cả bị ép về đích) thì "đã đạt" = map + 1 nếu chưa vượt (`OnLevelAchieved` [asm 0x2419580, 0x12968e4]). Lưu ở `save.modes['mode.tournament'].best`.
   - Vì thế 21 cuộc đua đầu đi lần lượt map 1 → 21 (map 1 là `RaceTest`), sau đó ngẫu nhiên.
@@ -484,8 +487,7 @@ Tự đặt, có nhãn `[ĐỀ XUẤT]`:
 
 Chưa làm:
 
-- Nút xem quảng cáo nhân xu ở màn kết thúc (`skinCoinsMultiplier` nằm trong prefab, chưa đọc).
-- Đường VIP `flag.old_no_ads`.
+- Đường VIP `flag.old_no_ads` (`offer.old_no_ads` bị tắt trong 9.9.60). Nút "Claim +N" và "Claim x1.2": có từ 20261028m.
 - Chữ "X đã về đích" trong lúc đua.
 - Ảnh hạng và hoạt hình của `FinishedTournamentPopup`.
 
@@ -608,7 +610,7 @@ Luật đọc từ mã IL2CPP:
   - Thẻ mới cho 1 thẻ. Thẻ cũ cho `min(chồng, còn thiếu tới tối đa)` [asm 0x1276dc4, 0x1277044].
   - `card.double_cards`: khi còn thiếu > chồng, `Range(0, 1000) < (int)(effect × 10)` thì chồng × 2 [asm 0x1276f80..0x1277018].
   - `card.extra_draw`: lúc đóng popup, ≥ 2 thẻ và `Range(0, 1000) < (int)(effect × 10)` trên cùng dòng Random thì được thêm `extra_card_<id>`, mở tiếp [asm 0x1142d6c..0x1142ec8].
-  - Nút "+1 Card": không phải one-more, `nbRewarded ≥ 1`, món đầu là thẻ [asm 0x1144360..0x11443e8]. Bản gốc là quảng cáo, web trả 1 vé bỏ qua.
+  - Nút "+1 Card": không phải one-more, `nbRewarded ≥ 1`, món đầu là thẻ [asm 0x1144360..0x11443e8]. Là quảng cáo `rewarded.one_more_card`: bấm là nhận ngay, có vé bỏ qua thì trừ 1 vé (20261028m).
 - **Popup** (`RunOpenFlow` [asm 0x1145c04]): ≥ 2 thẻ thì có màn xé gói (openingDelay 0.5 s, displayDelay 1.0 s), chờ 300 ms [asm 0x1145fb4], hiện từng thẻ phóng tới 1.6 [asm 0x1143294],
   rồi vòng tổng kết bán kính 210, y × 1.2, bắt đầu từ 90° [asm 0x1146088]. Nền UIGradient #0C142B → #2169D4, `Pattern_CardMenu` tô #040711.
 - **Cộng tài nguyên theo thẻ** (`ResourceBoostingService.GetBoostAmount` [asm 0x117d920]): khoá `(tài nguyên + "_" + nguồn)` chữ thường.
@@ -648,9 +650,7 @@ Luật đọc từ mã IL2CPP:
 
 Tự đặt, có nhãn `[ĐỀ XUẤT]`:
 
-- **Giá gói thẻ.** Bản gốc bán `offer.boosters_1..3` bằng tiền thật, APK không có bảng nối sản phẩm với mức giá (`IAPPriceConversion` chỉ có mức → tiền địa phương).
-  Web tính theo giá xu của chính config: mỗi lượt rút = chồng trung bình `(min + max) / 2` × đơn giá Chợ Đen của độ hiếm lượt đó (độ hiếm bảo đảm, hoặc trung bình theo `cardsWeight`), làm tròn 100.
-  Ra 3800 xu (1 epic), 9800 (1 legendary), 49000 (5 legendary). `tools/build_cards.py booster_coins`.
+- Giá gói thẻ: từ 20261028m gói thẻ là nút IAP như bản gốc (giá USD `[ĐỀ XUẤT]`, mục "Quảng cáo có thưởng và IAP"). Giá xu 3800/9800/49000 cũ đã bỏ.
 - Popup mở booster hiện và cấp đúng một nội dung. Bản gốc sinh hai lần (một để hiện, một để cấp) với lần thử độ hiếm không seed, nên có thể cấp khác cái đã hiện.
 - Đếm ngược của Cơ hội thứ hai: "3", "2", "1", "GO", mỗi chữ 0.5 s như ô xuất phát của Đua, chữ DOM đỏ #FF483E. Popup thẻ nhỏ (`SmallCardsEffectPopup`) và popup hiệu ứng (`NormalCardsEffectPopup`) rút gọn thành toast.
 - Thanh tiến độ trong popup hiện ngay trạng thái cuối, không chạy đếm từ n/2 tới n.
@@ -782,7 +782,90 @@ Mỗi trail ra `data/trailfx/<tên>.json` (0.9-4.2 KB) và `art/trailfx/<tên>.w
   - Đủ bộ: `Icon_Validate` vàng và chữ "Completed!" #FFC327.
 - Mở xong thì thanh đếm thêm skin vừa có.
 - `[ĐỀ XUẤT]`: chớp trắng 0.4 s; khoảng cách 107 đơn vị giữa ô (đo trong clip, 4 ô), thu lại cho vừa 500 đơn vị khi bộ dài hơn.
-- Không làm: nút VIP Skip (tiền thật).
+- Nút VIP Skip: có từ 20261028m.
+
+## Quảng cáo có thưởng và IAP (2026-10-29, rev 20261028m)
+
+Luật của chủ dự án: mọi nút xem quảng cáo và mọi nút mua bằng tiền thật hiện như bản gốc, bấm vào là nhận ngay. Không có video giả, không trừ tiền.
+
+- Code: `js/ads.js` (luật, không DOM), `bonus.buy` (bấm một ưu đãi), `cardsui.js marketSections` (cả Chợ), `endgame.js` (heo đất), `race.js`, `pachinko.js`, `menus.js` (Tuỳ biến), `daily.js`.
+- Dữ liệu: `data/ads.json` (15 KB, `tools/build_ads.py` từ `market`, `view_templates`, `requirements`, `ads.placements` của remote settings), nạp cùng `bonus.json`.
+- Art: `art/m-ads.webp` (39 KB: AdIcon, vé, VIPButtonSmall_01, vương miện, widget VIP / Welcome / No Ads), `art/m-market.webp` (195 KB, chỉ khi mở Chợ), `art/skip-ad.webp` (3 KB). Sprite xuất bằng `export_named.py` vào `D:/stickman-hook-ref/sprites_ads`.
+- Màn đầu không nạp gì trong số này: 596 KB thô (trước 595 KB; `main.js` thêm `ads.json` vào `loadBonus`, `save.js` thêm `installed`, `meta.js` hai cách mở khoá `rewarded`, `vip`).
+- Bản ghi asm: `D:/stickman-hook-ref/dump/asm/ads/`.
+
+**Luật quảng cáo gốc** (mọi chỗ đặt quảng cáo dùng `rewarded.default`):
+
+- `AdController.SafelyDisplayAd` [asm 0x2dfae04]: có `flag.old_no_ads` thì bỏ qua miễn phí (`FREE_SKIP` [asm 0x2dfafcc..0x2dfb04c]).
+  Không thì vé bỏ qua ≥ giá (1) là trừ 1 vé, không chiếu quảng cáo (`PAID_SKIP` [asm 0x2dfb1c4..0x2dfb208, 0x2dfb3ac]). Còn lại mới chiếu quảng cáo.
+  - Web (`ads.js watch`): giữ y hai nhánh đầu. Nhánh chiếu quảng cáo thành nhận ngay. Vậy **có vé thì vẫn trừ vé**, như bản gốc. Không có vé thì miễn phí.
+- Icon nút (`NoAdsIconChanger` [asm 0x1130554], `RewardedButton.UpdateView` [asm 0x1130d00]): vương miện VIP cũ khi `flag.old_no_ads`, vé khi có ≥ 1 vé, còn lại `AdIcon`.
+- `AdsService.CanSkip` [asm 0x2df25c4] là số vé **> giá**, không phải ≥ [asm 0x2df2724..0x2df2730]. Nên có đúng 1 vé thì nút bỏ qua màn vẫn mang ảnh quảng cáo
+  (`SkipButtonView.Initialize` [asm 0x12a3910..0x12a3968]) và nút VIP Skip vẫn hiện, dù bấm thì vé đó vẫn bị trừ. Web làm y vậy (`ads.js canSkip`).
+- Nút VIP Skip (`ActionButton.ShouldShowNoAdsButton` [asm 0x12649fc]): trạng thái quảng cáo, `CanSkip` sai, `flag.vip` < 1. Nó là `VipOfferWidget`: ẩn khi không còn ưu đãi VIP nào hiện (`GetVipOffer` [asm 0x11927c8], `OnEnable` [asm 0x119274c]).
+- Giới hạn giữ như bản gốc: Lucky Drop 1 miễn phí + 2 quảng cáo mỗi ngày; sự kiện 1 + quảng cáo không trần; Đua 2 + quảng cáo không trần (`game_modes`); bỏ qua màn theo thẻ `skip_level`; xu quảng cáo 1 lần mỗi ngày (`daily.rewarded_coins`). Các chỗ khác không có trần.
+
+**Bảng chỗ đặt quảng cáo** (mọi nơi gọi `AdsService.ShowRewarded`, `tools/callers.py`):
+
+| Chỗ đặt | Nút gốc | Thưởng | Web |
+|---|---|---|---|
+| `rewarded.skip_level` (`SkipButtonView` [asm 0x12a3fb8]) | `SkipButton0001` / `SkipButtonTicket_01`, "n/ngày" | Qua màn, như hoàn thành | Nút bỏ qua trong màn (`bonus.js skipView`) |
+| `rewarded.` + `_unlock` (`PiggyBankPopup.WatchRewardedToUnlockSkin` [asm 0x1179a30]) | `OutlinedButtonGold` AdIcon "UNLOCK" | Skin heo đất | Màn heo đất (`endgame.js`) |
+| `rewarded.` + `_fill` (`WatchRewardedToAddProgression` [asm 0x11796d0]) | `OutlinedButtonGold` AdIcon "+30%" | +30 tiến độ (`fillConfigs.rewarded`) | Màn heo đất |
+| `rewarded.one_more_card` (`BoosterOpeningPopup.LaunchRewarded` [asm 0x114533c]) | `OutlinedButtonGold` "+1 Card" AdIcon | Thêm 1 lượt rút | Popup mở gói thẻ (`cardsui.js`) |
+| `rewarded.play_ticket_mode_pachinko` (`TryPlaying` [asm 0x12984f8]) | `PlayRewarded` AdIcon | 1 lượt (tối đa 2/ngày) | Khung "Giới hạn hôm nay" của Lucky Drop |
+| `rewarded.play_ticket_mode_seasonal` | `PlayRewarded` AdIcon | 1 lượt, không trần | Bảng chọn màn sự kiện |
+| `rewarded.play_ticket_mode_tournament` | `RewardedPlayButton`: AdIcon "+1" Ticket | 1 vé đua, chơi ngay, không trần | Trang Đua |
+| `rewarded.tournament_finish_level` (`TournamentEndGamePage.WatchRewarded` [asm 0x1224520]) | "Claim +N" | + `skinCoinsMultiplier` (4, prefab `TournamentEndGame`) × xu của cuộc đua, nguồn `finish_level_tournament_rewarded` [asm 0x1224784, 0x12247a0] | Màn kết thúc Đua |
+| `rewarded.tournament_claim` (`FinishedTournamentPopup` [asm 0x1236ffc]) | "Claim" / "Claim x{N}" | Xu thưởng hạng × 1.2, làm tròn chẵn (`TournamentService.ClaimRewards` [asm 0x1190b5c], [asm 0x12bb32c]) | Trang Đua khi bảng ngày cũ đóng |
+| `rewarded.customization_unlock` (`ShopItemUI.OnClickAsync` [asm 0x11ee67c]) | Ô khoá "Watch a Rewarded" | Mở item, 1 quảng cáo mỗi item (`SetQuantity` [asm 0x11ee76c]); 12 skin common | Tuỳ biến: bấm ô có AdIcon |
+| `offer.rewarded_coins` (`MarketPurchaseController.TryMakePurchase` [asm 0x2f62578]) | `ButtonOrange` "get" AdIcon | 50 xu, 1 lần/ngày | Chợ, mục Coins |
+| `rewarded.customization_incentive` (`IncentiveRewardedSkinUnlockPopup` [asm 0x11f41d4]) | Popup "Get {N} XP" | 1 skin "rewarded" | **Chưa làm**: hệ prompt cuối màn (`end_game_optional_set`) chưa có ở web |
+
+Không có quảng cáo nhân xu ở cuối Phiêu lưu hay Lucky Drop. `TryShowInventive` của Phiêu lưu là popup ưu đãi mỗi 5 ván, không phải quảng cáo (chưa làm).
+
+**Bảng IAP** (`market.offers` có `paymentType` IAP; bấm là nhận ngay qua `Shop.buy`, từng dòng nội dung riêng như `giveRewardsIndividually`):
+
+| Ưu đãi (sản phẩm) | Nút / chỗ gốc | Nhận | Giá hiện `[ĐỀ XUẤT]` | Web |
+|---|---|---|---|---|
+| `offer.vip` (`offer_vip`) | Widget "VIP Bundle", thẻ Special Offers, VIP Skip ở heo đất / Đua | `flag.vip`, `flag.no_ads`, 3000 xu, 60 vé, 9 skin, 3 dây, 3 vệt, 3 gói legendary | 19.99$ (gạch 49.97$, nhãn "+150%") | Trang chính, Chợ, heo đất, Đua |
+| `offer.vip_discount` (`offer_vip_discount`) | Như trên, khi đã có No Ads | Như trên, bỏ 3 skin của Welcome nếu đã mua | 14.99$ (gạch 37.48$, "+150%") | Như trên |
+| `offer.welcome_offer` (`offer_welcome_offer`) | Widget, thẻ "Welcome Offer!" (ngày chẵn kể từ lúc cài) | `flag.welcome_offer`, `flag.no_ads`, 2500 xu, Pigeot / Shark / Vampire, 1 gói epic | 4.99$ (gạch 14.68$, "+195%") | Trang chính, Chợ |
+| `offer.no_ads` (`offer_no_ads`) | Widget "No Ads", thẻ (ngày lẻ) | `flag.no_ads` | 3.99$ | Trang chính, Chợ |
+| `offer.boosters_pack` (`offer_booster`) | Thẻ "Boosters Pack" (cần có thẻ, một lần) | `flag.booster_pack`, 2 gói common, 2 epic, 2 legendary | 9.99$ (gạch 27.75$, "+180%") | Chợ |
+| `offer.adventure_1` / `_2` (`offer_adventure_1/2`) | Thẻ Adventure (khi đã mở Phiêu lưu; gói 1 mỗi tuần) | 15000 token + 3000 xu / 30000 token + 5000 xu | 2.99$ / 4.99$ | Chợ |
+| `offer.coins_1..4` (`offer_coins_1..4`) | `MarketOfferSingleItem` | 1000 / 3000 / 15000 / 40000 xu | 0.99$ / 2.99$ / 9.99$ / 19.99$ | Chợ, mục Coins |
+| `offer.skip_tickets_1..3` (`offer_skip_tickets_1..3`) | "Get the rewards without watching the ads" (ẩn khi có `flag.old_no_ads`) | 20 / 60 / 140 vé | 1.99$ / 4.99$ / 9.99$ | Chợ, mục Skip Tickets |
+| `offer.boosters_1..3` (`offer_boosters_1..3`) | Mục Boosters "Get new cards !" (mua cần có thẻ) | 1 epic / 1 legendary / 5 legendary | 1.99$ / 4.99$ / 19.99$ | Chợ, mục Boosters; gói mở popup ngay |
+| `offer.old_no_ads` (`NoAds`) | Không hiện (`displayRequirementId` "disabled") | `flag.no_ads`, `flag.old_no_ads`, `flag.vip` | 3.99$ | Không có nút, như bản gốc |
+
+- **Giá:** APK không có giá nào. `IAPConfig` (data.unity3d) chỉ có mã sản phẩm và `otaPrice` 0; chữ "0.99$" / "5.99$" trong prefab là chữ mẫu. Giá do cửa hàng gửi lúc chạy.
+  Cả cột giá ở trên là `[ĐỀ XUẤT]`, viết theo dạng "0.99$" của prefab (`tools/build_ads.py USD`).
+- Nhãn giảm giá (`MarketDiscountPercentageDisplayer.Initialize` [asm 0x2f6b410]): ẩn khi `discount` < 1, còn lại "+{5 × round(20 × (1/(1 − d/100) − 1))}%". Giá gạch = giá / (1 − d/100).
+- Chợ dựng theo `market.sections` đúng thứ tự: Special Offers (#FDC202), Boosters, Black Market, Coins, Skip Tickets (#25BFFE).
+  Thẻ `MarketSpecialOfferCard` (nền, minh hoạ, ô thưởng `MarketSpecialOfferRewardHolder`, thanh dưới có tên và nút giá) và `MarketOfferSingleItem` 180 × 250 (màu nền theo `view_templates`, số lượng, nút Free / Rewarded / IAP / "available in").
+- Widget trang chính (`MarketWidgetsHolder`): mọi ưu đãi đang hiện có `viewWidgetId`. Welcome / No Ads luân phiên theo ngày kể từ lúc cài
+  (`every_2d_since_install_before_1d` / `_after_1d`, chu kỳ 2 ngày, khoảng 1 ngày).
+
+**VIP và No Ads làm gì trong code** (`flag.vip`, `flag.no_ads`; tìm mọi nơi đọc chuỗi bằng `strxref.py`):
+
+- `flag.vip` không đổi lượng thưởng nào (`GameResourcesService.OnCurrencyEarned` chỉ bỏ popup cho nguồn `vip`). Nó ẩn nút VIP Skip, widget VIP, nút VIP của `RewardedButton` và popup VIP của Phiêu lưu.
+- `flag.no_ads` chỉ tắt quảng cáo xen ngang (`freeSkipRequirementId` has_no_ads của `interstitial.*`); web không có quảng cáo xen ngang. Nó ẩn widget và thẻ Welcome / No Ads, đổi VIP sang `offer.vip_discount`.
+- Quảng cáo có thưởng **vẫn còn** sau khi mua VIP: chỉ `flag.old_no_ads` mới bỏ qua miễn phí. Cái VIP thật sự đổi là 60 vé, nên các nút quảng cáo chuyển sang icon vé và trừ vé.
+- Lưu: cờ ở `save.flags`, giới hạn `daily.*` / `weekly.*` ở `save.periodic`, mốc cài ở `save.installed` (bản lưu cũ nhận mốc lúc đọc lần đầu, `[ĐỀ XUẤT]`).
+
+Tự đặt, có nhãn `[ĐỀ XUẤT]`:
+
+- Giá USD ở bảng IAP.
+- Ngày kể từ lúc cài tính theo nửa đêm giờ máy; tuần (`weekly.adventure_starter_pack`) bắt đầu thứ Hai như tuần Phiêu lưu.
+- Nút VIP Skip trên trang Đua hiện cùng luật với heo đất (`vipSkip`). `TournamentPage.UpdatePremiumButtonDisplay` chỉ xét `flag.old_no_ads`; chỗ gọi `CanSkip` trong `UpdateStaticUI` chưa đọc.
+- Bảng ngày cũ chờ bấm Claim (lưu `modes['mode.tournament'].claim`); bản gốc hiện popup ngay khi vào trang.
+
+Bẫy:
+
+- `py tools/build_meta.py` và `build_cards.py` đã bỏ giá xu của gói vé / gói thẻ. Chạy lại `build_meta.py` chỉ đổi `bonus.json` (đã so md5 mọi file khác).
+- `uikit.spr` kéo giãn sprite theo hộp. Ảnh cần giữ tỉ lệ dùng `uikit.fit` (mới export).
+- Script vá viết bằng heredoc làm hỏng regex `\n` trong JS (thành xuống dòng thật). Viết script vá bằng Write.
 
 ## Bẫy đã sập
 
@@ -865,9 +948,9 @@ Phần vòng quay, heo đất, Chợ, bỏ qua màn:
 - Màn 1 nạp heo đất thêm 10. Vé đang chờ trong `pending` được trả. Booster chờ tới trang chính, ở đó gói epic mở trong popup.
 - Hàng Lucky Wheel của Chế độ mở vòng quay. Lần đầu miễn phí, dừng ở ô 45 là Potatoz và nhận được.
 - Lần sau giá 500 xu, không có xu thì bị từ chối. Có 500 xu và `Math.random` = 0 thì ra Tiki.
-- Chợ: +20 xu một lần, cùng ngày bấm lại không được, sang ngày khác thì được. 20 vé giá 1000 xu.
-- Heo 90 qua một màn thành 100, mở bằng 1 vé ra Stick Frog, màn sau chỉ +3.
-- Chưa có thẻ `skip_level` thì không có nút bỏ qua. Có 1 thẻ (cấp 1) thì chết một lần hiện nút "1/1": bấm là trừ 1 vé và qua màn 15. Màn sau chết không còn nút.
+- Chợ: +20 xu một lần, cùng ngày bấm lại không được, sang ngày khác thì được. (Từ 20261028m: gói 20 vé là nút IAP, xem phần rev 20261028m.)
+- Heo 90 qua một màn thành 100, mở bằng quảng cáo (trả bằng 1 vé đang có) ra Stick Frog, màn sau chỉ +3.
+- Chưa có thẻ `skip_level` thì không có nút bỏ qua. Có 1 thẻ (cấp 1) thì chết một lần hiện nút "1/1": bấm là quảng cáo (trừ 1 vé đang có) và qua màn 15. Màn sau chết không còn nút.
 - Trang chính có ô vòng quay "xu/500" và số vé.
 
 Phần Đua (`Math.random` = 0 lúc dựng cuộc đua, nên map, ô và ghost là cố định):
@@ -877,7 +960,7 @@ Phần Đua (`Math.random` = 0 lúc dựng cuộc đua, nên map, ô và ghost l
 - Ghost Ninja nằm đúng mẫu bản ghi: (0.08, −3.67) lúc 0.04 s, (9.86, −4.37) lúc 1.04 s, (32.95, −0.83) lúc 3.04 s. Trong cuộc đua thật mọi ghost đều di chuyển.
 - Về đích lúc 26 s, sau ghost 24.9 s: hạng 2, +7 xu, +5 cúp, map 1 đã đạt. Màn kết thúc ghi "Hạng 2/4", "+7 xu", "+5 cúp".
 - Cuộc đua 2: map 2, 4 ghost. Cả 4 về trước thì bị ép về đích thứ 5: +1 xu, +1 cúp.
-- Hết 2 lượt miễn phí thì trả 1 vé bỏ qua, hết vé thì bị từ chối.
+- Hết 2 lượt miễn phí thì nút quảng cáo "+1": không có vé vẫn chơi ngay (rev 20261028m).
 - Bảng ngày 28/10/2026 (mốc 1793120400000): seed 2119037, ba AI đầu HBK-Taker2 / Player1935 / Zeus, bảng lúc 12 giờ trưa đúng từng điểm. Hạng 7 được 20 xu, hạng 8 được 15 xu.
 - Bảng hai ngày trước với 100 cúp: mở trang thì chốt hạng 1, nhận 1000 xu và Dolphin, thắng 1, chơi 1, bảng mới có 0 cúp.
 
@@ -907,14 +990,14 @@ Phần thẻ bài (`js/cards.js`, `js/cardsui.js`):
 
 Phần luật theo ngày và Phiêu lưu (rev 20261028k):
 
-- `daily.js`: 29/10/2026 → `2026-10-29`. Lucky Drop: miễn phí, vé, vé, rồi từ chối (3/3); hôm sau miễn phí lại, cờ cũ bị xoá.
-  Sự kiện: 1 miễn phí rồi 1 vé mỗi lượt, không trần. Đua 2 miễn phí rồi vé. Challenge luôn miễn phí.
+- `daily.js`: 29/10/2026 → `2026-10-29`. Lucky Drop: miễn phí, quảng cáo, quảng cáo, rồi từ chối (3/3); hôm sau miễn phí lại, cờ cũ bị xoá.
+  Sự kiện: 1 miễn phí rồi quảng cáo mỗi lượt, không trần. Đua 2 miễn phí rồi quảng cáo. Challenge luôn miễn phí. (rev 20261028m: quảng cáo trừ vé khi có, không có vé thì nhận ngay.)
 - Vòng sự kiện 5 thưởng: ngày 0 màn 1, nhận xong thì hết hôm nay, ngày 1 màn 2, sau 5 ngày vòng mới với 3 thưởng chưa có (màn 3), có đủ thì xong hẳn.
 - Trong trình duyệt: nhận quà Easter hôm nay rồi thì bảng chọn không mở màn nào; đóng bảng thì về Normal. Cờ bỏ qua màn dạng `yyyy-MM-dd`.
 - Nâng kỹ năng ngẫu nhiên: 6 kỹ năng mở, Random 0.51 → Độ dài dây, 100 xu; 2 kỹ năng mở → kỹ năng cuối, 180 xu (80 cấp);
   thiếu xu hoặc mọi kỹ năng ở trần thì không trừ gì. Khoảng lặp khi giữ: 0.6, 0.58, 0.52, 0.42, 0.28, 0.1 s.
 - Bộ đếm vật thể Phiêu lưu chạy tiếp sang lượt sau trong cùng phiên (lượt 2 cùng seed kết thúc ở gấp đôi lượt 1).
-- `test/stickman-hook-pachinko.js`: lượt đầu từ trang Chế độ dùng lượt miễn phí, lượt 2 cần vé (1/3), 2 lượt vé rồi "Hết lượt" (3/3).
+- `test/stickman-hook-pachinko.js`: lượt đầu từ trang Chế độ dùng lượt miễn phí, lượt 2 là quảng cáo (1/3), 2 lượt quảng cáo rồi "Hết lượt" (3/3).
 - `test/stickman-hook-sim.js`: vùng chết ở 9:16 là −6.695 / −5.853 quanh tâm camera; bot dùng chung `camera.js deathLimits`.
 
 Phần rev 20261028l (`test/stickman-hook-play.js` 133/133):
@@ -930,11 +1013,21 @@ Phần rev 20261028l (`test/stickman-hook-play.js` 133/133):
 - Heo đất đầy: thanh "Aquatic Friends" 0/3; mở xong 1/3.
 - `test/stickman-hook-pachinko.js`: 400 XP chưa nhận thì Lucky Drop khoá; trang chính tự nhận nên mở.
 
+Phần rev 20261028m (quảng cáo và IAP; `test/stickman-hook-play.js` 145/145, `test/stickman-hook-pachinko.js` 30/30, `test/stickman-hook-sim.js` 307/307, màn đầu 596 KB):
+
+- Chợ: 5 mục đúng thứ tự; nút IAP 1.99$ / 0.99$, VIP 49.97$ gạch → 19.99$ (+150 %). Gói 20 vé: 3 → 23 vé, không trừ xu. Xu quảng cáo: +50 xu, trả bằng 1 vé (23 → 22), rồi "available in".
+- Heo đất 22 vé: icon vé, không có VIP Skip, UNLOCK trừ 1 vé. 0 vé: AdIcon + VIP Skip, bấm là có Ghost, không trừ gì.
+- Bỏ qua màn: 21 vé → ảnh vé, trừ 1 vé. 1 vé → ảnh quảng cáo `skip-ad.webp` nhưng vẫn trừ vé đó (`CanSkip` = vé > 1).
+- Gói thẻ IAP 1.99$: popup epic mở ngay, thêm thẻ, không trừ xu. "+1 Card" mang icon vé, trừ 1 vé, thêm `one_more_card`.
+- Đua: "Claim +28" (4 × 7 xu, vé trả quảng cáo), hết lượt miễn phí thì nút AdIcon "+1" Ticket + VIP "Skip", 0 vé vẫn chơi (lượt quảng cáo 0 → 1 → 2). Bảng cũ: "Claim" / "Claim x1200", bấm quảng cáo nhận 1200 xu + Dolphin.
+- VIP từ widget trang chính: `flag.vip`, `flag.no_ads`, 3000 xu, 60 vé, skin / dây / vệt vàng, 3 gói legendary; widget biến mất, cờ lưu trong localStorage; heo đất sau đó không còn VIP Skip, UNLOCK trừ 1 trong 60 vé.
+- Lucky Drop: lượt 2 là nút "Chơi" AdIcon, 0 vé vẫn chơi; lượt 3 icon vé, trừ 1 vé; rồi "Hết lượt" 3/3.
+
 Phần HUD và về đích: chỉ có nút pause trong màn; về đích giữ tư thế FINISHED và ẩn nút pause; màn heo đất toàn màn hình rồi trang kết thúc; nút Play mở màn sau; pause dừng màn.
 Ảnh chụp nằm ở `shots/stickman-hook/`.
 
 ## Tăng số bản
 
 Đổi mọi `?v=` trong `index.html`, `js/main.js` (hằng `V`) và ba `import()` có `?v=` trong `js/modes.js` (`pachinko.js`, `race.js`, `adventure.js`), rồi đổi `rev` trong `data/games.js` cho trùng.
-Bản hiện tại: `20261028l`. `js/pachinko.js` có `PV` riêng (`20261028d`) cho ảnh của nó.
+Bản hiện tại: `20261028m`. `js/pachinko.js` có `PV` riêng (`20261028d`) cho ảnh của nó.
 Module JS mới phải có dòng trong importmap của `index.html`, kể cả module chỉ nạp động (`menus.js`, `fx.js`, `cards.js`, `cardsui.js`).

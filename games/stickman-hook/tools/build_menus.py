@@ -15,7 +15,9 @@ from PIL import Image
 REF = sys.argv[1] if len(sys.argv) > 1 else r'D:/stickman-hook-ref'
 SRC = os.path.join(REF, 'sprites_menus')
 # sprites_cards: page_sprites.py over the cards / boosters / ui_market_* bundles; sprites_cards/boosters: booster_sprites.py
-DIRS = [SRC, os.path.join(REF, 'sprites_cards'), os.path.join(REF, 'sprites_cards', 'boosters'), os.path.join(REF, 'sprites')]
+# sprites_ads: market offer / widget art (export_named.py over the market_offer_* / market_reward_* bundles); sprites_ui: build_ui.py's
+DIRS = [SRC, os.path.join(REF, 'sprites_cards'), os.path.join(REF, 'sprites_cards', 'boosters'), os.path.join(REF, 'sprites'),
+        os.path.join(REF, 'sprites_ads'), os.path.join(REF, 'sprites_ui')]
 GAME = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 CARD_SPRITES = ['GlobalCollectionXPBoost', 'GlobalSkinXPBoost', 'GlobalRopeXPBoost', 'GlobalTrailXPBoost', 'SecondChance',
@@ -83,7 +85,23 @@ SHEETS = {
               'epiccard_nooutline': 110, 'legendarycard_nooutline': 110, 'common_market': 180, 'epic_market': 180,
               'legendary_market': 180, 'legendary_multiplemarket': 200, 'MarketTitleBanner': 600, 'Icon_Timer': 28,
               'ButtonWhite': 120, 'Glow': 160, 'DiscountBadge': 70, 'rounded_square_shadow_top': 85,
-              'OutlinedButtonGreen': 320, 'OutlinedButtonGold': 320, 'Xp': 80, 'SkipTickets': 72},
+              'OutlinedButtonGreen': 320, 'OutlinedButtonGold': 320, 'Xp': 80, 'SkipTickets': 72, 'AdIcon': 84},
+    # the market (MarketSpecialOfferCard, MarketOfferSingleItem, MarketSpecialOfferRewardHolder, purchase buttons), market only
+    'market': {'MarketOfferVipBackground': 420, 'MarketOfferNoAdsBackground': 420, 'MarketOfferWelcomeBackground': 420,
+              'MarketOfferBoostersPackBackground': 420, 'MarketOfferAdventureBackground': 420, 'MarketOfferVipIllustration': 220,
+              'MarketOfferNoAdsIllustration': 200, 'MarketOfferBoostersPackIllustration': 200, 'MarketOfferAdventureIllustration': 200,
+              'MarketRewardNoAds': 120, 'MarketRewardExclusiveSkins': 120, 'MarketRewardPremiumCollectibles': 120,
+              'MarketRewardLegendaryBoostersPile': 120, 'SkinCoinsPile': 120, 'Icon_Compass': 110, 'SkipTicketsPile': 120,
+              'XpPile': 120, 'MarketRewardPremiumCollectiblesWithSkins': 120,
+              'MarketOfferSkinCoins_1': 160, 'MarketOfferSkinCoins_2': 160, 'MarketOfferSkinCoins_4': 160, 'MarketOfferSkinCoins_5': 160,
+              'MarketOfferSkinCoins_6': 160, 'MarketOfferSkipTickets_1': 160, 'MarketOfferSkipTickets_2': 160, 'MarketOfferSkipTickets_3': 160,
+              'SpecialOffersPriceHolder': 190, 'ButtonGreen': 60, 'ButtonOrange': 60, 'DiscountRedBAr': 51, 'AdIcon': 84,
+              'ShinySun': 200, 'HolderCategory': 160, 'InfoButton': 50, 'rounded_square_128px': 128},
+    # rewarded-ad and VIP buttons used across pages (RewardedButton, NoAdsIconChanger, ActionButton NoAdsButton, VipOfferWidget,
+    # TournamentPage Rewarded/PremiumButton, BoosterOpeningPopup) and the home page's market offer widgets (MarketOfferWidget)
+    'ads': {'AdIcon': 84, 'SkipTickets': 100, 'Ticket': 90, 'VIPButtonSmall_01': 200, 'VIPCrownIcon_01': 84,
+            'Light_ButtonRewarded': 170, 'UnlockSkin_Star': 40, 'OutlinedButtonGold': 320, 'OutlinedButtonGreen': 320,
+            'MarketOfferVipWidget': 200, 'MarketOfferWelcomeWidget': 190, 'MarketRewardNoAds': 170},
 }
 
 

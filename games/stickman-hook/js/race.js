@@ -7,7 +7,8 @@ import { NetRandom } from './level.js';
 import { PHYS } from './physics.js';
 import { qty, addQty } from './meta.js';
 import { dayKey, playState as dailyState, payPlay } from './daily.js';
-import { artPage, spr, slice, glText, U } from './uikit.js';
+import { artPage, spr, slice, glText, U, sheet, fit } from './uikit.js';
+import { watch, adIcon, vipSkip } from './ads.js';
 
 const ID = 'mode.tournament';
 const COINS = [10, 7, 5, 3, 1]; // TournamentService.SkinCoinsPerPosition (.cctor 0x11910c8, metadata 0x6cb420)
@@ -19,6 +20,7 @@ const R_TROPHIES = 'progression.race_trophies', R_WIN = 'leaderboard.tournament_
 const R_PLAYED = 'leaderboard.tournament_played', R_BEST = 'leaderboard.tournament_best_score';
 const R_LAST = 'leaderboard.tournament_last_score';
 const FREE_PER_DAY = 2; // game_modes.modes[mode.tournament].maxFreeGamesPerDay
+const MULT = 4; // TournamentEndGamePage.skinCoinsMultiplier (prefab TournamentEndGame, ui_pages_endgame_tournament)
 const ME = 'Bạn';
 // Ghostable2D.alternativeMaterials = GhostMaterial (Sprites/Default, _Color alpha 0.396): replays are see-through, and
 // a replay has only the body and rope tracks, so no shadow. Rope: AAL_square_mini at scale x 0.06 (records), 0.345 wide
@@ -188,28 +190,15 @@ function el(html) { const d = document.createElement('div'); d.innerHTML = html.
 
 function slot(save) { return (save.modes[ID] = save.modes[ID] || {}); }
 
-// The current board, claiming a finished one first (LeaderboardsService.ClaimRewards [asm 0x12bae08]): the final rank
-// at p = 1 pays its position reward, tournament_win +1 when rank <= maxRankToWin, tournament_played +1 [asm 0x12bb4cc,
-// 0x12bb54c]; the new day's board wipes the race trophies (OnLeaderboardCreated [asm 0x11909bc]) and the best/last
-// scores (SetLeaderboardAsActive [asm 0x12b880c]).
+// The current board. A finished one is frozen at p = 1 and waits for FinishedTournamentPopup's claim (st.claim:
+// {day, rank}); the new day's board wipes the race trophies (OnLeaderboardCreated [asm 0x11909bc]) and the best/last
+// scores (SetLeaderboardAsActive [asm 0x12b880c]). Returns the pending claim as `claim`.
 export function currentBoard(app, cfg, now = Date.now()) {
-  const { save, meta } = app, st = slot(save);
-  let claimed = null;
+  const { save } = app, st = slot(save);
   if (st.board && st.board.start + DAY <= now) {
     const b = new Board(cfg, st.board.start);
-    const wins = qty(save, R_WIN);
-    const rank = b.ranking(b.start + DAY, wins, qty(save, R_BEST)).findIndex((r) => r.me);
-    const got = [];
-    for (const [res, q] of positionReward(cfg, rank)) {
-      if (res === 'reward_pool.tournament_skin') {
-        // ConvertReward [asm 0x1157358..0x1157374]: unowned pool skins [played % count]; dropped when all are owned
-        const free = cfg.board.pools[res].filter((id) => !meta.ownsRes(save, id));
-        if (free.length) meta.grantReward(save, [free[qty(save, R_PLAYED) % free.length], q], got);
-      } else meta.grantReward(save, [res, q], got);
-    }
-    if (rank <= cfg.board.maxRankToWin) addQty(save, R_WIN, 1);
-    addQty(save, R_PLAYED, 1);
-    claimed = { day: dayId(st.board.start), rank, got };
+    const rank = b.ranking(b.start + DAY, qty(save, R_WIN), qty(save, R_BEST)).findIndex((r) => r.me);
+    st.claim = { day: dayId(st.board.start), rank };
     st.board = null;
   }
   if (!st.board) {
@@ -217,17 +206,41 @@ export function currentBoard(app, cfg, now = Date.now()) {
     for (const r of [R_TROPHIES, R_BEST, R_LAST]) delete save.inv[r];
   }
   app.writeSave();
-  return { board: new Board(cfg, st.board.start), claimed };
+  return { board: new Board(cfg, st.board.start), claim: st.claim || null };
+}
+
+// FinishedTournamentPopup: ClaimRegular -> AnimateEarnCoinsBeforeClose(useMultipliers false); ClaimRewarded (the ad
+// rewarded.tournament_claim, ads.js watch) and ClaimVip (flag.old_no_ads) -> true [asm 0x1235bc4, 0x1235e5c, 0x1235dcc].
+// LeaderboardsService.ClaimRewards [asm 0x12bae08]: the position reward, skin coins x 1.2 rounded with the multipliers
+// (TournamentService.ClaimRewards {currency.skin_coins: 1.2f} [asm 0x1190b5c], Math.Round [asm 0x12bb32c]);
+// tournament_win +1 when rank <= maxRankToWin, tournament_played +1 [asm 0x12bb4cc, 0x12bb54c].
+export const CLAIM_MULT = 1.2;
+const roundEven = (x) => { const r = Math.round(x); return Math.abs(x % 1) === 0.5 && r % 2 ? r - 1 : r; };
+export function claimBoard(app, cfg, rewarded) {
+  const { save, meta } = app, st = slot(save), c = st.claim;
+  if (!c) return null;
+  const how = rewarded ? watch(save) : null, got = [];
+  for (const [res, q] of positionReward(cfg, c.rank)) {
+    if (res === 'reward_pool.tournament_skin') {
+      // ConvertReward [asm 0x1157358..0x1157374]: unowned pool skins [played % count]; dropped when all are owned
+      const free = cfg.board.pools[res].filter((id) => !meta.ownsRes(save, id));
+      if (free.length) meta.grantReward(save, [free[qty(save, R_PLAYED) % free.length], q], got);
+    } else meta.grantReward(save, [res, res === 'currency.skin_coins' && rewarded ? roundEven(q * CLAIM_MULT) : q], got);
+  }
+  if (c.rank <= cfg.board.maxRankToWin) addQty(save, R_WIN, 1);
+  addQty(save, R_PLAYED, 1);
+  delete st.claim;
+  app.writeSave();
+  return { ...c, got, how };
 }
 
 // GameModesService daily play (js/daily.js) [asm 0x1296f40, 0x12972f0, 0x1297870]: 2 free races a day, counted when a
 // race starts in flag daily_flag_mode.tournament_free_<yyyy-MM-dd>. After that each race needs a rewarded ad
-// (maxRewardedGamesPerDay -1: no limit); here, like every rewarded ad of the web build, 1 skip ticket (rewarded.default skipPrice).
+// (rewarded.play_ticket_mode_tournament, maxRewardedGamesPerDay -1: no limit), js/ads.js watch.
 export function playState(save, now = Date.now()) {
   const st = dailyState(save, ID, now);
   return { free: st.free, tickets: st.tickets };
 }
-const pay = (save, now = Date.now()) => !!payPlay(save, ID, now);
 
 async function load(app) {
   if (S) return S;
@@ -264,8 +277,8 @@ function trophyIcon(i, px, a) {
 export async function open(app) {
   await load(app);
   for (const o of ['modes', 'start', 'levels', 'raceEnd']) if (document.getElementById(o)) app.overlay(o, false);
-  const { board, claimed } = currentBoard(app, S.cfg);
-  await page(app, board, claimed);
+  const { board, claim } = currentBoard(app, S.cfg);
+  await page(app, board, claim);
 }
 
 // TournamentPage (ui_pages_tournament): UIGradient #6521C5 (top) -> #A52FDB, Pattern_Trophy_Invers; TrophyTournament_01
@@ -310,9 +323,21 @@ const TOUR_CSS = `
   font: 900 ${U(46)}/1 system-ui, sans-serif; -webkit-text-stroke: ${U(6)} #145c1c; paint-order: stroke fill; text-transform: uppercase;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: ${U(4)}; }
 #race .go small { font: 800 ${U(19)} system-ui, sans-serif; text-transform: none; -webkit-text-stroke: ${U(3)} #145c1c; }
+#race .go.rew { width: ${U(293)}; height: ${U(110)}; flex-direction: row; gap: ${U(10)}; -webkit-text-stroke-color: #8a4b00; }
+#race .go.rew i { display: block; width: ${U(66)}; height: ${U(56)}; }
+#race .go.rew b { min-width: ${U(70)}; height: ${U(60)}; }
+#race .bot .vip { position: relative; width: ${U(132)}; height: ${U(110)}; margin-left: ${U(14)}; border: 0; padding: 0; background: none; cursor: pointer; }
+#race .bot .vip .bg { position: absolute; inset: 0; }
+#race .bot .vip .tk { position: absolute; left: 50%; top: ${U(8)}; width: ${U(70)}; height: ${U(70)}; margin-left: ${U(-45)}; }
+#race .bot .vip b { position: absolute; left: 0; right: ${U(20)}; bottom: ${U(6)}; height: ${U(30)}; color: #fff; }
+#race .msg.claim .crow { display: flex; justify-content: center; gap: ${U(16)}; margin-top: ${U(10)}; }
+#race .cl { width: ${U(250)}; height: ${U(96)}; border: 0; background-color: transparent; color: #fff; cursor: pointer; display: flex;
+  align-items: center; justify-content: center; gap: ${U(8)}; font: 900 ${U(30)}/1 system-ui, sans-serif; -webkit-text-stroke: ${U(5)} #1a1c4b;
+  paint-order: stroke fill; text-transform: uppercase; }
+#race .cl i { display: block; width: ${U(50)}; height: ${U(40)}; }
 `;
 
-async function page(app, board, claimed) {
+async function page(app, board, claim, claimed = null) {
   const { save, meta } = app, cfg = S.cfg, now = Date.now();
   if (!document.getElementById('tourCss')) document.head.insertAdjacentHTML('beforeend', `<style id="tourCss">${TOUR_CSS}</style>`);
   const rows = board.ranking(now, qty(save, R_WIN), qty(save, R_BEST));
@@ -326,14 +351,22 @@ async function page(app, board, claimed) {
   body.innerHTML = `<i class="tt"></i><b class="tname">Giải đua</b><b class="time">${hh}H ${mm}M</b>
     ${claimed ? `<div class="msg">Bảng ngày ${String(claimed.day).replace(/(\d{4})-(\d\d)-(\d\d)/, '$3/$2')} đã đóng: bạn hạng ${claimed.rank + 1}.
       ${claimed.got.map((g) => (g.coins ? `+${g.coins} xu` : g.item ? 'Mở khoá ' + g.item.title : '')).filter(Boolean).join(', ') || 'Không có thưởng.'}</div>` : ''}
+    ${claim ? `<div class="msg claim">Bảng ngày ${String(claim.day).replace(/(\d{4})-(\d\d)-(\d\d)/, '$3/$2')} đã đóng: bạn hạng ${claim.rank + 1}.
+      <div class="crow"><button class="cl reg">Claim</button><button class="cl rew"><i></i><span>Claim x${roundEven((positionReward(cfg, claim.rank).find(([r]) => r === 'currency.skin_coins')?.[1] || 0) * CLAIM_MULT)}</span></button></div></div>` : ''}
     <h3>Giải thưởng</h3><div class="prizes">${[1, 0, 2].map((r) => `<div class="pz p${r + 1}"><b class="n">#${r + 1}</b><i class="coin"></i>
       <span class="q">${reward(r).map(([res, q]) => (res === 'currency.skin_coins' ? 'x' + q : 'Skin mới')).join(' + ')}</span></div>`).join('')}</div>
     <h3>Đối thủ</h3>
     <ol>${rows.map((r, i) => `<li class="${r.me ? 'me' : ''}"><b>${i + 1}</b><i class="pt">${(r.name[0] || '?').toUpperCase()}</i><span>${r.name}</span>
       <i class="rw"><i></i>x${coinsOf(i)}</i><b class="sc"><i></i><em>${r.score}</em></b></li>`).join('')}</ol>
     <p class="note" hidden>Còn ${hh} giờ ${mm} phút · thắng ${qty(save, R_WIN)} ngày · cúp hôm nay: ${qty(save, R_TROPHIES)}</p>`;
-  box.insertAdjacentHTML('beforeend', `<div class="bot"><button class="go">Đua<small>${ps.free ? `Miễn phí: còn ${ps.free}/${FREE_PER_DAY} lượt hôm nay`
-    : `1 vé bỏ qua (còn ${ps.tickets})`}</small></button></div>`);
+  // TournamentPage Button: FreePlayButton (OutlinedButtonGreen "Play", DailyLimitText "Daily free plays: n/2"), then the
+  // RewardedPlayButton (OutlinedButtonGold: WatchRewardedHolder AdIcon "+1" Ticket = the ad grants one race ticket,
+  // played at once: GameModesService.TryPlaying [asm 0x1298494, 0x12984d0]) and the PremiumButton (VIPButtonSmall_01,
+  // SkipTickets "Skip", a VipOfferWidget: shown while a VIP offer is visible, here with ads.js vipSkip like ActionButton).
+  const how = adIcon(save), vip = !ps.free && vipSkip(save) ? app.bonus?.shop?.vipOffer(save) : null;
+  box.insertAdjacentHTML('beforeend', `<div class="bot">${ps.free ? `<button class="go">Đua<small>Miễn phí: còn ${ps.free}/${FREE_PER_DAY} lượt hôm nay</small></button>`
+    : `<button class="go rew" data-icon="${how}" title="${how === 'ticket' ? '1 vé bỏ qua thay quảng cáo' : 'Quảng cáo có thưởng (nhận ngay)'}"><i class="ad"></i><b>+1</b><i class="tk"></i></button>`}
+    ${vip ? `<button class="vip" data-offer="${vip.id}" title="VIP Bundle (bấm là nhận ngay)"><i class="bg"></i><i class="tk"></i><b>Skip</b></button>` : ''}</div>`);
   spr(body.querySelector('.tt'), sh, 'TrophyTournament_01');
   spr(body.querySelector('.time'), sh, 'HolderTime_01');
   for (const z of body.querySelectorAll('.pz')) { spr(z, sh, 'HolderReward'); spr(z.querySelector('.coin'), sh, 'SkinCoins'); glText(app, z.querySelector('.n'), 40); }
@@ -352,13 +385,43 @@ async function page(app, board, claimed) {
     glText(app, li.querySelector('.rw'), 18);
   }
   for (const h of body.querySelectorAll('h3, .tname, .time')) glText(app, h, parseFloat(getComputedStyle(h).fontSize) / (window.innerHeight / 1334));
-  spr(box.querySelector('.go'), sh, 'OutlinedButtonGreen');
-  box.querySelector('.go').onclick = () => go(app);
+  const gb = box.querySelector('.go');
+  if (ps.free) spr(gb, sh, 'OutlinedButtonGreen');
+  else {
+    spr(gb, sh, 'OutlinedButtonGold');
+    glText(app, gb.querySelector('b'), 50);
+    const ash = await sheet(app, 'ads');
+    fit(gb.querySelector('.ad'), ash, how === 'ticket' ? 'SkipTickets' : 'AdIcon');
+    fit(gb.querySelector('.tk'), ash, 'Ticket');
+    const v = box.querySelector('.vip');
+    if (v) {
+      slice(v.querySelector('.bg'), ash, 'VIPButtonSmall_01', 0.33);
+      fit(v.querySelector('.tk'), ash, 'SkipTickets');
+      glText(app, v.querySelector('b'), 26);
+      v.onclick = () => { const r = app.bonus.buy(vip.id); if (!r.refused) open(app); };
+    }
+  }
+  gb.onclick = () => go(app);
+  for (const [cls, rew] of [['.cl.reg', false], ['.cl.rew', true]]) {
+    const b = body.querySelector(cls);
+    if (!b) continue;
+    spr(b, sh, rew ? 'OutlinedButtonGold' : 'OutlinedButtonGreen');
+    b.onclick = async () => {
+      const r = claimBoard(app, cfg, rew);
+      app.play('popup_in');
+      app.hud();
+      await page(app, currentBoard(app, cfg).board, null, r);
+    };
+  }
+  const ri = body.querySelector('.cl.rew i');
+  if (ri) fit(ri, await sheet(app, 'ads'), adIcon(save) === 'ticket' ? 'SkipTickets' : 'AdIcon');
 }
 
 async function go(app) {
   const { save } = app;
-  if (!pay(save)) { app.toast('Hết lượt miễn phí hôm nay: cần 1 vé bỏ qua (mua ở Chợ)'); return; }
+  const paid = payPlay(save, ID);
+  if (!paid) { app.toast('Hết lượt hôm nay'); return; }
+  if (paid === 'skip') app.toast('Đã dùng 1 vé bỏ qua thay quảng cáo');
   app.writeSave();
   app.play('button');
   const btn = document.querySelector('#race .go, #raceEnd .go');
@@ -447,6 +510,7 @@ export class RaceRun {
     const rank = this.ranking.findIndex((r) => r.me);
     const k = Math.max(0, Math.min(rank, COINS.length - 1));
     let coins = COINS[k], trophies = TROPHIES[k];
+    const base = coins; // TournamentEndGamePage._skinCoinsEarned: GetRaceRewards, before the card boost [asm 0x1223328]
     save.coins += coins;
     addQty(save, R_TROPHIES, trophies);
     // source finish_level_tournament [asm 0x1190f1c..0x1190ffc]: card.daily_coins_boost_tournament (first 100 coins of
@@ -459,7 +523,7 @@ export class RaceRun {
     save.inv[R_BEST] = Math.max(qty(save, R_BEST), total);
     const st = slot(save);
     if ((st.best || 0) <= this.level) st.best = this.level + 1;
-    this.done = { rank, coins, trophies, time, forced: !!forced };
+    this.done = { rank, coins, base, trophies, time, forced: !!forced };
     this.app.writeSave();
     return { xp: 0, got: [], race: this.done };
   }
@@ -551,12 +615,31 @@ export class RaceRun {
       <ol>${order.map((r, i) => `<li class="${r.me ? 'me' : ''}"><b>${i + 1}</b><span>${r.name}</span>${r.me && d.forced ? '—' : fmt(r.time)}</li>`).join('')}</ol>
       <div class="note">Cúp hôm nay: ${qty(app.save, R_TROPHIES)} · hạng ${currentBoardRank(app)} / ${S.cfg.board.participants} trên bảng</div>
       <div class="row2"><button class="go alt" data-act="board">Bảng xếp hạng</button>
-        <button class="go" data-act="again">Đua tiếp<small>${ps.free ? `miễn phí ${ps.free}/${FREE_PER_DAY}` : `1 vé (còn ${ps.tickets})`}</small></button></div>
+        <button class="go" data-act="again">Đua tiếp<small>${ps.free ? `miễn phí ${ps.free}/${FREE_PER_DAY}` : 'quảng cáo +1 lượt'}</small></button></div>
+      ${d.base && !d.multiplied ? `<button class="go claim" data-act="claim" data-icon="${adIcon(app.save)}"><i class="ad"></i>Claim +${MULT * d.base}</button>` : ''}
     </div></div>`;
     app.icon(box.querySelector('.coin'), 'coin', 26);
     trophyIcon(box.querySelector('.gain .tro'), 26, a);
     box.querySelector('[data-act="board"]').onclick = () => { app.play('button'); open(app); };
     box.querySelector('[data-act="again"]').onclick = () => go(app);
+    // TournamentEndGamePage.WatchRewarded (rewarded.tournament_finish_level) [asm 0x12243e0]: + skinCoinsMultiplier (4,
+    // prefab TournamentEndGame) x the coins earned, source finish_level_tournament_rewarded (no card boost)
+    // [asm 0x1224784, 0x12247a0]; label "Claim +{0}" [asm 0x1223f34]. Granted at once, a skip ticket pays the ad when owned.
+    const cl = box.querySelector('[data-act="claim"]');
+    if (cl) {
+      sheet(app, 'ads').then((ash) => fit(cl.querySelector('.ad'), ash, adIcon(app.save) === 'ticket' ? 'SkipTickets' : 'AdIcon')).catch(() => {});
+      cl.onclick = () => {
+        if (d.multiplied) return;
+        watch(app.save);
+        d.multiplied = true;
+        d.coins += MULT * d.base;
+        app.save.coins += MULT * d.base;
+        app.writeSave();
+        app.play('popup_in');
+        app.toast(`+${MULT * d.base} xu`);
+        this.end();
+      };
+    }
     app.play('popup_in');
     app.overlay('raceEnd', true);
   }

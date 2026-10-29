@@ -2,6 +2,7 @@
 // seasonal event's one-level-a-day cycle (SeasonalEventsService). No DOM. Used by modes.js / main.js (events),
 // race.js (Race) and pachinko.js (Lucky Drop). Asm: D:/stickman-hook-ref/dump/asm/cardfx/GameModesService__*.s.
 import { SKIP_TICKETS, qty, addQty } from './meta.js';
+import { watch } from './ads.js';
 
 export const DAY = 86400000;
 
@@ -42,7 +43,8 @@ function clean(save, id, day) {
 
 // GetCanPlayState [asm 0x129747c]: free (CanPlayForFree: max < 0 or played free < max [asm 0x12972f0]) -> the mode's
 // rewarded tickets (> 0 [asm 0x1297390]) -> a rewarded ad (CanPlayForRewarded: max < 0 or played rewarded < max
-// [asm 0x1297340]) -> limit reached ("Daily Limit Reached"). The web pays the ad with 1 skip ticket (rewarded.default skipPrice).
+// [asm 0x1297340]) -> limit reached ("Daily Limit Reached"). The ad itself: ads.js watch (a skip ticket pays it when owned,
+// else it is granted at once).
 export function playState(save, id, now = Date.now()) {
   const [maxFree, maxRew] = LIMITS[id] || [-1, -1], day = dayKey(now);
   const usedFree = save.flags[freeKey(id, day)] || 0, usedRew = save.flags[rewKey(id, day)] || 0;
@@ -57,7 +59,9 @@ export function playState(save, id, now = Date.now()) {
 
 // TryPlaying [asm 0x1297744]: PlayForFree counts the free flag [asm 0x1297870]; with the mode's tickets PlayForRewarded
 // spends one and counts the rewarded flag [asm 0x1297a04]; otherwise a rewarded ad grants one ticket (AddRewardedTicket
-// [asm 0x1298494]) -- here the ad costs 1 skip ticket and the ticket is played at once. Returns how it was paid, or null.
+// [asm 0x1298494]) and PlayForRewarded plays that ticket at once [asm 0x12984d0]. The ad (AdsService.ShowRewarded
+// [asm 0x12984f8]) is ads.js watch: 'ticket' when a skip ticket paid it (PAID_SKIP), 'ad' when it was granted at once.
+// Returns 'free' | 'ticket' (a mode ticket) | 'skip' (the ad, paid by a skip ticket) | 'ad' | 'vip', or null at the limit.
 export function payPlay(save, id, now = Date.now()) {
   const day = dayKey(now);
   clean(save, id, day);
@@ -65,8 +69,11 @@ export function payPlay(save, id, now = Date.now()) {
   const count = (k) => { save.flags[k] = (save.flags[k] || 0) + 1; };
   if (st.state === 'free') { if (st.maxFree >= 0) count(freeKey(id, day)); return 'free'; }
   if (st.state === 'tickets') { addQty(save, ticketsKey(id), -1); count(rewKey(id, day)); return 'ticket'; }
-  if (st.state === 'rewarded' && st.tickets > 0) { addQty(save, SKIP_TICKETS, -1); count(rewKey(id, day)); return 'ad'; }
-  return null;
+  if (st.state !== 'rewarded') return null;
+  const how = watch(save);
+  addQty(save, ticketsKey(id), 1); // AddRewardedTicket
+  addQty(save, ticketsKey(id), -1); count(rewKey(id, day)); // PlayForRewarded
+  return how === 'ticket' ? 'skip' : how;
 }
 
 // ---- seasonal event cycle (SeasonalEventsService) ---------------------------------------------------------------------

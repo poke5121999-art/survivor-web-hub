@@ -1,7 +1,9 @@
 // Cards views, loaded the first time the cards page, a booster or the black market opens: the CardsPage (perk level,
 // one CardsUI block per category, HolderCardItemUI cards), the BoosterOpeningPopup and the market's booster / black
-// market offer cards. Art: art/m-cards.webp and art/m-boost.webp (tools/build_menus.py); rules: js/cards.js.
+// market (every section, ads.js offers). Art: art/m-cards.webp, art/m-boost.webp, art/m-market.webp (tools/build_menus.py);
+// rules: js/cards.js, js/ads.js.
 import { sheet, kitStyle, spr, slice, cut, U, label, glText, artPage } from './uikit.js';
+import { adIcon, watch } from './ads.js';
 
 const CSS = `
 #cards .abody { overflow: auto; padding: 0 0 calc(env(safe-area-inset-bottom) + ${U(40)}); }
@@ -114,6 +116,36 @@ const CSS = `
 .ocard .buy:disabled { opacity: .55; cursor: default; }
 .ocard .sold { inset: 0; border-radius: 14px; background: rgba(0,0,0,.72); display: grid; place-items: center; }
 .ocard .sold i { width: 36%; aspect-ratio: 65 / 59; }
+.ocard .nm.qty { top: 3%; display: flex; justify-content: center; }
+.ocard .ill + .nm.qty ~ .q { display: none; }
+.ocard .disc { left: -6%; top: -5%; width: 36%; aspect-ratio: 1; display: grid; place-items: center; padding-bottom: 6%; box-sizing: border-box; }
+.ocard .buy.free { background: #74e67d; }
+.ocard .buy.rew { background: #f7a402; }
+.ocard .buy.na { background: rgba(16, 28, 67, .6); color: #fff; font: 800 10px/1.1 system-ui; }
+.ocard .buy.na em, .soff .buy.na em { color: #fcd225; font-style: normal; }
+.buy .ad { display: block; width: 26px; height: 22px; }
+.buy.iap { flex-direction: row; gap: 4px; }
+.buy.iap s { font: 800 10px system-ui; color: #7d93ab; text-decoration-color: #e53935; text-decoration-thickness: 2px; }
+.buy.iap .usd { font: 900 17px system-ui; color: #1a1c4b; }
+/* MarketSpecialOfferCard: background 2:1, illustration left, reward holders right, bottom bar with title and price */
+.mk .soff { position: relative; aspect-ratio: 700 / 420; margin: 6px 0 14px; border-radius: 14px; overflow: visible; }
+.soff > * { position: absolute; }
+.soff .sbg { left: 0; right: 0; top: 0; height: 83.3%; border-radius: 14px; }
+.soff .ill { left: 2%; top: 4%; width: 44%; height: 72%; }
+.soff.solo .ill { left: 20%; width: 60%; }
+.soff .rw { right: 2%; top: 5%; width: 52%; height: 72%; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; align-content: center; }
+.soff .rh { position: relative; aspect-ratio: 1; border-radius: 10px; background: rgba(29, 35, 76, .42); }
+.soff .rh i { position: absolute; inset: 4% 8% 30%; }
+.soff .rh span { position: absolute; left: 2px; right: 2px; bottom: 3px; text-align: center; font: 900 9px/1.05 system-ui; color: #fff;
+  -webkit-text-stroke: 2px #1a1c4b; paint-order: stroke fill; text-transform: uppercase; }
+.soff .disc { left: -2%; top: -4%; width: 15%; aspect-ratio: 1; display: grid; place-items: center; padding-bottom: 3%; box-sizing: border-box; }
+.soff .bar { left: 0; right: 0; bottom: 0; height: 22%; border-radius: 0 0 14px 14px; background: rgba(0, 0, 0, .39); display: flex; align-items: center; }
+.soff .st { flex: 1; padding: 0 8px; color: #fff; font: 900 15px/1.1 system-ui; -webkit-text-stroke: 3px #1a1c4b; paint-order: stroke fill; }
+.soff .st small { display: block; font: 700 10px/1.15 system-ui; -webkit-text-stroke: 0; opacity: .9; }
+.soff .buy { position: relative; width: 36%; height: 100%; border: 0; border-radius: 12px 0 14px 0; background: #fff; display: flex;
+  align-items: center; justify-content: center; gap: 4px; cursor: pointer; }
+.soff .buy.rew { background: #f7a402; }
+.soff .buy.free { background: #74e67d; }
 `;
 
 // A sprite fitted inside the element's box (Image preserveAspect / AspectRatioFitter)
@@ -381,14 +413,16 @@ export async function openBooster(app, cards, rand = Math.random) {
       + `margin-left:${U(-155)};border:0;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:${U(8)}`;
     slice(om, bsh, 'OutlinedButtonGold', 0.5);
     om.appendChild(label(app, '+1 Card', 36));
-    const t = document.createElement('i');
+    const t = document.createElement('i'), how = adIcon(s);
     Object.assign(t.style, { width: U(56), height: U(44), display: 'block' });
-    spr(t, bsh, 'SkipTickets');
+    spr(t, bsh, how === 'ticket' ? 'SkipTickets' : 'AdIcon');
     om.appendChild(t);
-    om.title = '+1 thẻ: 1 vé bỏ qua (bản gốc: xem quảng cáo)';
+    om.dataset.icon = how;
+    // LaunchRewarded (rewarded.one_more_card) [asm 0x114533c]: the ad is granted at once, a skip ticket pays it when owned
+    om.title = how === 'ticket' ? '+1 thẻ: 1 vé bỏ qua thay quảng cáo' : '+1 thẻ: quảng cáo có thưởng (nhận ngay)';
     om.onclick = (e) => {
       e.stopPropagation();
-      if (!app.bonus?.payRewarded(s)) { app.toast('Cần 1 vé bỏ qua'); return; }
+      watch(s);
       cards.oneMore(s, box);
       finish();
     };
@@ -453,14 +487,48 @@ function boosterCard(app, sh, bsh, cards, it, before) {
 // (MarketBlackMarketSection): title banner with the time left to the next 6 h rotation, "Instant Unlock & Achievements
 // Skip" (3 customization items, flat price) and "Instant Perks Upgrade" (3 cards: the XP left in the level x unit price);
 // requirement has_cards for the cards and the boosters (offerGroup purchaseRequirementId).
-const OFFER_ART = { 'offer.boosters_1': 'epic_market', 'offer.boosters_2': 'legendary_market', 'offer.boosters_3': 'legendary_multiplemarket' };
 const fmtTime = (ms) => { const t = Math.max(0, Math.floor(ms / 1000)); return [Math.floor(t / 3600), Math.floor(t / 60) % 60, t % 60].map((v) => String(v).padStart(2, '0')).join(':'); };
 const richName = (t) => t.replace(/<color=(#[0-9A-Fa-f]{6})>/g, '<span style="color:$1">').replace(/<\/color>/g, '</span>');
 let timer = 0;
+// The market (MarketPage): five sections in the config order (market.sections) -- Special Offers, Boosters, Black Market,
+// Coins, Skip Tickets -- each a MarketTitleBanner in the section colours (view_templates market_section.*). Offers come from
+// data/ads.json through ads.js Shop (visible by display requirement, priced by the first matching price). Cards:
+// MarketSpecialOfferCard (background, illustration, reward holders, bottom bar with title and price), MarketOfferSingleItem
+// (180 x 250: colour, illustration, quantity, purchase button: FREE "free" ButtonGreen, REWARDED "get" + AdIcon
+// ButtonOrange, IAP the price on ButtonWhite with the undiscounted price struck through). Every IAP / rewarded button
+// grants at once (owner rule): app.bonus.buy.
+const ADDR = { 'GameModes/Adventure/Icon': 'Icon_Compass', 'Boosters/Common/Market': 'common_market', 'Boosters/Epic/Market': 'epic_market',
+  'Boosters/Legendary/Market': 'legendary_market', 'Boosters/Legendary/MultipleMarket': 'legendary_multiplemarket' };
+function addrName(a) {
+  if (ADDR[a]) return ADDR[a];
+  const p = a.split('/');
+  if (p[0] === 'Market' && p[1] === 'Offer') return /^\d+$/.test(p[3]) ? `MarketOffer${p[2]}_${p[3]}` : `MarketOffer${p[2]}${p[3]}`;
+  if (p[0] === 'Market' && p[1] === 'Reward') return 'MarketReward' + p[2];
+  return p[p.length - 1];
+}
+// MarketDiscountPercentageDisplayer.Initialize [asm 0x2f6b410]: hidden under 1, else "+{5 * round(20 * (1 / (1 - d/100) - 1))}%"
+export const discountText = (d) => (d >= 1 ? `+${5 * Math.round(20 * (1 / (1 - d / 100) - 1))}%` : '');
+// MarketNotDiscountedPriceDisplayer: the price before the discount, price / (1 - d / 100), in the same "0.99$" format
+const oldPrice = (usd, d) => (parseFloat(usd) / (1 - d / 100)).toFixed(2) + '$';
+const plain = (t) => String(t).replace(/<[^>]+>/g, '').replace(/\n/g, ' ');
+const fmtLeft = (ms) => { const t = Math.max(0, Math.floor(ms / 1000)), p = (n) => String(n).padStart(2, '0'); return `${p(Math.floor(t / 3600))}:${p(Math.floor(t / 60) % 60)}:${p(t % 60)}`; };
+
+function banner(app, bsh, title, col, shadow) {
+  const ban = document.createElement('div');
+  ban.className = 'bm-ban';
+  ban.innerHTML = '<i class="bg s"></i><i class="bg"></i><b class="ttl"></b>';
+  const [shd, top] = ban.querySelectorAll('.bg');
+  for (const [e, c] of [[shd, shadow], [top, col]]) Object.assign(e.style, { backgroundImage: `url(${tinted(bsh, 'MarketTitleBanner', c.slice(0, 7))})`, backgroundSize: '100% 100%' });
+  ban.querySelector('.ttl').appendChild(label(app, title, 32));
+  return ban;
+}
+
 export async function marketSections(app, cards, root, rerender) {
   style();
-  const { cards: sh, boost: bsh } = await sheets(app);
-  const s = app.save, has = cards.hasCards(s);
+  const [{ cards: sh, boost: bsh }, msh] = await Promise.all([sheets(app), sheet(app, 'market')]);
+  const s = app.save, shop = app.bonus.shop, now = Date.now();
+  const pick = (name) => [msh, bsh, sh].find((x) => x.rects[name]);
+  const art = (el, name) => { const x = pick(name); if (x) fit(el, x, name); return el; };
   const coin = (btn, price) => {
     btn.innerHTML = `<span>${price}</span><i></i>`;
     spr(btn.querySelector('i'), sh, 'SkinCoins');
@@ -475,39 +543,122 @@ export async function marketSections(app, cards, root, rerender) {
     app.hud();
     rerender();
   };
-  // boosters
-  root.insertAdjacentHTML('beforeend', '<h3>Gói thẻ</h3><p>Bản gốc bán bằng tiền thật; ở đây trả bằng xu (giá theo Chợ Đen).</p>');
-  const bg = document.createElement('div');
-  bg.className = 'bm-grid' + (has ? '' : ' locked');
-  bg.dataset.lock = 'Cần có thẻ đầu tiên';
-  for (const [id, content, price] of cards.d.offers) {
-    const [res, q] = content[0], b = cards.boosters[res];
-    const o = document.createElement('div');
-    o.className = 'ocard';
-    o.dataset.offer = id;
-    o.innerHTML = '<i class="hold"></i><i class="glow"></i><i class="ill"></i><div class="nm"></div><b class="q"></b><button class="buy"></button>';
-    o.querySelector('.hold').style.cssText = 'background:#fdaa4a;border-radius:14px;box-shadow:0 4px 0 #fff88e inset';
-    spr(o.querySelector('.glow'), bsh, 'Glow');
-    fit(o.querySelector('.ill'), bsh, OFFER_ART[id] || b[11]);
-    o.querySelector('.nm').innerHTML = richName(b[0]);
-    o.querySelector('.q').textContent = 'x' + q;
-    const btn = o.querySelector('.buy');
-    coin(btn, price);
-    if (!has) btn.disabled = true;
-    btn.onclick = () => done(cards.buyOffer(s, id), `Nhận ${q} ${b[0].replace(/<[^>]+>/g, '')}`);
-    bg.appendChild(o);
+  const buy = (id) => { const r = app.bonus.buy(id); if (!r.refused) rerender(); };
+  // StickmanHookMarketOfferPurchaseButtonView: one of Free / Rewarded / Iap / NotAvailable (timer to the next period)
+  const priceButton = (btn, o, big) => {
+    const p = shop.price(s, o, now), why = shop.blocked(s, o, now);
+    btn.dataset.pay = p.pay;
+    if (why && why.startsWith('didnt_buy_')) {
+      btn.className = 'buy na';
+      const end = new Date(now); end.setHours(24, 0, 0, 0);
+      btn.innerHTML = `<small>available<br>in <em>${fmtLeft(end - now)}</em></small>`;
+      btn.disabled = true;
+      return;
+    }
+    if (p.pay === 'FREE') { btn.className = 'buy free'; btn.appendChild(label(app, 'free', 28)); }
+    else if (p.pay === 'REWARDED') {
+      btn.className = 'buy rew';
+      btn.appendChild(label(app, big ? 'Get' : 'get', big ? 25 : 28));
+      const i = document.createElement('i');
+      i.className = 'ad';
+      art(i, adIcon(s) === 'ticket' ? 'SkipTickets' : 'AdIcon');
+      btn.dataset.icon = adIcon(s);
+      btn.appendChild(i);
+    } else {
+      btn.className = 'buy iap';
+      if (p.discount) { const o2 = document.createElement('s'); o2.textContent = oldPrice(p.usd, p.discount); btn.appendChild(o2); }
+      const t = document.createElement('b');
+      t.className = 'usd';
+      t.textContent = p.usd;
+      btn.appendChild(t);
+      btn.title = 'Giá tham khảo [ĐỀ XUẤT]; bấm là nhận ngay';
+    }
+    if (why === 'has_cards') { btn.disabled = true; btn.title = 'Cần có thẻ đầu tiên'; }
+    btn.onclick = (e) => { e.stopPropagation(); buy(o.id); };
+  };
+  // a MarketOfferSingleItem / booster offer card
+  const single = (grid, o) => {
+    const c = o.card, el = document.createElement('div');
+    el.className = 'ocard';
+    el.dataset.offer = o.id;
+    el.innerHTML = '<i class="hold"></i><i class="glow"></i><i class="ill"></i><div class="nm"></div><b class="q"></b><i class="disc"></i><button></button>';
+    el.querySelector('.hold').style.cssText = `background:${c.bg_color.slice(0, 7)};border-radius:14px;box-shadow:0 4px 0 ${c.bg_shadowColor.slice(0, 7)} inset`;
+    spr(el.querySelector('.glow'), bsh, 'Glow');
+    art(el.querySelector('.ill'), addrName(c.mainSpriteAddress));
+    if (c.prefab === 'Boosters') {
+      el.querySelector('.nm').innerHTML = richName(c.title).replace(/\n/g, '<br>');
+      el.querySelector('.q').textContent = (c.quantityTextTemplate || 'x{0}').replace('{0}', o.content[0][1]);
+    } else {
+      const q = el.querySelector('.nm');
+      q.className = 'nm qty';
+      q.appendChild(label(app, c.title, 36, '#FFD54A'));
+      q.dataset.q = c.title;
+    }
+    const p = shop.price(s, o, now);
+    if (p?.discount) { const d = el.querySelector('.disc'); spr(d, bsh, 'DiscountBadge'); d.appendChild(label(app, discountText(p.discount), 13)); }
+    else el.querySelector('.disc').remove();
+    priceButton(el.querySelector('button'), o, false);
+    grid.appendChild(el);
+  };
+  // a MarketSpecialOfferCard
+  const special = (o) => {
+    const c = o.card, el = document.createElement('div');
+    el.className = 'soff';
+    el.dataset.offer = o.id;
+    el.innerHTML = '<i class="sbg"></i><i class="ill"></i><div class="rw"></div><i class="disc"></i>'
+      + '<div class="bar"><div class="st"></div><button></button></div>';
+    art(el.querySelector('.sbg'), addrName(c.bg_spriteAddress));
+    el.querySelector('.sbg').style.filter = `drop-shadow(0 ${U(6)} 0 ${c.bg_shadowColor.slice(0, 7)})`;
+    art(el.querySelector('.ill'), addrName(c.mainSpriteAddress));
+    const rw = el.querySelector('.rw');
+    for (const [t, a, rq] of c.rewards || []) {
+      if (rq && !shop.req(s, rq, now)) continue;
+      const h = document.createElement('div');
+      h.className = 'rh';
+      h.innerHTML = '<i></i><span></span>';
+      art(h.querySelector('i'), addrName(a));
+      h.querySelector('span').innerHTML = richName(t).replace(/\n/g, '<br>');
+      rw.appendChild(h);
+    }
+    if (!rw.childElementCount) el.classList.add('solo');
+    const st = el.querySelector('.st');
+    st.innerHTML = `<b>${plain(c.title)}</b>${c.subTitle ? `<small>${richName(c.subTitle)}</small>` : ''}`;
+    const p = shop.price(s, o, now);
+    if (p?.discount) { const d = el.querySelector('.disc'); spr(d, bsh, 'DiscountBadge'); d.appendChild(label(app, discountText(p.discount), 13.6)); }
+    else el.querySelector('.disc').remove();
+    priceButton(el.querySelector('.bar button'), o, true);
+    return el;
+  };
+  for (const sec of shop.d.sections) {
+    const groups = Object.entries(shop.d.groups).filter(([, g]) => g.section === sec.id).map(([id]) => id);
+    if (sec.id === 'black_market') { await blackMarket(app, cards, root, sh, bsh, coin, done, sec, rerender); continue; }
+    if (!groups.some((g) => shop.offers(s, g, now).length)) continue;
+    const ban = banner(app, bsh, sec.title, sec.color, sec.shadow);
+    ban.dataset.section = sec.id;
+    root.appendChild(ban);
+    for (const g of groups) {
+      const list = shop.offers(s, g, now);
+      if (!list.length) continue;
+      if (shop.d.groups[g].title) root.insertAdjacentHTML('beforeend', `<div class="bm-sub">${shop.d.groups[g].title}</div>`);
+      if (g === 'special_offers') { for (const o of list) root.appendChild(special(o)); continue; }
+      const grid = document.createElement('div');
+      grid.className = 'bm-grid';
+      grid.dataset.group = g;
+      for (const o of list) single(grid, o);
+      root.appendChild(grid);
+    }
   }
-  root.appendChild(bg);
+}
+
+async function blackMarket(app, cards, root, sh, bsh, coin, done, sec, rerender) {
+  const s = app.save;
   // black market
-  const bm = cards.market(s);
+  const has = cards.hasCards(s), bm = cards.market(s);
   app.writeSave();
-  const ban = document.createElement('div');
-  ban.className = 'bm-ban';
-  ban.innerHTML = '<i class="bg s"></i><i class="bg"></i><b class="ttl"></b><span class="tm"><i></i><b></b></span>';
-  // MarketTitleBannerShadow #BE6700 5 below, MarketTitleBanner #FDC202 (Image colours on the white sprite)
-  const [shd, top] = ban.querySelectorAll('.bg');
-  for (const [e, col] of [[shd, '#be6700'], [top, '#fdc202']]) Object.assign(e.style, { backgroundImage: `url(${tinted(bsh, 'MarketTitleBanner', col)})`, backgroundSize: '100% 100%' });
-  ban.querySelector('.ttl').appendChild(label(app, 'Black Market', 32));
+  // MarketTitleBanner in the section colours (market_section.black_market), with the round's timer
+  const ban = banner(app, bsh, sec.title, sec.color, sec.shadow);
+  ban.dataset.section = sec.id;
+  ban.insertAdjacentHTML('beforeend', '<span class="tm"><i></i><b></b></span>');
   spr(ban.querySelector('.tm i'), bsh, 'Icon_Timer');
   const tm = ban.querySelector('.tm b');
   const tick = () => { tm.textContent = fmtTime(bm.end - Date.now()); if (Date.now() >= bm.end) { clearInterval(timer); rerender(); } };

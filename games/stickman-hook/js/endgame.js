@@ -1,11 +1,13 @@
 // End game of a solo mode (Normal, Grapple, Challenge, events), loaded at the first finish (main.js loadEnd):
 //   1. PiggyBankPopup (Normal only, while a piggy skin is left; rules in bonus.js): the next skin fills from the bottom,
-//      full -> UNLOCK (rewarded ad, here 1 skip ticket) or LOSE IT.
+//      full -> UNLOCK (rewarded ad: granted at once, a skip ticket pays it when owned; js/ads.js) or LOSE IT; VIP Skip.
 //   2. The end page (NormalEndGame prefab): "Stage n / Completed!", the equipped skin dancing on the finish platform,
 //      the Play button (next level) and the Home button (home page).
 // Layout from the prefabs (ui_pages_endgame_normal, ui_popups_piggybank) on the 750 x 1334 canvas matched to the height
 // (u = height / 1334 CSS px), checked against the 2026 clip (0:18 piggy, 0:27.6 end page). Art: art/ui.webp
 // (tools/build_ui.py), the piggy skins art/piggy.webp, the dance clip from the skin sheet (main.js look.dance).
+
+import { adIcon, vipSkip } from './ads.js';
 
 const REF_H = 1334;
 const PIGGY_FILL_S = 0.8; // [ĐỀ XUẤT] fill animation length
@@ -26,6 +28,11 @@ const CSS = `
 #egPiggy .gold, #egPiggy .green { position: relative; width: calc(var(--u) * 310); height: calc(var(--u) * 120); background-size: 100% 100%; }
 #egPiggy .gold i { position: absolute; left: 12%; top: 22%; width: 22%; height: 46%; background-repeat: no-repeat; }
 #egPiggy .tap { position: absolute; inset: 0; }
+#egPiggy .vip { position: relative; width: calc(var(--u) * 144); height: calc(var(--u) * 120); border: 0; padding: 0; background: none; cursor: pointer; }
+#egPiggy .vip .bg { position: absolute; inset: 0; }
+#egPiggy .vip .cr { position: absolute; left: 50%; top: calc(var(--u) * -43); width: calc(var(--u) * 64); height: calc(var(--u) * 54); margin-left: calc(var(--u) * -32); }
+#egPiggy .vip .tk { position: absolute; left: 50%; top: 50%; width: calc(var(--u) * 80); height: calc(var(--u) * 80); margin: calc(var(--u) * -50) 0 0 calc(var(--u) * -40); }
+#egPiggy .vip b { position: absolute; left: 0; right: 0; bottom: calc(var(--u) * 4); height: calc(var(--u) * 30); color: #fff; font-size: calc(var(--u) * 24); }
 #egPage .home { position: absolute; left: 0; top: env(safe-area-inset-top); width: 13%; height: 7%; }
 #egPage .home i { position: absolute; inset: 10%; background-repeat: no-repeat; }
 #egPage .play { position: absolute; left: 50%; transform: translateX(-50%); width: calc(var(--u) * 234); height: calc(var(--u) * 223);
@@ -139,24 +146,48 @@ export function makeEndgame(app, d) {
           return;
         }
         if (mode === 'fill' && b.piggyProgress(s) >= 100) return;
-        // PlayRewarded: "+N%" (rewarded.piggy_bank_fill) or UNLOCK when full (rewarded.piggy_bank_unlock). The web pays
-        // each rewarded ad with 1 skip ticket (skipPrice of rewarded.default), so the ad icon shows a ticket.
+        // PlayRewarded (RewardedButton, OutlinedButtonGold): "+N%" (WatchRewardedToAddProgression) or UNLOCK when full
+        // (WatchRewardedToUnlockSkin). RewardedImg is a NoAdsIconChanger: AdIcon, or the skip ticket that will pay the
+        // ad (ads.js adIcon). The click grants at once (ads.js watch: a ticket is spent when owned).
         const go = document.createElement('button');
-        go.className = 'gold'; go.title = '1 vé bỏ qua';
+        const how = adIcon(s);
+        go.className = 'gold'; go.dataset.icon = how;
+        go.title = how === 'ticket' ? '1 vé bỏ qua thay quảng cáo' : 'Quảng cáo có thưởng (nhận ngay)';
         go.innerHTML = '<i></i>';
         icon(go, 'OutlinedButtonGold');
-        icon(go.querySelector('i'), 'SkipTickets');
+        icon(go.querySelector('i'), how === 'ticket' ? 'SkipTickets' : 'AdIcon');
         go.onclick = (e) => {
           e.stopPropagation();
           const was = b.piggyProgress(s);
           const out = mode === 'full' ? b.piggyUnlock(s) : b.piggyBoost(s);
           if (!out) return;
-          if (out.refused) { app.toast('Cần 1 vé bỏ qua (mua ở Chợ trên trang chính)'); return; }
           app.play('popup_in'); app.writeSave(); app.hud();
           if (mode === 'full') { mode = 'unlocked'; unlockedAt = performance.now(); buttons(); return; }
           fill(was, b.piggyProgress(s));
         };
         acts.appendChild(go);
+        // ActionButton NoAdsButton (VIPButtonSmall_01 144 x 120, crown, SkipTickets 80 + "Skip"; a VipOfferWidget):
+        // ShouldShowNoAdsButton = rewarded state, CanSkip false, flag.vip < 1 [asm 0x12649fc] (ads.js vipSkip), and a
+        // VIP offer to show (VipService.GetVipOffer). The original opens the VIP Bundle; here the click buys it.
+        const vip = b.shop?.vipOffer(s);
+        if (vip && vipSkip(s)) {
+          const v = document.createElement('button');
+          v.className = 'vip'; v.dataset.offer = vip.id; v.title = 'VIP Bundle (bấm là nhận ngay)';
+          v.innerHTML = '<i class="bg"></i><i class="cr"></i><i class="tk"></i><b>Skip</b>';
+          acts.appendChild(v);
+          import('./uikit.js').then(async (ui) => {
+            const sh = await ui.sheet(app, 'ads');
+            ui.slice(v.querySelector('.bg'), sh, 'VIPButtonSmall_01', 0.36);
+            ui.fit(v.querySelector('.cr'), sh, 'VIPCrownIcon_01');
+            ui.fit(v.querySelector('.tk'), sh, 'SkipTickets');
+            ui.glText(app, v.querySelector('b'), 26);
+          }).catch(() => {});
+          v.onclick = (e) => {
+            e.stopPropagation();
+            const r = b.buy(vip.id);
+            if (!r.refused) buttons();
+          };
+        }
       }
       const tap = piggyEl.querySelector('.tap');
       tap.onclick = () => {
@@ -224,7 +255,10 @@ export function makeEndgame(app, d) {
         const ab = h - 240 * U;
         if (acts.style.visibility !== 'hidden' && acts.childElementCount) {
           const lab = mode === 'unlocked' ? 'equip it!' : mode === 'full' ? 'unlock' : '+' + b.piggyFill(s, 2 /* PIGGY_REWARDED */) + '%';
-          text(app.R, g, lab, w / 2 + (mode === 'unlocked' ? 0 : 30 * U), ab - 4 * U, (mode === 'unlocked' ? 36 : 42) * U);
+          // the label follows its button (the VIP Skip button beside it shifts the row)
+          const btn = acts.querySelector('.gold, .green'), br = btn.getBoundingClientRect(), pr = piggyEl.getBoundingClientRect();
+          const cx = br.left - pr.left + br.width / 2;
+          text(app.R, g, lab, cx + (mode === 'unlocked' ? 0 : 30 * U), ab - 4 * U, (mode === 'unlocked' ? 36 : 42) * U);
         }
         if (mode === 'full' && performance.now() >= fullAt + FULL_NEXT_MS) text(app.R, g, 'lose it!', w / 2, ab + 110 * U, 44 * U, '#092b57');
         if (mode === 'unlocked') text(app.R, g, 'tap to continue', w / 2, h - 100 * U - 30 * U, 50 * U, '#092b57');

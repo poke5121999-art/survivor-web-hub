@@ -116,7 +116,6 @@ export function setup(app) {
     root.querySelector('#btnSettings').onclick = () => app.openLevels();
     root.querySelector('#btnAddCoins').onclick = (e) => { e.stopPropagation(); app.openMenu('openMarket'); };
     root.querySelector('#btnTabShop').onclick = () => app.openMenu('openMarket');
-    root.querySelector('#btnMarket').onclick = () => app.openMenu('openMarket');
     root.querySelector('#btnWheel').onclick = () => app.openMenu('openWheel');
     // MenuBar cards tab: TabLocker until the first card (requirement has_cards); the welcome booster comes at 550 XP
     root.querySelector('#btnCards').onclick = () => {

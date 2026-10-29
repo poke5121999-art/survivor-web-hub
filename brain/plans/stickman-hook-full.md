@@ -107,3 +107,9 @@ Nguyên tắc: vẫn "nhẹ, load nhanh".
   - Bài kiểm (local): `test/stickman-hook-play.js` 133/133, `test/stickman-hook-sim.js` 307/307, `test/stickman-hook-pachinko.js` 30/30. Màn đầu 595 KB thô (trước 589).
   - Còn lệch: `ModeUnlockedPopup` và popup mở item vẫn là toast, "TOP n %" của hạng (server), thông số đường bay sao (`CurveProfile`) là `[ĐỀ XUẤT]`.
   - Việc còn lại: đẩy lên Pages, tăng `rev` trong `data/games.js` lên 20261028l, chạy bài kiểm trên Pages với `SH_URL`.
+- [~] Quảng cáo và IAP bấm là nhận (2026-10-29, rev 20261028m, CHƯA đẩy lên Pages, CHƯA kiểm trên Pages): luật của chủ dự án "vẫn show nút ads/iap như thường nhưng bấm vào là claim lun". Chi tiết ở README mục "Quảng cáo có thưởng và IAP", `docs/PARITY.md` mục 20261028m.
+  - `js/ads.js` + `data/ads.json` (`tools/build_ads.py`): luật `SafelyDisplayAd` (có vé thì trừ vé như gốc, không có vé thì nhận ngay), `CanSkip` = vé > 1, VIP Skip; Chợ đủ 5 mục với nút IAP giá USD `[ĐỀ XUẤT]`.
+  - 12 chỗ đặt quảng cáo (11 đã làm; `customization_incentive` chờ hệ prompt cuối màn) và 19 ưu đãi IAP (VIP, VIP giảm giá, Welcome, No Ads, gói thẻ, Phiêu lưu, xu, vé, booster).
+  - Bỏ giá xu tự đặt của gói vé (50 xu/vé) và gói thẻ (3800/9800/49000). VIP lưu ở `save.flags`, `save.installed` mới.
+  - Bài kiểm (local): `test/stickman-hook-play.js` 145/145, `test/stickman-hook-pachinko.js` 30/30, `test/stickman-hook-sim.js` 307/307. Màn đầu 596 KB thô (trước 595).
+  - Việc còn lại: đẩy lên Pages, tăng `rev` trong `data/games.js` lên 20261028m, chạy bài kiểm trên Pages với `SH_URL`.

@@ -34,6 +34,8 @@ const UNLOCK = {
   lucky_wheel: { live: true },
   piggy_bank: { live: true },
   pachinko: { live: true },
+  rewarded: { live: true },
+  vip: { live: true },
 };
 
 export class Meta {
