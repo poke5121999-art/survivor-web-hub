@@ -9,6 +9,7 @@ import { Rig } from './anim.js';
 
 const tmp = new THREE.Vector3();
 const UP = new THREE.Vector3(0, 1, 0);
+const tmpQ = new THREE.Quaternion();
 const CASH_LAYER_STEP = 0.45;
 const POP_TIME = 0.25;
 // DOTween eases used by the original's moves.
@@ -518,8 +519,9 @@ export class GameView {
     o.position.copy(tmp);
     if (a.dirX || a.dirZ) {
       // Exported rigs face local -z (carry slot, trolley and box slot all sit at negative z).
+      // The yaw is a world heading; CUSTOMERS sits turned 180 degrees in Store 2-14, so undo the parent's turn.
       const yaw = Math.atan2(a.dirX, a.dirZ) + Math.PI;
-      o.quaternion.setFromAxisAngle(UP, yaw);
+      o.quaternion.setFromAxisAngle(UP, yaw).premultiply(o.parent.getWorldQuaternion(tmpQ).invert());
     }
   }
 

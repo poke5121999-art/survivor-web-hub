@@ -379,6 +379,13 @@ function installHold() {
       return { solid: solid.length, bad: bad.map(o => `${o.name}@${o.center.map(v => v.toFixed(0))}`) };
     });
     check('every blocking obstacle belongs to a drawn object (no invisible walls)', walls.solid > 0 && walls.bad.length === 0, JSON.stringify(walls));
+    // Store 2-14 keep CUSTOMERS turned 180 degrees, so a yaw set as if the parent were unturned walks them backwards.
+    await page.goto(`${url}?fresh&bot&mart=store2`);
+    await page.waitForFunction(() => window.__mm && (window.__mm.ready || window.__mm.error), null, { timeout: 90000 });
+    await page.evaluate(installProbe);
+    const f2 = await page.evaluate(() => { window.__mmGame.sim.state.cash = 1e7; return window.__ff(120).stats; });
+    check('Store 2 customers face where they walk (turned CUSTOMERS parent)', f2.face.customer[0] > 50 && f2.face.customer[1] === 0,
+      `${f2.face.customer[0]} ok, ${f2.face.customer[1]} wrong ${f2.faceBad.join(', ')}`);
     check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | ') || 'none');
   } catch (e) {
     if (e.message !== 'quick') throw e;
