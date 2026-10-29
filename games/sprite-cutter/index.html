@@ -288,7 +288,7 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
 
 </div>
 
-<script src="vendor/jszip.min.js?v=20261028c"></script>
+<script src="vendor/jszip.min.js?v=20261029a"></script>
 <script>
 const $ = id => document.getElementById(id);
 
@@ -1357,9 +1357,14 @@ function loadFile(file, pasted) {
     S.off = {}; S.skip = new Set(); S.sel = null; S.start = 0; S.cur = 0; S.playing = true;
     S.strokes = []; eraseMask = null; S.pocketFlips.clear();
     guessGrid(); S.count = cellCount();
+    // Ô Xoá nền còn bật từ sheet trước: ảnh đã trong suốt thì góc ra màu đen và viền tối của hình bị loang mất.
+    const keyedOff = $("bg-on").checked && !sheetIsOpaque();
+    if (keyedOff) $("bg-on").checked = false;
     applyBackground();
     $("prefix").value = S.name; clearThumbs();
-    status(""); pasteNote(pasted ? `Đã dán ảnh ${im.naturalWidth}×${im.naturalHeight}px.` : "", "ok");
+    status("");
+    const note = [pasted ? `Đã dán ảnh ${im.naturalWidth}×${im.naturalHeight}px.` : "", keyedOff ? "Ảnh đã có nền trong suốt nên tắt Xoá nền." : ""].filter(Boolean).join(" ");
+    pasteNote(note, "ok");
     changed();
   };
   im.onerror = () => status("Trình duyệt không đọc được ảnh này.", "bad");
