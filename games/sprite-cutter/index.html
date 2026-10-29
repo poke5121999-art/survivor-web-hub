@@ -285,7 +285,7 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
 
 </div>
 
-<script src="vendor/jszip.min.js?v=20261029f"></script>
+<script src="vendor/jszip.min.js?v=20261029g"></script>
 <script>
 const $ = id => document.getElementById(id);
 
@@ -1015,12 +1015,13 @@ function keyOut() {
   // Lõi tia lửa, vệt chém trắng sáng hơn nền ở ít nhất một kênh, nên không thể là nền trộn với nét tối hơn.
   // Nhiễu JPEG quanh nét đen cũng sáng hơn nền nhưng chỉ dày 1-2px: co rồi nở mảng sáng 1px để chỉ giữ chỗ dày từ 3px.
   const LIFT = 8, lit = new Uint8Array(W * H), solid = new Uint8Array(W * H);
+  let anySolid = false;
   for (let n = 0, i = 0; n < W * H; n++, i += 4)
     lit[n] = p[i + 3] >= 16 && (p[i] - r > LIFT || p[i + 1] - g > LIFT || p[i + 2] - b > LIFT) && dist(i) <= tol ? 1 : 0;
   for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
     const n = y * W + x;
     if (lit[n - W - 1] & lit[n - W] & lit[n - W + 1] & lit[n - 1] & lit[n] & lit[n + 1] & lit[n + W - 1] & lit[n + W] & lit[n + W + 1])
-      for (let d = -W; d <= W; d += W) solid[n + d - 1] = solid[n + d] = solid[n + d + 1] = 1;
+      for (let d = -W; d <= W; d += W) solid[n + d - 1] = solid[n + d] = solid[n + d + 1] = anySolid = 1;
   }
   const isBg = i => dist(i) <= tol && !solid[i >> 2];
   if ($("bg-mode").value === "all") {
@@ -1053,6 +1054,18 @@ function keyOut() {
     // Chỗ kín = mảng màu nền không thông ra viền ô. Lòng trắng mắt và khe giữa tay với thân đều là chỗ kín cùng màu nền,
     // không quy tắc màu nào tách được, nên máy đoán trước rồi người dùng tô Trả lại để lấy lại chỗ đoán nhầm.
     const holes = $("bg-mode").value === "holes", keep = +$("bg-hole").value, pocketOf = new Int32Array(W * H), parts = [];
+    // Cỡ mảng sáng dày chứa mỗi pixel, để biết chỗ kín nào nối vào phần sáng của chính hình.
+    const solidSize = anySolid ? new Int32Array(W * H) : null;
+    for (let s = 0; anySolid && s < W * H; s++) {
+      if (!solid[s] || solidSize[s]) continue;
+      const blob = [s]; solidSize[s] = -1;
+      for (let k = 0; k < blob.length; k++) {
+        const n = blob[k], px = n % W;
+        for (const m of [px > 0 ? n - 1 : -1, px < W - 1 ? n + 1 : -1, n - W, n < W * (H - 1) ? n + W : -1])
+          if (m >= 0 && solid[m] && !solidSize[m]) { solidSize[m] = -1; blob.push(m); }
+      }
+      for (const n of blob) solidSize[n] = blob.length;
+    }
     for (let s = 0; s < W * H; s++) {
       if (seen[s] || pocketOf[s] || p[s * 4 + 3] === 0 || !isBg(s * 4)) continue;
       const part = [s]; pocketOf[s] = parts.length + 1;
@@ -1087,7 +1100,22 @@ function keyOut() {
       // còn mắt sáng gần trắng lệch đều cả lõi thì là hình. Khe mỏng không có lõi thì coi là nền.
       const core = part.filter(n => { const px = n % W; return px > 0 && px < W - 1 && pocketOf[n - 1] && pocketOf[n + 1] && pocketOf[n - W] && pocketOf[n + W]; });
       const ds = core.map(n => dist(n * 4)).sort((a, b) => a - b);
-      const guess = holes && part.length >= keep && (ds.length ? ds[ds.length >> 1] <= tol / 3 : slit(part, k + 1));
+      // Vạch trắng trên nòng trùng màu nền nhưng sáng dần về phía tia lửa, nên chạm một mảng sáng dày ít nhất 1/16 cỡ nó, và là dải mảnh.
+      // Khe nền giữa chân và bóng đổ chỉ chạm mẩu nhiễu JPEG vài px. Khe kem cạnh vệt chém trắng thì dày.
+      let litBy = 0;
+      if (anySolid) for (const n of part) { const px = n % W; for (const m of [px > 0 ? n - 1 : n, px < W - 1 ? n + 1 : n, n - W, n + W]) if (m >= 0 && m < W * H && solidSize[m] > litBy) litBy = solidSize[m]; }
+      let thin = false;
+      if (litBy * 16 >= part.length) {
+        const depth = new Map(), ring = part.filter(n => { const px = n % W; return px === 0 || px === W - 1 || pocketOf[n - 1] !== k + 1 || pocketOf[n + 1] !== k + 1 || pocketOf[n - W] !== k + 1 || pocketOf[n + W] !== k + 1; });
+        for (const n of ring) depth.set(n, 1);
+        let deep = 1;
+        for (let q = 0; q < ring.length; q++) {
+          const n = ring[q], d = depth.get(n); deep = d;
+          for (const m of [n - 1, n + 1, n - W, n + W]) if (pocketOf[m] === k + 1 && !depth.has(m)) { depth.set(m, d + 1); ring.push(m); }
+        }
+        thin = deep <= 6;
+      }
+      const guess = holes && part.length >= keep && !thin && (ds.length ? ds[ds.length >> 1] <= tol / 3 : slit(part, k + 1));
       if (part.length >= keep) guess ? gone++ : kept++;
       if (guess) for (const n of part) { lost.push(n, p[n * 4 + 3]); p[n * 4 + 3] = 0; }
     });
