@@ -69,11 +69,15 @@ export function makeEndgame(app, d) {
   const root = $('endgame'), piggyEl = $('egPiggy'), pageEl = $('egPage');
   const url = `url(./art/ui.webp${app.V})`, [W, H] = d._size;
 
-  // a sheet sprite fitted to its element's box (percent background maths: any box size)
+  // a sheet sprite in its element's box. Every end page Image keeps its aspect (m_PreserveAspect 1 in ui_pages_endgame_*:
+  // TopBackground 748 x 601, FinishHalo, NextLevelButtonCenter 234 x 223, NextLevelText), so it is fitted, centred; until
+  // its cut-out is ready the sheet shows it stretched
   function icon(el, key) {
     const r = d[key];
+    el.dataset.spr = key;
     Object.assign(el.style, { backgroundImage: url, backgroundSize: `${(W / r[2]) * 100}% ${(H / r[3]) * 100}%`,
       backgroundPosition: `${(r[0] / (W - r[2])) * 100}% ${(r[1] / (H - r[3])) * 100}%` });
+    tile(key).then((u) => { if (el.dataset.spr === key) Object.assign(el.style, { backgroundImage: `url(${u})`, backgroundSize: 'contain', backgroundPosition: 'center' }); }).catch(() => {});
   }
   // same, at a fixed size in reference units
   function place(el, key, css) { icon(el, key); Object.assign(el.style, css); }
@@ -106,7 +110,9 @@ export function makeEndgame(app, d) {
 
   // ---- 1. PiggyBankPopup ------------------------------------------------------------------------------------------
   let piggyImg = null;
+  let piggyGot = null;
   async function piggy(r) {
+    piggyGot = null;
     const b = app.bonus, s = app.save;
     piggyImg ||= await app.image('./art/piggy.webp');
     const res = b.piggyReward(s);
@@ -129,6 +135,7 @@ export function makeEndgame(app, d) {
     piggyEl.dataset.res = res;
     delete piggyEl.dataset.collection;
     piggyEl.classList.add('on');
+    import('./uikit.js').then((ui) => ui.popOpen(piggyEl, 'instant')).catch(() => {}); // PiggyBankPopup: MadTween, no transition
     return new Promise((done) => {
       function buttons() {
         acts.innerHTML = '';
@@ -160,6 +167,7 @@ export function makeEndgame(app, d) {
           e.stopPropagation();
           const was = b.piggyProgress(s);
           const out = mode === 'full' ? b.piggyUnlock(s) : b.piggyBoost(s);
+          if (mode === 'full' && out.got) piggyGot = out.got; // its CustomizationItemUnlockedPopup after this popup
           if (!out) return;
           app.play('popup_in'); app.writeSave(); app.hud();
           if (mode === 'full') { mode = 'unlocked'; unlockedAt = performance.now(); buttons(); return; }
@@ -168,7 +176,7 @@ export function makeEndgame(app, d) {
         acts.appendChild(go);
         // ActionButton NoAdsButton (VIPButtonSmall_01 144 x 120, crown, SkipTickets 80 + "Skip"; a VipOfferWidget):
         // ShouldShowNoAdsButton = rewarded state, CanSkip false, flag.vip < 1 [asm 0x12649fc] (ads.js vipSkip), and a
-        // VIP offer to show (VipService.GetVipOffer). The original opens the VIP Bundle; here the click buys it.
+        // VIP offer to show (VipService.GetVipOffer); the click opens its MarketVipPopup (js/popups.js offer).
         const vip = b.shop?.vipOffer(s);
         if (vip && vipSkip(s)) {
           const v = document.createElement('button');
@@ -184,8 +192,7 @@ export function makeEndgame(app, d) {
           }).catch(() => {});
           v.onclick = (e) => {
             e.stopPropagation();
-            const r = b.buy(vip.id);
-            if (!r.refused) buttons();
+            app.popups().then((m) => m.offer(app, vip.id)).then((r) => { if (r && !r.refused) buttons(); });
           };
         }
       }
@@ -357,7 +364,11 @@ export function makeEndgame(app, d) {
       // piggy bank at 0:17.6), see main.js roadPopup
       if (app.meta.xpPending(app.save) > 0) await app.roadPopup().catch(() => {});
       if (o.piggy && app.bonus) await piggy(o.piggy);
+      // grants of the level (level road) and of the piggy bank: their unlock popups (js/popups.js) before the end page
+      await app.unlocks([...(o.got || []), ...(piggyGot || [])]).catch(() => {});
       page(o);
+      // AEndGamePage.OnShowEnded -> ShowPrompts('end_game') [asm 0x28d6364]: the optional end-game prompts (js/popups.js)
+      app.popups().then((m) => m.endPrompts(app, o.mode)).catch(() => {});
     },
   };
 }

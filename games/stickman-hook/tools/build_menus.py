@@ -17,10 +17,15 @@ SRC = os.path.join(REF, 'sprites_menus')
 # sprites_cards: page_sprites.py over the cards / boosters / ui_market_* bundles; sprites_cards/boosters: booster_sprites.py
 # sprites_ads: market offer / widget art (export_named.py over the market_offer_* / market_reward_* bundles); sprites_ui: build_ui.py's
 DIRS = [SRC, os.path.join(REF, 'sprites_cards'), os.path.join(REF, 'sprites_cards', 'boosters'), os.path.join(REF, 'sprites'),
-        os.path.join(REF, 'sprites_ads'), os.path.join(REF, 'sprites_ui')]
+        os.path.join(REF, 'sprites_ads'), os.path.join(REF, 'sprites_ui'),
+        # sprites_shop: export_named.py over ui_pages_customization (pager arrows / frame, locked-item buttons), rev 20261028o
+        os.path.join(REF, 'sprites_shop'), os.path.join(REF, 'sprites_tournament')]
 # dump/ftue (tools/ftue_export_art.py: HomePage tutorial hand, SettingsPopup) is searched first for these sheets only, so
 # its 'checkmark' / 'Glow' never replace the ones other sheets use
-FTUE_DIR = {'ftue': os.path.join(REF, 'dump', 'ftue'), 'settings': os.path.join(REF, 'dump', 'ftue')}
+FTUE_DIR = {'ftue': os.path.join(REF, 'dump', 'ftue'), 'settings': os.path.join(REF, 'dump', 'ftue'),
+            # sprites_popups (export_named.py over the ui_popups_* / ui_market_*offerpopup* bundles): rev 20261028o popups;
+            # first for this sheet only, so its 'Icon' / 'ShinySun' never replace other sheets' sprites of the same name
+            **{k: os.path.join(REF, 'sprites_popups') for k in ('pmode', 'pseason', 'pskin', 'ovip', 'ooffer')}}
 GAME = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 CARD_SPRITES = ['GlobalCollectionXPBoost', 'GlobalSkinXPBoost', 'GlobalRopeXPBoost', 'GlobalTrailXPBoost', 'SecondChance',
@@ -66,11 +71,11 @@ SHEETS = {
     'shop': {'Button_ShopSelection': 300, 'Button_ShopUnselected': 300, 'ShopTrailRopeHolder': 180, 'ContainerPage_Selected': 64,
              'ContainerPage_Unselected': 64, 'Container_PageCollection': 260, 'HolderCollection_01': 348, 'HolderGameMode_01': 348,
              'HolderLocked_01': 348, 'Container_CollectionNumber': 120, 'Container_CollectionNumberCompleted': 120,
-             'ShopHolder_common': 180, 'ShopHolder_epic': 180, 'ShopHolder_legendary': 180, 'ShopHolder_ultimate': 180,
+             'IconArrow_Collection': 38, 'PaginationHolder': 438, 'Button_UnlockRandomSkin': 226, 'ShopHolder_common': 180, 'ShopHolder_epic': 180, 'ShopHolder_legendary': 180, 'ShopHolder_ultimate': 180,
              'ShopLocked_common': 180, 'ShopLocked_epic': 180, 'ShopLocked_legendary': 180, 'ShopLocked_ultimate': 180,
              'ValidateIcon_01': 56, 'Icon_Lock': 60, 'SkinCoins': 64, 'Icon_Home': 90, 'background2': 64, 'ShinySun': 256},
     # TournamentPage
-    'tour': {'Pattern_Trophy_Invers': 256, 'TrophyTournament_01': 220, 'HolderReward': 170, 'HolderTime_01': 200,
+    'tour': {'Pen': 40, 'SkipTickets': 72, 'AddButton': 56, 'Pattern_Trophy_Invers': 256, 'TrophyTournament_01': 220, 'HolderReward': 170, 'HolderTime_01': 200,
              'FramePlayer_01': 694, 'HolderYourPlayer': 694, 'HolderPortrait_01': 90, 'HolderPortrait_02': 90,
              'CounterPlayer_01': 160, 'CounterYouPlayer_01': 160, 'CupIcon_01': 64, 'SkinCoins': 56, 'OutlinedButtonGold': 320,
              'OutlinedButtonGreen': 320, 'SkipTickets': 72, 'Icon_Home': 90, 'ConnectionIcon_On': 40},
@@ -113,12 +118,67 @@ SHEETS = {
                  'close_circle': 160, 'checkmark': 64, 'notification': 64,
                  # Delete Account confirmations [ĐỀ XUẤT]: the game's green outlined button (red through a hue turn)
                  'OutlinedButtonGreen': 320},
+    # rev 20261028o popups (js/popups.js), from REF/sprites_popups, one sheet per group so each popup loads only its art:
+    # pmode: ModeUnlockedPopUp (+ the gamemodes_*_icon sprites, renamed ModeIcon_<mode>), CustomizationItemUnlockedPopUp,
+    # CollectionCompletedPopUp and their collection progress bar
+    'pmode': {'ShinySun': 300, 'Pattern_MainMenu': 256, 'OutlinedButtonGreen': 320, 'EquipButton': 290, 'ModeIcon_adventure': 260,
+              'ModeIcon_challenge': 260, 'ModeIcon_grapple': 260, 'ModeIcon_pachinko': 128, 'ModeIcon_tournament': 300,
+              'rounded_square_128px': 128, 'rounded_square_shadow_bottom': 77, 'IconValidate': 59, 'IconValidateSlot': 59,
+              'Icon_Validate': 59, 'CollectionCompletionLink': 14},
+    # pseason: NewTournamentPopup, NewAdventurePopup
+    'pseason': {'ShinySun': 300, 'Pattern_Trophy_Invers': 256, 'UnlockSkin_Star': 40, 'OutlinedButtonGreen': 320,
+                'Holder tournament': 386, 'HolderRules': 110, 'CompetitorsIcon_01': 100, 'CupIcon_01': 90, 'HolderTime_01': 167,
+                'Icon_Trophy': 180, 'SkinCoins': 90, 'Holder_Adventure': 256, 'Holder_Counter': 128, 'Button_Adventure': 300,
+                'Icon': 200, 'Icon_Timer': 28, 'Icon_CoinsMultiplier': 160, 'Icon_Compass': 120, 'Icon_Competitor': 110,
+                'Icon_Gameplay': 120, 'CompassBG': 240, 'BG_Pattern01': 420, 'BG_Pattern03': 420, 'MarketOfferBoostersPackIllustration': 180},
+    # pskin: IncentiveRewardedSkinUnlockPopup (end-game customization_item_unlock_incentive)
+    'pskin': {'ShinySun': 300, 'Pattern_Trophy_Invers': 256, 'HolderPopupCollection': 520, 'TopHolder': 600, 'Pattern_gift_01': 142,
+              'OutlinedButtonGold': 320, 'AdIcon': 84, 'Xp': 110, 'rounded_square_128px': 128, 'rounded_square_shadow_bottom': 77,
+              'IconValidate': 59, 'IconValidateSlot': 59, 'Icon_Validate': 59, 'CollectionCompletionLink': 14},
+    # ovip: MarketVipPopup and its MarketVipPopupRewardHolder rows; ooffer: MarketOfferPopup (adventure_1/2, boosters_pack)
+    'ovip': {'VipPopupIcon': 420, 'VipDiscountPopupIcon': 420, 'VipPopupBackground': 96, 'VipPopupShadowBackground': 342,
+             'MarketRewardNoAds': 110, 'MarketRewardPremiumCollectiblesWithXp': 110, 'SkipTicketsPile': 110, 'SkinCoinsPile': 110,
+             'MarketRewardLegendaryBoostersPile': 110, 'rounded_square_shadow_top': 85, 'rounded_square_128px': 128,
+             'OutlinedButtonGold': 300, 'DiscountRedBAr': 51},
+    'ooffer': {'OfferBg_adventure': 272, 'OfferIllu_adventure': 420, 'OfferBg_boosterspack': 272, 'OfferIllu_boosterspack': 420,
+               'ShinySun': 300, 'MarketOfferBoostersPackIllustration': 200, 'MarketOfferAdventureIllustration': 200, 'Icon': 110, 'SkinCoinsPile': 110, 'common_market': 110,
+               'epic_market': 110, 'legendary_market': 110, 'rounded_square_shadow_top': 85, 'rounded_square_128px': 128,
+               'rounded_square_flat_top': 128, 'OutlinedButtonGold': 300, 'DiscountRedBAr': 51, 'Icon_Timer': 28},
 }
+
+
+# Which sprites the original never stretches (rev 20261028o). REF/dump/ui_images.json (REF/tools/image_census.py) lists every
+# UI Image in the UI prefab bundles: [m_Type, m_PreserveAspect, fixed rect w, h (None when the anchors stretch it),
+# AspectRatioFitter mode, bundle, GameObject]. A sprite is kept at its aspect (data/m-*.json _keep, uikit.js spr() fits it)
+# when most of its Simple (m_Type 0) uses have m_PreserveAspect 1, an AspectRatioFitter, or a fixed rect within 4 % of the
+# sprite's aspect. Sliced / Tiled / Filled uses and Simple uses stretched by their anchors stay stretched. A sprite no prefab
+# names (set from code: menu bar tab icons, cards) is kept when it has no 9-slice border [ĐỀ XUẤT].
+CENSUS = os.path.join(REF, 'dump', 'ui_images.json')
+_census = json.load(open(CENSUS)) if os.path.exists(CENSUS) else {}
+
+
+def keeps_aspect(name, w, h, border):
+    uses = _census.get(name)
+    if uses is None and '_' in name:
+        uses = _census.get(name.rsplit('_', 1)[0])  # <Name>_<rarity>
+    if not uses:
+        return not any(border)
+    simple = [u for u in uses if u[0] == 0]
+    if not simple:
+        return False
+    keep = sum(1 for u in simple if u[1] or u[4] is not None
+               or (u[2] and u[3] and abs((u[2] / u[3]) / (w / h) - 1) <= 0.04))
+    return keep * 2 >= len(simple)
+
+
+def annotate(rects):
+    rects['_keep'] = sorted(n for n, r in rects.items() if not n.startswith('_') and keeps_aspect(n, r[2], r[3], r[4:8]))
+    return rects
 
 
 def build(screen, sprites):
     meta = {}
-    for d in DIRS[::-1]:
+    for d in DIRS[::-1] + ([FTUE_DIR[screen]] if screen in FTUE_DIR else []):
         mp = os.path.join(d, 'meta.json')
         if os.path.exists(mp):
             meta.update(json.load(open(mp)))
@@ -153,11 +213,20 @@ def build(screen, sprites):
     out = os.path.join(GAME, 'art', 'm-' + screen + '.webp')
     sheet.save(out, quality=82, method=6)
     rects['_size'] = [W, H]
+    annotate(rects)
     open(os.path.join(GAME, 'data', 'm-' + screen + '.json'), 'w').write(json.dumps(rects, separators=(',', ':')))
     print(screen, W, 'x', H, os.path.getsize(out) // 1024, 'KB')
 
 
 if __name__ == '__main__':
+    if len(sys.argv) > 2 and sys.argv[2] == 'aspect':  # only re-mark _keep in the existing data/m-*.json (no art rebuild)
+        for s in SHEETS:
+            p = os.path.join(GAME, 'data', 'm-' + s + '.json')
+            if os.path.exists(p):
+                r = annotate(json.load(open(p)))
+                open(p, 'w').write(json.dumps(r, separators=(',', ':')))
+                print(s, len(r['_keep']), 'kept /', len(r) - 2)
+        sys.exit(0)
     only = sys.argv[2:]  # optional screen names: rebuild just those sheets
     for s, sp in SHEETS.items():
         if not only or s in only:

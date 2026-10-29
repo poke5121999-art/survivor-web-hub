@@ -4,6 +4,33 @@ Ngày so: 2026-10-28, chụp lại 2026-10-29. Bản web: Pages `?v=20261028f`, 
 Mỗi cặp ảnh nằm ở `shots/stickman-hook/parity/<key>.png` (web bên trái, tối đa 2 khung gốc bên phải, vùng đo viền xanh lơ).
 Số đo màu lấy từ `shots/stickman-hook/parity/report.json`. Nhãn từng cặp ở `D:/stickman-hook-ref/parity/verdicts.tsv`, cổng `parity.py check` thoát 0.
 
+## 20261028o: popup, tween, ưu đãi, lật trang Tuỳ biến, trang Đua (2026-10-29)
+
+So trang Đua với clip `n` 3:21.5 và Tuỳ biến với clip `n` 0:30.5 (khung ở `D:/stickman-hook-ref/clips/shop/`). Clip không có các popup mới, nên popup so với cây prefab và art gốc.
+Luật và địa chỉ asm ở README, mục "Popup: mở khoá, kỳ mới, ưu đãi, prompt cuối màn".
+Ảnh web: `shots/stickman-hook/pop-mode-tournament.png`, `pop-item.png`, `pop-item-skin.png`, `pop-collection.png`, `pop-new-tournament.png`, `pop-vip.png`,
+`pop-incentive-skin.png`, `pop-offer-adventure.png`, `shop-page2.png`, `shop-find.png`, `race-page.png`.
+Vòng soát ảnh: ô quà Đua bỏ khung trắng (`HolderReward` chỉ là mặt nạ), ô #2 / #3 vào trong màn; hàng có xu + "x{n}", viên cúp, tên canh trái, bút ở hàng mình;
+đầu trang có viên vé (+) và cúp, giờ trong viên. Popup: chữ tự co vừa ô `[ĐỀ XUẤT]`, skin không còn bị cắt đầu.
+Sprite méo: `spr()` giờ giữ tỉ lệ cho sprite mà prefab giữ (`m_PreserveAspect` / rect cùng tỉ lệ, `data/m-*.json _keep`); 70 chỗ lệch còn 10, đều là chỗ gốc cũng kéo
+(Filled, anchor kéo giãn, rect khác tỉ lệ). README mục "Sprite giữ tỉ lệ như prefab"; `play.js` đo mọi trang / popup ở 390 x 844 và 1920 x 1080.
+
+| Chỗ | Trạng thái 20261028o |
+|---|---|
+| ModeUnlocked / món / bộ sưu tập (trước là toast) | **Đã làm.** Popup đúng prefab, xếp hàng sau Đường XP, heo đất, vòng quay, Chợ |
+| G10 New Tournament / New Adventure | **Đã làm.** `Leaderboard.IsNew` mỗi kỳ, Later / Let's go đều tắt, "200 Competitors" của code |
+| Tween popup | **Đã làm.** MadTween của 9 popup rỗng (không chuyển động). `DefaultPopupAnimator` 0.25 / 0.2833 s, `NoAdsAnimator` 0.4167 / 0.3 s, lớp đen 0.7 trong 0.2 s, chung một hàm `uikit.js` |
+| `MarketOfferPurchasePopup`, VIP popup | **Đã làm.** Thẻ Chợ và widget VIP mở popup, nút giá trong popup mới nhận. Welcome / No Ads mở Chợ ở thẻ đó |
+| Prompt cuối màn | **Đã làm:** wheel / market / customization incentive, cần ≥ 3 ván, có trọng số. **Chưa làm:** `seasonal_event` (`SeasonalEventPopup`) |
+| Ưu đãi Phiêu lưu mỗi 5 lần | **Đã làm.** Vòng Phiêu lưu → gói thẻ → không gì |
+| n06 lật trang, FIND | **Đã làm.** Trang theo `page` của bộ sưu tập, mũi tên, chấm số, vuốt, lerp 10/s. FIND mở Lucky Wheel (không nhảy trang) |
+| n09 avatar, TOP PRIZES | **Đã làm.** Avatar skin trong mặt nạ tròn, "#n", ba ô giải theo prefab |
+| "TOP n % of players" | **Đã làm** ở Đường XP (chỗ thật của chuỗi này). Số mặc định có trong APK |
+| Chữ hoa / thường | **Không lệch.** Chữ thường của Junegull trùng chữ hoa, gốc cũng hiện chữ hoa |
+| Checked / Unchecked | **Không lệch.** Hộp 45 × 70 với `preserveAspect`, hình vuông 45. Web giờ dùng đúng hộp đó |
+| Bài kiểm | play 180/180, pachinko 30/30, sim 307/307. Màn đầu 597.0 KB thô |
+| Còn lệch | Ô "online" và chấm "món chưa dùng" không có. Hàng dưới trang Đua (xu, cúp) nhỏ hơn clip. Đầu trang Tuỳ biến vẫn là header của web |
+
 ## 20261028n: FTUE, khung dọc, SettingsPopup (2026-10-29)
 
 Không có clip gốc của lần chạy đầu hay của SettingsPopup. Đã so với cây prefab (`HomePage`, `SettingsPopup`), art gốc
@@ -21,7 +48,7 @@ mục "FTUE, khung dọc, Settings, xoá tài khoản". Ảnh web: `shots/stickm
 | G6, G7 khung dọc | **Đã làm.** 1920 × 1080: khung 608 × 1080, camera 5.63 đơn vị; UI theo canvas 750 × 1334 khớp chiều cao |
 | G8 bánh răng | **Đã làm.** Mở SettingsPopup; chọn màn ở hàng nút pause |
 | G9 Delete Account | `[ĐỀ XUẤT]` Hàng đỏ, hai lần xác nhận, giữ âm thanh |
-| G10 ModeUnlocked / New Tournament / New Adventure | Chưa làm (ngoài phạm vi FTUE tối thiểu) |
+| G10 ModeUnlocked / New Tournament / New Adventure | Chưa làm ở 20261028n; **đã làm ở 20261028o** |
 | Còn lệch | Tween mở popup (`MadTweenAnimationController`) chưa giải; chữ trong label web viết hoa hết như các menu khác; Checked/Unchecked vẽ vuông 45 thay vì kéo giãn 45 × 70 |
 
 ## 20261028m: nút quảng cáo và IAP như bản gốc, bấm là nhận (2026-10-29)

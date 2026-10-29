@@ -5,7 +5,7 @@ import { Renderer } from './render.js';
 import { bake } from './fx.js';
 import { XP_ROAD, SKIP_TICKETS, qty } from './meta.js';
 import { MODES } from './modes.js';
-import { artPage, spr, slice, label, glText, U, kitStyle, sheet, fit } from './uikit.js';
+import { artPage, spr, slice, label, glText, U, kitStyle, sheet, fit, popOpen, popClose } from './uikit.js';
 import { watch, adIcon } from './ads.js';
 
 const CSS = `
@@ -262,10 +262,20 @@ const SHOP_CSS = `
 #shop .tabs button { flex: 1; cursor: pointer; color: #fff; font: 900 ${U(30)} system-ui, sans-serif; -webkit-text-stroke: ${U(5)} #1a1c4b;
   paint-order: stroke fill; text-transform: uppercase; padding: 0 0 ${U(8)}; }
 #shop .tabs button.on { transform: translateY(${U(-4)}); }
-#shop .pages { flex: none; align-self: center; display: flex; gap: ${U(6)}; align-items: center; height: ${U(64)}; padding: 0 ${U(24)};
-  margin: ${U(8)} 0; }
-#shop .pages button { width: ${U(46)}; height: ${U(48)}; border: 0; cursor: pointer; font-size: ${U(26)}; color: #fff; padding: 0; }
-#shop .scroll { flex: 1; overflow: auto; padding: ${U(4)} ${U(16)} calc(env(safe-area-inset-bottom) + ${U(30)}); }
+#shop .pager { position: relative; flex: none; align-self: center; width: ${U(297)}; height: ${U(59)}; margin: ${U(8)} 0; }
+#shop .pager .frame { position: absolute; left: 50%; top: 50%; width: ${U(250)}; height: ${U(45)}; transform: translate(-50%, calc(-50% - ${U(4)})); }
+#shop .pages { position: absolute; inset: ${U(2)} ${U(5)} ${U(2)}; display: flex; align-items: center; justify-content: space-evenly; }
+#shop .pages button { width: ${U(30)}; height: ${U(30)}; border: 0; cursor: pointer; font-size: ${U(25)}; color: #fff; padding: 0; display: grid; place-items: center; }
+#shop .pager .arrow { position: absolute; top: 50%; width: ${U(34)}; height: ${U(38)}; margin-top: ${U(-25)}; border: 0; padding: 0; cursor: pointer;
+  background-color: transparent; }
+#shop .pager .arrow.prev { right: 100%; }
+#shop .pager .arrow.next { left: 100%; transform: scaleX(-1); }
+#shop .view { flex: 1; min-height: 0; position: relative; overflow: hidden; touch-action: pan-y; }
+#shop .track { position: absolute; inset: 0; display: flex; will-change: transform; }
+#shop .scroll { flex: none; width: 100%; height: 100%; overflow: auto; box-sizing: border-box;
+  padding: ${U(4)} ${U(16)} calc(env(safe-area-inset-bottom) + ${U(30)}); }
+#shop .cell .find { position: absolute; left: 16%; right: 16%; bottom: -12%; height: 33%; border: 0; padding: 0; cursor: pointer;
+  background-color: transparent; }
 #shop .col { position: relative; margin: 0 0 ${U(24)}; padding: ${U(78)} ${U(16)} ${U(22)}; }
 #shop .col h3 { position: absolute; left: ${U(24)}; right: ${U(24)}; top: ${U(14)}; margin: 0; display: flex; align-items: center;
   justify-content: space-between; height: ${U(50)}; }
@@ -292,12 +302,17 @@ export async function openShop(app) {
     onClose: () => close(app, 'shop') }), custom.icons()]);
   body.innerHTML = `<div class="top"><i class="bg2"></i><i class="sun"></i><div class="hold r"><canvas></canvas></div>
     <canvas class="pv"></canvas><div class="hold t"><canvas></canvas></div><div class="info"><b></b><span class="rar"></span><div class="how"></div></div></div>
-    <div class="tabs"></div><div class="pages"></div><div class="scroll"></div>`;
+    <div class="tabs"></div><div class="pager"><i class="frame"></i><div class="pages"></div><button class="arrow prev" title="Trang trước"></button>
+    <button class="arrow next" title="Trang sau"></button></div><div class="view"><div class="track"></div></div>`;
   spr(body.querySelector('.bg2'), sh, 'background2');
   spr(body.querySelector('.sun'), sh, 'ShinySun');
-  const tabs = body.querySelector('.tabs'), list = body.querySelector('.scroll'), info = body.querySelector('.info');
-  const pages = body.querySelector('.pages');
-  slice(pages, sh, 'Container_PageCollection', 0.7);
+  const tabs = body.querySelector('.tabs'), info = body.querySelector('.info'), view = body.querySelector('.view');
+  const pages = body.querySelector('.pages'), track = body.querySelector('.track');
+  // PaginationDotsBG (PaginationHolder 297 x 59, sliced) holding PaginationDotsFrame (Container_PageCollection 250 x 45),
+  // Prev / Next (IconArrow_Collection 17 x 19, Next mirrored) on its sides
+  slice(body.querySelector('.pager'), sh, 'PaginationHolder', 0.5);
+  slice(body.querySelector('.frame'), sh, 'Container_PageCollection', 0.5);
+  for (const a of body.querySelectorAll('.arrow')) fit(a, sh, 'IconArrow_Collection');
   const state = { kind: 'skins', sel: meta.item('skins', save.equipped.skins) };
   for (const [kind, text] of KIND_TABS) {
     const b = document.createElement('button');
@@ -329,51 +344,111 @@ export async function openShop(app) {
     }
   }
 
+  // ShopCategoryUI: a HorizontalScrollSnap of pages (CustomizationDto categories: collections grouped by their `page`,
+  // sorted by (page, index) [asm 0x128a618, 0x128accc]; skins 7 pages, ropes and trails 1), each a vertical scroll of
+  // collections. Prev / Next and the dots (PaginationDotButton: number, ContainerPage_Selected / _Unselected; a click is
+  // ViewService.GoTo(page) [asm 0x11e9f7c]) change page; a swipe too (UseHardSwipe / UseFastSwipe, FastSwipeThreshold 1,
+  // SwipeVelocityThreshold 500 [ĐỀ XUẤT] read as units per second on the 750 x 1334 canvas). The snap is the library's
+  // lerp, transitionSpeed 10. The page is remembered per tab for the session (CustomizationViewService, start: skins
+  // page 0 [asm 0x12897a8]). [ĐỀ XUẤT] no "unused item" dot and no jump to its collection (the save keeps no "ever
+  // equipped" mark).
+  const pager = { pos: 0, target: 0, n: 1, raf: 0, drag: null };
+  function go(p, instant) {
+    pager.target = Math.max(0, Math.min(pager.n - 1, p));
+    SHOP_PAGE[state.kind] = pager.target;
+    track.dataset.page = pager.target;
+    [...pages.children].forEach((b, i) => spr(b, sh, i === pager.target ? 'ContainerPage_Selected' : 'ContainerPage_Unselected'));
+    body.querySelector('.prev').style.visibility = pager.target > 0 ? '' : 'hidden';
+    body.querySelector('.next').style.visibility = pager.target < pager.n - 1 ? '' : 'hidden';
+    if (instant) pager.pos = pager.target;
+    if (!pager.raf) pager.raf = requestAnimationFrame(step);
+  }
+  let last = 0;
+  function step(t) {
+    const dt = last ? Math.min(0.05, (t - last) / 1000) : 1 / 60;
+    last = t;
+    if (!pager.drag) pager.pos += (pager.target - pager.pos) * Math.min(1, 10 * dt); // Lerp(pos, target, transitionSpeed * dt)
+    if (!pager.drag && Math.abs(pager.target - pager.pos) < 0.002) pager.pos = pager.target;
+    track.style.transform = `translateX(${-pager.pos * 100}%)`;
+    track.dataset.pos = pager.pos.toFixed(3);
+    if (pager.drag || pager.pos !== pager.target) pager.raf = requestAnimationFrame(step);
+    else { pager.raf = 0; last = 0; }
+  }
+  body.querySelector('.prev').onclick = () => { app.play('button'); go(pager.target - 1); };
+  body.querySelector('.next').onclick = () => { app.play('button'); go(pager.target + 1); };
+  view.onpointerdown = (e) => {
+    if (e.button) return;
+    pager.drag = { x: e.clientX, y: e.clientY, t: performance.now(), from: pager.pos, on: false };
+  };
+  view.onpointermove = (e) => {
+    const d = pager.drag;
+    if (!d) return;
+    const dx = e.clientX - d.x, dy = e.clientY - d.y;
+    if (!d.on) { if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(dy)) { if (Math.abs(dy) > 8) pager.drag = null; return; } d.on = true; view.setPointerCapture?.(e.pointerId); }
+    pager.pos = Math.max(-0.2, Math.min(pager.n - 0.8, d.from - dx / view.clientWidth));
+    if (!pager.raf) pager.raf = requestAnimationFrame(step);
+  };
+  view.onpointerup = view.onpointercancel = (e) => {
+    const d = pager.drag;
+    pager.drag = null;
+    if (!d || !d.on) return;
+    const dx = e.clientX - d.x, u = document.body.clientHeight / 1334, v = Math.abs(dx) / u / Math.max(0.016, (performance.now() - d.t) / 1000);
+    // fast swipe (velocity over the threshold) or past half a page: next / previous page
+    const p = v > 500 || Math.abs(dx) > view.clientWidth / 2 ? Math.round(d.from) - Math.sign(dx) : Math.round(pager.pos);
+    go(p);
+    view.addEventListener('click', (ev) => ev.stopPropagation(), { capture: true, once: true });
+  };
+
   function render() {
     for (const b of tabs.children) {
       b.classList.toggle('on', b.dataset.kind === state.kind);
       slice(b, sh, b.dataset.kind === state.kind ? 'Button_ShopSelection' : 'Button_ShopUnselected', 0.45);
     }
-    list.innerHTML = '';
+    const tops = [...track.children].map((p) => p.scrollTop);
+    track.innerHTML = '';
     pages.innerHTML = '';
     const cols = Object.entries(meta.d.collections).filter(([, c]) => c[1] === state.kind).sort((a, b) => a[1][2] - b[1][2] || a[1][3] - b[1][3]);
-    // the original has 7 pages: the collections of a kind spread over at most 7 numbers
-    let n = 0;
-    const per = Math.max(1, Math.ceil(cols.length / 7));
+    const byPage = new Map();
     for (const [cid, c] of cols) {
       const items = meta.items.filter((it) => it.collection === cid && it.kind === state.kind);
       if (!items.length) continue;
-      items.sort((a, b) => meta.d.rarityIds.indexOf(a.rarity) - meta.d.rarityIds.indexOf(b.rarity) || a.title.localeCompare(b.title));
-      const have = items.filter((it) => save.owned[it.kind].includes(it.name)).length, full = have === items.length;
-      const sec = document.createElement('div');
-      sec.className = 'col';
-      sec.innerHTML = `<h3><span></span><small></small></h3><div class="cells"></div>`;
-      slice(sec, sh, full ? 'HolderCollection_01' : 'HolderGameMode_01', 0.7);
-      const t = sec.querySelector('h3 span'), cnt = sec.querySelector('h3 small');
-      t.textContent = c[0];
-      cnt.textContent = `${have}/${items.length}`;
-      cnt.title = c[4] ? `+${c[4]} XP khi đủ bộ` : '';
-      spr(cnt, sh, full ? 'Container_CollectionNumberCompleted' : 'Container_CollectionNumber');
-      const cells = sec.querySelector('.cells');
-      for (const it of items) cells.appendChild(cell(it));
-      if (n % per === 0) {
-        const b = document.createElement('button'), page = n / per + 1;
-        b.textContent = page;
-        b.onclick = () => { app.play('button'); sec.scrollIntoView({ block: 'start', behavior: 'smooth' }); };
-        pages.appendChild(b);
-      }
-      n++;
-      list.appendChild(sec);
-      glText(app, t, 30);
-      glText(app, cnt, 26);
+      if (!byPage.has(c[2])) byPage.set(c[2], []);
+      byPage.get(c[2]).push([cid, c, items]);
     }
-    const marks = [...pages.children];
-    marks.forEach((b, i) => { spr(b, sh, i === 0 ? 'ContainerPage_Selected' : 'ContainerPage_Unselected'); glText(app, b, 26); });
-    list.onscroll = () => {
-      const secs = [...list.children], top = list.getBoundingClientRect().top;
-      const at = Math.max(0, secs.findIndex((e) => e.getBoundingClientRect().bottom > top + 10));
-      marks.forEach((b, i) => spr(b, sh, i === Math.floor(at / per) ? 'ContainerPage_Selected' : 'ContainerPage_Unselected'));
-    };
+    [...byPage.keys()].sort((a, b) => a - b).forEach((pg, n) => {
+      const list = document.createElement('div');
+      list.className = 'scroll';
+      list.dataset.page = n;
+      track.appendChild(list);
+      for (const [cid, c, items] of byPage.get(pg)) {
+        items.sort((a, b) => meta.d.rarityIds.indexOf(a.rarity) - meta.d.rarityIds.indexOf(b.rarity) || a.title.localeCompare(b.title));
+        const have = items.filter((it) => save.owned[it.kind].includes(it.name)).length, full = have === items.length;
+        const sec = document.createElement('div');
+        sec.className = 'col';
+        sec.dataset.col = cid;
+        sec.innerHTML = `<h3><span></span><small></small></h3><div class="cells"></div>`;
+        slice(sec, sh, full ? 'HolderCollection_01' : 'HolderGameMode_01', 0.7);
+        const t = sec.querySelector('h3 span'), cnt = sec.querySelector('h3 small');
+        t.textContent = c[0];
+        cnt.textContent = `${have}/${items.length}`;
+        cnt.title = c[4] ? `+${c[4]} XP khi đủ bộ` : '';
+        spr(cnt, sh, full ? 'Container_CollectionNumberCompleted' : 'Container_CollectionNumber');
+        const cells = sec.querySelector('.cells');
+        for (const it of items) cells.appendChild(cell(it));
+        list.appendChild(sec);
+        glText(app, t, 30);
+        glText(app, cnt, 26);
+      }
+      const b = document.createElement('button'), num = document.createElement('span');
+      num.textContent = n + 1;
+      b.appendChild(num);
+      b.onclick = () => { app.play('button'); go(n); };
+      pages.appendChild(b);
+      glText(app, num, 25);
+    });
+    [...track.children].forEach((p, i) => { p.scrollTop = tops[i] || 0; });
+    pager.n = track.children.length;
+    go(SHOP_PAGE[state.kind] || 0, true);
     showInfo();
   }
 
@@ -401,16 +476,35 @@ export async function openShop(app) {
       sheet(app, 'ads').then((x) => fit(a, x, b.dataset.icon === 'ticket' ? 'SkipTickets' : 'AdIcon')).catch(() => {});
       b.appendChild(a);
     }
+    // FIND (Button_UnlockRandomSkin, unlockMethod LUCKY_WHEEL): LuckyWheelService.ShowPopup("shop") when the wheel is
+    // unlocked, else CollectionLockedPlayModeLuckyWheelPopup ([ĐỀ XUẤT] a toast: that popup is not built)
+    if (!owned && it.unlock === 'lucky_wheel') {
+      const fb = document.createElement('button');
+      fb.className = 'find';
+      fb.title = 'FIND';
+      fit(fb, sh, 'Button_UnlockRandomSkin');
+      fb.onclick = (e) => {
+        e.stopPropagation();
+        app.play('button');
+        if (save.modes['mode.lucky_wheel']?.unlocked) openWheel(app);
+        else app.toast('Mở Vòng quay ở Đường XP trước');
+      };
+      b.appendChild(fb);
+    }
     b.onclick = () => {
       app.play('button');
+      // unlock method VIP: the VIP offer popup (VipService.GetVipOffer, source popup_redirection_customization [asm 0x11ef088])
+      if (!owned && it.unlock === 'vip') {
+        app.loadBonus().then((bn) => { const v = bn.shop.vipOffer(save); if (v) app.popups().then((m) => m.offer(app, v.id, 'popup_redirection_customization')).then(() => render()); });
+        return;
+      }
       if (rew) {
         watch(save);
         const out = [];
         meta.grantItem(save, it, out);
         app.writeSave();
-        app.play('popup_in');
-        app.toast('Mở khoá: ' + it.title);
         app.hud();
+        app.unlocks(out);
       }
       if (owned && !eq) {
         save.equipped[it.kind] = it.name;
@@ -418,14 +512,13 @@ export async function openShop(app) {
         app.applyEquip();
       }
       state.sel = it;
-      const y = list.scrollTop;
       render();
-      list.scrollTop = y;
     };
     return b;
   }
   render();
 }
+const SHOP_PAGE = {}; // CustomizationViewService: the page of each tab, kept for the session
 
 // Dancing preview of the selected (or equipped) skin, with the selected rope or trail next to it.
 function startPreview(app, canvas, state) {
@@ -462,9 +555,9 @@ function startPreview(app, canvas, state) {
       } else R.line(0, 0.8, 0, -0.15, 0.045, '#0d1b2a');
     }
     const sk = view.skin;
-    if (sk) {
-      const d = sk.dance.frames.length ? sk.dance : { frames: sk.states[2], fps: 1 };
-      const name = d.frames[Math.floor(t * d.fps) % d.frames.length];
+    const d = sk && (sk.dance.frames.length ? sk.dance : { frames: sk.states[2] || [], fps: 1 });
+    const name = d && d.frames[Math.floor(t * d.fps) % d.frames.length];
+    if (sk && sk.frames[name]) { // a frame of an effect skin may still be baking
       const [img, r] = sk.frames[name];
       if (!meta.byId.get(sk.id).noShadow) R.spriteFrom(img, name, r, [0.3, 0, 0, 0.3, 0, -0.32 - 0.1], { shadow: true });
       R.spriteFrom(img, name, r, [0.3, 0, 0, 0.3, 0, -0.32]);
@@ -523,13 +616,14 @@ const ROAD_CSS = `
 @keyframes roadOk { 0% { transform: scale(0); } 70% { transform: scale(1.25); } 100% { transform: scale(1); } }
 #road .lg { position: absolute; left: 0; right: 0; height: ${U(8)}; background: #ffffffcc; }
 #road .lgm { position: absolute; width: ${U(180)}; height: ${U(180)}; transform: translateX(-50%); }
-#road .lgn { position: absolute; transform: translateX(-50%); }
+#road .lgn { position: absolute; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; }
 #road .home { position: absolute; right: ${U(60 - 42.5)}; bottom: calc(env(safe-area-inset-bottom) + ${U(60 - 42.5)}); width: ${U(85)};
   height: ${U(85)}; border: 0; padding: 0; background-color: transparent; cursor: pointer; z-index: 2;
   filter: drop-shadow(0 ${U(4)} 0 rgba(0,0,0,.35)); }
 #road .stars { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
 #road .stars i { position: absolute; width: ${U(70)}; height: ${U(70)}; margin: ${U(-35)} 0 0 ${U(-35)}; }
 `;
+const LEAGUE_TOP = { 'xp.bronze': 100, 'xp.silver': 72.8, 'xp.gold': 29.3, 'xp.platine': 17.5, 'xp.diamond': 8.3, 'xp.master': 1.5 };
 const MEDAL = { Bronze: 'BronzeMedals_01', Silver: 'SilverMedals_01', Gold: 'GoldMedal_01', Platine: 'OtherMedals_01',
   Diamond: 'Diamond_Small', Master: 'Master_Small' };
 const MODE_ILLU = { 'mode.challenge': 'RoadMode_challengeMode', 'mode.grapple': 'RoadMode_grappleMode',
@@ -691,8 +785,12 @@ export async function openRoad(app, opts = {}) {
         list.appendChild(m);
         const t = document.createElement('div');
         t.className = 'lgn';
-        Object.assign(t.style, { left: `calc(50% + ${U(50)})`, bottom: U(at - 35 - 25) });
+        Object.assign(t.style, { left: `calc(50% + ${U(50)})`, bottom: U(at - 35 - 25 - 30) });
         t.appendChild(label(app, league, 40));
+        // RankTopPercentage (24): 'Top {0}% of players' with ProgressionRoadLeagueDto.topPercentage (TrophyRoadLeagueContainer
+        // .DisplayLeague [asm 0x1193c6c]); the values are remote_settings_default progression_road.leagues
+        t.appendChild(label(app, `Top ${LEAGUE_TOP[lg] ?? 100}% of players`, 24));
+        t.dataset.top = LEAGUE_TOP[lg] ?? 100;
         list.appendChild(t);
       }
       const oct = document.createElement('div');
@@ -725,9 +823,16 @@ export async function openRoad(app, opts = {}) {
   const u = () => document.body.clientHeight / 1334;
   // data-state (and the data-states history, data-pend at opening) for the tests
   const mark = (st) => { page.dataset.state = st; page.dataset.states = (page.dataset.states ? page.dataset.states + ',' : '') + st; };
-  const close = (got) => { mark('closed'); app.overlay('road', false); app.hud(); finish(got); };
+  const close = async (got) => {
+    mark('closed');
+    await popClose(page, 'instant');
+    app.overlay('road', false); app.hud();
+    await app.unlocks(got).catch(() => {});
+    finish(got);
+  };
   home.onclick = () => { app.play('popup_out'); close([]); };
 
+  popOpen(page, 'instant');
   const pend = meta.xpPending(save), from = save.xp - pend;
   page.dataset.states = '';
   page.dataset.pend = pend;
@@ -782,10 +887,6 @@ export async function openRoad(app, opts = {}) {
   }
   mark('claimed');
   page.dataset.claimed = save.claimed[XP_ROAD] ?? -1;
-  for (const g of got) {
-    if (g.item) app.toast('Mở khoá: ' + g.item.title);
-    else if (g.unlocked && g.mode) app.toast('Chế độ mới: ' + modeName(meta, g.mode));
-  }
   await new Promise((r) => setTimeout(r, 600)); // Task.Delay(600) [asm 0x1240e6c]
   close(got);
   return closed;
@@ -845,7 +946,9 @@ export async function openWheel(app) {
   const w = bonus.d.wheel, A = bonus.d.wheelArt;
   const W = { reel: bonus.wheelReel(save), p: START, spin: null, tick: 0, angle: 0, won: -1, t: 0, img: null };
   app.look.wheel = W;
-  closeBtn.onclick = () => { app.play('popup_out'); close(app, 'wheel'); };
+  const wholder = () => [cv, spinBtn, infoBtn, closeBtn, el.querySelector('.wtop')];
+  popOpen(el, 'unity', { holder: wholder() });
+  closeBtn.onclick = async () => { app.play('popup_out'); await popClose(el, 'unity', { holder: wholder() }); close(app, 'wheel'); };
   infoBtn.onclick = () => {
     const by = {};
     const all = bonus.wheelRewards(save);
@@ -924,6 +1027,7 @@ export async function openWheel(app) {
         app.toast(s.r.empty ? 'Lượt quay thêm không phát thưởng (như bản gốc)'
           : 'Nhận: ' + meta.resTitle(s.r.reward.res) + (s.r.got.some((x) => x.later) ? ' (sắp có ở bản web)' : ''));
         refresh();
+        app.unlocks(s.r.got);
         if (s.r.extra) setTimeout(() => { if (document.getElementById('wheel')?.classList.contains('on')) extraSpin(); }, 1200);
       }
     }
@@ -1035,7 +1139,8 @@ export async function openWheel(app) {
 // ---- Market ---------------------------------------------------------------------------------------------------------
 // MarketPage: every section (special offers, boosters, black market, coins, skip tickets) is drawn by js/cardsui.js
 // marketSections from data/ads.json (js/ads.js Shop). IAP and rewarded buttons grant at once (owner rule 2026-10-29).
-export async function openMarket(app) {
+// focus: an offer id (home widget without a purchase popup: MarketPageConfig itemToFocusOn) scrolled into view
+export async function openMarket(app, focus) {
   await app.loadBonus();
   const sheet = sheetOverlay(app, 'market', 'Chợ');
   sheet.insertAdjacentHTML('beforeend', '<div class="scroll mk"></div>');
@@ -1056,4 +1161,6 @@ export async function openMarket(app) {
     box.dataset.ready = token;
   }
   await render();
+  if (focus) box.querySelector(`[data-offer="${focus}"]`)?.scrollIntoView({ block: 'center' });
+  if (focus) box.dataset.focus = focus;
 }

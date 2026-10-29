@@ -2,7 +2,7 @@
 // one CardsUI block per category, HolderCardItemUI cards), the BoosterOpeningPopup and the market's booster / black
 // market (every section, ads.js offers). Art: art/m-cards.webp, art/m-boost.webp, art/m-market.webp (tools/build_menus.py);
 // rules: js/cards.js, js/ads.js.
-import { sheet, kitStyle, spr, slice, cut, U, label, glText, artPage } from './uikit.js';
+import { sheet, kitStyle, spr, slice, cut, U, label, glText, artPage, popOpen, popClose } from './uikit.js';
 import { adIcon, watch } from './ads.js';
 
 const CSS = `
@@ -206,8 +206,10 @@ export function cardEl(app, sh, cards, c, o = {}) {
     <div class="ic"><i class="glow"></i><i class="im"></i></div><div class="nm"></div><div class="val"><i class="bg"></i></div>`;
   slice(el.querySelector('.hold'), sh, locked ? 'CardLocked_common' : HOLDER[c.rarity], 180 / 336 * 0.6);
   const pat = el.querySelector('.pat'), cat = cards.cat(c.cat);
+  // Pattern (ui_pages_cards CardUI): m_PreserveAspect 1, so fitted in its box
+  pat.dataset.spr = cat.pattern;
   Object.assign(pat.style, { backgroundImage: `url(${tinted(sh, cat.pattern, locked ? 'rgba(180,180,180,.3)' : rgba(rar[2]))})`,
-    backgroundSize: '100% 100%' });
+    backgroundSize: 'contain', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' });
   const mode = el.querySelector('.mode');
   mode.style.background = locked ? '#6d7f93' : rgba(rar[1]);
   mode.appendChild(label(app, cat.name, 10.5));
@@ -220,6 +222,7 @@ export function cardEl(app, sh, cards, c, o = {}) {
   const nm = el.querySelector('.nm');
   for (const line of c.name.split('\n')) nm.appendChild(label(app, line, 17));
   // [ĐỀ XUẤT] the value strip (GradientHorizontalInOut, white in the prefab) in the rarity's dark colour, as the clips
+  el.querySelector('.val .bg').dataset.spr = 'GradientHorizontalInOut';
   Object.assign(el.querySelector('.val .bg').style, { backgroundImage: `url(${tinted(sh, 'GradientHorizontalInOut', locked ? '#6d7f93' : rgba(rar[1]))})`,
     backgroundSize: '100% 100%' });
   el.querySelector('.val').appendChild(label(app, cards.valueText(c.id, Math.max(lv, 1)), 22));
@@ -236,8 +239,10 @@ export function barEl(app, sh, cards, c, o = {}) {
   const p = o.progress || cards.progress(app.save, c.id);
   const fw = el.querySelector('.fillw');
   fw.style.right = U(2);
-  el.querySelector('.fill').style.width = '100%';
-  fw.style.width = `calc((100% - ${U(4)}) * ${p.max ? 1 : Math.min(1, p.have / p.need)})`;
+  const frac = p.max ? 1 : Math.min(1, p.have / p.need);
+  // the fill keeps the whole bar's width and the wrapper clips it (Filled), so the sprite is not squeezed with the amount
+  el.querySelector('.fill').style.width = `${100 / Math.max(frac, 0.01)}%`;
+  fw.style.width = `calc((100% - ${U(4)}) * ${frac})`;
   fw.style.right = '';
   if (p.max) { el.classList.add('max'); el.querySelector('.t').appendChild(label(app, 'MAX', 20)); }
   else el.querySelector('.t').appendChild(label(app, `${p.have}/${p.need}`, 20));
@@ -351,6 +356,7 @@ export async function openBooster(app, cards, rand = Math.random) {
   el.querySelector('.tap').appendChild(label(app, 'Tap To Continue', 44));
   el.querySelector('.close').appendChild(label(app, 'Close', 50));
   app.overlay('boostPop', true);
+  popOpen(el, 'wait'); // BoosterOpeningPopup: its Open / Close clips bind nothing, only their state times pass
   app.play('popup_in');
   const state = { box, el, phase: 'pack', closed: false };
   el.__state = state;
@@ -402,9 +408,9 @@ export async function openBooster(app, cards, rand = Math.random) {
     closed = true;
     if (cards.extraDraw(s, box)) cardToast(app, 'card.extra_draw');
     app.writeSave();
-    app.overlay('boostPop', false);
     app.play('popup_out');
-    state.closed = true;
+    // the Close state time passes before the popup goes (and before the next queued booster reuses #boostPop)
+    popClose(el, 'wait').then(() => { app.overlay('boostPop', false); state.closed = true; });
   };
   if (cards.canOneMore(box)) {
     const om = document.createElement('button');
@@ -518,6 +524,7 @@ function banner(app, bsh, title, col, shadow) {
   ban.className = 'bm-ban';
   ban.innerHTML = '<i class="bg s"></i><i class="bg"></i><b class="ttl"></b>';
   const [shd, top] = ban.querySelectorAll('.bg');
+  for (const [e, c] of [[shd, shadow], [top, col]]) e.dataset.spr = 'MarketTitleBanner';
   for (const [e, c] of [[shd, shadow], [top, col]]) Object.assign(e.style, { backgroundImage: `url(${tinted(bsh, 'MarketTitleBanner', c.slice(0, 7))})`, backgroundSize: '100% 100%' });
   ban.querySelector('.ttl').appendChild(label(app, title, 32));
   return ban;
@@ -543,7 +550,10 @@ export async function marketSections(app, cards, root, rerender) {
     app.hud();
     rerender();
   };
-  const buy = (id) => { const r = app.bonus.buy(id); if (!r.refused) rerender(); };
+  // AMarketPurchaseButton.OnPurchaseClickedAsync [asm 0x26b7fa4..0x26b8558]: an offer with a viewPurchasePopupId opens its
+  // popup (js/popups.js offer, which buys from its own button); the others buy at once
+  const buy = (id) => app.popups().then((m) => (m.POPUP_OFFERS.has(id) ? m.offer(app, id) : app.bonus.buy(id)))
+    .then((r) => { if (r && !r.refused) rerender(); });
   // StickmanHookMarketOfferPurchaseButtonView: one of Free / Rewarded / Iap / NotAvailable (timer to the next period)
   const priceButton = (btn, o, big) => {
     const p = shop.price(s, o, now), why = shop.blocked(s, o, now);

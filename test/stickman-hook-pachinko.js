@@ -55,6 +55,18 @@ const BOARDS = [
   const requested = [];
   page.on('request', (r) => requested.push(r.url()));
   // a save with 400 XP (Lucky Drop opens at 350) on the first load only; later loads keep what the test wrote
+  // rev 20261028o: unlock / competition / offer popups (js/popups.js) close themselves 400 ms after opening here,
+  // like the play test's auto-dismiss (their own checks live in stickman-hook-play.js)
+  await page.addInitScript(() => {
+    const seen = new WeakMap();
+    setInterval(() => {
+      for (const el of document.querySelectorAll('.pp.on')) {
+        if (!el.dataset.tweenOpen) continue;
+        if (!seen.has(el)) seen.set(el, Date.now());
+        if (Date.now() - seen.get(el) > 400) { seen.delete(el); el.__close?.('auto'); }
+      }
+    }, 100);
+  });
   await page.addInitScript(() => {
     try {
       if (!sessionStorage.getItem('shp-test')) {
@@ -79,6 +91,7 @@ const BOARDS = [
     lockedBefore && await page.evaluate(() => !!window.__sh.save.modes['mode.pachinko']?.unlocked));
   // the item XP of that claim reaches the welcome booster (550): its popup opens on the home page; open it and close it
   await page.waitForFunction(() => !document.querySelector('#road.on') && !window.__sh.meta.xpPending(window.__sh.save), null, { timeout: 15000 }).catch(() => {});
+  await page.waitForFunction(() => !document.querySelector('.pp.on'), null, { timeout: 20000 }).catch(() => {});
   await page.waitForTimeout(1500);
   for (let k = 0; k < 4 && await page.evaluate(() => !!document.querySelector('#boostPop.on')); k++) {
     for (let i = 0; i < 12 && !(await page.evaluate(() => document.getElementById('boostPop').classList.contains('done'))); i++) {

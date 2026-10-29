@@ -22,6 +22,9 @@ Quảng cáo có thưởng và mua bằng tiền thật (IAP): mọi nút hiện
 
 Lần chạy đầu (FTUE), khung dọc trên màn hình ngang, SettingsPopup và nút Delete Account: xem mục "FTUE, khung dọc, Settings, xoá tài khoản" (rev 20261028n).
 
+Popup mở chế độ / món / bộ sưu tập, kỳ Đua và Phiêu lưu mới, popup ưu đãi VIP và gói, prompt cuối màn, tween mở/đóng popup, lật trang Tuỳ biến và FIND,
+TOP PRIZES và avatar trang Đua: xem mục "Popup: mở khoá, kỳ mới, ưu đãi, prompt cuối màn" (rev 20261028o).
+
 ## Cách chơi
 
 - Giữ chuột, chạm màn hình, hoặc giữ Space: móc vào điểm móc gần nhất. Bấm ở đâu trong cửa sổ cũng được, kể cả viền hai bên khung dọc, trừ lên nút.
@@ -55,6 +58,9 @@ Lần chạy đầu (FTUE), khung dọc trên màn hình ngang, SettingsPopup v�
 | `js/cardsui.js` | Trang thẻ, popup mở booster, gói thẻ và Chợ Đen trong Chợ, thông báo hiệu ứng thẻ (nạp lười) |
 | `data/cards.json`, `art/m-cards.webp`, `art/m-boost.webp` | 33 thẻ, 7 nhóm, 7 booster, đơn giá Chợ Đen, `resource_boosting`, road perk, giá gói thẻ; art thẻ và booster |
 | `js/home.js` | Trang chính theo prefab HomePage + MenuBar, art gốc, lớp tối + bàn tay của lần chạy đầu; nạp khi trang chính hiện lần đầu, không bao giờ nạp với `?level=` |
+| `js/popups.js` | Popup rev 20261028o: hàng đợi, ModeUnlocked, món / bộ sưu tập mở khoá, New Tournament / Adventure, ưu đãi VIP và gói, prompt cuối màn, ưu đãi Phiêu lưu (nạp lười) |
+| `art/m-{pmode,pseason,pskin,ovip,ooffer}.webp` | Art của các popup trên, một sheet mỗi nhóm (`tools/build_menus.py`, nguồn `REF/sprites_popups`) |
+| `js/levels.js` | Bảng chọn màn của web (nạp lần mở đầu) |
 | `js/settings.js`, `art/m-settings.webp` | SettingsPopup (bánh răng trang chính) và hàng Delete Account; nạp ở lần bấm bánh răng đầu |
 | `art/m-ftue.webp`, `data/m-ftue.json` | Bàn tay `Hand_tutorial` và vòng sáng `CircleLight` (11 KB), chỉ nạp khi chưa qua màn 1 |
 | `js/uikit.js` | Bộ dựng menu dùng chung: sheet theo màn, sprite/9-slice/tile, đơn vị tham chiếu `--u` (1334 chiều cao), chữ font game trên canvas |
@@ -940,7 +946,178 @@ Icon của hàng tô `#527CC3` bằng CSS mask (sprite trắng). Nút Huỷ / Xo
 Màn đầu (`?level=1`) 598 KB thô. Khung trong `index.html` và code mới trong `main.js` / `save.js` thêm khoảng 3 KB.
 Đã bù bằng cách rút chú thích pháo giấy trong `main.js`, vì mục "Luật gốc đã dùng" đã có đủ.
 
+## Popup: mở khoá, kỳ mới, ưu đãi, prompt cuối màn (2026-10-29, rev 20261028o)
+
+Chủ dự án: "làm full đi". Đọc asm ở `D:/stickman-hook-ref/dump/asm/{popups,tween,offers,shoppage,tournament}/`, cây prefab ở `dump/ftue/tree_*.txt`
+và `dump/offers/tree_*.txt`. Code: `js/popups.js` (nạp lười), tween chung trong `js/uikit.js`, bảng chọn màn chuyển sang `js/levels.js`.
+Art: `art/m-pmode.webp` (86 KB), `m-pseason.webp` (132 KB), `m-pskin.webp` (43 KB), `m-ovip.webp` (118 KB), `m-ooffer.webp` (125 KB), mỗi popup chỉ nạp sheet của nó.
+Sprite xuất bằng `export_named.py` và `tools/export_bundle_sprites.py` (mới, bundle một sprite như `gamemodes_*_icon`) vào `D:/stickman-hook-ref/sprites_popups`.
+
+**Hàng đợi.** Mọi popup qua `enqueue` như `UIService.EnqueuePopupAsync`: một cái một lúc, theo thứ tự. Lần cấp nào cũng đi qua `app.unlocks(got)`
+(`main.js`): màn cuối Normal (sau heo đất, trước trang kết thúc), Đường XP (sau khi popup đóng), heo đất, vòng quay, Chợ, quảng cáo ở Tuỳ biến.
+Một trang chiếm màn hình (vào màn, mở chế độ) mà tắt overlay của popup thì popup coi như đã đóng, hàng đợi đi tiếp.
+Prompt trang chính chạy mỗi khi trang chính hiện lại (`HomePage.OnShowEnded`): lúc mở trang chính và lúc đóng một trang (Chế độ, Tuỳ biến, Thẻ, Chợ, Đua, Phiêu lưu, Lucky Drop).
+
+**ModeUnlockedPopup** (`UI/Popups/XpRoad/ModeUnlocked`):
+
+- Bật bởi `GameModesService.OnModeUnlocked` [asm 0x1297bdc] (cấp `mode.*`) và `OnModeLevelUnlocked` [asm 0x1297dec] (cấp `unlocked_level_<mode>` khi `autoUnlockNextLevel` sai, tức Challenge) → `ShowModePopup` [asm 0x1297c74].
+- `Activate` [asm 0x11970a0]: tiêu đề `<size=80><color=#7BEFA9>{Tournament|Lucky Drop|Grapple Mode|Adventure|Challenge}</color></size>\n\r<size=66>unlocked!</size>`,
+  icon `GameModeDto.iconAddress` 400 × 400 (`gamemodes_*_icon`), "Level {n}" dưới icon chỉ với Challenge, nút "Try it!", "Tap to continue" ẩn với Tournament và Adventure.
+- "Try it!" (`<Activate>b__19_0` [asm 0x1196dd0]): Challenge / Grapple → trang Chế độ, Tournament / Adventure → trang chính, Lucky Drop → Lucky Drop.
+- Nền: UIGradient của prefab `#40E8EC → #008FE1`, `ShinySun` `#DA73D6` xoay 40°/giây, `Pattern_MainMenu`. `PaletteSettings._trophyRoadGraphicData` chưa đọc.
+- `[ĐỀ XUẤT]` `mode.lucky_wheel` (mốc 0 XP) không có popup: nhánh tiêu đề mặc định của nó sẽ là "Challenge".
+
+**CustomizationItemUnlockedPopup** (mỗi skin / dây / vệt được cấp, `CustomizationService.OnUnlocked` [asm 0x1286724], không xét nguồn):
+
+- `Activate` [asm 0x129301c]: "New skin|rope|trail unlocked!" (`<size=84><color=#FFC327>`), skin (`LayeredSkinView`) hoặc ảnh dây / vệt (`GiftContent`),
+  thanh bộ sưu tập, dải `InfosBand` "Stage {n} completed !" với cách mở theo màn Normal / Challenge / Grapple ("Card Level {n}" với perk thẻ).
+- `OnShowEndedAsync` [asm 0x1294414]: 200 ms, `AnimateUnlock`, rồi "Equip It!" (`OnEquipItClicked` [asm 0x1292dc4]: chọn món, đóng) và "Tap to continue".
+- Bộ sưu tập đủ thì `ClaimItemReward` bắn `OnCollectionCompleted`, nên **CollectionCompletedPopup** hiện ngay sau popup món.
+  Nội dung: "Collection completed", các món của bộ, thanh "Completed!", 200 ms rồi "Tap to continue" (`Activate` [asm 0x128c2bc], `OnShowEndedAsync` [asm 0x128ca0c]),
+  nền `#FFCD36 → #E18E01`.
+- `[ĐỀ XUẤT]`:
+  - `AnimateUnlock` dài 350 ms.
+  - XP của món vẫn cộng lúc cấp (`meta.js grantItem`), không đợi `ClaimItemReward` trong popup. Vì vậy không có prompt "recovery".
+  - Skin hiện bằng clip nhảy của sheet skin (gốc dùng sprite UI).
+  - Vị trí 3 skin của bộ trên `DanceSkinsContainer`.
+
+**NewTournamentPopup / NewAdventurePopup** (prompter `tournament_competition` [asm 0x11901dc], `adventure_competition` [asm 0x1269620] của trang chính):
+
+- `Leaderboard.IsNew` = trạng thái 1 [asm 0x1156400], đặt khi bảng của kỳ được tạo (chế độ đã mở). `SetAsActive` trong `OnHideEnded`
+  [asm 0x1238e04 / 0x113fe84] xoá cờ, nên cả "Let's go" lẫn "Later" đều tắt. Mỗi kỳ hiện một lần: ngày (Đua), tuần (Phiêu lưu). Lưu ở `save.modes[id].seenNew`.
+- `home_mandatory_set`, `promptsCap` 1: Adventure trước Tournament. Đường XP và booster đang chờ đi trước (chúng đứng trước trong set).
+- "Let's go" → trang Đua / Phiêu lưu rồi đóng. Đồng hồ `TimeServiceHelper.FormatTime` hai thành phần ("8h 54m"), dưới 1 s thì tự đóng.
+- Đua: `GetRewardForPosition(0)` [asm 0x1239808] = skin của `reward_pool.tournament_skin` (`ConvertReward`: skin chưa có thứ `played % n`) + "x1000".
+  Dòng đối thủ là `"{0} Competitors"` với `TournamentService.NB_PLAYERS` = 200 [asm 0x1239b24], không phải "10 competitors" của prefab.
+- Phiêu lưu: nội dung là chữ cứng của prefab.
+- `[ĐỀ XUẤT]`:
+  - Ba skin minh hoạ của Phiêu lưu (ảnh "UI" lúc chạy) là ba skin mở bằng Phiêu lưu.
+  - Hai ô giải thưởng đặt cạnh nhau, vì spacing −140 của prefab làm chữ chồng lên nhau.
+  - Kỳ tính theo nửa đêm / thứ Hai giờ máy.
+
+**Ưu đãi** (`MarketVipPopup`, `MarketOfferPopup` = `StickmanHookMarketOfferPopup`). Chỉ 5 ưu đãi có `viewPurchasePopupId`: `vip`, `vip_discount`, `adventure_1`, `adventure_2`, `boosters_pack`.
+
+- Nút giá của thẻ Chợ (`AMarketPurchaseButton.OnPurchaseClickedAsync` [asm 0x26b7fa4..0x26b8558]) và widget VIP (`OnWidgetClicked` [asm 0x124e3ac]) mở popup.
+  Nút giá trong popup mới mua, và bấm là nhận ngay (luật cũ của chủ dự án). "No, thanks" / "Later" đóng.
+- Widget Welcome / No Ads (không có popup) mở Chợ và cuộn tới thẻ đó (`MarketPageConfig.itemToFocusOn`).
+- Skin khoá kiểu VIP ở Tuỳ biến mở popup VIP (`popup_redirection_customization` [asm 0x11ef088]). Nút VIP Skip ở heo đất và trang Đua cũng mở popup này.
+- VIP: icon nhô trên khung (pivot 0.2), "VIP BUNDLE", 5 dòng thưởng đúng chữ `view_templates` (dòng No Ads chỉ ở `offer.vip`; dòng skin bỏ ở `vip_discount` khi đã mua Welcome),
+  nút giá vàng có giá gạch.
+- Ưu đãi chung: nền và minh hoạ theo ưu đãi, đồng hồ tuần (Phiêu lưu), tiêu đề, ô thưởng, mô tả, nút giá, phụ đề, "Later".
+
+**Prompt cuối màn** (placement `end_game`, `AEndGamePage.OnShowEnded` [asm 0x28d6364], chỉ Normal / Challenge / Grapple):
+
+- Cần ≥ 3 ván kể từ prompt trước (`played_enough_games_since_last_prompt`, `GameCountPromptRequirementController` [asm 0x2fa5240]).
+  Prompt hiện thì đếm lại từ 0 [asm 0x2fa96f4]. Lưu ở `save.inv['prompt.games_since_last']`.
+- `end_game_optional_set` có trọng số, chỉ bốc trong các prompter có thứ để hiện (`ShowPromptsSet` [asm 0x2fa9b80]), `promptsCap` 1:
+  - `lucky_wheel_incentive` 1: vòng quay đã mở, một lần mỗi phiên, đủ xu cho lượt tới (`CanAffordSpinning` [asm 0x115bd74]) → popup vòng quay.
+  - `market_incentive` 11: ưu đãi đầu tiên đang hiện có popup, theo thứ tự `vip`, `vip_discount`, `adventure_1`, `adventure_2`, `boosters_pack` [asm 0x2f63bbc].
+  - `customization_item_unlock_incentive` 4: không có `flag.old_no_ads`. **IncentiveRewardedSkinUnlockPopup** (`GetNextIncentiveShopItem` [asm 0x12835d8]) chọn skin "rewarded" còn khoá
+    của bộ skin ít món khoá nhất, chưa chào trong phiên. Popup "Instant skin unlock!", "Get\n{xp} XP", thanh bộ sưu tập, nút vàng "unlock" có AdIcon
+    (`rewarded.customization_incentive` [asm 0x11f41d4], nhận ngay, có vé thì trừ vé), "Later".
+  - `seasonal_event` 5: **chưa làm** (`SeasonalEventPopup`).
+- `[ĐỀ XUẤT]` một "ván" là một lần trang kết thúc hiện (chưa lần ra chỗ bộ đếm cộng).
+
+**Ưu đãi Phiêu lưu mỗi 5 lần** (`AdventureIncentivesService.TryShowInventive` [asm 0x12669c8], từ `AdventurePage.ClaimPendingRewards` [asm 0x1137d90]):
+
+- Bộ đếm phiên `(c + 1) % 5` [asm 0x1266a54..0x1266a78].
+- Vòng `CurrentAdventureIncentive = (cur + 1) % 3` lưu bền [asm 0x1266a88..0x1266aac]:
+  - 1: ưu đãi Phiêu lưu đang hiện (`adventure_1`, không thì `adventure_2`);
+  - 2: `boosters_pack` khi còn hiện và `flag.booster_pack` ≤ 0;
+  - 0: không gì. Nhánh VIP so với 3, mà `% 3` không bao giờ ra 3.
+- Web: mỗi lần mở trang Phiêu lưu là một lần claim. Vòng lưu ở `save.inv['adventure.current_incentive']`.
+
+**Mở và đóng popup** (`uikit.js popOpen / popClose`, mọi popup đi qua đây):
+
+| Kiểu | Popup | Mở | Đóng |
+|---|---|---|---|
+| `instant` | MadTween với `ShowSequence` / `HideSequence` rỗng (đã đọc 9 prefab): Settings, Đường XP, heo đất, ModeUnlocked, CollectionCompleted | alpha 1 ngay [asm 0x30232f8] | alpha 0 ngay [asm 0x30234b0] |
+| `unity` | `DefaultPopupAnimator`: New Tournament / Adventure, ưu đãi chung, Lucky Wheel, Instant skin unlock | 0.25 s: Holder scale 0 → 1.2 (0.1667 s) → 1, BG 0 → 0.7843 | 0.2833 s: 1 → 1.2 (0.0833 s) → 0, BG về 0 |
+| `vip` | `NoAdsAnimator`: popup VIP | 0.4167 s: 0.5 → 1.1 (0.25 s) → 1, BG → 0.8 lúc 0.3333 s | 0.3 s: 1 → 1.1 (0.0667 s) → 0.1, BG về 0 lúc 0.1667 s |
+| `wait` | đường cong không gắn được (CustomizationItemUnlocked có "Background" chứ không "BG"; BoosterOpening) | chỉ chờ 0.25 s | chờ 0.2833 s |
+
+- Mọi khoá có tiếp tuyến 0, nên mỗi đoạn là smoothstep (`3s² − 2s³`). `UnityAnimationController.Show` [asm 0x303fcf8], `Hide` [asm 0x303f6c0].
+- Sau mọi popup có lớp `BackgroundLayer` đen 0 → **0.7** trong 0.2 s (`FadeInBackgroundLayer`, `DOFade` [asm 0x3028f64], ease mặc định của DOTween là OutQuad),
+  về 0 khi đóng [asm 0x3029358]. Lệnh đóng chờ hết tween rồi mới gỡ popup (`ClosePopupAction` [asm 0x3027f98]).
+- SettingsPopup vì thế hết nền `#000000C8` cố định: nền là lớp 0.7 này. Bảng chọn màn (của web) dùng kiểu `unity` `[ĐỀ XUẤT]`.
+- Bài kiểm đọc thời gian đo thật ở `data-tween-open` / `data-tween-close` của overlay.
+
+**Tuỳ biến: lật trang và FIND.**
+
+- Trang là dữ liệu: bộ sưu tập theo `page`, sắp theo (`page`, `index`) [asm 0x128a618, 0x128accc]. Skin có 7 trang; dây và vệt mỗi loại 1 trang.
+- Mỗi trang cuộn dọc. Đổi trang bằng `HorizontalScrollSnap` (prefab `ShopCategoryUI`):
+  - Prev / Next (`IconArrow_Collection`, Next lật gương);
+  - chấm số (`ContainerPage_Selected` / `_Unselected`, bấm là `GoTo(page)` [asm 0x11e9f7c]);
+  - vuốt: nhanh hơn `SwipeVelocityThreshold` 500 hoặc quá nửa trang.
+- Hiệu ứng là lerp của thư viện, `transitionSpeed` 10. Trang của mỗi tab nhớ trong phiên (`CustomizationViewService`, bắt đầu trang 0).
+- FIND (`Button_UnlockRandomSkin`, chỉ trên món khoá kiểu `LUCKY_WHEEL`) **không nhảy trang**. Nó mở popup Lucky Wheel (`LuckyWheelService.ShowPopup("shop")`,
+  `ShopItemUI.<OnClickAsync>` [asm 0x11ef19c]) khi vòng quay đã mở.
+- `[ĐỀ XUẤT]`:
+  - Vòng quay chưa mở thì hiện toast thay cho `CollectionLockedPlayModeLuckyWheelPopup` (chưa dựng).
+  - Không có chấm "món chưa dùng" và không nhảy tới bộ đó: bản lưu không ghi món đã từng trang bị.
+  - Ngưỡng 500 hiểu là đơn vị tham chiếu mỗi giây.
+
+**Trang Đua.**
+
+- Avatar là skin của từng người: AI lấy `playerSkinIds` từ `System.Random(seed)` (có sẵn trong `Board`), người chơi lấy skin đang dùng.
+  Ảnh là icon shop của skin, phóng to trong mặt nạ tròn như `PlayerSkin` (−0.58..1.58, −0.92..1.50) [asm 0x1234130, 0x118bdac].
+  `HolderPortrait_01` cho người chơi, `_02` cho AI. Hạng ghi "#n".
+- TOP PRIZES: `PrizeHolder1` giữa 200 × 200, `PrizeHolder2` / `3` hai bên cao 150, nền `#3A165B77` (`UpdateStaticUI` [asm 0x123d300], `PrizeDisplayerUI.UpdateUI` [asm 0x1234e40]).
+  - Hạng 1: skin của pool (`ConvertReward`), "NEW SKIN", "x1000".
+  - Hạng 2, 3: chồng xu "x500", "x250".
+- "Top {0}% of players" **không ở trang Đua**. Nó là dòng dưới tên hạng trên Đường XP (`TrophyRoadLeagueContainer.DisplayLeague` [asm 0x1193c6c]).
+  Số lấy từ `remote_settings_default.json` `progression_road.leagues`: Bronze 100, Silver 72.8, Gold 29.3, Platine 17.5, Diamond 8.3, Master 1.5. Web đã thêm (`menus.js LEAGUE_TOP`).
+- `[ĐỀ XUẤT]` không có chấm "online" (gốc bốc `Random.Range < 0.3` mỗi lần vẽ).
+- Sửa hình sau vòng soát ảnh (đối chiếu clip):
+  - `ContentMask` của ô quà dùng `HolderReward` chỉ làm mặt nạ (`m_ShowMaskGraphic 0`), không vẽ ra: vẽ nó thành khung trắng là sai.
+    Ô #2 / #3 nằm trong màn, cách lề 4 %, rộng 26 % (đo từ khung clip). Skin hạng 1 là icon shop, như `UnlockedSkin`.
+  - Hàng: xu `SkinCoins` + "x{n}" dưới nửa phải, cúp nằm đầu trái viên `CounterPlayer`, tên canh trái. Hàng của mình có bút `Pen` (`UpdateNameButton`; web không cho đổi tên).
+  - Đầu trang: hai viên tiền của trang (vé bỏ qua có nút "+" mở Chợ, cúp), giờ nằm trong viên `HolderTime_01`.
+- Chữ popup (`popups.js text()`) `[ĐỀ XUẤT]` tự co cỡ cho vừa ô, thay cho TMP autosize; khung skin vẽ rộng hơn ô 25 % mỗi phía để khung hình không bị cắt.
+
+**Chữ hoa / thường.** Font Junegull của TMP có chữ thường **giống hệt** chữ hoa: cùng số đo trong `data/font.json`, cùng hình (đã so A/a, G/g).
+Vì vậy "Equip It!", "Tap to continue", "Version: …" của prefab hiện thành chữ hoa ở bản gốc, và web viết hoa là đúng. Không prefab nào trong 25 bundle UI đã quét
+dùng `fontStyle` UpperCase. Công cụ: `D:/stickman-hook-ref/tools/tmp_case.py`, kết quả ở `dump/case/tmp_case.txt`.
+
+**Ô Checked / Unchecked của Settings.** Prefab có hộp 45 × 70 (neo y 0..1) với `m_PreserveAspect` 1, nên hình vẽ vẫn vuông 45 ở giữa.
+Web giờ đặt hộp 45 × 70 và `fit`. Trông như cũ, nhưng chỗ "Còn lệch" cũ là đọc nhầm.
+
+Màn đầu (`?level=1`): 597.0 KB thô (trước 598.1). Chỗ trống có được nhờ chuyển bảng chọn màn khỏi `main.js` sang `js/levels.js` (−2 KB).
+Phần `main.js` thêm là `unlocks` và hai dòng gọi prompt trang chính. Importmap của `index.html` thêm 2 dòng.
+
+Bài kiểm (local): `test/stickman-hook-play.js` 180/180, `test/stickman-hook-pachinko.js` 30/30, `test/stickman-hook-sim.js` 307/307.
+- Mục mới của `play.js` bấm nút thật và đo thời gian thật: ModeUnlocked sau Đường XP, popup món, New Tournament (mở 0.25 s, Later 0.2833 s, không hiện lại trong ngày),
+  Settings (lớp 0.7 trong 0.2 s), lật trang (Next, vuốt, chấm), Bunny → món → bộ sưu tập, FIND → vòng quay, "Top n% of players", TOP PRIZES và avatar,
+  popup VIP (0.4167 s / 0.3 s), prompt cuối màn ván thứ 3, ưu đãi Phiêu lưu lần thứ 5.
+- Các mục cũ chạy với `window.__autoPop`: popup mới mở 400 ms là tự đóng, để luồng cũ đi tiếp. Bài Lucky Drop cũng vậy.
+
+## Sprite giữ tỉ lệ như prefab (rev 20261028o)
+
+Chủ dự án: "có vài UI/image tui thấy bị bóp méo". `uikit.js spr()` cũ kéo mọi sprite cho khít ô, nên icon 120 x 88 trong ô vuông cao thêm 36 %.
+- Gốc: `REF/tools/image_census.py` đọc mọi `UnityEngine.UI.Image` trong các bundle UI (`_ui_`, `popup`, `offer`, `menuitem`) ra `REF/dump/ui_images.json`:
+  sprite, `m_Type`, `m_PreserveAspect`, cỡ rect cố định (null khi anchor kéo giãn), `AspectRatioFitter`, bundle, GameObject.
+- `tools/build_menus.py` ghi `_keep` vào `data/m-*.json`: sprite mà đa số chỗ dùng kiểu Simple có `m_PreserveAspect 1`, có AspectRatioFitter, hoặc rect cố định
+  cùng tỉ lệ sprite (±4 %). Sliced / Tiled / Filled và Simple kéo theo anchor thì vẫn kéo. Sprite không prefab nào nêu tên (gán từ code) mà không có viền 9-slice
+  thì giữ tỉ lệ `[ĐỀ XUẤT]`. Chạy lại riêng phần này: `py -3 -I tools/build_menus.py REF aspect` (không dựng lại art).
+- `spr()` gặp sprite trong `_keep` thì gọi `fit()` (cắt sprite, `contain`, giữa ô). Ví dụ `Icon_Trophy` trang chính: `Img` 100 x 100, `m_PreserveAspect 1`.
+- Trang kết thúc (`endgame.js icon()`): mọi Image của `ui_pages_endgame_*` giữ tỉ lệ (`TopBackground` 748 x 601, `FinishHalo`, `NextLevelButtonCenter` 234 x 223, `NextLevelText`).
+- Hoa văn thẻ (`Pattern` của CardUI, `m_PreserveAspect 1`) giữ tỉ lệ. Thanh Filled (`FillBar` thanh XP, `ProgressBar` thẻ) giữ cỡ cả thanh rồi cắt theo lượng đầy,
+  không bóp sprite theo lượng.
+- Còn kéo giãn như gốc (danh sách cho phép trong `test/stickman-hook-play.js`, mỗi mục ghi trường prefab): `background2`, `BarFill`, `ProgressBar`,
+  `GradientHorizontalInOut`, `MarketTitleBanner`, `CounterPlayer_01`, `CursorTrophyRoad` (rect 60 x 22.4), `HolderLuckyWheelCoin` (rect 102 x 25), `TopHolder`,
+  `Hand_tutorial` (`TutorialHand` 150 x 150, sprite 172 x 220: gốc méo 1.28, web 1.08).
+- Đo: `play.js` mở 24 trang / popup ở 390 x 844 và 1920 x 1080, tính `d` = tỉ lệ ngang / tỉ lệ dọc của từng sprite nền, `<img>` và canvas.
+  Trước sửa 70 chỗ lệch, sau sửa còn 10, đều trong danh sách cho phép. Ảnh: `shots/stickman-hook/aspect-*.png`.
+
 ## Bẫy đã sập
+
+- **Popup bị trang khác tắt thì hàng đợi kẹt (20261028o).** Vào màn hay mở chế độ tắt mọi overlay, kể cả popup đang chờ bấm; lời hứa của nó không bao giờ xong,
+  nên trang kết thúc sau đó đợi mãi. `popups.js show` giờ theo dõi lớp `on` và coi như đã đóng.
+- **`sed -i` lần nữa đổi `js/menus.js` sang LF (20261028o).** Sửa bằng script Node rồi chuẩn hoá CRLF.
+- **`page.evaluate` chờ popup đóng (20261028o).** Hàm mở popup trả về lời hứa chỉ xong khi popup đóng; đưa nó vào `evaluate` thì bài đo treo tới khi
+  trình duyệt sập (14 phút). Gọi bằng `eval` và không trả về.
+- **Gói thẻ và popup Đường XP che trang cần đo (20261028o).** Đặt save sau khi nạp thì các mở khoá xếp gói thẻ (`boostPop`), XP chờ nhận mở Đường XP
+  trước heo đất, popup món mở trước trang kết thúc. Bài đo bỏ hàng gói thẻ, đặt XP đã nhận trước khi về đích và đóng popup món.
 
 - **`sed -i` của Git Bash đổi CRLF thành LF.** `js/main.js` (CRLF) mất hết `\r` sau một lệnh `sed -i` đổi số bản. Kiểm `file js/main.js` sau mỗi lần sửa bằng sed.
 - **Ngân sách 600 KB lần năm (20261028n).** Khung dọc và code FTUE/Settings ở màn đầu đẩy lên 600.09 KB.

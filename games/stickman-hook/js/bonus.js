@@ -237,7 +237,9 @@ export class Bonus {
       const t = b.querySelector('span');
       t.textContent = o.widget.title || '';
       if (t.textContent) ui.glText(this.app, t, 20, '#FFD54A');
-      b.onclick = () => this.buy(o.id);
+      // StickmanHookMarketOfferWidgetView.OnWidgetClicked [asm 0x124e3ac]: an offer with a purchase popup (VIP) opens it,
+      // the others (Welcome, No Ads) go to the market focused on their card
+      b.onclick = () => this.app.popups().then((m) => (m.POPUP_OFFERS.has(o.id) ? m.offer(this.app, o.id) : this.app.openMenu('openMarket', o.id)));
       box.appendChild(b);
     }
   }
@@ -252,6 +254,7 @@ export class Bonus {
     app.applyEquip?.();
     app.toast((r.offer.card?.title || r.offer.widget?.title || 'Đã nhận').replace(/<[^>]+>|\n/g, ' ') + ': ' + gotText(r.got));
     app.hud();
+    app.unlocks?.(r.got); // CustomizationItemUnlockedPopup for every item of the offer (CustomizationService.OnUnlocked)
     return r;
   }
 

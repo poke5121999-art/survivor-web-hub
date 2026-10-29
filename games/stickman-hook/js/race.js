@@ -287,35 +287,52 @@ export async function open(app) {
 // CupIcon_01 and the trophies), the player's row in HolderYourPlayer / CounterYouPlayer_01; the play button at the bottom.
 // Reward per rank: the board's thresholds (cfg.board.rewards: from rank p on).
 const TOUR_CSS = `
-#race .abody { overflow: auto; padding: 0 ${U(24)} ${U(200)}; align-items: center; }
-#race .tt { position: relative; flex: none; width: ${U(220)}; height: ${U(160)}; margin-top: ${U(-10)}; }
-#race .tname { font-size: ${U(52)}; margin-top: ${U(-8)}; }
-#race .time { flex: none; min-width: ${U(170)}; height: ${U(46)}; display: flex; align-items: center; justify-content: center; font-size: ${U(28)};
+#race .abody { overflow: auto; padding: 0 ${U(24)} ${U(200)}; align-items: center; align-self: stretch; }
+#race .tt { position: relative; flex: none; width: ${U(210)}; height: ${U(125)}; margin-top: ${U(-30)}; }
+#race .tname { font-size: ${U(46.9)}; margin-top: ${U(-4)}; }
+#race .time { flex: none; min-width: ${U(190)}; height: ${U(46)}; display: flex; align-items: center; justify-content: center; font-size: ${U(28)};
   padding: 0 ${U(16)}; margin-top: ${U(4)}; }
 #race .msg { margin: ${U(14)} 0 0; font: 800 ${U(22)}/1.25 system-ui, sans-serif; text-align: center; background: rgba(40, 10, 90, .45);
   border-radius: ${U(18)}; padding: ${U(10)} ${U(16)}; }
-#race h3 { margin: ${U(20)} 0 ${U(8)}; font-size: ${U(40)}; }
-#race .prizes { display: flex; align-items: flex-end; gap: ${U(14)}; }
-#race .pz { position: relative; width: ${U(170)}; height: ${U(170)}; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: ${U(4)}; }
-#race .pz.p1 { width: ${U(200)}; height: ${U(200)}; margin-bottom: ${U(16)}; }
-#race .pz .n { position: absolute; left: ${U(-6)}; top: ${U(-10)}; font-size: ${U(40)}; }
-#race .pz .q { font: 900 ${U(22)} system-ui, sans-serif; -webkit-text-stroke: ${U(4)} #1a1c4b; paint-order: stroke fill; text-align: center; }
-#race .pz i.coin { width: ${U(70)}; height: ${U(70)}; }
-#race ol { list-style: none; margin: 0; padding: 0 ${U(10)}; width: 100%; max-width: ${U(694)}; display: flex; flex-direction: column; gap: ${U(16)};
+#race h3 { margin: ${U(20)} 0 ${U(8)}; font-size: ${U(36)}; }
+#race .prizes { position: relative; flex: none; width: 100%; max-width: ${U(700)}; height: ${U(210)}; }
+#race .pz { position: absolute; background: rgba(58, 22, 91, .467); }
+#race .pz .cm { position: absolute; overflow: hidden; }
+#race .pz .abs, #race li .abs { position: absolute; }
+#race .tcur { display: flex; gap: ${U(10)}; align-items: center; }
+#race .tcur .tp { position: relative; display: flex; align-items: center; height: ${U(46)}; min-width: ${U(150)}; border-radius: ${U(23)};
+  background: rgba(8, 23, 58, .32); padding: 0 ${U(14)} 0 ${U(56)}; box-sizing: border-box; }
+#race .tcur .tp .ic { position: absolute; left: ${U(-6)}; top: 50%; width: ${U(58)}; height: ${U(50)}; transform: translateY(-50%); }
+#race .tcur .tp b { flex: 1; text-align: center; font-size: ${U(30)}; }
+#race .tcur .tp .add { position: absolute; right: ${U(-6)}; top: 50%; width: ${U(46)}; height: ${U(46)}; transform: translateY(-50%); cursor: pointer; }
+#race .tcur .tp:first-child { padding-right: ${U(50)}; }
+#race li .pt { width: auto; aspect-ratio: 1; }
+#race .pen { position: absolute; left: 63.5%; width: 5%; top: 23%; bottom: 12%; }
+#race ol { list-style: none; margin: 0; padding: 0 ${U(20)}; width: 100%; max-width: ${U(750)}; display: flex; flex-direction: column;
   box-sizing: border-box; }
-#race li { position: relative; height: ${U(82)}; display: flex; align-items: center; gap: ${U(10)}; padding: 0 ${U(14)}; box-sizing: border-box; }
-#race li > b { width: ${U(64)}; font-size: ${U(30)}; display: flex; justify-content: center; }
-#race li .pt { width: ${U(60)}; height: ${U(60)}; flex: none; display: flex; align-items: center; justify-content: center; font-size: ${U(30)}; }
-#race li > span { flex: 1; min-width: 0; font: 900 ${U(28)} system-ui, sans-serif; color: #5d2bb3; text-transform: uppercase; white-space: nowrap;
-  overflow: hidden; text-overflow: ellipsis; }
-#race li.me > span { color: #fff; -webkit-text-stroke: ${U(4)} #1a1c4b; paint-order: stroke fill; }
-#race li .rw { display: flex; align-items: center; gap: ${U(2)}; font: 900 ${U(18)} system-ui, sans-serif; color: #fff;
-  -webkit-text-stroke: ${U(3)} #1a1c4b; paint-order: stroke fill; }
-#race li .rw i { width: ${U(36)}; height: ${U(36)}; }
-#race li .sc { min-width: ${U(110)}; height: ${U(46)}; display: flex; align-items: center; justify-content: flex-end; gap: ${U(6)}; padding: 0 ${U(12)};
-  box-sizing: border-box; font-size: ${U(26)}; }
-#race li .sc i { width: ${U(34)}; height: ${U(34)}; order: -1; }
+#race li { position: relative; height: ${U(115)}; flex: none; }
+#race li .cb { position: absolute; left: 4%; right: 4%; top: 14%; bottom: 14%; filter: drop-shadow(0 ${U(5)} 0 rgba(21, 40, 80, .5)); }
+#race li > .cb > b { position: absolute; left: 1%; width: 9%; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center;
+  font-size: ${U(27.5)}; }
+#race li .pt { position: absolute; left: 10%; width: 12%; top: 10%; bottom: 10%; }
+#race li .pt .mk { position: absolute; inset: ${U(4)}; border-radius: 50%; overflow: hidden; }
+#race li .pt .mk i { position: absolute; left: -58%; right: -58%; bottom: -92%; top: -50%; background-repeat: no-repeat; background-position: center;
+  background-size: contain; }
+#race li .cb > span { position: absolute; left: 25%; width: 37%; top: 19%; bottom: 19%; display: flex; align-items: center;
+  font: 900 ${U(28)} system-ui, sans-serif; color: #3d008c; text-transform: uppercase; white-space: nowrap; overflow: hidden; }
+#race li.me .cb > span { color: #fff; -webkit-text-stroke: ${U(4)} #1a1c4b; paint-order: stroke fill; }
+/* CoinsHolder (0.72..0.80, 0.26..0.85): the coin, CoinsCountText "x{0}" (20) under its right half; TrophiesHolder
+   (0.81..0.99, 0.25..0.97): the CounterPlayer pill with the score (24), CupIcon on its left end */
+#race li .rw { position: absolute; left: 72%; width: 8%; top: 15%; bottom: 26%; }
+#race li .rw i { position: absolute; inset: 0; }
+#race li .rw em { position: absolute; left: 0; right: -70%; top: 72%; height: ${U(24)}; font-style: normal; font-size: ${U(20)};
+  background-position: center !important; }
+#race li .sc { position: absolute; left: 81%; right: 1%; top: 25%; bottom: 3%; }
+#race li .sc .bgc { position: absolute; left: 18%; right: 0; top: 9%; bottom: 37%; display: flex; align-items: center; justify-content: center;
+  padding-left: 22%; box-sizing: border-box; font-size: ${U(24)}; }
+#race li .sc .bgc em { width: 100%; height: 100%; display: block; font-style: normal; }
+#race li .sc > i:not(.bgc) { position: absolute; left: 4%; width: 43%; top: -14%; bottom: 14%; }
+#race li .cb > span { justify-content: flex-start; background-position: left center !important; }
 #race li .sc em { font-style: normal; }
 #race .bot { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: center; padding: ${U(16)} 0 calc(env(safe-area-inset-bottom) + ${U(26)});
   background: linear-gradient(rgba(165, 47, 219, 0), rgba(165, 47, 219, .9) 40%); }
@@ -348,16 +365,16 @@ async function page(app, board, claim, claimed = null) {
     patSize: 256, patAlpha: 0.08, title: '', onClose: () => { app.overlay('race', false); app.overlay('start', true); app.hud(); } });
   const reward = (rank) => { let r = []; for (const [p, rw] of cfg.board.rewards) if (rank >= p) r = rw; return r; };
   const coinsOf = (rank) => reward(rank).find(([res]) => res === 'currency.skin_coins')?.[1] || 0;
-  body.innerHTML = `<i class="tt"></i><b class="tname">Giải đua</b><b class="time">${hh}H ${mm}M</b>
+  body.innerHTML = `<i class="tt"></i><b class="tname">Tournament</b><b class="time"><span>${hh}H ${mm}M</span></b>
     ${claimed ? `<div class="msg">Bảng ngày ${String(claimed.day).replace(/(\d{4})-(\d\d)-(\d\d)/, '$3/$2')} đã đóng: bạn hạng ${claimed.rank + 1}.
       ${claimed.got.map((g) => (g.coins ? `+${g.coins} xu` : g.item ? 'Mở khoá ' + g.item.title : '')).filter(Boolean).join(', ') || 'Không có thưởng.'}</div>` : ''}
     ${claim ? `<div class="msg claim">Bảng ngày ${String(claim.day).replace(/(\d{4})-(\d\d)-(\d\d)/, '$3/$2')} đã đóng: bạn hạng ${claim.rank + 1}.
       <div class="crow"><button class="cl reg">Claim</button><button class="cl rew"><i></i><span>Claim x${roundEven((positionReward(cfg, claim.rank).find(([r]) => r === 'currency.skin_coins')?.[1] || 0) * CLAIM_MULT)}</span></button></div></div>` : ''}
-    <h3>Giải thưởng</h3><div class="prizes">${[1, 0, 2].map((r) => `<div class="pz p${r + 1}"><b class="n">#${r + 1}</b><i class="coin"></i>
-      <span class="q">${reward(r).map(([res, q]) => (res === 'currency.skin_coins' ? 'x' + q : 'Skin mới')).join(' + ')}</span></div>`).join('')}</div>
-    <h3>Đối thủ</h3>
-    <ol>${rows.map((r, i) => `<li class="${r.me ? 'me' : ''}"><b>${i + 1}</b><i class="pt">${(r.name[0] || '?').toUpperCase()}</i><span>${r.name}</span>
-      <i class="rw"><i></i>x${coinsOf(i)}</i><b class="sc"><i></i><em>${r.score}</em></b></li>`).join('')}</ol>
+    <h3>TOP PRIZES</h3><div class="prizes"></div>
+    <h3>Competitors</h3>
+    <ol>${rows.map((r, i) => `<li class="${r.me ? 'me' : ''}" data-skin="${r.me ? meta.item('skins', save.equipped.skins)?.id : r.skin}"><div class="cb"><b>#${i + 1}</b>
+      <i class="pt"><i class="mk"><i></i></i></i><span>${r.name}</span><i class="rw"><i></i><em>x${coinsOf(i)}</em></i>
+      <i class="sc"><i class="bgc"><em>${r.score}</em></i><i></i></i>${r.me ? '<i class="pen"></i>' : ''}</div></li>`).join('')}</ol>
     <p class="note" hidden>Còn ${hh} giờ ${mm} phút · thắng ${qty(save, R_WIN)} ngày · cúp hôm nay: ${qty(save, R_TROPHIES)}</p>`;
   // TournamentPage Button: FreePlayButton (OutlinedButtonGreen "Play", DailyLimitText "Daily free plays: n/2"), then the
   // RewardedPlayButton (OutlinedButtonGold: WatchRewardedHolder AdIcon "+1" Ticket = the ad grants one race ticket,
@@ -369,22 +386,40 @@ async function page(app, board, claim, claimed = null) {
     ${vip ? `<button class="vip" data-offer="${vip.id}" title="VIP Bundle (bấm là nhận ngay)"><i class="bg"></i><i class="tk"></i><b>Skip</b></button>` : ''}</div>`);
   spr(body.querySelector('.tt'), sh, 'TrophyTournament_01');
   spr(body.querySelector('.time'), sh, 'HolderTime_01');
-  for (const z of body.querySelectorAll('.pz')) { spr(z, sh, 'HolderReward'); spr(z.querySelector('.coin'), sh, 'SkinCoins'); glText(app, z.querySelector('.n'), 40); }
-  for (const li of body.querySelectorAll('li')) {
-    const me = li.classList.contains('me');
-    slice(li, sh, me ? 'HolderYourPlayer' : 'FramePlayer_01', 0.6);
-    spr(li.querySelector('.pt'), sh, me ? 'HolderPortrait_02' : 'HolderPortrait_01');
-    spr(li.querySelector('.rw i'), sh, 'SkinCoins');
-    spr(li.querySelector('.sc'), sh, me ? 'CounterYouPlayer_01' : 'CounterPlayer_01');
-    spr(li.querySelector('.sc i'), sh, 'CupIcon_01');
-    // the rank keeps its plain number (read by the tests); the game font draws it with the "#"
-    glText(app, li.querySelector('b'), 30);
-    glText(app, li.querySelector('.pt'), 30);
-    if (!me) glText(app, li.querySelector('span'), 28, '#7a3fd6');
-    glText(app, li.querySelector('.sc em'), 26);
-    glText(app, li.querySelector('.rw'), 18);
+  const ac = box.querySelector('header .acoin');
+  if (ac) {
+    ac.className = 'tcur';
+    ac.innerHTML = '<span class="tp"><i class="ic"></i><b></b><i class="add"></i></span><span class="tp tr"><i class="ic"></i><b></b></span>';
+    const [tk, tr] = ac.querySelectorAll('.tp');
+    spr(tk.querySelector('.ic'), sh, 'SkipTickets');
+    spr(tk.querySelector('.add'), sh, 'AddButton');
+    spr(tr.querySelector('.ic'), sh, 'CupIcon_01');
+    tk.querySelector('b').textContent = qty(save, 'currency.skip_tickets');
+    tr.querySelector('b').textContent = qty(save, R_TROPHIES);
+    for (const b of ac.querySelectorAll('b')) glText(app, b, 30);
+    tk.querySelector('.add').onclick = (e) => { e.stopPropagation(); app.openMenu('openMarket'); };
   }
-  for (const h of body.querySelectorAll('h3, .tname, .time')) glText(app, h, parseFloat(getComputedStyle(h).fontSize) / (document.body.clientHeight / 1334));
+  prizes(app, body.querySelector('.prizes'), sh, reward);
+  const icons = await app.custom.icons().catch(() => null);
+  for (const li of body.querySelectorAll('li')) {
+    const me = li.classList.contains('me'), cb = li.querySelector('.cb');
+    slice(cb, sh, me ? 'HolderYourPlayer' : 'FramePlayer_01', 0.6);
+    // PlayerSkinBorder: HolderPortrait_01 for the player, _02 for the others; PlayerSkin = the profile's skin UI sprite
+    // (StickmanHookCustomizationService.SetupItem [asm 0x118bdac]) oversized in the round mask (-0.58..1.58, -0.92..1.50)
+    spr(li.querySelector('.pt'), sh, me ? 'HolderPortrait_01' : 'HolderPortrait_02');
+    const it = app.meta.byId.get(li.dataset.skin), r = icons && it && icons.rects['skins/' + it.asset];
+    if (r) li.querySelector('.mk i').style.backgroundImage = `url(${skinIcon(icons, r)})`;
+    fit(li.querySelector('.rw i'), sh, 'SkinCoins');
+    if (me) fit(li.querySelector('.pen'), sh, 'Pen'); // UpdateNameButton (the name cannot be changed here)
+    spr(li.querySelector('.sc .bgc'), sh, me ? 'CounterYouPlayer_01' : 'CounterPlayer_01');
+    fit(li.querySelector('.sc > i:last-child'), sh, 'CupIcon_01');
+    // PositionText "#{0}"
+    glText(app, li.querySelector('.cb > b'), 27.5);
+    if (!me) glText(app, li.querySelector('span'), 32, '#3d008c');
+    glText(app, li.querySelector('.sc em'), 24, me ? null : '#5a2b77');
+    glText(app, li.querySelector('.rw em'), 20);
+  }
+  for (const h of body.querySelectorAll('h3, .tname, .time span')) glText(app, h, parseFloat(getComputedStyle(h).fontSize) / (document.body.clientHeight / 1334));
   const gb = box.querySelector('.go');
   if (ps.free) spr(gb, sh, 'OutlinedButtonGreen');
   else {
@@ -398,7 +433,7 @@ async function page(app, board, claim, claimed = null) {
       slice(v.querySelector('.bg'), ash, 'VIPButtonSmall_01', 0.33);
       fit(v.querySelector('.tk'), ash, 'SkipTickets');
       glText(app, v.querySelector('b'), 26);
-      v.onclick = () => { const r = app.bonus.buy(vip.id); if (!r.refused) open(app); };
+      v.onclick = () => app.popups().then((m) => m.offer(app, vip.id)).then((r) => { if (r && !r.refused) open(app); });
     }
   }
   gb.onclick = () => go(app);
@@ -415,6 +450,69 @@ async function page(app, board, claim, claimed = null) {
   }
   const ri = body.querySelector('.cl.rew i');
   if (ri) fit(ri, await sheet(app, 'ads'), adIcon(save) === 'ticket' ? 'SkipTickets' : 'AdIcon');
+}
+
+// TopPizesHolder: PrizeHolder1 centre 200 x 200, PrizeHolder2 left (anchors x 0..0.37, pivot 0.7, -25), PrizeHolder3 right
+// (0.63..1, +10), 150 high, white_square #3A165B77 behind a HolderReward mask; PositionText "#n" (50 x 0.8; #1 60, #FEC211).
+// PrizeDisplayerUI.UpdateUI [asm 0x1234e40] with GetRewardForPosition(i) [asm 0x11a26b4]: a skin in the reward -> the skin,
+// "NEW SKIN", the coins as medals; else the coin stack and "x{coins}".
+function prizes(app, box, sh, reward) {
+  const pool = S.cfg.board.pools['reward_pool.tournament_skin'] || [];
+  const free = pool.filter((id) => !app.meta.ownsRes(app.save, id));
+  const skin = free.length ? app.meta.byId.get(free[qty(app.save, R_PLAYED) % free.length]) : null; // ConvertReward
+  for (const i of [1, 2, 0]) {
+    const z = document.createElement('div');
+    z.className = 'pz p' + (i + 1);
+    z.dataset.pos = i + 1;
+    const one = i === 0, h = one ? 200 : 150;
+    Object.assign(z.style, one ? { left: `calc(50% - ${U(100)})`, width: U(200), top: `calc(50% - ${U(100)})`, height: U(200) }
+      : i === 1 ? { left: '4%', width: '26%', top: `calc(50% - ${U(h / 2 - 8)})`, height: U(h) }
+        : { right: '4%', width: '26%', top: `calc(50% - ${U(h / 2 - 8)})`, height: U(h) });
+    const cm = document.createElement('div');
+    cm.className = 'cm';
+    // ContentMask: HolderReward is only the mask (m_ShowMaskGraphic 0), so nothing of it shows
+    Object.assign(cm.style, one ? { left: '4%', right: '4%', top: '4%', bottom: '3%' } : { inset: U(6) });
+    z.appendChild(cm);
+    const rw = reward(i), coins = rw.filter(([r]) => r === 'currency.skin_coins').reduce((a, [, q]) => a + q, 0);
+    const hasSkin = rw.some(([r]) => r === 'reward_pool.tournament_skin') && skin;
+    const coin = (l, r2, t, b, k) => { const c = document.createElement('i'); c.className = 'abs'; Object.assign(c.style, { left: l, right: r2, top: t, bottom: b, transform: `scale(${k})` }); fit(c, sh, 'SkinCoins'); return c; };
+    const txt = (t, px, st) => { const e = document.createElement('b'); e.className = 'abs'; e.textContent = t; Object.assign(e.style, { display: 'flex', justifyContent: 'center', ...st }); glText(app, e, px); return e; };
+    if (hasSkin) {
+      z.dataset.skin = skin.id;
+      const sk = document.createElement('div');
+      sk.className = 'abs';
+      Object.assign(sk.style, { left: '-4%', right: '30%', top: '4%', bottom: '18%' });
+      cm.appendChild(sk);
+      app.custom.icons().then((icons) => { const r = icons.rects['skins/' + skin.asset]; if (r) Object.assign(sk.style, { backgroundImage: `url(${skinIcon(icons, r)})`,
+        backgroundSize: 'contain', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }); }).catch(() => {});
+      const md = document.createElement('div');
+      md.className = 'abs';
+      Object.assign(md.style, { left: '54%', right: '-4%', top: '35%', bottom: '8%' });
+      md.append(coin('1%', '24%', '0', '43%', 1), coin('12%', '13%', '20%', '24%', 0.8), coin('36%', '-2%', '7%', '36%', 0.6));
+      md.appendChild(txt('x' + coins, 18, { left: 0, right: 0, top: '50%' }));
+      cm.appendChild(md);
+      cm.appendChild(txt('NEW SKIN', one ? 22.9 : 19.45, { left: '5%', right: '36%', bottom: '4%', top: '71%', alignItems: 'center' }));
+    } else {
+      cm.append(coin('-25%', '-5%', '0', '10%', 0.75), coin('-22%', '-5%', '32%', '-16%', 0.6), coin('-4%', '-46%', '0', '2%', 0.45));
+      cm.appendChild(txt('x' + coins, 22, { left: 0, right: 0, bottom: U(4) }));
+    }
+    const n = txt('#' + (i + 1), one ? 60 : 40, { right: '-6%', top: U(2), width: U(109) });
+    if (one) glText(app, n, 60, '#FEC211');
+    z.appendChild(n);
+    box.appendChild(z);
+  }
+}
+// a skin's shop icon cut out of custom-ui.webp
+const iconCuts = new Map();
+function skinIcon(icons, r) {
+  const k = r.join();
+  if (!iconCuts.has(k)) {
+    const c = document.createElement('canvas');
+    c.width = r[2]; c.height = r[3];
+    c.getContext('2d').drawImage(icons.img, r[0], r[1], r[2], r[3], 0, 0, r[2], r[3]);
+    iconCuts.set(k, c.toDataURL());
+  }
+  return iconCuts.get(k);
 }
 
 async function go(app) {

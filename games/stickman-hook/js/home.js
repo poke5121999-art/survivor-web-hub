@@ -23,7 +23,8 @@ const CSS = `
 #start .hpill b { flex: 1; text-align: center; font-size: ${U(30)}; }
 #xpbar { position: absolute; left: 50%; top: calc(env(safe-area-inset-top) + ${U(190)}); width: ${U(380)}; height: ${U(60)}; margin-left: ${U(-190)}; }
 #xpbar .bar { position: absolute; inset: 0; }
-#xpfill { position: absolute; left: ${U(3)}; top: ${U(4)}; bottom: ${U(4)}; }
+/* FillBar: Image type Filled (m_Type 3, Horizontal): the sprite spans the whole bar and the fill amount clips it (main.js) */
+#xpfill { position: absolute; left: ${U(3)}; right: ${U(3)}; top: ${U(4)}; bottom: ${U(4)}; }
 #xptext { position: absolute; left: 0; right: 0; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center; font-size: ${U(32)}; }
 #xpbar .medal { position: absolute; left: ${U(-20 - 85 + 3)}; top: 50%; width: ${U(170)}; height: ${U(170)}; transform: translateY(-50%) scale(.6); }
 #rank { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: ${U(44)}; }

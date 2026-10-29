@@ -5,11 +5,11 @@
 // spacing 15; OptionLayoutGroup pad 20 / 20 / bottom 15, spacing 35; rows 470 x 70. Details: D:/stickman-hook-ref/FTUE.md 3.
 // Rows the Android build hides stay out: Restore Purchases (SetActive(false) on every Activate [asm 0x116cc3c..0x116cc74]),
 // Haptic Feedback and Language (inactive in the prefab). Delete Account is the web's [ĐỀ XUẤT] (FTUE.md 4.2).
-import { sheet, kitStyle, cut, fit, slice, label, U } from './uikit.js';
+import { sheet, kitStyle, cut, fit, slice, label, U, popOpen, popClose } from './uikit.js';
 import { writeSave, wipeSave } from './save.js';
 
 const CSS = `
-#settings { background: rgba(0, 0, 0, .7843); }
+#settings { background: none; }
 #settings .sp, #settings .dlg { position: absolute; left: 50%; top: 50%; width: ${U(510)}; transform: translate(-50%, calc(-50% + ${U(60)}));
   display: flex; flex-direction: column; align-items: center; gap: ${U(15)}; padding: ${U(60)} 0 ${U(35)}; box-sizing: border-box; }
 #settings .bgs, #settings .bgo, #settings .bg { position: absolute; inset: 0; }
@@ -33,7 +33,7 @@ const CSS = `
 #settings .row .ico { position: relative; flex: none; width: ${U(50)}; height: ${U(50)}; }
 #settings .row .ico i { position: absolute; background: #527cc3; -webkit-mask: var(--m) center / contain no-repeat; mask: var(--m) center / contain no-repeat; }
 #settings .row .tx { position: relative; }
-#settings .row .chk { position: absolute; right: ${U(10)}; top: 50%; width: ${U(45)}; height: ${U(45)}; transform: translateY(-50%); }
+#settings .row .chk { position: absolute; right: ${U(10)}; top: 0; width: ${U(45)}; height: 100%; } /* 45 x 70 (anchors y 0..1), preserveAspect 1 */
 #settings .uid { position: relative; width: ${U(470)}; display: flex; align-items: center; justify-content: space-between; }
 #settings .uid > div { display: flex; flex-direction: column; align-items: flex-start; gap: ${U(4)}; }
 #settings .uid b { font: 900 ${U(22.6)}/1.2 system-ui, sans-serif; letter-spacing: .04em; -webkit-text-stroke: ${U(3)} #1a1c4b; paint-order: stroke fill; }
@@ -214,7 +214,8 @@ export async function openSettings(app) {
   // CloseButton: APopupView.Close(); the backdrop has no listener (a tap on it does nothing)
   const cl = root.querySelector('.cl');
   fit(cl, sh, 'close_circle');
-  cl.onclick = () => { app.play('popup_out'); app.overlay('settings', false); app.hud(); };
+  cl.onclick = async () => { app.play('popup_out'); await popClose(root, 'instant'); app.overlay('settings', false); app.hud(); };
   sp.onclick = (e) => e.stopPropagation();
   app.overlay('settings', true);
+  popOpen(root, 'instant'); // SettingsPopup: MadTween, empty sequences
 }

@@ -46,10 +46,14 @@ canvas.k-gl { display: block; pointer-events: none; }
 
 export const U = (n) => `calc(var(--u) * ${n})`;
 
-// The sprite as the element's background, stretched to the element's box.
+// The sprite as the element's background. A sprite the original never stretches (data/m-*.json _keep, from the prefabs'
+// Image m_PreserveAspect / rect sizes: tools/build_menus.py) is fitted in the box, centred; the rest (Sliced, Filled, Simple
+// stretched by its anchors) is stretched to the box.
 export function spr(el, sh, name) {
   const r = sh.rects[name], [W, H] = sh.rects._size;
   if (!r) return el;
+  if ((sh.keep ||= new Set(sh.rects._keep || [])).has(name)) return fit(el, sh, name);
+  el.dataset.spr = name;
   Object.assign(el.style, { backgroundImage: `url(${sh.url})`, backgroundRepeat: 'no-repeat',
     backgroundSize: `${(W / r[2]) * 100}% ${(H / r[3]) * 100}%`,
     backgroundPosition: `${W === r[2] ? 0 : (r[0] / (W - r[2])) * 100}% ${H === r[3] ? 0 : (r[1] / (H - r[3])) * 100}%` });
@@ -72,6 +76,7 @@ export function cut(sh, name) {
 // A sprite fitted inside the element's box (Image preserveAspect / AspectRatioFitter)
 export function fit(el, sh, name) {
   if (!sh.rects[name]) return el;
+  el.dataset.spr = name;
   Object.assign(el.style, { backgroundImage: `url(${cut(sh, name)})`, backgroundSize: 'contain', backgroundPosition: 'center',
     backgroundRepeat: 'no-repeat' });
   return el;
@@ -171,6 +176,102 @@ export async function artPage(app, id, screen, o) {
   el.querySelector('.x').onclick = () => { app.play('popup_out'); (o.onClose || (() => { app.overlay(id, false); app.hud(); }))(); };
   app.overlay(id, true);
   return { el, body: el.querySelector('.abody'), sh };
+}
+
+// ---- Popup open / close (README "Popup: mở và đóng") ----------------------------------------------------------------
+// Every popup goes through popOpen / popClose with the transition its prefab has (D:/stickman-hook-ref/dump/asm/tween):
+// - 'instant': MadTweenAnimationController with empty Show/HideSequence (SettingsPopup, XpRoadPopup, PiggyBankPopup,
+//   ModeUnlockedPopUp, CollectionCompletedPopUp): Show = alpha 1 at once [asm 0x30232f8], Hide = alpha 0 [asm 0x30234b0].
+// - 'unity': DefaultPopupAnimator (UnityAnimationController [asm 0x303fcf8, 0x303f6c0]): Open 0.25 s scales
+//   BG/HolderAnchored/Holder 0 -> 1.2 (0.1667 s) -> 1 and fades BG 0 -> 0.7843; Close 0.2833 s scales 1 -> 1.2 (0.0833 s)
+//   -> 0 and fades BG out. Every key has zero tangents, so each segment is a smoothstep.
+// - 'vip': NoAdsAnimator (MarketVipPopup): Open 0.4167 s, scale 0.5 -> 1.1 (0.25 s) -> 1, BG 0 -> 0.8 (0.3333 s);
+//   Close 0.3 s, 1 -> 1.1 (0.0667 s) -> 0.1, BG 0.8 -> 0 (0.1667 s).
+// - 'wait': DefaultPopupAnimator whose curve paths bind nothing (CustomizationItemUnlockedPopUp has "Background", not
+//   "BG"; BoosterOpeningPopup): only the state times pass, nothing moves.
+// Behind every popup the shared BackgroundLayer fades black 0 -> 0.7 in 0.2 s (PopupController.FadeInBackgroundLayer:
+// DOFade 0.2 s, no SetEase = DOTween's default OutQuad [asm 0x3028f64]) and back to 0 on close [asm 0x3029358]; the
+// close is awaited before the popup goes (ClosePopupAction [asm 0x3027f98]), together with that fade (Task.WhenAll).
+export const TWEEN = {
+  dim: { a: 0.7, ms: 200 },
+  instant: { open: { ms: 0 }, close: { ms: 0 } },
+  wait: { open: { ms: 250 }, close: { ms: 283.3 } },
+  unity: { open: { ms: 250, scale: [[0, 0], [166.7, 1.2], [250, 1]], bg: [[0, 0], [250, 0.7843]] },
+    close: { ms: 283.3, scale: [[0, 1], [83.3, 1.2], [283.3, 0]], bg: [[0, 0.7843], [283.3, 0]] } },
+  vip: { open: { ms: 416.7, scale: [[0, 0.5], [250, 1.1], [416.7, 1]], bg: [[0, 0], [333.3, 0.8], [416.7, 0.8]] },
+    close: { ms: 300, scale: [[0, 1], [66.7, 1.1], [300, 0.1]], bg: [[0, 0.8], [166.7, 0], [300, 0]] } },
+};
+// smoothstep keys -> Web Animations keyframes (8 linear steps per segment)
+function keyframes(keys, ms, css) {
+  const out = [];
+  for (let i = 0; i < keys.length - 1; i++) {
+    const [t0, a] = keys[i], [t1, b] = keys[i + 1];
+    for (let k = 0; k < 8; k++) {
+      const s = k / 8, v = a + (b - a) * (3 * s * s - 2 * s * s * s);
+      out.push({ offset: Math.min(1, (t0 + (t1 - t0) * s) / ms), ...css(v) });
+    }
+  }
+  const last = keys[keys.length - 1];
+  if (last[0] < ms) out.push({ offset: last[0] / ms, ...css(last[1]) });
+  out.push({ offset: 1, ...css(last[1]) });
+  return out;
+}
+const now = () => performance.now();
+// `el`: the popup's overlay; o.holder: element(s) scaled around the first one's centre (Holder pivot 0.5); o.bg: the
+// element whose opacity follows the BG curve (its own colour at full opacity). Resolves when both transitions are over.
+// el.dataset: tween (kind), tweenOpen / tweenClose (ms measured), for the tests.
+export function popOpen(el, kind = 'unity', o = {}) {
+  return pop(el, kind, 'open', o);
+}
+export function popClose(el, kind = 'unity', o = {}) {
+  return pop(el, kind, 'close', o);
+}
+async function pop(el, kind, dir, o) {
+  const spec = TWEEN[kind][dir], t0 = now();
+  el.dataset.tween = kind;
+  let dim = el.querySelector(':scope > .pdim');
+  if (!dim) {
+    dim = document.createElement('i');
+    dim.className = 'pdim';
+    dim.style.cssText = 'position:absolute;inset:0;background:#000;pointer-events:none;opacity:0';
+    el.prepend(dim);
+  }
+  const anims = [dim.animate(dir === 'open' ? [{ opacity: 0 }, { opacity: TWEEN.dim.a }] : [{ opacity: TWEEN.dim.a }, { opacity: 0 }],
+    { duration: TWEEN.dim.ms, easing: 'cubic-bezier(.25,.46,.45,.94)', fill: 'forwards' })];
+  const hs = [o.holder].flat().filter(Boolean);
+  if (spec.scale && hs.length) {
+    const r = hs[0].getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    for (const h of hs) {
+      const q = h.getBoundingClientRect();
+      h.style.transformOrigin = `${cx - q.left}px ${cy - q.top}px`;
+      anims.push(h.animate(keyframes(spec.scale, spec.ms, (v) => ({ transform: `scale(${v})` })), { duration: spec.ms, fill: dir === 'close' ? 'forwards' : 'none' }));
+    }
+  }
+  if (spec.bg && o.bg) {
+    const base = 1 / (kind === 'vip' ? 0.8 : 0.7843);
+    anims.push(o.bg.animate(keyframes(spec.bg, spec.ms, (v) => ({ opacity: Math.min(1, v * base) })), { duration: spec.ms, fill: dir === 'close' ? 'forwards' : 'none' }));
+  }
+  // a close without its own animation hides the popup's content at once; only the shared layer fades
+  if (dir === 'close' && !spec.ms) for (const c of el.children) if (c !== dim) c.style.visibility = 'hidden';
+  await Promise.all([...anims.map((a) => a.finished.catch(() => {})), new Promise((r) => setTimeout(r, spec.ms))]);
+  el.dataset['tween' + (dir === 'open' ? 'Open' : 'Close')] = Math.round(now() - t0);
+  if (dir === 'close') { for (const a of anims) a.cancel(); for (const c of el.children) c.style.visibility = ''; }
+}
+
+// A white sprite tinted by the UI Image colour (multiply, alpha kept), as a CSS url()
+const tints = new Map();
+export function tinted(sh, name, color) {
+  const key = sh.url + name + color;
+  if (!tints.has(key)) {
+    const r = sh.rects[name], c = document.createElement('canvas');
+    c.width = r[2]; c.height = r[3];
+    const g = c.getContext('2d');
+    g.drawImage(sh.img, r[0], r[1], r[2], r[3], 0, 0, r[2], r[3]);
+    g.globalCompositeOperation = 'multiply'; g.fillStyle = color; g.fillRect(0, 0, r[2], r[3]);
+    g.globalCompositeOperation = 'destination-in'; g.drawImage(sh.img, r[0], r[1], r[2], r[3], 0, 0, r[2], r[3]);
+    tints.set(key, c.toDataURL());
+  }
+  return `url(${tints.get(key)})`;
 }
 
 // An absolutely placed box: centre (x, y) in reference units from the parent's anchor, size (w, h).

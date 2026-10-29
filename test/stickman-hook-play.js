@@ -44,10 +44,24 @@ function serve() {
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
   const errors = [];
-  page.on('pageerror', (e) => errors.push(e.message));
+  page.on('pageerror', (e) => errors.push(e.message + ' @ ' + String(e.stack || '').split(String.fromCharCode(10)).slice(1, 3).join(' ')));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   const requested = [];
   page.on('request', (r) => requested.push(r.url()));
+  // The rev 20261028o popups (js/popups.js: unlocks, competitions, offers, end-game prompts) queue in front of the flows the
+  // older checks drive. While window.__autoPop is not false, a popup that has been up 400 ms is closed (its own close);
+  // the popup checks set __autoPop = false and click the real buttons.
+  const autoPop = () => {
+    const seen = new WeakMap();
+    setInterval(() => {
+      if (window.__autoPop === false) return;
+      for (const el of document.querySelectorAll('.pp.on')) {
+        if (!seen.has(el) || seen.get(el).html !== el.dataset.tweenOpen + el.innerHTML.length) seen.set(el, { t: Date.now(), html: el.dataset.tweenOpen + el.innerHTML.length });
+        if (Date.now() - seen.get(el).t > 400 && el.dataset.tweenOpen) { seen.delete(el); el.__close?.('auto'); window.__autoClosed = (window.__autoClosed || 0) + 1; }
+      }
+    }, 100);
+  };
+  await page.addInitScript(autoPop);
   // fresh save on the first load only; later reloads keep the save the test writes
   await page.addInitScript(() => {
     try {
@@ -127,6 +141,8 @@ function serve() {
   check('ClaimAllRewards: claimed XP 10, step 0 (0 XP, Lucky Wheel, a ModeReward card) claimed with its check mark',
     rc.claimed === 10 && rc.step === 0 && rc.wheel && rc.pops === 1 && rc.card === 'mode', JSON.stringify(rc));
   await page.waitForFunction(() => document.getElementById('road')?.dataset.state === 'closed', null, { timeout: 4000 }).catch(() => {});
+  // the close awaits the shared layer's 0.2 s fade (uikit.js popClose)
+  await page.waitForFunction(() => !document.querySelector('#road.on'), null, { timeout: 3000 }).catch(() => {});
   check('the popup closes by itself 600 ms after the claim', await page.evaluate(() => !document.querySelector('#road.on')
     && document.getElementById('road').dataset.states === 'animating,claimed,closed'));
   await page.waitForFunction(() => window.__sh.look.dance?.id === 'skin.basic', null, { timeout: 10000 }).catch(() => {});
@@ -142,7 +158,7 @@ function serve() {
   await page.screenshot({ path: path.join(SHOTS, 'finish-piggy.png') });
 
   await page.mouse.click(195, 300);
-  await page.waitForSelector('#egPage.on #egPlay', { timeout: 10000 }).catch(() => {});
+  await page.waitForSelector('#egPage.on #egPlay', { timeout: 45000 }).catch(() => {});
   await page.waitForTimeout(400);
   await page.screenshot({ path: path.join(SHOTS, 'end-page.png') });
   check('tapping the piggy popup opens the end page', await page.evaluate(() => !!document.querySelector('#egPage.on')
@@ -163,6 +179,7 @@ function serve() {
   check('level list shows 64 levels, 2 unlocked', grid.n === 64 && grid.open === 2, JSON.stringify(grid));
   await page.screenshot({ path: path.join(SHOTS, 'levels.png') });
   await page.click('#btnClose');
+  await page.waitForTimeout(400);
 
   await page.evaluate(() => window.__sh.startLevel(64));
   check('level 65 is the seeded random level', await page.evaluate(() => window.__sh.world.names.join('+') === 'STARTU005+MIDDLE006+FINISH05'));
@@ -346,7 +363,7 @@ function serve() {
   // let the popup finish and open / close every booster, as a player would
   const settle = async () => {
     await page.waitForFunction(() => !document.querySelector('#road.on'), null, { timeout: 15000 }).catch(() => {});
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(900); // the home page's prompts (booster after the popups of rev 20261028o) start a moment later
     for (let k = 0; k < 8 && await page.evaluate(() => !!document.querySelector('#boostPop.on')); k++) {
       for (let i = 0; i < 12 && !(await page.evaluate(() => document.getElementById('boostPop').classList.contains('done'))); i++) {
         await page.mouse.click(195, 500); await page.waitForTimeout(i ? 450 : 2300);
@@ -392,7 +409,11 @@ function serve() {
   check('finishing Easter level 1 gives its first event skin and XP', evSave.owned.skins.includes('carrot_rabbit')
     && evSave.modes['mode.easter_event'].done.join() === '0' && evSave.xp === xpEv + 10 + 50,
     `xp ${xpEv} -> ${evSave.xp} ${JSON.stringify(evSave.modes['mode.easter_event'])}`);
-  await page.waitForSelector('#egPage.on #egPlay', { timeout: 10000 }).catch(() => {});
+  await page.waitForSelector('#egPage.on #egPlay', { timeout: 45000 }).catch(async () => {
+    console.log('DEBUG', await page.evaluate(() => [...document.querySelectorAll('.overlay.on, #endgame > div.on')].map((e) => e.id + ':' + (e.dataset.tweenOpen || '')).join(',') + ' phase ' + window.__sh.game.phase + ' ended ' + window.__sh.game.ended + ' road ' + document.getElementById('road')?.dataset.states + ' pend ' + window.__sh.meta.xpPending(window.__sh.save) + ' auto ' + window.__autoClosed));
+    console.log('DEBUG2', await page.evaluate(async () => { const m = await import('/games/stickman-hook/js/popups.js'); return 'busy ' + m.busy() + ' ' + [...document.querySelectorAll('.pp')].map((e) => e.id + ':' + e.className + ':' + e.dataset.tweenOpen + ':' + e.dataset.tweenClose).join(' '); }));
+    await page.screenshot({ path: path.join(SHOTS, 'debug-easter.png') });
+  });
   await page.click('#egPlay');
   await page.waitForTimeout(300);
   // SeasonalEventsService: today's reward won -> PARTIALLY_FINISHED until tomorrow; the day's free game is spent too
@@ -404,6 +425,8 @@ function serve() {
     evDone.picker && evDone.open === 0 && /^Đã nhận quà hôm nay/.test(evDone.note) && evDone.free?.[1] === 1
     && /_free_\d{4}-\d\d-\d\d$/.test(evDone.free?.[0]), JSON.stringify(evDone));
   await page.click('#btnClose');
+  // the picker closes with its 0.2833 s transition (levels.js closeLevels)
+  await page.waitForFunction(() => window.__sh.mode.id === 'mode.normal' && document.getElementById('start').classList.contains('on'), null, { timeout: 4000 }).catch(() => {});
   check('closing the event picker without a paid game goes back to Normal and the home page', await page.evaluate(() =>
     window.__sh.mode.id === 'mode.normal' && document.getElementById('start').classList.contains('on')));
   const vd = await playMode('mode.valentine_day', 1);
@@ -507,7 +530,7 @@ function serve() {
   await page.waitForFunction(() => window.__sh.game.phase === 'play', null, { timeout: 5000 });
   await finishNow();
   await page.screenshot({ path: path.join(SHOTS, 'challenge-finish.png') });
-  await page.waitForSelector('#egPage.on #egPlay', { timeout: 10000 }).catch(() => {});
+  await page.waitForSelector('#egPage.on #egPlay', { timeout: 45000 }).catch(() => {});
   await page.click('#egPlay');
   await page.waitForTimeout(400);
   const lastCh = await page.evaluate(() => ({ picker: document.getElementById('levels').classList.contains('on'),
@@ -515,6 +538,7 @@ function serve() {
     eg: !!document.querySelector('#endgame.on') }));
   check('after the last open Challenge level the picker opens', lastCh.picker && lastCh.done === '4', JSON.stringify(lastCh));
   await page.click('#btnClose');
+  await page.waitForTimeout(400);
   await page.evaluate(() => window.__sh.openMenu('openModes'));
   await page.waitForSelector('#modes .mode[data-id="mode.normal"] button', { timeout: 10000 });
   await page.click('#modes .mode[data-id="mode.normal"] button');
@@ -626,7 +650,8 @@ function serve() {
   await page.evaluate(() => { window.__sh.save.inv['progression.piggy_bank_progress'] = 90; window.__sh.startLevel(12); });
   await page.waitForFunction(() => window.__sh.game.phase === 'play', null, { timeout: 5000 });
   await finishNow();
-  await page.waitForSelector('#egPiggy[data-mode="full"] .acts .gold', { timeout: 10000 }).catch(() => {});
+  // the VIP's XP opens the road popup and its unlock popups first (auto-closed), then the piggy bank
+  await page.waitForSelector('#egPiggy[data-mode="full"] .acts .gold', { timeout: 60000 }).catch(() => {});
   await page.waitForTimeout(700);
   await page.screenshot({ path: path.join(SHOTS, 'piggy-full.png') });
   const full = await page.evaluate(() => ({ p: window.__sh.save.inv['progression.piggy_bank_progress'],
@@ -978,7 +1003,7 @@ function serve() {
   await page.screenshot({ path: path.join(SHOTS, 'race-page.png') });
   const rp = await page.evaluate(() => ({ rows: document.querySelectorAll('#race li').length, me: document.querySelector('#race li.me b')?.textContent,
     btn: document.querySelector('#race .go')?.textContent }));
-  check('the Race row opens the tournament page: 10 board rows, 2 free races today', rp.rows === 10 && rp.me === '10'
+  check('the Race row opens the tournament page: 10 board rows, 2 free races today', rp.rows === 10 && rp.me === '#10'
     && /còn 2\/2/.test(rp.btn), JSON.stringify(rp));
   check('the race code and maps load only when the mode opens', requested.slice(raceFirst).some((u) => /js\/race\.js/.test(u))
     && requested.slice(raceFirst).some((u) => /mode-race\.json/.test(u)));
@@ -1314,6 +1339,13 @@ function serve() {
   await page.screenshot({ path: path.join(SHOTS, 'ads-home-widgets.png') });
   const v0 = await page.evaluate(() => [...document.querySelectorAll('#homeOffers [data-offer]')].map((b) => b.dataset.offer));
   await page.click('#homeOffers [data-offer="offer.vip"]');
+  // StickmanHookMarketOfferWidgetView.OnWidgetClicked: the VIP widget opens MarketVipPopup; its price button buys
+  await page.evaluate(() => { window.__autoPop = false; });
+  await page.waitForSelector('#ppOffer.on .buy', { timeout: 10000 });
+  await page.waitForTimeout(500);
+  await page.click('#ppOffer.on .buy');
+  await page.evaluate(() => { window.__autoPop = true; });
+  await page.waitForTimeout(400);
   await page.waitForTimeout(500);
   const v1 = await page.evaluate(() => { const s = window.__sh.save; return { vip: s.flags['flag.vip'], noAds: s.flags['flag.no_ads'], coins: s.coins,
     t: s.inv['currency.skip_tickets'], skins: ['vampire', 'shark', 'pigeot', 'gold_stick', 'gold_unicorn', 'gold_dragon'].every((n) => s.owned.skins.includes(n)),
@@ -1332,7 +1364,7 @@ function serve() {
   await page.evaluate(async () => { await window.__sh.openMode('mode.normal'); window.__sh.save.inv['progression.piggy_bank_progress'] = 99; window.__sh.startLevel(window.__sh.save.best); });
   await page.waitForFunction(() => window.__sh.game.phase === 'play', null, { timeout: 5000 });
   await finishNow();
-  await page.waitForSelector('#egPiggy[data-mode="full"] .acts .gold', { timeout: 10000 }).catch(() => {});
+  await page.waitForSelector('#egPiggy[data-mode="full"] .acts .gold', { timeout: 60000 }).catch(() => {});
   await page.waitForTimeout(1200);
   await page.screenshot({ path: path.join(SHOTS, 'ads-piggy-vip.png') });
   const v3 = await page.evaluate(() => ({ icon: document.querySelector('#egPiggy .acts .gold')?.dataset.icon, vip: !!document.querySelector('#egPiggy .acts .vip'),
@@ -1349,6 +1381,7 @@ function serve() {
   const fresh = async (w, h) => {
     const ctx = await browser.newContext({ viewport: { width: w, height: h } });
     const p = await ctx.newPage();
+    await p.addInitScript(autoPop);
     p.on('pageerror', (e) => errors.push(e.message));
     p.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
     await p.goto(url);
@@ -1477,7 +1510,7 @@ function serve() {
   const f4 = await ftueState(p2);
   const ls = await p2.evaluate(() => ({ raw: JSON.parse(localStorage.getItem('stickman-hook')), q: location.search, sound: window.__sh.save.sound }));
   check('after the delete: reloaded on the home page, progress wiped (best 0, no XP / coins / uid), sound setting kept (off)',
-    ls.q === '?v=20261028n' && f4.best === 0 && !ls.raw.best && !ls.raw.xp && !ls.raw.uid && ls.raw.sound === false && ls.sound === false, JSON.stringify(ls));
+    ls.q === '?v=20261028o' && f4.best === 0 && !ls.raw.best && !ls.raw.xp && !ls.raw.uid && ls.raw.sound === false && ls.sound === false, JSON.stringify(ls));
   check('after the delete: the FTUE overlay and hand are back, tab bar hidden', f4.ftue && f4.overlay && f4.hand && !f4.bar, JSON.stringify(f4));
   await D.ctx.close();
   // phone 390 x 844: the frame is the whole screen
@@ -1501,6 +1534,346 @@ function serve() {
   const s1 = await p3.evaluate(() => { const r = document.querySelector('#settings .sp').getBoundingClientRect(); return [r.left, r.right, r.top]; });
   check('390x844: the settings popup fits the width', s1[0] >= 0 && s1[1] <= 390 && s1[2] > 0, JSON.stringify(s1));
   await P.ctx.close();
+  }
+
+  // ---- rev 20261028o popups, tweens, offers, customization pager, tournament page (js/popups.js, README "Popup") ----
+  {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+  const q = await ctx.newPage();
+  q.on('pageerror', (e) => errors.push(e.message));
+  q.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+  await q.addInitScript(autoPop);
+  await q.addInitScript(() => { window.__autoPop = false; });
+  await q.goto(url);
+  await q.waitForFunction(() => window.__sh && document.querySelector('#start.ready.on'), null, { timeout: 30000 });
+  // a save past Normal level 5 with 160 XP to claim: the home page's road popup claims Lucky Wheel (0), the Spiders rope and Race (150)
+  await q.evaluate(() => { const s = window.__sh.save; s.best = 5; s.level = 5; s.xp = 160; s.inv['progression.xp_claimed'] = 0; s.claimed = {};
+    s.modes = {}; window.__sh.app.writeSave(); });
+  await q.reload();
+  await q.waitForFunction(() => window.__sh && document.querySelector('#start.ready.on'), null, { timeout: 30000 });
+  // the road popup (XP pending) and the popups it queues, closed like the auto-dismiss does
+  const drain = async () => {
+    for (let k = 0, idle = 0; k < 25 && idle < 3; k++) {
+      await q.waitForTimeout(500);
+      const busy = await q.evaluate(() => { const r = document.querySelector('#road.on'), p = document.querySelector('.pp.on');
+        if (p && p.dataset.tweenOpen) p.__close('test'); return !!(r || p); });
+      idle = busy ? 0 : idle + 1;
+    }
+  };
+  // tap through the queue as a player: Tap to continue on item popups (once ready), Try it! on Race's ModeUnlockedPopup.
+  // Item XP leaves XP pending, so the road popup comes back (xp_road_recovery goes first in the home set); once the
+  // queue is empty a new home visit (modes and back) runs the home prompts again until NewTournamentPopup shows.
+  const seen = [];
+  for (let k = 0; k < 30 && !seen.some((x) => x.id === 'ppNew'); k++) {
+    if (await q.evaluate(() => !!document.querySelector('#road.on'))) {
+      await q.waitForFunction(() => !document.querySelector('#road.on'), null, { timeout: 15000 }).catch(() => {});
+      continue;
+    }
+    const el = await q.waitForSelector('.pp.on', { timeout: 3000 }).catch(() => null);
+    if (!el) {
+      if (await q.evaluate(() => !!document.querySelector('#road.on'))) continue;
+      // a popup can open between the wait and the click: then it is handled on the next turn
+      if (!(await q.click('#btnModes', { timeout: 3000 }).then(() => true, () => false))) continue;
+      await q.waitForSelector('#modes.on', { timeout: 10000 });
+      await q.click('#modes .x');
+      continue;
+    }
+    await q.waitForTimeout(700);
+    const d = await q.evaluate(() => { const e = document.querySelector('.pp.on'); return { id: e.id, mode: e.dataset.mode, item: e.dataset.item, col: e.dataset.collection,
+      tween: e.dataset.tween, open: +e.dataset.tweenOpen, title: e.querySelector('[data-title]')?.dataset.title, next: !!e.querySelector('.next'),
+      tryIt: !!e.querySelector('.try') }; });
+    seen.push(d);
+    if (d.id === 'ppNew') break;
+    if (d.id === 'ppMode') await q.screenshot({ path: path.join(SHOTS, `pop-mode-${d.mode.slice(5)}.png`) });
+    if (d.id === 'ppItem' && !seen.some((x) => x.shot)) { d.shot = 1; await q.screenshot({ path: path.join(SHOTS, 'pop-item.png') }); }
+    await q.click(d.id === 'ppMode' && !d.next ? `#${d.id} .try` : d.id === 'ppOffer' || d.id === 'ppSkin' ? `#${d.id} .later` : `#${d.id} .next`);
+    await q.waitForFunction((id) => !document.querySelector(`#${id}.on`), d.id, { timeout: 5000 }).catch(() => {});
+  }
+  const mode = seen.find((x) => x.id === 'ppMode'), rope = seen.find((x) => x.id === 'ppItem');
+  check('XP road claim -> ModeUnlockedPopup "Tournament unlocked!" (mode icon, Try it!, no Tap to continue), MadTween: only the 0.2 s layer fade',
+    mode && mode.mode === 'mode.tournament' && mode.title === 'Tournament unlocked!' && mode.tryIt && !mode.next && mode.tween === 'instant'
+    && mode.open >= 190 && mode.open < 420, JSON.stringify(mode));
+  check('an item from the road -> CustomizationItemUnlockedPopup "New skin|rope|trail unlocked!", its clips bind nothing: 0.25 s state time',
+    rope && /^New (skin|rope|trail) unlocked!$/.test(rope.title) && rope.tween === 'wait' && rope.open >= 240 && rope.open < 500, JSON.stringify(rope || seen.map((x) => x.id + ':' + (x.item || x.mode))));
+  // Try it! (tournament) goes HOME; home prompts: tournament_competition -> NewTournamentPopup
+  const nt = seen.find((x) => x.id === 'ppNew');
+  await q.screenshot({ path: path.join(SHOTS, 'pop-new-tournament.png') });
+  const ntd = await q.evaluate(() => { const e = document.getElementById('ppNew'); return { on: e?.classList.contains('on'), comp: e?.innerText,
+    start: document.getElementById('start').classList.contains('on'), anims: e?.querySelector('.go') ? 1 : 0 }; });
+  check('after Try it! the home page shows NewTournamentPopup (Leaderboard.IsNew), DefaultPopupAnimator Open 0.25 s',
+    nt && nt.mode === 'mode.tournament' && nt.tween === 'unity' && nt.open >= 240 && nt.open < 500 && ntd.start, JSON.stringify({ nt, ntd }));
+  await q.click('#ppNew .later');
+  await q.waitForFunction(() => !document.querySelector('#ppNew.on'), null, { timeout: 5000 }).catch(() => {});
+  const ntc = await q.evaluate(() => ({ close: +document.getElementById('ppNew').dataset.tweenClose, seen: window.__sh.save.modes['mode.tournament'].seenNew }));
+  check('Later closes it with the 0.2833 s Close clip and clears IsNew for this day', ntc.close >= 270 && ntc.close < 600 && !!ntc.seen, JSON.stringify(ntc));
+  await q.click('#btnModes');
+  await q.waitForSelector('#modes.on', { timeout: 10000 });
+  await q.click('#modes .x');
+  await q.waitForTimeout(1500);
+  check('back on the home page the same day: no NewTournamentPopup again', await q.evaluate(() => !document.querySelector('#ppNew.on')));
+
+  // settings popup: MadTween (instant) behind the shared layer fading to 0.7 in 0.2 s
+  await q.click('#btnSettings');
+  await q.waitForFunction(() => document.getElementById('settings')?.dataset.tweenOpen, null, { timeout: 10000 });
+  const st = await q.evaluate(() => { const e = document.getElementById('settings'); return { tw: e.dataset.tween, open: +e.dataset.tweenOpen,
+    dim: getComputedStyle(e.querySelector('.pdim')).opacity }; });
+  check('SettingsPopup opens with the 0.2 s layer fade to 0.7 (PopupController.FadeInBackgroundLayer)', st.tw === 'instant' && st.open >= 190 && st.open < 420
+    && Math.abs(+st.dim - 0.7) < 0.01, JSON.stringify(st));
+  await q.click('#settings .cl');
+  await q.waitForFunction(() => !document.querySelector('#settings.on'), null, { timeout: 5000 }).catch(() => {});
+
+  // collection: own Cute Friends but Bunny, unlock Bunny from the shop (rewarded) -> its item popup, Equip It!, then CollectionCompleted
+  await q.evaluate(() => { const { meta, save } = window.__sh.app, out = [];
+    for (const it of meta.items.filter((o) => o.collection === meta.byId.get('skin.bunny').collection && o.id !== 'skin.bunny')) meta.grantItem(save, it, out);
+    window.__sh.app.writeSave(); });
+  await q.evaluate(() => window.__sh.openMenu('openShop'));
+  await q.waitForSelector('#shop .cell[data-id="skin.bunny"]', { timeout: 10000 });
+  const bp = await q.evaluate(() => document.querySelector('#shop .cell[data-id="skin.bunny"]').closest('.scroll').dataset.page);
+  // pager: Next arrow, a swipe, a dot (HorizontalScrollSnap)
+  const visCol = () => q.evaluate(() => { const v = document.querySelector('#shop .view').getBoundingClientRect();
+    return document.elementFromPoint(v.left + v.width / 2, v.top + 60)?.closest('.col')?.dataset.col; });
+  const c0 = await visCol(), p0 = await q.evaluate(() => document.querySelector('#shop .track').dataset.page);
+  await q.click('#shop .arrow.next');
+  const tFlip = Date.now();
+  await q.waitForFunction(() => document.querySelector('#shop .track').dataset.pos === '1.000', null, { timeout: 3000 }).catch(() => {});
+  const flipMs = Date.now() - tFlip, c1 = await visCol();
+  await q.screenshot({ path: path.join(SHOTS, 'shop-page2.png') });
+  const v = await q.evaluate(() => { const r = document.querySelector('#shop .view').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
+  await q.mouse.move(v[0] + 100, v[1]); await q.mouse.down(); await q.mouse.move(v[0], v[1], { steps: 3 }); await q.mouse.move(v[0] - 100, v[1], { steps: 3 }); await q.mouse.up();
+  await q.waitForTimeout(1000);
+  const c2 = await visCol(), p2 = await q.evaluate(() => document.querySelector('#shop .track').dataset.page);
+  check('customization pages: 7 skin pages; Next flips to page 2 (lerp 10/s, other collections), a swipe to page 3',
+    p0 === '0' && c0 && c1 && c0 !== c1 && flipMs < 1500 && p2 === '2' && c2 !== c1 && await q.evaluate(() => document.querySelectorAll('#shop .pages button').length === 7),
+    JSON.stringify({ p0, c0, c1, flipMs, p2, c2 }));
+  await q.click(`#shop .pages button:nth-child(${+bp + 1})`);
+  await q.waitForTimeout(1000);
+  await q.evaluate(() => document.querySelector('#shop .cell[data-id="skin.bunny"]').scrollIntoView({ block: 'center' }));
+  await q.waitForTimeout(300);
+  await q.click('#shop .cell[data-id="skin.bunny"]');
+  await q.waitForSelector('#ppItem.on .equip:not(.hide)', { timeout: 10000 });
+  await q.screenshot({ path: path.join(SHOTS, 'pop-item-skin.png') });
+  const it1 = await q.evaluate(() => ({ item: document.getElementById('ppItem').dataset.item, title: document.querySelector('#ppItem [data-title]')?.dataset.title,
+    bar: document.querySelector('#ppItem [data-collection]')?.dataset.collection }));
+  await q.click('#ppItem .equip');
+  await q.waitForSelector('#ppCol.on .next:not(.hide)', { timeout: 10000 });
+  await q.waitForTimeout(400);
+  await q.screenshot({ path: path.join(SHOTS, 'pop-collection.png') });
+  const col = await q.evaluate(() => ({ col: document.getElementById('ppCol').dataset.collection, title: document.querySelector('#ppCol [data-title]')?.dataset.title,
+    done: getComputedStyle(document.querySelector('#ppCol .cdone')).display !== 'none', eq: window.__sh.save.equipped.skins, tw: document.getElementById('ppCol').dataset.tween }));
+  check('Bunny (Watch a Rewarded) -> "New skin unlocked!" with its collection bar 3/3; Equip It! equips it, then CollectionCompletedPopup',
+    it1.item === 'skin.bunny' && it1.title === 'New skin unlocked!' && /:3\/3$/.test(it1.bar) && col.eq === 'bunny' && col.title === 'Collection completed'
+    && col.col === it1.bar.split(':')[0] && col.done && col.tw === 'instant', JSON.stringify({ it1, col }));
+  await q.click('#ppCol .next');
+  await q.waitForFunction(() => !document.querySelector('#ppCol.on'), null, { timeout: 5000 }).catch(() => {});
+  // FIND (Button_UnlockRandomSkin on a locked Lucky Wheel item) opens the Lucky Wheel popup (wheel unlocked by the road claim)
+  const fpg = await q.evaluate(() => document.querySelector('#shop .find')?.closest('.scroll').dataset.page);
+  await q.click(`#shop .pages button:nth-child(${+fpg + 1})`);
+  await q.waitForTimeout(1000);
+  await q.evaluate(() => document.querySelector('#shop .find').scrollIntoView({ block: 'center' }));
+  await q.waitForTimeout(300);
+  await q.screenshot({ path: path.join(SHOTS, 'shop-find.png') });
+  const fItem = await q.evaluate(() => document.querySelector('#shop .find').closest('.cell').dataset.id);
+  await q.click('#shop .find');
+  await q.waitForFunction(() => document.getElementById('wheel')?.dataset.tweenOpen, null, { timeout: 10000 }).catch(() => {});
+  const wh = await q.evaluate(() => { const e = document.getElementById('wheel'); return { on: e?.classList.contains('on'), tw: e?.dataset.tween, open: +e?.dataset.tweenOpen }; });
+  check('FIND on a locked Lucky Wheel item opens LuckyWheelPopup (ShowPopup("shop")), Open clip 0.25 s', !!fItem && fItem && wh.on && wh.tw === 'unity'
+    && wh.open >= 240 && wh.open < 500, JSON.stringify({ fItem, wh }));
+  await q.click('#wheel .wclose');
+  await q.waitForFunction(() => !document.querySelector('#wheel.on'), null, { timeout: 5000 }).catch(() => {});
+  check('the wheel closes with the 0.2833 s Close clip', await q.evaluate(() => +document.getElementById('wheel').dataset.tweenClose >= 270));
+  await q.click('#shop .x');
+
+  // XP road leagues: "Top {0}% of players" from progression_road.leagues
+  await q.click('#xpbar');
+  await q.waitForSelector('#road.on .lgn', { timeout: 10000 });
+  const tops = await q.evaluate(() => [...document.querySelectorAll('#road .lgn')].map((e) => e.dataset.top + ':' + e.innerText.length));
+  check('XP road leagues carry "Top n% of players": Bronze 100, Silver 72.8, Gold 29.3', ['100', '72.8', '29.3'].every((t) => tops.some((x) => x.startsWith(t + ':'))),
+    tops.join(' '));
+  // with XP pending the popup claims it and closes by itself; else its home button closes it
+  await q.waitForFunction(() => { const r = document.getElementById('road'); return !r.classList.contains('on') || r.dataset.home === 'shown'; }, null, { timeout: 20000 }).catch(() => {});
+  if (await q.evaluate(() => !!document.querySelector('#road.on'))) await q.click('#road .home');
+  await q.waitForFunction(() => !document.querySelector('#road.on'), null, { timeout: 5000 }).catch(() => {});
+  for (let k = 0; k < 10 && await q.waitForSelector('.pp.on', { timeout: 1500 }).catch(() => null); k++) {
+    await q.waitForTimeout(800); await q.evaluate(() => document.querySelector('.pp.on')?.__close('test')); await q.waitForTimeout(400);
+  }
+
+  // tournament page: TOP PRIZES (#1 the pool skin + x1000, #2 x500, #3 x250), the opponents' skins as avatars
+  await q.click('#btnTour');
+  await q.waitForSelector('#race.on li .mk i', { timeout: 15000 });
+  await q.waitForTimeout(1500);
+  await q.screenshot({ path: path.join(SHOTS, 'race-page.png') });
+  const tp = await q.evaluate(() => ({ prizes: [...document.querySelectorAll('#race .pz')].map((z) => z.dataset.pos + (z.dataset.skin ? '/' + z.dataset.skin : '') + '/' + z.innerText.replace(/\s+/g, '')),
+    av: [...document.querySelectorAll('#race li')].filter((li) => li.querySelector('.mk i').style.backgroundImage.startsWith('url(')).length,
+    skins: [...document.querySelectorAll('#race li')].map((li) => li.dataset.skin).filter(Boolean).length }));
+  check('TOP PRIZES: #1 the tournament pool skin, NEW SKIN, x1000; #2 x500; #3 x250; 10 rows with skin avatars',
+    tp.prizes.some((x) => /^1\/skin\.(dolphin|stick_knight|wolf|yeti|mjolnir|sheep)\//.test(x) && /x1000/i.test(x) && /NEWSKIN/i.test(x))
+    && tp.prizes.some((x) => /^2\/x500/i.test(x)) && tp.prizes.some((x) => /^3\/x250/i.test(x)) && tp.av === 10 && tp.skins === 10, JSON.stringify(tp));
+  await q.click('#race .x');
+  await drain();
+
+  // VIP widget -> MarketVipPopup (NoAdsAnimator: Open 0.4167 s); "No, thanks" closes without buying
+  await q.waitForSelector('#homeOffers [data-offer="offer.vip"]', { timeout: 10000 });
+  await q.click('#homeOffers [data-offer="offer.vip"]');
+  await q.waitForFunction(() => document.getElementById('ppOffer')?.dataset.tweenOpen, null, { timeout: 10000 }).catch(() => {});
+  await q.screenshot({ path: path.join(SHOTS, 'pop-vip.png') });
+  const vp = await q.evaluate(() => { const e = document.getElementById('ppOffer'); return { offer: e.dataset.offer, tw: e.dataset.tween, open: +e.dataset.tweenOpen,
+    rows: e.querySelectorAll('.vrow').length, price: e.querySelector('.buy')?.dataset.price }; });
+  await q.click('#ppOffer .later');
+  await q.waitForFunction(() => !document.querySelector('#ppOffer.on'), null, { timeout: 5000 }).catch(() => {});
+  const vc = await q.evaluate(() => ({ close: +document.getElementById('ppOffer').dataset.tweenClose, vip: window.__sh.save.flags['flag.vip'] || 0 }));
+  check('VIP widget opens MarketVipPopup: 5 reward rows, the price; NoAdsAnimator Open 0.4167 s / Close 0.3 s; No, thanks buys nothing',
+    vp.offer === 'offer.vip' && vp.tw === 'vip' && vp.open >= 400 && vp.open < 700 && vp.rows === 5 && /19\.99\$/.test(vp.price) && vc.close >= 290 && vc.vip === 0,
+    JSON.stringify({ vp, vc }));
+
+  // end_game prompt: 3 games since the last prompt; the draw picks customization_item_unlock_incentive -> IncentiveRewardedSkinUnlockPopup
+  await q.evaluate(() => { window.__sh.save.inv['prompt.games_since_last'] = 2; Math.__r = Math.random; Math.random = () => 0.999; });
+  await q.click('#btnPlay');
+  await q.waitForFunction(() => window.__sh.game.phase === 'play', null, { timeout: 10000 }).catch(() => {});
+  await q.evaluate(() => { const p = window.__sh.player; p.x = window.__sh.world.finishX + 0.05; p.vx = 3; });
+  // the end flow's own popups (road, piggy, level unlocks) are tapped through until the end page
+  for (let k = 0; k < 30 && !(await q.evaluate(() => !!document.querySelector('#egPage.on'))); k++) {
+    await q.waitForTimeout(500);
+    await q.evaluate(() => { const e = document.querySelector('.pp.on'); if (e && e.dataset.tweenOpen) e.__close('test'); });
+    if (await q.evaluate(() => !!document.querySelector('#egPiggy.on'))) await q.mouse.click(195, 300);
+  }
+  await q.waitForSelector('#ppSkin.on .unlock', { timeout: 10000 }).catch(() => {});
+  await q.waitForTimeout(500);
+  await q.screenshot({ path: path.join(SHOTS, 'pop-incentive-skin.png') });
+  const inc = await q.evaluate(() => ({ item: document.getElementById('ppSkin')?.dataset.item, games: window.__sh.save.inv['prompt.games_since_last'],
+    title: document.querySelector('#ppSkin [data-title]')?.dataset.title, xp: document.querySelector('#ppSkin [data-xp]')?.dataset.xp }));
+  await q.evaluate(() => { Math.random = Math.__r; });
+  const owned0 = await q.evaluate((id) => window.__sh.app.meta.ownsRes(window.__sh.save, id), inc.item || '');
+  if (inc.item) await q.click('#ppSkin .unlock');
+  await q.waitForSelector('#ppItem.on', { timeout: 8000 }).catch(() => {});
+  const inc2 = await q.evaluate((id) => ({ owned: window.__sh.app.meta.ownsRes(window.__sh.save, id), pop: document.getElementById('ppItem')?.dataset.item }), inc.item || '');
+  check('3rd game since the last prompt: end page -> "Instant skin unlock!" for a locked rewarded skin of the closest collection; unlock grants it and opens its item popup',
+    !!inc.item && inc.title === 'Instant skin unlock!' && +inc.xp > 0 && inc.games === 0 && !owned0 && inc2.owned && inc2.pop === inc.item, JSON.stringify({ inc, inc2 }));
+  await q.evaluate(() => { window.__autoPop = true; });
+  await q.waitForTimeout(2500);
+
+  // Adventure incentive: the 5th page claim of the session shows the adventure offer (rotation 0 -> 1)
+  await q.evaluate(() => { const s = window.__sh.save; s.modes['mode.adventure'] = { ...(s.modes['mode.adventure'] || {}), unlocked: true, seenNew: 'x' };
+    window.__sh.app.writeSave(); window.__autoPop = false; });
+  const advOffers = [];
+  for (let k = 0; k < 5; k++) {
+    if (await q.evaluate(() => !!document.querySelector('#egPage.on'))) await q.click('#egHome');
+    await q.evaluate(() => window.__sh.openMode('mode.adventure'));
+    await q.waitForSelector('#adv.on', { timeout: 15000 });
+    await q.waitForTimeout(1200);
+    advOffers.push(await q.evaluate(() => (document.querySelector('#ppOffer.on') ? document.getElementById('ppOffer').dataset.offer + '/' + document.getElementById('ppOffer').dataset.source : '')));
+    if (k < 4) { await q.evaluate(() => { document.querySelector('#adv .x')?.click(); }); await drain(); } // NewAdventurePopup on the way home
+  }
+  await q.screenshot({ path: path.join(SHOTS, 'pop-offer-adventure.png') });
+  check('AdventureIncentivesService: pages 1-4 nothing, the 5th shows the Starter Pack (offer.adventure_1) from popup_incentive_adventure',
+    advOffers.slice(0, 4).every((x) => !x) && advOffers[4] === 'offer.adventure_1/popup_incentive_adventure', advOffers.join(' | '));
+  await q.evaluate(() => { window.__autoPop = true; });
+  await ctx.close();
+  }
+
+  // ---- stretched sprites (rev 20261028o): every page and popup at 390 x 844 and 1920 x 1080; no sprite drawn at a
+  // non-uniform scale (|horizontal scale / vertical scale - 1| > 0.04) except the ones the original stretches too, each
+  // named with the prefab field that proves it (REF/dump/ui_images.json, tools/image_census.py). <img> filled to another
+  // aspect and canvases whose box differs from their bitmap count too.
+  {
+  const STRETCHED = {
+    background2: 'ui_pages_customization Background: m_Type 0, m_PreserveAspect 0, anchors 0..1 (a 1 x 51 gradient)',
+    BarFill: 'ui_pages_home FillBar: m_Type 3 (Filled) over the whole bar',
+    ProgressBar: 'ui_market_blackmarket_offercard_card ProgressBar: m_Type 3 (Filled); ui_pages_cards Bg: m_Type 1 (Sliced)',
+    GradientHorizontalInOut: 'ui_pages_cards Bg: m_Type 0, m_PreserveAspect 0, anchors stretch',
+    MarketTitleBanner: 'ui_market_generic_section MarketTitleBanner: m_Type 0, m_PreserveAspect 0, anchors stretch',
+    CounterPlayer_01: 'ui_pages_tournament TrophiesTextBg: m_Type 0, m_PreserveAspect 0, anchors stretch',
+    CursorTrophyRoad: 'ui_xproad_popup Halo: m_Type 0, m_PreserveAspect 0, rect 60 x 22.4 (sprite 60 x 27)',
+    HolderLuckyWheelCoin: 'ui_pages_home CounterShopImg: m_Type 0, m_PreserveAspect 0, rect 102 x 25 (sprite 120 x 31)',
+    TopHolder: 'ui_popups_incentive_rewardedskinunlock TopHolder: m_Type 0, m_PreserveAspect 0, anchors (0, 0.87)..(1, 1)',
+    Hand_tutorial: 'ui_pages_home TutorialHand: m_Type 0, m_PreserveAspect 0, rect 150 x 150 (sprite 172 x 220)',
+  };
+  // [name, visible selector, opener (page JS, not awaited: popups resolve when closed), query]
+  const SCREENS = [
+    ['home', '#start', null],
+    ['shop', '#shop', '__sh.app.openMenu("openShop")'],
+    ['market', '#market', '__sh.app.openMenu("openMarket")'],
+    ['race', '#race', '__sh.openMode("mode.tournament")'],
+    ['cards', '#cards', '__sh.openCards ? __sh.openCards() : document.getElementById("btnCards").click()'],
+    ['settings', '#settings', '__sh.app.openSettings()'],
+    ['modes', '#modes', '__sh.app.openMenu("openModes")'],
+    ['adventure', '#adv', '__sh.openMode("mode.adventure")'],
+    ['wheel', '#wheel', '__sh.app.openMenu("openWheel")'],
+    ['lucky', '#pachinko', '__sh.openMode("mode.pachinko")'],
+    ['road', '#road', '__sh.app.openMenu("openRoad")'],
+    ['levels', '#levels', '__sh.openLevels()'],
+    ['piggy', '#egPiggy', '__sh.save.inv["progression.xp_claimed"] = 1e9; const f = setInterval(() => { if (__sh.game.phase === "play") { const p = __sh.player; p.x = __sh.world.finishX + 0.05; p.vx = 3; } }, 200); setTimeout(() => clearInterval(f), 5000); setInterval(() => document.querySelectorAll(".pp.on").forEach((e) => e.__close?.("t")), 300);', '?level=31'],
+    ['end', '#egPage', '__sh.save.inv["progression.xp_claimed"] = 1e9; const f = setInterval(() => { if (__sh.game.phase === "play") { const p = __sh.player; p.x = __sh.world.finishX + 0.05; p.vx = 3; } }, 200); setTimeout(() => clearInterval(f), 5000); setInterval(() => document.querySelectorAll(".pp.on").forEach((e) => e.__close?.("t")), 300); const t = setInterval(() => { const p = document.querySelector("#egPiggy .tap"); if (p && p.offsetParent) p.click(); if (document.querySelector("#egPage")?.offsetParent) clearInterval(t); }, 400);', '?level=31'],
+    ['pop-mode', '#ppMode.on', '__sh.app.popups().then(m => m.modeUnlocked(__sh.app, "mode.tournament"))'],
+    ['pop-item', '#ppItem.on', '__sh.app.popups().then(m => m.itemUnlocked(__sh.app, __sh.app.meta.byId.get("skin.basket")))'],
+    ['pop-rope', '#ppItem.on', '__sh.app.popups().then(m => m.itemUnlocked(__sh.app, __sh.app.meta.byId.get("rope.banana")))'],
+    ['pop-col', '#ppCol.on', '__sh.app.popups().then(m => m.collectionCompleted(__sh.app, __sh.app.meta.byId.get("skin.basket").collection))'],
+    ['pop-newtour', '#ppNew.on', '__sh.app.popups().then(m => { __sh.save.boosterQueue = []; __sh.save.inv["progression.xp_claimed"] = __sh.save.xp; __sh.save.modes["mode.tournament"].seenNew = ""; m.homePrompts(__sh.app); })'],
+    ['pop-newadv', '#ppNew.on', '__sh.app.popups().then(m => { __sh.save.boosterQueue = []; __sh.save.inv["progression.xp_claimed"] = __sh.save.xp; __sh.save.modes["mode.tournament"].seenNew = "zz"; __sh.save.modes["mode.adventure"].seenNew = ""; m.homePrompts(__sh.app); })'],
+    ['pop-vip', '#ppOffer.on', '__sh.loadBonus().then(() => __sh.app.popups()).then(m => m.offer(__sh.app, "offer.vip"))'],
+    ['pop-booster', '#ppOffer.on', '__sh.loadBonus().then(() => __sh.app.popups()).then(m => m.offer(__sh.app, "offer.boosters_pack"))'],
+    ['pop-advoffer', '#ppOffer.on', '__sh.loadBonus().then(() => __sh.app.popups()).then(m => m.offer(__sh.app, "offer.adventure_1"))'],
+    ['pop-incentive', '#ppSkin.on', '__sh.app.popups().then(m => m.rewardedSkin(__sh.app, __sh.app.meta.byId.get("skin.bunny")))'],
+  ];;
+  const measure = async () => {
+    const nat = {};
+    const size = (src) => nat[src] || (nat[src] = new Promise((r) => { const i = new Image(); i.onload = () => r([i.naturalWidth, i.naturalHeight]); i.onerror = () => r(null); i.src = src; }));
+    const out = [];
+    const desc = (el) => { let s = el.tagName.toLowerCase(); if (el.id) s += '#' + el.id; if (el.className && typeof el.className === 'string' && el.className.trim()) s += '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.');
+      const p = el.parentElement; return (p ? (p.id ? '#' + p.id : p.className && typeof p.className === 'string' && p.className.trim() ? '.' + p.className.trim().split(/\s+/)[0] : p.tagName.toLowerCase()) + ' > ' : '') + s; };
+    const shown = (el) => { for (let e = el; e; e = e.parentElement) { const c = getComputedStyle(e); if (c.display === 'none' || c.visibility === 'hidden' || +c.opacity === 0) return false; } return true; };
+    for (const el of document.querySelectorAll('body *')) {
+      const r = el.getBoundingClientRect();
+      if (r.width < 8 || r.height < 8 || r.bottom < 0 || r.right < 0 || r.top > innerHeight || r.left > innerWidth) continue;
+      const cs = getComputedStyle(el);
+      const m = /url\("?([^")]+)"?\)/.exec(cs.backgroundImage);
+      let hit = null;
+      if (m && /%/.test(cs.backgroundSize)) {
+        const [sx, sy] = cs.backgroundSize.split(' ').map(parseFloat);
+        if (!isNaN(sx) && !isNaN(sy)) {
+          const n = await size(m[1]);
+          if (n) hit = { kind: 'spr', d: (r.width * sx / n[0]) / (r.height * sy / n[1]) };
+        }
+      }
+      if (!hit && el.tagName === 'IMG' && el.naturalWidth && (cs.objectFit === 'fill' || !cs.objectFit)) hit = { kind: 'img', d: (r.width / r.height) / (el.naturalWidth / el.naturalHeight) };
+      if (!hit && el.tagName === 'CANVAS' && el.width > 1 && el.height > 1 && !/contain|cover/.test(cs.objectFit)) hit = { kind: 'canvas', d: (r.width / r.height) / (el.width / el.height) };
+      if (!hit || Math.abs(hit.d - 1) <= 0.04 || !shown(el)) continue;
+      out.push({ ...hit, d: +hit.d.toFixed(3), sprite: el.dataset.spr || (m ? m[1].split('/').pop().split('?')[0].slice(0, 40) : el.tagName.toLowerCase()), el: desc(el), box: [Math.round(r.width), Math.round(r.height)] });
+    }
+    return out;
+  };
+  const opened = [], bad = [], allowed = new Set();
+  for (const [w, h] of [[390, 844], [1920, 1080]]) {
+    const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1 });
+    const q = await ctx.newPage();
+    q.on('pageerror', (e) => errors.push(`aspect ${w}: ${e.message}`));
+    for (const [name, sel, open, query] of SCREENS) {
+      try {
+        await q.goto(url + (query ? (url.includes('?') ? '&' : '?') + query.slice(1) : ''));
+        await q.waitForFunction(() => window.__sh && window.__sh.world && window.__sh.app, null, { timeout: 30000 });
+        await q.evaluate(() => { const s = window.__sh.save; if (s.best < 30) { s.best = 30; s.level = 30; s.coins = 60000; s.xp = 6000; s.inv['progression.xp_claimed'] = 6000;
+          for (const m of ['mode.tournament', 'mode.adventure', 'mode.pachinko', 'mode.lucky_wheel', 'mode.grapple', 'mode.challenge', 'mode.cards']) s.modes[m] = { ...(s.modes[m] || {}), unlocked: true, seenNew: 'x' };
+          window.__sh.app.writeSave(); } });
+        await q.waitForTimeout(900);
+        // the boosters the setup's unlocks queue would cover every page: dropped, their popup taken down
+        await q.evaluate(() => { window.__sh.save.boosterQueue = []; document.getElementById('boostPop')?.classList.remove('on');
+          document.querySelectorAll('.pp.on').forEach((e) => e.__close?.('t')); });
+        await q.waitForTimeout(400);
+        if (open) await q.evaluate((c) => { (0, eval)(c); }, open);
+        await q.waitForSelector(sel, { timeout: 8000, state: 'visible' });
+        await q.waitForTimeout(1600);
+        for (const x of await q.evaluate(measure)) {
+          if (STRETCHED[x.sprite]) allowed.add(x.sprite);
+          else bad.push(`${w} ${name} ${x.kind} ${x.sprite} d=${x.d} ${x.box.join('x')} ${x.el}`);
+        }
+        opened.push(`${w} ${name}`);
+        if (w === 390 && ['home', 'shop', 'modes', 'end', 'pop-mode'].includes(name)) await q.screenshot({ path: path.join(SHOTS, `aspect-${name}.png`) });
+      } catch (e) { bad.push(`${w} ${name} not opened: ${e.message.split(String.fromCharCode(10))[0]}`); }
+    }
+    await ctx.close();
+  }
+  check(`every page and popup opens at 390 x 844 and 1920 x 1080 (${SCREENS.length} x 2)`, opened.length === SCREENS.length * 2, bad.filter((b) => b.includes('not opened')).slice(0, 4).join(' | '));
+  check('no sprite / image / canvas drawn stretched, except the ones the original stretches (preserveAspect off, Filled, Sliced)',
+    bad.length === 0, bad.slice(0, 8).join(' | ') + (bad.length ? '' : `allowed: ${[...allowed].join(', ')}`));
   }
 
   check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '));

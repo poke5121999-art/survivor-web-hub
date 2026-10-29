@@ -121,3 +121,16 @@ Nguyên tắc: vẫn "nhẹ, load nhanh".
   - `[ĐỀ XUẤT]`: gợi ý trong màn khi chưa qua màn 1, tỉ lệ khung, màu viền, hàng "Tài khoản hub", GDPR cục bộ, Help → feedback.html, Delete Account, lớp "Xoay dọc".
   - Bài kiểm (local): `test/stickman-hook-play.js` 165/165, `test/stickman-hook-pachinko.js` 30/30, `test/stickman-hook-sim.js` 307/307. Màn đầu 598 KB thô (trước 596).
   - Việc còn lại: đẩy lên Pages, tăng `rev` trong `data/games.js` lên 20261028n, chạy bài kiểm trên Pages với `SH_URL`.
+- [~] Popup, tween, ưu đãi, lật trang, trang Đua (2026-10-29, rev 20261028o, CHƯA đẩy lên Pages, CHƯA kiểm trên Pages): chủ dự án "làm full đi".
+  Chi tiết ở README mục "Popup: mở khoá, kỳ mới, ưu đãi, prompt cuối màn", `docs/PARITY.md` mục 20261028o.
+  - `js/popups.js` (nạp lười): ModeUnlocked [asm 0x1297c74], món mở khoá [asm 0x129301c], bộ sưu tập đủ [asm 0x128c2bc], New Tournament / Adventure (`IsNew` mỗi kỳ),
+    popup VIP và ưu đãi chung (5 ưu đãi có `viewPurchasePopupId`), prompt cuối màn (≥ 3 ván, wheel 1 / market 11 / skin 4), ưu đãi Phiêu lưu mỗi 5 lần.
+  - Tween chung `uikit.js popOpen/popClose`: MadTween rỗng, `DefaultPopupAnimator` 0.25 / 0.2833 s, `NoAdsAnimator` 0.4167 / 0.3 s, lớp đen 0.7 trong 0.2 s.
+  - Tuỳ biến lật trang theo `page` (mũi tên, chấm, vuốt, lerp 10/s), FIND mở Lucky Wheel. Trang Đua: avatar skin, TOP PRIZES theo prefab. "Top n% of players" ở Đường XP.
+  - Bảng chọn màn chuyển sang `js/levels.js`, nên màn đầu còn 597.0 KB thô (trước 598.1).
+  - Bài kiểm (local): `test/stickman-hook-play.js` 180/180, `test/stickman-hook-pachinko.js` 30/30, `test/stickman-hook-sim.js` 307/307.
+  - Vòng soát ảnh: ô quà Đua bỏ khung trắng, hàng xu + "x{n}" / viên cúp / tên canh trái / bút, đầu trang vé (+) + cúp; popup chữ tự co, skin không bị cắt.
+  - Sprite méo (chủ dự án "vài UI/image bị bóp méo"): `REF/tools/image_census.py` -> `dump/ui_images.json`; `build_menus.py` ghi `_keep`; `spr()` giữ tỉ lệ.
+    Trang kết thúc, hoa văn thẻ giữ tỉ lệ; thanh Filled cắt thay vì bóp. 70 chỗ lệch còn 10, đều là chỗ gốc cũng kéo (danh sách trong `play.js`).
+  - Còn lại: prompter `seasonal_event` (SeasonalEventPopup), `CollectionLockedPlayMode*Popup` (FIND khi vòng quay chưa mở), chấm "online" và "món chưa dùng".
+  - Việc còn lại: đẩy lên Pages, tăng `rev` trong `data/games.js` lên 20261028o, chạy bài kiểm trên Pages với `SH_URL`.

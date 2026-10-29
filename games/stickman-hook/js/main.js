@@ -7,7 +7,7 @@ import { Meta } from './meta.js';
 import { makeCustom } from './custom.js';
 import { MODES, NORMAL } from './modes.js';
 
-const V = '?v=20261028n';
+const V = '?v=20261028o';
 const DEFAULT_ZOOM = 5, FINISH_ZOOM = 2; // CameraConfig.defaultZoom, PlayerCameraController.cameraZoomOnEndGame
 // Rope prefab: sprite scaled (1.6, 2) under its parent. [ĐỀ XUẤT] 0.2 per axis so a 167 px tile is ~0.4 wide.
 const ROPE_SCALE = [1.6 * 0.2, 2 * 0.2];
@@ -145,7 +145,6 @@ function finishLevel(forced) {
   writeSave(save);
   hud();
   skipView();
-  for (const g of game.reward.got) if (g.item) toast('Mở khoá: ' + g.item.title);
   // Normal end game: the piggy bank fills on a level's first completion (like XP: the original never replays a level);
   // the end game shows it (PiggyBankPopup) before the end page
   if (mode.id === NORMAL && game.reward.xp) {
@@ -264,7 +263,7 @@ async function openEnd() {
   if (mode.id === NORMAL && game.reward?.xp) await loadBonus().catch(() => {});
   await loadEnd();
   if (world !== at || game.phase !== 'finish') return;
-  endgame.show({ mode: mode.id, def: mode.def, level: world.index, piggy: game.piggy });
+  endgame.show({ mode: mode.id, def: mode.def, level: world.index, piggy: game.piggy, got: game.reward?.got });
 }
 
 // Lucky Wheel, piggy bank, market, ads/IAP and skip level: js/bonus.js + data/bonus.json + data/ads.json, loaded with the home screen, at the
@@ -643,7 +642,7 @@ function hud() {
   if ($('start').classList.contains('on')) { if (cards) nextBooster().catch(() => {}); else loadCards().catch(() => {}); }
   $('rank').textContent = b.rank;
   $('league').textContent = b.league;
-  $('xpfill').style.width = Math.round(b.k * 100) + '%';
+  $('xpfill').style.clipPath = `inset(0 ${100 - Math.round(b.k * 100)}% 0 0)`; // Filled: clipped, not squeezed
   $('xptext').textContent = b.hi > b.lo ? `${save.xp - b.lo}/${b.hi - b.lo}` : String(save.xp);
   const n = meta.claimable(save);
   $('roadBadge').textContent = n;
@@ -659,6 +658,7 @@ function showHome() {
   import('./home.js').then(async (h) => {
     await h.setup(app); home = h; hud();
     if (save.best >= 1 && meta.xpPending(save) > 0) roadPopup().catch((e) => toast('Không mở được Đường XP: ' + e.message)); // xp_road_recovery
+    else if (save.best >= 1) import('./popups.js').then((m) => m.homePrompts(app)).catch(() => {}); // competitions
   }).catch((e) => toast('Không tải được trang chính: ' + e.message));
 }
 
@@ -674,6 +674,8 @@ function setHold(v) {
 function overlay(id, on) {
   $(id).classList.toggle('on', on);
   if (id === 'start' && on) showHome();
+  // back on the home page from a page: HomePage.OnShowEnded runs the home prompts again (js/popups.js)
+  else if (!on && /^(modes|shop|cards|market|race|adv|pachinko)$/.test(id) && $('start').classList.contains('on') && save.best >= 1) import('./popups.js').then((m) => m.homePrompts(app)).catch(() => {});
   game.paused = [...document.querySelectorAll('.overlay')].some((e) => e.classList.contains('on'));
   document.body.classList.toggle('menu', game.paused);
   if (game.paused) game.hold = false;
@@ -698,14 +700,18 @@ const app = {
   openMode, get mode() { return mode.id; }, openMenu, openSettings, openLevels, skipLevel, loadBonus, get bonus() { return bonus; },
   loadMode, startRace, get game() { return game; }, get player() { return player; },
   loadCards, loadCardsUi, openCards, nextBooster, get cards() { return cards; }, get cardsUi() { return cardsUi; },
-  roadPopup,
+  roadPopup, unlocks, popups: () => import('./popups.js'),
 };
+// ModeUnlockedPopup / CustomizationItemUnlockedPopup / CollectionCompletedPopup for a grant list (js/popups.js)
+function unlocks(got) {
+  return got?.some((g) => g.item || g.collection || g.mode) ? import('./popups.js').then((m) => m.unlocks(app, got)) : Promise.resolve();
+}
 let menus = null;
-async function openMenu(name) {
+async function openMenu(name, arg) {
   initAudio();
   play('popup_in');
   menus ||= await import('./menus.js');
-  menus[name](app);
+  menus[name](app, arg);
 }
 
 function bindInput() {
@@ -733,17 +739,7 @@ function bindInput() {
   $('btnRestart').onclick = () => { initAudio(); play('button'); pause(false); restart(); };
   $('btnSound').onclick = () => { initAudio(); save.sound = !save.sound; writeSave(save); soundIcon(); play('button'); };
   $('btnLevels').onclick = () => { initAudio(); play('popup_in'); pause(false); openLevels(); };
-  $('btnClose').onclick = () => {
-    play('popup_out');
-    overlay('levels', false);
-    // a gated mode's level that was not paid for is not playable: back to Normal and the home page
-    if (mode.def.gate && game.paid !== mode.id + ':' + world.index) {
-      mode = loaded[NORMAL];
-      startLevel(save.level || 0);
-      overlay('start', true);
-      hud();
-    }
-  };
+  $('btnClose').onclick = () => import('./levels.js').then((m) => m.closeLevels(lvCtx));
   $('btnMenu').onclick = () => { initAudio(); play('popup_in'); pause(false); overlay('start', true); hud(); };
   $('btnPlay').onclick = () => { initAudio(); play('button'); overlay('start', false); };
   $('btnModes').onclick = () => openMenu('openModes');
@@ -763,48 +759,13 @@ function soundIcon() { $('btnSound').style.opacity = save.sound ? 1 : 0.45; }
 function modeName(id) { return meta.d.modes.find((m) => m[0] === id)?.[1] || id; }
 
 let daily = null; // js/daily.js, loaded with the first gated mode (modes.js prepare)
-// Under the picker of a gated mode (events): SeasonalEventsService.GetCanPlayState [asm 0x1180bd0] and the daily limit
-function gateNote() {
-  const t = mode.def.today(meta, save), st = daily.playState(save, mode.id);
-  if (t.all) return 'Đã nhận hết quà của sự kiện.';
-  if (t.wonToday) return `Đã nhận quà hôm nay. Màn mới sau ${daily.fmtLeft(st.msLeft)}.`;
-  const pay = st.state === 'free' ? 'miễn phí' : st.state === 'tickets' ? '1 lượt đã có' : st.tickets ? '1 vé bỏ qua thay quảng cáo' : 'quảng cáo (nhận ngay)';
-  return `Hôm nay: màn ${t.level + 1} · lượt này ${pay}`;
-}
-
-// Level picker of the current mode: every level of a finite mode (locked ones greyed), else up to the next new level.
+// Level picker: js/levels.js, loaded on its first opening (README "Tệp")
+const lvCtx = { get mode() { return mode; }, get save() { return save; }, get meta() { return meta; }, get world() { return world; },
+  get game() { return game; }, get daily() { return daily; }, startLevel, toast, overlay, play, modeName, writeSave: () => writeSave(save),
+  backToNormal: () => { mode = loaded[NORMAL]; startLevel(save.level || 0); overlay('start', true); hud(); } };
 function openLevels() {
   if (mode.race) return openMode(mode.id); // race: the tournament page
-  const g = $('grid');
-  g.innerHTML = '';
-  const slot = mode.def.slot(save), best = slot.best || 0;
-  const done = (i) => (slot.done ? slot.done.includes(i) : i < best);
-  const top = Number.isFinite(mode.count) ? mode.count : Math.max(best + 1, world.index + 1, mode.data.levels.length);
-  for (let i = 0; i < top; i++) {
-    const b = document.createElement('button');
-    b.textContent = i + 1;
-    if (done(i)) b.className = 'done';
-    if (i === world.index) b.className = 'cur';
-    b.disabled = !mode.def.open(meta, save, i);
-    b.onclick = () => {
-      if (mode.def.gate && game.paid !== mode.id + ':' + i) {
-        // GameModesService.TryPlaying (daily.js): the day's free game, else the rewarded ad (a skip ticket when owned)
-        const how = daily.payPlay(save, mode.id);
-        if (!how) { toast('Hết lượt hôm nay'); return; }
-        writeSave(save);
-        if (how === 'skip') toast('Đã dùng 1 vé bỏ qua thay quảng cáo');
-        overlay('levels', false); play('button'); startLevel(i);
-        game.paid = mode.id + ':' + i;
-        return;
-      }
-      overlay('levels', false); play('button'); startLevel(i);
-    };
-    g.appendChild(b);
-  }
-  $('levelsTitle').textContent = mode.def.picker ? modeName(mode.id) : 'Chọn màn';
-  $('levelsNote').textContent = mode.def.gate ? gateNote() : '';
-  overlay('levels', true);
-  g.querySelector('.cur')?.scrollIntoView({ block: 'center' });
+  import('./levels.js').then((m) => m.openLevels(lvCtx));
 }
 
 async function boot() {

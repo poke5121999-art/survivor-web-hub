@@ -253,6 +253,8 @@ export async function open(app) {
   if (daily) { app.writeSave(); app.cardsUi?.cardToast(app, 'card.daily_login_tokens'); }
   if (b.claimed?.weekly) app.cardsUi?.cardToast(app, 'card.weekly_starting_tokens');
   page(app, b);
+  // AdventurePage.ClaimPendingRewards -> AdventureIncentivesService.TryShowInventive [asm 0x1137d90, 0x12669c8] (js/popups.js)
+  app.popups?.().then((m) => m.advIncentive(app)).catch(() => {});
 }
 
 function page(app, { board, claimed }) {
