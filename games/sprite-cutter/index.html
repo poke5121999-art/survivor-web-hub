@@ -94,15 +94,6 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
 .thumbs .sheet-out img { aspect-ratio: auto; max-height: 160px; }
 .warn { color: var(--bad); font-size: 12px; margin: 0; }
 .pane { display: grid; gap: 12px; min-width: 0; }
-.swatches { display: inline-flex; gap: 4px; }
-.swatches button { width: 26px; height: 26px; padding: 0; border-radius: 50%; border: 2px solid var(--panel); box-shadow: 0 0 0 1px var(--line); }
-.swatches button[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--ink); }
-.swatches input { width: 26px; height: 26px; padding: 3px; border: 0; border-radius: 50%; cursor: pointer; box-shadow: 0 0 0 1px var(--line);
-  background: conic-gradient(#ff3b30, #ffcc00, #2ee06b, #00c2ff, #8a5cff, #ff2bd6, #ff3b30); }
-.swatches input::-webkit-color-swatch-wrapper { padding: 0; }
-.swatches input::-webkit-color-swatch { border: 2px solid var(--panel); border-radius: 50%; }
-.swatches input::-moz-color-swatch { border: 2px solid var(--panel); border-radius: 50%; }
-.swatches input.on { box-shadow: 0 0 0 2px var(--ink); }
 .fcol { display: grid; gap: 6px; align-content: start; min-width: 0; }
 .stack-wrap { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 12px; }
 .flist { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; align-content: start; max-height: 420px; overflow: auto; }
@@ -218,11 +209,12 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
         <div class="seg" role="group" aria-label="Kéo trên khung chồng để">
           <button type="button" id="tool-move" aria-pressed="true">Dời hình</button>
           <button type="button" id="tool-mark" aria-pressed="false">Chấm điểm</button>
+          <button type="button" id="tool-paint" aria-pressed="false">Tô màu</button>
           <button type="button" id="tool-erase" aria-pressed="false">Tẩy</button>
           <button type="button" id="tool-fill" aria-pressed="false">Tẩy vùng</button>
           <button type="button" id="tool-restore" aria-pressed="false">Trả lại</button>
         </div>
-        <div class="swatches" id="swatches" role="group" aria-label="Màu điểm"></div>
+        <input type="color" id="pen-color" value="#ff3b30" title="Màu tô và màu điểm" aria-label="Màu tô và màu điểm">
         <button type="button" id="marks-clear">Xoá hết điểm</button>
         <label class="check"><input type="checkbox" id="marks-player" checked> Hiện điểm ở máy chạy</label>
       </div>
@@ -234,7 +226,7 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
           <button type="button" data-shape="round" aria-pressed="true">Tròn</button><button type="button" data-shape="square" aria-pressed="false">Vuông</button>
         </div>
         <button type="button" id="st-undo">Hoàn tác</button>
-        <button type="button" id="st-clear">Bỏ mọi nét tẩy</button>
+        <button type="button" id="st-clear">Bỏ mọi nét tẩy và tô</button>
         <span class="grow"></span>
         <span class="zoom"><label class="hint" for="st-zoom">Phóng</label><input type="range" id="st-zoom" min="0" max="100" value="50"><span class="num" id="st-zoom-v"></span><button type="button" id="st-zoom-fit">Vừa khung</button></span>
       </div>
@@ -247,9 +239,9 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
       </div>
       <p class="hint">Chọn một frame trong danh sách rồi kéo trên khung chồng để dời hình của nó. Các frame khác hiện mờ bên dưới để canh cho khớp; đường đứt là tâm khung.
         Kéo ô vuông cam trên viền để đổi cỡ khung cắt: khung nở đều hai phía nên tâm từng frame đứng yên.
-        Ở chế độ <b>Chấm điểm</b>, bấm lên khung để đặt một điểm mốc chung cho mọi frame (ví dụ chỗ chân chạm đất), kéo để dời, kéo ra ngoài khung hoặc bấm chuột phải để xoá. Ô tròn viền cầu vồng cuối hàng màu mở bảng chọn màu tuỳ ý.
+        Ở chế độ <b>Chấm điểm</b>, bấm lên khung để đặt một điểm mốc chung cho mọi frame (ví dụ chỗ chân chạm đất), kéo để dời, kéo ra ngoài khung hoặc bấm chuột phải để xoá. 
         Khi đang đứng ở khu này, <kbd>←↑→↓</kbd> dời hình 1px theo đúng hướng mũi tên.
-        <b>Tẩy</b> tô lên chỗ cần xoá của frame đang chọn. <b>Tẩy vùng</b> bấm một lần để xoá cả mảng cùng màu liền nhau trong khung, độ giống màu theo thanh Độ lệch màu. <b>Trả lại</b> tô để lấy lại chỗ đã tẩy; giữ <kbd>Alt</kbd> khi tô cũng là trả lại.
+        <b>Tẩy</b> tô lên chỗ cần xoá của frame đang chọn. <b>Tẩy vùng</b> bấm một lần để xoá cả mảng cùng màu liền nhau trong khung, độ giống màu theo thanh Độ lệch màu. <b>Trả lại</b> tô để lấy lại chỗ đã tẩy hoặc đã tô màu; giữ <kbd>Alt</kbd> khi tẩy cũng là trả lại. <b>Tô màu</b> vẽ đè màu ở ô màu lên pixel của hình, theo cỡ và dáng cọ; ô màu cũng là màu của điểm mốc.
         Cọ <b>Vuông</b> tẩy gọn theo ô pixel, hợp để xén mép thẳng của pixel art.
         <kbd>Ctrl Z</kbd> hoàn tác, <kbd>[</kbd> <kbd>]</kbd> đổi cỡ cọ, <kbd>Ctrl</kbd> + lăn chuột để phóng, giữ nút lăn chuột rồi kéo để dời chỗ xem.</p>
       </div>
@@ -294,7 +286,7 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
 
 </div>
 
-<script src="vendor/jszip.min.js?v=20261029c"></script>
+<script src="vendor/jszip.min.js?v=20261029d"></script>
 <script>
 const $ = id => document.getElementById(id);
 
@@ -762,10 +754,8 @@ const stack = $("stack"), kctx = stack.getContext("2d");
 let stackDirty = true, stackScale = 1, listSig = "", stackDrag = null;
 S.stackAlpha = 0.3;
 S.marks = [];
-S.markColor = "#ff3b30";
 S.stackTool = "move";
 S.marksInPlayer = true;
-const MARK_COLORS = ["#ff3b30", "#ffcc00", "#2ee06b", "#00c2ff", "#ff2bd6", "#ffffff"];
 
 function drawMarks(ctx, s, ox, oy, unit) {
   const r = Math.min(Math.max(5 * unit, s * 0.6), 9 * unit);
@@ -865,7 +855,7 @@ function renderList(fr) {
 const HANDLES = [[-1, -1], [0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0]];
 const HANDLE_CURSOR = { "-1,-1": "nwse-resize", "1,1": "nwse-resize", "1,-1": "nesw-resize", "-1,1": "nesw-resize", "0,-1": "ns-resize", "0,1": "ns-resize", "-1,0": "ew-resize", "1,0": "ew-resize" };
 let stackBox = null, stackHover = null;
-const stackPane = stack.parentElement, ERASE_TOOLS = new Set(["erase", "fill", "restore"]);
+const stackPane = stack.parentElement, ERASE_TOOLS = new Set(["erase", "fill", "restore", "paint"]);
 S.stackZoom = "fit";
 
 function handleAt(e) {
@@ -911,7 +901,7 @@ stack.addEventListener("pointerdown", e => {
   if (S.stackTool === "mark") {
     const p = framePixel(e);
     let m = markAt(e);
-    if (!m) { m = { x: p.x, y: p.y, color: S.markColor }; S.marks.push(m); }
+    if (!m) { m = { x: p.x, y: p.y, color: $("pen-color").value }; S.marks.push(m); }
     stackDrag = { kind: "mark", m };
     stack.style.cursor = "grabbing"; changed();
     return;
@@ -989,31 +979,12 @@ stack.addEventListener("contextmenu", e => {
 });
 function setStackTool(t) {
   S.stackTool = t;
-  for (const id of ["move", "mark", "erase", "fill", "restore"]) $("tool-" + id).setAttribute("aria-pressed", t === id);
+  for (const id of ["move", "mark", "paint", "erase", "fill", "restore"]) $("tool-" + id).setAttribute("aria-pressed", t === id);
   stack.style.cursor = t === "move" ? "grab" : "crosshair"; stackDirty = true;
 }
-for (const id of ["move", "mark", "erase", "fill", "restore"]) $("tool-" + id).onclick = () => setStackTool(id);
+for (const id of ["move", "mark", "paint", "erase", "fill", "restore"]) $("tool-" + id).onclick = () => setStackTool(id);
 stack.addEventListener("pointerleave", () => { stackHover = null; stackDirty = true; });
-function pickMarkColor(c, el) {
-  S.markColor = c;
-  for (const x of $("swatches").children) x.tagName === "INPUT" ? x.classList.toggle("on", x === el) : x.setAttribute("aria-pressed", x === el);
-  setStackTool("mark");
-}
-for (const c of MARK_COLORS) {
-  const b = document.createElement("button");
-  b.type = "button"; b.style.background = c; b.title = "Màu " + c; b.setAttribute("aria-label", "Màu điểm " + c);
-  b.setAttribute("aria-pressed", c === S.markColor);
-  b.onclick = () => pickMarkColor(c, b);
-  $("swatches").append(b);
-}
-{
-  const pick = document.createElement("input");
-  pick.type = "color"; pick.id = "mark-custom"; pick.value = "#8a5cff";
-  pick.title = "Chọn màu khác"; pick.setAttribute("aria-label", "Chọn màu điểm khác");
-  pick.onclick = () => pickMarkColor(pick.value, pick);
-  pick.addEventListener("input", () => pickMarkColor(pick.value, pick));
-  $("swatches").append(pick);
-}
+$("pen-color").addEventListener("input", () => { if (S.stackTool !== "mark") setStackTool("paint"); });
 /* ---------- xoá nền ---------- */
 // S.src là ảnh gốc; S.img là ảnh đang dùng để vẽ và cắt (ảnh gốc, hoặc bản đã xoá nền).
 let bgPicking = false, pocketPicking = false;
@@ -1223,9 +1194,10 @@ $("stack-alpha").addEventListener("input", e => { S.stackAlpha = +e.target.value
 
 /* ---------- tẩy tay trên khu xếp chồng ---------- */
 // Nét tẩy lưu theo toạ độ ảnh gốc và vẽ đè sau bước xoá nền tự động (S.base), nên đổi cài đặt xoá nền vẫn giữ nét.
-// Nét cọ: { restore, size, shape: "round" | "square", pts: [x0, y0, x1, y1, …] }. Tẩy vùng: { pix: Int32Array chỉ số pixel }.
+// Nét cọ: { restore, color?, size, shape: "round" | "square", pts: [x0, y0, x1, y1, …] }. Tẩy vùng: { pix: Int32Array chỉ số pixel }.
+// Có color là nét tô. Màu tô nằm ở lớp riêng phủ lên trên, nét tẩy hay trả lại đi sau thì xoá luôn màu đã tô ở chỗ đó.
 S.strokes = []; S.edSize = 4; S.edShape = "round";
-let eraseMask = null, composed = null, liveStroke = null;
+let eraseMask = null, paintLayer = null, composed = null, liveStroke = null;
 
 function maskCtx() {
   if (!eraseMask || eraseMask.width !== S.src.width || eraseMask.height !== S.src.height) {
@@ -1233,31 +1205,46 @@ function maskCtx() {
   }
   return eraseMask.getContext("2d");
 }
+function paintCtx() {
+  if (!paintLayer || paintLayer.width !== S.src.width || paintLayer.height !== S.src.height) {
+    paintLayer = document.createElement("canvas"); paintLayer.width = S.src.width; paintLayer.height = S.src.height;
+  }
+  return paintLayer.getContext("2d");
+}
+function clearEdits() {
+  for (const x of [maskCtx(), paintCtx()]) x.clearRect(0, 0, S.src.width, S.src.height);
+}
+function stampRect(s, x, y, w, h) {
+  const p = paintCtx();
+  if (s.color) { p.fillStyle = s.color; p.fillRect(x, y, w, h); return; }
+  const m = maskCtx(); m.fillStyle = "#000";
+  if (s.restore) m.clearRect(x, y, w, h); else m.fillRect(x, y, w, h);
+  p.clearRect(x, y, w, h);
+}
 // Đóng dấu từng hàng pixel nguyên, không khử răng cưa, để mép tẩy trên pixel art không ra pixel nửa trong.
-function stamp(x, y, size, restore, shape) {
-  const m = maskCtx(), R = size / 2;
+function stamp(x, y, s) {
+  const size = s.size, R = size / 2;
   const cx = size % 2 ? Math.floor(x) + 0.5 : Math.round(x), cy = size % 2 ? Math.floor(y) + 0.5 : Math.round(y);
-  m.fillStyle = "#000";
-  if (shape === "square") { if (restore) m.clearRect(cx - R, cy - R, size, size); else m.fillRect(cx - R, cy - R, size, size); return; }
+  if (s.shape === "square") { stampRect(s, cx - R, cy - R, size, size); return; }
   for (let py = Math.ceil(cy - R - 0.5); py <= Math.floor(cy + R - 0.5); py++) {
     const dy = py + 0.5 - cy, w = Math.sqrt(Math.max(0, R * R - dy * dy));
     const x0 = Math.ceil(cx - w - 0.5), x1 = Math.floor(cx + w - 0.5);
     if (x1 < x0) continue;
-    if (restore) m.clearRect(x0, py, x1 - x0 + 1, 1); else m.fillRect(x0, py, x1 - x0 + 1, 1);
+    stampRect(s, x0, py, x1 - x0 + 1, 1);
   }
 }
 function paintStroke(s, from) {
   if (s.pix) {
-    const m = maskCtx(), W = eraseMask.width; m.fillStyle = "#000";
-    for (const n of s.pix) m.fillRect(n % W, Math.floor(n / W), 1, 1);
+    const W = S.src.width;
+    for (const n of s.pix) stampRect(s, n % W, Math.floor(n / W), 1, 1);
     return;
   }
   const p = s.pts;
   for (let i = from; i < p.length; i += 2) {
-    if (i === 0) { stamp(p[0], p[1], s.size, s.restore, s.shape); continue; }
+    if (i === 0) { stamp(p[0], p[1], s); continue; }
     const ax = p[i - 2], ay = p[i - 1], bx = p[i], by = p[i + 1];
     const n = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) / Math.max(0.5, s.size / 4)));
-    for (let k = 1; k <= n; k++) stamp(ax + (bx - ax) * k / n, ay + (by - ay) * k / n, s.size, s.restore, s.shape);
+    for (let k = 1; k <= n; k++) stamp(ax + (bx - ax) * k / n, ay + (by - ay) * k / n, s);
   }
 }
 function composeImg() {
@@ -1268,15 +1255,15 @@ function composeImg() {
   const x = composed.getContext("2d");
   x.clearRect(0, 0, composed.width, composed.height);
   x.drawImage(base, 0, 0);
-  x.globalCompositeOperation = "destination-out"; x.drawImage(eraseMask, 0, 0);
-  x.globalCompositeOperation = "source-over";
+  x.globalCompositeOperation = "destination-out"; x.drawImage(maskCtx().canvas, 0, 0);
+  x.globalCompositeOperation = "source-over"; x.drawImage(paintCtx().canvas, 0, 0);
   S.img = composed; opaqueCache.delete(composed);
 }
 function editsChanged() { composeImg(); dirty(); stackDirty = true; }
 function undoEdit() {
   if (!S.strokes.length) return;
   S.strokes.pop();
-  maskCtx().clearRect(0, 0, eraseMask.width, eraseMask.height);
+  clearEdits();
   for (const s of S.strokes) paintStroke(s, 0);
   editsChanged();
 }
@@ -1298,7 +1285,8 @@ function eraseDown(tool, f, p, alt) {
     if (pix) { S.strokes.push({ pix }); paintStroke(S.strokes.at(-1), 0); editsChanged(); }
     return false;
   }
-  liveStroke = { restore: tool === "restore" || alt, size: S.edSize, shape: S.edShape, pts: [p.x, p.y] };
+  liveStroke = { restore: tool === "restore" || (alt && tool === "erase"), size: S.edSize, shape: S.edShape, pts: [p.x, p.y] };
+  if (tool === "paint") liveStroke.color = $("pen-color").value;
   S.strokes.push(liveStroke); paintStroke(liveStroke, 0); editsChanged();
   return true;
 }
@@ -1338,7 +1326,7 @@ for (const b of $("st-shape").children) b.onclick = () => {
   for (const x of $("st-shape").children) x.setAttribute("aria-pressed", x === b);
 };
 $("st-undo").onclick = undoEdit;
-$("st-clear").onclick = () => { S.strokes = []; maskCtx().clearRect(0, 0, eraseMask.width, eraseMask.height); editsChanged(); };
+$("st-clear").onclick = () => { S.strokes = []; clearEdits(); editsChanged(); };
 
 /* ---------- phóng bằng thanh kéo, giữ nút lăn chuột để dời chỗ xem ---------- */
 // Thanh kéo 0–100 đi theo thang log từ 0,25× tới 32×, để nửa dưới đủ mịn cho ảnh lớn.
@@ -1392,7 +1380,7 @@ function loadFile(file, pasted) {
     S.name = pasted ? "dan_anh" : file.name.replace(/\.[^.]+$/, "") || "sprite";
     $("bg-color").value = cornerColor();
     S.off = {}; S.skip = new Set(); S.sel = null; S.start = 0; S.cur = 0; S.playing = true;
-    S.strokes = []; eraseMask = null; S.pocketFlips.clear();
+    S.strokes = []; eraseMask = paintLayer = null; S.pocketFlips.clear();
     guessGrid(); S.count = cellCount();
     // Ô Xoá nền còn bật từ sheet trước: ảnh đã trong suốt thì góc ra màu đen và viền tối của hình bị loang mất.
     const keyedOff = $("bg-on").checked && !sheetIsOpaque();
