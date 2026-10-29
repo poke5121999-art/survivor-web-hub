@@ -33,9 +33,13 @@ const params = new URLSearchParams(location.search);
 const V = new URL(import.meta.url).searchParams.get('v') || '';
 const BASE = new URL('../', import.meta.url).href;
 const ART = `${BASE}art`;
+// A themed game built on one mart (games/cho-viet sets window.MM_THEME before importing this module): its own save
+// keys and cloud row, that mart only (no van to a next mart), and its own names, texts and props.
+const THEME = window.MM_THEME || null;
+const NS = THEME ? THEME.id : 'mmm';
 // Saves: one global record (current mart, cash: money is global, progression.md "Next mart") plus one record per mart.
-const GLOBAL_KEY = 'mmm-global-v1';
-const MART_KEY = id => `mmm-${id}-v1`;
+const GLOBAL_KEY = `${NS}-global-v1`;
+const MART_KEY = id => `${NS}-${id}-v1`;
 const load_ = k => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } };
 const store_ = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } };
 const fresh = params.has('fresh');
@@ -44,12 +48,13 @@ const cloudState = fresh ? 'off' : await pull();
 // Before marts existed the only save was Store 1's, which then also held the cash.
 const global = (!fresh && load_(GLOBAL_KEY)) || { mart: 'store1', cash: (!fresh && load_(MART_KEY('store1')) || {}).cash || 0 };
 if (params.get('mart')) global.mart = params.get('mart');
+if (THEME) global.mart = THEME.mart;
 if (owner()) global.owner = owner();
 const STORE = global.mart;
 // Map menu state: marts reached so far (older saves: every mart with a save) and when each one's idle income was
 // last collected; the 3-hour clock starts on the first visit.
 global.idleAt = global.idleAt || {};
-if (!global.visited) global.visited = fresh ? [] : Object.keys(localStorage).map(k => (k.match(/^mmm-(store\d+)-v1$/) || [])[1]).filter(Boolean);
+if (!global.visited) global.visited = fresh ? [] : Object.keys(localStorage).map(k => (k.match(new RegExp(`^${NS}-(store\\d+)-v1$`)) || [])[1]).filter(Boolean);
 if (!global.visited.includes(STORE)) global.visited.push(STORE);
 if (global.idleAt[STORE] == null) global.idleAt[STORE] = Date.now();
 // Prestige (census-prestige.md): stars per mart (martStarList), gold bars, and the reward waiting for the welcome
@@ -123,6 +128,7 @@ async function load() {
   scene3.add(world.root);
   setStage(8, 'geometry');
   const [clips, controllers, items, itemsGltf, navJson, data, marts, fxData, fxGltf, upgradeIcons, cosData, cosGltf] = await restP;
+  if (THEME) THEME.data({ data, items, marts, nav: navJson });
   const anim = new AnimLibrary(clips, controllers);
   world.rigs = attachRigs(anim, world);
   setStage(5, 'animation');
@@ -134,14 +140,16 @@ async function load() {
   const sim = new Sim(store, { save: saved, cash: global.cash });
   // HasJustPrestiged: the rebuilt mart starts at currentDemandIndex 100 (CustomerManager.c:2907-2911).
   if (!saved && global.prestige && global.prestige.id === STORE) sim.state.demandIndex = 100;
-  const tasks = new Tasks(sim, buildTasks(store));
+  const taskDefs = buildTasks(store);
+  if (THEME) for (const t of taskDefs) t.text = THEME.text[t.text] || t.text;
+  const tasks = new Tasks(sim, taskDefs);
   const workers = new Workers(sim, grid);
   sim.systems.push(new Customers(sim, grid), workers, new Thief(sim, grid), new Cars(sim), new Boosters(sim), tasks);
   const view = new GameView({ world, store, sim, items, itemsGltf, texBase: `${ART}/tex`, anim });
   view.fx = new Fx({ root: scene3, camera, art: ART, fxData, gltf: fxGltf, texBase: `${ART}/tex`, version: V });
   // RC_MartOrders: the pad leads to the next entry; past the last one GoToNextMart falls back to the first.
   const order = marts.filter(m => !m.seasonal), here = order.findIndex(m => m.id === STORE);
-  const next = here < 0 ? null : order[(here + 1) % order.length];
+  const next = here < 0 || THEME ? null : order[(here + 1) % order.length];
   const doneOf = id => (id === STORE ? Object.values(sim.state.mats).filter(m => m.done).length
     : Object.values((load_(MART_KEY(id)) || {}).mats || {}).filter(m => m.done).length);
   // The 3D map loads the first time the card opens; the player's van (vanCarObj) is borrowed while it is shown.
@@ -234,11 +242,12 @@ async function load() {
   const hud = new Hud({ onDeleteAccount, daily, shop, sim, store, camera, canvas, items, art: ART, world, tasks, matArrows: matArrows(store), nextMart: next, workerDefs: workers.defs,
     sound: new Sound(`${ART}/sfx`, sim, store, V), martMap, upgradeRows: upgradeIcons && upgradeIcons.stores[STORE], cosmetics,
     onMapView: i => { if (i == null) { cityMap.hide(); sim.state.mapMode = false; } else { sim.state.mapMode = true; if (cityMap.open) cityMap.goTo(i); else cityMap.show(martMap.rows(), i); } } });
+  if (THEME) await THEME.world({ THREE, world, store, sim, view, looks, gltfLoader, scene: scene3 });
   await Promise.all(sceneJson.textures.map(t => texture(`${ART}/tex`, t.name).full));
   setStage(0, 'textures');
   daily.sound = hud.sound;
   shop.sound = hud.sound;
-  sim.listeners.push(e => { if (e.type === 'depart') setTimeout(() => travel(next.id), VAN_TIME); });
+  sim.listeners.push(e => { if (e.type === 'depart' && next) setTimeout(() => travel(next.id), VAN_TIME); });
   const director = new CameraDirector(sim, store);
   hud.onTaskFocus = p => director.highlight(p);
   for (const [kind, s] of Object.entries(global.boostLeft || {})) if (s > 0) sim.boosters.grant(kind, s);

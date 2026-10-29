@@ -1,9 +1,12 @@
 // Account save: the hub's HubSave layer (js/save-sync.js, Supabase game_saves) under the local save. localStorage stays
 // the save the game reads and writes; this module copies every mmm-*-v1 record into one cloud payload and back.
 // Guests, an offline hub or a hub without Supabase make every call a no-op, and the game runs on the local save alone.
-const GAME_ID = 'casual-farm';
-const GLOBAL_KEY = 'mmm-global-v1';
-const MART_RE = /^mmm-(store\d+)-v1$/;
+// A themed game (window.MM_THEME, games/cho-viet) keeps its own key prefix and its own cloud row.
+const THEME = window.MM_THEME || null;
+const GAME_ID = THEME ? THEME.id : 'casual-farm';
+const NS = THEME ? THEME.id : 'mmm';
+const GLOBAL_KEY = `${NS}-global-v1`;
+const MART_RE = new RegExp(`^${NS}-(store\\d+)-v1$`);
 const PUSH_EVERY = 20000;
 
 const hub = () => { try { return window.HubSave && window.HubSave.isAvailable() ? window.HubSave : null; } catch (e) { return null; } };
@@ -24,7 +27,7 @@ export function localPayload() {
 
 function replaceLocal(p) {
   for (const k of keys()) if (MART_RE.test(k)) { try { localStorage.removeItem(k); } catch (e) { /* storage unavailable */ } }
-  for (const [id, d] of Object.entries(p.marts || {})) if (d) write(`mmm-${id}-v1`, d);
+  for (const [id, d] of Object.entries(p.marts || {})) if (d) write(`${NS}-${id}-v1`, d);
   if (p.global) write(GLOBAL_KEY, p.global); else { try { localStorage.removeItem(GLOBAL_KEY); } catch (e) { /* storage unavailable */ } }
 }
 
@@ -43,7 +46,7 @@ export async function pull() {
   if (!r.ok) return 'off';
   const cloud = r.found && r.payload && r.payload.v === 1 ? r.payload : null;
   if (owner && owner !== me) {
-    write(`mmm-bak-${owner}`, local);
+    write(`${NS}-bak-${owner}`, local);
     replaceLocal(cloud || { marts: {} });
     return cloud ? 'cloud' : 'fresh';
   }
@@ -60,7 +63,7 @@ export function owner() {
 // Delete Account: every mmm-* record goes, and the account's cloud row is overwritten by an empty save stamped now, so
 // the next pull on any device starts a fresh game (HubSave has no delete call).
 export async function wipe() {
-  for (const k of keys()) if (/^mmm-/.test(k)) { try { localStorage.removeItem(k); } catch (e) { /* storage unavailable */ } }
+  for (const k of keys()) if (k.startsWith(`${NS}-`)) { try { localStorage.removeItem(k); } catch (e) { /* storage unavailable */ } }
   const h = hub();
   if (h) await withTimeout(h.storeSave(GAME_ID, { v: 1, at: Date.now(), global: null, marts: {} }, { version: 0 }).catch(() => null), 5000);
 }

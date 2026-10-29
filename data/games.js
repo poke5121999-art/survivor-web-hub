@@ -1000,13 +1000,30 @@ window.HUB_GAMES = [
     en: { title: "My Mini Mart", tagline: "Grow produce, raise chickens and cows, stock shelves, run the till, hire staff and drive the van through 14 marts.", desc: "My Mini Mart (Kiseki Games / Supersonic) remade from the Android 1.89.5 release to run straight in the browser: about 4 MB per load instead of 150 MB, the store shows at once and sharpens as it loads. All 14 marts, linked by the van, from Grocer Mart to Campsite Mart: crop beds, chicken and cow pens, blenders, ovens, the burger maker, the flour truck, shelves, the till, hiring and upgrading staff, machine upgrades, chasing the thief, filling car orders, boosters and bonus cash (free, no ads), and a mart map to go back and collect idle income. Original sounds and music, the camera pans to what you unlock, and the original step-by-step tutorial. Drag to walk, saved in the browser. The old Unity build is still at unity.html." },
     thumbnail: "assets/thumbnails/casual-farm.png",
     path: "games/casual-farm/index.html",
-    rev: "20261029b",
+    rev: "20261029c",
     // three.js r160 vendor, no build step; all 14 marts of RC_MartOrder rebuilt from the APK (D:/minimart-ref) by
     // games/casual-farm/tools (export_marts.py, export_audio.py). Bump rev with: node games/casual-farm/tools/stamp.js <rev>.
     // Kiểm: node test/casual-farm-play.js (MM_URL=<Pages>), MM_STORE=storeN node test/casual-farm-sim.js.
     // The old 150 MB Unity build stays in its own Pages repo (poke5121999-art/my-mini-mart-web), opened by unity.html.
     status: "available",
     tags: ["Nông trại", "Quản lý", "Màn dọc"]
+  },
+  {
+    id: "cho-viet",
+    title: "Chợ Việt",
+    tagline: "Tạp hóa chợ quê: trồng cà chua, nuôi gà bò, bày hàng, tính tiền cho khách đội nón lá.",
+    desc: "Một tiệm tạp hóa chợ quê Việt Nam chạy trên bộ máy của My Mini Mart. Hái cà chua, cho gà ăn nhặt trứng, gặt lúa, xay bột, nướng bánh mì, vắt sữa bò, xay tương cà; bày hàng lên kệ, đứng quầy tính tiền, thuê nhân viên, đuổi trộm, giao đơn cho khách đi xe. Khách và nhân viên mặc đồ Việt: nón lá, áo dài, áo bà ba, mũ bảo hiểm, khăn rằn; ngoài sân có dừa, tre, chòi, sạp chợ, trâu gặm cỏ, cờ đỏ sao vàng và bảng TẠP HÓA CHỢ VIỆT. Chữ trong game là tiếng Việt. Một chợ, chơi một mình, lưu riêng (không đụng bản lưu My Mini Mart). Kéo để đi.",
+    genre: "thu-gian",
+    accent: "#da251d",
+    en: { title: "Cho Viet", tagline: "A Vietnamese village grocery: grow tomatoes, raise chickens and cows, stock shelves, serve customers in conical hats.", desc: "A Vietnamese village market shop running on the My Mini Mart engine. Pick tomatoes, feed the chickens for eggs, harvest rice, mill flour, bake bánh mì, milk the cow, blend tomato sauce; stock the shelves, run the till, hire staff, chase the thief, fill car orders. Customers and staff wear Vietnamese clothes (nón lá, áo dài, áo bà ba, helmets, khăn rằn); the yard has coconut palms, bamboo, a hut, market stalls, a grazing buffalo, flags and a TẠP HÓA CHỢ VIỆT sign. In Vietnamese. One market, single player, its own save (My Mini Mart's save is untouched). Drag to walk." },
+    thumbnail: "assets/thumbnails/cho-viet.png",
+    path: "games/cho-viet/index.html",
+    rev: "20261029c",
+    // My Mini Mart's engine (games/casual-farm/js) with window.MM_THEME from games/cho-viet/js/theme.js: Store 1's
+    // scene and progression, Vietnamese names, clothes and props. Stamped with the engine's rev by
+    // node games/casual-farm/tools/stamp.js <rev>. Kiểm: node test/cho-viet-play.js (MM_URL=<Pages>).
+    status: "available",
+    tags: ["Việt Nam", "Quản lý", "Màn dọc"]
   },
   {
     id: "mini-mart-coop",

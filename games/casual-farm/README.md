@@ -28,7 +28,8 @@ Chủ dự án yêu cầu ngày 2026-10-26: nạp nhẹ hơn, lúc đầu mờ r
   - `export_cosmetics.py` ghi `art/cosmetics/` (10 da, 22 bộ đồ, 40 mũ, 11 thú cưng của shop gốc: giá, loại giá, khả năng, sức mang; mesh da và đồ gắn vào 22 xương của người chơi, mỗi mesh giữ bind pose riêng; mesh mũ tĩnh; 81 icon). Dữ liệu đọc từ controller trong `art/store1/scene.json`; dòng nào GameObject tắt thì không có trong shop.
   - `export_store.py sharedassets1.assets pets --prefabs <id,...>` ghi `art/pets/` (10 prefab thú cưng, xương và Animator riêng; controller và clip đã có trong `art/anim`).
   - `export_menus.py [--print]` ghi `art/ui/menus/` (prefab menu bản đồ `MartMenu_ABTEST`, `MartPrestigeMenu`, `MartPrestige_WelcomeScreen`, `Info_Prestige`, vòng quay `DailySpinScreen` và màn thưởng của nó, `MartWelcomeScreen`, `Update_Gems`, kèm sprite, màu nút `Button` và 13 icon mart `Mart_<Tên>Icon`). `--print` in cây node dạng dàn ý để đọc bố cục.
-  - `stamp.js <rev>` gắn `?v=<rev>` cho mọi module trong import map của `index.html`. Chạy mỗi lần tăng `rev`.
+  - `stamp.js <rev>` gắn `?v=<rev>` cho mọi module trong import map của `index.html`. Chạy mỗi lần tăng `rev`. Nó stamp luôn `games/cho-viet/index.html` với cùng rev, vì Chợ Việt chạy chính các module này.
+- Chợ Việt (`games/cho-viet`) là game riêng trên hub, dùng bộ máy này với `window.MM_THEME`. `main.js` và `cloud.js` đọc theme để đổi khóa lưu, khóa mart và bỏ mart kế; móc `THEME.data` và `THEME.world` chạy trước và sau khi dựng cửa hàng. Không có theme thì mọi thứ chạy như cũ. Chi tiết ở `games/cho-viet/README.md`.
 - `js/sim/` là luật chơi thuần, không dùng THREE, chạy được bằng node. Sim phát sự kiện vào `sim.events`, view đọc rồi xoá.
   - `store.js` dựng mô tả tĩnh của cửa hàng từ `scene.json`: ô mua, máy sản xuất, kệ, quầy, khách, người chơi.
   - `sim.js` giữ trạng thái: tiền, hàng mang theo, trả tiền ô, sản xuất, nâng sức mang, lưu/nạp.
