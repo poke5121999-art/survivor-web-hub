@@ -272,10 +272,21 @@ export class Sim {
     return track ? trackStep(lv, track, sp, stk, base) : nextStep(lv, sp, stk, base);
   }
 
-  buyUpgrade(slot, track = null) {
+  // The upgrade menu's ad button (rules/census-ads.md 1-2): a machine's speed track and both worker tracks offer the
+  // next level free when the current level is odd (Speed Lvl.2 and Lvl.4 on screen); the player row has none. The cash
+  // button stays beside it (ABNoTouchType 1, the arm the clip shows). [ĐỀ XUẤT] That arm's other rule, an ad on every
+  // row the player cannot afford, is left out: with no video in between it would make every upgrade free.
+  adUpgrade(slot, track) {
+    if (slot.kind === 'player' || (slot.kind === 'producer' && track !== 'speed') || !this.upgradeOffer(slot, track)) return false;
+    const lv = slot.kind === 'producer' ? this.state.levels.producers[slot.i] : this.workerLevel(slot.name);
+    return lv[track] % 2 === 1;
+  }
+
+  // free: the ad button's claim (FactoryUpgradeHolder / WorkerUpgradeHolder.RewardPlayerAfterWatchingAds, no cash taken).
+  buyUpgrade(slot, track = null, free = false) {
     const offer = this.upgradeOffer(slot, track);
-    if (!offer || this.state.cash < offer.price) return false;
-    this.state.cash -= offer.price;
+    if (!offer || (free ? !this.adUpgrade(slot, offer.track) : this.state.cash < offer.price)) return false;
+    if (!free) this.state.cash -= offer.price;
     if (slot.kind === 'player') {
       this.state.stackLevel++;
       this.state.upgrade.paid = 0;

@@ -14,7 +14,7 @@ const ROOT = path.join(__dirname, '..'), OUT = process.env.MM_SHOTS;
 if (OUT) fs.mkdirSync(OUT, { recursive: true });
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.webp': 'image/webp', '.glb': 'model/gltf-binary', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.ttf': 'font/ttf' };
 const VIEWS = [[390, 844], [360, 640], [820, 1180], [1280, 720]];
-const MENUS = ['hud', 'tip:shop', 'tip:map', 'tip:phone', '#setbtn', '#upbtn', '#mapbtn', '#custombtn', '#robtn', '#spinbtn', '#phonebtn', '#shopbtn'];
+const MENUS = ['hud', 'tip:shop', 'tip:map', 'tip:phone', '#setbtn', '#upbtn', '#upbtn > .machines', '#mapbtn', '#custombtn', '#robtn', '#spinbtn', '#phonebtn', '#shopbtn'];
 const srv = http.createServer((q, s) => { const f = path.join(ROOT, decodeURIComponent(q.url.split('?')[0])); fs.readFile(f, (e, b) => { if (e) { s.writeHead(404); s.end(); return; } s.writeHead(200, { 'content-type': TYPES[path.extname(f)] || 'application/octet-stream' }); s.end(b); }); }).listen(0, async () => {
   const url = process.env.MM_URL || `http://localhost:${srv.address().port}/games/casual-farm/index.html`;
   const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
@@ -31,6 +31,12 @@ const srv = http.createServer((q, s) => { const f = path.join(ROOT, decodeURICom
       const g = window.__mmGame, st = g.sim.state, gl = g.hud.martMap.global;
       for (const m of Object.values(st.mats)) m.done = true;
       st.cash = 123456; gl.gold = 50; g.daily.g.gems = 99;
+      // Odd speed levels put the upgrade menu's Free ad button next to every machine's cash button ('#upbtn > .machines').
+      for (const r of g.hud.menuModel()) {
+        if (r.slot.kind === 'player') continue;
+        st.active.add(r.node);
+        (r.slot.kind === 'producer' ? st.levels.producers[r.slot.i] : g.sim.workerLevel(r.slot.name)).speed = 1;
+      }
       st.task.index = g.hud.tasks.list.length;
       gl.unlocks = { upgrade: 'seen', shop: 'seen', rolling: 'seen', spin: 'seen', custom: 'seen', phone: 'seen', map: 'seen' };
       gl.showSpin = true; (gl.shop || (gl.shop = {})).on = true;
@@ -62,7 +68,7 @@ const srv = http.createServer((q, s) => { const f = path.join(ROOT, decodeURICom
           u[id] = 'new'; g.hud.unlocks.shownFor = 0; g.sim.state.next.ready = false;
         }, menu.slice(4));
       } else if (menu !== 'hud') {
-        await page.evaluate(m => { window.__mmGame.sim.state.next.ready = true; document.querySelector(m).click(); }, menu);
+        await page.evaluate(m => { window.__mmGame.sim.state.next.ready = true; m.split(' > ').forEach(q => document.querySelector(q.startsWith('.') ? '#upmenu .tab' + q : q).click()); }, menu);
       } else await page.evaluate(() => { window.__mmGame.sim.state.next.ready = true; });
       await page.waitForTimeout(900);
       const res = await page.evaluate(([menu, tip]) => {
@@ -101,7 +107,7 @@ const srv = http.createServer((q, s) => { const f = path.join(ROOT, decodeURICom
       for (const k of ['covered', 'cut', 'overlap']) for (const line of res[k]) report.push(`${tag} ${k}: ${line}`);
       if (!tip && menu !== 'hud' && !res.overlays) report.push(`${tag} no menu opened`);
       if (tip && res.tips !== 1) report.push(`${tag} ${res.tips} tips shown, expected 1`);
-      if (OUT) await page.screenshot({ path: path.join(OUT, `${w}x${h}-${menu.replace(/[#:]/g, '')}.png`) });
+      if (OUT) await page.screenshot({ path: path.join(OUT, `${w}x${h}-${menu.replace(/[#:>. ]+/g, '')}.png`) });
     }
     await page.context().close();
   }

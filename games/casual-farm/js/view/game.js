@@ -221,7 +221,9 @@ export class GameView {
       const k = o.userData.node.k || {};
       if (SELF_HIDING.some(c => k[c]) || /^placeholder/i.test(o.name)) o.visible = false;
     });
-    // Rewarded-video carts (ads are not part of this build) and seasonal decorations (seasonVisuals).
+    // The Thanksgiving turkey cart (pays event turkeys, and this build has no seasonal event currency), the ad-break box
+    // spawner (it drops a box only right before an interstitial, which this build never shows; rules/census-ads.md,
+    // vip-rv-boost.md 4) and seasonal decorations (seasonVisuals).
     // MatRVSpawnerController stays: its extra-cash mat shows while the offer is up (Boosters).
     const AD_ONLY = ['TurThanksgivingRvMat', 'AdsBoxesSpawner'];
     this.byIndex.forEach(o => {

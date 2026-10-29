@@ -52,7 +52,7 @@ export class Hud {
         <a class="btn lb phone" id="phonebtn"><img src="${ui('mobilePhoneIcon')}" alt=""><i class="dot"></i><s></s></a>
       </div>
       <div class="upmenu phonemenu" id="phonemenu"><div class="head"><img src="${ui('car_CustomerIcon')}" alt=""><b>ORDER</b><a class="btn x">✕</a></div>
-        <div class="rows"></div><div class="foot"><a class="btn buy collect" data-collect="1">COLLECT</a></div></div>
+        <div class="rows"></div><div class="foot"><a class="btn buy collect" data-collect="1">COLLECT</a><a class="btn buy collect rv" data-collect="3"><img src="${art}/ui/menus/adIcon.webp" alt="">x3</a></div></div>
       <div class="saving" id="saving">Save...</div>
       <div class="upmenu settings" id="setmenu"><div class="head"><b>SETTINGS</b><a class="btn x">✕</a></div>
         <div class="rows"><div class="row"><span><b>Sound</b></span><a class="btn buy tog" data-tog="sound"></a></div>
@@ -132,13 +132,13 @@ export class Hud {
         this.upKey = null;
         return;
       }
-      const track = b.dataset.t, offer = sim.upgradeOffer(row.slot, track);
+      const track = b.dataset.t, offer = sim.upgradeOffer(row.slot, track), free = b.dataset.free != null;
       if (!offer) return;
       // CounterController.ShakeCashOnce when the cash is short.
-      if (sim.state.cash < offer.price) { this.shakeCash(); return; }
+      if (!free && sim.state.cash < offer.price) { this.shakeCash(); return; }
       const firstCarry = row.slot.kind === 'player' && sim.state.stackLevel === 0;
       this.tutorialCarry = !!(this.tasks && this.tasks.current && this.tasks.current.menu);
-      if (!sim.buyUpgrade(row.slot, track)) return;
+      if (!sim.buyUpgrade(row.slot, track, free)) return;
       this.upKey = null;
       this.afterBuy(row, track, firstCarry);
     });
@@ -153,8 +153,8 @@ export class Hud {
       this.phoneKey = null;
     });
     this.phoneEl.querySelector('.x').addEventListener('click', () => this.phoneEl.classList.remove('open'));
-    this.phoneEl.querySelector('[data-collect]').addEventListener('click', () => {
-      if (sim.cars && sim.cars.full()) { sim.cars.collect(); this.phoneEl.classList.remove('open'); }
+    for (const b of this.phoneEl.querySelectorAll('[data-collect]')) b.addEventListener('click', () => {
+      if (sim.cars && sim.cars.full()) { sim.cars.collect(+b.dataset.collect); this.phoneEl.classList.remove('open'); }
     });
     // GameSingleton haptics: VibrateSuccess when a mat completes, VibrateLight when the checkout box pops.
     sim.listeners.push(e => {
@@ -308,7 +308,9 @@ export class Hud {
     if (key === this.phoneKey) return;
     this.phoneKey = key;
     this.phoneEl.querySelector('.rows').innerHTML = rows;
-    this.phoneEl.querySelector('[data-collect]').classList.toggle('poor', !full);
+    this.phoneEl.querySelector('[data-collect="1"]').classList.toggle('poor', !full);
+    // adsHolderObj shows with the Collect button once every line is full (car-orders.md).
+    this.phoneEl.querySelector('.rv').style.display = full ? '' : 'none';
   }
 
   // Map card refresh, and CheckShouldPopUpPrestigeInfo: once the current mart is 100 % built (prestigeRequirement 1.0)
@@ -489,7 +491,8 @@ export class Hud {
       }
       const tracks = (r.slot.kind === 'player' ? ['stack'] : ['stack', 'speed']).map(track => {
         const offer = sim.upgradeOffer(r.slot, track);
-        const btn = offer ? `<a class="btn buy${st.cash >= offer.price ? '' : ' poor'}" data-r="${idx}" data-t="${track}">${cash}${offer.price}</a>`
+        const ad = sim.adUpgrade(r.slot, track) ? `<a class="btn buy rv" data-r="${idx}" data-t="${track}" data-free="1"><img src="${this.art}/ui/menus/adIcon.webp" alt="">Free</a>` : '';
+        const btn = offer ? `${ad}<a class="btn buy${st.cash >= offer.price ? '' : ' poor'}" data-r="${idx}" data-t="${track}">${cash}${offer.price}</a>`
           : '<a class="btn buy max">MAX</a>';
         return `<div class="tr"><span>${track === 'stack' ? 'Stack' : 'Speed'} - Lvl.${level(r, track)}</span>${btn}</div>`;
       }).join('');

@@ -164,6 +164,28 @@ function serve() {
     check('the upgrade menu lists a locked machine as "???" and buys Speed and Stack separately', upgraded.locked && upgraded.lv1
       && upgraded.lv1.speed === 1 && upgraded.lv1.stack === 0 && upgraded.lv2.stack === 1 && upgraded.label, JSON.stringify(upgraded));
     check('the upgrade button dot shows a new unlock until its tab is seen', upgraded.dotOn && upgraded.dotOff, JSON.stringify(upgraded));
+    // Ad button (FactoryUpgradeHolder): the machine is now at Speed Lvl.2 (level 1, odd), so its Speed track offers the
+    // next level free beside the cash price; Stack and the player row offer none.
+    const adUp = await page.evaluate(async ri => {
+      const g = window.__mmGame, st = g.sim.state, pi = g.hud.menuModel()[ri].slot.i;
+      document.querySelector('#upbtn').click();
+      document.querySelector('#upmenu [data-tab="machines"]').click();
+      await new Promise(r => setTimeout(r, 300));
+      const free = t => document.querySelector(`#upmenu [data-r="${ri}"][data-t="${t}"][data-free]`);
+      const before = { speed: !!free('speed'), stack: !!free('stack'), cash: !!document.querySelector(`#upmenu [data-r="${ri}"][data-t="speed"]:not([data-free])`) };
+      const cash0 = st.cash, lv0 = st.levels.producers[pi].speed;
+      free('speed').click();
+      await new Promise(r => setTimeout(r, 1700));
+      const after = { spent: cash0 - st.cash, speed: st.levels.producers[pi].speed - lv0, again: !!free('speed') };
+      document.querySelector('#upmenu [data-tab="workers"]').click();
+      await new Promise(r => setTimeout(r, 300));
+      const player = g.hud.menuModel().findIndex(r => r.slot.kind === 'player');
+      const playerFree = !!document.querySelector(`#upmenu [data-r="${player}"][data-free]`);
+      document.querySelector('#upmenu .x').click();
+      return { before, after, playerFree };
+    }, (await page.evaluate(() => window.__mmGame.hud.menuModel().findIndex(r => r.tab === 'machines'))));
+    check('an odd machine Speed level shows a Free ad button that levels up without cash', adUp.before.speed && !adUp.before.stack && adUp.before.cash
+      && adUp.after.spent === 0 && adUp.after.speed === 1 && !adUp.after.again && !adUp.playerFree, JSON.stringify(adUp));
 
     // Phone order: an order shows the phone button with its countdown, the dot lights when the car is in, the popup lists
     // the lines and Collect (only once full) pays 5 x the order.
@@ -187,6 +209,20 @@ function serve() {
     });
     check('the phone button counts down an order and its popup collects 5x once full', phone.shown && /09m 5\ds/.test(phone.timer) && phone.dot
       && phone.rows === 1 && phone.early === 0 && phone.paid === phone.expect && phone.gone, JSON.stringify(phone));
+    const phoneAd = await page.evaluate(async () => {
+      const g = window.__mmGame, st = g.sim.state, type = g.store.shelves[0].type, ad = document.querySelector('#phonemenu [data-collect="3"]');
+      st.car.order = { items: [{ type, n: 2, got: 1 }], arrive: st.t - 1, expires: st.t + 600 };
+      await new Promise(r => setTimeout(r, 300));
+      document.querySelector('#phonebtn').click();
+      await new Promise(r => setTimeout(r, 300));
+      const hidden = getComputedStyle(ad).display === 'none';
+      st.car.order.items[0].got = 2;
+      await new Promise(r => setTimeout(r, 300));
+      const shown = getComputedStyle(ad).display !== 'none', cash0 = st.cash;
+      ad.click();
+      return { hidden, shown, paid: st.cash - cash0, expect: Math.trunc(3 * Math.trunc(5 * Math.trunc((g.store.prices[type] || 0) * 2))), gone: !st.car.order };
+    });
+    check('the phone order ad button shows once full and pays 3x the collect at once', phoneAd.hidden && phoneAd.shown && phoneAd.paid === phoneAd.expect && phoneAd.gone, JSON.stringify(phoneAd));
 
     // Left button column and Settings: the buttons sit on the left; Settings switches the music.
     const hudLeft = await page.evaluate(async () => {

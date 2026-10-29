@@ -81,12 +81,13 @@ export class Cars {
     return this.ready() && o.items.every(x => x.got >= x.n);
   }
 
-  // Collect: trunc(5 x sum(trunc(price x count))) paid in one lump, the car leaves.
-  collect() {
+  // Collect: trunc(5 x sum(trunc(price x count))) paid in one lump, the car leaves. The ad button pays
+  // trunc(3 x that) (_watchAdsMultiplier, PhoneOrderMenuController.c:1310); the web gives it without the video.
+  collect(mult = 1) {
     if (!this.full()) return 0;
     const sim = this.sim, o = sim.state.car.order;
     const reward = o.items.reduce((a, x) => a + Math.trunc((sim.store.prices[x.type] || 0) * x.n), 0);
-    const income = Math.trunc(INCOME * reward);
+    const income = Math.trunc(mult * Math.trunc(INCOME * reward));
     sim.state.cash += income;
     sim.state.car.order = null;
     sim.emit({ type: 'carLeave', paid: true, amount: income });

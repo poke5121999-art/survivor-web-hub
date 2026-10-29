@@ -171,6 +171,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #1f2a1b; tou
 .upmenu.upgrades .tracks { margin-left: auto; display: flex; flex-direction: column; gap: 0.35em; align-items: flex-end; }
 .upmenu.upgrades .tr { display: flex; align-items: center; gap: 0.6em; font-size: 0.85em; text-shadow: 0 1px 0 #000; }
 .upmenu.upgrades .tr .buy { min-width: 3.6em; justify-content: center; }
+.upmenu.upgrades .tr .buy.rv, .upmenu.phonemenu .collect.rv { background: #5ef0c7; }
 .tag.float { font-size: max(16px, calc(34 / 1334 * 100vh)); color: #fff; text-shadow: 0 2px 0 #000, 0 -2px 0 #000, 2px 0 0 #000, -2px 0 0 #000; white-space: nowrap; }
 .tag.float i { font-style: normal; color: #fff; }
 .cash.shake { animation: cashShake 0.35s ease-in-out; }
@@ -201,7 +202,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #1f2a1b; tou
 .upmenu.phonemenu .row img { width: 2em; height: 2em; object-fit: contain; }
 .upmenu.phonemenu .row .bar { flex: 1; display: block; height: 0.6em; background: #e3e3e3; border-radius: 0.3em; overflow: hidden; }
 .upmenu.phonemenu .row .bar u { display: block; height: 100%; background: #4cd137; }
-.upmenu.phonemenu .foot { display: flex; justify-content: center; padding: 0.4em; }
+.upmenu.phonemenu .foot { display: flex; justify-content: center; gap: 0.5em; padding: 0.4em; }
 .upmenu.phonemenu .collect { cursor: pointer; pointer-events: auto; padding: 0.3em 1.2em; }
 .saving { position: absolute; left: 1em; bottom: calc(env(safe-area-inset-bottom) + 0.6em); font-size: max(13px, calc(26 / 1334 * 100vh)); opacity: 0;
   text-shadow: 0 1px 0 #000; }
