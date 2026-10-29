@@ -288,7 +288,7 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
 
 </div>
 
-<script src="vendor/jszip.min.js?v=20261029a"></script>
+<script src="vendor/jszip.min.js?v=20261029b"></script>
 <script>
 const $ = id => document.getElementById(id);
 
@@ -1064,6 +1064,24 @@ function keyOut() {
       }
       parts.push(part);
     }
+    // Khe nền mỏng thật (giữa hai lọn tóc) có hai bên đều là màu hình đậm, xa màu nền. Dải mỏng giáp một mảng hình sáng
+    // (mép mắt, ánh sáng trên khung gương, màu trộn giữa mắt và mảng tối) là một phần của hình: xoá đi thì thủng hình.
+    const slit = (part, label) => {
+      let walled = 0;
+      for (const n of part) {
+        const row = n - n % W;
+        for (const [step, lo, hi] of [[1, row, row + W - 1], [W, 0, W * H - 1]]) {
+          let a = n, b = n;
+          for (let s = 0; s < 4 && a >= lo && pocketOf[a] === label; s++) a -= step;
+          for (let s = 0; s < 4 && b <= hi && pocketOf[b] === label; s++) b += step;
+          if (a < lo || b > hi || pocketOf[a] === label || pocketOf[b] === label) continue;
+          // Pixel sát khe thường là màu khử răng cưa, nét đậm thật nằm thêm một pixel nữa ra ngoài.
+          const side = (m, d) => Math.max(dist(m * 4), m + d >= lo && m + d <= hi ? dist((m + d) * 4) : 0);
+          if (side(a, -step) > 2 * tol && side(b, step) > 2 * tol) { walled++; break; }
+        }
+      }
+      return walled * 2 >= part.length;
+    };
     const flipped = new Set();
     for (const n of S.pocketFlips) if (pocketOf[n]) flipped.add(pocketOf[n]);
     let gone = 0, kept = 0;
@@ -1072,7 +1090,7 @@ function keyOut() {
       // còn mắt sáng gần trắng lệch đều cả lõi thì là hình. Khe mỏng không có lõi thì coi là nền.
       const core = part.filter(n => { const px = n % W; return px > 0 && px < W - 1 && pocketOf[n - 1] && pocketOf[n + 1] && pocketOf[n - W] && pocketOf[n + W]; });
       const ds = core.map(n => dist(n * 4)).sort((a, b) => a - b);
-      const guess = holes && part.length >= keep && (!ds.length || ds[ds.length >> 1] <= tol / 3);
+      const guess = holes && part.length >= keep && (ds.length ? ds[ds.length >> 1] <= tol / 3 : slit(part, k + 1));
       if (part.length >= keep) guess !== flipped.has(k + 1) ? gone++ : kept++;
       if (guess !== flipped.has(k + 1)) for (const n of part) p[n * 4 + 3] = 0;
     });
