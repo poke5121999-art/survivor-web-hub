@@ -97,6 +97,12 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
 .swatches { display: inline-flex; gap: 4px; }
 .swatches button { width: 26px; height: 26px; padding: 0; border-radius: 50%; border: 2px solid var(--panel); box-shadow: 0 0 0 1px var(--line); }
 .swatches button[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--ink); }
+.swatches input { width: 26px; height: 26px; padding: 3px; border: 0; border-radius: 50%; cursor: pointer; box-shadow: 0 0 0 1px var(--line);
+  background: conic-gradient(#ff3b30, #ffcc00, #2ee06b, #00c2ff, #8a5cff, #ff2bd6, #ff3b30); }
+.swatches input::-webkit-color-swatch-wrapper { padding: 0; }
+.swatches input::-webkit-color-swatch { border: 2px solid var(--panel); border-radius: 50%; }
+.swatches input::-moz-color-swatch { border: 2px solid var(--panel); border-radius: 50%; }
+.swatches input.on { box-shadow: 0 0 0 2px var(--ink); }
 .fcol { display: grid; gap: 6px; align-content: start; min-width: 0; }
 .stack-wrap { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 12px; }
 .flist { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; align-content: start; max-height: 420px; overflow: auto; }
@@ -241,7 +247,7 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
       </div>
       <p class="hint">Chọn một frame trong danh sách rồi kéo trên khung chồng để dời hình của nó. Các frame khác hiện mờ bên dưới để canh cho khớp; đường đứt là tâm khung.
         Kéo ô vuông cam trên viền để đổi cỡ khung cắt: khung nở đều hai phía nên tâm từng frame đứng yên.
-        Ở chế độ <b>Chấm điểm</b>, bấm lên khung để đặt một điểm mốc chung cho mọi frame (ví dụ chỗ chân chạm đất), kéo để dời, kéo ra ngoài khung hoặc bấm chuột phải để xoá.
+        Ở chế độ <b>Chấm điểm</b>, bấm lên khung để đặt một điểm mốc chung cho mọi frame (ví dụ chỗ chân chạm đất), kéo để dời, kéo ra ngoài khung hoặc bấm chuột phải để xoá. Ô tròn viền cầu vồng cuối hàng màu mở bảng chọn màu tuỳ ý.
         Khi đang đứng ở khu này, <kbd>←↑→↓</kbd> dời hình 1px theo đúng hướng mũi tên.
         <b>Tẩy</b> tô lên chỗ cần xoá của frame đang chọn. <b>Tẩy vùng</b> bấm một lần để xoá cả mảng cùng màu liền nhau trong khung, độ giống màu theo thanh Độ lệch màu. <b>Trả lại</b> tô để lấy lại chỗ đã tẩy; giữ <kbd>Alt</kbd> khi tô cũng là trả lại.
         Cọ <b>Vuông</b> tẩy gọn theo ô pixel, hợp để xén mép thẳng của pixel art.
@@ -288,7 +294,7 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
 
 </div>
 
-<script src="vendor/jszip.min.js?v=20261029b"></script>
+<script src="vendor/jszip.min.js?v=20261029c"></script>
 <script>
 const $ = id => document.getElementById(id);
 
@@ -988,12 +994,25 @@ function setStackTool(t) {
 }
 for (const id of ["move", "mark", "erase", "fill", "restore"]) $("tool-" + id).onclick = () => setStackTool(id);
 stack.addEventListener("pointerleave", () => { stackHover = null; stackDirty = true; });
+function pickMarkColor(c, el) {
+  S.markColor = c;
+  for (const x of $("swatches").children) x.tagName === "INPUT" ? x.classList.toggle("on", x === el) : x.setAttribute("aria-pressed", x === el);
+  setStackTool("mark");
+}
 for (const c of MARK_COLORS) {
   const b = document.createElement("button");
   b.type = "button"; b.style.background = c; b.title = "Màu " + c; b.setAttribute("aria-label", "Màu điểm " + c);
   b.setAttribute("aria-pressed", c === S.markColor);
-  b.onclick = () => { S.markColor = c; for (const x of $("swatches").children) x.setAttribute("aria-pressed", x === b); setStackTool("mark"); };
+  b.onclick = () => pickMarkColor(c, b);
   $("swatches").append(b);
+}
+{
+  const pick = document.createElement("input");
+  pick.type = "color"; pick.id = "mark-custom"; pick.value = "#8a5cff";
+  pick.title = "Chọn màu khác"; pick.setAttribute("aria-label", "Chọn màu điểm khác");
+  pick.onclick = () => pickMarkColor(pick.value, pick);
+  pick.addEventListener("input", () => pickMarkColor(pick.value, pick));
+  $("swatches").append(pick);
 }
 /* ---------- xoá nền ---------- */
 // S.src là ảnh gốc; S.img là ảnh đang dùng để vẽ và cắt (ảnh gốc, hoặc bản đã xoá nền).
