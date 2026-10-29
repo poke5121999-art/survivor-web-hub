@@ -200,7 +200,7 @@ async function host(record, o) {
   };
   const open = async id => {
     const d = record.marts && record.marts[id];
-    const game = await enterStore(id, 'host', { difficulty: record.difficulty, record, save: d ? { ...d, cash: record.cash } : null,
+    const game = await enterStore(id, 'host', { difficulty: record.difficulty, record, save: d ? { ...unNaN(d), cash: num(record.cash) } : null,
       hooks: { travel, save: () => save(true), deleteAccount } });
     session.game = game;
     if (session.net) session.net.rebind(game.sim, info());
@@ -253,12 +253,24 @@ async function deleteAccount() {
   back();
 }
 
+// Stores saved while the guest upgrade bug ran (rev e) hold NaN cash, which JSON wrote as null: back to numbers.
+const num = v => (Number.isFinite(v) ? v : 0);
+const unNaN = d => ({ ...d, cash: num(d.cash),
+  mats: Object.fromEntries(Object.entries(d.mats || {}).map(([k, m]) => [k, { ...m, paid: num(m.paid) }])),
+  desk: (d.desk || []).map(num) });
+
 // What a guest's buttons change in the store, run on the host.
 function command(game, m) {
   // Between marts there is no store to change; the guest's button press is dropped.
   if (!game) return;
   const sim = game.sim;
-  if (m.op === 'upgrade' && m.slot) sim.buyUpgrade({ kind: m.slot.kind, i: m.slot.i, name: m.slot.name }, m.track || null);
+  if (m.op === 'upgrade' && m.slot) {
+    // The price base of a staff row comes from the host's own store (Hud passes unlockCost as slot.base): a slot
+    // without it priced the upgrade NaN, and NaN cash froze the whole store.
+    const k = m.slot.kind, slot = k === 'worker' ? { kind: k, name: m.slot.name, base: sim.store.unlockCost(m.slot.name) }
+      : k === 'producer' ? { kind: k, i: m.slot.i } : k === 'player' ? { kind: k } : null;
+    if (slot && (k !== 'worker' || Number.isFinite(slot.base))) sim.buyUpgrade(slot, m.track || null, !!m.free);
+  }
   else if (m.op === 'claim' && sim.boosters) sim.boosters.claim();
   else if (m.op === 'claimCash' && sim.boosters) sim.boosters.claimCash();
   else if (m.op === 'carsCollect' && sim.cars && sim.cars.full()) sim.cars.collect();
@@ -300,7 +312,7 @@ async function join(o, attempt = 0) {
       } } });
     session.game = game;
     const sim = game.sim;
-    sim.buyUpgrade = (slot, track) => { net.command('upgrade', { slot: { kind: slot.kind, i: slot.i, name: slot.name }, track }); return true; };
+    sim.buyUpgrade = (slot, track, free) => { net.command('upgrade', { slot: { kind: slot.kind, i: slot.i, name: slot.name }, track, free: !!free }); return true; };
     if (sim.boosters) {
       sim.boosters.claim = () => net.command('claim');
       sim.boosters.claimCash = () => net.command('claimCash');

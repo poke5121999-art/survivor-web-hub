@@ -1018,7 +1018,7 @@ window.HUB_GAMES = [
     en: { title: "My Mini Mart Together", tagline: "My Mini Mart for up to 4 players: farm, stock shelves and run the till together, one shared wallet.", desc: "The co-op version of My Mini Mart, connected through Unity Relay. A Supermarket Together style menu: open a new store (name it, private or public, difficulty, pick the server region on the world map, pick one of 14 marts), load a saved store, or join a friend's store from the room list or with a 6-letter code. Everyone walks, carries, dresses up and walks a pet of their own; cash, pads, machines and staff are shared, and anyone can catch the thief. The whole room drives the van through 14 marts (plus 6 seasonal ones), and the host gets the mart map, idle income, prestige, the shop and the daily spin. Saved to your hub account, and a dropped player reconnects. The menu shows at once, the store loads behind it and sharpens. The solo game is still My Mini Mart." },
     thumbnail: "assets/thumbnails/mini-mart-coop.png",
     path: "games/mini-mart-coop/index.html",
-    rev: "20261028e",
+    rev: "20261029a",
     // Co-op on top of the solo game (games/casual-farm, imported as is, not copied). Unity Relay + Lobby over plain
     // REST/WebSocket (games/mini-mart-coop/js/net), same UGS project as D:/REPO_Meta (Boo Haul). Bump rev with:
     // node games/mini-mart-coop/tools/stamp.js <rev>. Kiểm: test/mini-mart-coop-{relay,sim,play}.js (MMC_URL=<Pages>).

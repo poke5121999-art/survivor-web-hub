@@ -48,6 +48,7 @@ Chạy bên máy `linux` khi PC bận (xem bộ nhớ dự án). Ba bộ:
 - `[BẪY ĐÃ SẬP]` Lệnh của khách (nâng cấp, mua đồ) tới đúng lúc host đang nạp mart mới thì `session.game` đang rỗng và trang host ném lỗi. Giữa hai mart, lệnh bị bỏ.
 - `[BẪY ĐÃ SẬP]` Canvas không xin được WebGL lần hai sau `forceContextLoss`; mỗi lần vào mart `enterStore` thay `#game` bằng canvas mới.
 - `[BẪY ĐÃ SẬP]` Nút bản đồ và nút đồ của host theo luật solo `featuresOn` (`hud.js`): chỉ hiện sau hướng dẫn Store 1 hoặc khi đã tới mart thứ hai. Test kiểm sau khi sang Store 2.
+- `[BẪY ĐÃ SẬP]` Khách nâng cấp nhân viên làm tiền chung thành `NaN` và cả cửa hàng đứng (rev e). Hàng nhân viên của `Hud` đưa giá gốc trong `slot.base`, lệnh `upgrade` của khách bỏ mất field đó, host tính giá ra `NaN`, và `cash < NaN` là false nên vẫn trừ tiền. Giờ host tự tính `base` bằng `store.unlockCost`; hồ sơ đã dính `NaN` (JSON ghi thành `null`) được đưa về số khi mở mart. Lệnh từ khách chỉ mang tên ô, giá luôn do host tính.
 - `[BẪY ĐÃ SẬP]` Sửa file bằng `String.replace` trong `node -e`: chuỗi thay thế chứa `$'` là mẫu đặc biệt ("phần sau chỗ khớp"), làm `mirror.js` bị chép thừa nửa file. Dùng `split(a).join(b)` hoặc công cụ Edit.
 
 ## Còn hở

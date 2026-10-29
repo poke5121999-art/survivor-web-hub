@@ -137,8 +137,27 @@ function serve() {
   const delRow = p => p.evaluate(() => { const r = document.querySelector('#hud .delrow'); return !!r && r.style.display !== 'none'; });
   check('Settings has Delete Account for host and guest (solo 5892b409)', await delRow(a) && await delRow(b));
 
+  // A friend's staff upgrade (Upgrades menu, staff row, cash button): it once reached the host without the row's price
+  // base, priced NaN and froze the shared wallet at NaN.
+  const staff = await a.evaluate(() => {
+    const g = window.__mmc.game, sim = g.sim, R = g.hud.upgradeRows, row = R && R.tabs.workers.find(r => r.kind === 'worker'), w = row && { name: row.node };
+    sim.state.cash += 100000;
+    return w && { name: w.name, cash: sim.state.cash, lv: sim.workerLevel(w.name).speed, price: sim.upgradeOffer({ kind: 'worker', name: w.name, base: sim.store.unlockCost(w.name) }, 'speed').price };
+  });
+  if (!staff) check('guest staff upgrade keeps the wallet a number', false, 'Store 1 has no staff row in Upgrades');
+  else {
+    await b.waitForFunction(c => window.__mmc.game.sim.state.cash >= c - 5000, staff.cash, { timeout: 10000 });
+    await b.evaluate(n => { const s = window.__mmc.game.sim; s.buyUpgrade({ kind: 'worker', name: n, base: s.store.unlockCost(n) }, 'speed'); }, staff.name);
+    await a.waitForFunction(([n, lv]) => window.__mmc.game.sim.workerLevel(n).speed > lv || !Number.isFinite(window.__mmc.game.sim.state.cash), [staff.name, staff.lv], { timeout: 10000 }).catch(() => {});
+    const after = await a.evaluate(n => ({ cash: window.__mmc.game.sim.state.cash, lv: window.__mmc.game.sim.workerLevel(n).speed }), staff.name);
+    check('guest staff upgrade keeps the wallet a number', Number.isFinite(after.cash) && after.lv === staff.lv + 1 && after.cash <= staff.cash - staff.price + 2000,
+      `${staff.name} speed ${staff.lv}→${after.lv}, price ${staff.price}, cash ${staff.cash}→${after.cash}`);
+  }
+
   // The host takes the room to Store 2 (what the van and the map's GO do), with a worker booster running.
   await a.evaluate(() => window.__mmc.game.sim.boosters.grant('worker', 600));
+  // A store saved during the staff upgrade bug carries NaN cash; the next mart opens with a number again.
+  await a.evaluate(() => { window.__mmc.game.sim.state.cash = NaN; });
   await a.evaluate(() => window.__mmc.travel('store2'));
   await a.waitForFunction(() => window.__mmc.game.mart === 'store2' && window.__mmc.stage === 'textures', null, { timeout: 60000 });
   await b.waitForFunction(() => window.__mmc.game && window.__mmc.game.mart === 'store2' && window.__mmc.stage === 'textures', null, { timeout: 60000 })
@@ -150,6 +169,8 @@ function serve() {
   // Solo rule (hud.js featuresOn): map and outfits come in after Store 1's tutorial or at a second mart.
   check('host gets the mart map and outfits once a second mart is reached', await shown(a, '#mapbtn') && await shown(a, '#custombtn'));
   const boostLeft = await a.evaluate(() => window.__mmc.game.sim.boosters.left('worker'));
+  const healed = await a.evaluate(() => window.__mmc.game.sim.state.cash);
+  check('a NaN wallet saved by the old bug opens the next mart as a number', Number.isFinite(healed), `cash ${healed}`);
   check('a running booster carries on in the next mart (solo 358377bf)', boostLeft > 550 && boostLeft <= 600, `${Math.round(boostLeft)} s left`);
   await a.screenshot({ path: path.join(SHOTS, 'a-store2.png') });
   await b.screenshot({ path: path.join(SHOTS, 'b-store2.png') });
