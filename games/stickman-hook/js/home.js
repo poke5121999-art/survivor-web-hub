@@ -76,7 +76,78 @@ const CSS = `
 #start .mbar .num { position: absolute; left: 50%; bottom: ${U(8)}; width: ${U(110)}; height: ${U(30)}; margin-left: ${U(-55)}; font-size: ${U(25)};
   display: flex; align-items: center; justify-content: center; }
 #start .mbar .num:empty { display: none; }
+#start .hw.off { display: none; }
+#hmTut { position: absolute; inset: 0; background: rgba(0, 0, 0, .6667); display: none; z-index: 1; }
+#start.ftue #hmTut { display: block; }
+#start.ftue .hcur, #start.ftue #btnPlay { z-index: 2; }
+#start.ftue .mbar { display: none; }
+#start .tutHand { position: absolute; left: ${U(137.5 + 192.5 - 75)}; top: ${U(72.5 - 87 - 75)}; width: ${U(150)}; height: ${U(150)};
+  pointer-events: none; display: none; }
+#start.ftue .tutHand { display: block; }
+#start .tutHand > i { position: absolute; left: ${U(29.75)}; bottom: ${U(10.85)}; width: ${U(97.27)}; height: ${U(124.72)};
+  filter: drop-shadow(${U(6.64)} ${U(1.48)} 0 rgba(0, 0, 0, .5)); }
+#start .tutHand > b { position: absolute; left: ${U(75 - 26 - 50)}; top: ${U(75 + 51 - 50)}; width: ${U(100)}; height: ${U(100)}; display: none; }
+#start .tutHand > b > i { position: absolute; left: ${U(2.03)}; top: ${U(2.3)}; width: ${U(97.45)}; height: ${U(95.08)}; }
 `;
+
+// First run (HomePage.<Activate>d__36 [asm 0x1168f40..0x1168fa8]): _tutorialOverlay and _tutorialHand are active while
+// GetMaxLevelAchieved("mode.normal") < 1, i.e. save.best < 1. TutorialDarkOverlay = white_square_2px #000000AA, a raycast
+// target over the whole page (the second last child); PlayButton (the last child) stays above it with its TutorialHand
+// (150 x 150 at the PlayButton's anchor (1.2, 1.1)). The page HUD (MainCurrenciesWidget) sits on the PageHUDs layer above
+// the page, so it is not darkened. MenuBar: NavigationService shows it only from one cleared level on [asm 0x1165230..0x11652e4].
+// Hand_animation (60 fps, loop 70 frames): keys [t, v, c0, c1, c2], v(t) = v + c2 d + c1 d^2 + c0 d^3 (d = t - key), a key
+// with no coefficients holds its value (dump/ftue/anim_TutorialHand.txt, tools/ftue_anim.py).
+const F = (n) => n / 60, LOOP = F(70);
+const HAND = {
+  rot: [[0, -90, 5898.9526, -1917.1598, 0], [F(13), -120, -1221.8685, 1035.1244, 0], [F(32), -55, -81200.1016, 10740.0107, 288],
+    [F(38), 0, 2212.1067, -1437.8695, 0], [F(64), -90]],
+  scale: [[0, 1, 1.0792, -1.2581, 0], [F(32), 0.8059, 102.9495, -13.3371, -0.4211], [F(38), 0.7333, -6.5544, 4.2604, 0], [F(64), 1]],
+  x: [[0, 0, -2752.8447, 894.6746, 0], [F(13), 14, 7809.8823, -3709.6943, 0], [F(32), -110], [F(38), -110, -2703.686, 1757.3961, 0], [F(64), 0]],
+  y: [[0, 0, -2752.8447, 894.6746, 0], [F(13), 14, 1710.616, -1070.2268, 0], [F(32), -39, 17680.0254, -1836.0028, -163.2],
+    [F(38), -56, -1376.422, 894.6744, 0], [F(64), 0]],
+  // CircleLight (path #f1389125): m_IsActive from frame 38, scale 1 -> 1.79 and alpha 1 -> 0 by frame 51
+  cs: [[0, 1], [F(38), 1, -155.339, 50.4852, 0], [F(51), 1.79]],
+  ca: [[0, 1], [F(38), 1, 196.6317, -63.9053, 0], [F(51), 0]],
+};
+export function handAt(t) {
+  const ev = (keys) => {
+    let i = 0;
+    while (i + 1 < keys.length && keys[i + 1][0] <= t) i++;
+    const [t0, v, c0, c1, c2] = keys[i], d = t - t0;
+    return c0 === undefined || i === keys.length - 1 ? v : v + c2 * d + c1 * d * d + c0 * d * d * d;
+  };
+  return { rot: ev(HAND.rot), scale: ev(HAND.scale), x: ev(HAND.x), y: ev(HAND.y), light: t >= F(38), cs: ev(HAND.cs), ca: ev(HAND.ca) };
+}
+
+let tut = null, tutRaf = 0;
+async function ftue(app, on) {
+  const root = document.getElementById('start');
+  root.classList.toggle('ftue', on);
+  if (!on || tut) { if (on && !tutRaf) animHand(); return; }
+  tut = {};
+  const ov = document.createElement('div');
+  ov.id = 'hmTut';
+  root.insertBefore(ov, document.getElementById('btnPlay'));
+  // the hand art (art/m-ftue.webp, 11 KB) is fetched only while the tutorial is on
+  const fs = await sheet(app, 'ftue');
+  const hand = document.createElement('div');
+  hand.className = 'tutHand';
+  hand.innerHTML = '<i></i><b><i></i></b>';
+  spr(hand.firstChild, fs, 'Hand_tutorial');
+  spr(hand.lastChild.firstChild, fs, 'CircleLight');
+  document.getElementById('btnPlay').appendChild(hand);
+  tut = { hand, light: hand.lastChild, t0: performance.now() };
+  animHand();
+}
+function animHand() {
+  const root = document.getElementById('start');
+  if (!tut?.hand || !root.classList.contains('ftue') || !root.classList.contains('on')) { tutRaf = 0; return; }
+  tutRaf = requestAnimationFrame(animHand);
+  const a = handAt(((performance.now() - tut.t0) / 1000) % LOOP);
+  // Unity: z counter-clockwise, y up; the box turns and scales about its centre (pivot 0.5)
+  tut.hand.style.transform = `translate(${U(a.x)}, ${U(-a.y)}) rotate(${-a.rot}deg) scale(${a.scale})`;
+  Object.assign(tut.light.style, { display: a.light ? 'block' : 'none', opacity: Math.max(0, Math.min(1, a.ca)), transform: `scale(${a.cs})` });
+}
 
 let ready = null, sh = null, raf = 0;
 
@@ -112,8 +183,9 @@ export function setup(app) {
     // numbers in the game font (main.js / bonus.js keep writing their text)
     const gl = [['coins', 30], ['tickets', 30], ['rank', 44], ['xptext', 32], ['wheelPrice', 15], ['playLevel', 25], ['skinCount', 25]];
     for (const [id, px] of gl) glText(app, document.getElementById(id), px);
-    for (const el of root.querySelectorAll('.hm .pos, .hm .time, .hw > span:not(.cnt)')) glText(app, el, parseFloat(getComputedStyle(el).fontSize) / (window.innerHeight / 1334));
-    root.querySelector('#btnSettings').onclick = () => app.openLevels();
+    for (const el of root.querySelectorAll('.hm .pos, .hm .time, .hw > span:not(.cnt)')) glText(app, el, parseFloat(getComputedStyle(el).fontSize) / (document.body.clientHeight / 1334));
+    // HomePage.OnSettingsButtonClicked [asm 0x1168298] opens SettingsPopup (js/settings.js, loaded on the first click)
+    root.querySelector('#btnSettings').onclick = () => app.openSettings();
     root.querySelector('#btnAddCoins').onclick = (e) => { e.stopPropagation(); app.openMenu('openMarket'); };
     root.querySelector('#btnTabShop').onclick = () => app.openMenu('openMarket');
     root.querySelector('#btnWheel').onclick = () => app.openMenu('openWheel');
@@ -161,6 +233,10 @@ function drawPlayer(app) {
 export function show(app) {
   if (!sh) return;
   const { meta, save } = app;
+  ftue(app, save.best < 1).catch(() => {});
+  // HomePage.UpdateUI: the Lucky Wheel widget is active once mode.lucky_wheel is unlocked (its XP road step claimed)
+  // [asm 0x1168118..0x1168160]; the Lucky Drop widget always [asm 0x1168164..0x116819c]
+  document.getElementById('btnWheel').classList.toggle('off', !save.modes['mode.lucky_wheel']?.unlocked);
   // PassedRank shows the league medal of the current rank
   const lg = meta.league(save.xp), medal = { Bronze: 'BronzeMedals_01', Silver: 'SilverMedals_01', Gold: 'GoldMedal_01',
     Platine: 'OtherMedals_01', Diamond: 'Diamond_Small', Master: 'Master_Small' }[lg] || 'BronzeMedals_01';

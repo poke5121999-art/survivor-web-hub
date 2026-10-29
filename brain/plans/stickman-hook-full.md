@@ -113,3 +113,11 @@ Nguyên tắc: vẫn "nhẹ, load nhanh".
   - Bỏ giá xu tự đặt của gói vé (50 xu/vé) và gói thẻ (3800/9800/49000). VIP lưu ở `save.flags`, `save.installed` mới.
   - Bài kiểm (local): `test/stickman-hook-play.js` 145/145, `test/stickman-hook-pachinko.js` 30/30, `test/stickman-hook-sim.js` 307/307. Màn đầu 596 KB thô (trước 595).
   - Việc còn lại: đẩy lên Pages, tăng `rev` trong `data/games.js` lên 20261028m, chạy bài kiểm trên Pages với `SH_URL`.
+- [~] FTUE, khung dọc, Settings, Delete Account (2026-10-29, rev 20261028n, CHƯA đẩy lên Pages, CHƯA kiểm trên Pages): chủ dự án "làm full tutorial/ftue/resolution màn hình dọc nha, trong setting có nút delete account".
+  Spec `D:/stickman-hook-ref/FTUE.md`. Chi tiết ở README mục "FTUE, khung dọc, Settings, xoá tài khoản", `docs/PARITY.md` mục 20261028n.
+  - FTUE theo `HomePage` [asm 0x1168f40..0x1168fa8]: lớp tối `#000000AA`, bàn tay + vòng sáng theo khoá bậc ba, MenuBar ẩn, Lucky Wheel ẩn tới khi mở, prompt trang chính tắt khi `save.best < 1`.
+  - Khung dọc: `body` là khung 9:21..9:16 (3:4 cảm ứng), `--u = --fh / 1334`, giữ ở viền vẫn là giữ. Vật lý không đổi.
+  - SettingsPopup bằng art gốc (`js/settings.js`, `art/m-settings.webp`), Delete Account hai lần xác nhận, giữ âm thanh, nạp lại vào FTUE.
+  - `[ĐỀ XUẤT]`: gợi ý trong màn khi chưa qua màn 1, tỉ lệ khung, màu viền, hàng "Tài khoản hub", GDPR cục bộ, Help → feedback.html, Delete Account, lớp "Xoay dọc".
+  - Bài kiểm (local): `test/stickman-hook-play.js` 165/165, `test/stickman-hook-pachinko.js` 30/30, `test/stickman-hook-sim.js` 307/307. Màn đầu 598 KB thô (trước 596).
+  - Việc còn lại: đẩy lên Pages, tăng `rev` trong `data/games.js` lên 20261028n, chạy bài kiểm trên Pages với `SH_URL`.

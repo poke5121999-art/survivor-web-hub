@@ -6,22 +6,41 @@
 <meta name="theme-color" content="#00b4fc">
 <link rel="icon" href="../../assets/favicon.svg">
 <title>Stickman Hook</title>
-<link rel="preload" href="./data/levels.json?v=20261028m" as="fetch" crossorigin>
-<link rel="preload" href="./art/atlas.webp?v=20261028m" as="image">
+<link rel="preload" href="./data/levels.json?v=20261028n" as="fetch" crossorigin>
+<link rel="preload" href="./art/atlas.webp?v=20261028n" as="image">
+<script>
+// Portrait frame, aspect 9:21..9:16 (3:4 on touch); body is the frame (README "Khung dọc")
+(function () {
+  var d = document.documentElement, q = matchMedia('(pointer: coarse)');
+  function f() {
+    var W = innerWidth, H = innerHeight, A = W / H, a = Math.min(q.matches ? .75 : .5625, Math.max(9 / 21, A)), s = d.style,
+      w = A > a ? Math.round(H * a) : W, h = A < a ? Math.round(W / a) : H;
+    s.setProperty('--fw', w + 'px'); s.setProperty('--fh', h + 'px'); s.setProperty('--fx', (W - w) / 2 + 'px'); s.setProperty('--fy', (H - h) / 2 + 'px');
+    d.classList.toggle('rot', q.matches && A > 1);
+  }
+  f(); onresize = f; onorientationchange = f; window.visualViewport && visualViewport.addEventListener('resize', f);
+})();
+</script>
 <style>
-  html, body { margin: 0; height: 100%; background: #00b4fc; overflow: hidden; touch-action: none;
-    -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  :root { --fw: 100vw; --fh: 100vh; --u: calc(var(--fh) / 1334); }
+  html, body { margin: 0; overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent; }
+  html { height: 100%; background: var(--bar, #0a1940); }
+  body { position: fixed; left: var(--fx, 0); top: var(--fy, 0); width: var(--fw); height: var(--fh); transform: translateZ(0);
+    background: #00b4fc; }
+  html.rot::after { content: 'Xoay dọc điện thoại để chơi'; position: fixed; left: 0; top: 0; bottom: 0; width: var(--fx);
+    display: flex; align-items: center; justify-content: center; text-align: center; color: #fff; font: 700 16px system-ui, sans-serif; }
   #cv { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
   .ui { position: fixed; z-index: 2; font: 700 15px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif; color: #fff; }
   .btn { width: 46px; height: 46px; border-radius: 14px; border: 3px solid #0d1b2a; background: #fff; color: #0d1b2a;
     font-size: 22px; font-weight: 900; display: grid; place-items: center; cursor: pointer; box-shadow: 0 4px 0 #0d1b2a; }
   .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #0d1b2a; }
   /* DefaultInGameUI PauseButton: 80 x 80 at (25, 30) from the top left of a 750 x 1334 canvas matched to the height */
-  #btnPause { top: calc(env(safe-area-inset-top) + 2.249vh); left: 1.874vh; width: 5.997vh; height: 5.997vh; padding: 0;
+  #btnPause { top: calc(env(safe-area-inset-top) + var(--u) * 30); left: calc(var(--u) * 25); width: calc(var(--u) * 80); height: calc(var(--u) * 80); padding: 0;
     border: 0; background: no-repeat; cursor: pointer; }
   /* PauseUI: transparent full-screen Continue button (its text is drawn on the canvas), Home button 90 x 90 at (20, 25) */
   #pause { background: rgba(0, 20, 40, .25); }
-  #btnMenu { position: absolute; top: calc(env(safe-area-inset-top) + 1.874vh); left: 1.499vh; width: 6.747vh; height: 6.747vh;
+  #btnMenu { position: absolute; top: calc(env(safe-area-inset-top) + var(--u) * 25); left: calc(var(--u) * 20); width: calc(var(--u) * 90); height: calc(var(--u) * 90);
     padding: 0; border: 0; background: no-repeat center / contain; cursor: pointer; filter: drop-shadow(0 3px 0 rgba(0,0,0,.35)); }
   #pause .row { position: absolute; left: 0; right: 0; bottom: max(28px, env(safe-area-inset-bottom)); justify-content: center;
     gap: 12px; width: auto; }
@@ -29,7 +48,7 @@
   .overlay.on { display: flex; }
   #levels { background: rgba(0, 40, 70, .82); align-items: center; justify-content: center; }
   .panel { background: #fff; color: #0d1b2a; border: 4px solid #0d1b2a; border-radius: 22px; padding: 16px;
-    width: min(92vw, 560px); max-height: 80vh; display: flex; flex-direction: column; gap: 12px; box-sizing: border-box; }
+    width: min(calc(var(--fw) * .92), 560px); max-height: calc(var(--fh) * .8); display: flex; flex-direction: column; gap: 12px; box-sizing: border-box; }
   .panel h2 { margin: 0; font-size: 20px; text-align: center; }
   #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 8px; overflow: auto; padding: 4px; }
   #grid button { height: 46px; border-radius: 12px; border: 3px solid #0d1b2a; background: #ffd23f; font: 900 16px system-ui;
@@ -48,7 +67,7 @@
   .big:active { transform: translateY(4px); box-shadow: 0 2px 0 #0d1b2a; }
   .row { display: flex; gap: 12px; width: 100%; }
   body.menu #btnPause, body.menu #hint, body.fin #btnPause { visibility: hidden; }
-  #toast { left: 50%; bottom: 120px; transform: translate(-50%, 20px); max-width: 80vw; text-align: center; background: #0d1b2a; border-radius: 14px; padding: 10px 16px;
+  #toast { left: 50%; bottom: 120px; transform: translate(-50%, 20px); max-width: calc(var(--fw) * .8); text-align: center; background: #0d1b2a; border-radius: 14px; padding: 10px 16px;
     opacity: 0; transition: .3s; pointer-events: none; z-index: 5; }
   #toast.on { opacity: 1; transform: translate(-50%, 0); }
   #revive { left: 0; right: 0; top: 38%; text-align: center; font: 900 120px/1 system-ui, sans-serif; color: #ff483e; -webkit-text-stroke: 8px #1a1c4b;
@@ -69,7 +88,7 @@
     <a class="btn" id="home" href="../../index.html" title="Về hub">⌂</a>
   </div>
 </div>
-<div class="ui" id="hint">Giữ chuột / chạm để móc dây, thả ra để bay</div>
+<div class="ui" id="hint" hidden>Giữ chuột / chạm / Space để móc, thả để bay</div>
 <div class="ui" id="toast"></div>
 <div class="ui" id="revive"></div>
 <!-- HomePage (home.js lays it out from the prefab with art/m-home.webp; ids are read by main.js, bonus.js and the tests) -->
@@ -97,33 +116,34 @@
   <button class="btn" id="btnClose" style="width:auto;padding:0 18px;align-self:center">Đóng</button></div></div>
 <script type="importmap">
 { "imports": {
-  "./js/level.js": "./js/level.js?v=20261028m",
-  "./js/physics.js": "./js/physics.js?v=20261028m",
-  "./js/render.js": "./js/render.js?v=20261028m",
-  "./js/save.js": "./js/save.js?v=20261028m",
-  "./js/meta.js": "./js/meta.js?v=20261028m",
-  "./js/custom.js": "./js/custom.js?v=20261028m",
-  "./js/fx.js": "./js/fx.js?v=20261028m",
-  "./js/menus.js": "./js/menus.js?v=20261028m",
-  "./js/modes.js": "./js/modes.js?v=20261028m",
-  "./js/grapple.js": "./js/grapple.js?v=20261028m",
-  "./js/bonus.js": "./js/bonus.js?v=20261028m",
-  "./js/pachinko.js": "./js/pachinko.js?v=20261028m",
-  "./js/race.js": "./js/race.js?v=20261028m",
-  "./js/adventure.js": "./js/adventure.js?v=20261028m",
-  "./js/advrun.js": "./js/advrun.js?v=20261028m",
-  "./js/camera.js": "./js/camera.js?v=20261028m",
-  "./js/endgame.js": "./js/endgame.js?v=20261028m",
-  "./js/home.js": "./js/home.js?v=20261028m",
-  "./js/uikit.js": "./js/uikit.js?v=20261028m",
-  "./js/cards.js": "./js/cards.js?v=20261028m",
-  "./js/cardsui.js": "./js/cardsui.js?v=20261028m",
-  "./js/daily.js": "./js/daily.js?v=20261028m",
-  "./js/ads.js": "./js/ads.js?v=20261028m",
-  "./js/trailfx.js": "./js/trailfx.js?v=20261028m",
-  "./js/main.js": "./js/main.js?v=20261028m"
+  "./js/level.js": "./js/level.js?v=20261028n",
+  "./js/physics.js": "./js/physics.js?v=20261028n",
+  "./js/render.js": "./js/render.js?v=20261028n",
+  "./js/save.js": "./js/save.js?v=20261028n",
+  "./js/meta.js": "./js/meta.js?v=20261028n",
+  "./js/custom.js": "./js/custom.js?v=20261028n",
+  "./js/fx.js": "./js/fx.js?v=20261028n",
+  "./js/menus.js": "./js/menus.js?v=20261028n",
+  "./js/modes.js": "./js/modes.js?v=20261028n",
+  "./js/grapple.js": "./js/grapple.js?v=20261028n",
+  "./js/bonus.js": "./js/bonus.js?v=20261028n",
+  "./js/pachinko.js": "./js/pachinko.js?v=20261028n",
+  "./js/race.js": "./js/race.js?v=20261028n",
+  "./js/adventure.js": "./js/adventure.js?v=20261028n",
+  "./js/advrun.js": "./js/advrun.js?v=20261028n",
+  "./js/camera.js": "./js/camera.js?v=20261028n",
+  "./js/endgame.js": "./js/endgame.js?v=20261028n",
+  "./js/home.js": "./js/home.js?v=20261028n",
+  "./js/uikit.js": "./js/uikit.js?v=20261028n",
+  "./js/cards.js": "./js/cards.js?v=20261028n",
+  "./js/cardsui.js": "./js/cardsui.js?v=20261028n",
+  "./js/daily.js": "./js/daily.js?v=20261028n",
+  "./js/ads.js": "./js/ads.js?v=20261028n",
+  "./js/trailfx.js": "./js/trailfx.js?v=20261028n",
+  "./js/settings.js": "./js/settings.js?v=20261028n",
+  "./js/main.js": "./js/main.js?v=20261028n"
 } }
 </script>
-<script type="module" src="./js/main.js?v=20261028m"></script>
+<script type="module" src="./js/main.js?v=20261028n"></script>
 </body>
 </html>

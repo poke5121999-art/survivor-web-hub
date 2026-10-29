@@ -20,9 +20,11 @@ Thẻ bài (33 thẻ), booster, Chợ Đen và hiệu ứng thẻ ở mọi ch�
 
 Quảng cáo có thưởng và mua bằng tiền thật (IAP): mọi nút hiện như bản gốc, bấm là nhận ngay. Xem mục "Quảng cáo có thưởng và IAP" (rev 20261028m).
 
+Lần chạy đầu (FTUE), khung dọc trên màn hình ngang, SettingsPopup và nút Delete Account: xem mục "FTUE, khung dọc, Settings, xoá tài khoản" (rev 20261028n).
+
 ## Cách chơi
 
-- Giữ chuột, chạm màn hình, hoặc giữ Space: móc vào điểm móc gần nhất.
+- Giữ chuột, chạm màn hình, hoặc giữ Space: móc vào điểm móc gần nhất. Bấm ở đâu trong cửa sổ cũng được, kể cả viền hai bên khung dọc, trừ lên nút.
 - Thả ra: bay đi.
 - Qua vạch caro là xong màn.
 - Rơi khỏi mép dưới hoặc mép trái camera khi không móc: chơi lại từ đầu màn.
@@ -52,7 +54,9 @@ Quảng cáo có thưởng và mua bằng tiền thật (IAP): mọi nút hiện
 | `js/cards.js` | Luật thẻ: cấp thẻ, cấp perk, mở booster (XXHash64 + `UnityEngine.Random`), Chợ Đen, cộng tài nguyên theo thẻ, phép thử của thẻ ở từng chế độ (không DOM) |
 | `js/cardsui.js` | Trang thẻ, popup mở booster, gói thẻ và Chợ Đen trong Chợ, thông báo hiệu ứng thẻ (nạp lười) |
 | `data/cards.json`, `art/m-cards.webp`, `art/m-boost.webp` | 33 thẻ, 7 nhóm, 7 booster, đơn giá Chợ Đen, `resource_boosting`, road perk, giá gói thẻ; art thẻ và booster |
-| `js/home.js` | Trang chính theo prefab HomePage + MenuBar, art gốc; nạp khi trang chính hiện lần đầu, không bao giờ nạp với `?level=` |
+| `js/home.js` | Trang chính theo prefab HomePage + MenuBar, art gốc, lớp tối + bàn tay của lần chạy đầu; nạp khi trang chính hiện lần đầu, không bao giờ nạp với `?level=` |
+| `js/settings.js`, `art/m-settings.webp` | SettingsPopup (bánh răng trang chính) và hàng Delete Account; nạp ở lần bấm bánh răng đầu |
+| `art/m-ftue.webp`, `data/m-ftue.json` | Bàn tay `Hand_tutorial` và vòng sáng `CircleLight` (11 KB), chỉ nạp khi chưa qua màn 1 |
 | `js/uikit.js` | Bộ dựng menu dùng chung: sheet theo màn, sprite/9-slice/tile, đơn vị tham chiếu `--u` (1334 chiều cao), chữ font game trên canvas |
 | `art/m-<màn>.webp`, `data/m-<màn>.json` | Art menu gốc theo màn: `home`, `modes`, `road`, `shop`, `tour` (`tools/build_menus.py`), nạp lười |
 | `js/bonus.js` | Luật vòng quay, heo đất, xu mỗi ngày, bỏ qua màn; ô trang chính (cả cột ưu đãi VIP / No Ads), nút bỏ qua, `bonus.buy` (nạp lười) |
@@ -867,7 +871,82 @@ Bẫy:
 - `uikit.spr` kéo giãn sprite theo hộp. Ảnh cần giữ tỉ lệ dùng `uikit.fit` (mới export).
 - Script vá viết bằng heredoc làm hỏng regex `\n` trong JS (thành xuống dòng thật). Viết script vá bằng Write.
 
+## FTUE, khung dọc, Settings, xoá tài khoản (2026-10-29, rev 20261028n)
+
+Chủ dự án: "làm full tutorial/ftue/resolution màn hình dọc nha, trong setting có nút delete account".
+Spec đọc asm: `D:/stickman-hook-ref/FTUE.md`. Art và asm: `D:/stickman-hook-ref/dump/ftue/`.
+
+**Lần chạy đầu (FTUE).** Bản gốc không chạy bộ tutorial toolbox nào (`TutorialService.StartTutorial` [asm 0x301e790] không ai gọi).
+FTUE thật là đoạn hard-code trong `HomePage`, cờ duy nhất là `GetMaxLevelAchieved("mode.normal") < 1`, tức `save.best < 1`:
+
+- `HomePage.<Activate>d__36` bật `_tutorialOverlay` và `_tutorialHand` khi chưa qua màn Normal nào [asm 0x1168f40..0x1168fa8].
+  - `#hmTut` (`js/home.js`): `white_square_2px` màu `#000000AA` phủ trang, nuốt mọi lần chạm. Chỉ nút Play nằm trên nó.
+  - `MainCurrenciesWidget` nằm ở lớp PageHUDs, trên trang (`UIRoot` sắp `Pages, PageHUDs, Popups, …`). Vì vậy vé và xu không bị tối, nút `+` vẫn bấm được như gốc.
+  - Bàn tay `PlayButton/TutorialHand`: hộp 150 × 150 tại neo (1.2, 1.1) của nút Play, `Shadow` rgba(0,0,0,.5) lệch (6.64, −1.48).
+    `CircleLight` 100 × 100 tại (−26, −51) là con của bàn tay.
+  - Hoạt cảnh `Hand_animation` 60 fps, lặp 70 khung, chạy bằng `requestAnimationFrame` theo khoá và hệ số bậc ba đã giải (`handAt` trong `home.js`).
+    Không dùng CSS keyframes vì tangent không khớp. Khung 38 là lúc ngón chạm nút: xoay 0°, scale 0.7333, vòng sáng bật, to tới 1.79 rồi tắt ở khung 51.
+- MenuBar ẩn khi chưa qua màn nào (`NavigationService.<OnServicePageChangedAsync>` [asm 0x1165230..0x11652e4]).
+- Widget Lucky Wheel chỉ hiện khi `mode.lucky_wheel` đã mở, tức mốc 0 XP của Đường XP đã nhận (`HomePage.UpdateUI` [asm 0x1168118..0x1168160]). Lucky Drop luôn hiện [asm 0x1168164].
+- Prompter `tutorial` (`stopAfter`) chặn mọi prompt trang chính khi chưa qua màn 1 (`TutorialIncentiveController` [asm 0x118e598..0x118e6a4]).
+  Web: popup Đường XP tự mở ở trang chính và popup booster chỉ chạy khi `save.best >= 1` (`main.js`: `showHome`, `nextBooster`).
+- Không có cờ "đã xong tutorial". Qua màn 1 là tắt. Chết ở màn 1 rồi về nhà thì vẫn còn. Xoá dữ liệu thì quay lại.
+- `[ĐỀ XUẤT]` Gợi ý `#hint` trong màn ("Giữ chuột / chạm / Space để móc, thả để bay") chỉ hiện khi `save.best < 1` và tắt ở lần giữ đầu.
+  Bản gốc không có chữ nào trong màn. Muốn giống gốc tuyệt đối thì bỏ hẳn.
+
+**Khung dọc.** `UIRoot` là CanvasScaler 750 × 1334 khớp chiều cao. Camera ortho 5: cao 10 đơn vị, rộng `10 × aspect`.
+`CameraService.SetupCamera` không đổi zoom theo màn hình [asm 0x127a058..0x127a178].
+
+- `index.html` tính khung trước khi vẽ. Tỉ lệ cho phép: 9:21 đến 9:16 khi dùng chuột, 9:21 đến 3:4 trên màn cảm ứng (tablet dọc rộng như gốc) `[ĐỀ XUẤT]`.
+  - 1920 × 1080 → khung 608 × 1080 ở x 656, thấy 5.63 đơn vị ngang.
+  - 390 × 844 → cả màn, 4.62 đơn vị.
+  - Máy dài hơn 9:21 có viền trên và dưới.
+- `body` chính là khung: `position: fixed` + `transform`. Mọi con `position: fixed` (canvas, overlay, trang của chế độ) vì thế nằm gọn trong khung mà không phải sửa CSS từng chỗ.
+  Module nào gắn vào `document.body` cũng tự vào khung.
+- Đơn vị: `--u = --fh / 1334`; `--fw` / `--fh` thay `vw` / `vh`. JS đọc `document.body.clientWidth/Height` thay `innerWidth/Height`.
+- Viền ngoài khung: `#0A1940` (màu bóng của SettingsPopup) ở menu. Trong màn là màu nền theme giảm nửa độ sáng `[ĐỀ XUẤT]`.
+- Giữ ở đâu trong cửa sổ cũng là giữ, kể cả viền, vì bản gốc dùng `Input.GetMouseButtonDown(0)` toàn màn.
+  `main.js`, `pachinko.js`, `adventure.js` nghe `pointerdown` trên `window` và bỏ qua khi bấm lên nút.
+- Điện thoại xoay ngang: viền trái hiện "Xoay dọc điện thoại để chơi" `[ĐỀ XUẤT]`. `screen.orientation.lock('portrait')` được thử, lỗi thì bỏ qua.
+- Tai thỏ: vẫn giữ `env(safe-area-inset-*)`. Đây là lệch có chủ ý so với gốc, vì trình duyệt không cho vẽ dưới thanh trạng thái.
+- Luật chơi và vật lý không đổi. Bot `test/stickman-hook-sim.js` vẫn chạy với aspect 9:16.
+
+**SettingsPopup** (`js/settings.js`), mở từ bánh răng (`HomePage.OnSettingsButtonClicked` [asm 0x1168298]). Bảng chọn màn vẫn mở từ hàng nút pause.
+
+| Hàng | Bản gốc | Web |
+|---|---|---|
+| Tiêu đề, phiên bản | "Settings" Junegull 90, `Version: {0} ({1})` [asm 0x116c9a4..0x116caa0] | "Version: 9.9.60 (9003907)" và dòng nhỏ "web rev …" `[ĐỀ XUẤT]` |
+| Game Center | `IsLoggedThirdParty("GooglePlay")`, bấm là `LoginThirdParty` [asm 0x116cb44..0x116cbe0, 0x116c244] | `[ĐỀ XUẤT]` "Tài khoản hub": dấu tích khi đã đăng nhập hub (`hub.session.v1` loại member), chưa thì mở `../../login.html` |
+| GDPR | CMP Usercentrics [asm 0x116c2cc], cần mạng | `[ĐỀ XUẤT]` popup "Quyền riêng tư": tiến độ chỉ ở localStorage, không quảng cáo, không theo dõi |
+| Restore Purchases, Haptic, Language | Ẩn trên Android [asm 0x116cc3c..0x116cc74] hoặc tắt trong prefab | Không có, như gốc |
+| Help | Thư hỗ trợ (mailto) [asm 0x116d260] | `[ĐỀ XUẤT]` mở `../../feedback.html?game=stickman-hook&uid=…&v=…` ở tab mới |
+| Delete Account | Không có, chỉ có lệnh debug | `[ĐỀ XUẤT]` hàng đỏ `#C0392B`, icon `close_circle` |
+| User Id | `GetAuthID()`, nút chép [asm 0x116cd90, 0x116c5a0..0x116c5d0] | `save.uid` 5 nhóm 4 hex, tạo một lần; chép qua clipboard, toast "Đã chép" |
+| Đóng | `close_circle` dưới đáy, nhô 84 | Như gốc. Chạm nền tối không đóng |
+
+**Xoá tài khoản** `[ĐỀ XUẤT]`, theo luồng lệnh debug `DataCacheDebug.DeleteCurrentAccountAndRestart` [asm 0x2e6a214..0x2e6a4a8]:
+
+1. Bấm hàng → "Xoá tài khoản?" với Huỷ / Xoá.
+2. Xoá → "Chắc chắn chứ?". Nút "Xoá vĩnh viễn" chỉ bật sau 2 s đếm ngược.
+3. `save.js wipeSave`: xoá khoá `stickman-hook`, ghi lại `{v: 2, sound}`.
+   - Bản gốc xoá cả `FileStorage` của DataCache [asm 0x2e6192c..0x2e61940, 0x2e6cc80..0x2e6cd6c] mà không gọi `PlayerPrefs.DeleteAll`, nên cài đặt thiết bị còn nguyên.
+   - Sau khi xoá, `writeSave` không ghi gì nữa, để tiến độ cũ không bị ghi lại trước khi trang nạp lại.
+4. `location.replace(pathname + '?v=…')`, bỏ `?level=` / `?mode=`, như `GameRestart.Restart`. Trang về trang chính, FTUE hiện lại.
+
+Art: `tools/build_menus.py` có thêm sheet `ftue` và `settings`. Hai sheet này đọc `D:/stickman-hook-ref/dump/ftue/` trước các thư mục khác,
+nhưng sheet khác thì không, để `checkmark` và `Glow` của dump này không thay sprite cùng tên.
+Icon của hàng tô `#527CC3` bằng CSS mask (sprite trắng). Nút Huỷ / Xoá là `OutlinedButtonGreen`, nút đỏ là nút xanh xoay màu `[ĐỀ XUẤT]`.
+
+Màn đầu (`?level=1`) 598 KB thô. Khung trong `index.html` và code mới trong `main.js` / `save.js` thêm khoảng 3 KB.
+Đã bù bằng cách rút chú thích pháo giấy trong `main.js`, vì mục "Luật gốc đã dùng" đã có đủ.
+
 ## Bẫy đã sập
+
+- **`sed -i` của Git Bash đổi CRLF thành LF.** `js/main.js` (CRLF) mất hết `\r` sau một lệnh `sed -i` đổi số bản. Kiểm `file js/main.js` sau mỗi lần sửa bằng sed.
+- **Ngân sách 600 KB lần năm (20261028n).** Khung dọc và code FTUE/Settings ở màn đầu đẩy lên 600.09 KB.
+  Code Settings và art FTUE nạp lười. Chú thích dài đã có trong README thì rút khỏi code.
+- **Thử "chỉ nút Play bấm được" phải bấm vào chỗ có nút thật.** Bấm toạ độ trống không chứng minh lớp tối chặn được gì.
+  Bài kiểm bấm tâm bánh răng, thanh XP, Tournament, Lucky Drop, cột ưu đãi.
 
 - **Ngân sách 600 KB của màn đầu.** Bản cũ đã nạp 585 KB, nên thêm `meta.json` là vượt.
   - Đã gỡ trường `spawns` không dùng và các trường bumper `null`.
@@ -1029,5 +1108,5 @@ Phần HUD và về đích: chỉ có nút pause trong màn; về đích giữ t
 ## Tăng số bản
 
 Đổi mọi `?v=` trong `index.html`, `js/main.js` (hằng `V`) và ba `import()` có `?v=` trong `js/modes.js` (`pachinko.js`, `race.js`, `adventure.js`), rồi đổi `rev` trong `data/games.js` cho trùng.
-Bản hiện tại: `20261028m`. `js/pachinko.js` có `PV` riêng (`20261028d`) cho ảnh của nó.
+Bản hiện tại: `20261028n`. `js/pachinko.js` có `PV` riêng (`20261028d`) cho ảnh của nó.
 Module JS mới phải có dòng trong importmap của `index.html`, kể cả module chỉ nạp động (`menus.js`, `fx.js`, `cards.js`, `cardsui.js`).

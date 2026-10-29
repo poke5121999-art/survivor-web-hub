@@ -1,7 +1,8 @@
 // Menu kit shared by the home screen (home.js), the meta menus (menus.js) and the tournament page (race.js).
 // - Per-screen sprite sheets from tools/build_menus.py (art/m-<screen>.webp + data/m-<screen>.json), fetched the first
 //   time that screen opens.
-// - Layout in reference units: CanvasScaler 750 x 1334 matched to the height, so 1 unit = 100vh / 1334 (`--u`).
+// - Layout in reference units: CanvasScaler 750 x 1334 matched to the height, so 1 unit = the portrait frame's height / 1334
+//   (`--u`, set in index.html with the frame: body is the frame, so its clientHeight is the canvas height).
 // - Labels in the game's Junegull font (a canvas drawn from art/font.webp) when every letter is in the font; the font has
 //   no Vietnamese letters, so Vietnamese labels use a system font with the same dark-blue outline (TMP "DarkBlue").
 
@@ -21,8 +22,6 @@ export function kitStyle() {
   styled = true;
   const st = document.createElement('style');
   st.textContent = `
-:root { --u: calc(100vh / 1334); }
-@supports (height: 100dvh) { :root { --u: calc(100dvh / 1334); } }
 .k-abs { position: absolute; }
 .k-sp { background-repeat: no-repeat; }
 .k-vi { font: 900 calc(var(--u) * 30)/1 system-ui, -apple-system, "Segoe UI", sans-serif; color: #fff; text-transform: uppercase;
@@ -108,7 +107,7 @@ export function label(app, text, px, color = null) {
     if (color) s.style.color = color;
     return s;
   }
-  const dpr = Math.min(3, window.devicePixelRatio || 1), cssPx = (px * window.innerHeight) / 1334;
+  const dpr = Math.min(3, window.devicePixelRatio || 1), cssPx = (px * document.body.clientHeight) / 1334;
   const k = (cssPx * dpr) / font.size;
   let w = 0;
   for (const ch of up) w += font.glyphs[ch][6];

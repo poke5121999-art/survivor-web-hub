@@ -87,7 +87,7 @@ export function makeEndgame(app, d) {
     c.getContext('2d').drawImage(sheet, r[0], r[1], r[2], r[3], 0, 0, r[2], r[3]);
     return c.toDataURL();
   }
-  const u = () => window.innerHeight / REF_H;
+  const u = () => document.body.clientHeight / REF_H; // body = the portrait frame (index.html)
   function canvasOf(el) {
     const c = el.querySelector('canvas'), dpr = Math.min(window.devicePixelRatio || 1, 2);
     const w = Math.round(c.clientWidth * dpr), h = Math.round(c.clientHeight * dpr);
@@ -306,7 +306,7 @@ export function makeEndgame(app, d) {
       height: 606 * U + 'px', transform: 'rotate(180deg)' });
     // PlayerFinish (anchors y 0.11..1.11): FinishHalo at anchors (0.21, 0.27)..(0.79, 0.49); FinishLine 600 x 300 at y 0.30,
     // the platform sprite fitted in it (2026 clip: 516 units wide); the skin 450 x 464 156 units above
-    const lineY = 0.59 * window.innerHeight;
+    const lineY = 0.59 * document.body.clientHeight;
     place(pageEl.querySelector('.halo'), 'LightEndRace_01', { left: '21%', width: '58%', top: '40%', height: '22%' });
     const lw = 516 * U, lh = lw * (105 / 446);
     place(pageEl.querySelector('.line'), 'NewAN_Grap1_FinishPlatform0001', { left: `calc(50% - ${lw / 2}px)`, top: lineY - lh / 2 + 'px',

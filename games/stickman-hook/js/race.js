@@ -158,7 +158,7 @@ const CSS = `
   background: rgba(0, 30, 55, .8); font: 700 15px/1.25 system-ui, -apple-system, "Segoe UI", sans-serif; color: #fff; }
 #race.on, #raceEnd.on { display: flex; }
 #raceEnd { background: rgba(0, 30, 55, .55); }
-.rc { background: #12314d; border: 4px solid #0d1b2a; border-radius: 22px; width: min(94vw, 520px); max-height: 94vh;
+.rc { background: #12314d; border: 4px solid #0d1b2a; border-radius: 22px; width: min(calc(var(--fw) * .94), 520px); max-height: calc(var(--fh) * .94);
   display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box; }
 .rc header { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #0d1b2a; }
 .rc header h2 { flex: 1; margin: 0; font-size: 20px; }
@@ -384,7 +384,7 @@ async function page(app, board, claim, claimed = null) {
     glText(app, li.querySelector('.sc em'), 26);
     glText(app, li.querySelector('.rw'), 18);
   }
-  for (const h of body.querySelectorAll('h3, .tname, .time')) glText(app, h, parseFloat(getComputedStyle(h).fontSize) / (window.innerHeight / 1334));
+  for (const h of body.querySelectorAll('h3, .tname, .time')) glText(app, h, parseFloat(getComputedStyle(h).fontSize) / (document.body.clientHeight / 1334));
   const gb = box.querySelector('.go');
   if (ps.free) spr(gb, sh, 'OutlinedButtonGreen');
   else {

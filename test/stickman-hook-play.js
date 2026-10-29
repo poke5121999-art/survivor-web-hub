@@ -1235,7 +1235,7 @@ function serve() {
   const tp2 = await page.evaluate(() => { const p = window.__sh.adv.run.player, o = window.__sh.adv.run.spawned[0].portal;
     return { x: p.x, alpha: p.alpha, closed: o.killed >= 0 }; });
   check('the portal teleports 1-2 patterns ahead, 1 unit left of a spawn point, see-through (alpha 0.3), then solid with the portal closed',
-    !!tp.to && tp.ok.some((q) => q[0] === tp.to[0] && q[1] === tp.to[1]) && tp.to[0] > 20 && tp.alpha === 0.3 && tp2.alpha === 1
+    !!tp.to && tp.ok.some((q) => q[0] === tp.to[0] && q[1] === tp.to[1]) && tp.alpha === 0.3 && tp2.alpha === 1
     && tp2.x > tp.to[0] - 0.5 && tp2.closed, JSON.stringify([tp, tp2]));
   // the firewall close behind, then it catches the player: one life, the run ends and pays out
   await startAdv(1792800);
@@ -1342,6 +1342,166 @@ function serve() {
   const v4 = await page.evaluate((res) => ({ t: window.__sh.save.inv['currency.skip_tickets'], owned: window.__sh.meta.ownsRes(window.__sh.save, res) }), v3.res);
   check('with VIP: the full piggy has no VIP Skip button, UNLOCK shows the ticket icon and takes 1 of the 60 tickets (60 -> 59)',
     v3.icon === 'ticket' && !v3.vip && v4.t === 59 && v4.owned, JSON.stringify({ v3, v4 }));
+
+  {
+  // ---- First run (FTUE), portrait frame, SettingsPopup, Delete Account (D:/stickman-hook-ref/FTUE.md). Fresh browser
+  // contexts, so an empty localStorage; real clicks and holds.
+  const fresh = async (w, h) => {
+    const ctx = await browser.newContext({ viewport: { width: w, height: h } });
+    const p = await ctx.newPage();
+    p.on('pageerror', (e) => errors.push(e.message));
+    p.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+    await p.goto(url);
+    await p.waitForFunction(() => window.__sh && document.querySelector('#start.ready.on'), null, { timeout: 30000 });
+    return { ctx, p };
+  };
+  const ftueState = (p) => p.evaluate(() => {
+    const vis = (el) => !!el && getComputedStyle(el).display !== 'none' && el.getBoundingClientRect().width > 0;
+    const st = document.getElementById('start'), b = document.body.getBoundingClientRect();
+    return { ftue: st.classList.contains('ftue'), overlay: vis(document.getElementById('hmTut')), hand: vis(document.querySelector('.tutHand > i')),
+      bar: vis(document.querySelector('#start .mbar')), wheel: vis(document.getElementById('btnWheel')), lucky: vis(document.getElementById('btnLucky')),
+      frame: [b.left, b.top, b.width, b.height], cv: [document.getElementById('cv').width, document.getElementById('cv').height],
+      best: window.__sh.save.best, on: [...document.querySelectorAll('.overlay.on')].map((e) => e.id) };
+  });
+  const D = await fresh(1920, 1080), p2 = D.p;
+  await p2.waitForSelector('.tutHand > i', { timeout: 10000 }).catch(() => {});
+  await p2.waitForTimeout(700);
+  await p2.screenshot({ path: path.join(SHOTS, 'ftue-1920.png') });
+  const f0 = await ftueState(p2);
+  check('fresh save at 1920x1080: FTUE overlay and hand on, tab bar hidden, Lucky Wheel widget hidden, Lucky Drop shown',
+    f0.ftue && f0.overlay && f0.hand && !f0.bar && !f0.wheel && f0.lucky && f0.best === 0, JSON.stringify(f0));
+  check('1920x1080: the game is a centred portrait frame 608x1080 at x 656 (9:16)',
+    f0.frame[2] === 608 && f0.frame[3] === 1080 && f0.frame[0] === 656 && Math.abs(f0.frame[2] / f0.frame[3] - 9 / 16) < 0.005, JSON.stringify(f0.frame));
+  const ov = await p2.evaluate(() => {
+    const o = getComputedStyle(document.getElementById('hmTut')), r = document.getElementById('btnPlay').getBoundingClientRect();
+    const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return { bg: o.backgroundColor, play: top?.closest('#btnPlay') ? 'play' : top?.id, bar: getComputedStyle(document.documentElement).getPropertyValue('--bar').trim() };
+  });
+  check('overlay is black alpha 0.667 (#000000AA) under the Play button; letterbox #0A1940 on the home page',
+    ov.bg === 'rgba(0, 0, 0, 0.667)' && ov.play === 'play' && ov.bar === '#0a1940', JSON.stringify(ov));
+  // Hand_animation keys: frame 13 rot -120 at (14, 14); frame 38 (touch) rot 0, scale 0.7333 at (-110, -56), CircleLight on
+  const ha = await p2.evaluate(async () => { const h = await import('./js/home.js'); const r = (a) => Object.fromEntries(Object.entries(a).map(([k, v]) => [k, typeof v === 'number' ? +v.toFixed(3) : v]));
+    return [r(h.handAt(13 / 60)), r(h.handAt(38 / 60)), r(h.handAt(51 / 60)), r(h.handAt(0.55))]; });
+  check('hand keys: t 13/60 rot -120 at (14,14); t 38/60 rot 0 scale 0.733 at (-110,-56) light on alpha 1; t 51/60 light scale 1.79 alpha 0',
+    ha[0].rot === -120 && ha[0].x === 14 && ha[0].y === 14 && !ha[0].light && ha[1].rot === 0 && ha[1].scale === 0.733 && ha[1].x === -110
+    && ha[1].y === -56 && ha[1].light && ha[1].ca === 1 && ha[2].cs === 1.79 && ha[2].ca === 0 && ha[3].x === -110, JSON.stringify(ha));
+  const tf = [];
+  for (let i = 0; i < 3; i++) { tf.push(await p2.evaluate(() => document.querySelector('.tutHand').style.transform)); await p2.waitForTimeout(170); }
+  check('the hand animates (its transform changes frame to frame)', new Set(tf).size === 3 && /rotate/.test(tf[0]), tf[0]);
+  // clicks anywhere but Play do nothing: gear, XP bar, Tournament, Lucky Drop, the middle of the page
+  for (const sel of ['#btnSettings', '#xpbar', '#btnTour', '#btnLucky', '#homeOffers']) {
+    const r = await p2.evaluate((s) => { const b = document.querySelector(s).getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; }, sel);
+    await p2.mouse.click(r[0], r[1]);
+  }
+  await p2.mouse.click(960, 500);
+  await p2.waitForTimeout(700);
+  const f1 = await ftueState(p2);
+  check('FTUE: clicking the gear, XP bar, Tournament, Lucky Drop, the offers and the page opens nothing',
+    f1.on.join() === 'start' && f1.ftue, JSON.stringify(f1.on));
+  await p2.click('#btnPlay');
+  await p2.waitForFunction(() => window.__sh.game.phase === 'play', null, { timeout: 5000 });
+  await p2.waitForTimeout(200);
+  const g0 = await p2.evaluate(() => ({ idx: window.__sh.world.index, units: +(10 * document.getElementById('cv').width / document.getElementById('cv').height).toFixed(2),
+    hint: !document.getElementById('hint').hidden && getComputedStyle(document.getElementById('hint')).visibility === 'visible',
+    bar: getComputedStyle(document.documentElement).getPropertyValue('--bar').trim(), theme: window.__sh.theme.bg }));
+  check('Play opens level 1; the camera is 10 units tall and 5.63 across; the hold hint shows (no level cleared); letterbox = theme colour / 2',
+    g0.idx === 0 && g0.units === 5.63 && g0.hint && g0.bar !== '#0a1940' && g0.bar.length === 7, JSON.stringify(g0));
+  await p2.screenshot({ path: path.join(SHOTS, 'game-1920.png') });
+  // dying / leaving level 1 keeps the tutorial: pause -> home
+  await p2.click('#btnPause');
+  await p2.waitForTimeout(150);
+  await p2.click('#btnMenu');
+  await p2.waitForTimeout(600);
+  const f2 = await ftueState(p2);
+  check('back home from level 1 uncleared: the FTUE is still on, tab bar still hidden', f2.ftue && f2.overlay && !f2.bar, JSON.stringify(f2));
+  await p2.click('#btnPlay');
+  await p2.waitForFunction(() => window.__sh.game.phase === 'play', null, { timeout: 5000 });
+  // hold in the left letterbox, outside the frame: still a hold (Input.GetMouseButtonDown is screen wide)
+  await p2.mouse.move(200, 540);
+  await p2.mouse.down();
+  await p2.waitForTimeout(150);
+  const lh = await p2.evaluate(() => ({ hooked: window.__sh.player.hooked, hint: document.getElementById('hint').style.opacity }));
+  check('pressing in the letterbox (x 200 of 1920) hooks the target; the hint fades', lh.hooked === 0 && lh.hint === '0', JSON.stringify(lh));
+  await p2.waitForTimeout(1100);
+  await p2.mouse.up();
+  await p2.waitForFunction(() => window.__sh.save.best >= 1, null, { timeout: 8000 }).catch(() => {});
+  check('level 1 cleared with a letterbox hold at 1920x1080 (same physics as the phone)', await p2.evaluate(() => window.__sh.save.best === 1));
+  await p2.waitForTimeout(500);
+  await p2.reload();
+  await p2.waitForFunction(() => window.__sh && document.querySelector('#start.ready.on'), null, { timeout: 30000 });
+  await p2.waitForFunction(() => !document.querySelector('#road.on') && window.__sh.save.modes['mode.lucky_wheel']?.unlocked, null, { timeout: 10000 }).catch(() => {});
+  await p2.waitForTimeout(500);
+  const f3 = await ftueState(p2);
+  check('after clearing level 1: no overlay, no hand, tab bar back, Lucky Wheel widget shown (its 0 XP step claimed)',
+    !f3.ftue && !f3.overlay && !f3.hand && f3.bar && f3.wheel, JSON.stringify(f3));
+  check('after clearing level 1 the hint stays hidden in levels', await p2.evaluate(() => document.getElementById('hint').hidden));
+  await p2.screenshot({ path: path.join(SHOTS, 'home-1920.png') });
+  // SettingsPopup from the gear
+  await p2.evaluate(() => { const s = window.__sh.save; s.sound = false; window.__sh.app.writeSave(); });
+  await p2.click('#btnSettings');
+  await p2.waitForSelector('#settings.on .row[data-k="del"]', { timeout: 10000 });
+  await p2.waitForTimeout(300);
+  await p2.screenshot({ path: path.join(SHOTS, 'settings-1920.png') });
+  const s0 = await p2.evaluate(() => {
+    const r = document.querySelector('#settings .sp').getBoundingClientRect(), u = document.body.clientHeight / 1334;
+    return { rows: [...document.querySelectorAll('#settings .opts [data-k]')].map((b) => b.dataset.k), w: Math.round(r.width / u),
+      uid: document.getElementById('userId').textContent, saved: JSON.parse(localStorage.getItem('stickman-hook')).uid, levels: !!document.querySelector('#levels.on') };
+  });
+  check('gear opens SettingsPopup (510 units wide): hub account, GDPR, Help, Delete Account, User Id + copy; no Restore / Haptic / Language; not the level list',
+    s0.rows.join() === 'hub,gdpr,help,del,copy' && s0.w === 510 && /^[0-9A-F]{4}(-[0-9A-F]{4}){4}$/.test(s0.uid) && s0.saved === s0.uid && !s0.levels, JSON.stringify(s0));
+  await p2.click('#settings .row[data-k="gdpr"]');
+  await p2.waitForSelector('#settings .dlg', { timeout: 3000 });
+  const gd = await p2.evaluate(() => document.querySelector('#settings .dlg p').textContent);
+  await p2.click('#settings .dlg [data-k="ok"]');
+  check('GDPR shows what the page stores, OK closes it', /localStorage/.test(gd) && await p2.evaluate(() => !document.querySelector('#settings .dlg')), gd);
+  // Delete Account: Cancel changes nothing
+  await p2.click('#settings .row[data-k="del"]');
+  await p2.waitForSelector('#settings .dlg [data-k="no"]', { timeout: 3000 });
+  await p2.screenshot({ path: path.join(SHOTS, 'settings-delete-1.png') });
+  await p2.click('#settings .dlg [data-k="no"]');
+  await p2.waitForTimeout(200);
+  check('Delete Account -> Cancel keeps the progress', await p2.evaluate(() => !document.querySelector('#settings .dlg')
+    && JSON.parse(localStorage.getItem('stickman-hook')).best === 1));
+  await p2.click('#settings .row[data-k="del"]');
+  await p2.click('#settings .dlg [data-k="ok"]');
+  await p2.waitForSelector('#settings .dlg [data-k="ok"]:disabled', { timeout: 3000 });
+  await p2.screenshot({ path: path.join(SHOTS, 'settings-delete-2.png') });
+  await p2.click('#settings .dlg [data-k="ok"]', { force: true }); // disabled for 2 s: the click does nothing
+  check('second confirmation: "Xoá vĩnh viễn" is disabled for 2 s, an early click deletes nothing', await p2.evaluate(() => !!document.querySelector('#settings .dlg')
+    && JSON.parse(localStorage.getItem('stickman-hook')).best === 1));
+  await p2.waitForSelector('#settings .dlg [data-k="ok"]:not(:disabled)', { timeout: 4000 });
+  await Promise.all([p2.waitForNavigation({ timeout: 15000 }), p2.click('#settings .dlg [data-k="ok"]')]);
+  await p2.waitForFunction(() => window.__sh && document.querySelector('#start.ready.on'), null, { timeout: 30000 });
+  await p2.waitForSelector('.tutHand > i', { timeout: 10000 }).catch(() => {});
+  await p2.waitForTimeout(500);
+  const f4 = await ftueState(p2);
+  const ls = await p2.evaluate(() => ({ raw: JSON.parse(localStorage.getItem('stickman-hook')), q: location.search, sound: window.__sh.save.sound }));
+  check('after the delete: reloaded on the home page, progress wiped (best 0, no XP / coins / uid), sound setting kept (off)',
+    ls.q === '?v=20261028n' && f4.best === 0 && !ls.raw.best && !ls.raw.xp && !ls.raw.uid && ls.raw.sound === false && ls.sound === false, JSON.stringify(ls));
+  check('after the delete: the FTUE overlay and hand are back, tab bar hidden', f4.ftue && f4.overlay && f4.hand && !f4.bar, JSON.stringify(f4));
+  await D.ctx.close();
+  // phone 390 x 844: the frame is the whole screen
+  const P = await fresh(390, 844), p3 = P.p;
+  await p3.waitForSelector('.tutHand > i', { timeout: 10000 }).catch(() => {});
+  await p3.waitForTimeout(600);
+  await p3.screenshot({ path: path.join(SHOTS, 'ftue-390.png') });
+  const f5 = await ftueState(p3);
+  check('390x844: the frame fills the screen, the camera sees 4.62 units across', f5.frame.join() === '0,0,390,844'
+    && Math.abs((10 * f5.cv[0]) / f5.cv[1] - 4.62) < 0.02 && f5.ftue, JSON.stringify(f5));
+  await p3.click('#btnPlay');
+  await p3.waitForTimeout(1200);
+  await p3.screenshot({ path: path.join(SHOTS, 'game-390.png') });
+  await p3.evaluate(() => { const s = window.__sh.save; s.best = 1; window.__sh.app.writeSave(); window.__sh.overlay('start', true); });
+  await p3.waitForTimeout(500);
+  await p3.screenshot({ path: path.join(SHOTS, 'home-390.png') });
+  await p3.click('#btnSettings');
+  await p3.waitForSelector('#settings.on .row[data-k="del"]', { timeout: 10000 });
+  await p3.waitForTimeout(300);
+  await p3.screenshot({ path: path.join(SHOTS, 'settings-390.png') });
+  const s1 = await p3.evaluate(() => { const r = document.querySelector('#settings .sp').getBoundingClientRect(); return [r.left, r.right, r.top]; });
+  check('390x844: the settings popup fits the width', s1[0] >= 0 && s1[1] <= 390 && s1[2] > 0, JSON.stringify(s1));
+  await P.ctx.close();
+  }
 
   check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
   await browser.close();

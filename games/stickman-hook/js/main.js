@@ -7,7 +7,7 @@ import { Meta } from './meta.js';
 import { makeCustom } from './custom.js';
 import { MODES, NORMAL } from './modes.js';
 
-const V = '?v=20261028m';
+const V = '?v=20261028n';
 const DEFAULT_ZOOM = 5, FINISH_ZOOM = 2; // CameraConfig.defaultZoom, PlayerCameraController.cameraZoomOnEndGame
 // Rope prefab: sprite scaled (1.6, 2) under its parent. [ĐỀ XUẤT] 0.2 per axis so a 167 px tile is ~0.4 wide.
 const ROPE_SCALE = [1.6 * 0.2, 2 * 0.2];
@@ -81,6 +81,7 @@ function startLevel(index) {
   mode.def.slot(save).level = index;
   writeSave(save);
   R.theme = meta.themeFor(mode.id, index);
+  bar();
   player = new mode.Player(world.spawn);
   game.phase = 'spawn';
   game.t = 0;
@@ -236,8 +237,9 @@ function roadPopup() {
   return roadBusy;
 }
 
+// no home prompt before level 1 is cleared ('tutorial' prompter, stopAfter [asm 0x118e598])
 async function nextBooster() {
-  if (roadBusy || opening || !cards || !save.boosterQueue?.length || !$('start').classList.contains('on')) return;
+  if (save.best < 1 || roadBusy || opening || !cards || !save.boosterQueue?.length || !$('start').classList.contains('on')) return;
   opening = true;
   try { await loadCardsUi(); await cardsUi.openBooster(app, cards); } finally { opening = false; }
   hud();
@@ -511,20 +513,9 @@ function drawPlayer(t) {
   look.drawn++;
 }
 
-// ConfettisLeft: PlayerController.confettisPrefab of every mode's player (PathID -2858981051185679930, bundle13 CAB-a88ed77c),
-// one ParticleSystem read field by field (tools/extract/dump_confetti.py). Scaled time, so in the finish slow motion it
-// hangs around the player (2026 clip 0:13.7, 0:14.5). Scaling mode Local with transform scale 0.3: the size x 0.3; the
-// speed stays in world units (with it x 0.3 the cloud is a third of the clips' one).
-//   duration 3.9 s, not looping, rate 400/s, max 70 particles, lifetime 4 s, world simulation space
-//   start speed 50..100, size 0.2..0.5, 3D start rotation +-45 deg per axis, gravity modifier 1.4..2 (x 9.81)
-//   shape: cone 20 deg, radius 0.01, along the transform's up
-//   start colour: random in a Fixed gradient #BC0067 / #FF6DB5 / #F3EADA / #9BF7AD / #F9F871 (one fifth each)
-//   rotation over lifetime: -2pi..2pi rad/s on x, y, z; colour over lifetime: alpha 1 until 0.806, 0 at 1
-//   limit velocity: 1, dampen 0.1; noise: strength 0.5, frequency 0.5
-//   renderer: billboard, ConfettisMaterial = texture `confetti`, a white rounded rectangle 0.98 x 0.70 of the quad
-// [ĐỀ XUẤT] the dampen applies once per rendered frame (60 fps, real time) while the particles move in scaled time:
-// 1 s after the finish the cloud spans -1.0..+3.8 units along the flight and up to 0.8 off it; the 2019 clip 0:09.7-0:10.0
-// shows -0.2..+3.6 and +-1.05 (tools/extract/confetti_sim.js A 1). Damping in particle time instead leaves the cloud 3 x smaller.
+// ConfettisLeft (PlayerController.confettisPrefab), field by field in README "Pháo giấy về đích là ConfettisLeft": cone 20 deg,
+// rate 400/s, max 70, life 4 s, speed 50..100, size x 0.3, gravity 1.4..2, 3D spin, limit velocity 1 dampen 0.1, noise 0.5.
+// [ĐỀ XUẤT] the dampen applies once per real 60 fps frame while particles move in scaled time (tools/extract/confetti_sim.js).
 const CONF = { rate: 400, max: 70, dur: 3.9, life: 4, speed: [50, 100], size: [0.06, 0.15], grav: [1.4, 2], cone: (20 * Math.PI) / 180,
   limit: 1, dampen: 0.1, noise: 0.5, freq: 0.5, spin: 2 * Math.PI, rot0: Math.PI / 4, fade: 0.806,
   colors: ['#BC0067', '#FF6DB5', '#F3EADA', '#9BF7AD', '#F9F871'] };
@@ -667,7 +658,7 @@ let home = null;
 function showHome() {
   import('./home.js').then(async (h) => {
     await h.setup(app); home = h; hud();
-    if (meta.xpPending(save) > 0) roadPopup().catch((e) => toast('Không mở được Đường XP: ' + e.message)); // xp_road_recovery
+    if (save.best >= 1 && meta.xpPending(save) > 0) roadPopup().catch((e) => toast('Không mở được Đường XP: ' + e.message)); // xp_road_recovery
   }).catch((e) => toast('Không tải được trang chính: ' + e.message));
 }
 
@@ -686,12 +677,25 @@ function overlay(id, on) {
   game.paused = [...document.querySelectorAll('.overlay')].some((e) => e.classList.contains('on'));
   document.body.classList.toggle('menu', game.paused);
   if (game.paused) game.hold = false;
+  bar();
+}
+
+// letterbox: #0A1940 behind menus, theme colour / 2 in a level [ĐỀ XUẤT]
+function bar() {
+  const c = game.paused || !R ? '#0a1940' : '#' + R.theme.bg.slice(1, 7).match(/../g).map((h) => (parseInt(h, 16) >> 1).toString(16).padStart(2, '0')).join('');
+  document.documentElement.style.setProperty('--bar', c);
+}
+
+async function openSettings() {
+  initAudio();
+  play('popup_in');
+  (await import('./settings.js')).openSettings(app);
 }
 
 const app = {
   get save() { return save; }, get meta() { return meta; }, get custom() { return custom; }, get world() { return world; },
   get R() { return R; }, play, finishText, nextLevel, restart: () => restart(), pause, writeSave: () => writeSave(save), applyEquip, hud, overlay, toast, image, icon, $, V, look,
-  openMode, get mode() { return mode.id; }, openMenu, openLevels, skipLevel, loadBonus, get bonus() { return bonus; },
+  openMode, get mode() { return mode.id; }, openMenu, openSettings, openLevels, skipLevel, loadBonus, get bonus() { return bonus; },
   loadMode, startRace, get game() { return game; }, get player() { return player; },
   loadCards, loadCardsUi, openCards, nextBooster, get cards() { return cards; }, get cardsUi() { return cardsUi; },
   roadPopup,
@@ -705,10 +709,16 @@ async function openMenu(name) {
 }
 
 function bindInput() {
-  cv.addEventListener('pointerdown', (e) => { e.preventDefault(); cv.setPointerCapture?.(e.pointerId); setHold(true); });
+  // a press anywhere but on the UI holds, the letterbox too (GetMouseButtonDown)
+  window.addEventListener('pointerdown', (e) => {
+    screen.orientation?.lock?.('portrait').catch(() => {});
+    if (e.target !== cv && e.target !== document.body && e.target !== document.documentElement) return;
+    e.preventDefault();
+    setHold(true);
+  });
   const up = () => setHold(false);
-  cv.addEventListener('pointerup', up);
-  cv.addEventListener('pointercancel', up);
+  window.addEventListener('pointerup', up);
+  window.addEventListener('pointercancel', up);
   window.addEventListener('blur', up);
   window.addEventListener('keydown', (e) => {
     if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') { e.preventDefault(); if (!e.repeat) setHold(true); }
@@ -826,6 +836,8 @@ async function boot() {
   applyEquip();
   bindInput();
   soundIcon();
+  // [ĐỀ XUẤT] hint until level 1 is cleared
+  $('hint').hidden = save.best >= 1;
   if (!q) overlay('start', true);
   hud();
   $('loading').remove();

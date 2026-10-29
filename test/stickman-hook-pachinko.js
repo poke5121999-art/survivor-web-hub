@@ -58,7 +58,7 @@ const BOARDS = [
   await page.addInitScript(() => {
     try {
       if (!sessionStorage.getItem('shp-test')) {
-        localStorage.setItem('stickman-hook', JSON.stringify({ v: 2, xp: 400, coins: 0 }));
+        localStorage.setItem('stickman-hook', JSON.stringify({ v: 2, xp: 400, coins: 0, best: 1, level: 1 })); // best 1: past the first-run tutorial
         sessionStorage.setItem('shp-test', '1');
       }
     } catch { /* storage off */ }

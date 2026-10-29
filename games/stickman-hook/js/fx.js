@@ -212,7 +212,7 @@ class Live {
     const tq0 = Math.floor(fract(t / 20) * 12 + 50), tq1 = Math.floor(fract(t) * 12 + 50);
     const gk = gl ? 0.02 * gl[1] * hash(tq0 * 2, tq1) * Tw / 2 : 0;
     const split = !!(gl || A.ca), caPx = A.ca ? A.ca[1] * 0.1 * Tw / 2 : 0, caA = A.ca ? A.ca[2] : 0;
-    const rw = A.rw, rwPh = rw ? t * rw[2] * 0.1 : 0, rwK = rw ? rw[1] * 0.1 : 0, asp = innerWidth / Math.max(1, innerHeight);
+    const rw = A.rw, rwPh = rw ? t * rw[2] * 0.1 : 0, rwK = rw ? rw[1] * 0.1 : 0, asp = document.body.clientWidth / Math.max(1, document.body.clientHeight);
     const ol = A.ol, od = A.od, ot = A.ot;
     const ow = ol ? ol[3] : 0, oa = ol ? ol[2] : 0, om = ol ? ol[4] : 0;
     const oc = ol ? ol[1].map((v) => clamp(v * om) * 255) : null;

@@ -258,7 +258,7 @@ export async function openCards(app, cards) {
   const { body } = await artPage(app, 'cards', 'cards', { grad: 'linear-gradient(#0082ff, #00eaff)', pattern: 'Pattern_CardMenu',
     patSize: 256, patAlpha: 0.08, title: 'Thẻ bài' });
   // the page is 750 reference units wide; CardsUI is 675: narrower phones scale the blocks down to the width
-  const k = () => Math.min(1, (window.innerWidth - 12) / ((700 * window.innerHeight) / 1334));
+  const k = () => Math.min(1, (document.body.clientWidth - 12) / ((700 * document.body.clientHeight) / 1334));
   const render = () => {
     body.innerHTML = '';
     const t = document.createElement('div');

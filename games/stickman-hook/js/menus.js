@@ -9,8 +9,8 @@ import { artPage, spr, slice, label, glText, U, kitStyle, sheet, fit } from './u
 import { watch, adIcon } from './ads.js';
 
 const CSS = `
-.sheet { margin: auto; background: #12314d; color: #fff; border: 4px solid #0d1b2a; border-radius: 22px; width: min(96vw, 620px);
-  height: min(92vh, 900px); display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box; }
+.sheet { margin: auto; background: #12314d; color: #fff; border: 4px solid #0d1b2a; border-radius: 22px; width: min(calc(var(--fw) * .96), 620px);
+  height: min(calc(var(--fh) * .92), 900px); display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box; }
 .overlay.dim { background: rgba(0, 30, 55, .8); }
 .sheet header { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #0d1b2a; }
 .sheet header h2 { flex: 1; margin: 0; font-size: 20px; }
@@ -629,7 +629,7 @@ function roadCard(app, sh, icons, rewards, claimed) {
       art(n, 0, 12, 120 * (r[2] / r[3]), 120);
       text('t1', booster[0].replace(/ Card$/, ' card'), -70, 22);
     } else if (res === SKIP_TICKETS) { art('Ticket', 0, 12, 110, 89); text('t1', `x${q} tickets`, -70, 22); }
-    else { const a = art(null, 0, 15, 90, 90); app.icon(a, res, 90 * (window.innerHeight / 1334)); text('t1', FLAGS[res] || res, -70, 18); }
+    else { const a = art(null, 0, 15, 90, 90); app.icon(a, res, 90 * (document.body.clientHeight / 1334)); text('t1', FLAGS[res] || res, -70, 18); }
     okAt = [72, 49];
   }
   const ok = document.createElement('i');
@@ -722,7 +722,7 @@ export async function openRoad(app, opts = {}) {
   const scrollTo = (y) => {
     body.scrollTop = list.clientHeight - y * u() - body.clientHeight * 0.7;
   };
-  const u = () => window.innerHeight / 1334;
+  const u = () => document.body.clientHeight / 1334;
   // data-state (and the data-states history, data-pend at opening) for the tests
   const mark = (st) => { page.dataset.state = st; page.dataset.states = (page.dataset.states ? page.dataset.states + ',' : '') + st; };
   const close = (got) => { mark('closed'); app.overlay('road', false); app.hud(); finish(got); };

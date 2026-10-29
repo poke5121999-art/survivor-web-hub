@@ -18,6 +18,9 @@ SRC = os.path.join(REF, 'sprites_menus')
 # sprites_ads: market offer / widget art (export_named.py over the market_offer_* / market_reward_* bundles); sprites_ui: build_ui.py's
 DIRS = [SRC, os.path.join(REF, 'sprites_cards'), os.path.join(REF, 'sprites_cards', 'boosters'), os.path.join(REF, 'sprites'),
         os.path.join(REF, 'sprites_ads'), os.path.join(REF, 'sprites_ui')]
+# dump/ftue (tools/ftue_export_art.py: HomePage tutorial hand, SettingsPopup) is searched first for these sheets only, so
+# its 'checkmark' / 'Glow' never replace the ones other sheets use
+FTUE_DIR = {'ftue': os.path.join(REF, 'dump', 'ftue'), 'settings': os.path.join(REF, 'dump', 'ftue')}
 GAME = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 CARD_SPRITES = ['GlobalCollectionXPBoost', 'GlobalSkinXPBoost', 'GlobalRopeXPBoost', 'GlobalTrailXPBoost', 'SecondChance',
@@ -102,6 +105,14 @@ SHEETS = {
     'ads': {'AdIcon': 84, 'SkipTickets': 100, 'Ticket': 90, 'VIPButtonSmall_01': 200, 'VIPCrownIcon_01': 84,
             'Light_ButtonRewarded': 170, 'UnlockSkin_Star': 40, 'OutlinedButtonGold': 320, 'OutlinedButtonGreen': 320,
             'MarketOfferVipWidget': 200, 'MarketOfferWelcomeWidget': 190, 'MarketRewardNoAds': 170},
+    # HomePage first run (FTUE): PlayButton/TutorialHand (150 units) and its CircleLight (100 units), only while no Normal
+    # level is cleared. Trimmed PNGs: home.js places them by the trim offsets of dump/ftue/sprites.json.
+    'ftue': {'Hand_tutorial': 220, 'CircleLight': 180},
+    # SettingsPopup (ui_popups_settingspopup); popup_settings_icon is the Unity sprite 'settings' (renamed on export)
+    'settings': {'popup_settings_icon': 320, 'Glow': 200, 'globe': 72, 'gdpr': 72, 'chat': 72, 'copy_button': 120,
+                 'close_circle': 160, 'checkmark': 64, 'notification': 64,
+                 # Delete Account confirmations [ĐỀ XUẤT]: the game's green outlined button (red through a hue turn)
+                 'OutlinedButtonGreen': 320},
 }
 
 
@@ -114,7 +125,8 @@ def build(screen, sprites):
     ims = []
     for name, side in sprites.items():
         # first folder that has it; level / skin sprites (the home screen's default stickman) from export_sprites.py
-        p = next((q for q in (os.path.join(d, name + '.png') for d in DIRS) if os.path.exists(q)), '')
+        dirs = ([FTUE_DIR[screen]] if screen in FTUE_DIR else []) + DIRS
+        p = next((q for q in (os.path.join(d, name + '.png') for d in dirs) if os.path.exists(q)), '')
         if not os.path.exists(p):
             print('  missing', name); continue
         im = Image.open(p).convert('RGBA')

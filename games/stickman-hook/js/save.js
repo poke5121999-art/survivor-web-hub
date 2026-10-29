@@ -40,8 +40,19 @@ export function readSave() {
   };
 }
 
+let wiped = false;
 export function writeSave(s) {
+  if (wiped) return; // the page reloads after a wipe: nothing writes the old progress back
   try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* private mode */ }
+}
+
+// Delete Account (settings.js; DeleteCurrentAccount [asm 0x2e6192c]): progress goes, the sound stays (no PlayerPrefs.DeleteAll)
+export function wipeSave(s) {
+  wiped = true;
+  try {
+    localStorage.removeItem(KEY);
+    localStorage.setItem(KEY, JSON.stringify({ v: 2, sound: s.sound !== false }));
+  } catch { /* private mode: nothing was stored */ }
 }
 
 export function owns(s, kind, name) { return s.owned[kind].includes(name); }

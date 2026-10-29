@@ -292,7 +292,7 @@ const CSS = `
 #pachinko .px { position: absolute; top: max(12px, env(safe-area-inset-top)); left: 12px; z-index: 2; }
 #pachinko .res { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0, 20, 60, .72); z-index: 3; }
 #pachinko .res.on { display: flex; }
-#pachinko .card { background: #fff; color: #0d1b2a; border: 4px solid #0d1b2a; border-radius: 22px; padding: 18px; width: min(86vw, 380px);
+#pachinko .card { background: #fff; color: #0d1b2a; border: 4px solid #0d1b2a; border-radius: 22px; padding: 18px; width: min(calc(var(--fw) * .86), 380px);
   display: flex; flex-direction: column; gap: 10px; text-align: center; font: 700 17px system-ui, sans-serif; }
 #pachinko .card h2 { margin: 0; font-size: 26px; }
 #pachinko .card .row2 { display: flex; justify-content: space-between; gap: 8px; }
@@ -385,9 +385,11 @@ class Session {
 
   bind() {
     const set = (v) => { if (this.game.phase === 'play' || !v) this.game.hold = v; };
-    this.cv.addEventListener('pointerdown', (e) => { e.preventDefault(); this.cv.setPointerCapture?.(e.pointerId); set(true); });
-    this.cv.addEventListener('pointerup', () => set(false));
-    this.cv.addEventListener('pointercancel', () => set(false));
+    // a press anywhere outside the buttons holds, the letterbox around the portrait frame included (Input.GetMouseButtonDown)
+    this.down = (e) => { if (e.target !== this.cv && e.target !== document.body && e.target !== document.documentElement) return;
+      e.preventDefault(); set(true); };
+    this.up = () => set(false);
+    for (const [n, f] of [['pointerdown', this.down], ['pointerup', this.up], ['pointercancel', this.up]]) window.addEventListener(n, f);
     this.keys = (e) => {
       if (e.code !== 'Space' && e.code !== 'ArrowUp' && e.code !== 'KeyW') return;
       e.preventDefault();
@@ -402,6 +404,7 @@ class Session {
     this.raf = 0;
     window.removeEventListener('keydown', this.keys);
     window.removeEventListener('keyup', this.keys);
+    for (const [n, f] of [['pointerdown', this.down], ['pointerup', this.up], ['pointercancel', this.up]]) window.removeEventListener(n, f);
     if (live === this) live = null;
   }
 

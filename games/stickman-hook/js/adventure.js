@@ -42,7 +42,7 @@ const CSS = `
 #advPlay.on { display: block; }
 #advPlay canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 #advPlay .btn { position: absolute; top: max(12px, env(safe-area-inset-top)); left: 12px; }
-.ac { background: #12314d; border: 4px solid #0d1b2a; border-radius: 22px; width: min(94vw, 540px); max-height: 94vh;
+.ac { background: #12314d; border: 4px solid #0d1b2a; border-radius: 22px; width: min(calc(var(--fw) * .94), 540px); max-height: calc(var(--fh) * .94);
   display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box; }
 .ac header { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #0d1b2a; }
 .ac header h2 { flex: 1; margin: 0; font-size: 20px; }
@@ -347,19 +347,21 @@ export async function startRun(app, opts = {}) {
   const run = new AdvRun(S.data, { seed: opts.seed ?? board.seed, levels, aspect: cv.width / cv.height, counts: COUNTS,
     last: qty(save, R_LAST), best: qty(save, R_BEST) });
   const st = { app, run, R, cv, hold: false, raf: 0, last: 0, phase: 'spawn', t: 0, acc: 0, fx: makeFx(), ended: false };
-  const down = (e) => { e.preventDefault(); cv.setPointerCapture?.(e.pointerId); st.hold = true; };
+  // Input.GetMouseButtonDown(0) is screen wide: a press anywhere outside the buttons, the letterbox included, holds
+  const down = (e) => { if (e.target !== cv && e.target !== document.body && e.target !== document.documentElement) return;
+    e.preventDefault(); st.hold = true; };
   const up = () => { st.hold = false; };
   const kd = (e) => { if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') { e.preventDefault(); if (!e.repeat) st.hold = true; } };
   const ku = (e) => { if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') st.hold = false; };
-  cv.addEventListener('pointerdown', down);
-  cv.addEventListener('pointerup', up);
-  cv.addEventListener('pointercancel', up);
+  window.addEventListener('pointerdown', down);
+  window.addEventListener('pointerup', up);
+  window.addEventListener('pointercancel', up);
   window.addEventListener('keydown', kd);
   window.addEventListener('keyup', ku);
   window.addEventListener('blur', up);
   root.querySelector('.btn').onclick = () => { app.play('popup_out'); finish(st, true); };
   st.off = () => {
-    cv.removeEventListener('pointerdown', down); cv.removeEventListener('pointerup', up); cv.removeEventListener('pointercancel', up);
+    window.removeEventListener('pointerdown', down); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
     window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku); window.removeEventListener('blur', up);
   };
   RUN = st;

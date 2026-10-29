@@ -4,6 +4,26 @@ Ngày so: 2026-10-28, chụp lại 2026-10-29. Bản web: Pages `?v=20261028f`, 
 Mỗi cặp ảnh nằm ở `shots/stickman-hook/parity/<key>.png` (web bên trái, tối đa 2 khung gốc bên phải, vùng đo viền xanh lơ).
 Số đo màu lấy từ `shots/stickman-hook/parity/report.json`. Nhãn từng cặp ở `D:/stickman-hook-ref/parity/verdicts.tsv`, cổng `parity.py check` thoát 0.
 
+## 20261028n: FTUE, khung dọc, SettingsPopup (2026-10-29)
+
+Không có clip gốc của lần chạy đầu hay của SettingsPopup. Đã so với cây prefab (`HomePage`, `SettingsPopup`), art gốc
+(`D:/stickman-hook-ref/dump/ftue/`) và khoá hoạt cảnh đã giải. Spec: `D:/stickman-hook-ref/FTUE.md`. Luật và địa chỉ asm ở README,
+mục "FTUE, khung dọc, Settings, xoá tài khoản". Ảnh web: `shots/stickman-hook/ftue-{1920,390}.png`, `home-{1920,390}.png`,
+`game-{1920,390}.png`, `settings-{1920,390}.png`, `settings-delete-{1,2}.png`.
+
+| Chỗ (FTUE.md mục 0) | Trạng thái 20261028n |
+|---|---|
+| G1 lớp tối + bàn tay | **Đã làm.** `#000000AA`, chỉ Play trên lớp tối; bàn tay và vòng sáng chạy theo khoá bậc ba (khung 38 chạm nút) |
+| G2 MenuBar | **Đã làm.** Ẩn khi `save.best < 1` |
+| G3 prompt trang chính | **Đã làm.** Đường XP tự mở và popup booster chỉ chạy khi `save.best >= 1` |
+| G4 widget Lucky Wheel | **Đã làm.** Hiện khi `mode.lucky_wheel` đã mở |
+| G5 gợi ý trong màn | `[ĐỀ XUẤT]` Chỉ khi chưa qua màn 1 (gốc không có) |
+| G6, G7 khung dọc | **Đã làm.** 1920 × 1080: khung 608 × 1080, camera 5.63 đơn vị; UI theo canvas 750 × 1334 khớp chiều cao |
+| G8 bánh răng | **Đã làm.** Mở SettingsPopup; chọn màn ở hàng nút pause |
+| G9 Delete Account | `[ĐỀ XUẤT]` Hàng đỏ, hai lần xác nhận, giữ âm thanh |
+| G10 ModeUnlocked / New Tournament / New Adventure | Chưa làm (ngoài phạm vi FTUE tối thiểu) |
+| Còn lệch | Tween mở popup (`MadTweenAnimationController`) chưa giải; chữ trong label web viết hoa hết như các menu khác; Checked/Unchecked vẽ vuông 45 thay vì kéo giãn 45 × 70 |
+
 ## 20261028m: nút quảng cáo và IAP như bản gốc, bấm là nhận (2026-10-29)
 
 Không có clip gốc của Chợ, popup mở gói thẻ hay trang Đua có nút quảng cáo trong `D:/stickman-hook-ref/clips`. Đã so với cây prefab
