@@ -769,19 +769,21 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
 
   // 15) Lên cấp xác: bảng giá từng cấp + bảng chỉ số tăng theo xác (md_upgrade dạng mới).
   await open('upgrade');
-  const stepGold = '[data-k^="default|steps."][data-k$=".gold"]';
+  const stepGold = '[data-k^="default|steps."][data-k$=".star5.gold"]';
   const seedSteps = DEFAULTS.upgrade[0].steps;
   check('upgrade: bảng giá hiện 10 dòng', await p.$$eval(stepGold, e => e.length) === 10, '');
   check('upgrade: dòng 2 ghi "1 → 2"', (await p.$$eval('.dz-sub__table', ts => ts[0].querySelectorAll('tbody tr')[1].firstChild.textContent)) === '1 → 2', '');
+  const upHeads = await p.$$eval('.dz-sub__table', ts => Array.from(ts[0].querySelectorAll('th')).map(t => t.textContent));
+  check('upgrade: tiêu đề cột nêu hạng sao, có "Mảnh 5★"', upHeads.includes('Mảnh 3★') && upHeads.includes('Vàng 4★') && upHeads.includes('Mảnh 5★'), upHeads.join('|'));
   check('upgrade: không còn ô maxLevel / goldBase / shardPerLevel / statPerLevel',
     await p.$$eval('[data-k*="maxLevel"], [data-k*="goldBase"], [data-k*="shardPerLevel"], [data-k*="statPerLevel"]', e => e.length) === 0, '');
   check('upgrade: "Bỏ cấp cuối" bật được khi 10 dòng, không có nút Bỏ riêng từng dòng',
     !(await p.$eval('[data-drop-last]', e => e.disabled)) && await p.$$eval('.dz-sub__drop', e => e.length) === 0, '');
   await p.click('[data-add="default"]');
   const after11 = await p.$$eval(stepGold, e => e.length);
-  const lastGold = await p.inputValue(K('default', 'steps.10.gold') + ' input'), lastShard = await p.inputValue(K('default', 'steps.10.shard') + ' input');
-  check('upgrade: "Thêm cấp" thành 11 dòng, dòng cuối {gold:2000,shard:1}, không có id',
-    after11 === 11 && lastGold === '2000' && lastShard === '1' && await p.$$eval('[data-k$="steps.10.id"]', e => e.length) === 0, after11 + ' ' + lastGold + '/' + lastShard);
+  const l5g = await p.inputValue(K('default', 'steps.10.star5.gold') + ' input'), l5s = await p.inputValue(K('default', 'steps.10.star5.shard') + ' input');
+  check('upgrade: "Thêm cấp" thành 11 dòng, dòng cuối star5 {gold:2000,shard:1}, không có id',
+    after11 === 11 && l5g === '2000' && l5s === '1' && await p.$$eval('[data-k$="steps.10.id"]', e => e.length) === 0, after11 + ' ' + l5g + '/' + l5s);
   await p.click('[data-drop-last]');
   check('upgrade: "Bỏ cấp cuối" về lại 10 dòng', await p.$$eval(stepGold, e => e.length) === 10, '');
   await p.click('[data-drop-last]');
@@ -792,16 +794,20 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
   check('upgrade: ô đầu của bao ghi "Flare" và không phải ô nhập', gcell.t === 'Flare' && gcell.inputs === 0, JSON.stringify(gcell));
   check('upgrade: bảng chỉ số có đủ dòng xác', await p.$$eval('[data-k^="default|growth."][data-k$=".hp"]', e => e.length) === DEFAULTS.upgrade[0].growth.length, '');
   await p.fill(K('default', 'growth.0.hp') + ' input', '5');
+  await p.fill(K('default', 'steps.9.star3.shard') + ' input', '10');
+  await p.fill(K('default', 'steps.9.star5.shard') + ' input', '5');
   await p.click('#btn-review');
   await dryDone();
   await p.click('#btn-save');
   await p.waitForSelector('#dz-nav [data-table="upgrade"] .dz-chip--live');
   const upSave = fake.saves.filter(x => x.table === 'upgrade' && !x.dryRun).pop();
   const upDoc = upSave && upSave.docs[0];
-  check('upgrade: lưu gửi steps (10 dòng) và growth bao hp 5',
+  check('upgrade: lưu gửi steps (10 dòng) và growth bao hp 5, steps[9] star3 10 / star5 5 / star4 giữ 1',
     upDoc && upDoc.steps.length === 10 && upDoc.growth[0].crew === 'bao' && upDoc.growth[0].hp === 5 &&
-    JSON.stringify(upDoc.steps) === JSON.stringify(seedSteps) && !('maxLevel' in upDoc), upDoc ? JSON.stringify(upDoc.growth[0]) : '');
-  await p.screenshot({ path: process.env.UPGRADE_SHOT || (SHOTS + '/upgrade.png'), fullPage: true });
+    upDoc.steps[9].star3.shard === 10 && upDoc.steps[9].star5.shard === 5 && upDoc.steps[9].star4.shard === 1 &&
+    JSON.stringify(upDoc.steps.slice(0, 9)) === JSON.stringify(seedSteps.slice(0, 9)) && !('maxLevel' in upDoc), upDoc ? JSON.stringify(upDoc.growth[0]) : '');
+  await p.waitForTimeout(3500);
+  await p.locator('.dz-fld--wide').first().screenshot({ path: process.env.UPGRADE_SHOT || (SHOTS + '/upgrade.png') });
   check('upgrade: 1280 px không tràn ngang', await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), '');
 
   const e = errs.filter(x => !/favicon|404/.test(x));
