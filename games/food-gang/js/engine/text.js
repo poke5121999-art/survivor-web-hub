@@ -138,6 +138,7 @@ export function layout(font, chars, size, rectW, wrap, cfg) {
   let line = { glyphs: [], w: 0, maxAsc: face.ascent * sc, maxDesc: face.descent * sc };
   let x = 0;
   let lastBreak = -1;
+  let split = false;   // a word longer than the line had to be cut between two letters
   const pushLine = () => { lines.push(line); line = { glyphs: [], w: 0, maxAsc: face.ascent * sc, maxDesc: face.descent * sc }; x = 0; lastBreak = -1; };
   for (let i = 0; i < chars.length; i++) {
     const c = chars[i];
@@ -163,7 +164,7 @@ export function layout(font, chars, size, rectW, wrap, cfg) {
         pushLine();
         for (const q of carry) { q.x -= shift; line.glyphs.push(q); }
         x = carry.length ? carry[carry.length - 1].x + carry[carry.length - 1].adv : 0;
-      } else pushLine();
+      } else { split = true; pushLine(); }
     }
     line.glyphs.push({ g, x, ssc, adv, ch: c.ch, code, color: c.color, bold: c.bold, rtl: !!c.rtl, vis: (g[4] + g[7]) * ssc });
     if (c.ch === ' ') lastBreak = line.glyphs.length - 1;
@@ -180,7 +181,7 @@ export function layout(font, chars, size, rectW, wrap, cfg) {
   const lineH = (face.lineHeight || (face.ascent - face.descent)) * sc + (cfg.lineSpacing || 0) * em;
   const width = Math.max(0, ...lines.map((L) => L.w));
   const height = (face.ascent - face.descent) * sc + (lines.length - 1) * lineH;
-  return { lines, sc, lineH, width, height, size, prefW: Math.max(0, ...lines.map((L) => L.adv)) };
+  return { lines, sc, lineH, width, height, size, split, prefW: Math.max(0, ...lines.map((L) => L.adv)) };
 }
 
 // Resolve auto-size + alignment into positioned glyph quads (rect-local, y up, origin at rect min).
@@ -193,12 +194,14 @@ export function buildText(font, comp, rectW, rectH) {
   let L;
   if (comp.autoSize) {
     let lo = comp.sizeMin || 1, hi = comp.sizeMax || comp.size || 36;
+    // TMP auto size also shrinks while a word does not fit on a line by itself, before cutting it in two
+    const over = (t) => t.width > w + 0.01 || t.height > h + 0.01 || t.split;
     L = layout(font, chars, hi, w, wrap, cfg);
-    if (L.width > w + 0.01 || L.height > h + 0.01) {
+    if (over(L)) {
       for (let k = 0; k < 12; k++) {
         const mid = (lo + hi) / 2;
         const t = layout(font, chars, mid, w, wrap, cfg);
-        if (t.width > w + 0.01 || t.height > h + 0.01) hi = mid; else { lo = mid; L = t; }
+        if (over(t)) hi = mid; else { lo = mid; L = t; }
       }
       if (L.size > lo + 0.01 || L.width > w + 0.01 || L.height > h + 0.01) L = layout(font, chars, lo, w, wrap, cfg);
     }
@@ -230,7 +233,7 @@ export function buildText(font, comp, rectW, rectH) {
         u0: g[0] - pu, v0: g[1] - pu, u1: g[0] + g[2] + pu, v1: g[1] + g[3] + pu, color: q.color, bold: q.bold, page: g.fb ? g.page : null });
     }
   });
-  return { quads, width: L.width, height: L.height, size: L.size, prefW: L.prefW + m[0] + m[2], prefH: L.height + m[1] + m[3] };
+  return { quads, lines: L.lines.length, width: L.width, height: L.height, size: L.size, prefW: L.prefW + m[0] + m[2], prefH: L.height + m[1] + m[3] };
 }
 
 export function preferredSize(font, comp) {

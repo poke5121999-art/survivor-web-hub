@@ -48,3 +48,13 @@ Chơi mạng thật cho bản web: ghép trận nhanh với người thật (h�
 - `[BẪY ĐÃ SẬP]` Trang host bị ẩn (tab nền) thì `requestAnimationFrame` dừng, trận đứng theo. `[ĐO TRONG REPO]` Không có driver: ẩn 6 s chỉ chạy được 1 tick, khách nhận 0 ảnh mỗi giây. Có driver: 364 tick trong 6,1 s, 30–31 ảnh mỗi giây, khách không phải đứng hình. Chromium headless không bao giờ ẩn trang (đã thử tab khác lên trước, thu nhỏ cửa sổ qua CDP, Emulation focus), nên `B/hidden` giả lập ngay trong trang: `document.hidden`, chặn rAF, timer luồng chính tối đa 1 lần mỗi giây.
 - `[BẪY ĐÃ SẬP]` Test so `lastEvent` của khách với `eventSeq` của host đọc ở một thời điểm khác. Sau GAME OVER host vẫn bước, đạn còn bay vẫn hết hạn và sinh sự kiện, nên trên máy tải nặng con số lệch 728/729. Giờ test so với `eventsThrough(tick của ảnh mới nhất của khách)`, rồi kiểm riêng lúc host rời (dừng sim, `leave`): khách phải có đủ toàn bộ sự kiện.
 - `[BẪY ĐÃ SẬP]` Ghép nhanh rút mode từ bộ bài; Kill5 và LastSurvivor không có đồng hồ, nên `&short` không kết thúc được trận và test chờ hết giờ. Trang dev nhận `&mode=` cho cả ghép nhanh, test ghim mode 1 (DM 2v2).
+
+## Trận riêng sau khi hết trận (2026-10-31)
+- `GameOver.ContinueFriendRoom` → `StartRejoin(code)`: `Session.backToLobby()` đưa cả hai phía về `lobby` trên cùng link Relay.
+  Host bỏ ghế người đã rời (`room.free`), mở khoá phòng (`room.unlock`), xoá `wantReady` của mình; khách nào chưa nhận hết
+  sự kiện cuối vẫn được gửi ảnh cuối tới `LINGER` (`lingerNet`). Khi `launch`, mọi `ready` về false.
+- Chỉ chủ phòng bấm bắt đầu (`FriendRoomLaunch`). Màn sảnh của khách gọi `setReady(true)` khi mở, nên khách còn ở màn kết
+  quả trận trước thì Battle! của chủ phòng đợi. Trang dev vẫn tự bấm sẵn sàng hộ (`autoReady`).
+- `Session.setProfile(profile)`: đổi nhân vật trong sảnh → tin `me` lên host (như thuộc tính `sk` Photon).
+- Mã phòng là mã Unity Lobby **6** ký tự; màn Join gốc đòi 4 (mã Photon) nên `Private.js` dùng `CODE_LEN = 6` `[ĐỀ XUẤT]`.
+- Kiểm: `node test/food-gang-net.js --node --only rematch`; hai trang qua menu thật: `FG_NET=loop FG_PARTS=party node test/food-gang-playtest.js`.

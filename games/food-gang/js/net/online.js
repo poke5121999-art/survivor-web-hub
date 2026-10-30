@@ -154,6 +154,21 @@ class Session {
     this.close('left');
   }
 
+  /** Private room after a match (GameOver.ContinueFriendRoom -> StartRejoin(code)): the same room is a lobby again.
+   *  False when the session is over (host gone, error) and the player goes to the menu instead. */
+  backToLobby() {
+    if (this.state === 'closed' || this.kind !== 'private' || !this.role || !this.role.backToLobby) return false;
+    this.role.backToLobby();
+    return true;
+  }
+
+  /** Fighter picked in the lobby (Photon player property `sk`): the roster and the next match use it. */
+  setProfile(profile) {
+    this.profile = profile;
+    this.me = playerInfo(profile);
+    if (this.role && this.role.updateMe) this.role.updateMe();
+  }
+
   async run(fn) {
     try { await fn(); } catch (e) { this.fail(e); }
   }
@@ -277,13 +292,14 @@ class HostRole extends Role {
   onMessage(from, u8) {
     const p = this.peers.get(from);
     if (p) p.heard = now();
-    if (u8[0] === MSG.INPUT) { if (this.net) this.net.onInput(from, u8); return; }
+    if (u8[0] === MSG.INPUT) { const n = this.net || this.lingerNet; if (n) n.onInput(from, u8); return; }
     if (u8[0] !== MSG.CTRL) return;
     const m = this.framer.unpack(from, u8);
     if (!m) return;
     if (m.t === 'hello') this.hello(from, m);
     else if (!p) return;
     else if (m.t === 'ready') { p.ready = !!m.ready; this.updatePlayers(); this.maybeStartPrivate(); }
+    else if (m.t === 'me') { p.name = String(m.name || p.name).slice(0, 16); p.skin = m.skin | 0 || p.skin; p.level = Math.max(1, m.level | 0); this.updatePlayers(); }
     else if (m.t === 'bye') this.removePeer(from, 'left');
   }
 
@@ -316,6 +332,22 @@ class HostRole extends Role {
 
   setReady() { this.updatePlayers(); this.maybeStartPrivate(); }
 
+  updateMe() { this.updatePlayers(); }
+
+  // the match is over: same room, same relay link; seats of players who left go, newcomers may join again, and every
+  // player readies once more (guests when their lobby screen opens, the host with Battle!)
+  backToLobby() {
+    if (!this.launched) return;
+    this.stopDrive();
+    if (this.net) { this.lingerNet = this.net; this.lingerAt = now(); this.net = null; }
+    this.launched = false;
+    this.s.wantReady = false;
+    for (const [id, p] of [...this.peers]) if (p.gone) { this.peers.delete(id); this.link.drop(id); this.room.free(p.uid); }
+    if (this.room.unlock) this.room.unlock();
+    this.s.state = 'lobby';
+    this.updatePlayers();
+  }
+
   setConfig(config) {
     if (this.launched || this.s.kind !== 'private') return;
     this.s.config = { ...this.s.config, ...config };
@@ -332,6 +364,8 @@ class HostRole extends Role {
     if (this.disposed) return;
     const t = now();
     if (this.net) this.net.flushIdle();
+    // back in the lobby: clients still missing the last events of the match get the final state until LINGER
+    if (this.lingerNet && (!this.lingerNet.flushIdle() || t - this.lingerAt > LINGER * 1000)) this.lingerNet = null;
     if (!this.lastKa || t - this.lastKa >= KEEPALIVE * 1000) {
       this.lastKa = t;
       for (const [id, p] of this.peers) if (!p.gone) this.send(id, { t: 'ka' });
@@ -410,6 +444,9 @@ class HostRole extends Role {
       return;
     }
     if (s.kind === 'quick') this.room.unlist(); else this.room.lock();
+    this.lingerNet = null;
+    s.wantReady = false;
+    for (const p of this.peers.values()) p.ready = false;
     const net = this.net = new HostMatchNet({ link: this.link });
     const sources = {};
     const json = plainRequest(req);
@@ -529,6 +566,7 @@ class GuestRole extends Role {
     if (this.started) return;
     this.started = true;
     const s = this.s;
+    s.wantReady = false;
     const net = this.net = new ClientMatchNet({ link: this.link, hostId: this.host, ownLead: settings.ownLead !== false });
     s.state = 'playing';
     const request = requestFor(m.request, m.slot);
@@ -548,6 +586,17 @@ class GuestRole extends Role {
   }
 
   setReady(r) { this.send(this.host, { t: 'ready', ready: r }); }
+
+  updateMe() { const me = this.s.me; this.send(this.host, { t: 'me', name: me.name, skin: me.skin, level: me.level }); }
+
+  backToLobby() {
+    if (!this.started) return;
+    this.stopDrive();
+    this.started = false;
+    this.net = null;
+    this.s.state = 'lobby';
+    this.s.emit('lobby', this.s.lobbyInfo());
+  }
 
   tick() {
     if (this.disposed) return;

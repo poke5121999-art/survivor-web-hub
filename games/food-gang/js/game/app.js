@@ -241,6 +241,10 @@ class App {
   async privateMatch(act) {
     if (!act.request) return;
     await this.playMatch(act.request, { runnerOptions: act.runnerOptions, friend: true, session: act.session, searching: false });
+    // GameOver.ContinueFriendRoom: back to the room's lobby (the menu opens it), or the menu when the room is gone
+    const s = act.session;
+    if (s && s.backToLobby && s.backToLobby()) this.resumeLobby = s;
+    else if (s && s.state === 'closed') this.toast('info.private.servererror');
   }
 
   buildRequest() {

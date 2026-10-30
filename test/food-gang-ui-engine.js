@@ -231,6 +231,25 @@ function serve() {
     check('Japanese wraps per character inside the box', wrap.lines >= 3 && wrap.max <= 300.5, `${wrap.lines} lines, max x ${wrap.max.toFixed(0)}`);
     check('Arabic words are rasterized as runs (2 words -> 2 quads + [X])', wrap.arFb === 2 && wrap.arQuads === 5, `${wrap.arFb} run quads of ${wrap.arQuads}; x ${wrap.arx.join(',')}`);
     check('accents / Cyrillic quads built', wrap.latN >= 10, `${wrap.latFb} via fallback of ${wrap.latN}`);
+    // Russian 'Политика конфиденциальности' on the Privacy button (auto size 16..28): TMP shrinks before it cuts a word
+    await page.evaluate((id) => window.tui.txt.setLanguage(id), 'Russian');
+    await page.waitForTimeout(500);
+    const priv = await page.evaluate(async () => {
+      const { engine, inst } = window.tui;
+      const mod = await import('./js/engine/text.js');
+      const n = inst.nodes.find((x) => x.name === 'Name' && x.parent && x.parent.parent && x.parent.parent.name === 'Button_DataPrivacy');
+      const t = n.get('Text');
+      const b = mod.buildText(engine.assets.fontSync(t.font), t, n.r.w, n.r.h);
+      const lines = b.lines;
+      // Discord: an icon wider than its HorizontalLayoutGroup (512 px sprite at ppu 77) stays centred on the button
+      const ic = inst.nodes.find((x) => x.name === 'Icon' && x.parent && x.parent.name === 'Buy');
+      const btn = inst.nodes.find((x) => x.name === 'Button_Discord');
+      const a = engine.ui.screenRect(ic), c = engine.ui.screenRect(btn);
+      return { text: t.text, lines, size: b.size, icon: a[0] + a[2] / 2, btn: c[0] + c[2] / 2, iconW: a[2], btnW: c[2] };
+    });
+    check('Russian privacy button text shrinks instead of cutting a word (2 lines)', priv.lines === 2, `${JSON.stringify(priv.text)} ${priv.lines} lines at ${priv.size && priv.size.toFixed ? priv.size.toFixed(1) : priv.size}`);
+    check('Discord icon centred on its button (layout group narrower than the icon)', Math.abs(priv.icon - priv.btn) < 2 && priv.iconW <= priv.btnW + 1, `icon centre ${priv.icon.toFixed(0)} button ${priv.btn.toFixed(0)}, width ${priv.iconW.toFixed(0)}/${priv.btnW.toFixed(0)}`);
+    await page.evaluate((id) => window.tui.txt.setLanguage(id), 'English');
     await page.close();
     check('no console / page errors', errors.length === 0, errors.slice(0, 4).join(' | '));
   } catch (e) {

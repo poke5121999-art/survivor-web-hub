@@ -32,6 +32,7 @@ export function ugsBackend({ region = null } = {}) {
         id: lobby.id, code: lobby.lobbyCode, created: Date.parse(lobby.created) || Date.now(), link, uid: u.playerId,
         region: alloc.region || region,
         lock() { return u.updateLobby(lobby.id, { isLocked: true }).catch(() => {}); },
+        unlock() { if (!unlisted) u.updateLobby(lobby.id, { isLocked: false }).catch(() => {}); },
         free(uid) { if (uid) u.removePlayer(lobby.id, uid).catch(() => {}); },
         // the match runs on the relay alone: the lobby row goes, the link stays
         unlist(keepalive = false) {
@@ -143,6 +144,7 @@ export function loopBackend(name = 'fg-loop') {
       return {
         id, code, created: room.created, link, uid: self,
         lock() { room.locked = true; announce(); },
+        unlock() { room.locked = false; announce(); },
         free() {},
         unlist() { clearInterval(beat); reg.postMessage({ k: 'gone', id }); rooms.delete(id); },
         close() { if (closed) return; closed = true; this.unlist(); link.close(); },

@@ -136,15 +136,20 @@ Kiểm: `node test/food-gang-render.js` (3 map, ảnh ở `shots/food-gang/`).
 - Skin spawn thẳng ở vị trí agent, cỡ 1 (Quantum tạo entity view = prefab `skin_*`). `Agent_*/Root` scale -0.5 là
   prototype phía sim, gắn skin vào đó thì nhân vật nhỏ còn nửa. Art quay trái khi `visual_root` scale x dương.
 - Clip quay máy 2.16:1 (vùng game y 64..655 trong khung 1280x720). So ảnh phải chụp web 1280x592, không 1280x720.
-- Map là mesh 3D toon, không phải sprite. Shader `ToonRampUnlit` không có nguồn: màu vertex đen = nêm bóng nướng sẵn;
-  mặt quay khỏi đèn tối khi N.L < -0.56 với vector đèn = -forward của `_LightDirection` lật trục x (khớp cả 3 map,
-  quy ước Unity chuẩn thì Dining sai). Bóng = sáng × (0.48, 0.52, 0.54). Quad trần (`_RampValue` 0) = `_Color` × `_LightColor`.
+- Map là mesh 3D toon, không phải sprite. Shader `ToonRampUnlit` của rip (`fg-unity` và `ripped`) là bản giả; chương trình
+  thật nằm trong APK: `apk/assets/bin/Data/data.unity3d`, Shader path id 6, `compressedBlob` nén lz4 theo `platforms`
+  (9 = GLES3, đọc được bằng chữ). [ĐO TRONG REPO 2026-10-31] Fragment thật: `k = (dot(N, normalize(_LightDirection.xyz)) *
+  _RampValue + 1) * -0.5 + 1`, màu = `k * (màu đỉnh.r + _ShadowIntensity) * tex * _Color * _LightColor * _LightIntensity`.
+  `_LightDirection` (70,-80,0…) là **vector thô**, không phải góc euler; độ sáng liên tục, không bậc. Mặt vuông góc với
+  vector = 1x, nêm bóng (màu đỉnh 0) = 0,5x, mặt ngược vector tới 2x (mặt trên đĩa). Bẫy đã sập: vòng trước "khớp" clip
+  bằng euler lật trục x + ngưỡng N·L -0,56 + bóng (0.48,0.52,0.54): đúng tường và bóng nướng nhưng làm cả chồng đĩa một
+  màu. Bóc lại: `UnityPy` → `obj.read()` → `lz4.block.decompress(blob[off:off+clen], uncompressed_size=dlen)`.
 - Post: profile có Bloom 0.66 và Contrast +20 nhưng clip khớp chỉ với exposure +0.5 (sai 2-8%); bật bloom thì tường
   sáng quá 10-20%. Đang để `engine.bloomScale = 0`, contrast tắt.
 - Vòng điểm đội và nút điều khiển trong clip xanh thép, sprite bản 2.2.4 cyan: clip là bản game cũ, đừng chỉnh màu theo.
 - Shader giả trong `fg-unity/Assets/Shader` ghi cứng `Blend`: exporter đọc dòng đó thay vì `_SrcBlend/_DstBlend` còn sót
   trong material (UIFlash ghi One/Zero sẽ thành ô trắng đặc).
-- Thiếu: viền sáng từng đĩa trong chồng đĩa Dining; particle collision/sub-emitter chỉ xuất chưa mô phỏng; TrailRenderer
+- Thiếu: viền kem từng đĩa ở Dining (mặt trên đĩa bị che với camera ngang tầm, xem `docs/PLAYTEST.md`); particle collision/sub-emitter chỉ xuất chưa mô phỏng; TrailRenderer
   không có trong prefab trận.
 
 ## Trận chơi được `js/game/` [ĐO TRONG REPO 2026-10-30]
@@ -273,3 +278,16 @@ So với clip (skill parity-compare, `D:/foodgang-ref/parity-ui`, tour `test/foo
 [ĐO TRONG REPO 2026-10-31]: 11 cặp, cổng `check` thoát 0 với 12 `ok`, 12 `version`, 0 `web-bug`. Khác lớn nhất đều do bản clip khác rip 2.2.4:
 nền popup (`background_blur` của rip sáng hơn clip 1,42-1,49 lần ở dải trên; profile PostProcessMenu không có vignette), trang Fighters
 kiểu băng chuyền, lớp đen + tên chế độ trên bảng VS, menu không có panel tối bên phải.
+
+## Bẫy tìm ra khi tự chơi (2026-10-31, `docs/PLAYTEST.md`)
+- ParticleSystem dưới canvas camera (sao lấp lánh bục VICTORY) vẽ trong lượt UI (`ui.drawParticles`). `scalingMode` Local
+  (1) bỏ mọi scale cha: dùng `ls` của node nhân pixel/đơn vị của camera canvas (`H / (2·orthoSize)`), không dùng `node.world`
+  (halo x100 làm sao to gấp 30).
+- `HorizontalLayoutGroup` nội dung rộng hơn nhóm: con được điều khiển cỡ co từ preferred về min rồi bắt đầu ở padding;
+  con không điều khiển giữ cỡ, phần dư **âm** vẫn chia theo căn lề. Kẹp phần dư về 0 đẩy logo Discord (sprite 512 px, ppu 77)
+  ra ngoài nút.
+- TMP auto size thu chữ trước khi phải cắt một từ dài hơn dòng (`layout().split`); trước đó "конфиденциальности" bị chặt
+  giữa từ. CJK ngắt giữa hai chữ nên không tính là cắt.
+- Viền đen tiêu đề font Tobi không phải outline (`_OutlineWidth` 0) mà là underlay giãn (`_UnderlayDilate` 1, lệch y -0,5):
+  glyph dự phòng (Ả Rập, CJK) phải vẽ 8 bản quanh độ giãn, một bản lệch thì không thấy viền.
+- Game gốc có 13 ngôn ngữ, không có tiếng Thái.

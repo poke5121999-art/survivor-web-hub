@@ -32,7 +32,6 @@ export class Engine {
     this.pixelRatio = Math.min(2, window.devicePixelRatio || 1);
     this.onAnimEvent = null;
     this.bloomScale = 0;
-    this.shadowTint = [0.48, 0.52, 0.54];   // baked-shadow multiplier measured on clip frames (see render.js FS_MESH)
     window.fgEngineStats = stats;
   }
 
@@ -258,6 +257,7 @@ export class Engine {
     this.updateWorld();
     if (this.cine) { this.cine.update(dt, this.canvas.width / this.canvas.height); this.updateWorld(); }
     stats.particles = 0;
+    stats.uiParticles = 0;
     for (const p of this.particles) if (p.node.activeInHierarchy && p.runtime) p.runtime.step(dt);
     this.render();
     this.input.endFrame();
@@ -321,10 +321,9 @@ export class Engine {
           const img = this.assets.texImage(mat.texFile);
           if (img) mat.texImg = R.imageTex('tex:' + mat.texFile, img, true, true);
         }
-        const ld = (mat && mat.props && mat.props._LightDirection) || [45, -135, 0];
-        const p = ld[0] * Math.PI / 180, y = ld[1] * Math.PI / 180;
-        // toward the light: -(Unity forward of the euler) with x mirrored (fitted, see FS_MESH in render.js)
-        R.drawMesh(m, i, model, mat, { dir: [Math.cos(p) * Math.sin(y), Math.sin(p), -Math.cos(p) * Math.cos(y)], shadowTint: this.shadowTint });
+        const ld = (mat && mat.props && mat.props._LightDirection) || [45, 45, 0];
+        const ll = Math.hypot(ld[0], ld[1], ld[2]) || 1;
+        R.drawMesh(m, i, model, mat, { dir: [ld[0] / ll, ld[1] / ll, ld[2] / ll] });
       });
     }
     // transparent queue

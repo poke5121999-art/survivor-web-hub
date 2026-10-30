@@ -12,7 +12,8 @@ import { VipScreen } from './Vip.js';
 import { LeagueScreen, OfferLeagueScreen } from './League.js';
 import { MissionsScreen } from './Missions.js';
 import { SettingsScreen } from './Settings.js';
-import { PrivateBattleScreen } from './Private.js';
+import { PrivateBattleScreen, PrivateLobbyScreen } from './Private.js';
+import { CustomMatchOptions } from '../../meta/events.js';
 import { LeaderboardScreen } from './Leaderboard.js';
 
 export class MenuScreen extends Screen {
@@ -57,6 +58,21 @@ export class MenuScreen extends Screen {
       } finally { this.busy = false; if (!this.closed) this.refresh(); }
     });
     this.on('Play', () => this.play());
+    // GameOver.ContinueFriendRoom: a party match ends in the same room's lobby, over the menu
+    if (app.resumeLobby) {
+      const s = app.resumeLobby;
+      app.resumeLobby = null;
+      setTimeout(async () => {
+        if (this.closed || this.busy) return;
+        this.busy = true;
+        try {
+          const cfg = Object.assign(new CustomMatchOptions(), s.config || {});
+          const l = await app.popup(PrivateLobbyScreen, s, cfg, s.isHost);
+          const act = await l.done();
+          if (act && act.type === 'private') { this.result = act; this.close(); return; }
+        } finally { this.busy = false; if (!this.closed) this.refresh(); }
+      }, 0);
+    }
     // MissionsScreen "PLAY" on a mission returns the mission index through the menu
     app.audio.playMusic('MusicMenu', 0.5);
     await this.refresh();

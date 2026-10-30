@@ -44,3 +44,7 @@ Nguồn: `C:\Users\tamph\Downloads\Food+Gang_2.2.4_APKPure.xapk` (com.bloop.food
   render 27/27, ui-engine 34/34, ui-tour 0 lỗi. `food-gang-play` đỏ 3 lần ở 3 check khác nhau (bot ngẫu nhiên + đồng hồ thật
   trên máy tải nặng) → đang làm test tất định (seed cố định, đo theo tick), không nới ngưỡng.
   Còn lại: pha 5 (so clip, tự chơi nhiều trận trên Pages), chữ Thái/Ả Rập, private room quay về lobby sau trận.
+- 2026-10-31: rev 20261031b (c6ffb94b): `food-gang-play` tất định (đóng băng sim + bot, bước theo tick; `?seed=` gieo cả ghép trận).
+  Pages: play 347/347, net 139/139 (`FG_URL` của net phải trỏ `net.html`, không phải `index.html`).
+  Bộ kiểm net bỏ qua 404 khi cập nhật/xoá lobby đã mất (online.js nuốt có chủ ý); 404 khi join/create vẫn đỏ.
+  Đang làm pha 5: tự chơi trên Pages, `games/food-gang/docs/PLAYTEST.md`, rev 20261031c.

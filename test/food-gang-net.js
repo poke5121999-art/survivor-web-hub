@@ -233,6 +233,41 @@ async function partA() {
   }
 
   if (want('private2')) await runMatch('private2', { humans: 2 });
+  // GameOver.ContinueFriendRoom: after a party match both pages are in the same room's lobby again; the guest is ready
+  // once its lobby screen is open, the host's Battle! starts the second match on the same relay link
+  if (want('rematch')) {
+    console.log('-- A/rematch');
+    Online.configure({ backend: loopBackend(`t${++chan}`), meta, impair: null, ownLead: true });
+    const host = player({ profile: profile('Host', 1, 5), act: 'create', config: { modeIndex: 1, mapIndex: 0, difficultyInt: 50 }, seed: 2, readyWhen: 2 });
+    const code = await until(() => host.lobby && host.lobby.code, 15000);
+    const guest = player({ profile: profile('P1', 5, 7), act: 'join', code, seed: 11 });
+    const ps = [host, guest];
+    const starts = [0, 0];
+    ps.forEach((p, i) => p.session.on('start', () => { starts[i]++; }));
+    const over1 = await until(() => ps.every((p) => p.ended), (SHORT + 30) * 1000, 200);
+    check('rematch: first party match ends on both pages', !!over1 && starts.every((n) => n === 1), `starts ${starts}`);
+    for (const p of ps) { p.stop(); p.ended = false; }
+    await sleep(500);
+    const back = ps.map((p) => p.session.backToLobby());
+    check('rematch: both sessions go back to the lobby of the same room', back.every(Boolean) && ps.every((p) => p.session.state === 'lobby' && p.session.code === code),
+      ps.map((p) => `${p.session.state} ${p.session.code}`).join(', '));
+    guest.session.setReady(true);
+    await sleep(300);
+    check('rematch: the host does not start again until Battle! is pressed', starts.every((n) => n === 1), `starts ${starts}`);
+    // the guest changes fighter in the lobby: the roster and the next match carry it
+    guest.profile.skinSelected = 9;
+    if (!guest.profile.skins.some((s) => s.id === 9)) guest.profile.skins.push(metaM.newSkinProgress(9, 7));
+    guest.session.setProfile(guest.profile);
+    const picked = await until(() => host.session.players.find((p) => p.name === 'P1' && p.skin === 9), 3000);
+    check('rematch: fighter picked in the lobby reaches the host roster', !!picked, JSON.stringify(host.session.players.map((p) => [p.name, p.skin])));
+    host.session.setReady(true);
+    const again = await until(() => starts.every((n) => n === 2) && ps.every((p) => p.runner && p.request), 10000);
+    check('rematch: second match starts on both pages', !!again, `starts ${starts}`);
+    const gslot = guest.request && guest.request.localSlot;
+    check('rematch: the guest plays its new fighter', !!again && host.request.slots[gslot] && host.request.slots[gslot].skinId === 9, host.request ? JSON.stringify(host.request.slots.map((s) => s && s.skinId)) : '');
+    for (const p of ps) { p.stop(); p.session.leave(); }
+    await sleep(300);
+  }
   if (want('private4')) await runMatch('private4', { humans: 4 });
   if (want('quick')) await runMatch('quick', { humans: 2, quick: true });
   if (want('disconnect')) await runMatch('disconnect', { humans: 3, crash: true });

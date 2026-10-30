@@ -58,24 +58,20 @@ uniform mat4 uVP; uniform mat4 uM;
 out vec2 vUV; out vec3 vN; out vec4 vCol;
 void main(){ gl_Position = uVP * uM * vec4(aPos, 1.0); vUV = aUV; vN = mat3(uM) * aN; vCol = aCol; }`;
 
-// Shader Graphs/ToonRampUnlit has no source in the rip; this is fitted to clip frames (Kitchen 45,-135 / DiningRoom
-// 70,-80 / Pantry 45,-60 light eulers). Lit faces are texture * _LightColor; faces whose baked vertex colour is black
-// (the diagonal shadow wedges) or that face away from the light are ~0.5 of that, slightly blue. The light vector that
-// separates the observed lit/dark faces is Unity's -forward with x mirrored; dark below N.L = -0.56 (lit: walls -0.5,
-// tablecloth -0.32, shelf ends 0.31; dark: shelf fronts -0.70, pantry side wall -0.61, plate undersides -0.82).
-// _RampValue 0 (the roof quad) is flat _Color * _LightColor.
+// Shader Graphs/ToonRampUnlit, from the GLES3 program in the APK (data.unity3d, Shader path id 6; the rip's .shader is
+// a stub): _LightDirection is used as a raw vector, not as euler angles; brightness is continuous,
+// (1 - (N.L * _RampValue + 1) / 2) * (vertex colour r + _ShadowIntensity) * texture * _Color * _LightColor * _LightIntensity.
+// Faces facing along the vector are dark, a face square to it is 1x, faces against it up to 2x (the plate rims).
 const FS_MESH = `#version 300 es
-precision mediump float;
+precision highp float;
 in vec2 vUV; in vec3 vN; in vec4 vCol;
 uniform sampler2D uTex; uniform float uHasTex; uniform vec4 uColor; uniform vec3 uL; uniform vec3 uLightCol;
-uniform float uRamp; uniform float uShadow; uniform float uIntensity; uniform vec3 uShadowTint;
+uniform float uRamp; uniform float uShadow; uniform float uIntensity;
 out vec4 o;
 void main(){
-  vec4 a = (uHasTex > 0.5 ? texture(uTex, vUV) : vec4(1.0)) * uColor;
-  vec3 lit = uLightCol * uIntensity;
-  float ramp = smoothstep(-0.58, -0.54, dot(normalize(vN), uL));
-  vec3 shade = mix(lit * mix(vec3(1.0), uShadowTint, uShadow), lit, vCol.r * ramp);
-  o = vec4(a.rgb * mix(lit, shade, uRamp), 1.0);
+  vec3 t = (uHasTex > 0.5 ? texture(uTex, vUV).rgb : vec3(1.0)) * uColor.rgb;
+  float k = (dot(normalize(vN), uL) * uRamp + 1.0) * -0.5 + 1.0;
+  o = vec4(k * (vCol.r + uShadow) * t * uLightCol * uIntensity, 1.0);
 }`;
 
 const VS_POST = `#version 300 es
@@ -351,7 +347,6 @@ export class Renderer {
     gl.uniform1f(P.u.uRamp, pr._RampValue ?? 1);
     gl.uniform1f(P.u.uShadow, pr._ShadowIntensity ?? 1);
     gl.uniform1f(P.u.uIntensity, pr._LightIntensity ?? 1);
-    gl.uniform3fv(P.u.uShadowTint, light.shadowTint);
     gl.disable(gl.BLEND);
     gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.depthMask(true);
     gl.disable(gl.SCISSOR_TEST);

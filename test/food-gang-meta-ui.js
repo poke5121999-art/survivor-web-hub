@@ -110,7 +110,11 @@ function serve() {
     if (k === 1) {
       const rank = await until(() => { const d = window.fgDebug(); return d.screen === 'gameover' && d.gameOver && d.gameOver.phase === 'rank' ? d : null; }, 150000, null, 100);
       check('result podium (local team in victory poses)', !!rank);
-      if (rank) { await sleep(2000); await shot('06_podium'); }
+      if (rank) {
+        await sleep(2000); await shot('06_podium');
+        const sp = await ev(() => window.fgEngineStats.uiParticles || 0);
+        check('podium sparkles (halo/Particles under the camera canvas) drawn', sp >= 5, `${sp} sparkles`);
+      }
     }
     const over = await until(() => { const d = window.fgDebug(); return d.screen === 'gameover' && d.gameOver && d.gameOver.phase === 'reward' ? d : null; }, 150000, null, 200);
     await stopWin();
@@ -462,8 +466,10 @@ function serve() {
     await sleep(600);
     await press('OnClickJoin', 'ScenePrivateBattle');
     const pj = await topIs('ScenePrivateJoin', 6000);
-    if (pj && pj.field) { await clickAt(pj.field); await page.keyboard.type('ABCD'); await page.keyboard.press('Enter'); await sleep(300); await shot('34_party_join'); await press('OnClickJoin', 'ScenePrivateJoin'); await sleep(1500); }
-    check('Join a party with a 4-letter code', !!pj);
+    let pj2 = null;
+    if (pj && pj.field) { await clickAt(pj.field); await page.keyboard.type('abcdef'); await page.keyboard.press('Enter'); await sleep(300); pj2 = await top(); await shot('34_party_join'); await press('OnClickJoin', 'ScenePrivateJoin'); await sleep(1500); }
+    // the host's screen shows the 6-character Unity Lobby code: Join must light up for it (it used to want 4 letters)
+    check('Join a party: a typed 6-character room code enables Join', !!pj2 && pj2.joinable && pj2.code === 'ABCDEF', pj2 ? `${pj2.code} joinable ${pj2.joinable}` : 'no join screen');
     if ((await top()).scene === 'ScenePrivateJoin') await press('OnClickBack', 'ScenePrivateJoin');
     if ((await top()).scene === 'ScenePrivateLobby') await press('OnClickBack', 'ScenePrivateLobby');
     await sleep(500);

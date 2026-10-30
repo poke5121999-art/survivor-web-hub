@@ -285,15 +285,17 @@ export class ParticleRuntime {
   }
 
   // push quads to the renderer; called from the sorted transparent pass
-  draw(R, cam, pack) {
+  // opts (UI pass): { wm: matrix to use instead of node.world, ui: no depth test, alpha: CanvasGroup alpha }
+  draw(R, cam, pack, opts) {
     const c = this.c, r = c.r;
     if (!r || !this.p.length) return;
     const s = this.sprite;
     const tex = s ? R.spriteTex(s) : R.white;
     if (s && !tex) return;
     const mat = this.mat;
-    R.setState(R.progSprite, tex, mat ? mat.src : 5, mat ? mat.dst : 10, true, null);
-    const wm = this.node.world;
+    R.setState(R.progSprite, tex, mat ? mat.src : 5, mat ? mat.dst : 10, !(opts && opts.ui), null);
+    const wm = (opts && opts.wm) || this.node.world;
+    const am = opts && opts.alpha !== undefined ? opts.alpha : 1;
     const tint = (mat && (mat.props._TintColor || mat.color)) || [1, 1, 1, 1];
     const tintMul = mat && mat.props._TintColor ? 2 : 1;
     const out = [0, 0, 0], col = [0, 0, 0, 0];
@@ -310,7 +312,7 @@ export class ParticleRuntime {
       if (P.size3) { sx = P.size3[0] * (c.sizeL ? evalMMC(c.sizeL, t, P.rnd[2]) : 1); sy = P.size3[1] * (c.sizeL3 ? evalMMC(c.sizeL3[1], t, P.rnd[2]) : (c.sizeL ? evalMMC(c.sizeL, t, P.rnd[2]) : 1)); }
       evalMMG(c.col, t, P.rnd[4], col);
       const cr = P.col[0] * (c.col ? col[0] : 1) * tint[0] * tintMul, cg = P.col[1] * (c.col ? col[1] : 1) * tint[1] * tintMul;
-      const cb = P.col[2] * (c.col ? col[2] : 1) * tint[2] * tintMul, ca = P.col[3] * (c.col ? col[3] : 1) * tint[3];
+      const cb = P.col[2] * (c.col ? col[2] : 1) * tint[2] * tintMul, ca = P.col[3] * (c.col ? col[3] : 1) * tint[3] * am;
       const pc = pack(cr, cg, cb, ca);
       let px, py, pz;
       if (c.space === 1) { px = P.pos[0]; py = P.pos[1]; pz = P.pos[2]; sx *= (c.scaling === 0 ? 1 : 1); }

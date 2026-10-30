@@ -199,7 +199,9 @@ export class MatchScene {
     const r = this.runner, s = r.state, me = r.localAgent;
     const ffa = s.teams === TeamConfig.FreeForAll;
     const draw = e.int <= 0 && e.other < 0;
-    const outcome = this.outcome();
+    // the event carries the result: an online client plays snapshots back ~100 ms late, so its state can still have
+    // winnerTeam 0 on the tick the event fires (the banner said VICTORY, the result screen said DRAW)
+    const outcome = this.outcome(draw ? null : { team: e.int, slot: e.other });
     this.outcomeData = outcome;
     const win = ffa ? outcome.rank === 1 : (!draw && me && e.int === me.team);
     this.hud.hideStart();
@@ -217,8 +219,10 @@ export class MatchScene {
   }
 
   // MatchOutcome for MetaService.applyMatchResult (QuantumGameStartSequence.BuildAndInjectResults)
-  outcome() {
-    const r = this.runner, s = r.state, me = r.localAgent;
+  outcome(win = null) {
+    const r = this.runner, me = r.localAgent;
+    let s = r.state;
+    if (win && (win.team > 0 || win.slot >= 0)) s = { ...s, winnerTeam: win.team > 0 ? win.team : s.winnerTeam, winnerSlot: win.slot >= 0 ? win.slot : s.winnerSlot };
     const slots = s.agents.filter((a) => a.slot >= 0).map((a) => a.slot);
     let rank = 1;
     if (s.teams === TeamConfig.FreeForAll && me) {

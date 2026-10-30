@@ -21,7 +21,10 @@ export class GameOverScreen {
     const go = root.script('GameOver').fields;
     const ref = (r) => (r ? inst.ref(r) : null);
     const nodeOf = (r) => { const x = ref(r); return x && x.node ? x.node : x; };
-    this.ref = ref; this.nodeOf = nodeOf;
+    this.ref = ref; this.nodeOf = nodeOf; this.go = go;
+    // party room (QuantumSession.IsFriendRoom): no trophies, stars nor fridge; the result goes back to the room's lobby
+    const req = app.lastRequest;
+    this.friend = !!(req && req.isFriendRoom);
     this.an = ref(go.m_animator).runtime;
     const gd = app.gameData;
     const title = ref(go.m_title);
@@ -40,8 +43,10 @@ export class GameOverScreen {
     for (const k of ['m_buttonWatchAd', 'm_buttonSpendPremium', 'm_spinnerContinue']) { const n = nodeOf(go[k]); if (n) n.setActive(false); }
     const corner = nodeOf(go.m_buttonExit); if (corner) corner.setActive(false);
     for (const n of ['Canvas_UI/Panel/Root/Lucky', 'Canvas_UI/Panel/Root/SuperLucky', 'Canvas_UI/Panel/Root/Alert', 'Canvas_UI/Panel/CurrencyBar']) { const x = root.find(n); if (x) x.setActive(false); }
-    this.btnOpen.setActive(!!res.hasFridge);
-    this.btnPlay.setActive(true);
+    this.btnOpen.setActive(!!res.hasFridge && !this.friend);
+    this.btnPlay.setActive(!this.friend);
+    // GameOver.Start: the +trophies / +stars line only for a ranked match (not a party room nor a mission)
+    const sub = nodeOf(go.m_subtitleRoot); if (sub && (this.friend || (req && req.isMission))) sub.setActive(false);
     const fr = root.find('Canvas_3D/PanelReward/Fridge');
     if (fr) {
       const box = Math.max(1, Math.min(3, (res.fridgeBox || 1) - 6));
@@ -112,6 +117,14 @@ export class GameOverScreen {
   async run() {
     const { engine } = this;
     this.phase = 'rank';
+    if (this.friend) {
+      // DisplayPanelReward / Update -> ContinueFriendRoom: tap or the podium time, the rejoin spinner, the lobby
+      await Promise.race([wait(engine, 3.2), new Promise((r) => { this.tapRank = r; })]);
+      const sp = this.nodeOf(this.go.m_spinnerContinue); if (sp) sp.setActive(true);
+      this.phase = 'continue';
+      await wait(engine, 0.6);
+      return 'lobby';
+    }
     await wait(engine, 3.2);
     this.displayPanelReward();
     await wait(engine, 0.9);
@@ -161,7 +174,7 @@ export class GameOverScreen {
 
   onClick(b) {
     const m = b.onClickResolved && b.onClickResolved[0] ? b.onClickResolved[0].method : '';
-    if (m === 'DisplayPanelReward') this.displayPanelReward();
+    if (m === 'DisplayPanelReward') { if (this.friend) { if (this.tapRank) this.tapRank(); } else this.displayPanelReward(); }
     else if (m === 'PlayAgain' || m === 'ExitGame') { if (this.resolvePlay) { this.app.audio.sfx('UIOk'); this.resolvePlay('again'); } }
     else if (m === 'OpenReward') this.openReward();
   }
@@ -202,7 +215,7 @@ export class GameOverScreen {
     return { phase: this.phase, title: txt('Canvas_UI/Panel/TopBar/Title'), trophyText: txt('Canvas_UI/Panel/TopBar/Subtitle/Trophy/Trophy_Text'),
       starText: txt('Canvas_UI/Panel/TopBar/Subtitle/Star/Star_Text'), playButton: btn(this.btnPlay), openButton: btn(this.btnOpen), rank: r.rank, victory: r.victory, trophies: r.trophiesGained, stars: r.starsGained,
       starStart: r.starStart, starEnd: r.starEnd, fridge: r.fridgeBox, cells: this.cells ? this.cells.length : 0,
-      animState: this.an ? this.an.stateName(0) : '' };
+      animState: this.an ? this.an.stateName(0) : '', friend: !!this.friend };
   }
 
   dispose() {

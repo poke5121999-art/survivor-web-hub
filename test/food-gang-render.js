@@ -87,6 +87,21 @@ const MAPS = [['level23', 'kitchen'], ['level24', 'dining'], ['level25', 'pantry
       await page.waitForFunction(() => window.fgEngineStats && window.fgEngineStats.ready, null, { timeout: 60000 }).catch(() => {});
       await page.waitForTimeout(1500);
       await page.screenshot({ path: path.join(SHOTS, `${label}_single.png`) });
+      if (label === 'dining') {
+        // PlatesRight stack (x 790..820, y 150..320 of this framing): the shaded underside of each plate darkens
+        // toward its edge; the old fitted toon shader painted the whole stack one flat brown (std ~0)
+        const sd = await page.evaluate(() => {
+          const c = document.getElementById('cv'), g = c.getContext('webgl2');
+          const sx = c.width / innerWidth, sy = c.height / innerHeight;
+          const x0 = Math.round(790 * sx), w = Math.round(30 * sx), y0 = c.height - Math.round(320 * sy), h = Math.round(170 * sy);
+          const d = new Uint8Array(w * h * 4);
+          g.readPixels(x0, y0, w, h, g.RGBA, g.UNSIGNED_BYTE, d);
+          let s = 0, s2 = 0, n = 0;
+          for (let i = 0; i < d.length; i += 4) { const l = 0.3 * d[i] + 0.59 * d[i + 1] + 0.11 * d[i + 2]; s += l; s2 += l * l; n++; }
+          return Math.sqrt(Math.max(0, s2 / n - (s / n) ** 2));
+        });
+        check('dining plate stack shaded plate by plate (ToonRampUnlit from the APK program)', sd > 6, `luminance std ${sd.toFixed(1)}`);
+      }
       await page.close();
     }
   } finally {

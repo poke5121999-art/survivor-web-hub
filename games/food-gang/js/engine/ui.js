@@ -141,7 +141,18 @@ function applyGroup(n, g, ui) {
       total = availMain;
     }
   }
-  let pos = (horiz ? pad[0] : pad[2]) + Math.max(0, availMain - total) * (horiz ? ax : 1 - ay);
+  // HorizontalOrVerticalLayoutGroup.SetChildrenAlongAxis: children whose size is controlled shrink from preferred
+  // toward min when they do not fit, then start at the padding; uncontrolled children keep their size and the
+  // (negative) surplus still goes through the alignment (GetStartOffset), so too-wide content stays centred
+  if (control && total > availMain && list.length) {
+    const sp = g.spacing * Math.max(0, list.length - 1);
+    const tmin = sizes.reduce((s, z) => s + z.p[mainAxis][0], 0) + sp;
+    const k = total > tmin ? Math.max(0, Math.min(1, (availMain - tmin) / (total - tmin))) : 0;
+    sizes.forEach((z) => { const [mn, pr] = z.p[mainAxis]; z[mainAxis] = mn + (Math.max(mn, pr) - mn) * k; });
+    total = sizes.reduce((s, z) => s + z[mainAxis], 0) + sp;
+  }
+  const surplus = availMain - total;
+  let pos = (horiz ? pad[0] : pad[2]) + (control ? Math.max(0, surplus) : surplus) * (horiz ? ax : 1 - ay);
   list.forEach((c, i) => {
     const z = sizes[i];
     const crossAvail = horiz ? H - pad[2] - pad[3] : W - pad[0] - pad[1];
@@ -289,6 +300,7 @@ export class UISystem {
     const sg = n.get('SortingGroup');
     if (sg && sg.enabled) { this.drawSpriteGroup(n, R, alpha); return; }
     for (const c of n.comps) {
+      if (c.type === 'ParticleSystem') { this.drawParticles(c, R, alpha); continue; }
       if (!c.enabled) continue;
       if (c.type === 'SpriteRenderer') { this.drawSpriteRenderer(c, R, alpha); continue; }
       // a Mask's own graphic draws unclipped by itself; RectMask2D/Mask clip only the children
@@ -305,6 +317,38 @@ export class UISystem {
     sr.alphaMul = (keep ?? 1) * alpha;
     this.engine.drawSprite(sr, true);
     sr.alphaMul = keep;
+  }
+
+  // a ParticleSystem under a camera-space canvas (VICTORY podium sparkles). node.world here maps to screen pixels;
+  // with scalingMode Local Unity ignores every parent scale (the halo's x100 and the canvas's own), so the system is
+  // drawn at its local scale times the canvas camera's pixels per world unit.
+  drawParticles(ps, R, alpha) {
+    const rt = ps.runtime;
+    if (!rt || !rt.p.length || !ps.r || !ps.r.enabled || !ps.node.activeInHierarchy) return;
+    let wm = ps.node.world;
+    if (ps.scaling === 1) {
+      const ppw = this.pxPerWorld(ps.node);
+      if (ppw) {
+        wm = wm.slice();
+        for (let c = 0; c < 3; c++) {
+          const l = Math.hypot(wm[c * 4], wm[c * 4 + 1], wm[c * 4 + 2]) || 1, k = ps.node.ls[c] * ppw / l;
+          wm[c * 4] *= k; wm[c * 4 + 1] *= k; wm[c * 4 + 2] *= k;
+        }
+      }
+    }
+    const n0 = stats.particles;
+    rt.draw(R, null, packColor, { wm, ui: true, alpha });
+    stats.uiParticles = (stats.uiParticles || 0) + stats.particles - n0;
+  }
+
+  pxPerWorld(n) {
+    for (let p = n; p; p = p.parent) {
+      const cv = p.get('Canvas');
+      if (!cv) continue;
+      const cam = cv.mode === 1 && p.scene ? p.scene.ref(cv.camera) : null;
+      return cam && cam.ortho ? this.engine.canvas.height / (2 * cam.size) : 0;
+    }
+    return 0;
   }
 
   drawSpriteGroup(n, R, alpha) {
@@ -926,7 +970,13 @@ function drawFallbackQuads(R, c, b, m, ox, oy, alpha, scissor, depth, P, mat, ra
     if (ulOn) {
       const ux = (P._UnderlayOffsetX || 0) * ratioC * grad, uy = (P._UnderlayOffsetY || 0) * ratioC * grad;
       const pc = packColor(ulC[0], ulC[1], ulC[2], ulC[3] * col[3] * alpha);
-      for (const q of list) put(q, ux * q.s, uy * q.s, pc);
+      // _UnderlayDilate grows the shadow by up to half the SDF spread: the Tobi title material has no outline, its
+      // black rim is a dilated underlay (dilate 1), which a single offset copy does not show
+      const ud = (P._UnderlayDilate || 0) * ratioC * grad * 0.5;
+      for (const q of list) {
+        put(q, ux * q.s, uy * q.s, pc);
+        if (ud > 0.2) for (let i = 0; i < 8; i++) put(q, (ux + Math.cos(i * Math.PI / 4) * ud) * q.s, (uy + Math.sin(i * Math.PI / 4) * ud) * q.s, pc);
+      }
     }
     if (outW > 0.2) {
       const pc = packColor(oc[0], oc[1], oc[2], oc[3] * col[3] * alpha);

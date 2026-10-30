@@ -8,6 +8,9 @@ import { CustomMatchOptions } from '../../meta/events.js';
 import { CollectionScreen } from './Collection.js';
 import { bindNameField } from './TutoEnd.js';
 
+// The room code is the Unity Lobby code the host's screen shows: 6 characters. The original's Photon codes are 4
+// (3 letters + region, ScenePrivateJoinController wants exactly 4); a 4-letter rule here greyed Join for every real code.
+export const CODE_LEN = 6;
 const DIFF = ['config.diff.veryeasy', 'config.diff.easy', 'config.diff.normal', 'config.diff.hard', 'config.diff.veryhard'];
 const errKey = (e) => (e && /code|room|version|notfound|badcode/i.test(String(e.code || '') + String(e.message || '')) ? 'info.private.badcode' : 'info.private.servererror');
 
@@ -62,7 +65,8 @@ export class PrivateJoinScreen extends Screen {
   async init() {
     const f = this.jf = this.fields('ScenePrivateJoinController');
     this.field = this.ref(f.m_inputField);
-    if (this.field) { this.field.uppercase = true; this.field.onEndEdit = () => this.updateState(); this.field.onValueChanged = () => this.updateState(); }
+    const ver = this.script('VersionDisplay'); if (ver) this.text(ver.fields.versionText, 'Version 2.2.4 web');
+    if (this.field) { this.field.uppercase = true; this.field.limit = CODE_LEN; this.field.onEndEdit = () => this.updateState(); this.field.onValueChanged = () => this.updateState(); }
     this.setActive(f.m_spinner, false);
     this.on('OnClickBack', () => this.close());
     this.on('OnClickJoin', () => this.join());
@@ -70,13 +74,13 @@ export class PrivateJoinScreen extends Screen {
   }
 
   code() { return String(this.field && this.field.value !== undefined ? this.field.value : '').toUpperCase().trim(); }
-  updateState() { this.onState(this.jf.m_joinButtonState, this.code().length === 4); }
+  updateState() { this.onState(this.jf.m_joinButtonState, this.code().length === CODE_LEN); }
 
-  // ScenePrivateJoinController.OnClickJoin: ToUpper().Trim(), exactly 4 letters
+  // ScenePrivateJoinController.OnClickJoin: ToUpper().Trim(), exactly CODE_LEN letters
   join() {
     const { app } = this;
     const code = this.code();
-    if (code.length !== 4) { app.toast('info.private.join.code'); return; }
+    if (code.length !== CODE_LEN) { app.toast('info.private.join.code'); return; }
     if (!app.net.available()) { app.toast('info.private.servererror'); return; }
     this.setActive(this.jf.m_spinner, true);
     const s = app.net.joinPrivate(code);
@@ -85,7 +89,7 @@ export class PrivateJoinScreen extends Screen {
     s.on('error', (e) => { off(); app.toast(errKey(e)); });
   }
 
-  debug() { return { field: this.field ? this.btnPos(this.field.node) : null, join: this.btnPos(this.node(this.jf.m_joinButton)) }; }
+  debug() { return { field: this.field ? this.btnPos(this.field.node) : null, join: this.btnPos(this.node(this.jf.m_joinButton)), code: this.code(), joinable: this.code().length === CODE_LEN }; }
 }
 
 export class PrivateLobbyScreen extends Screen {
@@ -98,16 +102,28 @@ export class PrivateLobbyScreen extends Screen {
     this.on('OnClickBack', () => this.leave());
     this.on('OnClickCopyCode', () => this.copy());
     this.on('OnClickConfig', () => this.config());
-    this.on('OnClickSkin', async () => { const s = await app.popup(CollectionScreen); await s.done(); this.renderPlayers(); });
+    this.on('OnClickSkin', async () => {
+      const s = await app.popup(CollectionScreen);
+      await s.done();
+      if (this.session && this.session.setProfile) this.session.setProfile(app.profile);
+      else if (this.players[0]) this.players[0].skin = app.profile.skinSelected;
+      this.renderPlayers();
+    });
     this.on('OnClickLaunch', () => this.launch());
     this.players = [{ name: app.profile.name, skin: app.profile.skinSelected, isHost: this.host, ready: false }];
     const s = this.session;
     if (s) {
-      s.on('lobby', (info) => { if (this.closed) return; this.code = info.code; this.players = info.players || this.players; this.host = info.isHost ?? this.host; if (info.config) Object.assign(this.cfg, info.config); this.render(); });
+      const apply = (info) => { this.code = info.code; this.players = info.players && info.players.length ? info.players : this.players; this.host = info.isHost ?? this.host; if (info.config) Object.assign(this.cfg, info.config); };
+      // back from a match in this room: the roster is already there, no new 'lobby' event comes until it changes
+      if (s.state === 'lobby') apply(s.lobbyInfo());
+      s.on('lobby', (info) => { if (this.closed) return; apply(info); this.render(); });
       s.on('start', (st) => { if (this.closed) return; this.result = { type: 'private', request: st.request, runnerOptions: st.runnerOptions, session: s }; this.close(); });
       s.on('error', (e) => { if (this.closed) return; app.toast(errKey(e)); this.offline = true; this.render(); });
       s.on('closed', () => { if (!this.closed && !this.result) { this.offline = true; this.render(); } });
     } else this.offline = true;
+    // only the host launches (FriendRoomLaunch); a guest with the lobby open is ready, one still on the result
+    // screen of the last match is not, so the host's Battle! waits for it
+    if (s && !this.host) s.setReady(true);
     this.render();
   }
 
