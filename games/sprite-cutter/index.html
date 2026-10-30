@@ -115,7 +115,7 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
 
 <div class="wrap">
   <header>
-    <h1>Bàn Cắt Sprite <small class="num" style="font-size:12px;font-weight:400;color:var(--mute)">bản 38</small></h1>
+    <h1>Bàn Cắt Sprite <small class="num" style="font-size:12px;font-weight:400;color:var(--mute)">bản 39</small></h1>
     <p>Nhập sprite sheet, chỉnh khung từng frame, xem chạy thử, rồi cắt ra PNG đúng khung đã chỉnh.</p>
   </header>
 
@@ -144,6 +144,7 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
         <select id="bg-mode" aria-label="Xoá những chỗ nào"><option value="holes" selected>nền viền ô + chỗ bị bao kín</option><option value="edge">chỉ nền nối từ viền ô</option><option value="all">mọi chỗ cùng màu</option></select>
         <label class="hint" id="bg-hole-box" title="Chỗ màu nền nằm kín giữa hình (khe giữa hai chân, giữa tay và thân) bị xoá. Chỗ nhỏ hơn số này được giữ, ví dụ đốm sáng trong mắt.">giữ chỗ kín dưới <input type="number" id="bg-hole" min="0" max="9999" value="6" style="width:56px"> px</label>
         <label class="check" title="Mép hình bị khử răng cưa trên nền cũ còn lẫn màu nền. Tách phần màu nền ra để mép không ám viền."><input type="checkbox" id="bg-defringe" checked> Gỡ viền ám màu nền</label>
+        <label class="check" title="Quầng trắng mờ AI vẽ quanh lửa, phép thuật trên nền sáng. Có thể gặm mép mảng trắng của hình nằm sát nền (tia laser, lõi nổ); gặp thì tắt ô này."><input type="checkbox" id="bg-glow" checked> Gỡ quầng sáng</label>
       </div>
       <p class="status" id="bg-status" role="status" hidden></p>
       <div class="pane" id="pane-sheet" role="tabpanel" aria-labelledby="tab-sheet">
@@ -285,7 +286,7 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
 
 </div>
 
-<script src="vendor/jszip.min.js?v=20261030c"></script>
+<script src="vendor/jszip.min.js?v=20261030d"></script>
 <script>
 const $ = id => document.getElementById(id);
 
@@ -1016,8 +1017,11 @@ function keyOut() {
   // Nhiễu JPEG quanh nét đen cũng sáng hơn nền nhưng chỉ dày 1-2px: co rồi nở mảng sáng 1px để chỉ giữ chỗ dày từ 3px.
   const LIFT = 8, lit = new Uint8Array(W * H), solid = new Uint8Array(W * H);
   let anySolid = false;
-  for (let n = 0, i = 0; n < W * H; n++, i += 4)
-    lit[n] = p[i + 3] >= 16 && (p[i] - r > LIFT || p[i + 1] - g > LIFT || p[i + 2] - b > LIFT) && dist(i) <= tol ? 1 : 0;
+  const D0 = new Uint16Array(W * H);
+  for (let n = 0, i = 0; n < W * H; n++, i += 4) {
+    D0[n] = dist(i);
+    lit[n] = p[i + 3] >= 16 && (p[i] - r > LIFT || p[i + 1] - g > LIFT || p[i + 2] - b > LIFT) && D0[n] <= tol ? 1 : 0;
+  }
   for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
     const n = y * W + x;
     if (lit[n - W - 1] & lit[n - W] & lit[n - W + 1] & lit[n - 1] & lit[n] & lit[n + 1] & lit[n + W - 1] & lit[n + W] & lit[n + W + 1])
@@ -1096,14 +1100,49 @@ function keyOut() {
         if (near * 2 >= comp.length) for (const n of comp) { solid[n] = 0; if (dist(n * 4) <= tol) { seen[n] = 1; p[n * 4 + 3] = 0; } }
       }
     }
+    // Quầng sáng, cục dội màu bên dưới là lỗi AI và nén ảnh trên nền sáng. Trên nền tối, mảng sáng hơn nền là chính hình.
+    const light = r + g + b >= 600;
+    // Quầng trắng AI vẽ quanh hình trên nền sáng lệch nền tăng dần một chiều từ nền vào tới mép hình (~2 mỗi pixel). Lõi nổ,
+    // vệt trắng thì lên hết độ sáng qua vài pixel mép nhoè rồi phẳng, chỉ nhiễu lên xuống. Loang tiếp từ nền vào pixel sáng khi
+    // lệch nền không quá GLOW mỗi bước (dư dồn tối đa GLOW_CAP) và cứ FLAT bước lại lên được mức cao nhất mới của đường đi.
+    // Vào tới mặt lõi thì chỉ gọt mép nhoè.
+    const GLOW = 6, GLOW_CAP = 12, FLAT = 4;
+    if (anySolid && light && $("bg-glow").checked) {
+      const room = new Uint16Array(W * H), top_ = new Uint16Array(W * H), flat = new Uint8Array(W * H);
+      let head = 0;
+      // Nền đã xoá có cả nét sáng mảnh lệch tới tol, nên mốc xuất phát kẹp ở GLOW_CAP.
+      for (let n = 0; n < W * H; n++) if (seen[n]) { room[n] = top_[n] = Math.min(D0[n], GLOW_CAP); stack[top++] = n; }
+      while (head < top) {
+        const n = stack[head++], px = n % W, cap = room[n] + GLOW;
+        for (const m of [px > 0 ? n - 1 : -1, px < W - 1 ? n + 1 : -1, n - W, n < W * (H - 1) ? n + W : -1]) {
+          if (m < 0 || m >= W * H || seen[m] || !lit[m] || D0[m] > cap) continue;
+          const f = D0[m] > top_[n] ? 0 : flat[n] + 1;
+          if (f > FLAT) continue;
+          seen[m] = 1; solid[m] = 0; lost.push(m, p[m * 4 + 3]); p[m * 4 + 3] = 0;
+          room[m] = Math.min(cap, D0[m] + GLOW_CAP); top_[m] = Math.max(top_[n], D0[m]); flat[m] = f; stack[top++] = m;
+        }
+      }
+      top = 0;
+    }
     // Chỗ kín = mảng màu nền không thông ra viền ô. Lòng trắng mắt và khe giữa tay với thân đều là chỗ kín cùng màu nền,
     // không quy tắc màu nào tách được, nên máy đoán trước rồi người dùng tô Trả lại để lấy lại chỗ đoán nhầm.
     const holes = $("bg-mode").value === "holes", keep = +$("bg-hole").value, pocketOf = new Int32Array(W * H), parts = [];
     // Cỡ mảng sáng dày chứa mỗi pixel, để biết chỗ kín nào nối vào phần sáng của chính hình.
-    const solidSize = anySolid ? new Int32Array(W * H) : null, blobs = [], drift = anySolid ? new Uint8Array(W * H) : null;
+    const solidSize = anySolid ? new Int32Array(W * H) : null, blobs = [], specks = [], drift = anySolid ? new Uint8Array(W * H) : null;
     // Nền kem ngả trắng dần về phía nét đen chỉ trượt trên đoạn màu nền → trắng, còn mảng sáng tím nhạt hay xanh nhạt thì lệch khỏi đoạn đó.
     // Mảng trượt trên đoạn ấy mà gần màu nền (trung vị lệch dưới 1/4 độ lệch) hoặc nhỏ (dưới 1/8192 ô, nền ngả trắng đậm chỉ tới cỡ đó) là nền.
     const median = (blob, f) => { const v = []; for (let k = 0, step = Math.max(1, blob.length >> 10); k < blob.length; k += step) v.push(f(blob[k] * 4)); v.sort((a, b) => a - b); return v[v.length >> 1]; };
+    // Cục dội màu ở lửa xanh nằm sát nét viền đậm (trung vị lệch nền ~180-390). Chấm sáng trong dải lửa tím nhạt nằm giữa
+    // tím vừa (~90-145) là hình, và còn phải giữ quyền bảo vệ chỗ kín kem bên cạnh nó (lõi lửa trùng màu nền).
+    const darkRim = blob => {
+      const rim = [];
+      for (const n of blob) {
+        const px = n % W, py = (n - px) / W;
+        for (let y = Math.max(0, py - 2); y <= Math.min(H - 1, py + 2); y++) for (let x = Math.max(0, px - 2); x <= Math.min(W - 1, px + 2); x++) if (D0[y * W + x] > tol) rim.push(D0[y * W + x]);
+      }
+      rim.sort((a, b) => a - b);
+      return rim.length > 0 && rim[rim.length >> 1] > 1.8 * tol;
+    };
     for (let s = 0; anySolid && s < W * H; s++) {
       if (!solid[s] || solidSize[s]) continue;
       const blob = [s]; solidSize[s] = -1;
@@ -1113,9 +1152,13 @@ function keyOut() {
           if (m >= 0 && solid[m] && !solidSize[m]) { solidSize[m] = -1; blob.push(m); }
       }
       for (const n of blob) solidSize[n] = blob.length;
-      if (median(blob, offWhite) <= 8 && (median(blob, dist) <= tol / 4 || blob.length * 8192 < gr.w * gr.h)) {
+      const tint = median(blob, offWhite);
+      if (tint <= 8 && (median(blob, dist) <= tol / 4 || blob.length * 8192 < gr.w * gr.h)) {
         for (const n of blob) drift[n] = 1;
         blobs.push(blob);
+      } else if (light && tint > 8 && blob.length * 1024 <= gr.w * gr.h && darkRim(blob)) {
+        for (const n of blob) drift[n] = 1;
+        specks.push(blob);
       }
     }
     for (let s = 0; s < W * H; s++) {
@@ -1180,6 +1223,18 @@ function keyOut() {
           if (m >= 0 && !solid[m]) { edge++; if (p[m * 4 + 3] === 0) open++; }
       }
       if (open * 5 >= edge * 2) for (const n of blob) { lost.push(n, p[n * 4 + 3]); p[n * 4 + 3] = 0; }
+    }
+    // WebP/JPEG còn để lại cục ngả màu hình cỡ một ô pixel art (5×5) ở mép, dày quá nên không thành vệt dội ở trên,
+    // và cách nền một vòng màu trộn nên không chạm thẳng. Cục sát nét viền đậm mà nằm sát chỗ đã xoá (nền ngoài hay chỗ kín) là nền.
+    for (const blob of specks) {
+      let near = 0;
+      for (const n of blob) {
+        const px = n % W, py = (n - px) / W;
+        let hit = 0;
+        for (let y = Math.max(0, py - 3); y <= Math.min(H - 1, py + 3) && !hit; y++) for (let x = Math.max(0, px - 3); x <= Math.min(W - 1, px + 3); x++) if (p[(y * W + x) * 4 + 3] === 0) { hit = 1; break; }
+        near += hit;
+      }
+      if (near * 2 >= blob.length) for (const n of blob) { solid[n] = 0; lost.push(n, p[n * 4 + 3]); p[n * 4 + 3] = 0; }
     }
     bgNote(gone, kept);
   }
@@ -1258,7 +1313,7 @@ $("bg-color").addEventListener("input", () => { if ($("bg-on").checked) queueBac
 $("bg-tol").addEventListener("input", () => { if ($("bg-on").checked) queueBackground(); });
 $("bg-mode").onchange = () => { $("bg-hole-box").hidden = $("bg-mode").value !== "holes"; if ($("bg-on").checked) applyBackground(); };
 $("bg-hole").addEventListener("input", () => { if ($("bg-on").checked) queueBackground(); });
-$("bg-defringe").onchange = () => { if ($("bg-on").checked) applyBackground(); };
+$("bg-defringe").onchange = $("bg-glow").onchange = () => { if ($("bg-on").checked) applyBackground(); };
 $("bg-pick").onclick = () => {
   bgPicking = !bgPicking; $("bg-pick").setAttribute("aria-pressed", bgPicking);
   if (bgPicking) showTab("sheet");
