@@ -64,6 +64,7 @@ input[type=number] { width: 100%; font-family: var(--f-num); font-variant-numeri
 .zoom input[type=range] { width: 120px; }
 .zoom .num { min-width: 70px; color: var(--mute); }
 .panning, .panning canvas { cursor: grabbing !important; }
+.hand, .hand canvas { cursor: grab !important; }
 .sheet-box.drop { outline: 2px dashed var(--accent); outline-offset: -6px; }
 #sheet { display: block; touch-action: none; cursor: crosshair; }
 .hint { font-size: 12px; color: var(--mute); margin: 0; }
@@ -115,7 +116,7 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
 
 <div class="wrap">
   <header>
-    <h1>Bàn Cắt Sprite <small class="num" style="font-size:12px;font-weight:400;color:var(--mute)">bản 40</small></h1>
+    <h1>Bàn Cắt Sprite <small class="num" style="font-size:12px;font-weight:400;color:var(--mute)">bản 41</small></h1>
     <p>Nhập sprite sheet, chỉnh khung từng frame, xem chạy thử, rồi cắt ra PNG đúng khung đã chỉnh.</p>
   </header>
 
@@ -147,17 +148,43 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
         <label class="check" title="Quầng trắng mờ AI vẽ quanh lửa, phép thuật trên nền sáng. Có thể gặm mép mảng trắng của hình nằm sát nền (tia laser, lõi nổ); gặp thì tắt ô này."><input type="checkbox" id="bg-glow" checked> Gỡ quầng sáng</label>
       </div>
       <p class="status" id="bg-status" role="status" hidden></p>
+      <div class="bar" id="tools">
+        <div class="seg" role="group" aria-label="Công cụ">
+          <button type="button" id="tool-move" aria-pressed="true" title="Sprite sheet: chọn và dời khung. Xếp chồng: dời hình của frame. Phím V">Dời hình</button>
+          <button type="button" id="tool-mark" aria-pressed="false" hidden>Chấm điểm</button>
+          <button type="button" id="tool-erase" aria-pressed="false" title="Tẩy theo cọ. Phím E; Shift E đổi qua Tẩy nền, Tẩy vùng">Tẩy</button>
+          <button type="button" id="tool-bgerase" aria-pressed="false" title="Bấm lên nền để lấy màu, rồi kéo cọ chồm qua mép hình: chỉ pixel gần màu đó bị xoá, hình còn nguyên">Tẩy nền</button>
+          <button type="button" id="tool-fill" aria-pressed="false" title="Bấm một lần xoá cả mảng cùng màu">Tẩy vùng</button>
+          <button type="button" id="tool-restore" aria-pressed="false" title="Tô để lấy lại chỗ đã tẩy. Giữ Alt khi tẩy cũng là trả lại">Trả lại</button>
+          <button type="button" id="tool-paint" aria-pressed="false" title="Tô màu đè lên hình. Phím B">Tô màu</button>
+        </div>
+        <input type="color" id="pen-color" value="#ff3b30" title="Màu tô và màu điểm" aria-label="Màu tô và màu điểm">
+        <label class="hint" for="st-size">Cỡ cọ</label>
+        <input type="range" id="st-size" min="1" max="64" value="4" style="width:110px">
+        <span class="num" id="st-size-v">4 px</span>
+        <div class="seg" role="group" aria-label="Dáng cọ" id="st-shape">
+          <button type="button" data-shape="round" aria-pressed="true">Tròn</button><button type="button" data-shape="square" aria-pressed="false">Vuông</button>
+        </div>
+        <span class="bar" id="ed-tol-box" hidden><label class="hint" for="ed-tol">Độ lệch tẩy</label><input type="range" id="ed-tol" min="0" max="120" value="30" style="width:90px"><span class="num" id="ed-tol-v">30</span>
+          <label class="check" id="ed-contig-box" title="Bật: chỉ xoá mảng liền với chỗ bấm. Tắt: xoá mọi chỗ cùng màu"><input type="checkbox" id="ed-contig" checked> Liền mạch</label></span>
+        <button type="button" id="st-undo">Hoàn tác</button>
+        <button type="button" id="st-redo">Làm lại</button>
+        <button type="button" id="st-clear">Bỏ mọi nét tẩy và tô</button>
+      </div>
       <div class="pane" id="pane-sheet" role="tabpanel" aria-labelledby="tab-sheet">
       <div class="bar">
         <div class="seg" role="group" aria-label="Kéo chuột để">
           <button type="button" id="mode-frame" aria-pressed="true">Chọn khung</button>
           <button type="button" id="mode-grid" aria-pressed="false">Dời cả lưới</button>
         </div>
+        <span class="grow"></span>
         <span class="zoom"><label class="hint" for="zoom">Phóng</label><input type="range" id="zoom" min="0" max="100" value="50"><span class="num" id="zoom-v"></span><button type="button" id="zoom-fit">Vừa khung</button></span>
       </div>
       <div class="sheet-box" id="sheet-box"><canvas id="sheet"></canvas></div>
       <p class="hint">Kéo chấm tròn giữa mỗi khung để dời riêng khung đó, kéo ô vuông cam ở góc để đổi cỡ mọi khung. Bấm vào khung để chọn nó và nhảy máy chạy tới frame đó.
-        <kbd>←↑→↓</kbd> dời khung đang chọn 1px, giữ <kbd>Shift</kbd> để dời cả lưới. Thả ảnh vào đây, hoặc copy ảnh rồi bấm vào trang và nhấn <kbd>Ctrl V</kbd>.</p>
+        <kbd>←↑→↓</kbd> dời khung đang chọn 1px, giữ <kbd>Shift</kbd> để dời cả lưới. Thả ảnh vào đây, hoặc copy ảnh rồi bấm vào trang và nhấn <kbd>Ctrl V</kbd>.
+        Tẩy được thẳng trên sheet như Photoshop: <b>Tẩy nền</b> bấm lên nền để lấy màu rồi kéo cọ chồm qua mép hình, chỉ màu nền bị xoá. <b>Tẩy vùng</b> bấm một lần xoá cả mảng cùng màu; tắt <b>Liền mạch</b> thì xoá màu đó ở mọi chỗ.
+        <kbd>E</kbd> cục tẩy, <kbd>Shift E</kbd> đổi Tẩy → Tẩy nền → Tẩy vùng, <kbd>B</kbd> tô màu, <kbd>V</kbd> dời, <kbd>[</kbd> <kbd>]</kbd> cỡ cọ, giữ <kbd>Space</kbd> rồi kéo để dời chỗ xem, <kbd>Alt</kbd> hoặc <kbd>Ctrl</kbd> + lăn chuột để phóng, <kbd>Ctrl Z</kbd> hoàn tác, <kbd>Ctrl Shift Z</kbd> làm lại.</p>
 
       <div class="group">
         <div class="group-head"><h3>Lưới cắt</h3><button type="button" id="btn-fit">Chia đều theo cột × hàng</button></div>
@@ -206,27 +233,8 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
         <span class="hint">px</span>
       </div>
       <div class="bar">
-        <div class="seg" role="group" aria-label="Kéo trên khung chồng để">
-          <button type="button" id="tool-move" aria-pressed="true">Dời hình</button>
-          <button type="button" id="tool-mark" aria-pressed="false">Chấm điểm</button>
-          <button type="button" id="tool-paint" aria-pressed="false">Tô màu</button>
-          <button type="button" id="tool-erase" aria-pressed="false">Tẩy</button>
-          <button type="button" id="tool-fill" aria-pressed="false">Tẩy vùng</button>
-          <button type="button" id="tool-restore" aria-pressed="false">Trả lại</button>
-        </div>
-        <input type="color" id="pen-color" value="#ff3b30" title="Màu tô và màu điểm" aria-label="Màu tô và màu điểm">
         <button type="button" id="marks-clear">Xoá hết điểm</button>
         <label class="check"><input type="checkbox" id="marks-player" checked> Hiện điểm ở máy chạy</label>
-      </div>
-      <div class="bar">
-        <label class="hint" for="st-size">Cỡ cọ</label>
-        <input type="range" id="st-size" min="1" max="64" value="4" style="width:110px">
-        <span class="num" id="st-size-v">4 px</span>
-        <div class="seg" role="group" aria-label="Dáng cọ" id="st-shape">
-          <button type="button" data-shape="round" aria-pressed="true">Tròn</button><button type="button" data-shape="square" aria-pressed="false">Vuông</button>
-        </div>
-        <button type="button" id="st-undo">Hoàn tác</button>
-        <button type="button" id="st-clear">Bỏ mọi nét tẩy và tô</button>
         <span class="grow"></span>
         <span class="zoom"><label class="hint" for="st-zoom">Phóng</label><input type="range" id="st-zoom" min="0" max="100" value="50"><span class="num" id="st-zoom-v"></span><button type="button" id="st-zoom-fit">Vừa khung</button></span>
       </div>
@@ -241,9 +249,9 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
         Kéo ô vuông cam trên viền để đổi cỡ khung cắt: khung nở đều hai phía nên tâm từng frame đứng yên.
         Ở chế độ <b>Chấm điểm</b>, bấm lên khung để đặt một điểm mốc chung cho mọi frame (ví dụ chỗ chân chạm đất), kéo để dời, kéo ra ngoài khung hoặc bấm chuột phải để xoá. 
         Khi đang đứng ở khu này, <kbd>←↑→↓</kbd> dời hình 1px theo đúng hướng mũi tên.
-        <b>Tẩy</b> tô lên chỗ cần xoá của frame đang chọn. <b>Tẩy vùng</b> bấm một lần để xoá cả mảng cùng màu liền nhau trong khung, độ giống màu theo thanh Độ lệch màu. <b>Trả lại</b> tô để lấy lại chỗ đã tẩy, đã tô màu, hoặc chỗ Xoá nền xoá nhầm giữa hình (lòng trắng mắt); giữ <kbd>Alt</kbd> khi tẩy cũng là trả lại. <b>Tô màu</b> vẽ đè màu ở ô màu lên pixel của hình, theo cỡ và dáng cọ; ô màu cũng là màu của điểm mốc.
+        <b>Tẩy</b> tô lên chỗ cần xoá của frame đang chọn. <b>Tẩy nền</b> và <b>Tẩy vùng</b> ở đây chỉ đụng tới frame đang chọn. <b>Trả lại</b> tô để lấy lại chỗ đã tẩy, đã tô màu, hoặc chỗ Xoá nền xoá nhầm giữa hình (lòng trắng mắt); giữ <kbd>Alt</kbd> khi tẩy cũng là trả lại. <b>Tô màu</b> vẽ đè màu ở ô màu lên pixel của hình, theo cỡ và dáng cọ; ô màu cũng là màu của điểm mốc.
         Cọ <b>Vuông</b> tẩy gọn theo ô pixel, hợp để xén mép thẳng của pixel art.
-        <kbd>Ctrl Z</kbd> hoàn tác, <kbd>[</kbd> <kbd>]</kbd> đổi cỡ cọ, <kbd>Ctrl</kbd> + lăn chuột để phóng, giữ nút lăn chuột rồi kéo để dời chỗ xem.</p>
+        Phím tắt giống ở Sprite sheet; giữ nút lăn chuột rồi kéo cũng dời chỗ xem.</p>
       </div>
     </section>
 
@@ -286,7 +294,7 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
 
 </div>
 
-<script src="vendor/jszip.min.js?v=20261030e"></script>
+<script src="vendor/jszip.min.js?v=20261030f"></script>
 <script>
 const $ = id => document.getElementById(id);
 
@@ -481,6 +489,7 @@ function drawSheet() {
     sctx.fillStyle = T.sel; sctx.fillRect(hx - 5, hy - 5, 10, 10);
     sctx.strokeStyle = "#fff"; sctx.strokeRect(hx - 4.5, hy - 4.5, 9, 9);
   }
+  if (sheetHover && ERASE_TOOLS.has(S.stackTool)) drawBrush(sctx, sheetHover.x * z, sheetHover.y * z, z, S.stackTool);
   sheetDirty = false;
 }
 
@@ -642,8 +651,8 @@ $("btn-reset-sel").onclick = () => { const c = cells()[S.sel]; if (c) { delete S
 $("btn-reset-all").onclick = () => { S.off = {}; changed(); };
 
 function setDrag(m) { S.drag = m; $("mode-frame").setAttribute("aria-pressed", m === "frame"); $("mode-grid").setAttribute("aria-pressed", m === "grid"); }
-$("mode-frame").onclick = () => setDrag("frame");
-$("mode-grid").onclick = () => setDrag("grid");
+$("mode-frame").onclick = () => { setDrag("frame"); setStackTool("move"); };
+$("mode-grid").onclick = () => { setDrag("grid"); setStackTool("move"); };
 
 $("fps").addEventListener("input", e => { const v = parseInt(e.target.value, 10); if (v > 0) { S.fps = Math.min(120, v); syncUi(); } });
 $("fps-r").addEventListener("input", e => { S.fps = +e.target.value; syncUi(); });
@@ -672,9 +681,16 @@ function toImg(e) {
   const r = sheet.getBoundingClientRect();
   return { x: (e.clientX - r.left) / r.width * imgW(), y: (e.clientY - r.top) / r.height * imgH(), z: r.width / imgW(), cx: e.clientX, cy: e.clientY };
 }
+// Tẩy trên sheet đi thẳng vào S.strokes (toạ độ ảnh gốc), dùng chung với khu xếp chồng; Tẩy vùng xét cả ảnh.
+let sheetErasing = false, sheetHover = null;
 sheet.addEventListener("pointerdown", e => {
-  if (!S.img || e.button !== 0) return;
+  if (!S.img || e.button !== 0 || spaceHeld) return;
   if (bgPicking) { pickBackground(e); return; }
+  if (ERASE_TOOLS.has(S.stackTool)) {
+    sheet.setPointerCapture(e.pointerId);
+    sheetErasing = eraseDown(S.stackTool, { x: 0, y: 0, w: imgW(), h: imgH() }, toImg(e), e.altKey);
+    return;
+  }
   const p = toImg(e), all = cells(), h = handleCell();
   sheet.setPointerCapture(e.pointerId);
   if (h && Math.abs(p.x - (h.x + h.w)) * p.z < 9 && Math.abs(p.y - (h.y + h.h)) * p.z < 9) {
@@ -709,6 +725,12 @@ function selectCell(c, pause = true) {
   syncPlayerUi();
 }
 sheet.addEventListener("pointermove", e => {
+  if (ERASE_TOOLS.has(S.stackTool) && !drag) {
+    const p = toImg(e);
+    sheetHover = p; sheetDirty = true; sheet.style.cursor = "crosshair";
+    if (sheetErasing) eraseMove(p);
+    return;
+  }
   if (!drag) {
     if (bgPicking) { sheet.style.cursor = "copy"; return; }
     const p = toImg(e), h = handleCell();
@@ -722,17 +744,33 @@ sheet.addEventListener("pointermove", e => {
   else setOff(drag.key, drag.dx + dx, drag.dy + dy);
   changed();
 });
-const endDrag = () => { if (drag) { drag = null; sheet.style.cursor = "grab"; sheetDirty = true; } };
+const endDrag = () => {
+  if (sheetErasing) { sheetErasing = false; endErase(); }
+  if (drag) { drag = null; sheet.style.cursor = "grab"; sheetDirty = true; }
+};
+sheet.addEventListener("pointerleave", () => { sheetHover = null; sheetDirty = true; });
 sheet.addEventListener("pointerup", endDrag);
 sheet.addEventListener("pointercancel", endDrag);
 
 document.addEventListener("keydown", e => {
   const t = e.target;
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !(t.matches && t.matches("input[type=text], input[type=number]"))) { e.preventDefault(); undoEdit(); return; }
+  const k = e.key.toLowerCase();
+  if ((e.ctrlKey || e.metaKey) && (k === "z" || k === "y") && !(t.matches && t.matches("input[type=text], input[type=number]"))) { e.preventDefault(); k === "y" || e.shiftKey ? redoEdit() : undoEdit(); return; }
   if (t.matches && t.matches("input[type=number], input[type=text], select")) return;
-  if (!$("stack-sec").hidden && (e.key === "[" || e.key === "]")) { setBrush(S.edSize + (e.key === "]" ? 1 : -1)); return; }
+  if (e.key === "[" || e.key === "]") { setBrush(S.edSize + (e.key === "]" ? 1 : -1)); return; }
+  if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+    if (k === "e") { pickEraser(e.shiftKey); return; }
+    if (k === "b") { setStackTool("paint"); return; }
+    if (k === "v") { setStackTool("move"); return; }
+  }
   const arrows = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
-  if (e.key === " ") { e.preventDefault(); togglePlay(); return; }
+  // Space như Photoshop: chuột đang trên sheet hay khu xếp chồng thì giữ Space để kéo dời chỗ xem, chỗ khác thì chạy/dừng.
+  if (e.key === " ") {
+    e.preventDefault();
+    if (overPane) { spaceHeld = true; overPane.classList.add("hand"); }
+    else if (!e.repeat) togglePlay();
+    return;
+  }
   if (e.key === "," ) { S.playing = false; setCur(S.cur - 1); return; }
   if (e.key === ".") { S.playing = false; setCur(S.cur + 1); return; }
   const a = arrows[e.key];
@@ -771,6 +809,7 @@ function selFrameIndex() { return frames().findIndex(f => f.i === S.sel); }
 function drawStack() {
   stackDirty = false;
   $("st-undo").disabled = $("st-clear").disabled = !S.strokes.length;
+  $("st-redo").disabled = !S.redo.length;
   const dpr = window.devicePixelRatio || 1, bw = stackPane.clientWidth, bh = stackPane.clientHeight;
   const fr = frames();
   renderList(fr);
@@ -854,7 +893,7 @@ function renderList(fr) {
 const HANDLES = [[-1, -1], [0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0]];
 const HANDLE_CURSOR = { "-1,-1": "nwse-resize", "1,1": "nwse-resize", "1,-1": "nesw-resize", "-1,1": "nesw-resize", "0,-1": "ns-resize", "0,1": "ns-resize", "-1,0": "ew-resize", "1,0": "ew-resize" };
 let stackBox = null, stackHover = null;
-const stackPane = stack.parentElement, ERASE_TOOLS = new Set(["erase", "fill", "restore", "paint"]);
+const stackPane = stack.parentElement, ERASE_TOOLS = new Set(["erase", "bgerase", "fill", "restore", "paint"]);
 S.stackZoom = "fit";
 
 function handleAt(e) {
@@ -884,7 +923,7 @@ for (const id of ["st-w", "st-h"]) $(id).addEventListener("input", () => {
 });
 
 stack.addEventListener("pointerdown", e => {
-  if (e.button !== 0) return;
+  if (e.button !== 0 || spaceHeld) return;
   if (!S.img || !frames().length) return;
   stack.setPointerCapture(e.pointerId); stack.focus({ preventScroll: true });
   const h = handleAt(e);
@@ -953,7 +992,7 @@ const endStackDrag = () => {
     const m = stackDrag.m;
     if (m.x < 0 || m.y < 0 || m.x >= S.grid.w || m.y >= S.grid.h) S.marks.splice(S.marks.indexOf(m), 1);
   }
-  liveStroke = null;
+  endErase();
   stackDrag = null; stack.style.cursor = S.stackTool === "move" ? "grab" : "crosshair"; changed();
 };
 
@@ -976,12 +1015,22 @@ stack.addEventListener("contextmenu", e => {
   if (!m) return;
   e.preventDefault(); S.marks.splice(S.marks.indexOf(m), 1); changed();
 });
+const TOOLS = ["move", "mark", "erase", "bgerase", "fill", "restore", "paint"], ERASERS = ["erase", "bgerase", "fill"];
 function setStackTool(t) {
   S.stackTool = t;
-  for (const id of ["move", "mark", "paint", "erase", "fill", "restore"]) $("tool-" + id).setAttribute("aria-pressed", t === id);
-  stack.style.cursor = t === "move" ? "grab" : "crosshair"; stackDirty = true;
+  if (ERASERS.includes(t)) S.lastEraser = t;
+  for (const id of TOOLS) $("tool-" + id).setAttribute("aria-pressed", t === id);
+  $("ed-tol-box").hidden = t !== "bgerase" && t !== "fill"; $("ed-contig-box").hidden = t !== "fill";
+  $("mode-frame").setAttribute("aria-pressed", t === "move" && S.drag === "frame"); $("mode-grid").setAttribute("aria-pressed", t === "move" && S.drag === "grid");
+  if (t !== "move") sheetHover = null;
+  stack.style.cursor = t === "move" ? "grab" : "crosshair"; stackDirty = true; sheetDirty = true;
 }
-for (const id of ["move", "mark", "paint", "erase", "fill", "restore"]) $("tool-" + id).onclick = () => setStackTool(id);
+// E chọn lại cục tẩy dùng gần nhất, Shift E đổi vòng Tẩy → Tẩy nền → Tẩy vùng.
+function pickEraser(next) {
+  const cur = ERASERS.indexOf(S.stackTool);
+  setStackTool(next && cur >= 0 ? ERASERS[(cur + 1) % ERASERS.length] : cur >= 0 ? S.stackTool : S.lastEraser || "erase");
+}
+for (const id of TOOLS) $("tool-" + id).onclick = () => setStackTool(id);
 stack.addEventListener("pointerleave", () => { stackHover = null; stackDirty = true; });
 $("pen-color").addEventListener("input", () => { if (S.stackTool !== "mark") setStackTool("paint"); });
 /* ---------- xoá nền ---------- */
@@ -1378,6 +1427,8 @@ function showTab(name) {
     const on = tab === "tab-" + name;
     $(tab).setAttribute("aria-selected", on); $(pane).hidden = !on;
   }
+  $("tool-mark").hidden = name !== "stack";
+  if (name !== "stack" && S.stackTool === "mark") setStackTool("move");
   dirty(); stackDirty = true;
 }
 $("tab-sheet").onclick = () => showTab("sheet");
@@ -1388,7 +1439,7 @@ $("stack-alpha").addEventListener("input", e => { S.stackAlpha = +e.target.value
 // Nét tẩy lưu theo toạ độ ảnh gốc và vẽ đè sau bước xoá nền tự động (S.base), nên đổi cài đặt xoá nền vẫn giữ nét.
 // Nét cọ: { restore, color?, size, shape: "round" | "square", pts: [x0, y0, x1, y1, …] }. Tẩy vùng: { pix: Int32Array chỉ số pixel }.
 // Có color là nét tô. Màu tô nằm ở lớp riêng phủ lên trên, nét tẩy hay trả lại đi sau thì xoá luôn màu đã tô ở chỗ đó.
-S.strokes = []; S.edSize = 4; S.edShape = "round";
+S.strokes = []; S.redo = []; S.edSize = 4; S.edShape = "round";
 // used: lớp tô và lớp trả lại đã có nét chưa. Chưa có thì nét tẩy khỏi xoá hai lớp đó, đỡ tốn trên ảnh lớn.
 let eraseMask = null, paintLayer = null, restoreMask = null, restored = null, used = { paint: false, back: false }, composed = null, liveStroke = null;
 
@@ -1422,16 +1473,20 @@ function stampRect(s, x, y, w, h) {
   if (used.paint) paintCtx().clearRect(x, y, w, h);
 }
 // Đóng dấu từng hàng pixel nguyên, không khử răng cưa, để mép tẩy trên pixel art không ra pixel nửa trong.
-function stamp(x, y, s) {
-  const size = s.size, R = size / 2;
+// Gọi row(x0, y, w) cho từng hàng pixel nguyên của đầu cọ đặt tại (x, y).
+function brushRows(x, y, size, shape, row) {
+  const R = size / 2;
   const cx = size % 2 ? Math.floor(x) + 0.5 : Math.round(x), cy = size % 2 ? Math.floor(y) + 0.5 : Math.round(y);
-  if (s.shape === "square") { stampRect(s, cx - R, cy - R, size, size); return; }
+  if (shape === "square") { for (let py = cy - R; py < cy + R; py++) row(cx - R, py, size); return; }
   for (let py = Math.ceil(cy - R - 0.5); py <= Math.floor(cy + R - 0.5); py++) {
     const dy = py + 0.5 - cy, w = Math.sqrt(Math.max(0, R * R - dy * dy));
     const x0 = Math.ceil(cx - w - 0.5), x1 = Math.floor(cx + w - 0.5);
-    if (x1 < x0) continue;
-    stampRect(s, x0, py, x1 - x0 + 1, 1);
+    if (x1 >= x0) row(x0, py, x1 - x0 + 1);
   }
+}
+function stamp(x, y, s) {
+  if (s.shape === "square") { const R = s.size / 2, cx = s.size % 2 ? Math.floor(x) + 0.5 : Math.round(x), cy = s.size % 2 ? Math.floor(y) + 0.5 : Math.round(y); stampRect(s, cx - R, cy - R, s.size, s.size); return; }
+  brushRows(x, y, s.size, s.shape, (x0, py, w) => stampRect(s, x0, py, w, 1));
 }
 function paintStroke(s, from) {
   if (s.pix) {
@@ -1471,28 +1526,65 @@ function composeImg() {
 function editsChanged() { composeImg(); dirty(); stackDirty = true; }
 function undoEdit() {
   if (!S.strokes.length) return;
-  S.strokes.pop();
+  S.redo.push(S.strokes.pop());
   clearEdits();
   for (const s of S.strokes) paintStroke(s, 0);
   editsChanged();
+}
+function redoEdit() {
+  if (!S.redo.length) return;
+  const s = S.redo.pop();
+  S.strokes.push(s); paintStroke(s, 0); editsChanged();
 }
 function drawBrush(ctx, x, y, z, tool) {
   ctx.lineWidth = 1.5;
   for (const [c, r] of [["rgba(0,0,0,0.7)", 1.5], ["#fff", 0]]) {
     ctx.strokeStyle = c; ctx.beginPath();
-    if (tool === "fill") { ctx.moveTo(x - 8, y); ctx.lineTo(x + 8, y); ctx.moveTo(x, y - 8); ctx.lineTo(x, y + 8); }
-    else {
+    if (tool === "fill" || tool === "bgerase") { ctx.moveTo(x - 5, y); ctx.lineTo(x + 5, y); ctx.moveTo(x, y - 5); ctx.lineTo(x, y + 5); }
+    if (tool !== "fill") {
       const h = Math.max(2, S.edSize * z / 2) + r;
+      ctx.moveTo(x + h, y);
       if (S.edShape === "square") ctx.rect(x - h, y - h, h * 2, h * 2); else ctx.arc(x, y, h, 0, Math.PI * 2);
     }
     ctx.stroke();
   }
 }
+const srcCache = new WeakMap();
+function srcData() {
+  if (!srcCache.has(S.src)) srcCache.set(S.src, srcPixels().d.data);
+  return srcCache.get(S.src);
+}
+// Tẩy nền (Background Eraser của Photoshop, lấy mẫu một lần): màu ảnh gốc ở chỗ bấm là màu cần xoá. Đầu cọ đi tới đâu
+// thì chỉ pixel lệch màu đó trong Độ lệch tẩy bị xoá. Nét lưu thành danh sách pixel như Tẩy vùng nên hoàn tác dựng lại y hệt.
+let bgSample = null;
+function bgDab(x, y) {
+  const d = srcData(), W = S.src.width, H = S.src.height, { rgb, tol, done } = bgSample;
+  brushRows(x, y, liveStroke.size, liveStroke.shape, (x0, py, w) => {
+    if (py < 0 || py >= H) return;
+    for (let px = Math.max(0, x0); px < Math.min(W, x0 + w); px++) {
+      const n = py * W + px, i = n * 4;
+      if (done[n]) continue;
+      done[n] = 1;
+      if (Math.abs(d[i] - rgb[0]) + Math.abs(d[i + 1] - rgb[1]) + Math.abs(d[i + 2] - rgb[2]) > tol) continue;
+      liveStroke.pix.push(n); stampRect(liveStroke, px, py, 1, 1);
+    }
+  });
+}
 function eraseDown(tool, f, p, alt) {
+  S.redo = [];
   if (tool === "fill") {
     const pix = fillPixels(p, f);
     if (pix) { S.strokes.push({ pix }); paintStroke(S.strokes.at(-1), 0); editsChanged(); }
     return false;
+  }
+  if (tool === "bgerase") {
+    const W = S.src.width, sx = Math.floor(p.x), sy = Math.floor(p.y);
+    if (sx < 0 || sy < 0 || sx >= W || sy >= S.src.height) return false;
+    const d = srcData(), i = (sy * W + sx) * 4;
+    bgSample = { rgb: [d[i], d[i + 1], d[i + 2]], tol: +$("ed-tol").value * 3, done: new Uint8Array(W * S.src.height), at: [p.x, p.y] };
+    liveStroke = { pix: [], size: S.edSize, shape: S.edShape };
+    S.strokes.push(liveStroke); bgDab(p.x, p.y); editsChanged();
+    return true;
   }
   liveStroke = { restore: tool === "restore" || (alt && tool === "erase"), size: S.edSize, shape: S.edShape, pts: [p.x, p.y] };
   if (tool === "paint") liveStroke.color = $("pen-color").value;
@@ -1501,9 +1593,18 @@ function eraseDown(tool, f, p, alt) {
 }
 function eraseMove(p) {
   if (!liveStroke) return;
+  if (bgSample) {
+    const [ax, ay] = bgSample.at, n = Math.max(1, Math.ceil(Math.hypot(p.x - ax, p.y - ay) / Math.max(0.5, liveStroke.size / 4)));
+    for (let k = 1; k <= n; k++) bgDab(ax + (p.x - ax) * k / n, ay + (p.y - ay) * k / n);
+    bgSample.at = [p.x, p.y]; editsChanged(); return;
+  }
   liveStroke.pts.push(p.x, p.y); paintStroke(liveStroke, liveStroke.pts.length - 2); editsChanged();
 }
-// Mảng cùng màu liền nhau với pixel bấm, chỉ trong khung đang sửa.
+function endErase() {
+  if (liveStroke && liveStroke.pix) liveStroke.pix = Int32Array.from(liveStroke.pix);
+  liveStroke = null; bgSample = null;
+}
+// Mảng cùng màu với pixel bấm trong vùng f (khung đang sửa, hoặc cả ảnh khi tẩy trên sheet). Bỏ Liền mạch thì lấy mọi pixel cùng màu.
 function fillPixels(p, f) {
   const W = S.img.width, H = S.img.height;
   const x0 = Math.max(0, f.x), y0 = Math.max(0, f.y), x1 = Math.min(W, f.x + f.w), y1 = Math.min(H, f.y + f.h);
@@ -1515,10 +1616,11 @@ function fillPixels(p, f) {
   cx.drawImage(S.img, -x0, -y0);
   const d = cx.getImageData(0, 0, w, h).data, s0 = (sy - y0) * w + (sx - x0);
   if (d[s0 * 4 + 3] === 0) return null;
-  const tol = +$("bg-tol").value * 3, r = d[s0 * 4], g = d[s0 * 4 + 1], b = d[s0 * 4 + 2];
+  const tol = +$("ed-tol").value * 3, r = d[s0 * 4], g = d[s0 * 4 + 1], b = d[s0 * 4 + 2];
   const near = n => d[n * 4 + 3] > 0 && Math.abs(d[n * 4] - r) + Math.abs(d[n * 4 + 1] - g) + Math.abs(d[n * 4 + 2] - b) <= tol;
   const seen = new Uint8Array(w * h), out = [s0]; seen[s0] = 1;
-  for (let k = 0; k < out.length; k++) {
+  if (!$("ed-contig").checked) { for (let n = 0; n < w * h; n++) if (n !== s0 && near(n)) out.push(n); }
+  else for (let k = 0; k < out.length; k++) {
     const n = out[k], u = n % w;
     for (const m of [u > 0 ? n - 1 : -1, u < w - 1 ? n + 1 : -1, n - w, n + w])
       if (m >= 0 && m < w * h && !seen[m] && near(m)) { seen[m] = 1; out.push(m); }
@@ -1527,7 +1629,7 @@ function fillPixels(p, f) {
 }
 function setBrush(v) {
   S.edSize = Math.max(1, Math.min(64, v));
-  $("st-size").value = S.edSize; $("st-size-v").textContent = S.edSize + " px"; stackDirty = true;
+  $("st-size").value = S.edSize; $("st-size-v").textContent = S.edSize + " px"; stackDirty = sheetDirty = true;
 }
 $("st-size").addEventListener("input", e => setBrush(+e.target.value));
 for (const b of $("st-shape").children) b.onclick = () => {
@@ -1535,7 +1637,9 @@ for (const b of $("st-shape").children) b.onclick = () => {
   for (const x of $("st-shape").children) x.setAttribute("aria-pressed", x === b);
 };
 $("st-undo").onclick = undoEdit;
-$("st-clear").onclick = () => { S.strokes = []; clearEdits(); editsChanged(); };
+$("st-redo").onclick = redoEdit;
+$("st-clear").onclick = () => { S.strokes = []; S.redo = []; clearEdits(); editsChanged(); };
+$("ed-tol").addEventListener("input", e => { $("ed-tol-v").textContent = e.target.value; });
 
 /* ---------- phóng bằng thanh kéo, giữ nút lăn chuột để dời chỗ xem ---------- */
 // Thanh kéo 0–100 đi theo thang log từ 0,25× tới 32×, để nửa dưới đủ mịn cho ảnh lớn.
@@ -1554,7 +1658,7 @@ function zoomControl(id, pane, canvas, set, current) {
   input.addEventListener("input", () => zoomView(pane, canvas, () => set(zoomOf(+input.value))));
   $(id + "-fit").onclick = () => zoomView(pane, canvas, () => set("fit"));
   pane.addEventListener("wheel", e => {
-    if (!e.ctrlKey) return;
+    if (!e.ctrlKey && !e.altKey) return;
     e.preventDefault();
     const z = Math.max(ZMIN, Math.min(ZMAX, current() * (e.deltaY < 0 ? 1.25 : 0.8)));
     zoomView(pane, canvas, () => set(z >= 1 ? Math.round(z) || 1 : +z.toFixed(2)), e);
@@ -1564,12 +1668,16 @@ function zoomControl(id, pane, canvas, set, current) {
 const showStackZoom = zoomControl("st-zoom", stackPane, stack, z => { S.stackZoom = z; stackDirty = true; }, () => stackScale);
 const showSheetZoom = zoomControl("zoom", box, sheet, z => { S.zoom = z; dirty(); }, () => sheetZoom());
 // Trên Linux, nhả nút giữa còn dán vùng chữ đang bôi đen; panEnded để bộ dán ảnh bỏ qua lần dán đó.
-let panEnded = 0;
+let panEnded = 0, spaceHeld = false, overPane = null;
+document.addEventListener("keyup", e => { if (e.key === " ") { spaceHeld = false; for (const p of [box, stackPane]) p.classList.remove("hand"); } });
+window.addEventListener("blur", () => { spaceHeld = false; for (const p of [box, stackPane]) p.classList.remove("hand"); });
 function middlePan(pane) {
   let pan = null;
   for (const t of ["mousedown", "mouseup", "auxclick"]) pane.addEventListener(t, e => { if (e.button === 1) e.preventDefault(); });
+  pane.addEventListener("pointerenter", () => { overPane = pane; });
+  pane.addEventListener("pointerleave", () => { if (overPane === pane) overPane = null; });
   pane.addEventListener("pointerdown", e => {
-    if (e.button !== 1) return;
+    if (e.button !== 1 && !(e.button === 0 && spaceHeld)) return;
     e.preventDefault();
     pan = { x: e.clientX, y: e.clientY, l: pane.scrollLeft, t: pane.scrollTop };
     pane.setPointerCapture(e.pointerId); pane.classList.add("panning");
@@ -1589,7 +1697,7 @@ function loadFile(file, pasted) {
     S.name = pasted ? "dan_anh" : file.name.replace(/\.[^.]+$/, "") || "sprite";
     $("bg-color").value = cornerColor();
     S.off = {}; S.skip = new Set(); S.sel = null; S.start = 0; S.cur = 0; S.playing = true;
-    S.strokes = []; eraseMask = paintLayer = restoreMask = null; used = { paint: false, back: false };
+    S.strokes = []; S.redo = []; eraseMask = paintLayer = restoreMask = null; used = { paint: false, back: false };
     guessGrid(); S.count = cellCount();
     // Ô Xoá nền còn bật từ sheet trước: ảnh đã trong suốt thì góc ra màu đen và viền tối của hình bị loang mất.
     const keyedOff = $("bg-on").checked && !sheetIsOpaque();
