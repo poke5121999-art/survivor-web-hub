@@ -1120,5 +1120,23 @@ window.HUB_GAMES = [
     // Kiểm: node test/stickman-hook-sim.js (bot qua 64 màn + 30 màn ngẫu nhiên) và node test/stickman-hook-play.js (SH_URL=<Pages>).
     status: "available",
     tags: ["Hành động", "Một ngón", "Màn dọc"]
+  },
+  {
+    id: "food-gang",
+    title: "Food Gang",
+    tagline: "Đội đồ ăn đấu súng: chạy, nhảy, bắn nhau trên bếp, bàn ăn và kho bếp.",
+    desc: "Làm lại Food Gang (Bloop) từ bản Android 2.2.4, chạy thẳng trên web bằng JS, không cần Unity: vào trận chỉ tải khoảng 5 MB. Map, nhân vật, hoạt ảnh, hiệu ứng và HUD dựng lại từ dữ liệu gốc; luật trận, sát thương, bot và phần thưởng theo mã gốc dịch ngược. Đánh với bot ở 3 map và 5 kiểu đấu (đội 2v2, tay đôi, hạ 5 mạng, người sống cuối, diệt boss). Phím A/D hoặc mũi tên để chạy, W/Space nhảy, J bắn, K tung chiêu; điện thoại dùng cần và nút trên màn.",
+    genre: "hanh-dong",
+    accent: "#2ec4e6",
+    en: { title: "Food Gang", tagline: "Food fighters shoot it out: run, jump and blast across the kitchen, the dining table and the pantry.", desc: "Food Gang (Bloop) remade from the Android 2.2.4 release in plain JS, no Unity: about 5 MB to the first match. Maps, characters, animations, effects and HUD rebuilt from the original data; match rules, damage, bots and rewards follow the decompiled original code. Fight bots on 3 maps in 5 modes (2v2 team, 1v1, first to 5 kills, last survivor, kill the boss). A/D or arrows to run, W/Space to jump, J to shoot, K for the special; on phones use the on-screen stick and buttons." },
+    thumbnail: "assets/thumbnails/food-gang.png",
+    path: "games/food-gang/index.html",
+    rev: "20261030a",
+    // JS + WebGL2, không engine ngoài. Scene/prefab/anim/particle/UI xuất từ project AssetRipper D:/foodgang-ref/fg-unity bằng
+    // games/food-gang/tools/export_unity.py, runtime ở js/engine. Lõi trận js/sim và meta js/meta là bản port khớp từng bit/byte
+    // với lõi C# (D:/foodgang-ref/fg-unity/Assets/FG). Plan: brain/plans/food-gang.md.
+    // Kiểm: node test/food-gang-sim.js, node test/food-gang-meta.js, node test/food-gang-render.js, node test/food-gang-play.js (FG_URL=<Pages>).
+    status: "available",
+    tags: ["Hành động", "Bắn súng", "Màn ngang"]
   }
 ];
