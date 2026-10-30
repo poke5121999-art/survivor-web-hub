@@ -4,6 +4,7 @@
 // URL overrides for testing (any of them skips the menu and plays matches back to back, as the match test expects):
 //   ?mode=dm2v2|dm1v1|dmffa|kill5|kill5ffa|lastSurvivor|ls2v2|killBoss &map=kitchen|dining|pantry|0..2
 //   &skin=BRO|broccoli|1..16 &level=1..20 &seed=N &slot=0..3 ; &timescale=N &intro=0 work everywhere
+//   (&seed=N seeds both the sim and the matchmaking RNG, so the same URL gives the same slots and bots)
 import { Engine, stats } from '../engine/engine.js';
 import { GameDb, GoalType, TeamConfig } from '../sim/index.js';
 import { MetaDb, MetaService, MetaRng, ProfileJson, LocalStorageProfileStore } from '../meta/index.js';
@@ -244,7 +245,8 @@ class App {
 
   buildRequest() {
     const p = this.profile;
-    const r = this.meta.buildMatchRequest(p, new Date(), rng());
+    // ?seed= pins the matchmaking RNG too (local slot, bot skins / names), not only the sim seed: a test replays the same lineup
+    const r = this.meta.buildMatchRequest(p, new Date(), Q.has('seed') ? new MetaRng((Number(Q.get('seed')) | 0) & 0x7fffffff) : rng());
     if (!r.ok) throw new Error('match request failed: ' + r.error);
     const req = r.request;
     const mode = MODES[(Q.get('mode') || '').toLowerCase()];

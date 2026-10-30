@@ -40,3 +40,7 @@ Nguồn: `C:\Users\tamph\Downloads\Food+Gang_2.2.4_APKPure.xapk` (com.bloop.food
   (cây chính lệch 113 commit + có việc dở của agent khác). `FG_URL=<Pages> node test/food-gang-play.js` 330/332: 2 check
   hồi sinh trượt ở trận kết thúc sau 1 kill (luật killBoss), lỗi của test không phải game; đã giao pha 3 sửa.
   Đang làm song song: pha 3 (menu + meta, `js/game/screens`, rev 20261031a) và pha 4 (online, `js/net`, hợp đồng `Online` trong brief).
+- 2026-10-31: pha 3 + 4 lên main, commit 725f85cc (rev 20261031a). Local: net 139/139 (Relay thật, 3 lần liền), meta-ui 65/65,
+  render 27/27, ui-engine 34/34, ui-tour 0 lỗi. `food-gang-play` đỏ 3 lần ở 3 check khác nhau (bot ngẫu nhiên + đồng hồ thật
+  trên máy tải nặng) → đang làm test tất định (seed cố định, đo theo tick), không nới ngưỡng.
+  Còn lại: pha 5 (so clip, tự chơi nhiều trận trên Pages), chữ Thái/Ả Rập, private room quay về lobby sau trận.

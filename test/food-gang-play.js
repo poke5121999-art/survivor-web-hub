@@ -5,7 +5,9 @@
  * the fighter moved, jumped, attacked and used its special, damage happened, an agent died and respawned, the timer
  * counts down (timed modes), the match ends by its own rule (sped up with fgTimeScale), the result screen shows
  * title / rank / stars / trophies and the profile in localStorage gained trophies, no console errors, fps >= 50 at
- * 1280x720 (hardware ANGLE). Screenshots: FG_SHOTS (default shots/food-gang/play), incl. 1280x592 frames for clip parity.
+ * 1280x720 (hardware ANGLE). Deterministic: ?seed= pins the sim + matchmaking, &slot=0 the local slot; the controls,
+ * respawn and timer checks run with the sim frozen and bots frozen, stepped in exact sim ticks (pageHelpers), the local
+ * death forced at tick DEATH_TICK; only the bot fight, kill feed and match end run live. Screenshots: FG_SHOTS (default shots/food-gang/play), incl. 1280x592 frames for clip parity.
  *   node test/food-gang-play.js                       all maps x modes
  *   FG_ONLY=kitchen:dm2v2 node test/food-gang-play.js one run
  *   FG_URL=https://poke5121999-art.github.io/survivor-web-hub/games/food-gang/index.html node test/food-gang-play.js
@@ -60,11 +62,60 @@ async function waitFor(page, fn, arg, ms, step = 100) {
 const dbg = (page) => page.evaluate(() => window.fgDebug && window.fgDebug());
 const localOf = (d) => d && d.agents.find((a) => a.slot === d.match.localSlot);
 
-async function hold(page, keys, ms) {
-  for (const k of keys) await page.keyboard.down(k);
-  await sleep(ms);
-  for (const k of keys.slice().reverse()) await page.keyboard.up(k);
+// Sim clock bridge, built only on bridges every deployed build has (fgApp.match.runner, sim state botNoMove / botNoAction):
+// the checks of the local controls and of the respawn screen run with the sim frozen (engine frames keep rendering and
+// sampling input, the runner steps no tick) and the bots frozen (BotBrain zeroes their move and action), then the test
+// steps exactly n sim ticks. So a key held for 42 ticks moves the fighter the same distance on an idle or a loaded PC,
+// and no bot hit, knockback or match end lands in the middle of a check.
+function pageHelpers() {
+  const R = () => window.fgApp.match.runner;
+  window.__fgFreeze = () => { const r = R(); r.timeScale = 0; r.acc = 0; r.state.botNoMove = r.state.botNoAction = true; return r.state.tick; };
+  window.__fgThaw = (ts) => { const r = R(); r.state.botNoMove = r.state.botNoAction = false; r.acc = 0; r.timeScale = ts || 1; };
+  // exactly n ticks through MatchRunner.update (live input sources, events dispatched to the views); stops at game over
+  window.__fgStep = (n) => {
+    const r = R(), ts = r.timeScale;
+    let done = 0;
+    r.timeScale = 1;
+    try {
+      while (done < n && !r.gameOver) {
+        const k = Math.min(40, n - done);
+        r.acc = 0;
+        const m = r.update((k + 0.5) * r.dt);
+        if (!m) break;
+        done += m;
+      }
+    } finally { r.acc = 0; r.timeScale = ts; }
+    return done;
+  };
+  const me = () => { const q = window.fgDebug(); return q.agents.find((x) => x.slot === q.match.localSlot); };
+  const PRED = {
+    alive: (a) => a.alive,
+    grounded: (a) => a.alive && a.grounded,
+    idle: (a) => a.alive && a.grounded && a.action === 'none',
+    special: (a) => a.alive && a.cooldownSpecial <= 0 && a.action === 'none',
+  };
+  // steps one tick at a time until the local fighter matches `what`; returns the ticks stepped, -1 if never within max
+  window.__fgStepUntil = (what, max) => {
+    for (let i = 0; i <= max; i++) {
+      if (PRED[what](me())) return i;
+      if (i < max && !window.__fgStep(1)) return -1;
+    }
+    return -1;
+  };
 }
+const step = (page, n) => page.evaluate((k) => window.__fgStep(k), n);
+const stepUntil = (page, what, max) => page.evaluate(([w, m]) => window.__fgStepUntil(w, m), [what, max]);
+// let the engine render n frames: input (keys, pointer queue) is sampled per frame, the HUD reads the state per frame
+const frames = (page, n = 3) => page.evaluate((k) => new Promise((res) => { let i = 0; const f = () => (++i >= k ? res() : requestAnimationFrame(f)); requestAnimationFrame(f); }), n);
+// DebugDamageCommand through fgDamage; a build deployed before it gets the same command through fgApp
+const damage = (page, slot, amount) => page.evaluate(([s, n]) => {
+  if (window.fgDamage) return window.fgDamage(s, n);
+  const r = window.fgApp.match && window.fgApp.match.runner, a = r && r.state.agents.find((x) => x.slot === s);
+  return a ? r.match.debugDamage(r.state, a.id, n) : 0;
+}, [slot, amount]);
+
+// ticks at 60 Hz
+const T_RIGHT = 42, T_LEFT = 30, DEATH_TICK = 150;
 
 async function runOne(browser, base, map, skin, mode, opts = {}) {
   const tag = `${map}_${mode}`;
@@ -76,140 +127,181 @@ async function runOne(browser, base, map, skin, mode, opts = {}) {
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('requestfailed', (r) => errors.push('request failed ' + r.url()));
   page.on('response', (r) => { if (r.status() >= 400) errors.push(`${r.status()} ${r.url()}`); });
+  await page.addInitScript(pageHelpers);
   const seed = opts.seed ?? 3;
-  const url = `${base}?mode=${mode}&map=${map}&skin=${skin}&level=8&seed=${seed}${opts.intro ? '' : '&intro=0'}`;
+  // seed pins the sim and (builds from 20261031b) the matchmaking RNG; slot pins the local slot on older builds too
+  const url = `${base}?mode=${mode}&map=${map}&skin=${skin}&level=8&seed=${seed}&slot=0${opts.intro ? '' : '&intro=0'}`;
   try {
     await page.goto(url);
     const before = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('food-gang-profile') || 'null'); } catch { return null; } });
-    const started = await waitFor(page, () => { const d = window.fgDebug && window.fgDebug(); return d && d.screen === 'match' && d.phase === 'match' && d.tick > 5 ? d : null; }, null, 60000);
+    // freeze in the same evaluate that sees the match start, before any bot acts
+    const started = await waitFor(page, () => { const d = window.fgDebug && window.fgDebug(); if (!(d && d.screen === 'match' && d.phase === 'match' && d.tick > 5)) return null;
+      window.__fgFreeze(); return window.fgDebug(); }, null, 60000, 20);
     const why = started ? '' : JSON.stringify(await dbg(page).catch((e) => String(e))).slice(0, 300) + ' ' + errors.slice(0, 3).join(' | ');
-    check('match starts', !!started, started ? `local slot ${started.match.localSlot}, ${started.agents.length} fighters` : 'no match: ' + why);
+    check('match starts', !!started, started ? `local slot ${started.match.localSlot}, ${started.agents.length} fighters, frozen at tick ${started.tick}` : 'no match: ' + why);
     if (!started) return;
-    const trophies0 = (await dbg(page)).profile.trophies;
+    const slot = started.match.localSlot;
+    const trophies0 = started.profile.trophies;
     let d = await dbg(page);
     const me0 = localOf(d);
     check('special button shown (level 8 unlocks the special)', d.hud.specialButton && me0.specialUnlocked);
-    // keyboard: run right, then left, jump, attack, special
+    // keyboard: run right, then left, measured over exact sim ticks with the bots frozen
     const x0 = me0.x;
-    await hold(page, ['KeyD'], 700);
+    await page.keyboard.down('KeyD'); await frames(page);
+    const tR = await step(page, T_RIGHT);
     d = await dbg(page);
     const x1 = localOf(d).x;
-    await hold(page, ['ArrowLeft'], 500);
+    await page.keyboard.up('KeyD');
+    await page.keyboard.down('ArrowLeft'); await frames(page);
+    const tL = await step(page, T_LEFT);
     d = await dbg(page);
     const x2 = localOf(d).x;
-    check('keyboard moves the fighter (D right, Left arrow left)', x1 > x0 + 0.5 && x2 < x1 - 0.3, `x ${x0} -> ${x1} -> ${x2}`);
+    await page.keyboard.up('ArrowLeft'); await frames(page);
+    check('keyboard moves the fighter (D right, Left arrow left)', tR === T_RIGHT && tL === T_LEFT && x1 > x0 + 0.5 && x2 < x1 - 0.3, `x ${x0} -> ${x1} -> ${x2} over ${tR} + ${tL} ticks`);
+
+    // the local fighter goes down at a fixed early tick through the sim's debug damage (DebugDamageCommand), bots frozen,
+    // so every mode shows the respawn screen long before any match can end; a boss is the exception (its death ends killBoss)
+    d = await dbg(page);
+    const localBoss = !!localOf(d).boss;
+    if (!localBoss) {
+      await step(page, Math.max(0, DEATH_TICK - d.tick));
+      const tDeath = (await dbg(page)).tick;
+      await damage(page, slot, 1e6);
+      await step(page, 1);
+      const rs = await waitFor(page, () => window.fgDebug().hud.respawnShown, null, 5000, 30);
+      if (rs) { await frames(page); await page.screenshot({ path: path.join(SHOTS, `${tag}_respawn.png`) }); }
+      d = await dbg(page);
+      check('respawn screen for the dead local fighter (BACK IN: n, controls hidden)', d.hud.respawnShown && d.hud.controlsAlpha === 0,
+        `"${d.hud.respawnText}", died at tick ${tDeath}, local deaths ${d.stats.localDeaths || 0}, screen ${d.screen}/${d.phase}`);
+      const tBack = await stepUntil(page, 'alive', 900);
+      await waitFor(page, () => window.fgDebug().hud.controlsAlpha === 1, null, 5000, 30);
+      d = await dbg(page);
+      check('local fighter respawns and gets its controls back', tBack >= 0 && localOf(d).alive && !d.hud.respawnShown && d.hud.controlsAlpha === 1,
+        `back after ${tBack} ticks, respawn events ${d.events['10'] || 0}`);
+    } else check('respawn screen for the dead local fighter', true, 'local fighter is the boss: no respawn');
+
     const j0 = d.stats.jumps;
-    const grounded = () => waitFor(page, () => { const q = window.fgDebug(); const a = q.agents.find((x) => x.slot === q.match.localSlot); return a && a.alive && a.grounded; }, null, 5000, 30);
-    // jump needs the fighter on the ground (no air jump); a hit or a ledge can leave it airborne for a moment
+    // jump needs the fighter on the ground (no air jump)
     for (let i = 0; i < 3; i++) {
-      await grounded();
-      await hold(page, ['Space'], 120);
-      await sleep(300);
+      await stepUntil(page, 'grounded', 300);
+      await page.keyboard.down('Space'); await frames(page);
+      await step(page, 8);
+      await page.keyboard.up('Space'); await frames(page);
+      await step(page, 10);
       d = await dbg(page);
       if (d.stats.jumps > j0) break;
     }
     check('keyboard jump', d.stats.jumps > j0, `${j0} -> ${d.stats.jumps} jumps`);
-    await sleep(700);
+    await stepUntil(page, 'idle', 300);
     const a0 = d.stats.localActionStarts || 0;
-    await hold(page, ['KeyJ'], 450);
-    await sleep(250);
+    await page.keyboard.down('KeyJ'); await frames(page);
+    await step(page, 27);
+    await page.keyboard.up('KeyJ'); await frames(page);
+    await step(page, 15);
     d = await dbg(page);
     check('keyboard attack (J)', (d.stats.localActionStarts || 0) > a0, `${a0} -> ${d.stats.localActionStarts} attacks, shots ${d.stats.shots}`);
     const s0 = d.stats.localSpecialStarts || 0;
     // the special starts only when its cooldown is over and no action is running (TOM's bazooka shot is long)
-    const specialReady = () => waitFor(page, () => { const q = window.fgDebug(); const a = q.agents.find((x) => x.slot === q.match.localSlot);
-      return a && a.alive && a.cooldownSpecial <= 0 && a.action === 'none' && q.hud.controlsAlpha === 1; }, null, 20000, 30);
-    // a heal special (TOM) is refused at full HP by the sim (ActionSystem.tryStartSpecial): wait a little for a hit
+    const specialReady = async () => {
+      const t = await stepUntil(page, 'special', 3600);
+      await waitFor(page, () => window.fgDebug().hud.controlsAlpha === 1, null, 5000, 30);
+      return t;
+    };
+    // a heal special (TOM) is refused at full HP by the sim (ActionSystem.tryStartSpecial): take a debug hit first
     const hurt = async () => {
-      const me = localOf(await dbg(page));
-      if (!me.healSpecial || me.hp < me.hpMax) return;
-      await page.evaluate(() => window.fgTimeScale(2));
-      await waitFor(page, () => { const q = window.fgDebug(); const a = q.agents.find((x) => x.slot === q.match.localSlot); return a && a.alive && a.hp < a.hpMax; }, null, 4000, 30);
-      await page.evaluate(() => window.fgTimeScale(1));
+      for (let i = 0; i < 10; i++) {
+        const me = localOf(await dbg(page));
+        if (!me.healSpecial || me.hp < me.hpMax) return;
+        await damage(page, slot, Math.ceil(me.hpMax * 0.2));
+        await step(page, 30);
+      }
     };
     const fullHeal = async () => { const me = localOf(await dbg(page)); return me.healSpecial && me.hp >= me.hpMax; };
     await hurt();
     for (let i = 0; i < 3; i++) {
       await specialReady();
-      await hold(page, ['KeyK'], 200);
-      await sleep(400);
+      await page.keyboard.down('KeyK'); await frames(page);
+      await step(page, 12);
+      await page.keyboard.up('KeyK'); await frames(page);
+      await step(page, 24);
       d = await dbg(page);
       if ((d.stats.localSpecialStarts || 0) > s0 || await fullHeal()) break;
     }
     const kRefused = (d.stats.localSpecialStarts || 0) === s0 && await fullHeal();
     check('keyboard special (K)', (d.stats.localSpecialStarts || 0) > s0 || kRefused, kRefused ? 'heal special refused at full HP (sim rule)' : `${s0} -> ${d.stats.localSpecialStarts || 0}`);
-    // fps while fighting at 1280x720
-    await sleep(1500);
-    d = await dbg(page);
-    const fps = d.fps;
-    if (!opts.viewport) check('fps >= 50 at 1280x720', fps >= 50, `${fps} fps`);
     // on-screen controls by mouse: joystick drag right, jump, attack, special
-    await waitFor(page, () => { const q = window.fgDebug(); const a = q.agents.find((x) => x.slot === q.match.localSlot); return a && a.alive && q.hud.controlsAlpha === 1; }, null, 10000);
+    await stepUntil(page, 'idle', 300);
+    await waitFor(page, () => window.fgDebug().hud.controlsAlpha === 1, null, 10000);
     d = await dbg(page);
     const c = d.match.controls;
     const xa = localOf(d).x;
     await page.mouse.move(c.joystick[0], c.joystick[1]);
     await page.mouse.down();
     await page.mouse.move(c.joystick[0] + 110, c.joystick[1], { steps: 4 });
-    await sleep(600);
+    await frames(page);
+    await step(page, 36);
     d = await dbg(page);
     let xb = localOf(d).x;
-    await page.mouse.up();
+    await page.mouse.up(); await frames(page);
     if (!(xb > xa + 0.4)) {
       // blocked on the right (plate stack, wall): drag left instead
-      await sleep(200);
       await page.mouse.move(c.joystick[0], c.joystick[1]); await page.mouse.down();
       await page.mouse.move(c.joystick[0] - 110, c.joystick[1], { steps: 4 });
-      await sleep(600);
+      await frames(page);
+      await step(page, 36);
       d = await dbg(page);
       xb = localOf(d).x;
-      await page.mouse.up();
+      await page.mouse.up(); await frames(page);
     }
-    check('on-screen joystick moves the fighter', Math.abs(xb - xa) > 0.4 || (!localOf(d).alive), `x ${xa} -> ${xb}`);
+    check('on-screen joystick moves the fighter', Math.abs(xb - xa) > 0.4 || (!localOf(d).alive), `x ${xa} -> ${xb} over 36 ticks`);
     const jb = d.stats.jumps;
     for (let i = 0; i < 3; i++) {
-      await grounded();
-      await page.mouse.click(c.jump[0], c.jump[1], { delay: 80 });
-      await sleep(400);
+      await stepUntil(page, 'grounded', 300);
+      await page.mouse.move(c.jump[0], c.jump[1]); await page.mouse.down(); await frames(page);
+      await step(page, 6);
+      await page.mouse.up(); await frames(page);
+      await step(page, 20);
       d = await dbg(page);
       if (d.stats.jumps > jb) break;
     }
     check('on-screen jump button', d.stats.jumps > jb || !localOf(d).alive, `${jb} -> ${d.stats.jumps}`);
-    await sleep(700);
+    await stepUntil(page, 'idle', 300);
     const ab = d.stats.localActionStarts || 0;
     await page.mouse.move(c.action[0], c.action[1]);
-    await page.mouse.down(); await sleep(400); await page.mouse.up();
-    await sleep(250);
+    await page.mouse.down(); await frames(page);
+    await step(page, 24);
+    await page.mouse.up(); await frames(page);
+    await step(page, 15);
     d = await dbg(page);
     check('on-screen attack button', (d.stats.localActionStarts || 0) > ab || !localOf(d).alive, `${ab} -> ${d.stats.localActionStarts}`);
-    await page.evaluate(() => window.fgTimeScale(4));
-    d = await dbg(page);
     const sb = d.stats.localSpecialStarts || 0;
     if (c.special) await hurt();
     for (let i = 0; i < 3 && c.special; i++) {
-      await page.evaluate(() => window.fgTimeScale(4));
       await specialReady();
-      await page.evaluate(() => window.fgTimeScale(1));
-      await page.mouse.move(c.special[0], c.special[1]); await page.mouse.down(); await sleep(200); await page.mouse.up();
-      await sleep(400);
+      await page.mouse.move(c.special[0], c.special[1]); await page.mouse.down(); await frames(page);
+      await step(page, 12);
+      await page.mouse.up(); await frames(page);
+      await step(page, 24);
       d = await dbg(page);
       if ((d.stats.localSpecialStarts || 0) > sb || await fullHeal()) break;
     }
     const bRefused = (d.stats.localSpecialStarts || 0) === sb && await fullHeal();
     check('on-screen special button', (d.stats.localSpecialStarts || 0) > sb || !localOf(d).alive || bRefused, bRefused ? 'heal special refused at full HP (sim rule)' : `${sb} -> ${d.stats.localSpecialStarts || 0}`);
     await page.screenshot({ path: path.join(SHOTS, `${tag}_hud.png`) });
-    // timer counts down (timed modes) / no timer (kill race, last survivor)
+    // timer counts down over 90 sim ticks (timed modes) / no timer (kill race, last survivor)
     const t0 = d.timer;
-    await sleep(1200);
+    const tT = await step(page, 90);
+    await frames(page);
     d = await dbg(page);
-    if (TIMED[mode]) check('timer counts down', d.timer < t0 - 0.5 && /^\d+:\d\d$/.test(d.timerText), `${t0} -> ${d.timer} "${d.timerText}"`);
+    if (TIMED[mode]) check('timer counts down', d.timer < t0 - 0.5 && /^\d+:\d\d$/.test(d.timerText), `${t0} -> ${d.timer} "${d.timerText}" over ${tT} ticks`);
     else check('no match timer in this mode', d.timer === 0, `timer ${d.timer}`);
-    // let the bots fight: kill feed, death + respawn, the respawn screen of the local fighter
-    // autopilot through the scripted-input bridge: chase the nearest enemy, attack, jump to higher foes, special when ready
+    // from here the match runs live: bots fight, the local fighter on autopilot through the scripted-input bridge
+    // (chase the nearest enemy, attack, jump to higher foes, special when ready)
     await page.evaluate(() => {
+      window.__fgThaw(1);
       window.__pilot = setInterval(() => {
         const q = window.fgDebug();
-        if (!q.match || q.phase !== 'match' || window.__pilotPaused) { window.fgScript(null); return; }
+        if (!q.match || q.phase !== 'match') { window.fgScript(null); return; }
         const me = q.agents.find((a) => a.slot === q.match.localSlot);
         const foes = q.agents.filter((a) => a.alive && a.slot !== me.slot && (q.match.teams === 0 || a.team !== me.team));
         const f = foes.sort((a, b) => Math.hypot(a.x - me.x, a.y - me.y) - Math.hypot(b.x - me.x, b.y - me.y))[0];
@@ -220,42 +312,15 @@ async function runOne(browser, base, map, skin, mode, opts = {}) {
         window.fgScript(Math.abs(f.x - me.x) > 1.2 ? Math.sign(f.x - me.x) : 0, down);
       }, 30);
     });
+    // fps while fighting at 1280x720 (real time, bots live)
+    await sleep(1500);
+    d = await dbg(page);
+    const fps = d.fps;
+    if (!opts.viewport) check('fps >= 50 at 1280x720', fps >= 50, `${fps} fps`);
     await page.evaluate(() => window.fgTimeScale(3));
     const kf = await waitFor(page, () => window.fgDebug().hud.killFeedShown > 0, null, 60000);
     if (kf) await page.screenshot({ path: path.join(SHOTS, `${tag}_killfeed.png`) });
     check('kill feed shows a kill', !!kf);
-    // the local fighter goes down early through the sim's debug damage (DebugDamageCommand), so every mode shows the
-    // respawn screen; a boss is the exception: its death ends a killBoss match on the spot
-    d = await dbg(page);
-    const meNow = localOf(d);
-    const localBoss = !!(meNow && meNow.boss);
-    if (meNow && !localBoss && d.phase === 'match') {
-      await waitFor(page, () => { const q = window.fgDebug(); const a = q.agents.find((x) => x.slot === q.match.localSlot); return a && a.alive; }, null, 15000, 30);
-      // fgDamage is the app's bridge; a build deployed before it gets the same DebugDamageCommand through fgApp
-      await page.evaluate((slot) => {
-        if (window.fgDamage) return window.fgDamage(slot, 1e6);
-        const r = window.fgApp.match && window.fgApp.match.runner, a = r && r.state.agents.find((x) => x.slot === slot);
-        return a ? r.match.debugDamage(r.state, a.id, 1e6) : 0;
-      }, d.match.localSlot);
-    }
-    // the local fighter stands still while down so it cannot end a killBoss match on its own before the screen shows
-    await page.evaluate(() => { window.__pilotPaused = true; });
-    const rs = localBoss ? false : await waitFor(page, () => window.fgDebug().hud.respawnShown || window.fgDebug().screen !== 'match', null, 120000, 30)
-      .then(async (v) => v && (await dbg(page)).hud.respawnShown);
-    await page.evaluate(() => { window.__pilotPaused = false; });
-    if (rs) {
-      await sleep(150);
-      await page.screenshot({ path: path.join(SHOTS, `${tag}_respawn.png`) });
-      d = await dbg(page);
-      check('respawn screen for the dead local fighter (BACK IN: n, controls hidden)', d.hud.respawnShown && d.hud.controlsAlpha === 0, `"${d.hud.respawnText}"`);
-    } else {
-      d = await dbg(page);
-      // no respawn screen is the rule only for a local boss, or a killBoss match that ended on the boss's death
-      // while the local fighter was down (ROUND OVER comes before BACK IN)
-      const bossDown = mode === 'killBoss' && d.screen !== 'match' && (d.match && d.match.agents || []).some((a) => a.boss && a.deaths > 0);
-      check('respawn screen for the dead local fighter', localBoss || bossDown, localBoss ? 'local fighter is the boss: no respawn' : bossDown ? 'boss died while the local fighter was down: match over first'
-        : `no respawn screen (deaths ${d.stats.localDeaths || 0}, screen ${d.screen}/${d.phase})`);
-    }
     await page.evaluate(() => window.fgTimeScale(12));
     const over = await waitFor(page, () => { const q = window.fgDebug(); return q.screen === 'gameover' && q.gameOver && q.gameOver.title ? q : null; }, null, 150000, 100);
     d = over || await dbg(page);

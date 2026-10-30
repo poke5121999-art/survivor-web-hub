@@ -303,7 +303,16 @@ async function partB() {
     if (!ctx) { ctx = await browser.newContext(); await ctx.addInitScript(hiddenTabEmulation); }
     const page = await ctx.newPage({ viewport: vp });
     page.on('pageerror', (e) => errors.push(`${name}: ${e.message}`));
-    page.on('console', (m) => { if (m.type() === 'error') errors.push(`${name}: ${m.text()}`); });
+    // Chrome logs every 4xx fetch as "Failed to load resource" without the URL, so judge the response instead.
+    // Updating (lock/unlist), leaving or deleting a Lobby that is already gone answers 404; online.js swallows those on
+    // purpose, so they are not page errors. A 404 on join or create still is.
+    page.on('console', (m) => { if (m.type() === 'error' && !m.text().startsWith('Failed to load resource')) errors.push(`${name}: ${m.text()}`); });
+    page.on('response', (r) => {
+      if (r.status() < 400) return;
+      const m = r.request().method();
+      const gone = r.status() === 404 && /lobby\.services\.api\.unity\.com\/v1\/(?!create$|query$|joinbycode$|quickjoin$)[^/]+(\/players\/[^/]+)?$/.test(r.url()) && (m === 'POST' || m === 'DELETE');
+      if (!gone) errors.push(`${name}: ${r.status()} ${r.request().method()} ${r.url()}`);
+    });
     const q = new URLSearchParams({ name, region, short: String(SHORT), ...params });
     if (LOOP) q.set('net', 'loop');
     await page.goto(`${URL0}?${q}`);

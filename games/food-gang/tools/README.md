@@ -241,6 +241,13 @@ skill parity-compare, ra `D:/foodgang-ref/parity-ui/web/`).
 - Tham số `mode/map/skin/level/seed/slot` trên URL vẫn vào thẳng trận như trước (test trận dùng), bỏ qua menu.
 - Cầu nối test: `fgButtons(scene)` (nút đang hiện + toạ độ trang), `fgDamage(slot, amount)` (DebugDamageCommand của sim),
   `fgDebug().ui` (màn trên cùng + `debug()` của nó).
+- `?seed=N` gieo cả RNG ghép trận (slot của mình, skin/tên bot), không chỉ seed sim (từ rev 20261031b): cùng URL ra cùng đội hình.
+  Trước đó seed chỉ gieo sim nên `test/food-gang-play.js` đỏ ngẫu nhiên (chỗ đứng đầu trận đổi giữa các lần chạy).
+- `test/food-gang-play.js` không đo theo đồng hồ thật: lúc vừa vào trận nó đóng băng sim (`runner.timeScale = 0`) và bot
+  (`state.botNoMove/botNoAction`, cờ sẵn của sim), rồi tự bước đúng n tick qua `runner.update` (`__fgStep` trong `pageHelpers`
+  của test). Đi, nhảy, đánh, chiêu, đồng hồ đếm và màn hồi sinh (chết ép bằng `fgDamage` ở tick 150) đo trong tick sim; chỉ
+  đoạn bot đánh nhau, kill feed và hết trận chạy thật. Bẫy đã sập: đo bằng `sleep()` trên máy bận thì bot bắn trúng giữa
+  lúc giữ phím Trái (người trôi sang phải), hay cái chết ép rơi đúng cuối trận dm1v1 nên không có màn hồi sinh.
 
 **[ĐỀ XUẤT]** (game gốc không có hoặc rip không có):
 - Nút LANGUAGE trong Settings (nhân từ nút Terms of Use, ngồi chỗ Restore Purchases bị ẩn như bản Android), bấm xoay vòng 13 ngôn ngữ.
