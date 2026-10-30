@@ -395,7 +395,13 @@
     var wrap = h("div", { class: "dz-cell", "data-k": key });
     wrap._meta = meta;
 
-    if (typeof value === "boolean") {
+    if (meta.readonly && isScalar(value)) {
+      // readonly scalar: shown as text; namesFrom maps an id to the display name found in another table's rows.
+      var nf = meta.namesFrom, src = nf && (S.tables[nf.table] && S.tables[nf.table].remote && S.tables[nf.table].remote.exists
+        ? S.tables[nf.table].remote.docs : DEFAULTS[nf.table]) || [];
+      var hit = nf && src.filter(function (d) { return d._id === value; })[0];
+      box.appendChild(h("span", { class: "dz-readonly", "data-readonly": path.join("."), text: hit && hit[nf.field] ? hit[nf.field] : fmtVal(value, meta) }));
+    } else if (typeof value === "boolean") {
       input = h("input", { type: "checkbox", class: "dz-switch", role: "switch", "aria-label": meta.label });
       input.checked = value;
       input.addEventListener("change", function () { setAt(doc, path, input.checked); onEdit(); });
@@ -510,7 +516,7 @@
     if (conf.add) thead.appendChild(h("th"));
     var tbody = h("tbody");
     items.forEach(function (it, i) {
-      var tr = h("tr", null, h("td", { class: "dz-sub__n", text: String(i + 1) }));
+      var tr = h("tr", null, h("td", { class: "dz-sub__n", text: conf.rowLabel ? conf.rowLabel.replace("{0}", i).replace("{1}", i + 1) : String(i + 1) }));
       cols.forEach(function (c) {
         var p = path.concat(String(i), c), v = getAt(it, c), m = rowMeta(table, docId, p), td = h("td", { "data-col": c.join(".") });
         if (v !== undefined || m.optional) td.appendChild(cell(table, docId, doc, p, v, m));
@@ -518,7 +524,7 @@
       });
       if (conf.add) {
         var td = h("td");
-        if (i >= saved) td.appendChild(h("button", { class: "btn btn--sm dz-sub__drop", type: "button", text: "Bỏ",
+        if (i >= saved && !conf.dropLast) td.appendChild(h("button", { class: "btn btn--sm dz-sub__drop", type: "button", text: "Bỏ",
           title: "Bỏ dòng mới thêm này (chưa lưu)", onclick: function () { dropItem(table, docId, doc, path, i); } }));
         tr.appendChild(td);
       }
@@ -526,7 +532,10 @@
     });
     return h("div", { class: "dz-sub" }, h("table", { class: "dz-sub__table" }, h("thead", null, thead), tbody),
       conf.add ? h("div", { class: "dz-sub__add" }, h("button", { class: "btn btn--sm", type: "button", text: conf.add.button,
-        "data-add": docId, onclick: function () { addItem(table, docId, doc, path, conf.add); } })) : null);
+        "data-add": docId, onclick: function () { addItem(table, docId, doc, path, conf.add); } }),
+        conf.dropLast ? h("button", { class: "btn btn--sm", type: "button", text: conf.dropLast.button, title: conf.dropLast.title || "",
+          "data-drop-last": docId, disabled: items.length <= (conf.dropLast.min || 0),
+          onclick: function () { dropItem(table, docId, doc, path, items.length - 1); } }) : null) : null);
   }
 
   function baseDoc(table, docId) { return baseline(table).filter(function (d) { return d._id === docId; })[0] || {}; }
@@ -535,7 +544,8 @@
     var list = getAt(doc, path), prefix = (add.idPrefix || {})[docId] || "";
     var n = 1;
     while (list.some(function (it) { return it.id === prefix + "new" + n; })) n++;
-    var item = Object.assign({ id: prefix + "new" + n }, clone(add.item));
+    var last = list[list.length - 1];
+    var item = Object.assign(add.noId ? {} : { id: prefix + "new" + n }, clone(add.copyLast && last ? last : add.item));
     list.push(item);
     Object.keys(item).forEach(function (k) {
       var p = path.concat(String(list.length - 1), k), m = fieldMeta(table, p);

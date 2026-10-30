@@ -84,14 +84,33 @@
 
     upgrade: {
       title: "Lên cấp xác",
-      blurb: "Cấp tối đa, giá vàng, mảnh, phần tăng chỉ số mỗi cấp, mốc giảm hồi chiêu và mốc mở nội tại.",
+      blurb: "Giá vàng và mảnh từng cấp (số dòng = cấp tối đa), phần chỉ số mỗi xác được cộng thêm mỗi lần lên cấp, mốc giảm hồi chiêu và mốc mở nội tại.",
       effect: LOBBY,
       fields: {
         "_id": CFG_ID,
-        "maxLevel": { label: "Cấp tối đa", min: 1, int: true },
-        "goldBase": { label: "Vàng gốc", unit: "vàng", min: 0, int: true, help: "Giá lên cấp = vàng gốc × (cấp + 1)." },
-        "shardPerLevel": { label: "Mảnh mỗi cấp", unit: "mảnh", min: 0, int: true },
-        "statPerLevel": { label: "Chỉ số tăng mỗi cấp", pct: true, min: 0, help: "0,038 = mỗi cấp cộng 3,8% chỉ số gốc." },
+        "steps": {
+          label: "Giá từng cấp",
+          help: "Mỗi dòng là một bước lên cấp, ví dụ dòng \"1 → 2\" là giá để lên cấp 2. Cấp tối đa = số dòng.",
+          cols: ["shard", "gold"],
+          rowLabel: "{0} → {1}",
+          add: { button: "Thêm cấp", noId: true, copyLast: true, item: { shard: 1, gold: 0 } },
+          dropLast: { button: "Bỏ cấp cuối", min: 1, title: "Bỏ dòng cuối để giảm cấp tối đa (cả dòng đã lưu)" }
+        },
+        "steps.*": { label: "Bước" },
+        "steps.*.shard": { label: "Mảnh", unit: "mảnh", min: 0, int: true },
+        "steps.*.gold": { label: "Vàng", unit: "vàng", min: 0, int: true },
+        "growth": {
+          label: "Chỉ số tăng mỗi cấp",
+          help: "Mỗi lần lên cấp, chỉ số của xác cộng thêm đúng số này.",
+          cols: ["crew", "hp", "atk", "spd", "carry", "grit"]
+        },
+        "growth.*": { label: "Xác" },
+        "growth.*.crew": { label: "Xác", readonly: true, namesFrom: { table: "crew", field: "name" } },
+        "growth.*.hp": { label: "Máu", min: 0 },
+        "growth.*.atk": { label: "Sát thương", min: 0 },
+        "growth.*.spd": { label: "Tốc chạy", min: 0 },
+        "growth.*.carry": { label: "Sức mang", min: 0 },
+        "growth.*.grit": { label: "Giáp", pct: true, min: 0 },
         "cdAtLevel": { label: "Cấp giảm hồi chiêu", min: 1, int: true, help: "Từ cấp này hồi chiêu kỹ năng được giảm." },
         "cdReduce": { label: "Mức giảm hồi chiêu", pct: true, min: 0, max: 1 },
         "passiveAtLevel": { label: "Cấp mở nội tại", min: 1, int: true }

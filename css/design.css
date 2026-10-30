@@ -247,3 +247,5 @@
 .dz-gate__row { flex-wrap: wrap; }
 .dz-gate__hub { font-size: 13px; color: var(--text-dim); }
 .dz-gate .dz-input.is-invalid { border-color: var(--danger); }
+.dz-sub__add .btn + .btn { margin-left: 8px; }
+.dz-sub__n { white-space: nowrap; }

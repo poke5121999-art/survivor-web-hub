@@ -60,6 +60,7 @@ const LABELS_JS = 'window.DESIGN_LABELS = ' + JSON.stringify({
   crew: { title: 'Nhân vật', blurb: 'Chỉ số từng nhân vật.', effect: 'Từ ca kế tiếp.', rowTitle: 'name',
     fields: { name: { label: 'Tên' }, hp: { label: 'Máu', int: true, min: 1 }, atk: { label: 'Sát thương', min: 0 },
       spd: { label: 'Tốc độ', min: 0 }, carry: { label: 'Sức mang', int: true }, 'skill.cd': { label: 'Hồi chiêu', unit: 'giây' } } },
+  upgrade: realLabels.window.DESIGN_LABELS.upgrade,
   cost_guard: realLabels.window.DESIGN_LABELS.cost_guard,
   client_gate: realLabels.window.DESIGN_LABELS.client_gate,
   modes: realLabels.window.DESIGN_LABELS.modes,
@@ -765,6 +766,43 @@ const K = (id, p) => `[data-k="${id}|${p}"]`;
   await p.click('.dz-row[data-id="classic"] input.dz-switch');
   check('bật / tắt bố cục = 1 thay đổi', (await txt('#dz-bar-count')) === '1 thay đổi', await txt('#dz-bar-count'));
   await p.click('#btn-discard');
+
+  // 15) Lên cấp xác: bảng giá từng cấp + bảng chỉ số tăng theo xác (md_upgrade dạng mới).
+  await open('upgrade');
+  const stepGold = '[data-k^="default|steps."][data-k$=".gold"]';
+  const seedSteps = DEFAULTS.upgrade[0].steps;
+  check('upgrade: bảng giá hiện 10 dòng', await p.$$eval(stepGold, e => e.length) === 10, '');
+  check('upgrade: dòng 2 ghi "1 → 2"', (await p.$$eval('.dz-sub__table', ts => ts[0].querySelectorAll('tbody tr')[1].firstChild.textContent)) === '1 → 2', '');
+  check('upgrade: không còn ô maxLevel / goldBase / shardPerLevel / statPerLevel',
+    await p.$$eval('[data-k*="maxLevel"], [data-k*="goldBase"], [data-k*="shardPerLevel"], [data-k*="statPerLevel"]', e => e.length) === 0, '');
+  check('upgrade: "Bỏ cấp cuối" bật được khi 10 dòng, không có nút Bỏ riêng từng dòng',
+    !(await p.$eval('[data-drop-last]', e => e.disabled)) && await p.$$eval('.dz-sub__drop', e => e.length) === 0, '');
+  await p.click('[data-add="default"]');
+  const after11 = await p.$$eval(stepGold, e => e.length);
+  const lastGold = await p.inputValue(K('default', 'steps.10.gold') + ' input'), lastShard = await p.inputValue(K('default', 'steps.10.shard') + ' input');
+  check('upgrade: "Thêm cấp" thành 11 dòng, dòng cuối {gold:2000,shard:1}, không có id',
+    after11 === 11 && lastGold === '2000' && lastShard === '1' && await p.$$eval('[data-k$="steps.10.id"]', e => e.length) === 0, after11 + ' ' + lastGold + '/' + lastShard);
+  await p.click('[data-drop-last]');
+  check('upgrade: "Bỏ cấp cuối" về lại 10 dòng', await p.$$eval(stepGold, e => e.length) === 10, '');
+  await p.click('[data-drop-last]');
+  check('upgrade: bỏ được cả dòng cuối đã lưu (9 dòng, tính là thay đổi)', await p.$$eval(stepGold, e => e.length) === 9 &&
+    !/^Chưa sửa gì/.test(await txt('#dz-bar-count')), await txt('#dz-bar-count'));
+  await p.click('#btn-discard');
+  const gcell = await p.$eval('[data-k="default|growth.0.crew"]', e => ({ t: e.textContent.trim(), inputs: e.querySelectorAll('input,select,textarea').length }));
+  check('upgrade: ô đầu của bao ghi "Flare" và không phải ô nhập', gcell.t === 'Flare' && gcell.inputs === 0, JSON.stringify(gcell));
+  check('upgrade: bảng chỉ số có đủ dòng xác', await p.$$eval('[data-k^="default|growth."][data-k$=".hp"]', e => e.length) === DEFAULTS.upgrade[0].growth.length, '');
+  await p.fill(K('default', 'growth.0.hp') + ' input', '5');
+  await p.click('#btn-review');
+  await dryDone();
+  await p.click('#btn-save');
+  await p.waitForSelector('#dz-nav [data-table="upgrade"] .dz-chip--live');
+  const upSave = fake.saves.filter(x => x.table === 'upgrade' && !x.dryRun).pop();
+  const upDoc = upSave && upSave.docs[0];
+  check('upgrade: lưu gửi steps (10 dòng) và growth bao hp 5',
+    upDoc && upDoc.steps.length === 10 && upDoc.growth[0].crew === 'bao' && upDoc.growth[0].hp === 5 &&
+    JSON.stringify(upDoc.steps) === JSON.stringify(seedSteps) && !('maxLevel' in upDoc), upDoc ? JSON.stringify(upDoc.growth[0]) : '');
+  await p.screenshot({ path: process.env.UPGRADE_SHOT || (SHOTS + '/upgrade.png'), fullPage: true });
+  check('upgrade: 1280 px không tràn ngang', await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), '');
 
   const e = errs.filter(x => !/favicon|404/.test(x));
   check('không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
