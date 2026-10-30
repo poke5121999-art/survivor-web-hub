@@ -118,11 +118,11 @@
       var buildUrl = "Build";
       // Phiên bản (1.0+<sha8>, WebGLBuild) trên URL: service worker và bộ nhớ đệm của Unity khoá theo URL, mà bản build thử luôn
       // tên test.*; thiếu nó thì build mới trên cùng cổng nhận lại tệp đã giải nén của build cũ.
-      var buildV = "?v=" + encodeURIComponent("1.0+c33f33a9");
+      var buildV = "?v=" + encodeURIComponent("1.0+d8c02cb3");
       var config = {
-        dataUrl: buildUrl + "/repo2d-unity-15b5acdd63.data.unityweb" + buildV,
-        frameworkUrl: buildUrl + "/repo2d-unity-15b5acdd63.framework.js.unityweb" + buildV,
-        codeUrl: buildUrl + "/repo2d-unity-15b5acdd63.wasm.unityweb" + buildV,
+        dataUrl: buildUrl + "/repo2d-unity-aa8f673b18.data.unityweb" + buildV,
+        frameworkUrl: buildUrl + "/repo2d-unity-aa8f673b18.framework.js.unityweb" + buildV,
+        codeUrl: buildUrl + "/repo2d-unity-aa8f673b18.wasm.unityweb" + buildV,
         streamingAssetsUrl: "StreamingAssets",
         // Cùng trần độ nét với fitCanvas: không đặt thì Unity tự lấy devicePixelRatio (3 trên nhiều điện thoại) và
         // bộ đệm nhảy qua lại giữa hai cỡ mỗi lần trang đổi cỡ.
@@ -132,7 +132,7 @@
         matchWebGLToCanvasSize: false,
         companyName: "HLO",
         productName: "Boo Haul: Co-op Horror",
-        productVersion: "1.0+c33f33a9",
+        productVersion: "1.0+d8c02cb3",
         showBanner: unityShowBanner,
         // Có service worker giữ bản đã giải nén (sw.js) thì nó là bộ nhớ đệm của tệp build: tắt bộ nhớ đệm IndexedDB của Unity
         // cho Build/, kẻo Unity lưu thêm một bản 121 MB và mỗi lần kiểm lại lại ghi đè.
@@ -263,7 +263,7 @@
       // Mốc khởi động của trang (performance.now), BootMark đọc qua PortBootMarks và gửi kèm RUN_FINISH ca đầu phiên.
       window.__repoBoot = {};
       var script = document.createElement("script");
-      script.src = buildUrl + "/repo2d-unity-15b5acdd63.loader.js";
+      script.src = buildUrl + "/repo2d-unity-aa8f673b18.loader.js";
       script.onerror = function () { loadFailed(loaderText("Không tải được ", "Could not load ") + script.src); };
       script.onload = function () {
         window.__repoBoot.ld = performance.now();
