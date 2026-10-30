@@ -849,7 +849,7 @@ window.HUB_GAMES = [
     en: { title: "Sprite Cutter", tagline: "Slice a sprite sheet into PNG frames, align them and preview the animation.", desc: "Import or paste a sprite sheet, set the grid, drag each frame into place and onion-skin the frames to align them. Remove a flat background, erase by hand with a round or square brush, and drop anchor points. Export a .zip of per-frame PNGs, a repacked sheet and a JSON of frame rects." },
     thumbnail: "assets/thumbnails/sprite-cutter.png",
     path: "games/sprite-cutter/index.html",
-    rev: "20261029h",
+    rev: "20261030a",
     // Một trang HTML thuần, không bước build. Nguồn ở ~/REPO_MOBI/notes/sprite-cutter/index.html (cũng là
     // artifact claude.ai 5DtELwnoaDC6ZA5WrSxzQy); chép sang đây bằng `sh build-hub.sh <rev>` trong thư mục đó,
     // nhớ tăng `rev` ở đây cho trùng. JSZip 3.10.1 (MIT) vendor ở games/sprite-cutter/vendor.
