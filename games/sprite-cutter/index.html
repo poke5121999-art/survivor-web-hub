@@ -116,7 +116,7 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
 
 <div class="wrap">
   <header>
-    <h1>Bàn Cắt Sprite <small class="num" style="font-size:12px;font-weight:400;color:var(--mute)">bản 41</small></h1>
+    <h1>Bàn Cắt Sprite <small class="num" style="font-size:12px;font-weight:400;color:var(--mute)">bản 42</small></h1>
     <p>Nhập sprite sheet, chỉnh khung từng frame, xem chạy thử, rồi cắt ra PNG đúng khung đã chỉnh.</p>
   </header>
 
@@ -294,7 +294,7 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
 
 </div>
 
-<script src="vendor/jszip.min.js?v=20261030f"></script>
+<script src="vendor/jszip.min.js?v=20261030g"></script>
 <script>
 const $ = id => document.getElementById(id);
 
@@ -489,7 +489,7 @@ function drawSheet() {
     sctx.fillStyle = T.sel; sctx.fillRect(hx - 5, hy - 5, 10, 10);
     sctx.strokeStyle = "#fff"; sctx.strokeRect(hx - 4.5, hy - 4.5, 9, 9);
   }
-  if (sheetHover && ERASE_TOOLS.has(S.stackTool)) drawBrush(sctx, sheetHover.x * z, sheetHover.y * z, z, S.stackTool);
+  if (sheetHover && BRUSHES.has(S.stackTool)) drawBrush(sctx, sheetHover.x * z, sheetHover.y * z, z);
   sheetDirty = false;
 }
 
@@ -727,7 +727,7 @@ function selectCell(c, pause = true) {
 sheet.addEventListener("pointermove", e => {
   if (ERASE_TOOLS.has(S.stackTool) && !drag) {
     const p = toImg(e);
-    sheetHover = p; sheetDirty = true; sheet.style.cursor = "crosshair";
+    sheetHover = p; sheetDirty = true; sheet.style.cursor = toolCursor(S.stackTool);
     if (sheetErasing) eraseMove(p);
     return;
   }
@@ -833,7 +833,7 @@ function drawStack() {
   const curAlpha = drawGhosts(kctx, shown, shown.indexOf(fr[k]), s, ox, oy, S.stackAlpha);
   if (k >= 0) drawFrame(kctx, fr[k], s, ox, oy, curAlpha);
   drawMarks(kctx, s, ox, oy, dpr);
-  if (stackHover && ERASE_TOOLS.has(S.stackTool)) { kctx.save(); kctx.scale(dpr, dpr); drawBrush(kctx, (ox + stackHover.u * s) / dpr, (oy + stackHover.v * s) / dpr, s / dpr, S.stackTool); kctx.restore(); }
+  if (stackHover && BRUSHES.has(S.stackTool)) { kctx.save(); kctx.scale(dpr, dpr); drawBrush(kctx, (ox + stackHover.u * s) / dpr, (oy + stackHover.v * s) / dpr, s / dpr); kctx.restore(); }
   kctx.lineWidth = Math.max(1, dpr);
   kctx.strokeStyle = T.accent;
   kctx.strokeRect(ox - 0.5, oy - 0.5, gw * s + 1, gh * s + 1);
@@ -893,7 +893,7 @@ function renderList(fr) {
 const HANDLES = [[-1, -1], [0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0]];
 const HANDLE_CURSOR = { "-1,-1": "nwse-resize", "1,1": "nwse-resize", "1,-1": "nesw-resize", "-1,1": "nesw-resize", "0,-1": "ns-resize", "0,1": "ns-resize", "-1,0": "ew-resize", "1,0": "ew-resize" };
 let stackBox = null, stackHover = null;
-const stackPane = stack.parentElement, ERASE_TOOLS = new Set(["erase", "bgerase", "fill", "restore", "paint"]);
+const stackPane = stack.parentElement, ERASE_TOOLS = new Set(["erase", "bgerase", "fill", "restore", "paint"]), BRUSHES = new Set(["erase", "bgerase", "restore", "paint"]);
 S.stackZoom = "fit";
 
 function handleAt(e) {
@@ -968,7 +968,7 @@ stack.addEventListener("pointermove", e => {
   }
   if (!stackDrag) {
     const h = handleAt(e);
-    stack.style.cursor = h ? HANDLE_CURSOR[h.join()] : S.stackTool === "mark" ? (markAt(e) ? "grab" : "crosshair") : S.stackTool === "move" ? "grab" : "crosshair";
+    stack.style.cursor = h ? HANDLE_CURSOR[h.join()] : S.stackTool === "mark" && markAt(e) ? "grab" : toolCursor(S.stackTool);
     return;
   }
   if (stackDrag.kind === "mark") {
@@ -993,7 +993,7 @@ const endStackDrag = () => {
     if (m.x < 0 || m.y < 0 || m.x >= S.grid.w || m.y >= S.grid.h) S.marks.splice(S.marks.indexOf(m), 1);
   }
   endErase();
-  stackDrag = null; stack.style.cursor = S.stackTool === "move" ? "grab" : "crosshair"; changed();
+  stackDrag = null; stack.style.cursor = toolCursor(S.stackTool); changed();
 };
 
 function framePixel(e) {
@@ -1023,7 +1023,7 @@ function setStackTool(t) {
   $("ed-tol-box").hidden = t !== "bgerase" && t !== "fill"; $("ed-contig-box").hidden = t !== "fill";
   $("mode-frame").setAttribute("aria-pressed", t === "move" && S.drag === "frame"); $("mode-grid").setAttribute("aria-pressed", t === "move" && S.drag === "grid");
   if (t !== "move") sheetHover = null;
-  stack.style.cursor = t === "move" ? "grab" : "crosshair"; stackDirty = true; sheetDirty = true;
+  stack.style.cursor = toolCursor(t); stackDirty = true; sheetDirty = true;
 }
 // E chọn lại cục tẩy dùng gần nhất, Shift E đổi vòng Tẩy → Tẩy nền → Tẩy vùng.
 function pickEraser(next) {
@@ -1536,19 +1536,18 @@ function redoEdit() {
   const s = S.redo.pop();
   S.strokes.push(s); paintStroke(s, 0); editsChanged();
 }
-function drawBrush(ctx, x, y, z, tool) {
-  ctx.lineWidth = 1.5;
-  for (const [c, r] of [["rgba(0,0,0,0.7)", 1.5], ["#fff", 0]]) {
-    ctx.strokeStyle = c; ctx.beginPath();
-    if (tool === "fill" || tool === "bgerase") { ctx.moveTo(x - 5, y); ctx.lineTo(x + 5, y); ctx.moveTo(x, y - 5); ctx.lineTo(x, y + 5); }
-    if (tool !== "fill") {
-      const h = Math.max(2, S.edSize * z / 2) + r;
-      ctx.moveTo(x + h, y);
-      if (S.edShape === "square") ctx.rect(x - h, y - h, h * 2, h * 2); else ctx.arc(x, y, h, 0, Math.PI * 2);
-    }
-    ctx.stroke();
-  }
+// Vòng cọ như Photoshop: một nét 1px đảo màu nền bên dưới nên thấy được trên cả nền sáng lẫn tối.
+// Con trỏ hệ thống bị giấu (toolCursor), Tẩy vùng là công cụ bấm nên giữ con trỏ chữ thập, không vẽ vòng.
+function drawBrush(ctx, x, y, z) {
+  const h = Math.max(2, S.edSize * z / 2);
+  ctx.save();
+  ctx.globalCompositeOperation = "difference"; ctx.strokeStyle = "#fff"; ctx.lineWidth = 1;
+  ctx.beginPath();
+  if (S.edShape === "square") ctx.rect(x - h, y - h, h * 2, h * 2); else ctx.arc(x, y, h, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
 }
+const toolCursor = t => t === "move" ? "grab" : BRUSHES.has(t) ? "none" : "crosshair";
 const srcCache = new WeakMap();
 function srcData() {
   if (!srcCache.has(S.src)) srcCache.set(S.src, srcPixels().d.data);
