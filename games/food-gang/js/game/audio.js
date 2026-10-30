@@ -12,6 +12,19 @@ export class GameAudio {
     this.musicKey = null;
     this.played = 0;
     this.lastKeys = [];
+    this.sfxMute = false;
+    this.musicMute = false;
+  }
+
+  // AudioSystem.MuteMusic / MuteSFX (Settings): music keeps its key so unmuting restarts it
+  setMute(music, sfx) {
+    this.sfxMute = !!sfx;
+    if (!!music !== this.musicMute) {
+      this.musicMute = !!music;
+      const k = this.musicKey, v = this.musicVol;
+      if (this.musicMute) { if (this.music) this.music.stop(); this.music = null; }
+      else if (k) { this.musicKey = null; this.playMusic(k, v); }
+    }
   }
 
   clip(key) {
@@ -26,6 +39,7 @@ export class GameAudio {
   note(key) { this.played++; this.lastKeys.push(key); if (this.lastKeys.length > 12) this.lastKeys.shift(); }
 
   sfx(key, opts = {}) {
+    if (this.sfxMute) return null;
     const c = key && this.clip(key);
     if (!c) return null;
     this.note(key);
@@ -33,6 +47,7 @@ export class GameAudio {
   }
 
   sfxAt(key, x, y, pitch = 1) {
+    if (this.sfxMute) return null;
     const c = key && this.clip(key);
     if (!c) return null;
     const d = Math.hypot(x - this.listener[0], y - this.listener[1]);
@@ -43,6 +58,7 @@ export class GameAudio {
   }
 
   loop(key, volume = 1) {
+    if (this.sfxMute && !this._musicLoop) return null;
     const c = key && this.clip(key);
     if (!c) return null;
     const h = { stopped: false, handle: null, stop() { this.stopped = true; if (this.handle) this.handle.stop(); } };
@@ -54,7 +70,11 @@ export class GameAudio {
     if (this.musicKey === key) return;
     this.stopMusic();
     this.musicKey = key;
+    this.musicVol = volume;
+    if (this.musicMute) return;
+    this._musicLoop = true;
     this.music = this.loop(key, volume);
+    this._musicLoop = false;
   }
 
   stopMusic() {

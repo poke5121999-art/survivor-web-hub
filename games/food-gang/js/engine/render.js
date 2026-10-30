@@ -16,6 +16,7 @@ uniform sampler2D uTex;
 out vec4 o;
 void main(){
   vec4 c = texture(uTex, vUV) * vCol;
+  if (vExtra.x > 0.0) c.rgb = mix(c.rgb, vec3(dot(c.rgb, vec3(0.299, 0.587, 0.114))), vExtra.x);
   c.rgb = mix(c.rgb, vFlash.rgb, vFlash.a);
   if (vExtra.y > 0.5) c.rgb *= c.a;
   o = c;

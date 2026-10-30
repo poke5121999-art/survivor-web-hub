@@ -1,9 +1,10 @@
 // Loads exported data (tools/export_unity.py) and tracks what resolved for fgEngineStats.
+import { loadFallbackFont } from './text.js';
 
 export const stats = {
   spritesRef: 0, spritesMissing: [], clipsRef: 0, clipsMissing: [], ctrlMissing: [], matsMissing: [], fontsMissing: [],
   audioMissing: [], prefabsMissing: [], atlasesLoaded: [], drawCalls: 0, batches: 0, particles: 0, nodes: 0, frames: 0,
-  animators: 0, errors: [],
+  animators: 0, errors: [], fbGlyphs: 0, fbQuads: 0, fbPages: 0,   // fallback (Canvas2D) glyphs: made / quads drawn / atlas pages
 };
 
 const miss = (list, k) => { if (k && !list.includes(k)) list.push(k); };
@@ -127,6 +128,7 @@ export class Assets {
       else {
         this.fonts.set(name, this.getJSON(file).then(async (f) => {
           f.images = await Promise.all(f.atlas.map((a) => loadImage(this.base + a + this.rev)));
+          if (f.ttf) await loadFallbackFont(this.base + f.ttf + this.rev);   // OTF face for characters the SDF atlas lacks
           f.material = this.materials[f.mat] || null;
           f.glyphs = new Map(Object.entries(f.chars).map(([k, v]) => [+k, v]));
           this.fontsReady.set(name, f);

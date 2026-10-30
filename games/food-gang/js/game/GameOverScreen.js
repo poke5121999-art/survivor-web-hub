@@ -50,7 +50,8 @@ export class GameOverScreen {
     localize(root);
     this.buildPodium(match, res);
     this.bg = root.find('Canvas_3D/Background');
-    engine.onClick((b) => this.onClick(b));
+    this.clickFn = (b) => this.onClick(b);
+    engine.onClick(this.clickFn);
     this.upd = () => this.update();
     engine.hooks.late.push(this.upd);
     return this;
@@ -165,16 +166,22 @@ export class GameOverScreen {
     else if (m === 'OpenReward') this.openReward();
   }
 
-  openReward() {
+  // CLAIM: free while the free opens last, then the ad button (web: the click is the ad); the fridge opens in SceneReward
+  async openReward() {
     const { app } = this;
+    if (this.opening) return;
+    this.opening = true;
     const p = app.profile, now = new Date();
     const free = app.meta.canOpenFridgeFree(p, now);
+    const box = p.fridge.pendingBox || this.res.fridgeBox;
     const r = app.meta.openFridge(p, free ? FridgeOpenMethod.Free : FridgeOpenMethod.Ad, now, new MetaRng(Date.now() & 0x7fffffff));
     ProfileJson.save(app.store, p);
     this.opened = r;
     this.btnOpen.setActive(false);
     app.audio.sfx('BoxPop');
+    if (app.showRewards && r.ok !== false) await app.showRewards(r, box);
     this.an.setTrigger('BottomBar');
+    this.opening = false;
   }
 
   // AspectRatioFitter EnvelopeParent (ratio 1) on the blurred background
@@ -201,7 +208,7 @@ export class GameOverScreen {
   dispose() {
     const { engine } = this;
     engine.hooks.late = engine.hooks.late.filter((f) => f !== this.upd);
-    engine.clickHooks = [];
+    engine.clickHooks = (engine.clickHooks || []).filter((f) => f !== this.clickFn);
     for (const r of this.inst.roots) r.destroy();
     engine.post = null;
   }

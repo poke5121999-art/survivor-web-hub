@@ -114,9 +114,12 @@ export class Hud {
 
   // ------------------------------------------------------------------------------------------- start sequence
 
-  showVersus(names, modeLabel, stageName) {
+  // searching: SceneLoadingGame lobby look of the clip, the local fighter's cell filled and spinning m_loading on the
+  // others until revealVersus() (QuantumMatchmaker BotFillAt)
+  showVersus(names, modeLabel, stageName, searching = false) {
     const L = this.loading, s = this.ctx.runner.state, gd = this.ctx.gameData;
     L.panel.setActive(true);
+    L.pending = [];
     // cell order: team 1 on the left of "VS", then the others (LoadingController.SetMode / SetSlot)
     const order = s.agents.slice().sort((a, b) => (a.team - b.team) || (a.slot - b.slot));
     L.cells.forEach((cell, i) => {
@@ -132,8 +135,10 @@ export class Hud {
       if (bg) bg.setSprite('sprite:bg_skin_' + Math.max(1, Math.min(4, a.team)));
       const tc = gd.m_colorsTeam[a.team - 1];
       if (nm) { nm.setText(names[a.slot] || ''); if (tc) nm.color = tc.slice(); }
-      const root = this.nodeOf(f.m_root); if (root) root.setActive(true);
-      const ld = this.nodeOf(f.m_loading); if (ld) ld.setActive(false);
+      const wait = searching && a.slot !== this.ctx.runner.localSlot;
+      const root = this.nodeOf(f.m_root); if (root) root.setActive(!wait);
+      const ld = this.nodeOf(f.m_loading); if (ld) ld.setActive(wait);
+      if (wait) { (L.pending = L.pending || []).push({ root, ld, i }); return; }
       const ch = this.nodeOf(f.m_choosing); if (ch) ch.setActive(false);
       const ar = this.nodeOf(f.m_animationRoot) || cell.node;
       ar.ls[0] = ar.ls[1] = 0.001;
@@ -146,6 +151,19 @@ export class Hud {
     if (L.versusReverse) L.versusReverse.setActive(s.teams === TeamConfig.OneVersusThree && s.bossOnLeft);
     if (L.mode) L.mode.setText(modeLabel);
     if (L.stage) L.stage.setText(stageName);
+  }
+
+  revealVersus() {
+    const L = this.loading;
+    for (const p of L.pending || []) {
+      if (p.root) p.root.setActive(true);
+      if (p.ld) p.ld.setActive(false);
+      const cell = L.cells[p.i];
+      const ar = this.nodeOf(cell.fields.m_animationRoot) || cell.node;
+      ar.ls[0] = ar.ls[1] = 0.001;
+      L.appear.push({ node: ar, t: -0.08 * p.i, d: cell.fields.m_appearDuration || 0.3 });
+    }
+    L.pending = [];
   }
 
   hideVersus() { this.loading.panel.setActive(false); }
@@ -252,7 +270,8 @@ export class Hud {
     for (const t of this.teams) {
       if (!t.init) {
         t.init = true;
-        t.node.setActive(s.agents.some((a) => a.team === t.team));
+        // the tutorial shows no score bubbles (clip frame): only the dummies counter text
+        t.node.setActive(!this.tutorial && s.agents.some((a) => a.team === t.team && !a.isDummy));
         t.max = s.teams === TeamConfig.FreeForAll ? KILL_TARGET_FFA : KILL_TARGET_TEAM;
         // life icons only in LastSurvivor, the round bubble otherwise
         if (t.round) t.round.setActive(!ls);
@@ -350,6 +369,12 @@ export class Hud {
   // life bars follow SLOT_LIFEBAR in screen space (late, after the camera moved)
   updateLifeBars(views, dt) {
     const r = this.ctx.runner, s = r.state, engine = this.ctx.engine;
+    if (this.tutorial) {
+      const me = r.localAgent;
+      let best = -1, bd = 1e9;
+      for (const a of s.agents) if (a.isDummy && !isDead(a) && me) { const d = Math.abs(a.pos.x - me.pos.x) + Math.abs(a.pos.y - me.pos.y); if (d < bd) { bd = d; best = a.id; } }
+      this.tutoTarget = best;
+    }
     const cv = this.lifeBarRoot.get('Canvas');
     const k = cv && cv.scale ? cv.scale : 1;
     for (const v of views) {
@@ -362,6 +387,7 @@ export class Hud {
       bar.fill.value = a.hpMax > 0 ? Math.max(0, Math.min(1, a.hpCurrent / a.hpMax)) : 0;
       bar.upd.value = smoothBar(bar, bar.upd.value, bar.fill.value, dt);
       if (bar.score && bar.scoreOn && bar.lastScore !== a.killCount) { bar.lastScore = a.killCount; bar.score.setText(String(a.killCount)); }
+      if (bar.arrow) bar.arrow.setActive(a.id === this.tutoTarget);
       const w = (v.slotLifebar || v.root).world;
       const p = engine.worldToScreen(w[12], w[13] + (v.slotLifebar ? 0 : this.lbOffsetY), w[14]);
       if (!p) continue;
@@ -384,9 +410,11 @@ export class Hud {
     if (nm) { nm.setText(this.agentName(a)); nm.color = this.teamColor(a.team); }
     const boss = nodeOf(f.m_iconBoss); if (boss) boss.setActive(!!a.isBoss);
     const arrow = nodeOf(f.m_iconArrow); if (arrow) arrow.setActive(false);
+    // tutorial: the arrow marks the dummy to shoot, dummies carry no name
+    if (a.isDummy) { bar.arrow = arrow; if (nm) nm.node.setActive(false); }
     const s = this.ctx.runner.state;
     // kill count next to the bar only where a player's own kills decide: FFA deathmatch / kill race
-    bar.scoreOn = s.teams === TeamConfig.FreeForAll && s.goal !== GoalType.LastSurvivor;
+    bar.scoreOn = !this.tutorial && s.teams === TeamConfig.FreeForAll && s.goal !== GoalType.LastSurvivor;
     const sr = nodeOf(f.m_scoreRoot); if (sr) sr.setActive(bar.scoreOn);
     bar.fill.value = 1; bar.upd.value = 1;
     this.lifeBars.set(a.id, bar);

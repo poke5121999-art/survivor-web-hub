@@ -47,9 +47,10 @@ export class Engine {
 
   // ------------------------------------------------------------------------------------------------ instantiate
 
-  async loadScene(name) {
+  // layer: popup depth (PopupSceneManager stacks scenes; a higher layer draws and takes clicks above lower ones)
+  async loadScene(name, layer = 0) {
     const data = await this.assets.scene(name);
-    const inst = this.spawn(data, null);
+    const inst = this.spawn(data, null, layer);
     this.setupCameraRig();
     return inst;
   }
@@ -62,12 +63,16 @@ export class Engine {
     return inst;
   }
 
-  spawn(data, parent) {
+  spawn(data, parent, layer = 0) {
     const inst = buildNodes(data, this);
     inst.root = inst.roots[0];
+    inst.layer = layer;
     data.nodes.forEach((nd, i) => {
       const n = inst.nodes[i];
-      for (const cd of nd.comps) n.comps.push(this.makeComp(cd, n, inst));
+      for (const cd of nd.comps) {
+        n.comps.push(this.makeComp(cd, n, inst));
+        if (cd.type === 'MonoBehaviour' && cd.script === 'Text' && cd.fields && cd.fields.m_FontData) n.comps.push(this.makeComp(legacyText(cd), n, inst));
+      }
     });
     for (const r of inst.roots) { if (parent) r.setParent(parent); else this.roots.push(r); }
     // runtimes that bind to other components come after every component exists
@@ -105,7 +110,7 @@ export class Engine {
         c.matObjs = (c.mats || []).map((m) => A.material(m));
         this.meshRenderers.push(c);
         break;
-      case 'Canvas': this.canvases.push(c); break;
+      case 'Canvas': c.sceneLayer = inst.layer || 0; this.canvases.push(c); break;
       case 'Camera': this.cameras.push(c); break;
       case 'AudioSource': this.audioSources.push(c); break;
       case 'Button': this.buttons.push(c); c.curTint = c.colors ? c.colors.normal.slice() : [1, 1, 1, 1]; c.state = null; break;
@@ -129,7 +134,11 @@ export class Engine {
       }
       case 'CinemachineCamera': c.followNode = inst.ref(c.follow); break;
       case 'CinemachineConfiner3D': c.boundsComp = inst.ref(c.bounds); break;
-      case 'MonoBehaviour': c.ref = (r) => inst.ref(r); break;
+      case 'MonoBehaviour':
+        c.ref = (r) => inst.ref(r);
+        if (c.script === 'ScrollRect') this.ui.initScroll(c, n, inst);
+        else if (c.script === 'TMP_InputField') this.ui.initInput(c, n, inst);
+        break;
       default: break;
     }
   }
@@ -219,6 +228,8 @@ export class Engine {
   start() {
     let last = performance.now();
     const tick = (now) => {
+      // FPSSettings: 60 caps the loop on high refresh screens, 0 = every animation frame
+      if (this.maxFps && now - last < 1000 / this.maxFps - 2) { this.raf = requestAnimationFrame(tick); return; }
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
       try { this.step(dt); } catch (e) { stats.errors.push(String(e && e.stack || e)); console.error(e); }
@@ -276,7 +287,7 @@ export class Engine {
     gl.viewport(0, 0, W, H);
     R.uiVP = ortho(mat4(), 0, W, 0, H, -10000, 10000);
     const cvs = this.canvases.filter((c) => c.enabled && c.mode !== 2 && c.node.activeInHierarchy && !this.nestedCanvas(c.node))
-      .sort((a, b) => a.order - b.order);
+      .sort(canvasOrder);
     for (const cv of cvs) { this.ui.layoutCanvas(cv, W, H); this.ui.drawCanvas(cv, R); }
     R.flush();
     R.state = null;
@@ -368,17 +379,20 @@ export class Engine {
     const flash = fa ? packColor(fc[0], fc[1], fc[2], fa) : 0;
     const mc = mat && mat.color ? mat.color : null;
     const col = sr.color;
-    const pc = packColor(col[0] * (mc ? mc[0] : 1), col[1] * (mc ? mc[1] : 1), col[2] * (mc ? mc[2] : 1), col[3] * (mc ? mc[3] : 1) * (sr.alphaMul ?? 1));
+    // tint/grey: kept outside the animated colour (locked fighters drawn greyed out)
+    const tn = sr.tint || ONE3;
+    const gr = sr.grey || 0;
+    const pc = packColor(col[0] * (mc ? mc[0] : 1) * tn[0], col[1] * (mc ? mc[1] : 1) * tn[1], col[2] * (mc ? mc[2] : 1) * tn[2], col[3] * (mc ? mc[3] : 1) * (sr.alphaMul ?? 1));
     const m = sr.node.world;
     const fx = sr.flip[0] ? -1 : 1, fy = sr.flip[1] ? -1 : 1;
     const u0 = s.x / A.w, u1 = (s.x + s.w) / A.w, vt = s.y / A.h, vb = (s.y + s.h) / A.h;
     const p = [0, 0, 0];
     const quad = (x0, y0, x1, y1, a0, b0, a1, b1) => {
       R.reserve(4, 6);
-      xform(m, x0 * fx, y0 * fy, 0, p); const i = R.vert(p[0], p[1], p[2], a0, b0, pc, flash);
-      xform(m, x0 * fx, y1 * fy, 0, p); R.vert(p[0], p[1], p[2], a0, b1, pc, flash);
-      xform(m, x1 * fx, y0 * fy, 0, p); R.vert(p[0], p[1], p[2], a1, b0, pc, flash);
-      xform(m, x1 * fx, y1 * fy, 0, p); R.vert(p[0], p[1], p[2], a1, b1, pc, flash);
+      xform(m, x0 * fx, y0 * fy, 0, p); const i = R.vert(p[0], p[1], p[2], a0, b0, pc, flash, gr);
+      xform(m, x0 * fx, y1 * fy, 0, p); R.vert(p[0], p[1], p[2], a0, b1, pc, flash, gr);
+      xform(m, x1 * fx, y0 * fy, 0, p); R.vert(p[0], p[1], p[2], a1, b0, pc, flash, gr);
+      xform(m, x1 * fx, y1 * fy, 0, p); R.vert(p[0], p[1], p[2], a1, b1, pc, flash, gr);
       R.quadIdx(i);
     };
     if (sr.drawMode && s.border) {
@@ -421,22 +435,36 @@ export class Engine {
   handlePointer() {
     for (const ev of this.input.events) {
       const p = ev.p;
-      if (ev.type === 'down') {
-        const hit = this.ui.raycast(p.x, p.y);
+      if (ev.type === 'wheel') {
+        const hit = this.ui.raycast(ev.x, ev.y);
+        const sc = hit && this.ui.scrollOf(hit);
+        if (sc) this.ui.scrollWheel(sc, ev.dx, ev.dy);
+        for (const f of this.pointerHooks || []) f('wheel', ev, hit);
+      } else if (ev.type === 'down') {
+        const hit = this.ui.raycast(p.startX, p.startY);
         p.target = hit;
         const btn = hit && this.ui.handler(hit, 'Button');
         p.button = btn && btn.interactable ? btn : null;
         if (p.button) this.setButtonState(p.button, 'pressed');
+        this.ui.pointerPress(p, hit);
         p.uiHandled = !!hit;
         for (const f of this.pointerHooks || []) f('down', p, hit);
       } else if (ev.type === 'up' || ev.type === 'cancel') {
+        this.ui.pointerMove(p);   // the last move may still be unprocessed
+        if (p.dragging && p.button) { this.setButtonState(p.button, 'normal'); p.button = null; }
         if (p.button) {
           this.setButtonState(p.button, 'normal');
           const hit = this.ui.raycast(p.x, p.y);
           if (ev.type === 'up' && hit && this.ui.handler(hit, 'Button') === p.button) this.click(p.button);
         }
+        p.dragged = !!p.dragging;
+        this.ui.pointerRelease(p);
         for (const f of this.pointerHooks || []) f(ev.type, p, p.target);
-      } else for (const f of this.pointerHooks || []) f('move', p, p.target);
+      } else {
+        // a drag that crossed the threshold on a ScrollRect scrolls and drops the Button it started on (no click on release)
+        if (this.ui.pointerMove(p) && p.button) { this.setButtonState(p.button, 'normal'); p.button = null; }
+        for (const f of this.pointerHooks || []) f('move', p, p.target);
+      }
     }
     this.input.events.length = 0;
   }
@@ -469,6 +497,20 @@ export class Engine {
 
   onClick(f) { (this.clickHooks = this.clickHooks || []).push(f); }
 }
+
+const ONE3 = [1, 1, 1];
+
+// legacy UnityEngine.UI.Text (2 labels in the rip: trophy road bubble, a shop badge) drawn as a TMP text in the game font
+const ANCHOR = [257, 258, 260, 513, 514, 516, 1025, 1026, 1028];
+function legacyText(cd) {
+  const f = cd.fields, fd = f.m_FontData;
+  return { type: 'Text', ui: 1, enabled: cd.enabled, text: String(f.m_Text ?? ''), font: 'font:Tobi Greek Cyrillic Regular SDF',
+    mat: 'mat:Tobi Greek Cyrillic Regular SDF Material', size: fd.m_FontSize || 14, autoSize: fd.m_BestFit ? 1 : 0, sizeMin: fd.m_MinSize || 4,
+    sizeMax: fd.m_MaxSize || fd.m_FontSize || 14, color: f.m_Color || [1, 1, 1, 1], align: ANCHOR[fd.m_Alignment] || 514, wrap: fd.m_HorizontalOverflow ? 0 : 1,
+    overflow: 0, style: 0, spacing: { char: 0, word: 0, line: 0, para: 0 }, margin: [0, 0, 0, 0], richText: fd.m_RichText ? 1 : 0, raycast: f.m_RaycastTarget ? 1 : 0 };
+}
+
+export const canvasOrder = (a, b) => (a.sceneLayer || 0) - (b.sceneLayer || 0) || a.order - b.order;
 
 function rotMat(q) {
   const m = mat4();

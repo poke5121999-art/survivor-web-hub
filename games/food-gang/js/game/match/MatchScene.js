@@ -1,6 +1,6 @@
 // One match on screen: map scene + SceneGame, the MatchRunner, agent/bullet/FX views, HUD, camera and the
 // start / game-over sequences (QuantumGameStartSequence, GameController, CinemachineGroupManager).
-import { createMatchSetup, addSlot, GamePhase, GoalType, TeamConfig, SimEventType, StatusFlags, isDead } from '../../sim/index.js';
+import { createMatchSetup, addSlot, GamePhase, GoalType, TeamConfig, SimEventType, StatusFlags, isDead, createAgentState, Vec2, GameRules, cloneMatchState } from '../../sim/index.js';
 import { MatchRunner, BotSource } from './MatchRunner.js';
 import { AgentView } from './AgentView.js';
 import { BulletViews, FxListener } from './BulletView.js';
@@ -33,9 +33,10 @@ export class MatchScene {
     const db = app.simDb;
     const mapName = db.maps[req.mapIndex].scene;
     const setup = createMatchSetup({ seed: req.seed, mapIndex: req.mapIndex, goal: req.goal, teams: req.team, bossOnLeft: req.bossOnLeft,
-      isOffline: true, botDifficultyInt: req.botDifficultyInt });
+      isOffline: req.isOffline !== false, botDifficultyInt: req.botDifficultyInt, noTimer: !!req.isTutorial });
     for (const s of req.slots) if (s) addSlot(setup, s.slot, s.skinId, s.level, s.isBot, s.isBot ? s.botDifficulty : 0.5);
     const skinIdx = setup.slots.map((s) => db.skins.findIndex((k) => k.skinId === s.skinId));
+    if (req.isTutorial) skinIdx.push(db.skins.findIndex((k) => k.name === 'DUMMY'));
     // map + HUD scenes, then every prefab this match can spawn (atlases of this map only)
     const prefabNames = app.viewDb.prefabsFor(db, skinIdx);
     const [mapInst, gameInst] = await Promise.all([engine.assets.scene(mapName), engine.assets.scene('SceneGame'), app.prefabs.preload(prefabNames)])
@@ -43,10 +44,13 @@ export class MatchScene {
     this.mapInst = mapInst; this.gameInst = gameInst;
     app.audio.preload(app.viewDb.sfxKeysFor(db, skinIdx));
 
-    const runner = new MatchRunner(db, setup, req.localSlot);
+    // opts.runnerOptions (js/net/online.js 'start'): online host (MatchRunner + network sources) or client (snapshots)
+    const net = opts.runnerOptions || null;
+    const runner = net ? net.createRunner(db, setup, req.localSlot) : new MatchRunner(db, setup, req.localSlot);
     runner.timeScale = opts.timeScale || 1;
     this.runner = runner;
-    for (const a of runner.state.agents) runner.setSource(a.slot, a.isBot ? BotSource : app.input);
+    if (req.isTutorial) this.addDummies(runner);
+    for (const a of runner.state.agents) if (a.slot >= 0) runner.setSource(a.slot, a.isBot ? BotSource : (net && net.sourceFor(a.slot)) || app.input);
     app.input.resetVirtual();
     this.names = [];
     for (const s of req.slots) if (s) this.names[s.slot] = s.name;
@@ -61,6 +65,7 @@ export class MatchScene {
     this.bullets = new BulletViews(ctx);
     this.fx = new FxListener(ctx);
     this.hud = new Hud(ctx, gameInst);
+    this.hud.tutorial = !!this.tutorial;
     this.hudRoot = gameInst.root;
     this.camTarget = gameInst.root.find('CameraTargetGroup');
     this.composer = engine.cine ? engine.cine.comp : null;
@@ -82,6 +87,39 @@ export class MatchScene {
     return this;
   }
 
+  // QuantumTutorialLauncher: no bots, 5 standing Dummy agents (DUMMY_Stats: HpBase 150, speed 0) on the Kitchen
+  // "Dummy" spawn points; the last one down ends the match (GameStateSystem.OnAgentDied, IsTutorial)
+  addDummies(runner) {
+    const s = runner.state, db = this.app.simDb, map = db.maps[s.mapIndex];
+    const pts = map.spawnDummy || [];
+    const skin = db.skins.findIndex((k) => k.name === 'DUMMY');
+    for (let i = 0; i < pts.length; i++) {
+      const a = createAgentState();
+      a.id = s.agents.length; a.slot = -1; a.team = 2; a.skin = skin; a.isDummy = true;
+      a.pos = Vec2.copy(pts[i]); a.velocity = Vec2.zero();
+      a.level = 1; a.levelCoef = 1;
+      a.hpBase = db.skins[skin].hpBase || 150; a.hpMax = a.hpCurrent = a.hpBase;
+      a.moveSpeed = 0; a.kccMaxSpeed = 0; a.speedMultiplier = 1;
+      a.actionRef = -1; a.specialRef = -1;
+      a.facingLeft = a.pos.x > 0;
+      s.agents.push(a);
+    }
+    this.tutorial = { total: pts.length };
+    runner.prev = cloneMatchState(s);
+  }
+
+  dummiesLeft() { return this.runner.state.agents.filter((a) => a.isDummy && !isDead(a)).length; }
+
+  // info.tuto / info.tuto.last (QuantumGameStartSequence.OnTutoDummyKilled)
+  updateTutoText() {
+    const t = this.hud.tuto;
+    if (!t) return;
+    const n = this.dummiesLeft();
+    t.setActive(n > 0 && this.phase === 'match');
+    const txt = t.get('Text') || (t.inChildren('Text')[0]);
+    if (txt) txt.setText(n === 1 ? T('info.tuto.last') : T('info.tuto').replace('[X]', String(n)));
+  }
+
   modeLabel() {
     const s = this.runner.state;
     return T(MODE_TEXT[s.goal][s.teams === TeamConfig.FreeForAll ? 0 : 1]);
@@ -90,12 +128,14 @@ export class MatchScene {
   stageName() { return T('stage.' + this.app.simDb.maps[this.req.mapIndex].stageId); }
 
   // versus screen -> READY? -> BATTLE! (GameController.DisplayReady / DisplayStart)
-  async runStart(intro = true) {
+  // searching: the bots' cells spin until BotFillAt (1 s) like the lobby of the clip, then the VS screen
+  async runStart(intro = true, searching = false) {
     const { engine, hud, app } = this;
     this.phase = 'intro';
     app.audio.playMusic('Music', 0.45);
     if (intro) {
-      hud.showVersus(this.names, this.modeLabel(), this.stageName());
+      hud.showVersus(this.names, this.modeLabel(), this.stageName(), searching);
+      if (searching) { this.phase = 'searching'; await wait(engine, 1.0); hud.revealVersus(); this.phase = 'intro'; }
       await wait(engine, 2.2);
       hud.hideVersus();
       hud.displayReady();
@@ -104,6 +144,7 @@ export class MatchScene {
     hud.displayStart();
     this.runner.start();
     this.phase = 'match';
+    if (this.tutorial) this.updateTutoText();
     this.startedAt = engine.realTime;
     await wait(engine, 1.0);
     if (this.phase === 'match') hud.hideStart();
@@ -129,6 +170,13 @@ export class MatchScene {
       case SimEventType.AgentActionStarted: if (local) { if (e.flag) this.stats.localSpecialStarts = (this.stats.localSpecialStarts || 0) + 1; else this.stats.localActionStarts = (this.stats.localActionStarts || 0) + 1; } break;
       case SimEventType.GameOverTriggered: this.gameOver(e); break;
       default: break;
+    }
+    if (this.tutorial && e.type === SimEventType.AgentDied && r.agent(e.agent) && r.agent(e.agent).isDummy) {
+      this.updateTutoText();
+      if (this.dummiesLeft() === 0) {
+        const m = r.match;
+        GameRules.triggerGameOver(m._bind(r.state), 0, r.localSlot, false);
+      }
     }
   }
 

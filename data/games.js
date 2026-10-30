@@ -1131,7 +1131,7 @@ window.HUB_GAMES = [
     en: { title: "Food Gang", tagline: "Food fighters shoot it out: run, jump and blast across the kitchen, the dining table and the pantry.", desc: "Food Gang (Bloop) remade from the Android 2.2.4 release in plain JS, no Unity: about 5 MB to the first match. Maps, characters, animations, effects and HUD rebuilt from the original data; match rules, damage, bots and rewards follow the decompiled original code. Fight bots on 3 maps in 5 modes (2v2 team, 1v1, first to 5 kills, last survivor, kill the boss). A/D or arrows to run, W/Space to jump, J to shoot, K for the special; on phones use the on-screen stick and buttons." },
     thumbnail: "assets/thumbnails/food-gang.png",
     path: "games/food-gang/index.html",
-    rev: "20261030a",
+    rev: "20261031a",
     // JS + WebGL2, không engine ngoài. Scene/prefab/anim/particle/UI xuất từ project AssetRipper D:/foodgang-ref/fg-unity bằng
     // games/food-gang/tools/export_unity.py, runtime ở js/engine. Lõi trận js/sim và meta js/meta là bản port khớp từng bit/byte
     // với lõi C# (D:/foodgang-ref/fg-unity/Assets/FG). Plan: brain/plans/food-gang.md.

@@ -36,4 +36,7 @@ Nguồn: `C:\Users\tamph\Downloads\Food+Gang_2.2.4_APKPure.xapk` (com.bloop.food
   - `node test/food-gang-sim.js`: 117 kịch bản, 268 685 tick khớp từng bit với C# (`Core/CrtMath.js` chép sinf/cosf của ucrtbase).
   - `node test/food-gang-meta.js`: 189 196 assert, profile khớp từng byte với C#.
   - `node test/food-gang-render.js`: 27/27; bộ xuất `tools/export_unity.py`, runtime `js/engine`, 6,07 MB art+audio+data.
-  Đang làm pha 2: màn trận đầy đủ + app shell + `test/food-gang-play.js`.
+- 2026-10-31: pha 2 lên Pages, commit 88ca47dd (rev 20261030a, thẻ hub `food-gang`). Đẩy bằng index tạm trên origin/main
+  (cây chính lệch 113 commit + có việc dở của agent khác). `FG_URL=<Pages> node test/food-gang-play.js` 330/332: 2 check
+  hồi sinh trượt ở trận kết thúc sau 1 kill (luật killBoss), lỗi của test không phải game; đã giao pha 3 sửa.
+  Đang làm song song: pha 3 (menu + meta, `js/game/screens`, rev 20261031a) và pha 4 (online, `js/net`, hợp đồng `Online` trong brief).

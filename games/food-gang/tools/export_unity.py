@@ -17,10 +17,18 @@ OUT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 
 SCRATCH = "D:/foodgang-ref/scratch-web"
 
 MATCH_SCENES = ["SceneGame", "SceneLevelKitchen", "SceneLevelDiningRoom", "SceneLevelPantry"]
-DEFAULT_SCENES = MATCH_SCENES + ["SceneIntro", "SceneMenu", "SceneLoadingGame", "SceneGameOver", "SceneGameTest"]
+# menu + every popup scene the web build opens (SCENES.md); SceneQuantumTest / SceneCheckNetwork / SceneConflictSave are not used
+MENU_SCENES = ["SceneMenu", "SceneLoadingGame", "SceneGameOver", "SceneSystems", "SceneBuySkin", "SceneConfirmPurchase",
+               "SceneLeague", "SceneMissions", "ScenePowerInfo", "SceneReward", "SceneSettings", "SceneShop",
+               "SceneSkinCollection", "SceneSkinStat", "SceneTutoEnd", "SceneVIP", "SceneDelete", "SceneOfferLeague",
+               "ScenePrivateBattle", "ScenePrivateLobby", "ScenePrivateJoin", "ScenePrivateConfiguration"]
+DEFAULT_SCENES = MATCH_SCENES + ["SceneIntro", "SceneGameTest"] + MENU_SCENES
 MAP_GROUP = {"SceneLevelKitchen": "map_kitchen", "SceneLevelDiningRoom": "map_dining", "SceneLevelPantry": "map_pantry"}
 GROUP_PRIORITY = ["hud", "skins", "fx", "map_kitchen", "map_dining", "map_pantry", "ui"]
 EXTRA_SPRITES = ["bg_skin_1", "bg_skin_2", "bg_skin_3", "bg_skin_4"]
+# menu code picks these by name from the SpriteAtlas assets (GameData.m_atlasMenu/Rewards/Shop are not in the rip):
+# icon_skin_NN, icon_power_NN_P, icon_league_NN, icon_reward_0N, currency/token icons, fridge art
+EXTRA_SPRITE_RE = re.compile(r"^(icon_|bg_skin_|fridge_reward_|cell_reward|pack_currency_)")
 SKIP_PREFAB = re.compile(r"^(DebugUI|Quantum|EntityPrototype)")
 ATLAS_MAX = 2048
 PAD = 2
@@ -1345,8 +1353,7 @@ def pack_sprites():
     """Group sprites, trim transparent margins, shelf-pack per group into <=2048 pages, write lossless WebP."""
     groups = collections.defaultdict(list)
     for key in S.sprite_src:
-        gs = S.sprite_groups.get(key) or {"ui"}
-        g = next((x for x in GROUP_PRIORITY if x in gs), sorted(gs)[0])
+        g = pick_group(S.sprite_groups.get(key) or {"ui"})
         groups[g].append(key)
     sprites, atlases = {}, {}
     total_px = 0
@@ -1625,7 +1632,10 @@ def group_for(kind, name):
     if kind == "scene":
         if name in MAP_GROUP:
             return MAP_GROUP[name]
-        return "hud" if name == "SceneGame" else "ui"
+        if name == "SceneGame":
+            return "hud"
+        # one atlas per popup scene so a popup loads only its own art; art shared by several scenes goes to "ui"
+        return "ui_" + name[5:].lower() if name in MENU_SCENES and name not in ("SceneMenu", "SceneGameOver", "SceneLoadingGame") else "ui"
     if re.match(r"^(skin_|Agent_|AgentView)", name):
         return "skins"
     if re.match(r"^(Fx_|smoke_|bullet_|Bullet|Box\d|Trophy)", name):
@@ -1633,6 +1643,13 @@ def group_for(kind, name):
     if name in ("LifeBar",):
         return "hud"
     return "ui"
+
+
+def pick_group(gs):
+    g = next((x for x in GROUP_PRIORITY if x in gs), None)
+    if g:
+        return g
+    return next(iter(gs)) if len(gs) == 1 else "ui"
 
 
 def jdump(rel_path, obj):
@@ -1696,6 +1713,10 @@ def main():
     # sprites the code picks by name from an atlas (LoadingCellDisplay: "bg_skin_" + team)
     for n in EXTRA_SPRITES:
         sprite_ref(ASSETS + "/Sprite/%s.asset" % n, None)
+    S.group = "ui"
+    for f in sorted(os.listdir(ASSETS + "/Sprite")):
+        if f.endswith(".asset") and EXTRA_SPRITE_RE.match(f):
+            sprite_ref(ASSETS + "/Sprite/" + f, None)
     print("scenes %d, prefabs %d (%.1fs)" % (len(scene_index), len(prefab_index), time.time() - t0))
     # controllers (may pull more clips), then clips (may pull sprites)
     ctrls = {}
@@ -1712,8 +1733,7 @@ def main():
     for p in glob.glob(ASSETS + "/AnimationClip/*.anim"):
         S.clips_needed.add(p.replace("\\", "/"))
     for p in sorted(S.clips_needed):
-        gs = S.clip_groups.get(p) or {"ui"}
-        S.group = next((x for x in GROUP_PRIORITY if x in gs), "ui")
+        S.group = pick_group(S.clip_groups.get(p) or {"ui"})
         clips[clip_key(p)] = export_clip(p)
     jdump("data/anim/clips.json", clips)
     jdump("data/anim/controllers.json", ctrls)

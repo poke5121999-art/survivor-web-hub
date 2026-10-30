@@ -22,6 +22,11 @@ export class MatchRunner {
     this.listeners = [];
     this.eventCounts = {};
     this.stepMs = 0;
+    this.onStep = null;           // online host: (events of the tick) after every step, js/net/hostnet.js
+    // online host: time comes from performance.now(), so the engine frame and the hidden-tab driver (js/net/driver.js)
+    // can both call update() without stepping the same interval twice
+    this.wallClock = false;
+    this.lastWall = 0;
     this.state = this.match.create({ ...setup, startPlaying: false });
     this.prev = cloneMatchState(this.state);
     this.pending = this.match.drainEvents([]);
@@ -40,10 +45,12 @@ export class MatchRunner {
     Match.start(this.state);
     this.running = true;
     this.acc = 0;
+    this.lastWall = performance.now();
   }
 
   update(realDt) {
     if (!this.running) return 0;
+    if (this.wallClock) { const t = performance.now(); realDt = (t - this.lastWall) / 1000; this.lastWall = t; }
     const dt = this.dt;
     this.acc += realDt * this.timeScale;
     let n = Math.floor(this.acc / dt);
@@ -55,7 +62,9 @@ export class MatchRunner {
       for (let s = 0; s < 4; s++) this.inputs[s] = this.sources[s] ? this.sources[s].getInput(s, tick) : NEUTRAL;
       this.match.step(this.state, this.inputs);
       this.acc -= dt;
-      this.dispatch(this.match.drainEvents([]));
+      const ev = this.match.drainEvents([]);
+      this.dispatch(ev);
+      if (this.onStep) this.onStep(ev);
     }
     if (n) this.stepMs = (performance.now() - t0) / n;
     this.alpha = Math.max(0, Math.min(1, this.acc / dt));

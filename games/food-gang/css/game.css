@@ -21,3 +21,23 @@ html, body { margin: 0; height: 100%; background: #000; overflow: hidden; oversc
   #rotate .phone { width: 46px; height: 80px; border: 4px solid #fff; border-radius: 10px; animation: fg-rot 1.6s ease-in-out infinite; }
 }
 @keyframes fg-rot { 0%, 20% { transform: rotate(0); } 60%, 100% { transform: rotate(-90deg); } }
+/* SceneSystem.StartFadeInOut */
+#fg-fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 4; }
+#fg-fade.on { opacity: 1; pointer-events: auto; }
+/* leaderboard / achievements panel (Google Play UI in the game) */
+@font-face { font-family: 'Tobi'; src: url('../data/fonts/Tobi_Greek_Cyrillic_Regular.otf'); }
+.fg-board { position: fixed; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, .55); font-family: 'Tobi', system-ui, sans-serif; }
+.fg-board .panel { width: min(720px, 92vw); height: min(560px, 86vh); display: flex; flex-direction: column; background: linear-gradient(#ffd23e, #f59d16); border: 5px solid #1b1b1b; border-radius: 14px; box-shadow: 0 8px 0 #1b1b1b; overflow: hidden; }
+.fg-board .tabs { display: flex; gap: 8px; padding: 10px; background: #1b1b1b; }
+.fg-board .tabs button { font: inherit; font-size: 18px; color: #fff; background: #3a6f8f; border: 3px solid #000; border-radius: 8px; padding: 6px 14px; cursor: pointer; }
+.fg-board .tabs button.on { background: #19b7d6; }
+.fg-board .tabs .x { margin-left: auto; background: #e23d28; }
+.fg-board ol, .fg-board ul { list-style: none; margin: 0; padding: 8px 12px; overflow-y: auto; flex: 1; }
+.fg-board li { display: flex; align-items: center; gap: 12px; padding: 6px 10px; margin: 4px 0; background: rgba(255, 255, 255, .55); border-radius: 8px; color: #1b1b1b; font-size: 18px; }
+.fg-board li.me { background: #19b7d6; color: #fff; }
+.fg-board li b { width: 36px; text-align: right; }
+.fg-board li span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fg-board li em { font-style: normal; }
+.fg-board .ach li.done { background: #7bd13a; }
+.fg-board .ach i { width: 140px; height: 12px; background: #1b1b1b; border-radius: 6px; overflow: hidden; }
+.fg-board .ach u { display: block; height: 100%; background: #ffd23e; }

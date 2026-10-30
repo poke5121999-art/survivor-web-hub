@@ -23,9 +23,11 @@ const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'applic
   '.png': 'image/png', '.mp3': 'audio/mpeg', '.css': 'text/css', '.otf': 'font/otf', '.ttf': 'font/ttf' };
 let pass = 0, fail = 0;
 const fails = [];
+let tagNow = '';
 const check = (name, ok, detail) => {
-  console.log(`  ${ok ? 'PASS' : 'FAIL'} ${name}${detail ? `  (${detail})` : ''}`);
-  if (ok) pass++; else { fail++; fails.push(name + (detail ? ` (${detail})` : '')); }
+  const n = tagNow ? `[${tagNow}] ${name}` : name;
+  console.log(`  ${ok ? 'PASS' : 'FAIL'} ${n}${detail ? `  (${detail})` : ''}`);
+  if (ok) pass++; else { fail++; fails.push(n + (detail ? ` (${detail})` : '')); }
 };
 
 function serve() {
@@ -66,6 +68,7 @@ async function hold(page, keys, ms) {
 
 async function runOne(browser, base, map, skin, mode, opts = {}) {
   const tag = `${map}_${mode}`;
+  tagNow = `${map} ${mode}`;
   console.log(`${map} ${mode} (${skin})`);
   const page = await browser.newPage({ viewport: opts.viewport || { width: 1280, height: 720 }, deviceScaleFactor: 1 });
   const errors = [];
@@ -206,7 +209,7 @@ async function runOne(browser, base, map, skin, mode, opts = {}) {
     await page.evaluate(() => {
       window.__pilot = setInterval(() => {
         const q = window.fgDebug();
-        if (!q.match || q.phase !== 'match') { window.fgScript(null); return; }
+        if (!q.match || q.phase !== 'match' || window.__pilotPaused) { window.fgScript(null); return; }
         const me = q.agents.find((a) => a.slot === q.match.localSlot);
         const foes = q.agents.filter((a) => a.alive && a.slot !== me.slot && (q.match.teams === 0 || a.team !== me.team));
         const f = foes.sort((a, b) => Math.hypot(a.x - me.x, a.y - me.y) - Math.hypot(b.x - me.x, b.y - me.y))[0];
@@ -221,8 +224,25 @@ async function runOne(browser, base, map, skin, mode, opts = {}) {
     const kf = await waitFor(page, () => window.fgDebug().hud.killFeedShown > 0, null, 60000);
     if (kf) await page.screenshot({ path: path.join(SHOTS, `${tag}_killfeed.png`) });
     check('kill feed shows a kill', !!kf);
-    const rs = await waitFor(page, () => window.fgDebug().hud.respawnShown || window.fgDebug().screen !== 'match', null, 120000, 30)
+    // the local fighter goes down early through the sim's debug damage (DebugDamageCommand), so every mode shows the
+    // respawn screen; a boss is the exception: its death ends a killBoss match on the spot
+    d = await dbg(page);
+    const meNow = localOf(d);
+    const localBoss = !!(meNow && meNow.boss);
+    if (meNow && !localBoss && d.phase === 'match') {
+      await waitFor(page, () => { const q = window.fgDebug(); const a = q.agents.find((x) => x.slot === q.match.localSlot); return a && a.alive; }, null, 15000, 30);
+      // fgDamage is the app's bridge; a build deployed before it gets the same DebugDamageCommand through fgApp
+      await page.evaluate((slot) => {
+        if (window.fgDamage) return window.fgDamage(slot, 1e6);
+        const r = window.fgApp.match && window.fgApp.match.runner, a = r && r.state.agents.find((x) => x.slot === slot);
+        return a ? r.match.debugDamage(r.state, a.id, 1e6) : 0;
+      }, d.match.localSlot);
+    }
+    // the local fighter stands still while down so it cannot end a killBoss match on its own before the screen shows
+    await page.evaluate(() => { window.__pilotPaused = true; });
+    const rs = localBoss ? false : await waitFor(page, () => window.fgDebug().hud.respawnShown || window.fgDebug().screen !== 'match', null, 120000, 30)
       .then(async (v) => v && (await dbg(page)).hud.respawnShown);
+    await page.evaluate(() => { window.__pilotPaused = false; });
     if (rs) {
       await sleep(150);
       await page.screenshot({ path: path.join(SHOTS, `${tag}_respawn.png`) });
@@ -230,16 +250,21 @@ async function runOne(browser, base, map, skin, mode, opts = {}) {
       check('respawn screen for the dead local fighter (BACK IN: n, controls hidden)', d.hud.respawnShown && d.hud.controlsAlpha === 0, `"${d.hud.respawnText}"`);
     } else {
       d = await dbg(page);
-      // a kill race can end before the local fighter ever dies; then the screen cannot show
-      const ended = d.screen !== 'match' || d.phase !== 'match';
-      check('respawn screen for the dead local fighter', ended && (d.stats.localDeaths || 0) === 0, ended ? 'match ended before the local fighter died' : 'local fighter never died');
+      // no respawn screen is the rule only for a local boss, or a killBoss match that ended on the boss's death
+      // while the local fighter was down (ROUND OVER comes before BACK IN)
+      const bossDown = mode === 'killBoss' && d.screen !== 'match' && (d.match && d.match.agents || []).some((a) => a.boss && a.deaths > 0);
+      check('respawn screen for the dead local fighter', localBoss || bossDown, localBoss ? 'local fighter is the boss: no respawn' : bossDown ? 'boss died while the local fighter was down: match over first'
+        : `no respawn screen (deaths ${d.stats.localDeaths || 0}, screen ${d.screen}/${d.phase})`);
     }
     await page.evaluate(() => window.fgTimeScale(12));
     const over = await waitFor(page, () => { const q = window.fgDebug(); return q.screen === 'gameover' && q.gameOver && q.gameOver.title ? q : null; }, null, 150000, 100);
     d = over || await dbg(page);
     const m = d.match || {};
     check('damage happened', (d.stats.damageEvents || 0) > 0, `${d.stats.damageEvents} hits`);
-    check('an agent died and respawned', (d.events['9'] || 0) > 0 && (d.events['10'] || 0) > 0, `${d.events['9']} deaths, ${d.events['10']} respawns`);
+    // killBoss can end on the boss's first death: then a death without any respawn is the rule, not a failure
+    const deaths = d.events['9'] || 0, respawns = d.events['10'] || 0;
+    const endsOnDeath = mode === 'killBoss' && m.agents && m.agents.some((a) => a.boss && a.deaths > 0) && !m.timeOut;
+    check('an agent died and respawned', deaths > 0 && (respawns > 0 || endsOnDeath), `${deaths} deaths, ${respawns} respawns${endsOnDeath ? ', match ended on the boss death' : ''}`);
     const rule = {
       dm2v2: () => m.timeOut, dm1v1: () => m.timeOut,
       kill5: () => !m.timeOut && Math.max(...m.teamKills) >= 9,
@@ -326,6 +351,7 @@ async function parityRun(browser, base) {
         first = false;
       }
     }
+    tagNow = 'parity';
     if (!process.env.FG_NO_PARITY && !only) await parityRun(browser, base);
   } finally {
     clearTimeout(killer);
