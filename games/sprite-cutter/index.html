@@ -115,7 +115,7 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
 
 <div class="wrap">
   <header>
-    <h1>Bàn Cắt Sprite <small class="num" style="font-size:12px;font-weight:400;color:var(--mute)">bản 39</small></h1>
+    <h1>Bàn Cắt Sprite <small class="num" style="font-size:12px;font-weight:400;color:var(--mute)">bản 40</small></h1>
     <p>Nhập sprite sheet, chỉnh khung từng frame, xem chạy thử, rồi cắt ra PNG đúng khung đã chỉnh.</p>
   </header>
 
@@ -286,7 +286,7 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
 
 </div>
 
-<script src="vendor/jszip.min.js?v=20261030d"></script>
+<script src="vendor/jszip.min.js?v=20261030e"></script>
 <script>
 const $ = id => document.getElementById(id);
 
@@ -1046,7 +1046,27 @@ function keyOut() {
     for (let cy = py - 2; cy <= py + 2 && !thick; cy++) for (let cx = px - 2; cx <= px + 2 && !thick; cx++) thick = fullLit(cx, cy);
     if (!thick) (halo ??= new Uint8Array(W * H))[n] = 1;
   }
-  const isBg = i => dist(i) <= tol && !solid[i >> 2];
+  // Lóe sáng trên nền trắng trùng hẳn màu nền. Tia lóe cắt đứt nét viền ngang của hình, nên loang từ viền ô chui qua khe
+  // vào ăn luôn lóe sáng. Hàn khe ngắn giữa hai đoạn nét đen dài trên cùng một hàng để chặn đường loang. Chỉ hàn ngang:
+  // hàn mọi hướng thì bít cả khe nền thật giữa hai phần hình (tay cầm pít-tông với vành ống).
+  const light = r + g + b >= 600, INK = 96, WELD_GAP = 12, WELD_RUN = 8;
+  let weld = null;
+  if (light && $("bg-mode").value !== "all") {
+    const ink = i => p[i + 3] >= 16 && p[i] < INK && p[i + 1] < INK && p[i + 2] < INK;
+    for (let y = 0; y < H; y++) {
+      let prevEnd = -1, prevLen = 0;
+      for (let x = 0; x < W;) {
+        if (!ink((y * W + x) * 4)) { x++; continue; }
+        const start = x;
+        while (x < W && ink((y * W + x) * 4)) x++;
+        if (prevLen >= WELD_RUN && x - start >= WELD_RUN && start - prevEnd <= WELD_GAP)
+          for (let k = prevEnd; k < start; k++) { const n = y * W + k; if (dist(n * 4) <= tol) (weld ??= new Uint8Array(W * H))[n] = 1; }
+        prevEnd = x; prevLen = x - start;
+      }
+    }
+  }
+  const isBgAny = i => dist(i) <= tol && !solid[i >> 2];
+  const isBg = weld ? i => isBgAny(i) && !weld[i >> 2] : isBgAny;
   if ($("bg-mode").value === "all") {
     for (let i = 0; i < p.length; i += 4) if (isBg(i)) p[i + 3] = 0;
     bgNote();
@@ -1101,7 +1121,6 @@ function keyOut() {
       }
     }
     // Quầng sáng, cục dội màu bên dưới là lỗi AI và nén ảnh trên nền sáng. Trên nền tối, mảng sáng hơn nền là chính hình.
-    const light = r + g + b >= 600;
     // Quầng trắng AI vẽ quanh hình trên nền sáng lệch nền tăng dần một chiều từ nền vào tới mép hình (~2 mỗi pixel). Lõi nổ,
     // vệt trắng thì lên hết độ sáng qua vài pixel mép nhoè rồi phẳng, chỉ nhiễu lên xuống. Loang tiếp từ nền vào pixel sáng khi
     // lệch nền không quá GLOW mỗi bước (dư dồn tối đa GLOW_CAP) và cứ FLAT bước lại lên được mức cao nhất mới của đường đi.
@@ -1162,12 +1181,12 @@ function keyOut() {
       }
     }
     for (let s = 0; s < W * H; s++) {
-      if (seen[s] || pocketOf[s] || p[s * 4 + 3] === 0 || !isBg(s * 4)) continue;
+      if (seen[s] || pocketOf[s] || p[s * 4 + 3] === 0 || !isBgAny(s * 4)) continue;
       const part = [s]; pocketOf[s] = parts.length + 1;
       for (let k = 0; k < part.length; k++) {
         const n = part[k], px = n % W;
         for (const m of [px > 0 ? n - 1 : -1, px < W - 1 ? n + 1 : -1, n - W, n < W * (H - 1) ? n + W : -1])
-          if (m >= 0 && !pocketOf[m] && !seen[m] && p[m * 4 + 3] && isBg(m * 4)) { pocketOf[m] = parts.length + 1; part.push(m); }
+          if (m >= 0 && !pocketOf[m] && !seen[m] && p[m * 4 + 3] && isBgAny(m * 4)) { pocketOf[m] = parts.length + 1; part.push(m); }
       }
       parts.push(part);
     }
@@ -1188,6 +1207,31 @@ function keyOut() {
         }
       }
       return walled * 2 >= part.length;
+    };
+    // Lóe sáng, chấm phản quang trắng trùng màu nền nằm giữa màu thân hình, còn nét đen bao ngoài ở cả bốn phía.
+    // Khe nền thật (giữa tóc và mặt 55-72%) và ô trắng kẹt trong bậc thang nét viền (34-40%) thì nét đen ôm sát vòng 2px
+    // quanh nó; lóe sáng chỉ chạm nét đen ở đầu tia (dưới 30%). Lỗ kem giữa dải lửa nhạt thì đi thẳng ra một phía là tới nền ngoài.
+    const ink = m => { const i = m * 4; return p[i + 3] >= 16 && p[i] < INK && p[i + 1] < INK && p[i + 2] < INK || weld && weld[m]; };
+    let stamp = null;
+    const inside = (part, label) => {
+      let ring = 0, dark = 0;
+      stamp ??= new Int32Array(W * H);
+      for (const n of part) {
+        const px = n % W, py = (n - px) / W;
+        for (let y = Math.max(0, py - 2); y <= Math.min(H - 1, py + 2); y++) for (let x = Math.max(0, px - 2); x <= Math.min(W - 1, px + 2); x++) {
+          const m = y * W + x;
+          if (pocketOf[m] === label || stamp[m] === label || seen[m]) continue;
+          stamp[m] = label; ring++; dark += ink(m);
+        }
+      }
+      if (dark * 10 >= ring * 3) return false;
+      const n = part[part.length >> 1], px = n % W;
+      for (const [step, len] of [[1, W - 1 - px], [-1, px], [W, (W * H - 1 - n) / W | 0], [-W, n / W | 0]]) {
+        let m = n, s = 0;
+        while (s < len && !ink(m) && !seen[m]) { m += step; s++; }
+        if (!ink(m)) return false;
+      }
+      return true;
     };
     let gone = 0, kept = 0;
     parts.forEach((part, k) => {
@@ -1210,10 +1254,15 @@ function keyOut() {
         }
         thin = deep <= 6;
       }
-      const guess = holes && part.length >= keep && !thin && (ds.length ? ds[ds.length >> 1] <= tol / 3 : slit(part, k + 1));
-      if (part.length >= keep) guess ? gone++ : kept++;
+      const guess = holes && part.length >= keep && !thin && !(light && inside(part, k + 1)) && (ds.length ? ds[ds.length >> 1] <= tol / 3 : slit(part, k + 1));
+      // Mối hàn chạm nền ngoài là chỗ hở của nét viền, bản không hàn đã loang qua nó, nên không đếm là chỗ kín.
+      const open = weld && part.some(n => weld[n] && (seen[n - 1] || seen[n + 1] || seen[n - W] || seen[n + W]));
+      if (part.length >= keep && !open) guess ? gone++ : kept++;
       if (guess) for (const n of part) { lost.push(n, p[n * 4 + 3]); p[n * 4 + 3] = 0; }
     });
+    // Mối hàn chỉ chặn đường loang từ viền ô, rồi nhập vào chỗ kín bên cạnh và đi theo quyết định của chỗ kín đó.
+    // Mối còn lại là tia lóe sáng trong nét viền, gỡ viền ám màu nền không được gọt nó.
+    if (weld) for (let n = 0; n < W * H; n++) if (weld[n] && p[n * 4 + 3]) solid[n] = 1;
     // Mảng nền ngả trắng mà 2/5 viền đã là nền thì xoá theo, không thì còn lại thành chấm trắng. Lõi tia lửa có quầng màu bao quanh.
     for (const blob of blobs) {
       let open = 0, edge = 0;
