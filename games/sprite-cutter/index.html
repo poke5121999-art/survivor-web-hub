@@ -115,7 +115,7 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
 
 <div class="wrap">
   <header>
-    <h1>Bàn Cắt Sprite <small class="num" style="font-size:12px;font-weight:400;color:var(--mute)">bản 37</small></h1>
+    <h1>Bàn Cắt Sprite <small class="num" style="font-size:12px;font-weight:400;color:var(--mute)">bản 38</small></h1>
     <p>Nhập sprite sheet, chỉnh khung từng frame, xem chạy thử, rồi cắt ra PNG đúng khung đã chỉnh.</p>
   </header>
 
@@ -285,7 +285,7 @@ input[type=color] { width: 36px; height: 30px; padding: 2px; border: 1px solid v
 
 </div>
 
-<script src="vendor/jszip.min.js?v=20261030b"></script>
+<script src="vendor/jszip.min.js?v=20261030c"></script>
 <script>
 const $ = id => document.getElementById(id);
 
@@ -1023,6 +1023,25 @@ function keyOut() {
     if (lit[n - W - 1] & lit[n - W] & lit[n - W + 1] & lit[n - 1] & lit[n] & lit[n + 1] & lit[n + W - 1] & lit[n + W] & lit[n + W + 1])
       for (let d = -W; d <= W; d += W) solid[n + d - 1] = solid[n + d] = solid[n + d + 1] = anySolid = 1;
   }
+  const wr = 255 - r, wg = 255 - g, wb = 255 - b, ww = wr * wr + wg * wg + wb * wb || 1;
+  const offWhite = i => { const dr = p[i] - r, dg = p[i + 1] - g, db = p[i + 2] - b, t = (dr * wr + dg * wg + db * wb) / ww; return Math.abs(dr - t * wr) + Math.abs(dg - t * wg) + Math.abs(db - t * wb); };
+  // Mép hình màu nhạt (lửa xanh, đầu ma) có vệt dội JPEG sáng hơn nền rộng tới 3px, lọt qua bước co nở 3×3.
+  // Vệt đó mang sắc của hình bên cạnh nên lệch khỏi đoạn nền → trắng. Mảng sáng lệch sắc mà không nằm trong ô 5×5 sáng kín nào là vệt dội.
+  const fullLit = (cx, cy) => {
+    if (cx < 2 || cy < 2 || cx >= W - 2 || cy >= H - 2) return false;
+    for (let y = cy - 2; y <= cy + 2; y++) for (let m = y * W + cx - 2, end = m + 5; m < end; m++) if (!lit[m]) return false;
+    return true;
+  };
+  let halo = null;
+  for (let n = 0, i = 0; n < W * H; n++, i += 4) {
+    if (!solid[n]) continue;
+    const dr = p[i] - r, dg = p[i + 1] - g, db = p[i + 2] - b, t = (dr * wr + dg * wg + db * wb) / ww;
+    if (Math.abs(dr - t * wr) + Math.abs(dg - t * wg) + Math.abs(db - t * wb) <= 8) continue;
+    const px = n % W, py = (n - px) / W;
+    let thick = false;
+    for (let cy = py - 2; cy <= py + 2 && !thick; cy++) for (let cx = px - 2; cx <= px + 2 && !thick; cx++) thick = fullLit(cx, cy);
+    if (!thick) (halo ??= new Uint8Array(W * H))[n] = 1;
+  }
   const isBg = i => dist(i) <= tol && !solid[i >> 2];
   if ($("bg-mode").value === "all") {
     for (let i = 0; i < p.length; i += 4) if (isBg(i)) p[i + 3] = 0;
@@ -1051,6 +1070,32 @@ function keyOut() {
       }
     };
     fill();
+    // Vệt dội chạy dọc nền ngoài: xoá đúng vệt đó mà không loang tiếp, vì vệt sáng trong bàn tay tím nhạt cũng mảnh
+    // nhưng chỉ chạm nền ở đầu mút, và mảng nhạt phía sau nó vẫn lọt độ lệch màu.
+    if (halo) {
+      const mark = new Uint8Array(W * H);
+      for (let s = 0; s < W * H; s++) {
+        if (!halo[s] || mark[s]) continue;
+        const comp = [s]; mark[s] = 1;
+        let touches = false, near = 0;
+        for (let k = 0; k < comp.length; k++) {
+          const n = comp[k], px = n % W;
+          for (const m of [px > 0 ? n - 1 : -1, px < W - 1 ? n + 1 : -1, n - W, n < W * (H - 1) ? n + W : -1]) {
+            if (m < 0 || m >= W * H) continue;
+            if (seen[m]) touches = true;
+            if (halo[m] && !mark[m]) { mark[m] = 1; comp.push(m); }
+          }
+        }
+        if (!touches) continue;
+        for (const n of comp) {
+          const px = n % W, py = (n - px) / W;
+          let hit = 0;
+          for (let y = Math.max(0, py - 3); y <= Math.min(H - 1, py + 3) && !hit; y++) for (let x = Math.max(0, px - 3); x <= Math.min(W - 1, px + 3); x++) if (seen[y * W + x]) { hit = 1; break; }
+          near += hit;
+        }
+        if (near * 2 >= comp.length) for (const n of comp) { solid[n] = 0; if (dist(n * 4) <= tol) { seen[n] = 1; p[n * 4 + 3] = 0; } }
+      }
+    }
     // Chỗ kín = mảng màu nền không thông ra viền ô. Lòng trắng mắt và khe giữa tay với thân đều là chỗ kín cùng màu nền,
     // không quy tắc màu nào tách được, nên máy đoán trước rồi người dùng tô Trả lại để lấy lại chỗ đoán nhầm.
     const holes = $("bg-mode").value === "holes", keep = +$("bg-hole").value, pocketOf = new Int32Array(W * H), parts = [];
@@ -1058,8 +1103,6 @@ function keyOut() {
     const solidSize = anySolid ? new Int32Array(W * H) : null, blobs = [], drift = anySolid ? new Uint8Array(W * H) : null;
     // Nền kem ngả trắng dần về phía nét đen chỉ trượt trên đoạn màu nền → trắng, còn mảng sáng tím nhạt hay xanh nhạt thì lệch khỏi đoạn đó.
     // Mảng trượt trên đoạn ấy mà gần màu nền (trung vị lệch dưới 1/4 độ lệch) hoặc nhỏ (dưới 1/8192 ô, nền ngả trắng đậm chỉ tới cỡ đó) là nền.
-    const wr = 255 - r, wg = 255 - g, wb = 255 - b, ww = wr * wr + wg * wg + wb * wb || 1;
-    const offWhite = i => { const dr = p[i] - r, dg = p[i + 1] - g, db = p[i + 2] - b, t = (dr * wr + dg * wg + db * wb) / ww; return Math.abs(dr - t * wr) + Math.abs(dg - t * wg) + Math.abs(db - t * wb); };
     const median = (blob, f) => { const v = []; for (let k = 0, step = Math.max(1, blob.length >> 10); k < blob.length; k += step) v.push(f(blob[k] * 4)); v.sort((a, b) => a - b); return v[v.length >> 1]; };
     for (let s = 0; anySolid && s < W * H; s++) {
       if (!solid[s] || solidSize[s]) continue;
