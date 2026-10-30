@@ -423,8 +423,11 @@ window.HUB_GAMES = [
     accent: "#c084fc",
     en: { title: "Void Diver", tagline: "Dive into the dungeon under the city and grab relics before your flashlight dies.", desc: "The Balusha antique shop sends you into the dungeon to collect relics. Slash, shoot and dash under a dying flashlight, and the higher the tension, the more monsters the dark spawns. Bring loot back to the phone booth to sell, craft and learn skills. Four Divers to choose from." },
     thumbnail: "assets/thumbnails/voiddiver.png",
-    path: "games/voiddiver/index.html",
-    rev: "20260929b",
+    // Bản Unity WebGL (dựng lại bằng Unity 6000.0.77f1 bên linux) host ở repo Pages riêng
+    // poke5121999-art/voiddiver-webgl, vì build nặng ~636MB không nhét vào hub chính (đã 1,4GB).
+    // Bản three.js cũ còn ở games/voiddiver/ (orphan, có thể dọn sau).
+    path: "https://poke5121999-art.github.io/voiddiver-webgl/",
+    rev: "20261030a",
     // Dựng lại hoàn toàn 2026-09-25 từ chính bản demo Steam VOID DIVER: Escape from the Abyss
     // (Studio Nemo, appid 4347080) cài trên máy chủ dự án. Bản 2026-08 (vẽ bằng code, số tự chế) đã xoá.
     // Bảng số gốc: TableEncrypted là CSV XOR 0xCC, Lua XOR 0xF4 (bản cũ ghi "mã hoá, không đọc được" là sai).
