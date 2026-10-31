@@ -13,6 +13,6 @@ html, body { margin: 0; height: 100%; background: #0b1c2c; overflow: hidden; }
 .fb-text span { white-space: pre-wrap; line-height: 1.05; max-width: 100%; }
 .fb-outline { paint-order: stroke fill; -webkit-text-stroke: var(--ol, 0) var(--olc, #000); }
 
-/* padlock drawn for locked level cards (the export has no lock sprite) */
-.fb-padlock { position: absolute; left: 50%; top: 50%; width: 120px; height: 90px; margin: -10px 0 0 -60px; background: #ffc928; border: 6px solid #a8650c; border-radius: 16px; box-sizing: border-box; }
-.fb-padlock::before { content: ''; position: absolute; left: 50%; bottom: 100%; width: 64px; height: 62px; margin-left: -32px; border: 14px solid #cfd8e3; border-bottom: 0; border-radius: 40px 40px 0 0; box-sizing: border-box; }
+/* Selectable.interactable = false (ColorTint is applied by ui.js) and CanvasGroup.interactable = false */
+.fb-btn.fb-disabled { pointer-events: none; cursor: default; }
+.fb-nointeract, .fb-nointeract * { pointer-events: none !important; }

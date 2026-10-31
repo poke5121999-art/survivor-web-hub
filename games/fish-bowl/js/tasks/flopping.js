@@ -1,20 +1,16 @@
-// Level 4, Task 2. FloppingFish: out of water on the floor, the fish flops (FLOP JUMP: up by jumpSpeed, forward by
-// forwardForce) along the Escape Route's path triggers, up the bookshelf and back into the tank, before its HP runs
-// out. The fish turns to face the next path trigger by itself (lookAtPath); the stick turns it too.
+// Level 4, Task 2. FloppingFish: out of water on the floor, the fish flops (FLOP JUMP: an impulse of (0, jumpSpeed,
+// forwardForce) in its own frame) along the Escape Route's path triggers, up the bookshelf and back into the tank, before
+// its HP bar (hpDecreaseRate per second) runs out. The fish turns itself toward the next path trigger (lookAtPath,
+// slerp factor deltaTime * lookAtTime); nothing but the camera answers to the stick.
 import * as THREE from 'three';
 import { Base } from '../components.js';
 import { BoxVolume, activeInHierarchy } from '../unity.js';
-import { yawTo } from '../fish.js';
+import { layerColliders, sphereGrounded } from './jumps.js';
 
 const ref = s => s.slice(1).split('#')[0];
-const GRAVITY = 9.81; // Physics.gravity default
-// hpDecreaseRate has no unit in the data; read as per fifth of a second (0.3 -> 1.5 HP/s, ~67 s from full HP,
-// about three times what a perfect run of the route takes)
-const HP_RATE_SCALE = 5;
-const TURN_RATE = 2.2; // rad/s from the stick
-const LOOK_RATE = 6; // 1/s, turning toward the next path trigger while resting
-const FLOOR_BAND = 0.5; // landings this close to the room floor raise dust
-const HARD_LANDING = 6; // m/s downward at touchdown
+const GRAVITY = 9.81; // Physics.gravity default (the player's Rigidbody useGravity is switched on in Start)
+const STEP = 0.02; // Time.fixedDeltaTime: FixedUpdate does the grounded check, damping and the flop impulse
+const GROUND = 12;
 
 export class FloppingFish extends Base {
   onEnable() {
@@ -44,7 +40,12 @@ export class FloppingFish extends Base {
       if (mb.setFromObject(o).intersectsBox(area)) this.ground.push(o);
     });
     this.ray = new THREE.Raycaster();
-    g.input.on('flop', () => this.jump());
+    // groundLayer 4096. The room floor (FISHENV/Plane) has no exported mesh, so StylizedHouseB's render mesh stands in
+    // for it, with the layer it has in the scene: Task 1's last target moved it off layer 12 for the throws.
+    this.layer12 = layerColliders(g).ground;
+    this.step = 0;
+    this.queued = false;
+    g.input.on('flop', () => { this.queued = true; });
     this.vcam = ref(d.flopVcam);
     this.water = ref(d.waterTrigger);
   }
@@ -60,34 +61,35 @@ export class FloppingFish extends Base {
     g.stage.cine.override.look[this.vcam] = g.fish.root;
     g.shots = [{ path: this.vcam, weight: 1 }];
     g.fish.anim('FlopIdle', 0.1);
-    this.floorY = this.groundBelow(g.fish.root.position); // the fish starts on the room floor
-    this.impact = 0;
-    this.faceNext(1);
   }
 
   next() { const p = this.paths[this.index]; return p ? this.game.find(p).getWorldPosition(new THREE.Vector3()) : null; }
 
-  faceNext(k) {
-    const n = this.next();
+  // Update, lookAtPath: rotation = Slerp(rotation, LookRotation(path trigger - fish), deltaTime * lookAtTime), pitch included.
+  lookAtPath(dt) {
+    const n = this.next(), fish = this.game.fish;
     if (!n) return;
-    const fish = this.game.fish, d = n.sub(fish.root.position);
-    const want = yawTo(d.x, d.z);
-    let dy = want - fish.yaw;
-    dy = Math.atan2(Math.sin(dy), Math.cos(dy));
-    fish.yaw += dy * k;
+    const d = n.sub(fish.root.position);
+    if (d.lengthSq() < 1e-6) return;
+    const want = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.asin(d.y / d.length()), Math.atan2(-d.x, -d.z), 0, 'YXZ'));
+    fish.root.quaternion.slerp(want, Math.min(1, dt * this.data.lookAtTime));
+    const e = new THREE.Euler().setFromQuaternion(fish.root.quaternion, 'YXZ');
+    fish.yaw = e.y;
+    fish.pitch = e.x;
   }
 
-  jump() {
-    if (!this.live || !this.grounded || this.dead || this.game.state !== 'playing' || this.game.paused) return;
-    const d = this.data, fish = this.game.fish;
-    // lookAtPath: a flop without stick input heads for the next path trigger
-    if (d.lookAtPath && Math.abs(this.game.input.axis().x) < 0.1) this.faceNext(1);
-    const fwd = new THREE.Vector3(-Math.sin(fish.yaw), 0, -Math.cos(fish.yaw));
-    this.vel.copy(fwd.multiplyScalar(d.forwardForce)).setY(d.jumpSpeed);
-    this.grounded = false;
+  // FixedUpdate, grounded: velocity = Lerp(velocity, 0, fixedDt * stoppingSpeed); a flop adds AddRelativeForce(0,
+  // jumpSpeed, forwardForce, Impulse) to the mass 1 body and plays PlayerHandler.PlayFlopParticle (Player/CartoonyBodySlam).
+  fixedUpdate() {
+    const g = this.game, d = this.data, fish = g.fish;
+    this.grounded = sphereGrounded(this.ray, fish, this.layer12, GROUND, d.groundCheckHeight, true);
+    if (!this.grounded) { this.queued = false; return; }
+    this.vel.multiplyScalar(1 - Math.min(1, STEP * d.stoppingSpeed));
+    if (!this.queued) return;
+    this.queued = false;
+    this.vel.add(new THREE.Vector3(0, d.jumpSpeed, -d.forwardForce).applyQuaternion(fish.root.quaternion));
+    g.playFx('Player/CartoonyBodySlam');
     fish.once('FlopJump', 0.05);
-    this.game.spawnFx(d.flopParticle, fish.root.position);
-    this.game.sound.play(this.game.comps['Player/ThrowSimulation'].ThrowSimulation.waterPlopSound.name, { volume: 0.35 });
   }
 
   groundBelow(p) {
@@ -100,45 +102,34 @@ export class FloppingFish extends Base {
   drive(dt) {
     const g = this.game, fish = g.fish, d = this.data;
     if (!this.live || this.reached) { fish.animate(dt); return; }
-    // HP (CalculateFishHP / CheckDied)
-    this.hp = Math.max(d.minHP, this.hp - d.hpDecreaseRate * HP_RATE_SCALE * dt);
+    // CalculateFishHP / CheckDied: the slider (0..maxHP, starts full) loses hpDecreaseRate per second
+    this.hp = Math.max(d.minHP, this.hp - d.hpDecreaseRate * dt);
     g.ui.setFill('hud', 'TaskSpecificControls/HP_Bg_Image/HP_Slider', this.hp / d.maxHP);
-    g.ui.setText('hud', 'TaskSpecificControls/HP_Bg_Image/HP_Text (TMP', `(${Math.ceil(this.hp)}/${d.maxHP})`);
+    g.ui.setText('hud', 'TaskSpecificControls/HP_Bg_Image/HP_Text (TMP', `(${Math.floor(this.hp)}/${d.maxHP})`);
     if (this.hp <= d.minHP && !this.dead) { this.dead = true; g.die(); return; }
 
-    const ax = g.input.axis().x;
-    fish.yaw -= ax * TURN_RATE * dt;
-    if (d.lookAtPath && this.grounded && Math.abs(ax) < 0.1) this.faceNext(1 - Math.exp(-dt * LOOK_RATE));
-    // physics in small steps so a slow frame cannot tunnel through a shelf
-    const steps = Math.ceil(dt / (1 / 60));
-    const h = dt / steps;
+    if (d.lookAtPath) this.lookAtPath(dt);
+    // physics in fixed steps: FixedUpdate first, then gravity, movement and contacts
+    this.acc = (this.acc || 0) + dt;
     const p = fish.root.position;
-    for (let i = 0; i < steps; i++) {
-      this.vel.y -= GRAVITY * h;
-      if (this.grounded) this.vel.multiplyScalar(Math.exp(-d.stoppingSpeed * h)).setY(0);
-      if (this.vel.y < 0) this.impact = this.vel.y;
-      p.addScaledVector(this.vel, h);
+    while (this.acc >= STEP) {
+      this.acc -= STEP;
+      this.fixedUpdate();
+      this.vel.y -= GRAVITY * STEP;
+      p.addScaledVector(this.vel, STEP);
       for (const w of this.walls) pushOutObb(p, fish.radius, w);
       // AssignWaterEvents: the water trigger is a flat box, so test it every step or a fast fall skips it
       if (g.triggers.contains(this.water, fish.bodyCenter(), fish.radius)) { this.AquariumReahed(); return; }
       const gy = this.groundBelow(p);
       if (p.y <= gy + 0.02 && this.vel.y <= 0) {
-        if (!this.grounded) { fish.anim('FlopIdle', 0.1); this.landed(gy, -this.impact); }
+        if (!this.touching) fish.anim('FlopIdle', 0.1);
         p.y = gy;
         this.vel.y = 0;
-        this.grounded = true;
-      } else if (p.y > gy + 0.05) this.grounded = false;
+        this.touching = true;
+      } else if (p.y > gy + 0.05) this.touching = false;
     }
-    fish.pitch = 0;
     fish.applyRotation();
     fish.animate(dt);
-  }
-
-  // Dust (StepsManager.Dust) when a flop lands on the room floor; the body slam when it lands hard.
-  landed(y, speed) {
-    const g = this.game, p = g.fish.root.position;
-    if (y < this.floorY + FLOOR_BAND) g.spawnFx(g.comps.Player.StepsManager.Dust, new THREE.Vector3(p.x, y, p.z));
-    if (speed > HARD_LANDING) g.playFx('Player/CartoonyBodySlam');
   }
 
   NextPathTrigger() {

@@ -13,6 +13,8 @@ const OUT = process.argv[2] || 'C:/Users/tamph/AppData/Local/Temp/claude/D--surv
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.webp': 'image/webp',
   '.glb': 'model/gltf-binary', '.png': 'image/png' };
 const ESS = 'ActivityManager/Activities/<--- Essentials --->/spongefilter/BubbleRisingUnderwater';
+const SV = 'ActivityManager/Activities/Level 1/Triggers/DropTrigger Task2 (1)/StarVortexRed';
+const L1 = 'ActivityManager/Activities/Level 1/FogParticles/FogHeavyGrey';
 const V5 = 'ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/VictoryParticles';
 // name -> fx.html query; minLive = particles that must be alive in the frame
 const SHOTS = {
@@ -22,6 +24,8 @@ const SHOTS = {
   flop: { q: { fx: 'flop', hide: 1, t: 0.3 }, minLive: 1 },
   slam: { q: { fx: 'Player/CartoonyBodySlam', look: 'Player/CartoonyBodySlam', hide: 1, d: 2.5, t: 0.3 }, minLive: 3 },
   victory: { q: { fx: `${V5}/Great`, look: `${V5}/Great`, hide: 1, d: 6, h: 0, t: 0.8 }, minLive: 1 },
+  trail: { q: { fx: 'DropTrigger Task2 (1)/StarVortexRed', look: SV, hide: 1, d: 9, h: 3, t: 6 }, minLive: 20, trail: 10 },
+  fog: { q: { fx: 'FogHeavyGrey', look: L1, d: 7, h: 0, t: 5 }, minLive: 5 },
   victory2: { q: { fx: `${V5}/Perfect`, look: `${V5}/Perfect`, hide: 1, d: 6, h: 0, t: 0.8 }, minLive: 1 },
 };
 const only = (process.argv[3] || '').split(',').filter(Boolean);
@@ -56,9 +60,11 @@ function serve() {
       const live = await page.evaluate(() => window.__fx.fx.list.reduce((n, e) => n + e.n, 0));
       const file = path.join(OUT, `${name}.png`);
       await page.screenshot({ path: file });
-      const ok = live >= s.minLive;
+      // trail: ribbon vertices drawn by emitters whose def has a Trails module
+      const tv = await page.evaluate(() => window.__fx.fx.list.reduce((n, e) => n + (e.T && e.T.mesh.visible ? e.T.g.drawRange.count : 0), 0));
+      const ok = live >= s.minLive && tv >= (s.trail || 0);
       if (!ok) fail++;
-      console.log(`  ${ok ? 'ok  ' : 'FAIL'} ${name}: ${live} live particles (need ${s.minLive}) ${file}`);
+      console.log(`  ${ok ? 'ok  ' : 'FAIL'} ${name}: ${live} live particles (need ${s.minLive}), ${tv} trail indices (need ${s.trail || 0}) ${file}`);
     }
   } finally {
     clearTimeout(kill);

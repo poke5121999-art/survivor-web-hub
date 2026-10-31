@@ -55,3 +55,9 @@ Kiểm trên Pages: `FB_URL=https://poke5121999-art.github.io/survivor-web-hub/g
 
 Còn đoán (không có thân hàm IL2CPP; danh sách đủ trong README mục Gameplay): nhịp thanh rêu, tốc độ tụt máu khi giãy,
 tốc độ chìm của thức ăn, ngưỡng "trúng" khi nhảy, tốc độ bơi. Nước chưa có khúc xạ thật (cần chụp ảnh opaque).
+
+## Bản full 2026-10-31 (chiều)
+
+Chủ dự án bảo "làm full game". Bản gốc chỉ có 5 màn (không shop/skin), nên "full" = thay mọi luật đoán bằng luật đọc
+từ mã arm64 (`tools/il2cpp_a64.py`) + vá hình (khúc xạ nước, hậu kỳ chết, hạt có vệt/va chạm) + menu không trống khi
+tải chậm. Từng luật cũ → gốc ghi ở README các mục "Luật gốc đọc từ mã: …".

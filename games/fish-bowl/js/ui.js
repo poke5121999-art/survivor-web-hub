@@ -316,15 +316,6 @@ export class UI {
       if (id !== undefined ? row[14] !== id : auto && !row[13]) continue;
       this._startTween(s, idx, row);
     }
-    // menu Play button: pulse 1 -> 1.08 once its scale-in is done
-    if (auto && s.key === 'menu') {
-      const pi = s.nodes.findIndex((n) => n.name === 'Play_Button');
-      if (pi >= 0 && (!sub || sub.has(pi))) {
-        const a = s.els[pi].animate({ scale: ['1', '1.08'] }, { duration: 550, delay: 2000, easing: 'ease-in-out', iterations: Infinity, direction: 'alternate', fill: 'backwards' });
-        a.__i = pi; a.__id = 'pulse';
-        s.anims.push(a);
-      }
-    }
   }
 
   _subtree(s, i) {
@@ -536,21 +527,35 @@ export class UI {
     for (let i = 1; i <= 5; i++) this.setActive('levels', `BtnsContainer_WithoutScroll/Level${i}Button`, i === n);
   }
 
-  // The export has no lock art (Lock_Image has no sprite), so a locked card gets a dark veil and a drawn padlock.
+  // LevelSelectionManager.LoadLevels only makes the cards up to UnlockLevel interactable (its LockImages list is empty,
+  // so Lock_Image never shows): a locked card is its Button in the disabled ColorTint state.
   setLevelState(n, { locked } = {}) {
-    const el = this.el('levels', `BtnsContainer_WithoutScroll/Level${n}Button/Lock_Image`);
     if (locked !== undefined) {
       this._locked[n] = !!locked;
-      if (!el.__lock) {
-        el.__lock = true;
-        el.__layer.style.background = 'rgba(0,0,0,.55)';
-        el.__layer.style.borderRadius = '40px';
-        const lk = document.createElement('div');
-        lk.className = 'fb-padlock';
-        el.appendChild(lk);
-      }
-      this.setActive('levels', `BtnsContainer_WithoutScroll/Level${n}Button/Lock_Image`, !!locked);
+      this.setInteractable('levels', `BtnsContainer_WithoutScroll/Level${n}Button`, !locked);
     }
     return { locked: !!this._locked[n] };
+  }
+
+  // Selectable.interactable with a ColorTint transition: the target graphic (the node's own image) takes m_DisabledColor
+  // (0.7843, 0.7843, 0.7843, 0.502, the value on every button of this game) and stops taking clicks; children keep their colour.
+  setInteractable(key, path, on) {
+    const el = this.el(key, path);
+    if (el.__inter === !!on) return;
+    el.__inter = !!on;
+    el.classList.toggle('fb-disabled', !on);
+    const layer = el.__layer;
+    if (!layer) return;
+    const a = el.__n.image ? el.__n.image.color[3] : 1;
+    layer.style.transition = 'opacity .1s, filter .1s';
+    layer.style.opacity = on ? (a < 1 ? a : '') : a * 0.502;
+    layer.style.filter = on ? '' : 'brightness(0.7843)';
+  }
+
+  // CanvasGroup alpha + interactable (blocksRaycasts stays on, as the HUD groups of the original).
+  groupAlpha(key, path, alpha, interactable = true) {
+    const el = this.el(key, path);
+    el.style.opacity = alpha;
+    el.classList.toggle('fb-nointeract', !interactable);
   }
 }

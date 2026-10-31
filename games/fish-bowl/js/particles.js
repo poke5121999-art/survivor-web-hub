@@ -7,6 +7,10 @@
 //
 // One draw call per emitter: an InstancedBufferGeometry quad (or the renderer's mesh) with per-instance position,
 // velocity, size/roll/frame and colour. Simulation is CPU, in the emitter's local space (simulationSpace 0) or world space.
+// Modules played: emission/shape/velocity/force/clamp/noise/size/colour/rotation/sheet, Inherit Velocity (initial and current),
+// Collision (world type) and Trails (per-particle ribbons). Collision is a cheap stand-in: Unity collides with scene colliders, which
+// the page does not have, so particles bounce off host-given planes (fx.planes = [[nx, ny, nz, d]], solid side n.p < d; autoAttach
+// sets the room floor). Sub-emitters, Lights, Custom data and external forces are not enabled on any of the 102 original systems.
 // Unity axes are mirrored once: shape and velocity maths run in Unity local axes, then z is negated. Colours are gamma
 // values passed straight to the (linear-output) renderer, like materials.js.
 import * as THREE from 'three';
@@ -14,8 +18,10 @@ import { texture } from './materials.js';
 
 const G = 9.81;
 const MAXN = 4000;
+const PLANE_SLAB = 0.25; // m below a collision plane still counted as touching it
 const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpV = new THREE.Vector3(), tmpS = new THREE.Vector3();
 const rnd = Math.random;
+const dir3 = (m, v) => { const x = v.x, y = v.y, z = v.z; v.set(m[0] * x + m[4] * y + m[8] * z, m[1] * x + m[5] * y + m[9] * z, m[2] * x + m[6] * y + m[10] * z); };
 const lerp = (a, b, s) => a + (b - a) * s;
 
 // ---- curve / gradient evaluation ---------------------------------------------------------------------------------
@@ -165,7 +171,44 @@ function buildGeometry(def, cap) {
   return g;
 }
 
-function buildMaterial(def, texBase, pending) {
+const TVERT = /* glsl */`
+attribute vec4 aTan; attribute vec2 aUv; attribute vec4 aCol;
+uniform vec4 uST;
+varying vec2 vUv; varying vec4 vCol;
+void main() {
+  vec4 mv = modelViewMatrix * vec4(position, 1.0);
+  vec3 t = (modelViewMatrix * vec4(aTan.xyz, 0.0)).xyz;
+  vec3 s = cross(t, normalize(-mv.xyz));
+  float l = length(s);
+  s = l > 1e-6 ? s / l : vec3(1.0, 0.0, 0.0);
+  mv.xyz += s * aTan.w;
+  vUv = aUv * uST.xy + uST.zw; vCol = aCol;
+  gl_Position = projectionMatrix * mv;
+}`;
+const TK = 96; // ring size: trail points kept per particle
+
+// Trail ribbon: camera-facing strip, one vertex pair per point, expanded in the vertex shader. Buffers grow on demand.
+function buildTrail(def, texBase, pending) {
+  const g = new THREE.BufferGeometry();
+  const t = { g, cap: 0, idxCap: 0 };
+  growTrail(t, 2048);
+  const m = buildMaterial({ rend: def.trail.mat }, texBase, pending, TVERT);
+  m.defines = {};
+  t.mesh = new THREE.Mesh(g, m);
+  t.mesh.frustumCulled = false; t.mesh.matrixAutoUpdate = false; t.mesh.visible = false;
+  t.mesh.renderOrder = 10 + (def.rend.order || 0);
+  return t;
+}
+function growTrail(t, verts) {
+  const g = t.g;
+  t.cap = verts; t.idxCap = verts * 3;
+  const attr = (name, n) => { const a = new THREE.BufferAttribute(new Float32Array(verts * n), n); a.setUsage(THREE.DynamicDrawUsage); g.setAttribute(name, a); return a; };
+  t.pos = attr('position', 3); t.tan = attr('aTan', 4); t.uv = attr('aUv', 2); t.col = attr('aCol', 4);
+  const ix = new THREE.BufferAttribute(new Uint32Array(t.idxCap), 1); ix.setUsage(THREE.DynamicDrawUsage);
+  g.setIndex(ix); t.ix = ix;
+}
+
+function buildMaterial(def, texBase, pending, vert) {
   const r = def.rend;
   const add = r.blend === 'add';
   const tiles = def.sheet ? [def.sheet.x, def.sheet.y] : [1, 1];
@@ -179,9 +222,9 @@ function buildMaterial(def, texBase, pending) {
       map: { value: map }, uHasMap: { value: map ? 1 : 0 },
       uTint: { value: new THREE.Vector4(tint[0] * k, tint[1] * k, tint[2] * k, tint[3] * k) },
       uTiles: { value: new THREE.Vector2(...tiles) }, uST: { value: new THREE.Vector4(...(r.st || [1, 1, 0, 0])) },
-      uCut: { value: r.cut || 0 }, uLen: { value: r.len }, uVScale: { value: r.vscale },
+      uCut: { value: r.cut || 0 }, uLen: { value: r.len || 0 }, uVScale: { value: r.vscale || 0 },
     },
-    vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false, side: THREE.DoubleSide,
+    vertexShader: vert || VERT, fragmentShader: FRAG, transparent: true, depthWrite: false, side: THREE.DoubleSide,
     blending: add ? THREE.AdditiveBlending : THREE.NormalBlending, fog: false,
   });
 }
@@ -204,6 +247,7 @@ export class Particles {
     this.pending = [];
     this.spawns = [];
     this.time = 0;
+    this.planes = []; // collision planes, three world space: [nx, ny, nz, d]; a particle stays on the n.p >= d side
   }
 
   resolve(key) { return this.defs[key] ? key : this.alias[key]; }
@@ -222,6 +266,12 @@ export class Particles {
       col: new Float32Array(cap * 4), frame: new Float32Array(cap),
     };
     e.xf = def.xf ? new THREE.Matrix4().compose(new THREE.Vector3(...def.xf.t), new THREE.Quaternion(...def.xf.q), new THREE.Vector3(...def.xf.s)) : null;
+    e.wInv = new THREE.Matrix4(); e.ev = new THREE.Vector3(); e.lastW = new THREE.Vector3(); e.hasW = false; e.tnow = 0;
+    if (def.trail) {
+      e.T = { pts: new Float32Array(cap * TK * 3), tm: new Float32Array(cap * TK), n: new Uint16Array(cap), s: new Uint16Array(cap), on: new Uint8Array(cap), ...buildTrail(def, this.texBase, this.pending) };
+      e.T.mesh.name = `fx trail ${key}`;
+      this.root.add(e.T.mesh);
+    }
     e.geom = buildGeometry(def, cap);
     e.mat = buildMaterial(def, this.texBase, this.pending);
     e.mesh = new THREE.Mesh(e.geom, e.mat);
@@ -270,7 +320,8 @@ export class Particles {
     e.W.copy(e.obj.matrixWorld);
     if (e.xf) e.W.multiply(e.xf);
     e.W.decompose(tmpV, tmpQ, tmpS);
-    e.Wi.setFromMatrix4(tmpM.copy(e.W).invert());
+    e.wInv.copy(e.W).invert();
+    e.Wi.setFromMatrix4(e.wInv);
     const hier = e.def.sm === 0;
     e.sc = hier ? (Math.abs(tmpS.x) + Math.abs(tmpS.y) + Math.abs(tmpS.z)) / 3
       : (Math.abs(e.obj.scale.x) + Math.abs(e.obj.scale.y) + Math.abs(e.obj.scale.z)) / 3 * (e.def.xf ? (e.def.xf.s[0] + e.def.xf.s[1] + e.def.xf.s[2]) / 3 : 1);
@@ -285,7 +336,7 @@ export class Particles {
     e.prevT = e.t - 1e-6;
     e.acc = 0;
     e.bst.fill(0);
-    e.hasLast = false;
+    e.hasLast = false; e.hasW = false; e.ev.set(0, 0, 0);
     e.n = 0;
     if (e.def.pre && e.def.loop) {
       const span = Math.max(cv(e.def.life, 0, 1), 1), dt = Math.max(span / 80, 1 / 30);
@@ -304,6 +355,7 @@ export class Particles {
   clear(e) {
     if (Array.isArray(e)) { e.forEach(x => this.clear(x)); return; }
     e.n = 0; e.playing = e.emitting = false; e.geom.instanceCount = 0; e.mesh.visible = false;
+    if (e.T) e.T.mesh.visible = false;
   }
 
   // Emit n particles now (default: the sum of the system's configured bursts, else 10).
@@ -320,6 +372,7 @@ export class Particles {
   dispose(e) {
     this.root.remove(e.mesh);
     e.geom.dispose(); e.mat.dispose();
+    if (e.T) { this.root.remove(e.T.mesh); e.T.g.dispose(); e.T.mesh.material.dispose(); }
     this.list.splice(this.list.indexOf(e), 1);
     const a = e.obj.userData.fx;
     if (a) a.splice(a.indexOf(e), 1);
@@ -339,6 +392,10 @@ export class Particles {
         const ux = W[0] * vx + W[4] * vy + W[8] * vz, uy = W[1] * vx + W[5] * vy + W[9] * vz, uz = W[2] * vx + W[6] * vy + W[10] * vz;
         px = x; py = y; pz = z; vx = ux; vy = uy; vz = uz;
       }
+      if (e.world && d.inherit && d.inherit.mode === 0) { // InheritVelocity "Initial": the emitter's velocity at birth
+        const k = cv(d.inherit.k, tn, rnd());
+        vx += e.ev.x * k; vy += e.ev.y * k; vz += e.ev.z * k;
+      }
       e.x[i * 3] = px; e.x[i * 3 + 1] = py; e.x[i * 3 + 2] = pz;
       e.v[i * 3] = vx; e.v[i * 3 + 1] = vy; e.v[i * 3 + 2] = vz;
       e.age[i] = 0;
@@ -350,6 +407,7 @@ export class Particles {
       startColor(d.color, tn, rnd(), this._c || (this._c = [0, 0, 0, 0]));
       for (let k = 0; k < 4; k++) e.col[i * 4 + k] = this._c[k];
       e.frame[i] = d.sheet ? rnd() : 0;
+      if (e.T) { e.T.n[i] = 0; e.T.s[i] = 0; e.T.on[i] = rnd() < d.trail.ratio ? 1 : 0; }
     }
   }
 
@@ -368,6 +426,7 @@ export class Particles {
   _step(e, dt, prewarm = false) {
     const d = e.def;
     dt *= d.simspd || 1;
+    e.tnow += dt;
     const dur = d.dur;
     if (e.emitting) {
       const a = e.t;
@@ -396,7 +455,8 @@ export class Particles {
     let gx = 0, gy = -g, gz = 0;
     if (!e.world && g) { const m = e.Wi.elements; gx = m[1] * -g; gy = m[4] * -g; gz = m[7] * -g; }
     const vo = d.vel, fo = d.force, cl = d.clamp, nz = d.noise;
-    const wi = e.Wi.elements;
+    const wi = e.Wi.elements, col = d.col && d.col.type === 1;
+    const ih1 = e.world && d.inherit && d.inherit.mode === 1 ? cv(d.inherit.k, 0, 0.5) : 0;
     for (let i = 0; i < e.n; i++) {
       e.age[i] += dt;
       if (e.age[i] >= e.life[i]) { // swap-remove
@@ -405,6 +465,11 @@ export class Particles {
           e.x.copyWithin(i * 3, j * 3, j * 3 + 3); e.v.copyWithin(i * 3, j * 3, j * 3 + 3); e.rd.copyWithin(i * 3, j * 3, j * 3 + 3);
           e.col.copyWithin(i * 4, j * 4, j * 4 + 4);
           for (const k of ['age', 'life', 'size', 'rot', 'rv', 'frame']) e[k][i] = e[k][j];
+          if (e.T) {
+            const T = e.T;
+            T.n[i] = T.n[j]; T.s[i] = T.s[j]; T.on[i] = T.on[j];
+            T.pts.copyWithin(i * TK * 3, j * TK * 3, (j + 1) * TK * 3); T.tm.copyWithin(i * TK, j * TK, (j + 1) * TK);
+          }
         }
         i--;
         continue;
@@ -433,10 +498,136 @@ export class Particles {
         const s = cv(nz.str, tl, r) * (cv(nz.pos, tl, r) || 1), f = nz.freq, ph = e.rd[i3] * 40 + this.time * (cv(nz.scroll, tl, r) || 0.5) * 2;
         ex += Math.sin(ph * f * 2 + e.rd[i3 + 1] * 9) * s; ey += Math.sin(ph * f * 2.3 + e.rd[i3 + 2] * 9) * s; ez += Math.sin(ph * f * 1.7 + e.rd[i3] * 9) * s;
       }
+      if (ih1) { ex += e.ev.x * ih1; ey += e.ev.y * ih1; ez += e.ev.z * ih1; } // InheritVelocity "Current"
       e.x[i3] += (vx + ex) * dt; e.x[i3 + 1] += (vy + ey) * dt; e.x[i3 + 2] += (vz + ez) * dt;
+      if (col && this.planes.length) this._collide(e, i, tl, r);
       if (d.rotOL != null) e.rot[i] += cv(d.rotOL, tl, r) * dt;
+      if (e.T && e.T.on[i]) this._trailPush(e, i, tl, r);
     }
     if (!e.emitting && e.n === 0) e.playing = false;
+  }
+
+  // Collision module (type World) against this.planes. A killed particle (kill speed, lifetime loss) is culled by the next pass.
+  _collide(e, i, tl, r) {
+    const c = e.def.col, i3 = i * 3, loc = !e.world;
+    tmpV.set(e.x[i3], e.x[i3 + 1], e.x[i3 + 2]);
+    tmpS.set(e.v[i3], e.v[i3 + 1], e.v[i3 + 2]);
+    if (loc) { tmpV.applyMatrix4(e.W); dir3(e.W.elements, tmpS); }
+    const rad = e.size[i] * (e.def.sizeOL != null ? cv(e.def.sizeOL, tl, r) : 1) * e.sc * 0.5 * c.rs;
+    let hit = false, speed = 0;
+    for (const pl of this.planes) {
+      const dist = pl[0] * tmpV.x + pl[1] * tmpV.y + pl[2] * tmpV.z - pl[3] - rad, vn = pl[0] * tmpS.x + pl[1] * tmpS.y + pl[2] * tmpS.z;
+      // not touching, already leaving, or born well below (the room floor under the tank's sand plane): a plane is a one-frame slab
+      if (dist >= 0 || vn >= 0 || dist < -PLANE_SLAB) continue;
+      speed = tmpS.length();
+      const bounce = Math.min(1, Math.max(0, cv(c.bounce, tl, r))), damp = Math.min(1, Math.max(0, cv(c.damp, tl, r)));
+      // normal component reflected and scaled by bounce, tangent kept, everything scaled by 1 - dampen
+      tmpS.x -= pl[0] * vn * (1 + bounce); tmpS.y -= pl[1] * vn * (1 + bounce); tmpS.z -= pl[2] * vn * (1 + bounce);
+      tmpS.multiplyScalar(1 - damp);
+      tmpV.x -= pl[0] * dist; tmpV.y -= pl[1] * dist; tmpV.z -= pl[2] * dist;
+      hit = true;
+    }
+    if (!hit) return;
+    e.age[i] += cv(c.loss, tl, r) * e.life[i]; // "Lifetime loss"
+    if (speed < c.kmin || speed > c.kmax) e.age[i] = e.life[i];
+    if (loc) { tmpV.applyMatrix4(e.wInv); dir3(e.wInv.elements, tmpS); }
+    e.x[i3] = tmpV.x; e.x[i3 + 1] = tmpV.y; e.x[i3 + 2] = tmpV.z;
+    e.v[i3] = tmpS.x; e.v[i3 + 1] = tmpS.y; e.v[i3 + 2] = tmpS.z;
+  }
+
+  // Trail point source: the particle position in the trail's space (world, or the emitter's local space).
+  _tpos(e, i, out) {
+    out.set(e.x[i * 3], e.x[i * 3 + 1], e.x[i * 3 + 2]);
+    if (!e.world && e.def.trail.world) out.applyMatrix4(e.W);
+    return out;
+  }
+
+  _trailPush(e, i, tl, r) {
+    const T = e.T, tr = e.def.trail, K = TK, k3 = i * K * 3, kk = i * K;
+    const life = Math.max(0.001, cv(tr.life, tl, r)) * e.life[i] * (tr.sizeL ? e.size[i] : 1);
+    while (T.n[i] > 0 && e.tnow - T.tm[kk + T.s[i]] > life) { T.s[i] = (T.s[i] + 1) % K; T.n[i]--; }
+    this._tpos(e, i, tmpV);
+    let add = T.n[i] === 0;
+    if (!add) {
+      const l3 = k3 + ((T.s[i] + T.n[i] - 1) % K) * 3;
+      add = Math.hypot(tmpV.x - T.pts[l3], tmpV.y - T.pts[l3 + 1], tmpV.z - T.pts[l3 + 2]) >= tr.minDist;
+    }
+    if (!add) return;
+    if (T.n[i] === K) { T.s[i] = (T.s[i] + 1) % K; T.n[i]--; }
+    const slot = (T.s[i] + T.n[i]) % K;
+    T.pts[k3 + slot * 3] = tmpV.x; T.pts[k3 + slot * 3 + 1] = tmpV.y; T.pts[k3 + slot * 3 + 2] = tmpV.z;
+    T.tm[kk + slot] = e.tnow;
+    T.n[i]++;
+  }
+
+  // Rebuild the ribbons: point 0 is the live head at the particle, then the stored points newest -> oldest. Width and colour run
+  // head (0) to tail (1) by point age over the trail lifetime (inferred: Unity may use the length along the ribbon).
+  _writeTrails(e) {
+    const T = e.T, tr = e.def.trail, d = e.def, K = TK;
+    let need = 0;
+    for (let i = 0; i < e.n; i++) if (T.on[i] && T.n[i] > 0) need += (T.n[i] + 1) * 2;
+    if (need > T.cap) growTrail(T, Math.max(need, T.cap * 2));
+    const pos = T.pos.array, tan = T.tan.array, uv = T.uv.array, col = T.col.array, ix = T.ix.array;
+    const pr = this._tp || (this._tp = new Float32Array(3 * (TK + 1))), ag = this._ta || (this._ta = new Float32Array(TK + 1)), cd = this._tc || (this._tc = new Float32Array(TK + 1));
+    const bc = [0, 0, 0, 0], lc = [1, 1, 1, 1], tc = [1, 1, 1, 1];
+    let vtx = 0, nix = 0;
+    for (let i = 0; i < e.n; i++) {
+      const n = T.n[i];
+      if (!T.on[i] || n < 1) continue;
+      const tl = e.age[i] / e.life[i], r = e.rv[i], m = n + 1;
+      const life = Math.max(0.001, cv(tr.life, tl, r)) * e.life[i] * (tr.sizeL ? e.size[i] : 1);
+      this._tpos(e, i, tmpV);
+      pr[0] = tmpV.x; pr[1] = tmpV.y; pr[2] = tmpV.z; ag[0] = 0;
+      for (let j = 0; j < n; j++) { // j = 0 oldest stored -> index n
+        const slot = (T.s[i] + j) % K, o = (i * K + slot) * 3, q = n - j;
+        pr[q * 3] = T.pts[o]; pr[q * 3 + 1] = T.pts[o + 1]; pr[q * 3 + 2] = T.pts[o + 2];
+        ag[q] = e.tnow - T.tm[i * K + slot];
+      }
+      cd[0] = 0;
+      for (let j = 1; j < m; j++) cd[j] = cd[j - 1] + Math.hypot(pr[j * 3] - pr[j * 3 - 3], pr[j * 3 + 1] - pr[j * 3 - 2], pr[j * 3 + 2] - pr[j * 3 - 1]);
+      const total = cd[m - 1] || 1;
+      if (tr.inhCol) {
+        for (let k = 0; k < 4; k++) bc[k] = e.col[i * 4 + k];
+        if (d.colorOL) { gradAt(d.colorOL.g, tl, lc); for (let k = 0; k < 4; k++) bc[k] *= lc[k]; }
+      } else bc[0] = bc[1] = bc[2] = bc[3] = 1;
+      gradAt(tr.colLife.g, tl, lc);
+      const sz = tr.sizeW ? e.size[i] * (d.sizeOL != null ? cv(d.sizeOL, tl, r) : 1) * e.sc : 1;
+      const base = vtx;
+      for (let j = 0; j < m; j++) {
+        const a = j > 0 ? j - 1 : 0, b = j < m - 1 ? j + 1 : j;
+        let tx = pr[a * 3] - pr[b * 3], ty = pr[a * 3 + 1] - pr[b * 3 + 1], tz = pr[a * 3 + 2] - pr[b * 3 + 2];
+        const tl2 = Math.hypot(tx, ty, tz) || 1; tx /= tl2; ty /= tl2; tz /= tl2;
+        const tt = Math.min(1, ag[j] / life);
+        const hw = 0.5 * cv(tr.width, tt, r) * sz;
+        gradAt(tr.colTrail.g, tt, tc);
+        const u = tr.texMode === 0 ? cd[j] / total : tr.texMode === 1 ? cd[j] * tr.texScale[0] : j * tr.texScale[0];
+        for (let s = 0; s < 2; s++, vtx++) {
+          const v3 = vtx * 3, v4 = vtx * 4;
+          pos[v3] = pr[j * 3]; pos[v3 + 1] = pr[j * 3 + 1]; pos[v3 + 2] = pr[j * 3 + 2];
+          tan[v4] = tx; tan[v4 + 1] = ty; tan[v4 + 2] = tz; tan[v4 + 3] = s ? hw : -hw;
+          uv[vtx * 2] = u; uv[vtx * 2 + 1] = s * tr.texScale[1];
+          for (let k = 0; k < 4; k++) col[v4 + k] = bc[k] * lc[k] * tc[k];
+        }
+        if (j < m - 1) {
+          const q = base + j * 2;
+          ix[nix++] = q; ix[nix++] = q + 1; ix[nix++] = q + 2; ix[nix++] = q + 1; ix[nix++] = q + 3; ix[nix++] = q + 2;
+        }
+      }
+    }
+    T.pos.needsUpdate = T.tan.needsUpdate = T.uv.needsUpdate = T.col.needsUpdate = T.ix.needsUpdate = true;
+    T.g.setDrawRange(0, nix);
+    T.mesh.visible = nix > 0;
+    if (nix) {
+      if (e.world || tr.world) T.mesh.matrix.identity(); else T.mesh.matrix.copy(e.W);
+      T.mesh.matrixWorld.copy(T.mesh.matrix);
+    }
+  }
+
+  // Emitter velocity (world sim space, for InheritVelocity), from the world position of the last two updates.
+  _ev(e, dt) {
+    tmpV.setFromMatrixPosition(e.W);
+    if (e.hasW && dt > 0) e.ev.copy(tmpV).sub(e.lastW).divideScalar(dt); else e.ev.set(0, 0, 0);
+    e.lastW.copy(tmpV); e.hasW = true;
   }
 
   _write(e) {
@@ -472,9 +663,11 @@ export class Particles {
         if (!vis) this.clear(e);
         else if (e.auto && e.def.awake) this.play(e);
       }
-      if (!vis || (!e.playing && e.n === 0)) { e.mesh.visible = false; continue; }
+      if (!vis || (!e.playing && e.n === 0)) { e.mesh.visible = false; if (e.T) e.T.mesh.visible = false; continue; }
       this._w(e);
+      if (e.world && e.def.inherit) this._ev(e, dt);
       this._step(e, dt);
+      if (e.T) this._writeTrails(e);
       e.mesh.visible = e.n > 0 && !e.def.rend.off;
       if (e.mesh.visible) {
         this._write(e);
@@ -499,6 +692,9 @@ export class Particles {
 // Attach every scene system of particles.json to its node (stage.find(path)); returns the emitters. Adds fx.root to the scene.
 export function autoAttach(stage, fx) {
   if (!fx.root.parent) stage.scene.add(fx.root);
+  // Collision stand-in: the top of the tank sand is the only plane (Unity collided with every scene collider).
+  const sand = stage.find('*****FISHENV*****/Aquarium/AquariumSand');
+  if (sand) { sand.updateWorldMatrix(true, true); fx.planes = [[0, 1, 0, new THREE.Box3().setFromObject(sand).max.y]]; }
   const out = [];
   for (const key of Object.keys(fx.defs)) {
     const m = /^(env|player):(.*?)(#\d+)?$/.exec(key);

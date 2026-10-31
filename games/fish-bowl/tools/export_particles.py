@@ -194,6 +194,22 @@ def system(d, rd, texfn, matfn):
     if n["enabled"]:
         e["noise"] = {"str": mm(n["strength"]), "freq": r4(n["frequency"]), "scroll": mm(n["scrollSpeed"]),
                       "pos": mm(n["positionAmount"]), "damp": bool(n["damping"])}
+    iv = d["InheritVelocityModule"]
+    if iv["enabled"]:
+        e["inherit"] = {"mode": iv["m_Mode"], "k": mm(iv["m_Curve"])}
+    co = d["CollisionModule"]
+    if co["enabled"]:  # type 0 = planes (Transforms), 1 = world colliders; no enabled system uses planes
+        e["col"] = {"type": co["type"], "mode": co["collisionMode"], "damp": mm(co["m_Dampen"]), "bounce": mm(co["m_Bounce"]),
+                    "loss": mm(co["m_EnergyLossOnCollision"]), "kmin": r4(co["minKillSpeed"]), "kmax": r4(co["maxKillSpeed"]),
+                    "rs": r4(co["radiusScale"])}
+    tm = d["TrailModule"]
+    if tm["enabled"]:
+        e["trail"] = {"mode": tm["mode"], "ratio": r4(tm["ratio"]), "life": mm(tm["lifetime"]), "minDist": r4(tm["minVertexDistance"]),
+                      "texMode": tm["textureMode"], "texScale": [r4(tm["textureScale"]["x"]), r4(tm["textureScale"]["y"])],
+                      "ribbons": tm["ribbonCount"], "world": bool(tm["worldSpace"]), "die": bool(tm["dieWithParticles"]),
+                      "sizeW": bool(tm["sizeAffectsWidth"]), "sizeL": bool(tm["sizeAffectsLifetime"]),
+                      "inhCol": bool(tm["inheritParticleColor"]), "width": mm(tm["widthOverTrail"]),
+                      "colTrail": col(tm["colorOverTrail"], True), "colLife": col(tm["colorOverLifetime"], True)}
     u = d["UVModule"]
     if u["enabled"]:
         e["sheet"] = {"x": u["tilesX"], "y": u["tilesY"], "anim": u["animationType"], "row": u["rowIndex"],
@@ -210,6 +226,8 @@ def system(d, rd, texfn, matfn):
     if mats:
         rr.update(matfn(mats[0]))
     e["rend"] = rr
+    if "trail" in e:  # the trail ribbon uses the renderer's second material
+        e["trail"]["mat"] = matfn(mats[1]) if len(mats) > 1 else {k: v for k, v in rr.items() if k in ("tex", "st", "tint", "blend", "x2", "cut")}
     return e
 
 

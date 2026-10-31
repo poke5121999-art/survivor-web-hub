@@ -140,48 +140,112 @@ uniform float uTime;`)
   mat.customProgramCacheKey = () => 'sway';
 }
 
-// WaterwithWaves (tools/shaders/WaterwithWaves.glsl). The original refracts the opaque scene and adds _DepthColor near
-// contact lines, SH light and _EmissionColor; alpha fades with depth behind the surface. Without a depth/opaque capture this
-// keeps what shows everywhere: the surface adds _EmissionColor (modulated by the scrolling _RefractionNormal ripple) and,
-// where _RefrectionOpacity > 0, blends _TintColor over what is behind. Premultiplied so both fit one blend.
+// The URP camera textures the water samples, filled by post.js each frame a refracting surface is in view: opaque colour
+// at half resolution (URP asset m_OpaqueDownsampling = 2x bilinear) and the opaque depth buffer.
+export const sceneCapture = {
+  opaque: { value: null }, depth: { value: null }, size: { value: new THREE.Vector2(1, 1) },
+  near: { value: 0.1 }, far: { value: 1000 },
+};
+
+// Ashima 2D simplex noise exactly as Shader Graph compiled it into WaterwithWaves/Trees (x*34+1 permute, 1/41 gradients).
+const SNOISE = /* glsl */`
+vec3 sn289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+vec2 sn289(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+float snoise(vec2 v) {
+  const vec4 C = vec4(0.211324865405187, 0.366025403784439, -0.577350269189626, 0.024390243902439);
+  vec2 i = floor(v + dot(v, C.yy));
+  vec2 x0 = v - i + dot(i, C.xx);
+  vec2 i1 = x0.x > x0.y ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+  vec4 x12 = x0.xyxy + C.xxzz;
+  x12.xy -= i1;
+  i = sn289(i);
+  vec3 p = sn289(((i.y + vec3(0.0, i1.y, 1.0)) * 34.0 + 1.0) * (i.y + vec3(0.0, i1.y, 1.0)));
+  p = p + i.x + vec3(0.0, i1.x, 1.0);
+  p = sn289((p * 34.0 + 1.0) * p);
+  vec3 m = max(0.5 - vec3(dot(x0, x0), dot(x12.xy, x12.xy), dot(x12.zw, x12.zw)), 0.0);
+  m = m * m; m = m * m;
+  vec3 x = 2.0 * fract(p * C.www) - 1.0;
+  vec3 h = abs(x) - 0.5;
+  vec3 a0 = x - floor(x + 0.5);
+  m *= 1.79284291400159 - 0.85373472095314 * (a0 * a0 + h * h);
+  vec3 g = vec3(a0.x * x0.x + h.x * x0.y, a0.yz * x12.xz + h.yz * x12.yw);
+  return 130.0 * dot(m, g);
+}`;
+
+const waterVert = /* glsl */`
+uniform float uTime, waveHeight, waveScale, waveSpeed;
+varying vec2 vUv;
+varying float vSurfZ;
+${SNOISE}
+void main() {
+  vUv = uv;
+  vec4 wp = modelMatrix * vec4(position, 1.0);
+  vSurfZ = -(viewMatrix * wp).z;
+  vec3 p = position;
+  // Object-space lift by noise of the Unity world XZ (three z is Unity -z); position is object space (world.js).
+  if (waveHeight != 0.0) p.y += waveHeight * (snoise((vec2(wp.x, -wp.z) + uTime * waveSpeed) * waveScale) * 0.5 + 0.5);
+  gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(p, 1.0);
+}`;
+
+const waterFrag = /* glsl */`
+uniform sampler2D normalMap, opaqueTex, depthTex;
+uniform vec2 screenSize, refrDir;
+uniform float near, far, uTime, normalTile, normalScale, refrSpeed, refrAmount, refrOpacity, depthOffset, depthPower, opacity;
+uniform vec3 tint, emission, depthColor, ambient;
+varying vec2 vUv;
+varying float vSurfZ;
+float eyeDepth(float d) { return near * far / ((near - far) * d + far); }
+void main() {
+  // Unity uv (v up) -> our flipped uv and unflipped texture: sample at (s.x, 1 - s.y).
+  vec2 s = vec2(vUv.x, 1.0 - vUv.y) * normalTile + refrDir * refrSpeed * uTime;
+  vec2 n = (texture2D(normalMap, vec2(s.x, 1.0 - s.y)).xy * 2.0 - 1.0) * normalScale;
+  vec2 suv = gl_FragCoord.xy / screenSize;
+  float sceneZ = eyeDepth(texture2D(depthTex, suv).x);
+  vec2 off = n * (refrAmount / max(vSurfZ, 0.1)) * clamp(sceneZ - vSurfZ, 0.0, 1.0);
+  off *= clamp(eyeDepth(texture2D(depthTex, suv + off).x) - vSurfZ, 0.0, 1.0);
+  vec3 behind = clamp(texture2D(opaqueTex, suv + off).rgb, 0.0, 1.0);
+  vec3 albedo = mix(behind, tint, refrOpacity);
+  float d = sceneZ - eyeDepth(gl_FragCoord.z);
+  float edge = clamp((1.0 - abs(d / depthOffset)) * depthPower, 0.0, 1.0);
+  gl_FragColor = vec4(ambient * albedo * 0.96 + emission + depthColor * edge, min(abs(d / opacity), 1.0));
+}`;
+
+// MyShaders/Water/WaterwithWaves, Forward pass (tools/shaders/WaterwithWaves.glsl), Blend SrcAlpha OneMinusSrcAlpha, ZWrite
+// On, Cull Off, queue Transparent. albedo = lerp(_CameraOpaqueTexture at the refracted screen uv, _MianTex * _TintColor,
+// _RefrectionOpacity); rgb = SH * albedo * 0.96 + _EmssionMap * _EmissionColor + _DepthColor * saturate((1 - |dz /
+// _DepthOffset|) * _DepthPower); alpha = min(|dz / _Opacity|, 1) where dz = scene eye depth - surface eye depth.
+// _MianTex and _EmssionMap are unset on every water material and default to white. Not carried: the main light (the
+// scene's only one is Baked under an inactive parent) and the reflection-probe specular (FishEnv RenderSettings
+// m_ReflectionIntensity = 0). SH is the flat ambient colour, as for every other dynamic surface (world.js).
 function waterMaterial(entry, ctx) {
   const f = entry.f, c = entry.c;
-  const em = c._EmissionColor || [0, 0, 0], tn = c._TintColor || [0, 0, 0];
-  const ro = f._RefrectionOpacity || 0;
-  const mat = new THREE.MeshBasicMaterial({
-    color: new THREE.Color().setRGB(em[0] + tn[0] * ro, em[1] + tn[1] * ro, em[2] + tn[2] * ro, THREE.LinearSRGBColorSpace),
-    transparent: true, depthWrite: false, opacity: 1,
-    blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
-    blendEquation: THREE.AddEquation, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
+  const v3 = (a = [0, 0, 0]) => new THREE.Vector3(a[0], a[1], a[2]);
+  const rd = c._RefractionDiredtion || [0, 0];
+  const mat = new THREE.ShaderMaterial({
+    uniforms: {
+      uTime: ctx.time,
+      waveHeight: { value: f._WaveHeight ?? 0 }, waveScale: { value: f._WaveScale ?? 5 }, waveSpeed: { value: f._WaveSpeed ?? 1 },
+      normalMap: { value: slotTexture(entry, ctx, '_RefractionNormal') },
+      opaqueTex: sceneCapture.opaque, depthTex: sceneCapture.depth, screenSize: sceneCapture.size,
+      near: sceneCapture.near, far: sceneCapture.far,
+      refrDir: { value: new THREE.Vector2(rd[0], rd[1]) },
+      normalTile: { value: f._NormalTile ?? 1 }, normalScale: { value: f._NormalScale ?? 0 },
+      refrSpeed: { value: f._RefractionSpeed ?? 0 }, refrAmount: { value: f._RefractionAmount ?? 0 },
+      refrOpacity: { value: f._RefrectionOpacity ?? 0.5 }, depthOffset: { value: f._DepthOffset ?? 0 },
+      depthPower: { value: f._DepthPower ?? 0 }, opacity: { value: f._Opacity ?? 0 },
+      tint: { value: v3(c._TintColor) }, emission: { value: v3(c._EmissionColor) }, depthColor: { value: v3(c._DepthColor) },
+      ambient: { value: v3(ctx.ambient) },
+    },
+    vertexShader: waterVert, fragmentShader: waterFrag,
+    transparent: true, depthWrite: true, side: THREE.DoubleSide,
   });
-  mat.userData.alpha = ro;
-  const n = slotTexture(entry, ctx, '_RefractionNormal');
-  if (!n) return mat;
-  const tile = Math.max(f._NormalTile ?? 0.03, 0.01) * 30, speed = (f._RefractionSpeed ?? 0.5) * 0.1;
-  mat.onBeforeCompile = sh => {
-    sh.uniforms.ripple = { value: n };
-    sh.uniforms.uTime = ctx.time;
-    sh.uniforms.rAlpha = { value: ro };
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', `#include <common>
-varying vec2 vWUv;`)
-      .replace('#include <begin_vertex>', `#include <begin_vertex>
-vWUv = uv;`);
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
-varying vec2 vWUv;
-uniform sampler2D ripple;
-uniform float uTime;
-uniform float rAlpha;`)
-      .replace('#include <map_fragment>', `#include <map_fragment>
-float rip = texture2D(ripple, vWUv * ${tile.toFixed(2)} + vec2(uTime * ${speed.toFixed(3)}, 0.0)).r;
-diffuseColor.rgb *= 0.75 + 0.5 * rip;`)
-      .replace('#include <opaque_fragment>', `#include <opaque_fragment>
-gl_FragColor.a = rAlpha;`);
-  };
-  mat.customProgramCacheKey = () => 'water';
+  mat.userData.refract = true;
+  // The wave moves vertices in Unity object space: world.js gives these meshes unquantized object-space positions.
+  mat.userData.objectSpace = (f._WaveHeight ?? 0) !== 0;
   return mat;
 }
 
-// ctx = { texBase, textures, lightmaps, time {value}, pending[] }; lm = lightmap index (Bakery) or null.
+// ctx = { texBase, textures, lightmaps, time {value}, ambient [r,g,b], pending[] }; lm = lightmap index (Bakery) or null.
 export function makeMaterial(entry, ctx, lm = null) {
   const key = `${entry.name}|${lm}`;
   if (ctx.cache.has(key)) return ctx.cache.get(key);
@@ -196,13 +260,21 @@ export function makeMaterial(entry, ctx, lm = null) {
   } else if (sh.includes('MatCap')) {
     mat = blend(matcapMaterial(entry, ctx, color), entry);
   } else if (sh.includes('Trees') && lm == null) {
-    mat = new THREE.MeshLambertMaterial(base(entry, ctx, { color, side: THREE.DoubleSide }));
+    mat = new THREE.MeshLambertMaterial(base(entry, ctx, { color, side: THREE.DoubleSide, transparent: true, alphaTest: 0.1 }));
     sway(mat, ctx, entry);
   } else if (lm != null) {
-    // Baked static: albedo * 2 * lightmap texel ("double LDR"); meshbasic scales lightMap by 1/pi, so 2*pi.
-    mat = new THREE.MeshBasicMaterial(base(entry, ctx, { color, lightMap: lightmapTexture(ctx, lm), lightMapIntensity: 2 * Math.PI }));
+    // Baked static: albedo * 0.96 (1 - metallic) * 2 * lightmap texel. The lightmaps are LightmapDoubleLDR (Texture2D
+    // m_LightmapFormat 1) and the LIGHTMAP_ON programs decode them as texel + texel; 0.96 is URP's dielectric
+    // oneMinusReflectivity (the Trees program hard-codes it). MeshBasic scales lightMap by 1/pi, hence the pi.
+    const diffuse = 0.96 * (1 - (entry.f._Metallic || 0));
+    mat = new THREE.MeshBasicMaterial(base(entry, ctx, { color, lightMap: lightmapTexture(ctx, lm), lightMapIntensity: 2 * diffuse * Math.PI }));
     blend(mat, entry);
-    if (sh.includes('Trees')) sway(mat, ctx, entry);
+    if (sh.includes('Trees')) {
+      // Trees is Queue Transparent, Blend SrcAlpha OneMinusSrcAlpha, ZWrite On, clip at alpha 0.1: it draws after the
+      // opaque capture (so water does not refract it) and sorts with glass and water like the original.
+      Object.assign(mat, { transparent: true, depthWrite: true, alphaTest: 0.1 });
+      sway(mat, ctx, entry);
+    }
   } else {
     mat = blend(new THREE.MeshLambertMaterial(base(entry, ctx, { color })), entry);
   }

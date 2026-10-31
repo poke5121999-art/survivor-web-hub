@@ -31,9 +31,9 @@ class TimelineController extends Base {
   CameraBlendStateCut() { /* camera cuts are already hard cuts here */ }
 }
 
-// AS.FadeCall: screen fade on the HUD Fader (Mode 0 = from black). Speed is 1/seconds of the fade.
+// AS.FadeCall.Fade -> AS.Fading.DoFading(Mode, Speed, wait) on the HUD Fader (constructor defaults: Speed 1, wait 1).
 class FadeCall extends Base {
-  Fade() { this.game.fadeFromBlack(1 / Math.max(0.1, this.data.Speed || 1)); }
+  Fade() { this.game.fadeTo(this.data.Mode || 0, this.data.Speed ?? 1, this.data.wait ?? 1); }
 }
 
 // AS.ButtonEventsAssign: entering its trigger shows the HUD action button ("TAP!") wired to OnButtonClick.

@@ -15,9 +15,38 @@ import { activeInHierarchy, shortType, BoxVolume, parseRef } from './unity.js';
 export const levelPath = n => `ActivityManager/Activities/Level ${n}`;
 const H = p => `CF2-Canvas/CF2-Panel/${p}`; // hud node paths as ui.js names them
 const CLICK = 'mouth-pop-1_z1M9vz4u_NWM';
-const AMBIENCE = 'audioblocks-robert-frost-iii_educational_birds-full-mix-inst-100bpm_SXk9vUWUv_NWM';
+// SplashBGMusic: one looping clip started by the splash and kept across scenes (no level changes it), BGMusic m_Volume 0.4
+export const MUSIC = 'audioblocks-robert-frost-iii_educational_birds-full-mix-inst-100bpm_SXk9vUWUv_NWM';
+export const MUSIC_VOLUME = 0.4;
 const FILTER_HUM = 'zapsplat_household_fishtank_filter_buzz_hum_18539';
-const HINT_SECONDS = 5;
+// spongefilter/BubbleRisingUnderwater AudioSource: m_Volume 0.5, fully 3D, logarithmic rolloff between 1 and 3.5
+const HUM = { volume: 0.5, min: 1, max: 3.5 };
+const UI_VOLUME = 0.8; // Manager AudioSource = UIManager.audioSourceForSoundEffects (clicks, complete / fail sounds)
+const HINT_SECONDS = 5; // HintManager.TurnHintOnforABit / TurnOnHint: WaitForSeconds(5)
+const HINT_CLOSE_SECONDS = 1; // HintManager.TurnOnHint: "close" tween, then WaitForSeconds(1)
+const NO_HINT = 'No Hint Available'; // HintManager.TurnOnHint, when the panel text is empty
+const POPUP_SECONDS = 3; // UIManager.MissionComplete: ShowCompletePopUpPanel(3, Cash) waits in real time
+const POPUP_TIME_SCALE = 0.5; // ShowCompletePopUpPanel: Time.timeScale = 0.5 (until the next scene load)
+const DEATH_SECONDS = 2; // PlayerHandler.Death(2), from FloppingFish / FishGetsFood / ThrowSimulation
+const SKIP_TAIL = 0.1; // TimelineManager.SkipCutscene: director.time = duration - 0.1
+const HUD_FADE = 1; // UIManager.HudFader: CanvasGroup alpha MoveTowards(target, deltaTime)
+const HUD_GROUPS = ['Controls', 'GameStatusBtns', 'TaskSpecificControls'];
+// CameraManager.DefaultCameraShaker: CinemachineImpulseSource, legacy impulse with the "6D Shake" NoiseSettings
+// (sharedassets4), envelope attack 0 / sustain 0.2 / decay 0.7 s, gain = force x |m_DefaultVelocity| (1).
+// Each row is one noise octave: [frequency Hz, amplitude] for x, y, z; position in m, orientation in degrees.
+const SHAKE_POS = [[3.2, 0.011, 1.9, 0.059, 3.33, 0.021], [7.7, 0.009, 9.1, 0.04, 9.22, 0.009], [51.51, 0.002, 55.54, 0.05, 58.55, 0.017]];
+const SHAKE_ROT = [[5.83, 0.09, 1.8, 0.059, 2.38, 0.017], [9.17, 0.14, 11.35, 0.041, 10.52, 0.009], [57.17, 0.15, 54.17, 0.048, 63.76, 0.016]];
+const SHAKE_SUSTAIN = 0.2, SHAKE_DECAY = 0.7;
+const noise6 = (rows, t, ph, out) => {
+  out.set(0, 0, 0);
+  rows.forEach((r, k) => {
+    out.x += r[1] * Math.sin(2 * Math.PI * r[0] * t + ph[k * 3]);
+    out.y += r[3] * Math.sin(2 * Math.PI * r[2] * t + ph[k * 3 + 1]);
+    out.z += r[5] * Math.sin(2 * Math.PI * r[4] * t + ph[k * 3 + 2]);
+  });
+  return out;
+};
+const moveTowards = (a, b, d) => (Math.abs(b - a) <= d ? b : a + Math.sign(b - a) * d);
 const SWIM_FX_SPEED = 0.8; // fraction of top speed that shows the swim wake
 const SWIM_CONTROLS = ['Controls/Joystick-Region (LeftRightForward)', 'Controls/SwimUp-Button', 'Controls/SwimDown-Button', 'Controls/Run'];
 const TASK_CONTROLS = ['TaskSpecificControls/PullMoss_Button', 'TaskSpecificControls/HungerSlider', 'TaskSpecificControls/FishJump_TouchBtn',
@@ -42,6 +71,7 @@ export class Game {
     this.triggers = new Triggers(stage.env, comps, this.events);
     this.tweens = new Tweens(this.find);
     this.fish = new Fish(stage, comps);
+    this.impulses = [];
     this.follow = new FollowCam(stage.vcams['MainCamera/CameraStateManager/CM vcam1']);
     this.nav = new NavMarkers(stage.env.objects, fxLayer);
     this.dynamic = new THREE.Group();
@@ -147,11 +177,18 @@ export class Game {
     this.restore();
     this.instances = new Map();
     this.timers = [];
+    this.realTimers = [];
+    this.runId = (this.runId || 0) + 1;
+    this.hum?.stop();
+    // the filter bubbles (playOnAwake off) belong to the scene that a level reload resets; levels 2-5 start them in OnInit
+    this.particles.clear(this.particles.at(this.find(parseRef(this.comps.ActivityManager.InstanceManager.bubblesParticle).path), true));
     this.tweens.reset();
     this.triggers.reset();
     this.stage.cine.override = { follow: {}, look: {} };
+    // a level is its own scene load in the original: Time.timeScale back to 1 (UIManager.LoadingScene), nothing focused
     Object.assign(this, { state: 'playing', paused: false, tlPaused: false, tl: null, action: null, carried: [], control: true,
-      shots: null, driver: null, dirt: 1, swimFx: false, skipIntro: skip, lastHint: '', hintTimer: 0, levelSkipped: false });
+      shots: null, driver: null, dirt: 1, swimFx: false, skipIntro: skip, lastHint: 'Hint', hintTimer: 0, levelSkipped: false,
+      timeScale: 1, fishHeld: false, impulses: [], focus: { controls: false, status: false, task: false }, groupAlpha: null, hum: null, humOn: false });
     this.input.clearListeners();
     this.input.on('action', () => this.doAction());
     this.nav.extra.clear();
@@ -164,16 +201,15 @@ export class Game {
     this.fish.align(this.find(parseRef(this.activity.PlayerInitPosition).path));
     this.snapCamera();
     this.tweens.autoPlay(this.stage.env.root);
-    this.sound.playMusic(AMBIENCE, 0.25);
-    this.hum?.stop();
-    this.sound.play(FILTER_HUM, { loop: true, volume: 0.15 }).then(h => { this.hum = h; });
-    this.fade(0);
+    this.sound.playMusic(MUSIC, MUSIC_VOLUME);
+    this.fadeTo(0, 1, 1); // AS.Fading.Init: FadeOutOnLoad -> DoFading(FromBlack, speed 1, wait 1)
     this.events.run(this.activity.OnInit);
     if (skip && this.tl) this.endTimeline(true);
   }
 
   stop() {
     this.state = 'menu';
+    this.runId++;
     this.hum?.stop();
     this.hum = null;
     this.ui.hide('hud');
@@ -183,17 +219,33 @@ export class Game {
     this.instances?.forEach(i => i.dispose?.());
   }
 
+  // WaitForSeconds (scaled by timeScale) and WaitForSecondsRealtime
   after(sec, fn) { this.timers.push({ t: sec, fn }); }
+  afterReal(sec, fn) { this.realTimers.push({ t: sec, fn }); }
 
   setControl(on) {
     this.control = !!on;
     this.refreshControls();
   }
 
-  canSwim() { return this.state === 'playing' && this.control && !this.tl && !this.driver && !this.paused; }
+  canSwim() { return this.state === 'playing' && this.control && !this.tl && !this.driver && !this.paused && !this.fishHeld; }
 
   // ---- HUD --------------------------------------------------------------------------------------------------------
   hud(path, on) { this.ui.setActive('hud', path, on); }
+  // CameraManager.CameraShake(force) -> GenerateImpulse(force); m_Randomize gives each impulse its own noise phase
+  cameraShake(force) { this.impulses.push({ t: 0, gain: force, ph: Array.from({ length: 9 }, () => Math.random() * 2 * Math.PI) }); }
+  applyShake(cam, dt) {
+    if (!this.impulses.length) return;
+    const p = new THREE.Vector3(), r = new THREE.Vector3(), tp = new THREE.Vector3(), tr = new THREE.Vector3();
+    this.impulses = this.impulses.filter(im => (im.t += dt) < SHAKE_SUSTAIN + SHAKE_DECAY);
+    for (const im of this.impulses) {
+      const env = im.gain * (im.t <= SHAKE_SUSTAIN ? 1 : 1 - (im.t - SHAKE_SUSTAIN) / SHAKE_DECAY);
+      p.addScaledVector(noise6(SHAKE_POS, im.t, im.ph, tp), env);
+      r.addScaledVector(noise6(SHAKE_ROT, im.t, im.ph, tr), env);
+    }
+    cam.position.add(p.applyQuaternion(cam.quaternion));
+    cam.rotateX(THREE.MathUtils.degToRad(r.x)); cam.rotateY(THREE.MathUtils.degToRad(r.y)); cam.rotateZ(THREE.MathUtils.degToRad(r.z));
+  }
 
   resetHud() {
     const ui = this.ui;
@@ -201,55 +253,95 @@ export class Game {
     ui.show('letterbox');
     ui.setActive('letterbox', 'TimelineUI', false);
     for (const p of [...PANELS, ...TASK_CONTROLS, ...STORE_LINKS]) this.hud(p, false);
-    for (const p of ['Controls', 'GameStatusBtns', 'TaskSpecificControls', 'JumpGoPRomptParent', ...SWIM_CONTROLS, 'Controls/Hint', 'Controls/CameraPad']) this.hud(p, true);
+    for (const p of [...HUD_GROUPS, 'JumpGoPRomptParent', ...SWIM_CONTROLS, 'Controls/Hint', 'Controls/CameraPad']) this.hud(p, true);
+    ui.setText('hud', 'HintPanel_Img/Text (TMP)', this.lastHint);
+    ui.setInteractable('hud', H('Controls/Hint'), true);
+    // UIManager.Init: ControlsGroup alpha 0, so the controls fade in; the other groups start at their serialized alpha 1
+    this.groupAlpha = { Controls: 0, GameStatusBtns: 1, TaskSpecificControls: 1 };
+    this.nav.opacity = 1;
+    this.hudFader(0);
     this.nav.enabled = true;
     this.textCache = {};
   }
 
   swimControls(on) { for (const p of SWIM_CONTROLS) this.hud(p, on); }
 
-  refreshControls() {
-    const live = this.state === 'playing' && !this.tl;
-    this.hud('Controls', live && this.control);
-    this.hud('GameStatusBtns', live);
-    this.hud('TaskSpecificControls', live && this.control);
-    this.nav.enabled = live;
+  refreshControls() { this.nav.enabled = this.state !== 'menu' && !this.tl; }
+
+  // UIManager.HudFader: each HUD CanvasGroup moves to alpha 0 while its focus flag is set (Focus, FocusGameStatusGroup,
+  // FocusTaskSpecificControlsGroup) and back to 1 otherwise, at 1/s; a focused group takes no input. The HUD navigation
+  // canvas follows the controls flag. PlayerStatus(false) (the player switched off) also takes the controls away here.
+  hudFader(dt) {
+    const f = this.focus, off = !this.control;
+    const want = { Controls: f.controls || off, GameStatusBtns: f.status, TaskSpecificControls: f.task || off };
+    for (const g of HUD_GROUPS) {
+      this.groupAlpha[g] = moveTowards(this.groupAlpha[g], want[g] ? 0 : 1, dt * HUD_FADE);
+      this.ui.groupAlpha('hud', H(g), this.groupAlpha[g], !want[g]);
+    }
+    this.nav.opacity = moveTowards(this.nav.opacity, f.controls ? 0 : 1, dt * HUD_FADE);
   }
 
+  setFocus(controls, status = controls, task = controls) { Object.assign(this.focus, { controls, status, task }); }
+
+  // HintManager.ChangeHintAndShow (InstanceManager.ShowHintFromInstanceMngr): the text replaces the panel's at once (TypeHint
+  // without its typewriter coroutine), the panel shows for 5 s and the Hint button is disabled meanwhile.
   hint(text) {
-    if (!text) return;
+    if (text == null) return;
     this.lastHint = text;
     this.ui.setText('hud', 'HintPanel_Img/Text (TMP)', text);
-    this.hud('HintPanel_Img', true);
-    this.hintTimer = HINT_SECONDS;
+    this.openHint(HINT_SECONDS);
   }
 
-  fade(a) { this.ui.fade(a); this.fadeAnim = null; }
-  fadeFromBlack(sec) { this.ui.fade(1); this.fadeAnim = { t: 0, dur: sec }; }
+  // HintManager.ShowHint (Hint button): whatever the panel holds, "No Hint Available" when empty, for 5 s, then its "close"
+  // tween (the panel has none with that id) and 1 s more.
+  showHint() {
+    if (!this.lastHint) {
+      this.lastHint = NO_HINT;
+      this.ui.setText('hud', 'HintPanel_Img/Text (TMP)', NO_HINT);
+    }
+    this.openHint(HINT_SECONDS + HINT_CLOSE_SECONDS);
+  }
+
+  openHint(sec) {
+    this.hud('HintPanel_Img', true);
+    this.ui.setInteractable('hud', H('Controls/Hint'), false);
+    this.hintTimer = sec;
+  }
+
+  // AS.Fading.FadingNumerator: the Fader jumps to black (mode 0, FromBlack) or clear (mode 1), holds `wait` s, then moves to
+  // alpha = mode at `speed`/s, blocking the HUD until it gets there.
+  fadeTo(mode, speed = 1, wait = 1) {
+    this.fader = { a: mode === 0 ? 1 : 0, to: mode, speed, wait };
+    this.ui.fade(this.fader.a);
+  }
+
+  get fading() { return !!this.fader; }
 
   bindHud() {
     const ui = this.ui, input = this.input;
     const hold = (path, name) => ui.onPress('hud', H(path), d => input.hold(name, d));
     const press = (path, name) => ui.onPress('hud', H(path), d => { if (d) input.tap(name); });
-    const click = (path, fn) => ui.on('hud', H(path), () => { this.sound.play(CLICK); fn(); });
+    // UIManager's own handlers end in ClickSound on the Manager AudioSource; HintManager.ShowHint, UIManager.SetSkipPanel,
+    // the TimelineManager skip buttons and the task buttons play none. The action button plays the pop on its own source.
+    const click = (path, fn, volume = UI_VOLUME) => ui.on('hud', H(path), () => { if (volume) this.sound.play(CLICK, { volume }); fn(); });
     hold('Controls/SwimUp-Button', 'up');
     hold('Controls/SwimDown-Button', 'down');
     hold('Controls/Run', 'boost');
     press('TaskSpecificControls/FishJump_TouchBtn', 'jump');
     press('TaskSpecificControls/FloppyFishJump_TouchBtn', 'flop');
-    click('TaskSpecificControls/PullMoss_Button', () => input.tap('pull'));
-    click('Controls/ActionButton', () => input.tap('action'));
-    click('Controls/Hint', () => this.hint(this.lastHint));
+    click('TaskSpecificControls/PullMoss_Button', () => input.tap('pull'), 0);
+    click('Controls/ActionButton', () => input.tap('action'), 1);
+    click('Controls/Hint', () => this.showHint(), 0);
     click('GameStatusBtns/Pause', () => this.pause(true));
     click('GameStatus/PausePanel/Panel/Main Buttons Container/Resume', () => this.pause(false));
     click('GameStatus/PausePanel/Panel/Main Buttons Container/Restart', () => this.start(this.level));
     click('GameStatus/PausePanel/Panel/Main Buttons Container/Home', () => this.onExit());
-    click('GameStatusBtns/Skip', () => { this.paused = true; this.hud('GameStatus/Level Skip', true); });
-    click('GameStatus/Level Skip/Skjp Panel/Yes/Button', () => { this.hud('GameStatus/Level Skip', false); this.paused = false; this.complete(true); });
-    click('GameStatus/Level Skip/Skjp Panel/No', () => { this.hud('GameStatus/Level Skip', false); this.paused = false; });
-    click('Timeline/TimelineSkipButton', () => { if (!this.tl) return; this.tlPaused = true; this.hud('Timeline/Skip CutScene', true); });
-    click('Timeline/Skip CutScene/Skjp Panel/Yes/Button', () => { this.hud('Timeline/Skip CutScene', false); this.tlPaused = false; if (this.tl) this.endTimeline(true); });
-    click('Timeline/Skip CutScene/Skjp Panel/No', () => { this.hud('Timeline/Skip CutScene', false); this.tlPaused = false; });
+    click('GameStatusBtns/Skip', () => this.levelSkipPanel(true), 0);
+    click('GameStatus/Level Skip/Skjp Panel/Yes/Button', () => this.skipLevel());
+    click('GameStatus/Level Skip/Skjp Panel/No', () => this.levelSkipPanel(false), 0);
+    click('Timeline/TimelineSkipButton', () => this.cutsceneSkipPanel(true), 0);
+    click('Timeline/Skip CutScene/Skjp Panel/Yes/Button', () => this.skipCutscene(), 0);
+    click('Timeline/Skip CutScene/Skjp Panel/No', () => this.cutsceneSkipPanel(false), 0);
     click('GameStatus/LevelCompletePanel/Panel/Main Buttons Container/Next', () => this.onNext(this.level));
     click('GameStatus/LevelCompletePanel/Panel/Main Buttons Container/Restart', () => this.start(this.level));
     click('GameStatus/LevelCompletePanel/Panel/Main Buttons Container/Home', () => this.onExit());
@@ -257,10 +349,42 @@ export class Game {
     click('GameStatus/LevelFailPanel/Panel/Main Buttons Container/Home', () => this.onExit());
   }
 
+  // UIManager.Pause: the panel and GameManager.gamePaused (the tasks stop on it); Time.timeScale is left alone.
   pause(on) {
     if (this.state !== 'playing') return;
     this.paused = on;
     this.hud('GameStatus/PausePanel', on);
+  }
+
+  // UIManager.SetSkipPanel: the level-skip question stops the game clock (Time.timeScale 0), "No" restarts it.
+  levelSkipPanel(on) {
+    if (on && this.state !== 'playing') return;
+    this.hud('GameStatus/Level Skip', on);
+    this.timeScale = on ? 0 : 1;
+  }
+
+  // UIManager.Skip: the activity completes with its full Cash (the original shows a rewarded ad first); timeScale stays 0
+  // until the complete pop-up sets 0.5.
+  skipLevel() {
+    this.hud('GameStatus/Level Skip', false);
+    this.complete(true);
+  }
+
+  // TimelineManager.SetSkip: the question pauses the director only (speed 0) and hides the skip button; "No" resumes.
+  cutsceneSkipPanel(on) {
+    if (on && !this.tl) return;
+    this.tlPaused = on;
+    this.hud('Timeline/Skip CutScene', on);
+    this.hud('Timeline/TimelineSkipButton', !on && !!this.tl);
+  }
+
+  // TimelineManager.SkipCutscene: speed back to 1 and the director jumps to 0.1 s before its end, so the cutscene ends
+  // (OnTimelineEnd) on its own a moment later. The skip button stays hidden.
+  skipCutscene() {
+    this.hud('Timeline/Skip CutScene', false);
+    this.tlPaused = false;
+    const p = this.tl?.player;
+    if (p) p.t = Math.max(p.t, p.duration - SKIP_TAIL);
   }
 
   // AS.ButtonEventsAssign: the action button belongs to the trigger the player is in.
@@ -319,8 +443,10 @@ export class Game {
     this.tlPaused = false;
     this.fish.root.visible = false; // TimelineController.SetPlayer: the cutscene has its own fish
     ui.setActive('letterbox', 'TimelineUI', true);
+    // AS.TimelineEvents.OnEnable: skip button per SkipAble, TimelineManager.isTimeLine(true) focuses every HUD group
     this.hud('Timeline/TimelineSkipButton', !!ev.SkipAble);
-    this.hud('HintPanel_Img', false);
+    this.hud('Timeline/Skip CutScene', false);
+    this.setFocus(true);
     this.refreshControls();
     this.events.run(ev.OnTimelineStart);
     this.tl.player.start();
@@ -339,6 +465,7 @@ export class Game {
     this.hud('Timeline/Skip CutScene', false);
     this.fish.root.visible = true;
     this.snapCamera();
+    this.setFocus(false);
     this.refreshControls();
     this.events.run(t.ev.OnTimelineEnd);
     this.lastTimeline = { path: t.path, skipped };
@@ -347,49 +474,78 @@ export class Game {
   snapCamera() { this.follow.snap(this.fish.focus, this.fish.yaw); }
 
   // ---- results ----------------------------------------------------------------------------------------------------
-  complete(skipped) {
+  // AS.Activity.ActivityComplete -> UIManager.MissionComplete(Cash), then the activity's OnComplete (NexActivityUnlock).
+  // ShowCompletePopUpPanel(3, Cash): pop-up + inGameCompleteSfx, Time.timeScale 0.5, 3 s of real time, then the panel
+  // with "X<Cash>", lvlCompleteSound, the controls focused away and GameManager.gamePaused. A skipped level (UIManager.Skip)
+  // goes through the same ActivityComplete, full Cash included. Controls and hint stay as they are until then.
+  complete(skipped = false) {
     if (this.state !== 'playing') return;
     if (this.tl) this.endTimeline(true);
     this.state = 'complete';
     this.levelSkipped = skipped;
-    const cash = skipped ? 0 : this.activity.Cash;
-    this.events.run(this.activity.OnComplete);
-    this.save.addCoins(cash);
-    this.save.markDone(this.level);
-    this.refreshControls();
-    this.hud('Controls/ActionButton', false);
-    this.hud('HintPanel_Img', false);
+    const cash = this.activity.Cash;
     const um = this.comps.Manager['AS.UIManager'];
-    this.sound.play(um.inGameCompleteSfx.name);
     this.hud('GameStatus/CompletePopUpPanel', true);
-    this.after(1.6, () => {
+    this.sound.play(um.inGameCompleteSfx.name, { volume: UI_VOLUME });
+    this.timeScale = POPUP_TIME_SCALE;
+    this.afterReal(POPUP_SECONDS, () => {
       this.hud('GameStatus/CompletePopUpPanel', false);
-      this.ui.setText('hud', 'GameStatus/LevelCompletePanel/Panel/RewardText_Bg/RewardText (TMP)', `${cash}`);
       this.hud('GameStatus/LevelCompletePanel', true);
-      this.sound.play(um.lvlCompleteSound.name, { volume: 0.7 });
+      this.ui.setText('hud', 'GameStatus/LevelCompletePanel/Panel/RewardText_Bg/RewardText (TMP)', `X${cash}`);
+      // the original stores TotalCoins = Cash (set_totalCoins without the old total); the web build adds it up
+      this.save.addCoins(cash);
+      this.sound.play(um.lvlCompleteSound.name, { volume: UI_VOLUME });
+      this.focus.controls = true;
+      this.paused = true;
     });
+    this.events.run(this.activity.OnComplete);
+    this.save.markDone(this.level);
   }
 
   unlockNext() { this.save.unlock(this.level + 1); }
 
-  // PlayerHandler death: "WASTED", death camera, sound, then the fail panel.
+  // PlayerHandler.Death(2): death vcam and global volume on, death sfx, "WASTED", Animator "Death" (JUMP, then FlopJump
+  // held). 2 s later they go off and ActivityManager.CurrentActivityFailed -> UIManager.MissionFailed: the fail panel,
+  // lvlFailedSound, the controls focused away, gamePaused; then the activity's OnFailed.
   die() {
     if (this.state !== 'playing') return;
     this.state = 'dead';
     this.driver = null;
-    this.refreshControls();
-    this.hud('Controls/ActionButton', false);
     const ph = this.comps.Player.PlayerHandler;
+    const vol = ph.deathGlobalVolume && parseRef(ph.deathGlobalVolume).path;
     this.fish.once('JUMP');
-    this.fish.anim('FlopIdle');
+    this.fish.anim('FlopJump');
     this.hud('GameStatus/Wasted Text', true);
-    this.shots = [{ path: ph.deathVcam.slice(1).split('#')[0], weight: 1 }];
+    if (vol) this.setActive(vol, true);
+    const before = this.shots;
+    this.shots = [{ path: parseRef(ph.deathVcam).path, weight: 1 }];
     this.sound.play(ph.deathSfx.name);
-    this.after(2.5, () => {
+    this.after(DEATH_SECONDS, () => {
       this.hud('GameStatus/Wasted Text', false);
+      if (vol) this.setActive(vol, false);
+      this.shots = before;
       this.hud('GameStatus/LevelFailPanel', true);
-      this.sound.play(this.comps.Manager['AS.UIManager'].lvlFailedSound.name, { volume: 0.7 });
+      this.sound.play(this.comps.Manager['AS.UIManager'].lvlFailedSound.name, { volume: UI_VOLUME });
+      this.focus.controls = true;
+      this.paused = true;
+      this.events.run(this.activity.OnFailed);
     });
+  }
+
+  // InstanceManager.AquariumSound: the filter hum starts the first time the bubble system emits and loops from then on.
+  // Its AudioSource is 3D with logarithmic rolloff: gain min / distance, held between minDistance and maxDistance.
+  aquariumSound() {
+    if (!this.humOn) {
+      const bubbles = this.find(parseRef(this.comps.ActivityManager.InstanceManager.bubblesParticle).path);
+      if (!bubbles || !this.particles.at(bubbles, true).some(e => e.emitting)) return;
+      this.humOn = true;
+      const run = this.runId;
+      this.sound.play(FILTER_HUM, { loop: true, volume: 0 }).then(h => { if (run === this.runId) this.hum = h; else h?.stop(); });
+      this.humAt = bubbles;
+    }
+    if (!this.hum) return;
+    const d = this.stage.camera.getWorldPosition(new THREE.Vector3()).distanceTo(this.humAt.getWorldPosition(new THREE.Vector3()));
+    this.hum.gain.value = HUM.volume * HUM.min / THREE.MathUtils.clamp(d, HUM.min, HUM.max);
   }
 
   // CharacterFx.SwimParticle (Player/Fx/waterSplashBack): the wake behind the fish while it swims fast.
@@ -454,34 +610,43 @@ export class Game {
   // ---- frame ------------------------------------------------------------------------------------------------------
   update(dt) {
     if (this.state === 'menu') return;
-    const frozen = this.paused || this.tlPaused;
-    if (!frozen) {
-      this.time += dt;
-      for (const t of [...this.timers]) if ((t.t -= dt) <= 0) { this.timers.splice(this.timers.indexOf(t), 1); t.fn(); }
-      if (this.tl && this.tl.player.update(dt)) this.endTimeline(false);
-      this.tweens.update(dt);
-      this.particles.update(dt);
-      for (const inst of this.instances.values()) if (inst.update && this.isActive(inst.path)) inst.update(dt);
-      if (this.canSwim()) this.fish.swim(dt, this.input, this.follow.yaw);
-      else if (this.driver) this.driver.drive(dt);
-      else this.fish.animate(dt);
-      this.swimTrail();
-      if (!this.tl && this.fish.root.visible && this.state === 'playing') {
-        const c = this.fish.bodyCenter();
-        this.triggers.update(c, this.fish.radius);
-        if (this.action) {
-          const tp = this.action.path;
-          if (!this.triggers.contains(tp, c, this.fish.radius)) { this.action = null; this.hud('Controls/ActionButton', false); }
-        }
-      }
-      if (this.hintTimer > 0 && (this.hintTimer -= dt) <= 0) this.hud('HintPanel_Img', false);
-      if (this.fadeAnim) {
-        const f = this.fadeAnim;
-        f.t += dt;
-        this.ui.fade(Math.max(0, 1 - f.t / f.dur));
-        if (f.t >= f.dur) this.fadeAnim = null;
+    for (const t of [...this.realTimers]) if ((t.t -= dt) <= 0) { this.realTimers.splice(this.realTimers.indexOf(t), 1); t.fn(); }
+    dt *= this.timeScale; // Time.timeScale: 0 under the level-skip question, 0.5 from the complete pop-up on
+    this.time += dt;
+    for (const t of [...this.timers]) if ((t.t -= dt) <= 0) { this.timers.splice(this.timers.indexOf(t), 1); t.fn(); }
+    if (this.tl && !this.tlPaused && this.tl.player.update(dt)) this.endTimeline(false);
+    this.tweens.update(dt);
+    this.particles.update(dt);
+    // the task components skip their work while GameManager.gamePaused is set
+    if (!this.paused) for (const inst of this.instances.values()) if (inst.update && this.isActive(inst.path)) inst.update(dt);
+    if (this.canSwim()) this.fish.swim(dt, this.input, this.follow.yaw);
+    else if (this.driver) this.driver.drive(dt);
+    else this.fish.animate(dt);
+    this.swimTrail();
+    if (!this.tl && this.fish.root.visible && this.state === 'playing') {
+      const c = this.fish.bodyCenter();
+      this.triggers.update(c, this.fish.radius);
+      if (this.action) {
+        const tp = this.action.path;
+        if (!this.triggers.contains(tp, c, this.fish.radius)) { this.action = null; this.hud('Controls/ActionButton', false); }
       }
     }
+    if (this.hintTimer > 0 && (this.hintTimer -= dt) <= 0) {
+      this.hud('HintPanel_Img', false);
+      this.ui.setInteractable('hud', H('Controls/Hint'), true);
+    }
+    const f = this.fader;
+    if (f) {
+      if (f.wait > 0) f.wait -= dt;
+      else {
+        f.a = moveTowards(f.a, f.to, dt * f.speed);
+        if (f.a === f.to) this.fader = null;
+      }
+      this.ui.fade(f.a);
+    }
+    this.hudFader(dt);
+    this.aquariumSound();
+    const frozen = dt === 0;
     const cam = this.stage.camera;
     const look = this.input.look();
     if (this.tl) { /* the timeline's Cinemachine track drives the camera */ } else if (this.shots) this.stage.cine.apply(cam, this.shots, frozen ? 0 : dt);
@@ -489,6 +654,7 @@ export class Game {
       const clamp = this.inTank(this.fish.bodyCenter()) ? this.camBox : null;
       this.follow.update(cam, this.fish.focus, frozen ? { dx: 0, dy: 0 } : look, frozen ? 0 : dt, clamp);
     }
+    this.applyShake(cam, dt);
     const r = this.stage.renderer.domElement;
     this.nav.update(cam, r.clientWidth, r.clientHeight);
   }

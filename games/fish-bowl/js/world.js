@@ -41,6 +41,19 @@ function withLightmapUv(geo, lm) {
   return g;
 }
 
+// Copy of geo with the dequantize matrix applied to positions (float), so vertex shaders see object-space coordinates.
+function objectSpace(geo, q) {
+  const g = new THREE.BufferGeometry();
+  for (const k of Object.keys(geo.attributes)) g.setAttribute(k, geo.attributes[k]);
+  const p = geo.getAttribute('position');
+  const a = new Float32Array(p.count * 3), v = new THREE.Vector3();
+  for (let i = 0; i < p.count; i++) v.fromBufferAttribute(p, i).applyMatrix4(q).toArray(a, i * 3);
+  g.setAttribute('position', new THREE.BufferAttribute(a, 3));
+  g.setIndex(geo.index);
+  g.groups = geo.groups;
+  return g;
+}
+
 export async function loadWorld(id, { base }) {
   const dir = `${base}/art/${id}`;
   const [scene, gltf] = await Promise.all([
@@ -49,7 +62,10 @@ export async function loadWorld(id, { base }) {
   ]);
   const geoMeshes = [];
   gltf.scene.children.forEach(o => { geoMeshes[+o.name.slice(1)] = o; });
-  const ctx = { texBase: `${base}/art/tex`, textures: scene.textures, lightmaps: scene.lightmaps || [], cache: new Map(), pending: [], lmPending: [], time: { value: 0 } };
+  const rs = scene.render || {}, sky = rs.m_AmbientSkyColor, ai = rs.m_AmbientIntensity ?? 1;
+  const ambient = rs.m_AmbientMode === 3 && sky ? [sky.r * ai, sky.g * ai, sky.b * ai] : [0, 0, 0];
+  const ctx = { texBase: `${base}/art/tex`, textures: scene.textures, lightmaps: scene.lightmaps || [], cache: new Map(), pending: [], lmPending: [], time: { value: 0 }, ambient };
+  const refractive = [];
   const entries = scene.materials;
   const objects = scene.nodes.map(n => {
     const o = new THREE.Group();
@@ -79,10 +95,15 @@ export async function loadWorld(id, { base }) {
     prims.forEach((prim, k) => {
       const mi = n.mt[Math.min(k, n.mt.length - 1)];
       if (mi == null) return;
-      const geo = lm ? withLightmapUv(prim.geometry, lm) : prim.geometry;
-      const mesh = new THREE.Mesh(geo, makeMaterial(entries[mi], ctx, lm && geo.getAttribute('uv1') ? lm[0] : null));
-      mesh.applyMatrix4(dequant(src));
+      let geo = lm ? withLightmapUv(prim.geometry, lm) : prim.geometry;
+      const mat = makeMaterial(entries[mi], ctx, lm && geo.getAttribute('uv1') ? lm[0] : null);
+      // Shaders that move vertices in Unity object space need unquantized positions (the node is the object).
+      const obj = mat.userData.objectSpace && !unbatch;
+      if (obj) geo = objectSpace(geo, dequant(src));
+      const mesh = new THREE.Mesh(geo, mat);
+      if (!obj) mesh.applyMatrix4(dequant(src));
       if (unbatch) mesh.applyMatrix4(unbatch);
+      if (mat.userData.refract) refractive.push(mesh);
       mesh.visible = n.ren !== 0;
       objects[i].add(mesh);
     });
@@ -137,7 +158,7 @@ export async function loadWorld(id, { base }) {
   }
   const cameras = scene.nodes.map((n, i) => (n.k && n.k.Camera ? objects[i] : null)).filter(Boolean);
   return {
-    root, objects, nodes: scene.nodes, scene, lights, cameras,
+    root, objects, nodes: scene.nodes, scene, lights, cameras, refractive,
     lightNode: ln >= 0 ? objects[ln] : null,
     byPath: p => paths.get(p) || null,
     materials: ctx.cache,

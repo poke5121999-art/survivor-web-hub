@@ -1,15 +1,21 @@
 // Level 5. PerformGestureTask: the shapes of the RecognizedEvents list (Loop, Heart, Bolt, Circle, Triangle) are
 // shown one at a time; drawing one well enough (gesture.js score >= scoreToAccept, one stroke) runs its
-// onGesturedRecognizedEvent, both fish play the Action-layer state named by AnimToPlay ("1st".."5th" -> Happy clips),
-// a "Great / Nice / Perfect" pops up, and after the last shape the level is complete. The Gesture Recognizer canvas of
-// the scene is not in the UI export, so the draw area and the reference card are drawn here (css in index.html).
+// onGesturedRecognizedEvent: the Player crossfades (0.1 s) into the Action-layer state named by AnimToPlay ("1st".."5th"
+// -> Happy clips), a "Great / Nice / Perfect" pops up, the next shape is assigned at once (input is never blocked),
+// the drawn line is cleared 1 s later, and 5 s after the last shape the level is complete (CheckMaxRecognized ->
+// CurrentActivityComplete(5)). A failed line stays until the next stroke starts (DrawDetector.OnBeginDrag drops the old
+// line when it is at maxLines = 1). The Gesture Recognizer canvas of the scene is not in the UI export, so the draw area
+// and the reference card are drawn here (css in index.html).
 import * as THREE from 'three';
 import { Base } from '../components.js';
 import { Rig } from '../anim.js';
 import { PATTERNS, score } from '../gesture.js';
 
 const ref = s => s.slice(1).split('#')[0];
-const NEXT_DELAY = 2.6; // s of the happy animation before the next shape
+const CLEAR_DELAY = 1; // PerformGestureTask.RecognizedCountIncrement: ClearDrawnLines(1)
+const CLEAR_LAST = 2; // CheckMaxRecognized: ClearDrawnLines(2)
+const COMPLETE_DELAY = 5; // CheckMaxRecognized: CurrentActivityComplete(5)
+const DRAG_START = 10; // px; Unity EventSystem pixelDragThreshold default (inferred: scene value not read)
 
 export class PerformGestureTask extends Base {
   onEnable() {
@@ -20,10 +26,12 @@ export class PerformGestureTask extends Base {
     this.count = d.recognizedCount;
     this.max = Math.max(d.maxRecognizedCount, this.list.length);
     const ff = g.find(ref(d.femaleFishAnim));
+    this.ff = ff;
     this.female = ff.children.find(c => c.userData.node?.k?.Animator) || ff;
     this.femaleRig = new Rig(g.stage.lib, this.female);
     this.femaleRig.play('IDLE', 0);
-    this.busy = 0;
+    this.clearIn = null;
+    this.hideIn = null;
     // their playOnAwake would fire as the task object turns on; they play on recognised shapes only
     const fx = g.particles;
     for (const r of d.victoryTextParticles) { const o = g.find(ref(r)); if (o) for (const e of fx.at(o, true)) { e.auto = false; fx.clear(e); } }
@@ -45,24 +53,45 @@ export class PerformGestureTask extends Base {
     const area = root.querySelector('.g-area');
     const cv = area.querySelector('canvas');
     const stroke = [];
-    let drawing = null;
+    let drawing = null, down = null, dragging = false;
     const fit = () => { cv.width = area.clientWidth; cv.height = area.clientHeight; };
     const xy = e => { const b = cv.getBoundingClientRect(); return [e.clientX - b.left, e.clientY - b.top]; };
+    this.stroke = stroke;
+    // DrawDetector: the line starts at OnBeginDrag (after the drag threshold), OnDrag skips a point that did not move,
+    // OnEndDrag adds the release point and recognises. A tap that never drags does nothing.
+    const add = (p, force) => {
+      const l = stroke[stroke.length - 1];
+      if (force || !l || (p[0] - l[0]) ** 2 + (p[1] - l[1]) ** 2 >= 1e-10) stroke.push(p);
+    };
     area.addEventListener('pointerdown', e => {
-      if (this.busy > 0) return;
       e.preventDefault();
       area.setPointerCapture(e.pointerId);
       drawing = e.pointerId;
-      stroke.length = 0;
-      stroke.push(xy(e));
+      down = xy(e);
+      dragging = false;
+    });
+    area.addEventListener('pointermove', e => {
+      if (e.pointerId !== drawing) return;
+      const p = xy(e);
+      if (!dragging) {
+        if (Math.hypot(p[0] - down[0], p[1] - down[1]) < DRAG_START) return;
+        dragging = true;
+        stroke.length = 0; // maxLines = 1, RemoveOld: the previous line goes when a new one begins
+        this.clearIn = null;
+      }
+      add(p);
       this.paint(stroke);
     });
-    area.addEventListener('pointermove', e => { if (e.pointerId !== drawing) return; stroke.push(xy(e)); this.paint(stroke); });
     const end = e => {
       if (e.pointerId !== drawing) return;
       drawing = null;
+      if (!dragging) return;
+      dragging = false;
+      add(xy(e), true);
+      this.paint(stroke);
       this.recognize(stroke.slice());
     };
+    this.isDrawing = () => dragging;
     area.addEventListener('pointerup', end);
     area.addEventListener('pointercancel', end);
     this.ui = { root, area, cv, ref: root.querySelector('.g-ref canvas'), name: root.querySelector('.g-name'),
@@ -113,8 +142,7 @@ export class PerformGestureTask extends Base {
       this.game.events.run(rec.data.onGesturedRecognizedEvent);
       this.flash(this.handlerText('recognizedText') || 'Correct!');
     } else {
-      this.flash(this.handlerText('unrecognizedText') || 'Draw again!');
-      setTimeout(() => this.paint([]), 400); // clearNotRecognizedLines
+      this.flash(this.handlerText('unrecognizedText') || 'Draw again!'); // the line stays
     }
   }
 
@@ -134,13 +162,15 @@ export class PerformGestureTask extends Base {
   RecognizedCountIncrement() {
     const g = this.game;
     this.count++;
-    this.busy = NEXT_DELAY;
     this.PlaySpecificAnim();
     this.PlayVicotryParticles();
     g.sound.play(g.comps.Manager['AS.UIManager'].clickSoundClip.name);
-    setTimeout(() => this.paint([]), 600);
+    this.ClearDrawnLines(CLEAR_DELAY);
     this.CheckMaxRecognized();
+    if (this.current) this.showCurrent(); // ReAssignRecognizer
   }
+
+  ClearDrawnLines(delay) { this.clearIn = delay; }
 
   // Action layer state "1st".."5th" of the FemaleFish / Fish controllers, for the shape just drawn.
   PlaySpecificAnim() {
@@ -150,8 +180,8 @@ export class PerformGestureTask extends Base {
     const action = g.controllers.FemaleFish.layers.find(l => l.name === 'Action');
     const clip = action?.states?.[state]?.clip;
     const name = clip ? clip.split('@')[0] : 'Happy swim';
-    this.femaleRig.play(name, 0.2);
-    g.fish.once(name, 0.2);
+    this.femaleRig.play(name, 0.1);
+    g.fish.once(name, 0.1); // Player.CrossFadeInFixedTime(AnimToPlay, 0.1)
     const key = g.stage.lib.byName(name);
     const dur = key ? g.stage.lib.clips[key].duration : 2;
     this.backToIdle = dur;
@@ -166,16 +196,24 @@ export class PerformGestureTask extends Base {
   CheckMaxRecognized() {
     if (this.count < this.max) return;
     this.finished = true;
-    this.game.after(NEXT_DELAY, () => this.game.complete(false));
+    this.ClearDrawnLines(CLEAR_LAST);
+    this.hideIn = CLEAR_LAST;
+    this.game.after(COMPLETE_DELAY, () => this.game.complete(false));
   }
 
   update(dt) {
     const g = this.game;
     const ready = !g.tl && g.control && g.state === 'playing';
     if (ready && !this.ui && !this.finished) this.begin();
-    if (this.ui) this.ui.root.style.display = ready && !this.finished ? '' : 'none';
-    if (this.busy > 0 && (this.busy -= dt) <= 0) this.showCurrent();
+    if (this.hideIn != null && (this.hideIn -= dt) <= 0) this.hideIn = -1;
+    if (this.ui) this.ui.root.style.display = ready && this.hideIn == null || this.hideIn > 0 ? '' : 'none';
+    // ClearDrawnLines: DrawDetector.ClearLines after the delay (a stroke still being drawn is left alone)
+    if (this.clearIn != null && (this.clearIn -= dt) <= 0) {
+      this.clearIn = null;
+      if (this.ui && !this.isDrawing()) { this.stroke.length = 0; this.paint(this.stroke); }
+    }
     if (this.backToIdle != null && (this.backToIdle -= dt) <= 0) { this.backToIdle = null; this.femaleRig.play('IDLE', 0.3); }
+    if (ready) this.ff.lookAt(g.fish.position); // PerformGestureTask.Update: Female Fish.LookAt(player) every frame
     this.femaleRig.update(dt);
   }
 
@@ -198,7 +236,7 @@ export class PerformGestureTask extends Base {
 
   // tests: where to draw and what
   get drawInfo() {
-    if (!this.ui || this.busy > 0 || !this.current) return null;
+    if (!this.ui || !this.current) return null;
     const b = this.ui.area.getBoundingClientRect();
     return { pattern: this.patternId(this.current), x: b.left, y: b.top, w: b.width, h: b.height, count: this.count };
   }
