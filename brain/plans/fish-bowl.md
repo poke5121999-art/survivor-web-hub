@@ -46,3 +46,12 @@ Chủ dự án giao 2026-10-31: tải `com.fgs.fish.life` từ apkpure rồi "đ
 5. **Menu**: splash, menu chính, chọn màn, cài đặt, lưu tiến độ; thẻ hub; kiểm trên Pages.
 
 Không làm: quảng cáo, IAP, thông báo, đánh giá app.
+
+## Trạng thái 2026-10-31
+
+Lên hub rev 20261031b (f6d029ff, 72b6af66): đủ 5 màn, 6 cutscene, menu/chọn màn/lưu, hạt, hậu kỳ dưới nước.
+Kiểm trên Pages: `FB_URL=https://poke5121999-art.github.io/survivor-web-hub/games/fish-bowl/index.html node test/fish-bowl-play.js <1..5>`
+(5/5 đạt). Lần đầu vào trên PC văn phòng tải ~20 s; menu có thể trống ảnh vài giây nếu sprite về sau mốc chờ 15 s.
+
+Còn đoán (không có thân hàm IL2CPP; danh sách đủ trong README mục Gameplay): nhịp thanh rêu, tốc độ tụt máu khi giãy,
+tốc độ chìm của thức ăn, ngưỡng "trúng" khi nhảy, tốc độ bơi. Nước chưa có khúc xạ thật (cần chụp ảnh opaque).

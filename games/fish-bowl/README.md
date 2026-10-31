@@ -65,6 +65,10 @@ clip bằng PlayableGraph (applyRootMotion bật, root bắt đầu ở gốc to
 - `node test/fish-bowl-render.js`: ảnh phòng/bể qua các camera scene (`view.html`).
 - `node test/fish-bowl-ui.js`: 5 màn UI ở 1280x720 và 2340x1080 (`ui.html`).
 - `node test/fish-bowl-timeline.js "" "Intro:7,Jump Targets:20"`: chụp khung cutscene (`tl.html?tl=&t=`).
+- `node test/fish-bowl-play.js <1..5>`: tự chơi một màn tới bảng hoàn thành; `FB_URL=<Pages index.html>` chạy trên bản đã đẩy.
+- Đổi mã: `node games/fish-bowl/tools/stamp.js <rev>` rồi sửa `rev:` của `fish-bowl` trong `data/games.js`.
+- `[BẪY ĐÃ SẬP]` Lightmap không có ảnh thì bề mặt nướng sáng ra đen; trên Pages 5 lightmap về chậm vài giây nên phòng
+  đen kịt lúc vào màn. Lightmap giờ cũng có bản 16 px, và splash chờ `stage.lightmapsReady`.
 - `node test/fish-bowl-play.js <1-5>`: chơi trọn một màn qua đường input thật (màn 1 đi từ menu, bấm Skip cutscene trên
   HUD; màn 2-5 vào bằng `?level=N&skip=1`), kiểm LevelCompletePanel + save mở màn kế, chụp ảnh giữa nhiệm vụ. Mỗi lần
   chạy một màn (~40-110 s).
