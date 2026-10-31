@@ -1154,5 +1154,21 @@ window.HUB_GAMES = [
     // Kiểm: node test/food-gang-sim.js, node test/food-gang-meta.js, node test/food-gang-render.js, node test/food-gang-play.js (FG_URL=<Pages>).
     status: "available",
     tags: ["Hành động", "Bắn súng", "Màn ngang"]
+  },
+  {
+    id: "fish-bowl",
+    title: "Cá Vàng Trong Bể",
+    tagline: "Làm chú cá vàng trong bể: dọn rêu, giành thức ăn, nhảy khỏi bể rồi tìm đường về.",
+    desc: "Làm lại Aquarium Land: My Fish Bowl 3D từ bản Android 1.10 bằng asset gốc. Cậu chủ Timmy đi vắng: kéo rêu khỏi máy bơm, đuổi máy cho ăn, canh mũi tên nhảy khỏi bể tới hũ thức ăn, giãy trên sàn về bể trước khi cạn sức, rồi vẽ hình làm quen cô cá mới. Năm màn có phim cắt cảnh, lưu trong trình duyệt.",
+    genre: "thu-gian",
+    accent: "#f59e0b",
+    en: { title: "Fish Bowl", tagline: "Be the goldfish: clear the moss, chase the food, leap out and find your way back.", desc: "Aquarium Land: My Fish Bowl 3D remade from the Android 1.10 release with its original assets. Timmy is away: pull moss out of the air pump, chase the feeder, leap out of the tank on the arrow's cue to the food jar, flop back to the tank before your strength runs out, then draw shapes to win over a new friend. Five levels with cutscenes." },
+    thumbnail: "assets/thumbnails/fish-bowl.png",
+    path: "games/fish-bowl/index.html",
+    rev: "20261031a",
+    // three.js r160 vendor, no build step; scene, timelines, cameras and gameplay data exported from the APK (D:/fishlife-ref) by
+    // games/fish-bowl/tools (README). Bump rev with: node games/fish-bowl/tools/stamp.js <rev>. Kiểm: node test/fish-bowl-play.js <1..5>.
+    status: "available",
+    tags: ["Mô phỏng", "Khám phá", "Màn ngang"]
   }
 ];

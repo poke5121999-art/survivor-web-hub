@@ -1,0 +1,6918 @@
+{
+ "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Controller": {
+  "scene": "level2",
+  "asset": "4.JumpTargetsTimeline",
+  "wrap": 2,
+  "playOnAwake": 0,
+  "fixedDuration": 0.0,
+  "exposed": {
+   "-1816930212": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (12)",
+   "-1406765630": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (5)",
+   "-737898050": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (2)",
+   "-559693937": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (11)",
+   "-499832394": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (8)",
+   "-332692866": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (10)",
+   "-243070295": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (9)",
+   "-127708543": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (13)",
+   "-70455300": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (7)",
+   "510004200": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (14) sb",
+   "888217360": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (4)",
+   "978531570": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (11)",
+   "1253526184": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (6)",
+   "1288535481": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (3)",
+   "1789279514": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam",
+   "1800493966": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (1)",
+   "1963626493": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (14)",
+   "2046605037": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (8)",
+   "2077667281": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (9)",
+   "2091308336": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (10)"
+  },
+  "tracks": [
+   {
+    "id": 808,
+    "type": "GroupTrack",
+    "name": "Activation Group",
+    "parent": null,
+    "muted": 0,
+    "bind": null,
+    "clips": []
+   },
+   {
+    "id": 518,
+    "type": "ActivationTrack",
+    "name": "Activation Track",
+    "parent": 808,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Events",
+     "type": "GameObject"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 45.5981,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Active",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ActivationPlayableAsset",
+      "m_GameObject": null,
+      "m_Script": {
+       "f": "globalgamemanagers.assets",
+       "id": 2245
+      }
+     }
+    ],
+    "post": 1
+   },
+   {
+    "id": 655,
+    "type": "ActivationTrack",
+    "name": "Activation Track (1)",
+    "parent": 808,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/TimelineAssets",
+     "type": "GameObject"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 45.5981,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Active",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ActivationPlayableAsset",
+      "m_GameObject": null,
+      "m_Script": {
+       "f": "globalgamemanagers.assets",
+       "id": 2245
+      }
+     }
+    ],
+    "post": 1
+   },
+   {
+    "id": 472,
+    "type": "ActivationTrack",
+    "name": "Activation Track (2)",
+    "parent": 808,
+    "muted": 0,
+    "bind": {
+     "path": "Canvas/TimelineUI",
+     "type": "GameObject"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 45.5981,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Active",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ActivationPlayableAsset",
+      "m_GameObject": null,
+      "m_Script": {
+       "f": "globalgamemanagers.assets",
+       "id": 2245
+      }
+     }
+    ],
+    "post": 1
+   },
+   {
+    "id": 791,
+    "type": "GroupTrack",
+    "name": "Canvas Group",
+    "parent": null,
+    "muted": 0,
+    "bind": null,
+    "clips": []
+   },
+   {
+    "id": 508,
+    "type": "TextSwitcherTrack",
+    "name": "Text Switcher Track",
+    "parent": 791,
+    "muted": 0,
+    "bind": {
+     "path": "Canvas/TimelineUI/BottomBar_Img/SubtitlesText",
+     "type": "MonoBehaviour"
+    },
+    "clips": [
+     {
+      "start": 1.7167,
+      "dur": 2.9,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "There's no food in it anymore...",
+      "size": 14,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     },
+     {
+      "start": 4.9625,
+      "dur": 2.9,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "What should I do now?",
+      "size": 14,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     },
+     {
+      "start": 7.8625,
+      "dur": 2.9,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "I won't be able to survive like this",
+      "size": 14,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     },
+     {
+      "start": 10.7625,
+      "dur": 4.8208,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "I must think outside of the aquarium. There might be a way to get some food",
+      "size": 14,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     },
+     {
+      "start": 15.5833,
+      "dur": 1.0947,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "Hmm, Let's see...",
+      "size": 14,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     },
+     {
+      "start": 16.678,
+      "dur": 2.5053,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "There's that glass. If I jump, I can make that",
+      "size": 14,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     },
+     {
+      "start": 19.1833,
+      "dur": 3.0125,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "Ohh, there's that fish food. I'll have to go all the way there to get it.",
+      "size": 14,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     },
+     {
+      "start": 22.8,
+      "dur": 7.4125,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "Okay! Now Let's figure out the track I've to go through...",
+      "size": 14,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     },
+     {
+      "start": 30.2125,
+      "dur": 7.4125,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "This might be a bit tricky.",
+      "size": 14,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     },
+     {
+      "start": 37.6251,
+      "dur": 4.9749,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "But I'll do it",
+      "size": 14,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     }
+    ]
+   },
+   {
+    "id": 710,
+    "type": "AnimationTrack",
+    "name": "Animation Track (1)",
+    "parent": 791,
+    "muted": 0,
+    "bind": {
+     "path": "Canvas/TimelineUI",
+     "type": "Animator"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 1.8667,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "BarsDown",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 331,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "Recorded (1)"
+     },
+     {
+      "start": 42.6,
+      "dur": 1.9833,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "Recorded (2)",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 292,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "Recorded (2)"
+     }
+    ],
+    "infinite": null,
+    "offset": {
+     "m_TrackOffset": 0,
+     "m_Position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_EulerAngles": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_ApplyOffsets": 0
+    }
+   },
+   {
+    "id": 628,
+    "type": "CinemachineTrack",
+    "name": "Camera",
+    "parent": null,
+    "muted": 0,
+    "bind": {
+     "path": "Camera",
+     "type": "MonoBehaviour"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 2.4408,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": 2.4408,
+      "name": "vCam",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam"
+     },
+     {
+      "start": 0.0,
+      "dur": 6.7167,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 2.4408,
+      "blendOut": 4.2759,
+      "name": "vCam (1)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (1)"
+     },
+     {
+      "start": 2.4408,
+      "dur": 4.9709,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 4.2759,
+      "blendOut": -1.0,
+      "name": "vCam (2)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (2)"
+     },
+     {
+      "start": 7.4117,
+      "dur": 7.6136,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "vCam (3)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (3)"
+     },
+     {
+      "start": 15.0253,
+      "dur": 3.158,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": 3.158,
+      "name": "vCam (4)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (4)"
+     },
+     {
+      "start": 15.0253,
+      "dur": 5.758,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 3.158,
+      "blendOut": 1.6,
+      "name": "vCam (5)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (5)"
+     },
+     {
+      "start": 19.1833,
+      "dur": 3.0125,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 1.6,
+      "blendOut": -1.0,
+      "name": "vCam (6)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (6)"
+     },
+     {
+      "start": 22.1959,
+      "dur": 3.0167,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": 2.4125,
+      "name": "vCam (7)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (7)"
+     },
+     {
+      "start": 22.8,
+      "dur": 5.0,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 2.4125,
+      "blendOut": 2.5875,
+      "name": "vCam (8)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (8)"
+     },
+     {
+      "start": 25.2125,
+      "dur": 5.0,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 2.5875,
+      "blendOut": 2.4125,
+      "name": "vCam (9)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (9)"
+     },
+     {
+      "start": 27.8,
+      "dur": 5.65,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 2.4125,
+      "blendOut": 3.2375,
+      "name": "vCam (10)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (10)"
+     },
+     {
+      "start": 30.2125,
+      "dur": 5.6708,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 3.2375,
+      "blendOut": 2.4333,
+      "name": "vCam (11)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (11)"
+     },
+     {
+      "start": 33.45,
+      "dur": 6.1333,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 2.4333,
+      "blendOut": 3.7,
+      "name": "vCam (12)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (12)"
+     },
+     {
+      "start": 35.8833,
+      "dur": 6.5667,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 3.7,
+      "blendOut": 2.8667,
+      "name": "vCam (13)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (13)"
+     },
+     {
+      "start": 39.5833,
+      "dur": 5.0,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 2.8667,
+      "blendOut": 2.0019,
+      "name": "vCam (14)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (14)"
+     },
+     {
+      "start": 42.5815,
+      "dur": 3.0167,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 2.0019,
+      "blendOut": -1.0,
+      "name": "vCam (14) sb",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (14) sb"
+     }
+    ]
+   },
+   {
+    "id": 537,
+    "type": "AnimationTrack",
+    "name": "Animation Track",
+    "parent": null,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/TimelineAssets/ToonFishMain",
+     "type": "Animator"
+    },
+    "clips": [],
+    "infinite": 287,
+    "offset": {
+     "m_TrackOffset": 0,
+     "m_Position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_EulerAngles": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_ApplyOffsets": 0
+    },
+    "infiniteName": "Recorded"
+   },
+   {
+    "id": 566,
+    "type": "AnimationTrack",
+    "name": "Override 0",
+    "parent": 537,
+    "muted": 0,
+    "bind": null,
+    "clips": [
+     {
+      "start": 3.4667,
+      "dur": 9.9583,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": 0.2083,
+      "name": "IDLE",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 309,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "IDLE"
+     },
+     {
+      "start": 13.6833,
+      "dur": 1.342,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.2167,
+      "blendOut": 0.442,
+      "name": "SWIM",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 312,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "SWIM"
+     },
+     {
+      "start": 13.2167,
+      "dur": 0.6833,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.2083,
+      "blendOut": 0.2167,
+      "name": "SWIM FAST",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 311,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "SWIM FAST"
+     },
+     {
+      "start": 14.5833,
+      "dur": 9.9583,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.442,
+      "blendOut": -1.0,
+      "name": "IDLE",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 309,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "IDLE"
+     }
+    ],
+    "infinite": null,
+    "offset": {
+     "m_TrackOffset": 0,
+     "m_Position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_EulerAngles": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_ApplyOffsets": 0
+    }
+   }
+  ]
+ },
+ "ActivityManager/Activities/Level 2/Timeline - Food Dispensing/Controller": {
+  "scene": "level2",
+  "asset": "2.FoodDispensingTimeline",
+  "wrap": 2,
+  "playOnAwake": 0,
+  "fixedDuration": 0.0,
+  "exposed": {
+   "-2055147390": "ActivityManager/Activities/Level 2/Timeline - Food Dispensing/Cameras/vCam",
+   "-1141517668": "ActivityManager/Activities/Level 2/Timeline - Food Dispensing/Cameras/vCam (Follow Dispenser)",
+   "1140977421": "ActivityManager/Activities/Level 2/Timeline - Food Dispensing/TimelineAssets/DoolyTrackEndPos",
+   "1464065400": "ActivityManager/Activities/Level 2/Timeline - Food Dispensing/Cameras/vCam (1)",
+   "1657146454": "ActivityManager/Activities/Level 2/Timeline - Food Dispensing/Cameras/vCam (Follow Dispenser) (sb)",
+   "1661173403": "ActivityManager/Activities/Level 2/Timeline - Food Dispensing/TimelineAssets/DoolyTrackStartPos",
+   "1935324904": "ActivityManager/Activities/Level 2/Task 1 (Feed Fish)/Dolly Track"
+  },
+  "tracks": [
+   {
+    "id": 601,
+    "type": "CinemachineTrack",
+    "name": "Camera",
+    "parent": null,
+    "muted": 0,
+    "bind": {
+     "path": "Camera",
+     "type": "MonoBehaviour"
+    },
+    "clips": [
+     {
+      "start": 6.4667,
+      "dur": 13.1333,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.6833,
+      "blendOut": 1.6333,
+      "name": "vCam (Follow Dispenser)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 2/Timeline - Food Dispensing/Cameras/vCam (Follow Dispenser)"
+     },
+     {
+      "start": 0.0,
+      "dur": 3.2167,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": 3.2167,
+      "name": "vCam",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 2/Timeline - Food Dispensing/Cameras/vCam"
+     },
+     {
+      "start": 0.0,
+      "dur": 7.15,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 3.2167,
+      "blendOut": 0.6833,
+      "name": "vCam (1)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 2/Timeline - Food Dispensing/Cameras/vCam (1)"
+     },
+     {
+      "start": 17.9667,
+      "dur": 2.5667,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 1.6333,
+      "blendOut": -1.0,
+      "name": "vCam (Follow Dispenser) (sb)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 2/Timeline - Food Dispensing/Cameras/vCam (Follow Dispenser) (sb)"
+     }
+    ]
+   },
+   {
+    "id": 800,
+    "type": "AnimationTrack",
+    "name": "Animation Track",
+    "parent": null,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 2/Timeline - Food Dispensing/TimelineAssets/ToonFishMain",
+     "type": "Animator"
+    },
+    "clips": [],
+    "infinite": 300,
+    "offset": {
+     "m_TrackOffset": 0,
+     "m_Position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_EulerAngles": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_ApplyOffsets": 0
+    },
+    "infiniteName": "Recorded"
+   },
+   {
+    "id": 549,
+    "type": "AnimationTrack",
+    "name": "Override 0",
+    "parent": 800,
+    "muted": 0,
+    "bind": null,
+    "clips": [
+     {
+      "start": 1.5,
+      "dur": 9.6,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "SWIM",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 312,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "SWIM"
+     },
+     {
+      "start": 14.9833,
+      "dur": 1.18,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "SWIM FAST",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 311,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "SWIM FAST"
+     },
+     {
+      "start": 16.1633,
+      "dur": 1.18,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "SWIM FAST",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 311,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "SWIM FAST"
+     },
+     {
+      "start": 17.3433,
+      "dur": 1.18,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "SWIM FAST",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 311,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "SWIM FAST"
+     },
+     {
+      "start": 18.5233,
+      "dur": 0.7148,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "SWIM FAST",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 311,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "SWIM FAST"
+     }
+    ],
+    "infinite": null,
+    "offset": {
+     "m_TrackOffset": 0,
+     "m_Position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_EulerAngles": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_ApplyOffsets": 0
+    }
+   },
+   {
+    "id": 745,
+    "type": "GroupTrack",
+    "name": "Activation Group",
+    "parent": null,
+    "muted": 0,
+    "bind": null,
+    "clips": []
+   },
+   {
+    "id": 473,
+    "type": "ActivationTrack",
+    "name": "Activation Track",
+    "parent": 745,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 2/Timeline - Food Dispensing/Events",
+     "type": "GameObject"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 20.5333,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Active",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ActivationPlayableAsset",
+      "m_GameObject": null,
+      "m_Script": {
+       "f": "globalgamemanagers.assets",
+       "id": 2245
+      }
+     }
+    ],
+    "post": 1
+   },
+   {
+    "id": 506,
+    "type": "ActivationTrack",
+    "name": "Activation Track (1)",
+    "parent": 745,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 2/Timeline - Food Dispensing/TimelineAssets",
+     "type": "GameObject"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 20.5333,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Active",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ActivationPlayableAsset",
+      "m_GameObject": null,
+      "m_Script": {
+       "f": "globalgamemanagers.assets",
+       "id": 2245
+      }
+     }
+    ],
+    "post": 1
+   },
+   {
+    "id": 589,
+    "type": "ActivationTrack",
+    "name": "Activation Track (2)",
+    "parent": 745,
+    "muted": 0,
+    "bind": {
+     "path": "Canvas/TimelineUI",
+     "type": "GameObject"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 20.5333,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Active",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ActivationPlayableAsset",
+      "m_GameObject": null,
+      "m_Script": {
+       "f": "globalgamemanagers.assets",
+       "id": 2245
+      }
+     }
+    ],
+    "post": 1
+   },
+   {
+    "id": 798,
+    "type": "GroupTrack",
+    "name": "Canvas Group",
+    "parent": null,
+    "muted": 0,
+    "bind": null,
+    "clips": []
+   },
+   {
+    "id": 744,
+    "type": "TextSwitcherTrack",
+    "name": "Text Switcher Track",
+    "parent": 798,
+    "muted": 0,
+    "bind": {
+     "path": "Canvas/TimelineUI/BottomBar_Img/SubtitlesText",
+     "type": "MonoBehaviour"
+    },
+    "clips": [
+     {
+      "start": 1.5,
+      "dur": 5.0,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "I am so hungry. I don't know when this thing will give me food",
+      "size": 14,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     },
+     {
+      "start": 7.15,
+      "dur": 1.2117,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "Ohh it started moving...",
+      "size": 14,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     },
+     {
+      "start": 8.3617,
+      "dur": 6.6217,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "Maybe it'll drop some food for me, I must hurry and go after it",
+      "size": 14,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     }
+    ]
+   },
+   {
+    "id": 667,
+    "type": "AnimationTrack",
+    "name": "Animation Track (1)",
+    "parent": 798,
+    "muted": 0,
+    "bind": {
+     "path": "Canvas/TimelineUI",
+     "type": "Animator"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 1.5,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "BarsDown",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 324,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "Recorded (1)"
+     },
+     {
+      "start": 11.8833,
+      "dur": 7.0167,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "Recorded (2)",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 329,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "Recorded (2)"
+     }
+    ],
+    "infinite": null,
+    "offset": {
+     "m_TrackOffset": 0,
+     "m_Position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_EulerAngles": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_ApplyOffsets": 0
+    }
+   },
+   {
+    "id": 634,
+    "type": "TransformTweenTrack",
+    "name": "Transform Tween Track",
+    "parent": null,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 2/Timeline - Food Dispensing/TimelineAssets/Pivot_FishFeedingMachine (1)",
+     "type": "Transform"
+    },
+    "clips": [
+     {
+      "start": 6.4667,
+      "dur": 13.1333,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TransformTweenClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TransformTweenClip",
+      "from": "ActivityManager/Activities/Level 2/Timeline - Food Dispensing/TimelineAssets/DoolyTrackStartPos",
+      "to": "ActivityManager/Activities/Level 2/Timeline - Food Dispensing/TimelineAssets/DoolyTrackEndPos",
+      "template": {
+       "startLocation": null,
+       "endLocation": null,
+       "tweenPosition": 1,
+       "tweenRotation": 0,
+       "tweenType": 0,
+       "customStartingSpeed": 0.0,
+       "customEndingSpeed": 0.0,
+       "inverseDuration": 0.0,
+       "startingPosition": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+       },
+       "startingRotation": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "w": 0.0
+       },
+       "currentCurve": {
+        "m_Curve": [],
+        "m_PreInfinity": 2,
+        "m_PostInfinity": 2,
+        "m_RotationOrder": 4
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "ActivityManager/Activities/Level 1/Timeline - Intro/Controller": {
+  "scene": "level2",
+  "asset": "1.IntroTimeline",
+  "wrap": 2,
+  "playOnAwake": 0,
+  "fixedDuration": 0.0,
+  "exposed": {
+   "-2084706517": "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (2)",
+   "-2059912172": "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (1)",
+   "-2057301259": "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (Follow Owner)",
+   "-2019787974": "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (8)",
+   "-1808703629": "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam",
+   "-1731365314": "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (3)",
+   "-535991070": "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (5) sb",
+   "-271000063": "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (7)",
+   "251559464": "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (6)",
+   "264647916": "ActivityManager/Activities/Level 1/FogParticles",
+   "473110692": "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (4)",
+   "673047504": "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (2)",
+   "700793077": "Post Processing/DirtyAquariumPP",
+   "756913183": "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (5) sb",
+   "1030694094": "ActivityManager/Activities/<--- Essentials --->/spongefilter/BubbleRisingUnderwater",
+   "1038320054": "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (Follow Owner) (sb)",
+   "1160490632": "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (1)",
+   "1160598817": "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (2)",
+   "1282253350": "Post Processing/DirtyAquariumPP"
+  },
+  "tracks": [
+   {
+    "id": 712,
+    "type": "CinemachineTrack",
+    "name": "Camera",
+    "parent": null,
+    "muted": 0,
+    "bind": {
+     "path": "Camera",
+     "type": "MonoBehaviour"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 3.25,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": 3.25,
+      "name": "Intro Timeline vCam",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam"
+     },
+     {
+      "start": 0.0,
+      "dur": 4.6,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 3.25,
+      "blendOut": -1.0,
+      "name": "Intro Timeline vCam (1)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (1)"
+     },
+     {
+      "start": 4.6,
+      "dur": 8.8167,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "Intro Timeline vCam (2)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (2)"
+     },
+     {
+      "start": 13.4167,
+      "dur": 2.0,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "Intro Timeline vCam (1)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (1)"
+     },
+     {
+      "start": 15.4167,
+      "dur": 4.6,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": 2.2833,
+      "name": "Intro Timeline vCam (2)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (2)"
+     },
+     {
+      "start": 17.7333,
+      "dur": 4.5667,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 2.2833,
+      "blendOut": -1.0,
+      "name": "Intro Timeline vCam (3)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (3)"
+     },
+     {
+      "start": 22.3,
+      "dur": 1.9333,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "Intro Timeline vCam (4)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (4)"
+     },
+     {
+      "start": 24.2333,
+      "dur": 5.85,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": 1.0833,
+      "name": "Intro Timeline vCam (2)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (2)"
+     },
+     {
+      "start": 29.0,
+      "dur": 2.5667,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 1.0833,
+      "blendOut": 0.8333,
+      "name": "Intro Timeline vCam (Follow Owner)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (Follow Owner)"
+     },
+     {
+      "start": 30.7333,
+      "dur": 1.2333,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.8333,
+      "blendOut": -1.0,
+      "name": "Intro Timeline vCam (Follow Owner) (sb)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (Follow Owner) (sb)"
+     },
+     {
+      "start": 31.9667,
+      "dur": 2.0667,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": 0.8333,
+      "name": "Intro Timeline vCam (5) sb",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (5) sb"
+     },
+     {
+      "start": 33.2,
+      "dur": 2.5333,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.8333,
+      "blendOut": -1.0,
+      "name": "Intro Timeline vCam (6)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (6)"
+     },
+     {
+      "start": 35.7333,
+      "dur": 3.3167,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "Intro Timeline vCam (7)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (7)"
+     },
+     {
+      "start": 39.05,
+      "dur": 5.0,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "Intro Timeline vCam (8)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (8)"
+     }
+    ]
+   },
+   {
+    "id": 539,
+    "type": "AnimationTrack",
+    "name": "Animation Track",
+    "parent": null,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 1/Timeline - Intro/TimelineAssets/ToonFishMain",
+     "type": "Animator"
+    },
+    "clips": [],
+    "infinite": 325,
+    "offset": {
+     "m_TrackOffset": 0,
+     "m_Position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_EulerAngles": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_ApplyOffsets": 0
+    },
+    "infiniteName": "Recorded"
+   },
+   {
+    "id": 748,
+    "type": "AnimationTrack",
+    "name": "Override 0",
+    "parent": 539,
+    "muted": 0,
+    "bind": null,
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 4.8,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": 0.8333,
+      "name": "SWIM",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 312,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "SWIM"
+     },
+     {
+      "start": 3.9667,
+      "dur": 28.0,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.8333,
+      "blendOut": -1.0,
+      "name": "IDLE",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 309,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "IDLE"
+     }
+    ],
+    "infinite": null,
+    "offset": {
+     "m_TrackOffset": 0,
+     "m_Position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_EulerAngles": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_ApplyOffsets": 0
+    }
+   },
+   {
+    "id": 716,
+    "type": "AnimationTrack",
+    "name": "Animation Track (2)",
+    "parent": null,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 1/Timeline - Intro/TimelineAssets/TeenBoyRigged",
+     "type": "Animator"
+    },
+    "clips": [
+     {
+      "start": 6.1167,
+      "dur": 2.7667,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.3333,
+      "blendOut": -1.0,
+      "name": "Kneeling Down",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 302,
+      "pos": {
+       "x": -0.0952,
+       "y": 0.0,
+       "z": 23.0704
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "Kneeling Down"
+     },
+     {
+      "start": 4.6,
+      "dur": 1.85,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": 0.3333,
+      "name": "HumanoidWalk",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 317,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "HumanoidWalk"
+     },
+     {
+      "start": 8.8833,
+      "dur": 4.8,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TTB_talk1",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 319,
+      "pos": {
+       "x": -0.1106,
+       "y": 0.0,
+       "z": 24.3009
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "TTB_talk1"
+     },
+     {
+      "start": 17.0333,
+      "dur": 4.8,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.7,
+      "blendOut": -1.0,
+      "name": "TTB_talk2",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 318,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "TTB_talk2"
+     },
+     {
+      "start": 15.5167,
+      "dur": 2.2167,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": 0.7,
+      "name": "TTB_talk1",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 319,
+      "pos": {
+       "x": -0.1106,
+       "y": 0.0,
+       "z": 24.3009
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "TTB_talk1"
+     },
+     {
+      "start": 24.2333,
+      "dur": 3.2667,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TTB_talk1",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 319,
+      "pos": {
+       "x": -0.1106,
+       "y": 0.0,
+       "z": 24.3009
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "TTB_talk1"
+     },
+     {
+      "start": 27.5,
+      "dur": 1.1,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": 0.5333,
+      "name": "Idle5",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 321,
+      "pos": {
+       "x": -0.1106,
+       "y": 0.0,
+       "z": 24.3009
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "Idle5"
+     },
+     {
+      "start": 28.0667,
+      "dur": 2.0167,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.5333,
+      "blendOut": 1.0833,
+      "name": "M_wave",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 313,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "M_wave"
+     },
+     {
+      "start": 29.0,
+      "dur": 2.9667,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 1.0833,
+      "blendOut": -1.0,
+      "name": "HumanoidWalkRight",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 314,
+      "pos": {
+       "x": -0.0,
+       "y": 0.0,
+       "z": -0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "HumanoidWalkRight"
+     }
+    ],
+    "infinite": null,
+    "offset": {
+     "m_TrackOffset": 0,
+     "m_Position": {
+      "x": -57.1696,
+      "y": -25.533,
+      "z": 134.6156
+     },
+     "m_EulerAngles": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_ApplyOffsets": 0
+    }
+   },
+   {
+    "id": 682,
+    "type": "AnimationTrack",
+    "name": "Override 0",
+    "parent": 716,
+    "muted": 0,
+    "bind": null,
+    "clips": [
+     {
+      "start": 4.6,
+      "dur": 1.85,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": 0.3333,
+      "name": "HumanoidWalk",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 317,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "HumanoidWalk"
+     },
+     {
+      "start": 6.1167,
+      "dur": 21.3833,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.3333,
+      "blendOut": 0.8,
+      "name": "Kneeling Down",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 302,
+      "pos": {
+       "x": -0.0952,
+       "y": 0.0,
+       "z": 23.0704
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "Kneeling Down"
+     },
+     {
+      "start": 26.7,
+      "dur": 1.9,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.8,
+      "blendOut": 0.5167,
+      "name": "Idle5",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 321,
+      "pos": {
+       "x": -0.1106,
+       "y": 0.0,
+       "z": 24.3009
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "Idle5"
+     },
+     {
+      "start": 28.0833,
+      "dur": 2.0167,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.5167,
+      "blendOut": 1.1,
+      "name": "M_wave",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 313,
+      "pos": {
+       "x": -0.1106,
+       "y": 0.0,
+       "z": 24.3009
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "M_wave"
+     },
+     {
+      "start": 29.0,
+      "dur": 2.9667,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 1.1,
+      "blendOut": -1.0,
+      "name": "HumanoidWalkRight",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 314,
+      "pos": {
+       "x": -0.1089,
+       "y": 0.0,
+       "z": 24.3015
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "HumanoidWalkRight"
+     }
+    ],
+    "infinite": null,
+    "offset": {
+     "m_TrackOffset": 0,
+     "m_Position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_EulerAngles": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_ApplyOffsets": 0
+    }
+   },
+   {
+    "id": 502,
+    "type": "GroupTrack",
+    "name": "Canvas Group",
+    "parent": null,
+    "muted": 0,
+    "bind": null,
+    "clips": []
+   },
+   {
+    "id": 524,
+    "type": "TextSwitcherTrack",
+    "name": "Text Switcher Track",
+    "parent": 502,
+    "muted": 0,
+    "bind": {
+     "path": "Canvas/TimelineUI/BottomBar_Img/SubtitlesText",
+     "type": "MonoBehaviour"
+    },
+    "clips": [
+     {
+      "start": 8.8833,
+      "dur": 1.05,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "Timmy: Hey little one!",
+      "size": 14,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     },
+     {
+      "start": 9.9333,
+      "dur": 2.0312,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "Timmy: You look happy as always",
+      "size": 14,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     },
+     {
+      "start": 11.9646,
+      "dur": 3.4521,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "Timmy: I'm gonna be out of town for a few days or maybe a week",
+      "size": 14,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     },
+     {
+      "start": 15.4167,
+      "dur": 1.6167,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "Timmy: Hey don't be sad!",
+      "size": 14,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     },
+     {
+      "start": 17.0333,
+      "dur": 2.6333,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "Timmy: I've arranged everything for you.",
+      "size": 14,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     },
+     {
+      "start": 19.6667,
+      "dur": 2.6333,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "Timmy: All the food is there and ready.",
+      "size": 14,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     },
+     {
+      "start": 22.3,
+      "dur": 1.9333,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "Timmy: Air pump is working.",
+      "size": 14,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     },
+     {
+      "start": 24.2333,
+      "dur": 1.4302,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "Timmy: So don't worry...",
+      "size": 14,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     },
+     {
+      "start": 25.6635,
+      "dur": 1.8365,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "Timmy: I'll come back and you won't even know",
+      "size": 14,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     },
+     {
+      "start": 28.2635,
+      "dur": 1.8365,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "Timmy: Bye!",
+      "size": 14,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     },
+     {
+      "start": 2.9167,
+      "dur": 1.05,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "He's Here!",
+      "size": 14,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     }
+    ]
+   },
+   {
+    "id": 739,
+    "type": "AnimationTrack",
+    "name": "Animation Track (1)",
+    "parent": 502,
+    "muted": 0,
+    "bind": {
+     "path": "Canvas/TimelineUI",
+     "type": "Animator"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 1.5,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "BarsDown",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 332,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "Recorded (1)"
+     },
+     {
+      "start": 37.0333,
+      "dur": 7.0167,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "Recorded (2)",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 288,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "Recorded (2)"
+     }
+    ],
+    "infinite": null,
+    "offset": {
+     "m_TrackOffset": 0,
+     "m_Position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_EulerAngles": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_ApplyOffsets": 0
+    }
+   },
+   {
+    "id": 683,
+    "type": "TextSwitcherTrack",
+    "name": "Text Switcher Track (1)",
+    "parent": 502,
+    "muted": 0,
+    "bind": {
+     "path": "Canvas/TimelineUI/TimelineText",
+     "type": "MonoBehaviour"
+    },
+    "clips": [
+     {
+      "start": 31.9667,
+      "dur": 2.0667,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "2 DAYS LATER",
+      "size": 72,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     }
+    ]
+   },
+   {
+    "id": 616,
+    "type": "GroupTrack",
+    "name": "Activation Group",
+    "parent": null,
+    "muted": 0,
+    "bind": null,
+    "clips": []
+   },
+   {
+    "id": 691,
+    "type": "ActivationTrack",
+    "name": "Activation Track",
+    "parent": 616,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 1/Timeline - Intro/Events",
+     "type": "GameObject"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 44.05,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Active",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ActivationPlayableAsset",
+      "m_GameObject": null,
+      "m_Script": {
+       "f": "globalgamemanagers.assets",
+       "id": 2245
+      }
+     }
+    ],
+    "post": 1
+   },
+   {
+    "id": 591,
+    "type": "ActivationTrack",
+    "name": "Activation Track (1)",
+    "parent": 616,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 1/Timeline - Intro/TimelineAssets",
+     "type": "GameObject"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 44.05,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Active",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ActivationPlayableAsset",
+      "m_GameObject": null,
+      "m_Script": {
+       "f": "globalgamemanagers.assets",
+       "id": 2245
+      }
+     }
+    ],
+    "post": 1
+   },
+   {
+    "id": 617,
+    "type": "ActivationTrack",
+    "name": "Activation Track (2)",
+    "parent": 616,
+    "muted": 0,
+    "bind": {
+     "path": "Canvas/TimelineUI",
+     "type": "GameObject"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 44.05,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Active",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ActivationPlayableAsset",
+      "m_GameObject": null,
+      "m_Script": {
+       "f": "globalgamemanagers.assets",
+       "id": 2245
+      }
+     }
+    ],
+    "post": 1
+   },
+   {
+    "id": 657,
+    "type": "GroupTrack",
+    "name": "Effects Group",
+    "parent": null,
+    "muted": 0,
+    "bind": null,
+    "clips": []
+   },
+   {
+    "id": 486,
+    "type": "ControlTrack",
+    "name": "Control Track",
+    "parent": 657,
+    "muted": 0,
+    "bind": null,
+    "clips": [
+     {
+      "start": 33.2,
+      "dur": 10.85,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "DirtyAquariumPP",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ControlPlayableAsset",
+      "source": "Post Processing/DirtyAquariumPP",
+      "prefab": null,
+      "particles": 1,
+      "active": 1,
+      "postPlayback": 0
+     },
+     {
+      "start": 20.0167,
+      "dur": 4.2167,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "BubbleRisingUnderwater",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ControlPlayableAsset",
+      "source": "ActivityManager/Activities/<--- Essentials --->/spongefilter/BubbleRisingUnderwater",
+      "prefab": null,
+      "particles": 1,
+      "active": 1,
+      "postPlayback": 2
+     }
+    ]
+   },
+   {
+    "id": 761,
+    "type": "ActivationTrack",
+    "name": "Activation Track (2)",
+    "parent": 657,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 1/Timeline - Intro/TimelineAssets/Moss Balls",
+     "type": "GameObject"
+    },
+    "clips": [
+     {
+      "start": 33.2,
+      "dur": 10.85,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Active",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ActivationPlayableAsset",
+      "m_GameObject": null,
+      "m_Script": {
+       "f": "globalgamemanagers.assets",
+       "id": 2245
+      }
+     }
+    ],
+    "post": 1
+   },
+   {
+    "id": 715,
+    "type": "ActivationTrack",
+    "name": "Activation Track",
+    "parent": 657,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 1/FogParticles",
+     "type": "GameObject"
+    },
+    "clips": [
+     {
+      "start": 33.2,
+      "dur": 10.85,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Active",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ActivationPlayableAsset",
+      "m_GameObject": null,
+      "m_Script": {
+       "f": "globalgamemanagers.assets",
+       "id": 2245
+      }
+     }
+    ],
+    "post": 3
+   }
+  ]
+ },
+ "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Controller": {
+  "scene": "level2",
+  "asset": "6.FemaleFishIntroTimeline",
+  "wrap": 2,
+  "playOnAwake": 0,
+  "fixedDuration": 0.0,
+  "exposed": {
+   "-1368204024": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (6)",
+   "-1215382796": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (4)",
+   "-772979728": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (7)",
+   "-629464226": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (6)",
+   "-534886332": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (look at Timmy)",
+   "-518076289": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam",
+   "-202440290": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (1)",
+   "-200875789": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam",
+   "-99556055": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (5)",
+   "149947886": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (look at Timmy)",
+   "608813480": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam",
+   "614019009": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (Sb)",
+   "940697870": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (look at Fish)",
+   "1414329035": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (look at Female Fish)",
+   "1718558933": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (2)",
+   "2114539398": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (3)"
+  },
+  "tracks": [
+   {
+    "id": 659,
+    "type": "GroupTrack",
+    "name": "Activation Group",
+    "parent": null,
+    "muted": 0,
+    "bind": null,
+    "clips": []
+   },
+   {
+    "id": 752,
+    "type": "GroupTrack",
+    "name": "Animators Sub-Group",
+    "parent": 659,
+    "muted": 0,
+    "bind": null,
+    "clips": []
+   },
+   {
+    "id": 543,
+    "type": "ActivationTrack",
+    "name": "Activation Track",
+    "parent": 752,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/TimelineAssets/TeenBoyRigged/mixamorig:Hips/mixamorig:Spine/mixamorig:Spine1/mixamorig:Spine2/mixamorig:LeftShoulder/mixamorig:LeftArm/mixamorig:LeftForeArm/mixamorig:LeftHand/Bowlenglas",
+     "type": "GameObject"
+    },
+    "clips": [
+     {
+      "start": 21.65,
+      "dur": 4.1389,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Active",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ActivationPlayableAsset",
+      "m_GameObject": null,
+      "m_Script": {
+       "f": "globalgamemanagers.assets",
+       "id": 2245
+      }
+     }
+    ],
+    "post": 3
+   },
+   {
+    "id": 582,
+    "type": "ActivationTrack",
+    "name": "Activation Track (1)",
+    "parent": 752,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/TimelineAssets/ToonFishMain",
+     "type": "GameObject"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 25.7889,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Active",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ActivationPlayableAsset",
+      "m_GameObject": null,
+      "m_Script": {
+       "f": "globalgamemanagers.assets",
+       "id": 2245
+      }
+     }
+    ],
+    "post": 3
+   },
+   {
+    "id": 576,
+    "type": "ActivationTrack",
+    "name": "Activation Track (2)",
+    "parent": 752,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/TimelineAssets/TeenBoyRigged",
+     "type": "GameObject"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 25.7889,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Active",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ActivationPlayableAsset",
+      "m_GameObject": null,
+      "m_Script": {
+       "f": "globalgamemanagers.assets",
+       "id": 2245
+      }
+     }
+    ],
+    "post": 3
+   },
+   {
+    "id": 611,
+    "type": "ActivationTrack",
+    "name": "Activation Track (3)",
+    "parent": 752,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/TimelineAssets/ToonFishMain (1)",
+     "type": "GameObject"
+    },
+    "clips": [
+     {
+      "start": 25.7889,
+      "dur": 11.6444,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Active",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ActivationPlayableAsset",
+      "m_GameObject": null,
+      "m_Script": {
+       "f": "globalgamemanagers.assets",
+       "id": 2245
+      }
+     }
+    ],
+    "post": 3
+   },
+   {
+    "id": 626,
+    "type": "ActivationTrack",
+    "name": "Activation Track (4)",
+    "parent": 752,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/TimelineAssets/FishFeRigged",
+     "type": "GameObject"
+    },
+    "clips": [
+     {
+      "start": 25.7889,
+      "dur": 11.6444,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Active",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ActivationPlayableAsset",
+      "m_GameObject": null,
+      "m_Script": {
+       "f": "globalgamemanagers.assets",
+       "id": 2245
+      }
+     }
+    ],
+    "post": 3
+   },
+   {
+    "id": 573,
+    "type": "ActivationTrack",
+    "name": "Activation Track",
+    "parent": 659,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Events",
+     "type": "GameObject"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 37.4333,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Active",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ActivationPlayableAsset",
+      "m_GameObject": null,
+      "m_Script": {
+       "f": "globalgamemanagers.assets",
+       "id": 2245
+      }
+     }
+    ],
+    "post": 1
+   },
+   {
+    "id": 701,
+    "type": "ActivationTrack",
+    "name": "Activation Track (1)",
+    "parent": 659,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/TimelineAssets",
+     "type": "GameObject"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 37.495,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Active",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ActivationPlayableAsset",
+      "m_GameObject": null,
+      "m_Script": {
+       "f": "globalgamemanagers.assets",
+       "id": 2245
+      }
+     }
+    ],
+    "post": 1
+   },
+   {
+    "id": 774,
+    "type": "ActivationTrack",
+    "name": "Activation Track (2)",
+    "parent": 659,
+    "muted": 0,
+    "bind": {
+     "path": "Canvas/TimelineUI",
+     "type": "GameObject"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 37.495,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Active",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ActivationPlayableAsset",
+      "m_GameObject": null,
+      "m_Script": {
+       "f": "globalgamemanagers.assets",
+       "id": 2245
+      }
+     }
+    ],
+    "post": 1
+   },
+   {
+    "id": 623,
+    "type": "GroupTrack",
+    "name": "Animations Group",
+    "parent": null,
+    "muted": 0,
+    "bind": null,
+    "clips": []
+   },
+   {
+    "id": 690,
+    "type": "AnimationTrack",
+    "name": "Animation Track",
+    "parent": 623,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/TimelineAssets/TeenBoyRigged",
+     "type": "Animator"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 3.0,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": 1.2333,
+      "name": "WalkFwdLoop",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 322,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "WalkFwdLoop"
+     },
+     {
+      "start": 1.7667,
+      "dur": 2.8333,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 1.2333,
+      "blendOut": 1.3333,
+      "name": "Idle",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 320,
+      "pos": {
+       "x": 0.0,
+       "y": -0.0,
+       "z": 45.8208
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "Idle"
+     },
+     {
+      "start": 3.2667,
+      "dur": 3.8833,
+      "clipIn": 0.8333,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 1.3333,
+      "blendOut": 0.4833,
+      "name": "Standing Yell",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 303,
+      "pos": {
+       "x": -0.3077,
+       "y": 0.1275,
+       "z": 42.7968
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "Standing Yell"
+     },
+     {
+      "start": 6.6667,
+      "dur": 4.35,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.4833,
+      "blendOut": 0.55,
+      "name": "Idle",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 320,
+      "pos": {
+       "x": -0.1238,
+       "y": -0.0259,
+       "z": 46.034
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "Idle"
+     },
+     {
+      "start": 11.75,
+      "dur": 2.7667,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.3,
+      "blendOut": -1.0,
+      "name": "Kneeling Down",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 302,
+      "pos": {
+       "x": 2.7123,
+       "y": -0.0375,
+       "z": 65.2772
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "Kneeling Down"
+     },
+     {
+      "start": 10.4667,
+      "dur": 1.5833,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.55,
+      "blendOut": 0.3,
+      "name": "WalkFwdLoop",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 322,
+      "pos": {
+       "x": -0.1238,
+       "y": -0.0259,
+       "z": 46.0338
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "WalkFwdLoop"
+     },
+     {
+      "start": 17.1333,
+      "dur": 2.4833,
+      "clipIn": 2.3167,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.2333,
+      "blendOut": 0.6393,
+      "name": "TTB_talk2",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 318,
+      "pos": {
+       "x": -0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "TTB_talk2"
+     },
+     {
+      "start": 14.5167,
+      "dur": 2.85,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": 0.2333,
+      "name": "TTB_talk1",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 319,
+      "pos": {
+       "x": -138.9453,
+       "y": -0.0896,
+       "z": 59.6529
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "TTB_talk1"
+     },
+     {
+      "start": 18.9773,
+      "dur": 6.8116,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.6393,
+      "blendOut": -1.0,
+      "name": "TTB_talk1",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 319,
+      "pos": {
+       "x": -138.9453,
+       "y": -0.0896,
+       "z": 59.6529
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "TTB_talk1"
+     }
+    ],
+    "infinite": null,
+    "offset": {
+     "m_TrackOffset": 0,
+     "m_Position": {
+      "x": 14.6021,
+      "y": -25.533,
+      "z": 141.3718
+     },
+     "m_EulerAngles": {
+      "x": 0.0,
+      "y": -69.753,
+      "z": 0.0
+     },
+     "m_ApplyOffsets": 0
+    }
+   },
+   {
+    "id": 782,
+    "type": "AnimationTrack",
+    "name": "Override 0",
+    "parent": 690,
+    "muted": 0,
+    "bind": null,
+    "clips": [
+     {
+      "start": 6.6667,
+      "dur": 4.35,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.4833,
+      "blendOut": 0.55,
+      "name": "Idle",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 320,
+      "pos": {
+       "x": -0.1238,
+       "y": -0.0259,
+       "z": 46.034
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "Idle"
+     },
+     {
+      "start": 10.4667,
+      "dur": 1.5833,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.55,
+      "blendOut": 0.3,
+      "name": "WalkFwdLoop",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 322,
+      "pos": {
+       "x": -0.1238,
+       "y": -0.0259,
+       "z": 46.0338
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "WalkFwdLoop"
+     },
+     {
+      "start": 11.75,
+      "dur": 9.2172,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.3,
+      "blendOut": 0.5672,
+      "name": "Kneeling Down",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 302,
+      "pos": {
+       "x": 2.7123,
+       "y": -0.0375,
+       "z": 65.2772
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "Kneeling Down"
+     },
+     {
+      "start": 20.4,
+      "dur": 5.3889,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.5672,
+      "blendOut": -1.0,
+      "name": "Hiding Grab",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 304,
+      "pos": {
+       "x": 2.7123,
+       "y": -0.0375,
+       "z": 65.2772
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "Hiding Grab"
+     },
+     {
+      "start": 0.0,
+      "dur": 3.0,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": 1.2333,
+      "name": "WalkFwdLoop",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 322,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "WalkFwdLoop"
+     },
+     {
+      "start": 1.7667,
+      "dur": 2.8333,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 1.2333,
+      "blendOut": 1.3333,
+      "name": "Idle",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 320,
+      "pos": {
+       "x": 0.0,
+       "y": -0.0,
+       "z": 45.8208
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "Idle"
+     },
+     {
+      "start": 3.2667,
+      "dur": 3.8833,
+      "clipIn": 0.8333,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 1.3333,
+      "blendOut": 0.4833,
+      "name": "Standing Yell",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 303,
+      "pos": {
+       "x": -0.3077,
+       "y": 0.1275,
+       "z": 42.7968
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "Standing Yell"
+     }
+    ],
+    "infinite": null,
+    "offset": {
+     "m_TrackOffset": 0,
+     "m_Position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_EulerAngles": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_ApplyOffsets": 0
+    }
+   },
+   {
+    "id": 718,
+    "type": "AnimationTrack",
+    "name": "Animation Track (1)",
+    "parent": 623,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/TimelineAssets/ToonFishMain",
+     "type": "Animator"
+    },
+    "clips": [],
+    "infinite": 323,
+    "offset": {
+     "m_TrackOffset": 0,
+     "m_Position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_EulerAngles": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_ApplyOffsets": 0
+    },
+    "infiniteName": "Recorded"
+   },
+   {
+    "id": 523,
+    "type": "AnimationTrack",
+    "name": "Override 0",
+    "parent": 718,
+    "muted": 0,
+    "bind": null,
+    "clips": [
+     {
+      "start": 5.5,
+      "dur": 3.25,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": 0.4167,
+      "name": "IDLE",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 309,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "IDLE"
+     },
+     {
+      "start": 8.3333,
+      "dur": 2.2167,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.4167,
+      "blendOut": 0.3833,
+      "name": "SWIM",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 312,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "SWIM"
+     },
+     {
+      "start": 10.1667,
+      "dur": 2.36,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.3833,
+      "blendOut": 0.7933,
+      "name": "SWIM FAST",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 311,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "SWIM FAST"
+     },
+     {
+      "start": 13.4167,
+      "dur": 3.2778,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.4833,
+      "blendOut": 0.3528,
+      "name": "IDLE",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 309,
+      "pos": {
+       "x": -0.0,
+       "y": 0.0,
+       "z": -0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "IDLE"
+     },
+     {
+      "start": 11.7333,
+      "dur": 2.1667,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.7933,
+      "blendOut": 0.4833,
+      "name": "SWIM",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 312,
+      "pos": {
+       "x": -0.0008,
+       "y": -0.0007,
+       "z": -0.0003
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "SWIM"
+     },
+     {
+      "start": 16.3417,
+      "dur": 0.7917,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.3528,
+      "blendOut": 0.4389,
+      "name": "DOWN",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 308,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "DOWN"
+     },
+     {
+      "start": 16.6945,
+      "dur": 3.2778,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.4389,
+      "blendOut": -1.0,
+      "name": "IDLE",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 309,
+      "pos": {
+       "x": -0.0,
+       "y": 0.0,
+       "z": -0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "IDLE"
+     }
+    ],
+    "infinite": null,
+    "offset": {
+     "m_TrackOffset": 0,
+     "m_Position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_EulerAngles": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_ApplyOffsets": 0
+    }
+   },
+   {
+    "id": 724,
+    "type": "AnimationTrack",
+    "name": "Animation Track (2)",
+    "parent": 623,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/TimelineAssets/TeenBoyRigged/mixamorig:Hips/mixamorig:Spine/mixamorig:Spine1/mixamorig:Spine2/mixamorig:LeftShoulder/mixamorig:LeftArm/mixamorig:LeftForeArm/mixamorig:LeftHand/Bowlenglas/Water (1)/FishFeRigged",
+     "type": "Animator"
+    },
+    "clips": [],
+    "infinite": null,
+    "offset": {
+     "m_TrackOffset": 0,
+     "m_Position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_EulerAngles": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_ApplyOffsets": 0
+    }
+   },
+   {
+    "id": 622,
+    "type": "AnimationTrack",
+    "name": "Override 0",
+    "parent": 724,
+    "muted": 0,
+    "bind": null,
+    "clips": [
+     {
+      "start": 21.65,
+      "dur": 7.05,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "IDLE",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 309,
+      "pos": {
+       "x": -0.0,
+       "y": 0.0,
+       "z": -0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "IDLE"
+     }
+    ],
+    "infinite": null,
+    "offset": {
+     "m_TrackOffset": 0,
+     "m_Position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_EulerAngles": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_ApplyOffsets": 0
+    }
+   },
+   {
+    "id": 526,
+    "type": "AnimationTrack",
+    "name": "Animation Track (3)",
+    "parent": 623,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/TimelineAssets/FishFeRigged",
+     "type": "Animator"
+    },
+    "clips": [],
+    "infinite": 295,
+    "offset": {
+     "m_TrackOffset": 0,
+     "m_Position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_EulerAngles": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_ApplyOffsets": 0
+    },
+    "infiniteName": "Recorded (3)"
+   },
+   {
+    "id": 619,
+    "type": "AnimationTrack",
+    "name": "Override 0",
+    "parent": 526,
+    "muted": 0,
+    "bind": null,
+    "clips": [
+     {
+      "start": 25.7889,
+      "dur": 5.6611,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": 0.3154,
+      "name": "IDLE",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 309,
+      "pos": {
+       "x": -0.0,
+       "y": 0.0,
+       "z": -0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "IDLE"
+     },
+     {
+      "start": 31.1346,
+      "dur": 6.3604,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.3154,
+      "blendOut": -1.0,
+      "name": "LEFT",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 310,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "LEFT"
+     }
+    ],
+    "infinite": null,
+    "offset": {
+     "m_TrackOffset": 0,
+     "m_Position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_EulerAngles": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_ApplyOffsets": 0
+    }
+   },
+   {
+    "id": 766,
+    "type": "AnimationTrack",
+    "name": "Animation Track (4)",
+    "parent": 623,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/TimelineAssets/ToonFishMain (1)",
+     "type": "Animator"
+    },
+    "clips": [],
+    "infinite": 330,
+    "offset": {
+     "m_TrackOffset": 0,
+     "m_Position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_EulerAngles": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_ApplyOffsets": 0
+    },
+    "infiniteName": "Recorded (5)"
+   },
+   {
+    "id": 495,
+    "type": "AnimationTrack",
+    "name": "Override 1",
+    "parent": 766,
+    "muted": 0,
+    "bind": null,
+    "clips": [
+     {
+      "start": 27.45,
+      "dur": 1.4833,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "Recorded (4)",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 337,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "Recorded (4)"
+     }
+    ],
+    "infinite": null,
+    "offset": {
+     "m_TrackOffset": 0,
+     "m_Position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_EulerAngles": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_ApplyOffsets": 0
+    }
+   },
+   {
+    "id": 542,
+    "type": "AnimationTrack",
+    "name": "Override 0",
+    "parent": 766,
+    "muted": 0,
+    "bind": null,
+    "clips": [
+     {
+      "start": 25.7889,
+      "dur": 11.7061,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "IDLE",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 309,
+      "pos": {
+       "x": -0.0,
+       "y": 0.0,
+       "z": -0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "IDLE"
+     }
+    ],
+    "infinite": null,
+    "offset": {
+     "m_TrackOffset": 0,
+     "m_Position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_EulerAngles": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_ApplyOffsets": 0
+    }
+   },
+   {
+    "id": 534,
+    "type": "CinemachineTrack",
+    "name": "Camera",
+    "parent": null,
+    "muted": 0,
+    "bind": {
+     "path": "Camera",
+     "type": "MonoBehaviour"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 3.2667,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": 3.2667,
+      "name": "vCam",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam"
+     },
+     {
+      "start": 3.2667,
+      "dur": 2.2833,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 2.2833,
+      "blendOut": -1.0,
+      "name": "vCam (1)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (1)"
+     },
+     {
+      "start": 0.0,
+      "dur": 5.55,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 3.2667,
+      "blendOut": 2.2833,
+      "name": "vCam (2)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (2)"
+     },
+     {
+      "start": 5.55,
+      "dur": 1.6,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": 1.6,
+      "name": "vCam (3)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (3)"
+     },
+     {
+      "start": 5.55,
+      "dur": 5.0,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 1.6,
+      "blendOut": 0.3833,
+      "name": "vCam (4)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (4)"
+     },
+     {
+      "start": 10.1667,
+      "dur": 4.35,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.3833,
+      "blendOut": 1.99,
+      "name": "vCam (5)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (5)"
+     },
+     {
+      "start": 12.5267,
+      "dur": 3.4007,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 1.99,
+      "blendOut": -1.0,
+      "name": "vCam (look at Timmy)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (look at Timmy)"
+     },
+     {
+      "start": 15.9273,
+      "dur": 1.4393,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "vCam (look at Fish)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (look at Fish)"
+     },
+     {
+      "start": 17.3667,
+      "dur": 6.3556,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": 2.0056,
+      "name": "vCam (look at Timmy)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (look at Timmy)"
+     },
+     {
+      "start": 21.7167,
+      "dur": 4.0722,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 2.0056,
+      "blendOut": -1.0,
+      "name": "vCam (look at Female Fish)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (look at Female Fish)"
+     },
+     {
+      "start": 25.7889,
+      "dur": 3.8278,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": 3.8278,
+      "name": "vCam",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam"
+     },
+     {
+      "start": 25.7889,
+      "dur": 6.3278,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 3.8278,
+      "blendOut": -1.0,
+      "name": "vCam (6)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (6)"
+     },
+     {
+      "start": 32.1167,
+      "dur": 5.0,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": 0.95,
+      "name": "vCam (7)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (7)"
+     },
+     {
+      "start": 36.1667,
+      "dur": 1.3284,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.95,
+      "blendOut": -1.0,
+      "name": "vCam (Sb)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (Sb)"
+     }
+    ]
+   },
+   {
+    "id": 586,
+    "type": "GroupTrack",
+    "name": "Canvas Group",
+    "parent": null,
+    "muted": 0,
+    "bind": null,
+    "clips": []
+   },
+   {
+    "id": 620,
+    "type": "TextSwitcherTrack",
+    "name": "Text Switcher Track",
+    "parent": 586,
+    "muted": 0,
+    "bind": {
+     "path": "Canvas/TimelineUI/BottomBar_Img/SubtitlesText",
+     "type": "MonoBehaviour"
+    },
+    "clips": [
+     {
+      "start": 3.9,
+      "dur": 5.0,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "Timmy: I'm back....",
+      "size": 14,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     },
+     {
+      "start": 14.3167,
+      "dur": 1.6107,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "Timmy: Did you miss me?",
+      "size": 14,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     },
+     {
+      "start": 17.3667,
+      "dur": 1.6107,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "Timmy: You did? That's amazing!",
+      "size": 14,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     },
+     {
+      "start": 18.9773,
+      "dur": 1.4227,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "Timmy: I missed you too.",
+      "size": 14,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     },
+     {
+      "start": 20.4,
+      "dur": 2.6864,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "Timmy: Ohh! I almost forgot, I got a suprise for you..",
+      "size": 14,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     },
+     {
+      "start": 27.4667,
+      "dur": 2.8851,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "Hey nice to meet you!",
+      "size": 14,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     },
+     {
+      "start": 30.4784,
+      "dur": 1.3216,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "Ugh!",
+      "size": 14,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     },
+     {
+      "start": 32.1167,
+      "dur": 1.887,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "Did I say something wrong?",
+      "size": 14,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     },
+     {
+      "start": 34.0037,
+      "dur": 2.163,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "I need to impress her!",
+      "size": 14,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     },
+     {
+      "start": 23.0864,
+      "dur": 1.6167,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "Timmy: A new friend",
+      "size": 14,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     },
+     {
+      "start": 24.7031,
+      "dur": 0.8969,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "TextSwitcherClip",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "TextSwitcherClip",
+      "text": "Timmy: Ain't she pretty?",
+      "size": 14,
+      "color": {
+       "r": 1.0,
+       "g": 1.0,
+       "b": 1.0,
+       "a": 1.0
+      }
+     }
+    ]
+   },
+   {
+    "id": 636,
+    "type": "AnimationTrack",
+    "name": "Animation Track (1)",
+    "parent": 586,
+    "muted": 0,
+    "bind": {
+     "path": "Canvas/TimelineUI",
+     "type": "Animator"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 1.5,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "BarsDown",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 293,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "Recorded (1)"
+     },
+     {
+      "start": 30.4784,
+      "dur": 7.0167,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "Recorded (2)",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 305,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "Recorded (2)"
+     }
+    ],
+    "infinite": null,
+    "offset": {
+     "m_TrackOffset": 0,
+     "m_Position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_EulerAngles": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_ApplyOffsets": 0
+    }
+   }
+  ]
+ },
+ "ActivityManager/Activities/Level 2/TimelineFoodEating": {
+  "scene": "level2",
+  "asset": "3.FoodEating",
+  "wrap": 2,
+  "playOnAwake": 0,
+  "fixedDuration": 0.0,
+  "exposed": {
+   "-959934445": "ActivityManager/Activities/Level 2/TimelineFoodEating/Cameras/Virtual Camera",
+   "331711875": "ActivityManager/Activities/Level 2/TimelineFoodEating/TimelineStuff/Crunch (3)",
+   "471564102": "ActivityManager/Activities/Level 2/TimelineFoodEating/TimelineStuff/Crunch (1)",
+   "1471277322": "ActivityManager/Activities/Level 2/TimelineFoodEating/TimelineStuff/Crunch (2)",
+   "1513082246": "ActivityManager/Activities/Level 2/TimelineFoodEating/TimelineStuff/Crunch"
+  },
+  "tracks": [
+   {
+    "id": 662,
+    "type": "AnimationTrack",
+    "name": "FishMain",
+    "parent": null,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 2/Timeline - Food Dispensing/TimelineAssets/ToonFishMain",
+     "type": "Animator"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 0.65,
+      "clipIn": 0.75,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": 0.2833,
+      "name": "SWIM FAST",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 311,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "SWIM FAST"
+     },
+     {
+      "start": 0.3667,
+      "dur": 0.5833,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.2833,
+      "blendOut": 0.2333,
+      "name": "ACTION FOR SWIM",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 307,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "ACTION FOR SWIM"
+     },
+     {
+      "start": 1.3833,
+      "dur": 0.4167,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.1167,
+      "blendOut": 0.1667,
+      "name": "ACTION FOR SWIM",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 307,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "ACTION FOR SWIM"
+     },
+     {
+      "start": 0.7167,
+      "dur": 0.7833,
+      "clipIn": 0.0833,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.2333,
+      "blendOut": 0.1167,
+      "name": "SWIM FAST",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 311,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "SWIM FAST"
+     },
+     {
+      "start": 2.1667,
+      "dur": 0.5833,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.1833,
+      "blendOut": 0.1667,
+      "name": "ACTION FOR SWIM",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 307,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "ACTION FOR SWIM"
+     },
+     {
+      "start": 1.6333,
+      "dur": 0.7167,
+      "clipIn": 0.0833,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.1667,
+      "blendOut": 0.1833,
+      "name": "SWIM FAST",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 311,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "SWIM FAST"
+     },
+     {
+      "start": 2.5833,
+      "dur": 0.5667,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.1667,
+      "blendOut": 0.1167,
+      "name": "SWIM FAST",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 311,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "SWIM FAST"
+     },
+     {
+      "start": 3.0333,
+      "dur": 0.5667,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.1167,
+      "blendOut": 0.2,
+      "name": "ACTION FOR SWIM",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 307,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "ACTION FOR SWIM"
+     },
+     {
+      "start": 3.4,
+      "dur": 0.5833,
+      "clipIn": 0.0833,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.2,
+      "blendOut": 0.15,
+      "name": "SWIM FAST",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 311,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "SWIM FAST"
+     },
+     {
+      "start": 3.8333,
+      "dur": 0.3167,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.15,
+      "blendOut": 0.0833,
+      "name": "ACTION FOR SWIM",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 307,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "ACTION FOR SWIM"
+     },
+     {
+      "start": 4.0667,
+      "dur": 0.9333,
+      "clipIn": 0.0833,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0833,
+      "blendOut": -1.0,
+      "name": "SWIM FAST",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 311,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "SWIM FAST"
+     }
+    ],
+    "infinite": null,
+    "offset": {
+     "m_TrackOffset": 0,
+     "m_Position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_EulerAngles": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_ApplyOffsets": 0
+    }
+   },
+   {
+    "id": 632,
+    "type": "AnimationTrack",
+    "name": "Override 0",
+    "parent": 662,
+    "muted": 0,
+    "bind": null,
+    "clips": [],
+    "infinite": 336,
+    "offset": {
+     "m_TrackOffset": 0,
+     "m_Position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_EulerAngles": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_ApplyOffsets": 0
+    },
+    "infiniteName": "Recorded"
+   },
+   {
+    "id": 469,
+    "type": "ActivationTrack",
+    "name": "Activation Track (1)",
+    "parent": null,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 2/TimelineFoodEating/TimelineStuff",
+     "type": "GameObject"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 5.0,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Active",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ActivationPlayableAsset",
+      "m_GameObject": null,
+      "m_Script": {
+       "f": "globalgamemanagers.assets",
+       "id": 2245
+      }
+     }
+    ],
+    "post": 1
+   },
+   {
+    "id": 747,
+    "type": "ActivationTrack",
+    "name": "Activation Track",
+    "parent": null,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 2/Timeline - Food Dispensing/TimelineAssets",
+     "type": "GameObject"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 5.0,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Active",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ActivationPlayableAsset",
+      "m_GameObject": null,
+      "m_Script": {
+       "f": "globalgamemanagers.assets",
+       "id": 2245
+      }
+     }
+    ],
+    "post": 1
+   },
+   {
+    "id": 487,
+    "type": "AnimationTrack",
+    "name": "Animation Track",
+    "parent": null,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 2/TimelineFoodEating/TimelineStuff/FishFood",
+     "type": "Animator"
+    },
+    "clips": [],
+    "infinite": 334,
+    "offset": {
+     "m_TrackOffset": 0,
+     "m_Position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_EulerAngles": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_ApplyOffsets": 0
+    },
+    "infiniteName": "Recorded (1)"
+   },
+   {
+    "id": 559,
+    "type": "CinemachineTrack",
+    "name": "Camera",
+    "parent": null,
+    "muted": 0,
+    "bind": {
+     "path": "Camera",
+     "type": "MonoBehaviour"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 5.0,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "Virtual Camera",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 2/TimelineFoodEating/Cameras/Virtual Camera"
+     }
+    ]
+   },
+   {
+    "id": 771,
+    "type": "ControlTrack",
+    "name": "Control Track",
+    "parent": null,
+    "muted": 0,
+    "bind": null,
+    "clips": [
+     {
+      "start": 1.2167,
+      "dur": 0.8333,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Crunch",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ControlPlayableAsset",
+      "source": "ActivityManager/Activities/Level 2/TimelineFoodEating/TimelineStuff/Crunch",
+      "prefab": null,
+      "particles": 1,
+      "active": 1,
+      "postPlayback": 2
+     },
+     {
+      "start": 2.05,
+      "dur": 0.75,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Crunch (1)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ControlPlayableAsset",
+      "source": "ActivityManager/Activities/Level 2/TimelineFoodEating/TimelineStuff/Crunch (1)",
+      "prefab": null,
+      "particles": 1,
+      "active": 1,
+      "postPlayback": 2
+     },
+     {
+      "start": 2.8,
+      "dur": 0.85,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Crunch (2)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ControlPlayableAsset",
+      "source": "ActivityManager/Activities/Level 2/TimelineFoodEating/TimelineStuff/Crunch (2)",
+      "prefab": null,
+      "particles": 1,
+      "active": 1,
+      "postPlayback": 2
+     },
+     {
+      "start": 3.65,
+      "dur": 1.0,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Crunch (3)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ControlPlayableAsset",
+      "source": "ActivityManager/Activities/Level 2/TimelineFoodEating/TimelineStuff/Crunch (3)",
+      "prefab": null,
+      "particles": 1,
+      "active": 1,
+      "postPlayback": 2
+     }
+    ]
+   },
+   {
+    "id": 517,
+    "type": "ActivationTrack",
+    "name": "Activation Track (2)",
+    "parent": null,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 2/TimelineFoodEating/TimelineStuff/FishFood/Fish Food",
+     "type": "GameObject"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 1.2167,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Active",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ActivationPlayableAsset",
+      "m_GameObject": null,
+      "m_Script": {
+       "f": "globalgamemanagers.assets",
+       "id": 2245
+      }
+     }
+    ],
+    "post": 0
+   },
+   {
+    "id": 706,
+    "type": "ActivationTrack",
+    "name": "Activation Track (3)",
+    "parent": null,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 2/TimelineFoodEating/TimelineStuff/FishFood/Fish Food (1)",
+     "type": "GameObject"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 2.05,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Active",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ActivationPlayableAsset",
+      "m_GameObject": null,
+      "m_Script": {
+       "f": "globalgamemanagers.assets",
+       "id": 2245
+      }
+     }
+    ],
+    "post": 0
+   },
+   {
+    "id": 754,
+    "type": "ActivationTrack",
+    "name": "Activation Track (4)",
+    "parent": null,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 2/TimelineFoodEating/TimelineStuff/FishFood/Fish Food (2)",
+     "type": "GameObject"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 2.8,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Active",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ActivationPlayableAsset",
+      "m_GameObject": null,
+      "m_Script": {
+       "f": "globalgamemanagers.assets",
+       "id": 2245
+      }
+     }
+    ],
+    "post": 0
+   },
+   {
+    "id": 580,
+    "type": "ActivationTrack",
+    "name": "Activation Track (5)",
+    "parent": null,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 2/TimelineFoodEating/TimelineStuff/FishFood/Fish Food (3)",
+     "type": "GameObject"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 3.65,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Active",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ActivationPlayableAsset",
+      "m_GameObject": null,
+      "m_Script": {
+       "f": "globalgamemanagers.assets",
+       "id": 2245
+      }
+     }
+    ],
+    "post": 0
+   },
+   {
+    "id": 625,
+    "type": "ActivationTrack",
+    "name": "Activation Track (6)",
+    "parent": null,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 2/TimelineFoodEating/TimelineStuff/FishFood",
+     "type": "GameObject"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 5.0,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Active",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ActivationPlayableAsset",
+      "m_GameObject": null,
+      "m_Script": {
+       "f": "globalgamemanagers.assets",
+       "id": 2245
+      }
+     }
+    ],
+    "post": 1
+   },
+   {
+    "id": 587,
+    "type": "ActivationTrack",
+    "name": "Activation Track (7)",
+    "parent": null,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 2/TimelineFoodEating/Events",
+     "type": "GameObject"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 5.0,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Active",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ActivationPlayableAsset",
+      "m_GameObject": null,
+      "m_Script": {
+       "f": "globalgamemanagers.assets",
+       "id": 2245
+      }
+     }
+    ],
+    "post": 1
+   },
+   {
+    "id": 552,
+    "type": "AudioTrack",
+    "name": "Audio Track",
+    "parent": null,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 2/Task 1 (Feed Fish)",
+     "type": "AudioSource"
+    },
+    "clips": [
+     {
+      "start": 1.2167,
+      "dur": 0.8,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "nom-nom-nom_gPJiWn4",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AudioPlayableAsset",
+      "audio": 339,
+      "loop": 0,
+      "audioName": "nom-nom-nom_gPJiWn4"
+     },
+     {
+      "start": 2.05,
+      "dur": 0.6167,
+      "clipIn": 0.9667,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "nom-nom-nom_gPJiWn4",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AudioPlayableAsset",
+      "audio": 339,
+      "loop": 0,
+      "audioName": "nom-nom-nom_gPJiWn4"
+     },
+     {
+      "start": 2.8,
+      "dur": 0.5333,
+      "clipIn": 0.7833,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "nom-nom-nom_gPJiWn4",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AudioPlayableAsset",
+      "audio": 339,
+      "loop": 0,
+      "audioName": "nom-nom-nom_gPJiWn4"
+     },
+     {
+      "start": 3.65,
+      "dur": 0.6,
+      "clipIn": 0.3667,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "nom-nom-nom_gPJiWn4",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AudioPlayableAsset",
+      "audio": 339,
+      "loop": 0,
+      "audioName": "nom-nom-nom_gPJiWn4"
+     }
+    ]
+   }
+  ]
+ },
+ "ActivityManager/Activities/Level 4/Timeline - Glass Dropped/Controller": {
+  "scene": "level2",
+  "asset": "5.GlassDroppedTimeline",
+  "wrap": 2,
+  "playOnAwake": 0,
+  "fixedDuration": 0.0,
+  "exposed": {
+   "-1971844098": "ActivityManager/Activities/Level 4/Timeline - Glass Dropped/Cameras/vCam (sb)",
+   "-1964278986": "ActivityManager/Activities/Level 4/Timeline - Glass Dropped/Cameras/vCam (1)",
+   "-726742558": "ActivityManager/Activities/Level 4/Timeline - Glass Dropped/Cameras/vCam",
+   "1581716972": "ActivityManager/Activities/Level 4/Timeline - Glass Dropped/TimelineAssets/Glass (1)/WaterSplashSoft"
+  },
+  "tracks": [
+   {
+    "id": 660,
+    "type": "GroupTrack",
+    "name": "Canvas Group",
+    "parent": null,
+    "muted": 0,
+    "bind": null,
+    "clips": []
+   },
+   {
+    "id": 575,
+    "type": "TextSwitcherTrack",
+    "name": "Text Switcher Track",
+    "parent": 660,
+    "muted": 0,
+    "bind": null,
+    "clips": []
+   },
+   {
+    "id": 565,
+    "type": "AnimationTrack",
+    "name": "Animation Track (1)",
+    "parent": 660,
+    "muted": 0,
+    "bind": {
+     "path": "Canvas/TimelineUI",
+     "type": "Animator"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 0.7667,
+      "clipIn": 0.7333,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "BarsDown",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 326,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "Recorded (1)"
+     },
+     {
+      "start": 2.0167,
+      "dur": 1.5333,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "Recorded (2)",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 327,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "Recorded (2)"
+     }
+    ],
+    "infinite": null,
+    "offset": {
+     "m_TrackOffset": 0,
+     "m_Position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_EulerAngles": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_ApplyOffsets": 0
+    }
+   },
+   {
+    "id": 703,
+    "type": "GroupTrack",
+    "name": "Activation Group",
+    "parent": null,
+    "muted": 0,
+    "bind": null,
+    "clips": []
+   },
+   {
+    "id": 769,
+    "type": "ActivationTrack",
+    "name": "Activation Track (1)",
+    "parent": 703,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 4/Timeline - Glass Dropped/Events",
+     "type": "GameObject"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 3.55,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Active",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ActivationPlayableAsset",
+      "m_GameObject": null,
+      "m_Script": {
+       "f": "globalgamemanagers.assets",
+       "id": 2245
+      }
+     }
+    ],
+    "post": 1
+   },
+   {
+    "id": 594,
+    "type": "ActivationTrack",
+    "name": "Activation Track",
+    "parent": 703,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 4/Timeline - Glass Dropped/TimelineAssets",
+     "type": "GameObject"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 3.55,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Active",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ActivationPlayableAsset",
+      "m_GameObject": null,
+      "m_Script": {
+       "f": "globalgamemanagers.assets",
+       "id": 2245
+      }
+     }
+    ],
+    "post": 1
+   },
+   {
+    "id": 783,
+    "type": "ActivationTrack",
+    "name": "Activation Track (2)",
+    "parent": 703,
+    "muted": 0,
+    "bind": {
+     "path": "Canvas/TimelineUI",
+     "type": "GameObject"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 3.55,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Active",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ActivationPlayableAsset",
+      "m_GameObject": null,
+      "m_Script": {
+       "f": "globalgamemanagers.assets",
+       "id": 2245
+      }
+     }
+    ],
+    "post": 1
+   },
+   {
+    "id": 578,
+    "type": "GroupTrack",
+    "name": "Animators Sub-Group",
+    "parent": 703,
+    "muted": 0,
+    "bind": null,
+    "clips": []
+   },
+   {
+    "id": 652,
+    "type": "ActivationTrack",
+    "name": "Activation Track",
+    "parent": 578,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 4/Timeline - Glass Dropped/TimelineAssets/ToonFishMain (1)",
+     "type": "GameObject"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 0.3833,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Active",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ActivationPlayableAsset",
+      "m_GameObject": null,
+      "m_Script": {
+       "f": "globalgamemanagers.assets",
+       "id": 2245
+      }
+     }
+    ],
+    "post": 3
+   },
+   {
+    "id": 614,
+    "type": "ActivationTrack",
+    "name": "Activation Track (1)",
+    "parent": 578,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 4/Timeline - Glass Dropped/TimelineAssets/Glass (1)/VASO/ToonFishMain (inside glass)",
+     "type": "GameObject"
+    },
+    "clips": [
+     {
+      "start": 0.3833,
+      "dur": 3.1667,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "Active",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ActivationPlayableAsset",
+      "m_GameObject": null,
+      "m_Script": {
+       "f": "globalgamemanagers.assets",
+       "id": 2245
+      }
+     }
+    ],
+    "post": 3
+   },
+   {
+    "id": 728,
+    "type": "GroupTrack",
+    "name": "Animation Group",
+    "parent": null,
+    "muted": 0,
+    "bind": null,
+    "clips": []
+   },
+   {
+    "id": 663,
+    "type": "AnimationTrack",
+    "name": "Animation Track",
+    "parent": 728,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 4/Timeline - Glass Dropped/TimelineAssets/ToonFishMain (1)",
+     "type": "Animator"
+    },
+    "clips": [],
+    "infinite": 328,
+    "offset": {
+     "m_TrackOffset": 0,
+     "m_Position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_EulerAngles": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_ApplyOffsets": 0
+    },
+    "infiniteName": "Recorded"
+   },
+   {
+    "id": 709,
+    "type": "AnimationTrack",
+    "name": "Override 0",
+    "parent": 663,
+    "muted": 0,
+    "bind": null,
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 0.9,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": 0.4333,
+      "name": "SWIM FAST",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 311,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "SWIM FAST"
+     },
+     {
+      "start": 0.4667,
+      "dur": 1.5167,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.4333,
+      "blendOut": -1.0,
+      "name": "SWIM",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 312,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "SWIM"
+     }
+    ],
+    "infinite": null,
+    "offset": {
+     "m_TrackOffset": 0,
+     "m_Position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_EulerAngles": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_ApplyOffsets": 0
+    }
+   },
+   {
+    "id": 792,
+    "type": "AnimationTrack",
+    "name": "Animation Track (2)",
+    "parent": 728,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 4/Timeline - Glass Dropped/TimelineAssets/Glass (1)/VASO/ToonFishMain (inside glass)",
+     "type": "Animator"
+    },
+    "clips": [],
+    "infinite": 294,
+    "offset": {
+     "m_TrackOffset": 0,
+     "m_Position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_EulerAngles": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_ApplyOffsets": 0
+    },
+    "infiniteName": "Recorded (4)"
+   },
+   {
+    "id": 773,
+    "type": "AnimationTrack",
+    "name": "Override 0",
+    "parent": 792,
+    "muted": 0,
+    "bind": null,
+    "clips": [
+     {
+      "start": 0.5,
+      "dur": 1.4833,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": 0.5833,
+      "name": "SWIM FAST",
+      "extrapolation": [
+       1,
+       1
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 311,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "SWIM FAST"
+     },
+     {
+      "start": 1.4,
+      "dur": 1.8333,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.5833,
+      "blendOut": -1.0,
+      "name": "SWIM",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AnimationPlayableAsset",
+      "clip": 312,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "rot": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0,
+       "w": 1.0
+      },
+      "applyOffsets": 1,
+      "clipName": "SWIM"
+     }
+    ],
+    "infinite": null,
+    "offset": {
+     "m_TrackOffset": 0,
+     "m_Position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_EulerAngles": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_ApplyOffsets": 0
+    }
+   },
+   {
+    "id": 478,
+    "type": "AnimationTrack",
+    "name": "Animation Track (1)",
+    "parent": 728,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 4/Timeline - Glass Dropped/TimelineAssets/Glass (1)",
+     "type": "Animator"
+    },
+    "clips": [],
+    "infinite": 338,
+    "offset": {
+     "m_TrackOffset": 0,
+     "m_Position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_EulerAngles": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_ApplyOffsets": 0
+    },
+    "infiniteName": "Recorded (3)"
+   },
+   {
+    "id": 513,
+    "type": "AnimationTrack",
+    "name": "Animation Track (3)",
+    "parent": 728,
+    "muted": 0,
+    "bind": {
+     "path": "ActivityManager/Activities/Level 4/Timeline - Glass Dropped/TimelineAssets/Glass (1)/VASO/Water",
+     "type": "Animator"
+    },
+    "clips": [],
+    "infinite": 335,
+    "offset": {
+     "m_TrackOffset": 0,
+     "m_Position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_EulerAngles": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+     },
+     "m_ApplyOffsets": 0
+    },
+    "infiniteName": "Recorded (5)"
+   },
+   {
+    "id": 555,
+    "type": "GroupTrack",
+    "name": "Camera Group",
+    "parent": null,
+    "muted": 0,
+    "bind": null,
+    "clips": []
+   },
+   {
+    "id": 511,
+    "type": "CinemachineTrack",
+    "name": "Camera",
+    "parent": 555,
+    "muted": 0,
+    "bind": {
+     "path": "Camera",
+     "type": "MonoBehaviour"
+    },
+    "clips": [
+     {
+      "start": 0.0,
+      "dur": 1.4,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": 0.5833,
+      "name": "vCam",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 4/Timeline - Glass Dropped/Cameras/vCam"
+     },
+     {
+      "start": 0.8167,
+      "dur": 2.6833,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.5833,
+      "blendOut": 0.35,
+      "name": "vCam (1)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 4/Timeline - Glass Dropped/Cameras/vCam (1)"
+     },
+     {
+      "start": 3.15,
+      "dur": 0.4,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.35,
+      "blendOut": -1.0,
+      "name": "vCam (sb)",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "CinemachineShot",
+      "vcam": "ActivityManager/Activities/Level 4/Timeline - Glass Dropped/Cameras/vCam (sb)"
+     }
+    ]
+   },
+   {
+    "id": 585,
+    "type": "GroupTrack",
+    "name": "Effects Group",
+    "parent": null,
+    "muted": 0,
+    "bind": null,
+    "clips": []
+   },
+   {
+    "id": 804,
+    "type": "ControlTrack",
+    "name": "Control Track",
+    "parent": 585,
+    "muted": 0,
+    "bind": null,
+    "clips": [
+     {
+      "start": 0.35,
+      "dur": 2.0,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": 0.0,
+      "blendOut": 0.0,
+      "name": "WaterSplashSoft",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "ControlPlayableAsset",
+      "source": "ActivityManager/Activities/Level 4/Timeline - Glass Dropped/TimelineAssets/Glass (1)/WaterSplashSoft",
+      "prefab": null,
+      "particles": 1,
+      "active": 1,
+      "postPlayback": 2
+     }
+    ]
+   },
+   {
+    "id": 572,
+    "type": "AudioTrack",
+    "name": "Audio Track",
+    "parent": 585,
+    "muted": 0,
+    "bind": null,
+    "clips": [
+     {
+      "start": 0.1686,
+      "dur": 0.7314,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "gentle-water-plops_Trimmed",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AudioPlayableAsset",
+      "audio": 340,
+      "loop": 0,
+      "audioName": "gentle-water-plops_Trimmed"
+     }
+    ]
+   },
+   {
+    "id": 533,
+    "type": "AudioTrack",
+    "name": "Audio Track (1)",
+    "parent": 585,
+    "muted": 0,
+    "bind": null,
+    "clips": [
+     {
+      "start": 0.8167,
+      "dur": 1.9069,
+      "clipIn": 0.0,
+      "scale": 1.0,
+      "easeIn": 0.0,
+      "easeOut": 0.0,
+      "blendIn": -1.0,
+      "blendOut": -1.0,
+      "name": "cup-glass-set-slide-wood-table_GyIVJuEO_NWM",
+      "extrapolation": [
+       0,
+       0
+      ],
+      "asset": "AudioPlayableAsset",
+      "audio": 344,
+      "loop": 0,
+      "audioName": "cup-glass-set-slide-wood-table_GyIVJuEO_NWM"
+     }
+    ]
+   }
+  ]
+ }
+}

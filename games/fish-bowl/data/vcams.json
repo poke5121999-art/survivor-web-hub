@@ -1,0 +1,3183 @@
+{
+ "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (3)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.1,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 2/Timeline - Food Dispensing/Cameras/vCam": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 45.0,
+  "near": 0.1,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 3/Task 1/Camera/vCam Specific": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.1,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": "ActivityManager/Activities/Level 3/Task 1/Targets/target (7)",
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 8.2,
+    "y": 10.37,
+    "z": -0.18
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 5.08,
+    "y": 0.0,
+    "z": -2.99
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (12)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.01,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.2,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (Follow Owner) (sb)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.1,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": "ActivityManager/Activities/Level 1/Timeline - Intro/TimelineAssets/TeenBoyRigged/mixamorig:Hips/mixamorig:Spine/mixamorig:Spine1/mixamorig:Spine2/mixamorig:Neck/mixamorig:Head",
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": -9.8,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (3)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 54.26,
+  "near": 0.01,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/TimelineAssets/ToonFishMain",
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.2,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.1,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (look at Timmy)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.1,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/TimelineAssets/TeenBoyRigged/mixamorig:Hips/mixamorig:Spine/mixamorig:Spine1/mixamorig:Spine2/mixamorig:Neck/mixamorig:Head",
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (3)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.1,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (14) sb": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.01,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.2,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 2/Timeline - Food Dispensing/Cameras/vCam (Follow Dispenser) (sb)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.1,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": "ActivityManager/Activities/Level 2/Timeline - Food Dispensing/TimelineAssets/Pivot_FishFeedingMachine (1)",
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (1)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.1,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (7)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.01,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.2,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (7)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.1,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  },
+  "noise": {
+   "m_NoiseProfile": {
+    "f": "sharedassets2.assets",
+    "id": 651
+   },
+   "m_PivotOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_AmplitudeGain": 1.0,
+   "m_FrequencyGain": 1.0,
+   "mNoiseOffsets": {
+    "x": -354.8483,
+    "y": -449.6356,
+    "z": 18.5679
+   }
+  }
+ },
+ "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (4)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.1,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 4/Timeline - Glass Dropped/Cameras/vCam (sb)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 62.81,
+  "near": 0.01,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": "ActivityManager/Activities/Level 4/Timeline - Glass Dropped/TimelineAssets/Glass (1)/VASO/ToonFishMain (inside glass)",
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 4/Timeline - Glass Dropped/Cameras/vCam (1)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 62.81,
+  "near": 0.01,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": "ActivityManager/Activities/Level 4/Timeline - Glass Dropped/TimelineAssets/Glass (1)/VASO/ToonFishMain (inside glass)",
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (5) sb": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.1,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 54.26,
+  "near": 0.01,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 2/Timeline - Food Dispensing/Cameras/vCam (Follow Dispenser)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.1,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": "ActivityManager/Activities/Level 2/Timeline - Food Dispensing/TimelineAssets/Pivot_FishFeedingMachine (1)",
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Look At Player vCam": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.1,
+  "far": 200.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (2)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.1,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (1)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.1,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": "ActivityManager/Activities/Level 1/Timeline - Intro/TimelineAssets/ToonFishMain",
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (4)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.1,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 3/Task 1/Camera/Virtual Camera": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.1,
+  "far": 5000.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 3.71,
+    "z": -6.11
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (Follow Owner)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.1,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": "ActivityManager/Activities/Level 1/Timeline - Intro/TimelineAssets/TeenBoyRigged/mixamorig:Hips/mixamorig:Spine/mixamorig:Spine1/mixamorig:Spine2/mixamorig:Neck/mixamorig:Head",
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": -9.8,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (5)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.1,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/TimelineAssets/ToonFishMain",
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.01,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (7)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.01,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)/Camera/Virtual Camera": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.1,
+  "far": 5000.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 3.71,
+    "z": -6.11
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (6)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.1,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  },
+  "noise": {
+   "m_NoiseProfile": {
+    "f": "sharedassets2.assets",
+    "id": 651
+   },
+   "m_PivotOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_AmplitudeGain": 1.0,
+   "m_FrequencyGain": 1.0,
+   "mNoiseOffsets": {
+    "x": 137.895,
+    "y": -510.067,
+    "z": -122.4533
+   }
+  }
+ },
+ "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (4)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 54.26,
+  "near": 0.01,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.2,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (5)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 54.26,
+  "near": 0.01,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.2,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (14)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.01,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.2,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)/Flop vCam": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.01,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "Damping": {
+    "x": 0.1,
+    "y": 0.5,
+    "z": 0.3
+   },
+   "ShoulderOffset": {
+    "x": 0.5,
+    "y": 0.45,
+    "z": 0.0
+   },
+   "VerticalArmLength": 0.4,
+   "CameraSide": 1.0,
+   "CameraDistance": 2.0,
+   "CameraCollisionFilter": {
+    "m_Bits": 0
+   },
+   "IgnoreTag": "",
+   "CameraRadius": 0.2,
+   "DampingIntoCollision": 0.0,
+   "DampingFromCollision": 2.0,
+   "type": "3rdPersonFollow"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (Sb)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.01,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 2/Timeline - Food Dispensing/Cameras/vCam (1)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.1,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (11)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.01,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.2,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (1)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 54.26,
+  "near": 0.01,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (6)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 3.4,
+  "near": 0.01,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.2,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (9)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.01,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.2,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (2)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 54.26,
+  "near": 0.01,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": "ActivityManager/Activities/Level 3/Timeline - Jump Targets/TimelineAssets/ToonFishMain",
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 4/Timeline - Glass Dropped/Cameras/vCam": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 62.81,
+  "near": 0.01,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": "ActivityManager/Activities/Level 4/Timeline - Glass Dropped/TimelineAssets/Glass (1)",
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 1.9,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (look at Female Fish)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 21.4,
+  "near": 0.01,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/TimelineAssets/TeenBoyRigged/mixamorig:Hips/mixamorig:Spine/mixamorig:Spine1/mixamorig:Spine2/mixamorig:LeftShoulder/mixamorig:LeftArm/mixamorig:LeftForeArm/mixamorig:LeftHand/Bowlenglas/Water (1)/FishFeRigged",
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (2)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.1,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (10)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.01,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.2,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Both Fish vCam": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.1,
+  "far": 200.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (13)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.01,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.2,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 1/Timeline - Intro/Cameras/Intro Timeline vCam (8)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.1,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "noise": {
+   "m_NoiseProfile": {
+    "f": "sharedassets2.assets",
+    "id": 651
+   },
+   "m_PivotOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_AmplitudeGain": 1.0,
+   "m_FrequencyGain": 1.0,
+   "mNoiseOffsets": {
+    "x": 616.1036,
+    "y": -701.4603,
+    "z": -397.0428
+   }
+  },
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (6)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.01,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 2/TimelineFoodEating/Cameras/Virtual Camera": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 22.21,
+  "near": 4.3,
+  "far": 26.3,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras/vCam (look at Fish)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 21.4,
+  "near": 0.01,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/TimelineAssets/ToonFishMain",
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras/vCam (8)": {
+  "scene": "level2",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.01,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.2,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "Flop vCam": {
+  "scene": "level4",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.01,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": "Player",
+  "follow": "Player",
+  "body": {
+   "Damping": {
+    "x": 0.1,
+    "y": 0.5,
+    "z": 0.3
+   },
+   "ShoulderOffset": {
+    "x": 0.5,
+    "y": 1.4,
+    "z": 0.0
+   },
+   "VerticalArmLength": 0.4,
+   "CameraSide": 1.0,
+   "CameraDistance": 2.0,
+   "CameraCollisionFilter": {
+    "m_Bits": 0
+   },
+   "IgnoreTag": "",
+   "CameraRadius": 0.2,
+   "DampingIntoCollision": 0.0,
+   "DampingFromCollision": 2.0,
+   "type": "3rdPersonFollow"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "MainCamera/CameraStateManager/CM vcam1": {
+  "scene": "level4",
+  "priority": 10,
+  "fov": 100.0,
+  "near": 0.01,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": "Player/CameraFocusPoint",
+  "follow": "Player/CameraFocusPoint",
+  "body": {
+   "m_BindingMode": 5,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.3,
+    "z": -1.5
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 1.0,
+   "m_LookaheadSmoothing": 16.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.1,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.15,
+   "m_DeadZoneHeight": 0.008,
+   "m_SoftZoneWidth": 0.25,
+   "m_SoftZoneHeight": 0.63,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "MainCamera/MiddleRig": {
+  "scene": "level4",
+  "priority": 10,
+  "fov": 40.0,
+  "near": 0.1,
+  "far": 5000.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.0,
+   "m_VerticalDamping": 0.0,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.55,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  },
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "m_Heading": {
+    "m_Definition": 2,
+    "m_VelocityFilterStrength": 4,
+    "m_Bias": 0.0
+   },
+   "m_RecenterToTargetHeading": {
+    "m_enabled": 0,
+    "m_WaitTime": 1.0,
+    "m_RecenteringTime": 2.0,
+    "m_LegacyHeadingDefinition": -1,
+    "m_LegacyVelocityFilterStrength": -1
+   },
+   "m_XAxis": {
+    "Value": 0.0,
+    "m_SpeedMode": 0,
+    "m_MaxSpeed": 300.0,
+    "m_AccelTime": 0.1,
+    "m_DecelTime": 0.1,
+    "m_InputAxisName": "",
+    "m_InputAxisValue": 0.0,
+    "m_InvertInput": 1,
+    "m_MinValue": -180.0,
+    "m_MaxValue": 180.0,
+    "m_Wrap": 1,
+    "m_Recentering": {
+     "m_enabled": 0,
+     "m_WaitTime": 1.0,
+     "m_RecenteringTime": 2.0,
+     "m_LegacyHeadingDefinition": -1,
+     "m_LegacyVelocityFilterStrength": -1
+    }
+   },
+   "m_LegacyRadius": 3.4028234663852886e+38,
+   "m_LegacyHeightOffset": 3.4028234663852886e+38,
+   "m_LegacyHeadingBias": 3.4028234663852886e+38,
+   "m_HeadingIsSlave": 1,
+   "type": "OrbitalTransposer"
+  }
+ },
+ "Death Features/Death vCam": {
+  "scene": "level4",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.1,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": "Player",
+  "follow": "Player",
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 4.3,
+    "z": -3.87
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "MainCamera/BottomRig": {
+  "scene": "level4",
+  "priority": 10,
+  "fov": 40.0,
+  "near": 0.1,
+  "far": 5000.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.0,
+   "m_VerticalDamping": 0.0,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.6,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  },
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "m_Heading": {
+    "m_Definition": 2,
+    "m_VelocityFilterStrength": 4,
+    "m_Bias": 0.0
+   },
+   "m_RecenterToTargetHeading": {
+    "m_enabled": 0,
+    "m_WaitTime": 1.0,
+    "m_RecenteringTime": 2.0,
+    "m_LegacyHeadingDefinition": -1,
+    "m_LegacyVelocityFilterStrength": -1
+   },
+   "m_XAxis": {
+    "Value": 0.0,
+    "m_SpeedMode": 0,
+    "m_MaxSpeed": 300.0,
+    "m_AccelTime": 0.1,
+    "m_DecelTime": 0.1,
+    "m_InputAxisName": "",
+    "m_InputAxisValue": 0.0,
+    "m_InvertInput": 1,
+    "m_MinValue": -180.0,
+    "m_MaxValue": 180.0,
+    "m_Wrap": 1,
+    "m_Recentering": {
+     "m_enabled": 0,
+     "m_WaitTime": 1.0,
+     "m_RecenteringTime": 2.0,
+     "m_LegacyHeadingDefinition": -1,
+     "m_LegacyVelocityFilterStrength": -1
+    }
+   },
+   "m_LegacyRadius": 3.4028234663852886e+38,
+   "m_LegacyHeightOffset": 3.4028234663852886e+38,
+   "m_LegacyHeadingBias": 3.4028234663852886e+38,
+   "m_HeadingIsSlave": 1,
+   "type": "OrbitalTransposer"
+  }
+ },
+ "Player/ThrowSimulation/Virtual Camera": {
+  "scene": "level4",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.1,
+  "far": 5000.0,
+  "dutch": 0.0,
+  "look": "Player",
+  "follow": "Player",
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 3.71,
+    "z": -6.11
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.5,
+   "m_VerticalDamping": 0.5,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  }
+ },
+ "MainCamera/CameraStateManager/CM vcam1 (2)": {
+  "scene": "level4",
+  "priority": 10,
+  "fov": 100.0,
+  "near": 0.01,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": "Player/CameraFocusPoint",
+  "follow": "Player/CameraFocusPoint",
+  "body": {
+   "m_BindingMode": 5,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -2.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "type": "Transposer"
+  },
+  "aim": {
+   "type": "HardLookAt"
+  }
+ },
+ "MainCamera/TopRig": {
+  "scene": "level4",
+  "priority": 10,
+  "fov": 40.0,
+  "near": 0.1,
+  "far": 5000.0,
+  "dutch": 0.0,
+  "look": null,
+  "follow": null,
+  "aim": {
+   "m_TrackedObjectOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "m_LookaheadTime": 0.0,
+   "m_LookaheadSmoothing": 0.0,
+   "m_LookaheadIgnoreY": 0,
+   "m_HorizontalDamping": 0.0,
+   "m_VerticalDamping": 0.0,
+   "m_ScreenX": 0.5,
+   "m_ScreenY": 0.5,
+   "m_DeadZoneWidth": 0.0,
+   "m_DeadZoneHeight": 0.0,
+   "m_SoftZoneWidth": 0.8,
+   "m_SoftZoneHeight": 0.8,
+   "m_BiasX": 0.0,
+   "m_BiasY": 0.0,
+   "m_CenterOnActivate": 1,
+   "type": "Composer"
+  },
+  "body": {
+   "m_BindingMode": 1,
+   "m_FollowOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": -10.0
+   },
+   "m_XDamping": 1.0,
+   "m_YDamping": 1.0,
+   "m_ZDamping": 1.0,
+   "m_AngularDampingMode": 0,
+   "m_PitchDamping": 0.0,
+   "m_YawDamping": 0.0,
+   "m_RollDamping": 0.0,
+   "m_AngularDamping": 0.0,
+   "m_Heading": {
+    "m_Definition": 2,
+    "m_VelocityFilterStrength": 4,
+    "m_Bias": 0.0
+   },
+   "m_RecenterToTargetHeading": {
+    "m_enabled": 0,
+    "m_WaitTime": 1.0,
+    "m_RecenteringTime": 2.0,
+    "m_LegacyHeadingDefinition": -1,
+    "m_LegacyVelocityFilterStrength": -1
+   },
+   "m_XAxis": {
+    "Value": 0.0,
+    "m_SpeedMode": 0,
+    "m_MaxSpeed": 300.0,
+    "m_AccelTime": 0.1,
+    "m_DecelTime": 0.1,
+    "m_InputAxisName": "",
+    "m_InputAxisValue": 0.0,
+    "m_InvertInput": 1,
+    "m_MinValue": -180.0,
+    "m_MaxValue": 180.0,
+    "m_Wrap": 1,
+    "m_Recentering": {
+     "m_enabled": 0,
+     "m_WaitTime": 1.0,
+     "m_RecenteringTime": 2.0,
+     "m_LegacyHeadingDefinition": -1,
+     "m_LegacyVelocityFilterStrength": -1
+    }
+   },
+   "m_LegacyRadius": 3.4028234663852886e+38,
+   "m_LegacyHeightOffset": 3.4028234663852886e+38,
+   "m_LegacyHeadingBias": 3.4028234663852886e+38,
+   "m_HeadingIsSlave": 1,
+   "type": "OrbitalTransposer"
+  }
+ },
+ "MainCamera/CameraStateManager/CM vcam1 (1)": {
+  "scene": "level4",
+  "priority": 10,
+  "fov": 60.0,
+  "near": 0.01,
+  "far": 250.0,
+  "dutch": 0.0,
+  "look": "Player/CameraFocusPoint",
+  "follow": "Player/CameraFocusPoint",
+  "aim": {
+   "m_Damping": 0.0,
+   "type": "SameAsFollowTarget"
+  },
+  "body": {
+   "Damping": {
+    "x": 0.1,
+    "y": 0.5,
+    "z": 0.3
+   },
+   "ShoulderOffset": {
+    "x": 0.5,
+    "y": 0.08,
+    "z": 0.0
+   },
+   "VerticalArmLength": 0.4,
+   "CameraSide": 0.5,
+   "CameraDistance": 3.0,
+   "CameraCollisionFilter": {
+    "m_Bits": 0
+   },
+   "IgnoreTag": "",
+   "CameraRadius": 0.2,
+   "DampingIntoCollision": 0.0,
+   "DampingFromCollision": 0.0,
+   "type": "3rdPersonFollow"
+  }
+ }
+}

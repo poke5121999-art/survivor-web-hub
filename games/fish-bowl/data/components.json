@@ -1,0 +1,4943 @@
+{
+ "ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)/Targets/target (1)/Trigger": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "ChangeGameobjectLayer",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)/Props/Ceramic Bowl",
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)": {
+  "PerformGestureTask": {
+   "m_Enabled": 1,
+   "femaleFishAnim": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Female Fish#Animator",
+   "drawDetector": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/LeftArea/DrawArea Free#GestureRecognizer.DrawDetector",
+   "recognizedCount": 0,
+   "maxRecognizedCount": 0,
+   "bothFishVcam": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Both Fish vCam#Cinemachine.CinemachineVirtualCamera",
+   "playerVcam": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Look At Player vCam#Cinemachine.CinemachineVirtualCamera",
+   "victoryTextParticles": [
+    "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/VictoryParticles/Great#ParticleSystem",
+    "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/VictoryParticles/Nice#ParticleSystem",
+    "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/VictoryParticles/Perfect#ParticleSystem"
+   ],
+   "recognizedEventsList": [
+    "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Recognizers/Recognizer (Loop)#RecognizedEvents",
+    "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Recognizers/Recognizer (Heart)#RecognizedEvents",
+    "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Recognizers/Recognizer (Bolt)#RecognizedEvents",
+    "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Recognizers/Recognizer (Circle)#RecognizedEvents",
+    "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Recognizers/Recognizer (Triangle)#RecognizedEvents"
+   ],
+   "onMaxRecognizedEvent": []
+  }
+ },
+ "SceneDataHandler": {
+  "SceneDataHandler": {
+   "m_Enabled": 1,
+   "scenesData": [
+    {
+     "Index": 0,
+     "SceneName": "FishEnv"
+    },
+    {
+     "Index": 1,
+     "SceneName": "FishEnv"
+    },
+    {
+     "Index": 2,
+     "SceneName": "FishEnv"
+    },
+    {
+     "Index": 3,
+     "SceneName": "FishEnv"
+    },
+    {
+     "Index": 4,
+     "SceneName": "FishEnv"
+    }
+   ]
+  }
+ },
+ "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Controller": {
+  "AS.TimelineController": {
+   "m_Enabled": 1,
+   "SetPlayer": 1,
+   "playableDirector": "@ActivityManager/Activities/Level 3/Timeline - Jump Targets/Controller#PlayableDirector"
+  }
+ },
+ "ActivityManager/Activities/Level 1/Triggers/DropTrigger Task2 (2)": {
+  "AS.ButtonEventsAssign": {
+   "m_Enabled": 1,
+   "Button": null,
+   "OnButtonClick": [
+    {
+     "target": "@ActivityManager/Activities/Level 1/Task 2#CountCollectedItems",
+     "type": "CountCollectedItems",
+     "method": "UnparentChildOfMouth",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "ConditionalEvents": null
+  },
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 1/Triggers/DropTrigger Task2 (2)#AS.ButtonEventsAssign",
+     "type": "AS.ButtonEventsAssign",
+     "method": "AssignEvents",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 3/Task 1/Targets/target (3)/Trigger": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "ChangeGameobjectLayer",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 3/Task 1/Props/Bowlenglas",
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/RightArea/DrawArea Fixed": {
+  "ExampleGestureHandler": {
+   "m_Enabled": 1,
+   "textResult": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/RightArea/DrawArea Fixed/TextResult#UnityEngine.UI.Text",
+   "referenceRoot": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/Reference#RectTransform",
+   "recognizedText": "",
+   "unrecognizedText": ""
+  },
+  "GestureRecognizer.DrawDetector": {
+   "m_Enabled": 1,
+   "recognizer": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Recognizers/Recognizer (Loop)#GestureRecognizer.Recognizer",
+   "line": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/RightArea/DrawArea Fixed/Line#GestureRecognizer.UILineRenderer",
+   "scoreToAccept": 0.8,
+   "minLines": 1,
+   "maxLines": 4,
+   "removeStrategy": 0,
+   "clearNotRecognizedLines": 0,
+   "fixedArea": 1,
+   "OnRecognize": [
+    {
+     "target": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/RightArea/DrawArea Fixed#ExampleGestureHandler",
+     "type": "",
+     "method": "OnRecognize",
+     "mode": 0,
+     "arg": null,
+     "state": 2
+    }
+   ]
+  }
+ },
+ "ActivityManager/Activities/Level 1/Task 1": {
+  "CleanMoss": {
+   "m_Enabled": 1,
+   "mossBall": "@ActivityManager/Activities/Level 1/Task 1/Moss Ball",
+   "mossTrigger": "@ActivityManager/Activities/Level 1/Task 1/Moss Ball/Moss Trigger",
+   "dirtyAquariumPP": "@Post Processing/DirtyAquariumPP#UnityEngine.Rendering.Volume",
+   "fogParticlesList": [
+    "@ActivityManager/Activities/Level 1/FogParticles/FogHeavyGrey#ParticleSystem",
+    "@ActivityManager/Activities/Level 1/FogParticles/FogHeavyGrey (1)#ParticleSystem",
+    "@ActivityManager/Activities/Level 1/FogParticles/FogHeavyGrey (2)#ParticleSystem",
+    "@ActivityManager/Activities/Level 1/FogParticles/FogHeavyGrey (3)#ParticleSystem",
+    "@ActivityManager/Activities/Level 1/FogParticles/FogHeavyGrey (4)#ParticleSystem"
+   ],
+   "task2": "@ActivityManager/Activities/Level 1/Task 2#CountCollectedItems",
+   "mossSliderFillAmnt": 1000.0,
+   "mossSliderDecreaseAmnt": 1.0,
+   "mossSliderMintAmnt": 0.0,
+   "mossSliderMaxtAmnt": 100.0,
+   "mossSliderStartValue": 0.0,
+   "aquariumCleaningRate": 0.1,
+   "stopSlider": 0,
+   "cleanAquarium": 0,
+   "taskComplete": 0,
+   "popSfx": {
+    "f": "sharedassets1.assets",
+    "id": 16,
+    "name": "mouth-pop-1_z1M9vz4u_NWM"
+   },
+   "onMaxSliderValueEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 1/Task 1#CleanMoss",
+     "type": "CleanMoss",
+     "method": "MakeChildOFMouth",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 1/Task 1/Moss Ball#Transform",
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 1/Task 1/Moss Ball/Moss Trigger",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": false,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 1/Task 1#CleanMoss",
+     "type": "CleanMoss",
+     "method": "ShowMossBtn",
+     "mode": 6,
+     "arg": false,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 1/Triggers/DropTrigger Task2",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": false,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 1/Triggers/DropTrigger Task1",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": true,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/<--- Essentials --->/spongefilter/BubbleRisingUnderwater#ParticleSystem",
+     "type": "UnityEngine.ParticleSystem",
+     "method": "Play",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager#InstanceManager",
+     "type": "InstanceManager",
+     "method": "ShowHintFromInstanceMngr",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 1/Task 1#HintString",
+     "state": 2
+    }
+   ]
+  },
+  "HintString": {
+   "m_Enabled": 1,
+   "hintSentence": "Drop the moss to the indicated area"
+  }
+ },
+ "ActivityManager/Activities/Level 3/Task 1/Targets/target (7)/Trigger": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "ChangeGameobjectLayer",
+     "mode": 2,
+     "arg": "@*****FISHENV*****/StylizedHouseB",
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "ChangeGameobjectLayer",
+     "mode": 2,
+     "arg": "@*****FISHENV*****/TableArea/wood_container_S",
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 3/Task 1/Camera/vCam Specific": {
+  "AS.CameraUpdateChanger": {
+   "m_Enabled": 1,
+   "m_UpdateMethod": 2
+  }
+ },
+ "ActivityManager/Activities/Level 3/Task 1/Targets/target/Trigger": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "ChangeGameobjectLayer",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 3/Task 1/Props/Glass (1)/VASO",
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 2/TimelineFoodEating/Events": {
+  "AS.TimelineEvents": {
+   "m_Enabled": 1,
+   "SkipAble": 1,
+   "Cameras": "@ActivityManager/Activities/Level 2/TimelineFoodEating/Cameras",
+   "OtherCharacters": [],
+   "OnTimelineStart": [
+    {
+     "target": "@ActivityManager/Activities/Level 2/TimelineFoodEating#AS.TimelineController",
+     "type": "AS.TimelineController",
+     "method": "CameraBlendStateCut",
+     "mode": 6,
+     "arg": true,
+     "state": 2
+    }
+   ],
+   "OnTimelineEnd": [
+    {
+     "target": "@ActivityManager/Activities/Level 2/Task 1 (Feed Fish)#FeedFish",
+     "type": "FeedFish",
+     "method": "CheckHungerBarLevel",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ]
+  }
+ },
+ "ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/Reference (Recognized)/Image Bolt (Recognized)/Line": {
+  "GestureRecognizer.GesturePatternDraw": {
+   "m_Enabled": 1,
+   "m_Material": null,
+   "m_Color": {
+    "r": 0.0,
+    "g": 1.0,
+    "b": 1.0,
+    "a": 1.0
+   },
+   "m_RaycastTarget": 0,
+   "m_RaycastPadding": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0,
+    "w": 0.0
+   },
+   "m_Maskable": 1,
+   "m_OnCullStateChanged": [],
+   "m_Texture": {
+    "f": "sharedassets2.assets",
+    "id": 117,
+    "name": "LineTexture"
+   },
+   "m_UVRect": {
+    "x": 0.0,
+    "y": 0.0,
+    "width": 1.0,
+    "height": 1.0
+   },
+   "LineThickness": 4.0,
+   "UseMargins": 0,
+   "Margin": {
+    "x": 0.0,
+    "y": 0.0
+   },
+   "Points": [
+    {
+     "x": 0.6875,
+     "y": 1.0
+    },
+    {
+     "x": 0.3125,
+     "y": 0.6875
+    },
+    {
+     "x": 0.3125,
+     "y": 0.6875
+    },
+    {
+     "x": 0.6875,
+     "y": 0.3125
+    },
+    {
+     "x": 0.6875,
+     "y": 0.3125
+    },
+    {
+     "x": 0.3125,
+     "y": 0.0
+    }
+   ],
+   "relativeSize": 1,
+   "LineList": 1,
+   "LineCaps": 1,
+   "LineJoins": 0,
+   "pattern": {
+    "f": "sharedassets2.assets",
+    "id": 639
+   },
+   "endingSize": 0.0
+  }
+ },
+ "ActivityManager/Activities/Level 4": {
+  "AS.Activity": {
+   "m_Enabled": 1,
+   "PlayerInitPosition": "@ActivityManager/Activities/Level 4/PlayerPos#Transform",
+   "Cash": 100,
+   "OnInitDelayTimer": 0.0,
+   "OnCompleteDelayTimer": 0.0,
+   "levelSkipped": 0,
+   "OnInit": [
+    {
+     "target": "@ActivityManager/Activities/<--- Essentials --->/spongefilter/BubbleRisingUnderwater#ParticleSystem",
+     "type": "UnityEngine.ParticleSystem",
+     "method": "Play",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": true,
+     "state": 2
+    },
+    {
+     "target": "@*****FISHENV*****/Water#BoxCollider",
+     "type": "UnityEngine.Collider",
+     "method": "set_isTrigger",
+     "mode": 6,
+     "arg": true,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager#InstanceManager",
+     "type": "InstanceManager",
+     "method": "ShowHintFromInstanceMngr",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 4#HintString",
+     "state": 2
+    }
+   ],
+   "OnComplete": [
+    {
+     "target": "@ActivityManager#AS.ActivityManager",
+     "type": "AS.ActivityManager",
+     "method": "NexActivityUnlock",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnFailed": []
+  },
+  "AS.FadeCall": {
+   "m_Enabled": 1,
+   "Mode": 0,
+   "Speed": 1.0,
+   "wait": 2.0
+  },
+  "HintString": {
+   "m_Enabled": 1,
+   "hintSentence": "Jump when arrow is pointing downwards to the container."
+  }
+ },
+ "ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Recognizers/Recognizer (Circle)": {
+  "GestureRecognizer.Recognizer": {
+   "m_Enabled": 1,
+   "numberOfThreads": 1,
+   "patterns": [
+    {
+     "f": "sharedassets2.assets",
+     "id": 640
+    }
+   ]
+  },
+  "RecognizedEvents": {
+   "m_Enabled": 1,
+   "recognizer": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Recognizers/Recognizer (Circle)#GestureRecognizer.Recognizer",
+   "gesturePatternDraw": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/Reference/Image Circle/Line#GestureRecognizer.GesturePatternDraw",
+   "scoreToAccept": 0.6,
+   "minLines": 1,
+   "maxLines": 1,
+   "recognized": 0,
+   "AnimToPlay": "4th",
+   "onGesturedRecognizedEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Recognizers/Recognizer (Circle)#RecognizedEvents",
+     "type": "RecognizedEvents",
+     "method": "RecognizedCheck",
+     "mode": 6,
+     "arg": true,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)#PerformGestureTask",
+     "type": "PerformGestureTask",
+     "method": "RecognizedCountIncrement",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/Reference/Image Circle#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DOPlay",
+     "mode": 1,
+     "arg": null,
+     "state": 0
+    }
+   ]
+  }
+ },
+ "ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/Reference (Recognized)/Image Circle (Recognized)/Line": {
+  "GestureRecognizer.GesturePatternDraw": {
+   "m_Enabled": 1,
+   "m_Material": null,
+   "m_Color": {
+    "r": 0.0,
+    "g": 1.0,
+    "b": 1.0,
+    "a": 1.0
+   },
+   "m_RaycastTarget": 0,
+   "m_RaycastPadding": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0,
+    "w": 0.0
+   },
+   "m_Maskable": 1,
+   "m_OnCullStateChanged": [],
+   "m_Texture": {
+    "f": "sharedassets2.assets",
+    "id": 117,
+    "name": "LineTexture"
+   },
+   "m_UVRect": {
+    "x": 0.0,
+    "y": 0.0,
+    "width": 1.0,
+    "height": 1.0
+   },
+   "LineThickness": 4.0,
+   "UseMargins": 0,
+   "Margin": {
+    "x": 0.0,
+    "y": 0.0
+   },
+   "Points": [
+    {
+     "x": 0.5,
+     "y": 1.0
+    },
+    {
+     "x": 0.25,
+     "y": 0.9375
+    },
+    {
+     "x": 0.25,
+     "y": 0.9375
+    },
+    {
+     "x": 0.0625,
+     "y": 0.75
+    },
+    {
+     "x": 0.0625,
+     "y": 0.75
+    },
+    {
+     "x": 0.0,
+     "y": 0.5
+    },
+    {
+     "x": 0.0,
+     "y": 0.5
+    },
+    {
+     "x": 0.0625,
+     "y": 0.25
+    },
+    {
+     "x": 0.0625,
+     "y": 0.25
+    },
+    {
+     "x": 0.25,
+     "y": 0.0625
+    },
+    {
+     "x": 0.25,
+     "y": 0.0625
+    },
+    {
+     "x": 0.5,
+     "y": 0.0
+    },
+    {
+     "x": 0.5,
+     "y": 0.0
+    },
+    {
+     "x": 0.75,
+     "y": 0.0625
+    },
+    {
+     "x": 0.75,
+     "y": 0.0625
+    },
+    {
+     "x": 0.9375,
+     "y": 0.25
+    },
+    {
+     "x": 0.9375,
+     "y": 0.25
+    },
+    {
+     "x": 1.0,
+     "y": 0.5
+    },
+    {
+     "x": 1.0,
+     "y": 0.5
+    },
+    {
+     "x": 0.9375,
+     "y": 0.75
+    },
+    {
+     "x": 0.9375,
+     "y": 0.75
+    },
+    {
+     "x": 0.75,
+     "y": 0.9375
+    },
+    {
+     "x": 0.75,
+     "y": 0.9375
+    },
+    {
+     "x": 0.5,
+     "y": 1.0
+    }
+   ],
+   "relativeSize": 1,
+   "LineList": 1,
+   "LineCaps": 1,
+   "LineJoins": 0,
+   "pattern": {
+    "f": "sharedassets2.assets",
+    "id": 640
+   },
+   "endingSize": 0.0
+  }
+ },
+ "ActivityManager/Activities/Level 1/Triggers/DropTrigger Task1": {
+  "AS.ButtonEventsAssign": {
+   "m_Enabled": 1,
+   "Button": null,
+   "OnButtonClick": [
+    {
+     "target": "@ActivityManager/Activities/Level 1/Task 1#CleanMoss",
+     "type": "CleanMoss",
+     "method": "UnparentChildOfMouth",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 1/Triggers/DropTrigger Task1",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": false,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 1/Task 2",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": true,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager#InstanceManager",
+     "type": "InstanceManager",
+     "method": "ShowHintFromInstanceMngr",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 1/Triggers/DropTrigger Task1#HintString",
+     "state": 2
+    }
+   ],
+   "ConditionalEvents": null
+  },
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 1/Triggers/DropTrigger Task1#AS.ButtonEventsAssign",
+     "type": "AS.ButtonEventsAssign",
+     "method": "AssignEvents",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  },
+  "HintString": {
+   "m_Enabled": 1,
+   "hintSentence": "Collect the remaining moss from the tank and drop it to the indicated area"
+  }
+ },
+ "Camera": {
+  "DestroySelf": {
+   "m_Enabled": 1
+  }
+ },
+ "ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)/Targets/target (4)/Trigger": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "ChangeGameobjectLayer",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)/Props/BlueGlass (1)",
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 4/Timeline - Glass Dropped/Events": {
+  "AS.TimelineEvents": {
+   "m_Enabled": 1,
+   "SkipAble": 1,
+   "Cameras": "@ActivityManager/Activities/Level 4/Timeline - Glass Dropped/Cameras",
+   "OtherCharacters": [],
+   "OnTimelineStart": [
+    {
+     "target": "@ActivityManager#InstanceManager",
+     "type": "InstanceManager",
+     "method": "PlayerStatus",
+     "mode": 6,
+     "arg": false,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager#InstanceManager",
+     "type": "InstanceManager",
+     "method": "DeactivateGoPrompt",
+     "mode": 6,
+     "arg": false,
+     "state": 2
+    }
+   ],
+   "OnTimelineEnd": [
+    {
+     "target": "@ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": true,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 4#AS.FadeCall",
+     "type": "AS.FadeCall",
+     "method": "Fade",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager#InstanceManager",
+     "type": "InstanceManager",
+     "method": "PlayerStatus",
+     "mode": 6,
+     "arg": true,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager#InstanceManager",
+     "type": "InstanceManager",
+     "method": "AlignPlayerToTransforn",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 4/PlayerPos (Flopping)#Transform",
+     "state": 2
+    }
+   ]
+  }
+ },
+ "ActivityManager/Activities/Level 2/Timeline - Food Dispensing/Controller": {
+  "AS.TimelineController": {
+   "m_Enabled": 1,
+   "SetPlayer": 1,
+   "playableDirector": "@ActivityManager/Activities/Level 2/Timeline - Food Dispensing/Controller#PlayableDirector"
+  }
+ },
+ "ActivityManager/Activities/Level 1/Task 2/Moss Ball (2)/Moss Trigger (2)": {
+  "AS.ButtonEventsAssign": {
+   "m_Enabled": 1,
+   "Button": null,
+   "OnButtonClick": [
+    {
+     "target": "@ActivityManager/Activities/Level 1/Task 2#CountCollectedItems",
+     "type": "CountCollectedItems",
+     "method": "MakeChildOFMouth",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 1/Task 2/Moss Ball (2)#Transform",
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 1/Task 2/Moss Ball (2)/Moss Trigger (2)",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": false,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 1/Task 2/Moss Ball (2)#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DOKill",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 1/Triggers/DropTrigger Task2 (1)",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": true,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager#InstanceManager",
+     "type": "InstanceManager",
+     "method": "ShowHintFromInstanceMngr",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 1/Task 2/Moss Ball (2)/Moss Trigger (2)#HintString",
+     "state": 2
+    }
+   ],
+   "ConditionalEvents": null
+  },
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 1/Task 2/Moss Ball (2)/Moss Trigger (2)#AS.ButtonEventsAssign",
+     "type": "AS.ButtonEventsAssign",
+     "method": "AssignEvents",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  },
+  "HintString": {
+   "m_Enabled": 1,
+   "hintSentence": "Drop moss ball at the top"
+  }
+ },
+ "ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Recognizers/Recognizer (Triangle)": {
+  "GestureRecognizer.Recognizer": {
+   "m_Enabled": 1,
+   "numberOfThreads": 1,
+   "patterns": [
+    {
+     "f": "sharedassets2.assets",
+     "id": 643
+    }
+   ]
+  },
+  "RecognizedEvents": {
+   "m_Enabled": 1,
+   "recognizer": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Recognizers/Recognizer (Triangle)#GestureRecognizer.Recognizer",
+   "gesturePatternDraw": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/Reference/Image Triangle/Line#GestureRecognizer.GesturePatternDraw",
+   "scoreToAccept": 0.8,
+   "minLines": 1,
+   "maxLines": 1,
+   "recognized": 0,
+   "AnimToPlay": "5th",
+   "onGesturedRecognizedEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Recognizers/Recognizer (Triangle)#RecognizedEvents",
+     "type": "RecognizedEvents",
+     "method": "RecognizedCheck",
+     "mode": 6,
+     "arg": true,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)#PerformGestureTask",
+     "type": "PerformGestureTask",
+     "method": "RecognizedCountIncrement",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/Reference/Image Triangle#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DOPlay",
+     "mode": 1,
+     "arg": null,
+     "state": 0
+    }
+   ]
+  }
+ },
+ "ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)/Escape Route/PathTrigger (4)": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)#FloppingFish",
+     "type": "FloppingFish",
+     "method": "NextPathTrigger",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager": {
+  "AS.EnvironmentSceneLoadManager": {
+   "m_Enabled": 1,
+   "MainSceneName": "Controller",
+   "OnLoad": []
+  },
+  "AS.ActivityManager": {
+   "m_Enabled": 1,
+   "Activity": [
+    {
+     "LevelIndex": 0,
+     "m_Activity": "@ActivityManager/Activities/Level 1#AS.Activity"
+    },
+    {
+     "LevelIndex": 1,
+     "m_Activity": "@ActivityManager/Activities/Level 2#AS.Activity"
+    },
+    {
+     "LevelIndex": 2,
+     "m_Activity": "@ActivityManager/Activities/Level 3#AS.Activity"
+    },
+    {
+     "LevelIndex": 3,
+     "m_Activity": "@ActivityManager/Activities/Level 4#AS.Activity"
+    },
+    {
+     "LevelIndex": 4,
+     "m_Activity": "@ActivityManager/Activities/Level 5#AS.Activity"
+    }
+   ],
+   "currentActivity": null
+  },
+  "InstanceManager": {
+   "m_Enabled": 1,
+   "player": null,
+   "bubblesParticle": "@ActivityManager/Activities/<--- Essentials --->/spongefilter/BubbleRisingUnderwater#ParticleSystem",
+   "filterPumpSfx": null
+  },
+  "CityActivator": {
+   "m_Enabled": 1,
+   "city": "@*****FISHENV*****"
+  }
+ },
+ "ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)/Escape Route/Path Mid": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)#FloppingFish",
+     "type": "FloppingFish",
+     "method": "NextPathTrigger",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 2/DestroyFoodOutsideTriggers/TriggerMid": {
+  "DestroyFood": {
+   "m_Enabled": 1,
+   "fishFoodTag": "FishFood"
+  }
+ },
+ "ActivityManager/Activities/Level 1/Task 2/Moss Ball (3)/Moss Trigger (3)": {
+  "AS.ButtonEventsAssign": {
+   "m_Enabled": 1,
+   "Button": null,
+   "OnButtonClick": [
+    {
+     "target": "@ActivityManager/Activities/Level 1/Task 2#CountCollectedItems",
+     "type": "CountCollectedItems",
+     "method": "MakeChildOFMouth",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 1/Task 2/Moss Ball (3)#Transform",
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 1/Task 2/Moss Ball (3)/Moss Trigger (3)",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": false,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 1/Task 2/Moss Ball (3)#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DOKill",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 1/Triggers/DropTrigger Task2 (2)",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": true,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager#InstanceManager",
+     "type": "InstanceManager",
+     "method": "ShowHintFromInstanceMngr",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 1/Task 2/Moss Ball (2)/Moss Trigger (2)#HintString",
+     "state": 2
+    }
+   ],
+   "ConditionalEvents": null
+  },
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 1/Task 2/Moss Ball (3)/Moss Trigger (3)#AS.ButtonEventsAssign",
+     "type": "AS.ButtonEventsAssign",
+     "method": "AssignEvents",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  },
+  "HintString": {
+   "m_Enabled": 1,
+   "hintSentence": "Drop moss ball at the top"
+  }
+ },
+ "ActivityManager/Activities/Level 2/DestroyFoodOutsideTriggers/TriggerRight": {
+  "DestroyFood": {
+   "m_Enabled": 1,
+   "fishFoodTag": "FishFood"
+  }
+ },
+ "ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)/Escape Route/Path Mid (6)": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)#FloppingFish",
+     "type": "FloppingFish",
+     "method": "NextPathTrigger",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 1/Timeline - Intro/Controller": {
+  "AS.TimelineController": {
+   "m_Enabled": 1,
+   "SetPlayer": 1,
+   "playableDirector": "@ActivityManager/Activities/Level 1/Timeline - Intro/Controller#PlayableDirector"
+  }
+ },
+ "ActivityManager/Activities/Level 3/Task 1/Targets/target (2)/Trigger": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "ChangeGameobjectLayer",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 3/Task 1/Props/BlueGlass",
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Controller": {
+  "AS.TimelineController": {
+   "m_Enabled": 1,
+   "SetPlayer": 1,
+   "playableDirector": "@ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Controller#PlayableDirector"
+  }
+ },
+ "ActivityManager/Activities/Level 1": {
+  "AS.Activity": {
+   "m_Enabled": 1,
+   "PlayerInitPosition": "@ActivityManager/Activities/Level 1/PlayerPos#Transform",
+   "Cash": 100,
+   "OnInitDelayTimer": 0.0,
+   "OnCompleteDelayTimer": 0.0,
+   "levelSkipped": 0,
+   "OnInit": [
+    {
+     "target": "@Post Processing/DirtyAquariumPP",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": true,
+     "state": 0
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 1/FogParticles",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": true,
+     "state": 0
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 1/Task 1",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": true,
+     "state": 0
+    },
+    {
+     "target": "@ActivityManager#InstanceManager",
+     "type": "InstanceManager",
+     "method": "ShowHintFromInstanceMngr",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 1#HintString",
+     "state": 0
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 1/Timeline - Intro/Controller#AS.TimelineController",
+     "type": "AS.TimelineController",
+     "method": "Play",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnComplete": [
+    {
+     "target": "@ActivityManager#AS.ActivityManager",
+     "type": "AS.ActivityManager",
+     "method": "NexActivityUnlock",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnFailed": []
+  },
+  "HintString": {
+   "m_Enabled": 1,
+   "hintSentence": "Find the source of pollution. Go towards the indicated spot."
+  }
+ },
+ "ActivityManager/Activities/Level 2/Task 1 (Feed Fish)": {
+  "FeedFish": {
+   "m_Enabled": 1,
+   "fishFoodDispenser": "@ActivityManager/Activities/<--- Essentials --->/Pivot_FishFeedingMachine",
+   "foodCylinder": "@ActivityManager/Activities/<--- Essentials --->/Pivot_FishFeedingMachine/FishFeedingMachine/FrontCylinder#DG.Tweening.DOTweenAnimation",
+   "lid": "@ActivityManager/Activities/<--- Essentials --->/Pivot_FishFeedingMachine/FishFeedingMachine/FrontCylinder/Lid#DG.Tweening.DOTweenAnimation",
+   "dispenserPath": "@ActivityManager/Activities/Level 2/Task 1 (Feed Fish)/Dolly Track#Cinemachine.CinemachineSmoothPath",
+   "foodDollyCart": "@ActivityManager/Activities/Level 2/Task 1 (Feed Fish)/FoodDispenser Dolly Cart#Cinemachine.CinemachineDollyCart",
+   "cartSpeed": 0.2,
+   "foodContainer": {
+    "f": "sharedassets2.assets",
+    "id": 391,
+    "name": "FoodContainer2"
+   },
+   "foodDestroyTime": 20.0,
+   "foodDispensed": 0,
+   "foodNeeded": 1,
+   "foodList": [],
+   "hunger": 0.0,
+   "hungerFillValue": 50.0,
+   "hungerSlider_MaxValue": 100.0,
+   "hungerSlider_MinValue": 0.0,
+   "hungerSlider_StartValue": 0.0,
+   "audioSource": null,
+   "eatSfx": {
+    "f": "sharedassets2.assets",
+    "id": 339,
+    "name": "nom-nom-nom_gPJiWn4"
+   },
+   "dispenseSfx": [
+    {
+     "f": "sharedassets2.assets",
+     "id": 342,
+     "name": "animals_fish_food_flakes_in_plastic_tub_shake_001"
+    },
+    {
+     "f": "sharedassets2.assets",
+     "id": 341,
+     "name": "animals_fish_food_flakes_in_plastic_tub_shake_002"
+    }
+   ],
+   "crunchParticle": {
+    "f": "sharedassets2.assets",
+    "id": 441
+   },
+   "onHungerMaxEvent": [],
+   "EatTimeline": "@ActivityManager/Activities/Level 2/TimelineFoodEating#AS.TimelineController"
+  }
+ },
+ "ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)": {
+  "FloppingFish": {
+   "m_Enabled": 1,
+   "jumpSpeed": 3.0,
+   "forwardForce": 4.0,
+   "stoppingSpeed": 6.0,
+   "hp": 0.0,
+   "maxHP": 100.0,
+   "minHP": 0.0,
+   "hpDecreaseRate": 0.3,
+   "dead": 0,
+   "flopVcam": "@ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)/Flop vCam#Cinemachine.CinemachineVirtualCamera",
+   "grounded": 0,
+   "groundCheckHeight": 0.3,
+   "groundLayer": {
+    "m_Bits": 4096
+   },
+   "currentPathIndex": 0,
+   "pathTriggersList": [
+    "@ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)/Escape Route/PathTrigger#AS.TriggerEvents",
+    "@ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)/Escape Route/Path Mid#AS.TriggerEvents",
+    "@ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)/Escape Route/PathTrigger (1)#AS.TriggerEvents",
+    "@ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)/Escape Route/Path Mid (3)#AS.TriggerEvents",
+    "@ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)/Escape Route/Path Mid (4)#AS.TriggerEvents",
+    "@ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)/Escape Route/Path Mid (5)#AS.TriggerEvents",
+    "@ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)/Escape Route/PathTrigger (4)#AS.TriggerEvents",
+    "@ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)/Escape Route/Path Mid (6)#AS.TriggerEvents",
+    "@ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)/Escape Route/PathTrigger (5)#AS.TriggerEvents",
+    "@ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)/Escape Route/PathTrigger (6)#AS.TriggerEvents",
+    "@ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)/Escape Route/PathTrigger (7)#AS.TriggerEvents"
+   ],
+   "flopParticle": {
+    "f": "sharedassets2.assets",
+    "id": 436
+   },
+   "audioSource": null,
+   "flopSfx": null,
+   "waterTrigger": "@*****FISHENV*****/Water#BoxCollider",
+   "onDeadEvent": [],
+   "debug": 0,
+   "lookAtPath": 1,
+   "lookAtTime": 3.0
+  },
+  "HintString": {
+   "m_Enabled": 1,
+   "hintSentence": "Flop and follow the indicated path to get inside the aquarium before hp reaches zero"
+  },
+  "EventTriggers": {
+   "m_Enabled": 1,
+   "OnAwakeEvent": [],
+   "OnEnableEvent": [
+    {
+     "target": "@ActivityManager#InstanceManager",
+     "type": "InstanceManager",
+     "method": "ShowHintFromInstanceMngr",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)#HintString",
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)/Escape Route",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": true,
+     "state": 2
+    }
+   ],
+   "OnStartEvent": [],
+   "OnDisableEvents": []
+  }
+ },
+ "ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/Reference (Recognized)/Image Loop (Recognized)/Line": {
+  "GestureRecognizer.GesturePatternDraw": {
+   "m_Enabled": 1,
+   "m_Material": null,
+   "m_Color": {
+    "r": 0.0,
+    "g": 1.0,
+    "b": 1.0,
+    "a": 1.0
+   },
+   "m_RaycastTarget": 0,
+   "m_RaycastPadding": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0,
+    "w": 0.0
+   },
+   "m_Maskable": 1,
+   "m_OnCullStateChanged": [],
+   "m_Texture": {
+    "f": "sharedassets2.assets",
+    "id": 117,
+    "name": "LineTexture"
+   },
+   "m_UVRect": {
+    "x": 0.0,
+    "y": 0.0,
+    "width": 1.0,
+    "height": 1.0
+   },
+   "LineThickness": 4.0,
+   "UseMargins": 0,
+   "Margin": {
+    "x": 0.0,
+    "y": 0.0
+   },
+   "Points": [
+    {
+     "x": 0.75,
+     "y": 1.0
+    },
+    {
+     "x": 0.25,
+     "y": 0.5
+    },
+    {
+     "x": 0.25,
+     "y": 0.5
+    },
+    {
+     "x": 0.25,
+     "y": 0.0
+    },
+    {
+     "x": 0.25,
+     "y": 0.0
+    },
+    {
+     "x": 0.75,
+     "y": 0.0
+    },
+    {
+     "x": 0.75,
+     "y": 0.0
+    },
+    {
+     "x": 0.75,
+     "y": 0.5
+    },
+    {
+     "x": 0.75,
+     "y": 0.5
+    },
+    {
+     "x": 0.25,
+     "y": 1.0
+    }
+   ],
+   "relativeSize": 1,
+   "LineList": 1,
+   "LineCaps": 1,
+   "LineJoins": 0,
+   "pattern": {
+    "f": "sharedassets2.assets",
+    "id": 642
+   },
+   "endingSize": 0.0
+  }
+ },
+ "ActivityManager/Activities/Level 3/Task 1/Targets/target (4)/Trigger": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "ChangeGameobjectLayer",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 3/Task 1/Props/BlueGlass (1)",
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)/Escape Route/Path Mid (4)": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)#FloppingFish",
+     "type": "FloppingFish",
+     "method": "NextPathTrigger",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)/Escape Route/Path Mid (1)": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)#FloppingFish",
+     "type": "FloppingFish",
+     "method": "NextPathTrigger",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)/Targets/target/Trigger": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "ChangeGameobjectLayer",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)/Props/Glass (1)",
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "DisableDeathCheck",
+     "mode": 6,
+     "arg": true,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "ChangeGameobjectLayer",
+     "mode": 2,
+     "arg": "@*****FISHENV*****/StylizedHouseB",
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "ChangeGameobjectLayer",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)/Props/Glass (1)/VASO",
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 3/Task 1/Targets/target (1)/Trigger": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "ChangeGameobjectLayer",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 3/Task 1/Props/Ceramic Bowl",
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 3/Task 1/Camera/Virtual Camera": {
+  "AS.CameraUpdateChanger": {
+   "m_Enabled": 1,
+   "m_UpdateMethod": 2
+  }
+ },
+ "ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)/Escape Route/Path Mid (5)": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)#FloppingFish",
+     "type": "FloppingFish",
+     "method": "NextPathTrigger",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 3/Timeline - Jump Targets/Events": {
+  "AS.TimelineEvents": {
+   "m_Enabled": 1,
+   "SkipAble": 1,
+   "Cameras": "@ActivityManager/Activities/Level 3/Timeline - Jump Targets/Cameras",
+   "OtherCharacters": [],
+   "OnTimelineStart": [
+    {
+     "target": "@ActivityManager#InstanceManager",
+     "type": "InstanceManager",
+     "method": "PlayerStatus",
+     "mode": 6,
+     "arg": false,
+     "state": 2
+    }
+   ],
+   "OnTimelineEnd": [
+    {
+     "target": "@ActivityManager#InstanceManager",
+     "type": "InstanceManager",
+     "method": "ShowHintFromInstanceMngr",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 3#HintString",
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": true,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager#InstanceManager",
+     "type": "InstanceManager",
+     "method": "PlayerStatus",
+     "mode": 6,
+     "arg": true,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager#InstanceManager",
+     "type": "InstanceManager",
+     "method": "AlignPlayerToTransforn",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 3/PlayerPos#Transform",
+     "state": 2
+    }
+   ]
+  }
+ },
+ "ActivityManager/Activities/Level 2/Timeline - Food Dispensing/Events": {
+  "AS.TimelineEvents": {
+   "m_Enabled": 1,
+   "SkipAble": 1,
+   "Cameras": "@ActivityManager/Activities/Level 2/Timeline - Food Dispensing/Cameras",
+   "OtherCharacters": [],
+   "OnTimelineStart": [
+    {
+     "target": "@ActivityManager/Activities/Level 2/Timeline - Food Dispensing/TimelineAssets/Pivot_FishFeedingMachine (1)/FishFeedingMachine/FrontCylinder#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DOPlayById",
+     "mode": 5,
+     "arg": "rotate",
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/<--- Essentials --->/Pivot_FishFeedingMachine",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": false,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 2/Timeline - Food Dispensing/TimelineAssets/Pivot_FishFeedingMachine (1)",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": true,
+     "state": 2
+    }
+   ],
+   "OnTimelineEnd": [
+    {
+     "target": "@ActivityManager#AS.ActivityManager",
+     "type": "AS.ActivityManager",
+     "method": "HUD_NAV_CANVAS_Opacity",
+     "mode": 4,
+     "arg": 1.0,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager#InstanceManager",
+     "type": "InstanceManager",
+     "method": "ShowHintFromInstanceMngr",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 2#HintString",
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 2/Task 1 (Feed Fish)",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": true,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager#InstanceManager",
+     "type": "InstanceManager",
+     "method": "PlayerStatus",
+     "mode": 6,
+     "arg": true,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager#InstanceManager",
+     "type": "InstanceManager",
+     "method": "AlignPlayerToTransforn",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 2/PlayerPos#Transform",
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/<--- Essentials --->/Pivot_FishFeedingMachine",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": true,
+     "state": 2
+    }
+   ]
+  }
+ },
+ "*****FISHENV*****/Water": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)#FloppingFish",
+     "type": "FloppingFish",
+     "method": "AquariumReahed",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)/Escape Route/PathTrigger (7)": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)#FloppingFish",
+     "type": "FloppingFish",
+     "method": "NextPathTrigger",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)/Camera/Virtual Camera": {
+  "AS.CameraUpdateChanger": {
+   "m_Enabled": 1,
+   "m_UpdateMethod": 2
+  }
+ },
+ "ActivityManager/Activities/Level 1/Timeline - Intro/Events": {
+  "AS.TimelineEvents": {
+   "m_Enabled": 1,
+   "SkipAble": 1,
+   "Cameras": "@ActivityManager/Activities/Level 1/Timeline - Intro/Cameras",
+   "OtherCharacters": [],
+   "OnTimelineStart": [
+    {
+     "target": null,
+     "type": "",
+     "method": "",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnTimelineEnd": [
+    {
+     "target": "@Post Processing/DirtyAquariumPP",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": true,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 1/FogParticles",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": true,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager#InstanceManager",
+     "type": "InstanceManager",
+     "method": "ShowHintFromInstanceMngr",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 1#HintString",
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 1/Task 1",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": true,
+     "state": 2
+    }
+   ]
+  }
+ },
+ "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Events": {
+  "AS.TimelineEvents": {
+   "m_Enabled": 1,
+   "SkipAble": 1,
+   "Cameras": "@ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Cameras",
+   "OtherCharacters": [],
+   "OnTimelineStart": [
+    {
+     "target": "@ActivityManager#InstanceManager",
+     "type": "InstanceManager",
+     "method": "PlayerStatus",
+     "mode": 6,
+     "arg": false,
+     "state": 2
+    }
+   ],
+   "OnTimelineEnd": [
+    {
+     "target": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": true,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager#InstanceManager",
+     "type": "InstanceManager",
+     "method": "ShowHintFromInstanceMngr",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 5#HintString",
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager#InstanceManager",
+     "type": "InstanceManager",
+     "method": "PlayerStatus",
+     "mode": 6,
+     "arg": true,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager#InstanceManager",
+     "type": "InstanceManager",
+     "method": "AlignPlayerToTransforn",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 5/PlayerPos#Transform",
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 5/Timeline - Female Fish Intro#AS.FadeCall",
+     "type": "AS.FadeCall",
+     "method": "Fade",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ]
+  }
+ },
+ "ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)/Flop vCam": {
+  "AS.CameraUpdateChanger": {
+   "m_Enabled": 1,
+   "m_UpdateMethod": 2
+  }
+ },
+ "ActivityManager/Activities/Level 1/Triggers/DropTrigger Task2": {
+  "AS.ButtonEventsAssign": {
+   "m_Enabled": 1,
+   "Button": null,
+   "OnButtonClick": [
+    {
+     "target": "@ActivityManager/Activities/Level 1/Task 2#CountCollectedItems",
+     "type": "CountCollectedItems",
+     "method": "UnparentChildOfMouth",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 1/Triggers/DropTrigger Task2",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": false,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 1/Task 2/Moss Ball (2)/Moss Trigger (2)",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": true,
+     "state": 2
+    }
+   ],
+   "ConditionalEvents": null
+  },
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 1/Triggers/DropTrigger Task2#AS.ButtonEventsAssign",
+     "type": "AS.ButtonEventsAssign",
+     "method": "AssignEvents",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 2/TimelineFoodEating": {
+  "AS.TimelineController": {
+   "m_Enabled": 1,
+   "SetPlayer": 1,
+   "playableDirector": "@ActivityManager/Activities/Level 2/TimelineFoodEating#PlayableDirector"
+  }
+ },
+ "ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)/Targets/target (3)/Trigger": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "ChangeGameobjectLayer",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)/Props/Bowlenglas",
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 2/DestroyFoodOutsideTriggers/TriggerLeft": {
+  "DestroyFood": {
+   "m_Enabled": 1,
+   "fishFoodTag": "FishFood"
+  }
+ },
+ "ActivityManager/Activities/Level 4/Timeline - Glass Dropped/Controller": {
+  "AS.TimelineController": {
+   "m_Enabled": 1,
+   "SetPlayer": 1,
+   "playableDirector": "@ActivityManager/Activities/Level 4/Timeline - Glass Dropped/Controller#PlayableDirector"
+  }
+ },
+ "ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)/Escape Route/Path Mid (2)": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)#FloppingFish",
+     "type": "FloppingFish",
+     "method": "NextPathTrigger",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/Reference/Image Loop/Line": {
+  "GestureRecognizer.GesturePatternDraw": {
+   "m_Enabled": 1,
+   "m_Material": null,
+   "m_Color": {
+    "r": 0.0,
+    "g": 1.0,
+    "b": 1.0,
+    "a": 1.0
+   },
+   "m_RaycastTarget": 0,
+   "m_RaycastPadding": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0,
+    "w": 0.0
+   },
+   "m_Maskable": 1,
+   "m_OnCullStateChanged": [],
+   "m_Texture": {
+    "f": "sharedassets2.assets",
+    "id": 117,
+    "name": "LineTexture"
+   },
+   "m_UVRect": {
+    "x": 0.0,
+    "y": 0.0,
+    "width": 1.0,
+    "height": 1.0
+   },
+   "LineThickness": 4.0,
+   "UseMargins": 0,
+   "Margin": {
+    "x": 0.0,
+    "y": 0.0
+   },
+   "Points": [
+    {
+     "x": 0.75,
+     "y": 1.0
+    },
+    {
+     "x": 0.25,
+     "y": 0.5
+    },
+    {
+     "x": 0.25,
+     "y": 0.5
+    },
+    {
+     "x": 0.25,
+     "y": 0.0
+    },
+    {
+     "x": 0.25,
+     "y": 0.0
+    },
+    {
+     "x": 0.75,
+     "y": 0.0
+    },
+    {
+     "x": 0.75,
+     "y": 0.0
+    },
+    {
+     "x": 0.75,
+     "y": 0.5
+    },
+    {
+     "x": 0.75,
+     "y": 0.5
+    },
+    {
+     "x": 0.25,
+     "y": 1.0
+    }
+   ],
+   "relativeSize": 1,
+   "LineList": 1,
+   "LineCaps": 1,
+   "LineJoins": 0,
+   "pattern": {
+    "f": "sharedassets2.assets",
+    "id": 642
+   },
+   "endingSize": 0.0
+  }
+ },
+ "ActivityManager/Activities/Level 1/Task 2": {
+  "CountCollectedItems": {
+   "m_Enabled": 1,
+   "task1": "@ActivityManager/Activities/Level 1/Task 1#CleanMoss",
+   "dropTrigger": "@ActivityManager/Activities/Level 1/Triggers/DropTrigger Task2",
+   "collectedItemsCount": 0,
+   "maxItemsCount": 0,
+   "taskCompleted": 0,
+   "maxItemsList": [
+    "@ActivityManager/Activities/Level 1/Task 2/Moss Ball (1)"
+   ],
+   "onMaxItemsCollectedEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 1/Triggers/DropTrigger Task2",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": false,
+     "state": 2
+    }
+   ],
+   "onBothTasksCompletedEvent": []
+  }
+ },
+ "ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/LeftArea/DrawArea Free": {
+  "ExampleGestureHandler": {
+   "m_Enabled": 1,
+   "textResult": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/LeftArea/DrawArea Free/TextResult#UnityEngine.UI.Text",
+   "referenceRoot": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/Reference#RectTransform",
+   "recognizedText": "Congrats!\nCorrect Gesture Drawn!",
+   "unrecognizedText": "Wrong gesture drawn.\nDraw Again!"
+  },
+  "GestureRecognizer.DrawDetector": {
+   "m_Enabled": 1,
+   "recognizer": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Recognizers/Recognizer (Loop)#GestureRecognizer.Recognizer",
+   "line": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/LeftArea/DrawArea Free/Line#GestureRecognizer.UILineRenderer",
+   "scoreToAccept": 0.8,
+   "minLines": 1,
+   "maxLines": 4,
+   "removeStrategy": 0,
+   "clearNotRecognizedLines": 1,
+   "fixedArea": 0,
+   "OnRecognize": [
+    {
+     "target": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/LeftArea/DrawArea Free#ExampleGestureHandler",
+     "type": "",
+     "method": "OnRecognize",
+     "mode": 0,
+     "arg": null,
+     "state": 2
+    }
+   ]
+  }
+ },
+ "ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)/Escape Route/PathTrigger (3)": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)#FloppingFish",
+     "type": "FloppingFish",
+     "method": "NextPathTrigger",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 3": {
+  "AS.Activity": {
+   "m_Enabled": 1,
+   "PlayerInitPosition": "@ActivityManager/Activities/Level 3/PlayerPos#Transform",
+   "Cash": 100,
+   "OnInitDelayTimer": 0.0,
+   "OnCompleteDelayTimer": 0.0,
+   "levelSkipped": 0,
+   "OnInit": [
+    {
+     "target": "@ActivityManager/Activities/<--- Essentials --->/spongefilter/BubbleRisingUnderwater#ParticleSystem",
+     "type": "UnityEngine.ParticleSystem",
+     "method": "Play",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    },
+    {
+     "target": "@*****FISHENV*****/Water#BoxCollider",
+     "type": "UnityEngine.Collider",
+     "method": "set_isTrigger",
+     "mode": 6,
+     "arg": true,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager#InstanceManager",
+     "type": "InstanceManager",
+     "method": "ShowHintFromInstanceMngr",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 3#HintString",
+     "state": 0
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 3/Timeline - Jump Targets/Controller#AS.TimelineController",
+     "type": "AS.TimelineController",
+     "method": "Play",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnComplete": [
+    {
+     "target": "@ActivityManager#AS.ActivityManager",
+     "type": "AS.ActivityManager",
+     "method": "NexActivityUnlock",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnFailed": []
+  },
+  "HintString": {
+   "m_Enabled": 1,
+   "hintSentence": "Jump when arrow is pointing downwards to the container."
+  }
+ },
+ "ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)/Escape Route/PathTrigger (5)": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)#FloppingFish",
+     "type": "FloppingFish",
+     "method": "NextPathTrigger",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)/Escape Route/PathTrigger (6)": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)#FloppingFish",
+     "type": "FloppingFish",
+     "method": "NextPathTrigger",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)/Targets/target (6)/Trigger": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "ChangeGameobjectLayer",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)/Props/Ceramic Bowl (1)",
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/Reference (Recognized)/Image Heart (Recognized)/Line": {
+  "GestureRecognizer.GesturePatternDraw": {
+   "m_Enabled": 1,
+   "m_Material": null,
+   "m_Color": {
+    "r": 0.0,
+    "g": 1.0,
+    "b": 1.0,
+    "a": 1.0
+   },
+   "m_RaycastTarget": 0,
+   "m_RaycastPadding": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0,
+    "w": 0.0
+   },
+   "m_Maskable": 1,
+   "m_OnCullStateChanged": [],
+   "m_Texture": {
+    "f": "sharedassets2.assets",
+    "id": 117,
+    "name": "LineTexture"
+   },
+   "m_UVRect": {
+    "x": 0.0,
+    "y": 0.0,
+    "width": 1.0,
+    "height": 1.0
+   },
+   "LineThickness": 4.0,
+   "UseMargins": 0,
+   "Margin": {
+    "x": 0.0,
+    "y": 0.0
+   },
+   "Points": [
+    {
+     "x": 0.4375,
+     "y": 0.0625
+    },
+    {
+     "x": 0.0,
+     "y": 0.5
+    },
+    {
+     "x": 0.0,
+     "y": 0.5
+    },
+    {
+     "x": 0.0,
+     "y": 0.875
+    },
+    {
+     "x": 0.0,
+     "y": 0.875
+    },
+    {
+     "x": 0.125,
+     "y": 1.0
+    },
+    {
+     "x": 0.125,
+     "y": 1.0
+    },
+    {
+     "x": 0.375,
+     "y": 1.0
+    },
+    {
+     "x": 0.375,
+     "y": 1.0
+    },
+    {
+     "x": 0.5,
+     "y": 0.875
+    },
+    {
+     "x": 0.5,
+     "y": 0.875
+    },
+    {
+     "x": 0.625,
+     "y": 1.0
+    },
+    {
+     "x": 0.625,
+     "y": 1.0
+    },
+    {
+     "x": 0.875,
+     "y": 1.0
+    },
+    {
+     "x": 0.875,
+     "y": 1.0
+    },
+    {
+     "x": 1.0,
+     "y": 0.875
+    },
+    {
+     "x": 1.0,
+     "y": 0.875
+    },
+    {
+     "x": 1.0,
+     "y": 0.5
+    },
+    {
+     "x": 1.0,
+     "y": 0.5
+    },
+    {
+     "x": 0.5625,
+     "y": 0.0625
+    },
+    {
+     "x": 0.5625,
+     "y": 0.0625
+    },
+    {
+     "x": 0.4375,
+     "y": 0.0625
+    }
+   ],
+   "relativeSize": 1,
+   "LineList": 1,
+   "LineCaps": 1,
+   "LineJoins": 0,
+   "pattern": {
+    "f": "sharedassets2.assets",
+    "id": 641
+   },
+   "endingSize": 0.0
+  }
+ },
+ "ActivityManager/Activities/Level 2": {
+  "AS.Activity": {
+   "m_Enabled": 1,
+   "PlayerInitPosition": "@ActivityManager/Activities/Level 2/PlayerPos#Transform",
+   "Cash": 200,
+   "OnInitDelayTimer": 0.0,
+   "OnCompleteDelayTimer": 0.0,
+   "levelSkipped": 0,
+   "OnInit": [
+    {
+     "target": "@ActivityManager/Activities/<--- Essentials --->/spongefilter/BubbleRisingUnderwater#ParticleSystem",
+     "type": "UnityEngine.ParticleSystem",
+     "method": "Play",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    },
+    {
+     "target": "@*****FISHENV*****/Water#BoxCollider",
+     "type": "UnityEngine.Collider",
+     "method": "set_isTrigger",
+     "mode": 6,
+     "arg": true,
+     "state": 0
+    },
+    {
+     "target": "@ActivityManager#InstanceManager",
+     "type": "InstanceManager",
+     "method": "ShowHintFromInstanceMngr",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 2#HintString",
+     "state": 0
+    },
+    {
+     "target": "@ActivityManager#InstanceManager",
+     "type": "InstanceManager",
+     "method": "PlayerStatus",
+     "mode": 6,
+     "arg": false,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 2/Timeline - Food Dispensing/Controller#AS.TimelineController",
+     "type": "AS.TimelineController",
+     "method": "Play",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnComplete": [
+    {
+     "target": "@ActivityManager#AS.ActivityManager",
+     "type": "AS.ActivityManager",
+     "method": "NexActivityUnlock",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnFailed": []
+  },
+  "HintString": {
+   "m_Enabled": 1,
+   "hintSentence": "Look for the dispensed fish food and eat it"
+  },
+  "AS.FadeCall": {
+   "m_Enabled": 1,
+   "Mode": 0,
+   "Speed": 1.0,
+   "wait": 2.0
+  }
+ },
+ "ActivityManager/Activities/Level 5/Timeline - Female Fish Intro": {
+  "AS.FadeCall": {
+   "m_Enabled": 1,
+   "Mode": 0,
+   "Speed": 1.0,
+   "wait": 2.0
+  }
+ },
+ "ActivityManager/Activities/Level 3/Task 1": {
+  "FishGetsFood": {
+   "m_Enabled": 1,
+   "throwSimulationRef": null,
+   "vCam": "@ActivityManager/Activities/Level 3/Task 1/Camera/Virtual Camera#Cinemachine.CinemachineVirtualCamera",
+   "gravityMultiplier": 9.8,
+   "otherVcam": "@ActivityManager/Activities/Level 3/Task 1/Camera/vCam Specific#Cinemachine.CinemachineVirtualCamera",
+   "ogArrowMat": {
+    "f": "sharedassets2.assets",
+    "id": 15,
+    "name": "arrow_original_Mat"
+   },
+   "currentArrowMat": {
+    "f": "sharedassets2.assets",
+    "id": 14,
+    "name": "arrow_current_Mat"
+   },
+   "ogArrowColor": {
+    "r": 0.0,
+    "g": 0.0,
+    "b": 0.0,
+    "a": 0.0
+   },
+   "greenArrowColor": {
+    "r": 0.06093,
+    "g": 1.0,
+    "b": 0.0,
+    "a": 1.0
+   },
+   "propLayerMask": {
+    "m_Bits": 16384
+   },
+   "targetPointsDown": 0,
+   "onArrowPointOnTargetEvent": [],
+   "JumpGoPrompt": null,
+   "foodSliderNeeded": 0,
+   "foodCollectedfillAmount": 5.0,
+   "targetList": [
+    "@ActivityManager/Activities/Level 3/Task 1/Targets/target#Transform",
+    "@ActivityManager/Activities/Level 3/Task 1/Targets/target (1)#Transform",
+    "@ActivityManager/Activities/Level 3/Task 1/Targets/target (2)#Transform",
+    "@ActivityManager/Activities/Level 3/Task 1/Targets/target (3)#Transform",
+    "@ActivityManager/Activities/Level 3/Task 1/Targets/target (4)#Transform",
+    "@ActivityManager/Activities/Level 3/Task 1/Targets/target (5)#Transform",
+    "@ActivityManager/Activities/Level 3/Task 1/Targets/target (6)#Transform",
+    "@ActivityManager/Activities/Level 3/Task 1/Targets/target (7)#Transform"
+   ],
+   "grounded": 0,
+   "groundCheckHeight": 0.3,
+   "groundLayer": {
+    "m_Bits": 4096
+   },
+   "onMaxTargetsReachedEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1/FishFood_container",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": false,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1/FishFood_container#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DOKill",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager#AS.ActivityManager",
+     "type": "AS.ActivityManager",
+     "method": "CurrentActivityComplete",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "debug": 0
+  }
+ },
+ "ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)/Escape Route/Path Mid (7)": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)#FloppingFish",
+     "type": "FloppingFish",
+     "method": "NextPathTrigger",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 1/Task 1/Moss Ball/Moss Trigger": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 1/Task 1#CleanMoss",
+     "type": "CleanMoss",
+     "method": "ShowMossBtn",
+     "mode": 6,
+     "arg": true,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager#InstanceManager",
+     "type": "InstanceManager",
+     "method": "ShowHintFromInstanceMngr",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 1/Task 1/Moss Ball/Moss Trigger#HintString",
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 1/Task 1#CleanMoss",
+     "type": "CleanMoss",
+     "method": "ShowMossBtn",
+     "mode": 6,
+     "arg": false,
+     "state": 2
+    }
+   ],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  },
+  "HintString": {
+   "m_Enabled": 1,
+   "hintSentence": "Pull moss and unclog the air pump"
+  }
+ },
+ "ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)/Escape Route/PathTrigger (1)": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)#FloppingFish",
+     "type": "FloppingFish",
+     "method": "NextPathTrigger",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 3/Task 1/FishFood_container": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1/FishFood_container",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": false,
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/Reference/Image Bolt/Line": {
+  "GestureRecognizer.GesturePatternDraw": {
+   "m_Enabled": 1,
+   "m_Material": null,
+   "m_Color": {
+    "r": 0.0,
+    "g": 1.0,
+    "b": 1.0,
+    "a": 1.0
+   },
+   "m_RaycastTarget": 0,
+   "m_RaycastPadding": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0,
+    "w": 0.0
+   },
+   "m_Maskable": 1,
+   "m_OnCullStateChanged": [],
+   "m_Texture": {
+    "f": "sharedassets2.assets",
+    "id": 117,
+    "name": "LineTexture"
+   },
+   "m_UVRect": {
+    "x": 0.0,
+    "y": 0.0,
+    "width": 1.0,
+    "height": 1.0
+   },
+   "LineThickness": 4.0,
+   "UseMargins": 0,
+   "Margin": {
+    "x": 0.0,
+    "y": 0.0
+   },
+   "Points": [
+    {
+     "x": 0.6875,
+     "y": 1.0
+    },
+    {
+     "x": 0.3125,
+     "y": 0.6875
+    },
+    {
+     "x": 0.3125,
+     "y": 0.6875
+    },
+    {
+     "x": 0.6875,
+     "y": 0.3125
+    },
+    {
+     "x": 0.6875,
+     "y": 0.3125
+    },
+    {
+     "x": 0.3125,
+     "y": 0.0
+    }
+   ],
+   "relativeSize": 1,
+   "LineList": 1,
+   "LineCaps": 1,
+   "LineJoins": 0,
+   "pattern": {
+    "f": "sharedassets2.assets",
+    "id": 639
+   },
+   "endingSize": 0.0
+  }
+ },
+ "ActivityManager/Activities/Level 3/Task 1/Targets/target (5)/Trigger": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "ChangeGameobjectLayer",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 3/Task 1/Props/Bowlenglas (1)",
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 5": {
+  "AS.FadeCall": {
+   "m_Enabled": 1,
+   "Mode": 0,
+   "Speed": 1.0,
+   "wait": 1.0
+  },
+  "AS.Activity": {
+   "m_Enabled": 1,
+   "PlayerInitPosition": "@ActivityManager/Activities/Level 5/PlayerPos#Transform",
+   "Cash": 100,
+   "OnInitDelayTimer": 0.0,
+   "OnCompleteDelayTimer": 0.0,
+   "levelSkipped": 0,
+   "OnInit": [
+    {
+     "target": "@ActivityManager/Activities/<--- Essentials --->/spongefilter/BubbleRisingUnderwater#ParticleSystem",
+     "type": "UnityEngine.ParticleSystem",
+     "method": "Play",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": true,
+     "state": 0
+    },
+    {
+     "target": "@ActivityManager#InstanceManager",
+     "type": "InstanceManager",
+     "method": "ShowHintFromInstanceMngr",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 5#HintString",
+     "state": 0
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 5/Timeline - Female Fish Intro/Controller#AS.TimelineController",
+     "type": "AS.TimelineController",
+     "method": "Play",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnComplete": [],
+   "OnFailed": []
+  },
+  "HintString": {
+   "m_Enabled": 1,
+   "hintSentence": "Draw the pattern shown on the screen to impress female fish"
+  }
+ },
+ "ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)/Escape Route/PathTrigger (2)": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)#FloppingFish",
+     "type": "FloppingFish",
+     "method": "NextPathTrigger",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Recognizers/Recognizer (Loop)": {
+  "GestureRecognizer.Recognizer": {
+   "m_Enabled": 1,
+   "numberOfThreads": 1,
+   "patterns": [
+    {
+     "f": "sharedassets2.assets",
+     "id": 642
+    }
+   ]
+  },
+  "RecognizedEvents": {
+   "m_Enabled": 1,
+   "recognizer": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Recognizers/Recognizer (Loop)#GestureRecognizer.Recognizer",
+   "gesturePatternDraw": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/Reference/Image Loop/Line#GestureRecognizer.GesturePatternDraw",
+   "scoreToAccept": 0.8,
+   "minLines": 1,
+   "maxLines": 1,
+   "recognized": 0,
+   "AnimToPlay": "1st",
+   "onGesturedRecognizedEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Recognizers/Recognizer (Loop)#RecognizedEvents",
+     "type": "RecognizedEvents",
+     "method": "RecognizedCheck",
+     "mode": 6,
+     "arg": true,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)#PerformGestureTask",
+     "type": "PerformGestureTask",
+     "method": "RecognizedCountIncrement",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/Reference/Image Loop#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DOPlay",
+     "mode": 1,
+     "arg": null,
+     "state": 0
+    }
+   ]
+  }
+ },
+ "ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)/Escape Route/PathTrigger": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)#FloppingFish",
+     "type": "FloppingFish",
+     "method": "NextPathTrigger",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)/Targets/target (5)/Trigger": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "ChangeGameobjectLayer",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)/Props/Bowlenglas (1)",
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 1/Triggers/DropTrigger Task2 (1)": {
+  "AS.ButtonEventsAssign": {
+   "m_Enabled": 1,
+   "Button": null,
+   "OnButtonClick": [
+    {
+     "target": "@ActivityManager/Activities/Level 1/Task 2#CountCollectedItems",
+     "type": "CountCollectedItems",
+     "method": "UnparentChildOfMouth",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 1/Triggers/DropTrigger Task2 (1)",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": false,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 1/Task 2/Moss Ball (3)/Moss Trigger (3)",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": true,
+     "state": 2
+    }
+   ],
+   "ConditionalEvents": null
+  },
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 1/Triggers/DropTrigger Task2 (1)#AS.ButtonEventsAssign",
+     "type": "AS.ButtonEventsAssign",
+     "method": "AssignEvents",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/Reference/Image Triangle/Line": {
+  "GestureRecognizer.GesturePatternDraw": {
+   "m_Enabled": 1,
+   "m_Material": null,
+   "m_Color": {
+    "r": 0.0,
+    "g": 1.0,
+    "b": 1.0,
+    "a": 1.0
+   },
+   "m_RaycastTarget": 0,
+   "m_RaycastPadding": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0,
+    "w": 0.0
+   },
+   "m_Maskable": 1,
+   "m_OnCullStateChanged": [],
+   "m_Texture": {
+    "f": "sharedassets2.assets",
+    "id": 117,
+    "name": "LineTexture"
+   },
+   "m_UVRect": {
+    "x": 0.0,
+    "y": 0.0,
+    "width": 1.0,
+    "height": 1.0
+   },
+   "LineThickness": 4.0,
+   "UseMargins": 0,
+   "Margin": {
+    "x": 0.0,
+    "y": 0.0
+   },
+   "Points": [
+    {
+     "x": 0.875,
+     "y": 0.125
+    },
+    {
+     "x": 0.5,
+     "y": 0.875
+    },
+    {
+     "x": 0.5,
+     "y": 0.875
+    },
+    {
+     "x": 0.125,
+     "y": 0.125
+    },
+    {
+     "x": 0.125,
+     "y": 0.125
+    },
+    {
+     "x": 0.875,
+     "y": 0.125
+    }
+   ],
+   "relativeSize": 1,
+   "LineList": 1,
+   "LineCaps": 1,
+   "LineJoins": 0,
+   "pattern": {
+    "f": "sharedassets2.assets",
+    "id": 643
+   },
+   "endingSize": 0.0
+  }
+ },
+ "ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/Reference (Recognized)/Image Triangle (Recognized)/Line": {
+  "GestureRecognizer.GesturePatternDraw": {
+   "m_Enabled": 1,
+   "m_Material": null,
+   "m_Color": {
+    "r": 0.0,
+    "g": 1.0,
+    "b": 1.0,
+    "a": 1.0
+   },
+   "m_RaycastTarget": 0,
+   "m_RaycastPadding": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0,
+    "w": 0.0
+   },
+   "m_Maskable": 1,
+   "m_OnCullStateChanged": [],
+   "m_Texture": {
+    "f": "sharedassets2.assets",
+    "id": 117,
+    "name": "LineTexture"
+   },
+   "m_UVRect": {
+    "x": 0.0,
+    "y": 0.0,
+    "width": 1.0,
+    "height": 1.0
+   },
+   "LineThickness": 4.0,
+   "UseMargins": 0,
+   "Margin": {
+    "x": 0.0,
+    "y": 0.0
+   },
+   "Points": [
+    {
+     "x": 0.875,
+     "y": 0.125
+    },
+    {
+     "x": 0.5,
+     "y": 0.875
+    },
+    {
+     "x": 0.5,
+     "y": 0.875
+    },
+    {
+     "x": 0.125,
+     "y": 0.125
+    },
+    {
+     "x": 0.125,
+     "y": 0.125
+    },
+    {
+     "x": 0.875,
+     "y": 0.125
+    }
+   ],
+   "relativeSize": 1,
+   "LineList": 1,
+   "LineCaps": 1,
+   "LineJoins": 0,
+   "pattern": {
+    "f": "sharedassets2.assets",
+    "id": 643
+   },
+   "endingSize": 0.0
+  }
+ },
+ "ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)": {
+  "FishGetsFood": {
+   "m_Enabled": 1,
+   "throwSimulationRef": null,
+   "vCam": "@ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)/Camera/Virtual Camera#Cinemachine.CinemachineVirtualCamera",
+   "gravityMultiplier": 9.8,
+   "otherVcam": null,
+   "ogArrowMat": {
+    "f": "sharedassets2.assets",
+    "id": 15,
+    "name": "arrow_original_Mat"
+   },
+   "currentArrowMat": {
+    "f": "sharedassets2.assets",
+    "id": 14,
+    "name": "arrow_current_Mat"
+   },
+   "ogArrowColor": {
+    "r": 0.0,
+    "g": 0.0,
+    "b": 0.0,
+    "a": 0.0
+   },
+   "greenArrowColor": {
+    "r": 0.06275,
+    "g": 1.0,
+    "b": 0.0,
+    "a": 1.0
+   },
+   "propLayerMask": {
+    "m_Bits": 16384
+   },
+   "targetPointsDown": 0,
+   "onArrowPointOnTargetEvent": [],
+   "JumpGoPrompt": null,
+   "foodSliderNeeded": 0,
+   "foodCollectedfillAmount": 5.0,
+   "targetList": [
+    "@ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)/Targets/target (6)#Transform",
+    "@ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)/Targets/target (5)#Transform",
+    "@ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)/Targets/target (4)#Transform",
+    "@ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)/Targets/target (3)#Transform",
+    "@ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)/Targets/target (2)#Transform",
+    "@ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)/Targets/target (1)#Transform",
+    "@ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)/Targets/target#Transform"
+   ],
+   "grounded": 0,
+   "groundCheckHeight": 0.3,
+   "groundLayer": {
+    "m_Bits": 4096
+   },
+   "onMaxTargetsReachedEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": false,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": true,
+     "state": 0
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 4#AS.FadeCall",
+     "type": "AS.FadeCall",
+     "method": "Fade",
+     "mode": 1,
+     "arg": null,
+     "state": 0
+    },
+    {
+     "target": "@ActivityManager#InstanceManager",
+     "type": "InstanceManager",
+     "method": "AlignPlayerToTransforn",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 4/PlayerPos (Flopping)#Transform",
+     "state": 0
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 4/Timeline - Glass Dropped/Controller#AS.TimelineController",
+     "type": "AS.TimelineController",
+     "method": "Play",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "debug": 1
+  }
+ },
+ "ActivityManager/Activities/Level 1/Moss Trigger (1)": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 1/Task 1#CleanMoss",
+     "type": "CleanMoss",
+     "method": "ShowMossBtn",
+     "mode": 6,
+     "arg": true,
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 1/Task 1#CleanMoss",
+     "type": "CleanMoss",
+     "method": "ShowMossBtn",
+     "mode": 6,
+     "arg": false,
+     "state": 2
+    }
+   ],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)/Escape Route/Path Mid (3)": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 4/Task 2 (Get to the Aquarium)#FloppingFish",
+     "type": "FloppingFish",
+     "method": "NextPathTrigger",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 1/Task 2/Moss Ball (1)/Moss Trigger (1)": {
+  "AS.ButtonEventsAssign": {
+   "m_Enabled": 1,
+   "Button": null,
+   "OnButtonClick": [
+    {
+     "target": "@ActivityManager/Activities/Level 1/Task 2#CountCollectedItems",
+     "type": "CountCollectedItems",
+     "method": "MakeChildOFMouth",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 1/Task 2/Moss Ball (1)#Transform",
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 1/Task 2/Moss Ball (1)/Moss Trigger (1)",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": false,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 1/Task 2/Moss Ball (1)#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DOKill",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 1/Triggers/DropTrigger Task2",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": true,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager#InstanceManager",
+     "type": "InstanceManager",
+     "method": "ShowHintFromInstanceMngr",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 1/Task 2/Moss Ball (2)/Moss Trigger (2)#HintString",
+     "state": 2
+    }
+   ],
+   "ConditionalEvents": null
+  },
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 1/Task 2/Moss Ball (1)/Moss Trigger (1)#AS.ButtonEventsAssign",
+     "type": "AS.ButtonEventsAssign",
+     "method": "AssignEvents",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  },
+  "HintString": {
+   "m_Enabled": 1,
+   "hintSentence": "Drop moss ball at the top"
+  }
+ },
+ "ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/Reference/Image Heart/Line": {
+  "GestureRecognizer.GesturePatternDraw": {
+   "m_Enabled": 1,
+   "m_Material": null,
+   "m_Color": {
+    "r": 0.0,
+    "g": 1.0,
+    "b": 1.0,
+    "a": 1.0
+   },
+   "m_RaycastTarget": 0,
+   "m_RaycastPadding": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0,
+    "w": 0.0
+   },
+   "m_Maskable": 1,
+   "m_OnCullStateChanged": [],
+   "m_Texture": {
+    "f": "sharedassets2.assets",
+    "id": 117,
+    "name": "LineTexture"
+   },
+   "m_UVRect": {
+    "x": 0.0,
+    "y": 0.0,
+    "width": 1.0,
+    "height": 1.0
+   },
+   "LineThickness": 4.0,
+   "UseMargins": 0,
+   "Margin": {
+    "x": 0.0,
+    "y": 0.0
+   },
+   "Points": [
+    {
+     "x": 0.4375,
+     "y": 0.0625
+    },
+    {
+     "x": 0.0,
+     "y": 0.5
+    },
+    {
+     "x": 0.0,
+     "y": 0.5
+    },
+    {
+     "x": 0.0,
+     "y": 0.875
+    },
+    {
+     "x": 0.0,
+     "y": 0.875
+    },
+    {
+     "x": 0.125,
+     "y": 1.0
+    },
+    {
+     "x": 0.125,
+     "y": 1.0
+    },
+    {
+     "x": 0.375,
+     "y": 1.0
+    },
+    {
+     "x": 0.375,
+     "y": 1.0
+    },
+    {
+     "x": 0.5,
+     "y": 0.875
+    },
+    {
+     "x": 0.5,
+     "y": 0.875
+    },
+    {
+     "x": 0.625,
+     "y": 1.0
+    },
+    {
+     "x": 0.625,
+     "y": 1.0
+    },
+    {
+     "x": 0.875,
+     "y": 1.0
+    },
+    {
+     "x": 0.875,
+     "y": 1.0
+    },
+    {
+     "x": 1.0,
+     "y": 0.875
+    },
+    {
+     "x": 1.0,
+     "y": 0.875
+    },
+    {
+     "x": 1.0,
+     "y": 0.5
+    },
+    {
+     "x": 1.0,
+     "y": 0.5
+    },
+    {
+     "x": 0.5625,
+     "y": 0.0625
+    },
+    {
+     "x": 0.5625,
+     "y": 0.0625
+    },
+    {
+     "x": 0.4375,
+     "y": 0.0625
+    }
+   ],
+   "relativeSize": 1,
+   "LineList": 1,
+   "LineCaps": 1,
+   "LineJoins": 0,
+   "pattern": {
+    "f": "sharedassets2.assets",
+    "id": 641
+   },
+   "endingSize": 0.0
+  }
+ },
+ "ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/Options": {
+  "GestureOptions": {
+   "m_Enabled": 1,
+   "dropdownMin": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/Options/DropdownMin#UnityEngine.UI.Dropdown",
+   "dropdownMax": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/Options/DropdownMax#UnityEngine.UI.Dropdown",
+   "dropdownThreads": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/Options/DropdownThreads#UnityEngine.UI.Dropdown",
+   "textTime": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/Options/Time#UnityEngine.UI.Text",
+   "detectors": [
+    "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/LeftArea/DrawArea Free#GestureRecognizer.DrawDetector",
+    "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/RightArea/DrawArea Fixed#GestureRecognizer.DrawDetector"
+   ],
+   "recognizer": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Recognizers/Recognizer (Loop)#GestureRecognizer.Recognizer"
+  }
+ },
+ "ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/Reference/Image Circle/Line": {
+  "GestureRecognizer.GesturePatternDraw": {
+   "m_Enabled": 1,
+   "m_Material": null,
+   "m_Color": {
+    "r": 0.0,
+    "g": 1.0,
+    "b": 1.0,
+    "a": 1.0
+   },
+   "m_RaycastTarget": 0,
+   "m_RaycastPadding": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0,
+    "w": 0.0
+   },
+   "m_Maskable": 1,
+   "m_OnCullStateChanged": [],
+   "m_Texture": {
+    "f": "sharedassets2.assets",
+    "id": 117,
+    "name": "LineTexture"
+   },
+   "m_UVRect": {
+    "x": 0.0,
+    "y": 0.0,
+    "width": 1.0,
+    "height": 1.0
+   },
+   "LineThickness": 4.0,
+   "UseMargins": 0,
+   "Margin": {
+    "x": 0.0,
+    "y": 0.0
+   },
+   "Points": [
+    {
+     "x": 0.5,
+     "y": 1.0
+    },
+    {
+     "x": 0.25,
+     "y": 0.9375
+    },
+    {
+     "x": 0.25,
+     "y": 0.9375
+    },
+    {
+     "x": 0.0625,
+     "y": 0.75
+    },
+    {
+     "x": 0.0625,
+     "y": 0.75
+    },
+    {
+     "x": 0.0,
+     "y": 0.5
+    },
+    {
+     "x": 0.0,
+     "y": 0.5
+    },
+    {
+     "x": 0.0625,
+     "y": 0.25
+    },
+    {
+     "x": 0.0625,
+     "y": 0.25
+    },
+    {
+     "x": 0.25,
+     "y": 0.0625
+    },
+    {
+     "x": 0.25,
+     "y": 0.0625
+    },
+    {
+     "x": 0.5,
+     "y": 0.0
+    },
+    {
+     "x": 0.5,
+     "y": 0.0
+    },
+    {
+     "x": 0.75,
+     "y": 0.0625
+    },
+    {
+     "x": 0.75,
+     "y": 0.0625
+    },
+    {
+     "x": 0.9375,
+     "y": 0.25
+    },
+    {
+     "x": 0.9375,
+     "y": 0.25
+    },
+    {
+     "x": 1.0,
+     "y": 0.5
+    },
+    {
+     "x": 1.0,
+     "y": 0.5
+    },
+    {
+     "x": 0.9375,
+     "y": 0.75
+    },
+    {
+     "x": 0.9375,
+     "y": 0.75
+    },
+    {
+     "x": 0.75,
+     "y": 0.9375
+    },
+    {
+     "x": 0.75,
+     "y": 0.9375
+    },
+    {
+     "x": 0.5,
+     "y": 1.0
+    }
+   ],
+   "relativeSize": 1,
+   "LineList": 1,
+   "LineCaps": 1,
+   "LineJoins": 0,
+   "pattern": {
+    "f": "sharedassets2.assets",
+    "id": 640
+   },
+   "endingSize": 0.0
+  }
+ },
+ "ActivityManager/Activities/Level 3/Task 1/Targets/target (6)/Trigger": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "ChangeGameobjectLayer",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 3/Task 1/Props/Ceramic Bowl (1)",
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "ChangeVcam",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Recognizers/Recognizer (Heart)": {
+  "GestureRecognizer.Recognizer": {
+   "m_Enabled": 1,
+   "numberOfThreads": 1,
+   "patterns": [
+    {
+     "f": "sharedassets2.assets",
+     "id": 641
+    }
+   ]
+  },
+  "RecognizedEvents": {
+   "m_Enabled": 1,
+   "recognizer": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Recognizers/Recognizer (Heart)#GestureRecognizer.Recognizer",
+   "gesturePatternDraw": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/Reference/Image Heart/Line#GestureRecognizer.GesturePatternDraw",
+   "scoreToAccept": 0.8,
+   "minLines": 1,
+   "maxLines": 1,
+   "recognized": 0,
+   "AnimToPlay": "2nd",
+   "onGesturedRecognizedEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Recognizers/Recognizer (Heart)#RecognizedEvents",
+     "type": "RecognizedEvents",
+     "method": "RecognizedCheck",
+     "mode": 6,
+     "arg": true,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)#PerformGestureTask",
+     "type": "PerformGestureTask",
+     "method": "RecognizedCountIncrement",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/Reference/Image Heart#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DOPlay",
+     "mode": 1,
+     "arg": null,
+     "state": 0
+    }
+   ]
+  }
+ },
+ "ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Recognizers/Recognizer (Bolt)": {
+  "GestureRecognizer.Recognizer": {
+   "m_Enabled": 1,
+   "numberOfThreads": 1,
+   "patterns": [
+    {
+     "f": "sharedassets2.assets",
+     "id": 639
+    }
+   ]
+  },
+  "RecognizedEvents": {
+   "m_Enabled": 1,
+   "recognizer": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Recognizers/Recognizer (Bolt)#GestureRecognizer.Recognizer",
+   "gesturePatternDraw": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/Reference/Image Bolt/Line#GestureRecognizer.GesturePatternDraw",
+   "scoreToAccept": 0.8,
+   "minLines": 1,
+   "maxLines": 1,
+   "recognized": 0,
+   "AnimToPlay": "3rd",
+   "onGesturedRecognizedEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Recognizers/Recognizer (Bolt)#RecognizedEvents",
+     "type": "RecognizedEvents",
+     "method": "RecognizedCheck",
+     "mode": 6,
+     "arg": true,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)#PerformGestureTask",
+     "type": "PerformGestureTask",
+     "method": "RecognizedCountIncrement",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 5/Task 1 (Perform Gestures Task)/Gesture Recognizer (1)/Canvas/Reference/Image Bolt#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DOPlay",
+     "mode": 1,
+     "arg": null,
+     "state": 0
+    }
+   ]
+  }
+ },
+ "ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)/Targets/target (2)/Trigger": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "ChangeGameobjectLayer",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 4/Task 1 (Fish Goes Back)/Props/BlueGlass",
+     "state": 2
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (14)": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "FoodCollected",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (14)#Transform",
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (14)#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DOKill",
+     "mode": 1,
+     "arg": null,
+     "state": 0
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (9)": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "FoodCollected",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (9)#Transform",
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (9)#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DOKill",
+     "mode": 1,
+     "arg": null,
+     "state": 0
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (4)": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "FoodCollected",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (4)#Transform",
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (4)#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DOKill",
+     "mode": 1,
+     "arg": null,
+     "state": 0
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (13)": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "FoodCollected",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (13)#Transform",
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (13)#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DOKill",
+     "mode": 1,
+     "arg": null,
+     "state": 0
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (5)": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "FoodCollected",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (5)#Transform",
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (5)#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DOKill",
+     "mode": 1,
+     "arg": null,
+     "state": 0
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (7)": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "FoodCollected",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (7)#Transform",
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (7)#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DOKill",
+     "mode": 1,
+     "arg": null,
+     "state": 0
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (10)": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "FoodCollected",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (10)#Transform",
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (10)#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DOKill",
+     "mode": 1,
+     "arg": null,
+     "state": 0
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (17)": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "FoodCollected",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (17)#Transform",
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (17)#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DOKill",
+     "mode": 1,
+     "arg": null,
+     "state": 0
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (15)": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "FoodCollected",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (15)#Transform",
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (15)#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DOKill",
+     "mode": 1,
+     "arg": null,
+     "state": 0
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (1)": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "FoodCollected",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (1)#Transform",
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (1)#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DOKill",
+     "mode": 1,
+     "arg": null,
+     "state": 0
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (16)": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "FoodCollected",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (16)#Transform",
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (16)#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DOKill",
+     "mode": 1,
+     "arg": null,
+     "state": 0
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (2)": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "FoodCollected",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (2)#Transform",
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (2)#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DOKill",
+     "mode": 1,
+     "arg": null,
+     "state": 0
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (6)": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "FoodCollected",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (6)#Transform",
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (6)#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DOKill",
+     "mode": 1,
+     "arg": null,
+     "state": 0
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (8)": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "FoodCollected",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (8)#Transform",
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (8)#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DOKill",
+     "mode": 1,
+     "arg": null,
+     "state": 0
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (18)": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "FoodCollected",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (18)#Transform",
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (18)#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DOKill",
+     "mode": 1,
+     "arg": null,
+     "state": 0
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (11)": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "FoodCollected",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (11)#Transform",
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (11)#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DOKill",
+     "mode": 1,
+     "arg": null,
+     "state": 0
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (3)": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "FoodCollected",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (3)#Transform",
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (3)#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DOKill",
+     "mode": 1,
+     "arg": null,
+     "state": 0
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (19)": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "FoodCollected",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (19)#Transform",
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (19)#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DOKill",
+     "mode": 1,
+     "arg": null,
+     "state": 0
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (12)": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1#FishGetsFood",
+     "type": "FishGetsFood",
+     "method": "FoodCollected",
+     "mode": 2,
+     "arg": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (12)#Transform",
+     "state": 2
+    },
+    {
+     "target": "@ActivityManager/Activities/Level 3/Task 1/FishFoodBottles/FishFood_Bottle (12)#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DOKill",
+     "mode": 1,
+     "arg": null,
+     "state": 0
+    }
+   ],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "Flop vCam": {
+  "AS.CameraUpdateChanger": {
+   "m_Enabled": 1,
+   "m_UpdateMethod": 0
+  }
+ },
+ "Player": {
+  "TimelineHandler": {
+   "m_Enabled": 1,
+   "m_Character": null
+  },
+  "AS.ActionTrigger": {
+   "m_Enabled": 1,
+   "IsPlayer": 0,
+   "ActionToPerform": "None",
+   "Behavior": "@Player#AS.HumanoidBehavior",
+   "AnimationEvents": null,
+   "TeleportPosition": null,
+   "Lerp": 0,
+   "LerpSpeed": 2.0,
+   "Ik": null,
+   "OnActionStart": [],
+   "OnActionStop": []
+  },
+  "AS.HumanoidBehavior": {
+   "m_Enabled": 0,
+   "CharacterName": "Ben",
+   "DefaultAction": "@Player#AS.ActionTrigger",
+   "ActionPerforming": "None"
+  },
+  "AS.CharacterController": {
+   "m_Enabled": 1,
+   "m_Character": "@Player/ToonFishMain#Animator",
+   "m_FlyBoostMoveSpeed": 5.0,
+   "m_MovingTurnSpeed": 120.0,
+   "m_StationaryTurnSpeed": 180.0,
+   "GroundMask": {
+    "m_Bits": 1
+   },
+   "m_Transform": null,
+   "m_Animator": null,
+   "m_IsGrounded": 0,
+   "m_Rigidbody": null,
+   "m_FlyGroundCheckDistance": 0.12,
+   "m_CharacterFx": null
+  },
+  "AS.ControllerInputManager": {
+   "m_Enabled": 1,
+   "CanControl": 1
+  },
+  "StepsManager": {
+   "m_Enabled": 1,
+   "Tracks": null,
+   "Dust": {
+    "f": "sharedassets4.assets",
+    "id": 94
+   },
+   "WaterSplash": null,
+   "StepsVolume": 0.2,
+   "waitforNextStep": 0.2,
+   "DustParticles": 30,
+   "GroundLayer": {
+    "m_Bits": 1
+   },
+   "WaterMask": {
+    "m_Bits": 0
+   },
+   "Scale": {
+    "x": 1.0,
+    "y": 1.0,
+    "z": 1.0
+   },
+   "clips": [
+    {
+     "f": "sharedassets4.assets",
+     "id": 38,
+     "name": "footsteps concrete  1"
+    },
+    {
+     "f": "sharedassets4.assets",
+     "id": 37,
+     "name": "footsteps concrete  2"
+    },
+    {
+     "f": "sharedassets4.assets",
+     "id": 29,
+     "name": "footsteps concrete  3"
+    },
+    {
+     "f": "sharedassets4.assets",
+     "id": 23,
+     "name": "footsteps concrete  4"
+    },
+    {
+     "f": "sharedassets4.assets",
+     "id": 25,
+     "name": "footsteps concrete  5"
+    },
+    {
+     "f": "sharedassets4.assets",
+     "id": 27,
+     "name": "footsteps concrete  6"
+    },
+    {
+     "f": "sharedassets4.assets",
+     "id": 34,
+     "name": "footsteps concrete  7"
+    },
+    {
+     "f": "sharedassets4.assets",
+     "id": 26,
+     "name": "footsteps concrete  8"
+    },
+    {
+     "f": "sharedassets4.assets",
+     "id": 36,
+     "name": "footsteps concrete  9"
+    },
+    {
+     "f": "sharedassets4.assets",
+     "id": 35,
+     "name": "footsteps concrete 10"
+    },
+    {
+     "f": "sharedassets4.assets",
+     "id": 32,
+     "name": "footsteps concrete 11"
+    },
+    {
+     "f": "sharedassets4.assets",
+     "id": 24,
+     "name": "footsteps concrete 12"
+    }
+   ],
+   "WaterClips": [],
+   "trackOffset": 0.0085
+  },
+  "AS.Align": {
+   "m_Enabled": 1
+  },
+  "PlayerHandler": {
+   "m_Enabled": 1,
+   "fishModel": "@Player/ToonFishMain",
+   "fishMouth": "@Player/ToonFishMain/metarig/spine.003/spine.008/spine.004/spine.005/spine.006/spine.007/jaw.master/jaw.002.R/jaw.003.R/FishMouth",
+   "fishMainSpine": "@Player/ToonFishMain/metarig/spine.003#Transform",
+   "throwSimulation": "@Player/ThrowSimulation#ThrowSimulation",
+   "flopParticle": "@Player/CartoonyBodySlam#ParticleSystem",
+   "fishTrail": "@Player/Trail#TrailRenderer",
+   "deathVcam": "@Death Features/Death vCam#Cinemachine.CinemachineVirtualCamera",
+   "deathGlobalVolume": "@Death Features/Death Global Volume#UnityEngine.Rendering.Volume",
+   "wastedText": "@CF2-Rig/CF2-Canvas/CF2-Panel/GameStatus/Wasted Text#UnityEngine.UI.Text",
+   "deathSfx": {
+    "f": "sharedassets4.assets",
+    "id": 31,
+    "name": "elden-ring_death-sfx"
+   },
+   "audioSource": "@Player#AudioSource"
+  }
+ },
+ "MainCamera": {
+  "AS.CameraManager": {
+   "m_Enabled": 1,
+   "InitFromGameManager": 1,
+   "CameraBrain": "@MainCamera/Camera#Cinemachine.CinemachineBrain",
+   "stateDrivenCam": "@MainCamera/CameraStateManager#Cinemachine.CinemachineStateDrivenCamera",
+   "FollowTarget": "@Player/CameraFocusPoint#Transform",
+   "FollowTargetOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "MainCamera": [],
+   "DefaultCameraShaker": "@MainCamera/Camera/DefaultCameraShake#Cinemachine.CinemachineImpulseSource",
+   "ThirdPersonCam": "@MainCamera/CameraStateManager/CM vcam1",
+   "TransposerFollowCam": "@MainCamera/CameraStateManager/CM vcam1 (2)",
+   "m_TurnSpeed": 1.5,
+   "m_TurnSmoothing": 0.0
+  },
+  "AS.CameraUpdateChanger": {
+   "m_Enabled": 1,
+   "m_UpdateMethod": 1
+  }
+ },
+ "Plane/target/Trigger": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "CF2-Rig/CF2-Canvas/CF2-Panel/GameStatus/LevelFailPanel": {
+  "EventTriggers": {
+   "m_Enabled": 1,
+   "OnAwakeEvent": [],
+   "OnEnableEvent": [
+    {
+     "target": "@CF2-Rig/CF2-Canvas/CF2-Panel/GameStatus/LevelFailPanel/Panel/Main Buttons Container/Home#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DORestart",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    },
+    {
+     "target": "@CF2-Rig/CF2-Canvas/CF2-Panel/GameStatus/LevelFailPanel/Panel/Main Buttons Container/Restart#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DORestart",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnStartEvent": [],
+   "OnDisableEvents": []
+  }
+ },
+ "Player/ThrowSimulation": {
+  "ThrowSimulation": {
+   "m_Enabled": 1,
+   "target": null,
+   "currentTargetTrigger": null,
+   "lookAtTarget": 1,
+   "targetList": [],
+   "targetTriggersList": [],
+   "firingAngle": 45.0,
+   "gravity": 9.8,
+   "throwDelay": 0.2,
+   "projectile": null,
+   "targetTween": null,
+   "arrowTween": null,
+   "vCam": "@Player/ThrowSimulation/Virtual Camera#Cinemachine.CinemachineVirtualCamera",
+   "targetCount": 0.0,
+   "maxTargetCount": 0.0,
+   "maxCountReached": 0,
+   "disableDeath": 0,
+   "splashParticle": {
+    "f": "sharedassets4.assets",
+    "id": 90
+   },
+   "jumpSound": null,
+   "waterPlopSound": {
+    "f": "sharedassets2.assets",
+    "id": 340,
+    "name": "gentle-water-plops_Trimmed"
+   },
+   "audioSource": null,
+   "grounded": 0,
+   "groundCheckHeight": 0.0,
+   "groundLayer": {
+    "m_Bits": 0
+   },
+   "onMaxTargetsReachedEvent": [],
+   "debug": 0
+  }
+ },
+ "MainCamera/CameraStateManager/CM vcam1": {
+  "AS.CameraUpdateChanger": {
+   "m_Enabled": 1,
+   "m_UpdateMethod": 0
+  }
+ },
+ "Player/ThrowSimulation/Virtual Camera": {
+  "AS.CameraUpdateChanger": {
+   "m_Enabled": 1,
+   "m_UpdateMethod": 2
+  }
+ },
+ "MainCamera/CameraStateManager/CM vcam1 (2)": {
+  "AS.CameraUpdateChanger": {
+   "m_Enabled": 1,
+   "m_UpdateMethod": 0
+  }
+ },
+ "CF2-Rig/CF2-Canvas/CF2-Panel/GameStatus/PausePanel": {
+  "EventTriggers": {
+   "m_Enabled": 1,
+   "OnAwakeEvent": [],
+   "OnEnableEvent": [
+    {
+     "target": "@CF2-Rig/CF2-Canvas/CF2-Panel/GameStatus/PausePanel/Panel/Main Buttons Container/Home#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DORestart",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    },
+    {
+     "target": "@CF2-Rig/CF2-Canvas/CF2-Panel/GameStatus/PausePanel/Panel/Main Buttons Container/Restart#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DORestart",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    },
+    {
+     "target": "@CF2-Rig/CF2-Canvas/CF2-Panel/GameStatus/PausePanel/Panel/Main Buttons Container/Resume#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DORestart",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnStartEvent": [],
+   "OnDisableEvents": []
+  }
+ },
+ "Plane/target (1)/Trigger": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "Manager": {
+  "AS.DialogueManager": {
+   "m_Enabled": 1,
+   "InitFromGameManager": 1,
+   "nameText": "@CF2-Rig/CF2-Canvas/CF2-Panel/DialgogueSystem/DialoguePanel/NameTxt#TMPro.TextMeshProUGUI",
+   "dialogueText": "@CF2-Rig/CF2-Canvas/CF2-Panel/DialgogueSystem/DialoguePanel/Dialogue#TMPro.TextMeshProUGUI",
+   "DialogueBox": "@CF2-Rig/CF2-Canvas/CF2-Panel/DialgogueSystem/DialoguePanel#DG.Tweening.DOTweenAnimation",
+   "continueBtnFullscreen": "@CF2-Rig/CF2-Canvas/CF2-Panel/DialgogueSystem/DialoguePanel/Continue Btn (Fullscreen)#UnityEngine.UI.Button"
+  },
+  "PathManager": {
+   "m_Enabled": 0,
+   "m_PlayerNode": "@Player#Transform",
+   "m_TargetNode": null,
+   "pathOffset": 0.0,
+   "pathWidth": 1.0,
+   "pathTime": 2.0,
+   "pathAlpha": 0.5,
+   "followSpeed": 5.0,
+   "GradientColor": {
+    "key0": {
+     "r": 1.0,
+     "g": 1.0,
+     "b": 1.0,
+     "a": 0.0
+    },
+    "key1": {
+     "r": 1.0,
+     "g": 1.0,
+     "b": 1.0,
+     "a": 1.0
+    },
+    "key2": {
+     "r": 0.0,
+     "g": 0.0,
+     "b": 0.0,
+     "a": 1.0
+    },
+    "key3": {
+     "r": 0.0,
+     "g": 0.0,
+     "b": 0.0,
+     "a": 0.0
+    },
+    "key4": {
+     "r": 0.0,
+     "g": 0.0,
+     "b": 0.0,
+     "a": 0.0
+    },
+    "key5": {
+     "r": 0.0,
+     "g": 0.0,
+     "b": 0.0,
+     "a": 0.0
+    },
+    "key6": {
+     "r": 0.0,
+     "g": 0.0,
+     "b": 0.0,
+     "a": 0.0
+    },
+    "key7": {
+     "r": 0.0,
+     "g": 0.0,
+     "b": 0.0,
+     "a": 0.0
+    },
+    "ctime0": 0,
+    "ctime1": 65535,
+    "ctime2": 0,
+    "ctime3": 0,
+    "ctime4": 0,
+    "ctime5": 0,
+    "ctime6": 0,
+    "ctime7": 0,
+    "atime0": 0,
+    "atime1": 5012,
+    "atime2": 58596,
+    "atime3": 65535,
+    "atime4": 0,
+    "atime5": 0,
+    "atime6": 0,
+    "atime7": 0,
+    "m_Mode": 0,
+    "m_ColorSpace": -1,
+    "m_NumColorKeys": 2,
+    "m_NumAlphaKeys": 4
+   },
+   "pathMaterial": {
+    "f": "sharedassets4.assets",
+    "id": 6,
+    "name": "arrow"
+   },
+   "textreMode": 1,
+   "hasFollowTrail": 1,
+   "followObject": "@Manager/DustParticleTrail",
+   "corners": [],
+   "pathLine": null
+  },
+  "AS.Fading": {
+   "m_Enabled": 1,
+   "InitFromGameManager": 1,
+   "Fader": "@CF2-Rig/CF2-Canvas/CF2-Panel/Fader#CanvasGroup",
+   "FadeOutOnLoad": 1,
+   "OnFadeEnd": []
+  },
+  "AS.TimelineManager": {
+   "m_Enabled": 1,
+   "InitFromGameManager": 1,
+   "SkipButton": "@CF2-Rig/CF2-Canvas/CF2-Panel/Timeline/TimelineSkipButton#UnityEngine.UI.Button",
+   "Skip_Panel": "@CF2-Rig/CF2-Canvas/CF2-Panel/Timeline/Skip CutScene",
+   "yes_btn": "@CF2-Rig/CF2-Canvas/CF2-Panel/Timeline/Skip CutScene/Skjp Panel/Yes/Button#UnityEngine.UI.Button",
+   "No_btn": "@CF2-Rig/CF2-Canvas/CF2-Panel/Timeline/Skip CutScene/Skjp Panel/No#UnityEngine.UI.Button"
+  },
+  "AS.UIManager": {
+   "m_Enabled": 1,
+   "InitFromGameManager": 1,
+   "ActionButton": "@CF2-Rig/CF2-Canvas/CF2-Panel/Controls/ActionButton#UnityEngine.UI.Button",
+   "ControlsGroup": "@CF2-Rig/CF2-Canvas/CF2-Panel/Controls#CanvasGroup",
+   "GameStatusGroup": "@CF2-Rig/CF2-Canvas/CF2-Panel/GameStatusBtns#CanvasGroup",
+   "HUDIndicatorGroup": "@HUD Navigation Canvas#CanvasGroup",
+   "TaskSpecificControlsGroup": "@CF2-Rig/CF2-Canvas/CF2-Panel/TaskSpecificControls#CanvasGroup",
+   "inputRig": "@CF2-Rig#ControlFreak2.InputRig",
+   "leftRightForward_Joystick": "@CF2-Rig/CF2-Canvas/CF2-Panel/Controls/Joystick-Region (LeftRightForward)#ControlFreak2.DynamicRegion",
+   "upDown_Joystick": "@CF2-Rig/CF2-Canvas/CF2-Panel/Controls/Joystick-Region (UpDown)#ControlFreak2.DynamicRegion",
+   "invertControls_Toggle": "@CF2-Rig/CF2-Canvas/CF2-Panel/Controls/InvertControlsToggle#UnityEngine.UI.Toggle",
+   "pullMoss_Btn": "@CF2-Rig/CF2-Canvas/CF2-Panel/TaskSpecificControls/PullMoss_Button#UnityEngine.UI.Button",
+   "pullMoss_Slider": "@CF2-Rig/CF2-Canvas/CF2-Panel/TaskSpecificControls/PullMoss_Button/Moss_Slider#UnityEngine.UI.Slider",
+   "hunger_Slider": "@CF2-Rig/CF2-Canvas/CF2-Panel/TaskSpecificControls/HungerSlider#UnityEngine.UI.Slider",
+   "fishJump_touchBtn": "@CF2-Rig/CF2-Canvas/CF2-Panel/TaskSpecificControls/FishJump_TouchBtn#ControlFreak2.TouchButton",
+   "jumpText": "@CF2-Rig/CF2-Canvas/CF2-Panel/TaskSpecificControls/FishJump_TouchBtn/FishJump-Sprite/JumpText#UnityEngine.UI.Text",
+   "foodCollected_Slider": "@CF2-Rig/CF2-Canvas/CF2-Panel/TaskSpecificControls/FoodCollected_Slider#UnityEngine.UI.Slider",
+   "JumpGoPromptParent": "@CF2-Rig/CF2-Canvas/CF2-Panel/JumpGoPRomptParent",
+   "JumpGoPrompt": "@CF2-Rig/CF2-Canvas/CF2-Panel/JumpGoPRomptParent/JumpGoPrompt",
+   "hpBg_Image": "@CF2-Rig/CF2-Canvas/CF2-Panel/TaskSpecificControls/HP_Bg_Image#UnityEngine.UI.Image",
+   "fishHp_Slider": "@CF2-Rig/CF2-Canvas/CF2-Panel/TaskSpecificControls/HP_Bg_Image/HP_Slider#UnityEngine.UI.Slider",
+   "hp_TMPro": "@CF2-Rig/CF2-Canvas/CF2-Panel/TaskSpecificControls/HP_Bg_Image/HP_Text (TMP#TMPro.TextMeshProUGUI",
+   "fishFlopJump_touchBtn": "@CF2-Rig/CF2-Canvas/CF2-Panel/TaskSpecificControls/FloppyFishJump_TouchBtn#ControlFreak2.TouchButton",
+   "fishFlopCameraPad": "@CF2-Rig/CF2-Canvas/CF2-Panel/TaskSpecificControls/FloppyFish_CameraPad#ControlFreak2.TouchTrackPad",
+   "RewardCoinsTxt": null,
+   "MissionRewardTxt": "@CF2-Rig/CF2-Canvas/CF2-Panel/GameStatus/LevelCompletePanel/Panel/RewardText_Bg/RewardText (TMP)#TMPro.TextMeshProUGUI",
+   "MissionCompletePanel": "@CF2-Rig/CF2-Canvas/CF2-Panel/GameStatus/LevelCompletePanel",
+   "MissionFailedPanel": "@CF2-Rig/CF2-Canvas/CF2-Panel/GameStatus/LevelFailPanel",
+   "PausePanel": "@CF2-Rig/CF2-Canvas/CF2-Panel/GameStatus/PausePanel",
+   "SettingsPanel": null,
+   "completePopUpPanel": "@CF2-Rig/CF2-Canvas/CF2-Panel/GameStatus/CompletePopUpPanel",
+   "Skip_Panel": "@CF2-Rig/CF2-Canvas/CF2-Panel/GameStatus/Level Skip",
+   "yes_btn": "@CF2-Rig/CF2-Canvas/CF2-Panel/GameStatus/Level Skip/Skjp Panel/Yes/Button#UnityEngine.UI.Button",
+   "No_btn": "@CF2-Rig/CF2-Canvas/CF2-Panel/GameStatus/Level Skip/Skjp Panel/No#UnityEngine.UI.Button",
+   "rateUsLink": "https://play.google.com/store/apps/details?id=com.fgs.fish.life",
+   "audioSourceForSoundEffects": "@Manager#AudioSource",
+   "clickSoundClip": {
+    "f": "sharedassets1.assets",
+    "id": 16,
+    "name": "mouth-pop-1_z1M9vz4u_NWM"
+   },
+   "lvlCompleteSound": {
+    "f": "sharedassets4.assets",
+    "id": 33,
+    "name": "497534-Mobile-Game-Musical-Theme-Computations-Victory-2"
+   },
+   "inGameCompleteSfx": {
+    "f": "sharedassets4.assets",
+    "id": 28,
+    "name": "sfx_levelSUCCESS"
+   },
+   "lvlFailedSound": {
+    "f": "sharedassets4.assets",
+    "id": 30,
+    "name": "497542-Mobile-Game-Musical-Theme-Forest-Lullaby-Loss-1"
+   },
+   "Loading": "@CF2-Rig/CF2-Canvas/CF2-Panel/Loading",
+   "LoadingSlider": null,
+   "LoadingText": null,
+   "level": 0
+  },
+  "HintManager": {
+   "m_Enabled": 1,
+   "hintTextPro": "@CF2-Rig/CF2-Canvas/CF2-Panel/HintPanel_Img/Text (TMP)#TMPro.TextMeshProUGUI",
+   "hintPanel": "@CF2-Rig/CF2-Canvas/CF2-Panel/HintPanel_Img#UnityEngine.UI.Image",
+   "hintBtn": "@CF2-Rig/CF2-Canvas/CF2-Panel/Controls/Hint#UnityEngine.UI.Button"
+  },
+  "AS.GameManager": {
+   "m_Enabled": 1,
+   "HUDCanvas": "@HUD Navigation Canvas#CanvasGroup",
+   "Player": "@Player#Animator",
+   "playerHandler": null,
+   "Controller": null,
+   "characterController": null,
+   "gamePaused": 0
+  },
+  "BoatAttack.AppSettings": {
+   "m_Enabled": 1,
+   "maxRenderSize": 3,
+   "LowMemoryDevice": 2248,
+   "LowMemoryDeviceFrameRate": 30,
+   "FrameRate": 60,
+   "minScale": 0.5
+  }
+ },
+ "Plane/target (3)/Trigger": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "MainCamera/CameraStateManager/CM vcam1 (1)": {
+  "AS.CameraUpdateChanger": {
+   "m_Enabled": 1,
+   "m_UpdateMethod": 0
+  }
+ },
+ "Plane/target (2)/Trigger": {
+  "AS.TriggerEvents": {
+   "TriggerTags": [
+    "Player"
+   ],
+   "OnTriggerEnterEvent": [],
+   "OnTriggerExitEvent": [],
+   "OnEnterConditionalEvents": null,
+   "OnExitConditionalEvents": null
+  }
+ },
+ "Player/Fx": {
+  "CharacterFx": {
+   "m_Enabled": 1,
+   "SwimParticle": "@Player/Fx/waterSplashBack#ParticleSystem"
+  }
+ },
+ "CF2-Rig/CF2-Canvas/CF2-Panel/GameStatus/CompletePopUpPanel": {
+  "EventTriggers": {
+   "m_Enabled": 1,
+   "OnAwakeEvent": [],
+   "OnEnableEvent": [
+    {
+     "target": "@CF2-Rig/CF2-Canvas/CF2-Panel/GameStatus/CompletePopUpPanel/CompletedBG",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": true,
+     "state": 2
+    }
+   ],
+   "OnStartEvent": [],
+   "OnDisableEvents": [
+    {
+     "target": "@CF2-Rig/CF2-Canvas/CF2-Panel/GameStatus/CompletePopUpPanel/CompletedBG",
+     "type": "UnityEngine.GameObject",
+     "method": "SetActive",
+     "mode": 6,
+     "arg": false,
+     "state": 2
+    }
+   ]
+  }
+ },
+ "CF2-Rig/CF2-Canvas/CF2-Panel/GameStatus/LevelCompletePanel": {
+  "EventTriggers": {
+   "m_Enabled": 1,
+   "OnAwakeEvent": [],
+   "OnEnableEvent": [
+    {
+     "target": "@CF2-Rig/CF2-Canvas/CF2-Panel/GameStatus/LevelCompletePanel/Panel/Main Buttons Container/Home#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DORestart",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    },
+    {
+     "target": "@CF2-Rig/CF2-Canvas/CF2-Panel/GameStatus/LevelCompletePanel/Panel/Main Buttons Container/Restart#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DORestart",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    },
+    {
+     "target": "@CF2-Rig/CF2-Canvas/CF2-Panel/GameStatus/LevelCompletePanel/Panel/Main Buttons Container/Next#DG.Tweening.DOTweenAnimation",
+     "type": "DG.Tweening.DOTweenAnimation",
+     "method": "DORestart",
+     "mode": 1,
+     "arg": null,
+     "state": 2
+    }
+   ],
+   "OnStartEvent": [],
+   "OnDisableEvents": []
+  }
+ }
+}
