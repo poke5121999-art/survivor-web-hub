@@ -6,7 +6,7 @@
 
 import { setSlider } from './ui.js';
 
-const fmt = n => {
+export const fmt = n => {
   n = Math.floor(n);
   if (n < 1000) return `${n}`;
   const u = ['K', 'M', 'B', 'T'];
@@ -15,12 +15,12 @@ const fmt = n => {
   return `${n.toFixed(n < 10 ? 2 : n < 100 ? 1 : 0).replace(/\.0+$/, '')}${u[i]}`;
 };
 
-const COIN = 'common_money_icon_01', GEM = 'common_diamonds_icon_01';
+export const COIN = 'common_money_icon_01', GEM = 'common_diamonds_icon_01';
 const TITLE = { timber: 'TitleEmpTimber', carrier: 'TitleEmpCarrier', builder: 'TitleEmpBuilder' };
 const NO_BAR = ['residentCoin', 'sponCoin', 'tickets', 'hometown'];
 const SHADOW = '1.2px 1.8px 0 rgba(0,0,0,0.455)';
 
-class Modal {
+export class Modal {
   constructor(host, ui, pj, sim, prefab, hide) {
     Object.assign(this, { host, ui, pj, sim, prefab, hide, built: null, last: '' });
     this.wrap = document.createElement('div');

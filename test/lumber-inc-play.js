@@ -38,7 +38,7 @@ function serve() {
   const srv = process.env.LI_URL ? null : await serve();
   const url = process.env.LI_URL || `http://localhost:${srv.address().port}/games/lumber-inc/index.html`;
   const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
-  const kill = setTimeout(() => { console.log('  FAIL timed out after 300 s'); process.exit(1); }, 300000);
+  const kill = setTimeout(() => { console.log('  FAIL timed out after 420 s'); process.exit(1); }, 420000);
   try {
     const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
     const errors = [], missing = [], modules = [];
@@ -122,6 +122,65 @@ function serve() {
     await page.waitForFunction(() => window.__li && window.__li.ready, null, { timeout: 120000 });
     const back = await page.evaluate(() => ({ coins: window.__li.sim.state.coins, on: window.__li.sim.active(1001) && window.__li.sim.active(10011) }));
     check('reload keeps coins and bought buildings', back.coins === coins && back.on, JSON.stringify(back));
+
+    // Meta (rules/meta.md) and chat (rules/chat.md) through the HUD.
+    const click = sel => page.evaluate(sel => { const e = document.querySelector(sel); if (e) e.click(); return !!e; }, sel);
+    const openNow = () => page.evaluate(() => ['phone', 'spin', 'box', 'chat', 'offline', 'sign', 'tasks', 'shop', 'skins']
+      .filter(k => window.__li[k] && window.__li[k].isOpen).join());
+    await click('[data-name="BtnPhone"]');
+    await page.waitForTimeout(300);
+    check('BtnPhone opens the phone', await openNow() === 'phone', await openNow());
+    const apps = await page.evaluate(() => [...document.querySelectorAll('.panel-wrap [data-name="name"]')].map(e => e.textContent).filter(Boolean).length);
+    check('the phone lists the 10 PhoneConf apps', apps >= 10, `${apps}`);
+    await page.evaluate(() => window.__li.phone.close());
+    for (const k of ['sign', 'spin', 'skins', 'tasks', 'shop']) {
+      await page.evaluate(k => { window.__li[k].open(); }, k);
+      await page.waitForTimeout(200);
+      const ok = await page.evaluate(k => { const L = window.__li; const o = L[k].isOpen; L[k].close(); return o; }, k);
+      check(`the ${k} panel opens`, ok);
+    }
+    await page.evaluate(() => {
+      const L = window.__li, M = L.sim.meta;
+      L.sim.guide.done.add(7);
+      M.boxes[1] = { at: 0, box: { row: { id: 1, group: 1, prefab: 'Pre_AdBox1', kind: 'coin', val: 80, life: 60, pos: { x: 31.22, z: -17.54 } }, until: 1e9, shown: false } };
+      Object.assign(L.sim.state.player, { x: 31.22, z: -17.54 });
+    });
+    await page.waitForTimeout(500);
+    const boxSeen = await page.evaluate(() => ({ open: window.__li.box.isOpen, obj: window.__li.game.boxes.has(1) }));
+    check('an ad box stands on the map and walking into it opens its panel', boxSeen.open && boxSeen.obj, JSON.stringify(boxSeen));
+    const c0 = await page.evaluate(() => window.__li.sim.state.coins);
+    await page.evaluate(() => { const L = window.__li; L.sim.meta.claimBox(1, false); L.box.close(); });
+    check('the coin box pays 80 x the 5 s output', await page.evaluate(c0 => window.__li.sim.state.coins - c0 === 80 * window.__li.sim.extras.valuable(), c0));
+    await page.evaluate(() => {
+      const L = window.__li, T = L.sim.town;
+      Object.assign(L.sim.state.player, { x: 0, z: 9 });
+      T.T.books.push(0); T.T.houseLv[0] = 1;
+      L.sim.emit({ type: 'houseDone', id: 88000, book: 0 });
+    });
+    await page.waitForTimeout(300);
+    const chatBtn = await page.evaluate(() => { const e = document.querySelector('[data-name="BtnChat"]'); return !!e && e.style.display !== 'none'; });
+    check('a built house makes the HUD chat bubble pop out', chatBtn);
+    await click('[data-name="BtnChat"]');
+    await page.waitForTimeout(300);
+    check('the chat bubble opens the chat with the friend request', await openNow() === 'chat');
+    await page.evaluate(() => { const L = window.__li; L.sim.chat.accept(0); L.chat.close(); });
+    // Closed-app income: a save 2 h old (written after the page's own pagehide save) opens the offline panel.
+    // The game saves on pagehide and again on visibilitychange (which runs after it), so age the save on both.
+    await page.evaluate(() => {
+      const age = () => {
+        const k = 'lumber-inc-v1', s = JSON.parse(localStorage.getItem(k));
+        s.lastPlay = Date.now() - 7200e3;
+        localStorage.setItem(k, JSON.stringify(s));
+      };
+      addEventListener('pagehide', age);
+      document.addEventListener('visibilitychange', age);
+    });
+    await page.goto(url);
+    await page.waitForFunction(() => window.__li && window.__li.ready, null, { timeout: 120000 });
+    await page.waitForTimeout(300);
+    const off = await page.evaluate(() => ({ open: window.__li.offline.isOpen, chat: window.__li.sim.chat.friend(0), queued: !!window.__li.sim.chat.queued(20001) }));
+    check('2 h away opens the offline reward on load', off.open, JSON.stringify(off));
+    check('the chat friend and story 1 survive the reload', off.chat && off.queued);
 
     check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
     check('no missing files', missing.length === 0, missing.slice(0, 3).join(' | '));

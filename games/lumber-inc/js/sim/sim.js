@@ -9,6 +9,8 @@ import { Missions } from './missions.js';
 import { Guide } from './guide.js';
 import { Extras } from './extras.js';
 import { Town } from './town.js';
+import { Meta } from './meta.js';
+import { Chat } from './chat.js';
 
 export const PEELED = 101, SQUARE = 102;
 const STEP = 0.02; // fixed physics step: pads, deposits and pickups move one unit per step (EC 6, 13, 14)
@@ -54,7 +56,7 @@ function padFrame(pad) {
 const onPad = (f, p) => { const l = apply(f.inv, { x: p.x, y: 0, z: p.z }); return Math.abs(l.x) <= f.w / 2 && Math.abs(l.z) <= f.d / 2; };
 
 export class Sim {
-  constructor(world, config, save = null, mapId = 0) {
+  constructor(world, config, save = null, mapId = 0, metaSave = null) {
     this.world = world;
     this.mapId = mapId;
     this.config = config;
@@ -66,8 +68,11 @@ export class Sim {
       player: s.player || { x: -1.5, z: 9, dir: 0 }, packItems: s.packItems || [], t: 0,
       hired: s.hired || {}, empLv: s.empLv || {}, stars: s.stars || {}, starAd: s.starAd || {}, task: s.task || 0,
       guide: s.guide || null, clock: s.clock || 0, boost: s.boost, bonus: s.bonus, order: s.order, town: s.town,
+      chat: s.chat,
     };
     this.events = [];
+    this.meta = new Meta(this, metaSave);
+    this.sink = { push: e => this.emit(e) }; // for modules that take an events list (forest)
     this.up = new Upgrades(config, this.state.up);
     this.role = config.RoleConf.find(r => r.Id === 1);
     this.pack = new Pack(this.up.value(this.role.PackUpId), this.state.packItems);
@@ -93,6 +98,10 @@ export class Sim {
     this.guide = new Guide(this);
     this.extras = new Extras(this);
     this.town = new Town(this);
+    // Spin coins moved from the town save to the global meta save.
+    if (this.town.T.spin) { this.meta.M.spin += this.town.T.spin; this.town.T.spin = 0; }
+    this.chat = new Chat(this);
+    this.town.recompute(); // album bonuses join the income ratio
     this.research = new Map();
     for (const r of config.ResearchUpgradeConf) {
       if (!this.research.has(r.BuildingId)) this.research.set(r.BuildingId, []);
@@ -139,6 +148,7 @@ export class Sim {
       if (this.state.gems < STAR_GEMS) return false;
       this.state.gems -= STAR_GEMS;
     }
+    if (index === 2) this.emit({ type: 'ad' });
     this.state.starAd[id] = index; // which senior look (NewPrefab slot 1 or 2)
     this.addExp(r.StarAddAd);
     this.emit({ type: 'machine', id });
@@ -218,7 +228,11 @@ export class Sim {
   active(id) { return !!this.state.bought[id]; }
   stock(key) { return this.state.stock[key] || 0; }
   addStock(key, n) { this.state.stock[key] = this.stock(key) + n; }
-  emit(e) { this.events.push(e); }
+  emit(e) {
+    this.events.push(e);
+    if (this.meta) this.meta.on(e);
+    if (this.chat) this.chat.onEvent(e);
+  }
 
   // ---- economy helpers
   earn(n, why) { this.state.coins += n; this.emit({ type: 'coins', n, why }); }
@@ -232,6 +246,7 @@ export class Sim {
       s.exp -= row.NeedExp;
       s.level++;
       this.earn(row.LevelUpRewardCoin, 'levelUp');
+      if (row.LevelUpRewradSpinCoin) this.meta.addSpin(row.LevelUpRewradSpinCoin);
       if (row.LevelUpRewardGas) this.extras.addGas(row.LevelUpRewardGas); // into the gas station (X 13)
       this.emit({ type: 'levelUp', level: s.level, reward: row.LevelUpRewardCoin });
       this.recheck();
@@ -253,15 +268,17 @@ export class Sim {
   }
 
   // ---- player
-  get speed() { return this.up.value(this.role.SpdUpId) + this.extras.speedAdd(); }
-  get damage() { return this.up.value(this.role.ToolUpId); }
+  // Skins add to the base stats; ad-box buffs multiply them (rules/meta.md D21, I34).
+  get speed() { return (this.up.value(this.role.SpdUpId) + this.meta.skinBuff().Spd + this.extras.speedAdd()) * this.meta.speedMul(); }
+  get damage() { return (this.up.value(this.role.ToolUpId) + this.meta.skinBuff().Dmg) * this.meta.dmgMul(); }
+  packMax() { return this.up.value(this.role.PackUpId) + this.meta.packAdd(); }
 
   buyUpgrade(id) {
     const cost = this.up.nextCost(id);
     if (cost < 0 || this.state.coins < cost) return false;
     this.state.coins -= cost;
     this.state.up[id] = this.up.level(id) + 1;
-    this.pack.max = this.up.value(this.role.PackUpId);
+    this.pack.max = this.packMax();
     this.addExp(2); // PlayerUpgrade (EC 28)
     this.emit({ type: 'upgrade', id });
     return true;
@@ -271,6 +288,9 @@ export class Sim {
   tick(dt, moving, mover, shown) {
     const e0 = this.events.length;
     this.rules(dt, moving, mover, shown);
+    this.meta.tick(dt);
+    const max = this.packMax();
+    if (max !== this.lastPackMax) this.pack.max = this.lastPackMax = max;
     this.guide.tick(dt, this.events.slice(e0));
   }
 
@@ -289,7 +309,7 @@ export class Sim {
       this.swingT += dt;
       if (this.swingT >= SWING) {
         this.swingT -= SWING;
-        this.forest.swing(p, this.damage, forestOpen, ev, this.playerRole);
+        this.forest.swing(p, this.damage, forestOpen, this.sink, this.playerRole);
       }
     } else {
       this.swingT = SWING * 0.56; // the clip's hit event sits at 0.735 / 1.667 of the swing
@@ -299,12 +319,13 @@ export class Sim {
       let took = 0;
       while (took < n && !pack.full) { pack.add(WOOD); took++; }
       return took;
-    }, ev);
+    }, this.sink);
     this.crew.tick(dt);
     this.extras.tick(dt, p, idle);
     this.town.tick(dt, p, idle);
+    this.chat.tick(dt);
     if (this.forest.near(p, 1.2).some(t => t.ground > 0)) {
-      const got = this.forest.pickup(p, this.pack.room, ev);
+      const got = this.forest.pickup(p, this.pack.room, this.sink);
       for (let i = 0; i < got; i++) this.pack.add(WOOD);
     }
 
@@ -422,7 +443,7 @@ export class Sim {
   income(id) {
     const c = this.factoryConf.get(id);
     // Residents' MachineRevenue buff multiplies it (H G4).
-    return ((c ? this.up.value(c.IncomeUpId) : 0) + this.starVal(id, 'IncomeAdd')) * this.town.ratio.income;
+    return ((c ? this.up.value(c.IncomeUpId) : 0) + this.starVal(id, 'IncomeAdd')) * this.town.ratio.income * this.meta.incomeMul();
   }
 
   duration(id) {
@@ -522,7 +543,7 @@ export class Sim {
     return { v: 1, coins: s.coins, gems: s.gems, exp: s.exp, level: s.level, bought: s.bought, paid: s.paid, up: s.up,
       guideMoney: s.guideMoney, stock: s.stock, piles: s.piles, firstTruck: s.firstTruck, player: s.player,
       packItems: this.pack.items, hired: s.hired, empLv: s.empLv, stars: s.stars, starAd: s.starAd, task: s.task,
-      guide: s.guide, clock: s.clock, boost: s.boost, bonus: s.bonus, order: s.order, town: s.town };
+      guide: s.guide, clock: s.clock, boost: s.boost, bonus: s.bonus, order: s.order, town: s.town, chat: s.chat };
   }
 }
 

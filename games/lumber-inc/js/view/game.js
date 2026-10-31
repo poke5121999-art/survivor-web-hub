@@ -91,6 +91,30 @@ export class GameView {
     if (this.bike) { this.bike.visible = false; playerObj.add(this.bike); }
     this.trucks = new Map();
     this.flash = [];
+    this.boxes = new Map(); // ad-box group -> { o, id }
+  }
+
+  // Ad boxes (GameAdDropBoxCtrller): the conf's prefab at DropPos, spinning at 100 deg/s until claimed or expired.
+  updateBoxes(dt) {
+    const live = new Map(this.sim.meta.liveBoxes().map(b => [b.row.group, b]));
+    for (const [g, v] of this.boxes) {
+      const b = live.get(g);
+      if (b && b.row.id === v.id) continue;
+      this.scene3.remove(v.o);
+      this.boxes.delete(g);
+    }
+    for (const [g, b] of live) {
+      let v = this.boxes.get(g);
+      if (!v) {
+        const o = this.props.make(b.row.prefab);
+        if (!o) continue;
+        o.position.set(b.row.pos.x, 0, b.row.pos.z);
+        this.scene3.add(o);
+        v = { o, id: b.row.id };
+        this.boxes.set(g, v);
+      }
+      v.o.rotation.y += dt * 100 * Math.PI / 180;
+    }
   }
 
   // Lock/active roots and pads follow each building's status.
@@ -223,6 +247,7 @@ export class GameView {
 
   update(dt) {
     const sim = this.sim, S = sim.state;
+    this.updateBoxes(dt);
     for (const [id, pad] of this.pads) {
       if (!pad.visible) continue;
       const b = this.world.buildings.get(id);

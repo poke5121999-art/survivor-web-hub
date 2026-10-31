@@ -231,7 +231,8 @@ const check = (name, ok, detail) => { console.log(`  ${ok ? 'PASS' : 'FAIL'} ${n
   run(1);
   T.lot(88000).cur = 100;
   const c3 = S.coins, want3 = 50 * X.valuable();
-  check('the full site pays RewardCoinRatio x the 5 s output and 2 spin coins, x2 with the ad', T.claim(2) && S.coins === c3 + 2 * want3 && S.town.spin === 4,
+  const spin0 = sim.meta.M.spin;
+  check('the full site pays RewardCoinRatio x the 5 s output and 2 spin coins, x2 with the ad', T.claim(2) && S.coins === c3 + 2 * want3 && sim.meta.M.spin - spin0 === 4,
     `${want3}`);
   check('the next lot is 88001 (book 1)', T.next() && T.next().id === 88001);
   const inc = sim.income(1001);
@@ -249,6 +250,139 @@ const check = (name, ok, detail) => { console.log(`  ${ok ? 'PASS' : 'FAIL'} ${n
   const w0 = T.lot(88001).cur;
   run(90);
   check('the builder brings squares from the build store to the site', T.lot(88001).cur > w0, `${w0} -> ${T.lot(88001).cur}`);
+
+  // Meta (rules/meta.md D-I): a fresh sim on a fake clock.
+  {
+    let now = new Date(2026, 9, 1, 10).getTime();
+    const m0 = new Sim(world, config, null, 0, null);
+    const M = m0.meta;
+    M.now = () => now;
+    const MS = m0.state;
+    const day = () => { now += 86400e3; M.rollDay(); };
+    check('sign-in: day 0 is open on the first login, day 1 is not yet', M.canSign(0) && !M.canSign(1));
+    check('sign-in day 0 gives 2 spin coins', M.sign(0) && M.M.spin === 2, `${M.M.spin}`);
+    check('sign-in: one day per login day', !M.sign(1));
+    day();
+    const g0 = MS.gems;
+    check('sign-in day 1 gives 15 gems the next day', M.sign(1) && MS.gems === g0 + 15);
+    for (let i = 2; i < 8; i++) { day(); M.sign(i); }
+    check('sign-in day 7 makes Cowboy (13) unlockable', M.canUnlock(13) && M.unlock(13) && M.wear(13) && M.M.skin === 13);
+
+    // Gacha: Mohawk's piece (weight 99,999,999) comes first; one piece unlocks it.
+    M.M.spin = 3;
+    const pr = M.draw(false, () => 0.5);
+    check('a spin coin draw costs 1 coin and gives the Mohawk piece first', pr && pr.id === 1 && !pr.bike && M.M.spin === 2);
+    check('the x3 claim adds 3 pieces and Mohawk becomes unlockable', M.claimDraw(pr, true) && M.skin(1).pieces === 3 && M.canUnlock(1));
+    const sp0 = m0.speed;
+    M.unlock(1);
+    check('an unlocked skin adds its buff to the player (Mohawk Spd +0.2)', Math.abs(m0.speed - sp0 - 0.2) < 1e-9, `${sp0} -> ${m0.speed}`);
+    const pr2 = M.draw(false, () => 0);
+    check('Mohawk leaves the pool once unlocked', pr2 && pr2.id !== 1, pr2 && `${pr2.id}`);
+    let ads = 0;
+    while (M.draw(true)) ads++;
+    check('5 free (ad) draws a day', ads === 5);
+    day();
+    check('the free draws come back the next day', M.spinAdLeft() === 5);
+
+    // Daily tasks: ads count, claims pay gems or N x the 5 s output, x ratio for the ad.
+    const t201 = config.DailyTaskConf.find(r => r.Id === 201);
+    for (let i = 0; i < 3; i++) m0.emit({ type: 'ad' });
+    m0.tick(1 / 30, false);
+    check('3 ads finish task 201', M.taskDone(t201));
+    const c0 = MS.coins, want = 25 * m0.extras.valuable() * 3;
+    check('task 201 pays 25 x the 5 s output, x3 with the ad', M.claimTask(201, true) && MS.coins === c0 + want && !M.claimTask(201, false), `${MS.coins - c0} vs ${want}`);
+    check('a claimed task counts toward task 208', (M.M.today.count.CompleteDailyTask || 0) === 1);
+    const before = M.taskProgress(t201);
+    day();
+    check('daily tasks reset on a new day', M.taskProgress(t201) === 0 && !M.taskClaimed(t201) && before === 3);
+
+    // Achievements: gems spent and gained count; stages step through.
+    const a108 = config.AchievementConf.find(r => r.Id === 108);
+    MS.gems += 60; m0.tick(1 / 30, false);
+    const g1 = MS.gems;
+    check('achievement 108 (gems gained) claims its first stage for 2 gems', M.achieveReady(a108) && M.claimAchieve(108) && MS.gems === g1 + 2 && M.stage(a108).i === 1);
+    const a109 = config.AchievementConf.find(r => r.Id === 109);
+    check('achievement 109 counts login days', M.stateCount('LoginDay') === M.M.loginDay && M.M.loginDay >= 9, `${M.M.loginDay}`);
+
+    // Offline reward: under 5 min nothing; else min(minutes, 180) x per-minute income, x2 for the ad.
+    check('offline: under 300 s gives nothing', M.offline(now - 200e3) === null);
+    const off = M.offline(now - 5 * 3600e3);
+    check('offline: capped at 180 minutes', off && off.min === 180 && off.coins === Math.round(180 * M.perMinute()));
+    const c1 = MS.coins;
+    check('offline x2 pays twice once', M.claimOffline(off, true) && MS.coins === c1 + 2 * off.coins && !M.claimOffline(off, false));
+
+    // Ad boxes start after guide 7, spawn after the group cooldown, and buff for 180 s.
+    m0.guide.done.add(7);
+    for (let i = 0; i < 31 * 30; i++) m0.tick(1 / 30, false);
+    const live = M.liveBoxes();
+    check('ad boxes of groups 1, 2 and 3 appear after 30-45 s (gas box needs level 4)', live.length >= 2 && live.every(b => b.row.id !== 6), live.map(b => b.row.id).join(','));
+    const g2 = M.boxes[2].box;
+    if (g2) {
+      const kind = g2.row.kind;
+      const sp = m0.speed, dm = m0.damage, pm = m0.pack.max;
+      check('a group 2 box claims for 20 gems', M.claimBox(2, true));
+      m0.tick(1 / 30, false);
+      const ok = kind === 'speed' ? Math.abs(m0.speed / sp - 1.5) < 1e-6 : kind === 'damage' ? m0.damage === dm * 2 : m0.pack.max === pm + 5;
+      check(`the ${kind} buff applies`, ok, `${sp}->${m0.speed} ${dm}->${m0.damage} ${pm}->${m0.pack.max}`);
+      for (let i = 0; i < 181 * 30; i++) m0.tick(1 / 30, false);
+      check(`the ${kind} buff ends after 180 s`, !(M.buffs[kind] > 0));
+    }
+    const box1 = M.boxes[1].box || (() => { for (let i = 0; i < 61 * 30 && !M.boxes[1].box; i++) m0.tick(1 / 30, false); return M.boxes[1].box; })();
+    if (box1) {
+      Object.assign(MS.player, box1.row.pos);
+      m0.events.length = 0;
+      m0.tick(1 / 30, false);
+      check('walking into a box raises boxTouch', m0.events.some(e => e.type === 'boxTouch' && e.group === 1));
+      const c2 = MS.coins;
+      check('the coin box pays 80 x the 5 s output', M.claimBox(1, false) && MS.coins === c2 + 80 * m0.extras.valuable());
+    }
+    const saved = JSON.parse(JSON.stringify(M.save()));
+    const m1 = new Sim(world, config, null, 0, saved);
+    check('meta state survives a save and reload', m1.meta.M.skin === 13 && m1.meta.skin(1).unlock && m1.meta.M.sign.length === 8);
+  }
+
+  // Phone chat (rules/chat.md): resident 101 of book 0, worked example K.
+  {
+    const c0 = new Sim(world, config, null, 0, null);
+    const Ch = c0.chat, T0 = c0.town;
+    T0.T.books.push(0); T0.T.houseLv[0] = 1;
+    c0.emit({ type: 'houseDone', id: 88000, book: 0 });
+    check('a built house sends its resident\'s friend request', Ch.requests().join() === '0' && Ch.hasRequest());
+    check('accepting queues story 1 (20001) as unread', Ch.accept(0) && Ch.topUnread() === 20001 && Ch.hasUnread());
+    const tick = sec => { for (let t = 0; t < sec; t += 1) c0.tick(1, false); };
+    tick(400);
+    check('no daily arrives while a chat is waiting', Ch.C.queue.length === 1);
+    Ch.enter(20001);
+    check('option B of a story starts locked', !Ch.select(20001, 2000102) && Ch.select(20001, 2000101));
+    check('option A (bad ending) has no reward', !Ch.reward(20001, 2000101));
+    T0.houseLv(0); T0.T.houseLv[0] = 2; c0.emit({ type: 'houseUp', book: 0 });
+    check('story 2 waits while story 1 has no good ending', !Ch.queued(20002) && (Ch.C.pending[0] || []).includes(2));
+    check('the good ending unlocks for an ad and gives photo 301', Ch.playOther(20001) && Ch.album(101).photos.join() === '301');
+    const cc = c0.state.coins, want = 50 * c0.extras.valuable() * 2;
+    check('its reward 501 pays 50 x the 5 s output, x2 doubled', Ch.claim(20001, 2000102, true) && c0.state.coins === cc + want && !Ch.claim(20001, 2000102, false),
+      `${c0.state.coins - cc} vs ${want}`);
+    check('completing story 1 with its good ending queues story 2 (house already level 2)', Ch.complete(20001) && !!Ch.queued(20002));
+    Ch.enter(20002); Ch.select(20002, Ch.opts(20002)[0].Id); Ch.playOther(20002); Ch.complete(20002);
+    tick(299);
+    check('no daily before 300 s after the last chat', Ch.C.queue.length === 2);
+    tick(2);
+    const d = Ch.C.queue[2] && Ch.conf(Ch.C.queue[2].conv);
+    check('a daily of resident 101 arrives 300 s after the last completed chat', d && d.ConversationType === 0 && d.BookId === 0);
+    const [oa, ob] = Ch.opts(d.Id);
+    Ch.enter(d.Id);
+    check('a daily: the first pick is free, the other answer costs an ad', Ch.select(d.Id, oa.Id) && Ch.other(d.Id).Id === ob.Id && Ch.playOther(d.Id));
+    const sp = c0.meta.buffs.speed || 0;
+    const rb = [oa, ob].find(o => Ch.reward(d.Id, o.Id).RewardType === 4);
+    check('a buff reward adds 300 s of speed x1.5', Ch.claim(d.Id, rb.Id, false) && c0.meta.buffs.speed === sp + 300);
+    T0.T.houseLv[0] = 3; c0.emit({ type: 'houseUp', book: 0 });
+    Ch.enter(20003); Ch.select(20003, Ch.opts(20003)[0].Id); Ch.playOther(20003);
+    const r0 = T0.ratio.income;
+    check('three photos complete the album: income ratio +0.02', Ch.album(101).bonus && Math.abs(Ch.albumBonus() - 0.02) < 1e-9, `${r0}`);
+    const re = new Sim(world, config, JSON.parse(JSON.stringify(c0.save())), 0, null);
+    check('chat state survives a reload and the album bonus is kept', re.chat.album(101).bonus && Math.abs(re.town.ratio.income - T0.ratio.income) < 1e-9);
+    const m2 = new Sim(world, config, null, 1, null);
+    check('chat is off on map 2', !m2.chat.on);
+  }
 
   // Maps 2 and 3 (rules/meta.md A): the same rules on their own data, map coin and level table; no tutorial or task bar.
   for (const [m, first, truck] of [[1, 21001, 25001], [2, 31001, 35001]]) {

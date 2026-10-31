@@ -6,8 +6,8 @@ import { setSlider } from './ui.js';
 
 // Nodes the original switches on at runtime for features this build does not have yet (resident coin, town, events,
 // phone, ad boxes, buffs...).
-const HIDE = ['residentCoin', 'tickets', 'hometown', 'sponCoin', 'PackData', 'packItem', 'SpecialOrderRoot', 'BtnEaster', 'BtnCoin',
-  'BtnPhone', 'buffRoot', 'guideTips', 'btnMoto', 'Pre_UIRedpoint',
+const HIDE = ['residentCoin', 'tickets', 'hometown', 'PackData', 'packItem', 'SpecialOrderRoot', 'BtnEaster', 'BtnCoin',
+  'guideTips', 'btnMoto', 'Pre_UIRedpoint',
   'imgAdd'];
 
 export function fmt(n) {
@@ -39,6 +39,29 @@ export class Hud {
     // Each map pays in its own coin (MapConf.CoinType): the counter shows that coin's icon.
     const coinImg = bar('coin') && bar('coin').querySelector('[data-name="Image"]');
     if (coinImg) this.ui.setSprite(coinImg, this.coinIcon);
+    // BtnPhone opens the phone; its red dot lights while an app has something to claim or unlock.
+    const phoneBtn = p.get('BtnPhone');
+    if (phoneBtn) {
+      phoneBtn.classList.add('btn');
+      phoneBtn.addEventListener('click', e => { e.stopPropagation(); this.onPhone && this.onPhone(); });
+      this.phoneDot = phoneBtn.querySelector('[data-name="Pre_UIRedpoint"]');
+      // BtnChat pops out of the phone while a friend request or an unread chat waits (GamingPanel.c:2290).
+      this.chatBtn = phoneBtn.querySelector('[data-name="BtnChat"]');
+      if (this.chatBtn) {
+        this.chatBtn.classList.add('btn');
+        this.chatBtn.addEventListener('click', e => { e.stopPropagation(); this.onChat && this.onChat(); });
+      }
+    }
+    // buffRoot shortcuts (sign-in, daily tasks, achievements) show only while they have something to claim.
+    this.shortcuts = [['BtnSign', () => this.sim.meta.signReady(), 'onSign'], ['BtnTask', () => this.sim.meta.tasksReady() > 0, 'onTasks'],
+      ['BtnAchieve', () => this.sim.meta.achievesReady() > 0, 'onAchieve']].map(([name, on, cb]) => {
+      const el = p.get(name);
+      if (!el) return null;
+      el.classList.add('btn');
+      el.addEventListener('click', e => { e.stopPropagation(); if (this[cb]) this[cb](); });
+      for (const d of el.querySelectorAll('[data-name="Pre_UIRedpoint"], [data-name="Pre_UIRedpoint"] *')) d.style.display = '';
+      return { el, on, name };
+    }).filter(Boolean);
     const mapBtn = p.get('MapSelectBtn');
     if (mapBtn) { mapBtn.classList.add('btn'); mapBtn.addEventListener('click', e => { e.stopPropagation(); this.onMaps && this.onMaps(); }); }
     this.gemText = bar('gem') && bar('gem').querySelector('[data-name="txtCoins"]');
@@ -79,11 +102,29 @@ export class Hud {
     el.textContent = s;
   }
 
+  updatePhone() {
+    if (!this.phoneDot) return;
+    const M = this.sim.meta;
+    const C = this.sim.chat, chatOn = C.on && (C.hasRequest() || C.hasUnread());
+    if (this.chatBtn && this.last.chat !== chatOn) { this.last.chat = chatOn; this.chatBtn.style.display = chatOn ? '' : 'none'; }
+    const on = chatOn || M.signReady() || M.tasksReady() > 0 || M.achievesReady() > 0 || M.skinsReady() > 0 || M.spinAdLeft() > 0 || M.M.spin > 0;
+    for (const s of this.shortcuts) {
+      const v = s.on();
+      if (this.last[s.name] !== v) { this.last[s.name] = v; s.el.style.display = v ? '' : 'none'; }
+    }
+    if (this.last.phone !== on) {
+      this.last.phone = on;
+      this.phoneDot.style.display = on ? '' : 'none';
+      for (const k of this.phoneDot.querySelectorAll('[data-name]')) k.style.display = on ? '' : 'none';
+    }
+  }
+
   update() {
     const S = this.sim.state;
     this.set(this.coinText, 'coin', fmt(S.coins));
     this.set(this.gemText, 'gem', fmt(S.gems));
-    this.set(this.spinText, 'spin', fmt(S.spin || 0));
+    this.set(this.spinText, 'spin', fmt(this.sim.meta.M.spin));
+    this.updatePhone();
     this.set(this.lv, 'lv', `${S.level}`);
     const need = this.sim.needExp();
     this.set(this.exp, 'exp', need ? `${S.exp}/${need}` : 'MAX');

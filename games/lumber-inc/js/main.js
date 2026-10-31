@@ -9,6 +9,10 @@ import { GameView } from './view/game.js';
 import { UI } from './view/ui.js';
 import { Hud } from './view/hud.js';
 import { Sound } from './view/sound.js';
+import { PhonePanel, SignPanel, OfflinePanel } from './view/phone.js';
+import { SpinPanel, SkinsPanel } from './view/gacha.js';
+import { TaskPanel, BoxPanel, ShopPanel } from './view/tasks.js';
+import { ChatPanel } from './view/chat.js';
 import { HirePanel, UpgradePanel, StarPanel, RentPanel, OrderPanel, SpecialPanel, ChoicePanel, ClaimPanel, TenantPanel, MapPanel } from './view/panels.js';
 import { TownView } from './view/town.js';
 import { GuideView } from './view/guide.js';
@@ -85,6 +89,9 @@ async function start() {
     json(`${ART}/ui/panels/employeeupgradepanel.json`), json(`${ART}/ui/panels/skinpanel.json`),
     json(`${ART}/ui/panels/upgradebuildingstarpanel.json`), json(`${ART}/ui/panels/bonuspanel.json`), json(`${ART}/ui/panels/ordermanpanel.json`),
     json(`${ART}/ui/panels/adboxpanel.json`), json(`${ART}/ui/panels/buildhousepanel.json`), json(`${ART}/ui/panels/mappanel.json`),
+    json(`${ART}/ui/panels/phonepanel.json`), json(`${ART}/ui/panels/signpanel.json`), json(`${ART}/ui/panels/offlinepanel.json`),
+    json(`${ART}/ui/panels/spineggpanel.json`), json(`${ART}/ui/panels/achievementpanel.json`), json(`${ART}/ui/panels/shoppanel.json`),
+    json(`${ART}/ui/panels/chatpaneluipanel.json`),
     document.fonts.load('20px LumberUI').catch(() => null)]);
   const [config, worldJson, worldGlb] = await Promise.all([
     json(`${BASE}data/config.json`), json(`${ART}/world${MAP + 1}/scene.json`), glb(`${ART}/world${MAP + 1}/geo.glb`)]);
@@ -93,7 +100,7 @@ async function start() {
   const world = describeWorld(worldJson);
   let save = null;
   try { save = fresh ? null : JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch (e) { save = null; }
-  const sim = new Sim(world, config, save, MAP);
+  const sim = new Sim(world, config, save, MAP, global.meta || null);
   if (global.gems != null) sim.state.gems = global.gems;
   setStage(8, 'geometry');
   render0();
@@ -133,7 +140,7 @@ async function start() {
   sim.shown = shown;
 
   const sound = new Sound(`${ART}/sfx`, await json(`${ART}/sfx/sfx.json`));
-  const [sprites, lang, gaming, empPanel, skinPanel, starPanel, bonusPanel, orderPanel, adPanel, housePanel, mapPanel] = await uiP;
+  const [sprites, lang, gaming, empPanel, skinPanel, starPanel, bonusPanel, orderPanel, adPanel, housePanel, mapPanel, phonePj, signPj, offlinePj, spinPj, taskPj, shopPj, chatPj] = await uiP;
   const ui = new UI(`${ART}/ui`, sprites, lang);
   const hud = new Hud(hudEl, ui, { gamingpanel: gaming }, sim, world, camera, MAP_LOOK.coin);
   // Standing in a hut's or the cabin's trigger opens its panel (EmployeeHouseCtrller / PlayerHouseCtrller show trigger).
@@ -155,11 +162,34 @@ async function start() {
   maps.onEnter = m => {
     persist();
     global.map = m;
-    try { localStorage.setItem(GLOBAL_KEY, JSON.stringify({ ...global, map: m, gems: sim.state.gems })); } catch (e) { /* storage off */ }
+    try { localStorage.setItem(GLOBAL_KEY, JSON.stringify({ ...global, map: m, gems: sim.state.gems, meta: sim.meta.save() })); } catch (e) { /* storage off */ }
     if (location.search) location.search = ''; else location.reload();
   };
   hud.onMaps = () => maps.open();
-  const panels = [hire, upgrade, star, bike, drone, order, superTimber, superCarrier, choice, claim, tenant, maps];
+  // Meta (rules/meta.md): the phone lists the apps (PhoneConf); each app is one panel.
+  const sign = new SignPanel(hudEl, ui, signPj, sim);
+  const offline = new OfflinePanel(hudEl, ui, offlinePj, sim);
+  const spin = new SpinPanel(hudEl, ui, spinPj, sim);
+  const skins = new SkinsPanel(hudEl, ui, skinPanel, sim);
+  const tasks = new TaskPanel(hudEl, ui, taskPj, sim);
+  const shop = new ShopPanel(hudEl, ui, shopPj, sim);
+  const box = new BoxPanel(hudEl, ui, adPanel, sim);
+  const chat = new ChatPanel(hudEl, ui, chatPj, sim);
+  skins.onUpgrade = () => { skins.close(); upgrade.open(); };
+  const phone = new PhonePanel(hudEl, ui, phonePj, sim, {
+    SkinPanel: () => skins.open(), SignPanel: () => sign.open(), SpinEggPanel: () => spin.open(), MapPanel: () => maps.open(),
+    ShopPanel: () => shop.open(), DailyTaskPanel: () => tasks.open(),
+    HomeTownBookPanel: () => { if (!townMode) hud.onTown(); },
+    ...(sim.chat.on ? { ChatPanelRootUIPanel: () => chat.open() } : {}),
+  });
+  hud.onPhone = () => phone.open();
+  // GamingPanel.OnClickChatSystem: a friend request opens the Notice tab, else the top unread chat.
+  hud.onChat = () => (sim.chat.hasRequest() ? chat.open('notice') : chat.open('chats', sim.chat.topUnread()));
+  hud.onSign = () => sign.open();
+  hud.onTasks = () => tasks.open('daily');
+  hud.onAchieve = () => tasks.open('achieve');
+  const panels = [hire, upgrade, star, bike, drone, order, superTimber, superCarrier, choice, claim, tenant, maps,
+    phone, sign, offline, spin, skins, tasks, shop, box, chat];
   // The town (rules/hometown.md): houses load after the game is up; BtnBuildTips switches to the town view, where a
   // drag pans the camera instead of walking.
   const houses = Promise.all([json(`${ART}/houses${MAP + 1}/scene.json`), glb(`${ART}/houses${MAP + 1}/geo.glb`)])
@@ -233,8 +263,8 @@ async function start() {
 
   const persist = () => {
     try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify(sim.save()));
-      localStorage.setItem(GLOBAL_KEY, JSON.stringify({ ...global, map: MAP, gems: sim.state.gems }));
+      localStorage.setItem(SAVE_KEY, JSON.stringify({ ...sim.save(), lastPlay: Date.now() }));
+      localStorage.setItem(GLOBAL_KEY, JSON.stringify({ ...global, map: MAP, gems: sim.state.gems, meta: sim.meta.save() }));
     } catch (e) { /* storage off */ }
   };
   setInterval(persist, 5000);
@@ -265,6 +295,7 @@ async function start() {
       if (e.type === 'zone') onZone(e.zone);
       else if (e.type === 'star') { star.open(e.id); game.syncModels(); }
       else if (e.type === 'machine') game.syncModels();
+      else if (e.type === 'boxTouch' && !panels.some(q => q.isOpen)) box.open(e.group);
     }
     for (const pnl of panels) if (pnl.isOpen) pnl.update();
     sim.events.length = 0;
@@ -294,8 +325,12 @@ async function start() {
     hud.update();
     requestAnimationFrame(frame);
   }
-  Object.assign(LI, { sim, world, game, hud, persist, hire, upgrade, star, guideView, town, choice, claim, tenant, maps, map: MAP, ready: true });
+  Object.assign(LI, { sim, world, game, hud, persist, hire, upgrade, star, guideView, town, choice, claim, tenant, maps, map: MAP,
+    phone, sign, offline, spin, skins, tasks, shop, box, chat, ready: true });
   setStage(0, 'ready');
+  // Closed-app income (OfflinePanel): 5+ minutes away from this map.
+  const away = !fresh && sim.meta.offline(save && save.lastPlay);
+  if (away) offline.open(away);
   requestAnimationFrame(frame);
 
   function render0() {

@@ -22,7 +22,15 @@ SETS = {
         "Pre_Wood1", "Pre_Wood2", "Pre_Wood3", "Pre_Peel_Wood1", "Pre_Peel_Wood2", "Pre_Wood_Block1",
         "Pre_Wood_Block2", "Pre_Holder")]
     + [B + "Maps/Box/Pre_Cash.prefab"]
-    + [B + "Vehicles/Truck/Pre_Car_Truck%d.prefab" % i for i in (1, 2, 3)],
+    + [B + "Vehicles/Truck/Pre_Car_Truck%d.prefab" % i for i in (1, 2, 3)]
+    + [B + "Maps/Box/" + n + ".prefab" for n in ("Pre_Gas1", "Pre_CashMap2", "Pre_CashMap3")]
+    + [B + "Characters/GleyPlugins/DeliveryVehiclesPack/Vespa/Pre_Vehicle01_Vespa.prefab"]
+    + [B + "Maps/Box/Pre_AdBox%d.prefab" % i for i in range(1, 7)],
+    # SkinConf / SkinBikeConf prefabs, loaded only when the player wears or rides one (rules/meta.md D).
+    "skins": [CH + "Skin/Pre_Skin_" + n + ".prefab" for n in (
+        "shitouren", "rabbit", "slipperman", "yangtuo", "astronaut", "banana", "woodman", "bearman", "footballplayer",
+        "burgerman", "warrior", "dianjuren", "ninja", "oldman", "policeman", "kingkong")]
+    + [B + "Maps/Carrier/Pre_Vehicle%02d.prefab" % i for i in range(2, 12)],
 }
 
 

@@ -121,7 +121,7 @@ export class Crew {
     if (gems) {
       if (S.gems < SPECIAL.gems) return false;
       S.gems -= SPECIAL.gems;
-    }
+    } else this.sim.emit({ type: 'ad' });
     const st = SPECIAL[kind];
     this.workers.push({ hut: b.id, spot: b.id, index: 0, row: null, kind, line: b.line, prefab: b.prefab, x: b.pos.x, z: b.pos.z, dir: 0,
       pack: new Pack(st.pack), speed: st.speed, dmg: st.dmg, left: SPECIAL.life, state: ST.SEARCH, rest: 0, target: null, tree: null,
@@ -222,7 +222,7 @@ export class Crew {
         w.chopping = true;
         w.dir = Math.atan2(t.pos.x - w.x, t.pos.z - w.z);
         w.timer += dt;
-        if (w.timer >= SWING) { w.timer -= SWING; sim.forest.hit(t, w.dmg, w, sim.events); }
+        if (w.timer >= SWING) { w.timer -= SWING; sim.forest.hit(t, w.dmg, w, sim.sink); }
         break;
       }
       case ST.CARRY: {

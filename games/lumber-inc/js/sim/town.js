@@ -57,6 +57,7 @@ export class Town {
     const b = this.next();
     if (!b || b.id !== id) return false;
     Object.assign(this.lot(id), { start: true, adv: !!adv, cur: 0 });
+    if (adv) this.sim.emit({ type: 'ad' });
     this.sim.addExp(adv ? this.book(b).UnlockStarAd : this.book(b).UnlockStarNormal);
     // Guide step 2000003 (WareHouseItemAddCommand:30,WoodSquare,5): the first build puts 5 squares in the store.
     if (!this.T.firstSquares && this.storeKey()) { this.T.firstSquares = true; this.sim.addStock(this.storeKey(), 5); }
@@ -73,7 +74,8 @@ export class Town {
     if (!b || !this.ready()) return false;
     const r = this.book(b);
     this.sim.earn(this.reward(rate), 'house');
-    this.T.spin += r.RewardSpinCoin * rate;
+    if (rate > 1) this.sim.emit({ type: 'ad' });
+    this.sim.meta.addSpin(r.RewardSpinCoin * rate);
     this.lot(b.id).finish = true;
     this.T.books.push(b.book);
     this.T.houseLv[b.book] = 1;
@@ -92,6 +94,7 @@ export class Town {
     if (!this.unlocked(book) || level < 1 || level > this.houseLv(book)) return false;
     const list = this.T.residents[book] || (this.T.residents[book] = []);
     if (level > list.length + 1) return false;
+    if (adv) this.sim.emit({ type: 'ad' });
     list[level - 1] = adv ? 1 : 0;
     this.recompute();
     this.sim.emit({ type: 'resident', book, level });
@@ -121,6 +124,8 @@ export class Town {
         if (row && RATIO[row.BuffType]) R[RATIO[row.BuffType]] += row.BuffVal;
       });
     }
+    // Completed chat albums add to the income ratio next to the residents (rules/chat.md 43).
+    if (this.sim.chat) R.income += this.sim.chat.albumBonus();
     this.ratio = R;
   }
 

@@ -48,6 +48,7 @@ export class Extras {
   rent(what) {
     const B = this.sim.state.bonus;
     B[what] = this.clock + RENT;
+    this.sim.emit({ type: 'ad' });
     B[what === 'bike' ? 'firstBike' : 'firstUav'] = true;
     this.sim.emit({ type: 'rent', what });
     this.sim.emit({ type: 'status' });
@@ -68,6 +69,7 @@ export class Extras {
   claimOrder(rate = 1) {
     const o = this.sim.state.order;
     if (!this.orderDone()) return false;
+    if (rate > 1) this.sim.emit({ type: 'ad' });
     this.sim.earn(this.orderReward(rate), 'order');
     o.need = o.cur = 0;
     o.done++;
@@ -175,7 +177,7 @@ export class Extras {
     } else if (d.phase === 'go') {
       if (d.tree.state !== TREE.STAND) { d.phase = 'rest'; return; }
       if (fly(d.tree.pos, UAV.hover)) {
-        sim.forest.hit(d.tree, UAV.hit, d, sim.events);
+        sim.forest.hit(d.tree, UAV.hit, d, sim.sink);
         d.phase = 'wait';
       }
     } else if (d.phase === 'wait') {
