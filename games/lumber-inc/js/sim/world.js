@@ -14,6 +14,8 @@ const KINDS = {
   ConstructionBuilding: 'construction',
 };
 export const COIN = 1;
+// Each map pays in its own coin item (MapConf.CoinType: Coin 1, MapCoin2 10001, MapCoin3 10002; rules/meta.md A1).
+const COINS = new Set([COIN, 10001, 10002]);
 const PLAYER_HITS = new Set([0, 2, 3, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 20, 21, 24, 30, 31]);
 
 export function describeWorld(scene) {
@@ -61,7 +63,7 @@ export function describeWorld(scene) {
       const b = {
         id: c.m_BuildingId, kind, cls, node: i, name: n.n, pos: pos(i), line: c.m_WorkerLine,
         lockRoot: ref(c.m_TrsLockBuild), activeRoot: ref(c.m_TrsActiveBuild), lockLvRoot: ref(c.m_TrsLockedPlayerLv),
-        cost: (c.m_UnlockNeeds || []).filter(u => u.m_Type === COIN).reduce((s, u) => s + u.m_Need, 0),
+        cost: (c.m_UnlockNeeds || []).filter(u => COINS.has(u.m_Type)).reduce((s, u) => s + u.m_Need, 0),
         lv: c.m_LockPlayerLv || 0, pre: c.m_PreBuildings || [], hasLock: !!c.m_HasLock, c,
       };
       // The unlock pad (Pre_LockFrame, spawned by BuildingCtrller) sits at LockOffset in the building's local XZ plane.
@@ -79,6 +81,8 @@ export function describeWorld(scene) {
         });
         b.inBox = volume(b.inNode); b.outBox = volume(b.outNode); b.moneyBox = volume(b.moneyNode);
         b.mainBox = volume(b.mainNode);
+        b.gasNode = ref(c.m_TransGassRoot);
+        b.gasBox = volume(b.gasNode);
         b.machine = descendants(i).find(j => comp(j, 'FactoryMachine_Debarker'));
       } else if (kind === 'warehouse') {
         Object.assign(b, { type: c.m_PropType, inNode: ref(c.m_TriggerEnter) || ref(c.m_TrsPointIn), showNode: ref(c.m_TriggerShow) });
@@ -104,6 +108,18 @@ export function describeWorld(scene) {
         b.moneyBox = volume(b.moneyNode);
       } else if (kind === 'area') {
         b.walls = (c.m_LockedWall || []).map(ref).filter(x => x != null);
+      } else if (kind === 'recycle' || kind === 'bike' || kind === 'uav') {
+        // rules/map1-extra.md 1, 3, 6: one function trigger; the bike station's model, the UAV's drone and money pile.
+        Object.assign(b, { funcNode: ref(c.m_TriggerFunc), modelNode: ref(c.m_ObjRoot) ?? ref(c.m_UavController), moneyNode: ref(c.m_TriggerMoney) });
+        b.funcBox = volume(b.funcNode);
+        b.moneyBox = volume(b.moneyNode);
+      } else if (kind === 'gas') {
+        Object.assign(b, { inNode: ref(c.m_TriggerEnter), outNode: ref(c.m_TriggerExit) });
+        b.inBox = volume(b.inNode);
+        b.outBox = volume(b.outNode);
+      } else if (kind === 'orderMan' || kind === 'special') {
+        Object.assign(b, { manNode: ref(c.m_TriggerMan), prefab: c.m_EmpPrefabName, workTypes: c.m_WorkTypes || [], workerType: c.m_WorkerType });
+        b.manBox = volume(b.manNode);
       } else if (kind === 'playerHouse') {
         b.showNode = ref(c.m_TriggerShow);
         b.showBox = volume(b.showNode);

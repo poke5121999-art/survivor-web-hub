@@ -99,8 +99,6 @@ export class Hud {
 
   // Price over each open pad and each research frame whose next star is open: coin icon + coins still to pay.
   updatePadTags() {
-    const w = this.host.clientWidth, h = this.host.clientHeight;
-    const v = new THREE.Vector3();
     const sim = this.sim;
     const spots = [];
     for (const b of this.world.buildings.values()) {
@@ -110,24 +108,72 @@ export class Hud {
       }
     }
     for (const { key, at, cost } of spots) {
-      let el = this.padTags.get(key);
-      if (cost == null) { if (el) el.style.display = 'none'; continue; }
-      if (!el) {
-        el = document.createElement('div');
-        el.className = 'tag price';
-        el.innerHTML = `<img src="${this.ui.url('common_money_icon_01')}" alt=""><span></span>`;
-        this.tags.appendChild(el);
-        this.padTags.set(key, el);
-      }
-      v.set(at.x, 0.2, at.z).project(this.camera);
-      const off = v.z > 1 || Math.abs(v.x) > 1.2 || Math.abs(v.y) > 1.2;
-      el.style.display = off ? 'none' : 'flex';
-      if (off) continue;
-      el.style.transform = `translate(${((v.x + 1) / 2) * w}px, ${((1 - v.y) / 2) * h}px) translate(-50%, -50%)`;
-      const left = cost - (sim.state.paid[key] || 0);
-      const span = el.lastChild;
-      const s = fmt(left);
-      if (span.textContent !== s) span.textContent = s;
+      this.worldTag(key, cost == null ? null : at, 'common_money_icon_01', cost == null ? '' : fmt(cost - (sim.state.paid[key] || 0)), 0.2);
     }
+    // Bubbles of the buildings around the line (rules/map1-extra.md): order progress, gas in the station, a machine's
+    // gas boost, the bike and drone rentals.
+    const X = sim.extras, S = sim.state;
+    const clock = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+    for (const b of this.world.buildings.values()) {
+      const on = sim.active(b.id);
+      if (b.kind === 'orderMan') {
+        const o = S.order;
+        this.worldTag('order', on && o.need > 0 ? b.manBox.middle : null, 'mainpanel_specailorder_icon', o.cur >= o.need ? '!' : `${o.cur}/${o.need}`, 2.6);
+      } else if (b.kind === 'gas') {
+        this.worldTag('gas', on ? b.pos : null, 'mainpanel_oil_progressbar_oil_icon', `${X.gasStock()}`, 3.2);
+      } else if (b.kind === 'factory') {
+        const left = on ? X.boostLeft(b.id) : 0;
+        this.worldTag(`boost${b.id}`, left > 0 ? b.pos : null, 'mainpanel_petroleum_icon', clock(left), 3.5);
+      } else if (b.kind === 'uav') {
+        this.worldTag('uav', on && X.flying ? b.pos : null, 'offlinepanel_clock_icon', clock(X.rentLeft('uav')), 3.5);
+      }
+    }
+    this.worldTag('bike', X.riding ? S.player : null, 'icon_vehicle_moto_small', clock(X.rentLeft('bike')), 2.6);
+    this.starEntry();
+  }
+
+  // FactoryResearchEntry (FactoryBuildingCtrller.EnterTriggerShow, rules/map1-extra.md 63): standing at a starred
+  // machine that still has the normal look shows a button that reopens the machine choice for its current star.
+  starEntry() {
+    const sim = this.sim, p = sim.state.player;
+    let id = null;
+    for (const b of this.world.buildings.values()) {
+      if (b.kind === 'factory' && b.mainBox && sim.stars(b.id) > 0 && !sim.state.starAd[b.id] && b.mainBox.contains(p, 0.3)) { id = b.id; break; }
+    }
+    if (!this.entry) {
+      const el = this.entry = document.createElement('div');
+      el.className = 'tag btn';
+      el.style.cssText = `pointer-events:auto;width:calc(144 * var(--u));height:calc(147 * var(--u));background:url("${this.ui.url('mainpanel_starup_btn')}") center/contain no-repeat;cursor:pointer`;
+      el.addEventListener('pointerdown', e => e.stopPropagation());
+      el.addEventListener('click', e => { e.stopPropagation(); if (el.dataset.id && this.onStarEntry) this.onStarEntry(+el.dataset.id); });
+      this.tags.appendChild(el);
+    }
+    const b = id != null && this.world.buildings.get(id);
+    this.entry.style.display = b ? 'block' : 'none';
+    if (!b) return;
+    this.entry.dataset.id = id;
+    const v = (this.v || (this.v = new THREE.Vector3())).set(b.pos.x, 4, b.pos.z).project(this.camera);
+    this.entry.style.transform = `translate(${((v.x + 1) / 2) * this.host.clientWidth}px, ${((1 - v.y) / 2) * this.host.clientHeight}px) translate(-50%, -50%)`;
+  }
+
+  // A world-anchored icon + text over `at` (null hides it), height y metres.
+  worldTag(key, at, icon, text, y) {
+    let el = this.padTags.get(key);
+    if (!at) { if (el) el.style.display = 'none'; return; }
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'tag price';
+      el.innerHTML = `<img src="${this.ui.url(icon)}" alt=""><span></span>`;
+      this.tags.appendChild(el);
+      this.padTags.set(key, el);
+    }
+    const v = this.v || (this.v = new THREE.Vector3());
+    v.set(at.x, y, at.z).project(this.camera);
+    const off = v.z > 1 || Math.abs(v.x) > 1.2 || Math.abs(v.y) > 1.2;
+    el.style.display = off ? 'none' : 'flex';
+    if (off) return;
+    el.style.transform = `translate(${((v.x + 1) / 2) * this.host.clientWidth}px, ${((1 - v.y) / 2) * this.host.clientHeight}px) translate(-50%, -50%)`;
+    const span = el.lastChild;
+    if (span.textContent !== text) span.textContent = text;
   }
 }

@@ -10,12 +10,21 @@ import { clone as skClone } from '../../vendor/SkeletonUtils.js';
 import { Rig } from './anim.js';
 
 // Height of one item on a stack (ItemConf BackPosOffset y, rules/chop-carry.md C6).
-const STEP_Y = { 10: 0.5, 101: 0.5, 102: 0.35, 1: 0.12 };
+const STEP_Y = { 10: 0.5, 101: 0.5, 102: 0.35, 1: 0.12, 1001: 0.38 };
 const TRUCKS = ['Pre_Car_Truck1', 'Pre_Car_Truck2', 'Pre_Car_Truck3'];
 
 export class GameView {
-  constructor({ scene3, view, world, sim, props, playerObj, rig, tool, padGizmo, chars, lib }) {
+  constructor({ scene3, view, world, sim, props, playerObj, rig, tool, padGizmo, chars, lib, machines }) {
     Object.assign(this, { scene3, view, world, sim, props, playerObj, rig, tool, lib });
+    // Research star looks (ResearchUpgradeConf.NewPrefab "normal|senior|senior2", FactoryRenderComponent.CheckMachineModel):
+    // the machine (Pre_MachineBase*) or truck house (Pre_vehicle_r*) baked in the scene is swapped for the star's prefab.
+    this.machineTpl = new Map((machines ? machines.root.children : []).map(o => [o.name, o]));
+    this.models = new Map();
+    for (const b of world.buildings.values()) {
+      if (!sim.research.has(b.id)) continue;
+      const i = world.descendants(b.node).find(j => /^Pre_(MachineBase|vehicle_r)/.test(world.nodes[j].n));
+      if (i != null) this.models.set(b.id, { base: view.objects[i], shown: null, name: '' });
+    }
     this.charTemplates = new Map((chars ? chars.root.children : []).map(o => [o.name, o]));
     this.workerViews = new Map();
     const W = new THREE.Vector3();
@@ -67,8 +76,19 @@ export class GameView {
         pileAt(`${b.id}:in`, b.inNode, () => props.item(b.type), { cols: 4, rows: 3, dx: 0.6, dz: 0.75, dy: STEP_Y[b.type] });
       } else if (b.kind === 'truckStation') {
         pileAt(`${b.id}:cash`, b.exitNode, () => props.make('Pre_Cash'), { cols: 2, rows: 2, dx: 0.55, dz: 0.8, dy: 0.12 });
+      } else if (b.kind === 'gas') {
+        // GasHouseCtrller draws up to 8 cans of what the station holds (WarehouseRenderComponent with 8).
+        pileAt(`${b.id}:gas`, b.outNode, () => props.item(1001), { cols: 2, rows: 2, dx: 0.5, dz: 0.5, dy: STEP_Y[1001] });
+      } else if (b.kind === 'uav') {
+        pileAt(`${b.id}:cash`, b.moneyNode, () => props.make('Pre_Cash'), { cols: 2, rows: 2, dx: 0.55, dz: 0.8, dy: 0.12 });
+        // The drone (ExternalControlledDrone) leaves the station and flies on its own.
+        const d = b.modelNode != null && view.objects[b.modelNode];
+        if (d) { scene3.attach(d); this.drone = { o: d, y: d.position.y, log: props.item(10) }; d.add(this.drone.log); this.drone.log.position.set(0, -0.6, 0); }
       }
     }
+    // A rented bike rides under the player (SkinBikeConf 100, Pre_Vehicle01_Vespa).
+    this.bike = props.make('Pre_Vehicle01_Vespa');
+    if (this.bike) { this.bike.visible = false; playerObj.add(this.bike); }
     this.trucks = new Map();
     this.flash = [];
   }
@@ -84,8 +104,31 @@ export class GameView {
       if (b.kind === 'area') for (const w of b.walls) set(w, s !== 'active');
       // GuideMoneyCtrller: the startup cash on its frame is there only until it is picked up.
       if (b.kind === 'guideMoney') set(b.activeRoot, !this.sim.state.guideMoney);
+      if (b.kind === 'bike') set(b.modelNode, s === 'active' && !this.sim.extras.riding);
       const pad = this.pads.get(b.id);
       if (pad) pad.visible = s === 'locked';
+    }
+  }
+
+  syncModels() {
+    const sim = this.sim;
+    for (const [id, m] of this.models) {
+      const r = sim.starRow(id);
+      const name = r ? (r.NewPrefab || '').split('|')[sim.state.starAd[id] || 0] : '';
+      if (name === m.name) continue;
+      const tpl = name && this.machineTpl.get(name);
+      if (m.shown) m.shown.parent.remove(m.shown);
+      m.shown = null;
+      m.name = name;
+      m.base.visible = !tpl;
+      if (!tpl) continue;
+      const o = tpl.clone(true);
+      o.position.copy(m.base.position);
+      o.quaternion.copy(m.base.quaternion);
+      o.scale.copy(m.base.scale);
+      o.visible = true;
+      m.base.parent.add(o);
+      m.shown = o;
     }
   }
 
@@ -148,6 +191,36 @@ export class GameView {
     }
   }
 
+  // Collected cash (BuildingMoneyComponent.GetMoney): each note flies 0.7-1.5 m out from 0.5 m above the pile's
+  // centre in 0.3 s while spinning to a random angle in 0.4 s, then is gone.
+  scatter(o) {
+    const g = o.parent;
+    const from = o.getWorldPosition(new THREE.Vector3());
+    const c = g.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0.5, 0));
+    const dir = from.clone().sub(c);
+    if (dir.lengthSq() < 1e-10) dir.set(0, 1, 0);
+    dir.normalize().multiplyScalar(0.7 + Math.random() * 0.8);
+    g.remove(o);
+    o.position.copy(from);
+    this.scene3.add(o);
+    const spin = new THREE.Euler(Math.random() * 5.2, Math.random() * 5.2, Math.random() * 6.3);
+    (this.flying || (this.flying = [])).push({ o, from, to: from.clone().add(dir), q0: o.quaternion.clone(),
+      q1: new THREE.Quaternion().setFromEuler(spin), t: 0 });
+  }
+
+  flyCash(dt) {
+    if (!this.flying) return;
+    this.flying = this.flying.filter(f => {
+      f.t += dt;
+      const k = Math.min(1, f.t / 0.3), e = 1 - (1 - k) ** 3;
+      f.o.position.lerpVectors(f.from, f.to, e);
+      f.o.quaternion.slerpQuaternions(f.q0, f.q1, Math.min(1, f.t / 0.4));
+      if (f.t < 0.4) return true;
+      this.scene3.remove(f.o);
+      return false;
+    });
+  }
+
   update(dt) {
     const sim = this.sim, S = sim.state;
     for (const [id, pad] of this.pads) {
@@ -187,9 +260,26 @@ export class GameView {
       const on = sim.active(+id);
       pile.group.visible = on;
       if (!on) continue;
-      if (kind === 'cash') pile.set(Math.min(16, Math.ceil((S.piles[id] || 0) / 20)));
+      if (kind === 'gas') { pile.set(Math.min(8, sim.extras.gasStock())); continue; }
+      if (kind === 'cash') {
+        const n = Math.min(16, Math.ceil((S.piles[id] || 0) / 20));
+        while (pile.items.length > n) this.scatter(pile.items.pop());
+        pile.set(n);
+      }
       else pile.set(sim.stock(key));
       void b;
+    }
+
+    this.flyCash(dt);
+    if (this.riding !== sim.extras.riding) { this.riding = sim.extras.riding; this.syncStatus(); }
+    if (this.bike) this.bike.visible = this.riding;
+    if (this.drone) {
+      const d = sim.extras.drone;
+      this.drone.o.visible = sim.active(-10) && !!d;
+      if (d) {
+        this.drone.o.position.set(d.x, this.drone.y + d.y, d.z);
+        this.drone.log.visible = d.carry;
+      }
     }
 
     // Trucks along their paths with the load on the bed.

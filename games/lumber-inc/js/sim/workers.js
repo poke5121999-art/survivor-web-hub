@@ -11,6 +11,7 @@ const SWING = 1.6667 / 2.5; // same chop clip as the player (TimberManSO chopWoo
 const IN_TICK = 0.05, OUT_TICK = 0.1; // BuildingItemEntrance / Exit components (CC F3)
 const REST = 1.0;
 const PEELED = 101, SQUARE = 102;
+const SPECIAL = { life: 180, gems: 10, timber: { speed: 3.4, pack: 12, dmg: 100 }, carrier: { speed: 4.0, pack: 12, dmg: 0 } };
 
 export class Crew {
   constructor(sim) {
@@ -109,7 +110,28 @@ export class Crew {
     this.workers.push(w);
   }
 
+  // Super workers (SpecialWorkerCtrller spots, A 23-26): hired for an ad or 10 gems, fixed stats, gone after 180 s.
+  special(spot) { return this.workers.find(w => w.spot === spot) || null; }
+
+  hireSpecial(b, gems) {
+    const S = this.sim.state;
+    const kind = b.workerType === 1 ? 'timber' : b.workerType === 2 ? 'carrier' : null;
+    if (!kind || this.special(b.id) || !this.sim.active(b.id)) return false;
+    if (gems) {
+      if (S.gems < SPECIAL.gems) return false;
+      S.gems -= SPECIAL.gems;
+    }
+    const st = SPECIAL[kind];
+    this.workers.push({ hut: b.id, spot: b.id, index: 0, row: null, kind, line: b.line, prefab: b.prefab, x: b.pos.x, z: b.pos.z, dir: 0,
+      pack: new Pack(st.pack), speed: st.speed, dmg: st.dmg, left: SPECIAL.life, state: ST.SEARCH, rest: 0, target: null, tree: null,
+      building: null, timer: 0, moving: false, stuck: 0, side: 0 });
+    this.sim.emit({ type: 'special', id: b.id });
+    return true;
+  }
+
   tick(dt) {
+    for (const w of this.workers) if (w.spot && (w.left -= dt) <= 0) { this.sim.forest.release(w); w.gone = true; }
+    if (this.workers.some(w => w.gone)) this.workers = this.workers.filter(w => !w.gone);
     for (const w of this.workers) {
       w.moving = false;
       w.chopping = false;

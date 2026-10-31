@@ -6,6 +6,8 @@ import { Pack } from './pack.js';
 import { apply, invertAffine, compose } from './math.js';
 import { Crew } from './workers.js';
 import { Missions } from './missions.js';
+import { Guide } from './guide.js';
+import { Extras } from './extras.js';
 
 export const PEELED = 101, SQUARE = 102;
 const STEP = 0.02; // fixed physics step: pads, deposits and pickups move one unit per step (EC 6, 13, 14)
@@ -61,6 +63,7 @@ export class Sim {
       stock: s.stock || {}, piles: s.piles || {}, firstTruck: s.firstTruck || false,
       player: s.player || { x: -1.5, z: 9, dir: 0 }, packItems: s.packItems || [], t: 0,
       hired: s.hired || {}, empLv: s.empLv || {}, stars: s.stars || {}, starAd: s.starAd || {}, task: s.task || 0,
+      guide: s.guide || null, clock: s.clock || 0, boost: s.boost, bonus: s.bonus, order: s.order,
     };
     this.events = [];
     this.up = new Upgrades(config, this.state.up);
@@ -85,6 +88,8 @@ export class Sim {
     settle(world, this.state);
     this.crew = new Crew(this);
     this.missions = new Missions(this);
+    this.guide = new Guide(this);
+    this.extras = new Extras(this);
     this.research = new Map();
     for (const r of config.ResearchUpgradeConf) {
       if (!this.research.has(r.BuildingId)) this.research.set(r.BuildingId, []);
@@ -131,7 +136,7 @@ export class Sim {
       if (this.state.gems < STAR_GEMS) return false;
       this.state.gems -= STAR_GEMS;
     }
-    this.state.starAd[id] = true;
+    this.state.starAd[id] = index; // which senior look (NewPrefab slot 1 or 2)
     this.addExp(r.StarAddAd);
     this.emit({ type: 'machine', id });
     return true;
@@ -224,6 +229,7 @@ export class Sim {
       s.exp -= row.NeedExp;
       s.level++;
       this.earn(row.LevelUpRewardCoin, 'levelUp');
+      if (row.LevelUpRewardGas) this.extras.addGas(row.LevelUpRewardGas); // into the gas station (X 13)
       this.emit({ type: 'levelUp', level: s.level, reward: row.LevelUpRewardCoin });
       this.recheck();
     }
@@ -244,7 +250,7 @@ export class Sim {
   }
 
   // ---- player
-  get speed() { return this.up.value(this.role.SpdUpId); }
+  get speed() { return this.up.value(this.role.SpdUpId) + this.extras.speedAdd(); }
   get damage() { return this.up.value(this.role.ToolUpId); }
 
   buyUpgrade(id) {
@@ -260,6 +266,12 @@ export class Sim {
 
   // ---- per frame
   tick(dt, moving, mover, shown) {
+    const e0 = this.events.length;
+    this.rules(dt, moving, mover, shown);
+    this.guide.tick(dt, this.events.slice(e0));
+  }
+
+  rules(dt, moving, mover, shown) {
     const s = this.state;
     s.t += dt;
     const p = s.player;
@@ -286,6 +298,7 @@ export class Sim {
       return took;
     }, ev);
     this.crew.tick(dt);
+    this.extras.tick(dt, p, idle);
     if (this.forest.near(p, 1.2).some(t => t.ground > 0)) {
       const got = this.forest.pickup(p, this.pack.room, ev);
       for (let i = 0; i < got; i++) this.pack.add(WOOD);
@@ -313,6 +326,10 @@ export class Sim {
     for (const b of this.world.buildings.values()) {
       if (!this.active(b.id)) continue;
       if ((b.kind === 'employeeHouse' || b.kind === 'playerHouse') && b.showBox && b.showBox.contains(p, 0.3)) return { id: b.id, kind: b.kind };
+      if (b.kind === 'bike' && !this.extras.riding && b.funcBox && b.funcBox.contains(p, 0.3)) return { id: b.id, kind: b.kind };
+      if (b.kind === 'uav' && !this.extras.flying && b.funcBox && b.funcBox.contains(p, 0.3)) return { id: b.id, kind: b.kind };
+      if (b.kind === 'special' && b.workerType !== 3 && !this.crew.special(b.id) && b.manBox && b.manBox.contains(p, 0.3)) return { id: b.id, kind: b.kind };
+      if (b.kind === 'orderMan' && this.extras.orderDone() && b.manBox && b.manBox.contains(p, 0.3)) return { id: b.id, kind: b.kind };
     }
     return null;
   }
@@ -377,6 +394,8 @@ export class Sim {
         }
       } else if (b.kind === 'truckStation') {
         if (b.exitBox && b.exitBox.contains(p, 0.4)) this.collect(b.id);
+      } else if (b.kind === 'uav') {
+        if (b.moneyBox && b.moneyBox.contains(p, 0.4)) this.collect(b.id);
       }
     }
   }
@@ -396,7 +415,8 @@ export class Sim {
 
   duration(id) {
     const c = this.factoryConf.get(id);
-    return Math.max(0.1, (c ? this.up.value(c.EfficiencyUpId) : 6) - this.starVal(id, 'ProdSpdAddUI'));
+    // A gas boost runs the machine 1.8x as fast (X 17).
+    return Math.max(0.1, ((c ? this.up.value(c.EfficiencyUpId) : 6) - this.starVal(id, 'ProdSpdAddUI')) / this.extras.speedMul(id));
   }
 
   // One machine per factory: every 0.5 s it takes one input if output has room, then feeds (0.5 s) and processes
@@ -488,7 +508,8 @@ export class Sim {
     const s = this.state;
     return { v: 1, coins: s.coins, gems: s.gems, exp: s.exp, level: s.level, bought: s.bought, paid: s.paid, up: s.up,
       guideMoney: s.guideMoney, stock: s.stock, piles: s.piles, firstTruck: s.firstTruck, player: s.player,
-      packItems: this.pack.items, hired: s.hired, empLv: s.empLv, stars: s.stars, starAd: s.starAd, task: s.task };
+      packItems: this.pack.items, hired: s.hired, empLv: s.empLv, stars: s.stars, starAd: s.starAd, task: s.task,
+      guide: s.guide, clock: s.clock, boost: s.boost, bonus: s.bonus, order: s.order };
   }
 }
 

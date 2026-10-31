@@ -1032,13 +1032,13 @@ window.HUB_GAMES = [
     id: "lumber-inc",
     title: "Lumber Inc",
     tagline: "Chặt cây, bóc vỏ, cắt gỗ vuông rồi bán cho xe tải để mở rộng xưởng gỗ.",
-    desc: "Làm lại Lumber Inc (Seikami) từ bản Android 0.6.5, chạy thẳng trên web bằng asset gốc. Nhặt vốn khởi đầu, mở máy bóc vỏ và cổng rừng, đứng cạnh cây để tự chặt, mang gỗ vào máy để lấy tiền, chuyển gỗ đã bóc sang máy cắt vuông rồi xếp vào kho để xe tải chở đi. Ô mở khoá, giá, thời gian máy và sức chở xe tải lấy từ luật của bản gốc. Kéo để đi, lưu trong trình duyệt.",
+    desc: "Làm lại Lumber Inc (Seikami) từ bản Android 0.6.5, chạy thẳng trên web bằng asset gốc. Có hướng dẫn tân thủ theo bản gốc: nhặt vốn, mở máy bóc vỏ và cổng rừng, chặt cây, mang gỗ vào máy lấy tiền, cắt gỗ vuông rồi bán cho xe tải. Thuê thợ chặt và thợ khuân, nâng ba lô và tốc độ, nâng sao máy để đổi sang máy xịn. Đổ xăng cho máy chạy nhanh, thuê xe máy và UAV, nhận đơn hàng đặc biệt, thuê thợ siêu cấp. Kéo để đi, lưu trong trình duyệt.",
     genre: "thu-gian",
     accent: "#c2853a",
-    en: { title: "Lumber Inc", tagline: "Chop trees, debark and square the logs, then sell to the trucks to grow your sawmill.", desc: "Lumber Inc (Seikami) remade from the Android 0.6.5 release, running straight in the browser on the original assets. Grab the startup cash, unlock the peeler and the forest gate, stand by a tree to chop it, feed logs to the machine for money, take the peeled logs to the squarer and stack the squares for the trucks. Pads, prices, machine times and truck loads follow the original rules. Drag to walk, saved in the browser." },
+    en: { title: "Lumber Inc", tagline: "Chop trees, debark and square the logs, then sell to the trucks to grow your sawmill.", desc: "Lumber Inc (Seikami) remade from the Android 0.6.5 release, running straight in the browser on the original assets. The original tutorial walks you through grabbing the startup cash, unlocking the peeler and the forest, chopping, feeding the machines and selling squares to the trucks. Hire lumberjacks and porters, upgrade your pack and speed, star up machines into senior ones, fuel machines with gas, rent the motorbike and the drone, fill special orders and hire super workers. Drag to walk, saved in the browser." },
     thumbnail: "assets/thumbnails/lumber-inc.png",
     path: "games/lumber-inc/index.html",
-    rev: "20261031c",
+    rev: "20261031d",
     // three.js r160 vendor, no build step; map 1 rebuilt from the APK (D:/lumber-ref) by games/lumber-inc/tools.
     // Bump rev with: node games/lumber-inc/tools/stamp.js <rev>. Kiểm: node test/lumber-inc-sim.js, test/lumber-inc-play.js.
     status: "available",

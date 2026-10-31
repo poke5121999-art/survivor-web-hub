@@ -28,10 +28,14 @@ const check = (name, ok, detail) => { console.log(`  ${ok ? 'PASS' : 'FAIL'} ${n
 
   check('opening statuses: peeler pad open, squarer hidden, forest open', sim.status(B(1001)) === 'locked' && sim.status(B(2001)) === 'hidden' && sim.active(1),
     `${sim.status(B(1001))}/${sim.status(B(2001))}`);
+  run(0.1);
+  check('guide 1 points at the start-up cash with its welcome line', sim.guide.show.arrow === 'GuideMoneyBuilding' && sim.guide.show.word === 'guide_word_1001',
+    `${sim.guide.show.arrow} ${sim.guide.show.word}`);
   at(B(-1).moneyBox.middle); run(0.2);
   check('guide money gives 50 once', S.coins === 50, `${S.coins}`);
   run(0.5);
   check('guide money not twice', S.coins === 50);
+  check('collecting the cash moves the guide to the peeler pad (guide 2)', sim.guide.show.arrow === 'Pre_Factory_Debarker1_1_1', sim.guide.show.arrow);
 
   at(B(1001).pad.center);
   const tPad = runUntil(() => sim.active(1001));
@@ -41,7 +45,11 @@ const check = (name, ok, detail) => { console.log(`  ${ok ? 'PASS' : 'FAIL'} ${n
   check('task 1 "Unlock 1 Peeler" is done and pays 20 when claimed', sim.missions.done() && sim.missions.claim() && S.coins === c1 + 20 && sim.missions.current.Order === 2);
   S.coins -= 20;
   check('forest gate 10011 and squarer 2001 pads open after the peeler', sim.status(B(10011)) === 'locked' && sim.status(B(2001)) === 'locked');
+  run(0.1);
+  check('after the peeler, guide 3 points at the forest gate', sim.guide.show.arrow === 'Pre_AreaCtrl0', sim.guide.show.arrow);
   at(B(10011).pad.center); runUntil(() => sim.active(10011));
+  run(0.1);
+  check('inside the forest the guide marks a tree to chop', sim.guide.show.tree && sim.guide.show.word === 'guide_word_3002');
   check('forest gate costs 5', sim.active(10011) && S.coins === 15, `${S.coins}`);
 
   // Chop: stand by a tree of forest 1 until the pack is full.
@@ -60,6 +68,7 @@ const check = (name, ok, detail) => { console.log(`  ${ok ? 'PASS' : 'FAIL'} ${n
     tFull += 1 / 30;
   }
   sim.events.length = 0;
+  check('with logs on the back the guide points at the peeler input', sim.guide.show.arrow === 'Pre_ProgressingFrame1_1_1', sim.guide.show.arrow);
   check('chopping fills the 10-log pack', sim.pack.count === 10, `${sim.pack.count} logs in ${tFull.toFixed(1)} s`);
   check('a felled tree turns into a stump', sim.forest.trees.some(t => t.state === 2));
 
@@ -153,6 +162,56 @@ const check = (name, ok, detail) => { console.log(`  ${ok ? 'PASS' : 'FAIL'} ${n
   check('senior machine for 10 gems: +5 per log, output cap 26', sim.chooseMachine(1001, 1) && S.gems === 0 && sim.income(1001) === 15 && sim.outCap(1001) === 26,
     `${sim.income(1001)}/${sim.outCap(1001)}`);
   check('the machine is chosen once per star', !sim.chooseMachine(1001, 2));
+
+  // Map buildings around the line (D:\lumber-ref\rules\map1-extra.md).
+  const X = sim.extras;
+  const { GAS } = await import(url('js/sim/extras.js'));
+  sim.pack.items.length = 0; sim.pack.add(10); sim.pack.add(101); sim.pack.add(102);
+  at(B(10005).funcBox.middle);
+  const tBin = runUntil(() => sim.pack.count === 0, 5);
+  check('the trash bin eats one carried log per 0.15 s and pays nothing', sim.pack.count === 0 && tBin > 0.3 && tBin < 0.5, `${tBin.toFixed(2)} s`);
+  S.bought[10102] = true; S.level = 4; sim.recheck();
+  check('the gas station opens at level 4 after the porter hut', sim.active(10006), sim.status(B(10006)));
+  const g0 = X.gasStock();
+  S.level = 4; S.exp = 0; sim.addExp(sim.needExp());
+  check('a level-up puts LevelUpRewardGas into the gas station', X.gasStock() === g0 + 2, `${g0} -> ${X.gasStock()}`);
+  at(B(10006).outBox.middle); run(1.2);
+  check('gas is taken from the station one per 0.5 s', sim.pack.countOf(GAS) === 2, `${sim.pack.countOf(GAS)}`);
+  const d0 = sim.duration(1001);
+  at(B(1001).gasBox.middle); run(4.1);
+  check('two gases on a machine stack 2 x 150 s of 1.8x speed (2 s apart)', Math.abs(X.boostLeft(1001) - 297.9) < 0.1 && Math.abs(sim.duration(1001) - d0 / 1.8) < 1e-9,
+    `${X.boostLeft(1001).toFixed(1)} s, ${d0} -> ${sim.duration(1001).toFixed(2)}`);
+  const v = sim.speed;
+  at(B(10002).funcBox.middle); run(0.1);
+  check('the bike station opens its panel', sim.zoneAt(S.player)?.kind === 'bike');
+  X.rent('bike');
+  check('a rented bike adds 5.5 to the speed for 180 s', sim.speed === v + 5.5 && Math.abs(X.rentLeft('bike') - 180) < 1e-6);
+  at({ x: 60, z: 60 }); run(181);
+  check('the bike goes back after 180 s', sim.speed === v);
+  check('an order appears after the 150 s cooldown at level 2+', X.orderOpen() && [10, 20].includes(S.order.need), `${S.order.need}`);
+  sim.pack.max = 40;
+  for (let i = 0; i < 20; i++) sim.pack.add(101);
+  at(B(-2).manBox.middle); run(0.5);
+  check('the order man takes logs of any kind until the order is full', X.orderDone(), `${S.order.cur}/${S.order.need}`);
+  const c2 = S.coins, want = 60 * X.valuable();
+  check('an order pays 60 x the 5 s output of all machines, the ad doubles it', X.claimOrder(2) && S.coins === c2 + 2 * want, `${want}`);
+  S.bought[10012] = true; sim.recheck();
+  X.rent('uav');
+  at({ x: 60, z: 60 });
+  const u0 = S.piles[-10] || 0, standing = sim.forest.trees.filter(t => t.state === 0).length;
+  run(40);
+  check('the drone fells trees and drops their logs for 2 x the 5 s output each', (S.piles[-10] || 0) > u0 && (S.piles[-10] - u0) % (2 * X.valuable()) === 0
+    && sim.forest.trees.filter(t => t.state === 0).length < standing, `pile ${S.piles[-10]}`);
+
+  // Super lumberjack spot 100001 (after the cabin and the lumberjack hut): 10 gems, 3.4 speed, 12 logs, 100 damage, 180 s.
+  S.gems = 10;
+  at(B(100001).manBox.middle); run(0.1);
+  check('the super worker spot opens its panel', sim.zoneAt(S.player)?.kind === 'special');
+  const sw = sim.crew.hireSpecial(B(100001), true) && sim.crew.special(100001);
+  check('a super lumberjack costs 10 gems and has the fixed stats', sw && S.gems === 0 && sw.speed === 3.4 && sw.pack.max === 12 && sw.dmg === 100);
+  check('only one super worker per spot', !sim.crew.hireSpecial(B(100001), false));
+  at({ x: 60, z: 60 }); run(181);
+  check('the super worker leaves after 180 s', !sim.crew.special(100001));
 
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);

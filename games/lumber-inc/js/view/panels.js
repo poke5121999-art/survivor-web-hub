@@ -4,6 +4,8 @@
 //                (UpgradePanelItem). The skin and bike tabs, the buff board and the capsule button are not in this build.
 // Both sit above the HUD in `host`, swallow pointerdown so the joystick underneath does not move, and close with the X.
 
+import { setSlider } from './ui.js';
+
 const fmt = n => {
   n = Math.floor(n);
   if (n < 1000) return `${n}`;
@@ -148,6 +150,7 @@ export class HirePanel extends Modal {
     const hired = crew.hired(this.hut);
     if (c.i < hired) crew.upgrade(c.row);
     else if (c.i === hired) crew.hire(this.hut);
+    if (this.onPress) this.onPress(c);
     this.update(true);
   }
 
@@ -351,5 +354,122 @@ export class StarPanel extends Modal {
       else if (it.index === 1) { this.cost(it.label, GEM, '10', 34); this.dim(it.btn, S.gems >= 10); }
       else this.cost(it.label, 'employeepanel_ads_icon', ui.t('Choice'), 34);
     }
+  }
+}
+
+// MotoProvidePanel / UAVProvidePanel (bonuspanel.json, rules/map1-extra.md 25-27, 43): rent the bike or the drone
+// for 180 s. The first rent is free, later ones cost an ad, which the hub grants at once. btnBuy is the permanent IAP
+// purchase, not in this build.
+export class RentPanel extends Modal {
+  constructor(host, ui, panelJson, sim, prefab, what) {
+    super(host, ui, panelJson, sim, prefab, ['btnBuy', 'GameObject (1)']);
+    this.what = what;
+  }
+
+  begin() {}
+
+  setup() {
+    const { p, sim } = this;
+    for (const n of ['BtnClose', 'Button']) {
+      const x = p.get(n);
+      if (x) { x.classList.add('btn'); x.addEventListener('click', e => { e.stopPropagation(); this.close(); }); }
+    }
+    const ad = p.get('btnAd');
+    ad.classList.add('btn');
+    ad.addEventListener('click', e => { e.stopPropagation(); sim.extras.rent(this.what); this.close(); });
+  }
+
+  update() {}
+}
+
+// OrderManPanel (ordermanpanel.json, rules/map1-extra.md 33-36): the special order's progress, time left and reward;
+// Claim pays 60 x the 5 s factory output, the ad button twice that. The resident coin reward belongs to the town.
+export class OrderPanel extends Modal {
+  constructor(host, ui, panelJson, sim) {
+    super(host, ui, panelJson, sim, 'OrderManPanel', ['D_1 (1)', 'Image (1)']);
+  }
+
+  begin() {}
+
+  setup() {
+    const { p, sim } = this;
+    const x = p.get('BtnClose');
+    x.classList.add('btn');
+    x.addEventListener('click', e => { e.stopPropagation(); this.close(); });
+    const press = (name, rate) => {
+      const b = p.get(name);
+      b.classList.add('btn');
+      b.addEventListener('click', e => { e.stopPropagation(); if (rate) sim.extras.claimOrder(rate); this.close(); });
+      return b;
+    };
+    this.claim = press('Pre_BtnClaim', 1);
+    this.ad = press('Pre_BtnAd', 2);
+    this.go = press('Pre_BtnGoTo', 0);
+  }
+
+  update(force) {
+    if (!this.isOpen || !this.p) return;
+    const { sim, p } = this, X = sim.extras, o = sim.state.order;
+    const left = Math.max(0, o.ends - X.clock);
+    const sig = `${o.cur}|${o.need}|${Math.floor(left)}`;
+    if (!force && sig === this.last) return;
+    this.last = sig;
+    const done = X.orderDone();
+    const t = p.find('Bg/need/content/D_1/Text (Legacy)');
+    if (t) t.innerHTML = `<span style="color:${done ? '#1DC967' : '#fff'}">${o.cur}</span>/${o.need}`;
+    const bar = p.find('Bg/need/content/D_1/Slider');
+    if (bar) setSlider(bar, o.need ? o.cur / o.need : 0);
+    this.show(p.find('Bg/need/content/D_1/Image'), done);
+    const time = p.find('Bg/Title/time');
+    if (time) time.textContent = `${Math.floor(left / 3600)}:${String(Math.floor(left / 60) % 60).padStart(2, '0')}:${String(Math.floor(left % 60)).padStart(2, '0')}`;
+    const r = p.find('Bg/Image/content/Image/txtReward');
+    if (r) r.textContent = fmt(X.orderReward());
+    this.show(this.claim, done);
+    this.show(this.ad, done);
+    this.show(this.go, !done);
+  }
+}
+
+// AdWorkerTimberPanel / AdWorkerCarrierPanel (adboxpanel.json, rules/workers-guide-camera.md A 23-26): hire the spot's
+// super worker for 180 s with its fixed tool, bag and speed; 10 gems or an ad (granted at once here).
+export class SpecialPanel extends Modal {
+  constructor(host, ui, panelJson, sim, prefab, title) {
+    super(host, ui, panelJson, sim, prefab, ['txtDesc (1)']);
+    this.title = title;
+  }
+
+  begin(id) { this.b = this.sim.world.buildings.get(id); }
+
+  setup() {
+    const { p, sim, ui } = this;
+    const x = p.get('BtnClose (1)');
+    x.classList.add('btn');
+    x.addEventListener('click', e => { e.stopPropagation(); this.close(); });
+    const d = p.get('txtDesc');
+    if (d) ui.text(d, d._node, ui.t(this.title));
+    const st = this.title === 'TimberAdTitle' ? { tool: 100, bag: 12, spd: 3.4 } : { bag: 12, spd: 4 };
+    for (const [k, v] of Object.entries(st)) {
+      const row = p.byName.get(k) ? p.get(k) : p.get(`${k} (1)`);
+      const val = row && row.querySelector('[data-name="val"]');
+      if (val) val.textContent = `${v}`;
+    }
+    const hire = (name, gems) => {
+      const b = p.get(name);
+      b.classList.add('btn');
+      b.addEventListener('click', e => { e.stopPropagation(); if (sim.crew.hireSpecial(this.b, gems)) this.close(); });
+      return b;
+    };
+    this.gemBtn = hire('Pre_BtnGem (1)', true);
+    hire('Pre_BtnAd', false);
+    const t = this.gemBtn.querySelector('[data-name="Text (Legacy)"]');
+    if (t) t.textContent = '10';
+  }
+
+  update(force) {
+    if (!this.isOpen || !this.p) return;
+    const sig = `${this.sim.state.gems}`;
+    if (!force && sig === this.last) return;
+    this.last = sig;
+    this.dim(this.gemBtn, this.sim.state.gems >= 10);
   }
 }
