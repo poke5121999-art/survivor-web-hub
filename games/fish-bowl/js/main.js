@@ -43,6 +43,10 @@ async function boot() {
   game.controllers = controllers;
   game.follow.invert = !!save.d.invert;
   bindMenus();
+  // Stay on the splash until the lightmaps (the room is unlit without them) and the menu art are in, at most 15 s.
+  const sprites = [...new Set(Object.values(layout.screens).flatMap(sc => sc.nodes.map(n => n.image && n.image.sprite).filter(Boolean)))];
+  const img = name => new Promise(res => { const i = new Image(); i.onload = i.onerror = res; i.src = `art/ui/sprites/${name}.webp`; });
+  await Promise.race([Promise.all([stage.lightmapsReady, ...sprites.map(img)]), new Promise(res => setTimeout(res, 15000))]);
   progress(1);
   loop();
   const lv = +q.get('level');

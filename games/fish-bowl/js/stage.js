@@ -48,6 +48,7 @@ export async function createStage(canvas, { base = '.', onProgress = () => {} } 
   return {
     renderer, scene, camera, post, env, player, find, lib, cine, vcams, timelines, timeline, sfx, resize,
     ready: Promise.all([env.ready, player.ready]),
+    lightmapsReady: Promise.all([env.lightmapsReady, player.lightmapsReady]),
     update(t) { env.update(t); player.update(t); },
     render() { post.render(scene, camera); },
   };

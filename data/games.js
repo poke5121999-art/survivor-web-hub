@@ -1165,7 +1165,7 @@ window.HUB_GAMES = [
     en: { title: "Fish Bowl", tagline: "Be the goldfish: clear the moss, chase the food, leap out and find your way back.", desc: "Aquarium Land: My Fish Bowl 3D remade from the Android 1.10 release with its original assets. Timmy is away: pull moss out of the air pump, chase the feeder, leap out of the tank on the arrow's cue to the food jar, flop back to the tank before your strength runs out, then draw shapes to win over a new friend. Five levels with cutscenes." },
     thumbnail: "assets/thumbnails/fish-bowl.png",
     path: "games/fish-bowl/index.html",
-    rev: "20261031a",
+    rev: "20261031b",
     // three.js r160 vendor, no build step; scene, timelines, cameras and gameplay data exported from the APK (D:/fishlife-ref) by
     // games/fish-bowl/tools (README). Bump rev with: node games/fish-bowl/tools/stamp.js <rev>. Kiểm: node test/fish-bowl-play.js <1..5>.
     status: "available",

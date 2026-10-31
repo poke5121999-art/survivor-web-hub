@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 /* Plays games/fish-bowl through its real input path and checks every level can be finished.
+// FB_URL=<Pages index.html> runs it against the deployed game.
    node test/fish-bowl-play.js [level 1-5] [outDir]
    Level 1 starts from the menu (Play -> level select -> Play) and skips the intro through the HUD skip panel; levels
    2-5 start with ?level=N&skip=1. A bot steers with the same Input API the HUD drives (stick, up/down, taps) and level
@@ -124,8 +125,8 @@ async function drawShapes(page, shoot) {
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
-  const srv = await serve();
-  const base = `http://localhost:${srv.address().port}/games/fish-bowl/index.html`;
+  const srv = process.env.FB_URL ? null : await serve();
+  const base = process.env.FB_URL || `http://localhost:${srv.address().port}/games/fish-bowl/index.html`;
   const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
   const kill = setTimeout(() => { console.log('FAIL timeout'); process.exit(2); }, 170000);
   try {
@@ -208,7 +209,7 @@ async function drawShapes(page, shoot) {
   } finally {
     clearTimeout(kill);
     await browser.close();
-    srv.close();
+    if (srv) srv.close();
   }
   console.log(fail ? `${fail} FAIL` : 'all PASS');
   process.exit(fail ? 1 : 0);

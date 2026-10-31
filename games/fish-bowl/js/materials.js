@@ -43,10 +43,13 @@ export function texture(base, name, { lq = true, lightmap = false } = {}) {
   return entry;
 }
 
+// Lightmaps start from their 16 px preview too: without any image a lightmapped surface renders black, and on Pages the
+// five full maps arrive seconds after the scene is up.
 export function lightmapTexture(ctx, i) {
-  const e = texture(ctx.texBase, ctx.textures[ctx.lightmaps[i]].name, { lq: false, lightmap: true });
+  const e = texture(ctx.texBase, ctx.textures[ctx.lightmaps[i]].name, { lightmap: true });
   e.tex.channel = 1;
   ctx.pending.push(e.full);
+  ctx.lmPending.push(e.full);
   return e.tex;
 }
 

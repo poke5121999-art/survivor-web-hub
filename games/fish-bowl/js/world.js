@@ -49,7 +49,7 @@ export async function loadWorld(id, { base }) {
   ]);
   const geoMeshes = [];
   gltf.scene.children.forEach(o => { geoMeshes[+o.name.slice(1)] = o; });
-  const ctx = { texBase: `${base}/art/tex`, textures: scene.textures, lightmaps: scene.lightmaps || [], cache: new Map(), pending: [], time: { value: 0 } };
+  const ctx = { texBase: `${base}/art/tex`, textures: scene.textures, lightmaps: scene.lightmaps || [], cache: new Map(), pending: [], lmPending: [], time: { value: 0 } };
   const entries = scene.materials;
   const objects = scene.nodes.map(n => {
     const o = new THREE.Group();
@@ -143,5 +143,6 @@ export async function loadWorld(id, { base }) {
     materials: ctx.cache,
     update: t => { ctx.time.value = t; },
     ready: Promise.all(ctx.pending), // full-resolution textures; the 16 px previews show before this resolves
+    lightmapsReady: Promise.all(ctx.lmPending),
   };
 }
