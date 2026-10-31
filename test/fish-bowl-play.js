@@ -157,7 +157,7 @@ async function drawShapes(page, shoot) {
       await shoot('0-levels');
       // fresh save: the first-run Tutorial overlay covers the level select and its own Play opens level 1
       await clickUi(page, 'levels', 'Tutorial/Play');
-      await waitFor(page, () => window.__fb.state === 'timeline', null, 10000);
+      await waitFor(page, () => window.__fb.state === 'timeline', null, 90000); // a cold load shows the LOADING panel until lightmaps and HUD sprites arrive
       await sleep(2500);
       await waitFor(page, () => !window.__fb.game.fading, null, 5000); // the Fader blocks the HUD while the level fades in
       await shoot('1-intro');
