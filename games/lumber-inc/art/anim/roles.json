@@ -1,0 +1,595 @@
+{
+ "CarryManSO": {
+  "idle": [
+   "male_knight_01@breathing_idle",
+   "male_knight_01@happy_idle",
+   "male_knight_01@neutral_idle"
+  ],
+  "walk": "male_knight_01@walking",
+  "run": "female_outfit_fan_01@running2",
+  "ridingIdle": "male_knight_01@ridding",
+  "riding": "male_knight_01@ridding",
+  "ridingSkin": [
+   "male_knight_01@ridding"
+  ],
+  "ridingSkinIdle": [
+   "male_knight_01@ridding"
+  ],
+  "rest": [],
+  "chopWood": {
+   "clip": "male_outfit_fan_08@standing_melee_attack_horizontal",
+   "speed": 2.5,
+   "fade": 0.25,
+   "start": 0.0,
+   "events": [
+    0.735
+   ],
+   "names": [
+    "EvtGetWood"
+   ]
+  },
+  "chopRock": {
+   "clip": "male_outfit_fan_08@standing_melee_attack_downward",
+   "speed": 2.5,
+   "fade": 0.25,
+   "start": 0.0,
+   "events": [
+    0.675
+   ],
+   "names": [
+    "EvtGetRock"
+   ]
+  },
+  "chopDrill": {
+   "clip": "male_outfit_fan_08@gunplay",
+   "speed": 2.5,
+   "fade": 0.25,
+   "start": 0.0,
+   "events": [
+    0.6083
+   ],
+   "names": [
+    "EvtGetRock"
+   ]
+  },
+  "chopSaw": {
+   "clip": null,
+   "speed": 1.0,
+   "fade": 0.25,
+   "start": 0,
+   "events": [],
+   "names": []
+  }
+ },
+ "NewManSO": {
+  "idle": [
+   "male_knight_01@breathing_idle",
+   "male_knight_01@happy_idle",
+   "male_knight_01@neutral_idle"
+  ],
+  "walk": "male_knight_01@walking",
+  "run": "male_knight_01@runningfast",
+  "ridingIdle": "male_knight_01@ridingIdle",
+  "riding": "male_knight_01@ridding",
+  "ridingSkin": [
+   "male_knight_01@ridding",
+   "skateboarding_(1)mixamo.com",
+   "male_knight_01@runforward",
+   "skateboardingmixamo.com",
+   "male_knight_01@bored",
+   "male_knight_01@ridding",
+   "male_knight_01@sitting_idle2"
+  ],
+  "ridingSkinIdle": [
+   "male_knight_01@ridingIdle",
+   "skateboardingmixamo.com",
+   "male_knight_01@bored",
+   "skateboardingmixamo.com",
+   "male_knight_01@bored",
+   "male_knight_01@ridding",
+   "male_knight_01@sitting_idle2"
+  ],
+  "rest": [],
+  "chopWood": {
+   "clip": "male_outfit_fan_08@standing_melee_attack_horizontal",
+   "speed": 2.5,
+   "fade": 0.25,
+   "start": 0.0,
+   "events": [
+    0.735
+   ],
+   "names": [
+    "EvtGetWood"
+   ]
+  },
+  "chopRock": {
+   "clip": "male_outfit_fan_08@standing_melee_attack_downward",
+   "speed": 2.5,
+   "fade": 0.25,
+   "start": 0.0,
+   "events": [
+    0.675
+   ],
+   "names": [
+    "EvtGetRock"
+   ]
+  },
+  "chopDrill": {
+   "clip": "male_outfit_fan_08@gunplay",
+   "speed": 2.5,
+   "fade": 0.25,
+   "start": 0.0,
+   "events": [
+    0.6432
+   ],
+   "names": [
+    "EvtGetRock"
+   ]
+  },
+  "chopSaw": {
+   "clip": null,
+   "speed": 1.0,
+   "fade": 0.25,
+   "start": 0,
+   "events": [],
+   "names": []
+  }
+ },
+ "ResidentManSO": {
+  "idle": [
+   "male_knight_01@breathing_idle",
+   "male_knight_01@happy_idle",
+   "male_knight_01@neutral_idle"
+  ],
+  "walk": "male_knight_01@walking",
+  "run": "male_knight_01@walking",
+  "ridingIdle": "male_knight_01@ridding",
+  "riding": "male_knight_01@ridding",
+  "ridingSkin": [
+   "male_knight_01@ridding"
+  ],
+  "ridingSkinIdle": [
+   "male_knight_01@ridding"
+  ],
+  "rest": [
+   "male_outfit_fan_08@arm_stretching",
+   "male_outfit_fan_08@drunk_idle_variation",
+   "male_outfit_fan_01@salute",
+   "male_outfit_fan_01@pointing_forward",
+   "male_knight_01@waving",
+   "male_knight_01@talking",
+   "male_knight_01@standing_greeting",
+   "male_knight_01@sitting_idle2",
+   "male_knight_01@shoulder_rubbing",
+   "male_knight_01@offensive_idle",
+   "male_knight_01@looking_around",
+   "male_knight_01@jumping_jacks",
+   "male_knight_01@joyful_jump",
+   "male_knight_01@dwarf_idle2",
+   "male_knight_01@dwarf_idle",
+   "male_knight_01@bored"
+  ],
+  "chopWood": {
+   "clip": "male_outfit_fan_08@standing_melee_attack_horizontal",
+   "speed": 2.5,
+   "fade": 0.25,
+   "start": 0.0,
+   "events": [
+    0.735
+   ],
+   "names": [
+    "EvtGetWood"
+   ]
+  },
+  "chopRock": {
+   "clip": "male_outfit_fan_08@standing_melee_attack_downward",
+   "speed": 2.5,
+   "fade": 0.25,
+   "start": 0.0,
+   "events": [
+    0.675
+   ],
+   "names": [
+    "EvtGetRock"
+   ]
+  },
+  "chopDrill": {
+   "clip": "male_outfit_fan_08@gunplay",
+   "speed": 2.5,
+   "fade": 0.25,
+   "start": 0.0,
+   "events": [
+    0.6083
+   ],
+   "names": [
+    "EvtGetRock"
+   ]
+  },
+  "chopSaw": {
+   "clip": null,
+   "speed": 1.0,
+   "fade": 0.25,
+   "start": 0,
+   "events": [],
+   "names": []
+  }
+ },
+ "Robot1SO": {
+  "idle": [
+   null,
+   null
+  ],
+  "walk": null,
+  "run": null,
+  "ridingIdle": null,
+  "riding": null,
+  "ridingSkin": [
+   null
+  ],
+  "ridingSkinIdle": [
+   null
+  ],
+  "rest": [],
+  "chopWood": {
+   "clip": null,
+   "speed": 2.5,
+   "fade": 0.25,
+   "start": 0.0,
+   "events": [
+    0.735
+   ],
+   "names": [
+    "EvtGetWood"
+   ]
+  },
+  "chopRock": {
+   "clip": null,
+   "speed": 2.5,
+   "fade": 0.25,
+   "start": 0.0,
+   "events": [
+    0.675
+   ],
+   "names": [
+    "EvtGetRock"
+   ]
+  },
+  "chopDrill": {
+   "clip": null,
+   "speed": 2.5,
+   "fade": 0.25,
+   "start": 0.0,
+   "events": [
+    0.6294
+   ],
+   "names": [
+    "EvtGetRock"
+   ]
+  },
+  "chopSaw": {
+   "clip": null,
+   "speed": 1.0,
+   "fade": 0.25,
+   "start": 0,
+   "events": [],
+   "names": []
+  }
+ },
+ "Robot2SO": {
+  "idle": [
+   null,
+   null
+  ],
+  "walk": null,
+  "run": null,
+  "ridingIdle": null,
+  "riding": null,
+  "ridingSkin": [
+   null
+  ],
+  "ridingSkinIdle": [
+   null
+  ],
+  "rest": [],
+  "chopWood": {
+   "clip": null,
+   "speed": 2.5,
+   "fade": 0.25,
+   "start": 0.0,
+   "events": [
+    0.735
+   ],
+   "names": [
+    "EvtGetWood"
+   ]
+  },
+  "chopRock": {
+   "clip": null,
+   "speed": 2.5,
+   "fade": 0.25,
+   "start": 0.0,
+   "events": [
+    0.675
+   ],
+   "names": [
+    "EvtGetRock"
+   ]
+  },
+  "chopDrill": {
+   "clip": null,
+   "speed": 2.5,
+   "fade": 0.25,
+   "start": 0.0,
+   "events": [
+    0.6294
+   ],
+   "names": [
+    "EvtGetRock"
+   ]
+  },
+  "chopSaw": {
+   "clip": null,
+   "speed": 1.0,
+   "fade": 0.25,
+   "start": 0,
+   "events": [],
+   "names": []
+  }
+ },
+ "Robot3SO": {
+  "idle": [
+   null,
+   null
+  ],
+  "walk": null,
+  "run": null,
+  "ridingIdle": null,
+  "riding": null,
+  "ridingSkin": [
+   null
+  ],
+  "ridingSkinIdle": [
+   null
+  ],
+  "rest": [],
+  "chopWood": {
+   "clip": null,
+   "speed": 2.5,
+   "fade": 0.25,
+   "start": 0.0,
+   "events": [
+    0.735
+   ],
+   "names": [
+    "EvtGetWood"
+   ]
+  },
+  "chopRock": {
+   "clip": null,
+   "speed": 2.5,
+   "fade": 0.25,
+   "start": 0.0,
+   "events": [
+    0.675
+   ],
+   "names": [
+    "EvtGetRock"
+   ]
+  },
+  "chopDrill": {
+   "clip": null,
+   "speed": 2.5,
+   "fade": 0.25,
+   "start": 0.0,
+   "events": [
+    0.6294
+   ],
+   "names": [
+    "EvtGetRock"
+   ]
+  },
+  "chopSaw": {
+   "clip": null,
+   "speed": 1.0,
+   "fade": 0.25,
+   "start": 0,
+   "events": [],
+   "names": []
+  }
+ },
+ "SkinManSO": {
+  "idle": [
+   "body_type_23@happy_idle",
+   "male_main_rig@looking_around"
+  ],
+  "walk": "male_main_rig@walking",
+  "run": "anim_peasant_run",
+  "ridingIdle": "sitting_(3)mixamo.com",
+  "riding": "sitting_(3)mixamo.com",
+  "ridingSkin": [
+   "sitting_(3)mixamo.com",
+   "skateboarding_(2)mixamo.com",
+   "anim_peasant_run",
+   "skateboarding_(3)mixamo.com",
+   "male_main_rig@looking_around",
+   "sitting_(3)mixamo.com",
+   "sitting_idlemixamo.com"
+  ],
+  "ridingSkinIdle": [
+   "sitting_(3)mixamo.com",
+   "skateboarding_(3)mixamo.com",
+   "male_main_rig@looking_around",
+   "skateboarding_(3)mixamo.com",
+   "male_main_rig@looking_around",
+   "sitting_(3)mixamo.com",
+   "sitting_idlemixamo.com"
+  ],
+  "rest": [],
+  "chopWood": {
+   "clip": "villager@axe-chopping01",
+   "speed": 2.5,
+   "fade": 0.25,
+   "start": 0.0,
+   "events": [
+    0.735
+   ],
+   "names": [
+    "EvtGetWood"
+   ]
+  },
+  "chopRock": {
+   "clip": null,
+   "speed": 2.5,
+   "fade": 0.25,
+   "start": 0.0,
+   "events": [
+    0.675
+   ],
+   "names": [
+    "EvtGetRock"
+   ]
+  },
+  "chopDrill": {
+   "clip": null,
+   "speed": 2.5,
+   "fade": 0.25,
+   "start": 0.0,
+   "events": [
+    0.6432
+   ],
+   "names": [
+    "EvtGetRock"
+   ]
+  },
+  "chopSaw": {
+   "clip": null,
+   "speed": 1.0,
+   "fade": 0.25,
+   "start": 0,
+   "events": [],
+   "names": []
+  }
+ },
+ "TimberManSO": {
+  "idle": [
+   "male_knight_01@breathing_idle",
+   "male_knight_01@happy_idle",
+   "male_knight_01@neutral_idle"
+  ],
+  "walk": "male_knight_01@walking",
+  "run": "female_outfit_fan_01@run_with_sword",
+  "ridingIdle": "male_knight_01@ridding",
+  "riding": "male_knight_01@ridding",
+  "ridingSkin": [
+   "male_knight_01@ridding"
+  ],
+  "ridingSkinIdle": [
+   "male_knight_01@ridding"
+  ],
+  "rest": [],
+  "chopWood": {
+   "clip": "male_outfit_fan_08@standing_melee_attack_horizontal",
+   "speed": 2.5,
+   "fade": 0.25,
+   "start": 0.0,
+   "events": [
+    0.735
+   ],
+   "names": [
+    "EvtGetWood"
+   ]
+  },
+  "chopRock": {
+   "clip": "male_outfit_fan_08@standing_melee_attack_downward",
+   "speed": 2.5,
+   "fade": 0.25,
+   "start": 0.0,
+   "events": [
+    0.675
+   ],
+   "names": [
+    "EvtGetRock"
+   ]
+  },
+  "chopDrill": {
+   "clip": "male_outfit_fan_08@gunplay",
+   "speed": 1.0,
+   "fade": 0.25,
+   "start": 0.0,
+   "events": [
+    0.5943
+   ],
+   "names": [
+    "EvtGetRock"
+   ]
+  },
+  "chopSaw": {
+   "clip": "male_knight_01@wheelbarrow_dump",
+   "speed": 1.0,
+   "fade": 0.25,
+   "start": 0.0,
+   "events": [
+    0.6169
+   ],
+   "names": [
+    "EvtGetRock"
+   ]
+  }
+ },
+ "TimberSpecialManSO": {
+  "idle": [
+   "body_type_23@happy_idle"
+  ],
+  "walk": "male_main_rig@walking",
+  "run": "anim_peasant_run",
+  "ridingIdle": null,
+  "riding": null,
+  "ridingSkin": [],
+  "ridingSkinIdle": [],
+  "rest": [],
+  "chopWood": {
+   "clip": "villager@axe-chopping01",
+   "speed": 2.5,
+   "fade": 0.25,
+   "start": 0.0,
+   "events": [
+    0.735
+   ],
+   "names": [
+    "EvtGetWood"
+   ]
+  },
+  "chopRock": {
+   "clip": "villager@axe-chopping01",
+   "speed": 2.5,
+   "fade": 0.25,
+   "start": 0.0,
+   "events": [
+    0.675
+   ],
+   "names": [
+    "EvtGetRock"
+   ]
+  },
+  "chopDrill": {
+   "clip": "male_outfit_fan_08@gunplay",
+   "speed": 2.5,
+   "fade": 0.25,
+   "start": 0.0,
+   "events": [
+    0.6294
+   ],
+   "names": [
+    "EvtGetRock"
+   ]
+  },
+  "chopSaw": {
+   "clip": null,
+   "speed": 1.0,
+   "fade": 0.25,
+   "start": 0,
+   "events": [],
+   "names": []
+  }
+ }
+}

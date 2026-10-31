@@ -1029,6 +1029,22 @@ window.HUB_GAMES = [
     tags: ["Việt Nam", "Quản lý", "Màn dọc"]
   },
   {
+    id: "lumber-inc",
+    title: "Lumber Inc",
+    tagline: "Chặt cây, bóc vỏ, cắt gỗ vuông rồi bán cho xe tải để mở rộng xưởng gỗ.",
+    desc: "Làm lại Lumber Inc (Seikami) từ bản Android 0.6.5, chạy thẳng trên web bằng asset gốc. Nhặt vốn khởi đầu, mở máy bóc vỏ và cổng rừng, đứng cạnh cây để tự chặt, mang gỗ vào máy để lấy tiền, chuyển gỗ đã bóc sang máy cắt vuông rồi xếp vào kho để xe tải chở đi. Ô mở khoá, giá, thời gian máy và sức chở xe tải lấy từ luật của bản gốc. Kéo để đi, lưu trong trình duyệt.",
+    genre: "thu-gian",
+    accent: "#c2853a",
+    en: { title: "Lumber Inc", tagline: "Chop trees, debark and square the logs, then sell to the trucks to grow your sawmill.", desc: "Lumber Inc (Seikami) remade from the Android 0.6.5 release, running straight in the browser on the original assets. Grab the startup cash, unlock the peeler and the forest gate, stand by a tree to chop it, feed logs to the machine for money, take the peeled logs to the squarer and stack the squares for the trucks. Pads, prices, machine times and truck loads follow the original rules. Drag to walk, saved in the browser." },
+    thumbnail: "assets/thumbnails/lumber-inc.png",
+    path: "games/lumber-inc/index.html",
+    rev: "20261031a",
+    // three.js r160 vendor, no build step; map 1 rebuilt from the APK (D:/lumber-ref) by games/lumber-inc/tools.
+    // Bump rev with: node games/lumber-inc/tools/stamp.js <rev>. Kiểm: node test/lumber-inc-sim.js, test/lumber-inc-play.js.
+    status: "available",
+    tags: ["Quản lý", "Nhàn rỗi", "Màn dọc"]
+  },
+  {
     id: "mini-mart-coop",
     title: "My Mini Mart Together",
     tagline: "My Mini Mart chơi chung tới 4 người: cùng trồng, xếp kệ, đứng quầy, chung một túi tiền.",

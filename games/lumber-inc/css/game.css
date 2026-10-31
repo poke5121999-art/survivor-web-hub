@@ -1,0 +1,21 @@
+/* Portrait phone frame (CanvasScaler reference 750x1334), centred on wider windows; --sw is the frame width and every
+   size that would use the window width uses it instead (casual-farm-portrait-frame). */
+:root { --sw: min(100vw, calc(100vh * 750 / 1334)); --u: calc(var(--sw) / 750); }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #18210f; touch-action: none; user-select: none; -webkit-user-select: none; }
+#stage { position: fixed; top: 0; bottom: 0; left: calc((100vw - var(--sw)) / 2); width: var(--sw); overflow: hidden; background: #7cc04a; }
+#game { display: block; width: 100%; height: 100%; transition: filter 0.6s ease-out; }
+#hud { position: absolute; inset: 0; pointer-events: none; font-family: system-ui, sans-serif; color: #fff; }
+#hud img { -webkit-user-drag: none; }
+.hub { position: fixed; left: 3vw; bottom: calc(env(safe-area-inset-bottom) + 2vh); padding: 0.3em 0.8em; border-radius: 0.6em;
+  background: rgba(0, 0, 0, 0.35); color: #fff; font: 16px system-ui, sans-serif; text-decoration: none; z-index: 5; }
+@font-face { font-family: LumberUI; src: url(../art/ui/font.ttf); }
+#hud { font-family: LumberUI, system-ui, sans-serif; }
+.ui-root .n { position: absolute; box-sizing: border-box; pointer-events: none; }
+.ui-root .n.t { font-family: LumberUI, sans-serif; white-space: pre-wrap; line-height: 1.1; display: flex; overflow: visible; }
+.ui-root .n.btn { pointer-events: auto; cursor: pointer; }
+.ui-root .n.btn:active { transform: scale(0.95); }
+.tags { position: absolute; inset: 0; pointer-events: none; }
+.tag { position: absolute; left: 0; top: 0; white-space: nowrap; will-change: transform; }
+.tag.price { display: flex; align-items: center; gap: 0.2em; font-size: calc(30 * var(--u)); font-weight: 700; color: #fff;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.45), 0 0 3px rgba(0, 0, 0, 0.5); }
+.tag.price img { width: 1.3em; height: 1.3em; object-fit: contain; }
