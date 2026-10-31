@@ -7,7 +7,7 @@ import { setSlider } from './ui.js';
 // Nodes the original switches on at runtime for features this build does not have yet (resident coin, town, events,
 // phone, ad boxes, buffs...).
 const HIDE = ['residentCoin', 'tickets', 'hometown', 'sponCoin', 'PackData', 'packItem', 'SpecialOrderRoot', 'BtnEaster', 'BtnCoin',
-  'BtnPhone', 'buffRoot', 'guideTips', 'btnMoto', 'MapSelectBtn', 'Pre_UIRedpoint',
+  'BtnPhone', 'buffRoot', 'guideTips', 'btnMoto', 'Pre_UIRedpoint',
   'imgAdd'];
 
 export function fmt(n) {
@@ -20,8 +20,8 @@ export function fmt(n) {
 }
 
 export class Hud {
-  constructor(host, ui, panels, sim, world, camera) {
-    Object.assign(this, { host, ui, panels, sim, world, camera });
+  constructor(host, ui, panels, sim, world, camera, coinIcon = 'common_money_icon_01') {
+    Object.assign(this, { host, ui, panels, sim, world, camera, coinIcon });
     this.tags = document.createElement('div');
     this.tags.className = 'tags';
     host.appendChild(this.tags);
@@ -36,6 +36,11 @@ export class Hud {
     const p = this.panel;
     const bar = name => p.get(name);
     this.coinText = bar('coin') && bar('coin').querySelector('[data-name="txtCoins"]');
+    // Each map pays in its own coin (MapConf.CoinType): the counter shows that coin's icon.
+    const coinImg = bar('coin') && bar('coin').querySelector('[data-name="Image"]');
+    if (coinImg) this.ui.setSprite(coinImg, this.coinIcon);
+    const mapBtn = p.get('MapSelectBtn');
+    if (mapBtn) { mapBtn.classList.add('btn'); mapBtn.addEventListener('click', e => { e.stopPropagation(); this.onMaps && this.onMaps(); }); }
     this.gemText = bar('gem') && bar('gem').querySelector('[data-name="txtCoins"]');
     this.spinText = bar('sponCoin') && bar('sponCoin').querySelector('[data-name="txtCoins"]');
     this.lv = p.get('TxtLv');
@@ -116,7 +121,7 @@ export class Hud {
       }
     }
     for (const { key, at, cost } of spots) {
-      this.worldTag(key, cost == null ? null : at, 'common_money_icon_01', cost == null ? '' : fmt(cost - (sim.state.paid[key] || 0)), 0.2);
+      this.worldTag(key, cost == null ? null : at, this.coinIcon, cost == null ? '' : fmt(cost - (sim.state.paid[key] || 0)), 0.2);
     }
     // Bubbles of the buildings around the line (rules/map1-extra.md): order progress, gas in the station, a machine's
     // gas boost, the bike and drone rentals.

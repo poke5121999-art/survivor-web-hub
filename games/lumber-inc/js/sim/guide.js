@@ -28,7 +28,7 @@ export class Guide {
   constructor(sim) {
     this.sim = sim;
     const c = sim.config;
-    this.guides = c.guide;
+    this.guides = sim.mapId ? [] : c.guide; // the tutorial points at map-1 objects
     this.steps = new Map();
     for (const r of c.guide_step) {
       if (!this.steps.has(r.GuideID)) this.steps.set(r.GuideID, []);

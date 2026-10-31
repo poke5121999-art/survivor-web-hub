@@ -9,7 +9,7 @@ import { GameView } from './view/game.js';
 import { UI } from './view/ui.js';
 import { Hud } from './view/hud.js';
 import { Sound } from './view/sound.js';
-import { HirePanel, UpgradePanel, StarPanel, RentPanel, OrderPanel, SpecialPanel, ChoicePanel, ClaimPanel, TenantPanel } from './view/panels.js';
+import { HirePanel, UpgradePanel, StarPanel, RentPanel, OrderPanel, SpecialPanel, ChoicePanel, ClaimPanel, TenantPanel, MapPanel } from './view/panels.js';
 import { TownView } from './view/town.js';
 import { GuideView } from './view/guide.js';
 import { describeWorld } from './sim/world.js';
@@ -20,8 +20,20 @@ const params = new URLSearchParams(location.search);
 const V = new URL(import.meta.url).searchParams.get('v') || '';
 const BASE = new URL('../', import.meta.url).href;
 const ART = `${BASE}art`;
-const SAVE_KEY = 'lumber-inc-v1';
 const fresh = params.has('fresh');
+// Three maps (MapConf, rules/meta.md A): each keeps its own save (buildings, coins of its own coin item, level, town);
+// gems and the current map are shared. Map 0 keeps the first save key so older saves load as map 0.
+const GLOBAL_KEY = 'lumber-inc-v1-global';
+const saveKey = m => (m ? `lumber-inc-v1-m${m}` : 'lumber-inc-v1');
+const readJson = k => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } };
+const global = (!fresh && readJson(GLOBAL_KEY)) || { map: 0 };
+const MAP = Math.max(0, Math.min(2, +(params.get('map') ?? global.map) || 0));
+const SAVE_KEY = saveKey(MAP);
+const MAP_LOOK = [
+  { coin: 'common_money_icon_01', cash: 'Pre_Cash' },
+  { coin: 'mainpanel_money_icon_blue', cash: 'Pre_CashMap2' },
+  { coin: 'common_icon_money_red', cash: 'Pre_CashMap3' },
+][MAP];
 const json = url => fetch(`${url}?v=${V}`).then(r => {
   if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`);
   return r.json();
@@ -72,16 +84,17 @@ async function start() {
   const uiP = Promise.all([json(`${ART}/ui/sprites.json`), json(`${ART}/ui/lang-en.json`), json(`${ART}/ui/panels/gamingpanel.json`),
     json(`${ART}/ui/panels/employeeupgradepanel.json`), json(`${ART}/ui/panels/skinpanel.json`),
     json(`${ART}/ui/panels/upgradebuildingstarpanel.json`), json(`${ART}/ui/panels/bonuspanel.json`), json(`${ART}/ui/panels/ordermanpanel.json`),
-    json(`${ART}/ui/panels/adboxpanel.json`), json(`${ART}/ui/panels/buildhousepanel.json`),
+    json(`${ART}/ui/panels/adboxpanel.json`), json(`${ART}/ui/panels/buildhousepanel.json`), json(`${ART}/ui/panels/mappanel.json`),
     document.fonts.load('20px LumberUI').catch(() => null)]);
   const [config, worldJson, worldGlb] = await Promise.all([
-    json(`${BASE}data/config.json`), json(`${ART}/world1/scene.json`), glb(`${ART}/world1/geo.glb`)]);
+    json(`${BASE}data/config.json`), json(`${ART}/world${MAP + 1}/scene.json`), glb(`${ART}/world${MAP + 1}/geo.glb`)]);
   const view = buildWorld(worldJson, worldGlb, { texBase: `${ART}/tex` });
   scene3.add(view.root);
   const world = describeWorld(worldJson);
   let save = null;
   try { save = fresh ? null : JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch (e) { save = null; }
-  const sim = new Sim(world, config, save);
+  const sim = new Sim(world, config, save, MAP);
+  if (global.gems != null) sim.state.gems = global.gems;
   setStage(8, 'geometry');
   render0();
 
@@ -108,7 +121,7 @@ async function start() {
   const pad = worldJson.materials.find(m => m.gizmo && m.gizmo.kind === 'SizableFrameLocked2');
   const machines = buildWorld(machJson, machGlb, { texBase: `${ART}/tex` });
   machines.root.children.forEach(o => o.position.set(0, 0, 0));
-  const game = new GameView({ scene3, view, world, sim, props, playerObj, rig, tool, padGizmo: pad.gizmo, chars, lib, machines });
+  const game = new GameView({ scene3, view, world, sim, props, playerObj, rig, tool, padGizmo: pad.gizmo, chars, lib, machines, cash: MAP_LOOK.cash });
   game.syncStatus();
   game.syncModels();
   const mover = new Mover(world);
@@ -120,9 +133,9 @@ async function start() {
   sim.shown = shown;
 
   const sound = new Sound(`${ART}/sfx`, await json(`${ART}/sfx/sfx.json`));
-  const [sprites, lang, gaming, empPanel, skinPanel, starPanel, bonusPanel, orderPanel, adPanel, housePanel] = await uiP;
+  const [sprites, lang, gaming, empPanel, skinPanel, starPanel, bonusPanel, orderPanel, adPanel, housePanel, mapPanel] = await uiP;
   const ui = new UI(`${ART}/ui`, sprites, lang);
-  const hud = new Hud(hudEl, ui, { gamingpanel: gaming }, sim, world, camera);
+  const hud = new Hud(hudEl, ui, { gamingpanel: gaming }, sim, world, camera, MAP_LOOK.coin);
   // Standing in a hut's or the cabin's trigger opens its panel (EmployeeHouseCtrller / PlayerHouseCtrller show trigger).
   const hire = new HirePanel(hudEl, ui, empPanel, sim);
   const upgrade = new UpgradePanel(hudEl, ui, skinPanel, sim);
@@ -137,10 +150,19 @@ async function start() {
   const claim = new ClaimPanel(hudEl, ui, housePanel, sim);
   const tenant = new TenantPanel(hudEl, ui, housePanel, sim);
   claim.onClaim = book => tenant.open(book, 1);
-  const panels = [hire, upgrade, star, bike, drone, order, superTimber, superCarrier, choice, claim, tenant];
+  // MapPanel: map N opens once map N-1 reached player level 15; entering one saves and reloads on it.
+  const maps = new MapPanel(hudEl, ui, mapPanel, sim, MAP, m => (m === MAP ? sim.state.level : (readJson(saveKey(m)) || {}).level || 0));
+  maps.onEnter = m => {
+    persist();
+    global.map = m;
+    try { localStorage.setItem(GLOBAL_KEY, JSON.stringify({ ...global, map: m, gems: sim.state.gems })); } catch (e) { /* storage off */ }
+    if (location.search) location.search = ''; else location.reload();
+  };
+  hud.onMaps = () => maps.open();
+  const panels = [hire, upgrade, star, bike, drone, order, superTimber, superCarrier, choice, claim, tenant, maps];
   // The town (rules/hometown.md): houses load after the game is up; BtnBuildTips switches to the town view, where a
   // drag pans the camera instead of walking.
-  const houses = Promise.all([json(`${ART}/houses1/scene.json`), glb(`${ART}/houses1/geo.glb`)])
+  const houses = Promise.all([json(`${ART}/houses${MAP + 1}/scene.json`), glb(`${ART}/houses${MAP + 1}/geo.glb`)])
     .then(([j, g]) => buildWorld(j, g, { texBase: `${ART}/tex` }));
   const town = new TownView({ scene3, view, world, sim, hud, ui, houses });
   town.onBuild = id => choice.open(id);
@@ -209,7 +231,12 @@ async function start() {
     return { x: (right.x * sx + fwd.x * sy) / n, z: (right.y * sx + fwd.y * sy) / n };
   }
 
-  const persist = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(sim.save())); } catch (e) { /* storage off */ } };
+  const persist = () => {
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify(sim.save()));
+      localStorage.setItem(GLOBAL_KEY, JSON.stringify({ ...global, map: MAP, gems: sim.state.gems }));
+    } catch (e) { /* storage off */ }
+  };
   setInterval(persist, 5000);
   addEventListener('pagehide', persist);
   document.addEventListener('visibilitychange', () => { if (document.hidden) persist(); });
@@ -267,7 +294,7 @@ async function start() {
     hud.update();
     requestAnimationFrame(frame);
   }
-  Object.assign(LI, { sim, world, game, hud, persist, hire, upgrade, star, guideView, town, choice, claim, tenant, ready: true });
+  Object.assign(LI, { sim, world, game, hud, persist, hire, upgrade, star, guideView, town, choice, claim, tenant, maps, map: MAP, ready: true });
   setStage(0, 'ready');
   requestAnimationFrame(frame);
 

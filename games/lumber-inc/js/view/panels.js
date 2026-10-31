@@ -596,3 +596,48 @@ export class TenantPanel extends Modal {
 
   update() {}
 }
+
+// MapPanel (mappanel.json, rules/meta.md A2-A5): the three maps. A map is open once the map before it reached its
+// UnlockPlayerLv (15); the current one is marked; tapping another open map enters it. levelOf(m) reads each map's save.
+export class MapPanel extends Modal {
+  constructor(host, ui, panelJson, sim, current, levelOf) {
+    super(host, ui, panelJson, sim, 'MapPanel', ['BtnReward', 'newMap', 'newMap (1)', 'hometown', 'tickets', 'residentCoin', 'sponCoin']);
+    Object.assign(this, { current, levelOf });
+  }
+
+  begin() {}
+
+  open_(m) { return m === 0 || this.levelOf(m - 1) >= this.sim.config.MapConf[m].UnlockPlayerLv; }
+
+  setup() {
+    const { p, sim, ui } = this;
+    this.bar();
+    const x = p.find('Scroll View/btnClose');
+    if (x) { x.classList.add('btn'); x.addEventListener('click', e => { e.stopPropagation(); this.close(); }); }
+    sim.config.MapConf.forEach((conf, m) => {
+      const el = p.find(`Content/map${m}`);
+      if (!el) return;
+      const q = n => el.querySelector(`[data-name="${n}"]`);
+      q('txtTitle').textContent = ui.t(conf.MapName);
+      this.sprite(q('mapIcon'), conf.IconName);
+      const can = this.open_(m);
+      this.show(q('currentMap'), m === this.current);
+      this.show(q('locked'), !can);
+      this.show(q('content'), !can);
+      const need = el.querySelector('[data-name="content"] [data-name="Text (Legacy)"]');
+      if (need && m > 0) need.textContent = `${ui.t(sim.config.MapConf[m - 1].MapName)}`;
+      const lv = el.querySelector('[data-name="star"] [data-name="star"]');
+      if (lv) lv.textContent = `${conf.UnlockPlayerLv}`;
+      el.classList.add('btn');
+      el.addEventListener('click', e => { e.stopPropagation(); if (can && m !== this.current && this.onEnter) this.onEnter(m); });
+    });
+  }
+
+  update(force) {
+    if (!this.isOpen || !this.p) return;
+    const sig = `${Math.floor(this.sim.state.coins)}|${this.sim.state.gems}`;
+    if (!force && sig === this.last) return;
+    this.last = sig;
+    this.barText();
+  }
+}

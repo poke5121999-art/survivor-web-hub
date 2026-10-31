@@ -3,7 +3,8 @@
 export class Missions {
   constructor(sim) {
     this.sim = sim;
-    this.list = [...sim.config.MissionConf].sort((a, b) => a.Order - b.Order);
+    // MissionConf has no map column and names map-1 buildings only: the task bar runs on map 1.
+    this.list = sim.mapId ? [] : [...sim.config.MissionConf].sort((a, b) => a.Order - b.Order);
     this.type = new Map(sim.config.BuildingConf.map(r => [r.Id, r.BuildingTypeId]));
     sim.state.task = sim.state.task || 0;
   }

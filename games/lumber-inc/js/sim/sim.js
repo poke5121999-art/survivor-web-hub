@@ -74,7 +74,7 @@ export class Sim {
     this.state.packItems = this.pack.items;
     this.playerRole = { pack: this.pack };
     this.forest = new Forest(world.trees);
-    this.levels = config.PlayerLevelUpgradeConf.filter(r => r.MapId === 0);
+    this.levels = config.PlayerLevelUpgradeConf.filter(r => r.MapId === mapId);
     this.factoryConf = new Map(config.FactoryConf.map(r => [r.Id, r]));
     this.pads = new Map();
     for (const b of world.buildings.values()) if (b.pad) this.pads.set(b.id, padFrame(b.pad));

@@ -14,7 +14,7 @@ const STEP_Y = { 10: 0.5, 101: 0.5, 102: 0.35, 1: 0.12, 1001: 0.38 };
 const TRUCKS = ['Pre_Car_Truck1', 'Pre_Car_Truck2', 'Pre_Car_Truck3'];
 
 export class GameView {
-  constructor({ scene3, view, world, sim, props, playerObj, rig, tool, padGizmo, chars, lib, machines }) {
+  constructor({ scene3, view, world, sim, props, playerObj, rig, tool, padGizmo, chars, lib, machines, cash = 'Pre_Cash' }) {
     Object.assign(this, { scene3, view, world, sim, props, playerObj, rig, tool, lib });
     // Research star looks (ResearchUpgradeConf.NewPrefab "normal|senior|senior2", FactoryRenderComponent.CheckMachineModel):
     // the machine (Pre_MachineBase*) or truck house (Pre_vehicle_r*) baked in the scene is swapped for the star's prefab.
@@ -71,16 +71,16 @@ export class GameView {
       if (b.kind === 'factory') {
         pileAt(`${b.id}:in`, b.inNode, () => props.item(b.typeIn), { cols: 3, rows: 2, dx: 0.75, dz: 1.0, dy: STEP_Y[b.typeIn] });
         pileAt(`${b.id}:out`, b.outNode, () => props.item(b.typeOut), { cols: 3, rows: 2, dx: 0.75, dz: 1.0, dy: STEP_Y[b.typeOut] });
-        pileAt(`${b.id}:cash`, b.moneyNode, () => props.make('Pre_Cash'), { cols: 2, rows: 2, dx: 0.55, dz: 0.8, dy: 0.12 });
+        pileAt(`${b.id}:cash`, b.moneyNode, () => props.make(cash), { cols: 2, rows: 2, dx: 0.55, dz: 0.8, dy: 0.12 });
       } else if (b.kind === 'warehouse') {
         pileAt(`${b.id}:in`, b.inNode, () => props.item(b.type), { cols: 4, rows: 3, dx: 0.6, dz: 0.75, dy: STEP_Y[b.type] });
       } else if (b.kind === 'truckStation') {
-        pileAt(`${b.id}:cash`, b.exitNode, () => props.make('Pre_Cash'), { cols: 2, rows: 2, dx: 0.55, dz: 0.8, dy: 0.12 });
+        pileAt(`${b.id}:cash`, b.exitNode, () => props.make(cash), { cols: 2, rows: 2, dx: 0.55, dz: 0.8, dy: 0.12 });
       } else if (b.kind === 'gas') {
         // GasHouseCtrller draws up to 8 cans of what the station holds (WarehouseRenderComponent with 8).
         pileAt(`${b.id}:gas`, b.outNode, () => props.item(1001), { cols: 2, rows: 2, dx: 0.5, dz: 0.5, dy: STEP_Y[1001] });
       } else if (b.kind === 'uav') {
-        pileAt(`${b.id}:cash`, b.moneyNode, () => props.make('Pre_Cash'), { cols: 2, rows: 2, dx: 0.55, dz: 0.8, dy: 0.12 });
+        pileAt(`${b.id}:cash`, b.moneyNode, () => props.make(cash), { cols: 2, rows: 2, dx: 0.55, dz: 0.8, dy: 0.12 });
         // The drone (ExternalControlledDrone) leaves the station and flies on its own.
         const d = b.modelNode != null && view.objects[b.modelNode];
         if (d) { scene3.attach(d); this.drone = { o: d, y: d.position.y, log: props.item(10) }; d.add(this.drone.log); this.drone.log.position.set(0, -0.6, 0); }

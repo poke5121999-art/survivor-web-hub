@@ -250,6 +250,26 @@ const check = (name, ok, detail) => { console.log(`  ${ok ? 'PASS' : 'FAIL'} ${n
   run(90);
   check('the builder brings squares from the build store to the site', T.lot(88001).cur > w0, `${w0} -> ${T.lot(88001).cur}`);
 
+  // Maps 2 and 3 (rules/meta.md A): the same rules on their own data, map coin and level table; no tutorial or task bar.
+  for (const [m, first, truck] of [[1, 21001, 25001], [2, 31001, 35001]]) {
+    const w2 = describeWorld(JSON.parse(fs.readFileSync(path.join(G, `art/world${m + 1}/scene.json`), 'utf8')));
+    const s2 = new Sim(w2, config, null, m);
+    const B2 = id => w2.buildings.get(id);
+    check(`map ${m + 1}: 29 player levels, no tutorial, no task bar`, s2.levels.length === 29 && !s2.guide.guides.length && !s2.missions.current);
+    check(`map ${m + 1}: the first peeler opens free or on its pad`, s2.active(first) || s2.status(B2(first)) === 'locked', s2.status(B2(first)));
+    s2.state.coins = 1e6; s2.state.level = 10;
+    for (let k = 0; k < 8; k++) { for (const b of w2.buildings.values()) if (s2.status(b) === 'locked' && b.cost < 1e5) s2.state.bought[b.id] = true; s2.recheck(); }
+    check(`map ${m + 1}: line 1 and its truck station open`, s2.active(first) && s2.active(truck) && s2.active(first + 1000));
+    const P2 = s2.state.player;
+    const t2 = s2.forest.trees.find(t => t.forest === 1 && t.state === 0);
+    Object.assign(P2, { x: t2.pos.x + 0.8, z: t2.pos.z });
+    let n = 0;
+    while (!s2.pack.count && n++ < 600) s2.tick(1 / 30, false);
+    Object.assign(P2, B2(first).inBox.middle);
+    for (let i = 0; i < 30; i++) s2.tick(1 / 30, false);
+    check(`map ${m + 1}: chopped logs go into the peeler for its income`, (s2.state.piles[first] || 0) > 0, `pile ${s2.state.piles[first]}`);
+  }
+
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });
