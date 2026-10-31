@@ -14,6 +14,14 @@ export class UI {
 
   url(name) { return `${this.base}/sprites/${encodeURIComponent(name)}.webp`; }
 
+  // Warms the browser cache with a prefab's sprites (plus `extra` names) a few seconds after start, so a panel opened
+  // later does not show empty frames while its images download.
+  prefetch(pj, prefab, extra = []) {
+    const names = new Set(extra);
+    for (const n of pj.prefabs[prefab || pj.main]) if (n.image && n.image.sprite) names.add(n.image.sprite);
+    setTimeout(() => names.forEach(s => { if (this.SPR[s]) new Image().src = this.url(s); }), 3000);
+  }
+
   t(key, ...args) {
     let s = this.LANG[key] ?? key;
     args.forEach((a, i) => { s = s.replace(`{${i}}`, a); });

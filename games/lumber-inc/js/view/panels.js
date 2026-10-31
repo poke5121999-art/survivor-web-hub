@@ -28,6 +28,7 @@ class Modal {
     for (const ev of ['pointerdown', 'mousedown', 'touchstart']) this.wrap.addEventListener(ev, e => e.stopPropagation());
     host.appendChild(this.wrap);
     addEventListener('resize', () => { if (this.isOpen) this.rebuild(); });
+    ui.prefetch(pj, prefab, [COIN, GEM]);
   }
 
   get isOpen() { return this.wrap.style.display !== 'none'; }
@@ -289,6 +290,8 @@ export class UpgradePanel extends Modal {
 export class StarPanel extends Modal {
   constructor(host, ui, panelJson, sim) {
     super(host, ui, panelJson, sim, 'UpgradeBuildingStarPanel', []);
+    const icons = sim.config.ResearchUpgradeConf.flatMap(r => (r.BuildIcon || '').split('|'));
+    ui.prefetch(panelJson, this.prefab, [...icons, 'employeepanel_ads_icon']);
   }
 
   begin(id) { this.id = id; }
