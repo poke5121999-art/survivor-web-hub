@@ -213,6 +213,43 @@ const check = (name, ok, detail) => { console.log(`  ${ok ? 'PASS' : 'FAIL'} ${n
   at({ x: 60, z: 60 }); run(181);
   check('the super worker leaves after 180 s', !sim.crew.special(100001));
 
+  // Town (D:\lumber-ref\rules\hometown.md): pad 10013 opens the build store, the site and lot 88000.
+  const T = sim.town;
+  S.level = 6; S.bought[10013] = true; sim.recheck();
+  check('area 10013 opens build store 30, the build truck house and the site', sim.active(30) && sim.active(5030) && sim.active(88100));
+  check('the first lot to build is 88000 (book 0)', T.next() && T.next().id === 88000);
+  const e0 = S.exp;
+  check('a normal build gives 3 exp and puts 5 squares in the store (guide 200)', T.startBuild(88000, false) && S.exp === e0 + 3 && sim.stock('30:in') === 5,
+    `exp +${S.exp - e0}, store ${sim.stock('30:in')}`);
+  T.truckSold(9); run(6);
+  check('a sold truck load that fits also goes to the build store, one square per 0.1 s', sim.stock('30:in') === 14, `${sim.stock('30:in')}`);
+  sim.pack.items.length = 0; sim.pack.max = 40;
+  at(B(30).outBox.middle); run(0.5);
+  check('squares come out of the build store into the pack', sim.pack.countOf(102) === 14 && sim.stock('30:in') === 0);
+  at(B(88100).buildBox.middle); run(1);
+  check('the site takes 10 squares a second from the pack', T.lot(88000).cur === 10, `${T.lot(88000).cur}`);
+  run(1);
+  T.lot(88000).cur = 100;
+  const c3 = S.coins, want3 = 50 * X.valuable();
+  check('the full site pays RewardCoinRatio x the 5 s output and 2 spin coins, x2 with the ad', T.claim(2) && S.coins === c3 + 2 * want3 && S.town.spin === 4,
+    `${want3}`);
+  check('the next lot is 88001 (book 1)', T.next() && T.next().id === 88001);
+  const inc = sim.income(1001);
+  check('a resident of house 0 (Pre_President01, MachineRevenue) adds 1.5 % to machine income', T.setResident(0, 1, false) && Math.abs(sim.income(1001) - inc * 1.015) < 1e-9, `${inc} -> ${sim.income(1001)}`);
+  check('the advanced resident gives 3 % instead', T.setResident(0, 1, true) && Math.abs(T.ratio.income - 1.03) < 1e-9);
+  check('house level 2 opens a second resident slot', !T.setResident(0, 2, false) && T.upgradeHouse(0) && T.setResident(0, 2, false) && Math.abs(T.ratio.income - 1.045) < 1e-9);
+
+  // Builder hut 10103 (WG 22): builders carry squares from store 30 to the site, one per 1.5 s.
+  check('lot 88001 starts as the next build', T.startBuild(88001, false));
+  S.coins += 100000; S.stock['30:in'] = 40;
+  at(B(10103).pad ? B(10103).pad.center : B(10103).pos); runUntil(() => sim.active(10103), 10);
+  check('the builder hut is open', sim.active(10103), sim.status(B(10103)));
+  check('a builder can be hired', sim.crew.hire(10103) || sim.crew.hired(10103) > 0);
+  at({ x: 60, z: 60 });
+  const w0 = T.lot(88001).cur;
+  run(90);
+  check('the builder brings squares from the build store to the site', T.lot(88001).cur > w0, `${w0} -> ${T.lot(88001).cur}`);
+
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });

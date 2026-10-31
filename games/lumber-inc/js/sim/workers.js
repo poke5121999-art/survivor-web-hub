@@ -95,6 +95,7 @@ export class Crew {
     w.pack.max = pick(this.packT, w.row.WorkerPackUpId, up.BackpackLv) || 4;
     w.dmg = pick(this.toolT, w.row.ToolUpId, up.ToolLv) || 34;
     w.tool = up.ToolInfoId;
+    w.buildTime = lv > 1 ? 1.2 : 1.5;
   }
 
   spawn(hut, index) {
@@ -137,6 +138,7 @@ export class Crew {
       w.chopping = false;
       if (w.kind === 'timber') this.timber(w, dt);
       else if (w.kind === 'carrier') this.carrier(w, dt);
+      else if (w.kind === 'builder') this.builder(w, dt);
     }
   }
 
@@ -145,7 +147,7 @@ export class Crew {
     const dx = to.x - w.x, dz = to.z - w.z;
     const d = Math.hypot(dx, dz);
     if (d <= near) return true;
-    const step = Math.min(d, w.speed * dt);
+    const step = Math.min(d, w.speed * this.sim.town.ratio.workers * dt); // residents' WorkerSpeed buff (H G4)
     let mx = dx / d, mz = dz / d;
     if (w.side > 0) { w.side -= dt; const s = w.sideSign; [mx, mz] = [mx * 0.3 - mz * s, mz * 0.3 + mx * s]; }
     const bx = w.x, bz = w.z;
@@ -159,6 +161,32 @@ export class Crew {
   }
 
   rest(w) { w.state = ST.REST; w.rest = REST; }
+
+  // Builder (EmpBuildCtrller, WG 22): while the site needs squares, fill the pack at build store 30, walk to the
+  // site's builder spot and hand in one square per build time (1.5 s, 1.2 s at level 2).
+  builder(w, dt) {
+    const sim = this.sim, town = sim.town;
+    const site = town.site, store = town.store;
+    if (!site || !store || !town.needsBuilders()) { if (w.state !== ST.REST) this.rest(w); w.rest -= dt; if (w.rest <= 0) this.rest(w); return; }
+    const key = town.storeKey();
+    if (!w.pack.count || (w.state === ST.WORK && !w.pack.full && sim.stock(key) > 0)) {
+      if (!this.walk(w, store.outBox.middle, dt, 1.2)) return;
+      w.state = ST.WORK;
+      w.timer -= dt;
+      if (w.timer > 0) return;
+      w.timer = OUT_TICK;
+      if (!w.pack.full && sim.stock(key) > 0) { sim.addStock(key, -1); w.pack.add(SQUARE); return; }
+      if (!w.pack.count) { this.rest(w); return; }
+    }
+    w.state = ST.SUBMIT;
+    const spot = site.empPos != null ? sim.world.pos(site.empPos) : site.buildBox.middle;
+    if (!this.walk(w, spot, dt, 0.5)) return;
+    w.building = site;
+    w.timer -= dt;
+    if (w.timer > 0) return;
+    w.timer = w.buildTime || 1.5;
+    town.builderAdd(w.pack);
+  }
 
   timber(w, dt) {
     const sim = this.sim;

@@ -7,7 +7,7 @@ import { setSlider } from './ui.js';
 // Nodes the original switches on at runtime for features this build does not have yet (resident coin, town, events,
 // phone, ad boxes, buffs...).
 const HIDE = ['residentCoin', 'tickets', 'hometown', 'sponCoin', 'PackData', 'packItem', 'SpecialOrderRoot', 'BtnEaster', 'BtnCoin',
-  'BtnPhone', 'buffRoot', 'guideTips', 'BtnBuildTips', 'btnMoto', 'MapSelectBtn', 'Pre_UIRedpoint',
+  'BtnPhone', 'buffRoot', 'guideTips', 'btnMoto', 'MapSelectBtn', 'Pre_UIRedpoint',
   'imgAdd'];
 
 export function fmt(n) {
@@ -44,6 +44,14 @@ export class Hud {
     this.max = p.get('txtMax');
     this.zoom = p.get('btnScaling');
     if (this.zoom) this.zoom.addEventListener('click', e => { e.stopPropagation(); this.onZoom && this.onZoom(); });
+    // BtnBuildTips (GamingPanel): into and out of the town view, once the construction site is open.
+    this.townBtn = p.get('BtnBuildTips');
+    if (this.townBtn) {
+      this.townBtn.classList.add('btn');
+      this.townBtn.addEventListener('click', e => { e.stopPropagation(); this.onTown && this.onTown(); });
+      const dot = this.townBtn.querySelector('[data-name="Pre_UIRedpoint (4)"]');
+      if (dot) dot.style.display = 'none';
+    }
     // Main task bar (GamingPanelMainTask): description, progress, coin reward; tap to claim when complete.
     this.task = p.get('MainTaskRoot');
     if (this.task) {
@@ -130,30 +138,36 @@ export class Hud {
     }
     this.worldTag('bike', X.riding ? S.player : null, 'icon_vehicle_moto_small', clock(X.rentLeft('bike')), 2.6);
     this.starEntry();
+    if (this.townBtn) this.townBtn.style.display = sim.town.open ? '' : 'none';
   }
 
   // FactoryResearchEntry (FactoryBuildingCtrller.EnterTriggerShow, rules/map1-extra.md 63): standing at a starred
   // machine that still has the normal look shows a button that reopens the machine choice for its current star.
   starEntry() {
     const sim = this.sim, p = sim.state.player;
-    let id = null;
-    for (const b of this.world.buildings.values()) {
-      if (b.kind === 'factory' && b.mainBox && sim.stars(b.id) > 0 && !sim.state.starAd[b.id] && b.mainBox.contains(p, 0.3)) { id = b.id; break; }
-    }
-    if (!this.entry) {
-      const el = this.entry = document.createElement('div');
+    const b = [...this.world.buildings.values()].find(f => f.kind === 'factory' && f.mainBox && sim.stars(f.id) > 0 && !sim.state.starAd[f.id]
+      && f.mainBox.contains(p, 0.3));
+    this.worldButton('starEntry', b && b.pos, 'mainpanel_starup_btn', () => this.onStarEntry && this.onStarEntry(b.id), 4);
+  }
+
+  // A clickable world-anchored sprite button over `at` (null hides it).
+  worldButton(key, at, sprite, onClick, y = 4) {
+    let el = this.padTags.get(key);
+    if (!el) {
+      el = document.createElement('div');
       el.className = 'tag btn';
-      el.style.cssText = `pointer-events:auto;width:calc(144 * var(--u));height:calc(147 * var(--u));background:url("${this.ui.url('mainpanel_starup_btn')}") center/contain no-repeat;cursor:pointer`;
+      el.style.cssText = `pointer-events:auto;width:calc(144 * var(--u));height:calc(147 * var(--u));background:url("${this.ui.url(sprite)}") center/contain no-repeat;cursor:pointer`;
       el.addEventListener('pointerdown', e => e.stopPropagation());
-      el.addEventListener('click', e => { e.stopPropagation(); if (el.dataset.id && this.onStarEntry) this.onStarEntry(+el.dataset.id); });
+      el.addEventListener('click', e => { e.stopPropagation(); if (el._fn) el._fn(); });
       this.tags.appendChild(el);
+      this.padTags.set(key, el);
     }
-    const b = id != null && this.world.buildings.get(id);
-    this.entry.style.display = b ? 'block' : 'none';
-    if (!b) return;
-    this.entry.dataset.id = id;
-    const v = (this.v || (this.v = new THREE.Vector3())).set(b.pos.x, 4, b.pos.z).project(this.camera);
-    this.entry.style.transform = `translate(${((v.x + 1) / 2) * this.host.clientWidth}px, ${((1 - v.y) / 2) * this.host.clientHeight}px) translate(-50%, -50%)`;
+    el._fn = onClick;
+    if (!at) { el.style.display = 'none'; return; }
+    const v = (this.v || (this.v = new THREE.Vector3())).set(at.x, y, at.z).project(this.camera);
+    const off = v.z > 1 || Math.abs(v.x) > 1.2 || Math.abs(v.y) > 1.2;
+    el.style.display = off ? 'none' : 'block';
+    if (!off) el.style.transform = `translate(${((v.x + 1) / 2) * this.host.clientWidth}px, ${((1 - v.y) / 2) * this.host.clientHeight}px) translate(-50%, -50%)`;
   }
 
   // A world-anchored icon + text over `at` (null hides it), height y metres.

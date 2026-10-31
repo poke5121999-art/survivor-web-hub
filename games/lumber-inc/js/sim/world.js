@@ -85,8 +85,10 @@ export function describeWorld(scene) {
         b.gasBox = volume(b.gasNode);
         b.machine = descendants(i).find(j => comp(j, 'FactoryMachine_Debarker'));
       } else if (kind === 'warehouse') {
-        Object.assign(b, { type: c.m_PropType, inNode: ref(c.m_TriggerEnter) || ref(c.m_TrsPointIn), showNode: ref(c.m_TriggerShow) });
+        Object.assign(b, { type: c.m_PropType, inNode: ref(c.m_TriggerEnter) || ref(c.m_TrsPointIn), showNode: ref(c.m_TriggerShow),
+          outNode: ref(c.m_TrsPointOut) });
         b.inBox = volume(b.inNode);
+        b.outBox = volume(b.outNode);
       } else if (kind === 'truckStation') {
         Object.assign(b, {
           type: c.m_FocusType, storeId: c.m_WareHouseBuildingId, inNode: ref(c.m_TriggerIn), showNode: ref(c.m_TriggerShow),
@@ -120,6 +122,16 @@ export function describeWorld(scene) {
       } else if (kind === 'orderMan' || kind === 'special') {
         Object.assign(b, { manNode: ref(c.m_TriggerMan), prefab: c.m_EmpPrefabName, workTypes: c.m_WorkTypes || [], workerType: c.m_WorkerType });
         b.manBox = volume(b.manNode);
+      } else if (kind === 'townHouse') {
+        // rules/hometown.md E: a lot of the town, built from its HomeTownBookConf book.
+        Object.assign(b, { book: c.m_BookId, scale: c.m_Scale, fenceNode: ref(c.m_ObjDefence), moneyNode: ref(c.m_TriggerMoney) });
+      } else if (kind === 'construction') {
+        Object.assign(b, { enterNode: ref(c.m_TriggerEnter), buildNode: ref(c.m_TriggerBuild), housePos: ref(c.m_BuildPos),
+          empPos: ref(c.m_EmpBuildPos), groundText: ref(c.m_TxtGround), objBuild: ref(c.m_ObjBuild) });
+        b.enterBox = volume(b.enterNode);
+        b.buildBox = volume(b.buildNode);
+      } else if (kind === 'buildTruck') {
+        Object.assign(b, { storeId: c.m_WareHouseBuildingId, itemIn: ref(c.m_ObjItemIn), segIn: ref(c.m_TrafficSegmentIn) });
       } else if (kind === 'playerHouse') {
         b.showNode = ref(c.m_TriggerShow);
         b.showBox = volume(b.showNode);

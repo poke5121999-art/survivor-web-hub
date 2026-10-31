@@ -5,38 +5,40 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <link rel="icon" href="../../assets/favicon.svg">
 <title>Lumber Inc</title>
-<link rel="stylesheet" href="./css/game.css?v=20261031d">
+<link rel="stylesheet" href="./css/game.css?v=20261031e">
 <script type="importmap">
 {
  "imports": {
-  "three": "./vendor/three.module.min.js?v=20261031d",
-  "./js/main.js": "./js/main.js?v=20261031d",
-  "./js/sim/buildings.js": "./js/sim/buildings.js?v=20261031d",
-  "./js/sim/extras.js": "./js/sim/extras.js?v=20261031d",
-  "./js/sim/forest.js": "./js/sim/forest.js?v=20261031d",
-  "./js/sim/guide.js": "./js/sim/guide.js?v=20261031d",
-  "./js/sim/math.js": "./js/sim/math.js?v=20261031d",
-  "./js/sim/missions.js": "./js/sim/missions.js?v=20261031d",
-  "./js/sim/move.js": "./js/sim/move.js?v=20261031d",
-  "./js/sim/pack.js": "./js/sim/pack.js?v=20261031d",
-  "./js/sim/sim.js": "./js/sim/sim.js?v=20261031d",
-  "./js/sim/workers.js": "./js/sim/workers.js?v=20261031d",
-  "./js/sim/world.js": "./js/sim/world.js?v=20261031d",
-  "./js/view/anim.js": "./js/view/anim.js?v=20261031d",
-  "./js/view/game.js": "./js/view/game.js?v=20261031d",
-  "./js/view/guide.js": "./js/view/guide.js?v=20261031d",
-  "./js/view/hud.js": "./js/view/hud.js?v=20261031d",
-  "./js/view/lowpoly.js": "./js/view/lowpoly.js?v=20261031d",
-  "./js/view/panels.js": "./js/view/panels.js?v=20261031d",
-  "./js/view/props.js": "./js/view/props.js?v=20261031d",
-  "./js/view/sound.js": "./js/view/sound.js?v=20261031d",
-  "./js/view/ui.js": "./js/view/ui.js?v=20261031d",
-  "./js/view/world.js": "./js/view/world.js?v=20261031d",
-  "./vendor/BufferGeometryUtils.js": "./vendor/BufferGeometryUtils.js?v=20261031d",
-  "./vendor/GLTFLoader.js": "./vendor/GLTFLoader.js?v=20261031d",
-  "./vendor/SkeletonUtils.js": "./vendor/SkeletonUtils.js?v=20261031d",
-  "./vendor/meshopt_decoder.js": "./vendor/meshopt_decoder.js?v=20261031d",
-  "./vendor/three.module.min.js": "./vendor/three.module.min.js?v=20261031d"
+  "three": "./vendor/three.module.min.js?v=20261031e",
+  "./js/main.js": "./js/main.js?v=20261031e",
+  "./js/sim/buildings.js": "./js/sim/buildings.js?v=20261031e",
+  "./js/sim/extras.js": "./js/sim/extras.js?v=20261031e",
+  "./js/sim/forest.js": "./js/sim/forest.js?v=20261031e",
+  "./js/sim/guide.js": "./js/sim/guide.js?v=20261031e",
+  "./js/sim/math.js": "./js/sim/math.js?v=20261031e",
+  "./js/sim/missions.js": "./js/sim/missions.js?v=20261031e",
+  "./js/sim/move.js": "./js/sim/move.js?v=20261031e",
+  "./js/sim/pack.js": "./js/sim/pack.js?v=20261031e",
+  "./js/sim/sim.js": "./js/sim/sim.js?v=20261031e",
+  "./js/sim/town.js": "./js/sim/town.js?v=20261031e",
+  "./js/sim/workers.js": "./js/sim/workers.js?v=20261031e",
+  "./js/sim/world.js": "./js/sim/world.js?v=20261031e",
+  "./js/view/anim.js": "./js/view/anim.js?v=20261031e",
+  "./js/view/game.js": "./js/view/game.js?v=20261031e",
+  "./js/view/guide.js": "./js/view/guide.js?v=20261031e",
+  "./js/view/hud.js": "./js/view/hud.js?v=20261031e",
+  "./js/view/lowpoly.js": "./js/view/lowpoly.js?v=20261031e",
+  "./js/view/panels.js": "./js/view/panels.js?v=20261031e",
+  "./js/view/props.js": "./js/view/props.js?v=20261031e",
+  "./js/view/sound.js": "./js/view/sound.js?v=20261031e",
+  "./js/view/town.js": "./js/view/town.js?v=20261031e",
+  "./js/view/ui.js": "./js/view/ui.js?v=20261031e",
+  "./js/view/world.js": "./js/view/world.js?v=20261031e",
+  "./vendor/BufferGeometryUtils.js": "./vendor/BufferGeometryUtils.js?v=20261031e",
+  "./vendor/GLTFLoader.js": "./vendor/GLTFLoader.js?v=20261031e",
+  "./vendor/SkeletonUtils.js": "./vendor/SkeletonUtils.js?v=20261031e",
+  "./vendor/meshopt_decoder.js": "./vendor/meshopt_decoder.js?v=20261031e",
+  "./vendor/three.module.min.js": "./vendor/three.module.min.js?v=20261031e"
  }
 }
 </script>
@@ -44,10 +46,10 @@
 <body>
 <div id="stage"><canvas id="game"></canvas><div id="hud"></div></div>
 <a class="hub btn" href="../../index.html">← Hub</a>
-<script src="../../js/session.js?v=20261031d"></script>
-<script src="../../js/supabase-config.js?v=20261031d"></script>
-<script src="../../js/supabase-auth.js?v=20261031d"></script>
-<script src="../../js/save-sync.js?v=20261031d"></script>
-<script type="module" src="./js/main.js?v=20261031d"></script>
+<script src="../../js/session.js?v=20261031e"></script>
+<script src="../../js/supabase-config.js?v=20261031e"></script>
+<script src="../../js/supabase-auth.js?v=20261031e"></script>
+<script src="../../js/save-sync.js?v=20261031e"></script>
+<script type="module" src="./js/main.js?v=20261031e"></script>
 </body>
 </html>

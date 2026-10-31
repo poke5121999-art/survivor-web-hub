@@ -473,3 +473,126 @@ export class SpecialPanel extends Modal {
     this.dim(this.gemBtn, this.sim.state.gems >= 10);
   }
 }
+
+// Town panels (buildhousepanel.json, rules/hometown.md E5-E8, G2). The house a lot builds, its resident and buff
+// come from HomeTownBookConf -> HouseInfoConf / ResidentInfoConf.
+const pct = v => `${+(v * 100).toFixed(1)}%`;
+function townInfo(sim, lotId) {
+  const T = sim.town, b = sim.world.buildings.get(lotId), book = T.book(b);
+  const house = T.houses.get(+book.HouseIds.split(';')[0]);
+  const res = adv => T.residentRows.get(+(adv ? book.AdvResidentId : book.NormalResidentId).split(';')[0]);
+  return { T, b, book, house, res };
+}
+
+// StartBuildChoicePanel: build the lot normally (free, 3 exp) or advanced (an ad: 5 exp, half the squares).
+export class ChoicePanel extends Modal {
+  constructor(host, ui, panelJson, sim) { super(host, ui, panelJson, sim, 'StartBuildChoicePanel', []); }
+
+  begin(id) { this.id = id; }
+
+  setup() {
+    const { p, sim, ui } = this;
+    const { T, book, house, res } = townInfo(sim, this.id);
+    const x = p.get('Button (Legacy)');
+    x.classList.add('btn');
+    x.addEventListener('click', e => { e.stopPropagation(); this.close(); });
+    const set = (path, s) => { const el = p.find(path); if (el) el.textContent = s; };
+    set('reward/coinBg/coin/Text (Legacy)', fmt(book.RewardCoinRatio * sim.extras.valuable()));
+    set('reward/gembg/coin/Text (Legacy)', `${book.RewardSpinCoin}`);
+    for (const [card, adv] of [['itemNormal', false], ['itemAdv', true]]) {
+      const r = res(adv);
+      set(`${card}/Text (Legacy)`, ui.t(adv ? 'buildAdv' : 'buildNormal'));
+      set(`${card}/content/item/Text (Legacy)`, ui.t('Build'));
+      set(`${card}/content/item/val`, ui.t(adv ? house.NameAdv : house.Name));
+      set(`${card}/content/item (1)/Text (Legacy)`, ui.t('Need materials'));
+      // The count text grows leftwards from a zero-wide box; its square icon sits just left of the digits.
+      const need = p.find(`${card}/content/item (1)/val`);
+      if (need) {
+        const img = need.querySelector('[data-name="Image"]');
+        need.textContent = '';
+        const sp = document.createElement('span');
+        sp.textContent = `${adv ? book.NeedWoodAdv : book.NeedWood}`;
+        need.appendChild(sp);
+        if (img) { need.appendChild(img); img.style.left = `${-(sp.offsetWidth + parseFloat(img.style.width) + 6)}px`; }
+      }
+      this.sprite(p.find(`${card}/iconBg/icon`), adv ? house.HouseIconAdv : house.HouseIcon);
+      const buff = p.find(`${card}/content/item (2)/Text (Legacy)`);
+      if (buff) buff.innerHTML = `${ui.t(r.BuffDesc)} <span style="color:${adv ? '#AF1CE3' : '#50A11B'}">+${pct(r.BuffVal)}</span>`;
+      set(`${card}/content/${adv ? 'itemstar' : 'itemstar (1)'}/val`, `+${adv ? book.UnlockStarAd : book.UnlockStarNormal}`);
+    }
+    const go = (name, adv) => {
+      const b = p.get(name);
+      b.classList.add('btn');
+      b.addEventListener('click', e => { e.stopPropagation(); if (T.startBuild(this.id, adv)) this.close(); });
+    };
+    go('BtnChoice', false);
+    go('Pre_BtnAd', true);
+  }
+
+  update() {}
+}
+
+// BuildHousePanel (claim): the full site pays coins and spin coins, x2 for an ad; then the tenant is chosen.
+export class ClaimPanel extends Modal {
+  constructor(host, ui, panelJson, sim) { super(host, ui, panelJson, sim, 'BuildHousePanel', ['startRoot', 'Text (Legacy)/Image (2)']); }
+
+  begin(id) { this.id = id; }
+
+  setup() {
+    const { p, sim, ui } = this;
+    const { T, book, house } = townInfo(sim, this.id);
+    const x = p.get('BtnClose');
+    x.classList.add('btn');
+    x.addEventListener('click', e => { e.stopPropagation(); this.close(); });
+    const set = (path, s) => { const el = p.find(path); if (el) el.textContent = s; };
+    const name = ui.t(T.lot(this.id).adv ? house.NameAdv : house.Name);
+    set('namebg/val', name);
+    set('namebg (1)/val', name);
+    set('reward/coinBg/coin/Text (Legacy)', fmt(T.reward()));
+    set('reward/townCoinBg/coin (1)/Text (Legacy)', `${book.RewardSpinCoin}`);
+    set('buildingRoot/Slider/Progress', '100%');
+    const bar = p.find('buildingRoot/Slider');
+    if (bar) setSlider(bar, 1);
+    this.show(p.find('buildingRoot/Text (Legacy)'), false);
+    const claim = (name, rate) => {
+      const b = p.get(name);
+      b.classList.add('btn');
+      b.addEventListener('click', e => {
+        e.stopPropagation();
+        if (T.claim(rate)) { this.close(); if (this.onClaim) this.onClaim(book.Id); }
+      });
+    };
+    claim('BtnTransport', 1);
+    claim('Pre_BtnAd', 2);
+  }
+
+  update() {}
+}
+
+// ResidentAdvPanel: the tenant for one slot of a house, the normal one or the advanced one (an ad).
+export class TenantPanel extends Modal {
+  constructor(host, ui, panelJson, sim) { super(host, ui, panelJson, sim, 'ResidentAdvPanel', ['tips', 'new']); }
+
+  begin(book, level) { this.book = book; this.level = level; }
+
+  setup() {
+    const { p, sim, ui } = this;
+    const T = sim.town, book = T.books.get(this.book);
+    for (const [card, adv] of [['item', false], ['itemAdv', true]]) {
+      const r = T.residentRows.get(+(adv ? book.AdvResidentId : book.NormalResidentId).split(';')[this.level - 1]);
+      const el = p.find(`/${card}`) || p.get(card);
+      const q = n => el.querySelector(`[data-name="${n}"]`);
+      this.sprite(q('icon'), r.Icon);
+      q('TxtName').textContent = ui.t(r.Name);
+      q('TxtQuality').textContent = ui.t(adv ? 'Resident_quality3' : 'Resident_quality1');
+      q('TxtBuff').textContent = `${ui.t(r.BuffDesc)} (+${pct(r.BuffVal)})`;
+      const sp = q('TxtBuffSpecial');
+      if (sp && r.SpecialBuffDesc) { sp.style.display = ''; sp.textContent = ui.t(r.SpecialBuffDesc); }
+      const btn = q(adv ? 'Pre_BtnAd ' : 'Pre_BtnGem');
+      btn.classList.add('btn');
+      btn.addEventListener('click', e => { e.stopPropagation(); if (T.setResident(this.book, this.level, adv)) this.close(); });
+    }
+  }
+
+  update() {}
+}

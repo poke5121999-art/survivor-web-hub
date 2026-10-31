@@ -9,7 +9,8 @@ import { GameView } from './view/game.js';
 import { UI } from './view/ui.js';
 import { Hud } from './view/hud.js';
 import { Sound } from './view/sound.js';
-import { HirePanel, UpgradePanel, StarPanel, RentPanel, OrderPanel, SpecialPanel } from './view/panels.js';
+import { HirePanel, UpgradePanel, StarPanel, RentPanel, OrderPanel, SpecialPanel, ChoicePanel, ClaimPanel, TenantPanel } from './view/panels.js';
+import { TownView } from './view/town.js';
 import { GuideView } from './view/guide.js';
 import { describeWorld } from './sim/world.js';
 import { Mover } from './sim/move.js';
@@ -71,7 +72,7 @@ async function start() {
   const uiP = Promise.all([json(`${ART}/ui/sprites.json`), json(`${ART}/ui/lang-en.json`), json(`${ART}/ui/panels/gamingpanel.json`),
     json(`${ART}/ui/panels/employeeupgradepanel.json`), json(`${ART}/ui/panels/skinpanel.json`),
     json(`${ART}/ui/panels/upgradebuildingstarpanel.json`), json(`${ART}/ui/panels/bonuspanel.json`), json(`${ART}/ui/panels/ordermanpanel.json`),
-    json(`${ART}/ui/panels/adboxpanel.json`),
+    json(`${ART}/ui/panels/adboxpanel.json`), json(`${ART}/ui/panels/buildhousepanel.json`),
     document.fonts.load('20px LumberUI').catch(() => null)]);
   const [config, worldJson, worldGlb] = await Promise.all([
     json(`${BASE}data/config.json`), json(`${ART}/world1/scene.json`), glb(`${ART}/world1/geo.glb`)]);
@@ -119,7 +120,7 @@ async function start() {
   sim.shown = shown;
 
   const sound = new Sound(`${ART}/sfx`, await json(`${ART}/sfx/sfx.json`));
-  const [sprites, lang, gaming, empPanel, skinPanel, starPanel, bonusPanel, orderPanel, adPanel] = await uiP;
+  const [sprites, lang, gaming, empPanel, skinPanel, starPanel, bonusPanel, orderPanel, adPanel, housePanel] = await uiP;
   const ui = new UI(`${ART}/ui`, sprites, lang);
   const hud = new Hud(hudEl, ui, { gamingpanel: gaming }, sim, world, camera);
   // Standing in a hut's or the cabin's trigger opens its panel (EmployeeHouseCtrller / PlayerHouseCtrller show trigger).
@@ -132,7 +133,27 @@ async function start() {
   const order = new OrderPanel(hudEl, ui, orderPanel, sim);
   const superTimber = new SpecialPanel(hudEl, ui, adPanel, sim, 'AdWorkerTimberPanel', 'TimberAdTitle');
   const superCarrier = new SpecialPanel(hudEl, ui, adPanel, sim, 'AdWorkerCarrierPanel', 'CarrierAdTitle');
-  const panels = [hire, upgrade, star, bike, drone, order, superTimber, superCarrier];
+  const choice = new ChoicePanel(hudEl, ui, housePanel, sim);
+  const claim = new ClaimPanel(hudEl, ui, housePanel, sim);
+  const tenant = new TenantPanel(hudEl, ui, housePanel, sim);
+  claim.onClaim = book => tenant.open(book, 1);
+  const panels = [hire, upgrade, star, bike, drone, order, superTimber, superCarrier, choice, claim, tenant];
+  // The town (rules/hometown.md): houses load after the game is up; BtnBuildTips switches to the town view, where a
+  // drag pans the camera instead of walking.
+  const houses = Promise.all([json(`${ART}/houses1/scene.json`), glb(`${ART}/houses1/geo.glb`)])
+    .then(([j, g]) => buildWorld(j, g, { texBase: `${ART}/tex` }));
+  const town = new TownView({ scene3, view, world, sim, hud, ui, houses });
+  town.onBuild = id => choice.open(id);
+  town.onClaim = id => claim.open(id);
+  town.onTenant = (book, level) => tenant.open(book, level);
+  let townMode = false;
+  const townAt = new THREE.Vector3();
+  hud.onTown = () => {
+    townMode = !townMode;
+    town.townMode = townMode;
+    const c = sim.town.next() || sim.town.current() || sim.town.site;
+    if (townMode && c) townAt.set(c.pos.x, 0, c.pos.z);
+  };
   // Tutorial (guide.txt): which top panel is up, and the UI nodes its UINodeFinder params name.
   const guideView = new GuideView({ scene3, arrows: buildWorld(guideJson, guideGlb, { texBase: `${ART}/tex` }), world, sim, host: hudEl, ui });
   const TOP = new Map([[hire, 'EmployeeUpgradePanel'], [upgrade, 'SkinPanel'], [star, 'UpgradeBuildingStarPanel'], [bike, 'MotoProvidePanel'],
@@ -202,14 +223,15 @@ async function start() {
     last = now;
     // An open panel holds the player: no walking, and no paying into the pad or frame underfoot.
     const focus = guideView.focus();
-    const busy = panels.some(pnl => pnl.isOpen) || !!focus;
+    const busy = panels.some(pnl => pnl.isOpen) || !!focus || townMode;
     const mv = busy ? null : input();
     if (mv) {
       mover.step(p, mv.x * sim.speed * dt, mv.z * sim.speed * dt, shown);
       p.dir = Math.atan2(mv.x, mv.z);
     }
     sim.tick(dt, !!mv || busy);
-    if (sim.events.some(e => e.type === 'status')) game.syncStatus();
+    if (sim.events.some(e => e.type === 'status')) { game.syncStatus(); town.sync(); }
+    if (sim.events.some(e => e.type === 'houseStart' || e.type === 'houseUp')) town.sync();
     LI.events && LI.events.push(...sim.events);
     sound.events(sim.events, now / 1000);
     for (const e of sim.events) {
@@ -227,9 +249,16 @@ async function start() {
     rig.update(dt);
     game.update(dt);
     guideView.update(dt, uiNode);
+    town.update();
+    // In the town view a drag steers the camera like the joystick steers the player.
+    if (townMode && joy.on) {
+      const sx = Math.max(-1, Math.min(1, joy.dx / 60)), sy = Math.max(-1, Math.min(1, -joy.dy / 60));
+      townAt.x += (right.x * sx + fwd.x * sy) * 18 * dt;
+      townAt.z += (right.y * sx + fwd.y * sy) * 18 * dt;
+    }
     // CameraFocusCommand: look at the guide target; levels 0-2 pick a zoom offset, other levels keep the current one.
-    const look = focus ? focus.pos : p;
-    const zoom = focus && focus.level >= 0 && focus.level < 3 ? focus.level : zoomIndex;
+    const look = focus ? focus.pos : townMode ? townAt : p;
+    const zoom = focus && focus.level >= 0 && focus.level < 3 ? focus.level : townMode ? 1 : zoomIndex;
     target.lerp(new THREE.Vector3(look.x, 0, look.z), 1 - Math.exp(-dt / (focus ? 0.25 : 0.15)));
     offset.lerp(OFFSETS[zoom], 1 - Math.exp(-dt / 0.15));
     camera.position.copy(target).add(offset);
@@ -238,7 +267,7 @@ async function start() {
     hud.update();
     requestAnimationFrame(frame);
   }
-  Object.assign(LI, { sim, world, game, hud, persist, hire, upgrade, star, guideView, ready: true });
+  Object.assign(LI, { sim, world, game, hud, persist, hire, upgrade, star, guideView, town, choice, claim, tenant, ready: true });
   setStage(0, 'ready');
   requestAnimationFrame(frame);
 
